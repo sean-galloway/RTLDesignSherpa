@@ -324,16 +324,34 @@ module command_scheduler_macro
         .obs_tccd_nz_o    ()
     );
 
-    refresh_ctrl u_refresh_ctrl (
-        .mc_clk              (mc_clk),
-        .mc_rst_n            (mc_rst_n),
-        .t_refi_i            (t_refi_i),
-        .refresh_burst_i     (4'd1),
-        .enable_i            (init_done),
-        .refresh_req_o       (refresh_req),
-        .refresh_grant_i     (refresh_grant),
-        .pending_refreshes_o (pending_refreshes_unused)
+    logic                       refresh_drain_active_unused;
+    logic                       refresh_kind_unused;
+    logic [$clog2(NUM_BANKS)-1:0] refresh_bank_unused;
+
+    refresh_ctrl #(
+        .NUM_BANKS (NUM_BANKS)
+    ) u_refresh_ctrl (
+        .mc_clk                  (mc_clk),
+        .mc_rst_n                (mc_rst_n),
+        .t_refi_i                (t_refi_i),
+        .refresh_burst_i         (4'd1),
+        .refpb_mode_i            (1'b0),    // REFab default; LPDDR2 driver picks REFpb
+        .enable_i                (init_done),
+        .refresh_req_o           (refresh_req),
+        .refresh_grant_i         (refresh_grant),
+        .pending_refreshes_o     (pending_refreshes_unused),
+        .refresh_drain_active_o  (refresh_drain_active_unused),
+        .refresh_kind_o          (refresh_kind_unused),
+        .refresh_bank_o          (refresh_bank_unused),
+        // obs_* — harvested for CSR in the obs_* pass
+        .obs_refi_cnt_o          (),
+        .obs_drain_remaining_o   (),
+        .obs_bank_rotor_o        (),
+        .obs_grants_total_o      ()
     );
+
+    logic pdn_kind_unused;
+    logic sref_active_unused;
 
     powerdown_ctrl #(
         .NUM_RANKS (NUM_RANKS),
@@ -346,8 +364,15 @@ module command_scheduler_macro
         .enable_sref_i    (enable_sref_i),
         .controller_idle_i(controller_idle_o),
         .pdn_req_o        (pdn_req),
+        .pdn_kind_o       (pdn_kind_unused),
         .pdn_grant_i      (pdn_grant),
-        .dfi_cke_o        (dfi_cke_o)
+        .sref_active_o    (sref_active_unused),
+        .dfi_cke_o        (dfi_cke_o),
+        // obs_* — harvested for CSR in the obs_* pass
+        .obs_state_o      (),
+        .obs_idle_cnt_o   (),
+        .obs_grants_pde_o (),
+        .obs_grants_sr_o  ()
     );
 
     mode_register #(

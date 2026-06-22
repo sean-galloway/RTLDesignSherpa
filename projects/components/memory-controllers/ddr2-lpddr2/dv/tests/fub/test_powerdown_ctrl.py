@@ -47,6 +47,12 @@ class PdnTB(TBBase):
     def cke(self) -> int:
         return int(self.dut.dfi_cke_o.value)
 
+    def kind(self) -> int:
+        return int(self.dut.pdn_kind_o.value)
+
+    def sref_active(self) -> bool:
+        return bool(int(self.dut.sref_active_o.value))
+
     async def go_idle(self):
         self.dut.controller_idle_i.value = 1
 
@@ -112,6 +118,48 @@ async def cocotb_test_powerdown_ctrl(dut):
         assert not tb.req(), "req should clear when activity arrives"
         assert tb.cke() == 1
 
+    elif test_type == "sref_entry":
+        # E: enable_sref_i takes priority over enable_pde_i. After idle
+        # threshold, pdn_kind_o should be 1 (SR). After grant, sref_active_o
+        # should be high while CKE is low.
+        tb.dut.enable_sref_i.value = 1
+        tb.dut.enable_pde_i.value  = 1
+        await tb.go_idle()
+        await tb.wait_clocks('mc_clk', 15)
+        assert tb.req(), "req should rise after idle threshold"
+        assert tb.kind() == 1, f"SR should have priority, got kind={tb.kind()}"
+        await tb.grant()
+        await tb.wait_clocks('mc_clk', 2)
+        assert tb.cke() == 0, "CKE should drop after grant"
+        assert tb.sref_active(), "sref_active should be high in SR"
+        # Activity → wake
+        await tb.go_active()
+        await tb.wait_clocks('mc_clk', 2)
+        assert tb.cke() == 1
+        assert not tb.sref_active()
+
+    elif test_type == "pde_only_when_sref_off":
+        # E: enable_sref_i low + enable_pde_i high → PDE path (kind=0).
+        tb.dut.enable_sref_i.value = 0
+        tb.dut.enable_pde_i.value  = 1
+        await tb.go_idle()
+        await tb.wait_clocks('mc_clk', 15)
+        assert tb.req()
+        assert tb.kind() == 0, f"PDE expected when sref disabled, got {tb.kind()}"
+        await tb.grant()
+        await tb.wait_clocks('mc_clk', 2)
+        assert tb.cke() == 0
+        assert not tb.sref_active(), "sref_active should stay low in PDE path"
+
+    elif test_type == "sref_alone":
+        # E: enable_sref_i high, enable_pde_i low → SR should still work.
+        tb.dut.enable_sref_i.value = 1
+        tb.dut.enable_pde_i.value  = 0
+        await tb.go_idle()
+        await tb.wait_clocks('mc_clk', 15)
+        assert tb.req(), "SR-only path should still arm + request"
+        assert tb.kind() == 1
+
     elif test_type == "random_soak":
         rng = random.Random(int(os.environ.get('SEED', '12345')))
         test_level = os.environ.get("TEST_LEVEL", "FUNC").upper()
@@ -139,7 +187,9 @@ async def cocotb_test_powerdown_ctrl(dut):
 
 
 _GATE = [("smoke",), ("early_wake",)]
-_FUNC = _GATE + [("disable_pde",), ("req_then_active",), ("random_soak",)]
+_FUNC = _GATE + [("disable_pde",), ("req_then_active",),
+                 ("sref_entry",), ("pde_only_when_sref_off",),
+                 ("sref_alone",), ("random_soak",)]
 _FULL = _FUNC
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()

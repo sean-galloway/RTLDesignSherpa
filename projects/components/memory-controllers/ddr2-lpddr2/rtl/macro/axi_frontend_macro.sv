@@ -381,7 +381,9 @@ module axi_frontend_macro
         .busy_o                     (dbg_intake_busy_o),
         // obs_* — harvested for CSR in the obs_* pass
         .obs_wr_completions_o       (),
-        .obs_rd_completions_o       ()
+        .obs_rd_completions_o       (),
+        .obs_aw_meta_writes_o       (),
+        .obs_ar_meta_writes_o       ()
     );
 
     //=========================================================================

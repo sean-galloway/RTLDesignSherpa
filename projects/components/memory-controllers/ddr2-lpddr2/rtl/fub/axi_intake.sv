@@ -211,7 +211,9 @@ module axi_intake
 
     // ----- observability -----
     output logic [15:0]          obs_wr_completions_o,
-    output logic [15:0]          obs_rd_completions_o
+    output logic [15:0]          obs_rd_completions_o,
+    output logic [15:0]          obs_aw_meta_writes_o,
+    output logic [15:0]          obs_ar_meta_writes_o
 );
 
     //=========================================================================
@@ -558,6 +560,74 @@ module axi_intake
     assign w_ar_pend_rd_ready = ar_push_valid_o && ar_push_ready_i;
 
     //=========================================================================
+    // F2: AXI metadata side-table, keyed by AXI ID.
+    //
+    // Captures AW/AR metadata (awuser/awprot/awcache/awqos/awregion/awsize/
+    // awburst, mirror for AR) on the host-side handshake. At completion
+    // (wr_entry_complete / R-emit), look up by ID to echo the user field
+    // back on B / R per the AXI4 contract that BUSER mirrors AWUSER, RUSER
+    // mirrors ARUSER. The non-user fields are captured for future
+    // pass-through downstream (CSR audit, QoS-aware scheduling) and harvested
+    // through obs_*.
+    //
+    // Storage cost: 2 * 2**IW entries — for IW=4 (16 IDs) that's 32 rows
+    // of ~UW+16 bits each.
+    //=========================================================================
+    localparam int ID_TAB_DEPTH = 1 << IW;
+
+    typedef struct packed {
+        logic [UW-1:0] user;
+        logic [3:0]    cache;
+        logic [2:0]    prot;
+        logic [3:0]    qos;
+        logic [3:0]    region;
+        logic [2:0]    size;
+        logic [1:0]    burst;
+    } axi_meta_t;
+
+    axi_meta_t r_aw_meta_tab [0:ID_TAB_DEPTH-1];
+    axi_meta_t r_ar_meta_tab [0:ID_TAB_DEPTH-1];
+
+    logic w_aw_meta_hs;
+    logic w_ar_meta_hs;
+    assign w_aw_meta_hs = fub_axi_awvalid && fub_axi_awready;
+    assign w_ar_meta_hs = fub_axi_arvalid && fub_axi_arready;
+
+    logic [15:0] r_aw_meta_writes;
+    logic [15:0] r_ar_meta_writes;
+
+    `ALWAYS_FF_RST(aclk, aresetn, begin
+        if (`RST_ASSERTED(aresetn)) begin
+            r_aw_meta_writes <= 16'd0;
+            r_ar_meta_writes <= 16'd0;
+        end else begin
+            if (w_aw_meta_hs) begin
+                r_aw_meta_tab[fub_axi_awid].user   <= fub_axi_awuser;
+                r_aw_meta_tab[fub_axi_awid].cache  <= fub_axi_awcache;
+                r_aw_meta_tab[fub_axi_awid].prot   <= fub_axi_awprot;
+                r_aw_meta_tab[fub_axi_awid].qos    <= fub_axi_awqos;
+                r_aw_meta_tab[fub_axi_awid].region <= fub_axi_awregion;
+                r_aw_meta_tab[fub_axi_awid].size   <= fub_axi_awsize;
+                r_aw_meta_tab[fub_axi_awid].burst  <= fub_axi_awburst;
+                r_aw_meta_writes <= r_aw_meta_writes + 16'd1;
+            end
+            if (w_ar_meta_hs) begin
+                r_ar_meta_tab[fub_axi_arid].user   <= fub_axi_aruser;
+                r_ar_meta_tab[fub_axi_arid].cache  <= fub_axi_arcache;
+                r_ar_meta_tab[fub_axi_arid].prot   <= fub_axi_arprot;
+                r_ar_meta_tab[fub_axi_arid].qos    <= fub_axi_arqos;
+                r_ar_meta_tab[fub_axi_arid].region <= fub_axi_arregion;
+                r_ar_meta_tab[fub_axi_arid].size   <= fub_axi_arsize;
+                r_ar_meta_tab[fub_axi_arid].burst  <= fub_axi_arburst;
+                r_ar_meta_writes <= r_ar_meta_writes + 16'd1;
+            end
+        end
+    end)
+
+    assign obs_aw_meta_writes_o = r_aw_meta_writes;
+    assign obs_ar_meta_writes_o = r_ar_meta_writes;
+
+    //=========================================================================
     // B response FIFO — pushed on wr_entry_complete_strb, drained on B
     // handshake. We drive fub_axi_b* into axi4_slave_wr's skid buffer; it
     // emits s_axi_b* to the host.
@@ -577,7 +647,8 @@ module axi_intake
 
     assign w_b_din.id   = wr_entry_complete_id_i;
     assign w_b_din.resp = 2'b00;            // RESP_OKAY
-    assign w_b_din.user = '0;
+    // BUSER mirrors AWUSER captured at host-side AW handshake (F2 side-table).
+    assign w_b_din.user = r_aw_meta_tab[wr_entry_complete_id_i].user;
     assign w_b_wr_valid = wr_entry_complete_strb_i;
 
     gaxi_fifo_sync #(
@@ -660,12 +731,15 @@ module axi_intake
             fub_axi_rdata  = r_w_buf[r_r_fwd_ptr];
             fub_axi_rresp  = 2'b00;
             fub_axi_rlast  = (r_r_fwd_remaining == BLW'(1));
+            // RUSER mirrors ARUSER captured at host-side AR handshake.
+            fub_axi_ruser  = r_ar_meta_tab[r_r_fwd_id].user;
         end else if (rd_inject_valid_i) begin
             fub_axi_rvalid = rd_inject_valid_i;
             fub_axi_rid    = rd_inject_id_i;
             fub_axi_rdata  = rd_inject_data_i;
             fub_axi_rresp  = 2'b00;
             fub_axi_rlast  = rd_inject_last_i;
+            fub_axi_ruser  = r_ar_meta_tab[rd_inject_id_i].user;
         end
     end
 
@@ -685,15 +759,13 @@ module axi_intake
     // Unused signals — present in AXI4 ports for full-compliance interface
     // but not yet consumed in v1 (lock/cache/prot/qos/region/size/burst).
     //=========================================================================
-    wire unused_axi = |{ fub_axi_awsize, fub_axi_awburst, fub_axi_awlock,
-                         fub_axi_awcache, fub_axi_awprot, fub_axi_awqos,
-                         fub_axi_awregion, fub_axi_awuser,
+    // F2 captures awsize/awburst/awcache/awprot/awqos/awregion/awuser and the
+    // AR equivalents into the side-table. Only lock + wuser remain truly
+    // dropped (LOCK is exclusive-access — not supported in v1; WUSER has no
+    // standard echo path).
+    wire unused_axi = |{ fub_axi_awlock,
                          fub_axi_wuser,
-                         fub_axi_arsize, fub_axi_arburst, fub_axi_arlock,
-                         fub_axi_arcache, fub_axi_arprot, fub_axi_arqos,
-                         fub_axi_arregion, fub_axi_aruser,
-                         // rd_entry_complete_strb_i / _id_i consumed by
-                         // r_rd_completions_o below — no longer unused.
+                         fub_axi_arlock,
                          1'b0 };
 
     //=========================================================================

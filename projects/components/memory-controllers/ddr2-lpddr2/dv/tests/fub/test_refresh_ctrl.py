@@ -29,9 +29,11 @@ from tbclasses.trackers import RefreshTracker  # noqa: E402
 class RefTB(TBBase):
     CLK = 10
 
-    async def setup(self, t_refi: int = 10):
+    async def setup(self, t_refi: int = 10, refresh_burst: int = 1,
+                    refpb_mode: int = 0):
         self.dut.t_refi_i.value         = t_refi
-        self.dut.refresh_burst_i.value  = 1
+        self.dut.refresh_burst_i.value  = refresh_burst
+        self.dut.refpb_mode_i.value     = refpb_mode
         self.dut.enable_i.value         = 0
         self.dut.refresh_grant_i.value  = 0
         await self.start_clock('mc_clk', freq=self.CLK, units='ns')
@@ -54,6 +56,15 @@ class RefTB(TBBase):
 
     def pending(self) -> int:
         return int(self.dut.pending_refreshes_o.value)
+
+    def drain_active(self) -> bool:
+        return bool(int(self.dut.refresh_drain_active_o.value))
+
+    def refresh_bank(self) -> int:
+        return int(self.dut.refresh_bank_o.value)
+
+    def refresh_kind(self) -> int:
+        return int(self.dut.refresh_kind_o.value)
 
 
 @cocotb.test(timeout_time=10, timeout_unit="ms")
@@ -121,6 +132,68 @@ async def cocotb_test_refresh_ctrl(dut):
         # Just check pending dropped from initial
         assert tb.pending() < initial
 
+    elif test_type == "drain_burst":
+        # D: drain mode — drain_active should be high whenever there are
+        # pending refreshes AND a burst quota is loaded. It stays high
+        # across consecutive bursts (scheduler keeps granting REF), and
+        # only drops when the full pending pool is exhausted.
+        await tb.setup(t_refi=8, refresh_burst=4)
+        await tb.enable()
+        # Accumulate exactly enough pending for one burst.
+        await tb.wait_clocks('mc_clk', 80)
+        # Stop tREFI from re-arming so we can fully drain.
+        tb.dut.enable_i.value = 0
+        await tb.wait_clocks('mc_clk', 2)
+        initial = tb.pending()
+        assert initial >= 4, f"expected >=4 pending, got {initial}"
+        assert tb.drain_active(), \
+            "drain should be active while quota loaded + pending>0"
+        # Grant `initial` times — drain stays high until last grant.
+        for i in range(initial - 1):
+            await tb.grant_one()
+            await tb.wait_clocks('mc_clk', 2)
+            assert tb.drain_active(), \
+                f"drain should stay high while pending>0 (i={i}, " \
+                f"pending={tb.pending()})"
+        # Final grant — pending hits 0, drain drops.
+        await tb.grant_one()
+        await tb.wait_clocks('mc_clk', 3)
+        assert not tb.drain_active(), \
+            f"drain should clear after all pending drained " \
+            f"(pending={tb.pending()})"
+
+    elif test_type == "refpb_rotor":
+        # D: REFpb mode — bank rotor walks 0..7 across grants.
+        await tb.setup(t_refi=5, refpb_mode=1)
+        await tb.enable()
+        await tb.wait_clocks('mc_clk', 80)  # accumulate plenty
+        assert tb.refresh_kind() == 1, "REFpb kind should be 1"
+        banks_seen = []
+        for _ in range(8):
+            # If pending hits zero, accumulate more
+            if tb.pending() == 0:
+                await tb.wait_clocks('mc_clk', 20)
+            banks_seen.append(tb.refresh_bank())
+            await tb.grant_one()
+            await tb.wait_clocks('mc_clk', 2)
+        # Expect 0,1,2,3,4,5,6,7 (in order) across 8 grants.
+        assert banks_seen == list(range(8)), \
+            f"REFpb rotor sequence wrong: {banks_seen}"
+
+    elif test_type == "refab_no_rotation":
+        # D: REFab mode — bank stays at 0 across grants.
+        await tb.setup(t_refi=5, refpb_mode=0)
+        await tb.enable()
+        await tb.wait_clocks('mc_clk', 80)
+        assert tb.refresh_kind() == 0, "REFab kind should be 0"
+        for _ in range(4):
+            if tb.pending() == 0:
+                await tb.wait_clocks('mc_clk', 20)
+            assert tb.refresh_bank() == 0, \
+                f"REFab bank should stay 0, got {tb.refresh_bank()}"
+            await tb.grant_one()
+            await tb.wait_clocks('mc_clk', 2)
+
     elif test_type == "random_soak":
         rng = random.Random(int(os.environ.get('SEED', '12345')))
         test_level = os.environ.get("TEST_LEVEL", "FUNC").upper()
@@ -147,6 +220,7 @@ async def cocotb_test_refresh_ctrl(dut):
 
 _GATE = [("smoke",), ("grant_decrements",)]
 _FUNC = _GATE + [("multiple_pending",), ("saturating",), ("drain",),
+                 ("drain_burst",), ("refpb_rotor",), ("refab_no_rotation",),
                  ("random_soak",)]
 _FULL = _FUNC
 
