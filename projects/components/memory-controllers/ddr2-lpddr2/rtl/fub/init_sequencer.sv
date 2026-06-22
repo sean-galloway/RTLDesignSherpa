@@ -17,12 +17,17 @@
 //          init_busy_o = 1 during steps 1..3; the scheduler uses this
 //          to gate all normal-traffic commands.
 //
-// v1 (TODO):
-//   * Real MR data values are hard-coded placeholders here. A future
-//     CSR/APB front-end should program the desired MR values into
-//     scratch regs and have init_sequencer read them.
-//   * LPDDR2 init differs significantly (MR loads via CA bus,
-//     ZQ Init instead of ZQCL). v1 only handles DDR2 init flow.
+// v2 status:
+//   * Both DDR2 and LPDDR2 default MR values are now hard-coded (see
+//     LPDDR2_MR1/2/3 below). The FSM walks the same MR2 → MR3 → MR1 →
+//     MR0 order for both memtypes — for LPDDR2 the JEDEC-correct order
+//     is MR63 (Reset) → MR10 (ZQ Init) → MR1 → MR2 → MR3, which is v3
+//     work along with the tINIT3/tINIT5 wait counters.
+//
+// v3 TODO:
+//   * Real MR data values should come from CSR scratch regs so software
+//     can override per board. Lands with the APB CSR slave.
+//   * LPDDR2-accurate init order + per-step tINIT timing.
 
 `timescale 1ns / 1ps
 
@@ -88,6 +93,16 @@ module init_sequencer
     localparam logic [15:0] DDR2_MR2_DEFAULT = 16'h0000;
     localparam logic [15:0] DDR2_MR3_DEFAULT = 16'h0000;
 
+    //=========================================================================
+    // Default MR values for LPDDR2 (placeholder programming per JESD209-2):
+    //   MR1: [2:0]=BL(010=4), [3]=BT(0=sequential), [6:5]=WC, [7]=nWR
+    //   MR2: [3:0]=RL+WL combined code; 0x4 ≈ RL3/WL1 (basic)
+    //   MR3: [3:0]=DS (drive strength); 0x1 = 34.3Ω nominal
+    //=========================================================================
+    localparam logic [15:0] LPDDR2_MR1_DEFAULT = 16'h0082;   // BL4, nWR=3
+    localparam logic [15:0] LPDDR2_MR2_DEFAULT = 16'h0004;   // RL3/WL1
+    localparam logic [15:0] LPDDR2_MR3_DEFAULT = 16'h0001;   // DS=34Ω
+
     `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
         if (`RST_ASSERTED(mc_rst_n)) begin
             r_state <= S_RESET;
@@ -122,23 +137,24 @@ module init_sequencer
                 w_mr_seq_we    = 1'b1;
                 w_mr_seq_index = 5'd2;
                 w_mr_seq_data  = (memtype_i == MEMTYPE_DDR2)
-                               ? DDR2_MR2_DEFAULT : 16'd0;
+                               ? DDR2_MR2_DEFAULT : LPDDR2_MR2_DEFAULT;
             end
             S_MR_MR3: begin
                 w_mr_seq_we    = 1'b1;
                 w_mr_seq_index = 5'd3;
                 w_mr_seq_data  = (memtype_i == MEMTYPE_DDR2)
-                               ? DDR2_MR3_DEFAULT : 16'd0;
+                               ? DDR2_MR3_DEFAULT : LPDDR2_MR3_DEFAULT;
             end
             S_MR_MR1: begin
                 w_mr_seq_we    = 1'b1;
                 w_mr_seq_index = 5'd1;
                 w_mr_seq_data  = (memtype_i == MEMTYPE_DDR2)
-                               ? DDR2_MR1_DEFAULT : 16'd0;
+                               ? DDR2_MR1_DEFAULT : LPDDR2_MR1_DEFAULT;
             end
             S_MR_MR0: begin
                 w_mr_seq_we    = 1'b1;
                 w_mr_seq_index = 5'd0;
+                // LPDDR2 MR0 is read-only; write 0.
                 w_mr_seq_data  = (memtype_i == MEMTYPE_DDR2)
                                ? DDR2_MR0_DEFAULT : 16'd0;
             end

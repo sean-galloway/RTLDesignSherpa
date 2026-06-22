@@ -135,10 +135,19 @@ async def cocotb_test_init_sequencer(dut):
         await tb.wait_clocks('mc_clk', 1)
         assert tb.init_start() == 1
         tb.dut.dfi_init_complete_i.value = 1
-        # LPDDR2 MR data is zero (TODO for real LPDDR2 init)
+        # LPDDR2 v2 defaults — see init_sequencer.sv LPDDR2_MR{1,2,3}_DEFAULT.
+        # MR0 is read-only in LPDDR2, so the sequencer writes 0 there.
+        expected_lpddr2 = {
+            0: 0x0000,
+            1: 0x0082,   # BL4, nWR=3
+            2: 0x0004,   # RL3/WL1
+            3: 0x0001,   # DS=34Ω
+        }
         seen = await tb.capture_mr_seq(max_cycles=10)
         for idx, data in seen:
-            assert data == 0, f"LPDDR2 MR{idx} should be 0 (TODO)"
+            assert data == expected_lpddr2.get(idx, 0), (
+                f"LPDDR2 MR{idx} got {data:#x} want {expected_lpddr2.get(idx, 0):#x}"
+            )
         tb.dut.zqcl_grant_i.value = 1
         await tb.wait_clocks('mc_clk', 5)
         assert tb.init_done() == 1

@@ -32,12 +32,24 @@
 //          AXI wstrb=1 means "write this byte". DFI mask=1 means
 //          "MASK this byte (don't write)". So dfi_wrdata_mask = ~wstrb.
 //
-// v2 / v3 TODO:
-//   * (streaming pre-pull) PULL still starts at op-acceptance time. For
-//     bursts where len > t_phy_wrlat, the DRIVE start will be delayed
-//     until PULL completes — wait_cnt is gated on r_op_pull_done. A
-//     future revision monitors wr_cmd_cam snapshots and pre-pulls before
-//     the WR command is issued.
+// v2.1 streaming:
+//          DRIVE is no longer gated on the entire burst being pulled
+//          (was r_op_pull_done). Instead each DFI cycle only needs
+//          DFI_RATE beats buffered. Drive runs as soon as the current
+//          cycle has enough data — pull continues in parallel.
+//
+//          Constraint: pull rate is 1 beat/cycle while drive consumes
+//          DFI_RATE beats/cycle, so drive will outrun pull for bursts
+//          where len > t_phy_wrlat * DFI_RATE. For those cases, the
+//          scheduler must enforce t_phy_wrlat >= ceil(len/DFI_RATE), or
+//          the wbuf_ext_rd interface must be widened to deliver
+//          DFI_RATE beats/cycle in a future revision.
+//
+// v3 TODO:
+//   * (true pre-pull) Currently PULL still starts at op-acceptance time.
+//     A future revision monitors wr_cmd_cam snapshots and pre-pulls
+//     beats before the WR command issues — eliminating the underrun
+//     constraint above entirely.
 //   * (back-to-back DRIVE) v2 assumes the scheduler respects tCCD so
 //     two ops' DRIVE windows don't overlap. If they would, the second
 //     op's DRIVE waits until the first finishes, which violates the
@@ -177,19 +189,42 @@ module wr_beat_sequencer
     logic [MCL-1:0] w_drive_op;
     assign w_drive_op = r_drive_fifo[0];
 
-    logic w_drive_active;
-    assign w_drive_active = (r_drive_fifo_count > '0)
-                         && r_op_valid[w_drive_op]
-                         && r_op_pull_done[w_drive_op]
-                         && (r_op_wait_cnt[w_drive_op] == 8'd0)
-                         && r_op_drive_started[w_drive_op];
-
     //=========================================================================
     // Pre-compute DFI cycles needed for the driving op's burst.
     //=========================================================================
     logic [BLW:0] w_dfi_cycles_total;
     assign w_dfi_cycles_total =
         ({1'b0, r_op_len[w_drive_op]} + (BLW+1)'(DFI_RATE - 1)) >> RATE_LOG2;
+
+    // Streaming DRIVE gate (v2.1): drive can start as soon as the
+    // current DFI cycle has DFI_RATE beats buffered, instead of waiting
+    // for the entire burst to be pulled. The driving op's current cycle
+    // needs beats [dfi_cycle_cnt*DFI_RATE .. (dfi_cycle_cnt+1)*DFI_RATE-1]
+    // — that's (dfi_cycle_cnt+1)*DFI_RATE beats total pulled so far.
+    // For the last (potentially partial) DFI cycle, require beats_pulled
+    // >= r_op_len (== pull_done) since the last cycle may use fewer than
+    // DFI_RATE beats.
+    //
+    // Important constraint: for bursts where len > t_phy_wrlat*DFI_RATE,
+    // pull will lag drive (pull is 1 beat/cycle, drive consumes DFI_RATE
+    // beats/cycle). To avoid underrun, the scheduler must ensure
+    // t_phy_wrlat >= ceil(len/DFI_RATE), or a future revision widens
+    // wbuf_ext_rd to DFI_RATE beats/cycle.
+    logic [BLW:0] w_beats_needed_for_cur_cycle;
+    assign w_beats_needed_for_cur_cycle =
+        ({1'b0, r_op_dfi_cycle_cnt[w_drive_op]} + (BLW+1)'(1)) << RATE_LOG2;
+
+    logic w_enough_buffered;
+    assign w_enough_buffered =
+        r_op_pull_done[w_drive_op] ||
+        ({1'b0, r_op_beats_pulled[w_drive_op]} >= w_beats_needed_for_cur_cycle);
+
+    logic w_drive_active;
+    assign w_drive_active = (r_drive_fifo_count > '0)
+                         && r_op_valid[w_drive_op]
+                         && w_enough_buffered
+                         && (r_op_wait_cnt[w_drive_op] == 8'd0)
+                         && r_op_drive_started[w_drive_op];
 
     logic w_drive_last_cycle;
     assign w_drive_last_cycle = w_drive_active

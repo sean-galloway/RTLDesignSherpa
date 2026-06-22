@@ -11,11 +11,19 @@
 //          On grant, drive `dfi_cke_o` low. As soon as
 //          `controller_idle_i` drops again, drive CKE high to wake.
 //
-// v1 (TODO):
+// v2 status (LPDDR2 enable framework):
+//   * Adds `enable_dpd_i` parameter as a placeholder for LPDDR2 Deep
+//     Power Down. The actual DPD entry sequence (which involves driving
+//     CKE low along with a specific MR write per JESD209-2 §5.5) is a
+//     v3 task once the CSR slave provides per-rank programming.
+//
+// v3 TODO:
 //   * Self-refresh entry (`enable_sref_i`) — requires PRE-ALL first
-//     and a separate state. v1 only supports CKE-low PDE.
-//   * Per-rank powerdown — v1 powers down ALL ranks together.
-//   * `dfi_init_complete` interlock — v1 just trusts the scheduler
+//     and an S_SR state. Today only CKE-low PDE is implemented.
+//   * Deep Power Down entry (`enable_dpd_i`, LPDDR2 only) — needs
+//     `dfi_dram_clk_disable_o` cooperation from dfi_signal_pack.
+//   * Per-rank powerdown — currently powers down ALL ranks together.
+//   * `dfi_init_complete` interlock — currently trusts the scheduler
 //     to not grant before init completes.
 
 `timescale 1ns / 1ps
@@ -33,7 +41,7 @@ module powerdown_ctrl
 
     input  logic [15:0]          idle_threshold_i,    // cycles
     input  logic                 enable_pde_i,
-    input  logic                 enable_sref_i,       // v1: ignored (TODO)
+    input  logic                 enable_sref_i,       // v2 framework: ignored
 
     input  logic                 controller_idle_i,   // from scheduler
 

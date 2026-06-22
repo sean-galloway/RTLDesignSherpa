@@ -250,10 +250,15 @@ class DfiCmdFormatterTB(TBBase):
                                           self.DFI_ADDR_WIDTH,
                                           self.DFI_BANK_WIDTH,
                                           self.DFI_CS_WIDTH)
+            self._check_phase(0, expected_p0)
+        elif valid and memtype == MEMTYPE_LPDDR2:
+            # LPDDR2 skeleton: cs_n active for the targeted rank, but
+            # ras/cas/we hold idle (LPDDR2 has no parallel strobes).
+            # CA encoding is in dfi_address — not bit-exact to JESD209-2
+            # yet (v3 TODO). Only verify the framework switched.
+            self._check_phase_lpddr2_active(0, rank)
         else:
-            expected_p0 = PhaseDecoded.nop(self.DFI_CS_WIDTH)
-
-        self._check_phase(0, expected_p0)
+            self._check_phase(0, PhaseDecoded.nop(self.DFI_CS_WIDTH))
         for p in range(1, self.DFI_RATE):
             self._check_phase(p, PhaseDecoded.nop(self.DFI_CS_WIDTH))
 
@@ -287,6 +292,30 @@ class DfiCmdFormatterTB(TBBase):
         )
         assert odt == expected.odt, (
             f"phase {phase}: dfi_odt got {odt:#x} want {expected.odt:#x}"
+        )
+
+    def _check_phase_lpddr2_active(self, phase: int, rank: int) -> None:
+        """LPDDR2 framework check: cs_n is active for the targeted rank,
+        and ras/cas/we hold idle (1). CA encoding bit-pattern is not yet
+        verified — JESD209-2 spec compliance is v3 work."""
+        cas = self._slice(self.dut.dfi_cas_n_o, phase, self.DFI_CTRL_WIDTH)
+        ras = self._slice(self.dut.dfi_ras_n_o, phase, self.DFI_CTRL_WIDTH)
+        we  = self._slice(self.dut.dfi_we_n_o,  phase, self.DFI_CTRL_WIDTH)
+        csn = self._slice(self.dut.dfi_cs_n_o,  phase, self.DFI_CS_WIDTH)
+
+        cs_mask = ((1 << self.DFI_CS_WIDTH) - 1) & ~(1 << rank)
+        assert csn == cs_mask, (
+            f"phase {phase}: LPDDR2 cs_n got {csn:#x} want {cs_mask:#x} "
+            f"(rank {rank} active)"
+        )
+        assert ras == ((1 << self.DFI_CTRL_WIDTH) - 1), (
+            f"phase {phase}: LPDDR2 ras_n must hold idle, got {ras}"
+        )
+        assert cas == ((1 << self.DFI_CTRL_WIDTH) - 1), (
+            f"phase {phase}: LPDDR2 cas_n must hold idle, got {cas}"
+        )
+        assert we == ((1 << self.DFI_CTRL_WIDTH) - 1), (
+            f"phase {phase}: LPDDR2 we_n must hold idle, got {we}"
         )
 
     @staticmethod

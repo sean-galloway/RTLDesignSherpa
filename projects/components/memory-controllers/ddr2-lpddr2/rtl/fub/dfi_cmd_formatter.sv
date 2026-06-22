@@ -213,10 +213,74 @@ module dfi_cmd_formatter
                     // sequencer; drive NOP here.
                 end
             endcase
+        end else if (cmd_valid_i && memtype_i == MEMTYPE_LPDDR2) begin
+            // LPDDR2 encoding (JESD209-2). CA bus is 10 bits, with each
+            // command spanning 2 clock edges → 20 bits total. The LPDDR2
+            // PHY does NOT use ras_n / cas_n / we_n; those stay idle (1).
+            // We pack the first-edge bits in dfi_address[9:0] and the
+            // second-edge bits in dfi_address[19:10]. cs_n must still be
+            // active for the targeted rank.
+            //
+            // SKELETON: this encodes the dominant CA bits per op (cmd
+            // class + bank + truncated row/col) so the framework is in
+            // place and tests can exercise memtype branching. Bit-exact
+            // JESD209-2 compliance — Table 35 + Table 36 — is a v3 TODO.
+            w_p0_cs_n  = w_active_rank_mask;
+            w_p0_ras_n = '1;   // LPDDR2 holds ras/cas/we idle
+            w_p0_cas_n = '1;
+            w_p0_we_n  = '1;
+            w_p0_bank  = DFI_BANK_WIDTH'(cmd_bank_i);
+
+            unique case (cmd_op_i)
+                OP_NOP: w_p0_addr = '0;   // NOP encoding
+                OP_ACT:
+                    // ACT: CA[1:0] = 00, bank+row across both edges
+                    w_p0_addr = (DFI_ADDR_WIDTH'(cmd_bank_i) << 4)
+                              | (DFI_ADDR_WIDTH'(cmd_row_i)  << 10);
+                OP_RD:
+                    // RD:  CA[2:0] = 011, col across edges; A10/AP = 0
+                    w_p0_addr = DFI_ADDR_WIDTH'(3'b011)
+                              | (DFI_ADDR_WIDTH'(cmd_bank_i) << 4)
+                              | (DFI_ADDR_WIDTH'(cmd_col_i)  << 10);
+                OP_RDA:
+                    w_p0_addr = DFI_ADDR_WIDTH'(3'b011)
+                              | (DFI_ADDR_WIDTH'(cmd_bank_i) << 4)
+                              | (DFI_ADDR_WIDTH'(cmd_col_i)  << 10)
+                              | (DFI_ADDR_WIDTH'(1)          << 19); // AP
+                OP_WR:
+                    // WR:  CA[2:0] = 010
+                    w_p0_addr = DFI_ADDR_WIDTH'(3'b010)
+                              | (DFI_ADDR_WIDTH'(cmd_bank_i) << 4)
+                              | (DFI_ADDR_WIDTH'(cmd_col_i)  << 10);
+                OP_WRA:
+                    w_p0_addr = DFI_ADDR_WIDTH'(3'b010)
+                              | (DFI_ADDR_WIDTH'(cmd_bank_i) << 4)
+                              | (DFI_ADDR_WIDTH'(cmd_col_i)  << 10)
+                              | (DFI_ADDR_WIDTH'(1)          << 19); // AP
+                OP_PRE:
+                    // PRE: CA[3:0] = 1011, AB=0 (single bank)
+                    w_p0_addr = DFI_ADDR_WIDTH'(4'b1011)
+                              | (DFI_ADDR_WIDTH'(cmd_bank_i) << 4);
+                OP_PREA:
+                    // PRE-all: AB=1
+                    w_p0_addr = DFI_ADDR_WIDTH'(4'b1011)
+                              | (DFI_ADDR_WIDTH'(1) << 9);
+                OP_REF:
+                    // REFab: CA[3:0] = 1011 (with AB context); v3 should
+                    // split out OP_REFPB → CA[3:0] = 1001 for per-bank.
+                    w_p0_addr = DFI_ADDR_WIDTH'(4'b1011);
+                OP_REFPB:
+                    w_p0_addr = DFI_ADDR_WIDTH'(4'b1001)
+                              | (DFI_ADDR_WIDTH'(cmd_bank_i) << 4);
+                OP_MRS:
+                    // MRW: CA[1:0]=10, then MR index in [9:2], data in
+                    // second edge [17:10]. cmd_bank=MR index, cmd_col=data.
+                    w_p0_addr = DFI_ADDR_WIDTH'(2'b10)
+                              | (DFI_ADDR_WIDTH'(cmd_bank_i) << 2)
+                              | (DFI_ADDR_WIDTH'(cmd_col_i)  << 10);
+                default: w_p0_addr = '0;
+            endcase
         end
-        // (TODO LPDDR2): memtype_i == MEMTYPE_LPDDR2 — encode the
-        //   command into the 20-bit CA bus on dfi_address; hold RAS/CAS/WE
-        //   idle. For now phase 0 stays all-deselected NOP.
     end
 
     //=========================================================================

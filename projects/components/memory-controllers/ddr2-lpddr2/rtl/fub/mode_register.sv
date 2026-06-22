@@ -17,12 +17,15 @@
 //            drv_o  : output drive strength (informational; not used)
 //            odt_o  : ODT rule          (DDR2 MR1[6,2]; LPDDR2: 0)
 //
-// v1 limitations (TODO):
-//   * NUM_MRS=4 fits DDR2; LPDDR2 needs up to 17. Bumping MAX_MR_IDX
-//     and adding LPDDR2 decode lands when LPDDR2 init is wired up.
+// v2 status:
+//   * MAX_MR_IDX=17 covers both DDR2 (MR0..MR3) and LPDDR2 (MR0..MR16).
+//   * LPDDR2 BL decode clips BL16 → BL8 because bl_o is 4-bit. v3 widens
+//     bl_o to [4:0] + updates the 3 downstream macros that consume it.
+//
+// v2 / v3 TODO:
 //   * mr_req_o always tied 0 — no hot MR updates issued via the
-//     scheduler in v1. Init does the MR loads directly through the
-//     CSR write port.
+//     scheduler. Lands when the APB CSR slave provides a write-during-
+//     traffic path and the quiet-point handshake is implemented.
 
 `timescale 1ns / 1ps
 
