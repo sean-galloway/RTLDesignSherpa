@@ -229,6 +229,9 @@ module ddr2_lpddr2_core_macro
 
     logic                       controller_idle_unused;
 
+    // obs_* CSR words from command_scheduler_macro (see docs/csr_obs_layout.md)
+    logic [6:0][31:0]           cmd_obs_words;
+
     //=========================================================================
     // Sub-macros
     //=========================================================================
@@ -303,7 +306,9 @@ module ddr2_lpddr2_core_macro
         .dfi_init_start_o    (dfi_init_start_o),
         .dfi_init_complete_i (dfi_init_complete_i),
         .dfi_cke_o           (pre_dfi_cke),
-        .controller_idle_o   (controller_idle_unused)
+        .controller_idle_o   (controller_idle_unused),
+        // obs_* — packed CSR readout words (F1 will route up to APB slave)
+        .obs_words_o         (cmd_obs_words)
     );
 
     data_path_macro #(
@@ -413,6 +418,7 @@ module ddr2_lpddr2_core_macro
     assign dfi_phyupd_ack_o  = 1'b0;
 
     wire unused = |{ controller_idle_unused, bl_val,
-                     dfi_ctrlupd_ack_i, dfi_phyupd_req_i, dfi_phyupd_type_i };
+                     dfi_ctrlupd_ack_i, dfi_phyupd_req_i, dfi_phyupd_type_i,
+                     cmd_obs_words };
 
 endmodule : ddr2_lpddr2_core_macro

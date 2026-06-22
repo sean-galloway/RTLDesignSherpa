@@ -121,7 +121,15 @@ module command_scheduler_macro
     output logic [DFI_CS_WIDTH-1:0]    dfi_cke_o,
 
     // ---- top-level status ----
-    output logic                       controller_idle_o
+    output logic                       controller_idle_o,
+
+    //=========================================================================
+    // obs_* CSR readout — see docs/csr_obs_layout.md for the layout.
+    // 7 32-bit words covering xbank_timers + global_timers + refresh_ctrl
+    // + powerdown_ctrl. The axi_frontend_macro contributes its own
+    // obs_words_o; the core_macro concatenates the two.
+    //=========================================================================
+    output logic [6:0][31:0]           obs_words_o
 );
 
     //=========================================================================
@@ -139,6 +147,27 @@ module command_scheduler_macro
     logic                                               twtr_global_ok_unused;
     logic                                               trtw_window_ok_unused;
     logic                                               tccd_window_ok_unused;
+
+    // ---- obs_* harvest wires (packed into obs_words_o at end of module) ----
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0]  obs_xbank_act_nz;
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0]  obs_xbank_rdwr_nz;
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0]  obs_xbank_pre_nz;
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0]  obs_xbank_rc_nz;
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0]  obs_xbank_ras_nz;
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0]  obs_xbank_ap_pending;
+    logic [NUM_RANKS-1:0]                 obs_gt_faw_nz;
+    logic [NUM_RANKS-1:0]                 obs_gt_trrd_nz;
+    logic                                 obs_gt_twtr_nz;
+    logic                                 obs_gt_trtw_nz;
+    logic                                 obs_gt_tccd_nz;
+    logic [15:0]                          obs_refi_cnt;
+    logic [3:0]                           obs_refi_drain_remaining;
+    logic [$clog2(NUM_BANKS)-1:0]         obs_refi_bank_rotor;
+    logic [15:0]                          obs_refi_grants_total;
+    logic [2:0]                           obs_pdn_state;
+    logic [15:0]                          obs_pdn_idle_cnt;
+    logic [15:0]                          obs_pdn_grants_pde;
+    logic [15:0]                          obs_pdn_grants_sr;
 
     logic                                               refresh_req;
     logic                                               refresh_grant;
@@ -285,16 +314,14 @@ module command_scheduler_macro
         .bank_row_active_o  (bank_row_active),
         .bank_open_row_o    (bank_open_row),
         .bank_state_o       (bank_state_unused),
-        // obs_* — collected by the macro for the eventual CSR readout
-        // mux. Tied here without consumers; harvested in the obs_*
-        // task pass after all FUBs are touched.
-        .obs_state_o        (),
-        .obs_act_cnt_nz_o   (),
-        .obs_rdwr_cnt_nz_o  (),
-        .obs_pre_cnt_nz_o   (),
-        .obs_rc_cnt_nz_o    (),
-        .obs_ras_cnt_nz_o   (),
-        .obs_ap_pending_o   ()
+        // obs_* — packed into obs_words_o below for CSR readout.
+        .obs_state_o        (),  // bank state — too wide; not in obs words
+        .obs_act_cnt_nz_o   (obs_xbank_act_nz),
+        .obs_rdwr_cnt_nz_o  (obs_xbank_rdwr_nz),
+        .obs_pre_cnt_nz_o   (obs_xbank_pre_nz),
+        .obs_rc_cnt_nz_o    (obs_xbank_rc_nz),
+        .obs_ras_cnt_nz_o   (obs_xbank_ras_nz),
+        .obs_ap_pending_o   (obs_xbank_ap_pending)
     );
 
     global_timers #(
@@ -317,11 +344,11 @@ module command_scheduler_macro
         .twtr_global_ok_o (twtr_global_ok_unused),
         .trtw_window_ok_o (trtw_window_ok_unused),
         .tccd_window_ok_o (tccd_window_ok_unused),
-        .obs_faw_nz_o     (),
-        .obs_trrd_nz_o    (),
-        .obs_twtr_nz_o    (),
-        .obs_trtw_nz_o    (),
-        .obs_tccd_nz_o    ()
+        .obs_faw_nz_o     (obs_gt_faw_nz),
+        .obs_trrd_nz_o    (obs_gt_trrd_nz),
+        .obs_twtr_nz_o    (obs_gt_twtr_nz),
+        .obs_trtw_nz_o    (obs_gt_trtw_nz),
+        .obs_tccd_nz_o    (obs_gt_tccd_nz)
     );
 
     logic                       refresh_drain_active_unused;
@@ -343,11 +370,11 @@ module command_scheduler_macro
         .refresh_drain_active_o  (refresh_drain_active_unused),
         .refresh_kind_o          (refresh_kind_unused),
         .refresh_bank_o          (refresh_bank_unused),
-        // obs_* — harvested for CSR in the obs_* pass
-        .obs_refi_cnt_o          (),
-        .obs_drain_remaining_o   (),
-        .obs_bank_rotor_o        (),
-        .obs_grants_total_o      ()
+        // obs_* — packed into obs_words_o below.
+        .obs_refi_cnt_o          (obs_refi_cnt),
+        .obs_drain_remaining_o   (obs_refi_drain_remaining),
+        .obs_bank_rotor_o        (obs_refi_bank_rotor),
+        .obs_grants_total_o      (obs_refi_grants_total)
     );
 
     logic pdn_kind_unused;
@@ -368,11 +395,11 @@ module command_scheduler_macro
         .pdn_grant_i      (pdn_grant),
         .sref_active_o    (sref_active_unused),
         .dfi_cke_o        (dfi_cke_o),
-        // obs_* — harvested for CSR in the obs_* pass
-        .obs_state_o      (),
-        .obs_idle_cnt_o   (),
-        .obs_grants_pde_o (),
-        .obs_grants_sr_o  ()
+        // obs_* — packed into obs_words_o below.
+        .obs_state_o      (obs_pdn_state),
+        .obs_idle_cnt_o   (obs_pdn_idle_cnt),
+        .obs_grants_pde_o (obs_pdn_grants_pde),
+        .obs_grants_sr_o  (obs_pdn_grants_sr)
     );
 
     mode_register #(
@@ -438,5 +465,41 @@ module command_scheduler_macro
                      pending_refreshes_unused,
                      trrd_window_ok_unused, twtr_global_ok_unused,
                      trtw_window_ok_unused, tccd_window_ok_unused };
+
+    //=========================================================================
+    // obs_* packing into CSR words. Layout (NUM_RANKS=1, NUM_BANKS=8):
+    //
+    //   WORD 0  refresh_ctrl pt1: {drain_rem[3:0], bank_rotor[2:0], 9'b0,
+    //                              refi_cnt[15:0]}
+    //   WORD 1  refresh_ctrl pt2: {16'b0, grants_total[15:0]}
+    //   WORD 2  powerdown_ctrl pt1: {13'b0, idle_cnt[15:0], state[2:0]}
+    //   WORD 3  powerdown_ctrl pt2: {grants_sr[15:0], grants_pde[15:0]}
+    //   WORD 4  global_timers + xbank_ap_pending:
+    //           {16'b0, ap_pending[7:0], tccd_nz, trtw_nz, twtr_nz,
+    //            trrd_nz, faw_nz, 3'b0}
+    //   WORD 5  xbank part1: {rc_nz[7:0], pre_nz[7:0], rdwr_nz[7:0],
+    //                          act_nz[7:0]}
+    //   WORD 6  xbank part2: {24'b0, ras_nz[7:0]}
+    //
+    // Multi-rank/bank scaling: extra ranks fan out across additional
+    // words. For now NUM_RANKS=1 ⇒ tight packing.
+    //=========================================================================
+    always_comb begin
+        // Layout: pad | drain_rem(4) | bank_rotor(BA_W) | refi_cnt(16).
+        // pad_width = 32 - 4 - $clog2(NUM_BANKS) - 16 = 12 - BA_W.
+        obs_words_o[0] = {{(12-$clog2(NUM_BANKS)){1'b0}},
+                          obs_refi_drain_remaining,
+                          obs_refi_bank_rotor,
+                          obs_refi_cnt};
+        obs_words_o[1] = {16'b0, obs_refi_grants_total};
+        obs_words_o[2] = {13'b0, obs_pdn_idle_cnt, obs_pdn_state};
+        obs_words_o[3] = {obs_pdn_grants_sr, obs_pdn_grants_pde};
+        obs_words_o[4] = {16'b0, obs_xbank_ap_pending[0],
+                          obs_gt_tccd_nz, obs_gt_trtw_nz, obs_gt_twtr_nz,
+                          obs_gt_trrd_nz[0], obs_gt_faw_nz[0], 3'b0};
+        obs_words_o[5] = {obs_xbank_rc_nz[0], obs_xbank_pre_nz[0],
+                          obs_xbank_rdwr_nz[0], obs_xbank_act_nz[0]};
+        obs_words_o[6] = {24'b0, obs_xbank_ras_nz[0]};
+    end
 
 endmodule : command_scheduler_macro

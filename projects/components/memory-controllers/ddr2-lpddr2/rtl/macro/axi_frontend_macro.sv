@@ -242,8 +242,22 @@ module axi_frontend_macro
     output logic                 dbg_forward_miss_o,
     output logic                 dbg_fwd_valid_o,
     output logic [WSL-1:0]       dbg_fwd_src_slot_o,
-    output logic [IW-1:0]        dbg_fwd_id_o
+    output logic [IW-1:0]        dbg_fwd_id_o,
+
+    //=========================================================================
+    // obs_* CSR readout — see docs/csr_obs_layout.md.
+    // 2 32-bit words covering axi_intake completion + metadata counters.
+    //=========================================================================
+    output logic [1:0][31:0]     obs_words_o
 );
+
+    //=========================================================================
+    // obs_* harvest wires — packed into obs_words_o at the bottom of module.
+    //=========================================================================
+    logic [15:0] obs_intake_wr_completions;
+    logic [15:0] obs_intake_rd_completions;
+    logic [15:0] obs_intake_aw_meta_writes;
+    logic [15:0] obs_intake_ar_meta_writes;
 
     //=========================================================================
     // axi_intake — host AXI4 protocol layer + w_buf + B FIFO + R emit
@@ -379,11 +393,11 @@ module axi_frontend_macro
         .wbuf_ext_rd_data_o         (wbuf_ext_rd_data_o),
         .wbuf_ext_rd_strb_o         (wbuf_ext_rd_strb_o),
         .busy_o                     (dbg_intake_busy_o),
-        // obs_* — harvested for CSR in the obs_* pass
-        .obs_wr_completions_o       (),
-        .obs_rd_completions_o       (),
-        .obs_aw_meta_writes_o       (),
-        .obs_ar_meta_writes_o       ()
+        // obs_* — packed into obs_words_o below.
+        .obs_wr_completions_o       (obs_intake_wr_completions),
+        .obs_rd_completions_o       (obs_intake_rd_completions),
+        .obs_aw_meta_writes_o       (obs_intake_aw_meta_writes),
+        .obs_ar_meta_writes_o       (obs_intake_ar_meta_writes)
     );
 
     //=========================================================================
@@ -685,5 +699,16 @@ module axi_frontend_macro
                      w_wr_snap_id,
                      w_rd_snap_valid, w_rd_snap_id,
                      w_rd_snap_issued };
+
+    //=========================================================================
+    // obs_* CSR packing. Layout:
+    //   WORD 0: {rd_completions[15:0], wr_completions[15:0]}
+    //   WORD 1: {ar_meta_writes[15:0], aw_meta_writes[15:0]}
+    // See docs/csr_obs_layout.md.
+    //=========================================================================
+    always_comb begin
+        obs_words_o[0] = {obs_intake_rd_completions, obs_intake_wr_completions};
+        obs_words_o[1] = {obs_intake_ar_meta_writes, obs_intake_aw_meta_writes};
+    end
 
 endmodule : axi_frontend_macro
