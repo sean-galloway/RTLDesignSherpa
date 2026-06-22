@@ -241,7 +241,7 @@ Infrastructure components used across all AMBA protocols.
 - **[axi_monitor_trans_mgr](shared/axi_monitor_trans_mgr.md)** - AXI transaction-table management (CAM-backed)
 - **[monitor_trans_cam](shared/monitor_trans_cam.md)** - Multi-port ID CAM with opaque payload (backs trans_mgr)
 - **[axi_monitor_addr_check](shared/axi_monitor_addr_check.md)** - Per-channel address-match watchpoints
-- **[axi4_dma_observer](shared/axi4_dma_observer.md)** - Standalone, DMA-agnostic observability harness (wraps any AXI4 DMA from outside; companion to the per-DMA `axi_monitor_*` family). Includes `axi_bus_meter` per port.
+- **[axi4_dma_observer](shared/axi4_dma_observer.md)** - Standalone, DMA-agnostic observability harness (wraps any AXI4 DMA from outside; companion to the per-DMA `axi_monitor_*` family). Includes `axi_bus_meter` and `axi_perf_latency_hist` per port.
 
 ### Monitor Bus Delivery + Bulk-Trace Compression
 

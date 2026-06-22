@@ -124,13 +124,15 @@
       to the per-DMA axi_monitor_* family which wraps from inside.
     - Covers the full instantiation pattern: NUM_RD + NUM_WR
       axi4_master_*_mon taps, monbus_arbiter aggregator,
-      monbus_axil_axi4_group filter+dump, and axi_bus_meter per port.
+      monbus_axil_axi4_group filter+dump, axi_bus_meter, and
+      axi_perf_latency_hist per port.
     - Documents the runtime rid -> channel map (cfg_rd_rid_per_channel)
-      for read-side per-channel attribution and the optional W-side
-      sideband (dma_wr_active_ch_*) for write-side attribution
-      (mirrors STREAM's axi_write_engine.o_active_channel_*).
-    - The companion module axi_bus_meter.sv is covered in this single
-      doc rather than its own page (small, only useful in context).
+      for read-side per-channel attribution and, for writes, either the
+      built-in AW->W awid order tracker (WR_CH_FROM_AWID=1, no DUT
+      sideband) or the optional dma_wr_active_ch_* sideband.
+    - The companion modules axi_bus_meter.sv and axi_perf_latency_hist.sv
+      are covered in this single doc rather than their own pages (small,
+      only useful in context).
 
 ### New shared infrastructure (no dedicated page, covered above)
 

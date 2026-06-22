@@ -101,8 +101,9 @@ Companion piece to the per-DMA `axi_monitor_*` family.
 
 | Module | Purpose | Key Features | Documentation |
 |--------|---------|--------------|---------------|
-| **axi4_dma_observer** | Standalone DMA observability harness | NUM_RD + NUM_WR tap pairs, monbus_arbiter + monbus_axil_axi4_group, axi_bus_meter per tap with runtime rid → channel map | [axi4_dma_observer.md](axi4_dma_observer.md) |
+| **axi4_dma_observer** | Standalone DMA observability harness | NUM_RD + NUM_WR tap pairs, monbus_arbiter + monbus_axil_axi4_group, axi_bus_meter + axi_perf_latency_hist per tap; reads via rid map, writes via AW→W awid tracker | [axi4_dma_observer.md](axi4_dma_observer.md) |
 | **axi_bus_meter** | Per-cycle valid/ready bucket counter | 4 buckets (productive / backpressure / starvation / idle), aggregate + per-channel | (covered in axi4_dma_observer.md) |
+| **axi_perf_latency_hist** | Per-transaction latency histogram | 16 log2 bins; read AR→first-R + AR→RLAST, write AW→B; per-channel timestamp FIFOs; indexed readout | (covered in axi4_dma_observer.md) |
 
 ### Memory / BRAM Slave (sdpram_slave family)
 
