@@ -116,6 +116,22 @@ async def cocotb_test_page_predictor(dut):
         assert tb.predict_open(0, 0) == 1, "bank 0 should be open"
         assert tb.predict_open(0, 1) == 0, "bank 1 should be closed"
 
+    elif test_type == "random_soak":
+        rng = random.Random(int(os.environ.get('SEED', '12345')))
+        test_level = os.environ.get("TEST_LEVEL", "FUNC").upper()
+        n = {"GATE": 50, "FUNC": 300, "FULL": 1500}.get(test_level, 300)
+        await tb.setup()
+
+        for _ in range(n):
+            rank = rng.randrange(tb.NUM_RANKS)
+            bank = rng.randrange(tb.NUM_BANKS)
+            if rng.random() < 0.5:
+                row = 0x10 + bank
+            else:
+                row = rng.randrange(1 << 14)
+            await tb.pulse_act(rank=rank, bank=bank, row=row)
+            await tb.wait_clocks('mc_clk', rng.randint(0, 3))
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -125,7 +141,8 @@ async def cocotb_test_page_predictor(dut):
 _GATE = [("smoke",)]
 _FUNC = _GATE + [("row_hit_saturates_up",),
                  ("row_miss_saturates_down",),
-                 ("independent_banks",)]
+                 ("independent_banks",),
+                 ("random_soak",)]
 _FULL = _FUNC
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()

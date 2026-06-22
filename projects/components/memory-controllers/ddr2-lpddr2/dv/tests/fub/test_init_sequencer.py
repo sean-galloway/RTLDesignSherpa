@@ -152,6 +152,22 @@ async def cocotb_test_init_sequencer(dut):
         await tb.wait_clocks('mc_clk', 5)
         assert tb.init_done() == 1
 
+    elif test_type == "random_soak":
+        rng = random.Random(int(os.environ.get('SEED', '12345')))
+        test_level = os.environ.get("TEST_LEVEL", "FUNC").upper()
+        n = {"GATE": 8, "FUNC": 40, "FULL": 200}.get(test_level, 40)
+
+        for _ in range(n):
+            memtype = rng.choice([MEMTYPE_DDR2, MEMTYPE_LPDDR2])
+            await tb.setup(memtype)
+            await tb.wait_clocks('mc_clk', rng.randint(1, 5))
+            await tb.wait_clocks('mc_clk', rng.randint(0, 6))
+            tb.dut.dfi_init_complete_i.value = 1
+            await tb.wait_clocks('mc_clk', rng.randint(3, 8))
+            tb.dut.zqcl_grant_i.value = 1
+            await tb.wait_clocks('mc_clk', rng.randint(2, 6))
+            assert tb.init_done() == 1
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -159,7 +175,7 @@ async def cocotb_test_init_sequencer(dut):
 
 
 _GATE = [("ddr2_init_walk",)]
-_FUNC = _GATE + [("wait_for_complete",), ("lpddr2_smoke",)]
+_FUNC = _GATE + [("wait_for_complete",), ("lpddr2_smoke",), ("random_soak",)]
 _FULL = _FUNC
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()

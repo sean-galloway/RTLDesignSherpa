@@ -112,6 +112,26 @@ async def cocotb_test_powerdown_ctrl(dut):
         assert not tb.req(), "req should clear when activity arrives"
         assert tb.cke() == 1
 
+    elif test_type == "random_soak":
+        rng = random.Random(int(os.environ.get('SEED', '12345')))
+        test_level = os.environ.get("TEST_LEVEL", "FUNC").upper()
+        n = {"GATE": 50, "FUNC": 200, "FULL": 1000}.get(test_level, 200)
+        tb.dut.enable_pde_i.value = 1
+
+        for _ in range(n):
+            if rng.random() < 0.5:
+                await tb.go_idle()
+            else:
+                await tb.go_active()
+            if rng.random() < 0.1:
+                tb.dut.enable_pde_i.value = rng.randint(0, 1)
+            if tb.req() and rng.random() < 0.5:
+                tb.dut.pdn_grant_i.value = 1
+                await tb.wait_clocks('mc_clk', 1)
+                tb.dut.pdn_grant_i.value = 0
+            await tb.wait_clocks('mc_clk', rng.randint(1, 15))
+        tb.dut.enable_pde_i.value = 1
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -119,7 +139,7 @@ async def cocotb_test_powerdown_ctrl(dut):
 
 
 _GATE = [("smoke",), ("early_wake",)]
-_FUNC = _GATE + [("disable_pde",), ("req_then_active",)]
+_FUNC = _GATE + [("disable_pde",), ("req_then_active",), ("random_soak",)]
 _FULL = _FUNC
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()

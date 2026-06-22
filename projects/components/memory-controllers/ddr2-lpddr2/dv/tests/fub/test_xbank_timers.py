@@ -176,6 +176,35 @@ async def cocotb_test_xbank_timers(dut):
         await tb.wait_clocks('mc_clk', 2)
         assert tb.state(0, 1) == BANK_ACTIVE
 
+    elif test_type == "random_soak":
+        rng = random.Random(int(os.environ.get('SEED', '12345')))
+        test_level = os.environ.get("TEST_LEVEL", "FUNC").upper()
+        n_events = {"GATE": 50, "FUNC": 300, "FULL": 1500}.get(test_level, 300)
+        await tb.setup(t_rcd=4, t_rp=4, t_wr=3, t_rtp=2)
+
+        events_issued = 0
+        for _ in range(n_events):
+            rank = rng.randrange(tb.NUM_RANKS)
+            bank = rng.randrange(tb.NUM_BANKS)
+            st   = tb.state(rank, bank)
+
+            if st == BANK_IDLE:
+                kind = 'act'
+            elif st == BANK_ACTIVE:
+                kind = rng.choice(['rd', 'wr', 'pre'])
+            else:
+                kind = None
+
+            if kind is not None:
+                ap = (kind in ('rd', 'wr')) and (rng.random() < 0.5)
+                await tb.pulse_event(kind, rank=rank, bank=bank,
+                                     row=rng.randrange(1 << tb.ROW_WIDTH),
+                                     ap=ap)
+                events_issued += 1
+            await tb.wait_clocks('mc_clk', rng.randint(1, 8))
+
+        assert events_issued >= n_events // 4
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -185,8 +214,10 @@ async def cocotb_test_xbank_timers(dut):
 _GATE = [("smoke", 1, 8)]
 _FUNC = _GATE + [("act_to_wr_to_pre", 1, 8),
                  ("independent_banks", 1, 8),
-                 ("rd_path", 1, 8)]
+                 ("rd_path", 1, 8),
+                 ("random_soak", 1, 8)]
 _FULL = _FUNC + [(t, 2, 8) for t, _, _ in _FUNC]
+_FULL = list(dict.fromkeys(_FULL))
 # Dedupe — otherwise pytest disambiguates colliding IDs with _0/_1 suffixes
 # and parallel workers race on the same local_sim_build/ directory.
 _FULL = list(dict.fromkeys(_FULL))

@@ -51,6 +51,7 @@ class SchedTB(TBBase):
         self.NUM_BANKS    = int(os.environ.get('NUM_BANKS',    '8'))
         self.COL_WIDTH    = int(os.environ.get('COL_WIDTH',   '10'))
         self.BLW          = int(os.environ.get('BURST_LEN_WIDTH', '8'))
+        self.SEED         = int(os.environ.get('SEED', '12345'))
 
     async def setup(self, all_banks_ready: bool = True):
         # Match vectors: empty by default
@@ -287,6 +288,44 @@ async def cocotb_test_scheduler(dut):
         assert tb.cmd_op() == OP_WRA, f"HAPPY predict-close → WRA, got {tb.cmd_op()}"
         tb.clear_pending()
 
+    elif test_type == "random_soak":
+        rng = random.Random(tb.SEED)
+        test_level = os.environ.get("TEST_LEVEL", "FUNC").upper()
+        n = {"GATE": 50, "FUNC": 300, "FULL": 1500}.get(test_level, 300)
+        await tb.setup()
+
+        cmd_count = 0
+        wr_count = 0
+        rd_count = 0
+        for _ in range(n):
+            is_wr  = rng.random() < 0.5
+            slot   = rng.randrange(0, tb.WR_CAM_DEPTH if is_wr else tb.RD_CAM_DEPTH)
+            col    = rng.randrange(1, 1 << tb.COL_WIDTH)
+            length = min(rng.randint(1, (1 << tb.BLW) - 1), 64)
+
+            if is_wr:
+                tb.set_wr_pending(slot=slot, col=col, length=length)
+            else:
+                tb.set_rd_pending(slot=slot, col=col, length=length)
+
+            for _ in range(20):
+                await tb.wait_clocks('mc_clk', 1)
+                if tb.cmd_valid() == 1:
+                    cmd_count += 1
+                if is_wr and tb.wr_issued():
+                    wr_count += 1
+                    break
+                if (not is_wr) and tb.rd_issued():
+                    rd_count += 1
+                    break
+            tb.clear_pending()
+            await tb.wait_clocks('mc_clk', 2)
+
+        assert cmd_count >= n, f"only {cmd_count} commands in {n} iterations"
+        assert wr_count + rd_count >= n // 2, (
+            f"only {wr_count + rd_count} ops issued in {n} iterations"
+        )
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -309,8 +348,12 @@ _GATE = [(t, PAGE_POLICY_CLOSE) for t in ["smoke_wr", "smoke_rd",
                                          "init_busy_nop"]]
 _FUNC = ([(t, PAGE_POLICY_CLOSE) for t in _BASE_CLOSE]
        + [(t, PAGE_POLICY_OPEN)  for t in _OPEN_ONLY]
-       + [(t, PAGE_POLICY_HAPPY) for t in _HAPPY_ONLY])
+       + [(t, PAGE_POLICY_HAPPY) for t in _HAPPY_ONLY]
+       + [("random_soak", PAGE_POLICY_CLOSE),
+          ("random_soak", PAGE_POLICY_OPEN),
+          ("random_soak", PAGE_POLICY_HAPPY)])
 _FULL = _FUNC
+_FULL = list(dict.fromkeys(_FULL))
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
 _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)

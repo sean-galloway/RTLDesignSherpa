@@ -145,6 +145,19 @@ async def cocotb_test_mode_register(dut):
         assert live['cl'] == 0
         assert live['bl'] == 4
 
+    elif test_type == "random_soak":
+        rng = random.Random(int(os.environ.get('SEED', '12345')))
+        test_level = os.environ.get("TEST_LEVEL", "FUNC").upper()
+        n = {"GATE": 50, "FUNC": 200, "FULL": 1000}.get(test_level, 200)
+        await tb.setup(MEMTYPE_DDR2)
+
+        for _ in range(n):
+            rank = rng.randint(0, tb.NUM_RANKS - 1)
+            idx  = rng.randint(0, 3)
+            data = rng.randrange(0x10000)
+            await tb.write_mr(rank, idx, data)
+            await tb.wait_clocks('mc_clk', rng.randint(1, 4))
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -152,8 +165,9 @@ async def cocotb_test_mode_register(dut):
 
 
 _GATE = [("smoke_ddr2", 1), ("ddr2_cl_sweep", 1), ("reset_values", 1)]
-_FUNC = _GATE + [("ddr2_bl_sweep", 1), ("ddr2_al_sweep", 1), ("multi_rank", 2)]
-_FULL = _FUNC + [("ddr2_cl_sweep", 2)]
+_FUNC = _GATE + [("ddr2_bl_sweep", 1), ("ddr2_al_sweep", 1), ("multi_rank", 2),
+                 ("random_soak", 1)]
+_FULL = _FUNC + [("ddr2_cl_sweep", 2), ("random_soak", 2)]
 # Dedupe — defensive; keeps every (type, rank) tuple unique so pytest IDs
 # stay distinct and parallel workers don't race on local_sim_build/.
 _FULL = list(dict.fromkeys(_FULL))

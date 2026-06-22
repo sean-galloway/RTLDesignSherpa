@@ -121,6 +121,24 @@ async def cocotb_test_refresh_ctrl(dut):
         # Just check pending dropped from initial
         assert tb.pending() < initial
 
+    elif test_type == "random_soak":
+        rng = random.Random(int(os.environ.get('SEED', '12345')))
+        test_level = os.environ.get("TEST_LEVEL", "FUNC").upper()
+        n_grants = {"GATE": 50, "FUNC": 300, "FULL": 1500}.get(test_level, 300)
+
+        await tb.enable()
+        grants_done  = 0
+        max_pending  = 0
+        for _ in range(n_grants):
+            tb.dut.t_refi_i.value = rng.randint(5, 30)
+            await tb.wait_clocks('mc_clk', rng.randint(3, 25))
+            max_pending = max(max_pending, tb.pending())
+            if tb.req() and rng.random() < 0.85:
+                await tb.grant_one()
+                grants_done += 1
+        assert max_pending <= 8, f"JEDEC violation: max_pending={max_pending}"
+        assert grants_done >= n_grants // 3
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -128,7 +146,8 @@ async def cocotb_test_refresh_ctrl(dut):
 
 
 _GATE = [("smoke",), ("grant_decrements",)]
-_FUNC = _GATE + [("multiple_pending",), ("saturating",), ("drain",)]
+_FUNC = _GATE + [("multiple_pending",), ("saturating",), ("drain",),
+                 ("random_soak",)]
 _FULL = _FUNC
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()

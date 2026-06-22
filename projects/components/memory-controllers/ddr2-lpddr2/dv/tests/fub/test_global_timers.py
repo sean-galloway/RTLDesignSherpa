@@ -106,6 +106,17 @@ async def cocotb_test_global_timers(dut):
         await tb.wait_clocks('mc_clk', 4)
         assert tb.trtw_ok()
 
+    elif test_type == "random_soak":
+        rng = random.Random(int(os.environ.get('SEED', '12345')))
+        test_level = os.environ.get("TEST_LEVEL", "FUNC").upper()
+        n = {"GATE": 50, "FUNC": 300, "FULL": 1500}.get(test_level, 300)
+        await tb.setup(t_faw=12, t_rrd=3, t_wtr=3, t_rtw=3)
+
+        for _ in range(n):
+            kind = rng.choice(['act', 'rd', 'wr'])
+            await tb.pulse(kind)
+            await tb.wait_clocks('mc_clk', rng.randint(1, 6))
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -113,7 +124,8 @@ async def cocotb_test_global_timers(dut):
 
 
 _GATE = [("smoke",), ("tfaw_4_acts",)]
-_FUNC = _GATE + [("trrd_spacing",), ("twtr_after_wr",), ("trtw_after_rd",)]
+_FUNC = _GATE + [("trrd_spacing",), ("twtr_after_wr",), ("trtw_after_rd",),
+                 ("random_soak",)]
 _FULL = _FUNC
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
