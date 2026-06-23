@@ -173,8 +173,29 @@ PERF_OFF_BYTE_COUNT_HI = 0x24
 PERF_OFF_BURST_COUNT   = 0x28
 
 # NOTE: the legacy harness axi_bus_meter readback (HARNESS_CSR_BASE + 0x100 /
-# 0x180) was retired in RFC Stage E.4 -- the in-core monitor CSRs below are now
-# the sole datapath-utilization source.
+# 0x180) was retired in RFC Stage E.4. The 0x100-0x128 region has been reclaimed
+# by the RFC Stage E external DMA observer readback (see below) -- the in-core
+# monitor CSRs further down remain the primary datapath-utilization source, with
+# the observer providing an independent, host-readable cross-check.
+#
+# RFC Stage E external DMA observer readback (host-readable over CSR). The
+# observer runs inline in parallel with the in-core monitors; the host reads its
+# aggregate buckets and indexed latency histogram entirely over CSR so observer-
+# vs-in-core equivalence can be checked on the real bus (no hierarchy probe).
+CSR_OBS_RD_PROD   = HARNESS_CSR_BASE + 0x100
+CSR_OBS_RD_BP     = HARNESS_CSR_BASE + 0x104
+CSR_OBS_RD_STARV  = HARNESS_CSR_BASE + 0x108
+CSR_OBS_RD_IDLE   = HARNESS_CSR_BASE + 0x10C
+CSR_OBS_WR_PROD   = HARNESS_CSR_BASE + 0x110
+CSR_OBS_WR_BP     = HARNESS_CSR_BASE + 0x114
+CSR_OBS_WR_STARV  = HARNESS_CSR_BASE + 0x118
+CSR_OBS_WR_IDLE   = HARNESS_CSR_BASE + 0x11C
+# Indexed histogram readout. HIST_SEL packs {bin[5:2], metric[1], bus[0]}:
+#   bus=0 read-side / bus=1 write-side; metric selects AR->firstR vs AR->RLAST
+#   (read) or AW->B (write); bin indexes the 16-entry log2 histogram.
+CSR_OBS_HIST_SEL  = HARNESS_CSR_BASE + 0x120   # RW
+CSR_OBS_HIST_DATA = HARNESS_CSR_BASE + 0x124   # R: selected bin count
+CSR_OBS_HIST_TOTAL = HARNESS_CSR_BASE + 0x128  # R: selected metric total
 
 # Per-channel datapath perf buckets (RFC Stage C, indexed readout). Select a
 # channel via PERF_CH_SEL, then read the packed {bp,prod}/{idle,starv} regs.
@@ -587,8 +608,9 @@ class StreamCharTB(TBBase):
         return {'bins': bins, 'total': total}
 
     async def _read_observer_perf(self) -> dict:
-        """Read the inline axi4_dma_observer's meter + histogram outputs by RTL
-        hierarchy (cosim only) to compare against the in-core RDMON/WRMON perf.
+        """Read the inline axi4_dma_observer's meter + histogram outputs over the
+        harness CSR (the same path the host uses) to compare against the in-core
+        RDMON/WRMON perf -- no RTL hierarchy probing.
 
         The observer is a transparent pass-through, so it meters the SAME R/W
         beats as the in-core monitors: aggregate productive cycles and the
@@ -597,29 +619,30 @@ class StreamCharTB(TBBase):
         by a couple of cycles, so per-bin counts may move at a bin boundary --
         we log those for inspection but assert on the window-independent totals.
         """
-        d = self.dut
-
-        async def _hist(metric: int):
-            d.obs_hist_metric.value = metric
-            rd_bins, wr_bins = [], []
+        async def _hist(metric: int, bus: int):
+            """Sweep all bins for one (metric, bus) selection. Returns
+            (bins[], total). bus: 0=read-side, 1=write-side."""
+            bins = []
+            total = 0
             for b in range(HIST_NUM_BINS):
-                d.obs_hist_bin.value = b
-                await self.wait_clocks(self.clk_name, 2)
-                rd_bins.append(int(d.obs_rd_hist_count[0].value))
-                wr_bins.append(int(d.obs_wr_hist_count[0].value))
-            return (rd_bins, int(d.obs_rd_hist_total[0].value),
-                    wr_bins, int(d.obs_wr_hist_total[0].value))
+                sel = (b << 2) | ((metric & 0x1) << 1) | (bus & 0x1)
+                await self.uart_write(CSR_OBS_HIST_SEL, sel)
+                bins.append(await self.uart_read(CSR_OBS_HIST_DATA))
+            total = await self.uart_read(CSR_OBS_HIST_TOTAL)
+            return bins, total
 
-        rd0, rd0t, wr0, wr0t = await _hist(0)   # rd: AR->first-R ; wr: AW->B
-        rd1, rd1t, _,   _    = await _hist(1)   # rd: AR->RLAST
+        rd0, rd0t = await _hist(0, 0)   # rd: AR->first-R
+        rd1, rd1t = await _hist(1, 0)   # rd: AR->RLAST
+        wr0, wr0t = await _hist(0, 1)   # wr: AW->B
         return {
-            'rd_prod':  int(d.obs_rd_agg_prod[0].value),
-            'wr_prod':  int(d.obs_wr_agg_prod[0].value),
-            'rd_bp':    int(d.obs_rd_agg_bp[0].value),
-            'wr_bp':    int(d.obs_wr_agg_bp[0].value),
-            'rd_starv': int(d.obs_rd_agg_starv[0].value),
-            'wr_starv': int(d.obs_wr_agg_starv[0].value),
-            'win_active': int(d.obs_win_active.value),
+            'rd_prod':  await self.uart_read(CSR_OBS_RD_PROD),
+            'wr_prod':  await self.uart_read(CSR_OBS_WR_PROD),
+            'rd_bp':    await self.uart_read(CSR_OBS_RD_BP),
+            'wr_bp':    await self.uart_read(CSR_OBS_WR_BP),
+            'rd_starv': await self.uart_read(CSR_OBS_RD_STARV),
+            'wr_starv': await self.uart_read(CSR_OBS_WR_STARV),
+            'rd_idle':  await self.uart_read(CSR_OBS_RD_IDLE),
+            'wr_idle':  await self.uart_read(CSR_OBS_WR_IDLE),
             'rd_hist_firstr': {'bins': rd0, 'total': rd0t},
             'rd_hist_rlast':  {'bins': rd1, 'total': rd1t},
             'wr_hist_b':      {'bins': wr0, 'total': wr0t},

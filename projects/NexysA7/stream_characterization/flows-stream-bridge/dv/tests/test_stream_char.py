@@ -280,10 +280,11 @@ async def cocotb_test_stream_char(dut):
         wr_hb = getattr(tb, '_wr_hist_b', None)
         assert rd and wr and rd_hf and rd_hl and wr_hb, "obs_equiv: in-core snapshots missing"
 
+        # Read the observer entirely over CSR (the host path), no hierarchy probe.
         obs = await tb._read_observer_perf()
         tb.log.info(f"  in-core RD prod={rd['productive']} WR prod={wr['productive']}")
         tb.log.info(f"  observer RD prod={obs['rd_prod']} WR prod={obs['wr_prod']} "
-                    f"(win_active={obs['win_active']})")
+                    f"(rd idle={obs['rd_idle']} wr idle={obs['wr_idle']})")
 
         # 1) Aggregate productive cycles must match (pass-through skid preserves
         #    throughput; allow a tiny window-edge slack).

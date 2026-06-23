@@ -707,6 +707,21 @@ module stream_char_harness #(
     logic [31:0] r_desc_sram_ar_hs_cnt;
     logic [31:0] r_desc_sram_r_hs_cnt;
 
+    // RFC Stage E external DMA observer readback nets. Declared here (ahead of
+    // the observer instance further down) so u_csr can read them; the observer
+    // drives them and the selector/mux logic lives next to its instance.
+    logic [31:0] obs_rd_agg_prod  [1];
+    logic [31:0] obs_rd_agg_bp    [1];
+    logic [31:0] obs_rd_agg_starv [1];
+    logic [31:0] obs_rd_agg_idle  [1];
+    logic [31:0] obs_wr_agg_prod  [1];
+    logic [31:0] obs_wr_agg_bp    [1];
+    logic [31:0] obs_wr_agg_starv [1];
+    logic [31:0] obs_wr_agg_idle  [1];
+    logic [5:0]  obs_hist_sel;        // from u_csr.o_obs_hist_sel
+    logic [31:0] obs_hist_data_mux;   // selected count -> u_csr 0x124
+    logic [31:0] obs_hist_total_mux;  // selected total -> u_csr 0x128
+
     harness_csr #(.AW(32), .DW(32), .NUM_CHANNELS(NUM_CHANNELS)) u_csr (
         .aclk(aclk), .aresetn(aresetn),
         .s_awaddr(s1_awaddr), .s_awprot(s1_awprot),
@@ -785,7 +800,27 @@ module stream_char_harness #(
         .i_desc_aw_hs    (r_desc_aw_hs_cnt),
         .i_desc_w_hs     (r_desc_w_hs_cnt),
         .i_desc_b_hs     (r_desc_b_hs_cnt),
-        .i_desc_vr_live  (w_desc_ram_dbg_vr)
+        .i_desc_vr_live  (w_desc_ram_dbg_vr),
+
+        // RFC Stage E external DMA observer readback (0x100-0x128). The
+        // observer is instantiated further down in parallel with the in-core
+        // monitors; these nets are declared near that instance. The host
+        // reads the observer's aggregate productive/bp/starv/idle buckets and
+        // the indexed latency histogram entirely over CSR (no hierarchy
+        // probe), enabling observer-vs-in-core equivalence over the real bus.
+        .i_obs_rd_prod   (obs_rd_agg_prod[0]),
+        .i_obs_rd_bp     (obs_rd_agg_bp[0]),
+        .i_obs_rd_starv  (obs_rd_agg_starv[0]),
+        .i_obs_rd_idle   (obs_rd_agg_idle[0]),
+        .i_obs_wr_prod   (obs_wr_agg_prod[0]),
+        .i_obs_wr_bp     (obs_wr_agg_bp[0]),
+        .i_obs_wr_starv  (obs_wr_agg_starv[0]),
+        .i_obs_wr_idle   (obs_wr_agg_idle[0]),
+        // Indexed histogram readout: CSR drives the {bin,metric,bus} selector,
+        // the harness muxes the selected count/total back in.
+        .o_obs_hist_sel  (obs_hist_sel),
+        .i_obs_hist_data (obs_hist_data_mux),
+        .i_obs_hist_total(obs_hist_total_mux)
     );
 
     // =========================================================================
@@ -1564,24 +1599,26 @@ module stream_char_harness #(
     assign obs_wr_active_ch_id[0]    = '0;
     assign obs_wr_active_ch_valid[0] = 1'b0;
 
-    // ---- Histogram readout selectors (cosim-drivable; default 0) ------------
-    logic                    obs_hist_metric = 1'b0;
-    logic [OBS_HIST_BINW-1:0] obs_hist_bin   = '0;
+    // ---- Histogram readout selectors (driven by harness_csr @ 0x120) --------
+    // CSR packs the selector as {bin[5:2], metric[1], bus[0]}: bus picks the
+    // read- vs write-side observer port, metric picks which latency metric,
+    // and bin indexes the 16-entry log2 histogram. The selected count/total
+    // are muxed back to the CSR at 0x124/0x128 (obs_hist_*_mux declared up by
+    // the u_csr instance; obs_hist_sel likewise driven from u_csr).
+    logic                    obs_hist_metric;
+    logic [OBS_HIST_BINW-1:0] obs_hist_bin;
+    logic                    obs_hist_bus;
+    assign obs_hist_bus    = obs_hist_sel[0];
+    assign obs_hist_metric = obs_hist_sel[1];
+    assign obs_hist_bin    = obs_hist_sel[5:2];
 
-    // ---- Observer meter + histogram outputs (read by cosim via hierarchy) ---
-    logic [31:0]               obs_rd_agg_prod    [1];
-    logic [31:0]               obs_rd_agg_bp      [1];
-    logic [31:0]               obs_rd_agg_starv   [1];
-    logic [31:0]               obs_rd_agg_idle    [1];
+    // ---- Observer meter + histogram outputs (aggregate nets declared by the
+    //      u_csr instance above; per-channel + histogram nets declared here) ---
     logic [15:0]               obs_rd_ch_prod     [1][NUM_CHANNELS];
     logic [15:0]               obs_rd_ch_bp       [1][NUM_CHANNELS];
     logic [15:0]               obs_rd_ch_starv    [1][NUM_CHANNELS];
     logic [15:0]               obs_rd_ch_idle     [1][NUM_CHANNELS];
     logic [NUM_CHANNELS*4-1:0] obs_rd_ch_overflow [1];
-    logic [31:0]               obs_wr_agg_prod    [1];
-    logic [31:0]               obs_wr_agg_bp      [1];
-    logic [31:0]               obs_wr_agg_starv   [1];
-    logic [31:0]               obs_wr_agg_idle    [1];
     logic [15:0]               obs_wr_ch_prod     [1][NUM_CHANNELS];
     logic [15:0]               obs_wr_ch_bp       [1][NUM_CHANNELS];
     logic [15:0]               obs_wr_ch_starv    [1][NUM_CHANNELS];
@@ -1591,6 +1628,10 @@ module stream_char_harness #(
     logic [31:0]               obs_rd_hist_total  [1];
     logic [31:0]               obs_wr_hist_count  [1];
     logic [31:0]               obs_wr_hist_total  [1];
+    // Read/write-side count+total mux feeding the CSR readback (after the
+    // histogram count/total declarations above).
+    assign obs_hist_data_mux  = obs_hist_bus ? obs_wr_hist_count[0] : obs_rd_hist_count[0];
+    assign obs_hist_total_mux = obs_hist_bus ? obs_wr_hist_total[0] : obs_rd_hist_total[0];
 
     axi4_dma_observer #(
         .NUM_RD_PORTS        (1),

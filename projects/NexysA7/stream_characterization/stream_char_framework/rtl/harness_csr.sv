@@ -251,9 +251,28 @@ module harness_csr #(
     input  logic [31:0]     i_mon_comp_event_data_ovf,
     input  logic [31:0]     i_mon_comp_ed_delta_ovf,
 
-    // (AXI bus meter readback ports retired in RFC Stage E.4 -- datapath
-    //  utilization is now measured in-core and read via the STREAM regblock
-    //  perf CSRs, not through this harness CSR block.)
+    // RFC Stage E: external axi4_dma_observer perf readback (revives the
+    // 0x100-0x128 range the retired harness axi_bus_meter used). Aggregate
+    // R/W bus-meter buckets + an indexed latency-histogram readout, sourced
+    // from the standalone observer dropped inline on STREAM's rd/wr AXI. Used
+    // for observer-vs-in-core equivalence and the eventual USE_AXI_MONITORS=0
+    // path where the observer is the sole perf source.
+    input  logic [31:0]     i_obs_rd_prod,
+    input  logic [31:0]     i_obs_rd_bp,
+    input  logic [31:0]     i_obs_rd_starv,
+    input  logic [31:0]     i_obs_rd_idle,
+    input  logic [31:0]     i_obs_wr_prod,
+    input  logic [31:0]     i_obs_wr_bp,
+    input  logic [31:0]     i_obs_wr_starv,
+    input  logic [31:0]     i_obs_wr_idle,
+    // Indexed histogram readout. o_obs_hist_sel = {bin[5:2], metric[1], bus[0]}
+    // (bus 0=read/1=write; metric 0=AR->firstR or AW->B, 1=AR->RLAST). The
+    // harness drives the observer's i_hist_metric/i_hist_bin from this and
+    // muxes the selected count/total back into i_obs_hist_data/total.
+    output logic [5:0]      o_obs_hist_sel,
+    input  logic [31:0]     i_obs_hist_data,
+    input  logic [31:0]     i_obs_hist_total,
+
     input  logic [31:0]     i_crc_rd_expected,
     input  logic [31:0]     i_crc_wr_expected,
     input  logic [31:0]     i_crc_wr_computed,
@@ -416,6 +435,7 @@ module harness_csr #(
     logic r_irq_latched;
     logic r_any_error_sticky;
     logic [31:0] r_scratch;
+    logic [5:0]  r_obs_hist_sel;   // RFC Stage E observer hist selector @ 0x120
 
     logic r_start_pulse;
     logic r_clear_stats_pulse;
@@ -489,6 +509,7 @@ module harness_csr #(
             r_timer_expected_beats <= '0;
             r_rd_resp_delay_cyc    <= '0;
             r_wr_resp_delay_cyc    <= '0;
+            r_obs_hist_sel         <= '0;
             for (int i = 0; i < 8; i++) r_kick_addr[i] <= '0;
             r_kick_go_pulse        <= '0;
         end else begin
@@ -504,7 +525,9 @@ module harness_csr #(
                     if (int_awvalid && int_wvalid) begin
                         // Use the same 9-bit slice as the read path so the
                         // meter region 0x100-0x1FF stays read-only (no write
-                        // case-match means write goes to default = ignore).
+                        // case-match means write goes to default = ignore),
+                        // with the sole exception of the RFC Stage E observer
+                        // histogram selector at 0x120 (RW).
                         case (int_awaddr[8:0])
                             8'h00: begin
                                 r_start_pulse       <= int_wdata[0];
@@ -533,6 +556,11 @@ module harness_csr #(
                             // Kick-burst trigger: bitmask of channels to
                             // pulse for exactly one cycle. Auto-clears.
                             8'hC0: r_kick_go_pulse <= int_wdata[7:0];
+                            // RFC Stage E observer histogram selector (RW):
+                            // {bin[5:2], metric[1], bus[0]}. Drives the
+                            // observer's hist read port; data/total stream
+                            // back through 0x124/0x128 (read-only).
+                            9'h120: r_obs_hist_sel <= int_wdata[5:0];
                             default: ; // ignore
                         endcase
                         r_wstate <= W_BRESP;
@@ -664,11 +692,20 @@ module harness_csr #(
                             8'hCC: r_rdata <= r_kick_addr[6];
                             8'hD0: r_rdata <= r_kick_addr[7];
 
-                            // AXI bus meter readback (R-meter @ 0x100, W-meter @
-                            // 0x180) RETIRED in RFC Stage E.4 -- datapath
-                            // utilization is now measured in-core and read from
-                            // the STREAM regblock perf CSRs. The 0x100-0x1DF
-                            // range now falls through to the default (reads 0).
+                            // RFC Stage E: external axi4_dma_observer perf
+                            // readback (revives 0x100-0x128). Aggregate R/W
+                            // buckets + indexed latency-histogram readout.
+                            9'h100: r_rdata <= i_obs_rd_prod;
+                            9'h104: r_rdata <= i_obs_rd_bp;
+                            9'h108: r_rdata <= i_obs_rd_starv;
+                            9'h10C: r_rdata <= i_obs_rd_idle;
+                            9'h110: r_rdata <= i_obs_wr_prod;
+                            9'h114: r_rdata <= i_obs_wr_bp;
+                            9'h118: r_rdata <= i_obs_wr_starv;
+                            9'h11C: r_rdata <= i_obs_wr_idle;
+                            9'h120: r_rdata <= {26'd0, r_obs_hist_sel};
+                            9'h124: r_rdata <= i_obs_hist_data;
+                            9'h128: r_rdata <= i_obs_hist_total;
 
                             // MonBus compressor statistics (0 unless the
                             // build has USE_MON_COMPRESSION=1).
@@ -708,6 +745,7 @@ module harness_csr #(
     assign o_timer_expected_beats = r_timer_expected_beats;
     assign o_rd_resp_delay_cyc    = r_rd_resp_delay_cyc;
     assign o_wr_resp_delay_cyc    = r_wr_resp_delay_cyc;
+    assign o_obs_hist_sel         = r_obs_hist_sel;
 
     // Kick-burst outputs: pulse the mask exactly when KICK_GO was just
     // written (one aclk cycle), and broadcast the per-channel shadow
