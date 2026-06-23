@@ -518,6 +518,67 @@ async def cocotb_test_scheduler(dut):
         else:
             raise AssertionError("scheduler never issued wr")
 
+    elif test_type == "no_double_issue_wr":
+        # REGRESSION: scheduler's wr_issued_we_o used to fire in S_DONE,
+        # one cycle after the FSM transitioned back to S_IDLE. The picker
+        # ran combinationally in S_IDLE against match_pending which
+        # depends on wr_cmd_cam's r_issued. With a registered strobe
+        # there's a 1-cycle latency, so the picker re-selected the same
+        # slot and issued ACT+WR a SECOND time. This test pushes one slot
+        # pending, then watches wr_issued_we_o for many cycles. Exactly
+        # one pulse must fire — anything more means the race regressed.
+        await tb.setup()
+        tb.set_wr_pending(slot=2, col=0x40, length=4)
+        pulses = 0
+        for _ in range(30):
+            await tb.wait_clocks('mc_clk', 1)
+            if tb.wr_issued():
+                pulses += 1
+            tb.clear_pending()  # drop match_pending so no NEW issuance starts
+        assert pulses == 1, (
+            f"wr_issued_we_o pulsed {pulses} times; expected exactly 1 "
+            "(re-issue race regressed — see scheduler S_DONE comment)"
+        )
+
+    elif test_type == "no_double_issue_rd":
+        # Same race protection on the read side.
+        await tb.setup()
+        tb.set_rd_pending(slot=4, col=0x40, length=4)
+        pulses = 0
+        for _ in range(30):
+            await tb.wait_clocks('mc_clk', 1)
+            if tb.rd_issued():
+                pulses += 1
+            tb.clear_pending()
+        assert pulses == 1, (
+            f"rd_issued_we_o pulsed {pulses} times; expected exactly 1"
+        )
+
+    elif test_type == "issued_pulse_width":
+        # The issued_we strobe is a 1-cycle pulse. Verify it is exactly
+        # 1 mc_clk wide (not stuck high, not zero-width).
+        await tb.setup()
+        tb.set_wr_pending(slot=0, col=0x20, length=4)
+        # Wait until the pulse fires
+        seen = False
+        cycles_high = 0
+        for _ in range(20):
+            await tb.wait_clocks('mc_clk', 1)
+            if tb.wr_issued():
+                seen = True
+                cycles_high += 1
+                tb.clear_pending()
+                # Sample once more — pulse should be back to 0.
+                await tb.wait_clocks('mc_clk', 1)
+                if tb.wr_issued():
+                    cycles_high += 1
+                break
+        assert seen, "wr_issued_we_o never asserted"
+        assert cycles_high == 1, (
+            f"wr_issued_we_o stuck high for {cycles_high} cycles; "
+            "expected 1-cycle pulse"
+        )
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -550,7 +611,11 @@ _FUNC = ([(t, PAGE_POLICY_CLOSE) for t in _BASE_CLOSE]
           ("dr_open_row_miss",PAGE_POLICY_OPEN),
           # F4c: QoS-aware picker
           ("qos_picker",            PAGE_POLICY_CLOSE),
-          ("qos_tie_lowest_index",  PAGE_POLICY_CLOSE)])
+          ("qos_tie_lowest_index",  PAGE_POLICY_CLOSE),
+          # Race-detection (regression for S_DONE re-issue bug)
+          ("no_double_issue_wr",    PAGE_POLICY_CLOSE),
+          ("no_double_issue_rd",    PAGE_POLICY_CLOSE),
+          ("issued_pulse_width",    PAGE_POLICY_CLOSE)])
 _FULL = _FUNC
 _FULL = list(dict.fromkeys(_FULL))
 

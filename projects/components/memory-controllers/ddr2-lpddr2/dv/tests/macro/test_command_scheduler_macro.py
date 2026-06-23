@@ -173,13 +173,67 @@ async def cocotb_test_command_scheduler_macro(dut):
         assert saw_act,  "scheduler never issued OP_ACT"
         assert saw_wra,  "scheduler never followed up with OP_WRA"
 
+    elif test_type == "no_double_issue_race":
+        # REGRESSION test for the scheduler S_DONE re-issue bug
+        # (commit 66f32c7f). The scheduler used to fire wr_issued_we_o
+        # from S_DONE while transitioning to S_IDLE the same cycle.
+        # Because the strobe is strict-flopped, the consuming CAM saw
+        # it ONE cycle after the FSM was back in S_IDLE. If the test
+        # holds wr_match_pending_i high for ONE EXTRA cycle (modeling
+        # the CAM's r_issued register lag), the buggy scheduler
+        # re-picks the slot and fires wr_issued_we_o a second time.
+        #
+        # This test simulates that exact CAM-lag pattern: drop
+        # wr_match_pending one mc_clk AFTER observing wr_issued_we_o,
+        # and count pulses. Exactly 1 → fix is in place; 2+ → race
+        # regressed.
+        await tb.setup()
+        ok = await tb.wait_init_done()
+        assert ok, "init didn't complete"
+
+        slot = 1
+        BKW = (tb.NUM_BANKS - 1).bit_length() or 1
+        COL_WIDTH = 10
+        BLW = 8
+        ROW_WIDTH = 14
+
+        # Drive a pending wr slot. snap values for bank 1 row 0 col 0 len 1.
+        match_bits = (1 << slot)
+        tb.dut.wr_match_pending_i.value = match_bits
+        tb.dut.wr_snap_bank_i.value = (1 << (slot * BKW))
+        tb.dut.wr_snap_row_i.value  = (0 << (slot * ROW_WIDTH))
+        tb.dut.wr_snap_col_i.value  = (0 << (slot * COL_WIDTH))
+        tb.dut.wr_snap_len_i.value  = (1 << (slot * BLW))
+
+        # Walk the FSM through ACT+WR and watch issued_we. Once we see
+        # wr_issued_we_o = 1, wait ONE mc_clk before dropping
+        # wr_match_pending — this models the CAM's r_issued register lag.
+        pulses = 0
+        cleared = False
+        for _ in range(400):
+            await RisingEdge(tb.dut.mc_clk)
+            await Timer(_NBA_SETTLE_PS, units='ps')
+            if int(tb.dut.wr_issued_we_o.value):
+                pulses += 1
+                if not cleared:
+                    # ONE cycle of CAM lag, then drop pending.
+                    await RisingEdge(tb.dut.mc_clk)
+                    tb.dut.wr_match_pending_i.value = 0
+                    cleared = True
+        assert pulses == 1, (
+            f"wr_issued_we_o pulsed {pulses} times with 1-cycle CAM lag; "
+            "expected exactly 1 (S_DONE re-issue race regressed). "
+            "See scheduler.sv comment on S_NEED_RDWR / S_DONE issued_we "
+            "placement."
+        )
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
     await tb.wait_clocks('mc_clk', 5)
 
 
-_SCENARIOS = ["init_walks_through", "smoke_wr_cmd"]
+_SCENARIOS = ["init_walks_through", "smoke_wr_cmd", "no_double_issue_race"]
 
 
 @pytest.mark.parametrize("test_type", _SCENARIOS, ids=_SCENARIOS)
