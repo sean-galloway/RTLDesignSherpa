@@ -54,7 +54,7 @@ module axi_frontend_macro
     parameter int AXI_ADDR_WIDTH       = 32,
     parameter int AXI_DATA_WIDTH       = 64,
     parameter int AXI_ID_WIDTH         = 4,
-    parameter int AXI_USER_WIDTH       = 1,
+    parameter int AXI_USER_WIDTH       = 8,
     parameter int AXI_STRB_WIDTH       = AXI_DATA_WIDTH / 8,
     parameter int NUM_RANKS            = 1,
     parameter int NUM_BANKS            = 8,

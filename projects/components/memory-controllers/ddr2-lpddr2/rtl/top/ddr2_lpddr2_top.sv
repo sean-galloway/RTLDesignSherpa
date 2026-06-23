@@ -29,7 +29,9 @@ module ddr2_lpddr2_top
     parameter int AXI_ADDR_WIDTH   = 32,
     parameter int AXI_DATA_WIDTH   = 64,
     parameter int AXI_ID_WIDTH     = 4,
-    parameter int AXI_USER_WIDTH   = 1,
+    // AXI USER channel — 8 bits is the typical SoC convention. The side-table
+    // captures awuser/aruser per ID and echoes them on B/R per AXI4.
+    parameter int AXI_USER_WIDTH   = 8,
     parameter int AXI_STRB_WIDTH   = AXI_DATA_WIDTH / 8,
     parameter int BURST_LEN_WIDTH  = 8,
 
