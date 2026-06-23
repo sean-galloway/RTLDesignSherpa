@@ -255,6 +255,61 @@ async def cocotb_test_stream_char(dut):
         tb.log.info("Latency histograms verified (totals == burst counts, bins "
                     "sum to total, plausible bin placement)")
 
+    elif test_type == 'obs_equiv':
+        # Observer-vs-in-core equivalence (the "route STREAM through the external
+        # axi4_dma_observer" validation). The observer is instantiated INLINE in
+        # the harness, in parallel with the in-core monitors (USE_AXI_MONITORS=1).
+        # Run a big multi-channel / multi-descriptor workload over lots of cycles,
+        # then diff the observer's meter + histogram registers against the in-core
+        # RDMON/WRMON perf CSRs. Equal => the observer measures STREAM equivalently
+        # => confidence to later ship USE_AXI_MONITORS=0 and measure externally.
+        tb.log.info("=== Observer vs in-core equivalence (RFC Stage E) ===")
+        ok = await tb.run_ping_test()
+        ok &= await tb.run_dma_test(
+            num_channels=4,
+            descriptors_per_channel=4,
+            transfer_bytes=65536,      # 4ch x 4desc x 64KB = 1 MB moved => lots of cycles
+            timeout_clocks=600_000,
+            measure_rw_perf=True,      # opens/closes in-core window, reads RDMON/WRMON + hists
+        )
+        assert ok, "obs_equiv: DMA workload failed"
+        rd = getattr(tb, '_rd_perf', None)
+        wr = getattr(tb, '_wr_perf', None)
+        rd_hf = getattr(tb, '_rd_hist_firstr', None)
+        rd_hl = getattr(tb, '_rd_hist_rlast', None)
+        wr_hb = getattr(tb, '_wr_hist_b', None)
+        assert rd and wr and rd_hf and rd_hl and wr_hb, "obs_equiv: in-core snapshots missing"
+
+        obs = await tb._read_observer_perf()
+        tb.log.info(f"  in-core RD prod={rd['productive']} WR prod={wr['productive']}")
+        tb.log.info(f"  observer RD prod={obs['rd_prod']} WR prod={obs['wr_prod']} "
+                    f"(win_active={obs['win_active']})")
+
+        # 1) Aggregate productive cycles must match (pass-through skid preserves
+        #    throughput; allow a tiny window-edge slack).
+        TOL = max(8, rd['productive'] // 1000)
+        assert abs(obs['rd_prod'] - rd['productive']) <= TOL, (
+            f"RD productive mismatch: observer {obs['rd_prod']} vs in-core "
+            f"{rd['productive']} (tol {TOL})")
+        assert abs(obs['wr_prod'] - wr['productive']) <= TOL, (
+            f"WR productive mismatch: observer {obs['wr_prod']} vs in-core "
+            f"{wr['productive']} (tol {TOL})")
+
+        # 2) Latency-histogram TOTALS (= burst counts) must match exactly.
+        for label, o, c in (('rd AR->firstR', obs['rd_hist_firstr'], rd_hf),
+                            ('rd AR->RLAST',  obs['rd_hist_rlast'],  rd_hl),
+                            ('wr AW->B',      obs['wr_hist_b'],      wr_hb)):
+            assert o['total'] == c['total'], (
+                f"{label} hist total mismatch: observer {o['total']} vs in-core "
+                f"{c['total']}")
+            # bin-shift due to the observer's skid is tolerated; report it.
+            same = (o['bins'] == c['bins'])
+            tb.log.info(f"  {label}: total={o['total']} (match); per-bin "
+                        f"{'identical' if same else 'shifted (skid latency)'}: "
+                        f"obs={o['bins']} incore={c['bins']}")
+        tb.log.info("OBSERVER EQUIVALENCE PASSED: productive + histogram totals "
+                    "match the in-core monitors")
+
     elif test_type == 'compress_char':
         # Compression characterization: route monbus to the bulk-trace
         # (debug_sram) path -- mon_err_cfg=0 -- so the compressor is
@@ -334,7 +389,7 @@ def generate_stream_char_params():
     max_channels = BASE_RTL_PARAMS.get('NUM_CHANNELS', 8)
     gate_types = ['ping']
     func_types = ['desc_load', 'csr_read', 'apb_config', 'desc_perf', 'rw_perf',
-                  'dma_1ch', 'dma_2ch']
+                  'obs_equiv', 'dma_1ch', 'dma_2ch']
     full_types = [f'dma_{n}ch' for n in range(3, max_channels + 1)]
     full_types += ['compress_char']   # compression characterization run
 

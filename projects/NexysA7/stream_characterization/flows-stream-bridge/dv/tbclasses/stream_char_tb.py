@@ -586,6 +586,45 @@ class StreamCharTB(TBBase):
         total = await self.uart_read(APB_HIST_TOTAL) or 0
         return {'bins': bins, 'total': total}
 
+    async def _read_observer_perf(self) -> dict:
+        """Read the inline axi4_dma_observer's meter + histogram outputs by RTL
+        hierarchy (cosim only) to compare against the in-core RDMON/WRMON perf.
+
+        The observer is a transparent pass-through, so it meters the SAME R/W
+        beats as the in-core monitors: aggregate productive cycles and the
+        per-metric histogram TOTALS (= burst counts) must match exactly. The
+        observer's pass-through skid shifts the measured AR->R / AW->B *latency*
+        by a couple of cycles, so per-bin counts may move at a bin boundary --
+        we log those for inspection but assert on the window-independent totals.
+        """
+        d = self.dut
+
+        async def _hist(metric: int):
+            d.obs_hist_metric.value = metric
+            rd_bins, wr_bins = [], []
+            for b in range(HIST_NUM_BINS):
+                d.obs_hist_bin.value = b
+                await self.wait_clocks(self.clk_name, 2)
+                rd_bins.append(int(d.obs_rd_hist_count[0].value))
+                wr_bins.append(int(d.obs_wr_hist_count[0].value))
+            return (rd_bins, int(d.obs_rd_hist_total[0].value),
+                    wr_bins, int(d.obs_wr_hist_total[0].value))
+
+        rd0, rd0t, wr0, wr0t = await _hist(0)   # rd: AR->first-R ; wr: AW->B
+        rd1, rd1t, _,   _    = await _hist(1)   # rd: AR->RLAST
+        return {
+            'rd_prod':  int(d.obs_rd_agg_prod[0].value),
+            'wr_prod':  int(d.obs_wr_agg_prod[0].value),
+            'rd_bp':    int(d.obs_rd_agg_bp[0].value),
+            'wr_bp':    int(d.obs_wr_agg_bp[0].value),
+            'rd_starv': int(d.obs_rd_agg_starv[0].value),
+            'wr_starv': int(d.obs_wr_agg_starv[0].value),
+            'win_active': int(d.obs_win_active.value),
+            'rd_hist_firstr': {'bins': rd0, 'total': rd0t},
+            'rd_hist_rlast':  {'bins': rd1, 'total': rd1t},
+            'wr_hist_b':      {'bins': wr0, 'total': wr0t},
+        }
+
     async def _read_perf_window(self, base: int) -> dict:
         """Read one perf-window CSR block (DAXMON/RDMON/WRMON share the layout).
 

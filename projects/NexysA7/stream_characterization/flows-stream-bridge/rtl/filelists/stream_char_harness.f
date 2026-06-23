@@ -32,6 +32,14 @@ $REPO_ROOT/rtl/amba/shared/axi4_dma_slaves.sv
 # bridges, RAMs, board-level status drivers).
 -f $FRAMEWORK_ROOT/rtl/filelists/instrumentation.f
 
+# RFC Stage E: external DMA observer, instantiated inline (in parallel with the
+# in-core monitors) for the observer-vs-in-core equivalence cosim. Its meter +
+# latency-hist + mon-tap deps are already pulled via stream_top_ch8.f above;
+# only the observer wrapper and its AXIL-read / AXI4-write monbus output stage
+# are new here.
+$REPO_ROOT/rtl/amba/shared/monbus_axil_axi4_group.sv
+$REPO_ROOT/rtl/amba/shared/axi4_dma_observer.sv
+
 # Flow-specific top-level harness wrapper (instantiates STREAM + the
 # instrumentation library above).
 $STREAM_CHAR_ROOT/rtl/stream_char_harness.sv

@@ -1289,6 +1289,61 @@ module stream_char_harness #(
     logic                      s_rd_rvalid;
     logic                      s_rd_rready;
 
+    // -------------------------------------------------------------------------
+    // Observer fabric-side wires (f_rd_* / f_wr_*).
+    //
+    // axi4_dma_observer is inserted INLINE between the STREAM DUT (which stays
+    // on rd_*/wr_*) and the axi4_dma_slaves + axi_response_delay blocks. The
+    // observer's DMA side carries rd_*/wr_*; its fabric side carries these
+    // f_*. The slaves and resp-delay master sides are re-pointed to f_* below.
+    //   AR/AW/W : observer drives f_* toward the slaves.
+    //   R/B     : resp-delay drives f_*_r/b toward the observer.
+    // -------------------------------------------------------------------------
+    // Read fabric AR (observer -> slaves)
+    logic [AXI_ID_WIDTH-1:0]    f_rd_arid;
+    logic [ADDR_WIDTH-1:0]      f_rd_araddr;
+    logic [7:0]                 f_rd_arlen;
+    logic [2:0]                 f_rd_arsize;
+    logic [1:0]                 f_rd_arburst;
+    logic                       f_rd_arlock;
+    logic [3:0]                 f_rd_arcache;
+    logic [2:0]                 f_rd_arprot;
+    logic [3:0]                 f_rd_arqos;
+    logic [3:0]                 f_rd_arregion;
+    logic [AXI_USER_WIDTH-1:0]  f_rd_aruser;
+    logic                       f_rd_arvalid, f_rd_arready;
+    // Read fabric R (resp-delay -> observer)
+    logic [AXI_ID_WIDTH-1:0]    f_rd_rid;
+    logic [DATA_WIDTH-1:0]      f_rd_rdata;
+    logic [1:0]                 f_rd_rresp;
+    logic                       f_rd_rlast;
+    logic [AXI_USER_WIDTH-1:0]  f_rd_ruser;
+    logic                       f_rd_rvalid, f_rd_rready;
+    // Write fabric AW (observer -> slaves)
+    logic [AXI_ID_WIDTH-1:0]    f_wr_awid;
+    logic [ADDR_WIDTH-1:0]      f_wr_awaddr;
+    logic [7:0]                 f_wr_awlen;
+    logic [2:0]                 f_wr_awsize;
+    logic [1:0]                 f_wr_awburst;
+    logic                       f_wr_awlock;
+    logic [3:0]                 f_wr_awcache;
+    logic [2:0]                 f_wr_awprot;
+    logic [3:0]                 f_wr_awqos;
+    logic [3:0]                 f_wr_awregion;
+    logic [AXI_USER_WIDTH-1:0]  f_wr_awuser;
+    logic                       f_wr_awvalid, f_wr_awready;
+    // Write fabric W (observer -> slaves)
+    logic [DATA_WIDTH-1:0]      f_wr_wdata;
+    logic [DATA_WIDTH/8-1:0]    f_wr_wstrb;
+    logic                       f_wr_wlast;
+    logic [AXI_USER_WIDTH-1:0]  f_wr_wuser;
+    logic                       f_wr_wvalid, f_wr_wready;
+    // Write fabric B (resp-delay -> observer)
+    logic [AXI_ID_WIDTH-1:0]    f_wr_bid;
+    logic [1:0]                 f_wr_bresp;
+    logic [AXI_USER_WIDTH-1:0]  f_wr_buser;
+    logic                       f_wr_bvalid, f_wr_bready;
+
     // (axi4_dma_slaves instance moved below the AW/W/B wire decls so
     // both port halves are visible at instantiation time.)
 
@@ -1300,7 +1355,9 @@ module stream_char_harness #(
     logic [RD_R_PAYLOAD_W-1:0] m_rd_r_payload;
 
     assign s_rd_r_payload = {s_rd_rid, s_rd_rdata, s_rd_rresp, s_rd_rlast, s_rd_ruser};
-    assign {rd_rid, rd_rdata, rd_rresp, rd_rlast, rd_ruser} = m_rd_r_payload;
+    // Master side of the R resp-delay now feeds the observer's fabric R port
+    // (f_rd_*) instead of STREAM directly; the observer drives rd_r* to STREAM.
+    assign {f_rd_rid, f_rd_rdata, f_rd_rresp, f_rd_rlast, f_rd_ruser} = m_rd_r_payload;
 
     axi_response_delay #(
         .DATA_WIDTH (RD_R_PAYLOAD_W),
@@ -1314,8 +1371,8 @@ module stream_char_harness #(
         .s_valid       (s_rd_rvalid),
         .s_ready       (s_rd_rready),
         .m_data        (m_rd_r_payload),
-        .m_valid       (rd_rvalid),
-        .m_ready       (rd_rready)
+        .m_valid       (f_rd_rvalid),
+        .m_ready       (f_rd_rready)
     );
 
     // =========================================================================
@@ -1380,29 +1437,29 @@ module stream_char_harness #(
         .write_beat_count_total (write_beat_count),
 
         // AR/R (slave-side R wires fed through u_rd_resp_delay below)
-        .s_axi_arid    (rd_arid),     .s_axi_araddr  (rd_araddr),
-        .s_axi_arlen   (rd_arlen),    .s_axi_arsize  (rd_arsize),
-        .s_axi_arburst (rd_arburst),  .s_axi_arlock  (rd_arlock),
-        .s_axi_arcache (rd_arcache),  .s_axi_arprot  (rd_arprot),
-        .s_axi_arqos   (rd_arqos),    .s_axi_arregion(rd_arregion),
-        .s_axi_aruser  (rd_aruser),   .s_axi_arvalid (rd_arvalid),
-        .s_axi_arready (rd_arready),
+        .s_axi_arid    (f_rd_arid),   .s_axi_araddr  (f_rd_araddr),
+        .s_axi_arlen   (f_rd_arlen),  .s_axi_arsize  (f_rd_arsize),
+        .s_axi_arburst (f_rd_arburst),.s_axi_arlock  (f_rd_arlock),
+        .s_axi_arcache (f_rd_arcache),.s_axi_arprot  (f_rd_arprot),
+        .s_axi_arqos   (f_rd_arqos),  .s_axi_arregion(f_rd_arregion),
+        .s_axi_aruser  (f_rd_aruser), .s_axi_arvalid (f_rd_arvalid),
+        .s_axi_arready (f_rd_arready),
         .s_axi_rid     (s_rd_rid),    .s_axi_rdata   (s_rd_rdata),
         .s_axi_rresp   (s_rd_rresp),  .s_axi_rlast   (s_rd_rlast),
         .s_axi_ruser   (s_rd_ruser),  .s_axi_rvalid  (s_rd_rvalid),
         .s_axi_rready  (s_rd_rready),
 
         // AW/W (slave-side B wires fed through u_wr_resp_delay below)
-        .s_axi_awid    (wr_awid),     .s_axi_awaddr  (wr_awaddr),
-        .s_axi_awlen   (wr_awlen),    .s_axi_awsize  (wr_awsize),
-        .s_axi_awburst (wr_awburst),  .s_axi_awlock  (wr_awlock),
-        .s_axi_awcache (wr_awcache),  .s_axi_awprot  (wr_awprot),
-        .s_axi_awqos   (wr_awqos),    .s_axi_awregion(wr_awregion),
-        .s_axi_awuser  (wr_awuser),   .s_axi_awvalid (wr_awvalid),
-        .s_axi_awready (wr_awready),
-        .s_axi_wdata   (wr_wdata),    .s_axi_wstrb   (wr_wstrb),
-        .s_axi_wlast   (wr_wlast),    .s_axi_wuser   (wr_wuser),
-        .s_axi_wvalid  (wr_wvalid),   .s_axi_wready  (wr_wready),
+        .s_axi_awid    (f_wr_awid),   .s_axi_awaddr  (f_wr_awaddr),
+        .s_axi_awlen   (f_wr_awlen),  .s_axi_awsize  (f_wr_awsize),
+        .s_axi_awburst (f_wr_awburst),.s_axi_awlock  (f_wr_awlock),
+        .s_axi_awcache (f_wr_awcache),.s_axi_awprot  (f_wr_awprot),
+        .s_axi_awqos   (f_wr_awqos),  .s_axi_awregion(f_wr_awregion),
+        .s_axi_awuser  (f_wr_awuser), .s_axi_awvalid (f_wr_awvalid),
+        .s_axi_awready (f_wr_awready),
+        .s_axi_wdata   (f_wr_wdata),  .s_axi_wstrb   (f_wr_wstrb),
+        .s_axi_wlast   (f_wr_wlast),  .s_axi_wuser   (f_wr_wuser),
+        .s_axi_wvalid  (f_wr_wvalid), .s_axi_wready  (f_wr_wready),
         .s_axi_bid     (s_wr_bid),    .s_axi_bresp   (s_wr_bresp),
         .s_axi_buser   (s_wr_buser),  .s_axi_bvalid  (s_wr_bvalid),
         .s_axi_bready  (s_wr_bready),
@@ -1421,7 +1478,9 @@ module stream_char_harness #(
     logic [WR_B_PAYLOAD_W-1:0] m_wr_b_payload;
 
     assign s_wr_b_payload = {s_wr_bid, s_wr_bresp, s_wr_buser};
-    assign {wr_bid, wr_bresp, wr_buser} = m_wr_b_payload;
+    // Master side of the B resp-delay now feeds the observer's fabric B port
+    // (f_wr_b*) instead of STREAM directly; the observer drives wr_b* to STREAM.
+    assign {f_wr_bid, f_wr_bresp, f_wr_buser} = m_wr_b_payload;
 
     axi_response_delay #(
         .DATA_WIDTH (WR_B_PAYLOAD_W),
@@ -1435,8 +1494,287 @@ module stream_char_harness #(
         .s_valid       (s_wr_bvalid),
         .s_ready       (s_wr_bready),
         .m_data        (m_wr_b_payload),
-        .m_valid       (wr_bvalid),
-        .m_ready       (wr_bready)
+        .m_valid       (f_wr_bvalid),
+        .m_ready       (f_wr_bready)
+    );
+
+    // =========================================================================
+    // axi4_dma_observer (RFC Stage E option 2): INLINE pass-through meter.
+    //
+    // Sits transparently between STREAM's rd_*/wr_* data masters and the
+    // axi4_dma_slaves + axi_response_delay fabric (f_rd_*/f_wr_*). Both the
+    // in-core STREAM monitors (USE_AXI_MONITORS=1, unchanged) and this observer
+    // run simultaneously so a cosim can prove they meter equivalently.
+    //
+    // The observer's monbus dump/IRQ path is NOT used here — its err/write
+    // FIFOs are left undrained and all central-filter cfg masks are 0. The AXI
+    // taps are pure pass-through, so AXI traffic flows regardless of monbus
+    // back-pressure. Only the bus-meter + latency-histogram outputs are read.
+    // =========================================================================
+    localparam int OBS_CW            = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1;
+    localparam int OBS_HIST_NUM_BINS = 16;
+    localparam int OBS_HIST_BINW     = (OBS_HIST_NUM_BINS > 1) ? $clog2(OBS_HIST_NUM_BINS) : 1;
+
+    // ---- Observer measurement-window controller -----------------------------
+    // Replicates stream_core's in-core perf-window "arm-gap" controller: open
+    // the window on first DMA activity, close it 16 idle cycles after the DMA
+    // goes quiet. Driven by STREAM's per-channel scheduler-idle vector (taken
+    // out of u_stream's debug_hwif_scheduler_idle just below).
+    logic [7:0] obs_sched_idle;  // STREAM scheduler-idle (observability/waves)
+    // Busy = any live AXI activity on STREAM's rd/wr bus. This is independent of
+    // NUM_CHANNELS (unlike ~scheduler_idle, whose disabled-channel bits read 0 =
+    // "active" and would wedge the window open on a <8-channel build), and it
+    // freezes cleanly once the workload goes quiet so the cosim gets a stable
+    // read. The bucket TOTALS we compare (productive / beats / bursts / byte /
+    // histograms) are window-position-independent as long as the window brackets
+    // the workload, so the exact window basis vs the in-core one does not matter.
+    logic       obs_busy;
+    assign obs_busy = rd_arvalid | rd_rvalid | wr_awvalid | wr_wvalid | wr_bvalid;
+    logic       obs_win_active, obs_started;
+    logic [4:0] obs_settle;
+    logic       obs_meter_clear, obs_meter_freeze;
+    `ALWAYS_FF_RST(aclk, unit_aresetn,
+        if (`RST_ASSERTED(unit_aresetn)) begin
+            obs_win_active <= 1'b0; obs_started <= 1'b0; obs_settle <= 5'd0;
+        end else begin
+            if (obs_busy && !obs_win_active && !obs_started) begin
+                obs_win_active <= 1'b1; obs_started <= 1'b1; obs_settle <= 5'd0;
+            end else if (obs_win_active) begin
+                if (obs_busy) obs_settle <= 5'd0;
+                else if (obs_settle != 5'd16) obs_settle <= obs_settle + 5'd1;
+            end
+        end
+    )
+    assign obs_meter_clear  = obs_busy && !obs_win_active && !obs_started; // 1-cycle open pulse
+    assign obs_meter_freeze = ~obs_win_active;
+
+    // ---- Read-side rid -> channel-id map (STREAM drives arid = channel) -----
+    logic [AXI_ID_WIDTH-1:0] obs_cfg_rd_rid       [1][NUM_CHANNELS];
+    logic                    obs_cfg_rd_rid_valid [1][NUM_CHANNELS];
+    always_comb begin
+        for (int c = 0; c < NUM_CHANNELS; c++) begin
+            obs_cfg_rd_rid[0][c]       = AXI_ID_WIDTH'(c);
+            obs_cfg_rd_rid_valid[0][c] = 1'b1;
+        end
+    end
+
+    // ---- Write-side channel sideband: unused (WR_CH_FROM_AWID=1) -------------
+    logic [OBS_CW-1:0] obs_wr_active_ch_id    [1];
+    logic              obs_wr_active_ch_valid [1];
+    assign obs_wr_active_ch_id[0]    = '0;
+    assign obs_wr_active_ch_valid[0] = 1'b0;
+
+    // ---- Histogram readout selectors (cosim-drivable; default 0) ------------
+    logic                    obs_hist_metric = 1'b0;
+    logic [OBS_HIST_BINW-1:0] obs_hist_bin   = '0;
+
+    // ---- Observer meter + histogram outputs (read by cosim via hierarchy) ---
+    logic [31:0]               obs_rd_agg_prod    [1];
+    logic [31:0]               obs_rd_agg_bp      [1];
+    logic [31:0]               obs_rd_agg_starv   [1];
+    logic [31:0]               obs_rd_agg_idle    [1];
+    logic [15:0]               obs_rd_ch_prod     [1][NUM_CHANNELS];
+    logic [15:0]               obs_rd_ch_bp       [1][NUM_CHANNELS];
+    logic [15:0]               obs_rd_ch_starv    [1][NUM_CHANNELS];
+    logic [15:0]               obs_rd_ch_idle     [1][NUM_CHANNELS];
+    logic [NUM_CHANNELS*4-1:0] obs_rd_ch_overflow [1];
+    logic [31:0]               obs_wr_agg_prod    [1];
+    logic [31:0]               obs_wr_agg_bp      [1];
+    logic [31:0]               obs_wr_agg_starv   [1];
+    logic [31:0]               obs_wr_agg_idle    [1];
+    logic [15:0]               obs_wr_ch_prod     [1][NUM_CHANNELS];
+    logic [15:0]               obs_wr_ch_bp       [1][NUM_CHANNELS];
+    logic [15:0]               obs_wr_ch_starv    [1][NUM_CHANNELS];
+    logic [15:0]               obs_wr_ch_idle     [1][NUM_CHANNELS];
+    logic [NUM_CHANNELS*4-1:0] obs_wr_ch_overflow [1];
+    logic [31:0]               obs_rd_hist_count  [1];
+    logic [31:0]               obs_rd_hist_total  [1];
+    logic [31:0]               obs_wr_hist_count  [1];
+    logic [31:0]               obs_wr_hist_total  [1];
+
+    axi4_dma_observer #(
+        .NUM_RD_PORTS        (1),
+        .NUM_WR_PORTS        (1),
+        .ADDR_WIDTH          (ADDR_WIDTH),
+        .DATA_WIDTH          (DATA_WIDTH),
+        .AXI_ID_WIDTH        (AXI_ID_WIDTH),
+        .AXI_USER_WIDTH      (AXI_USER_WIDTH),
+        .OBS_AXI_ID_WIDTH    (4),
+        .MAX_BURST_BEATS     (64),
+        .USE_COMPRESSION     (0),
+        .MAX_TRANSACTIONS    (16),
+        .ENABLE_BUS_METER    (1),
+        .WR_CH_FROM_AWID     (1),
+        .NUM_CHANNELS        (NUM_CHANNELS),
+        .ENABLE_LATENCY_HIST (1),
+        .HIST_NUM_BINS       (OBS_HIST_NUM_BINS),
+        .HIST_MAX_OUTSTANDING(8)
+    ) u_dma_observer (
+        .aclk    (aclk),
+        .aresetn (unit_aresetn),
+        .cam_clear (1'b0),
+
+        // ---- Read tap: DMA side = STREAM (rd_*) -----------------------------
+        .dma_rd_arid    (rd_arid),    .dma_rd_araddr  (rd_araddr),
+        .dma_rd_arlen   (rd_arlen),   .dma_rd_arsize  (rd_arsize),
+        .dma_rd_arburst (rd_arburst), .dma_rd_arlock  (rd_arlock),
+        .dma_rd_arcache (rd_arcache), .dma_rd_arprot  (rd_arprot),
+        .dma_rd_arqos   (rd_arqos),   .dma_rd_arregion(rd_arregion),
+        .dma_rd_aruser  (rd_aruser),  .dma_rd_arvalid (rd_arvalid),
+        .dma_rd_arready (rd_arready),
+        .dma_rd_rid     (rd_rid),     .dma_rd_rdata   (rd_rdata),
+        .dma_rd_rresp   (rd_rresp),   .dma_rd_rlast   (rd_rlast),
+        .dma_rd_ruser   (rd_ruser),   .dma_rd_rvalid  (rd_rvalid),
+        .dma_rd_rready  (rd_rready),
+        // Read tap: fabric side = slaves / resp-delay (f_rd_*)
+        .fab_rd_arid    (f_rd_arid),  .fab_rd_araddr  (f_rd_araddr),
+        .fab_rd_arlen   (f_rd_arlen), .fab_rd_arsize  (f_rd_arsize),
+        .fab_rd_arburst (f_rd_arburst),.fab_rd_arlock (f_rd_arlock),
+        .fab_rd_arcache (f_rd_arcache),.fab_rd_arprot (f_rd_arprot),
+        .fab_rd_arqos   (f_rd_arqos), .fab_rd_arregion(f_rd_arregion),
+        .fab_rd_aruser  (f_rd_aruser),.fab_rd_arvalid (f_rd_arvalid),
+        .fab_rd_arready (f_rd_arready),
+        .fab_rd_rid     (f_rd_rid),   .fab_rd_rdata   (f_rd_rdata),
+        .fab_rd_rresp   (f_rd_rresp), .fab_rd_rlast   (f_rd_rlast),
+        .fab_rd_ruser   (f_rd_ruser), .fab_rd_rvalid  (f_rd_rvalid),
+        .fab_rd_rready  (f_rd_rready),
+
+        // ---- Write tap: DMA side = STREAM (wr_*) ----------------------------
+        .dma_wr_awid    (wr_awid),    .dma_wr_awaddr  (wr_awaddr),
+        .dma_wr_awlen   (wr_awlen),   .dma_wr_awsize  (wr_awsize),
+        .dma_wr_awburst (wr_awburst), .dma_wr_awlock  (wr_awlock),
+        .dma_wr_awcache (wr_awcache), .dma_wr_awprot  (wr_awprot),
+        .dma_wr_awqos   (wr_awqos),   .dma_wr_awregion(wr_awregion),
+        .dma_wr_awuser  (wr_awuser),  .dma_wr_awvalid (wr_awvalid),
+        .dma_wr_awready (wr_awready),
+        .dma_wr_wdata   (wr_wdata),   .dma_wr_wstrb   (wr_wstrb),
+        .dma_wr_wlast   (wr_wlast),   .dma_wr_wuser   (wr_wuser),
+        .dma_wr_wvalid  (wr_wvalid),  .dma_wr_wready  (wr_wready),
+        .dma_wr_bid     (wr_bid),     .dma_wr_bresp   (wr_bresp),
+        .dma_wr_buser   (wr_buser),   .dma_wr_bvalid  (wr_bvalid),
+        .dma_wr_bready  (wr_bready),
+        // Write tap: fabric side = slaves / resp-delay (f_wr_*)
+        .fab_wr_awid    (f_wr_awid),  .fab_wr_awaddr  (f_wr_awaddr),
+        .fab_wr_awlen   (f_wr_awlen), .fab_wr_awsize  (f_wr_awsize),
+        .fab_wr_awburst (f_wr_awburst),.fab_wr_awlock (f_wr_awlock),
+        .fab_wr_awcache (f_wr_awcache),.fab_wr_awprot (f_wr_awprot),
+        .fab_wr_awqos   (f_wr_awqos), .fab_wr_awregion(f_wr_awregion),
+        .fab_wr_awuser  (f_wr_awuser),.fab_wr_awvalid (f_wr_awvalid),
+        .fab_wr_awready (f_wr_awready),
+        .fab_wr_wdata   (f_wr_wdata), .fab_wr_wstrb   (f_wr_wstrb),
+        .fab_wr_wlast   (f_wr_wlast), .fab_wr_wuser   (f_wr_wuser),
+        .fab_wr_wvalid  (f_wr_wvalid),.fab_wr_wready  (f_wr_wready),
+        .fab_wr_bid     (f_wr_bid),   .fab_wr_bresp   (f_wr_bresp),
+        .fab_wr_buser   (f_wr_buser), .fab_wr_bvalid  (f_wr_bvalid),
+        .fab_wr_bready  (f_wr_bready),
+
+        // ---- Observability dump path: UNUSED (held idle/legal) --------------
+        // AXIL slave-read drain: no host reads -> tie request inputs idle.
+        .s_axil_arvalid (1'b0),
+        .s_axil_arready (),
+        .s_axil_araddr  ('0),
+        .s_axil_arprot  ('0),
+        .s_axil_rvalid  (),
+        .s_axil_rready  (1'b0),
+        .s_axil_rdata   (),
+        .s_axil_rresp   (),
+        // AXI4 bulk-trace master-write: no memory ring -> tie responses idle.
+        .m_axi_awid     (),
+        .m_axi_awaddr   (),
+        .m_axi_awlen    (),
+        .m_axi_awsize   (),
+        .m_axi_awburst  (),
+        .m_axi_awlock   (),
+        .m_axi_awcache  (),
+        .m_axi_awprot   (),
+        .m_axi_awqos    (),
+        .m_axi_awregion (),
+        .m_axi_awuser   (),
+        .m_axi_awvalid  (),
+        .m_axi_awready  (1'b0),
+        .m_axi_wdata    (),
+        .m_axi_wstrb    (),
+        .m_axi_wlast    (),
+        .m_axi_wuser    (),
+        .m_axi_wvalid   (),
+        .m_axi_wready   (1'b0),
+        .m_axi_bid      ('0),
+        .m_axi_bresp    ('0),
+        .m_axi_buser    (1'b0),
+        .m_axi_bvalid   (1'b0),
+        .m_axi_bready   (),
+        .irq_out        (),
+
+        // ---- Central filter config: all masks 0 (no filtering / no drain) ---
+        .cfg_base_addr        ('0),
+        .cfg_limit_addr       ('0),
+        .cfg_flush_watermark  (16'h0000),
+        .cfg_compress_en      (1'b0),
+        .cfg_axi_pkt_mask     (16'h0000),
+        .cfg_axi_err_select   (16'h0000),
+        .cfg_axi_error_mask   (16'h0000),
+        .cfg_axi_timeout_mask (16'h0000),
+        .cfg_axi_compl_mask   (16'h0000),
+        .cfg_axi_thresh_mask  (16'h0000),
+        .cfg_axi_perf_mask    (16'h0000),
+        .cfg_axi_addr_mask    (16'h0000),
+        .cfg_axi_debug_mask   (16'h0000),
+        .cfg_axis_pkt_mask    (16'h0000),
+        .cfg_axis_err_select  (16'h0000),
+        .cfg_axis_error_mask  (16'h0000),
+        .cfg_axis_timeout_mask(16'h0000),
+        .cfg_axis_compl_mask  (16'h0000),
+        .cfg_axis_credit_mask (16'h0000),
+        .cfg_axis_channel_mask(16'h0000),
+        .cfg_axis_stream_mask (16'h0000),
+        .cfg_core_pkt_mask    (16'h0000),
+        .cfg_core_err_select  (16'h0000),
+        .cfg_core_error_mask  (16'h0000),
+        .cfg_core_timeout_mask(16'h0000),
+        .cfg_core_compl_mask  (16'h0000),
+        .cfg_core_thresh_mask (16'h0000),
+        .cfg_core_perf_mask   (16'h0000),
+        .cfg_core_debug_mask  (16'h0000),
+        .err_fifo_full        (),
+        .write_fifo_full      (),
+        .err_fifo_count       (),
+        .write_fifo_count     (),
+
+        // ---- Meter window + channel maps ------------------------------------
+        .i_meter_clear        (obs_meter_clear),
+        .i_meter_freeze       (obs_meter_freeze),
+        .cfg_rd_rid_per_channel       (obs_cfg_rd_rid),
+        .cfg_rd_rid_per_channel_valid (obs_cfg_rd_rid_valid),
+        .dma_wr_active_ch_id          (obs_wr_active_ch_id),
+        .dma_wr_active_ch_valid       (obs_wr_active_ch_valid),
+
+        // ---- Meter outputs --------------------------------------------------
+        .rd_meter_agg_productive   (obs_rd_agg_prod),
+        .rd_meter_agg_backpressure (obs_rd_agg_bp),
+        .rd_meter_agg_starvation   (obs_rd_agg_starv),
+        .rd_meter_agg_idle         (obs_rd_agg_idle),
+        .rd_meter_ch_productive    (obs_rd_ch_prod),
+        .rd_meter_ch_backpressure  (obs_rd_ch_bp),
+        .rd_meter_ch_starvation    (obs_rd_ch_starv),
+        .rd_meter_ch_idle          (obs_rd_ch_idle),
+        .rd_meter_ch_overflow      (obs_rd_ch_overflow),
+        .wr_meter_agg_productive   (obs_wr_agg_prod),
+        .wr_meter_agg_backpressure (obs_wr_agg_bp),
+        .wr_meter_agg_starvation   (obs_wr_agg_starv),
+        .wr_meter_agg_idle         (obs_wr_agg_idle),
+        .wr_meter_ch_productive    (obs_wr_ch_prod),
+        .wr_meter_ch_backpressure  (obs_wr_ch_bp),
+        .wr_meter_ch_starvation    (obs_wr_ch_starv),
+        .wr_meter_ch_idle          (obs_wr_ch_idle),
+        .wr_meter_ch_overflow      (obs_wr_ch_overflow),
+
+        // ---- Latency-histogram readout + outputs ----------------------------
+        .i_hist_metric (obs_hist_metric),
+        .i_hist_bin    (obs_hist_bin),
+        .rd_hist_count (obs_rd_hist_count),
+        .rd_hist_total (obs_rd_hist_total),
+        .wr_hist_count (obs_wr_hist_count),
+        .wr_hist_total (obs_wr_hist_total)
     );
 
     // =========================================================================
@@ -1567,7 +1905,7 @@ module stream_char_harness #(
         .cfg_mon_flush_watermark (16'd24),
 
         // Debug outputs (unconnected at top level)
-        .debug_hwif_scheduler_idle  (),
+        .debug_hwif_scheduler_idle  (obs_sched_idle),
         .debug_hwif_desc_engine_idle(),
         .debug_hwif_channel_idle    (),
         .debug_regblk_req           (),
