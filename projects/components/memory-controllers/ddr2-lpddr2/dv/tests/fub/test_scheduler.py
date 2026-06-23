@@ -181,7 +181,11 @@ async def cocotb_test_scheduler(dut):
         await tb.wait_clocks('mc_clk', 1)
         assert tb.cmd_op() == OP_WRA, f"expected WRA, got {tb.cmd_op()}"
         assert tb.evt_wr() == 1
-        await tb.wait_clocks('mc_clk', 1)
+        # wr_issued_we_o fires the same cycle as the WRA registers
+        # (driven combinationally in S_NEED_RDWR on cmd_ready_i — see
+        # scheduler.sv comment). Old behavior fired it one cycle later
+        # in S_DONE; the early-fire avoids a re-pick race in S_IDLE
+        # while the issued strobe is propagating to wr_cmd_cam.
         assert tb.wr_issued() == 1
         tb.clear_pending()
 
@@ -193,7 +197,8 @@ async def cocotb_test_scheduler(dut):
         await tb.wait_clocks('mc_clk', 1)
         assert tb.cmd_op() == OP_RDA
         assert tb.evt_rd() == 1
-        await tb.wait_clocks('mc_clk', 1)
+        # rd_issued_we_o fires same cycle as RDA registers — see
+        # smoke_wr comment for rationale.
         assert tb.rd_issued() == 1
         tb.clear_pending()
 
@@ -343,7 +348,7 @@ async def cocotb_test_scheduler(dut):
             assert tb.cmd_op() == OP_WRA, (
                 f"iter {i}: CLOSE policy must auto-precharge, got {tb.cmd_op()}"
             )
-            await tb.wait_clocks('mc_clk', 1)
+            # wr_issued_we_o fires same cycle as WRA (see smoke_wr).
             assert tb.wr_issued() == 1
             tb.clear_pending()
             await tb.wait_clocks('mc_clk', 2)

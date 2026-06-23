@@ -106,6 +106,194 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
         tb.log.info("workload_mix: %d / %d bursts completed without error",
                     n_done, len(results))
 
+    elif test_type == "fresh_read_each_bank":
+        # Fresh read from each bank (no preceding write).
+        # Memory is preloaded so the read returns the preload pattern.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        results_summary = []
+        for bank in range(8):
+            addr = bank * 0x2000
+            pat = (0xDEAD0000 | bank) | ((0xBEEF0000 | bank) << 32)
+            tb.preload_memory(addr, pat.to_bytes(8, "little"))
+            rd = AXI4Sequence(f"fresh_b{bank}", data_width=64, seed=seed)
+            rd.add_read(addr, length=1, axid=0)
+            r = await tb.run_sequence(rd)
+            status = "OK" if r[0]["error"] is None else "FAIL"
+            results_summary.append((bank, status, r[0]["error"]))
+            tb.log.info("bank %d fresh-read: %s err=%s",
+                        bank, status, r[0]["error"])
+        # Report
+        bad = [b for b, s, _ in results_summary if s == "FAIL"]
+        assert not bad, f"fresh-read failed for banks: {bad}"
+
+    elif test_type == "bank0_delayed":
+        # After WR, wait many cycles before issuing the read to rule out
+        # a near-back-to-back race.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        wr = AXI4Sequence("d_wr", data_width=64, seed=seed)
+        wr.add_write(0x0, [0xAA55_AA55_AA55_AA55], axid=0)
+        await tb.run_sequence(wr)
+
+        # Wait 5000 mc cycles for refresh to fire a few times.
+        from cocotb.triggers import ClockCycles as _CC
+        await _CC(dut.mc_clk, 5000)
+
+        rd = AXI4Sequence("d_rd", data_width=64, seed=seed)
+        rd.add_read(0x0, length=1, axid=0)
+        results = await tb.run_sequence(rd)
+        assert results[0]["error"] is None, results[0]["error"]
+        assert results[0]["data"][0] == 0xAA55_AA55_AA55_AA55, (
+            f"bank0 delayed read got 0x{results[0]['data'][0]:016X}"
+        )
+        tb.log.info("bank0 delayed read OK")
+
+    elif test_type == "bank0_probe":
+        # Bank 0 hangs on AXI read after a write — probe the DFI bus
+        # while it happens to find out where the path breaks.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        # Monitor DFI command bus on phase 0.
+        cmd_log = []
+        async def dfi_watch():
+            cycle = 0
+            while True:
+                await RisingEdge(dut.mc_clk)
+                cycle += 1
+                cs_n  = int(dut.phy_dfi_cs_n.value)  & 1
+                if cs_n == 1:
+                    continue
+                ras_n = int(dut.phy_dfi_ras_n.value) & 1
+                cas_n = int(dut.phy_dfi_cas_n.value) & 1
+                we_n  = int(dut.phy_dfi_we_n.value)  & 1
+                addr  = int(dut.phy_dfi_address.value)
+                bank  = int(dut.phy_dfi_bank.value) & 7
+                code  = (ras_n << 2) | (cas_n << 1) | we_n
+                # JEDEC DDR2 command encoding (cs=0, ras, cas, we):
+                #   ACT  = (ras=0,cas=1,we=1) → 011 = 3
+                #   WR   = (ras=1,cas=0,we=0) → 100 = 4
+                #   RD   = (ras=1,cas=0,we=1) → 101 = 5
+                #   PRE  = (ras=0,cas=1,we=0) → 010 = 2
+                #   REF  = (ras=0,cas=0,we=1) → 001 = 1
+                #   MRS  = (ras=0,cas=0,we=0) → 000 = 0
+                #   NOP  = (ras=1,cas=1,we=1) → 111 = 7
+                name = {
+                    0: "MRS", 1: "REF", 2: "PRE", 3: "ACT",
+                    4: "WR",  5: "RD",  7: "NOP",
+                }.get(code, f"?{code}")
+                cmd_log.append((cycle, name, bank, addr))
+
+        # Probe axi_intake's R-channel internals + DFI rddata_valid +
+        # rd_cl_aligner op_valid.
+        async def r_probe():
+            cycle = 0
+            while True:
+                await RisingEdge(dut.mc_clk)
+                cycle += 1
+                try:
+                    fwd_active = int(dut.u_dut.u_axi_frontend.u_axi_intake
+                                     .r_r_fwd_active.value)
+                except Exception:
+                    fwd_active = -1
+                try:
+                    rd_inject_v = int(dut.u_dut.rd_inject_valid.value)
+                    rd_inject_r = int(dut.u_dut.rd_inject_ready.value)
+                except Exception:
+                    rd_inject_v = -1
+                    rd_inject_r = -1
+                try:
+                    rddata_v = int(dut.phy_dfi_rddata_valid.value)
+                except Exception:
+                    rddata_v = -1
+                if (rd_inject_v == 1 or rddata_v != 0 or fwd_active == 1):
+                    cmd_log.append((cycle, "PROBE",
+                                    f"fwd_active={fwd_active}",
+                                    f"inject v={rd_inject_v} r={rd_inject_r}",
+                                    f"rddata_v={rddata_v}"))
+
+        from cocotb.triggers import RisingEdge
+        watcher = cocotb.start_soon(dfi_watch())
+        r_watcher = cocotb.start_soon(r_probe())
+
+        # Step 1: write at bank-0 address.
+        wr = AXI4Sequence("b0_wr", data_width=64, seed=seed)
+        wr.add_write(0x0, [0xAA55_AA55_AA55_AA55], axid=0)
+        await tb.run_sequence(wr)
+        tb.log.info("after WR, DFI log has %d commands", len(cmd_log))
+        for entry in cmd_log[-20:]:
+            tb.log.info("  %s", entry)
+
+        # Step 2: read.
+        rd = AXI4Sequence("b0_rd", data_width=64, seed=seed)
+        rd.add_read(0x0, length=1, axid=0)
+        results = await tb.run_sequence(rd)
+
+        # Drop REF + NOP from the log to keep it readable; everything
+        # else is interesting.
+        interesting = [e for e in cmd_log
+                       if isinstance(e[1], str)
+                       and e[1] not in ("NOP", "REF")]
+        tb.log.info("after RD, DFI log has %d commands "
+                    "(%d non-REF/NOP); non-REF/NOP entries:",
+                    len(cmd_log), len(interesting))
+        for entry in interesting:
+            tb.log.info("  %s", entry)
+        tb.log.info("RD result: err=%s data=%s",
+                    results[0]["error"], results[0]["data"])
+        # Force fail so cocotb output is preserved by pytest.
+        assert results[0]["error"] is None, "bank0_probe RD hung as expected"
+
+    elif test_type == "wr_rd_bank_sweep":
+        # Probe which banks hang on wr-then-rd. Each iteration writes a
+        # pattern to a bank's row 0 col 0, then reads it back. Logs the
+        # first bank that times out so we can localize.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        bank_stride = 0x2000  # bytes between bank boundaries @ ROW_MAJOR
+        good = []
+        bad = []
+        for bank in range(8):
+            addr = bank * bank_stride
+            pat = 0x1100_0000_0000_0000 | (bank << 56) | addr
+            wr = AXI4Sequence(f"sweep_wr_b{bank}", data_width=64, seed=seed)
+            wr.add_write(addr, [pat], axid=0)
+            await tb.run_sequence(wr)
+            rd = AXI4Sequence(f"sweep_rd_b{bank}", data_width=64, seed=seed)
+            rd.add_read(addr, length=1, axid=0)
+            results = await tb.run_sequence(rd)
+            if results[0]["error"] is None and results[0]["data"][0] == pat:
+                good.append(bank)
+                tb.log.info("bank %d: OK  (addr 0x%X, pat 0x%016X)",
+                            bank, addr, pat)
+            else:
+                bad.append(bank)
+                tb.log.error("bank %d: FAIL (addr 0x%X) err=%s data=%s",
+                             bank, addr, results[0]["error"],
+                             results[0]["data"])
+        tb.log.info("bank sweep: good=%s bad=%s", good, bad)
+        assert not bad, f"banks {bad} failed wr-then-rd, banks {good} OK"
+
     elif test_type == "wr_rd_roundtrip":
         # Real DFI loopback now — write a known pattern, then read it
         # back and verify byte-exact equality.
@@ -206,7 +394,9 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
 
 _GATE = [("smoke",)]
 _FUNC = _GATE + [("configure_via_apb",), ("axi_write_smoke",),
-                 ("wr_rd_roundtrip",),
+                 ("wr_rd_roundtrip",), ("wr_rd_bank_sweep",),
+                 ("bank0_probe",), ("bank0_delayed",),
+                 ("fresh_read_each_bank",),
                  # memory_preload_read — preload helpers + BFM all work,
                  # but the DUT hangs on the *first* AXI read of a fresh
                  # address (subsequent reads of the just-written address

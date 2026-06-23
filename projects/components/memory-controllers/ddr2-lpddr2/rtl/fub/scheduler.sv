@@ -415,18 +415,30 @@ module scheduler
                         w_evt_ap   = w_ap_for_rdwr;
                         w_evt_rank = r_pending_rank;
                         w_evt_bank = r_pending_bank;
+                        // Fire issued_we here (on the cmd accept), NOT in
+                        // S_DONE. Reason: wr/rd_issued_we_o is registered,
+                        // so the strobe reaches the CAM 1 cycle later. If
+                        // we fire it in S_DONE, the FSM goes back to S_IDLE
+                        // the SAME cycle the CAM observes the strobe, so
+                        // the picker re-picks the same slot before
+                        // r_issued has propagated. Asserting one cycle
+                        // earlier (here, on RDWR accept) makes r_issued
+                        // visible to the picker by the time we're back in
+                        // S_IDLE.
+                        if (r_pending_is_wr) begin
+                            w_wr_issued_we   = 1'b1;
+                            w_wr_issued_slot = r_pending_wr_slot;
+                        end else begin
+                            w_rd_issued_we   = 1'b1;
+                            w_rd_issued_slot = r_pending_rd_slot;
+                        end
                     end
                 end
             end
 
             S_DONE: begin
-                if (r_pending_is_wr) begin
-                    w_wr_issued_we   = 1'b1;
-                    w_wr_issued_slot = r_pending_wr_slot;
-                end else begin
-                    w_rd_issued_we   = 1'b1;
-                    w_rd_issued_slot = r_pending_rd_slot;
-                end
+                // FSM bookkeeping only — issued_we already fired on the
+                // RDWR cmd accept above.
             end
 
             default: ;
