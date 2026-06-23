@@ -160,6 +160,29 @@ async def cocotb_test_powerdown_ctrl(dut):
         assert tb.req(), "SR-only path should still arm + request"
         assert tb.kind() == 1
 
+    elif test_type == "grant_no_reissue":
+        # REGRESSION GUARD for the strict-flop strobe re-issue pattern
+        # (see commit 66f32c7f / scheduler S_DONE bug). After a single
+        # grant takes us to S_ASLEEP, pdn_req_o must drop and stay
+        # dropped (until activity returns and idle re-arms).
+        await tb.setup(idle_threshold=10)
+        await tb.go_idle()
+        await tb.wait_clocks('mc_clk', 15)
+        assert tb.req(), "pdn_req should rise after idle threshold"
+        await tb.grant()
+        # Now in S_ASLEEP — observe over 50 cycles. While idle is
+        # asserted, pdn_req must NOT re-fire (S_ASLEEP holds CKE low;
+        # only an idle drop should wake).
+        req_asserts = 0
+        for _ in range(50):
+            await tb.wait_clocks('mc_clk', 1)
+            if tb.req():
+                req_asserts += 1
+        assert req_asserts == 0, \
+            f"pdn_req_o re-asserted {req_asserts} times after single " \
+            f"grant — strobe re-fire race regressed"
+        assert tb.cke() == 0, "CKE should remain low in S_ASLEEP"
+
     elif test_type == "random_soak":
         rng = random.Random(int(os.environ.get('SEED', '12345')))
         test_level = os.environ.get("TEST_LEVEL", "FUNC").upper()
@@ -189,7 +212,9 @@ async def cocotb_test_powerdown_ctrl(dut):
 _GATE = [("smoke",), ("early_wake",)]
 _FUNC = _GATE + [("disable_pde",), ("req_then_active",),
                  ("sref_entry",), ("pde_only_when_sref_off",),
-                 ("sref_alone",), ("random_soak",)]
+                 ("sref_alone",),
+                 ("grant_no_reissue",),  # strict-flop strobe race guard
+                 ("random_soak",)]
 _FULL = _FUNC
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()

@@ -194,6 +194,45 @@ async def cocotb_test_refresh_ctrl(dut):
             await tb.grant_one()
             await tb.wait_clocks('mc_clk', 2)
 
+    elif test_type == "grant_no_reissue":
+        # REGRESSION GUARD for the strict-flop strobe re-issue pattern
+        # (see commit 66f32c7f for the canonical example in the scheduler).
+        # A producer FUB whose req_o is registered AND whose grant_i is
+        # registered downstream can spuriously fire req_o again if the
+        # internal "pending" state lags the grant strobe and the FSM
+        # picks up the slot a second time before pending drops.
+        #
+        # Test: accumulate exactly ONE pending refresh, grant once, then
+        # observe req_o + pending for many cycles. With tREFI long, no
+        # new pending should accumulate during the window. Exactly:
+        #   pending: 1 → 0 (one decrement)
+        #   req_o:   1 → 0 (and stays 0)
+        # Anything else (pending going negative, req re-asserting) is
+        # the bug pattern.
+        await tb.setup(t_refi=200)  # long so no new tREFI ticks in window
+        await tb.enable()
+        # Wait for the first pending refresh.
+        for _ in range(300):
+            await tb.wait_clocks('mc_clk', 1)
+            if tb.req():
+                break
+        assert tb.req()
+        assert tb.pending() == 1, \
+            f"expected exactly 1 pending, got {tb.pending()}"
+        # Single grant.
+        await tb.grant_one()
+        # Observe over 50 cycles. No new tREFI tick at t_refi=200 + 50 cyc.
+        req_asserts = 0
+        for _ in range(50):
+            await tb.wait_clocks('mc_clk', 1)
+            if tb.req():
+                req_asserts += 1
+            assert tb.pending() <= 1, \
+                f"pending underflowed/overflowed: {tb.pending()}"
+        assert req_asserts == 0, \
+            f"refresh_req_o re-asserted {req_asserts} times after single " \
+            f"grant — strobe re-fire race regressed"
+
     elif test_type == "random_soak":
         rng = random.Random(int(os.environ.get('SEED', '12345')))
         test_level = os.environ.get("TEST_LEVEL", "FUNC").upper()
@@ -221,6 +260,7 @@ async def cocotb_test_refresh_ctrl(dut):
 _GATE = [("smoke",), ("grant_decrements",)]
 _FUNC = _GATE + [("multiple_pending",), ("saturating",), ("drain",),
                  ("drain_burst",), ("refpb_rotor",), ("refab_no_rotation",),
+                 ("grant_no_reissue",),  # strict-flop strobe race guard
                  ("random_soak",)]
 _FULL = _FUNC
 
