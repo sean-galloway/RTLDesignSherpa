@@ -307,8 +307,15 @@ module axi4_slave_rd_pattern_gen #(
     // Accepts AR requests, tracks burst beat count, generates R beats with
     // LFSR pattern data. Asserts rlast on final beat of each burst.
 
-    // Accept AR only when idle
-    assign fub_axi_arready = (r_rd_state == RD_IDLE);
+    // Accept AR when idle, OR on the last beat of the current burst so the
+    // next burst follows with no dead cycle. The original (idle-only) accept
+    // forced a 1-cycle RD_IDLE gap between every burst (rvalid=0), which showed
+    // up as ~1 starvation cycle per burst (16-beat burst -> 16/17 = 94%) on the
+    // master's R channel -- a *slave-model* artifact, not a DUT limitation.
+    // Accepting the AR back-to-back on rlast keeps rvalid continuously high.
+    wire w_rd_last_beat = (r_rd_state == RD_BURST) && fub_axi_rvalid &&
+                          fub_axi_rready && (r_rd_beats_remaining == 8'd0);
+    assign fub_axi_arready = (r_rd_state == RD_IDLE) || w_rd_last_beat;
 
     // R channel outputs
     assign fub_axi_rid   = r_rd_id;
@@ -338,7 +345,19 @@ module axi4_slave_rd_pattern_gen #(
                 RD_BURST: begin
                     if (fub_axi_rvalid && fub_axi_rready) begin
                         if (r_rd_beats_remaining == 8'd0) begin
-                            r_rd_state <= RD_IDLE;
+                            // Last beat: if a new AR is already waiting, accept
+                            // it now (arready is asserted via w_rd_last_beat) and
+                            // reload, staying in RD_BURST so rvalid never drops.
+                            // No beat is produced during the old idle cycle, so
+                            // the per-channel LFSR sequence (and the write-side
+                            // CRC) is unchanged -- only the dead cycle is removed.
+                            if (fub_axi_arvalid) begin
+                                r_rd_id <= fub_axi_arid;
+                                r_rd_user <= fub_axi_aruser;
+                                r_rd_beats_remaining <= fub_axi_arlen;
+                            end else begin
+                                r_rd_state <= RD_IDLE;
+                            end
                         end else begin
                             r_rd_beats_remaining <= r_rd_beats_remaining - 8'd1;
                         end

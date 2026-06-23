@@ -172,6 +172,11 @@ module axi4_slave_wr_crc_check #(
     logic [AXI_ID_WIDTH-1:0]   r_wr_id;
     logic [AXI_USER_WIDTH-1:0] r_wr_user;
     logic                      r_wr_active;
+    // B-response id/user latched at WLAST: when bursts run back-to-back, r_wr_id
+    // is reloaded with the next burst's id on the same cycle the current burst
+    // completes, so the completed burst's B must use a separately-latched id.
+    logic [AXI_ID_WIDTH-1:0]   r_b_id;
+    logic [AXI_USER_WIDTH-1:0] r_b_user;
 
     // Active channel index for the in-flight burst (low bits of captured AW ID).
     logic [CIW-1:0] w_active_ch;
@@ -251,11 +256,18 @@ module axi4_slave_wr_crc_check #(
     // FUB Interface - Burst FSM for Write Acceptance
     //==========================================================================
 
-    assign fub_axi_awready = !r_wr_active;
+    // Accept AW when idle, OR on the last W beat of the current burst so the
+    // next burst's W beats follow with no dead cycle. The original (idle-only)
+    // accept forced a 1-cycle !active gap between bursts (wready=0); once the
+    // read slave feeds the SRAM gaplessly this would become the write-side
+    // limiter (~1 starvation cycle per burst). Mirrors the read-slave fix.
+    wire w_wr_last_beat = r_wr_active && fub_axi_wvalid && fub_axi_wready &&
+                          fub_axi_wlast;
+    assign fub_axi_awready = !r_wr_active || w_wr_last_beat;
     assign fub_axi_wready  = r_wr_active;
-    assign fub_axi_bid     = r_wr_id;
+    assign fub_axi_bid     = r_b_id;
     assign fub_axi_bresp   = 2'b00;  // OKAY
-    assign fub_axi_buser   = r_wr_user;
+    assign fub_axi_buser   = r_b_user;
     assign fub_axi_bvalid  = r_b_pending;
 
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -264,18 +276,32 @@ module axi4_slave_wr_crc_check #(
             r_b_pending <= 1'b0;
             r_wr_id <= '0;
             r_wr_user <= '0;
+            r_b_id <= '0;
+            r_b_user <= '0;
         end else begin
-            // AW acceptance — start a new burst
-            if (fub_axi_awvalid && fub_axi_awready) begin
+            // AW acceptance — start a new burst from idle.
+            if (fub_axi_awvalid && fub_axi_awready && !r_wr_active) begin
                 r_wr_active <= 1'b1;
                 r_wr_id <= fub_axi_awid;
                 r_wr_user <= fub_axi_awuser;
             end
 
-            // W last beat — end burst, assert B
-            if (r_wr_active && fub_axi_wvalid && fub_axi_wready && fub_axi_wlast) begin
-                r_wr_active <= 1'b0;
+            // W last beat — complete the burst: latch its id/user for B, raise
+            // B-pending, and accept the next AW back-to-back if one is waiting
+            // (stay active so wready never drops). Single-burst B-pending is
+            // safe here because STREAM drains B within the burst period (16
+            // cycles) -- a higher-rate multi-channel slave would need a B FIFO.
+            if (w_wr_last_beat) begin
+                r_b_id      <= r_wr_id;
+                r_b_user    <= r_wr_user;
                 r_b_pending <= 1'b1;
+                if (fub_axi_awvalid) begin
+                    r_wr_id   <= fub_axi_awid;
+                    r_wr_user <= fub_axi_awuser;
+                    // r_wr_active stays 1 -> gapless
+                end else begin
+                    r_wr_active <= 1'b0;
+                end
             end
 
             // B consumed by skid buffer
