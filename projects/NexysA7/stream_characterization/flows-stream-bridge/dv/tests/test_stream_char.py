@@ -196,6 +196,22 @@ async def cocotb_test_stream_char(dut):
         tb.log.info(f"RD/WR datapath perf windows verified (hardware-closed): "
                     f"rd={rd} wr={wr}")
 
+        # Bubble budget: decompose each window into prod/bp/starv/idle as a
+        # percent of bucket_total so the residual (100% - productive) is
+        # attributed. RD starvation = read-latency / outstanding-depth (or the
+        # modeled memory read latency); RD backpressure = SRAM full (write side
+        # draining too slow). WR starvation = SRAM empty (read side feeding too
+        # slow); WR backpressure = memory write / B-channel congestion.
+        for name, perf in (('RDMON', rd), ('WRMON', wr)):
+            tot = perf['bucket_total'] or 1
+            pct = lambda k: 100.0 * perf[k] / tot
+            tb.log.info(
+                f"  {name} bubble budget (of {tot} cyc): "
+                f"productive={perf['productive']} ({pct('productive'):.2f}%) "
+                f"starv={perf['starvation']} ({pct('starvation'):.2f}%) "
+                f"bp={perf['backpressure']} ({pct('backpressure'):.2f}%) "
+                f"idle={perf['idle']} ({pct('idle'):.2f}%)")
+
         # RFC Stage C: per-channel buckets (in-core axi_bus_meter). The legacy
         # harness axi_bus_meter has been retired (RFC Stage E.4) -- its job, as
         # the equivalence oracle for the in-core meter, was proven in the Stage
@@ -352,7 +368,29 @@ SIM_UART_BAUD   = 12_500_000
 BASE_RTL_PARAMS = {
     'DATA_WIDTH': 128,
     'ADDR_WIDTH': 32,
-    'SRAM_DEPTH': 256,
+    # Bandwidth-delay-product sizing for the read datapath. The rw_perf bubble
+    # study showed the residual ~6% is 100% RD starvation (bp=0): with 16-beat
+    # (256 B) bursts and a measured AR->firstR latency of 64-127 cyc, the old
+    # AR_MAX_OUTSTANDING=8 (8 x 16 = 128 cyc coverage) sat right at the latency
+    # knife-edge, costing ~1 dead cycle per burst boundary.
+    #
+    # Sizing target = 16: the per-channel SRAM that buffers in-flight read data
+    # is BRAM, and 7-series BRAM is power-of-2 deep (512x72 / 1Kx36 / ... per
+    # primitive). A 128-bit-wide buffer packs onto 512-deep tiles, so any depth
+    # in (256, 512] costs the SAME BRAM as 512 -- a 384-deep SRAM just wastes
+    # entries 384-511. So size outstanding to fill the pow-2 tile: AR=AW=16 ->
+    # 16 x 16-beat = 256 beats in flight, x2 headroom = SRAM_DEPTH 512 (fully
+    # justified, no dead space) and 256 cyc of latency coverage (>> the 127 cyc
+    # worst case). Keeps bursts <= 1024 B (real-system QoS limit -- no long-burst
+    # masking). The R/B response-delay models scale with the in-flight count so
+    # the modeled memory never back-pressures and masks the engine. All
+    # env-overridable to A/B the old 8/256/256 baseline: SIM_AR_OUTSTANDING /
+    # SIM_AW_OUTSTANDING / SIM_SRAM_DEPTH / SIM_RESP_DELAY_R_CAP / _B_CAP.
+    'SRAM_DEPTH': int(os.environ.get('SIM_SRAM_DEPTH', '512')),
+    'AR_MAX_OUTSTANDING': int(os.environ.get('SIM_AR_OUTSTANDING', '16')),
+    'AW_MAX_OUTSTANDING': int(os.environ.get('SIM_AW_OUTSTANDING', '16')),
+    'RESP_DELAY_R_CAPACITY': int(os.environ.get('SIM_RESP_DELAY_R_CAP', '512')),
+    'RESP_DELAY_B_CAPACITY': int(os.environ.get('SIM_RESP_DELAY_B_CAP', '32')),
     # NUM_CHANNELS shrunk from 8 to 4 to fit the Artix-7 100T BRAM budget.
     # Keep in lockstep with rtl/stream_char_top.sv. Override via
     # SIM_NUM_CHANNELS env var when investigating bugs that may be tied
