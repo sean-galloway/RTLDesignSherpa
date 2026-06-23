@@ -942,6 +942,53 @@ module stream_core #(
         end
     )
 
+    // ------------------------------------------------------------------------
+    // Data-owed gating for the datapath BUBBLE buckets (prod/bp/starv/idle).
+    //
+    // True datapath utilisation is "of the cycles data was owed and flowing,
+    // how many were productive". The shared window above opens on scheduler
+    // activity (~one AR->firstR before any beat) and closes a settle period
+    // after the datapath goes quiet, so it charges the one-time pipeline-fill
+    // latency AND the trailing drain as starvation -- neither is a bubble.
+    //
+    // Gate the bubble meters to count only while, on each bus independently:
+    //   (a) the bus has reached its first valid&&ready  (excludes the leading
+    //       AR->firstR / first-SRAM-fill latency -- a latency, in the AR->firstR
+    //       histogram, not a bubble), AND
+    //   (b) the engine still has an outstanding transaction OR a beat is
+    //       transferring this cycle  (excludes the trailing drain once the last
+    //       beat dropped outstanding to 0).
+    // Keyed to the engine's own outstanding state (axi_{rd,wr}_all_complete),
+    // so it is robust across transfer size / descriptor count / channel count:
+    // a real intra-transfer stall (data owed but not arriving) is still counted.
+    // The beat/byte/burst counters stay on the full monitor window (below), so
+    // the count invariants (beats==productive, bursts==hist-total) hold.
+    logic r_rd_beat_seen, r_wr_beat_seen;
+    wire  w_rd_data_beat   = m_axi_rd_rvalid & m_axi_rd_rready;
+    wire  w_wr_data_beat   = m_axi_wr_wvalid & m_axi_wr_wready;
+    wire  w_rd_outstanding = |(~axi_rd_all_complete & cfg_channel_enable);
+    wire  w_wr_outstanding = |(~axi_wr_all_complete & cfg_channel_enable);
+    wire  w_rd_bucket_en   = r_perf_win_active & (r_rd_beat_seen | w_rd_data_beat)
+                             & (w_rd_outstanding | w_rd_data_beat);
+    wire  w_wr_bucket_en   = r_perf_win_active & (r_wr_beat_seen | w_wr_data_beat)
+                             & (w_wr_outstanding | w_wr_data_beat);
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_rd_beat_seen <= 1'b0;
+            r_wr_beat_seen <= 1'b0;
+        end else if (!r_perf_win_active) begin
+            r_rd_beat_seen <= 1'b0;   // re-arm for the next window
+            r_wr_beat_seen <= 1'b0;
+        end else begin
+            if (w_rd_data_beat) r_rd_beat_seen <= 1'b1;
+            if (w_wr_data_beat) r_wr_beat_seen <= 1'b1;
+        end
+    )
+    // Aggregate bubble buckets come from these gated per-channel meters (below),
+    // not the monitor; the monitor's own bucket outputs are left unconnected.
+    logic [31:0] w_rd_mon_prod_nc, w_rd_mon_bp_nc, w_rd_mon_starv_nc, w_rd_mon_idle_nc;
+    logic [31:0] w_wr_mon_prod_nc, w_wr_mon_bp_nc, w_wr_mon_starv_nc, w_wr_mon_idle_nc;
+
     //=========================================================================
     // Component Instantiation - AXI Read Engine
     //=========================================================================
@@ -1320,10 +1367,12 @@ module stream_core #(
         // Perf-window readback (RFC Stage E CSR route → RDMON_PERF_* @ 0x300)
         .window_active          (rdmon_perf_window_active),
         .window_cycles          (rdmon_perf_window_cycles),
-        .perf_prod_cycles       (rdmon_perf_prod_cycles),
-        .perf_bp_cycles         (rdmon_perf_bp_cycles),
-        .perf_starv_cycles      (rdmon_perf_starv_cycles),
-        .perf_idle_cycles       (rdmon_perf_idle_cycles),
+        // Bucket outputs superseded by the gated u_rd_bus_meter aggregate
+        // (RDMON_PERF prod/bp/starv/idle come from there); keep beat/byte/burst.
+        .perf_prod_cycles       (w_rd_mon_prod_nc),
+        .perf_bp_cycles         (w_rd_mon_bp_nc),
+        .perf_starv_cycles      (w_rd_mon_starv_nc),
+        .perf_idle_cycles       (w_rd_mon_idle_nc),
         .perf_beat_count        (rdmon_perf_beat_count),
         .perf_byte_count        (rdmon_perf_byte_count),
         .perf_burst_count       (rdmon_perf_burst_count),
@@ -1481,10 +1530,12 @@ module stream_core #(
         // Perf-window readback (RFC Stage E CSR route → WRMON_PERF_* @ 0x330)
         .window_active          (wrmon_perf_window_active),
         .window_cycles          (wrmon_perf_window_cycles),
-        .perf_prod_cycles       (wrmon_perf_prod_cycles),
-        .perf_bp_cycles         (wrmon_perf_bp_cycles),
-        .perf_starv_cycles      (wrmon_perf_starv_cycles),
-        .perf_idle_cycles       (wrmon_perf_idle_cycles),
+        // Bucket outputs superseded by the gated u_wr_bus_meter aggregate
+        // (WRMON_PERF prod/bp/starv/idle come from there); keep beat/byte/burst.
+        .perf_prod_cycles       (w_wr_mon_prod_nc),
+        .perf_bp_cycles         (w_wr_mon_bp_nc),
+        .perf_starv_cycles      (w_wr_mon_starv_nc),
+        .perf_idle_cycles       (w_wr_mon_idle_nc),
         .perf_beat_count        (wrmon_perf_beat_count),
         .perf_byte_count        (wrmon_perf_byte_count),
         .perf_burst_count       (wrmon_perf_burst_count),
@@ -1523,17 +1574,17 @@ module stream_core #(
                 .aclk            (clk),
                 .aresetn         (rst_n),
                 .i_clear         (w_perf_clear),
-                .i_freeze        (~r_perf_win_active),
+                .i_freeze        (~w_rd_bucket_en),  // data-owed gate (see above)
                 .i_valid         (m_axi_rd_rvalid),
                 .i_ready         (m_axi_rd_rready),
                 .i_channel_id    (m_axi_rd_rid[CHAN_WIDTH-1:0]),
                 .i_channel_valid (m_axi_rd_rvalid),
-                /* verilator lint_off PINCONNECTEMPTY */
-                .o_agg_productive   (),
-                .o_agg_backpressure (),
-                .o_agg_starvation   (),
-                .o_agg_idle         (),
-                /* verilator lint_on PINCONNECTEMPTY */
+                // Aggregate buckets feed the RDMON_PERF CSRs (gated window);
+                // beat/byte/burst stay on the monitor's full window.
+                .o_agg_productive   (rdmon_perf_prod_cycles),
+                .o_agg_backpressure (rdmon_perf_bp_cycles),
+                .o_agg_starvation   (rdmon_perf_starv_cycles),
+                .o_agg_idle         (rdmon_perf_idle_cycles),
                 .o_ch_productive   (rd_ch_prod),
                 .o_ch_backpressure (rd_ch_bp),
                 .o_ch_starvation   (rd_ch_starv),
@@ -1545,17 +1596,17 @@ module stream_core #(
                 .aclk            (clk),
                 .aresetn         (rst_n),
                 .i_clear         (w_perf_clear),
-                .i_freeze        (~r_perf_win_active),
+                .i_freeze        (~w_wr_bucket_en),  // data-owed gate (see above)
                 .i_valid         (m_axi_wr_wvalid),
                 .i_ready         (m_axi_wr_wready),
                 .i_channel_id    (wr_active_channel_id),
                 .i_channel_valid (wr_active_channel_valid),
-                /* verilator lint_off PINCONNECTEMPTY */
-                .o_agg_productive   (),
-                .o_agg_backpressure (),
-                .o_agg_starvation   (),
-                .o_agg_idle         (),
-                /* verilator lint_on PINCONNECTEMPTY */
+                // Aggregate buckets feed the WRMON_PERF CSRs (gated window);
+                // beat/byte/burst stay on the monitor's full window.
+                .o_agg_productive   (wrmon_perf_prod_cycles),
+                .o_agg_backpressure (wrmon_perf_bp_cycles),
+                .o_agg_starvation   (wrmon_perf_starv_cycles),
+                .o_agg_idle         (wrmon_perf_idle_cycles),
                 .o_ch_productive   (wr_ch_prod),
                 .o_ch_backpressure (wr_ch_bp),
                 .o_ch_starvation   (wr_ch_starv),
@@ -1654,6 +1705,16 @@ module stream_core #(
             assign wrmon_ch_overflow     = '0;
             assign perf_hist_data        = 32'h0;
             assign perf_hist_total       = 32'h0;
+            // Aggregate bubble buckets now come from the gated per-channel
+            // meters above (absent here), so tie the CSRs off when disabled.
+            assign rdmon_perf_prod_cycles  = 32'h0;
+            assign rdmon_perf_bp_cycles    = 32'h0;
+            assign rdmon_perf_starv_cycles = 32'h0;
+            assign rdmon_perf_idle_cycles  = 32'h0;
+            assign wrmon_perf_prod_cycles  = 32'h0;
+            assign wrmon_perf_bp_cycles    = 32'h0;
+            assign wrmon_perf_starv_cycles = 32'h0;
+            assign wrmon_perf_idle_cycles  = 32'h0;
         end
     endgenerate
 
