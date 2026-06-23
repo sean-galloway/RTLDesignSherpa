@@ -101,7 +101,7 @@ module ddr2_lpddr2_config_block
     input  logic [31:0]                   obs_txn_queue_depth_max_i,
     input  logic [31:0]                   obs_txn_queue_depth_avg_i,
     input  logic [31:0]                   obs_refresh_pending_max_i,
-    input  logic [31:0][3:0]              obs_refresh_defer_hist_i,  // 4 bins
+    input  logic [3:0][31:0]              obs_refresh_defer_hist_i,  // 4 bins
     input  logic [31:0]                   obs_page_pred_accuracy_i,
     input  logic [31:0]                   obs_axi_r_latency_avg_i,
     input  logic [31:0]                   obs_axi_r_latency_p99_i,

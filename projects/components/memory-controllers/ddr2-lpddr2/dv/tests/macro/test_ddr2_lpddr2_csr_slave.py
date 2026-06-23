@@ -43,6 +43,29 @@ async def _init_dut(dut) -> None:
     dut.s_apb_PSTRB.value   = 0
     dut.s_apb_PPROT.value   = 0
 
+    # Default status + obs feeds = 0; individual tests override.
+    dut.status_init_done_i.value        = 0
+    dut.status_init_error_i.value       = 0
+    dut.status_power_state_i.value      = 0
+    dut.status_pasr_active_i.value      = 0
+    dut.status_init_step_dbg_i.value    = 0
+    dut.status_version_match_i.value    = 0
+    dut.status_history_i.value          = 0
+    dut.status_temp_class_rank0_i.value = 0
+    dut.cap_lookahead_max_i.value       = 0
+    dut.cap_synth_mask_i.value          = 0
+    dut.obs_words_i.value               = 0
+    dut.obs_row_hit_i.value             = 0
+    dut.obs_ref_latency_i.value         = 0
+    dut.obs_txn_queue_depth_max_i.value = 0
+    dut.obs_txn_queue_depth_avg_i.value = 0
+    dut.obs_refresh_pending_max_i.value = 0
+    dut.obs_refresh_defer_hist_i.value  = 0
+    dut.obs_page_pred_accuracy_i.value  = 0
+    dut.obs_axi_r_latency_avg_i.value   = 0
+    dut.obs_axi_r_latency_p99_i.value   = 0
+    dut.obs_axi_w_latency_avg_i.value   = 0
+
     cocotb.start_soon(Clock(dut.pclk, 10, units="ns").start())
     cocotb.start_soon(Clock(dut.mc_clk, 7, units="ns").start())
     dut.presetn.value  = 0
@@ -127,6 +150,109 @@ async def cocotb_test_ddr2_lpddr2_csr_slave(dut):
                 f"{R.name(addr)} write/read mismatch 0x{rd:08X} vs 0x{val:04X}"
             )
 
+    elif test_type == "status_readback":
+        # Drive the status feeds with a recognizable pattern and verify
+        # APB reads come back through the regblock.
+        dut.status_init_done_i.value     = 1
+        dut.status_init_error_i.value    = 0
+        dut.status_power_state_i.value   = 0xA           # bits 7:4
+        dut.status_pasr_active_i.value   = 1             # bit 8
+        dut.status_init_step_dbg_i.value = 0x42          # bits 23:16
+        dut.status_version_match_i.value = 1             # bit 31
+        # Wait one mc_clk so the regblock samples the .next inputs.
+        await Timer(50, units="ns")
+        rd, err = await apb_read(dut, pclk, R.STATUS)
+        assert err == 0
+        expected = (
+            (1 << 0)            # init_done
+            | (0xA << 4)        # power_state
+            | (1 << 8)          # pasr_active
+            | (0x42 << 16)      # init_step_dbg
+            | (1 << 31)         # version_match
+        )
+        assert rd == expected, (
+            f"STATUS readback 0x{rd:08X} != expected 0x{expected:08X}"
+        )
+
+    elif test_type == "status_history_readback":
+        pattern = 0xDEADBEEF
+        dut.status_history_i.value = pattern
+        await Timer(50, units="ns")
+        rd, err = await apb_read(dut, pclk, R.STATUS_HISTORY)
+        assert err == 0
+        assert rd == pattern, f"STATUS_HISTORY: 0x{rd:08X} != 0x{pattern:08X}"
+
+    elif test_type == "obs_words_readback":
+        # Inject 9 distinct patterns into the obs_words array and read
+        # each back through OBS_WORDS[i] @ 0x1C0 + i*4.
+        patterns = [(0xC0DE_0000 | (i << 8) | (i * 0x11)) & 0xFFFFFFFF
+                    for i in range(9)]
+        # Pack the patterns into the flat array signal (LSB = idx 0).
+        packed = 0
+        for i, val in enumerate(patterns):
+            packed |= (val & 0xFFFFFFFF) << (i * 32)
+        dut.obs_words_i.value = packed
+        await Timer(50, units="ns")
+        for i, val in enumerate(patterns):
+            rd, err = await apb_read(dut, pclk, R.obs_word(i))
+            assert err == 0
+            assert rd == val, (
+                f"OBS_WORDS[{i}] @ 0x{R.obs_word(i):03X}: "
+                f"0x{rd:08X} != injected 0x{val:08X}"
+            )
+
+    elif test_type == "obs_per_bank_readback":
+        # 8 distinct row-hit counters, one per bank.
+        patterns = [0x10000 + i * 0x1111 for i in range(8)]
+        packed = 0
+        for i, val in enumerate(patterns):
+            packed |= (val & 0xFFFFFFFF) << (i * 32)
+        dut.obs_row_hit_i.value = packed
+        await Timer(50, units="ns")
+        for bank, val in enumerate(patterns):
+            rd, err = await apb_read(dut, pclk, R.obs_row_hit(bank))
+            assert err == 0
+            # OBS_ROW_HIT has onread=rclr, so the very next read returns 0.
+            assert rd == val, (
+                f"OBS_ROW_HIT[{bank}]: 0x{rd:08X} != injected 0x{val:08X}"
+            )
+
+    elif test_type == "obs_system_readback":
+        # System obs registers — drive each, read back.
+        dut.obs_txn_queue_depth_max_i.value = 0xAA00_0001
+        dut.obs_txn_queue_depth_avg_i.value = 0xAA00_0002
+        dut.obs_refresh_pending_max_i.value = 0xAA00_0003
+        dut.obs_page_pred_accuracy_i.value  = 0xAA00_0004
+        dut.obs_axi_r_latency_avg_i.value   = 0xAA00_0005
+        dut.obs_axi_r_latency_p99_i.value   = 0xAA00_0006
+        dut.obs_axi_w_latency_avg_i.value   = 0xAA00_0007
+        await Timer(50, units="ns")
+        for offset, expected in (
+            (R.OBS_TXN_QUEUE_DEPTH_MAX, 0xAA00_0001),
+            (R.OBS_TXN_QUEUE_DEPTH_AVG, 0xAA00_0002),
+            (R.OBS_REFRESH_PENDING_MAX, 0xAA00_0003),
+            (R.OBS_PAGE_PRED_ACCURACY,  0xAA00_0004),
+            (R.OBS_AXI_R_LATENCY_AVG,   0xAA00_0005),
+            (R.OBS_AXI_R_LATENCY_P99,   0xAA00_0006),
+            (R.OBS_AXI_W_LATENCY_AVG,   0xAA00_0007),
+        ):
+            rd, err = await apb_read(dut, pclk, offset)
+            assert err == 0
+            assert rd == expected, (
+                f"{R.name(offset)}: 0x{rd:08X} != 0x{expected:08X}"
+            )
+
+    elif test_type == "ctrl_cfg_drive":
+        # Verify that an APB write to CTRL drives the flat cfg_*_o
+        # outputs that core_macro will consume.
+        await apb_write(dut, pclk, R.CTRL, 1 << 4)
+        # cfg path is combinational from hwif_out.value → output. Sample.
+        await Timer(20, units="ns")
+        assert int(dut.cfg_pwr_req_low_power_o.value) == 1, (
+            f"cfg_pwr_req_low_power_o not set: "
+            f"{int(dut.cfg_pwr_req_low_power_o.value)}"
+        )
+
     elif test_type == "hole_read_returns_zero":
         # PeakRDL --cpuif passthrough does not raise rd_err on unmapped
         # holes; it just returns 0. Verify the slave still completes the
@@ -140,10 +266,12 @@ async def cocotb_test_ddr2_lpddr2_csr_slave(dut):
     await Timer(100, units="ns")
 
 
-_GATE = [("smoke",), ("ctrl_rw",)]
+_GATE = [("smoke",), ("ctrl_rw",), ("ctrl_cfg_drive",)]
 _FUNC = _GATE + [("timings_rw",), ("sched_tuning_rw",),
                  ("refresh_tuning_rw",), ("mr_rw",),
-                 ("hole_read_returns_zero",)]
+                 ("status_readback",), ("status_history_readback",),
+                 ("obs_words_readback",), ("obs_per_bank_readback",),
+                 ("obs_system_readback",), ("hole_read_returns_zero",)]
 _FULL = _FUNC
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
@@ -154,20 +282,13 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
                          ids=[t[0] for t in _PARAMS])
 def test_ddr2_lpddr2_csr_slave(request, test_type):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "ddr2_lpddr2_csr_slave_tb"
+    dut_name = "ddr2_lpddr2_csr_slave"
     test_name = f"test_ddr2_lpddr2_csr_slave_{test_type}"
 
     filelist_path = ("projects/components/memory-controllers/ddr2-lpddr2/"
                      "rtl/filelists/macro/ddr2_lpddr2_csr_slave.f")
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
-
-    # TB shim ties off hwif_in struct for standalone testing
-    tb_shim = os.path.join(
-        repo_root,
-        "projects/components/memory-controllers/ddr2-lpddr2/dv/tb/"
-        "ddr2_lpddr2_csr_slave_tb.sv")
-    verilog_sources.append(tb_shim)
 
     sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
     os.makedirs(sim_build, exist_ok=True)
