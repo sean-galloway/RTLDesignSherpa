@@ -1,0 +1,496 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2026 sean galloway
+//
+// DDR2/LPDDR2 Memory Controller CSR Register Map (PeakRDL source)
+//
+// Mirrors the stream component's PeakRDL methodology:
+//   peakrdl regblock ddr2_lpddr2_csr.rdl --cpuif passthrough \
+//       -o ../../regs/generated/rtl/
+//
+// Address Space: 4 KB (12-bit paddr), 32-bit registers, little-endian.
+//
+// Layout matches docs/ddr2_lpddr2_has/ch06_integration/03_csr_map.md
+// plus an obs_* window at 0x1C0..0x1E3 carrying the 9-word harvest from
+// docs/csr_obs_layout.md.
+
+addrmap ddr2_lpddr2_csr {
+    name = "DDR2/LPDDR2 Memory Controller CSR";
+    desc = "Configuration and observation registers for the DDR2/LPDDR2 controller";
+
+    default regwidth = 32;
+    default accesswidth = 32;
+    default alignment = 4;
+
+    //=========================================================================
+    // Control and Status (0x000 – 0x00F)
+    //=========================================================================
+
+    reg {
+        name = "Control Register";
+        desc = "Init / power / soft-reset request bits";
+
+        field {
+            desc = "Write 1 to start init";
+            sw = rw; hw = r; swmod;
+        } init_start = 1'b0;
+
+        field {
+            desc = "Write 1 to force re-init even mid-sequence";
+            sw = rw; hw = r; swmod;
+        } init_force_restart = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r; hw = na;
+        } RSVD_3_2[3:2] = 2'h0;
+
+        field {
+            desc = "Request power-down state";
+            sw = rw; hw = r;
+        } pwr_req_low_power = 1'b0;
+
+        field {
+            desc = "Request DPD (LPDDR2 only)";
+            sw = rw; hw = r;
+        } pwr_req_dpd = 1'b0;
+
+        field {
+            desc = "Request return to ACTIVE";
+            sw = rw; hw = r;
+        } pwr_req_active = 1'b0;
+
+        field {
+            desc = "Request self-refresh";
+            sw = rw; hw = r;
+        } pwr_req_self_refresh = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r; hw = na;
+        } RSVD_30_8[30:8] = 23'h0;
+
+        field {
+            desc = "Write 1 to assert internal soft reset (self-clearing)";
+            sw = rw; hw = r; swmod;
+        } soft_reset = 1'b0;
+
+    } CTRL @ 0x000;
+
+    reg {
+        name = "Status Register";
+        desc = "Init / power / version status";
+
+        field {
+            desc = "Init complete";
+            sw = r; hw = w;
+        } init_done;
+
+        field {
+            desc = "Init error";
+            sw = r; hw = w;
+        } init_error;
+
+        field {
+            desc = "Reserved";
+            sw = r; hw = na;
+        } RSVD_3_2[3:2] = 2'h0;
+
+        field {
+            desc = "Current power-state FSM state (encoded)";
+            sw = r; hw = w;
+        } power_state[7:4];
+
+        field {
+            desc = "LPDDR2: PASR mask is non-zero";
+            sw = r; hw = w;
+        } pasr_active;
+
+        field {
+            desc = "Reserved";
+            sw = r; hw = na;
+        } RSVD_15_9[15:9] = 7'h0;
+
+        field {
+            desc = "Current init step number (for bring-up)";
+            sw = r; hw = w;
+        } init_step_dbg[23:16];
+
+        field {
+            desc = "Reserved";
+            sw = r; hw = na;
+        } RSVD_30_24[30:24] = 7'h0;
+
+        field {
+            desc = "Build matches expected version";
+            sw = r; hw = w;
+        } version_match;
+
+    } STATUS @ 0x004;
+
+    reg {
+        name = "Status History";
+        desc = "Last 8 power-state transitions, 4 bits each. Most recent in [3:0].";
+
+        field {
+            desc = "8 x 4-bit power-state history";
+            sw = r; hw = w;
+        } history[31:0];
+
+    } STATUS_HISTORY @ 0x008;
+
+    //=========================================================================
+    // Timing Parameters (0x010 – 0x01F)
+    //=========================================================================
+
+    reg {
+        name = "Timings: tRC / tRCD / tRP / tRAS";
+        desc = "Packed timing parameters in MC cycles";
+
+        field { sw = rw; hw = r; desc = "tRC";  } tRC[7:0]    = 8'd60;
+        field { sw = rw; hw = r; desc = "tRCD"; } tRCD[15:8]  = 8'd15;
+        field { sw = rw; hw = r; desc = "tRP";  } tRP[23:16]  = 8'd15;
+        field { sw = rw; hw = r; desc = "tRAS"; } tRAS[31:24] = 8'd40;
+
+    } TIMINGS_RC_RCD_RP_RAS @ 0x010;
+
+    reg {
+        name = "Timings: tRFC / tREFI";
+        desc = "Refresh interval and recovery";
+
+        field { sw = rw; hw = r; desc = "tRFC (or tRFCab)"; } tRFC[15:0]  = 16'd200;
+        field { sw = rw; hw = r; desc = "tREFI";            } tREFI[31:16] = 16'd1950;
+
+    } TIMINGS_RFC_REFI @ 0x014;
+
+    reg {
+        name = "Timings: tRRD / tFAW / tWTR / tCCD";
+        desc = "Inter-bank + bus turn-around";
+
+        field { sw = rw; hw = r; desc = "tRRD"; } tRRD[7:0]    = 8'd6;
+        field { sw = rw; hw = r; desc = "tFAW"; } tFAW[15:8]   = 8'd35;
+        field { sw = rw; hw = r; desc = "tWTR"; } tWTR[23:16]  = 8'd4;
+        field { sw = rw; hw = r; desc = "tCCD"; } tCCD[31:24]  = 8'd4;
+
+    } TIMINGS_RRD_FAW_WTR_CCD @ 0x018;
+
+    reg {
+        name = "Timings: CL / CWL / tWR / tRFCpb";
+        desc = "CAS latencies + write recovery + LPDDR2 per-bank tRFC";
+
+        field { sw = rw; hw = r; desc = "CAS latency";        } CL[7:0]        = 8'd6;
+        field { sw = rw; hw = r; desc = "CAS write latency";  } CWL[15:8]      = 8'd4;
+        field { sw = rw; hw = r; desc = "Write recovery";     } tWR[23:16]     = 8'd15;
+        field { sw = rw; hw = r; desc = "LPDDR2 per-bank tRFC"; } tRFCpb[31:24] = 8'd70;
+
+    } TIMINGS_CL_CWL_WR @ 0x01C;
+
+    //=========================================================================
+    // Mode Register Values (0x020 – 0x02F)
+    //=========================================================================
+
+    reg {
+        name = "Mode Register 0";
+        desc = "MR0 value loaded during init (low 16 bits)";
+
+        field { sw = rw; hw = r; desc = "MR0 value"; } VAL[15:0] = 16'h0;
+        field { sw = r;  hw = na; desc = "Reserved"; } RSVD[31:16] = 16'h0;
+
+    } MR0 @ 0x020;
+
+    reg {
+        name = "Mode Register 1";
+        desc = "MR1 value loaded during init (low 16 bits)";
+
+        field { sw = rw; hw = r; desc = "MR1 value"; } VAL[15:0] = 16'h0;
+        field { sw = r;  hw = na; desc = "Reserved"; } RSVD[31:16] = 16'h0;
+
+    } MR1 @ 0x024;
+
+    reg {
+        name = "Mode Register 2";
+        desc = "MR2 value loaded during init (low 16 bits)";
+
+        field { sw = rw; hw = r; desc = "MR2 value"; } VAL[15:0] = 16'h0;
+        field { sw = r;  hw = na; desc = "Reserved"; } RSVD[31:16] = 16'h0;
+
+    } MR2 @ 0x028;
+
+    reg {
+        name = "Mode Register 3";
+        desc = "MR3 value loaded during init (low 16 bits)";
+
+        field { sw = rw; hw = r; desc = "MR3 value"; } VAL[15:0] = 16'h0;
+        field { sw = r;  hw = na; desc = "Reserved"; } RSVD[31:16] = 16'h0;
+
+    } MR3 @ 0x02C;
+
+    //=========================================================================
+    // LPDDR2-Specific (0x030 – 0x03F)
+    //=========================================================================
+
+    reg {
+        name = "PASR Bank Mask Rank 0";
+        desc = "LPDDR2 PASR per-bank mask for rank 0 (MR16). Bit N=1 masks bank N.";
+
+        field { sw = rw; hw = r; desc = "Bank mask"; } pasr_banks[7:0] = 8'h0;
+        field { sw = r;  hw = na; desc = "Reserved"; } RSVD[31:8] = 24'h0;
+
+    } PASR_BANK_MASK_RANK0 @ 0x030;
+
+    reg {
+        name = "PASR Segment Mask Rank 0";
+        desc = "LPDDR2 PASR segment mask for rank 0";
+
+        field { sw = rw; hw = r; desc = "Segment mask"; } pasr_segs[7:0] = 8'h0;
+        field { sw = r;  hw = na; desc = "Reserved"; } RSVD[31:8] = 24'h0;
+
+    } PASR_SEG_MASK_RANK0 @ 0x034;
+
+    reg {
+        name = "Temperature Derate Rank 0";
+        desc = "LPDDR2 MR4 temperature class for rank 0";
+
+        field {
+            sw = r; hw = w;
+            desc = "00 = nominal, 01 = 2x refresh, 10 = 4x refresh";
+        } temp_class[1:0];
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD[31:2] = 30'h0;
+
+    } TEMP_DERATE_RANK0 @ 0x038;
+
+    //=========================================================================
+    // Scheduler / Refresh / Page / Addr / Init Tuning (0x040 – 0x05F)
+    //=========================================================================
+
+    reg {
+        name = "Scheduler Tuning";
+        desc = "Runtime scheduler knobs (effective at next quiet point)";
+
+        field {
+            sw = rw; hw = r;
+            desc = "Active lookahead window (0..LOOKAHEAD_DEPTH_MAX). 0 disables.";
+        } lookahead_active[3:0] = 4'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "1 = force first-ready FIFO (disable row-hit reordering)";
+        } force_inorder = 1'b0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "1 = HAPPY predictor active (only meaningful if synthesized)";
+        } happy_enable = 1'b1;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_7_6[7:6] = 2'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "Runtime AGE_MAX override (0 = use build-time default)";
+        } age_max_runtime[15:8] = 8'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "Backpressure-assertion threshold for txn queue";
+        } txn_queue_high_water[23:16] = 8'h0;
+
+        field {
+            sw = r; hw = w;
+            desc = "Echo of build-time LOOKAHEAD_DEPTH_MAX";
+        } lookahead_max_obs[27:24];
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_31_28[31:28] = 4'h0;
+
+    } SCHED_TUNING @ 0x040;
+
+    reg {
+        name = "Page Predictor Tuning";
+        desc = "HAPPY-mode predictor knobs";
+
+        field { sw = rw; hw = r; desc = "Warmup cycles";   } warmup_cycles[15:0] = 16'd1024;
+        field { sw = rw; hw = r; desc = "Hysteresis";      } hysteresis[23:16]   = 8'd2;
+        field { sw = r;  hw = na; desc = "Reserved";        } RSVD[31:24] = 8'h0;
+
+    } PAGE_PRED_TUNING @ 0x044;
+
+    reg {
+        name = "Refresh Tuning";
+        desc = "Refresh policy + ZQCS interval";
+
+        field {
+            sw = rw; hw = r;
+            desc = "00=build-time, 01=RR, 10=OLDEST_FIRST, 11=DARP";
+        } refpb_policy_or[1:0] = 2'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "00=build-time, 01=OPEN, 10=CLOSE, 11=HAPPY_HYBRID";
+        } page_policy_or[3:2] = 2'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "Active refresh deferral count (1..REFRESH_DEFER_MAX)";
+        } refresh_defer_active[7:4] = 4'h1;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_15_8[15:8] = 8'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "Periodic ZQCS interval in Hz (0 = disabled)";
+        } zqcs_freq_hz[31:16] = 16'd1;
+
+    } REFRESH_TUNING @ 0x048;
+
+    reg {
+        name = "Address Map Tuning";
+        desc = "Runtime address-map scheme selection + synthesized mask";
+
+        field {
+            sw = rw; hw = r;
+            desc = "00=build-time, 01=ROW_MAJOR, 10=BANK_INTERLEAVE, 11=XOR_HASH";
+        } scheme_or[1:0] = 2'h0;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_3_2[3:2] = 2'h0;
+
+        field {
+            sw = r; hw = w;
+            desc = "Bitmask of synthesized schemes (bit0=RM, bit1=BI, bit2=XOR)";
+        } synth_mask_obs[7:4];
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_31_8[31:8] = 24'h0;
+
+    } ADDR_MAP_TUNING @ 0x04C;
+
+    reg {
+        name = "Init Tuning";
+        desc = "ZQ retries + per-step init timeout";
+
+        field { sw = rw; hw = r; desc = "ZQ retries (1..8)";     } zq_retries[3:0]     = 4'd3;
+        field { sw = r;  hw = na; desc = "Reserved";              } RSVD_7_4[7:4] = 4'h0;
+        field { sw = rw; hw = r; desc = "Init timeout ms (1..255)"; } init_timeout_ms[15:8] = 8'd10;
+        field { sw = r;  hw = na; desc = "Reserved";              } RSVD_31_16[31:16] = 16'h0;
+
+    } INIT_TUNING @ 0x050;
+
+    //=========================================================================
+    // Per-Bank Observation (0x080 – 0x09F) — NUM_BANKS=8, rank 0
+    //=========================================================================
+
+    regfile {
+        name = "Per-Bank Row Hit Observation";
+        desc = "Rolling row-hit count per bank. Reset on read or soft_reset.";
+
+        reg {
+            field {
+                sw = rw; hw = w; onread = rclr;
+                desc = "Row-hit count";
+            } VAL[31:0];
+        } ROW_HIT @ 0x0;
+
+    } OBS_ROW_HIT[8] @ 0x080 += 0x4;
+
+    regfile {
+        name = "Per-Bank Refresh Latency Observation";
+        desc = "Average refresh blocking time per bank";
+
+        reg {
+            field { sw = r; hw = w; desc = "Refresh-blocking cycles"; } VAL[31:0];
+        } REF_LAT @ 0x0;
+
+    } OBS_REF_LATENCY[8] @ 0x0C0 += 0x4;
+
+    //=========================================================================
+    // System Observation (0x100 – 0x1FF)
+    //=========================================================================
+
+    reg {
+        desc = "Max queue depth observed";
+        field { sw = r; hw = w; desc = "Max depth"; } VAL[31:0];
+    } OBS_TXN_QUEUE_DEPTH_MAX @ 0x100;
+
+    reg {
+        desc = "Time-averaged queue depth";
+        field { sw = r; hw = w; desc = "Avg depth"; } VAL[31:0];
+    } OBS_TXN_QUEUE_DEPTH_AVG @ 0x104;
+
+    reg {
+        desc = "Max refresh_pending observed";
+        field { sw = r; hw = w; desc = "Max pending"; } VAL[31:0];
+    } OBS_REFRESH_PENDING_MAX @ 0x108;
+
+    reg {
+        desc = "Refresh-deferral histogram bin 0";
+        field { sw = r; hw = w; desc = "Bin 0 count"; } VAL[31:0];
+    } OBS_REFRESH_DEFER_HIST_0 @ 0x10C;
+
+    reg {
+        desc = "Refresh-deferral histogram bin 1";
+        field { sw = r; hw = w; desc = "Bin 1 count"; } VAL[31:0];
+    } OBS_REFRESH_DEFER_HIST_1 @ 0x110;
+
+    reg {
+        desc = "Refresh-deferral histogram bin 2";
+        field { sw = r; hw = w; desc = "Bin 2 count"; } VAL[31:0];
+    } OBS_REFRESH_DEFER_HIST_2 @ 0x114;
+
+    reg {
+        desc = "Refresh-deferral histogram bin 3";
+        field { sw = r; hw = w; desc = "Bin 3 count"; } VAL[31:0];
+    } OBS_REFRESH_DEFER_HIST_3 @ 0x118;
+
+    reg {
+        desc = "HAPPY-mode rolling prediction accuracy (%)";
+        field { sw = r; hw = w; desc = "Accuracy %"; } VAL[31:0];
+    } OBS_PAGE_PRED_ACCURACY @ 0x120;
+
+    reg {
+        desc = "Avg AXI read latency (cycles)";
+        field { sw = r; hw = w; desc = "Avg cycles"; } VAL[31:0];
+    } OBS_AXI_R_LATENCY_AVG @ 0x130;
+
+    reg {
+        desc = "99th-pct AXI read latency";
+        field { sw = r; hw = w; desc = "P99 cycles"; } VAL[31:0];
+    } OBS_AXI_R_LATENCY_P99 @ 0x134;
+
+    reg {
+        desc = "Avg AXI write latency";
+        field { sw = r; hw = w; desc = "Avg cycles"; } VAL[31:0];
+    } OBS_AXI_W_LATENCY_AVG @ 0x138;
+
+    //=========================================================================
+    // obs_* harvest words (0x1C0 – 0x1E3) — see docs/csr_obs_layout.md.
+    // 9 RO 32-bit words carrying the packed obs_* signals from
+    // command_scheduler_macro (words 0..6) + axi_frontend_macro (words 7..8).
+    //=========================================================================
+
+    regfile {
+        name = "Observation Word Harvest";
+        desc = "Packed obs_* signals from FUB internals (see csr_obs_layout.md)";
+
+        reg {
+            field { sw = r; hw = w; desc = "Obs word"; } VAL[31:0];
+        } WORD @ 0x0;
+
+    } OBS_WORDS[9] @ 0x1C0 += 0x4;
+
+    //=========================================================================
+    // Module Identification (0xFF0 – 0xFFC)
+    //=========================================================================
+
+    reg {
+        name = "Module ID";
+
+        field { sw = r; hw = na; desc = "Build version";          } version[7:0]    = 8'h01;
+        field { sw = r; hw = na; desc = "0=DDR2, 1=LPDDR2";        } memtype[15:8]   = 8'h00;
+        field { sw = r; hw = na; desc = "Gear ratio (1, 2, or 4)"; } n_phases[23:16] = 8'h02;
+        field { sw = r; hw = na; desc = "Fixed 0xD2";              } module_id[31:24] = 8'hD2;
+
+    } ID @ 0xFF0;
+
+    reg {
+        name = "Build Hash";
+        field { sw = r; hw = na; desc = "Build hash word"; } VAL[31:0] = 32'h0;
+    } BUILD @ 0xFF4;
+
+};
