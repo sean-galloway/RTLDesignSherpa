@@ -125,6 +125,11 @@ module command_scheduler_macro
     // ---- top-level status ----
     output logic                       controller_idle_o,
 
+    // ---- status feed (consumed by the CSR slave's STATUS register) ----
+    output logic                       status_init_done_o,
+    output logic                       status_init_busy_o,
+    output logic [2:0]                 status_pdn_state_o,
+
     //=========================================================================
     // obs_* CSR readout — see docs/csr_obs_layout.md for the layout.
     // 7 32-bit words covering xbank_timers + global_timers + refresh_ctrl
@@ -505,5 +510,11 @@ module command_scheduler_macro
                           obs_xbank_rdwr_nz[0], obs_xbank_act_nz[0]};
         obs_words_o[6] = {24'b0, obs_xbank_ras_nz[0]};
     end
+
+    // Status feed: init_sequencer + powerdown_ctrl exposing what the
+    // CSR slave's STATUS register needs to surface to software.
+    assign status_init_done_o = init_done;
+    assign status_init_busy_o = init_busy;
+    assign status_pdn_state_o = obs_pdn_state;
 
 endmodule : command_scheduler_macro

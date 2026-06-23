@@ -110,11 +110,13 @@ module ddr2_lpddr2_core_macro
     input  logic [WR_CAM_DEPTH-1:0][RW-1:0]  wr_snap_row_i,
     input  logic [WR_CAM_DEPTH-1:0][CW-1:0]  wr_snap_col_i,
     input  logic [WR_CAM_DEPTH-1:0][BLW-1:0] wr_snap_len_i,
+    input  logic [WR_CAM_DEPTH-1:0][3:0]     wr_snap_qos_i,
     input  logic [RD_CAM_DEPTH-1:0][RKW-1:0] rd_snap_rank_i,
     input  logic [RD_CAM_DEPTH-1:0][BKW-1:0] rd_snap_bank_i,
     input  logic [RD_CAM_DEPTH-1:0][RW-1:0]  rd_snap_row_i,
     input  logic [RD_CAM_DEPTH-1:0][CW-1:0]  rd_snap_col_i,
     input  logic [RD_CAM_DEPTH-1:0][BLW-1:0] rd_snap_len_i,
+    input  logic [RD_CAM_DEPTH-1:0][3:0]     rd_snap_qos_i,
     input  logic [RD_CAM_DEPTH-1:0][IW-1:0]  rd_snap_id_i,
 
     output logic                       wr_issued_we_o,
@@ -174,7 +176,16 @@ module ddr2_lpddr2_core_macro
     input  logic                       dfi_ctrlupd_ack_i,
     input  logic                       dfi_phyupd_req_i,
     output logic                       dfi_phyupd_ack_o,
-    input  logic [1:0]                 dfi_phyupd_type_i
+    input  logic [1:0]                 dfi_phyupd_type_i,
+
+    //=========================================================================
+    // STATUS + obs feed (consumed by ddr2_lpddr2_csr_slave)
+    //=========================================================================
+    output logic                       status_init_done_o,
+    output logic                       status_init_busy_o,
+    output logic [2:0]                 status_pdn_state_o,
+
+    output logic [6:0][31:0]           obs_words_o
 );
 
     //=========================================================================
@@ -280,11 +291,13 @@ module ddr2_lpddr2_core_macro
         .wr_snap_row_i       (wr_snap_row_i),
         .wr_snap_col_i       (wr_snap_col_i),
         .wr_snap_len_i       (wr_snap_len_i),
+        .wr_snap_qos_i       (wr_snap_qos_i),
         .rd_snap_rank_i      (rd_snap_rank_i),
         .rd_snap_bank_i      (rd_snap_bank_i),
         .rd_snap_row_i       (rd_snap_row_i),
         .rd_snap_col_i       (rd_snap_col_i),
         .rd_snap_len_i       (rd_snap_len_i),
+        .rd_snap_qos_i       (rd_snap_qos_i),
         .wr_issued_we_o      (wr_issued_we_o),
         .wr_issued_slot_o    (wr_issued_slot_o),
         .rd_issued_we_o      (rd_issued_we_o),
@@ -307,9 +320,17 @@ module ddr2_lpddr2_core_macro
         .dfi_init_complete_i (dfi_init_complete_i),
         .dfi_cke_o           (pre_dfi_cke),
         .controller_idle_o   (controller_idle_unused),
-        // obs_* — packed CSR readout words (F1 will route up to APB slave)
+        // status + obs surfaces
+        .status_init_done_o  (status_init_done_o),
+        .status_init_busy_o  (status_init_busy_o),
+        .status_pdn_state_o  (status_pdn_state_o),
         .obs_words_o         (cmd_obs_words)
     );
+
+    // Promote cmd_obs_words to the core_macro boundary. The 7 scheduler
+    // words live at obs_words_o[6:0]; the top wrapper concatenates with
+    // the axi_frontend_macro's obs_words[1:0] to fill obs_words_o[8:7].
+    assign obs_words_o = cmd_obs_words;
 
     data_path_macro #(
         .AXI_ID_WIDTH    (IW),
@@ -418,7 +439,6 @@ module ddr2_lpddr2_core_macro
     assign dfi_phyupd_ack_o  = 1'b0;
 
     wire unused = |{ controller_idle_unused, bl_val,
-                     dfi_ctrlupd_ack_i, dfi_phyupd_req_i, dfi_phyupd_type_i,
-                     cmd_obs_words };
+                     dfi_ctrlupd_ack_i, dfi_phyupd_req_i, dfi_phyupd_type_i };
 
 endmodule : ddr2_lpddr2_core_macro
