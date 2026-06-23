@@ -1,8 +1,14 @@
 # DMA Observer Integration — Plan & Tracker
 
-**Status:** Mostly done. The instrumentation is built and proven on STREAM;
-remaining work is wiring the standalone observer into a generic
-external-DMA characterization harness.
+**Status:** Mostly done. The instrumentation is built and proven on STREAM,
+and (as of 2026-06-22) the observer is **dropped inline in the STREAM
+characterization harness with its meter + histogram outputs wired to
+`harness_csr` and read by the host entirely over CSR** — `obs_equiv` cosim
+confirms it meters STREAM equivalently to the in-core monitors over the real
+CSR path. Remaining work is (a) flipping STREAM to `USE_AXI_MONITORS=0` so the
+observer becomes the sole perf source, and (b) generalizing the wiring into a
+non-STREAM external-DMA characterization harness for cross-DMA benchmarking
+(vs. Synopsys/Cadence + top-tier OSS scatter-gather DMAs).
 
 **Goal:** Drop `axi4_dma_observer` between an arbitrary AXI4-master DMA's
 read/write ports and the fabric, and have it produce **all the
@@ -65,8 +71,8 @@ What the host already reads, and where it comes from in an observer-based harnes
 
 | Field(s) | Source | Status |
 |---|---|---|
-| `r/w_aggregate{prod,bp,starv,idle}`, `*_buckets_pct`, `datapath_utilization_r/w`, per-channel, overflow | observer `*_meter_*` ports | `[~]` ports exist; needs wiring to `harness_csr` 0x100/0x180 |
-| latency histograms (AR->first-R / AR->RLAST, AW->B; 16 log2 bins; `HIST_SEL`/`HIST_DATA`/`HIST_TOTAL`) | observer `{rd,wr}_hist_count`/`_total` + `i_hist_metric`/`i_hist_bin` | `[~]` ports exist (RFC Stage E.3); needs wiring to the `HIST_SEL`/`HIST_DATA`/`HIST_TOTAL` CSRs (mirror the in-core STREAM regblock @ 0x378-0x380) |
+| `r/w_aggregate{prod,bp,starv,idle}`, `*_buckets_pct`, `datapath_utilization_r/w`, per-channel, overflow | observer `*_meter_*` ports | `[x]` aggregate buckets wired to `harness_csr` 0x100-0x11C and host-read over CSR (2026-06-22); per-channel/overflow still TODO |
+| latency histograms (AR->first-R / AR->RLAST, AW->B; 16 log2 bins; `HIST_SEL`/`HIST_DATA`/`HIST_TOTAL`) | observer `{rd,wr}_hist_count`/`_total` + `i_hist_metric`/`i_hist_bin` | `[x]` wired to `harness_csr` `HIST_SEL`/`DATA`/`TOTAL` @ 0x120/0x124/0x128 ({bin[5:2],metric[1],bus[0]} selector) and host-read over CSR; obs-vs-in-core equivalence PASS over CSR (2026-06-22) |
 | `cycles_total`, `end_to_end_utilization`, `r/w_first/last/firstlast_cycles` | harness timer + first/last-beat latches | `[~]` reuse harness timer; add/verify first/last latches (meter doesn't emit them) |
 | CRC `rd_expected/wr_expected/wr_computed/match`; beat counts → `mb_moved`/throughput | `axi4_dma_slaves` (endpoint) | `[x]` reuse as-is on fabric side |
 | `completion{completed,timer_pass,overflow,...}` | harness timer/status | `[x]` reuse |
@@ -118,7 +124,7 @@ Only two things vary per DMA-under-test:
 | Flavor | Kick mechanism | Channels | Status |
 |---|---|---|---|
 | STREAM (in-harness instrumentation, today) | descriptor kick (existing harness) | 8 (rid + in-core wr meter) | `[x]` works today |
-| STREAM (via `axi4_dma_observer`) | descriptor kick (existing harness) | 8 (rid reads + `WR_CH_FROM_AWID` writes — STREAM drives `awid`=channel) | `[~]` observer at parity; needs the observer dropped on STREAM's `m_axi_rd/wr_*` + CSR wiring |
+| STREAM (via `axi4_dma_observer`) | descriptor kick (existing harness) | 8 (rid reads + `WR_CH_FROM_AWID` writes — STREAM drives `awid`=channel) | `[x]` observer dropped inline on STREAM's `m_axi_rd/wr_*` in `stream_char_harness`, outputs wired to `harness_csr` (0x100-0x128), host-read over CSR; `obs_equiv` cosim PASS (2026-06-22). Still running in parallel with in-core monitors (`USE_AXI_MONITORS=1`); next step is the `=0` flip |
 | *(next external DMA)* | TBD | TBD | `[ ]` |
 
 > **Why route STREAM through the observer (the timing payoff):** the in-core
