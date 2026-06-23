@@ -1,0 +1,105 @@
+module: ddr2_lpddr2_csr_slave
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/macro/ddr2_lpddr2_csr_slave.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/macro/test_ddr2_lpddr2_csr_slave.py
+
+parameters:
+- name: APB_ADDR_WIDTH
+  default: 12
+- name: APB_DATA_WIDTH
+  default: 32
+
+coverage_points: []
+
+functional_scenarios:
+- id: CSR-01
+  name: Smoke (ID readback)
+  description: "Reset → APB read of ID register returns the RDL-baked module_id"
+  test_function: test_ddr2_lpddr2_csr_slave (smoke)
+  priority: high
+  status: verified
+- id: CSR-02
+  name: CTRL R/W
+  description: "Write CTRL.pwr_req_low_power, read back, verify field set"
+  test_function: test_ddr2_lpddr2_csr_slave (ctrl_rw)
+  priority: high
+  status: verified
+- id: CSR-03
+  name: Timing register R/W
+  description: "Pack tRC/tRCD/tRP/tRAS into TIMINGS_RC_RCD_RP_RAS, read back"
+  test_function: test_ddr2_lpddr2_csr_slave (timings_rw)
+  priority: high
+  status: verified
+- id: CSR-04
+  name: SCHED_TUNING R/W
+  description: "Pack lookahead + force_inorder + age_max via field-pack helper"
+  test_function: test_ddr2_lpddr2_csr_slave (sched_tuning_rw)
+  priority: high
+  status: verified
+- id: CSR-05
+  name: REFRESH_TUNING R/W
+  description: "Pack refpb_policy_or + page_policy_or + zqcs_freq_hz"
+  test_function: test_ddr2_lpddr2_csr_slave (refresh_tuning_rw)
+  priority: high
+  status: verified
+- id: CSR-06
+  name: MR R/W (MR0-MR3)
+  description: "Random 16-bit MR writes round-trip through APB"
+  test_function: test_ddr2_lpddr2_csr_slave (mr_rw)
+  priority: high
+  status: verified
+- id: CSR-07
+  name: STATUS readback
+  description: "Drive status_init_done/power_state/... and read STATUS register"
+  test_function: test_ddr2_lpddr2_csr_slave (status_readback)
+  priority: high
+  status: verified
+- id: CSR-08
+  name: STATUS_HISTORY readback
+  description: "32-bit history pattern propagates to STATUS_HISTORY register"
+  test_function: test_ddr2_lpddr2_csr_slave (status_history_readback)
+  priority: high
+  status: verified
+- id: CSR-09
+  name: OBS_WORDS readback (9-word harvest)
+  description: "Inject 9 patterns into obs_words_i, read each OBS_WORDS[n]"
+  test_function: test_ddr2_lpddr2_csr_slave (obs_words_readback)
+  priority: high
+  status: verified
+- id: CSR-10
+  name: Per-bank OBS readback
+  description: "8 bank patterns through obs_row_hit_i visible at OBS_ROW_HIT[n]"
+  test_function: test_ddr2_lpddr2_csr_slave (obs_per_bank_readback)
+  priority: high
+  status: verified
+- id: CSR-11
+  name: System OBS readback
+  description: "7 system-obs feeds visible at their CSR offsets"
+  test_function: test_ddr2_lpddr2_csr_slave (obs_system_readback)
+  priority: high
+  status: verified
+- id: CSR-12
+  name: CTRL cfg drive
+  description: "APB CTRL write drives flat cfg_pwr_req_low_power_o output"
+  test_function: test_ddr2_lpddr2_csr_slave (ctrl_cfg_drive)
+  priority: high
+  status: verified
+- id: CSR-13
+  name: Hole read returns zero
+  description: "APB read of unmapped offset returns 0 (PeakRDL passthrough default)"
+  test_function: test_ddr2_lpddr2_csr_slave (hole_read_returns_zero)
+  priority: medium
+  status: verified
+
+implied_coverage:
+  total_scenarios: 13
+  scenario_tracked: 13
+  implied_covered: 13
+  implied_percentage: 100.0
+
+notes: |
+  Three-block stack: apb_slave_cdc + peakrdl_to_cmdrsp + PeakRDL-generated
+  register block + ddr2_lpddr2_config_block. Mirrors stream's CSR
+  methodology (manual peakrdl regblock + passthrough CPU interface).
+
+  Cross-clock: APB runs at pclk, registers live at mc_clk. CDC is via
+  2-phase handshake in apb_slave_cdc.

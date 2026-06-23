@@ -1,0 +1,87 @@
+module: powerdown_ctrl
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/powerdown_ctrl.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/fub/test_powerdown_ctrl.py
+
+parameters:
+- name: NUM_RANKS
+  default: 1
+  description: Number of DRAM ranks
+- name: CS_WIDTH
+  default: 1
+  description: dfi_cke_o width (= NUM_RANKS)
+
+coverage_points: []
+# Filled by bin/update_testplan_coverage.py
+
+functional_scenarios:
+- id: PDN-01
+  name: Smoke (S_AWAKE → S_ARMING → S_REQ → S_ASLEEP)
+  description: "Idle threshold cross arms PDE, grant takes FSM to ASLEEP, activity wakes"
+  test_function: test_powerdown_ctrl (smoke)
+  priority: high
+  status: verified
+- id: PDN-02
+  name: Early wake from ARMING
+  description: "Activity arrives before idle_threshold elapses — back to AWAKE"
+  test_function: test_powerdown_ctrl (early_wake)
+  priority: high
+  status: verified
+- id: PDN-03
+  name: PDE disable
+  description: "enable_pde_i = 0 → pdn_req_o never asserts"
+  test_function: test_powerdown_ctrl (disable_pde)
+  priority: high
+  status: verified
+- id: PDN-04
+  name: Activity in REQ state
+  description: "Activity arrives in S_REQ before grant — back to AWAKE (pdn_req drops)"
+  test_function: test_powerdown_ctrl (req_then_active)
+  priority: high
+  status: verified
+- id: PDN-05
+  name: Self-Refresh entry priority
+  description: "enable_sref_i over enable_pde_i: pdn_kind_o=1, sref_active_o asserts in ASLEEP"
+  test_function: test_powerdown_ctrl (sref_entry)
+  priority: high
+  status: verified
+- id: PDN-06
+  name: PDE only when SR disabled
+  description: "enable_sref_i=0 + enable_pde_i=1 → pdn_kind_o=0 (PDE path)"
+  test_function: test_powerdown_ctrl (pde_only_when_sref_off)
+  priority: high
+  status: verified
+- id: PDN-07
+  name: SR-only path
+  description: "enable_sref_i=1 + enable_pde_i=0 → SR still arms"
+  test_function: test_powerdown_ctrl (sref_alone)
+  priority: high
+  status: verified
+- id: PDN-08
+  name: Single grant — no re-fire (race guard)
+  description: |
+    REGRESSION: pdn_req_o stays low in S_ASLEEP after a single grant
+    (no spurious re-trigger). Same strict-flop strobe race class as
+    the scheduler S_DONE bug (commit 66f32c7f).
+  test_function: test_powerdown_ctrl (grant_no_reissue)
+  priority: high
+  status: verified
+- id: PDN-09
+  name: Random soak
+  description: "Random idle/activity/grant/disable sequences"
+  test_function: test_powerdown_ctrl (random_soak)
+  priority: medium
+  status: verified
+
+implied_coverage:
+  total_scenarios: 9
+  scenario_tracked: 9
+  implied_covered: 9
+  implied_percentage: 100.0
+
+notes: |
+  Tracks controller_idle duration and transitions the DRAM into low-power
+  states. Two flavors selected at arm time:
+    * PDE — CKE-low precharge power-down; wakes immediately on activity
+    * SR  — CKE low + SRE command; scheduler enforces tXSDLL/tXSR on exit
+
+  Race guard (PDN-08) catches the registered req-strobe re-fire class.

@@ -1,0 +1,47 @@
+module: dfi_signal_pack
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/dfi_signal_pack.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/fub/test_dfi_signal_pack.py
+
+parameters:
+- name: DFI_RATE
+  default: 2
+  description: PHY:MC clock ratio (= phases per mc_clk)
+
+coverage_points: []
+
+functional_scenarios:
+- id: DSP-01
+  name: Reset values
+  description: "Reset → all per-phase outputs are NOP / 0 / inactive"
+  test_function: test_dfi_signal_pack (reset_values)
+  priority: high
+  status: verified
+- id: DSP-02
+  name: Smoke
+  description: "Single cmd places on phase 0; other phases hold NOP"
+  test_function: test_dfi_signal_pack (smoke)
+  priority: high
+  status: verified
+- id: DSP-03
+  name: Stream
+  description: "Stream of cmds across cycles; phase-0 packing stays correct"
+  test_function: test_dfi_signal_pack (stream)
+  priority: high
+  status: verified
+- id: DSP-04
+  name: Random soak
+  description: "Random cmd / data / mask sequences pack across all phases"
+  test_function: test_dfi_signal_pack (random_soak)
+  priority: medium
+  status: verified
+
+implied_coverage:
+  total_scenarios: 4
+  scenario_tracked: 4
+  implied_covered: 4
+  implied_percentage: 100.0
+
+notes: |
+  Packs the dfi_cmd_formatter's single-phase output into the multi-phase
+  DFI bus (address/bank/cas_n/ras_n/we_n/cs_n/cke/odt + wrdata/wrdata_en/
+  wrdata_mask + rddata_en) according to DFI_RATE.

@@ -1,0 +1,93 @@
+module: wr_cmd_cam
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/wr_cmd_cam.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/fub/test_wr_cmd_cam.py
+
+parameters:
+- name: WR_CAM_DEPTH
+  default: 16
+  description: Number of write CAM slots
+- name: NUM_RANKS
+  default: 1
+- name: NUM_BANKS
+  default: 8
+
+coverage_points: []
+
+functional_scenarios:
+- id: WRCAM-01
+  name: Smoke
+  description: "Reset → all r_valid clear, push_ready high, occupancy 0"
+  test_function: test_wr_cmd_cam (smoke)
+  priority: high
+  status: verified
+- id: WRCAM-02
+  name: Fill to full
+  description: "Push CAM_DEPTH entries — push_ready drops, occupancy = depth"
+  test_function: test_wr_cmd_cam (fill_to_full)
+  priority: high
+  status: verified
+- id: WRCAM-03
+  name: Free-slot priority encoder
+  description: "After random pops, push_slot_o picks lowest free index"
+  test_function: test_wr_cmd_cam (free_slot_picker)
+  priority: high
+  status: verified
+- id: WRCAM-04
+  name: Match query
+  description: "q_rank/q_bank match drives match_pending_o per slot"
+  test_function: test_wr_cmd_cam (match_query)
+  priority: high
+  status: verified
+- id: WRCAM-05
+  name: Match row-hit
+  description: "match_rowhit_o = match_pending && r_row == q_row"
+  test_function: test_wr_cmd_cam (match_rowhit)
+  priority: high
+  status: verified
+- id: WRCAM-06
+  name: Issued masking
+  description: "issued_we_i sets r_issued → match_pending drops for that slot"
+  test_function: test_wr_cmd_cam (issued_masking)
+  priority: high
+  status: verified
+- id: WRCAM-07
+  name: Beat-pull walk
+  description: "beat_pull_strb_i increments r_beats_issued; ptr/strb_ptr advance"
+  test_function: test_wr_cmd_cam (beat_pull_walk)
+  priority: high
+  status: verified
+- id: WRCAM-08
+  name: B-complete cycle
+  description: "b_complete_strb_i clears r_valid + r_issued + r_b_pending"
+  test_function: test_wr_cmd_cam (b_complete_cycle)
+  priority: high
+  status: verified
+- id: WRCAM-09
+  name: Snapshot outputs
+  description: "snap_* mirror current r_* state combinationally"
+  test_function: test_wr_cmd_cam (snapshot)
+  priority: high
+  status: verified
+- id: WRCAM-10
+  name: Occupancy counter
+  description: "dbg_occupancy_o = count of valid slots"
+  test_function: test_wr_cmd_cam (occupancy)
+  priority: medium
+  status: verified
+- id: WRCAM-11
+  name: Random soak
+  description: "Random push/pop/issue/beat/b_complete sequence stays consistent"
+  test_function: test_wr_cmd_cam (random_soak)
+  priority: medium
+  status: verified
+
+implied_coverage:
+  total_scenarios: 11
+  scenario_tracked: 11
+  implied_covered: 11
+  implied_percentage: 100.0
+
+notes: |
+  Per-slot WR command storage with snap_* outputs into the scheduler. Carries
+  the QoS field (added in F4) and the w_buf_ptr / strb_ptr for downstream
+  data-path drains.

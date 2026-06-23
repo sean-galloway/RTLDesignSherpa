@@ -1,0 +1,65 @@
+module: rd_cl_aligner
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/rd_cl_aligner.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/fub/test_rd_cl_aligner.py
+
+parameters:
+- name: DFI_RATE
+  default: 2
+  description: PHY:MC clock ratio (DFI beats per mc cycle)
+
+coverage_points: []
+
+functional_scenarios:
+- id: RCA-01
+  name: Smoke
+  description: "Reset → single-beat RD op walks EN/CAP/EMIT pipeline"
+  test_function: test_rd_cl_aligner (smoke)
+  priority: high
+  status: verified
+- id: RCA-02
+  name: Burst length sweep
+  description: "BL=1, 4, 8 — staging buffer + emit beats line up correctly"
+  test_function: test_rd_cl_aligner (burst_len_sweep)
+  priority: high
+  status: verified
+- id: RCA-03
+  name: tPHY_rddata_en sweep
+  description: "rddata_en lead-time honors t_rddata_en_i input"
+  test_function: test_rd_cl_aligner (tphy_sweep)
+  priority: high
+  status: verified
+- id: RCA-04
+  name: PHY rdlat sweep
+  description: "CL + AL combination: data arrives at expected DFI cycle"
+  test_function: test_rd_cl_aligner (phy_rdlat_sweep)
+  priority: high
+  status: verified
+- id: RCA-05
+  name: rd_inject_ready throttle
+  description: "Downstream rd_inject_ready_i=0 stalls EMIT pipeline cleanly"
+  test_function: test_rd_cl_aligner (rrdy_throttle)
+  priority: high
+  status: verified
+- id: RCA-06
+  name: Back-to-back ops
+  description: "Two ops queued: EN/CAP/EMIT heads advance independently"
+  test_function: test_rd_cl_aligner (back_to_back)
+  priority: high
+  status: verified
+- id: RCA-07
+  name: Random soak
+  description: "Random op_len/t_phy/rready throttle stays self-consistent"
+  test_function: test_rd_cl_aligner (random_soak)
+  priority: medium
+  status: verified
+
+implied_coverage:
+  total_scenarios: 7
+  scenario_tracked: 7
+  implied_covered: 7
+  implied_percentage: 100.0
+
+notes: |
+  Three-stage pipeline: EN (drive dfi_rddata_en), CAPTURE (latch dfi_rddata
+  when valid), EMIT (stream beats to axi_frontend's rd_inject). Uses
+  MAX_CONCURRENT slots with separate EN/CAPTURE/EMIT heads tracking the FIFO.

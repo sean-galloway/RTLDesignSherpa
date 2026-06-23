@@ -1,0 +1,111 @@
+# DDR2/LPDDR2 Memory Controller Testplans
+
+YAML testplans mapping every FUB/macro/top scenario to the cocotb test
+that exercises it. Format mirrors the stream component's testplan
+convention so the same coverage rollup scripts apply
+(`bin/aggregate_coverage.py`, `bin/update_testplan_coverage.py`,
+`bin/cov_utils/unified_coverage_report.py`).
+
+## Inventory
+
+### FUB level (direct unit tests)
+
+| Testplan | Module | Test file | Scenarios |
+|----------|--------|-----------|----------:|
+| `scheduler_testplan.yaml` | scheduler.sv | test_scheduler.py | 23 |
+| `refresh_ctrl_testplan.yaml` | refresh_ctrl.sv | test_refresh_ctrl.py | 10 |
+| `powerdown_ctrl_testplan.yaml` | powerdown_ctrl.sv | test_powerdown_ctrl.py | 9 |
+| `xbank_timers_testplan.yaml` | xbank_timers.sv | test_xbank_timers.py | 5 |
+| `global_timers_testplan.yaml` | global_timers.sv | test_global_timers.py | 6 |
+| `page_predictor_testplan.yaml` | page_predictor.sv | test_page_predictor.py | 5 |
+| `mode_register_testplan.yaml` | mode_register.sv | test_mode_register.py | 7 |
+| `init_sequencer_testplan.yaml` | init_sequencer.sv | test_init_sequencer.py | 4 |
+| `wr_cmd_cam_testplan.yaml` | wr_cmd_cam.sv | test_wr_cmd_cam.py | 11 |
+| `rd_cmd_cam_testplan.yaml` | rd_cmd_cam.sv | test_rd_cmd_cam.py | 11 |
+| `wr_beat_sequencer_testplan.yaml` | wr_beat_sequencer.sv | test_wr_beat_sequencer.py | 7 |
+| `rd_cl_aligner_testplan.yaml` | rd_cl_aligner.sv | test_rd_cl_aligner.py | 7 |
+| `dfi_cmd_formatter_testplan.yaml` | dfi_cmd_formatter.sv | test_dfi_cmd_formatter.py | 6 |
+| `dfi_signal_pack_testplan.yaml` | dfi_signal_pack.sv | test_dfi_signal_pack.py | 4 |
+
+### FUB level — integration tested only (no direct unit test)
+
+| Testplan | Module | Tested via | Scenarios |
+|----------|--------|------------|----------:|
+| `axi_intake_testplan.yaml` | axi_intake.sv | test_axi_frontend_macro.py | 8 |
+| `axi_id_side_table_testplan.yaml` | axi_id_side_table.sv | test_axi_frontend_macro.py | 5 |
+| `addr_mapper_testplan.yaml` | addr_mapper.sv | test_axi_frontend_macro.py | 4 |
+| `wr2rd_forward_testplan.yaml` | wr2rd_forward.sv | test_axi_frontend_macro.py | 6 |
+
+### Macro level
+
+| Testplan | Module | Test file | Scenarios |
+|----------|--------|-----------|----------:|
+| `axi_frontend_macro_testplan.yaml` | axi_frontend_macro.sv | test_axi_frontend_macro.py | 9 |
+| `command_scheduler_macro_testplan.yaml` | command_scheduler_macro.sv | test_command_scheduler_macro.py | 3 |
+| `data_path_macro_testplan.yaml` | data_path_macro.sv | test_data_path_macro.py | 2 |
+| `ddr2_lpddr2_core_macro_testplan.yaml` | ddr2_lpddr2_core_macro.sv | test_ddr2_lpddr2_top.py | 6 |
+| `dfi_v21_interface_macro_testplan.yaml` | dfi_v21_interface_macro.sv | test_ddr2_lpddr2_top.py | 5 |
+| `ddr2_lpddr2_csr_slave_testplan.yaml` | ddr2_lpddr2_csr_slave.sv | test_ddr2_lpddr2_csr_slave.py | 13 |
+
+### Top level
+
+| Testplan | Module | Test file | Scenarios |
+|----------|--------|-----------|----------:|
+| `ddr2_lpddr2_top_testplan.yaml` | ddr2_lpddr2_top.sv | test_ddr2_lpddr2_top.py | 11 |
+
+## Rollup
+
+| Tier | Scenarios | Verified | % |
+|------|----------:|---------:|--:|
+| FUB (direct) | 115 | 115 | 100.0 |
+| FUB (integration) | 23 | 23 | 100.0 |
+| Macro | 38 | 38 | 100.0 |
+| Top | 11 | 7 | 63.6 |
+| **Total** | **187** | **183** | **97.9** |
+
+The 4 unverified top-level entries are documented `status: debug_only`
+cases (`bank0_probe`, `bank0_delayed`, `fresh_read_each_bank`,
+`memory_preload_read`). They expose a downstream data-path hang on
+fresh AXI reads that's distinct from the scheduler race fixed in
+commit `66f32c7f`. They're tracked here for visibility but excluded
+from the FUNC suite.
+
+## Test pattern guarantees
+
+Each testplan includes scenarios that catch the **strict-flop strobe
+race** class — see `docs/test_patterns_strobe_race.md`. The scheduler
+S_DONE → S_IDLE bug (commit `66f32c7f`) lives behind:
+- `scheduler.no_double_issue_wr / no_double_issue_rd / issued_pulse_width`
+- `command_scheduler_macro.no_double_issue_race` (full CAM-lag model)
+- `refresh_ctrl.grant_no_reissue`
+- `powerdown_ctrl.grant_no_reissue`
+
+The pattern should be repeated for any future req/grant arbitration FUB.
+
+## Rollup workflow
+
+```bash
+# Run with coverage
+cd projects/components/memory-controllers/ddr2-lpddr2
+make coverage-fub-full     # COVERAGE=1 COVERAGE_LEGAL=1 TEST_LEVEL=full
+make coverage-macro-full
+make coverage-top-full
+
+# Populate covers_lines: in YAMLs from Verilator .dat files
+python3 ../../../../bin/update_testplan_coverage.py \
+    --testplan dv/testplans/ \
+    --coverage coverage_data/
+
+# Aggregate per-module + report
+python3 ../../../../bin/aggregate_coverage.py --all --html \
+    --output coverage_reports/
+
+# Verify functional coverage % vs scenario count
+python3 ../../../../bin/cov_utils/verify_testplan_coverage.py \
+    dv/testplans/
+```
+
+The `implied_coverage` block in each YAML is the functional-coverage
+contribution. The `coverage_points` block (currently empty) gets
+populated by `update_testplan_coverage.py` once Verilator runs land
+their `.dat` files under `coverage_data/`.

@@ -1,0 +1,92 @@
+module: axi_frontend_macro
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/macro/axi_frontend_macro.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/macro/test_axi_frontend_macro.py
+
+parameters:
+- name: AXI_DATA_WIDTH
+  default: 64
+- name: AXI_ID_WIDTH
+  default: 4
+- name: AXI_USER_WIDTH
+  default: 8
+- name: NUM_RANKS
+  default: 1
+- name: NUM_BANKS
+  default: 8
+- name: WR_CAM_DEPTH
+  default: 16
+- name: RD_CAM_DEPTH
+  default: 16
+
+coverage_points: []
+
+functional_scenarios:
+- id: AFE-01
+  name: Forward smoke (snarf hit)
+  description: "AR matches an in-flight WR → wr2rd_forward intercepts; R streamed from w_buf"
+  test_function: test_axi_frontend_macro (forward_smoke)
+  priority: high
+  status: verified
+- id: AFE-02
+  name: Miss smoke (no forward)
+  description: "AR has no matching WR → rd_cmd_cam push + scheduler stub path"
+  test_function: test_axi_frontend_macro (miss_smoke)
+  priority: high
+  status: verified
+- id: AFE-03
+  name: Random directed
+  description: "Mixed AW/W/AR streams with directed-random address + len + qos"
+  test_function: test_axi_frontend_macro (random_directed)
+  priority: high
+  status: verified
+- id: AFE-04
+  name: Snarf timing schmoo
+  description: "Sweep AR-vs-W arrival timing to catch wr2rd_forward race windows"
+  test_function: test_axi_frontend_macro (snarf_timing_schmoo)
+  priority: high
+  status: verified
+- id: AFE-05
+  name: Address space sweep
+  description: "Sweep addresses across (rank, bank, row, col) corners"
+  test_function: test_axi_frontend_macro (addr_space_sweep)
+  priority: high
+  status: verified
+- id: AFE-06
+  name: Address-map scheme sweep
+  description: "ROW_MAJOR / BANK_INTERLEAVE / XOR_HASH selected via scheme_active_i"
+  test_function: test_axi_frontend_macro (scheme_sweep)
+  priority: high
+  status: verified
+- id: AFE-07
+  name: Partial strb
+  description: "Wstrb with byte holes — cam_full_strb_i=0 disables snarf"
+  test_function: test_axi_frontend_macro (partial_strb)
+  priority: high
+  status: verified
+- id: AFE-08
+  name: Burst length sweep
+  description: "AXI burst lengths 1..256 stream through w_buf cleanly"
+  test_function: test_axi_frontend_macro (burst_len_sweep)
+  priority: high
+  status: verified
+- id: AFE-09
+  name: Perfect streaming
+  description: "Saturated W + R throughput — no protocol stalls"
+  test_function: test_axi_frontend_macro (perfect_streaming)
+  priority: high
+  status: verified
+
+implied_coverage:
+  total_scenarios: 9
+  scenario_tracked: 9
+  implied_covered: 9
+  implied_percentage: 100.0
+
+notes: |
+  Bundles axi_intake + axi_id_side_table + 2× addr_mapper + wr_cmd_cam +
+  rd_cmd_cam + wr2rd_forward. Sits at the host face of the controller —
+  the only place AXI4 protocol terminates.
+
+  Implicitly verifies axi_intake (no dedicated FUB test), addr_mapper
+  (combinational decoder verified through scheme_sweep + addr_space_sweep),
+  and axi_id_side_table (BUSER/RUSER round-trip + push QoS forward).

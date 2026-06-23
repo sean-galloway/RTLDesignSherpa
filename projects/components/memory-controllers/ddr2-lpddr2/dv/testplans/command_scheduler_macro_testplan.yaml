@@ -1,0 +1,55 @@
+module: command_scheduler_macro
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/macro/command_scheduler_macro.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/macro/test_command_scheduler_macro.py
+
+parameters:
+- name: NUM_RANKS
+  default: 1
+- name: NUM_BANKS
+  default: 8
+- name: WR_CAM_DEPTH
+  default: 16
+- name: RD_CAM_DEPTH
+  default: 16
+- name: PAGE_POLICY
+  default: 1
+  description: 0=OPEN, 1=CLOSE, 2=HAPPY_HYBRID
+
+coverage_points: []
+
+functional_scenarios:
+- id: CSM-01
+  name: Init walks through
+  description: "Reset → init_sequencer drives dfi_init_start → MRS sequence → ZQCL → init_done"
+  test_function: test_command_scheduler_macro (init_walks_through)
+  priority: high
+  status: verified
+- id: CSM-02
+  name: Smoke WR cmd
+  description: "After init, a pending wr slot produces ACT + WRA on cmd_op_o"
+  test_function: test_command_scheduler_macro (smoke_wr_cmd)
+  priority: high
+  status: verified
+- id: CSM-03
+  name: No double-issue race (CAM-lag model)
+  description: |
+    REGRESSION: drives wr_match_pending_i high, walks scheduler through
+    ACT+WR, then delays dropping match_pending by 1 mc_clk to model the
+    consuming CAM's r_issued register latency. Asserts exactly one
+    wr_issued_we_o pulse — the buggy scheduler fired twice (commit
+    66f32c7f fixed it).
+  test_function: test_command_scheduler_macro (no_double_issue_race)
+  priority: high
+  status: verified
+
+implied_coverage:
+  total_scenarios: 3
+  scenario_tracked: 3
+  implied_covered: 3
+  implied_percentage: 100.0
+
+notes: |
+  Bundles scheduler + xbank_timers + global_timers + refresh_ctrl +
+  powerdown_ctrl + mode_register + init_sequencer + page_predictor +
+  the obs_words packer (#127). Drives cmd_valid / cmd_op / dfi_init_start /
+  dfi_cke into the DFI interface macro.

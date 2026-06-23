@@ -1,0 +1,199 @@
+module: scheduler
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/scheduler.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/fub/test_scheduler.py
+
+parameters:
+- name: WR_CAM_DEPTH
+  default: 16
+  description: Write CAM depth (number of slots)
+- name: RD_CAM_DEPTH
+  default: 16
+  description: Read CAM depth (number of slots)
+- name: NUM_RANKS
+  default: 1
+  description: Number of DRAM ranks
+- name: NUM_BANKS
+  default: 8
+  description: Number of DRAM banks per rank
+- name: ROW_WIDTH
+  default: 14
+  description: Row-address width
+- name: COL_WIDTH
+  default: 10
+  description: Column-address width
+- name: BURST_LEN_WIDTH
+  default: 8
+  description: Burst-length field width
+- name: AXI_ID_WIDTH
+  default: 4
+  description: AXI ID width (for QoS / picker)
+- name: PAGE_POLICY
+  default: 1
+  description: Page policy (0=OPEN, 1=CLOSE, 2=HAPPY_HYBRID)
+
+coverage_points: []
+# coverage_points populated by `bin/update_testplan_coverage.py` after a
+# `make coverage-fub-full` run that emits Verilator .dat files.
+
+functional_scenarios:
+- id: SCHED-01
+  name: Smoke WR command sequence
+  description: "Pending wr slot drives ACT then WRA over 3 cycles (CLOSE policy)"
+  test_function: test_scheduler (smoke_wr-close)
+  priority: high
+  status: verified
+- id: SCHED-02
+  name: Smoke RD command sequence
+  description: "Pending rd slot drives ACT then RDA over 3 cycles (CLOSE policy)"
+  test_function: test_scheduler (smoke_rd-close)
+  priority: high
+  status: verified
+- id: SCHED-03
+  name: init_busy gates command bus
+  description: "init_busy_i high → scheduler holds cmd_valid_o low + NOP op"
+  test_function: test_scheduler (init_busy_nop-close)
+  priority: high
+  status: verified
+- id: SCHED-04
+  name: Refresh priority over pending cmds
+  description: "refresh_req_i preempts pending wr/rd slots; emits OP_REF"
+  test_function: test_scheduler (refresh_priority-close)
+  priority: high
+  status: verified
+- id: SCHED-05
+  name: MR-write priority
+  description: "mr_req_i preempts pending wr/rd slots; emits OP_MRS"
+  test_function: test_scheduler (mr_priority-close)
+  priority: high
+  status: verified
+- id: SCHED-06
+  name: Power-down grant routing
+  description: "pdn_req_i pulses pdn_grant_o (powerdown_ctrl handshake)"
+  test_function: test_scheduler (pdn_grant-close)
+  priority: high
+  status: verified
+- id: SCHED-07
+  name: Bank-act-ready gating
+  description: "Picker waits until bank_act_ready_i for the picked slot's bank"
+  test_function: test_scheduler (wait_for_act_ready-close)
+  priority: high
+  status: verified
+- id: SCHED-08
+  name: OPEN policy row hit
+  description: "OPEN: row-hit slot skips ACT, issues plain RD/WR"
+  test_function: test_scheduler (open_page_row_hit-open)
+  priority: high
+  status: verified
+- id: SCHED-09
+  name: OPEN policy row miss
+  description: "OPEN: row-miss issues PRE → ACT → RD/WR"
+  test_function: test_scheduler (open_page_row_miss-open)
+  priority: high
+  status: verified
+- id: SCHED-10
+  name: OPEN policy bank idle
+  description: "OPEN: idle bank issues ACT → RD/WR (no PRE)"
+  test_function: test_scheduler (open_page_bank_idle-open)
+  priority: high
+  status: verified
+- id: SCHED-11
+  name: HAPPY predictor — open hint
+  description: "HAPPY_HYBRID: predict_open=1 → no auto-precharge"
+  test_function: test_scheduler (happy_predict_open-happy)
+  priority: high
+  status: verified
+- id: SCHED-12
+  name: HAPPY predictor — close hint
+  description: "HAPPY_HYBRID: predict_open=0 → auto-precharge"
+  test_function: test_scheduler (happy_predict_close-happy)
+  priority: high
+  status: verified
+- id: SCHED-13
+  name: Directed-random close-burst stress
+  description: "FlexRandomizer drives many CLOSE-policy WR bursts"
+  test_function: test_scheduler (dr_close_burst-close)
+  priority: medium
+  status: verified
+- id: SCHED-14
+  name: Directed-random open row hit
+  description: "FlexRandomizer drives row-hit bursts under OPEN policy"
+  test_function: test_scheduler (dr_open_row_hit-open)
+  priority: medium
+  status: verified
+- id: SCHED-15
+  name: Directed-random open row miss
+  description: "FlexRandomizer drives row-miss bursts under OPEN policy"
+  test_function: test_scheduler (dr_open_row_miss-open)
+  priority: medium
+  status: verified
+- id: SCHED-16
+  name: Random soak (CLOSE)
+  description: "Long mixed wr/rd soak under CLOSE policy"
+  test_function: test_scheduler (random_soak-close)
+  priority: medium
+  status: verified
+- id: SCHED-17
+  name: Random soak (OPEN)
+  description: "Long mixed wr/rd soak under OPEN policy"
+  test_function: test_scheduler (random_soak-open)
+  priority: medium
+  status: verified
+- id: SCHED-18
+  name: Random soak (HAPPY)
+  description: "Long mixed wr/rd soak under HAPPY_HYBRID policy"
+  test_function: test_scheduler (random_soak-happy)
+  priority: medium
+  status: verified
+- id: SCHED-19
+  name: QoS-aware slot picker
+  description: "Highest-QoS slot wins over lowest-index ties"
+  test_function: test_scheduler (qos_picker-close)
+  priority: high
+  status: verified
+- id: SCHED-20
+  name: QoS tie-break → lowest index
+  description: "Equal QoS across slots: lowest index wins"
+  test_function: test_scheduler (qos_tie_lowest_index-close)
+  priority: high
+  status: verified
+- id: SCHED-21
+  name: No double-issue WR (S_DONE race guard)
+  description: |
+    REGRESSION: wr_issued_we_o pulses exactly once per pending slot
+    even when match_pending_i is held for one cycle. Catches the
+    S_DONE → S_IDLE re-pick race (fixed in commit 66f32c7f).
+  test_function: test_scheduler (no_double_issue_wr-close)
+  priority: high
+  status: verified
+- id: SCHED-22
+  name: No double-issue RD (S_DONE race guard)
+  description: "Same race guard on the read side"
+  test_function: test_scheduler (no_double_issue_rd-close)
+  priority: high
+  status: verified
+- id: SCHED-23
+  name: Issued strobe pulse width
+  description: "wr_issued_we_o pulse is exactly 1 mc_clk wide"
+  test_function: test_scheduler (issued_pulse_width-close)
+  priority: high
+  status: verified
+
+implied_coverage:
+  total_scenarios: 23
+  scenario_tracked: 23
+  implied_covered: 23
+  implied_percentage: 100.0
+
+notes: |
+  Scheduler is the arbiter at the heart of the controller core. Per cycle:
+    1. init_busy_i NOPs the bus while init_sequencer owns it
+    2. mr_req_i / refresh_req_i / pdn_req_i preempt pending CAM slots
+    3. Otherwise picks a wr/rd slot per QoS + age + page policy
+    4. Walks S_IDLE → (S_NEED_PRE) → S_NEED_ACT → S_NEED_RDWR → S_DONE
+
+  Key features verified:
+    * 3 page policies (CLOSE / OPEN / HAPPY_HYBRID)
+    * Auto-precharge selection (always-AP on CLOSE; predictor on HAPPY)
+    * QoS-aware slot picker with lowest-index tie-break
+    * S_DONE re-issue race guards (the canonical "registered strobe +
+      consumer state lag" bug class — see test_patterns_strobe_race.md)

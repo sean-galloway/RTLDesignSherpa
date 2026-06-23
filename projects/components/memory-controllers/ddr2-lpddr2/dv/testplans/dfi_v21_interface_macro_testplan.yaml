@@ -1,0 +1,51 @@
+module: dfi_v21_interface_macro
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/macro/dfi_v21_interface_macro.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/top/test_ddr2_lpddr2_top.py
+status: integration_tested
+
+coverage_points: []
+
+functional_scenarios:
+- id: DFII-01
+  name: cmd → DFI cmd bus
+  description: "cmd_op + cmd_rank/bank/row/col → dfi_cmd_formatter → dfi_signal_pack →\
+                phy_dfi_address / phy_dfi_bank / cas_n / ras_n / we_n / cs_n"
+  test_function: test_ddr2_lpddr2_top (wr_rd_roundtrip)
+  priority: high
+  status: integration_verified
+- id: DFII-02
+  name: WR data path → DFI wrdata bus
+  description: "data_path's pre_dfi_wrdata + en + mask → phy_dfi_wrdata + en + mask"
+  test_function: test_ddr2_lpddr2_top (wr_rd_roundtrip)
+  priority: high
+  status: integration_verified
+- id: DFII-03
+  name: RD data en + capture
+  description: "data_path's pre_dfi_rddata_en → phy_dfi_rddata_en;\
+                phy_dfi_rddata / rddata_valid → data_path's rd_cl_aligner"
+  test_function: test_ddr2_lpddr2_top (wr_rd_roundtrip)
+  priority: high
+  status: integration_verified
+- id: DFII-04
+  name: cmd_ready handshake
+  description: "cmd_ready_i feeds back to the scheduler — never asserts during reset / init_busy"
+  test_function: test_ddr2_lpddr2_top (smoke)
+  priority: high
+  status: integration_verified
+- id: DFII-05
+  name: cke pass-through
+  description: "scheduler dfi_cke → phy_dfi_cke; powerdown_ctrl drops it on grant"
+  test_function: test_ddr2_lpddr2_top (workload_mix)
+  priority: medium
+  status: integration_verified
+
+implied_coverage:
+  total_scenarios: 5
+  scenario_tracked: 5
+  implied_covered: 5
+  implied_percentage: 100.0
+
+notes: |
+  Bundles dfi_cmd_formatter + dfi_signal_pack. Translates scheduler's
+  single-phase cmd into the multi-phase DFI v2.1 wire encoding. The PHY
+  side is exercised by DFISlavePHY BFM at the top level.

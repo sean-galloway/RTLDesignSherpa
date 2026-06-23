@@ -1,0 +1,64 @@
+module: wr2rd_forward
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/wr2rd_forward.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/macro/test_axi_frontend_macro.py
+status: integration_tested
+
+parameters:
+- name: WR_CAM_DEPTH
+  default: 16
+- name: NUM_RANKS
+  default: 1
+- name: NUM_BANKS
+  default: 8
+
+coverage_points: []
+
+functional_scenarios:
+- id: FWD-01
+  name: Forward hit (snarf)
+  description: "AR matches an in-flight WR's (rank, bank, row, col, len) and\
+                cam_full_strb=1 → fwd path takes the AR, R streams from w_buf"
+  test_function: test_axi_frontend_macro (forward_smoke, snarf_timing_schmoo)
+  priority: high
+  status: integration_verified
+- id: FWD-02
+  name: No-match miss
+  description: "AR has no matching WR → take_rd path: rd_push to rd_cmd_cam"
+  test_function: test_axi_frontend_macro (miss_smoke)
+  priority: high
+  status: integration_verified
+- id: FWD-03
+  name: Len mismatch
+  description: "Address matches but lengths differ → not eligible, miss path"
+  test_function: test_axi_frontend_macro (burst_len_sweep)
+  priority: high
+  status: integration_verified
+- id: FWD-04
+  name: Partial-strb gating
+  description: "cam_full_strb=0 (any beat had byte holes) → not eligible"
+  test_function: test_axi_frontend_macro (partial_strb)
+  priority: high
+  status: integration_verified
+- id: FWD-05
+  name: Newest-slot wins
+  description: "Multiple matching slots → highest-index (newest) wins"
+  test_function: test_axi_frontend_macro (random_directed)
+  priority: medium
+  status: integration_verified
+- id: FWD-06
+  name: QoS forward (rd_push_qos)
+  description: "rd_push_qos_o mirrors ar_qos_i so non-forwarded reads carry QoS"
+  test_function: test_axi_frontend_macro (random_directed)
+  priority: high
+  status: integration_verified
+
+implied_coverage:
+  total_scenarios: 6
+  scenario_tracked: 6
+  implied_covered: 6
+  implied_percentage: 100.0
+
+notes: |
+  Snarf / write-to-read forwarding combinational decision block. On each AR,
+  compares (rank, bank, row, col, len, full_strb) against every wr_cmd_cam
+  slot. Single-cycle dispatch to fwd_* (snarf w_buf) OR rd_push_* (miss).

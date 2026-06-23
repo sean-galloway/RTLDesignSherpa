@@ -1,0 +1,61 @@
+module: global_timers
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/global_timers.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/fub/test_global_timers.py
+
+parameters:
+- name: NUM_RANKS
+  default: 1
+  description: DRAM ranks (tFAW/tRRD windows are per-rank)
+- name: NUM_BANKS
+  default: 8
+  description: Banks per rank
+
+coverage_points: []
+
+functional_scenarios:
+- id: GT-01
+  name: Smoke
+  description: "Reset → all windows OPEN"
+  test_function: test_global_timers (smoke)
+  priority: high
+  status: verified
+- id: GT-02
+  name: tFAW window (4 ACTs)
+  description: "Per-rank sliding window: 4 ACTs in tFAW closes window"
+  test_function: test_global_timers (tfaw_4_acts)
+  priority: high
+  status: verified
+- id: GT-03
+  name: tRRD spacing
+  description: "Per-rank tRRD enforced between ACT events"
+  test_function: test_global_timers (trrd_spacing)
+  priority: high
+  status: verified
+- id: GT-04
+  name: tWTR (WR → RD turnaround)
+  description: "WR event blocks RD ready for tWTR cycles"
+  test_function: test_global_timers (twtr_after_wr)
+  priority: high
+  status: verified
+- id: GT-05
+  name: tRTW (RD → WR turnaround)
+  description: "RD event blocks WR ready for tRTW cycles"
+  test_function: test_global_timers (trtw_after_rd)
+  priority: high
+  status: verified
+- id: GT-06
+  name: Random soak
+  description: "Mixed ACT/RD/WR events on random ranks"
+  test_function: test_global_timers (random_soak)
+  priority: medium
+  status: verified
+
+implied_coverage:
+  total_scenarios: 6
+  scenario_tracked: 6
+  implied_covered: 6
+  implied_percentage: 100.0
+
+notes: |
+  Cross-bank windows: tFAW (per-rank), tRRD (per-rank), tWTR (global DQ bus),
+  tRTW (global), tCCD (column-to-column).

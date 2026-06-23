@@ -1,0 +1,42 @@
+module: init_sequencer
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/init_sequencer.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/fub/test_init_sequencer.py
+
+coverage_points: []
+
+functional_scenarios:
+- id: INIT-01
+  name: DDR2 init walk
+  description: "Reset → DFI_INIT → MR2 → MR3 → MR1 → MR0 → ZQCL → DONE"
+  test_function: test_init_sequencer (ddr2_init_walk)
+  priority: high
+  status: verified
+- id: INIT-02
+  name: Wait for DFI complete
+  description: "Stays in S_DFI_INIT until dfi_init_complete_i asserts"
+  test_function: test_init_sequencer (wait_for_complete)
+  priority: high
+  status: verified
+- id: INIT-03
+  name: LPDDR2 smoke
+  description: "memtype_i = LPDDR2 selects LPDDR2-specific MR sequence"
+  test_function: test_init_sequencer (lpddr2_smoke)
+  priority: high
+  status: verified
+- id: INIT-04
+  name: Random soak
+  description: "Random reset / dfi_init_complete pulses; FSM never deadlocks"
+  test_function: test_init_sequencer (random_soak)
+  priority: medium
+  status: verified
+
+implied_coverage:
+  total_scenarios: 4
+  scenario_tracked: 4
+  implied_covered: 4
+  implied_percentage: 100.0
+
+notes: |
+  FSM walks the JEDEC init sequence once after reset, holding init_busy_o
+  high. Emits MR loads via mr_seq_we / mr_seq_index / mr_seq_data, then
+  requests ZQCL. Asserts init_done_o on completion.

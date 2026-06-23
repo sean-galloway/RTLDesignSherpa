@@ -1,0 +1,37 @@
+module: data_path_macro
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/macro/data_path_macro.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/macro/test_data_path_macro.py
+
+parameters:
+- name: DFI_RATE
+  default: 2
+
+coverage_points: []
+
+functional_scenarios:
+- id: DPM-01
+  name: Smoke WR-only
+  description: "Drive a WR op via wr_op_valid → wr_beat_sequencer pulls beats\
+                from a w_buf mock → DFI wrdata + wrdata_en + wrdata_mask emit"
+  test_function: test_data_path_macro (smoke_wr_only)
+  priority: high
+  status: verified
+- id: DPM-02
+  name: Smoke RD-only
+  description: "Drive a RD op via rd_op_valid → rd_cl_aligner asserts rddata_en,\
+                inject dfi_rddata back → rd_inject_* emit one DRAM beat per cycle"
+  test_function: test_data_path_macro (smoke_rd_only)
+  priority: high
+  status: verified
+
+implied_coverage:
+  total_scenarios: 2
+  scenario_tracked: 2
+  implied_covered: 2
+  implied_percentage: 100.0
+
+notes: |
+  Bundles wr_beat_sequencer + rd_cl_aligner. Tested at the wr/rd op level
+  with a w_buf mock (host face) and a DFI loopback (PHY face) so the
+  beat-pull and rd_inject handshakes are exercised in isolation from the
+  full controller.

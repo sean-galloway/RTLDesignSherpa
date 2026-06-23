@@ -1,0 +1,92 @@
+module: rd_cmd_cam
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/rd_cmd_cam.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/fub/test_rd_cmd_cam.py
+
+parameters:
+- name: RD_CAM_DEPTH
+  default: 16
+- name: NUM_RANKS
+  default: 1
+- name: NUM_BANKS
+  default: 8
+
+coverage_points: []
+
+functional_scenarios:
+- id: RDCAM-01
+  name: Smoke
+  description: "Reset → all r_valid clear, push_ready high"
+  test_function: test_rd_cmd_cam (smoke)
+  priority: high
+  status: verified
+- id: RDCAM-02
+  name: Fill to full
+  description: "Push CAM_DEPTH entries — push_ready drops"
+  test_function: test_rd_cmd_cam (fill_to_full)
+  priority: high
+  status: verified
+- id: RDCAM-03
+  name: Free-slot priority encoder
+  description: "Lowest free index wins push_slot_o"
+  test_function: test_rd_cmd_cam (free_slot_picker)
+  priority: high
+  status: verified
+- id: RDCAM-04
+  name: Match query
+  description: "q_rank/q_bank match drives match_pending_o per slot"
+  test_function: test_rd_cmd_cam (match_query)
+  priority: high
+  status: verified
+- id: RDCAM-05
+  name: Match row-hit
+  description: "match_rowhit_o = match_pending && r_row == q_row"
+  test_function: test_rd_cmd_cam (match_rowhit)
+  priority: high
+  status: verified
+- id: RDCAM-06
+  name: Issued masking
+  description: "issued_we_i sets r_issued → match_pending drops"
+  test_function: test_rd_cmd_cam (issued_masking)
+  priority: high
+  status: verified
+- id: RDCAM-07
+  name: Beat walk
+  description: "beat_we_i increments r_beats_returned; entry_complete on last"
+  test_function: test_rd_cmd_cam (beat_walk)
+  priority: high
+  status: verified
+- id: RDCAM-08
+  name: Beat interleave across slots
+  description: "Multi-slot in-flight: beat_slot_i can interleave between IDs"
+  test_function: test_rd_cmd_cam (beat_interleave)
+  priority: high
+  status: verified
+- id: RDCAM-09
+  name: Snapshot outputs
+  description: "snap_* mirror current r_* state"
+  test_function: test_rd_cmd_cam (snapshot)
+  priority: high
+  status: verified
+- id: RDCAM-10
+  name: Occupancy counter
+  description: "dbg_occupancy_o = count of valid slots"
+  test_function: test_rd_cmd_cam (occupancy)
+  priority: medium
+  status: verified
+- id: RDCAM-11
+  name: Random soak
+  description: "Random push/pop/issue/beat sequence stays consistent"
+  test_function: test_rd_cmd_cam (random_soak)
+  priority: medium
+  status: verified
+
+implied_coverage:
+  total_scenarios: 11
+  scenario_tracked: 11
+  implied_covered: 11
+  implied_percentage: 100.0
+
+notes: |
+  Per-slot RD command storage. Carries QoS (F4) for the scheduler's
+  picker. entry_complete_o fires when r_beats_returned hits r_len for
+  the strobed slot.

@@ -1,0 +1,54 @@
+module: dfi_cmd_formatter
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/dfi_cmd_formatter.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/fub/test_dfi_cmd_formatter.py
+
+coverage_points: []
+
+functional_scenarios:
+- id: DCF-01
+  name: All ops
+  description: "Every dram_op_e (ACT/RD/WR/PRE/REF/MRS/...) decodes correctly"
+  test_function: test_dfi_cmd_formatter (all_ops)
+  priority: high
+  status: verified
+- id: DCF-02
+  name: Multi-rank
+  description: "cs_n one-hot tracks cmd_rank_i (multi-rank routing)"
+  test_function: test_dfi_cmd_formatter (multi_rank)
+  priority: high
+  status: verified
+- id: DCF-03
+  name: A10 auto-precharge
+  description: "RDA/WRA set address[10] high (JEDEC auto-precharge bit)"
+  test_function: test_dfi_cmd_formatter (a10_auto_pre)
+  priority: high
+  status: verified
+- id: DCF-04
+  name: Invalid cmd handling
+  description: "cmd_valid=0 → NOP encoding; no side effects"
+  test_function: test_dfi_cmd_formatter (cmd_invalid)
+  priority: high
+  status: verified
+- id: DCF-05
+  name: LPDDR2 NOP encoding
+  description: "memtype = LPDDR2 → CA-bus NOP encoding (not ras/cas/we)"
+  test_function: test_dfi_cmd_formatter (lpddr2_nop)
+  priority: high
+  status: verified
+- id: DCF-06
+  name: Random soak
+  description: "Random op/rank/bank/row/col sequences encode without collision"
+  test_function: test_dfi_cmd_formatter (random_soak)
+  priority: medium
+  status: verified
+
+implied_coverage:
+  total_scenarios: 6
+  scenario_tracked: 6
+  implied_covered: 6
+  implied_percentage: 100.0
+
+notes: |
+  Translates the scheduler's dram_op_e + (rank, bank, row, col) into the
+  JEDEC ras_n/cas_n/we_n/cs_n/address/bank encoding the PHY sees on DFI.
+  Handles DDR2 (separate strobes) and LPDDR2 (multiplexed CA bus).

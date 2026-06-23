@@ -1,0 +1,92 @@
+module: refresh_ctrl
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/refresh_ctrl.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/fub/test_refresh_ctrl.py
+
+parameters:
+- name: NUM_BANKS
+  default: 8
+  description: Number of DRAM banks (REFpb rotor wraps here)
+- name: BA_W
+  default: 3
+  description: Bank-address width = clog2(NUM_BANKS)
+
+coverage_points: []
+# Filled by bin/update_testplan_coverage.py
+
+functional_scenarios:
+- id: REFR-01
+  name: Smoke
+  description: "Reset → enable → tREFI expiry raises refresh_req_o"
+  test_function: test_refresh_ctrl (smoke)
+  priority: high
+  status: verified
+- id: REFR-02
+  name: Single grant decrements pending
+  description: "One refresh grant pulls pending_refreshes_o back to 0"
+  test_function: test_refresh_ctrl (grant_decrements)
+  priority: high
+  status: verified
+- id: REFR-03
+  name: Multiple pending accumulate
+  description: "Without grants, pending_refreshes_o climbs each tREFI"
+  test_function: test_refresh_ctrl (multiple_pending)
+  priority: high
+  status: verified
+- id: REFR-04
+  name: Saturate at 8
+  description: "JEDEC limit: pending_refreshes_o saturates at 8 (no overflow)"
+  test_function: test_refresh_ctrl (saturating)
+  priority: high
+  status: verified
+- id: REFR-05
+  name: Drain
+  description: "Burst grants drain accumulated pending refreshes"
+  test_function: test_refresh_ctrl (drain)
+  priority: medium
+  status: verified
+- id: REFR-06
+  name: Drain burst (refresh_burst_i)
+  description: "refresh_drain_active_o stays high through the burst quota"
+  test_function: test_refresh_ctrl (drain_burst)
+  priority: high
+  status: verified
+- id: REFR-07
+  name: REFpb rotor
+  description: "refpb_mode_i=1 rotates refresh_bank_o 0..NUM_BANKS-1"
+  test_function: test_refresh_ctrl (refpb_rotor)
+  priority: high
+  status: verified
+- id: REFR-08
+  name: REFab no rotation
+  description: "refpb_mode_i=0 keeps refresh_bank_o = 0 (all-bank refresh)"
+  test_function: test_refresh_ctrl (refab_no_rotation)
+  priority: high
+  status: verified
+- id: REFR-09
+  name: Random soak
+  description: "Long mixed tREFI / grant soak — saturation never breaches 8"
+  test_function: test_refresh_ctrl (random_soak)
+  priority: medium
+  status: verified
+- id: REFR-10
+  name: Single grant — no re-fire (race guard)
+  description: |
+    REGRESSION: refresh_req_o stays low for many cycles after a single
+    grant (no spurious re-trigger). Same strict-flop strobe race class
+    as the scheduler S_DONE bug (commit 66f32c7f).
+  test_function: test_refresh_ctrl (grant_no_reissue)
+  priority: high
+  status: verified
+
+implied_coverage:
+  total_scenarios: 10
+  scenario_tracked: 10
+  implied_covered: 10
+  implied_percentage: 100.0
+
+notes: |
+  Tracks tREFI between mandatory refresh commands and accumulates pending
+  refreshes (JEDEC up to 8). Adds:
+    * refresh_burst_i drain quota (REFR-06)
+    * REFpb mode + bank rotor for LPDDR2 (REFR-07, REFR-08)
+    * Race guard for the registered grant strobe (REFR-10)

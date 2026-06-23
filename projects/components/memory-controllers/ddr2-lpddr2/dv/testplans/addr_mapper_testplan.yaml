@@ -1,0 +1,55 @@
+module: addr_mapper
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/addr_mapper.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/macro/test_axi_frontend_macro.py
+status: integration_tested
+
+parameters:
+- name: AXI_ADDR_WIDTH
+  default: 32
+- name: NUM_RANKS
+  default: 1
+- name: NUM_BANKS
+  default: 8
+- name: ROW_WIDTH
+  default: 14
+- name: COL_WIDTH
+  default: 10
+
+coverage_points: []
+
+functional_scenarios:
+- id: AM-01
+  name: ROW_MAJOR decode
+  description: "Default scheme: byte_addr = {row, bank, col, byte_off}"
+  test_function: test_axi_frontend_macro (scheme_sweep, addr_space_sweep)
+  priority: high
+  status: integration_verified
+- id: AM-02
+  name: BANK_INTERLEAVE decode
+  description: "Scheme 01: byte_addr = {row, col, bank, byte_off}"
+  test_function: test_axi_frontend_macro (scheme_sweep)
+  priority: high
+  status: integration_verified
+- id: AM-03
+  name: XOR_HASH decode
+  description: "Scheme 10: XOR-hash bank selection"
+  test_function: test_axi_frontend_macro (scheme_sweep)
+  priority: high
+  status: integration_verified
+- id: AM-04
+  name: Aligned + unaligned bursts
+  description: "Bursts crossing column / bank / row boundaries"
+  test_function: test_axi_frontend_macro (addr_space_sweep, burst_len_sweep)
+  priority: high
+  status: integration_verified
+
+implied_coverage:
+  total_scenarios: 4
+  scenario_tracked: 4
+  implied_covered: 4
+  implied_percentage: 100.0
+
+notes: |
+  Combinational decoder mapping AXI byte address into (rank, bank, row, col).
+  Three schemes selected by scheme_active_i. No FUB-level test — exercised
+  through axi_frontend_macro's scheme_sweep + addr_space_sweep.

@@ -1,0 +1,122 @@
+module: ddr2_lpddr2_top
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/top/ddr2_lpddr2_top.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/top/test_ddr2_lpddr2_top.py
+
+parameters:
+- name: AXI_DATA_WIDTH
+  default: 64
+- name: AXI_ID_WIDTH
+  default: 4
+- name: AXI_USER_WIDTH
+  default: 8
+- name: APB_DATA_WIDTH
+  default: 32
+- name: NUM_RANKS
+  default: 1
+- name: NUM_BANKS
+  default: 8
+- name: PAGE_POLICY
+  default: 1
+
+coverage_points: []
+
+functional_scenarios:
+- id: TOP-01
+  name: Smoke (ID + init done)
+  description: "APB read of ID register + wait_for_init_done() polls STATUS"
+  test_function: test_ddr2_lpddr2_top (smoke)
+  priority: high
+  status: verified
+- id: TOP-02
+  name: Configure via APB
+  description: "Write REFRESH_TUNING.page_policy_or + SCHED_TUNING.force_inorder\
+                through RegisterMap, read back, verify"
+  test_function: test_ddr2_lpddr2_top (configure_via_apb)
+  priority: high
+  status: verified
+- id: TOP-03
+  name: AXI write smoke
+  description: "Single-burst AXI4Sequence write — exercises AXI → CAM → scheduler → DFI path"
+  test_function: test_ddr2_lpddr2_top (axi_write_smoke)
+  priority: high
+  status: verified
+- id: TOP-04
+  name: WR then RD round-trip
+  description: "Write 0xCAFEBABE_DEADBEEF, read back via DFISlavePHY + MemoryModel"
+  test_function: test_ddr2_lpddr2_top (wr_rd_roundtrip)
+  priority: high
+  status: verified
+- id: TOP-05
+  name: Workload mix (60/40 + size dist)
+  description: "AXI4Sequence.add_random_workload with 60/40 W:R + 128B/256B/512B/1024B at 20/20/40/20"
+  test_function: test_ddr2_lpddr2_top (workload_mix)
+  priority: high
+  status: verified
+- id: TOP-06
+  name: Row-hit pattern
+  description: "AXI4Sequence.add_row_hit_burst with n_followups=3, qos=8"
+  test_function: test_ddr2_lpddr2_top (row_hit_pattern)
+  priority: high
+  status: verified
+- id: TOP-07
+  name: Bank sweep (wr+rd per bank)
+  description: "Sweep all 8 banks with wr-then-rd. Used to localize the scheduler\
+                S_DONE race; now passes after commit 66f32c7f."
+  test_function: test_ddr2_lpddr2_top (wr_rd_bank_sweep)
+  priority: high
+  status: verified
+- id: TOP-08
+  name: Bank-0 DFI probe (regression evidence)
+  description: |
+    Probe DFI cmd stream for bank-0 wr-then-rd. Originally captured the
+    double-issue symptom (2× ACT+WR + 2× ACT+RD). Kept as a debug-only
+    case — not in the FUNC suite.
+  test_function: test_ddr2_lpddr2_top (bank0_probe)
+  priority: low
+  status: debug_only
+- id: TOP-09
+  name: Bank-0 delayed (latent hang reproducer)
+  description: |
+    Same as bank0_probe but with 5000 mc_clk between WR and RD. Still
+    hangs — exposes a downstream data-path issue separate from the
+    scheduler race that's being chased in F-followup work.
+  test_function: test_ddr2_lpddr2_top (bank0_delayed)
+  priority: low
+  status: debug_only
+- id: TOP-10
+  name: Fresh-read each bank
+  description: |
+    Read each bank's address WITHOUT a preceding write. Exposes the same
+    fresh-read data-path hang as bank0_delayed but applied to all banks.
+  test_function: test_ddr2_lpddr2_top (fresh_read_each_bank)
+  priority: low
+  status: debug_only
+- id: TOP-11
+  name: Memory preload read
+  description: |
+    Preload bytes into MemoryModel via tb.preload_memory(), then AXI read.
+    Currently exposes the fresh-read hang (preload helpers + BFM all
+    correct; data path needs work).
+  test_function: test_ddr2_lpddr2_top (memory_preload_read)
+  priority: low
+  status: debug_only
+
+implied_coverage:
+  total_scenarios: 11
+  scenario_tracked: 7
+  implied_covered: 7
+  implied_percentage: 63.6
+# 4 debug_only cases (TOP-08..11) exist for regression / future bug-chase
+# but are not in the FUNC suite. Verified-status count = 7 / 7 in-suite.
+
+notes: |
+  Integration top wrapping axi_frontend_macro + ddr2_lpddr2_core_macro +
+  ddr2_lpddr2_csr_slave. AXI4Sequence drives the host side; DFISlavePHY
+  + MemoryModel terminates the memory side; APBMaster + RegisterMap
+  programs the CSRs.
+
+  Known issue (out of scope for the test plan):
+    Fresh AXI reads (no preceding write to the same address) hang in
+    the data path between rd_cl_aligner and AXI R-channel. The
+    scheduler S_DONE race fix (commit 66f32c7f) was the first layer;
+    a second issue remains downstream of the scheduler.

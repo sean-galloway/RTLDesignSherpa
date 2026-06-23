@@ -1,0 +1,58 @@
+module: page_predictor
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/page_predictor.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/fub/test_page_predictor.py
+
+parameters:
+- name: NUM_RANKS
+  default: 1
+  description: DRAM ranks
+- name: NUM_BANKS
+  default: 8
+  description: Banks per rank (per-bank predictor)
+- name: ROW_WIDTH
+  default: 14
+  description: Row-address width
+
+coverage_points: []
+
+functional_scenarios:
+- id: PP-01
+  name: Smoke
+  description: "Reset → predict_open_o = 0 for all banks (weakly-closed)"
+  test_function: test_page_predictor (smoke)
+  priority: high
+  status: verified
+- id: PP-02
+  name: Row-hit saturates predictor up
+  description: "Successive ACT events on same row drive predict_open_o = 1"
+  test_function: test_page_predictor (row_hit_saturates_up)
+  priority: high
+  status: verified
+- id: PP-03
+  name: Row-miss saturates predictor down
+  description: "Successive ACT events on different rows drive predict_open_o = 0"
+  test_function: test_page_predictor (row_miss_saturates_down)
+  priority: high
+  status: verified
+- id: PP-04
+  name: Per-bank independence
+  description: "Predictor on bank N does not perturb bank M's saturating counter"
+  test_function: test_page_predictor (independent_banks)
+  priority: high
+  status: verified
+- id: PP-05
+  name: Random soak
+  description: "Mixed ACTs across random banks; final state matches expected counters"
+  test_function: test_page_predictor (random_soak)
+  priority: medium
+  status: verified
+
+implied_coverage:
+  total_scenarios: 5
+  scenario_tracked: 5
+  implied_covered: 5
+  implied_percentage: 100.0
+
+notes: |
+  Per-bank 2-bit saturating counter consumed by HAPPY_HYBRID page policy.
+  Row-hit → up; row-miss → down. predict_open_o[r][b] = MSB of the counter.

@@ -1,0 +1,56 @@
+module: xbank_timers
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/xbank_timers.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/fub/test_xbank_timers.py
+
+parameters:
+- name: NUM_RANKS
+  default: 1
+  description: DRAM ranks
+- name: NUM_BANKS
+  default: 8
+  description: Banks per rank
+
+coverage_points: []
+
+functional_scenarios:
+- id: XBT-01
+  name: Smoke
+  description: "Reset → all banks IDLE, all ready signals asserted"
+  test_function: test_xbank_timers (smoke)
+  priority: high
+  status: verified
+- id: XBT-02
+  name: ACT → WR → PRE walk
+  description: "Bank transitions IDLE → ACTIVE on ACT, ready gates on tRCD / tRAS / tWR"
+  test_function: test_xbank_timers (act_to_wr_to_pre)
+  priority: high
+  status: verified
+- id: XBT-03
+  name: Per-bank independence
+  description: "ACT/PRE events on bank N don't affect bank M's counters"
+  test_function: test_xbank_timers (independent_banks)
+  priority: high
+  status: verified
+- id: XBT-04
+  name: RD path timing
+  description: "tRCD → RD ready; tRTP → PRE ready after RD"
+  test_function: test_xbank_timers (rd_path)
+  priority: high
+  status: verified
+- id: XBT-05
+  name: Random soak
+  description: "Mixed ACT/RD/WR/PRE events on random banks"
+  test_function: test_xbank_timers (random_soak)
+  priority: medium
+  status: verified
+
+implied_coverage:
+  total_scenarios: 5
+  scenario_tracked: 5
+  implied_covered: 5
+  implied_percentage: 100.0
+
+notes: |
+  Per-(rank, bank) JEDEC timing counters: tRC, tRAS, tRCD, tRP, tWR, tRTP,
+  + ap_pending auto-precharge tracking. Drives bank_act_ready / bank_pre_ready
+  / bank_rdwr_ready into the scheduler.

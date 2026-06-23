@@ -1,0 +1,66 @@
+module: mode_register
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/mode_register.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/fub/test_mode_register.py
+
+parameters:
+- name: NUM_RANKS
+  default: 1
+  description: DRAM ranks (per-rank MR values)
+
+coverage_points: []
+
+functional_scenarios:
+- id: MR-01
+  name: DDR2 smoke
+  description: "Reset → DDR2 default decode (CL/CWL/BL/AL fields)"
+  test_function: test_mode_register (smoke_ddr2)
+  priority: high
+  status: verified
+- id: MR-02
+  name: DDR2 CL sweep
+  description: "MR0 CL field sweeps 3..7; cl_o tracks"
+  test_function: test_mode_register (ddr2_cl_sweep)
+  priority: high
+  status: verified
+- id: MR-03
+  name: DDR2 BL sweep
+  description: "MR0 BL field sweeps; bl_o tracks (BL4/BL8)"
+  test_function: test_mode_register (ddr2_bl_sweep)
+  priority: high
+  status: verified
+- id: MR-04
+  name: DDR2 AL sweep
+  description: "MR1 AL field sweeps; al_o tracks"
+  test_function: test_mode_register (ddr2_al_sweep)
+  priority: high
+  status: verified
+- id: MR-05
+  name: Multi-rank loads
+  description: "MR writes target specific rank via mr_rank_i"
+  test_function: test_mode_register (multi_rank)
+  priority: medium
+  status: verified
+- id: MR-06
+  name: Reset values
+  description: "After reset, all output fields match documented defaults"
+  test_function: test_mode_register (reset_values)
+  priority: high
+  status: verified
+- id: MR-07
+  name: Random soak
+  description: "Random MR writes with random rank/index/data"
+  test_function: test_mode_register (random_soak)
+  priority: medium
+  status: verified
+
+implied_coverage:
+  total_scenarios: 7
+  scenario_tracked: 7
+  implied_covered: 7
+  implied_percentage: 100.0
+
+notes: |
+  Stores per-rank MR0..MR3 values and decodes CL / CWL / BL / AL for
+  downstream consumers (data_path + dfi_interface). mr_req_o currently
+  tied 0 (no hot MR updates — guarded once CSR slave + quiet-point
+  handshake land; see docs/test_patterns_strobe_race.md).

@@ -1,0 +1,64 @@
+module: ddr2_lpddr2_core_macro
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/macro/ddr2_lpddr2_core_macro.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/top/test_ddr2_lpddr2_top.py
+status: integration_tested
+
+coverage_points: []
+
+# core_macro has no standalone test — its bundling of scheduler + datapath +
+# DFI interface is verified through ddr2_lpddr2_top. Each scenario maps to
+# the top-level test that exercises the underlying core behavior.
+
+functional_scenarios:
+- id: CORE-01
+  name: cfg fanout into scheduler / refresh
+  description: "CSR slave's cfg_t_refi / cfg_t_rcd / cfg_page_policy_or arrive at the\
+                scheduler + refresh_ctrl + xbank_timers consumers"
+  test_function: test_ddr2_lpddr2_top (configure_via_apb)
+  priority: high
+  status: integration_verified
+- id: CORE-02
+  name: init walk to dfi_init_start
+  description: "Reset → init_sequencer drives dfi_init_start_o → consumers wait\
+                on dfi_init_complete_i → init_done propagates"
+  test_function: test_ddr2_lpddr2_top (smoke)
+  priority: high
+  status: integration_verified
+- id: CORE-03
+  name: scheduler → data_path wr_op fanout
+  description: "cmd_op = OP_WRA at scheduler gates wr_op_valid into data_path;\
+                wr_beat_sequencer drains w_buf via beat_pull"
+  test_function: test_ddr2_lpddr2_top (wr_rd_roundtrip)
+  priority: high
+  status: integration_verified
+- id: CORE-04
+  name: scheduler → data_path rd_op fanout
+  description: "cmd_op = OP_RDA at scheduler gates rd_op_valid; rd_cl_aligner\
+                captures dfi_rddata and emits rd_inject"
+  test_function: test_ddr2_lpddr2_top (wr_rd_roundtrip)
+  priority: high
+  status: integration_verified
+- id: CORE-05
+  name: dfi_cke handoff to powerdown_ctrl
+  description: "powerdown_ctrl drops dfi_cke_o on grant; controller_idle wakes"
+  test_function: test_ddr2_lpddr2_top (workload_mix)
+  priority: medium
+  status: integration_verified
+- id: CORE-06
+  name: status / obs surface out the top
+  description: "status_init_done / status_pdn_state / obs_words[6:0] propagate\
+                from scheduler internals to the core boundary for CSR slave consumption"
+  test_function: test_ddr2_lpddr2_top (smoke, configure_via_apb)
+  priority: high
+  status: integration_verified
+
+implied_coverage:
+  total_scenarios: 6
+  scenario_tracked: 6
+  implied_covered: 6
+  implied_percentage: 100.0
+
+notes: |
+  Bundles command_scheduler_macro + data_path_macro + dfi_v21_interface_macro.
+  Promotes init_done, pdn_state, and the 7 scheduler obs_words up to the
+  top wrapper. No standalone test — tested via ddr2_lpddr2_top.

@@ -1,0 +1,65 @@
+module: wr_beat_sequencer
+rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/wr_beat_sequencer.sv
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/fub/test_wr_beat_sequencer.py
+
+parameters:
+- name: DFI_RATE
+  default: 2
+  description: PHY:MC clock ratio (DFI beats per mc cycle)
+
+coverage_points: []
+
+functional_scenarios:
+- id: WBS-01
+  name: Smoke
+  description: "Reset → single-beat WR op walks the pipeline"
+  test_function: test_wr_beat_sequencer (smoke)
+  priority: high
+  status: verified
+- id: WBS-02
+  name: Burst length sweep
+  description: "BL=1, 4, 8 — beat counts and last-strobe land correctly"
+  test_function: test_wr_beat_sequencer (burst_len_sweep)
+  priority: high
+  status: verified
+- id: WBS-03
+  name: tPHY_wrlat sweep
+  description: "wrdata_en lead-time honors t_phy_wrlat_i input"
+  test_function: test_wr_beat_sequencer (tphy_sweep)
+  priority: high
+  status: verified
+- id: WBS-04
+  name: Partial strb
+  description: "wrdata_mask reflects beat-pull strb (not all bytes enabled)"
+  test_function: test_wr_beat_sequencer (partial_strb)
+  priority: high
+  status: verified
+- id: WBS-05
+  name: Back-to-back ops
+  description: "Two ops queued: second starts as soon as first finishes"
+  test_function: test_wr_beat_sequencer (back_to_back)
+  priority: high
+  status: verified
+- id: WBS-06
+  name: Multi-outstanding
+  description: "MAX_CONCURRENT slots — all in-flight without collision"
+  test_function: test_wr_beat_sequencer (multi_outstanding)
+  priority: high
+  status: verified
+- id: WBS-07
+  name: Random soak
+  description: "Random op_len/t_phy/strb sequences stay self-consistent"
+  test_function: test_wr_beat_sequencer (random_soak)
+  priority: medium
+  status: verified
+
+implied_coverage:
+  total_scenarios: 7
+  scenario_tracked: 7
+  implied_covered: 7
+  implied_percentage: 100.0
+
+notes: |
+  Sequences DFI write-data beats out of the wr_cmd_cam's beat_pull port.
+  Drives dfi_wrdata / dfi_wrdata_en / dfi_wrdata_mask with the t_phy_wrlat
+  lead established by the PHY's CWL alignment.
