@@ -3,15 +3,19 @@
 
 """Test-bench harness for ddr2_lpddr2_top.
 
-Glues:
-  - APBMaster + RegisterMap                       → CSR programming
-  - AXI4MasterWrite + AXI4MasterRead              → host traffic
-  - AXI4Sequence + run_axi4_sequence              → canned workloads
-  - Minimal DFI terminator coroutine              → keeps the bus alive
+Three live BFMs glued to one DUT:
 
-The DFI side is a stub today (asserts dfi_init_complete after reset
-and parks rddata = 0). End-to-end DRAM loopback will come from
-DFISlavePHY once a JedecTimings preset is wired up.
+  * APBMaster + RegisterMap                          → CSR programming
+  * AXI4MasterWrite + AXI4MasterRead + AXI4Sequence  → host traffic
+  * DFISlavePHY + MemoryModel + AddressMapping       → DFI loopback +
+                                                       preloadable DRAM
+
+The DFI side is the framework's full DFISlavePHY BFM, bound through
+the dv/tb/ddr2_lpddr2_top_tb_top.sv alias module (`phy_dfi_*` ports
+shadow the DUT's `dfi_*` ports so the BFM auto-binds without per-DUT
+plumbing). The BFM uses MemoryModel for storage — preload via
+`tb.preload_memory(byte_addr, data)` and inspect via
+`tb.peek_memory(byte_addr, length)`.
 """
 
 from __future__ import annotations
@@ -32,6 +36,14 @@ from CocoTBFramework.components.axi4.axi4_interfaces import (
 from CocoTBFramework.components.axi4.axi4_sequence import (
     AXI4Sequence, run_axi4_sequence,
 )
+from CocoTBFramework.components.dfi.dfi_base import DFIBase
+from CocoTBFramework.components.dfi.dfi_signals import DFIVersion, MemoryType
+from CocoTBFramework.components.dfi.dfi_slave_phy import DFISlavePHY
+from CocoTBFramework.components.dfi.dram_state import (
+    AddressMapping, DramStateModel, ViolationPolicy,
+)
+from CocoTBFramework.components.dfi.jedec_timings import builtin_timings
+from CocoTBFramework.components.shared.memory_model import MemoryModel
 
 from TBClasses.apb.register_map import RegisterMap
 
@@ -45,7 +57,9 @@ class DDR2LPDDR2TopTB:
 
     def __init__(self, dut, *, mc_period_ns: int = 7, pclk_period_ns: int = 10,
                  axi_data_width: int = 64, axi_id_width: int = 4,
-                 axi_addr_width: int = 32) -> None:
+                 axi_addr_width: int = 32,
+                 num_ranks: int = 1, num_banks: int = 8,
+                 row_width: int = 14, col_width: int = 10) -> None:
         self.dut = dut
         self.log = logging.getLogger("ddr2_lpddr2_top_tb")
         self.log.setLevel(logging.INFO)
@@ -55,32 +69,70 @@ class DDR2LPDDR2TopTB:
         self.axi_id_width = axi_id_width
         self.axi_addr_width = axi_addr_width
 
+        # DRAM geometry
+        self.num_ranks = num_ranks
+        self.num_banks = num_banks
+        self.row_width = row_width
+        self.col_width = col_width
+        self.bytes_per_beat = axi_data_width // 8
+
+        # Address mapping mirrors the RTL's default ROW_MAJOR scheme:
+        #   byte_addr = {row, bank, col, byte_off}
+        # AddressMapping decodes flat-column-index → (rank, bank, row, col).
+        # For preload byte_addr we use the same packing the RTL applies.
+        self.mapping = AddressMapping(
+            num_ranks=num_ranks,
+            num_banks=num_banks,
+            num_rows=1 << row_width,
+            num_cols=1 << col_width,
+            mapping="row|bank|col",
+        )
+
+        # Backing memory model — preloadable + inspectable. One line == one
+        # DFI beat = bytes_per_beat bytes.
+        num_lines = num_ranks * num_banks * (1 << row_width) * (1 << col_width)
+        self.memory = MemoryModel(
+            num_lines=num_lines,
+            bytes_per_line=self.bytes_per_beat,
+            log=self.log,
+        )
+
+        # DFI chassis. v2.1 + DDR2 envelope. The MC's BL=1 + DFI_RATE=2
+        # MVP scope matches DFISlavePHY's "one DFI beat per command"
+        # assumption (beats_per_burst=1).
+        self.dfi_base = DFIBase(
+            dfi_version=DFIVersion.V2_1,
+            memory_type=MemoryType.DDR2,
+            timings=builtin_timings("ddr2-650-mt47h64m16hr"),
+            mapping=self.mapping,
+            beats_per_burst=1,
+        )
+
         self.apb_master: Optional[APBMaster] = None
         self.axi_master_wr: Optional[AXI4MasterWrite] = None
         self.axi_master_rd: Optional[AXI4MasterRead] = None
         self.reg_map: Optional[RegisterMap] = None
+        self.dfi_slave: Optional[DFISlavePHY] = None
 
     # ---- bring-up ---------------------------------------------------------
 
     async def reset(self) -> None:
         """Apply mc_clk + pclk reset; tie off externals; release."""
-        # Tie off non-CSR control inputs
-        self.dut.memtype_i.value      = 0   # memtype_e DDR2
+        self.dut.memtype_i.value      = 0    # DDR2
         self.dut.t_phy_wrlat_i.value  = 4
         self.dut.t_rddata_en_i.value  = 4
         self.dut.rd_in_order_i.value  = 1
         self.dut.cap_lookahead_max_i.value = 0
         self.dut.cap_synth_mask_i.value    = 0b111
 
-        # Tie off DFI inputs (PHY side)
-        self.dut.dfi_init_complete_i.value = 0
-        self.dut.dfi_rddata_i.value        = 0
-        self.dut.dfi_rddata_valid_i.value  = 0
-        self.dut.dfi_ctrlupd_ack_i.value   = 0
-        self.dut.dfi_phyupd_req_i.value    = 0
-        self.dut.dfi_phyupd_type_i.value   = 0
+        # DFI PHY-side inputs that the BFM does NOT drive (init_complete,
+        # ctrlupd_ack, phyupd_req/type). The BFM owns rddata + rddata_valid.
+        self.dut.phy_dfi_init_complete.value = 0
+        self.dut.phy_dfi_ctrlupd_ack.value   = 0
+        self.dut.phy_dfi_phyupd_req.value    = 0
+        self.dut.phy_dfi_phyupd_type.value   = 0
 
-        # Tie off APB master signals (will be re-driven by APBMaster)
+        # APB master signals (BFM will re-drive)
         self.dut.s_apb_PSEL.value    = 0
         self.dut.s_apb_PENABLE.value = 0
         self.dut.s_apb_PADDR.value   = 0
@@ -101,17 +153,38 @@ class DDR2LPDDR2TopTB:
         self.dut.presetn.value  = 1
         await ClockCycles(self.dut.mc_clk, 10)
 
-        # Start the DFI terminator coroutine — it asserts init_complete and
-        # parks rddata at 0.
-        cocotb.start_soon(self._dfi_terminator())
+        # Assert dfi_init_complete a few cycles after reset (the DUT's
+        # init_sequencer waits for this before promoting init_done).
+        async def _init_complete_after(n: int) -> None:
+            await ClockCycles(self.dut.mc_clk, n)
+            self.dut.phy_dfi_init_complete.value = 1
+        cocotb.start_soon(_init_complete_after(20))
 
-    async def _dfi_terminator(self) -> None:
-        """Minimal DFI 'PHY': wait a few cycles, assert init_complete, idle."""
-        await ClockCycles(self.dut.mc_clk, 20)
-        self.dut.dfi_init_complete_i.value = 1
-        # Idle forever — read returns are not modeled yet.
-        while True:
-            await ClockCycles(self.dut.mc_clk, 1000)
+    def init_dfi_slave(self, *,
+                       strict_violations: bool = False) -> DFISlavePHY:
+        """Instantiate the DFISlavePHY BFM bound to phy_dfi_* signals.
+
+        Call AFTER reset() so the bus is live when the BFM samples it.
+        The BFM owns dfi_rddata / dfi_rddata_valid and writes wrdata
+        into self.memory keyed by (rank, bank, row, col) → flat index.
+
+        `strict_violations=False` (default) demotes the BFM's HARD
+        violations to SOFT so the test only fails on data mismatches.
+        Flip it on to enforce full JEDEC timing checking — the
+        controller's tRCD / tFAW / etc. must then match the
+        ddr2-650 preset exactly.
+        """
+        self.dfi_slave = DFISlavePHY(
+            self.dut, self.dut.mc_clk,
+            base=self.dfi_base, memory=self.memory,
+        )
+        if not strict_violations:
+            self.dfi_slave.dram = DramStateModel(
+                timings=self.dfi_base.timings,
+                num_banks=self.dfi_base.mapping.num_banks,
+                policy=ViolationPolicy(hard=frozenset()),
+            )
+        return self.dfi_slave
 
     # ---- BFM bring-up -----------------------------------------------------
 
@@ -143,17 +216,32 @@ class DDR2LPDDR2TopTB:
         )
         return self.axi_master_wr, self.axi_master_rd
 
+    # ---- Memory preload + peek -------------------------------------------
+
+    def preload_memory(self, byte_addr: int, data: bytes | bytearray) -> None:
+        """Write bytes directly into the DRAM model.
+
+        After preload, an AXI read of `byte_addr` returns those bytes
+        (assuming the controller is initialized and addr-mapped to the
+        same flat index the model uses).
+        """
+        if not isinstance(data, (bytes, bytearray)):
+            raise TypeError(f"data must be bytes/bytearray, got {type(data)}")
+        self.memory.write(byte_addr, bytearray(data))
+
+    def peek_memory(self, byte_addr: int, length: int) -> bytearray:
+        """Read bytes directly from the DRAM model — verification hook."""
+        return self.memory.read(byte_addr, length)
+
     # ---- High-level APIs --------------------------------------------------
 
     async def apb_program_register(self, register: str, field: str,
                                    value: int) -> None:
         """Use the RegisterMap to encode one field-write, send via APB.
 
-        RegisterMap's `write()` expects `value` to already be positioned
-        at the field's absolute bit offset. Shift the user-supplied
-        value here so callers can pass the "field value" naturally
-        (e.g. `apb_program_register('REFRESH_TUNING', 'page_policy_or',
-        0x2)` instead of `... 0x2 << 2`).
+        RegisterMap's `write()` expects `value` already shifted to its
+        absolute bit position; we hide that here so callers pass the
+        natural field value (`page_policy_or=2`, not `2 << 2`).
         """
         if self.reg_map is None:
             self.init_register_map()
@@ -179,7 +267,6 @@ class DDR2LPDDR2TopTB:
         return int(packet.fields.get("prdata", 0))
 
     async def wait_for_init_done(self, timeout_cycles: int = 10_000) -> None:
-        """Poll STATUS.init_done until set, or timeout."""
         for _ in range(timeout_cycles):
             val = await self.apb_read_register(0x004)  # STATUS
             if val & 0x1:
