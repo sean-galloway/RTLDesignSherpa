@@ -27,6 +27,10 @@ _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 
+from ddr2_lpddr2_coverage import (  # noqa: E402
+    get_coverage_compile_args, get_coverage_env,
+)
+
 from tbclasses.ddr2_lpddr2_csr_tb import (  # noqa: E402
     DDR2LPDDR2RegisterMap as R,
     apb_read, apb_write,
@@ -326,6 +330,9 @@ def test_ddr2_lpddr2_csr_slave(request, test_type):
         extra_env["VERILATOR_TRACE_FST"] = "1"
 
     from cocotb_test.simulator import run
+    compile_args += get_coverage_compile_args()
+    extra_env.update(get_coverage_env(test_name, sim_build=sim_build))
+
     run(python_search=[tests_dir],
         verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module,

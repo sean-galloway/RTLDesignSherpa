@@ -23,6 +23,10 @@ _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 
+from ddr2_lpddr2_coverage import (  # noqa: E402
+    get_coverage_compile_args, get_coverage_env,
+)
+
 
 MEMTYPE_DDR2   = 0
 MEMTYPE_LPDDR2 = 1
@@ -213,6 +217,9 @@ def test_mode_register(request, test_type, num_ranks):
         sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
         plus_args    += ["--trace"]
         extra_env["VERILATOR_TRACE_FST"] = "1"
+
+    compile_args += get_coverage_compile_args()
+    extra_env.update(get_coverage_env(test_name, sim_build=sim_build))
 
     run(python_search=[tests_dir],
         verilog_sources=verilog_sources, includes=includes,

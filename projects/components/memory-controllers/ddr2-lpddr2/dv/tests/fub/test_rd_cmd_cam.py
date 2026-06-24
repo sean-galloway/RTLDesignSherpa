@@ -29,6 +29,10 @@ _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 
+from ddr2_lpddr2_coverage import (  # noqa: E402
+    get_coverage_compile_args, get_coverage_env,
+)
+
 from tbclasses.rd_cmd_cam_tb import RdCmdCamTB  # noqa: E402
 
 
@@ -337,6 +341,9 @@ def test_rd_cmd_cam(request, test_type, rd_cam_depth, num_ranks):
     if enable_waves:
         sim_args += ["--trace", "--trace-structs", "--trace-depth", "99"]
         plus_args += ["--trace"]
+
+    compile_args += get_coverage_compile_args()
+    extra_env.update(get_coverage_env(test_name, sim_build=sim_build))
 
     run(
         python_search=[tests_dir],

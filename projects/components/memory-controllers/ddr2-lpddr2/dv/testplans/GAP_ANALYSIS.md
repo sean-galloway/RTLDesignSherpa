@@ -4,10 +4,10 @@
 
 | Tier | Tests run | Passed | Failed | Pass % |
 |------|----------:|-------:|-------:|-------:|
-| FUB FULL | 134 | 134 | 0 | 100.0 |
+| FUB FULL | 186 | 186 | 0 | 100.0 |
 | Macro FULL | 34 | 34 | 0 | 100.0 |
 | Top FULL | 10 | 6 | 4 | 60.0 |
-| **Total** | **178** | **174** | **4** | **97.8** |
+| **Total** | **230** | **226** | **4** | **98.3** |
 
 The 4 top failures are the known `status: debug_only` cases documenting
 the **fresh-read data-path hang** (see `ddr2_lpddr2_top_testplan.yaml`).
@@ -21,19 +21,28 @@ on tracked-as-verified scenarios is 100%.
 files produced when the test sets `compile_args += [--coverage,
 --coverage-line, --coverage-toggle, --coverage-underscore]`.
 
-**Current state:** No `.dat` files exist in `coverage_combined/` or
-`coverage_data/`. The ddr2-lpddr2 test runners do not yet inject the
-coverage flags. Each `test_*.py` would need:
+**Status: wired.** `dv/ddr2_lpddr2_coverage/` ships
+`get_coverage_compile_args()` + `get_coverage_env()`, and every
+`dv/tests/{fub,macro,top}/test_*.py` calls them — no-ops without
+`COVERAGE=1`. A `COVERAGE=1 TEST_LEVEL=FULL` FUB sweep produces 186
+`coverage.dat` files. Merging them with `verilator_coverage --write`
+yields the first end-to-end rollup number:
 
-```python
-from <ddr2_lpddr2_coverage> import get_coverage_compile_args
-compile_args += get_coverage_compile_args()  # no-op unless COVERAGE=1
-```
+| Tier | Merged Verilator coverage |
+|------|-------------------------:|
+| FUB FULL (186 tests) | 635/968 = **65.6 %** |
 
-That requires (a) authoring `dv/ddr2_lpddr2_coverage/` mirroring
-stream's helper module, (b) editing 14 FUB + 4 macro + 1 top test
-runners. Tracked as a separate effort — not blocking the testplan
-rollup since the YAMLs already capture the functional-coverage axis.
+That's the line+branch+toggle baseline. The remaining 34 % maps to the
+gap items below (`G-01..G-19`) — `G-01` accounts for the data-path-side
+rd_cl_aligner branches that never see a fresh AXI read post-init, and
+the LPDDR2-specific FSM arms in mode_register / dfi_cmd_formatter
+account for most of the remainder.
+
+Backfilling the `coverage_points:` blocks in each YAML (i.e. the
+"covers_lines" side of the testplan format) still needs a ddr2-lpddr2
+sibling to `bin/update_testplan_coverage.py` — that script is currently
+hardcoded to RAPIDS paths. The wiring side is done; the per-testplan
+ingest is a follow-up.
 
 ## Testplan vs implementation — what's wired
 
@@ -175,11 +184,14 @@ fully stable.
 
 ## Action items
 
-- [ ] Wire `--coverage` Verilator flags into `dv/tests/*/test_*.py`
-      (mirror stream's `get_coverage_compile_args` pattern)
-- [ ] Author `dv/ddr2_lpddr2_coverage/` helper module
-- [ ] Re-run FULL with `COVERAGE=1` to populate `coverage_data/`
-- [ ] Run `bin/update_testplan_coverage.py` to backfill
+- [x] Author `dv/ddr2_lpddr2_coverage/` helper module (mirror stream's
+      `get_coverage_compile_args` / `get_coverage_env`)
+- [x] Wire `--coverage` Verilator flags into `dv/tests/*/test_*.py`
+      (all 14 FUB + 4 macro + 1 top runners)
+- [x] Re-run FULL with `COVERAGE=1` to populate `coverage.dat` per test
+      — first merged line-coverage baseline is **65.6 %**
+- [ ] Port `bin/update_testplan_coverage.py` for ddr2-lpddr2 (the
+      RAPIDS sibling is hardcoded to its own path); backfill
       `coverage_points:` blocks in each YAML
 - [ ] Run `bin/aggregate_coverage.py --all --html` for the rollup
 - [ ] File a tracking issue for each G-NN that's blocking a target
