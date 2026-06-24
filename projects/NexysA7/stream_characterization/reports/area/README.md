@@ -66,6 +66,28 @@ BRAM detail: 16× RAMB36 + 1× RAMB18.
 The scheduler/descriptor groups (one per channel) dominate at ~8.7k LUTs / 5.8k FF;
 the bulk of the BRAM is the per-channel SRAM datapath inside `stream_core`.
 
+### Channel scaling (OOC, monitors off, dw128 / sd256) — 2026-06-24
+
+Physical channel count swept via `AREA_NUM_CHANNELS` (datapath width and SRAM
+depth held constant), so only the per-channel slices vary.
+
+| Channels | Slice LUTs | — Logic | — Memory | Slice FFs | BRAM Tile |
+|---------:|-----------:|--------:|---------:|----------:|----------:|
+| 2        |      6,948 |   6,496 |      452 |     5,403 |       4.5 |
+| 4        |     10,010 |   9,116 |      894 |     7,143 |       8.5 |
+| 8        |     15,667 |  13,891 |    1,776 |    10,603 |      16.5 |
+
+Scaling is close to linear: a fixed base (APB/CSR + shared control) of ~4.0k LUTs
+plus **~1.45k LUTs, ~870 FFs, and ~2 BRAM tiles per channel** (the scheduler /
+descriptor group + per-channel SRAM datapath). BRAM tracks the channel count
+exactly — one 256-deep × 128-bit SRAM tile pair per channel.
+
+`NUM_CHANNELS=1` is not synthesizable (`$clog2(1)=0` underflows to a `[-1:0]`
+part-select in `descriptor_engine.sv`), and it is not a meaningful build target:
+`NUM_CHANNELS` is the *physical* channel count (minimum 2), while single-channel
+operation is an 8-channel build with one channel enabled at runtime via
+`cfg_channel_enable` — which is how the "1 channel" perf runs were measured.
+
 ### In-context cross-check (full bitstream, post-route) — 2026-06-24
 
 From the as-built `stream_char_top` bitstream (`make bitstream`, timing met,
