@@ -51,6 +51,11 @@
 
 module descriptor_engine #(
     parameter int CHANNEL_ID = 0,
+    // 0 = omit the per-channel completion/error MonBus emitter. The perf
+    // characterization measures the datapath via the AXI bus meters, not this
+    // trace, so dropping it (and letting synth strip the r_mon_* registers)
+    // recovers control-set/slice packing on the area-tight FPGA build.
+    parameter bit GEN_MON = 1'b1,
     parameter int NUM_CHANNELS = 32,
     parameter int CHAN_WIDTH = $clog2(NUM_CHANNELS),
     parameter int ADDR_WIDTH = 64,
@@ -872,10 +877,10 @@ module descriptor_engine #(
     assign descriptor_eod = w_desc_fifo_rd_data.eod;
     assign descriptor_type = w_desc_fifo_rd_data.pkt_type;
 
-    // Monitor bus output
-    assign mon_valid     = r_mon_valid;
-    assign mon_packet    = r_mon_packet;
-    assign mon_timestamp = r_mon_timestamp;
+    // Monitor bus output (GEN_MON=0 ties off so synth strips the r_mon_* regs)
+    assign mon_valid     = GEN_MON ? r_mon_valid     : 1'b0;
+    assign mon_packet    = GEN_MON ? r_mon_packet    : '0;
+    assign mon_timestamp = GEN_MON ? r_mon_timestamp : '0;
 
     //=========================================================================
     // Assertions for Verification

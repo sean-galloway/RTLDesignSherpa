@@ -107,7 +107,12 @@ module stream_char_top (
         .AR_MAX_OUTSTANDING    (stream_char_cfg_pkg::CFG_AR_MAX_OUTSTANDING),
         .AW_MAX_OUTSTANDING    (stream_char_cfg_pkg::CFG_AW_MAX_OUTSTANDING),
         .RESP_DELAY_R_CAPACITY (stream_char_cfg_pkg::CFG_RESP_DELAY_R_CAPACITY),
-        .RESP_DELAY_B_CAPACITY (stream_char_cfg_pkg::CFG_RESP_DELAY_B_CAPACITY)
+        .RESP_DELAY_B_CAPACITY (stream_char_cfg_pkg::CFG_RESP_DELAY_B_CAPACITY),
+        // FPGA board build: drop the per-channel completion/error MonBus
+        // emitters (descriptor_engine/scheduler) to recover slice/control-set
+        // packing on the area-tight xc7a100t. Cosim leaves GEN_MON=1 (default)
+        // so the compression-trace tests keep working.
+        .GEN_MON               (1'b0)
     ) u_harness (
         .aclk            (aclk),
         .aresetn         (aresetn),

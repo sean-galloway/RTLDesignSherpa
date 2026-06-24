@@ -56,6 +56,11 @@ module stream_core #(
 
     // Monitor Control
     parameter int USE_AXI_MONITORS = 1,      // 1 = Enable monitors, 0 = Disable monitors
+    // 0 = omit the per-channel descriptor-engine/scheduler completion/error
+    // MonBus emitters (the cluster trace). Independent of USE_AXI_MONITORS (the
+    // datapath perf monitors); set 0 on the area-tight FPGA char build where
+    // only the datapath perf buckets are needed. Default on for back-compat.
+    parameter bit GEN_MON = 1'b1,
 
     // AXI skid buffer depths
     parameter int SKID_DEPTH_AR = 2,
@@ -76,12 +81,17 @@ module stream_core #(
     // scheduler_group_array → axi4_master_rd_mon. Defaults match the
     // unit-level wrapper (5 cones on, debug on for stream's
     // compression dataset use).
-    parameter bit DESC_MON_ENABLE_ERROR_LOGIC     = 1'b1,
-    parameter bit DESC_MON_ENABLE_TIMEOUT_LOGIC   = 1'b1,
-    parameter bit DESC_MON_ENABLE_COMPL_LOGIC     = 1'b1,
-    parameter bit DESC_MON_ENABLE_THRESHOLD_LOGIC = 1'b1,
+    // Descriptor-fetch AXI monitor: perf-only, matching the data-read/-write
+    // datapath monitors below (ENABLE_PERF_LOGIC only). The error/timeout/
+    // compl/threshold/debug cones each pull in a CAM + reporter and were the
+    // bulk of the descriptor monitor's LUTs; the characterization only needs
+    // the perf buckets, so drop them (recovers FPGA fit on the xc7a100t).
+    parameter bit DESC_MON_ENABLE_ERROR_LOGIC     = 1'b0,
+    parameter bit DESC_MON_ENABLE_TIMEOUT_LOGIC   = 1'b0,
+    parameter bit DESC_MON_ENABLE_COMPL_LOGIC     = 1'b0,
+    parameter bit DESC_MON_ENABLE_THRESHOLD_LOGIC = 1'b0,
     parameter bit DESC_MON_ENABLE_PERF_LOGIC      = 1'b1,
-    parameter bit DESC_MON_ENABLE_DEBUG_LOGIC     = 1'b1,
+    parameter bit DESC_MON_ENABLE_DEBUG_LOGIC     = 1'b0,
 
     // Short aliases
     parameter int NC = NUM_CHANNELS,
@@ -716,6 +726,7 @@ module stream_core #(
     // Component Instantiation - Scheduler Group Array
     //=========================================================================
     scheduler_group_array #(
+        .GEN_MON                (GEN_MON),
         .NUM_CHANNELS           (NC),
         .CHAN_WIDTH             (CHAN_WIDTH),
         .ADDR_WIDTH             (AW),

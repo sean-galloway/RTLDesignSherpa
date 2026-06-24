@@ -63,6 +63,7 @@ module stream_top_ch8 #(
     parameter int AXI_ID_WIDTH = 8,
     parameter int AXI_USER_WIDTH = 3,    // $clog2(NUM_CHANNELS) for channel ID
     parameter int USE_AXI_MONITORS = 0,  // 0 = Disable monitors, 1 = Enable monitors
+    parameter bit GEN_MON = 1'b1,        // 0 = omit per-channel completion/error MonBus emitters (area)
     parameter int CDC_ENABLE = 1,        // 0 = Same clock (pclk=aclk), 1 = Different clocks (CDC)
     // Bulk-trace MonBus compressor select. Only meaningful when
     // USE_AXI_MONITORS=1; pass-through to monbus_axil_group.USE_COMPRESSION.
@@ -1350,6 +1351,7 @@ module stream_top_ch8 #(
                 .AR_MAX_OUTSTANDING(AR_MAX_OUTSTANDING),
                 .AW_MAX_OUTSTANDING(AW_MAX_OUTSTANDING),
                 .USE_AXI_MONITORS(1),     // Enable monitors
+                .GEN_MON(GEN_MON),
                 .DESC_MON_ENABLE_ERROR_LOGIC     (DESC_MON_ENABLE_ERROR_LOGIC),
                 .DESC_MON_ENABLE_TIMEOUT_LOGIC   (DESC_MON_ENABLE_TIMEOUT_LOGIC),
                 .DESC_MON_ENABLE_COMPL_LOGIC     (DESC_MON_ENABLE_COMPL_LOGIC),
@@ -1651,7 +1653,8 @@ module stream_top_ch8 #(
                 .FIFO_DEPTH(SRAM_DEPTH),  // Pass SRAM_DEPTH as FIFO_DEPTH
                 .AR_MAX_OUTSTANDING(AR_MAX_OUTSTANDING),
                 .AW_MAX_OUTSTANDING(AW_MAX_OUTSTANDING),
-                .USE_AXI_MONITORS(0)      // Explicitly disable monitors
+                .USE_AXI_MONITORS(0),     // Explicitly disable monitors
+                .GEN_MON(GEN_MON)
             ) u_stream_core (
                 .clk                        (aclk),
                 .rst_n                      (aresetn),

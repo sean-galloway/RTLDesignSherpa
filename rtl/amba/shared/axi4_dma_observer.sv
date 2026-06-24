@@ -419,7 +419,17 @@ module axi4_dma_observer
                 .USE_MONITOR     (1'b1),
                 .UNIT_ID         (UNIT_ID),
                 .AGENT_ID        ({8'h00, 4'h0, gi[3:0]}),  // RD ports: [3:0]=index, [7:4]=0
-                .MAX_TRANSACTIONS(MAX_TRANSACTIONS)
+                .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
+                // Observer tap: perf-only (lock-step with the in-core datapath
+                // perf monitors). The error/timeout/compl/threshold/debug cones
+                // each add a CAM + reporter -- not needed for the perf/latency
+                // cross-check, and they dominate the observer's LUT footprint.
+                .ENABLE_ERROR_LOGIC     (1'b0),
+                .ENABLE_TIMEOUT_LOGIC   (1'b0),
+                .ENABLE_COMPL_LOGIC     (1'b0),
+                .ENABLE_THRESHOLD_LOGIC (1'b0),
+                .ENABLE_PERF_LOGIC      (1'b1),
+                .ENABLE_DEBUG_LOGIC     (1'b0)
             ) u_rd_mon (
                 .aclk    (aclk),
                 .aresetn (aresetn),
@@ -545,7 +555,16 @@ module axi4_dma_observer
                 .USE_MONITOR     (1'b1),
                 .UNIT_ID         (UNIT_ID),
                 .AGENT_ID        ({8'h00, 4'h1, gi[3:0]}),  // WR ports: [3:0]=idx, [7:4]=1
-                .MAX_TRANSACTIONS(MAX_TRANSACTIONS)
+                .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
+                // Observer tap: perf-only (lock-step with the in-core datapath
+                // perf monitors); drop the CAM-backed error/timeout/compl/
+                // threshold/debug cones (the observer's main LUT cost).
+                .ENABLE_ERROR_LOGIC     (1'b0),
+                .ENABLE_TIMEOUT_LOGIC   (1'b0),
+                .ENABLE_COMPL_LOGIC     (1'b0),
+                .ENABLE_THRESHOLD_LOGIC (1'b0),
+                .ENABLE_PERF_LOGIC      (1'b1),
+                .ENABLE_DEBUG_LOGIC     (1'b0)
             ) u_wr_mon (
                 .aclk    (aclk),
                 .aresetn (aresetn),

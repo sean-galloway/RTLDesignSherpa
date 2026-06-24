@@ -34,6 +34,7 @@
 `include "stream_imports.svh"
 
 module scheduler_group_array #(
+    parameter bit GEN_MON = 1'b1,   // 0 = omit per-channel completion/error MonBus emitters
     parameter int NUM_CHANNELS = 8,
     parameter int CHAN_WIDTH = $clog2(NUM_CHANNELS),
     parameter int ADDR_WIDTH = 64,
@@ -46,17 +47,17 @@ module scheduler_group_array #(
     parameter int MON_UNIT_ID = 1,               // 0x1
     parameter int MON_MAX_TRANSACTIONS = 16,
 
-    // Desc-bus monitor reporter sub-block enables. Defaults match the
-    // unit-level axi4_master_rd_mon defaults (5 cones on, debug on for
-    // stream's compression dataset use). Integrators climbing up
-    // through stream_core / stream_top_ch8 can override any of these
-    // for area savings without editing the macro.
-    parameter bit DESC_MON_ENABLE_ERROR_LOGIC     = 1'b1,
-    parameter bit DESC_MON_ENABLE_TIMEOUT_LOGIC   = 1'b1,
-    parameter bit DESC_MON_ENABLE_COMPL_LOGIC     = 1'b1,
-    parameter bit DESC_MON_ENABLE_THRESHOLD_LOGIC = 1'b1,
+    // Desc-bus monitor reporter sub-block enables. Default to perf-only to
+    // match the data-read/-write datapath monitors (the error/timeout/compl/
+    // threshold/debug cones each pull in a CAM + reporter and dominate the
+    // monitor LUTs); stream_core overrides these explicitly anyway. Integrators
+    // climbing up through stream_core / stream_top_ch8 can re-enable any cone.
+    parameter bit DESC_MON_ENABLE_ERROR_LOGIC     = 1'b0,
+    parameter bit DESC_MON_ENABLE_TIMEOUT_LOGIC   = 1'b0,
+    parameter bit DESC_MON_ENABLE_COMPL_LOGIC     = 1'b0,
+    parameter bit DESC_MON_ENABLE_THRESHOLD_LOGIC = 1'b0,
     parameter bit DESC_MON_ENABLE_PERF_LOGIC      = 1'b1,
-    parameter bit DESC_MON_ENABLE_DEBUG_LOGIC     = 1'b1
+    parameter bit DESC_MON_ENABLE_DEBUG_LOGIC     = 1'b0
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -302,6 +303,7 @@ module scheduler_group_array #(
         for (genvar ch = 0; ch < NUM_CHANNELS; ch++) begin : gen_scheduler_groups
             scheduler_group #(
                 .CHANNEL_ID             (ch),
+                .GEN_MON                (GEN_MON),
                 .NUM_CHANNELS           (NUM_CHANNELS),
                 .CHAN_WIDTH             (CHAN_WIDTH),
                 .ADDR_WIDTH             (ADDR_WIDTH),

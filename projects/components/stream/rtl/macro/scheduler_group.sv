@@ -28,6 +28,7 @@
 
 module scheduler_group #(
     parameter int CHANNEL_ID = 0,
+    parameter bit GEN_MON = 1'b1,   // 0 = omit per-channel completion/error MonBus emitters
     parameter int NUM_CHANNELS = 8,
     parameter int CHAN_WIDTH = $clog2(NUM_CHANNELS),
     parameter int ADDR_WIDTH = 64,
@@ -176,6 +177,7 @@ module scheduler_group #(
     // Note: descriptor_engine uses FIXED 256-bit descriptors (no DATA_WIDTH parameter)
     descriptor_engine #(
         .CHANNEL_ID             (CHANNEL_ID),
+        .GEN_MON                (GEN_MON),
         .NUM_CHANNELS           (NUM_CHANNELS),
         .CHAN_WIDTH             (CHAN_WIDTH),
         .ADDR_WIDTH             (ADDR_WIDTH),
@@ -258,6 +260,7 @@ module scheduler_group #(
     //       - cfg_sched_timeout_enable (can disable timeout detection)
     scheduler #(
         .CHANNEL_ID             (CHANNEL_ID),
+        .GEN_MON                (GEN_MON),
         .NUM_CHANNELS           (NUM_CHANNELS),
         .CHAN_WIDTH             (CHAN_WIDTH),
         .ADDR_WIDTH             (ADDR_WIDTH),
