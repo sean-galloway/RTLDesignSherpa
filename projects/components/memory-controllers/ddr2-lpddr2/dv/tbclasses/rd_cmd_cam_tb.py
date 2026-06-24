@@ -95,9 +95,15 @@ class RdCmdCamScoreboard:
         return last
 
     def match_pending(self, q_rank: int, q_bank: int) -> int:
+        # match_pending is the broad "needs servicing" signal — it is
+        # the bitmask of valid + unissued slots regardless of (rank,
+        # bank). The scheduler's slot-picker scans ALL slots and picks
+        # the best one; the (rank, bank, row) reachability check lives
+        # in `match_rowhit` instead.
+        del q_rank, q_bank
         v = 0
         for i, s in enumerate(self.slots):
-            if s.valid and (not s.issued) and (s.rank == q_rank) and (s.bank == q_bank):
+            if s.valid and (not s.issued):
                 v |= (1 << i)
         return v
 

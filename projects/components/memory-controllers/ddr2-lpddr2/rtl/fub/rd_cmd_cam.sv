@@ -173,13 +173,25 @@ module rd_cmd_cam
         end
     end)
 
-    // Match vectors
+    // Match vectors.
+    //
+    // `match_pending_o` is the scheduler's "this slot needs servicing"
+    // signal — it must fire for every valid, not-yet-issued slot
+    // regardless of which (rank, bank) the scheduler is currently
+    // looking at. The scheduler's QoS picker scans this vector across
+    // ALL slots and picks the best one (see scheduler.sv comment at
+    // the slot-pick block, and `q_rank_o/q_bank_o` being tied to 0 in
+    // the current revision). Gating on the q_* ports here used to
+    // silently hide every non-bank-0 read — only the first slot per
+    // (rank=0, bank=0) was ever picked. The reachability check that
+    // *does* depend on (rank, bank, row) is `match_rowhit_o`, which
+    // adds the (rank, bank, row) equality on top of match_pending.
     for (genvar i = 0; i < CD; i++) begin : g_match
-        assign match_pending_o[i] = r_valid[i] && !r_issued[i]
-                                 && (r_rank[i] == q_rank_i)
-                                 && (r_bank[i] == q_bank_i);
+        assign match_pending_o[i] = r_valid[i] && !r_issued[i];
         assign match_rowhit_o [i] = match_pending_o[i]
-                                 && (r_row[i] == q_row_i);
+                                 && (r_rank[i] == q_rank_i)
+                                 && (r_bank[i] == q_bank_i)
+                                 && (r_row [i] == q_row_i);
     end
 
     // Snapshot

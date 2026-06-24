@@ -134,9 +134,13 @@ class WrCmdCamScoreboard:
     # --- combinational queries ------------------------------------------------
 
     def match_pending(self, q_rank: int, q_bank: int) -> int:
+        # See rd_cmd_cam_tb.match_pending — broad "needs servicing"
+        # signal regardless of (rank, bank); reachability check lives
+        # in match_rowhit.
+        del q_rank, q_bank
         v = 0
         for i, s in enumerate(self.slots):
-            if s.valid and (not s.issued) and (s.rank == q_rank) and (s.bank == q_bank):
+            if s.valid and (not s.issued):
                 v |= (1 << i)
         return v
 

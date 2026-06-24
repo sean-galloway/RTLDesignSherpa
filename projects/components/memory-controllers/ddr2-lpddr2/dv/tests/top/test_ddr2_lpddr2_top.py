@@ -515,6 +515,144 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
         # we don't want to fail the test on micro-architectural choices
         # about whether the FSM latches an error bit.
 
+    elif test_type == "read_then_read_probe":
+        # G-01b: AXI read #1 to bank 0 succeeds; read #2 to bank 1 hangs.
+        # The BFM sees ACT+RD for read #1 then only REF forever — so the
+        # controller is the one that stops issuing commands. Probe the
+        # AR handshake, AXI master-side R signals, and the DFI cmd bus
+        # bracketing each read.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        # Preload bank 0 and bank 1 distinct patterns.
+        tb.preload_memory(0x0000, (0xDEAD0000).to_bytes(8, "little"))
+        tb.preload_memory(0x2000, (0xDEAD0001).to_bytes(8, "little"))
+
+        observed = {"cmd_log": [], "rd_inject_cnt": 0,
+                    "rdvalid_cnt": 0, "ar_fires": 0}
+        from cocotb.triggers import RisingEdge
+
+        async def dfi_cmd_watch():
+            cycle = 0
+            while True:
+                await RisingEdge(dut.mc_clk)
+                cycle += 1
+                try:
+                    cs_n  = int(dut.phy_dfi_cs_n.value) & 1
+                    if cs_n != 0:
+                        continue
+                    ras_n = int(dut.phy_dfi_ras_n.value) & 1
+                    cas_n = int(dut.phy_dfi_cas_n.value) & 1
+                    we_n  = int(dut.phy_dfi_we_n.value)  & 1
+                    bank  = int(dut.phy_dfi_bank.value)  & 7
+                    addr  = int(dut.phy_dfi_address.value)
+                    code  = (ras_n << 2) | (cas_n << 1) | we_n
+                    name = {0:"MRS",1:"REF",2:"PRE",3:"ACT",
+                            4:"WR",5:"RD",7:"NOP"}.get(code, f"?{code}")
+                    if name not in ("NOP", "REF"):
+                        observed["cmd_log"].append((cycle, name, bank, addr))
+                except Exception:
+                    return
+
+        async def axi_probe():
+            cycle = 0
+            while True:
+                await RisingEdge(dut.pclk)
+                cycle += 1
+                try:
+                    arv = int(dut.s_axi_arvalid.value)
+                    arr = int(dut.s_axi_arready.value)
+                    rv  = int(dut.s_axi_rvalid.value)
+                    rr  = int(dut.s_axi_rready.value)
+                except Exception:
+                    return
+                if arv and arr:
+                    observed["ar_fires"] += 1
+                    tb.log.info("PROBE: AR handshake #%d @ aclk %d",
+                                observed["ar_fires"], cycle)
+                if rv and rr:
+                    observed["rdvalid_cnt"] += 1
+                    tb.log.info("PROBE: R handshake #%d @ aclk %d",
+                                observed["rdvalid_cnt"], cycle)
+
+        async def deep_probe():
+            """Watch the read-side internals: ar_pend→rd_cmd_cam push,
+            rd_cmd_cam occupancy, scheduler rd_op_valid."""
+            cycle = 0
+            last_state = None
+            while True:
+                await RisingEdge(dut.mc_clk)
+                cycle += 1
+                try:
+                    intake = dut.u_dut.u_axi_frontend.u_axi_intake
+                    ar_push_v = int(intake.ar_push_valid_o.value)
+                    ar_push_r = int(intake.ar_push_ready_i.value)
+                    rd_cam = dut.u_dut.u_axi_frontend.u_rd_cam
+                    r_valid_vec = int(rd_cam.r_valid.value)
+                    r_issued_vec = int(rd_cam.r_issued.value)
+                    push_ready = int(rd_cam.push_ready_o.value)
+                    rd_op_v = int(dut.u_dut.u_core.rd_op_valid.value)
+                except Exception as e:
+                    if cycle < 5:
+                        tb.log.error("deep probe binding failed: %s", e)
+                    return
+                try:
+                    bank_s0 = int(rd_cam.r_bank.value[0]) if hasattr(rd_cam.r_bank, "value") else -1
+                    row_s0 = int(rd_cam.r_row.value[0]) if hasattr(rd_cam.r_row, "value") else -1
+                    match_p = int(rd_cam.match_pending_o.value)
+                    match_rh = int(rd_cam.match_rowhit_o.value)
+                except Exception:
+                    bank_s0 = -1; row_s0 = -1; match_p = -1; match_rh = -1
+                try:
+                    sched = dut.u_dut.u_core.u_command_scheduler.u_scheduler
+                    sched_state = int(sched.r_state.value)
+                    q_rank = int(sched.q_rank_o.value)
+                    q_bank = int(sched.q_bank_o.value)
+                except Exception:
+                    sched_state = -1; q_rank = -1; q_bank = -1
+                state = (ar_push_v, ar_push_r, r_valid_vec, r_issued_vec,
+                         push_ready, rd_op_v, match_p, sched_state, q_bank)
+                if state != last_state:
+                    tb.log.info("DEEP@%d ar_push v/r=%d/%d  rd_cam "
+                                "r_valid=0x%X r_issued=0x%X push_ready=%d  "
+                                "match_p=0x%X match_rh=0x%X  rd_op_v=%d  "
+                                "sched_state=%d q_rank=%d q_bank=%d",
+                                cycle, ar_push_v, ar_push_r,
+                                r_valid_vec, r_issued_vec, push_ready,
+                                match_p, match_rh, rd_op_v,
+                                sched_state, q_rank, q_bank)
+                    last_state = state
+
+        cocotb.start_soon(dfi_cmd_watch())
+        cocotb.start_soon(axi_probe())
+        cocotb.start_soon(deep_probe())
+
+        tb.log.info("=== Read #1 (bank 0) ===")
+        rd1 = AXI4Sequence("r_then_r_1", data_width=64, seed=seed)
+        rd1.add_read(0x0000, length=1, axid=0)
+        r1 = await tb.run_sequence(rd1)
+        tb.log.info("Read #1: err=%s data=%s, cmds=%s, ar_fires=%d",
+                    r1[0]["error"], r1[0]["data"],
+                    observed["cmd_log"], observed["ar_fires"])
+        observed["cmd_log"] = []  # clear for read #2
+
+        tb.log.info("=== Read #2 (bank 1) ===")
+        rd2 = AXI4Sequence("r_then_r_2", data_width=64, seed=seed + 1)
+        rd2.add_read(0x2000, length=1, axid=0)
+        r2 = await tb.run_sequence(rd2)
+        tb.log.info("Read #2: err=%s data=%s, cmds_after_r2=%s, "
+                    "ar_fires_total=%d, r_fires_total=%d",
+                    r2[0]["error"], r2[0]["data"],
+                    observed["cmd_log"], observed["ar_fires"],
+                    observed["rdvalid_cnt"])
+
+        assert r1[0]["error"] is None, f"Read #1 failed: {r1[0]['error']}"
+        assert r2[0]["error"] is None, f"Read #2 failed: {r2[0]['error']}"
+
     elif test_type == "row_hit_pattern":
         tb.init_axi_masters()
         await tb.axi_master_wr.aw_channel.reset_bus()
@@ -556,7 +694,8 @@ _FUNC = _GATE + [("configure_via_apb",), ("axi_write_smoke",),
                  ("smoke_nr2",), ("workload_mix_nr2",),
                  ("workload_mix_policy_switch",),
                  ("wr_rd_ooo_multi_id",),
-                 ("init_error_retry",)]
+                 ("init_error_retry",),
+                 ("read_then_read_probe",)]
 _FULL = _FUNC
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()

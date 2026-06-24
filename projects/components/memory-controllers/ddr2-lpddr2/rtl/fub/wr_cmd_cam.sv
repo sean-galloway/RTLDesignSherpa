@@ -202,13 +202,21 @@ module wr_cmd_cam
     assign beat_pull_last_o     = (r_beats_issued[beat_pull_slot_i] + 1'b1
                                    == r_len[beat_pull_slot_i]);
 
-    // Scheduler match vectors
+    // Scheduler match vectors.
+    //
+    // `match_pending_o` is the "needs servicing" signal — must be set
+    // for every valid+unissued slot. The scheduler's QoS picker scans
+    // ALL slots and picks the best one; q_rank/q_bank are not yet
+    // driven by the scheduler (they're tied to 0 in this revision),
+    // so a (rank, bank) gate here used to hide every non-bank-0 write.
+    // The (rank, bank, row) reachability gate moves into
+    // `match_rowhit_o` where it's actually intended.
     for (genvar i = 0; i < CD; i++) begin : g_match
-        assign match_pending_o[i] = r_valid[i] && !r_issued[i]
-                                 && (r_rank[i] == q_rank_i)
-                                 && (r_bank[i] == q_bank_i);
+        assign match_pending_o[i] = r_valid[i] && !r_issued[i];
         assign match_rowhit_o [i] = match_pending_o[i]
-                                 && (r_row[i] == q_row_i);
+                                 && (r_rank[i] == q_rank_i)
+                                 && (r_bank[i] == q_bank_i)
+                                 && (r_row [i] == q_row_i);
     end
 
     // Snapshot outputs
