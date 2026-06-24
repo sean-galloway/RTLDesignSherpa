@@ -115,3 +115,57 @@ From the as-built `stream_char_top` bitstream (`make bitstream`, timing met,
   difference — both use `SRAM_DEPTH=256`. For a fully like-for-like number, run
   the OOC config through implementation as well; post-synth utilization is the
   standard area proxy and is sufficient for core-vs-core comparison.
+
+---
+
+## Open-source comparison: PULP iDMA — 2026-06-24
+
+Best-in-class open-source SG-DMA (github.com/pulp-platform/iDMA, used in
+Snitch/Occamy/Iguana silicon), OOC on the same `xc7a100t`, same datapath config
+(128-bit data, 32-bit addr, 8 outstanding). Flow + reproduction:
+`../flows-idma-bridge/` (`make setup && make area`). iDMA is single-channel per
+engine, so we synthesize its pieces and compose them.
+
+### iDMA component areas (OOC, dw128)
+
+| Component | LUTs | FFs | BRAM | Role |
+|---|---:|---:|---:|---|
+| `idma_backend_synth_rw_axi` | 2,186 | 2,223 | 0 | mem-to-mem AXI datapath |
+| `idma_desc64_synth` (+reg CSR) | 1,683 | 3,462 | 0 | descriptor-chain SG frontend |
+| **one SG channel** (backend + desc64) | **3,869** | **5,685** | **0** | full single-channel SG DMA |
+| `axi_mux_intf` 8→1 | 416 | 211 | 0 | shared-memory-port arbiter |
+
+### STREAM vs iDMA at 8 channels
+
+STREAM shares its read/write engines across all 8 channels and buffers per
+channel in BRAM. An 8-channel iDMA system is 8 independent engines plus a mux
+to share the memory port:
+
+| Design (8 channels, dw128) | LUTs | FFs | BRAM |
+|---|---:|---:|---:|
+| **STREAM** (`stream_top_ch8`, monitors off) | **15,667** | **10,603** | **16.5** |
+| iDMA: 8×(backend+desc64) + 8→1 mux | 31,368 | 45,691 | 0 |
+| ratio (iDMA / STREAM) | **2.0×** | **4.3×** | — |
+
+**STREAM is ~2× denser in LUTs and ~4× in FFs at 8 channels**, trading ~16.5
+BRAM tiles (its per-channel SRAM reorder buffers) for the savings. This is the
+shared-engine + BRAM-buffered architecture paying off: iDMA replicates the full
+read/write/legalize datapath per channel and uses no BRAM, so eight of them cost
+far more logic.
+
+### Methodology caveats (important — the comparison is not single-axis)
+
+- **Not iso-throughput.** 8× iDMA = eight *independent, full-rate* engines (up to
+  8× the aggregate memory bandwidth if the fabric allows). STREAM's 8 channels
+  *share* one arbitrated datapath (one channel's bandwidth, time-sliced). If you
+  only need one shared datapath behind 8 logical channels (STREAM's model), the
+  fair iDMA build is **one** backend + a multi-channel frontend (iDMA `reg`/ND
+  midend, not 8× desc64) — far smaller than 8 engines, and the closer
+  architectural match. That config is not yet built here.
+- **Component sum.** The 1-channel "3,869" sums two separately-synthesized
+  wrappers; cross-boundary optimization between frontend and backend is not
+  captured (minor).
+- **iDMA 0 BRAM** is real: its backend is a register/LUT dataflow with shallow
+  buffering. STREAM spends BRAM deliberately for bubble-free multi-channel
+  switching (see the perf report's 100% datapath-utilization result).
+- Both are post-synth OOC; same proxy, same part.

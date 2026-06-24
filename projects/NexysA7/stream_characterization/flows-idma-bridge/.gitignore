@@ -1,0 +1,9 @@
+# Third-party clones (reproduced by bin/setup.sh) and build artifacts.
+external/
+build/
+reports/*.txt
+flists/
+bin/bender
+*.jou
+*.log
+.Xil/
