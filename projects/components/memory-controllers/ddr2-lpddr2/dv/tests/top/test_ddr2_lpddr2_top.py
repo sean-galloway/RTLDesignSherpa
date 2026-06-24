@@ -213,33 +213,28 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
                 }.get(code, f"?{code}")
                 cmd_log.append((cycle, name, bank, addr))
 
-        # Probe axi_intake's R-channel internals + DFI rddata_valid +
-        # rd_cl_aligner op_valid.
+        # Probe axi_intake's R-channel internals + DFI rddata_en /
+        # rddata_valid; helped diagnose G-01.
         async def r_probe():
             cycle = 0
+            saw_en = False
+            saw_valid = False
             while True:
                 await RisingEdge(dut.mc_clk)
                 cycle += 1
                 try:
-                    fwd_active = int(dut.u_dut.u_axi_frontend.u_axi_intake
-                                     .r_r_fwd_active.value)
+                    rddata_en = int(dut.phy_dfi_rddata_en.value)
+                    rddata_v  = int(dut.phy_dfi_rddata_valid.value)
                 except Exception:
-                    fwd_active = -1
-                try:
-                    rd_inject_v = int(dut.u_dut.rd_inject_valid.value)
-                    rd_inject_r = int(dut.u_dut.rd_inject_ready.value)
-                except Exception:
-                    rd_inject_v = -1
-                    rd_inject_r = -1
-                try:
-                    rddata_v = int(dut.phy_dfi_rddata_valid.value)
-                except Exception:
-                    rddata_v = -1
-                if (rd_inject_v == 1 or rddata_v != 0 or fwd_active == 1):
-                    cmd_log.append((cycle, "PROBE",
-                                    f"fwd_active={fwd_active}",
-                                    f"inject v={rd_inject_v} r={rd_inject_r}",
-                                    f"rddata_v={rddata_v}"))
+                    return
+                if rddata_en != 0 and not saw_en:
+                    saw_en = True
+                    tb.log.info("PROBE: dfi_rddata_en FIRST high @ "
+                                "cycle %d (val=0x%x)", cycle, rddata_en)
+                if rddata_v != 0 and not saw_valid:
+                    saw_valid = True
+                    tb.log.info("PROBE: dfi_rddata_valid FIRST high @ "
+                                "cycle %d (val=0x%x)", cycle, rddata_v)
 
         from cocotb.triggers import RisingEdge
         watcher = cocotb.start_soon(dfi_watch())
