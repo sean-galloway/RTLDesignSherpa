@@ -24,19 +24,37 @@ files produced when the test sets `compile_args += [--coverage,
 **Status: wired.** `dv/ddr2_lpddr2_coverage/` ships
 `get_coverage_compile_args()` + `get_coverage_env()`, and every
 `dv/tests/{fub,macro,top}/test_*.py` calls them — no-ops without
-`COVERAGE=1`. A `COVERAGE=1 TEST_LEVEL=FULL` FUB sweep produces 186
-`coverage.dat` files. Merging them with `verilator_coverage --write`
-yields the first end-to-end rollup number:
+`COVERAGE=1`. A `COVERAGE=1 TEST_LEVEL=FULL` sweep across all three
+tiers produces 230 `coverage.dat` files.
 
-| Tier | Merged Verilator coverage |
-|------|-------------------------:|
-| FUB FULL (186 tests) | 635/968 = **65.6 %** |
+`verilator_coverage --write` is buggy when merging .dat files with
+mismatched bin schemas (it silently drops hits when a later file
+overrides an earlier bin entry with count=0). The reliable path is
+to export each .dat to lcov info via `verilator_coverage --write-info`
+and merge with `lcov -a`.
 
-That's the line+branch+toggle baseline. The remaining 34 % maps to the
-gap items below (`G-01..G-19`) — `G-01` accounts for the data-path-side
-rd_cl_aligner branches that never see a fresh AXI read post-init, and
-the LPDDR2-specific FSM arms in mode_register / dfi_cmd_formatter
-account for most of the remainder.
+| Tier | Lines covered | Lines total | % |
+|------|--------------:|------------:|--:|
+| FUB only (186 tests) | 881 | 968 | 91.0 |
+| Macro only (34 tests) | 2139 | 2708 | 79.0 |
+| **Top only (10 tests)** | **2366** | **3326** | **71.1** |
+| **Combined (230 tests)** | **2784** | **3326** | **83.7** |
+
+Denominators differ because each tier instantiates a different RTL
+slice. Top's 3326 lines is the whole-DUT baseline.
+
+**Top-only is the signoff metric at 80 %.** Currently 71.1 % — short
+by 8.9 points / 296 lines. The 542 untouched-by-top lines fall into:
+
+- G-01 rd_cl_aligner fresh-read branches (the 4 debug_only tests
+  trip the hang before reaching the aligner)
+- LPDDR2 init/MR16/MR17 PASR-load paths (top is DDR2-only today)
+- Multi-rank paths (NUM_RANKS=1 fixed at top)
+- Error-injection paths (no init_error / CAM-overflow stim at top)
+
+Fixing G-01, adding a multi-rank top scenario, and adding a
+top-level LPDDR2 init+traffic scenario should land top in the 80 %+
+band without needing to rewrite the FUB/macro tier.
 
 Backfilling the `coverage_points:` blocks in each YAML (i.e. the
 "covers_lines" side of the testplan format) still needs a ddr2-lpddr2
