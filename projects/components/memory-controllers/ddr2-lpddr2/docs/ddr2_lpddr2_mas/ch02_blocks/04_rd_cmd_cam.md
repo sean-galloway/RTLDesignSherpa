@@ -83,18 +83,33 @@ Total storage (16 entries × 46 b): ~92 bytes — small enough to fit comfortabl
 
 ### Scheduler Query
 
-The scheduler queries the CAM to:
-- Find all unissued entries matching a target (rank, bank) — for next-issue selection
-- Find row-hit candidates (entries whose row == open_row[rank][bank])
+The scheduler scans the full match vector across **all** slots and picks
+by AXI QoS (highest wins; lowest-slot-index breaks ties). It does NOT
+drive `q_rank_i` / `q_bank_i` / `q_row_i` in the v1 revision — those
+ports are tied to 0 inside `scheduler.sv`. The CAM therefore exposes
+two distinct match vectors with two distinct contracts:
 
-| Signal              | Direction | Description                                                  |
-|---------------------|-----------|--------------------------------------------------------------|
-| `q_rank_i`          | input     | Query rank                                                   |
-| `q_bank_i`          | input     | Query bank                                                   |
-| `q_row_i`           | input     | Query row (for row-hit check)                                |
-| `match_unissued_o`  | output    | One-hot vector of slots matching (rank, bank) and not issued |
-| `match_rowhit_o`    | output    | One-hot vector of slots matching (rank, bank, row) and not issued |
-| `match_data_o`      | output    | The selected slot's payload (rank, bank, row, col, len)      |
+| Signal              | Direction | Description                                                                              |
+|---------------------|-----------|------------------------------------------------------------------------------------------|
+| `q_rank_i`          | input     | Query rank (not driven by scheduler in v1)                                               |
+| `q_bank_i`          | input     | Query bank (not driven by scheduler in v1)                                               |
+| `q_row_i`           | input     | Query row (not driven by scheduler in v1)                                                |
+| `match_pending_o`   | output    | One-hot vector of slots that are valid and not issued. **Independent of `q_*`.** The scheduler's slot-picker scans this; gating on the q_* ports here would silently hide every non-`q_*` slot from the picker. |
+| `match_rowhit_o`    | output    | Subset of `match_pending_o` further restricted to slots whose `(rank, bank, row)` equals `(q_rank_i, q_bank_i, q_row_i)`. The scheduler does not yet consume this — reserved for a future row-hit-first picker. |
+
+**Snapshot interface.** The scheduler reads the picked slot's payload
+(rank, bank, row, col, len, qos, id) directly from per-slot snapshot
+output ports (`snap_rank_o`, `snap_bank_o`, …, `snap_id_o`) instead of
+a single muxed `match_data_o`. This avoids re-driving the query bus
+once the picker has selected a slot.
+
+> **Implementation note — match_pending contract.** The `valid & !issued`
+> contract on `match_pending_o` is load-bearing: the scheduler picks
+> across **all** valid+unissued slots regardless of bank. A pre-v1 mistake
+> gated `match_pending_o` on `(r_bank == q_bank_i) && (r_rank == q_rank_i)`
+> with `q_*` tied to 0, which collapsed all reads onto bank 0 — every
+> AXI read to bank 1-7 sat in the CAM forever. Pinned at FUB level by
+> `test_rd_cmd_cam[match_pending_scheduler_contract]`.
 
 ### Issue Notification
 
@@ -107,19 +122,50 @@ When the scheduler picks an entry from this CAM:
 
 ### Beat Return (from `rd_data_path_fub`)
 
-| Signal           | Direction | Description                                |
-|------------------|-----------|--------------------------------------------|
-| `beat_id_i`      | input     | AXI ID of returning beat                   |
-| `beat_we_i`      | input     | Beat-arrived strobe                        |
-| `entry_complete_o` | output  | One-hot vector of slots that just completed (last beat of their burst) |
+The retire interface is keyed by **slot index**, not AXI ID. The
+slot→ID mapping is exposed separately on `snap_id_o` (see the snapshot
+interface) so `rd_cl_aligner` can stamp the right `rd_inject_id_o` on
+each returned beat.
+
+| Signal           | Direction | Description                                                            |
+|------------------|-----------|------------------------------------------------------------------------|
+| `beat_slot_i`    | input     | Slot index of returning beat                                           |
+| `beat_we_i`      | input     | Beat-arrived strobe                                                    |
+| `entry_complete_o` | output  | High in the same cycle the last beat retires                            |
+| `entry_complete_slot_o` | output | Slot index that just completed                                     |
+| `entry_complete_id_o` | output | AXI ID of the completed entry — feeds the AXI R-channel's `rid` echo |
 
 On entry-complete the slot's `valid` is cleared in the next cycle.
 
+> **Implementation note — `snap_id_o` must flow.** The `snap_id_o`
+> port is what carries the AR's AXI ID up to `ddr2_lpddr2_top.sv` so
+> the core's `rd_op_id` lookup (indexed by `cmd_rd_slot`) can stamp
+> `rd_cl_aligner`'s `op_id_i`, which becomes `rd_inject_id_o` on each
+> beat. If `snap_id_o` is dropped at the macro boundary or the top
+> ties `rd_snap_id` to `'0`, every read response is stamped with
+> `id=0` and any multi-ID OOO workload silently mis-routes its R
+> beats. Pinned at FUB level by `test_rd_cl_aligner[id_propagate]`'s
+> `verify_capture` assertion that `rd_inject_id_o == op_id_i` for
+> every beat.
+
 ## Lookup Mechanism
 
-The CAM uses a **parallel match-line** structure: each slot has a small comparator for {rank, bank} that drives a per-slot match wire. The scheduler reads the full match-vector and picks among matches using a priority encoder (age-priority — oldest slot wins ties).
+The CAM exposes two parallel match-line structures:
 
-For the typical RD_CAM_DEPTH of 16 with `BA=3`, `$clog2(NR)=1..2` (1 for single-rank, 2 for quad-rank), this is 16 4–5-bit equality comparators in parallel — trivial silicon.
+  * `match_pending_o[i]` is a 1-bit per slot equal to `r_valid[i] &&
+    !r_issued[i]`. No comparator — this is the broad "needs servicing"
+    vector the scheduler consumes.
+  * `match_rowhit_o[i]` adds three equality comparators on
+    `(rank, bank, row)` against the `q_*` query bus. Reserved for a
+    future row-hit-first picker; not driven by the scheduler in v1.
+
+For the typical RD_CAM_DEPTH of 16 with `BA=3` and `$clog2(NR)=1..2`,
+`match_rowhit_o` is 16 18-19-bit equality comparators in parallel —
+still trivial silicon.
+
+The scheduler's slot-picker iterates over `match_pending_o`, picking
+the slot with the highest AXI QoS (ties go to the lowest slot index —
+oldest under the free-slot priority encoder).
 
 ## Per-ID Beat Counting
 

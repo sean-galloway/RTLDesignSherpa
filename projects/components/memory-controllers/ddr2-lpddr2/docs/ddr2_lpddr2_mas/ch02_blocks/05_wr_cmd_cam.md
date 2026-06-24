@@ -77,7 +77,21 @@ Same shape as the read CAM push, plus `w_buf_ptr` and `strb_ptr` (which the AXI 
 
 ### Scheduler Query
 
-Same shape as the read CAM. The scheduler matches by (rank, bank) and selects with row-hit priority.
+Same shape as the read CAM — and the same contract subtlety applies.
+See `04_rd_cmd_cam.md` for the full discussion; in short:
+
+  * `match_pending_o[i] = r_valid[i] && !r_issued[i]`. **Independent
+    of `q_*`.** The scheduler scans this vector across all slots
+    and picks by QoS.
+  * `match_rowhit_o[i]` adds `(rank, bank, row)` equality against
+    the query bus. The scheduler does not consume this in v1; reserved
+    for a future row-hit-first picker.
+  * `q_rank_i` / `q_bank_i` / `q_row_i` are tied to 0 inside
+    `scheduler.sv`.
+
+Pinned at FUB level by
+`test_wr_cmd_cam[match_pending_scheduler_contract]` — the test sweeps
+`q_*` across many values and asserts `match_pending_o` is invariant.
 
 ### Issue Notification
 

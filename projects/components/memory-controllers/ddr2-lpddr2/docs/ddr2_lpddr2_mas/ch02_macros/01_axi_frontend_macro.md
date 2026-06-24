@@ -51,6 +51,12 @@ unchanged.
 - **Downstream to `command_scheduler_macro`**: CAM match-query buses
   (wr/rd_match_*), snapshot metadata (q_rank/q_bank/q_row/q_len),
   mark-issued strobes (wr/rd_issued_*).
+- **Downstream to `ddr2_lpddr2_core_macro`** *(via the system top)*:
+  per-slot snapshot ports including `rd_snap_id_o`, the AR's AXI ID
+  echo. The core's `rd_op_id` lookup indexes this with the
+  scheduler's `cmd_rd_slot`, so the R-channel response carries the
+  originating AR's id. Must not be dropped at the macro boundary —
+  see `04_rd_cmd_cam.md` for the consequence of tying it to 0.
 - **Downstream to `data_path_macro`**: w_buf pull port (beat_pull_*,
   wbuf_rd_data/strb), rd_inject port (rd_inject_valid/data/last).
 - **Internal**: rd_beat_we from `rd_cl_aligner` retires rd CAM slots;

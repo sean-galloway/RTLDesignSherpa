@@ -261,6 +261,23 @@ This is the rough timing — actual cycles depend on `CL`, `N_PHASES`, `BL`, and
 |---------------------|-----------|----------------------------------------------------|------------------------------------------|
 | `cam_axi_id_i[RD_CAM_DEPTH]`  | input | RD_CAM_DEPTH × AXI_ID_WIDTH | Per-slot AXI ID (combinational read)             |
 
+> **v1 implementation note.** In the v1 split, `rd_cl_aligner.sv`
+> receives the AR's AXI ID once on the `op_valid_i` handshake (via
+> `op_id_i`) and latches it into its per-slot `r_op_id[]` register;
+> every emitted beat then drives `rd_inject_id_o <= r_op_id[w_emit_op]`.
+> The `cam_axi_id_i[]` cross-bar above is the v2 abstraction. The
+> chain that delivers the ID to `op_id_i` is:
+>
+> `rd_cmd_cam.snap_id_o` → `axi_frontend_macro.rd_snap_id_o`
+> → `ddr2_lpddr2_top.rd_snap_id` → `ddr2_lpddr2_core_macro.rd_snap_id_i`
+> → `rd_op_id = rd_snap_id_i[cmd_rd_slot]` → `rd_cl_aligner.op_id_i`.
+>
+> Every link in that chain must be wired. A pre-v1 mistake tied
+> `rd_snap_id = '0` at the top, collapsing every R response onto
+> `id=0` and breaking multi-ID OOO workloads silently (G-01c). Pinned
+> at the FUB level by `test_rd_cl_aligner.verify_capture`'s id-flow
+> assertion and the `id_propagate` scenario.
+
 ### To `rd_cmd_cam` (entry-complete strobe)
 
 | Signal                  | Direction | Width                    | Description                                          |

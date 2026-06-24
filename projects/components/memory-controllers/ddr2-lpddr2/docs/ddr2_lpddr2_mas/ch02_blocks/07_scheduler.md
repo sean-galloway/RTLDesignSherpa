@@ -166,7 +166,38 @@ The `"INORDER"` synthesis variant is a different decoder tree, not a runtime gat
 
 ---
 
-## Decision Pipeline
+## v1 Implementation Deviation
+
+Stages 1-3 below describe the **target** scheduler — a multi-mask
+priority-encoder pipeline that consumes per-entry row-hit caches and
+refresh-set flags. The current `scheduler.sv` (v1) is a simpler
+flat-scan pre-cursor:
+
+1. **Picker** — combinational scan of `wr_match_pending_i` and
+   `rd_match_pending_i` across all CAM slots. The slot with the highest
+   AXI QoS wins; ties go to the lowest slot index (oldest under the
+   free-slot priority encoder).
+2. **W/R arbitration** — age-weighted starvation counter (`r_w_age`
+   vs. `r_r_age`) decides which direction wins when both have
+   candidates.
+3. **Page-policy decision** — the page-policy table above selects the
+   initial FSM state and (for HAPPY_HYBRID) consults the
+   `page_predictor` hint for the AP bit.
+
+The v1 picker does **not** drive `q_rank_o / q_bank_o / q_row_o` —
+those outputs are hard-tied to 0 in the `else` branch of the strict-
+flop block. The CAMs must therefore expose a `match_pending_o` vector
+that is `valid && !issued` only (no `(rank, bank)` gate); see
+`04_rd_cmd_cam.md` for the contract. The reachability check on
+`(rank, bank, row)` lives in `match_rowhit_o`, which the v1 scheduler
+ignores.
+
+The target pipeline below (Stages 1-3) lands in v2 along with the
+`age_pe` row-hit encoder, the lookahead window, and the proper
+row-hit cache. The page-policy decision and the column-op selection
+tables above are accurate for v1 as well.
+
+## Decision Pipeline (target / v2)
 
 The decision is a single MC-clock-cycle combinational pipeline broken into four conceptual stages, finishing in a registered output. Stages 1–3 are combinational; Stage 4 latches the final command into output flops.
 
