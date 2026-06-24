@@ -35,6 +35,9 @@ module ddr2_lpddr2_top_tb_top
     parameter int NUM_BANKS        = 8,
     parameter int ROW_WIDTH        = 14,
     parameter int COL_WIDTH        = 10,
+    // Page policy override: 0=OPEN, 1=CLOSE (default), 2=HAPPY_HYBRID.
+    // Matches `ddr2_lpddr2_pkg::page_policy_e`.
+    parameter int PAGE_POLICY      = 1,
 
     parameter int DFI_RATE         = 2,
     parameter int DFI_DATA_WIDTH   = AXI_DATA_WIDTH * DFI_RATE,
@@ -182,7 +185,8 @@ module ddr2_lpddr2_top_tb_top
         .NUM_BANKS      (NUM_BANKS),
         .ROW_WIDTH      (ROW_WIDTH),
         .COL_WIDTH      (COL_WIDTH),
-        .DFI_RATE       (DFI_RATE)
+        .DFI_RATE       (DFI_RATE),
+        .PAGE_POLICY    (PAGE_POLICY)
     ) u_dut (
         .mc_clk         (mc_clk),
         .mc_rst_n       (mc_rst_n),

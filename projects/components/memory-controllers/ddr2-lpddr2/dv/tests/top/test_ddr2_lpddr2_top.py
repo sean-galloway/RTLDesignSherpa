@@ -670,6 +670,94 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
         n_done = sum(1 for r in results if r["error"] is None)
         tb.log.info("row_hit: %d / %d bursts completed", n_done, len(results))
 
+    elif test_type in ("open_page_workload", "happy_page_workload"):
+        # PAGE_POLICY parameter is overridden in the pytest runner via
+        # `parameters = {"PAGE_POLICY": "..."}` based on this test_type
+        # suffix. With OPEN the scheduler emits RD/WR + explicit PRE
+        # (vs CLOSE's RDA/WRA), hitting dfi_cmd_formatter's OP_RD /
+        # OP_WR / OP_PRE branches and scheduler's S_NEED_PRE arm. With
+        # HAPPY_HYBRID the AP decision is page_predictor-driven; we
+        # drive enough row-hit + row-miss mix to exercise both
+        # outcomes of `predict_open_i`.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        # Row-hit cluster first (bank stays open across follow-ups)
+        seq = AXI4Sequence(test_type, data_width=64, seed=seed)
+        seq.add_row_hit_burst(
+            base_addr=0x0000_1000, n_followups=4,
+            burst_bytes=64, is_write=True, qos=4,
+        )
+        # Row-miss pair forces PRE→ACT on the same bank/different row.
+        # Bank 0 row 0 (already opened above) → bank 0 row N (different
+        # row), addr ≈ row_stride * row_idx.
+        # ROW_MAJOR row_stride = NUM_BANKS * COL_BYTES = 8 * (1<<10) * 8 = 64KB
+        seq.add_write(0x0001_1000, [0xAAAA_BBBB_CCCC_DDDD], axid=0)
+        seq.add_read(0x0000_1000, length=1, axid=0)
+        seq.add_read(0x0001_1000, length=1, axid=0)
+        results = await tb.run_sequence(seq)
+        n_done = sum(1 for r in results if r["error"] is None)
+        tb.log.info("%s: %d / %d bursts completed",
+                    test_type, n_done, len(results))
+
+    elif test_type == "open_page_lpddr2":
+        # LPDDR2 + PAGE_POLICY=OPEN. workload_mix_lpddr2 only exercises
+        # LPDDR2 with closed-page (the parameter default) which gates
+        # the LPDDR2 CA-bus encoder to OP_RDA/OP_WRA only. With OPEN,
+        # the scheduler emits OP_RD / OP_WR / OP_PRE, which hit the
+        # LPDDR2 branches of dfi_cmd_formatter that are otherwise
+        # unreachable.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        seq = AXI4Sequence("open_lpddr2", data_width=64, seed=seed)
+        seq.add_row_hit_burst(
+            base_addr=0x0000_1000, n_followups=3,
+            burst_bytes=64, is_write=True, qos=2,
+        )
+        seq.add_read(0x0000_1000, length=1, axid=0)
+        seq.add_write(0x0001_1000, [0xCAFE_BABE_DEAD_BEEF], axid=0)
+        seq.add_read(0x0001_1000, length=1, axid=0)
+        results = await tb.run_sequence(seq)
+        n_done = sum(1 for r in results if r["error"] is None)
+        tb.log.info("open_page_lpddr2: %d / %d bursts completed",
+                    n_done, len(results))
+
+    elif test_type == "wr2rd_forward_burst":
+        # Back-to-back WR + RD-of-same-address so the wr_cmd_cam slot
+        # for the WR is still pending when the AR arrives — fires
+        # wr2rd_forward and exercises axi_intake's `r_r_fwd_active`
+        # R-emit arm (lines 732-737 of axi_intake.sv that the DRAM
+        # RD path doesn't reach).
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        # Single combined sequence so AW + AR are pipelined; the
+        # framework issues all bursts back-to-back without waiting for
+        # B before launching AR.
+        seq = AXI4Sequence("fwd", data_width=64, seed=seed)
+        for k in range(4):
+            addr = 0x0000_3000 + (k << 6)
+            pat  = 0xF0E1_D2C3_B4A5_9687 ^ k
+            seq.add_write(addr, [pat], axid=0)
+            seq.add_read(addr, length=1, axid=0)
+        results = await tb.run_sequence(seq)
+        n_done = sum(1 for r in results if r["error"] is None)
+        tb.log.info("wr2rd_forward_burst: %d / %d bursts completed",
+                    n_done, len(results))
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -695,7 +783,15 @@ _FUNC = _GATE + [("configure_via_apb",), ("axi_write_smoke",),
                  ("workload_mix_policy_switch",),
                  ("wr_rd_ooo_multi_id",),
                  ("init_error_retry",),
-                 ("read_then_read_probe",)]
+                 ("read_then_read_probe",),
+                 # Coverage-driven scenarios: PAGE_POLICY=OPEN/HAPPY
+                 # exercises dfi_cmd_formatter's OP_RD/OP_WR/OP_PRE
+                 # and scheduler's S_NEED_PRE arm; wr2rd_forward_burst
+                 # hits axi_intake's forward path.
+                 ("open_page_workload",),
+                 ("happy_page_workload",),
+                 ("open_page_lpddr2",),
+                 ("wr2rd_forward_burst",)]
 _FULL = _FUNC
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
@@ -724,10 +820,18 @@ def test_ddr2_lpddr2_top(request, test_type):
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
-    # Derive mem_type / num_ranks from the test_type suffix so the test
-    # body and the Verilog parameters stay in sync.
+    # Derive mem_type / num_ranks / PAGE_POLICY from the test_type
+    # suffix so the test body and the Verilog parameters stay in sync.
+    # PAGE_POLICY values mirror ddr2_lpddr2_pkg.page_policy_e:
+    #   0 = OPEN, 1 = CLOSE (default), 2 = HAPPY_HYBRID
     mem_type = "LPDDR2" if test_type.endswith("_lpddr2") else "DDR2"
     num_ranks = 2 if test_type.endswith("_nr2") else 1
+    if test_type in ("open_page_workload", "open_page_lpddr2"):
+        page_policy = "0"
+    elif test_type == "happy_page_workload":
+        page_policy = "2"
+    else:
+        page_policy = "1"
 
     extra_env = {
         "DUT": dut_name,
@@ -739,7 +843,7 @@ def test_ddr2_lpddr2_top(request, test_type):
         "COCOTB_RESULTS_FILE":
             os.path.join(log_dir, f"results_{test_name}.xml"),
     }
-    parameters = {"NUM_RANKS": str(num_ranks)}
+    parameters = {"NUM_RANKS": str(num_ranks), "PAGE_POLICY": page_policy}
 
     enable_waves = bool(int(os.environ.get("WAVES", "0")))
     compile_args = [
