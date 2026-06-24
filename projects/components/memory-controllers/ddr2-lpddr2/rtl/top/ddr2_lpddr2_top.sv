@@ -393,6 +393,7 @@ module ddr2_lpddr2_top
         .rd_snap_col_o              (rd_snap_col),
         .rd_snap_len_o              (rd_snap_len),
         .rd_snap_qos_o              (rd_snap_qos),
+        .rd_snap_id_o               (rd_snap_id),
 
         .wr_issued_we_i             (wr_issued_we),
         .wr_issued_slot_i           (wr_issued_slot),
@@ -429,12 +430,12 @@ module ddr2_lpddr2_top
         .obs_words_o                (frontend_obs_words)
     );
 
-    // rd_snap_id is needed by core for rd_op_id lookup. axi_frontend currently
-    // emits it as part of rd_snap_id_o on rd_cmd_cam — for now derive from
-    // rank/bank/row+ID per snap (the frontend already exposes it, but the
-    // current top of the macro doesn't carry it out; tie 0 — read-id echo is
-    // not yet exercised in the v1 tests).
-    assign rd_snap_id = '0;
+    // rd_snap_id is the per-slot AXI ID echo. The core's rd_op_id lookup
+    // indexes this with the scheduler's cmd_rd_slot, then rd_cl_aligner
+    // emits the matching id on rd_inject_id back to axi_intake's R-emit
+    // path so the R-channel response carries the originating AR's id.
+    // Tying this to 0 collapsed all reads onto id=0 and broke OOO multi-id
+    // traffic (the first read with id!=0 would never see its R response).
 
     //=========================================================================
     // ddr2_lpddr2_core_macro

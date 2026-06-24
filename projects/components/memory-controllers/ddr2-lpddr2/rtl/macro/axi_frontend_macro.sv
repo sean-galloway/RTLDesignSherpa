@@ -197,6 +197,7 @@ module axi_frontend_macro
     output logic [RD_CAM_DEPTH-1:0][CW-1:0]  rd_snap_col_o,
     output logic [RD_CAM_DEPTH-1:0][BLW-1:0] rd_snap_len_o,
     output logic [RD_CAM_DEPTH-1:0][3:0]     rd_snap_qos_o,
+    output logic [RD_CAM_DEPTH-1:0][IW-1:0]  rd_snap_id_o,
 
     //=========================================================================
     // Scheduler "mark issued" strobes
@@ -709,12 +710,13 @@ module axi_frontend_macro
     assign rd_snap_col_o  = w_rd_snap_col;
     assign rd_snap_len_o  = w_rd_snap_len;
     assign rd_snap_qos_o  = w_rd_snap_qos;
+    assign rd_snap_id_o   = w_rd_snap_id;
 
     // Tie unused snapshot consumers (remaining; not all wired yet).
     wire unused = |{ w_wr_snap_strb_ptr,
                      w_wr_snap_issued, w_wr_snap_b_pending,
                      w_wr_snap_id,
-                     w_rd_snap_valid, w_rd_snap_id,
+                     w_rd_snap_valid,
                      w_rd_snap_issued };
 
     //=========================================================================
