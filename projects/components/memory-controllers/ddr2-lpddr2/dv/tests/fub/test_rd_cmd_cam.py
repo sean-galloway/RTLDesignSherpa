@@ -54,6 +54,7 @@ async def cocotb_test_rd_cmd_cam(dut):
         "smoke":            _smoke,
         "fill_to_full":     _fill_to_full,
         "free_slot_picker": _free_slot_picker,
+        "match_pending_scheduler_contract": _match_pending_scheduler_contract,
         "match_query":      _match_query,
         "match_rowhit":     _match_rowhit,
         "issued_masking":   _issued_masking,
@@ -108,6 +109,45 @@ async def _free_slot_picker(tb: RdCmdCamTB):
     await tb.wait_clocks('mc_clk', 1)
     slot = await tb.push(axi_id=0xA, rank=0, bank=3, row=0xABC, col=0, length=2)
     assert slot == 1, f"expected slot 1, got {slot}"
+
+
+async def _match_pending_scheduler_contract(tb: RdCmdCamTB):
+    # The scheduler's slot-picker scans match_pending across ALL slots
+    # and picks the best one; it does NOT drive q_rank/q_bank/q_row in
+    # the current revision (they're hard-tied to 0). So `match_pending_o`
+    # must fire for every valid + unissued slot regardless of the q_*
+    # inputs. This is the unit-level guard for G-01b — the CAM used to
+    # gate match_pending on (r_rank == q_rank) && (r_bank == q_bank),
+    # silently hiding every non-bank-0 read at the top level.
+    #
+    # Pushes slots across distinct banks and verifies match_pending
+    # covers all of them while q_* is held at 0.
+    items = [
+        (0, 0, 0x000, 0x00),   # bank 0
+        (0, 1, 0x100, 0x10),   # bank 1
+        (0, 2, 0x200, 0x20),   # bank 2
+        (0, 7, 0x300, 0x30),   # bank 7
+    ]
+    pushed_slots = []
+    for i, (r, b, row, col) in enumerate(items):
+        s = await tb.push(axi_id=i, rank=r, bank=b, row=row, col=col,
+                          length=1)
+        pushed_slots.append(s)
+    expected_pending = 0
+    for s in pushed_slots:
+        expected_pending |= (1 << s)
+    # Sweep q_* values; match_pending must NOT change.
+    for qr in range(min(2, tb.NUM_RANKS)):
+        for qb in (0, 1, 2, 7):
+            for qrow in (0x0, 0x100, 0x300):
+                pend, _ = await tb.query(q_rank=qr, q_bank=qb, q_row=qrow)
+                assert pend == expected_pending, (
+                    f"match_pending changed under q_*=({qr},{qb},{qrow:#x}): "
+                    f"got 0b{pend:0{tb.RD_CAM_DEPTH}b}, "
+                    f"want 0b{expected_pending:0{tb.RD_CAM_DEPTH}b}. "
+                    "The CAM is gating match_pending on q_* — this hides "
+                    "non-bank-0 traffic from the scheduler (G-01b)."
+                )
 
 
 async def _match_query(tb: RdCmdCamTB):
@@ -252,6 +292,7 @@ _ALL_TYPES = [
     "smoke",
     "fill_to_full",
     "free_slot_picker",
+    "match_pending_scheduler_contract",
     "match_query",
     "match_rowhit",
     "issued_masking",
@@ -262,7 +303,8 @@ _ALL_TYPES = [
     "random_soak",
 ]
 
-_GATE = [(t, 16, 1) for t in ["smoke", "match_query", "beat_walk"]]
+_GATE = [(t, 16, 1) for t in ["smoke", "match_pending_scheduler_contract",
+                              "match_query", "beat_walk"]]
 _FUNC = [(t, 16, 1) for t in _ALL_TYPES] + [
     ("match_query",  8, 1),
     ("random_soak",  8, 1),

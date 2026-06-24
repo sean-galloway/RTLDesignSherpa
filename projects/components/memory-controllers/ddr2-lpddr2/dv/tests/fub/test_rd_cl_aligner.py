@@ -65,6 +65,7 @@ async def cocotb_test_rd_cl_aligner(dut):
         "phy_rdlat_sweep": _phy_rdlat_sweep,
         "rrdy_throttle":   _rrdy_throttle,
         "back_to_back":    _back_to_back,
+        "id_propagate":    _id_propagate,
         "random_soak":     _random_soak,
     }
     if test_type not in scenarios:
@@ -139,6 +140,21 @@ async def _back_to_back(tb: RdClAlignerTB):
         await tb.wait_clocks('mc_clk', 2)
 
 
+async def _id_propagate(tb: RdClAlignerTB):
+    # Drive a series of bursts with deliberately distinct AXI IDs and
+    # verify each id flows through to `rd_inject_id_o`. Regression
+    # guard for G-01c (rd_snap_id tied to 0 at the top): if op_id_i
+    # were silently dropped here, this scenario would fire.
+    ID_W = tb.AXI_ID_WIDTH
+    ids = [1, 2, 3, 5, 7, (1 << ID_W) - 1, 0, (1 << (ID_W - 1))]
+    ids = [i & ((1 << ID_W) - 1) for i in ids]
+    for k, aid in enumerate(ids):
+        await _run_one_burst(tb, slot=(k & 0xF), axi_id=aid,
+                             length=2, t_rddata_en=2, phy_rdlat=1,
+                             seed_tag=0x300 | k)
+        await tb.wait_clocks('mc_clk', 3)
+
+
 async def _random_soak(tb: RdClAlignerTB):
     rng = random.Random(tb.SEED ^ 0xCAFE)
     n = {'gate': 8, 'func': 32, 'full': 96}.get(tb.TEST_LEVEL, 32)
@@ -166,10 +182,12 @@ _ALL_TYPES = [
     "phy_rdlat_sweep",
     "rrdy_throttle",
     "back_to_back",
+    "id_propagate",
     "random_soak",
 ]
 
-_GATE = [(t, 2) for t in ["smoke", "burst_len_sweep", "phy_rdlat_sweep", "rrdy_throttle"]]
+_GATE = [(t, 2) for t in ["smoke", "burst_len_sweep", "phy_rdlat_sweep",
+                          "rrdy_throttle", "id_propagate"]]
 _FUNC = [(t, 2) for t in _ALL_TYPES] + [(t, 4) for t in ["smoke", "burst_len_sweep", "rrdy_throttle"]]
 _FULL = _FUNC + [(t, 4) for t in _ALL_TYPES] + [
     ("random_soak", 2),

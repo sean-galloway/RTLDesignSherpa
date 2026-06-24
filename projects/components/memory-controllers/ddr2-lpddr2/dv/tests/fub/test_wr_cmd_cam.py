@@ -69,6 +69,7 @@ async def cocotb_test_wr_cmd_cam(dut):
         "smoke":               _smoke,
         "fill_to_full":        _fill_to_full,
         "free_slot_picker":    _free_slot_picker,
+        "match_pending_scheduler_contract": _match_pending_scheduler_contract,
         "match_query":         _match_query,
         "match_rowhit":        _match_rowhit,
         "issued_masking":      _issued_masking,
@@ -141,6 +142,37 @@ async def _free_slot_picker(tb: WrCmdCamTB):
     slot = await tb.push(axi_id=0xA, rank=0, bank=3, row=0xABC, col=0,
                          length=2, wptr=0x40, sptr=0x40)
     assert slot == 1, f"expected slot 1 (lowest free), got {slot}"
+
+
+async def _match_pending_scheduler_contract(tb: WrCmdCamTB):
+    # Scheduler contract for match_pending — see rd_cmd_cam_tb's
+    # equivalent for the full story (G-01b). The scheduler does NOT
+    # drive q_rank/q_bank/q_row; match_pending_o must therefore fire
+    # for every valid + unissued slot regardless of q_*.
+    items = [
+        (0, 0, 0x000, 0x00),
+        (0, 1, 0x100, 0x10),
+        (0, 2, 0x200, 0x20),
+        (0, 7, 0x300, 0x30),
+    ]
+    pushed_slots = []
+    for i, (r, b, row, col) in enumerate(items):
+        s = await tb.push(axi_id=i, rank=r, bank=b, row=row, col=col,
+                          length=1, wptr=i, sptr=i)
+        pushed_slots.append(s)
+    expected_pending = 0
+    for s in pushed_slots:
+        expected_pending |= (1 << s)
+    for qr in range(min(2, tb.NUM_RANKS)):
+        for qb in (0, 1, 2, 7):
+            for qrow in (0x0, 0x100, 0x300):
+                pend, _ = await tb.query(q_rank=qr, q_bank=qb, q_row=qrow)
+                assert pend == expected_pending, (
+                    f"match_pending changed under q_*=({qr},{qb},{qrow:#x}): "
+                    f"got 0b{pend:0{tb.WR_CAM_DEPTH}b}, "
+                    f"want 0b{expected_pending:0{tb.WR_CAM_DEPTH}b}. "
+                    "CAM is gating match_pending on q_* (G-01b)."
+                )
 
 
 async def _match_query(tb: WrCmdCamTB):
@@ -343,6 +375,7 @@ _ALL_TYPES = [
     "smoke",
     "fill_to_full",
     "free_slot_picker",
+    "match_pending_scheduler_contract",
     "match_query",
     "match_rowhit",
     "issued_masking",
@@ -355,7 +388,9 @@ _ALL_TYPES = [
 ]
 
 # (test_type, WR_CAM_DEPTH, NUM_RANKS)
-_GATE = [(t, 16, 1) for t in ["smoke", "match_query", "beat_pull_walk", "b_complete_cycle"]]
+_GATE = [(t, 16, 1) for t in ["smoke", "match_pending_scheduler_contract",
+                               "match_query", "beat_pull_walk",
+                               "b_complete_cycle"]]
 _FUNC = [(t, 16, 1) for t in _ALL_TYPES] + [
     ("match_query",   8, 1),
     ("random_soak",   8, 1),

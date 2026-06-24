@@ -90,6 +90,12 @@ class RdClAlignerTB(TBBase):
         # State
         self.current_burst:    Optional[ReadBurst] = None
         self.captured_beats:   List[int] = []
+        # `captured_ids` parallels captured_beats; one entry per
+        # rd_inject handshake. Used by verify_capture to catch any
+        # regression where `op_id_i` is not forwarded to
+        # `rd_inject_id_o` (e.g. tied to 0 — see G-01c at the top
+        # level).
+        self.captured_ids:     List[int] = []
         self.beat_we_count:    int = 0
         self.last_seen:        bool = False
         self.dfi_cycles_remaining_pending: Deque[Tuple[int, int]] = deque()
@@ -210,6 +216,7 @@ class RdClAlignerTB(TBBase):
             r = int(self.dut.rd_inject_ready_i.value)
             if v and r:
                 self.captured_beats.append(int(self.dut.rd_inject_data_o.value))
+                self.captured_ids.append(int(self.dut.rd_inject_id_o.value))
                 if int(self.dut.rd_inject_last_o.value):
                     self.last_seen = True
             # Drive ready_i for the NEXT cycle's edge.
@@ -233,6 +240,7 @@ class RdClAlignerTB(TBBase):
         completes."""
         self.current_burst = burst
         self.captured_beats.clear()
+        self.captured_ids.clear()
         self.beat_we_count = 0
         self.last_seen = False
 
@@ -277,6 +285,18 @@ class RdClAlignerTB(TBBase):
             e_masked = e & self.MASK_DATA
             assert g == e_masked, (
                 f"beat {i}: got {g:#x} want {e_masked:#x}"
+            )
+        # Every beat must carry the originating AR's id. This catches
+        # any regression where op_id_i is dropped or tied to 0 in the
+        # rd_inject path (cf. G-01c, which manifested at the top level
+        # because rd_snap_id was tied to 0 — but rd_cl_aligner itself
+        # is responsible for the per-slot id register, so a unit-level
+        # guard here belongs).
+        expected_id = burst.axi_id & ((1 << self.AXI_ID_WIDTH) - 1)
+        for i, g in enumerate(self.captured_ids):
+            assert g == expected_id, (
+                f"beat {i}: rd_inject_id_o={g} (got) "
+                f"!= op_id_i={expected_id} (want)"
             )
         assert self.beat_we_count == len(burst.beats), (
             f"rd_beat_we count {self.beat_we_count} != len {len(burst.beats)}"
