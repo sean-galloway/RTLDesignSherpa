@@ -15,7 +15,7 @@ packer** shrink the monitor-event stream on real captured traffic.
 USE_MON_CAM_PIPELINE = 1`), WNS +0.048 ns @ 100 MHz, xc7a100t.
 **Primary data:** the committed encoder CAM logic replayed **bit-exact and
 offline** on the real 682-record on-board capture
-(`../compression_dataset/desc_axi_16desc_8ch_1MB.json`). The on-chip packer
+(`json/desc_axi_16desc_8ch_1MB.json`). The on-chip packer
 is verified bit-identical to this model in cosim
 (`val/amba/test_monbus_halfbeat.py`), so the offline reduction *is* what the
 FPGA emits for the same record stream — it is the codec, not an estimate.
@@ -201,7 +201,7 @@ unaffected.
 
 | File | Contents |
 |---|---|
-| `../compression_dataset/desc_axi_16desc_8ch_1MB.json` | real 682-record on-board capture (locked dataset) |
+| `json/desc_axi_16desc_8ch_1MB.json` | real 682-record on-board capture (locked dataset) |
 | `plots/*.png` | figures above (`host/plot_compression_report.py`) |
 | `plots/summary.json` | numeric summary (records, h, tier split, beats, reductions) |
 
@@ -209,8 +209,8 @@ unaffected.
 cd flows-stream-bridge/host && source $REPO_ROOT/env_python
 # Authoritative, offline, bit-exact (no board needed):
 python3 plot_compression_report.py \
-    --capture ../reports/compression_dataset/desc_axi_16desc_8ch_1MB.json \
-    --outdir ../reports/compression/plots
+    --capture ../../reports/compression/json/desc_axi_16desc_8ch_1MB.json \
+    --outdir ../../reports/compression/plots
 # Live on-board confirmation (keep workloads small; trace SRAM = 2048 beats;
 # reset the cluster between runs):
 python3 hb_measure.py --port /dev/ttyUSB2 --channels 1 \

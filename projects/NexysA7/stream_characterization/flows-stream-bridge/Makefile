@@ -43,7 +43,7 @@ PROJECT  := $(SELF_DIR)/build/vivado_project/stream_char.xpr
 BITSTREAM:= $(SELF_DIR)/bitstream/stream_char.bit
 REPORTS  := $(SELF_DIR)/reports
 
-.PHONY: help project synth bitstream program utilization timing sim clean clean-all cleanall regen-bridges verify-sim
+.PHONY: help project synth area bitstream program utilization timing sim clean clean-all cleanall regen-bridges verify-sim
 
 # Regenerate every framework-owned bridge before any synthesis. Cheap
 # (~seconds), keeps the bridge RTL + filelist consistent with the .toml,
@@ -55,6 +55,7 @@ help:
 	@echo "  make regen-bridges Regenerate framework bridges (RTL + filelist + TBs)"
 	@echo "  make project      Create Vivado project (no build)"
 	@echo "  make synth        regen-bridges + synthesis + utilization_synth.txt"
+	@echo "  make area         OOC synth of the BARE DMA (stream_top_ch8, monitors OFF)"
 	@echo "  make bitstream    regen-bridges + full synth/impl/bitgen + all reports"
 	@echo "  make program      Flash the Nexys A7 via JTAG"
 	@echo "  make utilization  cat utilization_impl.txt (post-route)"
@@ -99,6 +100,29 @@ synth: regen-bridges verify-sim
 	@echo "[synth] synth_1 + utilization_synth.txt (skips place/route)"
 	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL)/synth_only.tcl
 	@$(MAKE) --no-print-directory utilization
+
+# ---- Bare-DMA area synthesis (out-of-context) ------------------------------
+# Synthesizes stream_top_ch8 ALONE for an apples-to-apples area comparison
+# against other scatter-gather DMA cores. The default config already has no
+# monitors (USE_AXI_MONITORS=0), so nothing monitor-related is overridden.
+# Excludes the characterization harness (UART/CSR/observer/trace SRAM). Datapath
+# config defaults to the as-built bitstream (8 ch, 128-bit, SRAM_DEPTH=256).
+#
+# Each config writes its OWN report (one file per config — never clobbered):
+#   reports/utilization_area_<ch>ch_dw<W>_sd<D>.txt
+# Sweep via env vars (see tcl/synth_area_dma.tcl header):
+#   AREA_NUM_CHANNELS  AREA_DATA_WIDTH  AREA_SRAM_DEPTH
+# e.g.  AREA_NUM_CHANNELS=4 make area
+area: regen-bridges
+	@echo "[area] OOC synth of bare stream_top_ch8 (per-config report)"
+	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL)/synth_area_dma.tcl
+	@latest=$$(ls -t $(REPORTS)/utilization_area_*.txt 2>/dev/null | head -1); \
+	if [ -n "$$latest" ]; then \
+	    echo "=== Bare-DMA utilization ($$(basename $$latest)) ==="; \
+	    sed -n '/Slice LUTs\|Slice Registers\|Block RAM Tile\|DSPs\|LUT as Logic\|LUT as Memory\|F7 Muxes\|F8 Muxes/,+0p' \
+	        $$latest | head -60; \
+	    echo "Full report: $$latest"; \
+	fi
 
 # ---- Full build ------------------------------------------------------------
 bitstream: regen-bridges verify-sim
