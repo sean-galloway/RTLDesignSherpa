@@ -353,8 +353,15 @@ class CharacterizationRunner:
         self.bridge.write(APB_DESCENG_ADDR1_BASE,  0x0000_0000)
         self.bridge.write(APB_DESCENG_ADDR1_LIMIT, 0xFFFF_FFFF)
 
-        # AXI burst config (16 beats rd + 16 beats wr)
-        axi_cfg = (15 & 0xFF) | ((15 & 0xFF) << 8)
+        # AXI burst config: ARLEN (beats-1) for rd [7:0] and wr [15:8]. This is
+        # the size of an INDIVIDUAL AXI transaction (the rd/wr xfer-beats config
+        # bits), default 16 beats (256 B). Swept via XFER_BEATS / XFER_BEATS_RD /
+        # XFER_BEATS_WR to characterize per-transaction datapath util vs burst
+        # size (1 KB = 64 beats down to a single beat).
+        import os as _os
+        _rb = int(_os.environ.get('XFER_BEATS_RD', _os.environ.get('XFER_BEATS', '16')))
+        _wb = int(_os.environ.get('XFER_BEATS_WR', _os.environ.get('XFER_BEATS', '16')))
+        axi_cfg = ((_rb - 1) & 0xFF) | (((_wb - 1) & 0xFF) << 8)
         self.bridge.write(APB_AXI_XFER_CONFIG, axi_cfg)
 
         # Unblock the monbus monitors so packets actually flow out into

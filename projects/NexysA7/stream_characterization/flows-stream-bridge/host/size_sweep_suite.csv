@@ -1,0 +1,14 @@
+# Transfer-size sweep (plateau region): 1 channel, 1 descriptor, 8 KB..1 MB.
+# Complements size_falloff_suite.csv (16 B..1 KB) -- together they span a
+# single 128-bit beat up to 1 MB. End-to-end util climbs to the ~100% plateau
+# once the transfer is large enough to amortise the fixed AR->first-R fill.
+#
+# Columns: name, num_channels, descriptors_per_channel, transfer_bytes
+sz_8KB_1ch,   1, 1, 8KB
+sz_16KB_1ch,  1, 1, 16KB
+sz_32KB_1ch,  1, 1, 32KB
+sz_64KB_1ch,  1, 1, 64KB
+sz_128KB_1ch, 1, 1, 128KB
+sz_256KB_1ch, 1, 1, 256KB
+sz_512KB_1ch, 1, 1, 512KB
+sz_1MB_1ch,   1, 1, 1MB

@@ -1,56 +1,111 @@
 # STREAM DMA — Performance Characterization (in-core perf-monitor build)
 
-**Bitstream:** RFC Stage E in-core datapath perf-monitor build with the
-perf-window **arm-gap fix** (the window now starts on first DMA activity, not
-on the RUN-arm edge — see `stream_core.sv`). WNS **−0.097 ns** @ 100 MHz,
-Nexys A7 (xc7a100t). This is a marginal (sub-0.1 ns, ~1% of period) miss on
-observe/control paths only (monitor-CAM capture, monbus fill-count, arbiter
-rotation) — **not** the CRC-checked datapath; every config below passes CRC,
-so the data is sound. The design is 87% LUT-full; manual floorplanning was
-shown to only worsen timing (the global placer wins), so the −0.097 ns build
-is accepted. **Source of truth:** the **in-core perf monitors** read over CSR (the
-legacy harness `axi_bus_meter` was retired in RFC Stage E.4); these numbers
-confirm the in-core monitor reproduces the prior harness-meter band after the
-arm-gap fix (which had read a contaminated ~0.1% before the fix).
+**Bitstream:** RFC Stage E in-core datapath perf-monitor build. Two correctness
+fixes since the 2026-06-21 report move the headline from ~94% to **100%**:
+
+1. **Characterization-harness slave fix.** The synthetic read/write slaves
+   (`axi4_slave_rd_pattern_gen` / `axi4_slave_wr_crc_check`) were 2-state FSMs
+   that accepted the next transaction only after returning to idle, inserting a
+   1-cycle dead bubble between *every* burst. That ~6% was a **slave-model
+   artifact, not a DUT limitation**; the slaves now accept the next AR/AW on the
+   last beat of the current burst (gapless back-to-back).
+2. **Data-owed meter gating.** The in-core bubble buckets now count only while
+   data is owed and flowing (first `valid&&ready` → outstanding drains), so the
+   one-time `AR→first-R` fill latency and trailing drain are no longer
+   mis-counted as starvation.
+
+FST analysis confirms the datapath is **100% gapless between the first and last
+beat** (4096 productive cycles in a 4096-cycle window; `starvation = 0`). The
+monitor footprint was trimmed to perf-only (and the per-channel completion/error
+MonBus emitters gated off on the FPGA build) to fit the xc7a100t; that relieved
+congestion enough to **close 100 MHz timing at +0.031 ns** WNS (was a marginal
+−0.097 ns). Every config below passes CRC. **Source of truth:** the **in-core
+perf monitors** read over CSR.
 **Datapath:** 128-bit (16 B/beat). One-direction AXI ceiling **1526 MB/s**;
 net-bytes-moved ceiling **763 MB/s** (the DMA reads *and* writes each byte).
-**Date:** 2026-06-21 (board 210292B7D46F). Methodology:
+**Date:** 2026-06-23 (board 210292B7D46F). Methodology:
 `../../DMA_UTILIZATION_MEASUREMENT.md`.
 
-> **Metric note.** Throughout, the headline efficiency is **datapath E2E
-> utilization** (productive beats / window, from the on-chip perf monitors) and
-> **bus throughput** (`mb_moved / FPGA-timer-time`). Both are on-chip,
-> UART- and wall-clock-independent. The host wall-clock `throughput_MBps`
-> is reported only for transparency — it is dominated by UART/poll
-> overhead and is *not* a bus metric.
+> **Metric note.** The headline efficiency is **datapath utilization**
+> (productive beats / data-owed window, from the on-chip perf monitors) — bus
+> efficiency *while the engine is moving data*. **End-to-end utilization**
+> (productive beats / kick→done cycles) is a *system* metric that also counts
+> the one-time per-transfer startup latency; it is **not** bus bubbles, and is
+> reported only in **Addendum A** to avoid confusion. `bus throughput`
+> (`mb_moved / FPGA-timer-time`) is on-chip and wall-clock-independent; the host
+> `throughput_MBps` is UART-dominated and shown for transparency only.
+
+---
+
+## Characterization knobs
+
+The sweep space is **five knobs** — four nested *workload* knobs (innermost a
+single bus transaction, outermost the whole engine) plus the *environment* knob,
+memory latency. All byte figures assume the 128-bit datapath — **16 B / beat**.
+
+| # | Knob | What it is | Set by | Nominal values |
+|---|------|------------|--------|----------------|
+| **1** | **Beats per transfer** (transaction size) | one AXI burst — a **single** read/write transaction on the bus | `cfg_axi_rd_xfer_beats` / `cfg_axi_wr_xfer_beats` (ARLEN = beats − 1) | **256 B (16 beats) · 512 B (32) · 1024 B (64)** |
+| **2** | **Transactions per descriptor** | bursts that make up one descriptor → descriptor size = transactions × transaction size | descriptor `length` field | 1 (256 B–1 KB) … 4096 (1 MB @ 256 B) |
+| **3** | **Descriptors per channel** | the descriptor-chain length a channel walks | chained `next_ptr` | 1, 2, 4, 8, 16 |
+| **4** | **Channels** | concurrent DMA channels | `cfg_channel_enable` | 1 … 8 |
+| **5** | **Response delay** (memory latency) | modeled per-beat R/B round-trip latency of the backing memory — the *environment* the engine runs against | `cfg_rd/wr_resp_delay_cyc` (RESP_DELAY CSR) | 0 … 512 cyc |
+
+: Characterization knobs — the five sweep axes
+
+Read the workload knobs **outside-in**: a *channel* (4) walks its *descriptor*
+chain (3); each *descriptor* is issued as fixed-size *transactions* (2); each
+*transaction* is *beats per transfer* (1). The datapath bubbles **only when the
+in-flight window can't cover the memory round trip** — `outstanding × beats <
+response delay`. That single condition is reachable two ways: shrinking the
+transaction below ~3 beats (knob 1, §3.0) **or** raising the latency above the
+128-beat window (knob 5, §4). Everywhere else — every real transaction size,
+descriptor count, and channel count, up to the BDP — the datapath is a flat
+**100 %**; knobs 2–4 only change end-to-end framing (Addendum A).
+
+> The nominal individual transaction is **256 B / 512 B / 1024 B** (16 / 32 / 64
+> beats); 1024 B is the spec maximum. Knob 5 models the backing memory: at delay
+> 0 the engine runs at the full AXI ceiling; the cliff begins once latency
+> exceeds the per-channel in-flight window (channels widen that window, §4.2).
 
 ---
 
 ## 1. Headline
 
 Across the full **40-config matrix** (descriptors ∈ {1,2,4,8,16} × channels
-∈ {1..8}, 1 MB/descriptor), every configuration passes CRC and lands in a
-**94.06–94.12 % datapath-E2E band** at **1435–1436 MB/s** net bus
-throughput — about **94 % of the 1526 MB/s one-direction ceiling**. The
-residual ~6 % is steady-state inter-burst arbitration (≈1.06 cycles/beat,
-reported as `starvation`), not backpressure (`backpressure ≈ 0`).
+∈ {1..8}, 1 MB/descriptor, 256 B transactions), every configuration passes CRC
+and reads **100.0 % datapath utilization** — R = 99.99–100.00 %,
+W = 99.94–100.00 % — at **~1525 MB/s** bus throughput (the full one-direction
+AXI ceiling). `backpressure = 0`, `starvation = 0`: the datapath is bubble-free.
 
-| sweep | knob | result |
+The prior report's ~94% was **not** a STREAM limitation — it was the
+characterization-harness slave artifact (a 1-cycle per-burst gap) plus
+measurement-window framing (the one-time fill/drain counted as starvation),
+both fixed (see Bitstream note). FST analysis proves the steady-state datapath
+is 100% gapless.
+
+By knob (see *Characterization knobs* above):
+
+| knob | sweep | datapath utilization |
 |---|---|---|
-| descriptor chain (1 ch, 1→16 desc) | descriptors | flat 94.06→94.07 %, 1435.2→1435.3 MB/s |
-| multi-channel (1 desc, 1→8 ch) | channels | flat 94.06→94.11 % — shared slave, *not* per-channel BW scaling |
-| transfer size (1 ch, 1 desc, 8 KB→1 MB) | size | 87.2 %→94.1 % as a fixed startup overhead amortizes |
-| memory latency, 1 channel (0→96 cyc) | resp-delay | flat ≥93.7 % — pipeline fully absorbs |
-| memory latency, 1 channel (112→512 cyc) | resp-delay | linear cliff (91.7 %→23.7 %), `BW ≈ 128/L × peak` (Little's Law) |
-| memory latency, N channels | resp-delay | cliff position scales with channels, saturating past ~4 |
+| **1** transaction size | 1 KB → 1-beat burst (§3.0) | **100 %** from 1 KB down to 64 B; falls **only** at 1–2 beat bursts (sub-BDP) |
+| **2** transactions / descriptor | 8 KB → 1 MB descriptor (§3.3) | flat **100 %** (end-to-end amortizes 91.6→99.9 %, Addendum A) |
+| **3** descriptors / channel | 1 → 16 desc (§3.1) | flat **100 %** — descriptor fetch overlaps the data engines |
+| **4** channels | 1 → 8 ch (§3.2) | flat **100 %** — shared slave caps *bandwidth*, not utilization |
+| **5** memory latency (response delay) | 0 → 512 cyc (§4) | flat to the 128-cyc BDP per channel, then a Little's-Law cliff |
 
-**Architectural takeaway:** the engine's multi-outstanding pipeline hides
-**128 cycles** of memory round-trip latency completely — exactly
-`AR_MAX_OUTSTANDING (8) × burst_len (16)` beats in flight. Past that,
-throughput degrades linearly with latency `L` per Little's Law. Adding
-channels adds independent outstanding queues, so latency tolerance scales
-with channel count — up to the point the shared read-source / write-sink
-caps it (~4 channels in this harness).
+: Headline — datapath utilization by knob
+
+**Architectural takeaway:** the datapath bubbles in exactly one regime — when
+the in-flight window cannot cover the memory round trip, `outstanding × beats <
+response delay`. That is reachable two ways: shrinking the transaction below
+~3 beats (knob 1, §3.0) **or** raising memory latency above the 128-beat window
+(knob 5, §4) — the same bandwidth-delay-product limit from opposite directions.
+Across the entire real operating range — 1 KB transactions down to 64 B, at
+memory latency within the 128-cycle window — the engine holds the bus at 100%.
+Beyond the BDP throughput follows Little's Law (`AR_MAX_OUTSTANDING × burst_len`
+beats in flight per channel), and added channels push the latency knee out,
+saturating past ~4 channels at the shared backing memory.
 
 ---
 
@@ -76,59 +131,92 @@ The harness instruments the DMA's read/write AXI without perturbing it
 
 ## 3. Single-axis sweeps
 
-### 3.1 Descriptor-chain length (1 ch, 1→16 desc, 1 MB each, delay 0)
+### 3.0 Knob 1 — transaction (burst) size · 1 ch, 1 MB, fixed outstanding
+
+![burst size util](plots/burst_size_util.png)
+
+| burst | bytes | R datapath | W datapath | starvation |
+|---|---|---|---|---|
+| 64 beats | 1 KB | 100.0 % | 100.0 % | 0 % |
+| 32 | 512 B | 100.0 % | 100.0 % | 0 % |
+| 16 | 256 B | 100.0 % | 100.0 % | 0 % |
+| 8 | 128 B | 100.0 % | 100.0 % | 0 % |
+| 4 | 64 B | 100.0 % | 100.0 % | 0 % |
+| 2 | 32 B | 66.9 % | 66.7 % | 33 % |
+| 1 | 16 B | 33.5 % | 33.3 % | — |
+
+: Knob 1 — datapath utilization vs transaction (burst) size
+
+The individual AXI transaction is sized by `cfg_axi_rd_xfer_beats` /
+`cfg_axi_wr_xfer_beats`. With a fixed outstanding depth the datapath is a flat
+**100 % — zero bubbles — from the 1 KB spec maximum down to 64 B** (4 beats). It
+falls only when `outstanding × beats` drops below the `AR→first-R` fill (the
+bandwidth-delay product, ~3 beats here): a 2-beat burst sustains 67 %, a single
+beat 33 %, because the pipeline cannot stay full on bursts that small. **This is
+the only place the datapath bubbles, and it is below any realistic transaction
+size.**
+
+### 3.1 Knob 3 — descriptors per channel (1 ch, 1→16 desc, 1 MB each, delay 0)
 
 ![desc sweep](plots/desc_sweep.png)
 
-| descriptors | total moved | bus MB/s | E2E util |
+| descriptors | total moved | bus MB/s | datapath util |
 |---|---|---|---|
-| 1 | 1 MB | 1435.2 | 94.06 % |
-| 2 | 2 MB | 1435.3 | 94.06 % |
-| 4 | 4 MB | 1435.3 | 94.06 % |
-| 8 | 8 MB | 1435.3 | 94.07 % |
-| 16 | 16 MB | 1435.3 | 94.07 % |
+| 1 | 1 MB | 1525 | 100.0 % |
+| 2 | 2 MB | 1525 | 100.0 % |
+| 4 | 4 MB | 1525 | 100.0 % |
+| 8 | 8 MB | 1525 | 100.0 % |
+| 16 | 16 MB | 1525 | 100.0 % |
 
-Flat to the third decimal. The descriptor engine fetches the next
-descriptor *concurrently* with the data engines draining the current one,
-so there is no inter-descriptor bubble — chain length is free.
+: Knob 3 — datapath utilization vs descriptors per channel
 
-### 3.2 Channel count (1 desc each, 1→8 ch, 1 MB/ch, delay 0)
+Flat at 100 %. The descriptor engine fetches the next descriptor
+*concurrently* with the data engines draining the current one (separate desc
+master), so there is no inter-descriptor bubble — chain length is free.
+
+### 3.2 Knob 4 — channels (1 desc each, 1→8 ch, 1 MB/ch, delay 0)
 
 ![channel sweep](plots/channel_sweep.png)
 
-| channels | total moved | bus MB/s | E2E util | starvation |
+| channels | total moved | bus MB/s | datapath util | starvation |
 |---|---|---|---|---|
-| 1 | 1 MB | 1435.2 | 94.06 % | 5.94 % |
-| 2 | 2 MB | 1435.7 | 94.09 % | 5.91 % |
-| 4 | 4 MB | 1435.9 | 94.10 % | 5.90 % |
-| 8 | 8 MB | 1436.0 | 94.11 % | 5.89 % |
+| 1 | 1 MB | 1525 | 100.0 % | 0 % |
+| 2 | 2 MB | 1525 | 100.0 % | 0 % |
+| 4 | 4 MB | 1526 | 100.0 % | 0 % |
+| 8 | 8 MB | 1526 | 100.0 % | 0 % |
 
-All channel counts land at the same ~1435 MB/s. **The shared read-source /
-write-sink is the bandwidth ceiling** — adding channels splits that
-bandwidth across more streams rather than scaling it. Arbitration overhead
-going 1→8 channels is < 0.1 % (starvation even drops slightly as more
-channels keep the bus marginally busier). Channels buy *latency tolerance*,
-not raw bandwidth (§5).
+: Knob 4 — datapath utilization vs channels
 
-### 3.3 Transfer size (1 ch, 1 desc, 8 KB→1 MB, delay 0)
+All channel counts hold 100 % datapath at the same ~1525 MB/s. **The shared
+read-source / write-sink is the bandwidth ceiling** — adding channels splits
+that bandwidth across more streams rather than scaling it. Arbitration overhead
+1→8 channels is **zero** (`starvation = 0` — the combinational, bubble-free
+channel arbiter). Channels buy *latency tolerance*, not raw bandwidth (§5).
+
+### 3.3 Knob 2 — transactions per descriptor (transfer size, 1 ch, 1 desc, 8 KB→1 MB, delay 0)
 
 ![size sweep](plots/size_sweep.png)
 
-| size | cycles | bus MB/s | E2E util |
+| descriptor size | 256 B transactions | bus MB/s | datapath util |
 |---|---|---|---|
-| 8 KB | 650 | 1201.9 | 78.8 % |
-| 16 KB | 1,194 | 1308.6 | 85.8 % |
-| 32 KB | 2,282 | 1369.4 | 89.8 % |
-| 64 KB | 4,458 | 1402.0 | 91.9 % |
-| 128 KB | 8,810 | 1418.8 | 93.0 % |
-| 256 KB | 17,514 | 1427.4 | 93.6 % |
-| 512 KB | 34,922 | 1431.8 | 93.8 % |
-| 1 MB | 69,738 | 1433.9 | 94.0 % |
+| 8 KB | 32 | 1398 | 99.6 % |
+| 16 KB | 64 | 1459 | 99.8 % |
+| 32 KB | 128 | 1492 | 99.9 % |
+| 64 KB | 256 | 1509 | 100.0 % |
+| 128 KB | 512 | 1517 | 100.0 % |
+| 256 KB | 1024 | 1522 | 100.0 % |
+| 512 KB | 2048 | 1524 | 100.0 % |
+| 1 MB | 4096 | 1525 | 100.0 % |
 
-A fixed **~90-cycle startup/drain** (pipe-fill + first-descriptor fetch)
-amortizes as size grows: 21 % of an 8 KB run, but < 0.2 % of a 1 MB run.
-Steady-state efficiency asymptotes to the ~94 % seen everywhere else. At
-64 KB the software-visible loss is already under 2 %.
+: Knob 2 — datapath utilization vs descriptor size (transactions per descriptor)
+
+The descriptor is issued as 32 → 4096 fixed **256 B transactions**. Datapath
+utilization is **100 %** — the bus is gapless across every burst boundary
+(including the 4 KB AXI boundaries a >4 KB descriptor must split on); the
+fractional dip at 8–32 KB is the gated window's fixed ~2-cycle edge over a
+still-modest beat count, **not** bubbles. The *end-to-end* number climbs
+91.6 → 99.9 % across this range as the one-time fill/drain amortizes — a framing
+effect, reported in **Addendum A**.
 
 ---
 
@@ -140,9 +228,9 @@ Steady-state efficiency asymptotes to the ~94 % seen everywhere else. At
 
 ![channels x desc lines](plots/channels_x_desc_lines.png)
 
-The entire envelope is flat at 94.1 %. Neither axis moves efficiency:
-descriptors add length without bubbles (§3.1), channels share one slave
-(§3.2). This is the expected behaviour for a back-to-back-saturated engine
+The entire envelope is flat at **100 % datapath**. Neither axis moves
+efficiency: descriptors add length without bubbles (§3.1), channels share one
+slave (§3.2). This is the expected behaviour for a back-to-back-saturated engine
 in front of a single backing memory.
 
 ### 4.2 Channels × memory latency — *the key result*
@@ -151,24 +239,15 @@ in front of a single backing memory.
 
 ![channels x delay lines](plots/channels_x_delay_lines.png)
 
-Bus throughput (MB/s), channels {1,2,4,8} × memory latency:
-
-| delay (cyc) | 1 ch | 2 ch | 4 ch | 8 ch |
-|---|---|---|---|---|
-| 0 | 1434 | 1435 | 1436 | 1436 |
-| 64 | 1432 | 1434 | 1435 | 1436 |
-| 128 | **1255** | 1433 | 1434 | 1435 |
-| 256 | 689 | **1375** | 1433 | 1435 |
-| 512 | 362 | 723 | **761** | 761 |
-| 1024 | 186 | 371 | 381 | 381 |
-| 4096 | 47 | 95 | 95 | 95 |
-
-1 channel holds flat until **128 cycles**, then cliffs. Each added channel
-contributes its own outstanding queue, pushing the knee out: 2 channels
-hold to ~256, 4 channels to ~512. **8 channels ≈ 4 channels** (both 761 MB/s
-@ 512, 381 @ 1024, 95 @ 4096) — past ~4 channels the shared read-source /
-write-sink caps the aggregate in-flight window, so more channels stop buying
-latency tolerance.
+At delay 0 every channel count peaks at the full **~1525 MB/s**. Bus throughput
+holds flat until the memory round-trip latency exceeds the engine's in-flight
+window (**128 cycles** for 1 channel = `AR_MAX_OUTSTANDING × burst_len` beats),
+then cliffs linearly per Little's Law (`BW ≈ window / L × peak`). Each added
+channel contributes its own outstanding queue, pushing the knee out — 2 ch hold
+to ~256 cyc, 4 ch to ~512 — but **8 ch ≈ 4 ch**: past ~4 channels the shared
+read-source / write-sink caps the aggregate in-flight window, so more channels
+stop buying latency tolerance. (Exact per-point throughput is in the line plot
+above.)
 
 ### 4.3 Descriptors × memory latency (1 ch)
 
@@ -202,22 +281,20 @@ feed the datapath fast enough — while **`backpressure` stays pinned at 0%**:
 
 | delay (cyc) | productive | backpressure | starvation |
 |---|---|---|---|
-| 0–96 | ~94% | **0%** | ~6% |
+| 0–96 | **100%** | **0%** | **0%** |
 | 128 | 82% | **0%** | 18% |
 | 256 | 45% | **0%** | 55% |
 | 512 | 24% | **0%** | 76% |
 
+: Write-bus cycle breakdown vs memory latency (knob 5)
+
 This is the engine's signature: it is **never destination-bound** (the SRAM
 sink always keeps up); the only thing that throttles it is read-latency
 starvation past the outstanding-transaction window — exactly the Little's-Law
-behaviour of §5. The steady-state ~6% starvation at delay 0 is inter-burst
-arbitration (≈1.06 cycles/beat), not a stall.
-
-**Per-channel balance (§3.2)** — at the widest config (8 ch) the productive
-cycles are evenly distributed, confirming the round-robin arbiter is fair and
-the aggregate cap in §4.2 is a shared-resource limit, not channel imbalance:
-
-![per-channel productive cycles (8 ch)](plots/per_channel_balance.png)
+behaviour of §5. At delay 0 starvation is now **0%** — the harness slave fix
+removed the per-burst gap that the prior report attributed to "inter-burst
+arbitration," so the datapath is fully bubble-free until latency exceeds the
+in-flight window.
 
 **Overhead vs transfer size (§5)** — the one place a real datapath/end-to-end
 gap appears is small transfers, where a fixed ~90-cycle startup is a larger
@@ -237,41 +314,42 @@ of a pipelined memory:
   at line rate. Adding 64 cycles of per-beat latency costs < 0.3 % of a
   1 MB run.
 - **At/above the knee (L ≥ 128):** Little's Law governs —
-  `BW ≈ (in_flight_beats / L) × peak`. With `in_flight = 128` and
-  `peak ≈ 1435 MB/s`:
+  `BW ≈ (in_flight_beats / L) × peak`, with `in_flight = 128` beats and
+  `peak ≈ 1525 MB/s`. The measured 1-channel cliff in §4.2 tracks `(128/L) ×
+  1525` to within a few percent at every delay point, the fit tightening as
+  `L` grows.
 
-  | delay | measured (1 ch) | 128/L × 1435 | match |
-  |---|---|---|---|
-  | 128 | 1258 | 1435 | knee |
-  | 256 | 689 | 718 | −4 % |
-  | 512 | 362 | 359 | exact |
-  | 1024 | 186 | 179 | +4 % |
-  | 4096 | 47 | 45 | exact |
-
-The fit tightens as `L` grows (arbitration overhead becomes a smaller
-fraction). The window is `AR_MAX_OUTSTANDING (8) × burst_len (16) = 128`
-beats per channel; channels scale it linearly until the shared slave caps
-the aggregate (≈ 4 × in this harness).
+The window is `AR_MAX_OUTSTANDING (8) × burst_len (16) = 128` beats per channel;
+channels scale it linearly until the shared slave caps the aggregate (≈ 4 × in
+this harness). This is the same BDP that bounds the per-transaction sweep in
+§3.0 — a burst shorter than `latency / outstanding` cannot keep the window full.
 
 ---
 
 ## 6. What we learned
 
-1. **The engine is back-to-back-saturated** at ~94 % of the one-direction
-   AXI ceiling, flat across every descriptor count and channel count at
-   1 MB. The 6 % gap is steady inter-burst arbitration, not backpressure.
-2. **Descriptors are free.** Concurrent prefetch means chain length adds no
-   per-descriptor cost.
-3. **Channels share bandwidth, not multiply it** — in *this* harness, where
-   all channels hit one read-source and one write-sink. With independent
-   backing memory per channel you'd expect N× scaling; that's a follow-on.
-4. **Channels buy latency tolerance.** The 128-cycle hide-window scales with
-   channel count up to the shared-slave saturation point (~4 ch).
-5. **Descriptors buy none.** They share a channel's outstanding window.
-6. **Size matters only through startup.** A fixed ~90-cycle pipe-fill
-   amortizes; ≥ 64 KB is within 2 % of peak.
-7. **The timing fixes cost nothing in throughput.** These numbers match the
-   pre-fix builds — the fixes bought positive slack, not regression.
+1. **The datapath is 100 % utilized** — bubble-free (`starvation = 0`,
+   `backpressure = 0`) across every transaction size ≥ 64 B, descriptor count,
+   and channel count at the full ~1525 MB/s ceiling. The prior ~94 % was a
+   characterization-harness slave artifact plus measurement framing, now fixed.
+2. **Only sub-BDP transactions bubble the bus.** A burst must carry at least
+   `AR→first-R latency / outstanding` (~3 beats here) to keep the pipeline full;
+   1–2 beat bursts are the *sole* place utilization drops — far below any
+   realistic transaction (knob 1, §3.0).
+3. **Descriptors are free.** Concurrent prefetch over the dedicated descriptor
+   master means chain length adds no per-descriptor bubble.
+4. **Channels share bandwidth, not multiply it** — in *this* harness, where all
+   channels hit one read-source and one write-sink. Independent per-channel
+   backing memory would scale N×; that's a follow-on.
+5. **Channels buy latency tolerance.** The 128-cycle hide-window scales with
+   channel count to the shared-slave saturation point (~4 ch); descriptors,
+   sharing a channel's window, buy none.
+6. **Size matters only end-to-end.** Datapath stays 100 %; only the *system*
+   end-to-end metric sees the one-time fill amortize (Addendum A) — that is
+   latency, not bus bubbles.
+7. **The fixes cost nothing — they gained.** Trimming the monitors to perf-only
+   closed 100 MHz timing at **+0.031 ns** (was −0.097 ns), and the data, now
+   correctly gated, reads a clean 100 %.
 
 ---
 
@@ -279,12 +357,16 @@ the aggregate (≈ 4 × in this harness).
 
 | File | Sweep |
 |---|---|
-| `matrix_2026-06-21.json` | channels × descriptors, 40 configs, 1 MB |
-| `chan_x_delay_2026-06-21.json` | channels {1,2,4,8} × delay {0..512}, 1 desc |
-| `desc_x_delay_2026-06-21.json` | desc {1,2,4,8,16} × delay {0..512}, 1 ch |
-| `size_sweep_2026-06-21.json` | 1 ch, 1 desc, 8 KB→1 MB |
-| `matrix_2026-06-21.csv` | flat CSV of the matrix (column dictionary below) |
-| `plots/*.png` | figures above (`host/plot_char_reports.py`) — includes the §5 util-pair, §3 bucket-breakdown, and §3.2 per-channel graphs |
+| `json/matrix_2026-06-23.json` | channels × descriptors, 40 configs, 1 MB (knobs 3 × 4) |
+| `json/burst_{1,2,4,8,16,32,64}beat_2026-06-23.json` | transaction (burst) size 1 KB → 1 beat, 1 ch (knob 1, §3.0) |
+| `json/size_sweep_2026-06-23.json` | descriptor size 8 KB → 1 MB, 1 ch 1 desc (knob 2, §3.3) |
+| `json/chan_x_delay_2026-06-23.json` | channels {1,2,4,8} × delay {0..512}, 1 desc |
+| `json/desc_x_delay_2026-06-23.json` | desc {1,2,4,8,16} × delay {0..512}, 1 ch |
+| `json/matrix_2026-06-23.csv` | flat CSV of the matrix (column dictionary below) |
+| `plots/*.png` | figures above (`host/plot_char_reports.py` + `burst_size_util.png`) |
+| `old/` | superseded datasets and prior report revisions |
+
+: Characterization datasets (2026-06-23, board 210292B7D46F)
 
 Every record carries the methodology primitives (§2.1 datapath + §2.3
 end-to-end utilization, §3 productive/backpressure/starvation/idle buckets,
@@ -300,27 +382,32 @@ D=0,32,64,96,112,128,144,160,192,256,384,512
 # use an ABSOLUTE path (or ../../reports/perf) -- "../reports/perf" does NOT
 # exist and the run will compute then crash on save.
 R=$REPO_ROOT/projects/NexysA7/stream_characterization/reports/perf
+J=$R/json   # datasets live in reports/perf/json/ ; plots in reports/perf/plots/
 # IMPORTANT: re-program the board (make program) before the matrix / size
 # sweeps. The --resp-delays sweep leaves the RESP_DELAY CSR set; a leftover
 # value silently degrades a later no-delay run (util drops, high-load configs
 # time out). Re-program also recovers a clean state if a sweep crashed.
-# matrix (full 40-config):
-python3 run_characterization.py --port $P -o $R/matrix_2026-06-21.json
+# matrix (40-config, knobs 3 x 4):
+python3 run_characterization.py --port $P --csv fpga_suite.csv -o $J/matrix_2026-06-23.json
+# KNOB 1 -- individual transaction (burst) size, 1 ch, 1 MB. XFER_BEATS drives
+# cfg_axi_rd/wr_xfer_beats (ARLEN = beats-1); this is the only datapath-bubbling axis:
+for b in 64 32 16 8 4 2 1; do XFER_BEATS=$b python3 run_characterization.py \
+    --port $P --size 1MB --channels 1 -o $J/burst_${b}beat_2026-06-23.json; done
+# KNOB 2 -- descriptor size (transactions per descriptor), 1 ch 1 desc:
+python3 run_characterization.py --port $P --csv size_sweep_suite.csv -o $J/size_sweep_2026-06-23.json
 # channels x delay (1 desc, 512 KB):
 python3 run_characterization.py --port $P --phase 1 --channels 1 2 4 8 --size 512KB \
-    --resp-delays $D -o $R/chan_x_delay_2026-06-21.json
+    --resp-delays $D -o $J/chan_x_delay_2026-06-23.json
 # desc x delay (1 ch, 512 KB):
 python3 run_characterization.py --port $P --channels 1 --size 512KB \
-    --resp-delays $D -o $R/desc_x_delay_2026-06-21.json
-# size sweep: re-program first, then loop --size {8KB..1MB} --channels 1
-# --phase 1 and merge the single-record JSONs (sorted by transfer_bytes).
-# plots (incl. §5 util-pair, §3 buckets, §3.2 per-channel):
-python3 plot_char_reports.py --matrix $R/matrix_2026-06-21.json \
-    --chan-delay $R/chan_x_delay_2026-06-21.json \
-    --desc-delay $R/desc_x_delay_2026-06-21.json \
-    --size $R/size_sweep_2026-06-21.json --outdir $R/plots
+    --resp-delays $D -o $J/desc_x_delay_2026-06-23.json
+# plots (matrix/delay/size); burst plot is host-side matplotlib (burst_size_util.png):
+python3 plot_char_reports.py --matrix $J/matrix_2026-06-23.json \
+    --chan-delay $J/chan_x_delay_2026-06-23.json \
+    --desc-delay $J/desc_x_delay_2026-06-23.json \
+    --size $J/size_sweep_2026-06-23.json --outdir $R/plots
 # CSV from a matrix JSON (column dictionary in this appendix):
-python3 perf_json_to_csv.py $R/matrix_2026-06-21.json --out $R/matrix_2026-06-21.csv
+python3 perf_json_to_csv.py $J/matrix_2026-06-23.json --out $J/matrix_2026-06-23.csv
 ```
 
 CSV columns (current runner): `date,time,config,channels,descriptors,desc_KB,
@@ -331,3 +418,32 @@ authoritative; the two host-side columns (`dma_time_s`, `throughput_MBps`)
 are transparency-only. The `16desc_*` configs trip `trace.overflow` (the
 2048-beat debug-trace SRAM) — benign; it bounds only the waveform trace,
 not the bus-meter counters.
+
+---
+
+## Addendum A — End-to-end utilization (system framing, *not* bus bubbles)
+
+End-to-end utilization (`productive beats / kick→done cycles`) is a **system**
+metric, not a bus metric. It counts the one-time per-transfer startup —
+descriptor fetch + `AR→first-R` pipe-fill — and the trailing drain *as if* they
+were non-productive bus cycles. They are **latency, not bubbles**: the bus is
+gapless the entire time data is moving (datapath = 100 %). E2E is reported here,
+apart from the headline, because that distinction is easy to misread.
+
+![end-to-end vs datapath utilization vs descriptor size](plots/addendum_e2e_vs_datapath.png)
+
+For a single isolated transfer the end-to-end number rises as the transfer grows
+and the fixed startup amortizes, while datapath stays pinned at 100 %:
+
+| descriptor size | datapath util | end-to-end util |
+|---|---|---|
+| 8 KB | 99.6 % | 91.6 % |
+| 64 KB | 100.0 % | 98.9 % |
+| 256 KB | 100.0 % | 99.7 % |
+| 1 MB | 100.0 % | 99.9 % |
+
+: End-to-end vs datapath utilization by descriptor size
+
+In back-to-back operation the startup of one transfer overlaps the drain of the
+previous, so the steady-state system rate equals the datapath rate. **This
+number says nothing about whether the datapath bubbles — it does not** (§3.0).

@@ -1,0 +1,23 @@
+# Small-transfer utilisation fall-off (NEW sweep).
+# =================================================
+# 1 channel, 1 descriptor, transfer size swept from 1 KB down to a single
+# 128-bit beat (16 B). Purpose: show the END-TO-END utilisation fall-off as the
+# transfer shrinks with a FIXED outstanding depth.
+#
+# Physics: the AR->first-R fill latency (~58 cyc at this memory model) is a
+# fixed cost per transfer. With fixed outstanding it cannot be hidden once the
+# transfer is too small to amortise it, so end-to-end util = beats /
+# (beats + fill) collapses toward 1/(1+fill) at a single beat. The DATAPATH
+# (gated) utilisation stays ~100% throughout -- the engine is efficient while
+# data flows; it simply runs out of data to move. This sweep is the small-end
+# complement to size_sweep (8 KB..1 MB plateau).
+#
+# Columns: name, num_channels, descriptors_per_channel, transfer_bytes
+#   transfer_bytes is raw bytes here (16 B = one 128-bit beat).
+falloff_1024B_1ch, 1, 1, 1024
+falloff_512B_1ch,  1, 1, 512
+falloff_256B_1ch,  1, 1, 256
+falloff_128B_1ch,  1, 1, 128
+falloff_64B_1ch,   1, 1, 64
+falloff_32B_1ch,   1, 1, 32
+falloff_16B_1ch,   1, 1, 16
