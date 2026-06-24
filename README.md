@@ -79,41 +79,129 @@ graph TD
 
 ---
 
-## Quick Navigation
+## Browse by Class
 
-### 📚 Documentation
-- **[Component Projects Index](docs/markdown/projects/index.md)** - All production-ready components
-- **[Documentation Index](docs/DOCUMENTATION_INDEX.md)** - Complete documentation guide
+Fast lookup. Each row is a class of things; the deep-dive link goes to its index/spec. For a guided tour through the levels, see [Progressive Learning Approach](#progressive-learning-approach) further down.
 
-### 🏗️ RTL Building Blocks
-- **[Common Library](rtl/common/)** (224 modules) - [Documentation](docs/markdown/RTLCommon/index.md) - [AI Guide](rtl/common/CLAUDE.md)
-  - Counters, FIFOs, arbiters, integer math, floating-point (BF16/FP16/FP32/FP8), data integrity
-- **[AMBA Infrastructure](rtl/amba/)** (124 modules) - [Documentation](docs/markdown/RTLAmba/index.md) - [AI Guide](rtl/amba/CLAUDE.md)
-  - APB, AXI4, AXI4-Lite, AXI-Stream, AMBA5 protocols
+> Counts are approximate as of 2026-06-24; subsystem READMEs are authoritative.
 
-### 🎯 Component Projects
-| Component | Status | Description |
-|-----------|--------|-------------|
-| **[STREAM](projects/components/stream/)** | ✅ Ready | Tutorial DMA engine with scatter-gather |
-| **[RAPIDS](projects/components/rapids/)** | 🟡 In Progress | Advanced DMA with network interfaces |
-| **[Bridge](projects/components/bridge/)** | ✅ Ready | AXI protocol bridges and converters |
-| **[Converters](projects/components/converters/)** | ✅ Ready | UART-to-AXI4-Lite, protocol conversion |
-| **[APB Crossbar](projects/components/apb_xbar/)** | ✅ Ready | M×N APB interconnect |
-| **[Retro Legacy](projects/components/retro_legacy_blocks/)** | ✅ Ready | HPET, PIC, PIT, RTC, UART, GPIO, etc. |
-| **[Delta](projects/components/delta/)** | 📋 Planned | Network-on-Chip mesh |
-| **[HIVE](projects/components/hive/)** | 📋 Planned | Distributed RISC-V control |
+### 1. Common Building Blocks — `rtl/common/`
 
-### 🧪 Verification
-- **[Common Tests](val/common/)** - Unit tests for common modules
-- **[AMBA Tests](val/amba/)** - Protocol compliance tests
-- **[TBClasses](bin/TBClasses/)** - Project-specific testbench classes (local)
-- **[cocotb-framework](https://pypi.org/project/cocotb-framework/)** (PyPI) - Reusable verification components (BFMs, scoreboards)
-  - Source: [RTLDesignSherpa-DV](https://github.com/sean-galloway/RTLDesignSherpa-DV)
-  - Install: `pip install cocotb-framework` (included in requirements.txt)
+Reusable primitives, technology-agnostic. **~224 modules.**
 
-### 🛠️ Tools
-- **[RTL Generators](bin/rtl_generators/)** - Math circuits, floating-point modules
-- **[Documentation Tools](bin/)** - md_to_docx.py, header management
+| Class | ~Count | Where | Examples |
+|---|---|---|---|
+| Counters | 8 | `rtl/common/counter_*.sv` | `counter_bin`, `counter_bingray`, `counter_load_clear`, `counter_johnson`, `counter_ring`, `counter_freq_invariant` |
+| Arbiters | 4 | `rtl/common/arbiter_*.sv` | `arbiter_round_robin`, `arbiter_round_robin_weighted`, PWM variants |
+| FIFOs | 4 | `rtl/common/fifo_*.sv` | `fifo_sync`, `fifo_async`, `fifo_async_div2`, `fifo_sync_multi` |
+| Shift / LFSR | — | `rtl/common/shifter_lfsr_*.sv` | Fibonacci LFSR, Galois LFSR, universal shifters |
+| Math — integer arithmetic | 40+ | `rtl/common/math_adder_*`, `math_mult_*`, `math_div_*` | Han-Carlson prefix adders (16/22/32/44/48/72-bit), Dadda 4:2 compressor mults (8/11/24-bit), leading-zero count, parity |
+| Math — floating point | 120+ | `rtl/common/math_float_*` | BF16, FP16, FP32, FP8 (E4M3/E5M2): adder, multiplier, FMA, recip, divide, sqrt; cross-format converters |
+| Data integrity | 7 | `rtl/common/dataint_*.sv` | `dataint_crc` (300+ standards), `dataint_ecc_hamming` (SECDED), `dataint_parity` |
+| Clock utilities | 3 | `rtl/common/clock_*.sv` | `clock_divider`, `clock_gate_ctrl`, `clock_pulse` |
+| Encoders / decoders | 3 | `rtl/common/{encoder,decoder}*.sv` | priority encoder, address decoder |
+| Reset | 1 | `rtl/common/reset_sync.sv` | async-assert / sync-deassert reset bridge |
+
+**Deep dive:** [`docs/markdown/RTLCommon/index.md`](docs/markdown/RTLCommon/index.md) · [`rtl/common/CLAUDE.md`](rtl/common/CLAUDE.md)
+
+### 2. AMBA Protocols — `rtl/amba/`
+
+Production-ready AXI/APB/AXIS infrastructure with built-in monitor + observation. **155 modules across 8 protocol dirs + 48 shared.**
+
+| Protocol | Modules | Where | Notes |
+|---|---|---|---|
+| AXI4 | 16 | `rtl/amba/axi4/` | masters/slaves, RD/WR, `_mon` + `_cg` variants |
+| AXI5 | 16 | `rtl/amba/axi5/` | AXI5 extensions |
+| AXI4-Lite | 16 | `rtl/amba/axil4/` | **Dedicated** `axil4_*_mon.sv` (not the legacy `IS_AXI=0`) |
+| APB | 9 | `rtl/amba/apb/` | masters, slaves, slave_cdc + `_cg` |
+| APB5 | 9 | `rtl/amba/apb5/` | APB5 extensions |
+| AXI-Stream (AXIS4) | 4 | `rtl/amba/axis4/` | master / slave |
+| AXI-Stream (AXIS5) | 4 | `rtl/amba/axis5/` | AXIS5 extensions |
+| Shared infrastructure | 48 | `rtl/amba/shared/` | monitor core, monbus, observation, sdpram, CDC, arbiters |
+| GAXI generic | 8 | `rtl/amba/gaxi/` | sync/async FIFOs and skid buffers |
+| Packages | 8 | `rtl/amba/includes/` | shared `.svh`/types |
+
+**Deep dive:** [`rtl/amba/README.md`](rtl/amba/README.md) (full shared/ inventory by role) · [`rtl/amba/CLAUDE.md`](rtl/amba/CLAUDE.md) · [`docs/markdown/RTLAmba/index.md`](docs/markdown/RTLAmba/index.md)
+
+### 3. Clock Domain Crossing (CDC) — Cross-cutting
+
+CDC primitives live in multiple subsystems. Pulled together here so you don't have to hunt.
+
+| Module | Where | Use |
+|---|---|---|
+| `cdc_synchronizer.sv` | `rtl/amba/shared/` | Plain N-flop bit synchronizer |
+| `cdc_2_phase_handshake.sv` | `rtl/amba/shared/` | 2-phase req/ack data CDC |
+| `cdc_4_phase_handshake.sv` | `rtl/amba/shared/` | 4-phase req/ack data CDC |
+| `cdc_open_loop.sv` | `rtl/amba/shared/` | Fire-and-forget pulse CDC |
+| `reset_sync.sv` | `rtl/common/` | Async-assert / sync-deassert reset CDC |
+| `bin2gray.sv` / `gray2bin.sv` | `rtl/common/` | Gray-code conversion for pointer CDC |
+| `counter_bingray.sv` | `rtl/common/` | Binary/Gray dual counter for FIFO pointers |
+| `fifo_async.sv` / `fifo_async_div2.sv` | `rtl/common/` | Async FIFOs for word-width CDC |
+| `gaxi_fifo_async*.sv`, `gaxi_skid_buffer_async*.sv` | `rtl/amba/gaxi/` | AXI-shaped async FIFO + skid |
+| `apb_slave_cdc.sv` / `apb5_slave_cdc.sv` | `rtl/amba/apb*/` | APB slave with CDC built in |
+
+**FPGA demo:** [`projects/NexysA7/cdc_counter_display/`](projects/NexysA7/cdc_counter_display/) — multi-clock counter CDC running on real hardware.
+
+### 4. Component Projects — `projects/components/`
+
+Production-shaped reusable IP. Each has its own README + dv/ + dv/tbclasses/.
+
+| Project | Status | Domain | Where |
+|---|---|---|---|
+| STREAM | ✅ Ready | Tutorial DMA + scatter-gather | [`projects/components/stream/`](projects/components/stream/) |
+| RAPIDS | 🟡 In progress | Advanced DMA with network interfaces (RAPID AXI Programmable In-band Descriptor System) | [`projects/components/rapids/`](projects/components/rapids/) |
+| Bridge | ✅ Ready | AXI protocol bridges + RDL-generated cfg | [`projects/components/bridge/`](projects/components/bridge/) |
+| Converters | ✅ Ready | UART↔AXIL, protocol conversion | [`projects/components/converters/`](projects/components/converters/) |
+| APB Crossbar | ✅ Ready | M×N APB interconnect | [`projects/components/apb_xbar/`](projects/components/apb_xbar/) |
+| BCH | — | BCH error-correction codec | [`projects/components/bch/`](projects/components/bch/) |
+| Memory controllers | 🟡 In progress | DDR2 / LPDDR2 controller | [`projects/components/memory-controllers/`](projects/components/memory-controllers/) |
+| Retro legacy blocks | ✅ Ready | HPET, PIC, PIT, RTC, UART, GPIO | [`projects/components/retro_legacy_blocks/`](projects/components/retro_legacy_blocks/) |
+| Delta | 📋 Planned | Network-on-Chip mesh | [`projects/components/delta/`](projects/components/delta/) |
+| HIVE | 📋 Planned | Distributed RISC-V control | [`projects/components/hive/`](projects/components/hive/) |
+| Misc | — | Mixed building blocks | [`projects/components/misc/`](projects/components/misc/) |
+
+### 5. FPGA Projects — `projects/NexysA7/` (Digilent Nexys A7-100T)
+
+Things that actually run on hardware. Each project ships its own README and Vivado flow.
+
+| Project | Goal | Where |
+|---|---|---|
+| stream_characterization | DMA performance characterization on FPGA + host-side analysis (UART control, on-chip PMU) | [`projects/NexysA7/stream_characterization/`](projects/NexysA7/stream_characterization/) |
+| timing_characterization | FUB delay characterization. STA-only `bitstream-sweep` is the headline path; on-board MMCM sweep is an optional gut-check (see [`README_FPGA.md`](projects/NexysA7/timing_characterization/README_FPGA.md) §5) | [`projects/NexysA7/timing_characterization/`](projects/NexysA7/timing_characterization/) |
+| cdc_counter_display | Live demo of multi-clock counter CDC on the board | [`projects/NexysA7/cdc_counter_display/`](projects/NexysA7/cdc_counter_display/) |
+| ddr2-lpddr2-memory-controller | DDR2 / LPDDR2 memory controller bring-up on Nexys A7 | [`projects/NexysA7/ddr2-lpddr2-memory-controller/`](projects/NexysA7/ddr2-lpddr2-memory-controller/) |
+| boards | Board files / pinouts / constraints | [`projects/NexysA7/boards/`](projects/NexysA7/boards/) |
+
+### 6. Verification
+
+| What | Where |
+|---|---|
+| AMBA protocol tests | [`val/amba/`](val/amba/) |
+| Common-library tests | [`val/common/`](val/common/) |
+| Project tests (CocoTB + pytest, Pattern B) | `projects/components/*/dv/tests/` |
+| Project-specific TBs | `projects/components/*/dv/tbclasses/` |
+| Shared TB framework | [`bin/TBClasses/`](bin/TBClasses/) |
+| BFMs / scoreboards (external package) | [`cocotb-framework` on PyPI](https://pypi.org/project/cocotb-framework/) — source: [RTLDesignSherpa-DV](https://github.com/sean-galloway/RTLDesignSherpa-DV) — `pip install cocotb-framework` |
+| Verification architecture rules | [`rtl/amba/VERIFICATION_ARCHITECTURE.md`](rtl/amba/VERIFICATION_ARCHITECTURE.md), [`GLOBAL_REQUIREMENTS.md`](GLOBAL_REQUIREMENTS.md) |
+
+### 7. Tools
+
+| Tool | Purpose | Where |
+|---|---|---|
+| RTL generators | Codegen for math circuits + floating-point modules | [`bin/rtl_generators/`](bin/rtl_generators/) |
+| `md_to_docx.py` | Markdown → DOCX/PDF with corporate styles | [`bin/md_to_docx.py`](bin/md_to_docx.py) |
+| `audit_signal_naming_conflicts.py` | Detect AXI-factory pattern collisions before TB write | [`bin/audit_signal_naming_conflicts.py`](bin/audit_signal_naming_conflicts.py) ([guide](bin/SIGNAL_NAMING_AUDIT.md)) |
+| `vivado_timing_failures.py` | Per-violation Vivado timing parser | [`bin/vivado_timing_failures.py`](bin/vivado_timing_failures.py) |
+| Misc scripts | Build/regen helpers, codemaps, doc generators | [`bin/`](bin/), [`tools/`](tools/), [`scripts/`](scripts/) |
+
+### 8. Documentation hub
+
+- [`docs/DOCUMENTATION_INDEX.md`](docs/DOCUMENTATION_INDEX.md) — full doc index
+- [`docs/markdown/RTLCommon/index.md`](docs/markdown/RTLCommon/index.md) — per-module specs (common library)
+- [`docs/markdown/RTLAmba/index.md`](docs/markdown/RTLAmba/index.md) — per-module specs (AMBA)
+- [`docs/markdown/projects/index.md`](docs/markdown/projects/index.md) — project documentation index
+- [`GLOBAL_REQUIREMENTS.md`](GLOBAL_REQUIREMENTS.md) — mandatory requirements across the whole repo
+- [`CLAUDE.md`](CLAUDE.md) — guidance for AI assistants working in this repo
 
 ---
 
