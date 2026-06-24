@@ -37,14 +37,29 @@ and merge with `lcov -a`.
 |------|--------------:|------------:|--:|
 | FUB only (186 tests) | 881 | 968 | 91.0 |
 | Macro only (34 tests) | 2139 | 2708 | 79.0 |
-| **Top only (10 tests)** | **2366** | **3326** | **71.1** |
-| **Combined (230 tests)** | **2784** | **3326** | **83.7** |
+| **Top only (17 tests)** | **2516** | **3326** | **75.6** |
+| **Combined (237 tests)** | **2850** | **3326** | **85.7** |
+
+Top-only growth (10 → 17 tests) came from seven config-axis variants
+landed in test_ddr2_lpddr2_top.py:
+
+| New scenario | What it flips | Coverage hook |
+|--------------|---------------|--------------|
+| `smoke_lpddr2` | `memtype_i=1` | LPDDR2 MR walk in init_sequencer |
+| `workload_mix_lpddr2` | `memtype_i=1` + 8 random bursts | LPDDR2 cmd encoding in dfi_cmd_formatter |
+| `smoke_nr2` | `NUM_RANKS=2` Verilog param | multi-rank CS bus + init handshake |
+| `workload_mix_nr2` | NR=2 + cross-rank bank-spray | per-rank tFAW/tRRD, addr_mapper rank bit, CS fan-out |
+| `workload_mix_policy_switch` | mid-test `page_policy_or` + `refpb_policy_or` writes | page_predictor open-page arm, refresh per-bank rotor |
+| `wr_rd_ooo_multi_id` | `force_inorder=0` + 2 AXI IDs | axi_id_side_table OOO completion path |
+| `init_error_retry` | `zq_retries=1` + `init_timeout_ms=1` + held-off init_complete | init_sequencer wait/timeout branches |
+
+Each is one `pytest.mark.parametrize` entry — no new BFM, no new RTL.
 
 Denominators differ because each tier instantiates a different RTL
 slice. Top's 3326 lines is the whole-DUT baseline.
 
-**Top-only is the signoff metric at 80 %.** Currently 71.1 % — short
-by 8.9 points / 296 lines. The 542 untouched-by-top lines fall into:
+**Top-only is the signoff metric at 80 %.** Currently 75.6 % — short
+by 4.4 points / 145 lines. The 810 untouched-by-top lines fall into:
 
 - G-01 rd_cl_aligner fresh-read branches (the 4 debug_only tests
   trip the hang before reaching the aligner)

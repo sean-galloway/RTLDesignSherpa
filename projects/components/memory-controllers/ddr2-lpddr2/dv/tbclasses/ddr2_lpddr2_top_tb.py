@@ -80,12 +80,16 @@ class DDR2LPDDR2TopTB:
         #   byte_addr = {row, bank, col, byte_off}
         # AddressMapping decodes flat-column-index → (rank, bank, row, col).
         # For preload byte_addr we use the same packing the RTL applies.
+        # ROW_MAJOR with rank in the top bits when NUM_RANKS>1 — matches
+        # the RTL addr_mapper default for the rank parameter.
+        mapping_str = ("rank|row|bank|col" if num_ranks > 1
+                       else "row|bank|col")
         self.mapping = AddressMapping(
             num_ranks=num_ranks,
             num_banks=num_banks,
             num_rows=1 << row_width,
             num_cols=1 << col_width,
-            mapping="row|bank|col",
+            mapping=mapping_str,
         )
 
         # Backing memory model — preloadable + inspectable. One line == one
@@ -116,9 +120,20 @@ class DDR2LPDDR2TopTB:
 
     # ---- bring-up ---------------------------------------------------------
 
-    async def reset(self) -> None:
-        """Apply mc_clk + pclk reset; tie off externals; release."""
-        self.dut.memtype_i.value      = 0    # DDR2
+    async def reset(self, *, mem_type: str = "DDR2",
+                    init_complete_delay: int = 20) -> None:
+        """Apply mc_clk + pclk reset; tie off externals; release.
+
+        Args:
+            mem_type: ``"DDR2"`` (default) or ``"LPDDR2"`` — drives
+                `memtype_i`. LPDDR2 selects a different MR walk in
+                `init_sequencer` and the LPDDR2 CA-bus encoding in
+                `dfi_cmd_formatter`.
+            init_complete_delay: cycles to wait before asserting
+                `phy_dfi_init_complete`. Long values can be used to
+                exercise the init_sequencer's wait branches.
+        """
+        self.dut.memtype_i.value      = 1 if mem_type.upper() == "LPDDR2" else 0
         self.dut.t_phy_wrlat_i.value  = 4
         self.dut.t_rddata_en_i.value  = 4
         self.dut.rd_in_order_i.value  = 1
@@ -158,7 +173,7 @@ class DDR2LPDDR2TopTB:
         async def _init_complete_after(n: int) -> None:
             await ClockCycles(self.dut.mc_clk, n)
             self.dut.phy_dfi_init_complete.value = 1
-        cocotb.start_soon(_init_complete_after(20))
+        cocotb.start_soon(_init_complete_after(init_complete_delay))
 
     def init_dfi_slave(self, *,
                        strict_violations: bool = False) -> DFISlavePHY:
