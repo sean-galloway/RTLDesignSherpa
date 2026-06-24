@@ -194,15 +194,67 @@ gaxi_fifo_sync #(.DATA_WIDTH(64), .DEPTH(256)) u_fifo (
 | `axis_master.sv` | AXIS transmit monitoring | DATA_WIDTH, ID_WIDTH, DEST_WIDTH | `docs/markdown/RTLAmba/fabric/axis_master.md` |
 | `axis_slave.sv` | AXIS receive monitoring | Same | `docs/markdown/RTLAmba/fabric/` |
 
-### Supporting Infrastructure
+### AXI4-Lite Monitors
 
-| Module | Purpose | Location |
-|--------|---------|----------|
-| `axi_monitor_base.sv` | Core monitor logic | `rtl/amba/shared/` |
-| `axi_monitor_trans_mgr.sv` | Transaction tracking | `rtl/amba/shared/` |
-| `axi_monitor_reporter.sv` | Packet generation | `rtl/amba/shared/` |
-| `axi_monitor_timeout.sv` | Timeout detection | `rtl/amba/shared/` |
-| `arbiter_*_monbus.sv` | Monitor bus arbitration | `rtl/amba/shared/` |
+| Module | Purpose | Key Params | Documentation |
+|--------|---------|------------|---------------|
+| `axil4_master_rd_mon.sv` | AXIL master read monitoring | ADDR_WIDTH, DATA_WIDTH, MAX_TRANSACTIONS | `rtl/amba/axil4/` |
+| `axil4_master_wr_mon.sv` | AXIL master write monitoring | Same | `rtl/amba/axil4/` |
+| `axil4_slave_rd_mon.sv` | AXIL slave read monitoring | Same | `rtl/amba/axil4/` |
+| `axil4_slave_wr_mon.sv` | AXIL slave write monitoring | Same | `rtl/amba/axil4/` |
+| `*_cg.sv` variants | Clock-gated AXIL versions | Same + CG_ENABLE | Power optimization |
+
+> Dedicated AXIL4 wrappers (not the old `IS_AXI=0` parameter overload). Share `axi_monitor_base` and packet format with the AXI4 wrappers.
+
+### Supporting Infrastructure — `rtl/amba/shared/` (48 modules)
+
+All protocol-agnostic. Wrappers in `axi4/`, `axil4/`, `apb/`, `axis*/` instantiate the monitor-core pieces below.
+
+**Monitor core (13):**
+
+| Module | Purpose |
+|---|---|
+| `axi_monitor_base.sv` | Top-level scaffold (every `*_mon` wrapper instantiates this) |
+| `axi_monitor_trans_mgr.sv` | Outstanding-transaction table; `active_count` pipelined to close 100 MHz |
+| `axi_monitor_addr_check.sv` | Address range / region filtering |
+| `axi_monitor_filtered.sv` | Configurable per-channel packet filtering |
+| `axi_monitor_timer.sv` | Free-running timer + per-transaction stamps |
+| `axi_monitor_timeout.sv` | Timeout detection |
+| `axi_monitor_reporter.sv` | Packet generation dispatcher (post-refactor: delegates to subblocks below) |
+| `axi_monitor_reporter_{compl,debug,error,perf,threshold,timeout}.sv` | One per packet type (6 files) |
+| `monitor_trans_cam.sv` | CAM lookup for trans_mgr |
+
+**Observation / performance (3):**
+
+| Module | Purpose |
+|---|---|
+| `axi4_dma_observer.sv` | DMA observability wrapper. Per-channel AW→W AWID order tracker (no sideband). Per-port latency histograms for parity with in-core perfmon |
+| `axi_perf_latency_hist.sv` | Per-channel 16-bucket log2 latency histogram |
+| `axi_bus_meter.sv` | 4-bucket bus meter (productive / backpressure / starvation / idle) — see `DMA_UTILIZATION_MEASUREMENT.md` for window semantics |
+
+**Monitor Bus (monbus) infrastructure (10):**
+
+| Module | Purpose |
+|---|---|
+| `monbus_arbiter.sv` | Top-level monbus arbitration |
+| `monbus_group_core.sv` | Shared filter + FIFO core for all `monbus_*_*_group` wrappers (refactor introduced in `61edda71`) |
+| `monbus_axi4_axi4_group.sv` | AXI4↔AXI4 group |
+| `monbus_axi4_axil_group.sv` | AXI4↔AXIL group |
+| `monbus_axil_axi4_group.sv` | AXIL↔AXI4 group with 32-bit err-drain |
+| `monbus_axil_axil_group.sv` | AXIL↔AXIL group with 32-bit err-drain |
+| `monbus_compressor.sv` | Optional packet compressor (mod-3 packing). Runtime enable via `cfg_compress_en` |
+| `monbus_halfbeat_packer.sv` | Half-beat packer pushing past the compressor's 66.7% ceiling |
+| `monbus_cam.sv` / `monbus_cam_pipe.sv` | Monbus CAM for packet matching/replay (and pipelined variant) |
+
+**Arbiters with monbus instrumentation (3):** `arbiter_monbus_common.sv`, `arbiter_rr_pwm_monbus.sv`, `arbiter_wrr_pwm_monbus.sv`
+
+**CDC (4):** `cdc_2_phase_handshake.sv`, `cdc_4_phase_handshake.sv`, `cdc_open_loop.sv`, `cdc_synchronizer.sv`
+
+**Storage helpers (5)** — used by harnesses, not the monitor path itself: `sdpram_core.sv` (shared core) + `sdpram_slave_{axi4,axil}_{axi4,axil}.sv` (4 protocol-pair wrappers). Replaces the deleted unified `sdpram_slave.sv`.
+
+**Test infrastructure helpers:** `axi4_dma_slaves.sv`, `axi4_slave_rd_pattern_gen.sv`, `axi4_slave_wr_crc_check.sv`, `axi_master_{rd,wr}_splitter.sv`, `axi_split_combi.sv`, `axi_gen_addr.sv`, `amba_clock_gate_ctrl.sv`, `apb_monitor_addr_check.sv`
+
+**Removed:** the prior `mon_temp/` legacy `trans_mgr` (deleted in `d246a72d`) and the unified `sdpram_slave.sv` (replaced by `sdpram_core.sv` + 4 wrappers). Don't reference these in new code.
 
 ---
 

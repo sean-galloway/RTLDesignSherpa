@@ -1,17 +1,18 @@
 # AMBA Subsystem - Quick Start Guide
 
-**Version:** 1.0
-**Last Updated:** 2025-09-30
+**Version:** 1.1
+**Last Updated:** 2026-06-24
 **Status:** Active Development
 
 ---
 
 ## Overview
 
-The AMBA subsystem provides production-ready monitoring infrastructure for AXI4, AXI4-Lite, APB, and AXI-Stream protocols. All monitors feature error detection, timeout monitoring, and standardized 64-bit monitor bus output.
+The AMBA subsystem provides production-ready monitoring, observation, and bus-infrastructure components for AXI4, AXI4-Lite, AXI5, APB, APB5, and AXI-Stream protocols. All monitors feature error detection, timeout monitoring, and standardized 64-bit monitor bus output.
 
-**Quick Stats:**
-- 📦 **72 modules** across 4 protocols
+**Quick Stats (as of 2026-06-24):**
+- 📦 **155 SV modules** across 8 protocol directories + shared
+- 🧩 **48 shared infrastructure modules** in `rtl/amba/shared/` (monitors, monbus, observation, sdpram, CDC, arbiters)
 - ✅ **~95% test coverage** (functional)
 - 🔧 **Production-ready** monitors
 - 📖 **Comprehensive docs** in `docs/markdown/RTLAmba/`
@@ -41,12 +42,93 @@ The AMBA subsystem provides production-ready monitoring infrastructure for AXI4,
 
 | Protocol | Status | Modules | Features |
 |----------|--------|---------|----------|
-| **AXI4** | ✅ Complete | `axi4_master/slave_rd/wr_mon.sv` | Burst, out-of-order, outstanding |
-| **AXI4-Lite** | ✅ Complete | Same (param IS_AXI=0) | Single-beat, simplified |
-| **APB** | ✅ Complete | `apb_monitor.sv` | Peripheral bus |
-| **AXI-Stream** | ✅ Complete | `axis_master/slave.sv` | Streaming data |
+| **AXI4** | ✅ Complete | `rtl/amba/axi4/axi4_{master,slave}_{rd,wr}_mon.sv` (+ `_cg` clock-gated variants) | Burst, out-of-order, outstanding |
+| **AXI4-Lite** | ✅ Complete | `rtl/amba/axil4/axil4_{master,slave}_{rd,wr}_mon.sv` (+ `_cg`) — **dedicated wrappers**, not shared with AXI4 | Single-beat, simplified |
+| **AXI5** | ✅ Available | `rtl/amba/axi5/` | AXI5 extensions |
+| **APB / APB5** | ✅ Complete | `rtl/amba/apb/apb_monitor.sv`, `rtl/amba/apb5/` | Peripheral bus |
+| **AXI-Stream** | ✅ Complete | `rtl/amba/axis4/`, `rtl/amba/axis5/` | Streaming data |
 
 **Detailed specs:** See `docs/markdown/RTLAmba/`
+
+> **Note (2026):** AXI4-Lite monitors now ship as **dedicated `axil4_*_mon.sv` wrappers** in `rtl/amba/axil4/` rather than the prior `IS_AXI=0` parameter overload on the AXI4 wrappers. Existing instances using the parameter form should migrate; the wrappers share the same `axi_monitor_base` core and packet format.
+
+---
+
+## Shared Infrastructure (`rtl/amba/shared/`)
+
+48 protocol-agnostic modules grouped by role. The monitor core, observation, and monbus components below are protocol-independent and are wired up inside the per-protocol `*_mon.sv` wrappers above (or instantiated directly by integrations).
+
+### Monitor core (13)
+| Module | Role |
+|---|---|
+| `axi_monitor_base.sv` | Top-level monitor scaffold; instantiated by every `*_mon` wrapper |
+| `axi_monitor_trans_mgr.sv` | Outstanding-transaction table (pipelined active-count to close 100 MHz) |
+| `axi_monitor_addr_check.sv` | Address range check / region filtering |
+| `axi_monitor_filtered.sv` | Configurable per-channel packet filtering |
+| `axi_monitor_timer.sv` | Free-running timer + per-transaction stamps |
+| `axi_monitor_timeout.sv` | Timeout detection logic |
+| `axi_monitor_reporter.sv` | Packet generation dispatcher (refactored: per-packet-type subblocks below) |
+| `axi_monitor_reporter_compl.sv` | Completion packets |
+| `axi_monitor_reporter_debug.sv` | Debug packets |
+| `axi_monitor_reporter_error.sv` | Error packets |
+| `axi_monitor_reporter_perf.sv` | Performance packets |
+| `axi_monitor_reporter_threshold.sv` | Threshold packets |
+| `axi_monitor_reporter_timeout.sv` | Timeout packets |
+| `monitor_trans_cam.sv` | CAM lookup for transaction table (used by trans_mgr) |
+
+### Observation / performance (3)
+| Module | Role |
+|---|---|
+| `axi4_dma_observer.sv` | DMA observability wrapper; per-channel AW→W AWID order tracker (no sideband), per-port latency histograms |
+| `axi_perf_latency_hist.sv` | 16-bucket log2 latency histogram per channel |
+| `axi_bus_meter.sv` | 4-bucket bus utilization meter (productive / backpressure / starvation / idle) |
+
+### Monitor Bus (monbus) infrastructure (10)
+| Module | Role |
+|---|---|
+| `monbus_arbiter.sv` | Top-level monbus arbitration |
+| `monbus_group_core.sv` | Shared filter + FIFO core (used by all `monbus_*_*_group.sv` wrappers) |
+| `monbus_axi4_axi4_group.sv` | AXI4↔AXI4 monbus group wrapper |
+| `monbus_axi4_axil_group.sv` | AXI4↔AXIL bridge group |
+| `monbus_axil_axi4_group.sv` | AXIL↔AXI4 bridge group (32-bit err-drain) |
+| `monbus_axil_axil_group.sv` | AXIL↔AXIL group (32-bit err-drain) |
+| `monbus_compressor.sv` | Optional packet compressor (mod-3 packing, runtime `cfg_compress_en`) |
+| `monbus_halfbeat_packer.sv` | Half-beat packer for higher monbus efficiency |
+| `monbus_cam.sv` | Monbus CAM for packet matching/replay |
+| `monbus_cam_pipe.sv` | Pipelined CAM variant |
+
+### Arbiters with monbus instrumentation (3)
+| Module | Role |
+|---|---|
+| `arbiter_monbus_common.sv` | Shared base used by the variants below |
+| `arbiter_rr_pwm_monbus.sv` | Round-robin + PWM weight + monbus |
+| `arbiter_wrr_pwm_monbus.sv` | Weighted RR + PWM + monbus |
+
+### Clock-domain crossing (4)
+| Module | Role |
+|---|---|
+| `cdc_2_phase_handshake.sv` | 2-phase CDC handshake |
+| `cdc_4_phase_handshake.sv` | 4-phase CDC handshake |
+| `cdc_open_loop.sv` | Open-loop CDC for one-shot pulses |
+| `cdc_synchronizer.sv` | Plain multi-flop synchronizer |
+
+### Storage helpers (5) — not strictly monitor/observation
+| Module | Role |
+|---|---|
+| `sdpram_core.sv` | FUB-shaped SDP RAM core, shared by the four protocol-pair wrappers below |
+| `sdpram_slave_axi4_axi4.sv` | AXI4↔AXI4 SDP RAM slave |
+| `sdpram_slave_axi4_axil.sv` | AXI4↔AXIL slave |
+| `sdpram_slave_axil_axi4.sv` | AXIL↔AXI4 slave |
+| `sdpram_slave_axil_axil.sv` | AXIL↔AXIL slave |
+
+### Helpers / test infrastructure
+- `axi4_dma_slaves.sv` — bundled slave wrapper for DMA testbenches
+- `axi4_slave_rd_pattern_gen.sv` — pattern generator (used by slave-side test harness)
+- `axi4_slave_wr_crc_check.sv` — CRC checker for write verification
+- `axi_master_rd_splitter.sv`, `axi_master_wr_splitter.sv`, `axi_split_combi.sv` — burst splitters
+- `axi_gen_addr.sv` — address generator
+- `amba_clock_gate_ctrl.sv` — gate control logic
+- `apb_monitor_addr_check.sv` — APB address-range filter
 
 ---
 

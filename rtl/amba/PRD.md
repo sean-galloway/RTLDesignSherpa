@@ -119,37 +119,115 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 
 ## 4. Architecture Overview
 
-### 4.1 Monitor Infrastructure
+### 4.1 Monitor + Observation Infrastructure
 
 ```
 AMBA Monitor Subsystem
-├── Shared Components (rtl/amba/shared/)
-│   ├── axi_monitor_base.sv         (Top-level monitor)
-│   ├── axi_monitor_trans_mgr.sv    (Transaction tracking)
-│   ├── axi_monitor_reporter.sv     (Event reporting)
-│   ├── axi_monitor_timeout.sv      (Timeout detection)
-│   ├── axi_monitor_timer.sv        (Timing infrastructure)
-│   └── axi_monitor_filtered.sv     (Configurable filtering)
+├── Shared protocol-agnostic core  (rtl/amba/shared/, 48 modules)
+│   │
+│   ├── Monitor core (13)
+│   │   ├── axi_monitor_base.sv             (Top-level scaffold)
+│   │   ├── axi_monitor_trans_mgr.sv        (Outstanding-txn table, pipelined
+│   │   │                                    active_count for 100 MHz close)
+│   │   ├── axi_monitor_addr_check.sv       (Region / address filtering)
+│   │   ├── axi_monitor_filtered.sv         (Per-channel packet filtering)
+│   │   ├── axi_monitor_timer.sv            (Timer + per-transaction stamps)
+│   │   ├── axi_monitor_timeout.sv          (Timeout detection)
+│   │   ├── axi_monitor_reporter.sv         (Packet-gen dispatcher)
+│   │   ├── axi_monitor_reporter_compl.sv      (Completion packets)
+│   │   ├── axi_monitor_reporter_debug.sv      (Debug)
+│   │   ├── axi_monitor_reporter_error.sv      (Error)
+│   │   ├── axi_monitor_reporter_perf.sv       (Performance)
+│   │   ├── axi_monitor_reporter_threshold.sv  (Threshold)
+│   │   ├── axi_monitor_reporter_timeout.sv    (Timeout)
+│   │   └── monitor_trans_cam.sv            (CAM lookup for trans_mgr)
+│   │
+│   ├── Observation / performance (3)
+│   │   ├── axi4_dma_observer.sv            (DMA observability wrapper;
+│   │   │                                    AW->W AWID order tracker;
+│   │   │                                    per-port latency histograms)
+│   │   ├── axi_perf_latency_hist.sv        (16-bucket log2 latency histogram)
+│   │   └── axi_bus_meter.sv                (4-bucket bus utilization meter)
+│   │
+│   ├── Monitor Bus (monbus) infrastructure (10)
+│   │   ├── monbus_arbiter.sv               (Top arbitration)
+│   │   ├── monbus_group_core.sv            (Shared filter+FIFO core,
+│   │   │                                    used by all group wrappers)
+│   │   ├── monbus_axi4_axi4_group.sv       (AXI4<->AXI4 group)
+│   │   ├── monbus_axi4_axil_group.sv       (AXI4<->AXIL group)
+│   │   ├── monbus_axil_axi4_group.sv       (AXIL<->AXI4, 32-bit err-drain)
+│   │   ├── monbus_axil_axil_group.sv       (AXIL<->AXIL, 32-bit err-drain)
+│   │   ├── monbus_compressor.sv            (mod-3 packer; cfg_compress_en)
+│   │   ├── monbus_halfbeat_packer.sv       (Half-beat packer above the 66.7%
+│   │   │                                    compressor ceiling)
+│   │   ├── monbus_cam.sv                   (Monbus CAM)
+│   │   └── monbus_cam_pipe.sv              (Pipelined CAM variant)
+│   │
+│   ├── Arbiters with monbus (3)
+│   │   ├── arbiter_monbus_common.sv
+│   │   ├── arbiter_rr_pwm_monbus.sv
+│   │   └── arbiter_wrr_pwm_monbus.sv
+│   │
+│   ├── CDC (4)
+│   │   ├── cdc_2_phase_handshake.sv
+│   │   ├── cdc_4_phase_handshake.sv
+│   │   ├── cdc_open_loop.sv
+│   │   └── cdc_synchronizer.sv
+│   │
+│   ├── Storage helpers (5)  [not on the monitor path; for harnesses]
+│   │   ├── sdpram_core.sv                  (Shared FUB-shaped core)
+│   │   ├── sdpram_slave_axi4_axi4.sv
+│   │   ├── sdpram_slave_axi4_axil.sv
+│   │   ├── sdpram_slave_axil_axi4.sv
+│   │   └── sdpram_slave_axil_axil.sv
+│   │
+│   └── Test / utility helpers
+│       ├── axi4_dma_slaves.sv              (Bundled slave wrapper for DMA TB)
+│       ├── axi4_slave_rd_pattern_gen.sv    (Pattern source)
+│       ├── axi4_slave_wr_crc_check.sv      (CRC sink)
+│       ├── axi_master_rd_splitter.sv
+│       ├── axi_master_wr_splitter.sv
+│       ├── axi_split_combi.sv
+│       ├── axi_gen_addr.sv
+│       ├── amba_clock_gate_ctrl.sv
+│       └── apb_monitor_addr_check.sv
 │
-├── AXI4 Monitors (rtl/amba/axi4/)
-│   ├── axi4_master_rd_mon.sv       (Master read channel)
-│   ├── axi4_master_wr_mon.sv       (Master write channel)
-│   ├── axi4_slave_rd_mon.sv        (Slave read channel)
-│   ├── axi4_slave_wr_mon.sv        (Slave write channel)
-│   └── *_cg.sv variants            (Clock-gated versions)
+├── AXI4 Monitors (rtl/amba/axi4/, 16 files)
+│   ├── axi4_master_rd_mon.sv  / _cg.sv     (Master read + clock-gated)
+│   ├── axi4_master_wr_mon.sv  / _cg.sv
+│   ├── axi4_slave_rd_mon.sv   / _cg.sv
+│   ├── axi4_slave_wr_mon.sv   / _cg.sv
+│   └── axi4_{master,slave}_{rd,wr}.sv      (non-monitor base wrappers)
 │
-├── APB Monitor (rtl/amba/apb/)
-│   └── apb_monitor.sv
+├── AXI4-Lite Monitors (rtl/amba/axil4/, 16 files)
+│   └── axil4_*_mon.sv (+ _cg)              Dedicated wrappers --
+│                                           NOT axi4_*_mon with IS_AXI=0.
+│                                           Share axi_monitor_base + packet
+│                                           format with AXI4 monitors.
 │
-├── AXIS Monitors (rtl/amba/axis/)
-│   ├── axis_master.sv
-│   └── axis_slave.sv
+├── AXI5 / APB / APB5 / AXI-Stream (rtl/amba/axi5/, apb/, apb5/, axis*/)
 │
-└── Monitor Bus Infrastructure (rtl/amba/shared/)
-    └── arbiter_*_monbus.sv         (Packet arbitration)
+└── (Removed/superseded)
+    ├── mon_temp/ legacy trans_mgr           Deleted in d246a72d
+    └── unified sdpram_slave.sv              Replaced by sdpram_core +
+                                             4 protocol-pair wrappers
 ```
 
-**See:** `docs/markdown/RTLAmba/overview.md` for detailed architecture
+**Notable refactors landed in 2026:**
+
+| Commit | Change |
+|---|---|
+| `5de2b761` | `axi4_dma_observer`: per-channel AW→W AWID order tracker, no sideband |
+| `5be0a63b` | `axi4_dma_observer`: per-port latency histograms (parity with in-core) |
+| `6865935a` | RFC perfmon Stage E option 2: in-core datapath R/W perf monitors + arm-gap fix |
+| `da4529b3` / `abb929a6` | 32-bit AXIL err-drain on `monbus_axil_axi4_group` / `monbus_axil_axil_group` |
+| `61edda71` | `monbus_compressor` mod-3 refactor + shared `monbus_group.f` + compressor input skid |
+| `665057f9` | Runtime `cfg_compress_en` on monbus groups |
+| `2554219b` | Synchronous CAM-clear config bit (`CTRL[4]`) |
+| `d246a72d` | Deleted legacy `mon_temp/` `trans_mgr` + equivalence test |
+| `b514d8cd` / `1c016603` / `fd2d4f29` | Monbus group sources via shared `monbus_group.f` filelist (stream / rapids / bridge) |
+
+**See:** `docs/markdown/RTLAmba/overview.md` for detailed architecture, and `rtl/amba/PRD/RFCs/RFC-perfmon-window-buckets.md` for the windowed-perfmon design.
 
 ### 4.2 Monitor Bus Protocol
 
