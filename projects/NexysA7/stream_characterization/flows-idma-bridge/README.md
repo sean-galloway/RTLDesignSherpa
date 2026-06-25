@@ -65,6 +65,26 @@ theoretical knee. Net: **on the datapath axis the two engines are
 equivalent** — both saturate the bus when latency is hidden and degrade per
 Little's Law when it isn't.
 
+### BDP surface — util vs (burst size × memory latency)
+
+Sweeping burst size (`max_llen`) and latency together maps the whole
+bandwidth-delay-product surface. The in-flight window is `8 × burst` beats; util
+tracks `min(1, in_flight / L)` across the board (2048-beat transfer):
+
+| burst (in-flight) | L=0 | L=128 | L=256 | L=512 |
+|---|---:|---:|---:|---:|
+| 4 beats (32)  | 100% | 24.3% | 12.4% |  6.3% |
+| 8 beats (64)  | 100% | 47.5% | 24.7% | 12.6% |
+| 16 beats (128)| 100% | 88.9% | 48.5% | 25.4% |
+| 32 beats (256)| 100% | 100%  | 89.9% | 50.3% |
+
+Every cell matches `min(1, 8·burst / L)` within noise, and the knee marches right
+as burst grows — doubling the burst doubles the latency the engine can hide. This
+is exactly STREAM's §5 result: iDMA's datapath util is governed by
+`in-flight = outstanding × burst` vs memory latency, the same Little's-Law
+physics. (`make perf` runs the latency column at 16-beat bursts; sweep
+`IDMA_MAX_LLEN`/`IDMA_RESP_DELAY` for the full surface.)
+
 **Remaining caveats:**
 
 - Backend only (no desc64 frontend), single channel — those are separate axes
