@@ -94,10 +94,30 @@ is exactly STREAM's §5 result: iDMA's datapath util is governed by
 physics. (`make perf` runs the latency column at 16-beat bursts; sweep
 `IDMA_MAX_LLEN`/`IDMA_RESP_DELAY` for the full surface.)
 
+### Descriptor-fetch overhead (desc64 frontend) — `make desc-overhead`
+
+`dv/test_idma_desc64_overhead.py` drives the `desc64` frontend in isolation
+(flat wrapper `dv/idma_desc64_fe_flat.sv`): it programs a descriptor-chain head
+address into the `desc_addr` register, serves the 256-bit descriptor read from a
+cocotb memory, and times kick → first emitted 1D request. The descriptor decodes
+correctly (src/dst/length verified), and the **descriptor-decode latency is
+8 cycles** — the desc64 pipeline depth from `desc_addr` write to a transfer
+request, the iDMA analog of STREAM's descriptor-engine startup. (Memory is
+zero-latency here, so this is the engine's internal pipeline cost; a real fetch
+adds the AR→R memory round-trip on top, same as STREAM.)
+
+Multi-descriptor *cadence* is best-effort only: advancing a chain needs the real
+backend's completion responses to carry desc64's speculative-prefetch feedback,
+which the faked backend here does not provide — that requires the full
+frontend+backend system (see below).
+
 **Remaining caveats:**
 
-- Backend only (no desc64 frontend), single channel — those are separate axes
-  (descriptor-fetch startup overhead, multi-channel density).
+- The full end-to-end system (desc64 + backend, descriptor + data traffic) is not
+  built: desc64's synth package fixes 64-bit data/addr while the backend cosim
+  runs 128-bit, so coupling them needs a coherent system config + a 64→128 width
+  converter. The two halves are characterized separately (8-cycle descriptor
+  decode + the matched datapath util above).
 - The memory is an idealized cocotb latency pipe, not STREAM's RTL
   `pattern_gen`/`crc_check` slaves, and data isn't CRC-checked here. For
   bit-exact memory + measurement parity (and data verification), wire iDMA's

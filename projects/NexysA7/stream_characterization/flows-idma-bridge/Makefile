@@ -35,6 +35,14 @@ perf: gen
 	done
 	@echo "=== iDMA backend datapath util ==="; cat $(PERF_OUT).txt 2>/dev/null
 
+# Descriptor-fetch overhead of the desc64 frontend (kick -> first 1D request).
+.PHONY: desc-overhead
+desc-overhead: gen
+	@mkdir -p $(SELF_DIR)/reports; rm -f $(SELF_DIR)/reports/idma_desc.jsonl*
+	@IDMA_PERF_OUT=$(SELF_DIR)/reports/idma_desc.jsonl \
+	  python -m pytest $(SELF_DIR)/dv/test_idma_desc64_overhead.py -q -p no:cacheprovider \
+	    >/dev/null 2>&1 && cat $(SELF_DIR)/reports/idma_desc.jsonl.txt 2>/dev/null
+
 setup:
 	$(SELF_DIR)/bin/setup.sh
 

@@ -8,6 +8,7 @@ bin/bender
 *.log
 .Xil/
 dv/sim_build/
+dv/sim_build_desc64/
 dv/__pycache__/
 *.jsonl
 *.jsonl.txt
