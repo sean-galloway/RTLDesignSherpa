@@ -31,6 +31,8 @@ async def cocotb_test_axi4_master_rd_crc_check(dut):
         "rresp_error_sticky":  _rresp_error_sticky,
         "rerun_after_done":    _rerun_after_done,
         "rd_gap_inserts_idle": _rd_gap_inserts_idle,
+        "hash_mode_match":     _hash_mode_match,
+        "hash_mode_low_entropy": _hash_mode_low_entropy,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -132,6 +134,57 @@ async def _rd_gap_inserts_idle(tb: RdCrcCheckTB):
     assert int(tb.dut.o_data_error.value) == 0
 
 
+async def _hash_mode_match(tb: RdCrcCheckTB):
+    """data_mode=1: slave responder returns addr_hash32 of each beat's
+    byte address; DUT regenerates the same hash locally and compares per
+    beat. Asserts clean compare and o_actual_crc_valid stays low (CRC is
+    not the contract in hash mode)."""
+    SEEDS = (0x9E3779B9, 0x85EBCA6B, 0xC2B2AE35)
+    BURST = 4
+    N = 3
+    BYTES_PER_BEAT = tb.AXI_DATA_WIDTH // 8
+    await tb.program(start_addr=0x100, stride_0=BURST * BYTES_PER_BEAT,
+                     burst_len=BURST, txn_count=N, data_mode=1,
+                     hash_seed0=SEEDS[0], hash_seed1=SEEDS[1],
+                     hash_seed2=SEEDS[2])
+    await tb.pulse_start()
+    await tb.wait_done()
+    assert len(tb.ar_log) == N
+    assert int(tb.dut.o_data_error.value)       == 0
+    assert int(tb.dut.o_beats_mismatched.value) == 0
+    assert int(tb.dut.o_actual_crc_valid.value) == 0
+
+
+async def _hash_mode_low_entropy(tb: RdCrcCheckTB):
+    """Low-entropy addresses (start at 0, contiguous bytes) must NOT
+    produce stuck/repeating data — the whole point of the hash seeds is
+    to defeat that. Run with start_addr=0 and check that consecutive
+    beats produce distinct data."""
+    SEEDS = (0xDEADBEEF, 0xCAFEBABE, 0x12345678)
+    BURST = 8
+    N = 1
+    BYTES_PER_BEAT = tb.AXI_DATA_WIDTH // 8
+    await tb.program(start_addr=0, stride_0=BURST * BYTES_PER_BEAT,
+                     burst_len=BURST, txn_count=N, data_mode=1,
+                     hash_seed0=SEEDS[0], hash_seed1=SEEDS[1],
+                     hash_seed2=SEEDS[2])
+    await tb.pulse_start()
+    await tb.wait_done()
+    assert int(tb.dut.o_data_error.value) == 0
+    # Sanity check on the Python mirror itself: consecutive byte addresses
+    # at addr=0 must not collide. (If they do, the hash is broken even
+    # before talking about RTL.)
+    from TBClasses.axi4.axi4_master_wr_pattern_gen_tb import WrPatternGenTB
+    vals = set()
+    for k in range(BURST):
+        byte_addr = (k * BYTES_PER_BEAT) & 0xFFFFFFFF
+        v = WrPatternGenTB.addr_hash32(byte_addr, *SEEDS)
+        vals.add(v)
+    assert len(vals) == BURST, (
+        f"hash collisions at low-entropy addrs: only {len(vals)}/{BURST} distinct"
+    )
+
+
 async def _rerun_after_done(tb: RdCrcCheckTB):
     """A second cfg_start pulse after cfg_done must re-run cleanly."""
     await tb.program(start_addr=0x100, burst_len=2, txn_count=2)
@@ -155,7 +208,8 @@ async def _rerun_after_done(tb: RdCrcCheckTB):
 _ALL_TYPES = ["smoke_match", "multi_burst_match", "address_walk",
               "data_mismatch_sticky", "beats_mismatched_count",
               "rresp_error_sticky", "rerun_after_done",
-              "rd_gap_inserts_idle"]
+              "rd_gap_inserts_idle", "hash_mode_match",
+              "hash_mode_low_entropy"]
 _GATE = [(t,) for t in ["smoke_match", "multi_burst_match",
                         "data_mismatch_sticky"]]
 _FUNC = [(t,) for t in _ALL_TYPES]

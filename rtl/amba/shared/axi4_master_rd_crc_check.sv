@@ -136,6 +136,16 @@ module axi4_master_rd_crc_check #(
 
     input  logic [LFSR_WIDTH-1:0]               cfg_lfsr_seed,    // 0 → use param
 
+    // Data source select: 0 = phase-counter LFSR; 1 = address-derived
+    // hash. In hash mode each beat's expected data is a pure function
+    // of its byte address, so multi-id / OOO completion still validates
+    // (the per-beat compare looks up f(addr) not the LFSR phase). MUST
+    // match the writer's cfg_data_mode + seeds for cross-block validity.
+    input  logic                                cfg_data_mode,
+    input  logic [31:0]                         cfg_hash_seed0,
+    input  logic [31:0]                         cfg_hash_seed1,
+    input  logic [31:0]                         cfg_hash_seed2,
+
     // Inter-burst idle gap (0..15 cycles between rlast on burst N and
     // the AR for burst N+1). Independent from the writer's gap so a
     // sweep can vary R-side pressure separately.
@@ -203,6 +213,13 @@ module axi4_master_rd_crc_check #(
     logic [2:0]                   r_axi_size;
     logic [1:0]                   r_axi_burst;
     logic [LFSR_WIDTH-1:0]        r_lfsr_seed_eff;
+    logic                         r_data_mode;       // 0=LFSR, 1=ADDR_HASH
+    logic [31:0]                  r_hash_seed0;
+    logic [31:0]                  r_hash_seed1;
+    logic [31:0]                  r_hash_seed2;
+    // Burst's accepted AR address, latched at AR handshake so the per-beat
+    // byte-address calc has a stable anchor for hash-mode regeneration.
+    logic [AW-1:0]                r_burst_base_addr;
 
     // Progress counters
     logic [TXN_COUNT_WIDTH-1:0]   r_ar_issued;
@@ -326,14 +343,51 @@ module axi4_master_rd_crc_check #(
     assign fub_rready = (r_state == S_R_BEATS);
 
     //==========================================================================
-    // Expected pattern data — same construction as the writer side
+    // Expected pattern data — two sources, muxed by r_data_mode:
+    //   mode 0: 32-bit Fibonacci LFSR replicated across DW (phase-counter)
+    //   mode 1: 32-bit Murmur3-fmix-style address hash, per-32-bit slice
     //==========================================================================
     localparam int REPLICATION_FACTOR = (DW + 31) / 32;
     logic [REPLICATION_FACTOR*32-1:0] w_expected_replicated;
-    logic [DW-1:0]                    w_expected_data;
-
     assign w_expected_replicated = {REPLICATION_FACTOR{w_lfsr_out}};
-    assign w_expected_data       = w_expected_replicated[DW-1:0];
+
+    // Per-beat byte address for hash mode.
+    logic [AW-1:0]                w_byte_addr_for_beat;
+    assign w_byte_addr_for_beat = r_burst_base_addr
+        + (AW'({{(AW-8){1'b0}}, r_beats_in_burst}) << r_axi_size);
+
+    // MUST match axi4_master_wr_pattern_gen::addr_hash32 bit-for-bit.
+    function automatic logic [31:0] addr_hash32(
+        input logic [31:0] addr,
+        input logic [31:0] s0,
+        input logic [31:0] s1,
+        input logic [31:0] s2
+    );
+        logic [31:0] x;
+        x = addr ^ s0;
+        x = x ^ (x >> 16);
+        x = x * (s1 | 32'h1);
+        x = x ^ (x >> 13);
+        x = x * (s2 | 32'h1);
+        x = x ^ (x >> 16);
+        return x;
+    endfunction
+
+    logic [REPLICATION_FACTOR*32-1:0] w_hash_replicated;
+    always_comb begin
+        for (int s = 0; s < REPLICATION_FACTOR; s++) begin
+            w_hash_replicated[s*32 +: 32] = addr_hash32(
+                w_byte_addr_for_beat[31:0] + 32'(s * 4),
+                r_hash_seed0,
+                r_hash_seed1,
+                r_hash_seed2);
+        end
+    end
+
+    logic [DW-1:0]                    w_expected_data;
+    assign w_expected_data = r_data_mode
+                           ? w_hash_replicated[DW-1:0]
+                           : w_expected_replicated[DW-1:0];
 
     // Per-beat data mismatch (combinational). Latched on w_r_beat below.
     logic                             w_beat_mismatch;
@@ -357,6 +411,11 @@ module axi4_master_rd_crc_check #(
             r_axi_size         <= 3'd0;
             r_axi_burst        <= 2'd1;
             r_lfsr_seed_eff    <= LFSR_SEED;
+            r_data_mode        <= 1'b0;
+            r_hash_seed0       <= 32'd0;
+            r_hash_seed1       <= 32'd0;
+            r_hash_seed2       <= 32'd0;
+            r_burst_base_addr  <= '0;
             r_ar_issued        <= '0;
             r_bursts_done      <= '0;
             r_beats_in_burst   <= 8'd0;
@@ -381,6 +440,10 @@ module axi4_master_rd_crc_check #(
                         r_axi_size      <= cfg_axi_size;
                         r_axi_burst     <= cfg_axi_burst;
                         r_lfsr_seed_eff <= (cfg_lfsr_seed == '0) ? LFSR_SEED : cfg_lfsr_seed;
+                        r_data_mode     <= cfg_data_mode;
+                        r_hash_seed0    <= cfg_hash_seed0;
+                        r_hash_seed1    <= cfg_hash_seed1;
+                        r_hash_seed2    <= cfg_hash_seed2;
                         r_rd_gap        <= cfg_rd_gap;
                         r_ar_issued     <= '0;
                         r_bursts_done   <= '0;
@@ -400,9 +463,10 @@ module axi4_master_rd_crc_check #(
                         r_addr_req_done <= 1'b1;
                     end
                     if (fub_arvalid && fub_arready) begin
-                        r_ar_issued      <= r_ar_issued + 1'b1;
-                        r_state          <= S_R_BEATS;
-                        r_beats_in_burst <= 8'd0;
+                        r_ar_issued       <= r_ar_issued + 1'b1;
+                        r_state           <= S_R_BEATS;
+                        r_beats_in_burst  <= 8'd0;
+                        r_burst_base_addr <= w_addr_result;
                     end
                 end
 
@@ -413,7 +477,10 @@ module axi4_master_rd_crc_check #(
                             r_addr_req_done <= 1'b0;  // re-arm for next burst
                             if (r_bursts_done + 1'b1 == r_txn_count) begin
                                 r_state            <= S_DONE;
-                                o_actual_crc_valid <= 1'b1;
+                                // CRC roll-up is only meaningful in LFSR
+                                // mode (phase-counter contract); hash mode
+                                // proves integrity via per-beat compare.
+                                o_actual_crc_valid <= !r_data_mode;
                             end else if (r_rd_gap != 4'd0) begin
                                 r_state    <= S_GAP;
                                 r_gap_left <= r_rd_gap;
@@ -449,6 +516,10 @@ module axi4_master_rd_crc_check #(
                         r_axi_size      <= cfg_axi_size;
                         r_axi_burst     <= cfg_axi_burst;
                         r_lfsr_seed_eff <= (cfg_lfsr_seed == '0) ? LFSR_SEED : cfg_lfsr_seed;
+                        r_data_mode     <= cfg_data_mode;
+                        r_hash_seed0    <= cfg_hash_seed0;
+                        r_hash_seed1    <= cfg_hash_seed1;
+                        r_hash_seed2    <= cfg_hash_seed2;
                         r_rd_gap        <= cfg_rd_gap;
                         r_ar_issued     <= '0;
                         r_bursts_done   <= '0;

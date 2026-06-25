@@ -43,6 +43,10 @@ async def _setup(dut):
     dut.cfg_axi_size.value         = 3
     dut.cfg_axi_burst.value        = 1
     dut.cfg_lfsr_seed.value        = 0
+    dut.cfg_data_mode.value        = 0
+    dut.cfg_hash_seed0.value       = 0
+    dut.cfg_hash_seed1.value       = 0
+    dut.cfg_hash_seed2.value       = 0
     dut.cfg_wr_gap.value           = 0
     dut.cfg_rd_gap.value           = 0
     dut.cfg_start_wr.value         = 0
@@ -58,13 +62,21 @@ async def _setup(dut):
 async def _program(dut, *, start_addr: int, stride_0: int = 0,
                    burst_len: int = 4, txn_count: int = 4,
                    axi_id: int = 0, lfsr_seed: int = 0,
-                   wr_gap: int = 0, rd_gap: int = 0):
+                   wr_gap: int = 0, rd_gap: int = 0,
+                   data_mode: int = 0,
+                   hash_seed0: int = 0,
+                   hash_seed1: int = 0,
+                   hash_seed2: int = 0):
     dut.cfg_start_addr.value       = start_addr
     dut.cfg_addr_stride_0.value    = stride_0
     dut.cfg_burst_len.value        = burst_len
     dut.cfg_txn_count.value        = txn_count
     dut.cfg_axi_id.value           = axi_id
     dut.cfg_lfsr_seed.value        = lfsr_seed
+    dut.cfg_data_mode.value        = data_mode & 0x1
+    dut.cfg_hash_seed0.value       = hash_seed0 & 0xFFFFFFFF
+    dut.cfg_hash_seed1.value       = hash_seed1 & 0xFFFFFFFF
+    dut.cfg_hash_seed2.value       = hash_seed2 & 0xFFFFFFFF
     dut.cfg_wr_gap.value           = wr_gap & 0xF
     dut.cfg_rd_gap.value           = rd_gap & 0xF
     await RisingEdge(dut.aclk)
@@ -113,6 +125,8 @@ async def cocotb_test_pair(dut):
         "seed_override": _seed_override,
         "rerun":         _rerun,
         "gapped":        _gapped,
+        "hash_mode":     _hash_mode,
+        "hash_mode_low_entropy": _hash_mode_low_entropy_pair,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -136,6 +150,19 @@ async def _check_clean(dut):
     assert exp == act, (
         f"CRC mismatch: expected = 0x{exp:08X}, actual = 0x{act:08X}"
     )
+
+
+async def _check_clean_hash(dut):
+    """In hash mode the CRC pipeline is not the contract; the per-beat
+    compare (o_data_error/o_beats_mismatched) is what proves end-to-end
+    integrity."""
+    assert int(dut.o_bresp_error.value)      == 0
+    assert int(dut.o_rresp_error.value)      == 0
+    assert int(dut.o_data_error.value)       == 0
+    assert int(dut.o_beats_mismatched.value) == 0
+    # CRC valid bits MUST stay low in hash mode
+    assert int(dut.o_expected_crc_valid.value) == 0
+    assert int(dut.o_actual_crc_valid.value)   == 0
 
 
 async def _smoke(dut):
@@ -197,6 +224,40 @@ async def _gapped(dut):
     await _check_clean(dut)
 
 
+async def _hash_mode(dut):
+    """End-to-end in hash mode. Writer emits f(addr); memory stores it;
+    reader regenerates f(addr) locally and compares per beat. No CRC
+    contract here — per-beat compare proves the round trip."""
+    SEEDS = (0x9E3779B9, 0x85EBCA6B, 0xC2B2AE35)
+    BURST = 4
+    N = 4
+    await _program(dut, start_addr=0x500, stride_0=BURST * 8,
+                   burst_len=BURST, txn_count=N, axi_id=4,
+                   data_mode=1,
+                   hash_seed0=SEEDS[0], hash_seed1=SEEDS[1],
+                   hash_seed2=SEEDS[2])
+    await _pulse_wr(dut); await _wait_wr_done(dut)
+    await _pulse_rd(dut); await _wait_rd_done(dut)
+    await _check_clean_hash(dut)
+
+
+async def _hash_mode_low_entropy_pair(dut):
+    """Hash mode with start_addr=0 — the worst case for "naive" data
+    functions. Round-trip must still be clean: hash seeds inject enough
+    entropy that low-bit-count addresses don't collide."""
+    SEEDS = (0xDEADBEEF, 0xCAFEBABE, 0x12345678)
+    BURST = 8
+    N = 1
+    await _program(dut, start_addr=0, stride_0=BURST * 8,
+                   burst_len=BURST, txn_count=N,
+                   data_mode=1,
+                   hash_seed0=SEEDS[0], hash_seed1=SEEDS[1],
+                   hash_seed2=SEEDS[2])
+    await _pulse_wr(dut); await _wait_wr_done(dut)
+    await _pulse_rd(dut); await _wait_rd_done(dut)
+    await _check_clean_hash(dut)
+
+
 async def _rerun(dut):
     """Run the pair twice with different descriptors. Both runs must be
     clean (no leftover state poisoning the second pass)."""
@@ -220,7 +281,8 @@ async def _rerun(dut):
 # Pytest matrix
 # ---------------------------------------------------------------------------
 
-_ALL_TYPES = ["smoke", "row_walk", "seed_override", "rerun", "gapped"]
+_ALL_TYPES = ["smoke", "row_walk", "seed_override", "rerun", "gapped",
+              "hash_mode", "hash_mode_low_entropy"]
 _GATE = [(t,) for t in ["smoke", "row_walk"]]
 _FUNC = [(t,) for t in _ALL_TYPES]
 _FULL = _FUNC

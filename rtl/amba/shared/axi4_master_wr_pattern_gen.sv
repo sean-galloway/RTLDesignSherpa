@@ -124,6 +124,18 @@ module axi4_master_wr_pattern_gen #(
     // Lets the CSR re-seed without recompile.
     input  logic [LFSR_WIDTH-1:0]               cfg_lfsr_seed,
 
+    // Data source select: 0 = phase-counter LFSR (default, OOO-unsafe);
+    // 1 = address-derived hash (OOO-safe, data is f(beat_byte_addr)).
+    // Hash mode lets multi-id / OOO-completion traffic still validate
+    // because each beat's expected data is a pure function of its
+    // address — no phase counter to get out of sync. The 3 seeds drive
+    // a Murmur3-fmix-style mixer (xor-shift + odd mul) so all-zero or
+    // all-one input addresses don't collapse to stuck output patterns.
+    input  logic                                cfg_data_mode,
+    input  logic [31:0]                         cfg_hash_seed0,
+    input  logic [31:0]                         cfg_hash_seed1,
+    input  logic [31:0]                         cfg_hash_seed2,
+
     // Inter-burst idle gap. Adds 0..15 idle cycles between the end of one
     // burst (wlast accepted) and the next AW request. Used to vary the
     // throughput stress on the downstream controller during sweeps.
@@ -196,6 +208,14 @@ module axi4_master_wr_pattern_gen #(
     logic [2:0]                   r_axi_size;
     logic [1:0]                   r_axi_burst;
     logic [LFSR_WIDTH-1:0]        r_lfsr_seed_eff;
+    logic                         r_data_mode;       // 0=LFSR, 1=ADDR_HASH
+    logic [31:0]                  r_hash_seed0;
+    logic [31:0]                  r_hash_seed1;
+    logic [31:0]                  r_hash_seed2;
+    // Burst's accepted AW address — latched on the AW handshake so the
+    // per-beat byte-address calc has a stable anchor while the address-gen
+    // pipeline drains.
+    logic [AW-1:0]                r_burst_base_addr;
 
     // Progress counters
     logic [TXN_COUNT_WIDTH-1:0]   r_aw_issued;
@@ -339,11 +359,66 @@ module axi4_master_wr_pattern_gen #(
                             || (r_state == S_DONE);
 
     //==========================================================================
-    // Replicate the 32-bit LFSR across the AXI data width
+    // Data path — two sources, muxed by r_data_mode:
+    //   mode 0: 32-bit Fibonacci LFSR replicated across DW (phase-counter,
+    //           breaks under multi-id / OOO completion)
+    //   mode 1: 32-bit Murmur3-fmix-style address hash, per-32-bit slice
+    //           (OOO-safe: each beat's data is f(byte_addr, seeds), so
+    //           reorder doesn't perturb the per-beat compare)
+    //
+    // In mode 1 the CRC pipeline (which was built for the phase-counter
+    // contract) is not load-bearing; o_expected_crc_valid is gated low and
+    // the harness must use per-beat compare (o_data_error) for integrity.
     //==========================================================================
     localparam int REPLICATION_FACTOR = (DW + 31) / 32;
     logic [REPLICATION_FACTOR*32-1:0] w_data_replicated;
     assign w_data_replicated = {REPLICATION_FACTOR{w_lfsr_out}};
+
+    // Per-beat byte address. Anchored on r_burst_base_addr (latched at AW
+    // handshake) and stepped by 2**axsize bytes per beat. Full-beat writes
+    // only — strobes are all-ones.
+    logic [AW-1:0]                w_byte_addr_for_beat;
+    assign w_byte_addr_for_beat = r_burst_base_addr
+        + (AW'({{(AW-8){1'b0}}, r_beats_in_burst}) << r_axi_size);
+
+    // Murmur3 fmix32-style mixer with all three constants replaced by
+    // cfg seeds. Odd-forced multiplies + xor-shifts kill low-entropy inputs
+    // (addr = 0, addr = ~0, etc.) — the avalanche property says one input
+    // bit flips ≥ half the output bits.
+    function automatic logic [31:0] addr_hash32(
+        input logic [31:0] addr,
+        input logic [31:0] s0,
+        input logic [31:0] s1,
+        input logic [31:0] s2
+    );
+        logic [31:0] x;
+        x = addr ^ s0;
+        x = x ^ (x >> 16);
+        x = x * (s1 | 32'h1);
+        x = x ^ (x >> 13);
+        x = x * (s2 | 32'h1);
+        x = x ^ (x >> 16);
+        return x;
+    endfunction
+
+    // One hash per 32-bit slice in the beat. Slice s uses byte_addr + s*4
+    // so different slices within the same beat differ as well.
+    logic [REPLICATION_FACTOR*32-1:0] w_hash_replicated;
+    always_comb begin
+        for (int s = 0; s < REPLICATION_FACTOR; s++) begin
+            w_hash_replicated[s*32 +: 32] = addr_hash32(
+                w_byte_addr_for_beat[31:0] + 32'(s * 4),
+                r_hash_seed0,
+                r_hash_seed1,
+                r_hash_seed2);
+        end
+    end
+
+    // Final W data: mode select between LFSR-replicated and hash.
+    logic [DW-1:0]                    w_wdata_out;
+    assign w_wdata_out = r_data_mode
+                       ? w_hash_replicated[DW-1:0]
+                       : w_data_replicated[DW-1:0];
 
     //==========================================================================
     // Sequential FSM + counters
@@ -363,6 +438,11 @@ module axi4_master_wr_pattern_gen #(
             r_axi_size        <= 3'd0;
             r_axi_burst       <= 2'd1;   // INCR
             r_lfsr_seed_eff   <= LFSR_SEED;
+            r_data_mode       <= 1'b0;
+            r_hash_seed0      <= 32'd0;
+            r_hash_seed1      <= 32'd0;
+            r_hash_seed2      <= 32'd0;
+            r_burst_base_addr <= '0;
             r_aw_issued       <= '0;
             r_b_received      <= '0;
             r_beats_in_burst  <= 8'd0;
@@ -388,6 +468,10 @@ module axi4_master_wr_pattern_gen #(
                         r_axi_size      <= cfg_axi_size;
                         r_axi_burst     <= cfg_axi_burst;
                         r_lfsr_seed_eff <= (cfg_lfsr_seed == '0) ? LFSR_SEED : cfg_lfsr_seed;
+                        r_data_mode     <= cfg_data_mode;
+                        r_hash_seed0    <= cfg_hash_seed0;
+                        r_hash_seed1    <= cfg_hash_seed1;
+                        r_hash_seed2    <= cfg_hash_seed2;
                         r_aw_issued     <= '0;
                         r_b_received    <= '0;
                         r_beats_in_burst<= 8'd0;
@@ -407,9 +491,12 @@ module axi4_master_wr_pattern_gen #(
                         r_addr_req_done <= 1'b1;
                     end
                     if (fub_awvalid && fub_awready) begin
-                        // AW accepted; start W beats next cycle
-                        r_state          <= S_W_BEATS;
-                        r_beats_in_burst <= 8'd0;
+                        // AW accepted; start W beats next cycle.
+                        // Latch the burst's base address so the hash mode
+                        // per-beat byte addr can step from a stable anchor.
+                        r_state           <= S_W_BEATS;
+                        r_beats_in_burst  <= 8'd0;
+                        r_burst_base_addr <= w_addr_result;
                     end
                 end
 
@@ -465,6 +552,10 @@ module axi4_master_wr_pattern_gen #(
                         r_axi_size      <= cfg_axi_size;
                         r_axi_burst     <= cfg_axi_burst;
                         r_lfsr_seed_eff <= (cfg_lfsr_seed == '0) ? LFSR_SEED : cfg_lfsr_seed;
+                        r_data_mode     <= cfg_data_mode;
+                        r_hash_seed0    <= cfg_hash_seed0;
+                        r_hash_seed1    <= cfg_hash_seed1;
+                        r_hash_seed2    <= cfg_hash_seed2;
                         r_aw_issued     <= '0;
                         r_b_received    <= '0;
                         r_beats_in_burst<= 8'd0;
@@ -490,9 +581,13 @@ module axi4_master_wr_pattern_gen #(
 
             // Latch the expected CRC at completion (one cycle after the
             // last W beat — w_lfsr_out has settled, u_crc has consumed it).
+            // Only meaningful in LFSR mode; hash mode uses per-beat compare
+            // (o_data_error on the read side) as the integrity contract,
+            // so o_expected_crc_valid stays low in mode 1.
             if (r_state == S_W_BEATS && w_w_beat
                 && r_beats_in_burst == r_burst_len - 8'd1
-                && r_aw_issued + 1'b1 == r_txn_count) begin
+                && r_aw_issued + 1'b1 == r_txn_count
+                && !r_data_mode) begin
                 o_expected_crc       <= w_expected_crc;
                 o_expected_crc_valid <= 1'b1;
             end
@@ -541,7 +636,7 @@ module axi4_master_wr_pattern_gen #(
         .fub_axi_awready (fub_awready),
 
         // FUB W
-        .fub_axi_wdata   (w_data_replicated[DW-1:0]),
+        .fub_axi_wdata   (w_wdata_out),
         .fub_axi_wstrb   ({SW{1'b1}}),   // full beat — no partial strobes
         .fub_axi_wlast   (fub_wlast),
         .fub_axi_wuser   ('0),

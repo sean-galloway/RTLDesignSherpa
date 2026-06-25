@@ -71,6 +71,12 @@ class RdCrcCheckTB(TBBase):
         self.rresp_override: int = 0         # 0=OKAY
         self.lfsr_seed: int = self.LFSR_DEFAULT_SEED
 
+        # Hash-mode mirror state (set by program()). When data_mode=1 the
+        # slave responder hashes the running byte address instead of
+        # advancing the LFSR.
+        self.data_mode: int = 0
+        self.hash_seeds: tuple = (0, 0, 0)
+
         self.ar_log: List[CapturedAr] = []
         # Slave-side LFSR state for "match" path. Reseeded on cfg_start.
         self._slave_lfsr_state: int = self.LFSR_DEFAULT_SEED
@@ -100,6 +106,10 @@ class RdCrcCheckTB(TBBase):
         self.dut.cfg_axi_size.value         = 3
         self.dut.cfg_axi_burst.value        = 1
         self.dut.cfg_lfsr_seed.value        = 0
+        self.dut.cfg_data_mode.value        = 0
+        self.dut.cfg_hash_seed0.value       = 0
+        self.dut.cfg_hash_seed1.value       = 0
+        self.dut.cfg_hash_seed2.value       = 0
         self.dut.cfg_rd_gap.value           = 0
         self.dut.cfg_start.value            = 0
         self.dut.m_axi_arready.value        = 1
@@ -151,12 +161,18 @@ class RdCrcCheckTB(TBBase):
 
     async def _drive_r_burst(self, ar: CapturedAr) -> None:
         beats = ar.arlen + 1
+        bytes_per_beat = self.AXI_DATA_WIDTH // 8
         for k in range(beats):
-            if self.return_lfsr_data:
+            if not self.return_lfsr_data:
+                data = self.garbage_word & self.MASK_DATA
+            elif self.data_mode == 1:
+                # Hash mode: data = f(byte_addr_of_beat, seeds).
+                byte_addr = (ar.addr + k * bytes_per_beat) & 0xFFFFFFFF
+                data = _LfsrMirror.expected_hash_beat_data(
+                    self, byte_addr, self.hash_seeds)
+            else:
                 lfsr_word = self._advance_lfsr()
                 data = self._replicate(lfsr_word)
-            else:
-                data = self.garbage_word & self.MASK_DATA
             is_last = (k == beats - 1)
             self.dut.m_axi_rvalid.value = 1
             self.dut.m_axi_rid.value    = ar.axid
@@ -179,7 +195,11 @@ class RdCrcCheckTB(TBBase):
                       wrap_mask_1: int = 0, burst_len: int = 1,
                       txn_count: int = 1, axi_id: int = 0,
                       axi_size: int = 3, axi_burst: int = 1,
-                      lfsr_seed: int = 0, rd_gap: int = 0) -> None:
+                      lfsr_seed: int = 0, rd_gap: int = 0,
+                      data_mode: int = 0,
+                      hash_seed0: int = 0,
+                      hash_seed1: int = 0,
+                      hash_seed2: int = 0) -> None:
         self.dut.cfg_start_addr.value       = start_addr
         self.dut.cfg_addr_stride_0.value    = stride_0
         self.dut.cfg_addr_stride_1.value    = stride_1
@@ -191,12 +211,20 @@ class RdCrcCheckTB(TBBase):
         self.dut.cfg_axi_size.value         = axi_size
         self.dut.cfg_axi_burst.value        = axi_burst
         self.dut.cfg_lfsr_seed.value        = lfsr_seed
+        self.dut.cfg_data_mode.value        = data_mode & 0x1
+        self.dut.cfg_hash_seed0.value       = hash_seed0 & 0xFFFFFFFF
+        self.dut.cfg_hash_seed1.value       = hash_seed1 & 0xFFFFFFFF
+        self.dut.cfg_hash_seed2.value       = hash_seed2 & 0xFFFFFFFF
         self.dut.cfg_rd_gap.value           = rd_gap & 0xF
         # Mirror the DUT's seed selection so the slave-side LFSR stays
         # phase-locked when return_lfsr_data is on.
         self.lfsr_seed = (lfsr_seed if lfsr_seed != 0
                           else self.LFSR_DEFAULT_SEED)
         self._slave_lfsr_state = self.lfsr_seed
+        self.data_mode   = data_mode & 0x1
+        self.hash_seeds  = (hash_seed0 & 0xFFFFFFFF,
+                            hash_seed1 & 0xFFFFFFFF,
+                            hash_seed2 & 0xFFFFFFFF)
         await RisingEdge(self.dut.aclk)
         await Timer(_NBA_SETTLE_PS, units="ps")
 

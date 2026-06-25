@@ -105,6 +105,10 @@ class WrPatternGenTB(TBBase):
         self.dut.cfg_axi_size.value         = 3
         self.dut.cfg_axi_burst.value        = 1  # INCR
         self.dut.cfg_lfsr_seed.value        = 0
+        self.dut.cfg_data_mode.value        = 0
+        self.dut.cfg_hash_seed0.value       = 0
+        self.dut.cfg_hash_seed1.value       = 0
+        self.dut.cfg_hash_seed2.value       = 0
         self.dut.cfg_wr_gap.value           = 0
         self.dut.cfg_start.value            = 0
         # M-side AXI (we're the slave for the master block under test)
@@ -185,7 +189,11 @@ class WrPatternGenTB(TBBase):
                       wrap_mask_1: int = 0, burst_len: int = 1,
                       txn_count: int = 1, axi_id: int = 0,
                       axi_size: int = 3, axi_burst: int = 1,
-                      lfsr_seed: int = 0, wr_gap: int = 0) -> None:
+                      lfsr_seed: int = 0, wr_gap: int = 0,
+                      data_mode: int = 0,
+                      hash_seed0: int = 0,
+                      hash_seed1: int = 0,
+                      hash_seed2: int = 0) -> None:
         self.dut.cfg_start_addr.value       = start_addr
         self.dut.cfg_addr_stride_0.value    = stride_0
         self.dut.cfg_addr_stride_1.value    = stride_1
@@ -197,6 +205,10 @@ class WrPatternGenTB(TBBase):
         self.dut.cfg_axi_size.value         = axi_size
         self.dut.cfg_axi_burst.value        = axi_burst
         self.dut.cfg_lfsr_seed.value        = lfsr_seed
+        self.dut.cfg_data_mode.value        = data_mode & 0x1
+        self.dut.cfg_hash_seed0.value       = hash_seed0 & 0xFFFFFFFF
+        self.dut.cfg_hash_seed1.value       = hash_seed1 & 0xFFFFFFFF
+        self.dut.cfg_hash_seed2.value       = hash_seed2 & 0xFFFFFFFF
         self.dut.cfg_wr_gap.value           = wr_gap & 0xF
         await RisingEdge(self.dut.aclk)
         await Timer(_NBA_SETTLE_PS, units="ps")
@@ -256,3 +268,34 @@ class WrPatternGenTB(TBBase):
                 full |= (w & 0xFFFFFFFF) << (k * 32)
             out.append(full & self.MASK_DATA)
         return out
+
+    # ---- Python hash mirror (must match the RTL addr_hash32 bit-for-bit) ----
+
+    @staticmethod
+    def addr_hash32(addr: int, s0: int, s1: int, s2: int) -> int:
+        """Murmur3 fmix32 with constants replaced by cfg seeds. The DUT
+        function does the same xor-shift / odd-mul sequence at 32-bit
+        truncated arithmetic."""
+        mask = 0xFFFFFFFF
+        x = (addr ^ s0) & mask
+        x = (x ^ (x >> 16)) & mask
+        x = (x * ((s1 | 1) & mask)) & mask
+        x = (x ^ (x >> 13)) & mask
+        x = (x * ((s2 | 1) & mask)) & mask
+        x = (x ^ (x >> 16)) & mask
+        return x
+
+    def expected_hash_beat_data(self, byte_addr: int,
+                                seeds: tuple) -> int:
+        """One beat's expected data = REPLICATION_FACTOR slices, each
+        slice s = addr_hash32(byte_addr + s*4, seeds). Looks up
+        addr_hash32 by class so this method can be borrowed by sibling
+        TB classes that share the LFSR/hash mirrors."""
+        s0, s1, s2 = seeds
+        rep = (self.AXI_DATA_WIDTH + 31) // 32
+        full = 0
+        for s in range(rep):
+            slice_addr = (byte_addr + s * 4) & 0xFFFFFFFF
+            slice_word = WrPatternGenTB.addr_hash32(slice_addr, s0, s1, s2)
+            full |= slice_word << (s * 32)
+        return full & self.MASK_DATA

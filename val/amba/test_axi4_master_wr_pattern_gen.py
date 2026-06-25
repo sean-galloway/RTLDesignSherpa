@@ -40,6 +40,7 @@ async def cocotb_test_axi4_master_wr_pattern_gen(dut):
         "bresp_error_sticky": _bresp_error_sticky,
         "rerun_after_done":  _rerun_after_done,
         "wr_gap_inserts_idle": _wr_gap_inserts_idle,
+        "hash_mode_data":    _hash_mode_data,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -177,6 +178,40 @@ async def _wr_gap_inserts_idle(tb: WrPatternGenTB):
     assert len(tb.w_log)  == N * BURST
 
 
+async def _hash_mode_data(tb: WrPatternGenTB):
+    """data_mode=1: W beats are addr_hash32 of the per-beat byte address.
+    The Python mirror computes the same hash per beat, so we can compare
+    bit-for-bit. Also asserts o_expected_crc_valid stays low in hash mode
+    (CRC is not the integrity contract there)."""
+    BURST = 4
+    N = 3
+    SEEDS = (0x9E3779B9, 0x85EBCA6B, 0xC2B2AE35)
+    BYTES_PER_BEAT = tb.AXI_DATA_WIDTH // 8
+    BASE = 0x100
+    STRIDE = BURST * BYTES_PER_BEAT
+    await tb.program(start_addr=BASE, stride_0=STRIDE, burst_len=BURST,
+                     txn_count=N, data_mode=1,
+                     hash_seed0=SEEDS[0], hash_seed1=SEEDS[1],
+                     hash_seed2=SEEDS[2])
+    await tb.pulse_start()
+    await tb.wait_done()
+    assert len(tb.w_log) == N * BURST
+    # Walk the same address sequence the writer walks
+    for burst_idx in range(N):
+        burst_base = BASE + burst_idx * STRIDE
+        for beat in range(BURST):
+            byte_addr = (burst_base + beat * BYTES_PER_BEAT) & 0xFFFFFFFF
+            expected = tb.expected_hash_beat_data(byte_addr, SEEDS)
+            got = tb.w_log[burst_idx * BURST + beat].data
+            assert got == expected, (
+                f"burst {burst_idx} beat {beat}: data 0x{got:016X} "
+                f"want 0x{expected:016X} (addr 0x{byte_addr:08X})"
+            )
+    # CRC valid should NOT assert in hash mode — per-beat compare on the
+    # read side is the contract.
+    assert int(tb.dut.o_expected_crc_valid.value) == 0
+
+
 async def _rerun_after_done(tb: WrPatternGenTB):
     """After cfg_done, a second cfg_start pulse must re-run the workload
     cleanly with fresh state (no leftover counters / errors)."""
@@ -210,7 +245,7 @@ async def _rerun_after_done(tb: WrPatternGenTB):
 _ALL_TYPES = ["smoke", "multi_burst", "address_walk",
               "data_matches_lfsr", "done_waits_for_b",
               "bresp_error_sticky", "rerun_after_done",
-              "wr_gap_inserts_idle"]
+              "wr_gap_inserts_idle", "hash_mode_data"]
 _GATE = [(t,) for t in ["smoke", "multi_burst", "address_walk"]]
 _FUNC = [(t,) for t in _ALL_TYPES]
 _FULL = _FUNC
