@@ -49,15 +49,10 @@ convention so the same coverage rollup scripts apply
 | `rd_cl_aligner_testplan.yaml` | rd_cl_aligner.sv | test_rd_cl_aligner.py | 7 |
 | `dfi_cmd_formatter_testplan.yaml` | dfi_cmd_formatter.sv | test_dfi_cmd_formatter.py | 6 |
 | `dfi_signal_pack_testplan.yaml` | dfi_signal_pack.sv | test_dfi_signal_pack.py | 4 |
-
-### FUB level — integration tested only (no direct unit test)
-
-| Testplan | Module | Tested via | Scenarios |
-|----------|--------|------------|----------:|
-| `axi_intake_testplan.yaml` | axi_intake.sv | test_axi_frontend_macro.py | 8 |
-| `axi_id_side_table_testplan.yaml` | axi_id_side_table.sv | test_axi_frontend_macro.py | 5 |
-| `addr_mapper_testplan.yaml` | addr_mapper.sv | test_axi_frontend_macro.py | 4 |
-| `wr2rd_forward_testplan.yaml` | wr2rd_forward.sv | test_axi_frontend_macro.py | 6 |
+| `axi_id_side_table_testplan.yaml` | axi_id_side_table.sv | test_axi_id_side_table.py | 5 |
+| `addr_mapper_testplan.yaml` | addr_mapper.sv | test_addr_mapper.py | 4 |
+| `wr2rd_forward_testplan.yaml` | wr2rd_forward.sv | test_wr2rd_forward.py | 6 |
+| `axi_intake_testplan.yaml` | axi_intake.sv | test_axi_intake.py | 8 |
 
 ### Macro level
 
@@ -80,8 +75,8 @@ convention so the same coverage rollup scripts apply
 
 | Tier | Scenarios | Verified | % |
 |------|----------:|---------:|--:|
-| FUB (direct) | 115 | 115 | 100.0 |
-| FUB (integration) | 23 | 23 | 100.0 |
+| FUB (direct) | 138 | 138 | 100.0 |
+| FUB (integration) | 0 | 0 | n/a |
 | Macro | 38 | 38 | 100.0 |
 | Top | 11 | 7 | 63.6 |
 | **Total** | **187** | **183** | **97.9** |

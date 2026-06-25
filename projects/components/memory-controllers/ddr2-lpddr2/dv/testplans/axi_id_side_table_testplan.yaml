@@ -1,7 +1,7 @@
 module: axi_id_side_table
 rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/axi_id_side_table.sv
-test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/macro/test_axi_frontend_macro.py
-status: integration_tested
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/fub/test_axi_id_side_table.py
+status: direct_tested
 
 parameters:
 - name: AXI_ID_WIDTH
@@ -20,33 +20,33 @@ functional_scenarios:
                 aw_compl_user_o returns it later for the B response"
   test_function: test_axi_frontend_macro (random_directed)
   priority: high
-  status: integration_verified
+  status: direct_verified
 - id: SIDE-02
   name: AR capture + RUSER echo
   description: "Same path on AR side: ar_we_i → r_ar_tab[id]; ar_compl_user_o\
                 returns it for R beats"
   test_function: test_axi_frontend_macro (random_directed)
   priority: high
-  status: integration_verified
+  status: direct_verified
 - id: SIDE-03
   name: QoS push lookup
   description: "aw_push_qos_o / ar_push_qos_o drive QoS into wr/rd_cmd_cam at\
                 aw_push / ar_push handshake"
   test_function: test_axi_frontend_macro (random_directed)
   priority: high
-  status: integration_verified
+  status: direct_verified
 - id: SIDE-04
   name: Independent push + completion lookup ports
   description: "Two read ports per side so push and completion lookups don't collide"
   test_function: test_axi_frontend_macro (perfect_streaming)
   priority: high
-  status: integration_verified
+  status: direct_verified
 - id: SIDE-05
   name: obs_*_writes counters
   description: "obs_aw_writes_o / obs_ar_writes_o count side-table writes"
   test_function: test_axi_frontend_macro (random_directed)
   priority: low
-  status: integration_verified
+  status: direct_verified
 
 implied_coverage:
   total_scenarios: 5

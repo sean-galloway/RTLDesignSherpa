@@ -58,10 +58,18 @@ and merge with `lcov -a`.
 
 | Tier | Lines covered | Lines total | % |
 |------|--------------:|------------:|--:|
-| FUB only (186 tests) | 881 | 968 | 91.0 |
+| FUB only (213 tests) | (per-FUB) | (per-FUB) | — |
 | Macro only (34 tests) | 2139 | 2708 | 79.0 |
-| **Top only (17 tests)** | **2516** | **3326** | **75.6** |
-| **Combined (237 tests)** | **2850** | **3326** | **85.7** |
+| **Top only (22 tests)** | **2667** | **3327** | **80.2** |
+| **Combined (269 tests)** | **2895** | **3327** | **87.0** |
+
+Top-only crossed the **80 % signoff bar**. The +5 pts since 75.6 %
+came from four config-axis top scenarios (`open_page_workload`,
+`happy_page_workload`, `open_page_lpddr2`, `wr2rd_forward_burst`)
+plus the G-01a/b/c bug fixes unblocking the four `debug_only` tests.
+Combined gained another +1.3 pts from the four new direct FUB tests
+(axi_id_side_table, addr_mapper, wr2rd_forward, axi_intake) — these
+exercise CAM/forward/intake paths the macro tests don't isolate.
 
 Top-only growth (10 → 17 tests) came from seven config-axis variants
 landed in test_ddr2_lpddr2_top.py:

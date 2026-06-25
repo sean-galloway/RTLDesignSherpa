@@ -1,7 +1,7 @@
 module: addr_mapper
 rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/addr_mapper.sv
-test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/macro/test_axi_frontend_macro.py
-status: integration_tested
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/fub/test_addr_mapper.py
+status: direct_tested
 
 parameters:
 - name: AXI_ADDR_WIDTH
@@ -23,25 +23,25 @@ functional_scenarios:
   description: "Default scheme: byte_addr = {row, bank, col, byte_off}"
   test_function: test_axi_frontend_macro (scheme_sweep, addr_space_sweep)
   priority: high
-  status: integration_verified
+  status: direct_verified
 - id: AM-02
   name: BANK_INTERLEAVE decode
   description: "Scheme 01: byte_addr = {row, col, bank, byte_off}"
   test_function: test_axi_frontend_macro (scheme_sweep)
   priority: high
-  status: integration_verified
+  status: direct_verified
 - id: AM-03
   name: XOR_HASH decode
   description: "Scheme 10: XOR-hash bank selection"
   test_function: test_axi_frontend_macro (scheme_sweep)
   priority: high
-  status: integration_verified
+  status: direct_verified
 - id: AM-04
   name: Aligned + unaligned bursts
   description: "Bursts crossing column / bank / row boundaries"
   test_function: test_axi_frontend_macro (addr_space_sweep, burst_len_sweep)
   priority: high
-  status: integration_verified
+  status: direct_verified
 
 implied_coverage:
   total_scenarios: 4

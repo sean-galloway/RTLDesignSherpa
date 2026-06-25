@@ -1,7 +1,7 @@
 module: axi_intake
 rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/axi_intake.sv
-test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/macro/test_axi_frontend_macro.py
-status: integration_tested
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/fub/test_axi_intake.py
+status: direct_tested
 
 parameters:
 - name: AXI_DATA_WIDTH
@@ -29,51 +29,51 @@ functional_scenarios:
   description: "axi4_slave_wr + aw_pending FIFO + b_fifo round-trip"
   test_function: test_axi_frontend_macro (forward_smoke / random_directed / perfect_streaming)
   priority: high
-  status: integration_verified
+  status: direct_verified
 - id: INT-02
   name: AR/R pipeline
   description: "axi4_slave_rd + ar_pending + R emit (fwd or inject)"
   test_function: test_axi_frontend_macro (miss_smoke / random_directed)
   priority: high
-  status: integration_verified
+  status: direct_verified
 - id: INT-03
   name: w_buf write/read
   description: "W beats buffered, drained via beat_pull, snarfed by R emit"
   test_function: test_axi_frontend_macro (forward_smoke / perfect_streaming)
   priority: high
-  status: integration_verified
+  status: direct_verified
 - id: INT-04
   name: BUSER / RUSER echo
   description: "axi_id_side_table replays awuser → buser, aruser → ruser"
   test_function: test_axi_frontend_macro (random_directed)
   priority: medium
-  status: integration_verified
+  status: direct_verified
 - id: INT-05
   name: QoS forward
   description: "aw_push_qos_o / ar_push_qos_o drive the CAMs' push_qos_i"
   test_function: test_axi_frontend_macro (random_directed)
   priority: high
-  status: integration_verified
+  status: direct_verified
 - id: INT-06
   name: rd_inject path
   description: "Non-forwarded reads return through rd_inject_* from data_path"
   test_function: test_axi_frontend_macro (miss_smoke)
   priority: high
-  status: integration_verified
+  status: direct_verified
 - id: INT-07
   name: w_buf hazard probes
   description: "Five hazard probes (debug) — wbuf_wptr_glitch / burst_done /\
                 w_after_wlast / full_strb_acc / aw_push_before_burst_done"
   test_function: test_axi_frontend_macro (snarf_timing_schmoo)
   priority: medium
-  status: integration_verified
+  status: direct_verified
 - id: INT-08
   name: Observation counters
   description: "obs_wr_completions / obs_rd_completions / obs_aw_meta_writes /\
                 obs_ar_meta_writes counters increment per event"
   test_function: test_axi_frontend_macro (random_directed)
   priority: low
-  status: integration_verified
+  status: direct_verified
 
 implied_coverage:
   total_scenarios: 8

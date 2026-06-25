@@ -1,7 +1,7 @@
 module: wr2rd_forward
 rtl_file: projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/wr2rd_forward.sv
-test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/macro/test_axi_frontend_macro.py
-status: integration_tested
+test_file: projects/components/memory-controllers/ddr2-lpddr2/dv/tests/fub/test_wr2rd_forward.py
+status: direct_tested
 
 parameters:
 - name: WR_CAM_DEPTH
@@ -20,37 +20,37 @@ functional_scenarios:
                 cam_full_strb=1 → fwd path takes the AR, R streams from w_buf"
   test_function: test_axi_frontend_macro (forward_smoke, snarf_timing_schmoo)
   priority: high
-  status: integration_verified
+  status: direct_verified
 - id: FWD-02
   name: No-match miss
   description: "AR has no matching WR → take_rd path: rd_push to rd_cmd_cam"
   test_function: test_axi_frontend_macro (miss_smoke)
   priority: high
-  status: integration_verified
+  status: direct_verified
 - id: FWD-03
   name: Len mismatch
   description: "Address matches but lengths differ → not eligible, miss path"
   test_function: test_axi_frontend_macro (burst_len_sweep)
   priority: high
-  status: integration_verified
+  status: direct_verified
 - id: FWD-04
   name: Partial-strb gating
   description: "cam_full_strb=0 (any beat had byte holes) → not eligible"
   test_function: test_axi_frontend_macro (partial_strb)
   priority: high
-  status: integration_verified
+  status: direct_verified
 - id: FWD-05
   name: Newest-slot wins
   description: "Multiple matching slots → highest-index (newest) wins"
   test_function: test_axi_frontend_macro (random_directed)
   priority: medium
-  status: integration_verified
+  status: direct_verified
 - id: FWD-06
   name: QoS forward (rd_push_qos)
   description: "rd_push_qos_o mirrors ar_qos_i so non-forwarded reads carry QoS"
   test_function: test_axi_frontend_macro (random_directed)
   priority: high
-  status: integration_verified
+  status: direct_verified
 
 implied_coverage:
   total_scenarios: 6
