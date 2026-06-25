@@ -66,7 +66,7 @@
 
 module perf_profiler #(
     parameter int NUM_CHANNELS = 8,
-    parameter int CHANNEL_WIDTH = $clog2(NUM_CHANNELS),
+    parameter int CHANNEL_WIDTH = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1,
     parameter int TIMESTAMP_WIDTH = 32,
     parameter int FIFO_DEPTH = 256,
     parameter int FIFO_ADDR_WIDTH = $clog2(FIFO_DEPTH)

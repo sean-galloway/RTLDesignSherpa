@@ -25,6 +25,7 @@ $STREAM_ROOT/rtl/includes/stream_pkg.sv
 # Dependencies - Arbiters (for shared descriptor AXI master access)
 $REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
 $REPO_ROOT/rtl/common/arbiter_round_robin.sv
+$REPO_ROOT/rtl/common/arbiter_single_client.sv
 
 # Dependencies - AMBA Monitors (for descriptor AXI master monitoring)
 # Use -f to include complete monitor infrastructure

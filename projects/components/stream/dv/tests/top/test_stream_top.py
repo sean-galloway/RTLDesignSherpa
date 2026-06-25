@@ -123,6 +123,35 @@ def generate_test_params():
         'scenario': 'apb_config',
     })
 
+    # Long single-channel runs (NUM_CHANNELS=1). These exercise the
+    # generate-select single-client arbiter passthrough (descriptor-AR) and the
+    # guarded channel-ID widths added to support a 1-channel build, with
+    # sustained traffic on channel 0. 'full' level only -- they are long.
+    if test_level == 'full':
+        # NUM_CHANNELS=1 long runs: multiple chained descriptors, each spanning
+        # several write bursts (transfer > 17 beats), to exercise the
+        # single-client arbiter's hold-for-ack burst sequencing on channel 0.
+        # Sized to complete under the cocotb scoreboard (~beats, not KB).
+        one_ch_runs = [
+            # (scenario tag, desc_count, transfer_sizes, timing)
+            ('1ch_long_chain', 6, [24],     'fast'),   # 6 chained desc, 2 bursts each
+            ('1ch_long_mixed', 4, [24, 48], 'mixed'),  # mixed sizes + backpressure
+        ]
+        for tag, dc, sizes, timing in one_ch_runs:
+            params.append({
+                'num_channels': 1,
+                'data_width': data_width,
+                'fifo_depth': 4096,
+                'axi_id_width': 8,
+                'apb_addr_width': 12,
+                'apb_data_width': 32,
+                'desc_count': dc,
+                'test_channels': [0],
+                'transfer_sizes': sizes,
+                'timing_profile': timing,
+                'scenario': tag,
+            })
+
     return params
 
 
@@ -130,7 +159,7 @@ def generate_test_params():
 # CocoTB Test Functions
 # ==============================================================================
 
-@cocotb.test(timeout_time=2000, timeout_unit="us")
+@cocotb.test(timeout_time=50000, timeout_unit="us")
 async def cocotb_test_stream_top_basic(dut):
     """Test basic stream_top operation with APB configuration"""
 

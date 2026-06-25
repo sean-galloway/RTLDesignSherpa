@@ -36,7 +36,7 @@
 module scheduler_group_array #(
     parameter bit GEN_MON = 1'b1,   // 0 = omit per-channel completion/error MonBus emitters
     parameter int NUM_CHANNELS = 8,
-    parameter int CHAN_WIDTH = $clog2(NUM_CHANNELS),
+    parameter int CHAN_WIDTH = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1,
     parameter int ADDR_WIDTH = 64,
     parameter int DATA_WIDTH = 512,
     parameter int AXI_ID_WIDTH = 8,
@@ -411,21 +411,41 @@ module scheduler_group_array #(
     // Descriptor AXI AR Channel Arbitration
     //=========================================================================
 
-    // Round-robin arbiter with ACK mode for proper AXI handshaking
-    arbiter_round_robin #(
-        .CLIENTS                (NUM_CHANNELS),
-        .WAIT_GNT_ACK           (1)  // ACK mode: wait for grant acknowledgment
-    ) u_desc_ar_arbiter (
-        .clk                    (clk),
-        .rst_n                  (rst_n),
-        .block_arb              (1'b0),
-        .request                (desc_ar_valid),
-        .grant_ack              (desc_ar_grant_ack),
-        .grant_valid            (desc_ar_grant_valid),
-        .grant                  (desc_ar_grant),
-        .grant_id               (desc_ar_grant_id),
-        .last_grant             (/* unused */)
-    );
+    // Round-robin arbiter with ACK mode for proper AXI handshaking.
+    // A single channel needs no arbitration; grant the lone client directly
+    // (and avoid the arbiter's $clog2(1)=0 grant_id underflow). Mirrors the
+    // gen_single_channel pattern already used in axi_read_engine/axi_write_engine.
+    generate
+        if (NUM_CHANNELS == 1) begin : gen_single_channel
+            arbiter_single_client #(
+                .WAIT_GNT_ACK (1)
+            ) u_desc_ar_arbiter_single (
+                .clk          (clk),
+                .rst_n        (rst_n),
+                .block_arb    (1'b0),
+                .request      (desc_ar_valid[0]),
+                .grant_ack    (desc_ar_grant_ack[0]),
+                .grant_valid  (desc_ar_grant_valid),
+                .grant        (desc_ar_grant[0]),
+                .grant_id     (desc_ar_grant_id[0])
+            );
+        end else begin : gen_multi_channel
+            arbiter_round_robin #(
+                .CLIENTS                (NUM_CHANNELS),
+                .WAIT_GNT_ACK           (1)  // ACK mode: wait for grant acknowledgment
+            ) u_desc_ar_arbiter (
+                .clk                    (clk),
+                .rst_n                  (rst_n),
+                .block_arb              (1'b0),
+                .request                (desc_ar_valid),
+                .grant_ack              (desc_ar_grant_ack),
+                .grant_valid            (desc_ar_grant_valid),
+                .grant                  (desc_ar_grant),
+                .grant_id               (desc_ar_grant_id),
+                .last_grant             (/* unused */)
+            );
+        end
+    endgenerate
 
     // Grant acknowledgment: asserted when granted client's AR request is accepted
     always_comb begin

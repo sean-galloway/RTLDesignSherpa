@@ -57,7 +57,7 @@ module descriptor_engine #(
     // recovers control-set/slice packing on the area-tight FPGA build.
     parameter bit GEN_MON = 1'b1,
     parameter int NUM_CHANNELS = 32,
-    parameter int CHAN_WIDTH = $clog2(NUM_CHANNELS),
+    parameter int CHAN_WIDTH = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1,
     parameter int ADDR_WIDTH = 64,
     // DESCRIPTOR_WIDTH is FIXED at 256 bits (removed DATA_WIDTH parameter)
     parameter int AXI_ID_WIDTH = 8,

@@ -69,7 +69,7 @@ module scheduler #(
     // trace, so synth strips the r_mon_* registers on the FPGA build).
     parameter bit GEN_MON = 1'b1,
     parameter int NUM_CHANNELS = 8,
-    parameter int CHAN_WIDTH = $clog2(NUM_CHANNELS),
+    parameter int CHAN_WIDTH = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1,
     parameter int ADDR_WIDTH = 64,
     parameter int DATA_WIDTH = 512,
     // Monitor Bus Parameters

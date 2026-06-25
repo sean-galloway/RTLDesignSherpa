@@ -82,14 +82,27 @@ plus **~1.45k LUTs, ~870 FFs, and ~2 BRAM tiles per channel** (the scheduler /
 descriptor group + per-channel SRAM datapath). BRAM tracks the channel count
 exactly — one 256-deep × 128-bit SRAM tile pair per channel.
 
-`NUM_CHANNELS=1` now synthesizes (5,581 LUTs / 4,506 FF / 2.5 BRAM). It
-originally underflowed (`$clog2(1)=0` → `[-1:0]`); the fix guards the channel-ID
-widths with `(NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1` and wraps the
-descriptor-AR arbiter in a `generate` that grants the lone client directly at
-`NUM_CHANNELS==1` (mirroring the existing `gen_single_channel` path in
-`axi_read_engine`/`axi_write_engine`). The change is a **verified no-op for
-`NUM_CHANNELS > 1`** — the 8-channel build is byte-identical (15,667 / 10,603 /
-16.5) before and after. Note a 1-channel STREAM is somewhat academic: the
+`NUM_CHANNELS=1` now synthesizes **and passes functional verification**
+(5,586 LUTs / 4,510 FF / 2.5 BRAM). Enabling it took two changes plus a latent
+bug fix:
+
+1. **Width guards.** `$clog2(1)=0` underflowed channel-ID part-selects to
+   `[-1:0]`; guarded with `(NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1`.
+2. **Single-client arbiter (`rtl/common/arbiter_single_client.sv`).** The
+   descriptor-AR/read/write paths substitute a single-client grant when
+   `NUM_CHANNELS==1` (the round-robin arbiter underflows at `CLIENTS==1`). The
+   pre-existing substitute was a *combinational* passthrough (`grant=request`),
+   which does **not** reproduce the arbiter's registered, ack-held grant timing
+   — it injected a bubble beat at every write-burst boundary, corrupting any
+   transfer longer than one burst. This was a latent 1-channel datapath bug,
+   never caught because the top-level never built at 1 channel. The new module
+   is the "req/grant + hold-for-ack" equivalent and reproduces the arbiter's
+   `WAIT_GNT_ACK` lifecycle exactly. Caught by the `nc01` long tests in
+   `test_stream_top.py` (multi-descriptor, multi-burst); verified fixed.
+
+The change is a **verified no-op for `NUM_CHANNELS > 1`** — the 8-channel build
+is byte-identical (15,667 / 10,603 / 16.5) before and after (the single-client
+path isn't elaborated at N>1). A 1-channel STREAM is somewhat academic: the
 production build is 8-channel and runs single-channel workloads by enabling one
 channel at runtime via `cfg_channel_enable` (how the "1 channel" perf runs were
 measured). The 1-channel *build* exists for the iDMA parity comparison.
@@ -150,7 +163,7 @@ below).
 
 | Design (1 channel, dw128) | LUTs | FFs | BRAM |
 |---|---:|---:|---:|
-| **STREAM** (`stream_top_ch8`, monitors off) | 5,581 | 4,506 | 2.5 |
+| **STREAM** (`stream_top_ch8`, monitors off) | 5,586 | 4,510 | 2.5 |
 | iDMA (backend + desc64) | 3,869 | 5,685 | 0 |
 
 **The architectures cross over.** At one channel iDMA is leaner in LUTs (3,869 vs
@@ -181,7 +194,7 @@ far more logic.
 
 | Channels | STREAM LUTs | iDMA LUTs (N×3,869 + mux) | winner |
 |---------:|------------:|--------------------------:|:------|
-| 1 | 5,581 | 3,869 | iDMA |
+| 1 | 5,586 | 3,869 | iDMA |
 | 2 | 6,948 | ~7,940 | STREAM |
 | 4 | 10,010 | ~15,700 | STREAM |
 | 8 | 15,667 | 31,368 | STREAM |

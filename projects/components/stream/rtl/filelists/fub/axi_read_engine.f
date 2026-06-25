@@ -17,6 +17,7 @@ $STREAM_ROOT/rtl/includes/stream_pkg.sv
 # Dependencies - Arbiter
 $REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
 $REPO_ROOT/rtl/common/arbiter_round_robin.sv
+$REPO_ROOT/rtl/common/arbiter_single_client.sv
 
 # AXI read engine module
 $STREAM_ROOT/rtl/fub/axi_read_engine.sv

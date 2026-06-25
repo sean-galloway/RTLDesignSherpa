@@ -1483,7 +1483,7 @@ module stream_top_ch8 #(
                 // cfg_perf_ch_sel from PERF_CH_SEL.CH_SEL; outputs are the
                 // selected channel's buckets + all-channel overflow masks.
                 // (In the monitors-disabled variant stream_core ties these to 0.)
-                .cfg_perf_ch_sel            (hwif_out.PERF_CH_SEL.CH_SEL.value[$clog2(NUM_CHANNELS)-1:0]),
+                .cfg_perf_ch_sel            (hwif_out.PERF_CH_SEL.CH_SEL.value[((NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1)-1:0]),
                 .rdmon_ch_prod_cycles       (rdmon_ch_prod_cycles),
                 .rdmon_ch_bp_cycles         (rdmon_ch_bp_cycles),
                 .rdmon_ch_starv_cycles      (rdmon_ch_starv_cycles),
@@ -1778,7 +1778,7 @@ module stream_top_ch8 #(
                 // cfg_perf_ch_sel from PERF_CH_SEL.CH_SEL; outputs are the
                 // selected channel's buckets + all-channel overflow masks.
                 // (In the monitors-disabled variant stream_core ties these to 0.)
-                .cfg_perf_ch_sel            (hwif_out.PERF_CH_SEL.CH_SEL.value[$clog2(NUM_CHANNELS)-1:0]),
+                .cfg_perf_ch_sel            (hwif_out.PERF_CH_SEL.CH_SEL.value[((NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1)-1:0]),
                 .rdmon_ch_prod_cycles       (rdmon_ch_prod_cycles),
                 .rdmon_ch_bp_cycles         (rdmon_ch_bp_cycles),
                 .rdmon_ch_starv_cycles      (rdmon_ch_starv_cycles),

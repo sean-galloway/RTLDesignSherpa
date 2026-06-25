@@ -495,11 +495,23 @@ module axi_write_engine #(
 
     generate
         if (NC == 1) begin : gen_single_channel
-            // Single channel - no arbitration needed, grant directly
-            assign w_arb_grant_valid = r_arb_request[0];
-            assign w_arb_grant = r_arb_request;  // Direct passthrough
-            assign w_arb_grant_id = 1'b0;        // Always channel 0
-            // ACK signal must still be driven for AW channel management
+            // Single channel: no round-robin needed, but the datapath relies on
+            // the arbiter's registered, ack-held grant timing for correct burst
+            // sequencing. Use the single-client equivalent (req/grant + hold for
+            // ack) -- a plain combinational passthrough injects a bubble beat at
+            // every burst boundary (see arbiter_single_client header).
+            arbiter_single_client #(
+                .WAIT_GNT_ACK (1)
+            ) u_arbiter_single (
+                .clk          (clk),
+                .rst_n        (rst_n),
+                .block_arb    (1'b0),
+                .request      (r_arb_request[0]),
+                .grant_ack    (w_arb_grant_ack[0]),
+                .grant_valid  (w_arb_grant_valid),
+                .grant        (w_arb_grant[0]),
+                .grant_id     (w_arb_grant_id[0])
+            );
         end else begin : gen_multi_channel
             // Multiple channels - use round-robin arbiter
             arbiter_round_robin #(
