@@ -104,43 +104,43 @@ Fast lookup. Each row is a class of things; the deep-dive link goes to its index
 
 > Counts are approximate as of 2026-06-24; subsystem READMEs are authoritative.
 
-### 1. Common Building Blocks — `rtl/common/`
+### 1. Common Building Blocks — [`rtl/common/`](rtl/common/)
 
 Reusable primitives, technology-agnostic. **~224 modules.**
 
 | Class | ~Count | Where | Examples |
 |---|---|---|---|
-| Counters | 8 | `rtl/common/counter_*.sv` | `counter_bin`, `counter_bingray`, `counter_load_clear`, `counter_johnson`, `counter_ring`, `counter_freq_invariant` |
-| Arbiters | 4 | `rtl/common/arbiter_*.sv` | `arbiter_round_robin`, `arbiter_round_robin_weighted`, PWM variants |
-| FIFOs | 4 | `rtl/common/fifo_*.sv` | `fifo_sync`, `fifo_async`, `fifo_async_div2`, `fifo_sync_multi` |
-| Shift / LFSR | — | `rtl/common/shifter_lfsr_*.sv` | Fibonacci LFSR, Galois LFSR, universal shifters |
-| Math — integer arithmetic | 40+ | `rtl/common/math_adder_*`, `math_mult_*`, `math_div_*` | Han-Carlson prefix adders (16/22/32/44/48/72-bit), Dadda 4:2 compressor mults (8/11/24-bit), leading-zero count, parity |
-| Math — floating point | 120+ | `rtl/common/math_float_*` | BF16, FP16, FP32, FP8 (E4M3/E5M2): adder, multiplier, FMA, recip, divide, sqrt; cross-format converters |
-| Data integrity | 7 | `rtl/common/dataint_*.sv` | `dataint_crc` (300+ standards), `dataint_ecc_hamming` (SECDED), `dataint_parity` |
-| Clock utilities | 3 | `rtl/common/clock_*.sv` | `clock_divider`, `clock_gate_ctrl`, `clock_pulse` |
-| Encoders / decoders | 3 | `rtl/common/{encoder,decoder}*.sv` | priority encoder, address decoder |
-| Reset | 1 | `rtl/common/reset_sync.sv` | async-assert / sync-deassert reset bridge |
+| Counters | 8 | [`rtl/common/`](rtl/common/) (`counter_*.sv`) | [`counter_bin`](rtl/common/counter_bin.sv), [`counter_bingray`](rtl/common/counter_bingray.sv), [`counter_load_clear`](rtl/common/counter_load_clear.sv), [`counter_johnson`](rtl/common/counter_johnson.sv), [`counter_ring`](rtl/common/counter_ring.sv), [`counter_freq_invariant`](rtl/common/counter_freq_invariant.sv) |
+| Arbiters | 4 | [`rtl/common/`](rtl/common/) (`arbiter_*.sv`) | [`arbiter_round_robin`](rtl/common/arbiter_round_robin.sv), [`arbiter_round_robin_weighted`](rtl/common/arbiter_round_robin_weighted.sv), PWM variants |
+| FIFOs | 4 | [`rtl/common/`](rtl/common/) (`fifo_*.sv`) | [`fifo_sync`](rtl/common/fifo_sync.sv), [`fifo_async`](rtl/common/fifo_async.sv), [`fifo_async_div2`](rtl/common/fifo_async_div2.sv) |
+| Shift / LFSR | — | [`rtl/common/`](rtl/common/) (`shifter_lfsr_*.sv`) | Fibonacci LFSR, Galois LFSR, universal shifters |
+| Math — integer arithmetic | 40+ | [`rtl/common/`](rtl/common/) (`math_adder_*`, `math_mult_*`, `math_div_*`) | Han-Carlson prefix adders (16/22/32/44/48/72-bit), Dadda 4:2 compressor mults (8/11/24-bit), leading-zero count, parity |
+| Math — floating point | 120+ | [`rtl/common/`](rtl/common/) (`math_float_*`) | BF16, FP16, FP32, FP8 (E4M3/E5M2): adder, multiplier, FMA, recip, divide, sqrt; cross-format converters |
+| Data integrity | 7 | [`rtl/common/`](rtl/common/) (`dataint_*.sv`) | `dataint_crc` (300+ standards), `dataint_ecc_hamming` (SECDED), `dataint_parity` |
+| Clock utilities | 3 | [`rtl/common/`](rtl/common/) (`clock_*.sv`) | [`clock_divider`](rtl/common/clock_divider.sv), [`clock_gate_ctrl`](rtl/common/clock_gate_ctrl.sv), [`clock_pulse`](rtl/common/clock_pulse.sv) |
+| Encoders / decoders | 3 | [`rtl/common/`](rtl/common/) (`{encoder,decoder}*.sv`) | priority encoder, address decoder |
+| Reset | 1 | [`rtl/common/reset_sync.sv`](rtl/common/reset_sync.sv) | async-assert / sync-deassert reset bridge |
 
-**Deep dive:** [`docs/markdown/RTLCommon/index.md`](docs/markdown/RTLCommon/index.md) · [`rtl/common/CLAUDE.md`](rtl/common/CLAUDE.md)
+**Deep dive:** [docs/markdown/RTLCommon/index.md](docs/markdown/RTLCommon/index.md) · [rtl/common/CLAUDE.md](rtl/common/CLAUDE.md)
 
-### 2. AMBA Protocols — `rtl/amba/`
+### 2. AMBA Protocols — [`rtl/amba/`](rtl/amba/)
 
 Production-ready AXI/APB/AXIS infrastructure with built-in monitor + observation. **155 modules across 8 protocol dirs + 48 shared.**
 
 | Protocol | Modules | Where | Notes |
 |---|---|---|---|
-| AXI4 | 16 | `rtl/amba/axi4/` | masters/slaves, RD/WR, `_mon` + `_cg` variants |
-| AXI5 | 16 | `rtl/amba/axi5/` | AXI5 extensions |
-| AXI4-Lite | 16 | `rtl/amba/axil4/` | **Dedicated** `axil4_*_mon.sv` (not the legacy `IS_AXI=0`) |
-| APB | 9 | `rtl/amba/apb/` | masters, slaves, slave_cdc + `_cg` |
-| APB5 | 9 | `rtl/amba/apb5/` | APB5 extensions |
-| AXI-Stream (AXIS4) | 4 | `rtl/amba/axis4/` | master / slave |
-| AXI-Stream (AXIS5) | 4 | `rtl/amba/axis5/` | AXIS5 extensions |
-| Shared infrastructure | 48 | `rtl/amba/shared/` | monitor core, monbus, observation, sdpram, CDC, arbiters |
-| GAXI generic | 8 | `rtl/amba/gaxi/` | sync/async FIFOs and skid buffers |
-| Packages | 8 | `rtl/amba/includes/` | shared `.svh`/types |
+| AXI4 | 16 | [`rtl/amba/axi4/`](rtl/amba/axi4/) | masters/slaves, RD/WR, `_mon` + `_cg` variants |
+| AXI5 | 16 | [`rtl/amba/axi5/`](rtl/amba/axi5/) | AXI5 extensions |
+| AXI4-Lite | 16 | [`rtl/amba/axil4/`](rtl/amba/axil4/) | **Dedicated** `axil4_*_mon.sv` (not the legacy `IS_AXI=0`) |
+| APB | 9 | [`rtl/amba/apb/`](rtl/amba/apb/) | masters, slaves, slave_cdc + `_cg` |
+| APB5 | 9 | [`rtl/amba/apb5/`](rtl/amba/apb5/) | APB5 extensions |
+| AXI-Stream (AXIS4) | 4 | [`rtl/amba/axis4/`](rtl/amba/axis4/) | master / slave |
+| AXI-Stream (AXIS5) | 4 | [`rtl/amba/axis5/`](rtl/amba/axis5/) | AXIS5 extensions |
+| Shared infrastructure | 48 | [`rtl/amba/shared/`](rtl/amba/shared/) | monitor core, monbus, observation, sdpram, CDC, arbiters |
+| GAXI generic | 8 | [`rtl/amba/gaxi/`](rtl/amba/gaxi/) | sync/async FIFOs and skid buffers |
+| Packages | 8 | [`rtl/amba/includes/`](rtl/amba/includes/) | shared `.svh`/types |
 
-**Deep dive:** [`rtl/amba/README.md`](rtl/amba/README.md) (full shared/ inventory by role) · [`rtl/amba/CLAUDE.md`](rtl/amba/CLAUDE.md) · [`docs/markdown/RTLAmba/index.md`](docs/markdown/RTLAmba/index.md)
+**Deep dive:** [rtl/amba/README.md](rtl/amba/README.md) (full shared/ inventory by role) · [rtl/amba/CLAUDE.md](rtl/amba/CLAUDE.md) · [docs/markdown/RTLAmba/index.md](docs/markdown/RTLAmba/index.md)
 
 ### 3. Clock Domain Crossing (CDC) — Cross-cutting
 
@@ -148,20 +148,20 @@ CDC primitives live in multiple subsystems. Pulled together here so you don't ha
 
 | Module | Where | Use |
 |---|---|---|
-| `cdc_synchronizer.sv` | `rtl/amba/shared/` | Plain N-flop bit synchronizer |
-| `cdc_2_phase_handshake.sv` | `rtl/amba/shared/` | 2-phase req/ack data CDC |
-| `cdc_4_phase_handshake.sv` | `rtl/amba/shared/` | 4-phase req/ack data CDC |
-| `cdc_open_loop.sv` | `rtl/amba/shared/` | Fire-and-forget pulse CDC |
-| `reset_sync.sv` | `rtl/common/` | Async-assert / sync-deassert reset CDC |
-| `bin2gray.sv` / `gray2bin.sv` | `rtl/common/` | Gray-code conversion for pointer CDC |
-| `counter_bingray.sv` | `rtl/common/` | Binary/Gray dual counter for FIFO pointers |
-| `fifo_async.sv` / `fifo_async_div2.sv` | `rtl/common/` | Async FIFOs for word-width CDC |
-| `gaxi_fifo_async*.sv`, `gaxi_skid_buffer_async*.sv` | `rtl/amba/gaxi/` | AXI-shaped async FIFO + skid |
-| `apb_slave_cdc.sv` / `apb5_slave_cdc.sv` | `rtl/amba/apb*/` | APB slave with CDC built in |
+| [`cdc_synchronizer.sv`](rtl/amba/shared/cdc_synchronizer.sv) | [`rtl/amba/shared/`](rtl/amba/shared/) | Plain N-flop bit synchronizer |
+| [`cdc_2_phase_handshake.sv`](rtl/amba/shared/cdc_2_phase_handshake.sv) | [`rtl/amba/shared/`](rtl/amba/shared/) | 2-phase req/ack data CDC |
+| [`cdc_4_phase_handshake.sv`](rtl/amba/shared/cdc_4_phase_handshake.sv) | [`rtl/amba/shared/`](rtl/amba/shared/) | 4-phase req/ack data CDC |
+| [`cdc_open_loop.sv`](rtl/amba/shared/cdc_open_loop.sv) | [`rtl/amba/shared/`](rtl/amba/shared/) | Fire-and-forget pulse CDC |
+| [`reset_sync.sv`](rtl/common/reset_sync.sv) | [`rtl/common/`](rtl/common/) | Async-assert / sync-deassert reset CDC |
+| [`bin2gray.sv`](rtl/common/bin2gray.sv) / [`gray2bin.sv`](rtl/common/gray2bin.sv) | [`rtl/common/`](rtl/common/) | Gray-code conversion for pointer CDC |
+| [`counter_bingray.sv`](rtl/common/counter_bingray.sv) | [`rtl/common/`](rtl/common/) | Binary/Gray dual counter for FIFO pointers |
+| [`fifo_async.sv`](rtl/common/fifo_async.sv) / [`fifo_async_div2.sv`](rtl/common/fifo_async_div2.sv) | [`rtl/common/`](rtl/common/) | Async FIFOs for word-width CDC |
+| `gaxi_fifo_async*.sv`, `gaxi_skid_buffer_async*.sv` | [`rtl/amba/gaxi/`](rtl/amba/gaxi/) | AXI-shaped async FIFO + skid |
+| `apb_slave_cdc.sv` (and `apb5_slave_cdc.sv`) | [`rtl/amba/apb/`](rtl/amba/apb/) / [`rtl/amba/apb5/`](rtl/amba/apb5/) | APB slave with CDC built in |
 
-**FPGA demo:** [`projects/NexysA7/cdc_counter_display/`](projects/NexysA7/cdc_counter_display/) — multi-clock counter CDC running on real hardware.
+**FPGA demo:** [projects/NexysA7/cdc_counter_display/](projects/NexysA7/cdc_counter_display/) — multi-clock counter CDC running on real hardware.
 
-### 4. Component Projects — `projects/components/`
+### 4. Component Projects — [`projects/components/`](projects/components/)
 
 Production-shaped reusable IP. Each has its own README + dv/ + dv/tbclasses/.
 
@@ -179,7 +179,7 @@ Production-shaped reusable IP. Each has its own README + dv/ + dv/tbclasses/.
 | HIVE | 📋 Planned | Distributed RISC-V control | [`projects/components/hive/`](projects/components/hive/) |
 | Misc | — | Mixed building blocks | [`projects/components/misc/`](projects/components/misc/) |
 
-### 5. FPGA Projects — `projects/NexysA7/` (Digilent Nexys A7-100T)
+### 5. FPGA Projects — [`projects/NexysA7/`](projects/NexysA7/) (Digilent Nexys A7-100T)
 
 Things that actually run on hardware. Each project ships its own README and Vivado flow.
 
@@ -197,8 +197,8 @@ Things that actually run on hardware. Each project ships its own README and Viva
 |---|---|
 | AMBA protocol tests | [`val/amba/`](val/amba/) |
 | Common-library tests | [`val/common/`](val/common/) |
-| Project tests (CocoTB + pytest, Pattern B) | `projects/components/*/dv/tests/` |
-| Project-specific TBs | `projects/components/*/dv/tbclasses/` |
+| Project tests (CocoTB + pytest, Pattern B) | under [`projects/components/`](projects/components/) — each `*/dv/tests/` |
+| Project-specific TBs | under [`projects/components/`](projects/components/) — each `*/dv/tbclasses/` |
 | Shared TB framework | [`bin/TBClasses/`](bin/TBClasses/) |
 | BFMs / scoreboards (external package) | [`cocotb-framework` on PyPI](https://pypi.org/project/cocotb-framework/) — source: [RTLDesignSherpa-DV](https://github.com/sean-galloway/RTLDesignSherpa-DV) — `pip install cocotb-framework` |
 | Verification architecture rules | [`rtl/amba/VERIFICATION_ARCHITECTURE.md`](rtl/amba/VERIFICATION_ARCHITECTURE.md), [`GLOBAL_REQUIREMENTS.md`](GLOBAL_REQUIREMENTS.md) |
@@ -211,7 +211,7 @@ Things that actually run on hardware. Each project ships its own README and Viva
 | `md_to_docx.py` | Markdown → DOCX/PDF with corporate styles | [`bin/md_to_docx.py`](bin/md_to_docx.py) |
 | `audit_signal_naming_conflicts.py` | Detect AXI-factory pattern collisions before TB write | [`bin/audit_signal_naming_conflicts.py`](bin/audit_signal_naming_conflicts.py) ([guide](bin/SIGNAL_NAMING_AUDIT.md)) |
 | `vivado_timing_failures.py` | Per-violation Vivado timing parser | [`bin/vivado_timing_failures.py`](bin/vivado_timing_failures.py) |
-| Misc scripts | Build/regen helpers, codemaps, doc generators | [`bin/`](bin/), [`tools/`](tools/), [`scripts/`](scripts/) |
+| Misc scripts | Build/regen helpers, codemaps, doc generators | [bin/](bin/) · [tools/](tools/) · [scripts/](scripts/) |
 
 ### 8. Documentation hub
 
