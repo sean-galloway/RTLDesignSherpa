@@ -76,7 +76,7 @@ Counter `i` (i ∈ {0,1,2,3}) lives at base `0x040 + i * 0x40`. The same field l
 
 | Offset (+base) | Access | Field | Bits | Default | Purpose |
 |---|---|---|---|---|---|
-| +0x00 | RW | `DIVISOR`      | [31:0] | see table above | Clock divisor: `ctr_clk[i] = sys_clk / DIVISOR`. Minimum 2; values below 2 are clamped. Changing this on-the-fly retunes the counter's domain frequency (handy for sweeping CDC ratios). |
+| +0x00 | RW | `DIVISOR` | [31:0] | per-counter default | **Two packed fields (v3):**<br/>• `[2:0]` = **CLOCK_SELECT**: 0=MMCM 72.7 MHz · 1=MMCM 27.6 MHz · 2=MMCM 11.9 MHz · 3=MMCM 6.25 MHz · 4=sys_clk-derived divided clock (uses DIV_PICKOFF below); 5–7 fall through to divided clock.<br/>• `[12:8]` = **DIV_PICKOFF**: 5-bit pickoff for the divided-clock branch. `ctr_clk = sys_clk / 2^(DIV_PICKOFF+1)`. Only matters when CLOCK_SELECT=4.<br/>• Other bits reserved (write any, read 0).<br/>Switching CLOCK_SELECT at runtime is **glitchless** (BUFGMUX_CTRL guarantee). The four MMCM outputs are truly asynchronous to each other (co-prime divisors 11/29/67/128). |
 | +0x04 | RW | `INIT`         | [7:0]  | 0 | Initial value for the counter. Loaded into the counter by writing `CFG_LOAD`. |
 | +0x08 | RW | `INCREMENT`    | [7:0]  | 1+i (so {1,2,3,4}) | Amount the counter advances per debounced button press (or per `HOST_PRESS`). |
 | +0x0C | W  | `CFG_LOAD`     | [0]    | — | Pulse: write any value → load `INIT` into the counter on the next `ctr_clk[i]` edge. |

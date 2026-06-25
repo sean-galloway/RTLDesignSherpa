@@ -2,19 +2,27 @@
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
 // Module: cdc_demo_top
-// Purpose: Board-level top for the CDC counter demo (phase 2).
+// Purpose: Board-level top for the CDC counter demo (phase 2, v3).
 //
-//          Wires together:
-//            - uart_axil_bridge        host link (115200 8N1)
-//            - cdc_demo_harness        AXIL slave + CSR
-//            - 4 × cdc_counter_domain  per-counter w/ 4 CDC modes
-//            - button decoder          BTNU/D/L/C → harness pulses
-//            - 8-digit 7-seg driver    mode label + pickoff + 16-bit value
+//          v3 changes vs v2:
+//            - Source clocks for the 4 counters now come from an MMCM
+//              with 4 co-prime divisors -- truly asynchronous to each
+//              other (no shared edge alignment).
+//            - Per counter, a tree of 4 BUFGMUX_CTRL instances selects
+//              one of 5 source clocks at runtime:
+//                idx 0..3: MMCM outputs at 72.7 / 27.6 / 11.9 / 6.25 MHz
+//                idx 4:    sys_clk-derived "slow" clock from a per-counter
+//                          clock_divider (DIV_PICKOFF, 0..31 selectable)
+//                          — keeps the "visible 6 Hz counting" demo alive
+//              Switching is glitchless (BUFGMUX_CTRL guarantee).
+//            - Harness CSR DIVISOR field is reinterpreted:
+//                bits [2:0] = CLOCK_SELECT (0..4, others map to NO-CDC behavior)
+//                bits [12:8] = DIV_PICKOFF (5 bits for the divided-clock branch)
 //
 // Display layout (left → right):
-//   AN[7:6] = CDC mode label  ("Pr" / "br" / "S2" / "HS")
-//   AN[5:4] = pickoff hex     (00-1F)
-//   AN[3:0] = counter value   (16-bit hex)
+//   AN[7:6] = CDC mode (hex 00..04)
+//   AN[5:4] = pickoff/clock-select indicator
+//   AN[3:0] = 16-bit value
 //
 // Controls — see docs/RUNBOOK.md for the full operator guide.
 
@@ -28,8 +36,8 @@ module cdc_demo_top (
     output logic        UART_RXD_OUT,   // FPGA → FTDI  (pin D4)
 
     input  logic        btnC,           // inject press for selected counter
-    input  logic        btnU,           // step pickoff UP   (faster)
-    input  logic        btnD,           // step pickoff DOWN (slower)
+    input  logic        btnU,           // step CLOCK_SELECT UP   (faster MMCM output)
+    input  logic        btnD,           // step CLOCK_SELECT DOWN (slower MMCM output)
     input  logic        btnL,           // cycle CDC mode
 
     input  logic [15:0] SW,             // SW[1:0]=ctr select, SW[15]=AUTO_INC level
@@ -47,8 +55,11 @@ module cdc_demo_top (
     logic sys_clk;
     logic sys_rstn;
     logic w_soft_reset;
+    logic sys_clk_pad;
 
-    assign sys_clk = CLK100MHZ;
+    // Buffer the input pin onto the global clock network.
+    IBUF u_sys_ibuf (.I(CLK100MHZ), .O(sys_clk_pad));
+    BUFG u_sys_bufg (.I(sys_clk_pad), .O(sys_clk));
 
     (* ASYNC_REG = "TRUE" *) logic r_rstn_sync0, r_rstn_sync1;
     always_ff @(posedge sys_clk or negedge CPU_RESETN) begin
@@ -61,6 +72,73 @@ module cdc_demo_top (
         end
     end
     assign sys_rstn = r_rstn_sync1 && !w_soft_reset;
+
+    // ----------------------------------------------------------------
+    // MMCM — 4 co-prime divided outputs from a 100 MHz reference.
+    //
+    //   CLKFBOUT_MULT_F = 8.0  → VCO = 800 MHz  (valid range 600..1600)
+    //   DIVCLK_DIVIDE   = 1
+    //   CLKOUT0_DIVIDE  = 11   → 72.7 MHz   (idx 0, fastest)
+    //   CLKOUT1_DIVIDE  = 29   → 27.6 MHz   (idx 1)
+    //   CLKOUT2_DIVIDE  = 67   → 11.9 MHz   (idx 2)
+    //   CLKOUT3_DIVIDE  = 128  →  6.25 MHz  (idx 3, slowest MMCM output)
+    //
+    // Divisors {11, 29, 67, 128} are pairwise co-prime (11/29/67 are
+    // prime, 128 = 2^7 is co-prime to each odd prime). No two outputs
+    // share an edge alignment more often than LCM(11*29*67*128)
+    // cycles. For practical purposes: truly asynchronous.
+    // ----------------------------------------------------------------
+    logic mmcm_locked;
+    logic mmcm_fb;
+    logic clk_mmcm_72m;     // CLKOUT0 = 72.7 MHz
+    logic clk_mmcm_27m;     // CLKOUT1 = 27.6 MHz
+    logic clk_mmcm_12m;     // CLKOUT2 = 11.9 MHz
+    logic clk_mmcm_6m;      // CLKOUT3 =  6.25 MHz
+    logic clk_mmcm_72m_raw, clk_mmcm_27m_raw, clk_mmcm_12m_raw, clk_mmcm_6m_raw;
+
+    // MMCM reset from the raw board reset (NOT the soft-reset path —
+    // softrst shouldn't drop the MMCM and force a re-lock).
+    logic sys_rstn_raw_for_mmcm;
+    assign sys_rstn_raw_for_mmcm = r_rstn_sync1;
+
+    MMCME2_BASE #(
+        .BANDWIDTH         ("OPTIMIZED"),
+        .CLKFBOUT_MULT_F   (8.0),         // VCO = 100 * 8 = 800 MHz
+        .CLKFBOUT_PHASE    (0.0),
+        .CLKIN1_PERIOD     (10.0),        // 100 MHz period in ns
+        .DIVCLK_DIVIDE     (1),
+        .REF_JITTER1       (0.010),
+        .STARTUP_WAIT      ("FALSE"),
+        .CLKOUT0_DIVIDE_F  (11.0),        // 72.73 MHz
+        .CLKOUT1_DIVIDE    (29),          // 27.59 MHz
+        .CLKOUT2_DIVIDE    (67),          // 11.94 MHz
+        .CLKOUT3_DIVIDE    (128),         //  6.25 MHz
+        .CLKOUT0_DUTY_CYCLE(0.5), .CLKOUT0_PHASE(0.0),
+        .CLKOUT1_DUTY_CYCLE(0.5), .CLKOUT1_PHASE(0.0),
+        .CLKOUT2_DUTY_CYCLE(0.5), .CLKOUT2_PHASE(0.0),
+        .CLKOUT3_DUTY_CYCLE(0.5), .CLKOUT3_PHASE(0.0)
+    ) u_mmcm (
+        .CLKIN1     (sys_clk),
+        .CLKFBIN    (mmcm_fb),
+        .CLKFBOUT   (mmcm_fb),
+        .CLKOUT0    (clk_mmcm_72m_raw),
+        .CLKOUT1    (clk_mmcm_27m_raw),
+        .CLKOUT2    (clk_mmcm_12m_raw),
+        .CLKOUT3    (clk_mmcm_6m_raw),
+        .CLKOUT4    (), .CLKOUT5    (), .CLKOUT6    (),
+        .CLKFBOUTB  (),
+        .CLKOUT0B   (), .CLKOUT1B   (), .CLKOUT2B   (), .CLKOUT3B   (),
+        .LOCKED     (mmcm_locked),
+        .PWRDWN     (1'b0),
+        .RST        (!sys_rstn_raw_for_mmcm)
+    );
+
+    // BUFGs onto the MMCM outputs so they reach the BUFGMUX_CTRL inputs
+    // on global clock routing.
+    BUFG u_bufg_72m (.I(clk_mmcm_72m_raw), .O(clk_mmcm_72m));
+    BUFG u_bufg_27m (.I(clk_mmcm_27m_raw), .O(clk_mmcm_27m));
+    BUFG u_bufg_12m (.I(clk_mmcm_12m_raw), .O(clk_mmcm_12m));
+    BUFG u_bufg_6m  (.I(clk_mmcm_6m_raw),  .O(clk_mmcm_6m));
 
     // ----------------------------------------------------------------
     // UART <-> AXIL bridge
@@ -106,12 +184,7 @@ module cdc_demo_top (
     assign w_uart_tx_act = axil_rvalid  || axil_bvalid;
 
     // ----------------------------------------------------------------
-    // Button debounce + edge detect (sys_clk).
-    //
-    // 4 buttons -> 4 single-cycle "pressed" pulses. A 2-FF synchronizer
-    // for the async pin, then a small counter-based debounce (~16 ms
-    // at 100 MHz, since 2^21 cycles ≈ 21 ms) so light bounces collapse
-    // into one event, then rising-edge detect.
+    // Button debounce + edge detect (sys_clk)
     // ----------------------------------------------------------------
     logic [3:0] btn_raw;
     assign btn_raw = {btnL, btnD, btnU, btnC};
@@ -123,13 +196,10 @@ module cdc_demo_top (
         else           begin r_btn_sync0 <= btn_raw; r_btn_sync1 <= r_btn_sync0; end
     end
 
-    // 21-bit debounce counter per button. When sampled level differs
-    // from stable level for the full counter period, accept the new
-    // stable level.
     logic [3:0] r_btn_stable;
     logic [3:0] r_btn_prev;
     logic [20:0] r_debounce_cnt [4];
-    logic [3:0]  w_btn_pressed;       // single-cycle rising edge
+    logic [3:0]  w_btn_pressed;
 
     genvar bi;
     generate
@@ -157,15 +227,14 @@ module cdc_demo_top (
         end
     endgenerate
 
-    // Map debounced pulses to harness button-step pulses.
     // {btnL, btnD, btnU, btnC} → indices 3,2,1,0
     logic w_btn_press_pulse;     // BTNC
-    logic w_btn_pickoff_dec;     // BTNU (faster → pickoff--)
-    logic w_btn_pickoff_inc;     // BTND (slower → pickoff++)
+    logic w_btn_clksel_up;       // BTNU — toward faster (clock_select decreasing, 0=fastest)
+    logic w_btn_clksel_down;     // BTND — toward slower
     logic w_btn_cdc_cycle;       // BTNL
     assign w_btn_press_pulse = w_btn_pressed[0];
-    assign w_btn_pickoff_dec = w_btn_pressed[1];
-    assign w_btn_pickoff_inc = w_btn_pressed[2];
+    assign w_btn_clksel_up   = w_btn_pressed[1];
+    assign w_btn_clksel_down = w_btn_pressed[2];
     assign w_btn_cdc_cycle   = w_btn_pressed[3];
 
     // ----------------------------------------------------------------
@@ -177,7 +246,6 @@ module cdc_demo_top (
 
     assign w_sel_ctr        = SW[1:0];
     assign w_auto_inc_level = SW[15];
-    // AUTO_INC level applies only to the selected counter (one-hot mask)
     always_comb begin
         w_auto_inc_mask = 4'h0;
         w_auto_inc_mask[w_sel_ctr] = 1'b1;
@@ -190,7 +258,7 @@ module cdc_demo_top (
     localparam int VAL_WIDTH     = 16;
     localparam int PRESS_WIDTH   = 16;
 
-    logic [NUM_COUNTERS-1:0][31:0]            w_cfg_divisor;
+    logic [NUM_COUNTERS-1:0][31:0]            w_cfg_divisor;     // packed: [2:0]=CLOCK_SELECT, [12:8]=DIV_PICKOFF
     logic [NUM_COUNTERS-1:0][VAL_WIDTH-1:0]   w_cfg_init;
     logic [NUM_COUNTERS-1:0][VAL_WIDTH-1:0]   w_cfg_increment;
     logic [NUM_COUNTERS-1:0]                  w_cfg_load_pulse;
@@ -209,7 +277,8 @@ module cdc_demo_top (
     cdc_demo_harness #(
         .NUM_COUNTERS (NUM_COUNTERS),
         .VAL_WIDTH    (VAL_WIDTH),
-        .PRESS_WIDTH  (PRESS_WIDTH)
+        .PRESS_WIDTH  (PRESS_WIDTH),
+        .PICKOFF_MAX  (4)              // CLOCK_SELECT clamped to 0..4 (5 inputs)
     ) u_harness (
         .aclk(sys_clk), .aresetn(sys_rstn),
         .s_axil_awaddr (axil_awaddr),  .s_axil_awprot (axil_awprot),
@@ -239,10 +308,10 @@ module cdc_demo_top (
         .o_soft_reset           (w_soft_reset),
         .i_uart_rx_activity     (w_uart_rx_act),
         .i_uart_tx_activity     (w_uart_tx_act),
-        // Board-button live controls
+        // BTNU = clksel down (toward faster, lower idx); BTND = clksel up (toward slower)
         .i_btn_target_ctr       (w_sel_ctr),
-        .i_btn_pickoff_inc_pulse(w_btn_pickoff_inc),
-        .i_btn_pickoff_dec_pulse(w_btn_pickoff_dec),
+        .i_btn_pickoff_inc_pulse(w_btn_clksel_down),
+        .i_btn_pickoff_dec_pulse(w_btn_clksel_up),
         .i_btn_cdc_cycle_pulse  (w_btn_cdc_cycle),
         .i_btn_host_press_pulse (w_btn_press_pulse),
         .i_btn_auto_inc_level   (w_auto_inc_level),
@@ -250,11 +319,81 @@ module cdc_demo_top (
     );
 
     // ----------------------------------------------------------------
-    // 4 × counter domains. Buttons are routed via the harness CSR, so
-    // each counter's i_btn input is tied to 0 here (the physical
-    // button is interpreted by the top-level button decoder above and
-    // turned into a HOST_PRESS via the harness for the selected
-    // counter only).
+    // Per-counter divided clock (sys_clk-derived, runtime PICKOFF)
+    //
+    // This is the "slow demo" input (CLOCK_SELECT=4). DIV_PICKOFF lives
+    // in the upper byte of cfg_divisor.
+    // ----------------------------------------------------------------
+    logic [NUM_COUNTERS-1:0] w_clk_div_raw;
+    logic [NUM_COUNTERS-1:0] w_clk_div_bufg;
+
+    genvar dvi;
+    generate
+        for (dvi = 0; dvi < NUM_COUNTERS; dvi = dvi + 1) begin : g_div
+            clock_divider #(
+                .N             (1),
+                .PO_WIDTH      (8),
+                .COUNTER_WIDTH (32)
+            ) u_clkdiv (
+                .clk            (sys_clk),
+                .rst_n          (sys_rstn),
+                .pickoff_points (w_cfg_divisor[dvi][12:8]),
+                .divided_clk    (w_clk_div_raw[dvi])
+            );
+            BUFG u_clkdiv_bufg (.I(w_clk_div_raw[dvi]), .O(w_clk_div_bufg[dvi]));
+        end
+    endgenerate
+
+    // ----------------------------------------------------------------
+    // Per-counter clock mux tree (4× BUFGMUX_CTRL → ctr_clk[i])
+    //
+    //   Inputs (idx, freq):
+    //     0 = clk_mmcm_72m  (72.7 MHz)
+    //     1 = clk_mmcm_27m  (27.6 MHz)
+    //     2 = clk_mmcm_12m  (11.9 MHz)
+    //     3 = clk_mmcm_6m   ( 6.25 MHz)
+    //     4 = w_clk_div_bufg[i]  (sys_clk-derived, runtime PICKOFF)
+    //
+    //   Selector: cfg_divisor[i][2:0] (CLOCK_SELECT). 5..7 fall through
+    //   to CLOCK_SELECT=4 (divided clock).
+    //
+    //   Mux tree (binary, with 8th input = dup of input 4):
+    //     L0: M0 = BUFGMUX(72m, 27m), sel = sel[0]
+    //         M1 = BUFGMUX(12m, 6m),  sel = sel[0]
+    //         M2 = BUFGMUX(div, div), sel = sel[0] (pass-through, BUFG would be cheaper
+    //              but we keep symmetry; synth may optimize)
+    //         M3 = BUFGMUX(div, div), sel = sel[0]
+    //     L1: M4 = BUFGMUX(M0, M1), sel = sel[1]
+    //         M5 = BUFGMUX(M2, M3), sel = sel[1]
+    //     L2: ctr_clk = BUFGMUX(M4, M5), sel = sel[2]
+    //
+    //   So sel=000..011 -> MMCM outputs 0..3; sel=100..111 -> divided clock.
+    // ----------------------------------------------------------------
+    logic [NUM_COUNTERS-1:0] w_ctr_clk;
+
+    genvar mi;
+    generate
+        for (mi = 0; mi < NUM_COUNTERS; mi = mi + 1) begin : g_clkmux
+            logic [2:0] sel;
+            assign sel = w_cfg_divisor[mi][2:0];
+
+            logic m0, m1, m2, m3, m4, m5;
+
+            BUFGMUX_CTRL u_m0 (.I0(clk_mmcm_72m), .I1(clk_mmcm_27m), .S(sel[0]), .O(m0));
+            BUFGMUX_CTRL u_m1 (.I0(clk_mmcm_12m), .I1(clk_mmcm_6m),  .S(sel[0]), .O(m1));
+            BUFGMUX_CTRL u_m2 (.I0(w_clk_div_bufg[mi]), .I1(w_clk_div_bufg[mi]), .S(sel[0]), .O(m2));
+            BUFGMUX_CTRL u_m3 (.I0(w_clk_div_bufg[mi]), .I1(w_clk_div_bufg[mi]), .S(sel[0]), .O(m3));
+
+            BUFGMUX_CTRL u_m4 (.I0(m0), .I1(m1), .S(sel[1]), .O(m4));
+            BUFGMUX_CTRL u_m5 (.I0(m2), .I1(m3), .S(sel[1]), .O(m5));
+
+            BUFGMUX_CTRL u_mO (.I0(m4), .I1(m5), .S(sel[2]), .O(w_ctr_clk[mi]));
+        end
+    endgenerate
+
+    // ----------------------------------------------------------------
+    // 4 × counter domains (no internal clock divider any more — ctr_clk
+    // is driven from the BUFGMUX tree above)
     // ----------------------------------------------------------------
     genvar gi;
     generate
@@ -266,7 +405,7 @@ module cdc_demo_top (
             ) u_ctr (
                 .sys_clk                  (sys_clk),
                 .sys_rstn                 (sys_rstn),
-                .i_cfg_divisor            (w_cfg_divisor[gi]),
+                .ctr_clk                  (w_ctr_clk[gi]),
                 .i_cfg_init               (w_cfg_init[gi]),
                 .i_cfg_increment          (w_cfg_increment[gi]),
                 .i_cfg_load_pulse         (w_cfg_load_pulse[gi]),
@@ -275,7 +414,7 @@ module cdc_demo_top (
                 .i_cfg_ignore_btn         (w_cfg_ignore_btn),
                 .i_cfg_cdc_mode           (w_cfg_cdc_mode[gi]),
                 .i_cfg_auto_inc           (w_cfg_auto_inc[gi]),
-                .i_btn                    (1'b0),       // physical-button path off
+                .i_btn                    (1'b0),
                 .o_value                  (w_status_value[gi]),
                 .o_press_count            (w_status_press_count[gi]),
                 .o_clk_ticks              (w_status_clk_ticks[gi]),
@@ -285,20 +424,26 @@ module cdc_demo_top (
     endgenerate
 
     // ----------------------------------------------------------------
-    // 7-segment display driver — 8 digits.
-    //
-    // SW[1:0] takes priority over CSR DISP_SELECT (so the board user
-    // gets immediate visual feedback when toggling switches).
+    // Display
     // ----------------------------------------------------------------
     logic [1:0]            w_disp_select;
     logic [VAL_WIDTH-1:0]  w_disp_value;
     logic [7:0]            w_disp_pickoff;
     logic [2:0]            w_disp_cdc_mode;
 
-    assign w_disp_select  = w_sel_ctr;   // SW-driven; ignore w_disp_select_csr
+    assign w_disp_select  = w_sel_ctr;
     assign w_disp_value   = w_status_value[w_disp_select];
-    assign w_disp_pickoff = w_cfg_divisor[w_disp_select][7:0];
-    assign w_disp_cdc_mode= w_cfg_cdc_mode[w_disp_select];
+    // Show CLOCK_SELECT (low 4 bits) in the pickoff slot. When in
+    // "divided clock" mode (sel == 4), show the DIV_PICKOFF in the upper
+    // nibble so the user can see which divided rate they're at.
+    always_comb begin
+        if (w_cfg_divisor[w_disp_select][2:0] == 3'd4) begin
+            w_disp_pickoff = {w_cfg_divisor[w_disp_select][11:8], 4'h4};
+        end else begin
+            w_disp_pickoff = {4'h0, 1'b0, w_cfg_divisor[w_disp_select][2:0]};
+        end
+    end
+    assign w_disp_cdc_mode = w_cfg_cdc_mode[w_disp_select];
 
     cdc_demo_seg8 u_seg7 (
         .sys_clk    (sys_clk),
@@ -312,12 +457,7 @@ module cdc_demo_top (
     );
 
     // ----------------------------------------------------------------
-    // LEDs
-    //   [3:0] one-hot selected counter (matches SW[1:0])
-    //   [4]   alive pulse from selected counter (toggle, stretched)
-    //   [5]   UART RX activity (stretched)
-    //   [6]   UART TX activity (stretched)
-    //   [7]   system OK
+    // LEDs (same scheme as v2)
     // ----------------------------------------------------------------
     logic        w_sel_alive_event;
     assign w_sel_alive_event = w_status_alive_event[w_disp_select];
@@ -351,7 +491,6 @@ module cdc_demo_top (
         end
     end
 
-    // One-hot selected counter LED bits
     logic [3:0] w_sel_one_hot;
     always_comb begin
         w_sel_one_hot = 4'h0;
@@ -362,22 +501,13 @@ module cdc_demo_top (
     assign LED[4]   = r_led_alive;
     assign LED[5]   = r_led_rx;
     assign LED[6]   = r_led_tx;
-    assign LED[7]   = sys_rstn;
+    assign LED[7]   = sys_rstn && mmcm_locked;
 
 endmodule
 
 
 // =====================================================================
-// cdc_demo_seg8 — 8-digit 7-segment driver
-//
-// Time-multiplexed; each digit gets its own AN-low slice of a 8-phase
-// round-robin sweep. Digit refresh ~763 Hz per slot at 100 MHz, full
-// 8-digit cycle every ~1.05 ms (well above flicker threshold).
-//
-// Layout:
-//   AN[7:6] = mode label chars (left two digits)
-//   AN[5:4] = pickoff (2 hex digits)
-//   AN[3:0] = value (4 hex digits — low nibble on far right)
+// cdc_demo_seg8 — unchanged from v2
 // =====================================================================
 module cdc_demo_seg8 (
     input  logic        sys_clk,
@@ -389,9 +519,6 @@ module cdc_demo_seg8 (
     output logic [6:0]  o_SEG,
     output logic        o_DP
 );
-    // 17-bit refresh counter → top 3 bits index 8 digits, each gets
-    // 2^14 sys_clks (~164 µs) of dwell → ~6 kHz per-digit refresh,
-    // full sweep ~1.3 ms.
     logic [16:0] r_refresh_cnt;
     always_ff @(posedge sys_clk or negedge sys_rstn) begin
         if (!sys_rstn) r_refresh_cnt <= '0;
@@ -399,41 +526,28 @@ module cdc_demo_seg8 (
     end
 
     logic [2:0] w_digit_idx;
-    assign w_digit_idx = r_refresh_cnt[16:14];   // 0..7
+    assign w_digit_idx = r_refresh_cnt[16:14];
 
-    // ----- one-hot anode (active-low) -----
     always_comb begin
         o_AN = 8'hFF;
         o_AN[w_digit_idx] = 1'b0;
     end
 
-    // ----- per-digit nibble (mode / pickoff / value all displayed as hex) -----
-    //
-    // Layout (left = AN[7], right = AN[0]):
-    //   AN[7]   high nibble of mode (always 0 today; room for >16 modes)
-    //   AN[6]   low  nibble of mode (currently 0–3)
-    //   AN[5:4] pickoff (2 hex digits, 00..1F)
-    //   AN[3:0] 16-bit counter value (4 hex digits)
-    //
-    // Showing the mode as a number (rather than letter labels) keeps the
-    // decoder trivial and scales to any future mode count up to 0xFF.
-    // The legend lives in docs/RUNBOOK.md.
     logic [3:0] w_nibble;
     always_comb begin
         unique case (w_digit_idx)
-            3'd0:    w_nibble = i_value[3:0];        // AN[0] = lowest value nibble
+            3'd0:    w_nibble = i_value[3:0];
             3'd1:    w_nibble = i_value[7:4];
             3'd2:    w_nibble = i_value[11:8];
             3'd3:    w_nibble = i_value[15:12];
             3'd4:    w_nibble = i_pickoff[3:0];
             3'd5:    w_nibble = i_pickoff[7:4];
-            3'd6:    w_nibble = {1'b0, i_cdc_mode};   // low nibble of mode (3-bit field)
-            3'd7:    w_nibble = 4'h0;                 // high nibble of mode (always 0; reserve for >15 modes)
+            3'd6:    w_nibble = {1'b0, i_cdc_mode};
+            3'd7:    w_nibble = 4'h0;
             default: w_nibble = 4'h0;
         endcase
     end
 
-    // Hex → 7-seg, active-low, {g,f,e,d,c,b,a}
     always_comb begin
         unique case (w_nibble)
             4'h0: o_SEG = 7'b1000000;
@@ -455,6 +569,5 @@ module cdc_demo_seg8 (
             default: o_SEG = 7'b1111111;
         endcase
     end
-
-    assign o_DP = 1'b1;   // DP off
+    assign o_DP = 1'b1;
 endmodule

@@ -99,6 +99,9 @@ module cdc_demo_sim_top #(
         .i_btn_auto_inc_mask    ({NUM_COUNTERS{1'b0}})
     );
 
+    // Sim uses aclk as the ctr_clk too (single-clock sim — no real CDC
+    // exercised, but the test verifies the harness CSR contract and
+    // the datapath end-to-end).
     cdc_counter_domain #(
         .VAL_WIDTH   (VAL_WIDTH),
         .PRESS_WIDTH (PRESS_WIDTH),
@@ -106,7 +109,7 @@ module cdc_demo_sim_top #(
     ) u_ctr (
         .sys_clk                  (aclk),
         .sys_rstn                 (aresetn),
-        .i_cfg_divisor            (w_cfg_divisor[0]),
+        .ctr_clk                  (aclk),
         .i_cfg_init               (w_cfg_init[0]),
         .i_cfg_increment          (w_cfg_increment[0]),
         .i_cfg_load_pulse         (w_cfg_load_pulse[0]),

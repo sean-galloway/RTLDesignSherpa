@@ -367,8 +367,13 @@ module cdc_demo_harness #(
                     automatic int ci = int'(r_w_addr[11:6]) - 1;
                     unique case (r_w_addr[5:0])
                         CTR_OFF_DIVISOR: begin
-                            // pickoff is the low 8 bits; clamp to [PICKOFF_MIN:PICKOFF_MAX]
-                            r_divisor[ci] <= {24'h0, clamp_pickoff(r_w_data[7:0])};
+                            // DIVISOR is two packed fields:
+                            //   [2:0]   CLOCK_SELECT (0..4 valid; 5..7 → divided clock)
+                            //   [12:8]  DIV_PICKOFF for the divided-clock branch
+                            // Pass through verbatim; the top-level clock
+                            // mux handles out-of-range CLOCK_SELECT
+                            // sanely (falls through to divided clock).
+                            r_divisor[ci] <= r_w_data;
                         end
                         CTR_OFF_INIT:       r_init[ci]             <= r_w_data[VAL_WIDTH-1:0];
                         CTR_OFF_INCREMENT:  r_increment[ci]        <= r_w_data[VAL_WIDTH-1:0];
@@ -382,21 +387,22 @@ module cdc_demo_harness #(
             end
 
             // ----------------------------------------------------------
-            // Board-button live controls. Sharing the same always_ff
-            // and same storage as the AXIL writes above. Button pulses
-            // are debounced + edge-detected up in cdc_demo_top so
-            // they fire at most once per press, separated by many
-            // cycles — no contention with AXIL writes that happen at
-            // UART speed. If both arrive in the same cycle the button
-            // wins (later in the block); that's acceptable for a demo.
+            // Board-button live controls. Buttons step the CLOCK_SELECT
+            // field (low 3 bits of DIVISOR) for the selected counter.
+            // 0..4 are the valid clock sources (4 MMCM outputs + 1
+            // divided clock); we wrap at 5.
             // ----------------------------------------------------------
             if (i_btn_pickoff_inc_pulse) begin
-                r_divisor[i_btn_target_ctr][7:0] <=
-                    clamp_pickoff(r_divisor[i_btn_target_ctr][7:0] + 8'd1);
+                // "slower" — increase CLOCK_SELECT (toward divided clock)
+                r_divisor[i_btn_target_ctr][2:0] <=
+                    (r_divisor[i_btn_target_ctr][2:0] == 3'd4) ? 3'd0
+                                                               : r_divisor[i_btn_target_ctr][2:0] + 3'd1;
             end
             if (i_btn_pickoff_dec_pulse) begin
-                r_divisor[i_btn_target_ctr][7:0] <=
-                    clamp_pickoff(r_divisor[i_btn_target_ctr][7:0] - 8'd1);
+                // "faster" — decrease CLOCK_SELECT (toward 72.7 MHz)
+                r_divisor[i_btn_target_ctr][2:0] <=
+                    (r_divisor[i_btn_target_ctr][2:0] == 3'd0) ? 3'd4
+                                                               : r_divisor[i_btn_target_ctr][2:0] - 3'd1;
             end
             if (i_btn_cdc_cycle_pulse) begin
                 // Wrap at NUM_CDC_MODES so BTNL cycles 0→1→2→3→4→0.
@@ -426,14 +432,19 @@ module cdc_demo_harness #(
     endfunction
 
     function automatic logic [31:0] default_divisor(input int i);
-        // Exponentially decreasing divisor: 10M / 4^i
-        // i=0 → 10M (10 Hz), i=1 → 2.5M (40 Hz), i=2 → 625K (160 Hz), i=3 → 156250 (640 Hz)
+        // Defaults split per-counter so the demo opens with a useful
+        // spread:
+        //   ctr 0  CLOCK_SELECT=4 (divided), DIV_PICKOFF=23  → ~6 Hz (visible counting)
+        //   ctr 1  CLOCK_SELECT=2 (MMCM /67) → 11.9 MHz
+        //   ctr 2  CLOCK_SELECT=1 (MMCM /29) → 27.6 MHz
+        //   ctr 3  CLOCK_SELECT=0 (MMCM /11) → 72.7 MHz
+        // DIVISOR layout:  [12:8] = DIV_PICKOFF, [2:0] = CLOCK_SELECT
         case (i)
-            0: return 32'd10_000_000;
-            1: return 32'd2_500_000;
-            2: return 32'd625_000;
-            3: return 32'd156_250;
-            default: return 32'd10_000_000;
+            0: return {19'h0, 5'd23, 5'h0, 3'd4};
+            1: return 32'd0 | 32'd2;
+            2: return 32'd0 | 32'd1;
+            3: return 32'd0 | 32'd0;
+            default: return 32'd0;
         endcase
     endfunction
 

@@ -90,7 +90,24 @@ class Counter:
     def r(self, off):       return self.b.read (self.base + off)
 
     # Convenience accessors
-    def set_pickoff(self, pickoff):  self.w(OFF_DIVISOR,   pickoff & 0xFF)
+    # DIVISOR field layout (v3):
+    #   bits [2:0]  = CLOCK_SELECT (0..3 = MMCM outputs, 4 = divided clock)
+    #   bits [12:8] = DIV_PICKOFF (used when CLOCK_SELECT=4)
+    def set_clock_select(self, sel):
+        cur = self.r(OFF_DIVISOR)
+        new = (cur & ~0x7) | (sel & 0x7)
+        self.w(OFF_DIVISOR, new)
+
+    def set_div_pickoff(self, pickoff):
+        cur = self.r(OFF_DIVISOR)
+        new = (cur & ~(0x1F << 8)) | ((pickoff & 0x1F) << 8)
+        self.w(OFF_DIVISOR, new)
+
+    def clock_select(self):  return self.r(OFF_DIVISOR) & 0x7
+    def div_pickoff(self):   return (self.r(OFF_DIVISOR) >> 8) & 0x1F
+
+    # Back-compat alias (treats pickoff as the full DIVISOR word)
+    def set_pickoff(self, val):      self.w(OFF_DIVISOR,   val)
     def set_init(self, init):        self.w(OFF_INIT,      init    & 0xFF)
     def set_increment(self, inc):    self.w(OFF_INCREMENT, inc     & 0xFF)
     def load(self):                  self.w(OFF_CFG_LOAD,  1)

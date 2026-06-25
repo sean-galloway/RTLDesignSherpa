@@ -101,28 +101,48 @@ set_property -dict {PACKAGE_PIN H15 IOSTANDARD LVCMOS33} [get_ports DP]
 set_output_delay -clock [get_clocks sys_clk_pin] 0.000 [get_ports {AN[*] SEG[*] DP}]
 
 ## =============================================================================
-## CDC constraints
+## CDC constraints (v3 — MMCM-derived clocks + per-counter BUFGMUX tree)
 ## =============================================================================
-## Each of the four counter domains is fed by a divided clock generated
-## inside cdc_counter_domain by rtl/common/clock_divider. That divided
-## clock is a registered toggle off a counter bit, so for proper STA
-## treatment we declare each as a generated clock derived from sys_clk
-## with a -divide_by that matches the pickoff. The defaults loaded by the
-## harness on reset are pickoff = {23,19,15,11}, so divide-by values are
-## {2^24, 2^20, 2^16, 2^12} = {16777216, 1048576, 65536, 4096}. The host
-## can rewrite the pickoff at runtime; STA will be valid only for the
-## declared-divide value, but timing on the divided-clock side is so slow
-## (max 24 kHz @ default) that any reasonable host pickoff still meets
-## timing trivially.
+## The MMCM creates four output clocks at co-prime divisors of 800 MHz
+## VCO. Vivado auto-derives these from the MMCME2_BASE primitive — we
+## don't need to declare them explicitly. Each MMCM output is buffered
+## onto the global clock network with a BUFG.
 ##
-## NOTE: Vivado will treat the "create_generated_clock" as the worst-
-## case fast variant. Set max-delay datapath constraints on every CDC
-## path to keep STA reasonable.
+## Per counter (4 instances), a BUFGMUX_CTRL tree selects one of:
+##   idx 0: clk_mmcm_72m  (~72.7 MHz, MMCM CLKOUT0)
+##   idx 1: clk_mmcm_27m  (~27.6 MHz, MMCM CLKOUT1)
+##   idx 2: clk_mmcm_12m  (~11.9 MHz, MMCM CLKOUT2)
+##   idx 3: clk_mmcm_6m   (~ 6.25 MHz, MMCM CLKOUT3)
+##   idx 4: w_clk_div_bufg[i] (sys_clk-derived, runtime PICKOFF)
+##
+## Vivado treats the BUFGMUX_CTRL output as both possible input clocks
+## (whichever is selected). STA will compute worst-case timing for each
+## input → set_clock_groups -asynchronous covers cross-clock paths.
+##
+## All four MMCM outputs are async to each other (co-prime divisors →
+## no shared edge alignment) AND async to sys_clk's divided clock.
 ## =============================================================================
 
-## All cross-clock paths from sys_clk into any ctr_clk are bounded to one
-## sys_clk period (10 ns) — sufficient because sync_pulse / 2-FF
-## synchronizers handle the actual timing closure.
+## All four MMCM outputs are asynchronous to each other and to sys_clk.
+## Vivado names them get_clocks clk_out1_<mmcm>, clk_out2_<mmcm>, etc.
+## We use a name match pattern.
+set_clock_groups -asynchronous \
+    -group [get_clocks -include_generated_clocks sys_clk_pin] \
+    -group [get_clocks -include_generated_clocks -of_objects [get_pins u_mmcm/CLKOUT0]] \
+    -group [get_clocks -include_generated_clocks -of_objects [get_pins u_mmcm/CLKOUT1]] \
+    -group [get_clocks -include_generated_clocks -of_objects [get_pins u_mmcm/CLKOUT2]] \
+    -group [get_clocks -include_generated_clocks -of_objects [get_pins u_mmcm/CLKOUT3]]
+
+## Per-counter divided clocks (one per counter) are derived from sys_clk
+## by clock_divider. They live in the same clock group as sys_clk (all
+## divide-by-2^N from the same root, so technically synchronous to it,
+## but we still bound the CDC paths into ctr_clk with set_max_delay).
+## Vivado auto-derives these as generated clocks from the clock_divider
+## counter flop outputs.
+
+## CDC paths from sys_clk into ctr_clk_*: per-bit synchronizer paths.
+## Bounded to one sys_clk period (10 ns) — well within timing because the
+## destination is on a slow divided clock or on a sub-100-MHz MMCM clock.
 set_max_delay -datapath_only -from [get_clocks sys_clk_pin] \
     -to [get_pins -hier -filter {NAME =~ "*u_ctr*r_init_sync0*/D"}] 10.000
 set_max_delay -datapath_only -from [get_clocks sys_clk_pin] \
@@ -131,6 +151,8 @@ set_max_delay -datapath_only -from [get_clocks sys_clk_pin] \
     -to [get_pins -hier -filter {NAME =~ "*u_ctr*r_freeze_sync0*/D"}] 10.000
 set_max_delay -datapath_only -from [get_clocks sys_clk_pin] \
     -to [get_pins -hier -filter {NAME =~ "*u_ctr*r_ignore_sync0*/D"}] 10.000
+set_max_delay -datapath_only -from [get_clocks sys_clk_pin] \
+    -to [get_pins -hier -filter {NAME =~ "*u_ctr*r_auto_sync0*/D"}] 10.000
 
 ## Counter → sys_clk Gray-coded path: bound to one sys_clk period.
 set_max_delay -datapath_only -to [get_clocks sys_clk_pin] \
@@ -140,5 +162,8 @@ set_max_delay -datapath_only -to [get_clocks sys_clk_pin] \
 set_max_delay -datapath_only -to [get_clocks sys_clk_pin] \
     -from [get_pins -hier -filter {NAME =~ "*u_ctr*r_ticks_gray_src*/C"}] 10.000
 
-## sync_pulse internal toggle CDC paths — let Vivado's CDC engine handle
-## these via the ASYNC_REG attributes already on the synchronizer flops.
+## sync_pulse, cdc_open_loop, cdc_2_phase_handshake, cdc_4_phase_handshake
+## internal toggle CDC paths — these modules have ASYNC_REG attributes on
+## the synchronizer flops and Vivado's CDC engine handles them through
+## the set_clock_groups -asynchronous above. No additional constraints
+## needed.

@@ -41,8 +41,6 @@ module cdc_counter_domain #(
     parameter int VAL_WIDTH   = 16,
     parameter int PRESS_WIDTH = 16,
     parameter int TICK_WIDTH  = 32,
-    parameter int PO_WIDTH    = 8,
-    parameter int CLKDIV_COUNTER_WIDTH = 32,
     parameter int SYNC_STAGES = 3,
     // CDC modes for the value-out path:
     //   0 NO_CDC      raw flop per bit (multi-bit skew, breaks at fast ctr_clk)
@@ -60,8 +58,11 @@ module cdc_counter_domain #(
     input  logic                       sys_clk,
     input  logic                       sys_rstn,
 
+    // ctr_clk fed in from the top (selected by top-level BUFGMUX tree
+    // between MMCM outputs and the per-counter divided clock).
+    input  logic                       ctr_clk,
+
     // Config in (sys_clk domain)
-    input  logic [31:0]                i_cfg_divisor,        // low 8 bits used
     input  logic [VAL_WIDTH-1:0]       i_cfg_init,
     input  logic [VAL_WIDTH-1:0]       i_cfg_increment,
     input  logic                       i_cfg_load_pulse,
@@ -83,21 +84,11 @@ module cdc_counter_domain #(
 );
 
     // -----------------------------------------------------------------
-    // Local divided clock generation
+    // ctr_clk is driven from the top via a BUFGMUX tree (or in sim,
+    // tied directly). We only need to synchronize the reset into the
+    // ctr_clk domain.
     // -----------------------------------------------------------------
-    logic                       ctr_clk;
     logic                       ctr_rstn;
-
-    clock_divider #(
-        .N             (1),
-        .PO_WIDTH      (PO_WIDTH),
-        .COUNTER_WIDTH (CLKDIV_COUNTER_WIDTH)
-    ) u_clkdiv (
-        .clk            (sys_clk),
-        .rst_n          (sys_rstn),
-        .pickoff_points (i_cfg_divisor[PO_WIDTH-1:0]),
-        .divided_clk    (ctr_clk)
-    );
 
     // Async-assert / sync-deassert reset into the ctr_clk domain.
     // Simple 2-FF synchronizer on the deassertion edge.

@@ -103,46 +103,59 @@ Eight digits, left-to-right = AN[7]…AN[0]. Active-low cathodes (segment lit = 
 
 Press **BTNL** to cycle: `00 → 01 → 02 → 03 → 04 → 00 → …`. The 3-bit field has room for 8 modes; values 5–7 are reserved (writing them via CSR falls through to NO-CDC behavior).
 
-### Pickoff → frequency cheat sheet
+### Clock source cheat sheet (v3 — MMCM + clock mux)
 
-`ctr_clk = sys_clk / 2^(pickoff + 1)` with `sys_clk = 100 MHz`.
+Each counter's `ctr_clk` comes from a **`BUFGMUX_CTRL` tree** selecting one of **5 sources**:
 
-| Pickoff (hex) | `ctr_clk` | Notes |
+| CLOCK_SELECT (idx) | Source | Frequency | Notes |
+|---|---|---|---|
+| `0` | MMCM CLKOUT0 (÷11)  | **72.7 MHz** | Fastest. ctr_clk-vs-sys_clk ratio fastest → most chance for CDC bugs. |
+| `1` | MMCM CLKOUT1 (÷29)  | **27.6 MHz** | |
+| `2` | MMCM CLKOUT2 (÷67)  | **11.9 MHz** | |
+| `3` | MMCM CLKOUT3 (÷128) | **6.25 MHz** | Slowest MMCM-derived. |
+| `4` | sys_clk / 2^(DIV_PICKOFF+1) | **6 Hz – 50 MHz** | Divided clock — `DIV_PICKOFF` sub-CSR (5 bits) controls. Default `DIV_PICKOFF=23` → ~6 Hz for the "visible counting" demo. |
+
+**All four MMCM outputs are truly asynchronous to each other** — divisors 11, 29, 67, 128 are pairwise co-prime, so no two outputs share an edge alignment more often than `LCM(11×29×67×128)` cycles (≈ effectively never). This is a real async-CDC demo, not just "synchronous integer divides."
+
+**`BUFGMUX_CTRL` is glitchless**, so switching CLOCK_SELECT at runtime via BTNU/BTND or CSR write is safe — no runt pulses, no half-cycle glitches.
+
+**The divided-clock branch (idx 4)** is technically synchronous to `sys_clk` (just an integer divide-by-2^N). It's kept for the educational baseline — at 6 Hz you can count along by eye, which you can't do at 6.25 MHz.
+
+### Default per-counter clock at power-on
+
+| Counter | CLOCK_SELECT | Frequency |
 |---|---|---|
-| `17` (23) | ~6 Hz       | Default for counter 0. Very visible counting. |
-| `13` (19) | ~95 Hz      | Default for counter 1. |
-| `0F` (15) | ~1.5 kHz    | Default for counter 2. |
-| `0B` (11) | ~24 kHz     | Default for counter 3. |
-| `07` (7)  | ~390 kHz    | Where mode `01` (broken-raw) starts to flicker visibly. |
-| `03` (3)  | ~6.25 MHz   | Mode `01` shows obvious scramble; mode `02` still clean. |
-| `02` (2)  | 12.5 MHz    | Mode `02` (broken-2FF) still safe. **Below the "data-stretch" cliff.** |
-| `01` (1)  | 25 MHz      | **The cliff.** Mode `02` starts to break here — multi-bit skew is now likely between sys_clk samples. Closest power-of-2 pickoff to the ~20 MHz threshold. |
-| `00` (0)  | 50 MHz      | Mode `01` is total garbage; mode `02` is also scrambled; mode `03` (handshake) lags by ≥1 wrap; only mode `00` (proper) stays clean. |
+| 0 | `4` (divided, DIV_PICKOFF=23) | ~6 Hz (visible counting) |
+| 1 | `2` (MMCM ÷67) | 11.9 MHz |
+| 2 | `1` (MMCM ÷29) | 27.6 MHz |
+| 3 | `0` (MMCM ÷11) | 72.7 MHz |
 
-### Mode × pickoff expected-behavior lookup table
+Press BTNU (faster) or BTND (slower) to walk through CLOCK_SELECT for the SW-selected counter. Wraps `0 ↔ 4`.
+
+### Mode × clock-source expected-behavior lookup table
 
 What you *should* see on AN[3:0] (the 16-bit value digits) at each combination. **"Clean" = monotonic count tracking the source; "drops" = source values are lost (display lags or freezes on stale values); "lag" = correct values but updated slowly / behind reality; "garbage" = mid-transition hybrid values that were never on the source side.**
 
-| Pickoff (`ctr_clk`)  | `00` NO-CDC | `01` STRETCH | `02` SYNC FIFO | `03` 2-PHASE | `04` 4-PHASE |
-|---|---|---|---|---|---|
-| `17` (6 Hz)          | clean | clean | clean | clean | clean |
-| `13` (95 Hz)         | clean | clean | clean | clean | clean |
-| `0F` (1.5 kHz)       | clean | clean | clean | clean | clean |
-| `0B` (24 kHz)        | mostly clean (rare glitch on multi-bit transitions) | clean | clean | clean | clean |
-| `07` (390 kHz)       | **flicker** (rightmost digits) | clean | clean | clean | clean |
-| `03` (6.25 MHz)      | **scramble** | clean | clean | clean | clean |
-| `02` (12.5 MHz)      | **garbage** | clean — **safely below the cliff** | clean | clean | clean |
-| `01` (25 MHz)        | **garbage** | **borderline** — at the design cliff (stretch ≈ sync depth) | clean | clean | clean |
-| `00` (50 MHz)        | **total garbage** | **fails** — most values dropped; display freezes on a stale snapshot | clean (read side outpaces writes — FIFO never fills) | lag (snapshot every 256 ctr_clk = 5 µs; counter wraps every 1.3 ms) | lag (same snapshot rate; longer round trip per snapshot) |
+| CLOCK_SELECT | Clock source | `00` NO-CDC | `01` STRETCH | `02` SYNC FIFO | `03` 2-PHASE | `04` 4-PHASE |
+|---|---|---|---|---|---|---|
+| `4` (DIV_PICKOFF=23) | 6 Hz divided | clean | clean | clean | clean | clean |
+| `4` (DIV_PICKOFF=11) | 24 kHz divided | mostly clean | clean | clean | clean | clean |
+| `4` (DIV_PICKOFF=7)  | 390 kHz divided | **flicker** | clean | clean | clean | clean |
+| `4` (DIV_PICKOFF=3)  | 6.25 MHz divided | **scramble** | clean | clean | clean | clean |
+| `4` (DIV_PICKOFF=0)  | 50 MHz divided | **garbage** | **fails (drops)** | clean | lag | lag |
+| `3` | MMCM 6.25 MHz (truly async!) | **scramble** | clean | clean | clean | clean |
+| `2` | MMCM 11.9 MHz (truly async!) | **scramble worse** | clean | clean | clean | clean |
+| `1` | MMCM 27.6 MHz (truly async!) | **garbage** | **borderline** | clean | clean | clean |
+| `0` | MMCM 72.7 MHz (truly async!) | **total garbage, all the time** | **fails** — STRETCH drops most pulses | clean (FIFO read side at sys_clk = 100 MHz keeps up) | lag (snapshot every 256 ctr_clk ≈ 3.5 µs) | lag |
 
 **How to read this table:**
 
-- **Mode `00` (NO-CDC)** is the dramatic failure case. The cliff is around pickoff `07`–`09` (~200 kHz–~800 kHz). The whole point of this mode is to **see** what no CDC looks like.
-- **Mode `01` (STRETCH)** is the "data-stretch" mode tuned for ~20 MHz. With `STRETCH_CYCLES=1` and `SYNC_STAGES=3`, the destination needs ≥ 30 ns to see the valid pulse. At ctr_clk = 25 MHz (40 ns period) the pulse just barely makes it; at 50 MHz (20 ns) it doesn't — destination misses pulses, source values are lost, and the display freezes on whatever last got through. **Works ≤ 20–25 MHz, fails above.** That's the configured cliff.
-- **Mode `02` (SYNC FIFO)** is the textbook robust path. Gray-coded pointer CDC inside `fifo_async`. The read side (sys_clk = 100 MHz) is faster than the write side, so the FIFO never fills. Clean across the whole pickoff range.
-- **Mode `03` (2-PHASE)** and **Mode `04` (4-PHASE)** never show garbage. The handshake holds source data stable across the crossing. The visible difference vs SYNC FIFO is **lag**: snapshots only every 256 ctr_clk cycles. At slow ctr_clk you'll see clear stepwise updates as the snapshot rate matches the counter rate; at fast ctr_clk the display value lags reality by many counter increments.
+- **Mode `00` (NO-CDC)** is the dramatic failure case. The MMCM rows (`CLOCK_SELECT=0..3`) are where you see this fail *for real*: truly asynchronous clocks with co-prime ratios produce ongoing multi-bit skew. Divided-clock rows (`CLOCK_SELECT=4`) only break above ~390 kHz because lower below that the integer-related phasing happens to land safely most of the time — that's "lucky", not "correct."
+- **Mode `01` (STRETCH)** is tuned to work at ≤ ~20 MHz `ctr_clk` and fail above. `STRETCH_CYCLES=1`, `SYNC_STAGES=3`: the destination needs ≥ 30 ns to see the valid pulse. At MMCM idx 1 (27.6 MHz, 36 ns period) it's borderline; at MMCM idx 0 (72.7 MHz, 14 ns period) it fails hard — destination misses pulses, source values are lost, display freezes on a stale snapshot.
+- **Mode `02` (SYNC FIFO)** is the textbook robust path. Gray-coded pointer CDC inside `fifo_async`. The read side (sys_clk = 100 MHz) outpaces every possible source clock here, so the FIFO never fills. Clean across the whole range, including the truly-async MMCM clocks.
+- **Modes `03` and `04` (handshakes)** never show garbage. The handshake holds source data stable across the crossing. The visible difference vs SYNC FIFO is **lag**: snapshots only every 256 `ctr_clk` cycles. At slow `ctr_clk` you'll see clear stepwise updates; at fast `ctr_clk` the display value lags reality by many counter increments.
 
-> **Why mode 1's cliff is "~20 MHz" rather than an exact number:** with power-of-2 dividers the closest pickoffs are `01` (25 MHz, borderline) and `02` (12.5 MHz, safe). The design's actual physical cliff is at ctr_clk ≈ sys_clk / (SYNC_STAGES + 1) = 100 / 4 = 25 MHz. If you need an exactly-20-MHz cliff (e.g., for a specific lab demonstration), I can add a non-power-of-2 `/5` divider — say the word.
+> **The MMCM rows are where this demo earns its keep.** The divided-clock branch is still useful for "visible-by-eye counting" at human-readable rates, but for a real CDC failure demonstration the MMCM-derived async clocks are the right tool. Co-prime divisors (11, 29, 67, 128) guarantee no synthetic phase alignment.
 
 ---
 
