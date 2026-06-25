@@ -65,17 +65,25 @@ class AxiMemSlave:
         while True:
             await RisingEdge(d.clk_i)
             if d.axi_ar_valid_o.value and d.axi_ar_ready_i.value:
+                # Stamp the arrival cycle so the memory imposes latency as an
+                # OVERLAPPING per-response pipe (data ready at arrival+L), not a
+                # serial per-burst wait. This is the Little's-Law latency model
+                # STREAM's axi_response_delay uses: with multiple ARs in flight,
+                # their dwell times overlap, so sustained BW = min(1, in_flight/L)
+                # and the DMA's outstanding limit is what throttles.
                 await self.ar_q.put((int(d.axi_ar_addr_o.value),
                                      int(d.axi_ar_len_o.value),
-                                     int(d.axi_ar_id_o.value)))
+                                     int(d.axi_ar_id_o.value),
+                                     self.cyc))
 
     async def r_serve(self):
         d = self.dut
         d.axi_r_valid_i.value = 0
         while True:
-            addr, length, rid = await self.ar_q.get()
-            if self.resp_delay:
-                await ClockCycles(d.clk_i, self.resp_delay)
+            addr, length, rid, t_arr = await self.ar_q.get()
+            ready = t_arr + self.resp_delay
+            while self.cyc < ready:
+                await RisingEdge(d.clk_i)
             for beat in range(length + 1):
                 d.axi_r_valid_i.value = 1
                 d.axi_r_data_i.value = _pattern(addr + beat * BYTES_PB)
@@ -99,7 +107,8 @@ class AxiMemSlave:
             if d.axi_aw_valid_o.value and d.axi_aw_ready_i.value:
                 await self.aw_q.put((int(d.axi_aw_addr_o.value),
                                      int(d.axi_aw_len_o.value),
-                                     int(d.axi_aw_id_o.value)))
+                                     int(d.axi_aw_id_o.value),
+                                     self.cyc))
 
     async def w_accept(self):
         d = self.dut
@@ -118,12 +127,13 @@ class AxiMemSlave:
         d = self.dut
         d.axi_b_valid_i.value = 0
         while True:
-            addr, length, wid = await self.aw_q.get()
+            addr, length, wid, t_arr = await self.aw_q.get()
             for beat in range(length + 1):
                 data, wlast = await self.w_q.get()
                 self.store[addr + beat * BYTES_PB] = data
-            if self.resp_delay:
-                await ClockCycles(d.clk_i, self.resp_delay)
+            ready = t_arr + self.resp_delay   # overlapping AW->B latency
+            while self.cyc < ready:
+                await RisingEdge(d.clk_i)
             d.axi_b_valid_i.value = 1
             d.axi_b_id_i.value = wid
             d.axi_b_resp_i.value = 0
@@ -161,7 +171,10 @@ def _init_req(d):
         ("req_src_qos_i", 0), ("req_dst_qos_i", 0),
         ("req_src_region_i", 0), ("req_dst_region_i", 0),
         ("req_decouple_aw_i", 1), ("req_decouple_rw_i", 1),
-        ("req_src_reduce_len_i", 0), ("req_dst_reduce_len_i", 0),
+        # reduce_len=1 makes req_*_max_llen cap the AXI burst length to
+        # 2^max_llen beats (legalizer page = 2^(OffsetWidth+max_llen) bytes).
+        # max_llen=4 -> 16-beat bursts, matching STREAM's burst_len=16.
+        ("req_src_reduce_len_i", 1), ("req_dst_reduce_len_i", 1),
         ("rsp_ready_i", 1), ("eh_req_valid_i", 0), ("test_i", 0),
     ]:
         getattr(d, sig).value = val
@@ -171,7 +184,7 @@ def _init_req(d):
 async def cocotb_test_idma_backend_perf(dut):
     beats = int(os.environ.get("IDMA_XFER_BEATS", "256"))
     resp_delay = int(os.environ.get("IDMA_RESP_DELAY", "0"))
-    max_llen = int(os.environ.get("IDMA_MAX_LLEN", "7"))
+    max_llen = int(os.environ.get("IDMA_MAX_LLEN", "4"))   # 2^4 = 16-beat bursts
     length_bytes = beats * BYTES_PB
 
     cocotb.start_soon(Clock(dut.clk_i, 10, units="ns").start())

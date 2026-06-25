@@ -41,30 +41,40 @@ isolates the datapath (the headline util/throughput axis) without the desc64/reg
 frontend. Knobs: `IDMA_XFER_BEATS`, `IDMA_RESP_DELAY` (memory latency),
 `IDMA_MAX_LLEN` (AXI burst cap).
 
-First result (512 beats, full burst, 8 outstanding):
+### Datapath util vs memory latency — matched to STREAM §5
 
-| memory latency | R util | W util |
-|---|---:|---:|
-| 0 | **100.0%** | **100.0%** |
-| 64 | 88.9% | 88.9% |
-| 128 | 80.0% | 80.0% |
+Config matched to STREAM's §5 chan×delay (1 channel): **16-beat bursts**
+(`max_llen=4`, `reduce_len=1`), **8 outstanding** → a **128-beat in-flight
+window**, 4096-beat transfer. The cocotb memory imposes latency as an
+overlapping per-response pipe (data ready at `arrival + L`), the same
+Little's-Law model as STREAM's `axi_response_delay`.
 
-iDMA's datapath is **100% bubble-free at zero latency, like STREAM**, and falls
-off in the BDP-limited regime as memory latency exceeds the in-flight window
-(STREAM was 82% at delay 128; iDMA 80% here — same regime).
+| memory latency (cyc) | iDMA backend | STREAM §5 (1ch) | ideal `min(1,128/L)` |
+|---:|---:|---:|---:|
+| 0   | **100.0%** | 100% | 100% |
+| 128 | 88.6%      | 82%  | 100% |
+| 256 | 47.7%      | 45%  | 50%  |
+| 512 | 24.8%      | 24%  | 25%  |
 
-**Caveats (this is a first, approximate comparison):**
+**The curves overlay.** Both track Little's Law with the same 128-beat window:
+iDMA and STREAM are within a few points everywhere, and nearly identical at
+256/512 cyc. The one visible gap is at 128 cyc (iDMA 88.6% vs STREAM 82%) — right
+at the knee, where STREAM pays a bit more AR-issue overhead so its effective
+in-flight is slightly below 128; the idealized cosim sits closer to the
+theoretical knee. Net: **on the datapath axis the two engines are
+equivalent** — both saturate the bus when latency is hidden and degrade per
+Little's Law when it isn't.
 
-- The memory model imposes latency as an AR→first-R / W→B per-response delay
-  (the BDP/Little's-Law latency knob). STREAM's RTL slave applies its
-  `cfg_rd/wr_resp_delay` differently, and the burst/outstanding config here
-  (`max_llen`, 8 in-flight) is not yet matched to STREAM's (`burst_len=16`,
-  `AR_MAX_OUTSTANDING=8`), so the *delay-curve numbers* are not directly
-  comparable — only the zero-latency headline and the qualitative falloff are.
-  For exact parity, match the in-flight window or reuse STREAM's RTL pattern-gen
-  / crc-check slaves + the real observer in the harness.
-- Backend only (no desc64 frontend, single channel). Multi-channel and
-  descriptor-fetch overhead are separate axes.
+**Remaining caveats:**
+
+- Backend only (no desc64 frontend), single channel — those are separate axes
+  (descriptor-fetch startup overhead, multi-channel density).
+- The memory is an idealized cocotb latency pipe, not STREAM's RTL
+  `pattern_gen`/`crc_check` slaves, and data isn't CRC-checked here. For
+  bit-exact memory + measurement parity (and data verification), wire iDMA's
+  manager through STREAM's RTL slaves + the real `axi4_dma_observer` in a
+  harness. The delay model and in-flight window are now matched, so the curve
+  above is directly comparable.
 
 Individual targets: `make gen`, `make area-backend`, `make area-desc64`,
 `make area-mux`. Reports: `reports/idma_area_<tag>.txt`.
