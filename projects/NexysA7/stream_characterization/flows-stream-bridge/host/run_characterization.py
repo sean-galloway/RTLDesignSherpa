@@ -331,8 +331,12 @@ class CharacterizationRunner:
         self.vlog(f"  Loaded {count} words into desc_ram")
         return True
 
-    def configure_stream(self, num_channels: int):
-        """Full STREAM configuration — matches StreamHelper sequence."""
+    def configure_stream(self, channels):
+        """Full STREAM configuration — matches StreamHelper sequence.
+
+        `channels` is the explicit list of physical channels to enable (e.g.
+        [0,1,2] or [2,5,7]); the channel-enable mask is the OR of those bits.
+        """
         # Scheduler config
         sched_cfg = 0x0F  # SCHED_EN + TIMEOUT_EN + ERR_EN + COMPL_EN
         self.bridge.write(APB_SCHED_CONFIG, sched_cfg)
@@ -401,12 +405,16 @@ class CharacterizationRunner:
         self.vlog(f"  monbus compression: {'ON' if self.compression else 'OFF'} "
                   f"(WRMON_ENABLE=0x{wrmon_en:02X})")
 
-        # Global enable + channels
+        # Global enable + channels. The mask is the OR of the selected physical
+        # channels (contiguous 0..N-1 by default, or an explicit subset).
         self.bridge.write(APB_GLOBAL_CTRL, 0x01)
-        ch_mask = (1 << num_channels) - 1
+        ch_mask = 0
+        for ch in channels:
+            ch_mask |= (1 << ch)
         self.bridge.write(APB_CHANNEL_ENABLE, ch_mask)
         self.vlog(f"  STREAM configured: sched=0x{sched_cfg:02X}, "
-                  f"desceng=0x01, axi=0x{axi_cfg:04X}, ch_mask=0x{ch_mask:02X}")
+                  f"desceng=0x01, axi=0x{axi_cfg:04X}, ch_mask=0x{ch_mask:02X} "
+                  f"(channels {channels})")
 
     def kick_channels(self, kick_addresses: dict):
         """Kick-burst fast path: pre-load per-channel addresses into the
@@ -805,14 +813,22 @@ class CharacterizationRunner:
 
         Returns result dict with pass/fail, CRC, timing, etc.
         """
+        channels = config.channel_list()
+        # Per-channel HW arrays (CRC, meters) are indexed by physical channel,
+        # so read enough slots to cover the highest selected channel. For the
+        # default contiguous 0..N-1 selection this equals num_channels, leaving
+        # existing behaviour and the record format unchanged.
+        slot_count = max(channels) + 1
+        ch_str = "" if channels == list(range(config.num_channels)) else f" {channels}"
         self.log(f"--- {config.name}: {config.num_channels}ch x "
                  f"{config.descriptors_per_channel}desc x "
-                 f"{config.transfer_bytes // 1024}KB ---")
+                 f"{config.transfer_bytes // 1024}KB{ch_str} ---")
 
         test_data = self.builder.build_test(config)
         result = {
             'name': config.name,
             'num_channels': config.num_channels,
+            'channels': channels,  # physical channels exercised (default 0..N-1)
             'descriptors_per_channel': config.descriptors_per_channel,
             'transfer_bytes': config.transfer_bytes,
             'total_descriptors': test_data['total_descriptors'],
@@ -835,7 +851,7 @@ class CharacterizationRunner:
                  f"({len(test_data['descriptor_writes'])} writes)")
 
         # 3. Configure STREAM
-        self.configure_stream(config.num_channels)
+        self.configure_stream(channels)
 
         # 4. Arm the harness timer with the expected sink-side beat count.
         # The timer fires "done" when the write-side beat counter reaches
@@ -926,7 +942,7 @@ class CharacterizationRunner:
             return result
 
         # 6. CRC check (per-channel + aggregate)
-        crc = self.read_crc(num_channels=config.num_channels)
+        crc = self.read_crc(num_channels=slot_count)
         result['crc'] = crc
         match_reg = crc.get('match_reg')
         crc_match = (match_reg is not None) and (match_reg & 0x01 == 1)
@@ -943,14 +959,14 @@ class CharacterizationRunner:
         if config.num_channels > 1:
             v_mask = crc.get('valid_mask', 0) or 0
             m_mask = crc.get('match_mask', 0) or 0
-            for ch in range(config.num_channels):
+            for ch in channels:
                 rd_v = (crc.get('rd_per_ch') or [None])[ch]
                 wr_v = (crc.get('wr_per_ch') or [None])[ch]
                 self.log(f"    ch{ch}: rd=0x{(rd_v or 0):08X} wr=0x{(wr_v or 0):08X} "
                          f"valid={(v_mask >> ch) & 1} match={(m_mask >> ch) & 1}")
 
         # 7. Methodology metrics (datapath / end-to-end / 4-bucket)
-        metrics = self.read_run_metrics(num_channels=config.num_channels)
+        metrics = self.read_run_metrics(num_channels=slot_count)
         result['metrics'] = metrics
         if metrics.get('available'):
             r_pct = metrics['datapath_utilization_r'] * 100
@@ -1114,6 +1130,18 @@ Examples:
                         help='Run only named configs (e.g., 1desc_1ch 4desc_8ch)')
     parser.add_argument('--channels', type=int, nargs='+',
                         help='Limit to specific channel counts (e.g., 1 4 8)')
+    parser.add_argument('--channel-list', dest='channel_list', type=int, nargs='+',
+                        default=None,
+                        help='Select which PHYSICAL channels to enable, e.g. '
+                             '"--channel-list 2 5 7". Default is the contiguous '
+                             'block 0..N-1. Selects matrix/CSV configs whose '
+                             'channel count equals len(list) and maps them onto '
+                             'these channels. Indices 0..7.')
+    parser.add_argument('--channel-mask', dest='channel_mask',
+                        type=lambda s: int(s, 0), default=None,
+                        help='Same as --channel-list but as a bitmask, e.g. '
+                             '"--channel-mask 0xA4" -> channels [2,5,7]. '
+                             'Mutually exclusive with --channel-list.')
     parser.add_argument('--size', type=str, default='1MB',
                         help='Transfer size per descriptor (e.g., 4KB, 1MB, 4MB; default 1MB)')
     parser.add_argument('--csv', type=str, default=None,
@@ -1181,6 +1209,35 @@ def main():
 
         if args.channels:
             configs = [c for c in configs if c.num_channels in args.channels]
+
+    # Explicit physical-channel selection (applies to CSV and matrix configs).
+    # --channel-mask and --channel-list are two spellings of the same thing.
+    chan_sel = None
+    if args.channel_mask is not None and args.channel_list is not None:
+        print("Use only one of --channel-mask / --channel-list.")
+        return 1
+    if args.channel_mask is not None:
+        chan_sel = [i for i in range(8) if (args.channel_mask >> i) & 1]
+    elif args.channel_list is not None:
+        chan_sel = sorted(set(args.channel_list))
+    if chan_sel is not None:
+        if not chan_sel or any(c < 0 or c > 7 for c in chan_sel):
+            print(f"--channel-list/-mask must select channels in 0..7 (got {chan_sel}).")
+            return 1
+        # Map the chosen physical channels onto configs whose active-channel
+        # count matches; their descriptors/kicks/enable mask then target exactly
+        # these channels instead of the default 0..N-1 block.
+        matched = [c for c in configs if c.num_channels == len(chan_sel)]
+        if not matched:
+            print(f"No {len(chan_sel)}-channel config to map onto channels "
+                  f"{chan_sel}. Pick a config/phase with {len(chan_sel)} "
+                  f"channel(s), or change the selection width.")
+            return 1
+        for c in matched:
+            c.channels = list(chan_sel)
+        configs = matched
+        print(f"Channel selection: running {len(configs)} config(s) on physical "
+              f"channels {chan_sel}")
 
     if not configs:
         print("No configurations match the filter. Use --dry-run to see available.")

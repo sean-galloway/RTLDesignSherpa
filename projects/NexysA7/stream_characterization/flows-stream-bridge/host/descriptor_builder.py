@@ -105,9 +105,20 @@ class DescriptorConfig:
 class CharConfig:
     """A single characterization test configuration."""
     name: str
-    num_channels: int           # 1..8
+    num_channels: int           # 1..8 (count of active channels)
     descriptors_per_channel: int  # 1..16
     transfer_bytes: int         # bytes per descriptor transfer
+    # Explicit physical channel indices to exercise. None => the default
+    # contiguous block 0..num_channels-1 (backward compatible). When set, it
+    # must contain exactly num_channels distinct indices in 0..7, letting a run
+    # target specific channels (e.g. [2, 5, 7]) instead of the lowest N.
+    channels: list = None
+
+    def channel_list(self) -> list:
+        """Resolved list of physical channels to run (sorted)."""
+        if self.channels is not None:
+            return sorted(self.channels)
+        return list(range(self.num_channels))
 
 
 class DescriptorBuilder:
@@ -237,7 +248,8 @@ class DescriptorBuilder:
         all_writes: List[Tuple[int, int]] = []
         kick_addrs = {}
 
-        for ch in range(config.num_channels):
+        channels = config.channel_list()
+        for ch in channels:
             chain = self.build_chain(
                 channel=ch,
                 num_descriptors=config.descriptors_per_channel,
@@ -246,7 +258,7 @@ class DescriptorBuilder:
             all_writes.extend(chain)
             kick_addrs[ch] = self.kick_address(ch)
 
-        total_desc = config.num_channels * config.descriptors_per_channel
+        total_desc = len(channels) * config.descriptors_per_channel
         total_bytes = total_desc * config.transfer_bytes
 
         # Belt-and-suspenders check: every descriptor's word 6 (which holds
@@ -286,7 +298,7 @@ class DescriptorBuilder:
             word_idx = (addr & 0x1F) >> 2    # 0..7
             per_desc.setdefault(idx, {})[word_idx] = data
 
-        expected_descs = config.num_channels * config.descriptors_per_channel
+        expected_descs = len(config.channel_list()) * config.descriptors_per_channel
         if len(per_desc) != expected_descs:
             raise AssertionError(
                 f"Descriptor count mismatch: built {len(per_desc)} but "
