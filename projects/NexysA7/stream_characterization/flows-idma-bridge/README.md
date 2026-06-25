@@ -65,6 +65,15 @@ theoretical knee. Net: **on the datapath axis the two engines are
 equivalent** — both saturate the bus when latency is hidden and degrade per
 Little's Law when it isn't.
 
+**Throughput.** At full saturation each direction sustains **1600 MB/s**
+(16 B/beat × 100 MHz) on the AXI manager — matching STREAM's 1526 MB/s
+one-direction bus ceiling (STREAM's is a touch lower from AR-issue overhead).
+The AR/R and AW/W channels are independent, so read and write each hit line
+rate. *Net* mem-to-mem throughput additionally depends on each design's internal
+read/write datapath sharing (STREAM's shared 128-bit SRAM path vs iDMA's
+dataflow buffer) — a separate axis the cocotb memory here does not model (it
+serves R and W independently), so only the one-direction bus rate is compared.
+
 ### BDP surface — util vs (burst size × memory latency)
 
 Sweeping burst size (`max_llen`) and latency together maps the whole

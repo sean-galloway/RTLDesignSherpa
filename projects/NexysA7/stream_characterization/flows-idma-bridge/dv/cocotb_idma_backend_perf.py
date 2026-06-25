@@ -148,14 +148,22 @@ class AxiMemSlave:
             cocotb.start_soon(c())
 
     # ---- metrics ------------------------------------------------------
-    def util(self):
+    def util(self, clk_mhz=100.0):
         r_win = (self.r_last - self.r_first + 1) if self.r_last >= 0 else 0
         w_win = (self.w_last - self.w_first + 1) if self.w_last >= 0 else 0
+        r_util = (self.r_beats / r_win) if r_win else 0.0
+        w_util = (self.w_beats / w_win) if w_win else 0.0
+        # One-direction bus throughput: util * (bytes/beat * clk). The AR/R and
+        # AW/W channels are independent on one AXI manager, so each direction is
+        # reported separately. (Net mem-to-mem throughput additionally depends on
+        # internal read/write datapath sharing -- a separate axis, not modelled
+        # here, where the cocotb memory serves R and W independently.)
+        peak_mbps = BYTES_PB * clk_mhz   # 16 B/beat * 100 MHz = 1600 MB/s
         return {
             "r_beats": self.r_beats, "w_beats": self.w_beats,
-            "r_util": (self.r_beats / r_win) if r_win else 0.0,
-            "w_util": (self.w_beats / w_win) if w_win else 0.0,
+            "r_util": r_util, "w_util": w_util,
             "r_window": r_win, "w_window": w_win,
+            "r_mbps": r_util * peak_mbps, "w_mbps": w_util * peak_mbps,
         }
 
 
@@ -225,8 +233,8 @@ async def cocotb_test_idma_backend_perf(dut):
     }
     line = (f"iDMA backend perf: beats={beats} resp_delay={resp_delay} "
             f"max_llen={max_llen} | R util={u['r_util']*100:.1f}% "
-            f"({u['r_beats']}/{u['r_window']}) W util={u['w_util']*100:.1f}% "
-            f"({u['w_beats']}/{u['w_window']})")
+            f"({u['r_mbps']:.0f} MB/s) W util={u['w_util']*100:.1f}% "
+            f"({u['w_mbps']:.0f} MB/s)")
     dut._log.info(line)
 
     # Persist a perf record (JSONL) so the pytest layer / sweeps can collect it,
