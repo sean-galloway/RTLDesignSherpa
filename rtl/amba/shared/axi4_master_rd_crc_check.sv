@@ -45,9 +45,12 @@
 //     5. When all cfg_txn_count bursts have completed (rlast received on
 //        the last burst), cfg_done asserts.
 //
-//   Serial-burst v1: at most one AR outstanding (rlast must complete before
-//   the next AR is issued). Multi-outstanding is a v2 extension that needs
-//   per-id LFSR/CRC contexts.
+//   Fully decoupled AR and R: two independent dma_address_gen instances
+//   walk the same descriptor in parallel. AR runs as fast as arready +
+//   addr-gen pipeline allow; R consumes at the slave's rvalid rate.
+//   arvalid stays asserted from its first cycle to the last AR handshake
+//   when cfg_rd_gap = 0. cfg_rd_gap > 0 pauses both AR and R together.
+//   Multi-id deeper OOO is a v2 extension that needs per-id contexts.
 //
 //   The LFSR + CRC config (seed, polynomial, width) MUST match the writer
 //   side or the comparison and CRC roll-up are meaningless. The default
@@ -190,14 +193,14 @@ module axi4_master_rd_crc_check #(
 );
 
     //==========================================================================
-    // FSM
+    // FSM — fully decoupled AR and R (two independent addr-gens). arvalid
+    // never drops from first assertion to last AR handshake at gap=0.
     //==========================================================================
-    typedef enum logic [2:0] {
-        S_IDLE       = 3'd0,
-        S_AR_REQ     = 3'd1,
-        S_R_BEATS    = 3'd2,
-        S_GAP        = 3'd3,   // cfg_rd_gap idle cycles between bursts
-        S_DONE       = 3'd4
+    typedef enum logic [1:0] {
+        S_IDLE = 2'd0,
+        S_RUN  = 2'd1,   // AR + R paths active
+        S_GAP  = 2'd2,
+        S_DONE = 2'd3
     } state_e;
 
     state_e                       r_state;
@@ -213,39 +216,42 @@ module axi4_master_rd_crc_check #(
     logic [2:0]                   r_axi_size;
     logic [1:0]                   r_axi_burst;
     logic [LFSR_WIDTH-1:0]        r_lfsr_seed_eff;
-    logic                         r_data_mode;       // 0=LFSR, 1=ADDR_HASH
+    logic                         r_data_mode;
     logic [31:0]                  r_hash_seed0;
     logic [31:0]                  r_hash_seed1;
     logic [31:0]                  r_hash_seed2;
-    // Burst's accepted AR address, latched at AR handshake so the per-beat
-    // byte-address calc has a stable anchor for hash-mode regeneration.
-    logic [AW-1:0]                r_burst_base_addr;
 
-    // Progress counters
-    logic [TXN_COUNT_WIDTH-1:0]   r_ar_issued;
-    logic [TXN_COUNT_WIDTH-1:0]   r_bursts_done;
-    logic [7:0]                   r_beats_in_burst;
+    // Progress counters — AR and R paths advance independently.
+    logic [TXN_COUNT_WIDTH-1:0]   r_ar_req_count;     // AR addr-gen req handshakes
+    logic [TXN_COUNT_WIDTH-1:0]   r_ar_issued;        // AR handshakes
+    logic [TXN_COUNT_WIDTH-1:0]   r_r_req_count;      // R addr-gen req handshakes
+    logic [TXN_COUNT_WIDTH-1:0]   r_bursts_done;      // rlast handshakes
+    logic [7:0]                   r_beats_in_burst;   // beat in current R burst
     logic [3:0]                   r_gap_left;
-    // One-shot request marker — same fix as axi4_master_wr_pattern_gen.
-    // Prevents the address-gen from capturing r_ar_issued multiple times
-    // while we wait for its pipelined result.
-    logic                         r_addr_req_done;
 
     //==========================================================================
-    // dma_address_gen — same shape as the writer-side use
+    // dma_address_gen — two independent instances walking the same
+    // descriptor. AR path uses u_addr_gen_ar; R path (for hash-mode
+    // expected data regen) uses u_addr_gen_r.
     //==========================================================================
-    logic                         w_addr_req_valid;
-    logic                         w_addr_req_ready;
-    logic                         w_addr_result_valid;
-    logic                         w_addr_result_ready;
-    logic [AW-1:0]                w_addr_result;
+    logic                         w_ar_addr_req_valid;
+    logic                         w_ar_addr_req_ready;
+    logic                         w_ar_addr_result_valid;
+    logic                         w_ar_addr_result_ready;
+    logic [AW-1:0]                w_ar_addr_result;
+
+    logic                         w_r_addr_req_valid;
+    logic                         w_r_addr_req_ready;
+    logic                         w_r_addr_result_valid;
+    logic                         w_r_addr_result_ready;
+    logic [AW-1:0]                w_r_addr_result;
 
     dma_address_gen #(
         .ADDR_WIDTH  (AW),
         .INDEX_WIDTH (INDEX_WIDTH),
         .STRIDE_WIDTH(STRIDE_WIDTH),
         .TAG_WIDTH   (8)
-    ) u_addr_gen (
+    ) u_addr_gen_ar (
         .i_clk             (aclk),
         .i_rst_n           (aresetn),
 
@@ -255,15 +261,42 @@ module axi4_master_rd_crc_check #(
         .i_cfg_wrap_mask_0 (r_wrap_0),
         .i_cfg_wrap_mask_1 (r_wrap_1),
 
-        .i_req_valid       (w_addr_req_valid),
-        .o_req_ready       (w_addr_req_ready),
-        .i_req_index_0     (INDEX_WIDTH'(r_ar_issued)),
+        .i_req_valid       (w_ar_addr_req_valid),
+        .o_req_ready       (w_ar_addr_req_ready),
+        .i_req_index_0     (INDEX_WIDTH'(r_ar_req_count)),
         .i_req_index_1     (INDEX_WIDTH'(0)),
         .i_req_tag         (8'd0),
 
-        .o_result_valid    (w_addr_result_valid),
-        .i_result_ready    (w_addr_result_ready),
-        .o_result_addr     (w_addr_result),
+        .o_result_valid    (w_ar_addr_result_valid),
+        .i_result_ready    (w_ar_addr_result_ready),
+        .o_result_addr     (w_ar_addr_result),
+        .o_result_tag      ()
+    );
+
+    dma_address_gen #(
+        .ADDR_WIDTH  (AW),
+        .INDEX_WIDTH (INDEX_WIDTH),
+        .STRIDE_WIDTH(STRIDE_WIDTH),
+        .TAG_WIDTH   (8)
+    ) u_addr_gen_r (
+        .i_clk             (aclk),
+        .i_rst_n           (aresetn),
+
+        .i_cfg_base_addr   (r_base_addr),
+        .i_cfg_stride_0    (r_stride_0),
+        .i_cfg_stride_1    (r_stride_1),
+        .i_cfg_wrap_mask_0 (r_wrap_0),
+        .i_cfg_wrap_mask_1 (r_wrap_1),
+
+        .i_req_valid       (w_r_addr_req_valid),
+        .o_req_ready       (w_r_addr_req_ready),
+        .i_req_index_0     (INDEX_WIDTH'(r_r_req_count)),
+        .i_req_index_1     (INDEX_WIDTH'(0)),
+        .i_req_tag         (8'd0),
+
+        .o_result_valid    (w_r_addr_result_valid),
+        .i_result_ready    (w_r_addr_result_ready),
+        .o_result_addr     (w_r_addr_result),
         .o_result_tag      ()
     );
 
@@ -334,13 +367,27 @@ module axi4_master_rd_crc_check #(
 
     assign w_r_beat = fub_rvalid && fub_rready;
 
-    assign fub_arvalid           = (r_state == S_AR_REQ) && w_addr_result_valid;
-    assign w_addr_result_ready   = fub_arvalid && fub_arready;
-    assign w_addr_req_valid      = (r_state == S_AR_REQ) && !r_addr_req_done;
+    // ---- AR path ----
+    assign w_ar_addr_req_valid = (r_state == S_RUN)
+                              && (r_ar_req_count < r_txn_count);
+    assign fub_arvalid         = (r_state == S_RUN)
+                              && (r_ar_issued < r_txn_count)
+                              && w_ar_addr_result_valid;
+    assign w_ar_addr_result_ready = fub_arvalid && fub_arready;
 
-    // Always ready to accept R while we're in R_BEATS (or briefly during
-    // the AR_REQ -> R_BEATS handoff cycle).
-    assign fub_rready = (r_state == S_R_BEATS);
+    // ---- R path ----
+    // Keep the R addr-gen producing per-burst base addresses for the
+    // hash-mode expected data regen. Pop on rlast so the next burst's
+    // base is in place for the following beat.
+    assign w_r_addr_req_valid = (r_state == S_RUN)
+                             && (r_r_req_count < r_txn_count);
+    assign w_r_addr_result_ready = w_r_beat && fub_rlast;
+
+    // Ready to absorb R beats only after the AR for this burst is on
+    // the wire AND the R addr-gen has produced the base address.
+    assign fub_rready = (r_state == S_RUN)
+                     && (r_bursts_done < r_ar_issued)
+                     && w_r_addr_result_valid;
 
     //==========================================================================
     // Expected pattern data — two sources, muxed by r_data_mode:
@@ -351,9 +398,10 @@ module axi4_master_rd_crc_check #(
     logic [REPLICATION_FACTOR*32-1:0] w_expected_replicated;
     assign w_expected_replicated = {REPLICATION_FACTOR{w_lfsr_out}};
 
-    // Per-beat byte address for hash mode.
+    // Per-beat byte address for hash mode. Anchored on w_r_addr_result
+    // (current burst's base from the R addr-gen).
     logic [AW-1:0]                w_byte_addr_for_beat;
-    assign w_byte_addr_for_beat = r_burst_base_addr
+    assign w_byte_addr_for_beat = w_r_addr_result
         + (AW'({{(AW-8){1'b0}}, r_beats_in_burst}) << r_axi_size);
 
     // MUST match axi4_master_wr_pattern_gen::addr_hash32 bit-for-bit.
@@ -415,12 +463,12 @@ module axi4_master_rd_crc_check #(
             r_hash_seed0       <= 32'd0;
             r_hash_seed1       <= 32'd0;
             r_hash_seed2       <= 32'd0;
-            r_burst_base_addr  <= '0;
+            r_ar_req_count     <= '0;
             r_ar_issued        <= '0;
+            r_r_req_count      <= '0;
             r_bursts_done      <= '0;
             r_beats_in_burst   <= 8'd0;
             r_gap_left         <= 4'd0;
-            r_addr_req_done    <= 1'b0;
             o_actual_crc_valid <= 1'b0;
             o_data_error       <= 1'b0;
             o_rresp_error      <= 1'b0;
@@ -445,47 +493,44 @@ module axi4_master_rd_crc_check #(
                         r_hash_seed1    <= cfg_hash_seed1;
                         r_hash_seed2    <= cfg_hash_seed2;
                         r_rd_gap        <= cfg_rd_gap;
-                        r_ar_issued     <= '0;
-                        r_bursts_done   <= '0;
-                        r_beats_in_burst<= 8'd0;
-                        r_gap_left      <= 4'd0;
-                        r_addr_req_done <= 1'b0;
+                        r_ar_req_count   <= '0;
+                        r_ar_issued      <= '0;
+                        r_r_req_count    <= '0;
+                        r_bursts_done    <= '0;
+                        r_beats_in_burst <= 8'd0;
+                        r_gap_left       <= 4'd0;
                         o_actual_crc_valid <= 1'b0;
                         o_data_error       <= 1'b0;
                         o_rresp_error      <= 1'b0;
                         o_beats_mismatched <= '0;
-                        r_state         <= (cfg_txn_count == '0) ? S_DONE : S_AR_REQ;
+                        r_state         <= (cfg_txn_count == '0) ? S_DONE : S_RUN;
                     end
                 end
 
-                S_AR_REQ: begin
-                    if (w_addr_req_valid && w_addr_req_ready) begin
-                        r_addr_req_done <= 1'b1;
+                S_RUN: begin
+                    // AR addr-gen req
+                    if (w_ar_addr_req_valid && w_ar_addr_req_ready) begin
+                        r_ar_req_count <= r_ar_req_count + 1'b1;
                     end
+                    // AR handshake
                     if (fub_arvalid && fub_arready) begin
-                        r_ar_issued       <= r_ar_issued + 1'b1;
-                        r_state           <= S_R_BEATS;
-                        r_beats_in_burst  <= 8'd0;
-                        r_burst_base_addr <= w_addr_result;
+                        r_ar_issued <= r_ar_issued + 1'b1;
                     end
-                end
-
-                S_R_BEATS: begin
+                    // R addr-gen req
+                    if (w_r_addr_req_valid && w_r_addr_req_ready) begin
+                        r_r_req_count <= r_r_req_count + 1'b1;
+                    end
+                    // R beat handshake
                     if (w_r_beat) begin
                         if (fub_rlast) begin
-                            r_bursts_done   <= r_bursts_done + 1'b1;
-                            r_addr_req_done <= 1'b0;  // re-arm for next burst
+                            r_beats_in_burst <= 8'd0;
+                            r_bursts_done    <= r_bursts_done + 1'b1;
                             if (r_bursts_done + 1'b1 == r_txn_count) begin
                                 r_state            <= S_DONE;
-                                // CRC roll-up is only meaningful in LFSR
-                                // mode (phase-counter contract); hash mode
-                                // proves integrity via per-beat compare.
                                 o_actual_crc_valid <= !r_data_mode;
                             end else if (r_rd_gap != 4'd0) begin
                                 r_state    <= S_GAP;
                                 r_gap_left <= r_rd_gap;
-                            end else begin
-                                r_state <= S_AR_REQ;
                             end
                         end else begin
                             r_beats_in_burst <= r_beats_in_burst + 8'd1;
@@ -495,7 +540,7 @@ module axi4_master_rd_crc_check #(
 
                 S_GAP: begin
                     if (r_gap_left == 4'd1) begin
-                        r_state    <= S_AR_REQ;
+                        r_state    <= S_RUN;
                         r_gap_left <= 4'd0;
                     end else begin
                         r_gap_left <= r_gap_left - 4'd1;
@@ -521,16 +566,17 @@ module axi4_master_rd_crc_check #(
                         r_hash_seed1    <= cfg_hash_seed1;
                         r_hash_seed2    <= cfg_hash_seed2;
                         r_rd_gap        <= cfg_rd_gap;
-                        r_ar_issued     <= '0;
-                        r_bursts_done   <= '0;
-                        r_beats_in_burst<= 8'd0;
-                        r_gap_left      <= 4'd0;
-                        r_addr_req_done <= 1'b0;
+                        r_ar_req_count   <= '0;
+                        r_ar_issued      <= '0;
+                        r_r_req_count    <= '0;
+                        r_bursts_done    <= '0;
+                        r_beats_in_burst <= 8'd0;
+                        r_gap_left       <= 4'd0;
                         o_actual_crc_valid <= 1'b0;
                         o_data_error       <= 1'b0;
                         o_rresp_error      <= 1'b0;
                         o_beats_mismatched <= '0;
-                        r_state            <= (cfg_txn_count == '0) ? S_DONE : S_AR_REQ;
+                        r_state            <= (cfg_txn_count == '0) ? S_DONE : S_RUN;
                     end
                 end
 
@@ -571,7 +617,7 @@ module axi4_master_rd_crc_check #(
 
         // FUB AR
         .fub_axi_arid    (r_axi_id),
-        .fub_axi_araddr  (w_addr_result),
+        .fub_axi_araddr  (w_ar_addr_result),
         .fub_axi_arlen   (r_burst_len - 8'd1),
         .fub_axi_arsize  (r_axi_size),
         .fub_axi_arburst (r_axi_burst),

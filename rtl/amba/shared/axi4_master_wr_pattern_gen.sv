@@ -44,9 +44,13 @@
 //     5. When all cfg_txn_count B responses have been received,
 //        `cfg_done` asserts and stays high until the next cfg_start pulse.
 //
-//   Serial-burst v1: at most one burst outstanding (AW handshake gates the
-//   next W). Multi-outstanding is a v2 extension. Predictability is the v1
-//   priority — characterization sweeps want one variable changing at a time.
+//   Fully decoupled AW and W: two independent dma_address_gen instances
+//   walk the same descriptor in parallel. AW runs as fast as awready +
+//   addr-gen pipeline allow; W runs at slave's wready rate. awvalid
+//   stays asserted from its first cycle to the last AW handshake when
+//   cfg_wr_gap = 0 — the addr-gen produces 1 result/cycle once warmed
+//   up. cfg_wr_gap > 0 pauses both AW and W together. AXI4 outstanding
+//   is bounded by the slave's awready throttling, not by this block.
 //
 //   Address dimensions: walks dma_address_gen's index_0 only; index_1 is
 //   held at 0. To exercise the 2D path, instantiate a second pattern_gen
@@ -184,14 +188,14 @@ module axi4_master_wr_pattern_gen #(
 );
 
     //==========================================================================
-    // FSM
+    // FSM — fully decoupled AW and W (two independent addr-gens). awvalid
+    // never drops from first assertion to last AW handshake at gap=0.
     //==========================================================================
-    typedef enum logic [2:0] {
-        S_IDLE       = 3'd0,   // wait for cfg_start
-        S_AW_REQ     = 3'd1,   // request next address; drive AW until handshake
-        S_W_BEATS    = 3'd2,   // stream burst_len beats of LFSR data on W
-        S_GAP        = 3'd3,   // wait cfg_wr_gap idle cycles between bursts
-        S_DONE       = 3'd4    // all bursts issued; await final B's
+    typedef enum logic [1:0] {
+        S_IDLE = 2'd0,   // wait for cfg_start
+        S_RUN  = 2'd1,   // AW + W paths active
+        S_GAP  = 2'd2,   // cfg_wr_gap idle cycles between bursts
+        S_DONE = 2'd3    // all wlast issued; await final B's
     } state_e;
 
     state_e                       r_state;
@@ -212,40 +216,41 @@ module axi4_master_wr_pattern_gen #(
     logic [31:0]                  r_hash_seed0;
     logic [31:0]                  r_hash_seed1;
     logic [31:0]                  r_hash_seed2;
-    // Burst's accepted AW address — latched on the AW handshake so the
-    // per-beat byte-address calc has a stable anchor while the address-gen
-    // pipeline drains.
-    logic [AW-1:0]                r_burst_base_addr;
 
-    // Progress counters
-    logic [TXN_COUNT_WIDTH-1:0]   r_aw_issued;
-    logic [TXN_COUNT_WIDTH-1:0]   r_b_received;
-    logic [7:0]                   r_beats_in_burst;   // 0..r_burst_len-1
+    // Progress counters — AW and W paths advance independently. AW path
+    // tracks request + handshake counts for the AW addr-gen. W path
+    // tracks request + handshake counts for the W addr-gen.
+    logic [TXN_COUNT_WIDTH-1:0]   r_aw_req_count;     // AW addr-gen req handshakes
+    logic [TXN_COUNT_WIDTH-1:0]   r_aw_issued;        // AW handshakes
+    logic [TXN_COUNT_WIDTH-1:0]   r_w_req_count;      // W addr-gen req handshakes
+    logic [TXN_COUNT_WIDTH-1:0]   r_w_bursts_done;    // wlast handshakes
+    logic [TXN_COUNT_WIDTH-1:0]   r_b_received;       // B handshakes
+    logic [7:0]                   r_w_beat_idx;       // beat in current W burst
     logic [3:0]                   r_gap_left;         // S_GAP countdown
-    // One-shot request marker: high after this burst's address request has
-    // been latched by dma_address_gen, low on entry to S_AW_REQ for the
-    // next burst. Prevents duplicate requests while we wait for the
-    // pipelined result — without this, the address-gen captures r_aw_issued
-    // multiple times (with the stale value) and burst N's AW gets burst
-    // (N-1)'s address.
-    logic                         r_addr_req_done;
 
     //==========================================================================
-    // dma_address_gen — descriptor inputs come from the latched cfg.
-    // Drive index_0 = r_aw_issued, index_1 = 0.
+    // dma_address_gen — two independent instances walking the same
+    // descriptor. AW path uses u_addr_gen_aw; W path uses u_addr_gen_w.
+    // Same cfg + same indices => same address sequence in both.
     //==========================================================================
-    logic                         w_addr_req_valid;
-    logic                         w_addr_req_ready;
-    logic                         w_addr_result_valid;
-    logic                         w_addr_result_ready;
-    logic [AW-1:0]                w_addr_result;
+    logic                         w_aw_addr_req_valid;
+    logic                         w_aw_addr_req_ready;
+    logic                         w_aw_addr_result_valid;
+    logic                         w_aw_addr_result_ready;
+    logic [AW-1:0]                w_aw_addr_result;
+
+    logic                         w_w_addr_req_valid;
+    logic                         w_w_addr_req_ready;
+    logic                         w_w_addr_result_valid;
+    logic                         w_w_addr_result_ready;
+    logic [AW-1:0]                w_w_addr_result;
 
     dma_address_gen #(
         .ADDR_WIDTH  (AW),
         .INDEX_WIDTH (INDEX_WIDTH),
         .STRIDE_WIDTH(STRIDE_WIDTH),
         .TAG_WIDTH   (8)
-    ) u_addr_gen (
+    ) u_addr_gen_aw (
         .i_clk             (aclk),
         .i_rst_n           (aresetn),
 
@@ -255,15 +260,42 @@ module axi4_master_wr_pattern_gen #(
         .i_cfg_wrap_mask_0 (r_wrap_0),
         .i_cfg_wrap_mask_1 (r_wrap_1),
 
-        .i_req_valid       (w_addr_req_valid),
-        .o_req_ready       (w_addr_req_ready),
-        .i_req_index_0     (INDEX_WIDTH'(r_aw_issued)),
+        .i_req_valid       (w_aw_addr_req_valid),
+        .o_req_ready       (w_aw_addr_req_ready),
+        .i_req_index_0     (INDEX_WIDTH'(r_aw_req_count)),
         .i_req_index_1     (INDEX_WIDTH'(0)),
         .i_req_tag         (8'd0),
 
-        .o_result_valid    (w_addr_result_valid),
-        .i_result_ready    (w_addr_result_ready),
-        .o_result_addr     (w_addr_result),
+        .o_result_valid    (w_aw_addr_result_valid),
+        .i_result_ready    (w_aw_addr_result_ready),
+        .o_result_addr     (w_aw_addr_result),
+        .o_result_tag      ()
+    );
+
+    dma_address_gen #(
+        .ADDR_WIDTH  (AW),
+        .INDEX_WIDTH (INDEX_WIDTH),
+        .STRIDE_WIDTH(STRIDE_WIDTH),
+        .TAG_WIDTH   (8)
+    ) u_addr_gen_w (
+        .i_clk             (aclk),
+        .i_rst_n           (aresetn),
+
+        .i_cfg_base_addr   (r_base_addr),
+        .i_cfg_stride_0    (r_stride_0),
+        .i_cfg_stride_1    (r_stride_1),
+        .i_cfg_wrap_mask_0 (r_wrap_0),
+        .i_cfg_wrap_mask_1 (r_wrap_1),
+
+        .i_req_valid       (w_w_addr_req_valid),
+        .o_req_ready       (w_w_addr_req_ready),
+        .i_req_index_0     (INDEX_WIDTH'(r_w_req_count)),
+        .i_req_index_1     (INDEX_WIDTH'(0)),
+        .i_req_tag         (8'd0),
+
+        .o_result_valid    (w_w_addr_result_valid),
+        .i_result_ready    (w_w_addr_result_ready),
+        .o_result_addr     (w_w_addr_result),
         .o_result_tag      ()
     );
 
@@ -343,20 +375,39 @@ module axi4_master_wr_pattern_gen #(
 
     assign w_w_beat = fub_wvalid && fub_wready;
 
-    // AW valid: in S_AW_REQ once dma_address_gen has produced an address.
-    assign fub_awvalid       = (r_state == S_AW_REQ) && w_addr_result_valid;
-    // We pop the address gen result on the AW handshake.
-    assign w_addr_result_ready = fub_awvalid && fub_awready;
-    // Request the address for THIS burst exactly once. r_addr_req_done
-    // gates against firing duplicate requests while we wait for the
-    // pipelined result.
-    assign w_addr_req_valid  = (r_state == S_AW_REQ) && !r_addr_req_done;
+    // ---- AW path ----
+    // Keep the AW addr-gen requested for every AW we'll issue. addr-gen
+    // self-throttles via req_ready.
+    assign w_aw_addr_req_valid = (r_state == S_RUN)
+                              && (r_aw_req_count < r_txn_count);
 
-    assign fub_wvalid        = (r_state == S_W_BEATS);
-    assign fub_wlast         = (r_state == S_W_BEATS)
-                            && (r_beats_in_burst == r_burst_len - 8'd1);
-    assign fub_bready        = (r_state == S_W_BEATS) || (r_state == S_AW_REQ)
-                            || (r_state == S_DONE);
+    // awvalid stays asserted as long as we have AWs left and the addr-gen
+    // has produced the next address. No outstanding cap — slave's awready
+    // throttles. Gap pauses by switching state away from S_RUN.
+    assign fub_awvalid       = (r_state == S_RUN)
+                            && (r_aw_issued < r_txn_count)
+                            && w_aw_addr_result_valid;
+    assign w_aw_addr_result_ready = fub_awvalid && fub_awready;
+
+    // ---- W path ----
+    // Same shape on the W addr-gen: keep requesting per-burst base
+    // addresses. Pop on wlast so the next burst's base lines up.
+    assign w_w_addr_req_valid = (r_state == S_RUN)
+                             && (r_w_req_count < r_txn_count);
+
+    // W beats: only stream if (a) the slave has at least seen this
+    // burst's AW (r_w_bursts_done < r_aw_issued) and (b) the W addr-gen
+    // has produced the base address.
+    assign fub_wvalid        = (r_state == S_RUN)
+                            && (r_w_bursts_done < r_aw_issued)
+                            && w_w_addr_result_valid;
+    assign fub_wlast         = fub_wvalid
+                            && (r_w_beat_idx == r_burst_len - 8'd1);
+    assign w_w_addr_result_ready = w_w_beat && fub_wlast;
+
+    // B is always ready once we're past IDLE so the slave can drain B's
+    // even during S_GAP or S_DONE.
+    assign fub_bready        = (r_state != S_IDLE);
 
     //==========================================================================
     // Data path — two sources, muxed by r_data_mode:
@@ -374,12 +425,13 @@ module axi4_master_wr_pattern_gen #(
     logic [REPLICATION_FACTOR*32-1:0] w_data_replicated;
     assign w_data_replicated = {REPLICATION_FACTOR{w_lfsr_out}};
 
-    // Per-beat byte address. Anchored on r_burst_base_addr (latched at AW
-    // handshake) and stepped by 2**axsize bytes per beat. Full-beat writes
-    // only — strobes are all-ones.
+    // Per-beat byte address for the CURRENT W burst. Anchored on
+    // w_w_addr_result (the W addr-gen's current output) and stepped by
+    // 2**axsize bytes per beat. Full-beat writes only — strobes are
+    // all-ones.
     logic [AW-1:0]                w_byte_addr_for_beat;
-    assign w_byte_addr_for_beat = r_burst_base_addr
-        + (AW'({{(AW-8){1'b0}}, r_beats_in_burst}) << r_axi_size);
+    assign w_byte_addr_for_beat = w_w_addr_result
+        + (AW'({{(AW-8){1'b0}}, r_w_beat_idx}) << r_axi_size);
 
     // Murmur3 fmix32-style mixer with all three constants replaced by
     // cfg seeds. Odd-forced multiplies + xor-shifts kill low-entropy inputs
@@ -442,12 +494,13 @@ module axi4_master_wr_pattern_gen #(
             r_hash_seed0      <= 32'd0;
             r_hash_seed1      <= 32'd0;
             r_hash_seed2      <= 32'd0;
-            r_burst_base_addr <= '0;
+            r_aw_req_count    <= '0;
             r_aw_issued       <= '0;
+            r_w_req_count     <= '0;
+            r_w_bursts_done   <= '0;
             r_b_received      <= '0;
-            r_beats_in_burst  <= 8'd0;
+            r_w_beat_idx      <= 8'd0;
             r_gap_left        <= 4'd0;
-            r_addr_req_done   <= 1'b0;
             o_expected_crc       <= '0;
             o_expected_crc_valid <= 1'b0;
             o_bresp_error        <= 1'b0;
@@ -472,63 +525,53 @@ module axi4_master_wr_pattern_gen #(
                         r_hash_seed0    <= cfg_hash_seed0;
                         r_hash_seed1    <= cfg_hash_seed1;
                         r_hash_seed2    <= cfg_hash_seed2;
-                        r_aw_issued     <= '0;
-                        r_b_received    <= '0;
-                        r_beats_in_burst<= 8'd0;
-                        r_gap_left      <= 4'd0;
-                        r_addr_req_done <= 1'b0;
+                        r_aw_req_count   <= '0;
+                        r_aw_issued      <= '0;
+                        r_w_req_count    <= '0;
+                        r_w_bursts_done  <= '0;
+                        r_b_received     <= '0;
+                        r_w_beat_idx     <= 8'd0;
+                        r_gap_left       <= 4'd0;
                         o_expected_crc_valid <= 1'b0;
                         o_bresp_error        <= 1'b0;
-                        // Move to S_AW_REQ only if there's actually work to do.
-                        r_state         <= (cfg_txn_count == '0) ? S_DONE : S_AW_REQ;
+                        r_state         <= (cfg_txn_count == '0) ? S_DONE : S_RUN;
                     end
                 end
 
-                S_AW_REQ: begin
-                    // Latch that we've placed the address request once
-                    // we get o_req_ready back.
-                    if (w_addr_req_valid && w_addr_req_ready) begin
-                        r_addr_req_done <= 1'b1;
+                S_RUN: begin
+                    // ---- AW addr-gen req counter ----
+                    if (w_aw_addr_req_valid && w_aw_addr_req_ready) begin
+                        r_aw_req_count <= r_aw_req_count + 1'b1;
                     end
+                    // ---- AW handshake ----
                     if (fub_awvalid && fub_awready) begin
-                        // AW accepted; start W beats next cycle.
-                        // Latch the burst's base address so the hash mode
-                        // per-beat byte addr can step from a stable anchor.
-                        r_state           <= S_W_BEATS;
-                        r_beats_in_burst  <= 8'd0;
-                        r_burst_base_addr <= w_addr_result;
+                        r_aw_issued <= r_aw_issued + 1'b1;
                     end
-                end
+                    // ---- W addr-gen req counter ----
+                    if (w_w_addr_req_valid && w_w_addr_req_ready) begin
+                        r_w_req_count <= r_w_req_count + 1'b1;
+                    end
 
-                S_W_BEATS: begin
+                    // ---- W beat handshake ----
                     if (w_w_beat) begin
-                        if (r_beats_in_burst == r_burst_len - 8'd1) begin
-                            // Burst's last W beat issued. Advance to next AW
-                            // (or finish). We do NOT wait for B before next AW
-                            // — B is consumed in parallel via fub_bready and
-                            // counted into r_b_received.
-                            r_aw_issued      <= r_aw_issued + 1'b1;
-                            r_beats_in_burst <= 8'd0;
-                            r_addr_req_done  <= 1'b0;  // re-arm for next burst
-                            if (r_aw_issued + 1'b1 == r_txn_count) begin
+                        if (fub_wlast) begin
+                            r_w_beat_idx    <= 8'd0;
+                            r_w_bursts_done <= r_w_bursts_done + 1'b1;
+                            if (r_w_bursts_done + 1'b1 == r_txn_count) begin
                                 r_state <= S_DONE;
                             end else if (r_wr_gap != 4'd0) begin
-                                // Insert the configured idle gap before
-                                // requesting the next AW.
                                 r_state    <= S_GAP;
                                 r_gap_left <= r_wr_gap;
-                            end else begin
-                                r_state <= S_AW_REQ;
                             end
                         end else begin
-                            r_beats_in_burst <= r_beats_in_burst + 8'd1;
+                            r_w_beat_idx <= r_w_beat_idx + 8'd1;
                         end
                     end
                 end
 
                 S_GAP: begin
                     if (r_gap_left == 4'd1) begin
-                        r_state    <= S_AW_REQ;
+                        r_state    <= S_RUN;
                         r_gap_left <= 4'd0;
                     end else begin
                         r_gap_left <= r_gap_left - 4'd1;
@@ -537,9 +580,7 @@ module axi4_master_wr_pattern_gen #(
 
                 S_DONE: begin
                     if (cfg_start) begin
-                        // Re-arm directly: re-latch the program and jump
-                        // straight to AW_REQ. Going via IDLE would lose
-                        // the cfg_start pulse (it's a 1-cycle strobe).
+                        // Re-arm directly — same latch set as S_IDLE.
                         r_base_addr     <= cfg_start_addr;
                         r_stride_0      <= cfg_addr_stride_0;
                         r_stride_1      <= cfg_addr_stride_1;
@@ -556,14 +597,16 @@ module axi4_master_wr_pattern_gen #(
                         r_hash_seed0    <= cfg_hash_seed0;
                         r_hash_seed1    <= cfg_hash_seed1;
                         r_hash_seed2    <= cfg_hash_seed2;
-                        r_aw_issued     <= '0;
-                        r_b_received    <= '0;
-                        r_beats_in_burst<= 8'd0;
-                        r_gap_left      <= 4'd0;
-                        r_addr_req_done <= 1'b0;
+                        r_aw_req_count   <= '0;
+                        r_aw_issued      <= '0;
+                        r_w_req_count    <= '0;
+                        r_w_bursts_done  <= '0;
+                        r_b_received     <= '0;
+                        r_w_beat_idx     <= 8'd0;
+                        r_gap_left       <= 4'd0;
                         o_expected_crc_valid <= 1'b0;
                         o_bresp_error        <= 1'b0;
-                        r_state              <= (cfg_txn_count == '0) ? S_DONE : S_AW_REQ;
+                        r_state              <= (cfg_txn_count == '0) ? S_DONE : S_RUN;
                     end
                 end
 
@@ -579,14 +622,11 @@ module axi4_master_wr_pattern_gen #(
                 end
             end
 
-            // Latch the expected CRC at completion (one cycle after the
-            // last W beat — w_lfsr_out has settled, u_crc has consumed it).
+            // Latch the expected CRC at the last W beat of the last burst.
             // Only meaningful in LFSR mode; hash mode uses per-beat compare
-            // (o_data_error on the read side) as the integrity contract,
-            // so o_expected_crc_valid stays low in mode 1.
-            if (r_state == S_W_BEATS && w_w_beat
-                && r_beats_in_burst == r_burst_len - 8'd1
-                && r_aw_issued + 1'b1 == r_txn_count
+            // (o_data_error on the read side) as the integrity contract.
+            if (r_state == S_RUN && w_w_beat && fub_wlast
+                && r_w_bursts_done + 1'b1 == r_txn_count
                 && !r_data_mode) begin
                 o_expected_crc       <= w_expected_crc;
                 o_expected_crc_valid <= 1'b1;
@@ -594,11 +634,11 @@ module axi4_master_wr_pattern_gen #(
         end
     end)
 
-    // Pulse on any cfg_start that initiates a run — that's IDLE→AW_REQ
-    // OR the S_DONE direct re-arm.
+    // Pulse on any cfg_start that initiates a run — IDLE→RUN OR the
+    // S_DONE direct re-arm.
     assign w_lfsr_load = cfg_start && ((r_state == S_IDLE) || (r_state == S_DONE));
 
-    // cfg_done: all txn_count B's received AND we're past S_IDLE.
+    // cfg_done: all txn_count B's received AND we're past the active run.
     assign cfg_done = (r_state == S_DONE)
                    && (r_b_received == r_txn_count);
 
@@ -622,7 +662,7 @@ module axi4_master_wr_pattern_gen #(
 
         // FUB AW
         .fub_axi_awid    (r_axi_id),
-        .fub_axi_awaddr  (w_addr_result),
+        .fub_axi_awaddr  (w_aw_addr_result),
         .fub_axi_awlen   (r_burst_len - 8'd1),
         .fub_axi_awsize  (r_axi_size),
         .fub_axi_awburst (r_axi_burst),

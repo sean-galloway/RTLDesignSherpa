@@ -78,6 +78,9 @@ class RdCrcCheckTB(TBBase):
         self.hash_seeds: tuple = (0, 0, 0)
 
         self.ar_log: List[CapturedAr] = []
+        # FIFO of captured AR's awaiting R burst response. Drained by the
+        # single _r_responder task (serializes R bursts under pipelined AR).
+        self._ar_q: Deque[CapturedAr] = deque()
         # Slave-side LFSR state for "match" path. Reseeded on cfg_start.
         self._slave_lfsr_state: int = self.LFSR_DEFAULT_SEED
 
@@ -93,6 +96,7 @@ class RdCrcCheckTB(TBBase):
         for _ in range(5):
             await RisingEdge(self.dut.aclk)
         cocotb.start_soon(self._ar_capture_and_respond())
+        cocotb.start_soon(self._r_responder())
 
     def _drive_idle(self) -> None:
         self.dut.cfg_start_addr.value       = 0
@@ -142,7 +146,11 @@ class RdCrcCheckTB(TBBase):
         return out & self.MASK_DATA
 
     async def _ar_capture_and_respond(self) -> None:
-        """Capture each AR and immediately stream (arlen+1) R beats."""
+        """Capture each AR into a FIFO. A single responder task drains
+        the FIFO serially — under the DUT's pipelined-AR FSM, multiple
+        AR's can be handshaked in close succession, and we MUST drive
+        R bursts back-to-back (not in parallel) since they share the
+        same M-side R signals."""
         while True:
             await RisingEdge(self.dut.aclk)
             try:
@@ -157,7 +165,17 @@ class RdCrcCheckTB(TBBase):
                     arlen = int(self.dut.m_axi_arlen.value),
                 )
                 self.ar_log.append(ar)
-                cocotb.start_soon(self._drive_r_burst(ar))
+                self._ar_q.append(ar)
+
+    async def _r_responder(self) -> None:
+        """Drain self._ar_q serially: one R burst per AR. While the queue
+        is empty, sit idle so the DUT can pipeline ARs without races."""
+        while True:
+            if not self._ar_q:
+                await RisingEdge(self.dut.aclk)
+                continue
+            ar = self._ar_q.popleft()
+            await self._drive_r_burst(ar)
 
     async def _drive_r_burst(self, ar: CapturedAr) -> None:
         beats = ar.arlen + 1

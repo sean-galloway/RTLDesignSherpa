@@ -41,6 +41,7 @@ async def cocotb_test_axi4_master_wr_pattern_gen(dut):
         "rerun_after_done":  _rerun_after_done,
         "wr_gap_inserts_idle": _wr_gap_inserts_idle,
         "hash_mode_data":    _hash_mode_data,
+        "awvalid_no_drop":   _awvalid_no_drop,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -178,6 +179,44 @@ async def _wr_gap_inserts_idle(tb: WrPatternGenTB):
     assert len(tb.w_log)  == N * BURST
 
 
+async def _awvalid_no_drop(tb: WrPatternGenTB):
+    """At cfg_wr_gap=0 with pipelined AW, awvalid must NOT drop between
+    the first AW being driven and the last AW being handshaked. (After
+    the last AW handshake awvalid is allowed to deassert — no more work.)
+    """
+    BURST = 4
+    N = 4
+    await tb.program(start_addr=0x200, stride_0=BURST * 8,
+                     burst_len=BURST, txn_count=N, wr_gap=0)
+    await tb.pulse_start()
+
+    saw_awvalid_high = False
+    aw_handshakes = 0
+    drops_observed = 0
+    # Watch the AW channel until we've seen N handshakes.
+    for _ in range(2000):
+        await RisingEdge(tb.dut.aclk)
+        await Timer(100, units="ps")
+        v = int(tb.dut.m_axi_awvalid.value)
+        r = int(tb.dut.m_axi_awready.value)
+        if v and r:
+            aw_handshakes += 1
+            if aw_handshakes == N:
+                break
+        if v:
+            saw_awvalid_high = True
+        elif saw_awvalid_high and aw_handshakes < N:
+            # awvalid went low after asserting and before all AWs done
+            drops_observed += 1
+    assert aw_handshakes == N, (
+        f"only saw {aw_handshakes}/{N} AW handshakes"
+    )
+    assert drops_observed == 0, (
+        f"awvalid dropped {drops_observed} cycles mid-run at gap=0"
+    )
+    await tb.wait_done()
+
+
 async def _hash_mode_data(tb: WrPatternGenTB):
     """data_mode=1: W beats are addr_hash32 of the per-beat byte address.
     The Python mirror computes the same hash per beat, so we can compare
@@ -245,7 +284,8 @@ async def _rerun_after_done(tb: WrPatternGenTB):
 _ALL_TYPES = ["smoke", "multi_burst", "address_walk",
               "data_matches_lfsr", "done_waits_for_b",
               "bresp_error_sticky", "rerun_after_done",
-              "wr_gap_inserts_idle", "hash_mode_data"]
+              "wr_gap_inserts_idle", "hash_mode_data",
+              "awvalid_no_drop"]
 _GATE = [(t,) for t in ["smoke", "multi_burst", "address_walk"]]
 _FUNC = [(t,) for t in _ALL_TYPES]
 _FULL = _FUNC

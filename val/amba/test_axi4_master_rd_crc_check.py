@@ -33,6 +33,7 @@ async def cocotb_test_axi4_master_rd_crc_check(dut):
         "rd_gap_inserts_idle": _rd_gap_inserts_idle,
         "hash_mode_match":     _hash_mode_match,
         "hash_mode_low_entropy": _hash_mode_low_entropy,
+        "arvalid_no_drop":     _arvalid_no_drop,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -134,6 +135,40 @@ async def _rd_gap_inserts_idle(tb: RdCrcCheckTB):
     assert int(tb.dut.o_data_error.value) == 0
 
 
+async def _arvalid_no_drop(tb: RdCrcCheckTB):
+    """At cfg_rd_gap=0 with pipelined AR, arvalid must NOT drop between
+    the first AR being driven and the last AR being handshaked."""
+    BURST = 4
+    N = 4
+    await tb.program(start_addr=0x200, stride_0=BURST * 8,
+                     burst_len=BURST, txn_count=N, rd_gap=0)
+    await tb.pulse_start()
+
+    saw_arvalid_high = False
+    ar_handshakes = 0
+    drops_observed = 0
+    for _ in range(2000):
+        await RisingEdge(tb.dut.aclk)
+        await Timer(100, units="ps")
+        v = int(tb.dut.m_axi_arvalid.value)
+        r = int(tb.dut.m_axi_arready.value)
+        if v and r:
+            ar_handshakes += 1
+            if ar_handshakes == N:
+                break
+        if v:
+            saw_arvalid_high = True
+        elif saw_arvalid_high and ar_handshakes < N:
+            drops_observed += 1
+    assert ar_handshakes == N, (
+        f"only saw {ar_handshakes}/{N} AR handshakes"
+    )
+    assert drops_observed == 0, (
+        f"arvalid dropped {drops_observed} cycles mid-run at gap=0"
+    )
+    await tb.wait_done()
+
+
 async def _hash_mode_match(tb: RdCrcCheckTB):
     """data_mode=1: slave responder returns addr_hash32 of each beat's
     byte address; DUT regenerates the same hash locally and compares per
@@ -209,7 +244,7 @@ _ALL_TYPES = ["smoke_match", "multi_burst_match", "address_walk",
               "data_mismatch_sticky", "beats_mismatched_count",
               "rresp_error_sticky", "rerun_after_done",
               "rd_gap_inserts_idle", "hash_mode_match",
-              "hash_mode_low_entropy"]
+              "hash_mode_low_entropy", "arvalid_no_drop"]
 _GATE = [(t,) for t in ["smoke_match", "multi_burst_match",
                         "data_mismatch_sticky"]]
 _FUNC = [(t,) for t in _ALL_TYPES]
