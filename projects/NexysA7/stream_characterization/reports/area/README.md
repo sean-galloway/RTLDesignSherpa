@@ -167,7 +167,7 @@ below).
 | iDMA (backend + desc64) | 3,869 | 5,685 | 0 |
 
 **The architectures cross over.** At one channel iDMA is leaner in LUTs (3,869 vs
-5,581): STREAM still pays for its multi-channel machinery (shared scheduler
+5,586): STREAM still pays for its multi-channel machinery (shared scheduler
 infrastructure, APB CSR, an SRAM tile) that a single channel can't amortize.
 STREAM is denser in FFs and spends 2.5 BRAM where iDMA spends none. But the
 slopes invert with scale — see next.
