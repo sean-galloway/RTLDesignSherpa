@@ -120,7 +120,14 @@ module axi4_master_wr_pattern_gen #(
     // Burst shape
     input  logic [7:0]                          cfg_burst_len,    // beats (1..256). awlen = cfg_burst_len - 1
     input  logic [TXN_COUNT_WIDTH-1:0]          cfg_txn_count,    // total bursts to issue
-    input  logic [IW-1:0]                       cfg_axi_id,       // ID for all AW
+    input  logic [IW-1:0]                       cfg_axi_id,       // FIXED-mode id / start seed for COUNTER+LFSR modes
+    // AW ID generation mode:
+    //   0 = FIXED:   every AW uses cfg_axi_id verbatim
+    //   1 = COUNTER: 8-bit counter starting at cfg_axi_id[7:0], +1 per AW
+    //   2 = LFSR:    8-bit Fibonacci LFSR seeded from cfg_axi_id[7:0]|1
+    // Counter / LFSR widths are 8-bit internally and zero-extended (or
+    // truncated) to IW at the awid output.
+    input  logic [1:0]                          cfg_id_mode,
     input  logic [2:0]                          cfg_axi_size,     // awsize
     input  logic [1:0]                          cfg_axi_burst,    // awburst (INCR=1)
 
@@ -216,6 +223,8 @@ module axi4_master_wr_pattern_gen #(
     logic [31:0]                  r_hash_seed0;
     logic [31:0]                  r_hash_seed1;
     logic [31:0]                  r_hash_seed2;
+    logic [1:0]                   r_id_mode;         // 0=FIXED, 1=COUNTER, 2=LFSR
+    logic [7:0]                   r_id_counter;      // 8-bit AW ID counter
 
     // Progress counters — AW and W paths advance independently. AW path
     // tracks request + handshake counts for the AW addr-gen. W path
@@ -373,6 +382,45 @@ module axi4_master_wr_pattern_gen #(
     logic                         fub_bready;
     logic [1:0]                   fub_bresp;
 
+    //==========================================================================
+    // AW ID generator — three modes muxed by r_id_mode.
+    //   FIXED:   pass r_axi_id through.
+    //   COUNTER: 8-bit counter, seeded with cfg_axi_id[7:0] at cfg_start,
+    //            +1 per AW handshake (wraps).
+    //   LFSR:    8-bit maximal-length Fibonacci LFSR with taps {8,6,5,4},
+    //            seeded with cfg_axi_id[7:0] | 8'h01 (avoid all-zero seed).
+    //==========================================================================
+    logic [7:0]  w_id_lfsr_out;
+    logic        w_id_lfsr_advance;
+
+    assign w_id_lfsr_advance = fub_awvalid && fub_awready;
+
+    shifter_lfsr_fibonacci #(
+        .WIDTH          (8),
+        .TAP_INDEX_WIDTH(4),
+        .TAP_COUNT      (4)
+    ) u_id_lfsr (
+        .clk      (aclk),
+        .rst_n    (aresetn),
+        .enable   (w_id_lfsr_advance || w_lfsr_load),
+        .seed_load(w_lfsr_load),
+        .seed_data(cfg_axi_id[7:0] | 8'h01),
+        .taps     ({4'd8, 4'd6, 4'd5, 4'd4}),
+        .lfsr_out (w_id_lfsr_out),
+        .lfsr_done()
+    );
+
+    // Mode mux for awid
+    logic [IW-1:0] w_aw_id_out;
+    always_comb begin
+        unique case (r_id_mode)
+            2'd0:    w_aw_id_out = r_axi_id;
+            2'd1:    w_aw_id_out = IW'(r_id_counter);
+            2'd2:    w_aw_id_out = IW'(w_id_lfsr_out);
+            default: w_aw_id_out = r_axi_id;
+        endcase
+    end
+
     assign w_w_beat = fub_wvalid && fub_wready;
 
     // ---- AW path ----
@@ -494,6 +542,8 @@ module axi4_master_wr_pattern_gen #(
             r_hash_seed0      <= 32'd0;
             r_hash_seed1      <= 32'd0;
             r_hash_seed2      <= 32'd0;
+            r_id_mode         <= 2'd0;
+            r_id_counter      <= 8'd0;
             r_aw_req_count    <= '0;
             r_aw_issued       <= '0;
             r_w_req_count     <= '0;
@@ -525,6 +575,8 @@ module axi4_master_wr_pattern_gen #(
                         r_hash_seed0    <= cfg_hash_seed0;
                         r_hash_seed1    <= cfg_hash_seed1;
                         r_hash_seed2    <= cfg_hash_seed2;
+                        r_id_mode       <= cfg_id_mode;
+                        r_id_counter    <= cfg_axi_id[7:0];
                         r_aw_req_count   <= '0;
                         r_aw_issued      <= '0;
                         r_w_req_count    <= '0;
@@ -545,7 +597,12 @@ module axi4_master_wr_pattern_gen #(
                     end
                     // ---- AW handshake ----
                     if (fub_awvalid && fub_awready) begin
-                        r_aw_issued <= r_aw_issued + 1'b1;
+                        r_aw_issued  <= r_aw_issued + 1'b1;
+                        // Advance the ID counter regardless of mode — it's
+                        // only sourced when r_id_mode==COUNTER, but keeping
+                        // it free-running is harmless and avoids a mode
+                        // branch in the critical path.
+                        r_id_counter <= r_id_counter + 8'd1;
                     end
                     // ---- W addr-gen req counter ----
                     if (w_w_addr_req_valid && w_w_addr_req_ready) begin
@@ -597,6 +654,8 @@ module axi4_master_wr_pattern_gen #(
                         r_hash_seed0    <= cfg_hash_seed0;
                         r_hash_seed1    <= cfg_hash_seed1;
                         r_hash_seed2    <= cfg_hash_seed2;
+                        r_id_mode       <= cfg_id_mode;
+                        r_id_counter    <= cfg_axi_id[7:0];
                         r_aw_req_count   <= '0;
                         r_aw_issued      <= '0;
                         r_w_req_count    <= '0;
@@ -661,7 +720,7 @@ module axi4_master_wr_pattern_gen #(
         .aresetn         (aresetn),
 
         // FUB AW
-        .fub_axi_awid    (r_axi_id),
+        .fub_axi_awid    (w_aw_id_out),
         .fub_axi_awaddr  (w_aw_addr_result),
         .fub_axi_awlen   (r_burst_len - 8'd1),
         .fub_axi_awsize  (r_axi_size),

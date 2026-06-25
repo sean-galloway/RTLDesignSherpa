@@ -34,6 +34,8 @@ async def cocotb_test_axi4_master_rd_crc_check(dut):
         "hash_mode_match":     _hash_mode_match,
         "hash_mode_low_entropy": _hash_mode_low_entropy,
         "arvalid_no_drop":     _arvalid_no_drop,
+        "id_mode_counter":     _id_mode_counter,
+        "id_mode_lfsr":        _id_mode_lfsr,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -133,6 +135,41 @@ async def _rd_gap_inserts_idle(tb: RdCrcCheckTB):
     await tb.wait_done()
     assert len(tb.ar_log) == 3
     assert int(tb.dut.o_data_error.value) == 0
+
+
+async def _id_mode_counter(tb: RdCrcCheckTB):
+    """id_mode=COUNTER: AR IDs walk start..start+N-1 (mod 256)."""
+    BURST = 2
+    N = 5
+    START = 23
+    await tb.program(start_addr=0, burst_len=BURST, txn_count=N,
+                     axi_id=START, id_mode=1)
+    await tb.pulse_start()
+    await tb.wait_done()
+    assert len(tb.ar_log) == N
+    for i, ar in enumerate(tb.ar_log):
+        expected = (START + i) & 0xFF
+        assert ar.axid == expected, (
+            f"AR[{i}].id = {ar.axid} want {expected}"
+        )
+
+
+async def _id_mode_lfsr(tb: RdCrcCheckTB):
+    """id_mode=LFSR: AR IDs are an 8-bit Fibonacci LFSR."""
+    BURST = 1
+    N = 16
+    SEED_IN = 0x42
+    await tb.program(start_addr=0, burst_len=BURST, txn_count=N,
+                     axi_id=SEED_IN, id_mode=2)
+    await tb.pulse_start()
+    await tb.wait_done()
+    assert len(tb.ar_log) == N
+    ids = [ar.axid for ar in tb.ar_log]
+    distinct = len(set(ids))
+    assert distinct >= N // 2, (
+        f"LFSR id distribution looks stuck: only {distinct}/{N} distinct"
+    )
+    assert all(i != 0 for i in ids)
 
 
 async def _arvalid_no_drop(tb: RdCrcCheckTB):
@@ -244,7 +281,8 @@ _ALL_TYPES = ["smoke_match", "multi_burst_match", "address_walk",
               "data_mismatch_sticky", "beats_mismatched_count",
               "rresp_error_sticky", "rerun_after_done",
               "rd_gap_inserts_idle", "hash_mode_match",
-              "hash_mode_low_entropy", "arvalid_no_drop"]
+              "hash_mode_low_entropy", "arvalid_no_drop",
+              "id_mode_counter", "id_mode_lfsr"]
 _GATE = [(t,) for t in ["smoke_match", "multi_burst_match",
                         "data_mismatch_sticky"]]
 _FUNC = [(t,) for t in _ALL_TYPES]

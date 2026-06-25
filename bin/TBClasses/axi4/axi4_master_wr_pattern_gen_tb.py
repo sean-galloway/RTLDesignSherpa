@@ -102,6 +102,7 @@ class WrPatternGenTB(TBBase):
         self.dut.cfg_burst_len.value        = 1
         self.dut.cfg_txn_count.value        = 0
         self.dut.cfg_axi_id.value           = 0
+        self.dut.cfg_id_mode.value          = 0
         self.dut.cfg_axi_size.value         = 3
         self.dut.cfg_axi_burst.value        = 1  # INCR
         self.dut.cfg_lfsr_seed.value        = 0
@@ -193,7 +194,8 @@ class WrPatternGenTB(TBBase):
                       data_mode: int = 0,
                       hash_seed0: int = 0,
                       hash_seed1: int = 0,
-                      hash_seed2: int = 0) -> None:
+                      hash_seed2: int = 0,
+                      id_mode: int = 0) -> None:
         self.dut.cfg_start_addr.value       = start_addr
         self.dut.cfg_addr_stride_0.value    = stride_0
         self.dut.cfg_addr_stride_1.value    = stride_1
@@ -202,6 +204,7 @@ class WrPatternGenTB(TBBase):
         self.dut.cfg_burst_len.value        = burst_len
         self.dut.cfg_txn_count.value        = txn_count
         self.dut.cfg_axi_id.value           = axi_id
+        self.dut.cfg_id_mode.value          = id_mode & 0x3
         self.dut.cfg_axi_size.value         = axi_size
         self.dut.cfg_axi_burst.value        = axi_burst
         self.dut.cfg_lfsr_seed.value        = lfsr_seed

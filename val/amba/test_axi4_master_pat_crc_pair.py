@@ -40,6 +40,7 @@ async def _setup(dut):
     dut.cfg_burst_len.value        = 1
     dut.cfg_txn_count.value        = 0
     dut.cfg_axi_id.value           = 0
+    dut.cfg_id_mode.value          = 0
     dut.cfg_axi_size.value         = 3
     dut.cfg_axi_burst.value        = 1
     dut.cfg_lfsr_seed.value        = 0
@@ -66,12 +67,14 @@ async def _program(dut, *, start_addr: int, stride_0: int = 0,
                    data_mode: int = 0,
                    hash_seed0: int = 0,
                    hash_seed1: int = 0,
-                   hash_seed2: int = 0):
+                   hash_seed2: int = 0,
+                   id_mode: int = 0):
     dut.cfg_start_addr.value       = start_addr
     dut.cfg_addr_stride_0.value    = stride_0
     dut.cfg_burst_len.value        = burst_len
     dut.cfg_txn_count.value        = txn_count
     dut.cfg_axi_id.value           = axi_id
+    dut.cfg_id_mode.value          = id_mode & 0x3
     dut.cfg_lfsr_seed.value        = lfsr_seed
     dut.cfg_data_mode.value        = data_mode & 0x1
     dut.cfg_hash_seed0.value       = hash_seed0 & 0xFFFFFFFF
@@ -127,6 +130,7 @@ async def cocotb_test_pair(dut):
         "gapped":        _gapped,
         "hash_mode":     _hash_mode,
         "hash_mode_low_entropy": _hash_mode_low_entropy_pair,
+        "hash_mode_id_counter":  _hash_mode_id_counter,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -258,6 +262,24 @@ async def _hash_mode_low_entropy_pair(dut):
     await _check_clean_hash(dut)
 
 
+async def _hash_mode_id_counter(dut):
+    """End-to-end with hash data + COUNTER ID mode. Because hash data is
+    a pure function of address, the ID scheme doesn't influence data,
+    so this just confirms the round-trip stays clean when IDs vary."""
+    SEEDS = (0x9E3779B9, 0x85EBCA6B, 0xC2B2AE35)
+    BURST = 4
+    N = 6
+    await _program(dut, start_addr=0x600, stride_0=BURST * 8,
+                   burst_len=BURST, txn_count=N,
+                   axi_id=0x10, id_mode=1,
+                   data_mode=1,
+                   hash_seed0=SEEDS[0], hash_seed1=SEEDS[1],
+                   hash_seed2=SEEDS[2])
+    await _pulse_wr(dut); await _wait_wr_done(dut)
+    await _pulse_rd(dut); await _wait_rd_done(dut)
+    await _check_clean_hash(dut)
+
+
 async def _rerun(dut):
     """Run the pair twice with different descriptors. Both runs must be
     clean (no leftover state poisoning the second pass)."""
@@ -282,7 +304,8 @@ async def _rerun(dut):
 # ---------------------------------------------------------------------------
 
 _ALL_TYPES = ["smoke", "row_walk", "seed_override", "rerun", "gapped",
-              "hash_mode", "hash_mode_low_entropy"]
+              "hash_mode", "hash_mode_low_entropy",
+              "hash_mode_id_counter"]
 _GATE = [(t,) for t in ["smoke", "row_walk"]]
 _FUNC = [(t,) for t in _ALL_TYPES]
 _FULL = _FUNC

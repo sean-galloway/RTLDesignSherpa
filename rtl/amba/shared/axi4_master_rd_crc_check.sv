@@ -133,7 +133,12 @@ module axi4_master_rd_crc_check #(
 
     input  logic [7:0]                          cfg_burst_len,    // beats (1..256). arlen = len-1
     input  logic [TXN_COUNT_WIDTH-1:0]          cfg_txn_count,
-    input  logic [IW-1:0]                       cfg_axi_id,
+    input  logic [IW-1:0]                       cfg_axi_id,       // FIXED-mode id / start seed for COUNTER+LFSR modes
+    // AR ID generation mode:
+    //   0 = FIXED:   every AR uses cfg_axi_id verbatim
+    //   1 = COUNTER: 8-bit counter starting at cfg_axi_id[7:0], +1 per AR
+    //   2 = LFSR:    8-bit Fibonacci LFSR seeded from cfg_axi_id[7:0]|1
+    input  logic [1:0]                          cfg_id_mode,
     input  logic [2:0]                          cfg_axi_size,
     input  logic [1:0]                          cfg_axi_burst,
 
@@ -220,6 +225,8 @@ module axi4_master_rd_crc_check #(
     logic [31:0]                  r_hash_seed0;
     logic [31:0]                  r_hash_seed1;
     logic [31:0]                  r_hash_seed2;
+    logic [1:0]                   r_id_mode;
+    logic [7:0]                   r_id_counter;
 
     // Progress counters — AR and R paths advance independently.
     logic [TXN_COUNT_WIDTH-1:0]   r_ar_req_count;     // AR addr-gen req handshakes
@@ -365,6 +372,39 @@ module axi4_master_rd_crc_check #(
     logic [DW-1:0]                fub_rdata;
     logic [1:0]                   fub_rresp;
 
+    //==========================================================================
+    // AR ID generator — mirrors the writer's AW ID logic.
+    //==========================================================================
+    logic [7:0]  w_id_lfsr_out;
+    logic        w_id_lfsr_advance;
+
+    assign w_id_lfsr_advance = fub_arvalid && fub_arready;
+
+    shifter_lfsr_fibonacci #(
+        .WIDTH          (8),
+        .TAP_INDEX_WIDTH(4),
+        .TAP_COUNT      (4)
+    ) u_id_lfsr (
+        .clk      (aclk),
+        .rst_n    (aresetn),
+        .enable   (w_id_lfsr_advance || w_lfsr_load),
+        .seed_load(w_lfsr_load),
+        .seed_data(cfg_axi_id[7:0] | 8'h01),
+        .taps     ({4'd8, 4'd6, 4'd5, 4'd4}),
+        .lfsr_out (w_id_lfsr_out),
+        .lfsr_done()
+    );
+
+    logic [IW-1:0] w_ar_id_out;
+    always_comb begin
+        unique case (r_id_mode)
+            2'd0:    w_ar_id_out = r_axi_id;
+            2'd1:    w_ar_id_out = IW'(r_id_counter);
+            2'd2:    w_ar_id_out = IW'(w_id_lfsr_out);
+            default: w_ar_id_out = r_axi_id;
+        endcase
+    end
+
     assign w_r_beat = fub_rvalid && fub_rready;
 
     // ---- AR path ----
@@ -463,6 +503,8 @@ module axi4_master_rd_crc_check #(
             r_hash_seed0       <= 32'd0;
             r_hash_seed1       <= 32'd0;
             r_hash_seed2       <= 32'd0;
+            r_id_mode          <= 2'd0;
+            r_id_counter       <= 8'd0;
             r_ar_req_count     <= '0;
             r_ar_issued        <= '0;
             r_r_req_count      <= '0;
@@ -492,6 +534,8 @@ module axi4_master_rd_crc_check #(
                         r_hash_seed0    <= cfg_hash_seed0;
                         r_hash_seed1    <= cfg_hash_seed1;
                         r_hash_seed2    <= cfg_hash_seed2;
+                        r_id_mode       <= cfg_id_mode;
+                        r_id_counter    <= cfg_axi_id[7:0];
                         r_rd_gap        <= cfg_rd_gap;
                         r_ar_req_count   <= '0;
                         r_ar_issued      <= '0;
@@ -514,7 +558,8 @@ module axi4_master_rd_crc_check #(
                     end
                     // AR handshake
                     if (fub_arvalid && fub_arready) begin
-                        r_ar_issued <= r_ar_issued + 1'b1;
+                        r_ar_issued  <= r_ar_issued + 1'b1;
+                        r_id_counter <= r_id_counter + 8'd1;
                     end
                     // R addr-gen req
                     if (w_r_addr_req_valid && w_r_addr_req_ready) begin
@@ -565,6 +610,8 @@ module axi4_master_rd_crc_check #(
                         r_hash_seed0    <= cfg_hash_seed0;
                         r_hash_seed1    <= cfg_hash_seed1;
                         r_hash_seed2    <= cfg_hash_seed2;
+                        r_id_mode       <= cfg_id_mode;
+                        r_id_counter    <= cfg_axi_id[7:0];
                         r_rd_gap        <= cfg_rd_gap;
                         r_ar_req_count   <= '0;
                         r_ar_issued      <= '0;
@@ -616,7 +663,7 @@ module axi4_master_rd_crc_check #(
         .aresetn         (aresetn),
 
         // FUB AR
-        .fub_axi_arid    (r_axi_id),
+        .fub_axi_arid    (w_ar_id_out),
         .fub_axi_araddr  (w_ar_addr_result),
         .fub_axi_arlen   (r_burst_len - 8'd1),
         .fub_axi_arsize  (r_axi_size),

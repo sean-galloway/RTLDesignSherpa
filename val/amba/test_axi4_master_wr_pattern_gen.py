@@ -42,6 +42,8 @@ async def cocotb_test_axi4_master_wr_pattern_gen(dut):
         "wr_gap_inserts_idle": _wr_gap_inserts_idle,
         "hash_mode_data":    _hash_mode_data,
         "awvalid_no_drop":   _awvalid_no_drop,
+        "id_mode_counter":   _id_mode_counter,
+        "id_mode_lfsr":      _id_mode_lfsr,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -179,6 +181,47 @@ async def _wr_gap_inserts_idle(tb: WrPatternGenTB):
     assert len(tb.w_log)  == N * BURST
 
 
+async def _id_mode_counter(tb: WrPatternGenTB):
+    """id_mode=COUNTER: AW IDs walk start..start+N-1 (mod 256)."""
+    BURST = 2
+    N = 6
+    START = 17
+    await tb.program(start_addr=0, burst_len=BURST, txn_count=N,
+                     axi_id=START, id_mode=1)
+    await tb.pulse_start()
+    await tb.wait_done()
+    assert len(tb.aw_log) == N
+    for i, aw in enumerate(tb.aw_log):
+        expected = (START + i) & 0xFF
+        assert aw.axid == expected, (
+            f"AW[{i}].id = {aw.axid} want {expected}"
+        )
+
+
+async def _id_mode_lfsr(tb: WrPatternGenTB):
+    """id_mode=LFSR: AW IDs are an 8-bit Fibonacci LFSR. The exact
+    sequence is deterministic but we don't pin it here — just assert:
+    (a) the IDs are not stuck (>=N/2 distinct in N samples for N>=8)
+    (b) the IDs are non-zero (the seed mask | 0x01 prevents 0)
+    """
+    BURST = 1
+    N = 16
+    SEED_IN = 0x42
+    await tb.program(start_addr=0, burst_len=BURST, txn_count=N,
+                     axi_id=SEED_IN, id_mode=2)
+    await tb.pulse_start()
+    await tb.wait_done()
+    assert len(tb.aw_log) == N
+    ids = [aw.axid for aw in tb.aw_log]
+    distinct = len(set(ids))
+    assert distinct >= N // 2, (
+        f"LFSR id distribution looks stuck: only {distinct}/{N} distinct"
+    )
+    assert all(i != 0 for i in ids), (
+        f"LFSR id sequence produced a 0: {ids}"
+    )
+
+
 async def _awvalid_no_drop(tb: WrPatternGenTB):
     """At cfg_wr_gap=0 with pipelined AW, awvalid must NOT drop between
     the first AW being driven and the last AW being handshaked. (After
@@ -285,7 +328,8 @@ _ALL_TYPES = ["smoke", "multi_burst", "address_walk",
               "data_matches_lfsr", "done_waits_for_b",
               "bresp_error_sticky", "rerun_after_done",
               "wr_gap_inserts_idle", "hash_mode_data",
-              "awvalid_no_drop"]
+              "awvalid_no_drop", "id_mode_counter",
+              "id_mode_lfsr"]
 _GATE = [(t,) for t in ["smoke", "multi_burst", "address_walk"]]
 _FUNC = [(t,) for t in _ALL_TYPES]
 _FULL = _FUNC
