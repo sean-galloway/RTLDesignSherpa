@@ -171,6 +171,10 @@ module axi4_master_rd_crc_check #(
     logic [TXN_COUNT_WIDTH-1:0]   r_ar_issued;
     logic [TXN_COUNT_WIDTH-1:0]   r_bursts_done;
     logic [7:0]                   r_beats_in_burst;
+    // One-shot request marker — same fix as axi4_master_wr_pattern_gen.
+    // Prevents the address-gen from capturing r_ar_issued multiple times
+    // while we wait for its pipelined result.
+    logic                         r_addr_req_done;
 
     //==========================================================================
     // dma_address_gen — same shape as the writer-side use
@@ -217,6 +221,13 @@ module axi4_master_rd_crc_check #(
     logic                         w_lfsr_load;
     logic [LFSR_WIDTH-1:0]        w_lfsr_out;
 
+    // Same combinational seed mux as axi4_master_wr_pattern_gen.
+    logic [LFSR_WIDTH-1:0] w_lfsr_seed_data;
+    assign w_lfsr_seed_data = w_lfsr_load
+                            ? ((cfg_lfsr_seed == '0) ? LFSR_SEED
+                                                     : cfg_lfsr_seed)
+                            : r_lfsr_seed_eff;
+
     shifter_lfsr_fibonacci #(
         .WIDTH          (LFSR_WIDTH),
         .TAP_INDEX_WIDTH(12),
@@ -226,7 +237,7 @@ module axi4_master_rd_crc_check #(
         .rst_n    (aresetn),
         .enable   (w_r_beat || w_lfsr_load),
         .seed_load(w_lfsr_load),
-        .seed_data(r_lfsr_seed_eff),
+        .seed_data(w_lfsr_seed_data),
         .taps     (LFSR_TAPS),
         .lfsr_out (w_lfsr_out),
         .lfsr_done()
@@ -270,7 +281,7 @@ module axi4_master_rd_crc_check #(
 
     assign fub_arvalid           = (r_state == S_AR_REQ) && w_addr_result_valid;
     assign w_addr_result_ready   = fub_arvalid && fub_arready;
-    assign w_addr_req_valid      = (r_state == S_AR_REQ) && !w_addr_result_valid;
+    assign w_addr_req_valid      = (r_state == S_AR_REQ) && !r_addr_req_done;
 
     // Always ready to accept R while we're in R_BEATS (or briefly during
     // the AR_REQ -> R_BEATS handoff cycle).
@@ -310,6 +321,7 @@ module axi4_master_rd_crc_check #(
             r_ar_issued        <= '0;
             r_bursts_done      <= '0;
             r_beats_in_burst   <= 8'd0;
+            r_addr_req_done    <= 1'b0;
             o_actual_crc_valid <= 1'b0;
             o_data_error       <= 1'b0;
             o_rresp_error      <= 1'b0;
@@ -332,6 +344,7 @@ module axi4_master_rd_crc_check #(
                         r_ar_issued     <= '0;
                         r_bursts_done   <= '0;
                         r_beats_in_burst<= 8'd0;
+                        r_addr_req_done <= 1'b0;
                         o_actual_crc_valid <= 1'b0;
                         o_data_error       <= 1'b0;
                         o_rresp_error      <= 1'b0;
@@ -341,6 +354,9 @@ module axi4_master_rd_crc_check #(
                 end
 
                 S_AR_REQ: begin
+                    if (w_addr_req_valid && w_addr_req_ready) begin
+                        r_addr_req_done <= 1'b1;
+                    end
                     if (fub_arvalid && fub_arready) begin
                         r_ar_issued      <= r_ar_issued + 1'b1;
                         r_state          <= S_R_BEATS;
@@ -351,7 +367,8 @@ module axi4_master_rd_crc_check #(
                 S_R_BEATS: begin
                     if (w_r_beat) begin
                         if (fub_rlast) begin
-                            r_bursts_done <= r_bursts_done + 1'b1;
+                            r_bursts_done   <= r_bursts_done + 1'b1;
+                            r_addr_req_done <= 1'b0;  // re-arm for next burst
                             if (r_bursts_done + 1'b1 == r_txn_count) begin
                                 r_state            <= S_DONE;
                                 o_actual_crc_valid <= 1'b1;
@@ -366,8 +383,27 @@ module axi4_master_rd_crc_check #(
 
                 S_DONE: begin
                     if (cfg_start) begin
-                        r_state            <= S_IDLE;
+                        // Direct re-arm — same path as the writer block.
+                        r_base_addr     <= cfg_start_addr;
+                        r_stride_0      <= cfg_addr_stride_0;
+                        r_stride_1      <= cfg_addr_stride_1;
+                        r_wrap_0        <= cfg_addr_wrap_mask_0;
+                        r_wrap_1        <= cfg_addr_wrap_mask_1;
+                        r_burst_len     <= (cfg_burst_len == 8'd0) ? 8'd1 : cfg_burst_len;
+                        r_txn_count     <= cfg_txn_count;
+                        r_axi_id        <= cfg_axi_id;
+                        r_axi_size      <= cfg_axi_size;
+                        r_axi_burst     <= cfg_axi_burst;
+                        r_lfsr_seed_eff <= (cfg_lfsr_seed == '0) ? LFSR_SEED : cfg_lfsr_seed;
+                        r_ar_issued     <= '0;
+                        r_bursts_done   <= '0;
+                        r_beats_in_burst<= 8'd0;
+                        r_addr_req_done <= 1'b0;
                         o_actual_crc_valid <= 1'b0;
+                        o_data_error       <= 1'b0;
+                        o_rresp_error      <= 1'b0;
+                        o_beats_mismatched <= '0;
+                        r_state            <= (cfg_txn_count == '0) ? S_DONE : S_AR_REQ;
                     end
                 end
 
@@ -387,7 +423,7 @@ module axi4_master_rd_crc_check #(
         end
     end)
 
-    assign w_lfsr_load = (r_state == S_IDLE) && cfg_start;
+    assign w_lfsr_load = cfg_start && ((r_state == S_IDLE) || (r_state == S_DONE));
 
     assign cfg_done = (r_state == S_DONE)
                    && (r_bursts_done == r_txn_count);

@@ -194,6 +194,13 @@ module axi4_master_wr_pattern_gen #(
     logic [TXN_COUNT_WIDTH-1:0]   r_aw_issued;
     logic [TXN_COUNT_WIDTH-1:0]   r_b_received;
     logic [7:0]                   r_beats_in_burst;   // 0..r_burst_len-1
+    // One-shot request marker: high after this burst's address request has
+    // been latched by dma_address_gen, low on entry to S_AW_REQ for the
+    // next burst. Prevents duplicate requests while we wait for the
+    // pipelined result — without this, the address-gen captures r_aw_issued
+    // multiple times (with the stale value) and burst N's AW gets burst
+    // (N-1)'s address.
+    logic                         r_addr_req_done;
 
     //==========================================================================
     // dma_address_gen — descriptor inputs come from the latched cfg.
@@ -239,6 +246,15 @@ module axi4_master_wr_pattern_gen #(
     logic                         w_lfsr_load;    // pulse cfg_start to load seed
     logic [LFSR_WIDTH-1:0]        w_lfsr_out;
 
+    // Seed value to drive on cfg_start. r_lfsr_seed_eff updates one
+    // cycle later (NBA from the FSM block), so to load the *correct*
+    // seed at cfg_start we must mux it combinationally here.
+    logic [LFSR_WIDTH-1:0] w_lfsr_seed_data;
+    assign w_lfsr_seed_data = w_lfsr_load
+                            ? ((cfg_lfsr_seed == '0) ? LFSR_SEED
+                                                     : cfg_lfsr_seed)
+                            : r_lfsr_seed_eff;
+
     shifter_lfsr_fibonacci #(
         .WIDTH          (LFSR_WIDTH),
         .TAP_INDEX_WIDTH(12),
@@ -248,7 +264,7 @@ module axi4_master_wr_pattern_gen #(
         .rst_n    (aresetn),
         .enable   (w_w_beat || w_lfsr_load),
         .seed_load(w_lfsr_load),
-        .seed_data(r_lfsr_seed_eff),
+        .seed_data(w_lfsr_seed_data),
         .taps     (LFSR_TAPS),
         .lfsr_out (w_lfsr_out),
         .lfsr_done()
@@ -303,10 +319,10 @@ module axi4_master_wr_pattern_gen #(
     assign fub_awvalid       = (r_state == S_AW_REQ) && w_addr_result_valid;
     // We pop the address gen result on the AW handshake.
     assign w_addr_result_ready = fub_awvalid && fub_awready;
-    // Request the *next* address whenever we're in S_AW_REQ and the gen has
-    // not yet produced one for this burst. dma_address_gen is 2-stage so
-    // pipelining a single outstanding request is fine.
-    assign w_addr_req_valid  = (r_state == S_AW_REQ) && !w_addr_result_valid;
+    // Request the address for THIS burst exactly once. r_addr_req_done
+    // gates against firing duplicate requests while we wait for the
+    // pipelined result.
+    assign w_addr_req_valid  = (r_state == S_AW_REQ) && !r_addr_req_done;
 
     assign fub_wvalid        = (r_state == S_W_BEATS);
     assign fub_wlast         = (r_state == S_W_BEATS)
@@ -341,6 +357,7 @@ module axi4_master_wr_pattern_gen #(
             r_aw_issued       <= '0;
             r_b_received      <= '0;
             r_beats_in_burst  <= 8'd0;
+            r_addr_req_done   <= 1'b0;
             o_expected_crc       <= '0;
             o_expected_crc_valid <= 1'b0;
             o_bresp_error        <= 1'b0;
@@ -363,6 +380,7 @@ module axi4_master_wr_pattern_gen #(
                         r_aw_issued     <= '0;
                         r_b_received    <= '0;
                         r_beats_in_burst<= 8'd0;
+                        r_addr_req_done <= 1'b0;
                         o_expected_crc_valid <= 1'b0;
                         o_bresp_error        <= 1'b0;
                         // Move to S_AW_REQ only if there's actually work to do.
@@ -371,6 +389,11 @@ module axi4_master_wr_pattern_gen #(
                 end
 
                 S_AW_REQ: begin
+                    // Latch that we've placed the address request once
+                    // we get o_req_ready back.
+                    if (w_addr_req_valid && w_addr_req_ready) begin
+                        r_addr_req_done <= 1'b1;
+                    end
                     if (fub_awvalid && fub_awready) begin
                         // AW accepted; start W beats next cycle
                         r_state          <= S_W_BEATS;
@@ -387,6 +410,7 @@ module axi4_master_wr_pattern_gen #(
                             // counted into r_b_received.
                             r_aw_issued      <= r_aw_issued + 1'b1;
                             r_beats_in_burst <= 8'd0;
+                            r_addr_req_done  <= 1'b0;  // re-arm for next burst
                             if (r_aw_issued + 1'b1 == r_txn_count) begin
                                 r_state <= S_DONE;
                             end else begin
@@ -400,10 +424,27 @@ module axi4_master_wr_pattern_gen #(
 
                 S_DONE: begin
                     if (cfg_start) begin
-                        // New run requested — go back to IDLE to re-sample
-                        // cfg_* (single cycle pass-through).
-                        r_state              <= S_IDLE;
+                        // Re-arm directly: re-latch the program and jump
+                        // straight to AW_REQ. Going via IDLE would lose
+                        // the cfg_start pulse (it's a 1-cycle strobe).
+                        r_base_addr     <= cfg_start_addr;
+                        r_stride_0      <= cfg_addr_stride_0;
+                        r_stride_1      <= cfg_addr_stride_1;
+                        r_wrap_0        <= cfg_addr_wrap_mask_0;
+                        r_wrap_1        <= cfg_addr_wrap_mask_1;
+                        r_burst_len     <= (cfg_burst_len == 8'd0) ? 8'd1 : cfg_burst_len;
+                        r_txn_count     <= cfg_txn_count;
+                        r_axi_id        <= cfg_axi_id;
+                        r_axi_size      <= cfg_axi_size;
+                        r_axi_burst     <= cfg_axi_burst;
+                        r_lfsr_seed_eff <= (cfg_lfsr_seed == '0) ? LFSR_SEED : cfg_lfsr_seed;
+                        r_aw_issued     <= '0;
+                        r_b_received    <= '0;
+                        r_beats_in_burst<= 8'd0;
+                        r_addr_req_done <= 1'b0;
                         o_expected_crc_valid <= 1'b0;
+                        o_bresp_error        <= 1'b0;
+                        r_state              <= (cfg_txn_count == '0) ? S_DONE : S_AW_REQ;
                     end
                 end
 
@@ -430,9 +471,9 @@ module axi4_master_wr_pattern_gen #(
         end
     end)
 
-    // load LFSR + CRC the cycle AFTER cfg_start so the latched cfg sees
-    // r_lfsr_seed_eff settled.
-    assign w_lfsr_load = (r_state == S_IDLE) && cfg_start;
+    // Pulse on any cfg_start that initiates a run — that's IDLE→AW_REQ
+    // OR the S_DONE direct re-arm.
+    assign w_lfsr_load = cfg_start && ((r_state == S_IDLE) || (r_state == S_DONE));
 
     // cfg_done: all txn_count B's received AND we're past S_IDLE.
     assign cfg_done = (r_state == S_DONE)
