@@ -8,10 +8,10 @@ apples-to-apples comparison against STREAM. Parallel to `flows-stream-bridge`
 
 ## Status: AREA-ONLY
 
-This flow produces out-of-context synthesis area (LUT/FF/BRAM) on the
-`xc7a100tcsg324-1`, matching STREAM's `make area` methodology. It does **not**
-yet drive iDMA on the board — perf/throughput plumbing into the characterization
-harness (observer + response-delay memory) is future work.
+This flow produces (a) out-of-context synthesis **area** (LUT/FF/BRAM) on the
+`xc7a100tcsg324-1`, matching STREAM's `make area` methodology, and (b) a cocotb
+**datapath-perf** cosim of the iDMA backend (`make perf`). FPGA bring-up (driving
+iDMA on the board through the full characterization harness) is still future work.
 
 ## Toolchain (all gitignored, reproduced by `make setup`)
 
@@ -28,7 +28,43 @@ harness (observer + response-delay memory) is future work.
 ```bash
 make setup    # clone iDMA + deps, fetch bender, install python deps (idempotent)
 make area     # generate RTL + filelists, OOC-synth backend/desc64/mux, print summary
+make perf     # cocotb cosim: iDMA backend datapath util vs memory-latency sweep
 ```
+
+## Datapath perf cosim (`make perf`)
+
+`dv/test_idma_backend_perf.py` drives the `idma_backend_synth_rw_axi` 1D request
+interface directly (src, dst, length) and serves its AXI4 manager from a cocotb
+memory model, measuring bus utilization the same way the STREAM `axi4_dma_observer`
+does — `productive_beats / (last_beat_cycle - first_beat_cycle + 1)`. This
+isolates the datapath (the headline util/throughput axis) without the desc64/reg
+frontend. Knobs: `IDMA_XFER_BEATS`, `IDMA_RESP_DELAY` (memory latency),
+`IDMA_MAX_LLEN` (AXI burst cap).
+
+First result (512 beats, full burst, 8 outstanding):
+
+| memory latency | R util | W util |
+|---|---:|---:|
+| 0 | **100.0%** | **100.0%** |
+| 64 | 88.9% | 88.9% |
+| 128 | 80.0% | 80.0% |
+
+iDMA's datapath is **100% bubble-free at zero latency, like STREAM**, and falls
+off in the BDP-limited regime as memory latency exceeds the in-flight window
+(STREAM was 82% at delay 128; iDMA 80% here — same regime).
+
+**Caveats (this is a first, approximate comparison):**
+
+- The memory model imposes latency as an AR→first-R / W→B per-response delay
+  (the BDP/Little's-Law latency knob). STREAM's RTL slave applies its
+  `cfg_rd/wr_resp_delay` differently, and the burst/outstanding config here
+  (`max_llen`, 8 in-flight) is not yet matched to STREAM's (`burst_len=16`,
+  `AR_MAX_OUTSTANDING=8`), so the *delay-curve numbers* are not directly
+  comparable — only the zero-latency headline and the qualitative falloff are.
+  For exact parity, match the in-flight window or reuse STREAM's RTL pattern-gen
+  / crc-check slaves + the real observer in the harness.
+- Backend only (no desc64 frontend, single channel). Multi-channel and
+  descriptor-fetch overhead are separate axes.
 
 Individual targets: `make gen`, `make area-backend`, `make area-desc64`,
 `make area-mux`. Reports: `reports/idma_area_<tag>.txt`.

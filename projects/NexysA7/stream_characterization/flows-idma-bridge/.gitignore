@@ -7,3 +7,7 @@ bin/bender
 *.jou
 *.log
 .Xil/
+dv/sim_build/
+dv/__pycache__/
+*.jsonl
+*.jsonl.txt

@@ -18,7 +18,22 @@ INC       = $(FL)/incdirs.f
 # iDMA config pinned to match STREAM's FPGA datapath.
 BE_GEN  = DataWidth=128 AddrWidth=32 UserWidth=1 AxiIdWidth=4 NumAxInFlight=8 TFLenWidth=32
 
-.PHONY: setup gen area area-backend area-desc64 area-mux clean
+.PHONY: setup gen area area-backend area-desc64 area-mux perf clean
+
+# Cosim datapath-perf measurement of the iDMA rw_axi backend (cocotb + Verilator).
+# Drives the backend's 1D request directly and measures AXI bus utilization the
+# same way the STREAM observer does (productive beats / first-last window).
+# Sweep knobs via env: IDMA_XFER_BEATS, IDMA_RESP_DELAY, IDMA_MAX_LLEN.
+PERF_OUT ?= $(SELF_DIR)/reports/idma_perf.jsonl
+perf: gen
+	@mkdir -p $(SELF_DIR)/reports; rm -f $(PERF_OUT) $(PERF_OUT).txt
+	@for d in 0 64 128 256; do \
+	  IDMA_PERF_OUT=$(PERF_OUT) IDMA_XFER_BEATS=$${IDMA_XFER_BEATS:-512} \
+	  IDMA_RESP_DELAY=$$d IDMA_MAX_LLEN=$${IDMA_MAX_LLEN:-7} \
+	  python -m pytest $(SELF_DIR)/dv/test_idma_backend_perf.py -q -p no:cacheprovider \
+	    >/dev/null 2>&1 && echo "  resp_delay=$$d done"; \
+	done
+	@echo "=== iDMA backend datapath util ==="; cat $(PERF_OUT).txt 2>/dev/null
 
 setup:
 	$(SELF_DIR)/bin/setup.sh
