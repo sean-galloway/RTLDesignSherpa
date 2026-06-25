@@ -23,6 +23,7 @@ DOC_DIRECTORIES = [
     'docs/markdown',
     'docs/classes',
     'projects/components',
+    'rtl',
 ]
 
 # Files to skip (basename matching)

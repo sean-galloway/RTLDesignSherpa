@@ -7,10 +7,10 @@
   </a>
 </td>
 <td>
-  <strong>RTL Design Sherpa</strong> &middot; <em>Learning Hardware Design Through Practice</em><br>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
   <sub>
-    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> &middot;
-    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> &middot;
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
     <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
   </sub>
 </td>

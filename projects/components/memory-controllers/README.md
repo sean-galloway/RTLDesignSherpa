@@ -21,7 +21,6 @@
 
 <!-- End Header -->
 
-
 # Memory Controllers
 
 Unified parameterized memory-controller families. Each family combines a

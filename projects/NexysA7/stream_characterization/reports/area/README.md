@@ -82,11 +82,17 @@ plus **~1.45k LUTs, ~870 FFs, and ~2 BRAM tiles per channel** (the scheduler /
 descriptor group + per-channel SRAM datapath). BRAM tracks the channel count
 exactly — one 256-deep × 128-bit SRAM tile pair per channel.
 
-`NUM_CHANNELS=1` is not synthesizable (`$clog2(1)=0` underflows to a `[-1:0]`
-part-select in `descriptor_engine.sv`), and it is not a meaningful build target:
-`NUM_CHANNELS` is the *physical* channel count (minimum 2), while single-channel
-operation is an 8-channel build with one channel enabled at runtime via
-`cfg_channel_enable` — which is how the "1 channel" perf runs were measured.
+`NUM_CHANNELS=1` now synthesizes (5,581 LUTs / 4,506 FF / 2.5 BRAM). It
+originally underflowed (`$clog2(1)=0` → `[-1:0]`); the fix guards the channel-ID
+widths with `(NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1` and wraps the
+descriptor-AR arbiter in a `generate` that grants the lone client directly at
+`NUM_CHANNELS==1` (mirroring the existing `gen_single_channel` path in
+`axi_read_engine`/`axi_write_engine`). The change is a **verified no-op for
+`NUM_CHANNELS > 1`** — the 8-channel build is byte-identical (15,667 / 10,603 /
+16.5) before and after. Note a 1-channel STREAM is somewhat academic: the
+production build is 8-channel and runs single-channel workloads by enabling one
+channel at runtime via `cfg_channel_enable` (how the "1 channel" perf runs were
+measured). The 1-channel *build* exists for the iDMA parity comparison.
 
 ### In-context cross-check (full bitstream, post-route) — 2026-06-24
 
@@ -135,6 +141,24 @@ engine, so we synthesize its pieces and compose them.
 | **one SG channel** (backend + desc64) | **3,869** | **5,685** | **0** | full single-channel SG DMA |
 | `axi_mux_intf` 8→1 | 416 | 211 | 0 | shared-memory-port arbiter |
 
+### STREAM vs iDMA at 1 channel (true parity)
+
+The maximally apples-to-apples point: one channel, both complete single-channel
+SG DMAs (descriptor fetch + read + write + config), same width/outstanding/part.
+STREAM at `NUM_CHANNELS=1` is a real synthesis (see "1-channel build" note
+below).
+
+| Design (1 channel, dw128) | LUTs | FFs | BRAM |
+|---|---:|---:|---:|
+| **STREAM** (`stream_top_ch8`, monitors off) | 5,581 | 4,506 | 2.5 |
+| iDMA (backend + desc64) | 3,869 | 5,685 | 0 |
+
+**The architectures cross over.** At one channel iDMA is leaner in LUTs (3,869 vs
+5,581): STREAM still pays for its multi-channel machinery (shared scheduler
+infrastructure, APB CSR, an SRAM tile) that a single channel can't amortize.
+STREAM is denser in FFs and spends 2.5 BRAM where iDMA spends none. But the
+slopes invert with scale — see next.
+
 ### STREAM vs iDMA at 8 channels
 
 STREAM shares its read/write engines across all 8 channels and buffers per
@@ -152,6 +176,22 @@ BRAM tiles (its per-channel SRAM reorder buffers) for the savings. This is the
 shared-engine + BRAM-buffered architecture paying off: iDMA replicates the full
 read/write/legalize datapath per channel and uses no BRAM, so eight of them cost
 far more logic.
+
+### The crossover
+
+| Channels | STREAM LUTs | iDMA LUTs (N×3,869 + mux) | winner |
+|---------:|------------:|--------------------------:|:------|
+| 1 | 5,581 | 3,869 | iDMA |
+| 2 | 6,948 | ~7,940 | STREAM |
+| 4 | 10,010 | ~15,700 | STREAM |
+| 8 | 15,667 | 31,368 | STREAM |
+
+STREAM scales as **~4.1k base + ~1.44k LUTs/channel**; iDMA scales as
+**~3.87k LUTs/channel** (plus a small shared mux). The lines cross just above
+**1 channel** (~N≈1.7): below it iDMA's lean single engine wins; at two channels
+and up STREAM's shared engines + amortized base pull decisively ahead, and the
+gap widens with channel count. STREAM is built for the multi-channel regime it
+targets, and there it is the denser design by a wide margin.
 
 ### Methodology caveats (important — the comparison is not single-axis)
 
