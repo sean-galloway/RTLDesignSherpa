@@ -63,19 +63,38 @@ build understanding from the ground up.
 
 ### Learning Path
 
+Guided progression from primitives to systems. Each level links to the corresponding section in [Browse by Class](#browse-by-class) below — every entry is a real link (works on mobile and desktop alike).
+
+- **Level 1 — [Common Building Blocks](rtl/common/)** · ~224 modules · counters, FIFOs, arbiters, integer + floating-point math, data integrity, clock utilities
+- **Level 2 — [AMBA Protocol Infrastructure](rtl/amba/)** · 155 modules · [AXI4](rtl/amba/axi4/) · [AXI5](rtl/amba/axi5/) · [AXI4-Lite](rtl/amba/axil4/) · [APB](rtl/amba/apb/) · [APB5](rtl/amba/apb5/) · [AXIS4](rtl/amba/axis4/) · [AXIS5](rtl/amba/axis5/) · [Shared (monitor/observation/monbus)](rtl/amba/shared/)
+- **Level 3 — [Integration Examples](rtl/integ_amba/)** · APB crossbar, bridges, multi-protocol stitching
+- **Level 4 — [Production Components](projects/components/)** · [STREAM](projects/components/stream/) · [RAPIDS](projects/components/rapids/) · [Bridge](projects/components/bridge/) · [Converters](projects/components/converters/) · [APB xbar](projects/components/apb_xbar/) · [Retro legacy](projects/components/retro_legacy_blocks/) · [Memory controllers](projects/components/memory-controllers/)
+- **Level 5 — [FPGA Projects on Nexys A7](projects/NexysA7/)** · [stream_characterization](projects/NexysA7/stream_characterization/) · [timing_characterization](projects/NexysA7/timing_characterization/) · [cdc_counter_display](projects/NexysA7/cdc_counter_display/) · [ddr2-lpddr2-memory-controller](projects/NexysA7/ddr2-lpddr2-memory-controller/)
+
+<details>
+<summary>Visual diagram (Mermaid — desktop browsers only)</summary>
+
 ```mermaid
 graph TD
-    L1[Level 1: Common Building Blocks<br/>224 modules] --> L2[Level 2: AMBA Protocol Infrastructure<br/>124 modules]
+    L1[Level 1: Common Building Blocks<br/>~224 modules] --> L2[Level 2: AMBA Protocol Infrastructure<br/>155 modules]
     L2 --> L3[Level 3: Integration Examples]
     L3 --> L4[Level 4: Production Components<br/>10+ components]
     L4 --> L5[Level 5: Complete FPGA Projects]
 
     L1 -.- L1D[Counters, FIFOs, Arbiters<br/>Math, Floating-Point, Data Integrity]
-    L2 -.- L2D[APB, AXI4, AXI4-Lite<br/>AXI-Stream, AMBA5 protocols]
-    L3 -.- L3D[CDC Counter Display<br/>APB Crossbar, Bridges]
-    L4 -.- L4D[STREAM, RAPIDS, Bridge<br/>Converters, Retro Legacy Blocks]
-    L5 -.- L5D[NexysA7 FPGA Projects<br/>Full SoC designs]
+    L2 -.- L2D[AXI4, AXI5, AXI4-Lite, APB, APB5<br/>AXIS4, AXIS5, Shared monitor/observation]
+    L3 -.- L3D[APB Crossbar, Bridges, multi-protocol stitching]
+    L4 -.- L4D[STREAM, RAPIDS, Bridge, Converters<br/>Retro Legacy Blocks, Memory controllers]
+    L5 -.- L5D[stream_characterization, timing_characterization<br/>cdc_counter_display, ddr2-lpddr2-memory-controller]
+
+    click L1 "rtl/common/" "Common Building Blocks"
+    click L2 "rtl/amba/" "AMBA Protocol Infrastructure"
+    click L3 "rtl/integ_amba/" "Integration Examples"
+    click L4 "projects/components/" "Production Components"
+    click L5 "projects/NexysA7/" "FPGA Projects"
 ```
+
+</details>
 
 ---
 
