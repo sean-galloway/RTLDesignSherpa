@@ -1,10 +1,24 @@
 # CDC Counter Display - Nexys A7 FPGA Project
 
-**Educational demonstration of Clock Domain Crossing (CDC) using pulse-based handshake**
+**Educational demonstration of Clock Domain Crossing (CDC) — both done right and broken on purpose**
 
 ---
 
-## Overview
+## Two builds in one project
+
+| Phase | Top | Build | Program | Demo |
+|---|---|---|---|---|
+| **Phase 1 (original)** — button-only, one counter, pulse-based handshake CDC | `cdc_counter_display_top` | `make build` | `make program` | Press BTNC → counter +1 → 7-seg updates. Standalone, no host required. |
+| **Phase 2 (UART harness)** — four counters, four buttons, host-controlled clock divisors, switchable proper-vs-broken CDC, watch-it-fail demo | `cdc_demo_top` | `make build-demo` | `make program-demo` | `make host-watch-fail` runs the headline demo: take one counter to NO-CDC mode, sweep its clock from slow → fast, watch the 7-seg flicker garbage at high speeds while the other counters stay clean. |
+
+**Phase-2 docs:** [`docs/HARNESS.md`](docs/HARNESS.md) (CSR map + scripted demo procedure).
+**Phase-2 background:** [`docs/CDC_DEMO_TODO.md`](docs/CDC_DEMO_TODO.md) (taxonomy of CDC failure modes + "why it sometimes works anyway" pitfalls).
+
+Both builds coexist — `cdc_counter_display_top.sv` (phase 1) and `cdc_demo_top.sv` (phase 2) live side-by-side in `rtl/`, with separate XDC, separate TCL project scripts, and separate Vivado project subdirectories.
+
+---
+
+## Overview (phase 1)
 
 This project demonstrates safe clock domain crossing (CDC) techniques using a practical example: a debounced button counter that transfers count values between independent clock domains to drive a 7-segment hex display.
 

@@ -5,6 +5,7 @@
 #==============================================================================
 
 .PHONY: help build sim program clean cleanall lint
+.PHONY: build-demo sim-demo program-demo lint-demo create-demo cleanall-demo host-smoke host-watch-fail
 
 # Default target
 help:
@@ -13,18 +14,29 @@ help:
 	@echo "========================================================================"
 	@echo "Available targets:"
 	@echo ""
+	@echo "Phase 1 (button-only, original cdc_counter_display_top):"
 	@echo "  make sim          - Run CocoTB simulation"
-	@echo "  make build        - Build FPGA bitstream (Vivado)"
+	@echo "  make build        - Build FPGA bitstream"
 	@echo "  make program      - Program FPGA with bitstream"
-	@echo "  make lint         - Run Verilator lint check"
+	@echo "  make lint         - Verilator lint check"
 	@echo "  make clean        - Clean simulation files"
 	@echo "  make cleanall     - Clean all generated files"
-	@echo "  make help         - Show this help message"
 	@echo ""
-	@echo "Quick start:"
-	@echo "  1. make sim       # Verify design in simulation"
-	@echo "  2. make build     # Generate bitstream (~5-10 min)"
-	@echo "  3. make program   # Program your Nexys A7 board"
+	@echo "Phase 2 (UART harness, cdc_demo_top — 4 counters, NO-CDC demo):"
+	@echo "  make sim-demo         - CocoTB sim of the harness"
+	@echo "  make build-demo       - Build phase-2 bitstream (~5-10 min)"
+	@echo "  make program-demo     - Flash phase-2 bitstream"
+	@echo "  make lint-demo        - Verilator lint of the harness RTL"
+	@echo "  make create-demo      - Create Vivado project only (no build)"
+	@echo "  make cleanall-demo    - Wipe phase-2 build artifacts"
+	@echo "  make host-smoke       - python3 host/run_cdc_demo.py ... smoke"
+	@echo "  make host-watch-fail  - python3 host/run_cdc_demo.py ... watch-fail"
+	@echo ""
+	@echo "Quick start (Phase 2):"
+	@echo "  1. make sim-demo            # Verify the harness in simulation"
+	@echo "  2. make build-demo          # Generate bitstream"
+	@echo "  3. make program-demo        # Flash the board"
+	@echo "  4. make host-watch-fail     # Run the 'watch CDC break' demo"
 	@echo "========================================================================"
 
 # Run CocoTB simulation
@@ -101,3 +113,75 @@ create:
 	@echo ""
 	@echo "Project created: vivado_project/cdc_counter_display.xpr"
 	@echo "Open with: vivado vivado_project/cdc_counter_display.xpr"
+
+#==============================================================================
+# Phase 2 — UART harness build (cdc_demo_top)
+#==============================================================================
+REPO_ROOT := $(abspath ../../..)
+PORT      ?= /dev/ttyUSB1
+
+# CocoTB sim of the harness
+sim-demo:
+	@echo "Running CocoTB harness sim..."
+	cd sim && pytest test_cdc_demo.py -v -s
+	@echo "Done. Build dir: sim/sim_build_demo/"
+
+# Verilator lint of just the harness RTL + counter domain + top
+lint-demo:
+	@echo "Running Verilator lint (phase 2)..."
+	verilator --lint-only -Wno-fatal -Wno-WIDTH -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM -Wno-DECLFILENAME \
+		-I$(REPO_ROOT)/rtl/amba/includes \
+		--top-module cdc_demo_top \
+		$(REPO_ROOT)/rtl/common/clock_divider.sv \
+		$(REPO_ROOT)/rtl/common/gray2bin.sv \
+		$(REPO_ROOT)/rtl/common/bin2gray.sv \
+		$(REPO_ROOT)/rtl/common/sync_pulse.sv \
+		$(REPO_ROOT)/rtl/common/fifo_sync.sv \
+		$(REPO_ROOT)/rtl/common/fifo_async.sv \
+		$(REPO_ROOT)/rtl/common/fifo_control.sv \
+		$(REPO_ROOT)/rtl/common/counter_bin.sv \
+		$(REPO_ROOT)/rtl/common/counter_bin_load.sv \
+		$(REPO_ROOT)/rtl/common/counter_bingray.sv \
+		$(REPO_ROOT)/rtl/common/glitch_free_n_dff_arn.sv \
+		$(REPO_ROOT)/rtl/amba/shared/cdc_open_loop.sv \
+		$(REPO_ROOT)/rtl/amba/shared/cdc_2_phase_handshake.sv \
+		$(REPO_ROOT)/rtl/amba/shared/cdc_4_phase_handshake.sv \
+		$(REPO_ROOT)/rtl/amba/shared/cdc_synchronizer.sv \
+		$(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
+		$(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
+		$(REPO_ROOT)/rtl/amba/axil4/axil4_master_rd.sv \
+		$(REPO_ROOT)/rtl/amba/axil4/axil4_master_wr.sv \
+		$(REPO_ROOT)/projects/components/converters/rtl/uart_to_axil4/uart_rx.sv \
+		$(REPO_ROOT)/projects/components/converters/rtl/uart_to_axil4/uart_tx.sv \
+		$(REPO_ROOT)/projects/components/converters/rtl/uart_to_axil4/uart_axil_bridge.sv \
+		rtl/cdc_demo_harness.sv rtl/cdc_counter_domain.sv rtl/cdc_demo_top.sv
+
+# Build phase-2 bitstream
+build-demo:
+	@echo "Building phase-2 bitstream (cdc_demo_top) — ~5-10 min..."
+	vivado -mode batch -source tcl/build_demo.tcl
+	@echo "Done. Bitstream: cdc_demo.bit"
+
+# Program FPGA with phase-2 bitstream
+program-demo:
+	@echo "Programming Nexys A7 with cdc_demo.bit..."
+	vivado -mode batch -source tcl/program_fpga_demo.tcl
+	@echo "Done. Connect: python3 host/run_cdc_demo.py --port $(PORT) smoke"
+
+# Create phase-2 project only
+create-demo:
+	@echo "Creating Vivado phase-2 project..."
+	vivado -mode batch -source tcl/create_project_demo.tcl
+	@echo "Project: vivado_project_demo/cdc_demo.xpr"
+
+# Clean phase-2 artifacts
+cleanall-demo:
+	rm -rf vivado_project_demo reports_demo cdc_demo.bit
+	rm -f vivado*.log vivado*.jou .Xil
+
+# Host script convenience
+host-smoke:
+	python3 host/run_cdc_demo.py --port $(PORT) smoke
+
+host-watch-fail:
+	python3 host/run_cdc_demo.py --port $(PORT) watch-fail --counter 2
