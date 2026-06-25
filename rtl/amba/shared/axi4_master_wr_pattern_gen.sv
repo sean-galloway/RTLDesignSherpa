@@ -124,6 +124,11 @@ module axi4_master_wr_pattern_gen #(
     // Lets the CSR re-seed without recompile.
     input  logic [LFSR_WIDTH-1:0]               cfg_lfsr_seed,
 
+    // Inter-burst idle gap. Adds 0..15 idle cycles between the end of one
+    // burst (wlast accepted) and the next AW request. Used to vary the
+    // throughput stress on the downstream controller during sweeps.
+    input  logic [3:0]                          cfg_wr_gap,
+
     // Start / done handshake
     input  logic                                cfg_start,        // pulse → begin workload
     output logic                                cfg_done,         // high once all B's received
@@ -169,11 +174,12 @@ module axi4_master_wr_pattern_gen #(
     //==========================================================================
     // FSM
     //==========================================================================
-    typedef enum logic [1:0] {
-        S_IDLE       = 2'd0,   // wait for cfg_start
-        S_AW_REQ     = 2'd1,   // request next address; drive AW until handshake
-        S_W_BEATS    = 2'd2,   // stream burst_len beats of LFSR data on W
-        S_DONE       = 2'd3    // all bursts issued; await final B's then go IDLE on the next cfg_start
+    typedef enum logic [2:0] {
+        S_IDLE       = 3'd0,   // wait for cfg_start
+        S_AW_REQ     = 3'd1,   // request next address; drive AW until handshake
+        S_W_BEATS    = 3'd2,   // stream burst_len beats of LFSR data on W
+        S_GAP        = 3'd3,   // wait cfg_wr_gap idle cycles between bursts
+        S_DONE       = 3'd4    // all bursts issued; await final B's
     } state_e;
 
     state_e                       r_state;
@@ -184,6 +190,7 @@ module axi4_master_wr_pattern_gen #(
     logic signed [STRIDE_WIDTH-1:0] r_stride_0, r_stride_1;
     logic [AW-1:0]                r_wrap_0, r_wrap_1;
     logic [7:0]                   r_burst_len;
+    logic [3:0]                   r_wr_gap;
     logic [TXN_COUNT_WIDTH-1:0]   r_txn_count;
     logic [IW-1:0]                r_axi_id;
     logic [2:0]                   r_axi_size;
@@ -194,6 +201,7 @@ module axi4_master_wr_pattern_gen #(
     logic [TXN_COUNT_WIDTH-1:0]   r_aw_issued;
     logic [TXN_COUNT_WIDTH-1:0]   r_b_received;
     logic [7:0]                   r_beats_in_burst;   // 0..r_burst_len-1
+    logic [3:0]                   r_gap_left;         // S_GAP countdown
     // One-shot request marker: high after this burst's address request has
     // been latched by dma_address_gen, low on entry to S_AW_REQ for the
     // next burst. Prevents duplicate requests while we wait for the
@@ -349,6 +357,7 @@ module axi4_master_wr_pattern_gen #(
             r_wrap_0          <= '0;
             r_wrap_1          <= '0;
             r_burst_len       <= 8'd0;
+            r_wr_gap          <= 4'd0;
             r_txn_count       <= '0;
             r_axi_id          <= '0;
             r_axi_size        <= 3'd0;
@@ -357,6 +366,7 @@ module axi4_master_wr_pattern_gen #(
             r_aw_issued       <= '0;
             r_b_received      <= '0;
             r_beats_in_burst  <= 8'd0;
+            r_gap_left        <= 4'd0;
             r_addr_req_done   <= 1'b0;
             o_expected_crc       <= '0;
             o_expected_crc_valid <= 1'b0;
@@ -372,6 +382,7 @@ module axi4_master_wr_pattern_gen #(
                         r_wrap_0        <= cfg_addr_wrap_mask_0;
                         r_wrap_1        <= cfg_addr_wrap_mask_1;
                         r_burst_len     <= (cfg_burst_len == 8'd0) ? 8'd1 : cfg_burst_len;
+                        r_wr_gap        <= cfg_wr_gap;
                         r_txn_count     <= cfg_txn_count;
                         r_axi_id        <= cfg_axi_id;
                         r_axi_size      <= cfg_axi_size;
@@ -380,6 +391,7 @@ module axi4_master_wr_pattern_gen #(
                         r_aw_issued     <= '0;
                         r_b_received    <= '0;
                         r_beats_in_burst<= 8'd0;
+                        r_gap_left      <= 4'd0;
                         r_addr_req_done <= 1'b0;
                         o_expected_crc_valid <= 1'b0;
                         o_bresp_error        <= 1'b0;
@@ -413,12 +425,26 @@ module axi4_master_wr_pattern_gen #(
                             r_addr_req_done  <= 1'b0;  // re-arm for next burst
                             if (r_aw_issued + 1'b1 == r_txn_count) begin
                                 r_state <= S_DONE;
+                            end else if (r_wr_gap != 4'd0) begin
+                                // Insert the configured idle gap before
+                                // requesting the next AW.
+                                r_state    <= S_GAP;
+                                r_gap_left <= r_wr_gap;
                             end else begin
                                 r_state <= S_AW_REQ;
                             end
                         end else begin
                             r_beats_in_burst <= r_beats_in_burst + 8'd1;
                         end
+                    end
+                end
+
+                S_GAP: begin
+                    if (r_gap_left == 4'd1) begin
+                        r_state    <= S_AW_REQ;
+                        r_gap_left <= 4'd0;
+                    end else begin
+                        r_gap_left <= r_gap_left - 4'd1;
                     end
                 end
 
@@ -433,6 +459,7 @@ module axi4_master_wr_pattern_gen #(
                         r_wrap_0        <= cfg_addr_wrap_mask_0;
                         r_wrap_1        <= cfg_addr_wrap_mask_1;
                         r_burst_len     <= (cfg_burst_len == 8'd0) ? 8'd1 : cfg_burst_len;
+                        r_wr_gap        <= cfg_wr_gap;
                         r_txn_count     <= cfg_txn_count;
                         r_axi_id        <= cfg_axi_id;
                         r_axi_size      <= cfg_axi_size;
@@ -441,6 +468,7 @@ module axi4_master_wr_pattern_gen #(
                         r_aw_issued     <= '0;
                         r_b_received    <= '0;
                         r_beats_in_burst<= 8'd0;
+                        r_gap_left      <= 4'd0;
                         r_addr_req_done <= 1'b0;
                         o_expected_crc_valid <= 1'b0;
                         o_bresp_error        <= 1'b0;

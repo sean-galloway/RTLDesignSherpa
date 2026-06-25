@@ -43,6 +43,8 @@ async def _setup(dut):
     dut.cfg_axi_size.value         = 3
     dut.cfg_axi_burst.value        = 1
     dut.cfg_lfsr_seed.value        = 0
+    dut.cfg_wr_gap.value           = 0
+    dut.cfg_rd_gap.value           = 0
     dut.cfg_start_wr.value         = 0
     dut.cfg_start_rd.value         = 0
     dut.aresetn.value              = 0
@@ -55,13 +57,16 @@ async def _setup(dut):
 
 async def _program(dut, *, start_addr: int, stride_0: int = 0,
                    burst_len: int = 4, txn_count: int = 4,
-                   axi_id: int = 0, lfsr_seed: int = 0):
+                   axi_id: int = 0, lfsr_seed: int = 0,
+                   wr_gap: int = 0, rd_gap: int = 0):
     dut.cfg_start_addr.value       = start_addr
     dut.cfg_addr_stride_0.value    = stride_0
     dut.cfg_burst_len.value        = burst_len
     dut.cfg_txn_count.value        = txn_count
     dut.cfg_axi_id.value           = axi_id
     dut.cfg_lfsr_seed.value        = lfsr_seed
+    dut.cfg_wr_gap.value           = wr_gap & 0xF
+    dut.cfg_rd_gap.value           = rd_gap & 0xF
     await RisingEdge(dut.aclk)
     await Timer(_NBA_SETTLE_PS, units="ps")
 
@@ -107,6 +112,7 @@ async def cocotb_test_pair(dut):
         "row_walk":      _row_walk,
         "seed_override": _seed_override,
         "rerun":         _rerun,
+        "gapped":        _gapped,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -178,6 +184,19 @@ async def _seed_override(dut):
     await _check_clean(dut)
 
 
+async def _gapped(dut):
+    """Run with non-zero wr_gap + rd_gap. End-to-end CRC must still
+    match — the gap state must not perturb LFSR/CRC accounting."""
+    BURST = 4
+    N = 4
+    await _program(dut, start_addr=0x300, stride_0=BURST * 8,
+                   burst_len=BURST, txn_count=N,
+                   wr_gap=3, rd_gap=7, lfsr_seed=0xBEEFCAFE)
+    await _pulse_wr(dut); await _wait_wr_done(dut)
+    await _pulse_rd(dut); await _wait_rd_done(dut)
+    await _check_clean(dut)
+
+
 async def _rerun(dut):
     """Run the pair twice with different descriptors. Both runs must be
     clean (no leftover state poisoning the second pass)."""
@@ -201,7 +220,7 @@ async def _rerun(dut):
 # Pytest matrix
 # ---------------------------------------------------------------------------
 
-_ALL_TYPES = ["smoke", "row_walk", "seed_override", "rerun"]
+_ALL_TYPES = ["smoke", "row_walk", "seed_override", "rerun", "gapped"]
 _GATE = [(t,) for t in ["smoke", "row_walk"]]
 _FUNC = [(t,) for t in _ALL_TYPES]
 _FULL = _FUNC

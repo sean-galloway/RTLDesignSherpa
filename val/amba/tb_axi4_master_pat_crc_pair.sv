@@ -43,6 +43,8 @@ module tb_axi4_master_pat_crc_pair #(
     input  logic [2:0]                 cfg_axi_size,
     input  logic [1:0]                 cfg_axi_burst,
     input  logic [31:0]                cfg_lfsr_seed,
+    input  logic [3:0]                 cfg_wr_gap,
+    input  logic [3:0]                 cfg_rd_gap,
 
     // Separate start/done so the TB can run wr -> rd sequentially.
     input  logic                       cfg_start_wr,
@@ -102,6 +104,7 @@ module tb_axi4_master_pat_crc_pair #(
         .cfg_axi_size         (cfg_axi_size),
         .cfg_axi_burst        (cfg_axi_burst),
         .cfg_lfsr_seed        (cfg_lfsr_seed),
+        .cfg_wr_gap           (cfg_wr_gap),
         .cfg_start            (cfg_start_wr),
         .cfg_done             (cfg_done_wr),
         .o_expected_crc       (o_expected_crc),
@@ -170,6 +173,7 @@ module tb_axi4_master_pat_crc_pair #(
         .cfg_axi_size         (cfg_axi_size),
         .cfg_axi_burst        (cfg_axi_burst),
         .cfg_lfsr_seed        (cfg_lfsr_seed),
+        .cfg_rd_gap           (cfg_rd_gap),
         .cfg_start            (cfg_start_rd),
         .cfg_done             (cfg_done_rd),
         .o_actual_crc         (o_actual_crc),

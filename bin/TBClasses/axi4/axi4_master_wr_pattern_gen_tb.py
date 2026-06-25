@@ -105,6 +105,7 @@ class WrPatternGenTB(TBBase):
         self.dut.cfg_axi_size.value         = 3
         self.dut.cfg_axi_burst.value        = 1  # INCR
         self.dut.cfg_lfsr_seed.value        = 0
+        self.dut.cfg_wr_gap.value           = 0
         self.dut.cfg_start.value            = 0
         # M-side AXI (we're the slave for the master block under test)
         self.dut.m_axi_awready.value        = 1
@@ -184,7 +185,7 @@ class WrPatternGenTB(TBBase):
                       wrap_mask_1: int = 0, burst_len: int = 1,
                       txn_count: int = 1, axi_id: int = 0,
                       axi_size: int = 3, axi_burst: int = 1,
-                      lfsr_seed: int = 0) -> None:
+                      lfsr_seed: int = 0, wr_gap: int = 0) -> None:
         self.dut.cfg_start_addr.value       = start_addr
         self.dut.cfg_addr_stride_0.value    = stride_0
         self.dut.cfg_addr_stride_1.value    = stride_1
@@ -196,6 +197,7 @@ class WrPatternGenTB(TBBase):
         self.dut.cfg_axi_size.value         = axi_size
         self.dut.cfg_axi_burst.value        = axi_burst
         self.dut.cfg_lfsr_seed.value        = lfsr_seed
+        self.dut.cfg_wr_gap.value           = wr_gap & 0xF
         await RisingEdge(self.dut.aclk)
         await Timer(_NBA_SETTLE_PS, units="ps")
 

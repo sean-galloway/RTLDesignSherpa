@@ -100,6 +100,7 @@ class RdCrcCheckTB(TBBase):
         self.dut.cfg_axi_size.value         = 3
         self.dut.cfg_axi_burst.value        = 1
         self.dut.cfg_lfsr_seed.value        = 0
+        self.dut.cfg_rd_gap.value           = 0
         self.dut.cfg_start.value            = 0
         self.dut.m_axi_arready.value        = 1
         self.dut.m_axi_rid.value            = 0
@@ -178,7 +179,7 @@ class RdCrcCheckTB(TBBase):
                       wrap_mask_1: int = 0, burst_len: int = 1,
                       txn_count: int = 1, axi_id: int = 0,
                       axi_size: int = 3, axi_burst: int = 1,
-                      lfsr_seed: int = 0) -> None:
+                      lfsr_seed: int = 0, rd_gap: int = 0) -> None:
         self.dut.cfg_start_addr.value       = start_addr
         self.dut.cfg_addr_stride_0.value    = stride_0
         self.dut.cfg_addr_stride_1.value    = stride_1
@@ -190,6 +191,7 @@ class RdCrcCheckTB(TBBase):
         self.dut.cfg_axi_size.value         = axi_size
         self.dut.cfg_axi_burst.value        = axi_burst
         self.dut.cfg_lfsr_seed.value        = lfsr_seed
+        self.dut.cfg_rd_gap.value           = rd_gap & 0xF
         # Mirror the DUT's seed selection so the slave-side LFSR stays
         # phase-locked when return_lfsr_data is on.
         self.lfsr_seed = (lfsr_seed if lfsr_seed != 0

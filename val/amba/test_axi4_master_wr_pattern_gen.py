@@ -39,6 +39,7 @@ async def cocotb_test_axi4_master_wr_pattern_gen(dut):
         "done_waits_for_b":  _done_waits_for_b,
         "bresp_error_sticky": _bresp_error_sticky,
         "rerun_after_done":  _rerun_after_done,
+        "wr_gap_inserts_idle": _wr_gap_inserts_idle,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -162,6 +163,20 @@ async def _bresp_error_sticky(tb: WrPatternGenTB):
     )
 
 
+async def _wr_gap_inserts_idle(tb: WrPatternGenTB):
+    """cfg_wr_gap > 0 inserts N idle cycles between bursts. Verify the
+    workload still completes (cfg_done asserts) with the same AW/W counts
+    as the no-gap path; the timing change isn't directly observable from
+    aw_log/w_log but the test catches FSM-stuck regressions."""
+    BURST = 2
+    N = 3
+    await tb.program(start_addr=0, burst_len=BURST, txn_count=N, wr_gap=5)
+    await tb.pulse_start()
+    await tb.wait_done()
+    assert len(tb.aw_log) == N
+    assert len(tb.w_log)  == N * BURST
+
+
 async def _rerun_after_done(tb: WrPatternGenTB):
     """After cfg_done, a second cfg_start pulse must re-run the workload
     cleanly with fresh state (no leftover counters / errors)."""
@@ -194,7 +209,8 @@ async def _rerun_after_done(tb: WrPatternGenTB):
 
 _ALL_TYPES = ["smoke", "multi_burst", "address_walk",
               "data_matches_lfsr", "done_waits_for_b",
-              "bresp_error_sticky", "rerun_after_done"]
+              "bresp_error_sticky", "rerun_after_done",
+              "wr_gap_inserts_idle"]
 _GATE = [(t,) for t in ["smoke", "multi_burst", "address_walk"]]
 _FUNC = [(t,) for t in _ALL_TYPES]
 _FULL = _FUNC

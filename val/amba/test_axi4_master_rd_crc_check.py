@@ -30,6 +30,7 @@ async def cocotb_test_axi4_master_rd_crc_check(dut):
         "beats_mismatched_count": _beats_mismatched_count,
         "rresp_error_sticky":  _rresp_error_sticky,
         "rerun_after_done":    _rerun_after_done,
+        "rd_gap_inserts_idle": _rd_gap_inserts_idle,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -120,6 +121,17 @@ async def _rresp_error_sticky(tb: RdCrcCheckTB):
     assert int(tb.dut.o_rresp_error.value) == 1
 
 
+async def _rd_gap_inserts_idle(tb: RdCrcCheckTB):
+    """cfg_rd_gap > 0 inserts idle cycles between AR bursts. Clean
+    workload still completes; LFSR phase still matches the slave's
+    pattern responder."""
+    await tb.program(start_addr=0, burst_len=2, txn_count=3, rd_gap=7)
+    await tb.pulse_start()
+    await tb.wait_done()
+    assert len(tb.ar_log) == 3
+    assert int(tb.dut.o_data_error.value) == 0
+
+
 async def _rerun_after_done(tb: RdCrcCheckTB):
     """A second cfg_start pulse after cfg_done must re-run cleanly."""
     await tb.program(start_addr=0x100, burst_len=2, txn_count=2)
@@ -142,7 +154,8 @@ async def _rerun_after_done(tb: RdCrcCheckTB):
 
 _ALL_TYPES = ["smoke_match", "multi_burst_match", "address_walk",
               "data_mismatch_sticky", "beats_mismatched_count",
-              "rresp_error_sticky", "rerun_after_done"]
+              "rresp_error_sticky", "rerun_after_done",
+              "rd_gap_inserts_idle"]
 _GATE = [(t,) for t in ["smoke_match", "multi_burst_match",
                         "data_mismatch_sticky"]]
 _FUNC = [(t,) for t in _ALL_TYPES]

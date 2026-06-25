@@ -136,6 +136,11 @@ module axi4_master_rd_crc_check #(
 
     input  logic [LFSR_WIDTH-1:0]               cfg_lfsr_seed,    // 0 → use param
 
+    // Inter-burst idle gap (0..15 cycles between rlast on burst N and
+    // the AR for burst N+1). Independent from the writer's gap so a
+    // sweep can vary R-side pressure separately.
+    input  logic [3:0]                          cfg_rd_gap,
+
     input  logic                                cfg_start,
     output logic                                cfg_done,
 
@@ -177,11 +182,12 @@ module axi4_master_rd_crc_check #(
     //==========================================================================
     // FSM
     //==========================================================================
-    typedef enum logic [1:0] {
-        S_IDLE       = 2'd0,
-        S_AR_REQ     = 2'd1,
-        S_R_BEATS    = 2'd2,
-        S_DONE       = 2'd3
+    typedef enum logic [2:0] {
+        S_IDLE       = 3'd0,
+        S_AR_REQ     = 3'd1,
+        S_R_BEATS    = 3'd2,
+        S_GAP        = 3'd3,   // cfg_rd_gap idle cycles between bursts
+        S_DONE       = 3'd4
     } state_e;
 
     state_e                       r_state;
@@ -191,6 +197,7 @@ module axi4_master_rd_crc_check #(
     logic signed [STRIDE_WIDTH-1:0] r_stride_0, r_stride_1;
     logic [AW-1:0]                r_wrap_0, r_wrap_1;
     logic [7:0]                   r_burst_len;
+    logic [3:0]                   r_rd_gap;
     logic [TXN_COUNT_WIDTH-1:0]   r_txn_count;
     logic [IW-1:0]                r_axi_id;
     logic [2:0]                   r_axi_size;
@@ -201,6 +208,7 @@ module axi4_master_rd_crc_check #(
     logic [TXN_COUNT_WIDTH-1:0]   r_ar_issued;
     logic [TXN_COUNT_WIDTH-1:0]   r_bursts_done;
     logic [7:0]                   r_beats_in_burst;
+    logic [3:0]                   r_gap_left;
     // One-shot request marker — same fix as axi4_master_wr_pattern_gen.
     // Prevents the address-gen from capturing r_ar_issued multiple times
     // while we wait for its pipelined result.
@@ -343,6 +351,7 @@ module axi4_master_rd_crc_check #(
             r_wrap_0           <= '0;
             r_wrap_1           <= '0;
             r_burst_len        <= 8'd0;
+            r_rd_gap           <= 4'd0;
             r_txn_count        <= '0;
             r_axi_id           <= '0;
             r_axi_size         <= 3'd0;
@@ -351,6 +360,7 @@ module axi4_master_rd_crc_check #(
             r_ar_issued        <= '0;
             r_bursts_done      <= '0;
             r_beats_in_burst   <= 8'd0;
+            r_gap_left         <= 4'd0;
             r_addr_req_done    <= 1'b0;
             o_actual_crc_valid <= 1'b0;
             o_data_error       <= 1'b0;
@@ -371,9 +381,11 @@ module axi4_master_rd_crc_check #(
                         r_axi_size      <= cfg_axi_size;
                         r_axi_burst     <= cfg_axi_burst;
                         r_lfsr_seed_eff <= (cfg_lfsr_seed == '0) ? LFSR_SEED : cfg_lfsr_seed;
+                        r_rd_gap        <= cfg_rd_gap;
                         r_ar_issued     <= '0;
                         r_bursts_done   <= '0;
                         r_beats_in_burst<= 8'd0;
+                        r_gap_left      <= 4'd0;
                         r_addr_req_done <= 1'b0;
                         o_actual_crc_valid <= 1'b0;
                         o_data_error       <= 1'b0;
@@ -402,12 +414,24 @@ module axi4_master_rd_crc_check #(
                             if (r_bursts_done + 1'b1 == r_txn_count) begin
                                 r_state            <= S_DONE;
                                 o_actual_crc_valid <= 1'b1;
+                            end else if (r_rd_gap != 4'd0) begin
+                                r_state    <= S_GAP;
+                                r_gap_left <= r_rd_gap;
                             end else begin
                                 r_state <= S_AR_REQ;
                             end
                         end else begin
                             r_beats_in_burst <= r_beats_in_burst + 8'd1;
                         end
+                    end
+                end
+
+                S_GAP: begin
+                    if (r_gap_left == 4'd1) begin
+                        r_state    <= S_AR_REQ;
+                        r_gap_left <= 4'd0;
+                    end else begin
+                        r_gap_left <= r_gap_left - 4'd1;
                     end
                 end
 
@@ -425,9 +449,11 @@ module axi4_master_rd_crc_check #(
                         r_axi_size      <= cfg_axi_size;
                         r_axi_burst     <= cfg_axi_burst;
                         r_lfsr_seed_eff <= (cfg_lfsr_seed == '0) ? LFSR_SEED : cfg_lfsr_seed;
+                        r_rd_gap        <= cfg_rd_gap;
                         r_ar_issued     <= '0;
                         r_bursts_done   <= '0;
                         r_beats_in_burst<= 8'd0;
+                        r_gap_left      <= 4'd0;
                         r_addr_req_done <= 1'b0;
                         o_actual_crc_valid <= 1'b0;
                         o_data_error       <= 1'b0;
