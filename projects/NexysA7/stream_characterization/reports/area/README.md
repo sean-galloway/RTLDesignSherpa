@@ -222,3 +222,26 @@ targets, and there it is the denser design by a wide margin.
   buffering. STREAM spends BRAM deliberately for bubble-free multi-channel
   switching (see the perf report's 100% datapath-utilization result).
 - Both are post-synth OOC; same proxy, same part.
+
+### Perf comparison (datapath) — see `../flows-idma-bridge/`
+
+A cocotb cosim (`make perf` in flows-idma-bridge) drives the iDMA backend and
+measures AXI bus utilization the same way STREAM's `axi4_dma_observer` does.
+Config matched to STREAM's §5 (16-beat bursts, 8 outstanding → 128-beat
+in-flight window). **On the datapath axis the two engines are equivalent:**
+
+| memory latency (cyc) | iDMA backend | STREAM §5 (1ch) |
+|---:|---:|---:|
+| 0   | 100.0% | 100% |
+| 128 | 88.6%  | 82%  |
+| 256 | 47.7%  | 45%  |
+| 512 | 24.8%  | 24%  |
+
+Both track Little's Law `min(1, in-flight/L)`; the full burst×latency BDP surface
+matches `min(1, 8·burst/L)` cell-for-cell. One-direction bus throughput at
+saturation is 1600 MB/s (iDMA) vs STREAM's 1526 MB/s ceiling. So **STREAM does
+not lag best-in-class open source on datapath efficiency — it matches it**, while
+being ~2× denser at 8 channels (above). Open axes: desc64 frontend (end-to-end /
+descriptor-fetch overhead), net mem-to-mem throughput (internal datapath
+sharing), and bit-exact memory via STREAM's RTL slaves. Detail + caveats in
+`../flows-idma-bridge/README.md`.
