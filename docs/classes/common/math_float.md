@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # Floating-Point Math — Class Overview
 
 **Category:** Arithmetic primitives (FP)
@@ -63,3 +86,12 @@ For AI/ML at training-style precision, the BF16 family is the default. For infer
 ## Source
 
 [`rtl/common/`](../../../rtl/common/) (`math_bf16_*.sv`, `math_fp16_*.sv`, `math_fp32_*.sv`, `math_fp8_e4m3_*.sv`, `math_fp8_e5m2_*.sv`, `math_ieee754_2008_*.sv`, `math_int_to_bf16.sv`)
+
+---
+
+## Navigation
+
+- **[← Back to RTL Design Sherpa README](../../../README.md)**
+- **[← Browse by Class index](../../../README.md#browse-by-class)**
+- **[Main Documentation Index](../../DOCUMENTATION_INDEX.md)**
+- **[Common Library per-module specs](../../markdown/RTLCommon/index.md)**

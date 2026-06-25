@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # Clock Domain Crossing (CDC) — Class Overview
 
 **Category:** Cross-cutting (cuts across `rtl/common/`, `rtl/amba/shared/`, `rtl/amba/gaxi/`, `rtl/amba/apb/`, `rtl/amba/apb5/`)
@@ -96,3 +119,11 @@ Pick the right one for the traffic shape. This page lists every CDC primitive in
 - Vendor's own RTL: [`rtl/amba/shared/`](../../rtl/amba/shared/) (cdc_* files), [`rtl/common/`](../../rtl/common/) (bin2gray, gray2bin, counter_bingray, fifo_async*, reset_sync), [`rtl/amba/gaxi/`](../../rtl/amba/gaxi/) (AMBA-shaped async FIFOs and skids)
 - AMBA-shared inventory grouped by role: [`rtl/amba/README.md`](../../rtl/amba/README.md)
 - Per-module specs: [`docs/markdown/RTLCommon/`](../markdown/RTLCommon/) (common-library modules), [`docs/markdown/RTLAmba/shared/`](../markdown/RTLAmba/shared/) (shared infrastructure)
+
+---
+
+## Navigation
+
+- **[← Back to RTL Design Sherpa README](../../README.md)**
+- **[← Browse by Class index](../../README.md#browse-by-class)**
+- **[Main Documentation Index](../DOCUMENTATION_INDEX.md)**

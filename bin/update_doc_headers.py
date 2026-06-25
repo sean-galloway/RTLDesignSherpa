@@ -21,6 +21,7 @@ from pathlib import Path
 # Directories to process (relative to repo root)
 DOC_DIRECTORIES = [
     'docs/markdown',
+    'docs/classes',
     'projects/components',
 ]
 

@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # Arbiters — Class Overview
 
 **Category:** Control / scheduling
@@ -40,3 +63,12 @@ Use `arbiter_priority_encoder` when one channel really is more important than an
 [`rtl/common/`](../../../rtl/common/) (`arbiter_*.sv`)
 
 > For monbus-instrumented and PWM-weighted variants, see [`rtl/amba/shared/`](../../../rtl/amba/shared/) (`arbiter_rr_pwm_monbus.sv`, `arbiter_wrr_pwm_monbus.sv`).
+
+---
+
+## Navigation
+
+- **[← Back to RTL Design Sherpa README](../../../README.md)**
+- **[← Browse by Class index](../../../README.md#browse-by-class)**
+- **[Main Documentation Index](../../DOCUMENTATION_INDEX.md)**
+- **[Common Library per-module specs](../../markdown/RTLCommon/index.md)**
