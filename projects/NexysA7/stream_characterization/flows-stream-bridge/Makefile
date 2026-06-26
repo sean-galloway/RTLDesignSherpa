@@ -43,19 +43,32 @@ PROJECT  := $(SELF_DIR)/build/vivado_project/stream_char.xpr
 BITSTREAM:= $(SELF_DIR)/bitstream/stream_char.bit
 REPORTS  := $(SELF_DIR)/reports
 
-.PHONY: help project synth area bitstream program utilization timing sim clean clean-all cleanall regen-bridges verify-sim
+.PHONY: help project synth area bitstream program utilization timing sim clean clean-all cleanall regen-bridges regen-regs-nomon verify-sim
 
 # Regenerate every framework-owned bridge before any synthesis. Cheap
 # (~seconds), keeps the bridge RTL + filelist consistent with the .toml,
 # and means a stale checkout can't silently produce a stale bitstream.
 REGEN_BRIDGES := $(FRAMEWORK_ROOT)/bin/regen_bridges.sh
 
+# Monitors-off (read-as-zero) register map. When monitors are compiled out
+# (USE_AXI_MONITORS=0 — the area build), the monitor CSRs are dead logic but
+# still cost area in the PeakRDL block (write storage + decode + read-mux entry
+# per field). rdl_monitors_ro.py rewrites them to sw=r, keeping the address map
+# and module interface byte-identical. Regenerated on the fly into the build
+# tree so the committed regs (monitors-ON) stay canonical and untouched.
+RDL_MONITORS_RO       := $(STREAM_ROOT)/bin/rdl_monitors_ro.py
+export STREAM_REGS_NOMON_DIR := $(SELF_DIR)/build/regs_nomon
+# Use the repo venv interpreter directly (it has the PeakRDL deps). Recipes run
+# under /bin/sh, where env_python's `source venv/.../activate` is a no-op, so we
+# can't rely on activation to put the right python3 on PATH.
+VENV_PY               := $(REPO_ROOT)/venv/bin/python3
+
 help:
 	@echo "STREAM Characterization — FPGA build targets"
 	@echo "  make regen-bridges Regenerate framework bridges (RTL + filelist + TBs)"
 	@echo "  make project      Create Vivado project (no build)"
 	@echo "  make synth        regen-bridges + synthesis + utilization_synth.txt"
-	@echo "  make area         OOC synth of the BARE DMA (stream_top_ch8, monitors OFF)"
+	@echo "  make area         OOC synth of the BARE DMA (stream_top_ch8, monitors OFF + RO regs)"
 	@echo "  make bitstream    regen-bridges + full synth/impl/bitgen + all reports"
 	@echo "  make program      Flash the Nexys A7 via JTAG"
 	@echo "  make utilization  cat utilization_impl.txt (post-route)"
@@ -70,6 +83,20 @@ help:
 # into Vivado.
 regen-bridges:
 	@$(REGEN_BRIDGES)
+
+# ---- Monitors-off register map (read-as-zero) ------------------------------
+# Always re-runs (fast + idempotent). Produces the sw=r variant of stream_regs
+# from the canonical rtl/macro/stream_regs.rdl into $(STREAM_REGS_NOMON_DIR):
+# stream_regs.sv + stream_regs_pkg.sv with the same module name/ports but the
+# monitor CSRs collapsed to constants. The area build (monitors OFF) swaps
+# these in; channel count is irrelevant (the register block is the same for any
+# NUM_CHANNELS), so one regen covers every config in an AREA_NUM_CHANNELS sweep.
+regen-regs-nomon:
+	@echo "[regs-nomon] generating monitors read-as-zero register map"
+	@mkdir -p $(STREAM_REGS_NOMON_DIR)
+	@REPO_ROOT=$(REPO_ROOT) $(VENV_PY) $(RDL_MONITORS_RO) \
+	    -o $(STREAM_REGS_NOMON_DIR)/stream_regs_nomon.rdl \
+	    --regen $(STREAM_REGS_NOMON_DIR)
 
 # ---- Pre-bitstream sim verification ---------------------------------------
 # Runs the stream_char FUNC ping + csr_read sanity tests against the current
@@ -113,7 +140,7 @@ synth: regen-bridges verify-sim
 # Sweep via env vars (see tcl/synth_area_dma.tcl header):
 #   AREA_NUM_CHANNELS  AREA_DATA_WIDTH  AREA_SRAM_DEPTH
 # e.g.  AREA_NUM_CHANNELS=4 make area
-area: regen-bridges
+area: regen-bridges regen-regs-nomon
 	@echo "[area] OOC synth of bare stream_top_ch8 (per-config report)"
 	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL)/synth_area_dma.tcl
 	@latest=$$(ls -t $(REPORTS)/utilization_area_*.txt 2>/dev/null | head -1); \

@@ -83,6 +83,38 @@ foreach src $sv_sources {
 }
 puts "  [llength $vivado_sources] source file(s), [llength $incdirs] include dir(s)"
 
+# ----------------------------------------------------------------------------
+# Monitors are OFF in this build (USE_AXI_MONITORS=0), so the monitor CSRs are
+# dead logic. Swap the canonical stream_regs.sv / stream_regs_pkg.sv for their
+# read-as-zero (sw=r) variant when the Makefile's regen-regs-nomon target has
+# produced them in $STREAM_REGS_NOMON_DIR. The RO variant has the identical
+# module name, port list, and address map — only the monitor register storage
+# and write-decode are removed — so nothing else in the design changes. This is
+# channel-count independent: one RO regs serves every AREA_NUM_CHANNELS.
+# ----------------------------------------------------------------------------
+if {[info exists ::env(STREAM_REGS_NOMON_DIR)]} {
+    set nomon_dir $::env(STREAM_REGS_NOMON_DIR)
+    set swapped {}
+    set n_swap 0
+    foreach src $vivado_sources {
+        set base [file tail $src]
+        if {$base eq "stream_regs.sv" || $base eq "stream_regs_pkg.sv"} {
+            set cand [file join $nomon_dir $base]
+            if {[file exists $cand]} {
+                puts "  \[nomon\] read-as-zero register map: $base <- $nomon_dir"
+                lappend swapped $cand
+                incr n_swap
+                continue
+            }
+        }
+        lappend swapped $src
+    }
+    set vivado_sources $swapped
+    if {$n_swap == 0} {
+        puts "  \[nomon\] WARNING: STREAM_REGS_NOMON_DIR set but no RO regs found — using monitors-ON regs"
+    }
+}
+
 set src_fs [get_filesets sources_1]
 add_files -norecurse -fileset $src_fs $vivado_sources
 foreach src [get_files -of_objects $src_fs -filter {FILE_TYPE == "Verilog"}] {
