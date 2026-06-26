@@ -12,6 +12,14 @@ comparison against other SG-DMA cores (vendor / open-source).
   descriptor AXI monitor and MonBus group are not instantiated. The monitors are
   an opt-in observability layer, not part of the datapath, so they are excluded
   from the comparison number.
+- **Monitor CSRs:** read-as-zero. With monitors compiled out, their config/status
+  registers are dead, but the PeakRDL block + cmd/rsp adapter still pay for their
+  write storage, write-decode, and read-mux entries. The area flow regenerates a
+  read-as-zero variant of `stream_regs` (`make regen-regs-nomon` → `sw=r`,
+  address map byte-identical) and synthesizes against it, removing that dead CSR
+  logic. Saves a **flat ~830–890 LUTs at every channel count** (the register
+  block is channel-count independent). See `flows-stream-bridge/Makefile` and
+  `projects/components/stream/bin/rdl_monitors_ro.py`.
 
 ## Methodology
 
@@ -35,58 +43,68 @@ hierarchical `report_utilization`). Raw reports live in
 
 ## Results
 
-### Bare DMA, OOC (8ch / dw128 / sd256, monitors off) — 2026-06-25
+### Bare DMA, OOC (8ch / dw128 / sd256, monitors off + RO CSRs) — 2026-06-26
 
 Monitors fully off: `USE_AXI_MONITORS=0` (removes the data **and** descriptor AXI
 monitors — base + transaction CAM + reporters) and `GEN_MON=0` (drops the
-per-channel MonBus emitters). See the "monitors off" note below.
+per-channel MonBus emitters), **plus the read-as-zero monitor CSRs** (see the
+"Monitor CSRs" note above). Numbers below supersede the earlier monitors-off
+figures that still carried the dead monitor register storage.
 
 | Resource             | Used   | Available | Util % |
 |----------------------|-------:|----------:|-------:|
-| Slice LUTs           | 14,965 |    63,400 | 23.6%  |
-| — LUT as Logic       | 13,189 |    63,400 | 20.8%  |
+| Slice LUTs           | 14,119 |    63,400 | 22.3%  |
+| — LUT as Logic       | 12,343 |    63,400 | 19.5%  |
 | — LUT as Memory      |  1,776 |    19,000 |  9.3%  |
-| Slice Registers (FF) | 10,052 |   126,800 |  7.9%  |
+| Slice Registers (FF) |  9,302 |   126,800 |  7.3%  |
 | Block RAM Tile       |   16.5 |       135 | 12.2%  |
 | DSPs                 |      0 |       240 |  0.0%  |
 
 BRAM detail: 16× RAMB36 + 1× RAMB18.
 
-### Where the area goes (OOC hierarchy)
+### Where the area goes (OOC hierarchy, 8ch)
 
 | Instance | Module | Total LUTs | FFs | BRAM |
 |---|---|---:|---:|---:|
-| `stream_top_ch8` | (top) | 14,965 | 10,052 | 16.5 |
-| `u_stream_core` | stream_core | 12,976 | 8,672 | 16.5 |
-| `u_scheduler_group_array` | scheduler_group_array (8× groups + shared desc fetch) | 8,135 | 5,280 | 0 |
+| `stream_top_ch8` | (top) | 14,119 | 9,302 | 16.5 |
+| `u_stream_core` | stream_core | 12,805 | 8,367 | 16.5 |
+| `u_scheduler_group_array` | scheduler_group_array (8× groups + shared desc fetch) | 8,127 | 5,280 | 0 |
 | `u_axi_write_engine` | axi_write_engine | 846 | 632 | 0 |
 | `u_rd_axi_skid` | axi4_master_rd (datapath AXI master) | 632 | 636 | 0 |
-| `u_perf_profiler` | perf_profiler | 205 | 316 | 1× RAMB18 |
+| `u_peakrdl_adapter` | peakrdl_to_cmdrsp (CSR read-mux + decode) | 558 | 81 | 0 |
 | `u_axi_read_engine` | axi_read_engine | 247 | 168 | 0 |
 | `g_apb_passthrough.u_apb_slave` | apb_slave | 236 | 207 | 0 |
 
 The scheduler/descriptor groups (one per channel) dominate at ~8.1k LUTs / 5.3k FF;
-the bulk of the BRAM is the per-channel SRAM datapath inside `stream_core`.
+the bulk of the BRAM is the per-channel SRAM datapath inside `stream_core`. The
+read-as-zero CSRs land squarely in `u_peakrdl_adapter`: its read-mux over the now
+constant-zero monitor readback entries collapses from **1,223 → 558 LUTs**, which
+is most of the per-build saving; making `PERF_CONFIG` read-as-zero also prunes
+the perf profiler down to a negligible stub.
 
-### Channel scaling (OOC, monitors off, dw128 / sd256) — 2026-06-25
+### Channel scaling (OOC, monitors off + RO CSRs, dw128 / sd256) — 2026-06-26
 
 Physical channel count swept via `AREA_NUM_CHANNELS` (datapath width and SRAM
-depth held constant), so only the per-channel slices vary.
+depth held constant), so only the per-channel slices vary. All four rows use the
+read-as-zero monitor CSRs (single methodology).
 
 | Channels | Slice LUTs | — Logic | — Memory | Slice FFs | BRAM Tile |
 |---------:|-----------:|--------:|---------:|----------:|----------:|
-| 1        |      4,797 |   4,565 |      232 |     3,965 |       2.5 |
-| 2        |      6,464 |   6,012 |      452 |     4,858 |       4.5 |
-| 4        |      9,145 |   8,251 |      894 |     6,598 |       8.5 |
-| 8        |     14,965 |  13,189 |    1,776 |    10,052 |      16.5 |
+| 1        |      3,905 |   3,673 |      232 |     3,448 |       2.5 |
+| 2        |      5,635 |   5,183 |      452 |     4,308 |       4.5 |
+| 4        |      8,253 |   7,359 |      894 |     5,984 |       8.5 |
+| 8        |     14,119 |  12,343 |    1,776 |     9,302 |      16.5 |
 
 Scaling is close to linear: a fixed base (APB/CSR + shared control + shared desc
-fetch) of ~3.3k LUTs plus **~1.45k LUTs, ~870 FFs, and ~2 BRAM tiles per channel**
-(the scheduler / descriptor group + per-channel SRAM datapath). BRAM tracks the
-channel count exactly — one 256-deep × 128-bit SRAM tile pair per channel.
+fetch) of **~2.45k LUTs** plus **~1.46k LUTs, ~840 FFs, and ~2 BRAM tiles per
+channel** (the scheduler / descriptor group + per-channel SRAM datapath). BRAM
+tracks the channel count exactly — one 256-deep × 128-bit SRAM tile pair per
+channel. The read-as-zero CSRs cut a flat ~830–890 LUTs from every row versus the
+earlier monitors-off figures (e.g. 8ch 14,965 → 14,119, 1ch 4,797 → 3,905), as
+expected for a channel-count-independent register block.
 
 `NUM_CHANNELS=1` synthesizes **and passes functional verification**
-(4,797 LUTs / 3,965 FF / 2.5 BRAM). Enabling it took two changes plus a latent
+(3,905 LUTs / 3,448 FF / 2.5 BRAM). Enabling it took two changes plus a latent
 bug fix:
 
 1. **Width guards.** `$clog2(1)=0` underflowed channel-ID part-selects to
@@ -121,16 +139,17 @@ From the as-built `stream_char_top` bitstream (`make bitstream`, timing met,
 | `stream_char_top` (whole platform) | 48,714 | 40,819 | 10.5 | 76.8% LUT util on the 100T |
 | `u_harness` | 48,672 | 40,727 | 10.5 | DMA + observer + CSR + UART + trace + delay model |
 | `u_stream` = `stream_top_ch8` | 21,527 | 20,855 | 8.5 | **monitors ON** here (`USE_AXI_MONITORS=1` for the perf measurement) |
-| OOC bare DMA (above) | 14,965 | 10,052 | 16.5 | **monitors OFF**, post-synth |
+| OOC bare DMA (above) | 14,119 | 9,302 | 16.5 | **monitors OFF + RO CSRs**, post-synth |
 
 **Read this carefully — the two `stream_top_ch8` numbers are not the same build:**
 
 - The in-context `u_stream` (21.5k LUTs / 20.9k FF) is the **instrumented** DMA:
   the characterization bitstream turns the descriptor AXI monitor + MonBus group
-  ON so it can measure the datapath. The ~6.6k-LUT / ~10.8k-FF gap over the OOC
-  bare DMA is essentially the monitor/MonBus cost.
-- The **OOC bare DMA (14,965 LUTs) is the apples-to-apples SG-DMA comparison
-  number** — monitors compiled out.
+  ON so it can measure the datapath. The ~7.4k-LUT / ~11.6k-FF gap over the OOC
+  bare DMA is the full observability cost — monitor/MonBus logic **plus** the
+  monitor CSR storage/decode/read-mux (the latter is the read-as-zero saving).
+- The **OOC bare DMA (14,119 LUTs) is the apples-to-apples SG-DMA comparison
+  number** — monitors compiled out, monitor CSRs read-as-zero.
 - Methodology caveat: OOC is post-**synth**; the in-context figures are
   post-**route** (after `phys_opt`). The BRAM difference (16.5 OOC vs 8.5 impl)
   is a synth-estimate-vs-post-route-packing artifact, not a real datapath
@@ -166,14 +185,15 @@ below).
 
 | Design (1 channel, dw128) | LUTs | FFs | BRAM |
 |---|---:|---:|---:|
-| **STREAM** (`stream_top_ch8`, monitors off) | 4,797 | 3,965 | 2.5 |
+| **STREAM** (`stream_top_ch8`, monitors off + RO CSRs) | 3,905 | 3,448 | 2.5 |
 | iDMA (backend + desc64) | 3,869 | 5,685 | 0 |
 
-**The architectures cross over.** At one channel iDMA is leaner in LUTs (3,869 vs
-4,797 — a 24% gap): STREAM still pays for its multi-channel machinery (shared
-scheduler infrastructure, APB CSR, an SRAM tile) that a single channel can't
-amortize. But STREAM is **leaner in FFs** (3,965 vs 5,685 — desc64's prefetch
-FIFOs are FF-heavy) and the LUT slopes invert with scale — see next.
+**At one channel the two are at parity.** STREAM is 3,905 LUTs vs iDMA's 3,869 —
+a **+36 LUT (+0.9%) gap**, within synthesis noise. (Before the monitor CSRs were
+made read-as-zero, STREAM 1ch was 4,797 LUTs / 24% larger; removing the dead
+monitor register logic closed essentially all of that gap.) STREAM is also
+**leaner in FFs** (3,448 vs 5,685 — desc64's prefetch FIFOs are FF-heavy), and
+the LUT slopes tilt decisively toward STREAM with scale — see next.
 
 ### STREAM vs iDMA at 8 channels
 
@@ -183,11 +203,11 @@ to share the memory port:
 
 | Design (8 channels, dw128) | LUTs | FFs | BRAM |
 |---|---:|---:|---:|
-| **STREAM** (`stream_top_ch8`, monitors off) | **14,965** | **10,052** | **16.5** |
+| **STREAM** (`stream_top_ch8`, monitors off + RO CSRs) | **14,119** | **9,302** | **16.5** |
 | iDMA: 8×(backend+desc64) + 8→1 mux | 31,368 | 45,691 | 0 |
-| ratio (iDMA / STREAM) | **2.1×** | **4.5×** | — |
+| ratio (iDMA / STREAM) | **2.2×** | **4.9×** | — |
 
-**STREAM is ~2× denser in LUTs and ~4.5× in FFs at 8 channels**, trading ~16.5
+**STREAM is ~2.2× denser in LUTs and ~4.9× in FFs at 8 channels**, trading ~16.5
 BRAM tiles (its per-channel SRAM reorder buffers) for the savings. This is the
 shared-engine + BRAM-buffered architecture paying off: iDMA replicates the full
 read/write/legalize datapath per channel and uses no BRAM, so eight of them cost
@@ -197,17 +217,18 @@ far more logic.
 
 | Channels | STREAM LUTs | iDMA LUTs (N×3,869 + mux) | winner |
 |---------:|------------:|--------------------------:|:------|
-| 1 | 4,797 | 3,869 | iDMA |
-| 2 | 6,464 | ~7,940 | STREAM |
-| 4 | 9,145 | ~15,700 | STREAM |
-| 8 | 14,965 | 31,368 | STREAM |
+| 1 | 3,905 | 3,869 | tie (iDMA +36) |
+| 2 | 5,635 | ~7,940 | STREAM |
+| 4 | 8,253 | ~15,700 | STREAM |
+| 8 | 14,119 | 31,368 | STREAM |
 
-STREAM scales as **~3.3k base + ~1.45k LUTs/channel**; iDMA scales as
-**~3.87k LUTs/channel** (plus a small shared mux). The lines cross just above
-**1 channel** (~N≈1.4): below it iDMA's lean single engine wins; at two channels
-and up STREAM's shared engines + amortized base pull decisively ahead, and the
-gap widens with channel count. STREAM is built for the multi-channel regime it
-targets, and there it is the denser design by a wide margin.
+STREAM scales as **~2.45k base + ~1.46k LUTs/channel**; iDMA scales as
+**~3.87k LUTs/channel** (plus a small shared mux). With the dead monitor CSRs
+removed the lines now cross **right at 1 channel** (~N≈1.0): the single-channel
+point is a dead heat, and at two channels and up STREAM's shared engines +
+amortized base pull decisively ahead, the gap widening with channel count.
+STREAM is built for the multi-channel regime it targets, and there it is the
+denser design by a wide margin.
 
 ### Methodology caveats (important — the comparison is not single-axis)
 
@@ -244,7 +265,7 @@ Both track Little's Law `min(1, in-flight/L)`; the full burst×latency BDP surfa
 matches `min(1, 8·burst/L)` cell-for-cell. One-direction bus throughput at
 saturation is 1600 MB/s (iDMA) vs STREAM's 1526 MB/s ceiling. So **STREAM does
 not lag best-in-class open source on datapath efficiency — it matches it**, while
-being ~2× denser at 8 channels (above). Open axes: desc64 frontend (end-to-end /
+being ~2.2× denser at 8 channels and at LUT parity by one channel (above). Open axes: desc64 frontend (end-to-end /
 descriptor-fetch overhead), net mem-to-mem throughput (internal datapath
 sharing), and bit-exact memory via STREAM's RTL slaves. Detail + caveats in
 `../flows-idma-bridge/README.md`.
