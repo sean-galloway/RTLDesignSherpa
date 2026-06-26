@@ -1,6 +1,13 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
+# TODO(amba-profiles): only the new wr_rd_b2b_* scenarios use a
+# non-default timing profile. Every other scenario here runs at the
+# AXI4MasterRead/Write defaults — extend each scenario to parametrize
+# over bin/TBClasses/amba/amba_random_configs.py profiles (backtoback /
+# constrained / fast / slow_consumer / burst_pause / high_throughput).
+# This is exactly what surfaced the "BFM-write_transaction serializes
+# AW+W via _aw_w_lock" gap that hides engine-class traffic.
 """End-to-end tests for ddr2_lpddr2_top.
 
 Workload-mix tests use AXI4Sequence to drive the canonical 60/40 W:R
@@ -15,6 +22,7 @@ import logging
 import os
 import random
 import sys
+from typing import Optional
 
 import cocotb
 import pytest
@@ -441,6 +449,215 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
             f"beat1 mismatch: wrote 0x{v1:016X}, read 0x{readback[1]:016X}"
         )
         tb.log.info("wr_rd_roundtrip_2beat OK: both beats round-tripped")
+
+    elif test_type == "wr_rd_b2b_multi":
+        # Multi-burst, multi-beat, back-to-back AXI traffic — no BFM
+        # bubbles, exactly what the axi4_master_wr_pattern_gen engine
+        # drives. Existing top tests use default BFM timing (bubbles
+        # everywhere) and miss the multi-burst integrity hits.
+        #
+        # 17 bursts of 4 beats each, distinct payload per beat so the
+        # readback compare can pinpoint the corrupted beat.
+        tb.init_axi_masters()
+        tb.set_axi_timing_profile("backtoback")
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        N_BURSTS = 17           # one more than WR_CAM_DEPTH=16
+        BURST_LEN = 4           # matches DDR2 BL=4 → no padding
+        BASE = 0x0001_0000
+        STRIDE = BURST_LEN * 8  # bytes per beat = 8
+
+        # Marker payload: bit-fields make it obvious which burst /
+        # beat any corrupted readback came from.
+        def mk_payload(burst_idx: int, beat_idx: int) -> int:
+            return ((burst_idx & 0xFFFF) << 16) | (beat_idx & 0xFFFF)
+
+        wr = AXI4Sequence("b2b_wr", data_width=64, seed=seed)
+        for b in range(N_BURSTS):
+            data = [mk_payload(b, k) for k in range(BURST_LEN)]
+            wr.add_write(BASE + b * STRIDE, data, axid=(b & 0xF))
+        await tb.run_sequence(wr)
+
+        rd = AXI4Sequence("b2b_rd", data_width=64, seed=seed)
+        for b in range(N_BURSTS):
+            rd.add_read(BASE + b * STRIDE, length=BURST_LEN,
+                        axid=(b & 0xF))
+        results = await tb.run_sequence(rd)
+
+        # Check every beat. If any burst beyond 0 returns mangled data
+        # the macro-level multi-burst bug is reproduced WITHOUT engines.
+        first_bad: Optional[tuple] = None
+        for b in range(N_BURSTS):
+            beats = results[b]["data"]
+            for k in range(BURST_LEN):
+                expected = mk_payload(b, k)
+                if beats[k] != expected:
+                    if first_bad is None:
+                        first_bad = (b, k, expected, beats[k])
+        assert first_bad is None, (
+            f"b2b multi-burst readback corrupted at burst={first_bad[0]} "
+            f"beat={first_bad[1]}: wrote 0x{first_bad[2]:016X}, "
+            f"read 0x{first_bad[3]:016X}"
+        )
+        tb.log.info("wr_rd_b2b_multi OK: %d bursts × %d beats round-tripped",
+                    N_BURSTS, BURST_LEN)
+
+    elif test_type == "wr_rd_b2b_multi_pipelined":
+        # As wr_rd_b2b_multi, but launches all write_transaction calls
+        # concurrently via cocotb.start_soon so AWs pipeline ahead of W
+        # beats — the actual pattern the axi4_master_wr_pattern_gen
+        # engine drives, and the one the BFM's serial run_axi4_sequence
+        # has NEVER exercised in any existing test.
+        tb.init_axi_masters()
+        tb.set_axi_timing_profile("backtoback")
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        N_BURSTS = 17
+        BURST_LEN = 4
+        BASE = 0x0001_0000
+        STRIDE = BURST_LEN * 8
+
+        def mk_payload(burst_idx: int, beat_idx: int) -> int:
+            return ((burst_idx & 0xFFFF) << 16) | (beat_idx & 0xFFFF)
+
+        # Launch N concurrent write transactions — each fires its AW
+        # immediately; the BFM's internal scheduler picks AW-AW-AW-...
+        # rather than AW-W-B / AW-W-B.
+        wr_tasks = []
+        for b in range(N_BURSTS):
+            data = [mk_payload(b, k) for k in range(BURST_LEN)]
+            wr_tasks.append(cocotb.start_soon(
+                tb.axi_master_wr.write_transaction(
+                    address=BASE + b * STRIDE,
+                    data=data,
+                    burst_len=BURST_LEN,
+                    id=(b & 0xF),
+                )
+            ))
+        for t in wr_tasks:
+            await t
+
+        # Reads, also concurrent.
+        rd_tasks = []
+        for b in range(N_BURSTS):
+            rd_tasks.append(cocotb.start_soon(
+                tb.axi_master_rd.read_transaction(
+                    address=BASE + b * STRIDE,
+                    burst_len=BURST_LEN,
+                    id=(b & 0xF),
+                )
+            ))
+        read_results = []
+        for t in rd_tasks:
+            read_results.append(await t)
+
+        first_bad: Optional[tuple] = None
+        for b in range(N_BURSTS):
+            beats = read_results[b]
+            for k in range(BURST_LEN):
+                expected = mk_payload(b, k)
+                if beats[k] != expected:
+                    if first_bad is None:
+                        first_bad = (b, k, expected, beats[k])
+        assert first_bad is None, (
+            f"pipelined b2b corrupted at burst={first_bad[0]} "
+            f"beat={first_bad[1]}: wrote 0x{first_bad[2]:016X}, "
+            f"read 0x{first_bad[3]:016X}"
+        )
+        tb.log.info(
+            "wr_rd_b2b_multi_pipelined OK: %d bursts × %d beats",
+            N_BURSTS, BURST_LEN,
+        )
+
+    elif test_type == "wr_rd_b2b_truly_pipelined":
+        # The pattern the engine actually drives: AW + W on their OWN
+        # parallel channels, not serialized by write_transaction's
+        # internal _aw_w_lock. Bypass write_transaction entirely and
+        # send raw packets on aw_channel / w_channel concurrently —
+        # all 17 AWs queue on awvalid back-to-back; all 17×4 W beats
+        # queue on wvalid back-to-back. AXI4MasterRead is then used for
+        # readback (its R channel logs every received beat).
+        tb.init_axi_masters()
+        tb.set_axi_timing_profile("backtoback")
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_wr.b_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        N_BURSTS = 17
+        BURST_LEN = 4
+        BASE = 0x0001_0000
+        STRIDE = BURST_LEN * 8
+        FULL_STRB = (1 << (tb.axi_data_width // 8)) - 1
+
+        def mk_payload(burst_idx: int, beat_idx: int) -> int:
+            return ((burst_idx & 0xFFFF) << 16) | (beat_idx & 0xFFFF)
+
+        # Fire all AWs concurrently — channel internally queues them
+        # so awvalid back-to-backs as fast as awready accepts.
+        aw_tasks = []
+        w_tasks  = []
+        for b in range(N_BURSTS):
+            aw_packet = tb.axi_master_wr.aw_channel.create_packet(
+                addr=BASE + b * STRIDE,
+                len=BURST_LEN - 1,
+                id=(b & 0xF),
+                size=3,         # 8 bytes per beat
+                burst=1,        # INCR
+            )
+            aw_tasks.append(cocotb.start_soon(
+                tb.axi_master_wr.aw_channel.send(aw_packet)
+            ))
+            for k in range(BURST_LEN):
+                w_packet = tb.axi_master_wr.w_channel.create_packet(
+                    data=mk_payload(b, k),
+                    last=(1 if k == BURST_LEN - 1 else 0),
+                    strb=FULL_STRB,
+                )
+                w_tasks.append(cocotb.start_soon(
+                    tb.axi_master_wr.w_channel.send(w_packet)
+                ))
+
+        for t in aw_tasks + w_tasks:
+            await t
+        # Drain B responses so the read phase starts on a quiescent bus
+        from cocotb.triggers import ClockCycles as _CC2
+        await _CC2(dut.mc_clk, 200)
+
+        # Reads via AXI4MasterRead — it logs every R beat through its
+        # GAXISlave for diagnostic visibility.
+        first_bad: Optional[tuple] = None
+        for b in range(N_BURSTS):
+            data = await tb.axi_master_rd.read_transaction(
+                address=BASE + b * STRIDE,
+                burst_len=BURST_LEN,
+                id=(b & 0xF),
+                size=3,
+            )
+            for k in range(BURST_LEN):
+                expected = mk_payload(b, k)
+                if data[k] != expected:
+                    if first_bad is None:
+                        first_bad = (b, k, expected, data[k])
+        assert first_bad is None, (
+            f"truly-pipelined b2b corrupted at burst={first_bad[0]} "
+            f"beat={first_bad[1]}: wrote 0x{first_bad[2]:016X}, "
+            f"read 0x{first_bad[3]:016X}"
+        )
+        tb.log.info(
+            "wr_rd_b2b_truly_pipelined OK: %d bursts × %d beats",
+            N_BURSTS, BURST_LEN,
+        )
 
     elif test_type == "memory_preload_read":
         # Preload bytes directly into DFISlavePHY's MemoryModel, then
@@ -875,6 +1092,9 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
 _GATE = [("smoke",)]
 _FUNC = _GATE + [("configure_via_apb",), ("axi_write_smoke",),
                  ("wr_rd_roundtrip",), ("wr_rd_roundtrip_2beat",),
+                 ("wr_rd_b2b_multi",),
+                 ("wr_rd_b2b_multi_pipelined",),
+                 ("wr_rd_b2b_truly_pipelined",),
                  ("wr_rd_bank_sweep",),
                  ("bank0_probe",), ("bank0_delayed",),
                  ("fresh_read_each_bank",),

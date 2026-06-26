@@ -238,6 +238,39 @@ class DDR2LPDDR2TopTB:
         )
         return self.axi_master_wr, self.axi_master_rd
 
+    def set_axi_timing_profile(self, profile_name: str = "backtoback") -> None:
+        """Apply an AXI_RANDOMIZER_CONFIGS profile to every AXI channel.
+
+        BFM default timing inserts bubbles on valid/ready, which DOESN'T
+        match what real engine traffic looks like (the engine's
+        axi4_master_wr_pattern_gen drives every cycle). Use 'backtoback'
+        to mimic the engine. Mixing profiles per channel is a future
+        extension that'll catch a much broader bug class than the
+        single-profile sweep we have today — most controller-side
+        scheduler / wbuf / cam tests are run with default-only timing.
+        """
+        from CocoTBFramework.components.shared.flex_randomizer import (
+            FlexRandomizer,
+        )
+        from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
+
+        if self.axi_master_wr is None or self.axi_master_rd is None:
+            raise RuntimeError(
+                "init_axi_masters() must be called before "
+                "set_axi_timing_profile()"
+            )
+        if profile_name not in AXI_RANDOMIZER_CONFIGS:
+            raise ValueError(f"unknown profile '{profile_name}'")
+        cfg = AXI_RANDOMIZER_CONFIGS[profile_name]
+        # AW / W / AR — master drives valid
+        self.axi_master_wr.aw_channel.randomizer = FlexRandomizer(cfg["master"])
+        self.axi_master_wr.w_channel.randomizer  = FlexRandomizer(cfg["master"])
+        self.axi_master_rd.ar_channel.randomizer = FlexRandomizer(cfg["master"])
+        # B / R — slave drives ready
+        self.axi_master_wr.b_channel.randomizer  = FlexRandomizer(cfg["slave"])
+        self.axi_master_rd.r_channel.randomizer  = FlexRandomizer(cfg["slave"])
+        self.log.info(f"AXI timing profile = '{profile_name}'")
+
     # ---- Memory preload + peek -------------------------------------------
 
     def preload_memory(self, byte_addr: int, data: bytes | bytearray) -> None:
