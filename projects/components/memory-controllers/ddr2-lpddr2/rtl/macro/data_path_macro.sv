@@ -51,6 +51,10 @@ module data_path_macro
     input  logic [3:0]                 cl_i,
     input  logic [3:0]                 cwl_i,
     input  logic [3:0]                 al_i,
+    // DRAM burst length (MR-decoded). Passed to wr_beat_sequencer so
+    // every DRAM WR drives BL beats, padding short AXI bursts with
+    // masked beats. 0 = no padding (legacy / FUB-tests path).
+    input  logic [3:0]                 bl_i,
 
     // ---- PHY timing (CSR-loaded after DFI init) ----
     input  logic [7:0]                 t_phy_wrlat_i,
@@ -126,6 +130,7 @@ module data_path_macro
         .mc_rst_n             (mc_rst_n),
         .cwl_i                (cwl_i),
         .t_phy_wrlat_i        (t_phy_wrlat_i),
+        .bl_i                 (bl_i),
         .op_valid_i           (wr_op_valid_i),
         .op_ready_o           (wr_op_ready_o),
         .op_slot_i            (wr_op_slot_i),

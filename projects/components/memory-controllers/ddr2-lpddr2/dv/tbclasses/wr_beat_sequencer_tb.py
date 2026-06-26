@@ -127,6 +127,9 @@ class WrBeatSequencerTB(TBBase):
     def _drive_idle(self):
         self.dut.cwl_i.value             = 4
         self.dut.t_phy_wrlat_i.value     = 0
+        # bl_i=0 means "no DDR2 BL padding" — keep the FUB tests focused
+        # on op_len-driven cycle counts.
+        self.dut.bl_i.value              = 0
         self.dut.op_valid_i.value        = 0
         self.dut.op_slot_i.value         = 0
         self.dut.op_len_i.value          = 0

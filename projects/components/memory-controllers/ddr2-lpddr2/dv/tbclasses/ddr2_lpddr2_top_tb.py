@@ -101,15 +101,22 @@ class DDR2LPDDR2TopTB:
             log=self.log,
         )
 
-        # DFI chassis. v2.1 + DDR2 envelope. The MC's BL=1 + DFI_RATE=2
-        # MVP scope matches DFISlavePHY's "one DFI beat per command"
-        # assumption (beats_per_burst=1).
+        # Single source of truth for DRAM burst length. The controller's
+        # MR0 default is BL=4 for DDR2 (see init_sequencer's
+        # DDR2_MR0_DEFAULT). We drive the SAME value into:
+        #   * wr_beat_sequencer.bl_i — so the controller pads short AXI
+        #     bursts to BL DRAM beats with masked padding
+        #   * DFISlavePHY.beats_per_burst — so the slave queues the same
+        #     number of pending writes per WR command
+        # Both knobs MUST match; if they diverge the slave drops or
+        # over-queues beats and writes get corrupted.
+        self.dram_bl = 4
         self.dfi_base = DFIBase(
             dfi_version=DFIVersion.V2_1,
             memory_type=MemoryType.DDR2,
             timings=builtin_timings("ddr2-650-mt47h64m16hr"),
             mapping=self.mapping,
-            beats_per_burst=1,
+            beats_per_burst=self.dram_bl,
         )
 
         self.apb_master: Optional[APBMaster] = None

@@ -441,12 +441,19 @@ module axi_intake
 
     // Monotonic w_buf write pointer — advances on each W beat accepted.
     logic [WPW-1:0]     r_wbuf_wptr;
+    // Separate AW-side allocation pointer. Captures where each pending
+    // AW's beats will START landing in w_buf. Required because the AXI4
+    // host (e.g. axi4_master_wr_pattern_gen with its decoupled AW/W
+    // path) can pipeline multiple AWs before any W beats arrive — using
+    // r_wbuf_wptr for the capture would assign every queued AW the same
+    // start pointer.
+    logic [WPW-1:0]     r_aw_pend_next_ptr;
 
     assign w_aw_pend_din.id        = fub_axi_awid;
     assign w_aw_pend_din.addr      = fub_axi_awaddr;
     assign w_aw_pend_din.len       = BLW'(fub_axi_awlen) + BLW'(1);
-    assign w_aw_pend_din.w_buf_ptr = r_wbuf_wptr;
-    assign w_aw_pend_din.strb_ptr  = r_wbuf_wptr;
+    assign w_aw_pend_din.w_buf_ptr = r_aw_pend_next_ptr;
+    assign w_aw_pend_din.strb_ptr  = r_aw_pend_next_ptr;
 
     assign w_aw_pend_wr_valid = fub_axi_awvalid;
     assign fub_axi_awready    = w_aw_pend_wr_ready;
@@ -489,11 +496,20 @@ module axi_intake
 
     `ALWAYS_FF_RST(aclk, aresetn, begin
         if (`RST_ASSERTED(aresetn)) begin
-            r_wbuf_wptr       <= '0;
-            r_full_strb_acc   <= 1'b1;
-            r_burst_done      <= 1'b0;
-            r_final_full_strb <= 1'b1;
+            r_wbuf_wptr         <= '0;
+            r_aw_pend_next_ptr  <= '0;
+            r_full_strb_acc     <= 1'b1;
+            r_burst_done        <= 1'b0;
+            r_final_full_strb   <= 1'b1;
         end else begin
+            // Advance the AW-side allocation pointer by awlen+1 on each
+            // accepted AW so the NEXT AW captures the correct w_buf
+            // start position.
+            if (w_aw_pend_wr_valid && w_aw_pend_wr_ready) begin
+                r_aw_pend_next_ptr <=
+                    r_aw_pend_next_ptr +
+                    WPW'(BLW'(fub_axi_awlen) + BLW'(1));
+            end
             if (w_w_beat_handshake) begin
                 r_w_buf    [r_wbuf_wptr] <= fub_axi_wdata;
                 r_wstrb_buf[r_wbuf_wptr] <= fub_axi_wstrb;

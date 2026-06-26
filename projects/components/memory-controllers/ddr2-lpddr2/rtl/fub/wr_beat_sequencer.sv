@@ -87,6 +87,11 @@ module wr_beat_sequencer
     // ----- timing (CSR-loaded after PHY init) -----
     input  logic [3:0]                 cwl_i,            // CAS write latency (informational; unused)
     input  logic [7:0]                 t_phy_wrlat_i,    // PHY wrdata_en latency from WRITE command
+    // DDR2/LPDDR2 burst length (DRAM beats per WR command). The DRAM
+    // expects exactly bl_i beats per WR regardless of how many AXI beats
+    // the host issued; bursts shorter than bl_i are padded with masked
+    // beats. bl_i=0 is treated as "no padding" (legacy / FUB-tests path).
+    input  logic [3:0]                 bl_i,
 
     // ----- write-op handshake from scheduler -----
     input  logic                       op_valid_i,
@@ -191,10 +196,26 @@ module wr_beat_sequencer
 
     //=========================================================================
     // Pre-compute DFI cycles needed for the driving op's burst.
+    // DDR2/LPDDR2 fixes the DRAM beat count per WR at BL (programmed via
+    // MR0 / MR1). When the AXI burst is shorter than BL, we still drive
+    // BL/DFI_RATE DFI cycles, masking the unused beats (full mask = no
+    // write). bl_i=0 means "no padding" — for FUB tests + the v0 flow
+    // where the BL constraint isn't yet wired through.
     //=========================================================================
-    logic [BLW:0] w_dfi_cycles_total;
-    assign w_dfi_cycles_total =
+    logic [BLW:0] w_op_dfi_cycles;
+    assign w_op_dfi_cycles =
         ({1'b0, r_op_len[w_drive_op]} + (BLW+1)'(DFI_RATE - 1)) >> RATE_LOG2;
+
+    logic [BLW:0] w_bl_dfi_cycles;
+    assign w_bl_dfi_cycles =
+        (bl_i == 4'd0)
+            ? (BLW+1)'(1'b0)
+            : ((((BLW+1)'(bl_i)) + (BLW+1)'(DFI_RATE - 1)) >> RATE_LOG2);
+
+    logic [BLW:0] w_dfi_cycles_total;
+    assign w_dfi_cycles_total = (w_op_dfi_cycles > w_bl_dfi_cycles)
+                              ? w_op_dfi_cycles
+                              : w_bl_dfi_cycles;
 
     // Streaming DRIVE gate (v2.1): drive can start as soon as the
     // current DFI cycle has DFI_RATE beats buffered, instead of waiting

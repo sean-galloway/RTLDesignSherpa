@@ -332,6 +332,116 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
         tb.log.info("wr_rd_roundtrip OK: 0x%016X round-tripped through DFI",
                     readback)
 
+    elif test_type == "wr_rd_roundtrip_2beat_probe":
+        # Diagnostic version of _2beat: capture every dfi_wrdata cycle
+        # so we can see what the controller actually writes.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        dfi_log = []
+        from cocotb.triggers import RisingEdge, ClockCycles
+
+        async def dfi_watch():
+            cyc = 0
+            while True:
+                await RisingEdge(dut.mc_clk)
+                cyc += 1
+                try:
+                    en = int(dut.phy_dfi_wrdata_en.value)
+                except Exception:
+                    return
+                if en != 0:
+                    data = int(dut.phy_dfi_wrdata.value)
+                    mask = int(dut.phy_dfi_wrdata_mask.value)
+                    dfi_log.append((cyc, en, data, mask))
+
+        cocotb.start_soon(dfi_watch())
+
+        seq = AXI4Sequence("probe_wr", data_width=64, seed=seed)
+        addr = 0x0000_2080
+        v0 = 0xCAFEBABE_DEADBEEF
+        v1 = 0x12345678_9ABCDEF0
+        seq.add_write(addr, [v0, v1], axid=0)
+        await tb.run_sequence(seq)
+        await ClockCycles(dut.mc_clk, 50)
+
+        tb.log.info("DFI wrdata cycles captured: %d", len(dfi_log))
+        for cyc, en, data, mask in dfi_log:
+            tb.log.info("  cyc=%d en=0x%x data=0x%032X mask=0x%X",
+                        cyc, en, data, mask)
+        # Inspect the BFM-side MemoryModel to see what landed in DRAM.
+        for offset in range(0, 32, 8):
+            chunk = tb.peek_memory(addr + offset, 8)
+            tb.log.info("  DRAM @ 0x%X = %s", addr + offset, chunk.hex())
+
+        # Now probe DFI rddata during the read.
+        rd_log = []
+        async def rd_watch():
+            cyc = 0
+            while True:
+                await RisingEdge(dut.mc_clk)
+                cyc += 1
+                try:
+                    v = int(dut.phy_dfi_rddata_valid.value)
+                except Exception:
+                    return
+                if v != 0:
+                    d = int(dut.phy_dfi_rddata.value)
+                    en = int(dut.phy_dfi_rddata_en.value)
+                    rd_log.append((cyc, v, en, d))
+        cocotb.start_soon(rd_watch())
+
+        rd_seq = AXI4Sequence("probe_rd", data_width=64, seed=seed)
+        rd_seq.add_read(addr, length=2, axid=0)
+        results = await tb.run_sequence(rd_seq)
+        readback = results[0]["data"]
+        tb.log.info("AXI readback beats: %s",
+                    [f"0x{b:016X}" for b in readback])
+        tb.log.info("DFI rddata cycles: %d", len(rd_log))
+        for cyc, v, en, d in rd_log:
+            tb.log.info("  cyc=%d valid=0x%x en=0x%x data=0x%032X",
+                        cyc, v, en, d)
+        assert False, "diagnostic — forced fail to preserve output"
+
+    elif test_type == "wr_rd_roundtrip_2beat":
+        # Multi-beat variant of wr_rd_roundtrip: 1 AW with awlen=1
+        # (2 beats). Discovered as a gap when ddr2_char_macro's smoke
+        # at 1-burst-of-2-beats failed with a missing 2nd beat in
+        # DFI memory. If this passes, the macro / engine pipelining
+        # is at fault; if it fails, the controller's W path drops
+        # trailing beats inside a multi-beat burst.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        seq = AXI4Sequence("roundtrip2_wr", data_width=64, seed=seed)
+        addr = 0x0000_2080
+        v0 = 0xCAFEBABE_DEADBEEF
+        v1 = 0x12345678_9ABCDEF0
+        seq.add_write(addr, [v0, v1], axid=0)
+        await tb.run_sequence(seq)
+
+        rd_seq = AXI4Sequence("roundtrip2_rd", data_width=64, seed=seed)
+        rd_seq.add_read(addr, length=2, axid=0)
+        results = await tb.run_sequence(rd_seq)
+        assert results[0]["error"] is None, results[0]["error"]
+        readback = results[0]["data"]
+        assert len(readback) == 2, f"expected 2 R beats, got {len(readback)}"
+        assert readback[0] == v0, (
+            f"beat0 mismatch: wrote 0x{v0:016X}, read 0x{readback[0]:016X}"
+        )
+        assert readback[1] == v1, (
+            f"beat1 mismatch: wrote 0x{v1:016X}, read 0x{readback[1]:016X}"
+        )
+        tb.log.info("wr_rd_roundtrip_2beat OK: both beats round-tripped")
+
     elif test_type == "memory_preload_read":
         # Preload bytes directly into DFISlavePHY's MemoryModel, then
         # read them back through AXI. Proves the BFM + memory model
@@ -764,7 +874,8 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
 
 _GATE = [("smoke",)]
 _FUNC = _GATE + [("configure_via_apb",), ("axi_write_smoke",),
-                 ("wr_rd_roundtrip",), ("wr_rd_bank_sweep",),
+                 ("wr_rd_roundtrip",), ("wr_rd_roundtrip_2beat",),
+                 ("wr_rd_bank_sweep",),
                  ("bank0_probe",), ("bank0_delayed",),
                  ("fresh_read_each_bank",),
                  # memory_preload_read — preload helpers + BFM all work,

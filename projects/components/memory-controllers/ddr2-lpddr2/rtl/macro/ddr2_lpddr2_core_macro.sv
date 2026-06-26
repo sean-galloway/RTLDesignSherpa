@@ -352,6 +352,7 @@ module ddr2_lpddr2_core_macro
         .cl_i                  (cl_val),
         .cwl_i                 (cwl_val),
         .al_i                  (al_val),
+        .bl_i                  (bl_val),
         .t_phy_wrlat_i         (t_phy_wrlat_i),
         .t_rddata_en_i         (t_rddata_en_i),
         .rd_in_order_i         (rd_in_order_i),
@@ -438,7 +439,7 @@ module ddr2_lpddr2_core_macro
     assign dfi_ctrlupd_req_o = 1'b0;
     assign dfi_phyupd_ack_o  = 1'b0;
 
-    wire unused = |{ controller_idle_unused, bl_val,
+    wire unused = |{ controller_idle_unused,
                      dfi_ctrlupd_ack_i, dfi_phyupd_req_i, dfi_phyupd_type_i };
 
 endmodule : ddr2_lpddr2_core_macro
