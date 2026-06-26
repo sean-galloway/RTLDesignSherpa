@@ -93,6 +93,11 @@ module ddr2_char_macro
     parameter int INDEX_WIDTH      = 16,
     parameter int STRIDE_WIDTH     = 24,
 
+    // ---- Reader-engine debug FIFO depth (0 = elide; >0 = capture
+    //      every R beat's (actual, expected, mismatch) into a gaxi
+    //      fifo the bench can drain) ----
+    parameter int RD_DBG_FIFO_DEPTH = 0,
+
     // ---- Aliases ----
     parameter int IW = AXI_ID_WIDTH,
     parameter int AW = AXI_ADDR_WIDTH,
@@ -210,7 +215,17 @@ module ddr2_char_macro
     input  logic [7:0]                 t_rddata_en_i,
     input  logic                       rd_in_order_i,
     input  logic [3:0]                 cap_lookahead_max_i,
-    input  logic [3:0]                 cap_synth_mask_i
+    input  logic [3:0]                 cap_synth_mask_i,
+
+    //=========================================================================
+    // Reader-engine debug FIFO drain port. Only meaningful when
+    // RD_DBG_FIFO_DEPTH > 0. Tied off internally otherwise.
+    //=========================================================================
+    output logic                       rd_dbg_valid,
+    input  logic                       rd_dbg_ready,
+    output logic [DW-1:0]              rd_dbg_actual,
+    output logic [DW-1:0]              rd_dbg_expected,
+    output logic                       rd_dbg_mismatch
 );
 
     //=========================================================================
@@ -323,7 +338,8 @@ module ddr2_char_macro
         .AXI_USER_WIDTH  (AXI_USER_WIDTH),
         .TXN_COUNT_WIDTH (TXN_COUNT_WIDTH),
         .INDEX_WIDTH     (INDEX_WIDTH),
-        .STRIDE_WIDTH    (STRIDE_WIDTH)
+        .STRIDE_WIDTH    (STRIDE_WIDTH),
+        .DBG_FIFO_DEPTH  (RD_DBG_FIFO_DEPTH)
     ) u_rd_engine (
         .aclk                 (mc_clk),
         .aresetn              (mc_rst_n),
@@ -370,7 +386,12 @@ module ddr2_char_macro
         .m_axi_rlast          (rd_rlast),
         .m_axi_ruser          (rd_ruser),
         .m_axi_rvalid         (rd_rvalid),
-        .m_axi_rready         (rd_rready)
+        .m_axi_rready         (rd_rready),
+        .dbg_valid            (rd_dbg_valid),
+        .dbg_ready            (rd_dbg_ready),
+        .dbg_actual           (rd_dbg_actual),
+        .dbg_expected         (rd_dbg_expected),
+        .dbg_mismatch         (rd_dbg_mismatch)
     );
 
     //=========================================================================

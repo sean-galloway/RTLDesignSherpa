@@ -215,7 +215,13 @@ module tb_axi4_master_pat_crc_pair #(
         .m_axi_rlast          (rd_rlast),
         .m_axi_ruser          (rd_ruser),
         .m_axi_rvalid         (rd_rvalid),
-        .m_axi_rready         (rd_rready)
+        .m_axi_rready         (rd_rready),
+        // Debug FIFO not used in this wrapper — tied off (DBG_FIFO_DEPTH=0).
+        .dbg_valid            (),
+        .dbg_ready            (1'b0),
+        .dbg_actual           (),
+        .dbg_expected         (),
+        .dbg_mismatch         ()
     );
 
     //==========================================================================

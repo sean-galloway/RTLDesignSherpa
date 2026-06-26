@@ -12,6 +12,7 @@ $REPO_ROOT/rtl/common/dataint_crc_xor_shift_cascade.sv
 $REPO_ROOT/rtl/common/dataint_crc.sv
 $REPO_ROOT/rtl/common/shifter_lfsr_fibonacci.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
+$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_master_rd.sv
 $REPO_ROOT/projects/components/misc/rtl/dma_address_gen.sv
 

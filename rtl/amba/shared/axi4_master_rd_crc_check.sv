@@ -112,6 +112,14 @@ module axi4_master_rd_crc_check #(
     parameter int INDEX_WIDTH     = 16,
     parameter int STRIDE_WIDTH    = 24,
 
+    // ---- Debug observability ----
+    // When > 0, instantiate a `DBG_FIFO_DEPTH`-deep gaxi_fifo_sync that
+    // captures (actual_rdata, expected_data, mismatch_bit) on every R
+    // beat handshake. The bench drains it via the dbg_* valid/ready
+    // handshake and logs ground-truth disagreement per beat. When 0 the
+    // generate block elides the FIFO and the dbg_* outputs are tied off.
+    parameter int DBG_FIFO_DEPTH  = 0,
+
     // ---- Aliases ----
     parameter int IW = AXI_ID_WIDTH,
     parameter int AW = AXI_ADDR_WIDTH,
@@ -194,7 +202,18 @@ module axi4_master_rd_crc_check #(
     input  logic                       m_axi_rlast,
     input  logic [UW-1:0]              m_axi_ruser,
     input  logic                       m_axi_rvalid,
-    output logic                       m_axi_rready
+    output logic                       m_axi_rready,
+
+    // ==========================================================================
+    // Debug observability — drained by the bench when DBG_FIFO_DEPTH > 0.
+    // Each pop yields one (actual, expected, mismatch) record captured
+    // at the corresponding R beat handshake. Tied off when depth == 0.
+    // ==========================================================================
+    output logic                       dbg_valid,
+    input  logic                       dbg_ready,
+    output logic [DW-1:0]              dbg_actual,
+    output logic [DW-1:0]              dbg_expected,
+    output logic                       dbg_mismatch
 );
 
     //==========================================================================
@@ -709,5 +728,47 @@ module axi4_master_rd_crc_check #(
         .m_axi_rready    (m_axi_rready),
         .busy            ()
     );
+
+    //==========================================================================
+    // Debug FIFO — only synthesized when DBG_FIFO_DEPTH > 0. Captures
+    // (actual, expected, mismatch) per R beat handshake so the bench can
+    // walk the disagreements rather than guessing from `o_data_error`
+    // alone. When DBG_FIFO_DEPTH == 0 the generate `else` arm ties the
+    // outputs to 0 and the FIFO is not built.
+    //==========================================================================
+    generate
+        if (DBG_FIFO_DEPTH > 0) begin : g_dbg_fifo
+            localparam int DBG_REC_W = 2 * DW + 1;
+            logic [DBG_REC_W-1:0] w_dbg_din;
+            logic [DBG_REC_W-1:0] w_dbg_dout;
+            logic                 w_dbg_wr_ready_unused;
+
+            assign w_dbg_din = {fub_rdata, w_expected_data, w_beat_mismatch};
+
+            gaxi_fifo_sync #(
+                .DATA_WIDTH (DBG_REC_W),
+                .DEPTH      (DBG_FIFO_DEPTH)
+            ) u_dbg_fifo (
+                .axi_aclk    (aclk),
+                .axi_aresetn (aresetn),
+                .wr_valid    (w_r_beat),
+                .wr_ready    (w_dbg_wr_ready_unused),
+                .wr_data     (w_dbg_din),
+                .rd_ready    (dbg_ready),
+                .rd_valid    (dbg_valid),
+                .rd_data     (w_dbg_dout),
+                .count       ()
+            );
+
+            assign dbg_actual   = w_dbg_dout[DBG_REC_W-1   -: DW];
+            assign dbg_expected = w_dbg_dout[DBG_REC_W-1-DW -: DW];
+            assign dbg_mismatch = w_dbg_dout[0];
+        end else begin : g_no_dbg
+            assign dbg_valid    = 1'b0;
+            assign dbg_actual   = '0;
+            assign dbg_expected = '0;
+            assign dbg_mismatch = 1'b0;
+        end
+    endgenerate
 
 endmodule : axi4_master_rd_crc_check

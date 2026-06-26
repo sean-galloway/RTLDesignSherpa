@@ -45,9 +45,12 @@ module ddr2_char_macro_tb_top
     parameter int INDEX_WIDTH      = 16,
     parameter int STRIDE_WIDTH     = 24,
 
+    parameter int RD_DBG_FIFO_DEPTH = 0,
+
     // Aliases
     parameter int IW = AXI_ID_WIDTH,
-    parameter int AW = AXI_ADDR_WIDTH
+    parameter int AW = AXI_ADDR_WIDTH,
+    parameter int DW = AXI_DATA_WIDTH
 ) (
     input  logic                          mc_clk,
     input  logic                          mc_rst_n,
@@ -122,7 +125,14 @@ module ddr2_char_macro_tb_top
     input  logic [7:0]                    t_rddata_en_i,
     input  logic                          rd_in_order_i,
     input  logic [3:0]                    cap_lookahead_max_i,
-    input  logic [3:0]                    cap_synth_mask_i
+    input  logic [3:0]                    cap_synth_mask_i,
+
+    // ----- Reader-engine debug FIFO drain (only when RD_DBG_FIFO_DEPTH>0) -----
+    output logic                          rd_dbg_valid,
+    input  logic                          rd_dbg_ready,
+    output logic [DW-1:0]                 rd_dbg_actual,
+    output logic [DW-1:0]                 rd_dbg_expected,
+    output logic                          rd_dbg_mismatch
 );
 
     //=========================================================================
@@ -184,7 +194,8 @@ module ddr2_char_macro_tb_top
         .PAGE_POLICY     (PAGE_POLICY),
         .TXN_COUNT_WIDTH (TXN_COUNT_WIDTH),
         .INDEX_WIDTH     (INDEX_WIDTH),
-        .STRIDE_WIDTH    (STRIDE_WIDTH)
+        .STRIDE_WIDTH    (STRIDE_WIDTH),
+        .RD_DBG_FIFO_DEPTH (RD_DBG_FIFO_DEPTH)
     ) u_dut (
         .mc_clk                  (mc_clk),
         .mc_rst_n                (mc_rst_n),
@@ -283,7 +294,12 @@ module ddr2_char_macro_tb_top
         .t_rddata_en_i           (t_rddata_en_i),
         .rd_in_order_i           (rd_in_order_i),
         .cap_lookahead_max_i     (cap_lookahead_max_i),
-        .cap_synth_mask_i        (cap_synth_mask_i)
+        .cap_synth_mask_i        (cap_synth_mask_i),
+        .rd_dbg_valid            (rd_dbg_valid),
+        .rd_dbg_ready            (rd_dbg_ready),
+        .rd_dbg_actual           (rd_dbg_actual),
+        .rd_dbg_expected         (rd_dbg_expected),
+        .rd_dbg_mismatch         (rd_dbg_mismatch)
     );
 
     // Silence Verilator's unused-output warnings for unused phy_dfi_* lines.

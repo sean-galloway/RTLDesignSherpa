@@ -1,6 +1,13 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
+# TODO: extend every AXI4 / GAXI BFM-driven scenario in this suite with
+# the framework's random timing profiles (see bin/TBClasses/amba/
+# amba_random_configs.py — backtoback / constrained / fast / slow_*).
+# The macro test today only exercises engine-driven traffic; mixing in
+# BFM-driven peers with profile rotation will catch interface-level edge
+# conditions (skid races, FIFO drain corners, mid-burst stalls) that a
+# single timing profile misses.
 """Smoke test for ddr2_char_macro.
 
 Wires up the two AXI4 master-side characterization engines + the
@@ -118,7 +125,7 @@ async def _pulse(dut, port_name: str) -> None:
     getattr(dut, port_name).value = 0
 
 
-async def _wait_done(dut, done_signal: str, timeout: int = 50_000) -> None:
+async def _wait_done(dut, done_signal: str, timeout: int = 500_000) -> None:
     sig = getattr(dut, done_signal)
     for _ in range(timeout):
         await RisingEdge(dut.mc_clk)
@@ -135,13 +142,45 @@ async def _wait_done(dut, done_signal: str, timeout: int = 50_000) -> None:
 # ---------------------------------------------------------------------------
 
 
-@cocotb.test(timeout_time=60, timeout_unit="ms")
+@cocotb.test(timeout_time=300, timeout_unit="ms")
 async def cocotb_test_ddr2_char_macro(dut):
     test_type = os.environ.get("TEST_TYPE", "smoke")
     mem_type  = os.environ.get("MEM_TYPE", "DDR2").upper()
 
     tb = DDR2LPDDR2TopTB(dut, num_ranks=1)
     await _drive_engine_idle(dut)
+    # Drain the reader-engine debug FIFO via the framework's GAXISlave.
+    # Each received packet carries (actual, expected, mismatch) for one
+    # R beat the engine observed — gives the test log EXACTLY which beat
+    # went wrong and what the engine's LFSR mirror expected at that
+    # phase. multi_sig=True binds the three named signals
+    # (rd_dbg_actual, rd_dbg_expected, rd_dbg_mismatch) under the
+    # rd_dbg_ prefix; the slave drives rd_dbg_ready.
+    from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
+    from CocoTBFramework.components.shared.field_config import (
+        FieldConfig, FieldDefinition,
+    )
+    dbg_field_cfg = FieldConfig()
+    dbg_field_cfg.add_field(FieldDefinition(name="actual",   bits=64))
+    dbg_field_cfg.add_field(FieldDefinition(name="expected", bits=64))
+    dbg_field_cfg.add_field(FieldDefinition(name="mismatch", bits=1))
+    rd_dbg_slave = GAXISlave(
+        dut=dut, title="rd_dbg_drain", prefix="rd_dbg",
+        clock=dut.mc_clk, field_config=dbg_field_cfg,
+        multi_sig=True, log=tb.log,
+    )
+
+    def _on_dbg_beat(packet):
+        actual   = getattr(packet, "actual", 0)
+        expected = getattr(packet, "expected", 0)
+        mismatch = getattr(packet, "mismatch", 0)
+        tag = "MISMATCH" if mismatch else "ok"
+        tb.log.info(
+            "RDDBG %s actual=0x%016X expected=0x%016X",
+            tag, actual, expected,
+        )
+
+    rd_dbg_slave.add_callback(_on_dbg_beat)
     await tb.reset(mem_type=mem_type, init_complete_delay=20)
     tb.init_register_map()
     tb.init_apb_master()
@@ -152,10 +191,21 @@ async def cocotb_test_ddr2_char_macro(dut):
     # 1x1 known-good; 1x2 isolates multi-beat-in-burst; 2x1 isolates
     # multi-burst; 2x2 was the original failing config.
     SHAPES = {
-        "smoke":     dict(burst=1, n=1, base=0x0000_2000),
-        "smoke_1x2": dict(burst=2, n=1, base=0x0000_2040),
-        "smoke_2x1": dict(burst=1, n=2, base=0x0000_2080),
-        "smoke_2x2": dict(burst=2, n=2, base=0x0000_20C0),
+        "smoke":     dict(burst=1, n=1,    base=0x0000_2000),
+        "smoke_1x2": dict(burst=2, n=1,    base=0x0000_2040),
+        "smoke_2x1": dict(burst=1, n=2,    base=0x0000_2080),
+        "smoke_2x2": dict(burst=2, n=2,    base=0x0000_20C0),
+        # Scaled workloads. Burst len = BL=4 so each AXI burst maps 1-to-1
+        # to a DRAM BL burst. Reader walks the same descriptor + per-beat
+        # compares against the local LFSR.
+        "kb_4burst":  dict(burst=4, n=4,    base=0x0001_0000),
+        "kb_16burst": dict(burst=4, n=16,   base=0x0001_0000),
+        "kb_17burst": dict(burst=4, n=17,   base=0x0001_0000),
+        "kb_20burst": dict(burst=4, n=20,   base=0x0001_0000),
+        "kb_24burst": dict(burst=4, n=24,   base=0x0001_0000),
+        "kb1":       dict(burst=4, n=32,   base=0x0001_0000),
+        "kb4":       dict(burst=4, n=128,  base=0x0001_0000),
+        "kb32":      dict(burst=4, n=1024, base=0x0001_0000),
     }
     if test_type in SHAPES:
         shape = SHAPES[test_type]
@@ -177,6 +227,16 @@ async def cocotb_test_ddr2_char_macro(dut):
         # starts walking the same descriptor.
         await _pulse(dut, "cfg_wr_start")
         await _wait_done(dut, "cfg_wr_done")
+
+        # Dump 1 beat per burst so we can see which burst's data went
+        # wrong if the reader's per-beat compare latches.
+        for burst_idx in range(N):
+            byte_addr = BASE + burst_idx * STRIDE
+            payload = tb.peek_memory(byte_addr, BYTES_PER_BEAT)
+            tb.log.info(
+                "DUMP burst=%d addr=0x%X mem=%s",
+                burst_idx, byte_addr,
+                payload.hex() if hasattr(payload, 'hex') else str(payload))
 
         await _pulse(dut, "cfg_rd_start")
         await _wait_done(dut, "cfg_rd_done")
@@ -205,7 +265,9 @@ async def cocotb_test_ddr2_char_macro(dut):
 # Pytest matrix
 # ---------------------------------------------------------------------------
 
-_ALL_TYPES = ["smoke", "smoke_1x2", "smoke_2x1", "smoke_2x2"]
+_ALL_TYPES = ["smoke", "smoke_1x2", "smoke_2x1", "smoke_2x2",
+              "kb_4burst", "kb_16burst", "kb_17burst",
+              "kb_20burst", "kb_24burst", "kb1", "kb4", "kb32"]
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
 _PARAMS = _ALL_TYPES   # GATE == FUNC == FULL for now
 
@@ -235,7 +297,8 @@ def test_ddr2_char_macro(request, test_type):
         "COCOTB_RESULTS_FILE":
             os.path.join(log_dir, f"results_{test_name}.xml"),
     }
-    parameters = {"NUM_RANKS": "1", "PAGE_POLICY": "1"}
+    parameters = {"NUM_RANKS": "1", "PAGE_POLICY": "1",
+                  "RD_DBG_FIFO_DEPTH": "32"}
 
     enable_waves = bool(int(os.environ.get("WAVES", "0")))
     # Inherit the controller's canonical waiver set (autogenerated CSR

@@ -124,6 +124,9 @@ class RdCrcCheckTB(TBBase):
         self.dut.m_axi_ruser.value          = 0
         self.dut.m_axi_rlast.value          = 0
         self.dut.m_axi_rvalid.value         = 0
+        # Debug FIFO drain idle (DBG_FIFO_DEPTH default=0 → ports tied
+        # off internally; the per-engine FUB tests don't enable it).
+        self.dut.dbg_ready.value            = 0
 
     # ---- background responder ----
 
