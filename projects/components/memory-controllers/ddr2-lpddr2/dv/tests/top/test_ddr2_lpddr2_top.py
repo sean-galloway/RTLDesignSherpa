@@ -659,6 +659,84 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
             N_BURSTS, BURST_LEN,
         )
 
+    elif test_type == "wr_rd_b2b_pipelined_same_id":
+        # Engine-traffic mirror: AR side pipelined AND all id=0 (FIXED),
+        # matching axi4_master_rd_crc_check's cfg_rd_axi_id=0 path.
+        # The wr_rd_b2b_truly_pipelined scenario used id=(b&0xF) — mixed
+        # ids — and passes; this same-id variant is what the engine
+        # actually drives. If the controller mishandles same-id ARs
+        # beyond RD_CAM_DEPTH=16, this is where it'll show.
+        tb.init_axi_masters()
+        tb.set_axi_timing_profile("backtoback")
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_wr.b_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        # 16 = RD_CAM_DEPTH — no slot reuse. If THIS passes but 17
+        # fails, the bug is the slot-reuse interaction (newer same-id
+        # AR landing in a freed slot gets scheduler-picked ahead of
+        # older same-id ARs because of slot-index priority).
+        import os as _os
+        N_BURSTS = int(_os.environ.get("PIPELINED_SAME_ID_N", "17"))
+        BURST_LEN = 4
+        BASE = 0x0001_0000
+        STRIDE = BURST_LEN * 8
+        FULL_STRB = (1 << (tb.axi_data_width // 8)) - 1
+        tb.log.info("pipelined_same_id: N_BURSTS=%d (cam depth=16)", N_BURSTS)
+
+        def mk_payload(burst_idx: int, beat_idx: int) -> int:
+            return ((burst_idx & 0xFFFF) << 16) | (beat_idx & 0xFFFF)
+
+        # WRITE phase: preload DFI memory model directly. Bypasses the
+        # entire AXI write path AND wr2rd_forward — anything left over
+        # is purely on the read side.
+        for b in range(N_BURSTS):
+            payload = bytearray()
+            for k in range(BURST_LEN):
+                payload += mk_payload(b, k).to_bytes(8, "little")
+            tb.preload_memory(BASE + b * STRIDE, payload)
+        from cocotb.triggers import ClockCycles as _CC3
+        await _CC3(dut.mc_clk, 50)
+
+        # READ phase: 17 read_transaction tasks all started concurrently
+        # with id=0. ar_channel.send serializes them in start-order; per
+        # AXI4 same-id ordering, R beats come back in the same order. Each
+        # task pulls BURST_LEN beats from _response_by_id[0].
+        rd_tasks = []
+        for b in range(N_BURSTS):
+            rd_tasks.append(cocotb.start_soon(
+                tb.axi_master_rd.read_transaction(
+                    address=BASE + b * STRIDE,
+                    burst_len=BURST_LEN,
+                    id=0,
+                    size=3,
+                )
+            ))
+
+        results = []
+        for t in rd_tasks:
+            results.append(await t)
+
+        first_bad: Optional[tuple] = None
+        for b, data in enumerate(results):
+            for k in range(BURST_LEN):
+                expected = mk_payload(b, k)
+                if data[k] != expected:
+                    if first_bad is None:
+                        first_bad = (b, k, expected, data[k])
+        assert first_bad is None, (
+            f"same-id pipelined-AR corrupted at burst={first_bad[0]} "
+            f"beat={first_bad[1]}: wrote 0x{first_bad[2]:016X}, "
+            f"read 0x{first_bad[3]:016X}"
+        )
+        tb.log.info(
+            "wr_rd_b2b_pipelined_same_id OK: %d bursts × %d beats",
+            N_BURSTS, BURST_LEN,
+        )
+
     elif test_type == "memory_preload_read":
         # Preload bytes directly into DFISlavePHY's MemoryModel, then
         # read them back through AXI. Proves the BFM + memory model
@@ -1095,6 +1173,7 @@ _FUNC = _GATE + [("configure_via_apb",), ("axi_write_smoke",),
                  ("wr_rd_b2b_multi",),
                  ("wr_rd_b2b_multi_pipelined",),
                  ("wr_rd_b2b_truly_pipelined",),
+                 ("wr_rd_b2b_pipelined_same_id",),
                  ("wr_rd_bank_sweep",),
                  ("bank0_probe",), ("bank0_delayed",),
                  ("fresh_read_each_bank",),

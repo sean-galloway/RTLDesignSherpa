@@ -92,6 +92,12 @@ module scheduler
     input  logic [RD_CAM_DEPTH-1:0][COL_WIDTH-1:0]       rd_snap_col_i,
     input  logic [RD_CAM_DEPTH-1:0][BURST_LEN_WIDTH-1:0] rd_snap_len_i,
     input  logic [RD_CAM_DEPTH-1:0][3:0]                 rd_snap_qos_i,
+    // Per-slot push-order tag from rd_cmd_cam. Used to break QoS
+    // ties by AR-arrival order so same-id R returns honor AXI4
+    // in-order ordering even when slot indices are reused (a freed
+    // slot at index 0 must not jump in front of older pending slots
+    // at higher indices).
+    input  logic [RD_CAM_DEPTH-1:0][7:0]                 rd_snap_age_i,
 
     // ----- mark-issued strobes back to CAMs -----
     output logic                       wr_issued_we_o,
@@ -209,17 +215,36 @@ module scheduler
         end
     end
 
+    // Pick by QoS first, age second. The age compare is signed-diff
+    // so an 8-bit counter wraps cleanly: (a - best) < 0 ⇒ a is older.
+    // Required for AXI4 same-id R ordering — a slot that was freed
+    // and reused (= newer age, but same lowest slot index) must not
+    // jump in front of older slots still pending in the cam.
     logic [3:0] w_rd_best_qos;
+    logic [7:0] w_rd_best_age;
     always_comb begin
+        logic w_take;
         w_have_rd     = 1'b0;
         w_rd_pick     = '0;
         w_rd_best_qos = 4'd0;
+        w_rd_best_age = 8'd0;
+        w_take        = 1'b0;
         for (int unsigned i = 0; i < RD_CAM_DEPTH; i++) begin
+            w_take = 1'b0;
             if (rd_match_pending_i[i]) begin
-                if (!w_have_rd || (rd_snap_qos_i[i] > w_rd_best_qos)) begin
+                if (!w_have_rd) begin
+                    w_take = 1'b1;
+                end else if (rd_snap_qos_i[i] > w_rd_best_qos) begin
+                    w_take = 1'b1;
+                end else if (rd_snap_qos_i[i] == w_rd_best_qos) begin
+                    // Same QoS — pick older (signed-diff < 0 ⇒ older).
+                    w_take = ($signed(rd_snap_age_i[i] - w_rd_best_age) < 0);
+                end
+                if (w_take) begin
                     w_have_rd     = 1'b1;
                     w_rd_pick     = RSL'(i);
                     w_rd_best_qos = rd_snap_qos_i[i];
+                    w_rd_best_age = rd_snap_age_i[i];
                 end
             end
         end

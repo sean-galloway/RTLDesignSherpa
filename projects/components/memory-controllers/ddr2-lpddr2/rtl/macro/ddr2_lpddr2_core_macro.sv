@@ -118,6 +118,7 @@ module ddr2_lpddr2_core_macro
     input  logic [RD_CAM_DEPTH-1:0][BLW-1:0] rd_snap_len_i,
     input  logic [RD_CAM_DEPTH-1:0][3:0]     rd_snap_qos_i,
     input  logic [RD_CAM_DEPTH-1:0][IW-1:0]  rd_snap_id_i,
+    input  logic [RD_CAM_DEPTH-1:0][7:0]     rd_snap_age_i,
 
     output logic                       wr_issued_we_o,
     output logic [WSL-1:0]             wr_issued_slot_o,
@@ -298,6 +299,7 @@ module ddr2_lpddr2_core_macro
         .rd_snap_col_i       (rd_snap_col_i),
         .rd_snap_len_i       (rd_snap_len_i),
         .rd_snap_qos_i       (rd_snap_qos_i),
+        .rd_snap_age_i       (rd_snap_age_i),
         .wr_issued_we_o      (wr_issued_we_o),
         .wr_issued_slot_o    (wr_issued_slot_o),
         .rd_issued_we_o      (rd_issued_we_o),

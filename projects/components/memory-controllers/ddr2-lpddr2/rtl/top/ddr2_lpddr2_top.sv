@@ -212,6 +212,7 @@ module ddr2_lpddr2_top
     logic [RD_CAM_DEPTH-1:0][BLW-1:0]     rd_snap_len;
     logic [RD_CAM_DEPTH-1:0][3:0]         rd_snap_qos;
     logic [RD_CAM_DEPTH-1:0][IW-1:0]      rd_snap_id;
+    logic [RD_CAM_DEPTH-1:0][7:0]         rd_snap_age;
 
     logic                                 wr_issued_we;
     logic [WSL-1:0]                       wr_issued_slot;
@@ -394,6 +395,7 @@ module ddr2_lpddr2_top
         .rd_snap_len_o              (rd_snap_len),
         .rd_snap_qos_o              (rd_snap_qos),
         .rd_snap_id_o               (rd_snap_id),
+        .rd_snap_age_o              (rd_snap_age),
 
         .wr_issued_we_i             (wr_issued_we),
         .wr_issued_slot_i           (wr_issued_slot),
@@ -510,6 +512,7 @@ module ddr2_lpddr2_top
         .rd_snap_len_i       (rd_snap_len),
         .rd_snap_qos_i       (rd_snap_qos),
         .rd_snap_id_i        (rd_snap_id),
+        .rd_snap_age_i       (rd_snap_age),
         .wr_issued_we_o      (wr_issued_we),
         .wr_issued_slot_o    (wr_issued_slot),
         .rd_issued_we_o      (rd_issued_we),

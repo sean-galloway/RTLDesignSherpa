@@ -92,6 +92,7 @@ module command_scheduler_macro
     input  logic [RD_CAM_DEPTH-1:0][CW-1:0]  rd_snap_col_i,
     input  logic [RD_CAM_DEPTH-1:0][BLW-1:0] rd_snap_len_i,
     input  logic [RD_CAM_DEPTH-1:0][3:0]     rd_snap_qos_i,
+    input  logic [RD_CAM_DEPTH-1:0][7:0]     rd_snap_age_i,
 
     // ---- mark-issued back to host CAMs ----
     output logic                       wr_issued_we_o,
@@ -258,6 +259,7 @@ module command_scheduler_macro
         .rd_snap_col_i      (rd_snap_col_i),
         .rd_snap_len_i      (rd_snap_len_i),
         .rd_snap_qos_i      (rd_snap_qos_i),
+        .rd_snap_age_i      (rd_snap_age_i),
         .wr_issued_we_o     (wr_issued_we_o),
         .wr_issued_slot_o   (wr_issued_slot_o),
         .rd_issued_we_o     (rd_issued_we_o),

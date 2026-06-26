@@ -198,6 +198,7 @@ module axi_frontend_macro
     output logic [RD_CAM_DEPTH-1:0][BLW-1:0] rd_snap_len_o,
     output logic [RD_CAM_DEPTH-1:0][3:0]     rd_snap_qos_o,
     output logic [RD_CAM_DEPTH-1:0][IW-1:0]  rd_snap_id_o,
+    output logic [RD_CAM_DEPTH-1:0][7:0]     rd_snap_age_o,
 
     //=========================================================================
     // Scheduler "mark issued" strobes
@@ -659,6 +660,7 @@ module axi_frontend_macro
     logic [RD_CAM_DEPTH-1:0][BLW-1:0]              w_rd_snap_len;
     logic [RD_CAM_DEPTH-1:0]                       w_rd_snap_issued;
     logic [RD_CAM_DEPTH-1:0][3:0]                  w_rd_snap_qos;
+    logic [RD_CAM_DEPTH-1:0][7:0]                  w_rd_snap_age;
 
     rd_cmd_cam #(
         .RD_CAM_DEPTH    (RD_CAM_DEPTH),
@@ -708,6 +710,7 @@ module axi_frontend_macro
         .snap_len_o              (w_rd_snap_len),
         .snap_issued_o           (w_rd_snap_issued),
         .snap_qos_o              (w_rd_snap_qos),
+        .snap_age_o              (w_rd_snap_age),
 
         .dbg_occupancy_o         (dbg_rd_cam_occ_o)
     );
@@ -725,6 +728,7 @@ module axi_frontend_macro
     assign rd_snap_col_o  = w_rd_snap_col;
     assign rd_snap_len_o  = w_rd_snap_len;
     assign rd_snap_qos_o  = w_rd_snap_qos;
+    assign rd_snap_age_o  = w_rd_snap_age;
     assign rd_snap_id_o   = w_rd_snap_id;
 
     // Tie unused snapshot consumers (remaining; not all wired yet).

@@ -48,7 +48,13 @@ module rd_cmd_cam
     parameter int BLW = BURST_LEN_WIDTH,
     parameter int RKW = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int BKW = $clog2(NUM_BANKS),
-    parameter int SLW = $clog2(CD)
+    parameter int SLW = $clog2(CD),
+    // Per-slot age counter width. Latched at push from a monotonic
+    // push counter; scheduler picks lowest age (= oldest pending) to
+    // honor AXI4 same-id in-order R semantics across slot reuse.
+    // Max simultaneous age spread is CD; 8 bits keeps wraparound
+    // arithmetic correct for any cam depth ≤ 64 (signed-diff compare).
+    parameter int AGEW = 8
 ) (
     input  logic                 mc_clk,
     input  logic                 mc_rst_n,
@@ -96,6 +102,7 @@ module rd_cmd_cam
     output logic [CD-1:0][BLW-1:0]              snap_len_o,
     output logic [CD-1:0]                       snap_issued_o,
     output logic [CD-1:0][3:0]                  snap_qos_o,
+    output logic [CD-1:0][AGEW-1:0]             snap_age_o,
 
     // Telemetry
     output logic [SLW:0]         dbg_occupancy_o
@@ -111,6 +118,12 @@ module rd_cmd_cam
     logic [CD-1:0][BLW-1:0]      r_beats_returned;
     logic [CD-1:0]               r_issued;
     logic [CD-1:0][3:0]          r_qos;
+    // Per-slot age (push-order tag) + monotonic push counter. The
+    // counter increments on every accepted push; each slot latches
+    // the current counter at push time. Scheduler compares ages with
+    // signed (a-b) so 8-bit wrap is safe for cam depths up to 64.
+    logic [CD-1:0][AGEW-1:0]     r_age;
+    logic [AGEW-1:0]             r_push_counter;
 
     // Free slot pick
     logic [SLW-1:0] w_free_slot;
@@ -140,6 +153,7 @@ module rd_cmd_cam
             r_valid          <= '0;
             r_issued         <= '0;
             r_beats_returned <= '0;
+            r_push_counter   <= '0;
         end else begin
             // Push
             if (push_valid_i && push_ready_o) begin
@@ -151,8 +165,10 @@ module rd_cmd_cam
                 r_col           [w_free_slot] <= push_col_i;
                 r_len           [w_free_slot] <= push_len_i;
                 r_qos           [w_free_slot] <= push_qos_i;
+                r_age           [w_free_slot] <= r_push_counter;
                 r_beats_returned[w_free_slot] <= '0;
                 r_issued        [w_free_slot] <= 1'b0;
+                r_push_counter                <= r_push_counter + AGEW'(1);
             end
 
             // Mark issued
@@ -204,6 +220,7 @@ module rd_cmd_cam
     assign snap_len_o     = r_len;
     assign snap_issued_o  = r_issued;
     assign snap_qos_o     = r_qos;
+    assign snap_age_o     = r_age;
 
     // Entry complete
     assign entry_complete_o      = w_entry_complete_strb;
