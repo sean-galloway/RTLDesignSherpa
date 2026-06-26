@@ -35,6 +35,10 @@
 
 module scheduler_group_array #(
     parameter bit GEN_MON = 1'b1,   // 0 = omit per-channel completion/error MonBus emitters
+    // 0 = omit the shared descriptor-AXI monitor entirely (base + transaction
+    // CAM + reporters). Mirrors stream_core's USE_MONITOR plumbing for the data
+    // monitors so USE_AXI_MONITORS=0 removes ALL monitors, descriptor included.
+    parameter int USE_AXI_MONITORS = 1,
     parameter int NUM_CHANNELS = 8,
     parameter int CHAN_WIDTH = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1,
     parameter int ADDR_WIDTH = 64,
@@ -538,6 +542,11 @@ module scheduler_group_array #(
     //=========================================================================
 
     axi4_master_rd_mon #(
+        // Omit the whole monitor (base + transaction CAM + reporters) when
+        // monitors are disabled -- the DESC_MON_ENABLE_* cones only trim the
+        // reporter sub-blocks, not the ~600-LUT base/CAM, which is gated solely
+        // by USE_MONITOR. Matches stream_core:USE_MONITOR(USE_AXI_MONITORS==1).
+        .USE_MONITOR            (USE_AXI_MONITORS == 1),
         .AXI_ID_WIDTH           (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH         (ADDR_WIDTH),
         .AXI_DATA_WIDTH         (256),  // FIXED 256-bit for descriptor size

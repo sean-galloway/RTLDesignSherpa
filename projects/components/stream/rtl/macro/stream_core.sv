@@ -727,6 +727,7 @@ module stream_core #(
     //=========================================================================
     scheduler_group_array #(
         .GEN_MON                (GEN_MON),
+        .USE_AXI_MONITORS       (USE_AXI_MONITORS),
         .NUM_CHANNELS           (NC),
         .CHAN_WIDTH             (CHAN_WIDTH),
         .ADDR_WIDTH             (AW),

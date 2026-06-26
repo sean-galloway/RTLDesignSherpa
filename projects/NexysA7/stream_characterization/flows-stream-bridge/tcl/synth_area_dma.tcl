@@ -100,10 +100,11 @@ if {[llength $defines] > 0} {
 # so a sweep produces one file per config instead of clobbering a single file.
 # Defaults pin the datapath to the as-built bitstream.
 #
-# Monitors are NOT touched here: stream_top_ch8 defaults to USE_AXI_MONITORS=0,
-# so the monitor infrastructure is simply not instantiated — the default config
-# IS the bare DMA. (The monitors are an opt-in observability layer, not part of
-# the datapath, so they have no place in an SG-DMA area comparison.)
+# Monitors are explicitly OFF for the bare-DMA number: USE_AXI_MONITORS=0
+# removes the data AND descriptor AXI monitors (base + transaction CAM +
+# reporters), and GEN_MON=0 drops the per-channel completion/error MonBus
+# emitters. The monitors are an opt-in observability layer, not part of the
+# datapath, so they have no place in an SG-DMA area comparison.
 # ----------------------------------------------------------------------------
 proc env_or {name default} {
     if {[info exists ::env($name)]} { return $::env($name) }
@@ -125,6 +126,8 @@ set generics [list \
     "CDC_ENABLE=0" \
     "AR_MAX_OUTSTANDING=8" \
     "AW_MAX_OUTSTANDING=8" \
+    "USE_AXI_MONITORS=0" \
+    "GEN_MON=0" \
 ]
 set_property generic $generics $src_fs
 
