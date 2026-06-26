@@ -158,10 +158,15 @@ module cdc_demo_top (
     logic [1:0]  axil_rresp;
     logic        axil_rvalid,  axil_rready;
 
+    // UART_BAUD = 115200; CLKS_PER_BIT derived from SYS_CLK_HZ so a
+    // future re-clock automatically retunes the UART bridge.
+    localparam int UART_BAUD     = 115_200;
+    localparam int UART_CLKS_PER_BIT = (SYS_CLK_HZ + UART_BAUD/2) / UART_BAUD;
+
     uart_axil_bridge #(
         .AXIL_ADDR_WIDTH (32),
         .AXIL_DATA_WIDTH (32),
-        .CLKS_PER_BIT    (868)
+        .CLKS_PER_BIT    (UART_CLKS_PER_BIT)
     ) u_uart_bridge (
         .aclk            (sys_clk),
         .aresetn         (sys_rstn),
@@ -250,6 +255,30 @@ module cdc_demo_top (
         w_auto_inc_mask = 4'h0;
         w_auto_inc_mask[w_sel_ctr] = 1'b1;
     end
+
+    // ----------------------------------------------------------------
+    // Design-point constants (single source of truth)
+    //
+    // Change these and every counter instance (and the doc tables) is
+    // updated at build time. The MMCM literal frequencies above assume
+    // SYS_CLK_HZ = 100 MHz; if you change SYS_CLK_HZ you must also
+    // re-pick the MMCM CLKFBOUT_MULT_F / CLKOUTn_DIVIDE values to keep
+    // the VCO in range (600 MHz - 1600 MHz) and the desired output
+    // frequencies.
+    //
+    //   SYS_CLK_HZ              destination clock (sys_clk)
+    //   STRETCH_MAX_SAFE_SRC_HZ design ceiling for the STRETCH (mode 1)
+    //                           CDC -- the cliff. Source clocks above
+    //                           this start dropping pulses. Default
+    //                           25 MHz puts the cliff between the
+    //                           divided-clock branch and the MMCM idx 1
+    //                           output (27.6 MHz), so the demo shows
+    //                           clean operation below and failure above.
+    //                           Bump to 100_000_000 to make STRETCH safe
+    //                           across the whole MMCM bank.
+    // ----------------------------------------------------------------
+    localparam int SYS_CLK_HZ              = 100_000_000;
+    localparam int STRETCH_MAX_SAFE_SRC_HZ = 25_000_000;
 
     // ----------------------------------------------------------------
     // Harness CSR
@@ -399,9 +428,16 @@ module cdc_demo_top (
     generate
         for (gi = 0; gi < NUM_COUNTERS; gi = gi + 1) begin : g_ctr
             cdc_counter_domain #(
-                .VAL_WIDTH   (VAL_WIDTH),
-                .PRESS_WIDTH (PRESS_WIDTH),
-                .TICK_WIDTH  (32)
+                .VAL_WIDTH               (VAL_WIDTH),
+                .PRESS_WIDTH             (PRESS_WIDTH),
+                .TICK_WIDTH              (32),
+                // STRETCH (mode 1) auto-compute pulled from top-level
+                // single source of truth — change SYS_CLK_HZ /
+                // STRETCH_MAX_SAFE_SRC_HZ above and every counter
+                // re-derives STRETCH_CYCLES at elaboration time.
+                .DST_CLK_HZ              (SYS_CLK_HZ),
+                .STRETCH_MAX_SAFE_SRC_HZ (STRETCH_MAX_SAFE_SRC_HZ),
+                .STRETCH_AUTO            (1'b1)
             ) u_ctr (
                 .sys_clk                  (sys_clk),
                 .sys_rstn                 (sys_rstn),

@@ -65,8 +65,28 @@
 
 module cdc_open_loop #(
     parameter int DATA_WIDTH     = 8,    // Width of the data bus
-    parameter int STRETCH_CYCLES = 8,    // Source clocks to hold valid+data (see formula above)
-    parameter int SYNC_STAGES    = 3     // Destination synchronizer depth (2-4)
+    parameter int STRETCH_CYCLES = 8,    // Source clocks to hold valid+data (manual default)
+    parameter int SYNC_STAGES    = 3,    // Destination synchronizer depth (2-4)
+
+    // ---- Auto-compute STRETCH_CYCLES from clock periods (opt-in) ----
+    //
+    // The destination needs at least (SYNC_STAGES + 1) dst-clock periods
+    // to safely capture a stretched pulse. Required hold time:
+    //
+    //     STRETCH * src_period >= (SYNC_STAGES + 1) * dst_period
+    //
+    // Solved for STRETCH:
+    //
+    //     STRETCH = ceil((SYNC_STAGES + 1) * SRC_CLK_HZ / DST_CLK_HZ)
+    //
+    // To turn this on, set AUTO_STRETCH = 1 and provide SRC_CLK_HZ (the
+    // FASTEST source clock you want handled safely; sources above this
+    // start dropping pulses) and DST_CLK_HZ. When AUTO_STRETCH = 0
+    // (default), the STRETCH_CYCLES parameter above is used verbatim —
+    // no breaking change for existing callers.
+    parameter bit AUTO_STRETCH = 1'b0,
+    parameter int SRC_CLK_HZ   = 25_000_000,
+    parameter int DST_CLK_HZ   = 100_000_000
 ) (
     // Source clock domain
     input  logic                  clk_src,      // Source domain clock
@@ -82,8 +102,15 @@ module cdc_open_loop #(
     output logic [DATA_WIDTH-1:0] dst_data      // Latched data (stable until next dst_valid)
 );
 
-    // Counter width to hold STRETCH_CYCLES
-    localparam int CTR_WIDTH = $clog2(STRETCH_CYCLES + 1);
+    // Auto-compute (elaboration time; folds to a literal in synth).
+    localparam int STRETCH_AUTO_VAL =
+        ((SYNC_STAGES + 1) * SRC_CLK_HZ + DST_CLK_HZ - 1) / DST_CLK_HZ;
+    localparam int STRETCH_RAW   = AUTO_STRETCH ? STRETCH_AUTO_VAL : STRETCH_CYCLES;
+    // Clamp >= 1: STRETCH=0 would assert valid for zero cycles.
+    localparam int STRETCH_EFF   = (STRETCH_RAW > 0) ? STRETCH_RAW : 1;
+
+    // Counter width to hold the effective STRETCH.
+    localparam int CTR_WIDTH = $clog2(STRETCH_EFF + 1);
 
     //=========================================================================
     // Source domain: capture data and stretch valid
@@ -108,7 +135,7 @@ module cdc_open_loop #(
                 // New transfer: capture data, start stretching
                 r_src_data          <= src_data;
                 r_src_valid_stretch <= 1'b1;
-                r_stretch_count     <= CTR_WIDTH'(STRETCH_CYCLES);
+                r_stretch_count     <= CTR_WIDTH'(STRETCH_EFF);
             end else if (r_stretch_count != '0) begin
                 // Counting down
                 r_stretch_count <= r_stretch_count - 1'b1;
