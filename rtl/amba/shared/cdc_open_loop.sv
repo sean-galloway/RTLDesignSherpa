@@ -13,14 +13,19 @@
 // destination domain samples the stretched valid and latches the data on
 // the rising edge.
 //
-// The stretch duration must be long enough that the destination clock
-// samples at least one cycle of the stretched valid. The guideline is:
+// The source data bus must remain stable long enough for the
+// synchronized enable to propagate through the destination sync
+// chain and load the destination register. That gives:
 //
-//   STRETCH_CYCLES >= ceil(1.5 * T_dst / T_src) + SYNC_STAGES
+//   STRETCH_CYCLES >= ceil((SYNC_STAGES + 1) * T_dst / T_src)
 //
-// where T_dst and T_src are the destination and source clock periods.
-// For example, a 100 MHz source crossing to a 25 MHz destination
-// (ratio 4:1) needs STRETCH_CYCLES >= ceil(1.5 * 4) + 3 = 9.
+// where T_dst and T_src are the destination and source clock
+// periods. (SYNC_STAGES + 1) counts the sync FFs plus the load edge.
+// Example: a 1 GHz source crossing to 100 MHz with SYNC_STAGES=2
+// needs STRETCH_CYCLES >= ceil(3 * 10/1) = 30. The 1.5*T_dst rule of
+// thumb is enough to capture the valid pulse alone, but the multi-bit
+// data bus needs the longer hold so r_src_data is still stable when
+// the destination latches it.
 //
 // This is a true open-loop design: no return path, no handshake, no
 // backpressure. The source is busy for exactly STRETCH_CYCLES and then
@@ -66,7 +71,7 @@
 module cdc_open_loop #(
     parameter int DATA_WIDTH     = 8,    // Width of the data bus
     parameter int STRETCH_CYCLES = 8,    // Source clocks to hold valid+data (manual default)
-    parameter int SYNC_STAGES    = 3,    // Destination synchronizer depth (2-4)
+    parameter int SYNC_STAGES    = 2,    // Destination synchronizer depth (2-4)
 
     // ---- Auto-compute STRETCH_CYCLES from clock periods (opt-in) ----
     //
@@ -84,7 +89,7 @@ module cdc_open_loop #(
     // start dropping pulses) and DST_CLK_HZ. When AUTO_STRETCH = 0
     // (default), the STRETCH_CYCLES parameter above is used verbatim —
     // no breaking change for existing callers.
-    parameter bit AUTO_STRETCH = 1'b0,
+    parameter int AUTO_STRETCH = 0,   // 0 = use STRETCH_CYCLES; 1 = auto-compute
     parameter int SRC_CLK_HZ   = 25_000_000,
     parameter int DST_CLK_HZ   = 100_000_000
 ) (
@@ -105,7 +110,7 @@ module cdc_open_loop #(
     // Auto-compute (elaboration time; folds to a literal in synth).
     localparam int STRETCH_AUTO_VAL =
         ((SYNC_STAGES + 1) * SRC_CLK_HZ + DST_CLK_HZ - 1) / DST_CLK_HZ;
-    localparam int STRETCH_RAW   = AUTO_STRETCH ? STRETCH_AUTO_VAL : STRETCH_CYCLES;
+    localparam int STRETCH_RAW   = (AUTO_STRETCH != 0) ? STRETCH_AUTO_VAL : STRETCH_CYCLES;
     // Clamp >= 1: STRETCH=0 would assert valid for zero cycles.
     localparam int STRETCH_EFF   = (STRETCH_RAW > 0) ? STRETCH_RAW : 1;
 

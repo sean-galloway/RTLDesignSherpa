@@ -33,7 +33,7 @@
 
 Open-loop multi-bit CDC using valid/data stretching. The source captures data on a single-cycle `src_valid` pulse and holds both data and a stretched valid level for `STRETCH_CYCLES` source clock cycles. The destination synchronizes the stretched valid and latches data on its rising edge.
 
-No return path or handshake exists. The source is busy for exactly `STRETCH_CYCLES` source clocks, then free to send again. The designer must set `STRETCH_CYCLES` based on the known clock ratio.
+No return path or handshake exists. The source is busy for exactly `STRETCH_CYCLES` source clocks, then free to send again. The stretch length can either be set manually (`STRETCH_CYCLES`) or computed from the source/destination clock frequencies (`AUTO_STRETCH=1` with `SRC_CLK_HZ` and `DST_CLK_HZ`).
 
 ### Key Features
 
@@ -41,6 +41,7 @@ No return path or handshake exists. The source is busy for exactly `STRETCH_CYCL
 - Source holds data and stretched valid for a parameterizable number of source clocks
 - Destination uses multi-stage synchronizer + rising edge detect to latch data
 - `src_busy` blocks the next transfer during the stretch window
+- Optional auto-compute: pass clock frequencies and the module sizes `STRETCH` itself
 - Minimal area: one counter, one synchronizer, one edge detector
 
 ### When to Use
@@ -64,7 +65,12 @@ No return path or handshake exists. The source is busy for exactly `STRETCH_CYCL
 module cdc_open_loop #(
     parameter int DATA_WIDTH     = 8,
     parameter int STRETCH_CYCLES = 8,
-    parameter int SYNC_STAGES    = 3
+    parameter int SYNC_STAGES    = 2,
+
+    // Optional auto-compute of STRETCH_CYCLES from clock frequencies
+    parameter int AUTO_STRETCH = 0,             // 0 = use STRETCH_CYCLES; 1 = auto
+    parameter int SRC_CLK_HZ   = 25_000_000,    // Fastest source clock to handle
+    parameter int DST_CLK_HZ   = 100_000_000    // Destination clock frequency
 ) (
     // Source clock domain
     input  logic                  clk_src,
@@ -86,25 +92,65 @@ module cdc_open_loop #(
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `DATA_WIDTH` | 8 | Width of the data bus |
-| `STRETCH_CYCLES` | 8 | Source clocks to hold valid+data stable |
-| `SYNC_STAGES` | 3 | Destination synchronizer depth (2-4) |
+| `STRETCH_CYCLES` | 8 | Source clocks to hold valid+data stable (used when `AUTO_STRETCH=0`) |
+| `SYNC_STAGES` | 2 | Destination synchronizer depth (2-4; raise for extra MTBF margin) |
+| `AUTO_STRETCH` | 0 | `0` = use `STRETCH_CYCLES`; `1` = compute from `SRC_CLK_HZ` / `DST_CLK_HZ` |
+| `SRC_CLK_HZ` | 25_000_000 | Source clock frequency (used when `AUTO_STRETCH=1`) |
+| `DST_CLK_HZ` | 100_000_000 | Destination clock frequency (used when `AUTO_STRETCH=1`) |
 
-### Setting STRETCH_CYCLES
+### Setting STRETCH_CYCLES manually (`AUTO_STRETCH=0`)
 
-The stretched valid must be seen by at least one destination clock edge after passing through the synchronizer. The guideline:
+This is a multi-bit data CDC, so the source data bus must remain stable until the synchronized enable has propagated through the destination sync chain *and* loaded the destination register. That gives:
 
 ```
-STRETCH_CYCLES >= ceil(1.5 * T_dst / T_src) + SYNC_STAGES
+STRETCH_CYCLES >= ceil((SYNC_STAGES + 1) * T_dst / T_src)
 ```
+
+`(SYNC_STAGES + 1)` counts the synchronizer FFs plus the destination load edge. The 1.5 × T_dst "rule of thumb" you may have seen is enough to capture the valid pulse alone, but a multi-bit datapath needs the longer hold so `r_src_data` is still stable when the destination latches it. See *References* below.
 
 | Source Clock | Dest Clock | Ratio | SYNC_STAGES | Min STRETCH_CYCLES |
 |-------------|------------|-------|-------------|-------------------|
-| 100 MHz | 100 MHz | 1:1 | 3 | 5 |
-| 100 MHz | 50 MHz | 2:1 | 3 | 6 |
-| 100 MHz | 25 MHz | 4:1 | 3 | 9 |
-| 200 MHz | 25 MHz | 8:1 | 3 | 15 |
+| 100 MHz | 100 MHz | 1:1 | 2 | 3 |
+| 100 MHz | 50 MHz | 2:1 | 2 | 6 |
+| 100 MHz | 25 MHz | 4:1 | 2 | 12 |
+| 1 GHz | 100 MHz | 10:1 | 2 | 30 |
+| 200 MHz | 25 MHz | 8:1 | 2 | 24 |
 
-When in doubt, round up. Extra stretch cycles cost only source-side latency, not area.
+When in doubt, round up — extra stretch cycles cost only source-side latency, not area.
+
+### Auto-computed STRETCH (`AUTO_STRETCH=1`)
+
+Set `AUTO_STRETCH=1` and pass the source/destination clock frequencies in Hz. The module computes `STRETCH_CYCLES` at elaboration time using:
+
+```
+STRETCH = ceil((SYNC_STAGES + 1) * SRC_CLK_HZ / DST_CLK_HZ)
+```
+
+The result is a localparam — folds to a literal in synthesis, no runtime cost. `SRC_CLK_HZ` should be the **fastest** source clock you intend to support; sources running faster will start dropping pulses.
+
+When `AUTO_STRETCH=1` the `STRETCH_CYCLES` parameter is ignored. When `AUTO_STRETCH=0` (default) the auto-formula is dead code and `STRETCH_CYCLES` is used as-is, so existing callers see no change.
+
+| Source `SRC_CLK_HZ` | Destination `DST_CLK_HZ` | Computed `STRETCH` (SYNC=2) |
+|---------------------|--------------------------|-----------------------------|
+| 25 MHz  | 100 MHz | 1 |
+| 50 MHz  | 100 MHz | 2 |
+| 100 MHz | 100 MHz | 3 |
+| 100 MHz | 40 MHz  | 8 |
+| 100 MHz | 25 MHz  | 12 |
+| 1 GHz   | 100 MHz | 30 |
+
+Prefer auto when the clock plan is captured in a single top-level location — propagate `SRC_CLK_HZ` / `DST_CLK_HZ` as parameters from the top and every instance retunes itself if the clock plan changes.
+
+### Back-to-back pulses
+
+`src_busy` only guards the HIGH stretch window. After it falls, the destination sync chain still needs roughly `(SYNC_STAGES + 1) * T_dst` to see the falling edge before another rising edge can be detected. If the source asserts the next `src_valid` immediately after `src_busy` falls, two HIGH stretches can merge in the dst view and the second pulse is silently dropped.
+
+Two ways to keep this safe:
+
+1. Pick `STRETCH_CYCLES` large enough that one full source-side LOW cycle is comfortably more than `(SYNC_STAGES + 1) * T_dst`. (For slow-source → fast-dst this is automatic; for fast-source → slow-dst you may need extra margin.)
+2. Have the source pace pulses: wait `src_busy` to fall, then idle for `ceil((SYNC_STAGES + 1) * T_dst / T_src) + 1` source cycles before the next `src_valid`.
+
+The verification testbench (`bin/TBClasses/amba/cdc_open_loop.py`) enforces option 2 in its no-loss phases.
 
 ## Ports
 
@@ -162,13 +208,15 @@ dst_data:    ================================|AAAA|==========
 
 ## Usage Example
 
+### Manual STRETCH (back-compat default)
+
 ```systemverilog
 // CPU writes config register at 100 MHz, peripheral runs at 25 MHz
-// Ratio = 4:1, STRETCH_CYCLES = ceil(1.5 * 4) + 3 = 9
+// Ratio = 4:1, STRETCH_CYCLES = ceil((2+1) * 4) = 12
 cdc_open_loop #(
     .DATA_WIDTH     (32),
-    .STRETCH_CYCLES (9),
-    .SYNC_STAGES    (3)
+    .STRETCH_CYCLES (12),
+    .SYNC_STAGES    (2)
 ) u_cfg_cdc (
     .clk_src   (cpu_clk),        // 100 MHz
     .rst_src_n (cpu_rst_n),
@@ -177,6 +225,35 @@ cdc_open_loop #(
     .src_busy  (cfg_busy),       // Block next write
 
     .clk_dst   (periph_clk),    // 25 MHz
+    .rst_dst_n (periph_rst_n),
+    .dst_valid (cfg_update),
+    .dst_data  (cfg_value)
+);
+```
+
+### Auto STRETCH from clock frequencies
+
+```systemverilog
+// Same CPU→peripheral CDC, but let the module size STRETCH itself.
+// If the clock plan changes (e.g. CPU bumped to 200 MHz) you only
+// update SRC_CLK_HZ at the top and every instance retunes.
+localparam int CPU_HZ    = 100_000_000;
+localparam int PERIPH_HZ = 25_000_000;
+
+cdc_open_loop #(
+    .DATA_WIDTH   (32),
+    .SYNC_STAGES  (2),
+    .AUTO_STRETCH (1),
+    .SRC_CLK_HZ   (CPU_HZ),
+    .DST_CLK_HZ   (PERIPH_HZ)
+) u_cfg_cdc (
+    .clk_src   (cpu_clk),
+    .rst_src_n (cpu_rst_n),
+    .src_valid (cfg_write_en),
+    .src_data  (cfg_write_data),
+    .src_busy  (cfg_busy),
+
+    .clk_dst   (periph_clk),
     .rst_dst_n (periph_rst_n),
     .dst_valid (cfg_update),
     .dst_data  (cfg_value)
@@ -209,12 +286,23 @@ Do NOT use `set_false_path` -- the data bus must arrive within a bounded window.
 
 - RTL: `rtl/amba/shared/cdc_open_loop.sv`
 - Depends on: `rtl/common/glitch_free_n_dff_arn.sv`
+- Testbench: `bin/TBClasses/amba/cdc_open_loop.py`
+- Test runner: `val/amba/test_cdc_open_loop.py` (28 configs covering manual, auto, and cliff)
 - CDC Primer: [cdc_primer.md](cdc_primer.md)
 - Closed-loop alternative: [cdc_2_phase_handshake.md](cdc_2_phase_handshake.md)
 
+## References
+
+The `(SYNC_STAGES + 1) × T_dst` data-hold requirement follows directly from the MCP (Multi-Cycle Path) formulation: the source data must stay stable until the synchronized enable has traversed the destination sync chain and loaded the destination register. The exact closed-form formula is this module's own — the cited references state the principle qualitatively and leave the cycle count to the reader.
+
+- Clifford E. Cummings, *Clock Domain Crossing (CDC) Design & Verification Techniques Using SystemVerilog*, SNUG Boston 2008 — original MCP formulation.
+- Verilog Pro, [*Clock Domain Crossing Design — Part 2*](https://www.verilogpro.com/clock-domain-crossing-part-2/): "the input data has to be held until the synchronization pulse loads the data in the destination clock domain. The whole process takes at least two destination clocks." (= `SYNC_STAGES + 1` destination cycles for a 2-FF synchronizer.)
+- thedatabus.in, [*Clock Domain Crossing (CDC): The Complete Reference Guide*](https://thedatabus.in/cdc_complete_guide/): "ensure that the source holds the information long enough for it to be safely taken through all the synchronizer stages."
+- EDN, [*Understanding Clock Domain Crossing*](https://www.eetimes.com/understanding-clock-domain-crossing-issues/).
+
 ---
 
-**Last Updated:** 2026-04-21
+**Last Updated:** 2026-06-26
 
 ---
 
