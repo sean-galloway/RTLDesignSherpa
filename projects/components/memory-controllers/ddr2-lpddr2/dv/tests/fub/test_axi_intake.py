@@ -1,6 +1,12 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
+# TODO(amba-profiles): existing FUB scenarios run at default BFM
+# timing. The new wbuf_backpressure case stressed wbuf flow-control;
+# mixing random-timing profiles from
+# bin/TBClasses/amba/amba_random_configs.py (backtoback / constrained /
+# fast / slow_*) will hit subtler stall corners on AW/W and the
+# wbuf_free strobe path.
 """Direct FUB tests for `axi_intake` — uses the AXI4Master BFMs and
 minimal downstream stubs. Pins four boundary contracts the macro
 tests don't isolate:
@@ -51,6 +57,7 @@ async def cocotb_test_axi_intake(dut):
         "wbuf_data":          _wbuf_data,
         "rd_inject_e2e":      _rd_inject_e2e,
         "buser_echo":         _buser_echo,
+        "wbuf_backpressure":  _wbuf_backpressure,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -122,6 +129,94 @@ async def _wbuf_data(tb):
         )
 
 
+async def _wbuf_backpressure(tb):
+    """Pin axi_intake's W-buffer flow control.
+
+    With the host pipelining AWs ahead of W-drain (which the
+    axi4_master_wr_pattern_gen engine does), there was no
+    backpressure between AW acceptance and wbuf drain — the AW-side
+    allocation pointer would wrap at W_BUF_DEPTH and overwrite slots
+    a previously-accepted burst was still waiting to have pulled.
+
+    This scenario locks down the contract:
+      1. Drive (W_BUF_DEPTH/burst_len) AWs back-to-back. wbuf fills.
+      2. Try to drive ONE more AW — axi_intake must hold awready=0.
+      3. Fire wbuf_free for the first burst. awready returns to 1.
+      4. The held AW now pushes through.
+    """
+    W_BUF_DEPTH = 128
+    BURST       = 4
+    N_FILL      = W_BUF_DEPTH // BURST   # 32 AWs to fill wbuf
+
+    # Step 1 — drive N_FILL AWs.  Each carries a marker payload so we
+    # can prove the right data ended up in the right wbuf slot.
+    for i in range(N_FILL):
+        data = [((i << 16) | j) for j in range(BURST)]
+        pushed = await _drive_one_write(
+            tb, axid=i & 0xF, addr=i * (BURST * 8), data=data,
+        )
+        assert pushed.length == BURST
+
+    # Integrity check: every accepted AW's beats landed at distinct
+    # wbuf slots — no AW-side pointer aliasing.
+    for i in range(N_FILL):
+        for j in range(BURST):
+            got = await tb.read_wbuf(i * BURST + j)
+            expected = (i << 16) | j
+            assert got == expected, (
+                f"wbuf[{i*BURST + j}] = 0x{got:016X}, "
+                f"want 0x{expected:016X} — AW{i}'s beat{j} got "
+                "overwritten / aliased"
+            )
+
+    # Step 2 — wbuf must now be full. Try a (N_FILL+1)-th write in
+    # the background and observe that NO new aw_push fires for a
+    # reasonable window.
+    pushes_before = len(tb.aw_pushes)
+
+    async def held_write():
+        data = [((0xFFFF << 16) | j) for j in range(BURST)]
+        await tb.axi_master_wr.write_transaction(
+            address=0x80_0000, data=data, id=15,
+        )
+
+    held = cocotb.start_soon(held_write())
+
+    # Watch for `BACKPRESSURE_CYCLES` — long enough that any non-stalled
+    # AW would have pushed within that window.
+    BACKPRESSURE_CYCLES = 200
+    for _ in range(BACKPRESSURE_CYCLES):
+        await RisingEdge(tb.dut.aclk)
+        assert len(tb.aw_pushes) == pushes_before, (
+            "axi_intake accepted an AW while wbuf was full — "
+            "backpressure missing (W_BUF_DEPTH overrun would corrupt data)"
+        )
+
+    # Step 3 — fire wbuf_free for the first burst. That should free
+    # BURST slots, dropping outstanding to W_BUF_DEPTH-BURST and
+    # letting the held AW through.
+    await tb.fire_wbuf_free(BURST)
+
+    # Need to ALSO fire wr_entry_complete for the held AW so the BFM
+    # can complete.
+    async def complete_held_when_pushed():
+        for _ in range(500):
+            await RisingEdge(tb.dut.aclk)
+            if len(tb.aw_pushes) > pushes_before:
+                pushed = tb.aw_pushes[pushes_before]
+                for _ in range(2):
+                    await RisingEdge(tb.dut.aclk)
+                await tb.fire_wr_entry_complete(pushed.push_id)
+                return pushed
+        return None
+
+    held_pushed = await complete_held_when_pushed()
+    assert held_pushed is not None, (
+        "Held AW never pushed after wbuf_free fired — release path broken"
+    )
+    await held
+
+
 async def _rd_inject_e2e(tb):
     """Drive AR via the master BFM; queue an inject for that AR's id;
     rd_inject_pump background streams beats; master must receive R."""
@@ -170,7 +265,8 @@ async def _buser_echo(tb):
 # Pytest matrix
 # ---------------------------------------------------------------------------
 
-_ALL_TYPES = ["smoke_wr_b", "wbuf_data", "rd_inject_e2e", "buser_echo"]
+_ALL_TYPES = ["smoke_wr_b", "wbuf_data", "rd_inject_e2e", "buser_echo",
+              "wbuf_backpressure"]
 _GATE = [(t,) for t in ["smoke_wr_b"]]
 _FUNC = [(t,) for t in _ALL_TYPES]
 _FULL = _FUNC

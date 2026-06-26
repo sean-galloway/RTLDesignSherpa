@@ -175,6 +175,17 @@ module axi_intake
     input  logic [IW-1:0]        wr_entry_complete_id_i,
 
     //=========================================================================
+    // W-buffer free notification (driven by wr_beat_sequencer.b_complete via
+    // the axi_frontend wiring). When `wbuf_free_strb_i` is high, the freed
+    // burst's beat count is on `wbuf_free_len_i`; axi_intake subtracts that
+    // from its outstanding-W-beat counter so the next AW(s) can land safely.
+    // FUB-only setups can leave this idle (counter never decrements) and
+    // drive it manually from the TB.
+    //=========================================================================
+    input  logic                 wbuf_free_strb_i,
+    input  logic [BLW-1:0]       wbuf_free_len_i,
+
+    //=========================================================================
     // Read completion (from rd_cmd_cam) — reserved for v2
     //=========================================================================
     input  logic                 rd_entry_complete_strb_i,
@@ -455,8 +466,26 @@ module axi_intake
     assign w_aw_pend_din.w_buf_ptr = r_aw_pend_next_ptr;
     assign w_aw_pend_din.strb_ptr  = r_aw_pend_next_ptr;
 
-    assign w_aw_pend_wr_valid = fub_axi_awvalid;
-    assign fub_axi_awready    = w_aw_pend_wr_ready;
+    // ---- W-buffer occupancy + AW flow-control --------------------------
+    // Track outstanding W beats (= pushed by accepted AWs - freed by
+    // wr_beat_sequencer's b_complete). +1 bit so the counter can express
+    // W_BUF_DEPTH itself (= "wbuf full").
+    logic [WPW:0] r_wbuf_outstanding;
+    logic [WPW:0] w_new_aw_burst_size;
+    assign w_new_aw_burst_size =
+        (WPW+1)'(BLW'(fub_axi_awlen) + BLW'(1));
+
+    // The arriving AW would push (awlen+1) beats. Backpressure if that
+    // would exceed wbuf depth. Without this gate the AW-side pointer
+    // wraps and a new burst's beats overwrite still-pending data for an
+    // older burst that wr_beat_sequencer hasn't drained yet.
+    logic w_wbuf_room_for_new_aw;
+    assign w_wbuf_room_for_new_aw =
+        ((WPW+1)'(r_wbuf_outstanding) + w_new_aw_burst_size)
+        <= (WPW+1)'(W_BUF_DEPTH);
+
+    assign w_aw_pend_wr_valid = fub_axi_awvalid && w_wbuf_room_for_new_aw;
+    assign fub_axi_awready    = w_aw_pend_wr_ready && w_wbuf_room_for_new_aw;
 
     gaxi_fifo_sync #(
         .DATA_WIDTH ($bits(aw_pending_t)),
@@ -498,17 +527,36 @@ module axi_intake
         if (`RST_ASSERTED(aresetn)) begin
             r_wbuf_wptr         <= '0;
             r_aw_pend_next_ptr  <= '0;
+            r_wbuf_outstanding  <= '0;
             r_full_strb_acc     <= 1'b1;
             r_burst_done        <= 1'b0;
             r_final_full_strb   <= 1'b1;
         end else begin
-            // Advance the AW-side allocation pointer by awlen+1 on each
-            // accepted AW so the NEXT AW captures the correct w_buf
-            // start position.
+            // Advance the AW-side allocation pointer + outstanding count
+            // by awlen+1 on each accepted AW so the NEXT AW captures the
+            // correct w_buf start position AND the flow-control gate sees
+            // the new beats reserved.
+            //
+            // Same-cycle free is netted in here too so the counter never
+            // briefly under/overshoots: if a free strobe arrives at the
+            // moment a new AW is accepted, both adjustments apply.
             if (w_aw_pend_wr_valid && w_aw_pend_wr_ready) begin
                 r_aw_pend_next_ptr <=
                     r_aw_pend_next_ptr +
                     WPW'(BLW'(fub_axi_awlen) + BLW'(1));
+                if (wbuf_free_strb_i) begin
+                    r_wbuf_outstanding <=
+                        r_wbuf_outstanding
+                        + (WPW+1)'(BLW'(fub_axi_awlen) + BLW'(1))
+                        - (WPW+1)'(wbuf_free_len_i);
+                end else begin
+                    r_wbuf_outstanding <=
+                        r_wbuf_outstanding
+                        + (WPW+1)'(BLW'(fub_axi_awlen) + BLW'(1));
+                end
+            end else if (wbuf_free_strb_i) begin
+                r_wbuf_outstanding <=
+                    r_wbuf_outstanding - (WPW+1)'(wbuf_free_len_i);
             end
             if (w_w_beat_handshake) begin
                 r_w_buf    [r_wbuf_wptr] <= fub_axi_wdata;

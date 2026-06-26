@@ -297,6 +297,11 @@ module axi_frontend_macro
     logic [WSL-1:0]       w_wr_entry_complete_slot;
     logic [IW-1:0]        w_wr_entry_complete_id;
 
+    // wbuf free count fed to axi_intake — derived after wr_cmd_cam.snap_len_o
+    // is declared (see assign below). Forward-declared here so the axi_intake
+    // port wire-up satisfies lint's declare-before-use check.
+    logic [BLW-1:0]       w_wbuf_free_len;
+
     axi_intake #(
         .AXI_ADDR_WIDTH    (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH    (AXI_DATA_WIDTH),
@@ -381,6 +386,12 @@ module axi_frontend_macro
         // Completion notifications
         .wr_entry_complete_strb_i   (w_wr_entry_complete),
         .wr_entry_complete_id_i     (w_wr_entry_complete_id),
+        // W-buffer free — derived locally from b_complete + the cam's
+        // per-slot length snapshot (snap_len_o[slot]). When b_complete
+        // fires for slot S, that slot's awlen+1 beats are no longer in
+        // play in wbuf, so axi_intake's outstanding counter decrements.
+        .wbuf_free_strb_i           (b_complete_strb_i),
+        .wbuf_free_len_i            (w_wbuf_free_len),
         .rd_entry_complete_strb_i   (rd_entry_complete_o),
         .rd_entry_complete_id_i     (rd_entry_complete_id_o),
         // Forwarded R
@@ -560,6 +571,10 @@ module axi_frontend_macro
     assign wr_entry_complete_o      = w_wr_entry_complete;
     assign wr_entry_complete_slot_o = w_wr_entry_complete_slot;
     assign wr_entry_complete_id_o   = w_wr_entry_complete_id;
+
+    // wbuf_free length feed: when b_complete fires for a slot, the cam's
+    // per-slot length snapshot says how many beats (awlen+1) leave wbuf.
+    assign w_wbuf_free_len = w_wr_snap_len[b_complete_slot_i];
 
     //=========================================================================
     // wr2rd_forward — combinational match against the live wr_cmd_cam

@@ -132,6 +132,9 @@ class AxiIntakeTB(TBBase):
         self.dut.rd_inject_last_i.value  = 0
         # Wbuf external read idle
         self.dut.wbuf_ext_rd_ptr_i.value = 0
+        # Wbuf free notification idle — tests drive via fire_wbuf_free()
+        self.dut.wbuf_free_strb_i.value = 0
+        self.dut.wbuf_free_len_i.value  = 0
 
     async def setup_clocks_and_reset(self):
         cocotb.start_soon(Clock(self.dut.aclk, self.CLK, units="ns").start())
@@ -225,3 +228,14 @@ class AxiIntakeTB(TBBase):
         self.dut.wbuf_ext_rd_ptr_i.value = w_buf_ptr
         await Timer(100, units="ps")
         return int(self.dut.wbuf_ext_rd_data_o.value)
+
+    async def fire_wbuf_free(self, beats: int) -> None:
+        """Drive wbuf_free_strb_i + wbuf_free_len_i for one cycle so
+        axi_intake decrements its outstanding-W-beat counter by `beats`.
+        Stand-in for the wr_beat_sequencer's b_complete in unit tests."""
+        await RisingEdge(self.dut.aclk)
+        self.dut.wbuf_free_strb_i.value = 1
+        self.dut.wbuf_free_len_i.value  = beats
+        await RisingEdge(self.dut.aclk)
+        self.dut.wbuf_free_strb_i.value = 0
+        self.dut.wbuf_free_len_i.value  = 0
