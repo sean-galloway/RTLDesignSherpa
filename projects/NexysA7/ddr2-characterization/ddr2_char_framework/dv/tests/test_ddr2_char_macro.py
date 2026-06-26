@@ -1,0 +1,265 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2026 sean galloway
+
+"""Smoke test for ddr2_char_macro.
+
+Wires up the two AXI4 master-side characterization engines + the
+ddr2-lpddr2 controller behind one tb_top, then runs a tiny end-to-end
+workload:
+
+  1. Bring up APB CSR + DFI loopback through the existing
+     DDR2LPDDR2TopTB infrastructure.
+  2. Wait for init_done.
+  3. Program the writer engine for a small LFSR workload, fire
+     cfg_wr_start, wait cfg_wr_done.
+  4. Program the reader engine to walk the same addresses, fire
+     cfg_rd_start, wait cfg_rd_done.
+  5. Assert no integrity errors and the CRC contract holds.
+
+The controller's DFI side talks to the existing DFISlavePHY BFM
+backed by MemoryModel — so writes persist and reads return the same
+bytes.
+"""
+
+import logging
+import os
+import random
+import sys
+
+import cocotb
+import pytest
+from cocotb.triggers import ClockCycles, RisingEdge, Timer
+from cocotb_test.simulator import run
+
+from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
+
+# Reuse the controller's TB infrastructure for APB + DFI bring-up. The
+# class only touches phy_dfi_* / s_apb_* / memtype_i / t_phy_wrlat_i etc.,
+# all of which exist on ddr2_char_macro_tb_top with the same names.
+_CTRL_DV_DIR = os.path.abspath(os.path.join(
+    "/mnt/data/github/RTLDesignSherpa",
+    "projects/components/memory-controllers/ddr2-lpddr2/dv"))
+if _CTRL_DV_DIR not in sys.path:
+    sys.path.insert(0, _CTRL_DV_DIR)
+
+from tbclasses.ddr2_lpddr2_top_tb import DDR2LPDDR2TopTB  # noqa: E402
+
+
+_NBA_SETTLE_PS = 100
+
+
+# ---------------------------------------------------------------------------
+# Engine cfg helpers — drive the cfg ports directly. The macro's cfg surface
+# is just SV input ports, so a plain `dut.cfg_*.value = ...` is enough.
+# ---------------------------------------------------------------------------
+
+
+async def _drive_engine_idle(dut) -> None:
+    """Idle all writer + reader cfg surfaces so the engines stay in
+    S_IDLE until we explicitly pulse cfg_*_start."""
+    for prefix in ("cfg_wr", "cfg_rd"):
+        getattr(dut, f"{prefix}_start_addr").value       = 0
+        getattr(dut, f"{prefix}_addr_stride_0").value    = 0
+        getattr(dut, f"{prefix}_addr_stride_1").value    = 0
+        getattr(dut, f"{prefix}_addr_wrap_mask_0").value = 0
+        getattr(dut, f"{prefix}_addr_wrap_mask_1").value = 0
+        getattr(dut, f"{prefix}_burst_len").value        = 1
+        getattr(dut, f"{prefix}_txn_count").value        = 0
+        getattr(dut, f"{prefix}_axi_id").value           = 0
+        getattr(dut, f"{prefix}_id_mode").value          = 0
+        getattr(dut, f"{prefix}_axi_size").value         = 3
+        getattr(dut, f"{prefix}_axi_burst").value        = 1
+        getattr(dut, f"{prefix}_lfsr_seed").value        = 0
+        getattr(dut, f"{prefix}_data_mode").value        = 0
+        getattr(dut, f"{prefix}_hash_seed0").value       = 0
+        getattr(dut, f"{prefix}_hash_seed1").value       = 0
+        getattr(dut, f"{prefix}_hash_seed2").value       = 0
+    dut.cfg_wr_gap.value   = 0
+    dut.cfg_rd_gap.value   = 0
+    dut.cfg_wr_start.value = 0
+    dut.cfg_rd_start.value = 0
+
+
+async def _program_writer(dut, *, start_addr: int, stride_0: int,
+                          burst_len: int, txn_count: int,
+                          axi_id: int = 0, axi_size: int = 3,
+                          lfsr_seed: int = 0) -> None:
+    dut.cfg_wr_start_addr.value    = start_addr
+    dut.cfg_wr_addr_stride_0.value = stride_0
+    dut.cfg_wr_burst_len.value     = burst_len
+    dut.cfg_wr_txn_count.value     = txn_count
+    dut.cfg_wr_axi_id.value        = axi_id
+    dut.cfg_wr_axi_size.value      = axi_size
+    dut.cfg_wr_lfsr_seed.value     = lfsr_seed
+    await RisingEdge(dut.mc_clk)
+    await Timer(_NBA_SETTLE_PS, units="ps")
+
+
+async def _program_reader(dut, *, start_addr: int, stride_0: int,
+                          burst_len: int, txn_count: int,
+                          axi_id: int = 0, axi_size: int = 3,
+                          lfsr_seed: int = 0) -> None:
+    dut.cfg_rd_start_addr.value    = start_addr
+    dut.cfg_rd_addr_stride_0.value = stride_0
+    dut.cfg_rd_burst_len.value     = burst_len
+    dut.cfg_rd_txn_count.value     = txn_count
+    dut.cfg_rd_axi_id.value        = axi_id
+    dut.cfg_rd_axi_size.value      = axi_size
+    dut.cfg_rd_lfsr_seed.value     = lfsr_seed
+    await RisingEdge(dut.mc_clk)
+    await Timer(_NBA_SETTLE_PS, units="ps")
+
+
+async def _pulse(dut, port_name: str) -> None:
+    getattr(dut, port_name).value = 1
+    await RisingEdge(dut.mc_clk)
+    await Timer(_NBA_SETTLE_PS, units="ps")
+    getattr(dut, port_name).value = 0
+
+
+async def _wait_done(dut, done_signal: str, timeout: int = 50_000) -> None:
+    sig = getattr(dut, done_signal)
+    for _ in range(timeout):
+        await RisingEdge(dut.mc_clk)
+        await Timer(_NBA_SETTLE_PS, units="ps")
+        if int(sig.value):
+            return
+    raise TimeoutError(
+        f"{done_signal} did not assert within {timeout} cycles"
+    )
+
+
+# ---------------------------------------------------------------------------
+# cocotb test entry
+# ---------------------------------------------------------------------------
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_ddr2_char_macro(dut):
+    test_type = os.environ.get("TEST_TYPE", "smoke")
+    mem_type  = os.environ.get("MEM_TYPE", "DDR2").upper()
+
+    tb = DDR2LPDDR2TopTB(dut, num_ranks=1)
+    await _drive_engine_idle(dut)
+    await tb.reset(mem_type=mem_type, init_complete_delay=20)
+    tb.init_register_map()
+    tb.init_apb_master()
+    await tb.apb_master.reset_bus()
+    tb.init_dfi_slave()
+    await tb.wait_for_init_done()
+
+    # 1x1 known-good; 1x2 isolates multi-beat-in-burst; 2x1 isolates
+    # multi-burst; 2x2 was the original failing config.
+    SHAPES = {
+        "smoke":     dict(burst=1, n=1, base=0x0000_2000),
+        "smoke_1x2": dict(burst=2, n=1, base=0x0000_2040),
+        "smoke_2x1": dict(burst=1, n=2, base=0x0000_2080),
+        "smoke_2x2": dict(burst=2, n=2, base=0x0000_20C0),
+    }
+    if test_type in SHAPES:
+        shape = SHAPES[test_type]
+        BURST = shape["burst"]
+        N     = shape["n"]
+        BASE  = shape["base"]
+        BYTES_PER_BEAT = 8   # AXI_DATA_WIDTH=64 → 8 bytes
+        STRIDE = BURST * BYTES_PER_BEAT
+        SEED = 0xDEAD_BEEF
+
+        await _program_writer(dut, start_addr=BASE, stride_0=STRIDE,
+                              burst_len=BURST, txn_count=N,
+                              lfsr_seed=SEED)
+        await _program_reader(dut, start_addr=BASE, stride_0=STRIDE,
+                              burst_len=BURST, txn_count=N,
+                              lfsr_seed=SEED)
+
+        # Fire the writer first; let all B's drain before the reader
+        # starts walking the same descriptor.
+        await _pulse(dut, "cfg_wr_start")
+        await _wait_done(dut, "cfg_wr_done")
+
+        await _pulse(dut, "cfg_rd_start")
+        await _wait_done(dut, "cfg_rd_done")
+
+        # Integrity contract — clean DFI loopback should produce zero
+        # protocol errors and matching CRCs.
+        assert int(dut.o_bresp_error.value) == 0, "BRESP error latched"
+        assert int(dut.o_rresp_error.value) == 0, "RRESP error latched"
+        assert int(dut.o_data_error.value) == 0, (
+            "o_data_error latched — readback data didn't match LFSR"
+        )
+        assert int(dut.o_beats_mismatched.value) == 0
+        assert int(dut.o_expected_crc_valid.value) == 1
+        assert int(dut.o_actual_crc_valid.value) == 1
+        exp = int(dut.o_expected_crc.value)
+        act = int(dut.o_actual_crc.value)
+        assert exp == act, (
+            f"CRC mismatch: expected=0x{exp:08X}, actual=0x{act:08X}"
+        )
+
+    else:
+        raise ValueError(f"Unknown TEST_TYPE: {test_type}")
+
+
+# ---------------------------------------------------------------------------
+# Pytest matrix
+# ---------------------------------------------------------------------------
+
+_ALL_TYPES = ["smoke", "smoke_1x2", "smoke_2x1", "smoke_2x2"]
+_TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
+_PARAMS = _ALL_TYPES   # GATE == FUNC == FULL for now
+
+
+@pytest.mark.parametrize("test_type", _PARAMS, ids=_PARAMS)
+def test_ddr2_char_macro(request, test_type):
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "ddr2_char_macro_tb_top"
+    test_name = f"test_ddr2_char_macro_{test_type}"
+
+    filelist_path = ("projects/NexysA7/ddr2-characterization/"
+                     "ddr2_char_framework/dv/filelists/"
+                     "ddr2_char_macro_tb_top.f")
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=filelist_path)
+
+    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        "DUT": dut_name,
+        "TEST_TYPE": test_type,
+        "MEM_TYPE": "DDR2",
+        "SEED": str(random.randint(0, 100000)),
+        "COCOTB_LOG_LEVEL": "INFO",
+        "COCOTB_RESULTS_FILE":
+            os.path.join(log_dir, f"results_{test_name}.xml"),
+    }
+    parameters = {"NUM_RANKS": "1", "PAGE_POLICY": "1"}
+
+    enable_waves = bool(int(os.environ.get("WAVES", "0")))
+    # Inherit the controller's canonical waiver set (autogenerated CSR
+    # has known MULTIDRIVEN / UNUSED warnings that are not actionable).
+    compile_args = [
+        "+define+USE_ASYNC_RESET",
+        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
+        "-Wno-CASEOVERLAP",
+    ]
+    sim_args = []
+    plus_args = []
+    if enable_waves:
+        compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+        sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
+        plus_args    += ["--trace"]
+        extra_env["VERILATOR_TRACE_FST"] = "1"
+
+    run(python_search=[tests_dir],
+        verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase="cocotb_test_ddr2_char_macro",
+        sim_build=sim_build, simulator="verilator",
+        extra_env=extra_env, parameters=parameters,
+        compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
+        waves=enable_waves, keep_files=True, timescale="1ns/1ps")
