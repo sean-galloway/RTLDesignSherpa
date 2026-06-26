@@ -23,8 +23,8 @@
 **[CAM: opening docs/HARNESS.md]**
 **[VO]** `docs/HARNESS.md` has the full CSR map if you want to drive it from a Python script over UART. There's a runner included — `host/run_cdc_demo.py` — with a `watch-fail` subcommand that does the whole sweep automatically and prints the variance per pickoff. Quantitative proof, not just "I saw it flicker."
 
-**[CAM: board running mode 2 at 50 MHz cleanly]**
-**[VO]** Pick a counter. Set it to broken mode. Crank the clock until something goes wrong. Then fix it. That's the lab.
+**[CAM: board running mode 2 at the 72.7 MHz MMCM clock, cleanly]**
+**[VO]** Pick a counter. Set it to broken mode. Walk the clock select up into the MMCM bank — truly async, co-prime divisors — and watch something break. Then switch CDC modes until it stops. That's the lab.
 
 **[OVERLAY: "Don't roll your own CDC. Use the primitives. Read the runbook."]**
 

@@ -1,6 +1,8 @@
 # CDC Demo — YouTube Tutorial Scripts
 
-Six-episode walkthrough of `cdc_demo_top`, ~90 seconds each, intended for an established RTL engineer audience. Tone: dry, slightly snarky, informative — "amused expert," not "angry youtuber."
+Six-episode walkthrough of `cdc_demo_top` (v3), ~90 seconds each, intended for an established RTL engineer audience. Tone: dry, slightly snarky, informative — "amused expert," not "angry youtuber."
+
+**v3 design notes for narration:** the four counter clocks are now sourced from an MMCM with co-prime divisors (÷11, ÷29, ÷67, ÷128) — *truly asynchronous* to each other and to sys_clk. A per-counter `BUFGMUX_CTRL` tree selects among them and a fifth divided-clock branch (for the slow visible-counting demo). Switching is glitchless. This is genuinely an async-CDC demo — no more "lucky integer-divide phasing."
 
 **Total runtime:** ~9 minutes across 6 episodes.
 

@@ -18,7 +18,7 @@
 
 **[OVERLAY: "Multi-bit skew. The fun one."]**
 
-**[VO]** Over the next five videos I'm going to show you this happening on a real FPGA. Not a slide. Real silicon, real numbers flickering on a real 7-segment display. Plus four different ways to fix it and one way that pretends to fix it.
+**[VO]** Over the next five videos I'm going to show you this happening on a real FPGA — real silicon, real numbers flickering on a real 7-segment display, with source clocks coming from an actual MMCM at co-prime divisors so they're *genuinely* asynchronous to sys-clock and to each other. Not "synchronous integer divides pretending to be async." Plus four different ways to fix it and one way that pretends to fix it.
 
 **[CAM: board powered on, 7-seg showing scrambled garbage on right four digits]**
 **[VO]** If you've ever shipped a design that "worked on the bench and failed in the field" — yeah. This is probably what happened.

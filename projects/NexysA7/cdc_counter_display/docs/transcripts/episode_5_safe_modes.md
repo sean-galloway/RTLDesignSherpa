@@ -6,12 +6,12 @@
 
 ---
 
-**[CAM: board, ctr2, pickoff at 0, mode 1 frozen]**
-**[VO]** Three strategies that actually work. Same fifty-megahertz source clock that broke modes zero and one.
+**[CAM: board, ctr2, clock-select 00 (72.7 MHz MMCM), mode 1 frozen]**
+**[VO]** Three strategies that actually work. Same seventy-two megahertz MMCM clock — truly asynchronous to sys-clock — that broke modes zero and one.
 
 **[BTN: BTNL — mode 02]**
 **[CAM: display shows `02 00 xxxx` updating smoothly through 0000..FFFF]**
-**[VO]** Mode two: asynchronous FIFO. Push every counter update on the source side, pop continuously on the destination side. The FIFO uses Gray-coded pointers internally, so the read-write comparison never sees a multi-bit skew. Display tracks the source perfectly, even at fifty megahertz.
+**[VO]** Mode two: asynchronous FIFO. Push every counter update on the source side, pop continuously on the destination side. The FIFO uses Gray-coded pointers internally, so the read-write comparison never sees a multi-bit skew. Display tracks the source perfectly, even at seventy-two megahertz against a hundred-megahertz consumer.
 
 **[OVERLAY: "fifo_async — Gray pointers, no drama"]**
 
@@ -33,7 +33,7 @@
 
 **[VO]** When do you pick which? FIFO if you have bursty streaming data and bandwidth matters. Handshake if you only need occasional config updates and you want the simplest formal proof. Two-phase if throughput matters; four-phase if your reviewer demands the classic textbook waveform.
 
-**[OVERLAY: "All three: 50 MHz. Clean. Different tradeoffs."]**
+**[OVERLAY: "All three: 72 MHz async. Clean. Different tradeoffs."]**
 
 **[VO]** Three different answers, all of them correct. Don't roll your own.
 
