@@ -48,9 +48,35 @@ module cdc_counter_domain #(
     //   2 SYNC_FIFO   fifo_async (Gray-pointer async FIFO, always safe)
     //   3 TWO_PHASE   cdc_2_phase_handshake (toggle handshake, safe, faster than 4-phase)
     //   4 FOUR_PHASE  cdc_4_phase_handshake (RTZ handshake, safe, classic)
-    parameter int STRETCH_CYCLES_STRETCH = 1,   // mode 1: 1 src clk hold → cliff near sys_clk/4
-    parameter int FIFO_DEPTH             = 16,  // mode 2: depth of the value-passing FIFO
-    parameter int HANDSHAKE_INTERVAL     = 256  // modes 3/4: ctr_clk cycles between snapshots
+    // --- STRETCH (mode 1) sizing ---------------------------------------
+    // Two ways to pick STRETCH_CYCLES for cdc_open_loop:
+    //
+    //   STRETCH_AUTO = 1 (default): elaboration-time auto-compute from
+    //     clock periods. The destination 2..N-FF synchronizer needs at
+    //     least (SYNC_STAGES + 1) dst-clock periods to safely capture a
+    //     pulse. So we choose STRETCH such that:
+    //         STRETCH * src_period >= (SYNC_STAGES+1) * dst_period
+    //     evaluated at src = STRETCH_MAX_SAFE_SRC_HZ (the highest src
+    //     frequency you want this mode to handle cleanly):
+    //         STRETCH = ceil((SYNC_STAGES+1) * MAX_SAFE_SRC_HZ / DST_CLK_HZ)
+    //     For sources faster than MAX_SAFE_SRC_HZ, pulses get dropped —
+    //     that is the demo. For sources slower than MAX_SAFE_SRC_HZ, the
+    //     stretch is more than enough — always safe.
+    //
+    //   STRETCH_AUTO = 0: use STRETCH_CYCLES_MANUAL verbatim. Bypass
+    //     the formula. Useful for tutorials or for exploring failure
+    //     modes deliberately.
+    //
+    // Default MAX_SAFE_SRC_HZ = 25e6 → STRETCH = 1 (cliff at ~25 MHz,
+    // matches v3 demo behavior). Bump to 100e6 (or higher) to guarantee
+    // safe operation across the full MMCM range of this design.
+    parameter int  DST_CLK_HZ              = 100_000_000,
+    parameter int  STRETCH_MAX_SAFE_SRC_HZ = 25_000_000,
+    parameter bit  STRETCH_AUTO            = 1'b1,
+    parameter int  STRETCH_CYCLES_MANUAL   = 1,
+
+    parameter int FIFO_DEPTH         = 16,  // mode 2: depth of the value-passing FIFO
+    parameter int HANDSHAKE_INTERVAL = 256  // modes 3/4: ctr_clk cycles between snapshots
 ) (
     // ----------------------------------------------------------------
     // sys_clk domain
@@ -324,6 +350,17 @@ module cdc_counter_domain #(
     end
 
     // ----- Mode 1 STRETCH (cdc_open_loop) -----
+    //
+    // STRETCH_CYCLES picked at elaboration time (see header param
+    // comments). The localparams below are pure compile-time math —
+    // synth folds them to literals before the cdc_open_loop is
+    // instantiated, so there's no runtime cost.
+    localparam int STRETCH_AUTO_VAL =
+        ((SYNC_STAGES + 1) * STRETCH_MAX_SAFE_SRC_HZ + DST_CLK_HZ - 1) / DST_CLK_HZ;
+    // Pick auto vs manual, then clamp to >= 1 (STRETCH=0 would be
+    // pointless — would assert valid for zero cycles).
+    localparam int STRETCH_RAW   = STRETCH_AUTO ? STRETCH_AUTO_VAL : STRETCH_CYCLES_MANUAL;
+    localparam int STRETCH_FINAL = (STRETCH_RAW > 0) ? STRETCH_RAW : 1;
     // Pulse src_valid on every press_event (i.e. on every counter
     // increment). cdc_open_loop holds data + valid for STRETCH_CYCLES
     // src clocks and synchronizes the valid pulse into the dst domain.
@@ -338,7 +375,7 @@ module cdc_counter_domain #(
 
     cdc_open_loop #(
         .DATA_WIDTH     (VAL_WIDTH),
-        .STRETCH_CYCLES (STRETCH_CYCLES_STRETCH),
+        .STRETCH_CYCLES (STRETCH_FINAL),
         .SYNC_STAGES    (SYNC_STAGES)
     ) u_stretch (
         .clk_src    (ctr_clk),

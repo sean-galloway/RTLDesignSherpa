@@ -123,6 +123,44 @@ XDC: each `ctr_clk[i]` is declared as a `create_generated_clock` derived from sy
 
 ---
 
+## Tuning the STRETCH (mode 1) cliff
+
+The STRETCH mode (`CDC_MODE = 1`, `cdc_open_loop`) holds source data + valid for `STRETCH_CYCLES` source-clock periods. The destination needs at least `(SYNC_STAGES + 1)` dst-clock periods to capture safely. So the design's cliff (where stretch is no longer long enough) is:
+
+```
+max_safe_src_clk = STRETCH_CYCLES × dst_clk / (SYNC_STAGES + 1)
+```
+
+`cdc_counter_domain` picks `STRETCH_CYCLES` at elaboration time via two knobs:
+
+| Parameter | Default | Purpose |
+|---|---|---|
+| `STRETCH_AUTO` | `1` (on) | When `1`, auto-compute STRETCH from clock periods. When `0`, use `STRETCH_CYCLES_MANUAL` verbatim. |
+| `STRETCH_MAX_SAFE_SRC_HZ` | `25_000_000` | Highest source clock for which STRETCH should be sized safely. Anything above this will start dropping pulses → that's the demo cliff. |
+| `STRETCH_CYCLES_MANUAL` | `1` | Used only when `STRETCH_AUTO = 0`. |
+| `DST_CLK_HZ` | `100_000_000` | sys_clk frequency, for the auto-compute. |
+| `SYNC_STAGES` | `3` | Destination synchronizer depth. |
+
+**Auto-compute formula** (elaboration time, folds to a literal in synth):
+```
+STRETCH_CYCLES = ceil((SYNC_STAGES + 1) × MAX_SAFE_SRC_HZ / DST_CLK_HZ)
+```
+
+**Cheat sheet at defaults (`SYNC_STAGES=3`, `DST_CLK_HZ=100 MHz`):**
+
+| `MAX_SAFE_SRC_HZ` | Auto STRETCH | Cliff (sources above this fail) |
+|---|---|---|
+| 10 MHz | 1 | ~25 MHz |
+| 25 MHz (default) | 1 | ~25 MHz |
+| 27.6 MHz | 2 | ~50 MHz |
+| 50 MHz | 2 | ~50 MHz |
+| 72.7 MHz | 3 | ~75 MHz |
+| 100 MHz | 4 | ~100 MHz |
+
+STRETCH is an integer, so two different `MAX_SAFE_SRC_HZ` values can produce the same STRETCH and therefore the same physical cliff. The formula rounds up. For demonstrations where you want the cliff at a specific frequency, override via `STRETCH_AUTO = 0` and a hand-picked `STRETCH_CYCLES_MANUAL`.
+
+---
+
 ## Host script
 
 See [`host/run_cdc_demo.py`](../host/run_cdc_demo.py). Quick overview:
