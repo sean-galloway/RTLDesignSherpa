@@ -35,16 +35,18 @@ hierarchical `report_utilization`). Raw reports live in
 
 ## Results
 
-### Bare DMA, OOC (8ch / dw128 / sd256, monitors off) — 2026-06-24
+### Bare DMA, OOC (8ch / dw128 / sd256, monitors off) — 2026-06-25
+
+Monitors fully off: `USE_AXI_MONITORS=0` (removes the data **and** descriptor AXI
+monitors — base + transaction CAM + reporters) and `GEN_MON=0` (drops the
+per-channel MonBus emitters). See the "monitors off" note below.
 
 | Resource             | Used   | Available | Util % |
 |----------------------|-------:|----------:|-------:|
-| Slice LUTs           | 15,667 |    63,400 | 24.7%  |
-| — LUT as Logic       | 13,891 |    63,400 | 21.9%  |
+| Slice LUTs           | 14,965 |    63,400 | 23.6%  |
+| — LUT as Logic       | 13,189 |    63,400 | 20.8%  |
 | — LUT as Memory      |  1,776 |    19,000 |  9.3%  |
-| Slice Registers (FF) | 10,603 |   126,800 |  8.4%  |
-| F7 Muxes             |    312 |    31,700 |  1.0%  |
-| F8 Muxes             |      4 |    15,850 |  0.0%  |
+| Slice Registers (FF) | 10,052 |   126,800 |  7.9%  |
 | Block RAM Tile       |   16.5 |       135 | 12.2%  |
 | DSPs                 |      0 |       240 |  0.0%  |
 
@@ -54,36 +56,37 @@ BRAM detail: 16× RAMB36 + 1× RAMB18.
 
 | Instance | Module | Total LUTs | FFs | BRAM |
 |---|---|---:|---:|---:|
-| `stream_top_ch8` | (top) | 15,667 | 10,603 | 16.5 |
-| `u_stream_core` | stream_core | 13,553 | 9,217 | 16.5 |
-| `u_scheduler_group_array` | scheduler_group_array (8× groups) | 8,712 | 5,825 | 0 |
+| `stream_top_ch8` | (top) | 14,965 | 10,052 | 16.5 |
+| `u_stream_core` | stream_core | 12,976 | 8,672 | 16.5 |
+| `u_scheduler_group_array` | scheduler_group_array (8× groups + shared desc fetch) | 8,135 | 5,280 | 0 |
 | `u_axi_write_engine` | axi_write_engine | 846 | 632 | 0 |
 | `u_rd_axi_skid` | axi4_master_rd (datapath AXI master) | 632 | 636 | 0 |
 | `u_perf_profiler` | perf_profiler | 205 | 316 | 1× RAMB18 |
 | `u_axi_read_engine` | axi_read_engine | 247 | 168 | 0 |
 | `g_apb_passthrough.u_apb_slave` | apb_slave | 236 | 207 | 0 |
 
-The scheduler/descriptor groups (one per channel) dominate at ~8.7k LUTs / 5.8k FF;
+The scheduler/descriptor groups (one per channel) dominate at ~8.1k LUTs / 5.3k FF;
 the bulk of the BRAM is the per-channel SRAM datapath inside `stream_core`.
 
-### Channel scaling (OOC, monitors off, dw128 / sd256) — 2026-06-24
+### Channel scaling (OOC, monitors off, dw128 / sd256) — 2026-06-25
 
 Physical channel count swept via `AREA_NUM_CHANNELS` (datapath width and SRAM
 depth held constant), so only the per-channel slices vary.
 
 | Channels | Slice LUTs | — Logic | — Memory | Slice FFs | BRAM Tile |
 |---------:|-----------:|--------:|---------:|----------:|----------:|
-| 2        |      6,948 |   6,496 |      452 |     5,403 |       4.5 |
-| 4        |     10,010 |   9,116 |      894 |     7,143 |       8.5 |
-| 8        |     15,667 |  13,891 |    1,776 |    10,603 |      16.5 |
+| 1        |      4,797 |   4,565 |      232 |     3,965 |       2.5 |
+| 2        |      6,464 |   6,012 |      452 |     4,858 |       4.5 |
+| 4        |      9,145 |   8,251 |      894 |     6,598 |       8.5 |
+| 8        |     14,965 |  13,189 |    1,776 |    10,052 |      16.5 |
 
-Scaling is close to linear: a fixed base (APB/CSR + shared control) of ~4.0k LUTs
-plus **~1.45k LUTs, ~870 FFs, and ~2 BRAM tiles per channel** (the scheduler /
-descriptor group + per-channel SRAM datapath). BRAM tracks the channel count
-exactly — one 256-deep × 128-bit SRAM tile pair per channel.
+Scaling is close to linear: a fixed base (APB/CSR + shared control + shared desc
+fetch) of ~3.3k LUTs plus **~1.45k LUTs, ~870 FFs, and ~2 BRAM tiles per channel**
+(the scheduler / descriptor group + per-channel SRAM datapath). BRAM tracks the
+channel count exactly — one 256-deep × 128-bit SRAM tile pair per channel.
 
-`NUM_CHANNELS=1` now synthesizes **and passes functional verification**
-(5,586 LUTs / 4,510 FF / 2.5 BRAM). Enabling it took two changes plus a latent
+`NUM_CHANNELS=1` synthesizes **and passes functional verification**
+(4,797 LUTs / 3,965 FF / 2.5 BRAM). Enabling it took two changes plus a latent
 bug fix:
 
 1. **Width guards.** `$clog2(1)=0` underflowed channel-ID part-selects to
@@ -101,8 +104,8 @@ bug fix:
    `test_stream_top.py` (multi-descriptor, multi-burst); verified fixed.
 
 The change is a **verified no-op for `NUM_CHANNELS > 1`** — the 8-channel build
-is byte-identical (15,667 / 10,603 / 16.5) before and after (the single-client
-path isn't elaborated at N>1). A 1-channel STREAM is somewhat academic: the
+is byte-identical before and after (the single-client path isn't elaborated at
+N>1). A 1-channel STREAM is somewhat academic: the
 production build is 8-channel and runs single-channel workloads by enabling one
 channel at runtime via `cfg_channel_enable` (how the "1 channel" perf runs were
 measured). The 1-channel *build* exists for the iDMA parity comparison.
@@ -118,15 +121,15 @@ From the as-built `stream_char_top` bitstream (`make bitstream`, timing met,
 | `stream_char_top` (whole platform) | 48,714 | 40,819 | 10.5 | 76.8% LUT util on the 100T |
 | `u_harness` | 48,672 | 40,727 | 10.5 | DMA + observer + CSR + UART + trace + delay model |
 | `u_stream` = `stream_top_ch8` | 21,527 | 20,855 | 8.5 | **monitors ON** here (`USE_AXI_MONITORS=1` for the perf measurement) |
-| OOC bare DMA (above) | 15,667 | 10,603 | 16.5 | **monitors OFF**, post-synth |
+| OOC bare DMA (above) | 14,965 | 10,052 | 16.5 | **monitors OFF**, post-synth |
 
 **Read this carefully — the two `stream_top_ch8` numbers are not the same build:**
 
 - The in-context `u_stream` (21.5k LUTs / 20.9k FF) is the **instrumented** DMA:
   the characterization bitstream turns the descriptor AXI monitor + MonBus group
-  ON so it can measure the datapath. The ~5.9k-LUT / ~10.3k-FF gap over the OOC
+  ON so it can measure the datapath. The ~6.6k-LUT / ~10.8k-FF gap over the OOC
   bare DMA is essentially the monitor/MonBus cost.
-- The **OOC bare DMA (15,667 LUTs) is the apples-to-apples SG-DMA comparison
+- The **OOC bare DMA (14,965 LUTs) is the apples-to-apples SG-DMA comparison
   number** — monitors compiled out.
 - Methodology caveat: OOC is post-**synth**; the in-context figures are
   post-**route** (after `phys_opt`). The BRAM difference (16.5 OOC vs 8.5 impl)
@@ -163,14 +166,14 @@ below).
 
 | Design (1 channel, dw128) | LUTs | FFs | BRAM |
 |---|---:|---:|---:|
-| **STREAM** (`stream_top_ch8`, monitors off) | 5,586 | 4,510 | 2.5 |
+| **STREAM** (`stream_top_ch8`, monitors off) | 4,797 | 3,965 | 2.5 |
 | iDMA (backend + desc64) | 3,869 | 5,685 | 0 |
 
 **The architectures cross over.** At one channel iDMA is leaner in LUTs (3,869 vs
-5,586): STREAM still pays for its multi-channel machinery (shared scheduler
-infrastructure, APB CSR, an SRAM tile) that a single channel can't amortize.
-STREAM is denser in FFs and spends 2.5 BRAM where iDMA spends none. But the
-slopes invert with scale — see next.
+4,797 — a 24% gap): STREAM still pays for its multi-channel machinery (shared
+scheduler infrastructure, APB CSR, an SRAM tile) that a single channel can't
+amortize. But STREAM is **leaner in FFs** (3,965 vs 5,685 — desc64's prefetch
+FIFOs are FF-heavy) and the LUT slopes invert with scale — see next.
 
 ### STREAM vs iDMA at 8 channels
 
@@ -180,11 +183,11 @@ to share the memory port:
 
 | Design (8 channels, dw128) | LUTs | FFs | BRAM |
 |---|---:|---:|---:|
-| **STREAM** (`stream_top_ch8`, monitors off) | **15,667** | **10,603** | **16.5** |
+| **STREAM** (`stream_top_ch8`, monitors off) | **14,965** | **10,052** | **16.5** |
 | iDMA: 8×(backend+desc64) + 8→1 mux | 31,368 | 45,691 | 0 |
-| ratio (iDMA / STREAM) | **2.0×** | **4.3×** | — |
+| ratio (iDMA / STREAM) | **2.1×** | **4.5×** | — |
 
-**STREAM is ~2× denser in LUTs and ~4× in FFs at 8 channels**, trading ~16.5
+**STREAM is ~2× denser in LUTs and ~4.5× in FFs at 8 channels**, trading ~16.5
 BRAM tiles (its per-channel SRAM reorder buffers) for the savings. This is the
 shared-engine + BRAM-buffered architecture paying off: iDMA replicates the full
 read/write/legalize datapath per channel and uses no BRAM, so eight of them cost
@@ -194,14 +197,14 @@ far more logic.
 
 | Channels | STREAM LUTs | iDMA LUTs (N×3,869 + mux) | winner |
 |---------:|------------:|--------------------------:|:------|
-| 1 | 5,586 | 3,869 | iDMA |
-| 2 | 6,948 | ~7,940 | STREAM |
-| 4 | 10,010 | ~15,700 | STREAM |
-| 8 | 15,667 | 31,368 | STREAM |
+| 1 | 4,797 | 3,869 | iDMA |
+| 2 | 6,464 | ~7,940 | STREAM |
+| 4 | 9,145 | ~15,700 | STREAM |
+| 8 | 14,965 | 31,368 | STREAM |
 
-STREAM scales as **~4.1k base + ~1.44k LUTs/channel**; iDMA scales as
+STREAM scales as **~3.3k base + ~1.45k LUTs/channel**; iDMA scales as
 **~3.87k LUTs/channel** (plus a small shared mux). The lines cross just above
-**1 channel** (~N≈1.7): below it iDMA's lean single engine wins; at two channels
+**1 channel** (~N≈1.4): below it iDMA's lean single engine wins; at two channels
 and up STREAM's shared engines + amortized base pull decisively ahead, and the
 gap widens with channel count. STREAM is built for the multi-channel regime it
 targets, and there it is the denser design by a wide margin.
