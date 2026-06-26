@@ -110,6 +110,47 @@ class AxiIntakeTB(TBBase):
     def queue_inject(self, axi_id: int, beats: List[int]) -> None:
         self._inject_q.append((axi_id, beats))
 
+    def set_axi_timing_per_channel(
+        self,
+        aw: str = "fast",
+        w:  str = "fast",
+        b:  str = "fast",
+        ar: str = "fast",
+        r:  str = "fast",
+    ) -> None:
+        """Apply a different AXI_RANDOMIZER_CONFIGS profile to each channel.
+
+        Same shape as DDR2LPDDR2TopTB.set_axi_timing_per_channel(). Lets
+        the FUB-level test cross the same delay-profile grid as the
+        controller top, so an axi_intake bug specific to a profile combo
+        (e.g. fast AW + slow_producer W stalling wbuf flow-control) is
+        caught in the cheap env first.
+        """
+        from CocoTBFramework.components.shared.flex_randomizer import (
+            FlexRandomizer,
+        )
+        from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
+
+        for name in (aw, w, b, ar, r):
+            if name not in AXI_RANDOMIZER_CONFIGS:
+                raise ValueError(f"unknown profile '{name}'")
+        m = "master"
+        s = "slave"
+        self.axi_master_wr.aw_channel.randomizer = FlexRandomizer(
+            AXI_RANDOMIZER_CONFIGS[aw][m])
+        self.axi_master_wr.w_channel.randomizer  = FlexRandomizer(
+            AXI_RANDOMIZER_CONFIGS[w][m])
+        self.axi_master_wr.b_channel.randomizer  = FlexRandomizer(
+            AXI_RANDOMIZER_CONFIGS[b][s])
+        self.axi_master_rd.ar_channel.randomizer = FlexRandomizer(
+            AXI_RANDOMIZER_CONFIGS[ar][m])
+        self.axi_master_rd.r_channel.randomizer  = FlexRandomizer(
+            AXI_RANDOMIZER_CONFIGS[r][s])
+        self.log.info(
+            "AXI per-channel timing: aw=%s w=%s b=%s ar=%s r=%s",
+            aw, w, b, ar, r,
+        )
+
     # ---- setup ----
 
     def _drive_idle(self) -> None:

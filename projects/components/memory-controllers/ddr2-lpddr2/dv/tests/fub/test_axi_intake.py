@@ -58,6 +58,7 @@ async def cocotb_test_axi_intake(dut):
         "rd_inject_e2e":      _rd_inject_e2e,
         "buser_echo":         _buser_echo,
         "wbuf_backpressure":  _wbuf_backpressure,
+        "profile_sweep_b2b":  _profile_sweep_b2b,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -238,6 +239,52 @@ async def _rd_inject_e2e(tb):
     )
 
 
+async def _profile_sweep_b2b(tb):
+    """Profile-cross-product workload: pipelined writes + reads under the
+    AXI per-channel timing profile assignment passed via env vars
+    (AXI_PROFILE_AW/W/B/AR/R). Smoke-level coverage that the FUB's
+    AW-side wbuf flow control, B-channel completion, and rd_inject path
+    all survive every channel-timing combo we sweep at the top level.
+    """
+    aw = os.environ.get("AXI_PROFILE_AW", "fast")
+    w  = os.environ.get("AXI_PROFILE_W",  "fast")
+    b  = os.environ.get("AXI_PROFILE_B",  "fast")
+    ar = os.environ.get("AXI_PROFILE_AR", "fast")
+    r  = os.environ.get("AXI_PROFILE_R",  "fast")
+    tb.set_axi_timing_per_channel(aw=aw, w=w, b=b, ar=ar, r=r)
+
+    BURST = 4
+    # Drive 8 pipelined writes with mixed ids, each with a marker
+    # payload. The driving helper synchronously fires
+    # wr_entry_complete per AW push, so writes drain.
+    for i in range(8):
+        data = [((i << 16) | j) for j in range(BURST)]
+        pushed = await _drive_one_write(
+            tb, axid=i & 0xF, addr=i * (BURST * 8), data=data,
+        )
+        assert pushed.length == BURST
+
+    # Drive a few rd_inject beats to exercise the R-channel under the
+    # given AR/R profile timing.
+    for i in range(4):
+        tb.queue_inject(axi_id=(i & 0xF),
+                        beats=[((i << 16) | k) for k in range(BURST)])
+    # Walk the inject queue
+    for axi_id, beats in list(tb._inject_q):
+        for k, beat in enumerate(beats):
+            tb.dut.rd_inject_valid_i.value = 1
+            tb.dut.rd_inject_id_i.value    = axi_id
+            tb.dut.rd_inject_data_i.value  = beat
+            tb.dut.rd_inject_last_i.value  = (1 if k == BURST - 1 else 0)
+            # Wait for handshake
+            for _ in range(50):
+                await RisingEdge(tb.dut.aclk)
+                if int(tb.dut.rd_inject_ready_o.value) == 1:
+                    break
+        tb.dut.rd_inject_valid_i.value = 0
+    tb._inject_q.clear()
+
+
 async def _buser_echo(tb):
     """Two writes with distinct (id, awuser). Drive
     wr_entry_complete for each in arrival order. Verify the master sees
@@ -315,6 +362,113 @@ def test_axi_intake(request, test_type):
     compile_args = ["+define+USE_ASYNC_RESET", "-Wno-WIDTHTRUNC"]
     sim_args = []
     plus_args = []
+    if enable_waves:
+        compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+        sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
+        plus_args    += ["--trace"]
+        extra_env["VERILATOR_TRACE_FST"] = "1"
+
+    compile_args += get_coverage_compile_args()
+    extra_env.update(get_coverage_env(test_name, sim_build=sim_build))
+
+    run(python_search=[tests_dir],
+        verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase="cocotb_test_axi_intake",
+        sim_build=sim_build, simulator="verilator",
+        extra_env=extra_env, parameters=parameters,
+        compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
+        waves=enable_waves, keep_files=True, timescale="1ns/1ps")
+
+
+# ============================================================================
+# AXI4 random-timing profile sweep — same 31-config matrix as the controller
+# top, applied at the FUB. Catches axi_intake-specific cross-channel-timing
+# bugs (e.g. wbuf flow-control stalls under slow_producer W + fast AW) before
+# the heavier controller-top sweep.
+# ============================================================================
+
+_AXI_PROFILES = ("fixed", "constrained", "fast", "backtoback",
+                 "burst_pause", "slow_producer", "high_throughput")
+
+
+def _build_intake_profile_matrix() -> list[tuple[str, str, str, str, str]]:
+    seen: set[tuple[str, str, str, str, str]] = set()
+    matrix: list[tuple[str, str, str, str, str]] = []
+
+    def add(t: tuple[str, str, str, str, str]) -> None:
+        if t not in seen:
+            seen.add(t)
+            matrix.append(t)
+
+    for p in _AXI_PROFILES:
+        add((p, p, p, p, p))
+    fast = "fast"
+    for p in _AXI_PROFILES:
+        if p == fast:
+            continue
+        add((p,    fast, fast, fast, fast))
+        add((fast, p,    fast, fast, fast))
+        add((fast, fast, fast, p,    fast))
+        add((fast, fast, fast, fast, p   ))
+    return matrix
+
+
+_INTAKE_PROFILE_MATRIX = _build_intake_profile_matrix()
+
+
+@pytest.mark.parametrize(
+    "profile_aw,profile_w,profile_b,profile_ar,profile_r",
+    _INTAKE_PROFILE_MATRIX,
+    ids=[f"aw_{a}_w_{w}_b_{b}_ar_{ar}_r_{r}"
+         for (a, w, b, ar, r) in _INTAKE_PROFILE_MATRIX],
+)
+def test_axi_intake_profile_sweep(
+    request, profile_aw, profile_w, profile_b, profile_ar, profile_r,
+):
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "axi_intake"
+    tag = (f"aw_{profile_aw}_w_{profile_w}_b_{profile_b}"
+           f"_ar_{profile_ar}_r_{profile_r}")
+    test_name = f"test_axi_intake_profile_sweep_{tag}"
+
+    filelist_path = ("projects/components/memory-controllers/ddr2-lpddr2/"
+                     "rtl/filelists/fub/axi_intake.f")
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=filelist_path)
+
+    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        "DUT": dut_name,
+        "TEST_TYPE": "profile_sweep_b2b",
+        "AXI_ID_WIDTH":   "4",
+        "AXI_USER_WIDTH": "8",
+        "AXI_DATA_WIDTH": "64",
+        "AXI_ADDR_WIDTH": "32",
+        "AXI_PROFILE_AW": profile_aw,
+        "AXI_PROFILE_W":  profile_w,
+        "AXI_PROFILE_B":  profile_b,
+        "AXI_PROFILE_AR": profile_ar,
+        "AXI_PROFILE_R":  profile_r,
+        "SEED": str(random.randint(0, 100000)),
+        "COCOTB_LOG_LEVEL": "INFO",
+        "COCOTB_RESULTS_FILE":
+            os.path.join(log_dir, f"results_{test_name}.xml"),
+    }
+    parameters = {
+        "AXI_ID_WIDTH":   "4",
+        "AXI_USER_WIDTH": "8",
+        "AXI_DATA_WIDTH": "64",
+        "AXI_ADDR_WIDTH": "32",
+    }
+
+    enable_waves = bool(int(os.environ.get("WAVES", "0")))
+    compile_args = ["+define+USE_ASYNC_RESET", "-Wno-WIDTHTRUNC"]
+    sim_args: list = []
+    plus_args: list = []
     if enable_waves:
         compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
         sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
