@@ -737,6 +737,100 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
             N_BURSTS, BURST_LEN,
         )
 
+    elif test_type == "profile_sweep_b2b":
+        # Parametric scenario: each AXI channel's timing profile is
+        # read from env vars (AXI_PROFILE_AW/W/B/AR/R, default "fast").
+        # Body is "pipelined AW + W with mixed ids, then 17 concurrent
+        # same-id read_transaction tasks" — exercises both the write
+        # serialization and read same-id ordering paths under whatever
+        # channel-profile combination pytest's parametrize hands in.
+        tb.init_axi_masters()
+        prof_aw = os.environ.get("AXI_PROFILE_AW", "fast")
+        prof_w  = os.environ.get("AXI_PROFILE_W",  "fast")
+        prof_b  = os.environ.get("AXI_PROFILE_B",  "fast")
+        prof_ar = os.environ.get("AXI_PROFILE_AR", "fast")
+        prof_r  = os.environ.get("AXI_PROFILE_R",  "fast")
+        tb.set_axi_timing_per_channel(
+            aw=prof_aw, w=prof_w, b=prof_b, ar=prof_ar, r=prof_r,
+        )
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_wr.b_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        N_BURSTS = 17
+        BURST_LEN = 4
+        BASE = 0x0001_0000
+        STRIDE = BURST_LEN * 8
+        FULL_STRB = (1 << (tb.axi_data_width // 8)) - 1
+
+        def mk_payload(burst_idx: int, beat_idx: int) -> int:
+            return ((burst_idx & 0xFFFF) << 16) | (beat_idx & 0xFFFF)
+
+        # Pipelined writes (mixed ids).
+        aw_tasks: list = []
+        w_tasks:  list = []
+        for b in range(N_BURSTS):
+            aw_packet = tb.axi_master_wr.aw_channel.create_packet(
+                addr=BASE + b * STRIDE,
+                len=BURST_LEN - 1,
+                id=(b & 0xF),
+                size=3,
+                burst=1,
+            )
+            aw_tasks.append(cocotb.start_soon(
+                tb.axi_master_wr.aw_channel.send(aw_packet)
+            ))
+            for k in range(BURST_LEN):
+                w_packet = tb.axi_master_wr.w_channel.create_packet(
+                    data=mk_payload(b, k),
+                    last=(1 if k == BURST_LEN - 1 else 0),
+                    strb=FULL_STRB,
+                )
+                w_tasks.append(cocotb.start_soon(
+                    tb.axi_master_wr.w_channel.send(w_packet)
+                ))
+        for t in aw_tasks + w_tasks:
+            await t
+        from cocotb.triggers import ClockCycles as _CC4
+        await _CC4(dut.mc_clk, 2000)
+
+        # Concurrent same-id reads — the path that caught the scheduler
+        # age-pick bug. Re-run it under each channel-profile combo.
+        rd_tasks: list = []
+        for b in range(N_BURSTS):
+            rd_tasks.append(cocotb.start_soon(
+                tb.axi_master_rd.read_transaction(
+                    address=BASE + b * STRIDE,
+                    burst_len=BURST_LEN,
+                    id=0,
+                    size=3,
+                )
+            ))
+        results = []
+        for t in rd_tasks:
+            results.append(await t)
+
+        first_bad: Optional[tuple] = None
+        for b, data in enumerate(results):
+            for k in range(BURST_LEN):
+                expected = mk_payload(b, k)
+                if data[k] != expected:
+                    if first_bad is None:
+                        first_bad = (b, k, expected, data[k])
+        assert first_bad is None, (
+            f"profile_sweep_b2b "
+            f"(aw={prof_aw} w={prof_w} b={prof_b} ar={prof_ar} r={prof_r}) "
+            f"corrupted at burst={first_bad[0]} beat={first_bad[1]}: "
+            f"wrote 0x{first_bad[2]:016X} read 0x{first_bad[3]:016X}"
+        )
+        tb.log.info(
+            "profile_sweep_b2b OK aw=%s w=%s b=%s ar=%s r=%s",
+            prof_aw, prof_w, prof_b, prof_ar, prof_r,
+        )
+
     elif test_type == "memory_preload_read":
         # Preload bytes directly into DFISlavePHY's MemoryModel, then
         # read them back through AXI. Proves the BFM + memory model
@@ -1265,6 +1359,126 @@ def test_ddr2_lpddr2_top(request, test_type):
     ]
     sim_args = []
     plus_args = []
+    if enable_waves:
+        compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+        sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
+        plus_args    += ["--trace"]
+        extra_env["VERILATOR_TRACE_FST"] = "1"
+
+    compile_args += get_coverage_compile_args()
+    extra_env.update(get_coverage_env(test_name, sim_build=sim_build))
+
+    run(python_search=[tests_dir],
+        verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase="cocotb_test_ddr2_lpddr2_top",
+        sim_build=sim_build, simulator="verilator",
+        extra_env=extra_env, parameters=parameters,
+        compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
+        waves=enable_waves, keep_files=True, timescale="1ns/1ps")
+
+
+# ============================================================================
+# AXI4 random-timing profile sweep — parametric cross-product across all five
+# AXI channels (AW, W, B, AR, R). Drives the same b2b pipelined-AW + same-id
+# pipelined-AR workload, varying which AMBA randomizer profile is applied to
+# each channel. Catches cross-channel-timing interactions that a uniform
+# profile sweep would miss.
+# ============================================================================
+
+_AXI_PROFILES = ("fixed", "constrained", "fast", "backtoback",
+                 "burst_pause", "slow_producer", "high_throughput")
+
+
+def _build_profile_matrix() -> list[tuple[str, str, str, str, str]]:
+    """31 channel-profile tuples: 7 uniform + per-channel sweeps.
+
+    - 7 uniform: every channel set to the same profile.
+    - For each of {AW, W, AR, R}: each non-uniform profile, others at "fast".
+      (B-channel is slave-side ready and produces low coverage delta on its
+      own — covered as part of uniform sweeps.)
+    Total = 7 + 4 * 6 = 31. Dedup leaves it at 31 unique.
+    """
+    seen: set[tuple[str, str, str, str, str]] = set()
+    matrix: list[tuple[str, str, str, str, str]] = []
+
+    def add(t: tuple[str, str, str, str, str]) -> None:
+        if t not in seen:
+            seen.add(t)
+            matrix.append(t)
+
+    for p in _AXI_PROFILES:
+        add((p, p, p, p, p))
+
+    fast = "fast"
+    for p in _AXI_PROFILES:
+        if p == fast:
+            continue
+        add((p,    fast, fast, fast, fast))  # AW varies
+        add((fast, p,    fast, fast, fast))  # W  varies
+        add((fast, fast, fast, p,    fast))  # AR varies
+        add((fast, fast, fast, fast, p   ))  # R  varies
+    return matrix
+
+
+_PROFILE_MATRIX = _build_profile_matrix()
+
+
+@pytest.mark.parametrize(
+    "profile_aw,profile_w,profile_b,profile_ar,profile_r",
+    _PROFILE_MATRIX,
+    ids=[f"aw_{a}_w_{w}_b_{b}_ar_{ar}_r_{r}"
+         for (a, w, b, ar, r) in _PROFILE_MATRIX],
+)
+def test_ddr2_lpddr2_top_profile_sweep(
+    request, profile_aw, profile_w, profile_b, profile_ar, profile_r,
+):
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "ddr2_lpddr2_top_tb_top"
+    tag = (f"aw_{profile_aw}_w_{profile_w}_b_{profile_b}"
+           f"_ar_{profile_ar}_r_{profile_r}")
+    test_name = f"test_ddr2_lpddr2_top_profile_sweep_{tag}"
+
+    filelist_path = ("projects/components/memory-controllers/ddr2-lpddr2/"
+                     "rtl/filelists/top/ddr2_lpddr2_top.f")
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=filelist_path)
+    verilog_sources.append(os.path.join(
+        repo_root,
+        "projects/components/memory-controllers/ddr2-lpddr2/dv/tb/"
+        "ddr2_lpddr2_top_tb_top.sv"))
+
+    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        "DUT": dut_name,
+        "TEST_TYPE": "profile_sweep_b2b",
+        "MEM_TYPE": "DDR2",
+        "NUM_RANKS": "1",
+        "AXI_PROFILE_AW": profile_aw,
+        "AXI_PROFILE_W":  profile_w,
+        "AXI_PROFILE_B":  profile_b,
+        "AXI_PROFILE_AR": profile_ar,
+        "AXI_PROFILE_R":  profile_r,
+        "SEED": str(random.randint(0, 100000)),
+        "COCOTB_LOG_LEVEL": "INFO",
+        "COCOTB_RESULTS_FILE":
+            os.path.join(log_dir, f"results_{test_name}.xml"),
+    }
+    parameters = {"NUM_RANKS": "1", "PAGE_POLICY": "1"}
+
+    enable_waves = bool(int(os.environ.get("WAVES", "0")))
+    compile_args = [
+        "+define+USE_ASYNC_RESET",
+        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
+        "-Wno-CASEOVERLAP",
+    ]
+    sim_args: list = []
+    plus_args: list = []
     if enable_waves:
         compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
         sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
