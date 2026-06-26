@@ -1,6 +1,12 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
+# TODO(amba-profiles): exercise every BFM here with the random-timing
+# profiles in bin/TBClasses/amba/amba_random_configs.py (backtoback /
+# constrained / fast / slow_*) so we hit interface-level edge cases —
+# skid races, FIFO drain corners, mid-burst stalls. Current scenarios
+# only use default timing, which masks bugs only triggered by specific
+# valid/ready stall patterns.
 """Unit-test runner for `axi4_master_wr_pattern_gen`.
 
 Pins the contracts the harness (and the read-side counterpart) rely on:

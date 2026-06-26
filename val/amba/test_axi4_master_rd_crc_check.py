@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
+# TODO(amba-profiles): exercise every BFM here with the random-timing
+# profiles in bin/TBClasses/amba/amba_random_configs.py (backtoback /
+# constrained / fast / slow_*). Current scenarios use default timing
+# only and miss valid/ready stall-pattern edge cases.
 """Unit-test runner for `axi4_master_rd_crc_check`."""
 
 import os

@@ -1,6 +1,11 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
+# TODO(amba-profiles): apply random-timing profiles from
+# bin/TBClasses/amba/amba_random_configs.py to both engines + the slave
+# stubs in this wrapper. Today's pair test runs at default (back-to-
+# back-ish) timing; mixing profiles will hit AW-decoupling, wbuf
+# wraparound, and B-response collision corners that are otherwise blind.
 """Cross-block check: writer fills a memory model with LFSR data; reader
 walks the same address descriptor and CRCs the readback. End-to-end
 assertions:
