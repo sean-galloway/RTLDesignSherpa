@@ -45,7 +45,7 @@ from tbclasses.ddr2_lpddr2_core_macro_tb import DDR2LPDDR2CoreMacroTB  # noqa: E
 # ---------------------------------------------------------------------------
 
 
-@cocotb.test(timeout_time=120, timeout_unit="ms")
+@cocotb.test(timeout_time=2000, timeout_unit="ms")
 async def cocotb_test_ddr2_lpddr2_core_macro(dut):
     test_type = os.environ.get("TEST_TYPE", "smoke")
     mem_type  = os.environ.get("MEM_TYPE", "DDR2").upper()
@@ -87,6 +87,17 @@ async def cocotb_test_ddr2_lpddr2_core_macro(dut):
         ar = os.environ.get("AXI_PROFILE_AR", "fast")
         r  = os.environ.get("AXI_PROFILE_R",  "fast")
         tb.set_axi_timing_per_channel(aw=aw, w=w, b=b, ar=ar, r=r)
+        # Slow profiles (burst_pause / slow_producer) insert long valid/
+        # ready bubbles. 17 bursts × 4 beats through the entire write +
+        # read path can exceed the BFM's default 5000-cycle timeout on
+        # the per-task read_transaction wait. Widen aggressively so a
+        # slow profile doesn't masquerade as a controller bug.
+        tb.axi_master_rd.timeout_cycles = 100_000
+        tb.axi_master_wr.timeout_cycles = 100_000
+        # KNOWN-FAIL under UNIFORM slow profiles: aw_*_w_*_b_*_ar_*_r_*
+        # at burst_pause OR slow_producer hits a real controller stall
+        # at burst 15-16 (sim runs to ~7ms then 0/4 R beats). Per-channel
+        # variants pass. Tracked separately.
 
         N_BURSTS = 17
         BURST_LEN = 4

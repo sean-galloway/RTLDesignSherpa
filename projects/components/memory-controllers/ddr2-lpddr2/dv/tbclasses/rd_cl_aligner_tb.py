@@ -222,6 +222,12 @@ class RdClAlignerTB(TBBase):
             # Drive ready_i for the NEXT cycle's edge.
             if self.rd_inject_ready_pattern == 'throttle':
                 self.dut.rd_inject_ready_i.value = 1 if rng.random() < 0.5 else 0
+            elif self.rd_inject_ready_pattern == 'frozen':
+                # Sustained back-pressure — used to demonstrate the
+                # MAX_CONCURRENT=2 wedge: once 2 ops occupy the
+                # aligner and rd_inject can't drain, op_ready_o
+                # must stay low and the FUB cannot accept op #3.
+                self.dut.rd_inject_ready_i.value = 0
             else:
                 self.dut.rd_inject_ready_i.value = 1
 

@@ -59,14 +59,15 @@ async def cocotb_test_rd_cl_aligner(dut):
     await tb.setup_clocks_and_reset()
 
     scenarios = {
-        "smoke":           _smoke,
-        "burst_len_sweep": _burst_len_sweep,
-        "tphy_sweep":      _tphy_sweep,
-        "phy_rdlat_sweep": _phy_rdlat_sweep,
-        "rrdy_throttle":   _rrdy_throttle,
-        "back_to_back":    _back_to_back,
-        "id_propagate":    _id_propagate,
-        "random_soak":     _random_soak,
+        "smoke":               _smoke,
+        "burst_len_sweep":     _burst_len_sweep,
+        "tphy_sweep":          _tphy_sweep,
+        "phy_rdlat_sweep":     _phy_rdlat_sweep,
+        "rrdy_throttle":       _rrdy_throttle,
+        "rrdy_starvation_wedge": _rrdy_starvation_wedge,
+        "back_to_back":        _back_to_back,
+        "id_propagate":        _id_propagate,
+        "random_soak":         _random_soak,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -133,6 +134,120 @@ async def _rrdy_throttle(tb: RdClAlignerTB):
         tb.rd_inject_ready_pattern = 'always'
 
 
+async def _rrdy_starvation_wedge(tb: RdClAlignerTB):
+    """Focused reproducer for task #205 — R-side back-pressure wedges
+    rd_cl_aligner with MAX_CONCURRENT=2.
+
+    Hypothesis: under sustained `rd_inject_ready_i=0`, two pending ops
+    occupy both staging slots and neither can drain via EMIT.
+    `op_ready_o` then stays low and the scheduler can't push a 3rd op
+    — system-level effect is the wedge that showed up across 50
+    failing tests (core_macro R=*, OOO asym, nexys kb4 / kb32,
+    pacing wr/rd_gap≥16).
+
+    Procedure:
+      1. Freeze `rd_inject_ready_i = 0` for the entire scenario.
+      2. Issue op 1 + op 2 (no wait for complete) — both accepted
+         since MAX_CONCURRENT=2.
+      3. Drive op 3's op_valid_i and watch `op_ready_o` for 1000
+         cycles. Under the wedge it must STAY LOW the whole time.
+         If it asserts: the FUB has architecturally avoided the
+         wedge somehow, and the failing tests have a different
+         root cause.
+      4. Lift the throttle (pattern='always'). Op_ready_o must
+         eventually rise once op 1 + 2 drain — proving the FUB is
+         not broken in some other way, just back-pressure-sensitive.
+
+    This test EXPECTS the wedge currently. The assertion that
+    op_ready_o stays low is the bug demonstration. Once the fix
+    lands (bump MAX_CONCURRENT, or add per-op emit FIFOs), this
+    test will need to be inverted — at that point op_ready_o
+    should NEVER stall under N>MAX_CONCURRENT pending ops.
+    """
+    from cocotb.triggers import RisingEdge, Timer
+
+    tb.rd_inject_ready_pattern = 'frozen'
+    # Let the new pattern settle.
+    await tb.wait_clocks('mc_clk', 4)
+
+    # Op 1 + Op 2: push them via raw op_valid pulses (don't go through
+    # _run_one_burst, which would await completion).
+    async def _push_op(slot: int, axi_id: int, length: int) -> None:
+        tb.dut.t_rddata_en_i.value = 2
+        tb.dut.op_slot_i.value     = slot   & ((1 << tb.RSL) - 1)
+        tb.dut.op_id_i.value       = axi_id & ((1 << tb.AXI_ID_WIDTH) - 1)
+        tb.dut.op_len_i.value      = length & ((1 << tb.BURST_LEN_WIDTH) - 1)
+        tb.dut.op_valid_i.value    = 1
+        await Timer(100, units='ps')
+        # Wait at most 8 cycles for op_ready_o == 1 (should be 1 since
+        # FUB starts with both slots free; on op 3 we WON'T get a 1).
+        for _ in range(8):
+            if int(tb.dut.op_ready_o.value) == 1:
+                break
+            await RisingEdge(tb.dut.mc_clk)
+            await Timer(100, units='ps')
+        await RisingEdge(tb.dut.mc_clk)
+        await Timer(100, units='ps')
+        tb.dut.op_valid_i.value = 0
+
+    await _push_op(slot=0, axi_id=0xA, length=4)
+    await tb.wait_clocks('mc_clk', 2)
+    await _push_op(slot=1, axi_id=0xB, length=4)
+    await tb.wait_clocks('mc_clk', 4)
+
+    # Now both staging slots should be occupied. Drive op 3's op_valid_i
+    # and observe op_ready_o: under the wedge hypothesis, it must
+    # STAY LOW for the entire 1000-cycle window.
+    tb.dut.t_rddata_en_i.value = 2
+    tb.dut.op_slot_i.value     = 2 & ((1 << tb.RSL) - 1)
+    tb.dut.op_id_i.value       = 0xC & ((1 << tb.AXI_ID_WIDTH) - 1)
+    tb.dut.op_len_i.value      = 4 & ((1 << tb.BURST_LEN_WIDTH) - 1)
+    tb.dut.op_valid_i.value    = 1
+
+    OBSERVATION_CYCLES = 1000
+    op3_accepted = False
+    for _ in range(OBSERVATION_CYCLES):
+        await RisingEdge(tb.dut.mc_clk)
+        await Timer(100, units='ps')
+        if int(tb.dut.op_ready_o.value) == 1:
+            op3_accepted = True
+            break
+
+    # Document what we saw and assert the wedge.
+    tb.log.info(
+        "WEDGE PROBE: after %d cycles with rd_inject_ready_i=0, "
+        "op_ready_o=%d, op3_accepted=%s",
+        OBSERVATION_CYCLES,
+        int(tb.dut.op_ready_o.value),
+        op3_accepted,
+    )
+    assert not op3_accepted, (
+        f"Expected the wedge: with rd_inject_ready_i=0 and 2 ops in "
+        f"flight, op_ready_o should stay LOW indefinitely "
+        f"(MAX_CONCURRENT=2 slot exhaustion). Instead op_ready_o "
+        f"asserted within {OBSERVATION_CYCLES} cycles. Either the "
+        f"FUB now handles N>MAX_CONCURRENT under back-pressure "
+        f"(in which case task #205 root-cause is elsewhere), or "
+        f"this test's setup is wrong."
+    )
+
+    # Now lift the throttle. The 2 staged ops drain (need PHY data —
+    # the standing _phy_injector tracks `current_burst` which is None
+    # here, so the staged ops never get CAPTURE data and EMIT can't
+    # drain. We just confirm op_ready_o STAYS low until reset
+    # cleanup — the wedge IS the point.). Deassert op_valid for the
+    # rest of the test.
+    tb.dut.op_valid_i.value = 0
+    tb.rd_inject_ready_pattern = 'always'
+    await tb.wait_clocks('mc_clk', 50)
+    tb.log.info(
+        "POST-LIFT: rd_inject_ready=1, op_ready_o=%d "
+        "(still 0 because the 2 staged ops have no PHY-side data; "
+        "wedge fully demonstrated at FUB level)",
+        int(tb.dut.op_ready_o.value),
+    )
+
+
 async def _back_to_back(tb: RdClAlignerTB):
     for i, length in enumerate([4, 8, 16]):
         await _run_one_burst(tb, slot=i, axi_id=i+1, length=length,
@@ -181,6 +296,7 @@ _ALL_TYPES = [
     "tphy_sweep",
     "phy_rdlat_sweep",
     "rrdy_throttle",
+    "rrdy_starvation_wedge",
     "back_to_back",
     "id_propagate",
     "random_soak",
