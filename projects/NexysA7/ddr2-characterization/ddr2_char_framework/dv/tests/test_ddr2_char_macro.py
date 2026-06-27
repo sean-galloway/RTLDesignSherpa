@@ -91,12 +91,13 @@ async def _drive_engine_idle(dut) -> None:
 async def _program_writer(dut, *, start_addr: int, stride_0: int,
                           burst_len: int, txn_count: int,
                           axi_id: int = 0, axi_size: int = 3,
-                          lfsr_seed: int = 0) -> None:
+                          lfsr_seed: int = 0, id_mode: int = 0) -> None:
     dut.cfg_wr_start_addr.value    = start_addr
     dut.cfg_wr_addr_stride_0.value = stride_0
     dut.cfg_wr_burst_len.value     = burst_len
     dut.cfg_wr_txn_count.value     = txn_count
     dut.cfg_wr_axi_id.value        = axi_id
+    dut.cfg_wr_id_mode.value       = id_mode
     dut.cfg_wr_axi_size.value      = axi_size
     dut.cfg_wr_lfsr_seed.value     = lfsr_seed
     await RisingEdge(dut.mc_clk)
@@ -106,12 +107,13 @@ async def _program_writer(dut, *, start_addr: int, stride_0: int,
 async def _program_reader(dut, *, start_addr: int, stride_0: int,
                           burst_len: int, txn_count: int,
                           axi_id: int = 0, axi_size: int = 3,
-                          lfsr_seed: int = 0) -> None:
+                          lfsr_seed: int = 0, id_mode: int = 0) -> None:
     dut.cfg_rd_start_addr.value    = start_addr
     dut.cfg_rd_addr_stride_0.value = stride_0
     dut.cfg_rd_burst_len.value     = burst_len
     dut.cfg_rd_txn_count.value     = txn_count
     dut.cfg_rd_axi_id.value        = axi_id
+    dut.cfg_rd_id_mode.value       = id_mode
     dut.cfg_rd_axi_size.value      = axi_size
     dut.cfg_rd_lfsr_seed.value     = lfsr_seed
     await RisingEdge(dut.mc_clk)
@@ -207,7 +209,90 @@ async def cocotb_test_ddr2_char_macro(dut):
         "kb4":       dict(burst=4, n=128,  base=0x0001_0000),
         "kb32":      dict(burst=4, n=1024, base=0x0001_0000),
     }
-    if test_type == "pacing_sweep_b2b":
+    if test_type == "ooo_pacing_schmoo":
+        # Combined OOO + pacing + schmoo sweep.
+        #
+        #   * id_mode != FIXED so each burst carries a different axi id
+        #     → the controller's CAMs see id-spread reads + writes, and
+        #     the scheduler can reorder across ids (OOO permitted by
+        #     AXI4 cross-id).
+        #   * axi_id_base swept 0..15 — covers every IW=4 bit start
+        #     position. With id_mode=COUNTER the per-burst ids wrap
+        #     through all 16 IDs.
+        #   * Writes drive FIRST (memory preset), then a schmoo'd
+        #     rd_start_delay between wr_done and rd_start exposes
+        #     different controller states to the read engine:
+        #        0   cycles — rd arrives while wbuf still draining
+        #       16   cycles — typical b-complete window
+        #       64   cycles — quiescent, no in-flight writes
+        #      256   cycles — long quiescent gap before reads
+        #   * cfg_wr_gap / cfg_rd_gap pacing per schmoo step (folded
+        #     into the same matrix entry to keep test count to 128).
+        axi_id_base    = int(os.environ.get("OOO_AXI_ID", "0"))
+        id_mode        = int(os.environ.get("OOO_ID_MODE", "1"))
+        wr_gap         = int(os.environ.get("OOO_WR_GAP", "0"))
+        rd_gap         = int(os.environ.get("OOO_RD_GAP", "0"))
+        rd_start_delay = int(os.environ.get("OOO_RD_START_DELAY", "0"))
+        tb.log.info(
+            "ooo_pacing_schmoo: axi_id=%d id_mode=%d "
+            "wr_gap=%d rd_gap=%d rd_start_delay=%d",
+            axi_id_base, id_mode, wr_gap, rd_gap, rd_start_delay,
+        )
+
+        BURST = 4
+        N = 17  # past RD_CAM_DEPTH=16 — exercises slot reuse
+        BASE = 0x0001_0000
+        BYTES_PER_BEAT = 8
+        STRIDE = BURST * BYTES_PER_BEAT
+        SEED = 0xDEAD_BEEF
+
+        # --- Writes: preset memory ---
+        await _program_writer(dut, start_addr=BASE, stride_0=STRIDE,
+                              burst_len=BURST, txn_count=N,
+                              axi_id=axi_id_base, id_mode=id_mode,
+                              lfsr_seed=SEED)
+        dut.cfg_wr_gap.value = wr_gap
+        await RisingEdge(dut.mc_clk)
+        await _pulse(dut, "cfg_wr_start")
+        await _wait_done(dut, "cfg_wr_done", timeout=1_000_000)
+
+        # --- Schmoo: delay before reads kick off ---
+        if rd_start_delay > 0:
+            await ClockCycles(dut.mc_clk, rd_start_delay)
+
+        # --- Reads: walk same descriptor with same id pattern ---
+        await _program_reader(dut, start_addr=BASE, stride_0=STRIDE,
+                              burst_len=BURST, txn_count=N,
+                              axi_id=axi_id_base, id_mode=id_mode,
+                              lfsr_seed=SEED)
+        dut.cfg_rd_gap.value = rd_gap
+        await RisingEdge(dut.mc_clk)
+        await _pulse(dut, "cfg_rd_start")
+        await _wait_done(dut, "cfg_rd_done", timeout=1_000_000)
+
+        assert int(dut.o_bresp_error.value) == 0
+        assert int(dut.o_rresp_error.value) == 0
+        assert int(dut.o_data_error.value) == 0, (
+            f"data error (axi_id={axi_id_base} id_mode={id_mode} "
+            f"wr_gap={wr_gap} rd_gap={rd_gap} "
+            f"rd_start_delay={rd_start_delay})"
+        )
+        assert int(dut.o_beats_mismatched.value) == 0
+        exp = int(dut.o_expected_crc.value)
+        act = int(dut.o_actual_crc.value)
+        assert exp == act, (
+            f"CRC mismatch (axi_id={axi_id_base} id_mode={id_mode} "
+            f"wr_gap={wr_gap} rd_gap={rd_gap} "
+            f"rd_start_delay={rd_start_delay}): "
+            f"exp=0x{exp:08X} act=0x{act:08X}"
+        )
+        tb.log.info(
+            "ooo_pacing_schmoo OK axi_id=%d id_mode=%d "
+            "wr_gap=%d rd_gap=%d rd_start_delay=%d",
+            axi_id_base, id_mode, wr_gap, rd_gap, rd_start_delay,
+        )
+
+    elif test_type == "pacing_sweep_b2b":
         # Engine-PACING sweep — NOT an AXI random-profile sweep.
         # The AXI_RANDOMIZER_CONFIGS BFM cross-product lives at the
         # controller-only level on test_ddr2_lpddr2_core_macro. Here
@@ -475,6 +560,114 @@ def test_ddr2_char_macro_pacing_sweep(request, wr_gap, rd_gap):
     ]
     sim_args: list = []
     plus_args: list = []
+    if enable_waves:
+        compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+        sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
+        plus_args    += ["--trace"]
+        extra_env["VERILATOR_TRACE_FST"] = "1"
+
+    run(python_search=[tests_dir],
+        verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase="cocotb_test_ddr2_char_macro",
+        sim_build=sim_build, simulator="verilator",
+        extra_env=extra_env, parameters=parameters,
+        compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
+        waves=enable_waves, keep_files=True, timescale="1ns/1ps")
+
+
+# ============================================================================
+# Combined OOO + pacing + rd-start schmoo. 128-config matrix:
+#
+#   axi_id_base ∈ {0..15}                                  (16)
+#   id_mode     ∈ {COUNTER=1, LFSR=2}                       (2)
+#   schmoo step ∈ {fast_imm, fast_defer, slow_same, asym}   (4)
+#
+# Each schmoo step bundles a (wr_gap, rd_gap, rd_start_delay) tuple so
+# pacing is folded into the same matrix entry — keeps test count to
+# 128 without losing the spirit of the user's request to combine
+# pacing + OOO + delay schmoo.
+# ============================================================================
+
+_OOO_ID_MODE_COUNTER = 1
+_OOO_ID_MODE_LFSR    = 2
+
+_OOO_SCHMOO_STEPS = [
+    # (label,        wr_gap, rd_gap, rd_start_delay)
+    ("fast_imm",     0,      0,      0),
+    ("fast_defer",   0,      0,      256),
+    ("slow_same",    8,      8,      64),
+    ("asym",         0,      16,     16),
+]
+
+
+def _build_ooo_matrix():
+    matrix = []
+    for axi_id in range(16):
+        for id_mode in (_OOO_ID_MODE_COUNTER, _OOO_ID_MODE_LFSR):
+            for label, wr_gap, rd_gap, rd_start_delay in _OOO_SCHMOO_STEPS:
+                matrix.append(
+                    (axi_id, id_mode, label, wr_gap, rd_gap, rd_start_delay)
+                )
+    return matrix
+
+
+_OOO_MATRIX = _build_ooo_matrix()
+
+
+@pytest.mark.parametrize(
+    "axi_id,id_mode,schmoo_label,wr_gap,rd_gap,rd_start_delay",
+    _OOO_MATRIX,
+    ids=[
+        f"id{a:02d}_mode{m}_{lab}"
+        for (a, m, lab, _wg, _rg, _rsd) in _OOO_MATRIX
+    ],
+)
+def test_ddr2_char_macro_ooo_pacing_schmoo(
+    request, axi_id, id_mode, schmoo_label, wr_gap, rd_gap, rd_start_delay,
+):
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "ddr2_char_macro_tb_top"
+    tag = f"id{axi_id:02d}_mode{id_mode}_{schmoo_label}"
+    test_name = f"test_ddr2_char_macro_ooo_pacing_schmoo_{tag}"
+
+    filelist_path = ("projects/NexysA7/ddr2-characterization/"
+                     "ddr2_char_framework/dv/filelists/"
+                     "ddr2_char_macro_tb_top.f")
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=filelist_path)
+
+    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        "DUT": dut_name,
+        "TEST_TYPE": "ooo_pacing_schmoo",
+        "MEM_TYPE": "DDR2",
+        "OOO_AXI_ID":         str(axi_id),
+        "OOO_ID_MODE":        str(id_mode),
+        "OOO_WR_GAP":         str(wr_gap),
+        "OOO_RD_GAP":         str(rd_gap),
+        "OOO_RD_START_DELAY": str(rd_start_delay),
+        "SEED": str(random.randint(0, 100000)),
+        "COCOTB_LOG_LEVEL": "INFO",
+        "COCOTB_RESULTS_FILE":
+            os.path.join(log_dir, f"results_{test_name}.xml"),
+    }
+    parameters = {"NUM_RANKS": "1", "PAGE_POLICY": "1",
+                  "RD_DBG_FIFO_DEPTH": "32"}
+
+    enable_waves = bool(int(os.environ.get("WAVES", "0")))
+    compile_args = [
+        "+define+USE_ASYNC_RESET",
+        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
+        "-Wno-CASEOVERLAP",
+    ]
+    sim_args = []
+    plus_args = []
     if enable_waves:
         compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
         sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
