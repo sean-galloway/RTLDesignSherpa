@@ -472,8 +472,11 @@ module axi_intake
     // W_BUF_DEPTH itself (= "wbuf full").
     logic [WPW:0] r_wbuf_outstanding;
     logic [WPW:0] w_new_aw_burst_size;
+    // Compute (awlen+1) in the WIDER of (BLW, WPW+1) so widening to the
+    // (WPW+1) cast doesn't trip Verilator WIDTHEXPAND when WPW+1 > BLW
+    // (e.g. W_BUF_DEPTH=512 → WPW+1=10 > BLW=8).
     assign w_new_aw_burst_size =
-        (WPW+1)'(BLW'(fub_axi_awlen) + BLW'(1));
+        (WPW+1)'((WPW+1)'(fub_axi_awlen) + (WPW+1)'(1));
 
     // The arriving AW would push (awlen+1) beats. Backpressure if that
     // would exceed wbuf depth. Without this gate the AW-side pointer
@@ -541,18 +544,21 @@ module axi_intake
             // briefly under/overshoots: if a free strobe arrives at the
             // moment a new AW is accepted, both adjustments apply.
             if (w_aw_pend_wr_valid && w_aw_pend_wr_ready) begin
+                // Same widen-first idiom as w_new_aw_burst_size: do the
+                // (awlen+1) at WPW width so 256-beat bursts (awlen=255)
+                // don't wrap at BLW=8 bits.
                 r_aw_pend_next_ptr <=
                     r_aw_pend_next_ptr +
-                    WPW'(BLW'(fub_axi_awlen) + BLW'(1));
+                    WPW'(WPW'(fub_axi_awlen) + WPW'(1));
                 if (wbuf_free_strb_i) begin
                     r_wbuf_outstanding <=
                         r_wbuf_outstanding
-                        + (WPW+1)'(BLW'(fub_axi_awlen) + BLW'(1))
+                        + w_new_aw_burst_size
                         - (WPW+1)'(wbuf_free_len_i);
                 end else begin
                     r_wbuf_outstanding <=
                         r_wbuf_outstanding
-                        + (WPW+1)'(BLW'(fub_axi_awlen) + BLW'(1));
+                        + w_new_aw_burst_size;
                 end
             end else if (wbuf_free_strb_i) begin
                 r_wbuf_outstanding <=

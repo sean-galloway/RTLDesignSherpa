@@ -735,7 +735,13 @@ def test_axi_frontend_macro(request, test_type, num_ranks, timing_profile):
     # of 128 would overflow before wlast lands and the wr CAM accepts
     # the entry. Widen for this scenario only.
     if test_type == "perfect_streaming":
-        parameters["W_BUF_DEPTH"] = "512"
+        # Fits 3 × 256-beat AWs (NUM_BURSTS × BEATS_PER_BURST = 768)
+        # without the AW-side wbuf flow-control gate stalling. The
+        # gate landed in axi_intake to defend a real overrun caught
+        # in the wbuf_backpressure FUB; the stub-driven TB used here
+        # doesn't model b_complete-driven wbuf_free, so we have to
+        # size wbuf to the full peak demand.
+        parameters["W_BUF_DEPTH"] = "1024"
 
     compile_args += get_coverage_compile_args()
     extra_env.update(get_coverage_env(test_name, sim_build=sim_build))
