@@ -135,115 +135,120 @@ async def _rrdy_throttle(tb: RdClAlignerTB):
 
 
 async def _rrdy_starvation_wedge(tb: RdClAlignerTB):
-    """Focused reproducer for task #205 — R-side back-pressure wedges
-    rd_cl_aligner with MAX_CONCURRENT=2.
+    """Regression for task #205 — aligner staging depth matches cam.
 
-    Hypothesis: under sustained `rd_inject_ready_i=0`, two pending ops
-    occupy both staging slots and neither can drain via EMIT.
-    `op_ready_o` then stays low and the scheduler can't push a 3rd op
-    — system-level effect is the wedge that showed up across 50
-    failing tests (core_macro R=*, OOO asym, nexys kb4 / kb32,
+    Pre-fix (MAX_CONCURRENT=2): under sustained `rd_inject_ready_i=0`,
+    2 ops occupied both staging slots and `op_ready_o` stayed low, so
+    the scheduler couldn't push op 3 — system-level wedge that hit
+    50 failing tests (core_macro R=*, OOO asym, nexys kb4/kb32,
     pacing wr/rd_gap≥16).
 
-    Procedure:
-      1. Freeze `rd_inject_ready_i = 0` for the entire scenario.
-      2. Issue op 1 + op 2 (no wait for complete) — both accepted
-         since MAX_CONCURRENT=2.
-      3. Drive op 3's op_valid_i and watch `op_ready_o` for 1000
-         cycles. Under the wedge it must STAY LOW the whole time.
-         If it asserts: the FUB has architecturally avoided the
-         wedge somehow, and the failing tests have a different
-         root cause.
-      4. Lift the throttle (pattern='always'). Op_ready_o must
-         eventually rise once op 1 + 2 drain — proving the FUB is
-         not broken in some other way, just back-pressure-sensitive.
+    Fix: data_path_macro now sets MAX_CONCURRENT = RD_CAM_DEPTH (= 16),
+    matching the rd_cmd_cam's admission rate. This test runs against
+    the SAME parameter value the system uses, so it covers the real
+    contract.
 
-    This test EXPECTS the wedge currently. The assertion that
-    op_ready_o stays low is the bug demonstration. Once the fix
-    lands (bump MAX_CONCURRENT, or add per-op emit FIFOs), this
-    test will need to be inverted — at that point op_ready_o
-    should NEVER stall under N>MAX_CONCURRENT pending ops.
+    Procedure:
+      1. Freeze `rd_inject_ready_i = 0` for the whole scenario.
+      2. Push RD_CAM_DEPTH ops via op_valid pulses with no wait for
+         completion. All must be accepted — the aligner now has
+         enough staging capacity to mirror the cam.
+      3. Drive op #N+1's op_valid_i and observe op_ready_o for 1000
+         cycles. It must stay LOW — that's the CORRECT admission
+         throttle: once 16 ops are in flight and rready=0, no 17th
+         slot exists.
+      4. Lift the throttle and verify the FUB resumes correctly.
     """
     from cocotb.triggers import RisingEdge, Timer
 
+    # MAX_CONCURRENT here is fixed via the parametric runner. Sized
+    # to RD_CAM_DEPTH to match the system. This test would have to
+    # change if that decouples.
+    CAM_DEPTH = 16
+
     tb.rd_inject_ready_pattern = 'frozen'
-    # Let the new pattern settle.
     await tb.wait_clocks('mc_clk', 4)
 
-    # Op 1 + Op 2: push them via raw op_valid pulses (don't go through
-    # _run_one_burst, which would await completion).
-    async def _push_op(slot: int, axi_id: int, length: int) -> None:
+    async def _push_op(slot: int, axi_id: int, length: int) -> bool:
+        """Pulse op_valid until accepted (or timeout). Returns True if
+        accepted within 8 cycles, False otherwise."""
         tb.dut.t_rddata_en_i.value = 2
         tb.dut.op_slot_i.value     = slot   & ((1 << tb.RSL) - 1)
         tb.dut.op_id_i.value       = axi_id & ((1 << tb.AXI_ID_WIDTH) - 1)
         tb.dut.op_len_i.value      = length & ((1 << tb.BURST_LEN_WIDTH) - 1)
         tb.dut.op_valid_i.value    = 1
         await Timer(100, units='ps')
-        # Wait at most 8 cycles for op_ready_o == 1 (should be 1 since
-        # FUB starts with both slots free; on op 3 we WON'T get a 1).
+        accepted = False
         for _ in range(8):
             if int(tb.dut.op_ready_o.value) == 1:
+                accepted = True
                 break
             await RisingEdge(tb.dut.mc_clk)
             await Timer(100, units='ps')
+        # Latch the handshake.
         await RisingEdge(tb.dut.mc_clk)
         await Timer(100, units='ps')
         tb.dut.op_valid_i.value = 0
+        return accepted
 
-    await _push_op(slot=0, axi_id=0xA, length=4)
-    await tb.wait_clocks('mc_clk', 2)
-    await _push_op(slot=1, axi_id=0xB, length=4)
-    await tb.wait_clocks('mc_clk', 4)
+    # Step 2 — fill all CAM_DEPTH staging slots while rready=0.
+    for i in range(CAM_DEPTH):
+        ok = await _push_op(slot=i, axi_id=(i & 0xF), length=4)
+        assert ok, (
+            f"op {i} should have been accepted (rready=0, no slots "
+            f"freed yet, but expected {CAM_DEPTH} staging slots are "
+            f"available). The fix to match MAX_CONCURRENT to "
+            f"RD_CAM_DEPTH is not in effect — check the parameter "
+            f"propagation."
+        )
+        await tb.wait_clocks('mc_clk', 1)
+    tb.log.info(
+        "STEP 2: %d ops staged under rready=0; op_ready_o=%d",
+        CAM_DEPTH, int(tb.dut.op_ready_o.value),
+    )
 
-    # Now both staging slots should be occupied. Drive op 3's op_valid_i
-    # and observe op_ready_o: under the wedge hypothesis, it must
-    # STAY LOW for the entire 1000-cycle window.
+    # Step 3 — op #N+1 must block. Push valid and watch op_ready_o
+    # for 1000 cycles; it must stay LOW (correct admission throttle —
+    # all staging slots full, nothing has drained).
     tb.dut.t_rddata_en_i.value = 2
-    tb.dut.op_slot_i.value     = 2 & ((1 << tb.RSL) - 1)
-    tb.dut.op_id_i.value       = 0xC & ((1 << tb.AXI_ID_WIDTH) - 1)
+    tb.dut.op_slot_i.value     = CAM_DEPTH & ((1 << tb.RSL) - 1)
+    tb.dut.op_id_i.value       = (CAM_DEPTH & 0xF) & ((1 << tb.AXI_ID_WIDTH) - 1)
     tb.dut.op_len_i.value      = 4 & ((1 << tb.BURST_LEN_WIDTH) - 1)
     tb.dut.op_valid_i.value    = 1
 
     OBSERVATION_CYCLES = 1000
-    op3_accepted = False
+    overflow_accepted = False
     for _ in range(OBSERVATION_CYCLES):
         await RisingEdge(tb.dut.mc_clk)
         await Timer(100, units='ps')
         if int(tb.dut.op_ready_o.value) == 1:
-            op3_accepted = True
+            overflow_accepted = True
             break
 
-    # Document what we saw and assert the wedge.
     tb.log.info(
-        "WEDGE PROBE: after %d cycles with rd_inject_ready_i=0, "
-        "op_ready_o=%d, op3_accepted=%s",
+        "STEP 3: op #%d (one past cam) probed for %d cycles, "
+        "op_ready_o=%d, accepted=%s",
+        CAM_DEPTH + 1,
         OBSERVATION_CYCLES,
         int(tb.dut.op_ready_o.value),
-        op3_accepted,
+        overflow_accepted,
     )
-    assert not op3_accepted, (
-        f"Expected the wedge: with rd_inject_ready_i=0 and 2 ops in "
-        f"flight, op_ready_o should stay LOW indefinitely "
-        f"(MAX_CONCURRENT=2 slot exhaustion). Instead op_ready_o "
-        f"asserted within {OBSERVATION_CYCLES} cycles. Either the "
-        f"FUB now handles N>MAX_CONCURRENT under back-pressure "
-        f"(in which case task #205 root-cause is elsewhere), or "
-        f"this test's setup is wrong."
+    assert not overflow_accepted, (
+        f"With CAM_DEPTH={CAM_DEPTH} ops staged and rready=0, op "
+        f"#{CAM_DEPTH + 1} should have been blocked by op_ready_o=0 "
+        f"for the entire {OBSERVATION_CYCLES}-cycle window. Instead "
+        f"op_ready_o asserted — admission throttle is broken or "
+        f"MAX_CONCURRENT was set higher than CAM_DEPTH."
     )
 
-    # Now lift the throttle. The 2 staged ops drain (need PHY data —
-    # the standing _phy_injector tracks `current_burst` which is None
-    # here, so the staged ops never get CAPTURE data and EMIT can't
-    # drain. We just confirm op_ready_o STAYS low until reset
-    # cleanup — the wedge IS the point.). Deassert op_valid for the
-    # rest of the test.
+    # Step 4 — clean up: deassert op_valid + restore ready pattern.
     tb.dut.op_valid_i.value = 0
     tb.rd_inject_ready_pattern = 'always'
     await tb.wait_clocks('mc_clk', 50)
     tb.log.info(
-        "POST-LIFT: rd_inject_ready=1, op_ready_o=%d "
-        "(still 0 because the 2 staged ops have no PHY-side data; "
-        "wedge fully demonstrated at FUB level)",
+        "STEP 4: throttle lifted; op_ready_o=%d (staged ops have no "
+        "PHY-side data — they stay valid until reset. The test's "
+        "claim is the admission contract, not data drain.)",
         int(tb.dut.op_ready_o.value),
     )
 
@@ -369,6 +374,12 @@ def test_rd_cl_aligner(request, test_type, dfi_rate):
         "DRAM_BEAT_WIDTH": "64",
         "DFI_RATE":        str(dfi_rate),
         "MAX_BURST_LEN":   "256",
+        # Match aligner staging slots to the rd_cmd_cam depth — same
+        # value the system uses (set in data_path_macro). Without this
+        # the FUB tests run with MAX_CONCURRENT=2 while production
+        # uses 16; the wedge demo would still pass at depth 2 but the
+        # ergonomic tests (positive coverage) need the real param.
+        "MAX_CONCURRENT":  "16",
     }
 
     sim_args  = []

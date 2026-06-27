@@ -158,7 +158,13 @@ module data_path_macro
         .DFI_DATA_WIDTH  (DFI_DATA_WIDTH),
         .DFI_VALID_WIDTH (DFI_VALID_WIDTH),
         .DFI_EN_WIDTH    (DFI_EN_WIDTH),
-        .MAX_BURST_LEN   (MAX_BURST_LEN)
+        .MAX_BURST_LEN   (MAX_BURST_LEN),
+        // Match aligner staging depth to the rd_cmd_cam depth. Without
+        // this the cam can over-commit ARs that fill cam slots but
+        // wedge on the aligner's narrower 2-slot waist as soon as
+        // host rready stalls (task #205). With them equal the cam is
+        // the only admission throttle in the read path.
+        .MAX_CONCURRENT  (RD_CAM_DEPTH)
     ) u_rd_cl_aligner (
         .mc_clk             (mc_clk),
         .mc_rst_n           (mc_rst_n),
