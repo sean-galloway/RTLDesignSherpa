@@ -304,7 +304,7 @@ module rd_cl_aligner
             // "advance on completion" path for the steady state.
             //---------------------------------------------------------------
             if (r_fifo_count > '0
-                && (r_en_head_idx + 1'b1 < r_fifo_count[MCL:0])
+                && (({1'b0, r_en_head_idx} + 1'b1) < r_fifo_count[MCL:0])
                 && (!r_op_valid[w_en_op]
                     || (r_op_en_remaining[w_en_op] == '0))) begin
                 r_en_head_idx <= r_en_head_idx + 1'b1;
@@ -312,7 +312,7 @@ module rd_cl_aligner
                 r_op_en_remaining[w_en_op]
                     <= r_op_en_remaining[w_en_op] - (BLW+1)'(1);
                 if (w_en_complete_for_head
-                    && (r_en_head_idx + 1'b1 < r_fifo_count[MCL:0])) begin
+                    && (({1'b0, r_en_head_idx} + 1'b1) < r_fifo_count[MCL:0])) begin
                     r_en_head_idx <= r_en_head_idx + 1'b1;
                 end
             end
@@ -321,9 +321,14 @@ module rd_cl_aligner
             // 4. CAPTURE pipeline — head op latches rddata when valid.
             // Same bug class as EN — head needs to step past done/invalid
             // ops or the new op at tail will never see CAP fire.
+            //
+            // WIDTH FIX (task #205, second bug): r_cap_head_idx is MCL bits
+            // (= log2 MAX_CONCURRENT). +1 wraps to 0 at the max value,
+            // silently passing the < count check. Zero-extend to MCL+1
+            // bits before the add.
             //---------------------------------------------------------------
             if (r_fifo_count > '0
-                && (r_cap_head_idx + 1'b1 < r_fifo_count[MCL:0])
+                && (({1'b0, r_cap_head_idx} + 1'b1) < r_fifo_count[MCL:0])
                 && (!r_op_valid[w_cap_op]
                     || (r_op_dfi_captured[w_cap_op]
                         >= w_cap_dfi_cycles_total))) begin
@@ -337,7 +342,7 @@ module rd_cl_aligner
                     <= r_op_dfi_captured[w_cap_op] + (BLW+1)'(1);
                 if (r_op_dfi_captured[w_cap_op] + (BLW+1)'(1)
                     == w_cap_dfi_cycles_total
-                    && r_cap_head_idx + 1'b1 < r_fifo_count[MCL:0]) begin
+                    && ({1'b0, r_cap_head_idx} + 1'b1) < r_fifo_count[MCL:0]) begin
                     r_cap_head_idx <= r_cap_head_idx + 1'b1;
                 end
             end
