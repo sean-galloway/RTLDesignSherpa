@@ -144,6 +144,41 @@ async def cocotb_test_ddr2_lpddr2_core_macro(dut):
                     size=3,
                 )
             ))
+
+        # WEDGE PROBE: count tasks-done + total beats received over time.
+        # Logs every 500 cycles. If beats stop arriving for >2k cycles
+        # while task count < N_BURSTS, that pinpoints the wedge.
+        async def _wedge_probe(tasks):
+            total_received = 0
+            last_total = -1
+            stall_streak = 0
+            for n in range(200):  # 200 × 500 = 100k cycle window
+                await ClockCycles(dut.mc_clk, 500)
+                done = sum(1 for t in tasks if t.done())
+                id_q = tb.axi_master_rd._response_by_id.get(0)
+                in_q = len(id_q) if id_q else 0
+                # Approximation: total beats handled =
+                #   done_tasks × BURST_LEN + currently-in-queue.
+                total_received = done * BURST_LEN + in_q
+                stall = (total_received == last_total) and (done < N_BURSTS)
+                if stall:
+                    stall_streak += 1
+                else:
+                    stall_streak = 0
+                tb.log.info(
+                    "WEDGE PROBE @ +%d cy: tasks_done=%d/%d, in_q=%d, "
+                    "total_beats~=%d, stall_streak=%d",
+                    (n + 1) * 500, done, N_BURSTS, in_q,
+                    total_received, stall_streak,
+                )
+                if stall_streak >= 4:
+                    tb.log.warning(
+                        "WEDGE CONFIRMED: >=2k cycles without new beats "
+                        "(stall_streak=%d). Pin sim time and inspect "
+                        "the controller R path.", stall_streak)
+                last_total = total_received
+        cocotb.start_soon(_wedge_probe(rd_tasks))
+
         results = []
         for t in rd_tasks:
             results.append(await t)

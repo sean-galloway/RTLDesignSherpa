@@ -165,6 +165,13 @@ module rd_cl_aligner
     assign w_en_dfi_cycles_total =
         ({1'b0, r_op_len[w_en_op]} + (BLW+1)'(DFI_RATE - 1)) >> RATE_LOG2;
 
+    // CAP-side total (per cap_head_op, not en_head_op). Under the
+    // task #205 wedge the heads diverge, so CAP needs its own
+    // completion threshold computed against w_cap_op's length.
+    logic [BLW:0] w_cap_dfi_cycles_total;
+    assign w_cap_dfi_cycles_total =
+        ({1'b0, r_op_len[w_cap_op]} + (BLW+1)'(DFI_RATE - 1)) >> RATE_LOG2;
+
     //=========================================================================
     // EN pipeline: drive en for the EN-head op while its en_remaining > 0
     // and its wait_cnt has elapsed.
@@ -281,8 +288,27 @@ module rd_cl_aligner
 
             //---------------------------------------------------------------
             // 3. EN pipeline — head op drives en_remaining countdown.
+            //
+            // BUG FIX (task #205): the original advancement only fired on
+            // w_en_complete_for_head AND room ahead in FIFO. Once head
+            // hit fifo_count-1 with everything done, it stayed pinned.
+            // When EMIT later popped (count++ effectively, since shifts
+            // happen) and a new push arrived at the tail, head was on
+            // a DONE op and there was no path to step past it — EN
+            // never fired for the new op. Cascade: CAP never ran, EMIT
+            // never got data, wedge.
+            //
+            // Fix: split the advancement. (a) if head's op is already
+            // done (en_remaining == 0) or invalid AND there is more
+            // FIFO ahead, advance past it. (b) keep the original
+            // "advance on completion" path for the steady state.
             //---------------------------------------------------------------
-            if (w_en_active) begin
+            if (r_fifo_count > '0
+                && (r_en_head_idx + 1'b1 < r_fifo_count[MCL:0])
+                && (!r_op_valid[w_en_op]
+                    || (r_op_en_remaining[w_en_op] == '0))) begin
+                r_en_head_idx <= r_en_head_idx + 1'b1;
+            end else if (w_en_active) begin
                 r_op_en_remaining[w_en_op]
                     <= r_op_en_remaining[w_en_op] - (BLW+1)'(1);
                 if (w_en_complete_for_head
@@ -293,16 +319,24 @@ module rd_cl_aligner
 
             //---------------------------------------------------------------
             // 4. CAPTURE pipeline — head op latches rddata when valid.
+            // Same bug class as EN — head needs to step past done/invalid
+            // ops or the new op at tail will never see CAP fire.
             //---------------------------------------------------------------
-            if (dfi_rddata_valid_i && (r_fifo_count > '0)
+            if (r_fifo_count > '0
+                && (r_cap_head_idx + 1'b1 < r_fifo_count[MCL:0])
+                && (!r_op_valid[w_cap_op]
+                    || (r_op_dfi_captured[w_cap_op]
+                        >= w_cap_dfi_cycles_total))) begin
+                r_cap_head_idx <= r_cap_head_idx + 1'b1;
+            end else if (dfi_rddata_valid_i && (r_fifo_count > '0)
                 && r_op_valid[w_cap_op]
-                && (r_op_dfi_captured[w_cap_op] < w_en_dfi_cycles_total)) begin
+                && (r_op_dfi_captured[w_cap_op] < w_cap_dfi_cycles_total)) begin
                 r_stage[w_cap_op][r_op_dfi_captured[w_cap_op][DFI_CYC_LOG2-1:0]]
                     <= dfi_rddata_i;
                 r_op_dfi_captured[w_cap_op]
                     <= r_op_dfi_captured[w_cap_op] + (BLW+1)'(1);
                 if (r_op_dfi_captured[w_cap_op] + (BLW+1)'(1)
-                    == w_en_dfi_cycles_total
+                    == w_cap_dfi_cycles_total
                     && r_cap_head_idx + 1'b1 < r_fifo_count[MCL:0]) begin
                     r_cap_head_idx <= r_cap_head_idx + 1'b1;
                 end
