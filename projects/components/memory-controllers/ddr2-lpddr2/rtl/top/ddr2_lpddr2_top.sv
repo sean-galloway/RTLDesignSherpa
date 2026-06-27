@@ -189,63 +189,7 @@ module ddr2_lpddr2_top
 );
 
     //=========================================================================
-    // Inter-macro nets — axi_frontend ↔ core_macro
-    //=========================================================================
-    logic [RKW-1:0]                       q_rank;
-    logic [BKW-1:0]                       q_bank;
-    logic [RW-1:0]                        q_row;
-    logic [WR_CAM_DEPTH-1:0]              wr_match_pending;
-    logic [WR_CAM_DEPTH-1:0]              wr_match_rowhit;
-    logic [RD_CAM_DEPTH-1:0]              rd_match_pending;
-    logic [RD_CAM_DEPTH-1:0]              rd_match_rowhit;
-
-    logic [WR_CAM_DEPTH-1:0][RKW-1:0]     wr_snap_rank;
-    logic [WR_CAM_DEPTH-1:0][BKW-1:0]     wr_snap_bank;
-    logic [WR_CAM_DEPTH-1:0][RW-1:0]      wr_snap_row;
-    logic [WR_CAM_DEPTH-1:0][CW-1:0]      wr_snap_col;
-    logic [WR_CAM_DEPTH-1:0][BLW-1:0]     wr_snap_len;
-    logic [WR_CAM_DEPTH-1:0][3:0]         wr_snap_qos;
-    logic [RD_CAM_DEPTH-1:0][RKW-1:0]     rd_snap_rank;
-    logic [RD_CAM_DEPTH-1:0][BKW-1:0]     rd_snap_bank;
-    logic [RD_CAM_DEPTH-1:0][RW-1:0]      rd_snap_row;
-    logic [RD_CAM_DEPTH-1:0][CW-1:0]      rd_snap_col;
-    logic [RD_CAM_DEPTH-1:0][BLW-1:0]     rd_snap_len;
-    logic [RD_CAM_DEPTH-1:0][3:0]         rd_snap_qos;
-    logic [RD_CAM_DEPTH-1:0][IW-1:0]      rd_snap_id;
-    logic [RD_CAM_DEPTH-1:0][7:0]         rd_snap_age;
-
-    logic                                 wr_issued_we;
-    logic [WSL-1:0]                       wr_issued_slot;
-    logic                                 rd_issued_we;
-    logic [RSL-1:0]                       rd_issued_slot;
-
-    logic                                 beat_pull_strb;
-    logic [WSL-1:0]                       beat_pull_slot;
-    logic [WPW-1:0]                       beat_pull_ptr;
-    logic [WPW-1:0]                       beat_pull_strb_ptr;
-    logic                                 beat_pull_last;
-    logic [AXI_DATA_WIDTH-1:0]            wbuf_rd_data;
-    logic [AXI_STRB_WIDTH-1:0]            wbuf_rd_strb;
-
-    logic                                 b_complete_strb;
-    logic [WSL-1:0]                       b_complete_slot;
-    logic                                 wr_entry_complete;
-    logic [WSL-1:0]                       wr_entry_complete_slot;
-    logic [IW-1:0]                        wr_entry_complete_id;
-
-    logic                                 rd_beat_we;
-    logic [RSL-1:0]                       rd_beat_slot;
-    logic                                 rd_entry_complete;
-    logic [RSL-1:0]                       rd_entry_complete_slot;
-    logic [IW-1:0]                        rd_entry_complete_id;
-    logic                                 rd_inject_valid;
-    logic                                 rd_inject_ready;
-    logic [IW-1:0]                        rd_inject_id;
-    logic [AXI_DATA_WIDTH-1:0]            rd_inject_data;
-    logic                                 rd_inject_last;
-
-    //=========================================================================
-    // CSR ↔ core/frontend nets
+    // CSR ↔ core nets
     //=========================================================================
     // CFG outputs from slave → core
     logic                                 cfg_init_start;
@@ -278,18 +222,15 @@ module ddr2_lpddr2_top
     logic                                 core_init_busy;
     logic [2:0]                           core_pdn_state;
 
-    // obs_words consolidation: 7 from core_macro + 2 from axi_frontend = 9
-    logic [6:0][31:0]                     core_obs_words;
-    logic [1:0][31:0]                     frontend_obs_words;
+    // obs_words consolidation: core_macro now emits all 9 (7 scheduler + 2
+    // frontend, frontend was absorbed into core_macro on 2026-06-26).
     logic [8:0][31:0]                     all_obs_words;
-    assign all_obs_words = {frontend_obs_words, core_obs_words};
 
     //=========================================================================
-    // axi_frontend_macro
+    // Address-map scheme — CSR-driven, passed through to core_macro.
+    // Map 2'b01/10/11 → ROW_MAJOR/BANK_INTERLEAVE/XOR_HASH; 2'b00 falls
+    // back to ROW_MAJOR.
     //=========================================================================
-    // Address-map scheme is currently driven directly by the CSR slave's
-    // cfg_addr_map_scheme_or. Map 2'b01/10/11 → ROW_MAJOR/BANK_INTERLEAVE/
-    // XOR_HASH; 2'b00 falls back to ROW_MAJOR.
     addr_map_scheme_e w_scheme_active;
     always_comb begin
         unique case (cfg_addr_map_scheme_or)
@@ -300,155 +241,22 @@ module ddr2_lpddr2_top
         endcase
     end
 
-    axi_frontend_macro #(
-        .AXI_ADDR_WIDTH       (AXI_ADDR_WIDTH),
-        .AXI_DATA_WIDTH       (AXI_DATA_WIDTH),
-        .AXI_ID_WIDTH         (AXI_ID_WIDTH),
-        .AXI_USER_WIDTH       (AXI_USER_WIDTH),
-        .NUM_RANKS            (NUM_RANKS),
-        .NUM_BANKS            (NUM_BANKS),
-        .ROW_WIDTH            (ROW_WIDTH),
-        .COL_WIDTH            (COL_WIDTH),
-        .BURST_LEN_WIDTH      (BURST_LEN_WIDTH),
-        .W_BUF_DEPTH          (W_BUF_DEPTH),
-        .WR_CAM_DEPTH         (WR_CAM_DEPTH),
-        .RD_CAM_DEPTH         (RD_CAM_DEPTH)
-    ) u_axi_frontend (
-        .mc_clk                     (mc_clk),
-        .mc_rst_n                   (mc_rst_n),
-        .scheme_active_i            (w_scheme_active),
-        .xor_seed_i                 (8'h0),
-
-        .s_axi_awid                 (s_axi_awid),
-        .s_axi_awaddr               (s_axi_awaddr),
-        .s_axi_awlen                (s_axi_awlen),
-        .s_axi_awsize               (s_axi_awsize),
-        .s_axi_awburst              (s_axi_awburst),
-        .s_axi_awlock               (s_axi_awlock),
-        .s_axi_awcache              (s_axi_awcache),
-        .s_axi_awprot               (s_axi_awprot),
-        .s_axi_awqos                (s_axi_awqos),
-        .s_axi_awregion             (s_axi_awregion),
-        .s_axi_awuser               (s_axi_awuser),
-        .s_axi_awvalid              (s_axi_awvalid),
-        .s_axi_awready              (s_axi_awready),
-        .s_axi_wdata                (s_axi_wdata),
-        .s_axi_wstrb                (s_axi_wstrb),
-        .s_axi_wlast                (s_axi_wlast),
-        .s_axi_wuser                (s_axi_wuser),
-        .s_axi_wvalid               (s_axi_wvalid),
-        .s_axi_wready               (s_axi_wready),
-        .s_axi_bid                  (s_axi_bid),
-        .s_axi_bresp                (s_axi_bresp),
-        .s_axi_buser                (s_axi_buser),
-        .s_axi_bvalid               (s_axi_bvalid),
-        .s_axi_bready               (s_axi_bready),
-        .s_axi_arid                 (s_axi_arid),
-        .s_axi_araddr               (s_axi_araddr),
-        .s_axi_arlen                (s_axi_arlen),
-        .s_axi_arsize               (s_axi_arsize),
-        .s_axi_arburst              (s_axi_arburst),
-        .s_axi_arlock               (s_axi_arlock),
-        .s_axi_arcache              (s_axi_arcache),
-        .s_axi_arprot               (s_axi_arprot),
-        .s_axi_arqos                (s_axi_arqos),
-        .s_axi_arregion             (s_axi_arregion),
-        .s_axi_aruser               (s_axi_aruser),
-        .s_axi_arvalid              (s_axi_arvalid),
-        .s_axi_arready              (s_axi_arready),
-        .s_axi_rid                  (s_axi_rid),
-        .s_axi_rdata                (s_axi_rdata),
-        .s_axi_rresp                (s_axi_rresp),
-        .s_axi_rlast                (s_axi_rlast),
-        .s_axi_ruser                (s_axi_ruser),
-        .s_axi_rvalid               (s_axi_rvalid),
-        .s_axi_rready               (s_axi_rready),
-
-        // rd_inject from core's R-injection path
-        .rd_inject_valid_i          (rd_inject_valid),
-        .rd_inject_ready_o          (rd_inject_ready),
-        .rd_inject_id_i             (rd_inject_id),
-        .rd_inject_data_i           (rd_inject_data),
-        .rd_inject_last_i           (rd_inject_last),
-
-        .wbuf_ext_rd_data_o         (wbuf_rd_data),
-        .wbuf_ext_rd_strb_o         (wbuf_rd_strb),
-
-        .q_rank_i                   (q_rank),
-        .q_bank_i                   (q_bank),
-        .q_row_i                    (q_row),
-        .wr_match_pending_o         (wr_match_pending),
-        .wr_match_rowhit_o          (wr_match_rowhit),
-        .rd_match_pending_o         (rd_match_pending),
-        .rd_match_rowhit_o          (rd_match_rowhit),
-
-        .wr_snap_rank_o             (wr_snap_rank),
-        .wr_snap_bank_o             (wr_snap_bank),
-        .wr_snap_row_o              (wr_snap_row),
-        .wr_snap_col_o              (wr_snap_col),
-        .wr_snap_len_o              (wr_snap_len),
-        .wr_snap_qos_o              (wr_snap_qos),
-        .rd_snap_rank_o             (rd_snap_rank),
-        .rd_snap_bank_o             (rd_snap_bank),
-        .rd_snap_row_o              (rd_snap_row),
-        .rd_snap_col_o              (rd_snap_col),
-        .rd_snap_len_o              (rd_snap_len),
-        .rd_snap_qos_o              (rd_snap_qos),
-        .rd_snap_id_o               (rd_snap_id),
-        .rd_snap_age_o              (rd_snap_age),
-
-        .wr_issued_we_i             (wr_issued_we),
-        .wr_issued_slot_i           (wr_issued_slot),
-        .rd_issued_we_i             (rd_issued_we),
-        .rd_issued_slot_i           (rd_issued_slot),
-
-        .beat_pull_strb_i           (beat_pull_strb),
-        .beat_pull_slot_i           (beat_pull_slot),
-        .beat_pull_ptr_o            (beat_pull_ptr),
-        .beat_pull_strb_ptr_o       (beat_pull_strb_ptr),
-        .beat_pull_last_o           (beat_pull_last),
-
-        .b_complete_strb_i          (b_complete_strb),
-        .b_complete_slot_i          (b_complete_slot),
-        .wr_entry_complete_o        (wr_entry_complete),
-        .wr_entry_complete_slot_o   (wr_entry_complete_slot),
-        .wr_entry_complete_id_o     (wr_entry_complete_id),
-
-        .rd_beat_we_i               (rd_beat_we),
-        .rd_beat_slot_i             (rd_beat_slot),
-        .rd_entry_complete_o        (rd_entry_complete),
-        .rd_entry_complete_slot_o   (rd_entry_complete_slot),
-        .rd_entry_complete_id_o     (rd_entry_complete_id),
-
-        .dbg_intake_busy_o          (),
-        .dbg_wr_cam_occ_o           (),
-        .dbg_rd_cam_occ_o           (),
-        .dbg_forward_hit_o          (),
-        .dbg_forward_miss_o         (),
-        .dbg_fwd_valid_o            (),
-        .dbg_fwd_src_slot_o         (),
-        .dbg_fwd_id_o               (),
-
-        .obs_words_o                (frontend_obs_words)
-    );
-
-    // rd_snap_id is the per-slot AXI ID echo. The core's rd_op_id lookup
-    // indexes this with the scheduler's cmd_rd_slot, then rd_cl_aligner
-    // emits the matching id on rd_inject_id back to axi_intake's R-emit
-    // path so the R-channel response carries the originating AR's id.
-    // Tying this to 0 collapsed all reads onto id=0 and broke OOO multi-id
-    // traffic (the first read with id!=0 would never see its R response).
-
     //=========================================================================
-    // ddr2_lpddr2_core_macro
+    // ddr2_lpddr2_core_macro — the AXI-to-DFI mid-layer. As of
+    // 2026-06-26 this absorbed axi_frontend_macro, so AXI ports now
+    // attach directly here.
     //=========================================================================
     ddr2_lpddr2_core_macro #(
+        .AXI_ADDR_WIDTH     (AXI_ADDR_WIDTH),
+        .AXI_DATA_WIDTH     (AXI_DATA_WIDTH),
         .AXI_ID_WIDTH       (AXI_ID_WIDTH),
+        .AXI_USER_WIDTH     (AXI_USER_WIDTH),
         .NUM_RANKS          (NUM_RANKS),
         .NUM_BANKS          (NUM_BANKS),
         .ROW_WIDTH          (ROW_WIDTH),
         .COL_WIDTH          (COL_WIDTH),
         .BURST_LEN_WIDTH    (BURST_LEN_WIDTH),
+        .W_BUF_DEPTH        (W_BUF_DEPTH),
         .WR_CAM_DEPTH       (WR_CAM_DEPTH),
         .RD_CAM_DEPTH       (RD_CAM_DEPTH),
         .W_BUF_PTR_WIDTH    (W_BUF_PTR_WIDTH),
@@ -465,6 +273,10 @@ module ddr2_lpddr2_top
     ) u_core (
         .mc_clk              (mc_clk),
         .mc_rst_n            (mc_rst_n),
+
+        // Address-map scheme (CSR-driven, previously into the frontend)
+        .scheme_active_i     (w_scheme_active),
+        .xor_seed_i          (8'h0),
 
         // run-time config (CSR slave-driven, with externs for what CSR doesn't cover)
         .memtype_i           (memtype_i),
@@ -491,48 +303,51 @@ module ddr2_lpddr2_top
         .t_rddata_en_i       (t_rddata_en_i),
         .rd_in_order_i       (rd_in_order_i),
 
-        // axi_frontend interface
-        .q_rank_o            (q_rank),
-        .q_bank_o            (q_bank),
-        .q_row_o             (q_row),
-        .wr_match_pending_i  (wr_match_pending),
-        .wr_match_rowhit_i   (wr_match_rowhit),
-        .rd_match_pending_i  (rd_match_pending),
-        .rd_match_rowhit_i   (rd_match_rowhit),
-        .wr_snap_rank_i      (wr_snap_rank),
-        .wr_snap_bank_i      (wr_snap_bank),
-        .wr_snap_row_i       (wr_snap_row),
-        .wr_snap_col_i       (wr_snap_col),
-        .wr_snap_len_i       (wr_snap_len),
-        .wr_snap_qos_i       (wr_snap_qos),
-        .rd_snap_rank_i      (rd_snap_rank),
-        .rd_snap_bank_i      (rd_snap_bank),
-        .rd_snap_row_i       (rd_snap_row),
-        .rd_snap_col_i       (rd_snap_col),
-        .rd_snap_len_i       (rd_snap_len),
-        .rd_snap_qos_i       (rd_snap_qos),
-        .rd_snap_id_i        (rd_snap_id),
-        .rd_snap_age_i       (rd_snap_age),
-        .wr_issued_we_o      (wr_issued_we),
-        .wr_issued_slot_o    (wr_issued_slot),
-        .rd_issued_we_o      (rd_issued_we),
-        .rd_issued_slot_o    (rd_issued_slot),
-        .beat_pull_strb_o    (beat_pull_strb),
-        .beat_pull_slot_o    (beat_pull_slot),
-        .beat_pull_ptr_i     (beat_pull_ptr),
-        .beat_pull_strb_ptr_i(beat_pull_strb_ptr),
-        .beat_pull_last_i    (beat_pull_last),
-        .wbuf_rd_data_i      (wbuf_rd_data),
-        .wbuf_rd_strb_i      (wbuf_rd_strb),
-        .b_complete_strb_o   (b_complete_strb),
-        .b_complete_slot_o   (b_complete_slot),
-        .rd_beat_we_o        (rd_beat_we),
-        .rd_beat_slot_o      (rd_beat_slot),
-        .rd_inject_valid_o   (rd_inject_valid),
-        .rd_inject_ready_i   (rd_inject_ready),
-        .rd_inject_id_o      (rd_inject_id),
-        .rd_inject_data_o    (rd_inject_data),
-        .rd_inject_last_o    (rd_inject_last),
+        // AXI4 slave host port
+        .s_axi_awid          (s_axi_awid),
+        .s_axi_awaddr        (s_axi_awaddr),
+        .s_axi_awlen         (s_axi_awlen),
+        .s_axi_awsize        (s_axi_awsize),
+        .s_axi_awburst       (s_axi_awburst),
+        .s_axi_awlock        (s_axi_awlock),
+        .s_axi_awcache       (s_axi_awcache),
+        .s_axi_awprot        (s_axi_awprot),
+        .s_axi_awqos         (s_axi_awqos),
+        .s_axi_awregion      (s_axi_awregion),
+        .s_axi_awuser        (s_axi_awuser),
+        .s_axi_awvalid       (s_axi_awvalid),
+        .s_axi_awready       (s_axi_awready),
+        .s_axi_wdata         (s_axi_wdata),
+        .s_axi_wstrb         (s_axi_wstrb),
+        .s_axi_wlast         (s_axi_wlast),
+        .s_axi_wuser         (s_axi_wuser),
+        .s_axi_wvalid        (s_axi_wvalid),
+        .s_axi_wready        (s_axi_wready),
+        .s_axi_bid           (s_axi_bid),
+        .s_axi_bresp         (s_axi_bresp),
+        .s_axi_buser         (s_axi_buser),
+        .s_axi_bvalid        (s_axi_bvalid),
+        .s_axi_bready        (s_axi_bready),
+        .s_axi_arid          (s_axi_arid),
+        .s_axi_araddr        (s_axi_araddr),
+        .s_axi_arlen         (s_axi_arlen),
+        .s_axi_arsize        (s_axi_arsize),
+        .s_axi_arburst       (s_axi_arburst),
+        .s_axi_arlock        (s_axi_arlock),
+        .s_axi_arcache       (s_axi_arcache),
+        .s_axi_arprot        (s_axi_arprot),
+        .s_axi_arqos         (s_axi_arqos),
+        .s_axi_arregion      (s_axi_arregion),
+        .s_axi_aruser        (s_axi_aruser),
+        .s_axi_arvalid       (s_axi_arvalid),
+        .s_axi_arready       (s_axi_arready),
+        .s_axi_rid           (s_axi_rid),
+        .s_axi_rdata         (s_axi_rdata),
+        .s_axi_rresp         (s_axi_rresp),
+        .s_axi_rlast         (s_axi_rlast),
+        .s_axi_ruser         (s_axi_ruser),
+        .s_axi_rvalid        (s_axi_rvalid),
+        .s_axi_rready        (s_axi_rready),
 
         // DFI
         .dfi_address_o          (dfi_address_o),
@@ -562,7 +377,7 @@ module ddr2_lpddr2_top
         .status_init_done_o     (core_init_done),
         .status_init_busy_o     (core_init_busy),
         .status_pdn_state_o     (core_pdn_state),
-        .obs_words_o            (core_obs_words)
+        .obs_words_o            (all_obs_words)
     );
 
     //=========================================================================
