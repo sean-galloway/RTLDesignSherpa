@@ -207,7 +207,58 @@ async def cocotb_test_ddr2_char_macro(dut):
         "kb4":       dict(burst=4, n=128,  base=0x0001_0000),
         "kb32":      dict(burst=4, n=1024, base=0x0001_0000),
     }
-    if test_type in SHAPES:
+    if test_type == "pacing_sweep_b2b":
+        # Engine-PACING sweep — NOT an AXI random-profile sweep.
+        # The AXI_RANDOMIZER_CONFIGS BFM cross-product lives at the
+        # controller-only level on test_ddr2_lpddr2_core_macro. Here
+        # the engines drive the AXI bus directly, so what we sweep is
+        # the engines' own inter-burst pacing knobs (cfg_wr_gap,
+        # cfg_rd_gap). Each gap pair stresses a different
+        # writer/reader timing relationship — fast/fast catches
+        # throughput corners; slow/fast catches cam-fill / wbuf-drain
+        # corners; skewed (fast wr / slow rd) catches wr2rd_forward
+        # arming windows.
+        wr_gap = int(os.environ.get("WR_GAP", "0"))
+        rd_gap = int(os.environ.get("RD_GAP", "0"))
+        tb.log.info("pacing_sweep_b2b: wr_gap=%d rd_gap=%d", wr_gap, rd_gap)
+
+        BURST = 4
+        N = 17  # past RD_CAM_DEPTH=16 — exercises slot reuse + same-id
+        BASE = 0x0001_0000
+        BYTES_PER_BEAT = 8
+        STRIDE = BURST * BYTES_PER_BEAT
+        SEED = 0xDEAD_BEEF
+
+        await _program_writer(dut, start_addr=BASE, stride_0=STRIDE,
+                              burst_len=BURST, txn_count=N, lfsr_seed=SEED)
+        await _program_reader(dut, start_addr=BASE, stride_0=STRIDE,
+                              burst_len=BURST, txn_count=N, lfsr_seed=SEED)
+        dut.cfg_wr_gap.value = wr_gap
+        dut.cfg_rd_gap.value = rd_gap
+        await RisingEdge(dut.mc_clk)
+
+        await _pulse(dut, "cfg_wr_start")
+        await _wait_done(dut, "cfg_wr_done", timeout=1_000_000)
+        await _pulse(dut, "cfg_rd_start")
+        await _wait_done(dut, "cfg_rd_done", timeout=1_000_000)
+
+        assert int(dut.o_bresp_error.value) == 0
+        assert int(dut.o_rresp_error.value) == 0
+        assert int(dut.o_data_error.value) == 0, (
+            f"data error (wr_gap={wr_gap} rd_gap={rd_gap})"
+        )
+        assert int(dut.o_beats_mismatched.value) == 0
+        exp = int(dut.o_expected_crc.value)
+        act = int(dut.o_actual_crc.value)
+        assert exp == act, (
+            f"CRC mismatch (wr_gap={wr_gap} rd_gap={rd_gap}): "
+            f"exp=0x{exp:08X} act=0x{act:08X}"
+        )
+        tb.log.info(
+            "pacing_sweep_b2b OK wr_gap=%d rd_gap=%d", wr_gap, rd_gap,
+        )
+
+    elif test_type in SHAPES:
         shape = SHAPES[test_type]
         BURST = shape["burst"]
         N     = shape["n"]
@@ -312,6 +363,118 @@ def test_ddr2_char_macro(request, test_type):
     ]
     sim_args = []
     plus_args = []
+    if enable_waves:
+        compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+        sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
+        plus_args    += ["--trace"]
+        extra_env["VERILATOR_TRACE_FST"] = "1"
+
+    run(python_search=[tests_dir],
+        verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase="cocotb_test_ddr2_char_macro",
+        sim_build=sim_build, simulator="verilator",
+        extra_env=extra_env, parameters=parameters,
+        compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
+        waves=enable_waves, keep_files=True, timescale="1ns/1ps")
+
+
+# ============================================================================
+# Engine-pacing sweep — NOT an AXI random-profile sweep.
+#
+# The AXI random-profile (BFM AXI_RANDOMIZER_CONFIGS) cross-product
+# lives on the controller-only env:
+#   projects/components/memory-controllers/ddr2-lpddr2/dv/tests/macro/
+#     test_ddr2_lpddr2_core_macro.py::test_ddr2_lpddr2_core_macro_profile_sweep
+#
+# This sweep is the engine-integration analog: it varies the engines'
+# own inter-burst pacing knobs (cfg_wr_gap, cfg_rd_gap). Tests
+# engine ↔ controller timing relationships rather than BFM
+# valid/ready randomization. Same 31-config matrix shape (7 uniform +
+# 12 single-axis + 12 skewed) to mirror the discipline of the
+# components-side profile sweep.
+# ============================================================================
+
+_GAP_VALUES = (0, 1, 2, 4, 8, 16, 32)
+
+
+def _build_macro_gap_matrix() -> list[tuple[int, int]]:
+    """31-entry matrix: 7 uniform + 12 axis-only + 12 skewed pairs."""
+    seen: set[tuple[int, int]] = set()
+    matrix: list[tuple[int, int]] = []
+
+    def add(t: tuple[int, int]) -> None:
+        if t not in seen:
+            seen.add(t)
+            matrix.append(t)
+
+    # 7 uniform
+    for g in _GAP_VALUES:
+        add((g, g))
+    # 12 single-axis variants (other axis at 0)
+    for g in _GAP_VALUES:
+        if g == 0:
+            continue
+        add((g, 0))
+        add((0, g))
+    # 12 skewed pairs (factor-of-2 / extreme corners)
+    skewed = [
+        (1, 2), (2, 1), (2, 4), (4, 2), (4, 8), (8, 4),
+        (8, 16), (16, 8), (16, 32), (32, 16), (1, 32), (32, 1),
+    ]
+    for t in skewed:
+        add(t)
+    return matrix
+
+
+_MACRO_GAP_MATRIX = _build_macro_gap_matrix()
+
+
+@pytest.mark.parametrize(
+    "wr_gap,rd_gap",
+    _MACRO_GAP_MATRIX,
+    ids=[f"wr_{w}_rd_{r}" for (w, r) in _MACRO_GAP_MATRIX],
+)
+def test_ddr2_char_macro_pacing_sweep(request, wr_gap, rd_gap):
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "ddr2_char_macro_tb_top"
+    tag = f"wr_{wr_gap}_rd_{rd_gap}"
+    test_name = f"test_ddr2_char_macro_pacing_sweep_{tag}"
+
+    filelist_path = ("projects/NexysA7/ddr2-characterization/"
+                     "ddr2_char_framework/dv/filelists/"
+                     "ddr2_char_macro_tb_top.f")
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=filelist_path)
+
+    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        "DUT": dut_name,
+        "TEST_TYPE": "pacing_sweep_b2b",
+        "MEM_TYPE": "DDR2",
+        "WR_GAP": str(wr_gap),
+        "RD_GAP": str(rd_gap),
+        "SEED": str(random.randint(0, 100000)),
+        "COCOTB_LOG_LEVEL": "INFO",
+        "COCOTB_RESULTS_FILE":
+            os.path.join(log_dir, f"results_{test_name}.xml"),
+    }
+    parameters = {"NUM_RANKS": "1", "PAGE_POLICY": "1",
+                  "RD_DBG_FIFO_DEPTH": "32"}
+
+    enable_waves = bool(int(os.environ.get("WAVES", "0")))
+    compile_args = [
+        "+define+USE_ASYNC_RESET",
+        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
+        "-Wno-CASEOVERLAP",
+    ]
+    sim_args: list = []
+    plus_args: list = []
     if enable_waves:
         compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
         sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
