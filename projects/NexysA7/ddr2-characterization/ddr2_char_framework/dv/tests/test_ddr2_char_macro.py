@@ -480,7 +480,11 @@ def test_ddr2_char_macro(request, test_type):
 # components-side profile sweep.
 # ============================================================================
 
-_GAP_VALUES = (0, 1, 2, 4, 8, 16, 32)
+# cfg_wr_gap / cfg_rd_gap are 4-bit ports on the engines (range 0..15).
+# Values >15 silently overflow at the SV port but raise OverflowError
+# on the cocotb signal assign — that produced 12 spurious pacing_sweep
+# failures in the earlier sweep. Cap at 15 = slow extreme within range.
+_GAP_VALUES = (0, 1, 2, 4, 8, 15)
 
 
 def _build_macro_gap_matrix() -> list[tuple[int, int]]:
@@ -502,10 +506,10 @@ def _build_macro_gap_matrix() -> list[tuple[int, int]]:
             continue
         add((g, 0))
         add((0, g))
-    # 12 skewed pairs (factor-of-2 / extreme corners)
+    # 12 skewed pairs — all values ≤15 (port width limit).
     skewed = [
         (1, 2), (2, 1), (2, 4), (4, 2), (4, 8), (8, 4),
-        (8, 16), (16, 8), (16, 32), (32, 16), (1, 32), (32, 1),
+        (8, 15), (15, 8), (4, 15), (15, 4), (1, 15), (15, 1),
     ]
     for t in skewed:
         add(t)
@@ -594,10 +598,15 @@ _OOO_ID_MODE_LFSR    = 2
 
 _OOO_SCHMOO_STEPS = [
     # (label,        wr_gap, rd_gap, rd_start_delay)
+    # NOTE: cfg_wr_gap / cfg_rd_gap are 4-bit ports on the engines
+    # (range 0..15). The original asym entry used rd_gap=16 which
+    # raised OverflowError on the cocotb signal assign — that's what
+    # produced the 32 spurious "asym" failures in the earlier OOO
+    # sweep. Use 15 = legitimate slow extreme within port range.
     ("fast_imm",     0,      0,      0),
     ("fast_defer",   0,      0,      256),
     ("slow_same",    8,      8,      64),
-    ("asym",         0,      16,     16),
+    ("asym",         0,      15,     16),
 ]
 
 

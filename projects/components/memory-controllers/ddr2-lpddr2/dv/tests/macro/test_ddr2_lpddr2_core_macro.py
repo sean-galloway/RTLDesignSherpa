@@ -226,7 +226,7 @@ def _run_core_macro(*, test_name, test_type, extra_env_extra=None):
         "TEST_TYPE": test_type,
         "MEM_TYPE": "DDR2",
         "NUM_RANKS": "1",
-        "SEED": str(random.randint(0, 100000)),
+        "SEED": os.environ.get("OVERRIDE_SEED", str(random.randint(0, 100000))),
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE":
             os.path.join(log_dir, f"results_{test_name}.xml"),
