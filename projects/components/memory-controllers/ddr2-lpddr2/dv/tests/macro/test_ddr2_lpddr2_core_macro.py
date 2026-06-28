@@ -76,112 +76,144 @@ async def cocotb_test_ddr2_lpddr2_core_macro(dut):
             f"smoke roundtrip: wrote 0x{data_word:016X}, read 0x{got[0]:016X}"
         )
 
+    elif test_type == "engine_mirror_kbN":
+        # Exact mirror of the NexysA7 kb_* engine-driven scenario at
+        # the core_macro BFM level. Single deterministic test with
+        # kb4 = (burst=4, n=128) the failing one.
+        #
+        # Engine equivalence:
+        #   cfg_*_burst_len = BURST
+        #   cfg_*_txn_count = N
+        #   cfg_*_axi_id    = 0       (FIXED)
+        #   cfg_*_id_mode   = 0       (FIXED — not OOO)
+        #   cfg_*_gap       = 0       (back-to-back)
+        #   cfg_*_lfsr_seed = 0xDEADBEEF
+        #
+        # Both writes AND reads go through the BFM via AXI4Sequence
+        # — that is how engine traffic looks on the bus. NEVER fire
+        # parallel cocotb.start_soon(read_transaction) tasks: that
+        # creates per-id deque contention and obscures whether
+        # failures are RTL bugs or BFM scheduling artifacts.
+        import os as _os
+        N = int(_os.environ.get("KBN_N", "128"))
+        BURST = 4
+        BASE = 0x0001_0000
+        STRIDE = BURST * 8
+        tb.log.info("engine_mirror_kbN: N=%d (writes + reads via sequence)", N)
+
+        await tb.wait_for_init_done()
+        from CocoTBFramework.components.axi4.axi4_sequence import (
+            AXI4Sequence, run_axi4_sequence,
+        )
+
+        # Deterministic payload — burst<<16 | beat is uniquely
+        # diagnosable when a beat lands at the wrong burst index.
+        def mk_payload(bi: int, ki: int) -> int:
+            return ((bi & 0xFFFFFF) << 16) | (ki & 0xFFFF)
+
+        # WRITE phase: 128 same-id writes (id=0) BL=4.
+        wr_seq = AXI4Sequence(
+            "engine_mirror_kbN_wr",
+            data_width=tb.axi_data_width,
+            seed=int(_os.environ.get("SEED", "42")),
+        )
+        for bi in range(N):
+            wr_seq.add_write(
+                BASE + bi * STRIDE,
+                data=[mk_payload(bi, ki) for ki in range(BURST)],
+                axid=0,
+            )
+        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr)
+        from cocotb.triggers import ClockCycles as _CC_kbn
+        await _CC_kbn(dut.mc_clk, 100)  # let B drain
+
+        # READ phase: 128 same-id reads (id=0) BL=4 at same addresses.
+        rd_seq = AXI4Sequence(
+            "engine_mirror_kbN_rd",
+            data_width=tb.axi_data_width,
+            seed=int(_os.environ.get("SEED", "42")) ^ 0xA5,
+        )
+        for bi in range(N):
+            rd_seq.add_read(
+                BASE + bi * STRIDE,
+                length=BURST,
+                axid=0,
+            )
+        rd_dicts = await run_axi4_sequence(
+            rd_seq, master_rd=tb.axi_master_rd,
+        )
+        results = [r["data"] for r in rd_dicts]
+
+        first_bad: Optional[tuple] = None
+        for bi, data in enumerate(results):
+            for ki in range(BURST):
+                expected = mk_payload(bi, ki)
+                if data[ki] != expected:
+                    if first_bad is None:
+                        first_bad = (bi, ki, expected, data[ki])
+        assert first_bad is None, (
+            f"engine_mirror_kbN (N={N}) corrupted at "
+            f"burst={first_bad[0]} beat={first_bad[1]}: "
+            f"wrote 0x{first_bad[2]:016X} read 0x{first_bad[3]:016X}"
+        )
+        tb.log.info("engine_mirror_kbN OK N=%d", N)
+
     elif test_type == "profile_sweep_b2b":
-        # Engine-traffic mirror: pipelined writes + same-id pipelined
-        # reads with a per-channel profile assignment. This is the
-        # exact workload the controller-top env runs; here it lands
-        # at the AXI-to-DFI macro level (no CSR / APB overhead).
+        # Per-channel random-timing profile sweep at the AXI-to-DFI
+        # macro level. Pipelines 17 writes then 17 reads via
+        # AXI4Sequence so the BFM dispatches ARs/AWs back-to-back
+        # the way an engine would. NEVER start_soon parallel
+        # read_transaction / write_transaction — that's per-id
+        # deque contention, not real bus traffic.
         aw = os.environ.get("AXI_PROFILE_AW", "fast")
         w  = os.environ.get("AXI_PROFILE_W",  "fast")
         b  = os.environ.get("AXI_PROFILE_B",  "fast")
         ar = os.environ.get("AXI_PROFILE_AR", "fast")
         r  = os.environ.get("AXI_PROFILE_R",  "fast")
         tb.set_axi_timing_per_channel(aw=aw, w=w, b=b, ar=ar, r=r)
-        # Slow profiles (burst_pause / slow_producer) insert long valid/
-        # ready bubbles. 17 bursts × 4 beats through the entire write +
-        # read path can exceed the BFM's default 5000-cycle timeout on
-        # the per-task read_transaction wait. Widen aggressively so a
-        # slow profile doesn't masquerade as a controller bug.
-        tb.axi_master_rd.timeout_cycles = 100_000
-        tb.axi_master_wr.timeout_cycles = 100_000
-        # KNOWN-FAIL under UNIFORM slow profiles: aw_*_w_*_b_*_ar_*_r_*
-        # at burst_pause OR slow_producer hits a real controller stall
-        # at burst 15-16 (sim runs to ~7ms then 0/4 R beats). Per-channel
-        # variants pass. Tracked separately.
 
         N_BURSTS = 17
         BURST_LEN = 4
         BASE = 0x0001_0000
         STRIDE = BURST_LEN * 8
-        FULL_STRB = (1 << (tb.axi_data_width // 8)) - 1
 
         def mk_payload(bi: int, ki: int) -> int:
             return ((bi & 0xFFFF) << 16) | (ki & 0xFFFF)
 
-        aw_tasks: list = []
-        w_tasks:  list = []
+        from CocoTBFramework.components.axi4.axi4_sequence import (
+            AXI4Sequence, run_axi4_sequence,
+        )
+
+        # WRITE sequence — same-id (id=0) for simplicity. Bursts of 4
+        # beats each, addresses incrementing.
+        wr_seq = AXI4Sequence(
+            "profile_sweep_b2b_wr",
+            data_width=tb.axi_data_width,
+        )
         for bi in range(N_BURSTS):
-            aw_packet = tb.axi_master_wr.aw_channel.create_packet(
-                addr=BASE + bi * STRIDE,
-                len=BURST_LEN - 1,
-                id=(bi & 0xF),
-                size=3,
-                burst=1,
+            wr_seq.add_write(
+                BASE + bi * STRIDE,
+                data=[mk_payload(bi, ki) for ki in range(BURST_LEN)],
+                axid=0,
             )
-            aw_tasks.append(cocotb.start_soon(
-                tb.axi_master_wr.aw_channel.send(aw_packet)
-            ))
-            for ki in range(BURST_LEN):
-                w_packet = tb.axi_master_wr.w_channel.create_packet(
-                    data=mk_payload(bi, ki),
-                    last=(1 if ki == BURST_LEN - 1 else 0),
-                    strb=FULL_STRB,
-                )
-                w_tasks.append(cocotb.start_soon(
-                    tb.axi_master_wr.w_channel.send(w_packet)
-                ))
-        for t in aw_tasks + w_tasks:
-            await t
-        await ClockCycles(dut.mc_clk, 2000)
+        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr)
+        await ClockCycles(dut.mc_clk, 200)  # let B drain
 
-        rd_tasks: list = []
+        # READ sequence — same addresses, id=0.
+        rd_seq = AXI4Sequence(
+            "profile_sweep_b2b_rd",
+            data_width=tb.axi_data_width,
+        )
         for bi in range(N_BURSTS):
-            rd_tasks.append(cocotb.start_soon(
-                tb.axi_master_rd.read_transaction(
-                    address=BASE + bi * STRIDE,
-                    burst_len=BURST_LEN,
-                    id=0,
-                    size=3,
-                )
-            ))
-
-        # WEDGE PROBE: count tasks-done + total beats received over time.
-        # Logs every 500 cycles. If beats stop arriving for >2k cycles
-        # while task count < N_BURSTS, that pinpoints the wedge.
-        async def _wedge_probe(tasks):
-            total_received = 0
-            last_total = -1
-            stall_streak = 0
-            for n in range(200):  # 200 × 500 = 100k cycle window
-                await ClockCycles(dut.mc_clk, 500)
-                done = sum(1 for t in tasks if t.done())
-                id_q = tb.axi_master_rd._response_by_id.get(0)
-                in_q = len(id_q) if id_q else 0
-                # Approximation: total beats handled =
-                #   done_tasks × BURST_LEN + currently-in-queue.
-                total_received = done * BURST_LEN + in_q
-                stall = (total_received == last_total) and (done < N_BURSTS)
-                if stall:
-                    stall_streak += 1
-                else:
-                    stall_streak = 0
-                tb.log.info(
-                    "WEDGE PROBE @ +%d cy: tasks_done=%d/%d, in_q=%d, "
-                    "total_beats~=%d, stall_streak=%d",
-                    (n + 1) * 500, done, N_BURSTS, in_q,
-                    total_received, stall_streak,
-                )
-                if stall_streak >= 4:
-                    tb.log.warning(
-                        "WEDGE CONFIRMED: >=2k cycles without new beats "
-                        "(stall_streak=%d). Pin sim time and inspect "
-                        "the controller R path.", stall_streak)
-                last_total = total_received
-        cocotb.start_soon(_wedge_probe(rd_tasks))
-
-        results = []
-        for t in rd_tasks:
-            results.append(await t)
+            rd_seq.add_read(
+                BASE + bi * STRIDE,
+                length=BURST_LEN,
+                axid=0,
+            )
+        rd_dicts = await run_axi4_sequence(
+            rd_seq, master_rd=tb.axi_master_rd,
+        )
+        results = [d["data"] for d in rd_dicts]
 
         first_bad: Optional[tuple] = None
         for bi, data in enumerate(results):
@@ -299,6 +331,21 @@ def _run_core_macro(*, test_name, test_type, extra_env_extra=None):
 def test_ddr2_lpddr2_core_macro_smoke():
     _run_core_macro(test_name="test_ddr2_lpddr2_core_macro_smoke",
                     test_type="smoke")
+
+
+@pytest.mark.parametrize("n_bursts", [16, 17, 18, 20, 24, 32, 64, 128, 1024],
+                         ids=lambda v: f"n{v}")
+def test_ddr2_lpddr2_core_macro_engine_mirror_kbN(request, n_bursts):
+    """Mirror of NexysA7 char_macro kb_* shapes at the BFM-driven
+    AXI-to-DFI level. Each parametrize value matches one engine
+    test: 16 = kb_16burst, 17 = kb_17burst, 32 = kb1, 128 = kb4,
+    1024 = kb32. If any of these fail here the bug is in the
+    controller, not in the engine path."""
+    _run_core_macro(
+        test_name=f"test_ddr2_lpddr2_core_macro_engine_mirror_kbN_n{n_bursts}",
+        test_type="engine_mirror_kbN",
+        extra_env_extra={"KBN_N": str(n_bursts)},
+    )
 
 
 @pytest.mark.parametrize(
