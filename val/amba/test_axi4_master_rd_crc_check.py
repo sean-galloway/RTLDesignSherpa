@@ -21,11 +21,13 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.axi4.axi4_master_rd_crc_check_tb import RdCrcCheckTB
 
 
-@cocotb.test(timeout_time=4, timeout_unit="ms")
+@cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_axi4_master_rd_crc_check(dut):
     test_type = os.environ.get("TEST_TYPE", "smoke_match")
+    slave_profile = os.environ.get("SLAVE_PROFILE", "backtoback")
     tb = RdCrcCheckTB(dut)
     await tb.setup_clocks_and_reset()
+    tb.set_slave_delay_profile(slave_profile)
     scenarios = {
         "smoke_match":         _smoke_match,
         "multi_burst_match":   _multi_burst_match,
@@ -40,6 +42,8 @@ async def cocotb_test_axi4_master_rd_crc_check(dut):
         "arvalid_no_drop":     _arvalid_no_drop,
         "id_mode_counter":     _id_mode_counter,
         "id_mode_lfsr":        _id_mode_lfsr,
+        "kb4":                 _kb4,
+        "kb32":                _kb32,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -132,9 +136,13 @@ async def _rresp_error_sticky(tb: RdCrcCheckTB):
 
 async def _rd_gap_inserts_idle(tb: RdCrcCheckTB):
     """cfg_rd_gap > 0 inserts idle cycles between AR bursts. Clean
-    workload still completes; LFSR phase still matches the slave's
-    pattern responder."""
-    await tb.program(start_addr=0, burst_len=2, txn_count=3, rd_gap=7)
+    workload still completes; LFSR phase still matches what's preloaded
+    in MemoryModel. Stride must be ≥ burst_len*bpp so each beat lands
+    at a unique address (memory-backed slave can't return different
+    data for the same addr)."""
+    BURST = 2
+    await tb.program(start_addr=0, stride_0=BURST * tb.BYTES_PER_BEAT,
+                     burst_len=BURST, txn_count=3, rd_gap=7)
     await tb.pulse_start()
     await tb.wait_done()
     assert len(tb.ar_log) == 3
@@ -188,9 +196,14 @@ async def _arvalid_no_drop(tb: RdCrcCheckTB):
     saw_arvalid_high = False
     ar_handshakes = 0
     drops_observed = 0
-    for _ in range(2000):
-        await RisingEdge(tb.dut.aclk)
-        await Timer(100, units="ps")
+    prev_v = 0
+    # Sample at FallingEdge: AXI4SlaveRead drives arready on a
+    # FallingEdge-aligned coroutine; sample-at-rising-edge would miss
+    # the second-and-later handshakes by ~200ps.
+    from cocotb.triggers import FallingEdge as _FallingEdge
+    MAX_CYCLES = 50_000
+    for _ in range(MAX_CYCLES):
+        await _FallingEdge(tb.dut.aclk)
         v = int(tb.dut.m_axi_arvalid.value)
         r = int(tb.dut.m_axi_arready.value)
         if v and r:
@@ -199,10 +212,11 @@ async def _arvalid_no_drop(tb: RdCrcCheckTB):
                 break
         if v:
             saw_arvalid_high = True
-        elif saw_arvalid_high and ar_handshakes < N:
+        if prev_v == 1 and v == 0 and ar_handshakes < N:
             drops_observed += 1
+        prev_v = v
     assert ar_handshakes == N, (
-        f"only saw {ar_handshakes}/{N} AR handshakes"
+        f"only saw {ar_handshakes}/{N} AR handshakes in {MAX_CYCLES} cycles"
     )
     assert drops_observed == 0, (
         f"arvalid dropped {drops_observed} cycles mid-run at gap=0"
@@ -261,14 +275,65 @@ async def _hash_mode_low_entropy(tb: RdCrcCheckTB):
     )
 
 
+async def _kb4(tb: RdCrcCheckTB):
+    """4 KiB engine read — 128 bursts × 4 beats × 8 bytes from BASE=0.
+
+    MemoryModel is preloaded with LFSR-derived bytes before
+    cfg_start fires; reader engine walks the same descriptor and its
+    per-beat compare must match every preloaded value (o_data_error=0).
+    Isolates the reader engine against the RD-side AXI4 slave BFM —
+    pass here pins any NexysA7 kb4 read mismatch on the controller."""
+    BURST = 4
+    N = 128
+    STRIDE = BURST * tb.BYTES_PER_BEAT
+    await tb.program(start_addr=0, stride_0=STRIDE, burst_len=BURST,
+                     txn_count=N, axi_id=0, id_mode=0,
+                     lfsr_seed=0xDEAD_BEEF)
+    await tb.pulse_start()
+    await tb.wait_done(timeout_cycles=200_000)
+    assert int(tb.dut.o_data_error.value) == 0, (
+        f"kb4 reader saw mismatched data after preloading 4 KiB of LFSR "
+        f"pattern; beats_mismatched={int(tb.dut.o_beats_mismatched.value)}"
+    )
+    assert int(tb.dut.o_rresp_error.value) == 0
+    assert len(tb.ar_log) == N
+    assert int(tb.dut.o_actual_crc_valid.value) == 1
+
+
+async def _kb32(tb: RdCrcCheckTB):
+    """32 KiB engine read — 1024 bursts × 4 beats × 8 bytes. Same
+    structure as kb4 scaled out to the kb32 workload that fails in
+    NexysA7. Isolates reader engine + RD-side AXI BFM."""
+    BURST = 4
+    N = 1024
+    STRIDE = BURST * tb.BYTES_PER_BEAT
+    await tb.program(start_addr=0, stride_0=STRIDE, burst_len=BURST,
+                     txn_count=N, axi_id=0, id_mode=0,
+                     lfsr_seed=0xDEAD_BEEF)
+    await tb.pulse_start()
+    await tb.wait_done(timeout_cycles=2_000_000)
+    assert int(tb.dut.o_data_error.value) == 0, (
+        f"kb32 reader saw mismatched data after preloading 32 KiB of "
+        f"LFSR pattern; "
+        f"beats_mismatched={int(tb.dut.o_beats_mismatched.value)}"
+    )
+    assert int(tb.dut.o_rresp_error.value) == 0
+    assert len(tb.ar_log) == N
+    assert int(tb.dut.o_actual_crc_valid.value) == 1
+
+
 async def _rerun_after_done(tb: RdCrcCheckTB):
-    """A second cfg_start pulse after cfg_done must re-run cleanly."""
-    await tb.program(start_addr=0x100, burst_len=2, txn_count=2)
+    """A second cfg_start pulse after cfg_done must re-run cleanly.
+    Both runs use stride = burst_len*bpp so each beat reads a unique
+    addr (memory-backed slave preload requirement)."""
+    BPP = tb.BYTES_PER_BEAT
+    await tb.program(start_addr=0x100, stride_0=2 * BPP,
+                     burst_len=2, txn_count=2)
     await tb.pulse_start()
     await tb.wait_done()
     tb.ar_log.clear()
-    await tb.program(start_addr=0x800, burst_len=4, txn_count=3,
-                     axi_id=7)
+    await tb.program(start_addr=0x800, stride_0=4 * BPP,
+                     burst_len=4, txn_count=3, axi_id=7)
     await tb.pulse_start()
     await tb.wait_done()
     assert len(tb.ar_log) == 3
@@ -286,22 +351,25 @@ _ALL_TYPES = ["smoke_match", "multi_burst_match", "address_walk",
               "rresp_error_sticky", "rerun_after_done",
               "rd_gap_inserts_idle", "hash_mode_match",
               "hash_mode_low_entropy", "arvalid_no_drop",
-              "id_mode_counter", "id_mode_lfsr"]
-_GATE = [(t,) for t in ["smoke_match", "multi_burst_match",
-                        "data_mismatch_sticky"]]
-_FUNC = [(t,) for t in _ALL_TYPES]
-_FULL = _FUNC
+              "id_mode_counter", "id_mode_lfsr",
+              "kb4", "kb32"]
+_GATE = ["smoke_match", "multi_burst_match", "data_mismatch_sticky"]
+_FUNC = list(_ALL_TYPES)
+_FULL = list(_ALL_TYPES)
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
-_PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
+_SCENARIOS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
+
+_SLAVE_PROFILES = ("backtoback", "fixed", "fast", "constrained",
+                   "burst_pause", "high_throughput", "slow_producer")
 
 
-@pytest.mark.parametrize("test_type", [t[0] for t in _PARAMS],
-                         ids=[t[0] for t in _PARAMS])
-def test_axi4_master_rd_crc_check(request, test_type):
+@pytest.mark.parametrize("slave_profile", _SLAVE_PROFILES)
+@pytest.mark.parametrize("test_type", _SCENARIOS)
+def test_axi4_master_rd_crc_check(request, test_type, slave_profile):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "axi4_master_rd_crc_check"
-    test_name = f"test_axi4_master_rd_crc_check_{test_type}"
+    test_name = f"test_axi4_master_rd_crc_check_{test_type}_{slave_profile}"
 
     filelist_path = "rtl/amba/filelists/axi4_master_rd_crc_check.f"
     verilog_sources, includes = get_sources_from_filelist(
@@ -314,6 +382,7 @@ def test_axi4_master_rd_crc_check(request, test_type):
     extra_env = {
         "DUT": dut_name,
         "TEST_TYPE": test_type,
+        "SLAVE_PROFILE": slave_profile,
         "AXI_DATA_WIDTH": "64",
         "AXI_ID_WIDTH":   "8",
         "SEED": str(random.randint(0, 100000)),

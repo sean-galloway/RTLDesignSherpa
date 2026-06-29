@@ -32,11 +32,13 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.axi4.axi4_master_wr_pattern_gen_tb import WrPatternGenTB
 
 
-@cocotb.test(timeout_time=4, timeout_unit="ms")
+@cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_axi4_master_wr_pattern_gen(dut):
     test_type = os.environ.get("TEST_TYPE", "smoke")
+    slave_profile = os.environ.get("SLAVE_PROFILE", "backtoback")
     tb = WrPatternGenTB(dut)
     await tb.setup_clocks_and_reset()
+    tb.set_slave_delay_profile(slave_profile)
     scenarios = {
         "smoke":             _smoke,
         "multi_burst":       _multi_burst,
@@ -50,6 +52,8 @@ async def cocotb_test_axi4_master_wr_pattern_gen(dut):
         "awvalid_no_drop":   _awvalid_no_drop,
         "id_mode_counter":   _id_mode_counter,
         "id_mode_lfsr":      _id_mode_lfsr,
+        "kb4":               _kb4,
+        "kb32":              _kb32,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -232,6 +236,11 @@ async def _awvalid_no_drop(tb: WrPatternGenTB):
     """At cfg_wr_gap=0 with pipelined AW, awvalid must NOT drop between
     the first AW being driven and the last AW being handshaked. (After
     the last AW handshake awvalid is allowed to deassert — no more work.)
+
+    Engine contract per AXI4: once awvalid asserts, master holds it high
+    until awready handshakes. Test counts handshakes until N seen and
+    observes any awvalid 1→0 transitions in the gap between assertion
+    and final handshake — that's the bug we're guarding against.
     """
     BURST = 4
     N = 4
@@ -242,10 +251,20 @@ async def _awvalid_no_drop(tb: WrPatternGenTB):
     saw_awvalid_high = False
     aw_handshakes = 0
     drops_observed = 0
-    # Watch the AW channel until we've seen N handshakes.
-    for _ in range(2000):
-        await RisingEdge(tb.dut.aclk)
-        await Timer(100, units="ps")
+    prev_v = 0
+    # Watch the AW channel until N handshakes complete OR timeout. The
+    # cycle window is generous enough for the AXI4SlaveWrite BFM's
+    # per-packet pacing (handshakes are ~1-N cycles apart in the
+    # backtoback profile) — it's the engine's contract that matters,
+    # not how fast the BFM accepts.
+    # Sample at FallingEdge: AXI4SlaveWrite drives awready on a
+    # FallingEdge-aligned coroutine, so awready transitions ~300ps
+    # into the cycle. Sampling at FallingEdge (mid-cycle) is the only
+    # point where both engine valid and BFM ready are guaranteed stable.
+    from cocotb.triggers import FallingEdge as _FallingEdge
+    MAX_CYCLES = 50_000
+    for _ in range(MAX_CYCLES):
+        await _FallingEdge(tb.dut.aclk)
         v = int(tb.dut.m_axi_awvalid.value)
         r = int(tb.dut.m_axi_awready.value)
         if v and r:
@@ -254,11 +273,17 @@ async def _awvalid_no_drop(tb: WrPatternGenTB):
                 break
         if v:
             saw_awvalid_high = True
-        elif saw_awvalid_high and aw_handshakes < N:
-            # awvalid went low after asserting and before all AWs done
+        # 1→0 transition on awvalid mid-stream: engine dropped valid
+        # before completing all N handshakes. AXI4 violation.
+        if prev_v == 1 and v == 0 and aw_handshakes < N:
             drops_observed += 1
+        prev_v = v
     assert aw_handshakes == N, (
-        f"only saw {aw_handshakes}/{N} AW handshakes"
+        f"only saw {aw_handshakes}/{N} AW handshakes in {MAX_CYCLES} cycles"
+    )
+    assert drops_observed == 0, (
+        f"awvalid dropped {drops_observed} time(s) mid-stream — engine "
+        f"violates AXI4 (master must hold valid until ready)"
     )
     assert drops_observed == 0, (
         f"awvalid dropped {drops_observed} cycles mid-run at gap=0"
@@ -300,6 +325,110 @@ async def _hash_mode_data(tb: WrPatternGenTB):
     assert int(tb.dut.o_expected_crc_valid.value) == 0
 
 
+async def _kb4(tb: WrPatternGenTB):
+    """4 KiB engine write — 128 bursts × 4 beats × 8 bytes from BASE=0.
+
+    Pins the writer alone against the AXI4SlaveWrite BFM + MemoryModel:
+    after cfg_done, every beat-addr in [0, N*BURST*BPP) must hold
+    exactly the LFSR-derived value from the shared mirror. If this
+    PASSES, the writer engine + AXI4 slave WR path are clean at 4 KiB
+    same-id workload — any kb4 NexysA7 failure is in the controller.
+    """
+    BURST = 4
+    N = 128
+    BPP = tb.BYTES_PER_BEAT
+    STRIDE = BURST * BPP
+    SEED = 0xDEAD_BEEF
+    await tb.program(start_addr=0, stride_0=STRIDE, burst_len=BURST,
+                     txn_count=N, axi_id=0, id_mode=0,
+                     lfsr_seed=SEED)
+    await tb.pulse_start()
+    await tb.wait_done(timeout_cycles=200_000)
+
+    expected = tb.expected_data_words(N * BURST, seed=SEED)
+    first_bad = None
+    for k in range(N * BURST):
+        byte_addr = k * BPP
+        got_bytes = bytes(tb.memory.read(byte_addr, BPP))
+        got_int = int.from_bytes(got_bytes, "little")
+        if got_int != expected[k]:
+            first_bad = (k, byte_addr, expected[k], got_int)
+            break
+    if first_bad is not None:
+        # Dump diagnostics: AW count + addrs around the mismatch, and the
+        # first 5 / last 5 aw_log entries so we can see whether the BFM
+        # recorded the right ARs or got out of order.
+        bi = first_bad[0] // BURST
+        tb.log.error("kb4 FAIL: beat=%d (burst=%d beat=%d) addr=0x%X "
+                     "expected=0x%016X memory=0x%016X",
+                     first_bad[0], bi, first_bad[0] % BURST,
+                     first_bad[1], first_bad[2], first_bad[3])
+        tb.log.error("aw_log[0..7]: %s",
+                     [(i, f"addr=0x{a.addr:X} id={a.axid} len={a.awlen}")
+                      for i, a in enumerate(tb.aw_log[:8])])
+        if bi < len(tb.aw_log):
+            tb.log.error("aw_log[%d..%d]: %s",
+                         max(0, bi-2), min(len(tb.aw_log), bi+3),
+                         [(i, f"addr=0x{a.addr:X} id={a.axid} len={a.awlen}")
+                          for i, a in enumerate(
+                              tb.aw_log[max(0, bi-2):bi+3],
+                              start=max(0, bi-2))])
+        tb.log.error("aw_log size=%d (expected %d)", len(tb.aw_log), N)
+        tb.log.error("w_log size=%d (expected %d)",
+                     len(tb.w_log), N * BURST)
+        # Also dump the expected vs actual for beats near the mismatch
+        for k in range(max(0, first_bad[0]-2), min(N*BURST, first_bad[0]+5)):
+            ba = k * BPP
+            got = int.from_bytes(bytes(tb.memory.read(ba, BPP)), "little")
+            marker = " <-- FIRST BAD" if k == first_bad[0] else ""
+            tb.log.error("  beat=%d addr=0x%X expected=0x%016X memory=0x%016X%s",
+                         k, ba, expected[k], got, marker)
+    assert first_bad is None, (
+        f"kb4 WR mismatch at beat={first_bad[0]} "
+        f"byte_addr=0x{first_bad[1]:X}: "
+        f"expected 0x{first_bad[2]:016X}, "
+        f"memory holds 0x{first_bad[3]:016X}"
+    )
+    assert int(tb.dut.o_bresp_error.value) == 0
+    assert len(tb.aw_log) == N
+    assert len(tb.w_log)  == N * BURST
+
+
+async def _kb32(tb: WrPatternGenTB):
+    """32 KiB engine write — 1024 bursts × 4 beats × 8 bytes. Same
+    verification structure as kb4, scaled out to the kb32 workload that
+    fails in NexysA7. Isolates writer engine + WR-side AXI BFM."""
+    BURST = 4
+    N = 1024
+    BPP = tb.BYTES_PER_BEAT
+    STRIDE = BURST * BPP
+    SEED = 0xDEAD_BEEF
+    await tb.program(start_addr=0, stride_0=STRIDE, burst_len=BURST,
+                     txn_count=N, axi_id=0, id_mode=0,
+                     lfsr_seed=SEED)
+    await tb.pulse_start()
+    await tb.wait_done(timeout_cycles=2_000_000)
+
+    expected = tb.expected_data_words(N * BURST, seed=SEED)
+    first_bad = None
+    for k in range(N * BURST):
+        byte_addr = k * BPP
+        got_bytes = bytes(tb.memory.read(byte_addr, BPP))
+        got_int = int.from_bytes(got_bytes, "little")
+        if got_int != expected[k]:
+            first_bad = (k, byte_addr, expected[k], got_int)
+            break
+    assert first_bad is None, (
+        f"kb32 WR mismatch at beat={first_bad[0]} "
+        f"byte_addr=0x{first_bad[1]:X}: "
+        f"expected 0x{first_bad[2]:016X}, "
+        f"memory holds 0x{first_bad[3]:016X}"
+    )
+    assert int(tb.dut.o_bresp_error.value) == 0
+    assert len(tb.aw_log) == N
+    assert len(tb.w_log)  == N * BURST
+
+
 async def _rerun_after_done(tb: WrPatternGenTB):
     """After cfg_done, a second cfg_start pulse must re-run the workload
     cleanly with fresh state (no leftover counters / errors)."""
@@ -327,7 +456,7 @@ async def _rerun_after_done(tb: WrPatternGenTB):
 
 
 # ---------------------------------------------------------------------------
-# Pytest matrix
+# Pytest matrix — scenarios × slave-delay profiles
 # ---------------------------------------------------------------------------
 
 _ALL_TYPES = ["smoke", "multi_burst", "address_walk",
@@ -335,21 +464,28 @@ _ALL_TYPES = ["smoke", "multi_burst", "address_walk",
               "bresp_error_sticky", "rerun_after_done",
               "wr_gap_inserts_idle", "hash_mode_data",
               "awvalid_no_drop", "id_mode_counter",
-              "id_mode_lfsr"]
-_GATE = [(t,) for t in ["smoke", "multi_burst", "address_walk"]]
-_FUNC = [(t,) for t in _ALL_TYPES]
-_FULL = _FUNC
+              "id_mode_lfsr", "kb4", "kb32"]
+_GATE = ["smoke", "multi_burst", "address_walk"]
+_FUNC = list(_ALL_TYPES)
+_FULL = list(_ALL_TYPES)
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
-_PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
+_SCENARIOS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
+
+# Slave-delay profiles applied to the AXI4SlaveWrite BFM's AW/W/B
+# randomizers. backtoback = 0-delay always-ready; the rest add varying
+# stall patterns to exercise the engine's hold-valid-until-ready contract
+# under different downstream pacing.
+_SLAVE_PROFILES = ("backtoback", "fixed", "fast", "constrained",
+                   "burst_pause", "high_throughput", "slow_producer")
 
 
-@pytest.mark.parametrize("test_type", [t[0] for t in _PARAMS],
-                         ids=[t[0] for t in _PARAMS])
-def test_axi4_master_wr_pattern_gen(request, test_type):
+@pytest.mark.parametrize("slave_profile", _SLAVE_PROFILES)
+@pytest.mark.parametrize("test_type", _SCENARIOS)
+def test_axi4_master_wr_pattern_gen(request, test_type, slave_profile):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "axi4_master_wr_pattern_gen"
-    test_name = f"test_axi4_master_wr_pattern_gen_{test_type}"
+    test_name = f"test_axi4_master_wr_pattern_gen_{test_type}_{slave_profile}"
 
     filelist_path = "rtl/amba/filelists/axi4_master_wr_pattern_gen.f"
     verilog_sources, includes = get_sources_from_filelist(
@@ -362,6 +498,7 @@ def test_axi4_master_wr_pattern_gen(request, test_type):
     extra_env = {
         "DUT": dut_name,
         "TEST_TYPE": test_type,
+        "SLAVE_PROFILE": slave_profile,
         "AXI_DATA_WIDTH": "64",
         "AXI_ID_WIDTH":   "8",
         "SEED": str(random.randint(0, 100000)),

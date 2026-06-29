@@ -123,7 +123,7 @@ async def _wait_rd_done(dut, timeout: int = 8000):
     raise TimeoutError(f"cfg_done_rd did not assert in {timeout} cycles")
 
 
-@cocotb.test(timeout_time=4, timeout_unit="ms")
+@cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_pair(dut):
     test_type = os.environ.get("TEST_TYPE", "smoke")
     await _setup(dut)
@@ -136,6 +136,8 @@ async def cocotb_test_pair(dut):
         "hash_mode":     _hash_mode,
         "hash_mode_low_entropy": _hash_mode_low_entropy_pair,
         "hash_mode_id_counter":  _hash_mode_id_counter,
+        "kb4":           _kb4,
+        "kb32":          _kb32,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -285,6 +287,43 @@ async def _hash_mode_id_counter(dut):
     await _check_clean_hash(dut)
 
 
+async def _kb32(dut):
+    """32 KiB engine-only round-trip: 1024 bursts × 4 beats × 8 bytes.
+    Mirrors the NexysA7 kb32 workload (the failing one) but bypasses
+    the memory controller entirely — writer and reader engines talk to
+    the same shared SV memory array, so this isolates "engines agree
+    on LFSR phase across the entire 32 KiB" from any controller bug.
+
+    If this PASSES → engines' WR LFSR == RD LFSR at this scale; the
+    NexysA7 kb32 failure is a controller bug.
+    If this FAILS → engine-side phase desync; need engine fix, not
+    controller fix.
+    """
+    BURST = 4
+    N = 1024
+    await _program(dut, start_addr=0x000, stride_0=BURST * 8,
+                   burst_len=BURST, txn_count=N,
+                   lfsr_seed=0xDEAD_BEEF)
+    await _pulse_wr(dut); await _wait_wr_done(dut, timeout=2_000_000)
+    await _pulse_rd(dut); await _wait_rd_done(dut, timeout=2_000_000)
+    await _check_clean(dut)
+
+
+async def _kb4(dut):
+    """8 KiB engine-only round-trip: 128 bursts × 4 beats × 8 bytes.
+    Mirrors the NexysA7 kb4 workload. Same isolation logic as kb32 —
+    PASS here pins the kb4 failure on the controller; FAIL pins it on
+    the engine pair."""
+    BURST = 4
+    N = 128
+    await _program(dut, start_addr=0x000, stride_0=BURST * 8,
+                   burst_len=BURST, txn_count=N,
+                   lfsr_seed=0xDEAD_BEEF)
+    await _pulse_wr(dut); await _wait_wr_done(dut, timeout=500_000)
+    await _pulse_rd(dut); await _wait_rd_done(dut, timeout=500_000)
+    await _check_clean(dut)
+
+
 async def _rerun(dut):
     """Run the pair twice with different descriptors. Both runs must be
     clean (no leftover state poisoning the second pass)."""
@@ -310,7 +349,7 @@ async def _rerun(dut):
 
 _ALL_TYPES = ["smoke", "row_walk", "seed_override", "rerun", "gapped",
               "hash_mode", "hash_mode_low_entropy",
-              "hash_mode_id_counter"]
+              "hash_mode_id_counter", "kb4", "kb32"]
 _GATE = [(t,) for t in ["smoke", "row_walk"]]
 _FUNC = [(t,) for t in _ALL_TYPES]
 _FULL = _FUNC

@@ -8,16 +8,21 @@
 
 """TB for `axi4_master_wr_pattern_gen`.
 
-Stubs the M-side AXI by:
-  * always asserting `m_axi_awready` / `m_axi_wready` (full back-to-back),
-  * capturing every accepted (awaddr, awid, awlen) into `aw_log`,
-  * capturing every accepted (wdata, wlast) into `w_log`,
-  * driving B responses for each completed burst with the configured
-    `bresp` (default OKAY); test can flip `bresp_override` to fire
-    sticky-error scenarios.
+Terminates the M-side AXI with the framework's ``AXI4SlaveWrite`` BFM
+backed by a shared ``MemoryModel``:
+  * BFM drives ``awready`` / ``wready`` per ``slave_profile`` (default
+    ``backtoback`` = 0-delay).
+  * BFM commits each W beat into the MemoryModel at the AW's base addr +
+    beat-stride.
+  * BFM emits B responses; ``bresp_override`` injects a sticky error
+    for the bresp_error_sticky scenario.
 
-A Python LFSR mirror in `expected_data_words()` regenerates the same
-32-bit LFSR stream the DUT emits, so the test can compare per-beat data.
+aw_log / w_log are populated from the BFM's channel callbacks so the
+existing scenario assertions keep working unchanged.
+
+A Python LFSR mirror in ``expected_data_words()`` delegates to the
+canonical ``TBClasses.common.lfsr_mirror.simulate_xor_lfsr`` so the test
+can compare per-beat data against ground truth — no per-TB drift.
 """
 
 from __future__ import annotations
@@ -33,6 +38,12 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
 
 from TBClasses.shared.tbbase import TBBase
+from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
+from TBClasses.common.lfsr_mirror import simulate_xor_lfsr as _shared_lfsr
+
+from CocoTBFramework.components.axi4.axi4_interfaces import AXI4SlaveWrite
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.shared.memory_model import MemoryModel
 
 
 _NBA_SETTLE_PS = 100
@@ -51,14 +62,37 @@ class CapturedW:
     last: int
 
 
+class _Axi4SlaveWriteWithBrespOverride(AXI4SlaveWrite):
+    """AXI4SlaveWrite that lets the test inject a non-OKAY bresp.
+
+    AXI4SlaveWrite hardcodes ``resp=0`` in its B-response packet. We
+    wrap ``b_channel.create_packet`` to splice in ``bresp_override``
+    so existing tests that set ``tb.bresp_override = 2`` (SLVERR) keep
+    working without forking the framework class.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.bresp_override: int = 0
+        _orig_create = self.b_channel.create_packet
+        outer = self
+
+        def _wrapped(**kw):
+            pkt = _orig_create(**kw)
+            pkt.resp = outer.bresp_override
+            return pkt
+        self.b_channel.create_packet = _wrapped
+
+
 class WrPatternGenTB(TBBase):
     CLK = 10
 
     LFSR_DEFAULT_SEED = 0xDEADBEEF
     # Matches LFSR_TAPS = {12'd32, 12'd22, 12'd2, 12'd1} (Fibonacci taps)
     LFSR_TAPS = (32, 22, 2, 1)
+    DEFAULT_MEM_BYTES = 64 * 1024   # 64 KiB — covers kb32 (32 KiB) headroom
 
-    def __init__(self, dut) -> None:
+    def __init__(self, dut, *, mem_bytes: int = DEFAULT_MEM_BYTES) -> None:
         super().__init__(dut)
         self.dut = dut
         self.log = logging.getLogger("wr_pattern_gen_tb")
@@ -71,29 +105,95 @@ class WrPatternGenTB(TBBase):
         self.LFSR_WIDTH = 32
         self.MASK_LFSR = (1 << self.LFSR_WIDTH) - 1
         self.MASK_DATA = (1 << self.AXI_DATA_WIDTH) - 1
+        self.BYTES_PER_BEAT = self.AXI_DATA_WIDTH // 8
 
+        # External assertion surface — populated by BFM channel callbacks.
         self.aw_log: List[CapturedAw] = []
         self.w_log:  List[CapturedW] = []
-        self.b_outstanding: Deque[int] = deque()  # ids awaiting B
-        self.bresp_override: int = 0  # 0 = OKAY; override per-test
+
+        # MemoryModel sized to cover the largest workload (kb32 = 32 KiB).
+        self._mem_bytes = mem_bytes
+        self.memory = MemoryModel(
+            num_lines=mem_bytes // self.BYTES_PER_BEAT,
+            bytes_per_line=self.BYTES_PER_BEAT,
+            log=self.log,
+        )
+        self.slave: Optional[_Axi4SlaveWriteWithBrespOverride] = None
+
+    # ---- bresp override convenience ----
+
+    @property
+    def bresp_override(self) -> int:
+        return self.slave.bresp_override if self.slave else 0
+
+    @bresp_override.setter
+    def bresp_override(self, v: int) -> None:
+        if self.slave is None:
+            raise RuntimeError("bresp_override set before setup_clocks_and_reset()")
+        self.slave.bresp_override = int(v) & 0x3
+
+    @property
+    def b_outstanding(self) -> List[int]:
+        """Compat shim for legacy scenarios that introspected the old
+        stub's outstanding-B FIFO. Reports IDs awaiting a B response
+        from the AXI4SlaveWrite BFM. Empty list at cfg_done == all
+        writes acknowledged."""
+        if self.slave is None:
+            return []
+        pending = getattr(self.slave, "pending_transactions", {}) or {}
+        out: List[int] = []
+        for txn_id, txn_list in pending.items():
+            for _ in txn_list:
+                out.append(txn_id)
+        return out
 
     # ---- setup ----
 
     async def setup_clocks_and_reset(self):
         cocotb.start_soon(Clock(self.dut.aclk, self.CLK, units="ns").start())
-        self._drive_idle()
+        self._drive_idle_cfg()
         self.dut.aresetn.value = 0
         for _ in range(10):
             await RisingEdge(self.dut.aclk)
         self.dut.aresetn.value = 1
         for _ in range(5):
             await RisingEdge(self.dut.aclk)
-        cocotb.start_soon(self._aw_capture())
-        cocotb.start_soon(self._w_capture())
-        cocotb.start_soon(self._b_responder())
+        # Bring up framework AXI4 slave on the engine's m_axi_* port.
+        # Default slave delay = backtoback (0). Future scenarios can call
+        # set_slave_delay_profile(...) to dial in stalls.
+        self.slave = _Axi4SlaveWriteWithBrespOverride(
+            dut=self.dut, clock=self.dut.aclk,
+            prefix="m_axi_",
+            data_width=self.AXI_DATA_WIDTH,
+            id_width=self.AXI_ID_WIDTH,
+            addr_width=32,
+            user_width=1,
+            multi_sig=True,
+            memory_model=self.memory,
+            log=self.log,
+        )
+        self.set_slave_delay_profile("backtoback")
 
-    def _drive_idle(self) -> None:
-        # cfg
+        # Wire aw_log / w_log captures off the BFM's channel callbacks.
+        def _aw_cb(pkt) -> None:
+            self.aw_log.append(CapturedAw(
+                addr  = int(getattr(pkt, "addr", 0)),
+                axid  = int(getattr(pkt, "id", 0)),
+                awlen = int(getattr(pkt, "len", 0)),
+            ))
+
+        def _w_cb(pkt) -> None:
+            self.w_log.append(CapturedW(
+                data = int(getattr(pkt, "data", 0)),
+                last = int(getattr(pkt, "last", 0)),
+            ))
+
+        self.slave.aw_channel.add_callback(_aw_cb)
+        self.slave.w_channel.add_callback(_w_cb)
+
+    def _drive_idle_cfg(self) -> None:
+        # The cfg surface is the only thing the TB drives now — the
+        # AXI4SlaveWrite BFM owns m_axi_awready/wready/b*.
         self.dut.cfg_start_addr.value       = 0
         self.dut.cfg_addr_stride_0.value    = 0
         self.dut.cfg_addr_stride_1.value    = 0
@@ -112,76 +212,23 @@ class WrPatternGenTB(TBBase):
         self.dut.cfg_hash_seed2.value       = 0
         self.dut.cfg_wr_gap.value           = 0
         self.dut.cfg_start.value            = 0
-        # M-side AXI (we're the slave for the master block under test)
-        self.dut.m_axi_awready.value        = 1
-        self.dut.m_axi_wready.value         = 1
-        self.dut.m_axi_bid.value            = 0
-        self.dut.m_axi_bresp.value          = 0
-        self.dut.m_axi_buser.value          = 0
-        self.dut.m_axi_bvalid.value         = 0
 
-    # ---- background slave-side responders ----
-
-    async def _aw_capture(self) -> None:
-        while True:
-            await RisingEdge(self.dut.aclk)
-            try:
-                v = int(self.dut.m_axi_awvalid.value)
-                r = int(self.dut.m_axi_awready.value)
-            except Exception:
-                return
-            if v and r:
-                aw = CapturedAw(
-                    addr  = int(self.dut.m_axi_awaddr.value),
-                    axid  = int(self.dut.m_axi_awid.value),
-                    awlen = int(self.dut.m_axi_awlen.value),
-                )
-                self.aw_log.append(aw)
-                self.b_outstanding.append(aw.axid)
-
-    async def _w_capture(self) -> None:
-        while True:
-            await RisingEdge(self.dut.aclk)
-            try:
-                v = int(self.dut.m_axi_wvalid.value)
-                r = int(self.dut.m_axi_wready.value)
-            except Exception:
-                return
-            if v and r:
-                self.w_log.append(CapturedW(
-                    data = int(self.dut.m_axi_wdata.value),
-                    last = int(self.dut.m_axi_wlast.value),
-                ))
-
-    async def _b_responder(self) -> None:
-        """Drive one B response per outstanding burst, FIFO-ordered."""
-        while True:
-            await RisingEdge(self.dut.aclk)
-            try:
-                if self.dut.m_axi_bvalid.value.is_resolvable:
-                    cur_v = int(self.dut.m_axi_bvalid.value)
-                else:
-                    cur_v = 0
-                cur_ready = int(self.dut.m_axi_bready.value)
-            except Exception:
-                return
-            # Drop after handshake
-            if cur_v and cur_ready:
-                self.dut.m_axi_bvalid.value = 0
-            # Issue next B if any pending and bus idle
-            if not int(self.dut.m_axi_bvalid.value) and self.b_outstanding \
-               and self._last_w_was_last():
-                bid = self.b_outstanding.popleft()
-                self.dut.m_axi_bvalid.value = 1
-                self.dut.m_axi_bid.value    = bid
-                self.dut.m_axi_bresp.value  = self.bresp_override
-
-    def _last_w_was_last(self) -> bool:
-        """B can fire only after we've seen wlast for the outstanding burst."""
-        # Count `last` strobes in w_log vs B already drained
-        bs_done = len([w for w in self.w_log if w.last == 1])
-        bs_drained = len(self.aw_log) - len(self.b_outstanding)
-        return bs_done > bs_drained
+    def set_slave_delay_profile(self, profile: str) -> None:
+        """Apply the ``profile`` (from ``AXI_RANDOMIZER_CONFIGS``) to
+        every slave channel's ready/valid randomizer. Use ``backtoback``
+        (the default) for 0-delay always-ready; bump to ``slow_producer``
+        / ``burst_pause`` etc. to stress flow control."""
+        if profile not in AXI_RANDOMIZER_CONFIGS:
+            raise ValueError(
+                f"unknown profile {profile!r}; valid: "
+                f"{sorted(AXI_RANDOMIZER_CONFIGS.keys())}"
+            )
+        cfg = AXI_RANDOMIZER_CONFIGS[profile]
+        slave_constraints = cfg["slave"]   # {'ready_delay': ...}
+        master_constraints = cfg["master"] # {'valid_delay': ...} for B
+        self.slave.aw_channel.set_randomizer(FlexRandomizer(slave_constraints))
+        self.slave.w_channel.set_randomizer(FlexRandomizer(slave_constraints))
+        self.slave.b_channel.set_randomizer(FlexRandomizer(master_constraints))
 
     # ---- cfg drive helpers ----
 
@@ -223,7 +270,7 @@ class WrPatternGenTB(TBBase):
         self.dut.cfg_start.value = 0
         await RisingEdge(self.dut.aclk)
 
-    async def wait_done(self, timeout_cycles: int = 5000) -> None:
+    async def wait_done(self, timeout_cycles: int = 200_000) -> None:
         for _ in range(timeout_cycles):
             await RisingEdge(self.dut.aclk)
             await Timer(_NBA_SETTLE_PS, units="ps")
@@ -237,26 +284,18 @@ class WrPatternGenTB(TBBase):
 
     def expected_lfsr_words(self, count: int,
                             seed: Optional[int] = None) -> List[int]:
-        """Regenerate the Fibonacci LFSR sequence the DUT emits. The
-        `shifter_lfsr_fibonacci` shifts **right** with feedback to the
-        MSB:
-          feedback = XOR of bits at (tap_position - 1) for each tap
-          next     = (feedback << N-1) | (v >> 1)
-        Tap positions are 1-indexed (32 → bit 31, 22 → bit 21, etc).
-        Beat k uses lfsr_out after k advances (k=0 is the seed)."""
+        """Regenerate the Fibonacci LFSR sequence the DUT emits.
+        Beat 0 = seed; beats 1..count-1 = subsequent advances. Delegates
+        to the canonical shared mirror so this TB and the
+        shifter_lfsr_fibonacci unit-test TB cannot drift."""
         seed = seed if seed not in (None, 0) else self.LFSR_DEFAULT_SEED
-        seed &= self.MASK_LFSR
-        N = self.LFSR_WIDTH
-        tap_bits = [t - 1 for t in self.LFSR_TAPS]
-        out: List[int] = []
-        v = seed
-        for _ in range(count):
-            out.append(v)
-            feedback = 0
-            for b in tap_bits:
-                feedback ^= (v >> b) & 1
-            v = ((feedback << (N - 1)) | (v >> 1)) & self.MASK_LFSR
-        return out
+        return _shared_lfsr(
+            seed=seed,
+            taps=self.LFSR_TAPS,
+            cycles=count - 1,
+            width=self.LFSR_WIDTH,
+            include_seed=True,
+        )
 
     def expected_data_words(self, count: int,
                             seed: Optional[int] = None) -> List[int]:
