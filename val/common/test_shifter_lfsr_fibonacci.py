@@ -25,6 +25,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.common.lfsr_mirror import simulate_xor_lfsr as _shared_lfsr_mirror
 
 class ShifterLFSRFibonacciConfig:
     """Configuration class for Fibonacci LFSR Shifter tests"""
@@ -327,40 +328,17 @@ class ShifterLFSRFibonacciTB(TBBase):
         return result
 
     def simulate_xor_lfsr(self, seed, taps, cycles):
-        """
-        Simulate a Fibonacci LFSR (XOR-based) in software to match hardware behavior
-        """
-        # Initialize with the seed
-        lfsr = seed & self.MAX_DATA
-        width = self.WIDTH
-        all_results = []
-
-        # Ensure we're using the correct number of taps
-        taps = taps[:self.TAP_COUNT]
-
-        # Prepare tap mask with only the non-zero, valid taps
-        tap_mask = 0
-        for tap in taps:
-            if tap > 0 and tap <= width:
-                tap_mask |= 1 << (tap - 1)
-
-        # Run simulation for cycles+1 cycles (one extra cycle)
-        for _ in range(cycles + 1):
-            # Calculate feedback from current LFSR value
-            feedback = 0
-            tapped_bits = lfsr & tap_mask
-
-            # Calculate XOR of all tapped bits
-            for i in range(width):
-                if (tapped_bits >> i) & 1:
-                    feedback ^= 1
-
-            # Right shift with feedback into MSB
-            lfsr = ((lfsr >> 1) | (feedback << (width - 1))) & self.MAX_DATA
-            all_results.append(lfsr)
-
-        # Drop the first calculated value to match hardware behavior
-        return all_results[1:]
+        """Reference Fibonacci LFSR — delegates to the shared canonical
+        mirror at ``TBClasses.common.lfsr_mirror.simulate_xor_lfsr``.
+        ``drop_first=True`` preserves the original "drop first calculated
+        value" hardware-match convention."""
+        return _shared_lfsr_mirror(
+            seed=seed,
+            taps=taps[:self.TAP_COUNT],
+            cycles=cycles,
+            width=self.WIDTH,
+            drop_first=True,
+        )
 
     def get_standard_taps_for_width(self):
         """
