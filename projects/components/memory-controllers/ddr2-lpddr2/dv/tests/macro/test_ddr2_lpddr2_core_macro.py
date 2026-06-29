@@ -77,18 +77,28 @@ async def cocotb_test_ddr2_lpddr2_core_macro(dut):
         )
 
     elif test_type == "engine_mirror_kbN":
-        # Exact mirror of the NexysA7 kb_* engine-driven scenarios at
-        # the core_macro BFM level. Engines use:
-        #   cfg_*_burst_len = BURST
-        #   cfg_*_txn_count = N
-        #   cfg_*_axi_id    = 0       (FIXED)
-        #   cfg_*_id_mode   = 0       (FIXED — not OOO)
-        #   cfg_*_gap       = 0       (back-to-back)
+        # Engine-faithful mirror with the same axis knobs as macro top:
+        #   KBN_N           — number of bursts
+        #   KBN_BURST_LEN   — beats per burst
+        #   KBN_BASE_ADDR   — start address (hex string ok via int(..., 0))
+        #   KBN_ID_MODE     — FIXED / COUNTER / LFSR
+        #   KBN_AXI_ID_BASE — first AXI id (interpretation depends on mode)
+        #   KBN_SLAVE_PROFILE — AXI4Master timing profile
+        # Mirrors NexysA7 engines' cfg knobs.
         import os as _os
-        N = int(_os.environ.get("KBN_N", "128"))
-        BURST = 4
-        BASE = 0x0001_0000
-        tb.log.info("engine_mirror_kbN: N=%d via shared sequences", N)
+        N         = int(_os.environ.get("KBN_N", "128"))
+        BURST     = int(_os.environ.get("KBN_BURST_LEN", "4"))
+        BASE      = int(_os.environ.get("KBN_BASE_ADDR", "0x10000"), 0)
+        id_mode   = _os.environ.get("KBN_ID_MODE", "FIXED").upper()
+        id_base   = int(_os.environ.get("KBN_AXI_ID_BASE", "0"))
+        slave_profile = _os.environ.get("KBN_SLAVE_PROFILE", "backtoback")
+        if slave_profile != "backtoback":
+            tb.set_axi_timing_profile(slave_profile)
+        tb.log.info(
+            "engine_mirror_kbN: N=%d BURST=%d id_mode=%s id_base=%d "
+            "slave_profile=%s base=0x%X",
+            N, BURST, id_mode, id_base, slave_profile, BASE,
+        )
         await tb.wait_for_init_done()
 
         from tbclasses.ddr2_lpddr2_sequences import (
@@ -98,10 +108,27 @@ async def cocotb_test_ddr2_lpddr2_core_macro(dut):
             run_axi4_sequence,
         )
 
+        ID_MASK = (1 << tb.axi_id_width) - 1
+
+        def _id_pick(bi: int) -> int:
+            if id_mode == "FIXED":
+                return id_base & ID_MASK
+            if id_mode == "COUNTER":
+                return (id_base + bi) & ID_MASK
+            if id_mode == "LFSR":
+                v = max(id_base, 1) & 0xFF
+                for _ in range(bi):
+                    fb = ((v >> 7) ^ (v >> 5) ^ (v >> 4) ^ (v >> 3)) & 1
+                    v = ((v << 1) | fb) & 0xFF
+                return v & ID_MASK
+            return id_base & ID_MASK
+
         wr_seq, rd_seq, expected = build_b2b_wr_rd_sequences(
             n_bursts=N, burst_len=BURST, base_addr=BASE,
             data_width=tb.axi_data_width,
-            name="engine_mirror_kbN",
+            wr_axid_fn=_id_pick,
+            rd_axid_fn=_id_pick,
+            name=f"engine_mirror_core_{id_mode}_id{id_base}_bl{BURST}_n{N}",
         )
         await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr)
         from cocotb.triggers import ClockCycles as _CC_kbn
@@ -318,18 +345,267 @@ def test_ddr2_lpddr2_core_macro_smoke():
                     test_type="smoke")
 
 
-@pytest.mark.parametrize("n_bursts", [16, 17, 18, 20, 24, 32, 64, 128, 1024],
-                         ids=lambda v: f"n{v}")
-def test_ddr2_lpddr2_core_macro_engine_mirror_kbN(request, n_bursts):
-    """Mirror of NexysA7 char_macro kb_* shapes at the BFM-driven
-    AXI-to-DFI level. Each parametrize value matches one engine
-    test: 16 = kb_16burst, 17 = kb_17burst, 32 = kb1, 128 = kb4,
-    1024 = kb32. If any of these fail here the bug is in the
-    controller, not in the engine path."""
+# ---------------------------------------------------------------------------
+# Engine-mirror matrix — core_macro carries 3-5x the workload coverage of
+# macro top, on the principle that the fastest-to-iterate environment (no
+# CSR/init flow, no APB indirection) should bear the bulk of the stress.
+# Axes:
+#   - N (txn count): full sweep from just-under-CAM (16) to kb32 (1024)
+#   - BL (burst length): 1/2/4/8 for single-beat + power-of-2 multi-beat
+#   - id_mode + id_base: FIXED / COUNTER / LFSR across id-space corners
+#   - slave-delay profile: backtoback + 6 stress profiles
+#   - base addr: 0x10000 + a few row-crossing / bank-spread variants
+# Tier by TEST_LEVEL so quick smokes don't pay the kb32 cost.
+# ---------------------------------------------------------------------------
+
+
+def _eng(label, **kw):
+    """Helper — build (id, env-dict) tuple from kwargs."""
+    env = {f"KBN_{k.upper()}": str(v) for k, v in kw.items()}
+    return (label, env)
+
+
+# --- 1. N-depth sweep at BL=4, id_mode=FIXED@0, base=0x10000 (11 cfg)
+_DEPTH = [
+    _eng(f"depth_n{n}", N=n) for n in
+    (16, 17, 18, 20, 24, 32, 48, 64, 96, 128, 1024)
+]
+
+# --- 2. BL sweep × N=32, FIXED@0 (4 cfg)
+_BL = [
+    _eng(f"bl{bl}_n32", N=32, BURST_LEN=bl) for bl in (1, 2, 4, 8)
+]
+# --- 2b. BL sweep × N=128 (kb4 scale) (4 cfg)
+_BL += [
+    _eng(f"bl{bl}_n128", N=128, BURST_LEN=bl) for bl in (1, 2, 4, 8)
+]
+
+# --- 3. id_mode × id_base sweep at N=64, BL=4 (12 cfg)
+_ID = []
+for mode, ids_ in [
+    ("FIXED",   [0, 5, 7, 15]),
+    ("COUNTER", [0, 5, 15]),
+    ("LFSR",    [1, 7, 42, 0x9B, 0xFE]),
+]:
+    for ib in ids_:
+        _ID.append(_eng(f"id_{mode.lower()}_{ib}_n64",
+                        N=64, ID_MODE=mode, AXI_ID_BASE=ib))
+
+# --- 4. id_mode at N=128 (kb4 scale) (5 cfg)
+_ID += [
+    _eng("id_counter_0_n128",  N=128, ID_MODE="COUNTER", AXI_ID_BASE=0),
+    _eng("id_counter_15_n128", N=128, ID_MODE="COUNTER", AXI_ID_BASE=15),
+    _eng("id_lfsr_42_n128",    N=128, ID_MODE="LFSR",    AXI_ID_BASE=42),
+    _eng("id_fixed_5_n128",    N=128, ID_MODE="FIXED",   AXI_ID_BASE=5),
+    _eng("id_fixed_15_n128",   N=128, ID_MODE="FIXED",   AXI_ID_BASE=15),
+]
+
+# --- 5. base address variants (row-spread, bank-spread) (6 cfg)
+# row-spread bursts: large stride across row boundary
+_ADDR = [
+    _eng("base_0x10000_n64", N=64, BASE_ADDR="0x10000"),
+    _eng("base_0x20000_n64", N=64, BASE_ADDR="0x20000"),
+    _eng("base_0x40000_n64", N=64, BASE_ADDR="0x40000"),
+    _eng("base_0x80000_n64", N=64, BASE_ADDR="0x80000"),
+    _eng("base_0x100000_n64", N=64, BASE_ADDR="0x100000"),
+    _eng("base_0x200000_n64", N=64, BASE_ADDR="0x200000"),
+]
+
+# --- 6. Slave-delay profile cross at kb4 (6 cfg)
+_PROFILE_KB4 = [
+    _eng(f"profile_{p}_kb4", N=128, SLAVE_PROFILE=p)
+    for p in ("backtoback", "fast", "constrained",
+              "burst_pause", "slow_producer", "high_throughput")
+]
+
+# --- 7. Slave-delay profile cross at N=64 (cheaper than kb4) (6 cfg)
+_PROFILE_N64 = [
+    _eng(f"profile_{p}_n64", N=64, SLAVE_PROFILE=p)
+    for p in ("backtoback", "fast", "constrained",
+              "burst_pause", "slow_producer", "high_throughput")
+]
+
+# --- 8. Combined id_mode × profile at N=64 (catches cross-axis stalls) (12 cfg)
+_ID_PROFILE = []
+for mode in ("FIXED", "COUNTER", "LFSR"):
+    for p in ("backtoback", "constrained", "burst_pause", "slow_producer"):
+        ib = 0 if mode == "FIXED" else (5 if mode == "COUNTER" else 42)
+        _ID_PROFILE.append(_eng(
+            f"id_{mode.lower()}_{p}_n64",
+            N=64, ID_MODE=mode, AXI_ID_BASE=ib, SLAVE_PROFILE=p,
+        ))
+
+# --- 9. Pathological smokes (boundary conditions, single-cfg each) (5 cfg)
+_PATHO = [
+    _eng("patho_single_burst",      N=1,    BURST_LEN=1),
+    _eng("patho_bl256_n1",          N=1,    BURST_LEN=64),
+    _eng("patho_n2048",             N=2048),
+    _eng("patho_high_id_counter",   N=128,  ID_MODE="COUNTER", AXI_ID_BASE=15),
+    _eng("patho_lfsr_burst_pause",  N=128,  ID_MODE="LFSR",    AXI_ID_BASE=0xFE,
+                                    SLAVE_PROFILE="burst_pause"),
+]
+
+# --- 10. BL × N grid (16 cfg)  — every combination at default id_mode
+_BL_N = [
+    _eng(f"grid_bl{bl}_n{n}", N=n, BURST_LEN=bl)
+    for bl in (1, 2, 4, 8)
+    for n in (16, 32, 64, 128)
+]
+
+# --- 11. id_mode × N grid at multiple id_bases (24 cfg)
+_ID_N = []
+for n in (32, 64, 128):
+    for mode, ib in [
+        ("FIXED",   0), ("FIXED",   15),
+        ("COUNTER", 0), ("COUNTER", 8),
+        ("LFSR",    1), ("LFSR",    42), ("LFSR",    0x9B),
+        ("FIXED",   5),  # cover one more
+    ]:
+        _ID_N.append(_eng(
+            f"idn_{mode.lower()}{ib}_n{n}",
+            N=n, ID_MODE=mode, AXI_ID_BASE=ib,
+        ))
+
+# --- 12. Profile × N grid (21 cfg)
+_PROFILE_N = [
+    _eng(f"pn_{p}_n{n}", N=n, SLAVE_PROFILE=p)
+    for n in (32, 64, 128)
+    for p in ("backtoback", "fast", "constrained",
+              "burst_pause", "slow_producer", "high_throughput", "fixed")
+]
+
+# --- 13. Profile × id_mode × N=64 grid (28 cfg)
+_PROFILE_ID = []
+for p in ("backtoback", "fast", "constrained", "burst_pause",
+          "slow_producer", "high_throughput", "fixed"):
+    for mode, ib in [
+        ("FIXED",   0),
+        ("COUNTER", 0),
+        ("COUNTER", 15),
+        ("LFSR",    42),
+    ]:
+        _PROFILE_ID.append(_eng(
+            f"pid_{p}_{mode.lower()}{ib}_n64",
+            N=64, ID_MODE=mode, AXI_ID_BASE=ib, SLAVE_PROFILE=p,
+        ))
+
+# --- 14. BL × id_mode at N=64 grid (12 cfg)
+_BL_ID = []
+for bl in (1, 2, 4, 8):
+    for mode, ib in [
+        ("FIXED",   0), ("COUNTER", 0), ("LFSR",    42),
+    ]:
+        _BL_ID.append(_eng(
+            f"blid_bl{bl}_{mode.lower()}{ib}_n64",
+            N=64, BURST_LEN=bl, ID_MODE=mode, AXI_ID_BASE=ib,
+        ))
+
+# --- 15. Base-addr × N grid (18 cfg) — multi-bank stress
+_BASE_N = []
+for base in ("0x10000", "0x40000", "0x100000"):
+    for n in (32, 64, 128):
+        for bl in (4, 8):
+            _BASE_N.append(_eng(
+                f"basen_{base}_bl{bl}_n{n}",
+                N=n, BURST_LEN=bl, BASE_ADDR=base,
+            ))
+
+# --- 16. Full kb4-scale stress matrix — every interesting axis at kb4 (24 cfg)
+_KB4_STRESS = []
+for p in ("backtoback", "constrained", "burst_pause", "slow_producer"):
+    for mode in ("FIXED", "COUNTER", "LFSR"):
+        for bl in (4, 8):
+            ib = 0 if mode == "FIXED" else (5 if mode == "COUNTER" else 42)
+            _KB4_STRESS.append(_eng(
+                f"kb4stress_{p}_{mode.lower()}{ib}_bl{bl}",
+                N=128, BURST_LEN=bl, ID_MODE=mode, AXI_ID_BASE=ib,
+                SLAVE_PROFILE=p,
+            ))
+
+# --- 17. Wide cross-product at small/medium N: catches axis interactions
+#         the structured sweeps miss. (~144 cfg)
+_WIDE_CROSS = []
+for n in (32, 64):
+    for bl in (2, 4, 8):
+        for mode, ib in [
+            ("FIXED",   0),
+            ("FIXED",   15),
+            ("COUNTER", 0),
+            ("COUNTER", 7),
+            ("LFSR",    1),
+            ("LFSR",    42),
+        ]:
+            for p in ("backtoback", "fast", "burst_pause", "slow_producer"):
+                _WIDE_CROSS.append(_eng(
+                    f"wide_n{n}_bl{bl}_{mode.lower()}{ib}_{p}",
+                    N=n, BURST_LEN=bl, ID_MODE=mode, AXI_ID_BASE=ib,
+                    SLAVE_PROFILE=p,
+                ))
+
+# --- 18. Sparse address sweeps — multi-bank traffic shapes (16 cfg)
+_SPARSE = []
+for base in ("0x10000", "0x80000", "0x200000", "0x400000"):
+    for bl in (1, 4):
+        for mode in ("FIXED", "COUNTER"):
+            ib = 0 if mode == "FIXED" else 5
+            _SPARSE.append(_eng(
+                f"sparse_b{int(base, 16):x}_bl{bl}_{mode.lower()}{ib}",
+                N=64, BURST_LEN=bl, BASE_ADDR=base,
+                ID_MODE=mode, AXI_ID_BASE=ib,
+            ))
+
+# --- 19. Deep-N variants at various BL (12 cfg)
+_DEEP_N = []
+for n in (256, 512, 1024, 2048):
+    for bl in (2, 4, 8):
+        _DEEP_N.append(_eng(f"deep_n{n}_bl{bl}", N=n, BURST_LEN=bl))
+
+# --- 20. Tiny / boundary fuzzed (12 cfg)
+_TINY = []
+for n in (1, 2, 3, 4):
+    for bl in (1, 2, 4):
+        _TINY.append(_eng(f"tiny_n{n}_bl{bl}", N=n, BURST_LEN=bl))
+
+# Tiered matrices
+_ENG_GATE = [
+    _eng("kb4", N=128),
+    _eng("depth_n17", N=17),
+    _eng("kb4_lfsr_burst_pause", N=128, ID_MODE="LFSR", AXI_ID_BASE=42,
+         SLAVE_PROFILE="burst_pause"),
+]
+# FUNC: ~ macro-top-sized matrix, fast-leaning
+_ENG_FUNC = (_DEPTH + _BL + _ID[:8] + _ADDR[:3]
+             + _PROFILE_N64 + _PATHO[:2]
+             + _BL_N + _ID_N[:8])                  # ~57 configs
+# FULL: 3-5x macro-top coverage at the BFM-iterate-fast environment
+_ENG_FULL = (_DEPTH + _BL + _ID + _ADDR
+             + _PROFILE_KB4 + _PROFILE_N64
+             + _ID_PROFILE + _PATHO
+             + _BL_N + _ID_N + _PROFILE_N
+             + _PROFILE_ID + _BL_ID + _BASE_N
+             + _KB4_STRESS
+             + _WIDE_CROSS + _SPARSE + _DEEP_N + _TINY)  # ~400 configs
+
+_TEST_LEVEL_ENG = os.environ.get("TEST_LEVEL", "FUNC").upper()
+_ENG_MATRIX = {
+    "GATE": _ENG_GATE, "FUNC": _ENG_FUNC, "FULL": _ENG_FULL,
+}.get(_TEST_LEVEL_ENG, _ENG_FUNC)
+
+
+@pytest.mark.parametrize(
+    "label,env_overrides",
+    _ENG_MATRIX,
+    ids=[e[0] for e in _ENG_MATRIX],
+)
+def test_ddr2_lpddr2_core_macro_engine_mirror_kbN(request, label, env_overrides):
+    """Engine-faithful workload matrix at the core_macro level (3-5x the
+    coverage of macro top). Same env-var contract as macro top:
+    KBN_N / KBN_BURST_LEN / KBN_ID_MODE / KBN_AXI_ID_BASE /
+    KBN_BASE_ADDR / KBN_SLAVE_PROFILE."""
     _run_core_macro(
-        test_name=f"test_ddr2_lpddr2_core_macro_engine_mirror_kbN_n{n_bursts}",
+        test_name=f"test_ddr2_lpddr2_core_macro_engine_mirror_{label}",
         test_type="engine_mirror_kbN",
-        extra_env_extra={"KBN_N": str(n_bursts)},
+        extra_env_extra=env_overrides,
     )
 
 
