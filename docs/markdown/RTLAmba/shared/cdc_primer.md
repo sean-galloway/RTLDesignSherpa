@@ -199,6 +199,42 @@ The repository provides two async FIFO implementations that differ in how they e
 | [fifo_async](../../RTLCommon/fifo_async.md) | Standard Gray code | Power of 2 only | Most use cases |
 | [fifo_async_div2](../../RTLCommon/fifo_async_div2.md) | Johnson counter | Any even number | Odd-sized buffers, area optimization |
 
+### Sizing the Depth
+
+Given a write/read clock ratio and a burst pattern, the minimum FIFO depth to avoid dropping writes is:
+
+```
+depth >= burst_length * (1 - read_rate / write_rate)
+```
+
+where `rate = freq * duty_cycle` (words/second) for each side. Round the result up, then apply the encoding's depth constraint:
+
+- **Gray (`fifo_async`):** round up to the next power of two.
+- **Johnson (`fifo_async_div2`, `gaxi_fifo_async`):** round up to the next even number — the computed depth itself, in most cases.
+
+**Worked example.** Writer at 100 MHz bursts 100 back-to-back writes; reader pulls 1 word/clk at 80 MHz:
+
+| Step | Value |
+|------|-------|
+| Burst duration | 100 / 100 MHz = 1 µs |
+| Reads during burst | 1 µs × 80 MHz = 80 |
+| Net build-up | 100 − 80 = **20 words** |
+| Gray FIFO (power-of-2) | round up to **32** |
+| Johnson FIFO (even) | **20** as-is |
+
+The Gray encoding adds 12 unused slots — overhead that scales with the data width:
+
+| `DATA_WIDTH` | Gray depth 32 | Johnson depth 20 | Savings |
+|--------------|---------------|------------------|---------|
+| 32 b   | 1024 b   | 640 b   | 384 b   (38%) |
+| 64 b   | 2048 b   | 1280 b  | 768 b   (38%) |
+| 256 b  | 8192 b   | 5120 b  | 3072 b  (38%) |
+| 1024 b | 32 768 b | 20 480 b | **12 288 b** (38%) |
+
+For wide streaming paths (≥256 b), picking Johnson when the rate analysis lands between two powers of two reclaims a meaningful slice of BRAM / register area. The downside is a slightly larger pointer comparator (Johnson pointers are `2 × log2(depth)` bits wide vs Gray's `log2(depth) + 1`), but for `DATA_WIDTH ≥ 64` the storage savings dominate.
+
+Don't forget to add margin for synchronizer latency on `full`/`empty` if you're at the edge of the safe depth — the back-pressure to the writer lags real fill level by `N_FLOP_CROSS` write clocks.
+
 ### Modules
 
 | Module | Description | Depth | Doc |
