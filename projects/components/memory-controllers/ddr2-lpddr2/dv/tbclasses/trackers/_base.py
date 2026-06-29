@@ -39,7 +39,7 @@ import atexit
 import os
 import sys
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 try:
     from cocotb.utils import get_sim_time
@@ -193,7 +193,8 @@ def auto_dump_register(tracker, short_name: str,
 def wire_trackers(dut, *, output_dir: Optional[str] = None,
                   log=None, num_ranks: int = 1, num_banks: int = 8,
                   autostart: bool = True,
-                  scope_path: Optional[str] = None) -> dict:
+                  scope_path: Optional[str] = None,
+                  scope_paths: Optional[Dict[str, str]] = None) -> dict:
     """Convenience: instantiate every tracker on `dut` with consistent
     output_dir + log, optionally start their run() coroutines.
 
@@ -207,18 +208,32 @@ def wire_trackers(dut, *, output_dir: Optional[str] = None,
     to defer until after reset). With `autostart=True` (default), the
     function calls `cocotb.start_soon(t.run())` for each tracker.
 
-    ``scope_path`` walks the cocotb hierarchy from ``dut`` to a common
-    parent scope for all the FUB signals. KNOWN LIMITATION: each FUB
-    tracker actually monitors a different sub-module (the scheduler
-    tracker reads scheduler-internal signals, dfi_cmd reads from the
-    DFI formatter instance, wrbeat reads from data_path, etc.). One
-    flat ``scope_path`` cannot reach all of them at once — the proper
-    fix is per-tracker scope_paths so each can resolve to its specific
-    FUB instance. Until that refactor lands, omit ``scope_path`` and
-    accept that the trackers run as best they can with whatever
-    signals happen to be visible at ``dut``. The BFM-side DFI monitor
-    + AXI snoopers (independent of these trackers) capture the most
-    useful events at the macro top env regardless.
+    Two scoping modes:
+
+    1. ``scope_path`` (single string): walk every tracker to the same
+       sub-scope. Useful when the dut handle is the TB top and all
+       tracked FUBs live under one wrapper (e.g. ``"u_dut"``).
+
+    2. ``scope_paths`` (dict of short-name -> path): per-tracker scope.
+       This is REQUIRED at integration TB scopes because each tracker
+       actually monitors a different sub-module. Example for the
+       macro top env (where ``ddr2_lpddr2_top`` lives at ``u_dut`` and
+       wraps ``ddr2_lpddr2_core_macro`` at ``u_core``):
+
+           wire_trackers(dut, scope_paths={
+               "sched":   "u_dut.u_core.u_command_scheduler.u_scheduler",
+               "xbank":   "u_dut.u_core.u_command_scheduler.u_xbank_timers",
+               "refr":    "u_dut.u_core.u_command_scheduler.u_refresh_ctrl",
+               "pgpred":  "u_dut.u_core.u_command_scheduler.u_page_predictor",
+               "pdn":     "u_dut.u_core.u_command_scheduler.u_powerdown_ctrl",
+               "init":    "u_dut.u_core.u_command_scheduler.u_init_sequencer",
+               "dficmd":  "u_dut.u_core.u_dfi_v21_interface.u_dfi_cmd_formatter",
+               "wrbeat":  "u_dut.u_core.u_data_path.u_wr_beat_sequencer",
+               "rdalign": "u_dut.u_core.u_data_path.u_rd_cl_aligner",
+           })
+
+       In per-FUB tests (where ``dut`` IS the specific FUB), omit
+       both arguments — the trackers work as-is, just like before.
     """
     # Walk the hierarchy if a scope_path is provided. Each step is a
     # getattr; if any link is missing we fall back to dut and let the
@@ -252,17 +267,41 @@ def wire_trackers(dut, *, output_dir: Optional[str] = None,
     from .wr_beat_sequencer_tracker import WrBeatSequencerTracker
     from .rd_cl_aligner_tracker     import RdClAlignerTracker
 
+    # Per-tracker scope resolution. If scope_paths is given, each short
+    # name maps to its own sub-scope walked from `dut`. Fall back to the
+    # shared `scope` (which itself may have been walked from dut via
+    # scope_path) when a name isn't listed.
+    def _resolve(short_name: str):
+        if scope_paths and short_name in scope_paths:
+            sp = scope_paths[short_name]
+            cur = dut
+            for part in sp.split("."):
+                part = part.strip()
+                if not part:
+                    continue
+                nxt = getattr(cur, part, None)
+                if nxt is None:
+                    if log is not None:
+                        log.warning(
+                            "wire_trackers[%s]: scope %r failed at %r — "
+                            "falling back to shared scope",
+                            short_name, sp, part)
+                    return scope
+                cur = nxt
+            return cur
+        return scope
+
     common = dict(output_dir=output_dir, log=log)
     trackers = {
-        'sched':   SchedulerTracker(scope, **common),
-        'refr':    RefreshTracker(scope, **common),
-        'xbank':   XBankTimersTracker(scope, num_ranks=num_ranks, num_banks=num_banks, **common),
-        'pgpred':  PagePredictorTracker(scope, num_ranks=num_ranks, num_banks=num_banks, **common),
-        'dficmd':  DfiCmdFormatterTracker(scope, **common),
-        'pdn':     PowerdownTracker(scope, num_ranks=num_ranks, **common),
-        'init':    InitSequencerTracker(scope, **common),
-        'wrbeat':  WrBeatSequencerTracker(scope, **common),
-        'rdalign': RdClAlignerTracker(scope, **common),
+        'sched':   SchedulerTracker(_resolve('sched'),     **common),
+        'refr':    RefreshTracker(_resolve('refr'),         **common),
+        'xbank':   XBankTimersTracker(_resolve('xbank'),    num_ranks=num_ranks, num_banks=num_banks, **common),
+        'pgpred':  PagePredictorTracker(_resolve('pgpred'), num_ranks=num_ranks, num_banks=num_banks, **common),
+        'dficmd':  DfiCmdFormatterTracker(_resolve('dficmd'), **common),
+        'pdn':     PowerdownTracker(_resolve('pdn'),        num_ranks=num_ranks, **common),
+        'init':    InitSequencerTracker(_resolve('init'),   **common),
+        'wrbeat':  WrBeatSequencerTracker(_resolve('wrbeat'), **common),
+        'rdalign': RdClAlignerTracker(_resolve('rdalign'),  **common),
     }
     if autostart:
         try:

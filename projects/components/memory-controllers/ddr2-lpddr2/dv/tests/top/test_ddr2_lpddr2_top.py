@@ -1164,16 +1164,26 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
         tb.start_axi_wr_snoop()
         tb.start_axi_rd_snoop()
         from tbclasses.trackers._base import wire_trackers as _wire_trackers
-        # NOTE: per-tracker scope_paths needed to actually populate
-        # events at macro top env (each FUB tracker monitors a different
-        # sub-module of u_dut.u_core). Omitting scope_path for now —
-        # trackers will run but capture little until the per-tracker
-        # scope refactor lands. BFM-side DFI monitor + AXI snoopers
-        # still capture independently and give us the WR/RD diff.
+        # Per-tracker scope_paths so each FUB tracker sees the right
+        # sub-module signals at macro top env (ddr2_lpddr2_top wraps
+        # ddr2_lpddr2_core_macro at u_core; the per-FUB instances live
+        # inside u_command_scheduler / u_dfi_v21_interface / u_data_path).
+        _TRACKER_SCOPES = {
+            "sched":   "u_dut.u_core.u_command_scheduler.u_scheduler",
+            "xbank":   "u_dut.u_core.u_command_scheduler.u_xbank_timers",
+            "refr":    "u_dut.u_core.u_command_scheduler.u_refresh_ctrl",
+            "pgpred":  "u_dut.u_core.u_command_scheduler.u_page_predictor",
+            "pdn":     "u_dut.u_core.u_command_scheduler.u_powerdown_ctrl",
+            "init":    "u_dut.u_core.u_command_scheduler.u_init_sequencer",
+            "dficmd":  "u_dut.u_core.u_dfi_v21_interface.u_dfi_cmd_formatter",
+            "wrbeat":  "u_dut.u_core.u_data_path.u_wr_beat_sequencer",
+            "rdalign": "u_dut.u_core.u_data_path.u_rd_cl_aligner",
+        }
         trackers = _wire_trackers(
             dut, output_dir=os.getcwd(), log=tb.log,
             num_ranks=num_ranks, num_banks=8,
             autostart=True,
+            scope_paths=_TRACKER_SCOPES,
         )
         tb.log.info(
             "engine_mirror_kbN top: wired %d FUB trackers + DFI monitor + AXI snoops",
