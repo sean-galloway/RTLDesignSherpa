@@ -188,6 +188,9 @@ async def cocotb_test_ddr2_char_macro(dut):
     tb.init_apb_master()
     await tb.apb_master.reset_bus()
     tb.init_dfi_slave()
+    tb.init_dfi_monitor()        # capture DFI cmd/wr-data/rd-data queues
+    tb.start_axi_wr_snoop()      # snoop AXI WR side as WR-path ground truth
+    tb.start_axi_rd_snoop()      # snoop AXI RD side for RD-path verify
     await tb.wait_for_init_done()
 
     # 1x1 known-good; 1x2 isolates multi-beat-in-burst; 2x1 isolates
@@ -364,6 +367,29 @@ async def cocotb_test_ddr2_char_macro(dut):
         await _pulse(dut, "cfg_wr_start")
         await _wait_done(dut, "cfg_wr_done")
 
+        # Let any in-flight DFI WR data finish landing in memory.
+        await ClockCycles(dut.mc_clk, 200)
+
+        # === WR-PATH LOCALIZER ===
+        # Compare every AXI WR beat the engine drove (snooped on
+        # s_axi_w*) against what now sits in the DFISlavePHY's
+        # MemoryModel. A mismatch means the controller corrupted on the
+        # way AXI WR → wbuf → wr_beat_sequencer → DFI WR → memory.
+        # AR / OOO / snarfing don't apply here — pure write side.
+        wr_bad = tb.verify_memory_matches_axi_wr()
+        if wr_bad is not None:
+            byte_addr, exp_int, act_int = wr_bad
+            tb.log.error(
+                "WR PATH CORRUPTION: byte_addr=0x%X  "
+                "AXI sent=0x%016X  Memory holds=0x%016X  "
+                "(controller corrupted AXI WR → DFI WR → memory)",
+                byte_addr, exp_int, act_int,
+            )
+        else:
+            tb.log.info("WR-path localizer OK: every snooped AXI WR "
+                        "beat matches MemoryModel state "
+                        "(controller WR path clean)")
+
         # Dump 1 beat per burst so we can see which burst's data went
         # wrong if the reader's per-beat compare latches.
         for burst_idx in range(N):
@@ -374,13 +400,45 @@ async def cocotb_test_ddr2_char_macro(dut):
                 burst_idx, byte_addr,
                 payload.hex() if hasattr(payload, 'hex') else str(payload))
 
+        # Promote the WR-path failure to a test assertion (after the
+        # diagnostic dump for easy log scanning).
+        assert wr_bad is None, (
+            f"WR PATH CORRUPTION at byte_addr=0x{wr_bad[0]:X}: "
+            f"AXI sent 0x{wr_bad[1]:016X}, "
+            f"Memory holds 0x{wr_bad[2]:016X}"
+        )
+
         await _pulse(dut, "cfg_rd_start")
         await _wait_done(dut, "cfg_rd_done")
+
+        # === RD-PATH LOCALIZER ===
+        # For every AXI R beat returned, compare against MemoryModel
+        # at that byte addr. Snarfing/OOO are transparent — we look up
+        # by the actual address the engine asked for, not by AR order.
+        rd_bad = tb.verify_axi_rd_matches_memory()
+        if rd_bad is not None:
+            byte_addr, mem_int, axi_int, rid = rd_bad
+            tb.log.error(
+                "RD PATH CORRUPTION: byte_addr=0x%X  rid=%d  "
+                "Memory holds=0x%016X  AXI R returned=0x%016X  "
+                "(controller corrupted DFI RD → AXI R)",
+                byte_addr, rid, mem_int, axi_int,
+            )
+        else:
+            tb.log.info("RD-path localizer OK: every AXI R beat matches "
+                        "MemoryModel state (controller RD path clean)")
 
         # Integrity contract — clean DFI loopback should produce zero
         # protocol errors and matching CRCs.
         assert int(dut.o_bresp_error.value) == 0, "BRESP error latched"
         assert int(dut.o_rresp_error.value) == 0, "RRESP error latched"
+        # Localizer assert lives BEFORE engine's o_data_error so the
+        # log lead with WHICH side broke before the generic "bad LFSR".
+        assert rd_bad is None, (
+            f"RD PATH CORRUPTION at byte_addr=0x{rd_bad[0]:X} rid={rd_bad[3]}: "
+            f"Memory holds 0x{rd_bad[1]:016X}, "
+            f"AXI R returned 0x{rd_bad[2]:016X}"
+        )
         assert int(dut.o_data_error.value) == 0, (
             "o_data_error latched — readback data didn't match LFSR"
         )

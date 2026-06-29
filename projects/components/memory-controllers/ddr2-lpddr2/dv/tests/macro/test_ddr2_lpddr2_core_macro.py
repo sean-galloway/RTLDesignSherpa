@@ -77,80 +77,92 @@ async def cocotb_test_ddr2_lpddr2_core_macro(dut):
         )
 
     elif test_type == "engine_mirror_kbN":
-        # Exact mirror of the NexysA7 kb_* engine-driven scenario at
-        # the core_macro BFM level. Single deterministic test with
-        # kb4 = (burst=4, n=128) the failing one.
-        #
-        # Engine equivalence:
+        # Exact mirror of the NexysA7 kb_* engine-driven scenarios at
+        # the core_macro BFM level. Engines use:
         #   cfg_*_burst_len = BURST
         #   cfg_*_txn_count = N
         #   cfg_*_axi_id    = 0       (FIXED)
         #   cfg_*_id_mode   = 0       (FIXED — not OOO)
         #   cfg_*_gap       = 0       (back-to-back)
-        #   cfg_*_lfsr_seed = 0xDEADBEEF
-        #
-        # Both writes AND reads go through the BFM via AXI4Sequence
-        # — that is how engine traffic looks on the bus. NEVER fire
-        # parallel cocotb.start_soon(read_transaction) tasks: that
-        # creates per-id deque contention and obscures whether
-        # failures are RTL bugs or BFM scheduling artifacts.
         import os as _os
         N = int(_os.environ.get("KBN_N", "128"))
         BURST = 4
         BASE = 0x0001_0000
-        STRIDE = BURST * 8
-        tb.log.info("engine_mirror_kbN: N=%d (writes + reads via sequence)", N)
-
+        tb.log.info("engine_mirror_kbN: N=%d via shared sequences", N)
         await tb.wait_for_init_done()
+
+        from tbclasses.ddr2_lpddr2_sequences import (
+            build_b2b_wr_rd_sequences, diff_results,
+        )
         from CocoTBFramework.components.axi4.axi4_sequence import (
-            AXI4Sequence, run_axi4_sequence,
+            run_axi4_sequence,
         )
 
-        # Deterministic payload — burst<<16 | beat is uniquely
-        # diagnosable when a beat lands at the wrong burst index.
-        def mk_payload(bi: int, ki: int) -> int:
-            return ((bi & 0xFFFFFF) << 16) | (ki & 0xFFFF)
-
-        # WRITE phase: 128 same-id writes (id=0) BL=4.
-        wr_seq = AXI4Sequence(
-            "engine_mirror_kbN_wr",
+        wr_seq, rd_seq, expected = build_b2b_wr_rd_sequences(
+            n_bursts=N, burst_len=BURST, base_addr=BASE,
             data_width=tb.axi_data_width,
-            seed=int(_os.environ.get("SEED", "42")),
+            name="engine_mirror_kbN",
         )
-        for bi in range(N):
-            wr_seq.add_write(
-                BASE + bi * STRIDE,
-                data=[mk_payload(bi, ki) for ki in range(BURST)],
-                axid=0,
-            )
         await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr)
         from cocotb.triggers import ClockCycles as _CC_kbn
-        await _CC_kbn(dut.mc_clk, 100)  # let B drain
+        await _CC_kbn(dut.mc_clk, 100)
 
-        # READ phase: 128 same-id reads (id=0) BL=4 at same addresses.
-        rd_seq = AXI4Sequence(
-            "engine_mirror_kbN_rd",
-            data_width=tb.axi_data_width,
-            seed=int(_os.environ.get("SEED", "42")) ^ 0xA5,
+        # === LOCALIZER A: AXI-WR ↔ DFI-WR ===
+        # After WR drains, the DFISlavePHY's MemoryModel should hold
+        # exactly what the AXI WR bursts intended. A mismatch here
+        # means the controller corrupted on the way down — wbuf /
+        # wr_beat_sequencer / dfi_signal_pack.
+        STRIDE = BURST * (tb.axi_data_width // 8)
+        wr_expected: dict[int, bytes] = {}
+        for bi, beats in enumerate(expected):
+            payload = bytearray()
+            for beat in beats:
+                payload += int(beat).to_bytes(tb.axi_data_width // 8,
+                                              "little")
+            wr_expected[BASE + bi * STRIDE] = bytes(payload)
+        wr_bad = tb.verify_wr_path(wr_expected)
+        assert wr_bad is None, (
+            f"WR PATH CORRUPTION (kbN N={N}) at byte_addr=0x{wr_bad[0]:X} "
+            f"offset={wr_bad[1]}: expected=0x{wr_bad[2]:02X} "
+            f"actual=0x{wr_bad[3]:02X} — controller corrupted between AXI "
+            f"WR ingress and DFI WR egress (wbuf / wr_beat_sequencer / "
+            f"dfi_signal_pack)"
         )
-        for bi in range(N):
-            rd_seq.add_read(
-                BASE + bi * STRIDE,
-                length=BURST,
-                axid=0,
-            )
+        tb.log.info("WR-path localizer OK: all %d bursts × %d beats "
+                    "intact in MemoryModel", N, BURST)
+
         rd_dicts = await run_axi4_sequence(
             rd_seq, master_rd=tb.axi_master_rd,
         )
         results = [r["data"] for r in rd_dicts]
 
-        first_bad: Optional[tuple] = None
-        for bi, data in enumerate(results):
-            for ki in range(BURST):
-                expected = mk_payload(bi, ki)
-                if data[ki] != expected:
-                    if first_bad is None:
-                        first_bad = (bi, ki, expected, data[ki])
+        # === LOCALIZER B: DFI-RD ↔ AXI-RD ===
+        # MemoryModel is now the source of truth for what DFI replays.
+        # Each AXI RD burst's beats should equal MemoryModel[addr].
+        # Mismatch here = corruption on the way up — rd_cl_aligner /
+        # axi_intake R-emit.
+        rd_first_bad: tuple | None = None
+        for bi in range(N):
+            bad = tb.verify_rd_path(
+                BASE + bi * STRIDE, results[bi],
+                data_width_bits=tb.axi_data_width,
+            )
+            if bad is not None:
+                rd_first_bad = (bi, *bad)
+                break
+        assert rd_first_bad is None, (
+            f"RD PATH CORRUPTION (kbN N={N}) at burst={rd_first_bad[0]} "
+            f"beat={rd_first_bad[1]}: MemoryModel had 0x{rd_first_bad[2]:016X} "
+            f"AXI returned 0x{rd_first_bad[3]:016X} — controller corrupted "
+            f"between DFI RD ingress and AXI RD egress (rd_cl_aligner / "
+            f"axi_intake R-emit)"
+        )
+        tb.log.info("RD-path localizer OK: all %d bursts intact across "
+                    "DFI→AXI", N)
+
+        # End-to-end (kept for completeness; both localizers already
+        # passed if we got here).
+        first_bad = diff_results(expected, results)
         assert first_bad is None, (
             f"engine_mirror_kbN (N={N}) corrupted at "
             f"burst={first_bad[0]} beat={first_bad[1]}: "
@@ -175,53 +187,26 @@ async def cocotb_test_ddr2_lpddr2_core_macro(dut):
         N_BURSTS = 17
         BURST_LEN = 4
         BASE = 0x0001_0000
-        STRIDE = BURST_LEN * 8
 
-        def mk_payload(bi: int, ki: int) -> int:
-            return ((bi & 0xFFFF) << 16) | (ki & 0xFFFF)
-
+        from tbclasses.ddr2_lpddr2_sequences import (
+            build_b2b_wr_rd_sequences, diff_results,
+        )
         from CocoTBFramework.components.axi4.axi4_sequence import (
-            AXI4Sequence, run_axi4_sequence,
+            run_axi4_sequence,
         )
-
-        # WRITE sequence — same-id (id=0) for simplicity. Bursts of 4
-        # beats each, addresses incrementing.
-        wr_seq = AXI4Sequence(
-            "profile_sweep_b2b_wr",
+        wr_seq, rd_seq, expected = build_b2b_wr_rd_sequences(
+            n_bursts=N_BURSTS, burst_len=BURST_LEN, base_addr=BASE,
             data_width=tb.axi_data_width,
+            name="profile_sweep_b2b",
         )
-        for bi in range(N_BURSTS):
-            wr_seq.add_write(
-                BASE + bi * STRIDE,
-                data=[mk_payload(bi, ki) for ki in range(BURST_LEN)],
-                axid=0,
-            )
         await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr)
         await ClockCycles(dut.mc_clk, 200)  # let B drain
-
-        # READ sequence — same addresses, id=0.
-        rd_seq = AXI4Sequence(
-            "profile_sweep_b2b_rd",
-            data_width=tb.axi_data_width,
-        )
-        for bi in range(N_BURSTS):
-            rd_seq.add_read(
-                BASE + bi * STRIDE,
-                length=BURST_LEN,
-                axid=0,
-            )
         rd_dicts = await run_axi4_sequence(
             rd_seq, master_rd=tb.axi_master_rd,
         )
         results = [d["data"] for d in rd_dicts]
 
-        first_bad: Optional[tuple] = None
-        for bi, data in enumerate(results):
-            for ki in range(BURST_LEN):
-                expected = mk_payload(bi, ki)
-                if data[ki] != expected:
-                    if first_bad is None:
-                        first_bad = (bi, ki, expected, data[ki])
+        first_bad = diff_results(expected, results)
         assert first_bad is None, (
             f"profile_sweep_b2b "
             f"(aw={aw} w={w} b={b} ar={ar} r={r}) "

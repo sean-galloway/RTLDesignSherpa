@@ -220,6 +220,62 @@ class DDR2LPDDR2CoreMacroTB:
     def peek_memory(self, byte_addr: int, length: int) -> bytearray:
         return self.memory.read(byte_addr, length)
 
+    def verify_wr_path(
+        self,
+        expected: dict,
+    ) -> tuple | None:
+        """AXI-WR ↔ DFI-WR localizer.
+
+        After the WR phase has drained (all B responses received),
+        each `(byte_addr, expected_bytes)` pair in `expected` should
+        match what landed in the DFISlavePHY's MemoryModel — i.e.,
+        what the controller emitted on DFI WR. A mismatch here means
+        the controller corrupted the data on the way down (AXI WR →
+        wbuf → wr_beat_sequencer → dfi_signal_pack → DFI WR).
+
+        Returns:
+          None if every byte matches.
+          (byte_addr, byte_offset, expected_byte, actual_byte) tuple
+          of the first mismatch otherwise. Caller asserts.
+        """
+        for byte_addr, exp_bytes in expected.items():
+            actual = bytes(self.memory.read(byte_addr, len(exp_bytes)))
+            exp = bytes(exp_bytes)
+            if actual != exp:
+                for off in range(len(exp)):
+                    if actual[off] != exp[off]:
+                        return (byte_addr, off, exp[off], actual[off])
+        return None
+
+    def verify_rd_path(
+        self,
+        byte_addr: int,
+        beats: list,
+        data_width_bits: int = 64,
+        endianness: str = "little",
+    ) -> tuple | None:
+        """DFI-RD ↔ AXI-RD localizer.
+
+        For each AXI RD burst's returned beats, compare against what
+        the MemoryModel currently holds at `byte_addr` (which is
+        what DFI would have replayed back). A mismatch means the
+        controller corrupted on the way up (DFI RD → rd_cl_aligner →
+        axi_intake R-emit → AXI R).
+
+        Returns:
+          None if every beat matches.
+          (beat_idx, expected_int, actual_int) of the first mismatch.
+        """
+        bpw = data_width_bits // 8
+        raw = bytes(self.memory.read(byte_addr, len(beats) * bpw))
+        for k, actual_int in enumerate(beats):
+            exp_int = int.from_bytes(
+                raw[k * bpw:(k + 1) * bpw], endianness
+            )
+            if int(actual_int) != exp_int:
+                return (k, exp_int, int(actual_int))
+        return None
+
     async def wait_for_init_done(self, timeout_cycles: int = 10_000) -> None:
         for _ in range(timeout_cycles):
             await RisingEdge(self.dut.mc_clk)

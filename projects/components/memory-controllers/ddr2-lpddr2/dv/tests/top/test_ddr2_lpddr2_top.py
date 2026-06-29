@@ -41,7 +41,13 @@ from ddr2_lpddr2_coverage import (  # noqa: E402
 
 from tbclasses.ddr2_lpddr2_top_tb import DDR2LPDDR2TopTB  # noqa: E402
 
-from CocoTBFramework.components.axi4.axi4_sequence import AXI4Sequence  # noqa: E402
+from CocoTBFramework.components.axi4.axi4_sequence import (  # noqa: E402
+    AXI4Sequence, run_axi4_sequence, run_axi4_sequence_engine,
+)
+
+from tbclasses.ddr2_lpddr2_sequences import (  # noqa: E402
+    build_b2b_wr_rd_sequences, build_rd_only_sequence, diff_results,
+)
 
 
 @cocotb.test(timeout_time=30, timeout_unit="ms")
@@ -507,11 +513,12 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
                     N_BURSTS, BURST_LEN)
 
     elif test_type == "wr_rd_b2b_multi_pipelined":
-        # As wr_rd_b2b_multi, but launches all write_transaction calls
-        # concurrently via cocotb.start_soon so AWs pipeline ahead of W
-        # beats — the actual pattern the axi4_master_wr_pattern_gen
-        # engine drives, and the one the BFM's serial run_axi4_sequence
-        # has NEVER exercised in any existing test.
+        # Pipelined multi-burst with mixed ids (id = b & 0xF) on both
+        # AW and AR — exactly the pattern the
+        # axi4_master_wr_pattern_gen engine drives. Built via the
+        # shared sequence helper; the BFM's AXI4Sequence runner
+        # dispatches AWs / ARs back-to-back as the controller's
+        # awready / arready allows.
         tb.init_axi_masters()
         tb.set_axi_timing_profile("backtoback")
         await tb.axi_master_wr.aw_channel.reset_bus()
@@ -523,50 +530,21 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
         N_BURSTS = 17
         BURST_LEN = 4
         BASE = 0x0001_0000
-        STRIDE = BURST_LEN * 8
 
-        def mk_payload(burst_idx: int, beat_idx: int) -> int:
-            return ((burst_idx & 0xFFFF) << 16) | (beat_idx & 0xFFFF)
+        wr_seq, rd_seq, expected = build_b2b_wr_rd_sequences(
+            n_bursts=N_BURSTS, burst_len=BURST_LEN, base_addr=BASE,
+            data_width=tb.axi_data_width,
+            wr_axid_fn=lambda bi: bi & 0xF,
+            rd_axid_fn=lambda bi: bi & 0xF,
+            name="wr_rd_b2b_multi_pipelined",
+        )
+        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr)
+        rd_dicts = await run_axi4_sequence(
+            rd_seq, master_rd=tb.axi_master_rd,
+        )
+        results = [d["data"] for d in rd_dicts]
 
-        # Launch N concurrent write transactions — each fires its AW
-        # immediately; the BFM's internal scheduler picks AW-AW-AW-...
-        # rather than AW-W-B / AW-W-B.
-        wr_tasks = []
-        for b in range(N_BURSTS):
-            data = [mk_payload(b, k) for k in range(BURST_LEN)]
-            wr_tasks.append(cocotb.start_soon(
-                tb.axi_master_wr.write_transaction(
-                    address=BASE + b * STRIDE,
-                    data=data,
-                    burst_len=BURST_LEN,
-                    id=(b & 0xF),
-                )
-            ))
-        for t in wr_tasks:
-            await t
-
-        # Reads, also concurrent.
-        rd_tasks = []
-        for b in range(N_BURSTS):
-            rd_tasks.append(cocotb.start_soon(
-                tb.axi_master_rd.read_transaction(
-                    address=BASE + b * STRIDE,
-                    burst_len=BURST_LEN,
-                    id=(b & 0xF),
-                )
-            ))
-        read_results = []
-        for t in rd_tasks:
-            read_results.append(await t)
-
-        first_bad: Optional[tuple] = None
-        for b in range(N_BURSTS):
-            beats = read_results[b]
-            for k in range(BURST_LEN):
-                expected = mk_payload(b, k)
-                if beats[k] != expected:
-                    if first_bad is None:
-                        first_bad = (b, k, expected, beats[k])
+        first_bad = diff_results(expected, results)
         assert first_bad is None, (
             f"pipelined b2b corrupted at burst={first_bad[0]} "
             f"beat={first_bad[1]}: wrote 0x{first_bad[2]:016X}, "
@@ -578,13 +556,11 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
         )
 
     elif test_type == "wr_rd_b2b_truly_pipelined":
-        # The pattern the engine actually drives: AW + W on their OWN
-        # parallel channels, not serialized by write_transaction's
-        # internal _aw_w_lock. Bypass write_transaction entirely and
-        # send raw packets on aw_channel / w_channel concurrently —
-        # all 17 AWs queue on awvalid back-to-back; all 17×4 W beats
-        # queue on wvalid back-to-back. AXI4MasterRead is then used for
-        # readback (its R channel logs every received beat).
+        # Mixed-id b2b pipelined writes + mixed-id pipelined reads
+        # driven via the shared sequence builder. AW + W and AR + R
+        # all queue back-to-back inside the BFM — no manual
+        # cocotb.start_soon on raw channel sends, no _aw_w_lock
+        # serialization.
         tb.init_axi_masters()
         tb.set_axi_timing_profile("backtoback")
         await tb.axi_master_wr.aw_channel.reset_bus()
@@ -597,58 +573,23 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
         N_BURSTS = 17
         BURST_LEN = 4
         BASE = 0x0001_0000
-        STRIDE = BURST_LEN * 8
-        FULL_STRB = (1 << (tb.axi_data_width // 8)) - 1
 
-        def mk_payload(burst_idx: int, beat_idx: int) -> int:
-            return ((burst_idx & 0xFFFF) << 16) | (beat_idx & 0xFFFF)
-
-        # Fire all AWs concurrently — channel internally queues them
-        # so awvalid back-to-backs as fast as awready accepts.
-        aw_tasks = []
-        w_tasks  = []
-        for b in range(N_BURSTS):
-            aw_packet = tb.axi_master_wr.aw_channel.create_packet(
-                addr=BASE + b * STRIDE,
-                len=BURST_LEN - 1,
-                id=(b & 0xF),
-                size=3,         # 8 bytes per beat
-                burst=1,        # INCR
-            )
-            aw_tasks.append(cocotb.start_soon(
-                tb.axi_master_wr.aw_channel.send(aw_packet)
-            ))
-            for k in range(BURST_LEN):
-                w_packet = tb.axi_master_wr.w_channel.create_packet(
-                    data=mk_payload(b, k),
-                    last=(1 if k == BURST_LEN - 1 else 0),
-                    strb=FULL_STRB,
-                )
-                w_tasks.append(cocotb.start_soon(
-                    tb.axi_master_wr.w_channel.send(w_packet)
-                ))
-
-        for t in aw_tasks + w_tasks:
-            await t
-        # Drain B responses so the read phase starts on a quiescent bus
+        wr_seq, rd_seq, expected = build_b2b_wr_rd_sequences(
+            n_bursts=N_BURSTS, burst_len=BURST_LEN, base_addr=BASE,
+            data_width=tb.axi_data_width,
+            wr_axid_fn=lambda bi: bi & 0xF,
+            rd_axid_fn=lambda bi: bi & 0xF,
+            name="wr_rd_b2b_truly_pipelined",
+        )
+        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr)
         from cocotb.triggers import ClockCycles as _CC2
-        await _CC2(dut.mc_clk, 200)
+        await _CC2(dut.mc_clk, 200)  # drain B
+        rd_dicts = await run_axi4_sequence(
+            rd_seq, master_rd=tb.axi_master_rd,
+        )
+        results = [d["data"] for d in rd_dicts]
 
-        # Reads via AXI4MasterRead — it logs every R beat through its
-        # GAXISlave for diagnostic visibility.
-        first_bad: Optional[tuple] = None
-        for b in range(N_BURSTS):
-            data = await tb.axi_master_rd.read_transaction(
-                address=BASE + b * STRIDE,
-                burst_len=BURST_LEN,
-                id=(b & 0xF),
-                size=3,
-            )
-            for k in range(BURST_LEN):
-                expected = mk_payload(b, k)
-                if data[k] != expected:
-                    if first_bad is None:
-                        first_bad = (b, k, expected, data[k])
+        first_bad = diff_results(expected, results)
         assert first_bad is None, (
             f"truly-pipelined b2b corrupted at burst={first_bad[0]} "
             f"beat={first_bad[1]}: wrote 0x{first_bad[2]:016X}, "
@@ -660,12 +601,13 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
         )
 
     elif test_type == "wr_rd_b2b_pipelined_same_id":
-        # Engine-traffic mirror: AR side pipelined AND all id=0 (FIXED),
-        # matching axi4_master_rd_crc_check's cfg_rd_axi_id=0 path.
-        # The wr_rd_b2b_truly_pipelined scenario used id=(b&0xF) — mixed
-        # ids — and passes; this same-id variant is what the engine
-        # actually drives. If the controller mishandles same-id ARs
-        # beyond RD_CAM_DEPTH=16, this is where it'll show.
+        # Read-only engine mirror: AR side pipelined AND all id=0
+        # (FIXED), matching axi4_master_rd_crc_check's cfg_rd_axi_id=0
+        # path. Memory is preloaded directly via the DFI slave PHY's
+        # MemoryModel so the AXI write path / wr2rd_forward are
+        # bypassed — anything left over is purely on the read side.
+        # If the controller mishandles same-id ARs beyond
+        # RD_CAM_DEPTH=16, this is where it shows.
         tb.init_axi_masters()
         tb.set_axi_timing_profile("backtoback")
         await tb.axi_master_wr.aw_channel.reset_bus()
@@ -675,58 +617,37 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
         await tb.axi_master_rd.r_channel.reset_bus()
         await tb.wait_for_init_done()
 
-        # 16 = RD_CAM_DEPTH — no slot reuse. If THIS passes but 17
-        # fails, the bug is the slot-reuse interaction (newer same-id
-        # AR landing in a freed slot gets scheduler-picked ahead of
-        # older same-id ARs because of slot-index priority).
         import os as _os
         N_BURSTS = int(_os.environ.get("PIPELINED_SAME_ID_N", "17"))
         BURST_LEN = 4
         BASE = 0x0001_0000
-        STRIDE = BURST_LEN * 8
-        FULL_STRB = (1 << (tb.axi_data_width // 8)) - 1
+        STRIDE = BURST_LEN * (tb.axi_data_width // 8)
         tb.log.info("pipelined_same_id: N_BURSTS=%d (cam depth=16)", N_BURSTS)
 
-        def mk_payload(burst_idx: int, beat_idx: int) -> int:
-            return ((burst_idx & 0xFFFF) << 16) | (beat_idx & 0xFFFF)
-
-        # WRITE phase: preload DFI memory model directly. Bypasses the
-        # entire AXI write path AND wr2rd_forward — anything left over
-        # is purely on the read side.
+        # WRITE phase: preload DFI memory model directly. Payload must
+        # match build_rd_only_sequence's default (bi<<16 | ki).
+        def _default(bi: int, ki: int) -> int:
+            return ((bi & 0xFFFF) << 16) | (ki & 0xFFFF)
         for b in range(N_BURSTS):
             payload = bytearray()
             for k in range(BURST_LEN):
-                payload += mk_payload(b, k).to_bytes(8, "little")
+                payload += _default(b, k).to_bytes(8, "little")
             tb.preload_memory(BASE + b * STRIDE, payload)
         from cocotb.triggers import ClockCycles as _CC3
         await _CC3(dut.mc_clk, 50)
 
-        # READ phase: 17 read_transaction tasks all started concurrently
-        # with id=0. ar_channel.send serializes them in start-order; per
-        # AXI4 same-id ordering, R beats come back in the same order. Each
-        # task pulls BURST_LEN beats from _response_by_id[0].
-        rd_tasks = []
-        for b in range(N_BURSTS):
-            rd_tasks.append(cocotb.start_soon(
-                tb.axi_master_rd.read_transaction(
-                    address=BASE + b * STRIDE,
-                    burst_len=BURST_LEN,
-                    id=0,
-                    size=3,
-                )
-            ))
+        rd_seq, expected = build_rd_only_sequence(
+            n_bursts=N_BURSTS, burst_len=BURST_LEN, base_addr=BASE,
+            data_width=tb.axi_data_width,
+            rd_axid=0,
+            name="wr_rd_b2b_pipelined_same_id",
+        )
+        rd_dicts = await run_axi4_sequence(
+            rd_seq, master_rd=tb.axi_master_rd,
+        )
+        results = [d["data"] for d in rd_dicts]
 
-        results = []
-        for t in rd_tasks:
-            results.append(await t)
-
-        first_bad: Optional[tuple] = None
-        for b, data in enumerate(results):
-            for k in range(BURST_LEN):
-                expected = mk_payload(b, k)
-                if data[k] != expected:
-                    if first_bad is None:
-                        first_bad = (b, k, expected, data[k])
+        first_bad = diff_results(expected, results)
         assert first_bad is None, (
             f"same-id pipelined-AR corrupted at burst={first_bad[0]} "
             f"beat={first_bad[1]}: wrote 0x{first_bad[2]:016X}, "
@@ -740,10 +661,10 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
     elif test_type == "profile_sweep_b2b":
         # Parametric scenario: each AXI channel's timing profile is
         # read from env vars (AXI_PROFILE_AW/W/B/AR/R, default "fast").
-        # Body is "pipelined AW + W with mixed ids, then 17 concurrent
-        # same-id read_transaction tasks" — exercises both the write
-        # serialization and read same-id ordering paths under whatever
-        # channel-profile combination pytest's parametrize hands in.
+        # Body is "pipelined AW + W with mixed ids, then same-id
+        # pipelined reads" — exercises both the write serialization
+        # and read same-id ordering paths under whatever channel-
+        # profile combination pytest's parametrize hands in.
         tb.init_axi_masters()
         prof_aw = os.environ.get("AXI_PROFILE_AW", "fast")
         prof_w  = os.environ.get("AXI_PROFILE_W",  "fast")
@@ -763,63 +684,23 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
         N_BURSTS = 17
         BURST_LEN = 4
         BASE = 0x0001_0000
-        STRIDE = BURST_LEN * 8
-        FULL_STRB = (1 << (tb.axi_data_width // 8)) - 1
 
-        def mk_payload(burst_idx: int, beat_idx: int) -> int:
-            return ((burst_idx & 0xFFFF) << 16) | (beat_idx & 0xFFFF)
-
-        # Pipelined writes (mixed ids).
-        aw_tasks: list = []
-        w_tasks:  list = []
-        for b in range(N_BURSTS):
-            aw_packet = tb.axi_master_wr.aw_channel.create_packet(
-                addr=BASE + b * STRIDE,
-                len=BURST_LEN - 1,
-                id=(b & 0xF),
-                size=3,
-                burst=1,
-            )
-            aw_tasks.append(cocotb.start_soon(
-                tb.axi_master_wr.aw_channel.send(aw_packet)
-            ))
-            for k in range(BURST_LEN):
-                w_packet = tb.axi_master_wr.w_channel.create_packet(
-                    data=mk_payload(b, k),
-                    last=(1 if k == BURST_LEN - 1 else 0),
-                    strb=FULL_STRB,
-                )
-                w_tasks.append(cocotb.start_soon(
-                    tb.axi_master_wr.w_channel.send(w_packet)
-                ))
-        for t in aw_tasks + w_tasks:
-            await t
+        wr_seq, rd_seq, expected = build_b2b_wr_rd_sequences(
+            n_bursts=N_BURSTS, burst_len=BURST_LEN, base_addr=BASE,
+            data_width=tb.axi_data_width,
+            wr_axid_fn=lambda bi: bi & 0xF,
+            rd_axid=0,
+            name="profile_sweep_b2b",
+        )
+        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr)
         from cocotb.triggers import ClockCycles as _CC4
         await _CC4(dut.mc_clk, 2000)
+        rd_dicts = await run_axi4_sequence(
+            rd_seq, master_rd=tb.axi_master_rd,
+        )
+        results = [d["data"] for d in rd_dicts]
 
-        # Concurrent same-id reads — the path that caught the scheduler
-        # age-pick bug. Re-run it under each channel-profile combo.
-        rd_tasks: list = []
-        for b in range(N_BURSTS):
-            rd_tasks.append(cocotb.start_soon(
-                tb.axi_master_rd.read_transaction(
-                    address=BASE + b * STRIDE,
-                    burst_len=BURST_LEN,
-                    id=0,
-                    size=3,
-                )
-            ))
-        results = []
-        for t in rd_tasks:
-            results.append(await t)
-
-        first_bad: Optional[tuple] = None
-        for b, data in enumerate(results):
-            for k in range(BURST_LEN):
-                expected = mk_payload(b, k)
-                if data[k] != expected:
-                    if first_bad is None:
-                        first_bad = (b, k, expected, data[k])
+        first_bad = diff_results(expected, results)
         assert first_bad is None, (
             f"profile_sweep_b2b "
             f"(aw={prof_aw} w={prof_w} b={prof_b} ar={prof_ar} r={prof_r}) "
@@ -1257,6 +1138,61 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
         tb.log.info("wr2rd_forward_burst: %d / %d bursts completed",
                     n_done, len(results))
 
+    elif test_type == "engine_mirror_kbN":
+        # Engine-faithful replay of the NexysA7 kb4 / kb32 workload via
+        # AXI4SlaveWrite/Read BFMs, BUT using run_axi4_sequence_engine —
+        # which pipelines AW back-to-back at one per cycle (bypassing
+        # write_transaction's per-burst lock + B-wait that gates the
+        # default run_axi4_sequence). Matches what the
+        # axi4_master_wr_pattern_gen / axi4_master_rd_crc_check RTL
+        # engines drive at the controller's s_axi port.
+        #
+        # KBN_N env var picks the txn count:
+        #   kb4  → N=128 (4 KiB)
+        #   kb32 → N=1024 (32 KiB)
+        # default: 128.
+        tb.init_axi_masters()
+        tb.set_axi_timing_profile("backtoback")
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_wr.b_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        import os as _os
+        N = int(_os.environ.get("KBN_N", "128"))
+        BURST = 4
+        BASE = 0x0001_0000
+        tb.log.info("engine_mirror_kbN top: N=%d using "
+                    "run_axi4_sequence_engine", N)
+
+        wr_seq, rd_seq, expected = build_b2b_wr_rd_sequences(
+            n_bursts=N, burst_len=BURST, base_addr=BASE,
+            data_width=tb.axi_data_width,
+            name="engine_mirror_kbN_top",
+        )
+        # WR phase via engine-style runner — AW per cycle, no
+        # per-burst gating.
+        await run_axi4_sequence_engine(
+            wr_seq, master_wr=tb.axi_master_wr, log=tb.log,
+        )
+        from cocotb.triggers import ClockCycles as _CC_kbn_top
+        await _CC_kbn_top(dut.mc_clk, 200)  # B drain
+        # RD phase via engine-style runner — AR per cycle.
+        rd_dicts = await run_axi4_sequence_engine(
+            rd_seq, master_rd=tb.axi_master_rd, log=tb.log,
+        )
+        results = [r["data"] for r in rd_dicts]
+
+        first_bad = diff_results(expected, results)
+        assert first_bad is None, (
+            f"engine_mirror_kbN top (N={N}) WR data corruption at "
+            f"burst={first_bad[0]} beat={first_bad[1]}: "
+            f"wrote 0x{first_bad[2]:016X} read 0x{first_bad[3]:016X}"
+        )
+        tb.log.info("engine_mirror_kbN top OK N=%d", N)
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -1462,6 +1398,82 @@ def test_ddr2_lpddr2_top_profile_sweep(
         "AXI_PROFILE_B":  profile_b,
         "AXI_PROFILE_AR": profile_ar,
         "AXI_PROFILE_R":  profile_r,
+        "SEED": str(random.randint(0, 100000)),
+        "COCOTB_LOG_LEVEL": "INFO",
+        "COCOTB_RESULTS_FILE":
+            os.path.join(log_dir, f"results_{test_name}.xml"),
+    }
+    parameters = {"NUM_RANKS": "1", "PAGE_POLICY": "1"}
+
+    enable_waves = bool(int(os.environ.get("WAVES", "0")))
+    compile_args = [
+        "+define+USE_ASYNC_RESET",
+        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
+        "-Wno-CASEOVERLAP",
+    ]
+    sim_args: list = []
+    plus_args: list = []
+    if enable_waves:
+        compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+        sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
+        plus_args    += ["--trace"]
+        extra_env["VERILATOR_TRACE_FST"] = "1"
+
+    compile_args += get_coverage_compile_args()
+    extra_env.update(get_coverage_env(test_name, sim_build=sim_build))
+
+    run(python_search=[tests_dir],
+        verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase="cocotb_test_ddr2_lpddr2_top",
+        sim_build=sim_build, simulator="verilator",
+        extra_env=extra_env, parameters=parameters,
+        compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
+        waves=enable_waves, keep_files=True, timescale="1ns/1ps")
+
+
+# ============================================================================
+# Engine-faithful mirror — replays the NexysA7 kb4 / kb32 workload at the
+# macro top via run_axi4_sequence_engine. AW pipelined one-per-cycle, W
+# beats streaming, B/R collected from per-id callback queues — matches
+# the bus behavior of axi4_master_wr_pattern_gen / _rd_crc_check RTL
+# engines that NexysA7 wraps. If kb4 here PASSES while NexysA7 kb4
+# FAILS, the bug is NexysA7-specific (engine wiring, etc.). If it FAILS
+# here, the controller bug is reproducible at macro top with full BFM
+# visibility.
+# ============================================================================
+
+
+@pytest.mark.parametrize("kbn_label,kbn_n", [
+    ("kb4",  "128"),
+    ("kb32", "1024"),
+])
+def test_ddr2_lpddr2_top_engine_mirror_kbN(request, kbn_label, kbn_n):
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "ddr2_lpddr2_top_tb_top"
+    test_name = f"test_ddr2_lpddr2_top_engine_mirror_{kbn_label}"
+
+    filelist_path = ("projects/components/memory-controllers/ddr2-lpddr2/"
+                     "rtl/filelists/top/ddr2_lpddr2_top.f")
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=filelist_path)
+    verilog_sources.append(os.path.join(
+        repo_root,
+        "projects/components/memory-controllers/ddr2-lpddr2/dv/tb/"
+        "ddr2_lpddr2_top_tb_top.sv"))
+
+    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        "DUT": dut_name,
+        "TEST_TYPE": "engine_mirror_kbN",
+        "KBN_N": kbn_n,
+        "MEM_TYPE": "DDR2",
+        "NUM_RANKS": "1",
         "SEED": str(random.randint(0, 100000)),
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE":
