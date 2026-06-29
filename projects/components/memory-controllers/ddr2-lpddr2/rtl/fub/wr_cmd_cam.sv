@@ -40,6 +40,13 @@ module wr_cmd_cam
     parameter int COL_WIDTH         = 10,
     parameter int BURST_LEN_WIDTH   = 8,
     parameter int W_BUF_PTR_WIDTH   = 7,
+    // Age tracking. r_push_counter is mod-2^AGEW; per-slot r_age
+    // latches the counter at push time. Scheduler uses signed-diff
+    // arithmetic (a - b) < 0 ⇒ a is older — wraparound-safe for any
+    // CAM depth ≤ 64. Same convention as rd_cmd_cam (issue #21:
+    // WR-side picker needs an age tie-break to match the RD-side fix
+    // and prevent slot-0/1 cycling from leaving older bursts stuck).
+    parameter int AGEW              = 8,
 
     // Short aliases
     parameter int CD = WR_CAM_DEPTH,
@@ -106,6 +113,7 @@ module wr_cmd_cam
     output logic [CD-1:0]                       snap_issued_o,
     output logic [CD-1:0]                       snap_b_pending_o,
     output logic [CD-1:0][3:0]                  snap_qos_o,
+    output logic [CD-1:0][AGEW-1:0]             snap_age_o,
 
     // Slot-to-AXI-ID lookup for completion routing
     output logic [CD-1:0][IW-1:0]               snap_id_o,
@@ -128,6 +136,9 @@ module wr_cmd_cam
     logic [CD-1:0][3:0]          r_qos;
     logic [CD-1:0]               r_issued;
     logic [CD-1:0]               r_b_pending;
+    // Per-slot push-order tag (issue #21).
+    logic [CD-1:0][AGEW-1:0]     r_age;
+    logic [AGEW-1:0]             r_push_counter;
 
     // Free-slot priority encoder
     logic [SLW-1:0] w_free_slot;
@@ -153,6 +164,7 @@ module wr_cmd_cam
             r_issued       <= '0;
             r_b_pending    <= '0;
             r_beats_issued <= '0;
+            r_push_counter <= '0;
         end else begin
             // Push
             if (push_valid_i && push_ready_o) begin
@@ -169,6 +181,8 @@ module wr_cmd_cam
                 r_beats_issued[w_free_slot] <= '0;
                 r_issued      [w_free_slot] <= 1'b0;
                 r_b_pending   [w_free_slot] <= 1'b0;
+                r_age         [w_free_slot] <= r_push_counter;
+                r_push_counter              <= r_push_counter + AGEW'(1);
             end
 
             // Mark issued
@@ -231,6 +245,7 @@ module wr_cmd_cam
     assign snap_issued_o     = r_issued;
     assign snap_b_pending_o  = r_b_pending;
     assign snap_qos_o        = r_qos;
+    assign snap_age_o        = r_age;
     assign snap_id_o         = r_id;
 
     // Entry-complete strobe — drives axi4_slave B emit + txn_queue clear

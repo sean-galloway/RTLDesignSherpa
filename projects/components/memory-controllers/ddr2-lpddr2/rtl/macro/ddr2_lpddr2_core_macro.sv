@@ -236,6 +236,7 @@ module ddr2_lpddr2_core_macro
     logic [WR_CAM_DEPTH-1:0][CW-1:0]         w_wr_snap_col;
     logic [WR_CAM_DEPTH-1:0][BLW-1:0]        w_wr_snap_len;
     logic [WR_CAM_DEPTH-1:0][3:0]            w_wr_snap_qos;
+    logic [WR_CAM_DEPTH-1:0][7:0]            w_wr_snap_age;
     logic [RD_CAM_DEPTH-1:0][RKW-1:0]        w_rd_snap_rank;
     logic [RD_CAM_DEPTH-1:0][BKW-1:0]        w_rd_snap_bank;
     logic [RD_CAM_DEPTH-1:0][RW-1:0]         w_rd_snap_row;
@@ -430,6 +431,7 @@ module ddr2_lpddr2_core_macro
         .wr_snap_col_o              (w_wr_snap_col),
         .wr_snap_len_o              (w_wr_snap_len),
         .wr_snap_qos_o              (w_wr_snap_qos),
+        .wr_snap_age_o              (w_wr_snap_age),
         .rd_snap_rank_o             (w_rd_snap_rank),
         .rd_snap_bank_o             (w_rd_snap_bank),
         .rd_snap_row_o              (w_rd_snap_row),
@@ -523,6 +525,7 @@ module ddr2_lpddr2_core_macro
         .wr_snap_col_i       (w_wr_snap_col),
         .wr_snap_len_i       (w_wr_snap_len),
         .wr_snap_qos_i       (w_wr_snap_qos),
+        .wr_snap_age_i       (w_wr_snap_age),
         .rd_snap_rank_i      (w_rd_snap_rank),
         .rd_snap_bank_i      (w_rd_snap_bank),
         .rd_snap_row_i       (w_rd_snap_row),

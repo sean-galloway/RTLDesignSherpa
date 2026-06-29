@@ -191,6 +191,7 @@ module axi_frontend_macro
     output logic [WR_CAM_DEPTH-1:0][CW-1:0]  wr_snap_col_o,
     output logic [WR_CAM_DEPTH-1:0][BLW-1:0] wr_snap_len_o,
     output logic [WR_CAM_DEPTH-1:0][3:0]     wr_snap_qos_o,
+    output logic [WR_CAM_DEPTH-1:0][7:0]     wr_snap_age_o,
     output logic [RD_CAM_DEPTH-1:0][RKW-1:0] rd_snap_rank_o,
     output logic [RD_CAM_DEPTH-1:0][BKW-1:0] rd_snap_bank_o,
     output logic [RD_CAM_DEPTH-1:0][RW-1:0]  rd_snap_row_o,
@@ -491,6 +492,7 @@ module axi_frontend_macro
     logic [WR_CAM_DEPTH-1:0]                       w_wr_snap_issued;
     logic [WR_CAM_DEPTH-1:0]                       w_wr_snap_b_pending;
     logic [WR_CAM_DEPTH-1:0][3:0]                  w_wr_snap_qos;
+    logic [WR_CAM_DEPTH-1:0][7:0]                  w_wr_snap_age;
     logic [WR_CAM_DEPTH-1:0][IW-1:0]               w_wr_snap_id;
 
     // Per-write "full-strb" hint, latched from axi_intake's per-burst
@@ -563,6 +565,7 @@ module axi_frontend_macro
         .snap_issued_o           (w_wr_snap_issued),
         .snap_b_pending_o        (w_wr_snap_b_pending),
         .snap_qos_o              (w_wr_snap_qos),
+        .snap_age_o              (w_wr_snap_age),
         .snap_id_o               (w_wr_snap_id),
 
         .dbg_occupancy_o         (dbg_wr_cam_occ_o)
@@ -722,6 +725,7 @@ module axi_frontend_macro
     assign wr_snap_col_o  = w_wr_snap_col;
     assign wr_snap_len_o  = w_wr_snap_len;
     assign wr_snap_qos_o  = w_wr_snap_qos;
+    assign wr_snap_age_o  = w_wr_snap_age;
     assign rd_snap_rank_o = w_rd_snap_rank;
     assign rd_snap_bank_o = w_rd_snap_bank;
     assign rd_snap_row_o  = w_rd_snap_row;

@@ -86,6 +86,7 @@ module scheduler
     input  logic [WR_CAM_DEPTH-1:0][COL_WIDTH-1:0]       wr_snap_col_i,
     input  logic [WR_CAM_DEPTH-1:0][BURST_LEN_WIDTH-1:0] wr_snap_len_i,
     input  logic [WR_CAM_DEPTH-1:0][3:0]                 wr_snap_qos_i,
+    input  logic [WR_CAM_DEPTH-1:0][7:0]                 wr_snap_age_i,
     input  logic [RD_CAM_DEPTH-1:0][RKW-1:0]             rd_snap_rank_i,
     input  logic [RD_CAM_DEPTH-1:0][BKW-1:0]             rd_snap_bank_i,
     input  logic [RD_CAM_DEPTH-1:0][ROW_WIDTH-1:0]       rd_snap_row_i,
@@ -195,21 +196,39 @@ module scheduler
     logic [WSL-1:0]      w_wr_pick;
     logic [RSL-1:0]      w_rd_pick;
 
-    // F4c: QoS-aware slot picker. Highest AXI QoS wins; on ties, the
-    // lowest slot index wins (oldest-allocated under the wr/rd_cmd_cam
-    // free-slot priority encoder). Falls through to existing W/R
-    // arbitration below.
+    // F4c: QoS-aware slot picker with age tie-break (issue #21).
+    // Highest AXI QoS wins. On QoS ties, OLDEST age wins (signed-diff
+    // for wraparound safety — same convention as the RD-side picker
+    // below). Previously the WR picker only tie-broke on lowest slot
+    // index, which under engine-faithful pipelined AW pacing left
+    // bursts 2-N stuck in their original slots while slots 0/1 kept
+    // cycling — wbuf then wrapped, and older bursts read overwritten
+    // payload when finally scheduled.
     logic [3:0] w_wr_best_qos;
+    logic [7:0] w_wr_best_age;
     always_comb begin
+        logic w_take;
         w_have_wr     = 1'b0;
         w_wr_pick     = '0;
         w_wr_best_qos = 4'd0;
+        w_wr_best_age = 8'd0;
+        w_take        = 1'b0;
         for (int unsigned i = 0; i < WR_CAM_DEPTH; i++) begin
+            w_take = 1'b0;
             if (wr_match_pending_i[i]) begin
-                if (!w_have_wr || (wr_snap_qos_i[i] > w_wr_best_qos)) begin
+                if (!w_have_wr) begin
+                    w_take = 1'b1;
+                end else if (wr_snap_qos_i[i] > w_wr_best_qos) begin
+                    w_take = 1'b1;
+                end else if (wr_snap_qos_i[i] == w_wr_best_qos) begin
+                    // Same QoS — pick older (signed-diff < 0 ⇒ older).
+                    w_take = ($signed(wr_snap_age_i[i] - w_wr_best_age) < 0);
+                end
+                if (w_take) begin
                     w_have_wr     = 1'b1;
                     w_wr_pick     = WSL'(i);
                     w_wr_best_qos = wr_snap_qos_i[i];
+                    w_wr_best_age = wr_snap_age_i[i];
                 end
             end
         end
