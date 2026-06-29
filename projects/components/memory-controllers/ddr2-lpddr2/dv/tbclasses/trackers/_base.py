@@ -192,7 +192,8 @@ def auto_dump_register(tracker, short_name: str,
 
 def wire_trackers(dut, *, output_dir: Optional[str] = None,
                   log=None, num_ranks: int = 1, num_banks: int = 8,
-                  autostart: bool = True) -> dict:
+                  autostart: bool = True,
+                  scope_path: Optional[str] = None) -> dict:
     """Convenience: instantiate every tracker on `dut` with consistent
     output_dir + log, optionally start their run() coroutines.
 
@@ -205,7 +206,41 @@ def wire_trackers(dut, *, output_dir: Optional[str] = None,
     Pass `autostart=False` if you want to start tasks yourself (e.g.,
     to defer until after reset). With `autostart=True` (default), the
     function calls `cocotb.start_soon(t.run())` for each tracker.
+
+    ``scope_path`` walks the cocotb hierarchy from ``dut`` to a common
+    parent scope for all the FUB signals. KNOWN LIMITATION: each FUB
+    tracker actually monitors a different sub-module (the scheduler
+    tracker reads scheduler-internal signals, dfi_cmd reads from the
+    DFI formatter instance, wrbeat reads from data_path, etc.). One
+    flat ``scope_path`` cannot reach all of them at once — the proper
+    fix is per-tracker scope_paths so each can resolve to its specific
+    FUB instance. Until that refactor lands, omit ``scope_path`` and
+    accept that the trackers run as best they can with whatever
+    signals happen to be visible at ``dut``. The BFM-side DFI monitor
+    + AXI snoopers (independent of these trackers) capture the most
+    useful events at the macro top env regardless.
     """
+    # Walk the hierarchy if a scope_path is provided. Each step is a
+    # getattr; if any link is missing we fall back to dut and let the
+    # individual signal-misses surface naturally (the trackers tolerate
+    # missing signals via is_high / safe_int returning 0/False).
+    scope = dut
+    if scope_path:
+        for part in scope_path.split("."):
+            part = part.strip()
+            if not part:
+                continue
+            nxt = getattr(scope, part, None)
+            if nxt is None:
+                if log is not None:
+                    log.warning(
+                        "wire_trackers: scope_path %r failed at %r — "
+                        "falling back to dut top level",
+                        scope_path, part)
+                scope = dut
+                break
+            scope = nxt
+
     # Local imports to avoid circular deps.
     from .scheduler_tracker         import SchedulerTracker
     from .refresh_tracker           import RefreshTracker
@@ -219,15 +254,15 @@ def wire_trackers(dut, *, output_dir: Optional[str] = None,
 
     common = dict(output_dir=output_dir, log=log)
     trackers = {
-        'sched':   SchedulerTracker(dut, **common),
-        'refr':    RefreshTracker(dut, **common),
-        'xbank':   XBankTimersTracker(dut, num_ranks=num_ranks, num_banks=num_banks, **common),
-        'pgpred':  PagePredictorTracker(dut, num_ranks=num_ranks, num_banks=num_banks, **common),
-        'dficmd':  DfiCmdFormatterTracker(dut, **common),
-        'pdn':     PowerdownTracker(dut, num_ranks=num_ranks, **common),
-        'init':    InitSequencerTracker(dut, **common),
-        'wrbeat':  WrBeatSequencerTracker(dut, **common),
-        'rdalign': RdClAlignerTracker(dut, **common),
+        'sched':   SchedulerTracker(scope, **common),
+        'refr':    RefreshTracker(scope, **common),
+        'xbank':   XBankTimersTracker(scope, num_ranks=num_ranks, num_banks=num_banks, **common),
+        'pgpred':  PagePredictorTracker(scope, num_ranks=num_ranks, num_banks=num_banks, **common),
+        'dficmd':  DfiCmdFormatterTracker(scope, **common),
+        'pdn':     PowerdownTracker(scope, num_ranks=num_ranks, **common),
+        'init':    InitSequencerTracker(scope, **common),
+        'wrbeat':  WrBeatSequencerTracker(scope, **common),
+        'rdalign': RdClAlignerTracker(scope, **common),
     }
     if autostart:
         try:

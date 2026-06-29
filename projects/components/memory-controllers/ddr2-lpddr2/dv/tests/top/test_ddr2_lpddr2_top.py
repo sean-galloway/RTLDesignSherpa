@@ -1164,6 +1164,12 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
         tb.start_axi_wr_snoop()
         tb.start_axi_rd_snoop()
         from tbclasses.trackers._base import wire_trackers as _wire_trackers
+        # NOTE: per-tracker scope_paths needed to actually populate
+        # events at macro top env (each FUB tracker monitors a different
+        # sub-module of u_dut.u_core). Omitting scope_path for now —
+        # trackers will run but capture little until the per-tracker
+        # scope refactor lands. BFM-side DFI monitor + AXI snoopers
+        # still capture independently and give us the WR/RD diff.
         trackers = _wire_trackers(
             dut, output_dir=os.getcwd(), log=tb.log,
             num_ranks=num_ranks, num_banks=8,
