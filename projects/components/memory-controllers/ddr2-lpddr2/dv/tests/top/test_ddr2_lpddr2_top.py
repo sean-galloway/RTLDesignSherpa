@@ -1177,16 +1177,47 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
         await tb.wait_for_init_done()
 
         import os as _os
-        N = int(_os.environ.get("KBN_N", "128"))
-        BURST = 4
-        BASE = 0x0001_0000
-        tb.log.info("engine_mirror_kbN top: N=%d using "
-                    "run_axi4_sequence_engine", N)
+        N         = int(_os.environ.get("KBN_N", "128"))
+        BURST     = int(_os.environ.get("KBN_BURST_LEN", "4"))
+        BASE      = int(_os.environ.get("KBN_BASE_ADDR", "0x10000"), 0)
+        id_mode   = _os.environ.get("KBN_ID_MODE", "FIXED").upper()
+        id_base   = int(_os.environ.get("KBN_AXI_ID_BASE", "0"))
+        slave_profile = _os.environ.get("KBN_SLAVE_PROFILE", "backtoback")
+        if slave_profile != "backtoback":
+            tb.set_axi_timing_profile(slave_profile)
+        tb.log.info(
+            "engine_mirror_kbN top: N=%d BURST=%d id_mode=%s id_base=%d "
+            "slave_profile=%s",
+            N, BURST, id_mode, id_base, slave_profile,
+        )
+
+        # id-picker per burst — matches engine cfg_*_id_mode semantics:
+        #   FIXED   : every burst uses id_base
+        #   COUNTER : id = (id_base + bi) & ID_MASK
+        #   LFSR    : 8-bit Fibonacci LFSR seeded at id_base
+        ID_MASK = (1 << tb.axi_id_width) - 1
+
+        def _id_pick(bi: int) -> int:
+            if id_mode == "FIXED":
+                return id_base & ID_MASK
+            if id_mode == "COUNTER":
+                return (id_base + bi) & ID_MASK
+            if id_mode == "LFSR":
+                # Same 8-bit LFSR family the engines use. Seeded at
+                # max(id_base,1) so we don't start in the zero attractor.
+                v = max(id_base, 1) & 0xFF
+                for _ in range(bi):
+                    feedback = ((v >> 7) ^ (v >> 5) ^ (v >> 4) ^ (v >> 3)) & 1
+                    v = ((v << 1) | feedback) & 0xFF
+                return v & ID_MASK
+            return id_base & ID_MASK
 
         wr_seq, rd_seq, expected = build_b2b_wr_rd_sequences(
             n_bursts=N, burst_len=BURST, base_addr=BASE,
             data_width=tb.axi_data_width,
-            name="engine_mirror_kbN_top",
+            wr_axid_fn=_id_pick,
+            rd_axid_fn=_id_pick,
+            name=f"engine_mirror_top_{id_mode}_id{id_base}_bl{BURST}_n{N}",
         )
         # WR phase via engine-style runner — AW per cycle, no
         # per-burst gating.
@@ -1520,14 +1551,91 @@ def test_ddr2_lpddr2_top_profile_sweep(
 # ============================================================================
 
 
-@pytest.mark.parametrize("kbn_label,kbn_n", [
-    ("kb4",  "128"),
-    ("kb32", "1024"),
-])
-def test_ddr2_lpddr2_top_engine_mirror_kbN(request, kbn_label, kbn_n):
+# Engine-faithful workload matrix. Each entry = (label, env-dict-override).
+# Selected to cover axes the FUB-level tests don't reach:
+#   1) N-depth: just-fits-CAM (16), just-overflows (17, 18), 2x (32),
+#      moderate (64), kb4 (128), kb32 (1024).
+#   2) burst_len: 1 (1 beat/burst), 2, 4 (engine kb default), 8 (deeper).
+#   3) id_mode: FIXED (same-id pipelining), COUNTER (id-spread → AXI OOO
+#      legal), LFSR (scattered ids).
+#   4) axi_id_base: 0 (lowest slot), 5, 15 (highest 4-bit).
+#   5) gap (cfg_*_gap engine knob): 0 (back-to-back), 3, 7.
+#   6) slave-delay profile cross: backtoback / fast / constrained /
+#      burst_pause / slow_producer to catch stall-driven failures.
+_ENGINE_BASE = {
+    "TEST_TYPE": "engine_mirror_kbN",
+    "MEM_TYPE":  "DDR2",
+    "NUM_RANKS": "1",
+}
+
+
+def _engine_cfg(**kw):
+    """Helper: starts from _ENGINE_BASE, overlays kw env-var-strings."""
+    out = dict(_ENGINE_BASE)
+    out.update({k: str(v) for k, v in kw.items()})
+    return out
+
+
+# --- N-depth sweep, default id_mode=FIXED, BL=4 ----------------------
+_N_DEPTH = [
+    ("n_16",   _engine_cfg(KBN_N=16)),
+    ("n_17",   _engine_cfg(KBN_N=17)),
+    ("n_18",   _engine_cfg(KBN_N=18)),
+    ("n_32",   _engine_cfg(KBN_N=32)),
+    ("n_64",   _engine_cfg(KBN_N=64)),
+    ("kb4",    _engine_cfg(KBN_N=128)),
+    ("kb32",   _engine_cfg(KBN_N=1024)),
+]
+
+# --- burst_len sweep at N=32 -----------------------------------------
+_BL_SWEEP = [
+    ("bl_1",   _engine_cfg(KBN_N=32, KBN_BURST_LEN=1)),
+    ("bl_2",   _engine_cfg(KBN_N=32, KBN_BURST_LEN=2)),
+    ("bl_4",   _engine_cfg(KBN_N=32, KBN_BURST_LEN=4)),
+    ("bl_8",   _engine_cfg(KBN_N=32, KBN_BURST_LEN=8)),
+]
+
+# --- id_mode sweep at N=64, BL=4 -------------------------------------
+_ID_MODE_SWEEP = [
+    ("id_fixed_0",    _engine_cfg(KBN_N=64, KBN_ID_MODE="FIXED",   KBN_AXI_ID_BASE=0)),
+    ("id_fixed_5",    _engine_cfg(KBN_N=64, KBN_ID_MODE="FIXED",   KBN_AXI_ID_BASE=5)),
+    ("id_fixed_15",   _engine_cfg(KBN_N=64, KBN_ID_MODE="FIXED",   KBN_AXI_ID_BASE=15)),
+    ("id_counter_0",  _engine_cfg(KBN_N=64, KBN_ID_MODE="COUNTER", KBN_AXI_ID_BASE=0)),
+    ("id_counter_5",  _engine_cfg(KBN_N=64, KBN_ID_MODE="COUNTER", KBN_AXI_ID_BASE=5)),
+    ("id_lfsr_1",     _engine_cfg(KBN_N=64, KBN_ID_MODE="LFSR",    KBN_AXI_ID_BASE=1)),
+    ("id_lfsr_42",    _engine_cfg(KBN_N=64, KBN_ID_MODE="LFSR",    KBN_AXI_ID_BASE=42)),
+]
+
+# --- slave-profile cross at kb4 workload — catches stall regressions
+_PROFILE_CROSS = [
+    (f"kb4_{p}", _engine_cfg(KBN_N=128, KBN_SLAVE_PROFILE=p))
+    for p in ("backtoback", "fast", "constrained",
+              "burst_pause", "slow_producer", "high_throughput")
+]
+
+# Tier the matrix by TEST_LEVEL.
+#   GATE: minimal smoke — just kb4 + a couple cross variants.
+#   FUNC: depth sweep + id-mode sweep + BL sweep (no profile cross).
+#   FULL: everything including profile cross.
+_GATE_ENG  = [("kb4", _engine_cfg(KBN_N=128))]
+_FUNC_ENG  = _N_DEPTH + _BL_SWEEP + _ID_MODE_SWEEP
+_FULL_ENG  = _FUNC_ENG + _PROFILE_CROSS
+
+_TEST_LEVEL_ENG = os.environ.get("TEST_LEVEL", "FUNC").upper()
+_ENGINE_MATRIX = {
+    "GATE": _GATE_ENG, "FUNC": _FUNC_ENG, "FULL": _FULL_ENG,
+}.get(_TEST_LEVEL_ENG, _FUNC_ENG)
+
+
+@pytest.mark.parametrize(
+    "label,env_overrides",
+    _ENGINE_MATRIX,
+    ids=[e[0] for e in _ENGINE_MATRIX],
+)
+def test_ddr2_lpddr2_top_engine_mirror_kbN(request, label, env_overrides):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "ddr2_lpddr2_top_tb_top"
-    test_name = f"test_ddr2_lpddr2_top_engine_mirror_{kbn_label}"
+    test_name = f"test_ddr2_lpddr2_top_engine_mirror_{label}"
 
     filelist_path = ("projects/components/memory-controllers/ddr2-lpddr2/"
                      "rtl/filelists/top/ddr2_lpddr2_top.f")
@@ -1544,15 +1652,12 @@ def test_ddr2_lpddr2_top_engine_mirror_kbN(request, kbn_label, kbn_n):
 
     extra_env = {
         "DUT": dut_name,
-        "TEST_TYPE": "engine_mirror_kbN",
-        "KBN_N": kbn_n,
-        "MEM_TYPE": "DDR2",
-        "NUM_RANKS": "1",
         "SEED": str(random.randint(0, 100000)),
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE":
             os.path.join(log_dir, f"results_{test_name}.xml"),
     }
+    extra_env.update(env_overrides)
     parameters = {"NUM_RANKS": "1", "PAGE_POLICY": "1"}
 
     enable_waves = bool(int(os.environ.get("WAVES", "0")))
