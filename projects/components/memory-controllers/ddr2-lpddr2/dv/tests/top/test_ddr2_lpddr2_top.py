@@ -1158,6 +1158,22 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
         await tb.axi_master_wr.b_channel.reset_bus()
         await tb.axi_master_rd.ar_channel.reset_bus()
         await tb.axi_master_rd.r_channel.reset_bus()
+
+        # BFM-side observability harness.
+        tb.init_dfi_monitor()
+        tb.start_axi_wr_snoop()
+        tb.start_axi_rd_snoop()
+        from tbclasses.trackers._base import wire_trackers as _wire_trackers
+        trackers = _wire_trackers(
+            dut, output_dir=os.getcwd(), log=tb.log,
+            num_ranks=num_ranks, num_banks=8,
+            autostart=True,
+        )
+        tb.log.info(
+            "engine_mirror_kbN top: wired %d FUB trackers + DFI monitor + AXI snoops",
+            len(trackers),
+        )
+
         await tb.wait_for_init_done()
 
         import os as _os
@@ -1185,7 +1201,65 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
         )
         results = [r["data"] for r in rd_dicts]
 
+        # Detect first mismatch but DO NOT abort yet — let the trackers
+        # capture the full workload + a tail drain so the cycle
+        # correlator script has end-to-end context, not just the
+        # pre-failure window.
         first_bad = diff_results(expected, results)
+        if first_bad is not None:
+            tb.log.error(
+                "engine_mirror_kbN top (N=%d) WR data corruption at "
+                "burst=%d beat=%d: wrote 0x%016X read 0x%016X "
+                "— continuing for full tracker capture",
+                N, first_bad[0], first_bad[1], first_bad[2], first_bad[3],
+            )
+        await _CC_kbn_top(dut.mc_clk, 200)  # tail drain for trackers
+
+        # Dump BFM-side observability streams next to the FUB tracker
+        # .out files (FUB trackers use atexit; we write these explicitly
+        # so the cycle correlator can ingest them in the same dir).
+        try:
+            sb = os.getcwd()
+            with open(os.path.join(sb, "axi_wr_snoop.out"), "w") as _f:
+                _f.write("# byte_addr   data_int\n")
+                for _addr in sorted(tb.axi_wr_snoop.keys()):
+                    _f.write(
+                        f"0x{_addr:08X}  0x{tb.axi_wr_snoop[_addr]:016X}\n")
+            with open(os.path.join(sb, "axi_rd_snoop.out"), "w") as _f:
+                _f.write("# byte_addr   data_int    rid\n")
+                for _addr, _data, _rid in tb.axi_rd_snoop:
+                    _f.write(
+                        f"0x{_addr:08X}  0x{_data:016X}  {_rid}\n")
+            if tb.dfi_monitor is not None:
+                with open(os.path.join(sb, "dfi_cmd_q.out"), "w") as _f:
+                    _f.write("# t_ns  cmd  bank  address\n")
+                    for pkt in tb.dfi_monitor.command_q:
+                        _f.write(
+                            f"{pkt.timestamp_ns:>10.1f}  "
+                            f"{pkt.cmd.name:<6}  {pkt.bank}  "
+                            f"0x{pkt.address:07X}\n")
+                with open(os.path.join(sb, "dfi_wr_data.out"), "w") as _f:
+                    _f.write("# t_ns  wrdata  mask  en\n")
+                    for pkt in tb.dfi_monitor.write_data_q:
+                        _f.write(
+                            f"{pkt.timestamp_ns:>10.1f}  "
+                            f"0x{pkt.wrdata:032X}  "
+                            f"0x{pkt.wrdata_mask:04X}  "
+                            f"{pkt.wrdata_en}\n")
+                with open(os.path.join(sb, "dfi_rd_data.out"), "w") as _f:
+                    _f.write("# t_ns  rddata  valid\n")
+                    for pkt in tb.dfi_monitor.read_data_q:
+                        _f.write(
+                            f"{pkt.timestamp_ns:>10.1f}  "
+                            f"0x{pkt.rddata:032X}  "
+                            f"{pkt.rddata_valid}\n")
+            tb.log.info(
+                "engine_mirror_kbN top: snoop+DFI dumps written to %s", sb)
+        except Exception as _e:
+            tb.log.warning(
+                "engine_mirror_kbN top: snoop dump failed: %s", _e)
+
+        # NOW raise — sim has captured all post-failure context.
         assert first_bad is None, (
             f"engine_mirror_kbN top (N={N}) WR data corruption at "
             f"burst={first_bad[0]} beat={first_bad[1]}: "
