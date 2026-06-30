@@ -306,13 +306,21 @@ module snk_data_path_axis_test_beats #(
                 // Configuration (channel always enabled for test)
                 .cfg_channel_enable     (1'b1),
                 .cfg_channel_reset      (1'b0),
-                .cfg_sched_timeout_cycles(16'd1000),
+                .cfg_sched_timeout_cycles(32'd1000),
                 .cfg_sched_timeout_enable(1'b1),
 
                 // Status
                 .scheduler_idle         (sched_idle[i]),
                 .scheduler_state        (sched_state[i]),
                 .sched_error            (sched_error[i]),
+
+                // Debug/observability taps (unused in this harness)
+                /* verilator lint_off PINCONNECTEMPTY */
+                .dbg_descriptor_error   (),
+                .dbg_read_error_sticky  (),
+                .dbg_write_error_sticky (),
+                .dbg_timeout_expired    (),
+                /* verilator lint_on PINCONNECTEMPTY */
 
                 // Descriptor interface (from testbench GAXI masters)
                 .descriptor_valid       (desc_valid[i]),

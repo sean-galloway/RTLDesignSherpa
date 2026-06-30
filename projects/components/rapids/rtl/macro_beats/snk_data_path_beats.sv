@@ -140,7 +140,8 @@ module snk_data_path_beats #(
     logic [NC-1:0][7:0]                 drain_size;
 
     // Drain data (SRAM Controller -> AXI Write Engine)
-    logic [NC-1:0]                      drain_valid;
+    logic [NC-1:0]                      drain_valid;       // Registered (arbitration)
+    logic [NC-1:0]                      drain_valid_comb;  // Combinational (wvalid gate)
     logic                               drain_read;
     logic [CIW-1:0]                     drain_id;
     logic [DW-1:0]                      drain_data;
@@ -177,6 +178,7 @@ module snk_data_path_beats #(
 
         // Drain Data Interface
         .drain_valid        (drain_valid),
+        .drain_valid_comb   (drain_valid_comb),
         .drain_read         (drain_read),
         .drain_id           (drain_id),
         .drain_data         (drain_data),
@@ -224,11 +226,13 @@ module snk_data_path_beats #(
         .axi_wr_drain_size       (drain_size),
         .axi_wr_drain_data_avail (drain_data_avail),
 
-        // SRAM Data Interface
-        .axi_wr_sram_valid  (drain_valid),
-        .axi_wr_sram_drain  (drain_read),
-        .axi_wr_sram_id     (drain_id),
-        .axi_wr_sram_data   (drain_data),
+        // SRAM Data Interface (registered valid for arbitration + combinational
+        // valid for the m_axi_wvalid gate; mirrors STREAM datapath)
+        .axi_wr_sram_valid      (drain_valid),
+        .axi_wr_sram_valid_comb (drain_valid_comb),
+        .axi_wr_sram_drain      (drain_read),
+        .axi_wr_sram_id         (drain_id),
+        .axi_wr_sram_data       (drain_data),
 
         // AXI Write Master Interface
         .m_axi_awid         (m_axi_awid),
@@ -255,7 +259,13 @@ module snk_data_path_beats #(
         .sched_wr_error     (),
         .dbg_wr_all_complete(),
         .dbg_aw_transactions(),
-        .dbg_w_beats        ()
+        .dbg_w_beats        (),
+
+        // Active-channel sideband (FPGA characterization; unused here)
+        /* verilator lint_off PINCONNECTEMPTY */
+        .o_active_channel_id    (),
+        .o_active_channel_valid ()
+        /* verilator lint_on PINCONNECTEMPTY */
     );
 
 endmodule : snk_data_path_beats

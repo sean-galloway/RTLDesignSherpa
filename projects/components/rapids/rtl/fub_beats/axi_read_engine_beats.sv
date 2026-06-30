@@ -44,15 +44,15 @@
 //   always at least one channel in READ phase. But with minimal configs, the idle
 //   periods become visible and must be filtered from bubble detection.
 //
-// Documentation: projects/components/rapids/RAPIDS_REFACTOR_PLAN.md
-// Subsystem: rapids_fub
+// Documentation: projects/components/rapids/PRD.md
+// Subsystem: rapids_fub_beats
 //
 // Author: sean galloway
 // Created: 2025-10-29
 
 `timescale 1ns / 1ps
 
-// Import common RAPIDS and monitor packages
+// Import common STREAM and monitor packages
 `include "rapids_imports.svh"
 `include "reset_defs.svh"
 
@@ -173,6 +173,13 @@ module axi_read_engine_beats #(
     logic [NC-1:0] r_outstanding_limit;              // 1 = channel at or exceeds max outstanding
     logic [NC-1:0][MOW-1:0] r_outstanding_count;   // Outstanding AR count per channel (PIPELINE=1 only)
 
+    // Forward declarations for arbiter signals (used in tracking blocks below
+    // before their natural definition in the arbiter section)
+    logic              w_arb_grant_valid;
+    logic [NC-1:0]     w_arb_grant;
+    logic [CW-1:0]     w_arb_grant_id;
+    logic [NC-1:0]     w_arb_grant_ack;
+
     //=========================================================================
     // Beats Issued Tracking - REMOVED
     //=========================================================================
@@ -273,6 +280,26 @@ module axi_read_engine_beats #(
     // Only allow arbitration for channels with sufficient SRAM space
     // and (if PIPELINE=0) no outstanding transactions
     // and haven't issued more beats than requested
+    //
+    // TODO: Decouple drain activity from sched_rd_valid.
+    //   Today w_arb_request below is gated by sched_rd_valid. If the scheduler
+    //   drops sched_rd_valid while there are still outstanding AR transactions
+    //   or in-flight R beats heading into SRAM, the engine cannot continue to
+    //   land those beats cleanly — any state tied to "scheduler still wants
+    //   reads" goes away. Mirroring the write-engine TODO:
+    //
+    //   If sched_rd_valid drops while there are still beats to do
+    //   (sched_rd_beats > 0, outstanding ARs > 0, or R beats in flight), the
+    //   engine should:
+    //     1. Stop issuing new ARs,
+    //     2. Continue accepting R beats for any AR already issued, draining
+    //        them into the SRAM/bridge,
+    //     3. Wait for all outstanding R responses (and rlast on each) to
+    //        arrive,
+    //     4. Then return to a clean idle state with all per-channel state
+    //        reset (sched_rd_beats, r_outstanding_limit, etc.).
+    //   This keeps the AXI side of the read engine well-behaved on any
+    //   upstream abort and prevents orphaned R bursts.
 
     logic [NC-1:0] w_space_ok;                  // Channel has enough space for burst
     logic [NC-1:0] w_below_outstanding_limit;   // Channel below max outstanding limit (can issue new AR)
@@ -302,21 +329,58 @@ module axi_read_engine_beats #(
     end
 
     //=========================================================================
+    // Arbiter Request Pipeline
+    //=========================================================================
+    // Register w_arb_request -> r_arb_request to break the long timing cone
+    // from r_read_beats_remaining (scheduler) and axi_rd_alloc_space_free
+    // (sram_controller) through the 32-bit comparators in w_space_ok into
+    // the arbiter priority encoder and out to grant_reg. Closes 100 MHz
+    // timing on the Nexys A7-100T (-1 part) at 8 channels; the unpipelined
+    // cone was ~16 levels of logic. Mirror of the write engine's r_arb_request
+    // stage -- see axi_write_engine.sv for the full rationale.
+    //
+    // Steady-state cost: 0. While sched_rd_valid stays high, r_arb_request
+    // tracks w_arb_request 1 cycle later -- ARs pipeline at the same rate.
+    // Only the descriptor START sees a 1-cycle extra latency on the first AR.
+    //
+    // End-of-descriptor safety: m_axi_arvalid is gated by live sched_rd_valid
+    // so a stale grant never drives an AR; w_arb_grant_ack auto-releases the
+    // arbiter on stale grants so it advances without waiting for an AR
+    // handshake that will never come.
+    logic [NC-1:0] r_arb_request;
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_arb_request <= '0;
+        end else begin
+            r_arb_request <= w_arb_request;
+        end
+    )
+
+    //=========================================================================
     // Round-Robin Arbiter (or Direct Grant for Single Channel)
     //=========================================================================
-
-    logic              w_arb_grant_valid;
-    logic [NC-1:0]     w_arb_grant;
-    logic [CW-1:0]     w_arb_grant_id;
-    logic [NC-1:0]     w_arb_grant_ack;
+    // (w_arb_grant_valid, w_arb_grant, w_arb_grant_id, w_arb_grant_ack
+    // declared in forward-declarations block at the top of the module)
 
     generate
         if (NC == 1) begin : gen_single_channel
-            // Single channel - no arbitration needed, grant directly
-            assign w_arb_grant_valid = w_arb_request[0];
-            assign w_arb_grant = w_arb_request;  // Direct passthrough
-            assign w_arb_grant_id = 1'b0;        // Always channel 0
-            // ACK signal must still be driven for AR channel management
+            // Single channel: no round-robin needed, but the datapath relies on
+            // the arbiter's registered, ack-held grant timing for correct burst
+            // sequencing. Use the single-client equivalent (req/grant + hold for
+            // ack) -- a plain combinational passthrough injects a bubble beat at
+            // every burst boundary (see arbiter_single_client header).
+            arbiter_single_client #(
+                .WAIT_GNT_ACK (1)
+            ) u_arbiter_single (
+                .clk          (clk),
+                .rst_n        (rst_n),
+                .block_arb    (1'b0),
+                .request      (r_arb_request[0]),
+                .grant_ack    (w_arb_grant_ack[0]),
+                .grant_valid  (w_arb_grant_valid),
+                .grant        (w_arb_grant[0]),
+                .grant_id     (w_arb_grant_id[0])
+            );
         end else begin : gen_multi_channel
             // Multiple channels - use round-robin arbiter
             arbiter_round_robin #(
@@ -326,7 +390,7 @@ module axi_read_engine_beats #(
                 .clk          (clk),
                 .rst_n        (rst_n),
                 .block_arb    (1'b0),          // Never block arbitration
-                .request      (w_arb_request),
+                .request      (r_arb_request),
                 .grant_ack    (w_arb_grant_ack),
                 .grant_valid  (w_arb_grant_valid),
                 .grant        (w_arb_grant),
@@ -342,8 +406,11 @@ module axi_read_engine_beats #(
     // FIX: Drive AR outputs combinationally from arbiter to avoid 1-cycle delay
     // When axi_rd_alloc_space_free goes to 0, arvalid must drop in the same cycle
 
-    // AXI AR outputs - COMBINATIONAL
-    assign m_axi_arvalid = w_arb_grant_valid;
+    // AXI AR outputs - COMBINATIONAL.
+    // m_axi_arvalid is gated by live sched_rd_valid[w_arb_grant_id] so a
+    // stale grant (from the 1-cycle r_arb_request pipeline) cannot fire an
+    // AR for a channel the scheduler is no longer driving.
+    assign m_axi_arvalid = w_arb_grant_valid && sched_rd_valid[w_arb_grant_id];
     assign m_axi_arid = {{(IW-CW){1'b0}}, w_arb_grant_id};  // Channel ID in lower bits
     // Address comes directly from scheduler (scheduler increments after each AR)
     assign m_axi_araddr = sched_rd_addr[w_arb_grant_id];
@@ -353,8 +420,15 @@ module axi_read_engine_beats #(
     assign m_axi_arsize = 3'(AXSIZE);
     assign m_axi_arburst = 2'b01;  // INCR
 
-    // Acknowledge arbiter grant when AXI accepts AR command
-    assign w_arb_grant_ack = w_arb_grant & {NC{(m_axi_arvalid && m_axi_arready)}};
+    // Acknowledge arbiter grant when AXI accepts AR command, OR when the
+    // grant is stale (live sched_rd_valid dropped after the registered
+    // r_arb_request was captured). Stale-release prevents the arbiter from
+    // stalling on a channel whose AR will never fire because m_axi_arvalid
+    // is masked by live sched_rd_valid.
+    logic [NC-1:0] w_stale_grant;
+    assign w_stale_grant = w_arb_grant & ~sched_rd_valid;
+    assign w_arb_grant_ack = (w_arb_grant & {NC{(m_axi_arvalid && m_axi_arready)}})
+                           | w_stale_grant;
 
     //=========================================================================
     // SRAM Pre-Allocation
@@ -495,9 +569,11 @@ module axi_read_engine_beats #(
     assert property (@(posedge clk) disable iff (!rst_n)
         $onehot0(w_arb_grant));
 
-    // Granted channel must have valid request
+    // Granted channel must have valid request (registered version: arbiter
+    // sees r_arb_request, not the live w_arb_request, after the request
+    // pipeline added for 8-channel 100 MHz timing closure).
     assert property (@(posedge clk) disable iff (!rst_n)
-        w_arb_grant_valid |-> (w_arb_request & w_arb_grant) != '0);
+        w_arb_grant_valid |-> (r_arb_request & w_arb_grant) != '0);
 
     // Allocation only when AR command issues
     assert property (@(posedge clk) disable iff (!rst_n)

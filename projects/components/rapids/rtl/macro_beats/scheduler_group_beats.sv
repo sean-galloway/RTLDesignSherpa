@@ -53,7 +53,7 @@ module scheduler_group_beats #(
     input  logic                        cfg_channel_reset,
 
     // Scheduler Configuration
-    input  logic [15:0]                 cfg_sched_timeout_cycles,
+    input  logic [31:0]                 cfg_sched_timeout_cycles,
     input  logic                        cfg_sched_timeout_enable,
     input  logic                        cfg_sched_err_enable,
     input  logic                        cfg_sched_compl_enable,
@@ -279,6 +279,14 @@ module scheduler_group_beats #(
         .scheduler_idle         (scheduler_idle),
         .scheduler_state        (scheduler_state),
         .sched_error            (sched_error),
+
+        // Debug/observability taps (unused at this level)
+        /* verilator lint_off PINCONNECTEMPTY */
+        .dbg_descriptor_error   (),
+        .dbg_read_error_sticky  (),
+        .dbg_write_error_sticky (),
+        .dbg_timeout_expired    (),
+        /* verilator lint_on PINCONNECTEMPTY */
 
         // Descriptor engine interface
         .descriptor_valid       (desceng_to_sched_valid),

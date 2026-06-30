@@ -89,7 +89,7 @@ module rapids_core_beats #(
 
     // Scheduler Configuration (global)
     input  logic                                cfg_sched_enable,
-    input  logic [15:0]                         cfg_sched_timeout_cycles,
+    input  logic [31:0]                         cfg_sched_timeout_cycles,
     input  logic                                cfg_sched_timeout_enable,
     input  logic                                cfg_sched_err_enable,
     input  logic                                cfg_sched_compl_enable,

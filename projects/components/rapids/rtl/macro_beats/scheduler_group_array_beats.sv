@@ -60,7 +60,7 @@ module scheduler_group_array_beats #(
 
     // Scheduler Configuration (global - applied to all channels)
     input  logic                                 cfg_sched_enable,          // Master scheduler enable
-    input  logic [15:0]                          cfg_sched_timeout_cycles,  // Timeout threshold
+    input  logic [31:0]                          cfg_sched_timeout_cycles,  // Timeout threshold
     input  logic                                 cfg_sched_timeout_enable,  // Enable timeout detection
     input  logic                                 cfg_sched_err_enable,      // Enable error reporting
     input  logic                                 cfg_sched_compl_enable,    // Enable completion reporting
@@ -537,6 +537,19 @@ module scheduler_group_array_beats #(
         .cfg_addr_range_low     ('0),
         .cfg_addr_range_high    ('0),
 
+        // Perf-window instrumentation + extra packet-type enables (this monitor
+        // predates them; disabled here). cfg_compl_enable stays 0 to avoid
+        // monbus congestion when perf packets are enabled elsewhere.
+        .cam_clear              (1'b0),
+        .cfg_compl_enable       (1'b0),
+        .cfg_threshold_enable   (1'b0),
+        .cfg_debug_enable       (1'b0),
+        .cfg_start_event_sel    (3'b0),
+        .cfg_end_event_sel      (3'b0),
+        .cfg_start_trigger      (1'b0),
+        .cfg_end_trigger        (1'b0),
+        .cfg_window_force_close (1'b0),
+
         // Free-running monitor time broadcast
         .i_mon_time             (i_mon_time),
 
@@ -551,7 +564,20 @@ module scheduler_group_array_beats #(
         .active_transactions    (cfg_sts_desc_mon_active_txns),
         .error_count            (cfg_sts_desc_mon_error_count),
         .transaction_count      (cfg_sts_desc_mon_txn_count),
-        .cfg_conflict_error     (cfg_sts_desc_mon_conflict_error)
+        .cfg_conflict_error     (cfg_sts_desc_mon_conflict_error),
+
+        // Perf-window measurement outputs (unused at this level)
+        /* verilator lint_off PINCONNECTEMPTY */
+        .window_active          (),
+        .window_cycles          (),
+        .perf_prod_cycles       (),
+        .perf_bp_cycles         (),
+        .perf_starv_cycles      (),
+        .perf_idle_cycles       (),
+        .perf_beat_count        (),
+        .perf_byte_count        (),
+        .perf_burst_count       ()
+        /* verilator lint_on PINCONNECTEMPTY */
     );
 
     //=========================================================================

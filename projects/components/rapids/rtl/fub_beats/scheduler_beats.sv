@@ -84,7 +84,7 @@ module scheduler_beats #(
     // Configuration Interface
     input  logic                        cfg_channel_enable,     // Enable this channel
     input  logic                        cfg_channel_reset,      // Channel reset
-    input  logic [15:0]                 cfg_sched_timeout_cycles, // Timeout threshold (cycles)
+    input  logic [31:0]                 cfg_sched_timeout_cycles, // Timeout threshold (cycles)
     input  logic                        cfg_sched_timeout_enable, // Enable timeout detection
 
     // Status Interface
@@ -120,6 +120,12 @@ module scheduler_beats #(
     input  logic                        sched_rd_error,         // Read engine error
     input  logic                        sched_wr_error,         // Write engine error
     output logic                        sched_error,            // Scheduler error output (sticky)
+
+    // Debug/observability outputs (parity with STREAM scheduler)
+    output logic                        dbg_descriptor_error,   // r_descriptor_error
+    output logic                        dbg_read_error_sticky,  // r_read_error_sticky
+    output logic                        dbg_write_error_sticky, // r_write_error_sticky
+    output logic                        dbg_timeout_expired,    // w_timeout_expired (live)
 
     // Monitor Bus Interface (128-bit packet + 64-bit side-band timestamp)
     input  monitor_common_pkg::monbus_timestamp_t  i_mon_time,
@@ -233,6 +239,7 @@ module scheduler_beats #(
     logic r_mon_valid;
     monitor_common_pkg::monitor_packet_t   r_mon_packet;
     monitor_common_pkg::monbus_timestamp_t r_mon_timestamp;
+    logic r_error_pkt_sent;   // Emit the CH_ERROR packet once per error episode
 
     // Completion flags
     // Combinational checks for phase completion (beats_remaining == 0)
@@ -613,7 +620,7 @@ module scheduler_beats #(
 
     // Timeout threshold: Compare counter to configured limit (if enabled)
     assign w_timeout_expired = cfg_sched_timeout_enable &&
-                               (r_timeout_counter >= {16'h0, cfg_sched_timeout_cycles});
+                               (r_timeout_counter >= cfg_sched_timeout_cycles);
 
     //=========================================================================
     // Monitor Packet Generation
@@ -643,13 +650,19 @@ module scheduler_beats #(
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            r_mon_valid     <= 1'b0;
-            r_mon_packet    <= '0;
-            r_mon_timestamp <= '0;
+            r_mon_valid      <= 1'b0;
+            r_mon_packet     <= '0;
+            r_mon_timestamp  <= '0;
+            r_error_pkt_sent <= 1'b0;
         end else begin
             // Default: Clear monitor packet (single-cycle pulse)
             r_mon_valid  <= 1'b0;
             r_mon_packet <= '0;
+
+            // Re-arm the one-shot error packet once the channel is idle again
+            if (r_current_state == CH_IDLE) begin
+                r_error_pkt_sent <= 1'b0;
+            end
 
             case (r_current_state)
                 CH_FETCH_DESC: begin
@@ -699,17 +712,23 @@ module scheduler_beats #(
                 end
 
                 CH_ERROR: begin
-                    r_mon_valid     <= 1'b1;
-                    r_mon_packet    <= create_monitor_packet(
-                        PktTypeError,
-                        PROTOCOL_CORE,
-                        RAPIDS_EVENT_ERROR,
-                        MON_CHANNEL_ID,
-                        MON_UNIT_ID,
-                        MON_AGENT_ID,
-                        {29'h0, r_write_error_sticky, r_read_error_sticky, 33'h0}
-                    );
-                    r_mon_timestamp <= i_mon_time;
+                    // Emit the error packet only once per error episode (CH_ERROR
+                    // persists until the errors clear; without this the monbus
+                    // would be flooded with one error packet every cycle).
+                    if (!r_error_pkt_sent) begin
+                        r_mon_valid     <= 1'b1;
+                        r_mon_packet    <= create_monitor_packet(
+                            PktTypeError,
+                            PROTOCOL_CORE,
+                            RAPIDS_EVENT_ERROR,
+                            MON_CHANNEL_ID,
+                            MON_UNIT_ID,
+                            MON_AGENT_ID,
+                            {29'h0, r_write_error_sticky, r_read_error_sticky, 33'h0}
+                        );
+                        r_mon_timestamp  <= i_mon_time;
+                        r_error_pkt_sent <= 1'b1;
+                    end
                 end
 
                 default: begin
@@ -727,6 +746,12 @@ module scheduler_beats #(
                                 && !r_channel_reset_active;
     assign scheduler_state = r_current_state;
     assign sched_error = w_state_error;  // Sticky error output
+
+    // Debug/observability taps (parity with STREAM scheduler)
+    assign dbg_descriptor_error   = r_descriptor_error;
+    assign dbg_read_error_sticky  = r_read_error_sticky;
+    assign dbg_write_error_sticky = r_write_error_sticky;
+    assign dbg_timeout_expired    = w_timeout_expired;
 
     // Monitor bus output
     assign mon_valid     = r_mon_valid;

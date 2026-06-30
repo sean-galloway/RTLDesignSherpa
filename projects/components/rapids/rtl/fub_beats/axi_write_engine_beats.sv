@@ -28,15 +28,15 @@
 //   - Channel ID encoded in AXI transaction ID for response routing
 //   - No internal buffering (streaming pipeline)
 //
-// Documentation: projects/components/rapids/RAPIDS_REFACTOR_PLAN.md
-// Subsystem: rapids_fub
+// Documentation: projects/components/rapids/PRD.md
+// Subsystem: rapids_fub_beats
 //
 // Author: sean galloway
 // Created: 2025-10-30
 
 `timescale 1ns / 1ps
 
-// Import common RAPIDS and monitor packages
+// Import common STREAM and monitor packages
 `include "rapids_imports.svh"
 `include "reset_defs.svh"
 
@@ -101,7 +101,8 @@ module axi_write_engine_beats #(
     // SRAM Read Interface (from SRAM Controller)
     // ID-based interface matching sram_controller output
     //=========================================================================
-    input  logic [NC-1:0]               axi_wr_sram_valid,   // Per-channel valid (data available)
+    input  logic [NC-1:0]               axi_wr_sram_valid,      // Per-channel valid (registered, for arbitration)
+    input  logic [NC-1:0]               axi_wr_sram_valid_comb, // Per-channel valid (combinational, for m_axi_wvalid gate)
     output logic                        axi_wr_sram_drain,   // Drain request (consumer ready)
     output logic [CIW-1:0]              axi_wr_sram_id,      // Channel ID select for drain
     input  logic [DW-1:0]               axi_wr_sram_data,    // Data from selected channel (muxed)
@@ -145,7 +146,16 @@ module axi_write_engine_beats #(
     //=========================================================================
     output logic [NC-1:0]               dbg_wr_all_complete,   // All writes complete (no outstanding txns)
     output logic [31:0]                 dbg_aw_transactions,   // Total AW transactions issued
-    output logic [31:0]                 dbg_w_beats            // Total W beats written to AXI
+    output logic [31:0]                 dbg_w_beats,           // Total W beats written to AXI
+
+    // Sideband for per-channel bus instrumentation (axi_bus_meter).
+    // o_active_channel_id holds the channel index whose burst is currently
+    // driving (or about to drive) the W bus. o_active_channel_valid is
+    // high during a W burst (between the W-phase FSM accepting a txn and
+    // completing it). When low, W bus activity is not attributable to any
+    // channel and per-channel counters should not be incremented.
+    output logic [CIW-1:0]              o_active_channel_id,
+    output logic                        o_active_channel_valid
 );
 
     //=========================================================================
@@ -155,6 +165,48 @@ module axi_write_engine_beats #(
     localparam int BYTES_PER_BEAT = DW / 8;
     localparam int AXSIZE = $clog2(BYTES_PER_BEAT);
     localparam int MOW = $clog2(AW_MAX_OUTSTANDING + 1);  // Max Outstanding Width (bits needed for 0..AW_MAX_OUTSTANDING)
+
+    //=========================================================================
+    // Forward Declarations (signals/typedefs used in always blocks below
+    // before their natural definition site - hoisted to satisfy declaration-
+    // before-use checks)
+    //=========================================================================
+
+    // AW channel registers (driven by AW Channel Management block below)
+    logic [7:0]      r_aw_len;
+    logic [CIW-1:0]  r_aw_channel_id;
+    logic            r_aw_valid;
+
+    // Beats-written counter per channel (driven by always_ff after this block)
+    logic [NC-1:0][31:0] r_beats_written;
+
+    // W-phase transaction FIFO (in-order with AW, single shared FIFO)
+    typedef struct packed {
+        logic [7:0]     beats;       // Number of beats for this W transaction
+        logic [CIW-1:0] channel_id;  // Channel ID for this transaction
+    } w_phase_txn_t;
+
+    logic            w_phase_txn_fifo_wr;
+    logic            w_phase_txn_fifo_rd;
+    w_phase_txn_t    w_phase_txn_fifo_din;
+    w_phase_txn_t    w_phase_txn_fifo_dout;
+    logic            w_phase_txn_fifo_empty;
+    logic            w_phase_txn_fifo_full;
+    logic            w_phase_txn_fifo_wr_ready;
+    logic            w_phase_txn_fifo_rd_valid;
+
+    // B-phase transaction FIFOs (per-channel, out-of-order responses)
+    typedef struct packed {
+        logic [7:0]  beats;     // Number of beats in this transaction
+        logic        last;      // Is this the last transfer for descriptor?
+    } b_phase_txn_t;
+
+    logic [NC-1:0]           b_phase_txn_fifo_wr;
+    logic [NC-1:0]           b_phase_txn_fifo_rd;
+    b_phase_txn_t [NC-1:0]   b_phase_txn_fifo_din;
+    b_phase_txn_t [NC-1:0]   b_phase_txn_fifo_dout;
+    logic [NC-1:0]           b_phase_txn_fifo_empty;
+    logic [NC-1:0]           b_phase_txn_fifo_full;
 
     //=========================================================================
     // Outstanding Transaction Tracking
@@ -253,8 +305,7 @@ module axi_write_engine_beats #(
     //=========================================================================
     // Track how many beats have been written (B responses received)
     // Note: Address tracking moved to scheduler, r_beats_issued removed
-
-    logic [NC-1:0][31:0] r_beats_written;  // Beats written per channel (B responses)
+    // (r_beats_written declared in forward-declarations block above)
 
     // Track beats written: increment when B response arrives, reset when sched_wr_valid de-asserts
     `ALWAYS_FF_RST(clk, rst_n,
@@ -281,6 +332,24 @@ module axi_write_engine_beats #(
     //
     // For PERFORMANCE: Always burst the full configured amount (cfg_axi_wr_xfer_beats)
     // Only allow partial bursts on the final burst of a descriptor
+    //
+    // TODO: Decouple drain activity from sched_wr_valid.
+    //   Today, when sched_wr_valid drops (e.g. scheduler enters CH_ERROR after
+    //   a timeout, or any upstream abort), every gating signal collapses to 0
+    //   in the else-branch below and the engine quits — even if the SRAM,
+    //   bridge, and W-side FIFOs still hold beats that were already accounted
+    //   for as "to do". Those beats become permanently stranded.
+    //
+    //   Desired behavior: if sched_wr_valid drops while there are still beats
+    //   left in this channel's drain path (SRAM occupancy + bridge_occupancy +
+    //   any in-flight AW/W FIFO entries), the engine should:
+    //     1. Continue draining residual data via partial-burst issuance until
+    //        the drain path is empty,
+    //     2. Wait for all outstanding B responses to come back,
+    //     3. Then return to a clean idle state with all per-channel state
+    //        reset (sched_wr_beats, r_outstanding_limit, b_phase FIFO, etc.).
+    //   This makes the engine resilient to upstream errors and keeps SRAM
+    //   from holding stale beats across descriptors.
 
     logic [NC-1:0]      w_has_data;           // Channel has enough data for burst
     logic [NC-1:0]      w_data_ok;            // Channel has enough data for burst
@@ -288,6 +357,56 @@ module axi_write_engine_beats #(
     logic [NC-1:0]      w_arb_request;        // Masked requests to arbiter
     logic [NC-1:0][7:0] w_transfer_size;      // Masked requests to arbiter
     logic [NC-1:0]      w_final_burst;        // Final burst
+
+    //=========================================================================
+    // In-flight drain-request pipeline (closes the stale-data_avail race)
+    //=========================================================================
+    // axi_wr_drain_data_avail is registered twice on the way out of
+    // sram_controller (once inside sram_controller_unit, once at the
+    // wrapper boundary) for 100 MHz timing closure. That means the wr
+    // engine sees a 2-cycle-stale view: drain_reqs fired at cycles
+    // T-1 and T are NOT yet reflected in axi_wr_drain_data_avail(T).
+    //
+    // If the engine relied on the raw stale view, it could fire an AW
+    // (and a drain_req) for a channel whose actual drain_ctrl count is
+    // already exhausted by an in-flight prior drain_req for the same
+    // channel. drain_ctrl silently drops the second drain_req's rd_ptr
+    // advance (rd_empty=1 → advance gated off in stream_drain_ctrl).
+    // The wr engine then commits a phantom burst -- pre-fix it leaked
+    // bogus W beats onto the AXI bus; post-fix it just stalls forever.
+    //
+    // Fix: track per-channel drain_req sizes for the last 2 cycles
+    // (the exact width of the staleness window). Subtract those from
+    // the registered view so the arbitration check sees the "true"
+    // count that drain_ctrl will reach by the time our drain_req lands.
+    logic [NC-1:0][SCW-1:0] w_drain_t;          // drain_req size firing THIS cycle
+    logic [NC-1:0][SCW-1:0] r_drain_tminus1;    // drain_req size that fired LAST cycle
+    logic [NC-1:0][SCW-1:0] w_pending_drain;    // sum of in-flight (not yet in registered view)
+    logic [NC-1:0][SCW-1:0] w_effective_avail;  // registered avail minus in-flight
+
+    always_comb begin
+        w_drain_t = '{default:0};
+        if (m_axi_awvalid && m_axi_awready) begin
+            w_drain_t[r_aw_channel_id] = SCW'(m_axi_awlen) + SCW'(1);
+        end
+    end
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_drain_tminus1 <= '{default:0};
+        end else begin
+            r_drain_tminus1 <= w_drain_t;
+        end
+    )
+
+    always_comb begin
+        for (int i = 0; i < NC; i++) begin
+            w_pending_drain[i] = r_drain_tminus1[i] + w_drain_t[i];
+            w_effective_avail[i] = (axi_wr_drain_data_avail[i] >= w_pending_drain[i])
+                                    ? (axi_wr_drain_data_avail[i] - w_pending_drain[i])
+                                    : '0;
+        end
+    end
 
     always_comb begin
         for (int i = 0; i < NC; i++) begin
@@ -299,13 +418,16 @@ module axi_write_engine_beats #(
                 // sched_wr_beats uses 0==0 encoding, cfg_axi_wr_xfer_beats stores ARLEN (0==1 beat)
                 w_transfer_size[i] = 8'((sched_wr_beats[i] <= (32'(cfg_axi_wr_xfer_beats) + 32'd1)) ?
                             (sched_wr_beats[i] - 32'd1) : 32'(cfg_axi_wr_xfer_beats));
-                // Check if channel has enough data for configured burst size
-                // Convert ARLEN to beat count (+1) before comparing with SRAM amounts (which use 0==0 encoding)
-                w_has_data[i] = (SCW'(axi_wr_drain_data_avail[i]) >= SCW'(w_transfer_size[i] + 8'd1));
+                // Check if channel has enough data for configured burst size.
+                // Use w_effective_avail (= registered avail minus drain_reqs
+                // still in flight) so the stale-view race against drain_ctrl
+                // can't trigger a phantom burst.
+                w_has_data[i] = (SCW'(w_effective_avail[i]) >= SCW'(w_transfer_size[i] + 8'd1));
 
                 // OR if this is the final burst (remaining beats < burst size AND all data available)
                 w_final_burst[i] = (sched_wr_beats[i] > 0) &&
-                                    (sched_wr_beats[i] <= (32'(cfg_axi_wr_xfer_beats) + 32'd1));
+                                    (sched_wr_beats[i] <= (32'(cfg_axi_wr_xfer_beats) + 32'd1)) &&
+                                    (SCW'(w_effective_avail[i]) >= SCW'(sched_wr_beats[i]));
 
                 w_data_ok[i] = w_has_data[i] || w_final_burst[i];
             end else begin
@@ -330,6 +452,39 @@ module axi_write_engine_beats #(
     end
 
     //=========================================================================
+    // Arbiter Request Pipeline
+    //=========================================================================
+    // Register w_arb_request -> r_arb_request to break the long timing cone
+    // from r_write_beats_remaining (scheduler) and axi_wr_drain_data_avail
+    // (sram_controller) through the 32-bit comparators in w_data_ok into the
+    // arbiter priority encoder and out to grant_reg. Closes 100 MHz timing on
+    // the Nexys A7-100T (-1 part) at 8 channels; the unpipelined cone was
+    // ~16 levels of logic.
+    //
+    // Steady-state cost: 0. While sched_wr_valid stays high (the descriptor
+    // is actively transferring), r_arb_request tracks w_arb_request 1 cycle
+    // later -- the engine still pipelines AWs at the same rate and the
+    // arbiter still grants every cycle. Only the descriptor START sees an
+    // extra 1-cycle latency for the first AW.
+    //
+    // End-of-descriptor safety: when live sched_wr_valid drops, r_arb_request
+    // stays high for 1 stale cycle. Two complementary guards prevent that
+    // stale grant from being acted on:
+    //   1. AW-issue block below ANDs with live sched_wr_valid[w_arb_grant_id]
+    //      so no AW is captured for a channel that's no longer requesting.
+    //   2. w_arb_grant_ack auto-releases the arbiter when the grant is stale
+    //      (live valid = 0) so arbitration advances without waiting for an
+    //      AW handshake that will never come.
+    logic [NC-1:0] r_arb_request;
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_arb_request <= '0;
+        end else begin
+            r_arb_request <= w_arb_request;
+        end
+    )
+
+    //=========================================================================
     // Round-Robin Arbiter (or Direct Grant for Single Channel)
     //=========================================================================
 
@@ -340,11 +495,23 @@ module axi_write_engine_beats #(
 
     generate
         if (NC == 1) begin : gen_single_channel
-            // Single channel - no arbitration needed, grant directly
-            assign w_arb_grant_valid = w_arb_request[0];
-            assign w_arb_grant = w_arb_request;  // Direct passthrough
-            assign w_arb_grant_id = 1'b0;        // Always channel 0
-            // ACK signal must still be driven for AW channel management
+            // Single channel: no round-robin needed, but the datapath relies on
+            // the arbiter's registered, ack-held grant timing for correct burst
+            // sequencing. Use the single-client equivalent (req/grant + hold for
+            // ack) -- a plain combinational passthrough injects a bubble beat at
+            // every burst boundary (see arbiter_single_client header).
+            arbiter_single_client #(
+                .WAIT_GNT_ACK (1)
+            ) u_arbiter_single (
+                .clk          (clk),
+                .rst_n        (rst_n),
+                .block_arb    (1'b0),
+                .request      (r_arb_request[0]),
+                .grant_ack    (w_arb_grant_ack[0]),
+                .grant_valid  (w_arb_grant_valid),
+                .grant        (w_arb_grant[0]),
+                .grant_id     (w_arb_grant_id[0])
+            );
         end else begin : gen_multi_channel
             // Multiple channels - use round-robin arbiter
             arbiter_round_robin #(
@@ -354,7 +521,7 @@ module axi_write_engine_beats #(
                 .clk          (clk),
                 .rst_n        (rst_n),
                 .block_arb    (1'b0),          // Never block arbitration
-                .request      (w_arb_request),
+                .request      (r_arb_request),
                 .grant_ack    (w_arb_grant_ack),
                 .grant_valid  (w_arb_grant_valid),
                 .grant        (w_arb_grant),
@@ -367,13 +534,18 @@ module axi_write_engine_beats #(
     //=========================================================================
     // AW Channel Management
     //=========================================================================
+    // (r_aw_len, r_aw_channel_id, r_aw_valid declared in forward-declarations
+    // block at the top of the module)
 
-    logic [7:0]    r_aw_len;
-    logic [CIW-1:0] r_aw_channel_id;
-    logic          r_aw_valid;
-
-    // Acknowledge arbiter grant when AXI accepts AW command
-    assign w_arb_grant_ack = w_arb_grant & {NC{(m_axi_awvalid && m_axi_awready)}};
+    // Acknowledge arbiter grant when AXI accepts AW command, OR when the
+    // grant is stale (live sched_wr_valid dropped after the registered
+    // r_arb_request was captured). Stale-release prevents the arbiter from
+    // stalling on a channel that will never see its AW issued, since the
+    // AW-issue block below is gated by live sched_wr_valid[w_arb_grant_id].
+    logic [NC-1:0] w_stale_grant;
+    assign w_stale_grant = w_arb_grant & ~sched_wr_valid;
+    assign w_arb_grant_ack = (w_arb_grant & {NC{(m_axi_awvalid && m_axi_awready)}})
+                           | w_stale_grant;
 
     // AW channel issue logic
     `ALWAYS_FF_RST(clk, rst_n,
@@ -382,8 +554,10 @@ module axi_write_engine_beats #(
             r_aw_len <= '0;
             r_aw_channel_id <= '0;
         end else begin
-            // Accept new command from arbiter
-            if (w_arb_grant_valid && !r_aw_valid) begin
+            // Accept new command from arbiter; gate by live sched_wr_valid so
+            // a stale grant (from the 1-cycle r_arb_request pipeline) cannot
+            // capture an AW for a channel the scheduler is no longer driving.
+            if (w_arb_grant_valid && !r_aw_valid && sched_wr_valid[w_arb_grant_id]) begin
                 r_aw_valid <= 1'b1;
                 r_aw_channel_id <= w_arb_grant_id;
                 r_aw_len <= w_transfer_size[w_arb_grant_id];  // cfg_axi_wr_xfer_beats stores AWLEN value directly
@@ -515,12 +689,35 @@ module axi_write_engine_beats #(
     )
 
     // SRAM drain control - ID-based interface
-    // When active and AXI ready, drain from SRAM using channel ID
-    assign axi_wr_sram_drain = r_w_active && m_axi_wready;
+    // Drain (pop the SRAM unit) ONLY on a real W-channel handshake. Using
+    // r_w_active && m_axi_wready alone decouples the pop from m_axi_wvalid:
+    // in the 1-cycle window where axi_wr_sram_valid_comb is high but the
+    // registered axi_wr_sram_valid still lags (skid just refilled), the unit
+    // pops on (valid_comb && drain) while m_axi_wvalid is suppressed by the
+    // registered-valid term -> the beat is consumed but never transmitted.
+    // Under W-channel backpressure that lost beat can be the burst's final
+    // beat, so WLAST never rides a valid beat, the AXI write txn never closes,
+    // and the channel hangs. Gating on m_axi_wvalid pops exactly the beats we
+    // actually transmit. (Found via per-channel timing-skew 'mixed' profile.)
+    assign axi_wr_sram_drain = m_axi_wvalid && m_axi_wready;
     assign axi_wr_sram_id = r_w_channel_id;
 
     // W channel outputs - use ID-based SRAM interface
-    assign m_axi_wvalid = r_w_active && axi_wr_sram_valid[r_w_channel_id];
+    //
+    // Gate m_axi_wvalid with BOTH the registered and the combinational
+    // per-channel valid. The registered valid is fine for arbitration
+    // decisions (it's the long-cone signal that needed pipelining), but
+    // it lags by 1 cycle relative to the actual data appearing on
+    // axi_wr_sram_data. If we used registered valid alone, the cycle
+    // after a ch's latency-bridge skid empties (drained on T-1, no new
+    // data pushed in T) the registered valid is still 1 in T but the
+    // muxed data wire shows stale skid contents. A spurious m_axi_wvalid
+    // pulse with stale data then leaks onto the AXI bus -- exactly the
+    // dma_2ch CRC-mismatch shape caught by sram_chan_tracker.
+    // ANDing in the combinational valid filters that 1-cycle dry window.
+    assign m_axi_wvalid = r_w_active
+                       && axi_wr_sram_valid[r_w_channel_id]
+                       && axi_wr_sram_valid_comb[r_w_channel_id];
     assign m_axi_wdata = axi_wr_sram_data;  // Muxed data from SRAM controller
     assign m_axi_wstrb = {(DW/8){1'b1}};  // All bytes valid
     assign m_axi_wlast = (r_w_beats_remaining == 8'd1);
@@ -535,20 +732,8 @@ module axi_write_engine_beats #(
     // CRITICAL: Since W-phase is in-order with AW, we use ONE shared FIFO
     // (not per-channel). This preserves the order that AW commands were issued.
 
-    typedef struct packed {
-        logic [7:0]    beats;       // Number of beats for this W transaction
-        logic [CIW-1:0] channel_id;  // Channel ID for this transaction
-    } w_phase_txn_t;
-
-    // Single W-phase FIFO (shared across all channels)
-    logic            w_phase_txn_fifo_wr;
-    logic            w_phase_txn_fifo_rd;
-    w_phase_txn_t    w_phase_txn_fifo_din;
-    w_phase_txn_t    w_phase_txn_fifo_dout;
-    logic            w_phase_txn_fifo_empty;
-    logic            w_phase_txn_fifo_full;
-    logic            w_phase_txn_fifo_wr_ready;
-    logic            w_phase_txn_fifo_rd_valid;
+    // (w_phase_txn_t typedef and w_phase_txn_fifo_* signals declared in
+    // forward-declarations block at the top of the module)
 
     gaxi_fifo_sync #(
         .DATA_WIDTH($bits(w_phase_txn_t)),
@@ -607,17 +792,8 @@ module axi_write_engine_beats #(
     // Track beats and last-flag for each outstanding transaction per channel
     // Push on AW handshake, pop on B response
 
-    typedef struct packed {
-        logic [7:0]  beats;     // Number of beats in this transaction
-        logic        last;      // Is this the last transfer for descriptor?
-    } b_phase_txn_t;
-
-    logic [NC-1:0]           b_phase_txn_fifo_wr;
-    logic [NC-1:0]           b_phase_txn_fifo_rd;
-    b_phase_txn_t [NC-1:0]   b_phase_txn_fifo_din;
-    b_phase_txn_t [NC-1:0]   b_phase_txn_fifo_dout;
-    logic [NC-1:0]           b_phase_txn_fifo_empty;
-    logic [NC-1:0]           b_phase_txn_fifo_full;
+    // (b_phase_txn_t typedef and b_phase_txn_fifo_* signals declared in
+    // forward-declarations block at the top of the module)
 
     genvar g;
     generate
@@ -701,6 +877,33 @@ module axi_write_engine_beats #(
     assign sched_wr_done_strobe = r_done_strobe;
     assign sched_wr_beats_done = r_beats_done;
 
+    // synopsys translate_off
+    // Hang diagnostic: when sched_wr_valid is high but w_arb_request is low for
+    // 1024+ cycles, dump the blocking conditions. Helps debug "stuck near end"
+    // hangs where SRAM has data but the engine refuses to issue the final
+    // partial burst.
+    logic [15:0] r_stuck_counter [NC];
+    initial begin
+        for (int i = 0; i < NC; i++) r_stuck_counter[i] = 0;
+    end
+    always_ff @(posedge clk) begin
+        for (int i = 0; i < NC; i++) begin
+            if (sched_wr_valid[i] && !w_arb_request[i] && !(m_axi_bvalid && m_axi_bready)) begin
+                r_stuck_counter[i] <= r_stuck_counter[i] + 1;
+                if (r_stuck_counter[i] == 1024) begin
+                    $display("[%0t] WR ENGINE STUCK ch%0d: sched_wr_beats=%0d transfer_size=%0d has_data=%b final=%b data_ok=%b no_out=%b arb_req=%b drain_avail=%0d",
+                        $time, i,
+                        sched_wr_beats[i], w_transfer_size[i], w_has_data[i], w_final_burst[i],
+                        w_data_ok[i], w_no_outstanding[i], w_arb_request[i],
+                        axi_wr_drain_data_avail[i]);
+                end
+            end else begin
+                r_stuck_counter[i] <= '0;
+            end
+        end
+    end
+    // synopsys translate_on
+
     //=========================================================================
     // B Channel → Response Handling
     //=========================================================================
@@ -758,18 +961,75 @@ module axi_write_engine_beats #(
     assign dbg_aw_transactions = r_aw_transactions;
     assign dbg_w_beats = r_w_beats;
 
+    // Sideband to axi_bus_meter -- mirrors the W-phase FSM state.
+    assign o_active_channel_id    = r_w_channel_id;
+    assign o_active_channel_valid = r_w_active;
+
     //=========================================================================
     // Assertions for Verification
     //=========================================================================
+
+`ifdef ENHANCED_DEBUG
+    // synopsys translate_off
+    // Sim-only end-of-simulation state dump for the "drain-ctrl stale
+    // view" debug. Snapshots W-phase + AW + B-phase state per channel
+    // so the log shows what was in flight when the test ended.
+    //
+    // Gate: `define ENHANCED_DEBUG (or +define+ENHANCED_DEBUG on the
+    // simulator command line) to enable. Off by default.
+    int unsigned dbg_aw_per_ch [NC];
+    int unsigned dbg_b_per_ch  [NC];
+    int unsigned dbg_w_fifo_push_per_ch [NC];
+    initial for (int i = 0; i < NC; i++) begin
+        dbg_aw_per_ch[i] = 0;
+        dbg_b_per_ch[i]  = 0;
+        dbg_w_fifo_push_per_ch[i] = 0;
+    end
+    always_ff @(posedge clk) begin
+        if (m_axi_awvalid && m_axi_awready) begin
+            dbg_aw_per_ch[r_aw_channel_id] += 1;
+        end
+        if (m_axi_bvalid && m_axi_bready) begin
+            dbg_b_per_ch[m_axi_bid[CIW-1:0]] += 1;
+        end
+        if (w_phase_txn_fifo_wr && w_phase_txn_fifo_wr_ready) begin
+            dbg_w_fifo_push_per_ch[w_phase_txn_fifo_din.channel_id] += 1;
+        end
+    end
+
+    final begin
+        $display("[%0t] [WR_ENG] FINAL state:", $time);
+        $display("[%0t] [WR_ENG]   r_w_active=%b r_w_channel_id=%0d r_w_beats_remaining=%0d",
+                 $time, r_w_active, r_w_channel_id, r_w_beats_remaining);
+        $display("[%0t] [WR_ENG]   w_phase_txn_fifo empty=%b full=%b head_ch=%0d head_beats=%0d",
+                 $time, w_phase_txn_fifo_empty, w_phase_txn_fifo_full,
+                 w_phase_txn_fifo_dout.channel_id, w_phase_txn_fifo_dout.beats);
+        $display("[%0t] [WR_ENG]   GLOBAL: r_aw_transactions=%0d r_w_beats=%0d",
+                 $time, r_aw_transactions, r_w_beats);
+        for (int i = 0; i < NC; i++) begin
+            $display("[%0t] [WR_ENG]   ch%0d: aw=%0d b=%0d w_fifo_pushed=%0d sched_wr_valid=%b sched_wr_beats=%0d r_aw_valid=%b outstanding=%0d outstanding_limit=%b drain_data_avail=%0d has_data=%b final_burst=%b arb_request=%b r_beats_written=%0d",
+                     $time, i,
+                     dbg_aw_per_ch[i], dbg_b_per_ch[i], dbg_w_fifo_push_per_ch[i],
+                     sched_wr_valid[i], sched_wr_beats[i], (r_aw_valid && r_aw_channel_id == CIW'(i)),
+                     r_outstanding_count[i], r_outstanding_limit[i],
+                     axi_wr_drain_data_avail[i],
+                     w_has_data[i], w_final_burst[i], w_arb_request[i],
+                     r_beats_written[i]);
+        end
+    end
+    // synopsys translate_on
+`endif // ENHANCED_DEBUG
 
     `ifdef FORMAL
     // Only one arbiter grant at a time
     assert property (@(posedge clk) disable iff (!rst_n)
         $onehot0(w_arb_grant));
 
-    // Granted channel must have valid request
+    // Granted channel must have valid request (registered version: arbiter
+    // sees r_arb_request, not the live w_arb_request, after the request
+    // pipeline added for 8-channel 100 MHz timing closure).
     assert property (@(posedge clk) disable iff (!rst_n)
-        w_arb_grant_valid |-> (w_arb_request & w_arb_grant) != '0);
+        w_arb_grant_valid |-> (r_arb_request & w_arb_grant) != '0);
 
     // Drain request only when AW command issues
     assert property (@(posedge clk) disable iff (!rst_n)

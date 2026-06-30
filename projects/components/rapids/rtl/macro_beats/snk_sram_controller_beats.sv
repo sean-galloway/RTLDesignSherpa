@@ -81,7 +81,8 @@ module snk_sram_controller_beats #(
     //=========================================================================
     // Drain Data Interface (FIFO -> AXI Write Engine)
     //=========================================================================
-    output logic [NC-1:0]               drain_valid,
+    output logic [NC-1:0]               drain_valid,       // Registered (arbitration)
+    output logic [NC-1:0]               drain_valid_comb,  // Combinational (wvalid gate)
     input  logic                        drain_read,
     input  logic [CIW-1:0]              drain_id,
     output logic [DW-1:0]               drain_data,
@@ -109,6 +110,14 @@ module snk_sram_controller_beats #(
     logic [NC-1:0] drain_read_decoded;
     logic [NC-1:0][DW-1:0] drain_data_per_channel;
     logic [NC-1:0] fill_alloc_req_decoded;
+
+    // Combinational per-channel unit outputs. The avail/space/valid signals are
+    // registered at this module boundary (mirrors STREAM sram_controller.sv) to
+    // break the long combinational path from FIFO pointers to the engine
+    // arbitration grant (Artix-7 100 MHz closure). drain_valid_comb is exposed
+    // as a passthrough so the write engine can AND it into m_axi_wvalid.
+    logic [NC-1:0][SCW-1:0] fill_space_free_comb;
+    logic [NC-1:0][SCW-1:0] drain_data_avail_comb;
 
     // Fill valid decode: fill_id selects which channel
     always_comb begin
@@ -181,20 +190,22 @@ module snk_sram_controller_beats #(
                 .fill_ready         (fill_ready_per_channel[i]),
                 .fill_data          (fill_data),
 
-                // Drain interface (FIFO -> AXI Write Engine)
-                .drain_valid        (drain_valid[i]),
+                // Drain interface (FIFO -> AXI Write Engine).
+                // Unit valid is combinational; expose it on drain_valid_comb and
+                // register it into drain_valid below.
+                .drain_valid        (drain_valid_comb[i]),
                 .drain_ready        (drain_read_decoded[i]),
                 .drain_data         (drain_data_per_channel[i]),
 
-                // Fill allocation interface
+                // Fill allocation interface (registered at wrapper boundary)
                 .fill_alloc_req     (fill_alloc_req_decoded[i]),
                 .fill_alloc_size    (fill_alloc_size),
-                .fill_space_free    (fill_space_free[i]),
+                .fill_space_free    (fill_space_free_comb[i]),
 
-                // Drain flow control interface
+                // Drain flow control interface (registered at wrapper boundary)
                 .drain_req          (drain_req[i]),
                 .drain_size         (drain_size[i]),
-                .drain_data_avail   (drain_data_avail[i]),
+                .drain_data_avail   (drain_data_avail_comb[i]),
 
                 // Debug
                 .dbg_bridge_pending   (dbg_bridge_pending[i]),
@@ -202,5 +213,25 @@ module snk_sram_controller_beats #(
             );
         end
     endgenerate
+
+    //=========================================================================
+    // Register avail/space/valid at the module boundary (timing closure).
+    // Reset to "no space / no data / not valid" so downstream engines do not
+    // attempt an arbitration grant before the first post-reset cycle latches
+    // the real combinational values. Mirrors STREAM sram_controller.sv.
+    // drain_valid_comb stays combinational (driven by the generate above) for
+    // the write engine's m_axi_wvalid gate.
+    //=========================================================================
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            fill_space_free  <= '0;
+            drain_data_avail <= '0;
+            drain_valid      <= '0;
+        end else begin
+            fill_space_free  <= fill_space_free_comb;
+            drain_data_avail <= drain_data_avail_comb;
+            drain_valid      <= drain_valid_comb;
+        end
+    )
 
 endmodule : snk_sram_controller_beats
