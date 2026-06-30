@@ -43,6 +43,9 @@ from cocotb.triggers import RisingEdge, Timer
 
 # Framework imports
 from TBClasses.shared.tbbase import TBBase
+from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master
+from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 
 
@@ -81,6 +84,8 @@ class SchedulerGroupBeatsTB(TBBase):
 
         # Test tracking
         self.apb_requests = 0
+        # GAXI master for the APB descriptor-fetch kick (created end of setup)
+        self.apb_master = None
         self.descriptors_served = 0
         self.rd_commands_received = 0
         self.wr_commands_received = 0
@@ -120,6 +125,32 @@ class SchedulerGroupBeatsTB(TBBase):
         await self.wait_clocks(self.clk_name, 10)
         await self.deassert_reset()
         await self.wait_clocks(self.clk_name, 10)
+
+        # Create the GAXI master for the APB descriptor-fetch kick.
+        self._create_bfms()
+
+    def _create_bfms(self):
+        """Create the GAXI master for the APB kick (apb_valid/ready/addr)."""
+        addr_bits = len(self.dut.apb_addr)
+        fc = FieldConfig()
+        fc.add_field(FieldDefinition(name='addr', bits=addr_bits,
+                                     format='hex', description='descriptor address'))
+        self.apb_master = create_gaxi_master(
+            dut=self.dut, title='sg_apb', prefix='apb', clock=self.clk,
+            field_config=fc, multi_sig=True, log=self.log)
+        self.set_gaxi_timing_profile(os.environ.get('GAXI_TIMING_PROFILE', 'backtoback'))
+
+    def set_gaxi_timing_profile(self, profile_name='backtoback'):
+        """Apply a GAXI timing profile to the APB-kick master's valid_delay."""
+        from TBClasses.amba.amba_random_configs import GAXI_RANDOMIZER_CONFIGS
+        if profile_name == 'mixed':
+            profile_name = 'gaxi_realistic'
+        if profile_name not in GAXI_RANDOMIZER_CONFIGS:
+            self.log.warning(f"Unknown GAXI timing profile '{profile_name}', using 'backtoback'")
+            profile_name = 'backtoback'
+        cfg = GAXI_RANDOMIZER_CONFIGS[profile_name]
+        self.apb_master.randomizer = FlexRandomizer(cfg['master'])
+        self.log.info(f"GAXI scheduler_group APB-kick timing profile: {profile_name}")
 
     async def assert_reset(self):
         """Assert reset signal"""
@@ -188,21 +219,21 @@ class SchedulerGroupBeatsTB(TBBase):
         Returns:
             True if request accepted, False on timeout
         """
-        self.dut.apb_valid.value = 1
-        self.dut.apb_addr.value = addr
+        # Drive the APB kick through the GAXI master; the pipeline performs the
+        # apb_valid/ready handshake honoring the active timing profile.
+        pkt = self.apb_master.create_packet(addr=addr)
+        await self.apb_master.send(pkt)
 
-        # Wait for ready handshake
+        # send() queues; wait for the handshake to complete.
+        await self.wait_clocks(self.clk_name, 1)
         for _ in range(100):
-            if int(self.dut.apb_ready.value) == 1:
-                await self.wait_clocks(self.clk_name, 1)
+            if not self.apb_master.transfer_busy and len(self.apb_master.transmit_queue) == 0:
                 self.apb_requests += 1
                 self.log.info(f"APB request sent: addr=0x{addr:X}")
-                self.dut.apb_valid.value = 0
                 return True
             await self.wait_clocks(self.clk_name, 1)
 
         self.log.warning(f"APB request timeout: addr=0x{addr:X}")
-        self.dut.apb_valid.value = 0
         return False
 
     async def respond_to_descriptor_read(self, data: int) -> bool:

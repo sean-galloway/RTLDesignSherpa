@@ -37,6 +37,9 @@ from cocotb.triggers import RisingEdge
 
 # Framework imports
 from TBClasses.shared.tbbase import TBBase
+from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master
+from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 
 
 class SnkSRAMControllerTB(TBBase):
@@ -79,6 +82,9 @@ class SnkSRAMControllerTB(TBBase):
         self.allocs_requested = [0] * self.TEST_NUM_CHANNELS
         self.test_errors = []
 
+        # GAXI master for the fill interface (created at end of setup)
+        self.fill_master = None
+
         self.log.info(f"SnkSRAMControllerTB initialized: "
                      f"{self.TEST_NUM_CHANNELS} channels, {self.TEST_DATA_WIDTH}-bit data, "
                      f"{self.TEST_SRAM_DEPTH} depth")
@@ -93,6 +99,34 @@ class SnkSRAMControllerTB(TBBase):
         await self.wait_clocks(self.clk_name, 10)
         await self.deassert_reset()
         await self.wait_clocks(self.clk_name, 10)
+
+        # Create the GAXI master for the fill interface now signals are stable.
+        self._create_bfms()
+
+    def _create_bfms(self):
+        """Create the GAXI master for the fill interface (fill_valid/ready/id/data)."""
+        id_bits = len(self.dut.fill_id)
+        fc = FieldConfig()
+        fc.add_field(FieldDefinition(name='id', bits=id_bits,
+                                     format='dec', description='channel id'))
+        fc.add_field(FieldDefinition(name='data', bits=self.TEST_DATA_WIDTH,
+                                     format='hex', description='fill data'))
+        self.fill_master = create_gaxi_master(
+            dut=self.dut, title='snk_fill', prefix='fill', clock=self.clk,
+            field_config=fc, multi_sig=True, log=self.log)
+        self.set_gaxi_timing_profile(os.environ.get('GAXI_TIMING_PROFILE', 'backtoback'))
+
+    def set_gaxi_timing_profile(self, profile_name='backtoback'):
+        """Apply a GAXI timing profile to the fill master's valid_delay."""
+        from TBClasses.amba.amba_random_configs import GAXI_RANDOMIZER_CONFIGS
+        if profile_name == 'mixed':
+            profile_name = 'gaxi_realistic'
+        if profile_name not in GAXI_RANDOMIZER_CONFIGS:
+            self.log.warning(f"Unknown GAXI timing profile '{profile_name}', using 'backtoback'")
+            profile_name = 'backtoback'
+        cfg = GAXI_RANDOMIZER_CONFIGS[profile_name]
+        self.fill_master.randomizer = FlexRandomizer(cfg['master'])
+        self.log.info(f"GAXI snk_sram_controller fill timing profile: {profile_name}")
 
     async def assert_reset(self):
         """Assert reset signal"""
@@ -206,21 +240,20 @@ class SnkSRAMControllerTB(TBBase):
         if channel >= self.TEST_NUM_CHANNELS:
             return False
 
-        self.dut.fill_valid.value = 1
-        self.dut.fill_id.value = channel
-        self.dut.fill_data.value = data
+        # Drive the fill interface through the GAXI master (id + data); the
+        # pipeline performs the fill_valid/ready handshake per the timing profile.
+        pkt = self.fill_master.create_packet(id=channel, data=data)
+        await self.fill_master.send(pkt)
 
-        # Wait for ready
+        # send() queues; wait for the handshake to complete to preserve ordering.
+        await self.wait_clocks(self.clk_name, 1)
         for _ in range(100):
-            if int(self.dut.fill_ready.value) == 1:
-                await self.wait_clocks(self.clk_name, 1)
+            if not self.fill_master.transfer_busy and len(self.fill_master.transmit_queue) == 0:
                 self.fills_sent[channel] += 1
-                self.dut.fill_valid.value = 0
                 return True
             await self.wait_clocks(self.clk_name, 1)
 
         self.log.warning(f"Fill timeout: ch={channel}")
-        self.dut.fill_valid.value = 0
         return False
 
     # ==========================================================================

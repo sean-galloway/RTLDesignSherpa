@@ -96,16 +96,30 @@ async def cocotb_test_multi_channel(dut):
 def generate_snk_sram_controller_test_params():
     """Generate test parameters for snk_sram_controller tests.
 
-    Returns list of tuples: (num_channels, data_width, sram_depth)
+    Returns list of tuples: (num_channels, data_width, sram_depth, timing_profile)
+
+    timing_profile sweeps the fill GAXI master valid_delay (fill injection rate).
+    REG_LEVEL gates the sweep breadth.
     """
-    return [
-        # Default configuration
-        (8, 512, 512),
-        # Fewer channels
-        (4, 512, 256),
-        # Smaller data width
-        (8, 256, 512),
+    base_configs = [
+        (8, 512, 512),   # Default configuration
+        (4, 512, 256),   # Fewer channels
+        (8, 256, 512),   # Smaller data width
     ]
+
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        sweep_profiles = []
+    elif reg_level == 'FUNC':
+        sweep_profiles = ['slow_producer', 'gaxi_realistic']
+    else:  # FULL
+        sweep_profiles = ['constrained', 'slow_producer', 'gaxi_stress', 'gaxi_realistic']
+
+    params = [cfg + ('default',) for cfg in base_configs]
+    # Profile sweep on the default config to keep the matrix bounded.
+    for profile in sweep_profiles:
+        params.append((8, 512, 512, profile))
+    return params
 
 
 snk_sram_controller_params = generate_snk_sram_controller_test_params()
@@ -117,36 +131,36 @@ snk_sram_controller_params = generate_snk_sram_controller_test_params()
 
 @pytest.mark.macro_beats
 @pytest.mark.snk_sram_controller
-@pytest.mark.parametrize("num_channels, data_width, sram_depth", snk_sram_controller_params)
-def test_basic_fill_drain(request, num_channels, data_width, sram_depth):
+@pytest.mark.parametrize("num_channels, data_width, sram_depth, timing_profile", snk_sram_controller_params)
+def test_basic_fill_drain(request, num_channels, data_width, sram_depth, timing_profile):
     """Pytest: Test basic fill/drain cycle"""
     _run_snk_sram_controller_test(request, "cocotb_test_basic_fill_drain",
-                                   num_channels, data_width, sram_depth)
+                                   num_channels, data_width, sram_depth, timing_profile)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.snk_sram_controller
-@pytest.mark.parametrize("num_channels, data_width, sram_depth", snk_sram_controller_params)
-def test_space_tracking(request, num_channels, data_width, sram_depth):
+@pytest.mark.parametrize("num_channels, data_width, sram_depth, timing_profile", snk_sram_controller_params)
+def test_space_tracking(request, num_channels, data_width, sram_depth, timing_profile):
     """Pytest: Test space tracking"""
     _run_snk_sram_controller_test(request, "cocotb_test_space_tracking",
-                                   num_channels, data_width, sram_depth)
+                                   num_channels, data_width, sram_depth, timing_profile)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.snk_sram_controller
-@pytest.mark.parametrize("num_channels, data_width, sram_depth", snk_sram_controller_params)
-def test_multi_channel(request, num_channels, data_width, sram_depth):
+@pytest.mark.parametrize("num_channels, data_width, sram_depth, timing_profile", snk_sram_controller_params)
+def test_multi_channel(request, num_channels, data_width, sram_depth, timing_profile):
     """Pytest: Test multi-channel operation"""
     _run_snk_sram_controller_test(request, "cocotb_test_multi_channel",
-                                   num_channels, data_width, sram_depth)
+                                   num_channels, data_width, sram_depth, timing_profile)
 
 
 # ===========================================================================
 # HELPER FUNCTION - AMBA PATTERN
 # ===========================================================================
 
-def _run_snk_sram_controller_test(request, testcase_name, num_channels, data_width, sram_depth):
+def _run_snk_sram_controller_test(request, testcase_name, num_channels, data_width, sram_depth, timing_profile='default'):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Helper function to run snk_sram_controller tests with AMBA pattern.
 
@@ -179,7 +193,7 @@ def _run_snk_sram_controller_test(request, testcase_name, num_channels, data_wid
 
     # Extract test name from cocotb function
     test_suffix = testcase_name.replace("cocotb_test_", "")
-    test_name_plus_params = f"test_{dut_name}_{test_suffix}_nc{nc_str}_dw{dw_str}_sd{sd_str}"
+    test_name_plus_params = f"test_{dut_name}_{test_suffix}_nc{nc_str}_dw{dw_str}_sd{sd_str}_{timing_profile}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -209,6 +223,8 @@ def _run_snk_sram_controller_test(request, testcase_name, num_channels, data_wid
         'TEST_DATA_WIDTH': str(data_width),
         'TEST_SRAM_DEPTH': str(sram_depth),
     }
+    if timing_profile != 'default':
+        extra_env['GAXI_TIMING_PROFILE'] = timing_profile
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 

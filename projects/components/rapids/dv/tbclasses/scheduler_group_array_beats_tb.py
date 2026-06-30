@@ -44,6 +44,7 @@ from cocotb.triggers import RisingEdge, Timer
 
 # Framework imports
 from TBClasses.shared.tbbase import TBBase
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 
 
@@ -87,6 +88,11 @@ class SchedulerGroupArrayBeatsTB(TBBase):
 
         # Test tracking - per channel
         self.apb_requests = [0] * self.NUM_CHANNELS
+        # Profile-driven delay injector for the APB descriptor kick. The array's
+        # apb_valid/apb_addr are packed per-channel buses (driven via bit-slice
+        # helpers), which GAXI BFMs can't own; instead the timing profile feeds a
+        # FlexRandomizer whose valid_delay gates each per-channel request.
+        self._apb_rnd = None
         self.descriptors_served = [0] * self.NUM_CHANNELS
         self.rd_commands_received = [0] * self.NUM_CHANNELS
         self.wr_commands_received = [0] * self.NUM_CHANNELS
@@ -154,6 +160,24 @@ class SchedulerGroupArrayBeatsTB(TBBase):
         await self.wait_clocks(self.clk_name, 10)
         await self.deassert_reset()
         await self.wait_clocks(self.clk_name, 10)
+
+        self.set_gaxi_timing_profile(os.environ.get('GAXI_TIMING_PROFILE', 'backtoback'))
+
+    def set_gaxi_timing_profile(self, profile_name='backtoback'):
+        """Select a timing profile for APB descriptor-kick injection.
+
+        The packed per-channel apb bus can't be owned by a GAXI master, so the
+        profile's master valid_delay distribution is applied as an inter-request
+        delay in send_apb_request (see _apb_rnd)."""
+        from TBClasses.amba.amba_random_configs import GAXI_RANDOMIZER_CONFIGS
+        if profile_name == 'mixed':
+            profile_name = 'gaxi_realistic'
+        if profile_name not in GAXI_RANDOMIZER_CONFIGS:
+            self.log.warning(f"Unknown GAXI timing profile '{profile_name}', using 'backtoback'")
+            profile_name = 'backtoback'
+        cfg = GAXI_RANDOMIZER_CONFIGS[profile_name]
+        self._apb_rnd = FlexRandomizer(cfg['master'])
+        self.log.info(f"GAXI scheduler_group_array APB-kick timing profile: {profile_name}")
 
     async def assert_reset(self):
         """Assert reset signal"""
@@ -290,6 +314,12 @@ class SchedulerGroupArrayBeatsTB(TBBase):
         if channel >= self.NUM_CHANNELS:
             self.log.error(f"Invalid channel {channel}, max is {self.NUM_CHANNELS-1}")
             return False
+
+        # Profile-driven injection delay (varies descriptor-request timing).
+        if self._apb_rnd is not None:
+            delay = int(self._apb_rnd.get_delay('valid_delay'))
+            if delay > 0:
+                await self.wait_clocks(self.clk_name, delay)
 
         # Set apb_valid bit for this channel (packed array)
         self._set_packed_bit(self.dut.apb_valid, channel, 1)

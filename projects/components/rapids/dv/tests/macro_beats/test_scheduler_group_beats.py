@@ -110,16 +110,29 @@ async def cocotb_test_monbus_events(dut):
 def generate_beats_scheduler_group_test_params():
     """Generate test parameters for beats_scheduler_group tests.
 
-    Returns list of tuples: (channel_id, addr_width, data_width, axi_id_width)
+    Returns list of tuples: (channel_id, addr_width, data_width, axi_id_width, timing_profile)
+
+    timing_profile sweeps the APB descriptor-kick GAXI master valid_delay
+    (descriptor-request injection rate). REG_LEVEL gates the sweep breadth.
     """
-    return [
-        # Default configuration
-        (0, 64, 512, 8),
-        # Alternative channel ID
-        (3, 64, 512, 8),
-        # Smaller data width
-        (0, 64, 256, 8),
+    base_configs = [
+        (0, 64, 512, 8),   # Default configuration
+        (3, 64, 512, 8),   # Alternative channel ID
+        (0, 64, 256, 8),   # Smaller data width
     ]
+
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        sweep_profiles = []
+    elif reg_level == 'FUNC':
+        sweep_profiles = ['slow_producer', 'gaxi_realistic']
+    else:  # FULL
+        sweep_profiles = ['constrained', 'slow_producer', 'gaxi_stress', 'gaxi_realistic']
+
+    params = [cfg + ('default',) for cfg in base_configs]
+    for profile in sweep_profiles:
+        params.append((0, 64, 512, 8, profile))
+    return params
 
 
 beats_scheduler_group_params = generate_beats_scheduler_group_test_params()
@@ -131,45 +144,45 @@ beats_scheduler_group_params = generate_beats_scheduler_group_test_params()
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group
-@pytest.mark.parametrize("channel_id, addr_width, data_width, axi_id_width", beats_scheduler_group_params)
-def test_idle_state(request, channel_id, addr_width, data_width, axi_id_width):
+@pytest.mark.parametrize("channel_id, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_params)
+def test_idle_state(request, channel_id, addr_width, data_width, axi_id_width, timing_profile):
     """Pytest: Test idle state after reset"""
     _run_beats_scheduler_group_test(request, "cocotb_test_idle_state",
-                                     channel_id, addr_width, data_width, axi_id_width)
+                                     channel_id, addr_width, data_width, axi_id_width, timing_profile)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group
-@pytest.mark.parametrize("channel_id, addr_width, data_width, axi_id_width", beats_scheduler_group_params)
-def test_config_interface(request, channel_id, addr_width, data_width, axi_id_width):
+@pytest.mark.parametrize("channel_id, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_params)
+def test_config_interface(request, channel_id, addr_width, data_width, axi_id_width, timing_profile):
     """Pytest: Test configuration interface"""
     _run_beats_scheduler_group_test(request, "cocotb_test_config_interface",
-                                     channel_id, addr_width, data_width, axi_id_width)
+                                     channel_id, addr_width, data_width, axi_id_width, timing_profile)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group
-@pytest.mark.parametrize("channel_id, addr_width, data_width, axi_id_width", beats_scheduler_group_params)
-def test_basic_descriptor_flow(request, channel_id, addr_width, data_width, axi_id_width):
+@pytest.mark.parametrize("channel_id, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_params)
+def test_basic_descriptor_flow(request, channel_id, addr_width, data_width, axi_id_width, timing_profile):
     """Pytest: Test basic descriptor fetch and processing"""
     _run_beats_scheduler_group_test(request, "cocotb_test_basic_descriptor_flow",
-                                     channel_id, addr_width, data_width, axi_id_width)
+                                     channel_id, addr_width, data_width, axi_id_width, timing_profile)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group
-@pytest.mark.parametrize("channel_id, addr_width, data_width, axi_id_width", beats_scheduler_group_params)
-def test_monbus_events(request, channel_id, addr_width, data_width, axi_id_width):
+@pytest.mark.parametrize("channel_id, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_params)
+def test_monbus_events(request, channel_id, addr_width, data_width, axi_id_width, timing_profile):
     """Pytest: Test monitor bus events"""
     _run_beats_scheduler_group_test(request, "cocotb_test_monbus_events",
-                                     channel_id, addr_width, data_width, axi_id_width)
+                                     channel_id, addr_width, data_width, axi_id_width, timing_profile)
 
 
 # ===========================================================================
 # HELPER FUNCTION - AMBA PATTERN
 # ===========================================================================
 
-def _run_beats_scheduler_group_test(request, testcase_name, channel_id, addr_width, data_width, axi_id_width):
+def _run_beats_scheduler_group_test(request, testcase_name, channel_id, addr_width, data_width, axi_id_width, timing_profile='default'):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Helper function to run beats_scheduler_group tests with AMBA pattern.
 
@@ -204,7 +217,7 @@ def _run_beats_scheduler_group_test(request, testcase_name, channel_id, addr_wid
 
     # Extract test name from cocotb function
     test_suffix = testcase_name.replace("cocotb_test_", "")
-    test_name_plus_params = f"test_{dut_name}_{test_suffix}_ch{ch_str}_aw{aw_str}_dw{dw_str}_id{id_str}"
+    test_name_plus_params = f"test_{dut_name}_{test_suffix}_ch{ch_str}_aw{aw_str}_dw{dw_str}_id{id_str}_{timing_profile}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -236,6 +249,8 @@ def _run_beats_scheduler_group_test(request, testcase_name, channel_id, addr_wid
         'TEST_DATA_WIDTH': str(data_width),
         'TEST_AXI_ID_WIDTH': str(axi_id_width),
     }
+    if timing_profile != 'default':
+        extra_env['GAXI_TIMING_PROFILE'] = timing_profile
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 

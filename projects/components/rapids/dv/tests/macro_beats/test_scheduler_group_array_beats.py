@@ -147,14 +147,29 @@ async def cocotb_test_stress(dut):
 def generate_beats_scheduler_group_array_test_params():
     """Generate test parameters for beats_scheduler_group_array tests.
 
-    Returns list of tuples: (num_channels, addr_width, data_width, axi_id_width)
+    Returns list of tuples: (num_channels, addr_width, data_width, axi_id_width, timing_profile)
+
+    timing_profile feeds an inter-request delay distribution on the APB
+    descriptor kick (the packed per-channel apb bus can't use a GAXI master).
+    REG_LEVEL gates the sweep breadth.
     """
-    return [
-        # Default configuration - 8 channels
-        (8, 64, 512, 8),
-        # Smaller data width
-        (8, 64, 256, 8),
+    base_configs = [
+        (8, 64, 512, 8),   # Default configuration - 8 channels
+        (8, 64, 256, 8),   # Smaller data width
     ]
+
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        sweep_profiles = []
+    elif reg_level == 'FUNC':
+        sweep_profiles = ['slow_producer', 'gaxi_realistic']
+    else:  # FULL
+        sweep_profiles = ['constrained', 'slow_producer', 'gaxi_stress', 'gaxi_realistic']
+
+    params = [cfg + ('default',) for cfg in base_configs]
+    for profile in sweep_profiles:
+        params.append((8, 64, 512, 8, profile))
+    return params
 
 
 beats_scheduler_group_array_params = generate_beats_scheduler_group_array_test_params()
@@ -166,63 +181,63 @@ beats_scheduler_group_array_params = generate_beats_scheduler_group_array_test_p
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group_array
-@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width", beats_scheduler_group_array_params)
-def test_single_channel(request, num_channels, addr_width, data_width, axi_id_width):
+@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
+def test_single_channel(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
     """Pytest: Test single channel operation"""
     _run_beats_scheduler_group_array_test(request, "cocotb_test_single_channel",
-                                           num_channels, addr_width, data_width, axi_id_width)
+                                           num_channels, addr_width, data_width, axi_id_width, timing_profile)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group_array
-@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width", beats_scheduler_group_array_params)
-def test_multi_channel_concurrent(request, num_channels, addr_width, data_width, axi_id_width):
+@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
+def test_multi_channel_concurrent(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
     """Pytest: Test multi-channel concurrent operations"""
     _run_beats_scheduler_group_array_test(request, "cocotb_test_multi_channel_concurrent",
-                                           num_channels, addr_width, data_width, axi_id_width)
+                                           num_channels, addr_width, data_width, axi_id_width, timing_profile)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group_array
-@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width", beats_scheduler_group_array_params)
-def test_axi_arbitration(request, num_channels, addr_width, data_width, axi_id_width):
+@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
+def test_axi_arbitration(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
     """Pytest: Test AXI arbitration"""
     _run_beats_scheduler_group_array_test(request, "cocotb_test_axi_arbitration",
-                                           num_channels, addr_width, data_width, axi_id_width)
+                                           num_channels, addr_width, data_width, axi_id_width, timing_profile)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group_array
-@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width", beats_scheduler_group_array_params)
-def test_all_channels_sequential(request, num_channels, addr_width, data_width, axi_id_width):
+@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
+def test_all_channels_sequential(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
     """Pytest: Test all channels sequentially"""
     _run_beats_scheduler_group_array_test(request, "cocotb_test_all_channels_sequential",
-                                           num_channels, addr_width, data_width, axi_id_width)
+                                           num_channels, addr_width, data_width, axi_id_width, timing_profile)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group_array
-@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width", beats_scheduler_group_array_params)
-def test_monbus_aggregation(request, num_channels, addr_width, data_width, axi_id_width):
+@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
+def test_monbus_aggregation(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
     """Pytest: Test MonBus aggregation"""
     _run_beats_scheduler_group_array_test(request, "cocotb_test_monbus_aggregation",
-                                           num_channels, addr_width, data_width, axi_id_width)
+                                           num_channels, addr_width, data_width, axi_id_width, timing_profile)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group_array
-@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width", beats_scheduler_group_array_params)
-def test_stress(request, num_channels, addr_width, data_width, axi_id_width):
+@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
+def test_stress(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
     """Pytest: Stress test"""
     _run_beats_scheduler_group_array_test(request, "cocotb_test_stress",
-                                           num_channels, addr_width, data_width, axi_id_width)
+                                           num_channels, addr_width, data_width, axi_id_width, timing_profile)
 
 
 # ===========================================================================
 # HELPER FUNCTION - AMBA PATTERN
 # ===========================================================================
 
-def _run_beats_scheduler_group_array_test(request, testcase_name, num_channels, addr_width, data_width, axi_id_width):
+def _run_beats_scheduler_group_array_test(request, testcase_name, num_channels, addr_width, data_width, axi_id_width, timing_profile='default'):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Helper function to run beats_scheduler_group_array tests with AMBA pattern.
 
@@ -257,7 +272,7 @@ def _run_beats_scheduler_group_array_test(request, testcase_name, num_channels, 
 
     # Extract test name from cocotb function
     test_suffix = testcase_name.replace("cocotb_test_", "")
-    test_name_plus_params = f"test_{dut_name}_{test_suffix}_nc{nc_str}_aw{aw_str}_dw{dw_str}_id{id_str}"
+    test_name_plus_params = f"test_{dut_name}_{test_suffix}_nc{nc_str}_aw{aw_str}_dw{dw_str}_id{id_str}_{timing_profile}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -287,6 +302,7 @@ def _run_beats_scheduler_group_array_test(request, testcase_name, num_channels, 
         'TEST_ADDR_WIDTH': str(addr_width),
         'TEST_DATA_WIDTH': str(data_width),
         'TEST_AXI_ID_WIDTH': str(axi_id_width),
+        **({'GAXI_TIMING_PROFILE': timing_profile} if timing_profile != 'default' else {}),
         'CHANNEL_COUNT': str(num_channels),
     }
 
