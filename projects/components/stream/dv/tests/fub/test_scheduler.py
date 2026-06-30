@@ -485,11 +485,19 @@ def generate_scheduler_test_params():
         (0, 8, 64, 512, 1000),  # Standard STREAM configuration
     ]
 
-    # Generate final params by adding test_type to each base config
+    # Generate final params by adding test_type to each base config.
+    # 'default' leaves the descriptor GAXI master at its default 'backtoback'
+    # timing, so existing coverage is unchanged.
     params = []
     for test_type in test_types:
         for base in base_params:
-            params.append((test_type,) + base)
+            params.append((test_type,) + base + ('default',))
+
+    # Focused GAXI descriptor-master timing sweep on one representative scenario.
+    gaxi_timing_sweep = ['constrained', 'gaxi_pipeline', 'gaxi_backpressure',
+                         'gaxi_realistic', 'gaxi_stress', 'mixed']
+    for tp in gaxi_timing_sweep:
+        params.append(('basic_flow',) + base_params[0] + (tp,))
 
     return params
 
@@ -499,8 +507,8 @@ scheduler_params = generate_scheduler_test_params()
 # PYTEST WRAPPER FUNCTION - Single wrapper for all test types
 # ===========================================================================
 
-@pytest.mark.parametrize("test_type, channel_id, num_channels, addr_width, data_width, timeout_cycles", scheduler_params)
-def test_scheduler(request, test_type, channel_id, num_channels, addr_width, data_width, timeout_cycles, test_level):
+@pytest.mark.parametrize("test_type, channel_id, num_channels, addr_width, data_width, timeout_cycles, timing_profile", scheduler_params)
+def test_scheduler(request, test_type, channel_id, num_channels, addr_width, data_width, timeout_cycles, timing_profile, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for scheduler tests - handles all test types.
 
@@ -526,7 +534,7 @@ def test_scheduler(request, test_type, channel_id, num_channels, addr_width, dat
     aw_str = TBBase.format_dec(addr_width, 3)
     dw_str = TBBase.format_dec(data_width, 4)
     tc_str = TBBase.format_dec(timeout_cycles, 5)
-    test_name_plus_params = f"test_{dut_name}_{test_type}_cid{cid_str}_nc{nc_str}_aw{aw_str}_dw{dw_str}_tc{tc_str}"
+    test_name_plus_params = f"test_{dut_name}_{test_type}_cid{cid_str}_nc{nc_str}_aw{aw_str}_dw{dw_str}_tc{tc_str}_{timing_profile}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -559,6 +567,11 @@ def test_scheduler(request, test_type, channel_id, num_channels, addr_width, dat
         'TEST_LEVEL': test_level,
         'TEST_DEBUG': '0',
     }
+
+    # GAXI descriptor-master timing profile sweep. 'default' leaves the TB
+    # default ('backtoback') in place.
+    if timing_profile != 'default':
+        extra_env['GAXI_TIMING_PROFILE'] = timing_profile
 
     # Add coverage environment variables if coverage is enabled
     coverage_env = get_coverage_env(test_name_plus_params, sim_build=sim_build)

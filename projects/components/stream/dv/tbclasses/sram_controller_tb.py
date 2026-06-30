@@ -410,9 +410,14 @@ class SRAMControllerTB(TBBase):
         # Wait for allocation controller to update
         await RisingEdge(self.clk)
 
-        # Wait one more cycle for registered count to update
-        # (FIFO count is now registered for proper timing)
-        await RisingEdge(self.clk)
+        # Wait for the registered count to propagate. axi_rd_alloc_space_free is
+        # now pipelined through THREE register stages (stream_alloc_ctrl pointer
+        # -> sram_controller_unit reg -> sram_controller top reg), so a fixed
+        # 1-2 cycle wait samples the stale value. Poll until it settles.
+        for _ in range(8):
+            await RisingEdge(self.clk)
+            if (space_before - await self.get_space_free(channel)) == size:
+                break
 
         # Check space after allocation
         space_after = await self.get_space_free(channel)

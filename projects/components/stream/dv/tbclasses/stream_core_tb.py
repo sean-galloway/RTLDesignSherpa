@@ -391,6 +391,96 @@ class StreamCoreTB(TBBase):
 
         self.log.info("Initialized AXI slave responders with memory models")
 
+        # Apply per-channel AXI timing profiles (env-driven, see plan/CLAUDE).
+        # Defaults to 'fixed' so behavior is unchanged unless a profile is set.
+        self._apply_axi_timing_from_env()
+
+    def _apply_axi_timing_from_env(self):
+        """Read AXI timing-profile env vars and apply them per channel.
+
+        A uniform TIMING_PROFILE (default 'fixed') sets the baseline; optional
+        per-channel overrides AXI_PROFILE_<IFC>_<CH> take precedence:
+            DESC_AR DESC_R  RD_AR RD_R  WR_AW WR_W WR_B
+        """
+        base = os.environ.get('TIMING_PROFILE', 'fixed')
+        self.set_axi_timing_per_channel(
+            desc_ar=os.environ.get('AXI_PROFILE_DESC_AR', base),
+            desc_r=os.environ.get('AXI_PROFILE_DESC_R', base),
+            rd_ar=os.environ.get('AXI_PROFILE_RD_AR', base),
+            rd_r=os.environ.get('AXI_PROFILE_RD_R', base),
+            wr_aw=os.environ.get('AXI_PROFILE_WR_AW', base),
+            wr_w=os.environ.get('AXI_PROFILE_WR_W', base),
+            wr_b=os.environ.get('AXI_PROFILE_WR_B', base),
+        )
+
+    def set_axi_timing_profile(self, profile_name):
+        """Apply one AXI_RANDOMIZER_CONFIGS profile uniformly to all channels."""
+        self.set_axi_timing_per_channel(
+            desc_ar=profile_name, desc_r=profile_name,
+            rd_ar=profile_name, rd_r=profile_name,
+            wr_aw=profile_name, wr_w=profile_name, wr_b=profile_name,
+        )
+
+    # Per-channel spread used when a channel's profile is 'mixed'. Indexed by
+    # the channel order below (desc_ar, desc_r, rd_ar, rd_r, wr_aw, wr_w, wr_b)
+    # so each channel gets a different real profile -> cross-channel variation.
+    #
+    # wr_w='burst_pause' deliberately backpressures the W channel: this is the
+    # regression sentinel for the axi_write_engine WLAST/drain bug that the
+    # per-channel skew originally exposed (final WLAST beat lost when the SRAM
+    # drain popped a beat without a real W handshake; fixed in axi_write_engine.sv
+    # by gating axi_wr_sram_drain on m_axi_wvalid && m_axi_wready). Read channels
+    # stay at fast/constrained to bound runtime.
+    MIXED_AXI_PROFILES = ('fast', 'constrained', 'constrained', 'constrained',
+                          'fast', 'burst_pause', 'constrained')
+
+    def set_axi_timing_per_channel(self, desc_ar='fixed', desc_r='fixed',
+                                   rd_ar='fixed', rd_r='fixed',
+                                   wr_aw='fixed', wr_w='fixed', wr_b='fixed'):
+        """Apply a timing profile to each AXI slave channel independently.
+
+        The DUT is the AXI master, so these BFMs are slave responders:
+          - ready-driving channels (ar/aw/w) use the 'slave' (ready_delay) config
+          - valid-driving channels (r/b)     use the 'master' (valid_delay) config
+        (This is the inverse of the master-side ddr2-lpddr2 mapping.)
+
+        A channel value of 'mixed' expands to a per-channel spread of real
+        profiles (see MIXED_AXI_PROFILES) so each channel differs.
+        """
+        from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+        from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
+
+        def _cfg(name, section, idx):
+            if name == 'mixed':
+                name = self.MIXED_AXI_PROFILES[idx % len(self.MIXED_AXI_PROFILES)]
+            if name not in AXI_RANDOMIZER_CONFIGS:
+                self.log.warning(f"Unknown AXI timing profile '{name}', using "
+                                 f"'fixed'{self.get_time_ns_str()}")
+                name = 'fixed'
+            return name, FlexRandomizer(AXI_RANDOMIZER_CONFIGS[name][section])
+
+        desc_if = self.desc_axi_slave['interface']
+        rd_if = self.rd_axi_slave['interface']
+        wr_if = self.wr_axi_slave['interface']
+
+        names = []
+        for ch_obj, attr, section, idx in (
+            (desc_if, 'ar_channel', 'slave', 0), (desc_if, 'r_channel', 'master', 1),
+            (rd_if, 'ar_channel', 'slave', 2),   (rd_if, 'r_channel', 'master', 3),
+            (wr_if, 'aw_channel', 'slave', 4),   (wr_if, 'w_channel', 'slave', 5),
+            (wr_if, 'b_channel', 'master', 6),
+        ):
+            req = (desc_ar, desc_r, rd_ar, rd_r, wr_aw, wr_w, wr_b)[idx]
+            resolved, rnd = _cfg(req, section, idx)
+            getattr(ch_obj, attr).randomizer = rnd
+            names.append(resolved)
+
+        self.log.info(
+            f"AXI timing profiles: desc(ar={names[0]},r={names[1]}) "
+            f"rd(ar={names[2]},r={names[3]}) "
+            f"wr(aw={names[4]},w={names[5]},b={names[6]})"
+            f"{self.get_time_ns_str()}")
+
     async def _monitor_monbus(self):
         """Monitor MonBus packets"""
         while True:

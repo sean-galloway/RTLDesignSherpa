@@ -94,7 +94,10 @@ def generate_test_params():
             'desc_count': 16,     # 16 descriptors per channel
             'channels': [0, 1, 2, 3],  # All channels
             'transfer_sizes': [64, 128, 256, 512],
-            'timing_profile': 'mixed',  # Mix of fast, normal, constrained
+            # Per-channel skew with W-channel backpressure (regression sentinel
+            # for the axi_write_engine WLAST/drain bug fixed in
+            # axi_write_engine.sv). See MIXED_AXI_PROFILES in stream_core_tb.
+            'timing_profile': 'mixed',
         },
         'burst': {
             'desc_count': 6,      # 6 descriptors per channel (4-8 range for machinery churn)
@@ -242,7 +245,7 @@ def generate_test_params():
 # CocoTB Test Functions
 # ==============================================================================
 
-@cocotb.test(timeout_time=500, timeout_unit="us")
+@cocotb.test(timeout_time=int(os.environ.get('COCOTB_TIMEOUT_US', '500')), timeout_unit="us")
 async def cocotb_test_single_channel_transfer(dut):
     """Test basic single-channel DMA transfer following datapath pattern"""
 

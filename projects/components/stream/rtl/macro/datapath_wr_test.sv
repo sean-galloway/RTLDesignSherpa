@@ -206,7 +206,8 @@ module datapath_wr_test #(
     logic [NC-1:0]                  dbg_wr_all_complete;
 
     // SRAM controller ↔ Write engine (direct connection - ID-based interface)
-    logic [NC-1:0]                      axi_wr_sram_valid;           // Per-channel valid from SRAM
+    logic [NC-1:0]                      axi_wr_sram_valid;           // Per-channel valid from SRAM (registered)
+    logic [NC-1:0]                      axi_wr_sram_valid_comb;      // Per-channel valid from SRAM (combinational, wvalid gate)
     logic                               axi_wr_sram_drain;           // Drain signal from write engine
     logic [CW-1:0]                      axi_wr_sram_id;              // Channel ID from write engine
     logic [DW-1:0]                      axi_wr_sram_data;            // Muxed data from SRAM
@@ -351,6 +352,14 @@ module datapath_wr_test #(
                 .sched_rd_error         (1'b0),
                 .sched_wr_error         (sched_wr_error[i]),
 
+                // Debug error/status outputs (unused in this wrapper)
+                /* verilator lint_off PINCONNECTEMPTY */
+                .dbg_descriptor_error   (),
+                .dbg_read_error_sticky  (),
+                .dbg_write_error_sticky (),
+                .dbg_timeout_expired    (),
+                /* verilator lint_on PINCONNECTEMPTY */
+
                 // Monitor bus (tied off for test)
                 .mon_valid              (),
                 .mon_ready              (1'b1),
@@ -400,6 +409,7 @@ module datapath_wr_test #(
 
         // SRAM read interface (ID-based - direct connection)
         .axi_wr_sram_valid      (axi_wr_sram_valid),
+        .axi_wr_sram_valid_comb (axi_wr_sram_valid_comb),
         .axi_wr_sram_drain      (axi_wr_sram_drain),
         .axi_wr_sram_id         (axi_wr_sram_id),
         .axi_wr_sram_data       (axi_wr_sram_data),
@@ -467,7 +477,8 @@ module datapath_wr_test #(
         .axi_wr_drain_data_avail(wr_drain_data_avail),
 
         // Read interface (to write engine - direct connection)
-        .axi_wr_sram_valid      (axi_wr_sram_valid),         // Per-channel valids
+        .axi_wr_sram_valid      (axi_wr_sram_valid),         // Per-channel valids (registered)
+        .axi_wr_sram_valid_comb (axi_wr_sram_valid_comb),    // Per-channel valids (combinational, wvalid gate)
         .axi_wr_sram_drain      (axi_wr_sram_drain),         // Single drain signal
         .axi_wr_sram_id         (axi_wr_sram_id),            // Channel ID select
         .axi_wr_sram_data       (axi_wr_sram_data),          // Muxed data output

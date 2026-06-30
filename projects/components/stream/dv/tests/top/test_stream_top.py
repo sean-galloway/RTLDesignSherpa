@@ -98,6 +98,8 @@ def generate_test_params():
             'desc_count': 8,
             'channels': [0, 1, 2, 3],
             'transfer_sizes': [64, 128, 256],
+            # Per-channel skew with W-channel backpressure (regression sentinel
+            # for the axi_write_engine WLAST/drain bug). See MIXED_AXI_PROFILES.
             'timing_profile': 'mixed',
         }
     }

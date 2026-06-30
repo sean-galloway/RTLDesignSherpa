@@ -203,11 +203,21 @@ def generate_descriptor_engine_test_params():
         (0, 8, 64, 8, 8),  # Standard STREAM configuration
     ]
 
-    # Generate final params by adding test_type to each base config
+    # Generate final params by adding test_type to each base config.
+    # 'default' timing leaves BFM timing at the TB defaults (AXI 'fixed',
+    # GAXI 'backtoback') so existing coverage is unchanged.
     params = []
     for test_type in test_types:
         for base in base_params:
-            params.append((test_type,) + base)
+            params.append((test_type,) + base + ('default',))
+
+    # Focused BFM-timing sweep on one representative scenario. Each row drives
+    # both the AXI read slave (TIMING_PROFILE) and the apb GAXI master
+    # (GAXI_TIMING_PROFILE). gaxi_* names only affect the GAXI side.
+    timing_sweep = ['backtoback', 'constrained', 'slow_producer', 'burst_pause',
+                    'mixed', 'gaxi_backpressure', 'gaxi_realistic']
+    for tp in timing_sweep:
+        params.append(('apb_basic',) + base_params[0] + (tp,))
 
     return params
 
@@ -217,8 +227,8 @@ descriptor_engine_params = generate_descriptor_engine_test_params()
 # PYTEST WRAPPER FUNCTION - Single wrapper for all test types
 # ===========================================================================
 
-@pytest.mark.parametrize("test_type, channel_id, num_channels, addr_width, axi_id_width, fifo_depth", descriptor_engine_params)
-def test_descriptor_engine(request, test_type, channel_id, num_channels, addr_width, axi_id_width, fifo_depth, test_level):
+@pytest.mark.parametrize("test_type, channel_id, num_channels, addr_width, axi_id_width, fifo_depth, timing_profile", descriptor_engine_params)
+def test_descriptor_engine(request, test_type, channel_id, num_channels, addr_width, axi_id_width, fifo_depth, timing_profile, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for descriptor engine tests - handles all test types."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -240,7 +250,7 @@ def test_descriptor_engine(request, test_type, channel_id, num_channels, addr_wi
     aw_str = TBBase.format_dec(addr_width, 3)
     aid_str = TBBase.format_dec(axi_id_width, 2)
     fd_str = TBBase.format_dec(fifo_depth, 2)
-    test_name_plus_params = f"test_{dut_name}_{test_type}_cid{cid_str}_nc{nc_str}_aw{aw_str}_aid{aid_str}_fd{fd_str}"
+    test_name_plus_params = f"test_{dut_name}_{test_type}_cid{cid_str}_nc{nc_str}_aw{aw_str}_aid{aid_str}_fd{fd_str}_{timing_profile}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -274,6 +284,12 @@ def test_descriptor_engine(request, test_type, channel_id, num_channels, addr_wi
         'TEST_LEVEL': test_level,
         'TEST_DEBUG': '0',
     }
+
+    # BFM timing profile sweep: drive both the AXI read slave and the apb GAXI
+    # master. 'default' leaves the TB defaults in place.
+    if timing_profile != 'default':
+        extra_env['TIMING_PROFILE'] = timing_profile
+        extra_env['GAXI_TIMING_PROFILE'] = timing_profile
 
     # WAVES support - conditionally set COCOTB_TRACE_FILE for VCD generation
     if bool(int(os.environ.get('WAVES', '0'))):
