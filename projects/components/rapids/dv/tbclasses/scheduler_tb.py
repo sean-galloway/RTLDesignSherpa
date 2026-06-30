@@ -60,6 +60,11 @@ from cocotb.utils import get_sim_time
 # Framework imports (shared infrastructure)
 from TBClasses.shared.tbbase import TBBase
 
+# GAXI BFMs - descriptor input (master) + sched_wr / mon ready (slaves)
+from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master, create_gaxi_slave
+from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+
 
 class ChannelState(Enum):
     """Channel FSM states (ONE-HOT ENCODED - from rapids_pkg.sv)"""
@@ -132,6 +137,9 @@ class SchedulerTB(TBBase):
         self.total_read_beats = 0
         self.total_write_beats = 0
 
+        # GAXI BFM for the descriptor input (created in setup_clocks_and_reset)
+        self.desc_master = None   # drives descriptor_valid/packet/error
+
     async def setup_clocks_and_reset(self):
         """Setup clock and perform reset sequence
 
@@ -153,7 +161,45 @@ class SchedulerTB(TBBase):
         # Configure scheduler after reset
         await self.configure_scheduler()
 
+        # Create the GAXI BFMs now that signals are stable (after configure).
+        self._create_bfms()
+
         self.log.info("Clocks and reset setup complete")
+
+    def _create_bfms(self):
+        """Create the GAXI BFM for the descriptor input interface.
+
+        The descriptor interface (descriptor_valid/ready/packet + the
+        descriptor_error sideband) is the valid/ready handshake the TB actively
+        drives, so it becomes a GAXIMaster carrying 'packet' (256b) and 'error'
+        (1b). sched_wr_ready and mon_ready are DUT-output completion/monitor
+        readys with completion-handshake semantics (sched_wr_ready gates the
+        write engine's done reporting), so they stay statically asserted - the
+        timing profile varies descriptor injection, which is the meaningful knob
+        here.
+        """
+        desc_fc = FieldConfig()
+        desc_fc.add_field(FieldDefinition(name='packet', bits=self.DESC_WIDTH,
+                                          format='hex', description='descriptor packet'))
+        desc_fc.add_field(FieldDefinition(name='error', bits=1,
+                                          format='bin', description='descriptor error sideband'))
+        self.desc_master = create_gaxi_master(
+            dut=self.dut, title='sched_desc', prefix='descriptor', clock=self.clk,
+            field_config=desc_fc, multi_sig=True, log=self.log)
+
+        self.set_gaxi_timing_profile(os.environ.get('GAXI_TIMING_PROFILE', 'backtoback'))
+
+    def set_gaxi_timing_profile(self, profile_name='backtoback'):
+        """Apply a GAXI timing profile to the descriptor master's valid_delay."""
+        from TBClasses.amba.amba_random_configs import GAXI_RANDOMIZER_CONFIGS
+        if profile_name == 'mixed':
+            profile_name = 'gaxi_realistic'
+        if profile_name not in GAXI_RANDOMIZER_CONFIGS:
+            self.log.warning(f"Unknown GAXI timing profile '{profile_name}', using 'backtoback'")
+            profile_name = 'backtoback'
+        cfg = GAXI_RANDOMIZER_CONFIGS[profile_name]
+        self.desc_master.randomizer = FlexRandomizer(cfg['master'])
+        self.log.info(f"GAXI scheduler descriptor timing profile: {profile_name}")
 
     async def assert_reset(self):
         """Assert active-low reset"""
@@ -174,15 +220,13 @@ class SchedulerTB(TBBase):
         self.dut.cfg_sched_timeout_cycles.value = 1000  # Timeout threshold
         self.dut.cfg_sched_timeout_enable.value = 1      # Enable timeout detection
 
-        # Descriptor interface - initialize as not valid
-        self.dut.descriptor_valid.value = 0
-        self.dut.descriptor_packet.value = 0
-        self.dut.descriptor_error.value = 0
+        # Descriptor interface is owned by the GAXI master (created right after
+        # this in setup_clocks_and_reset).
 
-        # Engine interfaces - initialize
+        # Engine write-ready: completion-handshake signal, held asserted.
         self.dut.sched_wr_ready.value = 1
 
-        # Completion interface
+        # Completion interface (strobes - driven raw by the engine simulators)
         self.dut.sched_rd_done_strobe.value = 0
         self.dut.sched_rd_beats_done.value = 0
         self.dut.sched_wr_done_strobe.value = 0
@@ -192,7 +236,7 @@ class SchedulerTB(TBBase):
         self.dut.sched_rd_error.value = 0
         self.dut.sched_wr_error.value = 0
 
-        # Monitor bus interface
+        # Monitor bus ready: held asserted (consumer always ready)
         self.dut.mon_ready.value = 1
 
         await self.wait_clocks(self.clk_name, 5)
@@ -290,24 +334,24 @@ class SchedulerTB(TBBase):
         length = (descriptor_data >> 128) & 0xFFFFFFFF
         self.log.info(f"Sending descriptor: src=0x{src_addr:016x}, dst=0x{dst_addr:016x}, length={length} beats")
 
-        # Drive descriptor interface
-        self.dut.descriptor_valid.value = 1
-        self.dut.descriptor_packet.value = descriptor_data
-        self.dut.descriptor_error.value = 1 if inject_error else 0
+        # Drive the descriptor interface through the GAXI master. send() queues
+        # the beat; the master pipeline performs the descriptor_valid/ready
+        # handshake honoring the active timing profile.
+        pkt = self.desc_master.create_packet(packet=descriptor_data,
+                                             error=1 if inject_error else 0)
+        await self.desc_master.send(pkt)
 
-        # Wait for handshake (increased timeout for longer transfer sequences)
+        # send() returns after queuing; the pipeline needs a tick to spin up.
+        # Wait until the master has driven the beat through its handshake.
+        await self.wait_clocks(self.clk_name, 1)
         timeout = 500
         accepted = False
         for _ in range(timeout):
-            await self.wait_clocks(self.clk_name, 1)
-            if int(self.dut.descriptor_ready.value) == 1:
+            if not self.desc_master.transfer_busy and len(self.desc_master.transmit_queue) == 0:
                 accepted = True
                 self.descriptors_sent += 1
                 break
-
-        # Clear descriptor interface
-        self.dut.descriptor_valid.value = 0
-        self.dut.descriptor_error.value = 0
+            await self.wait_clocks(self.clk_name, 1)
 
         if not accepted:
             self.log.warning("Descriptor not accepted (timeout)")

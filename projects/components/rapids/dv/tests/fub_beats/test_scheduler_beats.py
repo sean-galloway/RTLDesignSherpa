@@ -205,12 +205,26 @@ async def cocotb_test_fsm_state_transitions(dut):
 def generate_scheduler_test_params():
     """Generate test parameters for scheduler tests.
 
-    Returns list of tuples: (channel_id, num_channels, data_width)
+    Returns list of tuples: (channel_id, num_channels, data_width, timing_profile)
+
+    The timing_profile sweeps the descriptor GAXI master's valid_delay (descriptor
+    injection rate). REG_LEVEL gates how many profiles run:
+      GATE: default only
+      FUNC: default + a small sweep
+      FULL: default + a wider sweep
     """
-    return [
-        # Standard configuration
-        (0, 8, 512),
-    ]
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    base = (0, 8, 512)
+
+    if reg_level == 'GATE':
+        profiles = ['default']
+    elif reg_level == 'FUNC':
+        profiles = ['default', 'slow_producer', 'gaxi_realistic']
+    else:  # FULL
+        profiles = ['default', 'constrained', 'slow_producer',
+                    'high_throughput', 'gaxi_stress', 'gaxi_realistic']
+
+    return [(*base, profile) for profile in profiles]
 
 
 scheduler_params = generate_scheduler_test_params()
@@ -222,38 +236,38 @@ scheduler_params = generate_scheduler_test_params()
 
 @pytest.mark.fub
 @pytest.mark.scheduler
-@pytest.mark.parametrize("channel_id, num_channels, data_width", scheduler_params)
-def test_basic_flow(request, channel_id, num_channels, data_width):
+@pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
+def test_basic_flow(request, channel_id, num_channels, data_width, timing_profile):
     """Pytest: Test basic descriptor flow"""
     _run_scheduler_test(request, "cocotb_test_basic_descriptor_flow",
-                       channel_id, num_channels, data_width)
+                       channel_id, num_channels, data_width, timing_profile)
 
 
 @pytest.mark.fub
 @pytest.mark.scheduler
-@pytest.mark.parametrize("channel_id, num_channels, data_width", scheduler_params)
-def test_concurrent_transfer(request, channel_id, num_channels, data_width):
+@pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
+def test_concurrent_transfer(request, channel_id, num_channels, data_width, timing_profile):
     """Pytest: Test concurrent read/write transfer"""
     _run_scheduler_test(request, "cocotb_test_concurrent_transfer",
-                       channel_id, num_channels, data_width)
+                       channel_id, num_channels, data_width, timing_profile)
 
 
 @pytest.mark.fub
 @pytest.mark.scheduler
-@pytest.mark.parametrize("channel_id, num_channels, data_width", scheduler_params)
-def test_descriptor_chaining(request, channel_id, num_channels, data_width):
+@pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
+def test_descriptor_chaining(request, channel_id, num_channels, data_width, timing_profile):
     """Pytest: Test descriptor chaining"""
     _run_scheduler_test(request, "cocotb_test_descriptor_chaining",
-                       channel_id, num_channels, data_width)
+                       channel_id, num_channels, data_width, timing_profile)
 
 
 @pytest.mark.fub
 @pytest.mark.scheduler
-@pytest.mark.parametrize("channel_id, num_channels, data_width", scheduler_params)
-def test_irq_generation(request, channel_id, num_channels, data_width):
+@pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
+def test_irq_generation(request, channel_id, num_channels, data_width, timing_profile):
     """Pytest: Test IRQ generation via MonBus"""
     _run_scheduler_test(request, "cocotb_test_irq_generation",
-                       channel_id, num_channels, data_width)
+                       channel_id, num_channels, data_width, timing_profile)
 
 
 # ===========================================================================
@@ -263,40 +277,40 @@ def test_irq_generation(request, channel_id, num_channels, data_width):
 @pytest.mark.fub
 @pytest.mark.scheduler
 @pytest.mark.error
-@pytest.mark.parametrize("channel_id, num_channels, data_width", scheduler_params)
-def test_descriptor_error(request, channel_id, num_channels, data_width):
+@pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
+def test_descriptor_error(request, channel_id, num_channels, data_width, timing_profile):
     """Pytest: Test descriptor error injection"""
     _run_scheduler_test(request, "cocotb_test_descriptor_error_injection",
-                       channel_id, num_channels, data_width)
+                       channel_id, num_channels, data_width, timing_profile)
 
 
 @pytest.mark.fub
 @pytest.mark.scheduler
 @pytest.mark.error
-@pytest.mark.parametrize("channel_id, num_channels, data_width", scheduler_params)
-def test_read_error(request, channel_id, num_channels, data_width):
+@pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
+def test_read_error(request, channel_id, num_channels, data_width, timing_profile):
     """Pytest: Test read engine error"""
     _run_scheduler_test(request, "cocotb_test_read_engine_error",
-                       channel_id, num_channels, data_width)
+                       channel_id, num_channels, data_width, timing_profile)
 
 
 @pytest.mark.fub
 @pytest.mark.scheduler
 @pytest.mark.error
-@pytest.mark.parametrize("channel_id, num_channels, data_width", scheduler_params)
-def test_write_error(request, channel_id, num_channels, data_width):
+@pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
+def test_write_error(request, channel_id, num_channels, data_width, timing_profile):
     """Pytest: Test write engine error"""
     _run_scheduler_test(request, "cocotb_test_write_engine_error",
-                       channel_id, num_channels, data_width)
+                       channel_id, num_channels, data_width, timing_profile)
 
 
 @pytest.mark.fub
 @pytest.mark.scheduler
-@pytest.mark.parametrize("channel_id, num_channels, data_width", scheduler_params)
-def test_channel_reset(request, channel_id, num_channels, data_width):
+@pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
+def test_channel_reset(request, channel_id, num_channels, data_width, timing_profile):
     """Pytest: Test channel reset functionality"""
     _run_scheduler_test(request, "cocotb_test_channel_reset",
-                       channel_id, num_channels, data_width)
+                       channel_id, num_channels, data_width, timing_profile)
 
 
 # ===========================================================================
@@ -306,21 +320,21 @@ def test_channel_reset(request, channel_id, num_channels, data_width):
 @pytest.mark.fub
 @pytest.mark.scheduler
 @pytest.mark.stress
-@pytest.mark.parametrize("channel_id, num_channels, data_width", scheduler_params)
-def test_back_to_back(request, channel_id, num_channels, data_width):
+@pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
+def test_back_to_back(request, channel_id, num_channels, data_width, timing_profile):
     """Pytest: Test back-to-back descriptors"""
     _run_scheduler_test(request, "cocotb_test_back_to_back_descriptors",
-                       channel_id, num_channels, data_width)
+                       channel_id, num_channels, data_width, timing_profile)
 
 
 @pytest.mark.fub
 @pytest.mark.scheduler
 @pytest.mark.stress
-@pytest.mark.parametrize("channel_id, num_channels, data_width", scheduler_params)
-def test_varying_sizes(request, channel_id, num_channels, data_width):
+@pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
+def test_varying_sizes(request, channel_id, num_channels, data_width, timing_profile):
     """Pytest: Test varying transfer sizes"""
     _run_scheduler_test(request, "cocotb_test_varying_transfer_sizes",
-                       channel_id, num_channels, data_width)
+                       channel_id, num_channels, data_width, timing_profile)
 
 
 # ===========================================================================
@@ -329,18 +343,19 @@ def test_varying_sizes(request, channel_id, num_channels, data_width):
 
 @pytest.mark.fub
 @pytest.mark.scheduler
-@pytest.mark.parametrize("channel_id, num_channels, data_width", scheduler_params)
-def test_fsm_transitions(request, channel_id, num_channels, data_width):
+@pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
+def test_fsm_transitions(request, channel_id, num_channels, data_width, timing_profile):
     """Pytest: Test FSM state transitions"""
     _run_scheduler_test(request, "cocotb_test_fsm_state_transitions",
-                       channel_id, num_channels, data_width)
+                       channel_id, num_channels, data_width, timing_profile)
 
 
 # ===========================================================================
 # HELPER FUNCTION - AMBA PATTERN
 # ===========================================================================
 
-def _run_scheduler_test(request, testcase_name, channel_id, num_channels, data_width):
+def _run_scheduler_test(request, testcase_name, channel_id, num_channels, data_width,
+                        timing_profile='default'):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Helper function to run scheduler tests with AMBA pattern.
 
@@ -373,7 +388,7 @@ def _run_scheduler_test(request, testcase_name, channel_id, num_channels, data_w
 
     # Extract test name from cocotb function (remove "cocotb_test_" prefix)
     test_suffix = testcase_name.replace("cocotb_test_", "")
-    test_name_plus_params = f"test_{dut_name}_{test_suffix}_cid{cid_str}_nc{nc_str}_dw{dw_str}"
+    test_name_plus_params = f"test_{dut_name}_{test_suffix}_cid{cid_str}_nc{nc_str}_dw{dw_str}_{timing_profile}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -406,6 +421,8 @@ def _run_scheduler_test(request, testcase_name, channel_id, num_channels, data_w
         'NUM_CHANNELS': str(num_channels),
         'DATA_WIDTH': str(data_width),
     }
+    if timing_profile != 'default':
+        extra_env['GAXI_TIMING_PROFILE'] = timing_profile
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 

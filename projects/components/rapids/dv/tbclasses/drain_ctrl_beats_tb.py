@@ -33,6 +33,8 @@ from typing import Dict, List, Optional
 
 # Framework imports
 from TBClasses.shared.tbbase import TBBase
+from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master
+from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
 
 
 class DrainCtrlBeatsTB(TBBase):
@@ -113,7 +115,40 @@ class DrainCtrlBeatsTB(TBBase):
         self.dut.rd_size.value = 0
 
         await self.wait_clocks(self.clk_name, 5)
+
+        # GAXI master BFMs (Rule #1):
+        #   wr: data-write strobe, pure handshake     -> 1-bit dummy field
+        #   rd: drain request, carries rd_size        -> field 'size'
+        wr_fc = FieldConfig()
+        wr_fc.add_field(FieldDefinition(name='pad', bits=1, format='dec',
+                                        description='unused (handshake-only)'))
+        self.wr_master = create_gaxi_master(
+            dut=self.dut, title='drain_wr', prefix='wr', clock=self.clk,
+            field_config=wr_fc, multi_sig=True, log=self.log)
+        rd_fc = FieldConfig()
+        rd_fc.add_field(FieldDefinition(name='size', bits=8, format='dec',
+                                        description='Drain size (beats)'))
+        self.rd_master = create_gaxi_master(
+            dut=self.dut, title='drain_rd', prefix='rd', clock=self.clk,
+            field_config=rd_fc, multi_sig=True, log=self.log)
+
+        self.set_gaxi_timing_profile(os.environ.get('GAXI_TIMING_PROFILE', 'backtoback'))
+
         self.log.info("Beats drain control initialization completed")
+
+    def set_gaxi_timing_profile(self, profile_name='backtoback'):
+        """Apply a GAXI timing profile to the wr/rd master BFMs (drive valid)."""
+        from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+        from TBClasses.amba.amba_random_configs import GAXI_RANDOMIZER_CONFIGS
+        if profile_name == 'mixed':
+            profile_name = 'gaxi_realistic'
+        if profile_name not in GAXI_RANDOMIZER_CONFIGS:
+            self.log.warning(f"Unknown GAXI timing profile '{profile_name}', using 'backtoback'")
+            profile_name = 'backtoback'
+        cfg = GAXI_RANDOMIZER_CONFIGS[profile_name]['master']
+        self.wr_master.randomizer = FlexRandomizer(cfg)
+        self.rd_master.randomizer = FlexRandomizer(cfg)
+        self.log.info(f"GAXI drain masters timing profile: {profile_name}")
 
     async def write_data(self) -> bool:
         """Write data into the FIFO (single beat).
@@ -121,21 +156,10 @@ class DrainCtrlBeatsTB(TBBase):
         Returns:
             True if write accepted, False if timed out
         """
-        self.dut.wr_valid.value = 1
-
-        # Wait for ready handshake (with timeout)
-        for _ in range(100):
-            # Check ready first - transfer happens on clock edge when both valid and ready
-            if int(self.dut.wr_ready.value) == 1:
-                await self.wait_clocks(self.clk_name, 1)  # Complete handshake
-                self.writes_sent += 1
-                self.dut.wr_valid.value = 0
-                return True
-            await self.wait_clocks(self.clk_name, 1)
-
-        self.log.warning("Write data timeout")
-        self.dut.wr_valid.value = 0
-        return False
+        pkt = self.wr_master.create_packet()
+        await self.wr_master.send(pkt)
+        self.writes_sent += 1
+        return True
 
     async def drain_data(self, size: int) -> bool:
         """Drain data from the FIFO (variable size).
@@ -146,25 +170,11 @@ class DrainCtrlBeatsTB(TBBase):
         Returns:
             True if drain accepted, False if timed out
         """
-        self.dut.rd_valid.value = 1
-        self.dut.rd_size.value = size
-
-        # Wait for ready handshake (with timeout)
-        for _ in range(100):
-            # Check ready first - transfer happens on clock edge when both valid and ready
-            if int(self.dut.rd_ready.value) == 1:
-                await self.wait_clocks(self.clk_name, 1)  # Complete handshake
-                self.drains_sent += 1
-                self.log.info(f"Drained {size} beats (total drains: {self.drains_sent})")
-                self.dut.rd_valid.value = 0
-                self.dut.rd_size.value = 0
-                return True
-            await self.wait_clocks(self.clk_name, 1)
-
-        self.log.warning(f"Drain timeout for size={size}")
-        self.dut.rd_valid.value = 0
-        self.dut.rd_size.value = 0
-        return False
+        pkt = self.rd_master.create_packet(size=size)
+        await self.rd_master.send(pkt)
+        self.drains_sent += 1
+        self.log.info(f"Drained {size} beats (total drains: {self.drains_sent})")
+        return True
 
     def get_data_available(self) -> int:
         """Get current data available."""
@@ -255,16 +265,15 @@ class DrainCtrlBeatsTB(TBBase):
             self.log.error(f"Full flag not asserted (wrote {total_written})")
             return False
 
-        # Verify write is rejected when full
-        self.dut.wr_valid.value = 1
+        # Verify writes are rejected when full. wr_ready is the not-full output
+        # (independent of wr_valid); sample it -- do NOT poke wr_valid, which is
+        # owned by the wr_master BFM.
         await self.wait_clocks(self.clk_name, 2)
         if int(self.dut.wr_ready.value) == 0:
-            self.log.info("Write correctly rejected when full")
+            self.log.info("Write correctly rejected when full (wr_ready=0)")
         else:
-            self.log.error("Write accepted when full")
-            self.dut.wr_valid.value = 0
+            self.log.error("Write accepted when full (wr_ready=1)")
             return False
-        self.dut.wr_valid.value = 0
 
         # Drain and verify not full
         if await self.drain_data(1):

@@ -33,6 +33,8 @@ from typing import Dict, List, Optional
 
 # Framework imports
 from TBClasses.shared.tbbase import TBBase
+from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master
+from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
 
 
 class AllocCtrlBeatsTB(TBBase):
@@ -113,7 +115,45 @@ class AllocCtrlBeatsTB(TBBase):
         self.dut.rd_valid.value = 0
 
         await self.wait_clocks(self.clk_name, 5)
+
+        # GAXI master BFMs for the two valid/ready interfaces (Rule #1).
+        #   wr: allocation request, carries wr_size  -> field 'size'
+        #   rd: release strobe, pure handshake        -> no payload field
+        wr_fc = FieldConfig()
+        wr_fc.add_field(FieldDefinition(name='size', bits=8, format='dec',
+                                        description='Allocation size (beats)'))
+        self.wr_master = create_gaxi_master(
+            dut=self.dut, title='alloc_wr', prefix='wr', clock=self.clk,
+            field_config=wr_fc, multi_sig=True, log=self.log)
+        # rd is a pure valid/ready pulse (no payload). The factory requires a
+        # field_config, and GAXI treats a field with no matching signal as
+        # optional (warns, still handshakes) -- so use a 1-bit dummy field.
+        rd_fc = FieldConfig()
+        rd_fc.add_field(FieldDefinition(name='pad', bits=1, format='dec',
+                                        description='unused (handshake-only)'))
+        self.rd_master = create_gaxi_master(
+            dut=self.dut, title='alloc_rd', prefix='rd', clock=self.clk,
+            field_config=rd_fc, multi_sig=True, log=self.log)
+
+        # Apply BFM timing profile (env-driven; default 'backtoback' == prior
+        # full-speed behavior).
+        self.set_gaxi_timing_profile(os.environ.get('GAXI_TIMING_PROFILE', 'backtoback'))
+
         self.log.info("Beats alloc control initialization completed")
+
+    def set_gaxi_timing_profile(self, profile_name='backtoback'):
+        """Apply a GAXI timing profile to the wr/rd master BFMs (drive valid)."""
+        from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+        from TBClasses.amba.amba_random_configs import GAXI_RANDOMIZER_CONFIGS
+        if profile_name == 'mixed':
+            profile_name = 'gaxi_realistic'
+        if profile_name not in GAXI_RANDOMIZER_CONFIGS:
+            self.log.warning(f"Unknown GAXI timing profile '{profile_name}', using 'backtoback'")
+            profile_name = 'backtoback'
+        cfg = GAXI_RANDOMIZER_CONFIGS[profile_name]['master']
+        self.wr_master.randomizer = FlexRandomizer(cfg)
+        self.rd_master.randomizer = FlexRandomizer(cfg)
+        self.log.info(f"GAXI alloc masters timing profile: {profile_name}")
 
     async def allocate_space(self, size: int) -> bool:
         """Allocate space (send allocation request).
@@ -124,25 +164,13 @@ class AllocCtrlBeatsTB(TBBase):
         Returns:
             True if allocation accepted, False if timed out
         """
-        self.dut.wr_valid.value = 1
-        self.dut.wr_size.value = size
-
-        # Wait for ready handshake (with timeout)
-        for _ in range(100):
-            # Check ready first - transfer happens on clock edge when both valid and ready
-            if int(self.dut.wr_ready.value) == 1:
-                await self.wait_clocks(self.clk_name, 1)  # Complete handshake
-                self.allocs_sent += 1
-                self.log.info(f"Allocated {size} beats (total allocs: {self.allocs_sent})")
-                self.dut.wr_valid.value = 0
-                self.dut.wr_size.value = 0
-                return True
-            await self.wait_clocks(self.clk_name, 1)
-
-        self.log.warning(f"Allocation timeout for size={size}")
-        self.dut.wr_valid.value = 0
-        self.dut.wr_size.value = 0
-        return False
+        # Drive the allocation request via the GAXI master (handles valid/ready
+        # handshake + profile-driven timing).
+        pkt = self.wr_master.create_packet(size=size)
+        await self.wr_master.send(pkt)
+        self.allocs_sent += 1
+        self.log.info(f"Allocated {size} beats (total allocs: {self.allocs_sent})")
+        return True
 
     async def write_data(self) -> bool:
         """Signal that data has been written (releases reservation).
@@ -150,21 +178,11 @@ class AllocCtrlBeatsTB(TBBase):
         Returns:
             True if write accepted, False if timed out
         """
-        self.dut.rd_valid.value = 1
-
-        # Wait for ready handshake (with timeout)
-        for _ in range(100):
-            # Check ready first - transfer happens on clock edge when both valid and ready
-            if int(self.dut.rd_ready.value) == 1:
-                await self.wait_clocks(self.clk_name, 1)  # Complete handshake
-                self.drains_sent += 1
-                self.dut.rd_valid.value = 0
-                return True
-            await self.wait_clocks(self.clk_name, 1)
-
-        self.log.warning("Write data timeout")
-        self.dut.rd_valid.value = 0
-        return False
+        # Drive the release strobe via the GAXI master (pure handshake).
+        pkt = self.rd_master.create_packet()
+        await self.rd_master.send(pkt)
+        self.drains_sent += 1
+        return True
 
     def get_space_free(self) -> int:
         """Get current free space."""
@@ -260,17 +278,15 @@ class AllocCtrlBeatsTB(TBBase):
             self.log.error(f"Full flag not asserted (allocated {total_allocated})")
             return False
 
-        # Verify write is rejected when full
-        self.dut.wr_valid.value = 1
-        self.dut.wr_size.value = 1
+        # Verify writes are rejected when full. wr_ready is the not-full output
+        # (independent of wr_valid), so just sample it -- do NOT poke wr_valid,
+        # which is owned by the wr_master BFM.
         await self.wait_clocks(self.clk_name, 2)
         if int(self.dut.wr_ready.value) == 0:
-            self.log.info("Write correctly rejected when full")
+            self.log.info("Write correctly rejected when full (wr_ready=0)")
         else:
-            self.log.error("Write accepted when full")
-            self.dut.wr_valid.value = 0
+            self.log.error("Write accepted when full (wr_ready=1)")
             return False
-        self.dut.wr_valid.value = 0
 
         # Drain and verify not full
         if await self.write_data():

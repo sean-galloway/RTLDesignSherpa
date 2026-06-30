@@ -152,7 +152,7 @@ def generate_sink_axis_test_params():
 
     Returns list of tuples: (num_channels, addr_width, data_width, axi_id_width, sram_depth)
     """
-    return [
+    configs = [
         # Default configuration
         (8, 64, 512, 8, 4096),
         # Smaller data width
@@ -160,6 +160,16 @@ def generate_sink_axis_test_params():
         # Smaller SRAM
         (8, 64, 512, 8, 2048),
     ]
+    # All configs at 'default' (preserve existing coverage), plus a BOUNDED
+    # BFM delay-profile sweep on the primary config only (these macro tests are
+    # slow). Each profile drives the AXI write slave (TIMING_PROFILE), the GAXI
+    # descriptor masters (GAXI_TIMING_PROFILE), and the AXIS ingress master
+    # (AXIS_PROFILE). Standard names hit AXI+GAXI+AXIS; gaxi_* hit GAXI.
+    profiles = ['constrained', 'slow_producer', 'burst_pause', 'high_throughput',
+                'gaxi_backpressure', 'gaxi_stress']
+    params = [cfg + ('default',) for cfg in configs]
+    params += [configs[0] + (p,) for p in profiles]
+    return params
 
 
 sink_axis_test_params = generate_sink_axis_test_params()
@@ -171,63 +181,64 @@ sink_axis_test_params = generate_sink_axis_test_params()
 
 @pytest.mark.macro_beats
 @pytest.mark.sink_data_path_axis_test
-@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, sram_depth", sink_axis_test_params)
-def test_basic_descriptor_flow(request, num_channels, addr_width, data_width, axi_id_width, sram_depth):
+@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile", sink_axis_test_params)
+def test_basic_descriptor_flow(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile):
     """Pytest: Test basic descriptor flow"""
     _run_sink_axis_test(request, "cocotb_test_basic_descriptor_flow",
-                        num_channels, addr_width, data_width, axi_id_width, sram_depth)
+                        num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.sink_data_path_axis_test
-@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, sram_depth", sink_axis_test_params)
-def test_multi_channel_operation(request, num_channels, addr_width, data_width, axi_id_width, sram_depth):
+@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile", sink_axis_test_params)
+def test_multi_channel_operation(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile):
     """Pytest: Test multi-channel operation"""
     _run_sink_axis_test(request, "cocotb_test_multi_channel_operation",
-                        num_channels, addr_width, data_width, axi_id_width, sram_depth)
+                        num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.sink_data_path_axis_test
-@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, sram_depth", sink_axis_test_params)
-def test_axis_reception(request, num_channels, addr_width, data_width, axi_id_width, sram_depth):
+@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile", sink_axis_test_params)
+def test_axis_reception(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile):
     """Pytest: Test AXIS reception"""
     _run_sink_axis_test(request, "cocotb_test_axis_reception",
-                        num_channels, addr_width, data_width, axi_id_width, sram_depth)
+                        num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.sink_data_path_axis_test
-@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, sram_depth", sink_axis_test_params)
-def test_axi_write_operations(request, num_channels, addr_width, data_width, axi_id_width, sram_depth):
+@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile", sink_axis_test_params)
+def test_axi_write_operations(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile):
     """Pytest: Test AXI write operations"""
     _run_sink_axis_test(request, "cocotb_test_axi_write_operations",
-                        num_channels, addr_width, data_width, axi_id_width, sram_depth)
+                        num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.sink_data_path_axis_test
-@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, sram_depth", sink_axis_test_params)
-def test_end_to_end(request, num_channels, addr_width, data_width, axi_id_width, sram_depth):
+@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile", sink_axis_test_params)
+def test_end_to_end(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile):
     """Pytest: Test end-to-end flow"""
     _run_sink_axis_test(request, "cocotb_test_end_to_end",
-                        num_channels, addr_width, data_width, axi_id_width, sram_depth)
+                        num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.sink_data_path_axis_test
-@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, sram_depth", sink_axis_test_params)
-def test_stress(request, num_channels, addr_width, data_width, axi_id_width, sram_depth):
+@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile", sink_axis_test_params)
+def test_stress(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile):
     """Pytest: Stress test"""
     _run_sink_axis_test(request, "cocotb_test_stress",
-                        num_channels, addr_width, data_width, axi_id_width, sram_depth)
+                        num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile)
 
 
 # ===========================================================================
 # HELPER FUNCTION - AMBA PATTERN
 # ===========================================================================
 
-def _run_sink_axis_test(request, testcase_name, num_channels, addr_width, data_width, axi_id_width, sram_depth):
+def _run_sink_axis_test(request, testcase_name, num_channels, addr_width, data_width, axi_id_width, sram_depth,
+                        timing_profile='default'):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Helper function to run sink_data_path_axis_test tests with AMBA pattern.
 
@@ -264,7 +275,7 @@ def _run_sink_axis_test(request, testcase_name, num_channels, addr_width, data_w
 
     # Extract test name from cocotb function
     test_suffix = testcase_name.replace("cocotb_test_", "")
-    test_name_plus_params = f"test_{dut_name}_{test_suffix}_nc{nc_str}_aw{aw_str}_dw{dw_str}_id{id_str}_sd{sd_str}"
+    test_name_plus_params = f"test_{dut_name}_{test_suffix}_nc{nc_str}_aw{aw_str}_dw{dw_str}_id{id_str}_sd{sd_str}_{timing_profile}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -298,6 +309,13 @@ def _run_sink_axis_test(request, testcase_name, num_channels, addr_width, data_w
         'TEST_NUM_CHANNELS': str(num_channels),
         'TEST_SRAM_DEPTH': str(sram_depth),
     }
+
+    # BFM delay-profile sweep: drive the AXI write slave (TIMING_PROFILE) and the
+    # GAXI descriptor masters (GAXI_TIMING_PROFILE). 'default' leaves the TB
+    # defaults in place.
+    if timing_profile != 'default':
+        extra_env['TIMING_PROFILE'] = timing_profile
+        extra_env['GAXI_TIMING_PROFILE'] = timing_profile
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 

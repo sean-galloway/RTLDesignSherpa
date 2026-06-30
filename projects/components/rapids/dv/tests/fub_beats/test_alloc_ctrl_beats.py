@@ -126,7 +126,7 @@ def generate_beats_alloc_ctrl_test_params():
 
     Returns list of tuples: (depth, almost_wr_margin, almost_rd_margin)
     """
-    return [
+    configs = [
         # Standard configuration
         (512, 1, 1),
         # Smaller depth
@@ -134,6 +134,14 @@ def generate_beats_alloc_ctrl_test_params():
         # Larger margins
         (256, 4, 4),
     ]
+    # GAXI BFM delay-profile sweep on the primary config (the rest stay at
+    # 'default' = backtoback, preserving existing coverage). Drives the wr/rd
+    # alloc masters via GAXI_TIMING_PROFILE.
+    profiles = ['constrained', 'slow_producer', 'gaxi_backpressure', 'gaxi_stress',
+                'gaxi_realistic']
+    params = [cfg + ('default',) for cfg in configs]
+    params += [configs[0] + (p,) for p in profiles]
+    return params
 
 
 beats_alloc_ctrl_params = generate_beats_alloc_ctrl_test_params()
@@ -145,38 +153,38 @@ beats_alloc_ctrl_params = generate_beats_alloc_ctrl_test_params()
 
 @pytest.mark.fub
 @pytest.mark.beats_alloc_ctrl
-@pytest.mark.parametrize("depth, almost_wr_margin, almost_rd_margin", beats_alloc_ctrl_params)
-def test_basic_alloc_drain(request, depth, almost_wr_margin, almost_rd_margin):
+@pytest.mark.parametrize("depth, almost_wr_margin, almost_rd_margin, timing_profile", beats_alloc_ctrl_params)
+def test_basic_alloc_drain(request, depth, almost_wr_margin, almost_rd_margin, timing_profile):
     """Pytest: Test basic allocation and drain cycle"""
     _run_beats_alloc_ctrl_test(request, "cocotb_test_basic_alloc_drain",
-                                depth, almost_wr_margin, almost_rd_margin)
+                                depth, almost_wr_margin, almost_rd_margin, timing_profile)
 
 
 @pytest.mark.fub
 @pytest.mark.beats_alloc_ctrl
-@pytest.mark.parametrize("depth, almost_wr_margin, almost_rd_margin", beats_alloc_ctrl_params)
-def test_full_detection(request, depth, almost_wr_margin, almost_rd_margin):
+@pytest.mark.parametrize("depth, almost_wr_margin, almost_rd_margin, timing_profile", beats_alloc_ctrl_params)
+def test_full_detection(request, depth, almost_wr_margin, almost_rd_margin, timing_profile):
     """Pytest: Test full flag detection"""
     _run_beats_alloc_ctrl_test(request, "cocotb_test_full_detection",
-                                depth, almost_wr_margin, almost_rd_margin)
+                                depth, almost_wr_margin, almost_rd_margin, timing_profile)
 
 
 @pytest.mark.fub
 @pytest.mark.beats_alloc_ctrl
-@pytest.mark.parametrize("depth, almost_wr_margin, almost_rd_margin", beats_alloc_ctrl_params)
-def test_empty_detection(request, depth, almost_wr_margin, almost_rd_margin):
+@pytest.mark.parametrize("depth, almost_wr_margin, almost_rd_margin, timing_profile", beats_alloc_ctrl_params)
+def test_empty_detection(request, depth, almost_wr_margin, almost_rd_margin, timing_profile):
     """Pytest: Test empty flag detection"""
     _run_beats_alloc_ctrl_test(request, "cocotb_test_empty_detection",
-                                depth, almost_wr_margin, almost_rd_margin)
+                                depth, almost_wr_margin, almost_rd_margin, timing_profile)
 
 
 @pytest.mark.fub
 @pytest.mark.beats_alloc_ctrl
-@pytest.mark.parametrize("depth, almost_wr_margin, almost_rd_margin", beats_alloc_ctrl_params)
-def test_variable_size(request, depth, almost_wr_margin, almost_rd_margin):
+@pytest.mark.parametrize("depth, almost_wr_margin, almost_rd_margin, timing_profile", beats_alloc_ctrl_params)
+def test_variable_size(request, depth, almost_wr_margin, almost_rd_margin, timing_profile):
     """Pytest: Test variable-size allocations"""
     _run_beats_alloc_ctrl_test(request, "cocotb_test_variable_size_alloc",
-                                depth, almost_wr_margin, almost_rd_margin)
+                                depth, almost_wr_margin, almost_rd_margin, timing_profile)
 
 
 # ===========================================================================
@@ -186,18 +194,18 @@ def test_variable_size(request, depth, almost_wr_margin, almost_rd_margin):
 @pytest.mark.fub
 @pytest.mark.beats_alloc_ctrl
 @pytest.mark.stress
-@pytest.mark.parametrize("depth, almost_wr_margin, almost_rd_margin", beats_alloc_ctrl_params)
-def test_stress(request, depth, almost_wr_margin, almost_rd_margin):
+@pytest.mark.parametrize("depth, almost_wr_margin, almost_rd_margin, timing_profile", beats_alloc_ctrl_params)
+def test_stress(request, depth, almost_wr_margin, almost_rd_margin, timing_profile):
     """Pytest: Stress test with rapid operations"""
     _run_beats_alloc_ctrl_test(request, "cocotb_test_stress_rapid_operations",
-                                depth, almost_wr_margin, almost_rd_margin)
+                                depth, almost_wr_margin, almost_rd_margin, timing_profile)
 
 
 # ===========================================================================
 # HELPER FUNCTION - AMBA PATTERN
 # ===========================================================================
 
-def _run_beats_alloc_ctrl_test(request, testcase_name, depth, almost_wr_margin, almost_rd_margin):
+def _run_beats_alloc_ctrl_test(request, testcase_name, depth, almost_wr_margin, almost_rd_margin, timing_profile='default'):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Helper function to run beats_alloc_ctrl tests with AMBA pattern.
 
@@ -230,7 +238,7 @@ def _run_beats_alloc_ctrl_test(request, testcase_name, depth, almost_wr_margin, 
 
     # Extract test name from cocotb function (remove "cocotb_test_" prefix)
     test_suffix = testcase_name.replace("cocotb_test_", "")
-    test_name_plus_params = f"test_{dut_name}_{test_suffix}_d{depth_str}_aw{aw_str}_ar{ar_str}"
+    test_name_plus_params = f"test_{dut_name}_{test_suffix}_d{depth_str}_aw{aw_str}_ar{ar_str}_{timing_profile}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -262,6 +270,10 @@ def _run_beats_alloc_ctrl_test(request, testcase_name, depth, almost_wr_margin, 
         'SEED': str(12345),
         'TEST_DEPTH': str(depth),
     }
+
+    # GAXI BFM delay-profile sweep ('default' leaves the TB default 'backtoback').
+    if timing_profile != 'default':
+        extra_env['GAXI_TIMING_PROFILE'] = timing_profile
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 

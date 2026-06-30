@@ -216,7 +216,81 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
             user_width=1,
         )
 
+        # Apply BFM timing profiles (env-driven). Defaults leave behavior
+        # unchanged: AXI read slave 'fixed', GAXI descriptor masters 'backtoback'.
+        self._apply_timing_from_env()
+
         self.log.info("Interface setup complete")
+
+    def _apply_timing_from_env(self):
+        """Read timing-profile env vars and apply them to the BFMs.
+
+        AXI read slave (DUT is the read master, BFM is the responder):
+          AR uses the 'slave' (ready_delay) config, R uses 'master' (valid_delay).
+          Uniform TIMING_PROFILE (default 'fixed') with AXI_PROFILE_AR/_R overrides.
+        GAXI descriptor masters (drive valid): GAXI_PROFILE_DESC, default
+          GAXI_TIMING_PROFILE, default 'backtoback'.
+        """
+        import os
+        axi_base = os.environ.get('TIMING_PROFILE', 'fixed')
+        self.set_axi_timing(
+            ar=os.environ.get('AXI_PROFILE_AR', axi_base),
+            r=os.environ.get('AXI_PROFILE_R', axi_base),
+        )
+        gaxi_base = os.environ.get('GAXI_TIMING_PROFILE', 'backtoback')
+        self.set_gaxi_timing_profile(os.environ.get('GAXI_PROFILE_DESC', gaxi_base))
+        # AXIS egress (m_axis_tready backpressure applied by the output monitor).
+        self.set_axis_timing(os.environ.get('AXIS_PROFILE', axi_base))
+
+    def set_axis_timing(self, profile_name='fixed'):
+        """Install a ready-backpressure randomizer for the AXIS egress, consumed
+        by _axis_output_monitor (which drives m_axis_tready). 'default'/'fixed'
+        and GAXI-only names leave the egress always-ready (preserve baseline)."""
+        from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+        from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
+        p = 'constrained' if profile_name == 'mixed' else profile_name
+        if p in (None, 'default', 'fixed') or p not in AXI_RANDOMIZER_CONFIGS:
+            self._axis_ready_randomizer = None  # always ready
+            self.log.info(f"AXIS slave timing profile: {profile_name} (always ready)")
+            return
+        self._axis_ready_randomizer = FlexRandomizer(AXI_RANDOMIZER_CONFIGS[p]['slave'])
+        self.log.info(f"AXIS slave timing profile: {p}")
+
+    def set_axi_timing(self, ar='fixed', r='fixed'):
+        """Apply timing profiles to the AXI read slave's AR/R channels.
+        'mixed' -> constrained AR + slow_producer R."""
+        from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+        from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
+        ar = 'constrained' if ar == 'mixed' else ar
+        r = 'slow_producer' if r == 'mixed' else r
+
+        def _cfg(name, section):
+            if name not in AXI_RANDOMIZER_CONFIGS:
+                self.log.warning(f"Unknown AXI timing profile '{name}', using 'fixed'")
+                name = 'fixed'
+            return FlexRandomizer(AXI_RANDOMIZER_CONFIGS[name][section])
+
+        rd = self.axi_read_slave['interface']
+        rd.ar_channel.randomizer = _cfg(ar, 'slave')   # drives arready
+        rd.r_channel.randomizer = _cfg(r, 'master')    # drives rvalid
+        self.log.info(f"AXI read-slave timing profiles: ar={ar}, r={r}")
+
+    def set_gaxi_timing_profile(self, profile_name='backtoback'):
+        """Apply a GAXI timing profile to all 8 descriptor masters (drive valid).
+        'mixed' -> 'gaxi_realistic'. Each master gets its own FlexRandomizer
+        (the randomizer is stateful, so instances must not be shared)."""
+        from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+        from TBClasses.amba.amba_random_configs import GAXI_RANDOMIZER_CONFIGS
+        if profile_name == 'mixed':
+            profile_name = 'gaxi_realistic'
+        if profile_name not in GAXI_RANDOMIZER_CONFIGS:
+            self.log.warning(f"Unknown GAXI timing profile '{profile_name}', "
+                             f"using 'backtoback'")
+            profile_name = 'backtoback'
+        master_cfg = GAXI_RANDOMIZER_CONFIGS[profile_name]['master']
+        for m in self.descriptor_masters:
+            m.randomizer = FlexRandomizer(master_cfg)
+        self.log.info(f"GAXI descriptor masters timing profile: {profile_name}")
 
     async def initialize_test(self):
         """Initialize test environment"""
@@ -243,10 +317,22 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
         """
         self.log.info("AXIS output monitor started")
 
+        # Optional ready-backpressure randomizer (from the AXIS timing profile).
+        # When None, tready is held high (baseline behavior).
+        rnd = getattr(self, '_axis_ready_randomizer', None)
+
         # Drive tready high to accept data
         self.dut.m_axis_tready.value = 1
 
         while self._axis_monitor_active:
+            # Apply profile-driven ready backpressure (deassert tready for N cycles)
+            if rnd is not None:
+                delay = rnd.get_delay('ready_delay')
+                if delay > 0:
+                    self.dut.m_axis_tready.value = 0
+                    await self.wait_clocks(self.clk_name, int(delay))
+                    self.dut.m_axis_tready.value = 1
+
             await self.wait_clocks(self.clk_name, 1)
 
             # Check for valid handshake
