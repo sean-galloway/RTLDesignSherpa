@@ -295,16 +295,29 @@ def generate_sram_alloc_params():
         (8, 512, 512),    # Medium config
     ]
 
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        sweep_profiles = []
+    elif reg_level == 'FUNC':
+        sweep_profiles = ['slow_producer', 'gaxi_realistic']
+    else:  # FULL
+        sweep_profiles = ['constrained', 'slow_producer', 'gaxi_stress', 'gaxi_realistic']
+
     # Different test types have different parameter coverage
     params = []
 
-    # Basic and full tests run on all base configs
+    # Basic and full tests run on all base configs at the default profile.
     for test_type in ['basic', 'full', 'multi_channel', 'full_protocol_coverage']:
         for base in base_params:
-            params.append((test_type,) + base)
+            params.append((test_type,) + base + ('default',))
 
     # Timing test only runs on small config (it's detailed)
-    params.append(('timing', 4, 256, 64))
+    params.append(('timing', 4, 256, 64, 'default'))
+
+    # Profile sweep on the medium config to vary write injection timing.
+    for test_type in ['basic', 'multi_channel']:
+        for profile in sweep_profiles:
+            params.append((test_type, 8, 512, 512, profile))
 
     return params
 
@@ -316,8 +329,8 @@ sram_alloc_params = generate_sram_alloc_params()
 # PYTEST WRAPPER FUNCTION - Single wrapper for all test types
 #==============================================================================
 
-@pytest.mark.parametrize("test_type, num_channels, fifo_depth, data_width", sram_alloc_params)
-def test_sram_controller_alloc(request, test_type, num_channels, fifo_depth, data_width, test_level):
+@pytest.mark.parametrize("test_type, num_channels, fifo_depth, data_width, timing_profile", sram_alloc_params)
+def test_sram_controller_alloc(request, test_type, num_channels, fifo_depth, data_width, timing_profile, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for SRAM controller allocation tests - handles all test types."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -335,7 +348,7 @@ def test_sram_controller_alloc(request, test_type, num_channels, fifo_depth, dat
     fd_str = TBBase.format_dec(fifo_depth, 4)
     dw_str = TBBase.format_dec(data_width, 4)
 
-    test_name_plus_params = f"test_{dut_name}_alloc_{test_type}_nc{nc_str}_fd{fd_str}_dw{dw_str}"
+    test_name_plus_params = f"test_{dut_name}_alloc_{test_type}_nc{nc_str}_fd{fd_str}_dw{dw_str}_{timing_profile}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -366,6 +379,8 @@ def test_sram_controller_alloc(request, test_type, num_channels, fifo_depth, dat
         'TEST_LEVEL': test_level,
         'TEST_DEBUG': '0',
     }
+    if timing_profile != 'default':
+        extra_env['GAXI_TIMING_PROFILE'] = timing_profile
 
     simulator = os.environ.get('SIM', 'verilator').lower()
 

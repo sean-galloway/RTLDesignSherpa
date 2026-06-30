@@ -39,6 +39,10 @@ from TBClasses.shared.tbbase import TBBase
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
+from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master
+from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+
 
 class TestScenario(Enum):
     """Test scenario definitions"""
@@ -83,6 +87,11 @@ class SRAMControllerTB(TBBase):
 
         # BFM clock (delayed by 100ps to avoid zero-cycle paths)
         self.bfm_clk = None  # Will be created as delayed trigger
+
+        # GAXI master for the write interface (axi_rd_sram_valid/ready/id/data),
+        # created at the end of setup_clocks_and_reset (after the post-reset
+        # per-channel ready diagnostics, which probe axi_rd_sram_id directly).
+        self.wr_master = None
 
         # Get parameters (SRAM-based interface)
         self.num_channels = int(dut.NUM_CHANNELS.value)
@@ -173,6 +182,35 @@ class SRAMControllerTB(TBBase):
         # Give one more cycle
         await RisingEdge(self.clk)
 
+        # Create the GAXI master for the write interface now that the post-reset
+        # diagnostics (which directly probe axi_rd_sram_id) are done.
+        self._create_bfms()
+
+    def _create_bfms(self):
+        """Create the GAXI master for axi_rd_sram_valid/ready/id/data (write path)."""
+        id_bits = len(self.dut.axi_rd_sram_id)
+        fc = FieldConfig()
+        fc.add_field(FieldDefinition(name='id', bits=id_bits,
+                                     format='dec', description='channel id select'))
+        fc.add_field(FieldDefinition(name='data', bits=self.data_width,
+                                     format='hex', description='write data'))
+        self.wr_master = create_gaxi_master(
+            dut=self.dut, title='sram_wr', prefix='axi_rd_sram', clock=self.clk,
+            field_config=fc, multi_sig=True, log=self.log)
+        self.set_gaxi_timing_profile(os.environ.get('GAXI_TIMING_PROFILE', 'backtoback'))
+
+    def set_gaxi_timing_profile(self, profile_name='backtoback'):
+        """Apply a GAXI timing profile to the write master's valid_delay."""
+        from TBClasses.amba.amba_random_configs import GAXI_RANDOMIZER_CONFIGS
+        if profile_name == 'mixed':
+            profile_name = 'gaxi_realistic'
+        if profile_name not in GAXI_RANDOMIZER_CONFIGS:
+            self.log.warning(f"Unknown GAXI timing profile '{profile_name}', using 'backtoback'")
+            profile_name = 'backtoback'
+        cfg = GAXI_RANDOMIZER_CONFIGS[profile_name]
+        self.wr_master.randomizer = FlexRandomizer(cfg['master'])
+        self.log.info(f"GAXI sram_controller write timing profile: {profile_name}")
+
     async def assert_reset(self):
         """
         Assert reset signal
@@ -224,39 +262,30 @@ class SRAMControllerTB(TBBase):
         write_index = self.channel_wr_count[channel]
         self.channel_data[(channel, write_index)] = data
 
-        # Wait for BFM clock before driving (avoids zero-cycle path)
-        await self.wait_bfm_clk()
+        # Drive the write interface through the GAXI master. send() queues the
+        # beat (id + data); the master pipeline performs the
+        # axi_rd_sram_valid/ready handshake honoring the active timing profile.
+        pkt = self.wr_master.create_packet(id=channel, data=data)
+        await self.wr_master.send(pkt)
 
-        # Drive write interface with transaction ID
-        self.dut.axi_rd_sram_valid.value = 1
-        self.dut.axi_rd_sram_id.value = channel
-        self.dut.axi_rd_sram_data.value = data
-
-        # Wait for ready (with valid still asserted)
+        # send() returns after queuing; wait for the handshake to complete so
+        # ordering (and the per-channel write count) stays correct.
+        await RisingEdge(self.clk)
         cycles_waited = 0
         if check_ready:
+            completed = False
             while cycles_waited < timeout_cycles:
+                if not self.wr_master.transfer_busy and len(self.wr_master.transmit_queue) == 0:
+                    completed = True
+                    break
                 await RisingEdge(self.clk)
                 cycles_waited += 1
-                ready = int(self.dut.axi_rd_sram_ready.value)
-                if ready:
-                    # Handshake complete!
-                    self.log.debug(f"Write handshake: channel={channel}, cycles={cycles_waited}{self.get_time_ns_str()}")
-                    break
-            else:
+            if not completed:
                 # Timeout!
                 self.log.error(f"Write timeout: channel={channel}, waited {timeout_cycles} cycles, ready never went high{self.get_time_ns_str()}")
                 space = await self.get_space_free(channel)
                 self.log.error(f"  axi_rd_alloc_space_free[{channel}] = {space}{self.get_time_ns_str()}")
-                # Clear valid before returning
-                self.dut.axi_rd_sram_valid.value = 0
                 return False
-        else:
-            # Not checking ready, just wait one cycle
-            await RisingEdge(self.clk)
-
-        # Clear valid after handshake
-        self.dut.axi_rd_sram_valid.value = 0
 
         self.channel_wr_count[channel] += 1
         self.log.debug(f"Write complete: channel={channel}, data=0x{data:X}, idx={write_index}{self.get_time_ns_str()}")

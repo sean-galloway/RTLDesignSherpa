@@ -172,7 +172,10 @@ def generate_sram_controller_params():
     Generate test parameters for SRAM controller tests
 
     Returns:
-        List of tuples: (test_type, num_channels, fifo_depth, data_width)
+        List of tuples: (test_type, num_channels, fifo_depth, data_width, timing_profile)
+
+    timing_profile sweeps the write-path GAXI master valid_delay (write injection
+    rate). REG_LEVEL gates the sweep breadth.
     """
     test_types = ['single_channel', 'multi_channel', 'full_protocol_coverage']
     base_params = [
@@ -182,11 +185,23 @@ def generate_sram_controller_params():
         (8, 1024, 512),     # Large FIFO
     ]
 
-    # Generate final params by adding test_type to each base config
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        sweep_profiles = []
+    elif reg_level == 'FUNC':
+        sweep_profiles = ['slow_producer', 'gaxi_realistic']
+    else:  # FULL
+        sweep_profiles = ['constrained', 'slow_producer', 'gaxi_stress', 'gaxi_realistic']
+
+    # Baseline: every test_type x base config at the default (back-to-back) profile.
     params = []
     for test_type in test_types:
         for base in base_params:
-            params.append((test_type,) + base)
+            params.append((test_type,) + base + ('default',))
+    # Profile sweep on the typical config (8, 512, 512) to keep the matrix bounded.
+    for test_type in test_types:
+        for profile in sweep_profiles:
+            params.append((test_type, 8, 512, 512, profile))
 
     return params
 
@@ -196,8 +211,8 @@ sram_controller_params = generate_sram_controller_params()
 # PYTEST WRAPPER FUNCTION - Single wrapper for all test types
 # ===========================================================================
 
-@pytest.mark.parametrize("test_type, num_channels, fifo_depth, data_width", sram_controller_params)
-def test_sram_controller(request, test_type, num_channels, fifo_depth, data_width, test_level):
+@pytest.mark.parametrize("test_type, num_channels, fifo_depth, data_width, timing_profile", sram_controller_params)
+def test_sram_controller(request, test_type, num_channels, fifo_depth, data_width, timing_profile, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for SRAM controller tests - handles all test types."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -216,7 +231,7 @@ def test_sram_controller(request, test_type, num_channels, fifo_depth, data_widt
     fd_str = TBBase.format_dec(fifo_depth, 4)
     dw_str = TBBase.format_dec(data_width, 4)
 
-    test_name_plus_params = f"test_{dut_name}_{test_type}_nc{nc_str}_fd{fd_str}_dw{dw_str}"
+    test_name_plus_params = f"test_{dut_name}_{test_type}_nc{nc_str}_fd{fd_str}_dw{dw_str}_{timing_profile}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -247,6 +262,8 @@ def test_sram_controller(request, test_type, num_channels, fifo_depth, data_widt
         'TEST_LEVEL': test_level,
         'TEST_DEBUG': '0',
     }
+    if timing_profile != 'default':
+        extra_env['GAXI_TIMING_PROFILE'] = timing_profile
 
     # Use Verilator by default
     simulator = os.environ.get('SIM', 'verilator').lower()
