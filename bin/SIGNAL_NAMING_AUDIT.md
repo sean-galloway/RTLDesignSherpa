@@ -247,7 +247,7 @@ desc_axi = create_axi4_slave_rd(
 scheduler_group.sv (has conflicts)
     └── Internal signals NOT visible at top level
 
-miop_top.sv (no conflicts)
+rapids_top.sv (no conflicts)
     └── Only external AXI ports visible
 ```
 
@@ -289,7 +289,7 @@ Generate reports for design reviews:
 
 ```bash
 # Scan all RTL subsystems
-./bin/audit_signal_naming_conflicts.py rtl/rapids/ --markdown docs/miop_signal_conflicts.md
+./bin/audit_signal_naming_conflicts.py rtl/rapids/ --markdown docs/rapids_signal_conflicts.md
 ./bin/audit_signal_naming_conflicts.py rtl/amba/ --markdown docs/amba_signal_conflicts.md
 ./bin/audit_signal_naming_conflicts.py rtl/common/ --markdown docs/common_signal_conflicts.md
 ```

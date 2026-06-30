@@ -59,7 +59,7 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 ### 📚 Complete RAPIDS Specification
 **Location:** `projects/components/rapids/docs/rapids_spec/`
 
-- **[Index](rapids_spec/miop_index.md)** - Complete specification structure
+- **[Index](rapids_spec/rapids_index.md)** - Complete specification structure
 
 #### Chapter 1: Overview
 - [Overview](rapids_spec/ch01_overview/01_overview.md)
@@ -338,13 +338,13 @@ RAPIDS (Rapid AXI Programmable In-band Descriptor System)
 
 ```systemverilog
 // Example RAPIDS instantiation parameters
-miop_top #(
+rapids_top #(
     .AXI_ADDR_WIDTH(32),
     .AXI_DATA_WIDTH(64),
     .Network_DATA_WIDTH(64),
     .SRAM_DEPTH(1024),
     .MAX_DESCRIPTORS(16)
-) u_miop (
+) u_rapids (
     .aclk               (clk),
     .aresetn            (rst_n),
     // AXIL4 control interface
@@ -493,11 +493,11 @@ r_descriptor_credit_counter <= (cfg_initial_credit == 4'hF) ? 32'hFFFFFFFF :
 ### 9.1 Quick Start
 
 ```systemverilog
-miop_top #(
+rapids_top #(
     .AXI_ADDR_WIDTH(32),
     .AXI_DATA_WIDTH(64),
     .Network_DATA_WIDTH(64)
-) u_miop (
+) u_rapids (
     // Clocking & Reset
     .aclk               (system_clk),
     .aresetn            (system_rst_n),
@@ -521,9 +521,9 @@ miop_top #(
     // ... Network master (transmit)
 
     // MonBus Output (connect to monitor aggregator)
-    .monbus_pkt_valid   (miop_mon_valid),
-    .monbus_pkt_ready   (miop_mon_ready),
-    .monbus_pkt_data    (miop_mon_data)
+    .monbus_pkt_valid   (rapids_mon_valid),
+    .monbus_pkt_ready   (rapids_mon_ready),
+    .monbus_pkt_data    (rapids_mon_data)
 );
 ```
 
@@ -917,7 +917,7 @@ pytest projects/components/rapids/dv/tests/fub_tests/scheduler/ -v
 verilator --lint-only projects/components/rapids/rtl/rapids_fub/scheduler.sv
 
 # View specifications
-cat projects/components/rapids/docs/rapids_spec/miop_index.md
+cat projects/components/rapids/docs/rapids_spec/rapids_index.md
 cat projects/components/rapids/docs/rapids_spec/ch02_blocks/01_01_scheduler.md
 ```
 
@@ -1129,7 +1129,7 @@ The shell script will automatically:
 ## Navigation
 
 - **← Back to Root:** `/PRD.md`
-- **Complete Specification:** `rapids_spec/miop_index.md`
+- **Complete Specification:** `rapids_spec/rapids_index.md`
 - **Quick Start:** `README.md`
 - **AI Guidance:** `CLAUDE.md`
 - **Tasks:** `TASKS.md` (to be created)

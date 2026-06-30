@@ -1083,7 +1083,7 @@ The shell script will automatically:
 **Related Projects:**
 - **APB Crossbar** - Simple register bus crossbar (existing)
 - **Delta (AXIS Crossbar)** - Streaming data crossbar (projects/components/delta/)
-- **RAPIDS** - DMA engine with AXI4 masters (rtl/miop/)
+- **RAPIDS** - DMA engine with AXI4 masters (rtl/rapids/)
 
 **Tools:**
 - Verilator - RTL linting and simulation

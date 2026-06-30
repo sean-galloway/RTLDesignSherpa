@@ -35,7 +35,7 @@
 
 ### [descriptor_engine_waveform_guide.md](descriptor_engine_waveform_guide.md)
 **What:** Debugging descriptor engine using waveforms
-**When to use:** Troubleshooting MIOP descriptor processing issues
+**When to use:** Troubleshooting RAPIDS descriptor processing issues
 **Key topics:**
 - Descriptor engine state machine signals
 - Waveform patterns for normal operation

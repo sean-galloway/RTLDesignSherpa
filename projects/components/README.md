@@ -263,7 +263,7 @@ Complex hardware accelerator demonstrating descriptor-based DMA operations with 
 
 **📖 See:**
 - [`rapids/PRD.md`](rapids/PRD.md) - Requirements overview
-- [`rapids/docs/rapids_spec/miop_index.md`](rapids/docs/rapids_spec/miop_index.md) - Complete specification
+- [`rapids/docs/rapids_spec/rapids_index.md`](rapids/docs/rapids_spec/rapids_index.md) - Complete specification
 
 ---
 

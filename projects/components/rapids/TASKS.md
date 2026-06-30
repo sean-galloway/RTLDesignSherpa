@@ -697,7 +697,7 @@ Add comprehensive performance monitoring infrastructure to RAPIDS for throughput
 **Implementation Approach:**
 ```systemverilog
 // Performance monitoring module
-module miop_perf_monitor #(
+module rapids_perf_monitor #(
     parameter int COUNTER_WIDTH = 32
 ) (
     input  logic aclk,
@@ -720,8 +720,8 @@ module miop_perf_monitor #(
 ```
 
 **Related Files:**
-- Create: `projects/components/rapids/rtl/rapids_fub/miop_perf_monitor.sv`
-- Update: `projects/components/rapids/rtl/rapids_macro/miop_top.sv` (integrate monitor)
+- Create: `projects/components/rapids/rtl/rapids_fub/rapids_perf_monitor.sv`
+- Update: `projects/components/rapids/rtl/rapids_macro/rapids_top.sv` (integrate monitor)
 - Create: `projects/components/rapids/dv/tests/performance_tests/test_perf_monitor.py`
 
 **Dependencies:**
@@ -837,7 +837,7 @@ verilator --lint-only projects/components/rapids/rtl/rapids_fub/scheduler.sv
 # View documentation
 cat projects/components/rapids/PRD.md
 cat projects/components/rapids/CLAUDE.md
-cat projects/components/rapids/docs/rapids_spec/miop_index.md
+cat projects/components/rapids/docs/rapids_spec/rapids_index.md
 ```
 
 ---

@@ -380,8 +380,8 @@ components
 │   │   │   ├── rapids_blocks-source data path.drawio.png
 │   │   │   ├── rapids_blocks-source_data_path.drawio.png
 │   │   │   └── draw.io
-│   │   │       ├── .xdp-.$miop_blocks.drawio.bkp-BVcxV4
-│   │   │       ├── .xdp-.$miop_blocks.drawio.bkp-nif0BX
+│   │   │       ├── .xdp-.$rapids_blocks.drawio.bkp-BVcxV4
+│   │   │       ├── .xdp-.$rapids_blocks.drawio.bkp-nif0BX
 │   │   │       ├── .xdp-.$rapids_blocks.drawio.bkp-8OK86m
 │   │   │       ├── rapids_blocks.drawio
 │   │   │       └── png

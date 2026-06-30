@@ -181,7 +181,7 @@ CocoTBFramework
     │   ├── gaxi_buffer_multi.py
     │   ├── gaxi_buffer_multi_sigmap.py
     │   └── gaxi_buffer_seq.py
-    ├── miop
+    ├── rapids
     │   ├── __init__.py
     │   ├── snk_datapath_tb.py
     │   └── src_datapath_tb.py

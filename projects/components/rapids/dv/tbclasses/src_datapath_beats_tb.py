@@ -101,7 +101,7 @@ class SrcDatapathTB(TBBase):
 
         # Test configuration
         self.test_config = {
-            'enable_compliance_check': self.convert_to_int(os.environ.get('MIOP_COMPLIANCE_CHECK', '1')),
+            'enable_compliance_check': self.convert_to_int(os.environ.get('RAPIDS_COMPLIANCE_CHECK', '1')),
             'validate_all_channels': self.convert_to_int(os.environ.get('VALIDATE_ALL_CHANNELS', '1')),
             'channel_isolation_test': self.convert_to_int(os.environ.get('CHANNEL_ISOLATION_TEST', '1')),
             'overflow_detection_test': self.convert_to_int(os.environ.get('OVERFLOW_DETECTION_TEST', '1')),

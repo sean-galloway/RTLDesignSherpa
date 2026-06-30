@@ -88,7 +88,7 @@ projects/components/rapids/dv/
 └── tests/                        # Test runners
     ├── fub_tests/scheduler/test_scheduler.py
     ├── fub_tests/descriptor_engine/test_desc_engine.py
-    └── integration_tests/test_miop_integration.py
+    └── integration_tests/test_rapids_integration.py
 ```
 
 **RAPIDS Import Pattern:**
@@ -255,7 +255,7 @@ See `projects/components/rapids/known_issues/scheduler_group_signal_naming_confl
 **Three Solutions When Conflicts Found:**
 1. **Rename internal signals** (recommended): `desc_valid` → `desc_to_sched_valid`
 2. **Use explicit signal_map**: Bypass pattern matching with manual signal mapping
-3. **Test at higher level**: Where internal signals aren't visible (e.g., miop_top)
+3. **Test at higher level**: Where internal signals aren't visible (e.g., rapids_top)
 
 **📖 Complete Guide:** `bin/SIGNAL_NAMING_AUDIT.md`
 
@@ -375,7 +375,7 @@ Need to drive interface with valid/ready?
 ```bash
 # Check complete specification
 ls projects/components/rapids/docs/rapids_spec/
-cat projects/components/rapids/docs/rapids_spec/miop_index.md
+cat projects/components/rapids/docs/rapids_spec/rapids_index.md
 cat projects/components/rapids/docs/rapids_spec/ch02_blocks/01_01_scheduler.md
 ```
 
@@ -490,7 +490,7 @@ RAPIDS Architecture (17 SystemVerilog modules)
 | **source_axi_read_engine.sv** | `rapids_fub/` | Memory reads | `rapids_spec/ch02_blocks/03_03_source_axi_read_engine.md` |
 | **source_sram_control.sv** | `rapids_fub/` | Source buffer management | `rapids_spec/ch02_blocks/03_02_source_sram_control.md` |
 | **network_master.sv** | `rapids_fub/` | Network egress | `rapids_spec/ch02_blocks/03_01_network_master.md` |
-| **miop_top.sv** | `rapids_macro/` | Top-level integration | `rapids_spec/ch03_interfaces/01_top_level.md` |
+| **rapids_top.sv** | `rapids_macro/` | Top-level integration | `rapids_spec/ch03_interfaces/01_top_level.md` |
 
 ### Interface Summary
 
@@ -684,13 +684,13 @@ gtkwave debug.vcd
 ### Pattern 1: Basic RAPIDS Instantiation
 
 ```systemverilog
-miop_top #(
+rapids_top #(
     .AXI_ADDR_WIDTH(32),
     .AXI_DATA_WIDTH(64),
     .Network_DATA_WIDTH(64),
     .SRAM_DEPTH(1024),
     .MAX_DESCRIPTORS(16)
-) u_miop (
+) u_rapids (
     // Clock and Reset
     .aclk               (system_clk),
     .aresetn            (system_rst_n),
@@ -747,9 +747,9 @@ miop_top #(
     // ... additional Network source signals
 
     // MonBus Output
-    .monbus_pkt_valid   (miop_mon_valid),
-    .monbus_pkt_ready   (miop_mon_ready),
-    .monbus_pkt_data    (miop_mon_data)
+    .monbus_pkt_valid   (rapids_mon_valid),
+    .monbus_pkt_ready   (rapids_mon_ready),
+    .monbus_pkt_data    (rapids_mon_data)
 );
 ```
 
@@ -790,7 +790,7 @@ end
 gaxi_fifo_sync #(
     .DATA_WIDTH(64),
     .DEPTH(256)
-) u_miop_mon_fifo (
+) u_rapids_mon_fifo (
     .i_clk      (aclk),
     .i_rst_n    (aresetn),
     .i_data     (monbus_pkt_data),
@@ -973,7 +973,7 @@ pytest projects/components/rapids/dv/tests/fub_tests/scheduler/ --vcd=waves.vcd
 ### Always Reference These
 
 **Primary Technical Specification:**
-- `projects/components/rapids/docs/rapids_spec/miop_index.md` - Complete specification index
+- `projects/components/rapids/docs/rapids_spec/rapids_index.md` - Complete specification index
 - `projects/components/rapids/docs/rapids_spec/ch01_overview/` - Architecture overview
 - `projects/components/rapids/docs/rapids_spec/ch02_blocks/` - Block specifications
 - `projects/components/rapids/docs/rapids_spec/ch03_interfaces/` - Interface specifications
@@ -999,7 +999,7 @@ pytest projects/components/rapids/dv/tests/fub_tests/scheduler/ --vcd=waves.vcd
 
 ```bash
 # View complete specification
-cat projects/components/rapids/docs/rapids_spec/miop_index.md
+cat projects/components/rapids/docs/rapids_spec/rapids_index.md
 cat projects/components/rapids/docs/rapids_spec/ch02_blocks/01_01_scheduler.md
 
 # Check known issues
