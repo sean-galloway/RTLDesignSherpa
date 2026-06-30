@@ -24,6 +24,7 @@
 
 import os
 import sys
+import pytest
 
 from TBClasses.shared.utilities import get_repo_root
 
@@ -232,7 +233,19 @@ async def cocotb_test_stream_top_monbus(dut):
     tb.log.info("=== stream_top monbus-group trace + err-FIFO/IRQ paths verified ===")
 
 
-def test_stream_top_monbus(request):
+def _monbus_timing_profiles():
+    """Modest AXI timing-profile sweep for the monbus-group top test
+    (assertion-heavy / slow, so kept small). 'fixed' is the baseline."""
+    reg = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg == 'GATE':
+        return ['fixed']
+    if reg == 'FUNC':
+        return ['fixed', 'mixed']
+    return ['fixed', 'mixed', 'slow_producer']
+
+
+@pytest.mark.parametrize("timing_profile", _monbus_timing_profiles())
+def test_stream_top_monbus(request, timing_profile):
     module, repo_root_, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_stream_top': '../../../../rtl/stream_top',
         'rtl_stream_macro': '../../../../rtl/stream_macro',
@@ -264,7 +277,7 @@ def test_stream_top_monbus(request):
     }
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
-    test_name = f"test_{dut_name}_monbus" + (f"_{worker_id}" if worker_id else "")
+    test_name = f"test_{dut_name}_monbus_{timing_profile}" + (f"_{worker_id}" if worker_id else "")
     log_path = os.path.join(log_dir, f'{test_name}.log')
     results_path = os.path.join(log_dir, f'results_{test_name}.xml')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
@@ -275,6 +288,7 @@ def test_stream_top_monbus(request):
         'NUM_CHANNELS': str(num_channels), 'DATA_WIDTH': str(data_width),
         'FIFO_DEPTH': str(fifo_depth), 'DUT': dut_name, 'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO', 'COCOTB_RESULTS_FILE': results_path,
+        'TIMING_PROFILE': timing_profile,
     }
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps",

@@ -868,13 +868,27 @@ async def cocotb_test_back_to_back_transfers(dut):
 # Pytest Wrapper Helper
 # ==============================================================================
 
+def top_timing_profiles():
+    """AXI timing profiles to sweep at the top level (REG_LEVEL-gated).
+
+    'fixed' is the baseline (current behavior when TIMING_PROFILE is unset);
+    stress profiles vary descriptor/AXI memory timing across the whole core.
+    """
+    reg = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg == 'GATE':
+        return ['fixed']
+    if reg == 'FUNC':
+        return ['fixed', 'mixed', 'slow_producer']
+    return ['fixed', 'fast', 'mixed', 'constrained', 'slow_producer', 'high_throughput']
+
+
 def create_pytest_wrapper(test_name, cocotb_testcase, default_params=None):
     """Create a pytest wrapper for a cocotb test."""
 
     if default_params is None:
         default_params = {}
 
-    def test_func(request):
+    def test_func(request, timing_profile='fixed'):
         module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
             'rtl_stream_top': '../../../../rtl/stream_top',
         })
@@ -899,7 +913,7 @@ def create_pytest_wrapper(test_name, cocotb_testcase, default_params=None):
 
         # Get test level from environment (default: basic)
         test_level = os.environ.get('TEST_LEVEL', 'gate')
-        test_name_plus_params = f"test_{dut_name}_{test_name}_{test_level}"
+        test_name_plus_params = f"test_{dut_name}_{test_name}_{test_level}_{timing_profile}"
 
         worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
         if worker_id:
@@ -924,6 +938,9 @@ def create_pytest_wrapper(test_name, cocotb_testcase, default_params=None):
             'COCOTB_LOG_LEVEL': 'INFO',
             'COCOTB_RESULTS_FILE': results_path,
         }
+
+        # Top-level AXI timing profile (varies descriptor/memory timing).
+        extra_env['TIMING_PROFILE'] = timing_profile
 
         # Add test-specific parameters (can override TEST_LEVEL defaults)
         for key, value in default_params.items():
@@ -988,56 +1005,62 @@ def create_pytest_wrapper(test_name, cocotb_testcase, default_params=None):
 # Test 1: Multi-Channel Concurrent
 # Tests: Channel arbitration, resource sharing, concurrent data integrity
 # Scales: basic=2ch, medium=4ch, full=8ch
-def test_stream_top_multi_channel(request):
+@pytest.mark.parametrize("timing_profile", top_timing_profiles())
+def test_stream_top_multi_channel(request, timing_profile):
     return create_pytest_wrapper(
         'multi_channel_concurrent',
         'cocotb_test_multi_channel_concurrent'
-    )(request)
+    )(request, timing_profile)
 
 # Test 2: Long Descriptor Chain
 # Tests: Descriptor chain following, next pointer handling
 # Scales: basic=4 desc, medium=8 desc, full=16 desc
-def test_stream_top_long_chain(request):
+@pytest.mark.parametrize("timing_profile", top_timing_profiles())
+def test_stream_top_long_chain(request, timing_profile):
     return create_pytest_wrapper(
         'long_descriptor_chain',
         'cocotb_test_long_descriptor_chain'
-    )(request)
+    )(request, timing_profile)
 
 # Test 3: Variable Transfer Sizes
 # Tests: Edge cases (1 beat, boundary-1, boundary+1, max)
 # Scales: basic=3 sizes, medium=6 sizes, full=16 sizes
-def test_stream_top_variable_sizes(request):
+@pytest.mark.parametrize("timing_profile", top_timing_profiles())
+def test_stream_top_variable_sizes(request, timing_profile):
     return create_pytest_wrapper(
         'variable_transfer_sizes',
         'cocotb_test_variable_transfer_sizes'
-    )(request)
+    )(request, timing_profile)
 
 # Test 4: Stress Test - Multiple Channels
 # Tests: Maximum resource contention, throughput under load
 # Scales: basic=4ch, medium=6ch, full=8ch
-def test_stream_top_stress(request):
+@pytest.mark.parametrize("timing_profile", top_timing_profiles())
+def test_stream_top_stress(request, timing_profile):
     return create_pytest_wrapper(
         'stress_all_channels',
         'cocotb_test_stress_all_channels'
-    )(request)
+    )(request, timing_profile)
 
 # Test 5: Register Access Validation
 # Tests: APB register read/write for all registers
 # Scales: basic=3 patterns, medium=6 patterns, full=9 patterns
-def test_stream_top_registers(request):
+@pytest.mark.parametrize("timing_profile", top_timing_profiles())
+def test_stream_top_registers(request, timing_profile):
     return create_pytest_wrapper(
         'register_access',
         'cocotb_test_register_access'
-    )(request)
+    )(request, timing_profile)
 
 # Test 6: Back-to-Back Transfers
 # Tests: Channel re-use, state machine reset, resource leaks
 # Scales: basic=3 iter, medium=5 iter, full=10 iter
-def test_stream_top_back_to_back(request):
+@pytest.mark.parametrize("timing_profile", top_timing_profiles())
+def test_stream_top_back_to_back(request, timing_profile):
     return create_pytest_wrapper(
         'back_to_back_transfers',
         'cocotb_test_back_to_back_transfers'
-    )(request)
+    )(request, timing_profile)
 
 
 # ==============================================================================
