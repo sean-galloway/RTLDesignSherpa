@@ -207,6 +207,33 @@ class SchedulerTB(TBBase):
         )
         self.log.info("GAXI Descriptor Master initialized successfully")
 
+        # Apply BFM timing profile (env-driven). Default 'backtoback' keeps
+        # behavior unchanged unless a profile is requested.
+        gaxi_base = os.environ.get('GAXI_TIMING_PROFILE', 'backtoback')
+        self.set_gaxi_timing_profile(
+            os.environ.get('GAXI_PROFILE_DESCRIPTOR', gaxi_base))
+
+    def set_gaxi_timing_profile(self, profile_name='backtoback'):
+        """Apply a GAXI timing profile to the descriptor GAXI master.
+
+        The descriptor master drives valid, so it consumes the 'master'
+        (valid_delay) section of GAXI_RANDOMIZER_CONFIGS.
+
+        'mixed' resolves to the 'gaxi_realistic' profile.
+        """
+        from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+        from TBClasses.amba.amba_random_configs import GAXI_RANDOMIZER_CONFIGS
+
+        if profile_name == 'mixed':
+            profile_name = 'gaxi_realistic'
+        if profile_name not in GAXI_RANDOMIZER_CONFIGS:
+            self.log.warning(f"Unknown GAXI timing profile '{profile_name}', "
+                             f"using 'backtoback'")
+            profile_name = 'backtoback'
+        self.descriptor_master.randomizer = FlexRandomizer(
+            GAXI_RANDOMIZER_CONFIGS[profile_name]['master'])
+        self.log.info(f"GAXI descriptor master timing profile: {profile_name}")
+
     async def initialize_test(self):
         """Initialize test components and interfaces
 

@@ -689,8 +689,17 @@ module axi_write_engine #(
     )
 
     // SRAM drain control - ID-based interface
-    // When active and AXI ready, drain from SRAM using channel ID
-    assign axi_wr_sram_drain = r_w_active && m_axi_wready;
+    // Drain (pop the SRAM unit) ONLY on a real W-channel handshake. Using
+    // r_w_active && m_axi_wready alone decouples the pop from m_axi_wvalid:
+    // in the 1-cycle window where axi_wr_sram_valid_comb is high but the
+    // registered axi_wr_sram_valid still lags (skid just refilled), the unit
+    // pops on (valid_comb && drain) while m_axi_wvalid is suppressed by the
+    // registered-valid term -> the beat is consumed but never transmitted.
+    // Under W-channel backpressure that lost beat can be the burst's final
+    // beat, so WLAST never rides a valid beat, the AXI write txn never closes,
+    // and the channel hangs. Gating on m_axi_wvalid pops exactly the beats we
+    // actually transmit. (Found via per-channel timing-skew 'mixed' profile.)
+    assign axi_wr_sram_drain = m_axi_wvalid && m_axi_wready;
     assign axi_wr_sram_id = r_w_channel_id;
 
     // W channel outputs - use ID-based SRAM interface

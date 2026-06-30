@@ -29,7 +29,7 @@ endif
 PYTEST = python3 -m pytest
 PYTEST_VERBOSE = -v
 PYTEST_QUIET = -q
-PYTEST_XDIST = -n 8
+PYTEST_XDIST = -n 48
 PYTEST_TBSTYLE = --tb=short
 PYTEST_RERUNS = --reruns 3 --reruns-delay 1
 

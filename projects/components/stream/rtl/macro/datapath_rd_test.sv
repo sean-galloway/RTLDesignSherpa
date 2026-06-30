@@ -361,6 +361,14 @@ module datapath_rd_test #(
                 .sched_rd_error         (sched_rd_error[i]),       // From AXI read engine
                 .sched_wr_error         (1'b0),                    // No write engine in this test
 
+                // Debug error/status outputs (unused in this wrapper)
+                /* verilator lint_off PINCONNECTEMPTY */
+                .dbg_descriptor_error   (),
+                .dbg_read_error_sticky  (),
+                .dbg_write_error_sticky (),
+                .dbg_timeout_expired    (),
+                /* verilator lint_on PINCONNECTEMPTY */
+
                 // Monitor bus (tied off for test)
                 .mon_valid              (),
                 .mon_ready              (1'b1),
@@ -468,7 +476,12 @@ module datapath_rd_test #(
         .axi_wr_drain_data_avail(axi_wr_drain_data_avail),
 
         // Read interface (to testbench for verification)
-        .axi_wr_sram_valid      (axi_wr_sram_valid),         // Per-channel valid
+        .axi_wr_sram_valid      (axi_wr_sram_valid),         // Per-channel valid (registered)
+        // Combinational valid output (only the write engine consumes this; the
+        // read-path wrapper has no write engine, so leave it dangling).
+        /* verilator lint_off PINCONNECTEMPTY */
+        .axi_wr_sram_valid_comb (),
+        /* verilator lint_on PINCONNECTEMPTY */
         .axi_wr_sram_drain      (axi_wr_sram_drain),
         .axi_wr_sram_id         (sram_wr_drain_channel_id),  // Channel ID only
         .axi_wr_sram_data       (axi_wr_sram_data),

@@ -244,12 +244,76 @@ class DescriptorEngineTB(TBBase):
             )
             self.log.info("✓ GAXI APB Master initialized")
 
+            # Apply BFM timing profiles (env-driven). Defaults leave behavior
+            # unchanged: AXI channels -> 'fixed', GAXI apb master -> 'backtoback'.
+            self._apply_timing_from_env()
+
             # Initialize DUT configuration
             await self.configure_descriptor_engine()
 
         except Exception as e:
             self.log.error(f"Initialization failed: {e}")
             raise
+
+    def _apply_timing_from_env(self):
+        """Read timing-profile env vars and apply them to the BFMs.
+
+        AXI read slave (DUT is master, so BFM is responder):
+          AR uses 'slave' (ready_delay), R uses 'master' (valid_delay).
+          Uniform TIMING_PROFILE (default 'fixed') with AXI_PROFILE_AR /
+          AXI_PROFILE_R overrides.
+        GAXI apb master (drives valid): GAXI_PROFILE_APB, default
+          GAXI_TIMING_PROFILE, default 'backtoback'.
+        """
+        axi_base = os.environ.get('TIMING_PROFILE', 'fixed')
+        self.set_axi_timing(
+            ar=os.environ.get('AXI_PROFILE_AR', axi_base),
+            r=os.environ.get('AXI_PROFILE_R', axi_base),
+        )
+        gaxi_base = os.environ.get('GAXI_TIMING_PROFILE', 'backtoback')
+        self.set_gaxi_timing_profile(os.environ.get('GAXI_PROFILE_APB', gaxi_base))
+
+    def set_axi_timing(self, ar='fixed', r='fixed'):
+        """Apply timing profiles to the AXI read slave's AR/R channels.
+
+        'mixed' resolves to a constrained AR + slow_producer R spread.
+        """
+        from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+        from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
+
+        if ar == 'mixed':
+            ar = 'constrained'
+        if r == 'mixed':
+            r = 'slow_producer'
+
+        def _cfg(name, section):
+            if name not in AXI_RANDOMIZER_CONFIGS:
+                self.log.warning(f"Unknown AXI timing profile '{name}', using 'fixed'")
+                name = 'fixed'
+            return FlexRandomizer(AXI_RANDOMIZER_CONFIGS[name][section])
+
+        axi_if = self.axi_slave['interface']
+        axi_if.ar_channel.randomizer = _cfg(ar, 'slave')   # drives arready
+        axi_if.r_channel.randomizer = _cfg(r, 'master')    # drives rvalid
+        self.log.info(f"AXI timing profiles: ar={ar}, r={r}")
+
+    def set_gaxi_timing_profile(self, profile_name='backtoback'):
+        """Apply a GAXI timing profile to the apb GAXI master (drives valid).
+
+        'mixed' resolves to the 'gaxi_realistic' profile.
+        """
+        from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+        from TBClasses.amba.amba_random_configs import GAXI_RANDOMIZER_CONFIGS
+
+        if profile_name == 'mixed':
+            profile_name = 'gaxi_realistic'
+        if profile_name not in GAXI_RANDOMIZER_CONFIGS:
+            self.log.warning(f"Unknown GAXI timing profile '{profile_name}', "
+                             f"using 'backtoback'")
+            profile_name = 'backtoback'
+        self.apb_master.randomizer = FlexRandomizer(
+            GAXI_RANDOMIZER_CONFIGS[profile_name]['master'])
+        self.log.info(f"GAXI apb master timing profile: {profile_name}")
 
     async def configure_descriptor_engine(self):
         """Configure descriptor engine"""
