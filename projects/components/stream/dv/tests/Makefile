@@ -408,7 +408,9 @@ run-all-parallel:
 # One DRY rule defines run-parallel (=gate) + per-level, with/without waves;
 # each fans the same-named target into every sub-environment.
 # ==============================================================================
-PARALLEL_DIRS := $(FUB_TESTS_DIR) $(MACRO_TESTS_DIR) $(TOP_TESTS_DIR) performance_tests
+# performance_tests (throughput benchmarks) are intentionally excluded from the
+# regression fan-out; run them on demand via 'make -C performance_tests run-parallel'.
+PARALLEL_DIRS := $(FUB_TESTS_DIR) $(MACRO_TESTS_DIR) $(TOP_TESTS_DIR)
 
 .PHONY: run-parallel run-parallel-waves \
         run-gate-parallel run-gate-parallel-waves \

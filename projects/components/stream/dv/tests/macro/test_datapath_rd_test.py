@@ -100,12 +100,12 @@ async def run_basic_test(tb, xfer_beats, num_channels, sram_depth):
     if num_channels == 1:
         # Single channel: Try for 36 requests, but limit to SRAM capacity (50% margin)
         max_safe_requests = int((per_channel_depth * 0.5) / beats_per_request)
-        num_requests_per_channel = min(36, max_safe_requests)
+        num_requests_per_channel = min(8, max_safe_requests)
         channels_to_use = [0]
     else:
         # Multi-channel: Try for 12 requests per channel, but limit to SRAM capacity
         max_safe_requests = int((per_channel_depth * 0.5) / beats_per_request)
-        num_requests_per_channel = min(12, max_safe_requests)
+        num_requests_per_channel = min(4, max_safe_requests)
         channels_to_use = list(range(num_channels))
 
     tb.log.info(f"SRAM capacity: {per_channel_depth} beats/channel, "

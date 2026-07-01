@@ -31,7 +31,13 @@ PYTEST_VERBOSE = -v
 PYTEST_QUIET = -q
 PYTEST_XDIST = -n 48
 PYTEST_TBSTYLE = --tb=short
-PYTEST_RERUNS = --reruns 3 --reruns-delay 1
+# No reruns for macro: tests are multi-minute, so retrying a slow/timed-out test
+# 3x just triples wall-time. (FUB tests are fast enough for reruns; macro isn't.)
+PYTEST_RERUNS =
+
+# Regression file set for the parallel 'run everything' targets. Excludes
+# test_stream_performance_profile.py (throughput benchmark, run via 'make run-perf').
+PARALLEL_TESTS = test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py
 
 # Pytest-watch options
 PTW = ptw
@@ -530,19 +536,29 @@ run-parallel: run-gate-parallel
 run-parallel-waves: run-gate-parallel-waves
 run-gate-parallel:
 	@echo "Running STREAM macro tests at GATE level in parallel..."
-	REG_LEVEL=GATE TEST_LEVEL=gate $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	REG_LEVEL=GATE TEST_LEVEL=gate $(PYTEST) $(PARALLEL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 run-gate-parallel-waves:
 	@echo "Running STREAM macro tests at GATE level in parallel with waveforms..."
-	WAVES=1 REG_LEVEL=GATE TEST_LEVEL=gate $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 REG_LEVEL=GATE TEST_LEVEL=gate $(PYTEST) $(PARALLEL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 run-func-parallel:
 	@echo "Running STREAM macro tests at FUNC level in parallel..."
-	REG_LEVEL=FUNC TEST_LEVEL=func $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	REG_LEVEL=FUNC TEST_LEVEL=func $(PYTEST) $(PARALLEL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 run-func-parallel-waves:
 	@echo "Running STREAM macro tests at FUNC level in parallel with waveforms..."
-	WAVES=1 REG_LEVEL=FUNC TEST_LEVEL=func $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 REG_LEVEL=FUNC TEST_LEVEL=func $(PYTEST) $(PARALLEL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 run-full-parallel:
 	@echo "Running STREAM macro tests at FULL level in parallel..."
-	REG_LEVEL=FULL TEST_LEVEL=full $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	REG_LEVEL=FULL TEST_LEVEL=full $(PYTEST) $(PARALLEL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 run-full-parallel-waves:
 	@echo "Running STREAM macro tests at FULL level in parallel with waveforms..."
-	WAVES=1 REG_LEVEL=FULL TEST_LEVEL=full $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 REG_LEVEL=FULL TEST_LEVEL=full $(PYTEST) $(PARALLEL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+# ==============================================================================
+# Performance benchmark (throughput profiling) - opt-in, NOT in run-parallel.
+# These are long-running throughput benchmarks, not pass/fail regression.
+# ==============================================================================
+.PHONY: run-perf run-perf-parallel
+run-perf:
+	TEST_LEVEL=func $(PYTEST) test_stream_performance_profile.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+run-perf-parallel:
+	TEST_LEVEL=func $(PYTEST) test_stream_performance_profile.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)

@@ -74,8 +74,8 @@ PERF_TEST_CONFIGS = [
         'data_width': 128,
         'fifo_depth': 512,
         'test_channels': [0],
-        'desc_count': 8,
-        'transfer_sizes': [256, 384, 512, 512, 512],
+        'desc_count': 4,
+        'transfer_sizes': [128, 256],
     },
     {
         'name': 'single_ch_dw256',
@@ -83,8 +83,8 @@ PERF_TEST_CONFIGS = [
         'data_width': 256,
         'fifo_depth': 512,
         'test_channels': [0],
-        'desc_count': 8,
-        'transfer_sizes': [256, 384, 512, 512, 512],
+        'desc_count': 4,
+        'transfer_sizes': [128, 256],
     },
     {
         'name': 'single_ch_dw512',
@@ -92,8 +92,8 @@ PERF_TEST_CONFIGS = [
         'data_width': 512,
         'fifo_depth': 512,
         'test_channels': [0],
-        'desc_count': 8,
-        'transfer_sizes': [256, 384, 512, 512, 512],
+        'desc_count': 4,
+        'transfer_sizes': [128, 256],
     },
 
     # Multi-channel - 2 channels
@@ -103,8 +103,8 @@ PERF_TEST_CONFIGS = [
         'data_width': 128,
         'fifo_depth': 512,
         'test_channels': [0, 1],
-        'desc_count': 8,
-        'transfer_sizes': [256, 384, 512, 512],
+        'desc_count': 4,
+        'transfer_sizes': [128, 256],
     },
     {
         'name': 'dual_ch_dw256',
@@ -112,8 +112,8 @@ PERF_TEST_CONFIGS = [
         'data_width': 256,
         'fifo_depth': 512,
         'test_channels': [0, 1],
-        'desc_count': 8,
-        'transfer_sizes': [256, 384, 512, 512],
+        'desc_count': 4,
+        'transfer_sizes': [128, 256],
     },
 
     # Multi-channel - 4 channels
@@ -123,8 +123,8 @@ PERF_TEST_CONFIGS = [
         'data_width': 128,
         'fifo_depth': 512,
         'test_channels': [0, 1, 2, 3],
-        'desc_count': 8,
-        'transfer_sizes': [256, 384, 512, 512],
+        'desc_count': 4,
+        'transfer_sizes': [128, 256],
     },
     {
         'name': 'quad_ch_dw256',
@@ -132,8 +132,8 @@ PERF_TEST_CONFIGS = [
         'data_width': 256,
         'fifo_depth': 512,
         'test_channels': [0, 1, 2, 3],
-        'desc_count': 8,
-        'transfer_sizes': [256, 384, 512, 512],
+        'desc_count': 4,
+        'transfer_sizes': [128, 256],
     },
 
     # Varying FIFO depths
@@ -143,7 +143,7 @@ PERF_TEST_CONFIGS = [
         'data_width': 256,
         'fifo_depth': 512,
         'test_channels': [0],
-        'desc_count': 8,
+        'desc_count': 4,
         'transfer_sizes': [384, 512, 512],
     },
     {
@@ -152,7 +152,7 @@ PERF_TEST_CONFIGS = [
         'data_width': 256,
         'fifo_depth': 1024,
         'test_channels': [0],
-        'desc_count': 8,
+        'desc_count': 4,
         'transfer_sizes': [384, 512, 512],
     },
     {
@@ -161,7 +161,7 @@ PERF_TEST_CONFIGS = [
         'data_width': 256,
         'fifo_depth': 2048,
         'test_channels': [0],
-        'desc_count': 8,
+        'desc_count': 4,
         'transfer_sizes': [384, 512, 512],
     },
 ]

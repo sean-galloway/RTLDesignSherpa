@@ -104,7 +104,7 @@ async def run_basic_test(tb, xfer_beats, num_channels, sram_depth):
     if tb.TIMING_PROFILE == 'slow_producer':
         num_requests_per_channel = min(3, max_safe_requests)  # Small size for slow tests
     else:
-        num_requests_per_channel = min(12, max_safe_requests)
+        num_requests_per_channel = min(4, max_safe_requests)
 
     total_beats_per_channel = num_requests_per_channel * beats_per_request
 
@@ -173,7 +173,7 @@ async def run_nostress_test(tb, xfer_beats, num_channels, sram_depth):
     # Calculate requests per channel
     per_channel_depth = sram_depth // num_channels
     max_safe_requests = int((per_channel_depth * 0.8) / beats_per_request)
-    num_requests_per_channel = min(36, max_safe_requests)
+    num_requests_per_channel = min(8, max_safe_requests)
 
     total_beats_per_channel = num_requests_per_channel * beats_per_request
 

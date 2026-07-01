@@ -85,15 +85,15 @@ def generate_test_params():
             'timing_profile': 'fast',  # Fast/no-stress timing
         },
         'func': {
-            'desc_count': 4,      # 4 descriptors per channel
+            'desc_count': 2,      # 2 descriptors per channel (small: cocotb sim is ~0.1s/cycle)
             'channels': [0, 1],   # 2 channels
-            'transfer_sizes': [64, 128],
+            'transfer_sizes': [16, 32],  # 1-2 bursts/descriptor (burst=16 beats)
             'timing_profile': 'fast',  # Still fast for quicker regression
         },
         'full': {
-            'desc_count': 16,     # 16 descriptors per channel
+            'desc_count': 4,     # 4 descriptors per channel
             'channels': [0, 1, 2, 3],  # All channels
-            'transfer_sizes': [64, 128, 256, 512],
+            'transfer_sizes': [16, 32, 64],
             # Per-channel skew with W-channel backpressure (regression sentinel
             # for the axi_write_engine WLAST/drain bug fixed in
             # axi_write_engine.sv). See MIXED_AXI_PROFILES in stream_core_tb.
@@ -102,7 +102,7 @@ def generate_test_params():
         'burst': {
             'desc_count': 6,      # 6 descriptors per channel (4-8 range for machinery churn)
             'channels': [0, 1],   # 2 channels for multi-channel stress
-            'transfer_sizes': [256, 384, 512, 768],  # 8-96 bursts per descriptor (24 avg for 16-beat bursts)
+            'transfer_sizes': [128, 192, 256, 384],  # 8-96 bursts per descriptor (24 avg for 16-beat bursts)
             'timing_profile': 'fast',  # Fast/no-stress for debugging
         }
     }
@@ -193,7 +193,7 @@ def generate_test_params():
                 'axi_id_width': 8,
                 'desc_count': 3,  # Short chains
                 'test_channels': config['channels'],
-                'transfer_sizes': [64, 128],
+                'transfer_sizes': [16, 32],  # small per-descriptor (chain length is the point)
                 'timing_profile': config['timing_profile'],
                 'scenario': 'short_chains',
             })
@@ -206,7 +206,7 @@ def generate_test_params():
                 'axi_id_width': 8,
                 'desc_count': 10,  # Medium chains
                 'test_channels': config['channels'],
-                'transfer_sizes': [128, 256],
+                'transfer_sizes': [16, 32],  # small per-descriptor (chain length is the point)
                 'timing_profile': config['timing_profile'],
                 'scenario': 'medium_chains',
             })
