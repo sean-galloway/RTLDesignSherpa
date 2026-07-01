@@ -1470,8 +1470,14 @@ class DatapathRdTestTB(TBBase):
 
         self.log.info(f"Auto-drain monitor STOPPED (drained {drain_count} total beats){self.get_time_ns_str()}")
 
-    def stop_auto_drain(self):
-        """Stop the auto-drain background task."""
+    def stop_auto_drain_monitor(self):
+        """Stop the auto_drain_sram_monitor() background task (Impl B).
+
+        Distinct from stop_auto_drain() (Impl A), which stops _auto_drain_sram()
+        and returns the auto_drain_stats dict. These were previously both named
+        stop_auto_drain, so this definition silently shadowed Impl A's and made
+        stop_auto_drain() return None -- crashing run_nostress_test.
+        """
         self.drain_active = False
 
     def get_drained_data_for_channel(self, channel_id):

@@ -280,37 +280,40 @@ async def run_nostress_test(tb, xfer_beats, num_channels, sram_depth):
         await RisingEdge(tb.clk)
         watchdog_count += 1
 
-        # Check if all channels are drained
+        # Completion criterion: all expected beats have flowed through the read
+        # path (received off AXI *and* written into SRAM), per the RTL debug
+        # counters. The auto-drain only prevents SRAM overflow -- it is NOT
+        # required to fully empty SRAM, so axi_wr_drain_data_avail is not a valid
+        # completion gate (it can stay non-zero and is width-packed per channel).
         try:
-            data_avail_bv = tb.dut.axi_wr_drain_data_avail.value
-            total_data_available = 0
-
-            for ch_id in range(num_channels):
-                shift = ch_id * 8
-                mask = 0xFF << shift
-                data_avail = (int(data_avail_bv) & mask) >> shift
-                total_data_available += data_avail
+            beats_rcvd = int(tb.dut.dbg_r_beats_rcvd.value)
+            sram_writes = int(tb.dut.dbg_sram_writes.value)
 
             # Log progress every 100 cycles
             if watchdog_count % 100 == 0:
                 tb.log.info(f"Watchdog: Cycle {watchdog_count}/{watchdog_timeout_cycles}, "
-                          f"data_available={total_data_available}")
+                          f"received={beats_rcvd}/{total_beats_all_channels}, "
+                          f"sram_writes={sram_writes}")
 
-            # All drained when no data left in any channel
-            if total_data_available == 0:
+            # Done when every expected beat has been received and written to SRAM
+            if beats_rcvd >= total_beats_all_channels and sram_writes >= total_beats_all_channels:
                 all_drained = True
-                tb.log.info(f"✓ Watchdog: All FIFOs drained at cycle {watchdog_count}")
+                tb.log.info(f"✓ Watchdog: All {total_beats_all_channels} beats received "
+                          f"and written at cycle {watchdog_count}")
                 break
 
         except Exception as e:
-            tb.log.warning(f"Watchdog: Could not read data_available: {e}")
+            tb.log.warning(f"Watchdog: Could not read debug counters: {e}")
             continue
 
     # Check if watchdog timed out
     if not all_drained:
+        beats_rcvd = int(tb.dut.dbg_r_beats_rcvd.value)
+        sram_writes = int(tb.dut.dbg_sram_writes.value)
         tb.log.error(f"✗ Watchdog TIMEOUT after {watchdog_timeout_cycles} cycles")
-        tb.log.error(f"  FIFOs still have {total_data_available} beats total")
-        tb.log.error(f"  This indicates a HANG in the drain path")
+        tb.log.error(f"  Only {beats_rcvd}/{total_beats_all_channels} beats received, "
+                   f"{sram_writes} written -- data did not fully flow through the read path")
+        tb.log.error(f"  This indicates a real HANG in the read/SRAM-write path")
         # Don't fail immediately - let FIFO health monitor report the root cause
 
     # Read debug counters
@@ -535,8 +538,8 @@ async def run_varying_lengths_test(tb, xfer_beats, num_channels, sram_depth):
         collected_data = tb.get_drained_data_for_channel(channel_id)
         tb.log.error(f"Timeout: Only collected {len(collected_data)}/{total_beats} beats after {timeout_cycles} cycles")
 
-    # Stop auto-drain
-    tb.stop_auto_drain()
+    # Stop auto-drain (Impl B: the auto_drain_sram_monitor task)
+    tb.stop_auto_drain_monitor()
     await tb.wait_clocks(tb.clk_name, 10)
 
     # Step 5: Verify all collected data matches expected pattern
