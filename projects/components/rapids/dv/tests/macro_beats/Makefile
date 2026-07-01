@@ -835,12 +835,6 @@ collect-src-sram:
 .PHONY: run
 run: run-all
 
-.PHONY: run-parallel
-run-parallel: run-all-gate-parallel
-
-.PHONY: run-parallel-waves
-run-parallel-waves: run-all-gate-parallel-waves
-
 .PHONY: run-waves
 run-waves: run-all-gate-waves
 
@@ -868,3 +862,30 @@ clean-all: clean
 	rm -rf local_sim_build logs
 	find . -name "*.vcd" -delete
 	find . -name "*.log" -delete
+
+# ==============================================================================
+# Parallel run targets: run-parallel (=gate) + per-level, with/without waves.
+# Each globs test_*.py so ALL tests in this env are covered.
+# ==============================================================================
+.PHONY: run-parallel run-parallel-waves
+.PHONY: run-gate-parallel run-gate-parallel-waves run-func-parallel run-func-parallel-waves run-full-parallel run-full-parallel-waves
+run-parallel: run-gate-parallel
+run-parallel-waves: run-gate-parallel-waves
+run-gate-parallel:
+	@echo "Running RAPIDS macro-beats tests at GATE level in parallel..."
+	REG_LEVEL=GATE TEST_LEVEL=GATE $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+run-gate-parallel-waves:
+	@echo "Running RAPIDS macro-beats tests at GATE level in parallel with waveforms..."
+	WAVES=1 REG_LEVEL=GATE TEST_LEVEL=GATE $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+run-func-parallel:
+	@echo "Running RAPIDS macro-beats tests at FUNC level in parallel..."
+	REG_LEVEL=FUNC TEST_LEVEL=FUNC $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+run-func-parallel-waves:
+	@echo "Running RAPIDS macro-beats tests at FUNC level in parallel with waveforms..."
+	WAVES=1 REG_LEVEL=FUNC TEST_LEVEL=FUNC $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+run-full-parallel:
+	@echo "Running RAPIDS macro-beats tests at FULL level in parallel..."
+	REG_LEVEL=FULL TEST_LEVEL=FULL $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+run-full-parallel-waves:
+	@echo "Running RAPIDS macro-beats tests at FULL level in parallel with waveforms..."
+	WAVES=1 REG_LEVEL=FULL TEST_LEVEL=FULL $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)

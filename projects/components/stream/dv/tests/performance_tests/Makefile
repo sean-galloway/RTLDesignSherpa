@@ -131,15 +131,32 @@ clean:
 # ==============================================================================
 # Parallel "run everything" targets (cover ALL test_*.py in this environment)
 # ==============================================================================
-.PHONY: run-parallel
-run-parallel:
-	@echo "Running ALL STREAM performance tests in parallel (test_*.py)..."
-	$(PYTEST) test_*.py $(PYTEST_OPTS) -n $(PYTEST_WORKERS)
-
-.PHONY: run-parallel-waves
-run-parallel-waves:
-	@echo "Running ALL STREAM performance tests in parallel with waveforms (test_*.py)..."
-	WAVES=1 $(PYTEST) test_*.py $(PYTEST_OPTS) -n $(PYTEST_WORKERS)
-
 # Default target
 all: v1-baseline
+
+# ==============================================================================
+# Parallel run targets: run-parallel (=gate) + per-level, with/without waves.
+# Each globs test_*.py so ALL tests in this env are covered.
+# ==============================================================================
+.PHONY: run-parallel run-parallel-waves
+.PHONY: run-gate-parallel run-gate-parallel-waves run-func-parallel run-func-parallel-waves run-full-parallel run-full-parallel-waves
+run-parallel: run-gate-parallel
+run-parallel-waves: run-gate-parallel-waves
+run-gate-parallel:
+	@echo "Running STREAM performance tests at GATE level in parallel..."
+	REG_LEVEL=GATE TEST_LEVEL=gate $(PYTEST) test_*.py $(PYTEST_OPTS) -n $(PYTEST_WORKERS)
+run-gate-parallel-waves:
+	@echo "Running STREAM performance tests at GATE level in parallel with waveforms..."
+	WAVES=1 REG_LEVEL=GATE TEST_LEVEL=gate $(PYTEST) test_*.py $(PYTEST_OPTS) -n $(PYTEST_WORKERS)
+run-func-parallel:
+	@echo "Running STREAM performance tests at FUNC level in parallel..."
+	REG_LEVEL=FUNC TEST_LEVEL=func $(PYTEST) test_*.py $(PYTEST_OPTS) -n $(PYTEST_WORKERS)
+run-func-parallel-waves:
+	@echo "Running STREAM performance tests at FUNC level in parallel with waveforms..."
+	WAVES=1 REG_LEVEL=FUNC TEST_LEVEL=func $(PYTEST) test_*.py $(PYTEST_OPTS) -n $(PYTEST_WORKERS)
+run-full-parallel:
+	@echo "Running STREAM performance tests at FULL level in parallel..."
+	REG_LEVEL=FULL TEST_LEVEL=full $(PYTEST) test_*.py $(PYTEST_OPTS) -n $(PYTEST_WORKERS)
+run-full-parallel-waves:
+	@echo "Running STREAM performance tests at FULL level in parallel with waveforms..."
+	WAVES=1 REG_LEVEL=FULL TEST_LEVEL=full $(PYTEST) test_*.py $(PYTEST_OPTS) -n $(PYTEST_WORKERS)

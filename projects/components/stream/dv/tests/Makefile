@@ -404,24 +404,22 @@ run-all-parallel:
 		$(TOP_TESTS_DIR)/test_*.py
 
 # ==============================================================================
-# Top-level "run everything" - fan out to every environment's run-parallel so
-# ALL tests are covered (fub, macro, top, performance_tests).
+# Top-level "run everything" - fan out to every environment's parallel targets.
+# One DRY rule defines run-parallel (=gate) + per-level, with/without waves;
+# each fans the same-named target into every sub-environment.
 # ==============================================================================
-.PHONY: run-parallel
-run-parallel:
-	@echo "Running ALL STREAM tests in parallel (fub, macro, top, performance_tests)..."
-	@cd $(FUB_TESTS_DIR)   && $(MAKE) run-parallel
-	@cd $(MACRO_TESTS_DIR) && $(MAKE) run-parallel
-	@cd $(TOP_TESTS_DIR)   && $(MAKE) run-parallel
-	@cd performance_tests  && $(MAKE) run-parallel
+PARALLEL_DIRS := $(FUB_TESTS_DIR) $(MACRO_TESTS_DIR) $(TOP_TESTS_DIR) performance_tests
 
-.PHONY: run-parallel-waves
-run-parallel-waves:
-	@echo "Running ALL STREAM tests in parallel with waveforms..."
-	@cd $(FUB_TESTS_DIR)   && $(MAKE) run-parallel-waves
-	@cd $(MACRO_TESTS_DIR) && $(MAKE) run-parallel-waves
-	@cd $(TOP_TESTS_DIR)   && $(MAKE) run-parallel-waves
-	@cd performance_tests  && $(MAKE) run-parallel-waves
+.PHONY: run-parallel run-parallel-waves \
+        run-gate-parallel run-gate-parallel-waves \
+        run-func-parallel run-func-parallel-waves \
+        run-full-parallel run-full-parallel-waves
+run-parallel run-parallel-waves \
+run-gate-parallel run-gate-parallel-waves \
+run-func-parallel run-func-parallel-waves \
+run-full-parallel run-full-parallel-waves:
+	@echo "STREAM aggregate '$@' across: $(PARALLEL_DIRS)"
+	@for d in $(PARALLEL_DIRS); do echo "==> $$d ($@)"; $(MAKE) -C $$d $@ || exit 1; done
 
 # Explicit TEST_LEVEL variants - All tests
 .PHONY: run-all-gate

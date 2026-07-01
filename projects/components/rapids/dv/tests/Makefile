@@ -132,24 +132,22 @@ help:
 	@echo "================================================================================"
 
 # ==============================================================================
-# Top-level "run everything" - fan out to every environment's run-parallel.
-# Covers ALL tests across fub, fub_beats, macro, macro_beats.
+# Top-level "run everything" - fan out to every environment's parallel targets.
+# One DRY rule defines run-parallel (=gate) + per-level, with/without waves;
+# each fans the same-named target into every sub-environment.
 # ==============================================================================
-.PHONY: run-parallel
-run-parallel:
-	@echo "Running ALL RAPIDS tests in parallel (fub, fub_beats, macro, macro_beats)..."
-	@cd $(FUB_DIR)        && $(MAKE) run-parallel
-	@cd $(FUB_BEATS_DIR)  && $(MAKE) run-parallel
-	@cd $(MACRO_DIR)      && $(MAKE) run-parallel
-	@cd $(MACRO_BEATS_DIR) && $(MAKE) run-parallel
+PARALLEL_DIRS := $(FUB_DIR) $(FUB_BEATS_DIR) $(MACRO_DIR) $(MACRO_BEATS_DIR)
 
-.PHONY: run-parallel-waves
-run-parallel-waves:
-	@echo "Running ALL RAPIDS tests in parallel with waveforms..."
-	@cd $(FUB_DIR)        && $(MAKE) run-parallel-waves
-	@cd $(FUB_BEATS_DIR)  && $(MAKE) run-parallel-waves
-	@cd $(MACRO_DIR)      && $(MAKE) run-parallel-waves
-	@cd $(MACRO_BEATS_DIR) && $(MAKE) run-parallel-waves
+.PHONY: run-parallel run-parallel-waves \
+        run-gate-parallel run-gate-parallel-waves \
+        run-func-parallel run-func-parallel-waves \
+        run-full-parallel run-full-parallel-waves
+run-parallel run-parallel-waves \
+run-gate-parallel run-gate-parallel-waves \
+run-func-parallel run-func-parallel-waves \
+run-full-parallel run-full-parallel-waves:
+	@echo "RAPIDS aggregate '$@' across: $(PARALLEL_DIRS)"
+	@for d in $(PARALLEL_DIRS); do echo "==> $$d ($@)"; $(MAKE) -C $$d $@ || exit 1; done
 
 # ==============================================================================
 # Run Targets - Legacy FUB Tests (ctrlwr_engine, ctrlrd_engine)

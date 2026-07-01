@@ -129,16 +129,6 @@ run-waves:
 	@echo "Running STREAM FUB tests with waveforms..."
 	WAVES=1 $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
-.PHONY: run-parallel
-run-parallel:
-	@echo "Running STREAM FUB tests in parallel..."
-	$(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
-.PHONY: run-parallel-waves
-run-parallel-waves:
-	@echo "Running STREAM FUB tests in parallel with waveforms..."
-	WAVES=1 $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
 # ==============================================================================
 # Run Targets - SRAM Controller
 # ==============================================================================
@@ -306,16 +296,6 @@ run-gate-waves:
 	@echo "Running STREAM FUB tests at GATE level with waveforms..."
 	WAVES=1 REG_LEVEL=GATE $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
-.PHONY: run-gate-parallel
-run-gate-parallel:
-	@echo "Running STREAM FUB tests at GATE level in parallel..."
-	REG_LEVEL=GATE $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
-.PHONY: run-gate-parallel-waves
-run-gate-parallel-waves:
-	@echo "Running STREAM FUB tests at GATE level in parallel with waveforms..."
-	WAVES=1 REG_LEVEL=GATE $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
 .PHONY: run-func
 run-func:
 	@echo "Running STREAM FUB tests at FUNC level..."
@@ -326,16 +306,6 @@ run-func-waves:
 	@echo "Running STREAM FUB tests at FUNC level with waveforms..."
 	WAVES=1 REG_LEVEL=FUNC $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
-.PHONY: run-func-parallel
-run-func-parallel:
-	@echo "Running STREAM FUB tests at FUNC level in parallel..."
-	REG_LEVEL=FUNC $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
-.PHONY: run-func-parallel-waves
-run-func-parallel-waves:
-	@echo "Running STREAM FUB tests at FUNC level in parallel with waveforms..."
-	WAVES=1 REG_LEVEL=FUNC $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
 .PHONY: run-full
 run-full:
 	@echo "Running STREAM FUB tests at FULL level..."
@@ -345,16 +315,6 @@ run-full:
 run-full-waves:
 	@echo "Running STREAM FUB tests at FULL level with waveforms..."
 	WAVES=1 REG_LEVEL=FULL $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
-
-.PHONY: run-full-parallel
-run-full-parallel:
-	@echo "Running STREAM FUB tests at FULL level in parallel with coverage..."
-	SIM=verilator COVERAGE=1 REG_LEVEL=FULL $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
-.PHONY: run-full-parallel-waves
-run-full-parallel-waves:
-	@echo "Running STREAM FUB tests at FULL level in parallel with waveforms and coverage..."
-	SIM=verilator COVERAGE=1 WAVES=1 REG_LEVEL=FULL $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 # ==============================================================================
 # run-all-* Alias Targets (standardized naming convention)
@@ -477,3 +437,30 @@ fresh-coverage: clean-coverage run-coverage coverage-report
 .PHONY: fresh-coverage-full
 fresh-coverage-full: clean-coverage run-coverage-full coverage-report
 	@echo "Fresh full coverage run complete."
+
+# ==============================================================================
+# Parallel run targets: run-parallel (=gate) + per-level, with/without waves.
+# Each globs test_*.py so ALL tests in this env are covered.
+# ==============================================================================
+.PHONY: run-parallel run-parallel-waves
+.PHONY: run-gate-parallel run-gate-parallel-waves run-func-parallel run-func-parallel-waves run-full-parallel run-full-parallel-waves
+run-parallel: run-gate-parallel
+run-parallel-waves: run-gate-parallel-waves
+run-gate-parallel:
+	@echo "Running STREAM FUB tests at GATE level in parallel..."
+	REG_LEVEL=GATE TEST_LEVEL=gate $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+run-gate-parallel-waves:
+	@echo "Running STREAM FUB tests at GATE level in parallel with waveforms..."
+	WAVES=1 REG_LEVEL=GATE TEST_LEVEL=gate $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+run-func-parallel:
+	@echo "Running STREAM FUB tests at FUNC level in parallel..."
+	REG_LEVEL=FUNC TEST_LEVEL=func $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+run-func-parallel-waves:
+	@echo "Running STREAM FUB tests at FUNC level in parallel with waveforms..."
+	WAVES=1 REG_LEVEL=FUNC TEST_LEVEL=func $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+run-full-parallel:
+	@echo "Running STREAM FUB tests at FULL level in parallel..."
+	REG_LEVEL=FULL TEST_LEVEL=full $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+run-full-parallel-waves:
+	@echo "Running STREAM FUB tests at FULL level in parallel with waveforms..."
+	WAVES=1 REG_LEVEL=FULL TEST_LEVEL=full $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
