@@ -136,7 +136,8 @@ help:
 # One DRY rule defines run-parallel (=gate) + per-level, with/without waves;
 # each fans the same-named target into every sub-environment.
 # ==============================================================================
-PARALLEL_DIRS := $(FUB_DIR) $(FUB_BEATS_DIR) $(MACRO_DIR) $(MACRO_BEATS_DIR)
+TOP_BEATS_DIR = top_beats
+PARALLEL_DIRS := $(FUB_DIR) $(FUB_BEATS_DIR) $(MACRO_DIR) $(MACRO_BEATS_DIR) $(TOP_BEATS_DIR)
 
 .PHONY: run-parallel run-parallel-waves \
         run-gate-parallel run-gate-parallel-waves \

@@ -394,7 +394,11 @@ module rapids_core_beats #(
         // Monitor Bus
         .mon_valid              (mon_valid),
         .mon_ready              (mon_ready),
-        .mon_packet             (mon_packet)
+        .mon_packet             (mon_packet),
+        // No global monitor time source at core level: tie input to 0, leave
+        // the timestamp output unconnected.
+        .i_mon_time             ('0),
+        .mon_timestamp          ()
     );
 
     //=========================================================================
@@ -409,6 +413,15 @@ module rapids_core_beats #(
             sched_wr_burst_len[i] = cfg_axi_wr_xfer_beats;
         end
     end
+
+    // AXI write-master AW sideband constants (the sink data path does not
+    // produce these; drive standard AXI defaults so the m_axi_wr master is a
+    // complete AXI4 interface).
+    assign m_axi_wr_awlock   = 1'b0;
+    assign m_axi_wr_awcache  = 4'b0011;
+    assign m_axi_wr_awprot   = 3'b000;
+    assign m_axi_wr_awqos    = 4'b0000;
+    assign m_axi_wr_awregion = 4'b0000;
 
     snk_data_path_beats #(
         .NUM_CHANNELS       (NC),
@@ -455,11 +468,8 @@ module rapids_core_beats #(
         .m_axi_awlen        (m_axi_wr_awlen),
         .m_axi_awsize       (m_axi_wr_awsize),
         .m_axi_awburst      (m_axi_wr_awburst),
-        .m_axi_awlock       (m_axi_wr_awlock),
-        .m_axi_awcache      (m_axi_wr_awcache),
-        .m_axi_awprot       (m_axi_wr_awprot),
-        .m_axi_awqos        (m_axi_wr_awqos),
-        .m_axi_awregion     (m_axi_wr_awregion),
+        // AW sideband (awlock/awcache/awprot/awqos/awregion) not produced by the
+        // sink data path; tied to standard AXI constants below.
         .m_axi_awvalid      (m_axi_wr_awvalid),
         .m_axi_awready      (m_axi_wr_awready),
         .m_axi_wdata        (m_axi_wr_wdata),
