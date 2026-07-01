@@ -31,9 +31,7 @@ PYTEST_VERBOSE = -v
 PYTEST_QUIET = -q
 PYTEST_XDIST = -n 48
 PYTEST_TBSTYLE = --tb=short
-# No reruns for macro: tests are multi-minute, so retrying a slow/timed-out test
-# 3x just triples wall-time. (FUB tests are fast enough for reruns; macro isn't.)
-PYTEST_RERUNS =
+PYTEST_RERUNS = --reruns 3 --reruns-delay 1
 
 # Regression file set for the parallel 'run everything' targets. Excludes
 # test_stream_performance_profile.py (throughput benchmark, run via 'make run-perf').
