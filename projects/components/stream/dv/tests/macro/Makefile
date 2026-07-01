@@ -551,12 +551,6 @@ run-full-parallel-waves:
 	@echo "Running STREAM macro tests at FULL level in parallel with waveforms..."
 	WAVES=1 REG_LEVEL=FULL TEST_LEVEL=full $(PYTEST) $(PARALLEL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
-# ==============================================================================
-# Performance benchmark (throughput profiling) - opt-in, NOT in run-parallel.
-# These are long-running throughput benchmarks, not pass/fail regression.
-# ==============================================================================
-.PHONY: run-perf run-perf-parallel
-run-perf:
-	TEST_LEVEL=func $(PYTEST) test_stream_performance_profile.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
-run-perf-parallel:
-	TEST_LEVEL=func $(PYTEST) test_stream_performance_profile.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+# Performance benchmarks (test_stream_performance_profile.py) are opt-in and NOT
+# part of the regression fan-out above -- run them via the run-perf / run-perf-waves
+# / run-perf-parallel / run-perf-parallel-waves targets defined earlier.
