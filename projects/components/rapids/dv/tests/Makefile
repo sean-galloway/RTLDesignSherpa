@@ -132,6 +132,26 @@ help:
 	@echo "================================================================================"
 
 # ==============================================================================
+# Top-level "run everything" - fan out to every environment's run-parallel.
+# Covers ALL tests across fub, fub_beats, macro, macro_beats.
+# ==============================================================================
+.PHONY: run-parallel
+run-parallel:
+	@echo "Running ALL RAPIDS tests in parallel (fub, fub_beats, macro, macro_beats)..."
+	@cd $(FUB_DIR)        && $(MAKE) run-parallel
+	@cd $(FUB_BEATS_DIR)  && $(MAKE) run-parallel
+	@cd $(MACRO_DIR)      && $(MAKE) run-parallel
+	@cd $(MACRO_BEATS_DIR) && $(MAKE) run-parallel
+
+.PHONY: run-parallel-waves
+run-parallel-waves:
+	@echo "Running ALL RAPIDS tests in parallel with waveforms..."
+	@cd $(FUB_DIR)        && $(MAKE) run-parallel-waves
+	@cd $(FUB_BEATS_DIR)  && $(MAKE) run-parallel-waves
+	@cd $(MACRO_DIR)      && $(MAKE) run-parallel-waves
+	@cd $(MACRO_BEATS_DIR) && $(MAKE) run-parallel-waves
+
+# ==============================================================================
 # Run Targets - Legacy FUB Tests (ctrlwr_engine, ctrlrd_engine)
 # ==============================================================================
 

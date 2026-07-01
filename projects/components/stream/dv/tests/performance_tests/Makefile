@@ -128,5 +128,18 @@ clean:
 	rm -rf .pytest_cache/
 	@echo "✓ Clean complete"
 
+# ==============================================================================
+# Parallel "run everything" targets (cover ALL test_*.py in this environment)
+# ==============================================================================
+.PHONY: run-parallel
+run-parallel:
+	@echo "Running ALL STREAM performance tests in parallel (test_*.py)..."
+	$(PYTEST) test_*.py $(PYTEST_OPTS) -n $(PYTEST_WORKERS)
+
+.PHONY: run-parallel-waves
+run-parallel-waves:
+	@echo "Running ALL STREAM performance tests in parallel with waveforms (test_*.py)..."
+	WAVES=1 $(PYTEST) test_*.py $(PYTEST_OPTS) -n $(PYTEST_WORKERS)
+
 # Default target
 all: v1-baseline

@@ -111,7 +111,14 @@ run: run-gate
 run-waves: run-gate-waves
 
 .PHONY: run-parallel
-run-parallel: run-gate-parallel
+run-parallel:
+	@echo "=== Running ALL STREAM_TOP tests in parallel (test_*.py) ==="
+	WAVES=0 TEST_LEVEL=gate $(PYTEST) test_*.py $(PYTEST_XDIST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-parallel-waves
+run-parallel-waves:
+	@echo "=== Running ALL STREAM_TOP tests in parallel with waveforms (test_*.py) ==="
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_*.py $(PYTEST_XDIST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 # ==============================================================================
 # GATE Level Targets (Quick Smoke Tests)

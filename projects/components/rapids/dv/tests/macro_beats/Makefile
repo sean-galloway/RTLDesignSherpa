@@ -716,10 +716,8 @@ run-src-sram-full-parallel:
 # Combined Targets (All Tests)
 # ==============================================================================
 
-# Test files list (only existing test files)
-ALL_TESTS = test_scheduler_group_beats.py test_scheduler_group_array_beats.py \
-            test_snk_data_path_axis_test_beats.py test_src_data_path_axis_test_beats.py \
-            test_snk_sram_controller_beats.py test_src_sram_controller_beats.py
+# Test files list - wildcard so ALL test_*.py are always covered (incl. new ones)
+ALL_TESTS = $(wildcard test_*.py)
 
 # GATE level
 .PHONY: run-all-gate
@@ -839,6 +837,9 @@ run: run-all
 
 .PHONY: run-parallel
 run-parallel: run-all-gate-parallel
+
+.PHONY: run-parallel-waves
+run-parallel-waves: run-all-gate-parallel-waves
 
 .PHONY: run-waves
 run-waves: run-all-gate-waves

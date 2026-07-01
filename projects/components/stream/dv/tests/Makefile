@@ -403,6 +403,26 @@ run-all-parallel:
 		$(MACRO_TESTS_DIR)/test_*.py \
 		$(TOP_TESTS_DIR)/test_*.py
 
+# ==============================================================================
+# Top-level "run everything" - fan out to every environment's run-parallel so
+# ALL tests are covered (fub, macro, top, performance_tests).
+# ==============================================================================
+.PHONY: run-parallel
+run-parallel:
+	@echo "Running ALL STREAM tests in parallel (fub, macro, top, performance_tests)..."
+	@cd $(FUB_TESTS_DIR)   && $(MAKE) run-parallel
+	@cd $(MACRO_TESTS_DIR) && $(MAKE) run-parallel
+	@cd $(TOP_TESTS_DIR)   && $(MAKE) run-parallel
+	@cd performance_tests  && $(MAKE) run-parallel
+
+.PHONY: run-parallel-waves
+run-parallel-waves:
+	@echo "Running ALL STREAM tests in parallel with waveforms..."
+	@cd $(FUB_TESTS_DIR)   && $(MAKE) run-parallel-waves
+	@cd $(MACRO_TESTS_DIR) && $(MAKE) run-parallel-waves
+	@cd $(TOP_TESTS_DIR)   && $(MAKE) run-parallel-waves
+	@cd performance_tests  && $(MAKE) run-parallel-waves
+
 # Explicit TEST_LEVEL variants - All tests
 .PHONY: run-all-gate
 run-all-gate:

@@ -515,3 +515,16 @@ clean-all: clean
 	rm -rf local_sim_build logs
 	find . -name "*.vcd" -delete
 	find . -name "*.log" -delete
+
+# ==============================================================================
+# Parallel "run everything" targets (cover ALL test_*.py in this environment)
+# ==============================================================================
+.PHONY: run-parallel
+run-parallel:
+	@echo "Running ALL STREAM macro tests in parallel (test_*.py)..."
+	$(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-parallel-waves
+run-parallel-waves:
+	@echo "Running ALL STREAM macro tests in parallel with waveforms (test_*.py)..."
+	WAVES=1 $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
