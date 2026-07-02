@@ -59,6 +59,7 @@ class ReadBurst:
     t_rddata_en: int = 0            # PHY wait from OP_RD to dfi_rddata_en assert
     phy_rdlat: int = 0              # cycles from en-asserted to first valid
     completed: bool = False
+    is_last_chunk: int = 1          # #22 — 0 masks rd_inject_last_o on last beat
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +133,9 @@ class RdClAlignerTB(TBBase):
         self.dut.op_slot_i.value           = 0
         self.dut.op_id_i.value             = 0
         self.dut.op_len_i.value            = 0
+        # Issue #22 split-aware port; tie to 1 = "single chunk" so
+        # rd_inject_last_o fires on the last beat of every legacy op.
+        self.dut.op_is_last_chunk_i.value  = 1
         self.dut.dfi_rddata_i.value        = 0
         self.dut.dfi_rddata_valid_i.value  = 0
         self.dut.rd_inject_ready_i.value   = 1
@@ -254,6 +258,7 @@ class RdClAlignerTB(TBBase):
         self.dut.op_slot_i.value     = burst.slot   & ((1 << self.RSL) - 1)
         self.dut.op_id_i.value       = burst.axi_id & ((1 << self.AXI_ID_WIDTH) - 1)
         self.dut.op_len_i.value      = len(burst.beats) & ((1 << self.BURST_LEN_WIDTH) - 1)
+        self.dut.op_is_last_chunk_i.value = burst.is_last_chunk & 1
         self.dut.op_valid_i.value    = 1
 
         await Timer(_NBA_SETTLE_PS, units='ps')

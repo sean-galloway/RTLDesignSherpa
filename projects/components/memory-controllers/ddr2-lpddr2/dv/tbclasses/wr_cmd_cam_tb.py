@@ -63,6 +63,7 @@ class WrSlot:
     beats_issued: int = 0
     issued: bool = False
     b_pending: bool = False
+    is_last_chunk: bool = True  # #22 — split AR last-chunk gate
 
 
 class WrCmdCamScoreboard:
@@ -80,7 +81,8 @@ class WrCmdCamScoreboard:
                 return i
         return None
 
-    def push(self, axi_id, rank, bank, row, col, length, wptr, sptr) -> int:
+    def push(self, axi_id, rank, bank, row, col, length, wptr, sptr,
+             is_last_chunk: bool = True) -> int:
         slot = self.free_slot()
         assert slot is not None, "scoreboard.push with no free slot"
         s = self.slots[slot]
@@ -96,6 +98,7 @@ class WrCmdCamScoreboard:
         s.beats_issued = 0
         s.issued = False
         s.b_pending = False
+        s.is_last_chunk = is_last_chunk
         return slot
 
     def mark_issued(self, slot: int) -> None:
@@ -217,6 +220,9 @@ class WrCmdCamTB(TBBase):
         self.dut.push_len_i.value        = 0
         self.dut.push_w_buf_ptr_i.value  = 0
         self.dut.push_strb_ptr_i.value   = 0
+        # Issue #22 split-aware port; tie to 1 = "single chunk" so existing
+        # single-burst-per-push tests preserve their B-emit semantics.
+        self.dut.push_is_last_chunk_i.value = 1
 
         self.dut.q_rank_i.value = 0
         self.dut.q_bank_i.value = 0
@@ -234,7 +240,8 @@ class WrCmdCamTB(TBBase):
     # ---------- one-cycle drivers --------------------------------------------
 
     async def push(self, axi_id, rank, bank, row, col, length, wptr, sptr,
-                   expect_ready: bool = True) -> Optional[int]:
+                   expect_ready: bool = True,
+                   is_last_chunk: int = 1) -> Optional[int]:
         """Drive a push for one cycle; return the slot consumed (or None when
         push_ready_o was low)."""
         self.dut.push_valid_i.value     = 1
@@ -246,6 +253,7 @@ class WrCmdCamTB(TBBase):
         self.dut.push_len_i.value       = length  & self.MASK_LEN
         self.dut.push_w_buf_ptr_i.value = wptr    & self.MASK_WPW
         self.dut.push_strb_ptr_i.value  = sptr    & self.MASK_WPW
+        self.dut.push_is_last_chunk_i.value = is_last_chunk & 1
 
         # push_ready_o / push_slot_o are combinational on r_valid (sequential)
         # and stable in this cycle; sample them after a delta-settle.
@@ -261,7 +269,9 @@ class WrCmdCamTB(TBBase):
         self.dut.push_valid_i.value = 0
         # Mirror in scoreboard if the push was accepted
         if ready:
-            mirrored = self.scb.push(axi_id, rank, bank, row, col, length, wptr, sptr)
+            mirrored = self.scb.push(axi_id, rank, bank, row, col, length,
+                                     wptr, sptr,
+                                     is_last_chunk=bool(is_last_chunk & 1))
             assert mirrored == slot, (
                 f"push_slot_o={slot} but scoreboard picked {mirrored}"
             )
@@ -327,10 +337,15 @@ class WrCmdCamTB(TBBase):
         ec     = int(self.dut.entry_complete_o.value)
         ec_slt = int(self.dut.entry_complete_slot_o.value)
         ec_id  = int(self.dut.entry_complete_id_o.value)
+        ec_ilc = int(self.dut.entry_complete_is_last_chunk_o.value)
         assert ec == 1, "entry_complete_o should pulse on b_complete_strb_i"
         assert ec_slt == slot, f"entry_complete_slot: got {ec_slt} want {slot}"
         assert ec_id == self.scb.slots[slot].axi_id, (
             f"entry_complete_id: got {ec_id} want {self.scb.slots[slot].axi_id}"
+        )
+        exp_ilc = int(self.scb.slots[slot].is_last_chunk)
+        assert ec_ilc == exp_ilc, (
+            f"entry_complete_is_last_chunk[{slot}]: got {ec_ilc} want {exp_ilc}"
         )
         await RisingEdge(self.dut.mc_clk)
         await Timer(_NBA_SETTLE_PS, units='ps')

@@ -125,6 +125,10 @@ class Wr2RdForwardTB(TBBase):
         self.dut.ar_col_i.value   = 0
         self.dut.ar_len_i.value   = 0
         self.dut.ar_qos_i.value   = 0
+        # Issue #22: combinationally forwarded to both rd_push and fwd
+        # is_last_chunk outputs. Tie to 1 = "single chunk" so legacy tests
+        # preserve old rd_inject_last_o semantics on downstream consumers.
+        self.dut.ar_is_last_chunk_i.value = 1
         self.dut.fwd_ready_i.value     = 1
         self.dut.rd_push_ready_i.value = 1
         # Clear CAM snapshot
@@ -193,11 +197,16 @@ class Wr2RdForwardTB(TBBase):
         rd_push_len:  int = 0
         rd_push_qos:  int = 0
         ar_ready:     int = 0
+        # #22 — passthrough; should mirror ar_is_last_chunk_i exactly.
+        rd_push_is_last_chunk: int = 0
+        fwd_is_last_chunk:     int = 0
 
-    async def issue_ar(self, ar: Ar) -> "Wr2RdForwardTB.Decision":
+    async def issue_ar(self, ar: Ar,
+                       is_last_chunk: int = 1) -> "Wr2RdForwardTB.Decision":
         """Drive ar_* + cam_* and read back the combinational decision."""
         self._push_cam_to_dut()
         self.dut.ar_valid_i.value = 1
+        self.dut.ar_is_last_chunk_i.value = is_last_chunk & 1
         self.dut.ar_id_i.value    = ar.axid
         self.dut.ar_rank_i.value  = ar.rank
         self.dut.ar_bank_i.value  = ar.bank
@@ -221,6 +230,8 @@ class Wr2RdForwardTB(TBBase):
             rd_push_len   = int(self.dut.rd_push_len_o.value),
             rd_push_qos   = int(self.dut.rd_push_qos_o.value),
             ar_ready      = int(self.dut.ar_ready_o.value),
+            rd_push_is_last_chunk = int(self.dut.rd_push_is_last_chunk_o.value),
+            fwd_is_last_chunk     = int(self.dut.fwd_is_last_chunk_o.value),
         )
         # Deassert
         await RisingEdge(self.dut.mc_clk)

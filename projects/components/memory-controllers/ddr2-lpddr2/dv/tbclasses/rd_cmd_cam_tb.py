@@ -48,6 +48,7 @@ class RdSlot:
     length: int = 0
     beats_returned: int = 0
     issued: bool = False
+    is_last_chunk: bool = True  # #22 — gates rd_inject_last_o downstream
 
 
 class RdCmdCamScoreboard:
@@ -61,7 +62,8 @@ class RdCmdCamScoreboard:
                 return i
         return None
 
-    def push(self, axi_id, rank, bank, row, col, length) -> int:
+    def push(self, axi_id, rank, bank, row, col, length,
+             is_last_chunk: bool = True) -> int:
         slot = self.free_slot()
         assert slot is not None, "scoreboard.push with no free slot"
         s = self.slots[slot]
@@ -74,6 +76,7 @@ class RdCmdCamScoreboard:
         s.length = length
         s.beats_returned = 0
         s.issued = False
+        s.is_last_chunk = is_last_chunk
         return slot
 
     def mark_issued(self, slot: int) -> None:
@@ -170,6 +173,9 @@ class RdCmdCamTB(TBBase):
         self.dut.push_row_i.value   = 0
         self.dut.push_col_i.value   = 0
         self.dut.push_len_i.value   = 0
+        # Issue #22 split-aware port; tie to 1 = "single chunk" so existing
+        # tests preserve the single-burst rd_inject_last_o gate.
+        self.dut.push_is_last_chunk_i.value = 1
         self.dut.q_rank_i.value     = 0
         self.dut.q_bank_i.value     = 0
         self.dut.q_row_i.value      = 0
@@ -179,7 +185,8 @@ class RdCmdCamTB(TBBase):
         self.dut.beat_slot_i.value   = 0
 
     async def push(self, axi_id, rank, bank, row, col, length,
-                   expect_ready: bool = True) -> Optional[int]:
+                   expect_ready: bool = True,
+                   is_last_chunk: int = 1) -> Optional[int]:
         self.dut.push_valid_i.value = 1
         self.dut.push_id_i.value    = axi_id & self.MASK_ID
         self.dut.push_rank_i.value  = rank   & self.MASK_RNK
@@ -187,6 +194,7 @@ class RdCmdCamTB(TBBase):
         self.dut.push_row_i.value   = row    & self.MASK_ROW
         self.dut.push_col_i.value   = col    & self.MASK_COL
         self.dut.push_len_i.value   = length & self.MASK_LEN
+        self.dut.push_is_last_chunk_i.value = is_last_chunk & 1
         await Timer(_NBA_SETTLE_PS, units='ps')
         ready = int(self.dut.push_ready_o.value)
         slot  = int(self.dut.push_slot_o.value)
@@ -196,7 +204,8 @@ class RdCmdCamTB(TBBase):
         await Timer(_NBA_SETTLE_PS, units='ps')
         self.dut.push_valid_i.value = 0
         if ready:
-            mirrored = self.scb.push(axi_id, rank, bank, row, col, length)
+            mirrored = self.scb.push(axi_id, rank, bank, row, col, length,
+                                     is_last_chunk=bool(is_last_chunk & 1))
             assert mirrored == slot, (
                 f"push_slot_o={slot} but scoreboard picked {mirrored}"
             )
@@ -262,6 +271,7 @@ class RdCmdCamTB(TBBase):
         # ReadOnly() so the next caller can still write inputs this cycle.
         snap_valid = int(self.dut.snap_valid_o.value)
         snap_iss   = int(self.dut.snap_issued_o.value)
+        snap_ilc   = int(self.dut.snap_is_last_chunk_o.value)
         for i, s in enumerate(self.scb.slots):
             v = (snap_valid >> i) & 1
             assert v == int(s.valid), (
@@ -275,6 +285,13 @@ class RdCmdCamTB(TBBase):
                 self._check_snap_field('snap_id_o',  i, self.AXI_ID_WIDTH,    s.axi_id)
                 self._check_snap_field('snap_col_o', i, self.COL_WIDTH,       s.col)
                 self._check_snap_field('snap_len_o', i, self.BURST_LEN_WIDTH, s.length)
+                # #22 — per-slot is_last_chunk flag, read by scheduler
+                # to drive rd_cl_aligner.op_is_last_chunk_i.
+                exp_ilc = int(s.is_last_chunk)
+                got_ilc = (snap_ilc >> i) & 1
+                assert got_ilc == exp_ilc, (
+                    f"snap_is_last_chunk[{i}]: got {got_ilc} want {exp_ilc}"
+                )
 
     def _check_snap_field(self, sig_name: str, idx: int, width: int, expected: int) -> None:
         raw = int(getattr(self.dut, sig_name).value)

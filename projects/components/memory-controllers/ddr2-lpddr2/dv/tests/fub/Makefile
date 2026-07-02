@@ -39,7 +39,12 @@ PYTEST_RERUNS = --reruns 3 --reruns-delay 1
 PTW = ptw
 PTW_FLAGS = --runner "pytest --maxfail=1"
 
-# Test files (one per FUB)
+# Test files (one per FUB). Kept as per-FUB vars so the category
+# targets can still focus on one file at a time. ALL_TESTS uses `.`
+# so pytest auto-discovers every test_*.py in this directory — that
+# way a newly-added FUB test file doesn't silently get skipped by the
+# run-*-parallel sweeps (which is what happened before when the list
+# was hand-maintained and drifted from the on-disk file set).
 WR_TEST   = test_wr_cmd_cam.py
 RD_TEST   = test_rd_cmd_cam.py
 WBS_TEST  = test_wr_beat_sequencer.py
@@ -54,10 +59,12 @@ XT_TEST   = test_xbank_timers.py
 GT_TEST   = test_global_timers.py
 SCH_TEST  = test_scheduler.py
 PP_TEST   = test_page_predictor.py
+AM_TEST   = test_addr_mapper.py
+AIST_TEST = test_axi_id_side_table.py
+AI_TEST   = test_axi_intake.py
+W2R_TEST  = test_wr2rd_forward.py
 
-ALL_TESTS = $(WR_TEST) $(RD_TEST) $(WBS_TEST) $(RCL_TEST) $(DCF_TEST) $(DSP_TEST) \
-            $(MR_TEST) $(RF_TEST) $(PD_TEST) $(INIT_TEST) \
-            $(XT_TEST) $(GT_TEST) $(SCH_TEST) $(PP_TEST)
+ALL_TESTS = .
 
 # Default target
 .DEFAULT_GOAL := help

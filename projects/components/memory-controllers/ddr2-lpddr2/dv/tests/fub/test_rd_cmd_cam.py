@@ -62,6 +62,7 @@ async def cocotb_test_rd_cmd_cam(dut):
         "beat_interleave":  _beat_interleave,
         "snapshot":         _snapshot,
         "occupancy":        _occupancy,
+        "is_last_chunk_per_slot": _is_last_chunk_per_slot,
         "random_soak":      _random_soak,
     }
     if test_type not in scenarios:
@@ -249,6 +250,37 @@ async def _occupancy(tb: RdCmdCamTB):
         await tb.check_occupancy()
 
 
+async def _is_last_chunk_per_slot(tb: RdCmdCamTB):
+    """Issue #22 — push mixed is_last_chunk values, verify snap_is_last_chunk_o
+    mirrors the per-slot store across the full snapshot vector. The
+    scheduler reads this vector to drive rd_cl_aligner.op_is_last_chunk_i,
+    so any per-slot mismatch here would silently mis-gate rd_inject_last_o
+    at the integration level."""
+    pattern = [1, 0, 1, 0, 0, 1, 0, 1]
+    pattern = pattern[:tb.RD_CAM_DEPTH]
+    for i, ilc in enumerate(pattern):
+        slot = await tb.push(
+            axi_id=(i + 5) & tb.MASK_ID,
+            rank=0, bank=i & tb.MASK_BNK,
+            row=(0x300 + i) & tb.MASK_ROW,
+            col=(0x20 * i) & tb.MASK_COL,
+            length=2,
+            is_last_chunk=ilc,
+        )
+        assert slot == i, f"expected slot {i}, got {slot}"
+    # verify_snapshot checks every per-slot snap_is_last_chunk_o bit
+    # against the scoreboard.
+    await tb.verify_snapshot()
+    # Drive every entry to completion via the beat path; rd_cmd_cam
+    # retires on the last beat. Slot retires don't affect snap_is_last_chunk_o
+    # of OTHER live slots, which is the property we're guarding here.
+    for slot in range(len(pattern)):
+        # length=2 → two beats
+        await tb.beat(slot)
+        await tb.beat(slot)
+    assert tb.scb.occupancy() == 0
+
+
 async def _random_soak(tb: RdCmdCamTB):
     rng = random.Random(tb.SEED ^ 0xDEAD)
     cycles = {'gate': 200, 'func': 600, 'full': 1500}.get(tb.TEST_LEVEL, 600)
@@ -300,6 +332,7 @@ _ALL_TYPES = [
     "beat_interleave",
     "snapshot",
     "occupancy",
+    "is_last_chunk_per_slot",  # #22
     "random_soak",
 ]
 

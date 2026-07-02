@@ -79,6 +79,7 @@ async def cocotb_test_wr_cmd_cam(dut):
         "snapshot":            _snapshot,
         "occupancy":           _occupancy,
         "random_soak":         _random_soak,
+        "is_last_chunk_per_slot": _is_last_chunk_per_slot,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -320,6 +321,40 @@ async def _occupancy(tb: WrCmdCamTB):
         await tb.check_occupancy()
 
 
+async def _is_last_chunk_per_slot(tb: WrCmdCamTB):
+    """Issue #22 — verify per-slot is_last_chunk store/retire.
+
+    Push a mix of chunked (is_last_chunk=0) and non-chunked (=1) AWs, drive
+    each through to b_complete, and assert that entry_complete_is_last_chunk_o
+    on every b_complete reflects the value that was pushed for that slot.
+    The TB scoreboard tracks the expected value; the b_complete() helper
+    already asserts the DUT output against that mirror.
+    """
+    pattern = [1, 0, 0, 1, 0, 1, 1, 0]  # 50/50 mix in arbitrary order
+    pattern = pattern[:tb.WR_CAM_DEPTH]
+    pushed_slots: List[int] = []
+    for i, ilc in enumerate(pattern):
+        slot = await tb.push(
+            axi_id=(i * 3) & tb.MASK_ID,
+            rank=0, bank=i & tb.MASK_BNK,
+            row=(0x200 + i) & tb.MASK_ROW,
+            col=(0x10 * i) & tb.MASK_COL,
+            length=1,
+            wptr=i & tb.MASK_WPW,
+            sptr=i & tb.MASK_WPW,
+            is_last_chunk=ilc,
+        )
+        assert slot == i, f"expected slot {i}, got {slot}"
+        pushed_slots.append(slot)
+
+    # Drive every slot through its one beat + b_complete in push order;
+    # b_complete() asserts entry_complete_is_last_chunk_o vs scoreboard.
+    for slot, ilc in zip(pushed_slots, pattern):
+        await tb.beat_pull(slot)
+        await tb.b_complete(slot)
+    assert tb.scb.occupancy() == 0
+
+
 async def _random_soak(tb: WrCmdCamTB):
     """Random ops with multi-beat bursts."""
     rng = random.Random(tb.SEED ^ 0xC0FFEE)
@@ -384,6 +419,7 @@ _ALL_TYPES = [
     "b_complete_cycle",
     "snapshot",
     "occupancy",
+    "is_last_chunk_per_slot",  # #22
     "random_soak",
 ]
 

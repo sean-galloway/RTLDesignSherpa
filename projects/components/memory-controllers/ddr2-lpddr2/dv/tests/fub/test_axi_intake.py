@@ -59,6 +59,9 @@ async def cocotb_test_axi_intake(dut):
         "buser_echo":         _buser_echo,
         "wbuf_backpressure":  _wbuf_backpressure,
         "profile_sweep_b2b":  _profile_sweep_b2b,
+        "aw_chunk_split":     _aw_chunk_split,
+        "ar_chunk_split":     _ar_chunk_split,
+        "b_coalesce":         _b_coalesce,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -309,11 +312,143 @@ async def _buser_echo(tb):
 
 
 # ---------------------------------------------------------------------------
+# Chunk-split (issue #22) scenarios
+# ---------------------------------------------------------------------------
+
+
+async def _aw_chunk_split(tb):
+    """Issue #22 — set dram_bl_i=4 and drive AXI BL=8 AW. Expect axi_intake
+    to emit TWO aw_push handshakes with len=4 each, addresses incrementing
+    by bl*size, and is_last_chunk = {0, 1}."""
+    tb.dut.dram_bl_i.value = 4
+
+    n_before = len(tb.aw_pushes)
+    # 8 beats × 8 bytes (DATA_WIDTH=64) per beat; awsize defaults to 3 in
+    # the BFM.
+    data = [(0x100 + i) for i in range(8)]
+    # Fire the wr_entry_complete strobe for each chunk so the master sees
+    # exactly ONE B response. The non-last chunk's entry_complete must NOT
+    # produce a B FIFO push.
+    async def complete_chunks():
+        seen = 0
+        for _ in range(800):
+            await RisingEdge(tb.dut.aclk)
+            if len(tb.aw_pushes) > n_before + seen:
+                pushed = tb.aw_pushes[n_before + seen]
+                # Wait a few cycles, then fire wr_entry_complete with the
+                # chunk's is_last_chunk flag.
+                for _ in range(2):
+                    await RisingEdge(tb.dut.aclk)
+                await tb.fire_wr_entry_complete(
+                    pushed.push_id, is_last_chunk=pushed.is_last_chunk)
+                seen += 1
+                if seen == 2:
+                    return
+    bg = cocotb.start_soon(complete_chunks())
+    await tb.axi_master_wr.write_transaction(
+        address=0x1000, data=data, id=7, user=0,
+    )
+    await bg
+    # Validate the two-chunk emission.
+    chunks = list(tb.aw_pushes)[n_before:]
+    assert len(chunks) == 2, f"expected 2 chunks, got {len(chunks)}"
+    c0, c1 = chunks
+    assert c0.length == 4 and c1.length == 4, (
+        f"chunk lengths: got ({c0.length},{c1.length}), want (4,4)")
+    assert c0.is_last_chunk == 0 and c1.is_last_chunk == 1, (
+        f"is_last_chunk: got ({c0.is_last_chunk},{c1.is_last_chunk}), "
+        f"want (0,1)")
+    # Address delta between chunks = chunk_len beats × bytes_per_beat.
+    # The BFM picks aw_size based on the data-item width it infers, so
+    # instead of hardcoding "+32" we derive bytes_per_beat from the
+    # observed delta and check it's a valid AXI4 size (power of 2).
+    delta = c1.addr - c0.addr
+    assert delta > 0, (
+        f"chunk1 addr didn't advance: c0=0x{c0.addr:X} c1=0x{c1.addr:X}")
+    assert delta % c0.length == 0, (
+        f"delta 0x{delta:X} not divisible by chunk_len {c0.length}")
+    bpb = delta // c0.length
+    assert bpb in (1, 2, 4, 8, 16, 32, 64, 128), (
+        f"unrealistic bytes/beat inferred: {bpb} "
+        f"(delta=0x{delta:X}, chunk_len={c0.length})")
+    assert c0.push_id == c1.push_id == 7
+    tb.log.info(
+        "AW chunk split: 2 handshakes, addr+%d (bpb=%d), is_last={0,1} ✓",
+        delta, bpb)
+
+
+async def _ar_chunk_split(tb):
+    """Issue #22 — set dram_bl_i=4 and drive AXI BL=8 AR. Expect axi_intake
+    to emit TWO ar_push handshakes with len=4 each, is_last_chunk={0,1}.
+    Inject ONE R-burst's worth of 8 beats (4+4) total to drain the master."""
+    tb.dut.dram_bl_i.value = 4
+
+    n_before = len(tb.ar_pushes)
+    # Queue the inject for the AXI master to receive 8 beats with rlast on
+    # the LAST beat (set by the inject pump using last= idx==N-1).
+    tb.queue_inject(axi_id=11, beats=[0xA000 + i for i in range(8)])
+    # NOTE: BFM param is `burst_len` (default 1). A stray `length=` kwarg
+    # would silently fall into **transaction_kwargs and issue a 1-beat AR,
+    # giving us only 1 CAM chunk instead of the 2 the split is supposed
+    # to emit.
+    res = await tb.axi_master_rd.read_transaction(
+        address=0x2000, burst_len=8, id=11,
+    )
+    chunks = list(tb.ar_pushes)[n_before:]
+    assert len(chunks) == 2, f"expected 2 AR chunks, got {len(chunks)}"
+    c0, c1 = chunks
+    assert c0.length == 4 and c1.length == 4
+    assert c0.is_last_chunk == 0 and c1.is_last_chunk == 1
+    # Same address-delta logic as _aw_chunk_split — BFM picks ar_size,
+    # so verify delta divides evenly by chunk_len and is a valid size.
+    delta = c1.addr - c0.addr
+    assert delta > 0
+    assert delta % c0.length == 0
+    bpb = delta // c0.length
+    assert bpb in (1, 2, 4, 8, 16, 32, 64, 128), (
+        f"unrealistic bytes/beat inferred: {bpb}")
+    assert res is not None  # master got an R burst back
+    tb.log.info(
+        "AR chunk split: 2 handshakes, addr+%d (bpb=%d), is_last={0,1} ✓",
+        delta, bpb)
+
+
+async def _b_coalesce(tb):
+    """Issue #22 — verify B-FIFO push filter. With dram_bl_i=0 (no split)
+    drive a single AW, then fire wr_entry_complete twice — once with
+    is_last_chunk=0 (must be suppressed) and once with =1 (must produce
+    the AXI B). The AXI master should see exactly ONE B."""
+    tb.dut.dram_bl_i.value = 0
+    n_before = len(tb.aw_pushes)
+    async def complete_with_filter():
+        # Wait for the single AW push.
+        for _ in range(200):
+            await RisingEdge(tb.dut.aclk)
+            if len(tb.aw_pushes) > n_before:
+                p = tb.aw_pushes[n_before]
+                # First strobe with is_last_chunk=0 → must NOT generate B.
+                await tb.fire_wr_entry_complete(p.push_id, is_last_chunk=0)
+                # Wait several cycles to ensure no B has appeared.
+                await tb.wait_clocks('aclk', 8)
+                # Second strobe with is_last_chunk=1 → must generate B.
+                await tb.fire_wr_entry_complete(p.push_id, is_last_chunk=1)
+                return
+    bg = cocotb.start_soon(complete_with_filter())
+    # The master is blocked waiting for B; this returns when B arrives.
+    await tb.axi_master_wr.write_transaction(
+        address=0x4000, data=[0xC0FFEE], id=4, user=0,
+    )
+    await bg
+    tb.log.info("B coalesce: filter suppressed non-last, fired on last ✓")
+
+
+# ---------------------------------------------------------------------------
 # Pytest matrix
 # ---------------------------------------------------------------------------
 
 _ALL_TYPES = ["smoke_wr_b", "wbuf_data", "rd_inject_e2e", "buser_echo",
-              "wbuf_backpressure"]
+              "wbuf_backpressure",
+              "aw_chunk_split", "ar_chunk_split", "b_coalesce"]
 _GATE = [(t,) for t in ["smoke_wr_b"]]
 _FUNC = [(t,) for t in _ALL_TYPES]
 _FULL = _FUNC

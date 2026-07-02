@@ -71,6 +71,10 @@ class DataPathMacroTB(TBBase):
         self.dut.rd_op_slot_i.value     = 0
         self.dut.rd_op_id_i.value       = 0
         self.dut.rd_op_len_i.value      = 0
+        # Issue #22 — rd_cl_aligner gates rd_inject_last_o on this.
+        # Tie to 1 for legacy single-chunk semantics so this TB's
+        # scoreboard sees rd_inject_last_o on the final beat.
+        self.dut.rd_op_is_last_chunk_i.value = 1
 
         self.dut.beat_pull_ptr_i.value      = 0
         self.dut.beat_pull_strb_ptr_i.value = 0
@@ -146,6 +150,9 @@ async def cocotb_test_data_path_macro(dut):
         tb.dut.rd_op_slot_i.value  = slot
         tb.dut.rd_op_id_i.value    = axi_id
         tb.dut.rd_op_len_i.value   = length
+        # Single-chunk op; the TB's scoreboard checks rd_inject_last_o
+        # on the burst's final beat, which is gated by this (#22).
+        tb.dut.rd_op_is_last_chunk_i.value = 1
         await Timer(_NBA_SETTLE_PS, units='ps')
         while int(tb.dut.rd_op_ready_o.value) == 0:
             await RisingEdge(tb.dut.mc_clk)

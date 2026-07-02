@@ -47,6 +47,7 @@ async def cocotb_test_wr2rd_forward(dut):
         "partial_strobe_gate":   _partial_strobe_gate,
         "length_mismatch_gate":  _length_mismatch_gate,
         "field_mismatch":        _field_mismatch,
+        "is_last_chunk_pass":    _is_last_chunk_pass,
         "random_soak":           _random_soak,
     }
     if test_type not in scenarios:
@@ -165,6 +166,43 @@ async def _field_mismatch(tb: Wr2RdForwardTB):
         assert d.rd_push_valid == 1
 
 
+async def _is_last_chunk_pass(tb: Wr2RdForwardTB):
+    """Issue #22 — ar_is_last_chunk_i must propagate combinationally to
+    BOTH rd_push_is_last_chunk_o (when no forward) AND fwd_is_last_chunk_o
+    (when a forward fires). Cover both decision branches against both
+    values of the flag."""
+    # Branch 1: rd_push path, ar_is_last_chunk=1.
+    tb.clear_all()
+    ar1 = Ar(axid=3, rank=0, bank=1, row=0x100, col=0x40, length=4, qos=2)
+    d = await tb.issue_ar(ar1, is_last_chunk=1)
+    assert d.rd_push_valid == 1 and d.fwd_valid == 0
+    assert d.rd_push_is_last_chunk == 1, "rd_push_is_last_chunk not forwarded"
+    assert d.fwd_is_last_chunk == 1, ("fwd_is_last_chunk should mirror ar_* "
+                                      "regardless of which branch wins")
+    # Branch 2: rd_push path, ar_is_last_chunk=0.
+    tb.clear_all()
+    d = await tb.issue_ar(ar1, is_last_chunk=0)
+    assert d.rd_push_valid == 1 and d.fwd_valid == 0
+    assert d.rd_push_is_last_chunk == 0
+    assert d.fwd_is_last_chunk == 0
+    # Branch 3: forward path, ar_is_last_chunk=1.
+    tb.clear_all()
+    tb.write_slot(2, rank=0, bank=1, row=0x100, col=0x40, length=4,
+                  w_buf_ptr=0x33, full_strb=True)
+    d = await tb.issue_ar(ar1, is_last_chunk=1)
+    assert d.fwd_valid == 1 and d.rd_push_valid == 0
+    assert d.fwd_is_last_chunk == 1
+    assert d.rd_push_is_last_chunk == 1
+    # Branch 4: forward path, ar_is_last_chunk=0.
+    tb.clear_all()
+    tb.write_slot(2, rank=0, bank=1, row=0x100, col=0x40, length=4,
+                  w_buf_ptr=0x33, full_strb=True)
+    d = await tb.issue_ar(ar1, is_last_chunk=0)
+    assert d.fwd_valid == 1 and d.rd_push_valid == 0
+    assert d.fwd_is_last_chunk == 0
+    assert d.rd_push_is_last_chunk == 0
+
+
 async def _random_soak(tb: Wr2RdForwardTB):
     rng = random.Random(tb.SEED ^ 0xF00D)
     n = {'gate': 16, 'func': 64, 'full': 256}.get(
@@ -227,6 +265,7 @@ async def _random_soak(tb: Wr2RdForwardTB):
 _ALL_TYPES = ["no_match_passthrough", "match_forward",
               "multi_match_highest", "partial_strobe_gate",
               "length_mismatch_gate", "field_mismatch",
+              "is_last_chunk_pass",  # #22
               "random_soak"]
 _GATE = [(t,) for t in ["no_match_passthrough", "match_forward",
                         "multi_match_highest"]]

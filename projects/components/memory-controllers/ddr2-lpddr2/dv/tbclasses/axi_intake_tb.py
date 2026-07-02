@@ -55,6 +55,8 @@ class PushedAw:
     length:     int
     full_strb:  bool
     qos:        int
+    is_last_chunk: int = 1   # #22 — chunked AW splits set this 0 except on last
+    addr:       int = 0      # #22 — chunk address for verification
 
 
 @dataclass
@@ -63,6 +65,7 @@ class PushedAr:
     addr:      int
     length:    int
     qos:       int
+    is_last_chunk: int = 1   # #22
 
 
 class AxiIntakeTB(TBBase):
@@ -157,16 +160,23 @@ class AxiIntakeTB(TBBase):
         # CAM-push ack ports — always ready in this TB
         self.dut.aw_push_ready_i.value = 1
         self.dut.ar_push_ready_i.value = 1
-        # Completion strobes idle
+        # Completion strobes idle. is_last_chunk tied to 1 = "single chunk"
+        # so the AXI B push isn't suppressed for legacy FUB tests that
+        # never trip the BL>DRAM_BL split path (issue #22).
         self.dut.wr_entry_complete_strb_i.value = 0
         self.dut.wr_entry_complete_id_i.value   = 0
+        self.dut.wr_entry_complete_is_last_chunk_i.value = 1
         self.dut.rd_entry_complete_strb_i.value = 0
         self.dut.rd_entry_complete_id_i.value   = 0
+        # DRAM BL config — 0 disables AW/AR split; FUB tests cover the
+        # single-chunk path explicitly.
+        self.dut.dram_bl_i.value = 0
         # Forward + inject inactive
         self.dut.fwd_valid_i.value     = 0
         self.dut.fwd_id_i.value        = 0
         self.dut.fwd_w_buf_ptr_i.value = 0
         self.dut.fwd_len_i.value       = 0
+        self.dut.fwd_is_last_chunk_i.value = 1
         self.dut.rd_inject_valid_i.value = 0
         self.dut.rd_inject_id_i.value    = 0
         self.dut.rd_inject_data_i.value  = 0
@@ -210,6 +220,8 @@ class AxiIntakeTB(TBBase):
                     length    = int(self.dut.aw_push_len_o.value),
                     full_strb = bool(int(self.dut.aw_push_full_strb_o.value)),
                     qos       = int(self.dut.aw_push_qos_o.value),
+                    is_last_chunk = int(self.dut.aw_push_is_last_chunk_o.value),
+                    addr      = int(self.dut.aw_push_addr_o.value),
                 ))
 
     async def _ar_push_capture(self) -> None:
@@ -226,6 +238,7 @@ class AxiIntakeTB(TBBase):
                     addr    = int(self.dut.ar_push_addr_o.value),
                     length  = int(self.dut.ar_push_len_o.value),
                     qos     = int(self.dut.ar_push_qos_o.value),
+                    is_last_chunk = int(self.dut.ar_push_is_last_chunk_o.value),
                 ))
 
     async def _rd_inject_pump(self) -> None:
@@ -256,14 +269,19 @@ class AxiIntakeTB(TBBase):
 
     # ---- explicit drives the tests use ----
 
-    async def fire_wr_entry_complete(self, axi_id: int) -> None:
+    async def fire_wr_entry_complete(self, axi_id: int,
+                                      is_last_chunk: int = 1) -> None:
         """Drive the wr_entry_complete strobe for `axi_id` so axi_intake
-        emits the B-channel response."""
+        emits the B-channel response. When `is_last_chunk=0`, B should NOT
+        be pushed (chunked AR retire path — issue #22)."""
         await RisingEdge(self.dut.aclk)
         self.dut.wr_entry_complete_strb_i.value = 1
         self.dut.wr_entry_complete_id_i.value   = axi_id
+        self.dut.wr_entry_complete_is_last_chunk_i.value = is_last_chunk & 1
         await RisingEdge(self.dut.aclk)
         self.dut.wr_entry_complete_strb_i.value = 0
+        # Restore default so background paths don't see =0 sticking around.
+        self.dut.wr_entry_complete_is_last_chunk_i.value = 1
 
     async def read_wbuf(self, w_buf_ptr: int) -> int:
         self.dut.wbuf_ext_rd_ptr_i.value = w_buf_ptr
