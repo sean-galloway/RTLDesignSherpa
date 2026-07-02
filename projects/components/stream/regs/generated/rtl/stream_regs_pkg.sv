@@ -4,8 +4,8 @@
 package stream_regs_pkg;
 
     localparam STREAM_REGS_DATA_WIDTH = 32;
-    localparam STREAM_REGS_MIN_ADDR_WIDTH = 10;
-    localparam STREAM_REGS_SIZE = 'h384;
+    localparam STREAM_REGS_MIN_ADDR_WIDTH = 13;
+    localparam STREAM_REGS_SIZE = 'h11f8;
 
     typedef struct {
         logic next;
@@ -76,37 +76,6 @@ package stream_regs_pkg;
     } stream_regs__AXI_WR_COMPLETE__in_t;
 
     typedef struct {
-        logic next;
-    } stream_regs__MON_FIFO_STATUS__MON_FIFO_FULL__in_t;
-
-    typedef struct {
-        logic next;
-    } stream_regs__MON_FIFO_STATUS__MON_FIFO_EMPTY__in_t;
-
-    typedef struct {
-        logic next;
-    } stream_regs__MON_FIFO_STATUS__MON_FIFO_OVFL__in_t;
-
-    typedef struct {
-        logic next;
-    } stream_regs__MON_FIFO_STATUS__MON_FIFO_UNFL__in_t;
-
-    typedef struct {
-        stream_regs__MON_FIFO_STATUS__MON_FIFO_FULL__in_t MON_FIFO_FULL;
-        stream_regs__MON_FIFO_STATUS__MON_FIFO_EMPTY__in_t MON_FIFO_EMPTY;
-        stream_regs__MON_FIFO_STATUS__MON_FIFO_OVFL__in_t MON_FIFO_OVFL;
-        stream_regs__MON_FIFO_STATUS__MON_FIFO_UNFL__in_t MON_FIFO_UNFL;
-    } stream_regs__MON_FIFO_STATUS__in_t;
-
-    typedef struct {
-        logic [15:0] next;
-    } stream_regs__MON_FIFO_COUNT__FIFO_COUNT__in_t;
-
-    typedef struct {
-        stream_regs__MON_FIFO_COUNT__FIFO_COUNT__in_t FIFO_COUNT;
-    } stream_regs__MON_FIFO_COUNT__in_t;
-
-    typedef struct {
         logic [31:0] next;
     } stream_regs__OBS_FLAGS__FLAGS__in_t;
 
@@ -131,294 +100,6 @@ package stream_regs_pkg;
     } stream_regs__OBS_DATA1__in_t;
 
     typedef struct {
-        logic next;
-    } stream_regs__DAXMON_PERF_STATUS__WIN_ACTIVE__in_t;
-
-    typedef struct {
-        stream_regs__DAXMON_PERF_STATUS__WIN_ACTIVE__in_t WIN_ACTIVE;
-    } stream_regs__DAXMON_PERF_STATUS__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__DAXMON_PERF_WINDOW_CYCLES__VAL__in_t;
-
-    typedef struct {
-        stream_regs__DAXMON_PERF_WINDOW_CYCLES__VAL__in_t VAL;
-    } stream_regs__DAXMON_PERF_WINDOW_CYCLES__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__DAXMON_PERF_PROD_CYCLES__VAL__in_t;
-
-    typedef struct {
-        stream_regs__DAXMON_PERF_PROD_CYCLES__VAL__in_t VAL;
-    } stream_regs__DAXMON_PERF_PROD_CYCLES__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__DAXMON_PERF_BP_CYCLES__VAL__in_t;
-
-    typedef struct {
-        stream_regs__DAXMON_PERF_BP_CYCLES__VAL__in_t VAL;
-    } stream_regs__DAXMON_PERF_BP_CYCLES__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__DAXMON_PERF_STARV_CYCLES__VAL__in_t;
-
-    typedef struct {
-        stream_regs__DAXMON_PERF_STARV_CYCLES__VAL__in_t VAL;
-    } stream_regs__DAXMON_PERF_STARV_CYCLES__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__DAXMON_PERF_IDLE_CYCLES__VAL__in_t;
-
-    typedef struct {
-        stream_regs__DAXMON_PERF_IDLE_CYCLES__VAL__in_t VAL;
-    } stream_regs__DAXMON_PERF_IDLE_CYCLES__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__DAXMON_PERF_BEAT_COUNT__VAL__in_t;
-
-    typedef struct {
-        stream_regs__DAXMON_PERF_BEAT_COUNT__VAL__in_t VAL;
-    } stream_regs__DAXMON_PERF_BEAT_COUNT__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__DAXMON_PERF_BYTE_COUNT_LO__VAL__in_t;
-
-    typedef struct {
-        stream_regs__DAXMON_PERF_BYTE_COUNT_LO__VAL__in_t VAL;
-    } stream_regs__DAXMON_PERF_BYTE_COUNT_LO__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__DAXMON_PERF_BYTE_COUNT_HI__VAL__in_t;
-
-    typedef struct {
-        stream_regs__DAXMON_PERF_BYTE_COUNT_HI__VAL__in_t VAL;
-    } stream_regs__DAXMON_PERF_BYTE_COUNT_HI__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__DAXMON_PERF_BURST_COUNT__VAL__in_t;
-
-    typedef struct {
-        stream_regs__DAXMON_PERF_BURST_COUNT__VAL__in_t VAL;
-    } stream_regs__DAXMON_PERF_BURST_COUNT__in_t;
-
-    typedef struct {
-        logic next;
-    } stream_regs__RDMON_PERF_STATUS__WIN_ACTIVE__in_t;
-
-    typedef struct {
-        stream_regs__RDMON_PERF_STATUS__WIN_ACTIVE__in_t WIN_ACTIVE;
-    } stream_regs__RDMON_PERF_STATUS__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__RDMON_PERF_WINDOW_CYCLES__VAL__in_t;
-
-    typedef struct {
-        stream_regs__RDMON_PERF_WINDOW_CYCLES__VAL__in_t VAL;
-    } stream_regs__RDMON_PERF_WINDOW_CYCLES__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__RDMON_PERF_PROD_CYCLES__VAL__in_t;
-
-    typedef struct {
-        stream_regs__RDMON_PERF_PROD_CYCLES__VAL__in_t VAL;
-    } stream_regs__RDMON_PERF_PROD_CYCLES__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__RDMON_PERF_BP_CYCLES__VAL__in_t;
-
-    typedef struct {
-        stream_regs__RDMON_PERF_BP_CYCLES__VAL__in_t VAL;
-    } stream_regs__RDMON_PERF_BP_CYCLES__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__RDMON_PERF_STARV_CYCLES__VAL__in_t;
-
-    typedef struct {
-        stream_regs__RDMON_PERF_STARV_CYCLES__VAL__in_t VAL;
-    } stream_regs__RDMON_PERF_STARV_CYCLES__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__RDMON_PERF_IDLE_CYCLES__VAL__in_t;
-
-    typedef struct {
-        stream_regs__RDMON_PERF_IDLE_CYCLES__VAL__in_t VAL;
-    } stream_regs__RDMON_PERF_IDLE_CYCLES__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__RDMON_PERF_BEAT_COUNT__VAL__in_t;
-
-    typedef struct {
-        stream_regs__RDMON_PERF_BEAT_COUNT__VAL__in_t VAL;
-    } stream_regs__RDMON_PERF_BEAT_COUNT__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__RDMON_PERF_BYTE_COUNT_LO__VAL__in_t;
-
-    typedef struct {
-        stream_regs__RDMON_PERF_BYTE_COUNT_LO__VAL__in_t VAL;
-    } stream_regs__RDMON_PERF_BYTE_COUNT_LO__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__RDMON_PERF_BYTE_COUNT_HI__VAL__in_t;
-
-    typedef struct {
-        stream_regs__RDMON_PERF_BYTE_COUNT_HI__VAL__in_t VAL;
-    } stream_regs__RDMON_PERF_BYTE_COUNT_HI__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__RDMON_PERF_BURST_COUNT__VAL__in_t;
-
-    typedef struct {
-        stream_regs__RDMON_PERF_BURST_COUNT__VAL__in_t VAL;
-    } stream_regs__RDMON_PERF_BURST_COUNT__in_t;
-
-    typedef struct {
-        logic next;
-    } stream_regs__WRMON_PERF_STATUS__WIN_ACTIVE__in_t;
-
-    typedef struct {
-        stream_regs__WRMON_PERF_STATUS__WIN_ACTIVE__in_t WIN_ACTIVE;
-    } stream_regs__WRMON_PERF_STATUS__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__WRMON_PERF_WINDOW_CYCLES__VAL__in_t;
-
-    typedef struct {
-        stream_regs__WRMON_PERF_WINDOW_CYCLES__VAL__in_t VAL;
-    } stream_regs__WRMON_PERF_WINDOW_CYCLES__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__WRMON_PERF_PROD_CYCLES__VAL__in_t;
-
-    typedef struct {
-        stream_regs__WRMON_PERF_PROD_CYCLES__VAL__in_t VAL;
-    } stream_regs__WRMON_PERF_PROD_CYCLES__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__WRMON_PERF_BP_CYCLES__VAL__in_t;
-
-    typedef struct {
-        stream_regs__WRMON_PERF_BP_CYCLES__VAL__in_t VAL;
-    } stream_regs__WRMON_PERF_BP_CYCLES__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__WRMON_PERF_STARV_CYCLES__VAL__in_t;
-
-    typedef struct {
-        stream_regs__WRMON_PERF_STARV_CYCLES__VAL__in_t VAL;
-    } stream_regs__WRMON_PERF_STARV_CYCLES__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__WRMON_PERF_IDLE_CYCLES__VAL__in_t;
-
-    typedef struct {
-        stream_regs__WRMON_PERF_IDLE_CYCLES__VAL__in_t VAL;
-    } stream_regs__WRMON_PERF_IDLE_CYCLES__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__WRMON_PERF_BEAT_COUNT__VAL__in_t;
-
-    typedef struct {
-        stream_regs__WRMON_PERF_BEAT_COUNT__VAL__in_t VAL;
-    } stream_regs__WRMON_PERF_BEAT_COUNT__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__WRMON_PERF_BYTE_COUNT_LO__VAL__in_t;
-
-    typedef struct {
-        stream_regs__WRMON_PERF_BYTE_COUNT_LO__VAL__in_t VAL;
-    } stream_regs__WRMON_PERF_BYTE_COUNT_LO__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__WRMON_PERF_BYTE_COUNT_HI__VAL__in_t;
-
-    typedef struct {
-        stream_regs__WRMON_PERF_BYTE_COUNT_HI__VAL__in_t VAL;
-    } stream_regs__WRMON_PERF_BYTE_COUNT_HI__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__WRMON_PERF_BURST_COUNT__VAL__in_t;
-
-    typedef struct {
-        stream_regs__WRMON_PERF_BURST_COUNT__VAL__in_t VAL;
-    } stream_regs__WRMON_PERF_BURST_COUNT__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__RDMON_PERF_CH_PROD_BP__VAL__in_t;
-
-    typedef struct {
-        stream_regs__RDMON_PERF_CH_PROD_BP__VAL__in_t VAL;
-    } stream_regs__RDMON_PERF_CH_PROD_BP__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__RDMON_PERF_CH_STARV_IDLE__VAL__in_t;
-
-    typedef struct {
-        stream_regs__RDMON_PERF_CH_STARV_IDLE__VAL__in_t VAL;
-    } stream_regs__RDMON_PERF_CH_STARV_IDLE__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__WRMON_PERF_CH_PROD_BP__VAL__in_t;
-
-    typedef struct {
-        stream_regs__WRMON_PERF_CH_PROD_BP__VAL__in_t VAL;
-    } stream_regs__WRMON_PERF_CH_PROD_BP__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__WRMON_PERF_CH_STARV_IDLE__VAL__in_t;
-
-    typedef struct {
-        stream_regs__WRMON_PERF_CH_STARV_IDLE__VAL__in_t VAL;
-    } stream_regs__WRMON_PERF_CH_STARV_IDLE__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__RDMON_PERF_CH_OVERFLOW__VAL__in_t;
-
-    typedef struct {
-        stream_regs__RDMON_PERF_CH_OVERFLOW__VAL__in_t VAL;
-    } stream_regs__RDMON_PERF_CH_OVERFLOW__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } stream_regs__WRMON_PERF_CH_OVERFLOW__VAL__in_t;
-
-    typedef struct {
-        stream_regs__WRMON_PERF_CH_OVERFLOW__VAL__in_t VAL;
-    } stream_regs__WRMON_PERF_CH_OVERFLOW__in_t;
-
-    typedef struct {
         logic [31:0] next;
     } stream_regs__HIST_DATA__VAL__in_t;
 
@@ -435,6 +116,366 @@ package stream_regs_pkg;
     } stream_regs__HIST_TOTAL__in_t;
 
     typedef struct {
+        logic next;
+    } stream_mon_regs__MON_FIFO_STATUS__MON_FIFO_FULL__in_t;
+
+    typedef struct {
+        logic next;
+    } stream_mon_regs__MON_FIFO_STATUS__MON_FIFO_EMPTY__in_t;
+
+    typedef struct {
+        logic next;
+    } stream_mon_regs__MON_FIFO_STATUS__MON_FIFO_OVFL__in_t;
+
+    typedef struct {
+        logic next;
+    } stream_mon_regs__MON_FIFO_STATUS__MON_FIFO_UNFL__in_t;
+
+    typedef struct {
+        stream_mon_regs__MON_FIFO_STATUS__MON_FIFO_FULL__in_t MON_FIFO_FULL;
+        stream_mon_regs__MON_FIFO_STATUS__MON_FIFO_EMPTY__in_t MON_FIFO_EMPTY;
+        stream_mon_regs__MON_FIFO_STATUS__MON_FIFO_OVFL__in_t MON_FIFO_OVFL;
+        stream_mon_regs__MON_FIFO_STATUS__MON_FIFO_UNFL__in_t MON_FIFO_UNFL;
+    } stream_mon_regs__MON_FIFO_STATUS__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } stream_mon_regs__MON_FIFO_COUNT__FIFO_COUNT__in_t;
+
+    typedef struct {
+        stream_mon_regs__MON_FIFO_COUNT__FIFO_COUNT__in_t FIFO_COUNT;
+    } stream_mon_regs__MON_FIFO_COUNT__in_t;
+
+    typedef struct {
+        logic next;
+    } stream_mon_regs__DAXMON_PERF_STATUS__WIN_ACTIVE__in_t;
+
+    typedef struct {
+        stream_mon_regs__DAXMON_PERF_STATUS__WIN_ACTIVE__in_t WIN_ACTIVE;
+    } stream_mon_regs__DAXMON_PERF_STATUS__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__DAXMON_PERF_WINDOW_CYCLES__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__DAXMON_PERF_WINDOW_CYCLES__VAL__in_t VAL;
+    } stream_mon_regs__DAXMON_PERF_WINDOW_CYCLES__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__DAXMON_PERF_PROD_CYCLES__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__DAXMON_PERF_PROD_CYCLES__VAL__in_t VAL;
+    } stream_mon_regs__DAXMON_PERF_PROD_CYCLES__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__DAXMON_PERF_BP_CYCLES__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__DAXMON_PERF_BP_CYCLES__VAL__in_t VAL;
+    } stream_mon_regs__DAXMON_PERF_BP_CYCLES__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__DAXMON_PERF_STARV_CYCLES__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__DAXMON_PERF_STARV_CYCLES__VAL__in_t VAL;
+    } stream_mon_regs__DAXMON_PERF_STARV_CYCLES__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__DAXMON_PERF_IDLE_CYCLES__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__DAXMON_PERF_IDLE_CYCLES__VAL__in_t VAL;
+    } stream_mon_regs__DAXMON_PERF_IDLE_CYCLES__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__DAXMON_PERF_BEAT_COUNT__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__DAXMON_PERF_BEAT_COUNT__VAL__in_t VAL;
+    } stream_mon_regs__DAXMON_PERF_BEAT_COUNT__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__DAXMON_PERF_BYTE_COUNT_LO__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__DAXMON_PERF_BYTE_COUNT_LO__VAL__in_t VAL;
+    } stream_mon_regs__DAXMON_PERF_BYTE_COUNT_LO__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__DAXMON_PERF_BYTE_COUNT_HI__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__DAXMON_PERF_BYTE_COUNT_HI__VAL__in_t VAL;
+    } stream_mon_regs__DAXMON_PERF_BYTE_COUNT_HI__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__DAXMON_PERF_BURST_COUNT__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__DAXMON_PERF_BURST_COUNT__VAL__in_t VAL;
+    } stream_mon_regs__DAXMON_PERF_BURST_COUNT__in_t;
+
+    typedef struct {
+        logic next;
+    } stream_mon_regs__RDMON_PERF_STATUS__WIN_ACTIVE__in_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_PERF_STATUS__WIN_ACTIVE__in_t WIN_ACTIVE;
+    } stream_mon_regs__RDMON_PERF_STATUS__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__RDMON_PERF_WINDOW_CYCLES__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_PERF_WINDOW_CYCLES__VAL__in_t VAL;
+    } stream_mon_regs__RDMON_PERF_WINDOW_CYCLES__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__RDMON_PERF_PROD_CYCLES__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_PERF_PROD_CYCLES__VAL__in_t VAL;
+    } stream_mon_regs__RDMON_PERF_PROD_CYCLES__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__RDMON_PERF_BP_CYCLES__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_PERF_BP_CYCLES__VAL__in_t VAL;
+    } stream_mon_regs__RDMON_PERF_BP_CYCLES__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__RDMON_PERF_STARV_CYCLES__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_PERF_STARV_CYCLES__VAL__in_t VAL;
+    } stream_mon_regs__RDMON_PERF_STARV_CYCLES__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__RDMON_PERF_IDLE_CYCLES__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_PERF_IDLE_CYCLES__VAL__in_t VAL;
+    } stream_mon_regs__RDMON_PERF_IDLE_CYCLES__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__RDMON_PERF_BEAT_COUNT__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_PERF_BEAT_COUNT__VAL__in_t VAL;
+    } stream_mon_regs__RDMON_PERF_BEAT_COUNT__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__RDMON_PERF_BYTE_COUNT_LO__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_PERF_BYTE_COUNT_LO__VAL__in_t VAL;
+    } stream_mon_regs__RDMON_PERF_BYTE_COUNT_LO__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__RDMON_PERF_BYTE_COUNT_HI__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_PERF_BYTE_COUNT_HI__VAL__in_t VAL;
+    } stream_mon_regs__RDMON_PERF_BYTE_COUNT_HI__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__RDMON_PERF_BURST_COUNT__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_PERF_BURST_COUNT__VAL__in_t VAL;
+    } stream_mon_regs__RDMON_PERF_BURST_COUNT__in_t;
+
+    typedef struct {
+        logic next;
+    } stream_mon_regs__WRMON_PERF_STATUS__WIN_ACTIVE__in_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_PERF_STATUS__WIN_ACTIVE__in_t WIN_ACTIVE;
+    } stream_mon_regs__WRMON_PERF_STATUS__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__WRMON_PERF_WINDOW_CYCLES__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_PERF_WINDOW_CYCLES__VAL__in_t VAL;
+    } stream_mon_regs__WRMON_PERF_WINDOW_CYCLES__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__WRMON_PERF_PROD_CYCLES__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_PERF_PROD_CYCLES__VAL__in_t VAL;
+    } stream_mon_regs__WRMON_PERF_PROD_CYCLES__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__WRMON_PERF_BP_CYCLES__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_PERF_BP_CYCLES__VAL__in_t VAL;
+    } stream_mon_regs__WRMON_PERF_BP_CYCLES__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__WRMON_PERF_STARV_CYCLES__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_PERF_STARV_CYCLES__VAL__in_t VAL;
+    } stream_mon_regs__WRMON_PERF_STARV_CYCLES__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__WRMON_PERF_IDLE_CYCLES__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_PERF_IDLE_CYCLES__VAL__in_t VAL;
+    } stream_mon_regs__WRMON_PERF_IDLE_CYCLES__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__WRMON_PERF_BEAT_COUNT__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_PERF_BEAT_COUNT__VAL__in_t VAL;
+    } stream_mon_regs__WRMON_PERF_BEAT_COUNT__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__WRMON_PERF_BYTE_COUNT_LO__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_PERF_BYTE_COUNT_LO__VAL__in_t VAL;
+    } stream_mon_regs__WRMON_PERF_BYTE_COUNT_LO__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__WRMON_PERF_BYTE_COUNT_HI__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_PERF_BYTE_COUNT_HI__VAL__in_t VAL;
+    } stream_mon_regs__WRMON_PERF_BYTE_COUNT_HI__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__WRMON_PERF_BURST_COUNT__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_PERF_BURST_COUNT__VAL__in_t VAL;
+    } stream_mon_regs__WRMON_PERF_BURST_COUNT__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__RDMON_PERF_CH_PROD_BP__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_PERF_CH_PROD_BP__VAL__in_t VAL;
+    } stream_mon_regs__RDMON_PERF_CH_PROD_BP__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__RDMON_PERF_CH_STARV_IDLE__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_PERF_CH_STARV_IDLE__VAL__in_t VAL;
+    } stream_mon_regs__RDMON_PERF_CH_STARV_IDLE__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__WRMON_PERF_CH_PROD_BP__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_PERF_CH_PROD_BP__VAL__in_t VAL;
+    } stream_mon_regs__WRMON_PERF_CH_PROD_BP__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__WRMON_PERF_CH_STARV_IDLE__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_PERF_CH_STARV_IDLE__VAL__in_t VAL;
+    } stream_mon_regs__WRMON_PERF_CH_STARV_IDLE__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__RDMON_PERF_CH_OVERFLOW__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_PERF_CH_OVERFLOW__VAL__in_t VAL;
+    } stream_mon_regs__RDMON_PERF_CH_OVERFLOW__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_mon_regs__WRMON_PERF_CH_OVERFLOW__VAL__in_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_PERF_CH_OVERFLOW__VAL__in_t VAL;
+    } stream_mon_regs__WRMON_PERF_CH_OVERFLOW__in_t;
+
+    typedef struct {
+        stream_mon_regs__MON_FIFO_STATUS__in_t MON_FIFO_STATUS;
+        stream_mon_regs__MON_FIFO_COUNT__in_t MON_FIFO_COUNT;
+        stream_mon_regs__DAXMON_PERF_STATUS__in_t DAXMON_PERF_STATUS;
+        stream_mon_regs__DAXMON_PERF_WINDOW_CYCLES__in_t DAXMON_PERF_WINDOW_CYCLES;
+        stream_mon_regs__DAXMON_PERF_PROD_CYCLES__in_t DAXMON_PERF_PROD_CYCLES;
+        stream_mon_regs__DAXMON_PERF_BP_CYCLES__in_t DAXMON_PERF_BP_CYCLES;
+        stream_mon_regs__DAXMON_PERF_STARV_CYCLES__in_t DAXMON_PERF_STARV_CYCLES;
+        stream_mon_regs__DAXMON_PERF_IDLE_CYCLES__in_t DAXMON_PERF_IDLE_CYCLES;
+        stream_mon_regs__DAXMON_PERF_BEAT_COUNT__in_t DAXMON_PERF_BEAT_COUNT;
+        stream_mon_regs__DAXMON_PERF_BYTE_COUNT_LO__in_t DAXMON_PERF_BYTE_COUNT_LO;
+        stream_mon_regs__DAXMON_PERF_BYTE_COUNT_HI__in_t DAXMON_PERF_BYTE_COUNT_HI;
+        stream_mon_regs__DAXMON_PERF_BURST_COUNT__in_t DAXMON_PERF_BURST_COUNT;
+        stream_mon_regs__RDMON_PERF_STATUS__in_t RDMON_PERF_STATUS;
+        stream_mon_regs__RDMON_PERF_WINDOW_CYCLES__in_t RDMON_PERF_WINDOW_CYCLES;
+        stream_mon_regs__RDMON_PERF_PROD_CYCLES__in_t RDMON_PERF_PROD_CYCLES;
+        stream_mon_regs__RDMON_PERF_BP_CYCLES__in_t RDMON_PERF_BP_CYCLES;
+        stream_mon_regs__RDMON_PERF_STARV_CYCLES__in_t RDMON_PERF_STARV_CYCLES;
+        stream_mon_regs__RDMON_PERF_IDLE_CYCLES__in_t RDMON_PERF_IDLE_CYCLES;
+        stream_mon_regs__RDMON_PERF_BEAT_COUNT__in_t RDMON_PERF_BEAT_COUNT;
+        stream_mon_regs__RDMON_PERF_BYTE_COUNT_LO__in_t RDMON_PERF_BYTE_COUNT_LO;
+        stream_mon_regs__RDMON_PERF_BYTE_COUNT_HI__in_t RDMON_PERF_BYTE_COUNT_HI;
+        stream_mon_regs__RDMON_PERF_BURST_COUNT__in_t RDMON_PERF_BURST_COUNT;
+        stream_mon_regs__WRMON_PERF_STATUS__in_t WRMON_PERF_STATUS;
+        stream_mon_regs__WRMON_PERF_WINDOW_CYCLES__in_t WRMON_PERF_WINDOW_CYCLES;
+        stream_mon_regs__WRMON_PERF_PROD_CYCLES__in_t WRMON_PERF_PROD_CYCLES;
+        stream_mon_regs__WRMON_PERF_BP_CYCLES__in_t WRMON_PERF_BP_CYCLES;
+        stream_mon_regs__WRMON_PERF_STARV_CYCLES__in_t WRMON_PERF_STARV_CYCLES;
+        stream_mon_regs__WRMON_PERF_IDLE_CYCLES__in_t WRMON_PERF_IDLE_CYCLES;
+        stream_mon_regs__WRMON_PERF_BEAT_COUNT__in_t WRMON_PERF_BEAT_COUNT;
+        stream_mon_regs__WRMON_PERF_BYTE_COUNT_LO__in_t WRMON_PERF_BYTE_COUNT_LO;
+        stream_mon_regs__WRMON_PERF_BYTE_COUNT_HI__in_t WRMON_PERF_BYTE_COUNT_HI;
+        stream_mon_regs__WRMON_PERF_BURST_COUNT__in_t WRMON_PERF_BURST_COUNT;
+        stream_mon_regs__RDMON_PERF_CH_PROD_BP__in_t RDMON_PERF_CH_PROD_BP;
+        stream_mon_regs__RDMON_PERF_CH_STARV_IDLE__in_t RDMON_PERF_CH_STARV_IDLE;
+        stream_mon_regs__WRMON_PERF_CH_PROD_BP__in_t WRMON_PERF_CH_PROD_BP;
+        stream_mon_regs__WRMON_PERF_CH_STARV_IDLE__in_t WRMON_PERF_CH_STARV_IDLE;
+        stream_mon_regs__RDMON_PERF_CH_OVERFLOW__in_t RDMON_PERF_CH_OVERFLOW;
+        stream_mon_regs__WRMON_PERF_CH_OVERFLOW__in_t WRMON_PERF_CH_OVERFLOW;
+    } stream_mon_regs__in_t;
+
+    typedef struct {
         stream_regs__GLOBAL_STATUS__in_t GLOBAL_STATUS;
         stream_regs__CHANNEL_IDLE__in_t CHANNEL_IDLE;
         stream_regs__DESC_ENGINE_IDLE__in_t DESC_ENGINE_IDLE;
@@ -443,49 +484,12 @@ package stream_regs_pkg;
         stream_regs__SCHED_ERROR__in_t SCHED_ERROR;
         stream_regs__AXI_RD_COMPLETE__in_t AXI_RD_COMPLETE;
         stream_regs__AXI_WR_COMPLETE__in_t AXI_WR_COMPLETE;
-        stream_regs__MON_FIFO_STATUS__in_t MON_FIFO_STATUS;
-        stream_regs__MON_FIFO_COUNT__in_t MON_FIFO_COUNT;
         stream_regs__OBS_FLAGS__in_t OBS_FLAGS;
         stream_regs__OBS_DATA0__in_t OBS_DATA0;
         stream_regs__OBS_DATA1__in_t OBS_DATA1;
-        stream_regs__DAXMON_PERF_STATUS__in_t DAXMON_PERF_STATUS;
-        stream_regs__DAXMON_PERF_WINDOW_CYCLES__in_t DAXMON_PERF_WINDOW_CYCLES;
-        stream_regs__DAXMON_PERF_PROD_CYCLES__in_t DAXMON_PERF_PROD_CYCLES;
-        stream_regs__DAXMON_PERF_BP_CYCLES__in_t DAXMON_PERF_BP_CYCLES;
-        stream_regs__DAXMON_PERF_STARV_CYCLES__in_t DAXMON_PERF_STARV_CYCLES;
-        stream_regs__DAXMON_PERF_IDLE_CYCLES__in_t DAXMON_PERF_IDLE_CYCLES;
-        stream_regs__DAXMON_PERF_BEAT_COUNT__in_t DAXMON_PERF_BEAT_COUNT;
-        stream_regs__DAXMON_PERF_BYTE_COUNT_LO__in_t DAXMON_PERF_BYTE_COUNT_LO;
-        stream_regs__DAXMON_PERF_BYTE_COUNT_HI__in_t DAXMON_PERF_BYTE_COUNT_HI;
-        stream_regs__DAXMON_PERF_BURST_COUNT__in_t DAXMON_PERF_BURST_COUNT;
-        stream_regs__RDMON_PERF_STATUS__in_t RDMON_PERF_STATUS;
-        stream_regs__RDMON_PERF_WINDOW_CYCLES__in_t RDMON_PERF_WINDOW_CYCLES;
-        stream_regs__RDMON_PERF_PROD_CYCLES__in_t RDMON_PERF_PROD_CYCLES;
-        stream_regs__RDMON_PERF_BP_CYCLES__in_t RDMON_PERF_BP_CYCLES;
-        stream_regs__RDMON_PERF_STARV_CYCLES__in_t RDMON_PERF_STARV_CYCLES;
-        stream_regs__RDMON_PERF_IDLE_CYCLES__in_t RDMON_PERF_IDLE_CYCLES;
-        stream_regs__RDMON_PERF_BEAT_COUNT__in_t RDMON_PERF_BEAT_COUNT;
-        stream_regs__RDMON_PERF_BYTE_COUNT_LO__in_t RDMON_PERF_BYTE_COUNT_LO;
-        stream_regs__RDMON_PERF_BYTE_COUNT_HI__in_t RDMON_PERF_BYTE_COUNT_HI;
-        stream_regs__RDMON_PERF_BURST_COUNT__in_t RDMON_PERF_BURST_COUNT;
-        stream_regs__WRMON_PERF_STATUS__in_t WRMON_PERF_STATUS;
-        stream_regs__WRMON_PERF_WINDOW_CYCLES__in_t WRMON_PERF_WINDOW_CYCLES;
-        stream_regs__WRMON_PERF_PROD_CYCLES__in_t WRMON_PERF_PROD_CYCLES;
-        stream_regs__WRMON_PERF_BP_CYCLES__in_t WRMON_PERF_BP_CYCLES;
-        stream_regs__WRMON_PERF_STARV_CYCLES__in_t WRMON_PERF_STARV_CYCLES;
-        stream_regs__WRMON_PERF_IDLE_CYCLES__in_t WRMON_PERF_IDLE_CYCLES;
-        stream_regs__WRMON_PERF_BEAT_COUNT__in_t WRMON_PERF_BEAT_COUNT;
-        stream_regs__WRMON_PERF_BYTE_COUNT_LO__in_t WRMON_PERF_BYTE_COUNT_LO;
-        stream_regs__WRMON_PERF_BYTE_COUNT_HI__in_t WRMON_PERF_BYTE_COUNT_HI;
-        stream_regs__WRMON_PERF_BURST_COUNT__in_t WRMON_PERF_BURST_COUNT;
-        stream_regs__RDMON_PERF_CH_PROD_BP__in_t RDMON_PERF_CH_PROD_BP;
-        stream_regs__RDMON_PERF_CH_STARV_IDLE__in_t RDMON_PERF_CH_STARV_IDLE;
-        stream_regs__WRMON_PERF_CH_PROD_BP__in_t WRMON_PERF_CH_PROD_BP;
-        stream_regs__WRMON_PERF_CH_STARV_IDLE__in_t WRMON_PERF_CH_STARV_IDLE;
-        stream_regs__RDMON_PERF_CH_OVERFLOW__in_t RDMON_PERF_CH_OVERFLOW;
-        stream_regs__WRMON_PERF_CH_OVERFLOW__in_t WRMON_PERF_CH_OVERFLOW;
         stream_regs__HIST_DATA__in_t HIST_DATA;
         stream_regs__HIST_TOTAL__in_t HIST_TOTAL;
+        stream_mon_regs__in_t MON;
     } stream_regs__in_t;
 
     typedef struct {
@@ -614,323 +618,6 @@ package stream_regs_pkg;
     } stream_regs__DESCENG_ADDR1_LIMIT__out_t;
 
     typedef struct {
-        logic value;
-    } stream_regs__DAXMON_ENABLE__MON_EN__out_t;
-
-    typedef struct {
-        logic value;
-    } stream_regs__DAXMON_ENABLE__ERR_EN__out_t;
-
-    typedef struct {
-        logic value;
-    } stream_regs__DAXMON_ENABLE__COMPL_EN__out_t;
-
-    typedef struct {
-        logic value;
-    } stream_regs__DAXMON_ENABLE__TIMEOUT_EN__out_t;
-
-    typedef struct {
-        logic value;
-    } stream_regs__DAXMON_ENABLE__PERF_EN__out_t;
-
-    typedef struct {
-        stream_regs__DAXMON_ENABLE__MON_EN__out_t MON_EN;
-        stream_regs__DAXMON_ENABLE__ERR_EN__out_t ERR_EN;
-        stream_regs__DAXMON_ENABLE__COMPL_EN__out_t COMPL_EN;
-        stream_regs__DAXMON_ENABLE__TIMEOUT_EN__out_t TIMEOUT_EN;
-        stream_regs__DAXMON_ENABLE__PERF_EN__out_t PERF_EN;
-    } stream_regs__DAXMON_ENABLE__out_t;
-
-    typedef struct {
-        logic [31:0] value;
-    } stream_regs__DAXMON_TIMEOUT__TIMEOUT_CYCLES__out_t;
-
-    typedef struct {
-        stream_regs__DAXMON_TIMEOUT__TIMEOUT_CYCLES__out_t TIMEOUT_CYCLES;
-    } stream_regs__DAXMON_TIMEOUT__out_t;
-
-    typedef struct {
-        logic [31:0] value;
-    } stream_regs__DAXMON_LATENCY_THRESH__LATENCY_THRESH__out_t;
-
-    typedef struct {
-        stream_regs__DAXMON_LATENCY_THRESH__LATENCY_THRESH__out_t LATENCY_THRESH;
-    } stream_regs__DAXMON_LATENCY_THRESH__out_t;
-
-    typedef struct {
-        logic [15:0] value;
-    } stream_regs__DAXMON_PKT_MASK__PKT_MASK__out_t;
-
-    typedef struct {
-        stream_regs__DAXMON_PKT_MASK__PKT_MASK__out_t PKT_MASK;
-    } stream_regs__DAXMON_PKT_MASK__out_t;
-
-    typedef struct {
-        logic [3:0] value;
-    } stream_regs__DAXMON_ERR_CFG__ERR_SELECT__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } stream_regs__DAXMON_ERR_CFG__ERR_MASK__out_t;
-
-    typedef struct {
-        stream_regs__DAXMON_ERR_CFG__ERR_SELECT__out_t ERR_SELECT;
-        stream_regs__DAXMON_ERR_CFG__ERR_MASK__out_t ERR_MASK;
-    } stream_regs__DAXMON_ERR_CFG__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } stream_regs__DAXMON_MASK1__TIMEOUT_MASK__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } stream_regs__DAXMON_MASK1__COMPL_MASK__out_t;
-
-    typedef struct {
-        stream_regs__DAXMON_MASK1__TIMEOUT_MASK__out_t TIMEOUT_MASK;
-        stream_regs__DAXMON_MASK1__COMPL_MASK__out_t COMPL_MASK;
-    } stream_regs__DAXMON_MASK1__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } stream_regs__DAXMON_MASK2__THRESH_MASK__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } stream_regs__DAXMON_MASK2__PERF_MASK__out_t;
-
-    typedef struct {
-        stream_regs__DAXMON_MASK2__THRESH_MASK__out_t THRESH_MASK;
-        stream_regs__DAXMON_MASK2__PERF_MASK__out_t PERF_MASK;
-    } stream_regs__DAXMON_MASK2__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } stream_regs__DAXMON_MASK3__ADDR_MASK__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } stream_regs__DAXMON_MASK3__DEBUG_MASK__out_t;
-
-    typedef struct {
-        stream_regs__DAXMON_MASK3__ADDR_MASK__out_t ADDR_MASK;
-        stream_regs__DAXMON_MASK3__DEBUG_MASK__out_t DEBUG_MASK;
-    } stream_regs__DAXMON_MASK3__out_t;
-
-    typedef struct {
-        logic value;
-    } stream_regs__RDMON_ENABLE__MON_EN__out_t;
-
-    typedef struct {
-        logic value;
-    } stream_regs__RDMON_ENABLE__ERR_EN__out_t;
-
-    typedef struct {
-        logic value;
-    } stream_regs__RDMON_ENABLE__COMPL_EN__out_t;
-
-    typedef struct {
-        logic value;
-    } stream_regs__RDMON_ENABLE__TIMEOUT_EN__out_t;
-
-    typedef struct {
-        logic value;
-    } stream_regs__RDMON_ENABLE__PERF_EN__out_t;
-
-    typedef struct {
-        stream_regs__RDMON_ENABLE__MON_EN__out_t MON_EN;
-        stream_regs__RDMON_ENABLE__ERR_EN__out_t ERR_EN;
-        stream_regs__RDMON_ENABLE__COMPL_EN__out_t COMPL_EN;
-        stream_regs__RDMON_ENABLE__TIMEOUT_EN__out_t TIMEOUT_EN;
-        stream_regs__RDMON_ENABLE__PERF_EN__out_t PERF_EN;
-    } stream_regs__RDMON_ENABLE__out_t;
-
-    typedef struct {
-        logic [31:0] value;
-    } stream_regs__RDMON_TIMEOUT__TIMEOUT_CYCLES__out_t;
-
-    typedef struct {
-        stream_regs__RDMON_TIMEOUT__TIMEOUT_CYCLES__out_t TIMEOUT_CYCLES;
-    } stream_regs__RDMON_TIMEOUT__out_t;
-
-    typedef struct {
-        logic [31:0] value;
-    } stream_regs__RDMON_LATENCY_THRESH__LATENCY_THRESH__out_t;
-
-    typedef struct {
-        stream_regs__RDMON_LATENCY_THRESH__LATENCY_THRESH__out_t LATENCY_THRESH;
-    } stream_regs__RDMON_LATENCY_THRESH__out_t;
-
-    typedef struct {
-        logic [15:0] value;
-    } stream_regs__RDMON_PKT_MASK__PKT_MASK__out_t;
-
-    typedef struct {
-        stream_regs__RDMON_PKT_MASK__PKT_MASK__out_t PKT_MASK;
-    } stream_regs__RDMON_PKT_MASK__out_t;
-
-    typedef struct {
-        logic [3:0] value;
-    } stream_regs__RDMON_ERR_CFG__ERR_SELECT__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } stream_regs__RDMON_ERR_CFG__ERR_MASK__out_t;
-
-    typedef struct {
-        stream_regs__RDMON_ERR_CFG__ERR_SELECT__out_t ERR_SELECT;
-        stream_regs__RDMON_ERR_CFG__ERR_MASK__out_t ERR_MASK;
-    } stream_regs__RDMON_ERR_CFG__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } stream_regs__RDMON_MASK1__TIMEOUT_MASK__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } stream_regs__RDMON_MASK1__COMPL_MASK__out_t;
-
-    typedef struct {
-        stream_regs__RDMON_MASK1__TIMEOUT_MASK__out_t TIMEOUT_MASK;
-        stream_regs__RDMON_MASK1__COMPL_MASK__out_t COMPL_MASK;
-    } stream_regs__RDMON_MASK1__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } stream_regs__RDMON_MASK2__THRESH_MASK__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } stream_regs__RDMON_MASK2__PERF_MASK__out_t;
-
-    typedef struct {
-        stream_regs__RDMON_MASK2__THRESH_MASK__out_t THRESH_MASK;
-        stream_regs__RDMON_MASK2__PERF_MASK__out_t PERF_MASK;
-    } stream_regs__RDMON_MASK2__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } stream_regs__RDMON_MASK3__ADDR_MASK__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } stream_regs__RDMON_MASK3__DEBUG_MASK__out_t;
-
-    typedef struct {
-        stream_regs__RDMON_MASK3__ADDR_MASK__out_t ADDR_MASK;
-        stream_regs__RDMON_MASK3__DEBUG_MASK__out_t DEBUG_MASK;
-    } stream_regs__RDMON_MASK3__out_t;
-
-    typedef struct {
-        logic value;
-    } stream_regs__WRMON_ENABLE__MON_EN__out_t;
-
-    typedef struct {
-        logic value;
-    } stream_regs__WRMON_ENABLE__ERR_EN__out_t;
-
-    typedef struct {
-        logic value;
-    } stream_regs__WRMON_ENABLE__COMPL_EN__out_t;
-
-    typedef struct {
-        logic value;
-    } stream_regs__WRMON_ENABLE__TIMEOUT_EN__out_t;
-
-    typedef struct {
-        logic value;
-    } stream_regs__WRMON_ENABLE__PERF_EN__out_t;
-
-    typedef struct {
-        logic value;
-    } stream_regs__WRMON_ENABLE__COMPRESS_EN__out_t;
-
-    typedef struct {
-        stream_regs__WRMON_ENABLE__MON_EN__out_t MON_EN;
-        stream_regs__WRMON_ENABLE__ERR_EN__out_t ERR_EN;
-        stream_regs__WRMON_ENABLE__COMPL_EN__out_t COMPL_EN;
-        stream_regs__WRMON_ENABLE__TIMEOUT_EN__out_t TIMEOUT_EN;
-        stream_regs__WRMON_ENABLE__PERF_EN__out_t PERF_EN;
-        stream_regs__WRMON_ENABLE__COMPRESS_EN__out_t COMPRESS_EN;
-    } stream_regs__WRMON_ENABLE__out_t;
-
-    typedef struct {
-        logic [31:0] value;
-    } stream_regs__WRMON_TIMEOUT__TIMEOUT_CYCLES__out_t;
-
-    typedef struct {
-        stream_regs__WRMON_TIMEOUT__TIMEOUT_CYCLES__out_t TIMEOUT_CYCLES;
-    } stream_regs__WRMON_TIMEOUT__out_t;
-
-    typedef struct {
-        logic [31:0] value;
-    } stream_regs__WRMON_LATENCY_THRESH__LATENCY_THRESH__out_t;
-
-    typedef struct {
-        stream_regs__WRMON_LATENCY_THRESH__LATENCY_THRESH__out_t LATENCY_THRESH;
-    } stream_regs__WRMON_LATENCY_THRESH__out_t;
-
-    typedef struct {
-        logic [15:0] value;
-    } stream_regs__WRMON_PKT_MASK__PKT_MASK__out_t;
-
-    typedef struct {
-        stream_regs__WRMON_PKT_MASK__PKT_MASK__out_t PKT_MASK;
-    } stream_regs__WRMON_PKT_MASK__out_t;
-
-    typedef struct {
-        logic [3:0] value;
-    } stream_regs__WRMON_ERR_CFG__ERR_SELECT__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } stream_regs__WRMON_ERR_CFG__ERR_MASK__out_t;
-
-    typedef struct {
-        stream_regs__WRMON_ERR_CFG__ERR_SELECT__out_t ERR_SELECT;
-        stream_regs__WRMON_ERR_CFG__ERR_MASK__out_t ERR_MASK;
-    } stream_regs__WRMON_ERR_CFG__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } stream_regs__WRMON_MASK1__TIMEOUT_MASK__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } stream_regs__WRMON_MASK1__COMPL_MASK__out_t;
-
-    typedef struct {
-        stream_regs__WRMON_MASK1__TIMEOUT_MASK__out_t TIMEOUT_MASK;
-        stream_regs__WRMON_MASK1__COMPL_MASK__out_t COMPL_MASK;
-    } stream_regs__WRMON_MASK1__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } stream_regs__WRMON_MASK2__THRESH_MASK__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } stream_regs__WRMON_MASK2__PERF_MASK__out_t;
-
-    typedef struct {
-        stream_regs__WRMON_MASK2__THRESH_MASK__out_t THRESH_MASK;
-        stream_regs__WRMON_MASK2__PERF_MASK__out_t PERF_MASK;
-    } stream_regs__WRMON_MASK2__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } stream_regs__WRMON_MASK3__ADDR_MASK__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } stream_regs__WRMON_MASK3__DEBUG_MASK__out_t;
-
-    typedef struct {
-        stream_regs__WRMON_MASK3__ADDR_MASK__out_t ADDR_MASK;
-        stream_regs__WRMON_MASK3__DEBUG_MASK__out_t DEBUG_MASK;
-    } stream_regs__WRMON_MASK3__out_t;
-
-    typedef struct {
         logic [7:0] value;
     } stream_regs__AXI_XFER_CONFIG__RD_XFER_BEATS__out_t;
 
@@ -976,30 +663,6 @@ package stream_regs_pkg;
     } stream_regs__OBS_CTRL__out_t;
 
     typedef struct {
-        logic value;
-    } stream_regs__DAXMON_PERF_CTRL__RUN__out_t;
-
-    typedef struct {
-        stream_regs__DAXMON_PERF_CTRL__RUN__out_t RUN;
-    } stream_regs__DAXMON_PERF_CTRL__out_t;
-
-    typedef struct {
-        logic value;
-    } stream_regs__RDMON_PERF_CTRL__RUN__out_t;
-
-    typedef struct {
-        stream_regs__RDMON_PERF_CTRL__RUN__out_t RUN;
-    } stream_regs__RDMON_PERF_CTRL__out_t;
-
-    typedef struct {
-        logic value;
-    } stream_regs__WRMON_PERF_CTRL__RUN__out_t;
-
-    typedef struct {
-        stream_regs__WRMON_PERF_CTRL__RUN__out_t RUN;
-    } stream_regs__WRMON_PERF_CTRL__out_t;
-
-    typedef struct {
         logic [2:0] value;
     } stream_regs__PERF_CH_SEL__CH_SEL__out_t;
 
@@ -1026,6 +689,377 @@ package stream_regs_pkg;
     } stream_regs__HIST_SEL__out_t;
 
     typedef struct {
+        logic value;
+    } stream_mon_regs__DAXMON_ENABLE__MON_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__DAXMON_ENABLE__ERR_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__DAXMON_ENABLE__COMPL_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__DAXMON_ENABLE__TIMEOUT_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__DAXMON_ENABLE__PERF_EN__out_t;
+
+    typedef struct {
+        stream_mon_regs__DAXMON_ENABLE__MON_EN__out_t MON_EN;
+        stream_mon_regs__DAXMON_ENABLE__ERR_EN__out_t ERR_EN;
+        stream_mon_regs__DAXMON_ENABLE__COMPL_EN__out_t COMPL_EN;
+        stream_mon_regs__DAXMON_ENABLE__TIMEOUT_EN__out_t TIMEOUT_EN;
+        stream_mon_regs__DAXMON_ENABLE__PERF_EN__out_t PERF_EN;
+    } stream_mon_regs__DAXMON_ENABLE__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__DAXMON_TIMEOUT__TIMEOUT_CYCLES__out_t;
+
+    typedef struct {
+        stream_mon_regs__DAXMON_TIMEOUT__TIMEOUT_CYCLES__out_t TIMEOUT_CYCLES;
+    } stream_mon_regs__DAXMON_TIMEOUT__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__DAXMON_LATENCY_THRESH__LATENCY_THRESH__out_t;
+
+    typedef struct {
+        stream_mon_regs__DAXMON_LATENCY_THRESH__LATENCY_THRESH__out_t LATENCY_THRESH;
+    } stream_mon_regs__DAXMON_LATENCY_THRESH__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } stream_mon_regs__DAXMON_PKT_MASK__PKT_MASK__out_t;
+
+    typedef struct {
+        stream_mon_regs__DAXMON_PKT_MASK__PKT_MASK__out_t PKT_MASK;
+    } stream_mon_regs__DAXMON_PKT_MASK__out_t;
+
+    typedef struct {
+        logic [3:0] value;
+    } stream_mon_regs__DAXMON_ERR_CFG__ERR_SELECT__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_mon_regs__DAXMON_ERR_CFG__ERR_MASK__out_t;
+
+    typedef struct {
+        stream_mon_regs__DAXMON_ERR_CFG__ERR_SELECT__out_t ERR_SELECT;
+        stream_mon_regs__DAXMON_ERR_CFG__ERR_MASK__out_t ERR_MASK;
+    } stream_mon_regs__DAXMON_ERR_CFG__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_mon_regs__DAXMON_MASK1__TIMEOUT_MASK__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_mon_regs__DAXMON_MASK1__COMPL_MASK__out_t;
+
+    typedef struct {
+        stream_mon_regs__DAXMON_MASK1__TIMEOUT_MASK__out_t TIMEOUT_MASK;
+        stream_mon_regs__DAXMON_MASK1__COMPL_MASK__out_t COMPL_MASK;
+    } stream_mon_regs__DAXMON_MASK1__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_mon_regs__DAXMON_MASK2__THRESH_MASK__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_mon_regs__DAXMON_MASK2__PERF_MASK__out_t;
+
+    typedef struct {
+        stream_mon_regs__DAXMON_MASK2__THRESH_MASK__out_t THRESH_MASK;
+        stream_mon_regs__DAXMON_MASK2__PERF_MASK__out_t PERF_MASK;
+    } stream_mon_regs__DAXMON_MASK2__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_mon_regs__DAXMON_MASK3__ADDR_MASK__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_mon_regs__DAXMON_MASK3__DEBUG_MASK__out_t;
+
+    typedef struct {
+        stream_mon_regs__DAXMON_MASK3__ADDR_MASK__out_t ADDR_MASK;
+        stream_mon_regs__DAXMON_MASK3__DEBUG_MASK__out_t DEBUG_MASK;
+    } stream_mon_regs__DAXMON_MASK3__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__RDMON_ENABLE__MON_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__RDMON_ENABLE__ERR_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__RDMON_ENABLE__COMPL_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__RDMON_ENABLE__TIMEOUT_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__RDMON_ENABLE__PERF_EN__out_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_ENABLE__MON_EN__out_t MON_EN;
+        stream_mon_regs__RDMON_ENABLE__ERR_EN__out_t ERR_EN;
+        stream_mon_regs__RDMON_ENABLE__COMPL_EN__out_t COMPL_EN;
+        stream_mon_regs__RDMON_ENABLE__TIMEOUT_EN__out_t TIMEOUT_EN;
+        stream_mon_regs__RDMON_ENABLE__PERF_EN__out_t PERF_EN;
+    } stream_mon_regs__RDMON_ENABLE__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__RDMON_TIMEOUT__TIMEOUT_CYCLES__out_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_TIMEOUT__TIMEOUT_CYCLES__out_t TIMEOUT_CYCLES;
+    } stream_mon_regs__RDMON_TIMEOUT__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__RDMON_LATENCY_THRESH__LATENCY_THRESH__out_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_LATENCY_THRESH__LATENCY_THRESH__out_t LATENCY_THRESH;
+    } stream_mon_regs__RDMON_LATENCY_THRESH__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } stream_mon_regs__RDMON_PKT_MASK__PKT_MASK__out_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_PKT_MASK__PKT_MASK__out_t PKT_MASK;
+    } stream_mon_regs__RDMON_PKT_MASK__out_t;
+
+    typedef struct {
+        logic [3:0] value;
+    } stream_mon_regs__RDMON_ERR_CFG__ERR_SELECT__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_mon_regs__RDMON_ERR_CFG__ERR_MASK__out_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_ERR_CFG__ERR_SELECT__out_t ERR_SELECT;
+        stream_mon_regs__RDMON_ERR_CFG__ERR_MASK__out_t ERR_MASK;
+    } stream_mon_regs__RDMON_ERR_CFG__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_mon_regs__RDMON_MASK1__TIMEOUT_MASK__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_mon_regs__RDMON_MASK1__COMPL_MASK__out_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_MASK1__TIMEOUT_MASK__out_t TIMEOUT_MASK;
+        stream_mon_regs__RDMON_MASK1__COMPL_MASK__out_t COMPL_MASK;
+    } stream_mon_regs__RDMON_MASK1__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_mon_regs__RDMON_MASK2__THRESH_MASK__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_mon_regs__RDMON_MASK2__PERF_MASK__out_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_MASK2__THRESH_MASK__out_t THRESH_MASK;
+        stream_mon_regs__RDMON_MASK2__PERF_MASK__out_t PERF_MASK;
+    } stream_mon_regs__RDMON_MASK2__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_mon_regs__RDMON_MASK3__ADDR_MASK__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_mon_regs__RDMON_MASK3__DEBUG_MASK__out_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_MASK3__ADDR_MASK__out_t ADDR_MASK;
+        stream_mon_regs__RDMON_MASK3__DEBUG_MASK__out_t DEBUG_MASK;
+    } stream_mon_regs__RDMON_MASK3__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__WRMON_ENABLE__MON_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__WRMON_ENABLE__ERR_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__WRMON_ENABLE__COMPL_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__WRMON_ENABLE__TIMEOUT_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__WRMON_ENABLE__PERF_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__WRMON_ENABLE__COMPRESS_EN__out_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_ENABLE__MON_EN__out_t MON_EN;
+        stream_mon_regs__WRMON_ENABLE__ERR_EN__out_t ERR_EN;
+        stream_mon_regs__WRMON_ENABLE__COMPL_EN__out_t COMPL_EN;
+        stream_mon_regs__WRMON_ENABLE__TIMEOUT_EN__out_t TIMEOUT_EN;
+        stream_mon_regs__WRMON_ENABLE__PERF_EN__out_t PERF_EN;
+        stream_mon_regs__WRMON_ENABLE__COMPRESS_EN__out_t COMPRESS_EN;
+    } stream_mon_regs__WRMON_ENABLE__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__WRMON_TIMEOUT__TIMEOUT_CYCLES__out_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_TIMEOUT__TIMEOUT_CYCLES__out_t TIMEOUT_CYCLES;
+    } stream_mon_regs__WRMON_TIMEOUT__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__WRMON_LATENCY_THRESH__LATENCY_THRESH__out_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_LATENCY_THRESH__LATENCY_THRESH__out_t LATENCY_THRESH;
+    } stream_mon_regs__WRMON_LATENCY_THRESH__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } stream_mon_regs__WRMON_PKT_MASK__PKT_MASK__out_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_PKT_MASK__PKT_MASK__out_t PKT_MASK;
+    } stream_mon_regs__WRMON_PKT_MASK__out_t;
+
+    typedef struct {
+        logic [3:0] value;
+    } stream_mon_regs__WRMON_ERR_CFG__ERR_SELECT__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_mon_regs__WRMON_ERR_CFG__ERR_MASK__out_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_ERR_CFG__ERR_SELECT__out_t ERR_SELECT;
+        stream_mon_regs__WRMON_ERR_CFG__ERR_MASK__out_t ERR_MASK;
+    } stream_mon_regs__WRMON_ERR_CFG__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_mon_regs__WRMON_MASK1__TIMEOUT_MASK__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_mon_regs__WRMON_MASK1__COMPL_MASK__out_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_MASK1__TIMEOUT_MASK__out_t TIMEOUT_MASK;
+        stream_mon_regs__WRMON_MASK1__COMPL_MASK__out_t COMPL_MASK;
+    } stream_mon_regs__WRMON_MASK1__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_mon_regs__WRMON_MASK2__THRESH_MASK__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_mon_regs__WRMON_MASK2__PERF_MASK__out_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_MASK2__THRESH_MASK__out_t THRESH_MASK;
+        stream_mon_regs__WRMON_MASK2__PERF_MASK__out_t PERF_MASK;
+    } stream_mon_regs__WRMON_MASK2__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_mon_regs__WRMON_MASK3__ADDR_MASK__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_mon_regs__WRMON_MASK3__DEBUG_MASK__out_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_MASK3__ADDR_MASK__out_t ADDR_MASK;
+        stream_mon_regs__WRMON_MASK3__DEBUG_MASK__out_t DEBUG_MASK;
+    } stream_mon_regs__WRMON_MASK3__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__DAXMON_PERF_CTRL__RUN__out_t;
+
+    typedef struct {
+        stream_mon_regs__DAXMON_PERF_CTRL__RUN__out_t RUN;
+    } stream_mon_regs__DAXMON_PERF_CTRL__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__RDMON_PERF_CTRL__RUN__out_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_PERF_CTRL__RUN__out_t RUN;
+    } stream_mon_regs__RDMON_PERF_CTRL__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__WRMON_PERF_CTRL__RUN__out_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_PERF_CTRL__RUN__out_t RUN;
+    } stream_mon_regs__WRMON_PERF_CTRL__out_t;
+
+    typedef struct {
+        stream_mon_regs__DAXMON_ENABLE__out_t DAXMON_ENABLE;
+        stream_mon_regs__DAXMON_TIMEOUT__out_t DAXMON_TIMEOUT;
+        stream_mon_regs__DAXMON_LATENCY_THRESH__out_t DAXMON_LATENCY_THRESH;
+        stream_mon_regs__DAXMON_PKT_MASK__out_t DAXMON_PKT_MASK;
+        stream_mon_regs__DAXMON_ERR_CFG__out_t DAXMON_ERR_CFG;
+        stream_mon_regs__DAXMON_MASK1__out_t DAXMON_MASK1;
+        stream_mon_regs__DAXMON_MASK2__out_t DAXMON_MASK2;
+        stream_mon_regs__DAXMON_MASK3__out_t DAXMON_MASK3;
+        stream_mon_regs__RDMON_ENABLE__out_t RDMON_ENABLE;
+        stream_mon_regs__RDMON_TIMEOUT__out_t RDMON_TIMEOUT;
+        stream_mon_regs__RDMON_LATENCY_THRESH__out_t RDMON_LATENCY_THRESH;
+        stream_mon_regs__RDMON_PKT_MASK__out_t RDMON_PKT_MASK;
+        stream_mon_regs__RDMON_ERR_CFG__out_t RDMON_ERR_CFG;
+        stream_mon_regs__RDMON_MASK1__out_t RDMON_MASK1;
+        stream_mon_regs__RDMON_MASK2__out_t RDMON_MASK2;
+        stream_mon_regs__RDMON_MASK3__out_t RDMON_MASK3;
+        stream_mon_regs__WRMON_ENABLE__out_t WRMON_ENABLE;
+        stream_mon_regs__WRMON_TIMEOUT__out_t WRMON_TIMEOUT;
+        stream_mon_regs__WRMON_LATENCY_THRESH__out_t WRMON_LATENCY_THRESH;
+        stream_mon_regs__WRMON_PKT_MASK__out_t WRMON_PKT_MASK;
+        stream_mon_regs__WRMON_ERR_CFG__out_t WRMON_ERR_CFG;
+        stream_mon_regs__WRMON_MASK1__out_t WRMON_MASK1;
+        stream_mon_regs__WRMON_MASK2__out_t WRMON_MASK2;
+        stream_mon_regs__WRMON_MASK3__out_t WRMON_MASK3;
+        stream_mon_regs__DAXMON_PERF_CTRL__out_t DAXMON_PERF_CTRL;
+        stream_mon_regs__RDMON_PERF_CTRL__out_t RDMON_PERF_CTRL;
+        stream_mon_regs__WRMON_PERF_CTRL__out_t WRMON_PERF_CTRL;
+    } stream_mon_regs__out_t;
+
+    typedef struct {
         stream_regs__GLOBAL_CTRL__out_t GLOBAL_CTRL;
         stream_regs__CHANNEL_ENABLE__out_t CHANNEL_ENABLE;
         stream_regs__CHANNEL_RESET__out_t CHANNEL_RESET;
@@ -1037,37 +1071,11 @@ package stream_regs_pkg;
         stream_regs__DESCENG_ADDR0_LIMIT__out_t DESCENG_ADDR0_LIMIT;
         stream_regs__DESCENG_ADDR1_BASE__out_t DESCENG_ADDR1_BASE;
         stream_regs__DESCENG_ADDR1_LIMIT__out_t DESCENG_ADDR1_LIMIT;
-        stream_regs__DAXMON_ENABLE__out_t DAXMON_ENABLE;
-        stream_regs__DAXMON_TIMEOUT__out_t DAXMON_TIMEOUT;
-        stream_regs__DAXMON_LATENCY_THRESH__out_t DAXMON_LATENCY_THRESH;
-        stream_regs__DAXMON_PKT_MASK__out_t DAXMON_PKT_MASK;
-        stream_regs__DAXMON_ERR_CFG__out_t DAXMON_ERR_CFG;
-        stream_regs__DAXMON_MASK1__out_t DAXMON_MASK1;
-        stream_regs__DAXMON_MASK2__out_t DAXMON_MASK2;
-        stream_regs__DAXMON_MASK3__out_t DAXMON_MASK3;
-        stream_regs__RDMON_ENABLE__out_t RDMON_ENABLE;
-        stream_regs__RDMON_TIMEOUT__out_t RDMON_TIMEOUT;
-        stream_regs__RDMON_LATENCY_THRESH__out_t RDMON_LATENCY_THRESH;
-        stream_regs__RDMON_PKT_MASK__out_t RDMON_PKT_MASK;
-        stream_regs__RDMON_ERR_CFG__out_t RDMON_ERR_CFG;
-        stream_regs__RDMON_MASK1__out_t RDMON_MASK1;
-        stream_regs__RDMON_MASK2__out_t RDMON_MASK2;
-        stream_regs__RDMON_MASK3__out_t RDMON_MASK3;
-        stream_regs__WRMON_ENABLE__out_t WRMON_ENABLE;
-        stream_regs__WRMON_TIMEOUT__out_t WRMON_TIMEOUT;
-        stream_regs__WRMON_LATENCY_THRESH__out_t WRMON_LATENCY_THRESH;
-        stream_regs__WRMON_PKT_MASK__out_t WRMON_PKT_MASK;
-        stream_regs__WRMON_ERR_CFG__out_t WRMON_ERR_CFG;
-        stream_regs__WRMON_MASK1__out_t WRMON_MASK1;
-        stream_regs__WRMON_MASK2__out_t WRMON_MASK2;
-        stream_regs__WRMON_MASK3__out_t WRMON_MASK3;
         stream_regs__AXI_XFER_CONFIG__out_t AXI_XFER_CONFIG;
         stream_regs__PERF_CONFIG__out_t PERF_CONFIG;
         stream_regs__OBS_CTRL__out_t OBS_CTRL;
-        stream_regs__DAXMON_PERF_CTRL__out_t DAXMON_PERF_CTRL;
-        stream_regs__RDMON_PERF_CTRL__out_t RDMON_PERF_CTRL;
-        stream_regs__WRMON_PERF_CTRL__out_t WRMON_PERF_CTRL;
         stream_regs__PERF_CH_SEL__out_t PERF_CH_SEL;
         stream_regs__HIST_SEL__out_t HIST_SEL;
+        stream_mon_regs__out_t MON;
     } stream_regs__out_t;
 endpackage
