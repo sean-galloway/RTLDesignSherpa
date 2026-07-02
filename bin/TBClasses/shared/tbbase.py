@@ -72,7 +72,11 @@ class TBBase:
     - Deadlock detection for async operations
     """
 
-    default_log_level = logging.DEBUG
+    # Default log level for all testbenches. INFO by default: the per-cycle
+    # DEBUG traces emitted by BFMs (e.g. "queue has N beats") are rarely needed
+    # and, when written to the log file every cycle, dominate wall-clock time.
+    # Set TB_LOG_LEVEL=DEBUG in the environment to restore full verbosity.
+    default_log_level = getattr(logging, os.environ.get('TB_LOG_LEVEL', 'INFO').upper(), logging.INFO)
 
     # Default safety limits (can be overridden via environment or constructor)
     DEFAULT_SAFETY_LIMITS = {
@@ -665,7 +669,10 @@ class TBBase:
 
             fh = logging.FileHandler(self.log_path, mode='w')
 
-            fh.setLevel(logging.DEBUG)
+            # File handler honors the resolved level (INFO by default). This is
+            # what keeps per-cycle DEBUG BFM traces out of the log file unless
+            # TB_LOG_LEVEL=DEBUG is set.
+            fh.setLevel(level)
 
             formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
             fh.setFormatter(formatter)
