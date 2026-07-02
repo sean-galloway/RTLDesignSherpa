@@ -39,7 +39,8 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
-from projects.components.rapids.dv.tbclasses.rapids_beats_top_tb import RapidsBeatsTopTB
+from projects.components.rapids.dv.tbclasses.rapids_beats_top_tb import (
+    RapidsBeatsTopTB, RapidsBeatsTopDatapathTB)
 
 
 # ===========================================================================
@@ -100,13 +101,45 @@ async def cocotb_test_smoke(dut):
     tb.log.info("rapids_beats_top smoke PASSED")
 
 
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_datapath(dut):
+    """End-to-end DATAPATH test: config + kickoff over APB (by name), real data
+    moved through the top in BOTH directions, verified against memory.
+
+    SOURCE (memory->network): rd_mem is preloaded with a known pattern; the core
+      reads it via m_axi_rd, pushes it through the source SRAM, and the TB drains
+      it via src_drain -> compared to the preloaded pattern.
+    SINK (network->memory): the TB injects a known pattern via snk_fill; the core
+      buffers it in the sink SRAM and writes it via m_axi_wr into wr_mem ->
+      compared to the injected pattern.
+    """
+    tb = RapidsBeatsTopDatapathTB(dut)
+    await tb.setup_clocks_and_reset()   # clock/reset + APB master + config-by-name + BFMs
+    await tb.initialize_test()          # start the source drainer
+
+    # Phase 1: single channel, one descriptor, modest length.
+    ok1, stats1 = await tb.test_single_channel(channel=0, beats=8)
+    # Phase 2: same channel, two sequential descriptors.
+    ok2, stats2 = await tb.test_multi_descriptor(channel=1, beats=6, ndesc=2)
+
+    tb.finalize_test()
+
+    # The top must not have flagged a scheduler error moving real data.
+    _, sched_error = tb.read_status_signals()
+
+    tb.log.info(f"datapath phase1={stats1} phase2={stats2} sched_error=0x{sched_error:X}")
+    assert ok1, f"single-channel datapath failed: {stats1.get('errors')}"
+    assert ok2, f"multi-descriptor datapath failed: {stats2.get('errors')}"
+    assert sched_error == 0, f"sched_error non-zero after datapath run: 0x{sched_error:X}"
+    tb.log.info("rapids_beats_top datapath PASSED (source + sink verified)")
+
+
 # ===========================================================================
 # PYTEST WRAPPER
 # ===========================================================================
 
-@pytest.mark.top_beats
-@pytest.mark.rapids_beats_top
-def test_rapids_beats_top(request):
+def _run_top(testcase, test_name):
+    """Shared runner: compile rapids_beats_top and run the given cocotb testcase."""
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -119,7 +152,6 @@ def test_rapids_beats_top(request):
         filelist_path='projects/components/rapids/rtl/filelists/top_beats/rapids_beats_top.f'
     )
 
-    test_name = "test_rapids_beats_top_smoke"
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     if worker_id:
         test_name = f"{test_name}_{worker_id}"
@@ -172,7 +204,7 @@ def test_rapids_beats_top(request):
             includes=includes,
             toplevel=dut_name,
             module=module,
-            testcase="cocotb_test_smoke",
+            testcase=testcase,
             parameters=rtl_parameters,
             simulator='verilator',
             sim_build=sim_build,
@@ -191,7 +223,22 @@ def test_rapids_beats_top(request):
         raise
 
 
+@pytest.mark.top_beats
+@pytest.mark.rapids_beats_top
+def test_rapids_beats_top(request):
+    """Config-only smoke: APB -> register -> config chain (by name)."""
+    _run_top("cocotb_test_smoke", "test_rapids_beats_top_smoke")
+
+
+@pytest.mark.top_beats
+@pytest.mark.rapids_beats_top
+def test_rapids_beats_top_datapath(request):
+    """End-to-end datapath: real data moved through the top in both directions."""
+    _run_top("cocotb_test_datapath", "test_rapids_beats_top_datapath")
+
+
 if __name__ == "__main__":
     class MockRequest:
         pass
     test_rapids_beats_top(MockRequest())
+    test_rapids_beats_top_datapath(MockRequest())
