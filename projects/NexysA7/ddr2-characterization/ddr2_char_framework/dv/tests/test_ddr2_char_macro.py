@@ -211,6 +211,18 @@ async def cocotb_test_ddr2_char_macro(dut):
         "kb1":       dict(burst=4, n=32,   base=0x0001_0000),
         "kb4":       dict(burst=4, n=128,  base=0x0001_0000),
         "kb32":      dict(burst=4, n=1024, base=0x0001_0000),
+        # BL variations — exercise the controller's AXI BL handling at
+        # the engine env. BL=1/2 are below the DRAM BL (=4) so each AXI
+        # burst gets padded; BL=8 is above and currently triggers the
+        # wr_beat_sequencer stray-wrdata bug (see issue: AXI BL > DRAM
+        # BL needs intake-side split). BL=8 entries are xfailed until
+        # that lands.
+        "bl1_kb1":   dict(burst=1, n=32,   base=0x0002_0000),
+        "bl1_kb4":   dict(burst=1, n=128,  base=0x0002_0000),
+        "bl2_kb1":   dict(burst=2, n=32,   base=0x0003_0000),
+        "bl2_kb4":   dict(burst=2, n=128,  base=0x0003_0000),
+        "bl8_kb1":   dict(burst=8, n=32,   base=0x0004_0000),
+        "bl8_kb4":   dict(burst=8, n=128,  base=0x0004_0000),
     }
     if test_type == "ooo_pacing_schmoo":
         # Combined OOO + pacing + schmoo sweep.
@@ -461,12 +473,37 @@ async def cocotb_test_ddr2_char_macro(dut):
 
 _ALL_TYPES = ["smoke", "smoke_1x2", "smoke_2x1", "smoke_2x2",
               "kb_4burst", "kb_16burst", "kb_17burst",
-              "kb_20burst", "kb_24burst", "kb1", "kb4", "kb32"]
+              "kb_20burst", "kb_24burst", "kb1", "kb4", "kb32",
+              "bl1_kb1", "bl1_kb4",
+              "bl2_kb1", "bl2_kb4",
+              "bl8_kb1", "bl8_kb4"]
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
 _PARAMS = _ALL_TYPES   # GATE == FUNC == FULL for now
 
+# bl_8 fix landed (RTLDesignSherpa#22) — axi_intake now splits AXI
+# bursts that exceed DRAM BL into chunks. Set kept empty so it can be
+# re-populated if a new BL>DRAM_BL config trips.
+_XFAIL_BL_GT_DRAM: set[str] = set()
 
-@pytest.mark.parametrize("test_type", _PARAMS, ids=_PARAMS)
+
+def _params_with_xfail():
+    out = []
+    for t in _PARAMS:
+        if t in _XFAIL_BL_GT_DRAM:
+            out.append(pytest.param(
+                t,
+                marks=pytest.mark.xfail(
+                    reason="AXI BL > DRAM BL: wr_beat_sequencer drives "
+                           "stray wrdata beats without matching CAS-WR",
+                    strict=False,
+                ),
+            ))
+        else:
+            out.append(t)
+    return out
+
+
+@pytest.mark.parametrize("test_type", _params_with_xfail(), ids=_PARAMS)
 def test_ddr2_char_macro(request, test_type):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "ddr2_char_macro_tb_top"

@@ -1,0 +1,132 @@
+[*]
+[*] GTKWave Analyzer save file for ddr2_lpddr2_core_macro_tb_top FST dumps
+[*] Open with:   gtkwave -a /path/to/ddr2_lpddr2_core_macro.gtkw /tmp/ddr2_wave_dumps/grid_bl8_n16.fst
+[*] Or use the wrapper script open_ddr2_wave.sh in this directory.
+[*]
+[dumpfile] "/tmp/ddr2_wave_dumps/grid_bl8_n16.fst"
+[savefile] "ddr2_lpddr2_core_macro.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-23.000000 0 -1 -1 -1 -1 -1 -1
+[treeopen] ddr2_lpddr2_core_macro_tb_top.
+[treeopen] ddr2_lpddr2_core_macro_tb_top.u_dut.
+[treeopen] ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.
+[treeopen] ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.
+[treeopen] ddr2_lpddr2_core_macro_tb_top.u_dut.u_command_scheduler.
+[treeopen] ddr2_lpddr2_core_macro_tb_top.u_dut.u_command_scheduler.u_scheduler.
+[treeopen] ddr2_lpddr2_core_macro_tb_top.u_dut.u_axi_frontend.
+[treeopen] ddr2_lpddr2_core_macro_tb_top.u_dut.u_dfi_v21_interface.
+[sst_width] 360
+[signals_width] 380
+[sst_expanded] 1
+[sst_vpaned_height] 540
+@800200
+-CLK_RST
+@28
+ddr2_lpddr2_core_macro_tb_top.mc_clk
+ddr2_lpddr2_core_macro_tb_top.mc_rst_n
+@800200
+-AXI_AW_INTAKE
+@28
+ddr2_lpddr2_core_macro_tb_top.u_dut.s_axi_awvalid
+ddr2_lpddr2_core_macro_tb_top.u_dut.s_axi_awready
+@22
+ddr2_lpddr2_core_macro_tb_top.u_dut.s_axi_awid[3:0]
+ddr2_lpddr2_core_macro_tb_top.u_dut.s_axi_awaddr[31:0]
+ddr2_lpddr2_core_macro_tb_top.u_dut.s_axi_awlen[7:0]
+@28
+ddr2_lpddr2_core_macro_tb_top.u_dut.s_axi_wvalid
+ddr2_lpddr2_core_macro_tb_top.u_dut.s_axi_wready
+ddr2_lpddr2_core_macro_tb_top.u_dut.s_axi_wlast
+@22
+ddr2_lpddr2_core_macro_tb_top.u_dut.s_axi_wdata[63:0]
+ddr2_lpddr2_core_macro_tb_top.u_dut.s_axi_wstrb[7:0]
+@28
+ddr2_lpddr2_core_macro_tb_top.u_dut.s_axi_bvalid
+ddr2_lpddr2_core_macro_tb_top.u_dut.s_axi_bready
+@22
+ddr2_lpddr2_core_macro_tb_top.u_dut.s_axi_bid[3:0]
+ddr2_lpddr2_core_macro_tb_top.u_dut.s_axi_bresp[1:0]
+@800200
+-SCHEDULER_WR_PICK
+@28
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_command_scheduler.u_scheduler.wr_match_pending_i
+@22
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_command_scheduler.u_scheduler.cmd_strb_o
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_command_scheduler.u_scheduler.cmd_len_o
+@28
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_command_scheduler.u_scheduler.wr_issued_we_o
+@22
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_command_scheduler.u_scheduler.wr_issued_slot_o
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_command_scheduler.u_scheduler.r_pending_wr_slot
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_command_scheduler.u_scheduler.r_pending_len
+@800200
+-WR_BEAT_SEQUENCER_handshake
+@28
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.op_valid_i
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.op_ready_o
+@22
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.op_slot_i
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.op_len_i
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.bl_i
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.t_phy_wrlat_i
+@800200
+-WR_BEAT_SEQUENCER_pull
+@28
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.beat_pull_strb_o
+@22
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.beat_pull_slot_o
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.beat_pull_ptr_i
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.wbuf_rd_data_i
+@28
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.beat_pull_last_i
+@800200
+-WR_BEAT_SEQUENCER_state
+@22
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.r_op_valid
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.r_op_pull_done
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.r_op_drive_started
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.r_op_dfi_cycle_cnt[0]
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.r_op_dfi_cycle_cnt[1]
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.r_op_beats_pulled[0]
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.r_op_beats_pulled[1]
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.r_op_wait_cnt[0]
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.r_op_wait_cnt[1]
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.r_drive_fifo_count
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.w_drive_op
+@28
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.w_drive_active
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.w_enough_buffered
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.w_drive_last_cycle
+@22
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.w_dfi_cycles_total
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.w_op_dfi_cycles
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.w_bl_dfi_cycles
+@800200
+-WR_BEAT_SEQUENCER_dfi
+@28
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.dfi_wrdata_en_o
+@22
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.dfi_wrdata_o
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.dfi_wrdata_mask_o
+@28
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.b_complete_strb_o
+@22
+ddr2_lpddr2_core_macro_tb_top.u_dut.u_data_path.u_wr_beat_sequencer.b_complete_slot_o
+@800200
+-DFI_OUT
+@28
+ddr2_lpddr2_core_macro_tb_top.u_dut.dfi_cas_n_p0
+ddr2_lpddr2_core_macro_tb_top.u_dut.dfi_ras_n_p0
+ddr2_lpddr2_core_macro_tb_top.u_dut.dfi_we_n_p0
+@22
+ddr2_lpddr2_core_macro_tb_top.u_dut.dfi_bank_p0
+ddr2_lpddr2_core_macro_tb_top.u_dut.dfi_address_p0
+@28
+ddr2_lpddr2_core_macro_tb_top.u_dut.dfi_wrdata_en_p0
+@22
+ddr2_lpddr2_core_macro_tb_top.u_dut.dfi_wrdata_p0
+ddr2_lpddr2_core_macro_tb_top.u_dut.dfi_wrdata_mask_p0
+[pattern_trace] 1
+[pattern_trace] 0
