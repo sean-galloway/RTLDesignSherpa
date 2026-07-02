@@ -97,6 +97,8 @@ module snk_data_path_beats #(
     //=========================================================================
     output logic [NC-1:0]               sched_wr_done_strobe,
     output logic [NC-1:0][31:0]         sched_wr_beats_done,
+    output logic [NC-1:0]               sched_wr_commit_strobe,
+    output logic [NC-1:0][31:0]         sched_wr_commit_beats,
 
     //=========================================================================
     // AXI4 Write Master Interface
@@ -220,6 +222,8 @@ module snk_data_path_beats #(
         // Completion Interface
         .sched_wr_done_strobe (sched_wr_done_strobe),
         .sched_wr_beats_done  (sched_wr_beats_done),
+        .sched_wr_commit_strobe(sched_wr_commit_strobe),
+        .sched_wr_commit_beats (sched_wr_commit_beats),
 
         // SRAM Drain Interface
         .axi_wr_drain_req        (drain_req),

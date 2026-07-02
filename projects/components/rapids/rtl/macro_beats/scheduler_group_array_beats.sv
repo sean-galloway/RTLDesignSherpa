@@ -61,6 +61,7 @@ module scheduler_group_array_beats #(
     // Scheduler Configuration (global - applied to all channels)
     input  logic                                 cfg_sched_enable,          // Master scheduler enable
     input  logic [31:0]                          cfg_sched_timeout_cycles,  // Timeout threshold
+    input  logic [7:0]                           cfg_sched_timeout_limit,   // Consecutive-timeout escalation limit (0=never)
     input  logic                                 cfg_sched_timeout_enable,  // Enable timeout detection
     input  logic                                 cfg_sched_err_enable,      // Enable error reporting
     input  logic                                 cfg_sched_compl_enable,    // Enable completion reporting
@@ -145,6 +146,8 @@ module scheduler_group_array_beats #(
     input  logic [NUM_CHANNELS-1:0][31:0]               sched_rd_beats_done,
     input  logic [NUM_CHANNELS-1:0]                     sched_wr_done_strobe,
     input  logic [NUM_CHANNELS-1:0][31:0]               sched_wr_beats_done,
+    input  logic [NUM_CHANNELS-1:0]                     sched_wr_commit_strobe,
+    input  logic [NUM_CHANNELS-1:0][31:0]               sched_wr_commit_beats,
 
     // Error Signals (per-channel from AXI engines)
     input  logic [NUM_CHANNELS-1:0]                     sched_rd_error,
@@ -277,6 +280,7 @@ module scheduler_group_array_beats #(
 
                 // Scheduler Configuration (global)
                 .cfg_sched_timeout_cycles   (cfg_sched_timeout_cycles),
+                .cfg_sched_timeout_limit    (cfg_sched_timeout_limit),
                 .cfg_sched_timeout_enable   (cfg_sched_timeout_enable),
                 .cfg_sched_err_enable       (cfg_sched_err_enable),
                 .cfg_sched_compl_enable     (cfg_sched_compl_enable),
@@ -333,6 +337,8 @@ module scheduler_group_array_beats #(
                 .sched_rd_beats_done    (sched_rd_beats_done[ch]),
                 .sched_wr_done_strobe   (sched_wr_done_strobe[ch]),
                 .sched_wr_beats_done    (sched_wr_beats_done[ch]),
+                .sched_wr_commit_strobe (sched_wr_commit_strobe[ch]),
+                .sched_wr_commit_beats  (sched_wr_commit_beats[ch]),
 
                 // Error signals (direct passthrough)
                 .sched_rd_error         (sched_rd_error[ch]),

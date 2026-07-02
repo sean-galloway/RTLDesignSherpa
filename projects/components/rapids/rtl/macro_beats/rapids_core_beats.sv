@@ -90,6 +90,7 @@ module rapids_core_beats #(
     // Scheduler Configuration (global)
     input  logic                                cfg_sched_enable,
     input  logic [31:0]                         cfg_sched_timeout_cycles,
+    input  logic [7:0]                          cfg_sched_timeout_limit,
     input  logic                                cfg_sched_timeout_enable,
     input  logic                                cfg_sched_err_enable,
     input  logic                                cfg_sched_compl_enable,
@@ -272,6 +273,8 @@ module rapids_core_beats #(
     // Sink Data Path → Scheduler (Write Completion)
     logic [NC-1:0]               sched_wr_done_strobe;
     logic [NC-1:0][31:0]         sched_wr_beats_done;
+    logic [NC-1:0]               sched_wr_commit_strobe;
+    logic [NC-1:0][31:0]         sched_wr_commit_beats;
 
     // Source Data Path → Scheduler (Read Completion)
     logic [NC-1:0]               sched_rd_done_strobe;
@@ -310,6 +313,7 @@ module rapids_core_beats #(
         .cfg_channel_reset      (cfg_channel_reset),
         .cfg_sched_enable       (cfg_sched_enable),
         .cfg_sched_timeout_cycles(cfg_sched_timeout_cycles),
+        .cfg_sched_timeout_limit(cfg_sched_timeout_limit),
         .cfg_sched_timeout_enable(cfg_sched_timeout_enable),
         .cfg_sched_err_enable   (cfg_sched_err_enable),
         .cfg_sched_compl_enable (cfg_sched_compl_enable),
@@ -386,6 +390,8 @@ module rapids_core_beats #(
         .sched_rd_beats_done    (sched_rd_beats_done),
         .sched_wr_done_strobe   (sched_wr_done_strobe),
         .sched_wr_beats_done    (sched_wr_beats_done),
+        .sched_wr_commit_strobe (sched_wr_commit_strobe),
+        .sched_wr_commit_beats  (sched_wr_commit_beats),
 
         // Error Signals
         .sched_rd_error         (sched_rd_error),
@@ -461,6 +467,8 @@ module rapids_core_beats #(
         // Completion Interface
         .sched_wr_done_strobe(sched_wr_done_strobe),
         .sched_wr_beats_done (sched_wr_beats_done),
+        .sched_wr_commit_strobe(sched_wr_commit_strobe),
+        .sched_wr_commit_beats (sched_wr_commit_beats),
 
         // AXI Write Master
         .m_axi_awid         (m_axi_wr_awid),

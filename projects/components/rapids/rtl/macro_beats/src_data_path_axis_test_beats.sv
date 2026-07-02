@@ -308,6 +308,7 @@ module src_data_path_axis_test_beats #(
                 .cfg_channel_enable     (1'b1),
                 .cfg_channel_reset      (1'b0),
                 .cfg_sched_timeout_cycles(32'd1000),
+                .cfg_sched_timeout_limit (8'd1),  // escalate after one window (legacy timeout->error)
                 .cfg_sched_timeout_enable(1'b1),
 
                 // Status
@@ -345,6 +346,10 @@ module src_data_path_axis_test_beats #(
                 .sched_rd_beats_done    (sched_rd_beats_done[i]),
                 .sched_wr_done_strobe   (r_wr_done_strobe[i]),
                 .sched_wr_beats_done    (r_wr_beats_done[i]),
+                // Source path has no AXI write engine; commit tracks the same stub
+                // strobe as issue (no separate B-response phase to gate on).
+                .sched_wr_commit_strobe (r_wr_done_strobe[i]),
+                .sched_wr_commit_beats  (r_wr_beats_done[i]),
 
                 // Error signals
                 .sched_rd_error         (sched_rd_error[i]),

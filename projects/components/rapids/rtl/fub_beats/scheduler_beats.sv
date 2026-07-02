@@ -85,6 +85,7 @@ module scheduler_beats #(
     input  logic                        cfg_channel_enable,     // Enable this channel
     input  logic                        cfg_channel_reset,      // Channel reset
     input  logic [31:0]                 cfg_sched_timeout_cycles, // Timeout threshold (cycles)
+    input  logic [7:0]                  cfg_sched_timeout_limit,  // Consecutive-timeout windows before fatal escalation (0=never)
     input  logic                        cfg_sched_timeout_enable, // Enable timeout detection
 
     // Status Interface
@@ -113,8 +114,10 @@ module scheduler_beats #(
     // Completion Interface (from Engines to Scheduler)
     input  logic                        sched_rd_done_strobe,   // Read burst completed (pulsed)
     input  logic [31:0]                 sched_rd_beats_done,    // Number of beats completed
-    input  logic                        sched_wr_done_strobe,   // Write burst completed (pulsed)
-    input  logic [31:0]                 sched_wr_beats_done,    // Number of beats completed
+    input  logic                        sched_wr_done_strobe,   // Write burst ISSUED - AW handshake (pulsed) - advances dst address
+    input  logic [31:0]                 sched_wr_beats_done,    // Number of beats issued this pulse
+    input  logic                        sched_wr_commit_strobe, // Write burst COMMITTED - B response (pulsed) - gates completion
+    input  logic [31:0]                 sched_wr_commit_beats,  // Number of beats committed this pulse
 
     // Error Signals (from Engines to Scheduler)
     input  logic                        sched_rd_error,         // Read engine error
@@ -217,13 +220,24 @@ module scheduler_beats #(
     logic [ADDR_WIDTH-1:0] r_dst_addr;            // Current destination address
     logic [31:0] r_beats_remaining;               // Total beats remaining (for reference)
     logic [31:0] r_read_beats_remaining;          // Beats left to read from source
-    logic [31:0] r_write_beats_remaining;         // Beats left to write to destination
+    logic [31:0] r_write_beats_remaining;         // Beats left to ISSUE to destination (drives engine + dst address)
+    logic [31:0] r_write_beats_to_commit;         // Beats left to COMMIT (B responses) - gates completion
 
     // Timeout tracking
     // Counts clock cycles while waiting for engine grant (sched_wr_ready)
     // Prevents deadlock if engines don't respond
     logic [31:0] r_timeout_counter;
-    logic w_timeout_expired;                      // Asserted when counter >= cfg_sched_timeout_cycles
+    logic w_timeout_expired;                      // Pulses when counter >= cfg_sched_timeout_cycles (one per window)
+
+    // Recoverable-timeout escalation.
+    // A write-progress timeout is a *liveness* fault, not a data fault: it is
+    // reported and the channel keeps waiting (soft timeout), re-arming each window.
+    // Only after cfg_sched_timeout_limit consecutive windows with no write progress
+    // does it escalate to a fatal, sticky CH_ERROR. cfg_sched_timeout_limit == 0
+    // means never escalate (pure soft timeout). Any write progress clears the strikes.
+    logic [7:0] r_timeout_strikes;                // Consecutive expired windows
+    logic       w_hard_error;                     // Fatal fault -> sticky CH_ERROR
+    logic       w_timeout_escalate;               // Soft timeout promoted to fatal
 
     // Interrupt generation
     // IRQ event is generated via MonBus when descriptor completes with gen_irq flag set
@@ -291,8 +305,10 @@ module scheduler_beats #(
             //          read_engine (sched_rd_error)
             //          write_engine (sched_wr_error)
             //          scheduler internal (timeout, sticky errors)
-            if (descriptor_error || sched_rd_error || sched_wr_error ||
-                r_read_error_sticky || r_write_error_sticky || w_timeout_expired) begin
+            // Fatal faults (engine/descriptor errors) wedge into sticky CH_ERROR.
+            // A write-progress timeout is recoverable and does NOT wedge here — it
+            // reaches CH_ERROR only once escalated (cfg_sched_timeout_limit windows).
+            if (w_hard_error || w_timeout_escalate) begin
                 w_next_state = CH_ERROR;
             end else begin
                 // Priority 3: Normal state machine transitions
@@ -323,10 +339,14 @@ module scheduler_beats #(
                         // - Both report progress via done strobes
                         // - Natural backpressure via SRAM full/empty flags
                         //
-                        // Exit when:
-                        // 1. Transfer complete (both counters == 0)
-                        // 2. Write engine signals ready (all transactions acknowledged)
-                        if (w_transfer_complete && sched_wr_ready) begin
+                        // Exit when the transfer is complete: all source beats read
+                        // AND all destination beats COMMITTED (B responses received, via
+                        // r_write_beats_to_commit). Committed already implies the write
+                        // engine has acknowledged every transaction, so the previous
+                        // sched_wr_ready gate is unnecessary here (and would deadlock,
+                        // since sched_wr_ready drops once issue finishes, well before the
+                        // final B responses arrive).
+                        if (w_transfer_complete) begin
                             w_next_state = CH_COMPLETE;
                         end
                         // Note: Stays in XFER_DATA until both conditions met or error
@@ -403,6 +423,7 @@ module scheduler_beats #(
             r_beats_remaining <= 32'h0;
             r_read_beats_remaining <= 32'h0;
             r_write_beats_remaining <= 32'h0;
+            r_write_beats_to_commit <= 32'h0;
         end else begin
             // Descriptor capture: Sample descriptor_packet when handshake occurs
             // This happens in either CH_IDLE (first descriptor) or CH_NEXT_DESC (chained)
@@ -433,6 +454,7 @@ module scheduler_beats #(
                     r_beats_remaining <= r_descriptor.length;
                     r_read_beats_remaining <= r_descriptor.length;
                     r_write_beats_remaining <= r_descriptor.length;
+                    r_write_beats_to_commit <= r_descriptor.length;
                 end
 
                 CH_XFER_DATA: begin
@@ -454,9 +476,11 @@ module scheduler_beats #(
                         r_src_addr <= r_src_addr + (ADDR_WIDTH'(sched_rd_beats_done) << $clog2(DATA_WIDTH/8));
                     end
 
-                    // Write progress: SRAM → Destination (independent from read!)
+                    // Write ISSUE progress: fires on AW handshake. Decrements the ISSUE
+                    // counter (drives the engine's next-burst sizing) and advances the
+                    // destination address so the next (pipelined) AW targets correctly.
                     if (sched_wr_done_strobe) begin
-                        // Decrement by number of beats engine completed
+                        // Decrement by number of beats issued this burst
                         // Saturate at 0 (safety check, shouldn't underflow)
                         r_write_beats_remaining <= (r_write_beats_remaining >= sched_wr_beats_done) ?
                                                 (r_write_beats_remaining - sched_wr_beats_done) : 32'h0;
@@ -464,6 +488,15 @@ module scheduler_beats #(
                         // Increment destination address by bytes transferred
                         // Address increment = beats_done << AXSIZE (where AXSIZE = log2(DATA_WIDTH/8))
                         r_dst_addr <= r_dst_addr + (ADDR_WIDTH'(sched_wr_beats_done) << $clog2(DATA_WIDTH/8));
+                    end
+
+                    // Write COMMIT progress: fires on B response (data actually written
+                    // to the destination). Decrements the COMMIT counter, which gates
+                    // completion (w_write_complete) so a channel is not reported done
+                    // until every issued write has been acknowledged.
+                    if (sched_wr_commit_strobe) begin
+                        r_write_beats_to_commit <= (r_write_beats_to_commit >= sched_wr_commit_beats) ?
+                                                (r_write_beats_to_commit - sched_wr_commit_beats) : 32'h0;
                     end
                 end
 
@@ -498,7 +531,10 @@ module scheduler_beats #(
     //=========================================================================
 
     assign w_read_complete = (r_read_beats_remaining == 32'h0);
-    assign w_write_complete = (r_write_beats_remaining == 32'h0);
+    // Write is complete only when all issued beats have been COMMITTED (B responses),
+    // not merely issued (r_write_beats_remaining). This prevents the channel from
+    // signalling done/interrupt while write data is still draining to memory.
+    assign w_write_complete = (r_write_beats_to_commit == 32'h0);
     assign w_transfer_complete = w_read_complete && w_write_complete;
 
     // Look-ahead completion detection:
@@ -550,7 +586,13 @@ module scheduler_beats #(
     // CONCURRENT OPERATION: sched_wr_valid asserted in CH_XFER_DATA (not CH_WRITE_DATA)
     //                       Runs simultaneously with read engine
 
+    // Request writes only while there are beats left to ISSUE. w_write_complete now
+    // tracks COMMITs (r_write_beats_to_commit); without this explicit issue-count gate
+    // the engine would keep sched_wr_valid high through the commit-wait and, seeing
+    // sched_wr_beats==0, issue a spurious garbage AW (transfer-size underflow ->
+    // awlen=0xFF). The scheduler still stays in CH_XFER_DATA waiting for commits.
     assign sched_wr_valid = (r_current_state == CH_XFER_DATA) &&
+                        (r_write_beats_remaining != 32'h0) &&
                         !w_write_complete &&
                         !w_sched_wr_completing_this_cycle;
     assign sched_wr_addr = r_dst_addr;
@@ -582,17 +624,36 @@ module scheduler_beats #(
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_timeout_counter <= 32'h0;
+            r_timeout_strikes <= 8'h0;
             r_read_error_sticky <= 1'b0;
             r_write_error_sticky <= 1'b0;
             r_descriptor_error <= 1'b0;
         end else begin
-            // Timeout counter: Increments while waiting for write engine completion
-            // Counts cycles where sched_wr_valid is high but ready is low
-            // Prevents deadlock if write engine doesn't complete
-            if (sched_wr_valid && !sched_wr_ready) begin
+            // Timeout counter: Increments while waiting for write engine completion.
+            // Any write progress resets it: an AW issue (done strobe) OR a B response
+            // (commit strobe). Completion is now gated on commits, so sched_wr_valid
+            // stays high through the commit-wait while sched_wr_ready is low; without
+            // treating commits as progress the counter would falsely time out a
+            // slow-draining transfer. On expiry the counter RE-ARMS (soft timeout):
+            // one w_timeout_expired pulse per elapsed window rather than latching.
+            if (sched_wr_done_strobe || sched_wr_commit_strobe) begin
+                r_timeout_counter <= 32'h0;  // write progress -> not stalled
+            end else if (w_timeout_expired) begin
+                r_timeout_counter <= 32'h0;  // window elapsed -> re-arm, keep waiting
+            end else if (sched_wr_valid && !sched_wr_ready) begin
                 r_timeout_counter <= r_timeout_counter + 1;
             end else begin
                 r_timeout_counter <= 32'h0;  // Reset when not waiting or completion received
+            end
+
+            // Consecutive-timeout strikes: one per elapsed window with no write
+            // progress. Cleared by real progress or on return to CH_IDLE. Saturates.
+            if (r_channel_reset_active || (r_current_state == CH_IDLE)) begin
+                r_timeout_strikes <= 8'h0;
+            end else if (sched_wr_done_strobe || sched_wr_commit_strobe) begin
+                r_timeout_strikes <= 8'h0;
+            end else if (w_timeout_expired && !(&r_timeout_strikes)) begin
+                r_timeout_strikes <= r_timeout_strikes + 8'h1;
             end
 
             // Error capture: Latch errors from external components
@@ -601,9 +662,10 @@ module scheduler_beats #(
             if (sched_rd_error) r_read_error_sticky <= 1'b1;    // Read engine error
             if (sched_wr_error) r_write_error_sticky <= 1'b1;   // Write engine error
 
-            // Also set descriptor_error flag for ANY scheduler-internal error
-            // This ensures consistent error reporting via MonBus
-            if (sched_rd_error || sched_wr_error || w_timeout_expired) begin
+            // Latch a fatal descriptor_error for genuine faults OR an ESCALATED
+            // timeout (cfg_sched_timeout_limit consecutive windows). A bare timeout
+            // window is recoverable and deliberately NOT latched here.
+            if (sched_rd_error || sched_wr_error || w_timeout_escalate) begin
                 r_descriptor_error <= 1'b1;
             end
 
@@ -621,6 +683,16 @@ module scheduler_beats #(
     // Timeout threshold: Compare counter to configured limit (if enabled)
     assign w_timeout_expired = cfg_sched_timeout_enable &&
                                (r_timeout_counter >= cfg_sched_timeout_cycles);
+
+    // Escalate a recoverable timeout to a fatal fault only after cfg_sched_timeout_limit
+    // consecutive windows (0 = never escalate: pure soft timeout).
+    assign w_timeout_escalate = (cfg_sched_timeout_limit != 8'd0) &&
+                                (r_timeout_strikes >= cfg_sched_timeout_limit);
+
+    // Fatal faults: data-path integrity compromised -> sticky CH_ERROR until reset.
+    // (A bare timeout window is a recoverable liveness fault, not included here.)
+    assign w_hard_error = descriptor_error || sched_rd_error || sched_wr_error ||
+                          r_read_error_sticky || r_write_error_sticky;
 
     //=========================================================================
     // Monitor Packet Generation
@@ -742,8 +814,10 @@ module scheduler_beats #(
     // Status Outputs
     //=========================================================================
 
-    assign scheduler_idle = ((r_current_state == CH_IDLE) || (r_current_state == CH_ERROR))
-                                && !r_channel_reset_active;
+    // Only CH_IDLE is "idle". CH_ERROR is a faulted channel and must NOT report
+    // idle — reporting CH_ERROR as idle is what let CHANNEL_IDLE read '1' on a
+    // wedged channel. A faulted channel is surfaced via sched_error/CHANNEL_ERROR.
+    assign scheduler_idle = (r_current_state == CH_IDLE) && !r_channel_reset_active;
     assign scheduler_state = r_current_state;
     assign sched_error = w_state_error;  // Sticky error output
 

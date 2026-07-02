@@ -54,6 +54,7 @@ module scheduler_group_beats #(
 
     // Scheduler Configuration
     input  logic [31:0]                 cfg_sched_timeout_cycles,
+    input  logic [7:0]                  cfg_sched_timeout_limit,
     input  logic                        cfg_sched_timeout_enable,
     input  logic                        cfg_sched_err_enable,
     input  logic                        cfg_sched_compl_enable,
@@ -113,6 +114,8 @@ module scheduler_group_beats #(
     input  logic [31:0]                 sched_rd_beats_done,
     input  logic                        sched_wr_done_strobe,
     input  logic [31:0]                 sched_wr_beats_done,
+    input  logic                        sched_wr_commit_strobe,
+    input  logic [31:0]                 sched_wr_commit_beats,
 
     // Error Signals (from AXI engines)
     input  logic                        sched_rd_error,
@@ -273,6 +276,7 @@ module scheduler_group_beats #(
         .cfg_channel_enable     (cfg_channel_enable),
         .cfg_channel_reset      (cfg_channel_reset),
         .cfg_sched_timeout_cycles(cfg_sched_timeout_cycles),
+        .cfg_sched_timeout_limit(cfg_sched_timeout_limit),
         .cfg_sched_timeout_enable(cfg_sched_timeout_enable),
 
         // Status
@@ -310,6 +314,8 @@ module scheduler_group_beats #(
         .sched_rd_beats_done    (sched_rd_beats_done),
         .sched_wr_done_strobe   (sched_wr_done_strobe),
         .sched_wr_beats_done    (sched_wr_beats_done),
+        .sched_wr_commit_strobe (sched_wr_commit_strobe),
+        .sched_wr_commit_beats  (sched_wr_commit_beats),
 
         // Error signals
         .sched_rd_error         (sched_rd_error),

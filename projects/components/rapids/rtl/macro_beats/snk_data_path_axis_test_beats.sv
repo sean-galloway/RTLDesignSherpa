@@ -206,6 +206,8 @@ module snk_data_path_axis_test_beats #(
     // Scheduler completion strobes (from write engine)
     logic [NC-1:0]                  sched_wr_done_strobe;
     logic [NC-1:0][31:0]            sched_wr_beats_done;
+    logic [NC-1:0]                  sched_wr_commit_strobe;
+    logic [NC-1:0][31:0]            sched_wr_commit_beats;
 
     //=========================================================================
     // Map Individual Port Signals to Internal Arrays
@@ -307,6 +309,7 @@ module snk_data_path_axis_test_beats #(
                 .cfg_channel_enable     (1'b1),
                 .cfg_channel_reset      (1'b0),
                 .cfg_sched_timeout_cycles(32'd1000),
+                .cfg_sched_timeout_limit (8'd1),  // escalate after one window (legacy timeout->error)
                 .cfg_sched_timeout_enable(1'b1),
 
                 // Status
@@ -344,6 +347,8 @@ module snk_data_path_axis_test_beats #(
                 .sched_rd_beats_done    (r_rd_beats_done[i]),
                 .sched_wr_done_strobe   (sched_wr_done_strobe[i]),
                 .sched_wr_beats_done    (sched_wr_beats_done[i]),
+                .sched_wr_commit_strobe (sched_wr_commit_strobe[i]),
+                .sched_wr_commit_beats  (sched_wr_commit_beats[i]),
 
                 // Error signals
                 .sched_rd_error         (1'b0),
@@ -404,6 +409,8 @@ module snk_data_path_axis_test_beats #(
         // Completion Interface
         .sched_wr_done_strobe   (sched_wr_done_strobe),
         .sched_wr_beats_done    (sched_wr_beats_done),
+        .sched_wr_commit_strobe (sched_wr_commit_strobe),
+        .sched_wr_commit_beats  (sched_wr_commit_beats),
 
         // AXI Write Master Interface
         .m_axi_awid             (m_axi_awid),

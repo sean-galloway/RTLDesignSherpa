@@ -214,7 +214,22 @@ module descriptor_engine_beats #(
     // Decision tree for whether to automatically fetch next descriptor
     logic w_chain_condition;              // Basic chaining criteria (next_addr != 0 && !last)
     logic w_next_addr_valid;              // next_addr passes range validation
-    logic w_should_chain;                 // Final decision: chain if all conditions met
+    logic w_chain_eligible;               // Chain criteria met (throttle-independent)
+    logic w_should_chain;                 // Immediate chain push (eligible + allowed now)
+    logic w_desc_committed;               // Current descriptor accepted into output FIFO
+
+    // Prefetch throttle (cfg_prefetch_enable / cfg_fifo_threshold).
+    // Bounds how many fetched-but-unconsumed descriptors may sit in the output
+    // FIFO ahead of the scheduler. prefetch off => on-demand (limit 1); prefetch
+    // on => up to cfg_fifo_threshold. A chain fetch blocked by the throttle is
+    // deferred (r_chain_pending) and issued once the FIFO drains below the limit.
+    localparam int DFC_W = $clog2(FIFO_DEPTH) + 1;   // output-FIFO count width
+    logic [DFC_W-1:0]      w_desc_fifo_count;         // output FIFO occupancy
+    logic [DFC_W-1:0]      w_prefetch_limit;          // max descriptors buffered ahead
+    logic                  w_prefetch_allows;         // room to fetch another
+    logic                  r_chain_pending;           // deferred chain fetch owed
+    logic [ADDR_WIDTH-1:0] r_pending_chain_addr;      // held next_descriptor_ptr
+    logic                  w_pending_push_fire;        // deferred push issues this cycle
 
     // Enhanced field extraction
     // Fields extracted from fetched descriptor (RAPIDS descriptor format)
@@ -365,10 +380,17 @@ module descriptor_engine_beats #(
             w_desc_addr_fifo_wr_valid = 1'b1;
             w_desc_addr_fifo_wr_data = w_apb_skid_dout;
         end
-        // Source 2: Autonomous chaining (next_addr is 32-bit, zero-extend to 64-bit)
-        else if (w_should_chain && (r_current_state == RD_COMPLETE)) begin
+        // Source 2: Autonomous chaining, pushed immediately at descriptor commit
+        //           when the prefetch throttle allows (next_addr 32-bit, zero-extend)
+        else if (w_should_chain) begin
             w_desc_addr_fifo_wr_valid = 1'b1;
             w_desc_addr_fifo_wr_data = {{(ADDR_WIDTH-32){1'b0}}, w_next_addr};  // Zero-extend 32→64 bit
+        end
+        // Source 3: Deferred chaining, previously throttled by prefetch limit,
+        //           issued once the output FIFO has drained below the limit
+        else if (w_pending_push_fire) begin
+            w_desc_addr_fifo_wr_valid = 1'b1;
+            w_desc_addr_fifo_wr_data = r_pending_chain_addr;
         end
     end
 
@@ -412,12 +434,56 @@ module descriptor_engine_beats #(
     // Chain if: pointer is non-zero AND last flag not set AND descriptor is valid
     assign w_chain_condition = (w_next_addr != '0) && !w_desc_last && w_desc_valid;
 
-    // Level 3: Final chaining decision
-    // Combine all conditions for safe autonomous chaining
-    assign w_should_chain = w_chain_condition &&        // Basic eligibility
-                            w_next_addr_valid &&         // Address range check
-                            !r_descriptor_error &&       // No fetch errors
-                            w_desc_fifo_wr_ready;        // FIFO has space
+    // Level 3: chaining eligibility (throttle-independent)
+    assign w_chain_eligible = w_chain_condition &&        // Basic eligibility
+                              w_next_addr_valid &&         // Address range check
+                              !r_descriptor_error;         // No fetch errors
+
+    // The current descriptor is accepted into the output FIFO this cycle.
+    assign w_desc_committed = (r_current_state == RD_COMPLETE) && w_desc_fifo_wr_ready;
+
+    // Prefetch throttle: how many fetched-but-unconsumed descriptors may sit in
+    // the output FIFO ahead of the scheduler.
+    //   cfg_prefetch_enable=0 -> 1 (on-demand: fetch next only after drain)
+    //   cfg_prefetch_enable=1 -> cfg_fifo_threshold (min 1), buffer that many ahead
+    always_comb begin
+        if (!cfg_prefetch_enable)
+            w_prefetch_limit = {{(DFC_W-1){1'b0}}, 1'b1};
+        else if (cfg_fifo_threshold == 4'h0)
+            w_prefetch_limit = {{(DFC_W-1){1'b0}}, 1'b1};   // guard: 0 would stall chaining
+        else
+            w_prefetch_limit = DFC_W'(cfg_fifo_threshold);
+    end
+    assign w_prefetch_allows = (w_desc_fifo_count < w_prefetch_limit);
+
+    // Immediate chain push: eligible, committed, throttle allows, address FIFO has room.
+    assign w_should_chain = w_chain_eligible && w_desc_committed &&
+                            w_prefetch_allows && w_desc_addr_fifo_wr_ready;
+
+    // Deferred chain push: a throttled chain address becomes issuable once the
+    // output FIFO drains below the limit (never in the commit cycle, which is
+    // reserved for the immediate path above).
+    assign w_pending_push_fire = r_chain_pending && w_prefetch_allows &&
+                                 w_desc_addr_fifo_wr_ready && !w_desc_committed;
+
+    // Deferred-chain register: remember an owed chain fetch that could not be
+    // pushed at commit time (throttled or address FIFO full), issue it later.
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_chain_pending      <= 1'b0;
+            r_pending_chain_addr <= '0;
+        end else if (r_channel_reset_active) begin
+            r_chain_pending      <= 1'b0;
+        end else begin
+            // Owe a fetch: descriptor committed and chain-eligible, but not pushed now
+            if (w_desc_committed && w_chain_eligible && !w_should_chain && !r_chain_pending) begin
+                r_chain_pending      <= 1'b1;
+                r_pending_chain_addr <= {{(ADDR_WIDTH-32){1'b0}}, w_next_addr};
+            end else if (w_pending_push_fire) begin
+                r_chain_pending      <= 1'b0;
+            end
+        end
+    )
 
     //=========================================================================
     // Enhanced Descriptor FIFO with EOS/EOL/EOD Support
@@ -440,7 +506,7 @@ module descriptor_engine_beats #(
         .rd_valid(w_desc_fifo_rd_valid),
         .rd_ready(w_desc_fifo_rd_ready),
         .rd_data(w_desc_fifo_rd_data),
-        .count()
+        .count(w_desc_fifo_count)
     );
 
     //=========================================================================
