@@ -67,6 +67,8 @@ async def cocotb_test_rd_cl_aligner(dut):
         "rrdy_starvation_wedge": _rrdy_starvation_wedge,
         "back_to_back":        _back_to_back,
         "id_propagate":        _id_propagate,
+        "is_last_chunk_gate":  _is_last_chunk_gate,
+        "intake_split_16chunks": _intake_split_16chunks,
         "random_soak":         _random_soak,
     }
     if test_type not in scenarios:
@@ -275,6 +277,158 @@ async def _id_propagate(tb: RdClAlignerTB):
         await tb.wait_clocks('mc_clk', 3)
 
 
+async def _is_last_chunk_gate(tb: RdClAlignerTB):
+    """Issue #22 — verify rd_inject_last_o is masked when op_is_last_chunk_i=0
+    and fires when =1, with the masked op feeding correct data otherwise.
+
+    Two ops issued back-to-back:
+      Op 0: is_last_chunk=0 → all beats stream, but rd_inject_last_o stays low.
+      Op 1: is_last_chunk=1 → all beats stream AND rd_inject_last_o pulses
+            on the final beat.
+    """
+    # --- Op 0: chunked (not last) ---
+    burst_a = tb.make_burst(slot=2, axi_id=7, length=4,
+                            t_rddata_en=2, phy_rdlat=1, seed_tag=0xAA)
+    burst_a.is_last_chunk = 0
+    await tb.issue_op(burst_a)
+
+    # Wait for all 4 beats to land in captured_beats. last_seen MUST stay False.
+    timeout = 4096
+    while timeout and len(tb.captured_beats) < len(burst_a.beats):
+        await RisingEdge(tb.dut.mc_clk)
+        timeout -= 1
+    assert len(tb.captured_beats) == len(burst_a.beats), (
+        f"chunked op didn't deliver all beats: "
+        f"{len(tb.captured_beats)}/{len(burst_a.beats)}"
+    )
+    assert not tb.last_seen, (
+        "rd_inject_last_o pulsed for op_is_last_chunk_i=0 — gate broken")
+    # Data and id must still be correct on the masked op.
+    for i, (g, e) in enumerate(zip(tb.captured_beats, burst_a.beats)):
+        e_masked = e & tb.MASK_DATA
+        assert g == e_masked, (
+            f"chunked op beat {i}: got {g:#x} want {e_masked:#x}")
+
+    # Clear current_burst FIRST so the injector's next rising-edge scan
+    # sees None and resets its en_seen_count. Then wait for the FUB to
+    # fully drain / op_ready to re-assert before issuing burst_b.
+    tb.current_burst = None
+    await tb.wait_clocks('mc_clk', 8)
+    tb.captured_beats.clear()
+    tb.captured_ids.clear()
+    tb.beat_we_count = 0
+    tb.last_seen = False
+
+    # --- Op 1: not chunked, last_chunk=1 ---
+    burst_b = tb.make_burst(slot=3, axi_id=7, length=4,
+                            t_rddata_en=2, phy_rdlat=1, seed_tag=0xBB)
+    burst_b.is_last_chunk = 1
+    await tb.issue_op(burst_b)
+    await tb.await_burst_complete(burst_b)
+    tb.verify_capture(burst_b)
+
+
+async def _intake_split_16chunks(tb: RdClAlignerTB):
+    """FUB-level reproducer for the rd_cl_aligner EN-pipeline skip bug
+    observed at macro level as patho_bl256_n1 (RTLDesignSherpa#29).
+
+    Scenario mirrors axi_intake's 16-way burst split: an AXI BL=64
+    read gets split into 16 chunks of DRAM BL=4, each pushed as a
+    fresh op_valid_i pulse. The macro trace showed 2 chunks (s11 and
+    s13) got OP_ACCEPT + CAPTURE but no EN_CYC pulses, so their
+    r_stage never filled and they never emitted — the aligner ends
+    up emitting 56/64 beats.
+
+    The trigger is the intake cadence: chunks arrive every ~18 cycles
+    while EN processes each in ~2 EN cycles + wait. That timing lands
+    fresh pushes on the same cycle that r_en_head_idx is trying to
+    step past a done op, exposing the same-cycle race in the "advance
+    past done/invalid head" branch (rd_cl_aligner.sv:315-327).
+
+    Reproducer strategy: push 16 ops of len=4 back-to-back, then let
+    the existing PHY injector feed data through a single virtual
+    64-beat burst. The aligner's own CAP head routes each DFI cycle
+    to the correct op's r_stage. On a healthy RTL we get 64 beats
+    out; on the buggy RTL we get 56.
+    """
+    from cocotb.triggers import RisingEdge, Timer
+
+    N_CHUNKS = 16
+    CHUNK_LEN = 4
+    T_RDDATA_EN = 6         # matches macro cadence (~6 cycles OP_ACCEPT→EN)
+    PHY_RDLAT = 1
+    INTER_OP_CYCLES = 4     # feed rate that keeps FIFO filling while EN
+                            # is still processing early chunks
+
+    # 16 chunks of len=4, distinct data patterns per chunk, only the
+    # last chunk carries is_last_chunk=1 (mirrors axi_intake).
+    chunks = []
+    all_beats = []
+    for i in range(N_CHUNKS):
+        beats = [
+            ((0xC0 << 24) | (i << 16) | j) & tb.MASK_DATA
+            for j in range(CHUNK_LEN)
+        ]
+        all_beats.extend(beats)
+        chunks.append(dict(
+            slot=i, axi_id=0, length=CHUNK_LEN,
+            is_last_chunk=(1 if i == N_CHUNKS - 1 else 0),
+        ))
+
+    # Present the whole beat stream to the existing PHY injector as a
+    # single virtual burst. The aligner internally routes each DFI
+    # cycle to whichever slot is at its CAP head.
+    from tbclasses.rd_cl_aligner_tb import ReadBurst
+    virtual = ReadBurst(
+        slot=0, axi_id=0, beats=all_beats,
+        t_rddata_en=T_RDDATA_EN, phy_rdlat=PHY_RDLAT,
+        is_last_chunk=1,
+    )
+    tb.current_burst = virtual
+    tb.captured_beats.clear()
+    tb.captured_ids.clear()
+    tb.beat_we_count = 0
+    tb.last_seen = False
+
+    tb.dut.t_rddata_en_i.value = T_RDDATA_EN
+
+    for chunk in chunks:
+        tb.dut.op_slot_i.value          = chunk['slot'] & ((1 << tb.RSL) - 1)
+        tb.dut.op_id_i.value             = chunk['axi_id'] & ((1 << tb.AXI_ID_WIDTH) - 1)
+        tb.dut.op_len_i.value            = chunk['length'] & ((1 << tb.BURST_LEN_WIDTH) - 1)
+        tb.dut.op_is_last_chunk_i.value  = chunk['is_last_chunk'] & 1
+        tb.dut.op_valid_i.value          = 1
+        while int(tb.dut.op_ready_o.value) == 0:
+            await RisingEdge(tb.dut.mc_clk)
+            await Timer(1, units='ps')
+        await RisingEdge(tb.dut.mc_clk)
+        await Timer(1, units='ps')
+        tb.dut.op_valid_i.value = 0
+        for _ in range(INTER_OP_CYCLES - 1):
+            await RisingEdge(tb.dut.mc_clk)
+            await Timer(1, units='ps')
+
+    expected = N_CHUNKS * CHUNK_LEN
+    timeout = 4096
+    while timeout and len(tb.captured_beats) < expected:
+        await RisingEdge(tb.dut.mc_clk)
+        await Timer(1, units='ps')
+        timeout -= 1
+
+    assert len(tb.captured_beats) == expected, (
+        f"rd_cl_aligner 16-way intake-split reproducer (#29): got "
+        f"{len(tb.captured_beats)}/{expected} beats — EN pipeline is "
+        f"skipping ops. Aligner accepted all 16 OP_ACCEPTs but only "
+        f"emitted {len(tb.captured_beats) // CHUNK_LEN} chunks × "
+        f"{CHUNK_LEN} beats. Root cause: EN-head advance race in "
+        f"rd_cl_aligner.sv:315-327."
+    )
+    assert tb.last_seen, (
+        "rd_inject_last_o never pulsed on the final chunk (op 15) — "
+        "either EN skipped it or is_last_chunk plumbing regressed"
+    )
+
+
 async def _random_soak(tb: RdClAlignerTB):
     rng = random.Random(tb.SEED ^ 0xCAFE)
     n = {'gate': 8, 'func': 32, 'full': 96}.get(tb.TEST_LEVEL, 32)
@@ -304,6 +458,8 @@ _ALL_TYPES = [
     "rrdy_starvation_wedge",
     "back_to_back",
     "id_propagate",
+    "is_last_chunk_gate",     # #22
+    "intake_split_16chunks",  # #29 reproducer
     "random_soak",
 ]
 
@@ -322,8 +478,32 @@ _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
 _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
 
 
-@pytest.mark.parametrize("test_type,dfi_rate", _PARAMS,
-                         ids=[f"{t[0]}-r{t[1]}" for t in _PARAMS])
+# RTLDesignSherpa#29 — rd_cl_aligner EN pipeline skips ops under the
+# 16-way intake-split cadence. Reproducer test is gated as xfail until
+# the RTL fix lands so regressions stay green; when the fix ships, drop
+# this wrapper and the xfail flips to xpass (strict=False) or clean pass.
+_BUG_29_TYPES: frozenset = frozenset({"intake_split_16chunks"})
+
+
+def _mk_param(t, r):
+    if t in _BUG_29_TYPES:
+        return pytest.param(
+            t, r, id=f"{t}-r{r}",
+            marks=pytest.mark.xfail(
+                reason=(
+                    "rd_cl_aligner EN pipeline skips ops under 16-way "
+                    "intake-split cadence (RTLDesignSherpa#29)"
+                ),
+                strict=False,
+            ),
+        )
+    return pytest.param(t, r, id=f"{t}-r{r}")
+
+
+@pytest.mark.parametrize(
+    "test_type,dfi_rate",
+    [_mk_param(t, r) for (t, r) in _PARAMS],
+)
 def test_rd_cl_aligner(request, test_type, dfi_rate):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "rd_cl_aligner"
