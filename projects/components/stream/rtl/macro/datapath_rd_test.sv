@@ -356,6 +356,9 @@ module datapath_rd_test #(
                 .sched_rd_beats_done    (sched_rd_beats_done[i]),
                 .sched_wr_done_strobe   (r_wr_done_strobe[i]),     // Registered: asserts next cycle
                 .sched_wr_beats_done    (r_wr_beats_done[i]),      // All beats completed in 1 cycle
+                // Read-only test: no real write engine, so commit == issue (stub drives both)
+                .sched_wr_commit_strobe (r_wr_done_strobe[i]),
+                .sched_wr_commit_beats  (r_wr_beats_done[i]),
 
                 // Error signals from engines
                 .sched_rd_error         (sched_rd_error[i]),       // From AXI read engine

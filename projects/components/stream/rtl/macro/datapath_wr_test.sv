@@ -202,6 +202,8 @@ module datapath_wr_test #(
     // Scheduler completion strobes (from write engine)
     logic [NC-1:0]                  sched_wr_done_strobe;
     logic [NC-1:0][31:0]            sched_wr_beats_done;
+    logic [NC-1:0]                  sched_wr_commit_strobe;
+    logic [NC-1:0][31:0]            sched_wr_commit_beats;
     logic [NC-1:0]                  sched_wr_error;
     logic [NC-1:0]                  dbg_wr_all_complete;
 
@@ -347,6 +349,8 @@ module datapath_wr_test #(
                 .sched_rd_beats_done    (r_rd_beats_done[i]),      // All beats completed in 1 cycle
                 .sched_wr_done_strobe   (sched_wr_done_strobe[i]),
                 .sched_wr_beats_done    (sched_wr_beats_done[i]),
+                .sched_wr_commit_strobe (sched_wr_commit_strobe[i]),
+                .sched_wr_commit_beats  (sched_wr_commit_beats[i]),
 
                 // Error signals from engines
                 .sched_rd_error         (1'b0),
@@ -399,6 +403,8 @@ module datapath_wr_test #(
         // Completion interface (to schedulers)
         .sched_wr_done_strobe   (sched_wr_done_strobe),
         .sched_wr_beats_done    (sched_wr_beats_done),
+        .sched_wr_commit_strobe (sched_wr_commit_strobe),
+        .sched_wr_commit_beats  (sched_wr_commit_beats),
         .dbg_wr_all_complete    (dbg_wr_all_complete),
         .sched_wr_error         (sched_wr_error),
 

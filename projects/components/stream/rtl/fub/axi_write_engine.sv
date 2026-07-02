@@ -86,8 +86,10 @@ module axi_write_engine #(
     // Completion Interface (to Schedulers)
     //=========================================================================
     // Notify schedulers when write burst completes
-    output logic [NC-1:0]               sched_wr_done_strobe,  // Burst completed (pulsed for 1 cycle)
-    output logic [NC-1:0][31:0]         sched_wr_beats_done,   // Number of beats completed in burst
+    output logic [NC-1:0]               sched_wr_done_strobe,  // Burst ISSUED - AW handshake (pulsed 1 cycle) - advances dst addr
+    output logic [NC-1:0][31:0]         sched_wr_beats_done,   // Number of beats issued in burst
+    output logic [NC-1:0]               sched_wr_commit_strobe,// Burst COMMITTED - B response (pulsed 1 cycle) - gates completion
+    output logic [NC-1:0][31:0]         sched_wr_commit_beats, // Number of beats committed in burst
 
     //=========================================================================
     // SRAM Drain Interface (to SRAM Controller)
@@ -876,6 +878,33 @@ module axi_write_engine #(
 
     assign sched_wr_done_strobe = r_done_strobe;
     assign sched_wr_beats_done = r_beats_done;
+
+    // Commit strobe: pulse when a B response arrives (write actually committed to the
+    // destination). Separate from the AW-issue done strobe above; this drives the
+    // scheduler's completion counter so a channel is not reported done until write
+    // data has landed. Beats come from the same B-phase FIFO used by r_beats_written.
+    logic [NC-1:0] r_commit_strobe;
+    logic [NC-1:0][31:0] r_commit_beats;
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_commit_strobe <= '{default:0};
+            r_commit_beats <= '{default:0};
+        end else begin
+            // Default: clear strobe (one-cycle pulse)
+            r_commit_strobe <= '{default:0};
+
+            for (int i = 0; i < NC; i++) begin
+                if (m_axi_bvalid && m_axi_bready && (m_axi_bid[CIW-1:0] == i[CIW-1:0])) begin
+                    r_commit_strobe[i] <= 1'b1;
+                    r_commit_beats[i] <= {24'h0, b_phase_txn_fifo_dout[i].beats};
+                end
+            end
+        end
+    )
+
+    assign sched_wr_commit_strobe = r_commit_strobe;
+    assign sched_wr_commit_beats = r_commit_beats;
 
     // synopsys translate_off
     // Hang diagnostic: when sched_wr_valid is high but w_arb_request is low for

@@ -119,6 +119,8 @@ module scheduler_group #(
     input  logic [31:0]                 sched_rd_beats_done,
     input  logic                        sched_wr_done_strobe,
     input  logic [31:0]                 sched_wr_beats_done,
+    input  logic                        sched_wr_commit_strobe,
+    input  logic [31:0]                 sched_wr_commit_beats,
 
     // Error Signals (from AXI engines)
     input  logic                        sched_rd_error,
@@ -311,6 +313,8 @@ module scheduler_group #(
         .sched_rd_beats_done    (sched_rd_beats_done),
         .sched_wr_done_strobe   (sched_wr_done_strobe),
         .sched_wr_beats_done    (sched_wr_beats_done),
+        .sched_wr_commit_strobe (sched_wr_commit_strobe),
+        .sched_wr_commit_beats  (sched_wr_commit_beats),
 
         // Error signals
         .sched_rd_error         (sched_rd_error),

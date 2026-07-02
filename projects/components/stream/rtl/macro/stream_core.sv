@@ -512,6 +512,8 @@ module stream_core #(
     logic [NC-1:0][31:0]         sched_rd_beats_done;
     logic [NC-1:0]               sched_wr_done_strobe;
     logic [NC-1:0][31:0]         sched_wr_beats_done;
+    logic [NC-1:0]               sched_wr_commit_strobe;
+    logic [NC-1:0][31:0]         sched_wr_commit_beats;
 
     // Error signals from engines to schedulers
     logic [NC-1:0]               sched_rd_error;
@@ -853,6 +855,8 @@ module stream_core #(
         .sched_rd_beats_done    (sched_rd_beats_done),
         .sched_wr_done_strobe   (sched_wr_done_strobe),
         .sched_wr_beats_done    (sched_wr_beats_done),
+        .sched_wr_commit_strobe (sched_wr_commit_strobe),
+        .sched_wr_commit_beats  (sched_wr_commit_beats),
 
         // Error signals (per-channel arrays from engines)
         .sched_rd_error         (sched_rd_error),
@@ -1136,6 +1140,8 @@ module stream_core #(
         // Completion interface
         .sched_wr_done_strobe   (sched_wr_done_strobe),
         .sched_wr_beats_done    (sched_wr_beats_done),
+        .sched_wr_commit_strobe (sched_wr_commit_strobe),
+        .sched_wr_commit_beats  (sched_wr_commit_beats),
         .dbg_wr_all_complete    (axi_wr_all_complete),
         .sched_wr_error         (sched_wr_error),
 

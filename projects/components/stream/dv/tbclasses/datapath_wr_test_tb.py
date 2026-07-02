@@ -494,8 +494,11 @@ class DatapathWrTestTB(TBBase):
         aw_monitor_task = cocotb.start_soon(self.axi_aw_monitor())
         w_monitor_task = cocotb.start_soon(self.axi_w_monitor())
 
-        # Wait for AXI transactions to complete
-        # Monitor dbg_aw_transactions and dbg_w_beats
+        # Wait for AXI transactions to complete.
+        # dbg_aw_transactions is a CUMULATIVE AW counter; callers pass the cumulative
+        # expected count (e.g. b2b issues all descriptors first, then waits for the
+        # channel's total AWs). Completion is confirmed by the subsequent wait_for_idle
+        # (sched_idle), which the RTL now correctly gates on write COMMITS.
         start_cycle = self.cycle_count
 
         while (self.cycle_count - start_cycle) < timeout_cycles:

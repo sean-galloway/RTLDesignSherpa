@@ -188,6 +188,8 @@ module scheduler_group_array #(
     input  logic [NUM_CHANNELS-1:0][31:0]               sched_rd_beats_done,
     input  logic [NUM_CHANNELS-1:0]                     sched_wr_done_strobe,
     input  logic [NUM_CHANNELS-1:0][31:0]               sched_wr_beats_done,
+    input  logic [NUM_CHANNELS-1:0]                     sched_wr_commit_strobe,
+    input  logic [NUM_CHANNELS-1:0][31:0]               sched_wr_commit_beats,
 
     // Error Signals (per-channel from AXI engines)
     input  logic [NUM_CHANNELS-1:0]                     sched_rd_error,
@@ -396,6 +398,8 @@ module scheduler_group_array #(
                 .sched_rd_beats_done    (sched_rd_beats_done[ch]),
                 .sched_wr_done_strobe   (sched_wr_done_strobe[ch]),
                 .sched_wr_beats_done    (sched_wr_beats_done[ch]),
+                .sched_wr_commit_strobe (sched_wr_commit_strobe[ch]),
+                .sched_wr_commit_beats  (sched_wr_commit_beats[ch]),
 
                 // Error signals (direct passthrough)
                 .sched_rd_error         (sched_rd_error[ch]),

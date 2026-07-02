@@ -117,8 +117,10 @@ module scheduler #(
     // Completion Interface (from Engines to Scheduler)
     input  logic                        sched_rd_done_strobe,   // Read burst completed (pulsed)
     input  logic [31:0]                 sched_rd_beats_done,    // Number of beats completed
-    input  logic                        sched_wr_done_strobe,   // Write burst completed (pulsed)
-    input  logic [31:0]                 sched_wr_beats_done,    // Number of beats completed
+    input  logic                        sched_wr_done_strobe,   // Write burst ISSUED - AW handshake (pulsed) - advances dst address
+    input  logic [31:0]                 sched_wr_beats_done,    // Number of beats issued this pulse
+    input  logic                        sched_wr_commit_strobe, // Write burst COMMITTED - B response (pulsed) - gates completion
+    input  logic [31:0]                 sched_wr_commit_beats,  // Number of beats committed this pulse
 
     // Error Signals (from Engines to Scheduler)
     input  logic                        sched_rd_error,         // Read engine error
@@ -225,7 +227,8 @@ module scheduler #(
     logic [ADDR_WIDTH-1:0] r_dst_addr;            // Current destination address
     logic [31:0] r_beats_remaining;               // Total beats remaining (for reference)
     logic [31:0] r_read_beats_remaining;          // Beats left to read from source
-    logic [31:0] r_write_beats_remaining;         // Beats left to write to destination
+    logic [31:0] r_write_beats_remaining;         // Beats left to ISSUE to destination (drives engine + dst address)
+    logic [31:0] r_write_beats_to_commit;         // Beats left to COMMIT (B responses) - gates completion
 
     // Timeout tracking
     // Counts clock cycles while waiting for engine grant (sched_wr_ready)
@@ -335,10 +338,14 @@ module scheduler #(
                         // - Both report progress via done strobes
                         // - Natural backpressure via SRAM full/empty flags
                         //
-                        // Exit when:
-                        // 1. Transfer complete (both counters == 0)
-                        // 2. Write engine signals ready (all transactions acknowledged)
-                        if (w_transfer_complete && sched_wr_ready) begin
+                        // Exit when the transfer is complete: all source beats read
+                        // AND all destination beats COMMITTED (B responses received, via
+                        // r_write_beats_to_commit). Committed already implies the write
+                        // engine has acknowledged every transaction, so the previous
+                        // sched_wr_ready gate is unnecessary here (and would deadlock,
+                        // since sched_wr_ready drops once issue finishes, well before the
+                        // final B responses arrive).
+                        if (w_transfer_complete) begin
                             w_next_state = CH_COMPLETE;
                         end
                         // Note: Stays in XFER_DATA until both conditions met or error
@@ -415,6 +422,7 @@ module scheduler #(
             r_beats_remaining <= 32'h0;
             r_read_beats_remaining <= 32'h0;
             r_write_beats_remaining <= 32'h0;
+            r_write_beats_to_commit <= 32'h0;
         end else begin
             // Descriptor capture: Sample descriptor_packet when handshake occurs
             // This happens in either CH_IDLE (first descriptor) or CH_NEXT_DESC (chained)
@@ -445,6 +453,7 @@ module scheduler #(
                     r_beats_remaining <= r_descriptor.length;
                     r_read_beats_remaining <= r_descriptor.length;
                     r_write_beats_remaining <= r_descriptor.length;
+                    r_write_beats_to_commit <= r_descriptor.length;
                 end
 
                 CH_XFER_DATA: begin
@@ -466,9 +475,12 @@ module scheduler #(
                         r_src_addr <= r_src_addr + (ADDR_WIDTH'(sched_rd_beats_done) << $clog2(DATA_WIDTH/8));
                     end
 
-                    // Write progress: SRAM → Destination (independent from read!)
+                    // Write ISSUE progress: SRAM → Destination (independent from read!)
+                    // Fires on AW handshake. Decrements the ISSUE counter (drives the
+                    // engine's next-burst sizing) and advances the destination address
+                    // so the next (pipelined) AW targets the right location.
                     if (sched_wr_done_strobe) begin
-                        // Decrement by number of beats engine completed
+                        // Decrement by number of beats issued this burst
                         // Saturate at 0 (safety check, shouldn't underflow)
                         r_write_beats_remaining <= (r_write_beats_remaining >= sched_wr_beats_done) ?
                                                 (r_write_beats_remaining - sched_wr_beats_done) : 32'h0;
@@ -476,6 +488,15 @@ module scheduler #(
                         // Increment destination address by bytes transferred
                         // Address increment = beats_done << AXSIZE (where AXSIZE = log2(DATA_WIDTH/8))
                         r_dst_addr <= r_dst_addr + (ADDR_WIDTH'(sched_wr_beats_done) << $clog2(DATA_WIDTH/8));
+                    end
+
+                    // Write COMMIT progress: fires on B response (data actually written
+                    // to the destination). Decrements the COMMIT counter, which gates
+                    // completion (w_write_complete) so a channel is not reported done
+                    // until every issued write has been acknowledged.
+                    if (sched_wr_commit_strobe) begin
+                        r_write_beats_to_commit <= (r_write_beats_to_commit >= sched_wr_commit_beats) ?
+                                                (r_write_beats_to_commit - sched_wr_commit_beats) : 32'h0;
                     end
                 end
 
@@ -510,7 +531,10 @@ module scheduler #(
     //=========================================================================
 
     assign w_read_complete = (r_read_beats_remaining == 32'h0);
-    assign w_write_complete = (r_write_beats_remaining == 32'h0);
+    // Write is complete only when all issued beats have been COMMITTED (B responses),
+    // not merely issued (r_write_beats_remaining). This prevents the channel from
+    // signalling done/interrupt while write data is still draining to memory.
+    assign w_write_complete = (r_write_beats_to_commit == 32'h0);
     assign w_transfer_complete = w_read_complete && w_write_complete;
 
     // Look-ahead completion detection:
@@ -562,7 +586,15 @@ module scheduler #(
     // CONCURRENT OPERATION: sched_wr_valid asserted in CH_XFER_DATA (not CH_WRITE_DATA)
     //                       Runs simultaneously with read engine
 
+    // Request writes only while there are beats left to ISSUE. This gate used to be
+    // implicit in !w_write_complete (which was write_beats_remaining==0), but
+    // w_write_complete now tracks COMMITs (r_write_beats_to_commit); without the
+    // explicit issue-count gate the engine would keep sched_wr_valid high through the
+    // commit-wait and, seeing sched_wr_beats==0, issue a spurious garbage AW
+    // (transfer-size underflow -> awlen=0xFF). The scheduler still stays in
+    // CH_XFER_DATA waiting for commits; it just stops requesting new writes.
     assign sched_wr_valid = (r_current_state == CH_XFER_DATA) &&
+                        (r_write_beats_remaining != 32'h0) &&
                         !w_write_complete &&
                         !w_sched_wr_completing_this_cycle;
     assign sched_wr_addr = r_dst_addr;
@@ -601,7 +633,14 @@ module scheduler #(
             // Timeout counter: Increments while waiting for write engine completion
             // Counts cycles where sched_wr_valid is high but ready is low
             // Prevents deadlock if write engine doesn't complete
-            if (sched_wr_valid && !sched_wr_ready) begin
+            // Any write progress resets the timeout: an AW issue (done strobe) OR a
+            // B response (commit strobe). This matters because completion is now gated
+            // on commits: sched_wr_valid stays high through the commit-wait while
+            // sched_wr_ready is low (engine done issuing), so without treating commits
+            // as progress the counter would falsely time out a slow-draining transfer.
+            if (sched_wr_done_strobe || sched_wr_commit_strobe) begin
+                r_timeout_counter <= 32'h0;  // write progress -> not stalled
+            end else if (sched_wr_valid && !sched_wr_ready) begin
                 r_timeout_counter <= r_timeout_counter + 1;
             end else begin
                 r_timeout_counter <= 32'h0;  // Reset when not waiting or completion received

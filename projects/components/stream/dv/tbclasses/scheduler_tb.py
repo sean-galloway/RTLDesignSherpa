@@ -279,6 +279,10 @@ class SchedulerTB(TBBase):
         self.dut.sched_wr_ready.value = 1
         self.dut.sched_wr_done_strobe.value = 0
         self.dut.sched_wr_beats_done.value = 0
+        # Commit strobe (B-response) gates completion. This abstract FUB model has no
+        # real write engine, so commit mirrors the issue/done strobe below.
+        self.dut.sched_wr_commit_strobe.value = 0
+        self.dut.sched_wr_commit_beats.value = 0
         self.dut.sched_wr_error.value = 0
 
         # Monitor bus interface
@@ -434,12 +438,18 @@ class SchedulerTB(TBBase):
                 # Simulate write processing time
                 await self.wait_clocks(self.clk_name, random.randint(5, 15))
 
-                # Complete write (all beats in one go for simple tests)
+                # Complete write (all beats in one go for simple tests).
+                # Pulse both issue (done) and commit (B-response) strobes together:
+                # completion now gates on the commit strobe.
                 self.dut.sched_wr_done_strobe.value = 1
                 self.dut.sched_wr_beats_done.value = beats_remaining
+                self.dut.sched_wr_commit_strobe.value = 1
+                self.dut.sched_wr_commit_beats.value = beats_remaining
                 await self.wait_clocks(self.clk_name, 1)
                 self.dut.sched_wr_done_strobe.value = 0
                 self.dut.sched_wr_beats_done.value = 0
+                self.dut.sched_wr_commit_strobe.value = 0
+                self.dut.sched_wr_commit_beats.value = 0
 
                 self.write_completions += 1
                 self.log.info(f"✅ Write engine: Completed {beats_remaining} beats")

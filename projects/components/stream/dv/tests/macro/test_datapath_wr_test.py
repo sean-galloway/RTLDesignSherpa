@@ -255,8 +255,14 @@ async def run_varying_lengths_test(tb, xfer_beats, num_channels, sram_depth):
     dst_addr_base = 0x0010_0000
     bytes_per_beat = tb.data_width // 8
 
-    # Test descriptor lengths from 16 to 32 beats
-    descriptor_lengths = list(range(16, 33))  # [16, 17, 18, ..., 32]
+    # Edge-case + boundary transfer sizes. Each descriptor is verified immediately
+    # after the scheduler reports the channel done (sched_idle), so this doubles as
+    # a completion-ordering regression: the scheduler must not signal done until all
+    # write data has been COMMITTED (B responses), not merely issued (AW). Under the
+    # slow_producer profile the write drain lags the AW-issue, so a premature
+    # completion shows up as unwritten (zero) tail beats. Mirrors the stream_top
+    # variable_sizes coverage but at the far simpler datapath_wr level.
+    descriptor_lengths = [1, 2, 4, 8, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 255]
     total_descriptors = len(descriptor_lengths)
 
     tb.log.info(f"Testing {total_descriptors} descriptors with varying lengths on channel {channel_id}")
@@ -678,14 +684,19 @@ def generate_params():
         ]
         params.extend(varying_params)
     elif reg_level == 'FULL':
-        # FULL: 6 varying_lengths tests (128/256/512-bit × 2 timing profiles: fixed, fast)
+        # FULL: 9 varying_lengths tests (128/256/512-bit × 3 timing profiles: fixed, fast, slow_producer)
+        # slow_producer is the completion-ordering regression: it lags the write drain
+        # behind AW-issue, so it catches a scheduler that reports done before writes commit.
         varying_params = [
             ('varying_lengths', 128, 1, calc_sram_depth(128, 1), 'basic', 0, 8, 'fixed'),  # 128-bit, xfer_beats=8, fixed timing
             ('varying_lengths', 128, 1, calc_sram_depth(128, 1), 'basic', 0, 8, 'fast'),   # 128-bit, xfer_beats=8, fast timing
+            ('varying_lengths', 128, 1, calc_sram_depth(128, 1), 'basic', 0, 8, 'slow_producer'),  # 128-bit, commit-ordering
             ('varying_lengths', 256, 1, calc_sram_depth(256, 1), 'basic', 0, 8, 'fixed'),  # 256-bit, xfer_beats=8, fixed timing
             ('varying_lengths', 256, 1, calc_sram_depth(256, 1), 'basic', 0, 8, 'fast'),   # 256-bit, xfer_beats=8, fast timing
+            ('varying_lengths', 256, 1, calc_sram_depth(256, 1), 'basic', 0, 8, 'slow_producer'),  # 256-bit, commit-ordering
             ('varying_lengths', 512, 1, calc_sram_depth(512, 1), 'basic', 0, 8, 'fixed'),  # 512-bit, xfer_beats=8, fixed timing
             ('varying_lengths', 512, 1, calc_sram_depth(512, 1), 'basic', 0, 8, 'fast'),   # 512-bit, xfer_beats=8, fast timing
+            ('varying_lengths', 512, 1, calc_sram_depth(512, 1), 'basic', 0, 8, 'slow_producer'),  # 512-bit, commit-ordering
         ]
         params.extend(varying_params)
 
