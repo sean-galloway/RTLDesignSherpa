@@ -402,6 +402,21 @@ addrmap stream_regs {
 
     } SCHED_CONFIG @ 0x204;
 
+    reg {
+        name = "Scheduler Timeout Escalation Limit";
+        desc = "Number of consecutive write-progress timeout windows a channel may
+                tolerate before the (recoverable) timeout escalates to a fatal,
+                sticky CH_ERROR. 0 = never escalate (pure soft timeout: report and
+                keep waiting). Total time to escalate = LIMIT x TIMEOUT_CYCLES.";
+
+        field {
+            desc = "Consecutive-timeout strike limit before fatal escalation (0 = never)";
+            sw = rw;
+            hw = r;
+        } LIMIT[7:0] = 8'd4;
+
+    } SCHED_TIMEOUT_LIMIT @ 0x208;
+
     //=========================================================================
     // Descriptor Engine Configuration (0x220 - 0x23F)
     //=========================================================================

@@ -55,6 +55,7 @@ module scheduler_group #(
 
     // Scheduler Configuration
     input  logic [31:0]                 cfg_sched_timeout_cycles,
+    input  logic [7:0]                  cfg_sched_timeout_limit,
     input  logic                        cfg_sched_timeout_enable,
     input  logic                        cfg_sched_err_enable,
     input  logic                        cfg_sched_compl_enable,
@@ -279,6 +280,7 @@ module scheduler_group #(
         .cfg_channel_enable     (cfg_channel_enable),
         .cfg_channel_reset      (cfg_channel_reset),
         .cfg_sched_timeout_cycles(cfg_sched_timeout_cycles),
+        .cfg_sched_timeout_limit(cfg_sched_timeout_limit),
         .cfg_sched_timeout_enable(cfg_sched_timeout_enable),
 
         // Status

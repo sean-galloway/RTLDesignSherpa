@@ -8,70 +8,114 @@ Don't override. Generated from: $root
 
 - Absolute Address: 0x0
 - Base Offset: 0x0
-- Size: 0x2D0
+- Size: 0x384
 
 <p>Configuration and status registers for 8-channel STREAM DMA engine with full monitor control</p>
 
-|Offset|      Identifier     |                     Name                     |
-|------|---------------------|----------------------------------------------|
-| 0x100|     GLOBAL_CTRL     |            Global Control Register           |
-| 0x104|    GLOBAL_STATUS    |            Global Status Register            |
-| 0x108|       VERSION       |               Version Register               |
-| 0x120|    CHANNEL_ENABLE   |            Channel Enable Register           |
-| 0x124|    CHANNEL_RESET    |            Channel Reset Register            |
-| 0x140|     CHANNEL_IDLE    |              Channel Idle Status             |
-| 0x144|   DESC_ENGINE_IDLE  |         Descriptor Engine Idle Status        |
-| 0x148|    SCHEDULER_IDLE   |             Scheduler Idle Status            |
-| 0x150|     CH_STATE[0]     |          Per-Channel State Registers         |
-| 0x154|     CH_STATE[1]     |          Per-Channel State Registers         |
-| 0x158|     CH_STATE[2]     |          Per-Channel State Registers         |
-| 0x15C|     CH_STATE[3]     |          Per-Channel State Registers         |
-| 0x160|     CH_STATE[4]     |          Per-Channel State Registers         |
-| 0x164|     CH_STATE[5]     |          Per-Channel State Registers         |
-| 0x168|     CH_STATE[6]     |          Per-Channel State Registers         |
-| 0x16C|     CH_STATE[7]     |          Per-Channel State Registers         |
-| 0x170|     SCHED_ERROR     |            Scheduler Error Status            |
-| 0x174|   AXI_RD_COMPLETE   |       AXI Read Engine Completion Status      |
-| 0x178|   AXI_WR_COMPLETE   |      AXI Write Engine Completion Status      |
-| 0x180|   MON_FIFO_STATUS   |              Monitor FIFO Status             |
-| 0x184|    MON_FIFO_COUNT   |              Monitor FIFO Count              |
-| 0x200| SCHED_TIMEOUT_CYCLES|           Scheduler Timeout Cycles           |
-| 0x204|     SCHED_CONFIG    |            Scheduler Configuration           |
-| 0x220|    DESCENG_CONFIG   |        Descriptor Engine Configuration       |
-| 0x224|  DESCENG_ADDR0_BASE |        Descriptor Address Range 0 Base       |
-| 0x228| DESCENG_ADDR0_LIMIT |       Descriptor Address Range 0 Limit       |
-| 0x22C|  DESCENG_ADDR1_BASE |        Descriptor Address Range 1 Base       |
-| 0x230| DESCENG_ADDR1_LIMIT |       Descriptor Address Range 1 Limit       |
-| 0x240|    DAXMON_ENABLE    |         Descriptor AXI Monitor Enable        |
-| 0x244|    DAXMON_TIMEOUT   |        Descriptor AXI Monitor Timeout        |
-| 0x248|DAXMON_LATENCY_THRESH|   Descriptor AXI Monitor Latency Threshold   |
-| 0x24C|   DAXMON_PKT_MASK   |      Descriptor AXI Monitor Packet Mask      |
-| 0x250|    DAXMON_ERR_CFG   | Descriptor AXI Monitor Error Select and Mask |
-| 0x254|     DAXMON_MASK1    |        Descriptor AXI Monitor Masks 1        |
-| 0x258|     DAXMON_MASK2    |        Descriptor AXI Monitor Masks 2        |
-| 0x25C|     DAXMON_MASK3    |        Descriptor AXI Monitor Masks 3        |
-| 0x260|     RDMON_ENABLE    |        Read Engine AXI Monitor Enable        |
-| 0x264|    RDMON_TIMEOUT    |        Read Engine AXI Monitor Timeout       |
-| 0x268| RDMON_LATENCY_THRESH|   Read Engine AXI Monitor Latency Threshold  |
-| 0x26C|    RDMON_PKT_MASK   |      Read Engine AXI Monitor Packet Mask     |
-| 0x270|    RDMON_ERR_CFG    | Read Engine AXI Monitor Error Select and Mask|
-| 0x274|     RDMON_MASK1     |        Read Engine AXI Monitor Masks 1       |
-| 0x278|     RDMON_MASK2     |        Read Engine AXI Monitor Masks 2       |
-| 0x27C|     RDMON_MASK3     |        Read Engine AXI Monitor Masks 3       |
-| 0x280|     WRMON_ENABLE    |        Write Engine AXI Monitor Enable       |
-| 0x284|    WRMON_TIMEOUT    |       Write Engine AXI Monitor Timeout       |
-| 0x288| WRMON_LATENCY_THRESH|  Write Engine AXI Monitor Latency Threshold  |
-| 0x28C|    WRMON_PKT_MASK   |     Write Engine AXI Monitor Packet Mask     |
-| 0x290|    WRMON_ERR_CFG    |Write Engine AXI Monitor Error Select and Mask|
-| 0x294|     WRMON_MASK1     |       Write Engine AXI Monitor Masks 1       |
-| 0x298|     WRMON_MASK2     |       Write Engine AXI Monitor Masks 2       |
-| 0x29C|     WRMON_MASK3     |       Write Engine AXI Monitor Masks 3       |
-| 0x2A0|   AXI_XFER_CONFIG   |          AXI Transfer Configuration          |
-| 0x2B0|     PERF_CONFIG     |      Performance Profiler Configuration      |
-| 0x2C0|       OBS_CTRL      |            Observation Mux Control           |
-| 0x2C4|      OBS_FLAGS      |               Observation Flags              |
-| 0x2C8|      OBS_DATA0      |              Observation Data 0              |
-| 0x2CC|      OBS_DATA1      |              Observation Data 1              |
+|Offset|        Identifier       |                       Name                       |
+|------|-------------------------|--------------------------------------------------|
+| 0x100|       GLOBAL_CTRL       |              Global Control Register             |
+| 0x104|      GLOBAL_STATUS      |              Global Status Register              |
+| 0x108|         VERSION         |                 Version Register                 |
+| 0x120|      CHANNEL_ENABLE     |              Channel Enable Register             |
+| 0x124|      CHANNEL_RESET      |              Channel Reset Register              |
+| 0x140|       CHANNEL_IDLE      |                Channel Idle Status               |
+| 0x144|     DESC_ENGINE_IDLE    |           Descriptor Engine Idle Status          |
+| 0x148|      SCHEDULER_IDLE     |               Scheduler Idle Status              |
+| 0x150|       CH_STATE[0]       |            Per-Channel State Registers           |
+| 0x154|       CH_STATE[1]       |            Per-Channel State Registers           |
+| 0x158|       CH_STATE[2]       |            Per-Channel State Registers           |
+| 0x15C|       CH_STATE[3]       |            Per-Channel State Registers           |
+| 0x160|       CH_STATE[4]       |            Per-Channel State Registers           |
+| 0x164|       CH_STATE[5]       |            Per-Channel State Registers           |
+| 0x168|       CH_STATE[6]       |            Per-Channel State Registers           |
+| 0x16C|       CH_STATE[7]       |            Per-Channel State Registers           |
+| 0x170|       SCHED_ERROR       |              Scheduler Error Status              |
+| 0x174|     AXI_RD_COMPLETE     |         AXI Read Engine Completion Status        |
+| 0x178|     AXI_WR_COMPLETE     |        AXI Write Engine Completion Status        |
+| 0x180|     MON_FIFO_STATUS     |                Monitor FIFO Status               |
+| 0x184|      MON_FIFO_COUNT     |                Monitor FIFO Count                |
+| 0x200|   SCHED_TIMEOUT_CYCLES  |             Scheduler Timeout Cycles             |
+| 0x204|       SCHED_CONFIG      |              Scheduler Configuration             |
+| 0x208|   SCHED_TIMEOUT_LIMIT   |        Scheduler Timeout Escalation Limit        |
+| 0x220|      DESCENG_CONFIG     |          Descriptor Engine Configuration         |
+| 0x224|    DESCENG_ADDR0_BASE   |          Descriptor Address Range 0 Base         |
+| 0x228|   DESCENG_ADDR0_LIMIT   |         Descriptor Address Range 0 Limit         |
+| 0x22C|    DESCENG_ADDR1_BASE   |          Descriptor Address Range 1 Base         |
+| 0x230|   DESCENG_ADDR1_LIMIT   |         Descriptor Address Range 1 Limit         |
+| 0x240|      DAXMON_ENABLE      |           Descriptor AXI Monitor Enable          |
+| 0x244|      DAXMON_TIMEOUT     |          Descriptor AXI Monitor Timeout          |
+| 0x248|  DAXMON_LATENCY_THRESH  |     Descriptor AXI Monitor Latency Threshold     |
+| 0x24C|     DAXMON_PKT_MASK     |        Descriptor AXI Monitor Packet Mask        |
+| 0x250|      DAXMON_ERR_CFG     |   Descriptor AXI Monitor Error Select and Mask   |
+| 0x254|       DAXMON_MASK1      |          Descriptor AXI Monitor Masks 1          |
+| 0x258|       DAXMON_MASK2      |          Descriptor AXI Monitor Masks 2          |
+| 0x25C|       DAXMON_MASK3      |          Descriptor AXI Monitor Masks 3          |
+| 0x260|       RDMON_ENABLE      |          Read Engine AXI Monitor Enable          |
+| 0x264|      RDMON_TIMEOUT      |          Read Engine AXI Monitor Timeout         |
+| 0x268|   RDMON_LATENCY_THRESH  |     Read Engine AXI Monitor Latency Threshold    |
+| 0x26C|      RDMON_PKT_MASK     |        Read Engine AXI Monitor Packet Mask       |
+| 0x270|      RDMON_ERR_CFG      |   Read Engine AXI Monitor Error Select and Mask  |
+| 0x274|       RDMON_MASK1       |          Read Engine AXI Monitor Masks 1         |
+| 0x278|       RDMON_MASK2       |          Read Engine AXI Monitor Masks 2         |
+| 0x27C|       RDMON_MASK3       |          Read Engine AXI Monitor Masks 3         |
+| 0x280|       WRMON_ENABLE      |          Write Engine AXI Monitor Enable         |
+| 0x284|      WRMON_TIMEOUT      |         Write Engine AXI Monitor Timeout         |
+| 0x288|   WRMON_LATENCY_THRESH  |    Write Engine AXI Monitor Latency Threshold    |
+| 0x28C|      WRMON_PKT_MASK     |       Write Engine AXI Monitor Packet Mask       |
+| 0x290|      WRMON_ERR_CFG      |  Write Engine AXI Monitor Error Select and Mask  |
+| 0x294|       WRMON_MASK1       |         Write Engine AXI Monitor Masks 1         |
+| 0x298|       WRMON_MASK2       |         Write Engine AXI Monitor Masks 2         |
+| 0x29C|       WRMON_MASK3       |         Write Engine AXI Monitor Masks 3         |
+| 0x2A0|     AXI_XFER_CONFIG     |            AXI Transfer Configuration            |
+| 0x2B0|       PERF_CONFIG       |        Performance Profiler Configuration        |
+| 0x2C0|         OBS_CTRL        |              Observation Mux Control             |
+| 0x2C4|        OBS_FLAGS        |                 Observation Flags                |
+| 0x2C8|        OBS_DATA0        |                Observation Data 0                |
+| 0x2CC|        OBS_DATA1        |                Observation Data 1                |
+| 0x2D0|     DAXMON_PERF_CTRL    |    Descriptor AXI Monitor Perf Window Control    |
+| 0x2D4|    DAXMON_PERF_STATUS   |     Descriptor AXI Monitor Perf Window Status    |
+| 0x2D8|DAXMON_PERF_WINDOW_CYCLES|     Descriptor AXI Monitor Perf Window Cycles    |
+| 0x2DC| DAXMON_PERF_PROD_CYCLES |   Descriptor AXI Monitor Perf Productive Cycles  |
+| 0x2E0|  DAXMON_PERF_BP_CYCLES  |  Descriptor AXI Monitor Perf Backpressure Cycles |
+| 0x2E4| DAXMON_PERF_STARV_CYCLES|   Descriptor AXI Monitor Perf Starvation Cycles  |
+| 0x2E8| DAXMON_PERF_IDLE_CYCLES |      Descriptor AXI Monitor Perf Idle Cycles     |
+| 0x2EC|  DAXMON_PERF_BEAT_COUNT |      Descriptor AXI Monitor Perf Beat Count      |
+| 0x2F0|DAXMON_PERF_BYTE_COUNT_LO|    Descriptor AXI Monitor Perf Byte Count Low    |
+| 0x2F4|DAXMON_PERF_BYTE_COUNT_HI|    Descriptor AXI Monitor Perf Byte Count High   |
+| 0x2F8| DAXMON_PERF_BURST_COUNT |      Descriptor AXI Monitor Perf Burst Count     |
+| 0x300|     RDMON_PERF_CTRL     |     Read Datapath Monitor Perf Window Control    |
+| 0x304|    RDMON_PERF_STATUS    |     Read Datapath Monitor Perf Window Status     |
+| 0x308| RDMON_PERF_WINDOW_CYCLES|     Read Datapath Monitor Perf Window Cycles     |
+| 0x30C|  RDMON_PERF_PROD_CYCLES |   Read Datapath Monitor Perf Productive Cycles   |
+| 0x310|   RDMON_PERF_BP_CYCLES  |  Read Datapath Monitor Perf Backpressure Cycles  |
+| 0x314| RDMON_PERF_STARV_CYCLES |   Read Datapath Monitor Perf Starvation Cycles   |
+| 0x318|  RDMON_PERF_IDLE_CYCLES |      Read Datapath Monitor Perf Idle Cycles      |
+| 0x31C|  RDMON_PERF_BEAT_COUNT  |       Read Datapath Monitor Perf Beat Count      |
+| 0x320| RDMON_PERF_BYTE_COUNT_LO|     Read Datapath Monitor Perf Byte Count Low    |
+| 0x324| RDMON_PERF_BYTE_COUNT_HI|    Read Datapath Monitor Perf Byte Count High    |
+| 0x328|  RDMON_PERF_BURST_COUNT |      Read Datapath Monitor Perf Burst Count      |
+| 0x330|     WRMON_PERF_CTRL     |    Write Datapath Monitor Perf Window Control    |
+| 0x334|    WRMON_PERF_STATUS    |     Write Datapath Monitor Perf Window Status    |
+| 0x338| WRMON_PERF_WINDOW_CYCLES|     Write Datapath Monitor Perf Window Cycles    |
+| 0x33C|  WRMON_PERF_PROD_CYCLES |   Write Datapath Monitor Perf Productive Cycles  |
+| 0x340|   WRMON_PERF_BP_CYCLES  |  Write Datapath Monitor Perf Backpressure Cycles |
+| 0x344| WRMON_PERF_STARV_CYCLES |   Write Datapath Monitor Perf Starvation Cycles  |
+| 0x348|  WRMON_PERF_IDLE_CYCLES |      Write Datapath Monitor Perf Idle Cycles     |
+| 0x34C|  WRMON_PERF_BEAT_COUNT  |      Write Datapath Monitor Perf Beat Count      |
+| 0x350| WRMON_PERF_BYTE_COUNT_LO|    Write Datapath Monitor Perf Byte Count Low    |
+| 0x354| WRMON_PERF_BYTE_COUNT_HI|    Write Datapath Monitor Perf Byte Count High   |
+| 0x358|  WRMON_PERF_BURST_COUNT |      Write Datapath Monitor Perf Burst Count     |
+| 0x35C|       PERF_CH_SEL       |      Per-Channel Perf Bucket Readout Select      |
+| 0x360|  RDMON_PERF_CH_PROD_BP  | Read Datapath Per-Channel Productive/Backpressure|
+| 0x364| RDMON_PERF_CH_STARV_IDLE|     Read Datapath Per-Channel Starvation/Idle    |
+| 0x368|  WRMON_PERF_CH_PROD_BP  |Write Datapath Per-Channel Productive/Backpressure|
+| 0x36C| WRMON_PERF_CH_STARV_IDLE|    Write Datapath Per-Channel Starvation/Idle    |
+| 0x370|  RDMON_PERF_CH_OVERFLOW |    Read Datapath Per-Channel Overflow Stickies   |
+| 0x374|  WRMON_PERF_CH_OVERFLOW |   Write Datapath Per-Channel Overflow Stickies   |
+| 0x378|         HIST_SEL        |         Latency Histogram Readout Select         |
+| 0x37C|        HIST_DATA        |            Latency Histogram Bin Count           |
+| 0x380|        HIST_TOTAL       |          Latency Histogram Metric Total          |
 
 ### GLOBAL_CTRL register
 
@@ -721,6 +765,25 @@ Don't override. Generated from: $root
 
 <p>Reserved</p>
 
+### SCHED_TIMEOUT_LIMIT register
+
+- Absolute Address: 0x208
+- Base Offset: 0x208
+- Size: 0x4
+
+<p>Number of consecutive write-progress timeout windows a channel may
+tolerate before the (recoverable) timeout escalates to a fatal,
+sticky CH_ERROR. 0 = never escalate (pure soft timeout: report and
+keep waiting). Total time to escalate = LIMIT x TIMEOUT_CYCLES.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|   LIMIT  |  rw  | 0x4 |  — |
+
+#### LIMIT field
+
+<p>Consecutive-timeout strike limit before fatal escalation (0 = never)</p>
+
 ### DESCENG_CONFIG register
 
 - Absolute Address: 0x220
@@ -1230,14 +1293,15 @@ Don't override. Generated from: $root
 
 <p>Write engine AXI master monitor enable controls</p>
 
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|  0 |  MON_EN  |  rw  | 0x0 |  — |
-|  1 |  ERR_EN  |  rw  | 0x0 |  — |
-|  2 | COMPL_EN |  rw  | 0x0 |  — |
-|  3 |TIMEOUT_EN|  rw  | 0x0 |  — |
-|  4 |  PERF_EN |  rw  | 0x0 |  — |
-|31:5|   RSVD   |   r  | 0x0 |  — |
+|Bits| Identifier|Access|Reset|Name|
+|----|-----------|------|-----|----|
+|  0 |   MON_EN  |  rw  | 0x0 |  — |
+|  1 |   ERR_EN  |  rw  | 0x0 |  — |
+|  2 |  COMPL_EN |  rw  | 0x0 |  — |
+|  3 | TIMEOUT_EN|  rw  | 0x0 |  — |
+|  4 |  PERF_EN  |  rw  | 0x0 |  — |
+|  5 |COMPRESS_EN|  rw  | 0x1 |  — |
+|31:6|    RSVD   |   r  | 0x0 |  — |
 
 #### MON_EN field
 
@@ -1258,6 +1322,10 @@ Don't override. Generated from: $root
 #### PERF_EN field
 
 <p>Performance enable - enable performance packets</p>
+
+#### COMPRESS_EN field
+
+<p>Compression enable - 1=compress the monbus write stream, 0=raw 3-beat records. Only effective when the monbus group is built with USE_COMPRESSION=1. Program once before monitoring starts (must be stable while the write path is active).</p>
 
 #### RSVD field
 
@@ -1555,3 +1623,757 @@ Don't override. Generated from: $root
 #### DATA field
 
 <p>Observation data 1</p>
+
+### DAXMON_PERF_CTRL register
+
+- Absolute Address: 0x2D0
+- Base Offset: 0x2D0
+- Size: 0x4
+
+<p>Perf-window run control for the descriptor AXI monitor</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |    RUN   |  rw  | 0x0 |  — |
+|31:1|   RSVD   |   r  | 0x0 |  — |
+
+#### RUN field
+
+<p>Perf window run - 1=open window and accumulate cycle buckets, 0=close window and freeze counters. Rising edge clears all counters.</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### DAXMON_PERF_STATUS register
+
+- Absolute Address: 0x2D4
+- Base Offset: 0x2D4
+- Size: 0x4
+
+<p>Perf-window live status</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |WIN_ACTIVE|   r  |  —  |  — |
+|31:1|   RSVD   |   r  | 0x0 |  — |
+
+#### WIN_ACTIVE field
+
+<p>Window active - 1=window open and accumulating</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### DAXMON_PERF_WINDOW_CYCLES register
+
+- Absolute Address: 0x2D8
+- Base Offset: 0x2D8
+- Size: 0x4
+
+<p>LIVE free-running window-cycle counter. Valid only while
+DAXMON_PERF_STATUS.WIN_ACTIVE=1; the monitor ZEROES this when the
+window closes (RUN-&gt;0). For a closed window, use the sum of the
+four bucket registers (PROD+BP+STARV+IDLE), which HOLD their
+values after close.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Window cycles [31:0] (live-only; reads 0 after close)</p>
+
+### DAXMON_PERF_PROD_CYCLES register
+
+- Absolute Address: 0x2DC
+- Base Offset: 0x2DC
+- Size: 0x4
+
+<p>Cycles with R data valid &amp;&amp; ready (data delivered)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Productive cycles [31:0]</p>
+
+### DAXMON_PERF_BP_CYCLES register
+
+- Absolute Address: 0x2E0
+- Base Offset: 0x2E0
+- Size: 0x4
+
+<p>Cycles with R data valid &amp;&amp; !ready (back-pressure)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Backpressure cycles [31:0]</p>
+
+### DAXMON_PERF_STARV_CYCLES register
+
+- Absolute Address: 0x2E4
+- Base Offset: 0x2E4
+- Size: 0x4
+
+<p>Cycles with !R data valid &amp;&amp; ready (starvation)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Starvation cycles [31:0]</p>
+
+### DAXMON_PERF_IDLE_CYCLES register
+
+- Absolute Address: 0x2E8
+- Base Offset: 0x2E8
+- Size: 0x4
+
+<p>Cycles with !R data valid &amp;&amp; !ready (idle)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Idle cycles [31:0]</p>
+
+### DAXMON_PERF_BEAT_COUNT register
+
+- Absolute Address: 0x2EC
+- Base Offset: 0x2EC
+- Size: 0x4
+
+<p>R beats transferred in window (= productive cycles)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Beat count [31:0]</p>
+
+### DAXMON_PERF_BYTE_COUNT_LO register
+
+- Absolute Address: 0x2F0
+- Base Offset: 0x2F0
+- Size: 0x4
+
+<p>Bytes transferred in window (lower 32 bits)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Byte count [31:0]</p>
+
+### DAXMON_PERF_BYTE_COUNT_HI register
+
+- Absolute Address: 0x2F4
+- Base Offset: 0x2F4
+- Size: 0x4
+
+<p>Bytes transferred in window (upper 32 bits)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Byte count [63:32]</p>
+
+### DAXMON_PERF_BURST_COUNT register
+
+- Absolute Address: 0x2F8
+- Base Offset: 0x2F8
+- Size: 0x4
+
+<p>AR handshakes (bursts issued) in window</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Burst count [31:0]</p>
+
+### RDMON_PERF_CTRL register
+
+- Absolute Address: 0x300
+- Base Offset: 0x300
+- Size: 0x4
+
+<p>Perf-window run control for the data-read datapath monitor</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |    RUN   |  rw  | 0x0 |  — |
+|31:1|   RSVD   |   r  | 0x0 |  — |
+
+#### RUN field
+
+<p>Perf window run - 1=open window and accumulate cycle buckets, 0=close window and freeze counters. Rising edge clears all counters.</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### RDMON_PERF_STATUS register
+
+- Absolute Address: 0x304
+- Base Offset: 0x304
+- Size: 0x4
+
+<p>Perf-window live status</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |WIN_ACTIVE|   r  |  —  |  — |
+|31:1|   RSVD   |   r  | 0x0 |  — |
+
+#### WIN_ACTIVE field
+
+<p>Window active - 1=window open and accumulating</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### RDMON_PERF_WINDOW_CYCLES register
+
+- Absolute Address: 0x308
+- Base Offset: 0x308
+- Size: 0x4
+
+<p>LIVE free-running window-cycle counter. Valid only while
+RDMON_PERF_STATUS.WIN_ACTIVE=1; the monitor ZEROES this when the
+window closes (RUN-&gt;0). For a closed window, use the sum of the
+four bucket registers (PROD+BP+STARV+IDLE), which HOLD their
+values after close.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Window cycles [31:0] (live-only; reads 0 after close)</p>
+
+### RDMON_PERF_PROD_CYCLES register
+
+- Absolute Address: 0x30C
+- Base Offset: 0x30C
+- Size: 0x4
+
+<p>Cycles with R data valid &amp;&amp; ready (data delivered)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Productive cycles [31:0]</p>
+
+### RDMON_PERF_BP_CYCLES register
+
+- Absolute Address: 0x310
+- Base Offset: 0x310
+- Size: 0x4
+
+<p>Cycles with R data valid &amp;&amp; !ready (back-pressure)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Backpressure cycles [31:0]</p>
+
+### RDMON_PERF_STARV_CYCLES register
+
+- Absolute Address: 0x314
+- Base Offset: 0x314
+- Size: 0x4
+
+<p>Cycles with !R data valid &amp;&amp; ready (starvation)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Starvation cycles [31:0]</p>
+
+### RDMON_PERF_IDLE_CYCLES register
+
+- Absolute Address: 0x318
+- Base Offset: 0x318
+- Size: 0x4
+
+<p>Cycles with !R data valid &amp;&amp; !ready (idle)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Idle cycles [31:0]</p>
+
+### RDMON_PERF_BEAT_COUNT register
+
+- Absolute Address: 0x31C
+- Base Offset: 0x31C
+- Size: 0x4
+
+<p>R beats transferred in window (= productive cycles)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Beat count [31:0]</p>
+
+### RDMON_PERF_BYTE_COUNT_LO register
+
+- Absolute Address: 0x320
+- Base Offset: 0x320
+- Size: 0x4
+
+<p>Bytes transferred in window (lower 32 bits)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Byte count [31:0]</p>
+
+### RDMON_PERF_BYTE_COUNT_HI register
+
+- Absolute Address: 0x324
+- Base Offset: 0x324
+- Size: 0x4
+
+<p>Bytes transferred in window (upper 32 bits)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Byte count [63:32]</p>
+
+### RDMON_PERF_BURST_COUNT register
+
+- Absolute Address: 0x328
+- Base Offset: 0x328
+- Size: 0x4
+
+<p>AR handshakes (bursts issued) in window</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Burst count [31:0]</p>
+
+### WRMON_PERF_CTRL register
+
+- Absolute Address: 0x330
+- Base Offset: 0x330
+- Size: 0x4
+
+<p>Perf-window run control for the data-write datapath monitor</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |    RUN   |  rw  | 0x0 |  — |
+|31:1|   RSVD   |   r  | 0x0 |  — |
+
+#### RUN field
+
+<p>Perf window run - 1=open window and accumulate cycle buckets, 0=close window and freeze counters. Rising edge clears all counters.</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### WRMON_PERF_STATUS register
+
+- Absolute Address: 0x334
+- Base Offset: 0x334
+- Size: 0x4
+
+<p>Perf-window live status</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |WIN_ACTIVE|   r  |  —  |  — |
+|31:1|   RSVD   |   r  | 0x0 |  — |
+
+#### WIN_ACTIVE field
+
+<p>Window active - 1=window open and accumulating</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### WRMON_PERF_WINDOW_CYCLES register
+
+- Absolute Address: 0x338
+- Base Offset: 0x338
+- Size: 0x4
+
+<p>LIVE free-running window-cycle counter. Valid only while
+WRMON_PERF_STATUS.WIN_ACTIVE=1; the monitor ZEROES this when the
+window closes (RUN-&gt;0). For a closed window, use the sum of the
+four bucket registers (PROD+BP+STARV+IDLE), which HOLD their
+values after close.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Window cycles [31:0] (live-only; reads 0 after close)</p>
+
+### WRMON_PERF_PROD_CYCLES register
+
+- Absolute Address: 0x33C
+- Base Offset: 0x33C
+- Size: 0x4
+
+<p>Cycles with W data valid &amp;&amp; ready (beat delivered)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Productive cycles [31:0]</p>
+
+### WRMON_PERF_BP_CYCLES register
+
+- Absolute Address: 0x340
+- Base Offset: 0x340
+- Size: 0x4
+
+<p>Cycles with W data valid &amp;&amp; !ready (back-pressure)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Backpressure cycles [31:0]</p>
+
+### WRMON_PERF_STARV_CYCLES register
+
+- Absolute Address: 0x344
+- Base Offset: 0x344
+- Size: 0x4
+
+<p>Cycles with !W data valid &amp;&amp; ready (starvation)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Starvation cycles [31:0]</p>
+
+### WRMON_PERF_IDLE_CYCLES register
+
+- Absolute Address: 0x348
+- Base Offset: 0x348
+- Size: 0x4
+
+<p>Cycles with !W data valid &amp;&amp; !ready (idle)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Idle cycles [31:0]</p>
+
+### WRMON_PERF_BEAT_COUNT register
+
+- Absolute Address: 0x34C
+- Base Offset: 0x34C
+- Size: 0x4
+
+<p>W beats transferred in window (= productive cycles)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Beat count [31:0]</p>
+
+### WRMON_PERF_BYTE_COUNT_LO register
+
+- Absolute Address: 0x350
+- Base Offset: 0x350
+- Size: 0x4
+
+<p>Bytes transferred in window (lower 32 bits)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Byte count [31:0]</p>
+
+### WRMON_PERF_BYTE_COUNT_HI register
+
+- Absolute Address: 0x354
+- Base Offset: 0x354
+- Size: 0x4
+
+<p>Bytes transferred in window (upper 32 bits)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Byte count [63:32]</p>
+
+### WRMON_PERF_BURST_COUNT register
+
+- Absolute Address: 0x358
+- Base Offset: 0x358
+- Size: 0x4
+
+<p>AW handshakes (bursts issued) in window</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Burst count [31:0]</p>
+
+### PERF_CH_SEL register
+
+- Absolute Address: 0x35C
+- Base Offset: 0x35C
+- Size: 0x4
+
+<p>Selects which channel's buckets appear in RD/WRMON_PERF_CH_*</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 2:0|  CH_SEL  |  rw  | 0x0 |  — |
+|31:3|   RSVD   |   r  | 0x0 |  — |
+
+#### CH_SEL field
+
+<p>Channel select (0..NUM_CHANNELS-1)</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### RDMON_PERF_CH_PROD_BP register
+
+- Absolute Address: 0x360
+- Base Offset: 0x360
+- Size: 0x4
+
+<p>Selected channel: {backpressure[31:16], productive[15:0]} (16-bit each)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>{bp[15:0], prod[15:0]} for PERF_CH_SEL channel</p>
+
+### RDMON_PERF_CH_STARV_IDLE register
+
+- Absolute Address: 0x364
+- Base Offset: 0x364
+- Size: 0x4
+
+<p>Selected channel: {idle[31:16], starvation[15:0]} (16-bit each)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>{idle[15:0], starv[15:0]} for PERF_CH_SEL channel</p>
+
+### WRMON_PERF_CH_PROD_BP register
+
+- Absolute Address: 0x368
+- Base Offset: 0x368
+- Size: 0x4
+
+<p>Selected channel: {backpressure[31:16], productive[15:0]} (16-bit each)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>{bp[15:0], prod[15:0]} for PERF_CH_SEL channel</p>
+
+### WRMON_PERF_CH_STARV_IDLE register
+
+- Absolute Address: 0x36C
+- Base Offset: 0x36C
+- Size: 0x4
+
+<p>Selected channel: {idle[31:16], starvation[15:0]} (16-bit each)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>{idle[15:0], starv[15:0]} for PERF_CH_SEL channel</p>
+
+### RDMON_PERF_CH_OVERFLOW register
+
+- Absolute Address: 0x370
+- Base Offset: 0x370
+- Size: 0x4
+
+<p>All channels, {prod,bp,starv,idle} sticky overflow per channel
+(4 bits/channel, channel 0 in the low nibble). A set bit means
+that 16-bit per-channel bucket wrapped during the window.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Per-channel overflow mask (NUM_CHANNELS*4 bits)</p>
+
+### WRMON_PERF_CH_OVERFLOW register
+
+- Absolute Address: 0x374
+- Base Offset: 0x374
+- Size: 0x4
+
+<p>All channels, {prod,bp,starv,idle} sticky overflow per channel.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Per-channel overflow mask (NUM_CHANNELS*4 bits)</p>
+
+### HIST_SEL register
+
+- Absolute Address: 0x378
+- Base Offset: 0x378
+- Size: 0x4
+
+<p>Selects bus/metric/bin presented in HIST_DATA / HIST_TOTAL</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |    BUS   |  rw  | 0x0 |  — |
+|  1 |  METRIC  |  rw  | 0x0 |  — |
+| 5:2|    BIN   |  rw  | 0x0 |  — |
+|31:6|   RSVD   |   r  | 0x0 |  — |
+
+#### BUS field
+
+<p>Bus: 0=data-read R bus, 1=data-write W bus</p>
+
+#### METRIC field
+
+<p>Metric: 0=AR-&gt;firstR (rd) / AW-&gt;B (wr), 1=AR-&gt;RLAST (rd only)</p>
+
+#### BIN field
+
+<p>Latency bin index (0..15, log2)</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### HIST_DATA register
+
+- Absolute Address: 0x37C
+- Base Offset: 0x37C
+- Size: 0x4
+
+<p>Transaction count in the HIST_SEL-selected bus/metric/bin</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Selected histogram bin count [31:0]</p>
+
+### HIST_TOTAL register
+
+- Absolute Address: 0x380
+- Base Offset: 0x380
+- Size: 0x4
+
+<p>Total transactions for the HIST_SEL-selected bus/metric (= sum
+over all bins). Equals the burst/transaction count, an
+acceptance cross-check against the perf-window burst counters.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Selected metric total transaction count [31:0]</p>

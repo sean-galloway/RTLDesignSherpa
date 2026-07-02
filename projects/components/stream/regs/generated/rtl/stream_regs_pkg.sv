@@ -556,6 +556,14 @@ package stream_regs_pkg;
     } stream_regs__SCHED_CONFIG__out_t;
 
     typedef struct {
+        logic [7:0] value;
+    } stream_regs__SCHED_TIMEOUT_LIMIT__LIMIT__out_t;
+
+    typedef struct {
+        stream_regs__SCHED_TIMEOUT_LIMIT__LIMIT__out_t LIMIT;
+    } stream_regs__SCHED_TIMEOUT_LIMIT__out_t;
+
+    typedef struct {
         logic value;
     } stream_regs__DESCENG_CONFIG__DESCENG_EN__out_t;
 
@@ -1023,6 +1031,7 @@ package stream_regs_pkg;
         stream_regs__CHANNEL_RESET__out_t CHANNEL_RESET;
         stream_regs__SCHED_TIMEOUT_CYCLES__out_t SCHED_TIMEOUT_CYCLES;
         stream_regs__SCHED_CONFIG__out_t SCHED_CONFIG;
+        stream_regs__SCHED_TIMEOUT_LIMIT__out_t SCHED_TIMEOUT_LIMIT;
         stream_regs__DESCENG_CONFIG__out_t DESCENG_CONFIG;
         stream_regs__DESCENG_ADDR0_BASE__out_t DESCENG_ADDR0_BASE;
         stream_regs__DESCENG_ADDR0_LIMIT__out_t DESCENG_ADDR0_LIMIT;

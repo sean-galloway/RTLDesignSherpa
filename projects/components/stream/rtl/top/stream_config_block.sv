@@ -58,6 +58,7 @@ module stream_config_block #(
 
     // Scheduler Configuration
     input  logic [31:0]                 reg_sched_timeout_cycles_timeout_cycles,
+    input  logic [7:0]                  reg_sched_timeout_limit_limit,
     input  logic                        reg_sched_config_sched_en,
     input  logic                        reg_sched_config_timeout_en,
     input  logic                        reg_sched_config_err_en,
@@ -156,6 +157,7 @@ module stream_config_block #(
     // Scheduler Configuration
     output logic                        cfg_sched_enable,
     output logic [31:0]                 cfg_sched_timeout_cycles,
+    output logic [7:0]                  cfg_sched_timeout_limit,
     output logic                        cfg_sched_timeout_enable,
     output logic                        cfg_sched_err_enable,
     output logic                        cfg_sched_compl_enable,
@@ -262,6 +264,7 @@ module stream_config_block #(
 
     assign cfg_sched_enable = reg_sched_config_sched_en & reg_global_ctrl_global_en;
     assign cfg_sched_timeout_cycles = reg_sched_timeout_cycles_timeout_cycles;
+    assign cfg_sched_timeout_limit = reg_sched_timeout_limit_limit;
     assign cfg_sched_timeout_enable = reg_sched_config_timeout_en;
     assign cfg_sched_err_enable = reg_sched_config_err_en;
     assign cfg_sched_compl_enable = reg_sched_config_compl_en;

@@ -89,6 +89,7 @@ module scheduler #(
     input  logic                        cfg_channel_enable,     // Enable this channel
     input  logic                        cfg_channel_reset,      // Channel reset
     input  logic [31:0]                 cfg_sched_timeout_cycles, // Timeout threshold (cycles)
+    input  logic [7:0]                  cfg_sched_timeout_limit,  // Consecutive-timeout windows before fatal escalation (0=never)
     input  logic                        cfg_sched_timeout_enable, // Enable timeout detection
 
     // Status Interface
@@ -234,7 +235,17 @@ module scheduler #(
     // Counts clock cycles while waiting for engine grant (sched_wr_ready)
     // Prevents deadlock if engines don't respond
     logic [31:0] r_timeout_counter;
-    logic w_timeout_expired;                      // Asserted when counter >= cfg_sched_timeout_cycles
+    logic w_timeout_expired;                      // Pulses when counter >= cfg_sched_timeout_cycles (one per window)
+
+    // Recoverable-timeout escalation.
+    // A write-progress timeout is a *liveness* fault, not a data fault: it is
+    // reported and the channel keeps waiting (soft timeout), re-arming each window.
+    // Only after cfg_sched_timeout_limit consecutive windows with no write progress
+    // does it escalate to a fatal, sticky CH_ERROR. cfg_sched_timeout_limit == 0
+    // means never escalate (pure soft timeout). Any write progress clears the strikes.
+    logic [7:0] r_timeout_strikes;                // Consecutive expired windows
+    logic       w_hard_error;                     // Fatal fault -> sticky CH_ERROR
+    logic       w_timeout_escalate;               // Soft timeout promoted to fatal
 
     // Interrupt generation
     // IRQ event is generated via MonBus when descriptor completes with gen_irq flag set
@@ -301,13 +312,11 @@ module scheduler #(
         if (r_channel_reset_active) begin
             w_next_state = CH_IDLE;
         end else begin
-            // Priority 2: Error handling - aggregate errors from all sources
-            // Sources: descriptor_engine (descriptor_error)
-            //          read_engine (sched_rd_error)
-            //          write_engine (sched_wr_error)
-            //          scheduler internal (timeout, sticky errors)
-            if (descriptor_error || sched_rd_error || sched_wr_error ||
-                r_read_error_sticky || r_write_error_sticky || w_timeout_expired) begin
+            // Priority 2: Error handling. Fatal faults (engine/descriptor errors)
+            // wedge into sticky CH_ERROR. A write-progress timeout is recoverable
+            // and does NOT wedge here — it only reaches CH_ERROR once it has
+            // escalated (cfg_sched_timeout_limit consecutive windows).
+            if (w_hard_error || w_timeout_escalate) begin
                 w_next_state = CH_ERROR;
             end else begin
                 // Priority 3: Normal state machine transitions
@@ -626,24 +635,38 @@ module scheduler #(
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_timeout_counter <= 32'h0;
+            r_timeout_strikes <= 8'h0;
             r_read_error_sticky <= 1'b0;
             r_write_error_sticky <= 1'b0;
             r_descriptor_error <= 1'b0;
         end else begin
             // Timeout counter: Increments while waiting for write engine completion
             // Counts cycles where sched_wr_valid is high but ready is low
-            // Prevents deadlock if write engine doesn't complete
             // Any write progress resets the timeout: an AW issue (done strobe) OR a
             // B response (commit strobe). This matters because completion is now gated
             // on commits: sched_wr_valid stays high through the commit-wait while
             // sched_wr_ready is low (engine done issuing), so without treating commits
             // as progress the counter would falsely time out a slow-draining transfer.
+            // On expiry the counter RE-ARMS (soft timeout): it emits a one-cycle
+            // w_timeout_expired pulse per elapsed window rather than latching.
             if (sched_wr_done_strobe || sched_wr_commit_strobe) begin
                 r_timeout_counter <= 32'h0;  // write progress -> not stalled
+            end else if (w_timeout_expired) begin
+                r_timeout_counter <= 32'h0;  // window elapsed -> re-arm, keep waiting
             end else if (sched_wr_valid && !sched_wr_ready) begin
                 r_timeout_counter <= r_timeout_counter + 1;
             end else begin
                 r_timeout_counter <= 32'h0;  // Reset when not waiting or completion received
+            end
+
+            // Consecutive-timeout strikes: one per elapsed window with no write
+            // progress. Cleared by real progress or on return to CH_IDLE. Saturates.
+            if (r_channel_reset_active || (r_current_state == CH_IDLE)) begin
+                r_timeout_strikes <= 8'h0;
+            end else if (sched_wr_done_strobe || sched_wr_commit_strobe) begin
+                r_timeout_strikes <= 8'h0;
+            end else if (w_timeout_expired && !(&r_timeout_strikes)) begin
+                r_timeout_strikes <= r_timeout_strikes + 8'h1;
             end
 
             // Error capture: Latch errors from external components
@@ -652,9 +675,10 @@ module scheduler #(
             if (sched_rd_error) r_read_error_sticky <= 1'b1;    // Read engine error
             if (sched_wr_error) r_write_error_sticky <= 1'b1;   // Write engine error
 
-            // Also set descriptor_error flag for ANY scheduler-internal error
-            // This ensures consistent error reporting via MonBus
-            if (sched_rd_error || sched_wr_error || w_timeout_expired) begin
+            // Latch a fatal descriptor_error for genuine faults OR an ESCALATED
+            // timeout (cfg_sched_timeout_limit consecutive windows). A bare timeout
+            // window is recoverable and deliberately NOT latched here.
+            if (sched_rd_error || sched_wr_error || w_timeout_escalate) begin
                 r_descriptor_error <= 1'b1;
             end
 
@@ -672,6 +696,16 @@ module scheduler #(
     // Timeout threshold: Compare counter to configured limit (if enabled)
     assign w_timeout_expired = cfg_sched_timeout_enable &&
                                (r_timeout_counter >= cfg_sched_timeout_cycles);
+
+    // Escalate a recoverable timeout to a fatal fault only after cfg_sched_timeout_limit
+    // consecutive windows (0 = never escalate: pure soft timeout).
+    assign w_timeout_escalate = (cfg_sched_timeout_limit != 8'd0) &&
+                                (r_timeout_strikes >= cfg_sched_timeout_limit);
+
+    // Fatal faults: data-path integrity compromised -> sticky CH_ERROR until reset.
+    // (A bare timeout window is a recoverable liveness fault, not included here.)
+    assign w_hard_error = descriptor_error || sched_rd_error || sched_wr_error ||
+                          r_read_error_sticky || r_write_error_sticky;
 
     //=========================================================================
     // Monitor Packet Generation
@@ -812,8 +846,10 @@ module scheduler #(
     // Status Outputs
     //=========================================================================
 
-    assign scheduler_idle = ((r_current_state == CH_IDLE) || (r_current_state == CH_ERROR))
-                                && !r_channel_reset_active;
+    // Only CH_IDLE is "idle". CH_ERROR is a faulted channel and must NOT report
+    // idle — reporting CH_ERROR as idle is what let CHANNEL_IDLE read '1' on a
+    // wedged channel. A faulted channel is surfaced via sched_error/CHANNEL_ERROR.
+    assign scheduler_idle = (r_current_state == CH_IDLE) && !r_channel_reset_active;
     assign scheduler_state = r_current_state;
     assign sched_error = w_state_error;  // Sticky error output
 

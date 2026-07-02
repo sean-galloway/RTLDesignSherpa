@@ -593,6 +593,7 @@ module stream_top_ch8 #(
     // Scheduler Configuration
     logic                                   cfg_sched_enable;
     logic [31:0]                            cfg_sched_timeout_cycles;
+    logic [7:0]                             cfg_sched_timeout_limit;
     logic                                   cfg_sched_timeout_enable;
     logic                                   cfg_sched_err_enable;
     logic                                   cfg_sched_compl_enable;
@@ -1169,6 +1170,7 @@ module stream_top_ch8 #(
 
         // Scheduler Configuration
         .reg_sched_timeout_cycles_timeout_cycles    (hwif_out.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value),
+        .reg_sched_timeout_limit_limit              (hwif_out.SCHED_TIMEOUT_LIMIT.LIMIT.value),
         .reg_sched_config_sched_en                  (hwif_out.SCHED_CONFIG.SCHED_EN.value),
         .reg_sched_config_timeout_en                (hwif_out.SCHED_CONFIG.TIMEOUT_EN.value),
         .reg_sched_config_err_en                    (hwif_out.SCHED_CONFIG.ERR_EN.value),
@@ -1263,6 +1265,7 @@ module stream_top_ch8 #(
         .cfg_channel_reset                  (cfg_channel_reset),
         .cfg_sched_enable                   (cfg_sched_enable),
         .cfg_sched_timeout_cycles           (cfg_sched_timeout_cycles),
+        .cfg_sched_timeout_limit            (cfg_sched_timeout_limit),
         .cfg_sched_timeout_enable           (cfg_sched_timeout_enable),
         .cfg_sched_err_enable               (cfg_sched_err_enable),
         .cfg_sched_compl_enable             (cfg_sched_compl_enable),
@@ -1377,6 +1380,7 @@ module stream_top_ch8 #(
                 .cfg_channel_reset          (cfg_channel_reset),
                 .cfg_sched_enable           (cfg_sched_enable),
                 .cfg_sched_timeout_cycles   (cfg_sched_timeout_cycles),
+                .cfg_sched_timeout_limit    (cfg_sched_timeout_limit),
                 .cfg_sched_timeout_enable   (cfg_sched_timeout_enable),
                 .cfg_sched_err_enable       (cfg_sched_err_enable),
                 .cfg_sched_compl_enable     (cfg_sched_compl_enable),
@@ -1674,6 +1678,7 @@ module stream_top_ch8 #(
                 .cfg_channel_reset          (cfg_channel_reset),
                 .cfg_sched_enable           (cfg_sched_enable),
                 .cfg_sched_timeout_cycles   (cfg_sched_timeout_cycles),
+                .cfg_sched_timeout_limit    (cfg_sched_timeout_limit),
                 .cfg_sched_timeout_enable   (cfg_sched_timeout_enable),
                 .cfg_sched_err_enable       (cfg_sched_err_enable),
                 .cfg_sched_compl_enable     (cfg_sched_compl_enable),

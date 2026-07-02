@@ -320,6 +320,7 @@ module datapath_wr_test #(
                 .cfg_channel_enable     (1'b1),
                 .cfg_channel_reset      (1'b0),
                 .cfg_sched_timeout_cycles(32'd1000),  // Runtime timeout config
+                .cfg_sched_timeout_limit(8'd0),       // 0 = never escalate (pure soft timeout)
                 .cfg_sched_timeout_enable(1'b1),      // Enable timeout
 
                 // Status
