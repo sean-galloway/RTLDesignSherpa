@@ -40,7 +40,17 @@ PTW = ptw
 PTW_FLAGS = --runner "pytest --maxfail=1"
 
 # Test file
-TEST_FILE = test_axi_frontend_macro.py
+# TEST_FILE controls the pytest target for the run-* targets.
+# Historically pinned to a single file (test_axi_frontend_macro.py) which
+# caused `run-full-parallel` to only exercise 16 of ~464 macro-tier tests.
+# Default now is `.` so pytest discovers every test_*.py in the macro
+# directory (axi_frontend_macro, command_scheduler_macro, data_path_macro,
+# ddr2_lpddr2_core_macro, ddr2_lpddr2_csr_slave). Override on the command
+# line to focus, e.g.  `make run-full TEST_FILE=test_ddr2_lpddr2_core_macro.py`.
+TEST_FILE = .
+# Kept as a separate var for the single-rank / multi-rank category targets
+# that need an explicit file::testcase name.
+FRONTEND_FILE = test_axi_frontend_macro.py
 
 # Default target
 .DEFAULT_GOAL := help
@@ -198,12 +208,12 @@ run-full-parallel-waves:
 .PHONY: run-single
 run-single:
 	@echo "Running single-rank scenarios (NUM_RANKS=1)..."
-	TEST_LEVEL=FULL $(PYTEST) $(TEST_FILE)::test_axi_frontend_macro $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=FULL $(PYTEST) $(FRONTEND_FILE)::test_axi_frontend_macro $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-multi
 run-multi:
 	@echo "Running multi-rank scenarios (NUM_RANKS=2)..."
-	TEST_LEVEL=FULL $(PYTEST) $(TEST_FILE)::test_axi_frontend_macro_multirank $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=FULL $(PYTEST) $(FRONTEND_FILE)::test_axi_frontend_macro_multirank $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 # ==============================================================================
 # Category Targets (pytest -k filters; run within FULL set)

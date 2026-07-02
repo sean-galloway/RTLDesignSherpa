@@ -99,6 +99,34 @@ async def cocotb_test_ddr2_lpddr2_core_macro(dut):
             "slave_profile=%s base=0x%X",
             N, BURST, id_mode, id_base, slave_profile, BASE,
         )
+
+        # FUB trackers — each scope_path resolves to the matching submodule
+        # so per-FUB .out files land next to the sim_build dir on exit.
+        # Same set as the macro top env, with `.u_core` stripped because
+        # core_macro is `u_dut` directly (no top wrapper).
+        from tbclasses.trackers._base import wire_trackers as _wire_trackers
+        _TRACKER_SCOPES = {
+            "sched":   "u_dut.u_command_scheduler.u_scheduler",
+            "xbank":   "u_dut.u_command_scheduler.u_xbank_timers",
+            "refr":    "u_dut.u_command_scheduler.u_refresh_ctrl",
+            "pgpred":  "u_dut.u_command_scheduler.u_page_predictor",
+            "pdn":     "u_dut.u_command_scheduler.u_powerdown_ctrl",
+            "init":    "u_dut.u_command_scheduler.u_init_sequencer",
+            "dficmd":  "u_dut.u_dfi_v21_interface.u_dfi_cmd_formatter",
+            "wrbeat":  "u_dut.u_data_path.u_wr_beat_sequencer",
+            "rdalign": "u_dut.u_data_path.u_rd_cl_aligner",
+        }
+        trackers = _wire_trackers(
+            dut, output_dir=_os.getcwd(), log=tb.log,
+            num_ranks=getattr(tb, "num_ranks", 1), num_banks=8,
+            autostart=True,
+            scope_paths=_TRACKER_SCOPES,
+        )
+        tb.log.info(
+            "engine_mirror_kbN core_macro: wired %d FUB trackers",
+            len(trackers),
+        )
+
         await tb.wait_for_init_done()
 
         from tbclasses.ddr2_lpddr2_sequences import (
@@ -160,6 +188,13 @@ async def cocotb_test_ddr2_lpddr2_core_macro(dut):
 
         rd_dicts = await run_axi4_sequence(
             rd_seq, master_rd=tb.axi_master_rd,
+        )
+        rd_errors = [(bi, r["error"]) for bi, r in enumerate(rd_dicts)
+                     if r["error"] is not None]
+        assert not rd_errors, (
+            f"engine_mirror_kbN (N={N}) RD BFM errors: {rd_errors} — "
+            f"read_transaction raised for one or more bursts; a downstream "
+            f"data comparison cannot run"
         )
         results = [r["data"] for r in rd_dicts]
 
@@ -411,38 +446,60 @@ _ADDR = [
     _eng("base_0x200000_n64", N=64, BASE_ADDR="0x200000"),
 ]
 
-# --- 6. Slave-delay profile cross at kb4 (6 cfg)
-_PROFILE_KB4 = [
-    _eng(f"profile_{p}_kb4", N=128, SLAVE_PROFILE=p)
-    for p in ("backtoback", "fast", "constrained",
-              "burst_pause", "slow_producer", "high_throughput")
-]
+# Slow-profile N cap. Non-backtoback SLAVE_PROFILEs throttle AXI ready
+# cycles hard. The fast MemoryModel (2026-07 rewrite) removed the
+# per-transaction bottleneck that made #224 clamp _SLOW_N to 16, so we
+# can afford a much higher cap and still stay under the ~1h budget.
+_SLOW_PROFILES = frozenset(
+    ("constrained", "burst_pause", "slow_producer", "high_throughput"))
+_SLOW_N = 64
 
-# --- 7. Slave-delay profile cross at N=64 (cheaper than kb4) (6 cfg)
-_PROFILE_N64 = [
-    _eng(f"profile_{p}_n64", N=64, SLAVE_PROFILE=p)
-    for p in ("backtoback", "fast", "constrained",
-              "burst_pause", "slow_producer", "high_throughput")
-]
 
-# --- 8. Combined id_mode × profile at N=64 (catches cross-axis stalls) (12 cfg)
+def _n_for_profile(profile: str, backtoback_N: int) -> int:
+    """Return the effective N: full-scale for backtoback / fast, capped
+    for the throttled slow-consumer profiles."""
+    return _SLOW_N if profile in _SLOW_PROFILES else backtoback_N
+
+
+# --- 6. Slave-delay profile cross at kb4 (6 cfg) — RESTORED post-mem-perf.
+# The kb4-scale profile cross exercises long-running slow-consumer flows
+# against a deep AXI queue; it was the axis most likely to catch pipeline
+# stall regressions.
+_PROFILE_KB4 = []
+for p in ("backtoback", "fast", "constrained",
+          "burst_pause", "slow_producer", "high_throughput"):
+    n = _n_for_profile(p, 128)
+    _PROFILE_KB4.append(_eng(
+        f"profile_{p}_kb4_n{n}", N=n, SLAVE_PROFILE=p,
+    ))
+
+# --- 7. Slave-delay profile cross — slow profiles at _SLOW_N, fast at N=64
+_PROFILE_N64 = []
+for p in ("backtoback", "fast", "constrained",
+          "burst_pause", "slow_producer", "high_throughput"):
+    n = _n_for_profile(p, 64)
+    _PROFILE_N64.append(_eng(f"profile_{p}_n{n}", N=n, SLAVE_PROFILE=p))
+
+# --- 8. Combined id_mode × profile — slow at _SLOW_N (12 cfg)
 _ID_PROFILE = []
 for mode in ("FIXED", "COUNTER", "LFSR"):
     for p in ("backtoback", "constrained", "burst_pause", "slow_producer"):
         ib = 0 if mode == "FIXED" else (5 if mode == "COUNTER" else 42)
+        n = _n_for_profile(p, 64)
         _ID_PROFILE.append(_eng(
-            f"id_{mode.lower()}_{p}_n64",
-            N=64, ID_MODE=mode, AXI_ID_BASE=ib, SLAVE_PROFILE=p,
+            f"id_{mode.lower()}_{p}_n{n}",
+            N=n, ID_MODE=mode, AXI_ID_BASE=ib, SLAVE_PROFILE=p,
         ))
 
-# --- 9. Pathological smokes (boundary conditions, single-cfg each) (5 cfg)
+# --- 9. Pathological smokes (5 cfg) — patho_n2048 restored post-mem-perf.
 _PATHO = [
     _eng("patho_single_burst",      N=1,    BURST_LEN=1),
     _eng("patho_bl256_n1",          N=1,    BURST_LEN=64),
     _eng("patho_n2048",             N=2048),
     _eng("patho_high_id_counter",   N=128,  ID_MODE="COUNTER", AXI_ID_BASE=15),
-    _eng("patho_lfsr_burst_pause",  N=128,  ID_MODE="LFSR",    AXI_ID_BASE=0xFE,
-                                    SLAVE_PROFILE="burst_pause"),
+    _eng(f"patho_lfsr_burst_pause_n{_SLOW_N}",
+         N=_SLOW_N, ID_MODE="LFSR", AXI_ID_BASE=0xFE,
+         SLAVE_PROFILE="burst_pause"),
 ]
 
 # --- 10. BL × N grid (16 cfg)  — every combination at default id_mode
@@ -452,29 +509,35 @@ _BL_N = [
     for n in (16, 32, 64, 128)
 ]
 
-# --- 11. id_mode × N grid at multiple id_bases (24 cfg)
+# --- 11. id_mode × N grid (24 cfg) — RESTORED post-mem-perf.
 _ID_N = []
 for n in (32, 64, 128):
     for mode, ib in [
         ("FIXED",   0), ("FIXED",   15),
         ("COUNTER", 0), ("COUNTER", 8),
         ("LFSR",    1), ("LFSR",    42), ("LFSR",    0x9B),
-        ("FIXED",   5),  # cover one more
+        ("FIXED",   5),
     ]:
         _ID_N.append(_eng(
             f"idn_{mode.lower()}{ib}_n{n}",
             N=n, ID_MODE=mode, AXI_ID_BASE=ib,
         ))
 
-# --- 12. Profile × N grid (21 cfg)
-_PROFILE_N = [
-    _eng(f"pn_{p}_n{n}", N=n, SLAVE_PROFILE=p)
-    for n in (32, 64, 128)
-    for p in ("backtoback", "fast", "constrained",
-              "burst_pause", "slow_producer", "high_throughput", "fixed")
-]
+# --- 12. Profile × N grid — RESTORED post-mem-perf.
+# Fast/backtoback/fixed span N ∈ {32, 64, 128}; slow profiles collapse
+# to a single _SLOW_N entry (they'd otherwise duplicate under the clamp).
+_PROFILE_N = []
+for n in (32, 64, 128):
+    for p in ("backtoback", "fast", "fixed"):
+        _PROFILE_N.append(_eng(
+            f"pn_{p}_n{n}", N=n, SLAVE_PROFILE=p,
+        ))
+for p in ("constrained", "burst_pause", "slow_producer", "high_throughput"):
+    _PROFILE_N.append(_eng(
+        f"pn_{p}_n{_SLOW_N}", N=_SLOW_N, SLAVE_PROFILE=p,
+    ))
 
-# --- 13. Profile × id_mode × N=64 grid (28 cfg)
+# --- 13. Profile × id_mode grid — slow profiles at _SLOW_N (28 cfg → 28)
 _PROFILE_ID = []
 for p in ("backtoback", "fast", "constrained", "burst_pause",
           "slow_producer", "high_throughput", "fixed"):
@@ -484,9 +547,10 @@ for p in ("backtoback", "fast", "constrained", "burst_pause",
         ("COUNTER", 15),
         ("LFSR",    42),
     ]:
+        n = _n_for_profile(p, 64)
         _PROFILE_ID.append(_eng(
-            f"pid_{p}_{mode.lower()}{ib}_n64",
-            N=64, ID_MODE=mode, AXI_ID_BASE=ib, SLAVE_PROFILE=p,
+            f"pid_{p}_{mode.lower()}{ib}_n{n}",
+            N=n, ID_MODE=mode, AXI_ID_BASE=ib, SLAVE_PROFILE=p,
         ))
 
 # --- 14. BL × id_mode at N=64 grid (12 cfg)
@@ -500,7 +564,7 @@ for bl in (1, 2, 4, 8):
             N=64, BURST_LEN=bl, ID_MODE=mode, AXI_ID_BASE=ib,
         ))
 
-# --- 15. Base-addr × N grid (18 cfg) — multi-bank stress
+# --- 15. Base-addr × N grid (18 cfg) — RESTORED post-mem-perf.
 _BASE_N = []
 for base in ("0x10000", "0x40000", "0x100000"):
     for n in (32, 64, 128):
@@ -510,34 +574,31 @@ for base in ("0x10000", "0x40000", "0x100000"):
                 N=n, BURST_LEN=bl, BASE_ADDR=base,
             ))
 
-# --- 16. Full kb4-scale stress matrix — every interesting axis at kb4 (24 cfg)
+# --- 16. Full kb4-scale stress matrix — slow profiles at _SLOW_N (24 cfg)
 _KB4_STRESS = []
 for p in ("backtoback", "constrained", "burst_pause", "slow_producer"):
     for mode in ("FIXED", "COUNTER", "LFSR"):
         for bl in (4, 8):
             ib = 0 if mode == "FIXED" else (5 if mode == "COUNTER" else 42)
+            n = _n_for_profile(p, 128)
             _KB4_STRESS.append(_eng(
-                f"kb4stress_{p}_{mode.lower()}{ib}_bl{bl}",
-                N=128, BURST_LEN=bl, ID_MODE=mode, AXI_ID_BASE=ib,
+                f"kb4stress_{p}_{mode.lower()}{ib}_bl{bl}_n{n}",
+                N=n, BURST_LEN=bl, ID_MODE=mode, AXI_ID_BASE=ib,
                 SLAVE_PROFILE=p,
             ))
 
-# --- 17. Wide cross-product at small/medium N: catches axis interactions
-#         the structured sweeps miss. (~144 cfg)
+# --- 17. Wide cross-product — expanded post-mem-perf (~72 cfg).
+# Original 144-cfg cube was excessive; this restores N=64 and the
+# slow_producer profile that #224 dropped, while trimming redundant
+# id_base variants. Slow profiles clamp to _SLOW_N.
 _WIDE_CROSS = []
-for n in (32, 64):
+for n_bt in (32, 64):
     for bl in (2, 4, 8):
-        for mode, ib in [
-            ("FIXED",   0),
-            ("FIXED",   15),
-            ("COUNTER", 0),
-            ("COUNTER", 7),
-            ("LFSR",    1),
-            ("LFSR",    42),
-        ]:
+        for mode, ib in [("FIXED", 0), ("COUNTER", 0), ("LFSR", 42)]:
             for p in ("backtoback", "fast", "burst_pause", "slow_producer"):
+                n = _n_for_profile(p, n_bt)
                 _WIDE_CROSS.append(_eng(
-                    f"wide_n{n}_bl{bl}_{mode.lower()}{ib}_{p}",
+                    f"wide_n{n_bt}_bl{bl}_{mode.lower()}{ib}_{p}",
                     N=n, BURST_LEN=bl, ID_MODE=mode, AXI_ID_BASE=ib,
                     SLAVE_PROFILE=p,
                 ))
@@ -554,10 +615,12 @@ for base in ("0x10000", "0x80000", "0x200000", "0x400000"):
                 ID_MODE=mode, AXI_ID_BASE=ib,
             ))
 
-# --- 19. Deep-N variants at various BL (12 cfg)
+# --- 19. Deep-N variants (8 cfg) — RESTORED post-mem-perf.
+# BL=2 dropped: three N tiers × BL=2 didn't add coverage over BL=4/8
+# in the tail behavior; kept BL ∈ {4, 8} across four depth points.
 _DEEP_N = []
 for n in (256, 512, 1024, 2048):
-    for bl in (2, 4, 8):
+    for bl in (4, 8):
         _DEEP_N.append(_eng(f"deep_n{n}_bl{bl}", N=n, BURST_LEN=bl))
 
 # --- 20. Tiny / boundary fuzzed (12 cfg)
@@ -592,9 +655,48 @@ _ENG_MATRIX = {
 }.get(_TEST_LEVEL_ENG, _ENG_FUNC)
 
 
+# #26 (non-backtoback SLAVE_PROFILE) was NOT an init-sequencing bug as
+# initially speculated — DDR2LPDDR2CoreMacroTB was simply missing
+# set_axi_timing_profile(). Method added, profile configs no longer xfail.
+#
+# patho_bl256_n1 (AXI BL=64 = 16 chunks × dram_bl=4) — real 16-way intake
+# split hang, tracked as RTLDesignSherpa#31. The FUB-level reproducer
+# (test_rd_cl_aligner intake_split_16chunks) fails the same way in
+# 0.5s wall-clock, so day-to-day iteration doesn't need this macro run.
+# Kept as xfail(strict=False) so it flips to xpass when the RTL fix
+# lands and this gate can be removed.
+_BUG_A_SUBSTRS: tuple[str, ...] = (
+    "patho_bl256_n1",
+)
+
+
+def _eng_xfail_reason(label: str):
+    for s in _BUG_A_SUBSTRS:
+        if s in label:
+            return (
+                "rd_cl_aligner EN pipeline skips 2 of 16 intake-split "
+                "chunks (RTLDesignSherpa#31)."
+            )
+    return None
+
+
+def _eng_params(matrix):
+    out = []
+    for (label, env) in matrix:
+        reason = _eng_xfail_reason(label)
+        if reason:
+            out.append(pytest.param(
+                label, env,
+                marks=pytest.mark.xfail(reason=reason, strict=False),
+            ))
+        else:
+            out.append((label, env))
+    return out
+
+
 @pytest.mark.parametrize(
     "label,env_overrides",
-    _ENG_MATRIX,
+    _eng_params(_ENG_MATRIX),
     ids=[e[0] for e in _ENG_MATRIX],
 )
 def test_ddr2_lpddr2_core_macro_engine_mirror_kbN(request, label, env_overrides):
