@@ -34,7 +34,7 @@
 //   DATA_WIDTH: AXI data bus width (512 bits default)
 //   ADDR_WIDTH: AXI address width (64 bits)
 //   SRAM_DEPTH: Internal SRAM buffer depth (4096 default)
-//   APB_ADDR_WIDTH: APB address width (12 bits for 4KB space)
+//   APB_ADDR_WIDTH: APB address width (13 bits for 8KB space; monitors @ 0x1000+)
 //   APB_DATA_WIDTH: APB data width (32 bits)
 //   USE_AXI_MONITORS: Enable/disable AXI monitors (0=disabled, 1=enabled)
 //   CDC_ENABLE: Enable/disable APB CDC (0=same clock, 1=different clocks)
@@ -58,7 +58,7 @@ module stream_top_ch8 #(
     parameter int DATA_WIDTH = 512,
     parameter int ADDR_WIDTH = 64,
     parameter int SRAM_DEPTH = 4096,
-    parameter int APB_ADDR_WIDTH = 12,
+    parameter int APB_ADDR_WIDTH = 13,
     parameter int APB_DATA_WIDTH = 32,
     parameter int AXI_ID_WIDTH = 8,
     parameter int AXI_USER_WIDTH = 3,    // $clog2(NUM_CHANNELS) for channel ID
@@ -536,7 +536,7 @@ module stream_top_ch8 #(
     logic [31:0]                            obs_data1;
 
     // Descriptor monitor perf-window readback (RFC Stage E CSR route).
-    // Driven by stream_core; feed hwif_in.DAXMON_PERF_*.next (@ 0x2D4-0x2F8).
+    // Driven by stream_core; feed hwif_in.MON.DAXMON_PERF_*.next (@ 0x2D4-0x2F8).
     logic                                   dmon_perf_window_active;
     logic [31:0]                            dmon_perf_window_cycles;
     logic [31:0]                            dmon_perf_prod_cycles;
@@ -548,7 +548,7 @@ module stream_top_ch8 #(
     logic [31:0]                            dmon_perf_burst_count;
 
     // Data-read datapath monitor perf-window readback (RFC Stage E CSR route).
-    // Driven by stream_core; feed hwif_in.RDMON_PERF_*.next (@ 0x304-0x328).
+    // Driven by stream_core; feed hwif_in.MON.RDMON_PERF_*.next (@ 0x304-0x328).
     logic                                   rdmon_perf_window_active;
     logic [31:0]                            rdmon_perf_window_cycles;
     logic [31:0]                            rdmon_perf_prod_cycles;
@@ -560,7 +560,7 @@ module stream_top_ch8 #(
     logic [31:0]                            rdmon_perf_burst_count;
 
     // Data-write datapath monitor perf-window readback (RFC Stage E CSR route).
-    // Driven by stream_core; feed hwif_in.WRMON_PERF_*.next (@ 0x334-0x358).
+    // Driven by stream_core; feed hwif_in.MON.WRMON_PERF_*.next (@ 0x334-0x358).
     logic                                   wrmon_perf_window_active;
     logic [31:0]                            wrmon_perf_window_cycles;
     logic [31:0]                            wrmon_perf_prod_cycles;
@@ -965,53 +965,53 @@ module stream_top_ch8 #(
 
         // Descriptor AXI monitor perf-window readback (RFC Stage E CSR route;
         // see DAXMON_PERF_CTRL @ 0x2D0 for the run control).
-        hwif_in.DAXMON_PERF_STATUS.WIN_ACTIVE.next  = dmon_perf_window_active;
-        hwif_in.DAXMON_PERF_WINDOW_CYCLES.VAL.next  = dmon_perf_window_cycles;
-        hwif_in.DAXMON_PERF_PROD_CYCLES.VAL.next    = dmon_perf_prod_cycles;
-        hwif_in.DAXMON_PERF_BP_CYCLES.VAL.next      = dmon_perf_bp_cycles;
-        hwif_in.DAXMON_PERF_STARV_CYCLES.VAL.next   = dmon_perf_starv_cycles;
-        hwif_in.DAXMON_PERF_IDLE_CYCLES.VAL.next    = dmon_perf_idle_cycles;
-        hwif_in.DAXMON_PERF_BEAT_COUNT.VAL.next     = dmon_perf_beat_count;
-        hwif_in.DAXMON_PERF_BYTE_COUNT_LO.VAL.next  = dmon_perf_byte_count[31:0];
-        hwif_in.DAXMON_PERF_BYTE_COUNT_HI.VAL.next  = dmon_perf_byte_count[63:32];
-        hwif_in.DAXMON_PERF_BURST_COUNT.VAL.next    = dmon_perf_burst_count;
+        hwif_in.MON.DAXMON_PERF_STATUS.WIN_ACTIVE.next  = dmon_perf_window_active;
+        hwif_in.MON.DAXMON_PERF_WINDOW_CYCLES.VAL.next  = dmon_perf_window_cycles;
+        hwif_in.MON.DAXMON_PERF_PROD_CYCLES.VAL.next    = dmon_perf_prod_cycles;
+        hwif_in.MON.DAXMON_PERF_BP_CYCLES.VAL.next      = dmon_perf_bp_cycles;
+        hwif_in.MON.DAXMON_PERF_STARV_CYCLES.VAL.next   = dmon_perf_starv_cycles;
+        hwif_in.MON.DAXMON_PERF_IDLE_CYCLES.VAL.next    = dmon_perf_idle_cycles;
+        hwif_in.MON.DAXMON_PERF_BEAT_COUNT.VAL.next     = dmon_perf_beat_count;
+        hwif_in.MON.DAXMON_PERF_BYTE_COUNT_LO.VAL.next  = dmon_perf_byte_count[31:0];
+        hwif_in.MON.DAXMON_PERF_BYTE_COUNT_HI.VAL.next  = dmon_perf_byte_count[63:32];
+        hwif_in.MON.DAXMON_PERF_BURST_COUNT.VAL.next    = dmon_perf_burst_count;
 
         // Data-read datapath monitor perf-window readback (RFC Stage E option 2;
         // see RDMON_PERF_CTRL @ 0x300 for the run control).
-        hwif_in.RDMON_PERF_STATUS.WIN_ACTIVE.next   = rdmon_perf_window_active;
-        hwif_in.RDMON_PERF_WINDOW_CYCLES.VAL.next   = rdmon_perf_window_cycles;
-        hwif_in.RDMON_PERF_PROD_CYCLES.VAL.next     = rdmon_perf_prod_cycles;
-        hwif_in.RDMON_PERF_BP_CYCLES.VAL.next       = rdmon_perf_bp_cycles;
-        hwif_in.RDMON_PERF_STARV_CYCLES.VAL.next    = rdmon_perf_starv_cycles;
-        hwif_in.RDMON_PERF_IDLE_CYCLES.VAL.next     = rdmon_perf_idle_cycles;
-        hwif_in.RDMON_PERF_BEAT_COUNT.VAL.next      = rdmon_perf_beat_count;
-        hwif_in.RDMON_PERF_BYTE_COUNT_LO.VAL.next   = rdmon_perf_byte_count[31:0];
-        hwif_in.RDMON_PERF_BYTE_COUNT_HI.VAL.next   = rdmon_perf_byte_count[63:32];
-        hwif_in.RDMON_PERF_BURST_COUNT.VAL.next     = rdmon_perf_burst_count;
+        hwif_in.MON.RDMON_PERF_STATUS.WIN_ACTIVE.next   = rdmon_perf_window_active;
+        hwif_in.MON.RDMON_PERF_WINDOW_CYCLES.VAL.next   = rdmon_perf_window_cycles;
+        hwif_in.MON.RDMON_PERF_PROD_CYCLES.VAL.next     = rdmon_perf_prod_cycles;
+        hwif_in.MON.RDMON_PERF_BP_CYCLES.VAL.next       = rdmon_perf_bp_cycles;
+        hwif_in.MON.RDMON_PERF_STARV_CYCLES.VAL.next    = rdmon_perf_starv_cycles;
+        hwif_in.MON.RDMON_PERF_IDLE_CYCLES.VAL.next     = rdmon_perf_idle_cycles;
+        hwif_in.MON.RDMON_PERF_BEAT_COUNT.VAL.next      = rdmon_perf_beat_count;
+        hwif_in.MON.RDMON_PERF_BYTE_COUNT_LO.VAL.next   = rdmon_perf_byte_count[31:0];
+        hwif_in.MON.RDMON_PERF_BYTE_COUNT_HI.VAL.next   = rdmon_perf_byte_count[63:32];
+        hwif_in.MON.RDMON_PERF_BURST_COUNT.VAL.next     = rdmon_perf_burst_count;
 
         // Data-write datapath monitor perf-window readback (RFC Stage E option 2;
         // see WRMON_PERF_CTRL @ 0x330 for the run control).
-        hwif_in.WRMON_PERF_STATUS.WIN_ACTIVE.next   = wrmon_perf_window_active;
-        hwif_in.WRMON_PERF_WINDOW_CYCLES.VAL.next   = wrmon_perf_window_cycles;
-        hwif_in.WRMON_PERF_PROD_CYCLES.VAL.next     = wrmon_perf_prod_cycles;
-        hwif_in.WRMON_PERF_BP_CYCLES.VAL.next       = wrmon_perf_bp_cycles;
-        hwif_in.WRMON_PERF_STARV_CYCLES.VAL.next    = wrmon_perf_starv_cycles;
-        hwif_in.WRMON_PERF_IDLE_CYCLES.VAL.next     = wrmon_perf_idle_cycles;
-        hwif_in.WRMON_PERF_BEAT_COUNT.VAL.next      = wrmon_perf_beat_count;
-        hwif_in.WRMON_PERF_BYTE_COUNT_LO.VAL.next   = wrmon_perf_byte_count[31:0];
-        hwif_in.WRMON_PERF_BYTE_COUNT_HI.VAL.next   = wrmon_perf_byte_count[63:32];
-        hwif_in.WRMON_PERF_BURST_COUNT.VAL.next     = wrmon_perf_burst_count;
+        hwif_in.MON.WRMON_PERF_STATUS.WIN_ACTIVE.next   = wrmon_perf_window_active;
+        hwif_in.MON.WRMON_PERF_WINDOW_CYCLES.VAL.next   = wrmon_perf_window_cycles;
+        hwif_in.MON.WRMON_PERF_PROD_CYCLES.VAL.next     = wrmon_perf_prod_cycles;
+        hwif_in.MON.WRMON_PERF_BP_CYCLES.VAL.next       = wrmon_perf_bp_cycles;
+        hwif_in.MON.WRMON_PERF_STARV_CYCLES.VAL.next    = wrmon_perf_starv_cycles;
+        hwif_in.MON.WRMON_PERF_IDLE_CYCLES.VAL.next     = wrmon_perf_idle_cycles;
+        hwif_in.MON.WRMON_PERF_BEAT_COUNT.VAL.next      = wrmon_perf_beat_count;
+        hwif_in.MON.WRMON_PERF_BYTE_COUNT_LO.VAL.next   = wrmon_perf_byte_count[31:0];
+        hwif_in.MON.WRMON_PERF_BYTE_COUNT_HI.VAL.next   = wrmon_perf_byte_count[63:32];
+        hwif_in.MON.WRMON_PERF_BURST_COUNT.VAL.next     = wrmon_perf_burst_count;
 
         // Per-channel datapath perf buckets (RFC Stage C). Packed exactly like
         // the FPGA-char harness meter: {bp[31:16], prod[15:0]} and
         // {idle[31:16], starv[15:0]} for the PERF_CH_SEL-selected channel. The
         // overflow masks are zero-extended to 32 bits (NUM_CHANNELS*4 valid).
-        hwif_in.RDMON_PERF_CH_PROD_BP.VAL.next    = {rdmon_ch_bp_cycles,   rdmon_ch_prod_cycles};
-        hwif_in.RDMON_PERF_CH_STARV_IDLE.VAL.next = {rdmon_ch_idle_cycles, rdmon_ch_starv_cycles};
-        hwif_in.WRMON_PERF_CH_PROD_BP.VAL.next    = {wrmon_ch_bp_cycles,   wrmon_ch_prod_cycles};
-        hwif_in.WRMON_PERF_CH_STARV_IDLE.VAL.next = {wrmon_ch_idle_cycles, wrmon_ch_starv_cycles};
-        hwif_in.RDMON_PERF_CH_OVERFLOW.VAL.next   = 32'(rdmon_ch_overflow);
-        hwif_in.WRMON_PERF_CH_OVERFLOW.VAL.next   = 32'(wrmon_ch_overflow);
+        hwif_in.MON.RDMON_PERF_CH_PROD_BP.VAL.next    = {rdmon_ch_bp_cycles,   rdmon_ch_prod_cycles};
+        hwif_in.MON.RDMON_PERF_CH_STARV_IDLE.VAL.next = {rdmon_ch_idle_cycles, rdmon_ch_starv_cycles};
+        hwif_in.MON.WRMON_PERF_CH_PROD_BP.VAL.next    = {wrmon_ch_bp_cycles,   wrmon_ch_prod_cycles};
+        hwif_in.MON.WRMON_PERF_CH_STARV_IDLE.VAL.next = {wrmon_ch_idle_cycles, wrmon_ch_starv_cycles};
+        hwif_in.MON.RDMON_PERF_CH_OVERFLOW.VAL.next   = 32'(rdmon_ch_overflow);
+        hwif_in.MON.WRMON_PERF_CH_OVERFLOW.VAL.next   = 32'(wrmon_ch_overflow);
 
         // Datapath latency histograms (RFC Stage D), indexed by HIST_SEL.
         hwif_in.HIST_DATA.VAL.next  = perf_hist_data;
@@ -1128,7 +1128,7 @@ module stream_top_ch8 #(
         // Passthrough CPU interface
         .s_cpuif_req            (regblk_req),
         .s_cpuif_req_is_wr      (regblk_req_is_wr),
-        .s_cpuif_addr           (regblk_addr[9:0]),  // PeakRDL uses 10-bit address
+        .s_cpuif_addr           (13'(regblk_addr)),  // 13-bit address (monitor block @ 0x1000+)
         .s_cpuif_wr_data        (regblk_wr_data),
         .s_cpuif_wr_biten       (regblk_wr_biten),
         .s_cpuif_req_stall_wr   (regblk_req_stall_wr),
@@ -1187,58 +1187,58 @@ module stream_top_ch8 #(
         .reg_desceng_addr1_limit_addr1_limit        (hwif_out.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value),
 
         // Descriptor AXI Monitor Configuration
-        .reg_daxmon_enable_mon_en                   (hwif_out.DAXMON_ENABLE.MON_EN.value),
-        .reg_daxmon_enable_err_en                   (hwif_out.DAXMON_ENABLE.ERR_EN.value),
-        .reg_daxmon_enable_compl_en                 (hwif_out.DAXMON_ENABLE.COMPL_EN.value),
-        .reg_daxmon_enable_timeout_en               (hwif_out.DAXMON_ENABLE.TIMEOUT_EN.value),
-        .reg_daxmon_enable_perf_en                  (hwif_out.DAXMON_ENABLE.PERF_EN.value),
-        .reg_daxmon_timeout_timeout_cycles          (hwif_out.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value),
-        .reg_daxmon_latency_thresh_latency_thresh   (hwif_out.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value),
-        .reg_daxmon_pkt_mask_pkt_mask               (hwif_out.DAXMON_PKT_MASK.PKT_MASK.value),
-        .reg_daxmon_err_cfg_err_select              (hwif_out.DAXMON_ERR_CFG.ERR_SELECT.value),
-        .reg_daxmon_err_cfg_err_mask                (hwif_out.DAXMON_ERR_CFG.ERR_MASK.value),
-        .reg_daxmon_mask1_timeout_mask              (hwif_out.DAXMON_MASK1.TIMEOUT_MASK.value),
-        .reg_daxmon_mask1_compl_mask                (hwif_out.DAXMON_MASK1.COMPL_MASK.value),
-        .reg_daxmon_mask2_thresh_mask               (hwif_out.DAXMON_MASK2.THRESH_MASK.value),
-        .reg_daxmon_mask2_perf_mask                 (hwif_out.DAXMON_MASK2.PERF_MASK.value),
-        .reg_daxmon_mask3_addr_mask                 (hwif_out.DAXMON_MASK3.ADDR_MASK.value),
-        .reg_daxmon_mask3_debug_mask                (hwif_out.DAXMON_MASK3.DEBUG_MASK.value),
+        .reg_daxmon_enable_mon_en                   (hwif_out.MON.DAXMON_ENABLE.MON_EN.value),
+        .reg_daxmon_enable_err_en                   (hwif_out.MON.DAXMON_ENABLE.ERR_EN.value),
+        .reg_daxmon_enable_compl_en                 (hwif_out.MON.DAXMON_ENABLE.COMPL_EN.value),
+        .reg_daxmon_enable_timeout_en               (hwif_out.MON.DAXMON_ENABLE.TIMEOUT_EN.value),
+        .reg_daxmon_enable_perf_en                  (hwif_out.MON.DAXMON_ENABLE.PERF_EN.value),
+        .reg_daxmon_timeout_timeout_cycles          (hwif_out.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value),
+        .reg_daxmon_latency_thresh_latency_thresh   (hwif_out.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value),
+        .reg_daxmon_pkt_mask_pkt_mask               (hwif_out.MON.DAXMON_PKT_MASK.PKT_MASK.value),
+        .reg_daxmon_err_cfg_err_select              (hwif_out.MON.DAXMON_ERR_CFG.ERR_SELECT.value),
+        .reg_daxmon_err_cfg_err_mask                (hwif_out.MON.DAXMON_ERR_CFG.ERR_MASK.value),
+        .reg_daxmon_mask1_timeout_mask              (hwif_out.MON.DAXMON_MASK1.TIMEOUT_MASK.value),
+        .reg_daxmon_mask1_compl_mask                (hwif_out.MON.DAXMON_MASK1.COMPL_MASK.value),
+        .reg_daxmon_mask2_thresh_mask               (hwif_out.MON.DAXMON_MASK2.THRESH_MASK.value),
+        .reg_daxmon_mask2_perf_mask                 (hwif_out.MON.DAXMON_MASK2.PERF_MASK.value),
+        .reg_daxmon_mask3_addr_mask                 (hwif_out.MON.DAXMON_MASK3.ADDR_MASK.value),
+        .reg_daxmon_mask3_debug_mask                (hwif_out.MON.DAXMON_MASK3.DEBUG_MASK.value),
 
         // Read Engine AXI Monitor Configuration
-        .reg_rdmon_enable_mon_en                    (hwif_out.RDMON_ENABLE.MON_EN.value),
-        .reg_rdmon_enable_err_en                    (hwif_out.RDMON_ENABLE.ERR_EN.value),
-        .reg_rdmon_enable_compl_en                  (hwif_out.RDMON_ENABLE.COMPL_EN.value),
-        .reg_rdmon_enable_timeout_en                (hwif_out.RDMON_ENABLE.TIMEOUT_EN.value),
-        .reg_rdmon_enable_perf_en                   (hwif_out.RDMON_ENABLE.PERF_EN.value),
-        .reg_rdmon_timeout_timeout_cycles           (hwif_out.RDMON_TIMEOUT.TIMEOUT_CYCLES.value),
-        .reg_rdmon_latency_thresh_latency_thresh    (hwif_out.RDMON_LATENCY_THRESH.LATENCY_THRESH.value),
-        .reg_rdmon_pkt_mask_pkt_mask                (hwif_out.RDMON_PKT_MASK.PKT_MASK.value),
-        .reg_rdmon_err_cfg_err_select               (hwif_out.RDMON_ERR_CFG.ERR_SELECT.value),
-        .reg_rdmon_err_cfg_err_mask                 (hwif_out.RDMON_ERR_CFG.ERR_MASK.value),
-        .reg_rdmon_mask1_timeout_mask               (hwif_out.RDMON_MASK1.TIMEOUT_MASK.value),
-        .reg_rdmon_mask1_compl_mask                 (hwif_out.RDMON_MASK1.COMPL_MASK.value),
-        .reg_rdmon_mask2_thresh_mask                (hwif_out.RDMON_MASK2.THRESH_MASK.value),
-        .reg_rdmon_mask2_perf_mask                  (hwif_out.RDMON_MASK2.PERF_MASK.value),
-        .reg_rdmon_mask3_addr_mask                  (hwif_out.RDMON_MASK3.ADDR_MASK.value),
-        .reg_rdmon_mask3_debug_mask                 (hwif_out.RDMON_MASK3.DEBUG_MASK.value),
+        .reg_rdmon_enable_mon_en                    (hwif_out.MON.RDMON_ENABLE.MON_EN.value),
+        .reg_rdmon_enable_err_en                    (hwif_out.MON.RDMON_ENABLE.ERR_EN.value),
+        .reg_rdmon_enable_compl_en                  (hwif_out.MON.RDMON_ENABLE.COMPL_EN.value),
+        .reg_rdmon_enable_timeout_en                (hwif_out.MON.RDMON_ENABLE.TIMEOUT_EN.value),
+        .reg_rdmon_enable_perf_en                   (hwif_out.MON.RDMON_ENABLE.PERF_EN.value),
+        .reg_rdmon_timeout_timeout_cycles           (hwif_out.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value),
+        .reg_rdmon_latency_thresh_latency_thresh    (hwif_out.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value),
+        .reg_rdmon_pkt_mask_pkt_mask                (hwif_out.MON.RDMON_PKT_MASK.PKT_MASK.value),
+        .reg_rdmon_err_cfg_err_select               (hwif_out.MON.RDMON_ERR_CFG.ERR_SELECT.value),
+        .reg_rdmon_err_cfg_err_mask                 (hwif_out.MON.RDMON_ERR_CFG.ERR_MASK.value),
+        .reg_rdmon_mask1_timeout_mask               (hwif_out.MON.RDMON_MASK1.TIMEOUT_MASK.value),
+        .reg_rdmon_mask1_compl_mask                 (hwif_out.MON.RDMON_MASK1.COMPL_MASK.value),
+        .reg_rdmon_mask2_thresh_mask                (hwif_out.MON.RDMON_MASK2.THRESH_MASK.value),
+        .reg_rdmon_mask2_perf_mask                  (hwif_out.MON.RDMON_MASK2.PERF_MASK.value),
+        .reg_rdmon_mask3_addr_mask                  (hwif_out.MON.RDMON_MASK3.ADDR_MASK.value),
+        .reg_rdmon_mask3_debug_mask                 (hwif_out.MON.RDMON_MASK3.DEBUG_MASK.value),
 
         // Write Engine AXI Monitor Configuration
-        .reg_wrmon_enable_mon_en                    (hwif_out.WRMON_ENABLE.MON_EN.value),
-        .reg_wrmon_enable_err_en                    (hwif_out.WRMON_ENABLE.ERR_EN.value),
-        .reg_wrmon_enable_compl_en                  (hwif_out.WRMON_ENABLE.COMPL_EN.value),
-        .reg_wrmon_enable_timeout_en                (hwif_out.WRMON_ENABLE.TIMEOUT_EN.value),
-        .reg_wrmon_enable_perf_en                   (hwif_out.WRMON_ENABLE.PERF_EN.value),
-        .reg_wrmon_timeout_timeout_cycles           (hwif_out.WRMON_TIMEOUT.TIMEOUT_CYCLES.value),
-        .reg_wrmon_latency_thresh_latency_thresh    (hwif_out.WRMON_LATENCY_THRESH.LATENCY_THRESH.value),
-        .reg_wrmon_pkt_mask_pkt_mask                (hwif_out.WRMON_PKT_MASK.PKT_MASK.value),
-        .reg_wrmon_err_cfg_err_select               (hwif_out.WRMON_ERR_CFG.ERR_SELECT.value),
-        .reg_wrmon_err_cfg_err_mask                 (hwif_out.WRMON_ERR_CFG.ERR_MASK.value),
-        .reg_wrmon_mask1_timeout_mask               (hwif_out.WRMON_MASK1.TIMEOUT_MASK.value),
-        .reg_wrmon_mask1_compl_mask                 (hwif_out.WRMON_MASK1.COMPL_MASK.value),
-        .reg_wrmon_mask2_thresh_mask                (hwif_out.WRMON_MASK2.THRESH_MASK.value),
-        .reg_wrmon_mask2_perf_mask                  (hwif_out.WRMON_MASK2.PERF_MASK.value),
-        .reg_wrmon_mask3_addr_mask                  (hwif_out.WRMON_MASK3.ADDR_MASK.value),
-        .reg_wrmon_mask3_debug_mask                 (hwif_out.WRMON_MASK3.DEBUG_MASK.value),
+        .reg_wrmon_enable_mon_en                    (hwif_out.MON.WRMON_ENABLE.MON_EN.value),
+        .reg_wrmon_enable_err_en                    (hwif_out.MON.WRMON_ENABLE.ERR_EN.value),
+        .reg_wrmon_enable_compl_en                  (hwif_out.MON.WRMON_ENABLE.COMPL_EN.value),
+        .reg_wrmon_enable_timeout_en                (hwif_out.MON.WRMON_ENABLE.TIMEOUT_EN.value),
+        .reg_wrmon_enable_perf_en                   (hwif_out.MON.WRMON_ENABLE.PERF_EN.value),
+        .reg_wrmon_timeout_timeout_cycles           (hwif_out.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value),
+        .reg_wrmon_latency_thresh_latency_thresh    (hwif_out.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value),
+        .reg_wrmon_pkt_mask_pkt_mask                (hwif_out.MON.WRMON_PKT_MASK.PKT_MASK.value),
+        .reg_wrmon_err_cfg_err_select               (hwif_out.MON.WRMON_ERR_CFG.ERR_SELECT.value),
+        .reg_wrmon_err_cfg_err_mask                 (hwif_out.MON.WRMON_ERR_CFG.ERR_MASK.value),
+        .reg_wrmon_mask1_timeout_mask               (hwif_out.MON.WRMON_MASK1.TIMEOUT_MASK.value),
+        .reg_wrmon_mask1_compl_mask                 (hwif_out.MON.WRMON_MASK1.COMPL_MASK.value),
+        .reg_wrmon_mask2_thresh_mask                (hwif_out.MON.WRMON_MASK2.THRESH_MASK.value),
+        .reg_wrmon_mask2_perf_mask                  (hwif_out.MON.WRMON_MASK2.PERF_MASK.value),
+        .reg_wrmon_mask3_addr_mask                  (hwif_out.MON.WRMON_MASK3.ADDR_MASK.value),
+        .reg_wrmon_mask3_debug_mask                 (hwif_out.MON.WRMON_MASK3.DEBUG_MASK.value),
 
         // AXI Transfer Configuration
         .reg_axi_xfer_config_rd_xfer_beats          (hwif_out.AXI_XFER_CONFIG.RD_XFER_BEATS.value),
@@ -1410,7 +1410,7 @@ module stream_top_ch8 #(
                 .cfg_desc_mon_addr_mask     (cfg_desc_mon_addr_mask),
                 .cfg_desc_mon_debug_mask    (cfg_desc_mon_debug_mask),
                 // RFC Stage E perf-window run control (DAXMON_PERF_CTRL @ 0x2D0)
-                .cfg_desc_mon_perf_run      (hwif_out.DAXMON_PERF_CTRL.RUN.value),
+                .cfg_desc_mon_perf_run      (hwif_out.MON.DAXMON_PERF_CTRL.RUN.value),
 
                 // Descriptor monitor perf-window readback (RFC Stage E CSR route)
                 .perf_window_active         (dmon_perf_window_active),
@@ -1440,7 +1440,7 @@ module stream_top_ch8 #(
                 .cfg_rdeng_mon_addr_mask    (cfg_rdeng_mon_addr_mask),
                 .cfg_rdeng_mon_debug_mask   (cfg_rdeng_mon_debug_mask),
                 // RFC Stage E perf-window run control (RDMON_PERF_CTRL @ 0x300)
-                .cfg_rdeng_mon_perf_run     (hwif_out.RDMON_PERF_CTRL.RUN.value),
+                .cfg_rdeng_mon_perf_run     (hwif_out.MON.RDMON_PERF_CTRL.RUN.value),
 
                 // Read datapath monitor perf-window readback (RFC Stage E CSR route)
                 .rdmon_perf_window_active   (rdmon_perf_window_active),
@@ -1470,7 +1470,7 @@ module stream_top_ch8 #(
                 .cfg_wreng_mon_addr_mask    (cfg_wreng_mon_addr_mask),
                 .cfg_wreng_mon_debug_mask   (cfg_wreng_mon_debug_mask),
                 // RFC Stage E perf-window run control (WRMON_PERF_CTRL @ 0x330)
-                .cfg_wreng_mon_perf_run     (hwif_out.WRMON_PERF_CTRL.RUN.value),
+                .cfg_wreng_mon_perf_run     (hwif_out.MON.WRMON_PERF_CTRL.RUN.value),
 
                 // Write datapath monitor perf-window readback (RFC Stage E CSR route)
                 .wrmon_perf_window_active   (wrmon_perf_window_active),
@@ -2031,46 +2031,46 @@ module stream_top_ch8 #(
                 .cfg_flush_watermark (cfg_mon_flush_watermark),
                 // Runtime compression enable -- host-controllable via
                 // WRMON_ENABLE.COMPRESS_EN (1=compress, 0=raw 3-beat).
-                .cfg_compress_en     (hwif_out.WRMON_ENABLE.COMPRESS_EN.value),
+                .cfg_compress_en     (hwif_out.MON.WRMON_ENABLE.COMPRESS_EN.value),
 
                 //---------------------------------------------------------------------
                 // Protocol 0 Configuration - Descriptor AXI Monitor (DAXMON)
                 //---------------------------------------------------------------------
-                .cfg_axi_pkt_mask       (hwif_out.DAXMON_PKT_MASK.PKT_MASK.value),
-                .cfg_axi_err_select     (hwif_out.DAXMON_ERR_CFG.ERR_SELECT.value),
-                .cfg_axi_error_mask     (hwif_out.DAXMON_ERR_CFG.ERR_MASK.value),
-                .cfg_axi_timeout_mask   (hwif_out.DAXMON_MASK1.TIMEOUT_MASK.value),
-                .cfg_axi_compl_mask     (hwif_out.DAXMON_MASK1.COMPL_MASK.value),
-                .cfg_axi_thresh_mask    (hwif_out.DAXMON_MASK2.THRESH_MASK.value),
-                .cfg_axi_perf_mask      (hwif_out.DAXMON_MASK2.PERF_MASK.value),
-                .cfg_axi_addr_mask      (hwif_out.DAXMON_MASK3.ADDR_MASK.value),
-                .cfg_axi_debug_mask     (hwif_out.DAXMON_MASK3.DEBUG_MASK.value),
+                .cfg_axi_pkt_mask       (hwif_out.MON.DAXMON_PKT_MASK.PKT_MASK.value),
+                .cfg_axi_err_select     (hwif_out.MON.DAXMON_ERR_CFG.ERR_SELECT.value),
+                .cfg_axi_error_mask     (hwif_out.MON.DAXMON_ERR_CFG.ERR_MASK.value),
+                .cfg_axi_timeout_mask   (hwif_out.MON.DAXMON_MASK1.TIMEOUT_MASK.value),
+                .cfg_axi_compl_mask     (hwif_out.MON.DAXMON_MASK1.COMPL_MASK.value),
+                .cfg_axi_thresh_mask    (hwif_out.MON.DAXMON_MASK2.THRESH_MASK.value),
+                .cfg_axi_perf_mask      (hwif_out.MON.DAXMON_MASK2.PERF_MASK.value),
+                .cfg_axi_addr_mask      (hwif_out.MON.DAXMON_MASK3.ADDR_MASK.value),
+                .cfg_axi_debug_mask     (hwif_out.MON.DAXMON_MASK3.DEBUG_MASK.value),
 
                 //---------------------------------------------------------------------
                 // Protocol 1 Configuration - Read Engine Monitor (RDMON)
                 // Note: Using AXIS ports for read engine AXI monitor (protocol reuse)
                 //---------------------------------------------------------------------
-                .cfg_axis_pkt_mask      (hwif_out.RDMON_PKT_MASK.PKT_MASK.value),
-                .cfg_axis_err_select    (hwif_out.RDMON_ERR_CFG.ERR_SELECT.value),
-                .cfg_axis_error_mask    (hwif_out.RDMON_ERR_CFG.ERR_MASK.value),
-                .cfg_axis_timeout_mask  (hwif_out.RDMON_MASK1.TIMEOUT_MASK.value),
-                .cfg_axis_compl_mask    (hwif_out.RDMON_MASK1.COMPL_MASK.value),
-                .cfg_axis_credit_mask   (hwif_out.RDMON_MASK2.THRESH_MASK.value),   // Thresh → Credit
-                .cfg_axis_channel_mask  (hwif_out.RDMON_MASK2.PERF_MASK.value),     // Perf → Channel
-                .cfg_axis_stream_mask   (hwif_out.RDMON_MASK3.ADDR_MASK.value),     // Addr → Stream
+                .cfg_axis_pkt_mask      (hwif_out.MON.RDMON_PKT_MASK.PKT_MASK.value),
+                .cfg_axis_err_select    (hwif_out.MON.RDMON_ERR_CFG.ERR_SELECT.value),
+                .cfg_axis_error_mask    (hwif_out.MON.RDMON_ERR_CFG.ERR_MASK.value),
+                .cfg_axis_timeout_mask  (hwif_out.MON.RDMON_MASK1.TIMEOUT_MASK.value),
+                .cfg_axis_compl_mask    (hwif_out.MON.RDMON_MASK1.COMPL_MASK.value),
+                .cfg_axis_credit_mask   (hwif_out.MON.RDMON_MASK2.THRESH_MASK.value),   // Thresh → Credit
+                .cfg_axis_channel_mask  (hwif_out.MON.RDMON_MASK2.PERF_MASK.value),     // Perf → Channel
+                .cfg_axis_stream_mask   (hwif_out.MON.RDMON_MASK3.ADDR_MASK.value),     // Addr → Stream
 
                 //---------------------------------------------------------------------
                 // Protocol 2 Configuration - Write Engine Monitor (WRMON)
                 // Note: Using CORE ports for write engine AXI monitor (protocol reuse)
                 //---------------------------------------------------------------------
-                .cfg_core_pkt_mask      (hwif_out.WRMON_PKT_MASK.PKT_MASK.value),
-                .cfg_core_err_select    (hwif_out.WRMON_ERR_CFG.ERR_SELECT.value),
-                .cfg_core_error_mask    (hwif_out.WRMON_ERR_CFG.ERR_MASK.value),
-                .cfg_core_timeout_mask  (hwif_out.WRMON_MASK1.TIMEOUT_MASK.value),
-                .cfg_core_compl_mask    (hwif_out.WRMON_MASK1.COMPL_MASK.value),
-                .cfg_core_thresh_mask   (hwif_out.WRMON_MASK2.THRESH_MASK.value),
-                .cfg_core_perf_mask     (hwif_out.WRMON_MASK2.PERF_MASK.value),
-                .cfg_core_debug_mask    (hwif_out.WRMON_MASK3.DEBUG_MASK.value),
+                .cfg_core_pkt_mask      (hwif_out.MON.WRMON_PKT_MASK.PKT_MASK.value),
+                .cfg_core_err_select    (hwif_out.MON.WRMON_ERR_CFG.ERR_SELECT.value),
+                .cfg_core_error_mask    (hwif_out.MON.WRMON_ERR_CFG.ERR_MASK.value),
+                .cfg_core_timeout_mask  (hwif_out.MON.WRMON_MASK1.TIMEOUT_MASK.value),
+                .cfg_core_compl_mask    (hwif_out.MON.WRMON_MASK1.COMPL_MASK.value),
+                .cfg_core_thresh_mask   (hwif_out.MON.WRMON_MASK2.THRESH_MASK.value),
+                .cfg_core_perf_mask     (hwif_out.MON.WRMON_MASK2.PERF_MASK.value),
+                .cfg_core_debug_mask    (hwif_out.MON.WRMON_MASK3.DEBUG_MASK.value),
 
                 //---------------------------------------------------------------------
                 // Status Outputs

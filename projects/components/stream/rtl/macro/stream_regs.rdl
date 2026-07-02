@@ -19,7 +19,10 @@
 // Author: sean galloway
 // Created: 2025-11-21
 
+`include "stream_mon_regs.rdl"
+
 addrmap stream_regs {
+
     name = "STREAM DMA Engine Registers";
     desc = "Configuration and status registers for 8-channel STREAM DMA engine with full monitor control";
 
@@ -56,6 +59,7 @@ addrmap stream_regs {
 
     } GLOBAL_CTRL @ 0x100;
 
+
     reg {
         name = "Global Status Register";
         desc = "Overall system status and error flags";
@@ -73,6 +77,7 @@ addrmap stream_regs {
         } RSVD[31:1] = 31'h0;
 
     } GLOBAL_STATUS @ 0x104;
+
 
     reg {
         name = "Version Register";
@@ -104,6 +109,7 @@ addrmap stream_regs {
 
     } VERSION @ 0x108;
 
+
     //=========================================================================
     // Per-Channel Control (0x120 - 0x13F)
     //=========================================================================
@@ -126,6 +132,7 @@ addrmap stream_regs {
 
     } CHANNEL_ENABLE @ 0x120;
 
+
     reg {
         name = "Channel Reset Register";
         desc = "Per-channel reset bits (one bit per channel, self-clearing)";
@@ -144,6 +151,7 @@ addrmap stream_regs {
         } RSVD[31:8] = 24'h0;
 
     } CHANNEL_RESET @ 0x124;
+
 
     //=========================================================================
     // Per-Channel Status (0x140 - 0x17F)
@@ -167,6 +175,7 @@ addrmap stream_regs {
 
     } CHANNEL_IDLE @ 0x140;
 
+
     reg {
         name = "Descriptor Engine Idle Status";
         desc = "Per-channel descriptor engine idle status";
@@ -185,6 +194,7 @@ addrmap stream_regs {
 
     } DESC_ENGINE_IDLE @ 0x144;
 
+
     reg {
         name = "Scheduler Idle Status";
         desc = "Per-channel scheduler idle status";
@@ -202,6 +212,7 @@ addrmap stream_regs {
         } RSVD[31:8] = 24'h0;
 
     } SCHEDULER_IDLE @ 0x148;
+
 
     // Per-channel state registers (CH0-CH7)
     regfile {
@@ -228,6 +239,7 @@ addrmap stream_regs {
 
     } CH_STATE[8] @ 0x150 += 0x4;
 
+
     //=========================================================================
     // Engine Completion and Error Status (0x170 - 0x17F)
     //=========================================================================
@@ -250,6 +262,7 @@ addrmap stream_regs {
 
     } SCHED_ERROR @ 0x170;
 
+
     reg {
         name = "AXI Read Engine Completion Status";
         desc = "Per-channel read engine all_complete flags";
@@ -267,6 +280,7 @@ addrmap stream_regs {
         } RSVD[31:8] = 24'h0;
 
     } AXI_RD_COMPLETE @ 0x174;
+
 
     reg {
         name = "AXI Write Engine Completion Status";
@@ -286,63 +300,6 @@ addrmap stream_regs {
 
     } AXI_WR_COMPLETE @ 0x178;
 
-    //=========================================================================
-    // Monitor Status (0x180 - 0x1FF) - When USE_AXI_MONITORS=1
-    //=========================================================================
-
-    reg {
-        name = "Monitor FIFO Status";
-        desc = "Monitor bus FIFO status indicators";
-
-        field {
-            desc = "Monitor FIFO full - 1=FIFO full, 0=space available";
-            sw = r;
-            hw = w;
-        } MON_FIFO_FULL;
-
-        field {
-            desc = "Monitor FIFO empty - 1=FIFO empty, 0=data available";
-            sw = r;
-            hw = w;
-        } MON_FIFO_EMPTY;
-
-        field {
-            desc = "Monitor FIFO overflow - 1=overflow detected, 0=normal";
-            sw = r;
-            hw = w;
-        } MON_FIFO_OVFL;
-
-        field {
-            desc = "Monitor FIFO underflow - 1=underflow detected, 0=normal";
-            sw = r;
-            hw = w;
-        } MON_FIFO_UNFL;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:4] = 28'h0;
-
-    } MON_FIFO_STATUS @ 0x180;
-
-    reg {
-        name = "Monitor FIFO Count";
-        desc = "Monitor bus FIFO entry count";
-
-        field {
-            desc = "FIFO count [15:0] - number of entries in FIFO";
-            sw = r;
-            hw = w;
-        } FIFO_COUNT[15:0];
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
-
-    } MON_FIFO_COUNT @ 0x184;
 
     //=========================================================================
     // Scheduler Configuration (0x200 - 0x21F)
@@ -359,6 +316,7 @@ addrmap stream_regs {
         } TIMEOUT_CYCLES[31:0] = 32'd1000;
 
     } SCHED_TIMEOUT_CYCLES @ 0x200;
+
 
     reg {
         name = "Scheduler Configuration";
@@ -402,6 +360,7 @@ addrmap stream_regs {
 
     } SCHED_CONFIG @ 0x204;
 
+
     reg {
         name = "Scheduler Timeout Escalation Limit";
         desc = "Number of consecutive write-progress timeout windows a channel may
@@ -416,6 +375,7 @@ addrmap stream_regs {
         } LIMIT[7:0] = 8'd4;
 
     } SCHED_TIMEOUT_LIMIT @ 0x208;
+
 
     //=========================================================================
     // Descriptor Engine Configuration (0x220 - 0x23F)
@@ -451,6 +411,7 @@ addrmap stream_regs {
 
     } DESCENG_CONFIG @ 0x220;
 
+
     reg {
         name = "Descriptor Address Range 0 Base";
         desc = "Base address for descriptor address range 0 (lower 32 bits)";
@@ -462,6 +423,7 @@ addrmap stream_regs {
         } ADDR0_BASE[31:0] = 32'h0000_0000;
 
     } DESCENG_ADDR0_BASE @ 0x224;
+
 
     reg {
         name = "Descriptor Address Range 0 Limit";
@@ -475,6 +437,7 @@ addrmap stream_regs {
 
     } DESCENG_ADDR0_LIMIT @ 0x228;
 
+
     reg {
         name = "Descriptor Address Range 1 Base";
         desc = "Base address for descriptor address range 1 (lower 32 bits)";
@@ -486,6 +449,7 @@ addrmap stream_regs {
         } ADDR1_BASE[31:0] = 32'h0000_0000;
 
     } DESCENG_ADDR1_BASE @ 0x22C;
+
 
     reg {
         name = "Descriptor Address Range 1 Limit";
@@ -499,581 +463,6 @@ addrmap stream_regs {
 
     } DESCENG_ADDR1_LIMIT @ 0x230;
 
-    //=========================================================================
-    // Descriptor AXI Monitor Configuration (0x240 - 0x25F)
-    //=========================================================================
-
-    reg {
-        name = "Descriptor AXI Monitor Enable";
-        desc = "Descriptor AXI master monitor enable controls";
-
-        field {
-            desc = "Monitor enable - master enable for descriptor monitor";
-            sw = rw;
-            hw = r;
-        } MON_EN = 1'b0;
-
-        field {
-            desc = "Error enable - enable error detection";
-            sw = rw;
-            hw = r;
-        } ERR_EN = 1'b0;
-
-        field {
-            desc = "Completion enable - enable completion packets";
-            sw = rw;
-            hw = r;
-        } COMPL_EN = 1'b0;
-
-        field {
-            desc = "Timeout enable - enable timeout detection";
-            sw = rw;
-            hw = r;
-        } TIMEOUT_EN = 1'b0;
-
-        field {
-            desc = "Performance enable - enable performance packets";
-            sw = rw;
-            hw = r;
-        } PERF_EN = 1'b0;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:5] = 27'h0;
-
-    } DAXMON_ENABLE @ 0x240;
-
-    reg {
-        name = "Descriptor AXI Monitor Timeout";
-        desc = "Descriptor AXI monitor timeout threshold (cycles)";
-
-        field {
-            desc = "Timeout cycles [31:0]";
-            sw = rw;
-            hw = r;
-        } TIMEOUT_CYCLES[31:0] = 32'd10000;
-
-    } DAXMON_TIMEOUT @ 0x244;
-
-    reg {
-        name = "Descriptor AXI Monitor Latency Threshold";
-        desc = "Descriptor AXI monitor latency threshold (cycles)";
-
-        field {
-            desc = "Latency threshold cycles [31:0]";
-            sw = rw;
-            hw = r;
-        } LATENCY_THRESH[31:0] = 32'd5000;
-
-    } DAXMON_LATENCY_THRESH @ 0x248;
-
-    reg {
-        name = "Descriptor AXI Monitor Packet Mask";
-        desc = "Descriptor AXI monitor packet type filtering (16-bit mask)";
-
-        field {
-            desc = "Packet type mask [15:0] - 1=enable, 0=disable";
-            sw = rw;
-            hw = r;
-        } PKT_MASK[15:0] = 16'hFFFF;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
-
-    } DAXMON_PKT_MASK @ 0x24C;
-
-    reg {
-        name = "Descriptor AXI Monitor Error Select and Mask";
-        desc = "Descriptor AXI monitor error selection and filtering";
-
-        field {
-            desc = "Error select [3:0] - error type selection";
-            sw = rw;
-            hw = r;
-        } ERR_SELECT[3:0] = 4'h0;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD1[7:4] = 4'h0;
-
-        field {
-            desc = "Error mask [15:8] - error type filtering";
-            sw = rw;
-            hw = r;
-        } ERR_MASK[15:8] = 8'hFF;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD2[31:16] = 16'h0;
-
-    } DAXMON_ERR_CFG @ 0x250;
-
-    reg {
-        name = "Descriptor AXI Monitor Masks 1";
-        desc = "Descriptor AXI monitor timeout and completion masks";
-
-        field {
-            desc = "Timeout mask [7:0]";
-            sw = rw;
-            hw = r;
-        } TIMEOUT_MASK[7:0] = 8'hFF;
-
-        field {
-            desc = "Completion mask [15:8]";
-            sw = rw;
-            hw = r;
-        } COMPL_MASK[15:8] = 8'h00;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
-
-    } DAXMON_MASK1 @ 0x254;
-
-    reg {
-        name = "Descriptor AXI Monitor Masks 2";
-        desc = "Descriptor AXI monitor threshold and performance masks";
-
-        field {
-            desc = "Threshold mask [7:0]";
-            sw = rw;
-            hw = r;
-        } THRESH_MASK[7:0] = 8'hFF;
-
-        field {
-            desc = "Performance mask [15:8]";
-            sw = rw;
-            hw = r;
-        } PERF_MASK[15:8] = 8'h00;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
-
-    } DAXMON_MASK2 @ 0x258;
-
-    reg {
-        name = "Descriptor AXI Monitor Masks 3";
-        desc = "Descriptor AXI monitor address and debug masks";
-
-        field {
-            desc = "Address mask [7:0]";
-            sw = rw;
-            hw = r;
-        } ADDR_MASK[7:0] = 8'hFF;
-
-        field {
-            desc = "Debug mask [15:8]";
-            sw = rw;
-            hw = r;
-        } DEBUG_MASK[15:8] = 8'h00;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
-
-    } DAXMON_MASK3 @ 0x25C;
-
-    //=========================================================================
-    // Read Engine AXI Monitor Configuration (0x260 - 0x27F)
-    //=========================================================================
-
-    reg {
-        name = "Read Engine AXI Monitor Enable";
-        desc = "Read engine AXI master monitor enable controls";
-
-        field {
-            desc = "Monitor enable - master enable for read monitor";
-            sw = rw;
-            hw = r;
-        } MON_EN = 1'b0;
-
-        field {
-            desc = "Error enable - enable error detection";
-            sw = rw;
-            hw = r;
-        } ERR_EN = 1'b0;
-
-        field {
-            desc = "Completion enable - enable completion packets";
-            sw = rw;
-            hw = r;
-        } COMPL_EN = 1'b0;
-
-        field {
-            desc = "Timeout enable - enable timeout detection";
-            sw = rw;
-            hw = r;
-        } TIMEOUT_EN = 1'b0;
-
-        field {
-            desc = "Performance enable - enable performance packets";
-            sw = rw;
-            hw = r;
-        } PERF_EN = 1'b0;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:5] = 27'h0;
-
-    } RDMON_ENABLE @ 0x260;
-
-    reg {
-        name = "Read Engine AXI Monitor Timeout";
-        desc = "Read engine AXI monitor timeout threshold (cycles)";
-
-        field {
-            desc = "Timeout cycles [31:0]";
-            sw = rw;
-            hw = r;
-        } TIMEOUT_CYCLES[31:0] = 32'd10000;
-
-    } RDMON_TIMEOUT @ 0x264;
-
-    reg {
-        name = "Read Engine AXI Monitor Latency Threshold";
-        desc = "Read engine AXI monitor latency threshold (cycles)";
-
-        field {
-            desc = "Latency threshold cycles [31:0]";
-            sw = rw;
-            hw = r;
-        } LATENCY_THRESH[31:0] = 32'd5000;
-
-    } RDMON_LATENCY_THRESH @ 0x268;
-
-    reg {
-        name = "Read Engine AXI Monitor Packet Mask";
-        desc = "Read engine AXI monitor packet type filtering (16-bit mask)";
-
-        field {
-            desc = "Packet type mask [15:0] - 1=enable, 0=disable";
-            sw = rw;
-            hw = r;
-        } PKT_MASK[15:0] = 16'hFFFF;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
-
-    } RDMON_PKT_MASK @ 0x26C;
-
-    reg {
-        name = "Read Engine AXI Monitor Error Select and Mask";
-        desc = "Read engine AXI monitor error selection and filtering";
-
-        field {
-            desc = "Error select [3:0] - error type selection";
-            sw = rw;
-            hw = r;
-        } ERR_SELECT[3:0] = 4'h0;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD1[7:4] = 4'h0;
-
-        field {
-            desc = "Error mask [15:8] - error type filtering";
-            sw = rw;
-            hw = r;
-        } ERR_MASK[15:8] = 8'hFF;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD2[31:16] = 16'h0;
-
-    } RDMON_ERR_CFG @ 0x270;
-
-    reg {
-        name = "Read Engine AXI Monitor Masks 1";
-        desc = "Read engine AXI monitor timeout and completion masks";
-
-        field {
-            desc = "Timeout mask [7:0]";
-            sw = rw;
-            hw = r;
-        } TIMEOUT_MASK[7:0] = 8'hFF;
-
-        field {
-            desc = "Completion mask [15:8]";
-            sw = rw;
-            hw = r;
-        } COMPL_MASK[15:8] = 8'h00;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
-
-    } RDMON_MASK1 @ 0x274;
-
-    reg {
-        name = "Read Engine AXI Monitor Masks 2";
-        desc = "Read engine AXI monitor threshold and performance masks";
-
-        field {
-            desc = "Threshold mask [7:0]";
-            sw = rw;
-            hw = r;
-        } THRESH_MASK[7:0] = 8'hFF;
-
-        field {
-            desc = "Performance mask [15:8]";
-            sw = rw;
-            hw = r;
-        } PERF_MASK[15:8] = 8'h00;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
-
-    } RDMON_MASK2 @ 0x278;
-
-    reg {
-        name = "Read Engine AXI Monitor Masks 3";
-        desc = "Read engine AXI monitor address and debug masks";
-
-        field {
-            desc = "Address mask [7:0]";
-            sw = rw;
-            hw = r;
-        } ADDR_MASK[7:0] = 8'hFF;
-
-        field {
-            desc = "Debug mask [15:8]";
-            sw = rw;
-            hw = r;
-        } DEBUG_MASK[15:8] = 8'h00;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
-
-    } RDMON_MASK3 @ 0x27C;
-
-    //=========================================================================
-    // Write Engine AXI Monitor Configuration (0x280 - 0x29F)
-    //=========================================================================
-
-    reg {
-        name = "Write Engine AXI Monitor Enable";
-        desc = "Write engine AXI master monitor enable controls";
-
-        field {
-            desc = "Monitor enable - master enable for write monitor";
-            sw = rw;
-            hw = r;
-        } MON_EN = 1'b0;
-
-        field {
-            desc = "Error enable - enable error detection";
-            sw = rw;
-            hw = r;
-        } ERR_EN = 1'b0;
-
-        field {
-            desc = "Completion enable - enable completion packets";
-            sw = rw;
-            hw = r;
-        } COMPL_EN = 1'b0;
-
-        field {
-            desc = "Timeout enable - enable timeout detection";
-            sw = rw;
-            hw = r;
-        } TIMEOUT_EN = 1'b0;
-
-        field {
-            desc = "Performance enable - enable performance packets";
-            sw = rw;
-            hw = r;
-        } PERF_EN = 1'b0;
-
-        field {
-            desc = "Compression enable - 1=compress the monbus write stream, 0=raw 3-beat records. Only effective when the monbus group is built with USE_COMPRESSION=1. Program once before monitoring starts (must be stable while the write path is active).";
-            sw = rw;
-            hw = r;
-        } COMPRESS_EN = 1'b1;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:6] = 26'h0;
-
-    } WRMON_ENABLE @ 0x280;
-
-    reg {
-        name = "Write Engine AXI Monitor Timeout";
-        desc = "Write engine AXI monitor timeout threshold (cycles)";
-
-        field {
-            desc = "Timeout cycles [31:0]";
-            sw = rw;
-            hw = r;
-        } TIMEOUT_CYCLES[31:0] = 32'd10000;
-
-    } WRMON_TIMEOUT @ 0x284;
-
-    reg {
-        name = "Write Engine AXI Monitor Latency Threshold";
-        desc = "Write engine AXI monitor latency threshold (cycles)";
-
-        field {
-            desc = "Latency threshold cycles [31:0]";
-            sw = rw;
-            hw = r;
-        } LATENCY_THRESH[31:0] = 32'd5000;
-
-    } WRMON_LATENCY_THRESH @ 0x288;
-
-    reg {
-        name = "Write Engine AXI Monitor Packet Mask";
-        desc = "Write engine AXI monitor packet type filtering (16-bit mask)";
-
-        field {
-            desc = "Packet type mask [15:0] - 1=enable, 0=disable";
-            sw = rw;
-            hw = r;
-        } PKT_MASK[15:0] = 16'hFFFF;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
-
-    } WRMON_PKT_MASK @ 0x28C;
-
-    reg {
-        name = "Write Engine AXI Monitor Error Select and Mask";
-        desc = "Write engine AXI monitor error selection and filtering";
-
-        field {
-            desc = "Error select [3:0] - error type selection";
-            sw = rw;
-            hw = r;
-        } ERR_SELECT[3:0] = 4'h0;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD1[7:4] = 4'h0;
-
-        field {
-            desc = "Error mask [15:8] - error type filtering";
-            sw = rw;
-            hw = r;
-        } ERR_MASK[15:8] = 8'hFF;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD2[31:16] = 16'h0;
-
-    } WRMON_ERR_CFG @ 0x290;
-
-    reg {
-        name = "Write Engine AXI Monitor Masks 1";
-        desc = "Write engine AXI monitor timeout and completion masks";
-
-        field {
-            desc = "Timeout mask [7:0]";
-            sw = rw;
-            hw = r;
-        } TIMEOUT_MASK[7:0] = 8'hFF;
-
-        field {
-            desc = "Completion mask [15:8]";
-            sw = rw;
-            hw = r;
-        } COMPL_MASK[15:8] = 8'h00;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
-
-    } WRMON_MASK1 @ 0x294;
-
-    reg {
-        name = "Write Engine AXI Monitor Masks 2";
-        desc = "Write engine AXI monitor threshold and performance masks";
-
-        field {
-            desc = "Threshold mask [7:0]";
-            sw = rw;
-            hw = r;
-        } THRESH_MASK[7:0] = 8'hFF;
-
-        field {
-            desc = "Performance mask [15:8]";
-            sw = rw;
-            hw = r;
-        } PERF_MASK[15:8] = 8'h00;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
-
-    } WRMON_MASK2 @ 0x298;
-
-    reg {
-        name = "Write Engine AXI Monitor Masks 3";
-        desc = "Write engine AXI monitor address and debug masks";
-
-        field {
-            desc = "Address mask [7:0]";
-            sw = rw;
-            hw = r;
-        } ADDR_MASK[7:0] = 8'hFF;
-
-        field {
-            desc = "Debug mask [15:8]";
-            sw = rw;
-            hw = r;
-        } DEBUG_MASK[15:8] = 8'h00;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
-
-    } WRMON_MASK3 @ 0x29C;
 
     //=========================================================================
     // AXI Transfer Configuration (0x2A0 - 0x2AF)
@@ -1102,6 +491,7 @@ addrmap stream_regs {
         } RSVD[31:16] = 16'h0;
 
     } AXI_XFER_CONFIG @ 0x2A0;
+
 
     //=========================================================================
     // Performance Profiler Configuration (0x2B0 - 0x2BF)
@@ -1138,6 +528,7 @@ addrmap stream_regs {
 
     } PERF_CONFIG @ 0x2B0;
 
+
     //=========================================================================
     // Channel-Observation Mux (0x2C0 - 0x2CF)
     //=========================================================================
@@ -1170,6 +561,7 @@ addrmap stream_regs {
 
     } OBS_CTRL @ 0x2C0;
 
+
     reg {
         name = "Observation Flags";
         desc = "Combinational status vector for the channel selected by OBS_CTRL.CH_SEL. See stream_core.sv for the bit layout (scheduler_state, sched_rd/wr_valid, sched_wr_ready, error stickies, idle bits, cfg_channel_enable, axi_*_all_complete).";
@@ -1181,6 +573,7 @@ addrmap stream_regs {
         } FLAGS[31:0];
 
     } OBS_FLAGS @ 0x2C4;
+
 
     reg {
         name = "Observation Data 0";
@@ -1194,6 +587,7 @@ addrmap stream_regs {
 
     } OBS_DATA0 @ 0x2C8;
 
+
     reg {
         name = "Observation Data 1";
         desc = "Category-muxed data word 1 for the selected channel. Semantics depend on OBS_CTRL.CAT_SEL.";
@@ -1206,493 +600,6 @@ addrmap stream_regs {
 
     } OBS_DATA1 @ 0x2CC;
 
-    //=========================================================================
-    // Descriptor AXI Monitor Performance Window (0x2D0 - 0x2FF)
-    //=========================================================================
-    // RFC-perfmon-window-buckets Stage E (CSR route). Surfaces the descriptor-
-    // fetch monitor's perf-window cycle buckets + beat/byte/burst counts via
-    // direct CSR reads (no MonBus packets). Software opens the window by
-    // writing PERF_CTRL.RUN=1 (rising edge clears and starts the counters),
-    // runs the workload, writes RUN=0 to close/freeze, then reads the status
-    // registers below. Decoupled from DAXMON_ENABLE.PERF_EN (which gates the
-    // legacy PktTypePerf MonBus emission) so the window can run without
-    // flooding the monitor bus.
-    //
-    // Cycle classification (DMA_UTILIZATION_MEASUREMENT.md Section 3): the four
-    // buckets PROD/BP/STARV/IDLE sum to WINDOW_CYCLES. These measure the
-    // DESCRIPTOR-FETCH R bus only; datapath R/W utilization is measured
-    // separately by the stream_char harness axi_bus_meter blocks.
-
-    reg {
-        name = "Descriptor AXI Monitor Perf Window Control";
-        desc = "Perf-window run control for the descriptor AXI monitor";
-
-        field {
-            desc = "Perf window run - 1=open window and accumulate cycle buckets, 0=close window and freeze counters. Rising edge clears all counters.";
-            sw = rw;
-            hw = r;
-        } RUN = 1'b0;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:1] = 31'h0;
-
-    } DAXMON_PERF_CTRL @ 0x2D0;
-
-    reg {
-        name = "Descriptor AXI Monitor Perf Window Status";
-        desc = "Perf-window live status";
-
-        field {
-            desc = "Window active - 1=window open and accumulating";
-            sw = r;
-            hw = w;
-        } WIN_ACTIVE;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:1] = 31'h0;
-
-    } DAXMON_PERF_STATUS @ 0x2D4;
-
-    reg {
-        name = "Descriptor AXI Monitor Perf Window Cycles";
-        desc = "LIVE free-running window-cycle counter. Valid only while
-                DAXMON_PERF_STATUS.WIN_ACTIVE=1; the monitor ZEROES this when the
-                window closes (RUN->0). For a closed window, use the sum of the
-                four bucket registers (PROD+BP+STARV+IDLE), which HOLD their
-                values after close.";
-
-        field {
-            desc = "Window cycles [31:0] (live-only; reads 0 after close)";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } DAXMON_PERF_WINDOW_CYCLES @ 0x2D8;
-
-    reg {
-        name = "Descriptor AXI Monitor Perf Productive Cycles";
-        desc = "Cycles with R data valid && ready (data delivered)";
-
-        field {
-            desc = "Productive cycles [31:0]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } DAXMON_PERF_PROD_CYCLES @ 0x2DC;
-
-    reg {
-        name = "Descriptor AXI Monitor Perf Backpressure Cycles";
-        desc = "Cycles with R data valid && !ready (back-pressure)";
-
-        field {
-            desc = "Backpressure cycles [31:0]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } DAXMON_PERF_BP_CYCLES @ 0x2E0;
-
-    reg {
-        name = "Descriptor AXI Monitor Perf Starvation Cycles";
-        desc = "Cycles with !R data valid && ready (starvation)";
-
-        field {
-            desc = "Starvation cycles [31:0]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } DAXMON_PERF_STARV_CYCLES @ 0x2E4;
-
-    reg {
-        name = "Descriptor AXI Monitor Perf Idle Cycles";
-        desc = "Cycles with !R data valid && !ready (idle)";
-
-        field {
-            desc = "Idle cycles [31:0]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } DAXMON_PERF_IDLE_CYCLES @ 0x2E8;
-
-    reg {
-        name = "Descriptor AXI Monitor Perf Beat Count";
-        desc = "R beats transferred in window (= productive cycles)";
-
-        field {
-            desc = "Beat count [31:0]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } DAXMON_PERF_BEAT_COUNT @ 0x2EC;
-
-    reg {
-        name = "Descriptor AXI Monitor Perf Byte Count Low";
-        desc = "Bytes transferred in window (lower 32 bits)";
-
-        field {
-            desc = "Byte count [31:0]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } DAXMON_PERF_BYTE_COUNT_LO @ 0x2F0;
-
-    reg {
-        name = "Descriptor AXI Monitor Perf Byte Count High";
-        desc = "Bytes transferred in window (upper 32 bits)";
-
-        field {
-            desc = "Byte count [63:32]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } DAXMON_PERF_BYTE_COUNT_HI @ 0x2F4;
-
-    reg {
-        name = "Descriptor AXI Monitor Perf Burst Count";
-        desc = "AR handshakes (bursts issued) in window";
-
-        field {
-            desc = "Burst count [31:0]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } DAXMON_PERF_BURST_COUNT @ 0x2F8;
-
-    //=========================================================================
-    // Data-Read Datapath Monitor Performance Window (0x300 - 0x32F)
-    //=========================================================================
-    // RFC-perfmon-window-buckets Stage E (option 2, CSR route). Surfaces the
-    // data-READ datapath monitor's perf-window cycle buckets + beat/byte/burst
-    // counts via direct CSR reads (no MonBus packets). Same RUN-bit window
-    // protocol as DAXMON_PERF_CTRL: write RUN=1 to clear+open, run the workload,
-    // write RUN=0 to close/freeze, then read the status registers below.
-    // Decoupled from RDMON_ENABLE.PERF_EN (legacy PktTypePerf gate).
-    //
-    // These buckets measure the data-read R bus and are the in-core replacement
-    // for the FPGA-characterization read-side axi_bus_meter (RFC Stage E option 2).
-    // PROD/BP/STARV/IDLE sum to the closed-window length.
-
-    reg {
-        name = "Read Datapath Monitor Perf Window Control";
-        desc = "Perf-window run control for the data-read datapath monitor";
-
-        field {
-            desc = "Perf window run - 1=open window and accumulate cycle buckets, 0=close window and freeze counters. Rising edge clears all counters.";
-            sw = rw;
-            hw = r;
-        } RUN = 1'b0;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:1] = 31'h0;
-
-    } RDMON_PERF_CTRL @ 0x300;
-
-    reg {
-        name = "Read Datapath Monitor Perf Window Status";
-        desc = "Perf-window live status";
-
-        field {
-            desc = "Window active - 1=window open and accumulating";
-            sw = r;
-            hw = w;
-        } WIN_ACTIVE;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:1] = 31'h0;
-
-    } RDMON_PERF_STATUS @ 0x304;
-
-    reg {
-        name = "Read Datapath Monitor Perf Window Cycles";
-        desc = "LIVE free-running window-cycle counter. Valid only while
-                RDMON_PERF_STATUS.WIN_ACTIVE=1; the monitor ZEROES this when the
-                window closes (RUN->0). For a closed window, use the sum of the
-                four bucket registers (PROD+BP+STARV+IDLE), which HOLD their
-                values after close.";
-
-        field {
-            desc = "Window cycles [31:0] (live-only; reads 0 after close)";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } RDMON_PERF_WINDOW_CYCLES @ 0x308;
-
-    reg {
-        name = "Read Datapath Monitor Perf Productive Cycles";
-        desc = "Cycles with R data valid && ready (data delivered)";
-
-        field {
-            desc = "Productive cycles [31:0]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } RDMON_PERF_PROD_CYCLES @ 0x30C;
-
-    reg {
-        name = "Read Datapath Monitor Perf Backpressure Cycles";
-        desc = "Cycles with R data valid && !ready (back-pressure)";
-
-        field {
-            desc = "Backpressure cycles [31:0]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } RDMON_PERF_BP_CYCLES @ 0x310;
-
-    reg {
-        name = "Read Datapath Monitor Perf Starvation Cycles";
-        desc = "Cycles with !R data valid && ready (starvation)";
-
-        field {
-            desc = "Starvation cycles [31:0]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } RDMON_PERF_STARV_CYCLES @ 0x314;
-
-    reg {
-        name = "Read Datapath Monitor Perf Idle Cycles";
-        desc = "Cycles with !R data valid && !ready (idle)";
-
-        field {
-            desc = "Idle cycles [31:0]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } RDMON_PERF_IDLE_CYCLES @ 0x318;
-
-    reg {
-        name = "Read Datapath Monitor Perf Beat Count";
-        desc = "R beats transferred in window (= productive cycles)";
-
-        field {
-            desc = "Beat count [31:0]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } RDMON_PERF_BEAT_COUNT @ 0x31C;
-
-    reg {
-        name = "Read Datapath Monitor Perf Byte Count Low";
-        desc = "Bytes transferred in window (lower 32 bits)";
-
-        field {
-            desc = "Byte count [31:0]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } RDMON_PERF_BYTE_COUNT_LO @ 0x320;
-
-    reg {
-        name = "Read Datapath Monitor Perf Byte Count High";
-        desc = "Bytes transferred in window (upper 32 bits)";
-
-        field {
-            desc = "Byte count [63:32]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } RDMON_PERF_BYTE_COUNT_HI @ 0x324;
-
-    reg {
-        name = "Read Datapath Monitor Perf Burst Count";
-        desc = "AR handshakes (bursts issued) in window";
-
-        field {
-            desc = "Burst count [31:0]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } RDMON_PERF_BURST_COUNT @ 0x328;
-
-    //=========================================================================
-    // Data-Write Datapath Monitor Performance Window (0x330 - 0x35F)
-    //=========================================================================
-    // RFC-perfmon-window-buckets Stage E (option 2, CSR route). Data-WRITE
-    // datapath monitor's perf-window cycle buckets + beat/byte/burst counts.
-    // Same RUN-bit protocol as above. In-core replacement for the FPGA-char
-    // write-side axi_bus_meter. Buckets measure the data-write W bus:
-    //   PROD  = W data valid && ready (beat delivered)
-    //   BP    = W data valid && !ready (slave back-pressure)
-    //   STARV = !W data valid && ready (engine has no data to send)
-    //   IDLE  = !W data valid && !ready
-    // BURST counts AW handshakes; BYTE = beats << awsize.
-
-    reg {
-        name = "Write Datapath Monitor Perf Window Control";
-        desc = "Perf-window run control for the data-write datapath monitor";
-
-        field {
-            desc = "Perf window run - 1=open window and accumulate cycle buckets, 0=close window and freeze counters. Rising edge clears all counters.";
-            sw = rw;
-            hw = r;
-        } RUN = 1'b0;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:1] = 31'h0;
-
-    } WRMON_PERF_CTRL @ 0x330;
-
-    reg {
-        name = "Write Datapath Monitor Perf Window Status";
-        desc = "Perf-window live status";
-
-        field {
-            desc = "Window active - 1=window open and accumulating";
-            sw = r;
-            hw = w;
-        } WIN_ACTIVE;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:1] = 31'h0;
-
-    } WRMON_PERF_STATUS @ 0x334;
-
-    reg {
-        name = "Write Datapath Monitor Perf Window Cycles";
-        desc = "LIVE free-running window-cycle counter. Valid only while
-                WRMON_PERF_STATUS.WIN_ACTIVE=1; the monitor ZEROES this when the
-                window closes (RUN->0). For a closed window, use the sum of the
-                four bucket registers (PROD+BP+STARV+IDLE), which HOLD their
-                values after close.";
-
-        field {
-            desc = "Window cycles [31:0] (live-only; reads 0 after close)";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } WRMON_PERF_WINDOW_CYCLES @ 0x338;
-
-    reg {
-        name = "Write Datapath Monitor Perf Productive Cycles";
-        desc = "Cycles with W data valid && ready (beat delivered)";
-
-        field {
-            desc = "Productive cycles [31:0]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } WRMON_PERF_PROD_CYCLES @ 0x33C;
-
-    reg {
-        name = "Write Datapath Monitor Perf Backpressure Cycles";
-        desc = "Cycles with W data valid && !ready (back-pressure)";
-
-        field {
-            desc = "Backpressure cycles [31:0]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } WRMON_PERF_BP_CYCLES @ 0x340;
-
-    reg {
-        name = "Write Datapath Monitor Perf Starvation Cycles";
-        desc = "Cycles with !W data valid && ready (starvation)";
-
-        field {
-            desc = "Starvation cycles [31:0]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } WRMON_PERF_STARV_CYCLES @ 0x344;
-
-    reg {
-        name = "Write Datapath Monitor Perf Idle Cycles";
-        desc = "Cycles with !W data valid && !ready (idle)";
-
-        field {
-            desc = "Idle cycles [31:0]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } WRMON_PERF_IDLE_CYCLES @ 0x348;
-
-    reg {
-        name = "Write Datapath Monitor Perf Beat Count";
-        desc = "W beats transferred in window (= productive cycles)";
-
-        field {
-            desc = "Beat count [31:0]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } WRMON_PERF_BEAT_COUNT @ 0x34C;
-
-    reg {
-        name = "Write Datapath Monitor Perf Byte Count Low";
-        desc = "Bytes transferred in window (lower 32 bits)";
-
-        field {
-            desc = "Byte count [31:0]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } WRMON_PERF_BYTE_COUNT_LO @ 0x350;
-
-    reg {
-        name = "Write Datapath Monitor Perf Byte Count High";
-        desc = "Bytes transferred in window (upper 32 bits)";
-
-        field {
-            desc = "Byte count [63:32]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } WRMON_PERF_BYTE_COUNT_HI @ 0x354;
-
-    reg {
-        name = "Write Datapath Monitor Perf Burst Count";
-        desc = "AW handshakes (bursts issued) in window";
-
-        field {
-            desc = "Burst count [31:0]";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } WRMON_PERF_BURST_COUNT @ 0x358;
 
     //=========================================================================
     // Per-Channel Datapath Perf Buckets (RFC Stage C, indexed readout)
@@ -1725,79 +632,6 @@ addrmap stream_regs {
 
     } PERF_CH_SEL @ 0x35C;
 
-    reg {
-        name = "Read Datapath Per-Channel Productive/Backpressure";
-        desc = "Selected channel: {backpressure[31:16], productive[15:0]} (16-bit each)";
-
-        field {
-            desc = "{bp[15:0], prod[15:0]} for PERF_CH_SEL channel";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } RDMON_PERF_CH_PROD_BP @ 0x360;
-
-    reg {
-        name = "Read Datapath Per-Channel Starvation/Idle";
-        desc = "Selected channel: {idle[31:16], starvation[15:0]} (16-bit each)";
-
-        field {
-            desc = "{idle[15:0], starv[15:0]} for PERF_CH_SEL channel";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } RDMON_PERF_CH_STARV_IDLE @ 0x364;
-
-    reg {
-        name = "Write Datapath Per-Channel Productive/Backpressure";
-        desc = "Selected channel: {backpressure[31:16], productive[15:0]} (16-bit each)";
-
-        field {
-            desc = "{bp[15:0], prod[15:0]} for PERF_CH_SEL channel";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } WRMON_PERF_CH_PROD_BP @ 0x368;
-
-    reg {
-        name = "Write Datapath Per-Channel Starvation/Idle";
-        desc = "Selected channel: {idle[31:16], starvation[15:0]} (16-bit each)";
-
-        field {
-            desc = "{idle[15:0], starv[15:0]} for PERF_CH_SEL channel";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } WRMON_PERF_CH_STARV_IDLE @ 0x36C;
-
-    reg {
-        name = "Read Datapath Per-Channel Overflow Stickies";
-        desc = "All channels, {prod,bp,starv,idle} sticky overflow per channel
-                (4 bits/channel, channel 0 in the low nibble). A set bit means
-                that 16-bit per-channel bucket wrapped during the window.";
-
-        field {
-            desc = "Per-channel overflow mask (NUM_CHANNELS*4 bits)";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } RDMON_PERF_CH_OVERFLOW @ 0x370;
-
-    reg {
-        name = "Write Datapath Per-Channel Overflow Stickies";
-        desc = "All channels, {prod,bp,starv,idle} sticky overflow per channel.";
-
-        field {
-            desc = "Per-channel overflow mask (NUM_CHANNELS*4 bits)";
-            sw = r;
-            hw = w;
-        } VAL[31:0];
-
-    } WRMON_PERF_CH_OVERFLOW @ 0x374;
 
     //=========================================================================
     // Datapath Latency Histograms (RFC Stage D, indexed readout)
@@ -1847,6 +681,7 @@ addrmap stream_regs {
 
     } HIST_SEL @ 0x378;
 
+
     reg {
         name = "Latency Histogram Bin Count";
         desc = "Transaction count in the HIST_SEL-selected bus/metric/bin";
@@ -1858,6 +693,7 @@ addrmap stream_regs {
         } VAL[31:0];
 
     } HIST_DATA @ 0x37C;
+
 
     reg {
         name = "Latency Histogram Metric Total";
@@ -1872,5 +708,11 @@ addrmap stream_regs {
         } VAL[31:0];
 
     } HIST_TOTAL @ 0x380;
+
+    //=========================================================================
+    // AXI Monitor register block (relocatable) - same APB slave, base 0x1000.
+    // Hookup chosen by a parameter at integration (USE_AXI_MONITORS).
+    //=========================================================================
+    stream_mon_regs MON @ 0x1000;
 
 };

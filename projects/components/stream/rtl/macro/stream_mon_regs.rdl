@@ -1,0 +1,1152 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// STREAM Monitor Register File - instantiated at 0x1000 by stream_regs.rdl
+// (same APB slave). Offsets are relative to the regfile base; hookup to monitor
+// logic is chosen by a parameter at integration (USE_AXI_MONITORS).
+
+regfile stream_mon_regs {
+    name = "STREAM Monitor Registers";
+    desc = "AXI monitor + perf registers (relocatable block, instantiated at 0x1000)";
+
+    default regwidth = 32;
+    default accesswidth = 32;
+    default alignment = 4;
+
+    reg {
+        name = "Monitor FIFO Status";
+        desc = "Monitor bus FIFO status indicators";
+
+        field {
+            desc = "Monitor FIFO full - 1=FIFO full, 0=space available";
+            sw = r;
+            hw = w;
+        } MON_FIFO_FULL;
+
+        field {
+            desc = "Monitor FIFO empty - 1=FIFO empty, 0=data available";
+            sw = r;
+            hw = w;
+        } MON_FIFO_EMPTY;
+
+        field {
+            desc = "Monitor FIFO overflow - 1=overflow detected, 0=normal";
+            sw = r;
+            hw = w;
+        } MON_FIFO_OVFL;
+
+        field {
+            desc = "Monitor FIFO underflow - 1=underflow detected, 0=normal";
+            sw = r;
+            hw = w;
+        } MON_FIFO_UNFL;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:4] = 28'h0;
+
+    } MON_FIFO_STATUS @ 0x000;
+
+    reg {
+        name = "Monitor FIFO Count";
+        desc = "Monitor bus FIFO entry count";
+
+        field {
+            desc = "FIFO count [15:0] - number of entries in FIFO";
+            sw = r;
+            hw = w;
+        } FIFO_COUNT[15:0];
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } MON_FIFO_COUNT @ 0x004;
+
+    reg {
+        name = "Descriptor AXI Monitor Enable";
+        desc = "Descriptor AXI master monitor enable controls";
+
+        field {
+            desc = "Monitor enable - master enable for descriptor monitor";
+            sw = rw;
+            hw = r;
+        } MON_EN = 1'b0;
+
+        field {
+            desc = "Error enable - enable error detection";
+            sw = rw;
+            hw = r;
+        } ERR_EN = 1'b0;
+
+        field {
+            desc = "Completion enable - enable completion packets";
+            sw = rw;
+            hw = r;
+        } COMPL_EN = 1'b0;
+
+        field {
+            desc = "Timeout enable - enable timeout detection";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_EN = 1'b0;
+
+        field {
+            desc = "Performance enable - enable performance packets";
+            sw = rw;
+            hw = r;
+        } PERF_EN = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:5] = 27'h0;
+
+    } DAXMON_ENABLE @ 0x0C0;
+
+    reg {
+        name = "Descriptor AXI Monitor Timeout";
+        desc = "Descriptor AXI monitor timeout threshold (cycles)";
+
+        field {
+            desc = "Timeout cycles [31:0]";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_CYCLES[31:0] = 32'd10000;
+
+    } DAXMON_TIMEOUT @ 0x0C4;
+
+    reg {
+        name = "Descriptor AXI Monitor Latency Threshold";
+        desc = "Descriptor AXI monitor latency threshold (cycles)";
+
+        field {
+            desc = "Latency threshold cycles [31:0]";
+            sw = rw;
+            hw = r;
+        } LATENCY_THRESH[31:0] = 32'd5000;
+
+    } DAXMON_LATENCY_THRESH @ 0x0C8;
+
+    reg {
+        name = "Descriptor AXI Monitor Packet Mask";
+        desc = "Descriptor AXI monitor packet type filtering (16-bit mask)";
+
+        field {
+            desc = "Packet type mask [15:0] - 1=enable, 0=disable";
+            sw = rw;
+            hw = r;
+        } PKT_MASK[15:0] = 16'hFFFF;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } DAXMON_PKT_MASK @ 0x0CC;
+
+    reg {
+        name = "Descriptor AXI Monitor Error Select and Mask";
+        desc = "Descriptor AXI monitor error selection and filtering";
+
+        field {
+            desc = "Error select [3:0] - error type selection";
+            sw = rw;
+            hw = r;
+        } ERR_SELECT[3:0] = 4'h0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD1[7:4] = 4'h0;
+
+        field {
+            desc = "Error mask [15:8] - error type filtering";
+            sw = rw;
+            hw = r;
+        } ERR_MASK[15:8] = 8'hFF;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD2[31:16] = 16'h0;
+
+    } DAXMON_ERR_CFG @ 0x0D0;
+
+    reg {
+        name = "Descriptor AXI Monitor Masks 1";
+        desc = "Descriptor AXI monitor timeout and completion masks";
+
+        field {
+            desc = "Timeout mask [7:0]";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_MASK[7:0] = 8'hFF;
+
+        field {
+            desc = "Completion mask [15:8]";
+            sw = rw;
+            hw = r;
+        } COMPL_MASK[15:8] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } DAXMON_MASK1 @ 0x0D4;
+
+    reg {
+        name = "Descriptor AXI Monitor Masks 2";
+        desc = "Descriptor AXI monitor threshold and performance masks";
+
+        field {
+            desc = "Threshold mask [7:0]";
+            sw = rw;
+            hw = r;
+        } THRESH_MASK[7:0] = 8'hFF;
+
+        field {
+            desc = "Performance mask [15:8]";
+            sw = rw;
+            hw = r;
+        } PERF_MASK[15:8] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } DAXMON_MASK2 @ 0x0D8;
+
+    reg {
+        name = "Descriptor AXI Monitor Masks 3";
+        desc = "Descriptor AXI monitor address and debug masks";
+
+        field {
+            desc = "Address mask [7:0]";
+            sw = rw;
+            hw = r;
+        } ADDR_MASK[7:0] = 8'hFF;
+
+        field {
+            desc = "Debug mask [15:8]";
+            sw = rw;
+            hw = r;
+        } DEBUG_MASK[15:8] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } DAXMON_MASK3 @ 0x0DC;
+
+    reg {
+        name = "Read Engine AXI Monitor Enable";
+        desc = "Read engine AXI master monitor enable controls";
+
+        field {
+            desc = "Monitor enable - master enable for read monitor";
+            sw = rw;
+            hw = r;
+        } MON_EN = 1'b0;
+
+        field {
+            desc = "Error enable - enable error detection";
+            sw = rw;
+            hw = r;
+        } ERR_EN = 1'b0;
+
+        field {
+            desc = "Completion enable - enable completion packets";
+            sw = rw;
+            hw = r;
+        } COMPL_EN = 1'b0;
+
+        field {
+            desc = "Timeout enable - enable timeout detection";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_EN = 1'b0;
+
+        field {
+            desc = "Performance enable - enable performance packets";
+            sw = rw;
+            hw = r;
+        } PERF_EN = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:5] = 27'h0;
+
+    } RDMON_ENABLE @ 0x0E0;
+
+    reg {
+        name = "Read Engine AXI Monitor Timeout";
+        desc = "Read engine AXI monitor timeout threshold (cycles)";
+
+        field {
+            desc = "Timeout cycles [31:0]";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_CYCLES[31:0] = 32'd10000;
+
+    } RDMON_TIMEOUT @ 0x0E4;
+
+    reg {
+        name = "Read Engine AXI Monitor Latency Threshold";
+        desc = "Read engine AXI monitor latency threshold (cycles)";
+
+        field {
+            desc = "Latency threshold cycles [31:0]";
+            sw = rw;
+            hw = r;
+        } LATENCY_THRESH[31:0] = 32'd5000;
+
+    } RDMON_LATENCY_THRESH @ 0x0E8;
+
+    reg {
+        name = "Read Engine AXI Monitor Packet Mask";
+        desc = "Read engine AXI monitor packet type filtering (16-bit mask)";
+
+        field {
+            desc = "Packet type mask [15:0] - 1=enable, 0=disable";
+            sw = rw;
+            hw = r;
+        } PKT_MASK[15:0] = 16'hFFFF;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } RDMON_PKT_MASK @ 0x0EC;
+
+    reg {
+        name = "Read Engine AXI Monitor Error Select and Mask";
+        desc = "Read engine AXI monitor error selection and filtering";
+
+        field {
+            desc = "Error select [3:0] - error type selection";
+            sw = rw;
+            hw = r;
+        } ERR_SELECT[3:0] = 4'h0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD1[7:4] = 4'h0;
+
+        field {
+            desc = "Error mask [15:8] - error type filtering";
+            sw = rw;
+            hw = r;
+        } ERR_MASK[15:8] = 8'hFF;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD2[31:16] = 16'h0;
+
+    } RDMON_ERR_CFG @ 0x0F0;
+
+    reg {
+        name = "Read Engine AXI Monitor Masks 1";
+        desc = "Read engine AXI monitor timeout and completion masks";
+
+        field {
+            desc = "Timeout mask [7:0]";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_MASK[7:0] = 8'hFF;
+
+        field {
+            desc = "Completion mask [15:8]";
+            sw = rw;
+            hw = r;
+        } COMPL_MASK[15:8] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } RDMON_MASK1 @ 0x0F4;
+
+    reg {
+        name = "Read Engine AXI Monitor Masks 2";
+        desc = "Read engine AXI monitor threshold and performance masks";
+
+        field {
+            desc = "Threshold mask [7:0]";
+            sw = rw;
+            hw = r;
+        } THRESH_MASK[7:0] = 8'hFF;
+
+        field {
+            desc = "Performance mask [15:8]";
+            sw = rw;
+            hw = r;
+        } PERF_MASK[15:8] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } RDMON_MASK2 @ 0x0F8;
+
+    reg {
+        name = "Read Engine AXI Monitor Masks 3";
+        desc = "Read engine AXI monitor address and debug masks";
+
+        field {
+            desc = "Address mask [7:0]";
+            sw = rw;
+            hw = r;
+        } ADDR_MASK[7:0] = 8'hFF;
+
+        field {
+            desc = "Debug mask [15:8]";
+            sw = rw;
+            hw = r;
+        } DEBUG_MASK[15:8] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } RDMON_MASK3 @ 0x0FC;
+
+    reg {
+        name = "Write Engine AXI Monitor Enable";
+        desc = "Write engine AXI master monitor enable controls";
+
+        field {
+            desc = "Monitor enable - master enable for write monitor";
+            sw = rw;
+            hw = r;
+        } MON_EN = 1'b0;
+
+        field {
+            desc = "Error enable - enable error detection";
+            sw = rw;
+            hw = r;
+        } ERR_EN = 1'b0;
+
+        field {
+            desc = "Completion enable - enable completion packets";
+            sw = rw;
+            hw = r;
+        } COMPL_EN = 1'b0;
+
+        field {
+            desc = "Timeout enable - enable timeout detection";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_EN = 1'b0;
+
+        field {
+            desc = "Performance enable - enable performance packets";
+            sw = rw;
+            hw = r;
+        } PERF_EN = 1'b0;
+
+        field {
+            desc = "Compression enable - 1=compress the monbus write stream, 0=raw 3-beat records. Only effective when the monbus group is built with USE_COMPRESSION=1. Program once before monitoring starts (must be stable while the write path is active).";
+            sw = rw;
+            hw = r;
+        } COMPRESS_EN = 1'b1;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:6] = 26'h0;
+
+    } WRMON_ENABLE @ 0x100;
+
+    reg {
+        name = "Write Engine AXI Monitor Timeout";
+        desc = "Write engine AXI monitor timeout threshold (cycles)";
+
+        field {
+            desc = "Timeout cycles [31:0]";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_CYCLES[31:0] = 32'd10000;
+
+    } WRMON_TIMEOUT @ 0x104;
+
+    reg {
+        name = "Write Engine AXI Monitor Latency Threshold";
+        desc = "Write engine AXI monitor latency threshold (cycles)";
+
+        field {
+            desc = "Latency threshold cycles [31:0]";
+            sw = rw;
+            hw = r;
+        } LATENCY_THRESH[31:0] = 32'd5000;
+
+    } WRMON_LATENCY_THRESH @ 0x108;
+
+    reg {
+        name = "Write Engine AXI Monitor Packet Mask";
+        desc = "Write engine AXI monitor packet type filtering (16-bit mask)";
+
+        field {
+            desc = "Packet type mask [15:0] - 1=enable, 0=disable";
+            sw = rw;
+            hw = r;
+        } PKT_MASK[15:0] = 16'hFFFF;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } WRMON_PKT_MASK @ 0x10C;
+
+    reg {
+        name = "Write Engine AXI Monitor Error Select and Mask";
+        desc = "Write engine AXI monitor error selection and filtering";
+
+        field {
+            desc = "Error select [3:0] - error type selection";
+            sw = rw;
+            hw = r;
+        } ERR_SELECT[3:0] = 4'h0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD1[7:4] = 4'h0;
+
+        field {
+            desc = "Error mask [15:8] - error type filtering";
+            sw = rw;
+            hw = r;
+        } ERR_MASK[15:8] = 8'hFF;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD2[31:16] = 16'h0;
+
+    } WRMON_ERR_CFG @ 0x110;
+
+    reg {
+        name = "Write Engine AXI Monitor Masks 1";
+        desc = "Write engine AXI monitor timeout and completion masks";
+
+        field {
+            desc = "Timeout mask [7:0]";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_MASK[7:0] = 8'hFF;
+
+        field {
+            desc = "Completion mask [15:8]";
+            sw = rw;
+            hw = r;
+        } COMPL_MASK[15:8] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } WRMON_MASK1 @ 0x114;
+
+    reg {
+        name = "Write Engine AXI Monitor Masks 2";
+        desc = "Write engine AXI monitor threshold and performance masks";
+
+        field {
+            desc = "Threshold mask [7:0]";
+            sw = rw;
+            hw = r;
+        } THRESH_MASK[7:0] = 8'hFF;
+
+        field {
+            desc = "Performance mask [15:8]";
+            sw = rw;
+            hw = r;
+        } PERF_MASK[15:8] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } WRMON_MASK2 @ 0x118;
+
+    reg {
+        name = "Write Engine AXI Monitor Masks 3";
+        desc = "Write engine AXI monitor address and debug masks";
+
+        field {
+            desc = "Address mask [7:0]";
+            sw = rw;
+            hw = r;
+        } ADDR_MASK[7:0] = 8'hFF;
+
+        field {
+            desc = "Debug mask [15:8]";
+            sw = rw;
+            hw = r;
+        } DEBUG_MASK[15:8] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } WRMON_MASK3 @ 0x11C;
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Window Control";
+        desc = "Perf-window run control for the descriptor AXI monitor";
+
+        field {
+            desc = "Perf window run - 1=open window and accumulate cycle buckets, 0=close window and freeze counters. Rising edge clears all counters.";
+            sw = rw;
+            hw = r;
+        } RUN = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:1] = 31'h0;
+
+    } DAXMON_PERF_CTRL @ 0x150;
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Window Status";
+        desc = "Perf-window live status";
+
+        field {
+            desc = "Window active - 1=window open and accumulating";
+            sw = r;
+            hw = w;
+        } WIN_ACTIVE;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:1] = 31'h0;
+
+    } DAXMON_PERF_STATUS @ 0x154;
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Window Cycles";
+        desc = "LIVE free-running window-cycle counter. Valid only while
+                DAXMON_PERF_STATUS.WIN_ACTIVE=1; the monitor ZEROES this when the
+                window closes (RUN->0). For a closed window, use the sum of the
+                four bucket registers (PROD+BP+STARV+IDLE), which HOLD their
+                values after close.";
+
+        field {
+            desc = "Window cycles [31:0] (live-only; reads 0 after close)";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } DAXMON_PERF_WINDOW_CYCLES @ 0x158;
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Productive Cycles";
+        desc = "Cycles with R data valid && ready (data delivered)";
+
+        field {
+            desc = "Productive cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } DAXMON_PERF_PROD_CYCLES @ 0x15C;
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Backpressure Cycles";
+        desc = "Cycles with R data valid && !ready (back-pressure)";
+
+        field {
+            desc = "Backpressure cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } DAXMON_PERF_BP_CYCLES @ 0x160;
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Starvation Cycles";
+        desc = "Cycles with !R data valid && ready (starvation)";
+
+        field {
+            desc = "Starvation cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } DAXMON_PERF_STARV_CYCLES @ 0x164;
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Idle Cycles";
+        desc = "Cycles with !R data valid && !ready (idle)";
+
+        field {
+            desc = "Idle cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } DAXMON_PERF_IDLE_CYCLES @ 0x168;
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Beat Count";
+        desc = "R beats transferred in window (= productive cycles)";
+
+        field {
+            desc = "Beat count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } DAXMON_PERF_BEAT_COUNT @ 0x16C;
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Byte Count Low";
+        desc = "Bytes transferred in window (lower 32 bits)";
+
+        field {
+            desc = "Byte count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } DAXMON_PERF_BYTE_COUNT_LO @ 0x170;
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Byte Count High";
+        desc = "Bytes transferred in window (upper 32 bits)";
+
+        field {
+            desc = "Byte count [63:32]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } DAXMON_PERF_BYTE_COUNT_HI @ 0x174;
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Burst Count";
+        desc = "AR handshakes (bursts issued) in window";
+
+        field {
+            desc = "Burst count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } DAXMON_PERF_BURST_COUNT @ 0x178;
+
+    reg {
+        name = "Read Datapath Monitor Perf Window Control";
+        desc = "Perf-window run control for the data-read datapath monitor";
+
+        field {
+            desc = "Perf window run - 1=open window and accumulate cycle buckets, 0=close window and freeze counters. Rising edge clears all counters.";
+            sw = rw;
+            hw = r;
+        } RUN = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:1] = 31'h0;
+
+    } RDMON_PERF_CTRL @ 0x180;
+
+    reg {
+        name = "Read Datapath Monitor Perf Window Status";
+        desc = "Perf-window live status";
+
+        field {
+            desc = "Window active - 1=window open and accumulating";
+            sw = r;
+            hw = w;
+        } WIN_ACTIVE;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:1] = 31'h0;
+
+    } RDMON_PERF_STATUS @ 0x184;
+
+    reg {
+        name = "Read Datapath Monitor Perf Window Cycles";
+        desc = "LIVE free-running window-cycle counter. Valid only while
+                RDMON_PERF_STATUS.WIN_ACTIVE=1; the monitor ZEROES this when the
+                window closes (RUN->0). For a closed window, use the sum of the
+                four bucket registers (PROD+BP+STARV+IDLE), which HOLD their
+                values after close.";
+
+        field {
+            desc = "Window cycles [31:0] (live-only; reads 0 after close)";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_WINDOW_CYCLES @ 0x188;
+
+    reg {
+        name = "Read Datapath Monitor Perf Productive Cycles";
+        desc = "Cycles with R data valid && ready (data delivered)";
+
+        field {
+            desc = "Productive cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_PROD_CYCLES @ 0x18C;
+
+    reg {
+        name = "Read Datapath Monitor Perf Backpressure Cycles";
+        desc = "Cycles with R data valid && !ready (back-pressure)";
+
+        field {
+            desc = "Backpressure cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_BP_CYCLES @ 0x190;
+
+    reg {
+        name = "Read Datapath Monitor Perf Starvation Cycles";
+        desc = "Cycles with !R data valid && ready (starvation)";
+
+        field {
+            desc = "Starvation cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_STARV_CYCLES @ 0x194;
+
+    reg {
+        name = "Read Datapath Monitor Perf Idle Cycles";
+        desc = "Cycles with !R data valid && !ready (idle)";
+
+        field {
+            desc = "Idle cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_IDLE_CYCLES @ 0x198;
+
+    reg {
+        name = "Read Datapath Monitor Perf Beat Count";
+        desc = "R beats transferred in window (= productive cycles)";
+
+        field {
+            desc = "Beat count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_BEAT_COUNT @ 0x19C;
+
+    reg {
+        name = "Read Datapath Monitor Perf Byte Count Low";
+        desc = "Bytes transferred in window (lower 32 bits)";
+
+        field {
+            desc = "Byte count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_BYTE_COUNT_LO @ 0x1A0;
+
+    reg {
+        name = "Read Datapath Monitor Perf Byte Count High";
+        desc = "Bytes transferred in window (upper 32 bits)";
+
+        field {
+            desc = "Byte count [63:32]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_BYTE_COUNT_HI @ 0x1A4;
+
+    reg {
+        name = "Read Datapath Monitor Perf Burst Count";
+        desc = "AR handshakes (bursts issued) in window";
+
+        field {
+            desc = "Burst count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_BURST_COUNT @ 0x1A8;
+
+    reg {
+        name = "Write Datapath Monitor Perf Window Control";
+        desc = "Perf-window run control for the data-write datapath monitor";
+
+        field {
+            desc = "Perf window run - 1=open window and accumulate cycle buckets, 0=close window and freeze counters. Rising edge clears all counters.";
+            sw = rw;
+            hw = r;
+        } RUN = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:1] = 31'h0;
+
+    } WRMON_PERF_CTRL @ 0x1B0;
+
+    reg {
+        name = "Write Datapath Monitor Perf Window Status";
+        desc = "Perf-window live status";
+
+        field {
+            desc = "Window active - 1=window open and accumulating";
+            sw = r;
+            hw = w;
+        } WIN_ACTIVE;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:1] = 31'h0;
+
+    } WRMON_PERF_STATUS @ 0x1B4;
+
+    reg {
+        name = "Write Datapath Monitor Perf Window Cycles";
+        desc = "LIVE free-running window-cycle counter. Valid only while
+                WRMON_PERF_STATUS.WIN_ACTIVE=1; the monitor ZEROES this when the
+                window closes (RUN->0). For a closed window, use the sum of the
+                four bucket registers (PROD+BP+STARV+IDLE), which HOLD their
+                values after close.";
+
+        field {
+            desc = "Window cycles [31:0] (live-only; reads 0 after close)";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_WINDOW_CYCLES @ 0x1B8;
+
+    reg {
+        name = "Write Datapath Monitor Perf Productive Cycles";
+        desc = "Cycles with W data valid && ready (beat delivered)";
+
+        field {
+            desc = "Productive cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_PROD_CYCLES @ 0x1BC;
+
+    reg {
+        name = "Write Datapath Monitor Perf Backpressure Cycles";
+        desc = "Cycles with W data valid && !ready (back-pressure)";
+
+        field {
+            desc = "Backpressure cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_BP_CYCLES @ 0x1C0;
+
+    reg {
+        name = "Write Datapath Monitor Perf Starvation Cycles";
+        desc = "Cycles with !W data valid && ready (starvation)";
+
+        field {
+            desc = "Starvation cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_STARV_CYCLES @ 0x1C4;
+
+    reg {
+        name = "Write Datapath Monitor Perf Idle Cycles";
+        desc = "Cycles with !W data valid && !ready (idle)";
+
+        field {
+            desc = "Idle cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_IDLE_CYCLES @ 0x1C8;
+
+    reg {
+        name = "Write Datapath Monitor Perf Beat Count";
+        desc = "W beats transferred in window (= productive cycles)";
+
+        field {
+            desc = "Beat count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_BEAT_COUNT @ 0x1CC;
+
+    reg {
+        name = "Write Datapath Monitor Perf Byte Count Low";
+        desc = "Bytes transferred in window (lower 32 bits)";
+
+        field {
+            desc = "Byte count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_BYTE_COUNT_LO @ 0x1D0;
+
+    reg {
+        name = "Write Datapath Monitor Perf Byte Count High";
+        desc = "Bytes transferred in window (upper 32 bits)";
+
+        field {
+            desc = "Byte count [63:32]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_BYTE_COUNT_HI @ 0x1D4;
+
+    reg {
+        name = "Write Datapath Monitor Perf Burst Count";
+        desc = "AW handshakes (bursts issued) in window";
+
+        field {
+            desc = "Burst count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_BURST_COUNT @ 0x1D8;
+
+    reg {
+        name = "Read Datapath Per-Channel Productive/Backpressure";
+        desc = "Selected channel: {backpressure[31:16], productive[15:0]} (16-bit each)";
+
+        field {
+            desc = "{bp[15:0], prod[15:0]} for PERF_CH_SEL channel";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_CH_PROD_BP @ 0x1E0;
+
+    reg {
+        name = "Read Datapath Per-Channel Starvation/Idle";
+        desc = "Selected channel: {idle[31:16], starvation[15:0]} (16-bit each)";
+
+        field {
+            desc = "{idle[15:0], starv[15:0]} for PERF_CH_SEL channel";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_CH_STARV_IDLE @ 0x1E4;
+
+    reg {
+        name = "Write Datapath Per-Channel Productive/Backpressure";
+        desc = "Selected channel: {backpressure[31:16], productive[15:0]} (16-bit each)";
+
+        field {
+            desc = "{bp[15:0], prod[15:0]} for PERF_CH_SEL channel";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_CH_PROD_BP @ 0x1E8;
+
+    reg {
+        name = "Write Datapath Per-Channel Starvation/Idle";
+        desc = "Selected channel: {idle[31:16], starvation[15:0]} (16-bit each)";
+
+        field {
+            desc = "{idle[15:0], starv[15:0]} for PERF_CH_SEL channel";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_CH_STARV_IDLE @ 0x1EC;
+
+    reg {
+        name = "Read Datapath Per-Channel Overflow Stickies";
+        desc = "All channels, {prod,bp,starv,idle} sticky overflow per channel
+                (4 bits/channel, channel 0 in the low nibble). A set bit means
+                that 16-bit per-channel bucket wrapped during the window.";
+
+        field {
+            desc = "Per-channel overflow mask (NUM_CHANNELS*4 bits)";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_CH_OVERFLOW @ 0x1F0;
+
+    reg {
+        name = "Write Datapath Per-Channel Overflow Stickies";
+        desc = "All channels, {prod,bp,starv,idle} sticky overflow per channel.";
+
+        field {
+            desc = "Per-channel overflow mask (NUM_CHANNELS*4 bits)";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_CH_OVERFLOW @ 0x1F4;
+
+};
