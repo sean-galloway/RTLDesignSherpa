@@ -42,18 +42,19 @@ from TBClasses.scoreboards.monbus_group import (
     MonbusGroupHarness, BeatLayout, BeatOrder,
 )
 
-# Stream monitor-enable CSRs (stream_regs.rdl). Enable bits: MON_EN[0],
-# ERR_EN[1], COMPL_EN[2] -> 0x7 turns on the monitor + error + completion
-# reporting (COMPRESS_EN is a higher bit, left 0 = raw 3-beat records).
-DAXMON_ENABLE = 0x240   # descriptor-fetch AXI monitor
-RDMON_ENABLE  = 0x260   # data-read engine monitor
-WRMON_ENABLE  = 0x280   # data-write engine monitor
+# Stream monitor CSRs referenced BY NAME. Addresses come only from
+# stream_regmap.py via tb.write_reg() / tb.read_reg() (RegisterMap by-name
+# access) -- so relocating the monitor block (e.g. 0x1000 -> elsewhere) needs
+# only a stream_regmap.py regen, no changes to this test.
+#
+# Enable bits: MON_EN[0], ERR_EN[1], COMPL_EN[2] -> 0x7 turns on the monitor +
+# error + completion reporting (COMPRESS_EN is a higher bit, left 0 = raw
+# 3-beat records).
+MON_ENABLE_REGS = ('DAXMON_ENABLE', 'RDMON_ENABLE', 'WRMON_ENABLE')
 MON_EN_VALUE  = 0x7
 # Per-monitor packet-drop mask (PKT_MASK) resets to 0xFFFF (drop everything);
 # clear to 0 so monitor packets actually flow into the group.
-DAXMON_PKT_MASK = 0x24C
-RDMON_PKT_MASK  = 0x26C
-WRMON_PKT_MASK  = 0x28C
+MON_PKT_MASK_REGS = ('DAXMON_PKT_MASK', 'RDMON_PKT_MASK', 'WRMON_PKT_MASK')
 # Per-monitor ERR_CFG (stream_regs.rdl): ERR_SELECT[3:0] is a bitmask indexed
 # by packet_type selecting which types divert to the err FIFO (bit0=Error,
 # bit1=Completion, ...); ERR_MASK[15:8] reset 0xFF event-masks (drops) error
@@ -62,12 +63,9 @@ WRMON_PKT_MASK  = 0x28C
 # completion masks reset to 0 (not dropped), and ERR_MASK=0xFF keeps the
 # incidental descriptor SLVERR errors out -- so the err FIFO fills cleanly
 # with completions, which drives stream_irq (irq_out = !err_fifo_empty).
-DAXMON_ERR_CFG = 0x250
-RDMON_ERR_CFG  = 0x270
-WRMON_ERR_CFG  = 0x290
+MON_ERR_CFG_REGS = ('DAXMON_ERR_CFG', 'RDMON_ERR_CFG', 'WRMON_ERR_CFG')
 ERR_CFG_ROUTE_COMPL = 0xFF02   # ERR_SELECT=0x2 (compl->err FIFO), ERR_MASK=0xFF
 ERR_CFG_NONE        = 0xFF00   # ERR_SELECT=0 (nothing to err FIFO)
-MON_FIFO_COUNT = 0x184
 
 # Monbus-group flush window (top-level cfg_mon_* inputs on stream_top_ch8).
 MON_BASE  = 0x0000_1000
@@ -87,7 +85,7 @@ async def cocotb_test_stream_top_monbus(dut):
     tb = StreamCoreTB(
         dut=dut, num_channels=num_channels, addr_width=64,
         data_width=data_width, axi_id_width=8, fifo_depth=fifo_depth,
-        apb_addr_width=12, apb_data_width=32,
+        apb_addr_width=13, apb_data_width=32,
     )
     await tb.setup_clocks_and_reset(rd_xfer_beats=rd_xfer_beats,
                                     wr_xfer_beats=wr_xfer_beats)
@@ -110,10 +108,10 @@ async def cocotb_test_stream_top_monbus(dut):
     # Enable the three AXI monitors (monitor+error+completion) and clear their
     # packet-drop masks so clean traffic emits completion packets that stream
     # out the group's master-write (trace) path.
-    for reg in (DAXMON_ENABLE, RDMON_ENABLE, WRMON_ENABLE):
-        await tb.write_apb_register(reg, MON_EN_VALUE)
-    for reg in (DAXMON_PKT_MASK, RDMON_PKT_MASK, WRMON_PKT_MASK):
-        await tb.write_apb_register(reg, 0x0)
+    for reg in MON_ENABLE_REGS:
+        await tb.write_reg(reg, MON_EN_VALUE)
+    for reg in MON_PKT_MASK_REGS:
+        await tb.write_reg(reg, 0x0)
 
     # Program the group flush window (top-level inputs) so the master-write
     # path actually flushes (default 0/0 window stalls the writer).
@@ -183,8 +181,8 @@ async def cocotb_test_stream_top_monbus(dut):
 
     # ----- Phase A: trace path (completions stream out m_axil_mon_*) -----
     tb.log.info("=== Phase A: monbus group trace path (completions) ===")
-    for reg in (DAXMON_ERR_CFG, RDMON_ERR_CFG, WRMON_ERR_CFG):
-        await tb.write_apb_register(reg, ERR_CFG_NONE)   # nothing routed to err FIFO
+    for reg in MON_ERR_CFG_REGS:
+        await tb.write_reg(reg, ERR_CFG_NONE)   # nothing routed to err FIFO
     mon.start_trace_consumer()
     await drive_transfer(0)
     await ClockCycles(dut.aclk, 4000)
@@ -210,8 +208,8 @@ async def cocotb_test_stream_top_monbus(dut):
     # 32-bit drain preserves the full 128-bit packet (a naive 32-bit truncation
     # would drop packet_type at bit 127).
     tb.log.info("=== Phase B: err FIFO + stream_irq ===")
-    for reg in (DAXMON_ERR_CFG, RDMON_ERR_CFG, WRMON_ERR_CFG):
-        await tb.write_apb_register(reg, ERR_CFG_ROUTE_COMPL)   # completions -> err FIFO
+    for reg in MON_ERR_CFG_REGS:
+        await tb.write_reg(reg, ERR_CFG_ROUTE_COMPL)   # completions -> err FIFO
     mon.clear()
     mon.start_irq_watch()
     await drive_transfer(1)
@@ -279,7 +277,7 @@ def test_stream_top_monbus(request, timing_profile):
         'DATA_WIDTH': data_width,
         'ADDR_WIDTH': 64,
         'SRAM_DEPTH': fifo_depth,
-        'APB_ADDR_WIDTH': 12,
+        'APB_ADDR_WIDTH': 13,    # 8KB space so monitor block @ 0x1000+ is addressable
         'APB_DATA_WIDTH': 32,
         'USE_AXI_MONITORS': 1,   # enable the monbus group under test
         'CDC_ENABLE': 0,

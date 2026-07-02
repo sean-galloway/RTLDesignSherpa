@@ -26,6 +26,14 @@ sys.path.insert(0, repo_root)
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.axi4.axi4_factories import create_axi4_slave_rd, create_axi4_slave_wr
 from projects.components.stream.dv.tbclasses.descriptor_packet_builder import DescriptorPacketBuilder
+from TBClasses.apb.register_map import RegisterMap
+
+# By-name register description (kick-off + base config/status + AXI monitor
+# block @ 0x1000). Generated from stream_regs.rdl by bin/peakrdl_generate.py.
+# Using RegisterMap for by-name access means a register-map split/relocation
+# needs NO DV changes -- only stream_regmap.py is regenerated.
+STREAM_REGMAP_PATH = os.path.join(
+    repo_root, 'projects/components/stream/rtl/stream_regmap.py')
 
 
 class StreamRegisterMap:
@@ -151,6 +159,10 @@ class StreamCoreTB(TBBase):
         self.data_width = data_width
         self.axi_id_width = axi_id_width
         self.fifo_depth = fifo_depth
+        # APB config-bus geometry (stream_top). Monitor block lives at 0x1000+,
+        # so stream_top monbus testing needs a 13-bit APB address (8KB space).
+        self.apb_addr_width = kwargs.get('apb_addr_width', 12)
+        self.apb_data_width = kwargs.get('apb_data_width', 32)
         self.data_bytes = data_width // 8
         # AXI user width must match channel encoding (same as RTL)
         self.user_width = max(1, (num_channels - 1).bit_length()) if num_channels > 1 else 1
@@ -217,6 +229,18 @@ class StreamCoreTB(TBBase):
         self.datawr_requests = []         # Scheduler → Write Engine
         self.datard_completions = []      # Read Engine → Scheduler
         self.datawr_completions = []      # Write Engine → Scheduler
+
+        # By-name register map (RegisterMap). Register addresses come ONLY from
+        # stream_regmap.py, so a register split/relocation needs no TB changes.
+        self.reg_map = RegisterMap(
+            STREAM_REGMAP_PATH,
+            apb_data_width=self.apb_data_width,
+            apb_addr_width=self.apb_addr_width,
+            start_address=0,
+            log=self.log,
+        )
+        # Cache the name -> offset map for the by-name write_reg/read_reg helpers.
+        self.reg_offsets = self.reg_map.get_register_offset_map()
 
     async def setup_clocks_and_reset(self, rd_xfer_beats=16, wr_xfer_beats=16):
         """
@@ -1310,7 +1334,7 @@ class StreamCoreTB(TBBase):
             prefix='s_apb',
             clock=self.clk,     # Use aclk - must match RTL's apb_slave clock when CDC_ENABLE=0
             bus_width=32,       # 32-bit data
-            addr_width=12,      # 12-bit addressing (4KB space)
+            addr_width=self.apb_addr_width,  # 12-bit (4KB) base, 13-bit (8KB) reaches monitors @ 0x1000+
             randomizer=FlexRandomizer(APB_MASTER_RANDOMIZER_CONFIGS['fixed']),
             log=self.log
         )
@@ -1346,7 +1370,8 @@ class StreamCoreTB(TBBase):
         cycles = margin * max(1, num_channels) * max(1, max_xfer_beats) * beat_cycles
         cycles = min(cycles, 0x00FF_FFFF)  # keep within a sane 24-bit range
         try:
-            await self.write_apb_register(StreamRegisterMap.SCHED_TIMEOUT_CYCLES, cycles)
+            # By-name access: address resolved from stream_regmap.py, not a constant.
+            await self.write_reg('SCHED_TIMEOUT_CYCLES', cycles)
         except Exception as e:
             self.log.debug(f"program_scheduler_timeout: APB write skipped ({e})")
         try:
@@ -1358,6 +1383,28 @@ class StreamCoreTB(TBBase):
             f"max_beats={max_xfer_beats}, profile={profile}, {beat_cycles} cyc/beat, "
             f"margin={margin}x)")
         return cycles
+
+    def reg_offset(self, reg_name):
+        """Resolve a register's APB offset BY NAME via the RegisterMap.
+
+        Raises KeyError with the available names if the register is unknown,
+        so a typo (or a stale name after a regmap regen) fails loudly.
+        """
+        try:
+            return self.reg_offsets[reg_name]
+        except KeyError:
+            raise KeyError(
+                f"register '{reg_name}' not in stream_regmap.py "
+                f"(offset map has {len(self.reg_offsets)} regs)") from None
+
+    async def write_reg(self, reg_name, value):
+        """Write an APB register BY NAME (address resolved from stream_regmap.py)."""
+        return await self.write_apb_register(self.reg_offset(reg_name), value)
+
+    async def read_reg(self, reg_name, debug_probe=False):
+        """Read an APB register BY NAME (address resolved from stream_regmap.py)."""
+        return await self.read_apb_register(self.reg_offset(reg_name),
+                                            debug_probe=debug_probe)
 
     async def write_apb_register(self, addr, data):
         """
@@ -1383,7 +1430,7 @@ class StreamCoreTB(TBBase):
             pstrb=0xF,      # All 4 bytes enabled for 32-bit
             pprot=0,
             data_width=32,  # Fixed 32-bit data
-            addr_width=12,  # Fixed 12-bit addressing
+            addr_width=self.apb_addr_width,  # 13-bit reaches monitor block @ 0x1000+
             strb_width=4    # Fixed 4-byte strobe
         )
 
@@ -1423,7 +1470,7 @@ class StreamCoreTB(TBBase):
             pstrb=0xF,      # All 4 bytes enabled for 32-bit
             pprot=0,
             data_width=32,  # Fixed 32-bit data
-            addr_width=12,  # Fixed 12-bit addressing
+            addr_width=self.apb_addr_width,  # 13-bit reaches monitor block @ 0x1000+
             strb_width=4    # Fixed 4-byte strobe
         )
 
