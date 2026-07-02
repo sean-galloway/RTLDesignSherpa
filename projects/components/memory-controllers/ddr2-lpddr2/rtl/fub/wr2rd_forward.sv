@@ -89,6 +89,9 @@ module wr2rd_forward
     input  logic [CW-1:0]        ar_col_i,
     input  logic [BLW-1:0]       ar_len_i,           // beats (NOT len-1)
     input  logic [3:0]           ar_qos_i,
+    // High on the LAST chunk of a split AR. Forwarded combinationally
+    // to both rd_push_is_last_chunk_o and fwd_is_last_chunk_o (#22).
+    input  logic                 ar_is_last_chunk_i,
 
     // Snapshot from wr_cmd_cam (combinational)
     input  logic [WD-1:0]                       cam_valid_i,
@@ -112,6 +115,7 @@ module wr2rd_forward
     output logic [CW-1:0]        rd_push_col_o,
     output logic [BLW-1:0]       rd_push_len_o,
     output logic [3:0]           rd_push_qos_o,
+    output logic                 rd_push_is_last_chunk_o,
 
     // Forwarded read path (to rd_data_path / r_response_fifo)
     output logic                 fwd_valid_o,
@@ -120,6 +124,7 @@ module wr2rd_forward
     output logic [WPW-1:0]       fwd_w_buf_ptr_o,    // start pointer into w_buf
     output logic [BLW-1:0]       fwd_len_o,          // beats to pull
     output logic [WSL-1:0]       fwd_src_slot_o,     // which wr slot we snarfed from
+    output logic                 fwd_is_last_chunk_o,
 
     // Telemetry
     output logic                 dbg_forward_hit_o,
@@ -190,20 +195,22 @@ module wr2rd_forward
     assign w_take_fwd = ar_valid_i &&  w_any_eligible;
     assign w_take_rd  = ar_valid_i && !w_any_eligible;
 
-    assign fwd_valid_o     = w_take_fwd;
-    assign fwd_id_o        = ar_id_i;
-    assign fwd_w_buf_ptr_o = cam_w_buf_ptr_i[w_picked_slot];
-    assign fwd_len_o       = ar_len_i;
-    assign fwd_src_slot_o  = w_picked_slot;
+    assign fwd_valid_o          = w_take_fwd;
+    assign fwd_id_o             = ar_id_i;
+    assign fwd_w_buf_ptr_o      = cam_w_buf_ptr_i[w_picked_slot];
+    assign fwd_len_o            = ar_len_i;
+    assign fwd_src_slot_o       = w_picked_slot;
+    assign fwd_is_last_chunk_o  = ar_is_last_chunk_i;
 
-    assign rd_push_valid_o = w_take_rd;
-    assign rd_push_id_o    = ar_id_i;
-    assign rd_push_rank_o  = ar_rank_i;
-    assign rd_push_bank_o  = ar_bank_i;
-    assign rd_push_row_o   = ar_row_i;
-    assign rd_push_col_o   = ar_col_i;
-    assign rd_push_len_o   = ar_len_i;
-    assign rd_push_qos_o   = ar_qos_i;
+    assign rd_push_valid_o         = w_take_rd;
+    assign rd_push_id_o            = ar_id_i;
+    assign rd_push_rank_o          = ar_rank_i;
+    assign rd_push_bank_o          = ar_bank_i;
+    assign rd_push_row_o           = ar_row_i;
+    assign rd_push_col_o           = ar_col_i;
+    assign rd_push_len_o           = ar_len_i;
+    assign rd_push_qos_o           = ar_qos_i;
+    assign rd_push_is_last_chunk_o = ar_is_last_chunk_i;
 
     assign ar_ready_o = (w_take_fwd && fwd_ready_i)
                      || (w_take_rd  && rd_push_ready_i);

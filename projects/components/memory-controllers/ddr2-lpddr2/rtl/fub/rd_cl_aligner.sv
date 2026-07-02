@@ -80,6 +80,10 @@ module rd_cl_aligner
     input  logic [RSL-1:0]                op_slot_i,
     input  logic [IW-1:0]                 op_id_i,
     input  logic [BLW-1:0]                op_len_i,
+    // High on the LAST chunk of a split AR. When low, rd_inject_last_o
+    // is masked so the host doesn't see an early rlast on intermediate
+    // chunks (issue #22). Tied 1'b1 for callers that never split.
+    input  logic                          op_is_last_chunk_i,
 
     // ----- DFI read data interface -----
     output logic [DFI_EN_WIDTH-1:0]       dfi_rddata_en_o,
@@ -112,6 +116,9 @@ module rd_cl_aligner
     logic [MAX_CONCURRENT-1:0][BLW:0]     r_op_en_remaining;
     logic [MAX_CONCURRENT-1:0][BLW:0]     r_op_dfi_captured;
     logic [MAX_CONCURRENT-1:0][BLW-1:0]   r_op_beats_emitted;
+    // Per-context is_last_chunk flag — latched at op-accept and read by
+    // the EMIT pipeline to gate rd_inject_last_o (issue #22).
+    logic [MAX_CONCURRENT-1:0]            r_op_is_last_chunk;
 
     // Per-op DFI cycle staging.
     logic [DFI_DATA_WIDTH-1:0] r_stage [MAX_CONCURRENT][MAX_DFI_CYC];
@@ -236,7 +243,8 @@ module rd_cl_aligner
                             && w_emit_available;
     assign w_rd_inject_last  = w_emit_active && w_next_in_burst
                             && ((w_next_beats_full + (BLW+1)'(1))
-                                 == {1'b0, r_op_len[w_emit_op]});
+                                 == {1'b0, r_op_len[w_emit_op]})
+                            && r_op_is_last_chunk[w_emit_op];
     assign w_rd_beat_we      = w_handshake;
 
     //=========================================================================
@@ -267,6 +275,7 @@ module rd_cl_aligner
                 r_op_slot         [w_free_slot] <= op_slot_i;
                 r_op_id           [w_free_slot] <= op_id_i;
                 r_op_len          [w_free_slot] <= op_len_i;
+                r_op_is_last_chunk[w_free_slot] <= op_is_last_chunk_i;
                 r_op_wait_cnt     [w_free_slot] <= t_rddata_en_i;
                 r_op_en_remaining [w_free_slot] <=
                     ({1'b0, op_len_i} + (BLW+1)'(DFI_RATE - 1)) >> RATE_LOG2;

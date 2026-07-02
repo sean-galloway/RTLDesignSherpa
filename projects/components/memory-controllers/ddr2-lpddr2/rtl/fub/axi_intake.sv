@@ -146,6 +146,15 @@ module axi_intake
     input  logic                 s_axi_rready,
 
     //=========================================================================
+    // DRAM burst-length constraint (CSR-loaded after MR0 init). When the
+    // host's AXI burst exceeds dram_bl_i beats, this FUB splits it into
+    // ceil(awlen+1 / dram_bl_i) downstream pushes so each CAS-WR command
+    // drives exactly dram_bl_i DRAM beats. dram_bl_i=0 disables splitting
+    // (legacy FUB path / TB without BL plumbing).
+    //=========================================================================
+    input  logic [3:0]           dram_bl_i,
+
+    //=========================================================================
     // Downstream AW push (to addr_mapper → wr_cmd_cam)
     //=========================================================================
     output logic                 aw_push_valid_o,
@@ -157,6 +166,9 @@ module axi_intake
     output logic [WPW-1:0]       aw_push_strb_ptr_o,
     output logic                 aw_push_full_strb_o,
     output logic [3:0]           aw_push_qos_o,
+    // High on the LAST chunk of a split AW (always high if no split).
+    // wr_cmd_cam stores this; axi_intake's B-path filters on it.
+    output logic                 aw_push_is_last_chunk_o,
 
     //=========================================================================
     // Downstream AR push (to addr_mapper → wr2rd_forward / rd_cmd_cam)
@@ -167,12 +179,22 @@ module axi_intake
     output logic [IW-1:0]        ar_push_id_o,
     output logic [BLW-1:0]       ar_push_len_o,
     output logic [3:0]           ar_push_qos_o,
+    // High on the LAST chunk of a split AR (always high if no split).
+    // wr2rd_forward forwards it; rd_cmd_cam stores it; rd_cl_aligner
+    // reads it to gate rd_inject_last_o.
+    output logic                 ar_push_is_last_chunk_o,
 
     //=========================================================================
-    // Write completion (from wr_cmd_cam entry_complete) → B-channel push
+    // Write completion (from wr_cmd_cam entry_complete) → B-channel push.
+    // For split AXI bursts: every chunk's slot retire fires
+    // wr_entry_complete_strb_i, but only the LAST chunk has
+    // wr_entry_complete_is_last_chunk_i=1. Non-last chunks free their
+    // CAM slot silently (no AXI B emitted) so the host sees exactly one
+    // B per original AW.
     //=========================================================================
     input  logic                 wr_entry_complete_strb_i,
     input  logic [IW-1:0]        wr_entry_complete_id_i,
+    input  logic                 wr_entry_complete_is_last_chunk_i,
 
     //=========================================================================
     // W-buffer free notification (driven by wr_beat_sequencer.b_complete via
@@ -200,6 +222,10 @@ module axi_intake
     input  logic [IW-1:0]        fwd_id_i,
     input  logic [WPW-1:0]       fwd_w_buf_ptr_i,
     input  logic [BLW-1:0]       fwd_len_i,
+    // High when this forwarded chunk is the LAST chunk of its AR.
+    // r_r_fwd_remaining alone fires rlast on every chunk boundary; this
+    // gates rlast to ONLY fire on the last chunk's last beat (issue #22).
+    input  logic                 fwd_is_last_chunk_i,
 
     //=========================================================================
     // Non-forwarded R-data injection (rd_data_path stub / TB)
@@ -441,6 +467,7 @@ module axi_intake
         logic [BLW-1:0]  len;          // beats — already len-1 + 1
         logic [WPW-1:0]  w_buf_ptr;
         logic [WPW-1:0]  strb_ptr;
+        logic [2:0]      size;         // awsize — for split chunk address arithmetic
     } aw_pending_t;
 
     aw_pending_t        w_aw_pend_din;
@@ -465,6 +492,7 @@ module axi_intake
     assign w_aw_pend_din.len       = BLW'(fub_axi_awlen) + BLW'(1);
     assign w_aw_pend_din.w_buf_ptr = r_aw_pend_next_ptr;
     assign w_aw_pend_din.strb_ptr  = r_aw_pend_next_ptr;
+    assign w_aw_pend_din.size      = fub_axi_awsize;
 
     // ---- W-buffer occupancy + AW flow-control --------------------------
     // Track outstanding W beats (= pushed by accepted AWs - freed by
@@ -526,6 +554,13 @@ module axi_intake
 
     wire w_w_beat_handshake = fub_axi_wvalid && fub_axi_wready;
 
+    // Forward declarations: these three nets are all driven further
+    // below in the AW-split FSM but must be visible to this always_ff
+    // block's r_burst_done / r_full_strb_acc gate (line ~609).
+    logic w_aw_push_skid_in_valid;
+    logic w_aw_push_skid_in_ready;
+    logic w_is_last_chunk;
+
     `ALWAYS_FF_RST(aclk, aresetn, begin
         if (`RST_ASSERTED(aresetn)) begin
             r_wbuf_wptr         <= '0;
@@ -574,27 +609,160 @@ module axi_intake
                     r_final_full_strb <= r_full_strb_acc & (&fub_axi_wstrb);
                 end
             end
-            // On downstream aw_push accept: clear pending flag, reset
-            // accumulator for the next burst, pop the aw_pending head.
-            if (aw_push_valid_o && aw_push_ready_i) begin
+            // On the LAST chunk handshaking INTO the aw_push skid:
+            // clear the burst-done flag and reset the strb accumulator.
+            // Non-last chunks leave r_burst_done set so the next chunk's
+            // push re-asserts on the very next cycle.
+            if (w_aw_push_skid_in_valid && w_aw_push_skid_in_ready
+                                        && w_is_last_chunk) begin
                 r_burst_done    <= 1'b0;
                 r_full_strb_acc <= 1'b1;
             end
         end
     end)
 
-    // Downstream AW push — gated on burst-complete + aw_pending head valid
-    assign aw_push_valid_o     = r_burst_done && w_aw_pend_rd_valid;
-    assign aw_push_addr_o      = w_aw_pend_dout.addr;
-    assign aw_push_id_o        = w_aw_pend_dout.id;
-    assign aw_push_len_o       = w_aw_pend_dout.len;
-    assign aw_push_w_buf_ptr_o = w_aw_pend_dout.w_buf_ptr;
-    assign aw_push_strb_ptr_o  = w_aw_pend_dout.strb_ptr;
-    assign aw_push_full_strb_o = r_final_full_strb;
-    assign aw_push_qos_o       = w_aw_push_qos;
+    //=========================================================================
+    // AW-split chunk FSM (issue #22).
+    //
+    // When dram_bl_i is non-zero AND the head AW's len exceeds dram_bl_i,
+    // the head pops out as ceil(len / dram_bl_i) downstream pushes:
+    //   - chunk K's wbuf_ptr = head.w_buf_ptr + K*dram_bl_i
+    //   - chunk K's addr     = head.addr      + K*dram_bl_i*(1<<head.size)
+    //   - chunk K's len      = min(dram_bl_i, head.len - K*dram_bl_i)
+    //   - chunk K's is_last  = (chunk K covers the final beat of head.len)
+    // aw_pending head is held until the last-chunk push fires (only then
+    // does r_burst_done clear).
+    //
+    // When dram_bl_i == 0 or head.len <= dram_bl_i, exactly one chunk
+    // fires (the legacy / "no split" fast path).
+    //
+    // FPGA timing notes:
+    //   * (1) `chunk_idx * bl` is replaced by a left-shift driven by a
+    //     small log2 mux (dram_bl_i ∈ {0,1,2,4,8,16} only). No multiplier.
+    //   * (2)+(3) A gaxi_skid_buffer between this comb path and the
+    //     downstream addr_mapper registers chunk fields, so addr_mapper
+    //     still sees a flop output (same depth as pre-#22). Skid adds
+    //     1 cycle of latency per AW; steady-state throughput is 1 chunk
+    //     per cycle so streaming holds.
+    //=========================================================================
+    logic [BLW-1:0] r_chunk_idx;
+    logic [BLW-1:0] w_eff_bl;
+    // Treat dram_bl_i==0 as "no split". Use head.len directly so the
+    // single-chunk gate always fires on the first push.
+    assign w_eff_bl = (dram_bl_i == 4'd0) ? w_aw_pend_dout.len
+                                          : BLW'(dram_bl_i);
+    // log2(eff_bl) — small mux on dram_bl_i so the chunk offset is just
+    // a left-shift, not a multiply. DDR2/LPDDR2 only ever programs BL to
+    // a power of two, so this is exact (no rounding).
+    logic [2:0] w_eff_bl_log2;
+    always_comb begin
+        // dram_bl_i is 4 bits (max 4'd15). DDR2/LPDDR2 program BL to
+        // 4 or 8 only; 1/2 kept for TB / narrow-AXI paths. BL=16 has
+        // no representation in a 4-bit field so it doesn't need a case
+        // (that width mismatch would silently truncate).
+        unique case (dram_bl_i)
+            4'd1:    w_eff_bl_log2 = 3'd0;
+            4'd2:    w_eff_bl_log2 = 3'd1;
+            4'd4:    w_eff_bl_log2 = 3'd2;
+            4'd8:    w_eff_bl_log2 = 3'd3;
+            default: w_eff_bl_log2 = 3'd0;  // dram_bl_i==0 → no-split (idx stays 0)
+        endcase
+    end
+    logic [BLW-1:0] w_chunk_offset_beats;
+    assign w_chunk_offset_beats = r_chunk_idx << w_eff_bl_log2;
+    logic [BLW:0]   w_remaining_ext;
+    assign w_remaining_ext = {1'b0, w_aw_pend_dout.len}
+                           - {1'b0, w_chunk_offset_beats};
+    logic [BLW-1:0] w_remaining;
+    assign w_remaining = w_remaining_ext[BLW-1:0];
+    logic [BLW-1:0] w_chunk_len;
+    assign w_chunk_len = (w_remaining > w_eff_bl) ? w_eff_bl : w_remaining;
+    // w_is_last_chunk forward-declared near the top of the module.
+    assign w_is_last_chunk = (w_remaining <= w_eff_bl);
 
-    // Pop aw_pending head on push handshake
-    assign w_aw_pend_rd_ready  = aw_push_valid_o && aw_push_ready_i;
+    // Chunk address: head.addr + chunk_offset_beats * (1<<head.size).
+    logic [AW-1:0] w_chunk_addr_off;
+    assign w_chunk_addr_off = AW'(w_chunk_offset_beats) << w_aw_pend_dout.size;
+    logic [AW-1:0] w_chunk_addr;
+    assign w_chunk_addr = w_aw_pend_dout.addr + w_chunk_addr_off;
+    logic [WPW-1:0] w_chunk_wbuf_ptr;
+    assign w_chunk_wbuf_ptr = w_aw_pend_dout.w_buf_ptr
+                            + WPW'(w_chunk_offset_beats);
+    logic [WPW-1:0] w_chunk_strb_ptr;
+    assign w_chunk_strb_ptr = w_aw_pend_dout.strb_ptr
+                            + WPW'(w_chunk_offset_beats);
+
+    // ---- AW push skid -------------------------------------------------
+    typedef struct packed {
+        logic [AW-1:0]  addr;
+        logic [IW-1:0]  id;
+        logic [BLW-1:0] len;
+        logic [WPW-1:0] w_buf_ptr;
+        logic [WPW-1:0] strb_ptr;
+        logic           full_strb;
+        logic [3:0]     qos;
+        logic           is_last_chunk;
+    } aw_push_skid_t;
+
+    aw_push_skid_t w_aw_push_skid_in;
+    aw_push_skid_t w_aw_push_skid_out;
+    // w_aw_push_skid_in_{valid,ready} forward-declared near the top of the module.
+
+    assign w_aw_push_skid_in.addr          = w_chunk_addr;
+    assign w_aw_push_skid_in.id            = w_aw_pend_dout.id;
+    assign w_aw_push_skid_in.len           = w_chunk_len;
+    assign w_aw_push_skid_in.w_buf_ptr     = w_chunk_wbuf_ptr;
+    assign w_aw_push_skid_in.strb_ptr      = w_chunk_strb_ptr;
+    assign w_aw_push_skid_in.full_strb     = r_final_full_strb;
+    assign w_aw_push_skid_in.qos           = w_aw_push_qos;
+    assign w_aw_push_skid_in.is_last_chunk = w_is_last_chunk;
+
+    // Push into skid as soon as the host's wlast lands and the
+    // ar_pending head is valid. Each handshake into the skid is one
+    // chunk; the chunk-idx advances per skid-IN handshake (NOT per
+    // module-output handshake, which lags by skid latency).
+    assign w_aw_push_skid_in_valid = r_burst_done && w_aw_pend_rd_valid;
+
+    // Pop aw_pending head only when the LAST chunk handshakes INTO the
+    // skid. Non-last chunks advance r_chunk_idx but leave the head in
+    // the ar_pending FIFO so the next cycle re-emits with chunk K+1.
+    assign w_aw_pend_rd_ready = w_aw_push_skid_in_valid
+                             && w_aw_push_skid_in_ready
+                             && w_is_last_chunk;
+
+    `ALWAYS_FF_RST(aclk, aresetn, begin
+        if (`RST_ASSERTED(aresetn)) begin
+            r_chunk_idx <= '0;
+        end else if (w_aw_push_skid_in_valid && w_aw_push_skid_in_ready) begin
+            r_chunk_idx <= w_is_last_chunk ? BLW'(0)
+                                           : r_chunk_idx + BLW'(1);
+        end
+    end)
+
+    gaxi_skid_buffer #(
+        .DATA_WIDTH ($bits(aw_push_skid_t)),
+        .DEPTH      (2)
+    ) i_aw_push_skid (
+        .axi_aclk    (aclk),
+        .axi_aresetn (aresetn),
+        .wr_valid    (w_aw_push_skid_in_valid),
+        .wr_ready    (w_aw_push_skid_in_ready),
+        .wr_data     (w_aw_push_skid_in),
+        .count       (),
+        .rd_valid    (aw_push_valid_o),
+        .rd_ready    (aw_push_ready_i),
+        .rd_count    (),
+        .rd_data     (w_aw_push_skid_out)
+    );
+
+    assign aw_push_addr_o          = w_aw_push_skid_out.addr;
+    assign aw_push_id_o            = w_aw_push_skid_out.id;
+    assign aw_push_len_o           = w_aw_push_skid_out.len;
+    assign aw_push_w_buf_ptr_o     = w_aw_push_skid_out.w_buf_ptr;
+    assign aw_push_strb_ptr_o      = w_aw_push_skid_out.strb_ptr;
+    assign aw_push_full_strb_o     = w_aw_push_skid_out.full_strb;
+    assign aw_push_qos_o           = w_aw_push_skid_out.qos;
+    assign aw_push_is_last_chunk_o = w_aw_push_skid_out.is_last_chunk;
 
     //=========================================================================
     // ar_pending FIFO — head buffer for AR metadata
@@ -603,6 +771,7 @@ module axi_intake
         logic [IW-1:0]   id;
         logic [AW-1:0]   addr;
         logic [BLW-1:0]  len;
+        logic [2:0]      size;        // arsize — for split chunk addr arithmetic
     } ar_pending_t;
 
     ar_pending_t   w_ar_pend_din;
@@ -615,6 +784,7 @@ module axi_intake
     assign w_ar_pend_din.id   = fub_axi_arid;
     assign w_ar_pend_din.addr = fub_axi_araddr;
     assign w_ar_pend_din.len  = BLW'(fub_axi_arlen) + BLW'(1);
+    assign w_ar_pend_din.size = fub_axi_arsize;
 
     assign w_ar_pend_wr_valid = fub_axi_arvalid;
     assign fub_axi_arready    = w_ar_pend_wr_ready;
@@ -634,12 +804,92 @@ module axi_intake
         .count       ()
     );
 
-    assign ar_push_valid_o = w_ar_pend_rd_valid;
-    assign ar_push_addr_o  = w_ar_pend_dout.addr;
-    assign ar_push_id_o    = w_ar_pend_dout.id;
-    assign ar_push_len_o   = w_ar_pend_dout.len;
-    assign ar_push_qos_o   = w_ar_push_qos;
-    assign w_ar_pend_rd_ready = ar_push_valid_o && ar_push_ready_i;
+    //=========================================================================
+    // AR-split chunk FSM (issue #22 — mirror of AW-split above).
+    //
+    // Same shift-not-mult + skid topology as AW; see notes above.
+    //=========================================================================
+    logic [BLW-1:0] r_ar_chunk_idx;
+    logic [BLW-1:0] w_ar_eff_bl;
+    assign w_ar_eff_bl = (dram_bl_i == 4'd0) ? w_ar_pend_dout.len
+                                              : BLW'(dram_bl_i);
+    // log2 mux mirrors AW side; same constants, share via w_eff_bl_log2.
+    logic [BLW-1:0] w_ar_chunk_offset_beats;
+    assign w_ar_chunk_offset_beats = r_ar_chunk_idx << w_eff_bl_log2;
+    logic [BLW:0]   w_ar_remaining_ext;
+    assign w_ar_remaining_ext = {1'b0, w_ar_pend_dout.len}
+                              - {1'b0, w_ar_chunk_offset_beats};
+    logic [BLW-1:0] w_ar_remaining;
+    assign w_ar_remaining = w_ar_remaining_ext[BLW-1:0];
+    logic [BLW-1:0] w_ar_chunk_len;
+    assign w_ar_chunk_len = (w_ar_remaining > w_ar_eff_bl)
+                          ? w_ar_eff_bl : w_ar_remaining;
+    logic           w_ar_is_last_chunk;
+    assign w_ar_is_last_chunk = (w_ar_remaining <= w_ar_eff_bl);
+
+    logic [AW-1:0] w_ar_chunk_addr_off;
+    assign w_ar_chunk_addr_off =
+        AW'(w_ar_chunk_offset_beats) << w_ar_pend_dout.size;
+    logic [AW-1:0] w_ar_chunk_addr;
+    assign w_ar_chunk_addr = w_ar_pend_dout.addr + w_ar_chunk_addr_off;
+
+    // ---- AR push skid -------------------------------------------------
+    typedef struct packed {
+        logic [AW-1:0]  addr;
+        logic [IW-1:0]  id;
+        logic [BLW-1:0] len;
+        logic [3:0]     qos;
+        logic           is_last_chunk;
+    } ar_push_skid_t;
+
+    ar_push_skid_t w_ar_push_skid_in;
+    ar_push_skid_t w_ar_push_skid_out;
+    logic          w_ar_push_skid_in_valid;
+    logic          w_ar_push_skid_in_ready;
+
+    assign w_ar_push_skid_in.addr          = w_ar_chunk_addr;
+    assign w_ar_push_skid_in.id            = w_ar_pend_dout.id;
+    assign w_ar_push_skid_in.len           = w_ar_chunk_len;
+    assign w_ar_push_skid_in.qos           = w_ar_push_qos;
+    assign w_ar_push_skid_in.is_last_chunk = w_ar_is_last_chunk;
+
+    assign w_ar_push_skid_in_valid = w_ar_pend_rd_valid;
+
+    // Pop ar_pending head only when the LAST chunk handshakes IN.
+    assign w_ar_pend_rd_ready = w_ar_push_skid_in_valid
+                             && w_ar_push_skid_in_ready
+                             && w_ar_is_last_chunk;
+
+    `ALWAYS_FF_RST(aclk, aresetn, begin
+        if (`RST_ASSERTED(aresetn)) begin
+            r_ar_chunk_idx <= '0;
+        end else if (w_ar_push_skid_in_valid && w_ar_push_skid_in_ready) begin
+            r_ar_chunk_idx <= w_ar_is_last_chunk ? BLW'(0)
+                                                 : r_ar_chunk_idx + BLW'(1);
+        end
+    end)
+
+    gaxi_skid_buffer #(
+        .DATA_WIDTH ($bits(ar_push_skid_t)),
+        .DEPTH      (2)
+    ) i_ar_push_skid (
+        .axi_aclk    (aclk),
+        .axi_aresetn (aresetn),
+        .wr_valid    (w_ar_push_skid_in_valid),
+        .wr_ready    (w_ar_push_skid_in_ready),
+        .wr_data     (w_ar_push_skid_in),
+        .count       (),
+        .rd_valid    (ar_push_valid_o),
+        .rd_ready    (ar_push_ready_i),
+        .rd_count    (),
+        .rd_data     (w_ar_push_skid_out)
+    );
+
+    assign ar_push_addr_o          = w_ar_push_skid_out.addr;
+    assign ar_push_id_o            = w_ar_push_skid_out.id;
+    assign ar_push_len_o           = w_ar_push_skid_out.len;
+    assign ar_push_qos_o           = w_ar_push_skid_out.qos;
+    assign ar_push_is_last_chunk_o = w_ar_push_skid_out.is_last_chunk;
 
     //=========================================================================
     // F2/F4: AXI metadata side-table — extracted into axi_id_side_table.
@@ -719,7 +969,10 @@ module axi_intake
     assign w_b_din.resp = 2'b00;            // RESP_OKAY
     // BUSER mirrors AWUSER from the id-side-table completion port.
     assign w_b_din.user = w_aw_compl_user;
-    assign w_b_wr_valid = wr_entry_complete_strb_i;
+    // Filter: only the LAST chunk of a split AXI burst pushes a B FIFO
+    // entry. Non-last chunks free their CAM slot silently (issue #22).
+    assign w_b_wr_valid = wr_entry_complete_strb_i
+                       && wr_entry_complete_is_last_chunk_i;
 
     gaxi_fifo_sync #(
         .DATA_WIDTH ($bits(b_entry_t)),
@@ -757,6 +1010,9 @@ module axi_intake
     logic [IW-1:0]  r_r_fwd_id;
     logic [WPW-1:0] r_r_fwd_ptr;
     logic [BLW-1:0] r_r_fwd_remaining;
+    // Captured at fwd handshake; gates fub_axi_rlast in the forwarded
+    // R-path so chunked ARs don't fire early rlast (issue #22).
+    logic           r_r_fwd_is_last_chunk;
 
     `ALWAYS_FF_RST(aclk, aresetn, begin
         if (`RST_ASSERTED(aresetn)) begin
@@ -764,12 +1020,14 @@ module axi_intake
             r_r_fwd_id        <= '0;
             r_r_fwd_ptr       <= '0;
             r_r_fwd_remaining <= '0;
+            r_r_fwd_is_last_chunk <= 1'b0;
         end else begin
             if (fwd_valid_i && fwd_ready_o) begin
                 r_r_fwd_active    <= 1'b1;
                 r_r_fwd_id        <= fwd_id_i;
                 r_r_fwd_ptr       <= fwd_w_buf_ptr_i;
                 r_r_fwd_remaining <= fwd_len_i;
+                r_r_fwd_is_last_chunk <= fwd_is_last_chunk_i;
             end else if (r_r_fwd_active && fub_axi_rvalid && fub_axi_rready) begin
                 r_r_fwd_ptr       <= r_r_fwd_ptr + 1'b1;
                 r_r_fwd_remaining <= r_r_fwd_remaining - 1'b1;
@@ -804,7 +1062,8 @@ module axi_intake
             fub_axi_rid    = r_r_fwd_id;
             fub_axi_rdata  = r_w_buf[r_r_fwd_ptr];
             fub_axi_rresp  = 2'b00;
-            fub_axi_rlast  = (r_r_fwd_remaining == BLW'(1));
+            fub_axi_rlast  = (r_r_fwd_remaining == BLW'(1))
+                          && r_r_fwd_is_last_chunk;
             // RUSER mirrors ARUSER from the id-side-table completion port.
             // (w_ar_compl_id selects r_r_fwd_id when r_r_fwd_active.)
             fub_axi_ruser  = w_ar_compl_user;

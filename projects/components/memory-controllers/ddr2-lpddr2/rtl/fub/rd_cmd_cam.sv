@@ -69,6 +69,13 @@ module rd_cmd_cam
     input  logic [CW-1:0]        push_col_i,
     input  logic [BLW-1:0]       push_len_i,         // beats (NOT len-1)
     input  logic [3:0]           push_qos_i,         // AXI arqos
+    // For AXI bursts longer than dram_bl_i, axi_intake splits the AR
+    // into N chunks (issue #22). Only the LAST chunk's slot should
+    // drive AXI rlast — rd_cl_aligner reads this via snap_is_last_chunk
+    // through the scheduler's op_is_last_chunk_o so it can gate
+    // rd_inject_last_o on non-last chunks. Tied 1'b1 for callers
+    // that never split.
+    input  logic                 push_is_last_chunk_i,
     output logic [SLW-1:0]       push_slot_o,
 
     // Scheduler query
@@ -103,6 +110,7 @@ module rd_cmd_cam
     output logic [CD-1:0]                       snap_issued_o,
     output logic [CD-1:0][3:0]                  snap_qos_o,
     output logic [CD-1:0][AGEW-1:0]             snap_age_o,
+    output logic [CD-1:0]                       snap_is_last_chunk_o,
 
     // Telemetry
     output logic [SLW:0]         dbg_occupancy_o
@@ -124,6 +132,10 @@ module rd_cmd_cam
     // signed (a-b) so 8-bit wrap is safe for cam depths up to 64.
     logic [CD-1:0][AGEW-1:0]     r_age;
     logic [AGEW-1:0]             r_push_counter;
+    // Set on the LAST chunk of a split AR. Mirror of wr_cmd_cam's
+    // r_is_last_chunk (issue #22). Read by scheduler via snap_o and
+    // forwarded to rd_cl_aligner so it can gate rd_inject_last_o.
+    logic [CD-1:0]               r_is_last_chunk;
 
     // Free slot pick
     logic [SLW-1:0] w_free_slot;
@@ -168,6 +180,7 @@ module rd_cmd_cam
                 r_age           [w_free_slot] <= r_push_counter;
                 r_beats_returned[w_free_slot] <= '0;
                 r_issued        [w_free_slot] <= 1'b0;
+                r_is_last_chunk [w_free_slot] <= push_is_last_chunk_i;
                 r_push_counter                <= r_push_counter + AGEW'(1);
             end
 
@@ -221,6 +234,7 @@ module rd_cmd_cam
     assign snap_issued_o  = r_issued;
     assign snap_qos_o     = r_qos;
     assign snap_age_o     = r_age;
+    assign snap_is_last_chunk_o = r_is_last_chunk;
 
     // Entry complete
     assign entry_complete_o      = w_entry_complete_strb;

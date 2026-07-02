@@ -74,6 +74,12 @@ module wr_cmd_cam
     input  logic [WPW-1:0]       push_w_buf_ptr_i,
     input  logic [WPW-1:0]       push_strb_ptr_i,
     input  logic [3:0]           push_qos_i,         // AXI awqos
+    // Chunk-aware split: when an AXI burst is split into multiple
+    // DRAM-BL-sized commands, only the LAST chunk's slot should fire an
+    // AXI B response. Non-last chunks retire silently (slot freed, but
+    // entry_complete_is_last_chunk_o stays low so axi_intake suppresses
+    // the B FIFO push). Tied 1'b1 for callers that never split.
+    input  logic                 push_is_last_chunk_i,
     output logic [SLW-1:0]       push_slot_o,        // which slot took it
 
     // Scheduler query — per-(rank,bank) match vector
@@ -100,6 +106,7 @@ module wr_cmd_cam
     output logic                 entry_complete_o,
     output logic [SLW-1:0]       entry_complete_slot_o,
     output logic [IW-1:0]        entry_complete_id_o,
+    output logic                 entry_complete_is_last_chunk_o,
 
     // Snapshot to wr2rd_forward (combinational read of all slots)
     output logic [CD-1:0]                       snap_valid_o,
@@ -139,6 +146,10 @@ module wr_cmd_cam
     // Per-slot push-order tag (issue #21).
     logic [CD-1:0][AGEW-1:0]     r_age;
     logic [AGEW-1:0]             r_push_counter;
+    // Per-slot "this slot is the LAST chunk of a split AXI burst".
+    // axi_intake reads this on entry_complete to decide whether to
+    // emit the AXI B response (issue #22).
+    logic [CD-1:0]               r_is_last_chunk;
 
     // Free-slot priority encoder
     logic [SLW-1:0] w_free_slot;
@@ -182,6 +193,7 @@ module wr_cmd_cam
                 r_issued      [w_free_slot] <= 1'b0;
                 r_b_pending   [w_free_slot] <= 1'b0;
                 r_age         [w_free_slot] <= r_push_counter;
+                r_is_last_chunk[w_free_slot] <= push_is_last_chunk_i;
                 r_push_counter              <= r_push_counter + AGEW'(1);
             end
 
@@ -248,10 +260,13 @@ module wr_cmd_cam
     assign snap_age_o        = r_age;
     assign snap_id_o         = r_id;
 
-    // Entry-complete strobe — drives axi4_slave B emit + txn_queue clear
-    assign entry_complete_o      = b_complete_strb_i;
-    assign entry_complete_slot_o = b_complete_slot_i;
-    assign entry_complete_id_o   = r_id[b_complete_slot_i];
+    // Entry-complete strobe — drives axi4_slave B emit + txn_queue clear.
+    // entry_complete_is_last_chunk_o lets axi_intake filter: split AXI
+    // bursts produce N entry_complete strobes but only ONE AXI B.
+    assign entry_complete_o              = b_complete_strb_i;
+    assign entry_complete_slot_o         = b_complete_slot_i;
+    assign entry_complete_id_o           = r_id[b_complete_slot_i];
+    assign entry_complete_is_last_chunk_o = r_is_last_chunk[b_complete_slot_i];
 
     // Telemetry
     always_comb begin

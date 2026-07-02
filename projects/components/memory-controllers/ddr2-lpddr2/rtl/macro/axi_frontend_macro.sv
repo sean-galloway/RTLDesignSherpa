@@ -99,6 +99,9 @@ module axi_frontend_macro
     // CSR (live)
     input  addr_map_scheme_e     scheme_active_i,
     input  logic [7:0]           xor_seed_i,
+    // DRAM burst length (MR0). axi_intake uses this to split AXI bursts
+    // that exceed the DRAM BL into chunked CAM entries (issue #22).
+    input  logic [3:0]           dram_bl_i,
 
     //=========================================================================
     // AXI4 slave-side host ports (host drives s_axi_aw/w/ar; this macro
@@ -200,6 +203,7 @@ module axi_frontend_macro
     output logic [RD_CAM_DEPTH-1:0][3:0]     rd_snap_qos_o,
     output logic [RD_CAM_DEPTH-1:0][IW-1:0]  rd_snap_id_o,
     output logic [RD_CAM_DEPTH-1:0][7:0]     rd_snap_age_o,
+    output logic [RD_CAM_DEPTH-1:0]          rd_snap_is_last_chunk_o,
 
     //=========================================================================
     // Scheduler "mark issued" strobes
@@ -276,6 +280,12 @@ module axi_frontend_macro
     logic [WPW-1:0]       w_aw_push_w_buf_ptr;
     logic [WPW-1:0]       w_aw_push_strb_ptr;
     logic                 w_aw_push_full_strb;
+    logic                 w_aw_push_is_last_chunk;
+    // Forward-declared here so axi_intake's ar_push_is_last_chunk_o
+    // binding at line ~397 can see it; the local net that feeds
+    // wr2rd_forward's ar_is_last_chunk_i is declared alongside the
+    // other rd_push_* nets further below.
+    logic                 w_ar_push_is_last_chunk;
 
     // ar_push_* go through addr_mapper_ar → wr2rd_forward.ar_*
     logic                 w_ar_push_valid;
@@ -289,6 +299,7 @@ module axi_frontend_macro
     // wr2rd_forward.fwd_* → axi_intake.fwd_*
     logic                 w_fwd_valid;
     logic                 w_fwd_ready;
+    logic                 w_fwd_is_last_chunk;
     logic [IW-1:0]        w_fwd_id;
     logic [WPW-1:0]       w_fwd_w_buf_ptr;
     logic [BLW-1:0]       w_fwd_len;
@@ -298,6 +309,7 @@ module axi_frontend_macro
     logic                 w_wr_entry_complete;
     logic [WSL-1:0]       w_wr_entry_complete_slot;
     logic [IW-1:0]        w_wr_entry_complete_id;
+    logic                 w_wr_entry_complete_is_last_chunk;
 
     // wbuf free count fed to axi_intake — derived after wr_cmd_cam.snap_len_o
     // is declared (see assign below). Forward-declared here so the axi_intake
@@ -324,6 +336,7 @@ module axi_frontend_macro
     ) u_axi_intake (
         .aclk                       (mc_clk),
         .aresetn                    (mc_rst_n),
+        .dram_bl_i                  (dram_bl_i),
         // Host AXI4
         .s_axi_awid                 (s_axi_awid),
         .s_axi_awaddr               (s_axi_awaddr),
@@ -379,15 +392,18 @@ module axi_frontend_macro
         .aw_push_strb_ptr_o         (w_aw_push_strb_ptr),
         .aw_push_full_strb_o        (w_aw_push_full_strb),
         .aw_push_qos_o              (w_aw_push_qos),
+        .aw_push_is_last_chunk_o    (w_aw_push_is_last_chunk),
         .ar_push_valid_o            (w_ar_push_valid),
         .ar_push_ready_i            (w_ar_push_ready),
         .ar_push_addr_o             (w_ar_push_addr),
         .ar_push_id_o               (w_ar_push_id),
         .ar_push_len_o              (w_ar_push_len),
         .ar_push_qos_o              (w_ar_push_qos),
+        .ar_push_is_last_chunk_o    (w_ar_push_is_last_chunk),
         // Completion notifications
         .wr_entry_complete_strb_i   (w_wr_entry_complete),
         .wr_entry_complete_id_i     (w_wr_entry_complete_id),
+        .wr_entry_complete_is_last_chunk_i (w_wr_entry_complete_is_last_chunk),
         // W-buffer free — derived locally from b_complete + the cam's
         // per-slot length snapshot (snap_len_o[slot]). When b_complete
         // fires for slot S, that slot's awlen+1 beats are no longer in
@@ -400,6 +416,7 @@ module axi_frontend_macro
         .fwd_valid_i                (w_fwd_valid),
         .fwd_ready_o                (w_fwd_ready),
         .fwd_id_i                   (w_fwd_id),
+        .fwd_is_last_chunk_i        (w_fwd_is_last_chunk),
         .fwd_w_buf_ptr_i            (w_fwd_w_buf_ptr),
         .fwd_len_i                  (w_fwd_len),
         // Injected R
@@ -531,6 +548,7 @@ module axi_frontend_macro
         .push_w_buf_ptr_i        (w_aw_push_w_buf_ptr),
         .push_strb_ptr_i         (w_aw_push_strb_ptr),
         .push_qos_i              (w_aw_push_qos),
+        .push_is_last_chunk_i    (w_aw_push_is_last_chunk),
         .push_slot_o             (w_wr_push_slot),
 
         .q_rank_i                (q_rank_i),
@@ -553,6 +571,7 @@ module axi_frontend_macro
         .entry_complete_o        (w_wr_entry_complete),
         .entry_complete_slot_o   (w_wr_entry_complete_slot),
         .entry_complete_id_o     (w_wr_entry_complete_id),
+        .entry_complete_is_last_chunk_o (w_wr_entry_complete_is_last_chunk),
 
         .snap_valid_o            (w_wr_snap_valid),
         .snap_rank_o             (w_wr_snap_rank),
@@ -592,6 +611,8 @@ module axi_frontend_macro
     logic [CW-1:0]  w_rd_push_col;
     logic [BLW-1:0] w_rd_push_len;
     logic [3:0]     w_rd_push_qos;
+    logic           w_rd_push_is_last_chunk;
+    // w_ar_push_is_last_chunk forward-declared near the top of the module.
 
     wr2rd_forward #(
         .WR_CAM_DEPTH    (WR_CAM_DEPTH),
@@ -615,6 +636,7 @@ module axi_frontend_macro
         .ar_col_i            (w_ar_col),
         .ar_len_i            (w_ar_push_len),
         .ar_qos_i            (w_ar_push_qos),
+        .ar_is_last_chunk_i  (w_ar_push_is_last_chunk),
 
         .cam_valid_i         (w_wr_snap_valid),
         .cam_rank_i          (w_wr_snap_rank),
@@ -632,15 +654,17 @@ module axi_frontend_macro
         .rd_push_bank_o      (w_rd_push_bank),
         .rd_push_row_o       (w_rd_push_row),
         .rd_push_col_o       (w_rd_push_col),
-        .rd_push_len_o       (w_rd_push_len),
-        .rd_push_qos_o       (w_rd_push_qos),
+        .rd_push_len_o          (w_rd_push_len),
+        .rd_push_qos_o          (w_rd_push_qos),
+        .rd_push_is_last_chunk_o(w_rd_push_is_last_chunk),
 
-        .fwd_valid_o         (w_fwd_valid),
-        .fwd_ready_i         (w_fwd_ready),
-        .fwd_id_o            (w_fwd_id),
-        .fwd_w_buf_ptr_o     (w_fwd_w_buf_ptr),
-        .fwd_len_o           (w_fwd_len),
-        .fwd_src_slot_o      (w_fwd_src_slot),
+        .fwd_valid_o            (w_fwd_valid),
+        .fwd_ready_i            (w_fwd_ready),
+        .fwd_id_o               (w_fwd_id),
+        .fwd_w_buf_ptr_o        (w_fwd_w_buf_ptr),
+        .fwd_len_o              (w_fwd_len),
+        .fwd_src_slot_o         (w_fwd_src_slot),
+        .fwd_is_last_chunk_o    (w_fwd_is_last_chunk),
 
         .dbg_forward_hit_o   (dbg_forward_hit_o),
         .dbg_forward_miss_o  (dbg_forward_miss_o)
@@ -656,6 +680,7 @@ module axi_frontend_macro
     //=========================================================================
     logic [RD_CAM_DEPTH-1:0]                       w_rd_snap_valid;
     logic [RD_CAM_DEPTH-1:0][IW-1:0]               w_rd_snap_id;
+    logic [RD_CAM_DEPTH-1:0]                       w_rd_snap_is_last_chunk;
     logic [RD_CAM_DEPTH-1:0][RKW-1:0]              w_rd_snap_rank;
     logic [RD_CAM_DEPTH-1:0][BKW-1:0]              w_rd_snap_bank;
     logic [RD_CAM_DEPTH-1:0][RW-1:0]               w_rd_snap_row;
@@ -686,6 +711,7 @@ module axi_frontend_macro
         .push_col_i              (w_rd_push_col),
         .push_len_i              (w_rd_push_len),
         .push_qos_i              (w_rd_push_qos),
+        .push_is_last_chunk_i    (w_rd_push_is_last_chunk),
         .push_slot_o             (),
 
         .q_rank_i                (q_rank_i),
@@ -714,6 +740,7 @@ module axi_frontend_macro
         .snap_issued_o           (w_rd_snap_issued),
         .snap_qos_o              (w_rd_snap_qos),
         .snap_age_o              (w_rd_snap_age),
+        .snap_is_last_chunk_o    (w_rd_snap_is_last_chunk),
 
         .dbg_occupancy_o         (dbg_rd_cam_occ_o)
     );
@@ -734,6 +761,7 @@ module axi_frontend_macro
     assign rd_snap_qos_o  = w_rd_snap_qos;
     assign rd_snap_age_o  = w_rd_snap_age;
     assign rd_snap_id_o   = w_rd_snap_id;
+    assign rd_snap_is_last_chunk_o = w_rd_snap_is_last_chunk;
 
     // Tie unused snapshot consumers (remaining; not all wired yet).
     wire unused = |{ w_wr_snap_strb_ptr,

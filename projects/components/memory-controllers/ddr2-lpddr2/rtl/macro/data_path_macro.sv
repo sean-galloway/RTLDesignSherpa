@@ -75,6 +75,7 @@ module data_path_macro
     input  logic [RSL-1:0]             rd_op_slot_i,
     input  logic [IW-1:0]              rd_op_id_i,
     input  logic [BLW-1:0]             rd_op_len_i,
+    input  logic                       rd_op_is_last_chunk_i,
 
     // ---- host w_buf pull (axi_frontend ↔ wr_beat_sequencer) ----
     output logic                       beat_pull_strb_o,
@@ -177,6 +178,7 @@ module data_path_macro
         .op_slot_i          (rd_op_slot_i),
         .op_id_i            (rd_op_id_i),
         .op_len_i           (rd_op_len_i),
+        .op_is_last_chunk_i (rd_op_is_last_chunk_i),
         .dfi_rddata_en_o    (pre_dfi_rddata_en_o),
         .dfi_rddata_i       (dfi_rddata_i),
         .dfi_rddata_valid_i (dfi_rddata_valid_i),

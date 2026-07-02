@@ -245,6 +245,7 @@ module ddr2_lpddr2_core_macro
     logic [RD_CAM_DEPTH-1:0][3:0]            w_rd_snap_qos;
     logic [RD_CAM_DEPTH-1:0][IW-1:0]         w_rd_snap_id;
     logic [RD_CAM_DEPTH-1:0][7:0]            w_rd_snap_age;
+    logic [RD_CAM_DEPTH-1:0]                 w_rd_snap_is_last_chunk;
 
     // mark-issued strobes (scheduler → frontend)
     logic                                    w_wr_issued_we;
@@ -314,6 +315,7 @@ module ddr2_lpddr2_core_macro
     logic                       rd_op_valid;
     logic                       rd_op_ready;
     logic [IW-1:0]              rd_op_id;
+    logic                       rd_op_is_last_chunk;
 
     assign wr_op_valid = cmd_valid && ((cmd_op == OP_WR) || (cmd_op == OP_WRA));
     assign rd_op_valid = cmd_valid && ((cmd_op == OP_RD) || (cmd_op == OP_RDA));
@@ -327,6 +329,9 @@ module ddr2_lpddr2_core_macro
 
     // rd_op_id is looked up via rd_snap_id indexed by cmd_rd_slot
     assign rd_op_id = w_rd_snap_id[cmd_rd_slot];
+    // is_last_chunk lookup mirror — read by rd_cl_aligner to gate
+    // rd_inject_last_o on non-last chunks of a split AR (issue #22).
+    assign rd_op_is_last_chunk = w_rd_snap_is_last_chunk[cmd_rd_slot];
 
     // data_path → dfi_interface (pre-pack data nets)
     logic [DFI_DATA_WIDTH-1:0]  pre_dfi_wrdata;
@@ -361,6 +366,7 @@ module ddr2_lpddr2_core_macro
         .mc_rst_n                   (mc_rst_n),
         .scheme_active_i            (scheme_active_i),
         .xor_seed_i                 (xor_seed_i),
+        .dram_bl_i                  (bl_val),
 
         .s_axi_awid                 (s_axi_awid),
         .s_axi_awaddr               (s_axi_awaddr),
@@ -440,6 +446,7 @@ module ddr2_lpddr2_core_macro
         .rd_snap_qos_o              (w_rd_snap_qos),
         .rd_snap_id_o               (w_rd_snap_id),
         .rd_snap_age_o              (w_rd_snap_age),
+        .rd_snap_is_last_chunk_o    (w_rd_snap_is_last_chunk),
 
         .wr_issued_we_i             (w_wr_issued_we),
         .wr_issued_slot_i           (w_wr_issued_slot),
@@ -601,6 +608,7 @@ module ddr2_lpddr2_core_macro
         .rd_op_slot_i          (cmd_rd_slot),
         .rd_op_id_i            (rd_op_id),
         .rd_op_len_i           (cmd_len),
+        .rd_op_is_last_chunk_i (rd_op_is_last_chunk),
         .beat_pull_strb_o      (w_beat_pull_strb),
         .beat_pull_slot_o      (w_beat_pull_slot),
         .beat_pull_ptr_i       (w_beat_pull_ptr),
