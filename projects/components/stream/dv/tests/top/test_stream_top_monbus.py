@@ -98,6 +98,15 @@ async def cocotb_test_stream_top_monbus(dut):
                                       wr_xfer_beats=wr_xfer_beats)
     await tb.configure_descriptor_address_range()
 
+    # Size the scheduler write-completion timeout to the workload (the reg default
+    # of 1000 cyc is too tight for multi-channel transfers sharing one write
+    # engine). Programmed via APB since the top's timeout register is reg-driven.
+    await tb.program_scheduler_timeout(
+        num_channels=num_channels,
+        max_xfer_beats=256,  # STREAM architectural max transfer (beats)
+        profile=os.environ.get('TIMING_PROFILE', 'fixed'),
+    )
+
     # Enable the three AXI monitors (monitor+error+completion) and clear their
     # packet-drop masks so clean traffic emits completion packets that stream
     # out the group's master-write (trace) path.

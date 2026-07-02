@@ -46,6 +46,10 @@ import pytest
 import cocotb
 import random
 
+# STREAM architectural maximum single-descriptor transfer length (beats). Used as a
+# safe upper bound when sizing the scheduler write-completion timeout to the workload.
+STREAM_MAX_XFER_BEATS = 256
+
 
 # ==============================================================================
 # Test Level Configuration
@@ -213,6 +217,18 @@ async def setup_stream_testbench(dut, rd_xfer_beats=16, wr_xfer_beats=16):
     await tb.enable_channel_mask(channel_mask)
     await tb.configure_transfer_beats(rd_xfer_beats=rd_xfer_beats, wr_xfer_beats=wr_xfer_beats)
     await tb.configure_descriptor_address_range()
+
+    # Size the scheduler write-completion timeout to the actual workload. The RTL
+    # register default (0x3E8 = 1000) is far too tight for multi-channel transfers
+    # sharing one write engine (a channel legitimately waits > 1000 cycles for its
+    # turn) and produces false timeouts. On the top this register is reg-driven, so
+    # it must be programmed via APB (a dut.cfg_* poke is overridden).
+    profile = os.environ.get('TIMING_PROFILE', 'fixed')
+    await tb.program_scheduler_timeout(
+        num_channels=num_channels,
+        max_xfer_beats=STREAM_MAX_XFER_BEATS,  # architectural max transfer
+        profile=profile,
+    )
 
     return tb
 

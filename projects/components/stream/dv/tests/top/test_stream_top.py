@@ -240,6 +240,16 @@ async def cocotb_test_stream_top_basic(dut):
     # Router now default-routes all non-m0/perf addresses to PeakRDL config space
     await tb.configure_descriptor_address_range()
 
+    # Size the scheduler write-completion timeout to the workload (channels x max
+    # transfer x AXI profile). The RTL default (1000 cyc) is too tight for
+    # multi-channel transfers sharing one write engine; program it via APB since on
+    # the top the timeout register is reg-driven (a signal poke is overridden).
+    await tb.program_scheduler_timeout(
+        num_channels=num_channels,
+        max_xfer_beats=256,  # STREAM architectural max transfer (beats)
+        profile=os.environ.get('TIMING_PROFILE', 'fixed'),
+    )
+
     # Read global status
     status = await tb.read_global_status()
     tb.log.info(f"Global status after enable: 0x{status:08X}")

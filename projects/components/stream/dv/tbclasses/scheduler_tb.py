@@ -269,6 +269,10 @@ class SchedulerTB(TBBase):
         # (can be overridden by specific timeout tests)
         self.dut.cfg_sched_timeout_cycles.value = 65535  # Max 16-bit value (2^16 - 1)
         self.dut.cfg_sched_timeout_enable.value = 1
+        # Consecutive-timeout windows before a (recoverable) timeout escalates to a
+        # fatal CH_ERROR. 1 => escalate on the first window (legacy-equivalent).
+        # 0 => never escalate (pure soft/recoverable timeout). Overridden per-test.
+        self.dut.cfg_sched_timeout_limit.value = 1
 
         # Data engine interfaces
         # Note: sched_rd_ready removed - scheduler doesn't wait for read engine ready
@@ -654,6 +658,8 @@ class SchedulerTB(TBBase):
         self.log.info(f"  Reconfiguring timeout to {self.TIMEOUT_CYCLES} cycles")
         self.dut.cfg_sched_timeout_cycles.value = self.TIMEOUT_CYCLES
         self.dut.cfg_sched_timeout_enable.value = 1
+        # Escalate to CH_ERROR after a single timeout window for this test.
+        self.dut.cfg_sched_timeout_limit.value = 1
         await self.wait_clocks(self.clk_name, 2)
 
         # CRITICAL: Force write backpressure BEFORE sending descriptor
@@ -709,6 +715,72 @@ class SchedulerTB(TBBase):
             self.log.error(f"  ❌ Timeout not detected - final state=0x{fsm_state:02x}")
             self.log.error(f"  Note: Scheduler may have completed before timeout threshold")
             return False
+
+    async def test_timeout_recovery(self):
+        """Test recoverable (soft) timeout.
+
+        With cfg_sched_timeout_limit=0 the write-progress timeout must NEVER escalate
+        to CH_ERROR: it fires each window (observable) but the channel keeps waiting
+        and recovers once write progress resumes. This is the counterpart to
+        test_timeout_detection (which uses limit=1 to force escalation).
+
+        Covers testplan scenario: SCHED-05b: Recoverable timeout (no wedge)
+        """
+        self.log.info("=== Scenario SCHED-05b: Recoverable (soft) timeout ===")
+
+        # Short timeout window; limit=0 => never escalate.
+        self.dut.cfg_sched_timeout_cycles.value = self.TIMEOUT_CYCLES
+        self.dut.cfg_sched_timeout_enable.value = 1
+        self.dut.cfg_sched_timeout_limit.value = 0
+        await self.wait_clocks(self.clk_name, 2)
+
+        # Backpressure the write path before sending the descriptor.
+        self.dut.sched_wr_ready.value = 0
+        await self.wait_clocks(self.clk_name, 2)
+
+        descriptor = self.create_descriptor(src_addr=0x70000, dst_addr=0x80000, length=0x100)
+        await self.send_descriptor(descriptor)
+
+        # Wait for the write request.
+        w = 0
+        while int(self.dut.sched_wr_valid.value) != 1 and w < 50:
+            await self.wait_clocks(self.clk_name, 1)
+            w += 1
+        if w >= 50:
+            self.log.error("  ❌ Scheduler never asserted sched_wr_valid")
+            self.dut.sched_wr_ready.value = 1
+            return False
+
+        # Hold backpressure across ~3 timeout windows. CH_ERROR must never appear.
+        windows = 3
+        entered_error = False
+        for _ in range((self.TIMEOUT_CYCLES + 5) * windows):
+            await self.wait_clocks(self.clk_name, 1)
+            if int(self.dut.scheduler_state.value) == SchedulerState.CH_ERROR.value:
+                entered_error = True
+                break
+        if entered_error:
+            self.log.error("  ❌ Soft timeout wedged into CH_ERROR (should not with limit=0)")
+            self.dut.sched_wr_ready.value = 1
+            return False
+        self.log.info(f"  ✅ Survived {windows} timeout windows without CH_ERROR (recoverable)")
+
+        # Release backpressure and inject write progress -> strikes clear, no wedge.
+        self.dut.sched_wr_ready.value = 1
+        try:
+            self.dut.sched_wr_commit_strobe.value = 1
+            await self.wait_clocks(self.clk_name, 1)
+            self.dut.sched_wr_commit_strobe.value = 0
+        except Exception:
+            pass  # strobe name/shape differs -> ready release alone still recovers
+        await self.wait_clocks(self.clk_name, 10)
+
+        final_state = int(self.dut.scheduler_state.value)
+        if final_state == SchedulerState.CH_ERROR.value:
+            self.log.error(f"  ❌ Channel wedged after recovery attempt (state=0x{final_state:02x})")
+            return False
+        self.log.info(f"  ✅ Recoverable-timeout test passed (final state=0x{final_state:02x})")
+        return True
 
     async def test_irq_generation(self, num_descriptors=3):
         """Test IRQ generation via MonBus

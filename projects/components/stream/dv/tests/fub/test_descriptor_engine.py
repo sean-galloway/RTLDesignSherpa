@@ -206,10 +206,12 @@ def generate_descriptor_engine_test_params():
     # Generate final params by adding test_type to each base config.
     # 'default' timing leaves BFM timing at the TB defaults (AXI 'fixed',
     # GAXI 'backtoback') so existing coverage is unchanged.
+    # Final tuple: (test_type, cid, nc, aw, aid, fd, timing_profile, prefetch)
+    # prefetch=0 => on-demand chaining (deferred-chain path); =1 => prefetch ahead.
     params = []
     for test_type in test_types:
         for base in base_params:
-            params.append((test_type,) + base + ('default',))
+            params.append((test_type,) + base + ('default', 0))
 
     # Focused BFM-timing sweep on one representative scenario. Each row drives
     # both the AXI read slave (TIMING_PROFILE) and the apb GAXI master
@@ -217,7 +219,14 @@ def generate_descriptor_engine_test_params():
     timing_sweep = ['backtoback', 'constrained', 'slow_producer', 'burst_pause',
                     'mixed', 'gaxi_backpressure', 'gaxi_realistic']
     for tp in timing_sweep:
-        params.append(('apb_basic',) + base_params[0] + (tp,))
+        params.append(('apb_basic',) + base_params[0] + (tp, 0))
+
+    # Prefetch-enabled sweep: exercise the immediate bounded-chain path (prefetch=1)
+    # in addition to the on-demand path covered above. Both apb_basic and
+    # apb_with_delays exercise chain fetch (DESC-ENG-02) internally, so this covers
+    # single and multi-descriptor chaining with prefetch on.
+    for test_type in ['apb_basic', 'apb_with_delays']:
+        params.append((test_type,) + base_params[0] + ('default', 1))
 
     return params
 
@@ -227,8 +236,8 @@ descriptor_engine_params = generate_descriptor_engine_test_params()
 # PYTEST WRAPPER FUNCTION - Single wrapper for all test types
 # ===========================================================================
 
-@pytest.mark.parametrize("test_type, channel_id, num_channels, addr_width, axi_id_width, fifo_depth, timing_profile", descriptor_engine_params)
-def test_descriptor_engine(request, test_type, channel_id, num_channels, addr_width, axi_id_width, fifo_depth, timing_profile, test_level):
+@pytest.mark.parametrize("test_type, channel_id, num_channels, addr_width, axi_id_width, fifo_depth, timing_profile, prefetch", descriptor_engine_params)
+def test_descriptor_engine(request, test_type, channel_id, num_channels, addr_width, axi_id_width, fifo_depth, timing_profile, prefetch, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for descriptor engine tests - handles all test types."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -250,7 +259,7 @@ def test_descriptor_engine(request, test_type, channel_id, num_channels, addr_wi
     aw_str = TBBase.format_dec(addr_width, 3)
     aid_str = TBBase.format_dec(axi_id_width, 2)
     fd_str = TBBase.format_dec(fifo_depth, 2)
-    test_name_plus_params = f"test_{dut_name}_{test_type}_cid{cid_str}_nc{nc_str}_aw{aw_str}_aid{aid_str}_fd{fd_str}_{timing_profile}"
+    test_name_plus_params = f"test_{dut_name}_{test_type}_cid{cid_str}_nc{nc_str}_aw{aw_str}_aid{aid_str}_fd{fd_str}_{timing_profile}_pf{prefetch}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -283,6 +292,7 @@ def test_descriptor_engine(request, test_type, channel_id, num_channels, addr_wi
         'SEED': str(random.randint(0, 100000)),
         'TEST_LEVEL': test_level,
         'TEST_DEBUG': '0',
+        'DESCENG_PREFETCH': str(prefetch),  # 0=on-demand, 1=prefetch-ahead
     }
 
     # BFM timing profile sweep: drive both the AXI read slave and the apb GAXI

@@ -176,6 +176,14 @@ async def cocotb_test_scheduler(dut):
         tb.generate_test_report()
         assert result, "Timeout detection test failed"
 
+    elif test_type == 'timeout_recovery':
+        tb.log.info("=== Scenario SCHED-05b: Recoverable (soft) timeout ===")
+        result = await tb.test_timeout_recovery()
+        coverage.sample_scenario("timeout_recovery")
+        coverage.sample_handshake("pipeline_bubble")
+        tb.generate_test_report()
+        assert result, "Recoverable timeout test failed"
+
     elif test_type == 'irq_generation':
         tb.log.info("=== Scenario SCHED-06: IRQ generation via MonBus ===")
         result = await tb.test_irq_generation()
@@ -464,6 +472,7 @@ def generate_scheduler_test_params():
         'descriptor_error',
         'read_engine_error',
         'timeout_detection',
+        'timeout_recovery',
         'irq_generation',
         'concurrent_read_write',  # Validate deadlock fix
         # Stress/random tests for line coverage

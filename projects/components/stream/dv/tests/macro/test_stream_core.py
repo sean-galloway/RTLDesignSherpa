@@ -223,6 +223,23 @@ def generate_test_params():
                 'timing_profile': config['timing_profile'],
                 'scenario': 'long_chains',
             })
+
+            # Scenario 4: 8-channel concurrent chains. Mirrors stream_top's
+            # multi_channel test (8 channels x 6-descriptor chains) at the far
+            # simpler stream_core level, so the descriptor engine's multi-channel
+            # prefetch/idle path is exercised in the macro suite -- the 4-channel
+            # scenarios above do not reach it.
+            params.append({
+                'num_channels': 8,
+                'data_width': dw,
+                'fifo_depth': fifo_depths[dw],  # Scaled SRAM depth
+                'axi_id_width': 8,
+                'desc_count': 6,               # 6-descriptor chains (matches top)
+                'test_channels': [0, 1, 2, 3, 4, 5, 6, 7],
+                'transfer_sizes': [16, 32],
+                'timing_profile': config['timing_profile'],
+                'scenario': 'multi8_chains',
+            })
     else:
         # For gate/func: single configuration per data width
         for dw in data_widths:
@@ -470,6 +487,29 @@ async def cocotb_test_multi_channel_concurrent(dut):
     for channel in test_channels:
         await tb.wait_for_channel_idle(channel, timeout_us=20000)
         cocotb.log.info(f"Channel {channel} completed")
+
+    # Descriptor-engine idle check (matches stream_top CHANNEL_IDLE semantics).
+    # stream_core's wait_for_channel_idle only checks scheduler_idle + AXI-complete;
+    # the descriptor engine must ALSO return to idle after the chains finish. A stuck
+    # (non-idle) desc engine while all schedulers report idle is the multi-channel bug
+    # observed at stream_top -- unreachable here until this check + an 8-channel chain
+    # config were added.
+    idle_mask = 0
+    for channel in test_channels:
+        idle_mask |= (1 << channel)
+    desc_idle_ok = False
+    for _ in range(20000):
+        de_idle = int(tb.dut.descriptor_engine_idle.value)
+        if (de_idle & idle_mask) == idle_mask:
+            desc_idle_ok = True
+            break
+        await tb.wait_clocks(tb.clk_name, 10)
+    de_idle = int(tb.dut.descriptor_engine_idle.value)
+    assert desc_idle_ok, (
+        f"Descriptor engine did not return to idle after all channels completed: "
+        f"descriptor_engine_idle=0x{de_idle:02X}, expected bits 0x{idle_mask:02X} set "
+        f"(schedulers idle but desc engine stuck -- multi-channel desc-engine stall)")
+    cocotb.log.info(f"Descriptor engine idle for all channels (0x{de_idle:02X})")
 
     # Verify all transfers for all channels
     for channel in test_channels:

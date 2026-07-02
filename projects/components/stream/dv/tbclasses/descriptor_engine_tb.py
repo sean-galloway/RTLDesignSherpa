@@ -319,8 +319,10 @@ class DescriptorEngineTB(TBBase):
         """Configure descriptor engine"""
         self.log.info("Configuring descriptor engine...")
 
-        self.dut.cfg_prefetch_enable.value = 0
-        self.dut.cfg_fifo_threshold.value = 4
+        # Prefetch throttle (env-driven): 0 = on-demand (deferred-chain path),
+        # 1 = prefetch ahead up to cfg_fifo_threshold. Default 0 keeps prior behavior.
+        self.dut.cfg_prefetch_enable.value = int(os.environ.get('DESCENG_PREFETCH', '0'))
+        self.dut.cfg_fifo_threshold.value = int(os.environ.get('DESCENG_FIFO_THRESH', '4'))
         self.dut.cfg_addr0_base.value = 0x10000
         self.dut.cfg_addr0_limit.value = 0x4FFFF
         self.dut.cfg_channel_reset.value = 0

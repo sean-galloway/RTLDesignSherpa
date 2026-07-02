@@ -51,6 +51,11 @@ class StreamRegisterMap:
     DESC_ENGINE_IDLE = 0x144  # DESC_ENGINE_IDLE @ 0x144
     SCHEDULER_IDLE = 0x148    # SCHEDULER_IDLE @ 0x148
 
+    # Scheduler configuration (0x200+)
+    SCHED_TIMEOUT_CYCLES = 0x200  # write-completion timeout, cycles
+    SCHED_CONFIG = 0x204          # [0]=enable [1]=timeout_en ...
+    SCHED_TIMEOUT_LIMIT = 0x208   # [7:0] consecutive-timeout windows before fatal escalation (0=never)
+
     # Descriptor Engine Configuration (0x220+)
     DESCENG_CONFIG = 0x220
     DESCENG_ADDR0_BASE = 0x224   # Base address (lower 32 bits only)
@@ -297,13 +302,19 @@ class StreamCoreTB(TBBase):
         # Scheduler configuration
         self.dut.cfg_sched_timeout_enable.value = 1
         self.dut.cfg_sched_timeout_cycles.value = 0xFFFF
+        # Consecutive-timeout windows before a (recoverable) timeout escalates to a
+        # fatal CH_ERROR (0 = never escalate). On the stream_core macro this is a real
+        # input; on stream_top it is reg-driven (default 4) and this poke is ignored.
+        self.dut.cfg_sched_timeout_limit.value = int(os.environ.get('SCHED_TIMEOUT_LIMIT', '4'))
         self.dut.cfg_sched_err_enable.value = 1
         self.dut.cfg_sched_compl_enable.value = 1
         self.dut.cfg_sched_perf_enable.value = 1
 
-        # Descriptor engine configuration
+        # Descriptor engine configuration. Prefetch defaults on (matches historical
+        # stream_core behavior); DESCENG_PREFETCH=0 selects the on-demand path used by
+        # stream_top, which exposes the multi-channel desc-engine idle stall.
         self.dut.cfg_desceng_enable.value = 1
-        self.dut.cfg_desceng_prefetch.value = 1
+        self.dut.cfg_desceng_prefetch.value = int(os.environ.get('DESCENG_PREFETCH', '1'))
         self.dut.cfg_desceng_fifo_thresh.value = 12  # 4-bit signal, max = 15
         # NOTE: Base addresses MUST match memory layout!
         # Descriptor memory starts at 0x0001_0000
@@ -1073,6 +1084,63 @@ class StreamCoreTB(TBBase):
 
         self.transfer_start_time[channel] = cocotb.utils.get_sim_time('ns')
 
+    def _log_stall_diagnostics(self, note=""):
+        """On a channel-idle timeout, dump per-channel descriptor-engine + scheduler
+        state so the stall mechanism is visible in the log.
+
+        Reads deep verilator-inlined signals via dut._id(full_dotted_path,
+        extended=False); chained getattr fails on inlined scopes. Handles both DUT
+        roots: stream_top_ch8 (g_stream_core.u_stream_core. prefix) and the
+        stream_core macro (no prefix).
+        """
+        fsm = {0: 'IDLE', 1: 'ISSUE_ADDR', 2: 'WAIT_DATA', 3: 'COMPLETE', 4: 'ERROR'}
+
+        def rd(prefix, rel):
+            try:
+                return int(self.dut._id(prefix + rel, extended=False).value)
+            except Exception:
+                return -1
+
+        # Discover which scope prefix reaches the scheduler_group_array.
+        probe = "u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.descriptor_engine_idle"
+        prefix = None
+        for cand in ("g_stream_core.u_stream_core.", ""):
+            if rd(cand, probe) != -1:
+                prefix = cand
+                break
+        if prefix is None:
+            self.log.error(f"  _log_stall_diagnostics: no reachable scheduler_group scope [{note}]")
+            return
+
+        chfsm = {1: 'CH_IDLE', 2: 'FETCH_DESC', 4: 'XFER_DATA', 8: 'COMPLETE',
+                 16: 'NEXT_DESC', 32: 'CH_ERROR'}
+
+        self.log.error(f"=== DESC-ENGINE STATE DUMP [{note}] (prefix='{prefix}') ===")
+        for ch in range(8):
+            sg = f"{prefix}u_scheduler_group_array.gen_scheduler_groups[{ch}].u_scheduler_group"
+            de = f"{sg}.u_descriptor_engine"
+            sc = f"{sg}.u_scheduler"
+            st = rd(de + ".r_current_state", "")
+            sst = rd(sc + ".r_current_state", "")
+            self.log.error(
+                f"  ch{ch}: de_fsm={fsm.get(st, st)} "
+                f"rst_active={rd(de + '.r_channel_reset_active', '')} "
+                f"fifos_empty={rd(de + '.w_fifos_empty', '')} | "
+                f"apb_skid_v={rd(de + '.w_apb_skid_valid_out', '')} "
+                f"addr_fifo_rv={rd(de + '.w_desc_addr_fifo_rd_valid', '')} "
+                f"desc_fifo_rv={rd(de + '.w_desc_fifo_rd_valid', '')} | "
+                f"de_idle={rd(sg + '.descriptor_engine_idle', '')} "
+                f"sched_idle={rd(sg + '.scheduler_idle', '')} "
+                f"d2s_v={rd(sg + '.desceng_to_sched_valid', '')} "
+                f"d2s_r={rd(sg + '.desceng_to_sched_ready', '')} || "
+                f"sched_fsm={chfsm.get(sst, sst)} "
+                f"sched_err={rd(sc + '.sched_error', '')} "
+                f"dbg[desc={rd(sc + '.dbg_descriptor_error', '')},"
+                f"rd={rd(sc + '.dbg_read_error_sticky', '')},"
+                f"wr={rd(sc + '.dbg_write_error_sticky', '')},"
+                f"to={rd(sc + '.dbg_timeout_expired', '')}]"
+            )
+
     async def wait_for_channel_idle(self, channel, timeout_us=10000):
         """
         Wait for channel to return to idle state and all AXI transactions to complete.
@@ -1133,70 +1201,12 @@ class StreamCoreTB(TBBase):
                     self.log.error(f"  DESC_ENGINE_IDLE=0x{desc_eng_idle:02X} (ch{channel}={(desc_eng_idle >> channel) & 1})")
                     self.log.error(f"  SCHEDULER_IDLE=0x{sched_idle:02X} (ch{channel}={(sched_idle >> channel) & 1})")
 
-                    # Also probe internal RTL signals directly for comparison
-                    try:
-                        await ReadOnly()
-                        # Try to access stream_core's internal signals (inside generate block)
-                        # stream_top_ch8.g_stream_core.u_stream_core (when USE_AXI_MONITORS=0)
-                        rtl_sched_idle = int(self.dut.g_stream_core.u_stream_core.scheduler_idle.value)
-                        rtl_desc_idle = int(self.dut.g_stream_core.u_stream_core.descriptor_engine_idle.value)
-                        self.log.error(f"  RTL scheduler_idle=0x{rtl_sched_idle:02X} (ch{channel}={(rtl_sched_idle >> channel) & 1})")
-                        self.log.error(f"  RTL descriptor_engine_idle=0x{rtl_desc_idle:02X} (ch{channel}={(rtl_desc_idle >> channel) & 1})")
-                        # Also probe signals directly in stream_top_ch8
-                        top_sched_idle = int(self.dut.scheduler_idle.value)
-                        top_desc_idle = int(self.dut.descriptor_engine_idle.value)
-                        self.log.error(f"  TOP scheduler_idle=0x{top_sched_idle:02X}")
-                        self.log.error(f"  TOP descriptor_engine_idle=0x{top_desc_idle:02X}")
-
-                        # Probe hwif_in struct values inside stream_regs to see if struct connection works
-                        try:
-                            # Access the hwif_in port of u_stream_regs
-                            hwif_in_val = self.dut.hwif_in.value
-                            self.log.error(f"  hwif_in (raw): {hwif_in_val}")
-                            # Probe intermediate signals that feed the struct
-                            try:
-                                hwif_sched_idle = int(self.dut.hwif_scheduler_idle.value)
-                                hwif_desc_idle = int(self.dut.hwif_desc_engine_idle.value)
-                                hwif_ch_idle = int(self.dut.hwif_channel_idle.value)
-                                self.log.error(f"  hwif_scheduler_idle=0x{hwif_sched_idle:02X}")
-                                self.log.error(f"  hwif_desc_engine_idle=0x{hwif_desc_idle:02X}")
-                                self.log.error(f"  hwif_channel_idle=0x{hwif_ch_idle:02X}")
-                            except Exception as e2:
-                                self.log.error(f"  Cannot access hwif_ intermediate signals: {e2}")
-                            # Probe debug outputs that show hwif_in struct field values
-                            try:
-                                debug_sched = int(self.dut.debug_hwif_scheduler_idle.value)
-                                debug_desc = int(self.dut.debug_hwif_desc_engine_idle.value)
-                                debug_ch = int(self.dut.debug_hwif_channel_idle.value)
-                                self.log.error(f"  debug_hwif_scheduler_idle=0x{debug_sched:02X}")
-                                self.log.error(f"  debug_hwif_desc_engine_idle=0x{debug_desc:02X}")
-                                self.log.error(f"  debug_hwif_channel_idle=0x{debug_ch:02X}")
-                            except Exception as e2b:
-                                self.log.error(f"  Cannot access debug_hwif_ signals: {e2b}")
-                            # Probe regblk interface debug signals
-                            try:
-                                debug_req = int(self.dut.debug_regblk_req.value)
-                                debug_req_is_wr = int(self.dut.debug_regblk_req_is_wr.value)
-                                debug_addr = int(self.dut.debug_regblk_addr.value)
-                                debug_rd_data = int(self.dut.debug_regblk_rd_data.value)
-                                debug_rd_ack = int(self.dut.debug_regblk_rd_ack.value)
-                                self.log.error(f"  debug_regblk_req={debug_req}")
-                                self.log.error(f"  debug_regblk_req_is_wr={debug_req_is_wr}")
-                                self.log.error(f"  debug_regblk_addr=0x{debug_addr:03X}")
-                                self.log.error(f"  debug_regblk_rd_data=0x{debug_rd_data:08X}")
-                                self.log.error(f"  debug_regblk_rd_ack={debug_rd_ack}")
-                            except Exception as e2c:
-                                self.log.error(f"  Cannot access debug_regblk_ signals: {e2c}")
-                            # Try individual fields if Verilator exposes them
-                            try:
-                                hwif_sched = self.dut.u_stream_regs.hwif_in.value
-                                self.log.error(f"  u_stream_regs.hwif_in (raw): {hwif_sched}")
-                            except Exception as e3:
-                                self.log.error(f"  Cannot access u_stream_regs.hwif_in: {e3}")
-                        except Exception as e4:
-                            self.log.error(f"  Cannot access hwif_in: {e4}")
-                    except Exception as e:
-                        self.log.error(f"  Could not probe internal RTL signals: {e}")
+                    # Probe internal RTL signals via dut._id(full_dotted_path).
+                    # Verilator inlines submodule scopes, so chained getattr
+                    # (dut.g_stream_core.u_stream_core...) fails; the full path in
+                    # one _id() call resolves against the flattened public signals.
+                    await ReadOnly()
+                    self._log_stall_diagnostics(f"ch{channel} timeout")
                     return False
 
                 # Poll every 10us to reduce APB traffic (1000 cycles @ 10ns = 10us)
@@ -1309,6 +1319,45 @@ class StreamCoreTB(TBBase):
         await self.apb_master.reset_bus()
 
         self.log.info("APB Master initialized for stream_top configuration")
+
+    # Worst-case AXI ready-delay (cycles/beat) per timing profile. Used to size
+    # the scheduler write-completion timeout so a legitimate multi-channel transfer
+    # sharing one write engine never trips a false timeout.
+    _PROFILE_BEAT_CYCLES = {
+        'fixed': 2, 'fast': 2, 'high_throughput': 2, 'mixed': 18,
+        'constrained': 12, 'burst_pause': 18, 'slow_producer': 24, 'slow': 24,
+    }
+
+    async def program_scheduler_timeout(self, num_channels, max_xfer_beats,
+                                        profile='fixed', margin=8):
+        """Size SCHED_TIMEOUT_CYCLES from the actual test workload.
+
+        The scheduler's write-completion timeout must exceed the worst-case time a
+        channel waits for the shared write engine under full contention: roughly
+        (channels contending) x (beats to move) x (cycles/beat for the AXI profile),
+        times a safety margin. A fixed default (reset 0x3E8=1000) is far too tight
+        for multi-channel + delayed AXI and produces false timeouts.
+
+        On stream_top this register is reg-driven, so it MUST be programmed via APB
+        (a dut.cfg_*.value poke is overwritten every delta); on the stream_core macro
+        cfg_sched_timeout_cycles is a real input, so the poke also applies there.
+        """
+        beat_cycles = self._PROFILE_BEAT_CYCLES.get(profile, 24)
+        cycles = margin * max(1, num_channels) * max(1, max_xfer_beats) * beat_cycles
+        cycles = min(cycles, 0x00FF_FFFF)  # keep within a sane 24-bit range
+        try:
+            await self.write_apb_register(StreamRegisterMap.SCHED_TIMEOUT_CYCLES, cycles)
+        except Exception as e:
+            self.log.debug(f"program_scheduler_timeout: APB write skipped ({e})")
+        try:
+            self.dut.cfg_sched_timeout_cycles.value = cycles  # macro input path
+        except Exception:
+            pass
+        self.log.info(
+            f"Scheduler write-timeout = {cycles} cycles (channels={num_channels}, "
+            f"max_beats={max_xfer_beats}, profile={profile}, {beat_cycles} cyc/beat, "
+            f"margin={margin}x)")
+        return cycles
 
     async def write_apb_register(self, addr, data):
         """
