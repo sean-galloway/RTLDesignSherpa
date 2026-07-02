@@ -709,6 +709,44 @@ class RapidsBeatsTopDatapathTB(RapidsBeatsTopTB):
         await self.wait_clocks(self.clk_name, 200)
         return self._score([channel], sink_expect)
 
+    async def program_sched_timeout(self, cycles: int):
+        """Re-program SCHED_TIMEOUT_CYCLES BY NAME so the scheduler's
+        write-completion watchdog is sized to the workload. With many channels
+        sharing the single read/write engine, the reset/bring-up default is far
+        too tight -- a concurrent batch legitimately takes many thousands of
+        cycles to drain, and an undersized timeout would (as it did for STREAM)
+        fire spuriously and raise sched_error. Widen it to `cycles`."""
+        await self.write_reg('SCHED_TIMEOUT_CYCLES', cycles & 0xFFFF_FFFF)
+        await self.wait_clocks(self.clk_name, 5)
+
+    async def test_multi_channel_concurrent(self, channels, ndesc=2, beats=4
+                                            ) -> Tuple[bool, Dict[str, Any]]:
+        """Drive ALL given channels concurrently, each with `ndesc` descriptors.
+
+        Each descriptor slot is kicked off across every channel back-to-back:
+        kick_off_channel returns as soon as the descriptor engine ACCEPTS the
+        kick (not when the transfer completes), so by the time slot N is issued
+        on channel 7, channels 0..6 are already in flight -- all of them
+        contending for the single shared source-read / sink-write engine. This
+        is exactly the multi-channel contention that surfaced the STREAM
+        scheduler-timeout bug, hence program_sched_timeout() sizes the watchdog
+        to the batch before calling this. Source and sink are verified
+        end-to-end per channel/descriptor by _score()."""
+        self.log.info(f"=== Top datapath CONCURRENT stress: {len(channels)} channels "
+                      f"x {ndesc} desc x {beats} beats ===")
+        sink_expect = {ch: [] for ch in channels}
+        for slot in range(ndesc):
+            for ch in channels:
+                _, dst_addr, snk_pattern = await self._run_channel_transfer(
+                    ch, beats, desc_slot=slot)
+                sink_expect[ch].append((dst_addr, snk_pattern, beats))
+            # All channels for this slot are now kicked + filled and contend for
+            # the shared engines; let the whole batch drain back to idle.
+            await self.wait_system_idle(timeout_cycles=60000)
+            await self.wait_clocks(self.clk_name, 50)
+        await self.wait_clocks(self.clk_name, 300)
+        return self._score(list(channels), sink_expect)
+
     def _score(self, channels, sink_expect) -> Tuple[bool, Dict[str, Any]]:
         errors = list(self.test_errors)
 

@@ -134,12 +134,190 @@ async def cocotb_test_datapath(dut):
     tb.log.info("rapids_beats_top datapath PASSED (source + sink verified)")
 
 
+@cocotb.test(timeout_time=180, timeout_unit="ms")
+async def cocotb_test_datapath_stress(dut):
+    """Multi-channel CONCURRENT datapath stress: drive ALL 8 channels, each with
+    several descriptors, kicked off close together so they run concurrently and
+    contend for the shared read/write engines. Verifies SOURCE + SINK end-to-end
+    for every channel/descriptor, and sched_error==0 / system_idle==1 at the end.
+
+    Concurrency is what surfaced the STREAM scheduler-timeout bug, so the
+    scheduler watchdog (SCHED_TIMEOUT_CYCLES) is programmed BY NAME to a value
+    sized for the whole contended batch before kickoff."""
+    tb = RapidsBeatsTopDatapathTB(dut)
+    await tb.setup_clocks_and_reset()   # clock/reset + APB master + config-by-name + BFMs
+    await tb.initialize_test()          # start the source drainer
+
+    # Size the write-completion watchdog to the concurrent workload (8 channels
+    # sharing one write engine). BY NAME via SCHED_TIMEOUT_CYCLES.
+    await tb.program_sched_timeout(500_000)
+
+    channels = list(range(tb.NUM_CHANNELS))   # all 8 channels concurrently
+    ok, stats = await tb.test_multi_channel_concurrent(channels, ndesc=3, beats=4)
+
+    tb.finalize_test()
+
+    system_idle, sched_error = tb.read_status_signals()
+    tb.log.info(f"stress stats={stats} system_idle={system_idle} sched_error=0x{sched_error:X}")
+    assert ok, f"concurrent multi-channel datapath failed: {stats.get('errors')}"
+    assert sched_error == 0, f"sched_error non-zero after stress run: 0x{sched_error:X}"
+    assert system_idle == 1, f"system not idle after stress run: {system_idle}"
+    tb.log.info("rapids_beats_top datapath_stress PASSED (8 channels x 3 desc verified)")
+
+
+# ---------------------------------------------------------------------------
+# Monbus-group (USE_AXI_MONITORS=1) coverage -- mirrors stream_top_monbus.
+# Monitor CSRs referenced BY NAME (resolved from rapids_regmap.py via the TB's
+# RegisterMap): the MON block lives at 0x10C0+, reachable only with a 13-bit
+# APB, hence APB_ADDR_WIDTH=13 for this build.
+# Enable bits mirror stream: MON_EN[0], ERR_EN[1], COMPL_EN[2] -> 0x7 (leaves
+# COMPRESS_EN[5]/PERF_EN[4] off; the group is built USE_COMPRESSION=0 anyway).
+# ---------------------------------------------------------------------------
+_MON_ENABLE_REGS   = ('DAXMON_ENABLE', 'RDMON_ENABLE', 'WRMON_ENABLE')
+_MON_EN_VALUE      = 0x7
+_MON_PKT_MASK_REGS = ('DAXMON_PKT_MASK', 'RDMON_PKT_MASK', 'WRMON_PKT_MASK')
+_MON_ERR_CFG_REGS  = ('DAXMON_ERR_CFG', 'RDMON_ERR_CFG', 'WRMON_ERR_CFG')
+# ERR_CFG.ERR_SELECT[3:0] bitmask by packet_type (bit1=Completion); ERR_MASK[15:8].
+_ERR_CFG_ROUTE_COMPL = 0xFF02   # route completions -> err FIFO, error packets masked
+_ERR_CFG_NONE        = 0xFF00   # nothing routed to err FIFO (trace path only)
+# Monbus-group flush window (top-level cfg_mon_* inputs).
+_MON_BASE  = 0x0000_1000
+_MON_LIMIT = 0x0000_5000 - 1
+_MON_WMARK = 3                  # one raw record = 3 beats -> flush eagerly
+
+
+@cocotb.test(timeout_time=180, timeout_unit="ms")
+async def cocotb_test_monbus(dut):
+    """USE_AXI_MONITORS=1 monbus AXI-Lite end-to-end (mirrors stream_top_monbus).
+
+    Builds the top with the three AXI monitors + monbus_axil_axil_group active,
+    enables them BY NAME over APB, drives real descriptor transfers, and attaches
+    the shared MonbusGroupHarness to the top's m_axil_mon_* (64-bit trace) /
+    s_axil_err_* (32-bit err-drain) / mon_irq ports.
+      Phase A -- completions stream out m_axil_mon_* and decode as AXI completions.
+      Phase B -- completions routed to the err FIFO drive mon_irq; draining over
+                 the 32-bit s_axil_err_* port (2:1 serializer, 6 beats/record)
+                 clears the IRQ and the drained packets still decode."""
+    from cocotb.triggers import ClockCycles
+    from TBClasses.monbus import PktType
+    from TBClasses.scoreboards.monbus_group import (
+        MonbusGroupHarness, BeatLayout, BeatOrder)
+
+    tb = RapidsBeatsTopDatapathTB(dut)   # apb_addr_width=13 comes from TEST_APB_ADDR_WIDTH env
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+
+    # Enable the three AXI monitors (monitor+error+completion) and clear their
+    # packet-drop masks so clean traffic emits completion packets.
+    for reg in _MON_ENABLE_REGS:
+        await tb.write_reg(reg, _MON_EN_VALUE)
+    for reg in _MON_PKT_MASK_REGS:
+        await tb.write_reg(reg, 0x0)
+
+    # Program the group flush window (top-level inputs); default 0/0 stalls the
+    # master-write path.
+    dut.cfg_mon_base_addr.value = _MON_BASE
+    dut.cfg_mon_limit_addr.value = _MON_LIMIT
+    dut.cfg_mon_flush_watermark.value = _MON_WMARK
+    await ClockCycles(dut.aclk, 5)
+
+    # The group instance lives inside the g_axi_monitors generate; resolve it
+    # best-effort for the fifo-count probes (trace/drain decode use only ports).
+    group_node = None
+    try:
+        group_node = dut.g_axi_monitors.u_monbus_axil_group
+    except AttributeError:
+        tb.log.info("group instance not reachable; fifo-count probes disabled")
+
+    mon = MonbusGroupHarness(
+        dut, dut.aclk,
+        drain_proto="axil", trace_proto="axil",
+        drain_prefix="s_axil_err_", trace_prefix="m_axil_mon_",
+        # rapids wires the group with S_AXIL_DATA_WIDTH=32: the err drain is a
+        # 32-bit AXIL port (2:1 read serializer -> 6 beats/record); the trace
+        # (m_axil_mon_*) stays 64-bit. Identical to stream_top_ch8.
+        drain_data_width=32,
+        group_node=group_node,
+        irq_sig=dut.mon_irq,
+        # Both ports emit beat0={tag,ts}, beat1=pkt[127:64], beat2=pkt[63:0].
+        layout_drain=BeatLayout(order=BeatOrder.TS_HI_LO),
+        layout_trace=BeatLayout(order=BeatOrder.TS_HI_LO),
+        log=tb.log,
+    )
+
+    # ----- Phase A: trace path (completions stream out m_axil_mon_*) -----
+    tb.log.info("=== Phase A: monbus group trace path (completions) ===")
+    for reg in _MON_ERR_CFG_REGS:
+        await tb.write_reg(reg, _ERR_CFG_NONE)     # nothing routed to err FIFO
+    mon.start_trace_consumer()
+    okA, statsA = await tb.test_single_channel(channel=0, beats=8)
+    assert okA, f"Phase A transfer failed data integrity: {statsA.get('errors')}"
+    await ClockCycles(dut.aclk, 4000)              # let the trace path flush
+    mon.stop_trace_consumer()
+    pkts = mon.parse_trace_records()
+    st = mon.get_stats()
+    tb.log.info(f"[rapids-monbus] trace beats={st.trace_beats} pkts={len(pkts)} "
+                f"types={sorted({p.get_packet_type_name() for p in pkts})} "
+                f"units={sorted({p.unit_id for p in pkts})} "
+                f"protocols={sorted({int(p.protocol) for p in pkts})}")
+    assert len(pkts) > 0, "no monbus records flushed from the rapids group trace path"
+    assert len(pkts) == st.trace_beats // 3, "trace beats did not decode cleanly"
+    assert any(p.packet_type == PktType.PktTypeCompletion for p in pkts), (
+        f"no completion packets; got {sorted({p.get_packet_type_name() for p in pkts})}")
+    tb.log.info("Phase A: trace path verified")
+
+    # ----- Phase B: err FIFO + mon_irq (completions routed to err FIFO) -----
+    tb.log.info("=== Phase B: err FIFO + mon_irq ===")
+    for reg in _MON_ERR_CFG_REGS:
+        await tb.write_reg(reg, _ERR_CFG_ROUTE_COMPL)   # completions -> err FIFO
+    mon.clear()
+    mon.start_irq_watch()
+    okB, statsB = await tb.test_single_channel(channel=1, beats=8)
+    assert okB, f"Phase B transfer failed data integrity: {statsB.get('errors')}"
+    await ClockCycles(dut.aclk, 50)
+
+    irq_live = int(dut.mon_irq.value)
+    tb.log.info(f"[rapids-monbus] mon_irq={irq_live} irq_first_cycle={mon.irq_first_cycle}")
+    assert mon.irq_asserted, "mon_irq never asserted with completions routed to err FIFO"
+
+    # Drain records over the 32-bit port until mon_irq de-asserts (irq_out =
+    # !err_fifo_empty). Loop-until-IRQ-clear is robust to the err_fifo_count net
+    # not being reachable from cocotb (it is a PINCONNECTEMPTY output at the top).
+    drained = []
+    for _ in range(256):
+        if int(dut.mon_irq.value) == 0:
+            break
+        try:
+            drained.extend(await mon.drain_records(1))
+        except TimeoutError:
+            break
+    await ClockCycles(dut.aclk, 20)
+    irq_after = int(dut.mon_irq.value)
+    mon.stop_irq_watch()
+    tb.finalize_test()
+    tb.log.info(f"[rapids-monbus] err-drained pkts={len(drained)} "
+                f"types={sorted({p.get_packet_type_name() for p in drained})} "
+                f"protocols={sorted({int(p.protocol) for p in drained})} "
+                f"irq_after_drain={irq_after}")
+    assert len(drained) >= 1, "no records drained from the err FIFO"
+    assert all(p.packet_type == PktType.PktTypeCompletion for p in drained), (
+        f"non-completion in err FIFO: {sorted({p.get_packet_type_name() for p in drained})}")
+    assert irq_after == 0, "mon_irq did not clear after draining the err FIFO"
+    mon.stop_fifo_monitor()
+    tb.log.info("=== rapids_beats_top monbus-group trace + err-FIFO/IRQ paths verified ===")
+
+
 # ===========================================================================
 # PYTEST WRAPPER
 # ===========================================================================
 
-def _run_top(testcase, test_name):
-    """Shared runner: compile rapids_beats_top and run the given cocotb testcase."""
+def _run_top(testcase, test_name, *, use_axi_monitors=0, apb_addr_width=12):
+    """Shared runner: compile rapids_beats_top and run the given cocotb testcase.
+
+    apb_addr_width / use_axi_monitors are threaded through BOTH the RTL build
+    (-G params) AND the TB (TEST_* env) so they stay in lock-step. The monbus
+    test needs APB_ADDR_WIDTH=13 to reach the MON regfile at 0x1000+ and
+    USE_AXI_MONITORS=1 to instantiate the monbus_axil_axil_group under test."""
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -168,9 +346,9 @@ def _run_top(testcase, test_name):
         'ADDR_WIDTH': 64,
         'AXI_ID_WIDTH': 8,
         'SRAM_DEPTH': 512,
-        'APB_ADDR_WIDTH': 12,
+        'APB_ADDR_WIDTH': apb_addr_width,
         'APB_DATA_WIDTH': 32,
-        'USE_AXI_MONITORS': 0,
+        'USE_AXI_MONITORS': use_axi_monitors,
     }
 
     extra_env = {
@@ -183,7 +361,7 @@ def _run_top(testcase, test_name):
         'TEST_ADDR_WIDTH': '64',
         'TEST_DATA_WIDTH': '512',
         'TEST_AXI_ID_WIDTH': '8',
-        'TEST_APB_ADDR_WIDTH': '12',
+        'TEST_APB_ADDR_WIDTH': str(apb_addr_width),
         'TEST_APB_DATA_WIDTH': '32',
     }
 
@@ -237,8 +415,25 @@ def test_rapids_beats_top_datapath(request):
     _run_top("cocotb_test_datapath", "test_rapids_beats_top_datapath")
 
 
+@pytest.mark.top_beats
+@pytest.mark.rapids_beats_top
+def test_rapids_beats_top_datapath_stress(request):
+    """Multi-channel concurrent datapath stress: all 8 channels, 3 desc each."""
+    _run_top("cocotb_test_datapath_stress", "test_rapids_beats_top_datapath_stress")
+
+
+@pytest.mark.top_beats
+@pytest.mark.rapids_beats_top
+def test_rapids_beats_top_monbus(request):
+    """USE_AXI_MONITORS=1 monbus AXI-Lite end-to-end (trace + err-FIFO/IRQ)."""
+    _run_top("cocotb_test_monbus", "test_rapids_beats_top_monbus",
+             use_axi_monitors=1, apb_addr_width=13)
+
+
 if __name__ == "__main__":
     class MockRequest:
         pass
     test_rapids_beats_top(MockRequest())
     test_rapids_beats_top_datapath(MockRequest())
+    test_rapids_beats_top_datapath_stress(MockRequest())
+    test_rapids_beats_top_monbus(MockRequest())
