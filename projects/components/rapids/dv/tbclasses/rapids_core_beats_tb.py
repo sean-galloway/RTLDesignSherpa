@@ -149,6 +149,7 @@ class RapidsCoreBeatsTB(TBBase):
         d.cfg_channel_reset.value = 0
         d.cfg_sched_enable.value = 1
         d.cfg_sched_timeout_cycles.value = 100000
+        d.cfg_sched_timeout_limit.value = 1  # escalate after one window (legacy timeout->error)
         d.cfg_sched_timeout_enable.value = 1
         d.cfg_sched_err_enable.value = 1
         d.cfg_sched_compl_enable.value = 1

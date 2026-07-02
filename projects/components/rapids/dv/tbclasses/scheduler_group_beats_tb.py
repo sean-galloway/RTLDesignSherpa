@@ -108,6 +108,7 @@ class SchedulerGroupBeatsTB(TBBase):
         self.dut.cfg_channel_enable.value = 1
         self.dut.cfg_channel_reset.value = 0
         self.dut.cfg_sched_timeout_cycles.value = 1000
+        self.dut.cfg_sched_timeout_limit.value = 1  # escalate after one window (legacy timeout->error)
         self.dut.cfg_sched_timeout_enable.value = 1
         self.dut.cfg_sched_err_enable.value = 1
         self.dut.cfg_sched_compl_enable.value = 1
@@ -171,6 +172,8 @@ class SchedulerGroupBeatsTB(TBBase):
         self.dut.sched_rd_beats_done.value = 0
         self.dut.sched_wr_done_strobe.value = 0
         self.dut.sched_wr_beats_done.value = 0
+        self.dut.sched_wr_commit_strobe.value = 0
+        self.dut.sched_wr_commit_beats.value = 0
         self.dut.sched_rd_error.value = 0
         self.dut.sched_wr_error.value = 0
         self.dut.mon_ready.value = 1
@@ -386,11 +389,18 @@ class SchedulerGroupBeatsTB(TBBase):
         self.log.info(f"RD completion: beats={beats_done}")
 
     async def send_wr_completion(self, beats_done: int):
-        """Send write completion strobe."""
+        """Send write completion strobes (issue + commit).
+
+        commit_strobe now gates scheduler completion, so pulse it alongside the
+        issue done_strobe (this simulator models issue and commit together).
+        """
         self.dut.sched_wr_done_strobe.value = 1
         self.dut.sched_wr_beats_done.value = beats_done
+        self.dut.sched_wr_commit_strobe.value = 1
+        self.dut.sched_wr_commit_beats.value = beats_done
         await self.wait_clocks(self.clk_name, 1)
         self.dut.sched_wr_done_strobe.value = 0
+        self.dut.sched_wr_commit_strobe.value = 0
         self.completions_sent += 1
         self.log.info(f"WR completion: beats={beats_done}")
 

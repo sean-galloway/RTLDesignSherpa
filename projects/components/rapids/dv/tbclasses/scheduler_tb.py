@@ -218,6 +218,10 @@ class SchedulerTB(TBBase):
         self.dut.cfg_channel_enable.value = 1
         self.dut.cfg_channel_reset.value = 0
         self.dut.cfg_sched_timeout_cycles.value = 1000  # Timeout threshold
+        # Consecutive-timeout windows before a (recoverable) timeout escalates to a
+        # fatal CH_ERROR. 1 => escalate on the first window (legacy-equivalent);
+        # 0 => never escalate (pure soft/recoverable). Overridden per-test.
+        self.dut.cfg_sched_timeout_limit.value = 1
         self.dut.cfg_sched_timeout_enable.value = 1      # Enable timeout detection
 
         # Descriptor interface is owned by the GAXI master (created right after
@@ -226,11 +230,15 @@ class SchedulerTB(TBBase):
         # Engine write-ready: completion-handshake signal, held asserted.
         self.dut.sched_wr_ready.value = 1
 
-        # Completion interface (strobes - driven raw by the engine simulators)
+        # Completion interface (strobes - driven raw by the engine simulators).
+        # sched_wr_done_strobe = AW issued; sched_wr_commit_strobe = B committed
+        # (now gates completion). Both are pulsed together by the write simulator.
         self.dut.sched_rd_done_strobe.value = 0
         self.dut.sched_rd_beats_done.value = 0
         self.dut.sched_wr_done_strobe.value = 0
         self.dut.sched_wr_beats_done.value = 0
+        self.dut.sched_wr_commit_strobe.value = 0
+        self.dut.sched_wr_commit_beats.value = 0
 
         # Error signals
         self.dut.sched_rd_error.value = 0
@@ -497,11 +505,16 @@ class SchedulerTB(TBBase):
                     # Complete a burst (simulate partial completion)
                     burst_size = min(beats, random.randint(1, 16))
 
-                    # Pulse done strobe with beats completed
+                    # Pulse done (AW issued) AND commit (B committed) strobes with the
+                    # beats completed. This simple write simulator models issue and
+                    # commit together; commit now gates completion in the scheduler.
                     self.dut.sched_wr_done_strobe.value = 1
                     self.dut.sched_wr_beats_done.value = burst_size
+                    self.dut.sched_wr_commit_strobe.value = 1
+                    self.dut.sched_wr_commit_beats.value = burst_size
                     await self.wait_clocks(self.clk_name, 1)
                     self.dut.sched_wr_done_strobe.value = 0
+                    self.dut.sched_wr_commit_strobe.value = 0
 
                     self.total_write_beats += burst_size
                     self.write_transfers_completed += 1

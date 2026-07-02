@@ -124,6 +124,7 @@ class SchedulerGroupArrayBeatsTB(TBBase):
         # Global scheduler configuration
         self.dut.cfg_sched_enable.value = 1
         self.dut.cfg_sched_timeout_cycles.value = 1000
+        self.dut.cfg_sched_timeout_limit.value = 1  # escalate after one window (legacy timeout->error)
         self.dut.cfg_sched_timeout_enable.value = 1
         self.dut.cfg_sched_err_enable.value = 1
         self.dut.cfg_sched_compl_enable.value = 1
@@ -207,12 +208,14 @@ class SchedulerGroupArrayBeatsTB(TBBase):
         # Per-channel completion strobes - packed arrays
         self.dut.sched_rd_done_strobe.value = 0
         self.dut.sched_wr_done_strobe.value = 0
+        self.dut.sched_wr_commit_strobe.value = 0
         self.dut.sched_rd_error.value = 0
         self.dut.sched_wr_error.value = 0
 
         # Per-channel beats done - flattened by Verilator
         self.dut.sched_rd_beats_done.value = 0
         self.dut.sched_wr_beats_done.value = 0
+        self.dut.sched_wr_commit_beats.value = 0
 
         # MonBus ready
         self.dut.mon_ready.value = 1
@@ -486,13 +489,20 @@ class SchedulerGroupArrayBeatsTB(TBBase):
         self.log.info(f"RD completion: channel={channel}, beats={beats_done}")
 
     async def send_wr_completion(self, channel: int, beats_done: int):
-        """Send write completion strobe for specific channel."""
-        # sched_wr_done_strobe is a packed array
+        """Send write completion strobes (issue + commit) for a specific channel.
+
+        commit_strobe now gates scheduler completion, so pulse it alongside the
+        issue done_strobe (this simulator models issue and commit together).
+        """
+        # sched_wr_done_strobe / sched_wr_commit_strobe are packed arrays
         self._set_packed_bit(self.dut.sched_wr_done_strobe, channel, 1)
-        # sched_wr_beats_done is a flattened array
+        self._set_packed_bit(self.dut.sched_wr_commit_strobe, channel, 1)
+        # sched_wr_beats_done / sched_wr_commit_beats are flattened arrays
         self._set_array_element(self.dut.sched_wr_beats_done, channel, 32, beats_done)
+        self._set_array_element(self.dut.sched_wr_commit_beats, channel, 32, beats_done)
         await self.wait_clocks(self.clk_name, 1)
         self._set_packed_bit(self.dut.sched_wr_done_strobe, channel, 0)
+        self._set_packed_bit(self.dut.sched_wr_commit_strobe, channel, 0)
         self.completions_sent[channel] += 1
         self.log.info(f"WR completion: channel={channel}, beats={beats_done}")
 

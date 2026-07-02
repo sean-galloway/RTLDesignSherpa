@@ -56,6 +56,10 @@ class TimeoutTB:
         self.dut.cfg_channel_enable.value = 1
         self.dut.cfg_channel_reset.value = 0
         self.dut.cfg_sched_timeout_cycles.value = 1000  # 1000 cycle timeout
+        # Escalate to a fatal CH_ERROR after a single timeout window so the timeout
+        # surfaces on sched_error. (Recoverable-timeout: cfg_sched_timeout_limit=0
+        # would never escalate; this test verifies the escalation/error path.)
+        self.dut.cfg_sched_timeout_limit.value = 1
         self.dut.cfg_sched_timeout_enable.value = 1     # Enable timeout detection
 
         # Reset
