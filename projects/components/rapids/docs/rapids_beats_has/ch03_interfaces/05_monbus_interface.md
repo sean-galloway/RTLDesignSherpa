@@ -188,14 +188,40 @@ graph LR
 - No packet loss (backpressure if output blocked)
 - Priority boosting for ERROR packets
 
+## Top-Level MonBus Delivery (monbus_axil_axil_group)
+
+At the top level (`rapids_beats_top`), the internal MonBus is not exposed as a
+raw 64-bit port. Instead, when `USE_AXI_MONITORS = 1`, packets are combined and
+delivered through a `monbus_axil_axil_group`:
+
+1. **AXI monitors:** `axi4_master_rd_mon` and `axi4_master_wr_mon` observe the
+   read (`m_axi_rd`) and write (`m_axi_wr`) data masters and emit monitor
+   packets. When `USE_AXI_MONITORS = 0`, these taps are bypassed and the
+   MonBus outputs below are tied off (`mon_irq = 0`).
+2. **Arbitration:** a 3-input `monbus_arbiter` merges the read-monitor packet,
+   the write-monitor packet, and the core's descriptor-monitor packet.
+3. **Delivery:** the combined stream feeds `monbus_axil_axil_group`, which
+   presents three external interfaces:
+
+| Interface | Signals | Purpose |
+|-----------|---------|---------|
+| Error-drain slave | `s_axil_err_ar*`, `s_axil_err_r*` (AXI-Lite, 32-bit read) | CPU reads captured error events from the error FIFO |
+| Capture master | `m_axil_mon_aw*`, `m_axil_mon_w*` (64-bit `wdata`), `m_axil_mon_b*` | Bulk-writes the MonBus trace to system memory |
+| Interrupt | `mon_irq` | Asserts on error/threshold events |
+
+: Top-Level MonBus AXI-Lite Group
+
+The capture region and flush behavior are configured by `cfg_mon_base_addr`,
+`cfg_mon_limit_addr`, and `cfg_mon_flush_watermark`.
+
 ## Integration Notes
 
 ### Downstream Connection
 
-MonBus output typically connects to:
+Internally, MonBus output connects to:
 
-1. **MonBus Aggregator** - Combines multiple sources
-2. **AXIL Converter** - Maps to AXI-Lite for CPU access
+1. **MonBus Arbiter** - Combines core + rd/wr monitor sources
+2. **monbus_axil_axil_group** - Error-drain slave, capture master, and `mon_irq`
 3. **Debug FIFO** - Buffered access for debug tools
 
 ### Packet Rate

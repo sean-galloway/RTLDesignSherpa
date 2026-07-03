@@ -110,11 +110,26 @@ parameter int CHAN_WIDTH = $clog2(NUM_CHANNELS);
 | `sched_wr_addr` | input | AW | Destination address |
 | `sched_wr_beats` | input | 32 | Total beats to write |
 | `sched_wr_id` | input | CW | Channel ID |
-| `sched_wr_done_strobe` | output | 1 | Burst complete strobe |
-| `sched_wr_beats_done` | output | 32 | Beats completed |
+| `sched_wr_done_strobe` | output | NC | AW-issue strobe (pulses on AW handshake) |
+| `sched_wr_beats_done` | output | NC*32 | Beats issued this strobe (`awlen + 1`) |
+| `sched_wr_commit_strobe` | output | NC | COMMIT strobe (pulses on B response) |
+| `sched_wr_commit_beats` | output | NC*32 | Beats committed this strobe |
 | `sched_wr_error` | output | 1 | Error flag |
 
 : Table 2.4.3: Scheduler Interface
+
+**Two completion strobes per channel.** The engine reports write progress to the
+scheduler at two points, letting the scheduler gate completion on data actually
+landing in memory:
+
+- `sched_wr_done_strobe` / `sched_wr_beats_done` pulse when the **AW command
+  handshakes** (`m_axi_awvalid && m_axi_awready`); the beat count is taken
+  directly from `m_axi_awlen + 1`. This advances the scheduler's destination
+  address (ISSUE tracking).
+- `sched_wr_commit_strobe` / `sched_wr_commit_beats` pulse when the matching **B
+  response** arrives (`m_axi_bvalid && m_axi_bready` for the channel); the beat
+  count is recovered from the per-channel B-phase transaction FIFO. This is the
+  COMMIT the scheduler uses to declare the transfer complete.
 
 ### AXI4 Write Master Interface
 
@@ -206,4 +221,4 @@ Phase 1: AW (Address)    Phase 2: W (Data)    Phase 3: B (Response)
 
 ---
 
-**Last Updated:** 2025-01-10
+**Last Updated:** 2026-07-02

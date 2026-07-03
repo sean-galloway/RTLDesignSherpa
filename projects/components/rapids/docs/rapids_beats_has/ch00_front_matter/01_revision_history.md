@@ -26,12 +26,28 @@
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2026-01-17 | RTL Design Sherpa | Initial release |
+| 0.6 | 2026-07-02 | RTL Design Sherpa | Resynced to RTL top-level integration |
 
 : Document Revision History
 
 ---
 
 ## Change Summary
+
+### Version 0.6 (2026-07-02)
+
+**RTL Resync**
+
+- Documented the `rapids_beats_top` integration: single APB slave routed to
+  descriptor kick-off (0x000-0x03F) and the `rapids_regs` register block (base
+  0x100-0x3FF plus monitor regfile @ 0x1000).
+- Refreshed the register map with the actual PeakRDL-generated addresses,
+  including the monitor regfile at 0x1000 and `SCHED_TIMEOUT_LIMIT` at 0x208.
+- Added the MonBus AXI-Lite group (error-drain slave `s_axil_err_*`, capture
+  master `m_axil_mon_*`, `mon_irq`) and the USE_AXI_MONITORS-gated rd/wr AXI
+  monitors to the block diagram, APB, and MonBus interface chapters.
+- Reflected scheduler recoverable write-progress timeout + B-response commit
+  gating and functional descriptor prefetch.
 
 ### Version 1.0 (2026-01-17)
 

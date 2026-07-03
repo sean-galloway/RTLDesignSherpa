@@ -25,142 +25,104 @@
 
 ## Overview
 
-RAPIDS Beats provides a memory-mapped register interface for configuration and status. Registers are accessed via the APB interface and organized by function.
+RAPIDS Beats provides a memory-mapped register interface for configuration and
+status. All registers are accessed through the single top-level APB slave
+(`s_apb_*`) and are implemented by the PeakRDL-generated `rapids_regs` register
+block. A single addrmap (one APB slave) contains a base regfile at 0x100-0x3FF
+and a nested monitor regfile (`rapids_mon_regs`) at 0x1000. Descriptor kick-off
+uses a separate address range (0x000-0x03F) routed to `apbtodescr`.
 
-## Register Summary
+Because the monitor regfile lives at 0x1000, the APB address bus must be at
+least 13 bits wide.
 
-### Global Registers (Offset 0x000-0x0FF)
+## Address Space Layout
 
-| Offset | Name | Width | Access | Description |
-|--------|------|-------|--------|-------------|
-| 0x000 | `VERSION` | 32 | RO | IP version register |
-| 0x004 | `CONFIG` | 32 | RO | Configuration parameters |
-| 0x008 | `GLOBAL_CTRL` | 32 | RW | Global control |
-| 0x00C | `GLOBAL_STATUS` | 32 | RO | Global status |
-| 0x010 | `IRQ_STATUS` | 32 | RW1C | Interrupt status |
-| 0x014 | `IRQ_ENABLE` | 32 | RW | Interrupt enable |
-| 0x018 | `IRQ_FORCE` | 32 | WO | Force interrupt (debug) |
+| Range | Target | Purpose |
+|-------|--------|---------|
+| 0x000-0x03F | `apbtodescr` | Per-channel descriptor kick-off |
+| 0x100-0x3FF | `rapids_regs` base regfile | Configuration and status |
+| 0x1000+ | `rapids_regs` monitor regfile | AXI-monitor config and performance |
 
-: Global Registers
+: Address Space Layout
 
-### Per-Channel Registers (Offset 0x100 + ch*0x40)
+## Base Registers (0x100-0x3FF)
 
-| Offset | Name | Width | Access | Description |
-|--------|------|-------|--------|-------------|
-| +0x00 | `CH_CTRL` | 32 | RW | Channel control |
-| +0x04 | `CH_STATUS` | 32 | RO | Channel status |
-| +0x08 | `DESC_PTR_LO` | 32 | RW | Descriptor pointer [31:0] |
-| +0x0C | `DESC_PTR_HI` | 32 | RW | Descriptor pointer [63:32] |
-| +0x10 | `XFER_COUNT` | 32 | RO | Beats transferred |
-| +0x14 | `ERR_STATUS` | 32 | RW1C | Error status |
-| +0x18 | `CH_CONFIG` | 32 | RW | Channel configuration |
+| Offset | Name | Access | Description |
+|--------|------|--------|-------------|
+| 0x100 | `GLOBAL_CTRL` | RW | `GLOBAL_EN[0]`, `GLOBAL_RST[1]` (self-clearing) |
+| 0x104 | `GLOBAL_STATUS` | RO | `SYSTEM_IDLE[0]` |
+| 0x108 | `VERSION` | RO | `MINOR[7:0]`, `MAJOR[15:8]`, `NUM_CHANNELS[23:16]=8` |
+| 0x120 | `CHANNEL_ENABLE` | RW | `CH_EN[7:0]` per-channel enable |
+| 0x124 | `CHANNEL_RESET` | RW | `CH_RST[7:0]` per-channel reset (self-clearing) |
+| 0x140 | `CHANNEL_IDLE` | RO | `CH_IDLE[7:0]` |
+| 0x144 | `DESC_ENGINE_IDLE` | RO | Per-channel descriptor-engine idle |
+| 0x148 | `SCHEDULER_IDLE` | RO | Per-channel scheduler idle (excludes CH_ERROR) |
+| 0x150-0x16C | `CH_STATE[0..7]` | RO | Per-channel FSM state (stride 0x4) |
+| 0x170 | `SCHED_ERROR` | RO | Per-channel sticky scheduler error |
+| 0x174 | `AXI_RD_COMPLETE` | RO | Per-channel read-complete |
+| 0x178 | `AXI_WR_COMPLETE` | RO | Per-channel write-complete |
+| 0x200 | `SCHED_TIMEOUT_CYCLES` | RW | Write-progress timeout window (cycles, reset 1000) |
+| 0x204 | `SCHED_CONFIG` | RW | `SCHED_EN`, `TIMEOUT_EN`, `ERR_EN`, `COMPL_EN`, `PERF_EN` |
+| 0x208 | `SCHED_TIMEOUT_LIMIT` | RW | `LIMIT[7:0]` escalation limit (reset 4, 0 = never) |
+| 0x220 | `DESCENG_CONFIG` | RW | `DESCENG_EN[0]`, `PREFETCH_EN[1]`, `FIFO_THRESH[5:2]` (reset 8) |
+| 0x224 | `DESCENG_ADDR0_BASE` | RW | Descriptor address range 0 base [31:0] |
+| 0x228 | `DESCENG_ADDR0_LIMIT` | RW | Descriptor address range 0 limit [31:0] |
+| 0x22C | `DESCENG_ADDR1_BASE` | RW | Descriptor address range 1 base [31:0] |
+| 0x230 | `DESCENG_ADDR1_LIMIT` | RW | Descriptor address range 1 limit [31:0] |
+| 0x2A0 | `AXI_XFER_CONFIG` | RW | AXI transfer sizing configuration |
+| 0x2B0 | `PERF_CONFIG` | RW | Performance profiler configuration |
+| 0x2C0-0x2CC | `OBS_CTRL`/`OBS_FLAGS`/`OBS_DATA0`/`OBS_DATA1` | RW/RO | Observation mux |
+| 0x35C | `PERF_CH_SEL` | RW | Performance channel select |
+| 0x378-0x380 | `HIST_SEL`/`HIST_DATA`/`HIST_TOTAL` | RW/RO | Latency histogram |
 
-: Per-Channel Registers
+: Base Registers
 
-## Register Descriptions
+## Monitor Registers (0x1000)
 
-### VERSION (0x000) - Read Only
+| Offset | Name | Access | Description |
+|--------|------|--------|-------------|
+| 0x1000 | `MON_FIFO_STATUS` | RO | MonBus capture/error FIFO status |
+| 0x1004 | `MON_FIFO_COUNT` | RO | MonBus FIFO occupancy |
+| 0x10C0-0x10DC | `DAXMON_*` | RW | Descriptor-monitor config (enable/timeout/latency/masks) |
+| 0x10E0-0x10FC | `RDMON_*` | RW | Read-monitor config (same layout) |
+| 0x1100-0x111C | `WRMON_*` | RW | Write-monitor config (same layout, incl. `COMPRESS_EN`) |
+| 0x1150-0x1178 | `DAXMON_PERF_*` | RO/RW | Descriptor-monitor performance counters |
+| 0x1180-0x11A8 | `RDMON_PERF_*` | RO/RW | Read-monitor performance counters |
+| 0x11B0-0x11D8 | `WRMON_PERF_*` | RO/RW | Write-monitor performance counters |
+| 0x11E0-0x11F4 | `{RD,WR}MON_PERF_CH_*` | RO | Per-channel producer/backpressure/starve/idle/overflow |
+
+: Monitor Registers (base 0x1000)
+
+## Key Register Fields
+
+### GLOBAL_CTRL (0x100) - Read/Write
 
 | Bits | Field | Reset | Description |
 |------|-------|-------|-------------|
-| [31:24] | `major` | 0x01 | Major version |
-| [23:16] | `minor` | 0x00 | Minor version |
-| [15:0] | `patch` | 0x0000 | Patch level |
-
-: VERSION Register
-
-### CONFIG (0x004) - Read Only
-
-| Bits | Field | Reset | Description |
-|------|-------|-------|-------------|
-| [31:24] | `num_channels` | 0x08 | Number of channels |
-| [23:16] | `data_width` | 0x40 | Data width / 8 (64 = 512-bit) |
-| [15:8] | `sram_depth` | varies | SRAM depth / 16 |
-| [7:0] | `features` | varies | Feature bits |
-
-: CONFIG Register
-
-### GLOBAL_CTRL (0x008) - Read/Write
-
-| Bits | Field | Reset | Description |
-|------|-------|-------|-------------|
-| [31] | `soft_reset` | 0 | Write 1 to reset all channels |
-| [30:8] | Reserved | 0 | Reserved |
-| [7:0] | `clock_gate_en` | 0xFF | Per-channel clock gate enable |
+| [0] | `GLOBAL_EN` | 0 | Master enable for the entire engine |
+| [1] | `GLOBAL_RST` | 0 | Global reset (self-clearing) |
+| [31:2] | Reserved | 0 | Reserved |
 
 : GLOBAL_CTRL Register
 
-### GLOBAL_STATUS (0x00C) - Read Only
+### SCHED_TIMEOUT_LIMIT (0x208) - Read/Write
 
 | Bits | Field | Reset | Description |
 |------|-------|-------|-------------|
-| [31:24] | Reserved | 0 | Reserved |
-| [23:16] | `error_channels` | 0 | Channels with errors |
-| [15:8] | `active_channels` | 0 | Channels in transfer |
-| [7:0] | `idle_channels` | 0xFF | Channels idle |
+| [7:0] | `LIMIT` | 4 | Consecutive write-progress timeout windows before escalating to a fatal, sticky CH_ERROR. 0 = never escalate. Total escalation time ~= LIMIT x SCHED_TIMEOUT_CYCLES. |
 
-: GLOBAL_STATUS Register
+: SCHED_TIMEOUT_LIMIT Register
 
-### IRQ_STATUS (0x010) - Read/Write-1-to-Clear
+### DESCENG_CONFIG (0x220) - Read/Write
 
 | Bits | Field | Reset | Description |
 |------|-------|-------|-------------|
-| [31:24] | `ch_error` | 0 | Channel error interrupts |
-| [23:16] | Reserved | 0 | Reserved |
-| [15:8] | `ch_complete` | 0 | Channel completion interrupts |
-| [7:0] | Reserved | 0 | Reserved |
+| [0] | `DESCENG_EN` | 1 | Descriptor engine master enable |
+| [1] | `PREFETCH_EN` | 0 | Prefetch chaining (0 = on-demand, ~1 ahead) |
+| [5:2] | `FIFO_THRESH` | 8 | Descriptors buffered ahead when prefetch enabled |
+| [31:6] | Reserved | 0 | Reserved |
 
-: IRQ_STATUS Register
-
-### CH_CTRL (0x100 + ch*0x40) - Read/Write
-
-| Bits | Field | Reset | Description |
-|------|-------|-------|-------------|
-| [31] | `enable` | 0 | Channel enable |
-| [30] | `kick` | 0 | Write 1 to start (self-clearing) |
-| [29] | `abort` | 0 | Write 1 to abort (self-clearing) |
-| [28] | `soft_reset` | 0 | Write 1 to reset channel |
-| [27:0] | Reserved | 0 | Reserved |
-
-: CH_CTRL Register
-
-### CH_STATUS (0x104 + ch*0x40) - Read Only
-
-| Bits | Field | Reset | Description |
-|------|-------|-------|-------------|
-| [31:28] | `state` | 0 | FSM state encoding |
-| [27:24] | Reserved | 0 | Reserved |
-| [23:16] | `desc_count` | 0 | Descriptors processed |
-| [15:8] | `sram_level` | 0 | Current SRAM fill level |
-| [7:0] | `flags` | 0 | Status flags |
-
-: CH_STATUS Register
-
-**State Encoding:**
-
-| Value | State |
-|-------|-------|
-| 0x0 | IDLE |
-| 0x1 | WAIT_DESC |
-| 0x2 | PARSE_DESC |
-| 0x3 | XFER_DATA |
-| 0x4 | CHECK_NEXT |
-| 0x5 | COMPLETE |
-| 0xE | ERROR |
-| 0xF | RESET |
-
-: CH_STATUS State Encoding
-
-### ERR_STATUS (0x114 + ch*0x40) - Read/Write-1-to-Clear
-
-| Bits | Field | Reset | Description |
-|------|-------|-------|-------------|
-| [31:28] | `axi_resp` | 0 | AXI error response code |
-| [27:24] | `error_type` | 0 | Error type encoding |
-| [23:16] | `error_desc_idx` | 0 | Descriptor index at error |
-| [15:0] | Reserved | 0 | Reserved |
-
-: ERR_STATUS Register
+: DESCENG_CONFIG Register
 
 ## Register Access Timing
 
@@ -224,7 +186,7 @@ Writing to the `kick` bit triggers descriptor processing:
     ["APB Write",
       {"name": "psel", "wave": "01...0......."},
       {"name": "penable", "wave": "0.1..0......."},
-      {"name": "paddr", "wave": "x=...x.......", "data": ["0x100"]},
+      {"name": "paddr", "wave": "x=...x.......", "data": ["0x000"]},
       {"name": "pwdata", "wave": "x=...x.......", "data": ["KICK"]}
     ],
     {},
@@ -241,27 +203,15 @@ Writing to the `kick` bit triggers descriptor processing:
 
 ## Address Decoding
 
-### Address Space Layout
+Registers are global (not per-channel windows); per-channel fields are packed
+as bit lanes within a single 32-bit register (e.g. `CHANNEL_ENABLE.CH_EN[7:0]`,
+`CHANNEL_IDLE.CH_IDLE[7:0]`). The only per-channel array is `CH_STATE[0..7]` at
+0x150-0x16C (stride 0x4). Descriptor kick-off is a separate address range
+(0x000-0x03F) handled by `apbtodescr`, not part of the register regfile.
 
 ```
-0x000 - 0x0FF: Global registers
-0x100 - 0x13F: Channel 0 registers
-0x140 - 0x17F: Channel 1 registers
-0x180 - 0x1BF: Channel 2 registers
-0x1C0 - 0x1FF: Channel 3 registers
-0x200 - 0x23F: Channel 4 registers
-0x240 - 0x27F: Channel 5 registers
-0x280 - 0x2BF: Channel 6 registers
-0x2C0 - 0x2FF: Channel 7 registers
-0x300 - 0x3FF: Reserved
+0x000 - 0x03F: Descriptor kick-off (apbtodescr)
+0x100 - 0x3FF: Base configuration / status registers
+0x1000+      : Monitor configuration / performance registers
 ```
-
-### Channel Address Formula
-
-```
-channel_base = 0x100 + (channel_number * 0x40)
-register_addr = channel_base + register_offset
-```
-
-Example: Channel 3 CH_STATUS = 0x100 + (3 * 0x40) + 0x04 = 0x1C4
 

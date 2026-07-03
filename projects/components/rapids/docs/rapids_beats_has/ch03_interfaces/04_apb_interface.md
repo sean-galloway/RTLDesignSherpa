@@ -25,28 +25,48 @@
 
 ## Overview
 
-RAPIDS Beats uses an APB-like interface for configuration and descriptor kick-off. This interface allows software to:
+At the top level (`rapids_beats_top`), RAPIDS Beats exposes a single **APB4
+slave** (`s_apb_*`) for all software access. This interface allows software to:
 
-1. Configure channel parameters
+1. Configure channel and monitor parameters (via the register block)
 2. Initiate descriptor processing (kick-off)
 3. Read status and error information
 
-## Configuration Interface
+## APB Slave and Address Routing
 
-### Signal List
+The APB slave is converted to an internal command/response transaction and
+routed by address to two targets:
+
+| Address Range | Target | Purpose |
+|---------------|--------|---------|
+| 0x000-0x03F | Descriptor kick-off (`apbtodescr`) | Per-channel descriptor chain start |
+| 0x100-0x3FF | `rapids_regs` (base regfile) | Channel/scheduler/descriptor configuration and status |
+| 0x1000+ | `rapids_regs` (monitor regfile) | AXI-monitor configuration and performance counters |
+
+: APB Address Routing
+
+Because the monitor regfile is located at 0x1000, the APB address bus must be at
+least 13 bits wide to reach it. Configuration that was formerly imagined as
+discrete `cfg_*` ports is now driven internally by the register block through
+`rapids_config_block`; see the [Register Map](../ch05_programming/02_register_map.md)
+for the full address map, and the descriptor address ranges
+(`DESCENG_ADDR0/1_*` at 0x224-0x230).
+
+### APB Slave Signal List
 
 | Signal | Width | Direction | Description |
 |--------|-------|-----------|-------------|
-| `apb_valid` | NC | input | Per-channel kick-off valid |
-| `apb_ready` | NC | output | Per-channel ready |
-| `apb_addr` | 64 | input | Descriptor address |
-| `cfg_channel_enable` | NC | input | Per-channel enable |
-| `cfg_addr0_base` | 64 | input | Address range 0 base |
-| `cfg_addr0_limit` | 64 | input | Address range 0 limit |
-| `cfg_addr1_base` | 64 | input | Address range 1 base |
-| `cfg_addr1_limit` | 64 | input | Address range 1 limit |
+| `s_apb_paddr` | APB_ADDR_WIDTH (>=13) | input | Address |
+| `s_apb_psel` | 1 | input | Select |
+| `s_apb_penable` | 1 | input | Enable phase |
+| `s_apb_pwrite` | 1 | input | Write / read |
+| `s_apb_pwdata` | 32 | input | Write data |
+| `s_apb_pstrb` | 4 | input | Write byte strobes |
+| `s_apb_prdata` | 32 | output | Read data |
+| `s_apb_pready` | 1 | output | Ready |
+| `s_apb_pslverr` | 1 | output | Slave error |
 
-: APB Configuration Signals (NC = NUM_CHANNELS)
+: APB Slave Signals
 
 ### Descriptor Kick-Off
 
@@ -118,64 +138,43 @@ Valid if:
   (addr >= cfg_addr1_base && addr < cfg_addr1_limit)
 ```
 
-### Configuration Parameters
+### Configuration Registers
 
-| Register | Offset | Width | Description |
-|----------|--------|-------|-------------|
-| `CTRL` | 0x00 | 32 | Global control |
-| `STATUS` | 0x04 | 32 | Global status |
-| `CH_ENABLE` | 0x08 | 8 | Channel enable bitmap |
-| `CH_STATUS` | 0x0C | 8 | Channel busy bitmap |
-| `ADDR0_BASE` | 0x10 | 64 | Address range 0 base |
-| `ADDR0_LIMIT` | 0x18 | 64 | Address range 0 limit |
-| `ADDR1_BASE` | 0x20 | 64 | Address range 1 base |
-| `ADDR1_LIMIT` | 0x28 | 64 | Address range 1 limit |
-| `IRQ_ENABLE` | 0x30 | 8 | IRQ enable per channel |
-| `IRQ_STATUS` | 0x34 | 8 | IRQ status per channel |
+Configuration and status registers are provided by the `rapids_regs` register
+block. See the [Register Map](../ch05_programming/02_register_map.md) for the
+complete, RTL-accurate address map. The registers most relevant to bring-up are:
 
-: Configuration Register Map
+| Register | Offset | Description |
+|----------|--------|-------------|
+| `GLOBAL_CTRL` | 0x100 | `GLOBAL_EN`, `GLOBAL_RST` (self-clearing) |
+| `CHANNEL_ENABLE` | 0x120 | Per-channel enable bitmap |
+| `SCHED_TIMEOUT_CYCLES` | 0x200 | Write-progress timeout window |
+| `SCHED_TIMEOUT_LIMIT` | 0x208 | Consecutive-timeout escalation limit (0 = never) |
+| `DESCENG_CONFIG` | 0x220 | Descriptor-engine enable / prefetch / FIFO threshold |
+| `DESCENG_ADDR0_BASE`/`_LIMIT` | 0x224/0x228 | Descriptor address range 0 |
 
-### Control Register (CTRL)
-
-| Bit | Name | Description |
-|-----|------|-------------|
-| 0 | ENABLE | Global enable |
-| 1 | SOFT_RESET | Soft reset (self-clearing) |
-| 7:2 | Reserved | - |
-
-: CTRL Register Bits
-
-### Status Register (STATUS)
-
-| Bit | Name | Description |
-|-----|------|-------------|
-| 0 | BUSY | Any channel busy |
-| 1 | ERROR | Any channel error |
-| 7:2 | Reserved | - |
-
-: STATUS Register Bits
+: Key Configuration Registers
 
 ## Programming Sequence
 
 ### Initialization
 
 ```c
-// 1. Assert soft reset
-CTRL = 0x02;
-while (CTRL & 0x02);  // Wait for reset complete
+// 1. Optional global reset (self-clearing)
+GLOBAL_CTRL = 0x2;
+while (GLOBAL_CTRL & 0x2);   // wait for GLOBAL_RST to clear
 
-// 2. Configure address ranges
-ADDR0_BASE = 0x80000000;
-ADDR0_LIMIT = 0x90000000;
+// 2. Configure descriptor address range(s)
+DESCENG_ADDR0_BASE  = 0x8000_0000;
+DESCENG_ADDR0_LIMIT = 0x9000_0000;
 
-// 3. Enable desired channels
-CH_ENABLE = 0xFF;  // Enable all 8 channels
+// 3. Scheduler timeout policy
+SCHED_TIMEOUT_CYCLES = 1000;
+SCHED_TIMEOUT_LIMIT  = 4;    // escalate after 4 stalled windows; 0 = never
 
-// 4. Enable IRQs if needed
-IRQ_ENABLE = 0xFF;
-
-// 5. Global enable
-CTRL = 0x01;
+// 4. Enable channels and global enable
+CHANNEL_ENABLE = 0xFF;       // enable all 8 channels
+GLOBAL_CTRL    = 0x1;        // GLOBAL_EN
 ```
 
 ### Descriptor Kick-Off

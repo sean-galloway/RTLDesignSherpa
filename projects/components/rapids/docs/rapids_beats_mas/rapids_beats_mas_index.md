@@ -23,8 +23,8 @@
 
 # RAPIDS Beats Architecture MAS
 
-**Version:** 0.25
-**Date:** 2025-01-10
+**Version:** 0.6
+**Date:** 2026-07-02
 **Purpose:** Module Architecture Specification for RAPIDS Phase 1 "Beats" Architecture
 
 ---
@@ -78,6 +78,9 @@
 
 **Top-Level Integration:**
 - [RAPIDS Core Beats](ch03_macro_blocks/11_rapids_core_beats.md)
+- [RAPIDS Registers](ch03_macro_blocks/12_rapids_regs.md)
+- [RAPIDS Config Block](ch03_macro_blocks/13_rapids_config_block.md)
+- [RAPIDS Beats Top](ch03_macro_blocks/14_rapids_beats_top.md)
 
 ### Chapter 4: Interfaces
 
@@ -118,7 +121,10 @@
 | snk_sram_controller_unit | `snk_sram_controller_unit.sv` | Per-channel sink SRAM unit | Implemented |
 | src_sram_controller | `src_sram_controller.sv` | Source SRAM buffer management | Implemented |
 | src_sram_controller_unit | `src_sram_controller_unit.sv` | Per-channel source SRAM unit | Implemented |
-| rapids_core_beats | `rapids_core_beats.sv` | Top-level RAPIDS integration | Implemented |
+| rapids_core_beats | `rapids_core_beats.sv` | Core RAPIDS integration (scheduler array + data paths) | Implemented |
+| rapids_regs | `rapids_regs.sv` (generated) | PeakRDL register block (base + MON regfile @ 0x1000) | Implemented |
+| rapids_config_block | `rapids_config_block.sv` | Maps register `hwif_out` to core/monitor `cfg_*` | Implemented |
+| rapids_beats_top | `rapids_beats_top.sv` | Top-level: APB slave, kickoff, monitors, MonBus AXI-Lite group | Implemented |
 
 : Macro Module Summary
 
@@ -221,5 +227,5 @@ The "beats" architecture is a Phase 1 implementation of RAPIDS that shares conce
 
 ---
 
-**Last Updated:** 2025-01-10
+**Last Updated:** 2026-07-02
 **Maintained By:** RAPIDS Architecture Team

@@ -165,6 +165,15 @@ RAPIDS implements watchdog timers for detecting stalled operations:
 
 : Timeout Thresholds
 
+**Recoverable write-progress timeout.** The scheduler's write-progress watchdog
+is recoverable: each expired window (`SCHED_TIMEOUT_CYCLES`) increments a strike
+counter, and the channel only escalates to a fatal, sticky `CH_ERROR` after
+`SCHED_TIMEOUT_LIMIT` (register 0x208) consecutive stalled windows. Any write
+progress -- an AW issue or a B-response commit -- clears the strike counter. A
+limit of 0 disables escalation entirely (soft timeout). A faulted channel in
+`CH_ERROR` is reported via `SCHED_ERROR` and is deliberately excluded from
+`SCHEDULER_IDLE`.
+
 ```wavedrom
 {
   "signal": [

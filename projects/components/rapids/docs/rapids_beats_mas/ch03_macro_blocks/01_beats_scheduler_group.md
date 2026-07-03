@@ -117,10 +117,11 @@ parameter int MON_UNIT_ID = 1;
 |--------|-----------|-------|-------------|
 | `cfg_channel_enable` | input | 1 | Enable channel |
 | `cfg_channel_reset` | input | 1 | Soft reset |
-| `cfg_sched_timeout_cycles` | input | 16 | Timeout threshold |
+| `cfg_sched_timeout_cycles` | input | 32 | Write-progress timeout window (cycles) |
+| `cfg_sched_timeout_limit` | input | 8 | Consecutive-timeout windows before fatal escalation (0 = never) |
 | `cfg_sched_timeout_enable` | input | 1 | Enable timeout |
 | `cfg_desceng_enable` | input | 1 | Enable descriptor engine |
-| `cfg_desceng_prefetch` | input | 1 | Enable prefetching |
+| `cfg_desceng_prefetch` | input | 1 | Enable prefetch chaining |
 | `cfg_desceng_fifo_thresh` | input | 4 | Prefetch threshold |
 | `cfg_desceng_addr0_base` | input | AW | Address range 0 base |
 | `cfg_desceng_addr0_limit` | input | AW | Address range 0 limit |
@@ -152,7 +153,9 @@ parameter int MON_UNIT_ID = 1;
 | `sched_wr_valid` | output | 1 | Write request |
 | `sched_wr_addr` | output | AW | Write address |
 | `sched_wr_beats` | output | 32 | Write beats |
-| `sched_wr_done_strobe` | input | 1 | Write complete |
+| `sched_wr_done_strobe` | input | 1 | Write AW-issue strobe |
+| `sched_wr_commit_strobe` | input | 1 | Write COMMIT strobe (B response) |
+| `sched_wr_commit_beats` | input | 32 | Beats committed this strobe |
 
 : Table 3.1.6: Scheduler Data Interfaces
 
@@ -199,4 +202,4 @@ scheduler.monbus_pkt   ----+
 
 ---
 
-**Last Updated:** 2025-01-10
+**Last Updated:** 2026-07-02

@@ -111,9 +111,8 @@ parameter logic [3:0] MON_UNIT_ID = 4'h1;        // Unit identifier
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `cfg_enable` | input | 1 | Enable descriptor engine |
-| `cfg_prefetch` | input | 1 | Enable prefetching |
-| `cfg_fifo_thresh` | input | 4 | Prefetch threshold |
+| `cfg_prefetch_enable` | input | 1 | Enable prefetch chaining (0 = on-demand, ~1 ahead) |
+| `cfg_fifo_threshold` | input | 4 | Prefetch depth (descriptors buffered ahead when enabled) |
 | `cfg_addr0_base` | input | AW | Valid address range 0 base |
 | `cfg_addr0_limit` | input | AW | Valid address range 0 limit |
 | `cfg_addr1_base` | input | AW | Valid address range 1 base |
@@ -233,4 +232,51 @@ Invalid addresses generate an error and halt the descriptor chain.
 
 ---
 
-**Last Updated:** 2025-01-10
+## Prefetch and Autonomous Chaining
+
+`cfg_prefetch_enable` and `cfg_fifo_threshold` are functional prefetch controls
+(previously declared-but-unused, which left chaining permanently greedy). They
+throttle how far ahead the engine fetches chained descriptors by comparing the
+output descriptor FIFO occupancy (`w_desc_fifo_count`) against a computed
+`w_prefetch_limit`:
+
+```
+if      (!cfg_prefetch_enable)      w_prefetch_limit = 1;   // on-demand
+else if (cfg_fifo_threshold == 0)   w_prefetch_limit = 1;   // guard (0 would stall)
+else                                w_prefetch_limit = cfg_fifo_threshold;
+
+w_prefetch_allows = (w_desc_fifo_count < w_prefetch_limit);
+```
+
+- **Prefetch OFF (`cfg_prefetch_enable = 0`):** limit forced to 1, so a chained
+  fetch is only allowed when the output FIFO has drained -- the engine stays
+  roughly one descriptor ahead of the scheduler (on-demand).
+- **Prefetch ON:** the engine buffers up to `cfg_fifo_threshold` descriptors
+  ahead.
+
+### Chaining Decision
+
+A chain fetch issues immediately when all of the following hold:
+
+```
+w_should_chain = w_chain_eligible     // valid non-last descriptor, in range, no error
+              && w_desc_committed      // current descriptor accepted into output FIFO
+              && w_prefetch_allows     // occupancy below prefetch limit
+              && w_desc_addr_fifo_wr_ready;  // address FIFO has a slot
+```
+
+### Deferred (Throttle-Blocked) Chain Fetch
+
+If a descriptor commits and is chain-eligible but the fetch cannot issue this
+cycle (throttled by `w_prefetch_allows`, or the address FIFO is full), the owed
+fetch is recorded rather than dropped:
+
+- `r_chain_pending` is set and the next-descriptor pointer is held in
+  `r_pending_chain_addr`.
+- The deferred fetch is reissued (`w_pending_push_fire`) once the output FIFO
+  drains enough that `w_prefetch_allows` is true again and the address FIFO has
+  a slot, clearing `r_chain_pending`.
+
+---
+
+**Last Updated:** 2026-07-02

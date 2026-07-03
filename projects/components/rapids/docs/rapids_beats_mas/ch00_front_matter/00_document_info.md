@@ -139,9 +139,10 @@ Revisions follow the convention x.y, where x is the major version and y is the m
 | Rev | Date | Author | Notes |
 |-----|------|--------|-------|
 | 0.25 | 2025-01-10 | seang | Initial RAPIDS Beats MAS structure |
+| 0.6 | 2026-07-02 | seang | Resynced to RTL: scheduler recoverable write-progress timeout (`cfg_sched_timeout_limit`, strike escalation, `scheduler_idle` excludes CH_ERROR) and B-response commit gating; functional descriptor prefetch (`cfg_prefetch_enable`/`cfg_fifo_threshold`, deferred chaining); AXI write engine COMMIT strobes; commit/timeout-limit plumbing through `rapids_core_beats`; added `rapids_regs` register block (monitors @ 0x1000), `rapids_config_block`, and `rapids_beats_top` integration with the MonBus AXI-Lite group |
 
 : Table 0.2: RAPIDS Beats MAS Document Revision History
 
 ---
 
-**Last Updated:** 2025-01-10
+**Last Updated:** 2026-07-02

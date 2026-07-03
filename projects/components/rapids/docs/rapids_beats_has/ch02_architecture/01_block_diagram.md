@@ -91,6 +91,49 @@ graph TB
     style SRC_PATH fill:#ffccbc
 ```
 
+## Top-Level Integration (rapids_beats_top)
+
+`rapids_core_beats` is wrapped by `rapids_beats_top`, which adds the software
+register interface, configuration mapping, and monitoring infrastructure. A
+single APB slave feeds a command/response router that splits accesses between
+per-channel descriptor kick-off (`apbtodescr`, 0x000-0x03F) and the `rapids_regs`
+register block (base config at 0x100-0x3FF, monitor regfile at 0x1000).
+`rapids_config_block` translates the register `hwif_out` into the core/monitor
+`cfg_*` signals.
+
+When `USE_AXI_MONITORS = 1`, AXI transaction monitors observe the read and write
+data masters; their packets are merged with the core descriptor-monitor packet
+by a `monbus_arbiter` and delivered through a `monbus_axil_axil_group` to an
+AXI-Lite error-drain slave, an AXI-Lite capture master, and a `mon_irq`
+interrupt.
+
+```mermaid
+graph TB
+    APB["APB4 Slave<br/>s_apb_*"] --> ROUTER["cmdrsp_router"]
+    ROUTER -->|"0x000-0x03F"| KICK["apbtodescr<br/>(descriptor kick-off)"]
+    ROUTER -->|"0x100+ / 0x1000"| REGS["rapids_regs<br/>(base + MON regfile)"]
+    REGS --> CFG["rapids_config_block<br/>(hwif_out -> cfg_*)"]
+    KICK --> CORE["rapids_core_beats"]
+    CFG --> CORE
+
+    CORE -->|"m_axi_rd"| RDMON["axi4_master_rd_mon"]
+    CORE -->|"m_axi_wr"| WRMON["axi4_master_wr_mon"]
+    RDMON --> MRD["m_axi_rd"]
+    WRMON --> MWR["m_axi_wr"]
+
+    CORE -->|"desc mon pkt"| ARB["monbus_arbiter (3:1)"]
+    RDMON --> ARB
+    WRMON --> ARB
+    ARB --> GRP["monbus_axil_axil_group"]
+    GRP --> ERR["s_axil_err_*<br/>(error drain)"]
+    GRP --> CAP["m_axil_mon_*<br/>(capture master)"]
+    GRP --> IRQ["mon_irq"]
+
+    style CORE fill:#e3f2fd
+    style REGS fill:#fff9c4
+    style GRP fill:#ffccbc
+```
+
 ## Component Summary
 
 ### Scheduler Group Array

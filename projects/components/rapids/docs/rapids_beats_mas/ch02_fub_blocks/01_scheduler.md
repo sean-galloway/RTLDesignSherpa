@@ -112,7 +112,8 @@ parameter int DESC_WIDTH = 256;                  // RAPIDS descriptor width
 |--------|-----------|-------|-------------|
 | `cfg_channel_enable` | input | 1 | Enable this channel |
 | `cfg_channel_reset` | input | 1 | Channel soft reset |
-| `cfg_sched_timeout_cycles` | input | 16 | Timeout threshold |
+| `cfg_sched_timeout_cycles` | input | 32 | Write-progress timeout window (cycles) |
+| `cfg_sched_timeout_limit` | input | 8 | Consecutive-timeout windows before fatal escalation (0 = never) |
 | `cfg_sched_timeout_enable` | input | 1 | Enable timeout detection |
 
 : Table 2.1.3: Configuration Interface
@@ -145,14 +146,27 @@ parameter int DESC_WIDTH = 256;                  // RAPIDS descriptor width
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `sched_wr_valid` | output | 1 | Write request valid |
+| `sched_wr_valid` | output | 1 | Write request valid (gated on remaining ISSUE beats) |
 | `sched_wr_addr` | output | AW | Destination address |
 | `sched_wr_beats` | output | 32 | Beats to write |
-| `sched_wr_done_strobe` | input | 1 | Write complete strobe |
-| `sched_wr_beats_done` | input | 32 | Beats completed |
+| `sched_wr_done_strobe` | input | 1 | Write AW-issue strobe (burst accepted on AW) |
+| `sched_wr_beats_done` | input | 32 | Beats issued this strobe |
+| `sched_wr_commit_strobe` | input | 1 | Write COMMIT strobe (B response received) |
+| `sched_wr_commit_beats` | input | 32 | Beats committed this strobe |
 | `sched_wr_error` | input | 1 | Write error |
 
 : Table 2.1.6: Data Write Interface
+
+**Completion is gated on write-data COMMIT, not AW issue.** The scheduler
+maintains two independent beat counters for the write side:
+
+- `r_write_beats_remaining` decrements on `sched_wr_done_strobe` (AW handshake)
+  and drives the destination address and `sched_wr_valid` (writes are requested
+  only while ISSUE beats remain).
+- `r_write_beats_to_commit` decrements on `sched_wr_commit_strobe` (B response).
+  A transfer is considered write-complete only when this counter reaches zero
+  (`w_write_complete`), so a channel is never reported done until every issued
+  burst has been acknowledged on the B channel.
 
 ---
 
@@ -251,12 +265,38 @@ Bits [255:198] - reserved
 
 | Error Source | Detection | Response |
 |--------------|-----------|----------|
-| Descriptor engine | `descriptor_error` | Transition to ERROR state |
-| Read engine | `sched_rd_error` | Set error flag, continue or abort |
-| Write engine | `sched_wr_error` | Set error flag, continue or abort |
-| Timeout | Counter overflow | Transition to TIMEOUT state |
+| Descriptor engine | `descriptor_error` | Transition to CH_ERROR state |
+| Read engine | `sched_rd_error` | Set sticky error flag |
+| Write engine | `sched_wr_error` | Set sticky error flag |
+| Write-progress timeout | Recoverable, escalates after limit | See below |
 
 : Table 2.1.8: Error Handling
+
+### Recoverable Write-Progress Timeout
+
+The write-progress watchdog is recoverable and only escalates to a fatal fault
+after a configurable number of consecutive stalled windows:
+
+1. **Window counting:** `r_timeout_counter` increments while
+   `sched_wr_valid && !sched_wr_ready` (a write request is stalled). The window
+   expires when it reaches `cfg_sched_timeout_cycles`.
+2. **Re-arm:** On expiry the counter re-arms (resets to 0) and the scheduler
+   keeps waiting; a single expired window is not fatal.
+3. **Strike counting:** `r_timeout_strikes` (8-bit) increments once per expired
+   window. Any write progress -- `sched_wr_done_strobe` (AW issue) or
+   `sched_wr_commit_strobe` (B response) -- clears both the window counter and
+   the strike counter.
+4. **Escalation:** When `cfg_sched_timeout_limit != 0` and
+   `r_timeout_strikes >= cfg_sched_timeout_limit`, the channel escalates to a
+   sticky `CH_ERROR` (surfaced on `sched_error`). Total time to escalate is
+   approximately `cfg_sched_timeout_limit * cfg_sched_timeout_cycles`.
+5. **Never-escalate mode:** `cfg_sched_timeout_limit == 0` is a pure soft
+   timeout -- the event may be reported, but the channel never faults.
+
+**`scheduler_idle` excludes `CH_ERROR`.** Only `CH_IDLE` (with no active channel
+reset) is reported idle; a faulted channel in `CH_ERROR` is deliberately NOT
+reported idle so a wedged channel cannot read back as idle. The fault is
+surfaced via `sched_error` instead.
 
 ---
 
@@ -274,4 +314,4 @@ Bits [255:198] - reserved
 
 ---
 
-**Last Updated:** 2025-01-10
+**Last Updated:** 2026-07-02

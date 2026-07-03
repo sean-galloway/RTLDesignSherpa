@@ -216,6 +216,14 @@ RAPIDS can prefetch the next descriptor while the current transfer executes:
 
 **Benefit:** Zero-cycle gap between chained transfers when prefetch completes before current transfer.
 
+Prefetch depth is controlled by `DESCENG_CONFIG.PREFETCH_EN` and
+`DESCENG_CONFIG.FIFO_THRESH` (register block, offset 0x220). With prefetch
+disabled the descriptor engine fetches on demand (roughly one descriptor ahead
+of the scheduler); with prefetch enabled it buffers up to `FIFO_THRESH`
+descriptors ahead. A chain fetch that is throttled (output FIFO at the threshold)
+is deferred and reissued automatically once the FIFO drains, so no chain link is
+lost.
+
 ## Multi-Channel Chaining
 
 Each channel maintains independent chains:
