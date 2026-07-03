@@ -121,11 +121,11 @@ APB protocol inherently provides the following constraints:
 
 | Signal | Width | Direction | Required Values | Description |
 |--------|-------|-----------|-----------------|-------------|
-| `src_addr` | 11 bits | Master→Slave | **Aligned per transfer size** | Peripheral address (2KB space) |
+| `src_addr` | 13 bits | Master→Slave | **Aligned per transfer size** | Peripheral address (8KB space) |
 | `src_sel` | 1 | Master→Slave | 0 or 1 | Peripheral select |
 | `src_enable` | 1 | Master→Slave | 0 or 1 | Enable signal |
 | `src_write` | 1 | Master→Slave | 0 or 1 | Write enable (1=write, 0=read) |
-| `snk_addr` | 11 bits | Master→Slave | **Aligned per transfer size** | Peripheral address (2KB space) |
+| `snk_addr` | 13 bits | Master→Slave | **Aligned per transfer size** | Peripheral address (8KB space) |
 | `snk_sel` | 1 | Master→Slave | 0 or 1 | Peripheral select |
 | `snk_enable` | 1 | Master→Slave | 0 or 1 | Enable signal |
 | `snk_write` | 1 | Master→Slave | 0 or 1 | Write enable (1=write, 0=read) |
@@ -160,21 +160,23 @@ APB protocol inherently provides the following constraints:
 
 | Parameter | Value | Description |
 |-----------|-------|-------------|
-| **Address Width** | 11 bits (src_addr[10:0]) | Full address space |
-| **Address Space** | 2KB (2048 bytes) | Total addressable space |
+| **Address Width** | 13 bits (src_addr[12:0]) | Full address space |
+| **Address Space** | 8KB (8192 bytes) | Total addressable space |
 | **Register Alignment** | 32-bit aligned (4-byte boundaries) | Address constraints |
-| **Usable Addresses** | 0x000 to 0x7FF | Valid address range |
+| **Usable Addresses** | 0x000 to 0x1FFF | Valid address range |
 
 : Address Range Specification
+
+**Note:** The address decode is **13 bits (8 KB)** so the STREAM monitor register block — instantiated in a separate `stream_mon_regs` regfile at **0x1000** on the same APB slave — is addressable. An 11-bit / 2 KB decode would not reach the monitor registers. See `stream_mas/ch04_registers/register_map.md`.
 
 ### Address Decode Implementation
 
 | Register | Address Bits | Address Value | Description |
 |----------|-------------|---------------|-------------|
-| **reg0** | src_addr[10:2] == 9'h000 | 0x000 | First register |
-| **reg1** | src_addr[10:2] == 9'h001 | 0x004 | Second register |
-| **reg2** | src_addr[10:2] == 9'h002 | 0x008 | Third register |
-| **...** | ... | ... | Up to 512 32-bit registers |
+| **reg0** | src_addr[12:2] == 11'h000 | 0x000 | First register |
+| **reg1** | src_addr[12:2] == 11'h001 | 0x004 | Second register |
+| **reg2** | src_addr[12:2] == 11'h002 | 0x008 | Third register |
+| **...** | ... | ... | Up to 2048 32-bit registers |
 
 : Address Decode Implementation
 
@@ -335,7 +337,7 @@ APB protocol inherently provides the following constraints:
 | Validation Area | Requirements |
 |----------------|-------------|
 | **Protocol Compliance** | Verify 2-phase setup/access sequence |
-| **Address Decode** | Verify 11-bit address handling and alignment |
+| **Address Decode** | Verify 13-bit address handling and alignment |
 | **Error Response** | Verify src_slverr generation and handling |
 | **Wait States** | Verify src_ready functionality |
 | **CDC Operation** | Verify cross-clock domain transfers |
@@ -385,9 +387,10 @@ APB protocol inherently provides the following constraints:
 |---------|------|--------|-------------|
 | 0.90 | 2025-11-22 | seang | Initial block specification |
 | 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+| 0.93 | 2026-07-02 | seang | Address decode widened to 13 bits / 8 KB so the monitor register block at 0x1000 (separate `stream_mon_regs` regfile, same APB slave) is addressable |
 
 : APB Programming Interface Specification for STREAM Revision History
 
 ---
 
-**Last Updated:** 2026-01-02
+**Last Updated:** 2026-07-02

@@ -41,6 +41,8 @@ The Scheduler coordinates descriptor-based memory-to-memory DMA transfers for a 
 - **Aligned addresses:** No alignment fixup logic (must be pre-aligned)
 - **Descriptor chaining:** Follows next_descriptor_ptr for multi-buffer transfers
 - **Interrupt generation:** MonBus IRQ event when gen_irq flag set
+- **Commit-gated completion:** Channel completes only when all reads are done AND all writes are committed (B responses), not merely issued
+- **Recoverable write-progress timeout:** Soft timeout re-arms each window and only escalates to a sticky CH_ERROR after `cfg_sched_timeout_limit` consecutive stalled windows (0 = never escalate)
 - **Error handling:** Timeout detection, error aggregation from engines
 - **MonBus integration:** State transition and IRQ event reporting
 
@@ -126,6 +128,7 @@ if (DESC_WIDTH != 256)
 | `cfg_channel_reset` | input | 1 | Channel soft reset (FSM → IDLE) |
 | `cfg_sched_timeout_cycles` | input | 32 | Timeout threshold in clock cycles (32-bit, runtime config) |
 | `cfg_sched_timeout_enable` | input | 1 | Enable timeout detection |
+| `cfg_sched_timeout_limit` | input | 8 | Consecutive timeout windows before fatal escalation (0 = never escalate; from SCHED_TIMEOUT_LIMIT @ 0x208) |
 
 : Configuration Interface
 
@@ -228,8 +231,9 @@ input  logic                        rst_n;      // Active-low asynchronous reset
 ```systemverilog
 input  logic                        cfg_channel_enable;       // Enable this channel
 input  logic                        cfg_channel_reset;        // Channel reset (soft reset)
-input  logic [15:0]                 cfg_sched_timeout_cycles; // Timeout threshold (runtime config)
+input  logic [31:0]                 cfg_sched_timeout_cycles; // Timeout threshold (runtime config)
 input  logic                        cfg_sched_timeout_enable; // Enable timeout detection
+input  logic [7:0]                  cfg_sched_timeout_limit;  // Consecutive timeout windows before escalation (0=never)
 ```
 
 **Channel Reset Behavior:**
@@ -466,7 +470,7 @@ CH_ERROR       - Error condition
 - **STICKY STATE:** Once in error, stays here until channel reset
 - **Action:** Report error via MonBus
 - **Recovery:** Requires `cfg_channel_reset` assertion (or global reset)
-- **Note:** `scheduler_idle` asserts in this state (allows external monitoring)
+- **Note:** `scheduler_idle` does **NOT** assert in this state — a faulted channel must not report idle. The fault is surfaced via `sched_error`/CHANNEL_ERROR instead.
 
 ---
 
@@ -501,17 +505,23 @@ end
 
 ### Completion Detection
 
+**Write completion is gated on COMMIT, not issue.** Read completion tracks the read-beat counter, but write completion tracks a separate `r_write_beats_to_commit` counter that decrements only on write-data **commit** (B responses), not on AW issue. This prevents the channel from signalling done/interrupt while write data is still draining to memory.
+
 **Combinational Flags:**
 ```systemverilog
 w_read_complete     = (r_read_beats_remaining == 0);
-w_write_complete    = (r_write_beats_remaining == 0);
+// Write is complete only when all issued beats have been COMMITTED (B responses),
+// not merely issued (r_write_beats_remaining).
+w_write_complete    = (r_write_beats_to_commit == 0);
 w_transfer_complete = w_read_complete && w_write_complete;
 ```
+
+**Write-request gating:** `sched_wr_valid` is additionally gated on remaining *issue* beats (`r_write_beats_remaining != 0`). Once all beats are issued, the scheduler stops requesting new writes but stays in CH_XFER_DATA waiting for the outstanding commits (B responses) to retire `r_write_beats_to_commit`.
 
 **State Exit:**
 ```systemverilog
 // In CH_XFER_DATA:
-if (w_transfer_complete) begin
+if (w_transfer_complete) begin  // all reads done AND all writes committed
     w_next_state = CH_COMPLETE;
 end
 ```
@@ -568,40 +578,53 @@ assign sched_wr_addr = r_dst_addr;  // Static base, set in CH_FETCH_DESC
 
 ---
 
-## Timeout Detection
+## Timeout Detection (Recoverable)
+
+The write-progress timeout is a **recoverable liveness fault**, not a hard error. A single expired window does NOT wedge the channel into CH_ERROR; the timeout only escalates to a fatal, sticky error after a configurable number of consecutive windows with no write progress.
 
 ### Timeout Counter
 
 **Configuration:**
-- Runtime configurable via `cfg_sched_timeout_cycles` (16-bit)
+- Runtime configurable via `cfg_sched_timeout_cycles` (32-bit)
 - Can be enabled/disabled via `cfg_sched_timeout_enable`
+- Escalation limit via `cfg_sched_timeout_limit` (8-bit, from SCHED_TIMEOUT_LIMIT @ 0x208)
 - Replaces compile-time TIMEOUT_CYCLES parameter
 
-**Increment:**
+**Increment (counts stalled write cycles):**
 ```systemverilog
-// In CH_XFER_DATA when waiting for engines
-if (cfg_sched_timeout_enable && (!sched_rd_ready || !sched_wr_ready)) begin
+// In CH_XFER_DATA when the write request is stalled (valid high, ready low)
+if (cfg_sched_timeout_enable && sched_wr_valid && !sched_wr_ready) begin
     r_timeout_counter <= r_timeout_counter + 1;
 end
 ```
 
-**Timeout Flag:**
+**Window Expiry (re-arming, one pulse per window):**
 ```systemverilog
-assign w_timeout_expired = (r_timeout_counter >= cfg_sched_timeout_cycles);
+// w_timeout_expired is a one-cycle PULSE per elapsed window (not a latched level).
+assign w_timeout_expired = cfg_sched_timeout_enable &&
+                           (r_timeout_counter >= cfg_sched_timeout_cycles);
+// On expiry the counter re-arms (clears) so a new window can begin.
 ```
 
-**Reset:**
+### Consecutive-Window Strike Counter and Escalation
+
 ```systemverilog
-// Clear when state changes or engines respond
-if (state_change || (sched_rd_ready && sched_wr_ready)) begin
-    r_timeout_counter <= 0;
-end
+// r_timeout_strikes counts consecutive expired windows with NO write progress.
+// Any write progress (done or commit strobe) clears the strike counter.
+if (write_progress)               r_timeout_strikes <= 8'h0;
+else if (w_timeout_expired)       r_timeout_strikes <= r_timeout_strikes + 8'h1;
+
+// Escalate to a fatal (sticky CH_ERROR) fault only after cfg_sched_timeout_limit
+// consecutive windows. cfg_sched_timeout_limit == 0 means never escalate.
+assign w_timeout_escalate = (cfg_sched_timeout_limit != 8'd0) &&
+                            (r_timeout_strikes >= cfg_sched_timeout_limit);
 ```
 
-**Action on Timeout:**
-- FSM transitions to CH_ERROR
-- MonBus timeout event generated
-- Channel must be reset to recover
+**Action:**
+- Each expired window emits a MonBus timeout event but leaves the channel running (soft timeout).
+- Any write progress (a `sched_wr_done_strobe` or a commit strobe) clears `r_timeout_strikes`.
+- Only `w_timeout_escalate` drives the FSM to the sticky CH_ERROR; recovery then requires `cfg_channel_reset` (or global reset).
+- With `cfg_sched_timeout_limit == 0`, the timeout never escalates (pure soft-timeout reporting).
 
 ---
 
@@ -615,7 +638,7 @@ end
 - `sched_wr_error` - Write engine error (AXI BRESP != OKAY, etc.)
 
 **Internal:**
-- `w_timeout_expired` - Timeout counter exceeded threshold
+- `w_timeout_escalate` - Write-progress timeout persisted for `cfg_sched_timeout_limit` consecutive windows (a single `w_timeout_expired` window is recoverable and does NOT trigger CH_ERROR)
 - `!r_descriptor.valid` - Invalid descriptor in CH_FETCH_DESC
 
 ### Sticky Error Flags
@@ -645,9 +668,10 @@ if (r_current_state == CH_IDLE)
 
 **Error Transition:**
 ```systemverilog
-// Any state with error condition
+// Any state with a FATAL error condition (note: w_timeout_escalate, NOT the
+// per-window w_timeout_expired pulse, which is a recoverable soft timeout).
 if (descriptor_error || sched_rd_error || sched_wr_error ||
-    r_read_error_sticky || r_write_error_sticky || w_timeout_expired) begin
+    r_read_error_sticky || r_write_error_sticky || w_timeout_escalate) begin
     w_next_state = CH_ERROR;
 end
 ```
@@ -914,9 +938,10 @@ Channel-specific diagnostic data is mirrored into the APB registers to enable so
 | 2025-11-16 | 1.5 | Enhanced documentation with detailed sections |
 | 2025-11-21 | 2.0 | **Merged documentation:**<br>- Updated all signal names (sched_rd_*, sched_wr_*)<br>- Added runtime timeout configuration (cfg_sched_timeout_cycles/enable)<br>- Registered ready signal timing clarification<br>- Added multiple requests per descriptor section<br>- Enhanced beat tracking and error handling details<br>- Updated all code examples and timing diagrams<br>- Added timing examples for chained descriptors<br>- Combined best content from multiple documentation sources |
 | 2025-11-30 | 2.1 | **RTL Sync Update:**<br>- CH_ERROR is now STICKY (requires reset to recover)<br>- scheduler_idle asserts in CH_ERROR state<br>- Updated related documentation references |
+| 2026-07-02 | 2.2 | **RTL Sync Update:**<br>- Added `cfg_sched_timeout_limit` port (SCHED_TIMEOUT_LIMIT @ 0x208)<br>- Write completion now gated on B-response commit (`r_write_beats_to_commit`); `sched_wr_valid` gated on remaining issue beats<br>- Write-progress timeout is now recoverable: re-arms per window, escalates to CH_ERROR only after `cfg_sched_timeout_limit` consecutive stalled windows<br>- `scheduler_idle` now EXCLUDES CH_ERROR (a faulted channel is no longer reported idle) — corrects the 2.1 note |
 
 : Revision History
 
 ---
 
-**Last Updated:** 2025-11-30 (matched to current RTL implementation)
+**Last Updated:** 2026-07-02 (matched to current RTL implementation)

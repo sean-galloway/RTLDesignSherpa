@@ -25,10 +25,13 @@
 
 ## Overview
 
-The STREAM DMA engine register interface consists of two distinct regions:
+The STREAM DMA engine register interface consists of three distinct regions:
 
 1. **Channel Kick-off Registers** (0x000 - 0x03F) - Direct routing to descriptor engines
-2. **Configuration and Status Registers** (0x100 - 0xFFF) - PeakRDL-generated register file
+2. **Configuration and Status Registers** (0x100 - 0x3FF) - PeakRDL-generated base register file
+3. **Monitor / Performance Registers** (0x1000+) - Separate `stream_mon_regs` regfile instantiated at 0x1000 under the same addrmap (one APB slave)
+
+**Note:** The monitor block lives in a relocatable `stream_mon_regs` regfile instantiated at offset **0x1000** within the same PeakRDL addrmap and served by the same APB slave. The APB address decode must therefore be **at least 13 bits (8 KB address space)** so the monitor registers at 0x1000+ are reachable (the generated register file uses `s_cpuif_addr[12:0]`).
 
 ## Address Space Layout
 
@@ -55,20 +58,23 @@ Base Address (configurable parameter)
 │
 ├─ 0x040 - 0x0FF: Reserved
 │
-└─ 0x100 - 0x3FF: Configuration and Status Registers
-   ├─ 0x100 - 0x11F: Global Control and Status
-   ├─ 0x120 - 0x13F: Per-Channel Control
-   ├─ 0x140 - 0x16F: Per-Channel Status
-   ├─ 0x170 - 0x17F: Engine Completion and Error Status
-   ├─ 0x180 - 0x1FF: Monitor FIFO Status
-   ├─ 0x200 - 0x21F: Scheduler Configuration
-   ├─ 0x220 - 0x23F: Descriptor Engine Configuration
-   ├─ 0x240 - 0x25F: Descriptor AXI Monitor Configuration
-   ├─ 0x260 - 0x27F: Read Engine AXI Monitor Configuration
-   ├─ 0x280 - 0x29F: Write Engine AXI Monitor Configuration
-   ├─ 0x2A0 - 0x2AF: AXI Transfer Configuration
-   ├─ 0x2B0 - 0x2BF: Performance Profiler Configuration
-   └─ 0x2C0 - 0x2CF: Channel Observation (OBS_CTRL/OBS_FLAGS/OBS_DATA0/1)
+├─ 0x100 - 0x3FF: Configuration and Status Registers (base regfile)
+│  ├─ 0x100 - 0x11F: Global Control and Status
+│  ├─ 0x120 - 0x13F: Per-Channel Control
+│  ├─ 0x140 - 0x16F: Per-Channel Status
+│  ├─ 0x170 - 0x17F: Engine Completion and Error Status
+│  ├─ 0x200 - 0x21F: Scheduler Configuration (incl. SCHED_TIMEOUT_LIMIT @ 0x208)
+│  ├─ 0x220 - 0x23F: Descriptor Engine Configuration
+│  ├─ 0x2A0 - 0x2AF: AXI Transfer Configuration
+│  ├─ 0x2B0 - 0x2BF: Performance Profiler Configuration
+│  └─ 0x2C0 - 0x2CF: Channel Observation (OBS_CTRL/OBS_FLAGS/OBS_DATA0/1)
+│
+└─ 0x1000+: Monitor / Performance Registers (stream_mon_regs regfile, same APB slave)
+   ├─ 0x1000 - 0x1007: Monitor FIFO Status / Count
+   ├─ 0x10C0 - 0x10DF: Descriptor AXI Monitor Configuration
+   ├─ 0x10E0 - 0x10FF: Read Engine AXI Monitor Configuration
+   ├─ 0x1100 - 0x111F: Write Engine AXI Monitor Configuration
+   └─ 0x1150 - 0x11F4: Per-Monitor Performance Counters
 ```
 
 ## Register Details
@@ -321,11 +327,13 @@ Per-channel AXI write engine completion status.
 
 ---
 
-### Monitor FIFO Status (0x180 - 0x1FF)
+### Monitor FIFO Status (0x1000 - 0x1007)
 
 These registers are active when `USE_AXI_MONITORS=1`.
 
-#### MON_FIFO_STATUS (0x180)
+**Monitor register block relocation (v0.93):** All monitor and per-monitor performance registers now live in a separate `stream_mon_regs` regfile instantiated at **0x1000** within the same PeakRDL addrmap (served by the same APB slave). Addresses below reflect the new base; the previous layout placed these registers at 0x180-0x2FF. The mapping is `new = old - 0x180 + 0x1000`.
+
+#### MON_FIFO_STATUS (0x1000)
 
 Monitor bus FIFO status indicators.
 
@@ -339,7 +347,7 @@ Monitor bus FIFO status indicators.
 
 : MON_FIFO_STATUS
 
-#### MON_FIFO_COUNT (0x184)
+#### MON_FIFO_COUNT (0x1004)
 
 Monitor bus FIFO entry count.
 
@@ -378,6 +386,19 @@ Scheduler feature enables (global for all channels).
 | 0     | SCHED_EN    | RW   | 1     | Scheduler enable                         |
 
 : SCHED_CONFIG
+
+#### SCHED_TIMEOUT_LIMIT (0x208)
+
+Consecutive write-progress-timeout windows before the scheduler escalates a channel to a sticky `CH_ERROR` (global for all channels).
+
+| Bits  | Field  | Type | Reset | Description                                                        |
+|-------|--------|------|-------|--------------------------------------------------------------------|
+| 31:8  | Reserved | RO | 0x0   | Reserved                                                           |
+| 7:0   | LIMIT  | RW   | 0x4   | Consecutive timeout windows before fatal escalation (0 = never escalate) |
+
+: SCHED_TIMEOUT_LIMIT
+
+**Behavior:** The write-progress timeout is a recoverable liveness fault. It re-arms each window and only escalates to a fatal, sticky `CH_ERROR` after `LIMIT` consecutive windows with no write progress. `LIMIT = 0` disables escalation (pure soft timeout). Any write progress clears the strike counter. See `stream_mas/ch02_blocks/04_scheduler.md`.
 
 ---
 
@@ -438,9 +459,9 @@ Limit address for descriptor address range 1 (lower 32 bits).
 
 ---
 
-### Descriptor AXI Monitor Configuration (0x240 - 0x25F)
+### Descriptor AXI Monitor Configuration (0x10C0 - 0x10DF)
 
-#### DAXMON_ENABLE (0x240)
+#### DAXMON_ENABLE (0x10C0)
 
 Descriptor AXI master monitor enable controls.
 
@@ -455,7 +476,7 @@ Descriptor AXI master monitor enable controls.
 
 : DAXMON_ENABLE
 
-#### DAXMON_TIMEOUT (0x244)
+#### DAXMON_TIMEOUT (0x10C4)
 
 Descriptor AXI monitor timeout threshold.
 
@@ -465,7 +486,7 @@ Descriptor AXI monitor timeout threshold.
 
 : DAXMON_TIMEOUT
 
-#### DAXMON_LATENCY_THRESH (0x248)
+#### DAXMON_LATENCY_THRESH (0x10C8)
 
 Descriptor AXI monitor latency threshold.
 
@@ -475,7 +496,7 @@ Descriptor AXI monitor latency threshold.
 
 : DAXMON_LATENCY_THRESH
 
-#### DAXMON_PKT_MASK (0x24C)
+#### DAXMON_PKT_MASK (0x10CC)
 
 Descriptor AXI monitor packet type filtering.
 
@@ -486,7 +507,7 @@ Descriptor AXI monitor packet type filtering.
 
 : DAXMON_PKT_MASK
 
-#### DAXMON_ERR_CFG (0x250)
+#### DAXMON_ERR_CFG (0x10D0)
 
 Descriptor AXI monitor error selection and filtering.
 
@@ -499,7 +520,7 @@ Descriptor AXI monitor error selection and filtering.
 
 : DAXMON_ERR_CFG
 
-#### DAXMON_MASK1 (0x254)
+#### DAXMON_MASK1 (0x10D4)
 
 Descriptor AXI monitor timeout and completion masks.
 
@@ -511,7 +532,7 @@ Descriptor AXI monitor timeout and completion masks.
 
 : DAXMON_MASK1
 
-#### DAXMON_MASK2 (0x258)
+#### DAXMON_MASK2 (0x10D8)
 
 Descriptor AXI monitor threshold and performance masks.
 
@@ -523,7 +544,7 @@ Descriptor AXI monitor threshold and performance masks.
 
 : DAXMON_MASK2
 
-#### DAXMON_MASK3 (0x25C)
+#### DAXMON_MASK3 (0x10DC)
 
 Descriptor AXI monitor address and debug masks.
 
@@ -537,9 +558,9 @@ Descriptor AXI monitor address and debug masks.
 
 ---
 
-### Read Engine AXI Monitor Configuration (0x260 - 0x27F)
+### Read Engine AXI Monitor Configuration (0x10E0 - 0x10FF)
 
-#### RDMON_ENABLE (0x260)
+#### RDMON_ENABLE (0x10E0)
 
 Read engine AXI master monitor enable controls.
 
@@ -554,7 +575,7 @@ Read engine AXI master monitor enable controls.
 
 : RDMON_ENABLE
 
-#### RDMON_TIMEOUT (0x264)
+#### RDMON_TIMEOUT (0x10E4)
 
 Read engine AXI monitor timeout threshold.
 
@@ -564,7 +585,7 @@ Read engine AXI monitor timeout threshold.
 
 : RDMON_TIMEOUT
 
-#### RDMON_LATENCY_THRESH (0x268)
+#### RDMON_LATENCY_THRESH (0x10E8)
 
 Read engine AXI monitor latency threshold.
 
@@ -574,7 +595,7 @@ Read engine AXI monitor latency threshold.
 
 : RDMON_LATENCY_THRESH
 
-#### RDMON_PKT_MASK (0x26C)
+#### RDMON_PKT_MASK (0x10EC)
 
 Read engine AXI monitor packet type filtering.
 
@@ -585,7 +606,7 @@ Read engine AXI monitor packet type filtering.
 
 : RDMON_PKT_MASK
 
-#### RDMON_ERR_CFG (0x270)
+#### RDMON_ERR_CFG (0x10F0)
 
 Read engine AXI monitor error selection and filtering.
 
@@ -598,7 +619,7 @@ Read engine AXI monitor error selection and filtering.
 
 : RDMON_ERR_CFG
 
-#### RDMON_MASK1 (0x274)
+#### RDMON_MASK1 (0x10F4)
 
 Read engine AXI monitor timeout and completion masks.
 
@@ -610,7 +631,7 @@ Read engine AXI monitor timeout and completion masks.
 
 : RDMON_MASK1
 
-#### RDMON_MASK2 (0x278)
+#### RDMON_MASK2 (0x10F8)
 
 Read engine AXI monitor threshold and performance masks.
 
@@ -622,7 +643,7 @@ Read engine AXI monitor threshold and performance masks.
 
 : RDMON_MASK2
 
-#### RDMON_MASK3 (0x27C)
+#### RDMON_MASK3 (0x10FC)
 
 Read engine AXI monitor address and debug masks.
 
@@ -636,9 +657,9 @@ Read engine AXI monitor address and debug masks.
 
 ---
 
-### Write Engine AXI Monitor Configuration (0x280 - 0x29F)
+### Write Engine AXI Monitor Configuration (0x1100 - 0x111F)
 
-#### WRMON_ENABLE (0x280)
+#### WRMON_ENABLE (0x1100)
 
 Write engine AXI master monitor enable controls.
 
@@ -653,7 +674,7 @@ Write engine AXI master monitor enable controls.
 
 : WRMON_ENABLE
 
-#### WRMON_TIMEOUT (0x284)
+#### WRMON_TIMEOUT (0x1104)
 
 Write engine AXI monitor timeout threshold.
 
@@ -663,7 +684,7 @@ Write engine AXI monitor timeout threshold.
 
 : WRMON_TIMEOUT
 
-#### WRMON_LATENCY_THRESH (0x288)
+#### WRMON_LATENCY_THRESH (0x1108)
 
 Write engine AXI monitor latency threshold.
 
@@ -673,7 +694,7 @@ Write engine AXI monitor latency threshold.
 
 : WRMON_LATENCY_THRESH
 
-#### WRMON_PKT_MASK (0x28C)
+#### WRMON_PKT_MASK (0x110C)
 
 Write engine AXI monitor packet type filtering.
 
@@ -684,7 +705,7 @@ Write engine AXI monitor packet type filtering.
 
 : WRMON_PKT_MASK
 
-#### WRMON_ERR_CFG (0x290)
+#### WRMON_ERR_CFG (0x1110)
 
 Write engine AXI monitor error selection and filtering.
 
@@ -697,7 +718,7 @@ Write engine AXI monitor error selection and filtering.
 
 : WRMON_ERR_CFG
 
-#### WRMON_MASK1 (0x294)
+#### WRMON_MASK1 (0x1114)
 
 Write engine AXI monitor timeout and completion masks.
 
@@ -709,7 +730,7 @@ Write engine AXI monitor timeout and completion masks.
 
 : WRMON_MASK1
 
-#### WRMON_MASK2 (0x298)
+#### WRMON_MASK2 (0x1118)
 
 Write engine AXI monitor threshold and performance masks.
 
@@ -721,7 +742,7 @@ Write engine AXI monitor threshold and performance masks.
 
 : WRMON_MASK2
 
-#### WRMON_MASK3 (0x29C)
+#### WRMON_MASK3 (0x111C)
 
 Write engine AXI monitor address and debug masks.
 
@@ -867,18 +888,19 @@ for (int ch = 0; ch < 8; ch++) {
 | 0x120-0x13F  | Per-channel control                   | 2     | RW            |
 | 0x140-0x16F  | Per-channel status                    | 11    | RO            |
 | 0x170-0x17F  | Engine completion and error status    | 3     | RO            |
-| 0x180-0x1FF  | Monitor FIFO status                   | 2     | RO            |
-| 0x200-0x21F  | Scheduler configuration               | 2     | RW            |
+| 0x200-0x21F  | Scheduler configuration               | 3     | RW            |
 | 0x220-0x23F  | Descriptor engine configuration       | 5     | RW            |
-| 0x240-0x25F  | Descriptor AXI monitor configuration  | 8     | RW            |
-| 0x260-0x27F  | Read engine AXI monitor configuration | 8     | RW            |
-| 0x280-0x29F  | Write engine AXI monitor configuration| 8     | RW            |
 | 0x2A0-0x2AF  | AXI transfer configuration            | 1     | RW            |
 | 0x2B0-0x2BF  | Performance profiler configuration    | 1     | RW            |
+| 0x2C0-0x2CF  | Channel observation                   | 4     | RW/RO         |
+| 0x1000-0x1007| Monitor FIFO status (mon regfile)     | 2     | RO            |
+| 0x10C0-0x10DF| Descriptor AXI monitor configuration  | 8     | RW            |
+| 0x10E0-0x10FF| Read engine AXI monitor configuration | 8     | RW            |
+| 0x1100-0x111F| Write engine AXI monitor configuration| 8     | RW            |
 
 : Register Summary Table
 
-**Total:** 70 registers (16 kick-off + 54 config/status)
+**Note:** The monitor block (0x1000+) resides in the separate `stream_mon_regs` regfile on the same APB slave; per-monitor performance counters (0x1150-0x11F4) are additionally present but omitted from this summary. Base config/status (0x100-0x3FF) also includes PERF_CH_SEL and the HIST_* histogram registers.
 
 ---
 
@@ -930,5 +952,9 @@ This generates:
 |         |            |                | Added monitor FIFO status (0x180)                |
 |         |            |                | Added AXI transfer config (0x2A0)                |
 |         |            |                | Added performance profiler config (0x2B0)        |
+| 1.2     | 2026-07-02 | sean galloway  | Monitor block relocated into separate            |
+|         |            |                | stream_mon_regs regfile at 0x1000 (same APB      |
+|         |            |                | slave, 13-bit/8 KB decode); added                |
+|         |            |                | SCHED_TIMEOUT_LIMIT @ 0x208                       |
 
 : PeakRDL Generation

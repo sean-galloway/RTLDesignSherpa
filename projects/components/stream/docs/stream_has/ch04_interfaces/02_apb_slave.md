@@ -38,7 +38,7 @@ STREAM provides an APB slave interface for software configuration and control. T
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `s_apb_paddr` | Input | 12 | Address bus |
+| `s_apb_paddr` | Input | 13 | Address bus (8 KB space; reaches monitor block at 0x1000) |
 | `s_apb_psel` | Input | 1 | Peripheral select |
 | `s_apb_penable` | Input | 1 | Enable phase |
 | `s_apb_pwrite` | Input | 1 | Write enable |
@@ -75,6 +75,9 @@ STREAM provides an APB slave interface for software configuration and control. T
 | 0x0C4 | `OBS_FLAGS` | RO | Observation flags for selected channel |
 | 0x0C8 | `OBS_DATA0` | RO | Observation data 0 (low) |
 | 0x0CC | `OBS_DATA1` | RO | Observation data 1 (high) |
+| 0x1000+ | Monitor / performance registers | RW/RO | AXI monitor + per-monitor performance registers (separate `stream_mon_regs` regfile at 0x1000, same APB slave) |
+
+**Note:** The AXI monitor and performance registers live in a separate `stream_mon_regs` regfile instantiated at offset **0x1000** on the same APB slave. The APB address decode is therefore **13 bits (8 KB)** so those registers are addressable. Detailed monitor register layout is in the MAS (`stream_mas/ch04_registers/register_map.md`).
 
 ---
 
@@ -174,4 +177,4 @@ When software writes to `CHn_CTRL`:
 
 ---
 
-**Last Updated:** 2026-01-03
+**Last Updated:** 2026-07-02

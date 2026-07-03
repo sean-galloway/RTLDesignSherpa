@@ -37,10 +37,10 @@
 {\LARGE\bfseries STREAM Subsystem\par}
 \vspace{1cm}
 
-{\Large\bfseries Micro-Architecture Specification 0.90\par}
+{\Large\bfseries Micro-Architecture Specification 0.93\par}
 \vspace{2cm}
 
-{\large January 2, 2026\par}
+{\large July 2, 2026\par}
 
 \vfill
 \end{titlepage}

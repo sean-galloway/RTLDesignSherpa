@@ -203,8 +203,8 @@ typedef enum logic [2:0] {
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `cfg_prefetch_enable` | input | 1 | Enable descriptor prefetch |
-| `cfg_fifo_threshold` | input | 4 | FIFO threshold for prefetch |
+| `cfg_prefetch_enable` | input | 1 | Enable descriptor prefetch (functional): 0 = on-demand (≈1 buffered ahead), 1 = buffer up to `cfg_fifo_threshold` ahead |
+| `cfg_fifo_threshold` | input | 4 | Max descriptors buffered ahead when prefetch enabled (min 1; 0 is clamped to 1) |
 | `cfg_addr0_base` | input | ADDR_WIDTH | Address range 0 base |
 | `cfg_addr0_limit` | input | ADDR_WIDTH | Address range 0 limit |
 | `cfg_addr1_base` | input | ADDR_WIDTH | Address range 1 base |
@@ -255,10 +255,16 @@ APB writes are accepted ONLY when ALL conditions met:
 - next_addr within `cfg_addr0_base..cfg_addr0_limit` OR
 - next_addr within `cfg_addr1_base..cfg_addr1_limit`
 
-**Level 3: Final Decision (w_should_chain)**
-- Level 1 + Level 2 conditions met
-- `!r_descriptor_error` (no fetch error)
-- `w_desc_fifo_wr_ready` (descriptor FIFO has space)
+**Level 3: Prefetch Throttle Gate (w_should_chain)**
+
+`cfg_prefetch_enable` and `cfg_fifo_threshold` are **functional** and bound how many descriptors the engine buffers ahead of the scheduler:
+
+- **Prefetch disabled (`cfg_prefetch_enable = 0`):** on-demand mode. The prefetch limit is 1, so the engine keeps roughly one descriptor buffered ahead — it fetches the next descriptor only after the scheduler drains the current one.
+- **Prefetch enabled (`cfg_prefetch_enable = 1`):** the engine buffers up to `cfg_fifo_threshold` descriptors ahead (minimum 1; a threshold of 0 is clamped to 1 to avoid stalling chaining).
+
+An immediate chain push (`w_should_chain`) fires at descriptor commit only when Levels 1-2 hold, the descriptor FIFO has space (`w_desc_fifo_wr_ready`), and the throttle allows another fetch (`w_desc_fifo_count < prefetch_limit`).
+
+**Deferred chaining:** A chain fetch that is eligible at commit but blocked by the throttle (or a full address FIFO) is **not dropped** — the engine latches the pending `next_descriptor_ptr` (`r_chain_pending` / `r_pending_chain_addr`) and reissues it later, once the output descriptor FIFO drains below the prefetch limit.
 
 ### AXI Transaction
 
@@ -420,9 +426,10 @@ Both monitors emit MonBus packets with identical protocol-independent structure 
 |---------|------|--------|-------------|
 | 0.90 | 2025-11-22 | seang | Initial block specification |
 | 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+| 0.93 | 2026-07-02 | seang | `cfg_prefetch_enable` / `cfg_fifo_threshold` are now functional; documented prefetch-throttle gate (on-demand vs. buffer-ahead) and deferred-chain (`r_chain_pending`) behavior |
 
 : Descriptor Engine Revision History
 
 ---
 
-**Last Updated:** 2026-01-02
+**Last Updated:** 2026-07-02
