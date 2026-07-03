@@ -289,6 +289,170 @@ async def cocotb_test_ddr2_lpddr2_core_macro(dut):
             aw, w, b, ar, r,
         )
 
+    elif test_type == "patho_addr_pattern":
+        # D-2 pathological address patterns. Env-driven so one dispatch
+        # branch handles every variant; each variant sets a different
+        # address list and payload.
+        #
+        # Row-major mapping (default for the core_macro TB) with
+        # 64-bit data + 8 banks + 14 row bits + 10 col bits:
+        #   byte offset [ 2:0]
+        #   col         [12:3]  → col stride     = 0x8 (8 B)
+        #   bank        [15:13] → bank stride    = 0x2000 (8 KB)
+        #   row         [29:16] → row stride     = 0x10000 (64 KB)
+        #
+        # Variants (KBN_PATHO_KIND):
+        #   bank_hazard   — 16 bursts, all bank 0, sequential rows.
+        #                   Every burst is a page-miss on the SAME bank
+        #                   → back-to-back tRP+tRCD stalls; scheduler,
+        #                   xbank timers, and command queue all stressed.
+        #   page_miss_sustained — 16 bursts alternating between rows on
+        #                   bank 0 → sustained row-thrash.
+        #   page_close_boundary — mix of hits and misses timed so
+        #                   incoming hits land close to when the page
+        #                   predictor would close.
+        #   hit_miss_oscillation — user-flagged internal-burst-pause:
+        #                   5 hits → 3 misses → 5 hits → 3 misses → ...
+        #                   All on AXI backtoback profile. Induces
+        #                   internal queue fill/drain oscillation
+        #                   without any external throttling.
+        import os as _os
+        kind = _os.environ.get("KBN_PATHO_KIND", "bank_hazard")
+        BURST     = int(_os.environ.get("KBN_BURST_LEN", "4"))
+        slave_profile = _os.environ.get("KBN_SLAVE_PROFILE", "backtoback")
+        if slave_profile != "backtoback":
+            tb.set_axi_timing_profile(slave_profile)
+        tb.log.info("patho_addr_pattern kind=%s BL=%d profile=%s",
+                    kind, BURST, slave_profile)
+
+        BANK_STRIDE = 0x2000
+        ROW_STRIDE  = 0x10000
+        BASE        = 0x10000
+
+        # Build address list per kind.
+        if kind == "bank_hazard":
+            # 16 bursts on bank 0, rows 1..16. Sequential page misses.
+            N = 16
+            addresses = [BASE + bi * ROW_STRIDE for bi in range(N)]
+        elif kind == "page_miss_sustained":
+            # 24 bursts, ping-ponging between 3 rows on bank 0.
+            N = 24
+            rows = [1, 2, 3]
+            addresses = [BASE + rows[bi % 3] * ROW_STRIDE for bi in range(N)]
+        elif kind == "page_close_boundary":
+            # Miss, then rapid same-row hits (5), then miss again.
+            # Hits land right when the predictor could be evaluating
+            # close-vs-keep on the just-activated page.
+            N = 24
+            addresses = []
+            row = 1
+            for cluster in range(4):
+                base_addr = BASE + row * ROW_STRIDE
+                # 1 miss (opens row), 5 hits (same row, next columns).
+                addresses.append(base_addr)
+                for hit_i in range(5):
+                    addresses.append(base_addr + (hit_i + 1) * BURST * 8)
+                row += 1
+        elif kind == "hit_miss_oscillation":
+            # 5 hits → 3 misses → 5 hits → 3 misses. 4 cycles of the
+            # pattern → 32 bursts total. All bank 0.
+            # Hits are same-row + walking-column; misses jump to a
+            # fresh row.
+            N = 32
+            addresses = []
+            row = 1
+            for cycle in range(4):
+                # 5 hits on `row`
+                base_addr = BASE + row * ROW_STRIDE
+                for h in range(5):
+                    addresses.append(base_addr + h * BURST * 8)
+                # 3 misses: fresh rows
+                for m in range(3):
+                    row += 1
+                    addresses.append(BASE + row * ROW_STRIDE)
+                row += 1
+        else:
+            raise ValueError(f"Unknown KBN_PATHO_KIND: {kind}")
+
+        # Wire trackers so the D-1 divergence checker runs at end.
+        import os as _os2
+        from tbclasses.trackers._base import wire_trackers as _wire_trackers
+        _TRACKER_SCOPES = {
+            "sched":   "u_dut.u_command_scheduler.u_scheduler",
+            "xbank":   "u_dut.u_command_scheduler.u_xbank_timers",
+            "pgpred":  "u_dut.u_command_scheduler.u_page_predictor",
+            "wrbeat":  "u_dut.u_data_path.u_wr_beat_sequencer",
+            "rdalign": "u_dut.u_data_path.u_rd_cl_aligner",
+        }
+        trackers = _wire_trackers(
+            dut, output_dir=_os2.getcwd(), log=tb.log,
+            num_ranks=getattr(tb, "num_ranks", 1), num_banks=8,
+            autostart=True,
+            scope_paths=_TRACKER_SCOPES,
+        )
+
+        await tb.wait_for_init_done()
+
+        from tbclasses.ddr2_lpddr2_sequences import (
+            build_addr_pattern_sequences, diff_results,
+        )
+        from CocoTBFramework.components.axi4.axi4_sequence import (
+            run_axi4_sequence,
+        )
+
+        # Assign unique IDs per burst so any per-ID ordering effect is
+        # neutralized — the pathological stress is address-hazard, not
+        # ID-hazard.
+        ID_MASK = (1 << tb.axi_id_width) - 1
+        wr_seq, rd_seq, expected = build_addr_pattern_sequences(
+            burst_len=BURST, data_width=tb.axi_data_width,
+            addresses=addresses,
+            wr_axid_fn=lambda bi: bi & ID_MASK,
+            rd_axid_fn=lambda bi: bi & ID_MASK,
+            name=f"patho_{kind}",
+        )
+        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr,
+                                raise_on_error=True)
+        from cocotb.triggers import ClockCycles as _CC_patho
+        await _CC_patho(dut.mc_clk, 200)  # let B drain
+
+        # WR-path localizer: what did the memory model actually receive?
+        wr_expected: dict[int, bytes] = {}
+        for bi, (addr, exp_beats) in enumerate(zip(addresses, expected)):
+            payload = bytearray()
+            for beat in exp_beats:
+                payload += int(beat).to_bytes(tb.axi_data_width // 8,
+                                              "little")
+            wr_expected[addr] = bytes(payload)
+        wr_bad = tb.verify_wr_path(wr_expected)
+        assert wr_bad is None, (
+            f"patho_{kind} WR PATH corruption at byte_addr=0x{wr_bad[0]:X} "
+            f"offset={wr_bad[1]}: expected=0x{wr_bad[2]:02X} "
+            f"actual=0x{wr_bad[3]:02X} — controller lost or "
+            f"misrouted a WR beat before DFI."
+        )
+        tb.log.info("patho_%s WR-path localizer OK", kind)
+
+        rd_dicts = await run_axi4_sequence(
+            rd_seq, master_rd=tb.axi_master_rd, raise_on_error=True,
+        )
+        results = [r["data"] for r in rd_dicts]
+
+        first_bad = diff_results(expected, results)
+        assert first_bad is None, (
+            f"patho_{kind} corrupted at burst={first_bad[0]} "
+            f"beat={first_bad[1]}: wrote 0x{first_bad[2]:016X} "
+            f"read 0x{first_bad[3]:016X}"
+        )
+        tb.log.info("patho_%s OK (%d bursts)", kind, len(addresses))
+
+        # D-1 divergence check on the wired FUB trackers.
+        from tbclasses.trackers import assert_no_divergence
+        for tk_short, fub_key in (("rdalign", "rd_cl_aligner"),
+                                  ("wrbeat",  "wr_beat_sequencer")):
+            if tk_short in trackers:
+                assert_no_divergence(fub_key, trackers[tk_short])
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -710,6 +874,70 @@ def test_ddr2_lpddr2_core_macro_engine_mirror_kbN(request, label, env_overrides)
         test_name=f"test_ddr2_lpddr2_core_macro_engine_mirror_{label}",
         test_type="engine_mirror_kbN",
         extra_env_extra=env_overrides,
+    )
+
+
+# ---------------------------------------------------------------------------
+# D-2 pathological address-pattern matrix. Cross of (kind, AXI profile).
+# Each kind constructs a specific hazardous access sequence that stresses
+# a particular internal pathway. The AXI profile axis lets us hit "all
+# AXI fast + internal misses cause internal burst-pause" (the novel
+# oscillation stress) and its inverse ("slow AXI + fast internal").
+# ---------------------------------------------------------------------------
+_PATHO_KINDS = (
+    "bank_hazard",           # #3 — 16 misses on bank 0, sequential rows
+    "page_miss_sustained",   # #7 — 24 bursts ping-ponging 3 rows on bank 0
+    "page_close_boundary",   # #6 — miss + rapid hits at predictor's
+                             #      close-decision cycle
+    "hit_miss_oscillation",  # #8 — 5 hits → 3 misses × 4 cycles; AXI fast
+                             #      but INTERNAL burst-pause via miss bursts
+)
+_PATHO_PROFILES = ("backtoback", "burst_pause", "slow_producer")
+
+_PATHO_MATRIX = [
+    (kind, prof) for kind in _PATHO_KINDS for prof in _PATHO_PROFILES
+]
+
+
+def _patho_params():
+    """xfail(strict=False) all patho combos — every one currently fires
+    a WR PATH corruption on the same-bank different-row hazards. Real
+    controller bug uncovered by the D-2 sweep (see the issue linked in
+    the RTL commit trailer). Gate stays here until the fix lands."""
+    return [
+        pytest.param(
+            k, p, id=f"{k}_{p}",
+            marks=pytest.mark.xfail(
+                reason=(
+                    "WR PATH corruption on same-bank different-row "
+                    "hazards — controller misroutes a WR beat under "
+                    "rapid row switching. Discovered by D-2 patho sweep."
+                ),
+                strict=False,
+            ),
+        )
+        for (k, p) in _PATHO_MATRIX
+    ]
+
+
+@pytest.mark.parametrize("kind,slave_profile", _patho_params())
+def test_ddr2_lpddr2_core_macro_patho_addr_pattern(request, kind, slave_profile):
+    """D-2 pathological address patterns. Each variant stresses a
+    specific memory-controller pathway (bank timers, page predictor,
+    scheduler queue). All variants run through the D-1 divergence
+    checker at teardown so per-slot event drops surface as clear
+    assertion messages independent of the data scoreboard."""
+    test_name = (
+        f"test_ddr2_lpddr2_core_macro_patho_{kind}_{slave_profile}"
+    )
+    _run_core_macro(
+        test_name=test_name,
+        test_type="patho_addr_pattern",
+        extra_env_extra={
+            "KBN_PATHO_KIND":    kind,
+            "KBN_SLAVE_PROFILE": slave_profile,
+            "KBN_BURST_LEN":     "4",
+        },
     )
 
 

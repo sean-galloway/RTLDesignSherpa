@@ -145,6 +145,54 @@ def build_rd_only_sequence(
     return rd_seq, expected
 
 
+def build_addr_pattern_sequences(
+    *,
+    burst_len: int,
+    data_width: int,
+    addresses: List[int],
+    wr_axid_fn: Callable[[int], int] = lambda bi: 0,
+    rd_axid_fn: Optional[Callable[[int], int]] = None,
+    rd_axid: int = 0,
+    payload_fn: Optional[Callable[[int, int], int]] = None,
+    name: str = "addr_pattern",
+) -> Tuple[AXI4Sequence, AXI4Sequence, List[List[int]]]:
+    """Like build_b2b_wr_rd_sequences, but takes an explicit per-burst
+    address list instead of `base + bi * stride`. Lets pathological
+    scenarios drive same-bank / same-row / cross-bank / hit-then-miss
+    address patterns that a fixed stride can't express.
+
+    ROW_MAJOR mapping (default) for 64-bit data / 8 banks / 14 row bits:
+      * bank stride = 0x2000  (8 KB)
+      * row stride  = 0x10000 (64 KB)
+
+    So addresses [0x10000, 0x20000, 0x30000, ...] hit bank 0 at
+    sequential rows (same-bank different-row hazard). Addresses
+    [0x10000, 0x12000, 0x14000, ...] hit sequential banks at same
+    row 1 (bank-parallel-friendly).
+    """
+    if payload_fn is None:
+        payload_fn = _default_payload
+
+    wr_seq = AXI4Sequence(f"{name}_wr", data_width=data_width)
+    for bi, addr in enumerate(addresses):
+        wr_seq.add_write(
+            addr,
+            data=[payload_fn(bi, ki) for ki in range(burst_len)],
+            axid=wr_axid_fn(bi),
+        )
+
+    rd_seq = AXI4Sequence(f"{name}_rd", data_width=data_width)
+    rd_pick = rd_axid_fn if rd_axid_fn is not None else (lambda bi: rd_axid)
+    for bi, addr in enumerate(addresses):
+        rd_seq.add_read(addr, length=burst_len, axid=rd_pick(bi))
+
+    expected: List[List[int]] = [
+        [payload_fn(bi, ki) for ki in range(burst_len)]
+        for bi in range(len(addresses))
+    ]
+    return wr_seq, rd_seq, expected
+
+
 def diff_results(
     expected: List[List[int]],
     results: Sequence[Sequence[int]],
