@@ -411,6 +411,14 @@ async def cocotb_test_ddr2_lpddr2_core_macro(dut):
             rd_axid_fn=lambda bi: bi & ID_MASK,
             name=f"patho_{kind}",
         )
+        # For patterns that write the same address more than once
+        # (page_miss_sustained's ping-pong), the read-back is the
+        # LAST write to that address — remap expected accordingly
+        # so the scoreboard reflects actual DRAM semantics.
+        last_write_by_addr: dict = {}
+        for bi, addr in enumerate(addresses):
+            last_write_by_addr[addr] = expected[bi]
+        expected = [last_write_by_addr[addr] for addr in addresses]
         await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr,
                                 raise_on_error=True)
         from cocotb.triggers import ClockCycles as _CC_patho
@@ -899,28 +907,10 @@ _PATHO_MATRIX = [
 ]
 
 
-def _patho_params():
-    """xfail(strict=False) all patho combos — every one currently fires
-    a WR PATH corruption on the same-bank different-row hazards. Real
-    controller bug uncovered by the D-2 sweep (see the issue linked in
-    the RTL commit trailer). Gate stays here until the fix lands."""
-    return [
-        pytest.param(
-            k, p, id=f"{k}_{p}",
-            marks=pytest.mark.xfail(
-                reason=(
-                    "WR PATH corruption on same-bank different-row "
-                    "hazards — controller misroutes a WR beat under "
-                    "rapid row switching. Discovered by D-2 patho sweep."
-                ),
-                strict=False,
-            ),
-        )
-        for (k, p) in _PATHO_MATRIX
-    ]
-
-
-@pytest.mark.parametrize("kind,slave_profile", _patho_params())
+@pytest.mark.parametrize(
+    "kind,slave_profile", _PATHO_MATRIX,
+    ids=[f"{k}_{p}" for (k, p) in _PATHO_MATRIX],
+)
 def test_ddr2_lpddr2_core_macro_patho_addr_pattern(request, kind, slave_profile):
     """D-2 pathological address patterns. Each variant stresses a
     specific memory-controller pathway (bank timers, page predictor,
