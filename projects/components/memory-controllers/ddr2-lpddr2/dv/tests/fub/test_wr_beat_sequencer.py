@@ -58,13 +58,14 @@ async def cocotb_test_wr_beat_sequencer(dut):
     await tb.setup_clocks_and_reset()
 
     scenarios = {
-        "smoke":             _smoke,
-        "burst_len_sweep":   _burst_len_sweep,
-        "tphy_sweep":        _tphy_sweep,
-        "partial_strb":      _partial_strb,
-        "back_to_back":      _back_to_back,
-        "multi_outstanding": _multi_outstanding,
-        "random_soak":       _random_soak,
+        "smoke":                _smoke,
+        "burst_len_sweep":      _burst_len_sweep,
+        "tphy_sweep":           _tphy_sweep,
+        "partial_strb":         _partial_strb,
+        "back_to_back":         _back_to_back,
+        "multi_outstanding":    _multi_outstanding,
+        "intake_split_16chunks": _intake_split_16chunks,
+        "random_soak":          _random_soak,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -173,6 +174,94 @@ async def _multi_outstanding(tb: WrBeatSequencerTB):
     )
 
 
+async def _intake_split_16chunks(tb: WrBeatSequencerTB):
+    """WR-side mirror of rd_cl_aligner's intake_split_16chunks (#31).
+
+    wr_beat_sequencer has the SAME shift-FIFO + concurrent-alloc pattern
+    that #31 exposed on the RD side: same-cycle op_valid handshake +
+    r_drive_fifo shift on drive-last. If MAX_CONCURRENT=16 (as in
+    data_path_macro), a 16-chunk cadence-aligned burst can hit the same
+    NBA race.
+
+    Scenario mirrors axi_intake's 16-way BL split: 16 back-to-back ops
+    of len=4, distinct slot IDs, pushed at INTER_OP_CYCLES=4 (the same
+    rate the RD reproducer used). Expected: all 16 b_completes fire in
+    order, all 32 DFI cycles (16 × ceil(4/2)) carry the right data.
+    """
+    from cocotb.triggers import RisingEdge, Timer
+
+    N_CHUNKS         = 16
+    CHUNK_LEN        = 4
+    T_PHY_WRLAT      = 2
+    INTER_OP_CYCLES  = 4
+
+    # 16 chunks of len=4, distinct data patterns so misrouted beats
+    # jump out of the scoreboard immediately.
+    chunks = []
+    for i in range(N_CHUNKS):
+        b = tb.make_burst(slot=i, length=CHUNK_LEN, full_strb=True,
+                          t_phy_wrlat=T_PHY_WRLAT,
+                          seed_tag=(0xC0 << 8) | i)
+        chunks.append(b)
+
+    # Reset scoreboards once — 16 issue_op calls, only the first clears.
+    for i, chunk in enumerate(chunks):
+        await tb.issue_op(chunk, clear_captures=(i == 0))
+        # Extra idle between pushes so the intake-like cadence is
+        # 4 cycles per chunk. issue_op consumes 1 cycle for the
+        # handshake itself.
+        for _ in range(INTER_OP_CYCLES - 1):
+            await RisingEdge(tb.dut.mc_clk)
+            await Timer(1, units='ps')
+
+    # Wait until all 16 b_completes have landed (they arrive in issue
+    # order but many are already in `tb.b_completes` by the time we
+    # get here — the per-slot await_burst_complete() helper checks
+    # b_completes[-1] and would spuriously time out).
+    from cocotb.triggers import RisingEdge, Timer as _Tmr
+    for _ in range(8192):
+        await RisingEdge(tb.dut.mc_clk)
+        await _Tmr(1, units='ps')
+        if len(tb.b_completes) >= N_CHUNKS:
+            break
+    else:
+        raise TimeoutError(
+            f"Only {len(tb.b_completes)}/{N_CHUNKS} b_completes seen — "
+            f"shift-FIFO race dropped ops."
+        )
+
+    # Verify per-chunk DFI cycles by walking the flat capture list in
+    # issue order. Each chunk emits ceil(len/DFI_RATE) cycles.
+    n_per_chunk = (CHUNK_LEN + tb.DFI_RATE - 1) // tb.DFI_RATE
+    offset = 0
+    for i, chunk in enumerate(chunks):
+        expected = tb.expected_dfi_cycles(chunk)
+        got      = tb.captured_cycles[offset:offset + len(expected)]
+        assert len(got) == len(expected), (
+            f"chunk {i} slot={chunk.slot}: got {len(got)} DFI cycles, "
+            f"want {len(expected)}. Total captured "
+            f"{len(tb.captured_cycles)} vs expected "
+            f"{N_CHUNKS * n_per_chunk}. Likely a shift-FIFO / "
+            f"concurrent-alloc race in wr_beat_sequencer (mirror of #31)."
+        )
+        for j, (g, e) in enumerate(zip(got, expected)):
+            assert g.data == e.data, (
+                f"chunk {i} slot={chunk.slot} DFI cycle {j} data: "
+                f"got {g.data:#x} want {e.data:#x}"
+            )
+            assert g.mask == e.mask, (
+                f"chunk {i} slot={chunk.slot} DFI cycle {j} mask: "
+                f"got {g.mask:#x} want {e.mask:#x}"
+            )
+        offset += len(expected)
+
+    assert tb.b_completes == [c.slot for c in chunks], (
+        f"b_complete order mismatch: got {tb.b_completes} "
+        f"want {[c.slot for c in chunks]} — shift-FIFO race is dropping "
+        f"or reordering chunks."
+    )
+
+
 async def _random_soak(tb: WrBeatSequencerTB):
     rng = random.Random(tb.SEED ^ 0xBEEF)
     n_bursts = {'gate': 8, 'func': 32, 'full': 96}.get(tb.TEST_LEVEL, 32)
@@ -200,6 +289,7 @@ _ALL_TYPES = [
     "partial_strb",
     "back_to_back",
     "multi_outstanding",
+    "intake_split_16chunks",   # WR-side mirror of #31 stress
     "random_soak",
 ]
 
@@ -257,6 +347,7 @@ def test_wr_beat_sequencer(request, test_type, dfi_rate):
         "DRAM_BEAT_WIDTH":   "64",
         "DFI_RATE":          str(dfi_rate),
         "MAX_BURST_LEN":     "256",
+        "MAX_CONCURRENT":    "16",
     }
 
     enable_waves = bool(int(os.environ.get("WAVES", "0")))
@@ -273,6 +364,10 @@ def test_wr_beat_sequencer(request, test_type, dfi_rate):
         "DRAM_BEAT_WIDTH": "64",
         "DFI_RATE":        str(dfi_rate),
         "MAX_BURST_LEN":   "256",
+        # Match production data_path_macro (which sets this to the
+        # WR CAM depth). Was left at the RTL default of 2, which
+        # meant 14 aligner slots weren't being exercised by the FUB.
+        "MAX_CONCURRENT":  "16",
     }
 
     sim_args  = []

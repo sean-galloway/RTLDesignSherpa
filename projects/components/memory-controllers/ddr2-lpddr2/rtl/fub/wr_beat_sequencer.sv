@@ -139,10 +139,26 @@ module wr_beat_sequencer
 
     //=========================================================================
     // DRIVE order FIFO — ops are driven in op-valid acceptance order.
-    // Small FIFO (depth MAX_CONCURRENT) of op slot indices.
+    //
+    // Mirror of the #31 fix on rd_cl_aligner: was a shift FIFO
+    // (r_drive_fifo[i] <= r_drive_fifo[i+1] on drive-last) with
+    // r_drive_fifo_count updated by both alloc (+1) and shift (-1)
+    // in the same always_ff. Same-cycle alloc + drive-last raced
+    // via SystemVerilog last-assignment semantics and dropped ops.
+    // Now: proper circular FIFO with MCL+1-bit head/tail pointers,
+    // r_drive_fifo entries never move, r_drive_fifo_count updates
+    // via a single combined-delta NBA. Every pointer has exactly
+    // one update path.
     //=========================================================================
     logic [MAX_CONCURRENT-1:0][MCL-1:0] r_drive_fifo;
     logic [MCL:0]                       r_drive_fifo_count;
+    logic [MCL:0]                       r_drive_head_ptr;  // pop position
+    logic [MCL:0]                       r_drive_tail_ptr;  // next alloc
+
+    logic [MCL:0] w_drive_head_next;
+    logic [MCL:0] w_drive_tail_next;
+    assign w_drive_head_next = r_drive_head_ptr + (MCL+1)'(1);
+    assign w_drive_tail_next = r_drive_tail_ptr + (MCL+1)'(1);
 
     //=========================================================================
     // Free-slot priority encoder for allocation.
@@ -192,7 +208,7 @@ module wr_beat_sequencer
     // DRIVE arbiter — only the op at the FIFO head matters.
     //=========================================================================
     logic [MCL-1:0] w_drive_op;
-    assign w_drive_op = r_drive_fifo[0];
+    assign w_drive_op = r_drive_fifo[r_drive_head_ptr[MCL-1:0]];
 
     //=========================================================================
     // Pre-compute DFI cycles needed for the driving op's burst.
@@ -302,6 +318,8 @@ module wr_beat_sequencer
             r_op_wait_cnt      <= '{default: '0};
             r_op_dfi_cycle_cnt <= '{default: '0};
             r_drive_fifo_count <= '0;
+            r_drive_head_ptr   <= '0;
+            r_drive_tail_ptr   <= '0;
             r_pull_op_idx      <= '0;
             r_pull_strb_pending<= 1'b0;
             for (int unsigned i = 0; i < MAX_CONCURRENT; i++) begin
@@ -312,6 +330,9 @@ module wr_beat_sequencer
         end else begin
             //---------------------------------------------------------------
             // 1. Allocate new op on op_valid handshake.
+            //    Writes r_drive_fifo at tail and advances r_drive_tail_ptr.
+            //    No FIFO shift ever runs on this or on drive-last (see
+            //    section 4) — same fix pattern as rd_cl_aligner #31.
             //---------------------------------------------------------------
             if (op_valid_i && op_ready_o) begin
                 r_op_valid        [w_free_slot] <= 1'b1;
@@ -322,10 +343,19 @@ module wr_beat_sequencer
                 r_op_wait_cnt     [w_free_slot] <= t_phy_wrlat_i;
                 r_op_drive_started[w_free_slot] <= 1'b1;
                 r_op_dfi_cycle_cnt[w_free_slot] <= '0;
-                // Push onto drive-order FIFO at tail.
-                r_drive_fifo[r_drive_fifo_count[MCL-1:0]] <= w_free_slot;
-                r_drive_fifo_count <= r_drive_fifo_count + 1'b1;
+                r_drive_fifo[r_drive_tail_ptr[MCL-1:0]] <= w_free_slot;
+                r_drive_tail_ptr <= w_drive_tail_next;
             end
+
+            //---------------------------------------------------------------
+            // 1b. Combined FIFO-count delta. Single NBA to r_drive_fifo_count
+            //     regardless of same-cycle alloc + drive-last (the #31
+            //     pathology). alloc:+1, drive-last:-1, both:0, neither:no-op.
+            //---------------------------------------------------------------
+            if ((op_valid_i && op_ready_o) && !(w_drive_active && w_drive_last_cycle))
+                r_drive_fifo_count <= r_drive_fifo_count + 1'b1;
+            else if (!(op_valid_i && op_ready_o) && (w_drive_active && w_drive_last_cycle))
+                r_drive_fifo_count <= r_drive_fifo_count - 1'b1;
 
             //---------------------------------------------------------------
             // 2. PULL — latch the response using the REGISTERED op-index
@@ -368,19 +398,18 @@ module wr_beat_sequencer
 
             //---------------------------------------------------------------
             // 4. DRIVE — head-of-FIFO op increments its dfi_cycle_cnt.
+            //    On drive-last: free the slot and advance r_drive_head_ptr.
+            //    NO FIFO shift. r_drive_fifo_count is written by the
+            //    combined-delta block in section 1b above.
             //---------------------------------------------------------------
             if (w_drive_active) begin
                 r_op_dfi_cycle_cnt[w_drive_op]
                     <= r_op_dfi_cycle_cnt[w_drive_op] + BLW'(1);
                 if (w_drive_last_cycle) begin
-                    // Free the op slot, pop the FIFO.
                     r_op_valid        [w_drive_op] <= 1'b0;
                     r_op_pull_done    [w_drive_op] <= 1'b0;
                     r_op_drive_started[w_drive_op] <= 1'b0;
-                    for (int unsigned i = 0; i < MAX_CONCURRENT-1; i++) begin
-                        r_drive_fifo[i] <= r_drive_fifo[i+1];
-                    end
-                    r_drive_fifo_count <= r_drive_fifo_count - 1'b1;
+                    r_drive_head_ptr <= w_drive_head_next;
                 end
             end
         end
