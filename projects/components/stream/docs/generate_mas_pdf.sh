@@ -2,15 +2,15 @@
 set -euo pipefail
 
 # ------------------------------------------------------------
-# STREAM Specification PDF Generator
+# STREAM Micro-Architecture Specification PDF Generator
 # ------------------------------------------------------------
 # Usage:
-#   ./generate_pdf.sh [--rev <version>] [--help]
+#   ./generate_mas_pdf.sh [--rev <version>] [--help]
 #
 # Example:
-#   ./generate_pdf.sh --rev 0.90
+#   ./generate_mas_pdf.sh --rev 0.90
 #
-# This script builds the STREAM specification document
+# This script builds the STREAM MAS document
 # (DOCX and PDF) from Markdown sources using md_to_docx.py.
 # ------------------------------------------------------------
 
@@ -38,7 +38,7 @@ Example:
   $0 --rev 1.0
 
 Description:
-  This script generates a DOCX and PDF version of the STREAM specification
+  This script generates a DOCX and PDF version of the STREAM MAS
   by invoking the md_to_docx.py converter. It stitches together the Markdown
   chapters, applies page breaks, and includes assets for images and diagrams.
 EOF
@@ -77,7 +77,7 @@ OUTPUT_PDF="${OUTPUT_BASENAME}.pdf"
 # Run converter
 # ------------------------------------------------------------
 echo "------------------------------------------------------------"
-echo " Generating STREAM Specification"
+echo " Generating STREAM Micro-Architecture Specification"
 echo "------------------------------------------------------------"
 echo "  Version:     ${REV}"
 echo "  Input:       ${SPEC_INDEX}"
@@ -109,6 +109,7 @@ python3 "${REPO_ROOT}/bin/md_to_docx.py" \
   --assets-dir "${ASSETS}/puml" \
   --assets-dir "${ASSETS}/draw.io" \
   --assets-dir "${ASSETS}/mermaid" \
+  --assets-dir "${ASSETS}/wavedrom" \
   --quiet
 
 

@@ -106,6 +106,8 @@ python3 "${REPO_ROOT}/bin/md_to_docx.py" \
   --mathfont "Noto Serif" \
   --assets-dir "${ASSETS}" \
   --assets-dir "${ASSETS}/images" \
+  --assets-dir "${ASSETS}/puml" \
+  --assets-dir "${ASSETS}/draw.io" \
   --assets-dir "${ASSETS}/mermaid" \
   --assets-dir "${ASSETS}/wavedrom" \
   --quiet

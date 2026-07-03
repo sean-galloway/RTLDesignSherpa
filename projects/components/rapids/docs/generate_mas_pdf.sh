@@ -2,17 +2,16 @@
 set -euo pipefail
 
 # ------------------------------------------------------------
-# RAPIDS Beats MAS PDF Generator
+# RAPIDS Beats Micro-Architecture Specification PDF Generator
 # ------------------------------------------------------------
 # Usage:
 #   ./generate_mas_pdf.sh [--rev <version>] [--help]
 #
 # Example:
-#   ./generate_mas_pdf.sh --rev 0.6
+#   ./generate_mas_pdf.sh --rev 0.90
 #
-# This script builds the RAPIDS Beats Micro-Architecture
-# Specification (DOCX and PDF) from Markdown sources using
-# md_to_docx.py.
+# This script builds the RAPIDS Beats MAS document
+# (DOCX and PDF) from Markdown sources using md_to_docx.py.
 # ------------------------------------------------------------
 
 # Default values
@@ -78,7 +77,7 @@ OUTPUT_PDF="${OUTPUT_BASENAME}.pdf"
 # Run converter
 # ------------------------------------------------------------
 echo "------------------------------------------------------------"
-echo " Generating RAPIDS Beats MAS (Micro-Architecture Spec)"
+echo " Generating RAPIDS Beats Micro-Architecture Specification"
 echo "------------------------------------------------------------"
 echo "  Version:     ${REV}"
 echo "  Input:       ${SPEC_INDEX}"
@@ -107,6 +106,8 @@ python3 "${REPO_ROOT}/bin/md_to_docx.py" \
   --mathfont "Noto Serif" \
   --assets-dir "${ASSETS}" \
   --assets-dir "${ASSETS}/images" \
+  --assets-dir "${ASSETS}/puml" \
+  --assets-dir "${ASSETS}/draw.io" \
   --assets-dir "${ASSETS}/mermaid" \
   --assets-dir "${ASSETS}/wavedrom" \
   --quiet
