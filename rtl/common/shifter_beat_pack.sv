@@ -46,10 +46,16 @@ module shifter_beat_pack #(
     // → 1..16, etc. Set to whatever the caller actually needs to
     // encode; the internal beat-width plumbing scales with it.
     parameter int CFG_BITS       = 8,
+    // Depth of the staging register in "chunks" (CHUNK_BITS units).
+    // Default 2 = the "current + prefetched-next" arrangement. Bump
+    // for callers that need to absorb a whole burst's worth before
+    // it starts draining. Timing degrades with depth because the
+    // pop-side barrel shifter widens.
+    parameter int DEPTH_CHUNKS   = 2,
 
     // ---- derived (do not override) ----
     parameter int MAX_BEAT_BITS  = MAX_BEAT_BYTES * 8,
-    parameter int STORAGE_BITS   = 2 * CHUNK_BITS,
+    parameter int STORAGE_BITS   = DEPTH_CHUNKS * CHUNK_BITS,
     parameter int COUNT_BITS     = $clog2(STORAGE_BITS + 1),
     // Index width for r_data / v_data part-selects. r_count uses one
     // extra bit so it can represent the "full" value (STORAGE_BITS),
@@ -79,12 +85,18 @@ module shifter_beat_pack #(
 
     // ---------------------------------------------------------------
     // Elaboration-time contract: a beat must be strictly smaller
-    // than the 2-chunk staging window, otherwise the module cannot
-    // guarantee forward progress.
+    // than the staging window, otherwise the module cannot
+    // guarantee forward progress. DEPTH_CHUNKS must be at least 2
+    // — a single-chunk staging register can't hold any partial-
+    // beat residue while a new chunk lands.
     // ---------------------------------------------------------------
     initial begin : g_sizing_check
+        if (DEPTH_CHUNKS < 2) begin
+            $error("shifter_beat_pack: DEPTH_CHUNKS (%0d) must be >= 2",
+                   DEPTH_CHUNKS);
+        end
         if (MAX_BEAT_BITS >= STORAGE_BITS) begin
-            $error("shifter_beat_pack: MAX_BEAT_BITS (%0d) must be < STORAGE_BITS (%0d = 2*CHUNK_BITS)",
+            $error("shifter_beat_pack: MAX_BEAT_BITS (%0d) must be < STORAGE_BITS (%0d = DEPTH_CHUNKS*CHUNK_BITS)",
                    MAX_BEAT_BITS, STORAGE_BITS);
         end
     end
@@ -114,7 +126,8 @@ module shifter_beat_pack #(
     // Handshake / status combinational
     // ---------------------------------------------------------------
     assign empty      = (r_count == '0);
-    assign push_ready = (r_count <= COUNT_BITS'(CHUNK_BITS));
+    // Room for another whole chunk: post-push count would be <= storage.
+    assign push_ready = (r_count <= COUNT_BITS'(STORAGE_BITS - CHUNK_BITS));
     assign pop_valid  = (r_count >= COUNT_BITS'(w_beat_bits))
                      && (r_count != '0);
 
