@@ -659,24 +659,17 @@ _ENG_MATRIX = {
 # initially speculated — DDR2LPDDR2CoreMacroTB was simply missing
 # set_axi_timing_profile(). Method added, profile configs no longer xfail.
 #
-# patho_bl256_n1 (AXI BL=64 = 16 chunks × dram_bl=4) — real 16-way intake
-# split hang, tracked as RTLDesignSherpa#31. The FUB-level reproducer
-# (test_rd_cl_aligner intake_split_16chunks) fails the same way in
-# 0.5s wall-clock, so day-to-day iteration doesn't need this macro run.
-# Kept as xfail(strict=False) so it flips to xpass when the RTL fix
-# lands and this gate can be removed.
-_BUG_A_SUBSTRS: tuple[str, ...] = (
-    "patho_bl256_n1",
-)
+# #31 (rd_cl_aligner EN-pipeline skip under 16-way intake-split cadence)
+# is fixed by the circular-FIFO refactor. Kept _BUG_A_SUBSTRS = ()
+# so the wrapper mechanism stays available for future gating without
+# marking any label xfail today.
+_BUG_A_SUBSTRS: tuple[str, ...] = ()
 
 
 def _eng_xfail_reason(label: str):
     for s in _BUG_A_SUBSTRS:
         if s in label:
-            return (
-                "rd_cl_aligner EN pipeline skips 2 of 16 intake-split "
-                "chunks (RTLDesignSherpa#31)."
-            )
+            return "(placeholder — no bug-A configs currently xfailed)"
     return None
 
 

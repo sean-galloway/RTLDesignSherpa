@@ -478,31 +478,9 @@ _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
 _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
 
 
-# RTLDesignSherpa#29 — rd_cl_aligner EN pipeline skips ops under the
-# 16-way intake-split cadence. Reproducer test is gated as xfail until
-# the RTL fix lands so regressions stay green; when the fix ships, drop
-# this wrapper and the xfail flips to xpass (strict=False) or clean pass.
-_BUG_29_TYPES: frozenset = frozenset({"intake_split_16chunks"})
-
-
-def _mk_param(t, r):
-    if t in _BUG_29_TYPES:
-        return pytest.param(
-            t, r, id=f"{t}-r{r}",
-            marks=pytest.mark.xfail(
-                reason=(
-                    "rd_cl_aligner EN pipeline skips ops under 16-way "
-                    "intake-split cadence (RTLDesignSherpa#29)"
-                ),
-                strict=False,
-            ),
-        )
-    return pytest.param(t, r, id=f"{t}-r{r}")
-
-
 @pytest.mark.parametrize(
-    "test_type,dfi_rate",
-    [_mk_param(t, r) for (t, r) in _PARAMS],
+    "test_type,dfi_rate", _PARAMS,
+    ids=[f"{t[0]}-r{t[1]}" for t in _PARAMS],
 )
 def test_rd_cl_aligner(request, test_type, dfi_rate):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})

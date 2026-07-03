@@ -124,16 +124,37 @@ module rd_cl_aligner
     logic [DFI_DATA_WIDTH-1:0] r_stage [MAX_CONCURRENT][MAX_DFI_CYC];
 
     //=========================================================================
-    // Op-acceptance FIFO — slot indices in op-valid order. Three "head"
-    // pointers walk it: EN head, CAPTURE head, EMIT head. The op slot at
-    // EMIT head is freed when its beats_emitted reaches its len.
+    // Op-acceptance FIFO — slot indices in op-valid order.
+    //
+    // #31: was a shift FIFO (r_fifo[i] <= r_fifo[i+1] on emit-last) with
+    // head-idx offsets that decremented to compensate. That compensation
+    // raced the same-cycle EN-advance / alloc updates via SystemVerilog
+    // last-assignment semantics and dropped ops silently. Now it's a
+    // proper circular FIFO: r_fifo entries never move; four absolute
+    // pointers walk the array modulo MAX_CONCURRENT. Every pointer has
+    // exactly one update path, so no same-cycle race is possible.
+    //
+    // Pointers are MCL+1 bits so an extra bit disambiguates the
+    // full-vs-empty case classical circular FIFOs need to handle
+    // (compare all MCL+1 bits for equality; index r_fifo with the low
+    // MCL bits).
     //=========================================================================
     logic [MAX_CONCURRENT-1:0][MCL-1:0]   r_fifo;
     logic [MCL:0]                         r_fifo_count;
-    logic [MCL-1:0]                       r_en_head_idx;
-    logic [MCL-1:0]                       r_cap_head_idx;
-    // EMIT head is always r_fifo[0]; we don't carry a separate index for
-    // it because EMIT is what frees a slot and shifts the FIFO.
+    logic [MCL:0]                         r_tail_ptr;       // next alloc position
+    logic [MCL:0]                         r_emit_head_ptr;  // pop position
+    logic [MCL:0]                         r_en_head_ptr;    // EN read position
+    logic [MCL:0]                         r_cap_head_ptr;   // CAP read position
+
+    // Pre-compute next-position wraps for the advance guards.
+    logic [MCL:0] w_en_head_next;
+    logic [MCL:0] w_cap_head_next;
+    logic [MCL:0] w_emit_head_next;
+    logic [MCL:0] w_tail_next;
+    assign w_en_head_next   = r_en_head_ptr   + (MCL+1)'(1);
+    assign w_cap_head_next  = r_cap_head_ptr  + (MCL+1)'(1);
+    assign w_emit_head_next = r_emit_head_ptr + (MCL+1)'(1);
+    assign w_tail_next      = r_tail_ptr      + (MCL+1)'(1);
 
     //=========================================================================
     // Free-slot priority encoder for allocation.
@@ -152,14 +173,15 @@ module rd_cl_aligner
     end
 
     //=========================================================================
-    // EN head + CAPTURE head + EMIT head accessors.
+    // EN head + CAPTURE head + EMIT head accessors — read from r_fifo
+    // at each pipeline's absolute head pointer (low MCL bits).
     //=========================================================================
     logic [MCL-1:0] w_en_op;
     logic [MCL-1:0] w_cap_op;
     logic [MCL-1:0] w_emit_op;
-    assign w_en_op   = r_fifo[r_en_head_idx];
-    assign w_cap_op  = r_fifo[r_cap_head_idx];
-    assign w_emit_op = r_fifo[0];
+    assign w_en_op   = r_fifo[r_en_head_ptr  [MCL-1:0]];
+    assign w_cap_op  = r_fifo[r_cap_head_ptr [MCL-1:0]];
+    assign w_emit_op = r_fifo[r_emit_head_ptr[MCL-1:0]];
 
     //=========================================================================
     // Pre-compute DFI cycles needed for the EMIT-head op's burst.
@@ -250,6 +272,15 @@ module rd_cl_aligner
     //=========================================================================
     // Sequential state update.
     //=========================================================================
+    // Combined alloc + emit-last helpers so r_fifo_count only takes one
+    // NBA per cycle regardless of concurrent push+pop.
+    logic w_alloc;
+    logic w_emit_last;
+    assign w_alloc     = op_valid_i && op_ready_o;
+    assign w_emit_last = w_handshake
+                      && ((r_op_beats_emitted[w_emit_op] + BLW'(1))
+                          == r_op_len[w_emit_op]);
+
     `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
         if (`RST_ASSERTED(mc_rst_n)) begin
             r_op_valid         <= '0;
@@ -258,8 +289,10 @@ module rd_cl_aligner
             r_op_dfi_captured  <= '{default: '0};
             r_op_beats_emitted <= '{default: '0};
             r_fifo_count       <= '0;
-            r_en_head_idx      <= '0;
-            r_cap_head_idx     <= '0;
+            r_tail_ptr         <= '0;
+            r_emit_head_ptr    <= '0;
+            r_en_head_ptr      <= '0;
+            r_cap_head_ptr     <= '0;
             for (int unsigned i = 0; i < MAX_CONCURRENT; i++) begin
                 r_op_slot[i] <= '0;
                 r_op_id  [i] <= '0;
@@ -268,9 +301,10 @@ module rd_cl_aligner
             end
         end else begin
             //---------------------------------------------------------------
-            // 1. Allocate new op on op_valid handshake.
+            // 1. Allocate new op on op_valid handshake — write r_fifo at
+            //    tail and advance r_tail_ptr. No FIFO shift ever runs.
             //---------------------------------------------------------------
-            if (op_valid_i && op_ready_o) begin
+            if (w_alloc) begin
                 r_op_valid        [w_free_slot] <= 1'b1;
                 r_op_slot         [w_free_slot] <= op_slot_i;
                 r_op_id           [w_free_slot] <= op_id_i;
@@ -281,13 +315,20 @@ module rd_cl_aligner
                     ({1'b0, op_len_i} + (BLW+1)'(DFI_RATE - 1)) >> RATE_LOG2;
                 r_op_dfi_captured [w_free_slot] <= '0;
                 r_op_beats_emitted[w_free_slot] <= '0;
-                // Push onto FIFO at tail.
-                r_fifo[r_fifo_count[MCL-1:0]] <= w_free_slot;
-                r_fifo_count <= r_fifo_count + 1'b1;
+                r_fifo[r_tail_ptr[MCL-1:0]] <= w_free_slot;
+                r_tail_ptr <= w_tail_next;
             end
 
             //---------------------------------------------------------------
-            // 2. Per-op wait countdown (every op with wait_cnt > 0).
+            // 2. Combined FIFO-count delta. Single NBA regardless of
+            //    same-cycle alloc + emit-last (the pathology behind #31).
+            //---------------------------------------------------------------
+            if (w_alloc && !w_emit_last)      r_fifo_count <= r_fifo_count + 1'b1;
+            else if (!w_alloc && w_emit_last) r_fifo_count <= r_fifo_count - 1'b1;
+            // else: no change (net-zero on both, unchanged on neither).
+
+            //---------------------------------------------------------------
+            // 3. Per-op wait countdown (every op with wait_cnt > 0).
             //---------------------------------------------------------------
             for (int unsigned i = 0; i < MAX_CONCURRENT; i++) begin
                 if (r_op_valid[i] && r_op_wait_cnt[i] > 8'd0) begin
@@ -296,52 +337,39 @@ module rd_cl_aligner
             end
 
             //---------------------------------------------------------------
-            // 3. EN pipeline — head op drives en_remaining countdown.
+            // 4. EN pipeline — advance r_en_head_ptr when the current op
+            //    is done or invalid AND there's another op ahead. Advance
+            //    guard is "next-pointer != tail" — the extra MCL+1 bit on
+            //    the pointers disambiguates full-vs-empty for this cmp.
             //
-            // BUG FIX (task #205): the original advancement only fired on
-            // w_en_complete_for_head AND room ahead in FIFO. Once head
-            // hit fifo_count-1 with everything done, it stayed pinned.
-            // When EMIT later popped (count++ effectively, since shifts
-            // happen) and a new push arrived at the tail, head was on
-            // a DONE op and there was no path to step past it — EN
-            // never fired for the new op. Cascade: CAP never ran, EMIT
-            // never got data, wedge.
-            //
-            // Fix: split the advancement. (a) if head's op is already
-            // done (en_remaining == 0) or invalid AND there is more
-            // FIFO ahead, advance past it. (b) keep the original
-            // "advance on completion" path for the steady state.
+            //    r_en_head_ptr has ONE update source in this block; no
+            //    compensating decrement on emit-last (unlike the pre-#31
+            //    shift-FIFO scheme).
             //---------------------------------------------------------------
             if (r_fifo_count > '0
-                && (({1'b0, r_en_head_idx} + 1'b1) < r_fifo_count[MCL:0])
+                && (w_en_head_next != r_tail_ptr)
                 && (!r_op_valid[w_en_op]
                     || (r_op_en_remaining[w_en_op] == '0))) begin
-                r_en_head_idx <= r_en_head_idx + 1'b1;
+                r_en_head_ptr <= w_en_head_next;
             end else if (w_en_active) begin
                 r_op_en_remaining[w_en_op]
                     <= r_op_en_remaining[w_en_op] - (BLW+1)'(1);
                 if (w_en_complete_for_head
-                    && (({1'b0, r_en_head_idx} + 1'b1) < r_fifo_count[MCL:0])) begin
-                    r_en_head_idx <= r_en_head_idx + 1'b1;
+                    && (w_en_head_next != r_tail_ptr)) begin
+                    r_en_head_ptr <= w_en_head_next;
                 end
             end
 
             //---------------------------------------------------------------
-            // 4. CAPTURE pipeline — head op latches rddata when valid.
-            // Same bug class as EN — head needs to step past done/invalid
-            // ops or the new op at tail will never see CAP fire.
-            //
-            // WIDTH FIX (task #205, second bug): r_cap_head_idx is MCL bits
-            // (= log2 MAX_CONCURRENT). +1 wraps to 0 at the max value,
-            // silently passing the < count check. Zero-extend to MCL+1
-            // bits before the add.
+            // 5. CAPTURE pipeline — same shape as EN, driven by
+            //    dfi_rddata_valid_i landing into the cap-head op's stage.
             //---------------------------------------------------------------
             if (r_fifo_count > '0
-                && (({1'b0, r_cap_head_idx} + 1'b1) < r_fifo_count[MCL:0])
+                && (w_cap_head_next != r_tail_ptr)
                 && (!r_op_valid[w_cap_op]
                     || (r_op_dfi_captured[w_cap_op]
                         >= w_cap_dfi_cycles_total))) begin
-                r_cap_head_idx <= r_cap_head_idx + 1'b1;
+                r_cap_head_ptr <= w_cap_head_next;
             end else if (dfi_rddata_valid_i && (r_fifo_count > '0)
                 && r_op_valid[w_cap_op]
                 && (r_op_dfi_captured[w_cap_op] < w_cap_dfi_cycles_total)) begin
@@ -351,35 +379,24 @@ module rd_cl_aligner
                     <= r_op_dfi_captured[w_cap_op] + (BLW+1)'(1);
                 if (r_op_dfi_captured[w_cap_op] + (BLW+1)'(1)
                     == w_cap_dfi_cycles_total
-                    && ({1'b0, r_cap_head_idx} + 1'b1) < r_fifo_count[MCL:0]) begin
-                    r_cap_head_idx <= r_cap_head_idx + 1'b1;
+                    && (w_cap_head_next != r_tail_ptr)) begin
+                    r_cap_head_ptr <= w_cap_head_next;
                 end
             end
 
             //---------------------------------------------------------------
-            // 5. EMIT pipeline — advance head op's beat counter on external
-            //    handshake. On burst end, free the op slot and shift the
-            //    FIFO (also adjust en_head_idx / cap_head_idx).
+            // 6. EMIT pipeline — advance beat counter every handshake; on
+            //    last beat, free the slot and advance r_emit_head_ptr.
+            //    No FIFO shift, no compensation on EN/CAP head pointers.
             //---------------------------------------------------------------
             if (w_handshake) begin
-                if ((r_op_beats_emitted[w_emit_op] + BLW'(1))
-                    == r_op_len[w_emit_op]) begin
-                    // Free the op slot, pop FIFO.
-                    r_op_valid       [w_emit_op] <= 1'b0;
-                    r_op_dfi_captured[w_emit_op] <= '0;
-                    for (int unsigned i = 0; i < MAX_CONCURRENT-1; i++) begin
-                        r_fifo[i] <= r_fifo[i+1];
-                    end
-                    r_fifo_count <= r_fifo_count - 1'b1;
-                    // EN/CAP head indices were offsets into the FIFO;
-                    // shrink them by 1 (with floor at 0).
-                    r_en_head_idx  <= (r_en_head_idx  > 0) ?
-                                      r_en_head_idx  - 1'b1 : '0;
-                    r_cap_head_idx <= (r_cap_head_idx > 0) ?
-                                      r_cap_head_idx - 1'b1 : '0;
-                end
                 r_op_beats_emitted[w_emit_op]
                     <= r_op_beats_emitted[w_emit_op] + BLW'(1);
+                if (w_emit_last) begin
+                    r_op_valid       [w_emit_op] <= 1'b0;
+                    r_op_dfi_captured[w_emit_op] <= '0;
+                    r_emit_head_ptr <= w_emit_head_next;
+                end
             end
         end
     end)
