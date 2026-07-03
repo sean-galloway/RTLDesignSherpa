@@ -538,9 +538,9 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
             rd_axid_fn=lambda bi: bi & 0xF,
             name="wr_rd_b2b_multi_pipelined",
         )
-        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr)
+        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr, raise_on_error=True)
         rd_dicts = await run_axi4_sequence(
-            rd_seq, master_rd=tb.axi_master_rd,
+            rd_seq, master_rd=tb.axi_master_rd, raise_on_error=True,
         )
         results = [d["data"] for d in rd_dicts]
 
@@ -581,11 +581,11 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
             rd_axid_fn=lambda bi: bi & 0xF,
             name="wr_rd_b2b_truly_pipelined",
         )
-        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr)
+        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr, raise_on_error=True)
         from cocotb.triggers import ClockCycles as _CC2
         await _CC2(dut.mc_clk, 200)  # drain B
         rd_dicts = await run_axi4_sequence(
-            rd_seq, master_rd=tb.axi_master_rd,
+            rd_seq, master_rd=tb.axi_master_rd, raise_on_error=True,
         )
         results = [d["data"] for d in rd_dicts]
 
@@ -643,7 +643,7 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
             name="wr_rd_b2b_pipelined_same_id",
         )
         rd_dicts = await run_axi4_sequence(
-            rd_seq, master_rd=tb.axi_master_rd,
+            rd_seq, master_rd=tb.axi_master_rd, raise_on_error=True,
         )
         results = [d["data"] for d in rd_dicts]
 
@@ -692,11 +692,11 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
             rd_axid=0,
             name="profile_sweep_b2b",
         )
-        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr)
+        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr, raise_on_error=True)
         from cocotb.triggers import ClockCycles as _CC4
         await _CC4(dut.mc_clk, 2000)
         rd_dicts = await run_axi4_sequence(
-            rd_seq, master_rd=tb.axi_master_rd,
+            rd_seq, master_rd=tb.axi_master_rd, raise_on_error=True,
         )
         results = [d["data"] for d in rd_dicts]
 
@@ -1239,12 +1239,14 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
         # per-burst gating.
         await run_axi4_sequence_engine(
             wr_seq, master_wr=tb.axi_master_wr, log=tb.log,
+            raise_on_error=True,
         )
         from cocotb.triggers import ClockCycles as _CC_kbn_top
         await _CC_kbn_top(dut.mc_clk, 200)  # B drain
         # RD phase via engine-style runner — AR per cycle.
         rd_dicts = await run_axi4_sequence_engine(
             rd_seq, master_rd=tb.axi_master_rd, log=tb.log,
+            raise_on_error=True,
         )
         results = [r["data"] for r in rd_dicts]
 

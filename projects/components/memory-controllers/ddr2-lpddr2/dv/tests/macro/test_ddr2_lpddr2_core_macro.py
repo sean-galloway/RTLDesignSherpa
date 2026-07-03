@@ -158,7 +158,8 @@ async def cocotb_test_ddr2_lpddr2_core_macro(dut):
             rd_axid_fn=_id_pick,
             name=f"engine_mirror_core_{id_mode}_id{id_base}_bl{BURST}_n{N}",
         )
-        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr)
+        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr,
+                                raise_on_error=True)
         from cocotb.triggers import ClockCycles as _CC_kbn
         await _CC_kbn(dut.mc_clk, 100)
 
@@ -186,15 +187,12 @@ async def cocotb_test_ddr2_lpddr2_core_macro(dut):
         tb.log.info("WR-path localizer OK: all %d bursts × %d beats "
                     "intact in MemoryModel", N, BURST)
 
+        # raise_on_error=True surfaces read_transaction BFM exceptions
+        # (e.g. TimeoutError from a missing beat) as a clear RuntimeError
+        # instead of a downstream NoneType shape-mismatch — see #31
+        # patho_bl256_n1 for the worked example that motivated this.
         rd_dicts = await run_axi4_sequence(
-            rd_seq, master_rd=tb.axi_master_rd,
-        )
-        rd_errors = [(bi, r["error"]) for bi, r in enumerate(rd_dicts)
-                     if r["error"] is not None]
-        assert not rd_errors, (
-            f"engine_mirror_kbN (N={N}) RD BFM errors: {rd_errors} — "
-            f"read_transaction raised for one or more bursts; a downstream "
-            f"data comparison cannot run"
+            rd_seq, master_rd=tb.axi_master_rd, raise_on_error=True,
         )
         results = [r["data"] for r in rd_dicts]
 
@@ -261,10 +259,11 @@ async def cocotb_test_ddr2_lpddr2_core_macro(dut):
             data_width=tb.axi_data_width,
             name="profile_sweep_b2b",
         )
-        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr)
+        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr,
+                                raise_on_error=True)
         await ClockCycles(dut.mc_clk, 200)  # let B drain
         rd_dicts = await run_axi4_sequence(
-            rd_seq, master_rd=tb.axi_master_rd,
+            rd_seq, master_rd=tb.axi_master_rd, raise_on_error=True,
         )
         results = [d["data"] for d in rd_dicts]
 
