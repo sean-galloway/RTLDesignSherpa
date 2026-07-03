@@ -325,54 +325,8 @@ async def cocotb_test_ddr2_lpddr2_core_macro(dut):
         tb.log.info("patho_addr_pattern kind=%s BL=%d profile=%s",
                     kind, BURST, slave_profile)
 
-        BANK_STRIDE = 0x2000
-        ROW_STRIDE  = 0x10000
-        BASE        = 0x10000
-
-        # Build address list per kind.
-        if kind == "bank_hazard":
-            # 16 bursts on bank 0, rows 1..16. Sequential page misses.
-            N = 16
-            addresses = [BASE + bi * ROW_STRIDE for bi in range(N)]
-        elif kind == "page_miss_sustained":
-            # 24 bursts, ping-ponging between 3 rows on bank 0.
-            N = 24
-            rows = [1, 2, 3]
-            addresses = [BASE + rows[bi % 3] * ROW_STRIDE for bi in range(N)]
-        elif kind == "page_close_boundary":
-            # Miss, then rapid same-row hits (5), then miss again.
-            # Hits land right when the predictor could be evaluating
-            # close-vs-keep on the just-activated page.
-            N = 24
-            addresses = []
-            row = 1
-            for cluster in range(4):
-                base_addr = BASE + row * ROW_STRIDE
-                # 1 miss (opens row), 5 hits (same row, next columns).
-                addresses.append(base_addr)
-                for hit_i in range(5):
-                    addresses.append(base_addr + (hit_i + 1) * BURST * 8)
-                row += 1
-        elif kind == "hit_miss_oscillation":
-            # 5 hits → 3 misses → 5 hits → 3 misses. 4 cycles of the
-            # pattern → 32 bursts total. All bank 0.
-            # Hits are same-row + walking-column; misses jump to a
-            # fresh row.
-            N = 32
-            addresses = []
-            row = 1
-            for cycle in range(4):
-                # 5 hits on `row`
-                base_addr = BASE + row * ROW_STRIDE
-                for h in range(5):
-                    addresses.append(base_addr + h * BURST * 8)
-                # 3 misses: fresh rows
-                for m in range(3):
-                    row += 1
-                    addresses.append(BASE + row * ROW_STRIDE)
-                row += 1
-        else:
-            raise ValueError(f"Unknown KBN_PATHO_KIND: {kind}")
+        from tbclasses.ddr2_lpddr2_sequences import build_patho_addresses
+        addresses = build_patho_addresses(kind, burst_len=BURST)
 
         # Wire trackers so the D-1 divergence checker runs at end.
         import os as _os2

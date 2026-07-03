@@ -193,6 +193,62 @@ def build_addr_pattern_sequences(
     return wr_seq, rd_seq, expected
 
 
+def build_patho_addresses(
+    kind: str, *, burst_len: int, base_addr: int = 0x10000
+) -> List[int]:
+    """Address-list constructor for the D-2 pathological patterns.
+
+    Shared between core_macro and the macro top env so the scenarios
+    exercise the same stress. Row-major mapping (default for both
+    envs) with 64-bit data / 8 banks / 14 row bits / 10 col bits:
+      * byte offset [2:0]
+      * col         [12:3]  → col stride  = 0x8      (8 B)
+      * bank        [15:13] → bank stride = 0x2000   (8 KB)
+      * row         [29:16] → row stride  = 0x10000  (64 KB)
+
+    Kinds:
+      bank_hazard          — 16 bursts, all bank 0, sequential rows.
+      page_miss_sustained  — 24 bursts ping-ponging 3 rows on bank 0.
+      page_close_boundary  — miss + 5 rapid same-row hits × 4 clusters.
+      hit_miss_oscillation — 5 hits → 3 misses × 4 cycles. Induces
+                             internal burst-pause behavior in the
+                             scheduler / bank timers even when AXI
+                             is backtoback (novel stress class).
+    """
+    ROW_STRIDE = 0x10000
+    if kind == "bank_hazard":
+        return [base_addr + bi * ROW_STRIDE for bi in range(16)]
+    if kind == "page_miss_sustained":
+        rows = [1, 2, 3]
+        return [base_addr + rows[bi % 3] * ROW_STRIDE for bi in range(24)]
+    if kind == "page_close_boundary":
+        addresses: List[int] = []
+        row = 1
+        for _cluster in range(4):
+            row_base = base_addr + row * ROW_STRIDE
+            # 1 miss (opens row), 5 hits (same row, walking columns).
+            addresses.append(row_base)
+            for hit_i in range(5):
+                addresses.append(row_base + (hit_i + 1) * burst_len * 8)
+            row += 1
+        return addresses
+    if kind == "hit_miss_oscillation":
+        addresses = []
+        row = 1
+        for _cycle in range(4):
+            # 5 hits on `row`
+            row_base = base_addr + row * ROW_STRIDE
+            for h in range(5):
+                addresses.append(row_base + h * burst_len * 8)
+            # 3 misses: fresh rows
+            for _m in range(3):
+                row += 1
+                addresses.append(base_addr + row * ROW_STRIDE)
+            row += 1
+        return addresses
+    raise ValueError(f"Unknown patho kind: {kind}")
+
+
 def diff_results(
     expected: List[List[int]],
     results: Sequence[Sequence[int]],

@@ -679,6 +679,29 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
         await tb.axi_master_wr.b_channel.reset_bus()
         await tb.axi_master_rd.ar_channel.reset_bus()
         await tb.axi_master_rd.r_channel.reset_bus()
+
+        # #213: wire FUB trackers at the macro top env so profile-sweep
+        # failures land with the same per-slot event trace we already
+        # get in engine_mirror_kbN. Scope paths are u_dut.u_core.* here
+        # (top wraps core_macro one deeper than core_macro's TB).
+        import os as _os_ps
+        from tbclasses.trackers._base import wire_trackers as _wt_ps
+        _TS_PS = {
+            "sched":   "u_dut.u_core.u_command_scheduler.u_scheduler",
+            "xbank":   "u_dut.u_core.u_command_scheduler.u_xbank_timers",
+            "refr":    "u_dut.u_core.u_command_scheduler.u_refresh_ctrl",
+            "pgpred":  "u_dut.u_core.u_command_scheduler.u_page_predictor",
+            "pdn":     "u_dut.u_core.u_command_scheduler.u_powerdown_ctrl",
+            "dficmd":  "u_dut.u_core.u_dfi_v21_interface.u_dfi_cmd_formatter",
+            "wrbeat":  "u_dut.u_core.u_data_path.u_wr_beat_sequencer",
+            "rdalign": "u_dut.u_core.u_data_path.u_rd_cl_aligner",
+        }
+        trackers_ps = _wt_ps(
+            dut, output_dir=_os_ps.getcwd(), log=tb.log,
+            num_ranks=getattr(tb, "num_ranks", 1), num_banks=8,
+            autostart=True, scope_paths=_TS_PS,
+        )
+
         await tb.wait_for_init_done()
 
         N_BURSTS = 17
@@ -711,6 +734,14 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
             "profile_sweep_b2b OK aw=%s w=%s b=%s ar=%s r=%s",
             prof_aw, prof_w, prof_b, prof_ar, prof_r,
         )
+
+        # D-1 divergence check on the wired FUB trackers (per-slot
+        # event-count parity — independent of the scoreboard).
+        from tbclasses.trackers import assert_no_divergence
+        for tk_short, fub_key in (("rdalign", "rd_cl_aligner"),
+                                  ("wrbeat",  "wr_beat_sequencer")):
+            if tk_short in trackers_ps:
+                assert_no_divergence(fub_key, trackers_ps[tk_short])
 
     elif test_type == "memory_preload_read":
         # Preload bytes directly into DFISlavePHY's MemoryModel, then
@@ -1316,6 +1347,89 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
         )
         tb.log.info("engine_mirror_kbN top OK N=%d", N)
 
+    elif test_type == "patho_addr_pattern":
+        # D-2 pathological address-pattern scenarios at the macro TOP
+        # env — same stress as core_macro's patho variants, running
+        # through the axi_frontend wrapper. Address list construction
+        # is shared with core_macro via build_patho_addresses.
+        import os as _os_pa
+        kind          = _os_pa.environ.get("KBN_PATHO_KIND", "bank_hazard")
+        BURST         = int(_os_pa.environ.get("KBN_BURST_LEN", "4"))
+        slave_profile = _os_pa.environ.get("KBN_SLAVE_PROFILE", "backtoback")
+
+        tb.init_axi_masters()
+        if slave_profile != "backtoback":
+            tb.set_axi_timing_profile(slave_profile)
+        tb.log.info("patho_addr_pattern top kind=%s BL=%d profile=%s",
+                    kind, BURST, slave_profile)
+
+        # Wire trackers at the top env's u_dut.u_core.* scope so the
+        # D-1 divergence checker + engineer-facing per-FUB .out files
+        # are available for any failure.
+        from tbclasses.trackers._base import wire_trackers as _wt_pa
+        _TS_PA = {
+            "sched":   "u_dut.u_core.u_command_scheduler.u_scheduler",
+            "xbank":   "u_dut.u_core.u_command_scheduler.u_xbank_timers",
+            "pgpred":  "u_dut.u_core.u_command_scheduler.u_page_predictor",
+            "wrbeat":  "u_dut.u_core.u_data_path.u_wr_beat_sequencer",
+            "rdalign": "u_dut.u_core.u_data_path.u_rd_cl_aligner",
+        }
+        trackers_pa = _wt_pa(
+            dut, output_dir=_os_pa.getcwd(), log=tb.log,
+            num_ranks=getattr(tb, "num_ranks", 1), num_banks=8,
+            autostart=True, scope_paths=_TS_PA,
+        )
+
+        await tb.wait_for_init_done()
+
+        from tbclasses.ddr2_lpddr2_sequences import (
+            build_addr_pattern_sequences, build_patho_addresses, diff_results,
+        )
+        from CocoTBFramework.components.axi4.axi4_sequence import (
+            run_axi4_sequence,
+        )
+
+        addresses = build_patho_addresses(kind, burst_len=BURST)
+
+        ID_MASK = (1 << tb.axi_id_width) - 1
+        wr_seq, rd_seq, expected = build_addr_pattern_sequences(
+            burst_len=BURST, data_width=tb.axi_data_width,
+            addresses=addresses,
+            wr_axid_fn=lambda bi: bi & ID_MASK,
+            rd_axid_fn=lambda bi: bi & ID_MASK,
+            name=f"top_patho_{kind}",
+        )
+        # Repeating-address patterns: read-back is the LAST write to
+        # each address, not the burst-index-matched write.
+        last_write_by_addr: dict = {}
+        for bi, addr in enumerate(addresses):
+            last_write_by_addr[addr] = expected[bi]
+        expected = [last_write_by_addr[addr] for addr in addresses]
+
+        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr,
+                                raise_on_error=True)
+        from cocotb.triggers import ClockCycles as _CC_pa
+        await _CC_pa(dut.mc_clk, 200)  # B drain
+        rd_dicts = await run_axi4_sequence(
+            rd_seq, master_rd=tb.axi_master_rd, raise_on_error=True,
+        )
+        results = [r["data"] for r in rd_dicts]
+
+        first_bad = diff_results(expected, results)
+        assert first_bad is None, (
+            f"top patho_{kind} corrupted at burst={first_bad[0]} "
+            f"beat={first_bad[1]}: wrote 0x{first_bad[2]:016X} "
+            f"read 0x{first_bad[3]:016X}"
+        )
+        tb.log.info("top patho_%s OK (%d bursts)", kind, len(addresses))
+
+        # D-1 divergence check on the wired FUB trackers.
+        from tbclasses.trackers import assert_no_divergence
+        for tk_short, fub_key in (("rdalign", "rd_cl_aligner"),
+                                  ("wrbeat",  "wr_beat_sequencer")):
+            if tk_short in trackers_pa:
+                assert_no_divergence(fub_key, trackers_pa[tk_short])
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -1676,6 +1790,87 @@ def test_ddr2_lpddr2_top_engine_mirror_kbN(request, label, env_overrides):
             os.path.join(log_dir, f"results_{test_name}.xml"),
     }
     extra_env.update(env_overrides)
+    parameters = {"NUM_RANKS": "1", "PAGE_POLICY": "1"}
+
+    enable_waves = bool(int(os.environ.get("WAVES", "0")))
+    compile_args = [
+        "+define+USE_ASYNC_RESET",
+        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
+        "-Wno-CASEOVERLAP",
+    ]
+    sim_args: list = []
+    plus_args: list = []
+    if enable_waves:
+        compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+        sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
+        plus_args    += ["--trace"]
+        extra_env["VERILATOR_TRACE_FST"] = "1"
+
+    compile_args += get_coverage_compile_args()
+    extra_env.update(get_coverage_env(test_name, sim_build=sim_build))
+
+    run(python_search=[tests_dir],
+        verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase="cocotb_test_ddr2_lpddr2_top",
+        sim_build=sim_build, simulator="verilator",
+        extra_env=extra_env, parameters=parameters,
+        compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
+        waves=enable_waves, keep_files=True, timescale="1ns/1ps")
+
+
+# ---------------------------------------------------------------------------
+# D-2 pathological address-pattern sweep at the macro TOP env.
+# Same 4 kinds x 3 profiles = 12 combos as the core_macro sweep, but
+# routed through the full axi_frontend / intake / CAM / scheduler stack
+# so any bug that only manifests once the frontend is in the loop
+# gets caught here too. Trackers wire onto u_dut.u_core.* since the
+# FUBs live under the core wrapper. Divergence contracts assert at
+# teardown.
+# ---------------------------------------------------------------------------
+_TOP_PATHO_KINDS    = ("bank_hazard", "page_miss_sustained",
+                       "page_close_boundary", "hit_miss_oscillation")
+_TOP_PATHO_PROFILES = ("backtoback", "burst_pause", "slow_producer")
+_TOP_PATHO_MATRIX   = [(k, p) for k in _TOP_PATHO_KINDS
+                              for p in _TOP_PATHO_PROFILES]
+
+
+@pytest.mark.parametrize(
+    "kind,slave_profile",
+    _TOP_PATHO_MATRIX,
+    ids=[f"{k}_{p}" for (k, p) in _TOP_PATHO_MATRIX],
+)
+def test_ddr2_lpddr2_top_patho_addr_pattern(request, kind, slave_profile):
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "ddr2_lpddr2_top_tb_top"
+    test_name = f"test_ddr2_lpddr2_top_patho_{kind}_{slave_profile}"
+
+    filelist_path = ("projects/components/memory-controllers/ddr2-lpddr2/"
+                     "rtl/filelists/top/ddr2_lpddr2_top.f")
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=filelist_path)
+    verilog_sources.append(os.path.join(
+        repo_root,
+        "projects/components/memory-controllers/ddr2-lpddr2/dv/tb/"
+        "ddr2_lpddr2_top_tb_top.sv"))
+
+    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        "DUT": dut_name,
+        "TEST_TYPE": "patho_addr_pattern",
+        "KBN_PATHO_KIND": kind,
+        "KBN_SLAVE_PROFILE": slave_profile,
+        "KBN_BURST_LEN": "4",
+        "SEED": str(random.randint(0, 100000)),
+        "COCOTB_LOG_LEVEL": "INFO",
+        "COCOTB_RESULTS_FILE":
+            os.path.join(log_dir, f"results_{test_name}.xml"),
+    }
     parameters = {"NUM_RANKS": "1", "PAGE_POLICY": "1"}
 
     enable_waves = bool(int(os.environ.get("WAVES", "0")))
