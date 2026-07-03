@@ -39,7 +39,15 @@ from ddr2_lpddr2_coverage import (  # noqa: E402
 )
 
 from tbclasses.rd_cl_aligner_tb import RdClAlignerTB  # noqa: E402
-from tbclasses.trackers import RdClAlignerTracker  # noqa: E402
+from tbclasses.trackers import RdClAlignerTracker, assert_no_divergence  # noqa: E402
+
+
+# Scenarios that intentionally wedge the pipeline (admission throttle
+# demos, etc.) — divergence checks skip the parity contracts they'd
+# fail by construction.
+_DIVERGENCE_SKIP_BY_SCENARIO: dict = {
+    "rrdy_starvation_wedge": ("op_accept_beats_match_len",),
+}
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +84,15 @@ async def cocotb_test_rd_cl_aligner(dut):
     await scenarios[test_type](tb)
 
     await tb.wait_clocks('mc_clk', 10)
+
+    # D-1 post-scenario parity check on the tracker's in-memory events.
+    # Independent of the scenario-specific scoreboard: catches per-slot
+    # OP_ACCEPT-vs-BEAT_WE divergence (the #31 fingerprint) mechanically.
+    assert_no_divergence(
+        "rd_cl_aligner",
+        rdalign_tracker,
+        contract_names_skip=_DIVERGENCE_SKIP_BY_SCENARIO.get(test_type, ()),
+    )
 
 
 # ---------------------------------------------------------------------------

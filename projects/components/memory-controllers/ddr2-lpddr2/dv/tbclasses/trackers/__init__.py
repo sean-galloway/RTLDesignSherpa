@@ -38,6 +38,15 @@ from .init_sequencer_tracker   import InitSequencerTracker
 from .wr_beat_sequencer_tracker import WrBeatSequencerTracker
 from .rd_cl_aligner_tracker    import RdClAlignerTracker
 
+# Post-sim divergence checker (independent of the scoreboard —
+# reads the tracker .out files, applies per-FUB parity contracts).
+from .divergence import (
+    ParityContract, Violation,
+    parse_tracker_file, check_contract,
+    check_no_divergence, assert_no_divergence,
+)
+from .divergence_specs import DIVERGENCE_SPECS
+
 __all__ = [
     # base
     "TrackerEvent", "md_header", "dump_md_unified",
@@ -47,4 +56,8 @@ __all__ = [
     "XBankTimersTracker", "PagePredictorTracker",
     "DfiCmdFormatterTracker", "PowerdownTracker", "InitSequencerTracker",
     "WrBeatSequencerTracker", "RdClAlignerTracker",
+    # divergence
+    "ParityContract", "Violation", "DIVERGENCE_SPECS",
+    "parse_tracker_file", "check_contract",
+    "check_no_divergence", "assert_no_divergence",
 ]

@@ -38,7 +38,13 @@ from ddr2_lpddr2_coverage import (  # noqa: E402
 )
 
 from tbclasses.wr_beat_sequencer_tb import WrBeatSequencerTB  # noqa: E402
-from tbclasses.trackers import WrBeatSequencerTracker  # noqa: E402
+from tbclasses.trackers import WrBeatSequencerTracker, assert_no_divergence  # noqa: E402
+
+
+# Scenarios that intentionally wedge — no known intentional-wedge
+# scenarios on the WR side today, but the hook stays here symmetric
+# with the RD side (test_rd_cl_aligner.py).
+_DIVERGENCE_SKIP_BY_SCENARIO: dict = {}
 
 
 # ---------------------------------------------------------------------------
@@ -72,6 +78,15 @@ async def cocotb_test_wr_beat_sequencer(dut):
     await scenarios[test_type](tb)
 
     await tb.wait_clocks('mc_clk', 10)
+
+    # D-1 post-scenario parity check on the tracker's in-memory events.
+    # Independent of the scoreboard: catches OP_ACCEPT-vs-B_COMPLETE
+    # divergence (the #32 WR-mirror-of-#31 fingerprint) mechanically.
+    assert_no_divergence(
+        "wr_beat_sequencer",
+        wrbeat_tracker,
+        contract_names_skip=_DIVERGENCE_SKIP_BY_SCENARIO.get(test_type, ()),
+    )
 
 
 # ---------------------------------------------------------------------------

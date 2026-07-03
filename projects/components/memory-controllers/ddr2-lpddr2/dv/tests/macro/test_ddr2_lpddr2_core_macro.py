@@ -230,6 +230,16 @@ async def cocotb_test_ddr2_lpddr2_core_macro(dut):
         )
         tb.log.info("engine_mirror_kbN OK N=%d", N)
 
+        # D-1 divergence check on the wired FUB trackers. Fires an
+        # independent per-slot event-count parity assertion on top of
+        # the scoreboard — catches #31-shape drops / #32-shape drops
+        # even if downstream data happens to line up.
+        from tbclasses.trackers import assert_no_divergence
+        for tk_short, fub_key in (("rdalign", "rd_cl_aligner"),
+                                  ("wrbeat",  "wr_beat_sequencer")):
+            if tk_short in trackers:
+                assert_no_divergence(fub_key, trackers[tk_short])
+
     elif test_type == "profile_sweep_b2b":
         # Per-channel random-timing profile sweep at the AXI-to-DFI
         # macro level. Pipelines 17 writes then 17 reads via
