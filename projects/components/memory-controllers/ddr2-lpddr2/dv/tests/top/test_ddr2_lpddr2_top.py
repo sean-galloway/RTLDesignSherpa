@@ -1382,12 +1382,17 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
 
         await tb.wait_for_init_done()
 
+        # NOTE: diff_results is already imported at module scope (top of file).
+        # Do NOT re-import it here — a function-local import would make
+        # `diff_results` a local for this entire (large, multi-branch) function,
+        # so every earlier use (engine_mirror / profile_sweep / b2b paths) would
+        # raise UnboundLocalError before this line executes.
         from tbclasses.ddr2_lpddr2_sequences import (
-            build_addr_pattern_sequences, build_patho_addresses, diff_results,
+            build_addr_pattern_sequences, build_patho_addresses,
         )
-        from CocoTBFramework.components.axi4.axi4_sequence import (
-            run_axi4_sequence,
-        )
+        # run_axi4_sequence is already imported at module scope — re-importing
+        # it here would shadow it as a function-local and UnboundLocalError the
+        # earlier b2b / profile_sweep uses (lines ~541/584/645/718).
 
         addresses = build_patho_addresses(kind, burst_len=BURST)
 
