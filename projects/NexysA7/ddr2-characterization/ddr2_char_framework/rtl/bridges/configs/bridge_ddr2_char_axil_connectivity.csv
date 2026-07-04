@@ -1,2 +1,2 @@
-master\slave,ddr2_apb,harness_csr,desc_ram,debug_sram,dfi_mon_ram
-host,1,1,1,1,1
+master\slave,ddr2_apb,harness_csr,debug_sram,dfi_mon_ram
+host,1,1,1,1

@@ -77,29 +77,7 @@ module bridge_ddr2_char_axil (
     input  logic                  harness_csr_axi_rvalid,
     output logic                  harness_csr_axi_rready,
 
-    // Slave 2: desc_ram
-    // AXI4-Lite Slave: desc_ram
-    output logic [31:0] desc_ram_axi_awaddr,
-    output logic [2:0]            desc_ram_axi_awprot,
-    output logic                  desc_ram_axi_awvalid,
-    input  logic                  desc_ram_axi_awready,
-    output logic [31:0] desc_ram_axi_wdata,
-    output logic [3:0] desc_ram_axi_wstrb,
-    output logic                  desc_ram_axi_wvalid,
-    input  logic                  desc_ram_axi_wready,
-    input  logic [1:0]            desc_ram_axi_bresp,
-    input  logic                  desc_ram_axi_bvalid,
-    output logic                  desc_ram_axi_bready,
-    output logic [31:0] desc_ram_axi_araddr,
-    output logic [2:0]            desc_ram_axi_arprot,
-    output logic                  desc_ram_axi_arvalid,
-    input  logic                  desc_ram_axi_arready,
-    input  logic [31:0] desc_ram_axi_rdata,
-    input  logic [1:0]            desc_ram_axi_rresp,
-    input  logic                  desc_ram_axi_rvalid,
-    output logic                  desc_ram_axi_rready,
-
-    // Slave 3: debug_sram
+    // Slave 2: debug_sram
     // AXI4-Lite Slave: debug_sram
     output logic [31:0] debug_sram_axi_awaddr,
     output logic [2:0]            debug_sram_axi_awprot,
@@ -121,7 +99,7 @@ module bridge_ddr2_char_axil (
     input  logic                  debug_sram_axi_rvalid,
     output logic                  debug_sram_axi_rready,
 
-    // Slave 4: dfi_mon_ram
+    // Slave 3: dfi_mon_ram
     // AXI4-Lite Slave: dfi_mon_ram
     output logic [31:0] dfi_mon_ram_axi_awaddr,
     output logic [2:0]            dfi_mon_ram_axi_awprot,
@@ -144,7 +122,7 @@ module bridge_ddr2_char_axil (
     output logic                  dfi_mon_ram_axi_rready
 );
 
-    localparam NUM_SLAVES = 5;
+    localparam NUM_SLAVES = 4;
 
     // host Adapter outputs
     logic [NUM_SLAVES-1:0] host_slave_select_aw;
@@ -288,58 +266,6 @@ module bridge_ddr2_char_axil (
     logic [BRIDGE_ID_WIDTH-1:0] harness_csr_axi_bridge_id_ar;
     logic [BRIDGE_ID_WIDTH-1:0] harness_csr_axi_rid_bridge_id;
     logic                       harness_csr_axi_rid_valid;
-
-    // desc_ram (AXIL, 32b AXI4 interface)
-    logic [7:0]            xbar_desc_ram_axi_awid;
-    logic [31:0]               xbar_desc_ram_axi_awaddr;
-    logic [7:0]                xbar_desc_ram_axi_awlen;
-    logic [2:0]                xbar_desc_ram_axi_awsize;
-    logic [1:0]                xbar_desc_ram_axi_awburst;
-    logic                      xbar_desc_ram_axi_awlock;
-    logic [3:0]                xbar_desc_ram_axi_awcache;
-    logic [2:0]                xbar_desc_ram_axi_awprot;
-    logic [3:0]                xbar_desc_ram_axi_awqos;
-    logic [3:0]                xbar_desc_ram_axi_awregion;
-    logic                      xbar_desc_ram_axi_awuser;
-    logic                      xbar_desc_ram_axi_awvalid;
-    logic                      xbar_desc_ram_axi_awready;
-    logic [31:0] xbar_desc_ram_axi_wdata;
-    logic [3:0] xbar_desc_ram_axi_wstrb;
-    logic                      xbar_desc_ram_axi_wlast;
-    logic                      xbar_desc_ram_axi_wuser;
-    logic                      xbar_desc_ram_axi_wvalid;
-    logic                      xbar_desc_ram_axi_wready;
-    logic [7:0]            xbar_desc_ram_axi_bid;
-    logic [1:0]                xbar_desc_ram_axi_bresp;
-    logic                      xbar_desc_ram_axi_buser;
-    logic                      xbar_desc_ram_axi_bvalid;
-    logic                      xbar_desc_ram_axi_bready;
-    logic [7:0]            xbar_desc_ram_axi_arid;
-    logic [31:0]               xbar_desc_ram_axi_araddr;
-    logic [7:0]                xbar_desc_ram_axi_arlen;
-    logic [2:0]                xbar_desc_ram_axi_arsize;
-    logic [1:0]                xbar_desc_ram_axi_arburst;
-    logic                      xbar_desc_ram_axi_arlock;
-    logic [3:0]                xbar_desc_ram_axi_arcache;
-    logic [2:0]                xbar_desc_ram_axi_arprot;
-    logic [3:0]                xbar_desc_ram_axi_arqos;
-    logic [3:0]                xbar_desc_ram_axi_arregion;
-    logic                      xbar_desc_ram_axi_aruser;
-    logic                      xbar_desc_ram_axi_arvalid;
-    logic                      xbar_desc_ram_axi_arready;
-    logic [7:0]            xbar_desc_ram_axi_rid;
-    logic [31:0] xbar_desc_ram_axi_rdata;
-    logic [1:0]                xbar_desc_ram_axi_rresp;
-    logic                      xbar_desc_ram_axi_rlast;
-    logic                      xbar_desc_ram_axi_ruser;
-    logic                      xbar_desc_ram_axi_rvalid;
-    logic                      xbar_desc_ram_axi_rready;
-    logic [BRIDGE_ID_WIDTH-1:0] desc_ram_axi_bridge_id_aw;
-    logic [BRIDGE_ID_WIDTH-1:0] desc_ram_axi_bid_bridge_id;
-    logic                       desc_ram_axi_bid_valid;
-    logic [BRIDGE_ID_WIDTH-1:0] desc_ram_axi_bridge_id_ar;
-    logic [BRIDGE_ID_WIDTH-1:0] desc_ram_axi_rid_bridge_id;
-    logic                       desc_ram_axi_rid_valid;
 
     // debug_sram (AXIL, 64b AXI4 interface)
     logic [7:0]            xbar_debug_sram_axi_awid;
@@ -690,60 +616,7 @@ module bridge_ddr2_char_axil (
         .harness_csr_axi_rid_bridge_id(harness_csr_axi_rid_bridge_id),
         .harness_csr_axi_rid_valid(harness_csr_axi_rid_valid),
 
-        // Slave 2: desc_ram
-        .desc_ram_axi_awid(xbar_desc_ram_axi_awid),
-        .desc_ram_axi_awaddr(xbar_desc_ram_axi_awaddr),
-        .desc_ram_axi_awlen(xbar_desc_ram_axi_awlen),
-        .desc_ram_axi_awsize(xbar_desc_ram_axi_awsize),
-        .desc_ram_axi_awburst(xbar_desc_ram_axi_awburst),
-        .desc_ram_axi_awlock(xbar_desc_ram_axi_awlock),
-        .desc_ram_axi_awcache(xbar_desc_ram_axi_awcache),
-        .desc_ram_axi_awprot(xbar_desc_ram_axi_awprot),
-        .desc_ram_axi_awqos(xbar_desc_ram_axi_awqos),
-        .desc_ram_axi_awregion(xbar_desc_ram_axi_awregion),
-        .desc_ram_axi_awuser(xbar_desc_ram_axi_awuser),
-        .desc_ram_axi_awvalid(xbar_desc_ram_axi_awvalid),
-        .desc_ram_axi_awready(xbar_desc_ram_axi_awready),
-        .desc_ram_axi_wdata(xbar_desc_ram_axi_wdata),
-        .desc_ram_axi_wstrb(xbar_desc_ram_axi_wstrb),
-        .desc_ram_axi_wlast(xbar_desc_ram_axi_wlast),
-        .desc_ram_axi_wuser(xbar_desc_ram_axi_wuser),
-        .desc_ram_axi_wvalid(xbar_desc_ram_axi_wvalid),
-        .desc_ram_axi_wready(xbar_desc_ram_axi_wready),
-        .desc_ram_axi_bid(xbar_desc_ram_axi_bid),
-        .desc_ram_axi_bresp(xbar_desc_ram_axi_bresp),
-        .desc_ram_axi_buser(xbar_desc_ram_axi_buser),
-        .desc_ram_axi_bvalid(xbar_desc_ram_axi_bvalid),
-        .desc_ram_axi_bready(xbar_desc_ram_axi_bready),
-        .desc_ram_axi_arid(xbar_desc_ram_axi_arid),
-        .desc_ram_axi_araddr(xbar_desc_ram_axi_araddr),
-        .desc_ram_axi_arlen(xbar_desc_ram_axi_arlen),
-        .desc_ram_axi_arsize(xbar_desc_ram_axi_arsize),
-        .desc_ram_axi_arburst(xbar_desc_ram_axi_arburst),
-        .desc_ram_axi_arlock(xbar_desc_ram_axi_arlock),
-        .desc_ram_axi_arcache(xbar_desc_ram_axi_arcache),
-        .desc_ram_axi_arprot(xbar_desc_ram_axi_arprot),
-        .desc_ram_axi_arqos(xbar_desc_ram_axi_arqos),
-        .desc_ram_axi_arregion(xbar_desc_ram_axi_arregion),
-        .desc_ram_axi_aruser(xbar_desc_ram_axi_aruser),
-        .desc_ram_axi_arvalid(xbar_desc_ram_axi_arvalid),
-        .desc_ram_axi_arready(xbar_desc_ram_axi_arready),
-        .desc_ram_axi_rid(xbar_desc_ram_axi_rid),
-        .desc_ram_axi_rdata(xbar_desc_ram_axi_rdata),
-        .desc_ram_axi_rresp(xbar_desc_ram_axi_rresp),
-        .desc_ram_axi_rlast(xbar_desc_ram_axi_rlast),
-        .desc_ram_axi_ruser(xbar_desc_ram_axi_ruser),
-        .desc_ram_axi_rvalid(xbar_desc_ram_axi_rvalid),
-        .desc_ram_axi_rready(xbar_desc_ram_axi_rready),
-        .desc_ram_axi_bridge_id_aw(desc_ram_axi_bridge_id_aw),
-        .desc_ram_axi_bid_bridge_id(desc_ram_axi_bid_bridge_id),
-        .desc_ram_axi_bid_valid(desc_ram_axi_bid_valid),
-
-        .desc_ram_axi_bridge_id_ar(desc_ram_axi_bridge_id_ar),
-        .desc_ram_axi_rid_bridge_id(desc_ram_axi_rid_bridge_id),
-        .desc_ram_axi_rid_valid(desc_ram_axi_rid_valid),
-
-        // Slave 3: debug_sram
+        // Slave 2: debug_sram
         .debug_sram_axi_awid(xbar_debug_sram_axi_awid),
         .debug_sram_axi_awaddr(xbar_debug_sram_axi_awaddr),
         .debug_sram_axi_awlen(xbar_debug_sram_axi_awlen),
@@ -796,7 +669,7 @@ module bridge_ddr2_char_axil (
         .debug_sram_axi_rid_bridge_id(debug_sram_axi_rid_bridge_id),
         .debug_sram_axi_rid_valid(debug_sram_axi_rid_valid),
 
-        // Slave 4: dfi_mon_ram
+        // Slave 3: dfi_mon_ram
         .dfi_mon_ram_axi_awid(xbar_dfi_mon_ram_axi_awid),
         .dfi_mon_ram_axi_awaddr(xbar_dfi_mon_ram_axi_awaddr),
         .dfi_mon_ram_axi_awlen(xbar_dfi_mon_ram_axi_awlen),
@@ -1008,87 +881,6 @@ module bridge_ddr2_char_axil (
         .xbar_bridge_id_ar(harness_csr_axi_bridge_id_ar),
         .rid_bridge_id(harness_csr_axi_rid_bridge_id),
         .rid_valid(harness_csr_axi_rid_valid)
-    );
-
-    // desc_ram adapter (AXIL, crossbar → external slave)
-    desc_ram_adapter u_desc_ram_adapter (
-        .aclk(aclk),
-        .aresetn(aresetn),
-
-        // Crossbar interface (xbar_desc_ram_axi_*)
-        .xbar_desc_ram_axi_awid(xbar_desc_ram_axi_awid),
-        .xbar_desc_ram_axi_awaddr(xbar_desc_ram_axi_awaddr),
-        .xbar_desc_ram_axi_awlen(xbar_desc_ram_axi_awlen),
-        .xbar_desc_ram_axi_awsize(xbar_desc_ram_axi_awsize),
-        .xbar_desc_ram_axi_awburst(xbar_desc_ram_axi_awburst),
-        .xbar_desc_ram_axi_awlock(xbar_desc_ram_axi_awlock),
-        .xbar_desc_ram_axi_awcache(xbar_desc_ram_axi_awcache),
-        .xbar_desc_ram_axi_awprot(xbar_desc_ram_axi_awprot),
-        .xbar_desc_ram_axi_awqos(xbar_desc_ram_axi_awqos),
-        .xbar_desc_ram_axi_awregion(xbar_desc_ram_axi_awregion),
-        .xbar_desc_ram_axi_awuser(xbar_desc_ram_axi_awuser),
-        .xbar_desc_ram_axi_awvalid(xbar_desc_ram_axi_awvalid),
-        .xbar_desc_ram_axi_awready(xbar_desc_ram_axi_awready),
-        .xbar_desc_ram_axi_wdata(xbar_desc_ram_axi_wdata),
-        .xbar_desc_ram_axi_wstrb(xbar_desc_ram_axi_wstrb),
-        .xbar_desc_ram_axi_wlast(xbar_desc_ram_axi_wlast),
-        .xbar_desc_ram_axi_wuser(xbar_desc_ram_axi_wuser),
-        .xbar_desc_ram_axi_wvalid(xbar_desc_ram_axi_wvalid),
-        .xbar_desc_ram_axi_wready(xbar_desc_ram_axi_wready),
-        .xbar_desc_ram_axi_bid(xbar_desc_ram_axi_bid),
-        .xbar_desc_ram_axi_bresp(xbar_desc_ram_axi_bresp),
-        .xbar_desc_ram_axi_buser(xbar_desc_ram_axi_buser),
-        .xbar_desc_ram_axi_bvalid(xbar_desc_ram_axi_bvalid),
-        .xbar_desc_ram_axi_bready(xbar_desc_ram_axi_bready),
-        .xbar_desc_ram_axi_arid(xbar_desc_ram_axi_arid),
-        .xbar_desc_ram_axi_araddr(xbar_desc_ram_axi_araddr),
-        .xbar_desc_ram_axi_arlen(xbar_desc_ram_axi_arlen),
-        .xbar_desc_ram_axi_arsize(xbar_desc_ram_axi_arsize),
-        .xbar_desc_ram_axi_arburst(xbar_desc_ram_axi_arburst),
-        .xbar_desc_ram_axi_arlock(xbar_desc_ram_axi_arlock),
-        .xbar_desc_ram_axi_arcache(xbar_desc_ram_axi_arcache),
-        .xbar_desc_ram_axi_arprot(xbar_desc_ram_axi_arprot),
-        .xbar_desc_ram_axi_arqos(xbar_desc_ram_axi_arqos),
-        .xbar_desc_ram_axi_arregion(xbar_desc_ram_axi_arregion),
-        .xbar_desc_ram_axi_aruser(xbar_desc_ram_axi_aruser),
-        .xbar_desc_ram_axi_arvalid(xbar_desc_ram_axi_arvalid),
-        .xbar_desc_ram_axi_arready(xbar_desc_ram_axi_arready),
-        .xbar_desc_ram_axi_rid(xbar_desc_ram_axi_rid),
-        .xbar_desc_ram_axi_rdata(xbar_desc_ram_axi_rdata),
-        .xbar_desc_ram_axi_rresp(xbar_desc_ram_axi_rresp),
-        .xbar_desc_ram_axi_rlast(xbar_desc_ram_axi_rlast),
-        .xbar_desc_ram_axi_ruser(xbar_desc_ram_axi_ruser),
-        .xbar_desc_ram_axi_rvalid(xbar_desc_ram_axi_rvalid),
-        .xbar_desc_ram_axi_rready(xbar_desc_ram_axi_rready),
-
-        // External AXI4-Lite interface (desc_ram_axi_*)
-        .desc_ram_axi_awaddr(desc_ram_axi_awaddr),
-        .desc_ram_axi_awprot(desc_ram_axi_awprot),
-        .desc_ram_axi_awvalid(desc_ram_axi_awvalid),
-        .desc_ram_axi_awready(desc_ram_axi_awready),
-        .desc_ram_axi_wdata(desc_ram_axi_wdata),
-        .desc_ram_axi_wstrb(desc_ram_axi_wstrb),
-        .desc_ram_axi_wvalid(desc_ram_axi_wvalid),
-        .desc_ram_axi_wready(desc_ram_axi_wready),
-        .desc_ram_axi_bresp(desc_ram_axi_bresp),
-        .desc_ram_axi_bvalid(desc_ram_axi_bvalid),
-        .desc_ram_axi_bready(desc_ram_axi_bready),
-        .desc_ram_axi_araddr(desc_ram_axi_araddr),
-        .desc_ram_axi_arprot(desc_ram_axi_arprot),
-        .desc_ram_axi_arvalid(desc_ram_axi_arvalid),
-        .desc_ram_axi_arready(desc_ram_axi_arready),
-        .desc_ram_axi_rdata(desc_ram_axi_rdata),
-        .desc_ram_axi_rresp(desc_ram_axi_rresp),
-        .desc_ram_axi_rvalid(desc_ram_axi_rvalid),
-        .desc_ram_axi_rready(desc_ram_axi_rready),
-
-        // Bridge ID tracking
-        .xbar_bridge_id_aw(desc_ram_axi_bridge_id_aw),
-        .bid_bridge_id(desc_ram_axi_bid_bridge_id),
-        .bid_valid(desc_ram_axi_bid_valid),
-        .xbar_bridge_id_ar(desc_ram_axi_bridge_id_ar),
-        .rid_bridge_id(desc_ram_axi_rid_bridge_id),
-        .rid_valid(desc_ram_axi_rid_valid)
     );
 
     // debug_sram adapter (AXIL, crossbar → external slave)

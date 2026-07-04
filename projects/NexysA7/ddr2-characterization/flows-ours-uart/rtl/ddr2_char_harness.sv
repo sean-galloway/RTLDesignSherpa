@@ -8,7 +8,7 @@
 //   - uart_axil_bridge                 (host interface)
 //   - bridge_ddr2_char_axil            (1->5 generated bridge)
 //   - harness_csr                      (ctrl / status / timer / engine cfg)
-//   - desc_ram / dfi_mon_ram           (placeholder AXIL SRAMs)
+//   - dfi_mon_ram                      (placeholder AXIL SRAM)
 //   - debug_sram                       (64b MonBus/DFI trace ring)
 //   - ddr2_char_macro                  (WR pattern-gen + RD CRC-check + DDR2 controller top)
 //   - characterization timer           (small inline block)
@@ -31,7 +31,6 @@ module ddr2_char_harness
     parameter int SEVEN_SEG_REFRESH  = 1_000,
 
     // SRAM sizing
-    parameter int DESC_RAM_WORDS     = 4096,     // 16 KB @ 32b
     parameter int DEBUG_SRAM_WORDS   = 32768,    // 128 KB @ 32b -> 64K entries @ 64b
     parameter int DFI_MON_RAM_WORDS  = 512,      // 2 KB @ 32b
 
@@ -181,30 +180,22 @@ module ddr2_char_harness
     logic s1_awvalid, s1_awready, s1_wvalid, s1_wready, s1_bvalid, s1_bready;
     logic s1_arvalid, s1_arready, s1_rvalid, s1_rready;
 
-    // Slave 2 (desc_ram) — AXIL 32b
-    logic [31:0] s2_awaddr, s2_wdata, s2_araddr, s2_rdata;
-    logic [3:0]  s2_wstrb;
+    // Slave 2 (debug_sram) — AXIL 64b
+    logic [31:0] s2_awaddr, s2_araddr;
+    logic [63:0] s2_wdata, s2_rdata;
+    logic [7:0]  s2_wstrb;
     logic [2:0]  s2_awprot, s2_arprot;
     logic [1:0]  s2_bresp, s2_rresp;
     logic s2_awvalid, s2_awready, s2_wvalid, s2_wready, s2_bvalid, s2_bready;
     logic s2_arvalid, s2_arready, s2_rvalid, s2_rready;
 
-    // Slave 3 (debug_sram) — AXIL 64b
-    logic [31:0] s3_awaddr, s3_araddr;
-    logic [63:0] s3_wdata, s3_rdata;
-    logic [7:0]  s3_wstrb;
+    // Slave 3 (dfi_mon_ram) — AXIL 32b
+    logic [31:0] s3_awaddr, s3_wdata, s3_araddr, s3_rdata;
+    logic [3:0]  s3_wstrb;
     logic [2:0]  s3_awprot, s3_arprot;
     logic [1:0]  s3_bresp, s3_rresp;
     logic s3_awvalid, s3_awready, s3_wvalid, s3_wready, s3_bvalid, s3_bready;
     logic s3_arvalid, s3_arready, s3_rvalid, s3_rready;
-
-    // Slave 4 (dfi_mon_ram) — AXIL 32b
-    logic [31:0] s4_awaddr, s4_wdata, s4_araddr, s4_rdata;
-    logic [3:0]  s4_wstrb;
-    logic [2:0]  s4_awprot, s4_arprot;
-    logic [1:0]  s4_bresp, s4_rresp;
-    logic s4_awvalid, s4_awready, s4_wvalid, s4_wready, s4_bvalid, s4_bready;
-    logic s4_arvalid, s4_arready, s4_rvalid, s4_rready;
 
     // =========================================================================
     // Generated 1 -> 5 bridge
@@ -267,68 +258,47 @@ module ddr2_char_harness
         .harness_csr_axi_rvalid  (s1_rvalid),
         .harness_csr_axi_rready  (s1_rready),
 
-        // Slave 2: desc_ram
-        .desc_ram_axi_awaddr  (s2_awaddr),
-        .desc_ram_axi_awprot  (s2_awprot),
-        .desc_ram_axi_awvalid (s2_awvalid),
-        .desc_ram_axi_awready (s2_awready),
-        .desc_ram_axi_wdata   (s2_wdata),
-        .desc_ram_axi_wstrb   (s2_wstrb),
-        .desc_ram_axi_wvalid  (s2_wvalid),
-        .desc_ram_axi_wready  (s2_wready),
-        .desc_ram_axi_bresp   (s2_bresp),
-        .desc_ram_axi_bvalid  (s2_bvalid),
-        .desc_ram_axi_bready  (s2_bready),
-        .desc_ram_axi_araddr  (s2_araddr),
-        .desc_ram_axi_arprot  (s2_arprot),
-        .desc_ram_axi_arvalid (s2_arvalid),
-        .desc_ram_axi_arready (s2_arready),
-        .desc_ram_axi_rdata   (s2_rdata),
-        .desc_ram_axi_rresp   (s2_rresp),
-        .desc_ram_axi_rvalid  (s2_rvalid),
-        .desc_ram_axi_rready  (s2_rready),
+        // Slave 2: debug_sram (64b)
+        .debug_sram_axi_awaddr  (s2_awaddr),
+        .debug_sram_axi_awprot  (s2_awprot),
+        .debug_sram_axi_awvalid (s2_awvalid),
+        .debug_sram_axi_awready (s2_awready),
+        .debug_sram_axi_wdata   (s2_wdata),
+        .debug_sram_axi_wstrb   (s2_wstrb),
+        .debug_sram_axi_wvalid  (s2_wvalid),
+        .debug_sram_axi_wready  (s2_wready),
+        .debug_sram_axi_bresp   (s2_bresp),
+        .debug_sram_axi_bvalid  (s2_bvalid),
+        .debug_sram_axi_bready  (s2_bready),
+        .debug_sram_axi_araddr  (s2_araddr),
+        .debug_sram_axi_arprot  (s2_arprot),
+        .debug_sram_axi_arvalid (s2_arvalid),
+        .debug_sram_axi_arready (s2_arready),
+        .debug_sram_axi_rdata   (s2_rdata),
+        .debug_sram_axi_rresp   (s2_rresp),
+        .debug_sram_axi_rvalid  (s2_rvalid),
+        .debug_sram_axi_rready  (s2_rready),
 
-        // Slave 3: debug_sram (64b)
-        .debug_sram_axi_awaddr  (s3_awaddr),
-        .debug_sram_axi_awprot  (s3_awprot),
-        .debug_sram_axi_awvalid (s3_awvalid),
-        .debug_sram_axi_awready (s3_awready),
-        .debug_sram_axi_wdata   (s3_wdata),
-        .debug_sram_axi_wstrb   (s3_wstrb),
-        .debug_sram_axi_wvalid  (s3_wvalid),
-        .debug_sram_axi_wready  (s3_wready),
-        .debug_sram_axi_bresp   (s3_bresp),
-        .debug_sram_axi_bvalid  (s3_bvalid),
-        .debug_sram_axi_bready  (s3_bready),
-        .debug_sram_axi_araddr  (s3_araddr),
-        .debug_sram_axi_arprot  (s3_arprot),
-        .debug_sram_axi_arvalid (s3_arvalid),
-        .debug_sram_axi_arready (s3_arready),
-        .debug_sram_axi_rdata   (s3_rdata),
-        .debug_sram_axi_rresp   (s3_rresp),
-        .debug_sram_axi_rvalid  (s3_rvalid),
-        .debug_sram_axi_rready  (s3_rready),
-
-        // Slave 4: dfi_mon_ram
-        .dfi_mon_ram_axi_awaddr  (s4_awaddr),
-        .dfi_mon_ram_axi_awprot  (s4_awprot),
-        .dfi_mon_ram_axi_awvalid (s4_awvalid),
-        .dfi_mon_ram_axi_awready (s4_awready),
-        .dfi_mon_ram_axi_wdata   (s4_wdata),
-        .dfi_mon_ram_axi_wstrb   (s4_wstrb),
-        .dfi_mon_ram_axi_wvalid  (s4_wvalid),
-        .dfi_mon_ram_axi_wready  (s4_wready),
-        .dfi_mon_ram_axi_bresp   (s4_bresp),
-        .dfi_mon_ram_axi_bvalid  (s4_bvalid),
-        .dfi_mon_ram_axi_bready  (s4_bready),
-        .dfi_mon_ram_axi_araddr  (s4_araddr),
-        .dfi_mon_ram_axi_arprot  (s4_arprot),
-        .dfi_mon_ram_axi_arvalid (s4_arvalid),
-        .dfi_mon_ram_axi_arready (s4_arready),
-        .dfi_mon_ram_axi_rdata   (s4_rdata),
-        .dfi_mon_ram_axi_rresp   (s4_rresp),
-        .dfi_mon_ram_axi_rvalid  (s4_rvalid),
-        .dfi_mon_ram_axi_rready  (s4_rready)
+        // Slave 3: dfi_mon_ram
+        .dfi_mon_ram_axi_awaddr  (s3_awaddr),
+        .dfi_mon_ram_axi_awprot  (s3_awprot),
+        .dfi_mon_ram_axi_awvalid (s3_awvalid),
+        .dfi_mon_ram_axi_awready (s3_awready),
+        .dfi_mon_ram_axi_wdata   (s3_wdata),
+        .dfi_mon_ram_axi_wstrb   (s3_wstrb),
+        .dfi_mon_ram_axi_wvalid  (s3_wvalid),
+        .dfi_mon_ram_axi_wready  (s3_wready),
+        .dfi_mon_ram_axi_bresp   (s3_bresp),
+        .dfi_mon_ram_axi_bvalid  (s3_bvalid),
+        .dfi_mon_ram_axi_bready  (s3_bready),
+        .dfi_mon_ram_axi_araddr  (s3_araddr),
+        .dfi_mon_ram_axi_arprot  (s3_arprot),
+        .dfi_mon_ram_axi_arvalid (s3_arvalid),
+        .dfi_mon_ram_axi_arready (s3_arready),
+        .dfi_mon_ram_axi_rdata   (s3_rdata),
+        .dfi_mon_ram_axi_rresp   (s3_rresp),
+        .dfi_mon_ram_axi_rvalid  (s3_rvalid),
+        .dfi_mon_ram_axi_rready  (s3_rready)
     );
 
     // =========================================================================
@@ -529,30 +499,6 @@ module ddr2_char_harness
     );
 
     // =========================================================================
-    // desc_ram — AXIL 32b SRAM (placeholder; wired but not yet driven).
-    // =========================================================================
-    sdpram_slave_axil_axil #(
-        .ADDR_WIDTH (32),
-        .DATA_WIDTH (32),
-        .MEM_DEPTH  (DESC_RAM_WORDS)
-    ) u_desc_ram (
-        .aclk(aclk), .aresetn(unit_aresetn),
-        .s_axil_awaddr (s2_awaddr), .s_axil_awprot(s2_awprot),
-        .s_axil_awvalid(s2_awvalid), .s_axil_awready(s2_awready),
-        .s_axil_wdata  (s2_wdata),  .s_axil_wstrb (s2_wstrb),
-        .s_axil_wvalid (s2_wvalid), .s_axil_wready(s2_wready),
-        .s_axil_bresp  (s2_bresp), .s_axil_bvalid(s2_bvalid), .s_axil_bready(s2_bready),
-        .s_axil_araddr (s2_araddr), .s_axil_arprot(s2_arprot),
-        .s_axil_arvalid(s2_arvalid), .s_axil_arready(s2_arready),
-        .s_axil_rdata  (s2_rdata), .s_axil_rresp (s2_rresp),
-        .s_axil_rvalid (s2_rvalid), .s_axil_rready(s2_rready),
-        .i_cfg_start_clear (1'b0),
-        .o_cfg_done_clear  (),
-        .o_dbg_vr(), .o_dbg_fub_vr(), .o_dbg_bram_wr(), .o_dbg_bram_rd(),
-        .o_dbg_busy_wr(), .o_dbg_busy_rd()
-    );
-
-    // =========================================================================
     // debug_sram — 64b AXIL SRAM for MonBus/DFI trace ring
     // =========================================================================
     logic w_debug_sram_dbg_bram_wr_pulse;
@@ -563,15 +509,15 @@ module ddr2_char_harness
         .MEM_DEPTH  (DEBUG_SRAM_WORDS / 2)   // 32b->64b halves entries
     ) u_debug_sram (
         .aclk(aclk), .aresetn(unit_aresetn),
-        .s_axil_awaddr (s3_awaddr), .s_axil_awprot(s3_awprot),
-        .s_axil_awvalid(s3_awvalid), .s_axil_awready(s3_awready),
-        .s_axil_wdata  (s3_wdata),  .s_axil_wstrb (s3_wstrb),
-        .s_axil_wvalid (s3_wvalid), .s_axil_wready(s3_wready),
-        .s_axil_bresp  (s3_bresp), .s_axil_bvalid(s3_bvalid), .s_axil_bready(s3_bready),
-        .s_axil_araddr (s3_araddr), .s_axil_arprot(s3_arprot),
-        .s_axil_arvalid(s3_arvalid), .s_axil_arready(s3_arready),
-        .s_axil_rdata  (s3_rdata), .s_axil_rresp (s3_rresp),
-        .s_axil_rvalid (s3_rvalid), .s_axil_rready(s3_rready),
+        .s_axil_awaddr (s2_awaddr), .s_axil_awprot(s2_awprot),
+        .s_axil_awvalid(s2_awvalid), .s_axil_awready(s2_awready),
+        .s_axil_wdata  (s2_wdata),  .s_axil_wstrb (s2_wstrb),
+        .s_axil_wvalid (s2_wvalid), .s_axil_wready(s2_wready),
+        .s_axil_bresp  (s2_bresp), .s_axil_bvalid(s2_bvalid), .s_axil_bready(s2_bready),
+        .s_axil_araddr (s2_araddr), .s_axil_arprot(s2_arprot),
+        .s_axil_arvalid(s2_arvalid), .s_axil_arready(s2_arready),
+        .s_axil_rdata  (s2_rdata), .s_axil_rresp (s2_rresp),
+        .s_axil_rvalid (s2_rvalid), .s_axil_rready(s2_rready),
         .i_cfg_start_clear (w_clear_stats_pulse & ~w_freeze_trace),
         .o_cfg_done_clear  (),
         .o_dbg_vr(), .o_dbg_fub_vr(),
@@ -609,15 +555,15 @@ module ddr2_char_harness
         .MEM_DEPTH  (DFI_MON_RAM_WORDS)
     ) u_dfi_mon_ram (
         .aclk(aclk), .aresetn(unit_aresetn),
-        .s_axil_awaddr (s4_awaddr), .s_axil_awprot(s4_awprot),
-        .s_axil_awvalid(s4_awvalid), .s_axil_awready(s4_awready),
-        .s_axil_wdata  (s4_wdata),  .s_axil_wstrb (s4_wstrb),
-        .s_axil_wvalid (s4_wvalid), .s_axil_wready(s4_wready),
-        .s_axil_bresp  (s4_bresp), .s_axil_bvalid(s4_bvalid), .s_axil_bready(s4_bready),
-        .s_axil_araddr (s4_araddr), .s_axil_arprot(s4_arprot),
-        .s_axil_arvalid(s4_arvalid), .s_axil_arready(s4_arready),
-        .s_axil_rdata  (s4_rdata), .s_axil_rresp (s4_rresp),
-        .s_axil_rvalid (s4_rvalid), .s_axil_rready(s4_rready),
+        .s_axil_awaddr (s3_awaddr), .s_axil_awprot(s3_awprot),
+        .s_axil_awvalid(s3_awvalid), .s_axil_awready(s3_awready),
+        .s_axil_wdata  (s3_wdata),  .s_axil_wstrb (s3_wstrb),
+        .s_axil_wvalid (s3_wvalid), .s_axil_wready(s3_wready),
+        .s_axil_bresp  (s3_bresp), .s_axil_bvalid(s3_bvalid), .s_axil_bready(s3_bready),
+        .s_axil_araddr (s3_araddr), .s_axil_arprot(s3_arprot),
+        .s_axil_arvalid(s3_arvalid), .s_axil_arready(s3_arready),
+        .s_axil_rdata  (s3_rdata), .s_axil_rresp (s3_rresp),
+        .s_axil_rvalid (s3_rvalid), .s_axil_rready(s3_rready),
         .i_cfg_start_clear (1'b0),
         .o_cfg_done_clear  (),
         .o_dbg_vr(), .o_dbg_fub_vr(), .o_dbg_bram_wr(), .o_dbg_bram_rd(),

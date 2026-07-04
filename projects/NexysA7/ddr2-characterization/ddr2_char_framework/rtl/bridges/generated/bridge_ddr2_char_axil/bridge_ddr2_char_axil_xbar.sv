@@ -166,65 +166,7 @@ module bridge_ddr2_char_axil_xbar (
     input  logic         harness_csr_axi_rvalid,
     output  logic         harness_csr_axi_rready,
 
-    // Slave 2: desc_ram
-    output logic [BRIDGE_ID_WIDTH-1:0] desc_ram_axi_bridge_id_aw,
-    input  logic [BRIDGE_ID_WIDTH-1:0] desc_ram_axi_bid_bridge_id,
-    input  logic                       desc_ram_axi_bid_valid,
-
-    output logic [BRIDGE_ID_WIDTH-1:0] desc_ram_axi_bridge_id_ar,
-    input  logic [BRIDGE_ID_WIDTH-1:0] desc_ram_axi_rid_bridge_id,
-    input  logic                       desc_ram_axi_rid_valid,
-
-    output  logic [7:0]  desc_ram_axi_awid,
-    output  logic [31:0]  desc_ram_axi_awaddr,
-    output  logic [7:0]  desc_ram_axi_awlen,
-    output  logic [2:0]  desc_ram_axi_awsize,
-    output  logic [1:0]  desc_ram_axi_awburst,
-    output  logic         desc_ram_axi_awlock,
-    output  logic [3:0]  desc_ram_axi_awcache,
-    output  logic [2:0]  desc_ram_axi_awprot,
-    output  logic [3:0]  desc_ram_axi_awqos,
-    output  logic [3:0]  desc_ram_axi_awregion,
-    output  logic         desc_ram_axi_awuser,
-    output  logic         desc_ram_axi_awvalid,
-    input  logic         desc_ram_axi_awready,
-
-    output  logic [31:0]  desc_ram_axi_wdata,
-    output  logic [3:0]  desc_ram_axi_wstrb,
-    output  logic         desc_ram_axi_wlast,
-    output  logic         desc_ram_axi_wuser,
-    output  logic         desc_ram_axi_wvalid,
-    input  logic         desc_ram_axi_wready,
-
-    input  logic [7:0]  desc_ram_axi_bid,
-    input  logic [1:0]  desc_ram_axi_bresp,
-    input  logic         desc_ram_axi_buser,
-    input  logic         desc_ram_axi_bvalid,
-    output  logic         desc_ram_axi_bready,
-
-    output  logic [7:0]  desc_ram_axi_arid,
-    output  logic [31:0]  desc_ram_axi_araddr,
-    output  logic [7:0]  desc_ram_axi_arlen,
-    output  logic [2:0]  desc_ram_axi_arsize,
-    output  logic [1:0]  desc_ram_axi_arburst,
-    output  logic         desc_ram_axi_arlock,
-    output  logic [3:0]  desc_ram_axi_arcache,
-    output  logic [2:0]  desc_ram_axi_arprot,
-    output  logic [3:0]  desc_ram_axi_arqos,
-    output  logic [3:0]  desc_ram_axi_arregion,
-    output  logic         desc_ram_axi_aruser,
-    output  logic         desc_ram_axi_arvalid,
-    input  logic         desc_ram_axi_arready,
-
-    input  logic [7:0]  desc_ram_axi_rid,
-    input  logic [31:0]  desc_ram_axi_rdata,
-    input  logic [1:0]  desc_ram_axi_rresp,
-    input  logic         desc_ram_axi_rlast,
-    input  logic         desc_ram_axi_ruser,
-    input  logic         desc_ram_axi_rvalid,
-    output  logic         desc_ram_axi_rready,
-
-    // Slave 3: debug_sram
+    // Slave 2: debug_sram
     output logic [BRIDGE_ID_WIDTH-1:0] debug_sram_axi_bridge_id_aw,
     input  logic [BRIDGE_ID_WIDTH-1:0] debug_sram_axi_bid_bridge_id,
     input  logic                       debug_sram_axi_bid_valid,
@@ -282,7 +224,7 @@ module bridge_ddr2_char_axil_xbar (
     input  logic         debug_sram_axi_rvalid,
     output  logic         debug_sram_axi_rready,
 
-    // Slave 4: dfi_mon_ram
+    // Slave 3: dfi_mon_ram
     output logic [BRIDGE_ID_WIDTH-1:0] dfi_mon_ram_axi_bridge_id_aw,
     input  logic [BRIDGE_ID_WIDTH-1:0] dfi_mon_ram_axi_bid_bridge_id,
     input  logic                       dfi_mon_ram_axi_bid_valid,
@@ -344,7 +286,7 @@ module bridge_ddr2_char_axil_xbar (
     // ================================================================
     // Crossbar Routing
     // ================================================================
-    localparam NUM_SLAVES = 5;
+    localparam NUM_SLAVES = 4;
 
     // ================================================================
     // Slave 0: ddr2_apb (32b)
@@ -499,83 +441,7 @@ module bridge_ddr2_char_axil_xbar (
 
 
     // ================================================================
-    // Slave 2: desc_ram (32b)
-    // ================================================================
-    // Single master: host → desc_ram
-    // Master width: 32b, Slave width: 32b
-    // Using 32b path from adapter
-
-    // AW channel (gated by address re-decode -- see _addr_decode_expr)
-    wire host_32b_aw_to_desc_ram = ((host_32b_aw.addr >= 32'h00020000) && (host_32b_aw.addr <= 32'h0002ffff));
-    assign desc_ram_axi_awid     = host_32b_aw_to_desc_ram ? host_32b_aw.id : '0;
-    assign desc_ram_axi_awaddr   = host_32b_aw_to_desc_ram ? host_32b_aw.addr : '0;
-    assign desc_ram_axi_awlen    = host_32b_aw_to_desc_ram ? host_32b_aw.len : '0;
-    assign desc_ram_axi_awsize   = host_32b_aw_to_desc_ram ? host_32b_aw.size : '0;
-    assign desc_ram_axi_awburst  = host_32b_aw_to_desc_ram ? host_32b_aw.burst : '0;
-    assign desc_ram_axi_awlock   = host_32b_aw_to_desc_ram ? host_32b_aw.lock : '0;
-    assign desc_ram_axi_awcache  = host_32b_aw_to_desc_ram ? host_32b_aw.cache : '0;
-    assign desc_ram_axi_awprot   = host_32b_aw_to_desc_ram ? host_32b_aw.prot : '0;
-    assign desc_ram_axi_awvalid  = host_32b_aw_to_desc_ram && host_32b_awvalid;
-
-    // AW->W tracking FIFO for this (master,slave) pair
-    logic host_32b_w_to_desc_ram;
-    logic [3:0] host_32b_aw_to_desc_ram_w_wptr, host_32b_aw_to_desc_ram_w_rptr;
-    logic host_32b_aw_to_desc_ram_w_mem [16];
-    logic host_32b_aw_to_desc_ram_w_push, host_32b_aw_to_desc_ram_w_pop;
-    assign host_32b_aw_to_desc_ram_w_push = host_32b_awvalid && host_32b_awready && host_32b_aw_to_desc_ram;
-    assign host_32b_aw_to_desc_ram_w_pop  = host_32b_wvalid && host_32b_wready && host_32b_w.last && host_32b_w_to_desc_ram;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            host_32b_aw_to_desc_ram_w_wptr <= '0;
-            host_32b_aw_to_desc_ram_w_rptr <= '0;
-        end else begin
-            if (host_32b_aw_to_desc_ram_w_push) begin
-                host_32b_aw_to_desc_ram_w_mem[host_32b_aw_to_desc_ram_w_wptr] <= 1'b1;
-                host_32b_aw_to_desc_ram_w_wptr <= host_32b_aw_to_desc_ram_w_wptr + 1'b1;
-            end
-            if (host_32b_aw_to_desc_ram_w_pop) begin
-                host_32b_aw_to_desc_ram_w_rptr <= host_32b_aw_to_desc_ram_w_rptr + 1'b1;
-            end
-        end
-    end
-    assign host_32b_w_to_desc_ram = (host_32b_aw_to_desc_ram_w_wptr != host_32b_aw_to_desc_ram_w_rptr) ? host_32b_aw_to_desc_ram_w_mem[host_32b_aw_to_desc_ram_w_rptr] : 1'b0;
-
-
-    // W channel (gated by aw_to_<slave> FIFO head)
-    assign desc_ram_axi_wdata  = host_32b_w_to_desc_ram ? host_32b_w.data : '0;
-    assign desc_ram_axi_wstrb  = host_32b_w_to_desc_ram ? host_32b_w.strb : '0;
-    assign desc_ram_axi_wlast  = host_32b_w_to_desc_ram ? host_32b_w.last : '0;
-    assign desc_ram_axi_wvalid = host_32b_w_to_desc_ram && host_32b_wvalid;
-
-    // Bready (master → slave) — gated on bid_valid so the path stays
-    // open through the entire B handshake, not just the AW phase.
-    assign desc_ram_axi_bready = ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid) ? host_32b_bready : '0;
-
-    // Bridge ID (master → slave)
-    assign desc_ram_axi_bridge_id_aw = host_32b_aw_to_desc_ram ? host_bridge_id_aw : '0;
-
-    // AR channel (gated by address re-decode -- see _addr_decode_expr)
-    wire host_32b_ar_to_desc_ram = ((host_32b_ar.addr >= 32'h00020000) && (host_32b_ar.addr <= 32'h0002ffff));
-    assign desc_ram_axi_arid     = host_32b_ar_to_desc_ram ? host_32b_ar.id : '0;
-    assign desc_ram_axi_araddr   = host_32b_ar_to_desc_ram ? host_32b_ar.addr : '0;
-    assign desc_ram_axi_arlen    = host_32b_ar_to_desc_ram ? host_32b_ar.len : '0;
-    assign desc_ram_axi_arsize   = host_32b_ar_to_desc_ram ? host_32b_ar.size : '0;
-    assign desc_ram_axi_arburst  = host_32b_ar_to_desc_ram ? host_32b_ar.burst : '0;
-    assign desc_ram_axi_arlock   = host_32b_ar_to_desc_ram ? host_32b_ar.lock : '0;
-    assign desc_ram_axi_arcache  = host_32b_ar_to_desc_ram ? host_32b_ar.cache : '0;
-    assign desc_ram_axi_arprot   = host_32b_ar_to_desc_ram ? host_32b_ar.prot : '0;
-    assign desc_ram_axi_arvalid  = host_32b_ar_to_desc_ram && host_32b_arvalid;
-
-    // Rready (master → slave) — gated on rid_valid so the path stays
-    // open through the entire R handshake, not just the AR phase.
-    assign desc_ram_axi_rready = ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid) ? host_32b_rready : '0;
-
-    // Bridge ID (master → slave)
-    assign desc_ram_axi_bridge_id_ar = host_32b_ar_to_desc_ram ? host_bridge_id_ar : '0;
-
-
-    // ================================================================
-    // Slave 3: debug_sram (64b)
+    // Slave 2: debug_sram (64b)
     // ================================================================
     // Single master: host → debug_sram
     // Master width: 32b, Slave width: 64b
@@ -651,7 +517,7 @@ module bridge_ddr2_char_axil_xbar (
 
 
     // ================================================================
-    // Slave 4: dfi_mon_ram (32b)
+    // Slave 3: dfi_mon_ram (32b)
     // ================================================================
     // Single master: host → dfi_mon_ram
     // Master width: 32b, Slave width: 32b
@@ -734,67 +600,56 @@ module bridge_ddr2_char_axil_xbar (
     assign host_32b_awready = 
         (host_32b_aw_to_ddr2_apb ? ddr2_apb_axi_awready : '0) |
         (host_32b_aw_to_harness_csr ? harness_csr_axi_awready : '0) |
-        (host_32b_aw_to_desc_ram ? desc_ram_axi_awready : '0) |
         (host_32b_aw_to_dfi_mon_ram ? dfi_mon_ram_axi_awready : '0);
 
     assign host_32b_wready = 
         (host_32b_w_to_ddr2_apb ? ddr2_apb_axi_wready : '0) |
         (host_32b_w_to_harness_csr ? harness_csr_axi_wready : '0) |
-        (host_32b_w_to_desc_ram ? desc_ram_axi_wready : '0) |
         (host_32b_w_to_dfi_mon_ram ? dfi_mon_ram_axi_wready : '0);
 
     assign host_32b_b.id = 
         ((ddr2_apb_axi_bid_bridge_id == 0) && ddr2_apb_axi_bid_valid ? ddr2_apb_axi_bid : '0) |
         ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_bid : '0) |
-        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_bid : '0) |
         ((dfi_mon_ram_axi_bid_bridge_id == 0) && dfi_mon_ram_axi_bid_valid ? dfi_mon_ram_axi_bid : '0);
 
     assign host_32b_b.resp = 
         ((ddr2_apb_axi_bid_bridge_id == 0) && ddr2_apb_axi_bid_valid ? ddr2_apb_axi_bresp : '0) |
         ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_bresp : '0) |
-        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_bresp : '0) |
         ((dfi_mon_ram_axi_bid_bridge_id == 0) && dfi_mon_ram_axi_bid_valid ? dfi_mon_ram_axi_bresp : '0);
 
     assign host_32b_bvalid = 
         ((ddr2_apb_axi_bid_bridge_id == 0) && ddr2_apb_axi_bid_valid ? ddr2_apb_axi_bvalid : '0) |
         ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_bvalid : '0) |
-        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_bvalid : '0) |
         ((dfi_mon_ram_axi_bid_bridge_id == 0) && dfi_mon_ram_axi_bid_valid ? dfi_mon_ram_axi_bvalid : '0);
 
     assign host_32b_arready = 
         (host_32b_ar_to_ddr2_apb ? ddr2_apb_axi_arready : '0) |
         (host_32b_ar_to_harness_csr ? harness_csr_axi_arready : '0) |
-        (host_32b_ar_to_desc_ram ? desc_ram_axi_arready : '0) |
         (host_32b_ar_to_dfi_mon_ram ? dfi_mon_ram_axi_arready : '0);
 
     assign host_32b_r.id = 
         ((ddr2_apb_axi_rid_bridge_id == 0) && ddr2_apb_axi_rid_valid ? ddr2_apb_axi_rid : '0) |
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rid : '0) |
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rid : '0) |
         ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid ? dfi_mon_ram_axi_rid : '0);
 
     assign host_32b_r.data = 
         ((ddr2_apb_axi_rid_bridge_id == 0) && ddr2_apb_axi_rid_valid ? ddr2_apb_axi_rdata : 32'b0) |
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rdata : 32'b0) |
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rdata : 32'b0) |
         ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid ? dfi_mon_ram_axi_rdata : 32'b0);
 
     assign host_32b_r.resp = 
         ((ddr2_apb_axi_rid_bridge_id == 0) && ddr2_apb_axi_rid_valid ? ddr2_apb_axi_rresp : '0) |
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rresp : '0) |
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rresp : '0) |
         ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid ? dfi_mon_ram_axi_rresp : '0);
 
     assign host_32b_r.last = 
         ((ddr2_apb_axi_rid_bridge_id == 0) && ddr2_apb_axi_rid_valid ? ddr2_apb_axi_rlast : '0) |
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rlast : '0) |
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rlast : '0) |
         ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid ? dfi_mon_ram_axi_rlast : '0);
 
     assign host_32b_rvalid = 
         ((ddr2_apb_axi_rid_bridge_id == 0) && ddr2_apb_axi_rid_valid ? ddr2_apb_axi_rvalid : '0) |
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rvalid : '0) |
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rvalid : '0) |
         ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid ? dfi_mon_ram_axi_rvalid : '0);
 
 

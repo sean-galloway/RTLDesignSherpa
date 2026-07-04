@@ -6,7 +6,7 @@ and `bridge_ddr2_char_axil.toml`.
 
 ---
 
-## Bridge (1 master × 5 slaves)
+## Bridge (1 master × 4 slaves)
 
 Source: `ddr2_char_framework/rtl/bridges/configs/bridge_ddr2_char_axil.toml`.
 
@@ -14,12 +14,14 @@ Source: `ddr2_char_framework/rtl/bridges/configs/bridge_ddr2_char_axil.toml`.
 |---------------|----------------|---------|----------|---------------------------------------------------|
 | `ddr2_apb`    | `0x0000_0000`  | 4 KB    | APB      | ddr2-lpddr2 controller CSR (autogen regs)         |
 | `harness_csr` | `0x0001_0000`  | 4 KB    | AXIL     | Harness ctrl + timer + engine cfg + perf readback |
-| `desc_ram`    | `0x0002_0000`  | 64 KB   | AXIL     | Placeholder for future `dma_address_gen` prog     |
 | `debug_sram`  | `0x0004_0000`  | 256 KB  | AXIL 64b | MonBus / DFI trace ring                           |
 | `dfi_mon_ram` | `0x0008_0000`  | 4 KB    | AXIL     | Small AXIL ring for DFI cmd observability         |
 
 The 256-KB `debug_sram` window intentionally spans `0x40000..0x7FFFF`, so
-`dfi_mon_ram` sits at `0x80000` (not `0x50000`) to avoid overlap.
+`dfi_mon_ram` sits at `0x80000` (not `0x50000`) to avoid overlap. The
+`0x00020000..0x0003FFFF` slot used to hold `desc_ram`; it's unallocated
+now that the pattern-gen engines cover the workload class the descriptor
+mode was reserved for.
 
 ---
 

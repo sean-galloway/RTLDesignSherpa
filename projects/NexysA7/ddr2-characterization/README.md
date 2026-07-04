@@ -22,17 +22,21 @@ This is the **DDR2 sibling of `stream_characterization/`** — same shape, diffe
 DFI v2.1 is the canonical interface between our controller and the DRAM PHY. The PHY itself (FPGA IOB serdes, OSERDESE2/ISERDESE2 tap calibration, IDELAY training) is FPGA-specific and out of scope for our family controllers. For Nexys A7 we reuse **LiteDRAM's `a7ddrphy`** verbatim and drive its DFI master port from our controller.
 
 ```
-  ┌─────────────────────────────────────────────────┐
-  │ char harness (this project)                      │
-  │                                                  │
-  │   dma_address_gen ──► axi4_master_wr_pat_gen ──┐ │
-  │   (algo mix)         (LFSR-seeded by addr)     │ │
-  │                                                ▼ │  AXI4
-  │   dma_address_gen ──► axi4_master_rd_crc_chk ◄─┤ ◄─────► our DDR2 controller ──► a7ddrphy ──► MT47H64M16
-  │   (same mix)         (CRC vs expected)         │ │  DFI v2.1          IOB
-  │                                                ▼ │
-  │   harness_csr / leds / 7-seg / perf counters     │
-  └──────────────────────────────────────────────────┘
+  ┌───────────────────────────────────────────────────────┐
+  │ char harness (this project)                            │
+  │                                                        │
+  │   axi4_master_wr_pat_gen  ──┐                          │
+  │   (strided addr + LFSR)     │                          │
+  │                             ▼   AXI4                   │
+  │                          ┌─────┐                       │
+  │                          │s_axi│ ► our DDR2 controller ► a7ddrphy ► MT47H64M16
+  │                          └─────┘   DFI v2.1              IOB
+  │                             ▲                          │
+  │   axi4_master_rd_crc_chk  ──┘                          │
+  │   (strided addr + CRC)                                 │
+  │                                                        │
+  │   harness_csr / bus meter + latency hist / leds / 7-seg│
+  └────────────────────────────────────────────────────────┘
 ```
 
 The boundary at DFI is the same boundary the DV repo's BFM uses. Code that passes in cocotb against the BFM should pass on hardware against the `a7ddrphy`, modulo PHY-side training quirks.
@@ -81,15 +85,13 @@ The harness mirrors `stream_characterization`'s pattern of "generate, drive, che
 
 | Block | Source | Notes |
 |-------|--------|-------|
-| `dma_address_gen` | `projects/components/misc/rtl/dma_address_gen.sv` | **Reuse as-is.** 2D strided generator with wrap + signed strides. Drives AW + AR addresses through descriptor programming (linear / 2D row-major / wrap region / reverse). |
-| `axi4_master_wr_pattern_gen` (**new**) | adapted from `axi4_slave_rd_pattern_gen` (stream) | Master-side LFSR pattern-gen that emits `wdata` seeded by `awaddr`. Consumes addresses from `dma_address_gen`, wraps `axi4_master_wr` for the AW/W/B protocol. |
-| `axi4_master_rd_crc_check` (**new**) | adapted from `axi4_slave_wr_crc_check` (stream) | Master-side CRC accumulator that reads back from the same addresses and CRCs the returned `rdata` against the expected CRC computed from the same LFSR + addresses. Compare-on-completion mismatch → harness latches an error. |
-| `dataint_crc` | `rtl/common/dataint_crc.sv` | **Reuse as-is.** Same CRC primitive both stream-side blocks instantiate. |
-| `harness_csr` | adapted from `stream_char_framework/rtl/harness_csr.sv` | Holds workload program (descriptor), result counters (latency, throughput, CRC mismatch), and soft-reset hooks. |
-| `axi_response_delay` | `stream_char_framework/rtl/axi_response_delay.sv` | **Reuse as-is.** Per-channel R/B response delay queues for stress-testing the controller under back-pressure. |
-| `led_status_driver`, `seven_seg_4digit` | `stream_char_framework/rtl/` | **Reuse as-is.** Live status display. |
-
-The two new blocks (`axi4_master_wr_pattern_gen`, `axi4_master_rd_crc_check`) are the work item.
+| `axi4_master_wr_pattern_gen` | `rtl/amba/shared/` | Master-side LFSR pattern-gen with a built-in 2D strided address generator (stride_0/1 + wrap_mask_0/1). Emits AW + `wdata` seeded by burst index; catches BRESP errors. |
+| `axi4_master_rd_crc_check` | `rtl/amba/shared/` | Master-side CRC accumulator with its own strided address generator (mirrors the writer). Reads back and CRCs the returned `rdata` against the LFSR-computed expected value; flags mismatches. |
+| `dataint_crc` | `rtl/common/dataint_crc.sv` | **Reuse as-is.** Same CRC primitive both engines instantiate. |
+| `harness_csr` | this project (`ddr2_char_framework/rtl/harness_csr.sv`) | AXIL slave. Holds every engine cfg reg (0x100/0x180 blocks), the characterization timer, the perf-observability readback (0x1C0..0x1E8), and the bring-up ctrl/status pulses. |
+| `axi_bus_meter`, `axi_perf_latency_hist` | `rtl/amba/shared/` | Instantiated inside `ddr2_char_macro`, tapped on the internal AXI wires between the engines and the controller's s_axi port. WR side: W meter + AW→B histogram. RD side: R meter + AR→firstR/RLAST histograms. |
+| `axi_response_delay` | `ddr2_char_framework/rtl/axi_response_delay.sv` (from stream) | Committed to the framework but not yet instantiated. `harness_csr.o_rd_resp_delay_cyc/o_wr_resp_delay_cyc` are the future knobs. |
+| `led_status_driver`, `seven_seg_4digit` | `ddr2_char_framework/rtl/` (from stream) | **Reuse as-is.** Live status display. |
 
 ---
 
@@ -102,7 +104,7 @@ The two new blocks (`axi4_master_wr_pattern_gen`, `axi4_master_rd_crc_check`) ar
 | 3 | Nexys A7 hardware bring-up — UART-driven host walks the pattern-gen / CRC-check pair against real DDR2 | this directory | Future |
 | 4 | Workload characterization with this harness — pattern + CRC sweeps + perf counters → CSV → plots | this directory | Skeleton (directory + plan only) |
 
-Phase 4 is what `flows-ours-uart/` runs. The harness uses `dma_address_gen` to walk a descriptor-programmed access pattern, the pattern-gen / CRC-check pair to verify data integrity end-to-end, and the AXI bus meters + latency histograms tapped inside `ddr2_char_macro` to measure throughput / latency. CSVs land under `flows-ours-uart/csv/`; plots under `plots/`.
+Phase 4 is what `flows-ours-uart/` runs. The two pattern-gen engines share the controller's `s_axi` port; each has its own strided address generator programmed through `harness_csr` cfg regs (linear / 2D row-major / wrap / reverse via stride + wrap-mask fields). The CRC-check pair verifies data integrity end-to-end, and the AXI bus meters + latency histograms tapped inside `ddr2_char_macro` measure throughput / latency. CSVs land under `flows-ours-uart/csv/`; plots under `plots/`.
 
 Extended-endurance work (24-hour soak, thermal chamber) fits inside Phase 3/4 — no OS is running so the "real OS access patterns" story from the earlier VexRiscv plan is off the table on this board. If we want that, it moves to a bigger FPGA target that can host both our controller and Linux.
 
@@ -114,8 +116,8 @@ Extended-endurance work (24-hour soak, thermal chamber) fits inside Phase 3/4 �
 |-------|----------|-------|
 | Our DDR2 controller | ~12,000 | Controller only; no PHY. Per HAS §2.1 target envelope. |
 | `a7ddrphy` (LiteDRAM PHY) | ~2,000 | FPGA-specific IOB serdes. Reused from LiteDRAM. |
-| Char engines (WR pattern-gen + RD CRC-check + `dma_address_gen`) | ~2,000 | LFSR + CRC + strided address gen |
-| Perf logic (`axi_bus_meter` + `axi_perf_latency_hist` x WR+RD, `harness_csr`, debug_sram / desc_ram) | ~3,000 | Grows with meter counters + histogram bins |
+| Char engines (WR pattern-gen + RD CRC-check, each with its own strided address gen) | ~2,000 | LFSR + CRC + built-in stride/wrap gen |
+| Perf logic (`axi_bus_meter` + `axi_perf_latency_hist` x WR+RD, `harness_csr`, debug_sram, dfi_mon_ram) | ~3,000 | Grows with meter counters + histogram bins |
 | 1×5 AXIL bridge (host→APB/CSR/SRAMs) | ~1,500 | Generated `bridge_ddr2_char_axil` |
 | UART↔AXIL bridge + LED/7-seg | ~1,000 | UART FSM + display drivers |
 | **Total** | **~21,500 / 63,400 (~34 %)** | No CPU on this board — the 100T doesn't have the budget for DDR2 + perf + a soft CPU together; host drives over UART |
@@ -150,4 +152,5 @@ Multi-rank (`NUM_RANKS ∈ {1, 2, 4}`) is not exercised on this board — the on
 
 - **2026-06-15** — Original DDR2 bring-up plan recorded under `projects/NexysA7/ddr2-lpddr2-memory-controller/`. Validation methodology (DFI controller + LiteDRAM `a7ddrphy`), CPU choice (VexRiscv Linux on LiteX), and three-sub-phase hardware bring-up agreed. Resource budget fits comfortably (~36 % LUTs). No work started yet — DDR2 controller pre-RTL (HAS v0.2 + MAS v0.1 skeleton).
 - **2026-06-25** — Directory renamed `ddr2-lpddr2-memory-controller/` → `ddr2-characterization/` to align with the `stream_characterization/` sibling and reflect the workload-characterization focus. Harness architecture recorded: reuse `dma_address_gen` + the stream `dataint_crc` + `axi_response_delay` + `harness_csr` + LED/7-seg drivers; author **two new master-side blocks** — `axi4_master_wr_pattern_gen` and `axi4_master_rd_crc_check` — by adapting stream's slave-side `axi4_slave_rd_pattern_gen` + `axi4_slave_wr_crc_check`. Initial flow: `flows-ours-vex/` only; `flows-litedram-vex/` lands later as baseline comparison.
+- **2026-07-04** — Bridge shrunk from 1×5 to 1×4: dropped `desc_ram`. The pattern-gen engines already have strided address generators built in (driven by `stride_0/1` + `wrap_mask_0/1` cfg regs at 0x100/0x180), so the descriptor-mode workload path the earlier plan reserved `desc_ram` for is redundant. If we later want a scripted / trace-replay workload class the engines can't express, re-add a fresh slave with the right shape rather than trying to repurpose a placeholder.
 - **2026-07-03** — Drop the soft-CPU story from the Nexys A7 target. XC7A100T doesn't have the LUT budget to fit our DDR2 controller + perf logic + VexRiscv+LiteX simultaneously with any timing margin. Flow renamed `flows-ours-vex/` → `flows-ours-uart/`; the host machine drives the harness through the FTDI UART instead. Resource budget rewritten around perf logic (`axi_bus_meter` + `axi_perf_latency_hist` on WR+RD, tapped inside `ddr2_char_macro`). Future flows follow the same naming: `flows-<controller>-uart/` for the on-Nexys builds; `flows-<controller>-vex/` reserved for larger FPGA targets where a CPU actually fits.

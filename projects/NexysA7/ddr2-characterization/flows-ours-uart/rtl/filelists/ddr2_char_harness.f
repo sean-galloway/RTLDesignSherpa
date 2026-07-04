@@ -15,7 +15,7 @@
 # ddr2_char_macro (WR pattern-gen + RD CRC-check + ddr2-lpddr2 controller top)
 -f $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/ddr2_char_macro.f
 
-# AXIL SRAM slave used for desc_ram / debug_sram / dfi_mon_ram
+# AXIL SRAM slave used for debug_sram + dfi_mon_ram
 $REPO_ROOT/rtl/amba/axil4/axil4_slave_wr.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv
 $REPO_ROOT/rtl/amba/shared/sdpram_core.sv
