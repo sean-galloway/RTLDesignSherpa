@@ -7,6 +7,10 @@
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr_pattern_gen.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_crc_check.f
 
+# Perf: bus meters + latency histograms tapped on the internal AXI wires.
+$REPO_ROOT/rtl/amba/shared/axi_bus_meter.sv
+$REPO_ROOT/rtl/amba/shared/axi_perf_latency_hist.sv
+
 # ddr2-lpddr2 controller top — pulls in axi_frontend / scheduler / data_path
 # / dfi_v21_interface / core / csr_slave.
 -f $REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/filelists/top/ddr2_lpddr2_top.f

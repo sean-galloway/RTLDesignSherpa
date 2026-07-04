@@ -92,6 +92,28 @@
 //   0x1A4  RD_HASH_SEED1    RW
 //   0x1A8  RD_HASH_SEED2    RW
 //
+// -- Perf readback (from axi_bus_meter + axi_perf_latency_hist tapped ---
+//   inside ddr2_char_macro). All 32b, clear on CTRL.clear_stats via the
+//   perf_clear pulse; freeze via CTRL.freeze_trace via perf_freeze.
+//   Sits at 0x1C0..0x1E8 (after RD engine cfg) so it doesn't collide
+//   with the 0x100/0x180 engine-cfg blocks.
+//
+//   0x1C0  OBS_RD_PROD       R  RD data-channel meter: productive cycles
+//   0x1C4  OBS_RD_BP         R                          backpressure
+//   0x1C8  OBS_RD_STARV      R                          starvation
+//   0x1CC  OBS_RD_IDLE       R                          idle
+//   0x1D0  OBS_WR_PROD       R  WR data-channel meter: productive
+//   0x1D4  OBS_WR_BP         R                          backpressure
+//   0x1D8  OBS_WR_STARV      R                          starvation
+//   0x1DC  OBS_WR_IDLE       R                          idle
+//   0x1E0  OBS_HIST_SEL      RW indexed histogram selector:
+//                              [0]    bus       (0=read, 1=write)
+//                              [1]    metric    (RD only: 0=AR->firstR,
+//                                                          1=AR->RLAST)
+//                              [5:2]  bin index (log2 latency bin 0..15)
+//   0x1E4  OBS_HIST_COUNT    R   count of the selected bin
+//   0x1E8  OBS_HIST_TOTAL    R   total transactions on the selected metric
+//
 // Any address not listed reads as 0 and ignores writes.
 
 `timescale 1ns / 1ps
@@ -192,6 +214,28 @@ module harness_csr
     // =====================================================================
     output logic [15:0]     o_rd_resp_delay_cyc,
     output logic [15:0]     o_wr_resp_delay_cyc,
+
+    // =====================================================================
+    // Perf observability (from ddr2_char_macro's tapped bus meters +
+    // latency histograms). See register map 0x100-0x128.
+    // =====================================================================
+    output logic            o_perf_clear,       // = CTRL.clear_stats pulse
+    output logic            o_perf_freeze,      // = CTRL.freeze_trace latch
+    input  logic [31:0]     i_obs_rd_prod,
+    input  logic [31:0]     i_obs_rd_bp,
+    input  logic [31:0]     i_obs_rd_starv,
+    input  logic [31:0]     i_obs_rd_idle,
+    input  logic [31:0]     i_obs_wr_prod,
+    input  logic [31:0]     i_obs_wr_bp,
+    input  logic [31:0]     i_obs_wr_starv,
+    input  logic [31:0]     i_obs_wr_idle,
+    output logic            o_obs_hist_metric,  // = OBS_HIST_SEL[1]
+    output logic [3:0]      o_obs_hist_bin,     // = OBS_HIST_SEL[5:2]
+    output logic            o_obs_hist_bus_sel, // = OBS_HIST_SEL[0] (0=rd 1=wr)
+    input  logic [31:0]     i_obs_rd_hist_count,
+    input  logic [31:0]     i_obs_rd_hist_total,
+    input  logic [31:0]     i_obs_wr_hist_count,
+    input  logic [31:0]     i_obs_wr_hist_total,
 
     // =====================================================================
     // Runtime controller cfg outputs (into ddr2_char_macro)
@@ -397,6 +441,9 @@ module harness_csr
     logic [31:0] r_rd_hash_seed1;
     logic [31:0] r_rd_hash_seed2;
 
+    // Perf hist selector: {bin[5:2], metric[1], bus[0]}.
+    logic [5:0]  r_obs_hist_sel;
+
     // =========================================================================
     // Write channel FSM
     // =========================================================================
@@ -450,6 +497,7 @@ module harness_csr
             r_rd_hash_seed0        <= '0;
             r_rd_hash_seed1        <= '0;
             r_rd_hash_seed2        <= '0;
+            r_obs_hist_sel         <= '0;
         end else begin
             // Default: pulses auto-clear each cycle
             r_start_wr_pulse       <= 1'b0;
@@ -504,6 +552,9 @@ module harness_csr
                             9'h1A0: r_rd_hash_seed0  <= int_wdata;
                             9'h1A4: r_rd_hash_seed1  <= int_wdata;
                             9'h1A8: r_rd_hash_seed2  <= int_wdata;
+
+                            // Perf hist selector (only RW perf reg)
+                            9'h1E0: r_obs_hist_sel <= int_wdata[5:0];
 
                             default: ;  // ignore
                         endcase
@@ -643,6 +694,27 @@ module harness_csr
                             9'h1A4: r_rdata <= r_rd_hash_seed1;
                             9'h1A8: r_rdata <= r_rd_hash_seed2;
 
+                            // Perf: bus-meter readback (RD then WR)
+                            9'h1C0: r_rdata <= i_obs_rd_prod;
+                            9'h1C4: r_rdata <= i_obs_rd_bp;
+                            9'h1C8: r_rdata <= i_obs_rd_starv;
+                            9'h1CC: r_rdata <= i_obs_rd_idle;
+                            9'h1D0: r_rdata <= i_obs_wr_prod;
+                            9'h1D4: r_rdata <= i_obs_wr_bp;
+                            9'h1D8: r_rdata <= i_obs_wr_starv;
+                            9'h1DC: r_rdata <= i_obs_wr_idle;
+
+                            // Perf: histogram selector + selected bin
+                            // (mux count/total across RD and WR sides
+                            // based on selector bit 0).
+                            9'h1E0: r_rdata <= {26'd0, r_obs_hist_sel};
+                            9'h1E4: r_rdata <= r_obs_hist_sel[0]
+                                                ? i_obs_wr_hist_count
+                                                : i_obs_rd_hist_count;
+                            9'h1E8: r_rdata <= r_obs_hist_sel[0]
+                                                ? i_obs_wr_hist_total
+                                                : i_obs_rd_hist_total;
+
                             default: r_rdata <= 32'h0;
                         endcase
                         r_rstate <= R_RRESP;
@@ -671,6 +743,14 @@ module harness_csr
     assign o_timer_expected_beats = r_timer_expected_beats;
     assign o_rd_resp_delay_cyc    = r_rd_resp_delay_cyc;
     assign o_wr_resp_delay_cyc    = r_wr_resp_delay_cyc;
+
+    // Perf outputs: clear ganged to CTRL.clear_stats pulse; freeze ganged
+    // to CTRL.freeze_trace. Hist selector splits into per-side signals.
+    assign o_perf_clear       = r_clear_stats_pulse;
+    assign o_perf_freeze      = r_freeze_trace;
+    assign o_obs_hist_bus_sel = r_obs_hist_sel[0];
+    assign o_obs_hist_metric  = r_obs_hist_sel[1];
+    assign o_obs_hist_bin     = r_obs_hist_sel[5:2];
 
     // Controller runtime cfg unpack
     // r_ctrlr_cfg: [0]memtype [15:8]t_phy_wrlat [23:16]t_rddata_en [24]rd_in_order

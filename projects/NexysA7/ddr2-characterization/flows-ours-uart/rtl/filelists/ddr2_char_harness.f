@@ -1,5 +1,5 @@
 # Filelist for ddr2_char_harness (full DDR2 characterization integration)
-# Location: projects/NexysA7/ddr2-characterization/flows-ours-vex/rtl/filelists/ddr2_char_harness.f
+# Location: projects/NexysA7/ddr2-characterization/flows-ours-uart/rtl/filelists/ddr2_char_harness.f
 #
 # Pulls in every dep the harness needs and lands the flow's harness +
 # top on top. Root path token is $REPO_ROOT (points at RTLDesignSherpa).
@@ -43,5 +43,5 @@ $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/led_st
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/seven_seg_4digit.sv
 
 # Flow-specific harness + FPGA pin-level top
-$REPO_ROOT/projects/NexysA7/ddr2-characterization/flows-ours-vex/rtl/ddr2_char_harness.sv
-$REPO_ROOT/projects/NexysA7/ddr2-characterization/flows-ours-vex/rtl/ddr2_char_top.sv
+$REPO_ROOT/projects/NexysA7/ddr2-characterization/flows-ours-uart/rtl/ddr2_char_harness.sv
+$REPO_ROOT/projects/NexysA7/ddr2-characterization/flows-ours-uart/rtl/ddr2_char_top.sv

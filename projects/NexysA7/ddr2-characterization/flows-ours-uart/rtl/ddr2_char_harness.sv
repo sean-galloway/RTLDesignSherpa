@@ -355,6 +355,15 @@ module ddr2_char_harness
 
     logic [15:0]  w_rd_resp_delay_cyc, w_wr_resp_delay_cyc;
 
+    // Perf observability wires (harness_csr <-> ddr2_char_macro)
+    logic         w_perf_clear, w_perf_freeze;
+    logic [31:0]  w_obs_rd_prod, w_obs_rd_bp, w_obs_rd_starv, w_obs_rd_idle;
+    logic [31:0]  w_obs_wr_prod, w_obs_wr_bp, w_obs_wr_starv, w_obs_wr_idle;
+    logic         w_obs_hist_metric, w_obs_hist_bus_sel;
+    logic [3:0]   w_obs_hist_bin;
+    logic [31:0]  w_obs_rd_hist_count, w_obs_rd_hist_total;
+    logic [31:0]  w_obs_wr_hist_count, w_obs_wr_hist_total;
+
     memtype_e     w_memtype;
     logic [7:0]   w_t_phy_wrlat, w_t_rddata_en;
     logic         w_rd_in_order;
@@ -452,6 +461,25 @@ module ddr2_char_harness
         // axi_response_delay blocks on the DFI slave path).
         .o_rd_resp_delay_cyc (w_rd_resp_delay_cyc),
         .o_wr_resp_delay_cyc (w_wr_resp_delay_cyc),
+
+        // Perf observability -- to/from ddr2_char_macro
+        .o_perf_clear         (w_perf_clear),
+        .o_perf_freeze        (w_perf_freeze),
+        .i_obs_rd_prod        (w_obs_rd_prod),
+        .i_obs_rd_bp          (w_obs_rd_bp),
+        .i_obs_rd_starv       (w_obs_rd_starv),
+        .i_obs_rd_idle        (w_obs_rd_idle),
+        .i_obs_wr_prod        (w_obs_wr_prod),
+        .i_obs_wr_bp          (w_obs_wr_bp),
+        .i_obs_wr_starv       (w_obs_wr_starv),
+        .i_obs_wr_idle        (w_obs_wr_idle),
+        .o_obs_hist_metric    (w_obs_hist_metric),
+        .o_obs_hist_bin       (w_obs_hist_bin),
+        .o_obs_hist_bus_sel   (w_obs_hist_bus_sel),
+        .i_obs_rd_hist_count  (w_obs_rd_hist_count),
+        .i_obs_rd_hist_total  (w_obs_rd_hist_total),
+        .i_obs_wr_hist_count  (w_obs_wr_hist_count),
+        .i_obs_wr_hist_total  (w_obs_wr_hist_total),
 
         // Controller runtime cfg outputs
         .o_memtype           (w_memtype),
@@ -717,7 +745,26 @@ module ddr2_char_harness
         .rd_dbg_ready    (w_rd_dbg_ready),
         .rd_dbg_actual   (w_rd_dbg_actual),
         .rd_dbg_expected (w_rd_dbg_expected),
-        .rd_dbg_mismatch (w_rd_dbg_mismatch)
+        .rd_dbg_mismatch (w_rd_dbg_mismatch),
+
+        // Perf observability (bus meters + latency histograms tapped
+        // inside the macro on the internal AXI wires)
+        .perf_clear       (w_perf_clear),
+        .perf_freeze      (w_perf_freeze),
+        .perf_wr_prod     (w_obs_wr_prod),
+        .perf_wr_bp       (w_obs_wr_bp),
+        .perf_wr_starv    (w_obs_wr_starv),
+        .perf_wr_idle     (w_obs_wr_idle),
+        .perf_rd_prod     (w_obs_rd_prod),
+        .perf_rd_bp       (w_obs_rd_bp),
+        .perf_rd_starv    (w_obs_rd_starv),
+        .perf_rd_idle     (w_obs_rd_idle),
+        .i_hist_metric        (w_obs_hist_metric),
+        .i_hist_bin           (w_obs_hist_bin),
+        .perf_wr_hist_count   (w_obs_wr_hist_count),
+        .perf_wr_hist_total   (w_obs_wr_hist_total),
+        .perf_rd_hist_count   (w_obs_rd_hist_count),
+        .perf_rd_hist_total   (w_obs_rd_hist_total)
     );
 
     assign w_rd_dbg_ready = 1'b1;   // always accept

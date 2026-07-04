@@ -225,7 +225,32 @@ module ddr2_char_macro
     input  logic                       rd_dbg_ready,
     output logic [DW-1:0]              rd_dbg_actual,
     output logic [DW-1:0]              rd_dbg_expected,
-    output logic                       rd_dbg_mismatch
+    output logic                       rd_dbg_mismatch,
+
+    //-------------------------------------------------------------------------
+    // Perf observability (bus meters + latency histograms tapped on the
+    // internal AXI wires between the WR/RD engines and the controller's
+    // s_axi port). Both meters watch the data-channel handshake
+    // (W for WR, R for RD) since that's the throughput surface.
+    //-------------------------------------------------------------------------
+    input  logic                       perf_clear,
+    input  logic                       perf_freeze,
+    output logic [31:0]                perf_wr_prod,
+    output logic [31:0]                perf_wr_bp,
+    output logic [31:0]                perf_wr_starv,
+    output logic [31:0]                perf_wr_idle,
+    output logic [31:0]                perf_rd_prod,
+    output logic [31:0]                perf_rd_bp,
+    output logic [31:0]                perf_rd_starv,
+    output logic [31:0]                perf_rd_idle,
+    // Indexed histogram readback. i_hist_metric bit 0 (RD) picks
+    // 0=AR->firstR, 1=AR->RLAST. WR side is single-metric (AW->B).
+    input  logic                       i_hist_metric,
+    input  logic [3:0]                 i_hist_bin,
+    output logic [31:0]                perf_wr_hist_count,
+    output logic [31:0]                perf_wr_hist_total,
+    output logic [31:0]                perf_rd_hist_count,
+    output logic [31:0]                perf_rd_hist_total
 );
 
     //=========================================================================
@@ -510,5 +535,135 @@ module ddr2_char_macro
         .cap_lookahead_max_i   (cap_lookahead_max_i),
         .cap_synth_mask_i      (cap_synth_mask_i)
     );
+
+    //=========================================================================
+    // Perf blocks: bus meters + latency histograms, tapped on the internal
+    // AXI wires between the engines and the controller's s_axi port.
+    //=========================================================================
+    // Ignore per-channel arrays -- we run aggregate-only with NUM_CHANNELS=1.
+    logic [15:0] w_wr_meter_ch_prod   [1];
+    logic [15:0] w_wr_meter_ch_bp     [1];
+    logic [15:0] w_wr_meter_ch_starv  [1];
+    logic [15:0] w_wr_meter_ch_idle   [1];
+    logic [3:0]  w_wr_meter_ch_overflow;
+    logic [15:0] w_rd_meter_ch_prod   [1];
+    logic [15:0] w_rd_meter_ch_bp     [1];
+    logic [15:0] w_rd_meter_ch_starv  [1];
+    logic [15:0] w_rd_meter_ch_idle   [1];
+    logic [3:0]  w_rd_meter_ch_overflow;
+
+    // WR-side data-channel meter (W handshake).
+    axi_bus_meter #(
+        .NUM_CHANNELS (1)
+    ) u_meter_wr (
+        .aclk           (mc_clk),
+        .aresetn        (mc_rst_n),
+        .i_clear        (perf_clear),
+        .i_freeze       (perf_freeze),
+        .i_valid        (wr_wvalid),
+        .i_ready        (wr_wready),
+        .i_channel_id   ('0),
+        .i_channel_valid(1'b1),
+        .o_agg_productive   (perf_wr_prod),
+        .o_agg_backpressure (perf_wr_bp),
+        .o_agg_starvation   (perf_wr_starv),
+        .o_agg_idle         (perf_wr_idle),
+        .o_ch_productive    (w_wr_meter_ch_prod),
+        .o_ch_backpressure  (w_wr_meter_ch_bp),
+        .o_ch_starvation    (w_wr_meter_ch_starv),
+        .o_ch_idle          (w_wr_meter_ch_idle),
+        .o_ch_overflow      (w_wr_meter_ch_overflow)
+    );
+
+    // RD-side data-channel meter (R handshake).
+    axi_bus_meter #(
+        .NUM_CHANNELS (1)
+    ) u_meter_rd (
+        .aclk           (mc_clk),
+        .aresetn        (mc_rst_n),
+        .i_clear        (perf_clear),
+        .i_freeze       (perf_freeze),
+        .i_valid        (rd_rvalid),
+        .i_ready        (rd_rready),
+        .i_channel_id   ('0),
+        .i_channel_valid(1'b1),
+        .o_agg_productive   (perf_rd_prod),
+        .o_agg_backpressure (perf_rd_bp),
+        .o_agg_starvation   (perf_rd_starv),
+        .o_agg_idle         (perf_rd_idle),
+        .o_ch_productive    (w_rd_meter_ch_prod),
+        .o_ch_backpressure  (w_rd_meter_ch_bp),
+        .o_ch_starvation    (w_rd_meter_ch_starv),
+        .o_ch_idle          (w_rd_meter_ch_idle),
+        .o_ch_overflow      (w_rd_meter_ch_overflow)
+    );
+
+    // Latency hist: WR side tracks AW -> B (single metric).
+    axi_perf_latency_hist #(
+        .ID_WIDTH        (IW),
+        .NUM_CHANNELS    (1),
+        .MAX_OUTSTANDING (8),
+        .NUM_BINS        (16),
+        .IS_READ         (1'b0)
+    ) u_hist_wr (
+        .aclk       (mc_clk),
+        .aresetn    (mc_rst_n),
+        .i_clear    (perf_clear),
+        .i_freeze   (perf_freeze),
+        .cmd_valid  (wr_awvalid),
+        .cmd_ready  (wr_awready),
+        .cmd_id     (wr_awid),
+        .data_valid (wr_wvalid),
+        .data_ready (wr_wready),
+        .data_last  (wr_wlast),
+        .data_id    (wr_awid),   // AW id -- WR data has no id
+        .resp_valid (wr_bvalid),
+        .resp_ready (wr_bready),
+        .resp_id    (wr_bid),
+        .i_hist_metric (1'b0),   // WR ignores metric bit
+        .i_hist_bin    (i_hist_bin),
+        .o_hist_count  (perf_wr_hist_count),
+        .o_hist_total  (perf_wr_hist_total)
+    );
+
+    // Latency hist: RD side tracks AR -> firstR / RLAST (metric selects).
+    axi_perf_latency_hist #(
+        .ID_WIDTH        (IW),
+        .NUM_CHANNELS    (1),
+        .MAX_OUTSTANDING (8),
+        .NUM_BINS        (16),
+        .IS_READ         (1'b1)
+    ) u_hist_rd (
+        .aclk       (mc_clk),
+        .aresetn    (mc_rst_n),
+        .i_clear    (perf_clear),
+        .i_freeze   (perf_freeze),
+        .cmd_valid  (rd_arvalid),
+        .cmd_ready  (rd_arready),
+        .cmd_id     (rd_arid),
+        .data_valid (rd_rvalid),
+        .data_ready (rd_rready),
+        .data_last  (rd_rlast),
+        .data_id    (rd_rid),
+        .resp_valid (1'b0),
+        .resp_ready (1'b0),
+        .resp_id    ('0),
+        .i_hist_metric (i_hist_metric),
+        .i_hist_bin    (i_hist_bin),
+        .o_hist_count  (perf_rd_hist_count),
+        .o_hist_total  (perf_rd_hist_total)
+    );
+
+    // Per-channel arrays are unused when NUM_CHANNELS=1 -- silence lint.
+    /* verilator lint_off UNUSED */
+    wire _unused_perf = &{1'b0,
+        w_wr_meter_ch_prod[0], w_wr_meter_ch_bp[0],
+        w_wr_meter_ch_starv[0], w_wr_meter_ch_idle[0],
+        w_wr_meter_ch_overflow,
+        w_rd_meter_ch_prod[0], w_rd_meter_ch_bp[0],
+        w_rd_meter_ch_starv[0], w_rd_meter_ch_idle[0],
+        w_rd_meter_ch_overflow,
+        1'b0};
+    /* verilator lint_on UNUSED */
 
 endmodule : ddr2_char_macro

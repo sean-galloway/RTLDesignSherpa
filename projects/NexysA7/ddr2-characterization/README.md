@@ -58,12 +58,12 @@ ddr2-characterization/                       ← this directory (umbrella)
 │   └── host/                                (TODO) plot_results.py, sweep
 │                                              runners, CSV ingest
 │
-└── flows-ours-vex/                          our DDR2 controller + VexRiscv-Linux
-    ├── rtl/                                 (TODO) char top + LiteX SoC integration
+└── flows-ours-uart/                         our DDR2 controller + UART-driven host
+    ├── rtl/                                 char top + harness + a7ddrphy binding
     ├── tcl/                                 (TODO) Vivado build scripts
-    ├── constraints/                         (TODO) Nexys A7 XDC + clock + I/O
+    ├── constraints/                         Nexys A7 XDC (board pins done, DDR2 TODO)
     ├── dv/                                  (TODO) cocotb sim of the harness
-    ├── host/                                (TODO) sweep + plot CSV
+    ├── host/                                (TODO) Python driver against harness_csr
     ├── csv/                                 (TODO) committed sweep output
     ├── plots/                               (TODO) committed plots
     ├── reports/                             (TODO) Vivado timing/util
@@ -71,7 +71,7 @@ ddr2-characterization/                       ← this directory (umbrella)
     └── README.md                            (TODO) per-flow doc
 ```
 
-A future `flows-litedram-vex/` sibling (LiteDRAM controller + same VexRiscv-Linux harness) lands later as the baseline comparison cell.
+A future `flows-litedram-uart/` sibling (LiteDRAM controller + same UART harness) lands later as the baseline comparison cell. **No CPU in the FPGA build:** the Nexys A7 100T doesn't have the LUT budget to fit our DDR2 controller + perf logic + a soft CPU. The host drives the harness over UART from an off-board machine.
 
 ---
 
@@ -99,14 +99,12 @@ The two new blocks (`axi4_master_wr_pattern_gen`, `axi4_master_rd_crc_check`) ar
 |-------|------|----------|--------|
 | 1 | cocotb sim with DDR2 DFI BFM | `RTLDesignSherpa-DV` | Done (80.2 % top-only coverage, 100 % FUB) |
 | 2 | cocotb sim with LiteDRAM's Verilog DDR2 model (co-sim) | `RTLDesignSherpa-DV` | Blocked on LiteX cocktail + phase-mismatch — see memory `project_litedram_cosim_blockers.md`; ~1.5–2 days work |
-| 3a | Nexys A7 hardware, VexRiscv barebones + memtester from BRAM | this directory | Future |
-| 3b | Nexys A7 hardware, VexRiscv Linux + kernel memtester + stress-ng from SD | this directory | Future |
-| 3c | Extended endurance (24-hour memtester, thermal soak) | this directory | Future |
+| 3 | Nexys A7 hardware bring-up — UART-driven host walks the pattern-gen / CRC-check pair against real DDR2 | this directory | Future |
 | 4 | Workload characterization with this harness — pattern + CRC sweeps + perf counters → CSV → plots | this directory | Skeleton (directory + plan only) |
 
-Phase 4 is what `flows-ours-vex/` runs. The harness uses `dma_address_gen` to walk a descriptor-programmed access pattern, the pattern-gen / CRC-check pair to verify data integrity end-to-end, and the perf counters to measure latency / throughput. CSVs land under `flows-ours-vex/csv/`; plots under `plots/`.
+Phase 4 is what `flows-ours-uart/` runs. The harness uses `dma_address_gen` to walk a descriptor-programmed access pattern, the pattern-gen / CRC-check pair to verify data integrity end-to-end, and the AXI bus meters + latency histograms tapped inside `ddr2_char_macro` to measure throughput / latency. CSVs land under `flows-ours-uart/csv/`; plots under `plots/`.
 
-Phase 3b remains the strongest evidence short of ASIC tapeout — real OS access patterns (refresh-while-DMA, mixed read/write at random offsets, page-table walks, kmalloc/kfree thrash) running for hours. The dedicated workload harness in Phase 4 gives reproducible, descriptor-controlled measurements alongside the Linux soak.
+Extended-endurance work (24-hour soak, thermal chamber) fits inside Phase 3/4 — no OS is running so the "real OS access patterns" story from the earlier VexRiscv plan is off the table on this board. If we want that, it moves to a bigger FPGA target that can host both our controller and Linux.
 
 ---
 
@@ -116,11 +114,11 @@ Phase 3b remains the strongest evidence short of ASIC tapeout — real OS access
 |-------|----------|-------|
 | Our DDR2 controller | ~12,000 | Controller only; no PHY. Per HAS §2.1 target envelope. |
 | `a7ddrphy` (LiteDRAM PHY) | ~2,000 | FPGA-specific IOB serdes. Reused from LiteDRAM. |
-| VexRiscv (Linux config, MMU + Icache + Dcache) | ~5,000 | RV32IMA, boots mainline Linux |
-| LiteX SoC fabric (Wishbone + AXI bridge, UART, GPIO) | ~3,000 | "Boring infrastructure" |
-| Char harness (pattern/CRC + address gen + CSRs + counters) | ~2,000 | Conservative; the LFSR + CRC are tiny |
-| Misc glue (UART init path, JTAG hooks) | ~1,000 | |
-| **Total** | **~25,000 / 63,400 (~39 %)** | Comfortable; BRAM ~40 % for Linux boot ROM + caches + descriptor RAM |
+| Char engines (WR pattern-gen + RD CRC-check + `dma_address_gen`) | ~2,000 | LFSR + CRC + strided address gen |
+| Perf logic (`axi_bus_meter` + `axi_perf_latency_hist` x WR+RD, `harness_csr`, debug_sram / desc_ram) | ~3,000 | Grows with meter counters + histogram bins |
+| 1×5 AXIL bridge (host→APB/CSR/SRAMs) | ~1,500 | Generated `bridge_ddr2_char_axil` |
+| UART↔AXIL bridge + LED/7-seg | ~1,000 | UART FSM + display drivers |
+| **Total** | **~21,500 / 63,400 (~34 %)** | No CPU on this board — the 100T doesn't have the budget for DDR2 + perf + a soft CPU together; host drives over UART |
 
 Multi-rank (`NUM_RANKS ∈ {1, 2, 4}`) is not exercised on this board — the onboard DDR2 is single-rank by construction. Multi-rank validation happens later on a DDR3/4 board with a multi-rank DIMM socket.
 
@@ -128,9 +126,9 @@ Multi-rank (`NUM_RANKS ∈ {1, 2, 4}`) is not exercised on this board — the on
 
 ## Recommended Stack
 
-- **CPU:** VexRiscv, Linux config (MMU + caches). Mature LiteX integration, ~5K LUTs, boots mainline Linux. Alternatives: PicoRV32 / NEORV32 for stress-test-only sub-phases (no MMU → no Linux, but ~2K LUTs).
-- **SoC framework:** LiteX. Already has a Nexys A7 board target, VexRiscv-Linux target, `a7ddrphy`, and DFI plumbing. Use LiteX for everything except the DDR controller — swap LiteDRAM's controller out for ours, keep its PHY.
-- **Init UART:** the existing UART path under `projects/NexysA7/` is the entry point; same wiring as `stream_characterization` and `timing_characterization`.
+- **CPU:** none on the FPGA. The Nexys A7 100T can't fit our DDR2 controller + perf logic + a soft CPU with any timing margin. The host runs on an off-board machine and drives the harness over the FTDI UART. (VexRiscv + LiteX was the earlier plan; dropped after the CPU-vs-perf budget shookout.)
+- **Host:** Python driver against `harness_csr`'s register map, hitting the AXIL slaves through the UART→AXIL bridge (see `flows-ours-uart/host/`, TBD).
+- **Init UART:** the FTDI UART path under `projects/NexysA7/` is the entry point — same wiring as `stream_characterization` and `timing_characterization`.
 
 ---
 
@@ -152,3 +150,4 @@ Multi-rank (`NUM_RANKS ∈ {1, 2, 4}`) is not exercised on this board — the on
 
 - **2026-06-15** — Original DDR2 bring-up plan recorded under `projects/NexysA7/ddr2-lpddr2-memory-controller/`. Validation methodology (DFI controller + LiteDRAM `a7ddrphy`), CPU choice (VexRiscv Linux on LiteX), and three-sub-phase hardware bring-up agreed. Resource budget fits comfortably (~36 % LUTs). No work started yet — DDR2 controller pre-RTL (HAS v0.2 + MAS v0.1 skeleton).
 - **2026-06-25** — Directory renamed `ddr2-lpddr2-memory-controller/` → `ddr2-characterization/` to align with the `stream_characterization/` sibling and reflect the workload-characterization focus. Harness architecture recorded: reuse `dma_address_gen` + the stream `dataint_crc` + `axi_response_delay` + `harness_csr` + LED/7-seg drivers; author **two new master-side blocks** — `axi4_master_wr_pattern_gen` and `axi4_master_rd_crc_check` — by adapting stream's slave-side `axi4_slave_rd_pattern_gen` + `axi4_slave_wr_crc_check`. Initial flow: `flows-ours-vex/` only; `flows-litedram-vex/` lands later as baseline comparison.
+- **2026-07-03** — Drop the soft-CPU story from the Nexys A7 target. XC7A100T doesn't have the LUT budget to fit our DDR2 controller + perf logic + VexRiscv+LiteX simultaneously with any timing margin. Flow renamed `flows-ours-vex/` → `flows-ours-uart/`; the host machine drives the harness through the FTDI UART instead. Resource budget rewritten around perf logic (`axi_bus_meter` + `axi_perf_latency_hist` on WR+RD, tapped inside `ddr2_char_macro`). Future flows follow the same naming: `flows-<controller>-uart/` for the on-Nexys builds; `flows-<controller>-vex/` reserved for larger FPGA targets where a CPU actually fits.
