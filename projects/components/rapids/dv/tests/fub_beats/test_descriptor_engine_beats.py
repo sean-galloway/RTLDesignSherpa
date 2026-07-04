@@ -75,6 +75,17 @@ async def cocotb_test_basic_descriptor_flow(dut):
     assert result, "Basic descriptor flow test failed"
 
 
+@cocotb.test(timeout_time=100, timeout_unit="ms")
+async def cocotb_test_control_descriptor_decode(dut):
+    """Test control-descriptor opcode ([209:208]) decode -> descriptor_type sideband"""
+    tb = DescriptorEngineTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    result = await tb.test_control_descriptor_decode()
+    tb.generate_test_report()
+    assert result, "Control descriptor decode test failed"
+
+
 @cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_descriptor_chaining(dut):
     """Test autonomous descriptor chaining via next_descriptor_ptr"""
@@ -205,7 +216,7 @@ descriptor_engine_params = generate_descriptor_engine_test_params()
 @pytest.mark.fub
 @pytest.mark.descriptor_engine
 @pytest.mark.parametrize("channel_id, num_channels, axi_id_width, timing_profile", descriptor_engine_params)
-def test_basic_flow(request, channel_id, num_channels, axi_id_width, timing_profile):
+def test_descriptor_engine_beats_basic_flow(request, channel_id, num_channels, axi_id_width, timing_profile):
     """Pytest: Test basic descriptor flow"""
     _run_descriptor_engine_test(request, "cocotb_test_basic_descriptor_flow",
                                 channel_id, num_channels, axi_id_width, timing_profile)
@@ -214,7 +225,16 @@ def test_basic_flow(request, channel_id, num_channels, axi_id_width, timing_prof
 @pytest.mark.fub
 @pytest.mark.descriptor_engine
 @pytest.mark.parametrize("channel_id, num_channels, axi_id_width, timing_profile", descriptor_engine_params)
-def test_descriptor_chaining(request, channel_id, num_channels, axi_id_width, timing_profile):
+def test_descriptor_engine_beats_control_descriptor_decode(request, channel_id, num_channels, axi_id_width, timing_profile):
+    """Pytest: control-descriptor opcode ([209:208]) -> descriptor_type decode"""
+    _run_descriptor_engine_test(request, "cocotb_test_control_descriptor_decode",
+                                channel_id, num_channels, axi_id_width, timing_profile)
+
+
+@pytest.mark.fub
+@pytest.mark.descriptor_engine
+@pytest.mark.parametrize("channel_id, num_channels, axi_id_width, timing_profile", descriptor_engine_params)
+def test_descriptor_engine_beats_descriptor_chaining(request, channel_id, num_channels, axi_id_width, timing_profile):
     """Pytest: Test autonomous descriptor chaining"""
     _run_descriptor_engine_test(request, "cocotb_test_descriptor_chaining",
                                 channel_id, num_channels, axi_id_width, timing_profile)
@@ -223,7 +243,7 @@ def test_descriptor_chaining(request, channel_id, num_channels, axi_id_width, ti
 @pytest.mark.fub
 @pytest.mark.descriptor_engine
 @pytest.mark.parametrize("channel_id, num_channels, axi_id_width, timing_profile", descriptor_engine_params)
-def test_address_range_validation(request, channel_id, num_channels, axi_id_width, timing_profile):
+def test_descriptor_engine_beats_address_range_validation(request, channel_id, num_channels, axi_id_width, timing_profile):
     """Pytest: Test address range validation"""
     _run_descriptor_engine_test(request, "cocotb_test_address_range_validation",
                                 channel_id, num_channels, axi_id_width, timing_profile)
@@ -236,7 +256,7 @@ def test_address_range_validation(request, channel_id, num_channels, axi_id_widt
 @pytest.mark.fub
 @pytest.mark.descriptor_engine
 @pytest.mark.parametrize("channel_id, num_channels, axi_id_width, timing_profile", descriptor_engine_params)
-def test_channel_reset(request, channel_id, num_channels, axi_id_width, timing_profile):
+def test_descriptor_engine_beats_channel_reset(request, channel_id, num_channels, axi_id_width, timing_profile):
     """Pytest: Test channel reset functionality"""
     _run_descriptor_engine_test(request, "cocotb_test_channel_reset",
                                 channel_id, num_channels, axi_id_width, timing_profile)
@@ -246,7 +266,7 @@ def test_channel_reset(request, channel_id, num_channels, axi_id_width, timing_p
 @pytest.mark.descriptor_engine
 @pytest.mark.error
 @pytest.mark.parametrize("channel_id, num_channels, axi_id_width, timing_profile", descriptor_engine_params)
-def test_invalid_descriptor(request, channel_id, num_channels, axi_id_width, timing_profile):
+def test_descriptor_engine_beats_invalid_descriptor(request, channel_id, num_channels, axi_id_width, timing_profile):
     """Pytest: Test invalid descriptor handling"""
     _run_descriptor_engine_test(request, "cocotb_test_invalid_descriptor",
                                 channel_id, num_channels, axi_id_width, timing_profile)
@@ -259,7 +279,7 @@ def test_invalid_descriptor(request, channel_id, num_channels, axi_id_width, tim
 @pytest.mark.fub
 @pytest.mark.descriptor_engine
 @pytest.mark.parametrize("channel_id, num_channels, axi_id_width, timing_profile", descriptor_engine_params)
-def test_monitor_bus_events(request, channel_id, num_channels, axi_id_width, timing_profile):
+def test_descriptor_engine_beats_monitor_bus_events(request, channel_id, num_channels, axi_id_width, timing_profile):
     """Pytest: Test monitor bus event generation"""
     _run_descriptor_engine_test(request, "cocotb_test_monitor_bus_events",
                                 channel_id, num_channels, axi_id_width, timing_profile)
@@ -273,7 +293,7 @@ def test_monitor_bus_events(request, channel_id, num_channels, axi_id_width, tim
 @pytest.mark.descriptor_engine
 @pytest.mark.stress
 @pytest.mark.parametrize("channel_id, num_channels, axi_id_width, timing_profile", descriptor_engine_params)
-def test_rapid_descriptors(request, channel_id, num_channels, axi_id_width, timing_profile):
+def test_descriptor_engine_beats_rapid_descriptors(request, channel_id, num_channels, axi_id_width, timing_profile):
     """Pytest: Test rapid back-to-back descriptors"""
     _run_descriptor_engine_test(request, "cocotb_test_rapid_descriptors",
                                 channel_id, num_channels, axi_id_width, timing_profile)
@@ -283,7 +303,7 @@ def test_rapid_descriptors(request, channel_id, num_channels, axi_id_width, timi
 @pytest.mark.descriptor_engine
 @pytest.mark.stress
 @pytest.mark.parametrize("channel_id, num_channels, axi_id_width, timing_profile", descriptor_engine_params)
-def test_long_chain(request, channel_id, num_channels, axi_id_width, timing_profile):
+def test_descriptor_engine_beats_long_chain(request, channel_id, num_channels, axi_id_width, timing_profile):
     """Pytest: Test long descriptor chain"""
     _run_descriptor_engine_test(request, "cocotb_test_long_chain",
                                 channel_id, num_channels, axi_id_width, timing_profile)

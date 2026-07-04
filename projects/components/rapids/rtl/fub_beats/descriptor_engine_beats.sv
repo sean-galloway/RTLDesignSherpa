@@ -157,8 +157,8 @@ module descriptor_engine_beats #(
     //=========================================================================
 
     // State machine (uses desc_fetch_state_t from rapids_pkg)
-    // States: RD_IDLE → RD_ISSUE_ADDR → RD_WAIT_DATA → RD_COMPLETE → back to RD_IDLE
-    // Error path: RD_ERROR → RD_IDLE
+    // States: rapids_pkg::RD_IDLE → rapids_pkg::RD_ISSUE_ADDR → rapids_pkg::RD_WAIT_DATA → rapids_pkg::RD_COMPLETE → back to rapids_pkg::RD_IDLE
+    // Error path: rapids_pkg::RD_ERROR → rapids_pkg::RD_IDLE
     desc_fetch_state_t r_current_state;
     desc_fetch_state_t w_next_state;
 
@@ -181,7 +181,7 @@ module descriptor_engine_beats #(
     // Purpose: Queue of descriptor addresses to fetch via AXI
     // Write sources: 1) APB skid buffer (initial kick-off)
     //                2) Autonomous chaining (next_descriptor_ptr)
-    // Read sink: FSM in RD_IDLE state pops address for AXI fetch
+    // Read sink: FSM in rapids_pkg::RD_IDLE state pops address for AXI fetch
     logic w_desc_addr_fifo_wr_valid, w_desc_addr_fifo_wr_ready;
     logic w_desc_addr_fifo_rd_valid, w_desc_addr_fifo_rd_ready;
     logic [ADDR_WIDTH-1:0] w_desc_addr_fifo_wr_data, w_desc_addr_fifo_rd_data;
@@ -189,7 +189,7 @@ module descriptor_engine_beats #(
 
     // Descriptor Data FIFO
     // Purpose: Buffer fetched descriptors for scheduler
-    // Write side: FSM in RD_COMPLETE state pushes fetched descriptor
+    // Write side: FSM in rapids_pkg::RD_COMPLETE state pushes fetched descriptor
     // Read side: Scheduler pops when descriptor_ready=1
     logic w_desc_fifo_wr_valid, w_desc_fifo_wr_ready;
     logic w_desc_fifo_rd_valid, w_desc_fifo_rd_ready;
@@ -278,10 +278,10 @@ module descriptor_engine_beats #(
     // Safe to reset conditions
     assign w_fifos_empty = !w_apb_skid_valid_out && !w_desc_addr_fifo_rd_valid && !w_desc_fifo_rd_valid;
     assign w_no_active_operations = !r_apb_operation_active && !r_axi_read_active;
-    assign w_safe_to_reset = w_fifos_empty && w_no_active_operations && (r_current_state == RD_IDLE);
+    assign w_safe_to_reset = w_fifos_empty && w_no_active_operations && (r_current_state == rapids_pkg::RD_IDLE);
 
     // Engine idle signal
-    assign descriptor_engine_idle = (r_current_state == RD_IDLE) && !r_channel_reset_active && w_fifos_empty;
+    assign descriptor_engine_idle = (r_current_state == rapids_pkg::RD_IDLE) && !r_channel_reset_active && w_fifos_empty;
 
     //=========================================================================
     // APB Skid Buffer
@@ -336,7 +336,7 @@ module descriptor_engine_beats #(
     // - FSM in idle
     // - Descriptor address FIFO has space
     // - Not in channel reset
-    assign w_apb_skid_ready_out = (r_current_state == RD_IDLE) &&
+    assign w_apb_skid_ready_out = (r_current_state == rapids_pkg::RD_IDLE) &&
                                     w_desc_addr_fifo_wr_ready &&
                                     !r_channel_reset_active;
 
@@ -365,8 +365,8 @@ module descriptor_engine_beats #(
     // FIFO empty when no valid data available (rd_valid = 0)
     assign w_desc_addr_fifo_empty = !w_desc_addr_fifo_rd_valid;
 
-    // Read side: FSM consumes address when in RD_IDLE
-    assign w_desc_addr_fifo_rd_ready = (r_current_state == RD_IDLE) && !r_channel_reset_active;
+    // Read side: FSM consumes address when in rapids_pkg::RD_IDLE
+    assign w_desc_addr_fifo_rd_ready = (r_current_state == rapids_pkg::RD_IDLE) && !r_channel_reset_active;
 
     // Write side: Two sources for descriptor addresses
     // 1. APB skid (initial kick-off)
@@ -440,7 +440,7 @@ module descriptor_engine_beats #(
                               !r_descriptor_error;         // No fetch errors
 
     // The current descriptor is accepted into the output FIFO this cycle.
-    assign w_desc_committed = (r_current_state == RD_COMPLETE) && w_desc_fifo_wr_ready;
+    assign w_desc_committed = (r_current_state == rapids_pkg::RD_COMPLETE) && w_desc_fifo_wr_ready;
 
     // Prefetch throttle: how many fetched-but-unconsumed descriptors may sit in
     // the output FIFO ahead of the scheduler.
@@ -490,7 +490,7 @@ module descriptor_engine_beats #(
     //=========================================================================
 
     // FIFO ready for writes when descriptor fetch completes
-    assign w_desc_fifo_wr_valid = (r_current_state == RD_COMPLETE) && !r_channel_reset_active;
+    assign w_desc_fifo_wr_valid = (r_current_state == rapids_pkg::RD_COMPLETE) && !r_channel_reset_active;
 
     assign w_desc_fifo_rd_ready = descriptor_ready && !r_channel_reset_active;
 
@@ -557,7 +557,13 @@ module descriptor_engine_beats #(
         w_desc_eos = 1'b0;
         w_desc_eol = 1'b0;
         w_desc_eod = 1'b0;
-        w_desc_type = 2'b00;
+
+        // Descriptor opcode/type: DATA(0) vs CTRL_READ(1) vs CTRL_WRITE(2).
+        // Decoded from the reserved opcode field of the fetched descriptor (see
+        // rapids_pkg DESC_OPCODE_*), exported on the descriptor_type sideband so
+        // the scheduler can route control descriptors. DATA descriptors (opcode 0)
+        // keep their existing behavior; the field layout above is unchanged.
+        w_desc_type = r_descriptor_data[DESC_OPCODE_HI:DESC_OPCODE_LO];
     end
 
     //=========================================================================
@@ -582,50 +588,50 @@ module descriptor_engine_beats #(
     assign w_axi_response_ok = (r_resp == 2'b00); // OKAY response
 
     // We're ready when waiting for our response
-    assign r_ready = (r_current_state == RD_WAIT_DATA) && w_our_axi_response;
+    assign r_ready = (r_current_state == rapids_pkg::RD_WAIT_DATA) && w_our_axi_response;
 
     //=========================================================================
-    // FSM State Machine with Channel Reset (reuses RAPIDS read_engine_state_t)
+    // FSM State Machine with Channel Reset (reuses RAPIDS rapids_pkg::read_engine_state_t)
     //=========================================================================
     // Descriptor fetch FSM
     //
     // State Flow (nominal):
-    //   RD_IDLE → RD_ISSUE_ADDR → RD_WAIT_DATA → RD_COMPLETE → RD_IDLE
+    //   rapids_pkg::RD_IDLE → rapids_pkg::RD_ISSUE_ADDR → rapids_pkg::RD_WAIT_DATA → rapids_pkg::RD_COMPLETE → rapids_pkg::RD_IDLE
     //
     // State Flow (error):
-    //   RD_WAIT_DATA → RD_ERROR → RD_IDLE
+    //   rapids_pkg::RD_WAIT_DATA → rapids_pkg::RD_ERROR → rapids_pkg::RD_IDLE
     //
     // State Descriptions:
-    //   RD_IDLE:       Waiting for descriptor address in address FIFO
+    //   rapids_pkg::RD_IDLE:       Waiting for descriptor address in address FIFO
     //                  Sources: 1) APB skid buffer (initial kick-off)
     //                           2) Autonomous chaining (next_descriptor_ptr)
     //                  Action: Pop address, latch to r_axi_read_addr
     //
-    //   RD_ISSUE_ADDR: Issue AXI AR transaction for descriptor fetch
+    //   rapids_pkg::RD_ISSUE_ADDR: Issue AXI AR transaction for descriptor fetch
     //                  Action: Assert ar_valid, wait for ar_ready
     //
-    //   RD_WAIT_DATA:  Wait for AXI R channel response
+    //   rapids_pkg::RD_WAIT_DATA:  Wait for AXI R channel response
     //                  Action: Monitor r_valid with matching r_id
     //                          Latch r_data to r_descriptor_data
     //                          Check r_resp for errors
     //
-    //   RD_COMPLETE:   Descriptor fetched successfully
+    //   rapids_pkg::RD_COMPLETE:   Descriptor fetched successfully
     //                  Action: Push descriptor to descriptor FIFO
     //                          Check autonomous chaining conditions
     //                          If chaining, push next_addr to address FIFO
     //
-    //   RD_ERROR:      AXI response error (r_resp != OKAY)
+    //   rapids_pkg::RD_ERROR:      AXI response error (r_resp != OKAY)
     //                  Action: Set r_descriptor_error flag
     //                          Return to idle (discard descriptor)
     //
     // Channel Reset Handling:
-    //   During r_channel_reset_active: Force transition to RD_IDLE from any state
+    //   During r_channel_reset_active: Force transition to rapids_pkg::RD_IDLE from any state
     //   This safely aborts in-flight operations
 
     // State register
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            r_current_state <= RD_IDLE;
+            r_current_state <= rapids_pkg::RD_IDLE;
         end else begin
             r_current_state <= w_next_state;
         end
@@ -656,59 +662,59 @@ module descriptor_engine_beats #(
         w_next_state = r_current_state;  // Default: hold state
 
         case (r_current_state)
-            RD_IDLE: begin
+            rapids_pkg::RD_IDLE: begin
                 // Wait for descriptor address to fetch
                 if (r_channel_reset_active) begin
-                    w_next_state = RD_IDLE; // Stay in idle during reset
+                    w_next_state = rapids_pkg::RD_IDLE; // Stay in idle during reset
                 end else if (w_desc_addr_fifo_rd_valid && w_desc_addr_fifo_rd_ready) begin
-                    w_next_state = RD_ISSUE_ADDR; // Address available, proceed to fetch
+                    w_next_state = rapids_pkg::RD_ISSUE_ADDR; // Address available, proceed to fetch
                 end
             end
 
-            RD_ISSUE_ADDR: begin
+            rapids_pkg::RD_ISSUE_ADDR: begin
                 // Issue AXI AR transaction
                 if (r_channel_reset_active) begin
-                    w_next_state = RD_IDLE; // Reset aborts operation
+                    w_next_state = rapids_pkg::RD_IDLE; // Reset aborts operation
                 end else if (ar_ready) begin
-                    w_next_state = RD_WAIT_DATA; // AR accepted, wait for data
+                    w_next_state = rapids_pkg::RD_WAIT_DATA; // AR accepted, wait for data
                 end
                 // Note: Stays in ISSUE_ADDR until ar_ready or reset
             end
 
-            RD_WAIT_DATA: begin
+            rapids_pkg::RD_WAIT_DATA: begin
                 // Wait for AXI R channel response
                 if (r_channel_reset_active) begin
-                    w_next_state = RD_IDLE; // Reset aborts operation
+                    w_next_state = rapids_pkg::RD_IDLE; // Reset aborts operation
                 end else if (w_our_axi_response && r_valid) begin
                     // Our response arrived (r_id matches CHANNEL_ID)
                     if (w_axi_response_ok) begin
-                        w_next_state = RD_COMPLETE;  // OKAY response → complete
+                        w_next_state = rapids_pkg::RD_COMPLETE;  // OKAY response → complete
                     end else begin
-                        w_next_state = RD_ERROR;     // Error response → error state
+                        w_next_state = rapids_pkg::RD_ERROR;     // Error response → error state
                     end
                 end
                 // Note: Stays in WAIT_DATA until response or reset
             end
 
-            RD_COMPLETE: begin
+            rapids_pkg::RD_COMPLETE: begin
                 // Push descriptor to FIFO, check chaining
                 if (w_desc_fifo_wr_ready) begin
                     // Descriptor accepted by FIFO
                     // Note: Autonomous chaining logic runs in parallel
                     //       If w_should_chain=1, next_addr pushed to address FIFO
-                    w_next_state = RD_IDLE;  // Back to idle (may immediately fetch next)
+                    w_next_state = rapids_pkg::RD_IDLE;  // Back to idle (may immediately fetch next)
                 end
                 // Note: Stays in COMPLETE until FIFO ready
             end
 
-            RD_ERROR: begin
+            rapids_pkg::RD_ERROR: begin
                 // AXI error occurred, discard descriptor
-                w_next_state = RD_IDLE;  // Return to idle (no descriptor pushed)
+                w_next_state = rapids_pkg::RD_IDLE;  // Return to idle (no descriptor pushed)
             end
 
             default: begin
                 // Safety: undefined state → idle
-                w_next_state = RD_IDLE;
+                w_next_state = rapids_pkg::RD_IDLE;
             end
         endcase
     end
@@ -728,7 +734,7 @@ module descriptor_engine_beats #(
             r_descriptor_error <= 1'b0;
         end else begin
             case (r_current_state)
-                RD_IDLE: begin
+                rapids_pkg::RD_IDLE: begin
                     if (w_desc_addr_fifo_rd_valid && w_desc_addr_fifo_rd_ready) begin
                         // Pop address from descriptor address FIFO
                         r_apb_operation_active <= 1'b1;
@@ -737,13 +743,13 @@ module descriptor_engine_beats #(
                     r_descriptor_error <= 1'b0;
                 end
 
-                RD_ISSUE_ADDR: begin
+                rapids_pkg::RD_ISSUE_ADDR: begin
                     if (ar_ready) begin
                         r_axi_read_active <= 1'b1;
                     end
                 end
 
-                RD_WAIT_DATA: begin
+                rapids_pkg::RD_WAIT_DATA: begin
                     if (w_our_axi_response && r_valid) begin
                         r_descriptor_data <= r_data;
                         r_axi_read_resp <= r_resp;
@@ -756,14 +762,14 @@ module descriptor_engine_beats #(
                     end
                 end
 
-                RD_COMPLETE: begin
+                rapids_pkg::RD_COMPLETE: begin
                     if (w_desc_fifo_wr_ready) begin
                         r_apb_operation_active <= 1'b0;
                         r_axi_read_active <= 1'b0;
                     end
                 end
 
-                RD_ERROR: begin
+                rapids_pkg::RD_ERROR: begin
                     r_descriptor_error <= 1'b1;
                     r_apb_operation_active <= 1'b0;
                     r_axi_read_active <= 1'b0;
@@ -797,7 +803,7 @@ module descriptor_engine_beats #(
     always_comb begin
         w_desc_fifo_wr_data = '0;
 
-        if (r_current_state == RD_COMPLETE) begin
+        if (r_current_state == rapids_pkg::RD_COMPLETE) begin
             // Fetched descriptor (from APB or chaining)
             w_desc_fifo_wr_data.data = r_descriptor_data;
             w_desc_fifo_wr_data.eos = w_desc_eos;
@@ -811,7 +817,7 @@ module descriptor_engine_beats #(
     // AXI Read Address Channel Output
     //=========================================================================
 
-    assign ar_valid = (r_current_state == RD_ISSUE_ADDR) && !r_axi_read_active;
+    assign ar_valid = (r_current_state == rapids_pkg::RD_ISSUE_ADDR) && !r_axi_read_active;
     assign ar_addr = r_axi_read_addr;
     assign ar_len = 8'h00;           // Single beat transfer
     assign ar_size = 3'b110;         // 64 bytes (512-bit)
@@ -838,7 +844,7 @@ module descriptor_engine_beats #(
             r_mon_packet <= '0;
 
             case (r_current_state)
-                RD_COMPLETE: begin
+                rapids_pkg::RD_COMPLETE: begin
                     r_mon_valid     <= 1'b1;
                     r_mon_packet    <= create_monitor_packet(
                         PktTypeCompletion,
@@ -852,7 +858,7 @@ module descriptor_engine_beats #(
                     r_mon_timestamp <= i_mon_time;
                 end
 
-                RD_ERROR: begin
+                rapids_pkg::RD_ERROR: begin
                     r_mon_valid     <= 1'b1;
                     r_mon_packet    <= create_monitor_packet(
                         PktTypeError,
@@ -972,7 +978,7 @@ module descriptor_engine_beats #(
 
     property channel_reset_idle_signal;
         @(posedge clk) disable iff (!rst_n)
-        descriptor_engine_idle |-> (r_current_state == RD_IDLE && !r_channel_reset_active);
+        descriptor_engine_idle |-> (r_current_state == rapids_pkg::RD_IDLE && !r_channel_reset_active);
     endproperty
     assert property (channel_reset_idle_signal);
     `endif

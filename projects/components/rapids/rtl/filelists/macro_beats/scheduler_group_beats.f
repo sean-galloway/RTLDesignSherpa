@@ -7,6 +7,10 @@
 -f $REPO_ROOT/projects/components/rapids/rtl/filelists/fub_beats/scheduler_beats.f
 -f $REPO_ROOT/projects/components/rapids/rtl/filelists/fub_beats/descriptor_engine_beats.f
 
+# Control engines (common, shared with non-beats) - Phase 2 producer/consumer
+$REPO_ROOT/projects/components/rapids/rtl/fub/ctrlrd_engine.sv
+$REPO_ROOT/projects/components/rapids/rtl/fub/ctrlwr_engine.sv
+
 # Additional components used by beats_scheduler_group
 $REPO_ROOT/rtl/amba/shared/monbus_arbiter.sv
 

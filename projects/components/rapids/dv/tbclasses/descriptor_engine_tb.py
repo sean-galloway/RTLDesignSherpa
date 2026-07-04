@@ -293,7 +293,7 @@ class DescriptorEngineTB(TBBase):
 
     def create_descriptor(self, src_addr, dst_addr, length_beats, next_ptr=0,
                          valid=True, gen_irq=False, last=False, error=False,
-                         channel_id=0, priority=0):
+                         channel_id=0, priority=0, opcode=0):
         """Create a 256-bit RAPIDS descriptor packet.
 
         RAPIDS Descriptor Format (256-bit):
@@ -307,7 +307,10 @@ class DescriptorEngineTB(TBBase):
             [195]     error               - Descriptor error flag
             [199:196] channel_id          - Channel identifier
             [207:200] priority            - Descriptor priority
-            [255:208] reserved            - Reserved for future use
+            [209:208] opcode              - 0=DATA, 1=CTRL_READ, 2=CTRL_WRITE
+                                            (rapids_pkg DESC_OPCODE_*; decoded to the
+                                             descriptor_type sideband)
+            [255:210] reserved            - Reserved for future use
         """
         desc = 0
 
@@ -345,6 +348,9 @@ class DescriptorEngineTB(TBBase):
         # [207:200] priority
         desc |= ((priority & 0xFF) << 200)
 
+        # [209:208] opcode (DATA/CTRL_READ/CTRL_WRITE) - decoded to descriptor_type
+        desc |= ((opcode & 0x3) << 208)
+
         return desc
 
     def write_descriptor_to_memory(self, addr, descriptor):
@@ -372,6 +378,7 @@ class DescriptorEngineTB(TBBase):
                 desc_eos = int(self.dut.descriptor_eos.value)
                 desc_eol = int(self.dut.descriptor_eol.value)
                 desc_eod = int(self.dut.descriptor_eod.value)
+                desc_type = int(self.dut.descriptor_type.value)
 
                 self.descriptors_received += 1
                 self.received_descriptors.append({
@@ -379,7 +386,8 @@ class DescriptorEngineTB(TBBase):
                     'error': desc_error,
                     'eos': desc_eos,
                     'eol': desc_eol,
-                    'eod': desc_eod
+                    'eod': desc_eod,
+                    'type': desc_type
                 })
 
                 self.log.info(f"Descriptor received: data=0x{desc_data:064X} error={desc_error}")
@@ -476,6 +484,63 @@ class DescriptorEngineTB(TBBase):
         passed = sum(results)
         self.log.info(f"Basic flow test: {passed}/{num_descriptors} passed")
         return passed == num_descriptors
+
+    async def test_control_descriptor_decode(self):
+        """Verify the engine decodes the opcode field (desc[209:208]) onto the
+        descriptor_type sideband: DATA(0), CTRL_READ(1), CTRL_WRITE(2).
+
+        This is the Phase-2 control-descriptor hook (rapids_pkg DESC_OPCODE_*): the
+        scheduler routes control descriptors on descriptor_type. DATA descriptors
+        (opcode 0) are unchanged. Event-driven: waits for descriptor_valid, then
+        checks the captured descriptor_type.
+        """
+        self.log.info("=== Control Descriptor Opcode Decode Test ===")
+
+        # (label, opcode, expected descriptor_type)
+        cases = [
+            ("DATA",       0, 0),
+            ("CTRL_READ",  1, 1),
+            ("CTRL_WRITE", 2, 2),
+        ]
+        results = []
+
+        for i, (label, opcode, expected_type) in enumerate(cases):
+            desc = self.create_descriptor(
+                src_addr=0x1000 + (i * 0x1000),
+                dst_addr=0x2000 + (i * 0x1000),
+                length_beats=8,
+                valid=True,
+                last=True,
+                channel_id=0,
+                opcode=opcode,
+            )
+            mem_addr = 0x10000 + (i * 0x40)
+            self.write_descriptor_to_memory(mem_addr, desc)
+
+            while int(self.dut.channel_idle.value) == 0:
+                await self.wait_clocks(self.clk_name, 1)
+
+            await self.send_apb_request(mem_addr)
+            received = await self.wait_for_descriptor()
+
+            if received is None:
+                results.append(False)
+                self.log.error(f"  ✗ {label}: timeout (no descriptor)")
+            else:
+                got_type = self.received_descriptors[-1]['type']
+                if got_type == expected_type:
+                    results.append(True)
+                    self.log.info(f"  ✓ {label}: descriptor_type={got_type} (opcode={opcode})")
+                else:
+                    results.append(False)
+                    self.log.error(f"  ✗ {label}: descriptor_type={got_type}, expected {expected_type}")
+
+            await self.simulate_scheduler_cycle()
+            await self.wait_clocks(self.clk_name, 20)
+
+        passed = sum(results)
+        self.log.info(f"Control descriptor decode test: {passed}/{len(cases)} passed")
+        return passed == len(cases)
 
     async def test_descriptor_chaining(self, chain_length=3):
         """Test autonomous descriptor chaining via next_descriptor_ptr."""

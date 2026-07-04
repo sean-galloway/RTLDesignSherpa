@@ -1,0 +1,637 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RAPIDS (beats) one-half register file (source OR sink): all config/status
+// registers + an optional monitor block (MON @ +0x800). Instantiated twice by
+// rapids_regs.rdl (SRC @ 0x0000, SNK @ 0x1000), and once by rapids_half_regmap.rdl
+// for per-half by-name DV access (RegisterMap used with base 0x0000 / 0x1000).
+//
+// Author: sean galloway
+
+`include "rapids_mon_regs.rdl"
+
+// One RAPIDS half (source or sink): all config/status registers + an optional
+// monitor register block. Instantiated twice by the rapids_regs addrmap below
+// (SRC @ 0x0000, SNK @ 0x1000) so each half is a self-contained 4KB register
+// space off the single shared APB port. Monitors live at +0x800 within the half.
+regfile rapids_half_regs {
+    name = "RAPIDS (beats) half register file";
+    desc = "Config/status + monitors for one RAPIDS half (source or sink)";
+
+    default regwidth = 32;
+    default accesswidth = 32;
+    default alignment = 4;
+
+    reg {
+        name = "Global Control Register";
+        desc = "Master enable and global configuration";
+
+        field {
+            desc = "Global enable - master switch for entire STREAM engine";
+            sw = rw;
+            hw = r;
+        } GLOBAL_EN = 1'b0;
+
+        field {
+            desc = "Global reset - resets all channels and state machines";
+            sw = rw;
+            hw = r;
+            swmod;  // Self-clearing
+        } GLOBAL_RST = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:2] = 30'h0;
+
+    } GLOBAL_CTRL @ 0x100;
+
+    reg {
+        name = "Global Status Register";
+        desc = "Overall system status and error flags";
+
+        field {
+            desc = "System idle - all channels idle";
+            sw = r;
+            hw = w;
+        } SYSTEM_IDLE;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:1] = 31'h0;
+
+    } GLOBAL_STATUS @ 0x104;
+
+    reg {
+        name = "Version Register";
+        desc = "STREAM version and configuration information";
+
+        field {
+            desc = "Minor version";
+            sw = r;
+            hw = na;
+        } MINOR[7:0] = 8'd90;  // 0.90
+
+        field {
+            desc = "Major version";
+            sw = r;
+            hw = na;
+        } MAJOR[15:8] = 8'h00;  // 0.90 (pre-release)
+
+        field {
+            desc = "Number of channels";
+            sw = r;
+            hw = na;
+        } NUM_CHANNELS[23:16] = 8'h08;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:24] = 8'h0;
+
+    } VERSION @ 0x108;
+
+    reg {
+        name = "Channel Enable Register";
+        desc = "Per-channel enable bits (one bit per channel)";
+
+        field {
+            desc = "Channel enable bits [7:0] - 1=enabled, 0=disabled";
+            sw = rw;
+            hw = r;
+        } CH_EN[7:0] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:8] = 24'h0;
+
+    } CHANNEL_ENABLE @ 0x120;
+
+    reg {
+        name = "Channel Reset Register";
+        desc = "Per-channel reset bits (one bit per channel, self-clearing)";
+
+        field {
+            desc = "Channel reset bits [7:0] - write 1 to reset channel";
+            sw = rw;
+            hw = r;
+            swmod;  // Self-clearing
+        } CH_RST[7:0] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:8] = 24'h0;
+
+    } CHANNEL_RESET @ 0x124;
+
+    reg {
+        name = "Channel Idle Status";
+        desc = "Per-channel idle status (one bit per channel)";
+
+        field {
+            desc = "Channel idle bits [7:0] - 1=idle, 0=active";
+            sw = r;
+            hw = w;
+        } CH_IDLE[7:0];
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:8] = 24'h0;
+
+    } CHANNEL_IDLE @ 0x140;
+
+    reg {
+        name = "Descriptor Engine Idle Status";
+        desc = "Per-channel descriptor engine idle status";
+
+        field {
+            desc = "Descriptor engine idle bits [7:0] - 1=idle, 0=active";
+            sw = r;
+            hw = w;
+        } DESC_IDLE[7:0];
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:8] = 24'h0;
+
+    } DESC_ENGINE_IDLE @ 0x144;
+
+    reg {
+        name = "Scheduler Idle Status";
+        desc = "Per-channel scheduler idle status";
+
+        field {
+            desc = "Scheduler idle bits [7:0] - 1=idle, 0=active";
+            sw = r;
+            hw = w;
+        } SCHED_IDLE[7:0];
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:8] = 24'h0;
+
+    } SCHEDULER_IDLE @ 0x148;
+
+    regfile {
+        name = "Per-Channel State Registers";
+        desc = "Detailed state for individual channel";
+
+        reg {
+            name = "Channel State";
+            desc = "Current FSM state of scheduler (one-hot 7-bit encoding)";
+
+            field {
+                desc = "Scheduler state [6:0] - one-hot encoding";
+                sw = r;
+                hw = w;
+            } STATE[6:0];
+
+            field {
+                desc = "Reserved";
+                sw = r;
+                hw = na;
+            } RSVD[31:7] = 25'h0;
+
+        } STATE @ 0x0;
+
+    } CH_STATE[8] @ 0x150 += 0x4;
+
+    reg {
+        name = "Scheduler Error Status";
+        desc = "Per-channel scheduler error flags";
+
+        field {
+            desc = "Scheduler error bits [7:0] - 1=error detected, 0=no error";
+            sw = r;
+            hw = w;
+        } SCHED_ERR[7:0];
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:8] = 24'h0;
+
+    } SCHED_ERROR @ 0x170;
+
+    reg {
+        name = "AXI Read Engine Completion Status";
+        desc = "Per-channel read engine all_complete flags";
+
+        field {
+            desc = "Read completion bits [7:0] - 1=all reads complete, 0=reads pending";
+            sw = r;
+            hw = w;
+        } RD_COMPLETE[7:0];
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:8] = 24'h0;
+
+    } AXI_RD_COMPLETE @ 0x174;
+
+    reg {
+        name = "AXI Write Engine Completion Status";
+        desc = "Per-channel write engine all_complete flags";
+
+        field {
+            desc = "Write completion bits [7:0] - 1=all writes complete, 0=writes pending";
+            sw = r;
+            hw = w;
+        } WR_COMPLETE[7:0];
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:8] = 24'h0;
+
+    } AXI_WR_COMPLETE @ 0x178;
+
+    reg {
+        name = "Scheduler Timeout Cycles";
+        desc = "Timeout threshold in clock cycles (global for all channels)";
+
+        field {
+            desc = "Timeout cycles [31:0] - number of cycles before timeout";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_CYCLES[31:0] = 32'd1000;
+
+    } SCHED_TIMEOUT_CYCLES @ 0x200;
+
+    reg {
+        name = "Scheduler Configuration";
+        desc = "Scheduler feature enables (global for all channels)";
+
+        field {
+            desc = "Scheduler enable - master scheduler enable";
+            sw = rw;
+            hw = r;
+        } SCHED_EN = 1'b1;
+
+        field {
+            desc = "Timeout enable - enable timeout detection";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_EN = 1'b1;
+
+        field {
+            desc = "Error enable - enable error reporting";
+            sw = rw;
+            hw = r;
+        } ERR_EN = 1'b1;
+
+        field {
+            desc = "Completion enable - enable completion reporting";
+            sw = rw;
+            hw = r;
+        } COMPL_EN = 1'b1;
+
+        field {
+            desc = "Performance enable - enable performance monitoring";
+            sw = rw;
+            hw = r;
+        } PERF_EN = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:5] = 27'h0;
+
+    } SCHED_CONFIG @ 0x204;
+
+    reg {
+        name = "Scheduler Timeout Escalation Limit";
+        desc = "Number of consecutive write-progress timeout windows a channel may
+                tolerate before the (recoverable) timeout escalates to a fatal,
+                sticky CH_ERROR. 0 = never escalate (pure soft timeout: report and
+                keep waiting). Total time to escalate = LIMIT x TIMEOUT_CYCLES.";
+
+        field {
+            desc = "Consecutive-timeout strike limit before fatal escalation (0 = never)";
+            sw = rw;
+            hw = r;
+        } LIMIT[7:0] = 8'd4;
+
+    } SCHED_TIMEOUT_LIMIT @ 0x208;
+
+    reg {
+        name = "Descriptor Engine Configuration";
+        desc = "Descriptor engine feature enables (global for all channels)";
+
+        field {
+            desc = "Descriptor engine enable - master enable";
+            sw = rw;
+            hw = r;
+        } DESCENG_EN = 1'b1;
+
+        field {
+            desc = "Prefetch enable - enable descriptor prefetch";
+            sw = rw;
+            hw = r;
+        } PREFETCH_EN = 1'b0;
+
+        field {
+            desc = "FIFO threshold [5:2] - prefetch threshold (4 bits)";
+            sw = rw;
+            hw = r;
+        } FIFO_THRESH[5:2] = 4'h8;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:6] = 26'h0;
+
+    } DESCENG_CONFIG @ 0x220;
+
+    reg {
+        name = "Descriptor Address Range 0 Base";
+        desc = "Base address for descriptor address range 0 (lower 32 bits)";
+
+        field {
+            desc = "Address range 0 base [31:0]";
+            sw = rw;
+            hw = r;
+        } ADDR0_BASE[31:0] = 32'h0000_0000;
+
+    } DESCENG_ADDR0_BASE @ 0x224;
+
+    reg {
+        name = "Descriptor Address Range 0 Limit";
+        desc = "Limit address for descriptor address range 0 (lower 32 bits)";
+
+        field {
+            desc = "Address range 0 limit [31:0]";
+            sw = rw;
+            hw = r;
+        } ADDR0_LIMIT[31:0] = 32'hFFFF_FFFF;
+
+    } DESCENG_ADDR0_LIMIT @ 0x228;
+
+    reg {
+        name = "Descriptor Address Range 1 Base";
+        desc = "Base address for descriptor address range 1 (lower 32 bits)";
+
+        field {
+            desc = "Address range 1 base [31:0]";
+            sw = rw;
+            hw = r;
+        } ADDR1_BASE[31:0] = 32'h0000_0000;
+
+    } DESCENG_ADDR1_BASE @ 0x22C;
+
+    reg {
+        name = "Descriptor Address Range 1 Limit";
+        desc = "Limit address for descriptor address range 1 (lower 32 bits)";
+
+        field {
+            desc = "Address range 1 limit [31:0]";
+            sw = rw;
+            hw = r;
+        } ADDR1_LIMIT[31:0] = 32'hFFFF_FFFF;
+
+    } DESCENG_ADDR1_LIMIT @ 0x230;
+
+    reg {
+        name = "Control Engine Configuration";
+        desc = "Control read/write engine configuration (global for all channels,
+                Phase 2 producer/consumer). CTRLRD_MAX_TRY bounds ctrl-read poll
+                retries so a never-matching gate cannot hang a channel; it feeds
+                cfg_ctrlrd_max_try into every channel's ctrlrd_engine.";
+
+        field {
+            desc = "Control-read poll retry budget [8:0] (0-511)";
+            sw = rw;
+            hw = r;
+        } CTRLRD_MAX_TRY[8:0] = 9'd16;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:9] = 23'h0;
+
+    } CTRL_CONFIG @ 0x240;
+
+    reg {
+        name = "AXI Transfer Configuration";
+        desc = "AXI read and write transfer burst sizes";
+
+        field {
+            desc = "AXI read transfer beats [7:0] - ARLEN value (0-255 represents 1-256 beats)";
+            sw = rw;
+            hw = r;
+        } RD_XFER_BEATS[7:0] = 8'd15;
+
+        field {
+            desc = "AXI write transfer beats [15:8] - AWLEN value (0-255 represents 1-256 beats)";
+            sw = rw;
+            hw = r;
+        } WR_XFER_BEATS[15:8] = 8'd15;
+
+        field {
+            desc = "Sink AXIS SRAM allocation size [23:16] - segments reserved per AXIS fill burst";
+            sw = rw;
+            hw = r;
+        } ALLOC_SIZE[23:16] = 8'd16;
+
+        field {
+            desc = "Source AXIS drain size [31:24] - beats drained to AXIS per packet request";
+            sw = rw;
+            hw = r;
+        } DRAIN_SIZE[31:24] = 8'd16;
+
+    } AXI_XFER_CONFIG @ 0x2A0;
+
+    reg {
+        name = "Performance Profiler Configuration";
+        desc = "Performance profiler enable and mode controls";
+
+        field {
+            desc = "Performance profiler enable";
+            sw = rw;
+            hw = r;
+        } PERF_EN = 1'b0;
+
+        field {
+            desc = "Performance profiler mode - 0=count, 1=histogram";
+            sw = rw;
+            hw = r;
+        } PERF_MODE = 1'b0;
+
+        field {
+            desc = "Performance profiler clear - write 1 to clear counters";
+            sw = rw;
+            hw = r;
+            swmod;  // Self-clearing
+        } PERF_CLEAR = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:3] = 29'h0;
+
+    } PERF_CONFIG @ 0x2B0;
+
+    reg {
+        name = "Observation Mux Control";
+        desc = "Selects which channel and which category drive OBS_FLAGS / OBS_DATA0 / OBS_DATA1";
+
+        field {
+            desc = "Channel select (0..NUM_CHANNELS-1)";
+            sw = rw;
+            hw = r;
+        } CH_SEL[2:0] = 3'b0;
+
+        field {
+            desc = "Category select: 0=status (data0=sched_rd_beats, data1=sched_wr_beats), 1=rd_addr (data0=lo, data1=hi), 2=wr_addr (data0=lo, data1=hi), 3=sram (data0=rd_space_free, data1=wr_data_avail)";
+            sw = rw;
+            hw = r;
+        } CAT_SEL[4:3] = 2'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:5] = 27'h0;
+
+    } OBS_CTRL @ 0x2C0;
+
+    reg {
+        name = "Observation Flags";
+        desc = "Combinational status vector for the channel selected by OBS_CTRL.CH_SEL. See stream_core.sv for the bit layout (scheduler_state, sched_rd/wr_valid, sched_wr_ready, error stickies, idle bits, cfg_channel_enable, axi_*_all_complete).";
+
+        field {
+            desc = "Observation flags";
+            sw = r;
+            hw = w;
+        } FLAGS[31:0];
+
+    } OBS_FLAGS @ 0x2C4;
+
+    reg {
+        name = "Observation Data 0";
+        desc = "Category-muxed data word 0 for the selected channel. Semantics depend on OBS_CTRL.CAT_SEL.";
+
+        field {
+            desc = "Observation data 0";
+            sw = r;
+            hw = w;
+        } DATA[31:0];
+
+    } OBS_DATA0 @ 0x2C8;
+
+    reg {
+        name = "Observation Data 1";
+        desc = "Category-muxed data word 1 for the selected channel. Semantics depend on OBS_CTRL.CAT_SEL.";
+
+        field {
+            desc = "Observation data 1";
+            sw = r;
+            hw = w;
+        } DATA[31:0];
+
+    } OBS_DATA1 @ 0x2CC;
+
+    reg {
+        name = "Per-Channel Perf Bucket Readout Select";
+        desc = "Selects which channel's buckets appear in RD/WRMON_PERF_CH_*";
+
+        field {
+            desc = "Channel select (0..NUM_CHANNELS-1)";
+            sw = rw;
+            hw = r;
+        } CH_SEL[2:0] = 3'h0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:3] = 29'h0;
+
+    } PERF_CH_SEL @ 0x35C;
+
+    reg {
+        name = "Latency Histogram Readout Select";
+        desc = "Selects bus/metric/bin presented in HIST_DATA / HIST_TOTAL";
+
+        field {
+            desc = "Bus: 0=data-read R bus, 1=data-write W bus";
+            sw = rw;
+            hw = r;
+        } BUS = 1'b0;
+
+        field {
+            desc = "Metric: 0=AR->firstR (rd) / AW->B (wr), 1=AR->RLAST (rd only)";
+            sw = rw;
+            hw = r;
+        } METRIC = 1'b0;
+
+        field {
+            desc = "Latency bin index (0..15, log2)";
+            sw = rw;
+            hw = r;
+        } BIN[5:2] = 4'h0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:6] = 26'h0;
+
+    } HIST_SEL @ 0x378;
+
+    reg {
+        name = "Latency Histogram Bin Count";
+        desc = "Transaction count in the HIST_SEL-selected bus/metric/bin";
+
+        field {
+            desc = "Selected histogram bin count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } HIST_DATA @ 0x37C;
+
+    reg {
+        name = "Latency Histogram Metric Total";
+        desc = "Total transactions for the HIST_SEL-selected bus/metric (= sum
+                over all bins). Equals the burst/transaction count, an
+                acceptance cross-check against the perf-window burst counters.";
+
+        field {
+            desc = "Selected metric total transaction count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } HIST_TOTAL @ 0x380;
+
+    //=========================================================================
+    // AXI Monitor register block - within this half at +0x800 (fits in 4KB).
+    // Hookup chosen by a parameter at integration (USE_MON_REGS / USE_AXI_MONITORS);
+    // when strapped off the monitor config outputs are tied off in the config block.
+    //=========================================================================
+    rapids_mon_regs MON @ 0x800;
+
+};

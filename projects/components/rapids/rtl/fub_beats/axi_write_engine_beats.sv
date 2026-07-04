@@ -336,7 +336,7 @@ module axi_write_engine_beats #(
     // Only allow partial bursts on the final burst of a descriptor
     //
     // TODO: Decouple drain activity from sched_wr_valid.
-    //   Today, when sched_wr_valid drops (e.g. scheduler enters CH_ERROR after
+    //   Today, when sched_wr_valid drops (e.g. scheduler enters rapids_pkg::CH_ERROR after
     //   a timeout, or any upstream abort), every gating signal collapses to 0
     //   in the else-branch below and the engine quits — even if the SRAM,
     //   bridge, and W-side FIFOs still hold beats that were already accounted

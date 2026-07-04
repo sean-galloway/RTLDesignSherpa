@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// Helper address map used ONLY to generate a per-half register map (bare register
+// names at their in-half offsets 0x000-0xFFF). DV instantiates RegisterMap twice
+// against this map with base 0x0000 (SRC) and 0x1000 (SNK). Not used for RTL.
+//
+// Author: sean galloway
+`include "rapids_half_regs.rdl"
+
+addrmap rapids_half_regmap {
+    name = "RAPIDS (beats) single-half register map (per-half DV access)";
+    rapids_half_regs H @ 0x0;
+};

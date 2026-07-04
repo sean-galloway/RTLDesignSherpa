@@ -461,7 +461,7 @@ module ctrlrd_engine #(
                         r_mon_packet    <= create_monitor_packet(
                             PktTypeError,
                             PROTOCOL_AXI,
-                            (r_read_resp == 2'b10) ? AXI_ERR_RESP_SLVERR : AXI_ERR_RESP_DECERR,
+                            (r_read_resp == 2'b10) ? monitor_amba4_pkg::AXI_ERR_RESP_SLVERR : monitor_amba4_pkg::AXI_ERR_RESP_DECERR,
                             MON_CHANNEL_ID,
                             MON_UNIT_ID,
                             MON_AGENT_ID,

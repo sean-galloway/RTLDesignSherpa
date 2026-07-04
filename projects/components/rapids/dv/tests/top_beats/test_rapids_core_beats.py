@@ -5,7 +5,7 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Module: test_rapids_core_beats
-# Purpose: RAPIDS Core (beats) TOP-level integration test
+# Purpose: RAPIDS Core (beats) SPLIT-core integration test
 #
 # Documentation: projects/components/rapids/PRD.md
 # Subsystem: rapids_top_beats
@@ -14,19 +14,16 @@
 # Created: 2026-06-30
 
 """
-RAPIDS Core (beats) top-level integration test.
+RAPIDS Core (beats) SPLIT-core integration test.
 
-DUT: rapids_core_beats  (scheduler_group_array + sink_data_path + source_data_path)
+DUT: rapids_core_beats  (thin wrapper over independent rapids_src_beats +
+rapids_snk_beats halves; AXIS-fronted data paths).
 
-Test types (dispatched by TEST_TYPE):
-  smoke          : reset/config/one APB kick; verify descriptor fetch + system idle
-  single_channel : one end-to-end DMA with source+sink data-integrity scoreboard
-  multi_channel  : concurrent multi-channel DMA
-  stress         : back-to-back transfers across all channels
-
-The runner is a thin dispatcher; all stimulus/checking lives in
-RapidsCoreBeatsTB. timing_profile sweeps the AXI memory-slave + GAXI fill/APB
-timing (REG_LEVEL-gated).
+Basic directional tests (dispatched by testcase):
+  source : SOURCE half - memory -> AXIS. Preload memory, kick a src descriptor,
+           capture m_axis egress, compare to the preloaded pattern.
+  sink   : SINK   half - AXIS -> memory. Kick a snk descriptor, stream s_axis
+           ingress, verify the data landed in memory via m_axi_wr.
 """
 
 import os
@@ -50,51 +47,26 @@ from projects.components.rapids.dv.tbclasses.rapids_core_beats_tb import RapidsC
 # COCOTB TEST FUNCTIONS - thin; logic lives in the TB
 # ===========================================================================
 
-@cocotb.test(timeout_time=30, timeout_unit="ms")
-async def cocotb_test_smoke(dut):
-    """Bring-up: reset, config, one descriptor kick; system returns to idle."""
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_source_path(dut):
+    """SOURCE half: memory -> AXIS, single channel, data-integrity check."""
     tb = RapidsCoreBeatsTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
-    src, dst, patt = await tb._run_channel_transfer(channel=0, beats=4)
-    idle = await tb.wait_system_idle(timeout_cycles=20000)
+    ok, stats = await tb.test_source_path(channel=0, beats=4)
     tb.finalize_test()
-    tb.log.info(f"smoke: system_idle={idle}, mon_packets={len(tb.mon_packets)}, "
-                f"drained_ch0={len(tb.drained[0])}")
-    assert not tb.test_errors, f"smoke errors: {tb.test_errors}"
+    assert ok, f"source-path failed: {stats.get('errors')}"
 
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")
-async def cocotb_test_single_channel(dut):
-    """Single-channel end-to-end DMA with data-integrity scoreboard."""
+async def cocotb_test_sink_path(dut):
+    """SINK half: AXIS -> memory, single channel, data-integrity check."""
     tb = RapidsCoreBeatsTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
-    ok, stats = await tb.test_single_channel(channel=0, beats=8)
+    ok, stats = await tb.test_sink_path(channel=0, beats=4)
     tb.finalize_test()
-    assert ok, f"single-channel E2E failed: {stats.get('errors')}"
-
-
-@cocotb.test(timeout_time=120, timeout_unit="ms")
-async def cocotb_test_multi_channel(dut):
-    """Concurrent multi-channel end-to-end DMA."""
-    tb = RapidsCoreBeatsTB(dut)
-    await tb.setup_clocks_and_reset()
-    await tb.initialize_test()
-    ok, stats = await tb.test_multi_channel(num_channels=4, beats=4)
-    tb.finalize_test()
-    assert ok, f"multi-channel E2E failed: {stats.get('errors')}"
-
-
-@cocotb.test(timeout_time=200, timeout_unit="ms")
-async def cocotb_test_stress(dut):
-    """Back-to-back transfers across channels."""
-    tb = RapidsCoreBeatsTB(dut)
-    await tb.setup_clocks_and_reset()
-    await tb.initialize_test()
-    ok, stats = await tb.stress_test(num_transfers=16, beats=4)
-    tb.finalize_test()
-    assert ok, f"stress E2E failed: {stats.get('errors')}"
+    assert ok, f"sink-path failed: {stats.get('errors')}"
 
 
 # ===========================================================================
@@ -102,41 +74,18 @@ async def cocotb_test_stress(dut):
 # ===========================================================================
 
 def generate_params():
-    """(test_type, data_width, timing_profile). REG_LEVEL gates the profile sweep."""
-    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
-    if reg_level == 'GATE':
-        data_widths = [512]
-        sweep_profiles = []
-    elif reg_level == 'FUNC':
-        data_widths = [512]
-        sweep_profiles = ['slow_producer', 'gaxi_realistic']
-    else:  # FULL
-        data_widths = [256, 512]
-        sweep_profiles = ['constrained', 'slow_producer', 'high_throughput', 'gaxi_stress']
-
-    test_types = ['smoke', 'single_channel', 'multi_channel', 'stress']
-    params = []
-    for tt in test_types:
-        for dw in data_widths:
-            params.append((tt, dw, 'default'))
-    # Profile sweep on the E2E types at 512-bit (skip smoke - it's a bring-up check).
-    for tt in ['single_channel', 'multi_channel', 'stress']:
-        for prof in sweep_profiles:
-            params.append((tt, 512, prof))
-    return params
+    """(test_type, data_width). Basic directional tests at 512-bit."""
+    return [('source', 512), ('sink', 512)]
 
 
 params = generate_params()
 
 
 # ===========================================================================
-# PYTEST WRAPPER
+# PYTEST WRAPPERS
 # ===========================================================================
 
-@pytest.mark.top_beats
-@pytest.mark.rapids_core_beats
-@pytest.mark.parametrize("test_type, data_width, timing_profile", params)
-def test_rapids_core_beats(request, test_type, data_width, timing_profile):
+def _run_core_beats(request, test_type, data_width):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -150,7 +99,7 @@ def test_rapids_core_beats(request, test_type, data_width, timing_profile):
     )
 
     dw_str = TBBase.format_dec(data_width, 4)
-    test_name = f"test_rapids_core_beats_{test_type}_dw{dw_str}_{timing_profile}"
+    test_name = f"test_rapids_core_beats_{test_type}_dw{dw_str}"
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     if worker_id:
         test_name = f"{test_name}_{worker_id}"
@@ -182,11 +131,8 @@ def test_rapids_core_beats(request, test_type, data_width, timing_profile):
         'TEST_AXI_ID_WIDTH': '8',
         'TEST_SRAM_DEPTH': '512',
     }
-    if timing_profile != 'default':
-        extra_env['TIMING_PROFILE'] = timing_profile
-        extra_env['GAXI_TIMING_PROFILE'] = timing_profile
 
-    testcase = f"cocotb_test_{test_type}"
+    testcase = f"cocotb_test_{test_type}_path"
     compile_args = ["-Wno-TIMESCALEMOD", "-Wno-WIDTH", "-Wno-UNOPTFLAT", "-Wno-CASEINCOMPLETE"]
     if enable_waves:
         compile_args.extend(['--trace', '--trace-structs', '--trace-max-array', '512'])
@@ -219,7 +165,21 @@ def test_rapids_core_beats(request, test_type, data_width, timing_profile):
         raise
 
 
+@pytest.mark.top_beats
+@pytest.mark.rapids_core_beats
+@pytest.mark.parametrize("data_width", [512])
+def test_rapids_core_beats_source(request, data_width):
+    _run_core_beats(request, 'source', data_width)
+
+
+@pytest.mark.top_beats
+@pytest.mark.rapids_core_beats
+@pytest.mark.parametrize("data_width", [512])
+def test_rapids_core_beats_sink(request, data_width):
+    _run_core_beats(request, 'sink', data_width)
+
+
 if __name__ == "__main__":
     class MockRequest:
         pass
-    test_rapids_core_beats(MockRequest(), test_type="smoke", data_width=512, timing_profile="default")
+    _run_core_beats(MockRequest(), test_type="source", data_width=512)

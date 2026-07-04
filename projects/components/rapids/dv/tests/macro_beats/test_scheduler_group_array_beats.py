@@ -70,6 +70,30 @@ async def cocotb_test_single_channel(dut):
     assert result, f"Single channel test failed: {stats}"
 
 
+@cocotb.test(timeout_time=500, timeout_unit="ms")
+async def cocotb_test_ctrl_multi_channel_doorbell(dut):
+    """Multi-channel CTRL_WRITE doorbells through the shared (serialized) ctrlwr master"""
+    tb = SchedulerGroupArrayBeatsTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    result, stats = await tb.test_ctrl_multi_channel_doorbell(channels=[0, 1])
+    tb.finalize_test()
+    tb.print_test_summary()
+    assert result, f"Multi-channel doorbell test failed: {stats}"
+
+
+@cocotb.test(timeout_time=500, timeout_unit="ms")
+async def cocotb_test_ctrl_multi_channel_gate(dut):
+    """Multi-channel CTRL_READ gates through the shared ctrlrd master (arbitrated)"""
+    tb = SchedulerGroupArrayBeatsTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    result, stats = await tb.test_ctrl_multi_channel_gate(channels=[0, 1])
+    tb.finalize_test()
+    tb.print_test_summary()
+    assert result, f"Multi-channel gate test failed: {stats}"
+
+
 @cocotb.test(timeout_time=400, timeout_unit="ms")
 async def cocotb_test_multi_channel_concurrent(dut):
     """Test concurrent operations on multiple channels"""
@@ -182,7 +206,7 @@ beats_scheduler_group_array_params = generate_beats_scheduler_group_array_test_p
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group_array
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
-def test_single_channel(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
+def test_scheduler_group_array_beats_single_channel(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
     """Pytest: Test single channel operation"""
     _run_beats_scheduler_group_array_test(request, "cocotb_test_single_channel",
                                            num_channels, addr_width, data_width, axi_id_width, timing_profile)
@@ -191,7 +215,25 @@ def test_single_channel(request, num_channels, addr_width, data_width, axi_id_wi
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group_array
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
-def test_multi_channel_concurrent(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
+def test_scheduler_group_array_beats_ctrl_multi_channel_doorbell(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
+    """Pytest: multi-channel CTRL_WRITE doorbells through the shared serialized ctrlwr master"""
+    _run_beats_scheduler_group_array_test(request, "cocotb_test_ctrl_multi_channel_doorbell",
+                                           num_channels, addr_width, data_width, axi_id_width, timing_profile)
+
+
+@pytest.mark.macro_beats
+@pytest.mark.beats_scheduler_group_array
+@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
+def test_scheduler_group_array_beats_ctrl_multi_channel_gate(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
+    """Pytest: multi-channel CTRL_READ gates through the shared arbitrated ctrlrd master"""
+    _run_beats_scheduler_group_array_test(request, "cocotb_test_ctrl_multi_channel_gate",
+                                           num_channels, addr_width, data_width, axi_id_width, timing_profile)
+
+
+@pytest.mark.macro_beats
+@pytest.mark.beats_scheduler_group_array
+@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
+def test_scheduler_group_array_beats_multi_channel_concurrent(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
     """Pytest: Test multi-channel concurrent operations"""
     _run_beats_scheduler_group_array_test(request, "cocotb_test_multi_channel_concurrent",
                                            num_channels, addr_width, data_width, axi_id_width, timing_profile)
@@ -200,7 +242,7 @@ def test_multi_channel_concurrent(request, num_channels, addr_width, data_width,
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group_array
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
-def test_axi_arbitration(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
+def test_scheduler_group_array_beats_axi_arbitration(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
     """Pytest: Test AXI arbitration"""
     _run_beats_scheduler_group_array_test(request, "cocotb_test_axi_arbitration",
                                            num_channels, addr_width, data_width, axi_id_width, timing_profile)
@@ -209,7 +251,7 @@ def test_axi_arbitration(request, num_channels, addr_width, data_width, axi_id_w
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group_array
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
-def test_all_channels_sequential(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
+def test_scheduler_group_array_beats_all_channels_sequential(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
     """Pytest: Test all channels sequentially"""
     _run_beats_scheduler_group_array_test(request, "cocotb_test_all_channels_sequential",
                                            num_channels, addr_width, data_width, axi_id_width, timing_profile)
@@ -218,7 +260,7 @@ def test_all_channels_sequential(request, num_channels, addr_width, data_width, 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group_array
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
-def test_monbus_aggregation(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
+def test_scheduler_group_array_beats_monbus_aggregation(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
     """Pytest: Test MonBus aggregation"""
     _run_beats_scheduler_group_array_test(request, "cocotb_test_monbus_aggregation",
                                            num_channels, addr_width, data_width, axi_id_width, timing_profile)
@@ -227,7 +269,7 @@ def test_monbus_aggregation(request, num_channels, addr_width, data_width, axi_i
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group_array
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
-def test_stress(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
+def test_scheduler_group_array_beats_stress(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
     """Pytest: Stress test"""
     _run_beats_scheduler_group_array_test(request, "cocotb_test_stress",
                                            num_channels, addr_width, data_width, axi_id_width, timing_profile)

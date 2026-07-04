@@ -38,7 +38,11 @@
 
 module rapids_config_block #(
     parameter int NUM_CHANNELS = 8,
-    parameter int ADDR_WIDTH = 64
+    parameter int ADDR_WIDTH = 64,
+    // When 0, the monitor configuration outputs are strapped off (monitors
+    // disabled) regardless of the MON register contents — lets a half drop its
+    // monitor block entirely. Default 1 preserves full monitor configurability.
+    parameter bit USE_MON_REGS = 1'b1
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -69,6 +73,7 @@ module rapids_config_block #(
     input  logic                        reg_desceng_config_desceng_en,
     input  logic                        reg_desceng_config_prefetch_en,
     input  logic [3:0]                  reg_desceng_config_fifo_thresh,
+    input  logic [8:0]                  reg_ctrl_config_ctrlrd_max_try,
     input  logic [31:0]                 reg_desceng_addr0_base_addr0_base,
     input  logic [31:0]                 reg_desceng_addr0_limit_addr0_limit,
     input  logic [31:0]                 reg_desceng_addr1_base_addr1_base,
@@ -131,6 +136,8 @@ module rapids_config_block #(
     // AXI Transfer Configuration
     input  logic [7:0]                  reg_axi_xfer_config_rd_xfer_beats,
     input  logic [7:0]                  reg_axi_xfer_config_wr_xfer_beats,
+    input  logic [7:0]                  reg_axi_xfer_config_alloc_size,
+    input  logic [7:0]                  reg_axi_xfer_config_drain_size,
 
     // Performance Profiler Configuration
     input  logic                        reg_perf_config_perf_en,
@@ -167,6 +174,7 @@ module rapids_config_block #(
     output logic                        cfg_desceng_enable,
     output logic                        cfg_desceng_prefetch,
     output logic [3:0]                  cfg_desceng_fifo_thresh,
+    output logic [8:0]                  cfg_ctrlrd_max_try,
     output logic [ADDR_WIDTH-1:0]       cfg_desceng_addr0_base,
     output logic [ADDR_WIDTH-1:0]       cfg_desceng_addr0_limit,
     output logic [ADDR_WIDTH-1:0]       cfg_desceng_addr1_base,
@@ -226,6 +234,8 @@ module rapids_config_block #(
     // AXI Transfer Configuration
     output logic [7:0]                  cfg_axi_rd_xfer_beats,
     output logic [7:0]                  cfg_axi_wr_xfer_beats,
+    output logic [7:0]                  cfg_alloc_size,
+    output logic [7:0]                  cfg_drain_size,
 
     // Performance Profiler Configuration
     output logic                        cfg_perf_enable,
@@ -277,6 +287,7 @@ module rapids_config_block #(
     assign cfg_desceng_enable = reg_desceng_config_desceng_en & reg_global_ctrl_global_en;
     assign cfg_desceng_prefetch = reg_desceng_config_prefetch_en;
     assign cfg_desceng_fifo_thresh = reg_desceng_config_fifo_thresh;
+    assign cfg_ctrlrd_max_try = reg_ctrl_config_ctrlrd_max_try;
 
     // Zero-extend 32-bit register addresses to ADDR_WIDTH (typically 64-bit)
     assign cfg_desceng_addr0_base = {{(ADDR_WIDTH-32){1'b0}}, reg_desceng_addr0_base_addr0_base};
@@ -288,21 +299,23 @@ module rapids_config_block #(
     // Descriptor AXI Monitor Configuration
     //-------------------------------------------------------------------------
 
-    assign cfg_desc_mon_enable = reg_daxmon_enable_mon_en & reg_global_ctrl_global_en;
-    assign cfg_desc_mon_err_enable = reg_daxmon_enable_err_en;
-    assign cfg_desc_mon_perf_enable = reg_daxmon_enable_perf_en;
-    assign cfg_desc_mon_timeout_enable = reg_daxmon_enable_timeout_en;
-    assign cfg_desc_mon_timeout_cycles = reg_daxmon_timeout_timeout_cycles;
-    assign cfg_desc_mon_latency_thresh = reg_daxmon_latency_thresh_latency_thresh;
-    assign cfg_desc_mon_pkt_mask = reg_daxmon_pkt_mask_pkt_mask;
-    assign cfg_desc_mon_err_select = reg_daxmon_err_cfg_err_select;
-    assign cfg_desc_mon_err_mask = reg_daxmon_err_cfg_err_mask;
-    assign cfg_desc_mon_timeout_mask = reg_daxmon_mask1_timeout_mask;
-    assign cfg_desc_mon_compl_mask = reg_daxmon_mask1_compl_mask;
-    assign cfg_desc_mon_thresh_mask = reg_daxmon_mask2_thresh_mask;
-    assign cfg_desc_mon_perf_mask = reg_daxmon_mask2_perf_mask;
-    assign cfg_desc_mon_addr_mask = reg_daxmon_mask3_addr_mask;
-    assign cfg_desc_mon_debug_mask = reg_daxmon_mask3_debug_mask;
+    // Monitor config outputs — strapped off entirely when USE_MON_REGS==0 so a
+    // half can drop its monitor block (all monitor cfgs read as disabled/0).
+    assign cfg_desc_mon_enable = USE_MON_REGS ? (reg_daxmon_enable_mon_en & reg_global_ctrl_global_en) : 1'b0;
+    assign cfg_desc_mon_err_enable = USE_MON_REGS ? reg_daxmon_enable_err_en : 1'b0;
+    assign cfg_desc_mon_perf_enable = USE_MON_REGS ? reg_daxmon_enable_perf_en : 1'b0;
+    assign cfg_desc_mon_timeout_enable = USE_MON_REGS ? reg_daxmon_enable_timeout_en : 1'b0;
+    assign cfg_desc_mon_timeout_cycles = USE_MON_REGS ? reg_daxmon_timeout_timeout_cycles : 32'h0;
+    assign cfg_desc_mon_latency_thresh = USE_MON_REGS ? reg_daxmon_latency_thresh_latency_thresh : 32'h0;
+    assign cfg_desc_mon_pkt_mask = USE_MON_REGS ? reg_daxmon_pkt_mask_pkt_mask : 16'h0;
+    assign cfg_desc_mon_err_select = USE_MON_REGS ? reg_daxmon_err_cfg_err_select : 4'h0;
+    assign cfg_desc_mon_err_mask = USE_MON_REGS ? reg_daxmon_err_cfg_err_mask : 8'h0;
+    assign cfg_desc_mon_timeout_mask = USE_MON_REGS ? reg_daxmon_mask1_timeout_mask : 8'h0;
+    assign cfg_desc_mon_compl_mask = USE_MON_REGS ? reg_daxmon_mask1_compl_mask : 8'h0;
+    assign cfg_desc_mon_thresh_mask = USE_MON_REGS ? reg_daxmon_mask2_thresh_mask : 8'h0;
+    assign cfg_desc_mon_perf_mask = USE_MON_REGS ? reg_daxmon_mask2_perf_mask : 8'h0;
+    assign cfg_desc_mon_addr_mask = USE_MON_REGS ? reg_daxmon_mask3_addr_mask : 8'h0;
+    assign cfg_desc_mon_debug_mask = USE_MON_REGS ? reg_daxmon_mask3_debug_mask : 8'h0;
 
     //-------------------------------------------------------------------------
     // Read Engine AXI Monitor Configuration
@@ -350,6 +363,8 @@ module rapids_config_block #(
 
     assign cfg_axi_rd_xfer_beats = reg_axi_xfer_config_rd_xfer_beats;
     assign cfg_axi_wr_xfer_beats = reg_axi_xfer_config_wr_xfer_beats;
+    assign cfg_alloc_size        = reg_axi_xfer_config_alloc_size;
+    assign cfg_drain_size        = reg_axi_xfer_config_drain_size;
 
     //-------------------------------------------------------------------------
     // Performance Profiler Configuration

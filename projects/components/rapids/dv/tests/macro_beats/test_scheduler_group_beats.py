@@ -91,6 +91,28 @@ async def cocotb_test_basic_descriptor_flow(dut):
 
 
 @cocotb.test(timeout_time=300, timeout_unit="ms")
+async def cocotb_test_ctrl_write_doorbell(dut):
+    """CTRL_WRITE descriptor -> real ctrlwr engine posts a doorbell"""
+    tb = SchedulerGroupBeatsTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    result = await tb.test_ctrl_write_doorbell()
+    tb.generate_test_report()
+    assert result, "Control write doorbell test failed"
+
+
+@cocotb.test(timeout_time=500, timeout_unit="ms")
+async def cocotb_test_ctrl_read_gate(dut):
+    """CTRL_READ descriptor -> real ctrlrd engine gates the chain until match"""
+    tb = SchedulerGroupBeatsTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    result = await tb.test_ctrl_read_gate()
+    tb.generate_test_report()
+    assert result, "Control read gate test failed"
+
+
+@cocotb.test(timeout_time=300, timeout_unit="ms")
 async def cocotb_test_monbus_events(dut):
     """Test monitor bus event generation"""
     tb = SchedulerGroupBeatsTB(dut)
@@ -145,7 +167,7 @@ beats_scheduler_group_params = generate_beats_scheduler_group_test_params()
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group
 @pytest.mark.parametrize("channel_id, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_params)
-def test_idle_state(request, channel_id, addr_width, data_width, axi_id_width, timing_profile):
+def test_scheduler_group_beats_idle_state(request, channel_id, addr_width, data_width, axi_id_width, timing_profile):
     """Pytest: Test idle state after reset"""
     _run_beats_scheduler_group_test(request, "cocotb_test_idle_state",
                                      channel_id, addr_width, data_width, axi_id_width, timing_profile)
@@ -154,7 +176,7 @@ def test_idle_state(request, channel_id, addr_width, data_width, axi_id_width, t
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group
 @pytest.mark.parametrize("channel_id, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_params)
-def test_config_interface(request, channel_id, addr_width, data_width, axi_id_width, timing_profile):
+def test_scheduler_group_beats_config_interface(request, channel_id, addr_width, data_width, axi_id_width, timing_profile):
     """Pytest: Test configuration interface"""
     _run_beats_scheduler_group_test(request, "cocotb_test_config_interface",
                                      channel_id, addr_width, data_width, axi_id_width, timing_profile)
@@ -163,7 +185,7 @@ def test_config_interface(request, channel_id, addr_width, data_width, axi_id_wi
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group
 @pytest.mark.parametrize("channel_id, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_params)
-def test_basic_descriptor_flow(request, channel_id, addr_width, data_width, axi_id_width, timing_profile):
+def test_scheduler_group_beats_basic_descriptor_flow(request, channel_id, addr_width, data_width, axi_id_width, timing_profile):
     """Pytest: Test basic descriptor fetch and processing"""
     _run_beats_scheduler_group_test(request, "cocotb_test_basic_descriptor_flow",
                                      channel_id, addr_width, data_width, axi_id_width, timing_profile)
@@ -172,7 +194,25 @@ def test_basic_descriptor_flow(request, channel_id, addr_width, data_width, axi_
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group
 @pytest.mark.parametrize("channel_id, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_params)
-def test_monbus_events(request, channel_id, addr_width, data_width, axi_id_width, timing_profile):
+def test_scheduler_group_beats_ctrl_write_doorbell(request, channel_id, addr_width, data_width, axi_id_width, timing_profile):
+    """Pytest: CTRL_WRITE descriptor -> real ctrlwr engine posts a doorbell"""
+    _run_beats_scheduler_group_test(request, "cocotb_test_ctrl_write_doorbell",
+                                     channel_id, addr_width, data_width, axi_id_width, timing_profile)
+
+
+@pytest.mark.macro_beats
+@pytest.mark.beats_scheduler_group
+@pytest.mark.parametrize("channel_id, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_params)
+def test_scheduler_group_beats_ctrl_read_gate(request, channel_id, addr_width, data_width, axi_id_width, timing_profile):
+    """Pytest: CTRL_READ descriptor -> real ctrlrd engine gates the chain until match"""
+    _run_beats_scheduler_group_test(request, "cocotb_test_ctrl_read_gate",
+                                     channel_id, addr_width, data_width, axi_id_width, timing_profile)
+
+
+@pytest.mark.macro_beats
+@pytest.mark.beats_scheduler_group
+@pytest.mark.parametrize("channel_id, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_params)
+def test_scheduler_group_beats_monbus_events(request, channel_id, addr_width, data_width, axi_id_width, timing_profile):
     """Pytest: Test monitor bus events"""
     _run_beats_scheduler_group_test(request, "cocotb_test_monbus_events",
                                      channel_id, addr_width, data_width, axi_id_width, timing_profile)

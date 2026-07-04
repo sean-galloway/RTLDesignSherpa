@@ -66,105 +66,210 @@ module rapids_regs (
     // Address Decode
     //--------------------------------------------------------------------------
     typedef struct {
-        logic GLOBAL_CTRL;
-        logic GLOBAL_STATUS;
-        logic VERSION;
-        logic CHANNEL_ENABLE;
-        logic CHANNEL_RESET;
-        logic CHANNEL_IDLE;
-        logic DESC_ENGINE_IDLE;
-        logic SCHEDULER_IDLE;
         struct {
-            logic STATE;
-        } CH_STATE[8];
-        logic SCHED_ERROR;
-        logic AXI_RD_COMPLETE;
-        logic AXI_WR_COMPLETE;
-        logic SCHED_TIMEOUT_CYCLES;
-        logic SCHED_CONFIG;
-        logic SCHED_TIMEOUT_LIMIT;
-        logic DESCENG_CONFIG;
-        logic DESCENG_ADDR0_BASE;
-        logic DESCENG_ADDR0_LIMIT;
-        logic DESCENG_ADDR1_BASE;
-        logic DESCENG_ADDR1_LIMIT;
-        logic AXI_XFER_CONFIG;
-        logic PERF_CONFIG;
-        logic OBS_CTRL;
-        logic OBS_FLAGS;
-        logic OBS_DATA0;
-        logic OBS_DATA1;
-        logic PERF_CH_SEL;
-        logic HIST_SEL;
-        logic HIST_DATA;
-        logic HIST_TOTAL;
+            logic GLOBAL_CTRL;
+            logic GLOBAL_STATUS;
+            logic VERSION;
+            logic CHANNEL_ENABLE;
+            logic CHANNEL_RESET;
+            logic CHANNEL_IDLE;
+            logic DESC_ENGINE_IDLE;
+            logic SCHEDULER_IDLE;
+            struct {
+                logic STATE;
+            } CH_STATE[8];
+            logic SCHED_ERROR;
+            logic AXI_RD_COMPLETE;
+            logic AXI_WR_COMPLETE;
+            logic SCHED_TIMEOUT_CYCLES;
+            logic SCHED_CONFIG;
+            logic SCHED_TIMEOUT_LIMIT;
+            logic DESCENG_CONFIG;
+            logic DESCENG_ADDR0_BASE;
+            logic DESCENG_ADDR0_LIMIT;
+            logic DESCENG_ADDR1_BASE;
+            logic DESCENG_ADDR1_LIMIT;
+            logic CTRL_CONFIG;
+            logic AXI_XFER_CONFIG;
+            logic PERF_CONFIG;
+            logic OBS_CTRL;
+            logic OBS_FLAGS;
+            logic OBS_DATA0;
+            logic OBS_DATA1;
+            logic PERF_CH_SEL;
+            logic HIST_SEL;
+            logic HIST_DATA;
+            logic HIST_TOTAL;
+            struct {
+                logic MON_FIFO_STATUS;
+                logic MON_FIFO_COUNT;
+                logic DAXMON_ENABLE;
+                logic DAXMON_TIMEOUT;
+                logic DAXMON_LATENCY_THRESH;
+                logic DAXMON_PKT_MASK;
+                logic DAXMON_ERR_CFG;
+                logic DAXMON_MASK1;
+                logic DAXMON_MASK2;
+                logic DAXMON_MASK3;
+                logic RDMON_ENABLE;
+                logic RDMON_TIMEOUT;
+                logic RDMON_LATENCY_THRESH;
+                logic RDMON_PKT_MASK;
+                logic RDMON_ERR_CFG;
+                logic RDMON_MASK1;
+                logic RDMON_MASK2;
+                logic RDMON_MASK3;
+                logic WRMON_ENABLE;
+                logic WRMON_TIMEOUT;
+                logic WRMON_LATENCY_THRESH;
+                logic WRMON_PKT_MASK;
+                logic WRMON_ERR_CFG;
+                logic WRMON_MASK1;
+                logic WRMON_MASK2;
+                logic WRMON_MASK3;
+                logic DAXMON_PERF_CTRL;
+                logic DAXMON_PERF_STATUS;
+                logic DAXMON_PERF_WINDOW_CYCLES;
+                logic DAXMON_PERF_PROD_CYCLES;
+                logic DAXMON_PERF_BP_CYCLES;
+                logic DAXMON_PERF_STARV_CYCLES;
+                logic DAXMON_PERF_IDLE_CYCLES;
+                logic DAXMON_PERF_BEAT_COUNT;
+                logic DAXMON_PERF_BYTE_COUNT_LO;
+                logic DAXMON_PERF_BYTE_COUNT_HI;
+                logic DAXMON_PERF_BURST_COUNT;
+                logic RDMON_PERF_CTRL;
+                logic RDMON_PERF_STATUS;
+                logic RDMON_PERF_WINDOW_CYCLES;
+                logic RDMON_PERF_PROD_CYCLES;
+                logic RDMON_PERF_BP_CYCLES;
+                logic RDMON_PERF_STARV_CYCLES;
+                logic RDMON_PERF_IDLE_CYCLES;
+                logic RDMON_PERF_BEAT_COUNT;
+                logic RDMON_PERF_BYTE_COUNT_LO;
+                logic RDMON_PERF_BYTE_COUNT_HI;
+                logic RDMON_PERF_BURST_COUNT;
+                logic WRMON_PERF_CTRL;
+                logic WRMON_PERF_STATUS;
+                logic WRMON_PERF_WINDOW_CYCLES;
+                logic WRMON_PERF_PROD_CYCLES;
+                logic WRMON_PERF_BP_CYCLES;
+                logic WRMON_PERF_STARV_CYCLES;
+                logic WRMON_PERF_IDLE_CYCLES;
+                logic WRMON_PERF_BEAT_COUNT;
+                logic WRMON_PERF_BYTE_COUNT_LO;
+                logic WRMON_PERF_BYTE_COUNT_HI;
+                logic WRMON_PERF_BURST_COUNT;
+                logic RDMON_PERF_CH_PROD_BP;
+                logic RDMON_PERF_CH_STARV_IDLE;
+                logic WRMON_PERF_CH_PROD_BP;
+                logic WRMON_PERF_CH_STARV_IDLE;
+                logic RDMON_PERF_CH_OVERFLOW;
+                logic WRMON_PERF_CH_OVERFLOW;
+            } MON;
+        } SRC;
         struct {
-            logic MON_FIFO_STATUS;
-            logic MON_FIFO_COUNT;
-            logic DAXMON_ENABLE;
-            logic DAXMON_TIMEOUT;
-            logic DAXMON_LATENCY_THRESH;
-            logic DAXMON_PKT_MASK;
-            logic DAXMON_ERR_CFG;
-            logic DAXMON_MASK1;
-            logic DAXMON_MASK2;
-            logic DAXMON_MASK3;
-            logic RDMON_ENABLE;
-            logic RDMON_TIMEOUT;
-            logic RDMON_LATENCY_THRESH;
-            logic RDMON_PKT_MASK;
-            logic RDMON_ERR_CFG;
-            logic RDMON_MASK1;
-            logic RDMON_MASK2;
-            logic RDMON_MASK3;
-            logic WRMON_ENABLE;
-            logic WRMON_TIMEOUT;
-            logic WRMON_LATENCY_THRESH;
-            logic WRMON_PKT_MASK;
-            logic WRMON_ERR_CFG;
-            logic WRMON_MASK1;
-            logic WRMON_MASK2;
-            logic WRMON_MASK3;
-            logic DAXMON_PERF_CTRL;
-            logic DAXMON_PERF_STATUS;
-            logic DAXMON_PERF_WINDOW_CYCLES;
-            logic DAXMON_PERF_PROD_CYCLES;
-            logic DAXMON_PERF_BP_CYCLES;
-            logic DAXMON_PERF_STARV_CYCLES;
-            logic DAXMON_PERF_IDLE_CYCLES;
-            logic DAXMON_PERF_BEAT_COUNT;
-            logic DAXMON_PERF_BYTE_COUNT_LO;
-            logic DAXMON_PERF_BYTE_COUNT_HI;
-            logic DAXMON_PERF_BURST_COUNT;
-            logic RDMON_PERF_CTRL;
-            logic RDMON_PERF_STATUS;
-            logic RDMON_PERF_WINDOW_CYCLES;
-            logic RDMON_PERF_PROD_CYCLES;
-            logic RDMON_PERF_BP_CYCLES;
-            logic RDMON_PERF_STARV_CYCLES;
-            logic RDMON_PERF_IDLE_CYCLES;
-            logic RDMON_PERF_BEAT_COUNT;
-            logic RDMON_PERF_BYTE_COUNT_LO;
-            logic RDMON_PERF_BYTE_COUNT_HI;
-            logic RDMON_PERF_BURST_COUNT;
-            logic WRMON_PERF_CTRL;
-            logic WRMON_PERF_STATUS;
-            logic WRMON_PERF_WINDOW_CYCLES;
-            logic WRMON_PERF_PROD_CYCLES;
-            logic WRMON_PERF_BP_CYCLES;
-            logic WRMON_PERF_STARV_CYCLES;
-            logic WRMON_PERF_IDLE_CYCLES;
-            logic WRMON_PERF_BEAT_COUNT;
-            logic WRMON_PERF_BYTE_COUNT_LO;
-            logic WRMON_PERF_BYTE_COUNT_HI;
-            logic WRMON_PERF_BURST_COUNT;
-            logic RDMON_PERF_CH_PROD_BP;
-            logic RDMON_PERF_CH_STARV_IDLE;
-            logic WRMON_PERF_CH_PROD_BP;
-            logic WRMON_PERF_CH_STARV_IDLE;
-            logic RDMON_PERF_CH_OVERFLOW;
-            logic WRMON_PERF_CH_OVERFLOW;
-        } MON;
+            logic GLOBAL_CTRL;
+            logic GLOBAL_STATUS;
+            logic VERSION;
+            logic CHANNEL_ENABLE;
+            logic CHANNEL_RESET;
+            logic CHANNEL_IDLE;
+            logic DESC_ENGINE_IDLE;
+            logic SCHEDULER_IDLE;
+            struct {
+                logic STATE;
+            } CH_STATE[8];
+            logic SCHED_ERROR;
+            logic AXI_RD_COMPLETE;
+            logic AXI_WR_COMPLETE;
+            logic SCHED_TIMEOUT_CYCLES;
+            logic SCHED_CONFIG;
+            logic SCHED_TIMEOUT_LIMIT;
+            logic DESCENG_CONFIG;
+            logic DESCENG_ADDR0_BASE;
+            logic DESCENG_ADDR0_LIMIT;
+            logic DESCENG_ADDR1_BASE;
+            logic DESCENG_ADDR1_LIMIT;
+            logic CTRL_CONFIG;
+            logic AXI_XFER_CONFIG;
+            logic PERF_CONFIG;
+            logic OBS_CTRL;
+            logic OBS_FLAGS;
+            logic OBS_DATA0;
+            logic OBS_DATA1;
+            logic PERF_CH_SEL;
+            logic HIST_SEL;
+            logic HIST_DATA;
+            logic HIST_TOTAL;
+            struct {
+                logic MON_FIFO_STATUS;
+                logic MON_FIFO_COUNT;
+                logic DAXMON_ENABLE;
+                logic DAXMON_TIMEOUT;
+                logic DAXMON_LATENCY_THRESH;
+                logic DAXMON_PKT_MASK;
+                logic DAXMON_ERR_CFG;
+                logic DAXMON_MASK1;
+                logic DAXMON_MASK2;
+                logic DAXMON_MASK3;
+                logic RDMON_ENABLE;
+                logic RDMON_TIMEOUT;
+                logic RDMON_LATENCY_THRESH;
+                logic RDMON_PKT_MASK;
+                logic RDMON_ERR_CFG;
+                logic RDMON_MASK1;
+                logic RDMON_MASK2;
+                logic RDMON_MASK3;
+                logic WRMON_ENABLE;
+                logic WRMON_TIMEOUT;
+                logic WRMON_LATENCY_THRESH;
+                logic WRMON_PKT_MASK;
+                logic WRMON_ERR_CFG;
+                logic WRMON_MASK1;
+                logic WRMON_MASK2;
+                logic WRMON_MASK3;
+                logic DAXMON_PERF_CTRL;
+                logic DAXMON_PERF_STATUS;
+                logic DAXMON_PERF_WINDOW_CYCLES;
+                logic DAXMON_PERF_PROD_CYCLES;
+                logic DAXMON_PERF_BP_CYCLES;
+                logic DAXMON_PERF_STARV_CYCLES;
+                logic DAXMON_PERF_IDLE_CYCLES;
+                logic DAXMON_PERF_BEAT_COUNT;
+                logic DAXMON_PERF_BYTE_COUNT_LO;
+                logic DAXMON_PERF_BYTE_COUNT_HI;
+                logic DAXMON_PERF_BURST_COUNT;
+                logic RDMON_PERF_CTRL;
+                logic RDMON_PERF_STATUS;
+                logic RDMON_PERF_WINDOW_CYCLES;
+                logic RDMON_PERF_PROD_CYCLES;
+                logic RDMON_PERF_BP_CYCLES;
+                logic RDMON_PERF_STARV_CYCLES;
+                logic RDMON_PERF_IDLE_CYCLES;
+                logic RDMON_PERF_BEAT_COUNT;
+                logic RDMON_PERF_BYTE_COUNT_LO;
+                logic RDMON_PERF_BYTE_COUNT_HI;
+                logic RDMON_PERF_BURST_COUNT;
+                logic WRMON_PERF_CTRL;
+                logic WRMON_PERF_STATUS;
+                logic WRMON_PERF_WINDOW_CYCLES;
+                logic WRMON_PERF_PROD_CYCLES;
+                logic WRMON_PERF_BP_CYCLES;
+                logic WRMON_PERF_STARV_CYCLES;
+                logic WRMON_PERF_IDLE_CYCLES;
+                logic WRMON_PERF_BEAT_COUNT;
+                logic WRMON_PERF_BYTE_COUNT_LO;
+                logic WRMON_PERF_BYTE_COUNT_HI;
+                logic WRMON_PERF_BURST_COUNT;
+                logic RDMON_PERF_CH_PROD_BP;
+                logic RDMON_PERF_CH_STARV_IDLE;
+                logic WRMON_PERF_CH_PROD_BP;
+                logic WRMON_PERF_CH_STARV_IDLE;
+                logic RDMON_PERF_CH_OVERFLOW;
+                logic WRMON_PERF_CH_OVERFLOW;
+            } MON;
+        } SNK;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
     logic decoded_req;
@@ -173,103 +278,202 @@ module rapids_regs (
     logic [31:0] decoded_wr_biten;
 
     always_comb begin
-        decoded_reg_strb.GLOBAL_CTRL = cpuif_req_masked & (cpuif_addr == 13'h100);
-        decoded_reg_strb.GLOBAL_STATUS = cpuif_req_masked & (cpuif_addr == 13'h104);
-        decoded_reg_strb.VERSION = cpuif_req_masked & (cpuif_addr == 13'h108);
-        decoded_reg_strb.CHANNEL_ENABLE = cpuif_req_masked & (cpuif_addr == 13'h120);
-        decoded_reg_strb.CHANNEL_RESET = cpuif_req_masked & (cpuif_addr == 13'h124);
-        decoded_reg_strb.CHANNEL_IDLE = cpuif_req_masked & (cpuif_addr == 13'h140);
-        decoded_reg_strb.DESC_ENGINE_IDLE = cpuif_req_masked & (cpuif_addr == 13'h144);
-        decoded_reg_strb.SCHEDULER_IDLE = cpuif_req_masked & (cpuif_addr == 13'h148);
+        decoded_reg_strb.SRC.GLOBAL_CTRL = cpuif_req_masked & (cpuif_addr == 13'h100);
+        decoded_reg_strb.SRC.GLOBAL_STATUS = cpuif_req_masked & (cpuif_addr == 13'h104);
+        decoded_reg_strb.SRC.VERSION = cpuif_req_masked & (cpuif_addr == 13'h108);
+        decoded_reg_strb.SRC.CHANNEL_ENABLE = cpuif_req_masked & (cpuif_addr == 13'h120);
+        decoded_reg_strb.SRC.CHANNEL_RESET = cpuif_req_masked & (cpuif_addr == 13'h124);
+        decoded_reg_strb.SRC.CHANNEL_IDLE = cpuif_req_masked & (cpuif_addr == 13'h140);
+        decoded_reg_strb.SRC.DESC_ENGINE_IDLE = cpuif_req_masked & (cpuif_addr == 13'h144);
+        decoded_reg_strb.SRC.SCHEDULER_IDLE = cpuif_req_masked & (cpuif_addr == 13'h148);
         for(int i0=0; i0<8; i0++) begin
-            decoded_reg_strb.CH_STATE[i0].STATE = cpuif_req_masked & (cpuif_addr == 13'h150 + (13)'(i0) * 13'h4);
+            decoded_reg_strb.SRC.CH_STATE[i0].STATE = cpuif_req_masked & (cpuif_addr == 13'h150 + (13)'(i0) * 13'h4);
         end
-        decoded_reg_strb.SCHED_ERROR = cpuif_req_masked & (cpuif_addr == 13'h170);
-        decoded_reg_strb.AXI_RD_COMPLETE = cpuif_req_masked & (cpuif_addr == 13'h174);
-        decoded_reg_strb.AXI_WR_COMPLETE = cpuif_req_masked & (cpuif_addr == 13'h178);
-        decoded_reg_strb.SCHED_TIMEOUT_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h200);
-        decoded_reg_strb.SCHED_CONFIG = cpuif_req_masked & (cpuif_addr == 13'h204);
-        decoded_reg_strb.SCHED_TIMEOUT_LIMIT = cpuif_req_masked & (cpuif_addr == 13'h208);
-        decoded_reg_strb.DESCENG_CONFIG = cpuif_req_masked & (cpuif_addr == 13'h220);
-        decoded_reg_strb.DESCENG_ADDR0_BASE = cpuif_req_masked & (cpuif_addr == 13'h224);
-        decoded_reg_strb.DESCENG_ADDR0_LIMIT = cpuif_req_masked & (cpuif_addr == 13'h228);
-        decoded_reg_strb.DESCENG_ADDR1_BASE = cpuif_req_masked & (cpuif_addr == 13'h22c);
-        decoded_reg_strb.DESCENG_ADDR1_LIMIT = cpuif_req_masked & (cpuif_addr == 13'h230);
-        decoded_reg_strb.AXI_XFER_CONFIG = cpuif_req_masked & (cpuif_addr == 13'h2a0);
-        decoded_reg_strb.PERF_CONFIG = cpuif_req_masked & (cpuif_addr == 13'h2b0);
-        decoded_reg_strb.OBS_CTRL = cpuif_req_masked & (cpuif_addr == 13'h2c0);
-        decoded_reg_strb.OBS_FLAGS = cpuif_req_masked & (cpuif_addr == 13'h2c4);
-        decoded_reg_strb.OBS_DATA0 = cpuif_req_masked & (cpuif_addr == 13'h2c8);
-        decoded_reg_strb.OBS_DATA1 = cpuif_req_masked & (cpuif_addr == 13'h2cc);
-        decoded_reg_strb.PERF_CH_SEL = cpuif_req_masked & (cpuif_addr == 13'h35c);
-        decoded_reg_strb.HIST_SEL = cpuif_req_masked & (cpuif_addr == 13'h378);
-        decoded_reg_strb.HIST_DATA = cpuif_req_masked & (cpuif_addr == 13'h37c);
-        decoded_reg_strb.HIST_TOTAL = cpuif_req_masked & (cpuif_addr == 13'h380);
-        decoded_reg_strb.MON.MON_FIFO_STATUS = cpuif_req_masked & (cpuif_addr == 13'h1000);
-        decoded_reg_strb.MON.MON_FIFO_COUNT = cpuif_req_masked & (cpuif_addr == 13'h1004);
-        decoded_reg_strb.MON.DAXMON_ENABLE = cpuif_req_masked & (cpuif_addr == 13'h10c0);
-        decoded_reg_strb.MON.DAXMON_TIMEOUT = cpuif_req_masked & (cpuif_addr == 13'h10c4);
-        decoded_reg_strb.MON.DAXMON_LATENCY_THRESH = cpuif_req_masked & (cpuif_addr == 13'h10c8);
-        decoded_reg_strb.MON.DAXMON_PKT_MASK = cpuif_req_masked & (cpuif_addr == 13'h10cc);
-        decoded_reg_strb.MON.DAXMON_ERR_CFG = cpuif_req_masked & (cpuif_addr == 13'h10d0);
-        decoded_reg_strb.MON.DAXMON_MASK1 = cpuif_req_masked & (cpuif_addr == 13'h10d4);
-        decoded_reg_strb.MON.DAXMON_MASK2 = cpuif_req_masked & (cpuif_addr == 13'h10d8);
-        decoded_reg_strb.MON.DAXMON_MASK3 = cpuif_req_masked & (cpuif_addr == 13'h10dc);
-        decoded_reg_strb.MON.RDMON_ENABLE = cpuif_req_masked & (cpuif_addr == 13'h10e0);
-        decoded_reg_strb.MON.RDMON_TIMEOUT = cpuif_req_masked & (cpuif_addr == 13'h10e4);
-        decoded_reg_strb.MON.RDMON_LATENCY_THRESH = cpuif_req_masked & (cpuif_addr == 13'h10e8);
-        decoded_reg_strb.MON.RDMON_PKT_MASK = cpuif_req_masked & (cpuif_addr == 13'h10ec);
-        decoded_reg_strb.MON.RDMON_ERR_CFG = cpuif_req_masked & (cpuif_addr == 13'h10f0);
-        decoded_reg_strb.MON.RDMON_MASK1 = cpuif_req_masked & (cpuif_addr == 13'h10f4);
-        decoded_reg_strb.MON.RDMON_MASK2 = cpuif_req_masked & (cpuif_addr == 13'h10f8);
-        decoded_reg_strb.MON.RDMON_MASK3 = cpuif_req_masked & (cpuif_addr == 13'h10fc);
-        decoded_reg_strb.MON.WRMON_ENABLE = cpuif_req_masked & (cpuif_addr == 13'h1100);
-        decoded_reg_strb.MON.WRMON_TIMEOUT = cpuif_req_masked & (cpuif_addr == 13'h1104);
-        decoded_reg_strb.MON.WRMON_LATENCY_THRESH = cpuif_req_masked & (cpuif_addr == 13'h1108);
-        decoded_reg_strb.MON.WRMON_PKT_MASK = cpuif_req_masked & (cpuif_addr == 13'h110c);
-        decoded_reg_strb.MON.WRMON_ERR_CFG = cpuif_req_masked & (cpuif_addr == 13'h1110);
-        decoded_reg_strb.MON.WRMON_MASK1 = cpuif_req_masked & (cpuif_addr == 13'h1114);
-        decoded_reg_strb.MON.WRMON_MASK2 = cpuif_req_masked & (cpuif_addr == 13'h1118);
-        decoded_reg_strb.MON.WRMON_MASK3 = cpuif_req_masked & (cpuif_addr == 13'h111c);
-        decoded_reg_strb.MON.DAXMON_PERF_CTRL = cpuif_req_masked & (cpuif_addr == 13'h1150);
-        decoded_reg_strb.MON.DAXMON_PERF_STATUS = cpuif_req_masked & (cpuif_addr == 13'h1154);
-        decoded_reg_strb.MON.DAXMON_PERF_WINDOW_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h1158);
-        decoded_reg_strb.MON.DAXMON_PERF_PROD_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h115c);
-        decoded_reg_strb.MON.DAXMON_PERF_BP_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h1160);
-        decoded_reg_strb.MON.DAXMON_PERF_STARV_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h1164);
-        decoded_reg_strb.MON.DAXMON_PERF_IDLE_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h1168);
-        decoded_reg_strb.MON.DAXMON_PERF_BEAT_COUNT = cpuif_req_masked & (cpuif_addr == 13'h116c);
-        decoded_reg_strb.MON.DAXMON_PERF_BYTE_COUNT_LO = cpuif_req_masked & (cpuif_addr == 13'h1170);
-        decoded_reg_strb.MON.DAXMON_PERF_BYTE_COUNT_HI = cpuif_req_masked & (cpuif_addr == 13'h1174);
-        decoded_reg_strb.MON.DAXMON_PERF_BURST_COUNT = cpuif_req_masked & (cpuif_addr == 13'h1178);
-        decoded_reg_strb.MON.RDMON_PERF_CTRL = cpuif_req_masked & (cpuif_addr == 13'h1180);
-        decoded_reg_strb.MON.RDMON_PERF_STATUS = cpuif_req_masked & (cpuif_addr == 13'h1184);
-        decoded_reg_strb.MON.RDMON_PERF_WINDOW_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h1188);
-        decoded_reg_strb.MON.RDMON_PERF_PROD_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h118c);
-        decoded_reg_strb.MON.RDMON_PERF_BP_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h1190);
-        decoded_reg_strb.MON.RDMON_PERF_STARV_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h1194);
-        decoded_reg_strb.MON.RDMON_PERF_IDLE_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h1198);
-        decoded_reg_strb.MON.RDMON_PERF_BEAT_COUNT = cpuif_req_masked & (cpuif_addr == 13'h119c);
-        decoded_reg_strb.MON.RDMON_PERF_BYTE_COUNT_LO = cpuif_req_masked & (cpuif_addr == 13'h11a0);
-        decoded_reg_strb.MON.RDMON_PERF_BYTE_COUNT_HI = cpuif_req_masked & (cpuif_addr == 13'h11a4);
-        decoded_reg_strb.MON.RDMON_PERF_BURST_COUNT = cpuif_req_masked & (cpuif_addr == 13'h11a8);
-        decoded_reg_strb.MON.WRMON_PERF_CTRL = cpuif_req_masked & (cpuif_addr == 13'h11b0);
-        decoded_reg_strb.MON.WRMON_PERF_STATUS = cpuif_req_masked & (cpuif_addr == 13'h11b4);
-        decoded_reg_strb.MON.WRMON_PERF_WINDOW_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h11b8);
-        decoded_reg_strb.MON.WRMON_PERF_PROD_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h11bc);
-        decoded_reg_strb.MON.WRMON_PERF_BP_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h11c0);
-        decoded_reg_strb.MON.WRMON_PERF_STARV_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h11c4);
-        decoded_reg_strb.MON.WRMON_PERF_IDLE_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h11c8);
-        decoded_reg_strb.MON.WRMON_PERF_BEAT_COUNT = cpuif_req_masked & (cpuif_addr == 13'h11cc);
-        decoded_reg_strb.MON.WRMON_PERF_BYTE_COUNT_LO = cpuif_req_masked & (cpuif_addr == 13'h11d0);
-        decoded_reg_strb.MON.WRMON_PERF_BYTE_COUNT_HI = cpuif_req_masked & (cpuif_addr == 13'h11d4);
-        decoded_reg_strb.MON.WRMON_PERF_BURST_COUNT = cpuif_req_masked & (cpuif_addr == 13'h11d8);
-        decoded_reg_strb.MON.RDMON_PERF_CH_PROD_BP = cpuif_req_masked & (cpuif_addr == 13'h11e0);
-        decoded_reg_strb.MON.RDMON_PERF_CH_STARV_IDLE = cpuif_req_masked & (cpuif_addr == 13'h11e4);
-        decoded_reg_strb.MON.WRMON_PERF_CH_PROD_BP = cpuif_req_masked & (cpuif_addr == 13'h11e8);
-        decoded_reg_strb.MON.WRMON_PERF_CH_STARV_IDLE = cpuif_req_masked & (cpuif_addr == 13'h11ec);
-        decoded_reg_strb.MON.RDMON_PERF_CH_OVERFLOW = cpuif_req_masked & (cpuif_addr == 13'h11f0);
-        decoded_reg_strb.MON.WRMON_PERF_CH_OVERFLOW = cpuif_req_masked & (cpuif_addr == 13'h11f4);
+        decoded_reg_strb.SRC.SCHED_ERROR = cpuif_req_masked & (cpuif_addr == 13'h170);
+        decoded_reg_strb.SRC.AXI_RD_COMPLETE = cpuif_req_masked & (cpuif_addr == 13'h174);
+        decoded_reg_strb.SRC.AXI_WR_COMPLETE = cpuif_req_masked & (cpuif_addr == 13'h178);
+        decoded_reg_strb.SRC.SCHED_TIMEOUT_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h200);
+        decoded_reg_strb.SRC.SCHED_CONFIG = cpuif_req_masked & (cpuif_addr == 13'h204);
+        decoded_reg_strb.SRC.SCHED_TIMEOUT_LIMIT = cpuif_req_masked & (cpuif_addr == 13'h208);
+        decoded_reg_strb.SRC.DESCENG_CONFIG = cpuif_req_masked & (cpuif_addr == 13'h220);
+        decoded_reg_strb.SRC.DESCENG_ADDR0_BASE = cpuif_req_masked & (cpuif_addr == 13'h224);
+        decoded_reg_strb.SRC.DESCENG_ADDR0_LIMIT = cpuif_req_masked & (cpuif_addr == 13'h228);
+        decoded_reg_strb.SRC.DESCENG_ADDR1_BASE = cpuif_req_masked & (cpuif_addr == 13'h22c);
+        decoded_reg_strb.SRC.DESCENG_ADDR1_LIMIT = cpuif_req_masked & (cpuif_addr == 13'h230);
+        decoded_reg_strb.SRC.CTRL_CONFIG = cpuif_req_masked & (cpuif_addr == 13'h240);
+        decoded_reg_strb.SRC.AXI_XFER_CONFIG = cpuif_req_masked & (cpuif_addr == 13'h2a0);
+        decoded_reg_strb.SRC.PERF_CONFIG = cpuif_req_masked & (cpuif_addr == 13'h2b0);
+        decoded_reg_strb.SRC.OBS_CTRL = cpuif_req_masked & (cpuif_addr == 13'h2c0);
+        decoded_reg_strb.SRC.OBS_FLAGS = cpuif_req_masked & (cpuif_addr == 13'h2c4);
+        decoded_reg_strb.SRC.OBS_DATA0 = cpuif_req_masked & (cpuif_addr == 13'h2c8);
+        decoded_reg_strb.SRC.OBS_DATA1 = cpuif_req_masked & (cpuif_addr == 13'h2cc);
+        decoded_reg_strb.SRC.PERF_CH_SEL = cpuif_req_masked & (cpuif_addr == 13'h35c);
+        decoded_reg_strb.SRC.HIST_SEL = cpuif_req_masked & (cpuif_addr == 13'h378);
+        decoded_reg_strb.SRC.HIST_DATA = cpuif_req_masked & (cpuif_addr == 13'h37c);
+        decoded_reg_strb.SRC.HIST_TOTAL = cpuif_req_masked & (cpuif_addr == 13'h380);
+        decoded_reg_strb.SRC.MON.MON_FIFO_STATUS = cpuif_req_masked & (cpuif_addr == 13'h800);
+        decoded_reg_strb.SRC.MON.MON_FIFO_COUNT = cpuif_req_masked & (cpuif_addr == 13'h804);
+        decoded_reg_strb.SRC.MON.DAXMON_ENABLE = cpuif_req_masked & (cpuif_addr == 13'h8c0);
+        decoded_reg_strb.SRC.MON.DAXMON_TIMEOUT = cpuif_req_masked & (cpuif_addr == 13'h8c4);
+        decoded_reg_strb.SRC.MON.DAXMON_LATENCY_THRESH = cpuif_req_masked & (cpuif_addr == 13'h8c8);
+        decoded_reg_strb.SRC.MON.DAXMON_PKT_MASK = cpuif_req_masked & (cpuif_addr == 13'h8cc);
+        decoded_reg_strb.SRC.MON.DAXMON_ERR_CFG = cpuif_req_masked & (cpuif_addr == 13'h8d0);
+        decoded_reg_strb.SRC.MON.DAXMON_MASK1 = cpuif_req_masked & (cpuif_addr == 13'h8d4);
+        decoded_reg_strb.SRC.MON.DAXMON_MASK2 = cpuif_req_masked & (cpuif_addr == 13'h8d8);
+        decoded_reg_strb.SRC.MON.DAXMON_MASK3 = cpuif_req_masked & (cpuif_addr == 13'h8dc);
+        decoded_reg_strb.SRC.MON.RDMON_ENABLE = cpuif_req_masked & (cpuif_addr == 13'h8e0);
+        decoded_reg_strb.SRC.MON.RDMON_TIMEOUT = cpuif_req_masked & (cpuif_addr == 13'h8e4);
+        decoded_reg_strb.SRC.MON.RDMON_LATENCY_THRESH = cpuif_req_masked & (cpuif_addr == 13'h8e8);
+        decoded_reg_strb.SRC.MON.RDMON_PKT_MASK = cpuif_req_masked & (cpuif_addr == 13'h8ec);
+        decoded_reg_strb.SRC.MON.RDMON_ERR_CFG = cpuif_req_masked & (cpuif_addr == 13'h8f0);
+        decoded_reg_strb.SRC.MON.RDMON_MASK1 = cpuif_req_masked & (cpuif_addr == 13'h8f4);
+        decoded_reg_strb.SRC.MON.RDMON_MASK2 = cpuif_req_masked & (cpuif_addr == 13'h8f8);
+        decoded_reg_strb.SRC.MON.RDMON_MASK3 = cpuif_req_masked & (cpuif_addr == 13'h8fc);
+        decoded_reg_strb.SRC.MON.WRMON_ENABLE = cpuif_req_masked & (cpuif_addr == 13'h900);
+        decoded_reg_strb.SRC.MON.WRMON_TIMEOUT = cpuif_req_masked & (cpuif_addr == 13'h904);
+        decoded_reg_strb.SRC.MON.WRMON_LATENCY_THRESH = cpuif_req_masked & (cpuif_addr == 13'h908);
+        decoded_reg_strb.SRC.MON.WRMON_PKT_MASK = cpuif_req_masked & (cpuif_addr == 13'h90c);
+        decoded_reg_strb.SRC.MON.WRMON_ERR_CFG = cpuif_req_masked & (cpuif_addr == 13'h910);
+        decoded_reg_strb.SRC.MON.WRMON_MASK1 = cpuif_req_masked & (cpuif_addr == 13'h914);
+        decoded_reg_strb.SRC.MON.WRMON_MASK2 = cpuif_req_masked & (cpuif_addr == 13'h918);
+        decoded_reg_strb.SRC.MON.WRMON_MASK3 = cpuif_req_masked & (cpuif_addr == 13'h91c);
+        decoded_reg_strb.SRC.MON.DAXMON_PERF_CTRL = cpuif_req_masked & (cpuif_addr == 13'h950);
+        decoded_reg_strb.SRC.MON.DAXMON_PERF_STATUS = cpuif_req_masked & (cpuif_addr == 13'h954);
+        decoded_reg_strb.SRC.MON.DAXMON_PERF_WINDOW_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h958);
+        decoded_reg_strb.SRC.MON.DAXMON_PERF_PROD_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h95c);
+        decoded_reg_strb.SRC.MON.DAXMON_PERF_BP_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h960);
+        decoded_reg_strb.SRC.MON.DAXMON_PERF_STARV_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h964);
+        decoded_reg_strb.SRC.MON.DAXMON_PERF_IDLE_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h968);
+        decoded_reg_strb.SRC.MON.DAXMON_PERF_BEAT_COUNT = cpuif_req_masked & (cpuif_addr == 13'h96c);
+        decoded_reg_strb.SRC.MON.DAXMON_PERF_BYTE_COUNT_LO = cpuif_req_masked & (cpuif_addr == 13'h970);
+        decoded_reg_strb.SRC.MON.DAXMON_PERF_BYTE_COUNT_HI = cpuif_req_masked & (cpuif_addr == 13'h974);
+        decoded_reg_strb.SRC.MON.DAXMON_PERF_BURST_COUNT = cpuif_req_masked & (cpuif_addr == 13'h978);
+        decoded_reg_strb.SRC.MON.RDMON_PERF_CTRL = cpuif_req_masked & (cpuif_addr == 13'h980);
+        decoded_reg_strb.SRC.MON.RDMON_PERF_STATUS = cpuif_req_masked & (cpuif_addr == 13'h984);
+        decoded_reg_strb.SRC.MON.RDMON_PERF_WINDOW_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h988);
+        decoded_reg_strb.SRC.MON.RDMON_PERF_PROD_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h98c);
+        decoded_reg_strb.SRC.MON.RDMON_PERF_BP_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h990);
+        decoded_reg_strb.SRC.MON.RDMON_PERF_STARV_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h994);
+        decoded_reg_strb.SRC.MON.RDMON_PERF_IDLE_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h998);
+        decoded_reg_strb.SRC.MON.RDMON_PERF_BEAT_COUNT = cpuif_req_masked & (cpuif_addr == 13'h99c);
+        decoded_reg_strb.SRC.MON.RDMON_PERF_BYTE_COUNT_LO = cpuif_req_masked & (cpuif_addr == 13'h9a0);
+        decoded_reg_strb.SRC.MON.RDMON_PERF_BYTE_COUNT_HI = cpuif_req_masked & (cpuif_addr == 13'h9a4);
+        decoded_reg_strb.SRC.MON.RDMON_PERF_BURST_COUNT = cpuif_req_masked & (cpuif_addr == 13'h9a8);
+        decoded_reg_strb.SRC.MON.WRMON_PERF_CTRL = cpuif_req_masked & (cpuif_addr == 13'h9b0);
+        decoded_reg_strb.SRC.MON.WRMON_PERF_STATUS = cpuif_req_masked & (cpuif_addr == 13'h9b4);
+        decoded_reg_strb.SRC.MON.WRMON_PERF_WINDOW_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h9b8);
+        decoded_reg_strb.SRC.MON.WRMON_PERF_PROD_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h9bc);
+        decoded_reg_strb.SRC.MON.WRMON_PERF_BP_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h9c0);
+        decoded_reg_strb.SRC.MON.WRMON_PERF_STARV_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h9c4);
+        decoded_reg_strb.SRC.MON.WRMON_PERF_IDLE_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h9c8);
+        decoded_reg_strb.SRC.MON.WRMON_PERF_BEAT_COUNT = cpuif_req_masked & (cpuif_addr == 13'h9cc);
+        decoded_reg_strb.SRC.MON.WRMON_PERF_BYTE_COUNT_LO = cpuif_req_masked & (cpuif_addr == 13'h9d0);
+        decoded_reg_strb.SRC.MON.WRMON_PERF_BYTE_COUNT_HI = cpuif_req_masked & (cpuif_addr == 13'h9d4);
+        decoded_reg_strb.SRC.MON.WRMON_PERF_BURST_COUNT = cpuif_req_masked & (cpuif_addr == 13'h9d8);
+        decoded_reg_strb.SRC.MON.RDMON_PERF_CH_PROD_BP = cpuif_req_masked & (cpuif_addr == 13'h9e0);
+        decoded_reg_strb.SRC.MON.RDMON_PERF_CH_STARV_IDLE = cpuif_req_masked & (cpuif_addr == 13'h9e4);
+        decoded_reg_strb.SRC.MON.WRMON_PERF_CH_PROD_BP = cpuif_req_masked & (cpuif_addr == 13'h9e8);
+        decoded_reg_strb.SRC.MON.WRMON_PERF_CH_STARV_IDLE = cpuif_req_masked & (cpuif_addr == 13'h9ec);
+        decoded_reg_strb.SRC.MON.RDMON_PERF_CH_OVERFLOW = cpuif_req_masked & (cpuif_addr == 13'h9f0);
+        decoded_reg_strb.SRC.MON.WRMON_PERF_CH_OVERFLOW = cpuif_req_masked & (cpuif_addr == 13'h9f4);
+        decoded_reg_strb.SNK.GLOBAL_CTRL = cpuif_req_masked & (cpuif_addr == 13'h1100);
+        decoded_reg_strb.SNK.GLOBAL_STATUS = cpuif_req_masked & (cpuif_addr == 13'h1104);
+        decoded_reg_strb.SNK.VERSION = cpuif_req_masked & (cpuif_addr == 13'h1108);
+        decoded_reg_strb.SNK.CHANNEL_ENABLE = cpuif_req_masked & (cpuif_addr == 13'h1120);
+        decoded_reg_strb.SNK.CHANNEL_RESET = cpuif_req_masked & (cpuif_addr == 13'h1124);
+        decoded_reg_strb.SNK.CHANNEL_IDLE = cpuif_req_masked & (cpuif_addr == 13'h1140);
+        decoded_reg_strb.SNK.DESC_ENGINE_IDLE = cpuif_req_masked & (cpuif_addr == 13'h1144);
+        decoded_reg_strb.SNK.SCHEDULER_IDLE = cpuif_req_masked & (cpuif_addr == 13'h1148);
+        for(int i0=0; i0<8; i0++) begin
+            decoded_reg_strb.SNK.CH_STATE[i0].STATE = cpuif_req_masked & (cpuif_addr == 13'h1150 + (13)'(i0) * 13'h4);
+        end
+        decoded_reg_strb.SNK.SCHED_ERROR = cpuif_req_masked & (cpuif_addr == 13'h1170);
+        decoded_reg_strb.SNK.AXI_RD_COMPLETE = cpuif_req_masked & (cpuif_addr == 13'h1174);
+        decoded_reg_strb.SNK.AXI_WR_COMPLETE = cpuif_req_masked & (cpuif_addr == 13'h1178);
+        decoded_reg_strb.SNK.SCHED_TIMEOUT_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h1200);
+        decoded_reg_strb.SNK.SCHED_CONFIG = cpuif_req_masked & (cpuif_addr == 13'h1204);
+        decoded_reg_strb.SNK.SCHED_TIMEOUT_LIMIT = cpuif_req_masked & (cpuif_addr == 13'h1208);
+        decoded_reg_strb.SNK.DESCENG_CONFIG = cpuif_req_masked & (cpuif_addr == 13'h1220);
+        decoded_reg_strb.SNK.DESCENG_ADDR0_BASE = cpuif_req_masked & (cpuif_addr == 13'h1224);
+        decoded_reg_strb.SNK.DESCENG_ADDR0_LIMIT = cpuif_req_masked & (cpuif_addr == 13'h1228);
+        decoded_reg_strb.SNK.DESCENG_ADDR1_BASE = cpuif_req_masked & (cpuif_addr == 13'h122c);
+        decoded_reg_strb.SNK.DESCENG_ADDR1_LIMIT = cpuif_req_masked & (cpuif_addr == 13'h1230);
+        decoded_reg_strb.SNK.CTRL_CONFIG = cpuif_req_masked & (cpuif_addr == 13'h1240);
+        decoded_reg_strb.SNK.AXI_XFER_CONFIG = cpuif_req_masked & (cpuif_addr == 13'h12a0);
+        decoded_reg_strb.SNK.PERF_CONFIG = cpuif_req_masked & (cpuif_addr == 13'h12b0);
+        decoded_reg_strb.SNK.OBS_CTRL = cpuif_req_masked & (cpuif_addr == 13'h12c0);
+        decoded_reg_strb.SNK.OBS_FLAGS = cpuif_req_masked & (cpuif_addr == 13'h12c4);
+        decoded_reg_strb.SNK.OBS_DATA0 = cpuif_req_masked & (cpuif_addr == 13'h12c8);
+        decoded_reg_strb.SNK.OBS_DATA1 = cpuif_req_masked & (cpuif_addr == 13'h12cc);
+        decoded_reg_strb.SNK.PERF_CH_SEL = cpuif_req_masked & (cpuif_addr == 13'h135c);
+        decoded_reg_strb.SNK.HIST_SEL = cpuif_req_masked & (cpuif_addr == 13'h1378);
+        decoded_reg_strb.SNK.HIST_DATA = cpuif_req_masked & (cpuif_addr == 13'h137c);
+        decoded_reg_strb.SNK.HIST_TOTAL = cpuif_req_masked & (cpuif_addr == 13'h1380);
+        decoded_reg_strb.SNK.MON.MON_FIFO_STATUS = cpuif_req_masked & (cpuif_addr == 13'h1800);
+        decoded_reg_strb.SNK.MON.MON_FIFO_COUNT = cpuif_req_masked & (cpuif_addr == 13'h1804);
+        decoded_reg_strb.SNK.MON.DAXMON_ENABLE = cpuif_req_masked & (cpuif_addr == 13'h18c0);
+        decoded_reg_strb.SNK.MON.DAXMON_TIMEOUT = cpuif_req_masked & (cpuif_addr == 13'h18c4);
+        decoded_reg_strb.SNK.MON.DAXMON_LATENCY_THRESH = cpuif_req_masked & (cpuif_addr == 13'h18c8);
+        decoded_reg_strb.SNK.MON.DAXMON_PKT_MASK = cpuif_req_masked & (cpuif_addr == 13'h18cc);
+        decoded_reg_strb.SNK.MON.DAXMON_ERR_CFG = cpuif_req_masked & (cpuif_addr == 13'h18d0);
+        decoded_reg_strb.SNK.MON.DAXMON_MASK1 = cpuif_req_masked & (cpuif_addr == 13'h18d4);
+        decoded_reg_strb.SNK.MON.DAXMON_MASK2 = cpuif_req_masked & (cpuif_addr == 13'h18d8);
+        decoded_reg_strb.SNK.MON.DAXMON_MASK3 = cpuif_req_masked & (cpuif_addr == 13'h18dc);
+        decoded_reg_strb.SNK.MON.RDMON_ENABLE = cpuif_req_masked & (cpuif_addr == 13'h18e0);
+        decoded_reg_strb.SNK.MON.RDMON_TIMEOUT = cpuif_req_masked & (cpuif_addr == 13'h18e4);
+        decoded_reg_strb.SNK.MON.RDMON_LATENCY_THRESH = cpuif_req_masked & (cpuif_addr == 13'h18e8);
+        decoded_reg_strb.SNK.MON.RDMON_PKT_MASK = cpuif_req_masked & (cpuif_addr == 13'h18ec);
+        decoded_reg_strb.SNK.MON.RDMON_ERR_CFG = cpuif_req_masked & (cpuif_addr == 13'h18f0);
+        decoded_reg_strb.SNK.MON.RDMON_MASK1 = cpuif_req_masked & (cpuif_addr == 13'h18f4);
+        decoded_reg_strb.SNK.MON.RDMON_MASK2 = cpuif_req_masked & (cpuif_addr == 13'h18f8);
+        decoded_reg_strb.SNK.MON.RDMON_MASK3 = cpuif_req_masked & (cpuif_addr == 13'h18fc);
+        decoded_reg_strb.SNK.MON.WRMON_ENABLE = cpuif_req_masked & (cpuif_addr == 13'h1900);
+        decoded_reg_strb.SNK.MON.WRMON_TIMEOUT = cpuif_req_masked & (cpuif_addr == 13'h1904);
+        decoded_reg_strb.SNK.MON.WRMON_LATENCY_THRESH = cpuif_req_masked & (cpuif_addr == 13'h1908);
+        decoded_reg_strb.SNK.MON.WRMON_PKT_MASK = cpuif_req_masked & (cpuif_addr == 13'h190c);
+        decoded_reg_strb.SNK.MON.WRMON_ERR_CFG = cpuif_req_masked & (cpuif_addr == 13'h1910);
+        decoded_reg_strb.SNK.MON.WRMON_MASK1 = cpuif_req_masked & (cpuif_addr == 13'h1914);
+        decoded_reg_strb.SNK.MON.WRMON_MASK2 = cpuif_req_masked & (cpuif_addr == 13'h1918);
+        decoded_reg_strb.SNK.MON.WRMON_MASK3 = cpuif_req_masked & (cpuif_addr == 13'h191c);
+        decoded_reg_strb.SNK.MON.DAXMON_PERF_CTRL = cpuif_req_masked & (cpuif_addr == 13'h1950);
+        decoded_reg_strb.SNK.MON.DAXMON_PERF_STATUS = cpuif_req_masked & (cpuif_addr == 13'h1954);
+        decoded_reg_strb.SNK.MON.DAXMON_PERF_WINDOW_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h1958);
+        decoded_reg_strb.SNK.MON.DAXMON_PERF_PROD_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h195c);
+        decoded_reg_strb.SNK.MON.DAXMON_PERF_BP_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h1960);
+        decoded_reg_strb.SNK.MON.DAXMON_PERF_STARV_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h1964);
+        decoded_reg_strb.SNK.MON.DAXMON_PERF_IDLE_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h1968);
+        decoded_reg_strb.SNK.MON.DAXMON_PERF_BEAT_COUNT = cpuif_req_masked & (cpuif_addr == 13'h196c);
+        decoded_reg_strb.SNK.MON.DAXMON_PERF_BYTE_COUNT_LO = cpuif_req_masked & (cpuif_addr == 13'h1970);
+        decoded_reg_strb.SNK.MON.DAXMON_PERF_BYTE_COUNT_HI = cpuif_req_masked & (cpuif_addr == 13'h1974);
+        decoded_reg_strb.SNK.MON.DAXMON_PERF_BURST_COUNT = cpuif_req_masked & (cpuif_addr == 13'h1978);
+        decoded_reg_strb.SNK.MON.RDMON_PERF_CTRL = cpuif_req_masked & (cpuif_addr == 13'h1980);
+        decoded_reg_strb.SNK.MON.RDMON_PERF_STATUS = cpuif_req_masked & (cpuif_addr == 13'h1984);
+        decoded_reg_strb.SNK.MON.RDMON_PERF_WINDOW_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h1988);
+        decoded_reg_strb.SNK.MON.RDMON_PERF_PROD_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h198c);
+        decoded_reg_strb.SNK.MON.RDMON_PERF_BP_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h1990);
+        decoded_reg_strb.SNK.MON.RDMON_PERF_STARV_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h1994);
+        decoded_reg_strb.SNK.MON.RDMON_PERF_IDLE_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h1998);
+        decoded_reg_strb.SNK.MON.RDMON_PERF_BEAT_COUNT = cpuif_req_masked & (cpuif_addr == 13'h199c);
+        decoded_reg_strb.SNK.MON.RDMON_PERF_BYTE_COUNT_LO = cpuif_req_masked & (cpuif_addr == 13'h19a0);
+        decoded_reg_strb.SNK.MON.RDMON_PERF_BYTE_COUNT_HI = cpuif_req_masked & (cpuif_addr == 13'h19a4);
+        decoded_reg_strb.SNK.MON.RDMON_PERF_BURST_COUNT = cpuif_req_masked & (cpuif_addr == 13'h19a8);
+        decoded_reg_strb.SNK.MON.WRMON_PERF_CTRL = cpuif_req_masked & (cpuif_addr == 13'h19b0);
+        decoded_reg_strb.SNK.MON.WRMON_PERF_STATUS = cpuif_req_masked & (cpuif_addr == 13'h19b4);
+        decoded_reg_strb.SNK.MON.WRMON_PERF_WINDOW_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h19b8);
+        decoded_reg_strb.SNK.MON.WRMON_PERF_PROD_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h19bc);
+        decoded_reg_strb.SNK.MON.WRMON_PERF_BP_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h19c0);
+        decoded_reg_strb.SNK.MON.WRMON_PERF_STARV_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h19c4);
+        decoded_reg_strb.SNK.MON.WRMON_PERF_IDLE_CYCLES = cpuif_req_masked & (cpuif_addr == 13'h19c8);
+        decoded_reg_strb.SNK.MON.WRMON_PERF_BEAT_COUNT = cpuif_req_masked & (cpuif_addr == 13'h19cc);
+        decoded_reg_strb.SNK.MON.WRMON_PERF_BYTE_COUNT_LO = cpuif_req_masked & (cpuif_addr == 13'h19d0);
+        decoded_reg_strb.SNK.MON.WRMON_PERF_BYTE_COUNT_HI = cpuif_req_masked & (cpuif_addr == 13'h19d4);
+        decoded_reg_strb.SNK.MON.WRMON_PERF_BURST_COUNT = cpuif_req_masked & (cpuif_addr == 13'h19d8);
+        decoded_reg_strb.SNK.MON.RDMON_PERF_CH_PROD_BP = cpuif_req_masked & (cpuif_addr == 13'h19e0);
+        decoded_reg_strb.SNK.MON.RDMON_PERF_CH_STARV_IDLE = cpuif_req_masked & (cpuif_addr == 13'h19e4);
+        decoded_reg_strb.SNK.MON.WRMON_PERF_CH_PROD_BP = cpuif_req_masked & (cpuif_addr == 13'h19e8);
+        decoded_reg_strb.SNK.MON.WRMON_PERF_CH_STARV_IDLE = cpuif_req_masked & (cpuif_addr == 13'h19ec);
+        decoded_reg_strb.SNK.MON.RDMON_PERF_CH_OVERFLOW = cpuif_req_masked & (cpuif_addr == 13'h19f0);
+        decoded_reg_strb.SNK.MON.WRMON_PERF_CH_OVERFLOW = cpuif_req_masked & (cpuif_addr == 13'h19f4);
     end
 
     // Pass down signals to next stage
@@ -284,158 +488,42 @@ module rapids_regs (
     typedef struct {
         struct {
             struct {
-                logic next;
-                logic load_next;
-            } GLOBAL_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } GLOBAL_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } GLOBAL_RST;
+            } GLOBAL_CTRL;
             struct {
-                logic next;
-                logic load_next;
-            } GLOBAL_RST;
-        } GLOBAL_CTRL;
-        struct {
+                struct {
+                    logic [7:0] next;
+                    logic load_next;
+                } CH_EN;
+            } CHANNEL_ENABLE;
             struct {
-                logic [7:0] next;
-                logic load_next;
-            } CH_EN;
-        } CHANNEL_ENABLE;
-        struct {
+                struct {
+                    logic [7:0] next;
+                    logic load_next;
+                } CH_RST;
+            } CHANNEL_RESET;
             struct {
-                logic [7:0] next;
-                logic load_next;
-            } CH_RST;
-        } CHANNEL_RESET;
-        struct {
-            struct {
-                logic [31:0] next;
-                logic load_next;
-            } TIMEOUT_CYCLES;
-        } SCHED_TIMEOUT_CYCLES;
-        struct {
-            struct {
-                logic next;
-                logic load_next;
-            } SCHED_EN;
-            struct {
-                logic next;
-                logic load_next;
-            } TIMEOUT_EN;
-            struct {
-                logic next;
-                logic load_next;
-            } ERR_EN;
-            struct {
-                logic next;
-                logic load_next;
-            } COMPL_EN;
-            struct {
-                logic next;
-                logic load_next;
-            } PERF_EN;
-        } SCHED_CONFIG;
-        struct {
-            struct {
-                logic [7:0] next;
-                logic load_next;
-            } LIMIT;
-        } SCHED_TIMEOUT_LIMIT;
-        struct {
-            struct {
-                logic next;
-                logic load_next;
-            } DESCENG_EN;
-            struct {
-                logic next;
-                logic load_next;
-            } PREFETCH_EN;
-            struct {
-                logic [3:0] next;
-                logic load_next;
-            } FIFO_THRESH;
-        } DESCENG_CONFIG;
-        struct {
-            struct {
-                logic [31:0] next;
-                logic load_next;
-            } ADDR0_BASE;
-        } DESCENG_ADDR0_BASE;
-        struct {
-            struct {
-                logic [31:0] next;
-                logic load_next;
-            } ADDR0_LIMIT;
-        } DESCENG_ADDR0_LIMIT;
-        struct {
-            struct {
-                logic [31:0] next;
-                logic load_next;
-            } ADDR1_BASE;
-        } DESCENG_ADDR1_BASE;
-        struct {
-            struct {
-                logic [31:0] next;
-                logic load_next;
-            } ADDR1_LIMIT;
-        } DESCENG_ADDR1_LIMIT;
-        struct {
-            struct {
-                logic [7:0] next;
-                logic load_next;
-            } RD_XFER_BEATS;
-            struct {
-                logic [7:0] next;
-                logic load_next;
-            } WR_XFER_BEATS;
-        } AXI_XFER_CONFIG;
-        struct {
-            struct {
-                logic next;
-                logic load_next;
-            } PERF_EN;
-            struct {
-                logic next;
-                logic load_next;
-            } PERF_MODE;
-            struct {
-                logic next;
-                logic load_next;
-            } PERF_CLEAR;
-        } PERF_CONFIG;
-        struct {
-            struct {
-                logic [2:0] next;
-                logic load_next;
-            } CH_SEL;
-            struct {
-                logic [1:0] next;
-                logic load_next;
-            } CAT_SEL;
-        } OBS_CTRL;
-        struct {
-            struct {
-                logic [2:0] next;
-                logic load_next;
-            } CH_SEL;
-        } PERF_CH_SEL;
-        struct {
-            struct {
-                logic next;
-                logic load_next;
-            } BUS;
-            struct {
-                logic next;
-                logic load_next;
-            } METRIC;
-            struct {
-                logic [3:0] next;
-                logic load_next;
-            } BIN;
-        } HIST_SEL;
-        struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } TIMEOUT_CYCLES;
+            } SCHED_TIMEOUT_CYCLES;
             struct {
                 struct {
                     logic next;
                     logic load_next;
-                } MON_EN;
+                } SCHED_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } TIMEOUT_EN;
                 struct {
                     logic next;
                     logic load_next;
@@ -447,75 +535,423 @@ module rapids_regs (
                 struct {
                     logic next;
                     logic load_next;
-                } TIMEOUT_EN;
+                } PERF_EN;
+            } SCHED_CONFIG;
+            struct {
+                struct {
+                    logic [7:0] next;
+                    logic load_next;
+                } LIMIT;
+            } SCHED_TIMEOUT_LIMIT;
+            struct {
+                struct {
+                    logic next;
+                    logic load_next;
+                } DESCENG_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } PREFETCH_EN;
+                struct {
+                    logic [3:0] next;
+                    logic load_next;
+                } FIFO_THRESH;
+            } DESCENG_CONFIG;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } ADDR0_BASE;
+            } DESCENG_ADDR0_BASE;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } ADDR0_LIMIT;
+            } DESCENG_ADDR0_LIMIT;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } ADDR1_BASE;
+            } DESCENG_ADDR1_BASE;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } ADDR1_LIMIT;
+            } DESCENG_ADDR1_LIMIT;
+            struct {
+                struct {
+                    logic [8:0] next;
+                    logic load_next;
+                } CTRLRD_MAX_TRY;
+            } CTRL_CONFIG;
+            struct {
+                struct {
+                    logic [7:0] next;
+                    logic load_next;
+                } RD_XFER_BEATS;
+                struct {
+                    logic [7:0] next;
+                    logic load_next;
+                } WR_XFER_BEATS;
+                struct {
+                    logic [7:0] next;
+                    logic load_next;
+                } ALLOC_SIZE;
+                struct {
+                    logic [7:0] next;
+                    logic load_next;
+                } DRAIN_SIZE;
+            } AXI_XFER_CONFIG;
+            struct {
                 struct {
                     logic next;
                     logic load_next;
                 } PERF_EN;
-            } DAXMON_ENABLE;
+                struct {
+                    logic next;
+                    logic load_next;
+                } PERF_MODE;
+                struct {
+                    logic next;
+                    logic load_next;
+                } PERF_CLEAR;
+            } PERF_CONFIG;
+            struct {
+                struct {
+                    logic [2:0] next;
+                    logic load_next;
+                } CH_SEL;
+                struct {
+                    logic [1:0] next;
+                    logic load_next;
+                } CAT_SEL;
+            } OBS_CTRL;
+            struct {
+                struct {
+                    logic [2:0] next;
+                    logic load_next;
+                } CH_SEL;
+            } PERF_CH_SEL;
+            struct {
+                struct {
+                    logic next;
+                    logic load_next;
+                } BUS;
+                struct {
+                    logic next;
+                    logic load_next;
+                } METRIC;
+                struct {
+                    logic [3:0] next;
+                    logic load_next;
+                } BIN;
+            } HIST_SEL;
+            struct {
+                struct {
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } MON_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } ERR_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } COMPL_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } TIMEOUT_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } PERF_EN;
+                } DAXMON_ENABLE;
+                struct {
+                    struct {
+                        logic [31:0] next;
+                        logic load_next;
+                    } TIMEOUT_CYCLES;
+                } DAXMON_TIMEOUT;
+                struct {
+                    struct {
+                        logic [31:0] next;
+                        logic load_next;
+                    } LATENCY_THRESH;
+                } DAXMON_LATENCY_THRESH;
+                struct {
+                    struct {
+                        logic [15:0] next;
+                        logic load_next;
+                    } PKT_MASK;
+                } DAXMON_PKT_MASK;
+                struct {
+                    struct {
+                        logic [3:0] next;
+                        logic load_next;
+                    } ERR_SELECT;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } ERR_MASK;
+                } DAXMON_ERR_CFG;
+                struct {
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } TIMEOUT_MASK;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } COMPL_MASK;
+                } DAXMON_MASK1;
+                struct {
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } THRESH_MASK;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } PERF_MASK;
+                } DAXMON_MASK2;
+                struct {
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } ADDR_MASK;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } DEBUG_MASK;
+                } DAXMON_MASK3;
+                struct {
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } MON_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } ERR_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } COMPL_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } TIMEOUT_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } PERF_EN;
+                } RDMON_ENABLE;
+                struct {
+                    struct {
+                        logic [31:0] next;
+                        logic load_next;
+                    } TIMEOUT_CYCLES;
+                } RDMON_TIMEOUT;
+                struct {
+                    struct {
+                        logic [31:0] next;
+                        logic load_next;
+                    } LATENCY_THRESH;
+                } RDMON_LATENCY_THRESH;
+                struct {
+                    struct {
+                        logic [15:0] next;
+                        logic load_next;
+                    } PKT_MASK;
+                } RDMON_PKT_MASK;
+                struct {
+                    struct {
+                        logic [3:0] next;
+                        logic load_next;
+                    } ERR_SELECT;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } ERR_MASK;
+                } RDMON_ERR_CFG;
+                struct {
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } TIMEOUT_MASK;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } COMPL_MASK;
+                } RDMON_MASK1;
+                struct {
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } THRESH_MASK;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } PERF_MASK;
+                } RDMON_MASK2;
+                struct {
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } ADDR_MASK;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } DEBUG_MASK;
+                } RDMON_MASK3;
+                struct {
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } MON_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } ERR_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } COMPL_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } TIMEOUT_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } PERF_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } COMPRESS_EN;
+                } WRMON_ENABLE;
+                struct {
+                    struct {
+                        logic [31:0] next;
+                        logic load_next;
+                    } TIMEOUT_CYCLES;
+                } WRMON_TIMEOUT;
+                struct {
+                    struct {
+                        logic [31:0] next;
+                        logic load_next;
+                    } LATENCY_THRESH;
+                } WRMON_LATENCY_THRESH;
+                struct {
+                    struct {
+                        logic [15:0] next;
+                        logic load_next;
+                    } PKT_MASK;
+                } WRMON_PKT_MASK;
+                struct {
+                    struct {
+                        logic [3:0] next;
+                        logic load_next;
+                    } ERR_SELECT;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } ERR_MASK;
+                } WRMON_ERR_CFG;
+                struct {
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } TIMEOUT_MASK;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } COMPL_MASK;
+                } WRMON_MASK1;
+                struct {
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } THRESH_MASK;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } PERF_MASK;
+                } WRMON_MASK2;
+                struct {
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } ADDR_MASK;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } DEBUG_MASK;
+                } WRMON_MASK3;
+                struct {
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } RUN;
+                } DAXMON_PERF_CTRL;
+                struct {
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } RUN;
+                } RDMON_PERF_CTRL;
+                struct {
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } RUN;
+                } WRMON_PERF_CTRL;
+            } MON;
+        } SRC;
+        struct {
+            struct {
+                struct {
+                    logic next;
+                    logic load_next;
+                } GLOBAL_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } GLOBAL_RST;
+            } GLOBAL_CTRL;
+            struct {
+                struct {
+                    logic [7:0] next;
+                    logic load_next;
+                } CH_EN;
+            } CHANNEL_ENABLE;
+            struct {
+                struct {
+                    logic [7:0] next;
+                    logic load_next;
+                } CH_RST;
+            } CHANNEL_RESET;
             struct {
                 struct {
                     logic [31:0] next;
                     logic load_next;
                 } TIMEOUT_CYCLES;
-            } DAXMON_TIMEOUT;
-            struct {
-                struct {
-                    logic [31:0] next;
-                    logic load_next;
-                } LATENCY_THRESH;
-            } DAXMON_LATENCY_THRESH;
-            struct {
-                struct {
-                    logic [15:0] next;
-                    logic load_next;
-                } PKT_MASK;
-            } DAXMON_PKT_MASK;
-            struct {
-                struct {
-                    logic [3:0] next;
-                    logic load_next;
-                } ERR_SELECT;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } ERR_MASK;
-            } DAXMON_ERR_CFG;
-            struct {
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } TIMEOUT_MASK;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } COMPL_MASK;
-            } DAXMON_MASK1;
-            struct {
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } THRESH_MASK;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } PERF_MASK;
-            } DAXMON_MASK2;
-            struct {
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } ADDR_MASK;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } DEBUG_MASK;
-            } DAXMON_MASK3;
+            } SCHED_TIMEOUT_CYCLES;
             struct {
                 struct {
                     logic next;
                     logic load_next;
-                } MON_EN;
+                } SCHED_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } TIMEOUT_EN;
                 struct {
                     logic next;
                     logic load_next;
@@ -527,87 +963,77 @@ module rapids_regs (
                 struct {
                     logic next;
                     logic load_next;
-                } TIMEOUT_EN;
+                } PERF_EN;
+            } SCHED_CONFIG;
+            struct {
+                struct {
+                    logic [7:0] next;
+                    logic load_next;
+                } LIMIT;
+            } SCHED_TIMEOUT_LIMIT;
+            struct {
                 struct {
                     logic next;
                     logic load_next;
-                } PERF_EN;
-            } RDMON_ENABLE;
-            struct {
+                } DESCENG_EN;
                 struct {
-                    logic [31:0] next;
+                    logic next;
                     logic load_next;
-                } TIMEOUT_CYCLES;
-            } RDMON_TIMEOUT;
-            struct {
-                struct {
-                    logic [31:0] next;
-                    logic load_next;
-                } LATENCY_THRESH;
-            } RDMON_LATENCY_THRESH;
-            struct {
-                struct {
-                    logic [15:0] next;
-                    logic load_next;
-                } PKT_MASK;
-            } RDMON_PKT_MASK;
-            struct {
+                } PREFETCH_EN;
                 struct {
                     logic [3:0] next;
                     logic load_next;
-                } ERR_SELECT;
+                } FIFO_THRESH;
+            } DESCENG_CONFIG;
+            struct {
                 struct {
-                    logic [7:0] next;
+                    logic [31:0] next;
                     logic load_next;
-                } ERR_MASK;
-            } RDMON_ERR_CFG;
+                } ADDR0_BASE;
+            } DESCENG_ADDR0_BASE;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } ADDR0_LIMIT;
+            } DESCENG_ADDR0_LIMIT;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } ADDR1_BASE;
+            } DESCENG_ADDR1_BASE;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } ADDR1_LIMIT;
+            } DESCENG_ADDR1_LIMIT;
+            struct {
+                struct {
+                    logic [8:0] next;
+                    logic load_next;
+                } CTRLRD_MAX_TRY;
+            } CTRL_CONFIG;
             struct {
                 struct {
                     logic [7:0] next;
                     logic load_next;
-                } TIMEOUT_MASK;
+                } RD_XFER_BEATS;
                 struct {
                     logic [7:0] next;
                     logic load_next;
-                } COMPL_MASK;
-            } RDMON_MASK1;
+                } WR_XFER_BEATS;
+                struct {
+                    logic [7:0] next;
+                    logic load_next;
+                } ALLOC_SIZE;
+                struct {
+                    logic [7:0] next;
+                    logic load_next;
+                } DRAIN_SIZE;
+            } AXI_XFER_CONFIG;
             struct {
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } THRESH_MASK;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } PERF_MASK;
-            } RDMON_MASK2;
-            struct {
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } ADDR_MASK;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } DEBUG_MASK;
-            } RDMON_MASK3;
-            struct {
-                struct {
-                    logic next;
-                    logic load_next;
-                } MON_EN;
-                struct {
-                    logic next;
-                    logic load_next;
-                } ERR_EN;
-                struct {
-                    logic next;
-                    logic load_next;
-                } COMPL_EN;
-                struct {
-                    logic next;
-                    logic load_next;
-                } TIMEOUT_EN;
                 struct {
                     logic next;
                     logic load_next;
@@ -615,213 +1041,342 @@ module rapids_regs (
                 struct {
                     logic next;
                     logic load_next;
-                } COMPRESS_EN;
-            } WRMON_ENABLE;
+                } PERF_MODE;
+                struct {
+                    logic next;
+                    logic load_next;
+                } PERF_CLEAR;
+            } PERF_CONFIG;
             struct {
                 struct {
-                    logic [31:0] next;
+                    logic [2:0] next;
                     logic load_next;
-                } TIMEOUT_CYCLES;
-            } WRMON_TIMEOUT;
+                } CH_SEL;
+                struct {
+                    logic [1:0] next;
+                    logic load_next;
+                } CAT_SEL;
+            } OBS_CTRL;
             struct {
                 struct {
-                    logic [31:0] next;
+                    logic [2:0] next;
                     logic load_next;
-                } LATENCY_THRESH;
-            } WRMON_LATENCY_THRESH;
+                } CH_SEL;
+            } PERF_CH_SEL;
             struct {
                 struct {
-                    logic [15:0] next;
+                    logic next;
                     logic load_next;
-                } PKT_MASK;
-            } WRMON_PKT_MASK;
-            struct {
+                } BUS;
+                struct {
+                    logic next;
+                    logic load_next;
+                } METRIC;
                 struct {
                     logic [3:0] next;
                     logic load_next;
-                } ERR_SELECT;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } ERR_MASK;
-            } WRMON_ERR_CFG;
+                } BIN;
+            } HIST_SEL;
             struct {
                 struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } TIMEOUT_MASK;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } MON_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } ERR_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } COMPL_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } TIMEOUT_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } PERF_EN;
+                } DAXMON_ENABLE;
                 struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } COMPL_MASK;
-            } WRMON_MASK1;
-            struct {
+                    struct {
+                        logic [31:0] next;
+                        logic load_next;
+                    } TIMEOUT_CYCLES;
+                } DAXMON_TIMEOUT;
                 struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } THRESH_MASK;
+                    struct {
+                        logic [31:0] next;
+                        logic load_next;
+                    } LATENCY_THRESH;
+                } DAXMON_LATENCY_THRESH;
                 struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } PERF_MASK;
-            } WRMON_MASK2;
-            struct {
+                    struct {
+                        logic [15:0] next;
+                        logic load_next;
+                    } PKT_MASK;
+                } DAXMON_PKT_MASK;
                 struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } ADDR_MASK;
+                    struct {
+                        logic [3:0] next;
+                        logic load_next;
+                    } ERR_SELECT;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } ERR_MASK;
+                } DAXMON_ERR_CFG;
                 struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } DEBUG_MASK;
-            } WRMON_MASK3;
-            struct {
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } TIMEOUT_MASK;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } COMPL_MASK;
+                } DAXMON_MASK1;
                 struct {
-                    logic next;
-                    logic load_next;
-                } RUN;
-            } DAXMON_PERF_CTRL;
-            struct {
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } THRESH_MASK;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } PERF_MASK;
+                } DAXMON_MASK2;
                 struct {
-                    logic next;
-                    logic load_next;
-                } RUN;
-            } RDMON_PERF_CTRL;
-            struct {
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } ADDR_MASK;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } DEBUG_MASK;
+                } DAXMON_MASK3;
                 struct {
-                    logic next;
-                    logic load_next;
-                } RUN;
-            } WRMON_PERF_CTRL;
-        } MON;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } MON_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } ERR_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } COMPL_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } TIMEOUT_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } PERF_EN;
+                } RDMON_ENABLE;
+                struct {
+                    struct {
+                        logic [31:0] next;
+                        logic load_next;
+                    } TIMEOUT_CYCLES;
+                } RDMON_TIMEOUT;
+                struct {
+                    struct {
+                        logic [31:0] next;
+                        logic load_next;
+                    } LATENCY_THRESH;
+                } RDMON_LATENCY_THRESH;
+                struct {
+                    struct {
+                        logic [15:0] next;
+                        logic load_next;
+                    } PKT_MASK;
+                } RDMON_PKT_MASK;
+                struct {
+                    struct {
+                        logic [3:0] next;
+                        logic load_next;
+                    } ERR_SELECT;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } ERR_MASK;
+                } RDMON_ERR_CFG;
+                struct {
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } TIMEOUT_MASK;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } COMPL_MASK;
+                } RDMON_MASK1;
+                struct {
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } THRESH_MASK;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } PERF_MASK;
+                } RDMON_MASK2;
+                struct {
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } ADDR_MASK;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } DEBUG_MASK;
+                } RDMON_MASK3;
+                struct {
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } MON_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } ERR_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } COMPL_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } TIMEOUT_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } PERF_EN;
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } COMPRESS_EN;
+                } WRMON_ENABLE;
+                struct {
+                    struct {
+                        logic [31:0] next;
+                        logic load_next;
+                    } TIMEOUT_CYCLES;
+                } WRMON_TIMEOUT;
+                struct {
+                    struct {
+                        logic [31:0] next;
+                        logic load_next;
+                    } LATENCY_THRESH;
+                } WRMON_LATENCY_THRESH;
+                struct {
+                    struct {
+                        logic [15:0] next;
+                        logic load_next;
+                    } PKT_MASK;
+                } WRMON_PKT_MASK;
+                struct {
+                    struct {
+                        logic [3:0] next;
+                        logic load_next;
+                    } ERR_SELECT;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } ERR_MASK;
+                } WRMON_ERR_CFG;
+                struct {
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } TIMEOUT_MASK;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } COMPL_MASK;
+                } WRMON_MASK1;
+                struct {
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } THRESH_MASK;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } PERF_MASK;
+                } WRMON_MASK2;
+                struct {
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } ADDR_MASK;
+                    struct {
+                        logic [7:0] next;
+                        logic load_next;
+                    } DEBUG_MASK;
+                } WRMON_MASK3;
+                struct {
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } RUN;
+                } DAXMON_PERF_CTRL;
+                struct {
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } RUN;
+                } RDMON_PERF_CTRL;
+                struct {
+                    struct {
+                        logic next;
+                        logic load_next;
+                    } RUN;
+                } WRMON_PERF_CTRL;
+            } MON;
+        } SNK;
     } field_combo_t;
     field_combo_t field_combo;
 
     typedef struct {
         struct {
             struct {
-                logic value;
-            } GLOBAL_EN;
+                struct {
+                    logic value;
+                } GLOBAL_EN;
+                struct {
+                    logic value;
+                } GLOBAL_RST;
+            } GLOBAL_CTRL;
             struct {
-                logic value;
-            } GLOBAL_RST;
-        } GLOBAL_CTRL;
-        struct {
+                struct {
+                    logic [7:0] value;
+                } CH_EN;
+            } CHANNEL_ENABLE;
             struct {
-                logic [7:0] value;
-            } CH_EN;
-        } CHANNEL_ENABLE;
-        struct {
+                struct {
+                    logic [7:0] value;
+                } CH_RST;
+            } CHANNEL_RESET;
             struct {
-                logic [7:0] value;
-            } CH_RST;
-        } CHANNEL_RESET;
-        struct {
-            struct {
-                logic [31:0] value;
-            } TIMEOUT_CYCLES;
-        } SCHED_TIMEOUT_CYCLES;
-        struct {
-            struct {
-                logic value;
-            } SCHED_EN;
-            struct {
-                logic value;
-            } TIMEOUT_EN;
-            struct {
-                logic value;
-            } ERR_EN;
-            struct {
-                logic value;
-            } COMPL_EN;
-            struct {
-                logic value;
-            } PERF_EN;
-        } SCHED_CONFIG;
-        struct {
-            struct {
-                logic [7:0] value;
-            } LIMIT;
-        } SCHED_TIMEOUT_LIMIT;
-        struct {
-            struct {
-                logic value;
-            } DESCENG_EN;
-            struct {
-                logic value;
-            } PREFETCH_EN;
-            struct {
-                logic [3:0] value;
-            } FIFO_THRESH;
-        } DESCENG_CONFIG;
-        struct {
-            struct {
-                logic [31:0] value;
-            } ADDR0_BASE;
-        } DESCENG_ADDR0_BASE;
-        struct {
-            struct {
-                logic [31:0] value;
-            } ADDR0_LIMIT;
-        } DESCENG_ADDR0_LIMIT;
-        struct {
-            struct {
-                logic [31:0] value;
-            } ADDR1_BASE;
-        } DESCENG_ADDR1_BASE;
-        struct {
-            struct {
-                logic [31:0] value;
-            } ADDR1_LIMIT;
-        } DESCENG_ADDR1_LIMIT;
-        struct {
-            struct {
-                logic [7:0] value;
-            } RD_XFER_BEATS;
-            struct {
-                logic [7:0] value;
-            } WR_XFER_BEATS;
-        } AXI_XFER_CONFIG;
-        struct {
-            struct {
-                logic value;
-            } PERF_EN;
-            struct {
-                logic value;
-            } PERF_MODE;
-            struct {
-                logic value;
-            } PERF_CLEAR;
-        } PERF_CONFIG;
-        struct {
-            struct {
-                logic [2:0] value;
-            } CH_SEL;
-            struct {
-                logic [1:0] value;
-            } CAT_SEL;
-        } OBS_CTRL;
-        struct {
-            struct {
-                logic [2:0] value;
-            } CH_SEL;
-        } PERF_CH_SEL;
-        struct {
-            struct {
-                logic value;
-            } BUS;
-            struct {
-                logic value;
-            } METRIC;
-            struct {
-                logic [3:0] value;
-            } BIN;
-        } HIST_SEL;
-        struct {
+                struct {
+                    logic [31:0] value;
+                } TIMEOUT_CYCLES;
+            } SCHED_TIMEOUT_CYCLES;
             struct {
                 struct {
                     logic value;
-                } MON_EN;
+                } SCHED_EN;
+                struct {
+                    logic value;
+                } TIMEOUT_EN;
                 struct {
                     logic value;
                 } ERR_EN;
@@ -830,62 +1385,342 @@ module rapids_regs (
                 } COMPL_EN;
                 struct {
                     logic value;
-                } TIMEOUT_EN;
+                } PERF_EN;
+            } SCHED_CONFIG;
+            struct {
+                struct {
+                    logic [7:0] value;
+                } LIMIT;
+            } SCHED_TIMEOUT_LIMIT;
+            struct {
+                struct {
+                    logic value;
+                } DESCENG_EN;
+                struct {
+                    logic value;
+                } PREFETCH_EN;
+                struct {
+                    logic [3:0] value;
+                } FIFO_THRESH;
+            } DESCENG_CONFIG;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } ADDR0_BASE;
+            } DESCENG_ADDR0_BASE;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } ADDR0_LIMIT;
+            } DESCENG_ADDR0_LIMIT;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } ADDR1_BASE;
+            } DESCENG_ADDR1_BASE;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } ADDR1_LIMIT;
+            } DESCENG_ADDR1_LIMIT;
+            struct {
+                struct {
+                    logic [8:0] value;
+                } CTRLRD_MAX_TRY;
+            } CTRL_CONFIG;
+            struct {
+                struct {
+                    logic [7:0] value;
+                } RD_XFER_BEATS;
+                struct {
+                    logic [7:0] value;
+                } WR_XFER_BEATS;
+                struct {
+                    logic [7:0] value;
+                } ALLOC_SIZE;
+                struct {
+                    logic [7:0] value;
+                } DRAIN_SIZE;
+            } AXI_XFER_CONFIG;
+            struct {
                 struct {
                     logic value;
                 } PERF_EN;
-            } DAXMON_ENABLE;
+                struct {
+                    logic value;
+                } PERF_MODE;
+                struct {
+                    logic value;
+                } PERF_CLEAR;
+            } PERF_CONFIG;
+            struct {
+                struct {
+                    logic [2:0] value;
+                } CH_SEL;
+                struct {
+                    logic [1:0] value;
+                } CAT_SEL;
+            } OBS_CTRL;
+            struct {
+                struct {
+                    logic [2:0] value;
+                } CH_SEL;
+            } PERF_CH_SEL;
+            struct {
+                struct {
+                    logic value;
+                } BUS;
+                struct {
+                    logic value;
+                } METRIC;
+                struct {
+                    logic [3:0] value;
+                } BIN;
+            } HIST_SEL;
+            struct {
+                struct {
+                    struct {
+                        logic value;
+                    } MON_EN;
+                    struct {
+                        logic value;
+                    } ERR_EN;
+                    struct {
+                        logic value;
+                    } COMPL_EN;
+                    struct {
+                        logic value;
+                    } TIMEOUT_EN;
+                    struct {
+                        logic value;
+                    } PERF_EN;
+                } DAXMON_ENABLE;
+                struct {
+                    struct {
+                        logic [31:0] value;
+                    } TIMEOUT_CYCLES;
+                } DAXMON_TIMEOUT;
+                struct {
+                    struct {
+                        logic [31:0] value;
+                    } LATENCY_THRESH;
+                } DAXMON_LATENCY_THRESH;
+                struct {
+                    struct {
+                        logic [15:0] value;
+                    } PKT_MASK;
+                } DAXMON_PKT_MASK;
+                struct {
+                    struct {
+                        logic [3:0] value;
+                    } ERR_SELECT;
+                    struct {
+                        logic [7:0] value;
+                    } ERR_MASK;
+                } DAXMON_ERR_CFG;
+                struct {
+                    struct {
+                        logic [7:0] value;
+                    } TIMEOUT_MASK;
+                    struct {
+                        logic [7:0] value;
+                    } COMPL_MASK;
+                } DAXMON_MASK1;
+                struct {
+                    struct {
+                        logic [7:0] value;
+                    } THRESH_MASK;
+                    struct {
+                        logic [7:0] value;
+                    } PERF_MASK;
+                } DAXMON_MASK2;
+                struct {
+                    struct {
+                        logic [7:0] value;
+                    } ADDR_MASK;
+                    struct {
+                        logic [7:0] value;
+                    } DEBUG_MASK;
+                } DAXMON_MASK3;
+                struct {
+                    struct {
+                        logic value;
+                    } MON_EN;
+                    struct {
+                        logic value;
+                    } ERR_EN;
+                    struct {
+                        logic value;
+                    } COMPL_EN;
+                    struct {
+                        logic value;
+                    } TIMEOUT_EN;
+                    struct {
+                        logic value;
+                    } PERF_EN;
+                } RDMON_ENABLE;
+                struct {
+                    struct {
+                        logic [31:0] value;
+                    } TIMEOUT_CYCLES;
+                } RDMON_TIMEOUT;
+                struct {
+                    struct {
+                        logic [31:0] value;
+                    } LATENCY_THRESH;
+                } RDMON_LATENCY_THRESH;
+                struct {
+                    struct {
+                        logic [15:0] value;
+                    } PKT_MASK;
+                } RDMON_PKT_MASK;
+                struct {
+                    struct {
+                        logic [3:0] value;
+                    } ERR_SELECT;
+                    struct {
+                        logic [7:0] value;
+                    } ERR_MASK;
+                } RDMON_ERR_CFG;
+                struct {
+                    struct {
+                        logic [7:0] value;
+                    } TIMEOUT_MASK;
+                    struct {
+                        logic [7:0] value;
+                    } COMPL_MASK;
+                } RDMON_MASK1;
+                struct {
+                    struct {
+                        logic [7:0] value;
+                    } THRESH_MASK;
+                    struct {
+                        logic [7:0] value;
+                    } PERF_MASK;
+                } RDMON_MASK2;
+                struct {
+                    struct {
+                        logic [7:0] value;
+                    } ADDR_MASK;
+                    struct {
+                        logic [7:0] value;
+                    } DEBUG_MASK;
+                } RDMON_MASK3;
+                struct {
+                    struct {
+                        logic value;
+                    } MON_EN;
+                    struct {
+                        logic value;
+                    } ERR_EN;
+                    struct {
+                        logic value;
+                    } COMPL_EN;
+                    struct {
+                        logic value;
+                    } TIMEOUT_EN;
+                    struct {
+                        logic value;
+                    } PERF_EN;
+                    struct {
+                        logic value;
+                    } COMPRESS_EN;
+                } WRMON_ENABLE;
+                struct {
+                    struct {
+                        logic [31:0] value;
+                    } TIMEOUT_CYCLES;
+                } WRMON_TIMEOUT;
+                struct {
+                    struct {
+                        logic [31:0] value;
+                    } LATENCY_THRESH;
+                } WRMON_LATENCY_THRESH;
+                struct {
+                    struct {
+                        logic [15:0] value;
+                    } PKT_MASK;
+                } WRMON_PKT_MASK;
+                struct {
+                    struct {
+                        logic [3:0] value;
+                    } ERR_SELECT;
+                    struct {
+                        logic [7:0] value;
+                    } ERR_MASK;
+                } WRMON_ERR_CFG;
+                struct {
+                    struct {
+                        logic [7:0] value;
+                    } TIMEOUT_MASK;
+                    struct {
+                        logic [7:0] value;
+                    } COMPL_MASK;
+                } WRMON_MASK1;
+                struct {
+                    struct {
+                        logic [7:0] value;
+                    } THRESH_MASK;
+                    struct {
+                        logic [7:0] value;
+                    } PERF_MASK;
+                } WRMON_MASK2;
+                struct {
+                    struct {
+                        logic [7:0] value;
+                    } ADDR_MASK;
+                    struct {
+                        logic [7:0] value;
+                    } DEBUG_MASK;
+                } WRMON_MASK3;
+                struct {
+                    struct {
+                        logic value;
+                    } RUN;
+                } DAXMON_PERF_CTRL;
+                struct {
+                    struct {
+                        logic value;
+                    } RUN;
+                } RDMON_PERF_CTRL;
+                struct {
+                    struct {
+                        logic value;
+                    } RUN;
+                } WRMON_PERF_CTRL;
+            } MON;
+        } SRC;
+        struct {
+            struct {
+                struct {
+                    logic value;
+                } GLOBAL_EN;
+                struct {
+                    logic value;
+                } GLOBAL_RST;
+            } GLOBAL_CTRL;
+            struct {
+                struct {
+                    logic [7:0] value;
+                } CH_EN;
+            } CHANNEL_ENABLE;
+            struct {
+                struct {
+                    logic [7:0] value;
+                } CH_RST;
+            } CHANNEL_RESET;
             struct {
                 struct {
                     logic [31:0] value;
                 } TIMEOUT_CYCLES;
-            } DAXMON_TIMEOUT;
-            struct {
-                struct {
-                    logic [31:0] value;
-                } LATENCY_THRESH;
-            } DAXMON_LATENCY_THRESH;
-            struct {
-                struct {
-                    logic [15:0] value;
-                } PKT_MASK;
-            } DAXMON_PKT_MASK;
-            struct {
-                struct {
-                    logic [3:0] value;
-                } ERR_SELECT;
-                struct {
-                    logic [7:0] value;
-                } ERR_MASK;
-            } DAXMON_ERR_CFG;
-            struct {
-                struct {
-                    logic [7:0] value;
-                } TIMEOUT_MASK;
-                struct {
-                    logic [7:0] value;
-                } COMPL_MASK;
-            } DAXMON_MASK1;
-            struct {
-                struct {
-                    logic [7:0] value;
-                } THRESH_MASK;
-                struct {
-                    logic [7:0] value;
-                } PERF_MASK;
-            } DAXMON_MASK2;
-            struct {
-                struct {
-                    logic [7:0] value;
-                } ADDR_MASK;
-                struct {
-                    logic [7:0] value;
-                } DEBUG_MASK;
-            } DAXMON_MASK3;
+            } SCHED_TIMEOUT_CYCLES;
             struct {
                 struct {
                     logic value;
-                } MON_EN;
+                } SCHED_EN;
+                struct {
+                    logic value;
+                } TIMEOUT_EN;
                 struct {
                     logic value;
                 } ERR_EN;
@@ -894,2010 +1729,4184 @@ module rapids_regs (
                 } COMPL_EN;
                 struct {
                     logic value;
-                } TIMEOUT_EN;
+                } PERF_EN;
+            } SCHED_CONFIG;
+            struct {
+                struct {
+                    logic [7:0] value;
+                } LIMIT;
+            } SCHED_TIMEOUT_LIMIT;
+            struct {
                 struct {
                     logic value;
-                } PERF_EN;
-            } RDMON_ENABLE;
-            struct {
+                } DESCENG_EN;
                 struct {
-                    logic [31:0] value;
-                } TIMEOUT_CYCLES;
-            } RDMON_TIMEOUT;
-            struct {
-                struct {
-                    logic [31:0] value;
-                } LATENCY_THRESH;
-            } RDMON_LATENCY_THRESH;
-            struct {
-                struct {
-                    logic [15:0] value;
-                } PKT_MASK;
-            } RDMON_PKT_MASK;
-            struct {
+                    logic value;
+                } PREFETCH_EN;
                 struct {
                     logic [3:0] value;
-                } ERR_SELECT;
+                } FIFO_THRESH;
+            } DESCENG_CONFIG;
+            struct {
                 struct {
-                    logic [7:0] value;
-                } ERR_MASK;
-            } RDMON_ERR_CFG;
+                    logic [31:0] value;
+                } ADDR0_BASE;
+            } DESCENG_ADDR0_BASE;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } ADDR0_LIMIT;
+            } DESCENG_ADDR0_LIMIT;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } ADDR1_BASE;
+            } DESCENG_ADDR1_BASE;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } ADDR1_LIMIT;
+            } DESCENG_ADDR1_LIMIT;
+            struct {
+                struct {
+                    logic [8:0] value;
+                } CTRLRD_MAX_TRY;
+            } CTRL_CONFIG;
             struct {
                 struct {
                     logic [7:0] value;
-                } TIMEOUT_MASK;
+                } RD_XFER_BEATS;
                 struct {
                     logic [7:0] value;
-                } COMPL_MASK;
-            } RDMON_MASK1;
+                } WR_XFER_BEATS;
+                struct {
+                    logic [7:0] value;
+                } ALLOC_SIZE;
+                struct {
+                    logic [7:0] value;
+                } DRAIN_SIZE;
+            } AXI_XFER_CONFIG;
             struct {
-                struct {
-                    logic [7:0] value;
-                } THRESH_MASK;
-                struct {
-                    logic [7:0] value;
-                } PERF_MASK;
-            } RDMON_MASK2;
-            struct {
-                struct {
-                    logic [7:0] value;
-                } ADDR_MASK;
-                struct {
-                    logic [7:0] value;
-                } DEBUG_MASK;
-            } RDMON_MASK3;
-            struct {
-                struct {
-                    logic value;
-                } MON_EN;
-                struct {
-                    logic value;
-                } ERR_EN;
-                struct {
-                    logic value;
-                } COMPL_EN;
-                struct {
-                    logic value;
-                } TIMEOUT_EN;
                 struct {
                     logic value;
                 } PERF_EN;
                 struct {
                     logic value;
-                } COMPRESS_EN;
-            } WRMON_ENABLE;
+                } PERF_MODE;
+                struct {
+                    logic value;
+                } PERF_CLEAR;
+            } PERF_CONFIG;
             struct {
                 struct {
-                    logic [31:0] value;
-                } TIMEOUT_CYCLES;
-            } WRMON_TIMEOUT;
+                    logic [2:0] value;
+                } CH_SEL;
+                struct {
+                    logic [1:0] value;
+                } CAT_SEL;
+            } OBS_CTRL;
             struct {
                 struct {
-                    logic [31:0] value;
-                } LATENCY_THRESH;
-            } WRMON_LATENCY_THRESH;
+                    logic [2:0] value;
+                } CH_SEL;
+            } PERF_CH_SEL;
             struct {
                 struct {
-                    logic [15:0] value;
-                } PKT_MASK;
-            } WRMON_PKT_MASK;
-            struct {
+                    logic value;
+                } BUS;
+                struct {
+                    logic value;
+                } METRIC;
                 struct {
                     logic [3:0] value;
-                } ERR_SELECT;
-                struct {
-                    logic [7:0] value;
-                } ERR_MASK;
-            } WRMON_ERR_CFG;
+                } BIN;
+            } HIST_SEL;
             struct {
                 struct {
-                    logic [7:0] value;
-                } TIMEOUT_MASK;
+                    struct {
+                        logic value;
+                    } MON_EN;
+                    struct {
+                        logic value;
+                    } ERR_EN;
+                    struct {
+                        logic value;
+                    } COMPL_EN;
+                    struct {
+                        logic value;
+                    } TIMEOUT_EN;
+                    struct {
+                        logic value;
+                    } PERF_EN;
+                } DAXMON_ENABLE;
                 struct {
-                    logic [7:0] value;
-                } COMPL_MASK;
-            } WRMON_MASK1;
-            struct {
+                    struct {
+                        logic [31:0] value;
+                    } TIMEOUT_CYCLES;
+                } DAXMON_TIMEOUT;
                 struct {
-                    logic [7:0] value;
-                } THRESH_MASK;
+                    struct {
+                        logic [31:0] value;
+                    } LATENCY_THRESH;
+                } DAXMON_LATENCY_THRESH;
                 struct {
-                    logic [7:0] value;
-                } PERF_MASK;
-            } WRMON_MASK2;
-            struct {
+                    struct {
+                        logic [15:0] value;
+                    } PKT_MASK;
+                } DAXMON_PKT_MASK;
                 struct {
-                    logic [7:0] value;
-                } ADDR_MASK;
+                    struct {
+                        logic [3:0] value;
+                    } ERR_SELECT;
+                    struct {
+                        logic [7:0] value;
+                    } ERR_MASK;
+                } DAXMON_ERR_CFG;
                 struct {
-                    logic [7:0] value;
-                } DEBUG_MASK;
-            } WRMON_MASK3;
-            struct {
+                    struct {
+                        logic [7:0] value;
+                    } TIMEOUT_MASK;
+                    struct {
+                        logic [7:0] value;
+                    } COMPL_MASK;
+                } DAXMON_MASK1;
                 struct {
-                    logic value;
-                } RUN;
-            } DAXMON_PERF_CTRL;
-            struct {
+                    struct {
+                        logic [7:0] value;
+                    } THRESH_MASK;
+                    struct {
+                        logic [7:0] value;
+                    } PERF_MASK;
+                } DAXMON_MASK2;
                 struct {
-                    logic value;
-                } RUN;
-            } RDMON_PERF_CTRL;
-            struct {
+                    struct {
+                        logic [7:0] value;
+                    } ADDR_MASK;
+                    struct {
+                        logic [7:0] value;
+                    } DEBUG_MASK;
+                } DAXMON_MASK3;
                 struct {
-                    logic value;
-                } RUN;
-            } WRMON_PERF_CTRL;
-        } MON;
+                    struct {
+                        logic value;
+                    } MON_EN;
+                    struct {
+                        logic value;
+                    } ERR_EN;
+                    struct {
+                        logic value;
+                    } COMPL_EN;
+                    struct {
+                        logic value;
+                    } TIMEOUT_EN;
+                    struct {
+                        logic value;
+                    } PERF_EN;
+                } RDMON_ENABLE;
+                struct {
+                    struct {
+                        logic [31:0] value;
+                    } TIMEOUT_CYCLES;
+                } RDMON_TIMEOUT;
+                struct {
+                    struct {
+                        logic [31:0] value;
+                    } LATENCY_THRESH;
+                } RDMON_LATENCY_THRESH;
+                struct {
+                    struct {
+                        logic [15:0] value;
+                    } PKT_MASK;
+                } RDMON_PKT_MASK;
+                struct {
+                    struct {
+                        logic [3:0] value;
+                    } ERR_SELECT;
+                    struct {
+                        logic [7:0] value;
+                    } ERR_MASK;
+                } RDMON_ERR_CFG;
+                struct {
+                    struct {
+                        logic [7:0] value;
+                    } TIMEOUT_MASK;
+                    struct {
+                        logic [7:0] value;
+                    } COMPL_MASK;
+                } RDMON_MASK1;
+                struct {
+                    struct {
+                        logic [7:0] value;
+                    } THRESH_MASK;
+                    struct {
+                        logic [7:0] value;
+                    } PERF_MASK;
+                } RDMON_MASK2;
+                struct {
+                    struct {
+                        logic [7:0] value;
+                    } ADDR_MASK;
+                    struct {
+                        logic [7:0] value;
+                    } DEBUG_MASK;
+                } RDMON_MASK3;
+                struct {
+                    struct {
+                        logic value;
+                    } MON_EN;
+                    struct {
+                        logic value;
+                    } ERR_EN;
+                    struct {
+                        logic value;
+                    } COMPL_EN;
+                    struct {
+                        logic value;
+                    } TIMEOUT_EN;
+                    struct {
+                        logic value;
+                    } PERF_EN;
+                    struct {
+                        logic value;
+                    } COMPRESS_EN;
+                } WRMON_ENABLE;
+                struct {
+                    struct {
+                        logic [31:0] value;
+                    } TIMEOUT_CYCLES;
+                } WRMON_TIMEOUT;
+                struct {
+                    struct {
+                        logic [31:0] value;
+                    } LATENCY_THRESH;
+                } WRMON_LATENCY_THRESH;
+                struct {
+                    struct {
+                        logic [15:0] value;
+                    } PKT_MASK;
+                } WRMON_PKT_MASK;
+                struct {
+                    struct {
+                        logic [3:0] value;
+                    } ERR_SELECT;
+                    struct {
+                        logic [7:0] value;
+                    } ERR_MASK;
+                } WRMON_ERR_CFG;
+                struct {
+                    struct {
+                        logic [7:0] value;
+                    } TIMEOUT_MASK;
+                    struct {
+                        logic [7:0] value;
+                    } COMPL_MASK;
+                } WRMON_MASK1;
+                struct {
+                    struct {
+                        logic [7:0] value;
+                    } THRESH_MASK;
+                    struct {
+                        logic [7:0] value;
+                    } PERF_MASK;
+                } WRMON_MASK2;
+                struct {
+                    struct {
+                        logic [7:0] value;
+                    } ADDR_MASK;
+                    struct {
+                        logic [7:0] value;
+                    } DEBUG_MASK;
+                } WRMON_MASK3;
+                struct {
+                    struct {
+                        logic value;
+                    } RUN;
+                } DAXMON_PERF_CTRL;
+                struct {
+                    struct {
+                        logic value;
+                    } RUN;
+                } RDMON_PERF_CTRL;
+                struct {
+                    struct {
+                        logic value;
+                    } RUN;
+                } WRMON_PERF_CTRL;
+            } MON;
+        } SNK;
     } field_storage_t;
     field_storage_t field_storage;
 
-    // Field: rapids_regs.GLOBAL_CTRL.GLOBAL_EN
+    // Field: rapids_regs.SRC.GLOBAL_CTRL.GLOBAL_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.GLOBAL_CTRL.GLOBAL_EN.value;
+        next_c = field_storage.SRC.GLOBAL_CTRL.GLOBAL_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.GLOBAL_CTRL && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.GLOBAL_CTRL.GLOBAL_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+        if(decoded_reg_strb.SRC.GLOBAL_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.GLOBAL_CTRL.GLOBAL_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
             load_next_c = '1;
         end
-        field_combo.GLOBAL_CTRL.GLOBAL_EN.next = next_c;
-        field_combo.GLOBAL_CTRL.GLOBAL_EN.load_next = load_next_c;
+        field_combo.SRC.GLOBAL_CTRL.GLOBAL_EN.next = next_c;
+        field_combo.SRC.GLOBAL_CTRL.GLOBAL_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.GLOBAL_CTRL.GLOBAL_EN.value <= 1'h0;
+            field_storage.SRC.GLOBAL_CTRL.GLOBAL_EN.value <= 1'h0;
         end else begin
-            if(field_combo.GLOBAL_CTRL.GLOBAL_EN.load_next) begin
-                field_storage.GLOBAL_CTRL.GLOBAL_EN.value <= field_combo.GLOBAL_CTRL.GLOBAL_EN.next;
+            if(field_combo.SRC.GLOBAL_CTRL.GLOBAL_EN.load_next) begin
+                field_storage.SRC.GLOBAL_CTRL.GLOBAL_EN.value <= field_combo.SRC.GLOBAL_CTRL.GLOBAL_EN.next;
             end
         end
     end
-    assign hwif_out.GLOBAL_CTRL.GLOBAL_EN.value = field_storage.GLOBAL_CTRL.GLOBAL_EN.value;
-    // Field: rapids_regs.GLOBAL_CTRL.GLOBAL_RST
+    assign hwif_out.SRC.GLOBAL_CTRL.GLOBAL_EN.value = field_storage.SRC.GLOBAL_CTRL.GLOBAL_EN.value;
+    // Field: rapids_regs.SRC.GLOBAL_CTRL.GLOBAL_RST
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.GLOBAL_CTRL.GLOBAL_RST.value;
+        next_c = field_storage.SRC.GLOBAL_CTRL.GLOBAL_RST.value;
         load_next_c = '0;
-        if(decoded_reg_strb.GLOBAL_CTRL && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.GLOBAL_CTRL.GLOBAL_RST.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+        if(decoded_reg_strb.SRC.GLOBAL_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.GLOBAL_CTRL.GLOBAL_RST.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
             load_next_c = '1;
         end
-        field_combo.GLOBAL_CTRL.GLOBAL_RST.next = next_c;
-        field_combo.GLOBAL_CTRL.GLOBAL_RST.load_next = load_next_c;
+        field_combo.SRC.GLOBAL_CTRL.GLOBAL_RST.next = next_c;
+        field_combo.SRC.GLOBAL_CTRL.GLOBAL_RST.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.GLOBAL_CTRL.GLOBAL_RST.value <= 1'h0;
+            field_storage.SRC.GLOBAL_CTRL.GLOBAL_RST.value <= 1'h0;
         end else begin
-            if(field_combo.GLOBAL_CTRL.GLOBAL_RST.load_next) begin
-                field_storage.GLOBAL_CTRL.GLOBAL_RST.value <= field_combo.GLOBAL_CTRL.GLOBAL_RST.next;
+            if(field_combo.SRC.GLOBAL_CTRL.GLOBAL_RST.load_next) begin
+                field_storage.SRC.GLOBAL_CTRL.GLOBAL_RST.value <= field_combo.SRC.GLOBAL_CTRL.GLOBAL_RST.next;
             end
         end
     end
-    assign hwif_out.GLOBAL_CTRL.GLOBAL_RST.value = field_storage.GLOBAL_CTRL.GLOBAL_RST.value;
-    assign hwif_out.GLOBAL_CTRL.GLOBAL_RST.swmod = decoded_reg_strb.GLOBAL_CTRL && decoded_req_is_wr && |(decoded_wr_biten[1:1]);
-    // Field: rapids_regs.CHANNEL_ENABLE.CH_EN
+    assign hwif_out.SRC.GLOBAL_CTRL.GLOBAL_RST.value = field_storage.SRC.GLOBAL_CTRL.GLOBAL_RST.value;
+    assign hwif_out.SRC.GLOBAL_CTRL.GLOBAL_RST.swmod = decoded_reg_strb.SRC.GLOBAL_CTRL && decoded_req_is_wr && |(decoded_wr_biten[1:1]);
+    // Field: rapids_regs.SRC.CHANNEL_ENABLE.CH_EN
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.CHANNEL_ENABLE.CH_EN.value;
+        next_c = field_storage.SRC.CHANNEL_ENABLE.CH_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.CHANNEL_ENABLE && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.CHANNEL_ENABLE.CH_EN.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+        if(decoded_reg_strb.SRC.CHANNEL_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.CHANNEL_ENABLE.CH_EN.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
         end
-        field_combo.CHANNEL_ENABLE.CH_EN.next = next_c;
-        field_combo.CHANNEL_ENABLE.CH_EN.load_next = load_next_c;
+        field_combo.SRC.CHANNEL_ENABLE.CH_EN.next = next_c;
+        field_combo.SRC.CHANNEL_ENABLE.CH_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.CHANNEL_ENABLE.CH_EN.value <= 8'h0;
+            field_storage.SRC.CHANNEL_ENABLE.CH_EN.value <= 8'h0;
         end else begin
-            if(field_combo.CHANNEL_ENABLE.CH_EN.load_next) begin
-                field_storage.CHANNEL_ENABLE.CH_EN.value <= field_combo.CHANNEL_ENABLE.CH_EN.next;
+            if(field_combo.SRC.CHANNEL_ENABLE.CH_EN.load_next) begin
+                field_storage.SRC.CHANNEL_ENABLE.CH_EN.value <= field_combo.SRC.CHANNEL_ENABLE.CH_EN.next;
             end
         end
     end
-    assign hwif_out.CHANNEL_ENABLE.CH_EN.value = field_storage.CHANNEL_ENABLE.CH_EN.value;
-    // Field: rapids_regs.CHANNEL_RESET.CH_RST
+    assign hwif_out.SRC.CHANNEL_ENABLE.CH_EN.value = field_storage.SRC.CHANNEL_ENABLE.CH_EN.value;
+    // Field: rapids_regs.SRC.CHANNEL_RESET.CH_RST
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.CHANNEL_RESET.CH_RST.value;
+        next_c = field_storage.SRC.CHANNEL_RESET.CH_RST.value;
         load_next_c = '0;
-        if(decoded_reg_strb.CHANNEL_RESET && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.CHANNEL_RESET.CH_RST.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+        if(decoded_reg_strb.SRC.CHANNEL_RESET && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.CHANNEL_RESET.CH_RST.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
         end
-        field_combo.CHANNEL_RESET.CH_RST.next = next_c;
-        field_combo.CHANNEL_RESET.CH_RST.load_next = load_next_c;
+        field_combo.SRC.CHANNEL_RESET.CH_RST.next = next_c;
+        field_combo.SRC.CHANNEL_RESET.CH_RST.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.CHANNEL_RESET.CH_RST.value <= 8'h0;
+            field_storage.SRC.CHANNEL_RESET.CH_RST.value <= 8'h0;
         end else begin
-            if(field_combo.CHANNEL_RESET.CH_RST.load_next) begin
-                field_storage.CHANNEL_RESET.CH_RST.value <= field_combo.CHANNEL_RESET.CH_RST.next;
+            if(field_combo.SRC.CHANNEL_RESET.CH_RST.load_next) begin
+                field_storage.SRC.CHANNEL_RESET.CH_RST.value <= field_combo.SRC.CHANNEL_RESET.CH_RST.next;
             end
         end
     end
-    assign hwif_out.CHANNEL_RESET.CH_RST.value = field_storage.CHANNEL_RESET.CH_RST.value;
-    assign hwif_out.CHANNEL_RESET.CH_RST.swmod = decoded_reg_strb.CHANNEL_RESET && decoded_req_is_wr && |(decoded_wr_biten[7:0]);
-    // Field: rapids_regs.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES
+    assign hwif_out.SRC.CHANNEL_RESET.CH_RST.value = field_storage.SRC.CHANNEL_RESET.CH_RST.value;
+    assign hwif_out.SRC.CHANNEL_RESET.CH_RST.swmod = decoded_reg_strb.SRC.CHANNEL_RESET && decoded_req_is_wr && |(decoded_wr_biten[7:0]);
+    // Field: rapids_regs.SRC.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES
     always_comb begin
         automatic logic [31:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value;
+        next_c = field_storage.SRC.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value;
         load_next_c = '0;
-        if(decoded_reg_strb.SCHED_TIMEOUT_CYCLES && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+        if(decoded_reg_strb.SRC.SCHED_TIMEOUT_CYCLES && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
             load_next_c = '1;
         end
-        field_combo.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.next = next_c;
-        field_combo.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.load_next = load_next_c;
+        field_combo.SRC.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.next = next_c;
+        field_combo.SRC.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value <= 32'h3e8;
+            field_storage.SRC.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value <= 32'h3e8;
         end else begin
-            if(field_combo.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.load_next) begin
-                field_storage.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value <= field_combo.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.next;
+            if(field_combo.SRC.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.load_next) begin
+                field_storage.SRC.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value <= field_combo.SRC.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.next;
             end
         end
     end
-    assign hwif_out.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value = field_storage.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value;
-    // Field: rapids_regs.SCHED_CONFIG.SCHED_EN
+    assign hwif_out.SRC.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value = field_storage.SRC.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value;
+    // Field: rapids_regs.SRC.SCHED_CONFIG.SCHED_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.SCHED_CONFIG.SCHED_EN.value;
+        next_c = field_storage.SRC.SCHED_CONFIG.SCHED_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.SCHED_CONFIG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.SCHED_CONFIG.SCHED_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+        if(decoded_reg_strb.SRC.SCHED_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.SCHED_CONFIG.SCHED_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
             load_next_c = '1;
         end
-        field_combo.SCHED_CONFIG.SCHED_EN.next = next_c;
-        field_combo.SCHED_CONFIG.SCHED_EN.load_next = load_next_c;
+        field_combo.SRC.SCHED_CONFIG.SCHED_EN.next = next_c;
+        field_combo.SRC.SCHED_CONFIG.SCHED_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.SCHED_CONFIG.SCHED_EN.value <= 1'h1;
+            field_storage.SRC.SCHED_CONFIG.SCHED_EN.value <= 1'h1;
         end else begin
-            if(field_combo.SCHED_CONFIG.SCHED_EN.load_next) begin
-                field_storage.SCHED_CONFIG.SCHED_EN.value <= field_combo.SCHED_CONFIG.SCHED_EN.next;
+            if(field_combo.SRC.SCHED_CONFIG.SCHED_EN.load_next) begin
+                field_storage.SRC.SCHED_CONFIG.SCHED_EN.value <= field_combo.SRC.SCHED_CONFIG.SCHED_EN.next;
             end
         end
     end
-    assign hwif_out.SCHED_CONFIG.SCHED_EN.value = field_storage.SCHED_CONFIG.SCHED_EN.value;
-    // Field: rapids_regs.SCHED_CONFIG.TIMEOUT_EN
+    assign hwif_out.SRC.SCHED_CONFIG.SCHED_EN.value = field_storage.SRC.SCHED_CONFIG.SCHED_EN.value;
+    // Field: rapids_regs.SRC.SCHED_CONFIG.TIMEOUT_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.SCHED_CONFIG.TIMEOUT_EN.value;
+        next_c = field_storage.SRC.SCHED_CONFIG.TIMEOUT_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.SCHED_CONFIG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.SCHED_CONFIG.TIMEOUT_EN.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+        if(decoded_reg_strb.SRC.SCHED_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.SCHED_CONFIG.TIMEOUT_EN.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
             load_next_c = '1;
         end
-        field_combo.SCHED_CONFIG.TIMEOUT_EN.next = next_c;
-        field_combo.SCHED_CONFIG.TIMEOUT_EN.load_next = load_next_c;
+        field_combo.SRC.SCHED_CONFIG.TIMEOUT_EN.next = next_c;
+        field_combo.SRC.SCHED_CONFIG.TIMEOUT_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.SCHED_CONFIG.TIMEOUT_EN.value <= 1'h1;
+            field_storage.SRC.SCHED_CONFIG.TIMEOUT_EN.value <= 1'h1;
         end else begin
-            if(field_combo.SCHED_CONFIG.TIMEOUT_EN.load_next) begin
-                field_storage.SCHED_CONFIG.TIMEOUT_EN.value <= field_combo.SCHED_CONFIG.TIMEOUT_EN.next;
+            if(field_combo.SRC.SCHED_CONFIG.TIMEOUT_EN.load_next) begin
+                field_storage.SRC.SCHED_CONFIG.TIMEOUT_EN.value <= field_combo.SRC.SCHED_CONFIG.TIMEOUT_EN.next;
             end
         end
     end
-    assign hwif_out.SCHED_CONFIG.TIMEOUT_EN.value = field_storage.SCHED_CONFIG.TIMEOUT_EN.value;
-    // Field: rapids_regs.SCHED_CONFIG.ERR_EN
+    assign hwif_out.SRC.SCHED_CONFIG.TIMEOUT_EN.value = field_storage.SRC.SCHED_CONFIG.TIMEOUT_EN.value;
+    // Field: rapids_regs.SRC.SCHED_CONFIG.ERR_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.SCHED_CONFIG.ERR_EN.value;
+        next_c = field_storage.SRC.SCHED_CONFIG.ERR_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.SCHED_CONFIG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.SCHED_CONFIG.ERR_EN.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+        if(decoded_reg_strb.SRC.SCHED_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.SCHED_CONFIG.ERR_EN.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
             load_next_c = '1;
         end
-        field_combo.SCHED_CONFIG.ERR_EN.next = next_c;
-        field_combo.SCHED_CONFIG.ERR_EN.load_next = load_next_c;
+        field_combo.SRC.SCHED_CONFIG.ERR_EN.next = next_c;
+        field_combo.SRC.SCHED_CONFIG.ERR_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.SCHED_CONFIG.ERR_EN.value <= 1'h1;
+            field_storage.SRC.SCHED_CONFIG.ERR_EN.value <= 1'h1;
         end else begin
-            if(field_combo.SCHED_CONFIG.ERR_EN.load_next) begin
-                field_storage.SCHED_CONFIG.ERR_EN.value <= field_combo.SCHED_CONFIG.ERR_EN.next;
+            if(field_combo.SRC.SCHED_CONFIG.ERR_EN.load_next) begin
+                field_storage.SRC.SCHED_CONFIG.ERR_EN.value <= field_combo.SRC.SCHED_CONFIG.ERR_EN.next;
             end
         end
     end
-    assign hwif_out.SCHED_CONFIG.ERR_EN.value = field_storage.SCHED_CONFIG.ERR_EN.value;
-    // Field: rapids_regs.SCHED_CONFIG.COMPL_EN
+    assign hwif_out.SRC.SCHED_CONFIG.ERR_EN.value = field_storage.SRC.SCHED_CONFIG.ERR_EN.value;
+    // Field: rapids_regs.SRC.SCHED_CONFIG.COMPL_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.SCHED_CONFIG.COMPL_EN.value;
+        next_c = field_storage.SRC.SCHED_CONFIG.COMPL_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.SCHED_CONFIG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.SCHED_CONFIG.COMPL_EN.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+        if(decoded_reg_strb.SRC.SCHED_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.SCHED_CONFIG.COMPL_EN.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
             load_next_c = '1;
         end
-        field_combo.SCHED_CONFIG.COMPL_EN.next = next_c;
-        field_combo.SCHED_CONFIG.COMPL_EN.load_next = load_next_c;
+        field_combo.SRC.SCHED_CONFIG.COMPL_EN.next = next_c;
+        field_combo.SRC.SCHED_CONFIG.COMPL_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.SCHED_CONFIG.COMPL_EN.value <= 1'h1;
+            field_storage.SRC.SCHED_CONFIG.COMPL_EN.value <= 1'h1;
         end else begin
-            if(field_combo.SCHED_CONFIG.COMPL_EN.load_next) begin
-                field_storage.SCHED_CONFIG.COMPL_EN.value <= field_combo.SCHED_CONFIG.COMPL_EN.next;
+            if(field_combo.SRC.SCHED_CONFIG.COMPL_EN.load_next) begin
+                field_storage.SRC.SCHED_CONFIG.COMPL_EN.value <= field_combo.SRC.SCHED_CONFIG.COMPL_EN.next;
             end
         end
     end
-    assign hwif_out.SCHED_CONFIG.COMPL_EN.value = field_storage.SCHED_CONFIG.COMPL_EN.value;
-    // Field: rapids_regs.SCHED_CONFIG.PERF_EN
+    assign hwif_out.SRC.SCHED_CONFIG.COMPL_EN.value = field_storage.SRC.SCHED_CONFIG.COMPL_EN.value;
+    // Field: rapids_regs.SRC.SCHED_CONFIG.PERF_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.SCHED_CONFIG.PERF_EN.value;
+        next_c = field_storage.SRC.SCHED_CONFIG.PERF_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.SCHED_CONFIG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.SCHED_CONFIG.PERF_EN.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+        if(decoded_reg_strb.SRC.SCHED_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.SCHED_CONFIG.PERF_EN.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
             load_next_c = '1;
         end
-        field_combo.SCHED_CONFIG.PERF_EN.next = next_c;
-        field_combo.SCHED_CONFIG.PERF_EN.load_next = load_next_c;
+        field_combo.SRC.SCHED_CONFIG.PERF_EN.next = next_c;
+        field_combo.SRC.SCHED_CONFIG.PERF_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.SCHED_CONFIG.PERF_EN.value <= 1'h0;
+            field_storage.SRC.SCHED_CONFIG.PERF_EN.value <= 1'h0;
         end else begin
-            if(field_combo.SCHED_CONFIG.PERF_EN.load_next) begin
-                field_storage.SCHED_CONFIG.PERF_EN.value <= field_combo.SCHED_CONFIG.PERF_EN.next;
+            if(field_combo.SRC.SCHED_CONFIG.PERF_EN.load_next) begin
+                field_storage.SRC.SCHED_CONFIG.PERF_EN.value <= field_combo.SRC.SCHED_CONFIG.PERF_EN.next;
             end
         end
     end
-    assign hwif_out.SCHED_CONFIG.PERF_EN.value = field_storage.SCHED_CONFIG.PERF_EN.value;
-    // Field: rapids_regs.SCHED_TIMEOUT_LIMIT.LIMIT
+    assign hwif_out.SRC.SCHED_CONFIG.PERF_EN.value = field_storage.SRC.SCHED_CONFIG.PERF_EN.value;
+    // Field: rapids_regs.SRC.SCHED_TIMEOUT_LIMIT.LIMIT
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.SCHED_TIMEOUT_LIMIT.LIMIT.value;
+        next_c = field_storage.SRC.SCHED_TIMEOUT_LIMIT.LIMIT.value;
         load_next_c = '0;
-        if(decoded_reg_strb.SCHED_TIMEOUT_LIMIT && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.SCHED_TIMEOUT_LIMIT.LIMIT.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+        if(decoded_reg_strb.SRC.SCHED_TIMEOUT_LIMIT && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.SCHED_TIMEOUT_LIMIT.LIMIT.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
         end
-        field_combo.SCHED_TIMEOUT_LIMIT.LIMIT.next = next_c;
-        field_combo.SCHED_TIMEOUT_LIMIT.LIMIT.load_next = load_next_c;
+        field_combo.SRC.SCHED_TIMEOUT_LIMIT.LIMIT.next = next_c;
+        field_combo.SRC.SCHED_TIMEOUT_LIMIT.LIMIT.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.SCHED_TIMEOUT_LIMIT.LIMIT.value <= 8'h4;
+            field_storage.SRC.SCHED_TIMEOUT_LIMIT.LIMIT.value <= 8'h4;
         end else begin
-            if(field_combo.SCHED_TIMEOUT_LIMIT.LIMIT.load_next) begin
-                field_storage.SCHED_TIMEOUT_LIMIT.LIMIT.value <= field_combo.SCHED_TIMEOUT_LIMIT.LIMIT.next;
+            if(field_combo.SRC.SCHED_TIMEOUT_LIMIT.LIMIT.load_next) begin
+                field_storage.SRC.SCHED_TIMEOUT_LIMIT.LIMIT.value <= field_combo.SRC.SCHED_TIMEOUT_LIMIT.LIMIT.next;
             end
         end
     end
-    assign hwif_out.SCHED_TIMEOUT_LIMIT.LIMIT.value = field_storage.SCHED_TIMEOUT_LIMIT.LIMIT.value;
-    // Field: rapids_regs.DESCENG_CONFIG.DESCENG_EN
+    assign hwif_out.SRC.SCHED_TIMEOUT_LIMIT.LIMIT.value = field_storage.SRC.SCHED_TIMEOUT_LIMIT.LIMIT.value;
+    // Field: rapids_regs.SRC.DESCENG_CONFIG.DESCENG_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.DESCENG_CONFIG.DESCENG_EN.value;
+        next_c = field_storage.SRC.DESCENG_CONFIG.DESCENG_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.DESCENG_CONFIG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.DESCENG_CONFIG.DESCENG_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+        if(decoded_reg_strb.SRC.DESCENG_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.DESCENG_CONFIG.DESCENG_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
             load_next_c = '1;
         end
-        field_combo.DESCENG_CONFIG.DESCENG_EN.next = next_c;
-        field_combo.DESCENG_CONFIG.DESCENG_EN.load_next = load_next_c;
+        field_combo.SRC.DESCENG_CONFIG.DESCENG_EN.next = next_c;
+        field_combo.SRC.DESCENG_CONFIG.DESCENG_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.DESCENG_CONFIG.DESCENG_EN.value <= 1'h1;
+            field_storage.SRC.DESCENG_CONFIG.DESCENG_EN.value <= 1'h1;
         end else begin
-            if(field_combo.DESCENG_CONFIG.DESCENG_EN.load_next) begin
-                field_storage.DESCENG_CONFIG.DESCENG_EN.value <= field_combo.DESCENG_CONFIG.DESCENG_EN.next;
+            if(field_combo.SRC.DESCENG_CONFIG.DESCENG_EN.load_next) begin
+                field_storage.SRC.DESCENG_CONFIG.DESCENG_EN.value <= field_combo.SRC.DESCENG_CONFIG.DESCENG_EN.next;
             end
         end
     end
-    assign hwif_out.DESCENG_CONFIG.DESCENG_EN.value = field_storage.DESCENG_CONFIG.DESCENG_EN.value;
-    // Field: rapids_regs.DESCENG_CONFIG.PREFETCH_EN
+    assign hwif_out.SRC.DESCENG_CONFIG.DESCENG_EN.value = field_storage.SRC.DESCENG_CONFIG.DESCENG_EN.value;
+    // Field: rapids_regs.SRC.DESCENG_CONFIG.PREFETCH_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.DESCENG_CONFIG.PREFETCH_EN.value;
+        next_c = field_storage.SRC.DESCENG_CONFIG.PREFETCH_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.DESCENG_CONFIG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.DESCENG_CONFIG.PREFETCH_EN.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+        if(decoded_reg_strb.SRC.DESCENG_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.DESCENG_CONFIG.PREFETCH_EN.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
             load_next_c = '1;
         end
-        field_combo.DESCENG_CONFIG.PREFETCH_EN.next = next_c;
-        field_combo.DESCENG_CONFIG.PREFETCH_EN.load_next = load_next_c;
+        field_combo.SRC.DESCENG_CONFIG.PREFETCH_EN.next = next_c;
+        field_combo.SRC.DESCENG_CONFIG.PREFETCH_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.DESCENG_CONFIG.PREFETCH_EN.value <= 1'h0;
+            field_storage.SRC.DESCENG_CONFIG.PREFETCH_EN.value <= 1'h0;
         end else begin
-            if(field_combo.DESCENG_CONFIG.PREFETCH_EN.load_next) begin
-                field_storage.DESCENG_CONFIG.PREFETCH_EN.value <= field_combo.DESCENG_CONFIG.PREFETCH_EN.next;
+            if(field_combo.SRC.DESCENG_CONFIG.PREFETCH_EN.load_next) begin
+                field_storage.SRC.DESCENG_CONFIG.PREFETCH_EN.value <= field_combo.SRC.DESCENG_CONFIG.PREFETCH_EN.next;
             end
         end
     end
-    assign hwif_out.DESCENG_CONFIG.PREFETCH_EN.value = field_storage.DESCENG_CONFIG.PREFETCH_EN.value;
-    // Field: rapids_regs.DESCENG_CONFIG.FIFO_THRESH
+    assign hwif_out.SRC.DESCENG_CONFIG.PREFETCH_EN.value = field_storage.SRC.DESCENG_CONFIG.PREFETCH_EN.value;
+    // Field: rapids_regs.SRC.DESCENG_CONFIG.FIFO_THRESH
     always_comb begin
         automatic logic [3:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.DESCENG_CONFIG.FIFO_THRESH.value;
+        next_c = field_storage.SRC.DESCENG_CONFIG.FIFO_THRESH.value;
         load_next_c = '0;
-        if(decoded_reg_strb.DESCENG_CONFIG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.DESCENG_CONFIG.FIFO_THRESH.value & ~decoded_wr_biten[5:2]) | (decoded_wr_data[5:2] & decoded_wr_biten[5:2]);
+        if(decoded_reg_strb.SRC.DESCENG_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.DESCENG_CONFIG.FIFO_THRESH.value & ~decoded_wr_biten[5:2]) | (decoded_wr_data[5:2] & decoded_wr_biten[5:2]);
             load_next_c = '1;
         end
-        field_combo.DESCENG_CONFIG.FIFO_THRESH.next = next_c;
-        field_combo.DESCENG_CONFIG.FIFO_THRESH.load_next = load_next_c;
+        field_combo.SRC.DESCENG_CONFIG.FIFO_THRESH.next = next_c;
+        field_combo.SRC.DESCENG_CONFIG.FIFO_THRESH.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.DESCENG_CONFIG.FIFO_THRESH.value <= 4'h8;
+            field_storage.SRC.DESCENG_CONFIG.FIFO_THRESH.value <= 4'h8;
         end else begin
-            if(field_combo.DESCENG_CONFIG.FIFO_THRESH.load_next) begin
-                field_storage.DESCENG_CONFIG.FIFO_THRESH.value <= field_combo.DESCENG_CONFIG.FIFO_THRESH.next;
+            if(field_combo.SRC.DESCENG_CONFIG.FIFO_THRESH.load_next) begin
+                field_storage.SRC.DESCENG_CONFIG.FIFO_THRESH.value <= field_combo.SRC.DESCENG_CONFIG.FIFO_THRESH.next;
             end
         end
     end
-    assign hwif_out.DESCENG_CONFIG.FIFO_THRESH.value = field_storage.DESCENG_CONFIG.FIFO_THRESH.value;
-    // Field: rapids_regs.DESCENG_ADDR0_BASE.ADDR0_BASE
+    assign hwif_out.SRC.DESCENG_CONFIG.FIFO_THRESH.value = field_storage.SRC.DESCENG_CONFIG.FIFO_THRESH.value;
+    // Field: rapids_regs.SRC.DESCENG_ADDR0_BASE.ADDR0_BASE
     always_comb begin
         automatic logic [31:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.DESCENG_ADDR0_BASE.ADDR0_BASE.value;
+        next_c = field_storage.SRC.DESCENG_ADDR0_BASE.ADDR0_BASE.value;
         load_next_c = '0;
-        if(decoded_reg_strb.DESCENG_ADDR0_BASE && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.DESCENG_ADDR0_BASE.ADDR0_BASE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+        if(decoded_reg_strb.SRC.DESCENG_ADDR0_BASE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.DESCENG_ADDR0_BASE.ADDR0_BASE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
             load_next_c = '1;
         end
-        field_combo.DESCENG_ADDR0_BASE.ADDR0_BASE.next = next_c;
-        field_combo.DESCENG_ADDR0_BASE.ADDR0_BASE.load_next = load_next_c;
+        field_combo.SRC.DESCENG_ADDR0_BASE.ADDR0_BASE.next = next_c;
+        field_combo.SRC.DESCENG_ADDR0_BASE.ADDR0_BASE.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.DESCENG_ADDR0_BASE.ADDR0_BASE.value <= 32'h0;
+            field_storage.SRC.DESCENG_ADDR0_BASE.ADDR0_BASE.value <= 32'h0;
         end else begin
-            if(field_combo.DESCENG_ADDR0_BASE.ADDR0_BASE.load_next) begin
-                field_storage.DESCENG_ADDR0_BASE.ADDR0_BASE.value <= field_combo.DESCENG_ADDR0_BASE.ADDR0_BASE.next;
+            if(field_combo.SRC.DESCENG_ADDR0_BASE.ADDR0_BASE.load_next) begin
+                field_storage.SRC.DESCENG_ADDR0_BASE.ADDR0_BASE.value <= field_combo.SRC.DESCENG_ADDR0_BASE.ADDR0_BASE.next;
             end
         end
     end
-    assign hwif_out.DESCENG_ADDR0_BASE.ADDR0_BASE.value = field_storage.DESCENG_ADDR0_BASE.ADDR0_BASE.value;
-    // Field: rapids_regs.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT
+    assign hwif_out.SRC.DESCENG_ADDR0_BASE.ADDR0_BASE.value = field_storage.SRC.DESCENG_ADDR0_BASE.ADDR0_BASE.value;
+    // Field: rapids_regs.SRC.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT
     always_comb begin
         automatic logic [31:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value;
+        next_c = field_storage.SRC.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value;
         load_next_c = '0;
-        if(decoded_reg_strb.DESCENG_ADDR0_LIMIT && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+        if(decoded_reg_strb.SRC.DESCENG_ADDR0_LIMIT && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
             load_next_c = '1;
         end
-        field_combo.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.next = next_c;
-        field_combo.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.load_next = load_next_c;
+        field_combo.SRC.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.next = next_c;
+        field_combo.SRC.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value <= 32'hffffffff;
+            field_storage.SRC.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value <= 32'hffffffff;
         end else begin
-            if(field_combo.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.load_next) begin
-                field_storage.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value <= field_combo.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.next;
+            if(field_combo.SRC.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.load_next) begin
+                field_storage.SRC.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value <= field_combo.SRC.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.next;
             end
         end
     end
-    assign hwif_out.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value = field_storage.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value;
-    // Field: rapids_regs.DESCENG_ADDR1_BASE.ADDR1_BASE
+    assign hwif_out.SRC.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value = field_storage.SRC.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value;
+    // Field: rapids_regs.SRC.DESCENG_ADDR1_BASE.ADDR1_BASE
     always_comb begin
         automatic logic [31:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.DESCENG_ADDR1_BASE.ADDR1_BASE.value;
+        next_c = field_storage.SRC.DESCENG_ADDR1_BASE.ADDR1_BASE.value;
         load_next_c = '0;
-        if(decoded_reg_strb.DESCENG_ADDR1_BASE && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.DESCENG_ADDR1_BASE.ADDR1_BASE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+        if(decoded_reg_strb.SRC.DESCENG_ADDR1_BASE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.DESCENG_ADDR1_BASE.ADDR1_BASE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
             load_next_c = '1;
         end
-        field_combo.DESCENG_ADDR1_BASE.ADDR1_BASE.next = next_c;
-        field_combo.DESCENG_ADDR1_BASE.ADDR1_BASE.load_next = load_next_c;
+        field_combo.SRC.DESCENG_ADDR1_BASE.ADDR1_BASE.next = next_c;
+        field_combo.SRC.DESCENG_ADDR1_BASE.ADDR1_BASE.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.DESCENG_ADDR1_BASE.ADDR1_BASE.value <= 32'h0;
+            field_storage.SRC.DESCENG_ADDR1_BASE.ADDR1_BASE.value <= 32'h0;
         end else begin
-            if(field_combo.DESCENG_ADDR1_BASE.ADDR1_BASE.load_next) begin
-                field_storage.DESCENG_ADDR1_BASE.ADDR1_BASE.value <= field_combo.DESCENG_ADDR1_BASE.ADDR1_BASE.next;
+            if(field_combo.SRC.DESCENG_ADDR1_BASE.ADDR1_BASE.load_next) begin
+                field_storage.SRC.DESCENG_ADDR1_BASE.ADDR1_BASE.value <= field_combo.SRC.DESCENG_ADDR1_BASE.ADDR1_BASE.next;
             end
         end
     end
-    assign hwif_out.DESCENG_ADDR1_BASE.ADDR1_BASE.value = field_storage.DESCENG_ADDR1_BASE.ADDR1_BASE.value;
-    // Field: rapids_regs.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT
+    assign hwif_out.SRC.DESCENG_ADDR1_BASE.ADDR1_BASE.value = field_storage.SRC.DESCENG_ADDR1_BASE.ADDR1_BASE.value;
+    // Field: rapids_regs.SRC.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT
     always_comb begin
         automatic logic [31:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value;
+        next_c = field_storage.SRC.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value;
         load_next_c = '0;
-        if(decoded_reg_strb.DESCENG_ADDR1_LIMIT && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+        if(decoded_reg_strb.SRC.DESCENG_ADDR1_LIMIT && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
             load_next_c = '1;
         end
-        field_combo.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.next = next_c;
-        field_combo.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.load_next = load_next_c;
+        field_combo.SRC.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.next = next_c;
+        field_combo.SRC.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value <= 32'hffffffff;
+            field_storage.SRC.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value <= 32'hffffffff;
         end else begin
-            if(field_combo.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.load_next) begin
-                field_storage.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value <= field_combo.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.next;
+            if(field_combo.SRC.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.load_next) begin
+                field_storage.SRC.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value <= field_combo.SRC.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.next;
             end
         end
     end
-    assign hwif_out.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value = field_storage.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value;
-    // Field: rapids_regs.AXI_XFER_CONFIG.RD_XFER_BEATS
+    assign hwif_out.SRC.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value = field_storage.SRC.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value;
+    // Field: rapids_regs.SRC.CTRL_CONFIG.CTRLRD_MAX_TRY
+    always_comb begin
+        automatic logic [8:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.CTRL_CONFIG.CTRLRD_MAX_TRY.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.CTRL_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.CTRL_CONFIG.CTRLRD_MAX_TRY.value & ~decoded_wr_biten[8:0]) | (decoded_wr_data[8:0] & decoded_wr_biten[8:0]);
+            load_next_c = '1;
+        end
+        field_combo.SRC.CTRL_CONFIG.CTRLRD_MAX_TRY.next = next_c;
+        field_combo.SRC.CTRL_CONFIG.CTRLRD_MAX_TRY.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.CTRL_CONFIG.CTRLRD_MAX_TRY.value <= 9'h10;
+        end else begin
+            if(field_combo.SRC.CTRL_CONFIG.CTRLRD_MAX_TRY.load_next) begin
+                field_storage.SRC.CTRL_CONFIG.CTRLRD_MAX_TRY.value <= field_combo.SRC.CTRL_CONFIG.CTRLRD_MAX_TRY.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.CTRL_CONFIG.CTRLRD_MAX_TRY.value = field_storage.SRC.CTRL_CONFIG.CTRLRD_MAX_TRY.value;
+    // Field: rapids_regs.SRC.AXI_XFER_CONFIG.RD_XFER_BEATS
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.AXI_XFER_CONFIG.RD_XFER_BEATS.value;
+        next_c = field_storage.SRC.AXI_XFER_CONFIG.RD_XFER_BEATS.value;
         load_next_c = '0;
-        if(decoded_reg_strb.AXI_XFER_CONFIG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.AXI_XFER_CONFIG.RD_XFER_BEATS.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+        if(decoded_reg_strb.SRC.AXI_XFER_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.AXI_XFER_CONFIG.RD_XFER_BEATS.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
         end
-        field_combo.AXI_XFER_CONFIG.RD_XFER_BEATS.next = next_c;
-        field_combo.AXI_XFER_CONFIG.RD_XFER_BEATS.load_next = load_next_c;
+        field_combo.SRC.AXI_XFER_CONFIG.RD_XFER_BEATS.next = next_c;
+        field_combo.SRC.AXI_XFER_CONFIG.RD_XFER_BEATS.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.AXI_XFER_CONFIG.RD_XFER_BEATS.value <= 8'hf;
+            field_storage.SRC.AXI_XFER_CONFIG.RD_XFER_BEATS.value <= 8'hf;
         end else begin
-            if(field_combo.AXI_XFER_CONFIG.RD_XFER_BEATS.load_next) begin
-                field_storage.AXI_XFER_CONFIG.RD_XFER_BEATS.value <= field_combo.AXI_XFER_CONFIG.RD_XFER_BEATS.next;
+            if(field_combo.SRC.AXI_XFER_CONFIG.RD_XFER_BEATS.load_next) begin
+                field_storage.SRC.AXI_XFER_CONFIG.RD_XFER_BEATS.value <= field_combo.SRC.AXI_XFER_CONFIG.RD_XFER_BEATS.next;
             end
         end
     end
-    assign hwif_out.AXI_XFER_CONFIG.RD_XFER_BEATS.value = field_storage.AXI_XFER_CONFIG.RD_XFER_BEATS.value;
-    // Field: rapids_regs.AXI_XFER_CONFIG.WR_XFER_BEATS
+    assign hwif_out.SRC.AXI_XFER_CONFIG.RD_XFER_BEATS.value = field_storage.SRC.AXI_XFER_CONFIG.RD_XFER_BEATS.value;
+    // Field: rapids_regs.SRC.AXI_XFER_CONFIG.WR_XFER_BEATS
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.AXI_XFER_CONFIG.WR_XFER_BEATS.value;
+        next_c = field_storage.SRC.AXI_XFER_CONFIG.WR_XFER_BEATS.value;
         load_next_c = '0;
-        if(decoded_reg_strb.AXI_XFER_CONFIG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.AXI_XFER_CONFIG.WR_XFER_BEATS.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+        if(decoded_reg_strb.SRC.AXI_XFER_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.AXI_XFER_CONFIG.WR_XFER_BEATS.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
             load_next_c = '1;
         end
-        field_combo.AXI_XFER_CONFIG.WR_XFER_BEATS.next = next_c;
-        field_combo.AXI_XFER_CONFIG.WR_XFER_BEATS.load_next = load_next_c;
+        field_combo.SRC.AXI_XFER_CONFIG.WR_XFER_BEATS.next = next_c;
+        field_combo.SRC.AXI_XFER_CONFIG.WR_XFER_BEATS.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.AXI_XFER_CONFIG.WR_XFER_BEATS.value <= 8'hf;
+            field_storage.SRC.AXI_XFER_CONFIG.WR_XFER_BEATS.value <= 8'hf;
         end else begin
-            if(field_combo.AXI_XFER_CONFIG.WR_XFER_BEATS.load_next) begin
-                field_storage.AXI_XFER_CONFIG.WR_XFER_BEATS.value <= field_combo.AXI_XFER_CONFIG.WR_XFER_BEATS.next;
+            if(field_combo.SRC.AXI_XFER_CONFIG.WR_XFER_BEATS.load_next) begin
+                field_storage.SRC.AXI_XFER_CONFIG.WR_XFER_BEATS.value <= field_combo.SRC.AXI_XFER_CONFIG.WR_XFER_BEATS.next;
             end
         end
     end
-    assign hwif_out.AXI_XFER_CONFIG.WR_XFER_BEATS.value = field_storage.AXI_XFER_CONFIG.WR_XFER_BEATS.value;
-    // Field: rapids_regs.PERF_CONFIG.PERF_EN
+    assign hwif_out.SRC.AXI_XFER_CONFIG.WR_XFER_BEATS.value = field_storage.SRC.AXI_XFER_CONFIG.WR_XFER_BEATS.value;
+    // Field: rapids_regs.SRC.AXI_XFER_CONFIG.ALLOC_SIZE
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.AXI_XFER_CONFIG.ALLOC_SIZE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.AXI_XFER_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.AXI_XFER_CONFIG.ALLOC_SIZE.value & ~decoded_wr_biten[23:16]) | (decoded_wr_data[23:16] & decoded_wr_biten[23:16]);
+            load_next_c = '1;
+        end
+        field_combo.SRC.AXI_XFER_CONFIG.ALLOC_SIZE.next = next_c;
+        field_combo.SRC.AXI_XFER_CONFIG.ALLOC_SIZE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.AXI_XFER_CONFIG.ALLOC_SIZE.value <= 8'h10;
+        end else begin
+            if(field_combo.SRC.AXI_XFER_CONFIG.ALLOC_SIZE.load_next) begin
+                field_storage.SRC.AXI_XFER_CONFIG.ALLOC_SIZE.value <= field_combo.SRC.AXI_XFER_CONFIG.ALLOC_SIZE.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.AXI_XFER_CONFIG.ALLOC_SIZE.value = field_storage.SRC.AXI_XFER_CONFIG.ALLOC_SIZE.value;
+    // Field: rapids_regs.SRC.AXI_XFER_CONFIG.DRAIN_SIZE
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.AXI_XFER_CONFIG.DRAIN_SIZE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.AXI_XFER_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.AXI_XFER_CONFIG.DRAIN_SIZE.value & ~decoded_wr_biten[31:24]) | (decoded_wr_data[31:24] & decoded_wr_biten[31:24]);
+            load_next_c = '1;
+        end
+        field_combo.SRC.AXI_XFER_CONFIG.DRAIN_SIZE.next = next_c;
+        field_combo.SRC.AXI_XFER_CONFIG.DRAIN_SIZE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.AXI_XFER_CONFIG.DRAIN_SIZE.value <= 8'h10;
+        end else begin
+            if(field_combo.SRC.AXI_XFER_CONFIG.DRAIN_SIZE.load_next) begin
+                field_storage.SRC.AXI_XFER_CONFIG.DRAIN_SIZE.value <= field_combo.SRC.AXI_XFER_CONFIG.DRAIN_SIZE.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.AXI_XFER_CONFIG.DRAIN_SIZE.value = field_storage.SRC.AXI_XFER_CONFIG.DRAIN_SIZE.value;
+    // Field: rapids_regs.SRC.PERF_CONFIG.PERF_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.PERF_CONFIG.PERF_EN.value;
+        next_c = field_storage.SRC.PERF_CONFIG.PERF_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.PERF_CONFIG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.PERF_CONFIG.PERF_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+        if(decoded_reg_strb.SRC.PERF_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.PERF_CONFIG.PERF_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
             load_next_c = '1;
         end
-        field_combo.PERF_CONFIG.PERF_EN.next = next_c;
-        field_combo.PERF_CONFIG.PERF_EN.load_next = load_next_c;
+        field_combo.SRC.PERF_CONFIG.PERF_EN.next = next_c;
+        field_combo.SRC.PERF_CONFIG.PERF_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.PERF_CONFIG.PERF_EN.value <= 1'h0;
+            field_storage.SRC.PERF_CONFIG.PERF_EN.value <= 1'h0;
         end else begin
-            if(field_combo.PERF_CONFIG.PERF_EN.load_next) begin
-                field_storage.PERF_CONFIG.PERF_EN.value <= field_combo.PERF_CONFIG.PERF_EN.next;
+            if(field_combo.SRC.PERF_CONFIG.PERF_EN.load_next) begin
+                field_storage.SRC.PERF_CONFIG.PERF_EN.value <= field_combo.SRC.PERF_CONFIG.PERF_EN.next;
             end
         end
     end
-    assign hwif_out.PERF_CONFIG.PERF_EN.value = field_storage.PERF_CONFIG.PERF_EN.value;
-    // Field: rapids_regs.PERF_CONFIG.PERF_MODE
+    assign hwif_out.SRC.PERF_CONFIG.PERF_EN.value = field_storage.SRC.PERF_CONFIG.PERF_EN.value;
+    // Field: rapids_regs.SRC.PERF_CONFIG.PERF_MODE
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.PERF_CONFIG.PERF_MODE.value;
+        next_c = field_storage.SRC.PERF_CONFIG.PERF_MODE.value;
         load_next_c = '0;
-        if(decoded_reg_strb.PERF_CONFIG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.PERF_CONFIG.PERF_MODE.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+        if(decoded_reg_strb.SRC.PERF_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.PERF_CONFIG.PERF_MODE.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
             load_next_c = '1;
         end
-        field_combo.PERF_CONFIG.PERF_MODE.next = next_c;
-        field_combo.PERF_CONFIG.PERF_MODE.load_next = load_next_c;
+        field_combo.SRC.PERF_CONFIG.PERF_MODE.next = next_c;
+        field_combo.SRC.PERF_CONFIG.PERF_MODE.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.PERF_CONFIG.PERF_MODE.value <= 1'h0;
+            field_storage.SRC.PERF_CONFIG.PERF_MODE.value <= 1'h0;
         end else begin
-            if(field_combo.PERF_CONFIG.PERF_MODE.load_next) begin
-                field_storage.PERF_CONFIG.PERF_MODE.value <= field_combo.PERF_CONFIG.PERF_MODE.next;
+            if(field_combo.SRC.PERF_CONFIG.PERF_MODE.load_next) begin
+                field_storage.SRC.PERF_CONFIG.PERF_MODE.value <= field_combo.SRC.PERF_CONFIG.PERF_MODE.next;
             end
         end
     end
-    assign hwif_out.PERF_CONFIG.PERF_MODE.value = field_storage.PERF_CONFIG.PERF_MODE.value;
-    // Field: rapids_regs.PERF_CONFIG.PERF_CLEAR
+    assign hwif_out.SRC.PERF_CONFIG.PERF_MODE.value = field_storage.SRC.PERF_CONFIG.PERF_MODE.value;
+    // Field: rapids_regs.SRC.PERF_CONFIG.PERF_CLEAR
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.PERF_CONFIG.PERF_CLEAR.value;
+        next_c = field_storage.SRC.PERF_CONFIG.PERF_CLEAR.value;
         load_next_c = '0;
-        if(decoded_reg_strb.PERF_CONFIG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.PERF_CONFIG.PERF_CLEAR.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+        if(decoded_reg_strb.SRC.PERF_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.PERF_CONFIG.PERF_CLEAR.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
             load_next_c = '1;
         end
-        field_combo.PERF_CONFIG.PERF_CLEAR.next = next_c;
-        field_combo.PERF_CONFIG.PERF_CLEAR.load_next = load_next_c;
+        field_combo.SRC.PERF_CONFIG.PERF_CLEAR.next = next_c;
+        field_combo.SRC.PERF_CONFIG.PERF_CLEAR.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.PERF_CONFIG.PERF_CLEAR.value <= 1'h0;
+            field_storage.SRC.PERF_CONFIG.PERF_CLEAR.value <= 1'h0;
         end else begin
-            if(field_combo.PERF_CONFIG.PERF_CLEAR.load_next) begin
-                field_storage.PERF_CONFIG.PERF_CLEAR.value <= field_combo.PERF_CONFIG.PERF_CLEAR.next;
+            if(field_combo.SRC.PERF_CONFIG.PERF_CLEAR.load_next) begin
+                field_storage.SRC.PERF_CONFIG.PERF_CLEAR.value <= field_combo.SRC.PERF_CONFIG.PERF_CLEAR.next;
             end
         end
     end
-    assign hwif_out.PERF_CONFIG.PERF_CLEAR.value = field_storage.PERF_CONFIG.PERF_CLEAR.value;
-    assign hwif_out.PERF_CONFIG.PERF_CLEAR.swmod = decoded_reg_strb.PERF_CONFIG && decoded_req_is_wr && |(decoded_wr_biten[2:2]);
-    // Field: rapids_regs.OBS_CTRL.CH_SEL
+    assign hwif_out.SRC.PERF_CONFIG.PERF_CLEAR.value = field_storage.SRC.PERF_CONFIG.PERF_CLEAR.value;
+    assign hwif_out.SRC.PERF_CONFIG.PERF_CLEAR.swmod = decoded_reg_strb.SRC.PERF_CONFIG && decoded_req_is_wr && |(decoded_wr_biten[2:2]);
+    // Field: rapids_regs.SRC.OBS_CTRL.CH_SEL
     always_comb begin
         automatic logic [2:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.OBS_CTRL.CH_SEL.value;
+        next_c = field_storage.SRC.OBS_CTRL.CH_SEL.value;
         load_next_c = '0;
-        if(decoded_reg_strb.OBS_CTRL && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.OBS_CTRL.CH_SEL.value & ~decoded_wr_biten[2:0]) | (decoded_wr_data[2:0] & decoded_wr_biten[2:0]);
+        if(decoded_reg_strb.SRC.OBS_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.OBS_CTRL.CH_SEL.value & ~decoded_wr_biten[2:0]) | (decoded_wr_data[2:0] & decoded_wr_biten[2:0]);
             load_next_c = '1;
         end
-        field_combo.OBS_CTRL.CH_SEL.next = next_c;
-        field_combo.OBS_CTRL.CH_SEL.load_next = load_next_c;
+        field_combo.SRC.OBS_CTRL.CH_SEL.next = next_c;
+        field_combo.SRC.OBS_CTRL.CH_SEL.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.OBS_CTRL.CH_SEL.value <= 3'h0;
+            field_storage.SRC.OBS_CTRL.CH_SEL.value <= 3'h0;
         end else begin
-            if(field_combo.OBS_CTRL.CH_SEL.load_next) begin
-                field_storage.OBS_CTRL.CH_SEL.value <= field_combo.OBS_CTRL.CH_SEL.next;
+            if(field_combo.SRC.OBS_CTRL.CH_SEL.load_next) begin
+                field_storage.SRC.OBS_CTRL.CH_SEL.value <= field_combo.SRC.OBS_CTRL.CH_SEL.next;
             end
         end
     end
-    assign hwif_out.OBS_CTRL.CH_SEL.value = field_storage.OBS_CTRL.CH_SEL.value;
-    // Field: rapids_regs.OBS_CTRL.CAT_SEL
+    assign hwif_out.SRC.OBS_CTRL.CH_SEL.value = field_storage.SRC.OBS_CTRL.CH_SEL.value;
+    // Field: rapids_regs.SRC.OBS_CTRL.CAT_SEL
     always_comb begin
         automatic logic [1:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.OBS_CTRL.CAT_SEL.value;
+        next_c = field_storage.SRC.OBS_CTRL.CAT_SEL.value;
         load_next_c = '0;
-        if(decoded_reg_strb.OBS_CTRL && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.OBS_CTRL.CAT_SEL.value & ~decoded_wr_biten[4:3]) | (decoded_wr_data[4:3] & decoded_wr_biten[4:3]);
+        if(decoded_reg_strb.SRC.OBS_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.OBS_CTRL.CAT_SEL.value & ~decoded_wr_biten[4:3]) | (decoded_wr_data[4:3] & decoded_wr_biten[4:3]);
             load_next_c = '1;
         end
-        field_combo.OBS_CTRL.CAT_SEL.next = next_c;
-        field_combo.OBS_CTRL.CAT_SEL.load_next = load_next_c;
+        field_combo.SRC.OBS_CTRL.CAT_SEL.next = next_c;
+        field_combo.SRC.OBS_CTRL.CAT_SEL.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.OBS_CTRL.CAT_SEL.value <= 2'h0;
+            field_storage.SRC.OBS_CTRL.CAT_SEL.value <= 2'h0;
         end else begin
-            if(field_combo.OBS_CTRL.CAT_SEL.load_next) begin
-                field_storage.OBS_CTRL.CAT_SEL.value <= field_combo.OBS_CTRL.CAT_SEL.next;
+            if(field_combo.SRC.OBS_CTRL.CAT_SEL.load_next) begin
+                field_storage.SRC.OBS_CTRL.CAT_SEL.value <= field_combo.SRC.OBS_CTRL.CAT_SEL.next;
             end
         end
     end
-    assign hwif_out.OBS_CTRL.CAT_SEL.value = field_storage.OBS_CTRL.CAT_SEL.value;
-    // Field: rapids_regs.PERF_CH_SEL.CH_SEL
+    assign hwif_out.SRC.OBS_CTRL.CAT_SEL.value = field_storage.SRC.OBS_CTRL.CAT_SEL.value;
+    // Field: rapids_regs.SRC.PERF_CH_SEL.CH_SEL
     always_comb begin
         automatic logic [2:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.PERF_CH_SEL.CH_SEL.value;
+        next_c = field_storage.SRC.PERF_CH_SEL.CH_SEL.value;
         load_next_c = '0;
-        if(decoded_reg_strb.PERF_CH_SEL && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.PERF_CH_SEL.CH_SEL.value & ~decoded_wr_biten[2:0]) | (decoded_wr_data[2:0] & decoded_wr_biten[2:0]);
+        if(decoded_reg_strb.SRC.PERF_CH_SEL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.PERF_CH_SEL.CH_SEL.value & ~decoded_wr_biten[2:0]) | (decoded_wr_data[2:0] & decoded_wr_biten[2:0]);
             load_next_c = '1;
         end
-        field_combo.PERF_CH_SEL.CH_SEL.next = next_c;
-        field_combo.PERF_CH_SEL.CH_SEL.load_next = load_next_c;
+        field_combo.SRC.PERF_CH_SEL.CH_SEL.next = next_c;
+        field_combo.SRC.PERF_CH_SEL.CH_SEL.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.PERF_CH_SEL.CH_SEL.value <= 3'h0;
+            field_storage.SRC.PERF_CH_SEL.CH_SEL.value <= 3'h0;
         end else begin
-            if(field_combo.PERF_CH_SEL.CH_SEL.load_next) begin
-                field_storage.PERF_CH_SEL.CH_SEL.value <= field_combo.PERF_CH_SEL.CH_SEL.next;
+            if(field_combo.SRC.PERF_CH_SEL.CH_SEL.load_next) begin
+                field_storage.SRC.PERF_CH_SEL.CH_SEL.value <= field_combo.SRC.PERF_CH_SEL.CH_SEL.next;
             end
         end
     end
-    assign hwif_out.PERF_CH_SEL.CH_SEL.value = field_storage.PERF_CH_SEL.CH_SEL.value;
-    // Field: rapids_regs.HIST_SEL.BUS
+    assign hwif_out.SRC.PERF_CH_SEL.CH_SEL.value = field_storage.SRC.PERF_CH_SEL.CH_SEL.value;
+    // Field: rapids_regs.SRC.HIST_SEL.BUS
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.HIST_SEL.BUS.value;
+        next_c = field_storage.SRC.HIST_SEL.BUS.value;
         load_next_c = '0;
-        if(decoded_reg_strb.HIST_SEL && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.HIST_SEL.BUS.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+        if(decoded_reg_strb.SRC.HIST_SEL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.HIST_SEL.BUS.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
             load_next_c = '1;
         end
-        field_combo.HIST_SEL.BUS.next = next_c;
-        field_combo.HIST_SEL.BUS.load_next = load_next_c;
+        field_combo.SRC.HIST_SEL.BUS.next = next_c;
+        field_combo.SRC.HIST_SEL.BUS.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.HIST_SEL.BUS.value <= 1'h0;
+            field_storage.SRC.HIST_SEL.BUS.value <= 1'h0;
         end else begin
-            if(field_combo.HIST_SEL.BUS.load_next) begin
-                field_storage.HIST_SEL.BUS.value <= field_combo.HIST_SEL.BUS.next;
+            if(field_combo.SRC.HIST_SEL.BUS.load_next) begin
+                field_storage.SRC.HIST_SEL.BUS.value <= field_combo.SRC.HIST_SEL.BUS.next;
             end
         end
     end
-    assign hwif_out.HIST_SEL.BUS.value = field_storage.HIST_SEL.BUS.value;
-    // Field: rapids_regs.HIST_SEL.METRIC
+    assign hwif_out.SRC.HIST_SEL.BUS.value = field_storage.SRC.HIST_SEL.BUS.value;
+    // Field: rapids_regs.SRC.HIST_SEL.METRIC
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.HIST_SEL.METRIC.value;
+        next_c = field_storage.SRC.HIST_SEL.METRIC.value;
         load_next_c = '0;
-        if(decoded_reg_strb.HIST_SEL && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.HIST_SEL.METRIC.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+        if(decoded_reg_strb.SRC.HIST_SEL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.HIST_SEL.METRIC.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
             load_next_c = '1;
         end
-        field_combo.HIST_SEL.METRIC.next = next_c;
-        field_combo.HIST_SEL.METRIC.load_next = load_next_c;
+        field_combo.SRC.HIST_SEL.METRIC.next = next_c;
+        field_combo.SRC.HIST_SEL.METRIC.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.HIST_SEL.METRIC.value <= 1'h0;
+            field_storage.SRC.HIST_SEL.METRIC.value <= 1'h0;
         end else begin
-            if(field_combo.HIST_SEL.METRIC.load_next) begin
-                field_storage.HIST_SEL.METRIC.value <= field_combo.HIST_SEL.METRIC.next;
+            if(field_combo.SRC.HIST_SEL.METRIC.load_next) begin
+                field_storage.SRC.HIST_SEL.METRIC.value <= field_combo.SRC.HIST_SEL.METRIC.next;
             end
         end
     end
-    assign hwif_out.HIST_SEL.METRIC.value = field_storage.HIST_SEL.METRIC.value;
-    // Field: rapids_regs.HIST_SEL.BIN
+    assign hwif_out.SRC.HIST_SEL.METRIC.value = field_storage.SRC.HIST_SEL.METRIC.value;
+    // Field: rapids_regs.SRC.HIST_SEL.BIN
     always_comb begin
         automatic logic [3:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.HIST_SEL.BIN.value;
+        next_c = field_storage.SRC.HIST_SEL.BIN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.HIST_SEL && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.HIST_SEL.BIN.value & ~decoded_wr_biten[5:2]) | (decoded_wr_data[5:2] & decoded_wr_biten[5:2]);
+        if(decoded_reg_strb.SRC.HIST_SEL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.HIST_SEL.BIN.value & ~decoded_wr_biten[5:2]) | (decoded_wr_data[5:2] & decoded_wr_biten[5:2]);
             load_next_c = '1;
         end
-        field_combo.HIST_SEL.BIN.next = next_c;
-        field_combo.HIST_SEL.BIN.load_next = load_next_c;
+        field_combo.SRC.HIST_SEL.BIN.next = next_c;
+        field_combo.SRC.HIST_SEL.BIN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.HIST_SEL.BIN.value <= 4'h0;
+            field_storage.SRC.HIST_SEL.BIN.value <= 4'h0;
         end else begin
-            if(field_combo.HIST_SEL.BIN.load_next) begin
-                field_storage.HIST_SEL.BIN.value <= field_combo.HIST_SEL.BIN.next;
+            if(field_combo.SRC.HIST_SEL.BIN.load_next) begin
+                field_storage.SRC.HIST_SEL.BIN.value <= field_combo.SRC.HIST_SEL.BIN.next;
             end
         end
     end
-    assign hwif_out.HIST_SEL.BIN.value = field_storage.HIST_SEL.BIN.value;
-    // Field: rapids_regs.MON.DAXMON_ENABLE.MON_EN
+    assign hwif_out.SRC.HIST_SEL.BIN.value = field_storage.SRC.HIST_SEL.BIN.value;
+    // Field: rapids_regs.SRC.MON.DAXMON_ENABLE.MON_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.DAXMON_ENABLE.MON_EN.value;
+        next_c = field_storage.SRC.MON.DAXMON_ENABLE.MON_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.DAXMON_ENABLE && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_ENABLE.MON_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+        if(decoded_reg_strb.SRC.MON.DAXMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.DAXMON_ENABLE.MON_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
             load_next_c = '1;
         end
-        field_combo.MON.DAXMON_ENABLE.MON_EN.next = next_c;
-        field_combo.MON.DAXMON_ENABLE.MON_EN.load_next = load_next_c;
+        field_combo.SRC.MON.DAXMON_ENABLE.MON_EN.next = next_c;
+        field_combo.SRC.MON.DAXMON_ENABLE.MON_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_ENABLE.MON_EN.value <= 1'h0;
+            field_storage.SRC.MON.DAXMON_ENABLE.MON_EN.value <= 1'h0;
         end else begin
-            if(field_combo.MON.DAXMON_ENABLE.MON_EN.load_next) begin
-                field_storage.MON.DAXMON_ENABLE.MON_EN.value <= field_combo.MON.DAXMON_ENABLE.MON_EN.next;
+            if(field_combo.SRC.MON.DAXMON_ENABLE.MON_EN.load_next) begin
+                field_storage.SRC.MON.DAXMON_ENABLE.MON_EN.value <= field_combo.SRC.MON.DAXMON_ENABLE.MON_EN.next;
             end
         end
     end
-    assign hwif_out.MON.DAXMON_ENABLE.MON_EN.value = field_storage.MON.DAXMON_ENABLE.MON_EN.value;
-    // Field: rapids_regs.MON.DAXMON_ENABLE.ERR_EN
+    assign hwif_out.SRC.MON.DAXMON_ENABLE.MON_EN.value = field_storage.SRC.MON.DAXMON_ENABLE.MON_EN.value;
+    // Field: rapids_regs.SRC.MON.DAXMON_ENABLE.ERR_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.DAXMON_ENABLE.ERR_EN.value;
+        next_c = field_storage.SRC.MON.DAXMON_ENABLE.ERR_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.DAXMON_ENABLE && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_ENABLE.ERR_EN.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+        if(decoded_reg_strb.SRC.MON.DAXMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.DAXMON_ENABLE.ERR_EN.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
             load_next_c = '1;
         end
-        field_combo.MON.DAXMON_ENABLE.ERR_EN.next = next_c;
-        field_combo.MON.DAXMON_ENABLE.ERR_EN.load_next = load_next_c;
+        field_combo.SRC.MON.DAXMON_ENABLE.ERR_EN.next = next_c;
+        field_combo.SRC.MON.DAXMON_ENABLE.ERR_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_ENABLE.ERR_EN.value <= 1'h0;
+            field_storage.SRC.MON.DAXMON_ENABLE.ERR_EN.value <= 1'h0;
         end else begin
-            if(field_combo.MON.DAXMON_ENABLE.ERR_EN.load_next) begin
-                field_storage.MON.DAXMON_ENABLE.ERR_EN.value <= field_combo.MON.DAXMON_ENABLE.ERR_EN.next;
+            if(field_combo.SRC.MON.DAXMON_ENABLE.ERR_EN.load_next) begin
+                field_storage.SRC.MON.DAXMON_ENABLE.ERR_EN.value <= field_combo.SRC.MON.DAXMON_ENABLE.ERR_EN.next;
             end
         end
     end
-    assign hwif_out.MON.DAXMON_ENABLE.ERR_EN.value = field_storage.MON.DAXMON_ENABLE.ERR_EN.value;
-    // Field: rapids_regs.MON.DAXMON_ENABLE.COMPL_EN
+    assign hwif_out.SRC.MON.DAXMON_ENABLE.ERR_EN.value = field_storage.SRC.MON.DAXMON_ENABLE.ERR_EN.value;
+    // Field: rapids_regs.SRC.MON.DAXMON_ENABLE.COMPL_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.DAXMON_ENABLE.COMPL_EN.value;
+        next_c = field_storage.SRC.MON.DAXMON_ENABLE.COMPL_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.DAXMON_ENABLE && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_ENABLE.COMPL_EN.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+        if(decoded_reg_strb.SRC.MON.DAXMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.DAXMON_ENABLE.COMPL_EN.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
             load_next_c = '1;
         end
-        field_combo.MON.DAXMON_ENABLE.COMPL_EN.next = next_c;
-        field_combo.MON.DAXMON_ENABLE.COMPL_EN.load_next = load_next_c;
+        field_combo.SRC.MON.DAXMON_ENABLE.COMPL_EN.next = next_c;
+        field_combo.SRC.MON.DAXMON_ENABLE.COMPL_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_ENABLE.COMPL_EN.value <= 1'h0;
+            field_storage.SRC.MON.DAXMON_ENABLE.COMPL_EN.value <= 1'h0;
         end else begin
-            if(field_combo.MON.DAXMON_ENABLE.COMPL_EN.load_next) begin
-                field_storage.MON.DAXMON_ENABLE.COMPL_EN.value <= field_combo.MON.DAXMON_ENABLE.COMPL_EN.next;
+            if(field_combo.SRC.MON.DAXMON_ENABLE.COMPL_EN.load_next) begin
+                field_storage.SRC.MON.DAXMON_ENABLE.COMPL_EN.value <= field_combo.SRC.MON.DAXMON_ENABLE.COMPL_EN.next;
             end
         end
     end
-    assign hwif_out.MON.DAXMON_ENABLE.COMPL_EN.value = field_storage.MON.DAXMON_ENABLE.COMPL_EN.value;
-    // Field: rapids_regs.MON.DAXMON_ENABLE.TIMEOUT_EN
+    assign hwif_out.SRC.MON.DAXMON_ENABLE.COMPL_EN.value = field_storage.SRC.MON.DAXMON_ENABLE.COMPL_EN.value;
+    // Field: rapids_regs.SRC.MON.DAXMON_ENABLE.TIMEOUT_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.DAXMON_ENABLE.TIMEOUT_EN.value;
+        next_c = field_storage.SRC.MON.DAXMON_ENABLE.TIMEOUT_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.DAXMON_ENABLE && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_ENABLE.TIMEOUT_EN.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+        if(decoded_reg_strb.SRC.MON.DAXMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.DAXMON_ENABLE.TIMEOUT_EN.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
             load_next_c = '1;
         end
-        field_combo.MON.DAXMON_ENABLE.TIMEOUT_EN.next = next_c;
-        field_combo.MON.DAXMON_ENABLE.TIMEOUT_EN.load_next = load_next_c;
+        field_combo.SRC.MON.DAXMON_ENABLE.TIMEOUT_EN.next = next_c;
+        field_combo.SRC.MON.DAXMON_ENABLE.TIMEOUT_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_ENABLE.TIMEOUT_EN.value <= 1'h0;
+            field_storage.SRC.MON.DAXMON_ENABLE.TIMEOUT_EN.value <= 1'h0;
         end else begin
-            if(field_combo.MON.DAXMON_ENABLE.TIMEOUT_EN.load_next) begin
-                field_storage.MON.DAXMON_ENABLE.TIMEOUT_EN.value <= field_combo.MON.DAXMON_ENABLE.TIMEOUT_EN.next;
+            if(field_combo.SRC.MON.DAXMON_ENABLE.TIMEOUT_EN.load_next) begin
+                field_storage.SRC.MON.DAXMON_ENABLE.TIMEOUT_EN.value <= field_combo.SRC.MON.DAXMON_ENABLE.TIMEOUT_EN.next;
             end
         end
     end
-    assign hwif_out.MON.DAXMON_ENABLE.TIMEOUT_EN.value = field_storage.MON.DAXMON_ENABLE.TIMEOUT_EN.value;
-    // Field: rapids_regs.MON.DAXMON_ENABLE.PERF_EN
+    assign hwif_out.SRC.MON.DAXMON_ENABLE.TIMEOUT_EN.value = field_storage.SRC.MON.DAXMON_ENABLE.TIMEOUT_EN.value;
+    // Field: rapids_regs.SRC.MON.DAXMON_ENABLE.PERF_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.DAXMON_ENABLE.PERF_EN.value;
+        next_c = field_storage.SRC.MON.DAXMON_ENABLE.PERF_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.DAXMON_ENABLE && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_ENABLE.PERF_EN.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+        if(decoded_reg_strb.SRC.MON.DAXMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.DAXMON_ENABLE.PERF_EN.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
             load_next_c = '1;
         end
-        field_combo.MON.DAXMON_ENABLE.PERF_EN.next = next_c;
-        field_combo.MON.DAXMON_ENABLE.PERF_EN.load_next = load_next_c;
+        field_combo.SRC.MON.DAXMON_ENABLE.PERF_EN.next = next_c;
+        field_combo.SRC.MON.DAXMON_ENABLE.PERF_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_ENABLE.PERF_EN.value <= 1'h0;
+            field_storage.SRC.MON.DAXMON_ENABLE.PERF_EN.value <= 1'h0;
         end else begin
-            if(field_combo.MON.DAXMON_ENABLE.PERF_EN.load_next) begin
-                field_storage.MON.DAXMON_ENABLE.PERF_EN.value <= field_combo.MON.DAXMON_ENABLE.PERF_EN.next;
+            if(field_combo.SRC.MON.DAXMON_ENABLE.PERF_EN.load_next) begin
+                field_storage.SRC.MON.DAXMON_ENABLE.PERF_EN.value <= field_combo.SRC.MON.DAXMON_ENABLE.PERF_EN.next;
             end
         end
     end
-    assign hwif_out.MON.DAXMON_ENABLE.PERF_EN.value = field_storage.MON.DAXMON_ENABLE.PERF_EN.value;
-    // Field: rapids_regs.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES
+    assign hwif_out.SRC.MON.DAXMON_ENABLE.PERF_EN.value = field_storage.SRC.MON.DAXMON_ENABLE.PERF_EN.value;
+    // Field: rapids_regs.SRC.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES
     always_comb begin
         automatic logic [31:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value;
+        next_c = field_storage.SRC.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.DAXMON_TIMEOUT && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+        if(decoded_reg_strb.SRC.MON.DAXMON_TIMEOUT && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
             load_next_c = '1;
         end
-        field_combo.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.next = next_c;
-        field_combo.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.load_next = load_next_c;
+        field_combo.SRC.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.next = next_c;
+        field_combo.SRC.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value <= 32'h2710;
+            field_storage.SRC.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value <= 32'h2710;
         end else begin
-            if(field_combo.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.load_next) begin
-                field_storage.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value <= field_combo.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.next;
+            if(field_combo.SRC.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.load_next) begin
+                field_storage.SRC.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value <= field_combo.SRC.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.next;
             end
         end
     end
-    assign hwif_out.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value = field_storage.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value;
-    // Field: rapids_regs.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH
+    assign hwif_out.SRC.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value = field_storage.SRC.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value;
+    // Field: rapids_regs.SRC.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH
     always_comb begin
         automatic logic [31:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value;
+        next_c = field_storage.SRC.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.DAXMON_LATENCY_THRESH && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+        if(decoded_reg_strb.SRC.MON.DAXMON_LATENCY_THRESH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
             load_next_c = '1;
         end
-        field_combo.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.next = next_c;
-        field_combo.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.load_next = load_next_c;
+        field_combo.SRC.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.next = next_c;
+        field_combo.SRC.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value <= 32'h1388;
+            field_storage.SRC.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value <= 32'h1388;
         end else begin
-            if(field_combo.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.load_next) begin
-                field_storage.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value <= field_combo.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.next;
+            if(field_combo.SRC.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.load_next) begin
+                field_storage.SRC.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value <= field_combo.SRC.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.next;
             end
         end
     end
-    assign hwif_out.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value = field_storage.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value;
-    // Field: rapids_regs.MON.DAXMON_PKT_MASK.PKT_MASK
+    assign hwif_out.SRC.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value = field_storage.SRC.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value;
+    // Field: rapids_regs.SRC.MON.DAXMON_PKT_MASK.PKT_MASK
     always_comb begin
         automatic logic [15:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.DAXMON_PKT_MASK.PKT_MASK.value;
+        next_c = field_storage.SRC.MON.DAXMON_PKT_MASK.PKT_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.DAXMON_PKT_MASK && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_PKT_MASK.PKT_MASK.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+        if(decoded_reg_strb.SRC.MON.DAXMON_PKT_MASK && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.DAXMON_PKT_MASK.PKT_MASK.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
-        field_combo.MON.DAXMON_PKT_MASK.PKT_MASK.next = next_c;
-        field_combo.MON.DAXMON_PKT_MASK.PKT_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.DAXMON_PKT_MASK.PKT_MASK.next = next_c;
+        field_combo.SRC.MON.DAXMON_PKT_MASK.PKT_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_PKT_MASK.PKT_MASK.value <= 16'hffff;
+            field_storage.SRC.MON.DAXMON_PKT_MASK.PKT_MASK.value <= 16'hffff;
         end else begin
-            if(field_combo.MON.DAXMON_PKT_MASK.PKT_MASK.load_next) begin
-                field_storage.MON.DAXMON_PKT_MASK.PKT_MASK.value <= field_combo.MON.DAXMON_PKT_MASK.PKT_MASK.next;
+            if(field_combo.SRC.MON.DAXMON_PKT_MASK.PKT_MASK.load_next) begin
+                field_storage.SRC.MON.DAXMON_PKT_MASK.PKT_MASK.value <= field_combo.SRC.MON.DAXMON_PKT_MASK.PKT_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.DAXMON_PKT_MASK.PKT_MASK.value = field_storage.MON.DAXMON_PKT_MASK.PKT_MASK.value;
-    // Field: rapids_regs.MON.DAXMON_ERR_CFG.ERR_SELECT
+    assign hwif_out.SRC.MON.DAXMON_PKT_MASK.PKT_MASK.value = field_storage.SRC.MON.DAXMON_PKT_MASK.PKT_MASK.value;
+    // Field: rapids_regs.SRC.MON.DAXMON_ERR_CFG.ERR_SELECT
     always_comb begin
         automatic logic [3:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.DAXMON_ERR_CFG.ERR_SELECT.value;
+        next_c = field_storage.SRC.MON.DAXMON_ERR_CFG.ERR_SELECT.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.DAXMON_ERR_CFG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_ERR_CFG.ERR_SELECT.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
+        if(decoded_reg_strb.SRC.MON.DAXMON_ERR_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.DAXMON_ERR_CFG.ERR_SELECT.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
             load_next_c = '1;
         end
-        field_combo.MON.DAXMON_ERR_CFG.ERR_SELECT.next = next_c;
-        field_combo.MON.DAXMON_ERR_CFG.ERR_SELECT.load_next = load_next_c;
+        field_combo.SRC.MON.DAXMON_ERR_CFG.ERR_SELECT.next = next_c;
+        field_combo.SRC.MON.DAXMON_ERR_CFG.ERR_SELECT.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_ERR_CFG.ERR_SELECT.value <= 4'h0;
+            field_storage.SRC.MON.DAXMON_ERR_CFG.ERR_SELECT.value <= 4'h0;
         end else begin
-            if(field_combo.MON.DAXMON_ERR_CFG.ERR_SELECT.load_next) begin
-                field_storage.MON.DAXMON_ERR_CFG.ERR_SELECT.value <= field_combo.MON.DAXMON_ERR_CFG.ERR_SELECT.next;
+            if(field_combo.SRC.MON.DAXMON_ERR_CFG.ERR_SELECT.load_next) begin
+                field_storage.SRC.MON.DAXMON_ERR_CFG.ERR_SELECT.value <= field_combo.SRC.MON.DAXMON_ERR_CFG.ERR_SELECT.next;
             end
         end
     end
-    assign hwif_out.MON.DAXMON_ERR_CFG.ERR_SELECT.value = field_storage.MON.DAXMON_ERR_CFG.ERR_SELECT.value;
-    // Field: rapids_regs.MON.DAXMON_ERR_CFG.ERR_MASK
+    assign hwif_out.SRC.MON.DAXMON_ERR_CFG.ERR_SELECT.value = field_storage.SRC.MON.DAXMON_ERR_CFG.ERR_SELECT.value;
+    // Field: rapids_regs.SRC.MON.DAXMON_ERR_CFG.ERR_MASK
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.DAXMON_ERR_CFG.ERR_MASK.value;
+        next_c = field_storage.SRC.MON.DAXMON_ERR_CFG.ERR_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.DAXMON_ERR_CFG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_ERR_CFG.ERR_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+        if(decoded_reg_strb.SRC.MON.DAXMON_ERR_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.DAXMON_ERR_CFG.ERR_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
             load_next_c = '1;
         end
-        field_combo.MON.DAXMON_ERR_CFG.ERR_MASK.next = next_c;
-        field_combo.MON.DAXMON_ERR_CFG.ERR_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.DAXMON_ERR_CFG.ERR_MASK.next = next_c;
+        field_combo.SRC.MON.DAXMON_ERR_CFG.ERR_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_ERR_CFG.ERR_MASK.value <= 8'hff;
+            field_storage.SRC.MON.DAXMON_ERR_CFG.ERR_MASK.value <= 8'hff;
         end else begin
-            if(field_combo.MON.DAXMON_ERR_CFG.ERR_MASK.load_next) begin
-                field_storage.MON.DAXMON_ERR_CFG.ERR_MASK.value <= field_combo.MON.DAXMON_ERR_CFG.ERR_MASK.next;
+            if(field_combo.SRC.MON.DAXMON_ERR_CFG.ERR_MASK.load_next) begin
+                field_storage.SRC.MON.DAXMON_ERR_CFG.ERR_MASK.value <= field_combo.SRC.MON.DAXMON_ERR_CFG.ERR_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.DAXMON_ERR_CFG.ERR_MASK.value = field_storage.MON.DAXMON_ERR_CFG.ERR_MASK.value;
-    // Field: rapids_regs.MON.DAXMON_MASK1.TIMEOUT_MASK
+    assign hwif_out.SRC.MON.DAXMON_ERR_CFG.ERR_MASK.value = field_storage.SRC.MON.DAXMON_ERR_CFG.ERR_MASK.value;
+    // Field: rapids_regs.SRC.MON.DAXMON_MASK1.TIMEOUT_MASK
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.DAXMON_MASK1.TIMEOUT_MASK.value;
+        next_c = field_storage.SRC.MON.DAXMON_MASK1.TIMEOUT_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.DAXMON_MASK1 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_MASK1.TIMEOUT_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+        if(decoded_reg_strb.SRC.MON.DAXMON_MASK1 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.DAXMON_MASK1.TIMEOUT_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
         end
-        field_combo.MON.DAXMON_MASK1.TIMEOUT_MASK.next = next_c;
-        field_combo.MON.DAXMON_MASK1.TIMEOUT_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.DAXMON_MASK1.TIMEOUT_MASK.next = next_c;
+        field_combo.SRC.MON.DAXMON_MASK1.TIMEOUT_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_MASK1.TIMEOUT_MASK.value <= 8'hff;
+            field_storage.SRC.MON.DAXMON_MASK1.TIMEOUT_MASK.value <= 8'hff;
         end else begin
-            if(field_combo.MON.DAXMON_MASK1.TIMEOUT_MASK.load_next) begin
-                field_storage.MON.DAXMON_MASK1.TIMEOUT_MASK.value <= field_combo.MON.DAXMON_MASK1.TIMEOUT_MASK.next;
+            if(field_combo.SRC.MON.DAXMON_MASK1.TIMEOUT_MASK.load_next) begin
+                field_storage.SRC.MON.DAXMON_MASK1.TIMEOUT_MASK.value <= field_combo.SRC.MON.DAXMON_MASK1.TIMEOUT_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.DAXMON_MASK1.TIMEOUT_MASK.value = field_storage.MON.DAXMON_MASK1.TIMEOUT_MASK.value;
-    // Field: rapids_regs.MON.DAXMON_MASK1.COMPL_MASK
+    assign hwif_out.SRC.MON.DAXMON_MASK1.TIMEOUT_MASK.value = field_storage.SRC.MON.DAXMON_MASK1.TIMEOUT_MASK.value;
+    // Field: rapids_regs.SRC.MON.DAXMON_MASK1.COMPL_MASK
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.DAXMON_MASK1.COMPL_MASK.value;
+        next_c = field_storage.SRC.MON.DAXMON_MASK1.COMPL_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.DAXMON_MASK1 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_MASK1.COMPL_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+        if(decoded_reg_strb.SRC.MON.DAXMON_MASK1 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.DAXMON_MASK1.COMPL_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
             load_next_c = '1;
         end
-        field_combo.MON.DAXMON_MASK1.COMPL_MASK.next = next_c;
-        field_combo.MON.DAXMON_MASK1.COMPL_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.DAXMON_MASK1.COMPL_MASK.next = next_c;
+        field_combo.SRC.MON.DAXMON_MASK1.COMPL_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_MASK1.COMPL_MASK.value <= 8'h0;
+            field_storage.SRC.MON.DAXMON_MASK1.COMPL_MASK.value <= 8'h0;
         end else begin
-            if(field_combo.MON.DAXMON_MASK1.COMPL_MASK.load_next) begin
-                field_storage.MON.DAXMON_MASK1.COMPL_MASK.value <= field_combo.MON.DAXMON_MASK1.COMPL_MASK.next;
+            if(field_combo.SRC.MON.DAXMON_MASK1.COMPL_MASK.load_next) begin
+                field_storage.SRC.MON.DAXMON_MASK1.COMPL_MASK.value <= field_combo.SRC.MON.DAXMON_MASK1.COMPL_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.DAXMON_MASK1.COMPL_MASK.value = field_storage.MON.DAXMON_MASK1.COMPL_MASK.value;
-    // Field: rapids_regs.MON.DAXMON_MASK2.THRESH_MASK
+    assign hwif_out.SRC.MON.DAXMON_MASK1.COMPL_MASK.value = field_storage.SRC.MON.DAXMON_MASK1.COMPL_MASK.value;
+    // Field: rapids_regs.SRC.MON.DAXMON_MASK2.THRESH_MASK
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.DAXMON_MASK2.THRESH_MASK.value;
+        next_c = field_storage.SRC.MON.DAXMON_MASK2.THRESH_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.DAXMON_MASK2 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_MASK2.THRESH_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+        if(decoded_reg_strb.SRC.MON.DAXMON_MASK2 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.DAXMON_MASK2.THRESH_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
         end
-        field_combo.MON.DAXMON_MASK2.THRESH_MASK.next = next_c;
-        field_combo.MON.DAXMON_MASK2.THRESH_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.DAXMON_MASK2.THRESH_MASK.next = next_c;
+        field_combo.SRC.MON.DAXMON_MASK2.THRESH_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_MASK2.THRESH_MASK.value <= 8'hff;
+            field_storage.SRC.MON.DAXMON_MASK2.THRESH_MASK.value <= 8'hff;
         end else begin
-            if(field_combo.MON.DAXMON_MASK2.THRESH_MASK.load_next) begin
-                field_storage.MON.DAXMON_MASK2.THRESH_MASK.value <= field_combo.MON.DAXMON_MASK2.THRESH_MASK.next;
+            if(field_combo.SRC.MON.DAXMON_MASK2.THRESH_MASK.load_next) begin
+                field_storage.SRC.MON.DAXMON_MASK2.THRESH_MASK.value <= field_combo.SRC.MON.DAXMON_MASK2.THRESH_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.DAXMON_MASK2.THRESH_MASK.value = field_storage.MON.DAXMON_MASK2.THRESH_MASK.value;
-    // Field: rapids_regs.MON.DAXMON_MASK2.PERF_MASK
+    assign hwif_out.SRC.MON.DAXMON_MASK2.THRESH_MASK.value = field_storage.SRC.MON.DAXMON_MASK2.THRESH_MASK.value;
+    // Field: rapids_regs.SRC.MON.DAXMON_MASK2.PERF_MASK
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.DAXMON_MASK2.PERF_MASK.value;
+        next_c = field_storage.SRC.MON.DAXMON_MASK2.PERF_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.DAXMON_MASK2 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_MASK2.PERF_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+        if(decoded_reg_strb.SRC.MON.DAXMON_MASK2 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.DAXMON_MASK2.PERF_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
             load_next_c = '1;
         end
-        field_combo.MON.DAXMON_MASK2.PERF_MASK.next = next_c;
-        field_combo.MON.DAXMON_MASK2.PERF_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.DAXMON_MASK2.PERF_MASK.next = next_c;
+        field_combo.SRC.MON.DAXMON_MASK2.PERF_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_MASK2.PERF_MASK.value <= 8'h0;
+            field_storage.SRC.MON.DAXMON_MASK2.PERF_MASK.value <= 8'h0;
         end else begin
-            if(field_combo.MON.DAXMON_MASK2.PERF_MASK.load_next) begin
-                field_storage.MON.DAXMON_MASK2.PERF_MASK.value <= field_combo.MON.DAXMON_MASK2.PERF_MASK.next;
+            if(field_combo.SRC.MON.DAXMON_MASK2.PERF_MASK.load_next) begin
+                field_storage.SRC.MON.DAXMON_MASK2.PERF_MASK.value <= field_combo.SRC.MON.DAXMON_MASK2.PERF_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.DAXMON_MASK2.PERF_MASK.value = field_storage.MON.DAXMON_MASK2.PERF_MASK.value;
-    // Field: rapids_regs.MON.DAXMON_MASK3.ADDR_MASK
+    assign hwif_out.SRC.MON.DAXMON_MASK2.PERF_MASK.value = field_storage.SRC.MON.DAXMON_MASK2.PERF_MASK.value;
+    // Field: rapids_regs.SRC.MON.DAXMON_MASK3.ADDR_MASK
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.DAXMON_MASK3.ADDR_MASK.value;
+        next_c = field_storage.SRC.MON.DAXMON_MASK3.ADDR_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.DAXMON_MASK3 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_MASK3.ADDR_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+        if(decoded_reg_strb.SRC.MON.DAXMON_MASK3 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.DAXMON_MASK3.ADDR_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
         end
-        field_combo.MON.DAXMON_MASK3.ADDR_MASK.next = next_c;
-        field_combo.MON.DAXMON_MASK3.ADDR_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.DAXMON_MASK3.ADDR_MASK.next = next_c;
+        field_combo.SRC.MON.DAXMON_MASK3.ADDR_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_MASK3.ADDR_MASK.value <= 8'hff;
+            field_storage.SRC.MON.DAXMON_MASK3.ADDR_MASK.value <= 8'hff;
         end else begin
-            if(field_combo.MON.DAXMON_MASK3.ADDR_MASK.load_next) begin
-                field_storage.MON.DAXMON_MASK3.ADDR_MASK.value <= field_combo.MON.DAXMON_MASK3.ADDR_MASK.next;
+            if(field_combo.SRC.MON.DAXMON_MASK3.ADDR_MASK.load_next) begin
+                field_storage.SRC.MON.DAXMON_MASK3.ADDR_MASK.value <= field_combo.SRC.MON.DAXMON_MASK3.ADDR_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.DAXMON_MASK3.ADDR_MASK.value = field_storage.MON.DAXMON_MASK3.ADDR_MASK.value;
-    // Field: rapids_regs.MON.DAXMON_MASK3.DEBUG_MASK
+    assign hwif_out.SRC.MON.DAXMON_MASK3.ADDR_MASK.value = field_storage.SRC.MON.DAXMON_MASK3.ADDR_MASK.value;
+    // Field: rapids_regs.SRC.MON.DAXMON_MASK3.DEBUG_MASK
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.DAXMON_MASK3.DEBUG_MASK.value;
+        next_c = field_storage.SRC.MON.DAXMON_MASK3.DEBUG_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.DAXMON_MASK3 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_MASK3.DEBUG_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+        if(decoded_reg_strb.SRC.MON.DAXMON_MASK3 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.DAXMON_MASK3.DEBUG_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
             load_next_c = '1;
         end
-        field_combo.MON.DAXMON_MASK3.DEBUG_MASK.next = next_c;
-        field_combo.MON.DAXMON_MASK3.DEBUG_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.DAXMON_MASK3.DEBUG_MASK.next = next_c;
+        field_combo.SRC.MON.DAXMON_MASK3.DEBUG_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_MASK3.DEBUG_MASK.value <= 8'h0;
+            field_storage.SRC.MON.DAXMON_MASK3.DEBUG_MASK.value <= 8'h0;
         end else begin
-            if(field_combo.MON.DAXMON_MASK3.DEBUG_MASK.load_next) begin
-                field_storage.MON.DAXMON_MASK3.DEBUG_MASK.value <= field_combo.MON.DAXMON_MASK3.DEBUG_MASK.next;
+            if(field_combo.SRC.MON.DAXMON_MASK3.DEBUG_MASK.load_next) begin
+                field_storage.SRC.MON.DAXMON_MASK3.DEBUG_MASK.value <= field_combo.SRC.MON.DAXMON_MASK3.DEBUG_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.DAXMON_MASK3.DEBUG_MASK.value = field_storage.MON.DAXMON_MASK3.DEBUG_MASK.value;
-    // Field: rapids_regs.MON.RDMON_ENABLE.MON_EN
+    assign hwif_out.SRC.MON.DAXMON_MASK3.DEBUG_MASK.value = field_storage.SRC.MON.DAXMON_MASK3.DEBUG_MASK.value;
+    // Field: rapids_regs.SRC.MON.RDMON_ENABLE.MON_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.RDMON_ENABLE.MON_EN.value;
+        next_c = field_storage.SRC.MON.RDMON_ENABLE.MON_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.RDMON_ENABLE && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_ENABLE.MON_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+        if(decoded_reg_strb.SRC.MON.RDMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.RDMON_ENABLE.MON_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
             load_next_c = '1;
         end
-        field_combo.MON.RDMON_ENABLE.MON_EN.next = next_c;
-        field_combo.MON.RDMON_ENABLE.MON_EN.load_next = load_next_c;
+        field_combo.SRC.MON.RDMON_ENABLE.MON_EN.next = next_c;
+        field_combo.SRC.MON.RDMON_ENABLE.MON_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_ENABLE.MON_EN.value <= 1'h0;
+            field_storage.SRC.MON.RDMON_ENABLE.MON_EN.value <= 1'h0;
         end else begin
-            if(field_combo.MON.RDMON_ENABLE.MON_EN.load_next) begin
-                field_storage.MON.RDMON_ENABLE.MON_EN.value <= field_combo.MON.RDMON_ENABLE.MON_EN.next;
+            if(field_combo.SRC.MON.RDMON_ENABLE.MON_EN.load_next) begin
+                field_storage.SRC.MON.RDMON_ENABLE.MON_EN.value <= field_combo.SRC.MON.RDMON_ENABLE.MON_EN.next;
             end
         end
     end
-    assign hwif_out.MON.RDMON_ENABLE.MON_EN.value = field_storage.MON.RDMON_ENABLE.MON_EN.value;
-    // Field: rapids_regs.MON.RDMON_ENABLE.ERR_EN
+    assign hwif_out.SRC.MON.RDMON_ENABLE.MON_EN.value = field_storage.SRC.MON.RDMON_ENABLE.MON_EN.value;
+    // Field: rapids_regs.SRC.MON.RDMON_ENABLE.ERR_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.RDMON_ENABLE.ERR_EN.value;
+        next_c = field_storage.SRC.MON.RDMON_ENABLE.ERR_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.RDMON_ENABLE && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_ENABLE.ERR_EN.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+        if(decoded_reg_strb.SRC.MON.RDMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.RDMON_ENABLE.ERR_EN.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
             load_next_c = '1;
         end
-        field_combo.MON.RDMON_ENABLE.ERR_EN.next = next_c;
-        field_combo.MON.RDMON_ENABLE.ERR_EN.load_next = load_next_c;
+        field_combo.SRC.MON.RDMON_ENABLE.ERR_EN.next = next_c;
+        field_combo.SRC.MON.RDMON_ENABLE.ERR_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_ENABLE.ERR_EN.value <= 1'h0;
+            field_storage.SRC.MON.RDMON_ENABLE.ERR_EN.value <= 1'h0;
         end else begin
-            if(field_combo.MON.RDMON_ENABLE.ERR_EN.load_next) begin
-                field_storage.MON.RDMON_ENABLE.ERR_EN.value <= field_combo.MON.RDMON_ENABLE.ERR_EN.next;
+            if(field_combo.SRC.MON.RDMON_ENABLE.ERR_EN.load_next) begin
+                field_storage.SRC.MON.RDMON_ENABLE.ERR_EN.value <= field_combo.SRC.MON.RDMON_ENABLE.ERR_EN.next;
             end
         end
     end
-    assign hwif_out.MON.RDMON_ENABLE.ERR_EN.value = field_storage.MON.RDMON_ENABLE.ERR_EN.value;
-    // Field: rapids_regs.MON.RDMON_ENABLE.COMPL_EN
+    assign hwif_out.SRC.MON.RDMON_ENABLE.ERR_EN.value = field_storage.SRC.MON.RDMON_ENABLE.ERR_EN.value;
+    // Field: rapids_regs.SRC.MON.RDMON_ENABLE.COMPL_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.RDMON_ENABLE.COMPL_EN.value;
+        next_c = field_storage.SRC.MON.RDMON_ENABLE.COMPL_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.RDMON_ENABLE && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_ENABLE.COMPL_EN.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+        if(decoded_reg_strb.SRC.MON.RDMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.RDMON_ENABLE.COMPL_EN.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
             load_next_c = '1;
         end
-        field_combo.MON.RDMON_ENABLE.COMPL_EN.next = next_c;
-        field_combo.MON.RDMON_ENABLE.COMPL_EN.load_next = load_next_c;
+        field_combo.SRC.MON.RDMON_ENABLE.COMPL_EN.next = next_c;
+        field_combo.SRC.MON.RDMON_ENABLE.COMPL_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_ENABLE.COMPL_EN.value <= 1'h0;
+            field_storage.SRC.MON.RDMON_ENABLE.COMPL_EN.value <= 1'h0;
         end else begin
-            if(field_combo.MON.RDMON_ENABLE.COMPL_EN.load_next) begin
-                field_storage.MON.RDMON_ENABLE.COMPL_EN.value <= field_combo.MON.RDMON_ENABLE.COMPL_EN.next;
+            if(field_combo.SRC.MON.RDMON_ENABLE.COMPL_EN.load_next) begin
+                field_storage.SRC.MON.RDMON_ENABLE.COMPL_EN.value <= field_combo.SRC.MON.RDMON_ENABLE.COMPL_EN.next;
             end
         end
     end
-    assign hwif_out.MON.RDMON_ENABLE.COMPL_EN.value = field_storage.MON.RDMON_ENABLE.COMPL_EN.value;
-    // Field: rapids_regs.MON.RDMON_ENABLE.TIMEOUT_EN
+    assign hwif_out.SRC.MON.RDMON_ENABLE.COMPL_EN.value = field_storage.SRC.MON.RDMON_ENABLE.COMPL_EN.value;
+    // Field: rapids_regs.SRC.MON.RDMON_ENABLE.TIMEOUT_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.RDMON_ENABLE.TIMEOUT_EN.value;
+        next_c = field_storage.SRC.MON.RDMON_ENABLE.TIMEOUT_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.RDMON_ENABLE && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_ENABLE.TIMEOUT_EN.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+        if(decoded_reg_strb.SRC.MON.RDMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.RDMON_ENABLE.TIMEOUT_EN.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
             load_next_c = '1;
         end
-        field_combo.MON.RDMON_ENABLE.TIMEOUT_EN.next = next_c;
-        field_combo.MON.RDMON_ENABLE.TIMEOUT_EN.load_next = load_next_c;
+        field_combo.SRC.MON.RDMON_ENABLE.TIMEOUT_EN.next = next_c;
+        field_combo.SRC.MON.RDMON_ENABLE.TIMEOUT_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_ENABLE.TIMEOUT_EN.value <= 1'h0;
+            field_storage.SRC.MON.RDMON_ENABLE.TIMEOUT_EN.value <= 1'h0;
         end else begin
-            if(field_combo.MON.RDMON_ENABLE.TIMEOUT_EN.load_next) begin
-                field_storage.MON.RDMON_ENABLE.TIMEOUT_EN.value <= field_combo.MON.RDMON_ENABLE.TIMEOUT_EN.next;
+            if(field_combo.SRC.MON.RDMON_ENABLE.TIMEOUT_EN.load_next) begin
+                field_storage.SRC.MON.RDMON_ENABLE.TIMEOUT_EN.value <= field_combo.SRC.MON.RDMON_ENABLE.TIMEOUT_EN.next;
             end
         end
     end
-    assign hwif_out.MON.RDMON_ENABLE.TIMEOUT_EN.value = field_storage.MON.RDMON_ENABLE.TIMEOUT_EN.value;
-    // Field: rapids_regs.MON.RDMON_ENABLE.PERF_EN
+    assign hwif_out.SRC.MON.RDMON_ENABLE.TIMEOUT_EN.value = field_storage.SRC.MON.RDMON_ENABLE.TIMEOUT_EN.value;
+    // Field: rapids_regs.SRC.MON.RDMON_ENABLE.PERF_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.RDMON_ENABLE.PERF_EN.value;
+        next_c = field_storage.SRC.MON.RDMON_ENABLE.PERF_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.RDMON_ENABLE && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_ENABLE.PERF_EN.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+        if(decoded_reg_strb.SRC.MON.RDMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.RDMON_ENABLE.PERF_EN.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
             load_next_c = '1;
         end
-        field_combo.MON.RDMON_ENABLE.PERF_EN.next = next_c;
-        field_combo.MON.RDMON_ENABLE.PERF_EN.load_next = load_next_c;
+        field_combo.SRC.MON.RDMON_ENABLE.PERF_EN.next = next_c;
+        field_combo.SRC.MON.RDMON_ENABLE.PERF_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_ENABLE.PERF_EN.value <= 1'h0;
+            field_storage.SRC.MON.RDMON_ENABLE.PERF_EN.value <= 1'h0;
         end else begin
-            if(field_combo.MON.RDMON_ENABLE.PERF_EN.load_next) begin
-                field_storage.MON.RDMON_ENABLE.PERF_EN.value <= field_combo.MON.RDMON_ENABLE.PERF_EN.next;
+            if(field_combo.SRC.MON.RDMON_ENABLE.PERF_EN.load_next) begin
+                field_storage.SRC.MON.RDMON_ENABLE.PERF_EN.value <= field_combo.SRC.MON.RDMON_ENABLE.PERF_EN.next;
             end
         end
     end
-    assign hwif_out.MON.RDMON_ENABLE.PERF_EN.value = field_storage.MON.RDMON_ENABLE.PERF_EN.value;
-    // Field: rapids_regs.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES
+    assign hwif_out.SRC.MON.RDMON_ENABLE.PERF_EN.value = field_storage.SRC.MON.RDMON_ENABLE.PERF_EN.value;
+    // Field: rapids_regs.SRC.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES
     always_comb begin
         automatic logic [31:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value;
+        next_c = field_storage.SRC.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.RDMON_TIMEOUT && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+        if(decoded_reg_strb.SRC.MON.RDMON_TIMEOUT && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
             load_next_c = '1;
         end
-        field_combo.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.next = next_c;
-        field_combo.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.load_next = load_next_c;
+        field_combo.SRC.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.next = next_c;
+        field_combo.SRC.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value <= 32'h2710;
+            field_storage.SRC.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value <= 32'h2710;
         end else begin
-            if(field_combo.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.load_next) begin
-                field_storage.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value <= field_combo.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.next;
+            if(field_combo.SRC.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.load_next) begin
+                field_storage.SRC.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value <= field_combo.SRC.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.next;
             end
         end
     end
-    assign hwif_out.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value = field_storage.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value;
-    // Field: rapids_regs.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH
+    assign hwif_out.SRC.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value = field_storage.SRC.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value;
+    // Field: rapids_regs.SRC.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH
     always_comb begin
         automatic logic [31:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value;
+        next_c = field_storage.SRC.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.RDMON_LATENCY_THRESH && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+        if(decoded_reg_strb.SRC.MON.RDMON_LATENCY_THRESH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
             load_next_c = '1;
         end
-        field_combo.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.next = next_c;
-        field_combo.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.load_next = load_next_c;
+        field_combo.SRC.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.next = next_c;
+        field_combo.SRC.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value <= 32'h1388;
+            field_storage.SRC.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value <= 32'h1388;
         end else begin
-            if(field_combo.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.load_next) begin
-                field_storage.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value <= field_combo.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.next;
+            if(field_combo.SRC.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.load_next) begin
+                field_storage.SRC.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value <= field_combo.SRC.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.next;
             end
         end
     end
-    assign hwif_out.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value = field_storage.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value;
-    // Field: rapids_regs.MON.RDMON_PKT_MASK.PKT_MASK
+    assign hwif_out.SRC.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value = field_storage.SRC.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value;
+    // Field: rapids_regs.SRC.MON.RDMON_PKT_MASK.PKT_MASK
     always_comb begin
         automatic logic [15:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.RDMON_PKT_MASK.PKT_MASK.value;
+        next_c = field_storage.SRC.MON.RDMON_PKT_MASK.PKT_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.RDMON_PKT_MASK && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_PKT_MASK.PKT_MASK.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+        if(decoded_reg_strb.SRC.MON.RDMON_PKT_MASK && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.RDMON_PKT_MASK.PKT_MASK.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
-        field_combo.MON.RDMON_PKT_MASK.PKT_MASK.next = next_c;
-        field_combo.MON.RDMON_PKT_MASK.PKT_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.RDMON_PKT_MASK.PKT_MASK.next = next_c;
+        field_combo.SRC.MON.RDMON_PKT_MASK.PKT_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_PKT_MASK.PKT_MASK.value <= 16'hffff;
+            field_storage.SRC.MON.RDMON_PKT_MASK.PKT_MASK.value <= 16'hffff;
         end else begin
-            if(field_combo.MON.RDMON_PKT_MASK.PKT_MASK.load_next) begin
-                field_storage.MON.RDMON_PKT_MASK.PKT_MASK.value <= field_combo.MON.RDMON_PKT_MASK.PKT_MASK.next;
+            if(field_combo.SRC.MON.RDMON_PKT_MASK.PKT_MASK.load_next) begin
+                field_storage.SRC.MON.RDMON_PKT_MASK.PKT_MASK.value <= field_combo.SRC.MON.RDMON_PKT_MASK.PKT_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.RDMON_PKT_MASK.PKT_MASK.value = field_storage.MON.RDMON_PKT_MASK.PKT_MASK.value;
-    // Field: rapids_regs.MON.RDMON_ERR_CFG.ERR_SELECT
+    assign hwif_out.SRC.MON.RDMON_PKT_MASK.PKT_MASK.value = field_storage.SRC.MON.RDMON_PKT_MASK.PKT_MASK.value;
+    // Field: rapids_regs.SRC.MON.RDMON_ERR_CFG.ERR_SELECT
     always_comb begin
         automatic logic [3:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.RDMON_ERR_CFG.ERR_SELECT.value;
+        next_c = field_storage.SRC.MON.RDMON_ERR_CFG.ERR_SELECT.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.RDMON_ERR_CFG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_ERR_CFG.ERR_SELECT.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
+        if(decoded_reg_strb.SRC.MON.RDMON_ERR_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.RDMON_ERR_CFG.ERR_SELECT.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
             load_next_c = '1;
         end
-        field_combo.MON.RDMON_ERR_CFG.ERR_SELECT.next = next_c;
-        field_combo.MON.RDMON_ERR_CFG.ERR_SELECT.load_next = load_next_c;
+        field_combo.SRC.MON.RDMON_ERR_CFG.ERR_SELECT.next = next_c;
+        field_combo.SRC.MON.RDMON_ERR_CFG.ERR_SELECT.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_ERR_CFG.ERR_SELECT.value <= 4'h0;
+            field_storage.SRC.MON.RDMON_ERR_CFG.ERR_SELECT.value <= 4'h0;
         end else begin
-            if(field_combo.MON.RDMON_ERR_CFG.ERR_SELECT.load_next) begin
-                field_storage.MON.RDMON_ERR_CFG.ERR_SELECT.value <= field_combo.MON.RDMON_ERR_CFG.ERR_SELECT.next;
+            if(field_combo.SRC.MON.RDMON_ERR_CFG.ERR_SELECT.load_next) begin
+                field_storage.SRC.MON.RDMON_ERR_CFG.ERR_SELECT.value <= field_combo.SRC.MON.RDMON_ERR_CFG.ERR_SELECT.next;
             end
         end
     end
-    assign hwif_out.MON.RDMON_ERR_CFG.ERR_SELECT.value = field_storage.MON.RDMON_ERR_CFG.ERR_SELECT.value;
-    // Field: rapids_regs.MON.RDMON_ERR_CFG.ERR_MASK
+    assign hwif_out.SRC.MON.RDMON_ERR_CFG.ERR_SELECT.value = field_storage.SRC.MON.RDMON_ERR_CFG.ERR_SELECT.value;
+    // Field: rapids_regs.SRC.MON.RDMON_ERR_CFG.ERR_MASK
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.RDMON_ERR_CFG.ERR_MASK.value;
+        next_c = field_storage.SRC.MON.RDMON_ERR_CFG.ERR_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.RDMON_ERR_CFG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_ERR_CFG.ERR_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+        if(decoded_reg_strb.SRC.MON.RDMON_ERR_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.RDMON_ERR_CFG.ERR_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
             load_next_c = '1;
         end
-        field_combo.MON.RDMON_ERR_CFG.ERR_MASK.next = next_c;
-        field_combo.MON.RDMON_ERR_CFG.ERR_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.RDMON_ERR_CFG.ERR_MASK.next = next_c;
+        field_combo.SRC.MON.RDMON_ERR_CFG.ERR_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_ERR_CFG.ERR_MASK.value <= 8'hff;
+            field_storage.SRC.MON.RDMON_ERR_CFG.ERR_MASK.value <= 8'hff;
         end else begin
-            if(field_combo.MON.RDMON_ERR_CFG.ERR_MASK.load_next) begin
-                field_storage.MON.RDMON_ERR_CFG.ERR_MASK.value <= field_combo.MON.RDMON_ERR_CFG.ERR_MASK.next;
+            if(field_combo.SRC.MON.RDMON_ERR_CFG.ERR_MASK.load_next) begin
+                field_storage.SRC.MON.RDMON_ERR_CFG.ERR_MASK.value <= field_combo.SRC.MON.RDMON_ERR_CFG.ERR_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.RDMON_ERR_CFG.ERR_MASK.value = field_storage.MON.RDMON_ERR_CFG.ERR_MASK.value;
-    // Field: rapids_regs.MON.RDMON_MASK1.TIMEOUT_MASK
+    assign hwif_out.SRC.MON.RDMON_ERR_CFG.ERR_MASK.value = field_storage.SRC.MON.RDMON_ERR_CFG.ERR_MASK.value;
+    // Field: rapids_regs.SRC.MON.RDMON_MASK1.TIMEOUT_MASK
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.RDMON_MASK1.TIMEOUT_MASK.value;
+        next_c = field_storage.SRC.MON.RDMON_MASK1.TIMEOUT_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.RDMON_MASK1 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_MASK1.TIMEOUT_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+        if(decoded_reg_strb.SRC.MON.RDMON_MASK1 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.RDMON_MASK1.TIMEOUT_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
         end
-        field_combo.MON.RDMON_MASK1.TIMEOUT_MASK.next = next_c;
-        field_combo.MON.RDMON_MASK1.TIMEOUT_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.RDMON_MASK1.TIMEOUT_MASK.next = next_c;
+        field_combo.SRC.MON.RDMON_MASK1.TIMEOUT_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_MASK1.TIMEOUT_MASK.value <= 8'hff;
+            field_storage.SRC.MON.RDMON_MASK1.TIMEOUT_MASK.value <= 8'hff;
         end else begin
-            if(field_combo.MON.RDMON_MASK1.TIMEOUT_MASK.load_next) begin
-                field_storage.MON.RDMON_MASK1.TIMEOUT_MASK.value <= field_combo.MON.RDMON_MASK1.TIMEOUT_MASK.next;
+            if(field_combo.SRC.MON.RDMON_MASK1.TIMEOUT_MASK.load_next) begin
+                field_storage.SRC.MON.RDMON_MASK1.TIMEOUT_MASK.value <= field_combo.SRC.MON.RDMON_MASK1.TIMEOUT_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.RDMON_MASK1.TIMEOUT_MASK.value = field_storage.MON.RDMON_MASK1.TIMEOUT_MASK.value;
-    // Field: rapids_regs.MON.RDMON_MASK1.COMPL_MASK
+    assign hwif_out.SRC.MON.RDMON_MASK1.TIMEOUT_MASK.value = field_storage.SRC.MON.RDMON_MASK1.TIMEOUT_MASK.value;
+    // Field: rapids_regs.SRC.MON.RDMON_MASK1.COMPL_MASK
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.RDMON_MASK1.COMPL_MASK.value;
+        next_c = field_storage.SRC.MON.RDMON_MASK1.COMPL_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.RDMON_MASK1 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_MASK1.COMPL_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+        if(decoded_reg_strb.SRC.MON.RDMON_MASK1 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.RDMON_MASK1.COMPL_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
             load_next_c = '1;
         end
-        field_combo.MON.RDMON_MASK1.COMPL_MASK.next = next_c;
-        field_combo.MON.RDMON_MASK1.COMPL_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.RDMON_MASK1.COMPL_MASK.next = next_c;
+        field_combo.SRC.MON.RDMON_MASK1.COMPL_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_MASK1.COMPL_MASK.value <= 8'h0;
+            field_storage.SRC.MON.RDMON_MASK1.COMPL_MASK.value <= 8'h0;
         end else begin
-            if(field_combo.MON.RDMON_MASK1.COMPL_MASK.load_next) begin
-                field_storage.MON.RDMON_MASK1.COMPL_MASK.value <= field_combo.MON.RDMON_MASK1.COMPL_MASK.next;
+            if(field_combo.SRC.MON.RDMON_MASK1.COMPL_MASK.load_next) begin
+                field_storage.SRC.MON.RDMON_MASK1.COMPL_MASK.value <= field_combo.SRC.MON.RDMON_MASK1.COMPL_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.RDMON_MASK1.COMPL_MASK.value = field_storage.MON.RDMON_MASK1.COMPL_MASK.value;
-    // Field: rapids_regs.MON.RDMON_MASK2.THRESH_MASK
+    assign hwif_out.SRC.MON.RDMON_MASK1.COMPL_MASK.value = field_storage.SRC.MON.RDMON_MASK1.COMPL_MASK.value;
+    // Field: rapids_regs.SRC.MON.RDMON_MASK2.THRESH_MASK
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.RDMON_MASK2.THRESH_MASK.value;
+        next_c = field_storage.SRC.MON.RDMON_MASK2.THRESH_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.RDMON_MASK2 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_MASK2.THRESH_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+        if(decoded_reg_strb.SRC.MON.RDMON_MASK2 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.RDMON_MASK2.THRESH_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
         end
-        field_combo.MON.RDMON_MASK2.THRESH_MASK.next = next_c;
-        field_combo.MON.RDMON_MASK2.THRESH_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.RDMON_MASK2.THRESH_MASK.next = next_c;
+        field_combo.SRC.MON.RDMON_MASK2.THRESH_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_MASK2.THRESH_MASK.value <= 8'hff;
+            field_storage.SRC.MON.RDMON_MASK2.THRESH_MASK.value <= 8'hff;
         end else begin
-            if(field_combo.MON.RDMON_MASK2.THRESH_MASK.load_next) begin
-                field_storage.MON.RDMON_MASK2.THRESH_MASK.value <= field_combo.MON.RDMON_MASK2.THRESH_MASK.next;
+            if(field_combo.SRC.MON.RDMON_MASK2.THRESH_MASK.load_next) begin
+                field_storage.SRC.MON.RDMON_MASK2.THRESH_MASK.value <= field_combo.SRC.MON.RDMON_MASK2.THRESH_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.RDMON_MASK2.THRESH_MASK.value = field_storage.MON.RDMON_MASK2.THRESH_MASK.value;
-    // Field: rapids_regs.MON.RDMON_MASK2.PERF_MASK
+    assign hwif_out.SRC.MON.RDMON_MASK2.THRESH_MASK.value = field_storage.SRC.MON.RDMON_MASK2.THRESH_MASK.value;
+    // Field: rapids_regs.SRC.MON.RDMON_MASK2.PERF_MASK
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.RDMON_MASK2.PERF_MASK.value;
+        next_c = field_storage.SRC.MON.RDMON_MASK2.PERF_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.RDMON_MASK2 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_MASK2.PERF_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+        if(decoded_reg_strb.SRC.MON.RDMON_MASK2 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.RDMON_MASK2.PERF_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
             load_next_c = '1;
         end
-        field_combo.MON.RDMON_MASK2.PERF_MASK.next = next_c;
-        field_combo.MON.RDMON_MASK2.PERF_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.RDMON_MASK2.PERF_MASK.next = next_c;
+        field_combo.SRC.MON.RDMON_MASK2.PERF_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_MASK2.PERF_MASK.value <= 8'h0;
+            field_storage.SRC.MON.RDMON_MASK2.PERF_MASK.value <= 8'h0;
         end else begin
-            if(field_combo.MON.RDMON_MASK2.PERF_MASK.load_next) begin
-                field_storage.MON.RDMON_MASK2.PERF_MASK.value <= field_combo.MON.RDMON_MASK2.PERF_MASK.next;
+            if(field_combo.SRC.MON.RDMON_MASK2.PERF_MASK.load_next) begin
+                field_storage.SRC.MON.RDMON_MASK2.PERF_MASK.value <= field_combo.SRC.MON.RDMON_MASK2.PERF_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.RDMON_MASK2.PERF_MASK.value = field_storage.MON.RDMON_MASK2.PERF_MASK.value;
-    // Field: rapids_regs.MON.RDMON_MASK3.ADDR_MASK
+    assign hwif_out.SRC.MON.RDMON_MASK2.PERF_MASK.value = field_storage.SRC.MON.RDMON_MASK2.PERF_MASK.value;
+    // Field: rapids_regs.SRC.MON.RDMON_MASK3.ADDR_MASK
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.RDMON_MASK3.ADDR_MASK.value;
+        next_c = field_storage.SRC.MON.RDMON_MASK3.ADDR_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.RDMON_MASK3 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_MASK3.ADDR_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+        if(decoded_reg_strb.SRC.MON.RDMON_MASK3 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.RDMON_MASK3.ADDR_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
         end
-        field_combo.MON.RDMON_MASK3.ADDR_MASK.next = next_c;
-        field_combo.MON.RDMON_MASK3.ADDR_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.RDMON_MASK3.ADDR_MASK.next = next_c;
+        field_combo.SRC.MON.RDMON_MASK3.ADDR_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_MASK3.ADDR_MASK.value <= 8'hff;
+            field_storage.SRC.MON.RDMON_MASK3.ADDR_MASK.value <= 8'hff;
         end else begin
-            if(field_combo.MON.RDMON_MASK3.ADDR_MASK.load_next) begin
-                field_storage.MON.RDMON_MASK3.ADDR_MASK.value <= field_combo.MON.RDMON_MASK3.ADDR_MASK.next;
+            if(field_combo.SRC.MON.RDMON_MASK3.ADDR_MASK.load_next) begin
+                field_storage.SRC.MON.RDMON_MASK3.ADDR_MASK.value <= field_combo.SRC.MON.RDMON_MASK3.ADDR_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.RDMON_MASK3.ADDR_MASK.value = field_storage.MON.RDMON_MASK3.ADDR_MASK.value;
-    // Field: rapids_regs.MON.RDMON_MASK3.DEBUG_MASK
+    assign hwif_out.SRC.MON.RDMON_MASK3.ADDR_MASK.value = field_storage.SRC.MON.RDMON_MASK3.ADDR_MASK.value;
+    // Field: rapids_regs.SRC.MON.RDMON_MASK3.DEBUG_MASK
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.RDMON_MASK3.DEBUG_MASK.value;
+        next_c = field_storage.SRC.MON.RDMON_MASK3.DEBUG_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.RDMON_MASK3 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_MASK3.DEBUG_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+        if(decoded_reg_strb.SRC.MON.RDMON_MASK3 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.RDMON_MASK3.DEBUG_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
             load_next_c = '1;
         end
-        field_combo.MON.RDMON_MASK3.DEBUG_MASK.next = next_c;
-        field_combo.MON.RDMON_MASK3.DEBUG_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.RDMON_MASK3.DEBUG_MASK.next = next_c;
+        field_combo.SRC.MON.RDMON_MASK3.DEBUG_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_MASK3.DEBUG_MASK.value <= 8'h0;
+            field_storage.SRC.MON.RDMON_MASK3.DEBUG_MASK.value <= 8'h0;
         end else begin
-            if(field_combo.MON.RDMON_MASK3.DEBUG_MASK.load_next) begin
-                field_storage.MON.RDMON_MASK3.DEBUG_MASK.value <= field_combo.MON.RDMON_MASK3.DEBUG_MASK.next;
+            if(field_combo.SRC.MON.RDMON_MASK3.DEBUG_MASK.load_next) begin
+                field_storage.SRC.MON.RDMON_MASK3.DEBUG_MASK.value <= field_combo.SRC.MON.RDMON_MASK3.DEBUG_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.RDMON_MASK3.DEBUG_MASK.value = field_storage.MON.RDMON_MASK3.DEBUG_MASK.value;
-    // Field: rapids_regs.MON.WRMON_ENABLE.MON_EN
+    assign hwif_out.SRC.MON.RDMON_MASK3.DEBUG_MASK.value = field_storage.SRC.MON.RDMON_MASK3.DEBUG_MASK.value;
+    // Field: rapids_regs.SRC.MON.WRMON_ENABLE.MON_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.WRMON_ENABLE.MON_EN.value;
+        next_c = field_storage.SRC.MON.WRMON_ENABLE.MON_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.WRMON_ENABLE && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_ENABLE.MON_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+        if(decoded_reg_strb.SRC.MON.WRMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.WRMON_ENABLE.MON_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
             load_next_c = '1;
         end
-        field_combo.MON.WRMON_ENABLE.MON_EN.next = next_c;
-        field_combo.MON.WRMON_ENABLE.MON_EN.load_next = load_next_c;
+        field_combo.SRC.MON.WRMON_ENABLE.MON_EN.next = next_c;
+        field_combo.SRC.MON.WRMON_ENABLE.MON_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_ENABLE.MON_EN.value <= 1'h0;
+            field_storage.SRC.MON.WRMON_ENABLE.MON_EN.value <= 1'h0;
         end else begin
-            if(field_combo.MON.WRMON_ENABLE.MON_EN.load_next) begin
-                field_storage.MON.WRMON_ENABLE.MON_EN.value <= field_combo.MON.WRMON_ENABLE.MON_EN.next;
+            if(field_combo.SRC.MON.WRMON_ENABLE.MON_EN.load_next) begin
+                field_storage.SRC.MON.WRMON_ENABLE.MON_EN.value <= field_combo.SRC.MON.WRMON_ENABLE.MON_EN.next;
             end
         end
     end
-    assign hwif_out.MON.WRMON_ENABLE.MON_EN.value = field_storage.MON.WRMON_ENABLE.MON_EN.value;
-    // Field: rapids_regs.MON.WRMON_ENABLE.ERR_EN
+    assign hwif_out.SRC.MON.WRMON_ENABLE.MON_EN.value = field_storage.SRC.MON.WRMON_ENABLE.MON_EN.value;
+    // Field: rapids_regs.SRC.MON.WRMON_ENABLE.ERR_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.WRMON_ENABLE.ERR_EN.value;
+        next_c = field_storage.SRC.MON.WRMON_ENABLE.ERR_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.WRMON_ENABLE && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_ENABLE.ERR_EN.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+        if(decoded_reg_strb.SRC.MON.WRMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.WRMON_ENABLE.ERR_EN.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
             load_next_c = '1;
         end
-        field_combo.MON.WRMON_ENABLE.ERR_EN.next = next_c;
-        field_combo.MON.WRMON_ENABLE.ERR_EN.load_next = load_next_c;
+        field_combo.SRC.MON.WRMON_ENABLE.ERR_EN.next = next_c;
+        field_combo.SRC.MON.WRMON_ENABLE.ERR_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_ENABLE.ERR_EN.value <= 1'h0;
+            field_storage.SRC.MON.WRMON_ENABLE.ERR_EN.value <= 1'h0;
         end else begin
-            if(field_combo.MON.WRMON_ENABLE.ERR_EN.load_next) begin
-                field_storage.MON.WRMON_ENABLE.ERR_EN.value <= field_combo.MON.WRMON_ENABLE.ERR_EN.next;
+            if(field_combo.SRC.MON.WRMON_ENABLE.ERR_EN.load_next) begin
+                field_storage.SRC.MON.WRMON_ENABLE.ERR_EN.value <= field_combo.SRC.MON.WRMON_ENABLE.ERR_EN.next;
             end
         end
     end
-    assign hwif_out.MON.WRMON_ENABLE.ERR_EN.value = field_storage.MON.WRMON_ENABLE.ERR_EN.value;
-    // Field: rapids_regs.MON.WRMON_ENABLE.COMPL_EN
+    assign hwif_out.SRC.MON.WRMON_ENABLE.ERR_EN.value = field_storage.SRC.MON.WRMON_ENABLE.ERR_EN.value;
+    // Field: rapids_regs.SRC.MON.WRMON_ENABLE.COMPL_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.WRMON_ENABLE.COMPL_EN.value;
+        next_c = field_storage.SRC.MON.WRMON_ENABLE.COMPL_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.WRMON_ENABLE && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_ENABLE.COMPL_EN.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+        if(decoded_reg_strb.SRC.MON.WRMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.WRMON_ENABLE.COMPL_EN.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
             load_next_c = '1;
         end
-        field_combo.MON.WRMON_ENABLE.COMPL_EN.next = next_c;
-        field_combo.MON.WRMON_ENABLE.COMPL_EN.load_next = load_next_c;
+        field_combo.SRC.MON.WRMON_ENABLE.COMPL_EN.next = next_c;
+        field_combo.SRC.MON.WRMON_ENABLE.COMPL_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_ENABLE.COMPL_EN.value <= 1'h0;
+            field_storage.SRC.MON.WRMON_ENABLE.COMPL_EN.value <= 1'h0;
         end else begin
-            if(field_combo.MON.WRMON_ENABLE.COMPL_EN.load_next) begin
-                field_storage.MON.WRMON_ENABLE.COMPL_EN.value <= field_combo.MON.WRMON_ENABLE.COMPL_EN.next;
+            if(field_combo.SRC.MON.WRMON_ENABLE.COMPL_EN.load_next) begin
+                field_storage.SRC.MON.WRMON_ENABLE.COMPL_EN.value <= field_combo.SRC.MON.WRMON_ENABLE.COMPL_EN.next;
             end
         end
     end
-    assign hwif_out.MON.WRMON_ENABLE.COMPL_EN.value = field_storage.MON.WRMON_ENABLE.COMPL_EN.value;
-    // Field: rapids_regs.MON.WRMON_ENABLE.TIMEOUT_EN
+    assign hwif_out.SRC.MON.WRMON_ENABLE.COMPL_EN.value = field_storage.SRC.MON.WRMON_ENABLE.COMPL_EN.value;
+    // Field: rapids_regs.SRC.MON.WRMON_ENABLE.TIMEOUT_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.WRMON_ENABLE.TIMEOUT_EN.value;
+        next_c = field_storage.SRC.MON.WRMON_ENABLE.TIMEOUT_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.WRMON_ENABLE && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_ENABLE.TIMEOUT_EN.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+        if(decoded_reg_strb.SRC.MON.WRMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.WRMON_ENABLE.TIMEOUT_EN.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
             load_next_c = '1;
         end
-        field_combo.MON.WRMON_ENABLE.TIMEOUT_EN.next = next_c;
-        field_combo.MON.WRMON_ENABLE.TIMEOUT_EN.load_next = load_next_c;
+        field_combo.SRC.MON.WRMON_ENABLE.TIMEOUT_EN.next = next_c;
+        field_combo.SRC.MON.WRMON_ENABLE.TIMEOUT_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_ENABLE.TIMEOUT_EN.value <= 1'h0;
+            field_storage.SRC.MON.WRMON_ENABLE.TIMEOUT_EN.value <= 1'h0;
         end else begin
-            if(field_combo.MON.WRMON_ENABLE.TIMEOUT_EN.load_next) begin
-                field_storage.MON.WRMON_ENABLE.TIMEOUT_EN.value <= field_combo.MON.WRMON_ENABLE.TIMEOUT_EN.next;
+            if(field_combo.SRC.MON.WRMON_ENABLE.TIMEOUT_EN.load_next) begin
+                field_storage.SRC.MON.WRMON_ENABLE.TIMEOUT_EN.value <= field_combo.SRC.MON.WRMON_ENABLE.TIMEOUT_EN.next;
             end
         end
     end
-    assign hwif_out.MON.WRMON_ENABLE.TIMEOUT_EN.value = field_storage.MON.WRMON_ENABLE.TIMEOUT_EN.value;
-    // Field: rapids_regs.MON.WRMON_ENABLE.PERF_EN
+    assign hwif_out.SRC.MON.WRMON_ENABLE.TIMEOUT_EN.value = field_storage.SRC.MON.WRMON_ENABLE.TIMEOUT_EN.value;
+    // Field: rapids_regs.SRC.MON.WRMON_ENABLE.PERF_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.WRMON_ENABLE.PERF_EN.value;
+        next_c = field_storage.SRC.MON.WRMON_ENABLE.PERF_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.WRMON_ENABLE && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_ENABLE.PERF_EN.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+        if(decoded_reg_strb.SRC.MON.WRMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.WRMON_ENABLE.PERF_EN.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
             load_next_c = '1;
         end
-        field_combo.MON.WRMON_ENABLE.PERF_EN.next = next_c;
-        field_combo.MON.WRMON_ENABLE.PERF_EN.load_next = load_next_c;
+        field_combo.SRC.MON.WRMON_ENABLE.PERF_EN.next = next_c;
+        field_combo.SRC.MON.WRMON_ENABLE.PERF_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_ENABLE.PERF_EN.value <= 1'h0;
+            field_storage.SRC.MON.WRMON_ENABLE.PERF_EN.value <= 1'h0;
         end else begin
-            if(field_combo.MON.WRMON_ENABLE.PERF_EN.load_next) begin
-                field_storage.MON.WRMON_ENABLE.PERF_EN.value <= field_combo.MON.WRMON_ENABLE.PERF_EN.next;
+            if(field_combo.SRC.MON.WRMON_ENABLE.PERF_EN.load_next) begin
+                field_storage.SRC.MON.WRMON_ENABLE.PERF_EN.value <= field_combo.SRC.MON.WRMON_ENABLE.PERF_EN.next;
             end
         end
     end
-    assign hwif_out.MON.WRMON_ENABLE.PERF_EN.value = field_storage.MON.WRMON_ENABLE.PERF_EN.value;
-    // Field: rapids_regs.MON.WRMON_ENABLE.COMPRESS_EN
+    assign hwif_out.SRC.MON.WRMON_ENABLE.PERF_EN.value = field_storage.SRC.MON.WRMON_ENABLE.PERF_EN.value;
+    // Field: rapids_regs.SRC.MON.WRMON_ENABLE.COMPRESS_EN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.WRMON_ENABLE.COMPRESS_EN.value;
+        next_c = field_storage.SRC.MON.WRMON_ENABLE.COMPRESS_EN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.WRMON_ENABLE && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_ENABLE.COMPRESS_EN.value & ~decoded_wr_biten[5:5]) | (decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
+        if(decoded_reg_strb.SRC.MON.WRMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.WRMON_ENABLE.COMPRESS_EN.value & ~decoded_wr_biten[5:5]) | (decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
             load_next_c = '1;
         end
-        field_combo.MON.WRMON_ENABLE.COMPRESS_EN.next = next_c;
-        field_combo.MON.WRMON_ENABLE.COMPRESS_EN.load_next = load_next_c;
+        field_combo.SRC.MON.WRMON_ENABLE.COMPRESS_EN.next = next_c;
+        field_combo.SRC.MON.WRMON_ENABLE.COMPRESS_EN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_ENABLE.COMPRESS_EN.value <= 1'h1;
+            field_storage.SRC.MON.WRMON_ENABLE.COMPRESS_EN.value <= 1'h1;
         end else begin
-            if(field_combo.MON.WRMON_ENABLE.COMPRESS_EN.load_next) begin
-                field_storage.MON.WRMON_ENABLE.COMPRESS_EN.value <= field_combo.MON.WRMON_ENABLE.COMPRESS_EN.next;
+            if(field_combo.SRC.MON.WRMON_ENABLE.COMPRESS_EN.load_next) begin
+                field_storage.SRC.MON.WRMON_ENABLE.COMPRESS_EN.value <= field_combo.SRC.MON.WRMON_ENABLE.COMPRESS_EN.next;
             end
         end
     end
-    assign hwif_out.MON.WRMON_ENABLE.COMPRESS_EN.value = field_storage.MON.WRMON_ENABLE.COMPRESS_EN.value;
-    // Field: rapids_regs.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES
+    assign hwif_out.SRC.MON.WRMON_ENABLE.COMPRESS_EN.value = field_storage.SRC.MON.WRMON_ENABLE.COMPRESS_EN.value;
+    // Field: rapids_regs.SRC.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES
     always_comb begin
         automatic logic [31:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value;
+        next_c = field_storage.SRC.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.WRMON_TIMEOUT && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+        if(decoded_reg_strb.SRC.MON.WRMON_TIMEOUT && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
             load_next_c = '1;
         end
-        field_combo.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.next = next_c;
-        field_combo.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.load_next = load_next_c;
+        field_combo.SRC.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.next = next_c;
+        field_combo.SRC.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value <= 32'h2710;
+            field_storage.SRC.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value <= 32'h2710;
         end else begin
-            if(field_combo.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.load_next) begin
-                field_storage.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value <= field_combo.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.next;
+            if(field_combo.SRC.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.load_next) begin
+                field_storage.SRC.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value <= field_combo.SRC.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.next;
             end
         end
     end
-    assign hwif_out.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value = field_storage.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value;
-    // Field: rapids_regs.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH
+    assign hwif_out.SRC.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value = field_storage.SRC.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value;
+    // Field: rapids_regs.SRC.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH
     always_comb begin
         automatic logic [31:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value;
+        next_c = field_storage.SRC.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.WRMON_LATENCY_THRESH && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+        if(decoded_reg_strb.SRC.MON.WRMON_LATENCY_THRESH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
             load_next_c = '1;
         end
-        field_combo.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.next = next_c;
-        field_combo.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.load_next = load_next_c;
+        field_combo.SRC.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.next = next_c;
+        field_combo.SRC.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value <= 32'h1388;
+            field_storage.SRC.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value <= 32'h1388;
         end else begin
-            if(field_combo.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.load_next) begin
-                field_storage.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value <= field_combo.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.next;
+            if(field_combo.SRC.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.load_next) begin
+                field_storage.SRC.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value <= field_combo.SRC.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.next;
             end
         end
     end
-    assign hwif_out.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value = field_storage.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value;
-    // Field: rapids_regs.MON.WRMON_PKT_MASK.PKT_MASK
+    assign hwif_out.SRC.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value = field_storage.SRC.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value;
+    // Field: rapids_regs.SRC.MON.WRMON_PKT_MASK.PKT_MASK
     always_comb begin
         automatic logic [15:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.WRMON_PKT_MASK.PKT_MASK.value;
+        next_c = field_storage.SRC.MON.WRMON_PKT_MASK.PKT_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.WRMON_PKT_MASK && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_PKT_MASK.PKT_MASK.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+        if(decoded_reg_strb.SRC.MON.WRMON_PKT_MASK && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.WRMON_PKT_MASK.PKT_MASK.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
-        field_combo.MON.WRMON_PKT_MASK.PKT_MASK.next = next_c;
-        field_combo.MON.WRMON_PKT_MASK.PKT_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.WRMON_PKT_MASK.PKT_MASK.next = next_c;
+        field_combo.SRC.MON.WRMON_PKT_MASK.PKT_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_PKT_MASK.PKT_MASK.value <= 16'hffff;
+            field_storage.SRC.MON.WRMON_PKT_MASK.PKT_MASK.value <= 16'hffff;
         end else begin
-            if(field_combo.MON.WRMON_PKT_MASK.PKT_MASK.load_next) begin
-                field_storage.MON.WRMON_PKT_MASK.PKT_MASK.value <= field_combo.MON.WRMON_PKT_MASK.PKT_MASK.next;
+            if(field_combo.SRC.MON.WRMON_PKT_MASK.PKT_MASK.load_next) begin
+                field_storage.SRC.MON.WRMON_PKT_MASK.PKT_MASK.value <= field_combo.SRC.MON.WRMON_PKT_MASK.PKT_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.WRMON_PKT_MASK.PKT_MASK.value = field_storage.MON.WRMON_PKT_MASK.PKT_MASK.value;
-    // Field: rapids_regs.MON.WRMON_ERR_CFG.ERR_SELECT
+    assign hwif_out.SRC.MON.WRMON_PKT_MASK.PKT_MASK.value = field_storage.SRC.MON.WRMON_PKT_MASK.PKT_MASK.value;
+    // Field: rapids_regs.SRC.MON.WRMON_ERR_CFG.ERR_SELECT
     always_comb begin
         automatic logic [3:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.WRMON_ERR_CFG.ERR_SELECT.value;
+        next_c = field_storage.SRC.MON.WRMON_ERR_CFG.ERR_SELECT.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.WRMON_ERR_CFG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_ERR_CFG.ERR_SELECT.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
+        if(decoded_reg_strb.SRC.MON.WRMON_ERR_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.WRMON_ERR_CFG.ERR_SELECT.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
             load_next_c = '1;
         end
-        field_combo.MON.WRMON_ERR_CFG.ERR_SELECT.next = next_c;
-        field_combo.MON.WRMON_ERR_CFG.ERR_SELECT.load_next = load_next_c;
+        field_combo.SRC.MON.WRMON_ERR_CFG.ERR_SELECT.next = next_c;
+        field_combo.SRC.MON.WRMON_ERR_CFG.ERR_SELECT.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_ERR_CFG.ERR_SELECT.value <= 4'h0;
+            field_storage.SRC.MON.WRMON_ERR_CFG.ERR_SELECT.value <= 4'h0;
         end else begin
-            if(field_combo.MON.WRMON_ERR_CFG.ERR_SELECT.load_next) begin
-                field_storage.MON.WRMON_ERR_CFG.ERR_SELECT.value <= field_combo.MON.WRMON_ERR_CFG.ERR_SELECT.next;
+            if(field_combo.SRC.MON.WRMON_ERR_CFG.ERR_SELECT.load_next) begin
+                field_storage.SRC.MON.WRMON_ERR_CFG.ERR_SELECT.value <= field_combo.SRC.MON.WRMON_ERR_CFG.ERR_SELECT.next;
             end
         end
     end
-    assign hwif_out.MON.WRMON_ERR_CFG.ERR_SELECT.value = field_storage.MON.WRMON_ERR_CFG.ERR_SELECT.value;
-    // Field: rapids_regs.MON.WRMON_ERR_CFG.ERR_MASK
+    assign hwif_out.SRC.MON.WRMON_ERR_CFG.ERR_SELECT.value = field_storage.SRC.MON.WRMON_ERR_CFG.ERR_SELECT.value;
+    // Field: rapids_regs.SRC.MON.WRMON_ERR_CFG.ERR_MASK
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.WRMON_ERR_CFG.ERR_MASK.value;
+        next_c = field_storage.SRC.MON.WRMON_ERR_CFG.ERR_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.WRMON_ERR_CFG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_ERR_CFG.ERR_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+        if(decoded_reg_strb.SRC.MON.WRMON_ERR_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.WRMON_ERR_CFG.ERR_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
             load_next_c = '1;
         end
-        field_combo.MON.WRMON_ERR_CFG.ERR_MASK.next = next_c;
-        field_combo.MON.WRMON_ERR_CFG.ERR_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.WRMON_ERR_CFG.ERR_MASK.next = next_c;
+        field_combo.SRC.MON.WRMON_ERR_CFG.ERR_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_ERR_CFG.ERR_MASK.value <= 8'hff;
+            field_storage.SRC.MON.WRMON_ERR_CFG.ERR_MASK.value <= 8'hff;
         end else begin
-            if(field_combo.MON.WRMON_ERR_CFG.ERR_MASK.load_next) begin
-                field_storage.MON.WRMON_ERR_CFG.ERR_MASK.value <= field_combo.MON.WRMON_ERR_CFG.ERR_MASK.next;
+            if(field_combo.SRC.MON.WRMON_ERR_CFG.ERR_MASK.load_next) begin
+                field_storage.SRC.MON.WRMON_ERR_CFG.ERR_MASK.value <= field_combo.SRC.MON.WRMON_ERR_CFG.ERR_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.WRMON_ERR_CFG.ERR_MASK.value = field_storage.MON.WRMON_ERR_CFG.ERR_MASK.value;
-    // Field: rapids_regs.MON.WRMON_MASK1.TIMEOUT_MASK
+    assign hwif_out.SRC.MON.WRMON_ERR_CFG.ERR_MASK.value = field_storage.SRC.MON.WRMON_ERR_CFG.ERR_MASK.value;
+    // Field: rapids_regs.SRC.MON.WRMON_MASK1.TIMEOUT_MASK
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.WRMON_MASK1.TIMEOUT_MASK.value;
+        next_c = field_storage.SRC.MON.WRMON_MASK1.TIMEOUT_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.WRMON_MASK1 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_MASK1.TIMEOUT_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+        if(decoded_reg_strb.SRC.MON.WRMON_MASK1 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.WRMON_MASK1.TIMEOUT_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
         end
-        field_combo.MON.WRMON_MASK1.TIMEOUT_MASK.next = next_c;
-        field_combo.MON.WRMON_MASK1.TIMEOUT_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.WRMON_MASK1.TIMEOUT_MASK.next = next_c;
+        field_combo.SRC.MON.WRMON_MASK1.TIMEOUT_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_MASK1.TIMEOUT_MASK.value <= 8'hff;
+            field_storage.SRC.MON.WRMON_MASK1.TIMEOUT_MASK.value <= 8'hff;
         end else begin
-            if(field_combo.MON.WRMON_MASK1.TIMEOUT_MASK.load_next) begin
-                field_storage.MON.WRMON_MASK1.TIMEOUT_MASK.value <= field_combo.MON.WRMON_MASK1.TIMEOUT_MASK.next;
+            if(field_combo.SRC.MON.WRMON_MASK1.TIMEOUT_MASK.load_next) begin
+                field_storage.SRC.MON.WRMON_MASK1.TIMEOUT_MASK.value <= field_combo.SRC.MON.WRMON_MASK1.TIMEOUT_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.WRMON_MASK1.TIMEOUT_MASK.value = field_storage.MON.WRMON_MASK1.TIMEOUT_MASK.value;
-    // Field: rapids_regs.MON.WRMON_MASK1.COMPL_MASK
+    assign hwif_out.SRC.MON.WRMON_MASK1.TIMEOUT_MASK.value = field_storage.SRC.MON.WRMON_MASK1.TIMEOUT_MASK.value;
+    // Field: rapids_regs.SRC.MON.WRMON_MASK1.COMPL_MASK
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.WRMON_MASK1.COMPL_MASK.value;
+        next_c = field_storage.SRC.MON.WRMON_MASK1.COMPL_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.WRMON_MASK1 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_MASK1.COMPL_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+        if(decoded_reg_strb.SRC.MON.WRMON_MASK1 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.WRMON_MASK1.COMPL_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
             load_next_c = '1;
         end
-        field_combo.MON.WRMON_MASK1.COMPL_MASK.next = next_c;
-        field_combo.MON.WRMON_MASK1.COMPL_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.WRMON_MASK1.COMPL_MASK.next = next_c;
+        field_combo.SRC.MON.WRMON_MASK1.COMPL_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_MASK1.COMPL_MASK.value <= 8'h0;
+            field_storage.SRC.MON.WRMON_MASK1.COMPL_MASK.value <= 8'h0;
         end else begin
-            if(field_combo.MON.WRMON_MASK1.COMPL_MASK.load_next) begin
-                field_storage.MON.WRMON_MASK1.COMPL_MASK.value <= field_combo.MON.WRMON_MASK1.COMPL_MASK.next;
+            if(field_combo.SRC.MON.WRMON_MASK1.COMPL_MASK.load_next) begin
+                field_storage.SRC.MON.WRMON_MASK1.COMPL_MASK.value <= field_combo.SRC.MON.WRMON_MASK1.COMPL_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.WRMON_MASK1.COMPL_MASK.value = field_storage.MON.WRMON_MASK1.COMPL_MASK.value;
-    // Field: rapids_regs.MON.WRMON_MASK2.THRESH_MASK
+    assign hwif_out.SRC.MON.WRMON_MASK1.COMPL_MASK.value = field_storage.SRC.MON.WRMON_MASK1.COMPL_MASK.value;
+    // Field: rapids_regs.SRC.MON.WRMON_MASK2.THRESH_MASK
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.WRMON_MASK2.THRESH_MASK.value;
+        next_c = field_storage.SRC.MON.WRMON_MASK2.THRESH_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.WRMON_MASK2 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_MASK2.THRESH_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+        if(decoded_reg_strb.SRC.MON.WRMON_MASK2 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.WRMON_MASK2.THRESH_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
         end
-        field_combo.MON.WRMON_MASK2.THRESH_MASK.next = next_c;
-        field_combo.MON.WRMON_MASK2.THRESH_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.WRMON_MASK2.THRESH_MASK.next = next_c;
+        field_combo.SRC.MON.WRMON_MASK2.THRESH_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_MASK2.THRESH_MASK.value <= 8'hff;
+            field_storage.SRC.MON.WRMON_MASK2.THRESH_MASK.value <= 8'hff;
         end else begin
-            if(field_combo.MON.WRMON_MASK2.THRESH_MASK.load_next) begin
-                field_storage.MON.WRMON_MASK2.THRESH_MASK.value <= field_combo.MON.WRMON_MASK2.THRESH_MASK.next;
+            if(field_combo.SRC.MON.WRMON_MASK2.THRESH_MASK.load_next) begin
+                field_storage.SRC.MON.WRMON_MASK2.THRESH_MASK.value <= field_combo.SRC.MON.WRMON_MASK2.THRESH_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.WRMON_MASK2.THRESH_MASK.value = field_storage.MON.WRMON_MASK2.THRESH_MASK.value;
-    // Field: rapids_regs.MON.WRMON_MASK2.PERF_MASK
+    assign hwif_out.SRC.MON.WRMON_MASK2.THRESH_MASK.value = field_storage.SRC.MON.WRMON_MASK2.THRESH_MASK.value;
+    // Field: rapids_regs.SRC.MON.WRMON_MASK2.PERF_MASK
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.WRMON_MASK2.PERF_MASK.value;
+        next_c = field_storage.SRC.MON.WRMON_MASK2.PERF_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.WRMON_MASK2 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_MASK2.PERF_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+        if(decoded_reg_strb.SRC.MON.WRMON_MASK2 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.WRMON_MASK2.PERF_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
             load_next_c = '1;
         end
-        field_combo.MON.WRMON_MASK2.PERF_MASK.next = next_c;
-        field_combo.MON.WRMON_MASK2.PERF_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.WRMON_MASK2.PERF_MASK.next = next_c;
+        field_combo.SRC.MON.WRMON_MASK2.PERF_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_MASK2.PERF_MASK.value <= 8'h0;
+            field_storage.SRC.MON.WRMON_MASK2.PERF_MASK.value <= 8'h0;
         end else begin
-            if(field_combo.MON.WRMON_MASK2.PERF_MASK.load_next) begin
-                field_storage.MON.WRMON_MASK2.PERF_MASK.value <= field_combo.MON.WRMON_MASK2.PERF_MASK.next;
+            if(field_combo.SRC.MON.WRMON_MASK2.PERF_MASK.load_next) begin
+                field_storage.SRC.MON.WRMON_MASK2.PERF_MASK.value <= field_combo.SRC.MON.WRMON_MASK2.PERF_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.WRMON_MASK2.PERF_MASK.value = field_storage.MON.WRMON_MASK2.PERF_MASK.value;
-    // Field: rapids_regs.MON.WRMON_MASK3.ADDR_MASK
+    assign hwif_out.SRC.MON.WRMON_MASK2.PERF_MASK.value = field_storage.SRC.MON.WRMON_MASK2.PERF_MASK.value;
+    // Field: rapids_regs.SRC.MON.WRMON_MASK3.ADDR_MASK
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.WRMON_MASK3.ADDR_MASK.value;
+        next_c = field_storage.SRC.MON.WRMON_MASK3.ADDR_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.WRMON_MASK3 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_MASK3.ADDR_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+        if(decoded_reg_strb.SRC.MON.WRMON_MASK3 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.WRMON_MASK3.ADDR_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
         end
-        field_combo.MON.WRMON_MASK3.ADDR_MASK.next = next_c;
-        field_combo.MON.WRMON_MASK3.ADDR_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.WRMON_MASK3.ADDR_MASK.next = next_c;
+        field_combo.SRC.MON.WRMON_MASK3.ADDR_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_MASK3.ADDR_MASK.value <= 8'hff;
+            field_storage.SRC.MON.WRMON_MASK3.ADDR_MASK.value <= 8'hff;
         end else begin
-            if(field_combo.MON.WRMON_MASK3.ADDR_MASK.load_next) begin
-                field_storage.MON.WRMON_MASK3.ADDR_MASK.value <= field_combo.MON.WRMON_MASK3.ADDR_MASK.next;
+            if(field_combo.SRC.MON.WRMON_MASK3.ADDR_MASK.load_next) begin
+                field_storage.SRC.MON.WRMON_MASK3.ADDR_MASK.value <= field_combo.SRC.MON.WRMON_MASK3.ADDR_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.WRMON_MASK3.ADDR_MASK.value = field_storage.MON.WRMON_MASK3.ADDR_MASK.value;
-    // Field: rapids_regs.MON.WRMON_MASK3.DEBUG_MASK
+    assign hwif_out.SRC.MON.WRMON_MASK3.ADDR_MASK.value = field_storage.SRC.MON.WRMON_MASK3.ADDR_MASK.value;
+    // Field: rapids_regs.SRC.MON.WRMON_MASK3.DEBUG_MASK
     always_comb begin
         automatic logic [7:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.WRMON_MASK3.DEBUG_MASK.value;
+        next_c = field_storage.SRC.MON.WRMON_MASK3.DEBUG_MASK.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.WRMON_MASK3 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_MASK3.DEBUG_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+        if(decoded_reg_strb.SRC.MON.WRMON_MASK3 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.WRMON_MASK3.DEBUG_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
             load_next_c = '1;
         end
-        field_combo.MON.WRMON_MASK3.DEBUG_MASK.next = next_c;
-        field_combo.MON.WRMON_MASK3.DEBUG_MASK.load_next = load_next_c;
+        field_combo.SRC.MON.WRMON_MASK3.DEBUG_MASK.next = next_c;
+        field_combo.SRC.MON.WRMON_MASK3.DEBUG_MASK.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_MASK3.DEBUG_MASK.value <= 8'h0;
+            field_storage.SRC.MON.WRMON_MASK3.DEBUG_MASK.value <= 8'h0;
         end else begin
-            if(field_combo.MON.WRMON_MASK3.DEBUG_MASK.load_next) begin
-                field_storage.MON.WRMON_MASK3.DEBUG_MASK.value <= field_combo.MON.WRMON_MASK3.DEBUG_MASK.next;
+            if(field_combo.SRC.MON.WRMON_MASK3.DEBUG_MASK.load_next) begin
+                field_storage.SRC.MON.WRMON_MASK3.DEBUG_MASK.value <= field_combo.SRC.MON.WRMON_MASK3.DEBUG_MASK.next;
             end
         end
     end
-    assign hwif_out.MON.WRMON_MASK3.DEBUG_MASK.value = field_storage.MON.WRMON_MASK3.DEBUG_MASK.value;
-    // Field: rapids_regs.MON.DAXMON_PERF_CTRL.RUN
+    assign hwif_out.SRC.MON.WRMON_MASK3.DEBUG_MASK.value = field_storage.SRC.MON.WRMON_MASK3.DEBUG_MASK.value;
+    // Field: rapids_regs.SRC.MON.DAXMON_PERF_CTRL.RUN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.DAXMON_PERF_CTRL.RUN.value;
+        next_c = field_storage.SRC.MON.DAXMON_PERF_CTRL.RUN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.DAXMON_PERF_CTRL && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_PERF_CTRL.RUN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+        if(decoded_reg_strb.SRC.MON.DAXMON_PERF_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.DAXMON_PERF_CTRL.RUN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
             load_next_c = '1;
         end
-        field_combo.MON.DAXMON_PERF_CTRL.RUN.next = next_c;
-        field_combo.MON.DAXMON_PERF_CTRL.RUN.load_next = load_next_c;
+        field_combo.SRC.MON.DAXMON_PERF_CTRL.RUN.next = next_c;
+        field_combo.SRC.MON.DAXMON_PERF_CTRL.RUN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_PERF_CTRL.RUN.value <= 1'h0;
+            field_storage.SRC.MON.DAXMON_PERF_CTRL.RUN.value <= 1'h0;
         end else begin
-            if(field_combo.MON.DAXMON_PERF_CTRL.RUN.load_next) begin
-                field_storage.MON.DAXMON_PERF_CTRL.RUN.value <= field_combo.MON.DAXMON_PERF_CTRL.RUN.next;
+            if(field_combo.SRC.MON.DAXMON_PERF_CTRL.RUN.load_next) begin
+                field_storage.SRC.MON.DAXMON_PERF_CTRL.RUN.value <= field_combo.SRC.MON.DAXMON_PERF_CTRL.RUN.next;
             end
         end
     end
-    assign hwif_out.MON.DAXMON_PERF_CTRL.RUN.value = field_storage.MON.DAXMON_PERF_CTRL.RUN.value;
-    // Field: rapids_regs.MON.RDMON_PERF_CTRL.RUN
+    assign hwif_out.SRC.MON.DAXMON_PERF_CTRL.RUN.value = field_storage.SRC.MON.DAXMON_PERF_CTRL.RUN.value;
+    // Field: rapids_regs.SRC.MON.RDMON_PERF_CTRL.RUN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.RDMON_PERF_CTRL.RUN.value;
+        next_c = field_storage.SRC.MON.RDMON_PERF_CTRL.RUN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.RDMON_PERF_CTRL && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_PERF_CTRL.RUN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+        if(decoded_reg_strb.SRC.MON.RDMON_PERF_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.RDMON_PERF_CTRL.RUN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
             load_next_c = '1;
         end
-        field_combo.MON.RDMON_PERF_CTRL.RUN.next = next_c;
-        field_combo.MON.RDMON_PERF_CTRL.RUN.load_next = load_next_c;
+        field_combo.SRC.MON.RDMON_PERF_CTRL.RUN.next = next_c;
+        field_combo.SRC.MON.RDMON_PERF_CTRL.RUN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_PERF_CTRL.RUN.value <= 1'h0;
+            field_storage.SRC.MON.RDMON_PERF_CTRL.RUN.value <= 1'h0;
         end else begin
-            if(field_combo.MON.RDMON_PERF_CTRL.RUN.load_next) begin
-                field_storage.MON.RDMON_PERF_CTRL.RUN.value <= field_combo.MON.RDMON_PERF_CTRL.RUN.next;
+            if(field_combo.SRC.MON.RDMON_PERF_CTRL.RUN.load_next) begin
+                field_storage.SRC.MON.RDMON_PERF_CTRL.RUN.value <= field_combo.SRC.MON.RDMON_PERF_CTRL.RUN.next;
             end
         end
     end
-    assign hwif_out.MON.RDMON_PERF_CTRL.RUN.value = field_storage.MON.RDMON_PERF_CTRL.RUN.value;
-    // Field: rapids_regs.MON.WRMON_PERF_CTRL.RUN
+    assign hwif_out.SRC.MON.RDMON_PERF_CTRL.RUN.value = field_storage.SRC.MON.RDMON_PERF_CTRL.RUN.value;
+    // Field: rapids_regs.SRC.MON.WRMON_PERF_CTRL.RUN
     always_comb begin
         automatic logic [0:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON.WRMON_PERF_CTRL.RUN.value;
+        next_c = field_storage.SRC.MON.WRMON_PERF_CTRL.RUN.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON.WRMON_PERF_CTRL && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_PERF_CTRL.RUN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+        if(decoded_reg_strb.SRC.MON.WRMON_PERF_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.MON.WRMON_PERF_CTRL.RUN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
             load_next_c = '1;
         end
-        field_combo.MON.WRMON_PERF_CTRL.RUN.next = next_c;
-        field_combo.MON.WRMON_PERF_CTRL.RUN.load_next = load_next_c;
+        field_combo.SRC.MON.WRMON_PERF_CTRL.RUN.next = next_c;
+        field_combo.SRC.MON.WRMON_PERF_CTRL.RUN.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_PERF_CTRL.RUN.value <= 1'h0;
+            field_storage.SRC.MON.WRMON_PERF_CTRL.RUN.value <= 1'h0;
         end else begin
-            if(field_combo.MON.WRMON_PERF_CTRL.RUN.load_next) begin
-                field_storage.MON.WRMON_PERF_CTRL.RUN.value <= field_combo.MON.WRMON_PERF_CTRL.RUN.next;
+            if(field_combo.SRC.MON.WRMON_PERF_CTRL.RUN.load_next) begin
+                field_storage.SRC.MON.WRMON_PERF_CTRL.RUN.value <= field_combo.SRC.MON.WRMON_PERF_CTRL.RUN.next;
             end
         end
     end
-    assign hwif_out.MON.WRMON_PERF_CTRL.RUN.value = field_storage.MON.WRMON_PERF_CTRL.RUN.value;
+    assign hwif_out.SRC.MON.WRMON_PERF_CTRL.RUN.value = field_storage.SRC.MON.WRMON_PERF_CTRL.RUN.value;
+    // Field: rapids_regs.SNK.GLOBAL_CTRL.GLOBAL_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.GLOBAL_CTRL.GLOBAL_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.GLOBAL_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.GLOBAL_CTRL.GLOBAL_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.GLOBAL_CTRL.GLOBAL_EN.next = next_c;
+        field_combo.SNK.GLOBAL_CTRL.GLOBAL_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.GLOBAL_CTRL.GLOBAL_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.GLOBAL_CTRL.GLOBAL_EN.load_next) begin
+                field_storage.SNK.GLOBAL_CTRL.GLOBAL_EN.value <= field_combo.SNK.GLOBAL_CTRL.GLOBAL_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.GLOBAL_CTRL.GLOBAL_EN.value = field_storage.SNK.GLOBAL_CTRL.GLOBAL_EN.value;
+    // Field: rapids_regs.SNK.GLOBAL_CTRL.GLOBAL_RST
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.GLOBAL_CTRL.GLOBAL_RST.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.GLOBAL_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.GLOBAL_CTRL.GLOBAL_RST.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.GLOBAL_CTRL.GLOBAL_RST.next = next_c;
+        field_combo.SNK.GLOBAL_CTRL.GLOBAL_RST.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.GLOBAL_CTRL.GLOBAL_RST.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.GLOBAL_CTRL.GLOBAL_RST.load_next) begin
+                field_storage.SNK.GLOBAL_CTRL.GLOBAL_RST.value <= field_combo.SNK.GLOBAL_CTRL.GLOBAL_RST.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.GLOBAL_CTRL.GLOBAL_RST.value = field_storage.SNK.GLOBAL_CTRL.GLOBAL_RST.value;
+    assign hwif_out.SNK.GLOBAL_CTRL.GLOBAL_RST.swmod = decoded_reg_strb.SNK.GLOBAL_CTRL && decoded_req_is_wr && |(decoded_wr_biten[1:1]);
+    // Field: rapids_regs.SNK.CHANNEL_ENABLE.CH_EN
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.CHANNEL_ENABLE.CH_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.CHANNEL_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.CHANNEL_ENABLE.CH_EN.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.CHANNEL_ENABLE.CH_EN.next = next_c;
+        field_combo.SNK.CHANNEL_ENABLE.CH_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.CHANNEL_ENABLE.CH_EN.value <= 8'h0;
+        end else begin
+            if(field_combo.SNK.CHANNEL_ENABLE.CH_EN.load_next) begin
+                field_storage.SNK.CHANNEL_ENABLE.CH_EN.value <= field_combo.SNK.CHANNEL_ENABLE.CH_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.CHANNEL_ENABLE.CH_EN.value = field_storage.SNK.CHANNEL_ENABLE.CH_EN.value;
+    // Field: rapids_regs.SNK.CHANNEL_RESET.CH_RST
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.CHANNEL_RESET.CH_RST.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.CHANNEL_RESET && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.CHANNEL_RESET.CH_RST.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.CHANNEL_RESET.CH_RST.next = next_c;
+        field_combo.SNK.CHANNEL_RESET.CH_RST.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.CHANNEL_RESET.CH_RST.value <= 8'h0;
+        end else begin
+            if(field_combo.SNK.CHANNEL_RESET.CH_RST.load_next) begin
+                field_storage.SNK.CHANNEL_RESET.CH_RST.value <= field_combo.SNK.CHANNEL_RESET.CH_RST.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.CHANNEL_RESET.CH_RST.value = field_storage.SNK.CHANNEL_RESET.CH_RST.value;
+    assign hwif_out.SNK.CHANNEL_RESET.CH_RST.swmod = decoded_reg_strb.SNK.CHANNEL_RESET && decoded_req_is_wr && |(decoded_wr_biten[7:0]);
+    // Field: rapids_regs.SNK.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.SCHED_TIMEOUT_CYCLES && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.next = next_c;
+        field_combo.SNK.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value <= 32'h3e8;
+        end else begin
+            if(field_combo.SNK.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.load_next) begin
+                field_storage.SNK.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value <= field_combo.SNK.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value = field_storage.SNK.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value;
+    // Field: rapids_regs.SNK.SCHED_CONFIG.SCHED_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.SCHED_CONFIG.SCHED_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.SCHED_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.SCHED_CONFIG.SCHED_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.SCHED_CONFIG.SCHED_EN.next = next_c;
+        field_combo.SNK.SCHED_CONFIG.SCHED_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.SCHED_CONFIG.SCHED_EN.value <= 1'h1;
+        end else begin
+            if(field_combo.SNK.SCHED_CONFIG.SCHED_EN.load_next) begin
+                field_storage.SNK.SCHED_CONFIG.SCHED_EN.value <= field_combo.SNK.SCHED_CONFIG.SCHED_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.SCHED_CONFIG.SCHED_EN.value = field_storage.SNK.SCHED_CONFIG.SCHED_EN.value;
+    // Field: rapids_regs.SNK.SCHED_CONFIG.TIMEOUT_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.SCHED_CONFIG.TIMEOUT_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.SCHED_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.SCHED_CONFIG.TIMEOUT_EN.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.SCHED_CONFIG.TIMEOUT_EN.next = next_c;
+        field_combo.SNK.SCHED_CONFIG.TIMEOUT_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.SCHED_CONFIG.TIMEOUT_EN.value <= 1'h1;
+        end else begin
+            if(field_combo.SNK.SCHED_CONFIG.TIMEOUT_EN.load_next) begin
+                field_storage.SNK.SCHED_CONFIG.TIMEOUT_EN.value <= field_combo.SNK.SCHED_CONFIG.TIMEOUT_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.SCHED_CONFIG.TIMEOUT_EN.value = field_storage.SNK.SCHED_CONFIG.TIMEOUT_EN.value;
+    // Field: rapids_regs.SNK.SCHED_CONFIG.ERR_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.SCHED_CONFIG.ERR_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.SCHED_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.SCHED_CONFIG.ERR_EN.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.SCHED_CONFIG.ERR_EN.next = next_c;
+        field_combo.SNK.SCHED_CONFIG.ERR_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.SCHED_CONFIG.ERR_EN.value <= 1'h1;
+        end else begin
+            if(field_combo.SNK.SCHED_CONFIG.ERR_EN.load_next) begin
+                field_storage.SNK.SCHED_CONFIG.ERR_EN.value <= field_combo.SNK.SCHED_CONFIG.ERR_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.SCHED_CONFIG.ERR_EN.value = field_storage.SNK.SCHED_CONFIG.ERR_EN.value;
+    // Field: rapids_regs.SNK.SCHED_CONFIG.COMPL_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.SCHED_CONFIG.COMPL_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.SCHED_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.SCHED_CONFIG.COMPL_EN.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.SCHED_CONFIG.COMPL_EN.next = next_c;
+        field_combo.SNK.SCHED_CONFIG.COMPL_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.SCHED_CONFIG.COMPL_EN.value <= 1'h1;
+        end else begin
+            if(field_combo.SNK.SCHED_CONFIG.COMPL_EN.load_next) begin
+                field_storage.SNK.SCHED_CONFIG.COMPL_EN.value <= field_combo.SNK.SCHED_CONFIG.COMPL_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.SCHED_CONFIG.COMPL_EN.value = field_storage.SNK.SCHED_CONFIG.COMPL_EN.value;
+    // Field: rapids_regs.SNK.SCHED_CONFIG.PERF_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.SCHED_CONFIG.PERF_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.SCHED_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.SCHED_CONFIG.PERF_EN.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.SCHED_CONFIG.PERF_EN.next = next_c;
+        field_combo.SNK.SCHED_CONFIG.PERF_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.SCHED_CONFIG.PERF_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.SCHED_CONFIG.PERF_EN.load_next) begin
+                field_storage.SNK.SCHED_CONFIG.PERF_EN.value <= field_combo.SNK.SCHED_CONFIG.PERF_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.SCHED_CONFIG.PERF_EN.value = field_storage.SNK.SCHED_CONFIG.PERF_EN.value;
+    // Field: rapids_regs.SNK.SCHED_TIMEOUT_LIMIT.LIMIT
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.SCHED_TIMEOUT_LIMIT.LIMIT.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.SCHED_TIMEOUT_LIMIT && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.SCHED_TIMEOUT_LIMIT.LIMIT.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.SCHED_TIMEOUT_LIMIT.LIMIT.next = next_c;
+        field_combo.SNK.SCHED_TIMEOUT_LIMIT.LIMIT.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.SCHED_TIMEOUT_LIMIT.LIMIT.value <= 8'h4;
+        end else begin
+            if(field_combo.SNK.SCHED_TIMEOUT_LIMIT.LIMIT.load_next) begin
+                field_storage.SNK.SCHED_TIMEOUT_LIMIT.LIMIT.value <= field_combo.SNK.SCHED_TIMEOUT_LIMIT.LIMIT.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.SCHED_TIMEOUT_LIMIT.LIMIT.value = field_storage.SNK.SCHED_TIMEOUT_LIMIT.LIMIT.value;
+    // Field: rapids_regs.SNK.DESCENG_CONFIG.DESCENG_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.DESCENG_CONFIG.DESCENG_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.DESCENG_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.DESCENG_CONFIG.DESCENG_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.DESCENG_CONFIG.DESCENG_EN.next = next_c;
+        field_combo.SNK.DESCENG_CONFIG.DESCENG_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.DESCENG_CONFIG.DESCENG_EN.value <= 1'h1;
+        end else begin
+            if(field_combo.SNK.DESCENG_CONFIG.DESCENG_EN.load_next) begin
+                field_storage.SNK.DESCENG_CONFIG.DESCENG_EN.value <= field_combo.SNK.DESCENG_CONFIG.DESCENG_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.DESCENG_CONFIG.DESCENG_EN.value = field_storage.SNK.DESCENG_CONFIG.DESCENG_EN.value;
+    // Field: rapids_regs.SNK.DESCENG_CONFIG.PREFETCH_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.DESCENG_CONFIG.PREFETCH_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.DESCENG_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.DESCENG_CONFIG.PREFETCH_EN.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.DESCENG_CONFIG.PREFETCH_EN.next = next_c;
+        field_combo.SNK.DESCENG_CONFIG.PREFETCH_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.DESCENG_CONFIG.PREFETCH_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.DESCENG_CONFIG.PREFETCH_EN.load_next) begin
+                field_storage.SNK.DESCENG_CONFIG.PREFETCH_EN.value <= field_combo.SNK.DESCENG_CONFIG.PREFETCH_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.DESCENG_CONFIG.PREFETCH_EN.value = field_storage.SNK.DESCENG_CONFIG.PREFETCH_EN.value;
+    // Field: rapids_regs.SNK.DESCENG_CONFIG.FIFO_THRESH
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.DESCENG_CONFIG.FIFO_THRESH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.DESCENG_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.DESCENG_CONFIG.FIFO_THRESH.value & ~decoded_wr_biten[5:2]) | (decoded_wr_data[5:2] & decoded_wr_biten[5:2]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.DESCENG_CONFIG.FIFO_THRESH.next = next_c;
+        field_combo.SNK.DESCENG_CONFIG.FIFO_THRESH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.DESCENG_CONFIG.FIFO_THRESH.value <= 4'h8;
+        end else begin
+            if(field_combo.SNK.DESCENG_CONFIG.FIFO_THRESH.load_next) begin
+                field_storage.SNK.DESCENG_CONFIG.FIFO_THRESH.value <= field_combo.SNK.DESCENG_CONFIG.FIFO_THRESH.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.DESCENG_CONFIG.FIFO_THRESH.value = field_storage.SNK.DESCENG_CONFIG.FIFO_THRESH.value;
+    // Field: rapids_regs.SNK.DESCENG_ADDR0_BASE.ADDR0_BASE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.DESCENG_ADDR0_BASE.ADDR0_BASE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.DESCENG_ADDR0_BASE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.DESCENG_ADDR0_BASE.ADDR0_BASE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.DESCENG_ADDR0_BASE.ADDR0_BASE.next = next_c;
+        field_combo.SNK.DESCENG_ADDR0_BASE.ADDR0_BASE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.DESCENG_ADDR0_BASE.ADDR0_BASE.value <= 32'h0;
+        end else begin
+            if(field_combo.SNK.DESCENG_ADDR0_BASE.ADDR0_BASE.load_next) begin
+                field_storage.SNK.DESCENG_ADDR0_BASE.ADDR0_BASE.value <= field_combo.SNK.DESCENG_ADDR0_BASE.ADDR0_BASE.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.DESCENG_ADDR0_BASE.ADDR0_BASE.value = field_storage.SNK.DESCENG_ADDR0_BASE.ADDR0_BASE.value;
+    // Field: rapids_regs.SNK.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.DESCENG_ADDR0_LIMIT && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.next = next_c;
+        field_combo.SNK.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value <= 32'hffffffff;
+        end else begin
+            if(field_combo.SNK.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.load_next) begin
+                field_storage.SNK.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value <= field_combo.SNK.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value = field_storage.SNK.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value;
+    // Field: rapids_regs.SNK.DESCENG_ADDR1_BASE.ADDR1_BASE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.DESCENG_ADDR1_BASE.ADDR1_BASE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.DESCENG_ADDR1_BASE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.DESCENG_ADDR1_BASE.ADDR1_BASE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.DESCENG_ADDR1_BASE.ADDR1_BASE.next = next_c;
+        field_combo.SNK.DESCENG_ADDR1_BASE.ADDR1_BASE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.DESCENG_ADDR1_BASE.ADDR1_BASE.value <= 32'h0;
+        end else begin
+            if(field_combo.SNK.DESCENG_ADDR1_BASE.ADDR1_BASE.load_next) begin
+                field_storage.SNK.DESCENG_ADDR1_BASE.ADDR1_BASE.value <= field_combo.SNK.DESCENG_ADDR1_BASE.ADDR1_BASE.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.DESCENG_ADDR1_BASE.ADDR1_BASE.value = field_storage.SNK.DESCENG_ADDR1_BASE.ADDR1_BASE.value;
+    // Field: rapids_regs.SNK.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.DESCENG_ADDR1_LIMIT && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.next = next_c;
+        field_combo.SNK.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value <= 32'hffffffff;
+        end else begin
+            if(field_combo.SNK.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.load_next) begin
+                field_storage.SNK.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value <= field_combo.SNK.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value = field_storage.SNK.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value;
+    // Field: rapids_regs.SNK.CTRL_CONFIG.CTRLRD_MAX_TRY
+    always_comb begin
+        automatic logic [8:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.CTRL_CONFIG.CTRLRD_MAX_TRY.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.CTRL_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.CTRL_CONFIG.CTRLRD_MAX_TRY.value & ~decoded_wr_biten[8:0]) | (decoded_wr_data[8:0] & decoded_wr_biten[8:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.CTRL_CONFIG.CTRLRD_MAX_TRY.next = next_c;
+        field_combo.SNK.CTRL_CONFIG.CTRLRD_MAX_TRY.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.CTRL_CONFIG.CTRLRD_MAX_TRY.value <= 9'h10;
+        end else begin
+            if(field_combo.SNK.CTRL_CONFIG.CTRLRD_MAX_TRY.load_next) begin
+                field_storage.SNK.CTRL_CONFIG.CTRLRD_MAX_TRY.value <= field_combo.SNK.CTRL_CONFIG.CTRLRD_MAX_TRY.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.CTRL_CONFIG.CTRLRD_MAX_TRY.value = field_storage.SNK.CTRL_CONFIG.CTRLRD_MAX_TRY.value;
+    // Field: rapids_regs.SNK.AXI_XFER_CONFIG.RD_XFER_BEATS
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.AXI_XFER_CONFIG.RD_XFER_BEATS.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.AXI_XFER_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.AXI_XFER_CONFIG.RD_XFER_BEATS.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.AXI_XFER_CONFIG.RD_XFER_BEATS.next = next_c;
+        field_combo.SNK.AXI_XFER_CONFIG.RD_XFER_BEATS.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.AXI_XFER_CONFIG.RD_XFER_BEATS.value <= 8'hf;
+        end else begin
+            if(field_combo.SNK.AXI_XFER_CONFIG.RD_XFER_BEATS.load_next) begin
+                field_storage.SNK.AXI_XFER_CONFIG.RD_XFER_BEATS.value <= field_combo.SNK.AXI_XFER_CONFIG.RD_XFER_BEATS.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.AXI_XFER_CONFIG.RD_XFER_BEATS.value = field_storage.SNK.AXI_XFER_CONFIG.RD_XFER_BEATS.value;
+    // Field: rapids_regs.SNK.AXI_XFER_CONFIG.WR_XFER_BEATS
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.AXI_XFER_CONFIG.WR_XFER_BEATS.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.AXI_XFER_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.AXI_XFER_CONFIG.WR_XFER_BEATS.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.AXI_XFER_CONFIG.WR_XFER_BEATS.next = next_c;
+        field_combo.SNK.AXI_XFER_CONFIG.WR_XFER_BEATS.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.AXI_XFER_CONFIG.WR_XFER_BEATS.value <= 8'hf;
+        end else begin
+            if(field_combo.SNK.AXI_XFER_CONFIG.WR_XFER_BEATS.load_next) begin
+                field_storage.SNK.AXI_XFER_CONFIG.WR_XFER_BEATS.value <= field_combo.SNK.AXI_XFER_CONFIG.WR_XFER_BEATS.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.AXI_XFER_CONFIG.WR_XFER_BEATS.value = field_storage.SNK.AXI_XFER_CONFIG.WR_XFER_BEATS.value;
+    // Field: rapids_regs.SNK.AXI_XFER_CONFIG.ALLOC_SIZE
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.AXI_XFER_CONFIG.ALLOC_SIZE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.AXI_XFER_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.AXI_XFER_CONFIG.ALLOC_SIZE.value & ~decoded_wr_biten[23:16]) | (decoded_wr_data[23:16] & decoded_wr_biten[23:16]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.AXI_XFER_CONFIG.ALLOC_SIZE.next = next_c;
+        field_combo.SNK.AXI_XFER_CONFIG.ALLOC_SIZE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.AXI_XFER_CONFIG.ALLOC_SIZE.value <= 8'h10;
+        end else begin
+            if(field_combo.SNK.AXI_XFER_CONFIG.ALLOC_SIZE.load_next) begin
+                field_storage.SNK.AXI_XFER_CONFIG.ALLOC_SIZE.value <= field_combo.SNK.AXI_XFER_CONFIG.ALLOC_SIZE.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.AXI_XFER_CONFIG.ALLOC_SIZE.value = field_storage.SNK.AXI_XFER_CONFIG.ALLOC_SIZE.value;
+    // Field: rapids_regs.SNK.AXI_XFER_CONFIG.DRAIN_SIZE
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.AXI_XFER_CONFIG.DRAIN_SIZE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.AXI_XFER_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.AXI_XFER_CONFIG.DRAIN_SIZE.value & ~decoded_wr_biten[31:24]) | (decoded_wr_data[31:24] & decoded_wr_biten[31:24]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.AXI_XFER_CONFIG.DRAIN_SIZE.next = next_c;
+        field_combo.SNK.AXI_XFER_CONFIG.DRAIN_SIZE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.AXI_XFER_CONFIG.DRAIN_SIZE.value <= 8'h10;
+        end else begin
+            if(field_combo.SNK.AXI_XFER_CONFIG.DRAIN_SIZE.load_next) begin
+                field_storage.SNK.AXI_XFER_CONFIG.DRAIN_SIZE.value <= field_combo.SNK.AXI_XFER_CONFIG.DRAIN_SIZE.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.AXI_XFER_CONFIG.DRAIN_SIZE.value = field_storage.SNK.AXI_XFER_CONFIG.DRAIN_SIZE.value;
+    // Field: rapids_regs.SNK.PERF_CONFIG.PERF_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.PERF_CONFIG.PERF_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.PERF_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.PERF_CONFIG.PERF_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.PERF_CONFIG.PERF_EN.next = next_c;
+        field_combo.SNK.PERF_CONFIG.PERF_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.PERF_CONFIG.PERF_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.PERF_CONFIG.PERF_EN.load_next) begin
+                field_storage.SNK.PERF_CONFIG.PERF_EN.value <= field_combo.SNK.PERF_CONFIG.PERF_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.PERF_CONFIG.PERF_EN.value = field_storage.SNK.PERF_CONFIG.PERF_EN.value;
+    // Field: rapids_regs.SNK.PERF_CONFIG.PERF_MODE
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.PERF_CONFIG.PERF_MODE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.PERF_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.PERF_CONFIG.PERF_MODE.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.PERF_CONFIG.PERF_MODE.next = next_c;
+        field_combo.SNK.PERF_CONFIG.PERF_MODE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.PERF_CONFIG.PERF_MODE.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.PERF_CONFIG.PERF_MODE.load_next) begin
+                field_storage.SNK.PERF_CONFIG.PERF_MODE.value <= field_combo.SNK.PERF_CONFIG.PERF_MODE.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.PERF_CONFIG.PERF_MODE.value = field_storage.SNK.PERF_CONFIG.PERF_MODE.value;
+    // Field: rapids_regs.SNK.PERF_CONFIG.PERF_CLEAR
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.PERF_CONFIG.PERF_CLEAR.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.PERF_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.PERF_CONFIG.PERF_CLEAR.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.PERF_CONFIG.PERF_CLEAR.next = next_c;
+        field_combo.SNK.PERF_CONFIG.PERF_CLEAR.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.PERF_CONFIG.PERF_CLEAR.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.PERF_CONFIG.PERF_CLEAR.load_next) begin
+                field_storage.SNK.PERF_CONFIG.PERF_CLEAR.value <= field_combo.SNK.PERF_CONFIG.PERF_CLEAR.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.PERF_CONFIG.PERF_CLEAR.value = field_storage.SNK.PERF_CONFIG.PERF_CLEAR.value;
+    assign hwif_out.SNK.PERF_CONFIG.PERF_CLEAR.swmod = decoded_reg_strb.SNK.PERF_CONFIG && decoded_req_is_wr && |(decoded_wr_biten[2:2]);
+    // Field: rapids_regs.SNK.OBS_CTRL.CH_SEL
+    always_comb begin
+        automatic logic [2:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.OBS_CTRL.CH_SEL.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.OBS_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.OBS_CTRL.CH_SEL.value & ~decoded_wr_biten[2:0]) | (decoded_wr_data[2:0] & decoded_wr_biten[2:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.OBS_CTRL.CH_SEL.next = next_c;
+        field_combo.SNK.OBS_CTRL.CH_SEL.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.OBS_CTRL.CH_SEL.value <= 3'h0;
+        end else begin
+            if(field_combo.SNK.OBS_CTRL.CH_SEL.load_next) begin
+                field_storage.SNK.OBS_CTRL.CH_SEL.value <= field_combo.SNK.OBS_CTRL.CH_SEL.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.OBS_CTRL.CH_SEL.value = field_storage.SNK.OBS_CTRL.CH_SEL.value;
+    // Field: rapids_regs.SNK.OBS_CTRL.CAT_SEL
+    always_comb begin
+        automatic logic [1:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.OBS_CTRL.CAT_SEL.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.OBS_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.OBS_CTRL.CAT_SEL.value & ~decoded_wr_biten[4:3]) | (decoded_wr_data[4:3] & decoded_wr_biten[4:3]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.OBS_CTRL.CAT_SEL.next = next_c;
+        field_combo.SNK.OBS_CTRL.CAT_SEL.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.OBS_CTRL.CAT_SEL.value <= 2'h0;
+        end else begin
+            if(field_combo.SNK.OBS_CTRL.CAT_SEL.load_next) begin
+                field_storage.SNK.OBS_CTRL.CAT_SEL.value <= field_combo.SNK.OBS_CTRL.CAT_SEL.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.OBS_CTRL.CAT_SEL.value = field_storage.SNK.OBS_CTRL.CAT_SEL.value;
+    // Field: rapids_regs.SNK.PERF_CH_SEL.CH_SEL
+    always_comb begin
+        automatic logic [2:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.PERF_CH_SEL.CH_SEL.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.PERF_CH_SEL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.PERF_CH_SEL.CH_SEL.value & ~decoded_wr_biten[2:0]) | (decoded_wr_data[2:0] & decoded_wr_biten[2:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.PERF_CH_SEL.CH_SEL.next = next_c;
+        field_combo.SNK.PERF_CH_SEL.CH_SEL.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.PERF_CH_SEL.CH_SEL.value <= 3'h0;
+        end else begin
+            if(field_combo.SNK.PERF_CH_SEL.CH_SEL.load_next) begin
+                field_storage.SNK.PERF_CH_SEL.CH_SEL.value <= field_combo.SNK.PERF_CH_SEL.CH_SEL.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.PERF_CH_SEL.CH_SEL.value = field_storage.SNK.PERF_CH_SEL.CH_SEL.value;
+    // Field: rapids_regs.SNK.HIST_SEL.BUS
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.HIST_SEL.BUS.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.HIST_SEL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.HIST_SEL.BUS.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.HIST_SEL.BUS.next = next_c;
+        field_combo.SNK.HIST_SEL.BUS.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.HIST_SEL.BUS.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.HIST_SEL.BUS.load_next) begin
+                field_storage.SNK.HIST_SEL.BUS.value <= field_combo.SNK.HIST_SEL.BUS.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.HIST_SEL.BUS.value = field_storage.SNK.HIST_SEL.BUS.value;
+    // Field: rapids_regs.SNK.HIST_SEL.METRIC
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.HIST_SEL.METRIC.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.HIST_SEL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.HIST_SEL.METRIC.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.HIST_SEL.METRIC.next = next_c;
+        field_combo.SNK.HIST_SEL.METRIC.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.HIST_SEL.METRIC.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.HIST_SEL.METRIC.load_next) begin
+                field_storage.SNK.HIST_SEL.METRIC.value <= field_combo.SNK.HIST_SEL.METRIC.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.HIST_SEL.METRIC.value = field_storage.SNK.HIST_SEL.METRIC.value;
+    // Field: rapids_regs.SNK.HIST_SEL.BIN
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.HIST_SEL.BIN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.HIST_SEL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.HIST_SEL.BIN.value & ~decoded_wr_biten[5:2]) | (decoded_wr_data[5:2] & decoded_wr_biten[5:2]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.HIST_SEL.BIN.next = next_c;
+        field_combo.SNK.HIST_SEL.BIN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.HIST_SEL.BIN.value <= 4'h0;
+        end else begin
+            if(field_combo.SNK.HIST_SEL.BIN.load_next) begin
+                field_storage.SNK.HIST_SEL.BIN.value <= field_combo.SNK.HIST_SEL.BIN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.HIST_SEL.BIN.value = field_storage.SNK.HIST_SEL.BIN.value;
+    // Field: rapids_regs.SNK.MON.DAXMON_ENABLE.MON_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.DAXMON_ENABLE.MON_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.DAXMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.DAXMON_ENABLE.MON_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.DAXMON_ENABLE.MON_EN.next = next_c;
+        field_combo.SNK.MON.DAXMON_ENABLE.MON_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.DAXMON_ENABLE.MON_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.MON.DAXMON_ENABLE.MON_EN.load_next) begin
+                field_storage.SNK.MON.DAXMON_ENABLE.MON_EN.value <= field_combo.SNK.MON.DAXMON_ENABLE.MON_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.DAXMON_ENABLE.MON_EN.value = field_storage.SNK.MON.DAXMON_ENABLE.MON_EN.value;
+    // Field: rapids_regs.SNK.MON.DAXMON_ENABLE.ERR_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.DAXMON_ENABLE.ERR_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.DAXMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.DAXMON_ENABLE.ERR_EN.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.DAXMON_ENABLE.ERR_EN.next = next_c;
+        field_combo.SNK.MON.DAXMON_ENABLE.ERR_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.DAXMON_ENABLE.ERR_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.MON.DAXMON_ENABLE.ERR_EN.load_next) begin
+                field_storage.SNK.MON.DAXMON_ENABLE.ERR_EN.value <= field_combo.SNK.MON.DAXMON_ENABLE.ERR_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.DAXMON_ENABLE.ERR_EN.value = field_storage.SNK.MON.DAXMON_ENABLE.ERR_EN.value;
+    // Field: rapids_regs.SNK.MON.DAXMON_ENABLE.COMPL_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.DAXMON_ENABLE.COMPL_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.DAXMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.DAXMON_ENABLE.COMPL_EN.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.DAXMON_ENABLE.COMPL_EN.next = next_c;
+        field_combo.SNK.MON.DAXMON_ENABLE.COMPL_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.DAXMON_ENABLE.COMPL_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.MON.DAXMON_ENABLE.COMPL_EN.load_next) begin
+                field_storage.SNK.MON.DAXMON_ENABLE.COMPL_EN.value <= field_combo.SNK.MON.DAXMON_ENABLE.COMPL_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.DAXMON_ENABLE.COMPL_EN.value = field_storage.SNK.MON.DAXMON_ENABLE.COMPL_EN.value;
+    // Field: rapids_regs.SNK.MON.DAXMON_ENABLE.TIMEOUT_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.DAXMON_ENABLE.TIMEOUT_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.DAXMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.DAXMON_ENABLE.TIMEOUT_EN.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.DAXMON_ENABLE.TIMEOUT_EN.next = next_c;
+        field_combo.SNK.MON.DAXMON_ENABLE.TIMEOUT_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.DAXMON_ENABLE.TIMEOUT_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.MON.DAXMON_ENABLE.TIMEOUT_EN.load_next) begin
+                field_storage.SNK.MON.DAXMON_ENABLE.TIMEOUT_EN.value <= field_combo.SNK.MON.DAXMON_ENABLE.TIMEOUT_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.DAXMON_ENABLE.TIMEOUT_EN.value = field_storage.SNK.MON.DAXMON_ENABLE.TIMEOUT_EN.value;
+    // Field: rapids_regs.SNK.MON.DAXMON_ENABLE.PERF_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.DAXMON_ENABLE.PERF_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.DAXMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.DAXMON_ENABLE.PERF_EN.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.DAXMON_ENABLE.PERF_EN.next = next_c;
+        field_combo.SNK.MON.DAXMON_ENABLE.PERF_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.DAXMON_ENABLE.PERF_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.MON.DAXMON_ENABLE.PERF_EN.load_next) begin
+                field_storage.SNK.MON.DAXMON_ENABLE.PERF_EN.value <= field_combo.SNK.MON.DAXMON_ENABLE.PERF_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.DAXMON_ENABLE.PERF_EN.value = field_storage.SNK.MON.DAXMON_ENABLE.PERF_EN.value;
+    // Field: rapids_regs.SNK.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.DAXMON_TIMEOUT && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.next = next_c;
+        field_combo.SNK.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value <= 32'h2710;
+        end else begin
+            if(field_combo.SNK.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.load_next) begin
+                field_storage.SNK.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value <= field_combo.SNK.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value = field_storage.SNK.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value;
+    // Field: rapids_regs.SNK.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.DAXMON_LATENCY_THRESH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.next = next_c;
+        field_combo.SNK.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value <= 32'h1388;
+        end else begin
+            if(field_combo.SNK.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.load_next) begin
+                field_storage.SNK.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value <= field_combo.SNK.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value = field_storage.SNK.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value;
+    // Field: rapids_regs.SNK.MON.DAXMON_PKT_MASK.PKT_MASK
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.DAXMON_PKT_MASK.PKT_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.DAXMON_PKT_MASK && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.DAXMON_PKT_MASK.PKT_MASK.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.DAXMON_PKT_MASK.PKT_MASK.next = next_c;
+        field_combo.SNK.MON.DAXMON_PKT_MASK.PKT_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.DAXMON_PKT_MASK.PKT_MASK.value <= 16'hffff;
+        end else begin
+            if(field_combo.SNK.MON.DAXMON_PKT_MASK.PKT_MASK.load_next) begin
+                field_storage.SNK.MON.DAXMON_PKT_MASK.PKT_MASK.value <= field_combo.SNK.MON.DAXMON_PKT_MASK.PKT_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.DAXMON_PKT_MASK.PKT_MASK.value = field_storage.SNK.MON.DAXMON_PKT_MASK.PKT_MASK.value;
+    // Field: rapids_regs.SNK.MON.DAXMON_ERR_CFG.ERR_SELECT
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.DAXMON_ERR_CFG.ERR_SELECT.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.DAXMON_ERR_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.DAXMON_ERR_CFG.ERR_SELECT.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.DAXMON_ERR_CFG.ERR_SELECT.next = next_c;
+        field_combo.SNK.MON.DAXMON_ERR_CFG.ERR_SELECT.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.DAXMON_ERR_CFG.ERR_SELECT.value <= 4'h0;
+        end else begin
+            if(field_combo.SNK.MON.DAXMON_ERR_CFG.ERR_SELECT.load_next) begin
+                field_storage.SNK.MON.DAXMON_ERR_CFG.ERR_SELECT.value <= field_combo.SNK.MON.DAXMON_ERR_CFG.ERR_SELECT.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.DAXMON_ERR_CFG.ERR_SELECT.value = field_storage.SNK.MON.DAXMON_ERR_CFG.ERR_SELECT.value;
+    // Field: rapids_regs.SNK.MON.DAXMON_ERR_CFG.ERR_MASK
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.DAXMON_ERR_CFG.ERR_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.DAXMON_ERR_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.DAXMON_ERR_CFG.ERR_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.DAXMON_ERR_CFG.ERR_MASK.next = next_c;
+        field_combo.SNK.MON.DAXMON_ERR_CFG.ERR_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.DAXMON_ERR_CFG.ERR_MASK.value <= 8'hff;
+        end else begin
+            if(field_combo.SNK.MON.DAXMON_ERR_CFG.ERR_MASK.load_next) begin
+                field_storage.SNK.MON.DAXMON_ERR_CFG.ERR_MASK.value <= field_combo.SNK.MON.DAXMON_ERR_CFG.ERR_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.DAXMON_ERR_CFG.ERR_MASK.value = field_storage.SNK.MON.DAXMON_ERR_CFG.ERR_MASK.value;
+    // Field: rapids_regs.SNK.MON.DAXMON_MASK1.TIMEOUT_MASK
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.DAXMON_MASK1.TIMEOUT_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.DAXMON_MASK1 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.DAXMON_MASK1.TIMEOUT_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.DAXMON_MASK1.TIMEOUT_MASK.next = next_c;
+        field_combo.SNK.MON.DAXMON_MASK1.TIMEOUT_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.DAXMON_MASK1.TIMEOUT_MASK.value <= 8'hff;
+        end else begin
+            if(field_combo.SNK.MON.DAXMON_MASK1.TIMEOUT_MASK.load_next) begin
+                field_storage.SNK.MON.DAXMON_MASK1.TIMEOUT_MASK.value <= field_combo.SNK.MON.DAXMON_MASK1.TIMEOUT_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.DAXMON_MASK1.TIMEOUT_MASK.value = field_storage.SNK.MON.DAXMON_MASK1.TIMEOUT_MASK.value;
+    // Field: rapids_regs.SNK.MON.DAXMON_MASK1.COMPL_MASK
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.DAXMON_MASK1.COMPL_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.DAXMON_MASK1 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.DAXMON_MASK1.COMPL_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.DAXMON_MASK1.COMPL_MASK.next = next_c;
+        field_combo.SNK.MON.DAXMON_MASK1.COMPL_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.DAXMON_MASK1.COMPL_MASK.value <= 8'h0;
+        end else begin
+            if(field_combo.SNK.MON.DAXMON_MASK1.COMPL_MASK.load_next) begin
+                field_storage.SNK.MON.DAXMON_MASK1.COMPL_MASK.value <= field_combo.SNK.MON.DAXMON_MASK1.COMPL_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.DAXMON_MASK1.COMPL_MASK.value = field_storage.SNK.MON.DAXMON_MASK1.COMPL_MASK.value;
+    // Field: rapids_regs.SNK.MON.DAXMON_MASK2.THRESH_MASK
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.DAXMON_MASK2.THRESH_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.DAXMON_MASK2 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.DAXMON_MASK2.THRESH_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.DAXMON_MASK2.THRESH_MASK.next = next_c;
+        field_combo.SNK.MON.DAXMON_MASK2.THRESH_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.DAXMON_MASK2.THRESH_MASK.value <= 8'hff;
+        end else begin
+            if(field_combo.SNK.MON.DAXMON_MASK2.THRESH_MASK.load_next) begin
+                field_storage.SNK.MON.DAXMON_MASK2.THRESH_MASK.value <= field_combo.SNK.MON.DAXMON_MASK2.THRESH_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.DAXMON_MASK2.THRESH_MASK.value = field_storage.SNK.MON.DAXMON_MASK2.THRESH_MASK.value;
+    // Field: rapids_regs.SNK.MON.DAXMON_MASK2.PERF_MASK
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.DAXMON_MASK2.PERF_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.DAXMON_MASK2 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.DAXMON_MASK2.PERF_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.DAXMON_MASK2.PERF_MASK.next = next_c;
+        field_combo.SNK.MON.DAXMON_MASK2.PERF_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.DAXMON_MASK2.PERF_MASK.value <= 8'h0;
+        end else begin
+            if(field_combo.SNK.MON.DAXMON_MASK2.PERF_MASK.load_next) begin
+                field_storage.SNK.MON.DAXMON_MASK2.PERF_MASK.value <= field_combo.SNK.MON.DAXMON_MASK2.PERF_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.DAXMON_MASK2.PERF_MASK.value = field_storage.SNK.MON.DAXMON_MASK2.PERF_MASK.value;
+    // Field: rapids_regs.SNK.MON.DAXMON_MASK3.ADDR_MASK
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.DAXMON_MASK3.ADDR_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.DAXMON_MASK3 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.DAXMON_MASK3.ADDR_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.DAXMON_MASK3.ADDR_MASK.next = next_c;
+        field_combo.SNK.MON.DAXMON_MASK3.ADDR_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.DAXMON_MASK3.ADDR_MASK.value <= 8'hff;
+        end else begin
+            if(field_combo.SNK.MON.DAXMON_MASK3.ADDR_MASK.load_next) begin
+                field_storage.SNK.MON.DAXMON_MASK3.ADDR_MASK.value <= field_combo.SNK.MON.DAXMON_MASK3.ADDR_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.DAXMON_MASK3.ADDR_MASK.value = field_storage.SNK.MON.DAXMON_MASK3.ADDR_MASK.value;
+    // Field: rapids_regs.SNK.MON.DAXMON_MASK3.DEBUG_MASK
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.DAXMON_MASK3.DEBUG_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.DAXMON_MASK3 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.DAXMON_MASK3.DEBUG_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.DAXMON_MASK3.DEBUG_MASK.next = next_c;
+        field_combo.SNK.MON.DAXMON_MASK3.DEBUG_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.DAXMON_MASK3.DEBUG_MASK.value <= 8'h0;
+        end else begin
+            if(field_combo.SNK.MON.DAXMON_MASK3.DEBUG_MASK.load_next) begin
+                field_storage.SNK.MON.DAXMON_MASK3.DEBUG_MASK.value <= field_combo.SNK.MON.DAXMON_MASK3.DEBUG_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.DAXMON_MASK3.DEBUG_MASK.value = field_storage.SNK.MON.DAXMON_MASK3.DEBUG_MASK.value;
+    // Field: rapids_regs.SNK.MON.RDMON_ENABLE.MON_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.RDMON_ENABLE.MON_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.RDMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.RDMON_ENABLE.MON_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.RDMON_ENABLE.MON_EN.next = next_c;
+        field_combo.SNK.MON.RDMON_ENABLE.MON_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.RDMON_ENABLE.MON_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.MON.RDMON_ENABLE.MON_EN.load_next) begin
+                field_storage.SNK.MON.RDMON_ENABLE.MON_EN.value <= field_combo.SNK.MON.RDMON_ENABLE.MON_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.RDMON_ENABLE.MON_EN.value = field_storage.SNK.MON.RDMON_ENABLE.MON_EN.value;
+    // Field: rapids_regs.SNK.MON.RDMON_ENABLE.ERR_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.RDMON_ENABLE.ERR_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.RDMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.RDMON_ENABLE.ERR_EN.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.RDMON_ENABLE.ERR_EN.next = next_c;
+        field_combo.SNK.MON.RDMON_ENABLE.ERR_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.RDMON_ENABLE.ERR_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.MON.RDMON_ENABLE.ERR_EN.load_next) begin
+                field_storage.SNK.MON.RDMON_ENABLE.ERR_EN.value <= field_combo.SNK.MON.RDMON_ENABLE.ERR_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.RDMON_ENABLE.ERR_EN.value = field_storage.SNK.MON.RDMON_ENABLE.ERR_EN.value;
+    // Field: rapids_regs.SNK.MON.RDMON_ENABLE.COMPL_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.RDMON_ENABLE.COMPL_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.RDMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.RDMON_ENABLE.COMPL_EN.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.RDMON_ENABLE.COMPL_EN.next = next_c;
+        field_combo.SNK.MON.RDMON_ENABLE.COMPL_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.RDMON_ENABLE.COMPL_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.MON.RDMON_ENABLE.COMPL_EN.load_next) begin
+                field_storage.SNK.MON.RDMON_ENABLE.COMPL_EN.value <= field_combo.SNK.MON.RDMON_ENABLE.COMPL_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.RDMON_ENABLE.COMPL_EN.value = field_storage.SNK.MON.RDMON_ENABLE.COMPL_EN.value;
+    // Field: rapids_regs.SNK.MON.RDMON_ENABLE.TIMEOUT_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.RDMON_ENABLE.TIMEOUT_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.RDMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.RDMON_ENABLE.TIMEOUT_EN.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.RDMON_ENABLE.TIMEOUT_EN.next = next_c;
+        field_combo.SNK.MON.RDMON_ENABLE.TIMEOUT_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.RDMON_ENABLE.TIMEOUT_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.MON.RDMON_ENABLE.TIMEOUT_EN.load_next) begin
+                field_storage.SNK.MON.RDMON_ENABLE.TIMEOUT_EN.value <= field_combo.SNK.MON.RDMON_ENABLE.TIMEOUT_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.RDMON_ENABLE.TIMEOUT_EN.value = field_storage.SNK.MON.RDMON_ENABLE.TIMEOUT_EN.value;
+    // Field: rapids_regs.SNK.MON.RDMON_ENABLE.PERF_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.RDMON_ENABLE.PERF_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.RDMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.RDMON_ENABLE.PERF_EN.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.RDMON_ENABLE.PERF_EN.next = next_c;
+        field_combo.SNK.MON.RDMON_ENABLE.PERF_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.RDMON_ENABLE.PERF_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.MON.RDMON_ENABLE.PERF_EN.load_next) begin
+                field_storage.SNK.MON.RDMON_ENABLE.PERF_EN.value <= field_combo.SNK.MON.RDMON_ENABLE.PERF_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.RDMON_ENABLE.PERF_EN.value = field_storage.SNK.MON.RDMON_ENABLE.PERF_EN.value;
+    // Field: rapids_regs.SNK.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.RDMON_TIMEOUT && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.next = next_c;
+        field_combo.SNK.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value <= 32'h2710;
+        end else begin
+            if(field_combo.SNK.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.load_next) begin
+                field_storage.SNK.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value <= field_combo.SNK.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value = field_storage.SNK.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value;
+    // Field: rapids_regs.SNK.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.RDMON_LATENCY_THRESH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.next = next_c;
+        field_combo.SNK.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value <= 32'h1388;
+        end else begin
+            if(field_combo.SNK.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.load_next) begin
+                field_storage.SNK.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value <= field_combo.SNK.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value = field_storage.SNK.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value;
+    // Field: rapids_regs.SNK.MON.RDMON_PKT_MASK.PKT_MASK
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.RDMON_PKT_MASK.PKT_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.RDMON_PKT_MASK && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.RDMON_PKT_MASK.PKT_MASK.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.RDMON_PKT_MASK.PKT_MASK.next = next_c;
+        field_combo.SNK.MON.RDMON_PKT_MASK.PKT_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.RDMON_PKT_MASK.PKT_MASK.value <= 16'hffff;
+        end else begin
+            if(field_combo.SNK.MON.RDMON_PKT_MASK.PKT_MASK.load_next) begin
+                field_storage.SNK.MON.RDMON_PKT_MASK.PKT_MASK.value <= field_combo.SNK.MON.RDMON_PKT_MASK.PKT_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.RDMON_PKT_MASK.PKT_MASK.value = field_storage.SNK.MON.RDMON_PKT_MASK.PKT_MASK.value;
+    // Field: rapids_regs.SNK.MON.RDMON_ERR_CFG.ERR_SELECT
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.RDMON_ERR_CFG.ERR_SELECT.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.RDMON_ERR_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.RDMON_ERR_CFG.ERR_SELECT.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.RDMON_ERR_CFG.ERR_SELECT.next = next_c;
+        field_combo.SNK.MON.RDMON_ERR_CFG.ERR_SELECT.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.RDMON_ERR_CFG.ERR_SELECT.value <= 4'h0;
+        end else begin
+            if(field_combo.SNK.MON.RDMON_ERR_CFG.ERR_SELECT.load_next) begin
+                field_storage.SNK.MON.RDMON_ERR_CFG.ERR_SELECT.value <= field_combo.SNK.MON.RDMON_ERR_CFG.ERR_SELECT.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.RDMON_ERR_CFG.ERR_SELECT.value = field_storage.SNK.MON.RDMON_ERR_CFG.ERR_SELECT.value;
+    // Field: rapids_regs.SNK.MON.RDMON_ERR_CFG.ERR_MASK
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.RDMON_ERR_CFG.ERR_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.RDMON_ERR_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.RDMON_ERR_CFG.ERR_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.RDMON_ERR_CFG.ERR_MASK.next = next_c;
+        field_combo.SNK.MON.RDMON_ERR_CFG.ERR_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.RDMON_ERR_CFG.ERR_MASK.value <= 8'hff;
+        end else begin
+            if(field_combo.SNK.MON.RDMON_ERR_CFG.ERR_MASK.load_next) begin
+                field_storage.SNK.MON.RDMON_ERR_CFG.ERR_MASK.value <= field_combo.SNK.MON.RDMON_ERR_CFG.ERR_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.RDMON_ERR_CFG.ERR_MASK.value = field_storage.SNK.MON.RDMON_ERR_CFG.ERR_MASK.value;
+    // Field: rapids_regs.SNK.MON.RDMON_MASK1.TIMEOUT_MASK
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.RDMON_MASK1.TIMEOUT_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.RDMON_MASK1 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.RDMON_MASK1.TIMEOUT_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.RDMON_MASK1.TIMEOUT_MASK.next = next_c;
+        field_combo.SNK.MON.RDMON_MASK1.TIMEOUT_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.RDMON_MASK1.TIMEOUT_MASK.value <= 8'hff;
+        end else begin
+            if(field_combo.SNK.MON.RDMON_MASK1.TIMEOUT_MASK.load_next) begin
+                field_storage.SNK.MON.RDMON_MASK1.TIMEOUT_MASK.value <= field_combo.SNK.MON.RDMON_MASK1.TIMEOUT_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.RDMON_MASK1.TIMEOUT_MASK.value = field_storage.SNK.MON.RDMON_MASK1.TIMEOUT_MASK.value;
+    // Field: rapids_regs.SNK.MON.RDMON_MASK1.COMPL_MASK
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.RDMON_MASK1.COMPL_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.RDMON_MASK1 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.RDMON_MASK1.COMPL_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.RDMON_MASK1.COMPL_MASK.next = next_c;
+        field_combo.SNK.MON.RDMON_MASK1.COMPL_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.RDMON_MASK1.COMPL_MASK.value <= 8'h0;
+        end else begin
+            if(field_combo.SNK.MON.RDMON_MASK1.COMPL_MASK.load_next) begin
+                field_storage.SNK.MON.RDMON_MASK1.COMPL_MASK.value <= field_combo.SNK.MON.RDMON_MASK1.COMPL_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.RDMON_MASK1.COMPL_MASK.value = field_storage.SNK.MON.RDMON_MASK1.COMPL_MASK.value;
+    // Field: rapids_regs.SNK.MON.RDMON_MASK2.THRESH_MASK
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.RDMON_MASK2.THRESH_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.RDMON_MASK2 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.RDMON_MASK2.THRESH_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.RDMON_MASK2.THRESH_MASK.next = next_c;
+        field_combo.SNK.MON.RDMON_MASK2.THRESH_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.RDMON_MASK2.THRESH_MASK.value <= 8'hff;
+        end else begin
+            if(field_combo.SNK.MON.RDMON_MASK2.THRESH_MASK.load_next) begin
+                field_storage.SNK.MON.RDMON_MASK2.THRESH_MASK.value <= field_combo.SNK.MON.RDMON_MASK2.THRESH_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.RDMON_MASK2.THRESH_MASK.value = field_storage.SNK.MON.RDMON_MASK2.THRESH_MASK.value;
+    // Field: rapids_regs.SNK.MON.RDMON_MASK2.PERF_MASK
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.RDMON_MASK2.PERF_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.RDMON_MASK2 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.RDMON_MASK2.PERF_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.RDMON_MASK2.PERF_MASK.next = next_c;
+        field_combo.SNK.MON.RDMON_MASK2.PERF_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.RDMON_MASK2.PERF_MASK.value <= 8'h0;
+        end else begin
+            if(field_combo.SNK.MON.RDMON_MASK2.PERF_MASK.load_next) begin
+                field_storage.SNK.MON.RDMON_MASK2.PERF_MASK.value <= field_combo.SNK.MON.RDMON_MASK2.PERF_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.RDMON_MASK2.PERF_MASK.value = field_storage.SNK.MON.RDMON_MASK2.PERF_MASK.value;
+    // Field: rapids_regs.SNK.MON.RDMON_MASK3.ADDR_MASK
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.RDMON_MASK3.ADDR_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.RDMON_MASK3 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.RDMON_MASK3.ADDR_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.RDMON_MASK3.ADDR_MASK.next = next_c;
+        field_combo.SNK.MON.RDMON_MASK3.ADDR_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.RDMON_MASK3.ADDR_MASK.value <= 8'hff;
+        end else begin
+            if(field_combo.SNK.MON.RDMON_MASK3.ADDR_MASK.load_next) begin
+                field_storage.SNK.MON.RDMON_MASK3.ADDR_MASK.value <= field_combo.SNK.MON.RDMON_MASK3.ADDR_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.RDMON_MASK3.ADDR_MASK.value = field_storage.SNK.MON.RDMON_MASK3.ADDR_MASK.value;
+    // Field: rapids_regs.SNK.MON.RDMON_MASK3.DEBUG_MASK
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.RDMON_MASK3.DEBUG_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.RDMON_MASK3 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.RDMON_MASK3.DEBUG_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.RDMON_MASK3.DEBUG_MASK.next = next_c;
+        field_combo.SNK.MON.RDMON_MASK3.DEBUG_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.RDMON_MASK3.DEBUG_MASK.value <= 8'h0;
+        end else begin
+            if(field_combo.SNK.MON.RDMON_MASK3.DEBUG_MASK.load_next) begin
+                field_storage.SNK.MON.RDMON_MASK3.DEBUG_MASK.value <= field_combo.SNK.MON.RDMON_MASK3.DEBUG_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.RDMON_MASK3.DEBUG_MASK.value = field_storage.SNK.MON.RDMON_MASK3.DEBUG_MASK.value;
+    // Field: rapids_regs.SNK.MON.WRMON_ENABLE.MON_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.WRMON_ENABLE.MON_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.WRMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.WRMON_ENABLE.MON_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.WRMON_ENABLE.MON_EN.next = next_c;
+        field_combo.SNK.MON.WRMON_ENABLE.MON_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.WRMON_ENABLE.MON_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.MON.WRMON_ENABLE.MON_EN.load_next) begin
+                field_storage.SNK.MON.WRMON_ENABLE.MON_EN.value <= field_combo.SNK.MON.WRMON_ENABLE.MON_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.WRMON_ENABLE.MON_EN.value = field_storage.SNK.MON.WRMON_ENABLE.MON_EN.value;
+    // Field: rapids_regs.SNK.MON.WRMON_ENABLE.ERR_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.WRMON_ENABLE.ERR_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.WRMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.WRMON_ENABLE.ERR_EN.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.WRMON_ENABLE.ERR_EN.next = next_c;
+        field_combo.SNK.MON.WRMON_ENABLE.ERR_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.WRMON_ENABLE.ERR_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.MON.WRMON_ENABLE.ERR_EN.load_next) begin
+                field_storage.SNK.MON.WRMON_ENABLE.ERR_EN.value <= field_combo.SNK.MON.WRMON_ENABLE.ERR_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.WRMON_ENABLE.ERR_EN.value = field_storage.SNK.MON.WRMON_ENABLE.ERR_EN.value;
+    // Field: rapids_regs.SNK.MON.WRMON_ENABLE.COMPL_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.WRMON_ENABLE.COMPL_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.WRMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.WRMON_ENABLE.COMPL_EN.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.WRMON_ENABLE.COMPL_EN.next = next_c;
+        field_combo.SNK.MON.WRMON_ENABLE.COMPL_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.WRMON_ENABLE.COMPL_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.MON.WRMON_ENABLE.COMPL_EN.load_next) begin
+                field_storage.SNK.MON.WRMON_ENABLE.COMPL_EN.value <= field_combo.SNK.MON.WRMON_ENABLE.COMPL_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.WRMON_ENABLE.COMPL_EN.value = field_storage.SNK.MON.WRMON_ENABLE.COMPL_EN.value;
+    // Field: rapids_regs.SNK.MON.WRMON_ENABLE.TIMEOUT_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.WRMON_ENABLE.TIMEOUT_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.WRMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.WRMON_ENABLE.TIMEOUT_EN.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.WRMON_ENABLE.TIMEOUT_EN.next = next_c;
+        field_combo.SNK.MON.WRMON_ENABLE.TIMEOUT_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.WRMON_ENABLE.TIMEOUT_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.MON.WRMON_ENABLE.TIMEOUT_EN.load_next) begin
+                field_storage.SNK.MON.WRMON_ENABLE.TIMEOUT_EN.value <= field_combo.SNK.MON.WRMON_ENABLE.TIMEOUT_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.WRMON_ENABLE.TIMEOUT_EN.value = field_storage.SNK.MON.WRMON_ENABLE.TIMEOUT_EN.value;
+    // Field: rapids_regs.SNK.MON.WRMON_ENABLE.PERF_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.WRMON_ENABLE.PERF_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.WRMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.WRMON_ENABLE.PERF_EN.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.WRMON_ENABLE.PERF_EN.next = next_c;
+        field_combo.SNK.MON.WRMON_ENABLE.PERF_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.WRMON_ENABLE.PERF_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.MON.WRMON_ENABLE.PERF_EN.load_next) begin
+                field_storage.SNK.MON.WRMON_ENABLE.PERF_EN.value <= field_combo.SNK.MON.WRMON_ENABLE.PERF_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.WRMON_ENABLE.PERF_EN.value = field_storage.SNK.MON.WRMON_ENABLE.PERF_EN.value;
+    // Field: rapids_regs.SNK.MON.WRMON_ENABLE.COMPRESS_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.WRMON_ENABLE.COMPRESS_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.WRMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.WRMON_ENABLE.COMPRESS_EN.value & ~decoded_wr_biten[5:5]) | (decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.WRMON_ENABLE.COMPRESS_EN.next = next_c;
+        field_combo.SNK.MON.WRMON_ENABLE.COMPRESS_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.WRMON_ENABLE.COMPRESS_EN.value <= 1'h1;
+        end else begin
+            if(field_combo.SNK.MON.WRMON_ENABLE.COMPRESS_EN.load_next) begin
+                field_storage.SNK.MON.WRMON_ENABLE.COMPRESS_EN.value <= field_combo.SNK.MON.WRMON_ENABLE.COMPRESS_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.WRMON_ENABLE.COMPRESS_EN.value = field_storage.SNK.MON.WRMON_ENABLE.COMPRESS_EN.value;
+    // Field: rapids_regs.SNK.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.WRMON_TIMEOUT && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.next = next_c;
+        field_combo.SNK.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value <= 32'h2710;
+        end else begin
+            if(field_combo.SNK.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.load_next) begin
+                field_storage.SNK.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value <= field_combo.SNK.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value = field_storage.SNK.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value;
+    // Field: rapids_regs.SNK.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.WRMON_LATENCY_THRESH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.next = next_c;
+        field_combo.SNK.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value <= 32'h1388;
+        end else begin
+            if(field_combo.SNK.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.load_next) begin
+                field_storage.SNK.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value <= field_combo.SNK.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value = field_storage.SNK.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value;
+    // Field: rapids_regs.SNK.MON.WRMON_PKT_MASK.PKT_MASK
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.WRMON_PKT_MASK.PKT_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.WRMON_PKT_MASK && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.WRMON_PKT_MASK.PKT_MASK.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.WRMON_PKT_MASK.PKT_MASK.next = next_c;
+        field_combo.SNK.MON.WRMON_PKT_MASK.PKT_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.WRMON_PKT_MASK.PKT_MASK.value <= 16'hffff;
+        end else begin
+            if(field_combo.SNK.MON.WRMON_PKT_MASK.PKT_MASK.load_next) begin
+                field_storage.SNK.MON.WRMON_PKT_MASK.PKT_MASK.value <= field_combo.SNK.MON.WRMON_PKT_MASK.PKT_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.WRMON_PKT_MASK.PKT_MASK.value = field_storage.SNK.MON.WRMON_PKT_MASK.PKT_MASK.value;
+    // Field: rapids_regs.SNK.MON.WRMON_ERR_CFG.ERR_SELECT
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.WRMON_ERR_CFG.ERR_SELECT.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.WRMON_ERR_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.WRMON_ERR_CFG.ERR_SELECT.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.WRMON_ERR_CFG.ERR_SELECT.next = next_c;
+        field_combo.SNK.MON.WRMON_ERR_CFG.ERR_SELECT.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.WRMON_ERR_CFG.ERR_SELECT.value <= 4'h0;
+        end else begin
+            if(field_combo.SNK.MON.WRMON_ERR_CFG.ERR_SELECT.load_next) begin
+                field_storage.SNK.MON.WRMON_ERR_CFG.ERR_SELECT.value <= field_combo.SNK.MON.WRMON_ERR_CFG.ERR_SELECT.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.WRMON_ERR_CFG.ERR_SELECT.value = field_storage.SNK.MON.WRMON_ERR_CFG.ERR_SELECT.value;
+    // Field: rapids_regs.SNK.MON.WRMON_ERR_CFG.ERR_MASK
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.WRMON_ERR_CFG.ERR_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.WRMON_ERR_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.WRMON_ERR_CFG.ERR_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.WRMON_ERR_CFG.ERR_MASK.next = next_c;
+        field_combo.SNK.MON.WRMON_ERR_CFG.ERR_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.WRMON_ERR_CFG.ERR_MASK.value <= 8'hff;
+        end else begin
+            if(field_combo.SNK.MON.WRMON_ERR_CFG.ERR_MASK.load_next) begin
+                field_storage.SNK.MON.WRMON_ERR_CFG.ERR_MASK.value <= field_combo.SNK.MON.WRMON_ERR_CFG.ERR_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.WRMON_ERR_CFG.ERR_MASK.value = field_storage.SNK.MON.WRMON_ERR_CFG.ERR_MASK.value;
+    // Field: rapids_regs.SNK.MON.WRMON_MASK1.TIMEOUT_MASK
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.WRMON_MASK1.TIMEOUT_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.WRMON_MASK1 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.WRMON_MASK1.TIMEOUT_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.WRMON_MASK1.TIMEOUT_MASK.next = next_c;
+        field_combo.SNK.MON.WRMON_MASK1.TIMEOUT_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.WRMON_MASK1.TIMEOUT_MASK.value <= 8'hff;
+        end else begin
+            if(field_combo.SNK.MON.WRMON_MASK1.TIMEOUT_MASK.load_next) begin
+                field_storage.SNK.MON.WRMON_MASK1.TIMEOUT_MASK.value <= field_combo.SNK.MON.WRMON_MASK1.TIMEOUT_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.WRMON_MASK1.TIMEOUT_MASK.value = field_storage.SNK.MON.WRMON_MASK1.TIMEOUT_MASK.value;
+    // Field: rapids_regs.SNK.MON.WRMON_MASK1.COMPL_MASK
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.WRMON_MASK1.COMPL_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.WRMON_MASK1 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.WRMON_MASK1.COMPL_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.WRMON_MASK1.COMPL_MASK.next = next_c;
+        field_combo.SNK.MON.WRMON_MASK1.COMPL_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.WRMON_MASK1.COMPL_MASK.value <= 8'h0;
+        end else begin
+            if(field_combo.SNK.MON.WRMON_MASK1.COMPL_MASK.load_next) begin
+                field_storage.SNK.MON.WRMON_MASK1.COMPL_MASK.value <= field_combo.SNK.MON.WRMON_MASK1.COMPL_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.WRMON_MASK1.COMPL_MASK.value = field_storage.SNK.MON.WRMON_MASK1.COMPL_MASK.value;
+    // Field: rapids_regs.SNK.MON.WRMON_MASK2.THRESH_MASK
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.WRMON_MASK2.THRESH_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.WRMON_MASK2 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.WRMON_MASK2.THRESH_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.WRMON_MASK2.THRESH_MASK.next = next_c;
+        field_combo.SNK.MON.WRMON_MASK2.THRESH_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.WRMON_MASK2.THRESH_MASK.value <= 8'hff;
+        end else begin
+            if(field_combo.SNK.MON.WRMON_MASK2.THRESH_MASK.load_next) begin
+                field_storage.SNK.MON.WRMON_MASK2.THRESH_MASK.value <= field_combo.SNK.MON.WRMON_MASK2.THRESH_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.WRMON_MASK2.THRESH_MASK.value = field_storage.SNK.MON.WRMON_MASK2.THRESH_MASK.value;
+    // Field: rapids_regs.SNK.MON.WRMON_MASK2.PERF_MASK
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.WRMON_MASK2.PERF_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.WRMON_MASK2 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.WRMON_MASK2.PERF_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.WRMON_MASK2.PERF_MASK.next = next_c;
+        field_combo.SNK.MON.WRMON_MASK2.PERF_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.WRMON_MASK2.PERF_MASK.value <= 8'h0;
+        end else begin
+            if(field_combo.SNK.MON.WRMON_MASK2.PERF_MASK.load_next) begin
+                field_storage.SNK.MON.WRMON_MASK2.PERF_MASK.value <= field_combo.SNK.MON.WRMON_MASK2.PERF_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.WRMON_MASK2.PERF_MASK.value = field_storage.SNK.MON.WRMON_MASK2.PERF_MASK.value;
+    // Field: rapids_regs.SNK.MON.WRMON_MASK3.ADDR_MASK
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.WRMON_MASK3.ADDR_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.WRMON_MASK3 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.WRMON_MASK3.ADDR_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.WRMON_MASK3.ADDR_MASK.next = next_c;
+        field_combo.SNK.MON.WRMON_MASK3.ADDR_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.WRMON_MASK3.ADDR_MASK.value <= 8'hff;
+        end else begin
+            if(field_combo.SNK.MON.WRMON_MASK3.ADDR_MASK.load_next) begin
+                field_storage.SNK.MON.WRMON_MASK3.ADDR_MASK.value <= field_combo.SNK.MON.WRMON_MASK3.ADDR_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.WRMON_MASK3.ADDR_MASK.value = field_storage.SNK.MON.WRMON_MASK3.ADDR_MASK.value;
+    // Field: rapids_regs.SNK.MON.WRMON_MASK3.DEBUG_MASK
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.WRMON_MASK3.DEBUG_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.WRMON_MASK3 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.WRMON_MASK3.DEBUG_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.WRMON_MASK3.DEBUG_MASK.next = next_c;
+        field_combo.SNK.MON.WRMON_MASK3.DEBUG_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.WRMON_MASK3.DEBUG_MASK.value <= 8'h0;
+        end else begin
+            if(field_combo.SNK.MON.WRMON_MASK3.DEBUG_MASK.load_next) begin
+                field_storage.SNK.MON.WRMON_MASK3.DEBUG_MASK.value <= field_combo.SNK.MON.WRMON_MASK3.DEBUG_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.WRMON_MASK3.DEBUG_MASK.value = field_storage.SNK.MON.WRMON_MASK3.DEBUG_MASK.value;
+    // Field: rapids_regs.SNK.MON.DAXMON_PERF_CTRL.RUN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.DAXMON_PERF_CTRL.RUN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.DAXMON_PERF_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.DAXMON_PERF_CTRL.RUN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.DAXMON_PERF_CTRL.RUN.next = next_c;
+        field_combo.SNK.MON.DAXMON_PERF_CTRL.RUN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.DAXMON_PERF_CTRL.RUN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.MON.DAXMON_PERF_CTRL.RUN.load_next) begin
+                field_storage.SNK.MON.DAXMON_PERF_CTRL.RUN.value <= field_combo.SNK.MON.DAXMON_PERF_CTRL.RUN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.DAXMON_PERF_CTRL.RUN.value = field_storage.SNK.MON.DAXMON_PERF_CTRL.RUN.value;
+    // Field: rapids_regs.SNK.MON.RDMON_PERF_CTRL.RUN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.RDMON_PERF_CTRL.RUN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.RDMON_PERF_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.RDMON_PERF_CTRL.RUN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.RDMON_PERF_CTRL.RUN.next = next_c;
+        field_combo.SNK.MON.RDMON_PERF_CTRL.RUN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.RDMON_PERF_CTRL.RUN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.MON.RDMON_PERF_CTRL.RUN.load_next) begin
+                field_storage.SNK.MON.RDMON_PERF_CTRL.RUN.value <= field_combo.SNK.MON.RDMON_PERF_CTRL.RUN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.RDMON_PERF_CTRL.RUN.value = field_storage.SNK.MON.RDMON_PERF_CTRL.RUN.value;
+    // Field: rapids_regs.SNK.MON.WRMON_PERF_CTRL.RUN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.MON.WRMON_PERF_CTRL.RUN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.MON.WRMON_PERF_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.MON.WRMON_PERF_CTRL.RUN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.MON.WRMON_PERF_CTRL.RUN.next = next_c;
+        field_combo.SNK.MON.WRMON_PERF_CTRL.RUN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.MON.WRMON_PERF_CTRL.RUN.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.MON.WRMON_PERF_CTRL.RUN.load_next) begin
+                field_storage.SNK.MON.WRMON_PERF_CTRL.RUN.value <= field_combo.SNK.MON.WRMON_PERF_CTRL.RUN.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.MON.WRMON_PERF_CTRL.RUN.value = field_storage.SNK.MON.WRMON_PERF_CTRL.RUN.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -2915,196 +5924,391 @@ module rapids_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[102];
-    assign readback_array[0][0:0] = (decoded_reg_strb.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.GLOBAL_CTRL.GLOBAL_EN.value : '0;
-    assign readback_array[0][1:1] = (decoded_reg_strb.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.GLOBAL_CTRL.GLOBAL_RST.value : '0;
-    assign readback_array[0][31:2] = (decoded_reg_strb.GLOBAL_CTRL && !decoded_req_is_wr) ? 30'h0 : '0;
-    assign readback_array[1][0:0] = (decoded_reg_strb.GLOBAL_STATUS && !decoded_req_is_wr) ? hwif_in.GLOBAL_STATUS.SYSTEM_IDLE.next : '0;
-    assign readback_array[1][31:1] = (decoded_reg_strb.GLOBAL_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
-    assign readback_array[2][7:0] = (decoded_reg_strb.VERSION && !decoded_req_is_wr) ? 8'h5a : '0;
-    assign readback_array[2][15:8] = (decoded_reg_strb.VERSION && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[2][23:16] = (decoded_reg_strb.VERSION && !decoded_req_is_wr) ? 8'h8 : '0;
-    assign readback_array[2][31:24] = (decoded_reg_strb.VERSION && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[3][7:0] = (decoded_reg_strb.CHANNEL_ENABLE && !decoded_req_is_wr) ? field_storage.CHANNEL_ENABLE.CH_EN.value : '0;
-    assign readback_array[3][31:8] = (decoded_reg_strb.CHANNEL_ENABLE && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[4][7:0] = (decoded_reg_strb.CHANNEL_RESET && !decoded_req_is_wr) ? field_storage.CHANNEL_RESET.CH_RST.value : '0;
-    assign readback_array[4][31:8] = (decoded_reg_strb.CHANNEL_RESET && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[5][7:0] = (decoded_reg_strb.CHANNEL_IDLE && !decoded_req_is_wr) ? hwif_in.CHANNEL_IDLE.CH_IDLE.next : '0;
-    assign readback_array[5][31:8] = (decoded_reg_strb.CHANNEL_IDLE && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[6][7:0] = (decoded_reg_strb.DESC_ENGINE_IDLE && !decoded_req_is_wr) ? hwif_in.DESC_ENGINE_IDLE.DESC_IDLE.next : '0;
-    assign readback_array[6][31:8] = (decoded_reg_strb.DESC_ENGINE_IDLE && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[7][7:0] = (decoded_reg_strb.SCHEDULER_IDLE && !decoded_req_is_wr) ? hwif_in.SCHEDULER_IDLE.SCHED_IDLE.next : '0;
-    assign readback_array[7][31:8] = (decoded_reg_strb.SCHEDULER_IDLE && !decoded_req_is_wr) ? 24'h0 : '0;
+    logic [31:0] readback_array[206];
+    assign readback_array[0][0:0] = (decoded_reg_strb.SRC.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.SRC.GLOBAL_CTRL.GLOBAL_EN.value : '0;
+    assign readback_array[0][1:1] = (decoded_reg_strb.SRC.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.SRC.GLOBAL_CTRL.GLOBAL_RST.value : '0;
+    assign readback_array[0][31:2] = (decoded_reg_strb.SRC.GLOBAL_CTRL && !decoded_req_is_wr) ? 30'h0 : '0;
+    assign readback_array[1][0:0] = (decoded_reg_strb.SRC.GLOBAL_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.GLOBAL_STATUS.SYSTEM_IDLE.next : '0;
+    assign readback_array[1][31:1] = (decoded_reg_strb.SRC.GLOBAL_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[2][7:0] = (decoded_reg_strb.SRC.VERSION && !decoded_req_is_wr) ? 8'h5a : '0;
+    assign readback_array[2][15:8] = (decoded_reg_strb.SRC.VERSION && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[2][23:16] = (decoded_reg_strb.SRC.VERSION && !decoded_req_is_wr) ? 8'h8 : '0;
+    assign readback_array[2][31:24] = (decoded_reg_strb.SRC.VERSION && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[3][7:0] = (decoded_reg_strb.SRC.CHANNEL_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.CHANNEL_ENABLE.CH_EN.value : '0;
+    assign readback_array[3][31:8] = (decoded_reg_strb.SRC.CHANNEL_ENABLE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[4][7:0] = (decoded_reg_strb.SRC.CHANNEL_RESET && !decoded_req_is_wr) ? field_storage.SRC.CHANNEL_RESET.CH_RST.value : '0;
+    assign readback_array[4][31:8] = (decoded_reg_strb.SRC.CHANNEL_RESET && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[5][7:0] = (decoded_reg_strb.SRC.CHANNEL_IDLE && !decoded_req_is_wr) ? hwif_in.SRC.CHANNEL_IDLE.CH_IDLE.next : '0;
+    assign readback_array[5][31:8] = (decoded_reg_strb.SRC.CHANNEL_IDLE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[6][7:0] = (decoded_reg_strb.SRC.DESC_ENGINE_IDLE && !decoded_req_is_wr) ? hwif_in.SRC.DESC_ENGINE_IDLE.DESC_IDLE.next : '0;
+    assign readback_array[6][31:8] = (decoded_reg_strb.SRC.DESC_ENGINE_IDLE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[7][7:0] = (decoded_reg_strb.SRC.SCHEDULER_IDLE && !decoded_req_is_wr) ? hwif_in.SRC.SCHEDULER_IDLE.SCHED_IDLE.next : '0;
+    assign readback_array[7][31:8] = (decoded_reg_strb.SRC.SCHEDULER_IDLE && !decoded_req_is_wr) ? 24'h0 : '0;
     for(genvar i0=0; i0<8; i0++) begin
-        assign readback_array[i0 * 1 + 8][6:0] = (decoded_reg_strb.CH_STATE[i0].STATE && !decoded_req_is_wr) ? hwif_in.CH_STATE[i0].STATE.STATE.next : '0;
-        assign readback_array[i0 * 1 + 8][31:7] = (decoded_reg_strb.CH_STATE[i0].STATE && !decoded_req_is_wr) ? 25'h0 : '0;
+        assign readback_array[i0 * 1 + 8][6:0] = (decoded_reg_strb.SRC.CH_STATE[i0].STATE && !decoded_req_is_wr) ? hwif_in.SRC.CH_STATE[i0].STATE.STATE.next : '0;
+        assign readback_array[i0 * 1 + 8][31:7] = (decoded_reg_strb.SRC.CH_STATE[i0].STATE && !decoded_req_is_wr) ? 25'h0 : '0;
     end
-    assign readback_array[16][7:0] = (decoded_reg_strb.SCHED_ERROR && !decoded_req_is_wr) ? hwif_in.SCHED_ERROR.SCHED_ERR.next : '0;
-    assign readback_array[16][31:8] = (decoded_reg_strb.SCHED_ERROR && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[17][7:0] = (decoded_reg_strb.AXI_RD_COMPLETE && !decoded_req_is_wr) ? hwif_in.AXI_RD_COMPLETE.RD_COMPLETE.next : '0;
-    assign readback_array[17][31:8] = (decoded_reg_strb.AXI_RD_COMPLETE && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[18][7:0] = (decoded_reg_strb.AXI_WR_COMPLETE && !decoded_req_is_wr) ? hwif_in.AXI_WR_COMPLETE.WR_COMPLETE.next : '0;
-    assign readback_array[18][31:8] = (decoded_reg_strb.AXI_WR_COMPLETE && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[19][31:0] = (decoded_reg_strb.SCHED_TIMEOUT_CYCLES && !decoded_req_is_wr) ? field_storage.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value : '0;
-    assign readback_array[20][0:0] = (decoded_reg_strb.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SCHED_CONFIG.SCHED_EN.value : '0;
-    assign readback_array[20][1:1] = (decoded_reg_strb.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SCHED_CONFIG.TIMEOUT_EN.value : '0;
-    assign readback_array[20][2:2] = (decoded_reg_strb.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SCHED_CONFIG.ERR_EN.value : '0;
-    assign readback_array[20][3:3] = (decoded_reg_strb.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SCHED_CONFIG.COMPL_EN.value : '0;
-    assign readback_array[20][4:4] = (decoded_reg_strb.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SCHED_CONFIG.PERF_EN.value : '0;
-    assign readback_array[20][31:5] = (decoded_reg_strb.SCHED_CONFIG && !decoded_req_is_wr) ? 27'h0 : '0;
-    assign readback_array[21][7:0] = (decoded_reg_strb.SCHED_TIMEOUT_LIMIT && !decoded_req_is_wr) ? field_storage.SCHED_TIMEOUT_LIMIT.LIMIT.value : '0;
+    assign readback_array[16][7:0] = (decoded_reg_strb.SRC.SCHED_ERROR && !decoded_req_is_wr) ? hwif_in.SRC.SCHED_ERROR.SCHED_ERR.next : '0;
+    assign readback_array[16][31:8] = (decoded_reg_strb.SRC.SCHED_ERROR && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[17][7:0] = (decoded_reg_strb.SRC.AXI_RD_COMPLETE && !decoded_req_is_wr) ? hwif_in.SRC.AXI_RD_COMPLETE.RD_COMPLETE.next : '0;
+    assign readback_array[17][31:8] = (decoded_reg_strb.SRC.AXI_RD_COMPLETE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[18][7:0] = (decoded_reg_strb.SRC.AXI_WR_COMPLETE && !decoded_req_is_wr) ? hwif_in.SRC.AXI_WR_COMPLETE.WR_COMPLETE.next : '0;
+    assign readback_array[18][31:8] = (decoded_reg_strb.SRC.AXI_WR_COMPLETE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[19][31:0] = (decoded_reg_strb.SRC.SCHED_TIMEOUT_CYCLES && !decoded_req_is_wr) ? field_storage.SRC.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value : '0;
+    assign readback_array[20][0:0] = (decoded_reg_strb.SRC.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.SCHED_CONFIG.SCHED_EN.value : '0;
+    assign readback_array[20][1:1] = (decoded_reg_strb.SRC.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.SCHED_CONFIG.TIMEOUT_EN.value : '0;
+    assign readback_array[20][2:2] = (decoded_reg_strb.SRC.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.SCHED_CONFIG.ERR_EN.value : '0;
+    assign readback_array[20][3:3] = (decoded_reg_strb.SRC.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.SCHED_CONFIG.COMPL_EN.value : '0;
+    assign readback_array[20][4:4] = (decoded_reg_strb.SRC.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.SCHED_CONFIG.PERF_EN.value : '0;
+    assign readback_array[20][31:5] = (decoded_reg_strb.SRC.SCHED_CONFIG && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[21][7:0] = (decoded_reg_strb.SRC.SCHED_TIMEOUT_LIMIT && !decoded_req_is_wr) ? field_storage.SRC.SCHED_TIMEOUT_LIMIT.LIMIT.value : '0;
     assign readback_array[21][31:8] = '0;
-    assign readback_array[22][0:0] = (decoded_reg_strb.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.DESCENG_CONFIG.DESCENG_EN.value : '0;
-    assign readback_array[22][1:1] = (decoded_reg_strb.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.DESCENG_CONFIG.PREFETCH_EN.value : '0;
-    assign readback_array[22][5:2] = (decoded_reg_strb.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.DESCENG_CONFIG.FIFO_THRESH.value : '0;
-    assign readback_array[22][31:6] = (decoded_reg_strb.DESCENG_CONFIG && !decoded_req_is_wr) ? 26'h0 : '0;
-    assign readback_array[23][31:0] = (decoded_reg_strb.DESCENG_ADDR0_BASE && !decoded_req_is_wr) ? field_storage.DESCENG_ADDR0_BASE.ADDR0_BASE.value : '0;
-    assign readback_array[24][31:0] = (decoded_reg_strb.DESCENG_ADDR0_LIMIT && !decoded_req_is_wr) ? field_storage.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value : '0;
-    assign readback_array[25][31:0] = (decoded_reg_strb.DESCENG_ADDR1_BASE && !decoded_req_is_wr) ? field_storage.DESCENG_ADDR1_BASE.ADDR1_BASE.value : '0;
-    assign readback_array[26][31:0] = (decoded_reg_strb.DESCENG_ADDR1_LIMIT && !decoded_req_is_wr) ? field_storage.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value : '0;
-    assign readback_array[27][7:0] = (decoded_reg_strb.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.AXI_XFER_CONFIG.RD_XFER_BEATS.value : '0;
-    assign readback_array[27][15:8] = (decoded_reg_strb.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.AXI_XFER_CONFIG.WR_XFER_BEATS.value : '0;
-    assign readback_array[27][31:16] = (decoded_reg_strb.AXI_XFER_CONFIG && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[28][0:0] = (decoded_reg_strb.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.PERF_CONFIG.PERF_EN.value : '0;
-    assign readback_array[28][1:1] = (decoded_reg_strb.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.PERF_CONFIG.PERF_MODE.value : '0;
-    assign readback_array[28][2:2] = (decoded_reg_strb.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.PERF_CONFIG.PERF_CLEAR.value : '0;
-    assign readback_array[28][31:3] = (decoded_reg_strb.PERF_CONFIG && !decoded_req_is_wr) ? 29'h0 : '0;
-    assign readback_array[29][2:0] = (decoded_reg_strb.OBS_CTRL && !decoded_req_is_wr) ? field_storage.OBS_CTRL.CH_SEL.value : '0;
-    assign readback_array[29][4:3] = (decoded_reg_strb.OBS_CTRL && !decoded_req_is_wr) ? field_storage.OBS_CTRL.CAT_SEL.value : '0;
-    assign readback_array[29][31:5] = (decoded_reg_strb.OBS_CTRL && !decoded_req_is_wr) ? 27'h0 : '0;
-    assign readback_array[30][31:0] = (decoded_reg_strb.OBS_FLAGS && !decoded_req_is_wr) ? hwif_in.OBS_FLAGS.FLAGS.next : '0;
-    assign readback_array[31][31:0] = (decoded_reg_strb.OBS_DATA0 && !decoded_req_is_wr) ? hwif_in.OBS_DATA0.DATA.next : '0;
-    assign readback_array[32][31:0] = (decoded_reg_strb.OBS_DATA1 && !decoded_req_is_wr) ? hwif_in.OBS_DATA1.DATA.next : '0;
-    assign readback_array[33][2:0] = (decoded_reg_strb.PERF_CH_SEL && !decoded_req_is_wr) ? field_storage.PERF_CH_SEL.CH_SEL.value : '0;
-    assign readback_array[33][31:3] = (decoded_reg_strb.PERF_CH_SEL && !decoded_req_is_wr) ? 29'h0 : '0;
-    assign readback_array[34][0:0] = (decoded_reg_strb.HIST_SEL && !decoded_req_is_wr) ? field_storage.HIST_SEL.BUS.value : '0;
-    assign readback_array[34][1:1] = (decoded_reg_strb.HIST_SEL && !decoded_req_is_wr) ? field_storage.HIST_SEL.METRIC.value : '0;
-    assign readback_array[34][5:2] = (decoded_reg_strb.HIST_SEL && !decoded_req_is_wr) ? field_storage.HIST_SEL.BIN.value : '0;
-    assign readback_array[34][31:6] = (decoded_reg_strb.HIST_SEL && !decoded_req_is_wr) ? 26'h0 : '0;
-    assign readback_array[35][31:0] = (decoded_reg_strb.HIST_DATA && !decoded_req_is_wr) ? hwif_in.HIST_DATA.VAL.next : '0;
-    assign readback_array[36][31:0] = (decoded_reg_strb.HIST_TOTAL && !decoded_req_is_wr) ? hwif_in.HIST_TOTAL.VAL.next : '0;
-    assign readback_array[37][0:0] = (decoded_reg_strb.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.MON.MON_FIFO_STATUS.MON_FIFO_FULL.next : '0;
-    assign readback_array[37][1:1] = (decoded_reg_strb.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.MON.MON_FIFO_STATUS.MON_FIFO_EMPTY.next : '0;
-    assign readback_array[37][2:2] = (decoded_reg_strb.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.MON.MON_FIFO_STATUS.MON_FIFO_OVFL.next : '0;
-    assign readback_array[37][3:3] = (decoded_reg_strb.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.MON.MON_FIFO_STATUS.MON_FIFO_UNFL.next : '0;
-    assign readback_array[37][31:4] = (decoded_reg_strb.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? 28'h0 : '0;
-    assign readback_array[38][15:0] = (decoded_reg_strb.MON.MON_FIFO_COUNT && !decoded_req_is_wr) ? hwif_in.MON.MON_FIFO_COUNT.FIFO_COUNT.next : '0;
-    assign readback_array[38][31:16] = (decoded_reg_strb.MON.MON_FIFO_COUNT && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[39][0:0] = (decoded_reg_strb.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.DAXMON_ENABLE.MON_EN.value : '0;
-    assign readback_array[39][1:1] = (decoded_reg_strb.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.DAXMON_ENABLE.ERR_EN.value : '0;
-    assign readback_array[39][2:2] = (decoded_reg_strb.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.DAXMON_ENABLE.COMPL_EN.value : '0;
-    assign readback_array[39][3:3] = (decoded_reg_strb.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.DAXMON_ENABLE.TIMEOUT_EN.value : '0;
-    assign readback_array[39][4:4] = (decoded_reg_strb.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.DAXMON_ENABLE.PERF_EN.value : '0;
-    assign readback_array[39][31:5] = (decoded_reg_strb.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? 27'h0 : '0;
-    assign readback_array[40][31:0] = (decoded_reg_strb.MON.DAXMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
-    assign readback_array[41][31:0] = (decoded_reg_strb.MON.DAXMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
-    assign readback_array[42][15:0] = (decoded_reg_strb.MON.DAXMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.MON.DAXMON_PKT_MASK.PKT_MASK.value : '0;
-    assign readback_array[42][31:16] = (decoded_reg_strb.MON.DAXMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[43][3:0] = (decoded_reg_strb.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.MON.DAXMON_ERR_CFG.ERR_SELECT.value : '0;
-    assign readback_array[43][7:4] = (decoded_reg_strb.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[43][15:8] = (decoded_reg_strb.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.MON.DAXMON_ERR_CFG.ERR_MASK.value : '0;
-    assign readback_array[43][31:16] = (decoded_reg_strb.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[44][7:0] = (decoded_reg_strb.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? field_storage.MON.DAXMON_MASK1.TIMEOUT_MASK.value : '0;
-    assign readback_array[44][15:8] = (decoded_reg_strb.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? field_storage.MON.DAXMON_MASK1.COMPL_MASK.value : '0;
-    assign readback_array[44][31:16] = (decoded_reg_strb.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[45][7:0] = (decoded_reg_strb.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? field_storage.MON.DAXMON_MASK2.THRESH_MASK.value : '0;
-    assign readback_array[45][15:8] = (decoded_reg_strb.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? field_storage.MON.DAXMON_MASK2.PERF_MASK.value : '0;
-    assign readback_array[45][31:16] = (decoded_reg_strb.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[46][7:0] = (decoded_reg_strb.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? field_storage.MON.DAXMON_MASK3.ADDR_MASK.value : '0;
-    assign readback_array[46][15:8] = (decoded_reg_strb.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? field_storage.MON.DAXMON_MASK3.DEBUG_MASK.value : '0;
-    assign readback_array[46][31:16] = (decoded_reg_strb.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[47][0:0] = (decoded_reg_strb.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.RDMON_ENABLE.MON_EN.value : '0;
-    assign readback_array[47][1:1] = (decoded_reg_strb.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.RDMON_ENABLE.ERR_EN.value : '0;
-    assign readback_array[47][2:2] = (decoded_reg_strb.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.RDMON_ENABLE.COMPL_EN.value : '0;
-    assign readback_array[47][3:3] = (decoded_reg_strb.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.RDMON_ENABLE.TIMEOUT_EN.value : '0;
-    assign readback_array[47][4:4] = (decoded_reg_strb.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.RDMON_ENABLE.PERF_EN.value : '0;
-    assign readback_array[47][31:5] = (decoded_reg_strb.MON.RDMON_ENABLE && !decoded_req_is_wr) ? 27'h0 : '0;
-    assign readback_array[48][31:0] = (decoded_reg_strb.MON.RDMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
-    assign readback_array[49][31:0] = (decoded_reg_strb.MON.RDMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
-    assign readback_array[50][15:0] = (decoded_reg_strb.MON.RDMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.MON.RDMON_PKT_MASK.PKT_MASK.value : '0;
-    assign readback_array[50][31:16] = (decoded_reg_strb.MON.RDMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[51][3:0] = (decoded_reg_strb.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.MON.RDMON_ERR_CFG.ERR_SELECT.value : '0;
-    assign readback_array[51][7:4] = (decoded_reg_strb.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[51][15:8] = (decoded_reg_strb.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.MON.RDMON_ERR_CFG.ERR_MASK.value : '0;
-    assign readback_array[51][31:16] = (decoded_reg_strb.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[52][7:0] = (decoded_reg_strb.MON.RDMON_MASK1 && !decoded_req_is_wr) ? field_storage.MON.RDMON_MASK1.TIMEOUT_MASK.value : '0;
-    assign readback_array[52][15:8] = (decoded_reg_strb.MON.RDMON_MASK1 && !decoded_req_is_wr) ? field_storage.MON.RDMON_MASK1.COMPL_MASK.value : '0;
-    assign readback_array[52][31:16] = (decoded_reg_strb.MON.RDMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[53][7:0] = (decoded_reg_strb.MON.RDMON_MASK2 && !decoded_req_is_wr) ? field_storage.MON.RDMON_MASK2.THRESH_MASK.value : '0;
-    assign readback_array[53][15:8] = (decoded_reg_strb.MON.RDMON_MASK2 && !decoded_req_is_wr) ? field_storage.MON.RDMON_MASK2.PERF_MASK.value : '0;
-    assign readback_array[53][31:16] = (decoded_reg_strb.MON.RDMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[54][7:0] = (decoded_reg_strb.MON.RDMON_MASK3 && !decoded_req_is_wr) ? field_storage.MON.RDMON_MASK3.ADDR_MASK.value : '0;
-    assign readback_array[54][15:8] = (decoded_reg_strb.MON.RDMON_MASK3 && !decoded_req_is_wr) ? field_storage.MON.RDMON_MASK3.DEBUG_MASK.value : '0;
-    assign readback_array[54][31:16] = (decoded_reg_strb.MON.RDMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[55][0:0] = (decoded_reg_strb.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.WRMON_ENABLE.MON_EN.value : '0;
-    assign readback_array[55][1:1] = (decoded_reg_strb.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.WRMON_ENABLE.ERR_EN.value : '0;
-    assign readback_array[55][2:2] = (decoded_reg_strb.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.WRMON_ENABLE.COMPL_EN.value : '0;
-    assign readback_array[55][3:3] = (decoded_reg_strb.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.WRMON_ENABLE.TIMEOUT_EN.value : '0;
-    assign readback_array[55][4:4] = (decoded_reg_strb.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.WRMON_ENABLE.PERF_EN.value : '0;
-    assign readback_array[55][5:5] = (decoded_reg_strb.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.WRMON_ENABLE.COMPRESS_EN.value : '0;
-    assign readback_array[55][31:6] = (decoded_reg_strb.MON.WRMON_ENABLE && !decoded_req_is_wr) ? 26'h0 : '0;
-    assign readback_array[56][31:0] = (decoded_reg_strb.MON.WRMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
-    assign readback_array[57][31:0] = (decoded_reg_strb.MON.WRMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
-    assign readback_array[58][15:0] = (decoded_reg_strb.MON.WRMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.MON.WRMON_PKT_MASK.PKT_MASK.value : '0;
-    assign readback_array[58][31:16] = (decoded_reg_strb.MON.WRMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[59][3:0] = (decoded_reg_strb.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.MON.WRMON_ERR_CFG.ERR_SELECT.value : '0;
-    assign readback_array[59][7:4] = (decoded_reg_strb.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[59][15:8] = (decoded_reg_strb.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.MON.WRMON_ERR_CFG.ERR_MASK.value : '0;
-    assign readback_array[59][31:16] = (decoded_reg_strb.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[60][7:0] = (decoded_reg_strb.MON.WRMON_MASK1 && !decoded_req_is_wr) ? field_storage.MON.WRMON_MASK1.TIMEOUT_MASK.value : '0;
-    assign readback_array[60][15:8] = (decoded_reg_strb.MON.WRMON_MASK1 && !decoded_req_is_wr) ? field_storage.MON.WRMON_MASK1.COMPL_MASK.value : '0;
-    assign readback_array[60][31:16] = (decoded_reg_strb.MON.WRMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[61][7:0] = (decoded_reg_strb.MON.WRMON_MASK2 && !decoded_req_is_wr) ? field_storage.MON.WRMON_MASK2.THRESH_MASK.value : '0;
-    assign readback_array[61][15:8] = (decoded_reg_strb.MON.WRMON_MASK2 && !decoded_req_is_wr) ? field_storage.MON.WRMON_MASK2.PERF_MASK.value : '0;
-    assign readback_array[61][31:16] = (decoded_reg_strb.MON.WRMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[62][7:0] = (decoded_reg_strb.MON.WRMON_MASK3 && !decoded_req_is_wr) ? field_storage.MON.WRMON_MASK3.ADDR_MASK.value : '0;
-    assign readback_array[62][15:8] = (decoded_reg_strb.MON.WRMON_MASK3 && !decoded_req_is_wr) ? field_storage.MON.WRMON_MASK3.DEBUG_MASK.value : '0;
-    assign readback_array[62][31:16] = (decoded_reg_strb.MON.WRMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[63][0:0] = (decoded_reg_strb.MON.DAXMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.MON.DAXMON_PERF_CTRL.RUN.value : '0;
-    assign readback_array[63][31:1] = (decoded_reg_strb.MON.DAXMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
-    assign readback_array[64][0:0] = (decoded_reg_strb.MON.DAXMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.MON.DAXMON_PERF_STATUS.WIN_ACTIVE.next : '0;
-    assign readback_array[64][31:1] = (decoded_reg_strb.MON.DAXMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
-    assign readback_array[65][31:0] = (decoded_reg_strb.MON.DAXMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.MON.DAXMON_PERF_WINDOW_CYCLES.VAL.next : '0;
-    assign readback_array[66][31:0] = (decoded_reg_strb.MON.DAXMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.MON.DAXMON_PERF_PROD_CYCLES.VAL.next : '0;
-    assign readback_array[67][31:0] = (decoded_reg_strb.MON.DAXMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.MON.DAXMON_PERF_BP_CYCLES.VAL.next : '0;
-    assign readback_array[68][31:0] = (decoded_reg_strb.MON.DAXMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.MON.DAXMON_PERF_STARV_CYCLES.VAL.next : '0;
-    assign readback_array[69][31:0] = (decoded_reg_strb.MON.DAXMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.MON.DAXMON_PERF_IDLE_CYCLES.VAL.next : '0;
-    assign readback_array[70][31:0] = (decoded_reg_strb.MON.DAXMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.MON.DAXMON_PERF_BEAT_COUNT.VAL.next : '0;
-    assign readback_array[71][31:0] = (decoded_reg_strb.MON.DAXMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.MON.DAXMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
-    assign readback_array[72][31:0] = (decoded_reg_strb.MON.DAXMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.MON.DAXMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
-    assign readback_array[73][31:0] = (decoded_reg_strb.MON.DAXMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.MON.DAXMON_PERF_BURST_COUNT.VAL.next : '0;
-    assign readback_array[74][0:0] = (decoded_reg_strb.MON.RDMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.MON.RDMON_PERF_CTRL.RUN.value : '0;
-    assign readback_array[74][31:1] = (decoded_reg_strb.MON.RDMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
-    assign readback_array[75][0:0] = (decoded_reg_strb.MON.RDMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.MON.RDMON_PERF_STATUS.WIN_ACTIVE.next : '0;
-    assign readback_array[75][31:1] = (decoded_reg_strb.MON.RDMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
-    assign readback_array[76][31:0] = (decoded_reg_strb.MON.RDMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.MON.RDMON_PERF_WINDOW_CYCLES.VAL.next : '0;
-    assign readback_array[77][31:0] = (decoded_reg_strb.MON.RDMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.MON.RDMON_PERF_PROD_CYCLES.VAL.next : '0;
-    assign readback_array[78][31:0] = (decoded_reg_strb.MON.RDMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.MON.RDMON_PERF_BP_CYCLES.VAL.next : '0;
-    assign readback_array[79][31:0] = (decoded_reg_strb.MON.RDMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.MON.RDMON_PERF_STARV_CYCLES.VAL.next : '0;
-    assign readback_array[80][31:0] = (decoded_reg_strb.MON.RDMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.MON.RDMON_PERF_IDLE_CYCLES.VAL.next : '0;
-    assign readback_array[81][31:0] = (decoded_reg_strb.MON.RDMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.MON.RDMON_PERF_BEAT_COUNT.VAL.next : '0;
-    assign readback_array[82][31:0] = (decoded_reg_strb.MON.RDMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.MON.RDMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
-    assign readback_array[83][31:0] = (decoded_reg_strb.MON.RDMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.MON.RDMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
-    assign readback_array[84][31:0] = (decoded_reg_strb.MON.RDMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.MON.RDMON_PERF_BURST_COUNT.VAL.next : '0;
-    assign readback_array[85][0:0] = (decoded_reg_strb.MON.WRMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.MON.WRMON_PERF_CTRL.RUN.value : '0;
-    assign readback_array[85][31:1] = (decoded_reg_strb.MON.WRMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
-    assign readback_array[86][0:0] = (decoded_reg_strb.MON.WRMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.MON.WRMON_PERF_STATUS.WIN_ACTIVE.next : '0;
-    assign readback_array[86][31:1] = (decoded_reg_strb.MON.WRMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
-    assign readback_array[87][31:0] = (decoded_reg_strb.MON.WRMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.MON.WRMON_PERF_WINDOW_CYCLES.VAL.next : '0;
-    assign readback_array[88][31:0] = (decoded_reg_strb.MON.WRMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.MON.WRMON_PERF_PROD_CYCLES.VAL.next : '0;
-    assign readback_array[89][31:0] = (decoded_reg_strb.MON.WRMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.MON.WRMON_PERF_BP_CYCLES.VAL.next : '0;
-    assign readback_array[90][31:0] = (decoded_reg_strb.MON.WRMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.MON.WRMON_PERF_STARV_CYCLES.VAL.next : '0;
-    assign readback_array[91][31:0] = (decoded_reg_strb.MON.WRMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.MON.WRMON_PERF_IDLE_CYCLES.VAL.next : '0;
-    assign readback_array[92][31:0] = (decoded_reg_strb.MON.WRMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.MON.WRMON_PERF_BEAT_COUNT.VAL.next : '0;
-    assign readback_array[93][31:0] = (decoded_reg_strb.MON.WRMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.MON.WRMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
-    assign readback_array[94][31:0] = (decoded_reg_strb.MON.WRMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.MON.WRMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
-    assign readback_array[95][31:0] = (decoded_reg_strb.MON.WRMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.MON.WRMON_PERF_BURST_COUNT.VAL.next : '0;
-    assign readback_array[96][31:0] = (decoded_reg_strb.MON.RDMON_PERF_CH_PROD_BP && !decoded_req_is_wr) ? hwif_in.MON.RDMON_PERF_CH_PROD_BP.VAL.next : '0;
-    assign readback_array[97][31:0] = (decoded_reg_strb.MON.RDMON_PERF_CH_STARV_IDLE && !decoded_req_is_wr) ? hwif_in.MON.RDMON_PERF_CH_STARV_IDLE.VAL.next : '0;
-    assign readback_array[98][31:0] = (decoded_reg_strb.MON.WRMON_PERF_CH_PROD_BP && !decoded_req_is_wr) ? hwif_in.MON.WRMON_PERF_CH_PROD_BP.VAL.next : '0;
-    assign readback_array[99][31:0] = (decoded_reg_strb.MON.WRMON_PERF_CH_STARV_IDLE && !decoded_req_is_wr) ? hwif_in.MON.WRMON_PERF_CH_STARV_IDLE.VAL.next : '0;
-    assign readback_array[100][31:0] = (decoded_reg_strb.MON.RDMON_PERF_CH_OVERFLOW && !decoded_req_is_wr) ? hwif_in.MON.RDMON_PERF_CH_OVERFLOW.VAL.next : '0;
-    assign readback_array[101][31:0] = (decoded_reg_strb.MON.WRMON_PERF_CH_OVERFLOW && !decoded_req_is_wr) ? hwif_in.MON.WRMON_PERF_CH_OVERFLOW.VAL.next : '0;
+    assign readback_array[22][0:0] = (decoded_reg_strb.SRC.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.DESCENG_CONFIG.DESCENG_EN.value : '0;
+    assign readback_array[22][1:1] = (decoded_reg_strb.SRC.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.DESCENG_CONFIG.PREFETCH_EN.value : '0;
+    assign readback_array[22][5:2] = (decoded_reg_strb.SRC.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.DESCENG_CONFIG.FIFO_THRESH.value : '0;
+    assign readback_array[22][31:6] = (decoded_reg_strb.SRC.DESCENG_CONFIG && !decoded_req_is_wr) ? 26'h0 : '0;
+    assign readback_array[23][31:0] = (decoded_reg_strb.SRC.DESCENG_ADDR0_BASE && !decoded_req_is_wr) ? field_storage.SRC.DESCENG_ADDR0_BASE.ADDR0_BASE.value : '0;
+    assign readback_array[24][31:0] = (decoded_reg_strb.SRC.DESCENG_ADDR0_LIMIT && !decoded_req_is_wr) ? field_storage.SRC.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value : '0;
+    assign readback_array[25][31:0] = (decoded_reg_strb.SRC.DESCENG_ADDR1_BASE && !decoded_req_is_wr) ? field_storage.SRC.DESCENG_ADDR1_BASE.ADDR1_BASE.value : '0;
+    assign readback_array[26][31:0] = (decoded_reg_strb.SRC.DESCENG_ADDR1_LIMIT && !decoded_req_is_wr) ? field_storage.SRC.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value : '0;
+    assign readback_array[27][8:0] = (decoded_reg_strb.SRC.CTRL_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.CTRL_CONFIG.CTRLRD_MAX_TRY.value : '0;
+    assign readback_array[27][31:9] = (decoded_reg_strb.SRC.CTRL_CONFIG && !decoded_req_is_wr) ? 23'h0 : '0;
+    assign readback_array[28][7:0] = (decoded_reg_strb.SRC.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.AXI_XFER_CONFIG.RD_XFER_BEATS.value : '0;
+    assign readback_array[28][15:8] = (decoded_reg_strb.SRC.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.AXI_XFER_CONFIG.WR_XFER_BEATS.value : '0;
+    assign readback_array[28][23:16] = (decoded_reg_strb.SRC.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.AXI_XFER_CONFIG.ALLOC_SIZE.value : '0;
+    assign readback_array[28][31:24] = (decoded_reg_strb.SRC.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.AXI_XFER_CONFIG.DRAIN_SIZE.value : '0;
+    assign readback_array[29][0:0] = (decoded_reg_strb.SRC.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.PERF_CONFIG.PERF_EN.value : '0;
+    assign readback_array[29][1:1] = (decoded_reg_strb.SRC.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.PERF_CONFIG.PERF_MODE.value : '0;
+    assign readback_array[29][2:2] = (decoded_reg_strb.SRC.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.PERF_CONFIG.PERF_CLEAR.value : '0;
+    assign readback_array[29][31:3] = (decoded_reg_strb.SRC.PERF_CONFIG && !decoded_req_is_wr) ? 29'h0 : '0;
+    assign readback_array[30][2:0] = (decoded_reg_strb.SRC.OBS_CTRL && !decoded_req_is_wr) ? field_storage.SRC.OBS_CTRL.CH_SEL.value : '0;
+    assign readback_array[30][4:3] = (decoded_reg_strb.SRC.OBS_CTRL && !decoded_req_is_wr) ? field_storage.SRC.OBS_CTRL.CAT_SEL.value : '0;
+    assign readback_array[30][31:5] = (decoded_reg_strb.SRC.OBS_CTRL && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[31][31:0] = (decoded_reg_strb.SRC.OBS_FLAGS && !decoded_req_is_wr) ? hwif_in.SRC.OBS_FLAGS.FLAGS.next : '0;
+    assign readback_array[32][31:0] = (decoded_reg_strb.SRC.OBS_DATA0 && !decoded_req_is_wr) ? hwif_in.SRC.OBS_DATA0.DATA.next : '0;
+    assign readback_array[33][31:0] = (decoded_reg_strb.SRC.OBS_DATA1 && !decoded_req_is_wr) ? hwif_in.SRC.OBS_DATA1.DATA.next : '0;
+    assign readback_array[34][2:0] = (decoded_reg_strb.SRC.PERF_CH_SEL && !decoded_req_is_wr) ? field_storage.SRC.PERF_CH_SEL.CH_SEL.value : '0;
+    assign readback_array[34][31:3] = (decoded_reg_strb.SRC.PERF_CH_SEL && !decoded_req_is_wr) ? 29'h0 : '0;
+    assign readback_array[35][0:0] = (decoded_reg_strb.SRC.HIST_SEL && !decoded_req_is_wr) ? field_storage.SRC.HIST_SEL.BUS.value : '0;
+    assign readback_array[35][1:1] = (decoded_reg_strb.SRC.HIST_SEL && !decoded_req_is_wr) ? field_storage.SRC.HIST_SEL.METRIC.value : '0;
+    assign readback_array[35][5:2] = (decoded_reg_strb.SRC.HIST_SEL && !decoded_req_is_wr) ? field_storage.SRC.HIST_SEL.BIN.value : '0;
+    assign readback_array[35][31:6] = (decoded_reg_strb.SRC.HIST_SEL && !decoded_req_is_wr) ? 26'h0 : '0;
+    assign readback_array[36][31:0] = (decoded_reg_strb.SRC.HIST_DATA && !decoded_req_is_wr) ? hwif_in.SRC.HIST_DATA.VAL.next : '0;
+    assign readback_array[37][31:0] = (decoded_reg_strb.SRC.HIST_TOTAL && !decoded_req_is_wr) ? hwif_in.SRC.HIST_TOTAL.VAL.next : '0;
+    assign readback_array[38][0:0] = (decoded_reg_strb.SRC.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.MON.MON_FIFO_STATUS.MON_FIFO_FULL.next : '0;
+    assign readback_array[38][1:1] = (decoded_reg_strb.SRC.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.MON.MON_FIFO_STATUS.MON_FIFO_EMPTY.next : '0;
+    assign readback_array[38][2:2] = (decoded_reg_strb.SRC.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.MON.MON_FIFO_STATUS.MON_FIFO_OVFL.next : '0;
+    assign readback_array[38][3:3] = (decoded_reg_strb.SRC.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.MON.MON_FIFO_STATUS.MON_FIFO_UNFL.next : '0;
+    assign readback_array[38][31:4] = (decoded_reg_strb.SRC.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? 28'h0 : '0;
+    assign readback_array[39][15:0] = (decoded_reg_strb.SRC.MON.MON_FIFO_COUNT && !decoded_req_is_wr) ? hwif_in.SRC.MON.MON_FIFO_COUNT.FIFO_COUNT.next : '0;
+    assign readback_array[39][31:16] = (decoded_reg_strb.SRC.MON.MON_FIFO_COUNT && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[40][0:0] = (decoded_reg_strb.SRC.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_ENABLE.MON_EN.value : '0;
+    assign readback_array[40][1:1] = (decoded_reg_strb.SRC.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_ENABLE.ERR_EN.value : '0;
+    assign readback_array[40][2:2] = (decoded_reg_strb.SRC.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_ENABLE.COMPL_EN.value : '0;
+    assign readback_array[40][3:3] = (decoded_reg_strb.SRC.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_ENABLE.TIMEOUT_EN.value : '0;
+    assign readback_array[40][4:4] = (decoded_reg_strb.SRC.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_ENABLE.PERF_EN.value : '0;
+    assign readback_array[40][31:5] = (decoded_reg_strb.SRC.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[41][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
+    assign readback_array[42][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
+    assign readback_array[43][15:0] = (decoded_reg_strb.SRC.MON.DAXMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_PKT_MASK.PKT_MASK.value : '0;
+    assign readback_array[43][31:16] = (decoded_reg_strb.SRC.MON.DAXMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[44][3:0] = (decoded_reg_strb.SRC.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_ERR_CFG.ERR_SELECT.value : '0;
+    assign readback_array[44][7:4] = (decoded_reg_strb.SRC.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
+    assign readback_array[44][15:8] = (decoded_reg_strb.SRC.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_ERR_CFG.ERR_MASK.value : '0;
+    assign readback_array[44][31:16] = (decoded_reg_strb.SRC.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[45][7:0] = (decoded_reg_strb.SRC.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_MASK1.TIMEOUT_MASK.value : '0;
+    assign readback_array[45][15:8] = (decoded_reg_strb.SRC.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_MASK1.COMPL_MASK.value : '0;
+    assign readback_array[45][31:16] = (decoded_reg_strb.SRC.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[46][7:0] = (decoded_reg_strb.SRC.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_MASK2.THRESH_MASK.value : '0;
+    assign readback_array[46][15:8] = (decoded_reg_strb.SRC.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_MASK2.PERF_MASK.value : '0;
+    assign readback_array[46][31:16] = (decoded_reg_strb.SRC.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[47][7:0] = (decoded_reg_strb.SRC.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_MASK3.ADDR_MASK.value : '0;
+    assign readback_array[47][15:8] = (decoded_reg_strb.SRC.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_MASK3.DEBUG_MASK.value : '0;
+    assign readback_array[47][31:16] = (decoded_reg_strb.SRC.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[48][0:0] = (decoded_reg_strb.SRC.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_ENABLE.MON_EN.value : '0;
+    assign readback_array[48][1:1] = (decoded_reg_strb.SRC.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_ENABLE.ERR_EN.value : '0;
+    assign readback_array[48][2:2] = (decoded_reg_strb.SRC.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_ENABLE.COMPL_EN.value : '0;
+    assign readback_array[48][3:3] = (decoded_reg_strb.SRC.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_ENABLE.TIMEOUT_EN.value : '0;
+    assign readback_array[48][4:4] = (decoded_reg_strb.SRC.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_ENABLE.PERF_EN.value : '0;
+    assign readback_array[48][31:5] = (decoded_reg_strb.SRC.MON.RDMON_ENABLE && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[49][31:0] = (decoded_reg_strb.SRC.MON.RDMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
+    assign readback_array[50][31:0] = (decoded_reg_strb.SRC.MON.RDMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
+    assign readback_array[51][15:0] = (decoded_reg_strb.SRC.MON.RDMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_PKT_MASK.PKT_MASK.value : '0;
+    assign readback_array[51][31:16] = (decoded_reg_strb.SRC.MON.RDMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[52][3:0] = (decoded_reg_strb.SRC.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_ERR_CFG.ERR_SELECT.value : '0;
+    assign readback_array[52][7:4] = (decoded_reg_strb.SRC.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
+    assign readback_array[52][15:8] = (decoded_reg_strb.SRC.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_ERR_CFG.ERR_MASK.value : '0;
+    assign readback_array[52][31:16] = (decoded_reg_strb.SRC.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[53][7:0] = (decoded_reg_strb.SRC.MON.RDMON_MASK1 && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_MASK1.TIMEOUT_MASK.value : '0;
+    assign readback_array[53][15:8] = (decoded_reg_strb.SRC.MON.RDMON_MASK1 && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_MASK1.COMPL_MASK.value : '0;
+    assign readback_array[53][31:16] = (decoded_reg_strb.SRC.MON.RDMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[54][7:0] = (decoded_reg_strb.SRC.MON.RDMON_MASK2 && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_MASK2.THRESH_MASK.value : '0;
+    assign readback_array[54][15:8] = (decoded_reg_strb.SRC.MON.RDMON_MASK2 && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_MASK2.PERF_MASK.value : '0;
+    assign readback_array[54][31:16] = (decoded_reg_strb.SRC.MON.RDMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[55][7:0] = (decoded_reg_strb.SRC.MON.RDMON_MASK3 && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_MASK3.ADDR_MASK.value : '0;
+    assign readback_array[55][15:8] = (decoded_reg_strb.SRC.MON.RDMON_MASK3 && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_MASK3.DEBUG_MASK.value : '0;
+    assign readback_array[55][31:16] = (decoded_reg_strb.SRC.MON.RDMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[56][0:0] = (decoded_reg_strb.SRC.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ENABLE.MON_EN.value : '0;
+    assign readback_array[56][1:1] = (decoded_reg_strb.SRC.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ENABLE.ERR_EN.value : '0;
+    assign readback_array[56][2:2] = (decoded_reg_strb.SRC.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ENABLE.COMPL_EN.value : '0;
+    assign readback_array[56][3:3] = (decoded_reg_strb.SRC.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ENABLE.TIMEOUT_EN.value : '0;
+    assign readback_array[56][4:4] = (decoded_reg_strb.SRC.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ENABLE.PERF_EN.value : '0;
+    assign readback_array[56][5:5] = (decoded_reg_strb.SRC.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ENABLE.COMPRESS_EN.value : '0;
+    assign readback_array[56][31:6] = (decoded_reg_strb.SRC.MON.WRMON_ENABLE && !decoded_req_is_wr) ? 26'h0 : '0;
+    assign readback_array[57][31:0] = (decoded_reg_strb.SRC.MON.WRMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
+    assign readback_array[58][31:0] = (decoded_reg_strb.SRC.MON.WRMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
+    assign readback_array[59][15:0] = (decoded_reg_strb.SRC.MON.WRMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_PKT_MASK.PKT_MASK.value : '0;
+    assign readback_array[59][31:16] = (decoded_reg_strb.SRC.MON.WRMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[60][3:0] = (decoded_reg_strb.SRC.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ERR_CFG.ERR_SELECT.value : '0;
+    assign readback_array[60][7:4] = (decoded_reg_strb.SRC.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
+    assign readback_array[60][15:8] = (decoded_reg_strb.SRC.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ERR_CFG.ERR_MASK.value : '0;
+    assign readback_array[60][31:16] = (decoded_reg_strb.SRC.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[61][7:0] = (decoded_reg_strb.SRC.MON.WRMON_MASK1 && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_MASK1.TIMEOUT_MASK.value : '0;
+    assign readback_array[61][15:8] = (decoded_reg_strb.SRC.MON.WRMON_MASK1 && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_MASK1.COMPL_MASK.value : '0;
+    assign readback_array[61][31:16] = (decoded_reg_strb.SRC.MON.WRMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[62][7:0] = (decoded_reg_strb.SRC.MON.WRMON_MASK2 && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_MASK2.THRESH_MASK.value : '0;
+    assign readback_array[62][15:8] = (decoded_reg_strb.SRC.MON.WRMON_MASK2 && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_MASK2.PERF_MASK.value : '0;
+    assign readback_array[62][31:16] = (decoded_reg_strb.SRC.MON.WRMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[63][7:0] = (decoded_reg_strb.SRC.MON.WRMON_MASK3 && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_MASK3.ADDR_MASK.value : '0;
+    assign readback_array[63][15:8] = (decoded_reg_strb.SRC.MON.WRMON_MASK3 && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_MASK3.DEBUG_MASK.value : '0;
+    assign readback_array[63][31:16] = (decoded_reg_strb.SRC.MON.WRMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[64][0:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_PERF_CTRL.RUN.value : '0;
+    assign readback_array[64][31:1] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[65][0:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_STATUS.WIN_ACTIVE.next : '0;
+    assign readback_array[65][31:1] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[66][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_WINDOW_CYCLES.VAL.next : '0;
+    assign readback_array[67][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_PROD_CYCLES.VAL.next : '0;
+    assign readback_array[68][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_BP_CYCLES.VAL.next : '0;
+    assign readback_array[69][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_STARV_CYCLES.VAL.next : '0;
+    assign readback_array[70][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_IDLE_CYCLES.VAL.next : '0;
+    assign readback_array[71][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_BEAT_COUNT.VAL.next : '0;
+    assign readback_array[72][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
+    assign readback_array[73][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
+    assign readback_array[74][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_BURST_COUNT.VAL.next : '0;
+    assign readback_array[75][0:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_PERF_CTRL.RUN.value : '0;
+    assign readback_array[75][31:1] = (decoded_reg_strb.SRC.MON.RDMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[76][0:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_STATUS.WIN_ACTIVE.next : '0;
+    assign readback_array[76][31:1] = (decoded_reg_strb.SRC.MON.RDMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[77][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_WINDOW_CYCLES.VAL.next : '0;
+    assign readback_array[78][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_PROD_CYCLES.VAL.next : '0;
+    assign readback_array[79][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_BP_CYCLES.VAL.next : '0;
+    assign readback_array[80][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_STARV_CYCLES.VAL.next : '0;
+    assign readback_array[81][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_IDLE_CYCLES.VAL.next : '0;
+    assign readback_array[82][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_BEAT_COUNT.VAL.next : '0;
+    assign readback_array[83][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
+    assign readback_array[84][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
+    assign readback_array[85][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_BURST_COUNT.VAL.next : '0;
+    assign readback_array[86][0:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_PERF_CTRL.RUN.value : '0;
+    assign readback_array[86][31:1] = (decoded_reg_strb.SRC.MON.WRMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[87][0:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_STATUS.WIN_ACTIVE.next : '0;
+    assign readback_array[87][31:1] = (decoded_reg_strb.SRC.MON.WRMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[88][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_WINDOW_CYCLES.VAL.next : '0;
+    assign readback_array[89][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_PROD_CYCLES.VAL.next : '0;
+    assign readback_array[90][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_BP_CYCLES.VAL.next : '0;
+    assign readback_array[91][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_STARV_CYCLES.VAL.next : '0;
+    assign readback_array[92][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_IDLE_CYCLES.VAL.next : '0;
+    assign readback_array[93][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_BEAT_COUNT.VAL.next : '0;
+    assign readback_array[94][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
+    assign readback_array[95][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
+    assign readback_array[96][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_BURST_COUNT.VAL.next : '0;
+    assign readback_array[97][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_CH_PROD_BP && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_CH_PROD_BP.VAL.next : '0;
+    assign readback_array[98][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_CH_STARV_IDLE && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_CH_STARV_IDLE.VAL.next : '0;
+    assign readback_array[99][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_CH_PROD_BP && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_CH_PROD_BP.VAL.next : '0;
+    assign readback_array[100][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_CH_STARV_IDLE && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_CH_STARV_IDLE.VAL.next : '0;
+    assign readback_array[101][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_CH_OVERFLOW && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_CH_OVERFLOW.VAL.next : '0;
+    assign readback_array[102][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_CH_OVERFLOW && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_CH_OVERFLOW.VAL.next : '0;
+    assign readback_array[103][0:0] = (decoded_reg_strb.SNK.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.SNK.GLOBAL_CTRL.GLOBAL_EN.value : '0;
+    assign readback_array[103][1:1] = (decoded_reg_strb.SNK.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.SNK.GLOBAL_CTRL.GLOBAL_RST.value : '0;
+    assign readback_array[103][31:2] = (decoded_reg_strb.SNK.GLOBAL_CTRL && !decoded_req_is_wr) ? 30'h0 : '0;
+    assign readback_array[104][0:0] = (decoded_reg_strb.SNK.GLOBAL_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.GLOBAL_STATUS.SYSTEM_IDLE.next : '0;
+    assign readback_array[104][31:1] = (decoded_reg_strb.SNK.GLOBAL_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[105][7:0] = (decoded_reg_strb.SNK.VERSION && !decoded_req_is_wr) ? 8'h5a : '0;
+    assign readback_array[105][15:8] = (decoded_reg_strb.SNK.VERSION && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[105][23:16] = (decoded_reg_strb.SNK.VERSION && !decoded_req_is_wr) ? 8'h8 : '0;
+    assign readback_array[105][31:24] = (decoded_reg_strb.SNK.VERSION && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[106][7:0] = (decoded_reg_strb.SNK.CHANNEL_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.CHANNEL_ENABLE.CH_EN.value : '0;
+    assign readback_array[106][31:8] = (decoded_reg_strb.SNK.CHANNEL_ENABLE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[107][7:0] = (decoded_reg_strb.SNK.CHANNEL_RESET && !decoded_req_is_wr) ? field_storage.SNK.CHANNEL_RESET.CH_RST.value : '0;
+    assign readback_array[107][31:8] = (decoded_reg_strb.SNK.CHANNEL_RESET && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[108][7:0] = (decoded_reg_strb.SNK.CHANNEL_IDLE && !decoded_req_is_wr) ? hwif_in.SNK.CHANNEL_IDLE.CH_IDLE.next : '0;
+    assign readback_array[108][31:8] = (decoded_reg_strb.SNK.CHANNEL_IDLE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[109][7:0] = (decoded_reg_strb.SNK.DESC_ENGINE_IDLE && !decoded_req_is_wr) ? hwif_in.SNK.DESC_ENGINE_IDLE.DESC_IDLE.next : '0;
+    assign readback_array[109][31:8] = (decoded_reg_strb.SNK.DESC_ENGINE_IDLE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[110][7:0] = (decoded_reg_strb.SNK.SCHEDULER_IDLE && !decoded_req_is_wr) ? hwif_in.SNK.SCHEDULER_IDLE.SCHED_IDLE.next : '0;
+    assign readback_array[110][31:8] = (decoded_reg_strb.SNK.SCHEDULER_IDLE && !decoded_req_is_wr) ? 24'h0 : '0;
+    for(genvar i0=0; i0<8; i0++) begin
+        assign readback_array[i0 * 1 + 111][6:0] = (decoded_reg_strb.SNK.CH_STATE[i0].STATE && !decoded_req_is_wr) ? hwif_in.SNK.CH_STATE[i0].STATE.STATE.next : '0;
+        assign readback_array[i0 * 1 + 111][31:7] = (decoded_reg_strb.SNK.CH_STATE[i0].STATE && !decoded_req_is_wr) ? 25'h0 : '0;
+    end
+    assign readback_array[119][7:0] = (decoded_reg_strb.SNK.SCHED_ERROR && !decoded_req_is_wr) ? hwif_in.SNK.SCHED_ERROR.SCHED_ERR.next : '0;
+    assign readback_array[119][31:8] = (decoded_reg_strb.SNK.SCHED_ERROR && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[120][7:0] = (decoded_reg_strb.SNK.AXI_RD_COMPLETE && !decoded_req_is_wr) ? hwif_in.SNK.AXI_RD_COMPLETE.RD_COMPLETE.next : '0;
+    assign readback_array[120][31:8] = (decoded_reg_strb.SNK.AXI_RD_COMPLETE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[121][7:0] = (decoded_reg_strb.SNK.AXI_WR_COMPLETE && !decoded_req_is_wr) ? hwif_in.SNK.AXI_WR_COMPLETE.WR_COMPLETE.next : '0;
+    assign readback_array[121][31:8] = (decoded_reg_strb.SNK.AXI_WR_COMPLETE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[122][31:0] = (decoded_reg_strb.SNK.SCHED_TIMEOUT_CYCLES && !decoded_req_is_wr) ? field_storage.SNK.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value : '0;
+    assign readback_array[123][0:0] = (decoded_reg_strb.SNK.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.SCHED_CONFIG.SCHED_EN.value : '0;
+    assign readback_array[123][1:1] = (decoded_reg_strb.SNK.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.SCHED_CONFIG.TIMEOUT_EN.value : '0;
+    assign readback_array[123][2:2] = (decoded_reg_strb.SNK.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.SCHED_CONFIG.ERR_EN.value : '0;
+    assign readback_array[123][3:3] = (decoded_reg_strb.SNK.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.SCHED_CONFIG.COMPL_EN.value : '0;
+    assign readback_array[123][4:4] = (decoded_reg_strb.SNK.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.SCHED_CONFIG.PERF_EN.value : '0;
+    assign readback_array[123][31:5] = (decoded_reg_strb.SNK.SCHED_CONFIG && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[124][7:0] = (decoded_reg_strb.SNK.SCHED_TIMEOUT_LIMIT && !decoded_req_is_wr) ? field_storage.SNK.SCHED_TIMEOUT_LIMIT.LIMIT.value : '0;
+    assign readback_array[124][31:8] = '0;
+    assign readback_array[125][0:0] = (decoded_reg_strb.SNK.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.DESCENG_CONFIG.DESCENG_EN.value : '0;
+    assign readback_array[125][1:1] = (decoded_reg_strb.SNK.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.DESCENG_CONFIG.PREFETCH_EN.value : '0;
+    assign readback_array[125][5:2] = (decoded_reg_strb.SNK.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.DESCENG_CONFIG.FIFO_THRESH.value : '0;
+    assign readback_array[125][31:6] = (decoded_reg_strb.SNK.DESCENG_CONFIG && !decoded_req_is_wr) ? 26'h0 : '0;
+    assign readback_array[126][31:0] = (decoded_reg_strb.SNK.DESCENG_ADDR0_BASE && !decoded_req_is_wr) ? field_storage.SNK.DESCENG_ADDR0_BASE.ADDR0_BASE.value : '0;
+    assign readback_array[127][31:0] = (decoded_reg_strb.SNK.DESCENG_ADDR0_LIMIT && !decoded_req_is_wr) ? field_storage.SNK.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value : '0;
+    assign readback_array[128][31:0] = (decoded_reg_strb.SNK.DESCENG_ADDR1_BASE && !decoded_req_is_wr) ? field_storage.SNK.DESCENG_ADDR1_BASE.ADDR1_BASE.value : '0;
+    assign readback_array[129][31:0] = (decoded_reg_strb.SNK.DESCENG_ADDR1_LIMIT && !decoded_req_is_wr) ? field_storage.SNK.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value : '0;
+    assign readback_array[130][8:0] = (decoded_reg_strb.SNK.CTRL_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.CTRL_CONFIG.CTRLRD_MAX_TRY.value : '0;
+    assign readback_array[130][31:9] = (decoded_reg_strb.SNK.CTRL_CONFIG && !decoded_req_is_wr) ? 23'h0 : '0;
+    assign readback_array[131][7:0] = (decoded_reg_strb.SNK.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.AXI_XFER_CONFIG.RD_XFER_BEATS.value : '0;
+    assign readback_array[131][15:8] = (decoded_reg_strb.SNK.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.AXI_XFER_CONFIG.WR_XFER_BEATS.value : '0;
+    assign readback_array[131][23:16] = (decoded_reg_strb.SNK.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.AXI_XFER_CONFIG.ALLOC_SIZE.value : '0;
+    assign readback_array[131][31:24] = (decoded_reg_strb.SNK.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.AXI_XFER_CONFIG.DRAIN_SIZE.value : '0;
+    assign readback_array[132][0:0] = (decoded_reg_strb.SNK.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.PERF_CONFIG.PERF_EN.value : '0;
+    assign readback_array[132][1:1] = (decoded_reg_strb.SNK.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.PERF_CONFIG.PERF_MODE.value : '0;
+    assign readback_array[132][2:2] = (decoded_reg_strb.SNK.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.PERF_CONFIG.PERF_CLEAR.value : '0;
+    assign readback_array[132][31:3] = (decoded_reg_strb.SNK.PERF_CONFIG && !decoded_req_is_wr) ? 29'h0 : '0;
+    assign readback_array[133][2:0] = (decoded_reg_strb.SNK.OBS_CTRL && !decoded_req_is_wr) ? field_storage.SNK.OBS_CTRL.CH_SEL.value : '0;
+    assign readback_array[133][4:3] = (decoded_reg_strb.SNK.OBS_CTRL && !decoded_req_is_wr) ? field_storage.SNK.OBS_CTRL.CAT_SEL.value : '0;
+    assign readback_array[133][31:5] = (decoded_reg_strb.SNK.OBS_CTRL && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[134][31:0] = (decoded_reg_strb.SNK.OBS_FLAGS && !decoded_req_is_wr) ? hwif_in.SNK.OBS_FLAGS.FLAGS.next : '0;
+    assign readback_array[135][31:0] = (decoded_reg_strb.SNK.OBS_DATA0 && !decoded_req_is_wr) ? hwif_in.SNK.OBS_DATA0.DATA.next : '0;
+    assign readback_array[136][31:0] = (decoded_reg_strb.SNK.OBS_DATA1 && !decoded_req_is_wr) ? hwif_in.SNK.OBS_DATA1.DATA.next : '0;
+    assign readback_array[137][2:0] = (decoded_reg_strb.SNK.PERF_CH_SEL && !decoded_req_is_wr) ? field_storage.SNK.PERF_CH_SEL.CH_SEL.value : '0;
+    assign readback_array[137][31:3] = (decoded_reg_strb.SNK.PERF_CH_SEL && !decoded_req_is_wr) ? 29'h0 : '0;
+    assign readback_array[138][0:0] = (decoded_reg_strb.SNK.HIST_SEL && !decoded_req_is_wr) ? field_storage.SNK.HIST_SEL.BUS.value : '0;
+    assign readback_array[138][1:1] = (decoded_reg_strb.SNK.HIST_SEL && !decoded_req_is_wr) ? field_storage.SNK.HIST_SEL.METRIC.value : '0;
+    assign readback_array[138][5:2] = (decoded_reg_strb.SNK.HIST_SEL && !decoded_req_is_wr) ? field_storage.SNK.HIST_SEL.BIN.value : '0;
+    assign readback_array[138][31:6] = (decoded_reg_strb.SNK.HIST_SEL && !decoded_req_is_wr) ? 26'h0 : '0;
+    assign readback_array[139][31:0] = (decoded_reg_strb.SNK.HIST_DATA && !decoded_req_is_wr) ? hwif_in.SNK.HIST_DATA.VAL.next : '0;
+    assign readback_array[140][31:0] = (decoded_reg_strb.SNK.HIST_TOTAL && !decoded_req_is_wr) ? hwif_in.SNK.HIST_TOTAL.VAL.next : '0;
+    assign readback_array[141][0:0] = (decoded_reg_strb.SNK.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.MON.MON_FIFO_STATUS.MON_FIFO_FULL.next : '0;
+    assign readback_array[141][1:1] = (decoded_reg_strb.SNK.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.MON.MON_FIFO_STATUS.MON_FIFO_EMPTY.next : '0;
+    assign readback_array[141][2:2] = (decoded_reg_strb.SNK.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.MON.MON_FIFO_STATUS.MON_FIFO_OVFL.next : '0;
+    assign readback_array[141][3:3] = (decoded_reg_strb.SNK.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.MON.MON_FIFO_STATUS.MON_FIFO_UNFL.next : '0;
+    assign readback_array[141][31:4] = (decoded_reg_strb.SNK.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? 28'h0 : '0;
+    assign readback_array[142][15:0] = (decoded_reg_strb.SNK.MON.MON_FIFO_COUNT && !decoded_req_is_wr) ? hwif_in.SNK.MON.MON_FIFO_COUNT.FIFO_COUNT.next : '0;
+    assign readback_array[142][31:16] = (decoded_reg_strb.SNK.MON.MON_FIFO_COUNT && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[143][0:0] = (decoded_reg_strb.SNK.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_ENABLE.MON_EN.value : '0;
+    assign readback_array[143][1:1] = (decoded_reg_strb.SNK.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_ENABLE.ERR_EN.value : '0;
+    assign readback_array[143][2:2] = (decoded_reg_strb.SNK.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_ENABLE.COMPL_EN.value : '0;
+    assign readback_array[143][3:3] = (decoded_reg_strb.SNK.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_ENABLE.TIMEOUT_EN.value : '0;
+    assign readback_array[143][4:4] = (decoded_reg_strb.SNK.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_ENABLE.PERF_EN.value : '0;
+    assign readback_array[143][31:5] = (decoded_reg_strb.SNK.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[144][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
+    assign readback_array[145][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
+    assign readback_array[146][15:0] = (decoded_reg_strb.SNK.MON.DAXMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_PKT_MASK.PKT_MASK.value : '0;
+    assign readback_array[146][31:16] = (decoded_reg_strb.SNK.MON.DAXMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[147][3:0] = (decoded_reg_strb.SNK.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_ERR_CFG.ERR_SELECT.value : '0;
+    assign readback_array[147][7:4] = (decoded_reg_strb.SNK.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
+    assign readback_array[147][15:8] = (decoded_reg_strb.SNK.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_ERR_CFG.ERR_MASK.value : '0;
+    assign readback_array[147][31:16] = (decoded_reg_strb.SNK.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[148][7:0] = (decoded_reg_strb.SNK.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_MASK1.TIMEOUT_MASK.value : '0;
+    assign readback_array[148][15:8] = (decoded_reg_strb.SNK.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_MASK1.COMPL_MASK.value : '0;
+    assign readback_array[148][31:16] = (decoded_reg_strb.SNK.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[149][7:0] = (decoded_reg_strb.SNK.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_MASK2.THRESH_MASK.value : '0;
+    assign readback_array[149][15:8] = (decoded_reg_strb.SNK.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_MASK2.PERF_MASK.value : '0;
+    assign readback_array[149][31:16] = (decoded_reg_strb.SNK.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[150][7:0] = (decoded_reg_strb.SNK.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_MASK3.ADDR_MASK.value : '0;
+    assign readback_array[150][15:8] = (decoded_reg_strb.SNK.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_MASK3.DEBUG_MASK.value : '0;
+    assign readback_array[150][31:16] = (decoded_reg_strb.SNK.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[151][0:0] = (decoded_reg_strb.SNK.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_ENABLE.MON_EN.value : '0;
+    assign readback_array[151][1:1] = (decoded_reg_strb.SNK.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_ENABLE.ERR_EN.value : '0;
+    assign readback_array[151][2:2] = (decoded_reg_strb.SNK.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_ENABLE.COMPL_EN.value : '0;
+    assign readback_array[151][3:3] = (decoded_reg_strb.SNK.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_ENABLE.TIMEOUT_EN.value : '0;
+    assign readback_array[151][4:4] = (decoded_reg_strb.SNK.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_ENABLE.PERF_EN.value : '0;
+    assign readback_array[151][31:5] = (decoded_reg_strb.SNK.MON.RDMON_ENABLE && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[152][31:0] = (decoded_reg_strb.SNK.MON.RDMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
+    assign readback_array[153][31:0] = (decoded_reg_strb.SNK.MON.RDMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
+    assign readback_array[154][15:0] = (decoded_reg_strb.SNK.MON.RDMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_PKT_MASK.PKT_MASK.value : '0;
+    assign readback_array[154][31:16] = (decoded_reg_strb.SNK.MON.RDMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[155][3:0] = (decoded_reg_strb.SNK.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_ERR_CFG.ERR_SELECT.value : '0;
+    assign readback_array[155][7:4] = (decoded_reg_strb.SNK.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
+    assign readback_array[155][15:8] = (decoded_reg_strb.SNK.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_ERR_CFG.ERR_MASK.value : '0;
+    assign readback_array[155][31:16] = (decoded_reg_strb.SNK.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[156][7:0] = (decoded_reg_strb.SNK.MON.RDMON_MASK1 && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_MASK1.TIMEOUT_MASK.value : '0;
+    assign readback_array[156][15:8] = (decoded_reg_strb.SNK.MON.RDMON_MASK1 && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_MASK1.COMPL_MASK.value : '0;
+    assign readback_array[156][31:16] = (decoded_reg_strb.SNK.MON.RDMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[157][7:0] = (decoded_reg_strb.SNK.MON.RDMON_MASK2 && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_MASK2.THRESH_MASK.value : '0;
+    assign readback_array[157][15:8] = (decoded_reg_strb.SNK.MON.RDMON_MASK2 && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_MASK2.PERF_MASK.value : '0;
+    assign readback_array[157][31:16] = (decoded_reg_strb.SNK.MON.RDMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[158][7:0] = (decoded_reg_strb.SNK.MON.RDMON_MASK3 && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_MASK3.ADDR_MASK.value : '0;
+    assign readback_array[158][15:8] = (decoded_reg_strb.SNK.MON.RDMON_MASK3 && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_MASK3.DEBUG_MASK.value : '0;
+    assign readback_array[158][31:16] = (decoded_reg_strb.SNK.MON.RDMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[159][0:0] = (decoded_reg_strb.SNK.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ENABLE.MON_EN.value : '0;
+    assign readback_array[159][1:1] = (decoded_reg_strb.SNK.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ENABLE.ERR_EN.value : '0;
+    assign readback_array[159][2:2] = (decoded_reg_strb.SNK.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ENABLE.COMPL_EN.value : '0;
+    assign readback_array[159][3:3] = (decoded_reg_strb.SNK.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ENABLE.TIMEOUT_EN.value : '0;
+    assign readback_array[159][4:4] = (decoded_reg_strb.SNK.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ENABLE.PERF_EN.value : '0;
+    assign readback_array[159][5:5] = (decoded_reg_strb.SNK.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ENABLE.COMPRESS_EN.value : '0;
+    assign readback_array[159][31:6] = (decoded_reg_strb.SNK.MON.WRMON_ENABLE && !decoded_req_is_wr) ? 26'h0 : '0;
+    assign readback_array[160][31:0] = (decoded_reg_strb.SNK.MON.WRMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
+    assign readback_array[161][31:0] = (decoded_reg_strb.SNK.MON.WRMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
+    assign readback_array[162][15:0] = (decoded_reg_strb.SNK.MON.WRMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_PKT_MASK.PKT_MASK.value : '0;
+    assign readback_array[162][31:16] = (decoded_reg_strb.SNK.MON.WRMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[163][3:0] = (decoded_reg_strb.SNK.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ERR_CFG.ERR_SELECT.value : '0;
+    assign readback_array[163][7:4] = (decoded_reg_strb.SNK.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
+    assign readback_array[163][15:8] = (decoded_reg_strb.SNK.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ERR_CFG.ERR_MASK.value : '0;
+    assign readback_array[163][31:16] = (decoded_reg_strb.SNK.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[164][7:0] = (decoded_reg_strb.SNK.MON.WRMON_MASK1 && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_MASK1.TIMEOUT_MASK.value : '0;
+    assign readback_array[164][15:8] = (decoded_reg_strb.SNK.MON.WRMON_MASK1 && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_MASK1.COMPL_MASK.value : '0;
+    assign readback_array[164][31:16] = (decoded_reg_strb.SNK.MON.WRMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[165][7:0] = (decoded_reg_strb.SNK.MON.WRMON_MASK2 && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_MASK2.THRESH_MASK.value : '0;
+    assign readback_array[165][15:8] = (decoded_reg_strb.SNK.MON.WRMON_MASK2 && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_MASK2.PERF_MASK.value : '0;
+    assign readback_array[165][31:16] = (decoded_reg_strb.SNK.MON.WRMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[166][7:0] = (decoded_reg_strb.SNK.MON.WRMON_MASK3 && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_MASK3.ADDR_MASK.value : '0;
+    assign readback_array[166][15:8] = (decoded_reg_strb.SNK.MON.WRMON_MASK3 && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_MASK3.DEBUG_MASK.value : '0;
+    assign readback_array[166][31:16] = (decoded_reg_strb.SNK.MON.WRMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[167][0:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_PERF_CTRL.RUN.value : '0;
+    assign readback_array[167][31:1] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[168][0:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_STATUS.WIN_ACTIVE.next : '0;
+    assign readback_array[168][31:1] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[169][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_WINDOW_CYCLES.VAL.next : '0;
+    assign readback_array[170][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_PROD_CYCLES.VAL.next : '0;
+    assign readback_array[171][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_BP_CYCLES.VAL.next : '0;
+    assign readback_array[172][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_STARV_CYCLES.VAL.next : '0;
+    assign readback_array[173][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_IDLE_CYCLES.VAL.next : '0;
+    assign readback_array[174][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_BEAT_COUNT.VAL.next : '0;
+    assign readback_array[175][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
+    assign readback_array[176][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
+    assign readback_array[177][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_BURST_COUNT.VAL.next : '0;
+    assign readback_array[178][0:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_PERF_CTRL.RUN.value : '0;
+    assign readback_array[178][31:1] = (decoded_reg_strb.SNK.MON.RDMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[179][0:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_STATUS.WIN_ACTIVE.next : '0;
+    assign readback_array[179][31:1] = (decoded_reg_strb.SNK.MON.RDMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[180][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_WINDOW_CYCLES.VAL.next : '0;
+    assign readback_array[181][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_PROD_CYCLES.VAL.next : '0;
+    assign readback_array[182][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_BP_CYCLES.VAL.next : '0;
+    assign readback_array[183][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_STARV_CYCLES.VAL.next : '0;
+    assign readback_array[184][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_IDLE_CYCLES.VAL.next : '0;
+    assign readback_array[185][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_BEAT_COUNT.VAL.next : '0;
+    assign readback_array[186][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
+    assign readback_array[187][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
+    assign readback_array[188][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_BURST_COUNT.VAL.next : '0;
+    assign readback_array[189][0:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_PERF_CTRL.RUN.value : '0;
+    assign readback_array[189][31:1] = (decoded_reg_strb.SNK.MON.WRMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[190][0:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_STATUS.WIN_ACTIVE.next : '0;
+    assign readback_array[190][31:1] = (decoded_reg_strb.SNK.MON.WRMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[191][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_WINDOW_CYCLES.VAL.next : '0;
+    assign readback_array[192][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_PROD_CYCLES.VAL.next : '0;
+    assign readback_array[193][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_BP_CYCLES.VAL.next : '0;
+    assign readback_array[194][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_STARV_CYCLES.VAL.next : '0;
+    assign readback_array[195][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_IDLE_CYCLES.VAL.next : '0;
+    assign readback_array[196][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_BEAT_COUNT.VAL.next : '0;
+    assign readback_array[197][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
+    assign readback_array[198][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
+    assign readback_array[199][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_BURST_COUNT.VAL.next : '0;
+    assign readback_array[200][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_CH_PROD_BP && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_CH_PROD_BP.VAL.next : '0;
+    assign readback_array[201][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_CH_STARV_IDLE && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_CH_STARV_IDLE.VAL.next : '0;
+    assign readback_array[202][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_CH_PROD_BP && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_CH_PROD_BP.VAL.next : '0;
+    assign readback_array[203][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_CH_STARV_IDLE && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_CH_STARV_IDLE.VAL.next : '0;
+    assign readback_array[204][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_CH_OVERFLOW && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_CH_OVERFLOW.VAL.next : '0;
+    assign readback_array[205][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_CH_OVERFLOW && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_CH_OVERFLOW.VAL.next : '0;
 
     // Reduce the array
     always_comb begin
@@ -3112,7 +6316,7 @@ module rapids_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<102; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<206; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

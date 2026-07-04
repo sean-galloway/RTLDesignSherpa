@@ -13,13 +13,22 @@
 // Author: sean galloway
 // Created: 2025-10-18
 
+// Package imports are guarded so that in a shared compilation scope each
+// package is wildcard-imported exactly once. This matters because rapids_pkg
+// and stream_pkg (pulled in via the shared apbtodescr kick block on the
+// characterization harness) export colliding enum-label names (RD_IDLE, CH_*,
+// ...); importing either wildcard more than once into the same scope makes
+// those labels ambiguous under Vivado. The guard keeps a single canonical
+// import. Any symbol a RAPIDS module needs from a package that a *different*
+// import header may have claimed the guard for first must be referenced
+// fully-qualified (e.g. monitor_amba4_pkg::AXI_ERR_RESP_SLVERR) rather than
+// relying on the wildcard.
 `ifndef MONITOR_PKG_IMPORTED
 `define MONITOR_PKG_IMPORTED
 // Import monitor packages for MonBus types
 // monitor_common_pkg provides: PktTypeError, PktTypeCompletion, PROTOCOL_CORE, etc.
 // monitor_amba4_pkg provides: AXI_ERR_RESP_SLVERR, AXI_ERR_RESP_DECERR, etc.
 // monitor_arbiter_pkg provides: CORE_ERR_*, CORE_COMPL_*, CORE_PERF_* for ctrlrd/ctrlwr engines
-// monitor_pkg provides: monitor_packet_t, helper functions
 import monitor_common_pkg::*;
 import monitor_amba4_pkg::*;
 import monitor_arbiter_pkg::*;

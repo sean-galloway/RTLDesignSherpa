@@ -800,6 +800,19 @@ module monbus_group_core
     logic [15:0]                 s1_beats_to_4kb;
     logic                        s1_in_window;
     logic [ADDR_WIDTH-1:0]       s1_wr_addr;
+
+    // Locally-registered copies of the quasi-static window config. cfg_base_addr
+    // / cfg_limit_addr arrive from far-placed config CSRs (top-level
+    // cfg_mon_base_addr / cfg_mon_limit_addr) and fan straight into the stage-1
+    // window compare + limit subtract -- which was the 100 MHz setup-critical
+    // path (cfg_mon_base_addr -> s1_beats_to_limit, ~0.8 ns of that on the CSR
+    // route alone, feeding a high-fanout arithmetic net). Registering them here
+    // makes stage 1 source from adjacent flops (placer can localise the adders)
+    // and the max_fanout cap forces driver replication so no single window
+    // term drives ~100+ loads. Config is static during operation, so the 1-cycle
+    // latency to adopt a new base/limit is functionally harmless.
+    (* max_fanout = 24 *) logic [ADDR_WIDTH-1:0] r_cfg_base_addr;
+    (* max_fanout = 24 *) logic [ADDR_WIDTH-1:0] r_cfg_limit_addr;
     // stage 2: planned beats (geometry cap only)
     logic [15:0]                 s2_beats_planned;
     logic                        s2_in_window;
@@ -840,6 +853,19 @@ module monbus_group_core
     // (the 100 MHz critical path). Stage N reads stage N-1's registers, so
     // the plan trails r_wr_addr by 3 cycles -- harmless because r_wr_addr
     // is stable in WR_IDLE and the FIFO only grows there.
+
+    // Register the (quasi-static) window config locally so stage 1 sources it
+    // from adjacent flops instead of the far-placed config CSRs (timing fix).
+    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+        if (`RST_ASSERTED(axi_aresetn)) begin
+            r_cfg_base_addr  <= '0;
+            r_cfg_limit_addr <= '0;
+        end else begin
+            r_cfg_base_addr  <= cfg_base_addr;
+            r_cfg_limit_addr <= cfg_limit_addr;
+        end
+    )
+
     `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
         if (`RST_ASSERTED(axi_aresetn)) begin
             s1_beats_to_limit <= 16'd0;
@@ -866,9 +892,9 @@ module monbus_group_core
                 logic [ADDR_WIDTH-1:0] diff;
                 logic [ADDR_WIDTH-1:0] beats_raw;
                 logic [12:0]           bytes4;
-                in_w      = (r_wr_addr >= cfg_base_addr) && (r_wr_addr <= cfg_limit_addr);
-                gaddr     = in_w ? r_wr_addr : cfg_base_addr;
-                diff      = cfg_limit_addr - gaddr;
+                in_w      = (r_wr_addr >= r_cfg_base_addr) && (r_wr_addr <= r_cfg_limit_addr);
+                gaddr     = in_w ? r_wr_addr : r_cfg_base_addr;
+                diff      = r_cfg_limit_addr - gaddr;
                 beats_raw = (diff < ADDR_WIDTH'(7)) ? '0
                           : (((diff - ADDR_WIDTH'(7)) >> 3) + ADDR_WIDTH'(1));
                 bytes4    = 13'h1000 - {1'b0, gaddr[11:0]};
@@ -905,7 +931,7 @@ module monbus_group_core
                       : (s2_beats_planned - 16'(w_geo_rem3));
                 rew   = !s2_in_window || (units < w_beats_per_unit);
                 r_plan_geo_units <= units;
-                r_plan_addr      <= rew ? cfg_base_addr : s2_wr_addr;
+                r_plan_addr      <= rew ? r_cfg_base_addr : s2_wr_addr;
                 r_plan_ok        <= (units >= w_beats_per_unit);
             end
         end
@@ -1029,7 +1055,7 @@ module monbus_group_core
                         r_unit_remaining    <= total_units;
                         r_wr_state <= WR_AW;
                     end else if (do_flush && geom_valid && !r_plan_ok
-                                 && (r_wr_addr != cfg_base_addr)) begin
+                                 && (r_wr_addr != r_cfg_base_addr)) begin
                         // Rewind-snap: the pipeline produced a plan but
                         // r_plan_ok=false because no whole record fits in
                         // the remaining 4KB-region space from the current
@@ -1046,7 +1072,7 @@ module monbus_group_core
                         // writer wedges in IDLE -- caught by the AXIL/AXIL
                         // master_write Phase 5 stress (cfg_base placed
                         // 4 beats below a 4KB boundary).
-                        r_wr_addr <= cfg_base_addr;
+                        r_wr_addr <= r_cfg_base_addr;
                     end
                 end
 

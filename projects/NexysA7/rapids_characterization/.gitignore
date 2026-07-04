@@ -1,0 +1,15 @@
+# Generated report outputs (regenerate with docs/generate_pdf.sh)
+docs/*.pdf
+docs/*.docx
+# Vivado / sim / host build artifacts
+flows-rapids-beats/build/
+flows-rapids-beats/bitstream/
+flows-rapids-beats/reports/
+flows-rapids-beats/.Xil/
+flows-rapids-beats/*.log
+flows-rapids-beats/*.out
+flows-rapids-beats/*.jou
+flows-rapids-beats/dv/local_sim_build/
+flows-rapids-beats/dv/logs/
+**/__pycache__/
+*.pyc

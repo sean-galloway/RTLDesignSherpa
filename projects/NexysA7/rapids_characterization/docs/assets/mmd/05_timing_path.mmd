@@ -1,0 +1,19 @@
+flowchart LR
+    CSR["cfg_mon_base_addr<br/>(config CSR flop)"]
+    R1["global route<br/>fo=124 high-fanout net<br/>~0.8 ns CSR route"]
+    S1["monbus_group_core<br/>s1_beats_to_limit<br/>(window-limit subtract)"]
+    EP["capture flop"]
+
+    CSR -->|BEFORE: 19 levels, route 53%| R1
+    R1 --> S1
+    S1 --> EP
+
+    FIX["FIX: register cfg_base_addr / cfg_limit_addr<br/>LOCALLY in monbus_group_core (max_fanout=24)<br/>stage-1 arithmetic sources from adjacent flops"]
+    FIX -.->|WNS -0.365 ns to +0.051 ns| S1
+
+    classDef csr fill:#fde2e2,stroke:#b22222,stroke-width:1px;
+    classDef route fill:#fff4d6,stroke:#c8960a,stroke-width:1px;
+    classDef fix fill:#d5efd5,stroke:#228B22,stroke-width:2px;
+    class CSR csr;
+    class R1 route;
+    class FIX fix;

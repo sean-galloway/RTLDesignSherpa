@@ -1,0 +1,26 @@
+flowchart TB
+    TOP["rapids_beats_top"]
+    CORE["rapids_core_beats"]
+    SRC["rapids_src_beats<br/>(READ-only engine)"]
+    SNK["rapids_snk_beats<br/>(WRITE-only engine)"]
+    APB["shared APB decode<br/>SRC @ 0x0000 / SNK @ 0x1000"]
+    DM1["descriptor master (SRC)"]
+    DM2["descriptor master (SNK)"]
+    MON["monbus 3-level merge"]
+    EGR["m_axil_mon<br/>(single egress)"]
+
+    TOP --> CORE
+    CORE --> SRC
+    CORE --> SNK
+    APB -->|0x0000| SRC
+    APB -->|0x1000| SNK
+    SRC --> DM1
+    SNK --> DM2
+    SRC --> MON
+    SNK --> MON
+    MON --> EGR
+
+    classDef eng fill:#d5efd5,stroke:#228B22,stroke-width:2px;
+    classDef infra fill:#e6e6e6,stroke:#404040,stroke-width:1px;
+    class SRC,SNK eng;
+    class APB,MON,EGR,DM1,DM2 infra;

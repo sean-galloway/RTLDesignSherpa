@@ -217,6 +217,21 @@ class SchedulerGroupArrayBeatsTB(TBBase):
         self.dut.sched_wr_beats_done.value = 0
         self.dut.sched_wr_commit_beats.value = 0
 
+        # Shared control AXI masters + config (Phase 2) - scalar (not per-channel)
+        self.dut.ctrlrd_axi_arready.value = 0
+        self.dut.ctrlrd_axi_rvalid.value = 0
+        self.dut.ctrlrd_axi_rdata.value = 0
+        self.dut.ctrlrd_axi_rid.value = 0
+        self.dut.ctrlrd_axi_rresp.value = 0
+        self.dut.ctrlrd_axi_rlast.value = 0
+        self.dut.ctrlwr_axi_awready.value = 0
+        self.dut.ctrlwr_axi_wready.value = 0
+        self.dut.ctrlwr_axi_bvalid.value = 0
+        self.dut.ctrlwr_axi_bid.value = 0
+        self.dut.ctrlwr_axi_bresp.value = 0
+        self.dut.cfg_ctrlrd_max_try.value = 16
+        self.dut.tick_1us.value = 0
+
         # MonBus ready
         self.dut.mon_ready.value = 1
 
@@ -556,7 +571,7 @@ class SchedulerGroupArrayBeatsTB(TBBase):
 
     def create_descriptor(self, src_addr: int, dst_addr: int, length: int,
                          next_ptr: int = 0, valid: int = 1,
-                         gen_irq: int = 0, last: int = 1) -> int:
+                         gen_irq: int = 0, last: int = 1, opcode: int = 0) -> int:
         """Create 256-bit descriptor data.
 
         RAPIDS Descriptor Format:
@@ -567,6 +582,9 @@ class SchedulerGroupArrayBeatsTB(TBBase):
           [192]     - valid        (1 bit)   - Descriptor valid flag
           [193]     - gen_irq      (1 bit)   - Generate IRQ on completion
           [194]     - last         (1 bit)   - Last descriptor in chain
+          [209:208] - opcode       (2 bits)  - 0=DATA, 1=CTRL_READ, 2=CTRL_WRITE
+                        For control descriptors: addr=src[63:0], data=dst[31:0],
+                        mask=dst[63:32].
         """
         desc_data = (src_addr & ((1 << 64) - 1))
         desc_data |= ((dst_addr & ((1 << 64) - 1)) << 64)
@@ -575,7 +593,157 @@ class SchedulerGroupArrayBeatsTB(TBBase):
         desc_data |= (valid << 192)
         desc_data |= (gen_irq << 193)
         desc_data |= (last << 194)
+        desc_data |= ((opcode & 0x3) << 208)
         return desc_data
+
+    # ==========================================================================
+    # CONTROL-DESCRIPTOR SUPPORT (Phase 2 - shared masters, arbitration proof)
+    # ==========================================================================
+
+    async def _ctrlwr_shared_responder(self):
+        """Background responder for the SINGLE shared ctrlwr master. Captures each
+        doorbell as (channel_from_awid, addr, data). Proves the write SERIALIZER:
+        multiple channels' writes arrive one-at-a-time; B is routed back by ID."""
+        self.ctrlwr_doorbells = []
+        while self._ctrl_resp_active:
+            await self.wait_clocks(self.clk_name, 1)
+            if int(self.dut.ctrlwr_axi_awvalid.value) != 1:
+                continue
+            addr = int(self.dut.ctrlwr_axi_awaddr.value)
+            awid = int(self.dut.ctrlwr_axi_awid.value)
+            self.dut.ctrlwr_axi_awready.value = 1
+            await self.wait_clocks(self.clk_name, 1)
+            self.dut.ctrlwr_axi_awready.value = 0
+            # W beat
+            self.dut.ctrlwr_axi_wready.value = 1
+            data = None
+            for _ in range(100):
+                if int(self.dut.ctrlwr_axi_wvalid.value) == 1:
+                    data = int(self.dut.ctrlwr_axi_wdata.value)
+                    await self.wait_clocks(self.clk_name, 1)
+                    break
+                await self.wait_clocks(self.clk_name, 1)
+            self.dut.ctrlwr_axi_wready.value = 0
+            # B response (OKAY), echo awid
+            self.dut.ctrlwr_axi_bvalid.value = 1
+            self.dut.ctrlwr_axi_bid.value = awid
+            self.dut.ctrlwr_axi_bresp.value = 0
+            for _ in range(100):
+                if int(self.dut.ctrlwr_axi_bready.value) == 1:
+                    await self.wait_clocks(self.clk_name, 1)
+                    break
+                await self.wait_clocks(self.clk_name, 1)
+            self.dut.ctrlwr_axi_bvalid.value = 0
+            self.ctrlwr_doorbells.append((awid & (self.NUM_CHANNELS - 1), addr, data))
+
+    async def _ctrlrd_shared_responder(self, match_value: int = 0x1):
+        """Background responder for the SINGLE shared ctrlrd master. Returns
+        match_value (OKAY) for every poll, echoing ARID->RID so the array demuxes R
+        back to the right channel. Captures (channel_from_arid, addr)."""
+        self.ctrlrd_reads = []
+        while self._ctrl_resp_active:
+            await self.wait_clocks(self.clk_name, 1)
+            if int(self.dut.ctrlrd_axi_arvalid.value) != 1:
+                continue
+            addr = int(self.dut.ctrlrd_axi_araddr.value)
+            arid = int(self.dut.ctrlrd_axi_arid.value)
+            self.dut.ctrlrd_axi_arready.value = 1
+            await self.wait_clocks(self.clk_name, 1)
+            self.dut.ctrlrd_axi_arready.value = 0
+            self.dut.ctrlrd_axi_rvalid.value = 1
+            self.dut.ctrlrd_axi_rdata.value = match_value & 0xFFFFFFFF
+            self.dut.ctrlrd_axi_rid.value = arid
+            self.dut.ctrlrd_axi_rresp.value = 0
+            self.dut.ctrlrd_axi_rlast.value = 1
+            for _ in range(100):
+                if int(self.dut.ctrlrd_axi_rready.value) == 1:
+                    await self.wait_clocks(self.clk_name, 1)
+                    break
+                await self.wait_clocks(self.clk_name, 1)
+            self.dut.ctrlrd_axi_rvalid.value = 0
+            self.ctrlrd_reads.append((arid & (self.NUM_CHANNELS - 1), addr))
+
+    async def test_ctrl_multi_channel_doorbell(self, channels: List[int] = None) -> Tuple[bool, Dict[str, Any]]:
+        """Multiple channels issue CTRL_WRITE doorbells through the SINGLE shared
+        ctrlwr master; verify each lands with correct per-channel addr/data + channel
+        ID (proves the write serializer + B demux)."""
+        if channels is None:
+            channels = [0, 1]
+        self.log.info(f"=== Control Multi-Channel Doorbell Test: channels={channels} ===")
+        self.clear_descriptor_lookup()
+        self._ctrl_resp_active = True
+        cocotb.start_soon(self._ctrlwr_shared_responder())
+        try:
+            expected = {}
+            for ch in channels:
+                addr = 0x2000 + ch * 0x100
+                data = 0xD00D0000 + ch
+                desc = self.create_descriptor(src_addr=addr, dst_addr=data, length=1, opcode=2)
+                self.register_descriptor(32 * (ch + 1), desc)
+                expected[ch] = (addr, data)
+                await self.send_apb_request(ch, 32 * (ch + 1))
+            for _ in channels:
+                await self.respond_to_descriptor_read()
+            for _ in range(800):
+                await self.wait_clocks(self.clk_name, 1)
+                if len(self.ctrlwr_doorbells) >= len(channels):
+                    break
+            got = {ch: (a, d) for (ch, a, d) in self.ctrlwr_doorbells}
+            errors = 0
+            for ch in channels:
+                if ch not in got or got[ch] != expected[ch]:
+                    self.log.error(f"ch{ch} doorbell mismatch: got {got.get(ch)}, expected {expected[ch]}")
+                    errors += 1
+                else:
+                    self.log.info(f"  ✓ ch{ch} doorbell: addr=0x{got[ch][0]:X} data=0x{got[ch][1]:X}")
+            success = (errors == 0) and (len(self.ctrlwr_doorbells) == len(channels))
+            self.log.info(f"Multi-channel doorbell test: {'PASSED' if success else 'FAILED'}")
+            return (success, {'doorbells': len(self.ctrlwr_doorbells)})
+        finally:
+            self._ctrl_resp_active = False
+            await self.wait_clocks(self.clk_name, 3)
+
+    async def test_ctrl_multi_channel_gate(self, channels: List[int] = None) -> Tuple[bool, Dict[str, Any]]:
+        """Multiple channels issue CTRL_READ gates through the SINGLE shared ctrlrd
+        master; the responder returns a matching value so each gate opens. Verifies
+        arbitration + R demux (each channel's scheduler completes)."""
+        if channels is None:
+            channels = [0, 1]
+        self.log.info(f"=== Control Multi-Channel Gate Test: channels={channels} ===")
+        self.clear_descriptor_lookup()
+        self._ctrl_resp_active = True
+        cocotb.start_soon(self._ctrlrd_shared_responder(match_value=0x1))
+        try:
+            for ch in channels:
+                poll_addr = 0x3000 + ch * 0x100
+                desc = self.create_descriptor(src_addr=poll_addr,
+                                              dst_addr=((0x1 << 32) | 0x1),  # mask=1, expected=1
+                                              length=1, opcode=1)
+                self.register_descriptor(32 * (ch + 1), desc)
+                await self.send_apb_request(ch, 32 * (ch + 1))
+            for _ in channels:
+                await self.respond_to_descriptor_read()
+            for _ in range(800):
+                await self.wait_clocks(self.clk_name, 1)
+                if all(self.is_scheduler_idle(ch) for ch in channels):
+                    break
+            errors = 0
+            for ch in channels:
+                if not self.is_scheduler_idle(ch):
+                    self.log.error(f"ch{ch} scheduler not idle (gate did not open)")
+                    errors += 1
+            served = {ch for (ch, _a) in self.ctrlrd_reads}
+            for ch in channels:
+                if ch not in served:
+                    self.log.error(f"ch{ch} never issued a ctrlrd poll")
+                    errors += 1
+            success = errors == 0
+            self.log.info(f"Multi-channel gate test: {'PASSED' if success else 'FAILED'} "
+                          f"(reads={len(self.ctrlrd_reads)})")
+            return (success, {'reads': len(self.ctrlrd_reads)})
+        finally:
+            self._ctrl_resp_active = False
+            await self.wait_clocks(self.clk_name, 3)
 
     # ==========================================================================
     # TEST METHODS

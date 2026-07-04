@@ -462,6 +462,43 @@ run-full-parallel-waves:
 		echo "No test files found."; \
 	fi
 
+# GATE / FUNC parallel + waves — parity with memctrl fub/macro convention.
+.PHONY: run-gate-parallel
+run-gate-parallel:
+	@echo "Running all tests at GATE level in parallel..."
+	@if ls test_*.py 1> /dev/null 2>&1; then \
+		SIM=$(SIM) TEST_LEVEL=gate $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS); \
+	else \
+		echo "No test files found."; \
+	fi
+
+.PHONY: run-gate-parallel-waves
+run-gate-parallel-waves:
+	@echo "Running all tests at GATE level in parallel with waveforms..."
+	@if ls test_*.py 1> /dev/null 2>&1; then \
+		SIM=$(SIM) WAVES=1 TEST_LEVEL=gate $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS); \
+	else \
+		echo "No test files found."; \
+	fi
+
+.PHONY: run-func-parallel
+run-func-parallel:
+	@echo "Running all tests at FUNC level in parallel..."
+	@if ls test_*.py 1> /dev/null 2>&1; then \
+		SIM=$(SIM) TEST_LEVEL=func $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS); \
+	else \
+		echo "No test files found."; \
+	fi
+
+.PHONY: run-func-parallel-waves
+run-func-parallel-waves:
+	@echo "Running all tests at FUNC level in parallel with waveforms..."
+	@if ls test_*.py 1> /dev/null 2>&1; then \
+		SIM=$(SIM) WAVES=1 TEST_LEVEL=func $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS); \
+	else \
+		echo "No test files found."; \
+	fi
+
 # ==============================================================================
 # Standardized Aggregation Targets (used by bin/aggregate_test_results.py)
 # ==============================================================================

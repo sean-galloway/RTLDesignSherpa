@@ -36,8 +36,14 @@ module scheduler_group_beats #(
     // Monitor Bus Parameters - Base IDs for each component
     parameter DESC_MON_AGENT_ID = 16,       // 0x10 - Descriptor Engine
     parameter SCHED_MON_AGENT_ID = 48,      // 0x30 - Scheduler
+    parameter CTRLRD_MON_AGENT_ID = 32,     // 0x20 - Control Read Engine
+    parameter CTRLWR_MON_AGENT_ID = 33,     // 0x21 - Control Write Engine
     parameter MON_UNIT_ID = 1,              // 0x1
-    parameter MON_CHANNEL_ID = 0            // Base channel ID
+    parameter MON_CHANNEL_ID = 0,           // Base channel ID
+    // Direction enables (see scheduler_beats): SOURCE half = read-only (EN_WRITE=0),
+    // SINK half = write-only (EN_READ=0); default both preserves mem-to-mem behavior.
+    parameter bit EN_READ  = 1'b1,
+    parameter bit EN_WRITE = 1'b1
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -59,6 +65,10 @@ module scheduler_group_beats #(
     input  logic                        cfg_sched_err_enable,
     input  logic                        cfg_sched_compl_enable,
     input  logic                        cfg_sched_perf_enable,
+
+    // Control Engine Configuration (Phase 2)
+    input  logic [8:0]                  cfg_ctrlrd_max_try,     // ctrlrd poll retry budget (0-511)
+    input  logic                        tick_1us,               // 1us tick for ctrlrd retry spacing
 
     // Descriptor Engine Configuration
     input  logic                        cfg_desceng_prefetch,
@@ -95,6 +105,51 @@ module scheduler_group_beats #(
     input  logic [1:0]                  desc_r_resp,
     input  logic                        desc_r_last,
     input  logic [AXI_ID_WIDTH-1:0]     desc_r_id,
+
+    // Control Read Engine AXI4 Master (32-bit single-beat semaphore reads).
+    // Arbitrated onto a single shared m_axi_ctrlrd master at the array level.
+    output logic                        ctrlrd_ar_valid,
+    input  logic                        ctrlrd_ar_ready,
+    output logic [ADDR_WIDTH-1:0]       ctrlrd_ar_addr,
+    output logic [7:0]                  ctrlrd_ar_len,
+    output logic [2:0]                  ctrlrd_ar_size,
+    output logic [1:0]                  ctrlrd_ar_burst,
+    output logic [AXI_ID_WIDTH-1:0]     ctrlrd_ar_id,
+    output logic                        ctrlrd_ar_lock,
+    output logic [3:0]                  ctrlrd_ar_cache,
+    output logic [2:0]                  ctrlrd_ar_prot,
+    output logic [3:0]                  ctrlrd_ar_qos,
+    output logic [3:0]                  ctrlrd_ar_region,
+    input  logic                        ctrlrd_r_valid,
+    output logic                        ctrlrd_r_ready,
+    input  logic [31:0]                 ctrlrd_r_data,
+    input  logic [AXI_ID_WIDTH-1:0]     ctrlrd_r_id,
+    input  logic [1:0]                  ctrlrd_r_resp,
+    input  logic                        ctrlrd_r_last,
+
+    // Control Write Engine AXI4 Master (32-bit single-beat doorbell writes).
+    // Arbitrated onto a single shared m_axi_ctrlwr master at the array level.
+    output logic                        ctrlwr_aw_valid,
+    input  logic                        ctrlwr_aw_ready,
+    output logic [ADDR_WIDTH-1:0]       ctrlwr_aw_addr,
+    output logic [7:0]                  ctrlwr_aw_len,
+    output logic [2:0]                  ctrlwr_aw_size,
+    output logic [1:0]                  ctrlwr_aw_burst,
+    output logic [AXI_ID_WIDTH-1:0]     ctrlwr_aw_id,
+    output logic                        ctrlwr_aw_lock,
+    output logic [3:0]                  ctrlwr_aw_cache,
+    output logic [2:0]                  ctrlwr_aw_prot,
+    output logic [3:0]                  ctrlwr_aw_qos,
+    output logic [3:0]                  ctrlwr_aw_region,
+    output logic                        ctrlwr_w_valid,
+    input  logic                        ctrlwr_w_ready,
+    output logic [31:0]                 ctrlwr_w_data,
+    output logic [3:0]                  ctrlwr_w_strb,
+    output logic                        ctrlwr_w_last,
+    input  logic                        ctrlwr_b_valid,
+    output logic                        ctrlwr_b_ready,
+    input  logic [AXI_ID_WIDTH-1:0]     ctrlwr_b_id,
+    input  logic [1:0]                  ctrlwr_b_resp,
 
     // Data Read Interface (to AXI Read Engine)
     // NOTE: Engine decides burst length internally, scheduler just tracks beats remaining
@@ -167,6 +222,24 @@ module scheduler_group_beats #(
     logic                                       sched_mon_ready;
     monitor_common_pkg::monitor_packet_t        sched_mon_packet;
     monitor_common_pkg::monbus_timestamp_t      sched_mon_timestamp;
+
+    // Scheduler <-> Control Engine handshakes (Phase 2)
+    logic                        sched_ctrlrd_valid, sched_ctrlrd_ready;
+    logic [ADDR_WIDTH-1:0]       sched_ctrlrd_addr;
+    logic [31:0]                 sched_ctrlrd_data, sched_ctrlrd_mask;
+    logic                        sched_ctrlrd_error, sched_ctrlrd_idle;
+    logic                        sched_ctrlwr_valid, sched_ctrlwr_ready;
+    logic [ADDR_WIDTH-1:0]       sched_ctrlwr_addr;
+    logic [31:0]                 sched_ctrlwr_data;
+    logic                        sched_ctrlwr_error, sched_ctrlwr_idle;
+
+    // Control engine MonBus (native 128-bit packet + side-band timestamp)
+    logic                                       ctrlrd_mon_valid, ctrlrd_mon_ready;
+    monitor_common_pkg::monitor_packet_t        ctrlrd_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t      ctrlrd_mon_timestamp;
+    logic                                       ctrlwr_mon_valid, ctrlwr_mon_ready;
+    monitor_common_pkg::monitor_packet_t        ctrlwr_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t      ctrlwr_mon_timestamp;
 
     //=========================================================================
     // Component Instantiations
@@ -267,7 +340,9 @@ module scheduler_group_beats #(
         .DATA_WIDTH             (DATA_WIDTH),
         .MON_AGENT_ID           (16'(SCHED_MON_AGENT_ID)),
         .MON_UNIT_ID            (8'(MON_UNIT_ID)),
-        .MON_CHANNEL_ID         (9'(MON_CHANNEL_ID))
+        .MON_CHANNEL_ID         (9'(MON_CHANNEL_ID)),
+        .EN_READ                (EN_READ),
+        .EN_WRITE               (EN_WRITE)
     ) u_scheduler (
         .clk                    (clk),
         .rst_n                  (rst_n),
@@ -321,6 +396,23 @@ module scheduler_group_beats #(
         .sched_rd_error         (sched_rd_error),
         .sched_wr_error         (sched_wr_error),
 
+        // Control Read Engine handshake (CTRL_READ gate)
+        .ctrlrd_valid           (sched_ctrlrd_valid),
+        .ctrlrd_ready           (sched_ctrlrd_ready),
+        .ctrlrd_addr            (sched_ctrlrd_addr),
+        .ctrlrd_data            (sched_ctrlrd_data),
+        .ctrlrd_mask            (sched_ctrlrd_mask),
+        .ctrlrd_error           (sched_ctrlrd_error),
+        .ctrlrd_idle            (sched_ctrlrd_idle),
+
+        // Control Write Engine handshake (CTRL_WRITE doorbell)
+        .ctrlwr_valid           (sched_ctrlwr_valid),
+        .ctrlwr_ready           (sched_ctrlwr_ready),
+        .ctrlwr_addr            (sched_ctrlwr_addr),
+        .ctrlwr_data            (sched_ctrlwr_data),
+        .ctrlwr_error           (sched_ctrlwr_error),
+        .ctrlwr_idle            (sched_ctrlwr_idle),
+
         // Monitor bus (native 128-bit packet + side-band timestamp)
         .i_mon_time             (i_mon_time),
         .mon_valid              (sched_mon_valid),
@@ -333,11 +425,124 @@ module scheduler_group_beats #(
     assign sched_channel_idle = scheduler_idle;
 
     //=========================================================================
-    // Monitor Bus Arbiter Instance (2 sources: descriptor_engine, scheduler)
+    // Control Read Engine (CTRL_READ gate) - shared 32-bit semaphore reads
+    //=========================================================================
+    ctrlrd_engine #(
+        .CHANNEL_ID         (CHANNEL_ID),
+        .NUM_CHANNELS       (NUM_CHANNELS),
+        .CHAN_WIDTH         (CHAN_WIDTH),
+        .ADDR_WIDTH         (ADDR_WIDTH),
+        .AXI_DATA_WIDTH     (32),
+        .AXI_ID_WIDTH       (AXI_ID_WIDTH),
+        .MON_AGENT_ID       (16'(CTRLRD_MON_AGENT_ID)),
+        .MON_UNIT_ID        (8'(MON_UNIT_ID)),
+        .MON_CHANNEL_ID     (9'(MON_CHANNEL_ID))
+    ) u_ctrlrd_engine (
+        .clk                (clk),
+        .rst_n              (rst_n),
+        // Scheduler handshake
+        .ctrlrd_valid       (sched_ctrlrd_valid),
+        .ctrlrd_ready       (sched_ctrlrd_ready),
+        .ctrlrd_pkt_addr    (sched_ctrlrd_addr),
+        .ctrlrd_pkt_data    (sched_ctrlrd_data),
+        .ctrlrd_pkt_mask    (sched_ctrlrd_mask),
+        .ctrlrd_error       (sched_ctrlrd_error),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .ctrlrd_result      (),  // scheduler gates on match/error, not the raw value
+        /* verilator lint_on PINCONNECTEMPTY */
+        // Config
+        .cfg_ctrlrd_max_try (cfg_ctrlrd_max_try),
+        .cfg_channel_reset  (cfg_channel_reset),
+        .tick_1us           (tick_1us),
+        .ctrlrd_engine_idle (sched_ctrlrd_idle),
+        // AXI AR/R -> shared ctrlrd master (arbitrated at array level)
+        .ar_valid           (ctrlrd_ar_valid),
+        .ar_ready           (ctrlrd_ar_ready),
+        .ar_addr            (ctrlrd_ar_addr),
+        .ar_len             (ctrlrd_ar_len),
+        .ar_size            (ctrlrd_ar_size),
+        .ar_burst           (ctrlrd_ar_burst),
+        .ar_id              (ctrlrd_ar_id),
+        .ar_lock            (ctrlrd_ar_lock),
+        .ar_cache           (ctrlrd_ar_cache),
+        .ar_prot            (ctrlrd_ar_prot),
+        .ar_qos             (ctrlrd_ar_qos),
+        .ar_region          (ctrlrd_ar_region),
+        .r_valid            (ctrlrd_r_valid),
+        .r_ready            (ctrlrd_r_ready),
+        .r_data             (ctrlrd_r_data),
+        .r_id               (ctrlrd_r_id),
+        .r_resp             (ctrlrd_r_resp),
+        .r_last             (ctrlrd_r_last),
+        // Monitor bus
+        .i_mon_time         (i_mon_time),
+        .mon_valid          (ctrlrd_mon_valid),
+        .mon_ready          (ctrlrd_mon_ready),
+        .mon_packet         (ctrlrd_mon_packet),
+        .mon_timestamp      (ctrlrd_mon_timestamp)
+    );
+
+    //=========================================================================
+    // Control Write Engine (CTRL_WRITE doorbell) - shared 32-bit writes
+    //=========================================================================
+    ctrlwr_engine #(
+        .CHANNEL_ID         (CHANNEL_ID),
+        .NUM_CHANNELS       (NUM_CHANNELS),
+        .CHAN_WIDTH         (CHAN_WIDTH),
+        .ADDR_WIDTH         (ADDR_WIDTH),
+        .AXI_ID_WIDTH       (AXI_ID_WIDTH),
+        .MON_AGENT_ID       (16'(CTRLWR_MON_AGENT_ID)),
+        .MON_UNIT_ID        (8'(MON_UNIT_ID)),
+        .MON_CHANNEL_ID     (9'(MON_CHANNEL_ID))
+    ) u_ctrlwr_engine (
+        .clk                (clk),
+        .rst_n              (rst_n),
+        // Scheduler handshake
+        .ctrlwr_valid       (sched_ctrlwr_valid),
+        .ctrlwr_ready       (sched_ctrlwr_ready),
+        .ctrlwr_pkt_addr    (sched_ctrlwr_addr),
+        .ctrlwr_pkt_data    (sched_ctrlwr_data),
+        .ctrlwr_error       (sched_ctrlwr_error),
+        // Config
+        .cfg_channel_reset  (cfg_channel_reset),
+        .ctrlwr_engine_idle (sched_ctrlwr_idle),
+        // AXI AW/W/B -> shared ctrlwr master (arbitrated at array level)
+        .aw_valid           (ctrlwr_aw_valid),
+        .aw_ready           (ctrlwr_aw_ready),
+        .aw_addr            (ctrlwr_aw_addr),
+        .aw_len             (ctrlwr_aw_len),
+        .aw_size            (ctrlwr_aw_size),
+        .aw_burst           (ctrlwr_aw_burst),
+        .aw_id              (ctrlwr_aw_id),
+        .aw_lock            (ctrlwr_aw_lock),
+        .aw_cache           (ctrlwr_aw_cache),
+        .aw_prot            (ctrlwr_aw_prot),
+        .aw_qos             (ctrlwr_aw_qos),
+        .aw_region          (ctrlwr_aw_region),
+        .w_valid            (ctrlwr_w_valid),
+        .w_ready            (ctrlwr_w_ready),
+        .w_data             (ctrlwr_w_data),
+        .w_strb             (ctrlwr_w_strb),
+        .w_last             (ctrlwr_w_last),
+        .b_valid            (ctrlwr_b_valid),
+        .b_ready            (ctrlwr_b_ready),
+        .b_id               (ctrlwr_b_id),
+        .b_resp             (ctrlwr_b_resp),
+        // Monitor bus
+        .i_mon_time         (i_mon_time),
+        .mon_valid          (ctrlwr_mon_valid),
+        .mon_ready          (ctrlwr_mon_ready),
+        .mon_packet         (ctrlwr_mon_packet),
+        .mon_timestamp      (ctrlwr_mon_timestamp)
+    );
+
+    //=========================================================================
+    // Monitor Bus Arbiter Instance (4 sources: descriptor_engine, scheduler,
+    // ctrlrd_engine, ctrlwr_engine)
     //=========================================================================
 
     monbus_arbiter #(
-        .CLIENTS                (2),
+        .CLIENTS                (4),
         .INPUT_SKID_ENABLE      (1),
         .OUTPUT_SKID_ENABLE     (1),
         .INPUT_SKID_DEPTH       (2),
@@ -346,12 +551,12 @@ module scheduler_group_beats #(
         .axi_aclk               (clk),
         .axi_aresetn            (rst_n),
         .block_arb              (1'b0),
-        // Direct connection to individual signals (2 sources only).
-        // Each client now carries packet + side-band timestamp atomically.
-        .monbus_valid_in        ('{desceng_mon_valid,     sched_mon_valid}),
-        .monbus_ready_in        ('{desceng_mon_ready,     sched_mon_ready}),
-        .monbus_packet_in       ('{desceng_mon_packet,    sched_mon_packet}),
-        .monbus_timestamp_in    ('{desceng_mon_timestamp, sched_mon_timestamp}),
+        // 4 sources: descriptor_engine, scheduler, ctrlrd_engine, ctrlwr_engine.
+        // Each client carries packet + side-band timestamp atomically.
+        .monbus_valid_in        ('{desceng_mon_valid,     sched_mon_valid,     ctrlrd_mon_valid,     ctrlwr_mon_valid}),
+        .monbus_ready_in        ('{desceng_mon_ready,     sched_mon_ready,     ctrlrd_mon_ready,     ctrlwr_mon_ready}),
+        .monbus_packet_in       ('{desceng_mon_packet,    sched_mon_packet,    ctrlrd_mon_packet,    ctrlwr_mon_packet}),
+        .monbus_timestamp_in    ('{desceng_mon_timestamp, sched_mon_timestamp, ctrlrd_mon_timestamp, ctrlwr_mon_timestamp}),
         .monbus_valid           (mon_valid),
         .monbus_ready           (mon_ready),
         .monbus_packet          (mon_packet),
@@ -377,7 +582,7 @@ module scheduler_group_beats #(
     // Component integration
     property descriptor_scheduler_handshake;
         @(posedge clk) disable iff (!rst_n)
-        (desceng_to_sched_valid && desceng_to_sched_ready) |-> ##[1:5] (scheduler_state != CH_IDLE);
+        (desceng_to_sched_valid && desceng_to_sched_ready) |-> ##[1:5] (scheduler_state != rapids_pkg::CH_IDLE);
     endproperty
     assert property (descriptor_scheduler_handshake);
 

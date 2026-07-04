@@ -41,6 +41,7 @@ Don't override. Generated from: $root
 |0x0228| DESCENG_ADDR0_LIMIT|   Descriptor Address Range 0 Limit   |
 |0x022C| DESCENG_ADDR1_BASE |    Descriptor Address Range 1 Base   |
 |0x0230| DESCENG_ADDR1_LIMIT|   Descriptor Address Range 1 Limit   |
+|0x0240|     CTRL_CONFIG    |     Control Engine Configuration     |
 |0x02A0|   AXI_XFER_CONFIG  |      AXI Transfer Configuration      |
 |0x02B0|     PERF_CONFIG    |  Performance Profiler Configuration  |
 |0x02C0|      OBS_CTRL      |        Observation Mux Control       |
@@ -757,6 +758,30 @@ keep waiting). Total time to escalate = LIMIT x TIMEOUT_CYCLES.</p>
 #### ADDR1_LIMIT field
 
 <p>Address range 1 limit [31:0]</p>
+
+### CTRL_CONFIG register
+
+- Absolute Address: 0x240
+- Base Offset: 0x240
+- Size: 0x4
+
+<p>Control read/write engine configuration (global for all channels,
+Phase 2 producer/consumer). CTRLRD_MAX_TRY bounds ctrl-read poll
+retries so a never-matching gate cannot hang a channel; it feeds
+cfg_ctrlrd_max_try into every channel's ctrlrd_engine.</p>
+
+|Bits|  Identifier  |Access|Reset|Name|
+|----|--------------|------|-----|----|
+| 8:0|CTRLRD_MAX_TRY|  rw  | 0x10|  — |
+|31:9|     RSVD     |   r  | 0x0 |  — |
+
+#### CTRLRD_MAX_TRY field
+
+<p>Control-read poll retry budget [8:0] (0-511)</p>
+
+#### RSVD field
+
+<p>Reserved</p>
 
 ### AXI_XFER_CONFIG register
 

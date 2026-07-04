@@ -1,0 +1,25 @@
+flowchart LR
+    subgraph SINK["SINK path (WRITE-only)"]
+        direction LR
+        SAXIS["s_axis<br/>(tid = channel)"] --> SKS["sink SRAM"]
+        SKS --> WR["m_axi_wr (AW/W/B)"]
+        WR --> MEM1["memory"]
+    end
+
+    subgraph SOURCE["SOURCE path (READ-only)"]
+        direction LR
+        MEM2["memory"] --> RD["m_axi_rd (AR/R)"]
+        RD --> SRS["source SRAM"]
+        SRS --> MAXIS["m_axis<br/>(tid = channel)"]
+    end
+
+    NOTE["wholly separate engines - no shared datapath"]
+    SINK -.-> NOTE
+    SOURCE -.-> NOTE
+
+    classDef snk fill:#d9e8fb,stroke:#404040,stroke-width:1px;
+    classDef src fill:#d5efd5,stroke:#228B22,stroke-width:1px;
+    classDef note fill:#fff,stroke:#808080,stroke-dasharray:4 3;
+    class SAXIS,SKS,WR,MEM1 snk;
+    class MEM2,RD,SRS,MAXIS src;
+    class NOTE note;

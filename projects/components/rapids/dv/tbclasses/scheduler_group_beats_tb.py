@@ -176,6 +176,20 @@ class SchedulerGroupBeatsTB(TBBase):
         self.dut.sched_wr_commit_beats.value = 0
         self.dut.sched_rd_error.value = 0
         self.dut.sched_wr_error.value = 0
+        # Control engine AXI + config (Phase 2)
+        self.dut.ctrlrd_ar_ready.value = 0
+        self.dut.ctrlrd_r_valid.value = 0
+        self.dut.ctrlrd_r_data.value = 0
+        self.dut.ctrlrd_r_id.value = 0
+        self.dut.ctrlrd_r_resp.value = 0
+        self.dut.ctrlrd_r_last.value = 0
+        self.dut.ctrlwr_aw_ready.value = 0
+        self.dut.ctrlwr_w_ready.value = 0
+        self.dut.ctrlwr_b_valid.value = 0
+        self.dut.ctrlwr_b_id.value = 0
+        self.dut.ctrlwr_b_resp.value = 0
+        self.dut.cfg_ctrlrd_max_try.value = 16
+        self.dut.tick_1us.value = 0
         self.dut.mon_ready.value = 1
 
         await self.wait_clocks(self.clk_name, 5)
@@ -520,6 +534,187 @@ class SchedulerGroupBeatsTB(TBBase):
 
         self.log.info(f"Basic descriptor flow test: {num_descriptors - errors}/{num_descriptors} passed")
         return errors == 0
+
+    # ==========================================================================
+    # CONTROL-DESCRIPTOR SUPPORT (Phase 2 producer/consumer)
+    # ==========================================================================
+
+    @staticmethod
+    def _build_descriptor(opcode=0, src=0, dst=0, length=1, valid=1, last=1,
+                          next_ptr=0, gen_irq=0):
+        """Build a 256-bit descriptor. For control descriptors the ctrl fields
+        overlay the data slots: addr = src[63:0]; data = dst[31:0]; mask = dst[63:32];
+        opcode at [209:208] (0=DATA, 1=CTRL_READ, 2=CTRL_WRITE)."""
+        d = (src & ((1 << 64) - 1))
+        d |= ((dst & ((1 << 64) - 1)) << 64)
+        d |= ((length & 0xFFFFFFFF) << 128)
+        d |= ((next_ptr & 0xFFFFFFFF) << 160)
+        d |= (valid << 192)
+        d |= (gen_irq << 193)
+        d |= (last << 194)
+        d |= ((opcode & 0x3) << 208)
+        return d
+
+    async def _respond_ctrlwr(self, timeout: int = 300):
+        """Inline single-beat AXI write responder for the ctrlwr engine.
+        Returns (addr, data) of the doorbell write, or None if none issued."""
+        addr = None
+        awid = 0
+        for _ in range(timeout):
+            if int(self.dut.ctrlwr_aw_valid.value) == 1:
+                addr = int(self.dut.ctrlwr_aw_addr.value)
+                awid = int(self.dut.ctrlwr_aw_id.value)
+                break
+            await self.wait_clocks(self.clk_name, 1)
+        if addr is None:
+            return None
+        self.dut.ctrlwr_aw_ready.value = 1
+        await self.wait_clocks(self.clk_name, 1)
+        self.dut.ctrlwr_aw_ready.value = 0
+        # W beat
+        data = None
+        self.dut.ctrlwr_w_ready.value = 1
+        for _ in range(timeout):
+            if int(self.dut.ctrlwr_w_valid.value) == 1:
+                data = int(self.dut.ctrlwr_w_data.value)
+                await self.wait_clocks(self.clk_name, 1)
+                break
+            await self.wait_clocks(self.clk_name, 1)
+        self.dut.ctrlwr_w_ready.value = 0
+        # B response (OKAY)
+        self.dut.ctrlwr_b_valid.value = 1
+        self.dut.ctrlwr_b_id.value = awid
+        self.dut.ctrlwr_b_resp.value = 0
+        for _ in range(timeout):
+            if int(self.dut.ctrlwr_b_ready.value) == 1:
+                await self.wait_clocks(self.clk_name, 1)
+                break
+            await self.wait_clocks(self.clk_name, 1)
+        self.dut.ctrlwr_b_valid.value = 0
+        return (addr, data)
+
+    async def _respond_ctrlrd(self, value: int, timeout: int = 300):
+        """Inline single-beat AXI read responder for the ctrlrd engine.
+        Drives R = value (OKAY). Returns the poll address, or None if none issued."""
+        addr = None
+        arid = 0
+        for _ in range(timeout):
+            if int(self.dut.ctrlrd_ar_valid.value) == 1:
+                addr = int(self.dut.ctrlrd_ar_addr.value)
+                arid = int(self.dut.ctrlrd_ar_id.value)
+                break
+            await self.wait_clocks(self.clk_name, 1)
+        if addr is None:
+            return None
+        self.dut.ctrlrd_ar_ready.value = 1
+        await self.wait_clocks(self.clk_name, 1)
+        self.dut.ctrlrd_ar_ready.value = 0
+        # R beat
+        self.dut.ctrlrd_r_valid.value = 1
+        self.dut.ctrlrd_r_data.value = value & 0xFFFFFFFF
+        self.dut.ctrlrd_r_id.value = arid
+        self.dut.ctrlrd_r_resp.value = 0
+        self.dut.ctrlrd_r_last.value = 1
+        for _ in range(timeout):
+            if int(self.dut.ctrlrd_r_ready.value) == 1:
+                await self.wait_clocks(self.clk_name, 1)
+                break
+            await self.wait_clocks(self.clk_name, 1)
+        self.dut.ctrlrd_r_valid.value = 0
+        return addr
+
+    async def _tick_generator(self, period: int = 8):
+        """Free-running tick_1us pulse generator (models the periodic 1us tick that
+        paces ctrlrd retries). Runs until self._tick_active is cleared."""
+        while self._tick_active:
+            self.dut.tick_1us.value = 1
+            await self.wait_clocks(self.clk_name, 1)
+            self.dut.tick_1us.value = 0
+            await self.wait_clocks(self.clk_name, period)
+
+    async def test_ctrl_write_doorbell(self) -> bool:
+        """CTRL_WRITE descriptor routes through the scheduler to the real ctrlwr
+        engine, which posts a doorbell write; verify addr/data and completion."""
+        self.log.info("=== Control Write Doorbell Test ===")
+        door_addr = 0x2000
+        door_data = 0xABCD1234
+        desc = self._build_descriptor(opcode=2, src=door_addr, dst=door_data)
+
+        if not await self.send_apb_request(64):
+            self.log.error("APB kick failed")
+            return False
+        if not await self.respond_to_descriptor_read(desc):
+            self.log.error("descriptor read response failed")
+            return False
+
+        captured = await self._respond_ctrlwr()
+        if captured is None:
+            self.log.error("ctrlwr engine never issued a write (routing failed)")
+            return False
+        addr, data = captured
+        if addr != door_addr or data != door_data:
+            self.log.error(f"doorbell mismatch: got addr=0x{addr:X} data=0x{data:X}, "
+                           f"expected 0x{door_addr:X}/0x{door_data:X}")
+            return False
+        self.log.info(f"  ✓ Doorbell posted: addr=0x{addr:X} data=0x{data:X}")
+
+        for _ in range(200):
+            await self.wait_clocks(self.clk_name, 1)
+            if self.is_scheduler_idle():
+                self.log.info("✅ CTRL_WRITE doorbell test PASSED")
+                return True
+        self.log.error("scheduler did not return idle after ctrlwr")
+        return False
+
+    async def test_ctrl_read_gate(self) -> bool:
+        """CTRL_READ descriptor routes to the real ctrlrd engine, which polls until
+        (read & mask)==expected. Verify the gate holds off the chain (data engines
+        NOT driven) through a mismatch, then completes on a match."""
+        self.log.info("=== Control Read Gate Test ===")
+        self.dut.cfg_ctrlrd_max_try.value = 16
+        poll_addr = 0x3000
+        expected = 0x1
+        mask = 0x1
+        desc = self._build_descriptor(opcode=1, src=poll_addr, dst=((mask << 32) | expected))
+
+        if not await self.send_apb_request(96):
+            self.log.error("APB kick failed")
+            return False
+        if not await self.respond_to_descriptor_read(desc):
+            self.log.error("descriptor read response failed")
+            return False
+
+        # Free-running tick paces the engine's retries.
+        self._tick_active = True
+        tick_task = cocotb.start_soon(self._tick_generator())
+        try:
+            # First poll returns a NON-matching value -> engine must retry (gate held).
+            addr1 = await self._respond_ctrlrd(0x0)
+            if addr1 != poll_addr:
+                self.log.error(f"ctrlrd poll addr mismatch: 0x{addr1} vs 0x{poll_addr:X}")
+                return False
+            # Gate must be holding: data engines must NOT be driven for a control descriptor.
+            if int(self.dut.sched_rd_valid.value) == 1 or int(self.dut.sched_wr_valid.value) == 1:
+                self.log.error("data engine driven during CTRL_READ gate (should be held off)")
+                return False
+            self.log.info("  ✓ Gate held after mismatch (data engines idle)")
+
+            # Next retry poll returns a MATCHING value -> gate opens.
+            addr2 = await self._respond_ctrlrd(0x1)
+            if addr2 != poll_addr:
+                self.log.error(f"ctrlrd retry poll addr mismatch: 0x{addr2} vs 0x{poll_addr:X}")
+                return False
+
+            for _ in range(300):
+                await self.wait_clocks(self.clk_name, 1)
+                if self.is_scheduler_idle():
+                    self.log.info("✅ CTRL_READ gate test PASSED (opened on match)")
+                    return True
+            self.log.error("scheduler did not complete after ctrlrd match")
+            return False
+        finally:
+            self._tick_active = False
+            await self.wait_clocks(self.clk_name, 2)
 
     async def test_idle_state(self) -> bool:
         """Test that system starts in idle state."""

@@ -1,0 +1,31 @@
+flowchart TB
+    HOST["Host PC"] -->|UART| UART["uart_axil_bridge"]
+    UART --> AXIL["AXIL host fanout"]
+    AXIL --> CSR["harness CSR / APB"]
+
+    subgraph HARN["rapids_char_harness"]
+        DUT["rapids_beats_top (DUT)"]
+        GEN["axis4_master_pattern_gen"]
+        CHK["axis4_slave_pattern_check"]
+        RDPAT["axi4_slave_rd_pattern_gen"]
+        WRCRC["axi4_slave_wr_crc_check"]
+        DRAM1["desc RAM (SRC)"]
+        DRAM2["desc RAM (SNK)"]
+        SEM["semaphore RAMs<br/>(ctrl masters)"]
+    end
+
+    CSR --> DUT
+    GEN -->|s_axis| DUT
+    DUT -->|m_axis| CHK
+    RDPAT -->|m_axi_rd| DUT
+    DUT -->|m_axi_wr| WRCRC
+    DUT --> DRAM1
+    DUT --> DRAM2
+    DUT --> SEM
+
+    classDef dut fill:#d5efd5,stroke:#228B22,stroke-width:2px;
+    classDef bfm fill:#d9e8fb,stroke:#404040,stroke-width:1px;
+    classDef infra fill:#e6e6e6,stroke:#404040,stroke-width:1px;
+    class DUT dut;
+    class GEN,CHK,RDPAT,WRCRC bfm;
+    class UART,AXIL,CSR,DRAM1,DRAM2,SEM infra;

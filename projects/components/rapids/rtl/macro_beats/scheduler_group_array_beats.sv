@@ -43,7 +43,11 @@ module scheduler_group_array_beats #(
     parameter int SCHED_MON_BASE_AGENT_ID = 48,  // 0x30 - Schedulers (48-55)
     parameter int DESC_AXI_MON_AGENT_ID = 8,     // 0x08 - Descriptor AXI Master Monitor
     parameter int MON_UNIT_ID = 1,               // 0x1
-    parameter int MON_MAX_TRANSACTIONS = 16
+    parameter int MON_MAX_TRANSACTIONS = 16,
+    // Direction enables (see scheduler_beats): SOURCE array = read-only (EN_WRITE=0),
+    // SINK array = write-only (EN_READ=0); default both preserves mem-to-mem behavior.
+    parameter bit EN_READ  = 1'b1,
+    parameter bit EN_WRITE = 1'b1
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -93,6 +97,10 @@ module scheduler_group_array_beats #(
     input  logic [7:0]                           cfg_desc_mon_addr_mask,
     input  logic [7:0]                           cfg_desc_mon_debug_mask,
 
+    // Control Engine Configuration (Phase 2) - broadcast to all channels
+    input  logic [8:0]                           cfg_ctrlrd_max_try,
+    input  logic                                 tick_1us,
+
     // Status Interface (per channel)
     output logic [NUM_CHANNELS-1:0]              descriptor_engine_idle,
     output logic [NUM_CHANNELS-1:0]              scheduler_idle,
@@ -127,6 +135,51 @@ module scheduler_group_array_beats #(
     input  logic [1:0]                  desc_axi_rresp,
     input  logic                        desc_axi_rlast,
     input  logic [AXI_ID_WIDTH-1:0]     desc_axi_rid,
+
+    // Shared Control Read AXI4 Master (32-bit semaphore reads; one per array,
+    // round-robin arbitrated across channels, channel-ID embedded in ARID)
+    output logic                        ctrlrd_axi_arvalid,
+    input  logic                        ctrlrd_axi_arready,
+    output logic [ADDR_WIDTH-1:0]       ctrlrd_axi_araddr,
+    output logic [7:0]                  ctrlrd_axi_arlen,
+    output logic [2:0]                  ctrlrd_axi_arsize,
+    output logic [1:0]                  ctrlrd_axi_arburst,
+    output logic [AXI_ID_WIDTH-1:0]     ctrlrd_axi_arid,
+    output logic                        ctrlrd_axi_arlock,
+    output logic [3:0]                  ctrlrd_axi_arcache,
+    output logic [2:0]                  ctrlrd_axi_arprot,
+    output logic [3:0]                  ctrlrd_axi_arqos,
+    output logic [3:0]                  ctrlrd_axi_arregion,
+    input  logic                        ctrlrd_axi_rvalid,
+    output logic                        ctrlrd_axi_rready,
+    input  logic [31:0]                 ctrlrd_axi_rdata,
+    input  logic [1:0]                  ctrlrd_axi_rresp,
+    input  logic                        ctrlrd_axi_rlast,
+    input  logic [AXI_ID_WIDTH-1:0]     ctrlrd_axi_rid,
+
+    // Shared Control Write AXI4 Master (32-bit doorbell writes; one per array,
+    // serialized across channels - single outstanding write, channel-ID in AWID)
+    output logic                        ctrlwr_axi_awvalid,
+    input  logic                        ctrlwr_axi_awready,
+    output logic [ADDR_WIDTH-1:0]       ctrlwr_axi_awaddr,
+    output logic [7:0]                  ctrlwr_axi_awlen,
+    output logic [2:0]                  ctrlwr_axi_awsize,
+    output logic [1:0]                  ctrlwr_axi_awburst,
+    output logic [AXI_ID_WIDTH-1:0]     ctrlwr_axi_awid,
+    output logic                        ctrlwr_axi_awlock,
+    output logic [3:0]                  ctrlwr_axi_awcache,
+    output logic [2:0]                  ctrlwr_axi_awprot,
+    output logic [3:0]                  ctrlwr_axi_awqos,
+    output logic [3:0]                  ctrlwr_axi_awregion,
+    output logic                        ctrlwr_axi_wvalid,
+    input  logic                        ctrlwr_axi_wready,
+    output logic [31:0]                 ctrlwr_axi_wdata,
+    output logic [3:0]                  ctrlwr_axi_wstrb,
+    output logic                        ctrlwr_axi_wlast,
+    input  logic                        ctrlwr_axi_bvalid,
+    output logic                        ctrlwr_axi_bready,
+    input  logic [AXI_ID_WIDTH-1:0]     ctrlwr_axi_bid,
+    input  logic [1:0]                  ctrlwr_axi_bresp,
 
     // Shared Data Read Interface (to AXI Read Engine)
     // Per-channel arrays - direct passthrough to engines
@@ -190,6 +243,64 @@ module scheduler_group_array_beats #(
     logic [NUM_CHANNELS-1:0][1:0]                desc_r_resp;
     logic [NUM_CHANNELS-1:0]                     desc_r_last;
     logic [NUM_CHANNELS-1:0][AXI_ID_WIDTH-1:0]   desc_r_id;
+
+    //-------------------------------------------------------------------------
+    // Control Read Engine per-channel AXI (Phase 2) -> shared ctrlrd master
+    //-------------------------------------------------------------------------
+    logic [NUM_CHANNELS-1:0]                     ctrlrd_ar_valid;
+    logic [NUM_CHANNELS-1:0]                     ctrlrd_ar_ready;
+    logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0]     ctrlrd_ar_addr;
+    logic [NUM_CHANNELS-1:0][7:0]                ctrlrd_ar_len;
+    logic [NUM_CHANNELS-1:0][2:0]                ctrlrd_ar_size;
+    logic [NUM_CHANNELS-1:0][1:0]                ctrlrd_ar_burst;
+    logic [NUM_CHANNELS-1:0][AXI_ID_WIDTH-1:0]   ctrlrd_ar_id;
+    logic [NUM_CHANNELS-1:0]                     ctrlrd_ar_lock;
+    logic [NUM_CHANNELS-1:0][3:0]                ctrlrd_ar_cache;
+    logic [NUM_CHANNELS-1:0][2:0]                ctrlrd_ar_prot;
+    logic [NUM_CHANNELS-1:0][3:0]                ctrlrd_ar_qos;
+    logic [NUM_CHANNELS-1:0][3:0]                ctrlrd_ar_region;
+    logic [NUM_CHANNELS-1:0]                     ctrlrd_r_valid;
+    logic [NUM_CHANNELS-1:0]                     ctrlrd_r_ready;
+    logic [NUM_CHANNELS-1:0][31:0]               ctrlrd_r_data;
+    logic [NUM_CHANNELS-1:0][AXI_ID_WIDTH-1:0]   ctrlrd_r_id;
+    logic [NUM_CHANNELS-1:0][1:0]                ctrlrd_r_resp;
+    logic [NUM_CHANNELS-1:0]                     ctrlrd_r_last;
+    logic                                        ctrlrd_ar_grant_valid;
+    logic [NUM_CHANNELS-1:0]                     ctrlrd_ar_grant;
+    logic [NUM_CHANNELS-1:0]                     ctrlrd_ar_grant_ack;
+    logic [CHAN_WIDTH-1:0]                       ctrlrd_ar_grant_id;
+
+    //-------------------------------------------------------------------------
+    // Control Write Engine per-channel AXI (Phase 2) -> shared ctrlwr master
+    //-------------------------------------------------------------------------
+    logic [NUM_CHANNELS-1:0]                     ctrlwr_aw_valid;
+    logic [NUM_CHANNELS-1:0]                     ctrlwr_aw_ready;
+    logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0]     ctrlwr_aw_addr;
+    logic [NUM_CHANNELS-1:0][7:0]                ctrlwr_aw_len;
+    logic [NUM_CHANNELS-1:0][2:0]                ctrlwr_aw_size;
+    logic [NUM_CHANNELS-1:0][1:0]                ctrlwr_aw_burst;
+    logic [NUM_CHANNELS-1:0][AXI_ID_WIDTH-1:0]   ctrlwr_aw_id;
+    logic [NUM_CHANNELS-1:0]                     ctrlwr_aw_lock;
+    logic [NUM_CHANNELS-1:0][3:0]                ctrlwr_aw_cache;
+    logic [NUM_CHANNELS-1:0][2:0]                ctrlwr_aw_prot;
+    logic [NUM_CHANNELS-1:0][3:0]                ctrlwr_aw_qos;
+    logic [NUM_CHANNELS-1:0][3:0]                ctrlwr_aw_region;
+    logic [NUM_CHANNELS-1:0]                     ctrlwr_w_valid;
+    logic [NUM_CHANNELS-1:0]                     ctrlwr_w_ready;
+    logic [NUM_CHANNELS-1:0][31:0]               ctrlwr_w_data;
+    logic [NUM_CHANNELS-1:0][3:0]                ctrlwr_w_strb;
+    logic [NUM_CHANNELS-1:0]                     ctrlwr_w_last;
+    logic [NUM_CHANNELS-1:0]                     ctrlwr_b_valid;
+    logic [NUM_CHANNELS-1:0]                     ctrlwr_b_ready;
+    logic [NUM_CHANNELS-1:0][AXI_ID_WIDTH-1:0]   ctrlwr_b_id;
+    logic [NUM_CHANNELS-1:0][1:0]                ctrlwr_b_resp;
+    logic                                        ctrlwr_aw_grant_valid;
+    logic [NUM_CHANNELS-1:0]                     ctrlwr_aw_grant;
+    logic [NUM_CHANNELS-1:0]                     ctrlwr_aw_grant_ack;
+    logic [CHAN_WIDTH-1:0]                       ctrlwr_aw_grant_id;
+    // Write serializer: hold the shared master for one channel across AW->W->B.
+    logic                                        r_ctrlwr_busy;
+    logic [CHAN_WIDTH-1:0]                        r_ctrlwr_active_ch;
 
     //=========================================================================
     // Internal Signals - Monitor Bus (per channel)
@@ -263,8 +374,12 @@ module scheduler_group_array_beats #(
                 .AXI_ID_WIDTH           (AXI_ID_WIDTH),
                 .DESC_MON_AGENT_ID      (16'(DESC_MON_BASE_AGENT_ID + ch)),
                 .SCHED_MON_AGENT_ID     (16'(SCHED_MON_BASE_AGENT_ID + ch)),
+                .CTRLRD_MON_AGENT_ID    (16'(32 + ch)),   // 0x20.. per channel
+                .CTRLWR_MON_AGENT_ID    (16'(40 + ch)),   // 0x28.. per channel
                 .MON_UNIT_ID            (8'(MON_UNIT_ID)),
-                .MON_CHANNEL_ID         (9'(ch))
+                .MON_CHANNEL_ID         (9'(ch)),
+                .EN_READ                (EN_READ),
+                .EN_WRITE               (EN_WRITE)
             ) u_beats_scheduler_group (
                 .clk                    (clk),
                 .rst_n                  (rst_n),
@@ -294,6 +409,10 @@ module scheduler_group_array_beats #(
                 .cfg_desceng_addr1_base     (cfg_desceng_addr1_base),
                 .cfg_desceng_addr1_limit    (cfg_desceng_addr1_limit),
 
+                // Control Engine Configuration (global broadcast)
+                .cfg_ctrlrd_max_try         (cfg_ctrlrd_max_try),
+                .tick_1us                   (tick_1us),
+
                 // Status
                 .descriptor_engine_idle (descriptor_engine_idle[ch]),
                 .scheduler_idle         (scheduler_idle[ch]),
@@ -320,6 +439,49 @@ module scheduler_group_array_beats #(
                 .desc_r_resp            (desc_r_resp[ch]),
                 .desc_r_last            (desc_r_last[ch]),
                 .desc_r_id              (desc_r_id[ch]),
+
+                // Control Read AXI (per channel, to ctrlrd arbiter)
+                .ctrlrd_ar_valid        (ctrlrd_ar_valid[ch]),
+                .ctrlrd_ar_ready        (ctrlrd_ar_ready[ch]),
+                .ctrlrd_ar_addr         (ctrlrd_ar_addr[ch]),
+                .ctrlrd_ar_len          (ctrlrd_ar_len[ch]),
+                .ctrlrd_ar_size         (ctrlrd_ar_size[ch]),
+                .ctrlrd_ar_burst        (ctrlrd_ar_burst[ch]),
+                .ctrlrd_ar_id           (ctrlrd_ar_id[ch]),
+                .ctrlrd_ar_lock         (ctrlrd_ar_lock[ch]),
+                .ctrlrd_ar_cache        (ctrlrd_ar_cache[ch]),
+                .ctrlrd_ar_prot         (ctrlrd_ar_prot[ch]),
+                .ctrlrd_ar_qos          (ctrlrd_ar_qos[ch]),
+                .ctrlrd_ar_region       (ctrlrd_ar_region[ch]),
+                .ctrlrd_r_valid         (ctrlrd_r_valid[ch]),
+                .ctrlrd_r_ready         (ctrlrd_r_ready[ch]),
+                .ctrlrd_r_data          (ctrlrd_r_data[ch]),
+                .ctrlrd_r_id            (ctrlrd_r_id[ch]),
+                .ctrlrd_r_resp          (ctrlrd_r_resp[ch]),
+                .ctrlrd_r_last          (ctrlrd_r_last[ch]),
+
+                // Control Write AXI (per channel, to ctrlwr serializer)
+                .ctrlwr_aw_valid        (ctrlwr_aw_valid[ch]),
+                .ctrlwr_aw_ready        (ctrlwr_aw_ready[ch]),
+                .ctrlwr_aw_addr         (ctrlwr_aw_addr[ch]),
+                .ctrlwr_aw_len          (ctrlwr_aw_len[ch]),
+                .ctrlwr_aw_size         (ctrlwr_aw_size[ch]),
+                .ctrlwr_aw_burst        (ctrlwr_aw_burst[ch]),
+                .ctrlwr_aw_id           (ctrlwr_aw_id[ch]),
+                .ctrlwr_aw_lock         (ctrlwr_aw_lock[ch]),
+                .ctrlwr_aw_cache        (ctrlwr_aw_cache[ch]),
+                .ctrlwr_aw_prot         (ctrlwr_aw_prot[ch]),
+                .ctrlwr_aw_qos          (ctrlwr_aw_qos[ch]),
+                .ctrlwr_aw_region       (ctrlwr_aw_region[ch]),
+                .ctrlwr_w_valid         (ctrlwr_w_valid[ch]),
+                .ctrlwr_w_ready         (ctrlwr_w_ready[ch]),
+                .ctrlwr_w_data          (ctrlwr_w_data[ch]),
+                .ctrlwr_w_strb          (ctrlwr_w_strb[ch]),
+                .ctrlwr_w_last          (ctrlwr_w_last[ch]),
+                .ctrlwr_b_valid         (ctrlwr_b_valid[ch]),
+                .ctrlwr_b_ready         (ctrlwr_b_ready[ch]),
+                .ctrlwr_b_id            (ctrlwr_b_id[ch]),
+                .ctrlwr_b_resp          (ctrlwr_b_resp[ch]),
 
                 // Data read interface (direct passthrough - no arbitration)
                 .sched_rd_valid         (sched_rd_valid[ch]),
@@ -447,6 +609,178 @@ module scheduler_group_array_beats #(
 
     // R channel ready: OR of all channel readies (only routed channel should be ready)
     assign desc_axi_int_rready = |desc_r_ready;
+
+    //=========================================================================
+    // Control Read AXI (ctrlrd) - shared master, round-robin AR arbitration
+    //=========================================================================
+    // Mirrors the descriptor-fetch master: per-channel AR arbitrated onto one
+    // shared 32-bit read master, channel-ID embedded in ARID, R demuxed by RID.
+    arbiter_round_robin #(
+        .CLIENTS      (NUM_CHANNELS),
+        .WAIT_GNT_ACK (1)
+    ) u_ctrlrd_ar_arbiter (
+        .clk(clk), .rst_n(rst_n), .block_arb(1'b0),
+        .request     (ctrlrd_ar_valid),
+        .grant_ack   (ctrlrd_ar_grant_ack),
+        .grant_valid (ctrlrd_ar_grant_valid),
+        .grant       (ctrlrd_ar_grant),
+        .grant_id    (ctrlrd_ar_grant_id),
+        .last_grant  (/* unused */)
+    );
+
+    always_comb begin
+        for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
+            ctrlrd_ar_grant_ack[ch] = ctrlrd_ar_grant_valid && ctrlrd_ar_grant[ch] &&
+                                      ctrlrd_ar_valid[ch] && ctrlrd_axi_arready;
+            ctrlrd_ar_ready[ch]     = ctrlrd_ar_grant_valid && ctrlrd_ar_grant[ch] &&
+                                      ctrlrd_axi_arready;
+        end
+    end
+
+    always_comb begin
+        ctrlrd_axi_arvalid  = 1'b0;
+        ctrlrd_axi_araddr   = '0;
+        ctrlrd_axi_arlen    = '0;
+        ctrlrd_axi_arsize   = '0;
+        ctrlrd_axi_arburst  = '0;
+        ctrlrd_axi_arid     = '0;
+        ctrlrd_axi_arlock   = '0;
+        ctrlrd_axi_arcache  = '0;
+        ctrlrd_axi_arprot   = '0;
+        ctrlrd_axi_arqos    = '0;
+        ctrlrd_axi_arregion = '0;
+        for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
+            if (ctrlrd_ar_grant[ch]) begin
+                ctrlrd_axi_arvalid  = ctrlrd_ar_valid[ch];
+                ctrlrd_axi_araddr   = ctrlrd_ar_addr[ch];
+                ctrlrd_axi_arlen    = ctrlrd_ar_len[ch];
+                ctrlrd_axi_arsize   = ctrlrd_ar_size[ch];
+                ctrlrd_axi_arburst  = ctrlrd_ar_burst[ch];
+                ctrlrd_axi_arid     = {{(AXI_ID_WIDTH-CHAN_WIDTH){1'b0}}, ch[CHAN_WIDTH-1:0]};
+                ctrlrd_axi_arlock   = ctrlrd_ar_lock[ch];
+                ctrlrd_axi_arcache  = ctrlrd_ar_cache[ch];
+                ctrlrd_axi_arprot   = ctrlrd_ar_prot[ch];
+                ctrlrd_axi_arqos    = ctrlrd_ar_qos[ch];
+                ctrlrd_axi_arregion = ctrlrd_ar_region[ch];
+            end
+        end
+    end
+
+    logic [CHAN_WIDTH-1:0] ctrlrd_r_channel_id;
+    assign ctrlrd_r_channel_id = ctrlrd_axi_rid[CHAN_WIDTH-1:0];
+    always_comb begin
+        ctrlrd_r_valid = '0;
+        for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
+            ctrlrd_r_data[ch] = ctrlrd_axi_rdata;
+            ctrlrd_r_resp[ch] = ctrlrd_axi_rresp;
+            ctrlrd_r_last[ch] = ctrlrd_axi_rlast;
+            ctrlrd_r_id[ch]   = ctrlrd_axi_rid;
+        end
+        if (ctrlrd_axi_rvalid && ctrlrd_r_channel_id < NUM_CHANNELS) begin
+            ctrlrd_r_valid[ctrlrd_r_channel_id] = 1'b1;
+        end
+    end
+    assign ctrlrd_axi_rready = |ctrlrd_r_ready;
+
+    //=========================================================================
+    // Control Write AXI (ctrlwr) - shared master, SERIALIZED across channels
+    //=========================================================================
+    // Round-robin picks the next channel; block_arb holds off new grants while a
+    // write is in flight (r_ctrlwr_busy). One outstanding write at a time keeps
+    // AW/W/B unambiguous for single-beat doorbells.
+    arbiter_round_robin #(
+        .CLIENTS      (NUM_CHANNELS),
+        .WAIT_GNT_ACK (1)
+    ) u_ctrlwr_aw_arbiter (
+        .clk(clk), .rst_n(rst_n), .block_arb(r_ctrlwr_busy),
+        .request     (ctrlwr_aw_valid),
+        .grant_ack   (ctrlwr_aw_grant_ack),
+        .grant_valid (ctrlwr_aw_grant_valid),
+        .grant       (ctrlwr_aw_grant),
+        .grant_id    (ctrlwr_aw_grant_id),
+        .last_grant  (/* unused */)
+    );
+
+    // AW fires when the granted channel's AW is accepted (only while idle).
+    logic w_ctrlwr_aw_fire;
+    assign w_ctrlwr_aw_fire = !r_ctrlwr_busy && ctrlwr_aw_grant_valid &&
+                              ctrlwr_aw_valid[ctrlwr_aw_grant_id] && ctrlwr_axi_awready;
+
+    always_comb begin
+        for (int ch = 0; ch < NUM_CHANNELS; ch++)
+            ctrlwr_aw_grant_ack[ch] = w_ctrlwr_aw_fire && ctrlwr_aw_grant[ch];
+    end
+
+    // Serializer: latch active channel on AW accept; hold busy until B completes.
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            r_ctrlwr_busy      <= 1'b0;
+            r_ctrlwr_active_ch <= '0;
+        end else begin
+            if (w_ctrlwr_aw_fire) begin
+                r_ctrlwr_busy      <= 1'b1;
+                r_ctrlwr_active_ch <= ctrlwr_aw_grant_id;
+            end else if (r_ctrlwr_busy && ctrlwr_axi_bvalid && ctrlwr_axi_bready) begin
+                r_ctrlwr_busy      <= 1'b0;
+            end
+        end
+    end
+
+    // AW mux: granted channel only, while idle (issuing the address phase).
+    always_comb begin
+        ctrlwr_axi_awvalid  = 1'b0;
+        ctrlwr_axi_awaddr   = '0;
+        ctrlwr_axi_awlen    = '0;
+        ctrlwr_axi_awsize   = '0;
+        ctrlwr_axi_awburst  = '0;
+        ctrlwr_axi_awid     = '0;
+        ctrlwr_axi_awlock   = '0;
+        ctrlwr_axi_awcache  = '0;
+        ctrlwr_axi_awprot   = '0;
+        ctrlwr_axi_awqos    = '0;
+        ctrlwr_axi_awregion = '0;
+        for (int ch = 0; ch < NUM_CHANNELS; ch++)
+            ctrlwr_aw_ready[ch] = 1'b0;
+
+        if (!r_ctrlwr_busy && ctrlwr_aw_grant_valid) begin
+            ctrlwr_axi_awvalid  = ctrlwr_aw_valid[ctrlwr_aw_grant_id];
+            ctrlwr_axi_awaddr   = ctrlwr_aw_addr[ctrlwr_aw_grant_id];
+            ctrlwr_axi_awlen    = ctrlwr_aw_len[ctrlwr_aw_grant_id];
+            ctrlwr_axi_awsize   = ctrlwr_aw_size[ctrlwr_aw_grant_id];
+            ctrlwr_axi_awburst  = ctrlwr_aw_burst[ctrlwr_aw_grant_id];
+            ctrlwr_axi_awid     = {{(AXI_ID_WIDTH-CHAN_WIDTH){1'b0}}, ctrlwr_aw_grant_id};
+            ctrlwr_axi_awlock   = ctrlwr_aw_lock[ctrlwr_aw_grant_id];
+            ctrlwr_axi_awcache  = ctrlwr_aw_cache[ctrlwr_aw_grant_id];
+            ctrlwr_axi_awprot   = ctrlwr_aw_prot[ctrlwr_aw_grant_id];
+            ctrlwr_axi_awqos    = ctrlwr_aw_qos[ctrlwr_aw_grant_id];
+            ctrlwr_axi_awregion = ctrlwr_aw_region[ctrlwr_aw_grant_id];
+            ctrlwr_aw_ready[ctrlwr_aw_grant_id] = ctrlwr_axi_awready;
+        end
+    end
+
+    // W + B: routed to/from the active (busy) channel.
+    always_comb begin
+        ctrlwr_axi_wvalid = 1'b0;
+        ctrlwr_axi_wdata  = '0;
+        ctrlwr_axi_wstrb  = '0;
+        ctrlwr_axi_wlast  = 1'b0;
+        ctrlwr_axi_bready = 1'b0;
+        for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
+            ctrlwr_w_ready[ch] = 1'b0;
+            ctrlwr_b_valid[ch] = 1'b0;
+            ctrlwr_b_id[ch]    = ctrlwr_axi_bid;
+            ctrlwr_b_resp[ch]  = ctrlwr_axi_bresp;
+        end
+        if (r_ctrlwr_busy) begin
+            ctrlwr_axi_wvalid = ctrlwr_w_valid[r_ctrlwr_active_ch];
+            ctrlwr_axi_wdata  = ctrlwr_w_data[r_ctrlwr_active_ch];
+            ctrlwr_axi_wstrb  = ctrlwr_w_strb[r_ctrlwr_active_ch];
+            ctrlwr_axi_wlast  = ctrlwr_w_last[r_ctrlwr_active_ch];
+            ctrlwr_w_ready[r_ctrlwr_active_ch] = ctrlwr_axi_wready;
+            ctrlwr_b_valid[r_ctrlwr_active_ch] = ctrlwr_axi_bvalid;
+            ctrlwr_axi_bready = ctrlwr_b_ready[r_ctrlwr_active_ch];
+        end
+    end
 
     //=========================================================================
     // Data Read/Write Interface - Direct Passthrough (NO ARBITRATION)

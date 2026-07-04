@@ -184,7 +184,7 @@ ctrlrd_params = generate_ctrlrd_test_params()
 @pytest.mark.fub
 @pytest.mark.ctrlrd
 @pytest.mark.parametrize("channel_id, num_channels, addr_width, axi_data_width", ctrlrd_params)
-def test_ctrlrd_basic_read_match(request, channel_id, num_channels, addr_width, axi_data_width):
+def test_ctrlrd_engine_basic_read_match(request, channel_id, num_channels, addr_width, axi_data_width):
     """Pytest: Test basic read-match operation"""
     _run_ctrlrd_test(request, "cocotb_test_basic_read_match",
                      channel_id, num_channels, addr_width, axi_data_width)
@@ -193,7 +193,7 @@ def test_ctrlrd_basic_read_match(request, channel_id, num_channels, addr_width, 
 @pytest.mark.fub
 @pytest.mark.ctrlrd
 @pytest.mark.parametrize("channel_id, num_channels, addr_width, axi_data_width", ctrlrd_params)
-def test_ctrlrd_null_address(request, channel_id, num_channels, addr_width, axi_data_width):
+def test_ctrlrd_engine_null_address(request, channel_id, num_channels, addr_width, axi_data_width):
     """Pytest: Test null address handling"""
     _run_ctrlrd_test(request, "cocotb_test_null_address",
                      channel_id, num_channels, addr_width, axi_data_width)
@@ -206,7 +206,7 @@ def test_ctrlrd_null_address(request, channel_id, num_channels, addr_width, axi_
 @pytest.mark.fub
 @pytest.mark.ctrlrd
 @pytest.mark.parametrize("channel_id, num_channels, addr_width, axi_data_width", ctrlrd_params)
-def test_ctrlrd_read_retry_match(request, channel_id, num_channels, addr_width, axi_data_width):
+def test_ctrlrd_engine_read_retry_match(request, channel_id, num_channels, addr_width, axi_data_width):
     """Pytest: Test read-retry-match operation"""
     _run_ctrlrd_test(request, "cocotb_test_read_retry_match",
                      channel_id, num_channels, addr_width, axi_data_width)
@@ -216,7 +216,7 @@ def test_ctrlrd_read_retry_match(request, channel_id, num_channels, addr_width, 
 @pytest.mark.ctrlrd
 @pytest.mark.error
 @pytest.mark.parametrize("channel_id, num_channels, addr_width, axi_data_width", ctrlrd_params)
-def test_ctrlrd_max_retries_exceeded(request, channel_id, num_channels, addr_width, axi_data_width):
+def test_ctrlrd_engine_max_retries_exceeded(request, channel_id, num_channels, addr_width, axi_data_width):
     """Pytest: Test max retries exceeded handling"""
     _run_ctrlrd_test(request, "cocotb_test_max_retries_exceeded",
                      channel_id, num_channels, addr_width, axi_data_width)
@@ -229,7 +229,7 @@ def test_ctrlrd_max_retries_exceeded(request, channel_id, num_channels, addr_wid
 @pytest.mark.fub
 @pytest.mark.ctrlrd
 @pytest.mark.parametrize("channel_id, num_channels, addr_width, axi_data_width", ctrlrd_params)
-def test_ctrlrd_masked_comparison(request, channel_id, num_channels, addr_width, axi_data_width):
+def test_ctrlrd_engine_masked_comparison(request, channel_id, num_channels, addr_width, axi_data_width):
     """Pytest: Test masked comparison operation"""
     _run_ctrlrd_test(request, "cocotb_test_masked_comparison",
                      channel_id, num_channels, addr_width, axi_data_width)
@@ -243,7 +243,7 @@ def test_ctrlrd_masked_comparison(request, channel_id, num_channels, addr_width,
 @pytest.mark.ctrlrd
 @pytest.mark.error
 @pytest.mark.parametrize("channel_id, num_channels, addr_width, axi_data_width", ctrlrd_params)
-def test_ctrlrd_axi_error(request, channel_id, num_channels, addr_width, axi_data_width):
+def test_ctrlrd_engine_axi_error(request, channel_id, num_channels, addr_width, axi_data_width):
     """Pytest: Test AXI error handling"""
     _run_ctrlrd_test(request, "cocotb_test_axi_error",
                      channel_id, num_channels, addr_width, axi_data_width)
@@ -252,7 +252,7 @@ def test_ctrlrd_axi_error(request, channel_id, num_channels, addr_width, axi_dat
 @pytest.mark.fub
 @pytest.mark.ctrlrd
 @pytest.mark.parametrize("channel_id, num_channels, addr_width, axi_data_width", ctrlrd_params)
-def test_ctrlrd_channel_reset(request, channel_id, num_channels, addr_width, axi_data_width):
+def test_ctrlrd_engine_channel_reset(request, channel_id, num_channels, addr_width, axi_data_width):
     """Pytest: Test channel reset functionality"""
     _run_ctrlrd_test(request, "cocotb_test_channel_reset",
                      channel_id, num_channels, addr_width, axi_data_width)
@@ -266,7 +266,7 @@ def test_ctrlrd_channel_reset(request, channel_id, num_channels, addr_width, axi
 @pytest.mark.ctrlrd
 @pytest.mark.stress
 @pytest.mark.parametrize("channel_id, num_channels, addr_width, axi_data_width", ctrlrd_params)
-def test_ctrlrd_back_to_back(request, channel_id, num_channels, addr_width, axi_data_width):
+def test_ctrlrd_engine_back_to_back(request, channel_id, num_channels, addr_width, axi_data_width):
     """Pytest: Test back-to-back operations"""
     _run_ctrlrd_test(request, "cocotb_test_back_to_back",
                      channel_id, num_channels, addr_width, axi_data_width)
@@ -276,7 +276,7 @@ def test_ctrlrd_back_to_back(request, channel_id, num_channels, addr_width, axi_
 @pytest.mark.ctrlrd
 @pytest.mark.stress
 @pytest.mark.parametrize("channel_id, num_channels, addr_width, axi_data_width", ctrlrd_params)
-def test_ctrlrd_mixed_scenarios(request, channel_id, num_channels, addr_width, axi_data_width):
+def test_ctrlrd_engine_mixed_scenarios(request, channel_id, num_channels, addr_width, axi_data_width):
     """Pytest: Test mixed scenarios"""
     _run_ctrlrd_test(request, "cocotb_test_mixed_scenarios",
                      channel_id, num_channels, addr_width, axi_data_width)

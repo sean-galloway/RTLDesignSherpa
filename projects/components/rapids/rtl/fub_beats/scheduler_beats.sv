@@ -22,7 +22,7 @@
 //   5. Monitors timeouts and errors
 //
 // CRITICAL DESIGN FEATURE - Concurrent Read/Write:
-//   The scheduler runs read and write engines CONCURRENTLY in CH_XFER_DATA state.
+//   The scheduler runs read and write engines CONCURRENTLY in rapids_pkg::CH_XFER_DATA state.
 //   This prevents deadlock when transfer size > SRAM buffer size:
 //     - Read fills SRAM → SRAM full → read pauses
 //     - Write drains SRAM → SRAM has space → read resumes
@@ -75,7 +75,15 @@ module scheduler_beats #(
     // Descriptor Width (FIXED at 256-bit for RAPIDS Phase 1)
     // NOTE: This scheduler is RAPIDS Phase 1 (simplified network-to-memory)
     //       Phase 2 will add credit management and control engines
-    parameter int DESC_WIDTH = 256
+    parameter int DESC_WIDTH = 256,
+    // Direction enables for DATA descriptors. Default (both=1) preserves the
+    // original mem-to-mem behavior. A directional half sets exactly one:
+    //   SOURCE half (mem -> AXIS): EN_READ=1, EN_WRITE=0 (read-only)
+    //   SINK   half (AXIS -> mem): EN_READ=0, EN_WRITE=1 (write-only)
+    // Loading 0 beats in the disabled direction makes its sched_*_valid
+    // self-gate and collapses completion onto the active direction.
+    parameter bit EN_READ  = 1'b1,
+    parameter bit EN_WRITE = 1'b1
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -119,6 +127,26 @@ module scheduler_beats #(
     input  logic                        sched_wr_commit_strobe, // Write burst COMMITTED - B response (pulsed) - gates completion
     input  logic [31:0]                 sched_wr_commit_beats,  // Number of beats committed this pulse
 
+    // Control Read Engine Interface (Phase 2 producer/consumer GATE)
+    // Driven only for a CTRL_READ descriptor: request the engine poll ctrlrd_addr
+    // until (read & mask)==data; the chain is held off until it matches or errors.
+    output logic                        ctrlrd_valid,           // Request valid (to ctrlrd_engine)
+    input  logic                        ctrlrd_ready,           // Engine accepted the request
+    output logic [ADDR_WIDTH-1:0]       ctrlrd_addr,            // Poll address (descriptor src_addr slot)
+    output logic [31:0]                 ctrlrd_data,            // Expected value
+    output logic [31:0]                 ctrlrd_mask,            // Compare mask
+    input  logic                        ctrlrd_error,           // Engine error (max-retries / AXI error)
+    input  logic                        ctrlrd_idle,            // ctrlrd_engine_idle (completion when high post-issue)
+
+    // Control Write Engine Interface (Phase 2 producer/consumer DOORBELL)
+    // Driven only for a CTRL_WRITE descriptor: write ctrlwr_data to ctrlwr_addr.
+    output logic                        ctrlwr_valid,           // Request valid (to ctrlwr_engine)
+    input  logic                        ctrlwr_ready,           // Engine accepted the request
+    output logic [ADDR_WIDTH-1:0]       ctrlwr_addr,            // Doorbell address (descriptor src_addr slot)
+    output logic [31:0]                 ctrlwr_data,            // Doorbell data
+    input  logic                        ctrlwr_error,           // Engine error (AXI error)
+    input  logic                        ctrlwr_idle,            // ctrlwr_engine_idle (completion when high post-issue)
+
     // Error Signals (from Engines to Scheduler)
     input  logic                        sched_rd_error,         // Read engine error
     input  logic                        sched_wr_error,         // Write engine error
@@ -150,7 +178,7 @@ module scheduler_beats #(
     end
 
     // RAPIDS Descriptor Format (256-bit)
-    // Layout matches rapids_pkg.sv descriptor_t
+    // Layout matches rapids_pkg.sv rapids_pkg::descriptor_t
     //
     //   [63:0]    - src_addr:            Source address (must be aligned to data width)
     //   [127:64]  - dst_addr:            Destination address (must be aligned to data width)
@@ -190,29 +218,42 @@ module scheduler_beats #(
     //=========================================================================
 
     // Scheduler FSM (using RAPIDS package enum - ONE-HOT ENCODED)
-    // States: CH_IDLE → CH_FETCH_DESC → CH_XFER_DATA →
-    //         CH_COMPLETE → CH_NEXT_DESC (if chained) or back to CH_IDLE
+    // States: rapids_pkg::CH_IDLE → rapids_pkg::CH_FETCH_DESC → rapids_pkg::CH_XFER_DATA →
+    //         rapids_pkg::CH_COMPLETE → rapids_pkg::CH_NEXT_DESC (if chained) or back to rapids_pkg::CH_IDLE
     //
-    // CRITICAL: CH_XFER_DATA runs read and write engines CONCURRENTLY
+    // CRITICAL: rapids_pkg::CH_XFER_DATA runs read and write engines CONCURRENTLY
     //           to prevent deadlock when SRAM buffer < transfer size
-    channel_state_t r_current_state, w_next_state;
+    rapids_pkg::channel_state_t r_current_state, w_next_state;
 
     // State decode wires (for debug/monitoring)
-    wire w_state_idle        = (r_current_state == CH_IDLE);
-    wire w_state_fetch_desc  = (r_current_state == CH_FETCH_DESC);
-    wire w_state_xfer_data   = (r_current_state == CH_XFER_DATA);
-    wire w_state_complete    = (r_current_state == CH_COMPLETE);
-    wire w_state_next_desc   = (r_current_state == CH_NEXT_DESC);
-    wire w_state_error       = (r_current_state == CH_ERROR);
+    wire w_state_idle        = (r_current_state == rapids_pkg::CH_IDLE);
+    wire w_state_fetch_desc  = (r_current_state == rapids_pkg::CH_FETCH_DESC);
+    wire w_state_xfer_data   = (r_current_state == rapids_pkg::CH_XFER_DATA);
+    wire w_state_complete    = (r_current_state == rapids_pkg::CH_COMPLETE);
+    wire w_state_next_desc   = (r_current_state == rapids_pkg::CH_NEXT_DESC);
+    wire w_state_error       = (r_current_state == rapids_pkg::CH_ERROR);
 
     // Channel reset management
     // Registered to cleanly handle cfg_channel_reset assertion
     logic r_channel_reset_active;
 
     // Descriptor fields
-    // Latched from descriptor_packet in CH_IDLE state when descriptor_valid
-    descriptor_t r_descriptor;
+    // Latched from descriptor_packet in rapids_pkg::CH_IDLE state when descriptor_valid
+    rapids_pkg::descriptor_t r_descriptor;
     logic r_descriptor_loaded;  // Flag indicating descriptor successfully loaded
+
+    // Control-descriptor support (Phase 2). Opcode latched at descriptor capture
+    // from descriptor_packet[DESC_OPCODE_HI:DESC_OPCODE_LO]; the ctrl addr/data/mask
+    // are reinterpreted from the descriptor's src_addr/dst_addr slots (rapids_pkg
+    // DESC_CTRL_* / DESC_OPCODE_*). CTRL_READ = consumer gate, CTRL_WRITE = producer
+    // doorbell; DATA runs the existing concurrent read/write engines.
+    logic [1:0] r_desc_opcode;                    // Latched opcode (DESC_OP_*)
+    logic       r_ctrl_issued;                    // Control request accepted by its engine
+    logic       w_is_data;                        // r_desc_opcode == DESC_OP_DATA
+    logic       w_is_ctrlrd;                      // r_desc_opcode == DESC_OP_CTRL_READ
+    logic       w_is_ctrlwr;                      // r_desc_opcode == DESC_OP_CTRL_WRITE
+    logic       w_ctrl_complete;                  // Control op finished (engine idle post-issue)
+    logic       w_exec_complete;                  // Execute done (data OR control), gates rapids_pkg::CH_XFER_DATA exit
 
     // Transfer tracking
     // Working copies of descriptor fields, updated as transfer progresses
@@ -233,17 +274,17 @@ module scheduler_beats #(
     // A write-progress timeout is a *liveness* fault, not a data fault: it is
     // reported and the channel keeps waiting (soft timeout), re-arming each window.
     // Only after cfg_sched_timeout_limit consecutive windows with no write progress
-    // does it escalate to a fatal, sticky CH_ERROR. cfg_sched_timeout_limit == 0
+    // does it escalate to a fatal, sticky rapids_pkg::CH_ERROR. cfg_sched_timeout_limit == 0
     // means never escalate (pure soft timeout). Any write progress clears the strikes.
     logic [7:0] r_timeout_strikes;                // Consecutive expired windows
-    logic       w_hard_error;                     // Fatal fault -> sticky CH_ERROR
+    logic       w_hard_error;                     // Fatal fault -> sticky rapids_pkg::CH_ERROR
     logic       w_timeout_escalate;               // Soft timeout promoted to fatal
 
     // Interrupt generation
     // IRQ event is generated via MonBus when descriptor completes with gen_irq flag set
 
     // Error tracking
-    // Sticky error flags - set on error, cleared on return to CH_IDLE
+    // Sticky error flags - set on error, cleared on return to rapids_pkg::CH_IDLE
     logic r_read_error_sticky;                    // Read engine reported error
     logic r_write_error_sticky;                   // Write engine reported error
     logic r_descriptor_error;                     // Descriptor engine or internal error
@@ -253,7 +294,7 @@ module scheduler_beats #(
     logic r_mon_valid;
     monitor_common_pkg::monitor_packet_t   r_mon_packet;
     monitor_common_pkg::monbus_timestamp_t r_mon_timestamp;
-    logic r_error_pkt_sent;   // Emit the CH_ERROR packet once per error episode
+    logic r_error_pkt_sent;   // Emit the rapids_pkg::CH_ERROR packet once per error episode
 
     // Completion flags
     // Combinational checks for phase completion (beats_remaining == 0)
@@ -280,7 +321,7 @@ module scheduler_beats #(
     // State register
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            r_current_state <= CH_IDLE;
+            r_current_state <= rapids_pkg::CH_IDLE;
         end else begin
             r_current_state <= w_next_state;
         end
@@ -288,9 +329,9 @@ module scheduler_beats #(
 
     // Next state logic
     // FSM Flow: IDLE → FETCH_DESC → XFER_DATA → COMPLETE → (chain?) → IDLE
-    // Error transitions: Any error condition → CH_ERROR → (cleared?) → CH_IDLE
+    // Error transitions: Any error condition → rapids_pkg::CH_ERROR → (cleared?) → rapids_pkg::CH_IDLE
     //
-    // CRITICAL CHANGE: CH_XFER_DATA replaces separate CH_READ_DATA and CH_WRITE_DATA states
+    // CRITICAL CHANGE: rapids_pkg::CH_XFER_DATA replaces separate CH_READ_DATA and CH_WRITE_DATA states
     //                  Both read and write engines run CONCURRENTLY to prevent deadlock
     //                  when SRAM buffer size < total transfer size
     always_comb begin
@@ -298,41 +339,41 @@ module scheduler_beats #(
 
         // Priority 1: Channel reset overrides all other transitions
         if (r_channel_reset_active) begin
-            w_next_state = CH_IDLE;
+            w_next_state = rapids_pkg::CH_IDLE;
         end else begin
             // Priority 2: Error handling - aggregate errors from all sources
             // Sources: descriptor_engine (descriptor_error)
             //          read_engine (sched_rd_error)
             //          write_engine (sched_wr_error)
             //          scheduler internal (timeout, sticky errors)
-            // Fatal faults (engine/descriptor errors) wedge into sticky CH_ERROR.
+            // Fatal faults (engine/descriptor errors) wedge into sticky rapids_pkg::CH_ERROR.
             // A write-progress timeout is recoverable and does NOT wedge here — it
-            // reaches CH_ERROR only once escalated (cfg_sched_timeout_limit windows).
+            // reaches rapids_pkg::CH_ERROR only once escalated (cfg_sched_timeout_limit windows).
             if (w_hard_error || w_timeout_escalate) begin
-                w_next_state = CH_ERROR;
+                w_next_state = rapids_pkg::CH_ERROR;
             end else begin
                 // Priority 3: Normal state machine transitions
                 case (r_current_state)
-                    CH_IDLE: begin
+                    rapids_pkg::CH_IDLE: begin
                         // Wait for:
                         // 1. descriptor_valid (descriptor engine has descriptor ready)
                         // 2. cfg_channel_enable (software has enabled this channel)
                         if (descriptor_valid && cfg_channel_enable) begin
-                            w_next_state = CH_FETCH_DESC;
+                            w_next_state = rapids_pkg::CH_FETCH_DESC;
                         end
                     end
 
-                    CH_FETCH_DESC: begin
+                    rapids_pkg::CH_FETCH_DESC: begin
                         // Descriptor latched from descriptor_packet in one cycle
                         // Validate descriptor.valid bit before proceeding
                         if (r_descriptor.valid) begin
-                            w_next_state = CH_XFER_DATA;  // Valid descriptor → start concurrent transfer
+                            w_next_state = rapids_pkg::CH_XFER_DATA;  // Valid descriptor → start concurrent transfer
                         end else begin
-                            w_next_state = CH_ERROR;      // Invalid descriptor → error
+                            w_next_state = rapids_pkg::CH_ERROR;      // Invalid descriptor → error
                         end
                     end
 
-                    CH_XFER_DATA: begin
+                    rapids_pkg::CH_XFER_DATA: begin
                         // Transfer phase: Read and write engines run CONCURRENTLY
                         // - Read engine: Transfers source → SRAM
                         // - Write engine: Transfers SRAM → destination
@@ -346,40 +387,40 @@ module scheduler_beats #(
                         // sched_wr_ready gate is unnecessary here (and would deadlock,
                         // since sched_wr_ready drops once issue finishes, well before the
                         // final B responses arrive).
-                        if (w_transfer_complete) begin
-                            w_next_state = CH_COMPLETE;
+                        if (w_exec_complete) begin
+                            w_next_state = rapids_pkg::CH_COMPLETE;
                         end
                         // Note: Stays in XFER_DATA until both conditions met or error
                     end
 
-                    CH_COMPLETE: begin
+                    rapids_pkg::CH_COMPLETE: begin
                         // Descriptor complete - check for chaining
                         // Chain if: next_descriptor_ptr != 0 AND last flag not set
                         if (r_descriptor.next_descriptor_ptr != 32'h0 && !r_descriptor.last) begin
-                            w_next_state = CH_NEXT_DESC;  // Fetch next descriptor in chain
+                            w_next_state = rapids_pkg::CH_NEXT_DESC;  // Fetch next descriptor in chain
                         end else begin
-                            w_next_state = CH_IDLE;       // Transfer complete, return to idle
+                            w_next_state = rapids_pkg::CH_IDLE;       // Transfer complete, return to idle
                         end
                     end
 
-                    CH_NEXT_DESC: begin
+                    rapids_pkg::CH_NEXT_DESC: begin
                         // Wait for descriptor engine to fetch next chained descriptor
                         // descriptor_engine uses r_descriptor.next_descriptor_ptr as fetch address
                         if (descriptor_valid) begin
-                            w_next_state = CH_FETCH_DESC;  // Next descriptor ready
+                            w_next_state = rapids_pkg::CH_FETCH_DESC;  // Next descriptor ready
                         end
                         // Note: Stays in NEXT_DESC until descriptor_valid
                     end
 
-                    CH_ERROR: begin
+                    rapids_pkg::CH_ERROR: begin
                         // Error state - STICKY, stay here until reset
                         // Once in error, only way out is through reset
-                        w_next_state = CH_ERROR;
+                        w_next_state = rapids_pkg::CH_ERROR;
                     end
 
                     default: begin
                         // Safety: undefined state → error
-                        w_next_state = CH_ERROR;
+                        w_next_state = rapids_pkg::CH_ERROR;
                     end
                 endcase
             end
@@ -402,16 +443,16 @@ module scheduler_beats #(
     // State-dependent register updates for descriptor fields and transfer tracking
     //
     // Key State Actions:
-    //   CH_IDLE/CH_NEXT_DESC: Sample descriptor_packet when descriptor_valid
-    //   CH_FETCH_DESC: Initialize working registers from latched descriptor
-    //   CH_XFER_DATA:  Decrement BOTH read and write counters independently (concurrent!)
-    //   CH_COMPLETE:   Clear descriptor_loaded flag
+    //   rapids_pkg::CH_IDLE/rapids_pkg::CH_NEXT_DESC: Sample descriptor_packet when descriptor_valid
+    //   rapids_pkg::CH_FETCH_DESC: Initialize working registers from latched descriptor
+    //   rapids_pkg::CH_XFER_DATA:  Decrement BOTH read and write counters independently (concurrent!)
+    //   rapids_pkg::CH_COMPLETE:   Clear descriptor_loaded flag
     //
     // CRITICAL: Descriptor packet sampling happens when descriptor_valid && descriptor_ready
-    //           (in CH_IDLE or CH_NEXT_DESC states). This ensures fresh descriptor data
+    //           (in rapids_pkg::CH_IDLE or rapids_pkg::CH_NEXT_DESC states). This ensures fresh descriptor data
     //           is captured for both the first descriptor and all chained descriptors.
     //
-    // CRITICAL: In CH_XFER_DATA, both counters update independently based on their
+    // CRITICAL: In rapids_pkg::CH_XFER_DATA, both counters update independently based on their
     //           respective done strobes. This allows concurrent read/write operation.
 
     `ALWAYS_FF_RST(clk, rst_n,
@@ -424,10 +465,12 @@ module scheduler_beats #(
             r_read_beats_remaining <= 32'h0;
             r_write_beats_remaining <= 32'h0;
             r_write_beats_to_commit <= 32'h0;
+            r_desc_opcode <= 2'b00;
+            r_ctrl_issued <= 1'b0;
         end else begin
             // Descriptor capture: Sample descriptor_packet when handshake occurs
-            // This happens in either CH_IDLE (first descriptor) or CH_NEXT_DESC (chained)
-            if ((r_current_state == CH_IDLE || r_current_state == CH_NEXT_DESC) &&
+            // This happens in either rapids_pkg::CH_IDLE (first descriptor) or rapids_pkg::CH_NEXT_DESC (chained)
+            if ((r_current_state == rapids_pkg::CH_IDLE || r_current_state == rapids_pkg::CH_NEXT_DESC) &&
                 descriptor_valid && descriptor_ready) begin
                 // Extract fields from 256-bit RAPIDS descriptor
                 // - Addresses are pre-aligned (must match data width alignment)
@@ -442,28 +485,43 @@ module scheduler_beats #(
                 r_descriptor.gen_irq <= descriptor_packet[DESC_GEN_IRQ];
                 r_descriptor.last <= descriptor_packet[DESC_LAST];
 
+                // Latch the opcode; ctrl addr/data/mask are read from the src/dst
+                // slots (see completion/output logic). Fresh control op -> not issued.
+                r_desc_opcode <= descriptor_packet[DESC_OPCODE_HI:DESC_OPCODE_LO];
+                r_ctrl_issued <= 1'b0;
+
                 r_descriptor_loaded <= 1'b1;
             end
 
             case (r_current_state)
-                CH_FETCH_DESC: begin
+                rapids_pkg::CH_FETCH_DESC: begin
                     // Transfer initialization: Copy descriptor fields to working registers
                     // These working registers will be updated as transfer progresses
                     r_src_addr <= r_descriptor.src_addr;
                     r_dst_addr <= r_descriptor.dst_addr;
                     r_beats_remaining <= r_descriptor.length;
-                    r_read_beats_remaining <= r_descriptor.length;
-                    r_write_beats_remaining <= r_descriptor.length;
-                    r_write_beats_to_commit <= r_descriptor.length;
+                    // Directional load: the disabled direction gets 0 beats so its
+                    // sched_*_valid never fires and w_*_complete is immediately true,
+                    // reducing w_transfer_complete to the enabled direction only.
+                    r_read_beats_remaining  <= EN_READ  ? r_descriptor.length : 32'h0;
+                    r_write_beats_remaining <= EN_WRITE ? r_descriptor.length : 32'h0;
+                    r_write_beats_to_commit <= EN_WRITE ? r_descriptor.length : 32'h0;
                 end
 
-                CH_XFER_DATA: begin
+                rapids_pkg::CH_XFER_DATA: begin
                     // Concurrent transfer progress tracking:
                     // - Read engine and write engine operate INDEPENDENTLY
                     // - Each decrements its own counter when reporting completion
                     // - Both strobes can be active simultaneously
                     // - Natural backpressure via SRAM full (read) and empty (write)
                     //
+                    // Control op: latch that the request was accepted by its engine.
+                    // Completion is then r_ctrl_issued && <engine>_idle (the engine
+                    // always passes through a non-idle state before returning idle).
+                    if ((ctrlrd_valid && ctrlrd_ready) || (ctrlwr_valid && ctrlwr_ready)) begin
+                        r_ctrl_issued <= 1'b1;
+                    end
+
                     // Read progress: Source → SRAM
                     if (sched_rd_done_strobe) begin
                         // Decrement by number of beats engine completed
@@ -500,10 +558,11 @@ module scheduler_beats #(
                     end
                 end
 
-                CH_COMPLETE: begin
+                rapids_pkg::CH_COMPLETE: begin
                     // Transfer complete: Clear descriptor_loaded flag
                     // Ready to accept next descriptor (or chain to next)
                     r_descriptor_loaded <= 1'b0;
+                    r_ctrl_issued <= 1'b0;
                 end
 
                 default: begin
@@ -516,6 +575,7 @@ module scheduler_beats #(
                 r_descriptor_loaded <= 1'b0;
                 r_read_beats_remaining <= 32'h0;
                 r_write_beats_remaining <= 32'h0;
+                r_ctrl_issued <= 1'b0;
             end
         end
     )
@@ -523,7 +583,7 @@ module scheduler_beats #(
     //=========================================================================
     // Interrupt Generation via MonBus
     //=========================================================================
-    // IRQ events are generated in CH_COMPLETE state when r_descriptor.gen_irq is set
+    // IRQ events are generated in rapids_pkg::CH_COMPLETE state when r_descriptor.gen_irq is set
     // No separate IRQ flag needed - check descriptor directly in MonBus generation logic
 
     //=========================================================================
@@ -536,6 +596,22 @@ module scheduler_beats #(
     // signalling done/interrupt while write data is still draining to memory.
     assign w_write_complete = (r_write_beats_to_commit == 32'h0);
     assign w_transfer_complete = w_read_complete && w_write_complete;
+
+    // Opcode decode (DATA vs control) from the latched opcode.
+    assign w_is_data   = (r_desc_opcode == DESC_OP_DATA);
+    assign w_is_ctrlrd = (r_desc_opcode == DESC_OP_CTRL_READ);
+    assign w_is_ctrlwr = (r_desc_opcode == DESC_OP_CTRL_WRITE);
+
+    // Control op completes once its request was accepted (r_ctrl_issued, registered)
+    // and the engine has returned to idle. Because r_ctrl_issued only becomes visible
+    // the cycle AFTER acceptance -- by which point the engine has left idle (it passes
+    // through a non-idle state before completing) -- this is race-free.
+    assign w_ctrl_complete = r_ctrl_issued &&
+                             ((w_is_ctrlrd && ctrlrd_idle) || (w_is_ctrlwr && ctrlwr_idle));
+
+    // rapids_pkg::CH_XFER_DATA exit: DATA descriptors finish on the concurrent read/write
+    // completion; control descriptors on their engine's completion.
+    assign w_exec_complete = w_is_data ? w_transfer_complete : w_ctrl_complete;
 
     // Look-ahead completion detection:
     // De-assert valid on the SAME CYCLE that the completion strobe arrives
@@ -567,10 +643,11 @@ module scheduler_beats #(
     // Engine decides: "I'll do X beats per burst based on my config/design"
     // Engine reports back: "I moved X beats" via sched_rd_done_strobe
     //
-    // CONCURRENT OPERATION: sched_rd_valid asserted in CH_XFER_DATA (not CH_READ_DATA)
+    // CONCURRENT OPERATION: sched_rd_valid asserted in rapids_pkg::CH_XFER_DATA (not CH_READ_DATA)
     //                       Runs simultaneously with write engine
 
-    assign sched_rd_valid = (r_current_state == CH_XFER_DATA) &&
+    // Gated on w_is_data: control descriptors must NOT drive the data engines.
+    assign sched_rd_valid = (r_current_state == rapids_pkg::CH_XFER_DATA) && w_is_data &&
                         !w_read_complete &&
                         !w_sched_rd_completing_this_cycle;
     assign sched_rd_addr = r_src_addr;
@@ -583,15 +660,15 @@ module scheduler_beats #(
     // Engine decides: "I'll do X beats per burst based on my config/design"
     // Engine reports back: "I moved X beats" via sched_wr_done_strobe
     //
-    // CONCURRENT OPERATION: sched_wr_valid asserted in CH_XFER_DATA (not CH_WRITE_DATA)
+    // CONCURRENT OPERATION: sched_wr_valid asserted in rapids_pkg::CH_XFER_DATA (not CH_WRITE_DATA)
     //                       Runs simultaneously with read engine
 
     // Request writes only while there are beats left to ISSUE. w_write_complete now
     // tracks COMMITs (r_write_beats_to_commit); without this explicit issue-count gate
     // the engine would keep sched_wr_valid high through the commit-wait and, seeing
     // sched_wr_beats==0, issue a spurious garbage AW (transfer-size underflow ->
-    // awlen=0xFF). The scheduler still stays in CH_XFER_DATA waiting for commits.
-    assign sched_wr_valid = (r_current_state == CH_XFER_DATA) &&
+    // awlen=0xFF). The scheduler still stays in rapids_pkg::CH_XFER_DATA waiting for commits.
+    assign sched_wr_valid = (r_current_state == rapids_pkg::CH_XFER_DATA) && w_is_data &&
                         (r_write_beats_remaining != 32'h0) &&
                         !w_write_complete &&
                         !w_sched_wr_completing_this_cycle;
@@ -599,10 +676,26 @@ module scheduler_beats #(
     assign sched_wr_beats = r_write_beats_remaining;
 
     //=========================================================================
+    // Control Engine Interface Outputs (Phase 2)
+    //=========================================================================
+    // Assert the request in rapids_pkg::CH_XFER_DATA for the matching opcode until the engine
+    // accepts it (r_ctrl_issued). Addr/data/mask are reinterpreted from the
+    // descriptor's src/dst slots per rapids_pkg DESC_CTRL_* layout:
+    //   ctrl addr = src_addr[63:0]; data = dst_addr[31:0]; mask = dst_addr[63:32].
+    assign ctrlrd_valid = (r_current_state == rapids_pkg::CH_XFER_DATA) && w_is_ctrlrd && !r_ctrl_issued;
+    assign ctrlrd_addr  = r_descriptor.src_addr;
+    assign ctrlrd_data  = r_descriptor.dst_addr[31:0];
+    assign ctrlrd_mask  = r_descriptor.dst_addr[63:32];
+
+    assign ctrlwr_valid = (r_current_state == rapids_pkg::CH_XFER_DATA) && w_is_ctrlwr && !r_ctrl_issued;
+    assign ctrlwr_addr  = r_descriptor.src_addr;
+    assign ctrlwr_data  = r_descriptor.dst_addr[31:0];
+
+    //=========================================================================
     // Descriptor Engine Interface
     //=========================================================================
 
-    assign descriptor_ready = (r_current_state == CH_IDLE) || (r_current_state == CH_NEXT_DESC);
+    assign descriptor_ready = (r_current_state == rapids_pkg::CH_IDLE) || (r_current_state == rapids_pkg::CH_NEXT_DESC);
 
     //=========================================================================
     // Timeout and Error Management
@@ -617,9 +710,9 @@ module scheduler_beats #(
     //   4. w_timeout_expired - Scheduler timeout (engines not granting access)
     //
     // Error Handling Flow:
-    //   Error detected → sticky flag set → FSM transition to CH_ERROR
-    //   CH_ERROR state → wait for external errors to clear → FSM to CH_IDLE
-    //   CH_IDLE entry → clear all sticky flags
+    //   Error detected → sticky flag set → FSM transition to rapids_pkg::CH_ERROR
+    //   rapids_pkg::CH_ERROR state → wait for external errors to clear → FSM to rapids_pkg::CH_IDLE
+    //   rapids_pkg::CH_IDLE entry → clear all sticky flags
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
@@ -647,8 +740,8 @@ module scheduler_beats #(
             end
 
             // Consecutive-timeout strikes: one per elapsed window with no write
-            // progress. Cleared by real progress or on return to CH_IDLE. Saturates.
-            if (r_channel_reset_active || (r_current_state == CH_IDLE)) begin
+            // progress. Cleared by real progress or on return to rapids_pkg::CH_IDLE. Saturates.
+            if (r_channel_reset_active || (r_current_state == rapids_pkg::CH_IDLE)) begin
                 r_timeout_strikes <= 8'h0;
             end else if (sched_wr_done_strobe || sched_wr_commit_strobe) begin
                 r_timeout_strikes <= 8'h0;
@@ -669,9 +762,9 @@ module scheduler_beats #(
                 r_descriptor_error <= 1'b1;
             end
 
-            // Error clearing: All sticky flags clear on transition to CH_IDLE
+            // Error clearing: All sticky flags clear on transition to rapids_pkg::CH_IDLE
             // This prepares scheduler for next descriptor
-            if (r_current_state == CH_IDLE) begin
+            if (r_current_state == rapids_pkg::CH_IDLE) begin
                 r_read_error_sticky <= 1'b0;
                 r_write_error_sticky <= 1'b0;
                 r_descriptor_error <= 1'b0;
@@ -689,10 +782,14 @@ module scheduler_beats #(
     assign w_timeout_escalate = (cfg_sched_timeout_limit != 8'd0) &&
                                 (r_timeout_strikes >= cfg_sched_timeout_limit);
 
-    // Fatal faults: data-path integrity compromised -> sticky CH_ERROR until reset.
+    // Fatal faults: data-path integrity compromised -> sticky rapids_pkg::CH_ERROR until reset.
     // (A bare timeout window is a recoverable liveness fault, not included here.)
+    // Control-engine errors are fatal for the descriptor: a CTRL_READ that never
+    // matches escalates via the engine's cfg_ctrlrd_max_try -> ctrlrd_error (so a
+    // never-matching gate cannot hang the channel); a CTRL_WRITE AXI error -> ctrlwr_error.
     assign w_hard_error = descriptor_error || sched_rd_error || sched_wr_error ||
-                          r_read_error_sticky || r_write_error_sticky;
+                          r_read_error_sticky || r_write_error_sticky ||
+                          (w_is_ctrlrd && ctrlrd_error) || (w_is_ctrlwr && ctrlwr_error);
 
     //=========================================================================
     // Monitor Packet Generation
@@ -732,12 +829,12 @@ module scheduler_beats #(
             r_mon_packet <= '0;
 
             // Re-arm the one-shot error packet once the channel is idle again
-            if (r_current_state == CH_IDLE) begin
+            if (r_current_state == rapids_pkg::CH_IDLE) begin
                 r_error_pkt_sent <= 1'b0;
             end
 
             case (r_current_state)
-                CH_FETCH_DESC: begin
+                rapids_pkg::CH_FETCH_DESC: begin
                     r_mon_valid     <= 1'b1;
                     r_mon_packet    <= create_monitor_packet(
                         PktTypeCompletion,
@@ -751,13 +848,13 @@ module scheduler_beats #(
                     r_mon_timestamp <= i_mon_time;
                 end
 
-                CH_XFER_DATA: begin
+                rapids_pkg::CH_XFER_DATA: begin
                     // No intermediate events during concurrent transfer
                     // Read and write happen simultaneously, only final completion matters
                     // This keeps MonBus traffic low and focuses on meaningful events
                 end
 
-                CH_COMPLETE: begin
+                rapids_pkg::CH_COMPLETE: begin
                     r_mon_valid     <= 1'b1;
                     r_mon_timestamp <= i_mon_time;
                     if (r_descriptor.gen_irq) begin
@@ -783,8 +880,8 @@ module scheduler_beats #(
                     end
                 end
 
-                CH_ERROR: begin
-                    // Emit the error packet only once per error episode (CH_ERROR
+                rapids_pkg::CH_ERROR: begin
+                    // Emit the error packet only once per error episode (rapids_pkg::CH_ERROR
                     // persists until the errors clear; without this the monbus
                     // would be flooded with one error packet every cycle).
                     if (!r_error_pkt_sent) begin
@@ -814,10 +911,10 @@ module scheduler_beats #(
     // Status Outputs
     //=========================================================================
 
-    // Only CH_IDLE is "idle". CH_ERROR is a faulted channel and must NOT report
-    // idle — reporting CH_ERROR as idle is what let CHANNEL_IDLE read '1' on a
+    // Only rapids_pkg::CH_IDLE is "idle". rapids_pkg::CH_ERROR is a faulted channel and must NOT report
+    // idle — reporting rapids_pkg::CH_ERROR as idle is what let CHANNEL_IDLE read '1' on a
     // wedged channel. A faulted channel is surfaced via sched_error/CHANNEL_ERROR.
-    assign scheduler_idle = (r_current_state == CH_IDLE) && !r_channel_reset_active;
+    assign scheduler_idle = (r_current_state == rapids_pkg::CH_IDLE) && !r_channel_reset_active;
     assign scheduler_state = r_current_state;
     assign sched_error = w_state_error;  // Sticky error output
 
@@ -840,14 +937,14 @@ module scheduler_beats #(
     // Descriptor valid check
     property descriptor_valid_check;
         @(posedge clk) disable iff (!rst_n)
-        (r_current_state == CH_FETCH_DESC) |-> r_descriptor.valid;
+        (r_current_state == rapids_pkg::CH_FETCH_DESC) |-> r_descriptor.valid;
     endproperty
     assert property (descriptor_valid_check);
 
-    // Concurrent transfer completion: Exit CH_XFER_DATA only when BOTH complete
+    // Concurrent transfer completion: Exit rapids_pkg::CH_XFER_DATA only when BOTH complete
     property concurrent_transfer_complete;
         @(posedge clk) disable iff (!rst_n)
-        (r_current_state == CH_XFER_DATA && w_next_state == CH_COMPLETE) |->
+        (r_current_state == rapids_pkg::CH_XFER_DATA && w_next_state == rapids_pkg::CH_COMPLETE) |->
             (w_read_complete && w_write_complete);
     endproperty
     assert property (concurrent_transfer_complete);
@@ -855,7 +952,7 @@ module scheduler_beats #(
     // Aligned address requirement
     property address_aligned;
         @(posedge clk) disable iff (!rst_n)
-        (r_current_state == CH_FETCH_DESC) |->
+        (r_current_state == rapids_pkg::CH_FETCH_DESC) |->
             (r_descriptor.src_addr[5:0] == 6'h0) &&
             (r_descriptor.dst_addr[5:0] == 6'h0);
     endproperty

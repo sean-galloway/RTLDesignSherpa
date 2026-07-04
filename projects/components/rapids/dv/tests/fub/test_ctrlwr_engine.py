@@ -147,7 +147,7 @@ ctrlwr_params = generate_ctrlwr_test_params()
 @pytest.mark.fub
 @pytest.mark.ctrlwr
 @pytest.mark.parametrize("channel_id, num_channels, addr_width", ctrlwr_params)
-def test_ctrlwr_basic_write(request, channel_id, num_channels, addr_width):
+def test_ctrlwr_engine_basic_write(request, channel_id, num_channels, addr_width):
     """Pytest: Test basic control write operation"""
     _run_ctrlwr_test(request, "cocotb_test_basic_write",
                      channel_id, num_channels, addr_width)
@@ -156,7 +156,7 @@ def test_ctrlwr_basic_write(request, channel_id, num_channels, addr_width):
 @pytest.mark.fub
 @pytest.mark.ctrlwr
 @pytest.mark.parametrize("channel_id, num_channels, addr_width", ctrlwr_params)
-def test_ctrlwr_null_address(request, channel_id, num_channels, addr_width):
+def test_ctrlwr_engine_null_address(request, channel_id, num_channels, addr_width):
     """Pytest: Test null address handling"""
     _run_ctrlwr_test(request, "cocotb_test_null_address",
                      channel_id, num_channels, addr_width)
@@ -165,7 +165,7 @@ def test_ctrlwr_null_address(request, channel_id, num_channels, addr_width):
 @pytest.mark.fub
 @pytest.mark.ctrlwr
 @pytest.mark.parametrize("channel_id, num_channels, addr_width", ctrlwr_params)
-def test_ctrlwr_back_to_back(request, channel_id, num_channels, addr_width):
+def test_ctrlwr_engine_back_to_back(request, channel_id, num_channels, addr_width):
     """Pytest: Test back-to-back operations"""
     _run_ctrlwr_test(request, "cocotb_test_back_to_back",
                      channel_id, num_channels, addr_width)
@@ -179,7 +179,7 @@ def test_ctrlwr_back_to_back(request, channel_id, num_channels, addr_width):
 @pytest.mark.ctrlwr
 @pytest.mark.error
 @pytest.mark.parametrize("channel_id, num_channels, addr_width", ctrlwr_params)
-def test_ctrlwr_axi_error(request, channel_id, num_channels, addr_width):
+def test_ctrlwr_engine_axi_error(request, channel_id, num_channels, addr_width):
     """Pytest: Test AXI error handling"""
     _run_ctrlwr_test(request, "cocotb_test_axi_error",
                      channel_id, num_channels, addr_width)
@@ -188,7 +188,7 @@ def test_ctrlwr_axi_error(request, channel_id, num_channels, addr_width):
 @pytest.mark.fub
 @pytest.mark.ctrlwr
 @pytest.mark.parametrize("channel_id, num_channels, addr_width", ctrlwr_params)
-def test_ctrlwr_channel_reset(request, channel_id, num_channels, addr_width):
+def test_ctrlwr_engine_channel_reset(request, channel_id, num_channels, addr_width):
     """Pytest: Test channel reset functionality"""
     _run_ctrlwr_test(request, "cocotb_test_channel_reset",
                      channel_id, num_channels, addr_width)
@@ -202,7 +202,7 @@ def test_ctrlwr_channel_reset(request, channel_id, num_channels, addr_width):
 @pytest.mark.ctrlwr
 @pytest.mark.stress
 @pytest.mark.parametrize("channel_id, num_channels, addr_width", ctrlwr_params)
-def test_ctrlwr_mixed_scenarios(request, channel_id, num_channels, addr_width):
+def test_ctrlwr_engine_mixed_scenarios(request, channel_id, num_channels, addr_width):
     """Pytest: Test mixed scenarios"""
     _run_ctrlwr_test(request, "cocotb_test_mixed_scenarios",
                      channel_id, num_channels, addr_width)

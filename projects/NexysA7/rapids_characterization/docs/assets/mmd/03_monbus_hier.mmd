@@ -1,0 +1,16 @@
+flowchart TB
+    SRCMON["per-half monbus_arbiter<br/>(SRC)"]
+    SNKMON["per-half monbus_arbiter<br/>(SNK)"]
+    MERGE["core merge<br/>monbus_arbiter"]
+    GRP["monbus_axil_axil_group"]
+    EGR["m_axil_mon"]
+
+    SRCMON --> MERGE
+    SNKMON --> MERGE
+    MERGE --> GRP
+    GRP --> EGR
+
+    classDef infra fill:#e6e6e6,stroke:#404040,stroke-width:1px;
+    classDef egress fill:#d5efd5,stroke:#228B22,stroke-width:2px;
+    class SRCMON,SNKMON,MERGE,GRP infra;
+    class EGR egress;

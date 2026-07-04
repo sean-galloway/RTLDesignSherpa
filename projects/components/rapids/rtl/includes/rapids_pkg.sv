@@ -62,6 +62,42 @@ package rapids_pkg;
     } descriptor_t;
 
     //=========================================================================
+    // Control Descriptor Encoding (Phase 2 - producer/consumer via ctrlrd/ctrlwr)
+    //=========================================================================
+    // Control operations are SEPARATE, TYPED descriptors interleaved in a chain.
+    // Only part of a chain need be control; DATA descriptors are processed exactly
+    // as in Phase 1. The 2-bit OPCODE lives in the reserved region of the 256-bit
+    // descriptor (bits [209:208], above the Phase-1 fields which end at bit 195 and
+    // clear of the informational channel_id[199:196]/desc_priority[207:200]), so the
+    // existing DATA field layout (src[63:0] / dst[127:64] / length[159:128] /
+    // next_ptr[191:160] / valid[192] / gen_irq[193] / last[194] / error[195]) is
+    // unchanged. The descriptor engine decodes the opcode and exports it as the
+    // enhanced_descriptor_t.pkt_type sideband; the scheduler routes on it.
+    localparam int DESC_OPCODE_LO = 208;
+    localparam int DESC_OPCODE_HI = 209;
+
+    typedef enum logic [1:0] {
+        DESC_OP_DATA       = 2'b00,  // Data transfer (SINK/SOURCE) - existing behavior
+        DESC_OP_CTRL_READ  = 2'b01,  // Consumer gate: poll until (rd & mask)==expected; hold off chain
+        DESC_OP_CTRL_WRITE = 2'b10,  // Producer doorbell: write data to addr, then continue
+        DESC_OP_RESERVED   = 2'b11
+    } desc_opcode_t;
+
+    // Control-descriptor field reuse (SAME 256-bit descriptor, reinterpreted by opcode).
+    // These slots overlay the DATA slots so the descriptor engine's existing extraction
+    // is reused; the scheduler picks the interpretation from the decoded opcode.
+    //   CTRL_READ : poll_addr=[63:0]  expected=[95:64]  mask=[127:96]  max_try=[143:128]
+    //   CTRL_WRITE: wr_addr  =[63:0]  wr_data =[95:64]
+    localparam int DESC_CTRL_ADDR_LO   = 0;    // poll/doorbell address (reuses src_addr)
+    localparam int DESC_CTRL_ADDR_HI   = 63;
+    localparam int DESC_CTRL_DATA_LO   = 64;   // expected (rd) / write data (wr)
+    localparam int DESC_CTRL_DATA_HI   = 95;
+    localparam int DESC_CTRL_MASK_LO   = 96;   // compare mask (ctrl-read only)
+    localparam int DESC_CTRL_MASK_HI   = 127;
+    localparam int DESC_CTRL_MAXTRY_LO = 128;  // ctrl-read retry budget (0 = use cfg default)
+    localparam int DESC_CTRL_MAXTRY_HI = 143;
+
+    //=========================================================================
     // Channel State Enumeration (ONE-HOT ENCODED - for Phase 1 scheduler)
     //=========================================================================
     // CRITICAL: CH_XFER_DATA runs read and write engines CONCURRENTLY
