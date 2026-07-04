@@ -10,8 +10,16 @@ Projects are organized by FPGA development board:
 
 ```
 projects/
-├── NexysA7/           # Digilent Nexys A7 projects
-│   └── cdc_counter_display/
+├── components/        # Reusable RTL components / IP (see components/README.md)
+│   ├── apb_xbar/  bch/  bridge/  converters/  delta/  hive/
+│   ├── memory-controllers/  misc/  rapids/  retro_legacy_blocks/  stream/
+│   └── ...
+├── NexysA7/           # Digilent Nexys A7-100T projects
+│   ├── cdc_counter_display/       # CDC teaching demo
+│   ├── timing_characterization/   # generic timing/fmax characterization
+│   ├── stream_characterization/   # STREAM DMA on-chip characterization
+│   ├── rapids_characterization/   # RAPIDS beats DMA on-chip characterization
+│   └── ddr2-characterization/     # DDR2 controller on-chip characterization
 └── (future boards)/
 ```
 
@@ -52,6 +60,49 @@ make sim      # Run simulation
 make build    # Build bitstream
 make program  # Program FPGA
 ```
+
+---
+
+#### [STREAM Characterization](NexysA7/stream_characterization/)
+
+**On-chip DMA characterization of the STREAM engine (2×2 DMA × bridge matrix)**
+
+- **Component:** [stream](components/stream/) — docs: [PRD](components/stream/PRD.md)
+- **Report:** [findings](NexysA7/stream_characterization/docs/characterization_v1_findings.md) · sub-reports: [perf](NexysA7/stream_characterization/reports/perf/README.md), [area](NexysA7/stream_characterization/reports/area/README.md), [compression](NexysA7/stream_characterization/reports/compression/README.md)
+- **Board:** Nexys A7-100T · UART host + on-chip pattern/CRC memory
+- **Status:** ✅ Characterized (perf + area + compression sweeps)
+
+---
+
+#### [RAPIDS Characterization](NexysA7/rapids_characterization/)
+
+**On-chip characterization of the split RAPIDS "beats" DMA (two wholly-separate src/snk engines)**
+
+- **Component:** [rapids](components/rapids/) — docs: [PRD](components/rapids/PRD.md) · [spec](components/rapids/docs/)
+- **Report:** [characterization findings](NexysA7/rapids_characterization/docs/rapids_characterization_findings.md) (regenerate the PDF with `docs/generate_pdf.sh`) · host flow: [flows-rapids-beats](NexysA7/rapids_characterization/flows-rapids-beats/)
+- **Board:** Nexys A7-100T · timing-closed @ 100 MHz; both data paths CRC-validated on silicon (`make smoke` / `make suite`)
+- **Status:** ✅ Characterized (split engines, golden-CRC suite 48/48 on hardware)
+
+---
+
+#### [DDR2 Characterization](NexysA7/ddr2-characterization/)
+
+**On-chip characterization of the DDR2 memory controller**
+
+- **Component:** [memory-controllers](components/memory-controllers/)
+- **Report:** [README + docs](NexysA7/ddr2-characterization/) · [reports](NexysA7/ddr2-characterization/)
+- **Board:** Nexys A7-100T (on-board DDR2)
+- **Status:** 🟡 Active
+
+---
+
+#### [Timing Characterization](NexysA7/timing_characterization/)
+
+**Generic timing / fmax characterization harness**
+
+- **Report / docs:** [README + docs](NexysA7/timing_characterization/)
+- **Board:** Nexys A7-100T
+- **Status:** 🟡 Active
 
 ---
 
@@ -169,9 +220,32 @@ When adding new projects:
 
 - [rtldesignsherpa README](../README.md) - Repository overview
 - [Common Library Guide](../rtl/common/CLAUDE.md) - Module reference
-- [CocoTB Framework](../bin/TBClasses/README.md) - Testbench infrastructure
+- [CocoTB Framework](../bin/TBClasses/) - Testbench infrastructure
+- [Components Quick Status](components/PROJECT_QUICK_STATUS.md) - status of all components
+
+### Component documentation
+
+| Component | Status | Docs |
+|-----------|--------|------|
+| [converters](components/converters/) | Production Ready | [README](components/converters/README.md) |
+| [apb_xbar](components/apb_xbar/) | Production Ready | [PRD](components/apb_xbar/PRD.md) |
+| [stream](components/stream/) | Active | [PRD](components/stream/PRD.md) · char: [report](NexysA7/stream_characterization/docs/characterization_v1_findings.md) |
+| [rapids](components/rapids/) | Active | [PRD](components/rapids/PRD.md) · [spec](components/rapids/docs/) · char: [report](NexysA7/rapids_characterization/docs/rapids_characterization_findings.md) |
+| [bridge](components/bridge/) | Active | [PRD](components/bridge/PRD.md) |
+| [memory-controllers](components/memory-controllers/) | Active | [README](components/memory-controllers/README.md) · char: [ddr2](NexysA7/ddr2-characterization/) |
+| [hive](components/hive/) | Spec | [PRD](components/hive/PRD.md) · [spec](components/hive/docs/hive_spec/) |
+| [delta](components/delta/) | Spec | [PRD](components/delta/PRD.md) · [spec](components/delta/docs/delta_spec/) |
+| [bch](components/bch/) | Spec | [PRD](components/bch/PRD.md) |
+| [retro_legacy_blocks](components/retro_legacy_blocks/) | Active | [PRD](components/retro_legacy_blocks/PRD.md) |
+| [misc](components/misc/) | — | [README](components/misc/README.md) |
+
+### Characterization reports (Nexys A7-100T)
+
+- [STREAM](NexysA7/stream_characterization/docs/characterization_v1_findings.md) — [perf](NexysA7/stream_characterization/reports/perf/README.md) · [area](NexysA7/stream_characterization/reports/area/README.md) · [compression](NexysA7/stream_characterization/reports/compression/README.md)
+- [RAPIDS](NexysA7/rapids_characterization/docs/rapids_characterization_findings.md) — split src/snk engines, golden-CRC suite (48/48 on silicon)
+- [DDR2](NexysA7/ddr2-characterization/) · [Timing](NexysA7/timing_characterization/)
 
 ---
 
-**Last Updated:** 2025-10-15
+**Last Updated:** 2026-07-04
 **Maintainer:** RTL Design Sherpa Project

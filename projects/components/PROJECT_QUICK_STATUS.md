@@ -23,7 +23,7 @@
 
 # Projects/Components Quick Status
 
-**Last Updated:** 2025-11-11
+**Last Updated:** 2026-07-04
 **Purpose:** High-level status overview of all projects in the components area
 
 ---
@@ -159,6 +159,7 @@
 - `CLAUDE.md` - Implementation guidance
 - `README.md` - Quick start guide
 - `docs/stream_spec/` - Complete microarchitecture specification
+- Characterization report: [stream_characterization findings](../NexysA7/stream_characterization/docs/characterization_v1_findings.md) - on-silicon perf/area/compression
 
 **Use Cases:**
 - Memory-to-memory DMA transfers
@@ -229,14 +230,23 @@
 - `PRD.md` - Complete product requirements
 - `CLAUDE.md` - Implementation guidance and known issues
 - `docs/rapids_spec/` - Detailed specification
+- Characterization report: [rapids_characterization findings](../NexysA7/rapids_characterization/docs/rapids_characterization_findings.md) - on-silicon (Nexys A7-100T) results
 
 **Use Cases:**
 - Network-attached accelerators
 - DMA with inband control
 - Distributed computing data movers
 
+**Recent work (beats core):**
+- Split into two wholly-separate engines (`rapids_src_beats` read-only /
+  `rapids_snk_beats` write-only) with AXIS4 network interfaces (tid = channel),
+  a single shared APB (SRC @ 0x0000 / SNK @ 0x1000), and a merged MonBus egress.
+- Producer/consumer control paths (CTRL_READ gate / CTRL_WRITE doorbell) integrated
+  and exercised end-to-end.
+- Characterized on the Nexys A7-100T: timing closed @ 100 MHz; both data paths
+  CRC-validated on silicon (`make smoke` / `make suite`, 48/48).
+
 **Current Focus:**
-- Scheduler credit counter bug fixes
 - Comprehensive test coverage
 - Integration with HIVE control plane
 
@@ -508,5 +518,5 @@ For detailed technical information on each project, see the individual `PRD.md` 
 ---
 
 **Version:** 2.0
-**Last Updated:** 2025-11-11
+**Last Updated:** 2026-07-04
 **Maintained By:** RTL Design Sherpa Project
