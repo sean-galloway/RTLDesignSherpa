@@ -1,0 +1,135 @@
+#==============================================================================
+# bridge_ddr2_char_axil.toml
+#==============================================================================
+# 1-master x 5-slave AXI4-Lite/APB bridge for the ddr2-characterization
+# harness. Sibling of stream_characterization's bridge_stream_char_axil,
+# stripped to what the DDR2 bring-up flow actually needs.
+#
+# The single master is the host's UART -> AXIL bridge. The five slaves:
+#
+#   ddr2_apb       0x00000000  4 KB    APB    ddr2-lpddr2 controller CSR slave
+#                                              (mode-registers, init sequence,
+#                                              runtime perf counters — inside
+#                                              the char macro)
+#   harness_csr    0x00010000  4 KB    AXIL   Harness ctrl + timer + response
+#                                              delay + engine cfg (see
+#                                              harness_csr.sv register map).
+#   desc_ram       0x00020000  64 KB   AXIL   Descriptor preload BRAM
+#                                              (placeholder for future
+#                                              dma_address_gen descriptor mode
+#                                              — not driven by the bring-up
+#                                              flow, but the bridge slot is
+#                                              wired so we don't have to
+#                                              regenerate later).
+#   debug_sram     0x00040000  256 KB  AXIL   MonBus / DFI trace capture ring.
+#                                              64-bit end-to-end so a single
+#                                              DFI cmd packet fits in one beat.
+#   dfi_mon_ram    0x00080000  4 KB    AXIL   Small AXIL ring for DFI cmd-only
+#                                              observability (host-polled).
+#                                              Sits at 0x80000 so it doesn't
+#                                              overlap the 256-KB debug_sram
+#                                              window (0x40000-0x7FFFF).
+#
+# Generated outputs land in ddr2_char_framework/rtl/bridges/generated/
+# bridge_ddr2_char_axil/.
+#==============================================================================
+
+[bridge]
+name = "bridge_ddr2_char_axil"
+description = "1xM AXIL bridge for ddr2-characterization harness (APB CSR + harness_csr + desc_ram + debug_sram + dfi_mon_ram)"
+# Only the "no" variant for bring-up — the mon variant is available as
+# a follow-up if the DFI observability path needs per-adapter monitors.
+variants = ["no"]
+mon_preset = "all"
+
+[bridge.clock]
+name = "aclk"
+frequency_mhz = 100
+
+# ---- Master ----------------------------------------------------------------
+[[bridge.masters]]
+name        = "host"
+# `host_axi_` matches the wiring convention carried over from
+# stream_characterization — the harness wires the bridge with
+# `.host_axi_<sig>(...)` connections.
+prefix      = "host_axi_"
+protocol    = "axil"
+channels    = "rw"
+# id_width=8 mirrors stream. AXIL has no transaction IDs in its protocol;
+# the host port ties its 8 id bits to 0 at the wiring boundary. Uniform
+# id-width across the bridge keeps its xbar id-routing consistent.
+id_width    = 8
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+
+# ---- Slaves ----------------------------------------------------------------
+[[bridge.slaves]]
+name        = "ddr2_apb"
+# APB port on the ddr2-lpddr2 controller (`s_apb_P<sig>` in the core).
+# The generated bridge slave adapter converts AXIL 32b to APB 32b.
+prefix      = "ddr2_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0       # APB has no IDs; validator forces this to 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00000000"
+addr_range  = "0x00001000"     # 4 KB
+
+[[bridge.slaves]]
+name        = "harness_csr"
+prefix      = "harness_csr_axi_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 8
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00010000"
+# harness_csr uses 0x000-0x1FF today, but the decode window has to be
+# page-granular so we reserve a full 4 KB slot.
+addr_range  = "0x00001000"     # 4 KB
+
+[[bridge.slaves]]
+name        = "desc_ram"
+prefix      = "desc_ram_axi_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 8
+addr_width  = 32
+# 32-bit AXIL is fine here — descriptors will fit in the AXIL word
+# format used by dma_address_gen. If we later move to a 256-bit
+# STREAM-style descriptor path, this widens to match.
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00020000"
+addr_range  = "0x00010000"     # 64 KB (16K descriptors of 4 B, or fewer wider ones)
+
+[[bridge.slaves]]
+name        = "debug_sram"
+prefix      = "debug_sram_axi_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 8
+addr_width  = 32
+# 64-bit end-to-end — matches stream's debug_sram sizing so we can
+# reuse axil_sdpram_slave in the harness without rewriting. Bridge
+# does the 32->64 upsize on the host write path.
+data_width  = 64
+user_width  = 0
+base_addr   = "0x00040000"
+addr_range  = "0x00040000"     # 256 KB
+
+[[bridge.slaves]]
+name        = "dfi_mon_ram"
+prefix      = "dfi_mon_ram_axi_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 8
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00080000"
+addr_range  = "0x00001000"     # 4 KB
