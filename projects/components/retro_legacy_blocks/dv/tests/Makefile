@@ -53,7 +53,17 @@ help:
 	@echo "Retro Legacy Blocks (RLB) Tests Makefile"
 	@echo "================================================================================"
 	@echo ""
-	@echo "QUICK RUN TARGETS (BASIC level, single-threaded):"
+	@echo "CANONICAL LEVEL + PARALLEL SWEEP (matches memctrl / stream / rapids):"
+	@echo "  make run-gate-parallel          All RLB at TEST_LEVEL=gate  (fast smoke)"
+	@echo "  make run-gate-parallel-waves    ... + WAVES=1"
+	@echo "  make run-func-parallel          All RLB at TEST_LEVEL=func  (functional)"
+	@echo "  make run-func-parallel-waves    ... + WAVES=1"
+	@echo "  make run-full-parallel          All RLB at TEST_LEVEL=full  (comprehensive)"
+	@echo "  make run-full-parallel-waves    ... + WAVES=1"
+	@echo "  (Legacy synonyms: run-all-{basic,medium,full}-parallel[-waves] —"
+	@echo "   basic=gate, medium=func.)"
+	@echo ""
+	@echo "QUICK RUN TARGETS (BASIC / gate level, single-threaded):"
 	@echo "  make run-hpet                   Run HPET tests"
 	@echo "  make run-pit                    Run PIT 8254 tests"
 	@echo "  make run-rtc                    Run RTC tests"
@@ -993,6 +1003,26 @@ run-all-func-waves: run-all-medium-waves
 run-all-gate-serial: run-all-basic
 run-all-func-serial: run-all-medium
 run-all-full-serial: run-all-full
+
+# ------------------------------------------------------------------------------
+# Canonical convention (matches memctrl / stream / rapids Makefiles).
+# `run-<gate|func|full>-parallel[-waves]` maps to the same aggregate target
+# as `run-all-<gate|func|full>-parallel[-waves]`. This is a naming alias so
+# you can drop into any DV subsystem and run:
+#   make run-gate-parallel
+#   make run-func-parallel-waves
+#   make run-full-parallel
+# without knowing the local prefix convention.
+# ------------------------------------------------------------------------------
+.PHONY: run-gate-parallel run-gate-parallel-waves \
+        run-func-parallel run-func-parallel-waves \
+        run-full-parallel run-full-parallel-waves
+run-gate-parallel:        run-all-basic-parallel
+run-gate-parallel-waves:  run-all-basic-parallel-waves
+run-func-parallel:        run-all-medium-parallel
+run-func-parallel-waves:  run-all-medium-parallel-waves
+run-full-parallel:        run-all-full-parallel
+run-full-parallel-waves:  run-all-full-parallel-waves
 
 # ==============================================================================
 # Utility Targets
