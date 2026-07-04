@@ -463,42 +463,93 @@ module axi4_master_rd_crc_check #(
     assign w_byte_addr_for_beat = w_r_addr_result
         + (AW'({{(AW-8){1'b0}}, r_beats_in_burst}) << r_axi_size);
 
-    // MUST match axi4_master_wr_pattern_gen::addr_hash32 bit-for-bit.
-    function automatic logic [31:0] addr_hash32(
-        input logic [31:0] addr,
-        input logic [31:0] s0,
-        input logic [31:0] s1,
-        input logic [31:0] s2
-    );
-        logic [31:0] x;
-        x = addr ^ s0;
-        x = x ^ (x >> 16);
-        x = x * (s1 | 32'h1);
-        x = x ^ (x >> 13);
-        x = x * (s2 | 32'h1);
-        x = x ^ (x >> 16);
-        return x;
-    endfunction
+    // ---- Compare pipeline (matches the pipelined hash latency) -------------
+    // The mode-1 expected-data hash chains two 32-bit multiplies — the same
+    // ~25 ns / 4-DSP cone as the writer, which combinationally fed the per-beat
+    // compare and missed 100 MHz. Here each multiply is isolated in its own
+    // register stage; the RETURNED rdata rides through the same stages so the
+    // compare happens at the pipeline output, aligned with the delayed expected
+    // value. The R handshake and beat/burst accounting are unchanged (still
+    // keyed on w_r_beat); only the data compare is delayed, and cfg_done waits
+    // for the pipeline to drain so no trailing mismatch is missed.
+    localparam int REP     = REPLICATION_FACTOR;
+    localparam int HSTAGES = 4;                 // 2 mults, each isolated
 
-    logic [REPLICATION_FACTOR*32-1:0] w_hash_replicated;
+    logic [31:0] w_s1_odd, w_s2_odd;
+    assign w_s1_odd = r_hash_seed1 | 32'h1;
+    assign w_s2_odd = r_hash_seed2 | 32'h1;
+
+    // Combinational stage-0: (addr + s*4) ^ s0, then ^ >>16 (cheap).
+    logic [REP-1:0][31:0] w_cp_t_in;
     always_comb begin
-        for (int s = 0; s < REPLICATION_FACTOR; s++) begin
-            w_hash_replicated[s*32 +: 32] = addr_hash32(
-                w_byte_addr_for_beat[31:0] + 32'(s * 4),
-                r_hash_seed0,
-                r_hash_seed1,
-                r_hash_seed2);
+        for (int s = 0; s < REP; s++) begin
+            logic [31:0] x;
+            x = (w_byte_addr_for_beat[31:0] + 32'(s * 4)) ^ r_hash_seed0;
+            w_cp_t_in[s] = x ^ (x >> 16);
         end
     end
 
-    logic [DW-1:0]                    w_expected_data;
-    assign w_expected_data = r_data_mode
-                           ? w_hash_replicated[DW-1:0]
-                           : w_expected_replicated[DW-1:0];
+    logic [HSTAGES-1:0]         r_cp_valid;
+    logic [HSTAGES-1:0]         r_cp_mode;
+    logic [HSTAGES-1:0][DW-1:0] r_cp_rdata;   // returned data, delayed to match
+    logic [HSTAGES-1:0][DW-1:0] r_cp_lfsr;    // expected LFSR-replicated data
+    logic [REP-1:0][31:0]       r_cp_t;    // s1: (addr^s0)^>>16
+    logic [REP-1:0][31:0]       r_cp_p1;   // s2: t * s1_odd   (multiply #1)
+    logic [REP-1:0][31:0]       r_cp_u;    // s3: p1 ^ (p1>>13)
+    logic [REP-1:0][31:0]       r_cp_p2;   // s4: u * s2_odd   (multiply #2)
 
-    // Per-beat data mismatch (combinational). Latched on w_r_beat below.
-    logic                             w_beat_mismatch;
-    assign w_beat_mismatch = w_r_beat && (fub_rdata != w_expected_data);
+    `ALWAYS_FF_RST(aclk, aresetn, begin
+        if (`RST_ASSERTED(aresetn)) begin
+            r_cp_valid <= '0;
+            r_cp_mode  <= '0;
+            r_cp_rdata <= '0;
+            r_cp_lfsr  <= '0;
+            r_cp_t     <= '0;
+            r_cp_p1    <= '0;
+            r_cp_u     <= '0;
+            r_cp_p2    <= '0;
+        end else begin
+            // Stage 1: capture an arriving R beat.
+            r_cp_valid[0] <= w_r_beat;
+            r_cp_mode [0] <= r_data_mode;
+            r_cp_rdata[0] <= fub_rdata;
+            r_cp_lfsr [0] <= w_expected_replicated[DW-1:0];
+            r_cp_t        <= w_cp_t_in;
+            // Stage 2: first multiply.
+            r_cp_valid[1] <= r_cp_valid[0];
+            r_cp_mode [1] <= r_cp_mode [0];
+            r_cp_rdata[1] <= r_cp_rdata[0];
+            r_cp_lfsr [1] <= r_cp_lfsr [0];
+            for (int s = 0; s < REP; s++) r_cp_p1[s] <= r_cp_t[s] * w_s1_odd;
+            // Stage 3: xorshift.
+            r_cp_valid[2] <= r_cp_valid[1];
+            r_cp_mode [2] <= r_cp_mode [1];
+            r_cp_rdata[2] <= r_cp_rdata[1];
+            r_cp_lfsr [2] <= r_cp_lfsr [1];
+            for (int s = 0; s < REP; s++) r_cp_u[s] <= r_cp_p1[s] ^ (r_cp_p1[s] >> 13);
+            // Stage 4: second multiply.
+            r_cp_valid[3] <= r_cp_valid[2];
+            r_cp_mode [3] <= r_cp_mode [2];
+            r_cp_rdata[3] <= r_cp_rdata[2];
+            r_cp_lfsr [3] <= r_cp_lfsr [2];
+            for (int s = 0; s < REP; s++) r_cp_p2[s] <= r_cp_u[s] * w_s2_odd;
+        end
+    end)
+
+    // Pipeline output: expected = mode ? hash : lfsr; compare vs delayed rdata.
+    logic [DW-1:0] w_cp_expected;
+    always_comb begin
+        logic [REP*32-1:0] hash_word;
+        for (int s = 0; s < REP; s++)
+            hash_word[s*32 +: 32] = r_cp_p2[s] ^ (r_cp_p2[s] >> 16);
+        w_cp_expected = r_cp_mode[HSTAGES-1] ? hash_word[DW-1:0]
+                                             : r_cp_lfsr[HSTAGES-1];
+    end
+
+    // Per-beat data mismatch at the pipeline output.
+    logic w_cp_mismatch;
+    assign w_cp_mismatch = r_cp_valid[HSTAGES-1]
+                        && (r_cp_rdata[HSTAGES-1] != w_cp_expected);
 
     //==========================================================================
     // Sequential FSM + counters + sticky errors
@@ -649,23 +700,26 @@ module axi4_master_rd_crc_check #(
                 default: r_state <= S_IDLE;
             endcase
 
-            // Per-beat data + rresp checks (sticky)
-            if (w_r_beat) begin
-                if (w_beat_mismatch) begin
-                    o_data_error       <= 1'b1;
-                    o_beats_mismatched <= o_beats_mismatched + 1'b1;
-                end
-                if (fub_rresp != 2'b00) begin
-                    o_rresp_error <= 1'b1;
-                end
+            // Per-beat data mismatch — accumulated at the compare-pipeline
+            // output (delayed HSTAGES cycles from the R beat). rresp is checked
+            // immediately at the R beat (no hash dependency).
+            if (w_cp_mismatch) begin
+                o_data_error       <= 1'b1;
+                o_beats_mismatched <= o_beats_mismatched + 1'b1;
+            end
+            if (w_r_beat && fub_rresp != 2'b00) begin
+                o_rresp_error <= 1'b1;
             end
         end
     end)
 
     assign w_lfsr_load = cfg_start && ((r_state == S_IDLE) || (r_state == S_DONE));
 
+    // Wait for the compare pipeline to drain so trailing beats' mismatches
+    // are accumulated before cfg_done is observed.
     assign cfg_done = (r_state == S_DONE)
-                   && (r_bursts_done == r_txn_count);
+                   && (r_bursts_done == r_txn_count)
+                   && !(|r_cp_valid);
 
     //==========================================================================
     // axi4_master_rd — bundles the AR/R skid buffers + protocol.
@@ -743,7 +797,10 @@ module axi4_master_rd_crc_check #(
             logic [DBG_REC_W-1:0] w_dbg_dout;
             logic                 w_dbg_wr_ready_unused;
 
-            assign w_dbg_din = {fub_rdata, w_expected_data, w_beat_mismatch};
+            // Captured at the compare-pipeline output (delayed to match the
+            // hash latency) so the trace record's expected/mismatch line up
+            // with the returned data.
+            assign w_dbg_din = {r_cp_rdata[HSTAGES-1], w_cp_expected, w_cp_mismatch};
 
             gaxi_fifo_sync #(
                 .DATA_WIDTH (DBG_REC_W),
@@ -751,7 +808,7 @@ module axi4_master_rd_crc_check #(
             ) u_dbg_fifo (
                 .axi_aclk    (aclk),
                 .axi_aresetn (aresetn),
-                .wr_valid    (w_r_beat),
+                .wr_valid    (r_cp_valid[HSTAGES-1]),
                 .wr_ready    (w_dbg_wr_ready_unused),
                 .wr_data     (w_dbg_din),
                 .rd_ready    (dbg_ready),

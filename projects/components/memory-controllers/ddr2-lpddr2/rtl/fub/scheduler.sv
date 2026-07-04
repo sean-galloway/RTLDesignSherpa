@@ -196,78 +196,119 @@ module scheduler
     logic [WSL-1:0]      w_wr_pick;
     logic [RSL-1:0]      w_rd_pick;
 
-    // F4c: QoS-aware slot picker with age tie-break (issue #21).
-    // Highest AXI QoS wins. On QoS ties, OLDEST age wins (signed-diff
-    // for wraparound safety — same convention as the RD-side picker
-    // below). Previously the WR picker only tie-broke on lowest slot
-    // index, which under engine-faithful pipelined AW pacing left
-    // bursts 2-N stuck in their original slots while slots 0/1 kept
-    // cycling — wbuf then wrapped, and older bursts read overwritten
-    // payload when finally scheduled.
-    logic [3:0] w_wr_best_qos;
-    logic [7:0] w_wr_best_age;
+    // F4c: QoS-aware slot picker with age tie-break (issue #21),
+    // restructured for 100 MHz timing closure.
+    //
+    // Highest AXI QoS wins. On QoS ties, OLDEST age wins (signed-diff for
+    // wraparound safety). On a full tie, the LOWER slot index wins — this
+    // preserves AXI4 same-id ordering and matches the original picker's
+    // lowest-index-wins behaviour (a freed/reused slot must not jump ahead
+    // of older pending slots).
+    //
+    // The original picker was a LINEAR scan that carried the running "best"
+    // across all CAM_DEPTH iterations — an N-deep ripple of {8-bit signed
+    // age subtract + QoS compare + select}. At depth 16 that synthesized to
+    // ~30 CARRY4 in series and, feeding combinationally into r_pending_*,
+    // produced a 68-level / ~40 ns path (WNS -30 ns @ 100 MHz). Two changes:
+    //   (1) Balanced-tree reduction: pairwise tournament, depth
+    //       ceil(log2(CAM_DEPTH)) compare stages instead of CAM_DEPTH.
+    //   (2) Pipeline the pick: the winning candidate is REGISTERED
+    //       (r_wr_cand / r_rd_cand) and S_IDLE consumes the registered pick.
+    //       The FSM already spends >=4 cycles per op, so one cycle of pick
+    //       latency costs ~no throughput but splits the cone into
+    //       (CAM -> tree -> pick reg) and (pick reg -> index mux -> pending).
+    //
+    // Candidate packing: {valid, qos[3:0], age[7:0], slot_idx}.
+    localparam int WCW   = 1 + 4 + 8 + WSL;             // WR candidate width
+    localparam int RCW   = 1 + 4 + 8 + RSL;             // RD candidate width
+    localparam int WLVLS = (WR_CAM_DEPTH > 1) ? $clog2(WR_CAM_DEPTH) : 0;
+    localparam int RLVLS = (RD_CAM_DEPTH > 1) ? $clog2(RD_CAM_DEPTH) : 0;
+    localparam int WNPOT = 1 << WLVLS;   // next pow2 >= depth (== depth if pow2)
+    localparam int RNPOT = 1 << RLVLS;
+
+    // Pick the better of two packed candidates: valid > QoS > older-age,
+    // lower index (== left/`a`) on a full tie.
+    function automatic logic [WCW-1:0] wr_best2(input logic [WCW-1:0] a,
+                                                input logic [WCW-1:0] b);
+        logic av, bv; logic [3:0] aq, bq; logic [7:0] ag, bg;
+        av = a[WCW-1]; aq = a[WCW-2 -: 4]; ag = a[WSL +: 8];
+        bv = b[WCW-1]; bq = b[WCW-2 -: 4]; bg = b[WSL +: 8];
+        if      (!bv)                  wr_best2 = a;
+        else if (!av)                  wr_best2 = b;
+        else if (aq > bq)              wr_best2 = a;
+        else if (bq > aq)              wr_best2 = b;
+        else if ($signed(ag - bg) < 0) wr_best2 = a;   // a strictly older
+        else if ($signed(bg - ag) < 0) wr_best2 = b;   // b strictly older
+        else                           wr_best2 = a;   // tie -> lower index
+    endfunction
+
+    function automatic logic [RCW-1:0] rd_best2(input logic [RCW-1:0] a,
+                                                input logic [RCW-1:0] b);
+        logic av, bv; logic [3:0] aq, bq; logic [7:0] ag, bg;
+        av = a[RCW-1]; aq = a[RCW-2 -: 4]; ag = a[RSL +: 8];
+        bv = b[RCW-1]; bq = b[RCW-2 -: 4]; bg = b[RSL +: 8];
+        if      (!bv)                  rd_best2 = a;
+        else if (!av)                  rd_best2 = b;
+        else if (aq > bq)              rd_best2 = a;
+        else if (bq > aq)              rd_best2 = b;
+        else if ($signed(ag - bg) < 0) rd_best2 = a;
+        else if ($signed(bg - ag) < 0) rd_best2 = b;
+        else                           rd_best2 = a;
+    endfunction
+
+    // Combinational balanced-tree reductions (arrays padded to a power of
+    // two with invalid entries so the fold is exactly WLVLS/RLVLS deep for
+    // any CAM depth). In-place fold is safe: at each level we write
+    // red[0..h-1] from red[0..2h-1] and read index 2k >= k.
+    logic [WCW-1:0] w_wr_red [WNPOT];
+    logic [RCW-1:0] w_rd_red [RNPOT];
+
     always_comb begin
-        logic w_take;
-        w_have_wr     = 1'b0;
-        w_wr_pick     = '0;
-        w_wr_best_qos = 4'd0;
-        w_wr_best_age = 8'd0;
-        w_take        = 1'b0;
-        for (int unsigned i = 0; i < WR_CAM_DEPTH; i++) begin
-            w_take = 1'b0;
-            if (wr_match_pending_i[i]) begin
-                if (!w_have_wr) begin
-                    w_take = 1'b1;
-                end else if (wr_snap_qos_i[i] > w_wr_best_qos) begin
-                    w_take = 1'b1;
-                end else if (wr_snap_qos_i[i] == w_wr_best_qos) begin
-                    // Same QoS — pick older (signed-diff < 0 ⇒ older).
-                    w_take = ($signed(wr_snap_age_i[i] - w_wr_best_age) < 0);
-                end
-                if (w_take) begin
-                    w_have_wr     = 1'b1;
-                    w_wr_pick     = WSL'(i);
-                    w_wr_best_qos = wr_snap_qos_i[i];
-                    w_wr_best_age = wr_snap_age_i[i];
-                end
-            end
-        end
+        for (int unsigned i = 0; i < WNPOT; i++)
+            w_wr_red[i] = (i < WR_CAM_DEPTH)
+                ? {wr_match_pending_i[i], wr_snap_qos_i[i],
+                   wr_snap_age_i[i], WSL'(i)}
+                : '0;
+        for (int lvl = 0; lvl < WLVLS; lvl++)
+            for (int k = 0; k < WNPOT/2; k++)
+                if (k < (WNPOT >> (lvl+1)))
+                    w_wr_red[k] = wr_best2(w_wr_red[2*k], w_wr_red[2*k+1]);
     end
 
-    // Pick by QoS first, age second. The age compare is signed-diff
-    // so an 8-bit counter wraps cleanly: (a - best) < 0 ⇒ a is older.
-    // Required for AXI4 same-id R ordering — a slot that was freed
-    // and reused (= newer age, but same lowest slot index) must not
-    // jump in front of older slots still pending in the cam.
-    logic [3:0] w_rd_best_qos;
-    logic [7:0] w_rd_best_age;
     always_comb begin
-        logic w_take;
-        w_have_rd     = 1'b0;
-        w_rd_pick     = '0;
-        w_rd_best_qos = 4'd0;
-        w_rd_best_age = 8'd0;
-        w_take        = 1'b0;
-        for (int unsigned i = 0; i < RD_CAM_DEPTH; i++) begin
-            w_take = 1'b0;
-            if (rd_match_pending_i[i]) begin
-                if (!w_have_rd) begin
-                    w_take = 1'b1;
-                end else if (rd_snap_qos_i[i] > w_rd_best_qos) begin
-                    w_take = 1'b1;
-                end else if (rd_snap_qos_i[i] == w_rd_best_qos) begin
-                    // Same QoS — pick older (signed-diff < 0 ⇒ older).
-                    w_take = ($signed(rd_snap_age_i[i] - w_rd_best_age) < 0);
-                end
-                if (w_take) begin
-                    w_have_rd     = 1'b1;
-                    w_rd_pick     = RSL'(i);
-                    w_rd_best_qos = rd_snap_qos_i[i];
-                    w_rd_best_age = rd_snap_age_i[i];
-                end
-            end
-        end
+        for (int unsigned i = 0; i < RNPOT; i++)
+            w_rd_red[i] = (i < RD_CAM_DEPTH)
+                ? {rd_match_pending_i[i], rd_snap_qos_i[i],
+                   rd_snap_age_i[i], RSL'(i)}
+                : '0;
+        for (int lvl = 0; lvl < RLVLS; lvl++)
+            for (int k = 0; k < RNPOT/2; k++)
+                if (k < (RNPOT >> (lvl+1)))
+                    w_rd_red[k] = rd_best2(w_rd_red[2*k], w_rd_red[2*k+1]);
     end
+
+    // Registered winning candidate (pipeline stage).
+    logic [WCW-1:0] r_wr_cand;
+    logic [RCW-1:0] r_rd_cand;
+    `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
+        if (`RST_ASSERTED(mc_rst_n)) begin
+            r_wr_cand <= '0;
+            r_rd_cand <= '0;
+        end else begin
+            r_wr_cand <= w_wr_red[0];
+            r_rd_cand <= w_rd_red[0];
+        end
+    end)
+
+    // Decode the registered pick, and RE-VALIDATE against the live
+    // match_pending vector: a slot the pipeline picked last cycle may have
+    // been freed (b_complete) in the meantime, so gate w_have_* on the slot
+    // still being pending. If it went stale we simply stay in S_IDLE and
+    // re-pick next cycle from the fresh tree output.
+    assign w_wr_pick = r_wr_cand[WSL-1:0];
+    assign w_rd_pick = r_rd_cand[RSL-1:0];
+    assign w_have_wr = r_wr_cand[WCW-1] && wr_match_pending_i[w_wr_pick];
+    assign w_have_rd = r_rd_cand[RCW-1] && rd_match_pending_i[w_rd_pick];
 
     //=========================================================================
     // W/R arbitration: age-weighted starvation scheme. Per-direction
