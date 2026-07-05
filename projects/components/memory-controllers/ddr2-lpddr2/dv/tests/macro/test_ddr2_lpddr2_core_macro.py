@@ -458,7 +458,8 @@ def _build_core_profile_matrix() -> list[tuple[str, str, str, str, str]]:
 _CORE_PROFILE_MATRIX = _build_core_profile_matrix()
 
 
-def _run_core_macro(*, test_name, test_type, extra_env_extra=None):
+def _run_core_macro(*, test_name, test_type, extra_env_extra=None,
+                    params_extra=None):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "ddr2_lpddr2_core_macro_tb_top"
 
@@ -488,6 +489,8 @@ def _run_core_macro(*, test_name, test_type, extra_env_extra=None):
     if extra_env_extra:
         extra_env.update(extra_env_extra)
     parameters = {"NUM_RANKS": "1", "PAGE_POLICY": "1"}
+    if params_extra:
+        parameters.update(params_extra)
 
     enable_waves = bool(int(os.environ.get("WAVES", "0")))
     compile_args = [
@@ -518,6 +521,20 @@ def _run_core_macro(*, test_name, test_type, extra_env_extra=None):
 def test_ddr2_lpddr2_core_macro_smoke():
     _run_core_macro(test_name="test_ddr2_lpddr2_core_macro_smoke",
                     test_type="smoke")
+
+
+def test_ddr2_lpddr2_core_macro_gear2():
+    """TASK-GEAR end-to-end: AXI=64 host driving a 32-bit DRAM beat at
+    DFI_RATE=4 (GEAR=2 — the Nexys A7 a7ddrphy config). Exercises the full
+    AXI->intake gearbox->datapath->DFI path with the DRAM-beat-granular
+    write buffer + read assembly, checked against the DFISlavePHY memory."""
+    _run_core_macro(
+        test_name="test_ddr2_lpddr2_core_macro_gear2",
+        test_type="smoke",
+        extra_env_extra={"AXI_DATA_WIDTH": "64", "DRAM_BEAT_WIDTH": "32"},
+        params_extra={"AXI_DATA_WIDTH": "64", "DRAM_BEAT_WIDTH": "32",
+                      "DFI_RATE": "4"},
+    )
 
 
 # ---------------------------------------------------------------------------

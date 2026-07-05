@@ -19,6 +19,8 @@ module ddr2_lpddr2_core_macro_tb_top
     parameter int AXI_ID_WIDTH     = 4,
     parameter int AXI_USER_WIDTH   = 8,
     parameter int AXI_STRB_WIDTH   = AXI_DATA_WIDTH / 8,
+    // TASK-GEAR: DRAM beat width (<= AXI width); default = AXI => GEAR=1.
+    parameter int DRAM_BEAT_WIDTH  = AXI_DATA_WIDTH,
 
     parameter int NUM_RANKS        = 1,
     parameter int NUM_BANKS        = 8,
@@ -27,8 +29,10 @@ module ddr2_lpddr2_core_macro_tb_top
     parameter int PAGE_POLICY      = 1,
 
     parameter int DFI_RATE         = 2,
-    parameter int DFI_DATA_WIDTH   = AXI_DATA_WIDTH * DFI_RATE,
-    parameter int DFI_STRB_WIDTH   = AXI_STRB_WIDTH * DFI_RATE,
+    // DFI widths derive from the DRAM beat width (not AXI) — the DFI carries
+    // DRAM_BEAT_WIDTH * DFI_RATE bits/cycle regardless of the host AXI width.
+    parameter int DFI_DATA_WIDTH   = DRAM_BEAT_WIDTH * DFI_RATE,
+    parameter int DFI_STRB_WIDTH   = (DRAM_BEAT_WIDTH / 8) * DFI_RATE,
     parameter int DFI_EN_WIDTH     = DFI_RATE,
     parameter int DFI_VALID_WIDTH  = DFI_RATE,
     parameter int DFI_ADDR_BUS_W   = ROW_WIDTH * DFI_RATE,
@@ -164,6 +168,7 @@ module ddr2_lpddr2_core_macro_tb_top
     ddr2_lpddr2_core_macro #(
         .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH  (AXI_DATA_WIDTH),
+        .DRAM_BEAT_WIDTH (DRAM_BEAT_WIDTH),
         .AXI_ID_WIDTH    (AXI_ID_WIDTH),
         .AXI_USER_WIDTH  (AXI_USER_WIDTH),
         .NUM_RANKS       (NUM_RANKS),
