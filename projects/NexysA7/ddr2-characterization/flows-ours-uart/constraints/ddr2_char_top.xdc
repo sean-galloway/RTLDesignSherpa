@@ -36,10 +36,11 @@ set_false_path -from [get_ports CPU_RESETN] -to [get_clocks sys_clk_pin]
 set_property -dict {PACKAGE_PIN C4 IOSTANDARD LVCMOS33} [get_ports UART_TXD_IN]
 set_property -dict {PACKAGE_PIN D4 IOSTANDARD LVCMOS33} [get_ports UART_RXD_OUT]
 
-set_input_delay  -clock [get_clocks sys_clk_pin] 0.000 [get_ports UART_TXD_IN]
-set_output_delay -clock [get_clocks sys_clk_pin] 0.000 [get_ports UART_RXD_OUT]
-set_false_path -from [get_ports UART_TXD_IN]  -to [get_clocks sys_clk_pin]
-set_false_path -from [get_clocks sys_clk_pin] -to [get_ports UART_RXD_OUT]
+## UART is async serial — no meaningful I/O timing. Clock-agnostic false_paths
+## (the FFs now run on the MMCM-generated sys clock, not sys_clk_pin directly,
+## so the old clock-keyed false_paths no longer matched → spurious violations).
+set_false_path -from [get_ports UART_TXD_IN]
+set_false_path -to   [get_ports UART_RXD_OUT]
 
 ##==============================================================================
 ## LEDs (16 user LEDs)
