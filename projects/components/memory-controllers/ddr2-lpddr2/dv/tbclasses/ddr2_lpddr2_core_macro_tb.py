@@ -64,6 +64,7 @@ class DDR2LPDDR2CoreMacroTB:
     def __init__(self, dut, *, mc_period_ns: int = 7,
                  axi_data_width: int = 64, axi_id_width: int = 4,
                  axi_addr_width: int = 32,
+                 dram_beat_width: int | None = None,
                  num_ranks: int = 1, num_banks: int = 8,
                  row_width: int = 14, col_width: int = 10) -> None:
         self.dut = dut
@@ -78,7 +79,12 @@ class DDR2LPDDR2CoreMacroTB:
         self.num_banks = num_banks
         self.row_width = row_width
         self.col_width = col_width
-        self.bytes_per_beat = axi_data_width // 8
+        # TASK-GEAR: the DFI/DRAM side works in DRAM beats (<= AXI beat).
+        # The MemoryModel + DFISlavePHY access memory per DRAM beat, so the
+        # line size is the DRAM-beat byte width; the AXI master stays at
+        # axi_data_width. Default (dram_beat_width=None) => beat==AXI (GEAR=1).
+        self.dram_beat_width = dram_beat_width or axi_data_width
+        self.bytes_per_beat = self.dram_beat_width // 8
 
         mapping_str = ("rank|row|bank|col" if num_ranks > 1
                        else "row|bank|col")

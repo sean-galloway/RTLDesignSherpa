@@ -50,7 +50,12 @@ async def cocotb_test_ddr2_lpddr2_core_macro(dut):
     test_type = os.environ.get("TEST_TYPE", "smoke")
     mem_type  = os.environ.get("MEM_TYPE", "DDR2").upper()
 
-    tb = DDR2LPDDR2CoreMacroTB(dut, num_ranks=1)
+    # TASK-GEAR: AXI width and DRAM beat width may differ (GEAR>1).
+    tb = DDR2LPDDR2CoreMacroTB(
+        dut, num_ranks=1,
+        axi_data_width=int(os.environ.get("AXI_DATA_WIDTH", "64")),
+        dram_beat_width=int(os.environ.get("DRAM_BEAT_WIDTH", "64")),
+    )
     await tb.reset(mem_type=mem_type, init_complete_delay=20)
     tb.init_dfi_slave()
     tb.init_axi_masters()
