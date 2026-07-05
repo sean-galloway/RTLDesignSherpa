@@ -169,19 +169,20 @@ async def cocotb_test_scheduler(dut):
     cocotb.start_soon(sched_tracker.run())
 
     if test_type == "smoke_wr":
-        # Outputs are registered (+1 cycle vs the internal FSM state), and
-        # the slot picker is now pipelined (+1 more cycle: the winning
-        # candidate is registered before S_IDLE consumes it — see
-        # scheduler.sv). Sequence:
-        #   cycle 0: set pending; picker tree feeds the pick register
-        #   cycle 1: r_*_cand valid → w_have_wr = 1
-        #   cycle 2: IDLE → state advances to NEED_ACT
-        #   cycle 3: cmd_op_o = ACT visible; state = NEED_RDWR
-        #   cycle 4: cmd_op_o = WRA visible; state = DONE
-        #   cycle 5: wr_issued_we_o = 1 visible; state = IDLE
+        # Outputs are registered (+1 cycle vs the internal FSM state), and the
+        # slot picker is now pipelined in TWO stages (+2 cycles: stage-A
+        # survivors registered, then the final candidate registered before
+        # S_IDLE consumes it — see scheduler.sv). Sequence:
+        #   cycle 0: set pending; stage-A tree folds
+        #   cycle 1: r_*_mid valid (stage-A survivors registered)
+        #   cycle 2: r_*_cand valid → w_have_wr = 1
+        #   cycle 3: IDLE → state advances to NEED_ACT
+        #   cycle 4: cmd_op_o = ACT visible; state = NEED_RDWR
+        #   cycle 5: cmd_op_o = WRA visible; state = DONE
+        #   cycle 6: wr_issued_we_o = 1 visible; state = IDLE
         await tb.setup()
         tb.set_wr_pending(slot=3, col=0x80, length=8)
-        await tb.wait_clocks('mc_clk', 3)
+        await tb.wait_clocks('mc_clk', 4)
         assert tb.cmd_valid() == 1, "should be issuing"
         assert tb.cmd_op() == OP_ACT, f"got op {tb.cmd_op()}"
         assert tb.evt_act() == 1
@@ -197,10 +198,10 @@ async def cocotb_test_scheduler(dut):
         tb.clear_pending()
 
     elif test_type == "smoke_rd":
-        # +1 cycle vs the pre-pipeline model (registered pick — see smoke_wr).
+        # +2 cycles vs the pre-pipeline model (2-stage registered pick — see smoke_wr).
         await tb.setup()
         tb.set_rd_pending(slot=5, col=0x20, length=4)
-        await tb.wait_clocks('mc_clk', 3)
+        await tb.wait_clocks('mc_clk', 4)
         assert tb.cmd_op() == OP_ACT
         await tb.wait_clocks('mc_clk', 1)
         assert tb.cmd_op() == OP_RDA
@@ -274,7 +275,7 @@ async def cocotb_test_scheduler(dut):
         tb.dut.bank_row_active_i.value = 1
         tb.dut.bank_open_row_i.value   = 0
         tb.set_wr_pending(slot=0, col=0x40, length=4)
-        await tb.wait_clocks('mc_clk', 3)  # +1 for pipelined pick
+        await tb.wait_clocks('mc_clk', 4)  # +2 for 2-stage pipelined pick
         # No ACT — go straight to RDWR with plain WR
         assert tb.cmd_op() == OP_WR, f"expected WR (no auto-pre), got {tb.cmd_op()}"
         tb.clear_pending()
@@ -287,7 +288,7 @@ async def cocotb_test_scheduler(dut):
         # bank 0 has row 7 open; slot 0 wants row 0 (default snap_row=0)
         tb.dut.bank_open_row_i.value   = (7 << 0)  # bank[0] open row = 7
         tb.set_wr_pending(slot=0, col=0x40, length=4)
-        await tb.wait_clocks('mc_clk', 3)  # +1 for pipelined pick
+        await tb.wait_clocks('mc_clk', 4)  # +2 for 2-stage pipelined pick
         assert tb.cmd_op() == OP_PRE, f"expected PRE, got {tb.cmd_op()}"
         await tb.wait_clocks('mc_clk', 1)
         assert tb.cmd_op() == OP_ACT, f"expected ACT, got {tb.cmd_op()}"
@@ -300,7 +301,7 @@ async def cocotb_test_scheduler(dut):
         await tb.setup()
         tb.dut.bank_row_active_i.value = 0
         tb.set_wr_pending(slot=0, col=0x40, length=4)
-        await tb.wait_clocks('mc_clk', 3)  # +1 for pipelined pick
+        await tb.wait_clocks('mc_clk', 4)  # +2 for 2-stage pipelined pick
         assert tb.cmd_op() == OP_ACT
         await tb.wait_clocks('mc_clk', 1)
         assert tb.cmd_op() == OP_WR, f"OPEN should issue WR, got {tb.cmd_op()}"
@@ -313,7 +314,7 @@ async def cocotb_test_scheduler(dut):
         nb = tb.NUM_RANKS * tb.NUM_BANKS
         tb.dut.predict_open_i.value = (1 << nb) - 1
         tb.set_wr_pending(slot=0, col=0x40, length=4)
-        await tb.wait_clocks('mc_clk', 3)  # +1 for pipelined pick
+        await tb.wait_clocks('mc_clk', 4)  # +2 for 2-stage pipelined pick
         assert tb.cmd_op() == OP_ACT
         await tb.wait_clocks('mc_clk', 1)
         assert tb.cmd_op() == OP_WR, f"HAPPY predict-open → WR, got {tb.cmd_op()}"
@@ -324,7 +325,7 @@ async def cocotb_test_scheduler(dut):
         await tb.setup()
         tb.dut.predict_open_i.value = 0
         tb.set_wr_pending(slot=0, col=0x40, length=4)
-        await tb.wait_clocks('mc_clk', 3)  # +1 for pipelined pick
+        await tb.wait_clocks('mc_clk', 4)  # +2 for 2-stage pipelined pick
         assert tb.cmd_op() == OP_ACT
         await tb.wait_clocks('mc_clk', 1)
         assert tb.cmd_op() == OP_WRA, f"HAPPY predict-close → WRA, got {tb.cmd_op()}"
@@ -348,7 +349,7 @@ async def cocotb_test_scheduler(dut):
             slot = i % tb.WR_CAM_DEPTH
             tb.set_wr_pending_full(slot=slot, bank=v['bank'], row=v['row'],
                                    col=v['col'], length=v['length'])
-            await tb.wait_clocks('mc_clk', 3)  # +1 for pipelined pick
+            await tb.wait_clocks('mc_clk', 4)  # +2 for 2-stage pipelined pick
             assert tb.cmd_op() == OP_ACT, (
                 f"iter {i}: expected ACT, got {tb.cmd_op()}"
             )
@@ -391,7 +392,7 @@ async def cocotb_test_scheduler(dut):
             tb.dut.bank_open_row_i.value   = (row << (bank * tb.ROW_WIDTH))
             tb.set_wr_pending_full(slot=0, bank=bank, row=row,
                                    col=v['col'], length=4)
-            await tb.wait_clocks('mc_clk', 3)  # +1 for pipelined pick
+            await tb.wait_clocks('mc_clk', 4)  # +2 for 2-stage pipelined pick
             assert tb.cmd_op() == OP_WR, (
                 f"iter {i}: row-hit must skip ACT and issue WR "
                 f"(bank={bank} row={row:#x}), got {tb.cmd_op()}"
@@ -422,7 +423,7 @@ async def cocotb_test_scheduler(dut):
             tb.dut.bank_open_row_i.value   = (old_row << (bank * tb.ROW_WIDTH))
             tb.set_wr_pending_full(slot=0, bank=bank, row=new_row,
                                    col=0x40, length=4)
-            await tb.wait_clocks('mc_clk', 3)  # +1 for pipelined pick
+            await tb.wait_clocks('mc_clk', 4)  # +2 for 2-stage pipelined pick
             assert tb.cmd_op() == OP_PRE, (
                 f"iter {i}: row-miss must issue PRE first, got {tb.cmd_op()}"
             )

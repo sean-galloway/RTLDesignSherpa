@@ -225,69 +225,117 @@ module scheduler
     localparam int RLVLS = (RD_CAM_DEPTH > 1) ? $clog2(RD_CAM_DEPTH) : 0;
     localparam int WNPOT = 1 << WLVLS;   // next pow2 >= depth (== depth if pow2)
     localparam int RNPOT = 1 << RLVLS;
+    // Pick tree is pipelined at its MIDPOINT: stage A folds the first WHALF
+    // levels and registers the WMID survivors; stage B folds the rest into the
+    // final candidate register. This halves the CAM-age -> pick-register
+    // combinational cone (the 19-level / 8-CARRY4 age-compare tournament that
+    // held post-route WNS at -1.5 ns). Costs one more cycle of pick latency,
+    // hidden by the FSM's multi-cycle op (the pick is prefetched during the
+    // prior op in steady state; only the first pick from idle sees it).
+    localparam int WHALF = WLVLS / 2;
+    localparam int RHALF = RLVLS / 2;
+    localparam int WMID  = WNPOT >> WHALF;   // stage-A survivors
+    localparam int RMID  = RNPOT >> RHALF;
 
     // Pick the better of two packed candidates: valid > QoS > older-age,
     // lower index (== left/`a`) on a full tie.
+    // Single 8-bit subtract + flat select (was two $signed subtracts + a
+    // priority else-if chain). Semantics identical: valid > QoS > older-age,
+    // lower index (a) on a full tie. b_older uses one subtract w_d=ag-bg:
+    // ag>bg (signed) ⇒ a is newer ⇒ b older ⇒ !w_d[7] & (|w_d).
     function automatic logic [WCW-1:0] wr_best2(input logic [WCW-1:0] a,
                                                 input logic [WCW-1:0] b);
-        logic av, bv; logic [3:0] aq, bq; logic [7:0] ag, bg;
+        logic av, bv; logic [3:0] aq, bq; logic [7:0] ag, bg, w_d;
+        logic b_older, b_wins;
         av = a[WCW-1]; aq = a[WCW-2 -: 4]; ag = a[WSL +: 8];
         bv = b[WCW-1]; bq = b[WCW-2 -: 4]; bg = b[WSL +: 8];
-        if      (!bv)                  wr_best2 = a;
-        else if (!av)                  wr_best2 = b;
-        else if (aq > bq)              wr_best2 = a;
-        else if (bq > aq)              wr_best2 = b;
-        else if ($signed(ag - bg) < 0) wr_best2 = a;   // a strictly older
-        else if ($signed(bg - ag) < 0) wr_best2 = b;   // b strictly older
-        else                           wr_best2 = a;   // tie -> lower index
+        w_d     = ag - bg;
+        b_older = (|w_d) & ~w_d[7];
+        b_wins  = (bv & ~av)
+                | (av & bv & (bq > aq))
+                | (av & bv & (bq == aq) & b_older);
+        wr_best2 = b_wins ? b : a;
     endfunction
 
     function automatic logic [RCW-1:0] rd_best2(input logic [RCW-1:0] a,
                                                 input logic [RCW-1:0] b);
-        logic av, bv; logic [3:0] aq, bq; logic [7:0] ag, bg;
+        logic av, bv; logic [3:0] aq, bq; logic [7:0] ag, bg, w_d;
+        logic b_older, b_wins;
         av = a[RCW-1]; aq = a[RCW-2 -: 4]; ag = a[RSL +: 8];
         bv = b[RCW-1]; bq = b[RCW-2 -: 4]; bg = b[RSL +: 8];
-        if      (!bv)                  rd_best2 = a;
-        else if (!av)                  rd_best2 = b;
-        else if (aq > bq)              rd_best2 = a;
-        else if (bq > aq)              rd_best2 = b;
-        else if ($signed(ag - bg) < 0) rd_best2 = a;
-        else if ($signed(bg - ag) < 0) rd_best2 = b;
-        else                           rd_best2 = a;
+        w_d     = ag - bg;
+        b_older = (|w_d) & ~w_d[7];
+        b_wins  = (bv & ~av)
+                | (av & bv & (bq > aq))
+                | (av & bv & (bq == aq) & b_older);
+        rd_best2 = b_wins ? b : a;
     endfunction
 
-    // Combinational balanced-tree reductions (arrays padded to a power of
-    // two with invalid entries so the fold is exactly WLVLS/RLVLS deep for
-    // any CAM depth). In-place fold is safe: at each level we write
-    // red[0..h-1] from red[0..2h-1] and read index 2k >= k.
-    logic [WCW-1:0] w_wr_red [WNPOT];
-    logic [RCW-1:0] w_rd_red [RNPOT];
+    // ---- Stage A: fold the first WHALF/RHALF levels (combinational) ----
+    // In-place fold is safe: at each level we write red[0..h-1] from
+    // red[0..2h-1] and read index 2k >= k. Arrays padded to a power of two
+    // with invalid entries so the fold is exactly WLVLS/RLVLS deep.
+    logic [WCW-1:0] w_wr_redA [WNPOT];
+    logic [RCW-1:0] w_rd_redA [RNPOT];
 
     always_comb begin
         for (int unsigned i = 0; i < WNPOT; i++)
-            w_wr_red[i] = (i < WR_CAM_DEPTH)
+            w_wr_redA[i] = (i < WR_CAM_DEPTH)
                 ? {wr_match_pending_i[i], wr_snap_qos_i[i],
                    wr_snap_age_i[i], WSL'(i)}
                 : '0;
-        for (int lvl = 0; lvl < WLVLS; lvl++)
+        for (int lvl = 0; lvl < WHALF; lvl++)
             for (int k = 0; k < WNPOT/2; k++)
                 if (k < (WNPOT >> (lvl+1)))
-                    w_wr_red[k] = wr_best2(w_wr_red[2*k], w_wr_red[2*k+1]);
+                    w_wr_redA[k] = wr_best2(w_wr_redA[2*k], w_wr_redA[2*k+1]);
     end
 
     always_comb begin
         for (int unsigned i = 0; i < RNPOT; i++)
-            w_rd_red[i] = (i < RD_CAM_DEPTH)
+            w_rd_redA[i] = (i < RD_CAM_DEPTH)
                 ? {rd_match_pending_i[i], rd_snap_qos_i[i],
                    rd_snap_age_i[i], RSL'(i)}
                 : '0;
-        for (int lvl = 0; lvl < RLVLS; lvl++)
+        for (int lvl = 0; lvl < RHALF; lvl++)
             for (int k = 0; k < RNPOT/2; k++)
                 if (k < (RNPOT >> (lvl+1)))
-                    w_rd_red[k] = rd_best2(w_rd_red[2*k], w_rd_red[2*k+1]);
+                    w_rd_redA[k] = rd_best2(w_rd_redA[2*k], w_rd_redA[2*k+1]);
     end
 
-    // Registered winning candidate (pipeline stage).
+    // ---- Midpoint pipeline register: the stage-A survivors ----
+    logic [WCW-1:0] r_wr_mid [WMID];
+    logic [RCW-1:0] r_rd_mid [RMID];
+    `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
+        if (`RST_ASSERTED(mc_rst_n)) begin
+            for (int i = 0; i < WMID; i++) r_wr_mid[i] <= '0;
+            for (int i = 0; i < RMID; i++) r_rd_mid[i] <= '0;
+        end else begin
+            for (int i = 0; i < WMID; i++) r_wr_mid[i] <= w_wr_redA[i];
+            for (int i = 0; i < RMID; i++) r_rd_mid[i] <= w_rd_redA[i];
+        end
+    end)
+
+    // ---- Stage B: fold the remaining levels on the registered survivors ----
+    logic [WCW-1:0] w_wr_redB [WMID];
+    logic [RCW-1:0] w_rd_redB [RMID];
+
+    always_comb begin
+        for (int i = 0; i < WMID; i++) w_wr_redB[i] = r_wr_mid[i];
+        for (int lvl = 0; lvl < (WLVLS - WHALF); lvl++)
+            for (int k = 0; k < WMID/2; k++)
+                if (k < (WMID >> (lvl+1)))
+                    w_wr_redB[k] = wr_best2(w_wr_redB[2*k], w_wr_redB[2*k+1]);
+    end
+
+    always_comb begin
+        for (int i = 0; i < RMID; i++) w_rd_redB[i] = r_rd_mid[i];
+        for (int lvl = 0; lvl < (RLVLS - RHALF); lvl++)
+            for (int k = 0; k < RMID/2; k++)
+                if (k < (RMID >> (lvl+1)))
+                    w_rd_redB[k] = rd_best2(w_rd_redB[2*k], w_rd_redB[2*k+1]);
+    end
+
+    // ---- Stage-B output register: the final winning candidate ----
     logic [WCW-1:0] r_wr_cand;
     logic [RCW-1:0] r_rd_cand;
     `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
@@ -295,8 +343,8 @@ module scheduler
             r_wr_cand <= '0;
             r_rd_cand <= '0;
         end else begin
-            r_wr_cand <= w_wr_red[0];
-            r_rd_cand <= w_rd_red[0];
+            r_wr_cand <= w_wr_redB[0];
+            r_rd_cand <= w_rd_redB[0];
         end
     end)
 
