@@ -30,7 +30,12 @@
 
 `include "reset_defs.svh"
 
-module ddr2_char_top (
+module ddr2_char_top #(
+    // DDR2 chip row-address width. Nexys A7 DDR2 (MT47H64M16, 1Gb x16) = 13
+    // (A0-A12). Sizes ddram_a and the DFI/PHY address width; propagates into
+    // the controller via the harness so it never issues an out-of-range row.
+    parameter int ROW_WIDTH = 13
+) (
     input  logic        CLK100MHZ,
     input  logic        CPU_RESETN,
 
@@ -45,7 +50,7 @@ module ddr2_char_top (
     output logic        DP,
 
     // ---------------- DDR2 pads (Micron MT47H64M16HR-25E) ----------------
-    output logic [13:0] ddram_a,
+    output logic [ROW_WIDTH-1:0] ddram_a,
     output logic [2:0]  ddram_ba,
     output logic        ddram_ras_n,
     output logic        ddram_cas_n,
@@ -118,7 +123,7 @@ module ddr2_char_top (
     // =========================================================================
     // Harness
     // =========================================================================
-    ddr2_char_harness u_harness (
+    ddr2_char_harness #(.ROW_WIDTH(ROW_WIDTH)) u_harness (
         .aclk    (aclk),
         .aresetn (aresetn),
 
@@ -174,7 +179,7 @@ module ddr2_char_top (
     logic        w_dfi_p0_rddata_valid, w_dfi_p1_rddata_valid;
 
     dfi_v21_flat_to_a7ddrphy #(
-        .DFI_ADDR_W (14),
+        .DFI_ADDR_W (ROW_WIDTH),
         .DFI_BANK_W (3),
         .PHASE_DATA (64),
         .PHASE_STRB (8)
@@ -251,7 +256,7 @@ module ddr2_char_top (
     // =========================================================================
     a7ddrphy #(
         .NPHASES     (DFI_RATE),
-        .DFI_ADDR_W  (14),
+        .DFI_ADDR_W  (ROW_WIDTH),
         .DFI_BANK_W  (3),
         .DFI_DATA_W  (128),
         .DFI_STRB_W  (16),

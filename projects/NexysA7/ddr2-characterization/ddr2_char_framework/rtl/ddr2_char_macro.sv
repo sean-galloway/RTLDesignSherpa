@@ -67,7 +67,11 @@ module ddr2_char_macro
     // ---- DRAM topology ----
     parameter int NUM_RANKS        = 1,
     parameter int NUM_BANKS        = 8,
-    parameter int ROW_WIDTH        = 14,
+    // ROW_WIDTH = chip row-address bits. Nexys A7 DDR2 (MT47H64M16, 1Gb x16)
+    // has 13 row bits (A0-A12). Default 13 so the controller never issues a
+    // row address the chip can't decode (14 would alias/wrap into rows 0..8191).
+    // Propagates to ddr2_lpddr2_top and sizes DFI_ADDR_BUS_W = ROW_WIDTH*DFI_RATE.
+    parameter int ROW_WIDTH        = 13,
     parameter int COL_WIDTH        = 10,
 
     // ---- Controller depths ----
