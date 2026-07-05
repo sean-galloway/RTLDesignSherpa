@@ -23,6 +23,14 @@ The 256-KB `debug_sram` window intentionally spans `0x40000..0x7FFFF`, so
 now that the pattern-gen engines cover the workload class the descriptor
 mode was reserved for.
 
+> **Note (this build):** the `debug_sram` *backing store* is shrunk to
+> `DEBUG_SRAM_WORDS=512` (256 x 64-bit = 2 KB). The full-size ring would have
+> needed ~44 K LUT-as-distributed-RAM cells — 2.4x over the Artix-7 100T's
+> 19 K sites — which blocked `place_design`; the trace ring is not used on this
+> build. The 256-KB address *window* is unchanged (accesses above 2 KB alias
+> into the ring). Raise `DEBUG_SRAM_WORDS` in `ddr2_char_harness.sv` to restore
+> the full trace if the target device has the headroom.
+
 ---
 
 ## harness_csr register map (offsets from `0x0001_0000`)
@@ -81,7 +89,7 @@ here reads as 0 and ignores writes.
 | 0x10C | WR_WRAP_MASK_0   |                                                                                             |
 | 0x110 | WR_WRAP_MASK_1   |                                                                                             |
 | 0x114 | WR_BLEN_TXN      | [7:0] burst_len · [23:8] txn_count · [27:24] gap                                            |
-| 0x118 | WR_AXI_ATTR      | [3:0] axi_id · [5:4] id_mode · [8:6] axi_size · [10:9] axi_burst · [11] data_mode           |
+| 0x118 | WR_AXI_ATTR      | [7:0] axi_id · [9:8] id_mode · [12:10] axi_size · [14:13] axi_burst · [15] data_mode         |
 | 0x11C | WR_LFSR_SEED     |                                                                                             |
 | 0x120 | WR_HASH_SEED0    |                                                                                             |
 | 0x124 | WR_HASH_SEED1    |                                                                                             |

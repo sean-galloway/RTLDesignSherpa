@@ -301,11 +301,14 @@ class DDR2CharDriver:
 
     def _pack_axi_attr(self, axi_id: int, id_mode: int, axi_size: int,
                        axi_burst: int, data_mode: int) -> int:
-        return ((axi_id & 0xF)
-                | ((id_mode & 3) << 4)
-                | ((axi_size & 7) << 6)
-                | ((axi_burst & 3) << 9)
-                | ((1 if data_mode else 0) << 11))
+        # [7:0]axi_id [9:8]id_mode [12:10]axi_size [14:13]axi_burst [15]data_mode
+        # (widened from the 4-bit id-width layout to match the 8-bit id
+        # the pattern-gen engines' internal LFSR consumes.)
+        return ((axi_id & 0xFF)
+                | ((id_mode & 3) << 8)
+                | ((axi_size & 7) << 10)
+                | ((axi_burst & 3) << 13)
+                | ((1 if data_mode else 0) << 15))
 
     def program_wr_engine(self, *,
                           start_addr:    int,
