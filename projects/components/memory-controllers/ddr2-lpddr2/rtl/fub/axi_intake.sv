@@ -64,6 +64,15 @@ module axi_intake
     parameter int AXI_STRB_WIDTH    = AXI_DATA_WIDTH / 8,
     parameter int BURST_LEN_WIDTH   = 8,
 
+    // TASK-GEAR: DRAM beat width may be NARROWER than the AXI data width
+    // (e.g. AXI=64 driving an x16 DDR2 whose DFI per-phase = 2*16 = 32).
+    // GEAR = AXI_DATA_WIDTH / DRAM_BEAT_WIDTH DRAM beats pack into one AXI
+    // beat. Default = AXI_DATA_WIDTH => GEAR=1 => bit-identical to the
+    // legacy AXI==beat design. Everything the DRAM side sees (w_buf ptr,
+    // aw_push_len, wbuf_ext read data, rd_inject data) is in DRAM-beat
+    // units; only the s_axi_* host ports stay at AXI_DATA_WIDTH.
+    parameter int DRAM_BEAT_WIDTH   = AXI_DATA_WIDTH,
+
     // AMBA axi4_slave_wr / axi4_slave_rd skid depths
     parameter int SKID_DEPTH_AW     = 2,
     parameter int SKID_DEPTH_W      = 4,
@@ -76,7 +85,11 @@ module axi_intake
     parameter int AR_PENDING_DEPTH  = 4,
     parameter int B_FIFO_DEPTH      = 4,
 
-    // w_buf storage — power-of-two for clean modulo wrap
+    // w_buf storage — power-of-two for clean modulo wrap. NOTE (TASK-GEAR):
+    // W_BUF_DEPTH now counts DRAM beats (== AXI beats when GEAR=1). The
+    // AXI-beat capacity is W_BUF_DEPTH / GEAR. WPW addresses DRAM beats, so
+    // it is unchanged vs the legacy design — no pointer-width ripple into
+    // the wr CAM / wr_beat_sequencer / data_path.
     parameter int W_BUF_DEPTH       = 128,
     parameter int W_BUF_PTR_WIDTH   = $clog2(W_BUF_DEPTH),
 
@@ -87,7 +100,13 @@ module axi_intake
     parameter int UW  = AXI_USER_WIDTH,
     parameter int SW  = AXI_STRB_WIDTH,
     parameter int BLW = BURST_LEN_WIDTH,
-    parameter int WPW = W_BUF_PTR_WIDTH
+    parameter int WPW = W_BUF_PTR_WIDTH,
+
+    // TASK-GEAR aliases
+    parameter int DBW    = DRAM_BEAT_WIDTH,        // DRAM beat data width
+    parameter int DSW    = DRAM_BEAT_WIDTH / 8,    // DRAM beat strobe width
+    parameter int GEAR   = AXI_DATA_WIDTH / DRAM_BEAT_WIDTH,  // DRAM beats / AXI beat
+    parameter int LGGEAR = (GEAR <= 1) ? 1 : $clog2(GEAR)
 ) (
     input  logic                 aclk,
     input  logic                 aresetn,
@@ -230,18 +249,21 @@ module axi_intake
     //=========================================================================
     // Non-forwarded R-data injection (rd_data_path stub / TB)
     //=========================================================================
+    // rd_inject carries ONE DRAM beat (DBW). axi_intake assembles GEAR of
+    // them into one AXI R beat (DW) before returning to the host.
     input  logic                 rd_inject_valid_i,
     output logic                 rd_inject_ready_o,
     input  logic [IW-1:0]        rd_inject_id_i,
-    input  logic [DW-1:0]        rd_inject_data_i,
+    input  logic [DBW-1:0]       rd_inject_data_i,
     input  logic                 rd_inject_last_i,
 
     //=========================================================================
-    // External w_buf read port (wr_data_path stub / TB)
+    // External w_buf read port (wr_data_path stub / TB). Returns ONE DRAM
+    // beat (DBW) at the requested DRAM-beat pointer.
     //=========================================================================
     input  logic [WPW-1:0]       wbuf_ext_rd_ptr_i,
-    output logic [DW-1:0]        wbuf_ext_rd_data_o,
-    output logic [SW-1:0]        wbuf_ext_rd_strb_o,
+    output logic [DBW-1:0]       wbuf_ext_rd_data_o,
+    output logic [DSW-1:0]       wbuf_ext_rd_strb_o,
 
     //=========================================================================
     // Status
@@ -254,6 +276,16 @@ module axi_intake
     output logic [15:0]          obs_aw_meta_writes_o,
     output logic [15:0]          obs_ar_meta_writes_o
 );
+
+    //=========================================================================
+    // TASK-GEAR internal widths.
+    //   LG   = log2(GEAR), 0 when GEAR==1 (used for ×GEAR / sub-beat index).
+    //   BLWG = burst-len width in DRAM beats (pre-split total = (awlen+1)*GEAR
+    //          can exceed BLW; per-chunk output len stays BLW).
+    // At GEAR==1 these collapse to the legacy widths (LG=0, BLWG=BLW).
+    //=========================================================================
+    localparam int LG   = (GEAR <= 1) ? 0 : $clog2(GEAR);
+    localparam int BLWG = BLW + LG;
 
     //=========================================================================
     // F4 side-table lookup outputs — declared up-front so the
@@ -464,8 +496,8 @@ module axi_intake
     typedef struct packed {
         logic [IW-1:0]   id;
         logic [AW-1:0]   addr;
-        logic [BLW-1:0]  len;          // beats — already len-1 + 1
-        logic [WPW-1:0]  w_buf_ptr;
+        logic [BLWG-1:0] len;          // DRAM beats — (awlen+1)*GEAR
+        logic [WPW-1:0]  w_buf_ptr;    // DRAM-beat start pointer
         logic [WPW-1:0]  strb_ptr;
         logic [2:0]      size;         // awsize — for split chunk address arithmetic
     } aw_pending_t;
@@ -489,7 +521,8 @@ module axi_intake
 
     assign w_aw_pend_din.id        = fub_axi_awid;
     assign w_aw_pend_din.addr      = fub_axi_awaddr;
-    assign w_aw_pend_din.len       = BLW'(fub_axi_awlen) + BLW'(1);
+    // DRAM-beat total = (awlen+1) * GEAR  (<<LG; LG=0 at GEAR=1).
+    assign w_aw_pend_din.len       = (BLWG'(fub_axi_awlen) + BLWG'(1)) << LG;
     assign w_aw_pend_din.w_buf_ptr = r_aw_pend_next_ptr;
     assign w_aw_pend_din.strb_ptr  = r_aw_pend_next_ptr;
     assign w_aw_pend_din.size      = fub_axi_awsize;
@@ -503,8 +536,9 @@ module axi_intake
     // Compute (awlen+1) in the WIDER of (BLW, WPW+1) so widening to the
     // (WPW+1) cast doesn't trip Verilator WIDTHEXPAND when WPW+1 > BLW
     // (e.g. W_BUF_DEPTH=512 → WPW+1=10 > BLW=8).
+    // DRAM beats reserved by this AW = (awlen+1) * GEAR.
     assign w_new_aw_burst_size =
-        (WPW+1)'((WPW+1)'(fub_axi_awlen) + (WPW+1)'(1));
+        (WPW+1)'(((WPW+1)'(fub_axi_awlen) + (WPW+1)'(1)) << LG);
 
     // The arriving AW would push (awlen+1) beats. Backpressure if that
     // would exceed wbuf depth. Without this gate the AW-side pointer
@@ -536,9 +570,10 @@ module axi_intake
     //=========================================================================
     // W intake — write to w_buf, AND-reduce wstrb, detect wlast
     //=========================================================================
-    // w_buf storage (distributed RAM)
-    logic [DW-1:0] r_w_buf      [W_BUF_DEPTH];
-    logic [SW-1:0] r_wstrb_buf  [W_BUF_DEPTH];
+    // w_buf storage (distributed RAM) — DRAM-beat granular (TASK-GEAR).
+    // At GEAR=1 (DBW==DW) this is identical to the legacy AXI-wide buffer.
+    logic [DBW-1:0] r_w_buf      [W_BUF_DEPTH];
+    logic [DSW-1:0] r_wstrb_buf  [W_BUF_DEPTH];
 
     // Per-burst AND-reduce accumulator
     logic           r_full_strb_acc;
@@ -584,7 +619,7 @@ module axi_intake
                 // don't wrap at BLW=8 bits.
                 r_aw_pend_next_ptr <=
                     r_aw_pend_next_ptr +
-                    WPW'(WPW'(fub_axi_awlen) + WPW'(1));
+                    WPW'((WPW'(fub_axi_awlen) + WPW'(1)) << LG);
                 if (wbuf_free_strb_i) begin
                     r_wbuf_outstanding <=
                         r_wbuf_outstanding
@@ -600,9 +635,15 @@ module axi_intake
                     r_wbuf_outstanding - (WPW+1)'(wbuf_free_len_i);
             end
             if (w_w_beat_handshake) begin
-                r_w_buf    [r_wbuf_wptr] <= fub_axi_wdata;
-                r_wstrb_buf[r_wbuf_wptr] <= fub_axi_wstrb;
-                r_wbuf_wptr              <= r_wbuf_wptr + 1'b1;
+                // TASK-GEAR: split the AXI beat (DW) into GEAR DRAM beats
+                // (DBW each), LSB→MSB into consecutive w_buf entries. At
+                // GEAR=1 this is the single legacy write. wptr advances by
+                // GEAR DRAM beats.
+                for (int g = 0; g < GEAR; g++) begin
+                    r_w_buf    [r_wbuf_wptr + WPW'(g)] <= fub_axi_wdata[g*DBW +: DBW];
+                    r_wstrb_buf[r_wbuf_wptr + WPW'(g)] <= fub_axi_wstrb[g*DSW +: DSW];
+                end
+                r_wbuf_wptr              <= r_wbuf_wptr + WPW'(GEAR);
                 r_full_strb_acc          <= r_full_strb_acc & (&fub_axi_wstrb);
                 if (fub_axi_wlast) begin
                     r_burst_done      <= 1'b1;
@@ -645,12 +686,13 @@ module axi_intake
     //     1 cycle of latency per AW; steady-state throughput is 1 chunk
     //     per cycle so streaming holds.
     //=========================================================================
-    logic [BLW-1:0] r_chunk_idx;
-    logic [BLW-1:0] w_eff_bl;
+    logic [BLW-1:0]  r_chunk_idx;
+    logic [BLWG-1:0] w_eff_bl;
     // Treat dram_bl_i==0 as "no split". Use head.len directly so the
-    // single-chunk gate always fires on the first push.
+    // single-chunk gate always fires on the first push. NOTE: dram_bl_i and
+    // head.len are both in DRAM beats (TASK-GEAR).
     assign w_eff_bl = (dram_bl_i == 4'd0) ? w_aw_pend_dout.len
-                                          : BLW'(dram_bl_i);
+                                          : BLWG'(dram_bl_i);
     // log2(eff_bl) — small mux on dram_bl_i so the chunk offset is just
     // a left-shift, not a multiply. DDR2/LPDDR2 only ever programs BL to
     // a power of two, so this is exact (no rounding).
@@ -668,21 +710,32 @@ module axi_intake
             default: w_eff_bl_log2 = 3'd0;  // dram_bl_i==0 → no-split (idx stays 0)
         endcase
     end
-    logic [BLW-1:0] w_chunk_offset_beats;
-    assign w_chunk_offset_beats = r_chunk_idx << w_eff_bl_log2;
-    logic [BLW:0]   w_remaining_ext;
+    logic [BLWG-1:0] w_chunk_offset_beats;
+    assign w_chunk_offset_beats = BLWG'(r_chunk_idx) << w_eff_bl_log2;
+    logic [BLWG:0]   w_remaining_ext;
     assign w_remaining_ext = {1'b0, w_aw_pend_dout.len}
                            - {1'b0, w_chunk_offset_beats};
-    logic [BLW-1:0] w_remaining;
-    assign w_remaining = w_remaining_ext[BLW-1:0];
-    logic [BLW-1:0] w_chunk_len;
+    logic [BLWG-1:0] w_remaining;
+    assign w_remaining = w_remaining_ext[BLWG-1:0];
+    logic [BLWG-1:0] w_chunk_len;
     assign w_chunk_len = (w_remaining > w_eff_bl) ? w_eff_bl : w_remaining;
     // w_is_last_chunk forward-declared near the top of the module.
     assign w_is_last_chunk = (w_remaining <= w_eff_bl);
 
-    // Chunk address: head.addr + chunk_offset_beats * (1<<head.size).
+    // Chunk address: head.addr + chunk_offset_beats * DRAM-beat-bytes.
+    // chunk_offset is in DRAM beats; each DRAM beat is (1<<(awsize-LG)) bytes
+    // (awsize is the AXI-beat byte size; one AXI beat = GEAR DRAM beats).
+    logic [2:0] w_dram_size;
+    generate
+        if (LG == 0) begin : g_dram_size_g1
+            assign w_dram_size = w_aw_pend_dout.size;
+        end else begin : g_dram_size_gn
+            assign w_dram_size = (w_aw_pend_dout.size >= 3'(LG))
+                               ? (w_aw_pend_dout.size - 3'(LG)) : 3'd0;
+        end
+    endgenerate
     logic [AW-1:0] w_chunk_addr_off;
-    assign w_chunk_addr_off = AW'(w_chunk_offset_beats) << w_aw_pend_dout.size;
+    assign w_chunk_addr_off = AW'(w_chunk_offset_beats) << w_dram_size;
     logic [AW-1:0] w_chunk_addr;
     assign w_chunk_addr = w_aw_pend_dout.addr + w_chunk_addr_off;
     logic [WPW-1:0] w_chunk_wbuf_ptr;
@@ -710,7 +763,7 @@ module axi_intake
 
     assign w_aw_push_skid_in.addr          = w_chunk_addr;
     assign w_aw_push_skid_in.id            = w_aw_pend_dout.id;
-    assign w_aw_push_skid_in.len           = w_chunk_len;
+    assign w_aw_push_skid_in.len           = BLW'(w_chunk_len);
     assign w_aw_push_skid_in.w_buf_ptr     = w_chunk_wbuf_ptr;
     assign w_aw_push_skid_in.strb_ptr      = w_chunk_strb_ptr;
     assign w_aw_push_skid_in.full_strb     = r_final_full_strb;
@@ -770,7 +823,7 @@ module axi_intake
     typedef struct packed {
         logic [IW-1:0]   id;
         logic [AW-1:0]   addr;
-        logic [BLW-1:0]  len;
+        logic [BLWG-1:0] len;         // DRAM beats — (arlen+1)*GEAR
         logic [2:0]      size;        // arsize — for split chunk addr arithmetic
     } ar_pending_t;
 
@@ -783,7 +836,8 @@ module axi_intake
 
     assign w_ar_pend_din.id   = fub_axi_arid;
     assign w_ar_pend_din.addr = fub_axi_araddr;
-    assign w_ar_pend_din.len  = BLW'(fub_axi_arlen) + BLW'(1);
+    // DRAM-beat total = (arlen+1) * GEAR.
+    assign w_ar_pend_din.len  = (BLWG'(fub_axi_arlen) + BLWG'(1)) << LG;
     assign w_ar_pend_din.size = fub_axi_arsize;
 
     assign w_ar_pend_wr_valid = fub_axi_arvalid;
@@ -809,27 +863,36 @@ module axi_intake
     //
     // Same shift-not-mult + skid topology as AW; see notes above.
     //=========================================================================
-    logic [BLW-1:0] r_ar_chunk_idx;
-    logic [BLW-1:0] w_ar_eff_bl;
+    logic [BLW-1:0]  r_ar_chunk_idx;
+    logic [BLWG-1:0] w_ar_eff_bl;
     assign w_ar_eff_bl = (dram_bl_i == 4'd0) ? w_ar_pend_dout.len
-                                              : BLW'(dram_bl_i);
+                                              : BLWG'(dram_bl_i);
     // log2 mux mirrors AW side; same constants, share via w_eff_bl_log2.
-    logic [BLW-1:0] w_ar_chunk_offset_beats;
-    assign w_ar_chunk_offset_beats = r_ar_chunk_idx << w_eff_bl_log2;
-    logic [BLW:0]   w_ar_remaining_ext;
+    logic [BLWG-1:0] w_ar_chunk_offset_beats;
+    assign w_ar_chunk_offset_beats = BLWG'(r_ar_chunk_idx) << w_eff_bl_log2;
+    logic [BLWG:0]   w_ar_remaining_ext;
     assign w_ar_remaining_ext = {1'b0, w_ar_pend_dout.len}
                               - {1'b0, w_ar_chunk_offset_beats};
-    logic [BLW-1:0] w_ar_remaining;
-    assign w_ar_remaining = w_ar_remaining_ext[BLW-1:0];
-    logic [BLW-1:0] w_ar_chunk_len;
+    logic [BLWG-1:0] w_ar_remaining;
+    assign w_ar_remaining = w_ar_remaining_ext[BLWG-1:0];
+    logic [BLWG-1:0] w_ar_chunk_len;
     assign w_ar_chunk_len = (w_ar_remaining > w_ar_eff_bl)
                           ? w_ar_eff_bl : w_ar_remaining;
     logic           w_ar_is_last_chunk;
     assign w_ar_is_last_chunk = (w_ar_remaining <= w_ar_eff_bl);
 
+    logic [2:0] w_ar_dram_size;
+    generate
+        if (LG == 0) begin : g_ar_dram_size_g1
+            assign w_ar_dram_size = w_ar_pend_dout.size;
+        end else begin : g_ar_dram_size_gn
+            assign w_ar_dram_size = (w_ar_pend_dout.size >= 3'(LG))
+                                  ? (w_ar_pend_dout.size - 3'(LG)) : 3'd0;
+        end
+    endgenerate
     logic [AW-1:0] w_ar_chunk_addr_off;
     assign w_ar_chunk_addr_off =
-        AW'(w_ar_chunk_offset_beats) << w_ar_pend_dout.size;
+        AW'(w_ar_chunk_offset_beats) << w_ar_dram_size;
     logic [AW-1:0] w_ar_chunk_addr;
     assign w_ar_chunk_addr = w_ar_pend_dout.addr + w_ar_chunk_addr_off;
 
@@ -849,7 +912,7 @@ module axi_intake
 
     assign w_ar_push_skid_in.addr          = w_ar_chunk_addr;
     assign w_ar_push_skid_in.id            = w_ar_pend_dout.id;
-    assign w_ar_push_skid_in.len           = w_ar_chunk_len;
+    assign w_ar_push_skid_in.len           = BLW'(w_ar_chunk_len);
     assign w_ar_push_skid_in.qos           = w_ar_push_qos;
     assign w_ar_push_skid_in.is_last_chunk = w_ar_is_last_chunk;
 
@@ -1029,9 +1092,12 @@ module axi_intake
                 r_r_fwd_remaining <= fwd_len_i;
                 r_r_fwd_is_last_chunk <= fwd_is_last_chunk_i;
             end else if (r_r_fwd_active && fub_axi_rvalid && fub_axi_rready) begin
-                r_r_fwd_ptr       <= r_r_fwd_ptr + 1'b1;
-                r_r_fwd_remaining <= r_r_fwd_remaining - 1'b1;
-                if (r_r_fwd_remaining == BLW'(1)) begin
+                // One AXI R beat = GEAR DRAM beats. fwd_len_i is in DRAM
+                // beats (always a multiple of GEAR since forwarded reads are
+                // whole AXI beats), so advance/consume by GEAR per R beat.
+                r_r_fwd_ptr       <= r_r_fwd_ptr + WPW'(GEAR);
+                r_r_fwd_remaining <= r_r_fwd_remaining - BLW'(GEAR);
+                if (r_r_fwd_remaining == BLW'(GEAR)) begin
                     r_r_fwd_active <= 1'b0;
                 end
             end
@@ -1042,9 +1108,52 @@ module axi_intake
     // emitting one.
     assign fwd_ready_o = !r_r_fwd_active;
 
-    // rd_inject_ready — accept injected beats only when forwarded burst
-    // is idle AND the R skid buffer can accept.
-    assign rd_inject_ready_o = !r_r_fwd_active && fub_axi_rready;
+    //---------------------------------------------------------------------
+    // TASK-GEAR read assembly.
+    //  * Forwarded path: assemble GEAR consecutive DRAM-beat w_buf entries
+    //    (starting at the GEAR-aligned r_r_fwd_ptr) into one AXI R beat.
+    //  * Injected path: rd_inject delivers ONE DRAM beat per handshake;
+    //    accumulate GEAR of them, emit one AXI R beat on the GEAR-th.
+    // At GEAR=1 both collapse to the legacy pass-through.
+    //---------------------------------------------------------------------
+    logic [DW-1:0]      w_fwd_rdata;
+    always_comb begin
+        w_fwd_rdata = '0;
+        for (int g = 0; g < GEAR; g++) begin
+            w_fwd_rdata[g*DBW +: DBW] = r_w_buf[r_r_fwd_ptr + WPW'(g)];
+        end
+    end
+
+    logic [DW-1:0]     r_inj_acc;      // holds the first GEAR-1 DRAM beats
+    logic [LGGEAR-1:0] r_inj_cnt;      // which DRAM beat within the AXI beat
+    logic              w_inj_last_beat; // this DRAM beat completes an AXI beat
+    assign w_inj_last_beat = (r_inj_cnt == LGGEAR'(GEAR-1));
+
+    logic [DW-1:0] w_inj_rdata;
+    always_comb begin
+        w_inj_rdata = r_inj_acc;
+        w_inj_rdata[r_inj_cnt*DBW +: DBW] = rd_inject_data_i;
+    end
+
+    // rd_inject_ready — non-final DRAM beats are buffered freely (no
+    // downstream handshake); the final beat of a group waits for the R
+    // skid. Forwarded burst has priority (blocks inject).
+    assign rd_inject_ready_o = !r_r_fwd_active
+                            && (!w_inj_last_beat || fub_axi_rready);
+
+    `ALWAYS_FF_RST(aclk, aresetn, begin
+        if (`RST_ASSERTED(aresetn)) begin
+            r_inj_acc <= '0;
+            r_inj_cnt <= '0;
+        end else if (rd_inject_valid_i && rd_inject_ready_o) begin
+            if (w_inj_last_beat) begin
+                r_inj_cnt <= '0;
+            end else begin
+                r_inj_acc[r_inj_cnt*DBW +: DBW] <= rd_inject_data_i;
+                r_inj_cnt <= r_inj_cnt + 1'b1;
+            end
+        end
+    end)
 
     // Side-table AR completion lookup ID: forwarded path uses r_r_fwd_id;
     // injected path uses the live rd_inject_id.
@@ -1060,17 +1169,18 @@ module axi_intake
         if (r_r_fwd_active) begin
             fub_axi_rvalid = 1'b1;
             fub_axi_rid    = r_r_fwd_id;
-            fub_axi_rdata  = r_w_buf[r_r_fwd_ptr];
+            fub_axi_rdata  = w_fwd_rdata;
             fub_axi_rresp  = 2'b00;
-            fub_axi_rlast  = (r_r_fwd_remaining == BLW'(1))
+            fub_axi_rlast  = (r_r_fwd_remaining == BLW'(GEAR))
                           && r_r_fwd_is_last_chunk;
             // RUSER mirrors ARUSER from the id-side-table completion port.
             // (w_ar_compl_id selects r_r_fwd_id when r_r_fwd_active.)
             fub_axi_ruser  = w_ar_compl_user;
-        end else if (rd_inject_valid_i) begin
-            fub_axi_rvalid = rd_inject_valid_i;
+        end else if (rd_inject_valid_i && w_inj_last_beat) begin
+            // Emit only on the GEAR-th DRAM beat (full AXI beat assembled).
+            fub_axi_rvalid = 1'b1;
             fub_axi_rid    = rd_inject_id_i;
-            fub_axi_rdata  = rd_inject_data_i;
+            fub_axi_rdata  = w_inj_rdata;
             fub_axi_rresp  = 2'b00;
             fub_axi_rlast  = rd_inject_last_i;
             fub_axi_ruser  = w_ar_compl_user;
