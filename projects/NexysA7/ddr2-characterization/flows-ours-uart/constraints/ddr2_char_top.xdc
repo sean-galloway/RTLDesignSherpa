@@ -129,47 +129,82 @@ set_false_path -to [get_ports {LED[*]}]
 ##==============================================================================
 ## DDR2 SDRAM -- Micron MT47H64M16HR-25E (x16, single-rank, 800 Mbps, 128 MB)
 ##==============================================================================
-## PIN LOCATIONS NOT SHIPPED IN THIS FILE.  DO NOT RUN A BITSTREAM WITHOUT
-## FILLING IN THE BLOCK BELOW -- shipping wrong DDR2 pin locations can
-## short SSTL18_II drivers into 3.3 V bank rails and permanently damage
-## the FPGA.
+## VERIFIED Nexys A7-100T (== Nexys4 DDR) DDR2 pinout, banks 34/35, copied 1:1
+## from litex-boards litex_boards/platforms/digilent_nexys4ddr.py ("ddram",0)
+## block. SSTL18_II single-ended / DIFF_SSTL18_II differential; dq/dqs
+## IN_TERM=UNTUNED_SPLIT_50; SLEW=FAST applied to the whole ddram group below.
 ##
-## Source-of-truth options (copy exactly, do not paraphrase):
-##
-##   [preferred] LiteX-Boards platform file. Fresh clone:
-##       git clone https://github.com/litex-hub/litex-boards
-##     then read: litex_boards/platforms/digilent_nexys_a7.py
-##       -> the ("ddram", 0, ...) IO_STANDARD block. Every ddram
-##          subsignal name maps 1:1 to a port here:
-##            a        -> ddram_a[13:0]
-##            ba       -> ddram_ba[2:0]
-##            ras_n    -> ddram_ras_n
-##            cas_n    -> ddram_cas_n
-##            we_n     -> ddram_we_n
-##            cs_n     -> ddram_cs_n
-##            cke      -> ddram_cke
-##            odt      -> ddram_odt
-##            dm       -> ddram_dm[1:0]
-##            dq       -> ddram_dq[15:0]
-##            dqs_p    -> ddram_dqs_p[1:0]
-##            dqs_n    -> ddram_dqs_n[1:0]
-##            clk_p    -> ddram_clk_p
-##            clk_n    -> ddram_clk_n
-##          IOSTANDARD SSTL18_II on all singled-ended pins, DIFF_SSTL18_II
-##          on the dqs_p/n and clk_p/n pairs. Miscellaneous SLEW=FAST on
-##          the address+bank+data lanes.
-##
-##   [fallback] Digilent Nexys A7 Master XDC (partial in
-##       projects/NexysA7/boards/nexys_a7_100t/master.xdc -- the DDR2
-##       block is currently blanked out with "use MIG IP core", so pull
-##       from the LiteX-Boards file above OR from Digilent's official
-##       Nexys-A7-100T-Master.xdc download).
-##
-## Once populated, re-run `verilator --lint-only` and then
-## `read_xdc ddr2_char_top.xdc` in Vivado to confirm no pin conflicts
-## before bitstream generation. The existing set_property lines above
-## (clock, reset, UART, LEDs, 7-seg) are production-verified from the
-## stream_characterization harness and do not need re-checking.
+## HARDWARE-SAFETY: correct for the Nexys A7-100T (xc7a100tcsg324) ONLY. A
+## different board/part needs its own pinout -- wrong DDR2 LOCs can short
+## SSTL18_II drivers into 3.3 V bank rails. Confirm with `read_xdc` (no pin
+## conflicts) BEFORE `make program`.
+
+# Address a[0..12]
+set_property -dict {PACKAGE_PIN M4 IOSTANDARD SSTL18_II} [get_ports {ddram_a[0]}]
+set_property -dict {PACKAGE_PIN P4 IOSTANDARD SSTL18_II} [get_ports {ddram_a[1]}]
+set_property -dict {PACKAGE_PIN M6 IOSTANDARD SSTL18_II} [get_ports {ddram_a[2]}]
+set_property -dict {PACKAGE_PIN T1 IOSTANDARD SSTL18_II} [get_ports {ddram_a[3]}]
+set_property -dict {PACKAGE_PIN L3 IOSTANDARD SSTL18_II} [get_ports {ddram_a[4]}]
+set_property -dict {PACKAGE_PIN P5 IOSTANDARD SSTL18_II} [get_ports {ddram_a[5]}]
+set_property -dict {PACKAGE_PIN M2 IOSTANDARD SSTL18_II} [get_ports {ddram_a[6]}]
+set_property -dict {PACKAGE_PIN N1 IOSTANDARD SSTL18_II} [get_ports {ddram_a[7]}]
+set_property -dict {PACKAGE_PIN L4 IOSTANDARD SSTL18_II} [get_ports {ddram_a[8]}]
+set_property -dict {PACKAGE_PIN N5 IOSTANDARD SSTL18_II} [get_ports {ddram_a[9]}]
+set_property -dict {PACKAGE_PIN R2 IOSTANDARD SSTL18_II} [get_ports {ddram_a[10]}]
+set_property -dict {PACKAGE_PIN K5 IOSTANDARD SSTL18_II} [get_ports {ddram_a[11]}]
+set_property -dict {PACKAGE_PIN N6 IOSTANDARD SSTL18_II} [get_ports {ddram_a[12]}]
+
+# Bank ba[0..2]
+set_property -dict {PACKAGE_PIN P2 IOSTANDARD SSTL18_II} [get_ports {ddram_ba[0]}]
+set_property -dict {PACKAGE_PIN P3 IOSTANDARD SSTL18_II} [get_ports {ddram_ba[1]}]
+set_property -dict {PACKAGE_PIN R1 IOSTANDARD SSTL18_II} [get_ports {ddram_ba[2]}]
+
+# Command / control
+set_property -dict {PACKAGE_PIN N4 IOSTANDARD SSTL18_II} [get_ports ddram_ras_n]
+set_property -dict {PACKAGE_PIN L1 IOSTANDARD SSTL18_II} [get_ports ddram_cas_n]
+set_property -dict {PACKAGE_PIN N2 IOSTANDARD SSTL18_II} [get_ports ddram_we_n]
+set_property -dict {PACKAGE_PIN K6 IOSTANDARD SSTL18_II} [get_ports ddram_cs_n]
+set_property -dict {PACKAGE_PIN M1 IOSTANDARD SSTL18_II} [get_ports ddram_cke]
+set_property -dict {PACKAGE_PIN M3 IOSTANDARD SSTL18_II} [get_ports ddram_odt]
+
+# Data mask dm[0..1]
+set_property -dict {PACKAGE_PIN T6 IOSTANDARD SSTL18_II} [get_ports {ddram_dm[0]}]
+set_property -dict {PACKAGE_PIN U1 IOSTANDARD SSTL18_II} [get_ports {ddram_dm[1]}]
+
+# Data dq[0..15] (IN_TERM=UNTUNED_SPLIT_50)
+set_property -dict {PACKAGE_PIN R7 IOSTANDARD SSTL18_II IN_TERM UNTUNED_SPLIT_50} [get_ports {ddram_dq[0]}]
+set_property -dict {PACKAGE_PIN V6 IOSTANDARD SSTL18_II IN_TERM UNTUNED_SPLIT_50} [get_ports {ddram_dq[1]}]
+set_property -dict {PACKAGE_PIN R8 IOSTANDARD SSTL18_II IN_TERM UNTUNED_SPLIT_50} [get_ports {ddram_dq[2]}]
+set_property -dict {PACKAGE_PIN U7 IOSTANDARD SSTL18_II IN_TERM UNTUNED_SPLIT_50} [get_ports {ddram_dq[3]}]
+set_property -dict {PACKAGE_PIN V7 IOSTANDARD SSTL18_II IN_TERM UNTUNED_SPLIT_50} [get_ports {ddram_dq[4]}]
+set_property -dict {PACKAGE_PIN R6 IOSTANDARD SSTL18_II IN_TERM UNTUNED_SPLIT_50} [get_ports {ddram_dq[5]}]
+set_property -dict {PACKAGE_PIN U6 IOSTANDARD SSTL18_II IN_TERM UNTUNED_SPLIT_50} [get_ports {ddram_dq[6]}]
+set_property -dict {PACKAGE_PIN R5 IOSTANDARD SSTL18_II IN_TERM UNTUNED_SPLIT_50} [get_ports {ddram_dq[7]}]
+set_property -dict {PACKAGE_PIN T5 IOSTANDARD SSTL18_II IN_TERM UNTUNED_SPLIT_50} [get_ports {ddram_dq[8]}]
+set_property -dict {PACKAGE_PIN U3 IOSTANDARD SSTL18_II IN_TERM UNTUNED_SPLIT_50} [get_ports {ddram_dq[9]}]
+set_property -dict {PACKAGE_PIN V5 IOSTANDARD SSTL18_II IN_TERM UNTUNED_SPLIT_50} [get_ports {ddram_dq[10]}]
+set_property -dict {PACKAGE_PIN U4 IOSTANDARD SSTL18_II IN_TERM UNTUNED_SPLIT_50} [get_ports {ddram_dq[11]}]
+set_property -dict {PACKAGE_PIN V4 IOSTANDARD SSTL18_II IN_TERM UNTUNED_SPLIT_50} [get_ports {ddram_dq[12]}]
+set_property -dict {PACKAGE_PIN T4 IOSTANDARD SSTL18_II IN_TERM UNTUNED_SPLIT_50} [get_ports {ddram_dq[13]}]
+set_property -dict {PACKAGE_PIN V1 IOSTANDARD SSTL18_II IN_TERM UNTUNED_SPLIT_50} [get_ports {ddram_dq[14]}]
+set_property -dict {PACKAGE_PIN T3 IOSTANDARD SSTL18_II IN_TERM UNTUNED_SPLIT_50} [get_ports {ddram_dq[15]}]
+
+# Strobes dqs_p/dqs_n[0..1] (DIFF_SSTL18_II, IN_TERM=UNTUNED_SPLIT_50)
+set_property -dict {PACKAGE_PIN U9 IOSTANDARD DIFF_SSTL18_II IN_TERM UNTUNED_SPLIT_50} [get_ports {ddram_dqs_p[0]}]
+set_property -dict {PACKAGE_PIN V9 IOSTANDARD DIFF_SSTL18_II IN_TERM UNTUNED_SPLIT_50} [get_ports {ddram_dqs_n[0]}]
+set_property -dict {PACKAGE_PIN U2 IOSTANDARD DIFF_SSTL18_II IN_TERM UNTUNED_SPLIT_50} [get_ports {ddram_dqs_p[1]}]
+set_property -dict {PACKAGE_PIN V2 IOSTANDARD DIFF_SSTL18_II IN_TERM UNTUNED_SPLIT_50} [get_ports {ddram_dqs_n[1]}]
+
+# DRAM clock clk_p/clk_n (DIFF_SSTL18_II)
+set_property -dict {PACKAGE_PIN L6 IOSTANDARD DIFF_SSTL18_II} [get_ports ddram_clk_p]
+set_property -dict {PACKAGE_PIN L5 IOSTANDARD DIFF_SSTL18_II} [get_ports ddram_clk_n]
+
+# SLEW=FAST on the whole DDR2 group.
+set_property SLEW FAST [get_ports {ddram_*}]
+
+## Internal VREF for the SSTL18_II banks (Nexys A7 DDR2 uses internal VREF).
+set_property INTERNAL_VREF 0.900 [get_iobanks 34]
+set_property INTERNAL_VREF 0.900 [get_iobanks 35]
 
 ##==============================================================================
 ## Configuration / Bitstream
