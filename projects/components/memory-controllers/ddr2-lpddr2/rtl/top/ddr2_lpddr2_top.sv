@@ -58,7 +58,8 @@ module ddr2_lpddr2_top
     // DFI
     parameter int DFI_RATE         = 2,
     parameter int DRAM_BEAT_WIDTH  = AXI_DATA_WIDTH,
-    parameter int DRAM_STRB_WIDTH  = AXI_STRB_WIDTH,
+    // TASK-GEAR: strobe tracks the DRAM beat, not AXI (differ when GEAR>1).
+    parameter int DRAM_STRB_WIDTH  = DRAM_BEAT_WIDTH / 8,
     parameter int DFI_DATA_WIDTH   = DRAM_BEAT_WIDTH * DFI_RATE,
     parameter int DFI_STRB_WIDTH   = DRAM_STRB_WIDTH * DFI_RATE,
     parameter int DFI_EN_WIDTH     = DFI_RATE,
@@ -255,6 +256,11 @@ module ddr2_lpddr2_top
         .NUM_BANKS          (NUM_BANKS),
         .ROW_WIDTH          (ROW_WIDTH),
         .COL_WIDTH          (COL_WIDTH),
+        // DFI address bus carries the row/col-max = ROW_WIDTH here; keep
+        // core_macro's DFI_ADDR_WIDTH in step with ROW_WIDTH (was left at
+        // its default 14, mismatching the top's ROW_WIDTH*DFI_RATE bus when
+        // ROW_WIDTH != 14, e.g. the Nexys A7 x16 char build at ROW_WIDTH=13).
+        .DFI_ADDR_WIDTH     (ROW_WIDTH),
         .BURST_LEN_WIDTH    (BURST_LEN_WIDTH),
         .W_BUF_DEPTH        (W_BUF_DEPTH),
         .WR_CAM_DEPTH       (WR_CAM_DEPTH),
