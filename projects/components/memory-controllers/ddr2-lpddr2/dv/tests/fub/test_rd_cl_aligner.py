@@ -492,6 +492,11 @@ _FULL = _FUNC + [(t, 4) for t in _ALL_TYPES] + [
 _FULL = list(dict.fromkeys(_FULL))
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
+
+# x16-native re-validation: override DRAM beat width (default 64) to run
+# the Nexys A7 physical config (beat=32, DFI_RATE=4).
+_BEAT = os.environ.get("DRAM_BEAT_WIDTH_OVERRIDE", "64")
+
 _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
 
 
@@ -530,7 +535,7 @@ def test_rd_cl_aligner(request, test_type, dfi_rate):
         "RD_CAM_DEPTH":      "16",
         "AXI_ID_WIDTH":      "4",
         "BURST_LEN_WIDTH":   "8",
-        "DRAM_BEAT_WIDTH":   "64",
+        "DRAM_BEAT_WIDTH":   _BEAT,
         "DFI_RATE":          str(dfi_rate),
         "MAX_BURST_LEN":     "256",
     }
@@ -546,7 +551,7 @@ def test_rd_cl_aligner(request, test_type, dfi_rate):
         "RD_CAM_DEPTH":    "16",
         "AXI_ID_WIDTH":    "4",
         "BURST_LEN_WIDTH": "8",
-        "DRAM_BEAT_WIDTH": "64",
+        "DRAM_BEAT_WIDTH": _BEAT,
         "DFI_RATE":        str(dfi_rate),
         "MAX_BURST_LEN":   "256",
         # Match aligner staging slots to the rd_cmd_cam depth — same

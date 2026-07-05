@@ -325,6 +325,11 @@ _FULL = list(dict.fromkeys(_FULL))
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
 _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
 
+# x16-native re-validation probe: override the DRAM beat width (default 64) so
+# the same TB/RTL can be exercised at the physical Nexys A7 config (beat=32,
+# DFI_RATE=4 -> a7ddrphy 32b/phase). See flows-ours-uart/bin/README_a7ddrphy.md.
+_BEAT = os.environ.get("DRAM_BEAT_WIDTH_OVERRIDE", "64")
+
 
 @pytest.mark.parametrize("test_type,dfi_rate", _PARAMS,
                          ids=[f"{t[0]}-r{t[1]}" for t in _PARAMS])
@@ -359,7 +364,7 @@ def test_wr_beat_sequencer(request, test_type, dfi_rate):
         "WR_CAM_DEPTH":      "16",
         "W_BUF_PTR_WIDTH":   "7",
         "BURST_LEN_WIDTH":   "8",
-        "DRAM_BEAT_WIDTH":   "64",
+        "DRAM_BEAT_WIDTH":   _BEAT,
         "DFI_RATE":          str(dfi_rate),
         "MAX_BURST_LEN":     "256",
         "MAX_CONCURRENT":    "16",
@@ -376,7 +381,7 @@ def test_wr_beat_sequencer(request, test_type, dfi_rate):
         "WR_CAM_DEPTH":    "16",
         "W_BUF_PTR_WIDTH": "7",
         "BURST_LEN_WIDTH": "8",
-        "DRAM_BEAT_WIDTH": "64",
+        "DRAM_BEAT_WIDTH": _BEAT,
         "DFI_RATE":        str(dfi_rate),
         "MAX_BURST_LEN":   "256",
         # Match production data_path_macro (which sets this to the

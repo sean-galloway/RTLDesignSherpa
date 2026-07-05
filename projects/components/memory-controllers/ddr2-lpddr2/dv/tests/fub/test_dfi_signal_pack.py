@@ -15,6 +15,8 @@ Scenarios:
 """
 
 import os
+_BEAT = int(os.environ.get("DRAM_BEAT_WIDTH_OVERRIDE", "64"))
+
 import sys
 import random
 import logging
@@ -167,7 +169,7 @@ def test_dfi_signal_pack(request, test_type, dfi_rate, num_ranks):
     os.makedirs(log_dir, exist_ok=True)
 
     # For rate-N: DFI_DATA_WIDTH = 64 × rate
-    dfi_data_width = 64 * dfi_rate
+    dfi_data_width = _BEAT * dfi_rate
 
     extra_env = {
         "DUT":               dut_name,
