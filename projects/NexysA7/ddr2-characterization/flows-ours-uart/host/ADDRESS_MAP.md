@@ -79,6 +79,24 @@ here reads as 0 and ignores writes.
 | 0x60 | CTRLR_CFG  | RW  | [0] memtype (0=DDR2, 1=LPDDR2) · [15:8] t_phy_wrlat · [23:16] t_rddata_en · [24] rd_in_order |
 | 0x64 | CTRLR_CAP  | RW  | [3:0] cap_lookahead_max · [7:4] cap_synth_mask                                |
 
+### a7ddrphy calibration CSR passthrough (0x80..0x8C)
+
+Indirect access to the LiteDRAM a7ddrphy's 13 read/write-leveling knobs
+(firmware drives leveling — no hardware FSM). Knob map:
+`rtl-vivado/a7ddrphy/a7ddrphy_csr_map.txt`. Only meaningful on hardware with
+the generated PHY (the sim stub ignores it).
+
+| Off  | Reg           | R/W | Notes                                                          |
+|------|---------------|-----|----------------------------------------------------------------|
+| 0x80 | PHY_CSR_ADDR  | RW  | [9:0] a7ddrphy CSR word index (the knob to access)             |
+| 0x84 | PHY_CSR_WDATA | RW  | 32b value to write to the selected knob                        |
+| 0x88 | PHY_CSR_CTRL  | W   | [0] pulse → drive one CSR-bus write (adr=ADDR, dat=WDATA)       |
+| 0x8C | PHY_CSR_RDATA | R   | a7ddrphy dat_r for the current PHY_CSR_ADDR                     |
+
+Leveling flow (firmware): set PHY_CSR_ADDR + PHY_CSR_WDATA, pulse PHY_CSR_CTRL
+to write a knob; or set PHY_CSR_ADDR and read PHY_CSR_RDATA to sample a status
+knob. Sequence per LiteDRAM's read/write-leveling algorithm.
+
 ### WR engine cfg (0x100..0x128)
 
 | Off   | Reg              | Bit-packing                                                                                 |

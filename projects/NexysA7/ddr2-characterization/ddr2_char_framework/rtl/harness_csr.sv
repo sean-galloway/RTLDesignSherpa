@@ -247,6 +247,16 @@ module harness_csr
     output logic [3:0]      o_cap_lookahead_max,
     output logic [3:0]      o_cap_synth_mask,
 
+    // ---- a7ddrphy calibration CSR passthrough (firmware leveling) ----
+    // Indirect access at harness_csr offsets 0x080-0x08C: write ADDR (0x080)
+    // + WDATA (0x084), pulse CTRL (0x088)[0] to drive one CSR-bus write; read
+    // RDATA (0x08C) returns the PHY's dat_r for the current ADDR. The 13 knobs
+    // are documented in rtl-vivado/a7ddrphy/a7ddrphy_csr_map.txt.
+    output logic [9:0]      o_phy_csr_adr,
+    output logic            o_phy_csr_we,
+    output logic [31:0]     o_phy_csr_dat_w,
+    input  logic [31:0]     i_phy_csr_dat_r,
+
     // =====================================================================
     // WR-engine cfg outputs (drive ddr2_char_macro cfg_wr_* inputs)
     // =====================================================================
@@ -402,6 +412,10 @@ module harness_csr
     logic        r_rd_err_sticky;
 
     logic [31:0] r_scratch;
+    // a7ddrphy CSR passthrough state
+    logic [9:0]  r_phy_csr_addr;
+    logic [31:0] r_phy_csr_wdata;
+    logic        r_phy_csr_we_pulse;
 
     // Timer
     logic        r_timer_clear_pulse;
@@ -498,6 +512,9 @@ module harness_csr
             r_rd_hash_seed1        <= '0;
             r_rd_hash_seed2        <= '0;
             r_obs_hist_sel         <= '0;
+            r_phy_csr_addr         <= '0;
+            r_phy_csr_wdata        <= '0;
+            r_phy_csr_we_pulse     <= 1'b0;
         end else begin
             // Default: pulses auto-clear each cycle
             r_start_wr_pulse       <= 1'b0;
@@ -505,6 +522,7 @@ module harness_csr
             r_clear_stats_pulse    <= 1'b0;
             r_soft_reset_pulse     <= 1'b0;
             r_timer_clear_pulse    <= 1'b0;
+            r_phy_csr_we_pulse     <= 1'b0;
 
             case (r_wstate)
                 W_IDLE: begin
@@ -526,6 +544,11 @@ module harness_csr
                             end
                             9'h060: r_ctrlr_cfg <= int_wdata;
                             9'h064: r_ctrlr_cap <= int_wdata;
+
+                            // a7ddrphy calibration CSR passthrough
+                            9'h080: r_phy_csr_addr     <= int_wdata[9:0];
+                            9'h084: r_phy_csr_wdata    <= int_wdata;
+                            9'h088: r_phy_csr_we_pulse <= int_wdata[0];
 
                             // WR engine cfg
                             9'h100: r_wr_start_addr  <= int_wdata;
@@ -670,6 +693,11 @@ module harness_csr
                             9'h060: r_rdata <= r_ctrlr_cfg;
                             9'h064: r_rdata <= r_ctrlr_cap;
 
+                            // a7ddrphy calibration CSR passthrough
+                            9'h080: r_rdata <= {22'd0, r_phy_csr_addr};
+                            9'h084: r_rdata <= r_phy_csr_wdata;
+                            9'h08C: r_rdata <= i_phy_csr_dat_r;
+
                             9'h100: r_rdata <= r_wr_start_addr;
                             9'h104: r_rdata <= r_wr_stride_0;
                             9'h108: r_rdata <= r_wr_stride_1;
@@ -740,6 +768,12 @@ module harness_csr
     assign o_soft_reset_pulse  = r_soft_reset_pulse;
 
     assign o_timer_clear_pulse    = r_timer_clear_pulse;
+
+    // a7ddrphy calibration CSR bus. adr/dat_w held from the passthrough
+    // registers; we pulses one cycle on a CTRL write (firmware leveling).
+    assign o_phy_csr_adr   = r_phy_csr_addr;
+    assign o_phy_csr_dat_w = r_phy_csr_wdata;
+    assign o_phy_csr_we    = r_phy_csr_we_pulse;
     assign o_timer_expected_beats = r_timer_expected_beats;
     assign o_rd_resp_delay_cyc    = r_rd_resp_delay_cyc;
     assign o_wr_resp_delay_cyc    = r_wr_resp_delay_cyc;

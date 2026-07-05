@@ -114,7 +114,13 @@ module ddr2_char_harness
     input  logic                        i_dfi_ctrlupd_ack,
     input  logic                        i_dfi_phyupd_req,
     output logic                        o_dfi_phyupd_ack,
-    input  logic [1:0]                  i_dfi_phyupd_type
+    input  logic [1:0]                  i_dfi_phyupd_type,
+
+    // a7ddrphy calibration CSR bus (from harness_csr; firmware leveling)
+    output logic [9:0]                  o_phy_csr_adr,
+    output logic                        o_phy_csr_we,
+    output logic [31:0]                 o_phy_csr_dat_w,
+    input  logic [31:0]                 i_phy_csr_dat_r
 );
 
     // Baud divisor for uart_axil_bridge
@@ -475,6 +481,12 @@ module ddr2_char_harness
         .o_rd_in_order       (w_rd_in_order),
         .o_cap_lookahead_max (w_cap_lookahead_max),
         .o_cap_synth_mask    (w_cap_synth_mask),
+
+        // a7ddrphy calibration CSR passthrough -> harness boundary -> top -> PHY
+        .o_phy_csr_adr       (o_phy_csr_adr),
+        .o_phy_csr_we        (o_phy_csr_we),
+        .o_phy_csr_dat_w     (o_phy_csr_dat_w),
+        .i_phy_csr_dat_r     (i_phy_csr_dat_r),
 
         // WR engine cfg
         .o_cfg_wr_start_addr  (w_cfg_wr_start_addr),

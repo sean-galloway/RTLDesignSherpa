@@ -81,8 +81,60 @@ module ddr2_char_top #(
         end
     end
 
-    wire aclk    = CLK100MHZ;
-    wire aresetn = r_rst_sync;
+    // =========================================================================
+    // Clock generation for the a7ddrphy (4:1). The PHY needs sys (100),
+    // sys2x (200), sys4x (400) and sys4x_dqs (400, 90-deg), plus a 200 MHz
+    // IDELAYCTRL reference. The controller + harness run on sys.
+    //   * DDR2_CHAR_SYNTH: real MMCME2_BASE + BUFGs + IDELAYCTRL (Vivado).
+    //   * else (verilator/cocotb): all clocks alias CLK100MHZ, locked=1 —
+    //     the a7ddrphy stub ignores the fast clocks anyway.
+    // =========================================================================
+    wire w_sys, w_sys2x, w_sys4x, w_sys4x_dqs;
+    wire w_clk_locked;
+
+`ifdef DDR2_CHAR_SYNTH
+    wire w_sys_i, w_sys2x_i, w_sys4x_i, w_sys4x_dqs_i, w_clkfb_i, w_clkfb;
+    MMCME2_BASE #(
+        .CLKIN1_PERIOD   (10.0),   // 100 MHz board clock
+        .DIVCLK_DIVIDE   (1),
+        .CLKFBOUT_MULT_F (8.0),    // VCO = 800 MHz
+        .CLKOUT0_DIVIDE_F(8.0),    // sys        = 100 MHz
+        .CLKOUT1_DIVIDE  (4),      // sys2x      = 200 MHz (also IDELAYCTRL ref)
+        .CLKOUT2_DIVIDE  (2),      // sys4x      = 400 MHz
+        .CLKOUT3_DIVIDE  (2),      // sys4x_dqs  = 400 MHz
+        .CLKOUT3_PHASE   (90.0)    // DQS 90-deg
+    ) u_mmcm (
+        .CLKIN1   (CLK100MHZ),
+        .CLKFBIN  (w_clkfb),
+        .CLKFBOUT (w_clkfb_i),
+        .CLKFBOUTB(),
+        .CLKOUT0  (w_sys_i),      .CLKOUT0B(),
+        .CLKOUT1  (w_sys2x_i),    .CLKOUT1B(),
+        .CLKOUT2  (w_sys4x_i),    .CLKOUT2B(),
+        .CLKOUT3  (w_sys4x_dqs_i),.CLKOUT3B(),
+        .CLKOUT4  (), .CLKOUT5(), .CLKOUT6(),
+        .LOCKED   (w_clk_locked),
+        .PWRDWN   (1'b0),
+        .RST      (~CPU_RESETN)
+    );
+    BUFG u_bufg_fb  (.I(w_clkfb_i),      .O(w_clkfb));
+    BUFG u_bufg_sys (.I(w_sys_i),        .O(w_sys));
+    BUFG u_bufg_2x  (.I(w_sys2x_i),      .O(w_sys2x));
+    BUFG u_bufg_4x  (.I(w_sys4x_i),      .O(w_sys4x));
+    BUFG u_bufg_4xd (.I(w_sys4x_dqs_i),  .O(w_sys4x_dqs));
+    // IODELAY reference (200 MHz). One control per I/O bank the DQ/DQS use.
+    IDELAYCTRL u_idelayctrl (.REFCLK(w_sys2x), .RST(~w_clk_locked), .RDY());
+`else
+    assign w_sys       = CLK100MHZ;
+    assign w_sys2x     = CLK100MHZ;
+    assign w_sys4x     = CLK100MHZ;
+    assign w_sys4x_dqs = CLK100MHZ;
+    assign w_clk_locked = 1'b1;
+`endif
+
+    // Controller + harness run on sys. Hold reset until the MMCM locks.
+    wire aclk    = w_sys;
+    wire aresetn = r_rst_sync & w_clk_locked;
 
     // =========================================================================
     // 7-segment glue: harness emits o_seg[6:0] = {g,f,e,d,c,b,a}. Fan into
@@ -128,6 +180,13 @@ module ddr2_char_top #(
     logic                          w_dfi_ctrlupd_req;
     logic                          w_dfi_phyupd_ack;
 
+    // Calibration CSR bus — harness_csr (0x080-0x08C) drives these; firmware
+    // runs a7ddrphy read/write leveling over UART. Wired harness -> PHY below.
+    logic [9:0]  w_phy_csr_adr;
+    logic        w_phy_csr_we;
+    logic [31:0] w_phy_csr_dat_w;
+    logic [31:0] w_phy_csr_dat_r;
+
     // =========================================================================
     // Harness
     // =========================================================================
@@ -169,7 +228,13 @@ module ddr2_char_top #(
         .i_dfi_ctrlupd_ack      (1'b0),
         .i_dfi_phyupd_req       (1'b0),
         .o_dfi_phyupd_ack       (w_dfi_phyupd_ack),
-        .i_dfi_phyupd_type      (2'b00)
+        .i_dfi_phyupd_type      (2'b00),
+
+        // a7ddrphy calibration CSR bus (firmware leveling over UART)
+        .o_phy_csr_adr          (w_phy_csr_adr),
+        .o_phy_csr_we           (w_phy_csr_we),
+        .o_phy_csr_dat_w        (w_phy_csr_dat_w),
+        .i_phy_csr_dat_r        (w_phy_csr_dat_r)
     );
 
     // =========================================================================
@@ -247,31 +312,16 @@ module ddr2_char_top #(
         .dfi_p2_rddata_valid(w_p2_rdv), .dfi_p3_rddata_valid(w_p3_rdv)
     );
 
-    // =========================================================================
-    // Clocking for a7ddrphy. The real PHY needs sys / sys2x / sys4x /
-    // sys4x_dqs (400 MHz, DQS 90-deg). For lint/sim these tie to aclk (the
-    // black-box stub ignores them). The Vivado build supplies a real MMCM
-    // (see the DDR2_CHAR_SYNTH block / TASK-GEAR bring-up notes).
-    // =========================================================================
-    logic sys2x_clk, sys4x_clk, sys4x_dqs_clk;
-    logic sys_rst_p, sys2x_rst_p, sys4x_rst_p, sys4x_dqs_rst_p;
-    assign sys2x_clk       = aclk;
-    assign sys4x_clk       = aclk;
-    assign sys4x_dqs_clk   = aclk;
-    assign sys_rst_p       = ~aresetn;
-    assign sys2x_rst_p     = ~aresetn;
-    assign sys4x_rst_p     = ~aresetn;
-    assign sys4x_dqs_rst_p = ~aresetn;
-
-    // Calibration CSR bus — driven by the harness AXIL->CSR bridge (firmware
-    // runs read/write leveling). Tied off until that bridge lands.
-    logic [9:0]  w_phy_csr_adr;
-    logic        w_phy_csr_we;
-    logic [31:0] w_phy_csr_dat_w;
-    logic [31:0] w_phy_csr_dat_r;
-    assign w_phy_csr_adr   = '0;
-    assign w_phy_csr_we    = 1'b0;
-    assign w_phy_csr_dat_w = '0;
+    // PHY clocks come from the MMCM block above (sim: all = CLK100MHZ).
+    // Per-domain sync-high resets share the single aresetn (already gated
+    // on MMCM lock).
+    wire sys2x_clk       = w_sys2x;
+    wire sys4x_clk       = w_sys4x;
+    wire sys4x_dqs_clk   = w_sys4x_dqs;
+    wire sys_rst_p       = ~aresetn;
+    wire sys2x_rst_p     = ~aresetn;
+    wire sys4x_rst_p     = ~aresetn;
+    wire sys4x_dqs_rst_p = ~aresetn;
 
     // =========================================================================
     // a7ddrphy — LiteDRAM PHY. Black box for lint/sim (a7ddrphy_stub.sv);
@@ -344,7 +394,6 @@ module ddr2_char_top #(
     wire _unused_ok = &{1'b0,
         w_dfi_dram_clk_disable, w_dfi_init_start,
         w_dfi_ctrlupd_req, w_dfi_phyupd_ack,
-        w_phy_csr_dat_r,
         1'b0};
     /* verilator lint_on UNUSED */
 
