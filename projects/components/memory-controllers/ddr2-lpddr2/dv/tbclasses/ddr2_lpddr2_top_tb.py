@@ -60,6 +60,7 @@ class DDR2LPDDR2TopTB:
     def __init__(self, dut, *, mc_period_ns: int = 7, pclk_period_ns: int = 10,
                  axi_data_width: int = 64, axi_id_width: int = 4,
                  axi_addr_width: int = 32,
+                 dram_beat_width: int | None = None,
                  num_ranks: int = 1, num_banks: int = 8,
                  row_width: int = 14, col_width: int = 10) -> None:
         self.dut = dut
@@ -76,7 +77,12 @@ class DDR2LPDDR2TopTB:
         self.num_banks = num_banks
         self.row_width = row_width
         self.col_width = col_width
+        # AXI beat bytes — used by the AXI-side snoop scoreboards (s_axi_*).
         self.bytes_per_beat = axi_data_width // 8
+        # TASK-GEAR: DFI/DRAM beat bytes — the MemoryModel line size + the
+        # DFISlavePHY access granularity. Default (None) => beat==AXI (GEAR=1).
+        self.dram_beat_width = dram_beat_width or axi_data_width
+        self.dram_beat_bytes = self.dram_beat_width // 8
 
         # Address mapping mirrors the RTL's default ROW_MAJOR scheme:
         #   byte_addr = {row, bank, col, byte_off}
@@ -99,7 +105,7 @@ class DDR2LPDDR2TopTB:
         num_lines = num_ranks * num_banks * (1 << row_width) * (1 << col_width)
         self.memory = MemoryModel(
             num_lines=num_lines,
-            bytes_per_line=self.bytes_per_beat,
+            bytes_per_line=self.dram_beat_bytes,
             log=self.log,
         )
 

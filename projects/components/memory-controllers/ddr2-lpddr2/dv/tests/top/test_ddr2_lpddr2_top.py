@@ -64,7 +64,12 @@ async def cocotb_test_ddr2_lpddr2_top(dut):
     else:
         init_complete_delay = 20
 
-    tb = DDR2LPDDR2TopTB(dut, num_ranks=num_ranks)
+    # TASK-GEAR: AXI width and DRAM beat width may differ (GEAR>1).
+    tb = DDR2LPDDR2TopTB(
+        dut, num_ranks=num_ranks,
+        axi_data_width=int(os.environ.get("AXI_DATA_WIDTH", "64")),
+        dram_beat_width=int(os.environ.get("DRAM_BEAT_WIDTH", "64")),
+    )
     await tb.reset(mem_type=mem_type,
                    init_complete_delay=init_complete_delay)
     tb.init_register_map()
@@ -1554,6 +1559,63 @@ def test_ddr2_lpddr2_top(request, test_type):
         extra_env=extra_env, parameters=parameters,
         compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
         waves=enable_waves, keep_files=True, timescale="1ns/1ps")
+
+
+def test_ddr2_lpddr2_top_gear2(request):
+    """TASK-GEAR full-stack: AXI=64 host -> 32-bit DRAM beat at DFI_RATE=4
+    (Nexys A7 a7ddrphy config, GEAR=2). Same DUT + DFISlavePHY memory as the
+    top smoke, with the AXI<->DRAM-beat gearbox engaged end to end."""
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "ddr2_lpddr2_top_tb_top"
+    test_name = "test_ddr2_lpddr2_top_gear2"
+
+    filelist_path = ("projects/components/memory-controllers/ddr2-lpddr2/"
+                     "rtl/filelists/top/ddr2_lpddr2_top.f")
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=filelist_path)
+    verilog_sources.append(os.path.join(
+        repo_root,
+        "projects/components/memory-controllers/ddr2-lpddr2/dv/tb/"
+        "ddr2_lpddr2_top_tb_top.sv"))
+
+    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        "DUT": dut_name,
+        "TEST_TYPE": "smoke",
+        "MEM_TYPE": "DDR2",
+        "NUM_RANKS": "1",
+        "AXI_DATA_WIDTH": "64",
+        "DRAM_BEAT_WIDTH": "32",
+        "SEED": str(random.randint(0, 100000)),
+        "COCOTB_LOG_LEVEL": "INFO",
+        "COCOTB_RESULTS_FILE":
+            os.path.join(log_dir, f"results_{test_name}.xml"),
+    }
+    parameters = {
+        "NUM_RANKS": "1", "PAGE_POLICY": "1",
+        "AXI_DATA_WIDTH": "64", "DRAM_BEAT_WIDTH": "32", "DFI_RATE": "4",
+    }
+    compile_args = [
+        "+define+USE_ASYNC_RESET",
+        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
+        "-Wno-CASEOVERLAP",
+    ]
+    compile_args += get_coverage_compile_args()
+    extra_env.update(get_coverage_env(test_name, sim_build=sim_build))
+
+    run(python_search=[tests_dir],
+        verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase="cocotb_test_ddr2_lpddr2_top",
+        sim_build=sim_build, simulator="verilator",
+        extra_env=extra_env, parameters=parameters,
+        compile_args=compile_args, sim_args=[], plus_args=[],
+        waves=False, keep_files=True, timescale="1ns/1ps")
 
 
 # ============================================================================
