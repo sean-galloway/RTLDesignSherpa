@@ -62,6 +62,7 @@ async def cocotb_test_axi_intake(dut):
         "aw_chunk_split":     _aw_chunk_split,
         "ar_chunk_split":     _ar_chunk_split,
         "b_coalesce":         _b_coalesce,
+        "gear2":              _gear2,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -240,6 +241,44 @@ async def _rd_inject_e2e(tb):
     assert beats[1] == 0xBBBB_BBBB_BBBB_BBBB, (
         f"R beat 1 mismatch: got 0x{beats[1]:016X}"
     )
+
+
+async def _gear2(tb):
+    """TASK-GEAR: AXI=64 driving a 32-bit DRAM beat (GEAR=2). Verifies the
+    write-split (one 64b AXI beat -> two 32b DRAM beats, LSB-first) via the
+    wbuf read port, and the read-assemble (two injected 32b DRAM beats ->
+    one 64b AXI R beat) via the master read BFM."""
+    GEAR = tb.GEAR
+    assert GEAR == 2, f"scenario expects GEAR=2, got {GEAR}"
+
+    # --- write split: each AXI beat splits into GEAR DRAM beats ---
+    data = [0x1122334455667788, 0x99AABBCCDDEEFF00, 0x0123456789ABCDEF]
+    pushed = await _drive_one_write(tb, axid=2, addr=0x300, data=data)
+    assert pushed.length == len(data) * GEAR, (
+        f"aw_push_len (DRAM beats) = {pushed.length}, want {len(data)*GEAR}"
+    )
+    for i, beat in enumerate(data):
+        lo = await tb.read_wbuf(pushed.w_buf_ptr + GEAR*i)
+        hi = await tb.read_wbuf(pushed.w_buf_ptr + GEAR*i + 1)
+        assert lo == (beat & 0xFFFF_FFFF), (
+            f"beat{i} DRAM-lo = 0x{lo:08X}, want 0x{beat & 0xFFFFFFFF:08X}"
+        )
+        assert hi == ((beat >> 32) & 0xFFFF_FFFF), (
+            f"beat{i} DRAM-hi = 0x{hi:08X}, want 0x{(beat>>32) & 0xFFFFFFFF:08X}"
+        )
+
+    # --- read assemble: GEAR injected DRAM beats -> one AXI R beat ---
+    # 2 AXI R beats <- 4 DRAM beats (LSB-first within each AXI beat).
+    d = [0xA1A1_B1B1, 0xC1C1_D1D1, 0xE1E1_F1F1, 0x0101_0202]
+    tb.queue_inject(axi_id=5, beats=d)
+    beats = await tb.axi_master_rd.read_transaction(
+        address=0x500, burst_len=2, id=5,
+    )
+    assert len(beats) == 2, f"R beats: got {len(beats)} want 2"
+    exp0 = (d[1] << 32) | d[0]
+    exp1 = (d[3] << 32) | d[2]
+    assert beats[0] == exp0, f"R beat0 = 0x{beats[0]:016X}, want 0x{exp0:016X}"
+    assert beats[1] == exp1, f"R beat1 = 0x{beats[1]:016X}, want 0x{exp1:016X}"
 
 
 async def _profile_sweep_b2b(tb):
@@ -514,6 +553,61 @@ def test_axi_intake(request, test_type):
         extra_env=extra_env, parameters=parameters,
         compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
         waves=enable_waves, keep_files=True, timescale="1ns/1ps")
+
+
+# ============================================================================
+# TASK-GEAR: AXI=64 driving a 32-bit DRAM beat (GEAR=2). Exercises the
+# write-split / read-assemble gearbox. DRAM_BEAT_WIDTH must move in BOTH the
+# RTL params and the TB env so the two agree on the split factor.
+# ============================================================================
+def test_axi_intake_gear2(request):
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "axi_intake"
+    test_name = "test_axi_intake_gear2"
+
+    filelist_path = ("projects/components/memory-controllers/ddr2-lpddr2/"
+                     "rtl/filelists/fub/axi_intake.f")
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=filelist_path)
+
+    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        "DUT": dut_name,
+        "TEST_TYPE": "gear2",
+        "AXI_ID_WIDTH":   "4",
+        "AXI_USER_WIDTH": "8",
+        "AXI_DATA_WIDTH": "64",
+        "DRAM_BEAT_WIDTH": "32",
+        "AXI_ADDR_WIDTH": "32",
+        "SEED": str(random.randint(0, 100000)),
+        "TEST_LEVEL": os.environ.get("TEST_LEVEL", "FUNC"),
+        "COCOTB_LOG_LEVEL": "INFO",
+        "COCOTB_RESULTS_FILE":
+            os.path.join(log_dir, f"results_{test_name}.xml"),
+    }
+    parameters = {
+        "AXI_ID_WIDTH":   "4",
+        "AXI_USER_WIDTH": "8",
+        "AXI_DATA_WIDTH": "64",
+        "DRAM_BEAT_WIDTH": "32",
+        "AXI_ADDR_WIDTH": "32",
+    }
+
+    compile_args = ["+define+USE_ASYNC_RESET", "-Wno-WIDTHTRUNC"]
+    compile_args += get_coverage_compile_args()
+    extra_env.update(get_coverage_env(test_name, sim_build=sim_build))
+
+    run(python_search=[tests_dir],
+        verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase="cocotb_test_axi_intake",
+        sim_build=sim_build, simulator="verilator",
+        extra_env=extra_env, parameters=parameters,
+        compile_args=compile_args, sim_args=[], plus_args=[],
+        waves=False, keep_files=True, timescale="1ns/1ps")
 
 
 # ============================================================================

@@ -84,6 +84,11 @@ class AxiIntakeTB(TBBase):
             os.environ.get("AXI_DATA_WIDTH", "64"))
         self.AXI_ADDR_WIDTH  = self.convert_to_int(
             os.environ.get("AXI_ADDR_WIDTH", "32"))
+        # TASK-GEAR: DRAM beat width (<= AXI width). GEAR DRAM beats pack
+        # into one AXI beat. Default == AXI width => GEAR=1.
+        self.DRAM_BEAT_WIDTH = self.convert_to_int(
+            os.environ.get("DRAM_BEAT_WIDTH", str(self.AXI_DATA_WIDTH)))
+        self.GEAR = self.AXI_DATA_WIDTH // self.DRAM_BEAT_WIDTH
         self.SEED = self.convert_to_int(os.environ.get("SEED", "1"))
 
         # AXI4 BFMs
