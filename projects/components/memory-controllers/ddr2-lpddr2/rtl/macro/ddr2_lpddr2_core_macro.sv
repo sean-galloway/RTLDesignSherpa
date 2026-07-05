@@ -351,6 +351,7 @@ module ddr2_lpddr2_core_macro
     axi_frontend_macro #(
         .AXI_ADDR_WIDTH       (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH       (AXI_DATA_WIDTH),
+        .DRAM_BEAT_WIDTH      (DRAM_BEAT_WIDTH),
         .AXI_ID_WIDTH         (AXI_ID_WIDTH),
         .AXI_USER_WIDTH       (AXI_USER_WIDTH),
         .NUM_RANKS            (NUM_RANKS),

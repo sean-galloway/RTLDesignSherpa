@@ -56,6 +56,8 @@ module axi_frontend_macro
     parameter int AXI_ID_WIDTH         = 4,
     parameter int AXI_USER_WIDTH       = 8,
     parameter int AXI_STRB_WIDTH       = AXI_DATA_WIDTH / 8,
+    // TASK-GEAR: DRAM beat width (<= AXI width); default = AXI => GEAR=1.
+    parameter int DRAM_BEAT_WIDTH      = AXI_DATA_WIDTH,
     parameter int NUM_RANKS            = 1,
     parameter int NUM_BANKS            = 8,
     parameter int ROW_WIDTH            = 14,
@@ -84,6 +86,8 @@ module axi_frontend_macro
     parameter int IW  = AXI_ID_WIDTH,
     parameter int UW  = AXI_USER_WIDTH,
     parameter int SW  = AXI_STRB_WIDTH,
+    parameter int DBW = DRAM_BEAT_WIDTH,        // DRAM beat data width
+    parameter int DSW = DRAM_BEAT_WIDTH / 8,    // DRAM beat strobe width
     parameter int BLW = BURST_LEN_WIDTH,
     parameter int WPW = W_BUF_PTR_WIDTH,
     parameter int RKW = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
@@ -163,15 +167,15 @@ module axi_frontend_macro
     input  logic                 rd_inject_valid_i,
     output logic                 rd_inject_ready_o,
     input  logic [IW-1:0]        rd_inject_id_i,
-    input  logic [DW-1:0]        rd_inject_data_i,
+    input  logic [DBW-1:0]       rd_inject_data_i,  // one DRAM beat (TASK-GEAR)
     input  logic                 rd_inject_last_i,
 
     //=========================================================================
     // External w_buf read-back (data sourced for the slot currently being
-    // beat-pulled by the scheduler stub / wr_data_path TB)
+    // beat-pulled by the scheduler stub / wr_data_path TB). One DRAM beat.
     //=========================================================================
-    output logic [DW-1:0]        wbuf_ext_rd_data_o,
-    output logic [SW-1:0]        wbuf_ext_rd_strb_o,
+    output logic [DBW-1:0]       wbuf_ext_rd_data_o,
+    output logic [DSW-1:0]       wbuf_ext_rd_strb_o,
 
     //=========================================================================
     // Scheduler query (per-(rank, bank), with row for row-hit check)
@@ -319,6 +323,7 @@ module axi_frontend_macro
     axi_intake #(
         .AXI_ADDR_WIDTH    (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH    (AXI_DATA_WIDTH),
+        .DRAM_BEAT_WIDTH   (DRAM_BEAT_WIDTH),
         .AXI_ID_WIDTH      (AXI_ID_WIDTH),
         .AXI_USER_WIDTH    (AXI_USER_WIDTH),
         .AXI_STRB_WIDTH    (AXI_STRB_WIDTH),
