@@ -299,7 +299,27 @@ module ddr2_char_macro_tb_top
         .rd_dbg_ready            (rd_dbg_ready),
         .rd_dbg_actual           (rd_dbg_actual),
         .rd_dbg_expected         (rd_dbg_expected),
-        .rd_dbg_mismatch         (rd_dbg_mismatch)
+        .rd_dbg_mismatch         (rd_dbg_mismatch),
+
+        // Perf / latency-histogram instrumentation ports (added to
+        // ddr2_char_macro for the UART characterization flow). This sim TB
+        // does not exercise them — tie inputs off and leave outputs open.
+        .perf_clear              (1'b0),
+        .perf_freeze             (1'b0),
+        .perf_wr_prod            (),
+        .perf_wr_bp              (),
+        .perf_wr_starv           (),
+        .perf_wr_idle            (),
+        .perf_rd_prod            (),
+        .perf_rd_bp              (),
+        .perf_rd_starv           (),
+        .perf_rd_idle            (),
+        .i_hist_metric           (1'b0),
+        .i_hist_bin              (4'd0),
+        .perf_wr_hist_count      (),
+        .perf_wr_hist_total      (),
+        .perf_rd_hist_count      (),
+        .perf_rd_hist_total      ()
     );
 
     // Silence Verilator's unused-output warnings for unused phy_dfi_* lines.

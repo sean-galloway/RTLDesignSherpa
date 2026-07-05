@@ -72,8 +72,8 @@
 //   0x10C  WR_WRAP_MASK_0   RW
 //   0x110  WR_WRAP_MASK_1   RW
 //   0x114  WR_BLEN_TXN      RW  [7:0]burst_len  [23:8]txn_count  [31:24]gap[3:0]
-//   0x118  WR_AXI_ATTR      RW  [3:0]axi_id  [5:4]id_mode  [8:6]axi_size
-//                                 [10:9]axi_burst  [11]data_mode
+//   0x118  WR_AXI_ATTR      RW  [7:0]axi_id  [9:8]id_mode  [12:10]axi_size
+//                                 [14:13]axi_burst  [15]data_mode
 //   0x11C  WR_LFSR_SEED     RW
 //   0x120  WR_HASH_SEED0    RW
 //   0x124  WR_HASH_SEED1    RW
@@ -125,7 +125,7 @@ module harness_csr
 #(
     parameter int AW = 32,
     parameter int DW = 32,
-    parameter int AXI_ID_WIDTH     = 4,
+    parameter int AXI_ID_WIDTH     = 8,
     parameter int STRIDE_WIDTH     = 24,
     parameter int TXN_COUNT_WIDTH  = 16,
     parameter int BURST_LEN_WIDTH  = 8,
@@ -422,7 +422,7 @@ module harness_csr
     logic [31:0] r_wr_wrap_mask_0;
     logic [31:0] r_wr_wrap_mask_1;
     logic [31:0] r_wr_blen_txn;   // [7:0]burst_len [23:8]txn_count [27:24]gap
-    logic [31:0] r_wr_axi_attr;   // [3:0]axi_id [5:4]id_mode [8:6]axi_size [10:9]axi_burst [11]data_mode
+    logic [31:0] r_wr_axi_attr;   // [7:0]axi_id [9:8]id_mode [12:10]axi_size [14:13]axi_burst [15]data_mode
     logic [31:0] r_wr_lfsr_seed;
     logic [31:0] r_wr_hash_seed0;
     logic [31:0] r_wr_hash_seed1;
@@ -772,10 +772,10 @@ module harness_csr
     assign o_cfg_wr_txn_count   = r_wr_blen_txn[TXN_COUNT_WIDTH+7:8];
     assign o_cfg_wr_gap         = r_wr_blen_txn[27:24];
     assign o_cfg_wr_axi_id      = r_wr_axi_attr[AXI_ID_WIDTH-1:0];
-    assign o_cfg_wr_id_mode     = r_wr_axi_attr[5:4];
-    assign o_cfg_wr_axi_size    = r_wr_axi_attr[8:6];
-    assign o_cfg_wr_axi_burst   = r_wr_axi_attr[10:9];
-    assign o_cfg_wr_data_mode   = r_wr_axi_attr[11];
+    assign o_cfg_wr_id_mode     = r_wr_axi_attr[9:8];
+    assign o_cfg_wr_axi_size    = r_wr_axi_attr[12:10];
+    assign o_cfg_wr_axi_burst   = r_wr_axi_attr[14:13];
+    assign o_cfg_wr_data_mode   = r_wr_axi_attr[15];
     assign o_cfg_wr_lfsr_seed   = r_wr_lfsr_seed;
     assign o_cfg_wr_hash_seed0  = r_wr_hash_seed0;
     assign o_cfg_wr_hash_seed1  = r_wr_hash_seed1;
@@ -791,10 +791,10 @@ module harness_csr
     assign o_cfg_rd_txn_count   = r_rd_blen_txn[TXN_COUNT_WIDTH+7:8];
     assign o_cfg_rd_gap         = r_rd_blen_txn[27:24];
     assign o_cfg_rd_axi_id      = r_rd_axi_attr[AXI_ID_WIDTH-1:0];
-    assign o_cfg_rd_id_mode     = r_rd_axi_attr[5:4];
-    assign o_cfg_rd_axi_size    = r_rd_axi_attr[8:6];
-    assign o_cfg_rd_axi_burst   = r_rd_axi_attr[10:9];
-    assign o_cfg_rd_data_mode   = r_rd_axi_attr[11];
+    assign o_cfg_rd_id_mode     = r_rd_axi_attr[9:8];
+    assign o_cfg_rd_axi_size    = r_rd_axi_attr[12:10];
+    assign o_cfg_rd_axi_burst   = r_rd_axi_attr[14:13];
+    assign o_cfg_rd_data_mode   = r_rd_axi_attr[15];
     assign o_cfg_rd_lfsr_seed   = r_rd_lfsr_seed;
     assign o_cfg_rd_hash_seed0  = r_rd_hash_seed0;
     assign o_cfg_rd_hash_seed1  = r_rd_hash_seed1;

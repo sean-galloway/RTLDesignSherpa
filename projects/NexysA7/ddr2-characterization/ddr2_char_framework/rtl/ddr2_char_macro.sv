@@ -49,7 +49,11 @@ module ddr2_char_macro
     // ---- AXI4 ----
     parameter int AXI_ADDR_WIDTH   = 32,
     parameter int AXI_DATA_WIDTH   = 64,
-    parameter int AXI_ID_WIDTH     = 4,
+    // AXI_ID_WIDTH=8 to match the pattern-gen engines' internal 8-bit LFSR
+    // for the ID-picker (axi4_master_wr_pattern_gen slices cfg_axi_id[7:0]
+    // for the LFSR seed; narrower ID widths cause a synth part-select
+    // error). Same width stream_top_ch8 uses for its native AXI_ID_WIDTH.
+    parameter int AXI_ID_WIDTH     = 8,
     parameter int AXI_USER_WIDTH   = 8,
     parameter int AXI_STRB_WIDTH   = AXI_DATA_WIDTH / 8,
     parameter int BURST_LEN_WIDTH  = 8,

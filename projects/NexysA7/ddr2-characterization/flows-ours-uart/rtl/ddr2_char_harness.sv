@@ -31,13 +31,20 @@ module ddr2_char_harness
     parameter int SEVEN_SEG_REFRESH  = 1_000,
 
     // SRAM sizing
-    parameter int DEBUG_SRAM_WORDS   = 32768,    // 128 KB @ 32b -> 64K entries @ 64b
+    parameter int DEBUG_SRAM_WORDS   = 512,      // trace buffer unused on this build;
+                                                 // shrunk 32768->512 (was 44K LUTRAM /
+                                                 // 2.4x over the 100T's distributed-RAM
+                                                 // sites, blocking place_design). MEM_DEPTH
+                                                 // = 256 x 64b now — negligible LUTRAM.
     parameter int DFI_MON_RAM_WORDS  = 512,      // 2 KB @ 32b
 
     // AXI4 sizing (matches ddr2_char_macro defaults)
     parameter int AXI_ADDR_WIDTH     = 32,
     parameter int AXI_DATA_WIDTH     = 64,
-    parameter int AXI_ID_WIDTH       = 4,
+    // AXI_ID_WIDTH must be 8 (pattern-gen engines slice cfg_axi_id[7:0]
+    // for their internal ID-picker LFSR; narrower IW triggers a part-
+    // select error at Vivado elaboration).
+    parameter int AXI_ID_WIDTH       = 8,
     parameter int AXI_USER_WIDTH     = 8,
     parameter int AXI_STRB_WIDTH     = AXI_DATA_WIDTH / 8,
 
@@ -847,14 +854,23 @@ module ddr2_char_harness
     // are wired but not yet consumed by downstream blocks — surface via a
     // lint bypass to keep them observable in trace.
     /* verilator lint_off UNUSED */
+    // The char_macro consumes the full width of apb_pstrb + apb_pprot;
+    // only apb_paddr_full has genuinely unused upper bits. Keep that
+    // slice conditional so an APB_ADDR_WIDTH change to 32 doesn't produce
+    // a reversed [31:32] slice (Vivado strict-rejects; verilator silently
+    // treats as zero-width). The staged generate handles both cases.
+    generate
+        if (APB_ADDR_WIDTH < 32) begin : g_apb_addr_unused
+            /* verilator lint_off UNUSED */
+            wire _unused_apb_addr = &{1'b0, apb_paddr_full[31:APB_ADDR_WIDTH]};
+            /* verilator lint_on UNUSED */
+        end
+    endgenerate
     wire _unused_ok = &{1'b0,
         w_soft_reset_pulse,
         w_timer_expected_beats,
         w_rd_resp_delay_cyc, w_wr_resp_delay_cyc,
         w_rd_dbg_valid, w_rd_dbg_actual, w_rd_dbg_expected,
-        apb_paddr_full[31:APB_ADDR_WIDTH],
-        apb_pstrb[3:APB_STRB_WIDTH],
-        apb_pprot[2:APB_PROT_WIDTH],
         1'b0};
     /* verilator lint_on UNUSED */
 
