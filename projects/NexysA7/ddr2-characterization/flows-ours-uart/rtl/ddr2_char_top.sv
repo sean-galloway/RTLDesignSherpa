@@ -99,13 +99,21 @@ module ddr2_char_top #(
 
     // =========================================================================
     // Flat DFI wires (harness <-> adapter <-> a7ddrphy)
+    //
+    // a7ddrphy config (Artix-7 x16 DDR2): 4:1 gearing (DFI_RATE=4 = the PHY's
+    // phase count), DRAM beat = 2*DQ = 32b. TASK-GEAR lets the controller run
+    // AXI=64 while the DFI beat is 32b. DFI_DATA_WIDTH = 32*4 = 128.
     // =========================================================================
-    localparam int DFI_RATE       = 2;
-    localparam int DFI_DATA_WIDTH = DFI_RATE * 64;
-    localparam int DFI_STRB_WIDTH = DFI_DATA_WIDTH / 8;
+    localparam int AXI_DATA_WIDTH  = 64;
+    localparam int DRAM_BEAT_WIDTH = 32;
+    localparam int DFI_RATE        = 4;
+    localparam int DFI_DATA_WIDTH  = DFI_RATE * DRAM_BEAT_WIDTH;   // 128
+    localparam int DFI_STRB_WIDTH  = DFI_DATA_WIDTH / 8;           // 16
+    localparam int DFI_ADDR_BUS_W  = ROW_WIDTH * DFI_RATE;         // 52
+    localparam int DFI_BANK_BUS_W  = 3 * DFI_RATE;                 // 12
 
-    logic [31:0]                   w_dfi_address;
-    logic [2:0]                    w_dfi_bank;
+    logic [DFI_ADDR_BUS_W-1:0]     w_dfi_address;
+    logic [DFI_BANK_BUS_W-1:0]     w_dfi_bank;
     logic [DFI_RATE-1:0]           w_dfi_cas_n, w_dfi_ras_n, w_dfi_we_n;
     logic [DFI_RATE-1:0]           w_dfi_cs_n, w_dfi_cke, w_dfi_odt;
     logic [DFI_DATA_WIDTH-1:0]     w_dfi_wrdata;
@@ -123,7 +131,12 @@ module ddr2_char_top #(
     // =========================================================================
     // Harness
     // =========================================================================
-    ddr2_char_harness #(.ROW_WIDTH(ROW_WIDTH)) u_harness (
+    ddr2_char_harness #(
+        .AXI_DATA_WIDTH  (AXI_DATA_WIDTH),
+        .DRAM_BEAT_WIDTH (DRAM_BEAT_WIDTH),
+        .DFI_RATE        (DFI_RATE),
+        .ROW_WIDTH       (ROW_WIDTH)
+    ) u_harness (
         .aclk    (aclk),
         .aresetn (aresetn),
 
@@ -160,174 +173,178 @@ module ddr2_char_top #(
     );
 
     // =========================================================================
-    // Flat DFI  ->  per-phase DFI (into a7ddrphy)
+    // Flat DFI  ->  per-phase DFI (into a7ddrphy). 4 phases (p0..p3).
     // =========================================================================
-    logic [13:0] w_dfi_p0_address, w_dfi_p1_address;
-    logic [2:0]  w_dfi_p0_bank,    w_dfi_p1_bank;
-    logic        w_dfi_p0_ras_n,   w_dfi_p1_ras_n;
-    logic        w_dfi_p0_cas_n,   w_dfi_p1_cas_n;
-    logic        w_dfi_p0_we_n,    w_dfi_p1_we_n;
-    logic        w_dfi_p0_cs_n,    w_dfi_p1_cs_n;
-    logic        w_dfi_p0_cke,     w_dfi_p1_cke;
-    logic        w_dfi_p0_odt,     w_dfi_p1_odt;
-    logic        w_dfi_p0_reset_n, w_dfi_p1_reset_n;
-    logic        w_dfi_p0_wrdata_en, w_dfi_p1_wrdata_en;
-    logic [63:0] w_dfi_p0_wrdata,    w_dfi_p1_wrdata;
-    logic [7:0]  w_dfi_p0_wrdata_mask, w_dfi_p1_wrdata_mask;
-    logic        w_dfi_p0_rddata_en, w_dfi_p1_rddata_en;
-    logic [63:0] w_dfi_p0_rddata,    w_dfi_p1_rddata;
-    logic        w_dfi_p0_rddata_valid, w_dfi_p1_rddata_valid;
+    logic [ROW_WIDTH-1:0] w_p0_addr, w_p1_addr, w_p2_addr, w_p3_addr;
+    logic [2:0]  w_p0_bank, w_p1_bank, w_p2_bank, w_p3_bank;
+    logic        w_p0_ras_n, w_p1_ras_n, w_p2_ras_n, w_p3_ras_n;
+    logic        w_p0_cas_n, w_p1_cas_n, w_p2_cas_n, w_p3_cas_n;
+    logic        w_p0_we_n,  w_p1_we_n,  w_p2_we_n,  w_p3_we_n;
+    logic        w_p0_cs_n,  w_p1_cs_n,  w_p2_cs_n,  w_p3_cs_n;
+    logic        w_p0_cke,   w_p1_cke,   w_p2_cke,   w_p3_cke;
+    logic        w_p0_odt,   w_p1_odt,   w_p2_odt,   w_p3_odt;
+    logic        w_p0_rst_n, w_p1_rst_n, w_p2_rst_n, w_p3_rst_n;
+    logic        w_p0_act_n, w_p1_act_n, w_p2_act_n, w_p3_act_n;
+    logic        w_p0_wren,  w_p1_wren,  w_p2_wren,  w_p3_wren;
+    logic [31:0] w_p0_wrd,   w_p1_wrd,   w_p2_wrd,   w_p3_wrd;
+    logic [3:0]  w_p0_wrm,   w_p1_wrm,   w_p2_wrm,   w_p3_wrm;
+    logic        w_p0_rden,  w_p1_rden,  w_p2_rden,  w_p3_rden;
+    logic [31:0] w_p0_rdd,   w_p1_rdd,   w_p2_rdd,   w_p3_rdd;
+    logic        w_p0_rdv,   w_p1_rdv,   w_p2_rdv,   w_p3_rdv;
 
     dfi_v21_flat_to_a7ddrphy #(
         .DFI_ADDR_W (ROW_WIDTH),
         .DFI_BANK_W (3),
-        .PHASE_DATA (64),
-        .PHASE_STRB (8)
+        .PHASE_DATA (DRAM_BEAT_WIDTH),
+        .NPHASES    (DFI_RATE)
     ) u_dfi_adapter (
-        .dfi_address_flat        (w_dfi_address),
-        .dfi_bank_flat           (w_dfi_bank),
-        .dfi_cas_n_flat          (w_dfi_cas_n),
-        .dfi_ras_n_flat          (w_dfi_ras_n),
-        .dfi_we_n_flat           (w_dfi_we_n),
-        .dfi_cs_n_flat           (w_dfi_cs_n),
-        .dfi_cke_flat            (w_dfi_cke),
-        .dfi_odt_flat            (w_dfi_odt),
-        .dfi_wrdata_flat         (w_dfi_wrdata),
-        .dfi_wrdata_mask_flat    (w_dfi_wrdata_mask),
-        .dfi_wrdata_en_flat      (w_dfi_wrdata_en),
-        .dfi_rddata_en_flat      (w_dfi_rddata_en),
-        .dfi_rddata_flat         (w_dfi_rddata),
-        .dfi_rddata_valid_flat   (w_dfi_rddata_valid),
-        .dfi_init_complete_flat  (w_dfi_init_complete),
-        .dfi_init_start_flat     (),   // stubbed; a7ddrphy runs cal FSM itself
+        .dfi_address_flat      (w_dfi_address),
+        .dfi_bank_flat         (w_dfi_bank),
+        .dfi_cas_n_flat        (w_dfi_cas_n),
+        .dfi_ras_n_flat        (w_dfi_ras_n),
+        .dfi_we_n_flat         (w_dfi_we_n),
+        .dfi_cs_n_flat         (w_dfi_cs_n),
+        .dfi_cke_flat          (w_dfi_cke),
+        .dfi_odt_flat          (w_dfi_odt),
+        .dfi_wrdata_flat       (w_dfi_wrdata),
+        .dfi_wrdata_mask_flat  (w_dfi_wrdata_mask),
+        .dfi_wrdata_en_flat    (w_dfi_wrdata_en),
+        .dfi_rddata_en_flat    (w_dfi_rddata_en),
+        .dfi_rddata_flat       (w_dfi_rddata),
+        .dfi_rddata_valid_flat (w_dfi_rddata_valid),
 
-        .dfi_p0_address     (w_dfi_p0_address),
-        .dfi_p0_bank        (w_dfi_p0_bank),
-        .dfi_p0_ras_n       (w_dfi_p0_ras_n),
-        .dfi_p0_cas_n       (w_dfi_p0_cas_n),
-        .dfi_p0_we_n        (w_dfi_p0_we_n),
-        .dfi_p0_cs_n        (w_dfi_p0_cs_n),
-        .dfi_p0_cke         (w_dfi_p0_cke),
-        .dfi_p0_odt         (w_dfi_p0_odt),
-        .dfi_p0_reset_n     (w_dfi_p0_reset_n),
-        .dfi_p0_wrdata_en   (w_dfi_p0_wrdata_en),
-        .dfi_p0_wrdata      (w_dfi_p0_wrdata),
-        .dfi_p0_wrdata_mask (w_dfi_p0_wrdata_mask),
-        .dfi_p0_rddata_en   (w_dfi_p0_rddata_en),
-        .dfi_p0_rddata      (w_dfi_p0_rddata),
-        .dfi_p0_rddata_valid(w_dfi_p0_rddata_valid),
-
-        .dfi_p1_address     (w_dfi_p1_address),
-        .dfi_p1_bank        (w_dfi_p1_bank),
-        .dfi_p1_ras_n       (w_dfi_p1_ras_n),
-        .dfi_p1_cas_n       (w_dfi_p1_cas_n),
-        .dfi_p1_we_n        (w_dfi_p1_we_n),
-        .dfi_p1_cs_n        (w_dfi_p1_cs_n),
-        .dfi_p1_cke         (w_dfi_p1_cke),
-        .dfi_p1_odt         (w_dfi_p1_odt),
-        .dfi_p1_reset_n     (w_dfi_p1_reset_n),
-        .dfi_p1_wrdata_en   (w_dfi_p1_wrdata_en),
-        .dfi_p1_wrdata      (w_dfi_p1_wrdata),
-        .dfi_p1_wrdata_mask (w_dfi_p1_wrdata_mask),
-        .dfi_p1_rddata_en   (w_dfi_p1_rddata_en),
-        .dfi_p1_rddata      (w_dfi_p1_rddata),
-        .dfi_p1_rddata_valid(w_dfi_p1_rddata_valid)
+        .dfi_p0_address(w_p0_addr), .dfi_p1_address(w_p1_addr),
+        .dfi_p2_address(w_p2_addr), .dfi_p3_address(w_p3_addr),
+        .dfi_p0_bank(w_p0_bank), .dfi_p1_bank(w_p1_bank),
+        .dfi_p2_bank(w_p2_bank), .dfi_p3_bank(w_p3_bank),
+        .dfi_p0_ras_n(w_p0_ras_n), .dfi_p1_ras_n(w_p1_ras_n),
+        .dfi_p2_ras_n(w_p2_ras_n), .dfi_p3_ras_n(w_p3_ras_n),
+        .dfi_p0_cas_n(w_p0_cas_n), .dfi_p1_cas_n(w_p1_cas_n),
+        .dfi_p2_cas_n(w_p2_cas_n), .dfi_p3_cas_n(w_p3_cas_n),
+        .dfi_p0_we_n(w_p0_we_n), .dfi_p1_we_n(w_p1_we_n),
+        .dfi_p2_we_n(w_p2_we_n), .dfi_p3_we_n(w_p3_we_n),
+        .dfi_p0_cs_n(w_p0_cs_n), .dfi_p1_cs_n(w_p1_cs_n),
+        .dfi_p2_cs_n(w_p2_cs_n), .dfi_p3_cs_n(w_p3_cs_n),
+        .dfi_p0_cke(w_p0_cke), .dfi_p1_cke(w_p1_cke),
+        .dfi_p2_cke(w_p2_cke), .dfi_p3_cke(w_p3_cke),
+        .dfi_p0_odt(w_p0_odt), .dfi_p1_odt(w_p1_odt),
+        .dfi_p2_odt(w_p2_odt), .dfi_p3_odt(w_p3_odt),
+        .dfi_p0_reset_n(w_p0_rst_n), .dfi_p1_reset_n(w_p1_rst_n),
+        .dfi_p2_reset_n(w_p2_rst_n), .dfi_p3_reset_n(w_p3_rst_n),
+        .dfi_p0_act_n(w_p0_act_n), .dfi_p1_act_n(w_p1_act_n),
+        .dfi_p2_act_n(w_p2_act_n), .dfi_p3_act_n(w_p3_act_n),
+        .dfi_p0_wrdata_en(w_p0_wren), .dfi_p1_wrdata_en(w_p1_wren),
+        .dfi_p2_wrdata_en(w_p2_wren), .dfi_p3_wrdata_en(w_p3_wren),
+        .dfi_p0_wrdata(w_p0_wrd), .dfi_p1_wrdata(w_p1_wrd),
+        .dfi_p2_wrdata(w_p2_wrd), .dfi_p3_wrdata(w_p3_wrd),
+        .dfi_p0_wrdata_mask(w_p0_wrm), .dfi_p1_wrdata_mask(w_p1_wrm),
+        .dfi_p2_wrdata_mask(w_p2_wrm), .dfi_p3_wrdata_mask(w_p3_wrm),
+        .dfi_p0_rddata_en(w_p0_rden), .dfi_p1_rddata_en(w_p1_rden),
+        .dfi_p2_rddata_en(w_p2_rden), .dfi_p3_rddata_en(w_p3_rden),
+        .dfi_p0_rddata(w_p0_rdd), .dfi_p1_rddata(w_p1_rdd),
+        .dfi_p2_rddata(w_p2_rdd), .dfi_p3_rddata(w_p3_rdd),
+        .dfi_p0_rddata_valid(w_p0_rdv), .dfi_p1_rddata_valid(w_p1_rdv),
+        .dfi_p2_rddata_valid(w_p2_rdv), .dfi_p3_rddata_valid(w_p3_rdv)
     );
 
     // =========================================================================
-    // Clocking for a7ddrphy — Vivado build overrides these with a real
-    // MMCM. For lint/sim we tie them off; the black-box body ignores
-    // them so nothing else cares.
+    // Clocking for a7ddrphy. The real PHY needs sys / sys2x / sys4x /
+    // sys4x_dqs (400 MHz, DQS 90-deg). For lint/sim these tie to aclk (the
+    // black-box stub ignores them). The Vivado build supplies a real MMCM
+    // (see the DDR2_CHAR_SYNTH block / TASK-GEAR bring-up notes).
     // =========================================================================
-    logic sys4x_clk;
-    logic sys4x_180_clk;
-    logic iodelay_ref_clk;
+    logic sys2x_clk, sys4x_clk, sys4x_dqs_clk;
+    logic sys_rst_p, sys2x_rst_p, sys4x_rst_p, sys4x_dqs_rst_p;
+    assign sys2x_clk       = aclk;
     assign sys4x_clk       = aclk;
-    assign sys4x_180_clk   = aclk;
-    assign iodelay_ref_clk = aclk;
+    assign sys4x_dqs_clk   = aclk;
+    assign sys_rst_p       = ~aresetn;
+    assign sys2x_rst_p     = ~aresetn;
+    assign sys4x_rst_p     = ~aresetn;
+    assign sys4x_dqs_rst_p = ~aresetn;
 
-    // Convert async-low aresetn to sync-high sys_rst for the PHY.
-    logic sys_rst;
-    assign sys_rst = ~aresetn;
+    // Calibration CSR bus — driven by the harness AXIL->CSR bridge (firmware
+    // runs read/write leveling). Tied off until that bridge lands.
+    logic [9:0]  w_phy_csr_adr;
+    logic        w_phy_csr_we;
+    logic [31:0] w_phy_csr_dat_w;
+    logic [31:0] w_phy_csr_dat_r;
+    assign w_phy_csr_adr   = '0;
+    assign w_phy_csr_we    = 1'b0;
+    assign w_phy_csr_dat_w = '0;
 
     // =========================================================================
-    // a7ddrphy — LiteDRAM PHY (blackbox in the framework; Vivado swaps
-    // in the real LiteDRAM-generated .v at build time).
+    // a7ddrphy — LiteDRAM PHY. Black box for lint/sim (a7ddrphy_stub.sv);
+    // Vivado swaps in rtl-vivado/a7ddrphy/a7ddrphy_generated.v. Paramless:
+    // the generated body is fully elaborated (13b addr, 32b/phase, 4:1).
     // =========================================================================
-    a7ddrphy #(
-        .NPHASES     (DFI_RATE),
-        .DFI_ADDR_W  (ROW_WIDTH),
-        .DFI_BANK_W  (3),
-        .DFI_DATA_W  (128),
-        .DFI_STRB_W  (16),
-        .DDR2_DQ_W   (16),
-        .DDR2_DM_W   (2),
-        .DDR2_DQS_W  (2)
-    ) u_a7ddrphy (
-        .sys_clk          (aclk),
-        .sys_rst          (sys_rst),
-        .sys4x_clk        (sys4x_clk),
-        .sys4x_180_clk    (sys4x_180_clk),
-        .iodelay_ref_clk  (iodelay_ref_clk),
+    a7ddrphy u_a7ddrphy (
+        .sys_clk         (aclk),
+        .sys_rst         (sys_rst_p),
+        .sys2x_clk       (sys2x_clk),
+        .sys2x_rst       (sys2x_rst_p),
+        .sys4x_clk       (sys4x_clk),
+        .sys4x_rst       (sys4x_rst_p),
+        .sys4x_dqs_clk   (sys4x_dqs_clk),
+        .sys4x_dqs_rst   (sys4x_dqs_rst_p),
 
-        .dfi_p0_address      (w_dfi_p0_address),
-        .dfi_p0_bank         (w_dfi_p0_bank),
-        .dfi_p0_ras_n        (w_dfi_p0_ras_n),
-        .dfi_p0_cas_n        (w_dfi_p0_cas_n),
-        .dfi_p0_we_n         (w_dfi_p0_we_n),
-        .dfi_p0_cs_n         (w_dfi_p0_cs_n),
-        .dfi_p0_cke          (w_dfi_p0_cke),
-        .dfi_p0_odt          (w_dfi_p0_odt),
-        .dfi_p0_reset_n      (w_dfi_p0_reset_n),
-        .dfi_p0_wrdata_en    (w_dfi_p0_wrdata_en),
-        .dfi_p0_wrdata       (w_dfi_p0_wrdata),
-        .dfi_p0_wrdata_mask  (w_dfi_p0_wrdata_mask),
-        .dfi_p0_rddata_en    (w_dfi_p0_rddata_en),
-        .dfi_p0_rddata       (w_dfi_p0_rddata),
-        .dfi_p0_rddata_valid (w_dfi_p0_rddata_valid),
+        .dfi_p0_address(w_p0_addr), .dfi_p0_bank(w_p0_bank),
+        .dfi_p0_cas_n(w_p0_cas_n), .dfi_p0_cs_n(w_p0_cs_n),
+        .dfi_p0_ras_n(w_p0_ras_n), .dfi_p0_we_n(w_p0_we_n),
+        .dfi_p0_cke(w_p0_cke), .dfi_p0_odt(w_p0_odt),
+        .dfi_p0_reset_n(w_p0_rst_n), .dfi_p0_act_n(w_p0_act_n),
+        .dfi_p0_wrdata(w_p0_wrd), .dfi_p0_wrdata_en(w_p0_wren),
+        .dfi_p0_wrdata_mask(w_p0_wrm), .dfi_p0_rddata_en(w_p0_rden),
+        .dfi_p0_rddata(w_p0_rdd), .dfi_p0_rddata_valid(w_p0_rdv),
 
-        .dfi_p1_address      (w_dfi_p1_address),
-        .dfi_p1_bank         (w_dfi_p1_bank),
-        .dfi_p1_ras_n        (w_dfi_p1_ras_n),
-        .dfi_p1_cas_n        (w_dfi_p1_cas_n),
-        .dfi_p1_we_n         (w_dfi_p1_we_n),
-        .dfi_p1_cs_n         (w_dfi_p1_cs_n),
-        .dfi_p1_cke          (w_dfi_p1_cke),
-        .dfi_p1_odt          (w_dfi_p1_odt),
-        .dfi_p1_reset_n      (w_dfi_p1_reset_n),
-        .dfi_p1_wrdata_en    (w_dfi_p1_wrdata_en),
-        .dfi_p1_wrdata       (w_dfi_p1_wrdata),
-        .dfi_p1_wrdata_mask  (w_dfi_p1_wrdata_mask),
-        .dfi_p1_rddata_en    (w_dfi_p1_rddata_en),
-        .dfi_p1_rddata       (w_dfi_p1_rddata),
-        .dfi_p1_rddata_valid (w_dfi_p1_rddata_valid),
+        .dfi_p1_address(w_p1_addr), .dfi_p1_bank(w_p1_bank),
+        .dfi_p1_cas_n(w_p1_cas_n), .dfi_p1_cs_n(w_p1_cs_n),
+        .dfi_p1_ras_n(w_p1_ras_n), .dfi_p1_we_n(w_p1_we_n),
+        .dfi_p1_cke(w_p1_cke), .dfi_p1_odt(w_p1_odt),
+        .dfi_p1_reset_n(w_p1_rst_n), .dfi_p1_act_n(w_p1_act_n),
+        .dfi_p1_wrdata(w_p1_wrd), .dfi_p1_wrdata_en(w_p1_wren),
+        .dfi_p1_wrdata_mask(w_p1_wrm), .dfi_p1_rddata_en(w_p1_rden),
+        .dfi_p1_rddata(w_p1_rdd), .dfi_p1_rddata_valid(w_p1_rdv),
 
-        .ddram_a       (ddram_a),
-        .ddram_ba      (ddram_ba),
-        .ddram_ras_n   (ddram_ras_n),
-        .ddram_cas_n   (ddram_cas_n),
-        .ddram_we_n    (ddram_we_n),
-        .ddram_cs_n    (ddram_cs_n),
-        .ddram_cke     (ddram_cke),
-        .ddram_odt     (ddram_odt),
-        .ddram_dm      (ddram_dm),
-        .ddram_dq      (ddram_dq),
-        .ddram_dqs_p   (ddram_dqs_p),
-        .ddram_dqs_n   (ddram_dqs_n),
-        .ddram_clk_p   (ddram_clk_p),
-        .ddram_clk_n   (ddram_clk_n)
+        .dfi_p2_address(w_p2_addr), .dfi_p2_bank(w_p2_bank),
+        .dfi_p2_cas_n(w_p2_cas_n), .dfi_p2_cs_n(w_p2_cs_n),
+        .dfi_p2_ras_n(w_p2_ras_n), .dfi_p2_we_n(w_p2_we_n),
+        .dfi_p2_cke(w_p2_cke), .dfi_p2_odt(w_p2_odt),
+        .dfi_p2_reset_n(w_p2_rst_n), .dfi_p2_act_n(w_p2_act_n),
+        .dfi_p2_wrdata(w_p2_wrd), .dfi_p2_wrdata_en(w_p2_wren),
+        .dfi_p2_wrdata_mask(w_p2_wrm), .dfi_p2_rddata_en(w_p2_rden),
+        .dfi_p2_rddata(w_p2_rdd), .dfi_p2_rddata_valid(w_p2_rdv),
+
+        .dfi_p3_address(w_p3_addr), .dfi_p3_bank(w_p3_bank),
+        .dfi_p3_cas_n(w_p3_cas_n), .dfi_p3_cs_n(w_p3_cs_n),
+        .dfi_p3_ras_n(w_p3_ras_n), .dfi_p3_we_n(w_p3_we_n),
+        .dfi_p3_cke(w_p3_cke), .dfi_p3_odt(w_p3_odt),
+        .dfi_p3_reset_n(w_p3_rst_n), .dfi_p3_act_n(w_p3_act_n),
+        .dfi_p3_wrdata(w_p3_wrd), .dfi_p3_wrdata_en(w_p3_wren),
+        .dfi_p3_wrdata_mask(w_p3_wrm), .dfi_p3_rddata_en(w_p3_rden),
+        .dfi_p3_rddata(w_p3_rdd), .dfi_p3_rddata_valid(w_p3_rdv),
+
+        .ddram_a(ddram_a), .ddram_ba(ddram_ba),
+        .ddram_ras_n(ddram_ras_n), .ddram_cas_n(ddram_cas_n),
+        .ddram_we_n(ddram_we_n), .ddram_dm(ddram_dm),
+        .ddram_dq(ddram_dq), .ddram_dqs_p(ddram_dqs_p),
+        .ddram_dqs_n(ddram_dqs_n), .ddram_clk_p(ddram_clk_p),
+        .ddram_clk_n(ddram_clk_n), .ddram_cke(ddram_cke),
+        .ddram_odt(ddram_odt), .ddram_cs_n(ddram_cs_n),
+
+        .adr(w_phy_csr_adr), .we(w_phy_csr_we),
+        .dat_w(w_phy_csr_dat_w), .dat_r(w_phy_csr_dat_r)
     );
 
-    // Init handshake into the harness. LiteDRAM's a7ddrphy exposes a
-    // dfi_init_complete pulse via its calibration FSM; the stub keeps
-    // this low so the harness never leaves reset in lint / sim — swap
-    // to a real signal once the LiteDRAM PHY is in place.
+    // Init handshake into the harness. The real a7ddrphy signals init via
+    // its calibration path; the stub holds this low in lint/sim.
     assign w_dfi_init_complete = 1'b0;
 
     /* verilator lint_off UNUSED */
     wire _unused_ok = &{1'b0,
         w_dfi_dram_clk_disable, w_dfi_init_start,
         w_dfi_ctrlupd_req, w_dfi_phyupd_ack,
+        w_phy_csr_dat_r,
         1'b0};
     /* verilator lint_on UNUSED */
 

@@ -82,7 +82,10 @@ module ddr2_char_macro
     // ---- DFI ----
     parameter int DFI_RATE         = 2,
     parameter int DRAM_BEAT_WIDTH  = AXI_DATA_WIDTH,
-    parameter int DRAM_STRB_WIDTH  = AXI_STRB_WIDTH,
+    // TASK-GEAR: DRAM strobe tracks the DRAM beat (not AXI). With beat < AXI
+    // (GEAR>1) these differ; defaulting to AXI_STRB_WIDTH left the DFI mask
+    // width stuck at the AXI value when DRAM_BEAT_WIDTH was overridden.
+    parameter int DRAM_STRB_WIDTH  = DRAM_BEAT_WIDTH / 8,
     parameter int DFI_DATA_WIDTH   = DRAM_BEAT_WIDTH * DFI_RATE,
     parameter int DFI_STRB_WIDTH   = DRAM_STRB_WIDTH * DFI_RATE,
     parameter int DFI_EN_WIDTH     = DFI_RATE,
@@ -433,6 +436,7 @@ module ddr2_char_macro
     ddr2_lpddr2_top #(
         .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH  (AXI_DATA_WIDTH),
+        .DRAM_BEAT_WIDTH (DRAM_BEAT_WIDTH),
         .AXI_ID_WIDTH    (AXI_ID_WIDTH),
         .AXI_USER_WIDTH  (AXI_USER_WIDTH),
         .AXI_STRB_WIDTH  (AXI_STRB_WIDTH),

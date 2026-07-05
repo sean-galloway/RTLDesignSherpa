@@ -63,13 +63,19 @@ module ddr2_char_harness
     parameter int TXN_COUNT_WIDTH    = 16,
     parameter int BURST_LEN_WIDTH    = 8,
 
-    // DFI sizing (matches ddr2_char_macro defaults, exposed at boundary)
+    // DFI sizing. TASK-GEAR: the DFI data width is DFI_RATE * DRAM_BEAT_WIDTH
+    // (NOT * AXI_DATA_WIDTH) — with DRAM_BEAT_WIDTH < AXI (GEAR>1) the DFI is
+    // narrower than the host bus. DRAM_BEAT_WIDTH defaults to AXI (GEAR=1);
+    // ddr2_char_top overrides to 32 for the x16 a7ddrphy (AXI=64, rate=4).
+    parameter int DRAM_BEAT_WIDTH     = AXI_DATA_WIDTH,
     parameter int DFI_RATE            = 2,
-    parameter int DFI_ADDR_BUS_W      = 32,
-    parameter int DFI_BANK_BUS_W      = 3,
+    // Bus widths are phase-packed: width = per-phase-width * DFI_RATE. These
+    // must track DFI_RATE (were hardcoded at the rate-2 values).
+    parameter int DFI_ADDR_BUS_W      = ROW_WIDTH * DFI_RATE,
+    parameter int DFI_BANK_BUS_W      = 3 * DFI_RATE,
     parameter int DFI_CTRL_BUS_W      = DFI_RATE,
     parameter int DFI_CS_BUS_W        = DFI_RATE,
-    parameter int DFI_DATA_WIDTH      = DFI_RATE * AXI_DATA_WIDTH,
+    parameter int DFI_DATA_WIDTH      = DFI_RATE * DRAM_BEAT_WIDTH,
     parameter int DFI_STRB_WIDTH      = DFI_DATA_WIDTH / 8
 ) (
     // Clock / reset (aclk = mc_clk = pclk = 100 MHz on the Nexys A7 board)
@@ -591,6 +597,8 @@ module ddr2_char_harness
     ddr2_char_macro #(
         .AXI_ADDR_WIDTH   (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH   (AXI_DATA_WIDTH),
+        .DRAM_BEAT_WIDTH  (DRAM_BEAT_WIDTH),
+        .DFI_RATE         (DFI_RATE),
         .AXI_ID_WIDTH     (AXI_ID_WIDTH),
         .AXI_USER_WIDTH   (AXI_USER_WIDTH),
         .ROW_WIDTH        (ROW_WIDTH),
