@@ -339,6 +339,7 @@ module datapath_rd_test #(
                 .descriptor_valid       (desc_valid[i]),
                 .descriptor_ready       (desc_ready[i]),
                 .descriptor_packet      (desc_packet[i]),
+                .descriptor_ext_packet  ('0),  // TASK-101 unused (legacy addressing only)
                 .descriptor_error       (desc_error[i]),
 
                 // Data read interface (to AXI read engine via arbiter)
