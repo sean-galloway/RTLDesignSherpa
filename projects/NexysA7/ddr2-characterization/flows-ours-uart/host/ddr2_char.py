@@ -60,7 +60,9 @@ if not _REPO_ROOT:
         "importing this module."
     )
 sys.path.insert(0, os.path.join(_REPO_ROOT, "projects/components/converters/bin"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from uart_axi_bridge import UARTAxiBridge  # noqa: E402
+from uart_register_map import UartRegisterMap  # noqa: E402
 
 
 # =============================================================================
@@ -244,55 +246,52 @@ class DDR2CharDriver:
     BUILD_ID_MAGIC = 0x44445232  # ASCII "DDR2"
 
     def __init__(self, port: str = "/dev/ttyUSB1", baudrate: int = 115200,
-                 timeout: float = 1.0):
-        self.bridge = UARTAxiBridge(port=port, baudrate=baudrate,
-                                    timeout=timeout)
+                 timeout: float = 1.0, bridge=None):
+        """Open the harness driver.
 
-    # ----- Low-level helpers -----------------------------------------------
-    def _rd(self, off: int) -> int:
-        val = self.bridge.read(HARNESS_CSR_BASE + off)
-        if val is None:
-            raise IOError(f"UART read failed at csr+0x{off:03X}")
-        return val
+        By default a real UART bridge is opened on `port`. Inject `bridge`
+        (any object with read(addr)->int|None / write(addr,val)->bool) to
+        drive the identical register traffic elsewhere — e.g. a cocotb UART
+        channel in simulation, or a mock for board-less tests. All register
+        access goes by name through `self.regs` (UartRegisterMap), sourced
+        from the PeakRDL-generated harness regmap — no hardcoded offsets.
+        """
+        self.bridge = bridge if bridge is not None else UARTAxiBridge(
+            port=port, baudrate=baudrate, timeout=timeout)
+        self.regs = UartRegisterMap(self.bridge, HARNESS_CSR_BASE)
 
-    def _wr(self, off: int, val: int) -> None:
-        if not self.bridge.write(HARNESS_CSR_BASE + off, val & 0xFFFFFFFF):
-            raise IOError(f"UART write failed at csr+0x{off:03X}")
-
-    def _rd64(self, off_lo: int, off_hi: int) -> int:
-        return (self._rd(off_hi) << 32) | self._rd(off_lo)
+    # ----- Low-level helpers (by name via the register map) ----------------
+    def _rd64(self, lo_name: str, hi_name: str) -> int:
+        return (self.regs.read(hi_name) << 32) | self.regs.read(lo_name)
 
     # ----- Identity + reset ------------------------------------------------
     def build_id(self) -> int:
-        return self._rd(BUILD_ID)
+        return self.regs.read("BUILD_ID")
 
     def scratch(self, val: Optional[int] = None) -> int:
         """Ping test — write then read back if `val` supplied."""
         if val is not None:
-            self._wr(SCRATCH, val)
-        return self._rd(SCRATCH)
+            self.regs.write_word("SCRATCH", val)
+        return self.regs.read("SCRATCH")
 
     def clear_stats(self) -> None:
         """Pulse CTRL.clear_stats. Zeros the debug_sram write pointer,
         the sticky error latches, all bus-meter buckets, and the
         latency-histogram bins."""
-        self._wr(CTRL, 1 << 2)
+        self.regs.write("CTRL", clear_stats=1)
 
     def soft_reset(self) -> None:
-        self._wr(CTRL, 1 << 4)
+        self.regs.write("CTRL", soft_reset=1)
 
     def freeze_trace(self, on: bool = True) -> None:
         """Latch or unlatch CTRL.freeze_trace.
 
         NB: freeze_trace also freezes the perf meters/histograms (they
         share the perf_freeze wire from harness_csr). Turn it OFF before
-        starting a new run.
+        starting a new run. The other CTRL bits are self-clearing pulses,
+        so writing only this field (the rest 0) leaves them inert.
         """
-        # freeze_trace is a *latch*, not a pulse — write reads back next
-        # AXIL cycle. To un-freeze we have to write the whole CTRL word
-        # with the bit clear, but the other CTRL bits are all self-
-        # clearing pulses, so writing 0 works.
-        self._wr(CTRL, (1 << 3) if on else 0)
+        self.regs.write("CTRL", freeze_trace=1 if on else 0)
 
     # ----- Controller runtime cfg -----------------------------------------
     def set_controller_cfg(self,
@@ -300,48 +299,52 @@ class DDR2CharDriver:
                            t_phy_wrlat: int = 0,
                            t_rddata_en: int = 0,
                            rd_in_order: bool = False) -> None:
-        val = ((memtype & 1)
-               | ((t_phy_wrlat & 0xFF) << 8)
-               | ((t_rddata_en & 0xFF) << 16)
-               | ((1 if rd_in_order else 0) << 24))
-        self._wr(CTRLR_CFG, val)
+        self.regs.write("CTRLR_CFG",
+                        memtype=memtype & 1,
+                        t_phy_wrlat=t_phy_wrlat & 0xFF,
+                        t_rddata_en=t_rddata_en & 0xFF,
+                        rd_in_order=1 if rd_in_order else 0)
 
     def set_controller_cap(self, cap_lookahead_max: int,
                            cap_synth_mask: int) -> None:
-        val = ((cap_lookahead_max & 0xF)
-               | ((cap_synth_mask & 0xF) << 4))
-        self._wr(CTRLR_CAP, val)
+        self.regs.write("CTRLR_CAP",
+                        cap_lookahead_max=cap_lookahead_max & 0xF,
+                        cap_synth_mask=cap_synth_mask & 0xF)
 
     # ----- a7ddrphy calibration CSR (leveling knobs) ----------------------
     def phy_poke(self, knob: int, val: int = 1) -> None:
         """Write `val` to the a7ddrphy CSR word `knob` via the indirect
         passthrough (set ADDR + WDATA, then pulse CTRL). For strobe knobs
         (rdly_dq_inc etc.) the value is a 1-cycle pulse; pass val=1."""
-        self._wr(PHY_CSR_ADDR,  knob & 0x3FF)
-        self._wr(PHY_CSR_WDATA, val & 0xFFFFFFFF)
-        self._wr(PHY_CSR_CTRL,  1)
+        self.regs.write_word("PHY_CSR_ADDR",  knob & 0x3FF)
+        self.regs.write_word("PHY_CSR_WDATA", val & 0xFFFFFFFF)
+        self.regs.write("PHY_CSR_CTRL", pulse=1)
 
     def phy_peek(self, knob: int) -> int:
         """Read the a7ddrphy dat_r for CSR word `knob` (set ADDR, read RDATA)."""
-        self._wr(PHY_CSR_ADDR, knob & 0x3FF)
-        return self._rd(PHY_CSR_RDATA)
+        self.regs.write_word("PHY_CSR_ADDR", knob & 0x3FF)
+        return self.regs.read("PHY_CSR_RDATA")
 
     # ----- Engine programming ---------------------------------------------
-    def _pack_blen_txn(self, burst_len: int, txn_count: int, gap: int) -> int:
-        return ((burst_len & 0xFF)
-                | ((txn_count & 0xFFFF) << 8)
-                | ((gap & 0xF) << 24))
-
-    def _pack_axi_attr(self, axi_id: int, id_mode: int, axi_size: int,
-                       axi_burst: int, data_mode: int) -> int:
-        # [7:0]axi_id [9:8]id_mode [12:10]axi_size [14:13]axi_burst [15]data_mode
-        # (widened from the 4-bit id-width layout to match the 8-bit id
-        # the pattern-gen engines' internal LFSR consumes.)
-        return ((axi_id & 0xFF)
-                | ((id_mode & 3) << 8)
-                | ((axi_size & 7) << 10)
-                | ((axi_burst & 3) << 13)
-                | ((1 if data_mode else 0) << 15))
+    def _program_engine(self, pfx: str, *, start_addr, stride_0, stride_1,
+                        wrap_mask_0, wrap_mask_1, burst_len, txn_count, gap,
+                        axi_id, id_mode, axi_size, axi_burst, data_mode,
+                        lfsr_seed, hash_seed0, hash_seed1, hash_seed2) -> None:
+        """Program one pattern engine's cfg registers by name (pfx = WR|RD)."""
+        r = self.regs
+        r.write_word(f"{pfx}_START_ADDR",  start_addr)
+        r.write_word(f"{pfx}_STRIDE_0",    stride_0 & 0xFFFFFFFF)
+        r.write_word(f"{pfx}_STRIDE_1",    stride_1 & 0xFFFFFFFF)
+        r.write_word(f"{pfx}_WRAP_MASK_0", wrap_mask_0)
+        r.write_word(f"{pfx}_WRAP_MASK_1", wrap_mask_1)
+        r.write(f"{pfx}_BLEN_TXN", burst_len=burst_len, txn_count=txn_count, gap=gap)
+        r.write(f"{pfx}_AXI_ATTR", axi_id=axi_id, id_mode=id_mode,
+                axi_size=axi_size, axi_burst=axi_burst,
+                data_mode=1 if data_mode else 0)
+        r.write_word(f"{pfx}_LFSR_SEED",  lfsr_seed)
+        r.write_word(f"{pfx}_HASH_SEED0", hash_seed0)
+        r.write_word(f"{pfx}_HASH_SEED1", hash_seed1)
+        r.write_word(f"{pfx}_HASH_SEED2", hash_seed2)
 
     def program_wr_engine(self, *,
                           start_addr:    int,
@@ -361,18 +364,13 @@ class DDR2CharDriver:
                           hash_seed0:    int = 0,
                           hash_seed1:    int = 0,
                           hash_seed2:    int = 0) -> None:
-        self._wr(WR_START_ADDR,  start_addr)
-        self._wr(WR_STRIDE_0,    stride_0 & 0xFFFFFFFF)
-        self._wr(WR_STRIDE_1,    stride_1 & 0xFFFFFFFF)
-        self._wr(WR_WRAP_MASK_0, wrap_mask_0)
-        self._wr(WR_WRAP_MASK_1, wrap_mask_1)
-        self._wr(WR_BLEN_TXN,    self._pack_blen_txn(burst_len, txn_count, gap))
-        self._wr(WR_AXI_ATTR,    self._pack_axi_attr(axi_id, id_mode, axi_size,
-                                                     axi_burst, data_mode))
-        self._wr(WR_LFSR_SEED,   lfsr_seed)
-        self._wr(WR_HASH_SEED0,  hash_seed0)
-        self._wr(WR_HASH_SEED1,  hash_seed1)
-        self._wr(WR_HASH_SEED2,  hash_seed2)
+        self._program_engine(
+            "WR", start_addr=start_addr, stride_0=stride_0, stride_1=stride_1,
+            wrap_mask_0=wrap_mask_0, wrap_mask_1=wrap_mask_1,
+            burst_len=burst_len, txn_count=txn_count, gap=gap,
+            axi_id=axi_id, id_mode=id_mode, axi_size=axi_size,
+            axi_burst=axi_burst, data_mode=data_mode, lfsr_seed=lfsr_seed,
+            hash_seed0=hash_seed0, hash_seed1=hash_seed1, hash_seed2=hash_seed2)
 
     def program_rd_engine(self, *,
                           start_addr:    int,
@@ -392,40 +390,36 @@ class DDR2CharDriver:
                           hash_seed0:    int = 0,
                           hash_seed1:    int = 0,
                           hash_seed2:    int = 0) -> None:
-        self._wr(RD_START_ADDR,  start_addr)
-        self._wr(RD_STRIDE_0,    stride_0 & 0xFFFFFFFF)
-        self._wr(RD_STRIDE_1,    stride_1 & 0xFFFFFFFF)
-        self._wr(RD_WRAP_MASK_0, wrap_mask_0)
-        self._wr(RD_WRAP_MASK_1, wrap_mask_1)
-        self._wr(RD_BLEN_TXN,    self._pack_blen_txn(burst_len, txn_count, gap))
-        self._wr(RD_AXI_ATTR,    self._pack_axi_attr(axi_id, id_mode, axi_size,
-                                                     axi_burst, data_mode))
-        self._wr(RD_LFSR_SEED,   lfsr_seed)
-        self._wr(RD_HASH_SEED0,  hash_seed0)
-        self._wr(RD_HASH_SEED1,  hash_seed1)
-        self._wr(RD_HASH_SEED2,  hash_seed2)
+        self._program_engine(
+            "RD", start_addr=start_addr, stride_0=stride_0, stride_1=stride_1,
+            wrap_mask_0=wrap_mask_0, wrap_mask_1=wrap_mask_1,
+            burst_len=burst_len, txn_count=txn_count, gap=gap,
+            axi_id=axi_id, id_mode=id_mode, axi_size=axi_size,
+            axi_burst=axi_burst, data_mode=data_mode, lfsr_seed=lfsr_seed,
+            hash_seed0=hash_seed0, hash_seed1=hash_seed1, hash_seed2=hash_seed2)
 
     # ----- Run control -----------------------------------------------------
     def start_wr(self) -> None:
-        self._wr(CTRL, 1 << 0)
+        self.regs.write("CTRL", start_wr=1)
 
     def start_rd(self) -> None:
-        self._wr(CTRL, 1 << 1)
+        self.regs.write("CTRL", start_rd=1)
 
     def start_both(self) -> None:
-        self._wr(CTRL, (1 << 0) | (1 << 1))
+        self.regs.write("CTRL", start_wr=1, start_rd=1)
 
     def status(self) -> Status:
-        s = self._rd(STATUS)
+        f = self.regs.field
+        s = self.regs.read("STATUS")
         return Status(
-            wr_done        = bool(s & (1 << 0)),
-            rd_done        = bool(s & (1 << 1)),
-            wr_error       = bool(s & (1 << 2)),
-            rd_error       = bool(s & (1 << 3)),
-            any_error      = bool(s & (1 << 4)),
-            dbg_clear_busy = bool(s & (1 << 5)),
-            init_done      = bool(s & (1 << 6)),
-            init_fail      = bool(s & (1 << 7)),
+            wr_done        = bool(f("STATUS", "wr_done", s)),
+            rd_done        = bool(f("STATUS", "rd_done", s)),
+            wr_error       = bool(f("STATUS", "wr_error", s)),
+            rd_error       = bool(f("STATUS", "rd_error", s)),
+            any_error      = bool(f("STATUS", "any_error", s)),
+            dbg_clear_busy = bool(f("STATUS", "dbg_clear_busy", s)),
+            init_done      = bool(f("STATUS", "init_done", s)),
+            init_fail      = bool(f("STATUS", "init_fail", s)),
         )
 
     def wait_done(self, timeout_s: float = 30.0,
@@ -450,63 +444,58 @@ class DDR2CharDriver:
     # ----- Result readback -------------------------------------------------
     def crc(self) -> Tuple[int, int, bool, bool]:
         """Return (expected, actual, match, both_valid)."""
-        exp = self._rd(CRC_EXPECTED)
-        act = self._rd(CRC_ACTUAL)
-        m   = self._rd(CRC_MATCH)
-        return exp, act, bool(m & 1), (m & 6) == 6
+        exp = self.regs.read("CRC_EXPECTED")
+        act = self.regs.read("CRC_ACTUAL")
+        m   = self.regs.read("CRC_MATCH")
+        match = bool(self.regs.field("CRC_MATCH", "match", m))
+        valid = bool(self.regs.field("CRC_MATCH", "exp_valid", m)
+                     and self.regs.field("CRC_MATCH", "act_valid", m))
+        return exp, act, match, valid
 
     def beats_mismatched(self) -> int:
-        return self._rd(BEATS_MISM)
+        return self.regs.read("BEATS_MISM")
 
     # ----- Timer -----------------------------------------------------------
     def timer_clear(self) -> None:
-        self._wr(TIMER_CTRL, 1)
+        self.regs.write("TIMER_CTRL", clear=1)
 
     def set_timer_expected_beats(self, n: int) -> None:
-        self._wr(TIMER_EXP_BEATS, n & 0xFFFFFFFF)
+        self.regs.write_word("TIMER_EXP_BEATS", n & 0xFFFFFFFF)
 
     def timer(self) -> TimerState:
-        st = self._rd(TIMER_STATUS)
+        st = self.regs.read("TIMER_STATUS")
         return TimerState(
-            done    = bool(st & 1),
-            running = bool(st & 2),
-            passed  = bool(st & 4),
-            cycles  = self._rd64(TIMER_CYC_LO, TIMER_CYC_HI),
-            r_first = self._rd64(TIMER_R_FIRST_LO, TIMER_R_FIRST_HI),
-            r_last  = self._rd64(TIMER_R_LAST_LO,  TIMER_R_LAST_HI),
-            w_first = self._rd64(TIMER_W_FIRST_LO, TIMER_W_FIRST_HI),
-            w_last  = self._rd64(TIMER_W_LAST_LO,  TIMER_W_LAST_HI),
+            done    = bool(self.regs.field("TIMER_STATUS", "done", st)),
+            running = bool(self.regs.field("TIMER_STATUS", "running", st)),
+            passed  = bool(self.regs.field("TIMER_STATUS", "pass", st)),
+            cycles  = self._rd64("TIMER_CYCLES_LO", "TIMER_CYCLES_HI"),
+            r_first = self._rd64("TIMER_R_FIRST_LO", "TIMER_R_FIRST_HI"),
+            r_last  = self._rd64("TIMER_R_LAST_LO",  "TIMER_R_LAST_HI"),
+            w_first = self._rd64("TIMER_W_FIRST_LO", "TIMER_W_FIRST_HI"),
+            w_last  = self._rd64("TIMER_W_LAST_LO",  "TIMER_W_LAST_HI"),
         )
 
     # ----- Response-delay knobs (currently unwired on the RTL side; see
     #        harness_csr comment at 0x3C — kept here so a follow-up that
     #        instantiates axi_response_delay has the API in place). ----
     def set_resp_delay(self, rd_cycles: int, wr_cycles: int) -> None:
-        self._wr(RESP_DELAY,
-                 ((wr_cycles & 0xFFFF) << 16) | (rd_cycles & 0xFFFF))
+        self.regs.write("RESP_DELAY",
+                        rd_delay=rd_cycles & 0xFFFF,
+                        wr_delay=wr_cycles & 0xFFFF)
 
     # ----- Perf: bus meters -----------------------------------------------
     def perf_meters(self) -> Dict[str, MeterCounts]:
-        rd = MeterCounts(
-            prod  = self._rd(OBS_RD_PROD),
-            bp    = self._rd(OBS_RD_BP),
-            starv = self._rd(OBS_RD_STARV),
-            idle  = self._rd(OBS_RD_IDLE),
-        )
-        wr = MeterCounts(
-            prod  = self._rd(OBS_WR_PROD),
-            bp    = self._rd(OBS_WR_BP),
-            starv = self._rd(OBS_WR_STARV),
-            idle  = self._rd(OBS_WR_IDLE),
-        )
+        r = self.regs.read
+        rd = MeterCounts(prod=r("OBS_RD_PROD"), bp=r("OBS_RD_BP"),
+                         starv=r("OBS_RD_STARV"), idle=r("OBS_RD_IDLE"))
+        wr = MeterCounts(prod=r("OBS_WR_PROD"), bp=r("OBS_WR_BP"),
+                         starv=r("OBS_WR_STARV"), idle=r("OBS_WR_IDLE"))
         return {"rd": rd, "wr": wr}
 
     # ----- Perf: latency histograms ---------------------------------------
     def _write_hist_sel(self, bus: int, metric: int, bin_idx: int) -> None:
-        sel = ((bus & 1)
-               | ((metric & 1) << 1)
-               | ((bin_idx & 0xF) << 2))
-        self._wr(OBS_HIST_SEL, sel)
+        self.regs.write("OBS_HIST_SEL",
+                        bus=bus & 1, metric=metric & 1, bin=bin_idx & 0xF)
 
     def perf_hist_bin(self, bus: int, metric: int, bin_idx: int
                       ) -> Tuple[int, int]:
@@ -518,7 +507,7 @@ class DDR2CharDriver:
         `bin_idx` = 0..15 (log2 latency bin b covers [2^b, 2^(b+1)) cycles)
         """
         self._write_hist_sel(bus, metric, bin_idx)
-        return self._rd(OBS_HIST_COUNT), self._rd(OBS_HIST_TOTAL)
+        return self.regs.read("OBS_HIST_COUNT"), self.regs.read("OBS_HIST_TOTAL")
 
     def perf_hist_dump(self, bus: int, metric: int = HIST_METRIC_0
                        ) -> Tuple[List[int], int]:
@@ -538,10 +527,10 @@ class DDR2CharDriver:
     # ----- debug_sram trace ring pointer ----------------------------------
     def dbg_wr_ptr(self) -> int:
         """Words written to debug_sram since last clear."""
-        return self._rd(DBG_WR_PTR)
+        return self.regs.read("DBG_WR_PTR")
 
     def dbg_overflow(self) -> bool:
-        return bool(self._rd(DBG_OVERFLOW) & 1)
+        return bool(self.regs.field("DBG_OVERFLOW", "overflow"))
 
 
 # =============================================================================

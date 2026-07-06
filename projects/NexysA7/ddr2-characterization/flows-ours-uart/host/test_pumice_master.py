@@ -124,10 +124,12 @@ class MockBridge:
 
 
 def _mk_driver(dev: MockDevice) -> DDR2CharDriver:
-    """Build a DDR2CharDriver with the mock bridge (no serial port opened)."""
-    drv = object.__new__(DDR2CharDriver)
-    drv.bridge = MockBridge(dev)
-    return drv
+    """Build a DDR2CharDriver with the mock bridge (no serial port opened).
+
+    Uses the real constructor via bridge injection, so this exercises the
+    same by-name UartRegisterMap path as the silicon/sim flows.
+    """
+    return DDR2CharDriver(bridge=MockBridge(dev))
 
 
 # --------------------------------------------------------------------------

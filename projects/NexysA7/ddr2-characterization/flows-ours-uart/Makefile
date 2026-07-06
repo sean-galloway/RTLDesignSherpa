@@ -42,7 +42,8 @@ UART ?= /dev/ttyUSB1
 BAUD ?= 115200
 
 .PHONY: help project synth bitstream program utilization timing smoke status \
-        level simple characterize host-test lint clean clean-all
+        level simple characterize host-test sim sim-smoke sim-simple sim-level \
+        lint clean clean-all
 
 help:
 	@echo "DDR2 Characterization — Nexys A7 build targets"
@@ -58,6 +59,10 @@ help:
 	@echo "  make simple       Init(+leveling) + one write-then-read pass"
 	@echo "  make characterize Init + full workload-sweep characterization"
 	@echo "  make host-test    Board-less host-logic unit tests (mock UART)"
+	@echo "  make sim          Run the SAME programs in sim (cocotb UART, no board)"
+	@echo "  make sim-smoke    Sim: BUILD_ID/SCRATCH + tiny write-read"
+	@echo "  make sim-simple   Sim: unmodified SimpleTest program"
+	@echo "  make sim-level    Sim: unmodified A7Leveling program (DFI loopback)"
 	@echo "  make lint         verilator --lint-only of the harness"
 	@echo "  make clean        Remove Vivado artifacts + reports + bitstream"
 	@echo "  make clean-all    clean + logs + Python bytecode"
@@ -123,6 +128,26 @@ characterize:
 host-test:
 	@echo "[host-test] pytest host/test_pumice_master.py (mock UART, no board)"
 	@cd $(SELF_DIR)/host && python3 -m pytest test_pumice_master.py -q
+
+# ---- Same programs, in simulation (cocotb UART master + DFI loopback) ------
+# Runs the IDENTICAL host stack (pumice_master / DDR2CharDriver / UARTAxiBridge)
+# against ddr2_char_uart_tb_top in verilator, driving the real UART bridge RTL.
+# Proves silicon/sim equivalence: same bytes, same code — only the ByteChannel
+# differs (pyserial on the board vs a cocotb UARTMaster here). No FPGA needed.
+SIM_TEST := $(CHAR_ROOT)/ddr2_char_framework/dv/tests/test_ddr2_char_uart.py
+
+sim:
+	@echo "[sim] all UART equivalence tests (cocotb, no board)"
+	@cd $(REPO_ROOT) && python3 -m pytest $(SIM_TEST) -q
+
+sim-smoke:
+	@cd $(REPO_ROOT) && python3 -m pytest $(SIM_TEST)::test_ddr2_char_uart_smoke -q
+
+sim-simple:
+	@cd $(REPO_ROOT) && python3 -m pytest $(SIM_TEST)::test_ddr2_char_uart_simple -q
+
+sim-level:
+	@cd $(REPO_ROOT) && python3 -m pytest $(SIM_TEST)::test_ddr2_char_uart_leveling -q
 
 # ---- Report shortcuts ------------------------------------------------------
 utilization:

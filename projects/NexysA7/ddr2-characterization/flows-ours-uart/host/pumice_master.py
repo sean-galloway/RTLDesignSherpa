@@ -116,8 +116,14 @@ class A7Leveling:
         self.drv.start_rd()
         if not wait_engine(self.drv, "rd"):
             return False
+        # beats_mismatched is the authoritative per-beat integrity signal and
+        # is valid in every mode. The leveling pattern uses data_mode (address-
+        # hashed data checked per beat), where the summary CRC latches stay
+        # invalid — so gate on beats_mismatched, and only require a CRC match
+        # when the CRC is actually valid (LFSR mode).
         _exp, _act, match, valid = self.drv.crc()
-        return valid and match and (self.drv.beats_mismatched() == 0)
+        crc_ok = match if valid else True
+        return crc_ok and (self.drv.beats_mismatched() == 0)
 
     # ---- knob helpers ----------------------------------------------------
     def reset_phy(self) -> None:
@@ -237,12 +243,21 @@ class SimpleTest:
                             hash_seed0=seed)
         d.start_wr()
         wr_ok = wait_engine(d, "wr")
-        d.clear_stats()
+        # NB: do NOT clear_stats() between write and read — it wipes the WR
+        # engine's latched expected-CRC (and exp_valid), so the read-side
+        # CRC comparison would then compare against 0. beats_mismatched is
+        # the authoritative per-beat integrity signal; CRC is the summary.
         d.start_rd()
         rd_ok = wait_engine(d, "rd")
         exp, act, match, valid = d.crc()
         mism = d.beats_mismatched()
-        ok = wr_ok and rd_ok and valid and match and mism == 0
+        # beats_mismatched is the authoritative per-beat integrity signal and
+        # is valid in every mode. The summary CRC is only produced in LFSR
+        # (data_mode off) mode; in data_mode the engine checks address-hashed
+        # data per beat and leaves the CRC latches invalid — so only enforce a
+        # CRC match when the CRC is actually valid.
+        crc_ok = match if valid else True
+        ok = wr_ok and rd_ok and (mism == 0) and crc_ok
         return SimpleResult(ok=ok, expected=exp, actual=act, mismatched=mism)
 
 
