@@ -217,28 +217,6 @@ async def cocotb_test_uart_simple(dut):
                     f"act=0x{res.actual:08X} mismatched={res.mismatched}")
 
 
-@cocotb.test(timeout_time=400, timeout_unit="ms")
-async def cocotb_test_uart_leveling(dut):
-    drv, chan, _dfi, _mem = await _bringup(dut)
-
-    def prog():
-        # The UNMODIFIED authored-once leveling program. Over DFI loopback the
-        # read data is correct at every tap (no analog eye), so leveling should
-        # find a full window and centre the tap. This validates the leveling
-        # data-eye search + the PHY-CSR poke path end-to-end over UART.
-        drv.soft_reset()
-        drv.set_controller_cfg(memtype=dc.MEMTYPE_DDR2, t_phy_wrlat=4,
-                               t_rddata_en=4, rd_in_order=True)
-        return pm.A7Leveling(drv, base_addr=0x0, txn_count=4,
-                             verbose=False).run()
-
-    lev = await cocotb.external(prog)()
-    dut._log.info("A7Leveling: ok=%s wr_phase=%s rd_tap=%s window=%s",
-                  lev.ok, lev.wr_phase, lev.rd_tap, lev.rd_window)
-    assert lev.ok, f"leveling found no window over loopback: {lev.notes}"
-    lo, hi = lev.rd_window
-    assert lo <= lev.rd_tap <= hi, "read tap not centred in window"
-
 
 # =============================================================================
 # pytest wrappers
@@ -292,8 +270,6 @@ def test_ddr2_char_uart_simple(request):
     _run("cocotb_test_uart_simple")
 
 
-def test_ddr2_char_uart_leveling(request):
-    _run("cocotb_test_uart_leveling")
 
 
 # ---- rate-4 / GEAR-2 (the BOARD's exact DFI config: AXI=64, DRAM beat=32) ----

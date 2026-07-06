@@ -27,15 +27,17 @@ import pumice_master as pm
 # Mock device + bridge
 # --------------------------------------------------------------------------
 class MockDevice:
-    """Models a7ddrphy calibration: read CRC passes iff the write phase equals
-    GOOD_WR_PHASE and the read IDELAY tap sits inside [EYE_LO, EYE_HI]."""
+    """Models a7ddrphy READ calibration (A7 = read-leveling only): a read
+    passes iff the read bitslip equals GOOD_BITSLIP and the read IDELAY tap
+    sits inside [EYE_LO, EYE_HI]. Mirrors the corrected A7Leveling sweep
+    (bitslip x IDELAY tap, dly_sel-bracketed strobes, no PHY_RST/wrphase)."""
 
-    def __init__(self, good_wr_phase=1, eye=(8, 22), has_eye=True):
-        self.good_wr_phase = good_wr_phase
+    def __init__(self, good_bitslip=2, eye=(8, 22), has_eye=True):
+        self.good_bitslip = good_bitslip
         self.eye_lo, self.eye_hi = eye
         self.has_eye = has_eye
         self.rdly_tap = 0
-        self.wrphase = 0
+        self.bitslip = 0
         self.phy_addr = 0
         self.phy_wdata = 0
 
@@ -44,14 +46,16 @@ class MockDevice:
             self.rdly_tap = 0
         elif knob == dc.PHY_RDLY_DQ_INC:
             self.rdly_tap += 1
-        elif knob == dc.PHY_WRPHASE:
-            self.wrphase = val
-        # rst / bitslips / phase / lane-select are no-ops for this model
+        elif knob == dc.PHY_RDLY_DQ_BITSLIP_RST:
+            self.bitslip = 0
+        elif knob == dc.PHY_RDLY_DQ_BITSLIP:
+            self.bitslip = (self.bitslip + 1) % 8
+        # dly_sel / wrphase / rst / wdly bitslips are no-ops for this model
 
     def read_ok(self):
         if not self.has_eye:
             return False
-        return (self.wrphase == self.good_wr_phase
+        return (self.bitslip == self.good_bitslip
                 and self.eye_lo <= self.rdly_tap <= self.eye_hi)
 
 
@@ -141,11 +145,11 @@ def test_build_id_reads_back():
 
 
 def test_leveling_finds_eye():
-    dev = MockDevice(good_wr_phase=2, eye=(9, 21))
+    dev = MockDevice(good_bitslip=2, eye=(9, 21))
     drv = _mk_driver(dev)
-    res = pm.A7Leveling(drv, base_addr=0x0, txn_count=4, verbose=False).run()
+    res = pm.A7Leveling(drv, base_addr=0x0, txn_count=2, verbose=False).run()
     assert res.ok, res.notes
-    assert res.wr_phase == 2
+    assert res.bitslip == 2
     lo, hi = res.rd_window
     assert (lo, hi) == (9, 21)
     assert res.rd_tap == (9 + 21) // 2          # centred
@@ -161,7 +165,7 @@ def test_leveling_fails_without_eye():
 
 
 def test_simple_passes_after_leveling():
-    dev = MockDevice(good_wr_phase=1, eye=(8, 22))
+    dev = MockDevice(good_bitslip=1, eye=(8, 22))
     drv = _mk_driver(dev)
     st = pm.SimpleTest(drv, base_addr=0x0)
     st.init(do_leveling=True)
@@ -173,7 +177,7 @@ def test_simple_passes_after_leveling():
 
 def test_simple_fails_when_uncalibrated():
     # skip leveling on a device whose default (phase 0, tap 0) is outside the eye
-    dev = MockDevice(good_wr_phase=1, eye=(8, 22))
+    dev = MockDevice(good_bitslip=1, eye=(8, 22))
     drv = _mk_driver(dev)
     st = pm.SimpleTest(drv, base_addr=0x0)
     st.init(do_leveling=False)
@@ -182,7 +186,7 @@ def test_simple_fails_when_uncalibrated():
 
 
 def test_full_characterization_sweep():
-    dev = MockDevice(good_wr_phase=1, eye=(8, 22))
+    dev = MockDevice(good_bitslip=1, eye=(8, 22))
     drv = _mk_driver(dev)
     fc = pm.FullCharacterization(drv, base_addr=0x0, txn_count=8)
     fc.init(do_leveling=True)

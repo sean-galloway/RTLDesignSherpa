@@ -600,6 +600,25 @@ module ddr2_char_harness
     );
 
     // =========================================================================
+    // Datapath soft-reset (CTRL.soft_reset). harness_csr emits a 1-cycle
+    // pulse; stretch it into a short synchronous reset window that re-resets
+    // the pumice controller + pattern engines (mc domain) so a wedged / stuck
+    // read can be recovered over UART WITHOUT reprogramming. The control plane
+    // (UART bridge + 1->N bridge + harness_csr + trace SRAMs) stays on
+    // unit_aresetn, so the very transaction that issues soft_reset survives and
+    // the engine/controller cfg registers (held in harness_csr) persist.
+    // Previously w_soft_reset_pulse was unconnected — soft_reset was a no-op.
+    // =========================================================================
+    logic [3:0] r_soft_rst_cnt;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn)                    r_soft_rst_cnt <= 4'd0;
+        else if (w_soft_reset_pulse)     r_soft_rst_cnt <= 4'd15;   // stretch
+        else if (r_soft_rst_cnt != 4'd0) r_soft_rst_cnt <= r_soft_rst_cnt - 4'd1;
+    end
+    logic dp_aresetn;   // datapath reset: power-on reset OR soft-reset window
+    assign dp_aresetn = unit_aresetn & (r_soft_rst_cnt == 4'd0);
+
+    // =========================================================================
     // ddr2_char_macro — the DUT (writer + reader + controller top)
     // =========================================================================
     logic w_bresp_error, w_rresp_error, w_data_error;
@@ -617,9 +636,11 @@ module ddr2_char_harness
         .APB_ADDR_WIDTH   (APB_ADDR_WIDTH),
         .APB_DATA_WIDTH   (APB_DATA_WIDTH)
     ) u_dut (
-        // clocks / resets (single-domain: aclk drives everything)
+        // clocks / resets (single-domain: aclk drives everything).
+        // mc side takes the datapath reset so CTRL.soft_reset clears a wedged
+        // read + re-runs DRAM init; presetn/config stays up (host re-programs).
         .mc_clk   (aclk),
-        .mc_rst_n (unit_aresetn),
+        .mc_rst_n (dp_aresetn),
         .pclk     (aclk),
         .presetn  (unit_aresetn),
 
@@ -892,7 +913,6 @@ module ddr2_char_harness
         end
     endgenerate
     wire _unused_ok = &{1'b0,
-        w_soft_reset_pulse,
         w_timer_expected_beats,
         w_rd_resp_delay_cyc, w_wr_resp_delay_cyc,
         w_rd_dbg_valid, w_rd_dbg_actual, w_rd_dbg_expected,
