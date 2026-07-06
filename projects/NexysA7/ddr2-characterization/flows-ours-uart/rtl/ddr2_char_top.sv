@@ -386,9 +386,17 @@ module ddr2_char_top #(
         .dat_w(w_phy_csr_dat_w), .dat_r(w_phy_csr_dat_r)
     );
 
-    // Init handshake into the harness. The real a7ddrphy signals init via
-    // its calibration path; the stub holds this low in lint/sim.
-    assign w_dfi_init_complete = 1'b0;
+    // DFI init-complete into the controller. The generated a7ddrphy has NO
+    // hardware init-done output (LiteDRAM inits/levels the PHY in software),
+    // so in our firmware-leveling model the PHY is "ready" to pass DFI
+    // commands as soon as it's out of config: assert init-complete high so the
+    // controller's init_sequencer leaves S_DFI_INIT and runs the DDR2 JEDEC
+    // init (MRS/etc.) over the DFI. Firmware then levels DQ/DQS read capture
+    // via the calib CSR window. (Was tied 1'b0 -- a stub leftover -- which held
+    // init_sequencer in S_DFI_INIT so the DRAM was never initialised: writes
+    // backpressured, reads errored.) aresetn already gates on MMCM lock, so
+    // this only takes effect once the sys/sys4x clocks are stable.
+    assign w_dfi_init_complete = 1'b1;
 
     /* verilator lint_off UNUSED */
     wire _unused_ok = &{1'b0,
