@@ -121,7 +121,7 @@
 `include "reset_defs.svh"
 
 module harness_csr
-    import ddr2_lpddr2_pkg::*;
+    import pumice_pkg::*;
 #(
     parameter int AW = 32,
     parameter int DW = 32,

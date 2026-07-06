@@ -1,0 +1,15 @@
+# Filelist for rd_cl_aligner
+# Location: projects/components/memory-controllers/pumice/rtl/filelists/fub/rd_cl_aligner.f
+
+# Include directories
++incdir+$REPO_ROOT/projects/components/memory-controllers/pumice/rtl/includes
++incdir+$REPO_ROOT/rtl/amba/includes
+
+# Header files (MUST be compiled first)
+$REPO_ROOT/rtl/amba/includes/reset_defs.svh
+
+# Packages
+$REPO_ROOT/projects/components/memory-controllers/pumice/rtl/includes/pumice_pkg.sv
+
+# DUT
+$REPO_ROOT/projects/components/memory-controllers/pumice/rtl/fub/rd_cl_aligner.sv

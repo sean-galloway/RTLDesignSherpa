@@ -12,7 +12,7 @@ Source: `ddr2_char_framework/rtl/bridges/configs/bridge_ddr2_char_axil.toml`.
 
 | Slave         | Base           | Size    | Protocol | Purpose                                           |
 |---------------|----------------|---------|----------|---------------------------------------------------|
-| `ddr2_apb`    | `0x0000_0000`  | 4 KB    | APB      | ddr2-lpddr2 controller CSR (autogen regs)         |
+| `ddr2_apb`    | `0x0000_0000`  | 4 KB    | APB      | pumice controller CSR (autogen regs)         |
 | `harness_csr` | `0x0001_0000`  | 4 KB    | AXIL     | Harness ctrl + timer + engine cfg + perf readback |
 | `debug_sram`  | `0x0004_0000`  | 256 KB  | AXIL 64b | MonBus / DFI trace ring                           |
 | `dfi_mon_ram` | `0x0008_0000`  | 4 KB    | AXIL     | Small AXIL ring for DFI cmd observability         |

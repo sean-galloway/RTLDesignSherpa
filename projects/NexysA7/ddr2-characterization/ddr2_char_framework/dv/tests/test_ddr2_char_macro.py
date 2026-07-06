@@ -11,7 +11,7 @@
 """Smoke test for ddr2_char_macro.
 
 Wires up the two AXI4 master-side characterization engines + the
-ddr2-lpddr2 controller behind one tb_top, then runs a tiny end-to-end
+pumice controller behind one tb_top, then runs a tiny end-to-end
 workload:
 
   1. Bring up APB CSR + DFI loopback through the existing
@@ -46,11 +46,11 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 # all of which exist on ddr2_char_macro_tb_top with the same names.
 _CTRL_DV_DIR = os.path.abspath(os.path.join(
     "/mnt/data/github/RTLDesignSherpa",
-    "projects/components/memory-controllers/ddr2-lpddr2/dv"))
+    "projects/components/memory-controllers/pumice/dv"))
 if _CTRL_DV_DIR not in sys.path:
     sys.path.insert(0, _CTRL_DV_DIR)
 
-from tbclasses.ddr2_lpddr2_top_tb import DDR2LPDDR2TopTB  # noqa: E402
+from tbclasses.pumice_top_tb import DDR2LPDDR2TopTB  # noqa: E402
 
 
 _NBA_SETTLE_PS = 100
@@ -310,7 +310,7 @@ async def cocotb_test_ddr2_char_macro(dut):
     elif test_type == "pacing_sweep_b2b":
         # Engine-PACING sweep — NOT an AXI random-profile sweep.
         # The AXI_RANDOMIZER_CONFIGS BFM cross-product lives at the
-        # controller-only level on test_ddr2_lpddr2_core_macro. Here
+        # controller-only level on test_pumice_core_macro. Here
         # the engines drive the AXI bus directly, so what we sweep is
         # the engines' own inter-burst pacing knobs (cfg_wr_gap,
         # cfg_rd_gap). Each gap pair stresses a different
@@ -564,8 +564,8 @@ def test_ddr2_char_macro(request, test_type):
 #
 # The AXI random-profile (BFM AXI_RANDOMIZER_CONFIGS) cross-product
 # lives on the controller-only env:
-#   projects/components/memory-controllers/ddr2-lpddr2/dv/tests/macro/
-#     test_ddr2_lpddr2_core_macro.py::test_ddr2_lpddr2_core_macro_profile_sweep
+#   projects/components/memory-controllers/pumice/dv/tests/macro/
+#     test_pumice_core_macro.py::test_pumice_core_macro_profile_sweep
 #
 # This sweep is the engine-integration analog: it varies the engines'
 # own inter-burst pacing knobs (cfg_wr_gap, cfg_rd_gap). Tests

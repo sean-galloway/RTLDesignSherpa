@@ -69,7 +69,7 @@ Guided progression from primitives to systems. Each level links to the correspon
 - **Level 2 — [AMBA Protocol Infrastructure](rtl/amba/)** · 155 modules · [AXI4](rtl/amba/axi4/) · [AXI5](rtl/amba/axi5/) · [AXI4-Lite](rtl/amba/axil4/) · [APB](rtl/amba/apb/) · [APB5](rtl/amba/apb5/) · [AXIS4](rtl/amba/axis4/) · [AXIS5](rtl/amba/axis5/) · [Shared (monitor/observation/monbus)](rtl/amba/shared/)
 - **Level 3 — [Integration Examples](rtl/integ_amba/)** · APB crossbar, bridges, multi-protocol stitching
 - **Level 4 — [Production Components](projects/components/)** · [STREAM](projects/components/stream/) · [RAPIDS](projects/components/rapids/) · [Bridge](projects/components/bridge/) · [Converters](projects/components/converters/) · [APB xbar](projects/components/apb_xbar/) · [Retro legacy](projects/components/retro_legacy_blocks/) · [Memory controllers](projects/components/memory-controllers/)
-- **Level 5 — [FPGA Projects on Nexys A7](projects/NexysA7/)** · [stream_characterization](projects/NexysA7/stream_characterization/) · [timing_characterization](projects/NexysA7/timing_characterization/) · [cdc_counter_display](projects/NexysA7/cdc_counter_display/) · [ddr2-lpddr2-memory-controller](projects/NexysA7/ddr2-lpddr2-memory-controller/)
+- **Level 5 — [FPGA Projects on Nexys A7](projects/NexysA7/)** · [stream_characterization](projects/NexysA7/stream_characterization/) · [timing_characterization](projects/NexysA7/timing_characterization/) · [cdc_counter_display](projects/NexysA7/cdc_counter_display/) · [pumice-memory-controller](projects/NexysA7/pumice-memory-controller/)
 
 <details>
 <summary>Visual diagram (Mermaid — desktop browsers only)</summary>
@@ -85,7 +85,7 @@ graph TD
     L2 -.- L2D[AXI4, AXI5, AXI4-Lite, APB, APB5<br/>AXIS4, AXIS5, Shared monitor/observation]
     L3 -.- L3D[APB Crossbar, Bridges, multi-protocol stitching]
     L4 -.- L4D[STREAM, RAPIDS, Bridge, Converters<br/>Retro Legacy Blocks, Memory controllers]
-    L5 -.- L5D[stream_characterization, timing_characterization<br/>cdc_counter_display, ddr2-lpddr2-memory-controller]
+    L5 -.- L5D[stream_characterization, timing_characterization<br/>cdc_counter_display, pumice-memory-controller]
 
     click L1 "rtl/common/" "Common Building Blocks"
     click L2 "rtl/amba/" "AMBA Protocol Infrastructure"
@@ -190,7 +190,7 @@ Things that actually run on hardware. Each project ships its own README and Viva
 | stream_characterization | DMA performance characterization on FPGA + host-side analysis (UART control, on-chip PMU) | [`projects/NexysA7/stream_characterization/`](projects/NexysA7/stream_characterization/) |
 | timing_characterization | FUB delay characterization. STA-only `bitstream-sweep` is the headline path; on-board MMCM sweep is an optional gut-check (see [`README_FPGA.md`](projects/NexysA7/timing_characterization/README_FPGA.md) §5) | [`projects/NexysA7/timing_characterization/`](projects/NexysA7/timing_characterization/) |
 | cdc_counter_display | Live demo of multi-clock counter CDC on the board | [`projects/NexysA7/cdc_counter_display/`](projects/NexysA7/cdc_counter_display/) |
-| ddr2-lpddr2-memory-controller | DDR2 / LPDDR2 memory controller bring-up on Nexys A7 | [`projects/NexysA7/ddr2-lpddr2-memory-controller/`](projects/NexysA7/ddr2-lpddr2-memory-controller/) |
+| pumice-memory-controller | DDR2 / LPDDR2 memory controller bring-up on Nexys A7 | [`projects/NexysA7/pumice-memory-controller/`](projects/NexysA7/pumice-memory-controller/) |
 | boards | Board files / pinouts / constraints | [`projects/NexysA7/boards/`](projects/NexysA7/boards/) |
 
 ### 6. Verification

@@ -3,7 +3,7 @@
 //
 // Cocotb-side TB wrapper around ddr2_char_macro.
 //
-// Mirrors the pattern in projects/.../ddr2_lpddr2_top_tb_top.sv: APB stays
+// Mirrors the pattern in projects/.../pumice_top_tb_top.sv: APB stays
 // as ports (APBMaster BFM drives via prefix), DFI is aliased to internal
 // phy_dfi_* nets so the DFISlavePHY BFM auto-binds. AXI is fully internal
 // to the macro (writer + reader engines drive it) — only the engine cfg
@@ -12,7 +12,7 @@
 `timescale 1ns / 1ps
 
 module ddr2_char_macro_tb_top
-    import ddr2_lpddr2_pkg::*;
+    import pumice_pkg::*;
 #(
     parameter int AXI_ADDR_WIDTH   = 32,
     parameter int AXI_DATA_WIDTH   = 64,

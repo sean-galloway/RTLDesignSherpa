@@ -325,7 +325,7 @@ class StreamTopTB(TBBase):
         The DUT is the AXI master, so these BFMs are slave responders:
           - ready-driving channels (ar/aw/w) use the 'slave' (ready_delay) config
           - valid-driving channels (r/b)     use the 'master' (valid_delay) config
-        (This is the inverse of the master-side ddr2-lpddr2 mapping.)
+        (This is the inverse of the master-side pumice mapping.)
 
         A channel value of 'mixed' expands to a per-channel spread of real
         profiles (see MIXED_AXI_PROFILES) so each channel differs.

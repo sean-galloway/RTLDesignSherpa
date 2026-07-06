@@ -31,7 +31,7 @@ JEDEC era) into a single controller engine with a swappable command encoder.
 
 | Directory | Controller scope | DFI version | Notes |
 |---|---|---|---|
-| [`ddr2-lpddr2/`](ddr2-lpddr2/) | DDR2 + LPDDR2 unified | v2.1 | Status: HAS v0.3 published; pre-architecture stage |
+| [`pumice/`](pumice/) | DDR2 + LPDDR2 unified | v2.1 | Status: HAS v0.3 published; pre-architecture stage |
 | [`ddr3-lpddr3/`](ddr3-lpddr3/) | DDR3 + LPDDR3 unified | v3.1 | Planned; structure only |
 | [`ddr4-lpddr4/`](ddr4-lpddr4/) | DDR4 + LPDDR4 unified | v4.0 | Planned; structure only |
 

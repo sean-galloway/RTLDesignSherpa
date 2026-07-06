@@ -6,7 +6,7 @@
 //
 // Module: ddr2_char_macro
 // Purpose: Single instantiation point binding the master-side AXI4
-//          characterization engines to the ddr2-lpddr2 memory controller.
+//          characterization engines to the pumice memory controller.
 //          The macro hides all the AXI plumbing between the engines and
 //          the controller's s_axi port so the bench just programs cfg
 //          ports + drives DFI + APB to exercise the full path.
@@ -28,7 +28,7 @@
 //   Wraps the three blocks that form the bring-up + characterization loop:
 //
 //     axi4_master_wr_pattern_gen  →┐
-//                                  ├→  ddr2_lpddr2_top  →  DFI (external)
+//                                  ├→  pumice_top  →  DFI (external)
 //     axi4_master_rd_crc_check    →┘
 //
 //   The writer drives s_axi AW/W and receives B from the controller; the
@@ -44,7 +44,7 @@
 //   so the bench can sweep writer and reader workloads independently.
 //==============================================================================
 module ddr2_char_macro
-    import ddr2_lpddr2_pkg::*;
+    import pumice_pkg::*;
 #(
     // ---- AXI4 ----
     parameter int AXI_ADDR_WIDTH   = 32,
@@ -70,7 +70,7 @@ module ddr2_char_macro
     // ROW_WIDTH = chip row-address bits. Nexys A7 DDR2 (MT47H64M16, 1Gb x16)
     // has 13 row bits (A0-A12). Default 13 so the controller never issues a
     // row address the chip can't decode (14 would alias/wrap into rows 0..8191).
-    // Propagates to ddr2_lpddr2_top and sizes DFI_ADDR_BUS_W = ROW_WIDTH*DFI_RATE.
+    // Propagates to pumice_top and sizes DFI_ADDR_BUS_W = ROW_WIDTH*DFI_RATE.
     parameter int ROW_WIDTH        = 13,
     parameter int COL_WIDTH        = 10,
 
@@ -431,9 +431,9 @@ module ddr2_char_macro
     );
 
     //=========================================================================
-    // ddr2-lpddr2 controller
+    // pumice controller
     //=========================================================================
-    ddr2_lpddr2_top #(
+    pumice_top #(
         .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH  (AXI_DATA_WIDTH),
         .DRAM_BEAT_WIDTH (DRAM_BEAT_WIDTH),

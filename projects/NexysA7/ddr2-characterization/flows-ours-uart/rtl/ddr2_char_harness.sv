@@ -23,7 +23,7 @@
 `include "reset_defs.svh"
 
 module ddr2_char_harness
-    import ddr2_lpddr2_pkg::*;
+    import pumice_pkg::*;
 #(
     parameter int FPGA_CLK_HZ        = 100_000_000,
     parameter int UART_BAUD          = 115_200,
@@ -50,7 +50,7 @@ module ddr2_char_harness
 
     // Controller sizing
     // ROW_WIDTH = DDR2 chip row-address bits (Nexys A7 MT47H64M16 = 13, A0-A12).
-    // Propagated to ddr2_char_macro -> ddr2_lpddr2_top and to the DFI/PHY
+    // Propagated to ddr2_char_macro -> pumice_top and to the DFI/PHY
     // address width in ddr2_char_top (sizes ddram_a).
     parameter int ROW_WIDTH          = 13,
     parameter int APB_ADDR_WIDTH     = 12,

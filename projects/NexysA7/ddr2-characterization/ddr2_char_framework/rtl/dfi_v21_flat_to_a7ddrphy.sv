@@ -40,7 +40,7 @@ module dfi_v21_flat_to_a7ddrphy #(
     parameter int PHASE_STRB  = PHASE_DATA / 8
 ) (
     // ------------------------------------------------------------------
-    // Flat (phase-packed) DFI side — from ddr2_lpddr2_top / char macro.
+    // Flat (phase-packed) DFI side — from pumice_top / char macro.
     // ------------------------------------------------------------------
     input  logic [DFI_ADDR_W*NPHASES-1:0]  dfi_address_flat,
     input  logic [DFI_BANK_W*NPHASES-1:0]  dfi_bank_flat,

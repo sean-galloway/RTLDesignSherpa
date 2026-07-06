@@ -7,7 +7,7 @@
 #
 # The single master is the host's UART -> AXIL bridge. The four slaves:
 #
-#   ddr2_apb       0x00000000  4 KB    APB    ddr2-lpddr2 controller CSR slave
+#   ddr2_apb       0x00000000  4 KB    APB    pumice controller CSR slave
 #                                              (mode-registers, init sequence,
 #                                              runtime perf counters — inside
 #                                              the char macro)
@@ -68,7 +68,7 @@ user_width  = 0
 # ---- Slaves ----------------------------------------------------------------
 [[bridge.slaves]]
 name        = "ddr2_apb"
-# APB port on the ddr2-lpddr2 controller (`s_apb_P<sig>` in the core).
+# APB port on the pumice controller (`s_apb_P<sig>` in the core).
 # The generated bridge slave adapter converts AXIL 32b to APB 32b.
 prefix      = "ddr2_apb_"
 protocol    = "apb"

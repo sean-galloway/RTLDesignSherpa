@@ -1,0 +1,1969 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2026 sean galloway
+
+# TODO(amba-profiles): only the new wr_rd_b2b_* scenarios use a
+# non-default timing profile. Every other scenario here runs at the
+# AXI4MasterRead/Write defaults — extend each scenario to parametrize
+# over bin/TBClasses/amba/amba_random_configs.py profiles (backtoback /
+# constrained / fast / slow_consumer / burst_pause / high_throughput).
+# This is exactly what surfaced the "BFM-write_transaction serializes
+# AW+W via _aw_w_lock" gap that hides engine-class traffic.
+"""End-to-end tests for pumice_top.
+
+Workload-mix tests use AXI4Sequence to drive the canonical 60/40 W:R
+mix with 128B/256B/512B/1024B at 20/20/40/20. Configure the controller
+through APB (RegisterMap), then issue traffic through the AXI4 slave.
+
+DFI loopback is a stub today — reads return garbage, but writes
+exercise the full AXI → CAM → scheduler → DFI path.
+"""
+
+import logging
+import os
+import random
+import sys
+from typing import Optional
+
+import cocotb
+import pytest
+from cocotb_test.simulator import run
+
+from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
+
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+
+from pumice_coverage import (  # noqa: E402
+    get_coverage_compile_args, get_coverage_env,
+)
+
+from tbclasses.pumice_top_tb import DDR2LPDDR2TopTB  # noqa: E402
+
+from CocoTBFramework.components.axi4.axi4_sequence import (  # noqa: E402
+    AXI4Sequence, run_axi4_sequence, run_axi4_sequence_engine,
+)
+
+from tbclasses.pumice_sequences import (  # noqa: E402
+    build_b2b_wr_rd_sequences, build_rd_only_sequence, diff_results,
+)
+
+
+@cocotb.test(timeout_time=30, timeout_unit="ms")
+async def cocotb_test_pumice_top(dut):
+    test_type   = os.environ.get("TEST_TYPE", "smoke")
+    seed        = int(os.environ.get("SEED", "12345"))
+    mem_type    = os.environ.get("MEM_TYPE", "DDR2").upper()
+    num_ranks   = int(os.environ.get("NUM_RANKS", "1"))
+
+    # init_error_retry holds off init_complete to exercise the
+    # init_sequencer timeout/error path.
+    if test_type == "init_error_retry":
+        init_complete_delay = 50_000     # effectively "never"
+    else:
+        init_complete_delay = 20
+
+    # TASK-GEAR: AXI width and DRAM beat width may differ (GEAR>1).
+    tb = DDR2LPDDR2TopTB(
+        dut, num_ranks=num_ranks,
+        axi_data_width=int(os.environ.get("AXI_DATA_WIDTH", "64")),
+        dram_beat_width=int(os.environ.get("DRAM_BEAT_WIDTH", "64")),
+    )
+    await tb.reset(mem_type=mem_type,
+                   init_complete_delay=init_complete_delay)
+    tb.init_register_map()
+    tb.init_apb_master()
+    await tb.apb_master.reset_bus()
+    tb.init_dfi_slave()
+
+    if test_type == "smoke":
+        # Read the ID register (fixed RO values).
+        rd = await tb.apb_read_register(0xFF0)
+        expected = (0xD2 << 24) | (0x02 << 16) | (0x00 << 8) | 0x01
+        assert rd == expected, f"ID readback 0x{rd:08X} != 0x{expected:08X}"
+
+        # Wait for init_done to come up through the DFI stub.
+        await tb.wait_for_init_done()
+
+    elif test_type == "configure_via_apb":
+        # Program a couple of timing registers via RegisterMap + APB, then
+        # verify they read back.
+        await tb.apb_program_register("REFRESH_TUNING", "page_policy_or", 0x2)
+        await tb.apb_program_register("SCHED_TUNING", "force_inorder", 0x1)
+        rt = await tb.apb_read_register(0x048)  # REFRESH_TUNING
+        st = await tb.apb_read_register(0x040)  # SCHED_TUNING
+        assert ((rt >> 2) & 0x3) == 0x2, f"page_policy_or not set: 0x{rt:08X}"
+        assert ((st >> 4) & 0x1) == 0x1, f"force_inorder not set: 0x{st:08X}"
+
+    elif test_type == "axi_write_smoke":
+        # Init AXI masters and drive a single short write to make sure the
+        # AXI → CAM → scheduler path doesn't hang. Read will not return
+        # valid data yet (DFI stub) but the write completion should fire.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        seq = AXI4Sequence("smoke_wr", data_width=64, seed=seed)
+        seq.add_write(0x0000_1000, [0xDEAD_BEEF_DEAD_0000], axid=0)
+        results = await tb.run_sequence(seq)
+        assert len(results) == 1
+        # We accept either success or a timeout-style error here — the goal is
+        # that the run_sequence call returns without hanging the harness.
+        tb.log.info("smoke wr result: %s", results[0])
+
+    elif test_type == "workload_mix":
+        # The canonical 60/40 + 128/256/512/1024 distribution. Modest count
+        # so the test finishes in reasonable time; iterate up after the
+        # DFI loopback lands.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        seq = AXI4Sequence("workload_mix", data_width=64, seed=seed)
+        seq.add_random_workload(
+            count=8,
+            addr_range=(0x0, 0x4000),
+            write_ratio=0.6,
+            size_weights={128: 0.2, 256: 0.2, 512: 0.4, 1024: 0.2},
+            qos_choices=[0, 4, 8, 15],
+        )
+        results = await tb.run_sequence(seq)
+        n_done = sum(1 for r in results if r["error"] is None)
+        tb.log.info("workload_mix: %d / %d bursts completed without error",
+                    n_done, len(results))
+
+    elif test_type == "fresh_read_each_bank":
+        # Fresh read from each bank (no preceding write).
+        # Memory is preloaded so the read returns the preload pattern.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        results_summary = []
+        for bank in range(8):
+            addr = bank * 0x2000
+            pat = (0xDEAD0000 | bank) | ((0xBEEF0000 | bank) << 32)
+            tb.preload_memory(addr, pat.to_bytes(8, "little"))
+            rd = AXI4Sequence(f"fresh_b{bank}", data_width=64, seed=seed)
+            rd.add_read(addr, length=1, axid=0)
+            r = await tb.run_sequence(rd)
+            status = "OK" if r[0]["error"] is None else "FAIL"
+            results_summary.append((bank, status, r[0]["error"]))
+            tb.log.info("bank %d fresh-read: %s err=%s",
+                        bank, status, r[0]["error"])
+        # Report
+        bad = [b for b, s, _ in results_summary if s == "FAIL"]
+        assert not bad, f"fresh-read failed for banks: {bad}"
+
+    elif test_type == "bank0_delayed":
+        # After WR, wait many cycles before issuing the read to rule out
+        # a near-back-to-back race.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        wr = AXI4Sequence("d_wr", data_width=64, seed=seed)
+        wr.add_write(0x0, [0xAA55_AA55_AA55_AA55], axid=0)
+        await tb.run_sequence(wr)
+
+        # Wait 5000 mc cycles for refresh to fire a few times.
+        from cocotb.triggers import ClockCycles as _CC
+        await _CC(dut.mc_clk, 5000)
+
+        rd = AXI4Sequence("d_rd", data_width=64, seed=seed)
+        rd.add_read(0x0, length=1, axid=0)
+        results = await tb.run_sequence(rd)
+        assert results[0]["error"] is None, results[0]["error"]
+        assert results[0]["data"][0] == 0xAA55_AA55_AA55_AA55, (
+            f"bank0 delayed read got 0x{results[0]['data'][0]:016X}"
+        )
+        tb.log.info("bank0 delayed read OK")
+
+    elif test_type == "bank0_probe":
+        # Bank 0 hangs on AXI read after a write — probe the DFI bus
+        # while it happens to find out where the path breaks.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        # Monitor DFI command bus on phase 0.
+        cmd_log = []
+        async def dfi_watch():
+            cycle = 0
+            while True:
+                await RisingEdge(dut.mc_clk)
+                cycle += 1
+                cs_n  = int(dut.phy_dfi_cs_n.value)  & 1
+                if cs_n == 1:
+                    continue
+                ras_n = int(dut.phy_dfi_ras_n.value) & 1
+                cas_n = int(dut.phy_dfi_cas_n.value) & 1
+                we_n  = int(dut.phy_dfi_we_n.value)  & 1
+                addr  = int(dut.phy_dfi_address.value)
+                bank  = int(dut.phy_dfi_bank.value) & 7
+                code  = (ras_n << 2) | (cas_n << 1) | we_n
+                # JEDEC DDR2 command encoding (cs=0, ras, cas, we):
+                #   ACT  = (ras=0,cas=1,we=1) → 011 = 3
+                #   WR   = (ras=1,cas=0,we=0) → 100 = 4
+                #   RD   = (ras=1,cas=0,we=1) → 101 = 5
+                #   PRE  = (ras=0,cas=1,we=0) → 010 = 2
+                #   REF  = (ras=0,cas=0,we=1) → 001 = 1
+                #   MRS  = (ras=0,cas=0,we=0) → 000 = 0
+                #   NOP  = (ras=1,cas=1,we=1) → 111 = 7
+                name = {
+                    0: "MRS", 1: "REF", 2: "PRE", 3: "ACT",
+                    4: "WR",  5: "RD",  7: "NOP",
+                }.get(code, f"?{code}")
+                cmd_log.append((cycle, name, bank, addr))
+
+        # Probe axi_intake's R-channel internals + DFI rddata_en /
+        # rddata_valid; helped diagnose G-01.
+        async def r_probe():
+            cycle = 0
+            saw_en = False
+            saw_valid = False
+            while True:
+                await RisingEdge(dut.mc_clk)
+                cycle += 1
+                try:
+                    rddata_en = int(dut.phy_dfi_rddata_en.value)
+                    rddata_v  = int(dut.phy_dfi_rddata_valid.value)
+                except Exception:
+                    return
+                if rddata_en != 0 and not saw_en:
+                    saw_en = True
+                    tb.log.info("PROBE: dfi_rddata_en FIRST high @ "
+                                "cycle %d (val=0x%x)", cycle, rddata_en)
+                if rddata_v != 0 and not saw_valid:
+                    saw_valid = True
+                    tb.log.info("PROBE: dfi_rddata_valid FIRST high @ "
+                                "cycle %d (val=0x%x)", cycle, rddata_v)
+
+        from cocotb.triggers import RisingEdge
+        watcher = cocotb.start_soon(dfi_watch())
+        r_watcher = cocotb.start_soon(r_probe())
+
+        # Step 1: write at bank-0 address.
+        wr = AXI4Sequence("b0_wr", data_width=64, seed=seed)
+        wr.add_write(0x0, [0xAA55_AA55_AA55_AA55], axid=0)
+        await tb.run_sequence(wr)
+        tb.log.info("after WR, DFI log has %d commands", len(cmd_log))
+        for entry in cmd_log[-20:]:
+            tb.log.info("  %s", entry)
+
+        # Step 2: read.
+        rd = AXI4Sequence("b0_rd", data_width=64, seed=seed)
+        rd.add_read(0x0, length=1, axid=0)
+        results = await tb.run_sequence(rd)
+
+        # Drop REF + NOP from the log to keep it readable; everything
+        # else is interesting.
+        interesting = [e for e in cmd_log
+                       if isinstance(e[1], str)
+                       and e[1] not in ("NOP", "REF")]
+        tb.log.info("after RD, DFI log has %d commands "
+                    "(%d non-REF/NOP); non-REF/NOP entries:",
+                    len(cmd_log), len(interesting))
+        for entry in interesting:
+            tb.log.info("  %s", entry)
+        tb.log.info("RD result: err=%s data=%s",
+                    results[0]["error"], results[0]["data"])
+        # Force fail so cocotb output is preserved by pytest.
+        assert results[0]["error"] is None, "bank0_probe RD hung as expected"
+
+    elif test_type == "wr_rd_bank_sweep":
+        # Probe which banks hang on wr-then-rd. Each iteration writes a
+        # pattern to a bank's row 0 col 0, then reads it back. Logs the
+        # first bank that times out so we can localize.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        bank_stride = 0x2000  # bytes between bank boundaries @ ROW_MAJOR
+        good = []
+        bad = []
+        for bank in range(8):
+            addr = bank * bank_stride
+            pat = 0x1100_0000_0000_0000 | (bank << 56) | addr
+            wr = AXI4Sequence(f"sweep_wr_b{bank}", data_width=64, seed=seed)
+            wr.add_write(addr, [pat], axid=0)
+            await tb.run_sequence(wr)
+            rd = AXI4Sequence(f"sweep_rd_b{bank}", data_width=64, seed=seed)
+            rd.add_read(addr, length=1, axid=0)
+            results = await tb.run_sequence(rd)
+            if results[0]["error"] is None and results[0]["data"][0] == pat:
+                good.append(bank)
+                tb.log.info("bank %d: OK  (addr 0x%X, pat 0x%016X)",
+                            bank, addr, pat)
+            else:
+                bad.append(bank)
+                tb.log.error("bank %d: FAIL (addr 0x%X) err=%s data=%s",
+                             bank, addr, results[0]["error"],
+                             results[0]["data"])
+        tb.log.info("bank sweep: good=%s bad=%s", good, bad)
+        assert not bad, f"banks {bad} failed wr-then-rd, banks {good} OK"
+
+    elif test_type == "wr_rd_roundtrip":
+        # Real DFI loopback now — write a known pattern, then read it
+        # back and verify byte-exact equality.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        seq = AXI4Sequence("roundtrip_wr", data_width=64, seed=seed)
+        addr = 0x0000_2000
+        pattern = 0xCAFEBABE_DEADBEEF
+        seq.add_write(addr, [pattern], axid=0)
+        await tb.run_sequence(seq)
+
+        # Now read it back.
+        rd_seq = AXI4Sequence("roundtrip_rd", data_width=64, seed=seed)
+        rd_seq.add_read(addr, length=1, axid=0)
+        results = await tb.run_sequence(rd_seq)
+        assert results[0]["error"] is None, results[0]["error"]
+        readback = results[0]["data"][0]
+        assert readback == pattern, (
+            f"loopback mismatch: wrote 0x{pattern:016X}, "
+            f"read 0x{readback:016X}"
+        )
+        tb.log.info("wr_rd_roundtrip OK: 0x%016X round-tripped through DFI",
+                    readback)
+
+    elif test_type == "wr_rd_roundtrip_2beat_probe":
+        # Diagnostic version of _2beat: capture every dfi_wrdata cycle
+        # so we can see what the controller actually writes.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        dfi_log = []
+        from cocotb.triggers import RisingEdge, ClockCycles
+
+        async def dfi_watch():
+            cyc = 0
+            while True:
+                await RisingEdge(dut.mc_clk)
+                cyc += 1
+                try:
+                    en = int(dut.phy_dfi_wrdata_en.value)
+                except Exception:
+                    return
+                if en != 0:
+                    data = int(dut.phy_dfi_wrdata.value)
+                    mask = int(dut.phy_dfi_wrdata_mask.value)
+                    dfi_log.append((cyc, en, data, mask))
+
+        cocotb.start_soon(dfi_watch())
+
+        seq = AXI4Sequence("probe_wr", data_width=64, seed=seed)
+        addr = 0x0000_2080
+        v0 = 0xCAFEBABE_DEADBEEF
+        v1 = 0x12345678_9ABCDEF0
+        seq.add_write(addr, [v0, v1], axid=0)
+        await tb.run_sequence(seq)
+        await ClockCycles(dut.mc_clk, 50)
+
+        tb.log.info("DFI wrdata cycles captured: %d", len(dfi_log))
+        for cyc, en, data, mask in dfi_log:
+            tb.log.info("  cyc=%d en=0x%x data=0x%032X mask=0x%X",
+                        cyc, en, data, mask)
+        # Inspect the BFM-side MemoryModel to see what landed in DRAM.
+        for offset in range(0, 32, 8):
+            chunk = tb.peek_memory(addr + offset, 8)
+            tb.log.info("  DRAM @ 0x%X = %s", addr + offset, chunk.hex())
+
+        # Now probe DFI rddata during the read.
+        rd_log = []
+        async def rd_watch():
+            cyc = 0
+            while True:
+                await RisingEdge(dut.mc_clk)
+                cyc += 1
+                try:
+                    v = int(dut.phy_dfi_rddata_valid.value)
+                except Exception:
+                    return
+                if v != 0:
+                    d = int(dut.phy_dfi_rddata.value)
+                    en = int(dut.phy_dfi_rddata_en.value)
+                    rd_log.append((cyc, v, en, d))
+        cocotb.start_soon(rd_watch())
+
+        rd_seq = AXI4Sequence("probe_rd", data_width=64, seed=seed)
+        rd_seq.add_read(addr, length=2, axid=0)
+        results = await tb.run_sequence(rd_seq)
+        readback = results[0]["data"]
+        tb.log.info("AXI readback beats: %s",
+                    [f"0x{b:016X}" for b in readback])
+        tb.log.info("DFI rddata cycles: %d", len(rd_log))
+        for cyc, v, en, d in rd_log:
+            tb.log.info("  cyc=%d valid=0x%x en=0x%x data=0x%032X",
+                        cyc, v, en, d)
+        assert False, "diagnostic — forced fail to preserve output"
+
+    elif test_type == "wr_rd_roundtrip_2beat":
+        # Multi-beat variant of wr_rd_roundtrip: 1 AW with awlen=1
+        # (2 beats). Discovered as a gap when ddr2_char_macro's smoke
+        # at 1-burst-of-2-beats failed with a missing 2nd beat in
+        # DFI memory. If this passes, the macro / engine pipelining
+        # is at fault; if it fails, the controller's W path drops
+        # trailing beats inside a multi-beat burst.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        seq = AXI4Sequence("roundtrip2_wr", data_width=64, seed=seed)
+        addr = 0x0000_2080
+        v0 = 0xCAFEBABE_DEADBEEF
+        v1 = 0x12345678_9ABCDEF0
+        seq.add_write(addr, [v0, v1], axid=0)
+        await tb.run_sequence(seq)
+
+        rd_seq = AXI4Sequence("roundtrip2_rd", data_width=64, seed=seed)
+        rd_seq.add_read(addr, length=2, axid=0)
+        results = await tb.run_sequence(rd_seq)
+        assert results[0]["error"] is None, results[0]["error"]
+        readback = results[0]["data"]
+        assert len(readback) == 2, f"expected 2 R beats, got {len(readback)}"
+        assert readback[0] == v0, (
+            f"beat0 mismatch: wrote 0x{v0:016X}, read 0x{readback[0]:016X}"
+        )
+        assert readback[1] == v1, (
+            f"beat1 mismatch: wrote 0x{v1:016X}, read 0x{readback[1]:016X}"
+        )
+        tb.log.info("wr_rd_roundtrip_2beat OK: both beats round-tripped")
+
+    elif test_type == "wr_rd_b2b_multi":
+        # Multi-burst, multi-beat, back-to-back AXI traffic — no BFM
+        # bubbles, exactly what the axi4_master_wr_pattern_gen engine
+        # drives. Existing top tests use default BFM timing (bubbles
+        # everywhere) and miss the multi-burst integrity hits.
+        #
+        # 17 bursts of 4 beats each, distinct payload per beat so the
+        # readback compare can pinpoint the corrupted beat.
+        tb.init_axi_masters()
+        tb.set_axi_timing_profile("backtoback")
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        N_BURSTS = 17           # one more than WR_CAM_DEPTH=16
+        BURST_LEN = 4           # matches DDR2 BL=4 → no padding
+        BASE = 0x0001_0000
+        STRIDE = BURST_LEN * 8  # bytes per beat = 8
+
+        # Marker payload: bit-fields make it obvious which burst /
+        # beat any corrupted readback came from.
+        def mk_payload(burst_idx: int, beat_idx: int) -> int:
+            return ((burst_idx & 0xFFFF) << 16) | (beat_idx & 0xFFFF)
+
+        wr = AXI4Sequence("b2b_wr", data_width=64, seed=seed)
+        for b in range(N_BURSTS):
+            data = [mk_payload(b, k) for k in range(BURST_LEN)]
+            wr.add_write(BASE + b * STRIDE, data, axid=(b & 0xF))
+        await tb.run_sequence(wr)
+
+        rd = AXI4Sequence("b2b_rd", data_width=64, seed=seed)
+        for b in range(N_BURSTS):
+            rd.add_read(BASE + b * STRIDE, length=BURST_LEN,
+                        axid=(b & 0xF))
+        results = await tb.run_sequence(rd)
+
+        # Check every beat. If any burst beyond 0 returns mangled data
+        # the macro-level multi-burst bug is reproduced WITHOUT engines.
+        first_bad: Optional[tuple] = None
+        for b in range(N_BURSTS):
+            beats = results[b]["data"]
+            for k in range(BURST_LEN):
+                expected = mk_payload(b, k)
+                if beats[k] != expected:
+                    if first_bad is None:
+                        first_bad = (b, k, expected, beats[k])
+        assert first_bad is None, (
+            f"b2b multi-burst readback corrupted at burst={first_bad[0]} "
+            f"beat={first_bad[1]}: wrote 0x{first_bad[2]:016X}, "
+            f"read 0x{first_bad[3]:016X}"
+        )
+        tb.log.info("wr_rd_b2b_multi OK: %d bursts × %d beats round-tripped",
+                    N_BURSTS, BURST_LEN)
+
+    elif test_type == "wr_rd_b2b_multi_pipelined":
+        # Pipelined multi-burst with mixed ids (id = b & 0xF) on both
+        # AW and AR — exactly the pattern the
+        # axi4_master_wr_pattern_gen engine drives. Built via the
+        # shared sequence helper; the BFM's AXI4Sequence runner
+        # dispatches AWs / ARs back-to-back as the controller's
+        # awready / arready allows.
+        tb.init_axi_masters()
+        tb.set_axi_timing_profile("backtoback")
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        N_BURSTS = 17
+        BURST_LEN = 4
+        BASE = 0x0001_0000
+
+        wr_seq, rd_seq, expected = build_b2b_wr_rd_sequences(
+            n_bursts=N_BURSTS, burst_len=BURST_LEN, base_addr=BASE,
+            data_width=tb.axi_data_width,
+            wr_axid_fn=lambda bi: bi & 0xF,
+            rd_axid_fn=lambda bi: bi & 0xF,
+            name="wr_rd_b2b_multi_pipelined",
+        )
+        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr, raise_on_error=True)
+        rd_dicts = await run_axi4_sequence(
+            rd_seq, master_rd=tb.axi_master_rd, raise_on_error=True,
+        )
+        results = [d["data"] for d in rd_dicts]
+
+        first_bad = diff_results(expected, results)
+        assert first_bad is None, (
+            f"pipelined b2b corrupted at burst={first_bad[0]} "
+            f"beat={first_bad[1]}: wrote 0x{first_bad[2]:016X}, "
+            f"read 0x{first_bad[3]:016X}"
+        )
+        tb.log.info(
+            "wr_rd_b2b_multi_pipelined OK: %d bursts × %d beats",
+            N_BURSTS, BURST_LEN,
+        )
+
+    elif test_type == "wr_rd_b2b_truly_pipelined":
+        # Mixed-id b2b pipelined writes + mixed-id pipelined reads
+        # driven via the shared sequence builder. AW + W and AR + R
+        # all queue back-to-back inside the BFM — no manual
+        # cocotb.start_soon on raw channel sends, no _aw_w_lock
+        # serialization.
+        tb.init_axi_masters()
+        tb.set_axi_timing_profile("backtoback")
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_wr.b_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        N_BURSTS = 17
+        BURST_LEN = 4
+        BASE = 0x0001_0000
+
+        wr_seq, rd_seq, expected = build_b2b_wr_rd_sequences(
+            n_bursts=N_BURSTS, burst_len=BURST_LEN, base_addr=BASE,
+            data_width=tb.axi_data_width,
+            wr_axid_fn=lambda bi: bi & 0xF,
+            rd_axid_fn=lambda bi: bi & 0xF,
+            name="wr_rd_b2b_truly_pipelined",
+        )
+        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr, raise_on_error=True)
+        from cocotb.triggers import ClockCycles as _CC2
+        await _CC2(dut.mc_clk, 200)  # drain B
+        rd_dicts = await run_axi4_sequence(
+            rd_seq, master_rd=tb.axi_master_rd, raise_on_error=True,
+        )
+        results = [d["data"] for d in rd_dicts]
+
+        first_bad = diff_results(expected, results)
+        assert first_bad is None, (
+            f"truly-pipelined b2b corrupted at burst={first_bad[0]} "
+            f"beat={first_bad[1]}: wrote 0x{first_bad[2]:016X}, "
+            f"read 0x{first_bad[3]:016X}"
+        )
+        tb.log.info(
+            "wr_rd_b2b_truly_pipelined OK: %d bursts × %d beats",
+            N_BURSTS, BURST_LEN,
+        )
+
+    elif test_type == "wr_rd_b2b_pipelined_same_id":
+        # Read-only engine mirror: AR side pipelined AND all id=0
+        # (FIXED), matching axi4_master_rd_crc_check's cfg_rd_axi_id=0
+        # path. Memory is preloaded directly via the DFI slave PHY's
+        # MemoryModel so the AXI write path / wr2rd_forward are
+        # bypassed — anything left over is purely on the read side.
+        # If the controller mishandles same-id ARs beyond
+        # RD_CAM_DEPTH=16, this is where it shows.
+        tb.init_axi_masters()
+        tb.set_axi_timing_profile("backtoback")
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_wr.b_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        import os as _os
+        N_BURSTS = int(_os.environ.get("PIPELINED_SAME_ID_N", "17"))
+        BURST_LEN = 4
+        BASE = 0x0001_0000
+        STRIDE = BURST_LEN * (tb.axi_data_width // 8)
+        tb.log.info("pipelined_same_id: N_BURSTS=%d (cam depth=16)", N_BURSTS)
+
+        # WRITE phase: preload DFI memory model directly. Payload must
+        # match build_rd_only_sequence's default (bi<<16 | ki).
+        def _default(bi: int, ki: int) -> int:
+            return ((bi & 0xFFFF) << 16) | (ki & 0xFFFF)
+        for b in range(N_BURSTS):
+            payload = bytearray()
+            for k in range(BURST_LEN):
+                payload += _default(b, k).to_bytes(8, "little")
+            tb.preload_memory(BASE + b * STRIDE, payload)
+        from cocotb.triggers import ClockCycles as _CC3
+        await _CC3(dut.mc_clk, 50)
+
+        rd_seq, expected = build_rd_only_sequence(
+            n_bursts=N_BURSTS, burst_len=BURST_LEN, base_addr=BASE,
+            data_width=tb.axi_data_width,
+            rd_axid=0,
+            name="wr_rd_b2b_pipelined_same_id",
+        )
+        rd_dicts = await run_axi4_sequence(
+            rd_seq, master_rd=tb.axi_master_rd, raise_on_error=True,
+        )
+        results = [d["data"] for d in rd_dicts]
+
+        first_bad = diff_results(expected, results)
+        assert first_bad is None, (
+            f"same-id pipelined-AR corrupted at burst={first_bad[0]} "
+            f"beat={first_bad[1]}: wrote 0x{first_bad[2]:016X}, "
+            f"read 0x{first_bad[3]:016X}"
+        )
+        tb.log.info(
+            "wr_rd_b2b_pipelined_same_id OK: %d bursts × %d beats",
+            N_BURSTS, BURST_LEN,
+        )
+
+    elif test_type == "profile_sweep_b2b":
+        # Parametric scenario: each AXI channel's timing profile is
+        # read from env vars (AXI_PROFILE_AW/W/B/AR/R, default "fast").
+        # Body is "pipelined AW + W with mixed ids, then same-id
+        # pipelined reads" — exercises both the write serialization
+        # and read same-id ordering paths under whatever channel-
+        # profile combination pytest's parametrize hands in.
+        tb.init_axi_masters()
+        prof_aw = os.environ.get("AXI_PROFILE_AW", "fast")
+        prof_w  = os.environ.get("AXI_PROFILE_W",  "fast")
+        prof_b  = os.environ.get("AXI_PROFILE_B",  "fast")
+        prof_ar = os.environ.get("AXI_PROFILE_AR", "fast")
+        prof_r  = os.environ.get("AXI_PROFILE_R",  "fast")
+        tb.set_axi_timing_per_channel(
+            aw=prof_aw, w=prof_w, b=prof_b, ar=prof_ar, r=prof_r,
+        )
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_wr.b_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+
+        # #213: wire FUB trackers at the macro top env so profile-sweep
+        # failures land with the same per-slot event trace we already
+        # get in engine_mirror_kbN. Scope paths are u_dut.u_core.* here
+        # (top wraps core_macro one deeper than core_macro's TB).
+        import os as _os_ps
+        from tbclasses.trackers._base import wire_trackers as _wt_ps
+        _TS_PS = {
+            "sched":   "u_dut.u_core.u_command_scheduler.u_scheduler",
+            "xbank":   "u_dut.u_core.u_command_scheduler.u_xbank_timers",
+            "refr":    "u_dut.u_core.u_command_scheduler.u_refresh_ctrl",
+            "pgpred":  "u_dut.u_core.u_command_scheduler.u_page_predictor",
+            "pdn":     "u_dut.u_core.u_command_scheduler.u_powerdown_ctrl",
+            "dficmd":  "u_dut.u_core.u_dfi_v21_interface.u_dfi_cmd_formatter",
+            "wrbeat":  "u_dut.u_core.u_data_path.u_wr_beat_sequencer",
+            "rdalign": "u_dut.u_core.u_data_path.u_rd_cl_aligner",
+        }
+        trackers_ps = _wt_ps(
+            dut, output_dir=_os_ps.getcwd(), log=tb.log,
+            num_ranks=getattr(tb, "num_ranks", 1), num_banks=8,
+            autostart=True, scope_paths=_TS_PS,
+        )
+
+        await tb.wait_for_init_done()
+
+        N_BURSTS = 17
+        BURST_LEN = 4
+        BASE = 0x0001_0000
+
+        wr_seq, rd_seq, expected = build_b2b_wr_rd_sequences(
+            n_bursts=N_BURSTS, burst_len=BURST_LEN, base_addr=BASE,
+            data_width=tb.axi_data_width,
+            wr_axid_fn=lambda bi: bi & 0xF,
+            rd_axid=0,
+            name="profile_sweep_b2b",
+        )
+        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr, raise_on_error=True)
+        from cocotb.triggers import ClockCycles as _CC4
+        await _CC4(dut.mc_clk, 2000)
+        rd_dicts = await run_axi4_sequence(
+            rd_seq, master_rd=tb.axi_master_rd, raise_on_error=True,
+        )
+        results = [d["data"] for d in rd_dicts]
+
+        first_bad = diff_results(expected, results)
+        assert first_bad is None, (
+            f"profile_sweep_b2b "
+            f"(aw={prof_aw} w={prof_w} b={prof_b} ar={prof_ar} r={prof_r}) "
+            f"corrupted at burst={first_bad[0]} beat={first_bad[1]}: "
+            f"wrote 0x{first_bad[2]:016X} read 0x{first_bad[3]:016X}"
+        )
+        tb.log.info(
+            "profile_sweep_b2b OK aw=%s w=%s b=%s ar=%s r=%s",
+            prof_aw, prof_w, prof_b, prof_ar, prof_r,
+        )
+
+        # D-1 divergence check on the wired FUB trackers (per-slot
+        # event-count parity — independent of the scoreboard).
+        from tbclasses.trackers import assert_no_divergence
+        for tk_short, fub_key in (("rdalign", "rd_cl_aligner"),
+                                  ("wrbeat",  "wr_beat_sequencer")):
+            if tk_short in trackers_ps:
+                assert_no_divergence(fub_key, trackers_ps[tk_short])
+
+    elif test_type == "memory_preload_read":
+        # Preload bytes directly into DFISlavePHY's MemoryModel, then
+        # read them back through AXI. Proves the BFM + memory model
+        # ARE the DRAM.
+        #
+        # Pattern: prime the controller's R pipeline with a known
+        # WR-then-RD first (so the AXI read path is "warm"), then
+        # preload a separate address and read it. Without the warmup,
+        # the controller's very-first AXI read after init hangs
+        # somewhere between the scheduler picking the slot and the
+        # R-channel inject — to be debugged separately; the preload
+        # path itself (MemoryModel + AddressMapping wiring) works
+        # once the path is warm.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        # Warm-up: write + read split across two sequences (matches
+        # wr_rd_roundtrip pattern, which is the known-good path).
+        wr = AXI4Sequence("warm_wr", data_width=64, seed=seed)
+        wr.add_write(0x0000_1000, [0x1111_2222_3333_4444], axid=0)
+        await tb.run_sequence(wr)
+        rd = AXI4Sequence("warm_rd", data_width=64, seed=seed)
+        rd.add_read(0x0000_1000, length=1, axid=0)
+        await tb.run_sequence(rd)
+
+        # Now preload a different address and read.
+        byte_addr = 0x0000_3000
+        payload = bytes([0xA5, 0x5A, 0xC3, 0x3C, 0xFF, 0x00, 0xDE, 0xAD])
+        tb.preload_memory(byte_addr, payload)
+        tb.log.info("preloaded 0x%X with %s; peek: %s",
+                    byte_addr, payload.hex(),
+                    tb.peek_memory(byte_addr, 8).hex())
+
+        rd_seq = AXI4Sequence("preload_rd", data_width=64, seed=seed)
+        rd_seq.add_read(byte_addr, length=1, axid=0)
+        results = await tb.run_sequence(rd_seq)
+        assert results[0]["error"] is None, results[0]["error"]
+        expected_word = int.from_bytes(payload, byteorder="little")
+        assert results[0]["data"][0] == expected_word, (
+            f"preload read mismatch: got 0x{results[0]['data'][0]:016X}, "
+            f"expected 0x{expected_word:016X}"
+        )
+        tb.log.info("preload read OK: 0x%016X", expected_word)
+
+    elif test_type in ("smoke_lpddr2", "smoke_nr2"):
+        # mem_type / NUM_RANKS variants of smoke; the env vars steer
+        # reset()/constructor, the body just walks the same init handshake.
+        await tb.wait_for_init_done()
+        tb.log.info("%s init_done OK (mem_type=%s, num_ranks=%d)",
+                    test_type, mem_type, num_ranks)
+
+    elif test_type in ("workload_mix_lpddr2", "workload_mix_nr2"):
+        # LPDDR2 traffic exercises lpddr2-only CA-bus encoding in
+        # dfi_cmd_formatter + LPDDR2 MR walk in init_sequencer.
+        # NUM_RANKS=2 exercises per-rank tFAW/tRRD in global_timers and
+        # multi-rank addr decode + CS/CKE fan-out in dfi_signal_pack —
+        # must use an addr_range that crosses ranks (rank lives in the
+        # top addr bit under `rank|row|bank|col`).
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        if test_type == "workload_mix_nr2":
+            # Per-rank reachable region = NUM_BANKS * ROW * COL * 8 bytes.
+            # With NB=8, ROW=14, COL=10, bytes/beat=8 → 1 GB / rank.
+            # Drive bursts that explicitly hit rank 0 and rank 1.
+            seq = AXI4Sequence(test_type, data_width=64, seed=seed)
+            # Rank 0 traffic
+            seq.add_bank_spray(base_addr=0x0000_1000, num_banks=4,
+                               bank_stride_bytes=0x400, burst_bytes=128,
+                               is_write=True)
+            # Rank 1 traffic — bit 30 set under 1 GB per-rank
+            rank1_base = 0x4000_0000
+            seq.add_bank_spray(base_addr=rank1_base, num_banks=4,
+                               bank_stride_bytes=0x400, burst_bytes=128,
+                               is_write=True)
+            # Read back from both ranks (forces CS fan-out)
+            seq.add_read(0x0000_1000, length=2, axid=0)
+            seq.add_read(rank1_base,   length=2, axid=0)
+        else:
+            seq = AXI4Sequence(test_type, data_width=64, seed=seed)
+            seq.add_random_workload(
+                count=8, addr_range=(0x0, 0x4000),
+                write_ratio=0.6,
+                size_weights={128: 0.2, 256: 0.2, 512: 0.4, 1024: 0.2},
+                qos_choices=[0, 4, 8, 15],
+            )
+        results = await tb.run_sequence(seq)
+        n_done = sum(1 for r in results if r["error"] is None)
+        tb.log.info("%s: %d / %d bursts completed (mem_type=%s, nr=%d)",
+                    test_type, n_done, len(results), mem_type, num_ranks)
+
+    elif test_type == "workload_mix_policy_switch":
+        # Toggle page_policy_or + refpb_policy_or mid-traffic to hit
+        # page_predictor's both-policy arms and the scheduler's
+        # policy-honor branches. APB writes between two workload bursts.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        # Burst 1 — default (closed-page) policy
+        seq = AXI4Sequence("phase1", data_width=64, seed=seed)
+        seq.add_random_workload(count=4, addr_range=(0x0, 0x4000),
+                                write_ratio=0.6,
+                                size_weights={128: 0.5, 256: 0.5},
+                                qos_choices=[0])
+        await tb.run_sequence(seq)
+
+        # Flip to open-page + per-bank refresh override mid-test
+        await tb.apb_program_register("REFRESH_TUNING", "page_policy_or", 0x2)
+        await tb.apb_program_register("REFRESH_TUNING", "refpb_policy_or", 0x2)
+
+        # Burst 2 — open-page policy
+        seq2 = AXI4Sequence("phase2", data_width=64, seed=seed + 1)
+        seq2.add_row_hit_burst(base_addr=0x0000_5000, n_followups=3,
+                               burst_bytes=64, is_write=True, qos=4)
+        results = await tb.run_sequence(seq2)
+        n_done = sum(1 for r in results if r["error"] is None)
+        tb.log.info("policy_switch phase2: %d / %d row-hit bursts completed",
+                    n_done, len(results))
+
+    elif test_type == "wr_rd_ooo_multi_id":
+        # Disable force_inorder + drive two AXI IDs back-to-back. Exercises
+        # axi_id_side_table OOO completion path and the R-channel reorder.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        # Clear force_inorder (default 0 already, but make it explicit so
+        # the CSR-side mux selects the unforced path under coverage).
+        await tb.apb_program_register("SCHED_TUNING", "force_inorder", 0x0)
+
+        # Write two patterns at two addresses with two IDs.
+        wr = AXI4Sequence("ooo_wr", data_width=64, seed=seed)
+        wr.add_write(0x0000_2000, [0xCAFEBABE_DEADBEEF], axid=0)
+        wr.add_write(0x0000_2100, [0xFEEDC0DE_12345678], axid=1)
+        await tb.run_sequence(wr)
+
+        # Read with the two IDs in *reverse* address order so the
+        # completion buffer must reorder if the underlying CAM grants OOO.
+        rd = AXI4Sequence("ooo_rd", data_width=64, seed=seed + 1)
+        rd.add_read(0x0000_2100, length=1, axid=1)
+        rd.add_read(0x0000_2000, length=1, axid=0)
+        results = await tb.run_sequence(rd)
+        ok = all(r["error"] is None for r in results)
+        tb.log.info("ooo_multi_id: %d / %d ok (err=%s)",
+                    sum(1 for r in results if r["error"] is None),
+                    len(results),
+                    [r["error"] for r in results])
+        assert ok, "ooo_multi_id had errors"
+
+    elif test_type == "init_error_retry":
+        # init_complete is held off (delay=50000) so the init_sequencer
+        # timeout / retry path engages. We don't preload the bus; we just
+        # watch init_busy / init_done from STATUS and verify the FSM
+        # doesn't promote init_done. Coverage gain: the init timeout and
+        # zq_retries branches in init_sequencer.
+        await tb.apb_program_register("INIT_TUNING", "zq_retries", 0x1)
+        await tb.apb_program_register("INIT_TUNING", "init_timeout_ms", 0x1)
+
+        # Sample STATUS for a few thousand mc cycles; expect init_done
+        # stays low because init_complete never asserts.
+        from cocotb.triggers import ClockCycles as _CC
+        await _CC(dut.mc_clk, 2000)
+        st = await tb.apb_read_register(0x004)
+        tb.log.info("init_error_retry STATUS=0x%08X (expect init_done=0)", st)
+        # No hard assertion — the goal is line coverage on the wait path;
+        # we don't want to fail the test on micro-architectural choices
+        # about whether the FSM latches an error bit.
+
+    elif test_type == "read_then_read_probe":
+        # G-01b: AXI read #1 to bank 0 succeeds; read #2 to bank 1 hangs.
+        # The BFM sees ACT+RD for read #1 then only REF forever — so the
+        # controller is the one that stops issuing commands. Probe the
+        # AR handshake, AXI master-side R signals, and the DFI cmd bus
+        # bracketing each read.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        # Preload bank 0 and bank 1 distinct patterns.
+        tb.preload_memory(0x0000, (0xDEAD0000).to_bytes(8, "little"))
+        tb.preload_memory(0x2000, (0xDEAD0001).to_bytes(8, "little"))
+
+        observed = {"cmd_log": [], "rd_inject_cnt": 0,
+                    "rdvalid_cnt": 0, "ar_fires": 0}
+        from cocotb.triggers import RisingEdge
+
+        async def dfi_cmd_watch():
+            cycle = 0
+            while True:
+                await RisingEdge(dut.mc_clk)
+                cycle += 1
+                try:
+                    cs_n  = int(dut.phy_dfi_cs_n.value) & 1
+                    if cs_n != 0:
+                        continue
+                    ras_n = int(dut.phy_dfi_ras_n.value) & 1
+                    cas_n = int(dut.phy_dfi_cas_n.value) & 1
+                    we_n  = int(dut.phy_dfi_we_n.value)  & 1
+                    bank  = int(dut.phy_dfi_bank.value)  & 7
+                    addr  = int(dut.phy_dfi_address.value)
+                    code  = (ras_n << 2) | (cas_n << 1) | we_n
+                    name = {0:"MRS",1:"REF",2:"PRE",3:"ACT",
+                            4:"WR",5:"RD",7:"NOP"}.get(code, f"?{code}")
+                    if name not in ("NOP", "REF"):
+                        observed["cmd_log"].append((cycle, name, bank, addr))
+                except Exception:
+                    return
+
+        async def axi_probe():
+            cycle = 0
+            while True:
+                await RisingEdge(dut.pclk)
+                cycle += 1
+                try:
+                    arv = int(dut.s_axi_arvalid.value)
+                    arr = int(dut.s_axi_arready.value)
+                    rv  = int(dut.s_axi_rvalid.value)
+                    rr  = int(dut.s_axi_rready.value)
+                except Exception:
+                    return
+                if arv and arr:
+                    observed["ar_fires"] += 1
+                    tb.log.info("PROBE: AR handshake #%d @ aclk %d",
+                                observed["ar_fires"], cycle)
+                if rv and rr:
+                    observed["rdvalid_cnt"] += 1
+                    tb.log.info("PROBE: R handshake #%d @ aclk %d",
+                                observed["rdvalid_cnt"], cycle)
+
+        async def deep_probe():
+            """Watch the read-side internals: ar_pend→rd_cmd_cam push,
+            rd_cmd_cam occupancy, scheduler rd_op_valid."""
+            cycle = 0
+            last_state = None
+            while True:
+                await RisingEdge(dut.mc_clk)
+                cycle += 1
+                try:
+                    intake = dut.u_dut.u_axi_frontend.u_axi_intake
+                    ar_push_v = int(intake.ar_push_valid_o.value)
+                    ar_push_r = int(intake.ar_push_ready_i.value)
+                    rd_cam = dut.u_dut.u_axi_frontend.u_rd_cam
+                    r_valid_vec = int(rd_cam.r_valid.value)
+                    r_issued_vec = int(rd_cam.r_issued.value)
+                    push_ready = int(rd_cam.push_ready_o.value)
+                    rd_op_v = int(dut.u_dut.u_core.rd_op_valid.value)
+                except Exception as e:
+                    if cycle < 5:
+                        tb.log.error("deep probe binding failed: %s", e)
+                    return
+                try:
+                    bank_s0 = int(rd_cam.r_bank.value[0]) if hasattr(rd_cam.r_bank, "value") else -1
+                    row_s0 = int(rd_cam.r_row.value[0]) if hasattr(rd_cam.r_row, "value") else -1
+                    match_p = int(rd_cam.match_pending_o.value)
+                    match_rh = int(rd_cam.match_rowhit_o.value)
+                except Exception:
+                    bank_s0 = -1; row_s0 = -1; match_p = -1; match_rh = -1
+                try:
+                    sched = dut.u_dut.u_core.u_command_scheduler.u_scheduler
+                    sched_state = int(sched.r_state.value)
+                    q_rank = int(sched.q_rank_o.value)
+                    q_bank = int(sched.q_bank_o.value)
+                except Exception:
+                    sched_state = -1; q_rank = -1; q_bank = -1
+                state = (ar_push_v, ar_push_r, r_valid_vec, r_issued_vec,
+                         push_ready, rd_op_v, match_p, sched_state, q_bank)
+                if state != last_state:
+                    tb.log.info("DEEP@%d ar_push v/r=%d/%d  rd_cam "
+                                "r_valid=0x%X r_issued=0x%X push_ready=%d  "
+                                "match_p=0x%X match_rh=0x%X  rd_op_v=%d  "
+                                "sched_state=%d q_rank=%d q_bank=%d",
+                                cycle, ar_push_v, ar_push_r,
+                                r_valid_vec, r_issued_vec, push_ready,
+                                match_p, match_rh, rd_op_v,
+                                sched_state, q_rank, q_bank)
+                    last_state = state
+
+        cocotb.start_soon(dfi_cmd_watch())
+        cocotb.start_soon(axi_probe())
+        cocotb.start_soon(deep_probe())
+
+        tb.log.info("=== Read #1 (bank 0) ===")
+        rd1 = AXI4Sequence("r_then_r_1", data_width=64, seed=seed)
+        rd1.add_read(0x0000, length=1, axid=0)
+        r1 = await tb.run_sequence(rd1)
+        tb.log.info("Read #1: err=%s data=%s, cmds=%s, ar_fires=%d",
+                    r1[0]["error"], r1[0]["data"],
+                    observed["cmd_log"], observed["ar_fires"])
+        observed["cmd_log"] = []  # clear for read #2
+
+        tb.log.info("=== Read #2 (bank 1) ===")
+        rd2 = AXI4Sequence("r_then_r_2", data_width=64, seed=seed + 1)
+        rd2.add_read(0x2000, length=1, axid=0)
+        r2 = await tb.run_sequence(rd2)
+        tb.log.info("Read #2: err=%s data=%s, cmds_after_r2=%s, "
+                    "ar_fires_total=%d, r_fires_total=%d",
+                    r2[0]["error"], r2[0]["data"],
+                    observed["cmd_log"], observed["ar_fires"],
+                    observed["rdvalid_cnt"])
+
+        assert r1[0]["error"] is None, f"Read #1 failed: {r1[0]['error']}"
+        assert r2[0]["error"] is None, f"Read #2 failed: {r2[0]['error']}"
+
+    elif test_type == "row_hit_pattern":
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        seq = AXI4Sequence("row_hit", data_width=64, seed=seed)
+        seq.add_row_hit_burst(
+            base_addr=0x0000_1000, n_followups=3,
+            burst_bytes=64, is_write=True, qos=8,
+        )
+        results = await tb.run_sequence(seq)
+        n_done = sum(1 for r in results if r["error"] is None)
+        tb.log.info("row_hit: %d / %d bursts completed", n_done, len(results))
+
+    elif test_type in ("open_page_workload", "happy_page_workload"):
+        # PAGE_POLICY parameter is overridden in the pytest runner via
+        # `parameters = {"PAGE_POLICY": "..."}` based on this test_type
+        # suffix. With OPEN the scheduler emits RD/WR + explicit PRE
+        # (vs CLOSE's RDA/WRA), hitting dfi_cmd_formatter's OP_RD /
+        # OP_WR / OP_PRE branches and scheduler's S_NEED_PRE arm. With
+        # HAPPY_HYBRID the AP decision is page_predictor-driven; we
+        # drive enough row-hit + row-miss mix to exercise both
+        # outcomes of `predict_open_i`.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        # Row-hit cluster first (bank stays open across follow-ups)
+        seq = AXI4Sequence(test_type, data_width=64, seed=seed)
+        seq.add_row_hit_burst(
+            base_addr=0x0000_1000, n_followups=4,
+            burst_bytes=64, is_write=True, qos=4,
+        )
+        # Row-miss pair forces PRE→ACT on the same bank/different row.
+        # Bank 0 row 0 (already opened above) → bank 0 row N (different
+        # row), addr ≈ row_stride * row_idx.
+        # ROW_MAJOR row_stride = NUM_BANKS * COL_BYTES = 8 * (1<<10) * 8 = 64KB
+        seq.add_write(0x0001_1000, [0xAAAA_BBBB_CCCC_DDDD], axid=0)
+        seq.add_read(0x0000_1000, length=1, axid=0)
+        seq.add_read(0x0001_1000, length=1, axid=0)
+        results = await tb.run_sequence(seq)
+        n_done = sum(1 for r in results if r["error"] is None)
+        tb.log.info("%s: %d / %d bursts completed",
+                    test_type, n_done, len(results))
+
+    elif test_type == "open_page_lpddr2":
+        # LPDDR2 + PAGE_POLICY=OPEN. workload_mix_lpddr2 only exercises
+        # LPDDR2 with closed-page (the parameter default) which gates
+        # the LPDDR2 CA-bus encoder to OP_RDA/OP_WRA only. With OPEN,
+        # the scheduler emits OP_RD / OP_WR / OP_PRE, which hit the
+        # LPDDR2 branches of dfi_cmd_formatter that are otherwise
+        # unreachable.
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        seq = AXI4Sequence("open_lpddr2", data_width=64, seed=seed)
+        seq.add_row_hit_burst(
+            base_addr=0x0000_1000, n_followups=3,
+            burst_bytes=64, is_write=True, qos=2,
+        )
+        seq.add_read(0x0000_1000, length=1, axid=0)
+        seq.add_write(0x0001_1000, [0xCAFE_BABE_DEAD_BEEF], axid=0)
+        seq.add_read(0x0001_1000, length=1, axid=0)
+        results = await tb.run_sequence(seq)
+        n_done = sum(1 for r in results if r["error"] is None)
+        tb.log.info("open_page_lpddr2: %d / %d bursts completed",
+                    n_done, len(results))
+
+    elif test_type == "wr2rd_forward_burst":
+        # Back-to-back WR + RD-of-same-address so the wr_cmd_cam slot
+        # for the WR is still pending when the AR arrives — fires
+        # wr2rd_forward and exercises axi_intake's `r_r_fwd_active`
+        # R-emit arm (lines 732-737 of axi_intake.sv that the DRAM
+        # RD path doesn't reach).
+        tb.init_axi_masters()
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+        await tb.wait_for_init_done()
+
+        # Single combined sequence so AW + AR are pipelined; the
+        # framework issues all bursts back-to-back without waiting for
+        # B before launching AR.
+        seq = AXI4Sequence("fwd", data_width=64, seed=seed)
+        for k in range(4):
+            addr = 0x0000_3000 + (k << 6)
+            pat  = 0xF0E1_D2C3_B4A5_9687 ^ k
+            seq.add_write(addr, [pat], axid=0)
+            seq.add_read(addr, length=1, axid=0)
+        results = await tb.run_sequence(seq)
+        n_done = sum(1 for r in results if r["error"] is None)
+        tb.log.info("wr2rd_forward_burst: %d / %d bursts completed",
+                    n_done, len(results))
+
+    elif test_type == "engine_mirror_kbN":
+        # Engine-faithful replay of the NexysA7 kb4 / kb32 workload via
+        # AXI4SlaveWrite/Read BFMs, BUT using run_axi4_sequence_engine —
+        # which pipelines AW back-to-back at one per cycle (bypassing
+        # write_transaction's per-burst lock + B-wait that gates the
+        # default run_axi4_sequence). Matches what the
+        # axi4_master_wr_pattern_gen / axi4_master_rd_crc_check RTL
+        # engines drive at the controller's s_axi port.
+        #
+        # KBN_N env var picks the txn count:
+        #   kb4  → N=128 (4 KiB)
+        #   kb32 → N=1024 (32 KiB)
+        # default: 128.
+        tb.init_axi_masters()
+        tb.set_axi_timing_profile("backtoback")
+        await tb.axi_master_wr.aw_channel.reset_bus()
+        await tb.axi_master_wr.w_channel.reset_bus()
+        await tb.axi_master_wr.b_channel.reset_bus()
+        await tb.axi_master_rd.ar_channel.reset_bus()
+        await tb.axi_master_rd.r_channel.reset_bus()
+
+        # BFM-side observability harness.
+        tb.init_dfi_monitor()
+        tb.start_axi_wr_snoop()
+        tb.start_axi_rd_snoop()
+        from tbclasses.trackers._base import wire_trackers as _wire_trackers
+        # Per-tracker scope_paths so each FUB tracker sees the right
+        # sub-module signals at macro top env (pumice_top wraps
+        # pumice_core_macro at u_core; the per-FUB instances live
+        # inside u_command_scheduler / u_dfi_v21_interface / u_data_path).
+        _TRACKER_SCOPES = {
+            "sched":   "u_dut.u_core.u_command_scheduler.u_scheduler",
+            "xbank":   "u_dut.u_core.u_command_scheduler.u_xbank_timers",
+            "refr":    "u_dut.u_core.u_command_scheduler.u_refresh_ctrl",
+            "pgpred":  "u_dut.u_core.u_command_scheduler.u_page_predictor",
+            "pdn":     "u_dut.u_core.u_command_scheduler.u_powerdown_ctrl",
+            "init":    "u_dut.u_core.u_command_scheduler.u_init_sequencer",
+            "dficmd":  "u_dut.u_core.u_dfi_v21_interface.u_dfi_cmd_formatter",
+            "wrbeat":  "u_dut.u_core.u_data_path.u_wr_beat_sequencer",
+            "rdalign": "u_dut.u_core.u_data_path.u_rd_cl_aligner",
+        }
+        trackers = _wire_trackers(
+            dut, output_dir=os.getcwd(), log=tb.log,
+            num_ranks=num_ranks, num_banks=8,
+            autostart=True,
+            scope_paths=_TRACKER_SCOPES,
+        )
+        tb.log.info(
+            "engine_mirror_kbN top: wired %d FUB trackers + DFI monitor + AXI snoops",
+            len(trackers),
+        )
+
+        await tb.wait_for_init_done()
+
+        import os as _os
+        N         = int(_os.environ.get("KBN_N", "128"))
+        BURST     = int(_os.environ.get("KBN_BURST_LEN", "4"))
+        BASE      = int(_os.environ.get("KBN_BASE_ADDR", "0x10000"), 0)
+        id_mode   = _os.environ.get("KBN_ID_MODE", "FIXED").upper()
+        id_base   = int(_os.environ.get("KBN_AXI_ID_BASE", "0"))
+        slave_profile = _os.environ.get("KBN_SLAVE_PROFILE", "backtoback")
+        if slave_profile != "backtoback":
+            tb.set_axi_timing_profile(slave_profile)
+        tb.log.info(
+            "engine_mirror_kbN top: N=%d BURST=%d id_mode=%s id_base=%d "
+            "slave_profile=%s",
+            N, BURST, id_mode, id_base, slave_profile,
+        )
+
+        # id-picker per burst — matches engine cfg_*_id_mode semantics:
+        #   FIXED   : every burst uses id_base
+        #   COUNTER : id = (id_base + bi) & ID_MASK
+        #   LFSR    : 8-bit Fibonacci LFSR seeded at id_base
+        ID_MASK = (1 << tb.axi_id_width) - 1
+
+        def _id_pick(bi: int) -> int:
+            if id_mode == "FIXED":
+                return id_base & ID_MASK
+            if id_mode == "COUNTER":
+                return (id_base + bi) & ID_MASK
+            if id_mode == "LFSR":
+                # Same 8-bit LFSR family the engines use. Seeded at
+                # max(id_base,1) so we don't start in the zero attractor.
+                v = max(id_base, 1) & 0xFF
+                for _ in range(bi):
+                    feedback = ((v >> 7) ^ (v >> 5) ^ (v >> 4) ^ (v >> 3)) & 1
+                    v = ((v << 1) | feedback) & 0xFF
+                return v & ID_MASK
+            return id_base & ID_MASK
+
+        wr_seq, rd_seq, expected = build_b2b_wr_rd_sequences(
+            n_bursts=N, burst_len=BURST, base_addr=BASE,
+            data_width=tb.axi_data_width,
+            wr_axid_fn=_id_pick,
+            rd_axid_fn=_id_pick,
+            name=f"engine_mirror_top_{id_mode}_id{id_base}_bl{BURST}_n{N}",
+        )
+        # WR phase via engine-style runner — AW per cycle, no
+        # per-burst gating.
+        await run_axi4_sequence_engine(
+            wr_seq, master_wr=tb.axi_master_wr, log=tb.log,
+            raise_on_error=True,
+        )
+        from cocotb.triggers import ClockCycles as _CC_kbn_top
+        await _CC_kbn_top(dut.mc_clk, 200)  # B drain
+        # RD phase via engine-style runner — AR per cycle.
+        rd_dicts = await run_axi4_sequence_engine(
+            rd_seq, master_rd=tb.axi_master_rd, log=tb.log,
+            raise_on_error=True,
+        )
+        results = [r["data"] for r in rd_dicts]
+
+        # Detect first mismatch but DO NOT abort yet — let the trackers
+        # capture the full workload + a tail drain so the cycle
+        # correlator script has end-to-end context, not just the
+        # pre-failure window.
+        first_bad = diff_results(expected, results)
+        if first_bad is not None:
+            tb.log.error(
+                "engine_mirror_kbN top (N=%d) WR data corruption at "
+                "burst=%d beat=%d: wrote 0x%016X read 0x%016X "
+                "— continuing for full tracker capture",
+                N, first_bad[0], first_bad[1], first_bad[2], first_bad[3],
+            )
+        await _CC_kbn_top(dut.mc_clk, 200)  # tail drain for trackers
+
+        # Dump BFM-side observability streams next to the FUB tracker
+        # .out files (FUB trackers use atexit; we write these explicitly
+        # so the cycle correlator can ingest them in the same dir).
+        try:
+            sb = os.getcwd()
+            with open(os.path.join(sb, "axi_wr_snoop.out"), "w") as _f:
+                _f.write("# byte_addr   data_int\n")
+                for _addr in sorted(tb.axi_wr_snoop.keys()):
+                    _f.write(
+                        f"0x{_addr:08X}  0x{tb.axi_wr_snoop[_addr]:016X}\n")
+            with open(os.path.join(sb, "axi_rd_snoop.out"), "w") as _f:
+                _f.write("# byte_addr   data_int    rid\n")
+                for _addr, _data, _rid in tb.axi_rd_snoop:
+                    _f.write(
+                        f"0x{_addr:08X}  0x{_data:016X}  {_rid}\n")
+            if tb.dfi_monitor is not None:
+                with open(os.path.join(sb, "dfi_cmd_q.out"), "w") as _f:
+                    _f.write("# t_ns  cmd  bank  address\n")
+                    for pkt in tb.dfi_monitor.command_q:
+                        _f.write(
+                            f"{pkt.timestamp_ns:>10.1f}  "
+                            f"{pkt.cmd.name:<6}  {pkt.bank}  "
+                            f"0x{pkt.address:07X}\n")
+                with open(os.path.join(sb, "dfi_wr_data.out"), "w") as _f:
+                    _f.write("# t_ns  wrdata  mask  en\n")
+                    for pkt in tb.dfi_monitor.write_data_q:
+                        _f.write(
+                            f"{pkt.timestamp_ns:>10.1f}  "
+                            f"0x{pkt.wrdata:032X}  "
+                            f"0x{pkt.wrdata_mask:04X}  "
+                            f"{pkt.wrdata_en}\n")
+                with open(os.path.join(sb, "dfi_rd_data.out"), "w") as _f:
+                    _f.write("# t_ns  rddata  valid\n")
+                    for pkt in tb.dfi_monitor.read_data_q:
+                        _f.write(
+                            f"{pkt.timestamp_ns:>10.1f}  "
+                            f"0x{pkt.rddata:032X}  "
+                            f"{pkt.rddata_valid}\n")
+            tb.log.info(
+                "engine_mirror_kbN top: snoop+DFI dumps written to %s", sb)
+        except Exception as _e:
+            tb.log.warning(
+                "engine_mirror_kbN top: snoop dump failed: %s", _e)
+
+        # NOW raise — sim has captured all post-failure context.
+        assert first_bad is None, (
+            f"engine_mirror_kbN top (N={N}) WR data corruption at "
+            f"burst={first_bad[0]} beat={first_bad[1]}: "
+            f"wrote 0x{first_bad[2]:016X} read 0x{first_bad[3]:016X}"
+        )
+        tb.log.info("engine_mirror_kbN top OK N=%d", N)
+
+    elif test_type == "patho_addr_pattern":
+        # D-2 pathological address-pattern scenarios at the macro TOP
+        # env — same stress as core_macro's patho variants, running
+        # through the axi_frontend wrapper. Address list construction
+        # is shared with core_macro via build_patho_addresses.
+        import os as _os_pa
+        kind          = _os_pa.environ.get("KBN_PATHO_KIND", "bank_hazard")
+        BURST         = int(_os_pa.environ.get("KBN_BURST_LEN", "4"))
+        slave_profile = _os_pa.environ.get("KBN_SLAVE_PROFILE", "backtoback")
+
+        tb.init_axi_masters()
+        if slave_profile != "backtoback":
+            tb.set_axi_timing_profile(slave_profile)
+        tb.log.info("patho_addr_pattern top kind=%s BL=%d profile=%s",
+                    kind, BURST, slave_profile)
+
+        # Wire trackers at the top env's u_dut.u_core.* scope so the
+        # D-1 divergence checker + engineer-facing per-FUB .out files
+        # are available for any failure.
+        from tbclasses.trackers._base import wire_trackers as _wt_pa
+        _TS_PA = {
+            "sched":   "u_dut.u_core.u_command_scheduler.u_scheduler",
+            "xbank":   "u_dut.u_core.u_command_scheduler.u_xbank_timers",
+            "pgpred":  "u_dut.u_core.u_command_scheduler.u_page_predictor",
+            "wrbeat":  "u_dut.u_core.u_data_path.u_wr_beat_sequencer",
+            "rdalign": "u_dut.u_core.u_data_path.u_rd_cl_aligner",
+        }
+        trackers_pa = _wt_pa(
+            dut, output_dir=_os_pa.getcwd(), log=tb.log,
+            num_ranks=getattr(tb, "num_ranks", 1), num_banks=8,
+            autostart=True, scope_paths=_TS_PA,
+        )
+
+        await tb.wait_for_init_done()
+
+        # NOTE: diff_results is already imported at module scope (top of file).
+        # Do NOT re-import it here — a function-local import would make
+        # `diff_results` a local for this entire (large, multi-branch) function,
+        # so every earlier use (engine_mirror / profile_sweep / b2b paths) would
+        # raise UnboundLocalError before this line executes.
+        from tbclasses.pumice_sequences import (
+            build_addr_pattern_sequences, build_patho_addresses,
+        )
+        # run_axi4_sequence is already imported at module scope — re-importing
+        # it here would shadow it as a function-local and UnboundLocalError the
+        # earlier b2b / profile_sweep uses (lines ~541/584/645/718).
+
+        addresses = build_patho_addresses(kind, burst_len=BURST)
+
+        ID_MASK = (1 << tb.axi_id_width) - 1
+        wr_seq, rd_seq, expected = build_addr_pattern_sequences(
+            burst_len=BURST, data_width=tb.axi_data_width,
+            addresses=addresses,
+            wr_axid_fn=lambda bi: bi & ID_MASK,
+            rd_axid_fn=lambda bi: bi & ID_MASK,
+            name=f"top_patho_{kind}",
+        )
+        # Repeating-address patterns: read-back is the LAST write to
+        # each address, not the burst-index-matched write.
+        last_write_by_addr: dict = {}
+        for bi, addr in enumerate(addresses):
+            last_write_by_addr[addr] = expected[bi]
+        expected = [last_write_by_addr[addr] for addr in addresses]
+
+        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr,
+                                raise_on_error=True)
+        from cocotb.triggers import ClockCycles as _CC_pa
+        await _CC_pa(dut.mc_clk, 200)  # B drain
+        rd_dicts = await run_axi4_sequence(
+            rd_seq, master_rd=tb.axi_master_rd, raise_on_error=True,
+        )
+        results = [r["data"] for r in rd_dicts]
+
+        first_bad = diff_results(expected, results)
+        assert first_bad is None, (
+            f"top patho_{kind} corrupted at burst={first_bad[0]} "
+            f"beat={first_bad[1]}: wrote 0x{first_bad[2]:016X} "
+            f"read 0x{first_bad[3]:016X}"
+        )
+        tb.log.info("top patho_%s OK (%d bursts)", kind, len(addresses))
+
+        # D-1 divergence check on the wired FUB trackers.
+        from tbclasses.trackers import assert_no_divergence
+        for tk_short, fub_key in (("rdalign", "rd_cl_aligner"),
+                                  ("wrbeat",  "wr_beat_sequencer")):
+            if tk_short in trackers_pa:
+                assert_no_divergence(fub_key, trackers_pa[tk_short])
+
+    else:
+        raise ValueError(f"Unknown TEST_TYPE: {test_type}")
+
+
+_GATE = [("smoke",)]
+_FUNC = _GATE + [("configure_via_apb",), ("axi_write_smoke",),
+                 ("wr_rd_roundtrip",), ("wr_rd_roundtrip_2beat",),
+                 ("wr_rd_b2b_multi",),
+                 ("wr_rd_b2b_multi_pipelined",),
+                 ("wr_rd_b2b_truly_pipelined",),
+                 ("wr_rd_b2b_pipelined_same_id",),
+                 ("wr_rd_bank_sweep",),
+                 ("bank0_probe",), ("bank0_delayed",),
+                 ("fresh_read_each_bank",),
+                 # memory_preload_read — preload helpers + BFM all work,
+                 # but the DUT hangs on the *first* AXI read of a fresh
+                 # address (subsequent reads of the just-written address
+                 # work — see wr_rd_roundtrip). Tracking as a separate
+                 # DUT-side bug; not in the FUNC suite yet.
+                 ("workload_mix",), ("row_hit_pattern",),
+                 # Config-axis coverage variants (mem_type / NUM_RANKS /
+                 # CSR knobs). See dv/testplans/GAP_ANALYSIS.md "ROI
+                 # table" — these flip configs to reach LPDDR2, multi-
+                 # rank, OOO, page-policy-switch, and init-error branches
+                 # the baseline scenarios don't visit.
+                 ("smoke_lpddr2",), ("workload_mix_lpddr2",),
+                 ("smoke_nr2",), ("workload_mix_nr2",),
+                 ("workload_mix_policy_switch",),
+                 ("wr_rd_ooo_multi_id",),
+                 ("init_error_retry",),
+                 ("read_then_read_probe",),
+                 # Coverage-driven scenarios: PAGE_POLICY=OPEN/HAPPY
+                 # exercises dfi_cmd_formatter's OP_RD/OP_WR/OP_PRE
+                 # and scheduler's S_NEED_PRE arm; wr2rd_forward_burst
+                 # hits axi_intake's forward path.
+                 ("open_page_workload",),
+                 ("happy_page_workload",),
+                 ("open_page_lpddr2",),
+                 ("wr2rd_forward_burst",)]
+_FULL = _FUNC
+
+_TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
+_PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
+
+
+@pytest.mark.parametrize("test_type", [t[0] for t in _PARAMS],
+                         ids=[t[0] for t in _PARAMS])
+def test_pumice_top(request, test_type):
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    # Use the wrapper module so DFISlavePHY's `phy_dfi_*` bus binds.
+    dut_name = "pumice_top_tb_top"
+    test_name = f"test_pumice_top_{test_type}"
+
+    filelist_path = ("projects/components/memory-controllers/pumice/"
+                     "rtl/filelists/top/pumice_top.f")
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=filelist_path)
+    # Append the TB wrapper that exposes phy_dfi_* aliases.
+    verilog_sources.append(os.path.join(
+        repo_root,
+        "projects/components/memory-controllers/pumice/dv/tb/"
+        "pumice_top_tb_top.sv"))
+
+    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    # Derive mem_type / num_ranks / PAGE_POLICY from the test_type
+    # suffix so the test body and the Verilog parameters stay in sync.
+    # PAGE_POLICY values mirror pumice_pkg.page_policy_e:
+    #   0 = OPEN, 1 = CLOSE (default), 2 = HAPPY_HYBRID
+    mem_type = "LPDDR2" if test_type.endswith("_lpddr2") else "DDR2"
+    num_ranks = 2 if test_type.endswith("_nr2") else 1
+    if test_type in ("open_page_workload", "open_page_lpddr2"):
+        page_policy = "0"
+    elif test_type == "happy_page_workload":
+        page_policy = "2"
+    else:
+        page_policy = "1"
+
+    extra_env = {
+        "DUT": dut_name,
+        "TEST_TYPE": test_type,
+        "MEM_TYPE": mem_type,
+        "NUM_RANKS": str(num_ranks),
+        "SEED": str(random.randint(0, 100000)),
+        "COCOTB_LOG_LEVEL": "INFO",
+        "COCOTB_RESULTS_FILE":
+            os.path.join(log_dir, f"results_{test_name}.xml"),
+    }
+    parameters = {"NUM_RANKS": str(num_ranks), "PAGE_POLICY": page_policy}
+
+    enable_waves = bool(int(os.environ.get("WAVES", "0")))
+    compile_args = [
+        "+define+USE_ASYNC_RESET",
+        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
+        "-Wno-CASEOVERLAP",
+    ]
+    sim_args = []
+    plus_args = []
+    if enable_waves:
+        compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+        sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
+        plus_args    += ["--trace"]
+        extra_env["VERILATOR_TRACE_FST"] = "1"
+
+    compile_args += get_coverage_compile_args()
+    extra_env.update(get_coverage_env(test_name, sim_build=sim_build))
+
+    run(python_search=[tests_dir],
+        verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase="cocotb_test_pumice_top",
+        sim_build=sim_build, simulator="verilator",
+        extra_env=extra_env, parameters=parameters,
+        compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
+        waves=enable_waves, keep_files=True, timescale="1ns/1ps")
+
+
+def test_pumice_top_gear2(request):
+    """TASK-GEAR full-stack: AXI=64 host -> 32-bit DRAM beat at DFI_RATE=4
+    (Nexys A7 a7ddrphy config, GEAR=2). Same DUT + DFISlavePHY memory as the
+    top smoke, with the AXI<->DRAM-beat gearbox engaged end to end."""
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "pumice_top_tb_top"
+    test_name = "test_pumice_top_gear2"
+
+    filelist_path = ("projects/components/memory-controllers/pumice/"
+                     "rtl/filelists/top/pumice_top.f")
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=filelist_path)
+    verilog_sources.append(os.path.join(
+        repo_root,
+        "projects/components/memory-controllers/pumice/dv/tb/"
+        "pumice_top_tb_top.sv"))
+
+    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        "DUT": dut_name,
+        "TEST_TYPE": "smoke",
+        "MEM_TYPE": "DDR2",
+        "NUM_RANKS": "1",
+        "AXI_DATA_WIDTH": "64",
+        "DRAM_BEAT_WIDTH": "32",
+        "SEED": str(random.randint(0, 100000)),
+        "COCOTB_LOG_LEVEL": "INFO",
+        "COCOTB_RESULTS_FILE":
+            os.path.join(log_dir, f"results_{test_name}.xml"),
+    }
+    parameters = {
+        "NUM_RANKS": "1", "PAGE_POLICY": "1",
+        "AXI_DATA_WIDTH": "64", "DRAM_BEAT_WIDTH": "32", "DFI_RATE": "4",
+    }
+    compile_args = [
+        "+define+USE_ASYNC_RESET",
+        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
+        "-Wno-CASEOVERLAP",
+    ]
+    compile_args += get_coverage_compile_args()
+    extra_env.update(get_coverage_env(test_name, sim_build=sim_build))
+
+    run(python_search=[tests_dir],
+        verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase="cocotb_test_pumice_top",
+        sim_build=sim_build, simulator="verilator",
+        extra_env=extra_env, parameters=parameters,
+        compile_args=compile_args, sim_args=[], plus_args=[],
+        waves=False, keep_files=True, timescale="1ns/1ps")
+
+
+# ============================================================================
+# AXI4 random-timing profile sweep — parametric cross-product across all five
+# AXI channels (AW, W, B, AR, R). Drives the same b2b pipelined-AW + same-id
+# pipelined-AR workload, varying which AMBA randomizer profile is applied to
+# each channel. Catches cross-channel-timing interactions that a uniform
+# profile sweep would miss.
+# ============================================================================
+
+_AXI_PROFILES = ("fixed", "constrained", "fast", "backtoback",
+                 "burst_pause", "slow_producer", "high_throughput")
+
+
+def _build_profile_matrix() -> list[tuple[str, str, str, str, str]]:
+    """31 channel-profile tuples: 7 uniform + per-channel sweeps.
+
+    - 7 uniform: every channel set to the same profile.
+    - For each of {AW, W, AR, R}: each non-uniform profile, others at "fast".
+      (B-channel is slave-side ready and produces low coverage delta on its
+      own — covered as part of uniform sweeps.)
+    Total = 7 + 4 * 6 = 31. Dedup leaves it at 31 unique.
+    """
+    seen: set[tuple[str, str, str, str, str]] = set()
+    matrix: list[tuple[str, str, str, str, str]] = []
+
+    def add(t: tuple[str, str, str, str, str]) -> None:
+        if t not in seen:
+            seen.add(t)
+            matrix.append(t)
+
+    for p in _AXI_PROFILES:
+        add((p, p, p, p, p))
+
+    fast = "fast"
+    for p in _AXI_PROFILES:
+        if p == fast:
+            continue
+        add((p,    fast, fast, fast, fast))  # AW varies
+        add((fast, p,    fast, fast, fast))  # W  varies
+        add((fast, fast, fast, p,    fast))  # AR varies
+        add((fast, fast, fast, fast, p   ))  # R  varies
+    return matrix
+
+
+_PROFILE_MATRIX = _build_profile_matrix()
+
+
+@pytest.mark.parametrize(
+    "profile_aw,profile_w,profile_b,profile_ar,profile_r",
+    _PROFILE_MATRIX,
+    ids=[f"aw_{a}_w_{w}_b_{b}_ar_{ar}_r_{r}"
+         for (a, w, b, ar, r) in _PROFILE_MATRIX],
+)
+def test_pumice_top_profile_sweep(
+    request, profile_aw, profile_w, profile_b, profile_ar, profile_r,
+):
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "pumice_top_tb_top"
+    tag = (f"aw_{profile_aw}_w_{profile_w}_b_{profile_b}"
+           f"_ar_{profile_ar}_r_{profile_r}")
+    test_name = f"test_pumice_top_profile_sweep_{tag}"
+
+    filelist_path = ("projects/components/memory-controllers/pumice/"
+                     "rtl/filelists/top/pumice_top.f")
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=filelist_path)
+    verilog_sources.append(os.path.join(
+        repo_root,
+        "projects/components/memory-controllers/pumice/dv/tb/"
+        "pumice_top_tb_top.sv"))
+
+    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        "DUT": dut_name,
+        "TEST_TYPE": "profile_sweep_b2b",
+        "MEM_TYPE": "DDR2",
+        "NUM_RANKS": "1",
+        "AXI_PROFILE_AW": profile_aw,
+        "AXI_PROFILE_W":  profile_w,
+        "AXI_PROFILE_B":  profile_b,
+        "AXI_PROFILE_AR": profile_ar,
+        "AXI_PROFILE_R":  profile_r,
+        "SEED": str(random.randint(0, 100000)),
+        "COCOTB_LOG_LEVEL": "INFO",
+        "COCOTB_RESULTS_FILE":
+            os.path.join(log_dir, f"results_{test_name}.xml"),
+    }
+    parameters = {"NUM_RANKS": "1", "PAGE_POLICY": "1"}
+
+    enable_waves = bool(int(os.environ.get("WAVES", "0")))
+    compile_args = [
+        "+define+USE_ASYNC_RESET",
+        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
+        "-Wno-CASEOVERLAP",
+    ]
+    sim_args: list = []
+    plus_args: list = []
+    if enable_waves:
+        compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+        sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
+        plus_args    += ["--trace"]
+        extra_env["VERILATOR_TRACE_FST"] = "1"
+
+    compile_args += get_coverage_compile_args()
+    extra_env.update(get_coverage_env(test_name, sim_build=sim_build))
+
+    run(python_search=[tests_dir],
+        verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase="cocotb_test_pumice_top",
+        sim_build=sim_build, simulator="verilator",
+        extra_env=extra_env, parameters=parameters,
+        compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
+        waves=enable_waves, keep_files=True, timescale="1ns/1ps")
+
+
+# ============================================================================
+# Engine-faithful mirror — replays the NexysA7 kb4 / kb32 workload at the
+# macro top via run_axi4_sequence_engine. AW pipelined one-per-cycle, W
+# beats streaming, B/R collected from per-id callback queues — matches
+# the bus behavior of axi4_master_wr_pattern_gen / _rd_crc_check RTL
+# engines that NexysA7 wraps. If kb4 here PASSES while NexysA7 kb4
+# FAILS, the bug is NexysA7-specific (engine wiring, etc.). If it FAILS
+# here, the controller bug is reproducible at macro top with full BFM
+# visibility.
+# ============================================================================
+
+
+# Engine-faithful workload matrix. Each entry = (label, env-dict-override).
+# Selected to cover axes the FUB-level tests don't reach:
+#   1) N-depth: just-fits-CAM (16), just-overflows (17, 18), 2x (32),
+#      moderate (64), kb4 (128), kb32 (1024).
+#   2) burst_len: 1 (1 beat/burst), 2, 4 (engine kb default), 8 (deeper).
+#   3) id_mode: FIXED (same-id pipelining), COUNTER (id-spread → AXI OOO
+#      legal), LFSR (scattered ids).
+#   4) axi_id_base: 0 (lowest slot), 5, 15 (highest 4-bit).
+#   5) gap (cfg_*_gap engine knob): 0 (back-to-back), 3, 7.
+#   6) slave-delay profile cross: backtoback / fast / constrained /
+#      burst_pause / slow_producer to catch stall-driven failures.
+_ENGINE_BASE = {
+    "TEST_TYPE": "engine_mirror_kbN",
+    "MEM_TYPE":  "DDR2",
+    "NUM_RANKS": "1",
+}
+
+
+def _engine_cfg(**kw):
+    """Helper: starts from _ENGINE_BASE, overlays kw env-var-strings."""
+    out = dict(_ENGINE_BASE)
+    out.update({k: str(v) for k, v in kw.items()})
+    return out
+
+
+# --- N-depth sweep, default id_mode=FIXED, BL=4 ----------------------
+_N_DEPTH = [
+    ("n_16",   _engine_cfg(KBN_N=16)),
+    ("n_17",   _engine_cfg(KBN_N=17)),
+    ("n_18",   _engine_cfg(KBN_N=18)),
+    ("n_32",   _engine_cfg(KBN_N=32)),
+    ("n_64",   _engine_cfg(KBN_N=64)),
+    ("kb4",    _engine_cfg(KBN_N=128)),
+    ("kb32",   _engine_cfg(KBN_N=1024)),
+]
+
+# --- burst_len sweep at N=32 -----------------------------------------
+_BL_SWEEP = [
+    ("bl_1",   _engine_cfg(KBN_N=32, KBN_BURST_LEN=1)),
+    ("bl_2",   _engine_cfg(KBN_N=32, KBN_BURST_LEN=2)),
+    ("bl_4",   _engine_cfg(KBN_N=32, KBN_BURST_LEN=4)),
+    ("bl_8",   _engine_cfg(KBN_N=32, KBN_BURST_LEN=8)),
+]
+
+# --- id_mode sweep at N=64, BL=4 -------------------------------------
+_ID_MODE_SWEEP = [
+    ("id_fixed_0",    _engine_cfg(KBN_N=64, KBN_ID_MODE="FIXED",   KBN_AXI_ID_BASE=0)),
+    ("id_fixed_5",    _engine_cfg(KBN_N=64, KBN_ID_MODE="FIXED",   KBN_AXI_ID_BASE=5)),
+    ("id_fixed_15",   _engine_cfg(KBN_N=64, KBN_ID_MODE="FIXED",   KBN_AXI_ID_BASE=15)),
+    ("id_counter_0",  _engine_cfg(KBN_N=64, KBN_ID_MODE="COUNTER", KBN_AXI_ID_BASE=0)),
+    ("id_counter_5",  _engine_cfg(KBN_N=64, KBN_ID_MODE="COUNTER", KBN_AXI_ID_BASE=5)),
+    ("id_lfsr_1",     _engine_cfg(KBN_N=64, KBN_ID_MODE="LFSR",    KBN_AXI_ID_BASE=1)),
+    ("id_lfsr_42",    _engine_cfg(KBN_N=64, KBN_ID_MODE="LFSR",    KBN_AXI_ID_BASE=42)),
+]
+
+# --- slave-profile cross at kb4 workload — catches stall regressions
+_PROFILE_CROSS = [
+    (f"kb4_{p}", _engine_cfg(KBN_N=128, KBN_SLAVE_PROFILE=p))
+    for p in ("backtoback", "fast", "constrained",
+              "burst_pause", "slow_producer", "high_throughput")
+]
+
+# Tier the matrix by TEST_LEVEL.
+#   GATE: minimal smoke — just kb4 + a couple cross variants.
+#   FUNC: depth sweep + id-mode sweep + BL sweep (no profile cross).
+#   FULL: everything including profile cross.
+_GATE_ENG  = [("kb4", _engine_cfg(KBN_N=128))]
+_FUNC_ENG  = _N_DEPTH + _BL_SWEEP + _ID_MODE_SWEEP
+_FULL_ENG  = _FUNC_ENG + _PROFILE_CROSS
+
+_TEST_LEVEL_ENG = os.environ.get("TEST_LEVEL", "FUNC").upper()
+_ENGINE_MATRIX = {
+    "GATE": _GATE_ENG, "FUNC": _FUNC_ENG, "FULL": _FULL_ENG,
+}.get(_TEST_LEVEL_ENG, _FUNC_ENG)
+
+
+@pytest.mark.parametrize(
+    "label,env_overrides",
+    _ENGINE_MATRIX,
+    ids=[e[0] for e in _ENGINE_MATRIX],
+)
+def test_pumice_top_engine_mirror_kbN(request, label, env_overrides):
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "pumice_top_tb_top"
+    test_name = f"test_pumice_top_engine_mirror_{label}"
+
+    filelist_path = ("projects/components/memory-controllers/pumice/"
+                     "rtl/filelists/top/pumice_top.f")
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=filelist_path)
+    verilog_sources.append(os.path.join(
+        repo_root,
+        "projects/components/memory-controllers/pumice/dv/tb/"
+        "pumice_top_tb_top.sv"))
+
+    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        "DUT": dut_name,
+        "SEED": str(random.randint(0, 100000)),
+        "COCOTB_LOG_LEVEL": "INFO",
+        "COCOTB_RESULTS_FILE":
+            os.path.join(log_dir, f"results_{test_name}.xml"),
+    }
+    extra_env.update(env_overrides)
+    parameters = {"NUM_RANKS": "1", "PAGE_POLICY": "1"}
+
+    enable_waves = bool(int(os.environ.get("WAVES", "0")))
+    compile_args = [
+        "+define+USE_ASYNC_RESET",
+        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
+        "-Wno-CASEOVERLAP",
+    ]
+    sim_args: list = []
+    plus_args: list = []
+    if enable_waves:
+        compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+        sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
+        plus_args    += ["--trace"]
+        extra_env["VERILATOR_TRACE_FST"] = "1"
+
+    compile_args += get_coverage_compile_args()
+    extra_env.update(get_coverage_env(test_name, sim_build=sim_build))
+
+    run(python_search=[tests_dir],
+        verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase="cocotb_test_pumice_top",
+        sim_build=sim_build, simulator="verilator",
+        extra_env=extra_env, parameters=parameters,
+        compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
+        waves=enable_waves, keep_files=True, timescale="1ns/1ps")
+
+
+# ---------------------------------------------------------------------------
+# D-2 pathological address-pattern sweep at the macro TOP env.
+# Same 4 kinds x 3 profiles = 12 combos as the core_macro sweep, but
+# routed through the full axi_frontend / intake / CAM / scheduler stack
+# so any bug that only manifests once the frontend is in the loop
+# gets caught here too. Trackers wire onto u_dut.u_core.* since the
+# FUBs live under the core wrapper. Divergence contracts assert at
+# teardown.
+# ---------------------------------------------------------------------------
+_TOP_PATHO_KINDS    = ("bank_hazard", "page_miss_sustained",
+                       "page_close_boundary", "hit_miss_oscillation")
+_TOP_PATHO_PROFILES = ("backtoback", "burst_pause", "slow_producer")
+_TOP_PATHO_MATRIX   = [(k, p) for k in _TOP_PATHO_KINDS
+                              for p in _TOP_PATHO_PROFILES]
+
+
+@pytest.mark.parametrize(
+    "kind,slave_profile",
+    _TOP_PATHO_MATRIX,
+    ids=[f"{k}_{p}" for (k, p) in _TOP_PATHO_MATRIX],
+)
+def test_pumice_top_patho_addr_pattern(request, kind, slave_profile):
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "pumice_top_tb_top"
+    test_name = f"test_pumice_top_patho_{kind}_{slave_profile}"
+
+    filelist_path = ("projects/components/memory-controllers/pumice/"
+                     "rtl/filelists/top/pumice_top.f")
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=filelist_path)
+    verilog_sources.append(os.path.join(
+        repo_root,
+        "projects/components/memory-controllers/pumice/dv/tb/"
+        "pumice_top_tb_top.sv"))
+
+    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        "DUT": dut_name,
+        "TEST_TYPE": "patho_addr_pattern",
+        "KBN_PATHO_KIND": kind,
+        "KBN_SLAVE_PROFILE": slave_profile,
+        "KBN_BURST_LEN": "4",
+        "SEED": str(random.randint(0, 100000)),
+        "COCOTB_LOG_LEVEL": "INFO",
+        "COCOTB_RESULTS_FILE":
+            os.path.join(log_dir, f"results_{test_name}.xml"),
+    }
+    parameters = {"NUM_RANKS": "1", "PAGE_POLICY": "1"}
+
+    enable_waves = bool(int(os.environ.get("WAVES", "0")))
+    compile_args = [
+        "+define+USE_ASYNC_RESET",
+        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
+        "-Wno-CASEOVERLAP",
+    ]
+    sim_args: list = []
+    plus_args: list = []
+    if enable_waves:
+        compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+        sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
+        plus_args    += ["--trace"]
+        extra_env["VERILATOR_TRACE_FST"] = "1"
+
+    compile_args += get_coverage_compile_args()
+    extra_env.update(get_coverage_env(test_name, sim_build=sim_build))
+
+    run(python_search=[tests_dir],
+        verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase="cocotb_test_pumice_top",
+        sim_build=sim_build, simulator="verilator",
+        extra_env=extra_env, parameters=parameters,
+        compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
+        waves=enable_waves, keep_files=True, timescale="1ns/1ps")

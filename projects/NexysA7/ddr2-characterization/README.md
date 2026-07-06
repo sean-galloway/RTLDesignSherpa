@@ -3,13 +3,13 @@
 **Status:** Skeleton — directories scaffolded, harness RTL not yet written
 **Target board:** Digilent Nexys A7-100T (Artix-7 XC7A100T-CSG324)
 **Target DRAM:** Onboard Micron `MT47H64M16HR-25E` (DDR2, 16-bit, single-rank, 800 Mbps, 128 MiB)
-**Component under test:** [`projects/components/memory-controllers/ddr2-lpddr2/`](../../components/memory-controllers/ddr2-lpddr2/)
+**Component under test:** [`projects/components/memory-controllers/pumice/`](../../components/memory-controllers/pumice/)
 
 ---
 
 ## Purpose
 
-End-to-end characterization of the DDR2/LPDDR2 family memory controller on real silicon. The controller is co-developed in `projects/components/memory-controllers/ddr2-lpddr2/` (RTL + DV + HAS + MAS) and validated in sim against the DFI BFM in the DV repo. This project drives **board-level workloads** through the controller against the real Micron device and reports throughput / latency / data integrity per workload mix.
+End-to-end characterization of the DDR2/LPDDR2 family memory controller on real silicon. The controller is co-developed in `projects/components/memory-controllers/pumice/` (RTL + DV + HAS + MAS) and validated in sim against the DFI BFM in the DV repo. This project drives **board-level workloads** through the controller against the real Micron device and reports throughput / latency / data integrity per workload mix.
 
 Hardware characterization lives in `projects/NexysA7/` rather than in the component tree to preserve the component-as-IP-block boundary.
 
@@ -136,9 +136,9 @@ Multi-rank (`NUM_RANKS ∈ {1, 2, 4}`) is not exercised on this board — the on
 
 ## Cross-References
 
-- HAS: `projects/components/memory-controllers/ddr2-lpddr2/docs/DDR2_LPDDR2_HAS_v0.2.pdf`
-- MAS: `projects/components/memory-controllers/ddr2-lpddr2/docs/DDR2_LPDDR2_MAS_v0.1.pdf`
-- Controller RTL home: `projects/components/memory-controllers/ddr2-lpddr2/rtl/`
+- HAS: `projects/components/memory-controllers/pumice/docs/PUMICE_HAS_v0.2.pdf`
+- MAS: `projects/components/memory-controllers/pumice/docs/PUMICE_MAS_v0.1.pdf`
+- Controller RTL home: `projects/components/memory-controllers/pumice/rtl/`
 - DFI BFM (DV side): `RTLDesignSherpa-DV/src/CocoTBFramework/components/dfi/` — released as `cocotb-framework==0.3.0`
 - Sibling characterization projects: `projects/NexysA7/stream_characterization/`, `projects/NexysA7/timing_characterization/`
 - Stream harness blocks we're adapting on the master side: `rtl/amba/shared/axi4_slave_rd_pattern_gen.sv`, `rtl/amba/shared/axi4_slave_wr_crc_check.sv`, `rtl/amba/shared/axi4_dma_slaves.sv`
@@ -150,7 +150,7 @@ Multi-rank (`NUM_RANKS ∈ {1, 2, 4}`) is not exercised on this board — the on
 
 ## Decision Log
 
-- **2026-06-15** — Original DDR2 bring-up plan recorded under `projects/NexysA7/ddr2-lpddr2-memory-controller/`. Validation methodology (DFI controller + LiteDRAM `a7ddrphy`), CPU choice (VexRiscv Linux on LiteX), and three-sub-phase hardware bring-up agreed. Resource budget fits comfortably (~36 % LUTs). No work started yet — DDR2 controller pre-RTL (HAS v0.2 + MAS v0.1 skeleton).
-- **2026-06-25** — Directory renamed `ddr2-lpddr2-memory-controller/` → `ddr2-characterization/` to align with the `stream_characterization/` sibling and reflect the workload-characterization focus. Harness architecture recorded: reuse `dma_address_gen` + the stream `dataint_crc` + `axi_response_delay` + `harness_csr` + LED/7-seg drivers; author **two new master-side blocks** — `axi4_master_wr_pattern_gen` and `axi4_master_rd_crc_check` — by adapting stream's slave-side `axi4_slave_rd_pattern_gen` + `axi4_slave_wr_crc_check`. Initial flow: `flows-ours-vex/` only; `flows-litedram-vex/` lands later as baseline comparison.
+- **2026-06-15** — Original DDR2 bring-up plan recorded under `projects/NexysA7/pumice-memory-controller/`. Validation methodology (DFI controller + LiteDRAM `a7ddrphy`), CPU choice (VexRiscv Linux on LiteX), and three-sub-phase hardware bring-up agreed. Resource budget fits comfortably (~36 % LUTs). No work started yet — DDR2 controller pre-RTL (HAS v0.2 + MAS v0.1 skeleton).
+- **2026-06-25** — Directory renamed `pumice-memory-controller/` → `ddr2-characterization/` to align with the `stream_characterization/` sibling and reflect the workload-characterization focus. Harness architecture recorded: reuse `dma_address_gen` + the stream `dataint_crc` + `axi_response_delay` + `harness_csr` + LED/7-seg drivers; author **two new master-side blocks** — `axi4_master_wr_pattern_gen` and `axi4_master_rd_crc_check` — by adapting stream's slave-side `axi4_slave_rd_pattern_gen` + `axi4_slave_wr_crc_check`. Initial flow: `flows-ours-vex/` only; `flows-litedram-vex/` lands later as baseline comparison.
 - **2026-07-04** — Bridge shrunk from 1×5 to 1×4: dropped `desc_ram`. The pattern-gen engines already have strided address generators built in (driven by `stride_0/1` + `wrap_mask_0/1` cfg regs at 0x100/0x180), so the descriptor-mode workload path the earlier plan reserved `desc_ram` for is redundant. If we later want a scripted / trace-replay workload class the engines can't express, re-add a fresh slave with the right shape rather than trying to repurpose a placeholder.
 - **2026-07-03** — Drop the soft-CPU story from the Nexys A7 target. XC7A100T doesn't have the LUT budget to fit our DDR2 controller + perf logic + VexRiscv+LiteX simultaneously with any timing margin. Flow renamed `flows-ours-vex/` → `flows-ours-uart/`; the host machine drives the harness through the FTDI UART instead. Resource budget rewritten around perf logic (`axi_bus_meter` + `axi_perf_latency_hist` on WR+RD, tapped inside `ddr2_char_macro`). Future flows follow the same naming: `flows-<controller>-uart/` for the on-Nexys builds; `flows-<controller>-vex/` reserved for larger FPGA targets where a CPU actually fits.

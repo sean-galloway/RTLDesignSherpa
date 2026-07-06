@@ -12,7 +12,7 @@
 # Generated 1 -> 5 AXIL bridge for the DDR2 harness
 -f $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/bridges/filelists/bridge_ddr2_char_axil.f
 
-# ddr2_char_macro (WR pattern-gen + RD CRC-check + ddr2-lpddr2 controller top)
+# ddr2_char_macro (WR pattern-gen + RD CRC-check + pumice controller top)
 -f $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/ddr2_char_macro.f
 
 # AXIL SRAM slave used for debug_sram + dfi_mon_ram

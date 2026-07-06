@@ -66,7 +66,7 @@ from uart_axi_bridge import UARTAxiBridge  # noqa: E402
 # =============================================================================
 # Bridge address map (bridge_ddr2_char_axil.toml). 1 master x 4 slaves.
 # =============================================================================
-DDR2_APB_BASE     = 0x00000000  # ddr2-lpddr2 controller CSR (APB)
+DDR2_APB_BASE     = 0x00000000  # pumice controller CSR (APB)
 HARNESS_CSR_BASE  = 0x00010000  # this driver targets these regs
 DEBUG_SRAM_BASE   = 0x00040000  # MonBus/DFI trace ring (256 KB @ AXIL64)
 DFI_MON_RAM_BASE  = 0x00080000  # DFI cmd-only observability (4 KB)
@@ -143,7 +143,7 @@ OBS_HIST_TOTAL = 0x1E8
 
 
 # =============================================================================
-# Enumerations (mirroring ddr2_lpddr2_pkg)
+# Enumerations (mirroring pumice_pkg)
 # =============================================================================
 MEMTYPE_DDR2   = 0
 MEMTYPE_LPDDR2 = 1

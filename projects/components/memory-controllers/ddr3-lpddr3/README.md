@@ -41,4 +41,4 @@ LPDDR3 SDRAM via DFI v3.1. Planned successor to the DDR2/LPDDR2 family.
 ## See Also
 
 - Parent: [`../README.md`](../README.md)
-- DDR2/LPDDR2 reference HAS: [`../ddr2-lpddr2/docs/DDR2_LPDDR2_HAS_v0.3.pdf`](../ddr2-lpddr2/docs/DDR2_LPDDR2_HAS_v0.3.pdf)
+- DDR2/LPDDR2 reference HAS: [`../pumice/docs/PUMICE_HAS_v0.3.pdf`](../pumice/docs/PUMICE_HAS_v0.3.pdf)
