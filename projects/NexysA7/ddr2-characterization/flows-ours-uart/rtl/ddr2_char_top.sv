@@ -82,36 +82,33 @@ module ddr2_char_top #(
     end
 
     // =========================================================================
-    // Clock generation for the a7ddrphy (4:1) at 300 MT/s (LiteDRAM's proven
-    // Nexys A7 rate). The PHY needs sys (37.5), sys2x (75), sys4x (150) and
-    // sys4x_dqs (150, 90-deg), so CK = sys4x = 150 MHz -> 300 MT/s, matching
-    // LiteDRAM's CL-3/CWL-2 config. IDELAYCTRL needs a dedicated 200 MHz ref
-    // (sys2x is no longer 200). The controller + harness run on sys (37.5).
+    // Clock generation for the a7ddrphy (1:2 / nphases=2) at 300 MT/s — the
+    // config LiteDRAM proved on this Nexys A7. The nphases=2 PHY serializes at
+    // sys2x (DATA_WIDTH=4) and needs sys (75), sys2x (150) and sys2x_dqs
+    // (150, 90-deg); CK = sys2x = 150 MHz -> 300 MT/s, CL-3/CWL-2. IDELAYCTRL
+    // needs a dedicated 200 MHz ref. Controller + harness run on sys (75).
     //   * DDR2_CHAR_SYNTH: real MMCME2_BASE + BUFGs + IDELAYCTRL (Vivado).
     //   * else (verilator/cocotb): all clocks alias CLK100MHZ, locked=1 —
     //     the a7ddrphy stub ignores the fast clocks anyway.
     // =========================================================================
-    wire w_sys, w_sys2x, w_sys4x, w_sys4x_dqs, w_idelay;
+    wire w_sys, w_sys2x, w_sys2x_dqs, w_idelay;
     wire w_clk_locked;
     // IDELAYCTRL calibration-ready. If this never asserts, every IDELAY tap is
-    // uncalibrated -> read DQ is garbage at all taps (matches the observed
-    // on-board symptom). Gated into aresetn below (LiteDRAM holds the design in
-    // reset until idelayctrl.ready) — so it's also a zero-plumbing diagnostic:
-    // if RDY never comes, the whole harness stays in reset and UART goes dead.
+    // uncalibrated -> read DQ is garbage at all taps. Gated into aresetn below
+    // (LiteDRAM holds the design in reset until idelayctrl.ready).
     wire w_idelay_rdy;
 
 `ifdef DDR2_CHAR_SYNTH
-    wire w_sys_i, w_sys2x_i, w_sys4x_i, w_sys4x_dqs_i, w_idelay_i, w_clkfb_i, w_clkfb;
+    wire w_sys_i, w_sys2x_i, w_sys2x_dqs_i, w_idelay_i, w_clkfb_i, w_clkfb;
     MMCME2_BASE #(
         .CLKIN1_PERIOD   (10.0),   // 100 MHz board clock
         .DIVCLK_DIVIDE   (1),
         .CLKFBOUT_MULT_F (6.0),    // VCO = 600 MHz
-        .CLKOUT0_DIVIDE_F(16.0),   // sys        = 37.5 MHz
-        .CLKOUT1_DIVIDE  (8),      // sys2x      = 75  MHz
-        .CLKOUT2_DIVIDE  (4),      // sys4x      = 150 MHz  (= DRAM CK, 300 MT/s)
-        .CLKOUT3_DIVIDE  (4),      // sys4x_dqs  = 150 MHz
-        .CLKOUT3_PHASE   (90.0),   // DQS 90-deg
-        .CLKOUT4_DIVIDE  (3)       // idelay ref = 200 MHz
+        .CLKOUT0_DIVIDE_F(8.0),    // sys        = 75  MHz
+        .CLKOUT1_DIVIDE  (4),      // sys2x      = 150 MHz  (= DRAM CK, 300 MT/s)
+        .CLKOUT2_DIVIDE  (4),      // sys2x_dqs  = 150 MHz
+        .CLKOUT2_PHASE   (90.0),   // DQS 90-deg
+        .CLKOUT3_DIVIDE  (3)       // idelay ref = 200 MHz
     ) u_mmcm (
         .CLKIN1   (CLK100MHZ),
         .CLKFBIN  (w_clkfb),
@@ -119,9 +116,9 @@ module ddr2_char_top #(
         .CLKFBOUTB(),
         .CLKOUT0  (w_sys_i),      .CLKOUT0B(),
         .CLKOUT1  (w_sys2x_i),    .CLKOUT1B(),
-        .CLKOUT2  (w_sys4x_i),    .CLKOUT2B(),
-        .CLKOUT3  (w_sys4x_dqs_i),.CLKOUT3B(),
-        .CLKOUT4  (w_idelay_i),   .CLKOUT5(), .CLKOUT6(),
+        .CLKOUT2  (w_sys2x_dqs_i),.CLKOUT2B(),
+        .CLKOUT3  (w_idelay_i),   .CLKOUT3B(),
+        .CLKOUT4  (), .CLKOUT5(), .CLKOUT6(),
         .LOCKED   (w_clk_locked),
         .PWRDWN   (1'b0),
         .RST      (~CPU_RESETN)
@@ -129,16 +126,14 @@ module ddr2_char_top #(
     BUFG u_bufg_fb  (.I(w_clkfb_i),      .O(w_clkfb));
     BUFG u_bufg_sys (.I(w_sys_i),        .O(w_sys));
     BUFG u_bufg_2x  (.I(w_sys2x_i),      .O(w_sys2x));
-    BUFG u_bufg_4x  (.I(w_sys4x_i),      .O(w_sys4x));
-    BUFG u_bufg_4xd (.I(w_sys4x_dqs_i),  .O(w_sys4x_dqs));
+    BUFG u_bufg_2xd (.I(w_sys2x_dqs_i),  .O(w_sys2x_dqs));
     BUFG u_bufg_idly(.I(w_idelay_i),     .O(w_idelay));
     // IODELAY reference (200 MHz, dedicated). One control per I/O bank DQ/DQS use.
     IDELAYCTRL u_idelayctrl (.REFCLK(w_idelay), .RST(~w_clk_locked), .RDY(w_idelay_rdy));
 `else
     assign w_sys       = CLK100MHZ;
     assign w_sys2x     = CLK100MHZ;
-    assign w_sys4x     = CLK100MHZ;
-    assign w_sys4x_dqs = CLK100MHZ;
+    assign w_sys2x_dqs = CLK100MHZ;
     assign w_idelay    = CLK100MHZ;
     assign w_idelay_rdy = 1'b1;
     assign w_clk_locked = 1'b1;
@@ -168,14 +163,16 @@ module ddr2_char_top #(
     // =========================================================================
     // Flat DFI wires (harness <-> adapter <-> a7ddrphy)
     //
-    // a7ddrphy config (Artix-7 x16 DDR2): 4:1 gearing (DFI_RATE=4 = the PHY's
-    // phase count), DRAM beat = 2*DQ = 32b. TASK-GEAR lets the controller run
-    // AXI=64 while the DFI beat is 32b. DFI_DATA_WIDTH = 32*4 = 128.
+    // a7ddrphy config (Artix-7 x16 DDR2): 1:2 / nphases=2 — matches LiteDRAM's
+    // board-proven config. The PHY exposes 4 DFI phase ports but only serializes
+    // phases 0,1 (DATA_WIDTH=4, 4 beats/sys-cycle), so the controller drives
+    // DFI_RATE=2; the adapter NOPs PHY phases 2,3. DRAM beat = 2*DQ = 32b,
+    // DFI_DATA_WIDTH = 32*2 = 64, GEAR = AXI/beat = 2.
     // =========================================================================
     localparam int AXI_DATA_WIDTH  = 64;
     localparam int DRAM_BEAT_WIDTH = 32;
-    localparam int DFI_RATE        = 4;
-    localparam int DFI_DATA_WIDTH  = DFI_RATE * DRAM_BEAT_WIDTH;   // 128
+    localparam int DFI_RATE        = 2;
+    localparam int DFI_DATA_WIDTH  = DFI_RATE * DRAM_BEAT_WIDTH;   // 64
     localparam int DFI_STRB_WIDTH  = DFI_DATA_WIDTH / 8;           // 16
     localparam int DFI_ADDR_BUS_W  = ROW_WIDTH * DFI_RATE;         // 52
     localparam int DFI_BANK_BUS_W  = 3 * DFI_RATE;                 // 12
@@ -211,7 +208,7 @@ module ddr2_char_top #(
         .DRAM_BEAT_WIDTH (DRAM_BEAT_WIDTH),
         .DFI_RATE        (DFI_RATE),
         .ROW_WIDTH       (ROW_WIDTH),
-        .FPGA_CLK_HZ     (37_500_000)   // sys is now 37.5 MHz -> UART baud divisor
+        .FPGA_CLK_HZ     (75_000_000)   // sys is now 75 MHz -> UART baud divisor
     ) u_harness (
         .aclk    (aclk),
         .aresetn (aresetn),
@@ -278,7 +275,7 @@ module ddr2_char_top #(
         .DFI_ADDR_W (ROW_WIDTH),
         .DFI_BANK_W (3),
         .PHASE_DATA (DRAM_BEAT_WIDTH),
-        .NPHASES    (DFI_RATE)
+        .CTRL_PHASES (DFI_RATE)
     ) u_dfi_adapter (
         .dfi_address_flat      (w_dfi_address),
         .dfi_bank_flat         (w_dfi_bank),
@@ -333,12 +330,10 @@ module ddr2_char_top #(
     // Per-domain sync-high resets share the single aresetn (already gated
     // on MMCM lock).
     wire sys2x_clk       = w_sys2x;
-    wire sys4x_clk       = w_sys4x;
-    wire sys4x_dqs_clk   = w_sys4x_dqs;
+    wire sys2x_dqs_clk   = w_sys2x_dqs;
     wire sys_rst_p       = ~aresetn;
     wire sys2x_rst_p     = ~aresetn;
-    wire sys4x_rst_p     = ~aresetn;
-    wire sys4x_dqs_rst_p = ~aresetn;
+    wire sys2x_dqs_rst_p = ~aresetn;
 
     // =========================================================================
     // a7ddrphy — LiteDRAM PHY. Black box for lint/sim (a7ddrphy_stub.sv);
@@ -350,10 +345,10 @@ module ddr2_char_top #(
         .sys_rst         (sys_rst_p),
         .sys2x_clk       (sys2x_clk),
         .sys2x_rst       (sys2x_rst_p),
-        .sys4x_clk       (sys4x_clk),
-        .sys4x_rst       (sys4x_rst_p),
-        .sys4x_dqs_clk   (sys4x_dqs_clk),
-        .sys4x_dqs_rst   (sys4x_dqs_rst_p),
+        .sys2x_clk_1     (sys2x_clk),
+        .sys2x_rst_1     (sys2x_rst_p),
+        .sys2x_dqs_clk   (sys2x_dqs_clk),
+        .sys2x_dqs_rst   (sys2x_dqs_rst_p),
 
         .dfi_p0_address(w_p0_addr), .dfi_p0_bank(w_p0_bank),
         .dfi_p0_cas_n(w_p0_cas_n), .dfi_p0_cs_n(w_p0_cs_n),

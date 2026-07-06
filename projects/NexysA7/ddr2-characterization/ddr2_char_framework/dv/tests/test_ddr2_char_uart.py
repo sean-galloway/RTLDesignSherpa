@@ -279,3 +279,13 @@ def test_ddr2_char_uart_smoke_rate4(request):
 
 def test_ddr2_char_uart_multichunk_rate4(request):
     _run("cocotb_test_uart_multichunk", dfi_rate=4, dram_beat_width=32)
+
+
+# ---- rate-2 / GEAR-2 (the NEW board config: match LiteDRAM's proven nphases=2,
+#      which serializes only DFI phases 0,1 at 4 beats/sys-cycle; AXI=64, beat=32) -
+def test_ddr2_char_uart_smoke_rate2_beat32(request):
+    _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32)
+
+
+def test_ddr2_char_uart_multichunk_rate2_beat32(request):
+    _run("cocotb_test_uart_multichunk", dfi_rate=2, dram_beat_width=32)
