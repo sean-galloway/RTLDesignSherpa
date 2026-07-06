@@ -57,6 +57,7 @@ module stream_top_ch8 #(
     parameter int NUM_CHANNELS = 8,
     parameter int DATA_WIDTH = 512,
     parameter int ADDR_WIDTH = 64,
+    parameter bit USE_ROW_COL_MAJOR_ADDRESSING = 1'b0,  // TASK-101 STREAM Extended
     parameter int SRAM_DEPTH = 4096,
     parameter int APB_ADDR_WIDTH = 13,
     parameter int APB_DATA_WIDTH = 32,
@@ -1349,6 +1350,7 @@ module stream_top_ch8 #(
                 .NUM_CHANNELS(NUM_CHANNELS),
                 .DATA_WIDTH(DATA_WIDTH),
                 .ADDR_WIDTH(ADDR_WIDTH),
+                .USE_ROW_COL_MAJOR_ADDRESSING(USE_ROW_COL_MAJOR_ADDRESSING),
                 .AXI_ID_WIDTH(AXI_ID_WIDTH),
                 .FIFO_DEPTH(SRAM_DEPTH),  // Pass SRAM_DEPTH as FIFO_DEPTH
                 .AR_MAX_OUTSTANDING(AR_MAX_OUTSTANDING),
@@ -1653,6 +1655,7 @@ module stream_top_ch8 #(
                 .NUM_CHANNELS(NUM_CHANNELS),
                 .DATA_WIDTH(DATA_WIDTH),
                 .ADDR_WIDTH(ADDR_WIDTH),
+                .USE_ROW_COL_MAJOR_ADDRESSING(USE_ROW_COL_MAJOR_ADDRESSING),
                 .AXI_ID_WIDTH(AXI_ID_WIDTH),
                 .FIFO_DEPTH(SRAM_DEPTH),  // Pass SRAM_DEPTH as FIFO_DEPTH
                 .AR_MAX_OUTSTANDING(AR_MAX_OUTSTANDING),

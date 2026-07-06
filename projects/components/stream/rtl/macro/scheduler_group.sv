@@ -34,6 +34,8 @@ module scheduler_group #(
     parameter int ADDR_WIDTH = 64,
     parameter int DATA_WIDTH = 512,
     parameter int AXI_ID_WIDTH = 8,
+    // TASK-101 (STREAM Extended): enable dma_address_gen addressing (default off).
+    parameter bit USE_ROW_COL_MAJOR_ADDRESSING = 1'b0,
     // Monitor Bus Parameters - Base IDs for each component
     parameter DESC_MON_AGENT_ID = 16,       // 0x10 - Descriptor Engine
     parameter SCHED_MON_AGENT_ID = 48,      // 0x30 - Scheduler
@@ -147,7 +149,8 @@ module scheduler_group #(
     // NOTE: Descriptor packet is FIXED at 256-bit width
     logic                        desceng_to_sched_valid;
     logic                        desceng_to_sched_ready;
-    logic [255:0]                desceng_to_sched_packet;  // 256-bit descriptors
+    logic [255:0]                desceng_to_sched_packet;  // 256-bit descriptors (chunk 0)
+    logic [255:0]                desceng_to_sched_ext_packet;  // TASK-101 chunk 1
     logic                        desceng_to_sched_error;
     logic                        desceng_to_sched_eos;
     logic                        desceng_to_sched_eol;
@@ -185,6 +188,7 @@ module scheduler_group #(
         .CHAN_WIDTH             (CHAN_WIDTH),
         .ADDR_WIDTH             (ADDR_WIDTH),
         .AXI_ID_WIDTH           (AXI_ID_WIDTH),
+        .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
         // Widened to match the 128-bit packet layout's MON_* field widths.
         .MON_AGENT_ID           (16'(DESC_MON_AGENT_ID)),
         .MON_UNIT_ID            (8'(MON_UNIT_ID)),
@@ -203,6 +207,7 @@ module scheduler_group #(
         .descriptor_valid       (desceng_to_sched_valid),
         .descriptor_ready       (desceng_to_sched_ready),
         .descriptor_packet      (desceng_to_sched_packet),
+        .descriptor_ext_packet  (desceng_to_sched_ext_packet),
         .descriptor_error       (desceng_to_sched_error),
         .descriptor_eos         (desceng_to_sched_eos),
         .descriptor_eol         (desceng_to_sched_eol),
@@ -268,6 +273,7 @@ module scheduler_group #(
         .CHAN_WIDTH             (CHAN_WIDTH),
         .ADDR_WIDTH             (ADDR_WIDTH),
         .DATA_WIDTH             (DATA_WIDTH),
+        .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
         // Widened to match the 128-bit packet layout's MON_* field widths.
         .MON_AGENT_ID           (16'(SCHED_MON_AGENT_ID)),
         .MON_UNIT_ID            (8'(MON_UNIT_ID)),
@@ -297,6 +303,7 @@ module scheduler_group #(
         .descriptor_valid       (desceng_to_sched_valid),
         .descriptor_ready       (desceng_to_sched_ready),
         .descriptor_packet      (desceng_to_sched_packet),
+        .descriptor_ext_packet  (desceng_to_sched_ext_packet),
         .descriptor_error       (desceng_to_sched_error),
 
         // Data read interface (to AXI read engine)
