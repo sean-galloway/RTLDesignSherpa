@@ -23,7 +23,21 @@ identically against the FPGA (pyserial) **or** a cocotb simulation — no forked
 |--------|------|-----------|
 | `byte_channel` | host | `ByteChannel` protocol + `SerialChannel` (pyserial) + `TracingChannel` (records the wire for equivalence checks). |
 | `uart_register_map` | host | `UartRegisterMap` — by-name register access (`regs.write("CTRL", start_wr=1)`, `regs.field("STATUS","init_done")`, `rmw=`) over a bridge, backed by a PeakRDL-generated `<top>_regmap.py`. Adapts `TBClasses.apb.register_map`. |
+| `device` | host | `Device` — one named IP instance = `UartRegisterMap` (base + regmap) over an injected bridge, with by-name passthroughs (`write`/`read`/`field`/`addr`). IP-agnostic base for per-IP subclasses; multiple instances (`dev0`, `dev1`) share one bridge at distinct bases. |
 | `cocotb_axil_bridge` | sim | `CocotbUartChannel` + `make_uart_channel(dut, clock, clks_per_bit)` — drives the DUT's UART pins from a cocotb `UARTMaster`/`UARTMonitor` and bridges the synchronous host program (run under `cocotb.external`) via `cocotb.function`. |
+
+### Multiple IP instances
+
+The register-map base is a per-instance argument (`UartRegisterMap(...,
+start_address=...)`), so N instances of an IP live at N address windows over one
+shared bridge — or over N bridges (separate links); both `bridge` and base are
+injected, so nothing is a singleton. `Device` is the thin convention on top:
+subclass it per IP, add that IP's operations, and a multi-DMA system reads as
+`stream0.<op>` / `stream1.<op>`. Reference subclass: STREAM's `Stream`
+(`projects/NexysA7/stream_characterization/flows-stream-bridge/host/stream_device.py`)
+adds descriptor-RAM programming + kick + channel status/enable, all by name. The
+transport spine and the byte-stream equivalence boundary are unchanged — only the
+base address and regmap differ per instance, so the same objects drive sim + FPGA.
 
 The shared RTL bridge (`UARTAxiBridge`, ASCII `W/R` protocol) lives in
 `projects/components/converters/bin/uart_axi_bridge.py` and takes an injected

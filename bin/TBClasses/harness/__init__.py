@@ -10,5 +10,8 @@ differ per project; this transport spine is common.
 
   byte_channel       ByteChannel / SerialChannel / TracingChannel (host)
   uart_register_map  UartRegisterMap — by-name register access over a bridge
+  device             Device — one named IP instance (regmap + bridge); base for
+                     per-IP subclasses, multiple instances at distinct bases
   cocotb_axil_bridge CocotbUartChannel + make_uart_channel (sim transport)
 """
+

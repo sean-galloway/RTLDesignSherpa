@@ -36,6 +36,13 @@ Registers are accessed BY NAME (`regs.write("CTRL", start_wr=1)`), never by
 hardcoded offset — describe the CSR in a `<top>_csr.rdl`, generate `<top>_regmap.py`
 with `bin/peakrdl_generate.py --regmap`, hand it to `UartRegisterMap`.
 
+**Multiple instances of an IP** are the base-address argument, not a new layer:
+make N `UartRegisterMap`s at N `start_address` windows over one shared bridge (or
+N bridges). `device.Device` wraps that into a named instance object; subclass it
+per IP (add that IP's ops) so a multi-DMA system reads `stream0.<op>` /
+`stream1.<op>` — see STREAM's `Stream`. Nothing is a singleton; the transport
+spine and byte-stream equivalence boundary are unchanged.
+
 ## Standing up a new flow — order that works
 
 1. RDL for the harness CSR -> generate regmap (`--regmap --docs-only --no-html

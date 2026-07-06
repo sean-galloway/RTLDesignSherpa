@@ -22,7 +22,7 @@ from __future__ import annotations
 import os
 from typing import Optional
 
-from TBClasses.harness.uart_register_map import UartRegisterMap
+from TBClasses.harness.device import Device
 from descriptor_builder import DescriptorBuilder
 
 
@@ -40,38 +40,22 @@ def _default_regmap() -> str:
     raise FileNotFoundError("stream_regmap.py not found; set STREAM_REGMAP")
 
 
-class Stream:
-    """A single STREAM DMA instance, addressed by name."""
+class Stream(Device):
+    """A single STREAM DMA instance, addressed by name.
+
+    Extends the generic `Device` (named register access over an injected bridge)
+    with STREAM's descriptor RAM, kick, and channel status/enable operations.
+    """
 
     def __init__(self, bridge, name: str, *, regs_base: int, desc_ram_base: int,
                  regmap_file: Optional[str] = None, data_width: int = 128,
                  src_base: int = 0x8000_0000, dst_base: int = 0x9000_0000):
-        self.name = name
-        self.regs = UartRegisterMap(bridge, start_address=regs_base,
-                                    regmap_file=regmap_file or _default_regmap())
+        super().__init__(bridge, name, regs_base=regs_base,
+                         regmap_file=regmap_file or _default_regmap())
         self.desc = DescriptorBuilder(data_width=data_width, src_base=src_base,
                                       dst_base=dst_base, desc_ram_base=desc_ram_base)
-        self._bridge = bridge
 
-    # ----- named register access (thin passthroughs) -----------------------
-    def write(self, reg: str, **fields: int) -> int:
-        return self.regs.write(reg, **fields)
-
-    def write_word(self, reg: str, value: int) -> None:
-        self.regs.write_word(reg, value)
-
-    def read(self, reg: str) -> int:
-        return self.regs.read(reg)
-
-    def field(self, reg: str, field: str) -> int:
-        return self.regs.field(reg, field)
-
-    def addr(self, reg: str) -> int:
-        return self.regs.addr(reg)
-
-    @property
-    def registers(self) -> dict:
-        return self.regs.registers
+    # write/read/field/addr/registers are inherited from Device.
 
     # ----- channel enable / status by name ---------------------------------
     def enable_channel(self, channel: int, enable: bool = True) -> None:
@@ -88,7 +72,7 @@ class Stream:
     # ----- descriptor programming into this instance's desc RAM ------------
     def _write_desc(self, writes) -> None:
         for addr, data in writes:
-            if not self._bridge.write(addr, data):
+            if not self.bridge.write(addr, data):
                 raise IOError(f"{self.name}: descriptor write failed @ {addr:#x}")
 
     def load_chain(self, channel: int, num_descriptors: int,
