@@ -134,10 +134,15 @@ class DescriptorBuilder:
 
     def __init__(self, data_width: int = 128,
                  src_base: int = 0x8000_0000,
-                 dst_base: int = 0x9000_0000):
+                 dst_base: int = 0x9000_0000,
+                 desc_ram_base: int = DESC_RAM_BASE):
         self.bytes_per_beat = data_width // 8
         self.src_base = src_base
         self.dst_base = dst_base
+        # Per-instance descriptor-RAM base: distinct STREAM instances (stream0,
+        # stream1, ...) each own a desc RAM region, so the builder is not tied to
+        # the module-level default.
+        self.desc_ram_base = desc_ram_base
 
     def _desc_index(self, channel: int, desc_idx: int) -> int:
         """Flat index in desc_ram for (channel, descriptor).
@@ -149,15 +154,15 @@ class DescriptorBuilder:
         """STREAM-side absolute byte address for a descriptor index.
 
         This is the address STREAM's m_axi_desc emits to fetch the
-        descriptor — DESC_RAM_BASE + index * 32. Used for the kick
+        descriptor — desc_ram_base + index * 32. Used for the kick
         address and for next_descriptor_ptr fields in chained
         descriptors.
         """
-        return DESC_RAM_BASE + index * 32
+        return self.desc_ram_base + index * 32
 
     def _host_addr(self, index: int, word: int) -> int:
         """Host AXIL byte address for word `word` of descriptor `index`."""
-        return DESC_RAM_BASE + index * 32 + word * 4
+        return self.desc_ram_base + index * 32 + word * 4
 
     def beats_for_bytes(self, nbytes: int) -> int:
         """Convert byte count to beat count."""
