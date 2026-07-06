@@ -35,7 +35,7 @@ module scheduler_group #(
     parameter int DATA_WIDTH = 512,
     parameter int AXI_ID_WIDTH = 8,
     // TASK-101 (STREAM Extended): enable dma_address_gen addressing (default off).
-    parameter bit USE_ROW_COL_MAJOR_ADDRESSING = 1'b0,
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,
     // Monitor Bus Parameters - Base IDs for each component
     parameter DESC_MON_AGENT_ID = 16,       // 0x10 - Descriptor Engine
     parameter SCHED_MON_AGENT_ID = 48,      // 0x30 - Scheduler

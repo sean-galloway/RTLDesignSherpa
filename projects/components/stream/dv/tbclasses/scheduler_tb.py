@@ -292,6 +292,11 @@ class SchedulerTB(TBBase):
         # Monitor bus interface
         self.dut.mon_ready.value = 1
 
+        # TASK-101: extended chunk-1 input defaults to 0 (legacy) unless an
+        # extended descriptor drives it.
+        if hasattr(self.dut, 'descriptor_ext_packet'):
+            self.dut.descriptor_ext_packet.value = 0
+
         await self.wait_clocks(self.clk_name, 5)
         self.log.info("Scheduler configured and signals initialized")
 
@@ -359,6 +364,72 @@ class SchedulerTB(TBBase):
             self.test_errors.append("descriptor_send_failed")
             return False
 
+    # =========================================================================
+    # TASK-101 Extended (dma_address_gen) addressing helpers
+    # =========================================================================
+
+    def create_ext_descriptor(self, src_addr, dst_addr, length,
+                              rd_stride_0, rd_stride_1, rd_inner_count,
+                              wr_stride_0, wr_stride_1, wr_inner_count,
+                              rd_wrap0_log2=0, rd_wrap1_log2=0,
+                              wr_wrap0_log2=0, wr_wrap1_log2=0,
+                              next_desc_ptr=0, last=True, gen_irq=False):
+        """Create an extended (512-bit) descriptor -> (chunk0, chunk1).
+
+        chunk0 is the legacy 256-bit layout with desc_type=EXT(1) at bits
+        [210:208]; chunk1 is the addr-gen cfg in descriptor_ext_packet layout.
+        Strides are signed byte strides (two's complement into 32-bit fields).
+        """
+        chunk0 = self.create_descriptor(src_addr, dst_addr, length,
+                                        next_desc_ptr, last, gen_irq)
+        chunk0 |= (1 << 208)  # desc_type = DESC_TYPE_EXT
+
+        def u32(v):
+            return v & 0xFFFFFFFF  # two's-complement wrap for signed strides
+
+        chunk1 = 0
+        chunk1 |= u32(rd_stride_0) << 0     # [31:0]
+        chunk1 |= u32(rd_stride_1) << 32    # [63:32]
+        chunk1 |= (rd_inner_count & 0xFFFF) << 64   # [79:64]
+        chunk1 |= (rd_wrap0_log2 & 0x3F) << 80      # [85:80]
+        chunk1 |= (rd_wrap1_log2 & 0x3F) << 86      # [91:86]
+        chunk1 |= u32(wr_stride_0) << 96    # [127:96]
+        chunk1 |= u32(wr_stride_1) << 128   # [159:128]
+        chunk1 |= (wr_inner_count & 0xFFFF) << 160  # [175:160]
+        chunk1 |= (wr_wrap0_log2 & 0x3F) << 176     # [181:176]
+        chunk1 |= (wr_wrap1_log2 & 0x3F) << 182     # [187:182]
+        return chunk0, chunk1
+
+    async def send_ext_descriptor(self, chunk0, chunk1):
+        """Drive descriptor_ext_packet (chunk 1) and send chunk 0 via the master."""
+        self.dut.descriptor_ext_packet.value = chunk1
+        await self.wait_clocks(self.clk_name, 1)
+        return await self.send_descriptor(chunk0)
+
+    @staticmethod
+    def expected_run_bases(base, stride_1, inner_count, length):
+        """Run-contiguous side: (addr, beats) presented per run."""
+        seq = []
+        remaining = length
+        k = 0
+        while remaining > 0:
+            beats = min(inner_count, remaining)
+            seq.append(((base + k * stride_1) & 0xFFFFFFFFFFFFFFFF, beats))
+            remaining -= beats
+            k += 1
+        return seq
+
+    @staticmethod
+    def expected_per_beat(base, stride_0, stride_1, inner_count, length):
+        """Per-beat 2-D side: (addr, 1) for every beat (i0 = b%inner fastest)."""
+        seq = []
+        for b in range(length):
+            i0 = b % inner_count
+            i1 = b // inner_count
+            addr = (base + i0 * stride_0 + i1 * stride_1) & 0xFFFFFFFFFFFFFFFF
+            seq.append((addr, 1))
+        return seq
+
     async def wait_for_idle(self, timeout_cycles=500):
         """Wait for scheduler to return to idle state
 
@@ -413,6 +484,10 @@ class SchedulerTB(TBBase):
             if int(self.dut.sched_rd_valid.value) == 1:
                 # Read request accepted
                 beats_remaining = int(self.dut.sched_rd_beats.value)
+                # TASK-101: capture the (address, beats) presented per burst so the
+                # extended-addressing test can verify the strided sequence.
+                if getattr(self, 'capture_addrs', False):
+                    self.rd_addr_seq.append((int(self.dut.sched_rd_addr.value), beats_remaining))
                 self.log.info(f"📖 Read engine: Processing {beats_remaining} beats")
 
                 # Simulate read processing time
@@ -437,6 +512,9 @@ class SchedulerTB(TBBase):
             if int(self.dut.sched_wr_valid.value) == 1 and int(self.dut.sched_wr_ready.value) == 1:
                 # Write request accepted
                 beats_remaining = int(self.dut.sched_wr_beats.value)
+                # TASK-101: capture per-burst (address, beats) for the extended test.
+                if getattr(self, 'capture_addrs', False):
+                    self.wr_addr_seq.append((int(self.dut.sched_wr_addr.value), beats_remaining))
                 self.log.info(f"✍️  Write engine: Processing {beats_remaining} beats")
 
                 # Simulate write processing time
@@ -505,6 +583,87 @@ class SchedulerTB(TBBase):
         self.log.info(f"Basic flow test: {completed}/{num_descriptors} completed ({success_rate:.1f}%)")
 
         return completed == num_descriptors
+
+    async def test_extended_addressing(self):
+        """TASK-101: verify run-contiguous and per-beat 2-D extended addressing.
+
+        Requires the DUT built with USE_ROW_COL_MAJOR_ADDRESSING=1. Drives
+        extended descriptors and checks the exact sched_rd_addr / sched_wr_addr
+        sequences the scheduler presents against a Python model of the strided
+        address formula.
+        """
+        self.log.info("=== TASK-101: Extended addressing (dma_address_gen) ===")
+        BS = 64  # beat size bytes (DATA_WIDTH=512 -> 64)
+        self.capture_addrs = True
+        all_ok = True
+
+        async def run_case(name, chunk0, chunk1, exp_rd, exp_wr):
+            nonlocal all_ok
+            self.rd_addr_seq = []
+            self.wr_addr_seq = []
+            await self.send_ext_descriptor(chunk0, chunk1)
+            idle = await self.wait_for_idle(timeout_cycles=6000)
+            ok = idle and self.rd_addr_seq == exp_rd and self.wr_addr_seq == exp_wr
+            if not ok:
+                all_ok = False
+                self.log.error(f"  ❌ {name}: idle={idle}")
+                self.log.error(f"     rd got={[(hex(a),b) for a,b in self.rd_addr_seq]}")
+                self.log.error(f"     rd exp={[(hex(a),b) for a,b in exp_rd]}")
+                self.log.error(f"     wr got={[(hex(a),b) for a,b in self.wr_addr_seq]}")
+                self.log.error(f"     wr exp={[(hex(a),b) for a,b in exp_wr]}")
+            else:
+                self.log.info(f"  ✅ {name}")
+
+        # Case 1: 2D-tiled contiguous copy (both sides run-contiguous).
+        #   16 beats as 4 runs of 4; row pitch 8 beats (src) / 6 beats (dst).
+        src, dst, length, inner = 0x10000, 0x20000, 16, 4
+        rp_src, rp_dst = 8 * BS, 6 * BS
+        c0, c1 = self.create_ext_descriptor(
+            src, dst, length,
+            rd_stride_0=BS, rd_stride_1=rp_src, rd_inner_count=inner,
+            wr_stride_0=BS, wr_stride_1=rp_dst, wr_inner_count=inner)
+        await run_case("2D-tiled copy", c0, c1,
+                       self.expected_run_bases(src, rp_src, inner, length),
+                       self.expected_run_bases(dst, rp_dst, inner, length))
+
+        # Case 2: Transpose 4x4 - read row-major (burst), write col-major (per-beat).
+        src2, dst2, length2, W = 0x30000, 0x40000, 16, 4
+        rp_src2, cp_dst2 = 8 * BS, 4 * BS
+        c0, c1 = self.create_ext_descriptor(
+            src2, dst2, length2,
+            rd_stride_0=BS,      rd_stride_1=rp_src2, rd_inner_count=W,   # contiguous rows
+            wr_stride_0=cp_dst2, wr_stride_1=BS,      wr_inner_count=W)   # per-beat 2-D
+        await run_case("transpose 4x4", c0, c1,
+                       self.expected_run_bases(src2, rp_src2, W, length2),
+                       self.expected_per_beat(dst2, cp_dst2, BS, W, length2))
+
+        # Case 3: Reverse read (per-beat, negative stride), contiguous write.
+        src3, dst3, length3 = 0x50000, 0x60000, 8
+        c0, c1 = self.create_ext_descriptor(
+            src3, dst3, length3,
+            rd_stride_0=-BS, rd_stride_1=-BS, rd_inner_count=1,   # per-beat, walking back
+            wr_stride_0=BS,  wr_stride_1=BS,  wr_inner_count=length3)  # one contiguous run
+        await run_case("reverse read", c0, c1,
+                       self.expected_per_beat(src3, -BS, -BS, 1, length3),
+                       self.expected_run_bases(dst3, BS, length3, length3))
+
+        # Case 4: Legacy descriptor on the extended build (desc_type=0 -> linear).
+        self.rd_addr_seq = []
+        self.wr_addr_seq = []
+        leg = self.create_descriptor(src_addr=0x70000, dst_addr=0x80000, length=8, last=True)
+        await self.send_descriptor(leg)
+        idle = await self.wait_for_idle(timeout_cycles=2000)
+        if not (idle and self.rd_addr_seq == [(0x70000, 8)] and self.wr_addr_seq == [(0x80000, 8)]):
+            all_ok = False
+            self.log.error(f"  ❌ legacy-on-ext: idle={idle} "
+                           f"rd={[(hex(a),b) for a,b in self.rd_addr_seq]} "
+                           f"wr={[(hex(a),b) for a,b in self.wr_addr_seq]}")
+        else:
+            self.log.info("  ✅ legacy descriptor on extended build")
+
+        self.capture_addrs = False
+        self.log.info(f"Extended addressing test: {'PASS' if all_ok else 'FAIL'}")
+        return all_ok
 
     async def test_descriptor_chaining(self, chain_length=3):
         """Test sequential descriptor processing (NOT true chaining - that's integration test)

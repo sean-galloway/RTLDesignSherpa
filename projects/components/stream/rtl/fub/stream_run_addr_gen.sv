@@ -197,7 +197,13 @@ module stream_run_addr_gen #(
     //=========================================================================
     // Address FIFO (prefetch generated addresses ahead of consumption)
     //=========================================================================
-    assign w_res_ready = 1'b1;  // FIFO write side accepts (depth sized for prefetch)
+    // The addr-gen result interface MUST backpressure on the FIFO's wr_ready:
+    // otherwise, when the FIFO fills (consumer slower than the 1/cycle generator)
+    // the addr-gen would advance its index while its output is dropped, losing
+    // addresses and desyncing (underrun/hang). Feeding wr_ready to i_result_ready
+    // stalls generation until the FIFO drains.
+    logic w_fifo_wr_ready;
+    assign w_res_ready = w_fifo_wr_ready;
 
     gaxi_fifo_sync #(
         .DATA_WIDTH(ADDR_WIDTH),
@@ -206,7 +212,7 @@ module stream_run_addr_gen #(
         .axi_aclk    (clk),
         .axi_aresetn (rst_n),
         .wr_valid    (w_res_valid),
-        .wr_ready    (),            // depth sized to hold in-flight addresses
+        .wr_ready    (w_fifo_wr_ready),
         .wr_data     (w_res_addr),
         .rd_valid    (o_base_valid),
         .rd_ready    (i_base_ready),

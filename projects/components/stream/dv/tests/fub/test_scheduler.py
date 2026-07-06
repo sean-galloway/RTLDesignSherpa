@@ -456,6 +456,23 @@ async def cocotb_test_scheduler(dut):
     # Save coverage at end of test
     coverage.save()
 
+
+@cocotb.test(timeout_time=100, timeout_unit="ms")
+async def cocotb_test_scheduler_extended(dut):
+    """TASK-101: extended (dma_address_gen) addressing.
+
+    Built with USE_ROW_COL_MAJOR_ADDRESSING=1. Verifies the exact strided
+    address sequences for run-contiguous 2D-tiled copy, per-beat 2-D transpose,
+    per-beat reverse read, plus a legacy descriptor on the extended build.
+    """
+    tb = SchedulerTB(dut)
+    await tb.setup_clocks_and_reset()  # also runs configure_scheduler()
+    await tb.initialize_test()
+
+    result = await tb.test_extended_addressing()
+    assert result, "TASK-101 extended addressing test failed (see logged sequences)"
+
+
 # ===========================================================================
 # PARAMETER GENERATION
 # ===========================================================================
@@ -633,3 +650,85 @@ def test_scheduler(request, test_type, channel_id, num_channels, addr_width, dat
         print(f"Scheduler {test_type} test failed: {str(e)}")
         print(f"Logs: {log_path}")
         raise
+
+
+# ===========================================================================
+# TASK-101 EXTENDED-ADDRESSING WRAPPER (USE_ROW_COL_MAJOR_ADDRESSING=1)
+# ===========================================================================
+
+def test_scheduler_extended(request):
+    """Pytest wrapper for the TASK-101 extended-addressing test.
+
+    Builds the scheduler with USE_ROW_COL_MAJOR_ADDRESSING=1 and runs the
+    cocotb_test_scheduler_extended case (strided / 2D-tiled / transpose /
+    reverse address-sequence verification + legacy-on-extended-build).
+    """
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_stream_fub': '../../../../rtl/stream_fub',
+        'rtl_stream_includes': '../../../../rtl/includes'
+    })
+
+    dut_name = "scheduler"
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/stream/rtl/filelists/fub/scheduler.f'
+    )
+
+    test_name_plus_params = f"test_{dut_name}_extended_rowcol"
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    rtl_parameters = {
+        'CHANNEL_ID': 0,
+        'NUM_CHANNELS': 8,
+        'ADDR_WIDTH': 64,
+        'DATA_WIDTH': 512,
+        'USE_ROW_COL_MAJOR_ADDRESSING': 1,   # ← enable extended addressing
+    }
+
+    extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.vcd",
+        'VERILATOR_TRACE': '1',
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': results_path,
+        'SEED': str(random.randint(0, 100000)),
+        'TEST_LEVEL': 'basic',
+        'TEST_DEBUG': '0',
+    }
+
+    compile_args = [
+        "--trace", "--trace-structs", "--trace-depth", "99",
+        "-Wno-TIMESCALEMOD",
+    ]
+
+    create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    run(
+        python_search=[tests_dir],
+        verilog_sources=verilog_sources,
+        includes=includes,
+        toplevel=dut_name,
+        module=module,
+        testcase="cocotb_test_scheduler_extended",
+        parameters=rtl_parameters,
+        sim_build=sim_build,
+        extra_env=extra_env,
+        simulator="verilator",
+        waves=enable_waves,
+        keep_files=True,
+        compile_args=compile_args,
+        sim_args=["--trace", "--trace-structs", "--trace-depth", "99"],
+        plus_args=['--trace'] if enable_waves else []
+    )
+    print(f"Scheduler extended-addressing test completed! Logs: {log_path}")

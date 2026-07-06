@@ -84,7 +84,7 @@ module scheduler #(
     // dma_address_gen run-base generators (read + write) so a transfer can be
     // strided / 2D-tiled / circular / reverse / transpose. Legacy descriptors
     // and the whole param=0 build keep linear address accumulation verbatim.
-    parameter bit USE_ROW_COL_MAJOR_ADDRESSING = 1'b0
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -246,7 +246,7 @@ module scheduler #(
     // 0 and all logic below synthesizes away (legacy linear accumulation).
     descriptor_ext_t r_descriptor_ext;
     logic w_is_ext;
-    assign w_is_ext = USE_ROW_COL_MAJOR_ADDRESSING &&
+    assign w_is_ext = (USE_ROW_COL_MAJOR_ADDRESSING != 0) &&
                       (r_descriptor.desc_type == DESC_TYPE_EXT);
 
     // Per-direction "beats left in the current contiguous run". Capped onto
@@ -742,7 +742,7 @@ module scheduler #(
     // src/dst addr, loaded directly). Independent read/write instances give the
     // separate src/dst iteration that transpose and gather/scatter require.
     generate
-    if (USE_ROW_COL_MAJOR_ADDRESSING) begin : g_addrgen
+    if (USE_ROW_COL_MAJOR_ADDRESSING != 0) begin : g_addrgen
         stream_run_addr_gen #(
             .ADDR_WIDTH   (ADDR_WIDTH),
             .STRIDE_WIDTH (STREAM_ADDRGEN_STRIDE_WIDTH),

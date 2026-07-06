@@ -49,7 +49,7 @@ module stream_core #(
     parameter int CHAN_WIDTH = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1,
     parameter int ADDR_WIDTH = 64,
     parameter int DATA_WIDTH = 512,
-    parameter bit USE_ROW_COL_MAJOR_ADDRESSING = 1'b0,  // TASK-101 STREAM Extended
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,  // TASK-101 STREAM Extended
     parameter int AXI_ID_WIDTH = 8,
     parameter int FIFO_DEPTH = 512,
     parameter int AR_MAX_OUTSTANDING = 8,

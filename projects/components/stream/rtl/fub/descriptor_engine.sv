@@ -68,7 +68,7 @@ module descriptor_engine #(
     // descriptor_addr + 0x20 to retrieve chunk 1 (addr-gen cfg), emitted on
     // descriptor_ext_packet. When 0 the second-fetch path is unreachable and
     // synthesizes away -> legacy 256-bit single-beat behavior verbatim.
-    parameter bit USE_ROW_COL_MAJOR_ADDRESSING = 1'b0,
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,
     parameter int TIMEOUT_CYCLES = 1000,
     // Monitor Bus Parameters
     parameter logic [15:0] MON_AGENT_ID = 16'h0010,  // Descriptor Engine Agent ID
@@ -538,7 +538,7 @@ module descriptor_engine #(
     // desc_type=0). Instantiated only when USE_ROW_COL_MAJOR_ADDRESSING=1; when
     // 0 the extended output is tied off and this FIFO synthesizes away.
     generate
-    if (USE_ROW_COL_MAJOR_ADDRESSING) begin : g_ext_fifo
+    if (USE_ROW_COL_MAJOR_ADDRESSING != 0) begin : g_ext_fifo
         logic [255:0] w_desc_ext_fifo_rd_data;
         gaxi_fifo_sync #(
             .DATA_WIDTH(256),
@@ -635,7 +635,7 @@ module descriptor_engine #(
     // TASK-101: chunk-0 response carries an EXT descriptor (desc_type at [210:208]).
     // Only meaningful when USE_ROW_COL_MAJOR_ADDRESSING=1; otherwise held 0 so the
     // second-fetch path is unreachable and synthesizes away.
-    assign w_want_ext = USE_ROW_COL_MAJOR_ADDRESSING &&
+    assign w_want_ext = (USE_ROW_COL_MAJOR_ADDRESSING != 0) &&
                         (r_data[210:208] == DESC_TYPE_EXT);
 
     // We're ready when waiting for our response (chunk 0 or, for EXT, chunk 1)

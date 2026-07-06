@@ -57,7 +57,7 @@ module stream_top_ch8 #(
     parameter int NUM_CHANNELS = 8,
     parameter int DATA_WIDTH = 512,
     parameter int ADDR_WIDTH = 64,
-    parameter bit USE_ROW_COL_MAJOR_ADDRESSING = 1'b0,  // TASK-101 STREAM Extended
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,  // TASK-101 STREAM Extended
     parameter int SRAM_DEPTH = 4096,
     parameter int APB_ADDR_WIDTH = 13,
     parameter int APB_DATA_WIDTH = 32,

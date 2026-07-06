@@ -43,7 +43,7 @@ module scheduler_group_array #(
     parameter int CHAN_WIDTH = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1,
     parameter int ADDR_WIDTH = 64,
     parameter int DATA_WIDTH = 512,
-    parameter bit USE_ROW_COL_MAJOR_ADDRESSING = 1'b0,  // TASK-101 STREAM Extended
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,  // TASK-101 STREAM Extended
     parameter int AXI_ID_WIDTH = 8,
     // Monitor Bus Base IDs
     parameter int DESC_MON_BASE_AGENT_ID = 16,   // 0x10 - Descriptor Engines (16-23)
