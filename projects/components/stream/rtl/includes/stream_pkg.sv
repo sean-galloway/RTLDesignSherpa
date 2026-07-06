@@ -51,14 +51,36 @@ package stream_pkg;
     //       [195]     - error: Error flag (used for status)
     //       [199:196] - channel_id: Channel ID (INFORMATIONAL ONLY - for MonBus/debug)
     //       [207:200] - desc_priority: Transfer priority
-    //       [255:208] - reserved: Reserved for future use
+    //       [210:208] - desc_type: Descriptor type (0 = legacy 256b; 1 = extended 512b) [TASK-101]
+    //       [255:211] - reserved: Reserved for future use
     //
     // NOTE: Channel selection is determined by APB register address, NOT by channel_id field.
     //       Writing to CHx_CTRL APB register implicitly selects that channel.
     //       The channel_id field is for monitoring/logging purposes only.
 
+    //=========================================================================
+    // Descriptor Type (TASK-101, STREAM Extended)
+    //=========================================================================
+    // Selects legacy linear addressing vs dma_address_gen-driven addressing,
+    // and (equivalently) the physical descriptor length. Lives in bits [210:208]
+    // of chunk 0 (carved from the former reserved field). DESC_TYPE_LEGACY = 0
+    // so legacy descriptors (reserved = 0) decode to today's behavior verbatim.
+    //   LEGACY: 256-bit descriptor, 1 chunk,  linear address accumulation
+    //   EXT:    512-bit descriptor, 2 chunks, per-direction dma_address_gen cfg
+    // Only meaningful when the scheduler is built with
+    // USE_ROW_COL_MAJOR_ADDRESSING = 1; with the param = 0 the hardware is
+    // legacy-only and this field is ignored.
+    typedef enum logic [2:0] {
+        DESC_TYPE_LEGACY = 3'd0,  // 256-bit, 1 chunk, linear addressing
+        DESC_TYPE_EXT    = 3'd1   // 512-bit, 2 chunks, dma_address_gen addressing
+        // 3'd2 .. 3'd7 reserved for future descriptor formats
+    } desc_type_e;
+
+    // Chunk 0 (bits [255:0]) - legacy layout, byte-identical to the original
+    // 256-bit descriptor except that reserved[2:0] is now named desc_type.
     typedef struct packed {
-        logic [63:0]  reserved;              // [255:192] Reserved
+        logic [60:0]  reserved;              // [271:211] Reserved (top 16 = struct pad)
+        desc_type_e   desc_type;             // [210:208] Descriptor type (0 = legacy)
         logic [7:0]   desc_priority;         // [207:200] Transfer priority
         logic [3:0]   channel_id;            // [199:196] Channel ID (informational only)
         logic         error;                 // [195] Error flag
@@ -71,8 +93,36 @@ package stream_pkg;
         logic [63:0]  src_addr;              // [63:0] Source address
     } descriptor_t;
 
-    // Descriptor size in bits
-    parameter int STREAM_DESCRIPTOR_WIDTH = 256;
+    // Chunk 1 (bits [511:256]) - extended addr-gen cfg, present only when
+    // desc_type == DESC_TYPE_EXT. Independent read/write cfg is what enables
+    // transpose (row-major read <-> col-major write) and independent
+    // gather/scatter. Strides are signed byte strides; wrap fields are log2 of
+    // the circular window (0 = no wrap) which the scheduler expands to a
+    // (2^n - 1) mask before driving dma_address_gen.
+    typedef struct packed {
+        logic [63:0]        reserved_hi;     // [511:448] future: 3rd dim / elem-size
+        logic [3:0]         wr_reserved;     // [447:444]
+        logic [5:0]         wr_wrap1_log2;   // [443:438]
+        logic [5:0]         wr_wrap0_log2;   // [437:432]
+        logic [15:0]        wr_inner_count;  // [431:416] index_0 extent (beats/row)
+        logic signed [31:0] wr_stride_1;     // [415:384] signed byte stride (outer)
+        logic signed [31:0] wr_stride_0;     // [383:352] signed byte stride (inner)
+        logic [3:0]         rd_reserved;     // [351:348]
+        logic [5:0]         rd_wrap1_log2;   // [347:342]
+        logic [5:0]         rd_wrap0_log2;   // [341:336]
+        logic [15:0]        rd_inner_count;  // [335:320] index_0 extent (beats/row)
+        logic signed [31:0] rd_stride_1;     // [319:288] signed byte stride (outer)
+        logic signed [31:0] rd_stride_0;     // [287:256] signed byte stride (inner)
+    } descriptor_ext_t;
+
+    // Descriptor sizes in bits
+    parameter int STREAM_DESCRIPTOR_WIDTH     = 256;  // chunk 0 (legacy)
+    parameter int STREAM_DESCRIPTOR_EXT_WIDTH = 512;  // chunk 0 + chunk 1 (extended)
+
+    // dma_address_gen instantiation widths used by the STREAM scheduler
+    // (match the extended descriptor's stride / index field widths).
+    parameter int STREAM_ADDRGEN_STRIDE_WIDTH = 32;   // signed byte stride
+    parameter int STREAM_ADDRGEN_INDEX_WIDTH  = 16;   // inner_count extent
 
     //=========================================================================
     // Channel State Enumeration (ONE-HOT ENCODED)
@@ -154,6 +204,30 @@ package stream_pkg;
     // Validate descriptor
     function automatic logic is_valid_desc(input descriptor_t desc);
         return desc.valid;
+    endfunction
+
+    //=========================================================================
+    // Extended Descriptor Helper Functions (TASK-101)
+    //=========================================================================
+
+    // Extract descriptor type from chunk 0
+    function automatic desc_type_e get_desc_type(input descriptor_t desc);
+        return desc.desc_type;
+    endfunction
+
+    // Is this an extended (512-bit, 2-chunk) descriptor?
+    function automatic logic is_extended_desc(input descriptor_t desc);
+        return (desc.desc_type == DESC_TYPE_EXT);
+    endfunction
+
+    // Expand a log2-encoded circular-window size into a dma_address_gen wrap
+    // mask. wrap_log2 == 0 means "no wrap" (full range) -> mask 0. Otherwise
+    // the mask is (2^wrap_log2 - 1), constraining the offset to a power-of-2
+    // region via bitwise AND inside dma_address_gen.
+    function automatic logic [STREAM_ADDRGEN_STRIDE_WIDTH-1:0]
+            wrap_log2_to_mask(input logic [5:0] wrap_log2);
+        return (wrap_log2 == 6'd0) ? '0
+            : (STREAM_ADDRGEN_STRIDE_WIDTH'((1 << wrap_log2) - 1));
     endfunction
 
 endpackage : stream_pkg
