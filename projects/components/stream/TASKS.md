@@ -244,6 +244,26 @@ the base tutorial.
 `desc_type`), two queued addr-gens (rd+wr, enabling transpose), gated by
 compile-time `USE_ROW_COL_MAJOR_ADDRESSING`.
 
+**Implementation status (2026-07-06):**
+- Phase 1 (pkg foundation), Phase 2 (descriptor_engine 2nd-half fetch), and
+  Phase 3 (scheduler + `stream_run_addr_gen`) are implemented and verified for
+  non-regression (legacy FUB tests green at param=0; both param modes elaborate).
+- **Addressing granularity = run-contiguous** (chosen over per-beat). `inner_count`
+  = contiguous beats per run (the engine bursts these, `stride_0` = beat_size);
+  the addr-gen emits one base per run via `index_1 * stride_1` (+ `wrap1`).
+  `stream_run_addr_gen` wraps one `dma_address_gen` + a run-base FIFO per
+  direction; the scheduler accumulates address contiguously WITHIN a run and
+  reloads from the run-base FIFO at each run boundary (stalling that direction
+  one cycle between runs). Legacy/param=0 keep linear accumulation verbatim.
+- **Supported now (1-D run addressing):** linear, 2D-tiled *contiguous-row* copy
+  (`inner=W`, `s1=row_pitch`), circular (`wrap1`), reverse (`s1<0`), and 1-D
+  strided/scatter/gather (`inner=1`, `s1=stride`).
+- **NOT yet: full 2-D transpose.** A WxH transpose needs the write side to walk
+  TWO strided dimensions per element; the current helper walks only `index_1`.
+  Follow-on: extend `stream_run_addr_gen` to also drive `index_0` (using
+  `inner_count` as the `index_0` extent) in a per-beat sub-mode. Descriptor
+  fields (`stride_0`, `wrap0`) are already reserved for this.
+
 ---
 
 ## Completed Major Milestones

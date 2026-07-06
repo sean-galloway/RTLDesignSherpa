@@ -228,10 +228,10 @@ package stream_pkg;
     // mask. wrap_log2 == 0 means "no wrap" (full range) -> mask 0. Otherwise
     // the mask is (2^wrap_log2 - 1), constraining the offset to a power-of-2
     // region via bitwise AND inside dma_address_gen.
-    function automatic logic [STREAM_ADDRGEN_STRIDE_WIDTH-1:0]
+    function automatic logic [STREAM_ADDR_WIDTH-1:0]
             wrap_log2_to_mask(input logic [5:0] wrap_log2);
         return (wrap_log2 == 6'd0) ? '0
-            : (STREAM_ADDRGEN_STRIDE_WIDTH'((1 << wrap_log2) - 1));
+            : (STREAM_ADDR_WIDTH'((64'h1 << wrap_log2) - 64'h1));
     endfunction
 
 endpackage : stream_pkg
