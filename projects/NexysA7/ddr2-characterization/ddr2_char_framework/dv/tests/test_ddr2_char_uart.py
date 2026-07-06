@@ -225,8 +225,7 @@ async def cocotb_test_uart_simple(dut):
 # pytest wrappers
 # =============================================================================
 def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
-         strict_write_timing: bool = False, write_latency: int = 0,
-         cmd_delay: int = 0):
+         strict_write_timing: bool = False, write_latency: int = 0):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "ddr2_char_uart_tb_top"
     filelist_path = ("projects/NexysA7/ddr2-characterization/"
@@ -265,8 +264,7 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         testcase=testcase,
         # SV param override so the tb_top's DFI bus matches the BFM geometry.
         parameters={"DFI_RATE": str(dfi_rate),
-                    "DRAM_BEAT_WIDTH": str(dram_beat_width),
-                    "CMD_DELAY": str(cmd_delay)},
+                    "DRAM_BEAT_WIDTH": str(dram_beat_width)},
         sim_build=sim_build, simulator="verilator",
         extra_env=extra_env, compile_args=compile_args,
         keep_files=True, timescale="1ns/1ps")
@@ -310,5 +308,7 @@ def test_ddr2_char_uart_multichunk_rate2_beat32(request):
 #      =0) PASSES only with CMD_DELAY=5. Regression guard for the DFI write-timing
 #      contract that the lenient loopback cannot see. -----------------------------
 def test_ddr2_char_uart_smoke_rate2_strict(request):
+    # DFI_TUNING.cmd_delay defaults to 5 in the CSR (measured skew) -> the
+    # command aligns with wrdata, so the faithful write_latency=0 oracle passes.
     _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
-         strict_write_timing=True, write_latency=0, cmd_delay=5)
+         strict_write_timing=True, write_latency=0)

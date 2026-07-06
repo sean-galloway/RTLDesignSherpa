@@ -77,10 +77,11 @@ module ddr2_char_harness
     parameter int DFI_CS_BUS_W        = DFI_RATE,
     parameter int DFI_DATA_WIDTH      = DFI_RATE * DRAM_BEAT_WIDTH,
     parameter int DFI_STRB_WIDTH      = DFI_DATA_WIDTH / 8,
-    // Command-bus delay (sys-cycles) to align the WR command with write data
-    // for the a7ddrphy's write_latency=0 (pumice's wrdata is CMD_DELAY cycles
-    // late; measured 5 for nphases=2/300MT/s). 0 = passthrough. See dfi_cmd_delay.
-    parameter int CMD_DELAY           = 0
+    // Max runtime-selectable DFI command-bus delay (sys-cycles). The ACTUAL
+    // delay is set at runtime via the DFI_TUNING.cmd_delay CSR (real-time
+    // tuning, no rebuild) to align the WR command with write data for the
+    // a7ddrphy's write_latency=0. See dfi_cmd_delay.
+    parameter int CMD_MAX_DELAY       = 8
 ) (
     // Clock / reset (aclk = mc_clk = pclk = 100 MHz on the Nexys A7 board)
     input  logic                        aclk,
@@ -365,6 +366,7 @@ module ddr2_char_harness
     logic [7:0]   w_t_phy_wrlat, w_t_rddata_en;
     logic         w_rd_in_order;
     logic [3:0]   w_cap_lookahead_max, w_cap_synth_mask;
+    logic [3:0]   w_cmd_delay_sel;   // DFI_TUNING.cmd_delay (runtime, from CSR)
 
     // WR engine cfg
     logic [AXI_ADDR_WIDTH-1:0]        w_cfg_wr_start_addr;
@@ -485,6 +487,7 @@ module ddr2_char_harness
         .o_rd_in_order       (w_rd_in_order),
         .o_cap_lookahead_max (w_cap_lookahead_max),
         .o_cap_synth_mask    (w_cap_synth_mask),
+        .o_cmd_delay         (w_cmd_delay_sel),
 
         // a7ddrphy calibration CSR passthrough -> harness boundary -> top -> PHY
         .o_phy_csr_adr       (o_phy_csr_adr),
@@ -786,10 +789,11 @@ module ddr2_char_harness
         .DFI_CTRL_BUS_W (DFI_CTRL_BUS_W),
         .DFI_CS_BUS_W   (DFI_CS_BUS_W),
         .DFI_RATE       (DFI_RATE),
-        .CMD_DELAY      (CMD_DELAY)
+        .MAX_DELAY      (CMD_MAX_DELAY)
     ) u_dfi_cmd_delay (
         .mc_clk      (aclk),
         .mc_rst_n    (aresetn),
+        .sel_i       (w_cmd_delay_sel[$clog2(CMD_MAX_DELAY+1)-1:0]),
         .i_address   (w_c_dfi_address),
         .i_bank      (w_c_dfi_bank),
         .i_cas_n     (w_c_dfi_cas_n),

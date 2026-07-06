@@ -139,6 +139,13 @@ addrmap harness_csr {
         field { sw = rw; hw = r; } cap_lookahead_max[3:0] = 0;
         field { sw = rw; hw = r; } cap_synth_mask[7:4]    = 0;
     } CTRLR_CAP @ 0x64;
+    reg {
+        desc = "DFI harness timing tuning (real-time, no rebuild). cmd_delay =
+                sys-cycles the DFI command bus + rddata_en are delayed to land
+                the WR command concurrent with write data (a7ddrphy
+                write_latency=0). Default 5 (measured pumice cmd->data skew).";
+        field { sw = rw; hw = r; } cmd_delay[3:0] = 5;
+    } DFI_TUNING @ 0x68;
 
     //=========================================================================
     // a7ddrphy calibration CSR passthrough (indirect; firmware leveling)

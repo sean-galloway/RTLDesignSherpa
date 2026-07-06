@@ -5,22 +5,22 @@
 // Purpose: Align the DFI command stream with the write-data stream to satisfy
 //          the a7ddrphy's write_latency=0 contract (wrdata CONCURRENT with the
 //          WR command). pumice's wr_beat_sequencer only starts pulling write
-//          data at WR-command-accept, so dfi_wrdata_en/wrdata emerge a FIXED
-//          CMD_DELAY sys-cycles AFTER the command (command pipeline + pull
-//          floor; measured = 5 for the nphases=2 / 300 MT/s config). We delay
-//          the COMMAND bus (address/bank/ras/cas/we/cs/cke/odt) + rddata_en by
-//          CMD_DELAY and pass wrdata/wrdata_en/mask through undelayed, so the
-//          (delayed) WR command lands concurrent with its data. Delaying the
-//          whole command bus uniformly preserves inter-command spacing
-//          (tRCD/tRP/tMRD/tRFC), and delaying rddata_en with the RD command
-//          keeps the read command<->rddata_en relationship intact.
+//          data at WR-command-accept, so dfi_wrdata_en/wrdata emerge a fixed
+//          few sys-cycles AFTER the command. We delay the COMMAND bus
+//          (address/bank/ras/cas/we/cs/cke/odt) + rddata_en by `sel_i`
+//          sys-cycles and pass wrdata/wrdata_en/mask through undelayed, so the
+//          (delayed) WR command lands concurrent with its data.
 //
-//          CMD_DELAY=0 is a bit-exact passthrough (default / back-compat).
+//          RUNTIME-TUNABLE: `sel_i` (0..MAX_DELAY) comes from a CSR
+//          (harness DFI_TUNING.cmd_delay), so the alignment is swept live over
+//          UART with no rebuild — like a production controller. sel_i=0 is a
+//          bit-exact passthrough. Change sel_i only while idle (mid-burst
+//          changes glitch the pipeline). Delaying the whole command bus
+//          uniformly preserves inter-command spacing (tRCD/tRP/tMRD/tRFC);
+//          delaying rddata_en with the RD command preserves read timing.
 //
-//          NOTE: this is a timing-alignment SHIM for the characterization
-//          harness. The general controller fix is wr_beat_sequencer pre-pull
-//          (start pulling at scheduler-select so wrdata is ready at command
-//          time, eliminating the skew). See wr_beat_sequencer.sv header.
+//          NOTE: timing-alignment shim for the characterization harness. The
+//          general controller fix is wr_beat_sequencer pre-pull.
 
 `timescale 1ns / 1ps
 
@@ -32,10 +32,14 @@ module dfi_cmd_delay #(
     parameter int DFI_CTRL_BUS_W = 2,   // = DFI_RATE
     parameter int DFI_CS_BUS_W   = 2,   // = DFI_RATE
     parameter int DFI_RATE       = 2,
-    parameter int CMD_DELAY      = 0    // sys-cycles to delay the command bus
+    parameter int MAX_DELAY      = 8,   // max runtime-selectable command delay
+    parameter int SEL_W          = $clog2(MAX_DELAY + 1)
 ) (
     input  logic                        mc_clk,
     input  logic                        mc_rst_n,
+
+    // ----- runtime delay select (CSR-driven), 0..MAX_DELAY -----
+    input  logic [SEL_W-1:0]            sel_i,
 
     // ----- command bus in (from controller) -----
     input  logic [DFI_ADDR_BUS_W-1:0]   i_address,
@@ -48,7 +52,7 @@ module dfi_cmd_delay #(
     input  logic [DFI_CS_BUS_W-1:0]     i_odt,
     input  logic [DFI_RATE-1:0]         i_rddata_en,
 
-    // ----- command bus out (delayed) -----
+    // ----- command bus out (delayed by sel_i) -----
     output logic [DFI_ADDR_BUS_W-1:0]   o_address,
     output logic [DFI_BANK_BUS_W-1:0]   o_bank,
     output logic [DFI_CTRL_BUS_W-1:0]   o_cas_n,
@@ -60,78 +64,68 @@ module dfi_cmd_delay #(
     output logic [DFI_RATE-1:0]         o_rddata_en
 );
 
-    generate
-        if (CMD_DELAY == 0) begin : g_passthru
-            assign o_address   = i_address;
-            assign o_bank      = i_bank;
-            assign o_cas_n     = i_cas_n;
-            assign o_ras_n     = i_ras_n;
-            assign o_we_n      = i_we_n;
-            assign o_cs_n      = i_cs_n;
-            assign o_cke       = i_cke;
-            assign o_odt       = i_odt;
-            assign o_rddata_en = i_rddata_en;
-        end else begin : g_delay
-            // Shift registers, NOP-initialized so nothing spurious issues while
-            // the pipeline fills (cs_n=1 deselected, ras/cas/we=1, cke=0 until
-            // real traffic arrives — CKE is held by the controller anyway).
-            logic [DFI_ADDR_BUS_W-1:0] r_address [CMD_DELAY];
-            logic [DFI_BANK_BUS_W-1:0] r_bank    [CMD_DELAY];
-            logic [DFI_CTRL_BUS_W-1:0] r_cas_n   [CMD_DELAY];
-            logic [DFI_CTRL_BUS_W-1:0] r_ras_n   [CMD_DELAY];
-            logic [DFI_CTRL_BUS_W-1:0] r_we_n    [CMD_DELAY];
-            logic [DFI_CS_BUS_W-1:0]   r_cs_n    [CMD_DELAY];
-            logic [DFI_CS_BUS_W-1:0]   r_cke     [CMD_DELAY];
-            logic [DFI_CS_BUS_W-1:0]   r_odt     [CMD_DELAY];
-            logic [DFI_RATE-1:0]       r_rddata_en [CMD_DELAY];
+    // MAX_DELAY-deep shift registers, NOP-initialized (cs_n=1 deselected,
+    // ras/cas/we=1) so nothing spurious issues while the pipeline fills.
+    logic [DFI_ADDR_BUS_W-1:0] r_address [MAX_DELAY];
+    logic [DFI_BANK_BUS_W-1:0] r_bank    [MAX_DELAY];
+    logic [DFI_CTRL_BUS_W-1:0] r_cas_n   [MAX_DELAY];
+    logic [DFI_CTRL_BUS_W-1:0] r_ras_n   [MAX_DELAY];
+    logic [DFI_CTRL_BUS_W-1:0] r_we_n    [MAX_DELAY];
+    logic [DFI_CS_BUS_W-1:0]   r_cs_n    [MAX_DELAY];
+    logic [DFI_CS_BUS_W-1:0]   r_cke     [MAX_DELAY];
+    logic [DFI_CS_BUS_W-1:0]   r_odt     [MAX_DELAY];
+    logic [DFI_RATE-1:0]       r_rddata_en [MAX_DELAY];
 
-            `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
-                if (`RST_ASSERTED(mc_rst_n)) begin
-                    for (int i = 0; i < CMD_DELAY; i++) begin
-                        r_address[i]   <= '0;
-                        r_bank[i]      <= '0;
-                        r_cas_n[i]     <= '1;
-                        r_ras_n[i]     <= '1;
-                        r_we_n[i]      <= '1;
-                        r_cs_n[i]      <= '1;   // deselected NOP
-                        r_cke[i]       <= '0;
-                        r_odt[i]       <= '0;
-                        r_rddata_en[i] <= '0;
-                    end
-                end else begin
-                    r_address[0]   <= i_address;
-                    r_bank[0]      <= i_bank;
-                    r_cas_n[0]     <= i_cas_n;
-                    r_ras_n[0]     <= i_ras_n;
-                    r_we_n[0]      <= i_we_n;
-                    r_cs_n[0]      <= i_cs_n;
-                    r_cke[0]       <= i_cke;
-                    r_odt[0]       <= i_odt;
-                    r_rddata_en[0] <= i_rddata_en;
-                    for (int i = 1; i < CMD_DELAY; i++) begin
-                        r_address[i]   <= r_address[i-1];
-                        r_bank[i]      <= r_bank[i-1];
-                        r_cas_n[i]     <= r_cas_n[i-1];
-                        r_ras_n[i]     <= r_ras_n[i-1];
-                        r_we_n[i]      <= r_we_n[i-1];
-                        r_cs_n[i]      <= r_cs_n[i-1];
-                        r_cke[i]       <= r_cke[i-1];
-                        r_odt[i]       <= r_odt[i-1];
-                        r_rddata_en[i] <= r_rddata_en[i-1];
-                    end
-                end
-            end)
-
-            assign o_address   = r_address[CMD_DELAY-1];
-            assign o_bank      = r_bank[CMD_DELAY-1];
-            assign o_cas_n     = r_cas_n[CMD_DELAY-1];
-            assign o_ras_n     = r_ras_n[CMD_DELAY-1];
-            assign o_we_n      = r_we_n[CMD_DELAY-1];
-            assign o_cs_n      = r_cs_n[CMD_DELAY-1];
-            assign o_cke       = r_cke[CMD_DELAY-1];
-            assign o_odt       = r_odt[CMD_DELAY-1];
-            assign o_rddata_en = r_rddata_en[CMD_DELAY-1];
+    `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
+        if (`RST_ASSERTED(mc_rst_n)) begin
+            for (int i = 0; i < MAX_DELAY; i++) begin
+                r_address[i]   <= '0;
+                r_bank[i]      <= '0;
+                r_cas_n[i]     <= '1;
+                r_ras_n[i]     <= '1;
+                r_we_n[i]      <= '1;
+                r_cs_n[i]      <= '1;   // deselected NOP
+                r_cke[i]       <= '0;
+                r_odt[i]       <= '0;
+                r_rddata_en[i] <= '0;
+            end
+        end else begin
+            r_address[0]   <= i_address;
+            r_bank[0]      <= i_bank;
+            r_cas_n[0]     <= i_cas_n;
+            r_ras_n[0]     <= i_ras_n;
+            r_we_n[0]      <= i_we_n;
+            r_cs_n[0]      <= i_cs_n;
+            r_cke[0]       <= i_cke;
+            r_odt[0]       <= i_odt;
+            r_rddata_en[0] <= i_rddata_en;
+            for (int i = 1; i < MAX_DELAY; i++) begin
+                r_address[i]   <= r_address[i-1];
+                r_bank[i]      <= r_bank[i-1];
+                r_cas_n[i]     <= r_cas_n[i-1];
+                r_ras_n[i]     <= r_ras_n[i-1];
+                r_we_n[i]      <= r_we_n[i-1];
+                r_cs_n[i]      <= r_cs_n[i-1];
+                r_cke[i]       <= r_cke[i-1];
+                r_odt[i]       <= r_odt[i-1];
+                r_rddata_en[i] <= r_rddata_en[i-1];
+            end
         end
-    endgenerate
+    end)
+
+    // Runtime tap select: sel_i=0 -> passthrough; sel_i=k -> k-deep delayed.
+    // Clamp to MAX_DELAY so an out-of-range CSR value can't index past the reg.
+    logic [SEL_W-1:0] w_sel;
+    assign w_sel = (sel_i > SEL_W'(MAX_DELAY)) ? SEL_W'(MAX_DELAY) : sel_i;
+
+    assign o_address   = (w_sel == 0) ? i_address   : r_address[w_sel-1];
+    assign o_bank      = (w_sel == 0) ? i_bank      : r_bank[w_sel-1];
+    assign o_cas_n     = (w_sel == 0) ? i_cas_n     : r_cas_n[w_sel-1];
+    assign o_ras_n     = (w_sel == 0) ? i_ras_n     : r_ras_n[w_sel-1];
+    assign o_we_n      = (w_sel == 0) ? i_we_n      : r_we_n[w_sel-1];
+    assign o_cs_n      = (w_sel == 0) ? i_cs_n      : r_cs_n[w_sel-1];
+    assign o_cke       = (w_sel == 0) ? i_cke       : r_cke[w_sel-1];
+    assign o_odt       = (w_sel == 0) ? i_odt       : r_odt[w_sel-1];
+    assign o_rddata_en = (w_sel == 0) ? i_rddata_en : r_rddata_en[w_sel-1];
 
 endmodule : dfi_cmd_delay

@@ -317,6 +317,14 @@ class DDR2CharDriver:
                         cap_lookahead_max=cap_lookahead_max & 0xF,
                         cap_synth_mask=cap_synth_mask & 0xF)
 
+    def set_dfi_cmd_delay(self, cmd_delay: int) -> None:
+        """Real-time DFI command->write-data alignment (a7ddrphy
+        write_latency=0). Sweep live over UART, no rebuild. Set while idle."""
+        self.regs.write("DFI_TUNING", cmd_delay=cmd_delay & 0xF)
+
+    def get_dfi_cmd_delay(self) -> int:
+        return self.regs.field("DFI_TUNING", "cmd_delay")
+
     # ----- a7ddrphy calibration CSR (leveling knobs) ----------------------
     def phy_poke(self, knob: int, val: int = 1) -> None:
         """Write `val` to the a7ddrphy CSR word `knob` via the indirect
