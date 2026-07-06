@@ -30,6 +30,15 @@ sim/logs/*.log
 sim/__pycache__/
 sim/.pytest_cache/
 
+# Phase-2 UART-equivalence sim (dv/) build + log artifacts
+dv/tests/local_sim_build/
+dv/tests/logs/
+dv/tests/__pycache__/
+dv/tests/.pytest_cache/
+
+# PeakRDL default output dir (only dv/tbclasses/*_regmap.py is kept)
+rtl/generated/
+
 # Waveforms (optional - usually too large)
 *.vcd
 *.fst

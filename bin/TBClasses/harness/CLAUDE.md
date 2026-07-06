@@ -87,5 +87,8 @@ with `bin/peakrdl_generate.py --regmap`, hand it to `UartRegisterMap`.
 (`ddr2_char.py`, `pumice_master.py`), sim
 `ddr2_char_framework/dv/tests/test_ddr2_char_uart.py` (tb_top +
 `make_uart_channel` + `cocotb.external`), RDL `ddr2_char_framework/rtl/harness_csr.rdl`.
-STREAM (`stream_characterization`) and CDC (`cdc_counter_display`) use the same
-UART->uart_axil_bridge->harness spine and can adopt the sim half the same way.
+CDC (`cdc_counter_display`) is a second worked example (host `host/cdc_demo.py` +
+`cdc_programs.py`, sim `dv/tests/test_cdc_demo_uart.py`, CSR `rtl/cdc_demo_csr.rdl`);
+its sim swaps the unsimulatable MMCM/BUFGMUX clock tree for behavioral co-prime
+`ctr_clk`s. STREAM (`stream_characterization`) uses the same spine and can adopt
+the sim half the same way.

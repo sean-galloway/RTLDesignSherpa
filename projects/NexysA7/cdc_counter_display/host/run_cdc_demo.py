@@ -1,24 +1,25 @@
 #!/usr/bin/env python3
-"""
-run_cdc_demo.py — Host runner for the cdc_demo_top FPGA bitstream.
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 sean galloway
+"""run_cdc_demo.py — Host CLI for the cdc_demo_top FPGA bitstream.
+
+Thin front-end: builds a `CdcDemoDriver` (by-name registers over the UART/AXIL
+bridge) and dispatches to the authored-once programs in `cdc_programs.py` — the
+SAME programs the cocotb sim runs (dv/tests/test_cdc_demo_uart.py). No hardcoded
+offsets live here; the register layout comes from the PeakRDL regmap.
 
 Subcommands:
-  smoke       Verify the link works: read BUILD_ID, exercise SCRATCH,
-              dump all four counters' defaults.
-  monitor     Real-time view of all four counters' VALUE / PRESS_COUNT
-              (updates every 200 ms — Ctrl-C to stop).
-  press       Inject N host-press events to a counter and verify the
-              expected VALUE = INIT + N * INCREMENT (mod 256).
-  watch-fail  THE headline demo: put a chosen counter in NO-CDC mode
-              with AUTO_INC=1, then sweep its PICKOFF from slow to
-              fast. Reads VALUE before/after each step; computes
-              variance to surface "garbage" reads at high speeds.
-  reset       Soft reset everything via CTRL[0].
-  set         Generic register write (debug).
-  get         Generic register read (debug).
+  smoke       BUILD_ID + SCRATCH round-trip + per-counter defaults.
+  monitor     Real-time VALUE / PRESS_COUNT for all four counters.
+  press       Inject N HOST_PRESS events and verify VALUE = INIT + N*INC.
+  cfg-load    CFG_LOAD reloads VALUE to INIT, leaving PRESS_COUNT intact.
+  cdc-mode    Round-trip every CDC_MODE code through the CSR.
+  watch-fail  Headline demo: NO-CDC + AUTO_INC, sweep pickoff slow→fast.
+  reset       Soft reset via CTRL.soft_reset.
+  set / get   Raw register poke/peek (absolute bus address) for debug.
 
 Bitstream: cdc_demo_top.  Default UART port: /dev/ttyUSB1.
-Documentation: ../docs/HARNESS.md
+Docs: ../docs/HARNESS.md
 """
 
 import argparse
@@ -26,146 +27,40 @@ import sys
 import time
 from pathlib import Path
 
-# Reuse the existing UART AXI bridge from the converters project
-HERE = Path(__file__).resolve().parent
-REPO = HERE.parent.parent.parent.parent
-sys.path.insert(0, str(REPO / "projects/components/converters/bin"))
-try:
-    from uart_axi_bridge import UARTAxiBridge
-except ImportError:
-    print("ERROR: cannot import uart_axi_bridge. Run from a checked-out repo.")
-    sys.exit(2)
+# host/ on sys.path so cdc_demo / cdc_programs import cleanly when run directly.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cdc_demo as cd            # noqa: E402
+import cdc_programs as progs     # noqa: E402
 
 
-# -----------------------------------------------------------------------------
-# CSR map — keep this aligned with ../docs/HARNESS.md and cdc_demo_harness.sv
-# -----------------------------------------------------------------------------
-
-OFF_BUILD_ID    = 0x000
-OFF_STATUS      = 0x004
-OFF_CTRL        = 0x008
-OFF_DISP_SELECT = 0x00C
-OFF_SCRATCH     = 0x010
-
-NUM_COUNTERS    = 4
-
-def ctr_base(i: int) -> int:
-    if not 0 <= i < NUM_COUNTERS:
-        raise ValueError(f"counter index out of range: {i}")
-    return 0x40 + i * 0x40
-
-OFF_DIVISOR    = 0x00
-OFF_INIT       = 0x04
-OFF_INCREMENT  = 0x08
-OFF_CFG_LOAD   = 0x0C
-OFF_HOST_PRESS = 0x10
-OFF_VALUE      = 0x14
-OFF_PRESS_CNT  = 0x18
-OFF_CLK_TICKS  = 0x1C
-OFF_CDC_MODE   = 0x20
-OFF_AUTO_INC   = 0x24
-
-EXPECTED_BUILD_ID = 0x4344_4331   # "CDC1"
-
-CLK_HZ = 100_000_000  # sys_clk
-
-CDC_MODE_NAMES = {0: "NO-CDC",
-                  1: "STRETCH (cdc_open_loop, ~20 MHz cliff)",
-                  2: "SYNC-FIFO (fifo_async)",
-                  3: "TWO-PHASE (cdc_2_phase_handshake)",
-                  4: "FOUR-PHASE (cdc_4_phase_handshake)"}
-
-
-# -----------------------------------------------------------------------------
-# Per-counter helpers
-# -----------------------------------------------------------------------------
-
-class Counter:
-    def __init__(self, bridge, idx):
-        self.b   = bridge
-        self.i   = idx
-        self.base = ctr_base(idx)
-
-    def w(self, off, val): self.b.write(self.base + off, val & 0xFFFF_FFFF)
-    def r(self, off):       return self.b.read (self.base + off)
-
-    # Convenience accessors
-    # DIVISOR field layout (v3):
-    #   bits [2:0]  = CLOCK_SELECT (0..3 = MMCM outputs, 4 = divided clock)
-    #   bits [12:8] = DIV_PICKOFF (used when CLOCK_SELECT=4)
-    def set_clock_select(self, sel):
-        cur = self.r(OFF_DIVISOR)
-        new = (cur & ~0x7) | (sel & 0x7)
-        self.w(OFF_DIVISOR, new)
-
-    def set_div_pickoff(self, pickoff):
-        cur = self.r(OFF_DIVISOR)
-        new = (cur & ~(0x1F << 8)) | ((pickoff & 0x1F) << 8)
-        self.w(OFF_DIVISOR, new)
-
-    def clock_select(self):  return self.r(OFF_DIVISOR) & 0x7
-    def div_pickoff(self):   return (self.r(OFF_DIVISOR) >> 8) & 0x1F
-
-    # Back-compat alias (treats pickoff as the full DIVISOR word)
-    def set_pickoff(self, val):      self.w(OFF_DIVISOR,   val)
-    def set_init(self, init):        self.w(OFF_INIT,      init    & 0xFF)
-    def set_increment(self, inc):    self.w(OFF_INCREMENT, inc     & 0xFF)
-    def load(self):                  self.w(OFF_CFG_LOAD,  1)
-    def press(self):                 self.w(OFF_HOST_PRESS, 1)
-    def set_cdc_mode(self, mode):    self.w(OFF_CDC_MODE,  mode & 0x7)
-    def set_auto_inc(self, en):      self.w(OFF_AUTO_INC,  en   & 1)
-
-    def value(self):       return self.r(OFF_VALUE)      & 0xFFFF
-    def press_count(self): return self.r(OFF_PRESS_CNT)  & 0xFFFF
-    def clk_ticks(self):   return self.r(OFF_CLK_TICKS)  & 0xFFFFFFFF
-    def cdc_mode(self):    return self.r(OFF_CDC_MODE)   & 0x7
-    def auto_inc(self):    return self.r(OFF_AUTO_INC)   & 1
-
-
-# -----------------------------------------------------------------------------
-# Subcommands
-# -----------------------------------------------------------------------------
-
-def cmd_smoke(args, bridge):
+def cmd_smoke(args, drv):
     print("\n== SMOKE TEST ==")
-    bid = bridge.read(OFF_BUILD_ID)
-    print(f"  BUILD_ID = 0x{bid:08X}", end="")
-    if bid != EXPECTED_BUILD_ID:
-        print(f"  FAIL (expected 0x{EXPECTED_BUILD_ID:08X})")
-        return 1
-    print("  OK")
-
-    for v in (0xDEAD_BEEF, 0x1234_5678, 0xA5A5_5A5A):
-        bridge.write(OFF_SCRATCH, v)
-        rb = bridge.read(OFF_SCRATCH)
-        ok = "OK" if rb == v else f"FAIL (got 0x{rb:08X})"
-        print(f"  SCRATCH 0x{v:08X} -> 0x{rb:08X}  {ok}")
-        if rb != v: return 1
-
+    r = progs.smoke(drv)
+    print(f"  BUILD_ID = 0x{r.build_id:08X}  "
+          f"{'OK' if r.build_id_ok else f'FAIL (expected 0x{cd.EXPECTED_BUILD_ID:08X})'}")
+    for wrote, read, ok in r.scratch:
+        print(f"  SCRATCH 0x{wrote:08X} -> 0x{read:08X}  {'OK' if ok else 'FAIL'}")
     print("\n  Per-counter defaults:")
-    print(f"  {'idx':>3}  {'pickoff':>8}  {'init':>6}  {'inc':>5}  {'value':>6}  "
-          f"{'presses':>7}  {'mode':<18}  {'auto':>4}")
-    for i in range(NUM_COUNTERS):
-        c = Counter(bridge, i)
-        mode = c.cdc_mode()
-        print(f"  {i:>3}  {c.r(OFF_DIVISOR):>8}  0x{c.r(OFF_INIT):>04X}  "
-              f"{c.r(OFF_INCREMENT):>5}  0x{c.value():>04X}  "
-              f"{c.press_count():>7}  {mode}={CDC_MODE_NAMES.get(mode,'?'):<14}  "
-              f"{c.auto_inc():>4}")
-    return 0
+    print(f"  {'idx':>3}  {'divisor':>9}  {'init':>6}  {'inc':>5}  {'value':>6}  "
+          f"{'presses':>7}  {'mode':<20}  {'auto':>4}")
+    for c in r.counters:
+        print(f"  {c.idx:>3}  0x{c.divisor:>07X}  0x{c.init:>04X}  {c.increment:>5}  "
+              f"0x{c.value:>04X}  {c.press_count:>7}  "
+              f"{c.cdc_mode}={cd.CDC_MODE_NAMES.get(c.cdc_mode,'?'):<16}  {c.auto_inc:>4}")
+    return 0 if r.ok else 1
 
 
-def cmd_monitor(args, bridge):
+def cmd_monitor(args, drv):
     print("\n== MONITOR (Ctrl-C to stop) ==")
-    print(f"  {'time':>6}  "
-          + "  ".join(f"ctr{i}.val ctr{i}.cnt" for i in range(NUM_COUNTERS)))
+    print(f"  {'time':>6}  " + "  ".join(f"ctr{i}.val ctr{i}.cnt"
+                                         for i in range(cd.NUM_COUNTERS)))
     t0 = time.time()
     try:
         while True:
-            cs = [Counter(bridge, i) for i in range(NUM_COUNTERS)]
             row = f"{time.time()-t0:6.1f}  "
-            for c in cs:
-                row += f"   0x{c.value():02X}    {c.press_count():>5}   "
+            for i in range(cd.NUM_COUNTERS):
+                c = drv.counter(i)
+                row += f"   0x{c.value():04X}  {c.press_count():>5}   "
             print(row)
             time.sleep(args.interval)
     except KeyboardInterrupt:
@@ -173,150 +68,83 @@ def cmd_monitor(args, bridge):
     return 0
 
 
-def cmd_press(args, bridge):
-    c = Counter(bridge, args.counter)
-    init = c.r(OFF_INIT) & 0xFF
-    inc  = c.r(OFF_INCREMENT) & 0xFF
-    pc_before  = c.press_count()
-    val_before = c.value()
-
+def cmd_press(args, drv):
+    r = progs.press(drv, args.counter, args.count)
     print(f"\n== PRESS counter {args.counter}: {args.count} injections "
-          f"(INIT=0x{init:02X} INC={inc}) ==")
-    print(f"  Before: VALUE=0x{val_before:02X}  PRESS_COUNT={pc_before}")
-    t0 = time.time()
-    for _ in range(args.count):
-        c.press()
-    elapsed = time.time() - t0
-
-    # Give the CDC a moment to settle
-    time.sleep(0.1)
-
-    pc_after  = c.press_count()
-    val_after = c.value()
-    expected_val = (val_before + args.count * inc) & 0xFF
-
-    print(f"  After:  VALUE=0x{val_after:02X}  PRESS_COUNT={pc_after}  "
-          f"(elapsed {elapsed:.2f} s)")
-    print(f"  Expected VALUE = (0x{val_before:02X} + {args.count} * {inc}) "
-          f"& 0xFF = 0x{expected_val:02X}")
-    print(f"  PRESS_COUNT delta = {pc_after - pc_before}")
-    rv = 0
-    if val_after != expected_val:
-        print("  VALUE MISMATCH (CDC error?)")
-        rv = 1
-    if pc_after - pc_before != args.count:
-        print("  PRESS_COUNT delta MISMATCH (lost host_press events?)")
-        rv = 1
-    if rv == 0:
-        print("  OK")
-    return rv
+          f"(INIT=0x{r.init:02X} INC={r.increment}) ==")
+    print(f"  VALUE 0x{r.value_before:04X} -> 0x{r.value_after:04X}  "
+          f"(expected 0x{r.value_expected:04X})")
+    print(f"  PRESS_COUNT delta = {r.press_delta}")
+    print("  OK" if r.ok else "  FAIL")
+    return 0 if r.ok else 1
 
 
-def cmd_watch_fail(args, bridge):
-    """
-    THE headline demo. Put one counter in NO-CDC + AUTO_INC, then sweep
-    its PICKOFF from slow → fast. At each step, sample VALUE several
-    times and compute the spread — proper CDC shows monotonic progress
-    (or matches the auto-inc rate), broken CDC at fast clock shows wide
-    variance and impossible jumps.
+def cmd_cfg_load(args, drv):
+    r = progs.cfg_load(drv, args.counter)
+    print(f"\n== CFG-LOAD counter {args.counter} ==")
+    print(f"  after 5 presses: VALUE=0x{r.value_mid:04X} PRESS_COUNT={r.press_mid}")
+    print(f"  after reload:    VALUE=0x{r.value_reload:04X} "
+          f"(target 0x{r.reload_target:04X}) PRESS_COUNT={r.press_reload}")
+    print("  OK" if r.ok else "  FAIL")
+    return 0 if r.ok else 1
 
-    Output is a table the user can correlate with the 7-seg flicker.
-    """
-    c = Counter(bridge, args.counter)
 
-    print(f"\n== WATCH-FAIL demo on counter {args.counter} ==")
-    print(f"  Setting CDC_MODE = 1 (NO CDC, raw cross), AUTO_INC = 1")
-    print(f"  Display: set DISP_SELECT to {args.counter} via:")
-    print(f"           python3 {sys.argv[0]} --port {args.port} set "
-          f"0x{OFF_DISP_SELECT:03X} {args.counter}")
+def cmd_cdc_mode(args, drv):
+    r = progs.cdc_mode_check(drv, args.counter)
+    print(f"\n== CDC-MODE round-trip counter {args.counter} ==")
+    for wrote, read in r.checks:
+        print(f"  mode {wrote} -> {read}  {'OK' if wrote == read else 'FAIL'}")
+    print("  OK" if r.ok else "  FAIL")
+    return 0 if r.ok else 1
 
-    bridge.write(OFF_DISP_SELECT, args.counter)
-    c.set_cdc_mode(1)
-    c.set_auto_inc(1)
-    c.set_init(0)
-    c.set_increment(1)
-    c.load()
-    time.sleep(0.2)
 
-    # The sweep: pickoff in decreasing order = increasing clock freq.
-    # f_ctr = 100 MHz / 2^(pickoff+1)
+def cmd_watch_fail(args, drv):
+    print(f"\n== WATCH-FAIL demo on counter {args.counter} "
+          f"(NO-CDC + AUTO_INC, sweep pickoff) ==")
     sweep = args.pickoffs or [23, 19, 15, 13, 11, 9, 7, 5, 3, 1, 0]
-
-    print()
-    print(f"  {'pickoff':>7}  {'ctr_clk':>12}  "
-          f"{'samples (VALUE @ ~50 ms intervals)':<60}  variance")
-    print("  " + "-" * 100)
-    for po in sweep:
-        c.set_pickoff(po)
-        time.sleep(0.1)  # let the new pickoff settle through the bin2gray sync
-
-        # 10 samples spread over ~500 ms
-        samples = []
-        for _ in range(10):
-            samples.append(c.value())
-            time.sleep(0.05)
-
-        # Compute spread (min/max/range) and the unique values seen
-        lo, hi = min(samples), max(samples)
-        spread = (hi - lo) & 0xFF
-        unique = len(set(samples))
-
-        # ctr_clk frequency at this pickoff:  f = 100 MHz / 2^(pickoff+1)
-        f_ctr = CLK_HZ / (1 << (po + 1))
-        f_str = (f"{f_ctr/1e6:.3f} MHz" if f_ctr >= 1e6 else
-                 f"{f_ctr/1e3:.2f} kHz" if f_ctr >= 1e3 else
-                 f"{f_ctr:.2f} Hz")
-        samples_str = " ".join(f"{v:02X}" for v in samples)
-        print(f"  {po:>7}  {f_str:>12}  {samples_str:<60}  "
-              f"min=0x{lo:02X} max=0x{hi:02X} range=0x{spread:02X} unique={unique}")
-
-    # Reset counter back to proper / off so the demo doesn't leave a flickering
-    # display behind.
-    c.set_cdc_mode(0)
-    c.set_auto_inc(0)
-    c.set_pickoff(23)
-
-    print()
-    print("  Slow rows should show 1–3 unique values (clean count progress).")
-    print("  Fast rows should show 8+ unique values across the full 0x00–0xFF")
-    print("  range (mid-transition garbage). The 7-seg flicker tracks this.")
+    rows = progs.watch_fail(drv, args.counter, sweep)
+    print(f"  {'pickoff':>7}  {'ctr_clk':>12}  {'samples':<40}  spread/unique")
+    print("  " + "-" * 80)
+    for row in rows:
+        f = row.f_ctr_hz
+        fs = (f"{f/1e6:.3f} MHz" if f >= 1e6 else
+              f"{f/1e3:.2f} kHz" if f >= 1e3 else f"{f:.2f} Hz")
+        samples = " ".join(f"{v:02X}" for v in row.samples)
+        print(f"  {row.pickoff:>7}  {fs:>12}  {samples:<40}  "
+              f"range=0x{row.spread:02X} unique={row.unique}")
+    print("\n  Slow rows: 1-3 unique values (clean). Fast rows: many unique "
+          "values across 0x00-0xFF (multi-bit skew). 7-seg flicker tracks this.")
     return 0
 
 
-def cmd_reset(args, bridge):
-    print("Soft reset via CTRL[0]...")
-    bridge.write(OFF_CTRL, 1)
+def cmd_reset(args, drv):
+    print("Soft reset via CTRL.soft_reset...")
+    drv.soft_reset()
     time.sleep(0.05)
-    bid = bridge.read(OFF_BUILD_ID)
-    print(f"  Post-reset BUILD_ID = 0x{bid:08X}", end="")
-    print("  OK" if bid == EXPECTED_BUILD_ID else "  FAIL")
-    return 0 if bid == EXPECTED_BUILD_ID else 1
+    bid = drv.build_id()
+    ok = bid == cd.EXPECTED_BUILD_ID
+    print(f"  Post-reset BUILD_ID = 0x{bid:08X}  {'OK' if ok else 'FAIL'}")
+    return 0 if ok else 1
 
 
-def cmd_set(args, bridge):
-    addr = int(args.addr, 0)
-    val  = int(args.val,  0)
-    bridge.write(addr, val)
+def cmd_set(args, drv):
+    addr, val = int(args.addr, 0), int(args.val, 0)
+    drv.bridge.write(addr, val)
     print(f"  WRITE 0x{addr:08X} <= 0x{val:08X}")
     return 0
 
 
-def cmd_get(args, bridge):
+def cmd_get(args, drv):
     addr = int(args.addr, 0)
-    val  = bridge.read(addr)
+    val = drv.bridge.read(addr)
     print(f"  READ  0x{addr:08X} => 0x{val:08X}")
     return 0
 
 
-# -----------------------------------------------------------------------------
-# CLI
-# -----------------------------------------------------------------------------
-
 def main():
     p = argparse.ArgumentParser(
-        description="Host runner for cdc_demo_top bitstream.",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__)
+        description="Host CLI for cdc_demo_top bitstream.",
+        formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__)
     p.add_argument("--port", default="/dev/ttyUSB1",
                    help="Serial device (default /dev/ttyUSB1)")
     p.add_argument("--baud", type=int, default=115200)
@@ -329,15 +157,19 @@ def main():
 
     pp = sub.add_parser("press")
     pp.add_argument("--counter", type=int, default=0)
-    pp.add_argument("--count",   type=int, default=100)
+    pp.add_argument("--count", type=int, default=100)
+
+    pc = sub.add_parser("cfg-load")
+    pc.add_argument("--counter", type=int, default=0)
+
+    pcd = sub.add_parser("cdc-mode")
+    pcd.add_argument("--counter", type=int, default=0)
 
     pw = sub.add_parser("watch-fail")
-    pw.add_argument("--counter",  type=int, default=2,
-                    help="Which counter to corrupt (default 2)")
+    pw.add_argument("--counter", type=int, default=2)
     pw.add_argument("--pickoffs", type=lambda s: [int(x) for x in s.split(",")],
                     default=None,
-                    help="Comma list of pickoff values to sweep "
-                         "(default: 23,19,15,13,11,9,7,5,3,1,0)")
+                    help="Comma list of pickoffs (default 23,19,15,13,11,9,7,5,3,1,0)")
 
     sub.add_parser("reset")
 
@@ -349,18 +181,17 @@ def main():
     pg.add_argument("addr")
 
     args = p.parse_args()
-
-    bridge = UARTAxiBridge(port=args.port, baudrate=args.baud)
+    drv = cd.CdcDemoDriver(port=args.port, baud=args.baud)
     try:
         cmds = {
             "smoke": cmd_smoke, "monitor": cmd_monitor, "press": cmd_press,
+            "cfg-load": cmd_cfg_load, "cdc-mode": cmd_cdc_mode,
             "watch-fail": cmd_watch_fail, "reset": cmd_reset,
             "set": cmd_set, "get": cmd_get,
         }
-        return cmds[args.cmd](args, bridge)
+        return cmds[args.cmd](args, drv)
     finally:
-        if hasattr(bridge, "ser"):
-            bridge.ser.close()
+        drv.close()
 
 
 if __name__ == "__main__":

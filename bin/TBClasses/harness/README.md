@@ -49,5 +49,10 @@ The shared RTL bridge (`UARTAxiBridge`, ASCII `W/R` protocol) lives in
    result = await cocotb.external(my_program)(drv)
    ```
 
-Reference implementation: `projects/NexysA7/ddr2-characterization/` (host
-`flows-ours-uart/host/`, sim `ddr2_char_framework/dv/tests/test_ddr2_char_uart.py`).
+Reference implementations:
+- `projects/NexysA7/ddr2-characterization/` (host `flows-ours-uart/host/`, sim
+  `ddr2_char_framework/dv/tests/test_ddr2_char_uart.py`) — DFI-model backend.
+- `projects/NexysA7/cdc_counter_display/` (host `host/cdc_demo.py` +
+  `cdc_programs.py`, sim `dv/tests/test_cdc_demo_uart.py`, CSR
+  `rtl/cdc_demo_csr.rdl`) — a compact example whose sim swaps the unsimulatable
+  MMCM/BUFGMUX clock tree for behavioral co-prime `ctr_clk`s.

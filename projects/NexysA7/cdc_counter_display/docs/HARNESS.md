@@ -161,25 +161,34 @@ STRETCH is an integer, so two different `MAX_SAFE_SRC_HZ` values can produce the
 
 ---
 
-## Host script
+## Host / sim (shared UART-char harness collateral)
 
-See [`host/run_cdc_demo.py`](../host/run_cdc_demo.py). Quick overview:
+This flow follows the NexysA7 UART-characterization methodology (`bin/TBClasses/harness/*`,
+`ddr2-characterization` reference): **one authored-once program runs byte-for-byte
+identically on the FPGA and in a cocotb sim.** The equivalence boundary is the ASCII
+`W/R` byte stream on the UART wire.
+
+| Layer | File | Notes |
+|---|---|---|
+| CSR descriptor (by-name) | `rtl/cdc_demo_csr.rdl` → `dv/tbclasses/cdc_demo_csr_regmap.py` | PeakRDL regmap; **no hardcoded offsets**. Regen: `make regmap`. |
+| Driver | `host/cdc_demo.py` (`CdcDemoDriver`) | Wraps `UARTAxiBridge` + `UartRegisterMap`. Bridge is **injectable** (`bridge=`) so the same driver runs on pyserial or a cocotb channel. |
+| Programs | `host/cdc_programs.py` | `smoke / press / cfg_load / cdc_mode_check / watch_fail` — authored once. |
+| CLI | `host/run_cdc_demo.py` | Thin front-end over the programs. |
+| Sim tb_top | `dv/tb/cdc_demo_uart_tb_top.sv` | Real `uart_axil_bridge` + `cdc_demo_harness` + 4× `cdc_counter_domain`; `ctr_clk`s driven behaviorally (the MMCM/BUFGMUX tree does not simulate). |
+| Sim test | `dv/tests/test_cdc_demo_uart.py` | Runs the UNMODIFIED programs via `make_uart_channel` + `cocotb.external`. |
+| Drift guard | `host/test_cdc_demo_regmap_consistency.py` | regmap vs SV header + `CTR_OFF_*`. |
 
 ```bash
-# Build + program (one-time, ~5 min)
-make build-demo
-make program-demo
+# Regenerate the regmap after editing the RDL (CRITICAL RULE #0: never hand-edit)
+make regmap && make consistency
 
-# Run a quick smoke test (BUILD_ID, scratch, all 4 counters defaults)
+# Prove the harness in sim (same programs the FPGA runs, over the real bridge RTL)
+make sim-demo
+
+# Build + program the board (one-time, ~5 min), then run the SAME programs on silicon
+make build-demo && make program-demo
 python3 host/run_cdc_demo.py --port /dev/ttyUSB1 smoke
-
-# Sweep counter 0's divisor and show how VALUE updates
-python3 host/run_cdc_demo.py --port /dev/ttyUSB1 sweep --counter 0 --divisors 1000,10000,100000
-
-# Inject 1000 host-press events to counter 2 and verify VALUE = INIT + 1000*INCREMENT
 python3 host/run_cdc_demo.py --port /dev/ttyUSB1 press --counter 2 --count 1000
-
-# Real-time monitor of all 4 counters' VALUE/PRESS_COUNT
 python3 host/run_cdc_demo.py --port /dev/ttyUSB1 monitor
 ```
 
