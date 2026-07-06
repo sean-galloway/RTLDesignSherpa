@@ -115,6 +115,9 @@ module rd_cl_aligner
     logic [MAX_CONCURRENT-1:0][7:0]       r_op_wait_cnt;
     logic [MAX_CONCURRENT-1:0][BLW:0]     r_op_en_remaining;
     logic [MAX_CONCURRENT-1:0][BLW:0]     r_op_dfi_captured;
+    // ceil(len/DFI_RATE), captured at alloc (constant per op) — see the
+    // dfi_cycles_total block. Removes the +/>> from the completion compares.
+    logic [MAX_CONCURRENT-1:0][BLW:0]     r_op_dfi_total;
     logic [MAX_CONCURRENT-1:0][BLW-1:0]   r_op_beats_emitted;
     // Per-context is_last_chunk flag — latched at op-accept and read by
     // the EMIT pipeline to gate rd_inject_last_o (issue #22).
@@ -145,6 +148,9 @@ module rd_cl_aligner
     logic [MCL:0]                         r_emit_head_ptr;  // pop position
     logic [MCL:0]                         r_en_head_ptr;    // EN read position
     logic [MCL:0]                         r_cap_head_ptr;   // CAP read position
+    // Registered cap-head op = r_fifo[r_cap_head_ptr], kept in lockstep so the
+    // capture CE decode doesn't pay the r_fifo mux (rate=4 FPGA timing).
+    logic [MCL-1:0]                       r_cap_op;
 
     // Pre-compute next-position wraps for the advance guards.
     logic [MCL:0] w_en_head_next;
@@ -177,29 +183,30 @@ module rd_cl_aligner
     // at each pipeline's absolute head pointer (low MCL bits).
     //=========================================================================
     logic [MCL-1:0] w_en_op;
-    logic [MCL-1:0] w_cap_op;
     logic [MCL-1:0] w_emit_op;
     assign w_en_op   = r_fifo[r_en_head_ptr  [MCL-1:0]];
-    assign w_cap_op  = r_fifo[r_cap_head_ptr [MCL-1:0]];
     assign w_emit_op = r_fifo[r_emit_head_ptr[MCL-1:0]];
+    // cap-head op is the REGISTERED r_cap_op (see its declaration); the
+    // combinational r_fifo[r_cap_head_ptr] is folded into r_cap_op's lockstep.
 
     //=========================================================================
-    // Pre-compute DFI cycles needed for the EMIT-head op's burst.
+    // DFI-cycle total per op (= ceil(len/DFI_RATE)). TIMING (rate=4 FPGA
+    // closure): precomputed at alloc into r_op_dfi_total (constant per op) so
+    // the completion compares don't pay the +/>> on their paths. The CAP total
+    // additionally indexes by the REGISTERED cap-head op (r_cap_op, kept in
+    // lockstep with r_fifo[r_cap_head_ptr]) so the capture CE decode does not
+    // pay the r_fifo mux either. All value-equivalent to the old combinational
+    // form (r_op_dfi_total[op] == ceil(r_op_len[op]/DFI_RATE); r_cap_op ==
+    // r_fifo[r_cap_head_ptr]); the read-capture behavior is unchanged.
     //=========================================================================
     logic [BLW:0] w_emit_dfi_cycles_total;
-    assign w_emit_dfi_cycles_total =
-        ({1'b0, r_op_len[w_emit_op]} + (BLW+1)'(DFI_RATE - 1)) >> RATE_LOG2;
+    assign w_emit_dfi_cycles_total = r_op_dfi_total[w_emit_op];
 
     logic [BLW:0] w_en_dfi_cycles_total;
-    assign w_en_dfi_cycles_total =
-        ({1'b0, r_op_len[w_en_op]} + (BLW+1)'(DFI_RATE - 1)) >> RATE_LOG2;
+    assign w_en_dfi_cycles_total   = r_op_dfi_total[w_en_op];
 
-    // CAP-side total (per cap_head_op, not en_head_op). Under the
-    // task #205 wedge the heads diverge, so CAP needs its own
-    // completion threshold computed against w_cap_op's length.
     logic [BLW:0] w_cap_dfi_cycles_total;
-    assign w_cap_dfi_cycles_total =
-        ({1'b0, r_op_len[w_cap_op]} + (BLW+1)'(DFI_RATE - 1)) >> RATE_LOG2;
+    assign w_cap_dfi_cycles_total  = r_op_dfi_total[r_cap_op];
 
     //=========================================================================
     // EN pipeline: drive en for the EN-head op while its en_remaining > 0
@@ -287,12 +294,14 @@ module rd_cl_aligner
             r_op_wait_cnt      <= '{default: '0};
             r_op_en_remaining  <= '{default: '0};
             r_op_dfi_captured  <= '{default: '0};
+            r_op_dfi_total     <= '{default: '0};
             r_op_beats_emitted <= '{default: '0};
             r_fifo_count       <= '0;
             r_tail_ptr         <= '0;
             r_emit_head_ptr    <= '0;
             r_en_head_ptr      <= '0;
             r_cap_head_ptr     <= '0;
+            r_cap_op           <= '0;
             for (int unsigned i = 0; i < MAX_CONCURRENT; i++) begin
                 r_op_slot[i] <= '0;
                 r_op_id  [i] <= '0;
@@ -313,10 +322,19 @@ module rd_cl_aligner
                 r_op_wait_cnt     [w_free_slot] <= t_rddata_en_i;
                 r_op_en_remaining [w_free_slot] <=
                     ({1'b0, op_len_i} + (BLW+1)'(DFI_RATE - 1)) >> RATE_LOG2;
+                // Same ceil(len/DFI_RATE), kept constant for the compares.
+                r_op_dfi_total    [w_free_slot] <=
+                    ({1'b0, op_len_i} + (BLW+1)'(DFI_RATE - 1)) >> RATE_LOG2;
                 r_op_dfi_captured [w_free_slot] <= '0;
                 r_op_beats_emitted[w_free_slot] <= '0;
                 r_fifo[r_tail_ptr[MCL-1:0]] <= w_free_slot;
                 r_tail_ptr <= w_tail_next;
+                // Alloc into the (empty) cap-head slot: r_cap_op tracks it now.
+                // (Only reachable when count==0 => no cap-head advance this
+                // cycle, so this can't collide with the advance updates below.)
+                if (r_tail_ptr[MCL-1:0] == r_cap_head_ptr[MCL-1:0]) begin
+                    r_cap_op <= w_free_slot;
+                end
             end
 
             //---------------------------------------------------------------
@@ -364,23 +382,31 @@ module rd_cl_aligner
             // 5. CAPTURE pipeline — same shape as EN, driven by
             //    dfi_rddata_valid_i landing into the cap-head op's stage.
             //---------------------------------------------------------------
+            // Uses r_cap_op (registered == r_fifo[r_cap_head_ptr]) instead of
+            // the combinational w_cap_op so the r_stage capture CE decode does
+            // not carry the r_fifo mux. On any cap-head advance, r_cap_op is
+            // re-loaded from r_fifo[w_cap_head_next] -- the != r_tail_ptr guard
+            // guarantees that slot is already allocated (not written this
+            // cycle), so the lockstep holds.
             if (r_fifo_count > '0
                 && (w_cap_head_next != r_tail_ptr)
-                && (!r_op_valid[w_cap_op]
-                    || (r_op_dfi_captured[w_cap_op]
+                && (!r_op_valid[r_cap_op]
+                    || (r_op_dfi_captured[r_cap_op]
                         >= w_cap_dfi_cycles_total))) begin
                 r_cap_head_ptr <= w_cap_head_next;
+                r_cap_op       <= r_fifo[w_cap_head_next[MCL-1:0]];
             end else if (dfi_rddata_valid_i && (r_fifo_count > '0)
-                && r_op_valid[w_cap_op]
-                && (r_op_dfi_captured[w_cap_op] < w_cap_dfi_cycles_total)) begin
-                r_stage[w_cap_op][r_op_dfi_captured[w_cap_op][DFI_CYC_LOG2-1:0]]
+                && r_op_valid[r_cap_op]
+                && (r_op_dfi_captured[r_cap_op] < w_cap_dfi_cycles_total)) begin
+                r_stage[r_cap_op][r_op_dfi_captured[r_cap_op][DFI_CYC_LOG2-1:0]]
                     <= dfi_rddata_i;
-                r_op_dfi_captured[w_cap_op]
-                    <= r_op_dfi_captured[w_cap_op] + (BLW+1)'(1);
-                if (r_op_dfi_captured[w_cap_op] + (BLW+1)'(1)
+                r_op_dfi_captured[r_cap_op]
+                    <= r_op_dfi_captured[r_cap_op] + (BLW+1)'(1);
+                if (r_op_dfi_captured[r_cap_op] + (BLW+1)'(1)
                     == w_cap_dfi_cycles_total
                     && (w_cap_head_next != r_tail_ptr)) begin
                     r_cap_head_ptr <= w_cap_head_next;
+                    r_cap_op       <= r_fifo[w_cap_head_next[MCL-1:0]];
                 end
             end
 
