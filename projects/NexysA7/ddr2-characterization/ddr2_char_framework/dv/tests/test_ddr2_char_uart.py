@@ -84,7 +84,10 @@ def _make_dfi_slave(dut):
     base = DFIBase(dfi_version=DFIVersion.V2_1, memory_type=MemoryType.DDR2,
                    timings=builtin_timings("ddr2-650-mt47h64m16hr"),
                    mapping=mapping, beats_per_burst=DRAM_BL)
-    slave = DFISlavePHY(dut, dut.aclk, base=base, memory=memory)
+    _strict = os.environ.get("TEST_STRICT_WRITE_TIMING", "0") == "1"
+    _wrlat = int(os.environ.get("TEST_WRITE_LATENCY", "0"))
+    slave = DFISlavePHY(dut, dut.aclk, base=base, memory=memory,
+                        strict_write_timing=_strict, write_latency=_wrlat)
     # Demote HARD JEDEC violations to SOFT: we validate data loopback, not
     # the controller's exact tRCD/tFAW here.
     slave.dram = DramStateModel(timings=base.timings, num_banks=NUM_BANKS,
@@ -221,7 +224,8 @@ async def cocotb_test_uart_simple(dut):
 # =============================================================================
 # pytest wrappers
 # =============================================================================
-def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64):
+def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
+         strict_write_timing: bool = False, write_latency: int = 0):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "ddr2_char_uart_tb_top"
     filelist_path = ("projects/NexysA7/ddr2-characterization/"
@@ -241,6 +245,11 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64):
         # tell the cocotb test how to size the DFISlavePHY BFM
         "TEST_DFI_RATE": str(dfi_rate),
         "TEST_DRAM_BEAT_BYTES": str(dram_beat_width // 8),
+        # Faithful DFI write-timing: capture wrdata at command+write_latency
+        # (like real DRAM) instead of lenient FIFO-on-wrdata_en. Reproduces the
+        # on-silicon write-timing failure the lenient BFM hides.
+        "TEST_STRICT_WRITE_TIMING": "1" if strict_write_timing else "0",
+        "TEST_WRITE_LATENCY": str(write_latency),
     }
     compile_args = [
         "+define+USE_ASYNC_RESET",
@@ -289,3 +298,13 @@ def test_ddr2_char_uart_smoke_rate2_beat32(request):
 
 def test_ddr2_char_uart_multichunk_rate2_beat32(request):
     _run("cocotb_test_uart_multichunk", dfi_rate=2, dram_beat_width=32)
+
+
+# ---- FAITHFUL write timing (a7ddrphy write_latency=0): the BFM samples wrdata
+#      at command+write_latency like real DRAM. This REPRODUCES the on-silicon
+#      write-timing failure (wr_beat_sequencer presents wrdata ~3-4 cyc too late)
+#      that the lenient loopback hides. EXPECTED TO FAIL until the write-path
+#      pre-pull fix lands; then it becomes the regression guard. ------------------
+def test_ddr2_char_uart_smoke_rate2_strict(request):
+    _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
+         strict_write_timing=True, write_latency=0)
