@@ -198,6 +198,7 @@ module pumice_core_macro_tb_top
         .t_wtr_i                (t_wtr_i),
         .t_rtp_i                (t_rtp_i),
         .t_rtw_i                (t_rtp_i),   // tb: reuse tRTP (no CSR here)
+        .t_ccd_i                (8'd4),      // tb: typical DDR2 tCCD
         .t_faw_i                (t_faw_i),
         .t_rrd_i                (t_rrd_i),
         // JEDEC init waits — small values for fast sim (no CSR in this FUB tb)

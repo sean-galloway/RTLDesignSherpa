@@ -59,6 +59,7 @@ module command_scheduler_macro
     input  logic [7:0]                 t_wtr_i,
     input  logic [7:0]                 t_rtp_i,
     input  logic [7:0]                 t_rtw_i,
+    input  logic [7:0]                 t_ccd_i,
     input  logic [7:0]                 t_faw_i,
     input  logic [7:0]                 t_rrd_i,
     // JEDEC init-sequence waits (CSR-backed)
@@ -365,7 +366,7 @@ module command_scheduler_macro
         .t_rrd_i          (t_rrd_i),
         .t_wtr_global_i   (t_wtr_i),
         .t_rtw_i          (t_rtw_i),   // now CSR-backed + independent of tRTP
-        .t_ccd_i          (8'd4),    // typical DDR2/LPDDR2 tCCD
+        .t_ccd_i          (t_ccd_i),   // now CSR-backed (TIMINGS_RRD_FAW_WTR_CCD.tCCD)
         .evt_act_i        (evt_act),
         .evt_act_rank_i   (evt_rank),
         .evt_rd_i         (evt_rd),

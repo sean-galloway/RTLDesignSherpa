@@ -103,6 +103,7 @@ module pumice_core_macro
     input  logic [7:0]                 t_wtr_i,
     input  logic [7:0]                 t_rtp_i,
     input  logic [7:0]                 t_rtw_i,
+    input  logic [7:0]                 t_ccd_i,
     input  logic [7:0]                 t_faw_i,
     input  logic [7:0]                 t_rrd_i,
     // JEDEC init-sequence waits (CSR-backed)
@@ -519,6 +520,7 @@ module pumice_core_macro
         .t_wtr_i             (t_wtr_i),
         .t_rtp_i             (t_rtp_i),
         .t_rtw_i             (t_rtw_i),
+        .t_ccd_i             (t_ccd_i),
         .t_faw_i             (t_faw_i),
         .t_rrd_i             (t_rrd_i),
         .t_init_wait_i       (t_init_wait_i),

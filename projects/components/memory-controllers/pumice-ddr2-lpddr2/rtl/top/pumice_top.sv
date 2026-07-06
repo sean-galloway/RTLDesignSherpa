@@ -298,6 +298,7 @@ module pumice_top
         .t_wtr_i             (cfg_t_wtr),
         .t_rtp_i             (cfg_t_rtp),   // now CSR-backed (TIMINGS_RTP_RTW)
         .t_rtw_i             (cfg_t_rtw),   // now CSR-backed + independent of tRTP
+        .t_ccd_i             (cfg_t_ccd),   // now CSR-backed (was hardcoded 8'd4)
         .t_faw_i             (cfg_t_faw),
         .t_rrd_i             (cfg_t_rrd),
         // JEDEC init-sequence waits (CSR-backed: INIT_TIMING0/1)
