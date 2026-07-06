@@ -239,11 +239,17 @@ def test_data_path_macro(request, test_type):
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
+    # x16-native re-validation: override DRAM beat/rate (defaults 64/2 = no
+    # behavior change) to exercise the Nexys A7 physical config (beat=32,
+    # DFI_RATE=4 -> a7ddrphy 32b/phase). Both the TB env and the RTL params
+    # must move together, so pass them to run(parameters=) below too.
+    _beat = os.environ.get("DRAM_BEAT_WIDTH_OVERRIDE", "64")
+    _rate = os.environ.get("DFI_RATE_OVERRIDE", "2")
     extra_env = {
         "DUT": dut_name,
         "TEST_TYPE": test_type,
-        "DRAM_BEAT_WIDTH": "64",
-        "DFI_RATE":        "2",
+        "DRAM_BEAT_WIDTH": _beat,
+        "DFI_RATE":        _rate,
         "SEED":            str(random.randint(0, 100000)),
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE":
@@ -268,5 +274,6 @@ def test_data_path_macro(request, test_type):
         testcase="cocotb_test_data_path_macro",
         sim_build=sim_build, simulator="verilator",
         extra_env=extra_env,
+        parameters={"DRAM_BEAT_WIDTH": _beat, "DFI_RATE": _rate},
         compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
         waves=enable_waves, keep_files=True, timescale="1ns/1ps")
