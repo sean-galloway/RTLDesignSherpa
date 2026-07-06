@@ -672,6 +672,72 @@ class StreamCharTB(TBBase):
                                 perf['starvation'] + perf['idle'])
         return perf
 
+    async def _configure_stream_for_ext(self):
+        """Minimal STREAM config for the extended-addressing suite: soft-reset +
+        scheduler / descriptor-engine / AXI config. No monitor/IRQ setup —
+        completion is polled via CH_STATE. Mirrors run_dma_test steps 1-3d."""
+        await self.uart_write(CSR_CTRL, 0x08)          # bit 3 = soft_reset pulse
+        await self.wait_clocks(self.clk_name, 100)
+        await self.clear_stats()
+        await self.wait_clocks(self.clk_name, 50)
+        await self.uart_write(APB_GLOBAL_CTRL, 0x01)   # GLOBAL_EN
+        await self.uart_write(APB_SCHED_CONFIG, 0x0F)  # sched en + timeout + err + compl
+        await self.uart_write(APB_SCHED_TIMEOUT_CYC, 0xFFFFFFFF)
+        await self.uart_write(APB_DESCENG_CONFIG, 0x01)  # descriptor engine en
+        await self.uart_write(APB_DESCENG_ADDR0_BASE,  0x0000_0000)
+        await self.uart_write(APB_DESCENG_ADDR0_LIMIT, 0xFFFF_FFFF)
+        await self.uart_write(APB_DESCENG_ADDR1_BASE,  0x0000_0000)
+        await self.uart_write(APB_DESCENG_ADDR1_LIMIT, 0xFFFF_FFFF)
+        axi_cfg = (15 & 0xFF) | ((15 & 0xFF) << 8)      # rd/wr 16-beat max burst
+        await self.uart_write(APB_AXI_XFER_CONFIG, axi_cfg)
+
+    async def run_ext_suite_test(self, W: int = 4, H: int = 4) -> bool:
+        """TASK-101 pre-validation: run the named `Stream` extended-addressing
+        suite (row/row, row/col, col/row, col/col) over the REAL bridge RTL —
+        the same host program that runs on the FPGA. Requires the harness built
+        with USE_ROW_COL_MAJOR_ADDRESSING=1.
+
+        The host program is synchronous; it runs under `cocotb.external` while a
+        `cocotb.function`-wrapped bridge over the async UART steps the sim (the
+        harness-methodology pattern, NOT a pump).
+        """
+        from stream_device import Stream
+        import stream_ext_suite as ext
+
+        await self._configure_stream_for_ext()
+
+        tb = self
+
+        class _Bridge:
+            def __init__(self):
+                self._w = cocotb.function(tb.uart_write)
+                self._r = cocotb.function(tb.uart_read)
+
+            def write(self, addr, val):
+                return bool(self._w(addr, val))
+
+            def read(self, addr):
+                return self._r(addr)
+
+        stream = Stream(_Bridge(), "stream0",
+                        regs_base=STREAM_APB_BASE, desc_ram_base=DESC_RAM_BASE,
+                        data_width=128)
+
+        def program():
+            # poll_max bounded so a hang fails within the cocotb timeout budget
+            # (each poll is a real UART read); a healthy transfer needs a handful.
+            return ext.run_suite(stream, channel=0, W=W, H=H, poll_max=400)
+
+        results = await cocotb.external(program)()
+        all_ok = True
+        for case in ext.CASES:
+            r = results[case]
+            all_ok &= r["ok"]
+            self.log.info(f"  {case:8s} {'PASS' if r['ok'] else 'FAIL'} "
+                          f"({r['beats']} beats, {r['reason']})")
+        self.log.info(f"ext_suite: {'PASS' if all_ok else 'FAIL'}")
+        return all_ok
+
     async def run_dma_test(self, num_channels: int,
                            descriptors_per_channel: int,
                            transfer_bytes: int,

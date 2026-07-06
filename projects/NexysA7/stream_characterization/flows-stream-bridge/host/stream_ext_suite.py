@@ -58,13 +58,17 @@ def program_case(stream, channel: int, case: str, W: int, H: int) -> int:
     return stream.load_ext(channel, W * H * bs, rd=rd, wr=wr)
 
 
-def wait_done(stream, channel: int, *, poll_max: int = 500_000) -> dict:
-    """Poll channel state to completion. Returns {ok, reason}."""
-    # Wait for the channel to leave IDLE (transfer accepted)...
-    for _ in range(poll_max):
+def wait_done(stream, channel: int, *, start_poll: int = 64,
+              poll_max: int = 100_000) -> dict:
+    """Poll channel state to completion. Returns {ok, reason}.
+
+    `start_poll` bounds the wait-to-leave-IDLE phase (a short transfer may finish
+    before it is observed; over a slow transport each poll is a real bus read, so
+    this must not spin). Then poll to return to IDLE, failing on CH_ERROR.
+    """
+    for _ in range(start_poll):
         if stream.channel_state(channel) != CH_IDLE:
             break
-    # ...then for it to return to IDLE, failing on CH_ERROR.
     for _ in range(poll_max):
         st = stream.channel_state(channel)
         if st == CH_ERROR:
