@@ -255,14 +255,22 @@ compile-time `USE_ROW_COL_MAJOR_ADDRESSING`.
   direction; the scheduler accumulates address contiguously WITHIN a run and
   reloads from the run-base FIFO at each run boundary (stalling that direction
   one cycle between runs). Legacy/param=0 keep linear accumulation verbatim.
-- **Supported now (1-D run addressing):** linear, 2D-tiled *contiguous-row* copy
-  (`inner=W`, `s1=row_pitch`), circular (`wrap1`), reverse (`s1<0`), and 1-D
-  strided/scatter/gather (`inner=1`, `s1=stride`).
-- **NOT yet: full 2-D transpose.** A WxH transpose needs the write side to walk
-  TWO strided dimensions per element; the current helper walks only `index_1`.
-  Follow-on: extend `stream_run_addr_gen` to also drive `index_0` (using
-  `inner_count` as the `index_0` extent) in a per-beat sub-mode. Descriptor
-  fields (`stride_0`, `wrap0`) are already reserved for this.
+- **Two addressing modes per direction, keyed off `stride_0`** (independent rd/wr
+  `stream_run_addr_gen` instances):
+  - `stride_0 == beat_size` -> **run-contiguous**: addr-gen emits one base per run
+    (`index_1 * stride_1`), engine bursts `inner_count` contiguous beats. Efficient
+    for linear, 2D-tiled contiguous copy, circular (`wrap1`), reverse (`s1<0`).
+  - `stride_0 != beat_size` -> **per-beat 2-D**: addr-gen emits every beat's
+    address (`base + i0*stride_0 + i1*stride_1`, `i0=b%inner`, `i1=b/inner`);
+    scheduler drives `sched_*_beats=1` (single-beat AXI). This is transpose /
+    arbitrary scatter, done inside ONE (arbitrarily large) descriptor.
+- **Transpose** = one descriptor, read side contiguous (`rd_stride_0=beat_size`,
+  bursts) + write side per-beat (`wr_stride_0=col_pitch`, `wr_inner_count=cols`,
+  single-beat) — or the mirror (strided read / contiguous write). Only the
+  strided direction pays single-beat AXI; the contiguous side bursts. No
+  per-beat descriptor chain needed.
+- Index counters are `INDEX_WIDTH=16` -> up to 65535 runs/beats per descriptor
+  (widen for larger single-descriptor scatter).
 
 ---
 

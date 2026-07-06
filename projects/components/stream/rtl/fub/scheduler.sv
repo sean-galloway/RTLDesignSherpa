@@ -277,20 +277,34 @@ module scheduler #(
     logic w_addrgen_start;
     assign w_addrgen_start = w_state_fetch_desc && !r_fetch_desc_d;
 
-    // Contiguous beats per run (inner_count, guarded so 0 -> 1 single-beat runs).
+    // Per-direction addressing mode: stride_0 == beat_size -> contiguous inner
+    // (run-contiguous bursts); stride_0 != beat_size -> per-beat 2-D (single-beat
+    // AXI, e.g. transpose/scatter). beat_size = DATA_WIDTH/8 bytes.
+    localparam logic signed [STREAM_ADDRGEN_STRIDE_WIDTH-1:0] BEAT_BYTES =
+                    STREAM_ADDRGEN_STRIDE_WIDTH'(DATA_WIDTH/8);
+    logic w_rd_per_beat, w_wr_per_beat;
+    assign w_rd_per_beat = w_is_ext && (r_descriptor_ext.rd_stride_0 != BEAT_BYTES);
+    assign w_wr_per_beat = w_is_ext && (r_descriptor_ext.wr_stride_0 != BEAT_BYTES);
+
+    // Effective run size = beats the engine bursts per run. Per-beat mode forces
+    // 1 (single beat); run-contiguous uses inner_count (guarded 0 -> 1).
     logic [31:0] w_rd_inner_beats, w_wr_inner_beats;
     assign w_rd_inner_beats = (r_descriptor_ext.rd_inner_count == '0) ? 32'd1
                                 : {16'h0, r_descriptor_ext.rd_inner_count};
     assign w_wr_inner_beats = (r_descriptor_ext.wr_inner_count == '0) ? 32'd1
                                 : {16'h0, r_descriptor_ext.wr_inner_count};
 
-    // Initial run size = min(inner_count, total length). For legacy the run is
-    // the whole transfer, so no boundary occurs before completion.
+    logic [31:0] w_rd_run_size, w_wr_run_size;
+    assign w_rd_run_size = w_rd_per_beat ? 32'd1 : w_rd_inner_beats;
+    assign w_wr_run_size = w_wr_per_beat ? 32'd1 : w_wr_inner_beats;
+
+    // Initial run size = min(run_size, total length). For legacy the run is the
+    // whole transfer, so no boundary occurs before completion.
     logic [31:0] w_rd_run_init, w_wr_run_init;
     assign w_rd_run_init = !w_is_ext ? r_descriptor.length
-        : ((w_rd_inner_beats < r_descriptor.length) ? w_rd_inner_beats : r_descriptor.length);
+        : ((w_rd_run_size < r_descriptor.length) ? w_rd_run_size : r_descriptor.length);
     assign w_wr_run_init = !w_is_ext ? r_descriptor.length
-        : ((w_wr_inner_beats < r_descriptor.length) ? w_wr_inner_beats : r_descriptor.length);
+        : ((w_wr_run_size < r_descriptor.length) ? w_wr_run_size : r_descriptor.length);
 
     // Timeout tracking
     // Counts clock cycles while waiting for engine grant (sched_wr_ready)
@@ -573,8 +587,8 @@ module scheduler #(
                     // drains (mutually exclusive with the done-strobe above).
                     if (w_rd_need_base && w_rd_base_valid) begin
                         r_src_addr <= w_rd_base_addr;
-                        r_rd_run_remaining <= (r_read_beats_remaining >= w_rd_inner_beats) ?
-                                                w_rd_inner_beats : r_read_beats_remaining;
+                        r_rd_run_remaining <= (r_read_beats_remaining >= w_rd_run_size) ?
+                                                w_rd_run_size : r_read_beats_remaining;
                     end
 
                     // Write ISSUE progress: SRAM → Destination (independent from read!)
@@ -602,8 +616,8 @@ module scheduler #(
                     // TASK-101: write run boundary - jump to the next run base.
                     if (w_wr_need_base && w_wr_base_valid) begin
                         r_dst_addr <= w_wr_base_addr;
-                        r_wr_run_remaining <= (r_write_beats_remaining >= w_wr_inner_beats) ?
-                                                w_wr_inner_beats : r_write_beats_remaining;
+                        r_wr_run_remaining <= (r_write_beats_remaining >= w_wr_run_size) ?
+                                                w_wr_run_size : r_write_beats_remaining;
                     end
 
                     // Write COMMIT progress: fires on B response (data actually written
@@ -739,8 +753,11 @@ module scheduler #(
             .clk             (clk),
             .rst_n           (rst_n),
             .start           (w_addrgen_start),
+            .cfg_per_beat    (w_rd_per_beat),
             .cfg_base_addr   (r_descriptor.src_addr[ADDR_WIDTH-1:0]),
+            .cfg_stride_0    (r_descriptor_ext.rd_stride_0),
             .cfg_stride_1    (r_descriptor_ext.rd_stride_1),
+            .cfg_wrap_mask_0 (wrap_log2_to_mask(r_descriptor_ext.rd_wrap0_log2)),
             .cfg_wrap_mask_1 (wrap_log2_to_mask(r_descriptor_ext.rd_wrap1_log2)),
             .cfg_inner_count (r_descriptor_ext.rd_inner_count),
             .cfg_total_beats (r_descriptor.length),
@@ -758,8 +775,11 @@ module scheduler #(
             .clk             (clk),
             .rst_n           (rst_n),
             .start           (w_addrgen_start),
+            .cfg_per_beat    (w_wr_per_beat),
             .cfg_base_addr   (r_descriptor.dst_addr[ADDR_WIDTH-1:0]),
+            .cfg_stride_0    (r_descriptor_ext.wr_stride_0),
             .cfg_stride_1    (r_descriptor_ext.wr_stride_1),
+            .cfg_wrap_mask_0 (wrap_log2_to_mask(r_descriptor_ext.wr_wrap0_log2)),
             .cfg_wrap_mask_1 (wrap_log2_to_mask(r_descriptor_ext.wr_wrap1_log2)),
             .cfg_inner_count (r_descriptor_ext.wr_inner_count),
             .cfg_total_beats (r_descriptor.length),

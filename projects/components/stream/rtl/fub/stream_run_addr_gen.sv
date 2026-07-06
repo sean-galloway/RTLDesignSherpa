@@ -6,21 +6,28 @@
 //
 // Module: stream_run_addr_gen
 // Purpose:
-//   TASK-101 (STREAM Extended) run-base address generator. Wraps one
-//   dma_address_gen plus a run-base FIFO and produces the base address of each
-//   *contiguous run* of an extended descriptor, buffered so the scheduler can
-//   pull the next run's base the cycle it finishes the current run.
+//   TASK-101 (STREAM Extended) address generator. Wraps one dma_address_gen plus
+//   a base FIFO and produces the sequence of addresses the scheduler consumes,
+//   in one of two per-direction modes:
 //
-//   Run-contiguous model (chosen design):
-//     - A transfer of `total_beats` is organized as runs of `inner_count`
-//       contiguous beats. The AXI engine bursts within a run (stride_0 =
-//       beat_size, handled by the engine's contiguous increment).
-//     - This module emits one base per run for runs 1..num_runs-1 (run 0's base
-//       is the descriptor src/dst address, used directly by the scheduler):
-//           run_base(k) = base_addr + k * stride_1   (with optional wrap_1)
-//       computed by dma_address_gen with index_0 = 0, index_1 = k.
-//     - inner_count = 1 degrades to per-element addressing (scatter / transpose
-//       write): every run is a single beat and index_1 walks every element.
+//   RUN-CONTIGUOUS (per_beat = 0, stride_0 == beat_size):
+//     A transfer of `total_beats` is organized as runs of `inner_count`
+//     contiguous beats; the AXI engine bursts within a run. This module emits
+//     one base per run for runs 1..N-1 (run 0's base = descriptor addr, used
+//     directly by the scheduler):
+//         run_base(k) = base + k * stride_1        (index_0 = 0, index_1 = k)
+//     Efficient for linear / 2D-tiled contiguous / circular / reverse copies.
+//
+//   PER-BEAT 2-D (per_beat = 1, stride_0 != beat_size):
+//     Every beat has its own address (single-beat AXI on this side). Used for
+//     transpose / arbitrary scatter, where the inner dimension is itself strided
+//     so there is no contiguous run to burst. Emits every beat 1..total-1:
+//         addr(b) = base + i0*stride_0 + i1*stride_1,
+//         with i0 = b % inner_count (inner, fastest), i1 = b / inner_count.
+//     The scheduler drives sched_*_beats = 1 for a per-beat direction.
+//
+//   Read and write use independent instances, so a transpose reads with bursts
+//   (contiguous side) and writes single-beat (strided side), or vice versa.
 //
 // Documentation: projects/components/stream/TASKS.md (TASK-101)
 // Subsystem: stream
@@ -35,26 +42,28 @@
 module stream_run_addr_gen #(
     parameter int ADDR_WIDTH   = 64,
     parameter int STRIDE_WIDTH = 32,   // signed byte stride
-    parameter int INDEX_WIDTH  = 16,   // run index / inner_count width
-    parameter int FIFO_DEPTH   = 4,    // run-base prefetch depth
+    parameter int INDEX_WIDTH  = 16,   // dimension index / inner_count width
+    parameter int FIFO_DEPTH   = 4,    // address prefetch depth
     parameter int BEATS_WIDTH  = 32    // total-beats / inner-count counter width
 ) (
     input  logic                        clk,
     input  logic                        rst_n,
 
     // Start of a new (extended) descriptor: capture cfg and (re)arm generation.
-    // Pulsed by the scheduler when the descriptor is loaded.
     input  logic                        start,
 
     // Per-descriptor configuration (sampled on `start`)
-    input  logic [ADDR_WIDTH-1:0]       cfg_base_addr,    // run 0 base (src/dst addr)
-    input  logic signed [STRIDE_WIDTH-1:0] cfg_stride_1,  // inter-run (outer) byte stride
+    input  logic                        cfg_per_beat,     // 1 = per-beat 2-D, 0 = run-contiguous
+    input  logic [ADDR_WIDTH-1:0]       cfg_base_addr,    // beat/run 0 base (src/dst addr)
+    input  logic signed [STRIDE_WIDTH-1:0] cfg_stride_0,  // inner (index_0) byte stride
+    input  logic signed [STRIDE_WIDTH-1:0] cfg_stride_1,  // outer (index_1) byte stride
+    input  logic [ADDR_WIDTH-1:0]       cfg_wrap_mask_0,  // inner wrap mask (0 = none)
     input  logic [ADDR_WIDTH-1:0]       cfg_wrap_mask_1,  // outer wrap mask (0 = none)
-    input  logic [INDEX_WIDTH-1:0]      cfg_inner_count,  // contiguous beats per run (>=1)
+    input  logic [INDEX_WIDTH-1:0]      cfg_inner_count,  // index_0 extent (>=1)
     input  logic [BEATS_WIDTH-1:0]      cfg_total_beats,  // descriptor length in beats
 
-    // Run-base output stream (runs 1..num_runs-1), consumed by the scheduler
-    // at each run boundary.
+    // Address output stream (positions 1..N-1), consumed by the scheduler at
+    // each run/beat boundary.
     output logic                        o_base_valid,
     input  logic                        i_base_ready,
     output logic [ADDR_WIDTH-1:0]       o_base_addr
@@ -63,21 +72,32 @@ module stream_run_addr_gen #(
     //=========================================================================
     // Captured configuration
     //=========================================================================
+    logic                            r_per_beat;
     logic [ADDR_WIDTH-1:0]           r_base_addr;
+    logic signed [STRIDE_WIDTH-1:0]  r_stride_0;
     logic signed [STRIDE_WIDTH-1:0]  r_stride_1;
+    logic [ADDR_WIDTH-1:0]           r_wrap_mask_0;
     logic [ADDR_WIDTH-1:0]           r_wrap_mask_1;
     logic [BEATS_WIDTH-1:0]          r_total_beats;
     logic [INDEX_WIDTH-1:0]          r_inner_count;
 
-    // Run-index generator: index_1 = 1,2,... ; r_gen_beats accumulates the beats
-    // already covered (run 0 covers the first inner_count). Generation stops once
-    // r_gen_beats >= total_beats (all runs enumerated). Multiplier-free.
-    logic [INDEX_WIDTH-1:0]          r_gen_index;    // next run index to request
-    logic [BEATS_WIDTH-1:0]          r_gen_beats;    // beats covered by runs 0..r_gen_index-1
-    logic                           r_gen_active;   // generation in progress
+    // Dimension index counters (i0 = inner/fastest, i1 = outer) and the
+    // beats-covered accumulator that terminates generation. Multiplier-free.
+    logic [INDEX_WIDTH-1:0]          r_i0, r_i1;
+    logic [BEATS_WIDTH-1:0]          r_gen_beats;   // beats covered by positions 0..current-1
+    logic                           r_gen_active;
 
-    logic w_more_runs;
-    assign w_more_runs = r_gen_active && (r_gen_beats < r_total_beats);
+    // Guarded inner_count for the start branch (0 -> 1).
+    logic [INDEX_WIDTH-1:0]          w_start_inner;
+    assign w_start_inner = (cfg_inner_count == '0) ? INDEX_WIDTH'(1) : cfg_inner_count;
+
+    // Beats advanced per generated position: 1 (per-beat) or inner_count (run).
+    logic [BEATS_WIDTH-1:0]          w_step;
+    assign w_step = r_per_beat ? BEATS_WIDTH'(1) : BEATS_WIDTH'(r_inner_count);
+
+    // More positions to enumerate while covered beats < total.
+    logic w_more;
+    assign w_more = r_gen_active && (r_gen_beats < r_total_beats);
 
     //=========================================================================
     // dma_address_gen request / result plumbing
@@ -86,9 +106,7 @@ module stream_run_addr_gen #(
     logic                    w_res_valid, w_res_ready;
     logic [ADDR_WIDTH-1:0]   w_res_addr;
 
-    // Request a base whenever more runs remain and the address generator can
-    // accept it. index_0 = 0 (run base); index_1 = current run index.
-    assign w_req_valid = w_more_runs;
+    assign w_req_valid = w_more;
 
     dma_address_gen #(
         .ADDR_WIDTH   (ADDR_WIDTH),
@@ -99,14 +117,14 @@ module stream_run_addr_gen #(
         .i_clk            (clk),
         .i_rst_n          (rst_n),
         .i_cfg_base_addr  (r_base_addr),
-        .i_cfg_stride_0   ('0),               // inner dim handled by engine burst
+        .i_cfg_stride_0   (r_stride_0),
         .i_cfg_stride_1   (r_stride_1),
-        .i_cfg_wrap_mask_0('0),
+        .i_cfg_wrap_mask_0(r_wrap_mask_0),
         .i_cfg_wrap_mask_1(r_wrap_mask_1),
         .i_req_valid      (w_req_valid),
         .o_req_ready      (w_req_ready),
-        .i_req_index_0    ('0),
-        .i_req_index_1    (r_gen_index),
+        .i_req_index_0    (r_i0),
+        .i_req_index_1    (r_i1),
         .i_req_tag        (1'b0),
         .o_result_valid   (w_res_valid),
         .i_result_ready   (w_res_ready),
@@ -114,55 +132,81 @@ module stream_run_addr_gen #(
         .o_result_tag     ()
     );
 
-    // Advance the run index each time a request is accepted.
+    //=========================================================================
+    // Index / termination generation
+    //=========================================================================
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
+            r_per_beat    <= 1'b0;
             r_base_addr   <= '0;
+            r_stride_0    <= '0;
             r_stride_1    <= '0;
+            r_wrap_mask_0 <= '0;
             r_wrap_mask_1 <= '0;
             r_total_beats <= '0;
-            r_inner_count <= '0;
-            r_gen_index   <= '0;
+            r_inner_count <= INDEX_WIDTH'(1);
+            r_i0          <= '0;
+            r_i1          <= '0;
             r_gen_beats   <= '0;
             r_gen_active  <= 1'b0;
         end else if (start) begin
-            // Capture cfg; run 0 is used directly by the scheduler, so generation
-            // begins at run index 1 having already "covered" inner_count beats.
+            // Capture cfg. Position 0 (beat/run 0) is used directly by the
+            // scheduler, so generation begins at position 1.
+            r_per_beat    <= cfg_per_beat;
             r_base_addr   <= cfg_base_addr;
+            r_stride_0    <= cfg_stride_0;
             r_stride_1    <= cfg_stride_1;
+            r_wrap_mask_0 <= cfg_wrap_mask_0;
             r_wrap_mask_1 <= cfg_wrap_mask_1;
             r_total_beats <= cfg_total_beats;
-            r_inner_count <= (cfg_inner_count == '0) ? INDEX_WIDTH'(1) : cfg_inner_count;
-            r_gen_index   <= INDEX_WIDTH'(1);
-            r_gen_beats   <= (cfg_inner_count == '0) ? BEATS_WIDTH'(1)
-                                                     : BEATS_WIDTH'(cfg_inner_count);
+            r_inner_count <= w_start_inner;
             r_gen_active  <= 1'b1;
-        end else begin
-            if (w_req_valid && w_req_ready) begin
-                r_gen_index <= r_gen_index + INDEX_WIDTH'(1);
-                r_gen_beats <= r_gen_beats + BEATS_WIDTH'(r_inner_count);
+            if (cfg_per_beat) begin
+                // Beat 1: inner index advances fastest.
+                r_gen_beats <= BEATS_WIDTH'(1);              // beat 0 covered
+                if (w_start_inner > INDEX_WIDTH'(1)) begin
+                    r_i0 <= INDEX_WIDTH'(1);
+                    r_i1 <= '0;
+                end else begin                                // inner_count == 1
+                    r_i0 <= '0;
+                    r_i1 <= INDEX_WIDTH'(1);
+                end
+            end else begin
+                // Run 1: only the outer index advances.
+                r_gen_beats <= BEATS_WIDTH'(w_start_inner);   // run 0 covered
+                r_i0 <= '0;
+                r_i1 <= INDEX_WIDTH'(1);
             end
-            // Deactivate once every run has been enumerated (last request issued).
-            if (w_req_valid && w_req_ready &&
-                (r_gen_beats + BEATS_WIDTH'(r_inner_count) >= r_total_beats)) begin
-                r_gen_active <= 1'b0;
+        end else if (w_req_valid && w_req_ready) begin
+            r_gen_beats <= r_gen_beats + w_step;
+            if (r_per_beat) begin
+                // 2-D walk: inner fastest, carry into outer.
+                if (r_i0 == (r_inner_count - INDEX_WIDTH'(1))) begin
+                    r_i0 <= '0;
+                    r_i1 <= r_i1 + INDEX_WIDTH'(1);
+                end else begin
+                    r_i0 <= r_i0 + INDEX_WIDTH'(1);
+                end
+            end else begin
+                // 1-D walk: outer only (run bases).
+                r_i1 <= r_i1 + INDEX_WIDTH'(1);
             end
         end
     )
 
     //=========================================================================
-    // Run-base FIFO (prefetch generated bases ahead of consumption)
+    // Address FIFO (prefetch generated addresses ahead of consumption)
     //=========================================================================
     assign w_res_ready = 1'b1;  // FIFO write side accepts (depth sized for prefetch)
 
     gaxi_fifo_sync #(
         .DATA_WIDTH(ADDR_WIDTH),
         .DEPTH(FIFO_DEPTH)
-    ) i_run_base_fifo (
+    ) i_addr_fifo (
         .axi_aclk    (clk),
         .axi_aresetn (rst_n),
         .wr_valid    (w_res_valid),
-        .wr_ready    (),            // depth sized to hold all in-flight bases
+        .wr_ready    (),            // depth sized to hold in-flight addresses
         .wr_data     (w_res_addr),
         .rd_valid    (o_base_valid),
         .rd_ready    (i_base_ready),
