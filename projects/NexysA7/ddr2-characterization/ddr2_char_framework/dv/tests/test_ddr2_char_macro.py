@@ -46,7 +46,7 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 # all of which exist on ddr2_char_macro_tb_top with the same names.
 _CTRL_DV_DIR = os.path.abspath(os.path.join(
     "/mnt/data/github/RTLDesignSherpa",
-    "projects/components/memory-controllers/pumice/dv"))
+    "projects/components/memory-controllers/pumice-ddr2-lpddr2/dv"))
 if _CTRL_DV_DIR not in sys.path:
     sys.path.insert(0, _CTRL_DV_DIR)
 
@@ -564,7 +564,7 @@ def test_ddr2_char_macro(request, test_type):
 #
 # The AXI random-profile (BFM AXI_RANDOMIZER_CONFIGS) cross-product
 # lives on the controller-only env:
-#   projects/components/memory-controllers/pumice/dv/tests/macro/
+#   projects/components/memory-controllers/pumice-ddr2-lpddr2/dv/tests/macro/
 #     test_pumice_core_macro.py::test_pumice_core_macro_profile_sweep
 #
 # This sweep is the engine-integration analog: it varies the engines'

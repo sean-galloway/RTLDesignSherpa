@@ -6,7 +6,7 @@ prefix, directory name, and module/package prefix for each IP.
 
 | Codename  | Generation | Directory                              | RTL prefix   |
 |-----------|------------|----------------------------------------|--------------|
-| **pumice**  | DDR2/LPDDR2 | `memory-controllers/pumice`            | `pumice_*`   |
+| **pumice**  | DDR2/LPDDR2 | `memory-controllers/pumice-ddr2-lpddr2`            | `pumice_*`   |
 | scoria    | DDR3/LPDDR3 | `memory-controllers/scoria` (planned)  | `scoria_*`   |
 | andesite  | DDR4        | (planned)                              | `andesite_*` |
 | basalt    | DDR5        | (planned)                              | `basalt_*`   |

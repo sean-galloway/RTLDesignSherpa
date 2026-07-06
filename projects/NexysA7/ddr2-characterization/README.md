@@ -3,13 +3,13 @@
 **Status:** Skeleton — directories scaffolded, harness RTL not yet written
 **Target board:** Digilent Nexys A7-100T (Artix-7 XC7A100T-CSG324)
 **Target DRAM:** Onboard Micron `MT47H64M16HR-25E` (DDR2, 16-bit, single-rank, 800 Mbps, 128 MiB)
-**Component under test:** [`projects/components/memory-controllers/pumice/`](../../components/memory-controllers/pumice/)
+**Component under test:** [`projects/components/memory-controllers/pumice-ddr2-lpddr2/`](../../components/memory-controllers/pumice-ddr2-lpddr2/)
 
 ---
 
 ## Purpose
 
-End-to-end characterization of the DDR2/LPDDR2 family memory controller on real silicon. The controller is co-developed in `projects/components/memory-controllers/pumice/` (RTL + DV + HAS + MAS) and validated in sim against the DFI BFM in the DV repo. This project drives **board-level workloads** through the controller against the real Micron device and reports throughput / latency / data integrity per workload mix.
+End-to-end characterization of the DDR2/LPDDR2 family memory controller on real silicon. The controller is co-developed in `projects/components/memory-controllers/pumice-ddr2-lpddr2/` (RTL + DV + HAS + MAS) and validated in sim against the DFI BFM in the DV repo. This project drives **board-level workloads** through the controller against the real Micron device and reports throughput / latency / data integrity per workload mix.
 
 Hardware characterization lives in `projects/NexysA7/` rather than in the component tree to preserve the component-as-IP-block boundary.
 
@@ -136,9 +136,9 @@ Multi-rank (`NUM_RANKS ∈ {1, 2, 4}`) is not exercised on this board — the on
 
 ## Cross-References
 
-- HAS: `projects/components/memory-controllers/pumice/docs/PUMICE_HAS_v0.2.pdf`
-- MAS: `projects/components/memory-controllers/pumice/docs/PUMICE_MAS_v0.1.pdf`
-- Controller RTL home: `projects/components/memory-controllers/pumice/rtl/`
+- HAS: `projects/components/memory-controllers/pumice-ddr2-lpddr2/docs/PUMICE_HAS_v0.2.pdf`
+- MAS: `projects/components/memory-controllers/pumice-ddr2-lpddr2/docs/PUMICE_MAS_v0.1.pdf`
+- Controller RTL home: `projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/`
 - DFI BFM (DV side): `RTLDesignSherpa-DV/src/CocoTBFramework/components/dfi/` — released as `cocotb-framework==0.3.0`
 - Sibling characterization projects: `projects/NexysA7/stream_characterization/`, `projects/NexysA7/timing_characterization/`
 - Stream harness blocks we're adapting on the master side: `rtl/amba/shared/axi4_slave_rd_pattern_gen.sv`, `rtl/amba/shared/axi4_slave_wr_crc_check.sv`, `rtl/amba/shared/axi4_dma_slaves.sv`

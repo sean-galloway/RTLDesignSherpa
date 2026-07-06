@@ -13,7 +13,7 @@ $REPO_ROOT/rtl/amba/shared/axi_perf_latency_hist.sv
 
 # pumice controller top — pulls in axi_frontend / scheduler / data_path
 # / dfi_v21_interface / core / csr_slave.
--f $REPO_ROOT/projects/components/memory-controllers/pumice/rtl/filelists/top/pumice_top.f
+-f $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/filelists/top/pumice_top.f
 
 # The macro itself
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/ddr2_char_macro.sv
