@@ -407,27 +407,38 @@ class SchedulerTB(TBBase):
         return await self.send_descriptor(chunk0)
 
     @staticmethod
-    def expected_run_bases(base, stride_1, inner_count, length):
-        """Run-contiguous side: (addr, beats) presented per run."""
-        seq = []
-        remaining = length
-        k = 0
-        while remaining > 0:
-            beats = min(inner_count, remaining)
-            seq.append(((base + k * stride_1) & 0xFFFFFFFFFFFFFFFF, beats))
-            remaining -= beats
-            k += 1
-        return seq
+    def _wrap_mask(log2):
+        return ((1 << log2) - 1) if log2 else 0
 
-    @staticmethod
-    def expected_per_beat(base, stride_0, stride_1, inner_count, length):
-        """Per-beat 2-D side: (addr, 1) for every beat (i0 = b%inner fastest)."""
+    @classmethod
+    def expected_seq(cls, base, s0, s1, inner, length, per_beat, w0log2=0, w1log2=0):
+        """Model the exact (addr, beats) sequence the scheduler presents.
+
+        Mirrors dma_address_gen: offset_d = (index_d*stride_d) & wrap_mask_d when
+        the mask is set, else index_d*stride_d; addr = base + offset_0 + offset_1.
+        per_beat=False -> one entry per run (index_0=0, beats=min(inner,rem));
+        per_beat=True  -> one entry per beat (i0=b%inner fastest, beats=1).
+        """
+        m0, m1 = cls._wrap_mask(w0log2), cls._wrap_mask(w1log2)
+
+        def off(idx, stride, mask):
+            raw = idx * stride
+            return (raw & mask) if mask else raw
+
+        def addr(i0, i1):
+            return (base + off(i0, s0, m0) + off(i1, s1, m1)) & 0xFFFFFFFFFFFFFFFF
+
         seq = []
-        for b in range(length):
-            i0 = b % inner_count
-            i1 = b // inner_count
-            addr = (base + i0 * stride_0 + i1 * stride_1) & 0xFFFFFFFFFFFFFFFF
-            seq.append((addr, 1))
+        if per_beat:
+            for b in range(length):
+                seq.append((addr(b % inner, b // inner), 1))
+        else:
+            remaining, k = length, 0
+            while remaining > 0:
+                beats = min(inner, remaining)
+                seq.append((addr(0, k), beats))
+                remaining -= beats
+                k += 1
         return seq
 
     async def wait_for_idle(self, timeout_cycles=500):
@@ -602,7 +613,7 @@ class SchedulerTB(TBBase):
             self.rd_addr_seq = []
             self.wr_addr_seq = []
             await self.send_ext_descriptor(chunk0, chunk1)
-            idle = await self.wait_for_idle(timeout_cycles=6000)
+            idle = await self.wait_for_idle(timeout_cycles=8000)
             ok = idle and self.rd_addr_seq == exp_rd and self.wr_addr_seq == exp_wr
             if not ok:
                 all_ok = False
@@ -614,46 +625,63 @@ class SchedulerTB(TBBase):
             else:
                 self.log.info(f"  ✅ {name}")
 
-        # Case 1: 2D-tiled contiguous copy (both sides run-contiguous).
-        #   16 beats as 4 runs of 4; row pitch 8 beats (src) / 6 beats (dst).
-        src, dst, length, inner = 0x10000, 0x20000, 16, 4
-        rp_src, rp_dst = 8 * BS, 6 * BS
-        c0, c1 = self.create_ext_descriptor(
-            src, dst, length,
-            rd_stride_0=BS, rd_stride_1=rp_src, rd_inner_count=inner,
-            wr_stride_0=BS, wr_stride_1=rp_dst, wr_inner_count=inner)
-        await run_case("2D-tiled copy", c0, c1,
-                       self.expected_run_bases(src, rp_src, inner, length),
-                       self.expected_run_bases(dst, rp_dst, inner, length))
+        async def run_ext(name, src, dst, length, rd, wr):
+            """Build + run one extended case. rd/wr = dict(s0,s1,inner,w0=0,w1=0).
+            Mode (burst vs per-beat) is inferred by the RTL from stride_0 vs BS;
+            the expected model mirrors that so the check is exact."""
+            c0, c1 = self.create_ext_descriptor(
+                src, dst, length,
+                rd_stride_0=rd['s0'], rd_stride_1=rd['s1'], rd_inner_count=rd['inner'],
+                rd_wrap0_log2=rd.get('w0', 0), rd_wrap1_log2=rd.get('w1', 0),
+                wr_stride_0=wr['s0'], wr_stride_1=wr['s1'], wr_inner_count=wr['inner'],
+                wr_wrap0_log2=wr.get('w0', 0), wr_wrap1_log2=wr.get('w1', 0))
+            exp_rd = self.expected_seq(src, rd['s0'], rd['s1'], rd['inner'], length,
+                                       rd['s0'] != BS, rd.get('w0', 0), rd.get('w1', 0))
+            exp_wr = self.expected_seq(dst, wr['s0'], wr['s1'], wr['inner'], length,
+                                       wr['s0'] != BS, wr.get('w0', 0), wr.get('w1', 0))
+            await run_case(name, c0, c1, exp_rd, exp_wr)
 
-        # Case 2: Transpose 4x4 - read row-major (burst), write col-major (per-beat).
-        src2, dst2, length2, W = 0x30000, 0x40000, 16, 4
-        rp_src2, cp_dst2 = 8 * BS, 4 * BS
-        c0, c1 = self.create_ext_descriptor(
-            src2, dst2, length2,
-            rd_stride_0=BS,      rd_stride_1=rp_src2, rd_inner_count=W,   # contiguous rows
-            wr_stride_0=cp_dst2, wr_stride_1=BS,      wr_inner_count=W)   # per-beat 2-D
-        await run_case("transpose 4x4", c0, c1,
-                       self.expected_run_bases(src2, rp_src2, W, length2),
-                       self.expected_per_beat(dst2, cp_dst2, BS, W, length2))
+        # ---- Extended cases (~15 : 1 legacy) --------------------------------
+        # Run-contiguous (both sides burst)
+        await run_ext("2D-tiled copy 4x4", 0x01000, 0x02000, 16,
+                      dict(s0=BS, s1=8 * BS, inner=4), dict(s0=BS, s1=6 * BS, inner=4))
+        await run_ext("2D-tiled inner=2", 0x03000, 0x04000, 16,
+                      dict(s0=BS, s1=5 * BS, inner=2), dict(s0=BS, s1=3 * BS, inner=2))
+        await run_ext("2D-tiled inner=8", 0x05000, 0x06000, 16,
+                      dict(s0=BS, s1=10 * BS, inner=8), dict(s0=BS, s1=9 * BS, inner=8))
+        await run_ext("addr-gen incremental", 0x07000, 0x08000, 16,   # Q2: contiguous runs
+                      dict(s0=BS, s1=4 * BS, inner=4), dict(s0=BS, s1=4 * BS, inner=4))
+        await run_ext("partial last run", 0x09000, 0x0a000, 10,       # 4,4,2
+                      dict(s0=BS, s1=7 * BS, inner=4), dict(s0=BS, s1=7 * BS, inner=4))
+        await run_ext("circular src (wrap1)", 0x0b000, 0x0c000, 8,
+                      dict(s0=BS, s1=2 * BS, inner=2, w1=8), dict(s0=BS, s1=2 * BS, inner=2))
+        # Per-beat 2-D (one or both sides single-beat)
+        await run_ext("transpose 4x4", 0x11000, 0x12000, 16,
+                      dict(s0=BS, s1=8 * BS, inner=4), dict(s0=4 * BS, s1=BS, inner=4))
+        await run_ext("transpose mirror", 0x13000, 0x14000, 16,       # strided read / burst write
+                      dict(s0=4 * BS, s1=BS, inner=4), dict(s0=BS, s1=8 * BS, inner=4))
+        await run_ext("transpose 2x4", 0x15000, 0x16000, 8,
+                      dict(s0=BS, s1=4 * BS, inner=2), dict(s0=2 * BS, s1=BS, inner=2))
+        await run_ext("reverse read", 0x17000, 0x18000, 8,
+                      dict(s0=-BS, s1=-BS, inner=1), dict(s0=BS, s1=BS, inner=8))
+        await run_ext("reverse write", 0x19000, 0x1a000, 8,
+                      dict(s0=BS, s1=BS, inner=8), dict(s0=-BS, s1=-BS, inner=1))
+        await run_ext("strided gather", 0x1b000, 0x1c000, 6,
+                      dict(s0=2 * BS, s1=2 * BS, inner=1), dict(s0=BS, s1=BS, inner=6))
+        await run_ext("scatter", 0x1d000, 0x1e000, 6,
+                      dict(s0=BS, s1=BS, inner=6), dict(s0=3 * BS, s1=3 * BS, inner=1))
+        await run_ext("both strided", 0x1f000, 0x20000, 5,
+                      dict(s0=2 * BS, s1=2 * BS, inner=1), dict(s0=3 * BS, s1=3 * BS, inner=1))
+        await run_ext("per-beat 2D inner>1", 0x21000, 0x22000, 8,
+                      dict(s0=BS, s1=8 * BS, inner=4), dict(s0=2 * BS, s1=BS, inner=2))
 
-        # Case 3: Reverse read (per-beat, negative stride), contiguous write.
-        src3, dst3, length3 = 0x50000, 0x60000, 8
-        c0, c1 = self.create_ext_descriptor(
-            src3, dst3, length3,
-            rd_stride_0=-BS, rd_stride_1=-BS, rd_inner_count=1,   # per-beat, walking back
-            wr_stride_0=BS,  wr_stride_1=BS,  wr_inner_count=length3)  # one contiguous run
-        await run_case("reverse read", c0, c1,
-                       self.expected_per_beat(src3, -BS, -BS, 1, length3),
-                       self.expected_run_bases(dst3, BS, length3, length3))
-
-        # Case 4: Legacy descriptor on the extended build (desc_type=0 -> linear).
+        # ---- Legacy case (desc_type=0 -> linear accumulation) ---------------
         self.rd_addr_seq = []
         self.wr_addr_seq = []
-        leg = self.create_descriptor(src_addr=0x70000, dst_addr=0x80000, length=8, last=True)
+        leg = self.create_descriptor(src_addr=0x30000, dst_addr=0x31000, length=8, last=True)
         await self.send_descriptor(leg)
         idle = await self.wait_for_idle(timeout_cycles=2000)
-        if not (idle and self.rd_addr_seq == [(0x70000, 8)] and self.wr_addr_seq == [(0x80000, 8)]):
+        if not (idle and self.rd_addr_seq == [(0x30000, 8)] and self.wr_addr_seq == [(0x31000, 8)]):
             all_ok = False
             self.log.error(f"  ❌ legacy-on-ext: idle={idle} "
                            f"rd={[(hex(a),b) for a,b in self.rd_addr_seq]} "
@@ -662,7 +690,8 @@ class SchedulerTB(TBBase):
             self.log.info("  ✅ legacy descriptor on extended build")
 
         self.capture_addrs = False
-        self.log.info(f"Extended addressing test: {'PASS' if all_ok else 'FAIL'}")
+        self.log.info(f"Extended addressing test: {'PASS' if all_ok else 'FAIL'} "
+                      f"(15 extended + 1 legacy cases)")
         return all_ok
 
     async def test_descriptor_chaining(self, chain_length=3):
