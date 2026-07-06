@@ -93,6 +93,12 @@ module ddr2_char_top #(
     // =========================================================================
     wire w_sys, w_sys2x, w_sys4x, w_sys4x_dqs, w_idelay;
     wire w_clk_locked;
+    // IDELAYCTRL calibration-ready. If this never asserts, every IDELAY tap is
+    // uncalibrated -> read DQ is garbage at all taps (matches the observed
+    // on-board symptom). Gated into aresetn below (LiteDRAM holds the design in
+    // reset until idelayctrl.ready) — so it's also a zero-plumbing diagnostic:
+    // if RDY never comes, the whole harness stays in reset and UART goes dead.
+    wire w_idelay_rdy;
 
 `ifdef DDR2_CHAR_SYNTH
     wire w_sys_i, w_sys2x_i, w_sys4x_i, w_sys4x_dqs_i, w_idelay_i, w_clkfb_i, w_clkfb;
@@ -127,19 +133,24 @@ module ddr2_char_top #(
     BUFG u_bufg_4xd (.I(w_sys4x_dqs_i),  .O(w_sys4x_dqs));
     BUFG u_bufg_idly(.I(w_idelay_i),     .O(w_idelay));
     // IODELAY reference (200 MHz, dedicated). One control per I/O bank DQ/DQS use.
-    IDELAYCTRL u_idelayctrl (.REFCLK(w_idelay), .RST(~w_clk_locked), .RDY());
+    IDELAYCTRL u_idelayctrl (.REFCLK(w_idelay), .RST(~w_clk_locked), .RDY(w_idelay_rdy));
 `else
     assign w_sys       = CLK100MHZ;
     assign w_sys2x     = CLK100MHZ;
     assign w_sys4x     = CLK100MHZ;
     assign w_sys4x_dqs = CLK100MHZ;
     assign w_idelay    = CLK100MHZ;
+    assign w_idelay_rdy = 1'b1;
     assign w_clk_locked = 1'b1;
 `endif
 
-    // Controller + harness run on sys. Hold reset until the MMCM locks.
+    // Controller + harness run on sys. Hold reset until the MMCM locks AND the
+    // IDELAYCTRL has calibrated (idelay_rdy) — LiteDRAM holds its design in
+    // reset until idelayctrl.ready so the read IDELAYs are never used
+    // uncalibrated. Diagnostic corollary: if RDY never asserts, UART stays dead
+    // (the board still programs, DONE high) — a clean on-board signal.
     wire aclk    = w_sys;
-    wire aresetn = r_rst_sync & w_clk_locked;
+    wire aresetn = r_rst_sync & w_clk_locked & w_idelay_rdy;
 
     // =========================================================================
     // 7-segment glue: harness emits o_seg[6:0] = {g,f,e,d,c,b,a}. Fan into
