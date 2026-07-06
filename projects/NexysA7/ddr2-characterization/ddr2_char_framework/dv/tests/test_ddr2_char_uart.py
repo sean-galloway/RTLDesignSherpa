@@ -50,9 +50,9 @@ for _p in (_HOST, _TBC, _BRIDGE):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from cocotb_uart_bridge import make_uart_channel        # noqa: E402
+from TBClasses.harness.cocotb_axil_bridge import make_uart_channel  # noqa: E402
+from TBClasses.harness.byte_channel import TracingChannel           # noqa: E402
 from uart_axi_bridge import UARTAxiBridge               # noqa: E402
-from byte_channel import TracingChannel                 # noqa: E402
 import ddr2_char as dc                                  # noqa: E402
 import pumice_master as pm                              # noqa: E402
 

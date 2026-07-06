@@ -62,7 +62,12 @@ if not _REPO_ROOT:
 sys.path.insert(0, os.path.join(_REPO_ROOT, "projects/components/converters/bin"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from uart_axi_bridge import UARTAxiBridge  # noqa: E402
-from uart_register_map import UartRegisterMap  # noqa: E402
+from TBClasses.harness.uart_register_map import UartRegisterMap  # noqa: E402
+
+# PeakRDL-generated regmap for this project's harness_csr (by-name access).
+HARNESS_REGMAP = os.path.join(
+    _REPO_ROOT, "projects/NexysA7/ddr2-characterization/"
+    "ddr2_char_framework/dv/tbclasses/harness_csr_regmap.py")
 
 
 # =============================================================================
@@ -258,7 +263,8 @@ class DDR2CharDriver:
         """
         self.bridge = bridge if bridge is not None else UARTAxiBridge(
             port=port, baudrate=baudrate, timeout=timeout)
-        self.regs = UartRegisterMap(self.bridge, HARNESS_CSR_BASE)
+        self.regs = UartRegisterMap(self.bridge, HARNESS_CSR_BASE,
+                                    regmap_file=HARNESS_REGMAP)
 
     # ----- Low-level helpers (by name via the register map) ----------------
     def _rd64(self, lo_name: str, hi_name: str) -> int:

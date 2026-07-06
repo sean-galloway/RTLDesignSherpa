@@ -16,12 +16,17 @@ optional read-modify-write) with no hardcoded offsets — the offsets come from
 is injected, the identical calls run against the FPGA (pyserial) or a cocotb
 UART master, so silicon and sim are byte-for-byte equivalent.
 
-    regs = UartRegisterMap(bridge, start_address=0x0001_0000)
+    from TBClasses.harness.uart_register_map import UartRegisterMap
+    regs = UartRegisterMap(bridge, start_address=0x0001_0000,
+                           regmap_file="<proj>/harness_csr_regmap.py")
     regs.write("CTRLR_CFG", memtype=0, t_phy_wrlat=4, t_rddata_en=6)  # merged word
     regs.write("CTRL", clear_stats=1)                                 # pulse
     if regs.field("STATUS", "init_done"):
         ...
     regs.write("OBS_HIST_SEL", rmw=True, bin=3)   # preserve other fields
+
+Project-agnostic: pass the project's PeakRDL-generated `<top>_regmap.py` path
+and the harness base address. Shared by the NexysA7 char flows (ddr2/stream/cdc).
 """
 
 from __future__ import annotations
@@ -29,22 +34,9 @@ from __future__ import annotations
 import contextlib
 import io
 import logging
-import os
 from typing import Optional
 
 from TBClasses.apb.register_map import RegisterMap  # bin/ on PYTHONPATH via env_python
-
-
-def default_regmap_path() -> str:
-    """Locate the generated harness regmap under the repo."""
-    repo = os.environ.get("REPO_ROOT")
-    if not repo:
-        raise RuntimeError("REPO_ROOT not set; source env_python first")
-    return os.path.join(
-        repo,
-        "projects/NexysA7/ddr2-characterization/ddr2_char_framework/dv/tbclasses",
-        "harness_csr_regmap.py",
-    )
 
 
 class UartRegisterMap:
@@ -57,14 +49,12 @@ class UartRegisterMap:
 
     DATA_WIDTH = 32
 
-    def __init__(self, bridge, start_address: int,
-                 regmap_file: Optional[str] = None,
+    def __init__(self, bridge, start_address: int, regmap_file: str,
                  log: Optional[logging.Logger] = None):
         self.bridge = bridge
         self.start_address = start_address
         self.data_mask = (1 << self.DATA_WIDTH) - 1
         log = log or logging.getLogger("uart_regmap")
-        regmap_file = regmap_file or default_regmap_path()
         # RegisterMap.__init__ pprints the whole map to stdout (debug wart in
         # the shared class); swallow it so the host tool stays quiet.
         with contextlib.redirect_stdout(io.StringIO()):
