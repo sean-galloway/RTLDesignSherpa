@@ -208,6 +208,29 @@ set_property INTERNAL_VREF 0.900 [get_iobanks 34]
 set_property INTERNAL_VREF 0.900 [get_iobanks 35]
 
 ##==============================================================================
+## Floorplan -- data_path collation (read + write), DFI_RATE=4
+##==============================================================================
+## At rate=4 both collation critical paths came out routing-dominated (~67%
+## route) because the placer scattered u_data_path across the die (low overall
+## utilization = no packing pressure): rd_cl_aligner's r_fifo->r_stage CE and
+## wr_beat_sequencer's beat_pull->r_stage_data.
+##
+## SINGLE pblock on rd_cl_aligner only. Empirically on this part (grid X0/X1 x
+## Y0..Y3), this minimal floorplan is the optimum:
+##   WNS by config -> rd-only(X0,2rgn): -0.405 | merged data_path(3rgn): -0.966
+##                    both same col: -0.809 | rd X0 + wr X1: -0.526
+## Adding ANY wr_beat_sequencer pblock made things worse -- it places better
+## FREE (next to the axi_intake wbuf it beat-pulls from), and constraining it
+## perturbs rd_cl_aligner's placement too. So: pblock rd_cl_aligner (the module
+## whose r_fifo->r_stage CE path benefits most from compaction), leave the rest
+## of the datapath to the placer. Placement-only (routing free), like
+## stream_char's pblock_compressor.
+create_pblock pblock_rd_cl_aligner
+add_cells_to_pblock pblock_rd_cl_aligner \
+    [get_cells -quiet u_harness/u_dut/u_ctrl/u_core/u_data_path/u_rd_cl_aligner]
+resize_pblock pblock_rd_cl_aligner -add {CLOCKREGION_X0Y2:CLOCKREGION_X0Y3}
+
+##==============================================================================
 ## Configuration / Bitstream
 ##==============================================================================
 set_property CONFIG_VOLTAGE 3.3 [current_design]
