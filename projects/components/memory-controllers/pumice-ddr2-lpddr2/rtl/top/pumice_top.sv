@@ -204,6 +204,9 @@ module pumice_top
     logic [15:0]                          cfg_t_rfc, cfg_t_refi;
     logic [7:0]                           cfg_t_rrd, cfg_t_faw, cfg_t_wtr, cfg_t_ccd;
     logic [7:0]                           cfg_cl, cfg_cwl, cfg_t_wr, cfg_t_rfcpb;
+    logic [7:0]                           cfg_t_rtp, cfg_t_rtw;
+    logic [15:0]                          cfg_t_init_wait, cfg_t_dll_wait;
+    logic [7:0]                           cfg_t_mrd_wait, cfg_t_rp_wait, cfg_t_rfc_wait;
     logic [15:0]                          cfg_mr0, cfg_mr1, cfg_mr2, cfg_mr3;
     logic [7:0]                           cfg_pasr_banks_rank0, cfg_pasr_segs_rank0;
     logic [3:0]                           cfg_lookahead_active;
@@ -293,9 +296,16 @@ module pumice_top
         .t_rc_i              (cfg_t_rc),
         .t_wr_i              (cfg_t_wr),
         .t_wtr_i             (cfg_t_wtr),
-        .t_rtp_i             (8'd4),   // not yet in CSR map
+        .t_rtp_i             (cfg_t_rtp),   // now CSR-backed (TIMINGS_RTP_RTW)
+        .t_rtw_i             (cfg_t_rtw),   // now CSR-backed + independent of tRTP
         .t_faw_i             (cfg_t_faw),
         .t_rrd_i             (cfg_t_rrd),
+        // JEDEC init-sequence waits (CSR-backed: INIT_TIMING0/1)
+        .t_init_wait_i       (cfg_t_init_wait),
+        .t_dll_wait_i        (cfg_t_dll_wait),
+        .t_mrd_wait_i        (cfg_t_mrd_wait),
+        .t_rp_wait_i         (cfg_t_rp_wait),
+        .t_rfc_wait_i        (cfg_t_rfc_wait),
         .idle_threshold_i    (16'd64), // not yet in CSR map
         .enable_pde_i        (cfg_pwr_req_low_power),
         .enable_sref_i       (cfg_pwr_req_self_refresh),
@@ -437,6 +447,13 @@ module pumice_top
         .cfg_cwl_o                  (cfg_cwl),
         .cfg_t_wr_o                 (cfg_t_wr),
         .cfg_t_rfcpb_o              (cfg_t_rfcpb),
+        .cfg_t_rtp_o                (cfg_t_rtp),
+        .cfg_t_rtw_o                (cfg_t_rtw),
+        .cfg_t_init_wait_o          (cfg_t_init_wait),
+        .cfg_t_dll_wait_o           (cfg_t_dll_wait),
+        .cfg_t_mrd_wait_o           (cfg_t_mrd_wait),
+        .cfg_t_rp_wait_o            (cfg_t_rp_wait),
+        .cfg_t_rfc_wait_o           (cfg_t_rfc_wait),
         .cfg_mr0_o                  (cfg_mr0),
         .cfg_mr1_o                  (cfg_mr1),
         .cfg_mr2_o                  (cfg_mr2),

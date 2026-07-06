@@ -197,8 +197,15 @@ module pumice_core_macro_tb_top
         .t_wr_i                 (t_wr_i),
         .t_wtr_i                (t_wtr_i),
         .t_rtp_i                (t_rtp_i),
+        .t_rtw_i                (t_rtp_i),   // tb: reuse tRTP (no CSR here)
         .t_faw_i                (t_faw_i),
         .t_rrd_i                (t_rrd_i),
+        // JEDEC init waits — small values for fast sim (no CSR in this FUB tb)
+        .t_init_wait_i          (16'd16),
+        .t_dll_wait_i           (16'd16),
+        .t_mrd_wait_i           (8'd2),
+        .t_rp_wait_i            (8'd2),
+        .t_rfc_wait_i           (8'd2),
         .idle_threshold_i       (16'd64),
         .enable_pde_i           (enable_pde_i),
         .enable_sref_i          (enable_sref_i),

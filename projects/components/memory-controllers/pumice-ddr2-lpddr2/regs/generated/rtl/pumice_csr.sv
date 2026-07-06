@@ -85,6 +85,9 @@ module pumice_csr (
         logic REFRESH_TUNING;
         logic ADDR_MAP_TUNING;
         logic INIT_TUNING;
+        logic TIMINGS_RTP_RTW;
+        logic INIT_TIMING0;
+        logic INIT_TIMING1;
         struct {
             logic ROW_HIT;
         } OBS_ROW_HIT[8];
@@ -134,6 +137,9 @@ module pumice_csr (
         decoded_reg_strb.REFRESH_TUNING = cpuif_req_masked & (cpuif_addr == 12'h48);
         decoded_reg_strb.ADDR_MAP_TUNING = cpuif_req_masked & (cpuif_addr == 12'h4c);
         decoded_reg_strb.INIT_TUNING = cpuif_req_masked & (cpuif_addr == 12'h50);
+        decoded_reg_strb.TIMINGS_RTP_RTW = cpuif_req_masked & (cpuif_addr == 12'h54);
+        decoded_reg_strb.INIT_TIMING0 = cpuif_req_masked & (cpuif_addr == 12'h58);
+        decoded_reg_strb.INIT_TIMING1 = cpuif_req_masked & (cpuif_addr == 12'h5c);
         for(int i0=0; i0<8; i0++) begin
             decoded_reg_strb.OBS_ROW_HIT[i0].ROW_HIT = cpuif_req_masked & (cpuif_addr == 12'h80 + (12)'(i0) * 12'h4);
         end
@@ -366,6 +372,40 @@ module pumice_csr (
         } INIT_TUNING;
         struct {
             struct {
+                logic [7:0] next;
+                logic load_next;
+            } tRTP;
+            struct {
+                logic [7:0] next;
+                logic load_next;
+            } tRTW;
+        } TIMINGS_RTP_RTW;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } t_init_wait;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } t_dll_wait;
+        } INIT_TIMING0;
+        struct {
+            struct {
+                logic [7:0] next;
+                logic load_next;
+            } t_mrd_wait;
+            struct {
+                logic [7:0] next;
+                logic load_next;
+            } t_rp_wait;
+            struct {
+                logic [7:0] next;
+                logic load_next;
+            } t_rfc_wait;
+        } INIT_TIMING1;
+        struct {
+            struct {
                 struct {
                     logic [31:0] next;
                     logic load_next;
@@ -531,6 +571,33 @@ module pumice_csr (
                 logic [7:0] value;
             } init_timeout_ms;
         } INIT_TUNING;
+        struct {
+            struct {
+                logic [7:0] value;
+            } tRTP;
+            struct {
+                logic [7:0] value;
+            } tRTW;
+        } TIMINGS_RTP_RTW;
+        struct {
+            struct {
+                logic [15:0] value;
+            } t_init_wait;
+            struct {
+                logic [15:0] value;
+            } t_dll_wait;
+        } INIT_TIMING0;
+        struct {
+            struct {
+                logic [7:0] value;
+            } t_mrd_wait;
+            struct {
+                logic [7:0] value;
+            } t_rp_wait;
+            struct {
+                logic [7:0] value;
+            } t_rfc_wait;
+        } INIT_TIMING1;
         struct {
             struct {
                 struct {
@@ -1487,6 +1554,167 @@ module pumice_csr (
         end
     end
     assign hwif_out.INIT_TUNING.init_timeout_ms.value = field_storage.INIT_TUNING.init_timeout_ms.value;
+    // Field: pumice_csr.TIMINGS_RTP_RTW.tRTP
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.TIMINGS_RTP_RTW.tRTP.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.TIMINGS_RTP_RTW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.TIMINGS_RTP_RTW.tRTP.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.TIMINGS_RTP_RTW.tRTP.next = next_c;
+        field_combo.TIMINGS_RTP_RTW.tRTP.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.TIMINGS_RTP_RTW.tRTP.value <= 8'h4;
+        end else begin
+            if(field_combo.TIMINGS_RTP_RTW.tRTP.load_next) begin
+                field_storage.TIMINGS_RTP_RTW.tRTP.value <= field_combo.TIMINGS_RTP_RTW.tRTP.next;
+            end
+        end
+    end
+    assign hwif_out.TIMINGS_RTP_RTW.tRTP.value = field_storage.TIMINGS_RTP_RTW.tRTP.value;
+    // Field: pumice_csr.TIMINGS_RTP_RTW.tRTW
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.TIMINGS_RTP_RTW.tRTW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.TIMINGS_RTP_RTW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.TIMINGS_RTP_RTW.tRTW.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            load_next_c = '1;
+        end
+        field_combo.TIMINGS_RTP_RTW.tRTW.next = next_c;
+        field_combo.TIMINGS_RTP_RTW.tRTW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.TIMINGS_RTP_RTW.tRTW.value <= 8'h6;
+        end else begin
+            if(field_combo.TIMINGS_RTP_RTW.tRTW.load_next) begin
+                field_storage.TIMINGS_RTP_RTW.tRTW.value <= field_combo.TIMINGS_RTP_RTW.tRTW.next;
+            end
+        end
+    end
+    assign hwif_out.TIMINGS_RTP_RTW.tRTW.value = field_storage.TIMINGS_RTP_RTW.tRTW.value;
+    // Field: pumice_csr.INIT_TIMING0.t_init_wait
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.INIT_TIMING0.t_init_wait.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.INIT_TIMING0 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.INIT_TIMING0.t_init_wait.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.INIT_TIMING0.t_init_wait.next = next_c;
+        field_combo.INIT_TIMING0.t_init_wait.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.INIT_TIMING0.t_init_wait.value <= 16'h200;
+        end else begin
+            if(field_combo.INIT_TIMING0.t_init_wait.load_next) begin
+                field_storage.INIT_TIMING0.t_init_wait.value <= field_combo.INIT_TIMING0.t_init_wait.next;
+            end
+        end
+    end
+    assign hwif_out.INIT_TIMING0.t_init_wait.value = field_storage.INIT_TIMING0.t_init_wait.value;
+    // Field: pumice_csr.INIT_TIMING0.t_dll_wait
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.INIT_TIMING0.t_dll_wait.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.INIT_TIMING0 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.INIT_TIMING0.t_dll_wait.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.INIT_TIMING0.t_dll_wait.next = next_c;
+        field_combo.INIT_TIMING0.t_dll_wait.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.INIT_TIMING0.t_dll_wait.value <= 16'h100;
+        end else begin
+            if(field_combo.INIT_TIMING0.t_dll_wait.load_next) begin
+                field_storage.INIT_TIMING0.t_dll_wait.value <= field_combo.INIT_TIMING0.t_dll_wait.next;
+            end
+        end
+    end
+    assign hwif_out.INIT_TIMING0.t_dll_wait.value = field_storage.INIT_TIMING0.t_dll_wait.value;
+    // Field: pumice_csr.INIT_TIMING1.t_mrd_wait
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.INIT_TIMING1.t_mrd_wait.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.INIT_TIMING1 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.INIT_TIMING1.t_mrd_wait.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.INIT_TIMING1.t_mrd_wait.next = next_c;
+        field_combo.INIT_TIMING1.t_mrd_wait.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.INIT_TIMING1.t_mrd_wait.value <= 8'h8;
+        end else begin
+            if(field_combo.INIT_TIMING1.t_mrd_wait.load_next) begin
+                field_storage.INIT_TIMING1.t_mrd_wait.value <= field_combo.INIT_TIMING1.t_mrd_wait.next;
+            end
+        end
+    end
+    assign hwif_out.INIT_TIMING1.t_mrd_wait.value = field_storage.INIT_TIMING1.t_mrd_wait.value;
+    // Field: pumice_csr.INIT_TIMING1.t_rp_wait
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.INIT_TIMING1.t_rp_wait.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.INIT_TIMING1 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.INIT_TIMING1.t_rp_wait.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            load_next_c = '1;
+        end
+        field_combo.INIT_TIMING1.t_rp_wait.next = next_c;
+        field_combo.INIT_TIMING1.t_rp_wait.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.INIT_TIMING1.t_rp_wait.value <= 8'h8;
+        end else begin
+            if(field_combo.INIT_TIMING1.t_rp_wait.load_next) begin
+                field_storage.INIT_TIMING1.t_rp_wait.value <= field_combo.INIT_TIMING1.t_rp_wait.next;
+            end
+        end
+    end
+    assign hwif_out.INIT_TIMING1.t_rp_wait.value = field_storage.INIT_TIMING1.t_rp_wait.value;
+    // Field: pumice_csr.INIT_TIMING1.t_rfc_wait
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.INIT_TIMING1.t_rfc_wait.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.INIT_TIMING1 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.INIT_TIMING1.t_rfc_wait.value & ~decoded_wr_biten[23:16]) | (decoded_wr_data[23:16] & decoded_wr_biten[23:16]);
+            load_next_c = '1;
+        end
+        field_combo.INIT_TIMING1.t_rfc_wait.next = next_c;
+        field_combo.INIT_TIMING1.t_rfc_wait.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.INIT_TIMING1.t_rfc_wait.value <= 8'h10;
+        end else begin
+            if(field_combo.INIT_TIMING1.t_rfc_wait.load_next) begin
+                field_storage.INIT_TIMING1.t_rfc_wait.value <= field_combo.INIT_TIMING1.t_rfc_wait.next;
+            end
+        end
+    end
+    assign hwif_out.INIT_TIMING1.t_rfc_wait.value = field_storage.INIT_TIMING1.t_rfc_wait.value;
     for(genvar i0=0; i0<8; i0++) begin
         // Field: pumice_csr.OBS_ROW_HIT[].ROW_HIT.VAL
         always_comb begin
@@ -1530,7 +1758,7 @@ module pumice_csr (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[57];
+    logic [31:0] readback_array[60];
     assign readback_array[0][0:0] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_start.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_force_restart.value : '0;
     assign readback_array[0][3:2] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
@@ -1602,31 +1830,40 @@ module pumice_csr (
     assign readback_array[18][7:4] = (decoded_reg_strb.INIT_TUNING && !decoded_req_is_wr) ? 4'h0 : '0;
     assign readback_array[18][15:8] = (decoded_reg_strb.INIT_TUNING && !decoded_req_is_wr) ? field_storage.INIT_TUNING.init_timeout_ms.value : '0;
     assign readback_array[18][31:16] = (decoded_reg_strb.INIT_TUNING && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[19][7:0] = (decoded_reg_strb.TIMINGS_RTP_RTW && !decoded_req_is_wr) ? field_storage.TIMINGS_RTP_RTW.tRTP.value : '0;
+    assign readback_array[19][15:8] = (decoded_reg_strb.TIMINGS_RTP_RTW && !decoded_req_is_wr) ? field_storage.TIMINGS_RTP_RTW.tRTW.value : '0;
+    assign readback_array[19][31:16] = (decoded_reg_strb.TIMINGS_RTP_RTW && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[20][15:0] = (decoded_reg_strb.INIT_TIMING0 && !decoded_req_is_wr) ? field_storage.INIT_TIMING0.t_init_wait.value : '0;
+    assign readback_array[20][31:16] = (decoded_reg_strb.INIT_TIMING0 && !decoded_req_is_wr) ? field_storage.INIT_TIMING0.t_dll_wait.value : '0;
+    assign readback_array[21][7:0] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? field_storage.INIT_TIMING1.t_mrd_wait.value : '0;
+    assign readback_array[21][15:8] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? field_storage.INIT_TIMING1.t_rp_wait.value : '0;
+    assign readback_array[21][23:16] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? field_storage.INIT_TIMING1.t_rfc_wait.value : '0;
+    assign readback_array[21][31:24] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? 8'h0 : '0;
     for(genvar i0=0; i0<8; i0++) begin
-        assign readback_array[i0 * 1 + 19][31:0] = (decoded_reg_strb.OBS_ROW_HIT[i0].ROW_HIT && !decoded_req_is_wr) ? field_storage.OBS_ROW_HIT[i0].ROW_HIT.VAL.value : '0;
+        assign readback_array[i0 * 1 + 22][31:0] = (decoded_reg_strb.OBS_ROW_HIT[i0].ROW_HIT && !decoded_req_is_wr) ? field_storage.OBS_ROW_HIT[i0].ROW_HIT.VAL.value : '0;
     end
     for(genvar i0=0; i0<8; i0++) begin
-        assign readback_array[i0 * 1 + 27][31:0] = (decoded_reg_strb.OBS_REF_LATENCY[i0].REF_LAT && !decoded_req_is_wr) ? hwif_in.OBS_REF_LATENCY[i0].REF_LAT.VAL.next : '0;
+        assign readback_array[i0 * 1 + 30][31:0] = (decoded_reg_strb.OBS_REF_LATENCY[i0].REF_LAT && !decoded_req_is_wr) ? hwif_in.OBS_REF_LATENCY[i0].REF_LAT.VAL.next : '0;
     end
-    assign readback_array[35][31:0] = (decoded_reg_strb.OBS_TXN_QUEUE_DEPTH_MAX && !decoded_req_is_wr) ? hwif_in.OBS_TXN_QUEUE_DEPTH_MAX.VAL.next : '0;
-    assign readback_array[36][31:0] = (decoded_reg_strb.OBS_TXN_QUEUE_DEPTH_AVG && !decoded_req_is_wr) ? hwif_in.OBS_TXN_QUEUE_DEPTH_AVG.VAL.next : '0;
-    assign readback_array[37][31:0] = (decoded_reg_strb.OBS_REFRESH_PENDING_MAX && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_PENDING_MAX.VAL.next : '0;
-    assign readback_array[38][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_0 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_0.VAL.next : '0;
-    assign readback_array[39][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_1 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_1.VAL.next : '0;
-    assign readback_array[40][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_2 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_2.VAL.next : '0;
-    assign readback_array[41][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_3 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_3.VAL.next : '0;
-    assign readback_array[42][31:0] = (decoded_reg_strb.OBS_PAGE_PRED_ACCURACY && !decoded_req_is_wr) ? hwif_in.OBS_PAGE_PRED_ACCURACY.VAL.next : '0;
-    assign readback_array[43][31:0] = (decoded_reg_strb.OBS_AXI_R_LATENCY_AVG && !decoded_req_is_wr) ? hwif_in.OBS_AXI_R_LATENCY_AVG.VAL.next : '0;
-    assign readback_array[44][31:0] = (decoded_reg_strb.OBS_AXI_R_LATENCY_P99 && !decoded_req_is_wr) ? hwif_in.OBS_AXI_R_LATENCY_P99.VAL.next : '0;
-    assign readback_array[45][31:0] = (decoded_reg_strb.OBS_AXI_W_LATENCY_AVG && !decoded_req_is_wr) ? hwif_in.OBS_AXI_W_LATENCY_AVG.VAL.next : '0;
+    assign readback_array[38][31:0] = (decoded_reg_strb.OBS_TXN_QUEUE_DEPTH_MAX && !decoded_req_is_wr) ? hwif_in.OBS_TXN_QUEUE_DEPTH_MAX.VAL.next : '0;
+    assign readback_array[39][31:0] = (decoded_reg_strb.OBS_TXN_QUEUE_DEPTH_AVG && !decoded_req_is_wr) ? hwif_in.OBS_TXN_QUEUE_DEPTH_AVG.VAL.next : '0;
+    assign readback_array[40][31:0] = (decoded_reg_strb.OBS_REFRESH_PENDING_MAX && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_PENDING_MAX.VAL.next : '0;
+    assign readback_array[41][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_0 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_0.VAL.next : '0;
+    assign readback_array[42][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_1 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_1.VAL.next : '0;
+    assign readback_array[43][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_2 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_2.VAL.next : '0;
+    assign readback_array[44][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_3 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_3.VAL.next : '0;
+    assign readback_array[45][31:0] = (decoded_reg_strb.OBS_PAGE_PRED_ACCURACY && !decoded_req_is_wr) ? hwif_in.OBS_PAGE_PRED_ACCURACY.VAL.next : '0;
+    assign readback_array[46][31:0] = (decoded_reg_strb.OBS_AXI_R_LATENCY_AVG && !decoded_req_is_wr) ? hwif_in.OBS_AXI_R_LATENCY_AVG.VAL.next : '0;
+    assign readback_array[47][31:0] = (decoded_reg_strb.OBS_AXI_R_LATENCY_P99 && !decoded_req_is_wr) ? hwif_in.OBS_AXI_R_LATENCY_P99.VAL.next : '0;
+    assign readback_array[48][31:0] = (decoded_reg_strb.OBS_AXI_W_LATENCY_AVG && !decoded_req_is_wr) ? hwif_in.OBS_AXI_W_LATENCY_AVG.VAL.next : '0;
     for(genvar i0=0; i0<9; i0++) begin
-        assign readback_array[i0 * 1 + 46][31:0] = (decoded_reg_strb.OBS_WORDS[i0].WORD && !decoded_req_is_wr) ? hwif_in.OBS_WORDS[i0].WORD.VAL.next : '0;
+        assign readback_array[i0 * 1 + 49][31:0] = (decoded_reg_strb.OBS_WORDS[i0].WORD && !decoded_req_is_wr) ? hwif_in.OBS_WORDS[i0].WORD.VAL.next : '0;
     end
-    assign readback_array[55][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
-    assign readback_array[55][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[55][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
-    assign readback_array[55][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
-    assign readback_array[56][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
+    assign readback_array[58][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
+    assign readback_array[58][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[58][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
+    assign readback_array[58][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
+    assign readback_array[59][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
 
     // Reduce the array
     always_comb begin
@@ -1634,7 +1871,7 @@ module pumice_csr (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<57; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<60; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

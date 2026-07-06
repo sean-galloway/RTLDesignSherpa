@@ -184,6 +184,18 @@ addrmap pumice_csr {
 
     } TIMINGS_CL_CWL_WR @ 0x01C;
 
+    reg {
+        name = "Timings: tRTP / tRTW";
+        desc = "Read-to-precharge and read-to-write turn-around (JEDEC), in MC
+                cycles. Previously tRTP was hardcoded (8'd4, 'not yet in CSR map')
+                and tRTW was tied to tRTP; now both are independent configs.";
+
+        field { sw = rw; hw = r; desc = "Read to precharge"; } tRTP[7:0]  = 8'd4;
+        field { sw = rw; hw = r; desc = "Read to write";     } tRTW[15:8] = 8'd6;
+        field { sw = r;  hw = na; desc = "Reserved";         } RSVD[31:16] = 16'h0;
+
+    } TIMINGS_RTP_RTW @ 0x054;
+
     //=========================================================================
     // Mode Register Values (0x020 – 0x02F)
     //=========================================================================
@@ -371,6 +383,28 @@ addrmap pumice_csr {
         field { sw = r;  hw = na; desc = "Reserved";              } RSVD_31_16[31:16] = 16'h0;
 
     } INIT_TUNING @ 0x050;
+
+    reg {
+        name = "Init Timing 0: tINIT / tDLLK";
+        desc = "JEDEC init-sequence waits (MC cycles): CKE/tINIT settle and DLL
+                lock. Previously hardcoded in init_sequencer.";
+
+        field { sw = rw; hw = r; desc = "CKE/tINIT settle"; } t_init_wait[15:0]  = 16'd512;
+        field { sw = rw; hw = r; desc = "DLL lock (tDLLK)"; } t_dll_wait[31:16]  = 16'd256;
+
+    } INIT_TIMING0 @ 0x058;
+
+    reg {
+        name = "Init Timing 1: tMRD / tRP / tRFC (init)";
+        desc = "JEDEC init-sequence waits (MC cycles): post-MRS (tMRD),
+                post-precharge (tRP), post-refresh (tRFC). Previously hardcoded.";
+
+        field { sw = rw; hw = r; desc = "tMRD (post mode-reg)"; } t_mrd_wait[7:0]  = 8'd8;
+        field { sw = rw; hw = r; desc = "tRP (post precharge)"; } t_rp_wait[15:8]  = 8'd8;
+        field { sw = rw; hw = r; desc = "tRFC (post refresh)";  } t_rfc_wait[23:16]= 8'd16;
+        field { sw = r;  hw = na; desc = "Reserved";            } RSVD[31:24] = 8'h0;
+
+    } INIT_TIMING1 @ 0x05C;
 
     //=========================================================================
     // Per-Bank Observation (0x080 – 0x09F) — NUM_BANKS=8, rank 0

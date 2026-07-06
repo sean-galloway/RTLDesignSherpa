@@ -475,6 +475,50 @@ package pumice_csr_pkg;
     } pumice_csr__INIT_TUNING__out_t;
 
     typedef struct {
+        logic [7:0] value;
+    } pumice_csr__TIMINGS_RTP_RTW__tRTP__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } pumice_csr__TIMINGS_RTP_RTW__tRTW__out_t;
+
+    typedef struct {
+        pumice_csr__TIMINGS_RTP_RTW__tRTP__out_t tRTP;
+        pumice_csr__TIMINGS_RTP_RTW__tRTW__out_t tRTW;
+    } pumice_csr__TIMINGS_RTP_RTW__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pumice_csr__INIT_TIMING0__t_init_wait__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pumice_csr__INIT_TIMING0__t_dll_wait__out_t;
+
+    typedef struct {
+        pumice_csr__INIT_TIMING0__t_init_wait__out_t t_init_wait;
+        pumice_csr__INIT_TIMING0__t_dll_wait__out_t t_dll_wait;
+    } pumice_csr__INIT_TIMING0__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } pumice_csr__INIT_TIMING1__t_mrd_wait__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } pumice_csr__INIT_TIMING1__t_rp_wait__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } pumice_csr__INIT_TIMING1__t_rfc_wait__out_t;
+
+    typedef struct {
+        pumice_csr__INIT_TIMING1__t_mrd_wait__out_t t_mrd_wait;
+        pumice_csr__INIT_TIMING1__t_rp_wait__out_t t_rp_wait;
+        pumice_csr__INIT_TIMING1__t_rfc_wait__out_t t_rfc_wait;
+    } pumice_csr__INIT_TIMING1__out_t;
+
+    typedef struct {
         pumice_csr__CTRL__out_t CTRL;
         pumice_csr__TIMINGS_RC_RCD_RP_RAS__out_t TIMINGS_RC_RCD_RP_RAS;
         pumice_csr__TIMINGS_RFC_REFI__out_t TIMINGS_RFC_REFI;
@@ -491,5 +535,8 @@ package pumice_csr_pkg;
         pumice_csr__REFRESH_TUNING__out_t REFRESH_TUNING;
         pumice_csr__ADDR_MAP_TUNING__out_t ADDR_MAP_TUNING;
         pumice_csr__INIT_TUNING__out_t INIT_TUNING;
+        pumice_csr__TIMINGS_RTP_RTW__out_t TIMINGS_RTP_RTW;
+        pumice_csr__INIT_TIMING0__out_t INIT_TIMING0;
+        pumice_csr__INIT_TIMING1__out_t INIT_TIMING1;
     } pumice_csr__out_t;
 endpackage

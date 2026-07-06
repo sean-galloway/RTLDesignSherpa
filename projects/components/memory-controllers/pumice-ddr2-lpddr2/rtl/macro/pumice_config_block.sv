@@ -47,6 +47,14 @@ module pumice_config_block
     output logic [7:0]                    cfg_cwl_o,
     output logic [7:0]                    cfg_t_wr_o,
     output logic [7:0]                    cfg_t_rfcpb_o,
+    output logic [7:0]                    cfg_t_rtp_o,
+    output logic [7:0]                    cfg_t_rtw_o,
+    // JEDEC init-sequence waits (MC cycles)
+    output logic [15:0]                   cfg_t_init_wait_o,
+    output logic [15:0]                   cfg_t_dll_wait_o,
+    output logic [7:0]                    cfg_t_mrd_wait_o,
+    output logic [7:0]                    cfg_t_rp_wait_o,
+    output logic [7:0]                    cfg_t_rfc_wait_o,
 
     // Mode registers
     output logic [15:0]                   cfg_mr0_o,
@@ -139,6 +147,13 @@ module pumice_config_block
     assign cfg_cwl_o      = hwif_out.TIMINGS_CL_CWL_WR.CWL.value;
     assign cfg_t_wr_o     = hwif_out.TIMINGS_CL_CWL_WR.tWR.value;
     assign cfg_t_rfcpb_o  = hwif_out.TIMINGS_CL_CWL_WR.tRFCpb.value;
+    assign cfg_t_rtp_o    = hwif_out.TIMINGS_RTP_RTW.tRTP.value;
+    assign cfg_t_rtw_o    = hwif_out.TIMINGS_RTP_RTW.tRTW.value;
+    assign cfg_t_init_wait_o = hwif_out.INIT_TIMING0.t_init_wait.value;
+    assign cfg_t_dll_wait_o  = hwif_out.INIT_TIMING0.t_dll_wait.value;
+    assign cfg_t_mrd_wait_o  = hwif_out.INIT_TIMING1.t_mrd_wait.value;
+    assign cfg_t_rp_wait_o   = hwif_out.INIT_TIMING1.t_rp_wait.value;
+    assign cfg_t_rfc_wait_o  = hwif_out.INIT_TIMING1.t_rfc_wait.value;
 
     //=========================================================================
     // Mode registers

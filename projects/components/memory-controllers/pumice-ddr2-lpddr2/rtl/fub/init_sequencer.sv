@@ -56,6 +56,13 @@ module init_sequencer
 
     input  memtype_e    memtype_i,
 
+    // ----- JEDEC init-sequence waits (CSR-backed, MC cycles) -----
+    input  logic [15:0] t_init_wait_i,   // CKE / tINIT settle
+    input  logic [15:0] t_dll_wait_i,    // DLL lock (tDLLK)
+    input  logic [7:0]  t_mrd_wait_i,    // post mode-register-set (tMRD)
+    input  logic [7:0]  t_rp_wait_i,     // post precharge (tRP)
+    input  logic [7:0]  t_rfc_wait_i,    // post auto-refresh (tRFC)
+
     // ----- DFI status -----
     output logic        dfi_init_start_o,
     input  logic        dfi_init_complete_i,
@@ -104,11 +111,14 @@ module init_sequencer
     // margins are fine. At sys=37.5 MHz / CK=150 MHz these comfortably cover
     // the JEDEC minimums (tINIT/tRP/tMRD/tRFC + DLL lock 200 CK).
     //=========================================================================
-    localparam logic [15:0] W_INIT = 16'd512;   // CKE / tINIT settle
-    localparam logic [15:0] W_RP   = 16'd8;     // tRP after precharge
-    localparam logic [15:0] W_MRD  = 16'd8;     // tMRD after mode-reg load
-    localparam logic [15:0] W_DLL  = 16'd256;   // DLL lock (>=200 DRAM clocks)
-    localparam logic [15:0] W_RFC  = 16'd16;    // tRFC after auto-refresh
+    // JEDEC init waits — now CSR-backed (INIT_TIMING0/1), zero-extended to the
+    // 16-bit countdown. Defaults live in the CSR (512/256/8/8/16). Was hardcoded.
+    logic [15:0] W_INIT, W_RP, W_MRD, W_DLL, W_RFC;
+    assign W_INIT = t_init_wait_i;              // CKE / tINIT settle
+    assign W_RP   = {8'd0, t_rp_wait_i};        // tRP after precharge
+    assign W_MRD  = {8'd0, t_mrd_wait_i};       // tMRD after mode-reg load
+    assign W_DLL  = t_dll_wait_i;               // DLL lock (tDLLK)
+    assign W_RFC  = {8'd0, t_rfc_wait_i};       // tRFC after auto-refresh
 
     //=========================================================================
     // FSM
