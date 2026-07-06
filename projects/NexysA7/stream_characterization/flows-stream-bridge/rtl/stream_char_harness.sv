@@ -27,6 +27,7 @@ module stream_char_harness #(
     parameter int UART_BAUD    = 115_200,
     parameter int DATA_WIDTH   = 128,
     parameter int ADDR_WIDTH   = 32,
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,  // TASK-101 STREAM Extended
     parameter int SRAM_DEPTH   = 256,
     // NUM_CHANNELS is overridable so the FPGA target can build a 4-channel
     // configuration to fit the Artix-7 100T without changing the DUT's native
@@ -1829,6 +1830,7 @@ module stream_char_harness #(
         .NUM_CHANNELS       (NUM_CHANNELS),
         .DATA_WIDTH         (DATA_WIDTH),
         .ADDR_WIDTH         (ADDR_WIDTH),
+        .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
         .SRAM_DEPTH         (SRAM_DEPTH),
         .APB_ADDR_WIDTH     (APB_ADDR_WIDTH),
         .APB_DATA_WIDTH     (APB_DATA_WIDTH),

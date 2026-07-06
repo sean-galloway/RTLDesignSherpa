@@ -231,6 +231,67 @@ class DescriptorBuilder:
         return self._axi4_addr(self._desc_index(channel, 0))
 
     # -----------------------------------------------------------------
+    # TASK-101: extended (512-bit) descriptor for dma_address_gen addressing
+    # -----------------------------------------------------------------
+    # An extended descriptor occupies TWO consecutive desc_ram slots: chunk 0
+    # (legacy layout + desc_type=1) at index idx, chunk 1 (addr-gen cfg) at
+    # index idx+1 so STREAM's descriptor_engine fetches it at desc_addr + 0x20.
+    # Requires the DUT built with USE_ROW_COL_MAJOR_ADDRESSING=1. Identical bytes
+    # in cocotb sim and on the FPGA (same builder, same UART/AXIL programming).
+
+    DESC_TYPE_EXT_WORD6 = 1 << 16   # desc_type=1 at descriptor bits [210:208]
+
+    def build_ext(self, channel: int, transfer_bytes: int,
+                  rd: dict, wr: dict, *, desc_idx: int = 0) -> List[Tuple[int, int]]:
+        """Build AXIL writes for one extended descriptor (2 slots).
+
+        rd/wr are dicts: {s0, s1, inner, w0=0, w1=0} — signed byte strides s0/s1,
+        index_0 extent `inner`, and log2 wrap windows w0/w1 (0=off). Mode (burst
+        vs per-beat single-beat) is inferred by the RTL from s0 vs beat_size.
+        Returns [(host_axil_addr, data32), ...]; kick with kick_address(channel).
+        """
+        beats = self.beats_for_bytes(transfer_bytes)
+        idx0 = self._desc_index(channel, desc_idx)
+        idx1 = self._desc_index(channel, desc_idx + 1)   # chunk 1 -> next slot (+0x20)
+
+        src = self.src_base + desc_idx * transfer_bytes
+        dst = self.dst_base + desc_idx * transfer_bytes
+
+        ctrl = CTRL_VALID | CTRL_LAST | CTRL_INTERRUPT | ((channel & 0xF) << 4)
+
+        # Chunk 0 — legacy layout with desc_type=EXT in word 6.
+        chunk0 = [
+            src & 0xFFFF_FFFF, (src >> 32) & 0xFFFF_FFFF,
+            dst & 0xFFFF_FFFF, (dst >> 32) & 0xFFFF_FFFF,
+            beats & 0xFFFF_FFFF,
+            0x0000_0000,                                   # next_ptr = 0 (single)
+            (ctrl | self.DESC_TYPE_EXT_WORD6) & 0xFFFF_FFFF,
+            0x0000_0000,
+        ]
+
+        def u32(v):
+            return v & 0xFFFF_FFFF
+
+        def dim_word(inner, w0, w1):   # inner[15:0] | wrap0[21:16] | wrap1[27:22]
+            return (inner & 0xFFFF) | ((w0 & 0x3F) << 16) | ((w1 & 0x3F) << 22)
+
+        # Chunk 1 — addr-gen cfg (descriptor_ext_packet layout).
+        chunk1 = [
+            u32(rd['s0']), u32(rd['s1']),
+            dim_word(rd['inner'], rd.get('w0', 0), rd.get('w1', 0)),
+            u32(wr['s0']), u32(wr['s1']),
+            dim_word(wr['inner'], wr.get('w0', 0), wr.get('w1', 0)),
+            0x0000_0000, 0x0000_0000,
+        ]
+
+        writes: List[Tuple[int, int]] = []
+        for w, val in enumerate(chunk0):
+            writes.append((self._host_addr(idx0, w), val))
+        for w, val in enumerate(chunk1):
+            writes.append((self._host_addr(idx1, w), val))
+        return writes
+
+    # -----------------------------------------------------------------
     # Build a full multi-channel test
     # -----------------------------------------------------------------
 
