@@ -104,6 +104,25 @@ TIMER_W_LAST_HI  = 0x5C
 # ---- Runtime controller cfg ----
 CTRLR_CFG     = 0x60
 CTRLR_CAP     = 0x64
+# ---- a7ddrphy calibration CSR passthrough (indirect; firmware leveling) ----
+PHY_CSR_ADDR  = 0x80   # [9:0] a7ddrphy CSR word index (the knob)
+PHY_CSR_WDATA = 0x84   # 32b value to write to the selected knob
+PHY_CSR_CTRL  = 0x88   # [0] pulse -> drive one CSR-bus write (adr,dat)
+PHY_CSR_RDATA = 0x8C   # a7ddrphy dat_r for the current PHY_CSR_ADDR
+# a7ddrphy CSR knob word-indices (rtl-vivado/a7ddrphy/a7ddrphy_csr_map.txt)
+PHY_RST              = 0
+PHY_DLY_SEL          = 1    # byte-lane select (x16 -> 2 lanes)
+PHY_HALF_SYS8X_TAPS  = 2
+PHY_WLEVEL_EN        = 3
+PHY_WLEVEL_STROBE    = 4    # strobe
+PHY_RDLY_DQ_RST      = 5    # strobe
+PHY_RDLY_DQ_INC      = 6    # strobe
+PHY_RDLY_DQ_BITSLIP_RST = 7  # strobe
+PHY_RDLY_DQ_BITSLIP  = 8    # strobe
+PHY_WDLY_DQ_BITSLIP_RST = 9  # strobe
+PHY_WDLY_DQ_BITSLIP  = 10   # strobe
+PHY_RDPHASE          = 11
+PHY_WRPHASE          = 12
 # ---- WR engine cfg ----
 WR_START_ADDR    = 0x100
 WR_STRIDE_0      = 0x104
@@ -292,6 +311,20 @@ class DDR2CharDriver:
         val = ((cap_lookahead_max & 0xF)
                | ((cap_synth_mask & 0xF) << 4))
         self._wr(CTRLR_CAP, val)
+
+    # ----- a7ddrphy calibration CSR (leveling knobs) ----------------------
+    def phy_poke(self, knob: int, val: int = 1) -> None:
+        """Write `val` to the a7ddrphy CSR word `knob` via the indirect
+        passthrough (set ADDR + WDATA, then pulse CTRL). For strobe knobs
+        (rdly_dq_inc etc.) the value is a 1-cycle pulse; pass val=1."""
+        self._wr(PHY_CSR_ADDR,  knob & 0x3FF)
+        self._wr(PHY_CSR_WDATA, val & 0xFFFFFFFF)
+        self._wr(PHY_CSR_CTRL,  1)
+
+    def phy_peek(self, knob: int) -> int:
+        """Read the a7ddrphy dat_r for CSR word `knob` (set ADDR, read RDATA)."""
+        self._wr(PHY_CSR_ADDR, knob & 0x3FF)
+        return self._rd(PHY_CSR_RDATA)
 
     # ----- Engine programming ---------------------------------------------
     def _pack_blen_txn(self, burst_len: int, txn_count: int, gap: int) -> int:
