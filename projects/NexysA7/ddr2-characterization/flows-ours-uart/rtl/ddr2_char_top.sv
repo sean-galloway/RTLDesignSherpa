@@ -208,7 +208,11 @@ module ddr2_char_top #(
         .DRAM_BEAT_WIDTH (DRAM_BEAT_WIDTH),
         .DFI_RATE        (DFI_RATE),
         .ROW_WIDTH       (ROW_WIDTH),
-        .FPGA_CLK_HZ     (75_000_000)   // sys is now 75 MHz -> UART baud divisor
+        .FPGA_CLK_HZ     (75_000_000),  // sys is now 75 MHz -> UART baud divisor
+        // Delay the DFI command bus to land concurrent with write data
+        // (a7ddrphy write_latency=0). pumice's raw command->wrdata skew is 5
+        // sys-cycles; validated in sim via the strict-write-timing oracle.
+        .CMD_DELAY       (5)
     ) u_harness (
         .aclk    (aclk),
         .aresetn (aresetn),

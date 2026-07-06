@@ -47,7 +47,8 @@ module ddr2_char_uart_tb_top
     parameter int DFI_DATA_WIDTH  = DFI_RATE * DRAM_BEAT_WIDTH,
     parameter int DFI_STRB_WIDTH  = DFI_DATA_WIDTH / 8,
     parameter int DFI_EN_WIDTH    = DFI_RATE,
-    parameter int DFI_VALID_WIDTH = DFI_RATE
+    parameter int DFI_VALID_WIDTH = DFI_RATE,
+    parameter int CMD_DELAY       = 0
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -110,7 +111,8 @@ module ddr2_char_uart_tb_top
         .APB_ADDR_WIDTH  (APB_ADDR_WIDTH),
         .APB_DATA_WIDTH  (APB_DATA_WIDTH),
         .DRAM_BEAT_WIDTH (DRAM_BEAT_WIDTH),
-        .DFI_RATE        (DFI_RATE)
+        .DFI_RATE        (DFI_RATE),
+        .CMD_DELAY       (CMD_DELAY)
     ) u_dut (
         .aclk        (aclk),
         .aresetn     (aresetn),

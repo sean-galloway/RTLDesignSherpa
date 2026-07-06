@@ -76,7 +76,11 @@ module ddr2_char_harness
     parameter int DFI_CTRL_BUS_W      = DFI_RATE,
     parameter int DFI_CS_BUS_W        = DFI_RATE,
     parameter int DFI_DATA_WIDTH      = DFI_RATE * DRAM_BEAT_WIDTH,
-    parameter int DFI_STRB_WIDTH      = DFI_DATA_WIDTH / 8
+    parameter int DFI_STRB_WIDTH      = DFI_DATA_WIDTH / 8,
+    // Command-bus delay (sys-cycles) to align the WR command with write data
+    // for the a7ddrphy's write_latency=0 (pumice's wrdata is CMD_DELAY cycles
+    // late; measured 5 for nphases=2/300MT/s). 0 = passthrough. See dfi_cmd_delay.
+    parameter int CMD_DELAY           = 0
 ) (
     // Clock / reset (aclk = mc_clk = pclk = 100 MHz on the Nexys A7 board)
     input  logic                        aclk,
@@ -625,6 +629,15 @@ module ddr2_char_harness
     logic w_rd_dbg_valid, w_rd_dbg_ready, w_rd_dbg_mismatch;
     logic [AXI_DATA_WIDTH-1:0] w_rd_dbg_actual, w_rd_dbg_expected;
 
+    // Controller DFI command outputs (pre-delay). The command bus is delayed by
+    // CMD_DELAY (in dfi_cmd_delay below) to land concurrent with the undelayed
+    // write data, satisfying the a7ddrphy write_latency=0 contract.
+    logic [DFI_ADDR_BUS_W-1:0] w_c_dfi_address;
+    logic [DFI_BANK_BUS_W-1:0] w_c_dfi_bank;
+    logic [DFI_CTRL_BUS_W-1:0] w_c_dfi_cas_n, w_c_dfi_ras_n, w_c_dfi_we_n;
+    logic [DFI_CS_BUS_W-1:0]   w_c_dfi_cs_n, w_c_dfi_cke, w_c_dfi_odt;
+    logic [DFI_RATE-1:0]       w_c_dfi_rddata_en;
+
     ddr2_char_macro #(
         .AXI_ADDR_WIDTH   (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH   (AXI_DATA_WIDTH),
@@ -707,19 +720,20 @@ module ddr2_char_harness
         .s_apb_PRDATA  (apb_prdata),
         .s_apb_PSLVERR (apb_pslverr),
 
-        // DFI — routed to top boundary
-        .dfi_address_o          (o_dfi_address),
-        .dfi_bank_o             (o_dfi_bank),
-        .dfi_cas_n_o            (o_dfi_cas_n),
-        .dfi_ras_n_o            (o_dfi_ras_n),
-        .dfi_we_n_o             (o_dfi_we_n),
-        .dfi_cs_n_o             (o_dfi_cs_n),
-        .dfi_cke_o              (o_dfi_cke),
-        .dfi_odt_o              (o_dfi_odt),
+        // DFI — command bus goes through dfi_cmd_delay (below) to align with
+        // write data (write_latency=0); wrdata path is undelayed.
+        .dfi_address_o          (w_c_dfi_address),
+        .dfi_bank_o             (w_c_dfi_bank),
+        .dfi_cas_n_o            (w_c_dfi_cas_n),
+        .dfi_ras_n_o            (w_c_dfi_ras_n),
+        .dfi_we_n_o             (w_c_dfi_we_n),
+        .dfi_cs_n_o             (w_c_dfi_cs_n),
+        .dfi_cke_o              (w_c_dfi_cke),
+        .dfi_odt_o              (w_c_dfi_odt),
         .dfi_wrdata_o           (o_dfi_wrdata),
         .dfi_wrdata_mask_o      (o_dfi_wrdata_mask),
         .dfi_wrdata_en_o        (o_dfi_wrdata_en),
-        .dfi_rddata_en_o        (o_dfi_rddata_en),
+        .dfi_rddata_en_o        (w_c_dfi_rddata_en),
         .dfi_rddata_i           (i_dfi_rddata),
         .dfi_rddata_valid_i     (i_dfi_rddata_valid),
         .dfi_dram_clk_disable_o (o_dfi_dram_clk_disable),
@@ -764,6 +778,36 @@ module ddr2_char_harness
         .perf_wr_hist_total   (w_obs_wr_hist_total),
         .perf_rd_hist_count   (w_obs_rd_hist_count),
         .perf_rd_hist_total   (w_obs_rd_hist_total)
+    );
+
+    dfi_cmd_delay #(
+        .DFI_ADDR_BUS_W (DFI_ADDR_BUS_W),
+        .DFI_BANK_BUS_W (DFI_BANK_BUS_W),
+        .DFI_CTRL_BUS_W (DFI_CTRL_BUS_W),
+        .DFI_CS_BUS_W   (DFI_CS_BUS_W),
+        .DFI_RATE       (DFI_RATE),
+        .CMD_DELAY      (CMD_DELAY)
+    ) u_dfi_cmd_delay (
+        .mc_clk      (aclk),
+        .mc_rst_n    (aresetn),
+        .i_address   (w_c_dfi_address),
+        .i_bank      (w_c_dfi_bank),
+        .i_cas_n     (w_c_dfi_cas_n),
+        .i_ras_n     (w_c_dfi_ras_n),
+        .i_we_n      (w_c_dfi_we_n),
+        .i_cs_n      (w_c_dfi_cs_n),
+        .i_cke       (w_c_dfi_cke),
+        .i_odt       (w_c_dfi_odt),
+        .i_rddata_en (w_c_dfi_rddata_en),
+        .o_address   (o_dfi_address),
+        .o_bank      (o_dfi_bank),
+        .o_cas_n     (o_dfi_cas_n),
+        .o_ras_n     (o_dfi_ras_n),
+        .o_we_n      (o_dfi_we_n),
+        .o_cs_n      (o_dfi_cs_n),
+        .o_cke       (o_dfi_cke),
+        .o_odt       (o_dfi_odt),
+        .o_rddata_en (o_dfi_rddata_en)
     );
 
     assign w_rd_dbg_ready = 1'b1;   // always accept

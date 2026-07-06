@@ -18,6 +18,7 @@ $REPO_ROOT/rtl/amba/shared/sdpram_core.sv
 $REPO_ROOT/rtl/amba/shared/sdpram_slave_axil_axil.sv
 $REPO_ROOT/rtl/common/hex_to_7seg.sv
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/verilator_xilinx_stubs.sv
+$REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/dfi_cmd_delay.sv
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/harness_csr.sv
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/led_status_driver.sv
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/seven_seg_4digit.sv
