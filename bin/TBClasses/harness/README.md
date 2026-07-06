@@ -12,6 +12,11 @@ spine is common**, and lives here so one host program can run byte-for-byte
 identically against the FPGA (pyserial) **or** a cocotb simulation — no forked
 "vaguely similar" code.
 
+> **Agents / methodology:** see [CLAUDE.md](CLAUDE.md) for the equivalence
+> principle, the recommended build order, and the non-obvious traps
+> (cocotb.function vs a pump, match-the-FPGA-config, sticky-error vs soft_reset,
+> digital-only reproduction). Read it before wiring a new flow.
+
 ## Modules
 
 | Module | Side | What it is |
