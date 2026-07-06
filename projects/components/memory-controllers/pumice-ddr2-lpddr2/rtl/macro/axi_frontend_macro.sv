@@ -65,7 +65,14 @@ module axi_frontend_macro
     parameter int BURST_LEN_WIDTH      = 8,
     parameter int W_BUF_DEPTH          = 128,
     parameter int W_BUF_PTR_WIDTH      = $clog2(W_BUF_DEPTH),
-    parameter int BYTE_OFFSET_WIDTH    = 3,
+    // TASK-GEAR: DRAM columns are DRAM-beat granular, NOT AXI-beat granular.
+    // addr_mapper strips this many low byte-offset bits to form the column
+    // word, so it must be log2(DRAM beat bytes). At GEAR=1 (DRAM_BEAT_WIDTH ==
+    // AXI_DATA_WIDTH) this is the legacy log2(AXI bytes) = 3; at GEAR>1 (e.g.
+    // 32b DRAM beat) it drops to 2 so multi-chunk column offsets advance by
+    // GEAR DRAM beats instead of AXI beats (was: hardcoded 3, which made
+    // chunk N>0 overwrite chunk N-1's tail — see rate-4 read/write corruption).
+    parameter int BYTE_OFFSET_WIDTH    = $clog2(DRAM_BEAT_WIDTH / 8),
     parameter int WR_CAM_DEPTH         = 16,
     parameter int RD_CAM_DEPTH         = 16,
     parameter int SKID_DEPTH_AW        = 2,

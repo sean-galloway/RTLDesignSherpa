@@ -63,11 +63,15 @@ CLKS_PER_BIT   = 16
 # COL_WIDTH=10) so the BFM decodes DFI addresses the same way (a mismatch
 # corrupts the read path). MemoryModel is lazily zero-paged, so the large
 # num_lines only commits the pages the small workloads actually touch.
-# beat = 64b = 8 bytes; rate-2 DFI (GEAR=1).
 ROW_W, COL_W   = 13, 10
 NUM_BANKS      = 8
-DRAM_BEAT_BYTES = 8
 DRAM_BL        = 4    # DDR2 MR0 default BL — must match the controller
+# DFI rate / DRAM beat width. Default = rate-2 / 64b beat (GEAR=1, the known-
+# good macro config). Override via env to match the BOARD exactly: rate-4 /
+# 32b beat (GEAR=2) — TEST_DFI_RATE=4 TEST_DRAM_BEAT_BYTES=4. The tb_top SV
+# params are set to match by the pytest wrapper.
+DFI_RATE        = int(os.environ.get("TEST_DFI_RATE", "2"))
+DRAM_BEAT_BYTES = int(os.environ.get("TEST_DRAM_BEAT_BYTES", "8"))
 
 
 def _make_dfi_slave(dut):
@@ -161,6 +165,40 @@ async def cocotb_test_uart_smoke(dut):
 
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
+async def cocotb_test_uart_multichunk(dut):
+    """Multi-chunk write->read integrity. burst_len=4 at GEAR=2 splits into
+    two DRAM-BL chunks; the second chunk's DRAM column must advance by GEAR
+    DRAM beats, not AXI beats (regression for the addr_mapper BYTE_OFFSET_WIDTH
+    fix — chunk 2 used to overwrite chunk 1's tail). Single-chunk (bl=2) is the
+    control; both must round-trip clean."""
+    drv, chan, _dfi, _mem = await _bringup(dut)
+
+    def wr_rd(bl, seed):
+        drv.program_wr_engine(start_addr=0x0, burst_len=bl, txn_count=1,
+                              lfsr_seed=seed, axi_size=dc.AXI_SIZE_8)
+        drv.start_wr(); w = pm.wait_engine(drv, "wr", timeout_s=20)
+        drv.program_rd_engine(start_addr=0x0, burst_len=bl, txn_count=1,
+                              lfsr_seed=seed, axi_size=dc.AXI_SIZE_8)
+        drv.clear_stats(); drv.start_rd()
+        r = pm.wait_engine(drv, "rd", timeout_s=15)
+        return w, r, drv.beats_mismatched()
+
+    def prog():
+        drv.soft_reset()
+        drv.set_controller_cfg(memtype=dc.MEMTYPE_DDR2, t_phy_wrlat=4,
+                               t_rddata_en=4, rd_in_order=True)
+        return {"bl2": wr_rd(2, 0x5A5A0001),   # 1 chunk (control)
+                "bl4": wr_rd(4, 0x5A5A0001)}   # 2 chunks (the fix)
+
+    r = await cocotb.external(prog)()
+    dut._log.info("MULTICHUNK rate=%d: %s", DFI_RATE, r)
+    for name in ("bl2", "bl4"):
+        w, rd, mism = r[name]
+        assert w and rd and mism == 0, (
+            f"{name} multi-chunk integrity failed: wr={w} rd={rd} mism={mism}")
+
+
+@cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_uart_simple(dut):
     drv, chan, _dfi, _mem = await _bringup(dut)
 
@@ -205,7 +243,7 @@ async def cocotb_test_uart_leveling(dut):
 # =============================================================================
 # pytest wrappers
 # =============================================================================
-def _run(testcase: str):
+def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "ddr2_char_uart_tb_top"
     filelist_path = ("projects/NexysA7/ddr2-characterization/"
@@ -213,14 +251,18 @@ def _run(testcase: str):
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
 
-    sim_build = os.path.join(tests_dir, "local_sim_build", testcase)
+    tag = f"{testcase}_r{dfi_rate}"
+    sim_build = os.path.join(tests_dir, "local_sim_build", tag)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
     extra_env = {
         "DUT": dut_name,
         "COCOTB_LOG_LEVEL": "INFO",
-        "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{testcase}.xml"),
+        "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{tag}.xml"),
+        # tell the cocotb test how to size the DFISlavePHY BFM
+        "TEST_DFI_RATE": str(dfi_rate),
+        "TEST_DRAM_BEAT_BYTES": str(dram_beat_width // 8),
     }
     compile_args = [
         "+define+USE_ASYNC_RESET",
@@ -233,11 +275,15 @@ def _run(testcase: str):
         verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module="test_ddr2_char_uart",
         testcase=testcase,
+        # SV param override so the tb_top's DFI bus matches the BFM geometry.
+        parameters={"DFI_RATE": str(dfi_rate),
+                    "DRAM_BEAT_WIDTH": str(dram_beat_width)},
         sim_build=sim_build, simulator="verilator",
         extra_env=extra_env, compile_args=compile_args,
         keep_files=True, timescale="1ns/1ps")
 
 
+# ---- rate-2 / GEAR-1 (known-good macro config) ----
 def test_ddr2_char_uart_smoke(request):
     _run("cocotb_test_uart_smoke")
 
@@ -248,3 +294,12 @@ def test_ddr2_char_uart_simple(request):
 
 def test_ddr2_char_uart_leveling(request):
     _run("cocotb_test_uart_leveling")
+
+
+# ---- rate-4 / GEAR-2 (the BOARD's exact DFI config: AXI=64, DRAM beat=32) ----
+def test_ddr2_char_uart_smoke_rate4(request):
+    _run("cocotb_test_uart_smoke", dfi_rate=4, dram_beat_width=32)
+
+
+def test_ddr2_char_uart_multichunk_rate4(request):
+    _run("cocotb_test_uart_multichunk", dfi_rate=4, dram_beat_width=32)
