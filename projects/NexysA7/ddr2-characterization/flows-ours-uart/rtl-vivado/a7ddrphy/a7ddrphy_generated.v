@@ -1,9 +1,3 @@
-// GENERATED FILE -- DO NOT EDIT BY HAND.
-// Source: LiteDRAM A7DDRPHY (DDR2, Artix-7, 4:1/nphases=4), MT47H64M16, sys=100MHz iodelay=200MHz.
-// Regenerate: bin/elaborate_a7ddrphy.py in the py3.10 litex venv (see bin/README_a7ddrphy.md).
-// DFI 4-phase (dfi_p0..p3, 13b addr, 32b wrdata/phase); calib CSR bus (adr/we/dat_w/dat_r);
-// clocks sys/sys2x/sys4x/sys4x_dqs; IDELAYCTRL is provided by the harness (not this module).
-
 /* Machine-generated using Migen */
 module a7ddrphy(
 	output [12:0] ddram_a,
@@ -102,7 +96,7 @@ reg a7ddrphy_rst_storage = 1'd0;
 reg a7ddrphy_rst_re = 1'd0;
 reg [1:0] a7ddrphy_dly_sel_storage = 2'd0;
 reg a7ddrphy_dly_sel_re = 1'd0;
-reg [4:0] a7ddrphy_half_sys8x_taps_storage = 5'd8;
+reg [4:0] a7ddrphy_half_sys8x_taps_storage = 5'd21;
 reg a7ddrphy_half_sys8x_taps_re = 1'd0;
 reg a7ddrphy_wlevel_en_storage = 1'd0;
 reg a7ddrphy_wlevel_en_re = 1'd0;
@@ -134,9 +128,9 @@ reg a7ddrphy_wdly_dq_bitslip_re;
 wire a7ddrphy_wdly_dq_bitslip_r;
 reg a7ddrphy_wdly_dq_bitslip_we;
 reg a7ddrphy_wdly_dq_bitslip_w = 1'd0;
-reg [1:0] a7ddrphy_rdphase_storage = 2'd2;
+reg [1:0] a7ddrphy_rdphase_storage = 2'd1;
 reg a7ddrphy_rdphase_re = 1'd0;
-reg [1:0] a7ddrphy_wrphase_storage = 2'd3;
+reg [1:0] a7ddrphy_wrphase_storage = 2'd2;
 reg a7ddrphy_wrphase_re = 1'd0;
 wire a7ddrphy_sd_clk_se_nodelay;
 wire [2:0] a7ddrphy_pads_ba;
@@ -355,10 +349,8 @@ reg a7ddrphy_rddata_en_tappeddelayline3 = 1'd0;
 reg a7ddrphy_rddata_en_tappeddelayline4 = 1'd0;
 reg a7ddrphy_rddata_en_tappeddelayline5 = 1'd0;
 reg a7ddrphy_rddata_en_tappeddelayline6 = 1'd0;
-reg a7ddrphy_rddata_en_tappeddelayline7 = 1'd0;
 reg a7ddrphy_wrdata_en_tappeddelayline0 = 1'd0;
 reg a7ddrphy_wrdata_en_tappeddelayline1 = 1'd0;
-reg a7ddrphy_wrdata_en_tappeddelayline2 = 1'd0;
 reg re = 1'd0;
 reg rst0_re;
 wire rst0_r;
@@ -562,11 +554,11 @@ always @(*) begin
 	dummy_d_3 <= dummy_s;
 // synthesis translate_on
 end
-assign dfi_p0_rddata_valid = (a7ddrphy_rddata_en_tappeddelayline7 | a7ddrphy_wlevel_en_storage);
-assign dfi_p1_rddata_valid = (a7ddrphy_rddata_en_tappeddelayline7 | a7ddrphy_wlevel_en_storage);
-assign dfi_p2_rddata_valid = (a7ddrphy_rddata_en_tappeddelayline7 | a7ddrphy_wlevel_en_storage);
-assign dfi_p3_rddata_valid = (a7ddrphy_rddata_en_tappeddelayline7 | a7ddrphy_wlevel_en_storage);
-assign a7ddrphy_dq_oe = a7ddrphy_wrdata_en_tappeddelayline1;
+assign dfi_p0_rddata_valid = (a7ddrphy_rddata_en_tappeddelayline6 | a7ddrphy_wlevel_en_storage);
+assign dfi_p1_rddata_valid = (a7ddrphy_rddata_en_tappeddelayline6 | a7ddrphy_wlevel_en_storage);
+assign dfi_p2_rddata_valid = (a7ddrphy_rddata_en_tappeddelayline6 | a7ddrphy_wlevel_en_storage);
+assign dfi_p3_rddata_valid = (a7ddrphy_rddata_en_tappeddelayline6 | a7ddrphy_wlevel_en_storage);
+assign a7ddrphy_dq_oe = a7ddrphy_wrdata_en_tappeddelayline0;
 
 // synthesis translate_off
 reg dummy_d_4;
@@ -582,8 +574,8 @@ always @(*) begin
 	dummy_d_4 <= dummy_s;
 // synthesis translate_on
 end
-assign a7ddrphy_dqs_preamble = (a7ddrphy_wrdata_en_tappeddelayline0 & (~a7ddrphy_wrdata_en_tappeddelayline1));
-assign a7ddrphy_dqs_postamble = (a7ddrphy_wrdata_en_tappeddelayline2 & (~a7ddrphy_wrdata_en_tappeddelayline1));
+assign a7ddrphy_dqs_preamble = (a7ddrphy_wrdata_en_tappeddelayline1 & (~a7ddrphy_wrdata_en_tappeddelayline0));
+assign a7ddrphy_dqs_postamble = (a7ddrphy_wrdata_en_tappeddelayline1 & (~a7ddrphy_wrdata_en_tappeddelayline0));
 
 // synthesis translate_off
 reg dummy_d_5;
@@ -2384,10 +2376,8 @@ always @(posedge sys_clk) begin
 	a7ddrphy_rddata_en_tappeddelayline4 <= a7ddrphy_rddata_en_tappeddelayline3;
 	a7ddrphy_rddata_en_tappeddelayline5 <= a7ddrphy_rddata_en_tappeddelayline4;
 	a7ddrphy_rddata_en_tappeddelayline6 <= a7ddrphy_rddata_en_tappeddelayline5;
-	a7ddrphy_rddata_en_tappeddelayline7 <= a7ddrphy_rddata_en_tappeddelayline6;
 	a7ddrphy_wrdata_en_tappeddelayline0 <= (((dfi_p0_wrdata_en | dfi_p1_wrdata_en) | dfi_p2_wrdata_en) | dfi_p3_wrdata_en);
 	a7ddrphy_wrdata_en_tappeddelayline1 <= a7ddrphy_wrdata_en_tappeddelayline0;
-	a7ddrphy_wrdata_en_tappeddelayline2 <= a7ddrphy_wrdata_en_tappeddelayline1;
 	dat_r <= 1'd0;
 	if (sel) begin
 		case (adr[8:0])
@@ -2461,13 +2451,13 @@ always @(posedge sys_clk) begin
 		a7ddrphy_rst_re <= 1'd0;
 		a7ddrphy_dly_sel_storage <= 2'd0;
 		a7ddrphy_dly_sel_re <= 1'd0;
-		a7ddrphy_half_sys8x_taps_storage <= 5'd8;
+		a7ddrphy_half_sys8x_taps_storage <= 5'd21;
 		a7ddrphy_half_sys8x_taps_re <= 1'd0;
 		a7ddrphy_wlevel_en_storage <= 1'd0;
 		a7ddrphy_wlevel_en_re <= 1'd0;
-		a7ddrphy_rdphase_storage <= 2'd2;
+		a7ddrphy_rdphase_storage <= 2'd1;
 		a7ddrphy_rdphase_re <= 1'd0;
-		a7ddrphy_wrphase_storage <= 2'd3;
+		a7ddrphy_wrphase_storage <= 2'd2;
 		a7ddrphy_wrphase_re <= 1'd0;
 		a7ddrphy_dqs_oe_delay_tappeddelayline_tappeddelayline0 <= 1'd0;
 		a7ddrphy_dqs_oe_delay_tappeddelayline_tappeddelayline1 <= 1'd0;
@@ -2517,10 +2507,8 @@ always @(posedge sys_clk) begin
 		a7ddrphy_rddata_en_tappeddelayline4 <= 1'd0;
 		a7ddrphy_rddata_en_tappeddelayline5 <= 1'd0;
 		a7ddrphy_rddata_en_tappeddelayline6 <= 1'd0;
-		a7ddrphy_rddata_en_tappeddelayline7 <= 1'd0;
 		a7ddrphy_wrdata_en_tappeddelayline0 <= 1'd0;
 		a7ddrphy_wrdata_en_tappeddelayline1 <= 1'd0;
-		a7ddrphy_wrdata_en_tappeddelayline2 <= 1'd0;
 	end
 end
 

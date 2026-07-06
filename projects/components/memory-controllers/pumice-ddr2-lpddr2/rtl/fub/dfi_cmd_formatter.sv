@@ -201,10 +201,12 @@ module dfi_cmd_formatter
                     w_p0_ras_n = '0;
                     w_p0_cas_n = '0;
                     w_p0_we_n  = '0;
-                    // bank   = MR index (MR0..MR3 for DDR2)
-                    // addr   = MR data (DDR2 mode-register bits)
+                    // bank = MR index (MR0..MR3 for DDR2)
+                    // addr = MR data (DDR2 mode-register bits A[12:0]) — carried
+                    // on cmd_row_i (ROW_WIDTH), NOT cmd_col_i: MR0=0x532 needs
+                    // bit-10 (tWR[1]) and COL_WIDTH (10) would truncate it.
                     w_p0_bank  = DFI_BANK_WIDTH'(cmd_bank_i);
-                    w_p0_addr  = DFI_ADDR_WIDTH'(cmd_col_i);
+                    w_p0_addr  = DFI_ADDR_WIDTH'(cmd_row_i);
                 end
 
                 default: begin

@@ -82,27 +82,30 @@ module ddr2_char_top #(
     end
 
     // =========================================================================
-    // Clock generation for the a7ddrphy (4:1). The PHY needs sys (100),
-    // sys2x (200), sys4x (400) and sys4x_dqs (400, 90-deg), plus a 200 MHz
-    // IDELAYCTRL reference. The controller + harness run on sys.
+    // Clock generation for the a7ddrphy (4:1) at 300 MT/s (LiteDRAM's proven
+    // Nexys A7 rate). The PHY needs sys (37.5), sys2x (75), sys4x (150) and
+    // sys4x_dqs (150, 90-deg), so CK = sys4x = 150 MHz -> 300 MT/s, matching
+    // LiteDRAM's CL-3/CWL-2 config. IDELAYCTRL needs a dedicated 200 MHz ref
+    // (sys2x is no longer 200). The controller + harness run on sys (37.5).
     //   * DDR2_CHAR_SYNTH: real MMCME2_BASE + BUFGs + IDELAYCTRL (Vivado).
     //   * else (verilator/cocotb): all clocks alias CLK100MHZ, locked=1 —
     //     the a7ddrphy stub ignores the fast clocks anyway.
     // =========================================================================
-    wire w_sys, w_sys2x, w_sys4x, w_sys4x_dqs;
+    wire w_sys, w_sys2x, w_sys4x, w_sys4x_dqs, w_idelay;
     wire w_clk_locked;
 
 `ifdef DDR2_CHAR_SYNTH
-    wire w_sys_i, w_sys2x_i, w_sys4x_i, w_sys4x_dqs_i, w_clkfb_i, w_clkfb;
+    wire w_sys_i, w_sys2x_i, w_sys4x_i, w_sys4x_dqs_i, w_idelay_i, w_clkfb_i, w_clkfb;
     MMCME2_BASE #(
         .CLKIN1_PERIOD   (10.0),   // 100 MHz board clock
         .DIVCLK_DIVIDE   (1),
-        .CLKFBOUT_MULT_F (8.0),    // VCO = 800 MHz
-        .CLKOUT0_DIVIDE_F(8.0),    // sys        = 100 MHz
-        .CLKOUT1_DIVIDE  (4),      // sys2x      = 200 MHz (also IDELAYCTRL ref)
-        .CLKOUT2_DIVIDE  (2),      // sys4x      = 400 MHz
-        .CLKOUT3_DIVIDE  (2),      // sys4x_dqs  = 400 MHz
-        .CLKOUT3_PHASE   (90.0)    // DQS 90-deg
+        .CLKFBOUT_MULT_F (6.0),    // VCO = 600 MHz
+        .CLKOUT0_DIVIDE_F(16.0),   // sys        = 37.5 MHz
+        .CLKOUT1_DIVIDE  (8),      // sys2x      = 75  MHz
+        .CLKOUT2_DIVIDE  (4),      // sys4x      = 150 MHz  (= DRAM CK, 300 MT/s)
+        .CLKOUT3_DIVIDE  (4),      // sys4x_dqs  = 150 MHz
+        .CLKOUT3_PHASE   (90.0),   // DQS 90-deg
+        .CLKOUT4_DIVIDE  (3)       // idelay ref = 200 MHz
     ) u_mmcm (
         .CLKIN1   (CLK100MHZ),
         .CLKFBIN  (w_clkfb),
@@ -112,7 +115,7 @@ module ddr2_char_top #(
         .CLKOUT1  (w_sys2x_i),    .CLKOUT1B(),
         .CLKOUT2  (w_sys4x_i),    .CLKOUT2B(),
         .CLKOUT3  (w_sys4x_dqs_i),.CLKOUT3B(),
-        .CLKOUT4  (), .CLKOUT5(), .CLKOUT6(),
+        .CLKOUT4  (w_idelay_i),   .CLKOUT5(), .CLKOUT6(),
         .LOCKED   (w_clk_locked),
         .PWRDWN   (1'b0),
         .RST      (~CPU_RESETN)
@@ -122,13 +125,15 @@ module ddr2_char_top #(
     BUFG u_bufg_2x  (.I(w_sys2x_i),      .O(w_sys2x));
     BUFG u_bufg_4x  (.I(w_sys4x_i),      .O(w_sys4x));
     BUFG u_bufg_4xd (.I(w_sys4x_dqs_i),  .O(w_sys4x_dqs));
-    // IODELAY reference (200 MHz). One control per I/O bank the DQ/DQS use.
-    IDELAYCTRL u_idelayctrl (.REFCLK(w_sys2x), .RST(~w_clk_locked), .RDY());
+    BUFG u_bufg_idly(.I(w_idelay_i),     .O(w_idelay));
+    // IODELAY reference (200 MHz, dedicated). One control per I/O bank DQ/DQS use.
+    IDELAYCTRL u_idelayctrl (.REFCLK(w_idelay), .RST(~w_clk_locked), .RDY());
 `else
     assign w_sys       = CLK100MHZ;
     assign w_sys2x     = CLK100MHZ;
     assign w_sys4x     = CLK100MHZ;
     assign w_sys4x_dqs = CLK100MHZ;
+    assign w_idelay    = CLK100MHZ;
     assign w_clk_locked = 1'b1;
 `endif
 
@@ -194,7 +199,8 @@ module ddr2_char_top #(
         .AXI_DATA_WIDTH  (AXI_DATA_WIDTH),
         .DRAM_BEAT_WIDTH (DRAM_BEAT_WIDTH),
         .DFI_RATE        (DFI_RATE),
-        .ROW_WIDTH       (ROW_WIDTH)
+        .ROW_WIDTH       (ROW_WIDTH),
+        .FPGA_CLK_HZ     (37_500_000)   // sys is now 37.5 MHz -> UART baud divisor
     ) u_harness (
         .aclk    (aclk),
         .aresetn (aresetn),

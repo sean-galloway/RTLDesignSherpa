@@ -128,6 +128,16 @@ module scheduler
     input  logic                       mr_req_i,
     output logic                       mr_grant_o,
 
+    // ----- init-sequencer command injection (issued while init_busy_i) -----
+    // The init_sequencer drives DRAM bring-up commands (PRECHARGE_ALL /
+    // AUTO_REFRESH / MRS) that the scheduler forwards to dfi_cmd_formatter
+    // while init owns the bus. MRS MR-data rides the wide cmd_row path
+    // (COL_WIDTH is too narrow for MR0=0x532's bit-10).
+    input  logic                       init_cmd_valid_i,
+    input  dram_op_e                   init_cmd_op_i,
+    input  logic [BKW-1:0]             init_cmd_bank_i,
+    input  logic [ROW_WIDTH-1:0]       init_cmd_row_i,
+
     // ----- chosen op into dfi_cmd_formatter -----
     output logic                       cmd_valid_o,
     input  logic                       cmd_ready_i,
@@ -483,7 +493,15 @@ module scheduler
         unique case (r_state)
             S_IDLE: begin
                 if (init_busy_i) begin
-                    // NOP — init_sequencer owns the bus.
+                    // init_sequencer owns the bus: forward its bring-up command
+                    // (PRECHARGE_ALL / AUTO_REFRESH / MRS). One command per
+                    // single-cycle init_cmd_valid pulse (formatter always ready).
+                    if (init_cmd_valid_i) begin
+                        w_op        = init_cmd_op_i;
+                        w_cmd_valid = 1'b1;
+                        w_cmd_bank  = init_cmd_bank_i;
+                        w_cmd_row   = init_cmd_row_i;  // MRS: MR data (wide path)
+                    end
                 end else if (mr_req_i) begin
                     w_op            = OP_MRS;
                     w_cmd_valid     = 1'b1;

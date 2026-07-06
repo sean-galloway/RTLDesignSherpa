@@ -196,6 +196,13 @@ module command_scheduler_macro
     logic                                               mr_seq_we;
     logic [4:0]                                         mr_seq_index;
     logic [15:0]                                        mr_seq_data;
+
+    // init_sequencer -> scheduler DRAM-command request (bring-up commands
+    // forwarded to dfi_cmd_formatter while init_busy).
+    logic                                               init_cmd_valid;
+    dram_op_e                                           init_cmd_op;
+    logic [BKW-1:0]                                     init_cmd_bank;
+    logic [RW-1:0]                                      init_cmd_row;
     logic                                               zqcl_req;
     logic                                               zqcl_grant;
 
@@ -280,6 +287,10 @@ module command_scheduler_macro
         .init_busy_i        (init_busy),
         .mr_req_i           (mr_req),
         .mr_grant_o         (mr_grant),
+        .init_cmd_valid_i   (init_cmd_valid),
+        .init_cmd_op_i      (init_cmd_op),
+        .init_cmd_bank_i    (init_cmd_bank),
+        .init_cmd_row_i     (init_cmd_row),
         .cmd_valid_o        (cmd_valid_o),
         .cmd_ready_i        (cmd_ready_i),
         .cmd_op_o           (cmd_op_o),
@@ -438,7 +449,10 @@ module command_scheduler_macro
         .odt_o           (odt_unused)
     );
 
-    init_sequencer u_init_sequencer (
+    init_sequencer #(
+        .ROW_WIDTH (RW),
+        .NUM_BANKS (NUM_BANKS)
+    ) u_init_sequencer (
         .mc_clk              (mc_clk),
         .mc_rst_n            (mc_rst_n),
         .memtype_i           (memtype_i),
@@ -447,6 +461,10 @@ module command_scheduler_macro
         .mr_seq_we_o         (mr_seq_we),
         .mr_seq_index_o      (mr_seq_index),
         .mr_seq_data_o       (mr_seq_data),
+        .init_cmd_valid_o    (init_cmd_valid),
+        .init_cmd_op_o       (init_cmd_op),
+        .init_cmd_bank_o     (init_cmd_bank),
+        .init_cmd_row_o      (init_cmd_row),
         .zqcl_req_o          (zqcl_req),
         .zqcl_grant_i        (zqcl_grant),
         .init_busy_o         (init_busy),
