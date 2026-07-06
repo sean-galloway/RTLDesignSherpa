@@ -43,6 +43,24 @@ from ddr2_char import DDR2CharDriver
 
 
 # =============================================================================
+# Shared helper -- wait on ONE engine (write-then-read is phased; the driver's
+# wait_done() needs BOTH engines done, which would hang after a write-only or
+# read-only phase).
+# =============================================================================
+def wait_engine(drv: DDR2CharDriver, which: str, timeout_s: float = 15.0) -> bool:
+    assert which in ("wr", "rd")
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        s = drv.status()
+        if s.any_error:
+            return False
+        if (which == "wr" and s.wr_done) or (which == "rd" and s.rd_done):
+            return True
+        time.sleep(0.005)
+    return False
+
+
+# =============================================================================
 # Layer 1 -- a7ddrphy read/write leveling
 # =============================================================================
 @dataclass
@@ -82,25 +100,12 @@ class A7Leveling:
             print(f"[level] {msg}")
 
     # ---- low-level engine sequencing (write THEN read, phased) -----------
-    def _wait_engine(self, which: str, timeout_s: float = 10.0) -> bool:
-        deadline = time.monotonic() + timeout_s
-        while time.monotonic() < deadline:
-            s = self.drv.status()
-            if s.any_error:
-                return False
-            if which == "wr" and s.wr_done:
-                return True
-            if which == "rd" and s.rd_done:
-                return True
-            time.sleep(0.01)
-        return False
-
     def _write_pattern(self) -> bool:
         self.drv.program_wr_engine(start_addr=self.base, burst_len=self.blen,
                                    txn_count=self.txn, lfsr_seed=self.seed,
                                    data_mode=True, hash_seed0=self.seed)
         self.drv.start_wr()
-        return self._wait_engine("wr")
+        return wait_engine(self.drv, "wr")
 
     def _read_check(self) -> bool:
         """Read the pattern back; True iff CRC matches and no beats mismatch."""
@@ -109,7 +114,7 @@ class A7Leveling:
                                    data_mode=True, hash_seed0=self.seed)
         self.drv.clear_stats()
         self.drv.start_rd()
-        if not self._wait_engine("rd"):
+        if not wait_engine(self.drv, "rd"):
             return False
         _exp, _act, match, valid = self.drv.crc()
         return valid and match and (self.drv.beats_mismatched() == 0)
@@ -127,40 +132,24 @@ class A7Leveling:
         self.drv.phy_poke(dc.PHY_DLY_SEL, 1 << lane)
 
     # ---- leveling passes -------------------------------------------------
-    def write_leveling(self) -> int:
-        """Return the first write phase that yields a clean write+read, else -1."""
-        for phase in range(self.N_WR_PHASES):
-            self.drv.phy_poke(dc.PHY_WRPHASE, phase)
-            if self._write_pattern() and self._read_check():
-                self._log(f"write phase {phase} OK")
-                return phase
-        self._log("no clean write phase found")
-        return -1
-
-    def read_leveling(self) -> Tuple[int, Tuple[int, int]]:
-        """Sweep the read IDELAY tap; return (centre_tap, (first,last)) of the
-        CRC-passing window, or (-1,(-1,-1)) if none passes."""
-        # Fresh pattern in memory at the current (good) write phase.
-        if not self._write_pattern():
-            self._log("write of leveling pattern failed")
-            return -1, (-1, -1)
-        # Reset read delay to tap 0, then walk up.
+    def _scan_read_taps(self) -> Tuple[int, Tuple[int, int]]:
+        """With a pattern already written at the current write phase, sweep the
+        read IDELAY tap and return (centre, (first,last)) of the longest
+        CRC-passing run, or (-1,(-1,-1)) if none passes. Leaves the tap parked
+        at the centre when a window is found."""
         self.drv.phy_poke(dc.PHY_RDLY_DQ_RST, 1)
         passing: List[int] = []
         for tap in range(self.MAX_RD_TAPS):
             if self._read_check():
                 passing.append(tap)
-            self.drv.phy_poke(dc.PHY_RDLY_DQ_INC, 1)   # advance one tap
-        # Put the tap back to 0 for deterministic re-centreing.
-        self.drv.phy_poke(dc.PHY_RDLY_DQ_RST, 1)
+            self.drv.phy_poke(dc.PHY_RDLY_DQ_INC, 1)
+        self.drv.phy_poke(dc.PHY_RDLY_DQ_RST, 1)     # back to tap 0
         if not passing:
             return -1, (-1, -1)
-        # Longest contiguous run = the data eye.
         first, last = self._longest_run(passing)
         centre = (first + last) // 2
         for _ in range(centre):
             self.drv.phy_poke(dc.PHY_RDLY_DQ_INC, 1)
-        self._log(f"read eye taps [{first}..{last}], centred at {centre}")
         return centre, (first, last)
 
     @staticmethod
@@ -176,23 +165,31 @@ class A7Leveling:
         return best
 
     def run(self) -> LevelingResult:
+        """Joint (write-phase, read-tap) calibration. Write leveling on the
+        a7ddrphy is data-independent in JEDEC (DQS-vs-CK), but with the harness
+        pattern/CRC engines the practical detector is a joint search: for each
+        write phase, write a pattern and sweep the read taps; the first phase
+        that yields a passing tap-window wins, and we centre the read tap in it.
+        """
         res = LevelingResult(ok=False)
         self._log("resetting PHY calibration state")
         self.reset_phy()
-        wr_phase = self.write_leveling()
-        res.wr_phase = wr_phase
-        if wr_phase < 0:
-            res.notes.append("write leveling failed")
+        for phase in range(self.N_WR_PHASES):
+            self.drv.phy_poke(dc.PHY_WRPHASE, phase)
+            if not self._write_pattern():
+                continue
+            centre, window = self._scan_read_taps()
+            if centre < 0:
+                self._log(f"write phase {phase}: no read eye")
+                continue
+            self._log(f"write phase {phase}: read eye {window}, centre {centre}")
+            res.wr_phase, res.rd_tap, res.rd_window = phase, centre, window
+            # Final confirmation at the centred (phase, tap).
+            res.ok = self._write_pattern() and self._read_check()
+            if not res.ok:
+                res.notes.append("final verify at centred (phase,tap) failed")
             return res
-        centre, window = self.read_leveling()
-        res.rd_tap, res.rd_window = centre, window
-        if centre < 0:
-            res.notes.append("read leveling found no passing tap")
-            return res
-        # Final confirmation at the centred tap.
-        res.ok = self._write_pattern() and self._read_check()
-        if not res.ok:
-            res.notes.append("final verify at centred tap failed")
+        res.notes.append("no (write phase, read tap) combination passed")
         return res
 
 
@@ -239,13 +236,13 @@ class SimpleTest:
                             txn_count=txn_count, lfsr_seed=seed, data_mode=True,
                             hash_seed0=seed)
         d.start_wr()
-        s = d.wait_done()
+        wr_ok = wait_engine(d, "wr")
         d.clear_stats()
         d.start_rd()
-        s = d.wait_done()
+        rd_ok = wait_engine(d, "rd")
         exp, act, match, valid = d.crc()
         mism = d.beats_mismatched()
-        ok = valid and match and mism == 0 and not s.any_error
+        ok = wr_ok and rd_ok and valid and match and mism == 0
         return SimpleResult(ok=ok, expected=exp, actual=act, mismatched=mism)
 
 
@@ -298,12 +295,11 @@ class FullCharacterization:
         d.program_rd_engine(start_addr=self.base, burst_len=blen,
                             txn_count=self.txn, stride_0=stride, gap=gap,
                             lfsr_seed=seed, data_mode=True, hash_seed0=seed)
-        d.start_wr(); d.wait_done()
+        d.start_wr(); wr_ok = wait_engine(d, "wr")
         d.clear_stats(); d.timer_clear()
-        d.start_rd()
-        s = d.wait_done()
+        d.start_rd(); rd_ok = wait_engine(d, "rd")
         _exp, _act, match, valid = d.crc()
-        ok = valid and match and d.beats_mismatched() == 0 and not s.any_error
+        ok = wr_ok and rd_ok and valid and match and d.beats_mismatched() == 0
         t = d.timer()
         meters = d.perf_meters()
         rd_hist, _tot = d.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)

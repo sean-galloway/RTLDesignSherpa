@@ -42,7 +42,7 @@ UART ?= /dev/ttyUSB1
 BAUD ?= 115200
 
 .PHONY: help project synth bitstream program utilization timing smoke status \
-        lint clean clean-all
+        level simple characterize host-test lint clean clean-all
 
 help:
 	@echo "DDR2 Characterization — Nexys A7 build targets"
@@ -54,6 +54,10 @@ help:
 	@echo "  make timing       cat timing_summary.txt"
 	@echo "  make smoke        Run host smoke test (UART=$(UART))"
 	@echo "  make status       One-shot host status dump"
+	@echo "  make level        a7ddrphy read/write leveling (pumice_master)"
+	@echo "  make simple       Init(+leveling) + one write-then-read pass"
+	@echo "  make characterize Init + full workload-sweep characterization"
+	@echo "  make host-test    Board-less host-logic unit tests (mock UART)"
 	@echo "  make lint         verilator --lint-only of the harness"
 	@echo "  make clean        Remove Vivado artifacts + reports + bitstream"
 	@echo "  make clean-all    clean + logs + Python bytecode"
@@ -101,6 +105,24 @@ smoke:
 
 status:
 	@cd $(SELF_DIR)/host && python3 ddr2_char.py --port $(UART) --baud $(BAUD)
+
+# ---- pumice_master.py orchestration (on-board; needs a programmed FPGA) ----
+level:
+	@echo "[level] a7ddrphy read/write leveling against $(UART)"
+	@cd $(SELF_DIR)/host && python3 pumice_master.py --port $(UART) --baud $(BAUD) --level-only
+
+simple:
+	@echo "[simple] init (+leveling) + one write-then-read integrity pass"
+	@cd $(SELF_DIR)/host && python3 pumice_master.py --port $(UART) --baud $(BAUD) --simple
+
+characterize:
+	@echo "[characterize] init + full workload-sweep characterization"
+	@cd $(SELF_DIR)/host && python3 pumice_master.py --port $(UART) --baud $(BAUD) --full
+
+# ---- board-less host-logic unit tests (mock UART; CI-safe, no FPGA) ----
+host-test:
+	@echo "[host-test] pytest host/test_pumice_master.py (mock UART, no board)"
+	@cd $(SELF_DIR)/host && python3 -m pytest test_pumice_master.py -q
 
 # ---- Report shortcuts ------------------------------------------------------
 utilization:
