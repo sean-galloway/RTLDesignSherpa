@@ -146,10 +146,14 @@ package stream_pkg;
     // This is a CONTROL PATH module (not data path), so FSM is appropriate
     typedef enum logic [2:0] {
         RD_IDLE         = 3'b000,  // Waiting for descriptor address
-        RD_ISSUE_ADDR   = 3'b001,  // Issue AXI AR for descriptor fetch
-        RD_WAIT_DATA    = 3'b010,  // Wait for AXI R response
+        RD_ISSUE_ADDR   = 3'b001,  // Issue AXI AR for descriptor fetch (chunk 0)
+        RD_WAIT_DATA    = 3'b010,  // Wait for AXI R response (chunk 0)
         RD_COMPLETE     = 3'b011,  // Descriptor fetched successfully
-        RD_ERROR        = 3'b100   // AXI error response
+        RD_ERROR        = 3'b100,  // AXI error response
+        // Extended (TASK-101, USE_ROW_COL_MAJOR_ADDRESSING=1): conditional
+        // second 256-bit half fetch at descriptor_addr + 0x20 for desc_type=EXT.
+        RD_ISSUE_ADDR2  = 3'b101,  // Issue AXI AR for extended chunk 1
+        RD_WAIT_DATA2   = 3'b110   // Wait for AXI R response (chunk 1)
     } read_engine_state_t;
 
     //=========================================================================
