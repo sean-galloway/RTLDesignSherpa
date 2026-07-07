@@ -56,6 +56,37 @@ All outputs are strict-flop registered. Consumed by:
 - `rd_cl_aligner` — uses `cl_o` + PHY `t_rddata_en` for RD-to-rddata.
 - `dfi_cmd_formatter` — uses `bl_o` to size column commands.
 
+## Burst Length: Fixed per Instance, Parameterized for Family Reuse
+
+A memory controller supports exactly **one** DRAM burst length, chosen at init and
+fixed for the life of the instance — the datapath (beat sequencing, prefetch depth,
+column-stride math, tWR/tRTP-derived timing windows) is sized around that single
+value. pumice does **not** switch BL per transaction; the host/AXI burst is
+arbitrary and `axi_intake` splits it into fixed-BL DRAM commands.
+
+`bl_o` is therefore a **build/init constant**, not a per-command control. It is
+decoded from the mode register rather than hardcoded so the **same RTL retargets
+across the DDR family** — the only thing that changes is the programmed value and
+the device/beat widths:
+
+| Family | Burst length | Source          | pumice-beat count (via `bl_dram_beats`)              |
+|--------|--------------|-----------------|-----------------------------------------------------|
+| DDR2   | BL4 (fixed)  | MR0[2:0]=`010`  | `bl_o >> log2(DRAM_BEAT_WIDTH/DRAM_DEVICE_WIDTH)`    |
+| DDR3   | BL8 (fixed)  | MR0[1:0]        | same expression, `bl_o=8`                           |
+| DDR4   | BL8 (fixed)  | MR0[1:0]        | same expression, `bl_o=8`                           |
+
+Everything downstream keys off the decoded `bl_o` and the device/beat widths (see
+§15 "Narrow-Device (x16) Support"), so no burst-length constants are baked into the
+sequencers or the address decode. `BYTE_OFFSET_WIDTH` keys off **device width, not
+BL**, so the column granularity is already BL-agnostic.
+
+**BC4 / burst-chop (DDR3/DDR4): out of scope — always issue full BL8.** DDR3 and
+DDR4 allow BC4 and BL8-on-the-fly (A12). That is the *only* case where one instance
+would see two effective burst lengths per transaction, which would break the
+fixed-BL datapath invariant. The design decision is to **not** support BC4: always
+transfer the full fixed BL8. Revisit only if a workload demonstrably needs the
+partial-burst bandwidth (it usually does not).
+
 ## Scope (v1)
 
 - `NUM_MRS=4` fits DDR2 (MR0/MR1/MR2/MR3). LPDDR2 needs up to MR17;
