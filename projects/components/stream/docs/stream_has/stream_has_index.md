@@ -23,7 +23,7 @@
 
 # STREAM Hardware Architecture Specification Index
 
-**Version:** 0.93
+**Version:** 0.94
 **Date:** 2026-07-02
 **Purpose:** High-level hardware architecture specification for STREAM subsystem
 

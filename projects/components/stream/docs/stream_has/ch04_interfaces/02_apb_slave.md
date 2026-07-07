@@ -177,4 +177,40 @@ When software writes to `CHn_CTRL`:
 
 ---
 
-**Last Updated:** 2026-07-02
+## Kick-Burst Fast-Path Interface (optional)
+
+In addition to the APB `CHn_CTRL` kick, the top level exposes a **kick-burst**
+interface — a set of top-level ports (NOT APB registers) that let an integrator
+start any subset of channels **on a single clock cycle**, bypassing the
+per-channel APB write sequence. This matters when the APB path is reached over a
+slow transport (e.g. a UART-to-APB bridge on an FPGA), where issuing eight
+separate two-register kicks would serialize channel starts over milliseconds.
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `i_kick_burst_mask` | Input | `NUM_CHANNELS` | One-cycle pulse per channel; a set bit enqueues a kick for that channel |
+| `i_kick_burst_addr` | Input | `NUM_CHANNELS` x `ADDR_WIDTH` | Per-channel descriptor address, sampled when the matching mask bit pulses |
+
+: Kick-Burst Interface Signals
+
+**Semantics.** On any cycle where `i_kick_burst_mask[ch]` is high, the descriptor
+address on `i_kick_burst_addr[ch]` is latched into a per-channel pending kick and
+delivered to that channel's scheduler as soon as it can accept it. Asserting
+several mask bits on the same cycle enqueues all of those channels' kicks
+together, so N channels start back-to-back rather than serially. The pending kick
+clears once the scheduler accepts it.
+
+The kick-burst path and the APB `CHn_CTRL` path feed the same per-channel kick
+input (OR-combined; the APB path wins the address if both fire on one cycle, which
+is not expected in practice). An integrator drives `i_kick_burst_*` from its own
+logic — typically a bank of per-channel address shadow registers plus a "go"
+register whose write pulses the mask. The NexysA7 characterization harness is the
+reference implementation (address shadow registers + a `KICK_GO` bitmask CSR); see
+the MAS programming chapter for the software sequence.
+
+**Note:** The kick-burst ports are unrelated to the APB address map above. In a
+build that does not use them, tie `i_kick_burst_mask` low.
+
+---
+
+**Last Updated:** 2026-07-07

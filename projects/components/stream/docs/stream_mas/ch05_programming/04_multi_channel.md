@@ -145,6 +145,33 @@ uint64_t descriptors[8] = {
 start_channels(descriptors, 0x0F);  // Start channels 0-3
 ```
 
+The loop above issues the kicks **serially** — each channel takes a separate APB
+kick sequence. That is fine when the APB slave is local, but when it sits behind a
+slow transport the channels no longer start together.
+
+### Starting Channels Back-to-Back (Kick-Burst)
+
+For synchronized, low-latency multi-channel starts, use the **kick-burst** fast
+path (top-level `i_kick_burst_mask` / `i_kick_burst_addr`; see
+[Single Transfer](02_single_transfer.md#kick-burst-fast-path)). Program each
+channel's descriptor address into its address register, then write a single "go"
+register with the channel bitmask — every selected channel is kicked back-to-back
+on one clock cycle rather than serialized over the transport.
+
+```c
+// Pseudocode against the integrator's kick-burst registers
+// (the NexysA7 char harness exposes CH_KICK_ADDR[ch] + a KICK_GO bitmask CSR)
+void start_channels_burst(uint64_t *desc_addrs, uint8_t channel_mask) {
+    for (int ch = 0; ch < 8; ch++)
+        if (channel_mask & (1 << ch))
+            write_kick_addr(ch, (uint32_t)desc_addrs[ch]);  // program address regs
+    write_kick_go(channel_mask);                             // one go bit -> N kicks
+}
+```
+
+This is the path the STREAM characterization host uses so a multi-channel run's
+channels actually pipeline instead of stretching the start window over the UART.
+
 ### Waiting for Multiple Channels
 
 ```c
