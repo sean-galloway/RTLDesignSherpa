@@ -144,6 +144,12 @@ async def cocotb_test_uart_smoke(dut):
         drv.set_controller_cfg(memtype=dc.MEMTYPE_DDR2,
                                t_phy_wrlat=int(os.environ.get("TEST_T_PHY_WRLAT", "4")),
                                t_rddata_en=4, rd_in_order=True)
+        # DFI command-phase placement (pumice DFI_PHASE CSR). Default 0/0 keeps
+        # the legacy phase-0 behavior; TEST_RD_PHASE=1 exercises the a7ddrphy
+        # rdphase=1 path (RD command on DFI phase 1). The phase-aware DFISlavePHY
+        # follows whichever phase carries the command.
+        drv.set_dfi_phase(rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
+                          wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")))
         seed = 0xABCD1234
         # stride = burst_len * bytes_per_beat, so bursts don't overlap
         stride = 4 * 8
@@ -234,7 +240,8 @@ async def cocotb_test_uart_simple(dut):
 def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
          strict_write_timing: bool = False, write_latency: int = 0,
          t_phy_wrlat: int = 4, cmd_delay: int = 0,
-         strict_read_timing: bool = False, read_latency: int = 8):
+         strict_read_timing: bool = False, read_latency: int = 8,
+         rd_phase: int = 0, wr_phase: int = 0):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "ddr2_char_uart_tb_top"
     filelist_path = ("projects/NexysA7/ddr2-characterization/"
@@ -263,6 +270,8 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         "TEST_CMD_DELAY": str(cmd_delay),
         "TEST_STRICT_READ_TIMING": "1" if strict_read_timing else "0",
         "TEST_READ_LATENCY": str(read_latency),
+        "TEST_RD_PHASE": str(rd_phase),
+        "TEST_WR_PHASE": str(wr_phase),
     }
     compile_args = [
         "+define+USE_ASYNC_RESET",
@@ -344,3 +353,16 @@ def test_ddr2_char_uart_smoke_rate2_faithful(request):
     _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
          strict_write_timing=True, write_latency=0,
          strict_read_timing=True, read_latency=8, t_phy_wrlat=0, cmd_delay=1)
+
+
+def test_ddr2_char_uart_smoke_rate2_rdphase1(request):
+    # rdphase=1: pumice's DFI_PHASE CSR places the READ command on DFI phase 1
+    # (the a7ddrphy contract for DDR2/CL3/nphases=2). Proves the CSR -> formatter
+    # phase-select relocates the command AND the full read path still completes
+    # (the phase-aware DFISlavePHY follows the command to phase 1). The board's
+    # on-silicon ILA showed RD-on-phase-0 corrupts the burst tail; this is the
+    # digital mechanism that fixes it. See project_ddr2_ila_read_valid_skew.
+    _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
+         strict_write_timing=True, write_latency=0,
+         strict_read_timing=True, read_latency=8, t_phy_wrlat=0, cmd_delay=1,
+         rd_phase=1, wr_phase=0)

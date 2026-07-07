@@ -367,6 +367,8 @@ module ddr2_char_harness
     logic         w_rd_in_order;
     logic [3:0]   w_cap_lookahead_max, w_cap_synth_mask;
     logic [3:0]   w_cmd_delay_sel;   // DFI_TUNING.cmd_delay (runtime, from CSR)
+    logic [3:0]   w_rddata_delay_sel;// DFI_TUNING.rddata_delay (runtime, from CSR)
+    logic [DFI_DATA_WIDTH-1:0] w_dfi_rddata_dly; // PHY rddata realigned to valid
 
     // WR engine cfg
     logic [AXI_ADDR_WIDTH-1:0]        w_cfg_wr_start_addr;
@@ -488,6 +490,7 @@ module ddr2_char_harness
         .o_cap_lookahead_max (w_cap_lookahead_max),
         .o_cap_synth_mask    (w_cap_synth_mask),
         .o_cmd_delay         (w_cmd_delay_sel),
+        .o_rddata_delay      (w_rddata_delay_sel),
 
         // a7ddrphy calibration CSR passthrough -> harness boundary -> top -> PHY
         .o_phy_csr_adr       (o_phy_csr_adr),
@@ -737,7 +740,8 @@ module ddr2_char_harness
         .dfi_wrdata_mask_o      (o_dfi_wrdata_mask),
         .dfi_wrdata_en_o        (o_dfi_wrdata_en),
         .dfi_rddata_en_o        (w_c_dfi_rddata_en),
-        .dfi_rddata_i           (i_dfi_rddata),
+        // rddata realigned to the late a7ddrphy rddata_valid via dfi_rddata_delay.
+        .dfi_rddata_i           (w_dfi_rddata_dly),
         .dfi_rddata_valid_i     (i_dfi_rddata_valid),
         .dfi_dram_clk_disable_o (o_dfi_dram_clk_disable),
         .dfi_init_start_o       (o_dfi_init_start),
@@ -812,6 +816,21 @@ module ddr2_char_harness
         .o_cke       (o_dfi_cke),
         .o_odt       (o_dfi_odt),
         .o_rddata_en (o_dfi_rddata_en)
+    );
+
+    // Read-side mirror of dfi_cmd_delay: realign the a7ddrphy read DATA (which
+    // the on-silicon ILA showed leads its rddata_valid by ~read_latency cycles)
+    // with the late valid, so pumice's valid-gated rd_cl_aligner captures the
+    // right beats. sel=0 -> passthrough. See project_ddr2_ila_read_valid_skew.
+    dfi_rddata_delay #(
+        .DFI_DATA_WIDTH (DFI_DATA_WIDTH),
+        .MAX_DELAY      (15)
+    ) u_dfi_rddata_delay (
+        .mc_clk   (aclk),
+        .mc_rst_n (aresetn),
+        .sel_i    (w_rddata_delay_sel),
+        .i_rddata (i_dfi_rddata),
+        .o_rddata (w_dfi_rddata_dly)
     );
 
     assign w_rd_dbg_ready = 1'b1;   // always accept

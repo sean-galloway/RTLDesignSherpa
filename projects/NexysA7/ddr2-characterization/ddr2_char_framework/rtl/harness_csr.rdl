@@ -144,8 +144,13 @@ addrmap harness_csr {
                 sys-cycles the DFI command bus + rddata_en are delayed to align
                 the WR command with write data (a7ddrphy write_latency=0). With
                 pumice pre-pull (PREPULL_EN) the skew is a fixed 1-cycle pipeline
-                offset -> default 1. Tune live on the board if needed.";
-        field { sw = rw; hw = r; } cmd_delay[3:0] = 1;
+                offset -> default 1. rddata_delay = sys-cycles dfi_rddata is
+                delayed to realign the a7ddrphy read data (presented early,
+                coincident with rddata_en) with its late rddata_valid; set to the
+                PHY read_latency (~8 for DDR2/CL3/nphases=2), default 0 =
+                passthrough. Tune both live on the board if needed.";
+        field { sw = rw; hw = r; } cmd_delay[3:0]    = 1;
+        field { sw = rw; hw = r; } rddata_delay[7:4] = 0;
     } DFI_TUNING @ 0x68;
 
     //=========================================================================

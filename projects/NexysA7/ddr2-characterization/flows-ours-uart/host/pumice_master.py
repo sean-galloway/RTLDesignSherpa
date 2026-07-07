@@ -101,8 +101,8 @@ class A7Leveling:
     def __init__(self, drv: DDR2CharDriver, base_addr: int = 0x0000_0000,
                  burst_len: int = 4, txn_count: int = 2,
                  seed: int = 0x1EAF_F00D, t_phy_wrlat: int = 4,
-                 t_rddata_en: int = 6, lane_mask: int = 0b11,
-                 verbose: bool = True):
+                 t_rddata_en: int = 6, rddata_delay: int = 0,
+                 rd_phase: int = 0, lane_mask: int = 0b11, verbose: bool = True):
         self.drv = drv
         self.base = base_addr
         self.blen = burst_len
@@ -110,6 +110,8 @@ class A7Leveling:
         self.seed = seed
         self.wrlat = t_phy_wrlat
         self.rden = t_rddata_en
+        self.rddly = rddata_delay       # dfi_rddata->rddata_valid realign (ILA=8)
+        self.rdphase = rd_phase         # a7ddrphy rdphase=1 (RD cmd on phase 1)
         self.lanes = lane_mask          # x16 -> both byte lanes together (0b11)
         self.verbose = verbose
 
@@ -131,6 +133,8 @@ class A7Leveling:
         self.drv.set_controller_cfg(memtype=dc.MEMTYPE_DDR2,
                                     t_phy_wrlat=self.wrlat,
                                     t_rddata_en=self.rden, rd_in_order=True)
+        self.drv.set_dfi_rddata_delay(self.rddly)
+        self.drv.set_dfi_phase(rd_phase=self.rdphase, wr_phase=0)
         # A prior failing read leaves a STICKY rd_error/any_error latch that
         # soft_reset does not clear (it lives in harness_csr) — clear_stats
         # does. Without this, wait_engine() would false-negative every write
@@ -231,11 +235,14 @@ class SimpleResult:
 
 class SimpleTest:
     def __init__(self, drv: DDR2CharDriver, base_addr: int = 0x0000_0000,
-                 t_phy_wrlat: int = 4, t_rddata_en: int = 6):
+                 t_phy_wrlat: int = 4, t_rddata_en: int = 6,
+                 rddata_delay: int = 0, rd_phase: int = 0):
         self.drv = drv
         self.base = base_addr
         self.t_phy_wrlat = t_phy_wrlat
         self.t_rddata_en = t_rddata_en
+        self.rddata_delay = rddata_delay
+        self.rd_phase = rd_phase
         self.level: Optional[LevelingResult] = None
 
     def init(self, do_leveling: bool = True) -> None:
@@ -246,10 +253,14 @@ class SimpleTest:
                              t_phy_wrlat=self.t_phy_wrlat,
                              t_rddata_en=self.t_rddata_en,
                              rd_in_order=True)
+        d.set_dfi_rddata_delay(self.rddata_delay)
+        d.set_dfi_phase(rd_phase=self.rd_phase, wr_phase=0)
         if do_leveling:
             self.level = A7Leveling(d, base_addr=self.base,
                                     t_phy_wrlat=self.t_phy_wrlat,
-                                    t_rddata_en=self.t_rddata_en).run()
+                                    t_rddata_en=self.t_rddata_en,
+                                    rddata_delay=self.rddata_delay,
+                                    rd_phase=self.rd_phase).run()
             if not self.level.ok:
                 print(f"[simple] WARNING: leveling not clean: {self.level.notes}")
 
@@ -309,14 +320,18 @@ class FullCharacterization:
     ]
 
     def __init__(self, drv: DDR2CharDriver, base_addr: int = 0x0000_0000,
-                 txn_count: int = 1024, grid=None):
+                 txn_count: int = 1024, grid=None, rd_phase: int = 0,
+                 rddata_delay: int = 0):
         self.drv = drv
         self.base = base_addr
         self.txn = txn_count
         self.grid = grid or self.DEFAULT_GRID
+        self.rd_phase = rd_phase
+        self.rddata_delay = rddata_delay
 
     def init(self, do_leveling: bool = True) -> Optional[LevelingResult]:
-        st = SimpleTest(self.drv, base_addr=self.base)
+        st = SimpleTest(self.drv, base_addr=self.base, rd_phase=self.rd_phase,
+                        rddata_delay=self.rddata_delay)
         st.init(do_leveling=do_leveling)
         return st.level
 
@@ -365,6 +380,16 @@ def main() -> int:
                     help="DRAM base address for the workload")
     ap.add_argument("--no-level", action="store_true",
                     help="skip a7ddrphy leveling (assume already levelled)")
+    ap.add_argument("--rd-phase", type=int, default=0,
+                    help="DFI sub-phase for the READ command. The Nexys a7ddrphy "
+                         "takes the DFI command on phase 0 and handles rdphase "
+                         "internally, so 0 is correct here (on-silicon: rd_phase=1 "
+                         "made reads WORSE, 16/16). Non-zero is for a PHY that "
+                         "genuinely consumes a per-command rdphase off the DFI bus.")
+    ap.add_argument("--rd-delay", type=int, default=8,
+                    help="dfi_rddata_delay: sys-cycles to delay read data to "
+                         "meet the a7ddrphy's late rddata_valid (~read_latency=8; "
+                         "0=passthrough, for a PHY with no rddata/valid skew)")
     mode = ap.add_mutually_exclusive_group(required=True)
     mode.add_argument("--level-only", action="store_true",
                       help="run leveling and report the eye, nothing else")
@@ -381,13 +406,15 @@ def main() -> int:
               "-- wrong bitstream loaded?")
 
     if args.level_only:
-        res = A7Leveling(drv, base_addr=args.base).run()
+        res = A7Leveling(drv, base_addr=args.base, rd_phase=args.rd_phase,
+                         rddata_delay=args.rd_delay).run()
         print(f"leveling ok={res.ok} wr_phase={res.wr_phase} "
               f"rd_tap={res.rd_tap} window={res.rd_window} notes={res.notes}")
         return 0 if res.ok else 1
 
     if args.simple:
-        st = SimpleTest(drv, base_addr=args.base)
+        st = SimpleTest(drv, base_addr=args.base, rd_phase=args.rd_phase,
+                        rddata_delay=args.rd_delay)
         st.init(do_leveling=not args.no_level)
         r = st.run()
         print(f"simple: {'PASS' if r.ok else 'FAIL'} "
@@ -396,7 +423,8 @@ def main() -> int:
         return 0 if r.ok else 1
 
     if args.full:
-        fc = FullCharacterization(drv, base_addr=args.base)
+        fc = FullCharacterization(drv, base_addr=args.base, rd_phase=args.rd_phase,
+                                  rddata_delay=args.rd_delay)
         fc.init(do_leveling=not args.no_level)
         pts = fc.run()
         n_ok = sum(1 for p in pts if p.ok)

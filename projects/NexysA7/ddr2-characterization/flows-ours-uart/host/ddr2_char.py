@@ -69,6 +69,13 @@ HARNESS_REGMAP = os.path.join(
     _REPO_ROOT, "projects/NexysA7/ddr2-characterization/"
     "ddr2_char_framework/dv/tbclasses/harness_csr_regmap.py")
 
+# PeakRDL-generated regmap for the pumice controller CSR (APB slave, base 0x0
+# in the bridge map). Used for by-name access to pumice's own runtime knobs
+# (e.g. DFI_PHASE rd_phase/wr_phase). 12-bit APB address space, 32-bit data.
+PUMICE_REGMAP = os.path.join(
+    _REPO_ROOT, "projects/components/memory-controllers/"
+    "pumice-ddr2-lpddr2/dv/tbclasses/pumice_regmap.py")
+
 
 # =============================================================================
 # Bridge address map (bridge_ddr2_char_axil.toml). 1 master x 4 slaves.
@@ -265,6 +272,10 @@ class DDR2CharDriver:
             port=port, baudrate=baudrate, timeout=timeout)
         self.regs = UartRegisterMap(self.bridge, HARNESS_CSR_BASE,
                                     regmap_file=HARNESS_REGMAP)
+        # pumice controller CSR (APB slave). By-name access to pumice's own
+        # runtime knobs (DFI_PHASE etc.); 12-bit APB addr, 32-bit data.
+        self.pumice = UartRegisterMap(self.bridge, DDR2_APB_BASE,
+                                      regmap_file=PUMICE_REGMAP)
 
     # ----- Low-level helpers (by name via the register map) ----------------
     def _rd64(self, lo_name: str, hi_name: str) -> int:
@@ -320,10 +331,36 @@ class DDR2CharDriver:
     def set_dfi_cmd_delay(self, cmd_delay: int) -> None:
         """Real-time DFI command->write-data alignment (a7ddrphy
         write_latency=0). Sweep live over UART, no rebuild. Set while idle."""
-        self.regs.write("DFI_TUNING", cmd_delay=cmd_delay & 0xF)
+        # rmw: DFI_TUNING also holds rddata_delay — preserve it.
+        self.regs.write("DFI_TUNING", rmw=True, cmd_delay=cmd_delay & 0xF)
 
     def get_dfi_cmd_delay(self) -> int:
         return self.regs.field("DFI_TUNING", "cmd_delay")
+
+    def set_dfi_rddata_delay(self, rddata_delay: int) -> None:
+        """Real-time DFI read-data->rddata_valid alignment. The a7ddrphy presents
+        read data ~read_latency sys-cycles before its rddata_valid; this delays
+        dfi_rddata to meet the late valid so pumice captures the right beats.
+        Set to the PHY read_latency (~8 for DDR2/CL3/nphases=2); 0=passthrough.
+        Sweep live over UART, no rebuild. Set while idle."""
+        # rmw: DFI_TUNING also holds cmd_delay — preserve it.
+        self.regs.write("DFI_TUNING", rmw=True, rddata_delay=rddata_delay & 0xF)
+
+    def get_dfi_rddata_delay(self) -> int:
+        return self.regs.field("DFI_TUNING", "rddata_delay")
+
+    def set_dfi_phase(self, rd_phase: int, wr_phase: int = 0) -> None:
+        """Place the READ/WRITE DFI commands on the given sub-phases to match the
+        a7ddrphy rdphase/wrphase contract. The on-silicon ILA showed the read
+        burst is delivered aligned to rdphase=1 (wrphase=0); issuing RD on phase
+        0 misaligns the burst tail. This is a pumice CSR (DFI_PHASE @ APB 0x060),
+        not a harness reg. Set while idle; 0/0 = legacy all-on-phase-0."""
+        self.pumice.write("DFI_PHASE", rd_phase=rd_phase & 0x7,
+                          wr_phase=wr_phase & 0x7)
+
+    def get_dfi_phase(self) -> tuple:
+        return (self.pumice.field("DFI_PHASE", "rd_phase"),
+                self.pumice.field("DFI_PHASE", "wr_phase"))
 
     # ----- a7ddrphy calibration CSR (leveling knobs) ----------------------
     def phy_poke(self, knob: int, val: int = 1) -> None:

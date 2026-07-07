@@ -65,6 +65,7 @@
 //   0x64  CTRLR_CAP         RW  [3:0]   cap_lookahead_max
 //                                [7:4]   cap_synth_mask
 //   0x68  DFI_TUNING        RW  [3:0]   cmd_delay (DFI cmd->data align, dflt 1; pre-pull + pipe trim)
+//                                       [7:4]   rddata_delay (realign PHY rddata to late rddata_valid; dflt 0=passthru, set ~read_latency)
 //
 // -- WR engine cfg (0x100..0x12F) ----------------------------------------
 //   0x100  WR_START_ADDR    RW
@@ -248,6 +249,7 @@ module harness_csr
     output logic [3:0]      o_cap_lookahead_max,
     output logic [3:0]      o_cap_synth_mask,
     output logic [3:0]      o_cmd_delay,        // DFI_TUNING.cmd_delay (runtime)
+    output logic [3:0]      o_rddata_delay,     // DFI_TUNING.rddata_delay (runtime)
 
     // ---- a7ddrphy calibration CSR passthrough (firmware leveling) ----
     // Indirect access at harness_csr offsets 0x080-0x08C: write ADDR (0x080)
@@ -430,7 +432,7 @@ module harness_csr
     // Controller runtime cfg
     logic [31:0] r_ctrlr_cfg;   // {7'd0, rd_in_order, t_rddata_en, t_phy_wrlat, 7'd0, memtype}
     logic [31:0] r_ctrlr_cap;   // {24'd0, cap_synth_mask, cap_lookahead_max}
-    logic [31:0] r_dfi_tuning;  // {28'd0, cmd_delay[3:0]} — DFI command-bus delay
+    logic [31:0] r_dfi_tuning;  // [3:0]cmd_delay [7:4]rddata_delay — DFI cmd/read alignment
 
     // WR engine cfg
     logic [31:0] r_wr_start_addr;
@@ -803,6 +805,7 @@ module harness_csr
     assign o_cap_lookahead_max = r_ctrlr_cap[3:0];
     assign o_cap_synth_mask    = r_ctrlr_cap[7:4];
     assign o_cmd_delay         = r_dfi_tuning[3:0];
+    assign o_rddata_delay      = r_dfi_tuning[7:4];
 
     // WR-engine cfg unpack
     assign o_cfg_wr_start_addr  = r_wr_start_addr[AW-1:0];
