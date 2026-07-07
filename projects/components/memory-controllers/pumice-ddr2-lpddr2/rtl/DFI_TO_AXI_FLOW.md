@@ -68,6 +68,13 @@ What happens
 - The head advances past ops whose CAP is already done (or whose slot
   is no longer valid) so a slot-reuse new op at the FIFO tail still
   gets captured. This was the central wedge fix (task #205).
+- The op's captured-cycle count is derived from the device-word-scaled DRAM BL
+  (`bl_dram_beats`, see AXI_TO_DFI §12), so the aligner captures exactly the DFI
+  cycles the PHY returns per DRAM command — one cycle for a x16 BL4, not two.
+  (An unscaled BL over-captured a 2nd, postamble/garbage cycle: the on-silicon
+  x16 read failure.) Read data must be present on `dfi_rddata` when
+  `dfi_rddata_valid` is high; the ddr2-char harness's `DFI_TUNING.rddata_delay`
+  realigns PHYs that present read data ahead of valid.
 
 Queues / arrays touched on this leg
 - `r_stage [MAX_CONCURRENT] [MAX_DFI_CYC]` — writes the DFI cycle into
