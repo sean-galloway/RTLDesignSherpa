@@ -79,12 +79,20 @@ DRAM_BEAT_BYTES = int(os.environ.get("TEST_DRAM_BEAT_BYTES", "8"))
 # (1 DFI cycle) per command — modeling this is what makes the sim reproduce the
 # board's x16 over-read (and validate the burst-length fix).
 DRAM_DEVICE_BYTES = int(os.environ.get("TEST_DRAM_DEVICE_BYTES", str(DRAM_BEAT_BYTES)))
-BEATS_PER_BURST  = max(1, DRAM_BL * DRAM_DEVICE_BYTES // DRAM_BEAT_BYTES)
+# Model the DRAM at PHYSICAL device-word granularity: memory lines + columns are
+# device words (x16 => 2 bytes), and a command transfers DRAM_BL device words to
+# DRAM_BL consecutive device-word columns. The DFISlavePHY still samples the DFI
+# bus in DRAM-beat (DFI-phase) slices (dfi_phase_bytes) so DFI_RATE/rddata_valid
+# stay correct; K=beat/device device words pack into each phase. This lets the
+# oracle catch the column-stride OVERLAP (per-command footprint of DRAM_BL device
+# words collides with a controller column stride < DRAM_BL). device==beat => K=1
+# => bit-identical to the legacy single-granularity model.
+BEATS_PER_BURST  = DRAM_BL
 
 
 def _make_dfi_slave(dut):
     num_lines = NUM_BANKS * (1 << ROW_W) * (1 << COL_W)
-    memory = MemoryModel(num_lines=num_lines, bytes_per_line=DRAM_BEAT_BYTES,
+    memory = MemoryModel(num_lines=num_lines, bytes_per_line=DRAM_DEVICE_BYTES,
                          log=dut._log)
     mapping = AddressMapping(num_ranks=1, num_banks=NUM_BANKS,
                              num_rows=1 << ROW_W, num_cols=1 << COL_W,
@@ -98,7 +106,10 @@ def _make_dfi_slave(dut):
     _rdlat = int(os.environ.get("TEST_READ_LATENCY", "8"))
     slave = DFISlavePHY(dut, dut.aclk, base=base, memory=memory,
                         strict_write_timing=_strict, write_latency=_wrlat,
-                        strict_read_timing=_strict_rd, read_latency=_rdlat)
+                        strict_read_timing=_strict_rd, read_latency=_rdlat,
+                        # DFI phase (pumice DRAM beat) width for bus slicing;
+                        # memory is device-word granular. Equal => legacy K=1.
+                        dfi_phase_bytes=DRAM_BEAT_BYTES)
     # Demote HARD JEDEC violations to SOFT: we validate data loopback, not
     # the controller's exact tRCD/tFAW here.
     slave.dram = DramStateModel(timings=base.timings, num_banks=NUM_BANKS,
