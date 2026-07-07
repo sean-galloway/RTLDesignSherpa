@@ -27,6 +27,8 @@ address pattern and the throughput (per-beat modes are single-beat on that side)
 
 from __future__ import annotations
 
+from harness_kick import batch_kick
+
 # STREAM one-hot channel_state_t (stream_pkg.sv)
 CH_IDLE  = 0x01
 CH_ERROR = 0x20
@@ -80,9 +82,15 @@ def wait_done(stream, channel: int, *, start_poll: int = 64,
 
 def run_case(stream, channel: int, case: str, W: int, H: int,
              *, poll_max: int = 500_000) -> dict:
-    """Program + kick + wait for one case. Returns a result dict."""
+    """Program + kick + wait for one case. Returns a result dict.
+
+    Kicks via the harness KICK_GO fast path (program the CH_KICK_ADDR shadow
+    register, then one go-bit write) rather than the slow apbtodescr LOW/HIGH
+    APB kick, so a run starts on one aclk cycle with no per-kick UART stall.
+    """
     kick = program_case(stream, channel, case, W, H)
-    stream.run(channel, kick)
+    stream.enable_channel(channel, True)
+    batch_kick(stream.bridge, {channel: kick})
     res = wait_done(stream, channel, poll_max=poll_max)
     res.update(case=case, beats=W * H, kick=kick)
     return res

@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 from typing import List, Tuple
 
+from harness_kick import batch_kick
 from stream_ext_suite import CASES, program_case, wait_done
 
 # Default sweep: throughput-vs-size per mode. row modes burst; col modes are
@@ -71,7 +72,8 @@ def measure_mode(stream, channel: int, case: str, W: int, H: int,
     _perf_run(stream, False)          # ensure low (clean rising edge next)
     _perf_run(stream, True)           # open + clear
     kick = program_case(stream, channel, case, W, H)
-    stream.run(channel, kick)
+    stream.enable_channel(channel, True)
+    batch_kick(stream.bridge, {channel: kick})   # harness KICK_GO fast path
     res = wait_done(stream, channel, poll_max=poll_max)
     _perf_run(stream, False)          # close
 

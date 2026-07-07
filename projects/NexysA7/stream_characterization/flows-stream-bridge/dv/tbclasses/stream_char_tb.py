@@ -809,7 +809,8 @@ class StreamCharTB(TBBase):
 
                 def dma(_c=case, _W=W, _H=H):
                     kick = ec.program_case(stream, 0, _c, _W, _H)
-                    stream.run(0, kick)
+                    stream.enable_channel(0, True)
+                    ec.batch_kick(stream.bridge, {0: kick})  # harness KICK_GO fast path
                     return ec.wait_done(stream, 0, poll_max=4000)
 
                 res = await cocotb.external(dma)()
