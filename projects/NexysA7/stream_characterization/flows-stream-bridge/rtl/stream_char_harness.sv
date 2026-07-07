@@ -1841,23 +1841,24 @@ module stream_char_harness #(
         .APB_DATA_WIDTH     (APB_DATA_WIDTH),
         .AXI_ID_WIDTH       (AXI_ID_WIDTH),
         .AXI_USER_WIDTH     (AXI_USER_WIDTH),
-        .USE_AXI_MONITORS   (1),
-        .USE_MON_COMPRESSION(USE_MON_COMPRESSION),
-        .USE_MON_HALFBEAT   (USE_MON_HALFBEAT),
+        // Monitors compiled OUT of STREAM (param=0). Utilization is measured by
+        // the perf-only module in the harness (external to STREAM), so STREAM's
+        // in-core AXI monitors, MonBus compression/half-beat, and all DESC-monitor
+        // cones (including PERF) are dead weight here -- and at 8 channels with
+        // TASK-101 extended addressing enabled they overflow the xc7a100t LUTs.
+        // Removing them (param=0) reclaims the LUTs; the addr-gen logic stays.
+        .USE_AXI_MONITORS   (0),
+        .USE_MON_COMPRESSION(0),
+        .USE_MON_HALFBEAT   (0),
         .CDC_ENABLE         (0),
         .AR_MAX_OUTSTANDING (AR_MAX_OUTSTANDING),
         .AW_MAX_OUTSTANDING (AW_MAX_OUTSTANDING),
-        // Characterization only needs the datapath perf buckets. Drop the DESC
-        // monitor's error/timeout/compl/threshold/debug cones (perf-only, like
-        // the datapath monitors), and -- on the area-tight FPGA build, via
-        // GEN_MON=0 from stream_char_top -- the per-channel completion/error
-        // MonBus emitters. GEN_MON defaults 1 so cosim keeps the trace.
-        .GEN_MON            (GEN_MON),
+        .GEN_MON            (1'b0),
         .DESC_MON_ENABLE_ERROR_LOGIC     (1'b0),
         .DESC_MON_ENABLE_TIMEOUT_LOGIC   (1'b0),
         .DESC_MON_ENABLE_COMPL_LOGIC     (1'b0),
         .DESC_MON_ENABLE_THRESHOLD_LOGIC (1'b0),
-        .DESC_MON_ENABLE_PERF_LOGIC      (1'b1),
+        .DESC_MON_ENABLE_PERF_LOGIC      (1'b0),
         .DESC_MON_ENABLE_DEBUG_LOGIC     (1'b0)
     ) u_stream (
         .aclk    (aclk),   .aresetn(unit_aresetn),

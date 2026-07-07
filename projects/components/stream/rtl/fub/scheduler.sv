@@ -245,9 +245,22 @@ module scheduler #(
     // the feature AND the loaded descriptor is EXT -> at param=0 it is a constant
     // 0 and all logic below synthesizes away (legacy linear accumulation).
     descriptor_ext_t r_descriptor_ext;
+    // Registered (latched with the descriptor) so desc_type stays OUT of the
+    // per-cycle arb-request cone (the sched_*_beats mux -> axi_*_engine
+    // r_arb_request). r_is_ext is constant for the descriptor's lifetime and is
+    // valid from CH_FETCH_DESC (the cycle after capture, before first use), so
+    // this is cycle-behavior-identical to the former combinational compute --
+    // legacy and EXT alike -- while removing ~2 logic levels from the 100 MHz
+    // scheduler->engine critical path (TASK-101 had put desc_type in that cone).
+    logic r_is_ext;
     logic w_is_ext;
-    assign w_is_ext = (USE_ROW_COL_MAJOR_ADDRESSING != 0) &&
-                      (r_descriptor.desc_type == DESC_TYPE_EXT);
+    assign w_is_ext = r_is_ext;
+    // Incoming-descriptor views used to precompute the registered decisions.
+    descriptor_ext_t w_descriptor_ext_in;
+    logic            w_is_ext_in;
+    assign w_descriptor_ext_in = descriptor_ext_t'(descriptor_ext_packet);
+    assign w_is_ext_in = (USE_ROW_COL_MAJOR_ADDRESSING != 0) &&
+                         (desc_type_e'(descriptor_packet[210:208]) == DESC_TYPE_EXT);
 
     // Per-direction "beats left in the current contiguous run". Capped onto
     // sched_*_beats so the engine never bursts across a run boundary.
@@ -282,9 +295,13 @@ module scheduler #(
     // AXI, e.g. transpose/scatter). beat_size = DATA_WIDTH/8 bytes.
     localparam logic signed [STREAM_ADDRGEN_STRIDE_WIDTH-1:0] BEAT_BYTES =
                     STREAM_ADDRGEN_STRIDE_WIDTH'(DATA_WIDTH/8);
+    // Registered per-direction per-beat flags (same rationale as r_is_ext):
+    // cfg_per_beat feeds stream_run_addr_gen and the run-size mux; keeping the
+    // decision off the descriptor-comparison cone shortens the arb path.
+    logic r_rd_per_beat, r_wr_per_beat;
     logic w_rd_per_beat, w_wr_per_beat;
-    assign w_rd_per_beat = w_is_ext && (r_descriptor_ext.rd_stride_0 != BEAT_BYTES);
-    assign w_wr_per_beat = w_is_ext && (r_descriptor_ext.wr_stride_0 != BEAT_BYTES);
+    assign w_rd_per_beat = r_rd_per_beat;
+    assign w_wr_per_beat = r_wr_per_beat;
 
     // Effective run size = beats the engine bursts per run. Per-beat mode forces
     // 1 (single beat); run-contiguous uses inner_count (guarded 0 -> 1).
@@ -510,6 +527,9 @@ module scheduler #(
             r_write_beats_to_commit <= 32'h0;
             r_rd_run_remaining <= 32'h0;
             r_wr_run_remaining <= 32'h0;
+            r_is_ext <= 1'b0;
+            r_rd_per_beat <= 1'b0;
+            r_wr_per_beat <= 1'b0;
             r_fetch_desc_d <= 1'b0;
         end else begin
             // Track CH_FETCH_DESC for the one-cycle addr-gen start pulse
@@ -535,6 +555,16 @@ module scheduler #(
                 // For legacy descriptors desc_type=0 and chunk 1 is ignored.
                 r_descriptor.desc_type <= desc_type_e'(descriptor_packet[210:208]);
                 r_descriptor_ext <= descriptor_ext_packet;
+                // TASK-101 timing: precompute the ext-mode decisions from the
+                // INCOMING descriptor (lockstep with r_descriptor/r_descriptor_ext)
+                // so the per-cycle sched_*_beats mux selects on a register bit
+                // instead of a desc_type comparison. Constant for the descriptor;
+                // first consumed in CH_FETCH_DESC, so cycle-behavior is unchanged.
+                r_is_ext      <= w_is_ext_in;
+                r_rd_per_beat <= w_is_ext_in &&
+                                 (w_descriptor_ext_in.rd_stride_0 != BEAT_BYTES);
+                r_wr_per_beat <= w_is_ext_in &&
+                                 (w_descriptor_ext_in.wr_stride_0 != BEAT_BYTES);
 
                 r_descriptor_loaded <= 1'b1;
             end
