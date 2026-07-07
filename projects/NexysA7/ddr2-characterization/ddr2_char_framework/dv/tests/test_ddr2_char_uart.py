@@ -24,8 +24,7 @@ import sys
 
 import cocotb
 import pytest
-from cocotb.clock import Clock
-from cocotb.triggers import ClockCycles, Timer
+from cocotb.triggers import ClockCycles
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths
@@ -50,9 +49,7 @@ for _p in (_HOST, _TBC, _BRIDGE):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from TBClasses.harness.cocotb_axil_bridge import make_uart_channel  # noqa: E402
-from TBClasses.harness.byte_channel import TracingChannel           # noqa: E402
-from uart_axi_bridge import UARTAxiBridge               # noqa: E402
+from TBClasses.harness.harness import UartSimHarness      # noqa: E402
 import ddr2_char as dc                                  # noqa: E402
 import pumice_master as pm                              # noqa: E402
 
@@ -119,20 +116,15 @@ def _make_dfi_slave(dut):
 
 async def _bringup(dut, *, init_complete_delay: int = 20):
     """Clock + reset + DFI loopback BFM + UART pump; returns a DDR2CharDriver
-    whose transport is the sim UART (traced)."""
-    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
-
-    # DFI PHY-side inputs the BFM does not drive.
-    dut.phy_dfi_init_complete.value = 0
-    dut.phy_dfi_ctrlupd_ack.value   = 0
-    dut.phy_dfi_phyupd_req.value    = 0
-    dut.phy_dfi_phyupd_type.value   = 0
-    dut.i_uart_rx.value = 1  # UART idle = high
-
-    dut.aresetn.value = 0
-    await Timer(100, units="ns")
-    dut.aresetn.value = 1
-    await ClockCycles(dut.aclk, 10)
+    whose transport is the sim UART (traced). The generic clock/reset/UART
+    bringup is the shared UartSimHarness; only the DFI backend BFM +
+    init_complete are DDR2-specific and stay here."""
+    h = UartSimHarness(dut, clks_per_bit=CLKS_PER_BIT,
+                       idle_inputs={"phy_dfi_init_complete": 0,
+                                    "phy_dfi_ctrlupd_ack": 0,
+                                    "phy_dfi_phyupd_req": 0,
+                                    "phy_dfi_phyupd_type": 0})
+    chan = await h.start()
 
     dfi_slave, memory = _make_dfi_slave(dut)
 
@@ -141,9 +133,7 @@ async def _bringup(dut, *, init_complete_delay: int = 20):
         dut.phy_dfi_init_complete.value = 1
     cocotb.start_soon(_assert_init_complete())
 
-    chan = TracingChannel(
-        make_uart_channel(dut, dut.aclk, CLKS_PER_BIT, log=dut._log))
-    drv = dc.DDR2CharDriver(bridge=UARTAxiBridge(channel=chan))
+    drv = dc.DDR2CharDriver(bridge=h.make_bridge())
     return drv, chan, dfi_slave, memory
 
 

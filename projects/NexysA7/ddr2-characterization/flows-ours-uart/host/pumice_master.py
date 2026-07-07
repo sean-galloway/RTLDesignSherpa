@@ -390,6 +390,29 @@ def main() -> int:
                     help="dfi_rddata_delay: sys-cycles to delay read data to "
                          "meet the a7ddrphy's late rddata_valid (~read_latency=8; "
                          "0=passthrough, for a PHY with no rddata/valid skew)")
+    ap.add_argument("--char-level", default="medium",
+                    choices=["basic", "medium", "full"],
+                    help="scenario depth for --char (basic/medium/full)")
+    ap.add_argument("--char-scale", type=int, default=1,
+                    help="workload cycle multiplier for --char. Base counts are "
+                         "sim-sized (quick); use ~1000 on the FPGA for a long "
+                         "soak with stable perf counters (clamped to the 16-bit "
+                         "engine txn limit)")
+    ap.add_argument("--char-configs", default="baseline",
+                    help="controller configs to cross against every generator "
+                         "scenario: 'baseline' (default, single), 'matrix' (the "
+                         "isolating set: baseline/bank_interleave/open_page/"
+                         "inorder/reorder), 'all', or a comma-separated list of "
+                         "preset names (paging/OOO/refresh)")
+    ap.add_argument("--char-profile", default=None,
+                    help="run a named RUN_PROFILES matrix (smoke/matrix/full) -- "
+                         "the SAME definition the sim harness pulls, so a board "
+                         "run and a sim run are identical bar --char-scale. "
+                         "Overrides --char-configs/--char-level when set")
+    ap.add_argument("--csv", default=None,
+                    help="write --char records to this CSV path")
+    ap.add_argument("--clk-mhz", type=float, default=100.0,
+                    help="controller clock for bandwidth (MB/s) derivation")
     mode = ap.add_mutually_exclusive_group(required=True)
     mode.add_argument("--level-only", action="store_true",
                       help="run leveling and report the eye, nothing else")
@@ -397,6 +420,9 @@ def main() -> int:
                       help="init + one write-then-read integrity pass")
     mode.add_argument("--full", action="store_true",
                       help="init + full workload-sweep characterization")
+    mode.add_argument("--char", action="store_true",
+                      help="init + access-pattern characterization sweep "
+                           "(incremental / row-major / col-major page attack)")
     args = ap.parse_args()
 
     drv = DDR2CharDriver(port=args.port, baudrate=args.baud)
@@ -430,6 +456,35 @@ def main() -> int:
         n_ok = sum(1 for p in pts if p.ok)
         print(f"\nfull characterization: {n_ok}/{len(pts)} workloads passed")
         return 0 if n_ok == len(pts) else 1
+
+    if args.char:
+        # Lazy import keeps pumice_char's `from pumice_master import wait_engine`
+        # free of an import cycle (this module is fully loaded before main runs).
+        import pumice_char as pc
+        # Reuse the SimpleTest init path (reset + controller cfg + leveling).
+        st = SimpleTest(drv, base_addr=args.base, rd_phase=args.rd_phase,
+                        rddata_delay=args.rd_delay)
+        st.init(do_leveling=not args.no_level)
+
+        def _progress(name: str, i: int, n: int) -> None:
+            print(f"[char {i}/{n}] {name}", file=sys.stderr)
+
+        if args.char_profile:
+            recs = pc.run_profile(drv, args.char_profile,
+                                 txn_scale=args.char_scale, base_addr=args.base,
+                                 clk_mhz=args.clk_mhz, progress=_progress)
+        else:
+            recs = pc.run_matrix(drv, configs=args.char_configs,
+                                level=args.char_level, txn_scale=args.char_scale,
+                                base_addr=args.base, clk_mhz=args.clk_mhz,
+                                progress=_progress)
+        print()
+        pc.print_report(recs)
+        if args.csv:
+            pc.write_csv(recs, args.csv)
+            print(f"\nwrote {len(recs)} records to {args.csv}")
+        n_ok = sum(1 for r in recs if r.ok)
+        return 0 if n_ok == len(recs) else 1
 
     return 0
 
