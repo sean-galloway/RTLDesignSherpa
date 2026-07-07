@@ -22,7 +22,7 @@ subclasses (e.g. STREAM's `Stream`) add descriptor/kick/status operations on top
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Dict, Optional, Type
 
 from TBClasses.harness.uart_register_map import UartRegisterMap
 
@@ -60,3 +60,58 @@ class Device:
     def __repr__(self) -> str:
         return (f"<{type(self).__name__} {self.name!r} "
                 f"@ {self.regs.start_address:#010x}>")
+
+
+class DeviceBus:
+    """A unified, by-name view of every register-mapped IP behind ONE bridge.
+
+    This is the framework spine for the NexysA7 characterization harnesses:
+    one UART/AXIL bridge fans out to N named IP instances, each a `Device`
+    (its own PeakRDL regmap + base address). Registers are ALWAYS by name --
+    `bus["pumice0"].write("DFI_PHASE", rd_phase=1)` -- never by offset. Because
+    an instance is just (base address, regmap), the SAME IP can appear multiple
+    times at different bases (e.g. two pumice controllers), and heterogeneous IP
+    (harness_csr + pumice + a debug block) compose in one bus. The same bus
+    drives cocotb sim and the FPGA -- only the injected bridge differs.
+
+        bus = DeviceBus(bridge)
+        bus.add("harness", base=0x01_0000, regmap_file=HARNESS_REGMAP)
+        bus.add("pumice0", base=0x00_0000, regmap_file=PUMICE_REGMAP, cls=Pumice)
+        bus.add("pumice1", base=0x00_2000, regmap_file=PUMICE_REGMAP, cls=Pumice)
+        bus["pumice0"].write("SCHED_TUNING", force_inorder=1)
+        print(bus["pumice1"].field("STATUS", "init_done"))
+    """
+
+    def __init__(self, bridge, *, log: Optional[logging.Logger] = None):
+        self.bridge = bridge
+        self._log = log
+        self.devices: Dict[str, Device] = {}
+
+    def add(self, name: str, *, base: int, regmap_file: str,
+            cls: Type[Device] = Device, **kwargs) -> Device:
+        """Attach a named IP instance at `base` with its PeakRDL regmap. `cls`
+        may be a Device subclass adding that IP's domain operations (e.g. a
+        Pumice with program/perf helpers). Returns the instance."""
+        if name in self.devices:
+            raise ValueError(f"device {name!r} already on this bus")
+        dev = cls(self.bridge, name, regs_base=base, regmap_file=regmap_file,
+                  log=self._log, **kwargs)
+        self.devices[name] = dev
+        return dev
+
+    def device(self, name: str) -> Device:
+        return self.devices[name]
+
+    def __getitem__(self, name: str) -> Device:
+        return self.devices[name]
+
+    def __contains__(self, name: str) -> bool:
+        return name in self.devices
+
+    def names(self):
+        return tuple(self.devices)
+
+    def __repr__(self) -> str:
+        body = ", ".join(f"{n}@{d.regs.start_address:#x}"
+                         for n, d in self.devices.items())
+        return f"<DeviceBus [{body}]>"
