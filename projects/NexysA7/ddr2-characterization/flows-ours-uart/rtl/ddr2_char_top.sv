@@ -96,7 +96,7 @@ module ddr2_char_top #(
     // IDELAYCTRL calibration-ready. If this never asserts, every IDELAY tap is
     // uncalibrated -> read DQ is garbage at all taps. Gated into aresetn below
     // (LiteDRAM holds the design in reset until idelayctrl.ready).
-    wire w_idelay_rdy;
+    (* mark_debug = "true" *) wire w_idelay_rdy;
 
 `ifdef DDR2_CHAR_SYNTH
     wire w_sys_i, w_sys2x_i, w_sys2x_dqs_i, w_idelay_i, w_clkfb_i, w_clkfb;
@@ -177,16 +177,21 @@ module ddr2_char_top #(
     localparam int DFI_ADDR_BUS_W  = ROW_WIDTH * DFI_RATE;         // 52
     localparam int DFI_BANK_BUS_W  = 3 * DFI_RATE;                 // 12
 
-    logic [DFI_ADDR_BUS_W-1:0]     w_dfi_address;
-    logic [DFI_BANK_BUS_W-1:0]     w_dfi_bank;
-    logic [DFI_RATE-1:0]           w_dfi_cas_n, w_dfi_ras_n, w_dfi_we_n;
-    logic [DFI_RATE-1:0]           w_dfi_cs_n, w_dfi_cke, w_dfi_odt;
-    logic [DFI_DATA_WIDTH-1:0]     w_dfi_wrdata;
+    // (* mark_debug *) on the DFI-at-PHY-boundary nets: an ILA on aclk (sys)
+    // captures exactly what pumice drives into the a7ddrphy (command + wrdata)
+    // and what the PHY returns (rddata/valid) — the analog OSERDES/ISERDES layer
+    // is not fabric-visible, but this boundary is the diagnostic surface.
+    (* mark_debug = "true" *) logic [DFI_ADDR_BUS_W-1:0]     w_dfi_address;
+    (* mark_debug = "true" *) logic [DFI_BANK_BUS_W-1:0]     w_dfi_bank;
+    (* mark_debug = "true" *) logic [DFI_RATE-1:0]           w_dfi_cas_n, w_dfi_ras_n, w_dfi_we_n;
+    (* mark_debug = "true" *) logic [DFI_RATE-1:0]           w_dfi_cs_n;
+    logic [DFI_RATE-1:0]           w_dfi_cke, w_dfi_odt;
+    (* mark_debug = "true" *) logic [DFI_DATA_WIDTH-1:0]     w_dfi_wrdata;
     logic [DFI_STRB_WIDTH-1:0]     w_dfi_wrdata_mask;
-    logic [DFI_RATE-1:0]           w_dfi_wrdata_en;
-    logic [DFI_RATE-1:0]           w_dfi_rddata_en;
-    logic [DFI_DATA_WIDTH-1:0]     w_dfi_rddata;
-    logic [DFI_RATE-1:0]           w_dfi_rddata_valid;
+    (* mark_debug = "true" *) logic [DFI_RATE-1:0]           w_dfi_wrdata_en;
+    (* mark_debug = "true" *) logic [DFI_RATE-1:0]           w_dfi_rddata_en;
+    (* mark_debug = "true" *) logic [DFI_DATA_WIDTH-1:0]     w_dfi_rddata;
+    (* mark_debug = "true" *) logic [DFI_RATE-1:0]           w_dfi_rddata_valid;
     logic [DFI_RATE-1:0]           w_dfi_dram_clk_disable;
     logic                          w_dfi_init_start;
     logic                          w_dfi_init_complete;

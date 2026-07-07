@@ -98,6 +98,13 @@ bitstream:
 	@echo "Bitstream: $(BITSTREAM)"
 	@echo "Reports:   $(REPORTS)"
 
+# ---- Debug build: same design + an ILA on the DFI-boundary nets ------------
+bitstream-ila:
+	@echo "[bitstream-ila] build with ILA on the marked DFI-boundary nets"
+	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL)/build_ila.tcl
+	@echo ""
+	@echo "ILA bitstream: $(SELF_DIR)/bitstream/ddr2_char_ila.bit (+ .ltx probes)"
+
 # ---- Program board ---------------------------------------------------------
 program:
 	@[ -f $(BITSTREAM) ] || (echo "No bitstream found — run 'make bitstream' first." && false)
@@ -115,6 +122,10 @@ status:
 level:
 	@echo "[level] a7ddrphy read/write leveling against $(UART)"
 	@cd $(SELF_DIR)/host && python3 pumice_master.py --port $(UART) --baud $(BAUD) --level-only
+
+sweep-rddly:
+	@echo "[sweep-rddly] sweep DFI_TUNING.rddata_delay 0..15, report beats_mismatched"
+	@cd $(SELF_DIR)/host && python3 sweep_rddata_delay.py --port $(UART) --baud $(BAUD)
 
 simple:
 	@echo "[simple] init (+leveling) + one write-then-read integrity pass"
