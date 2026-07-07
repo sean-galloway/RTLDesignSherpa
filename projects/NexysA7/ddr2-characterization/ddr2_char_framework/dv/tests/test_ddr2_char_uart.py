@@ -86,8 +86,11 @@ def _make_dfi_slave(dut):
                    mapping=mapping, beats_per_burst=DRAM_BL)
     _strict = os.environ.get("TEST_STRICT_WRITE_TIMING", "0") == "1"
     _wrlat = int(os.environ.get("TEST_WRITE_LATENCY", "0"))
+    _strict_rd = os.environ.get("TEST_STRICT_READ_TIMING", "0") == "1"
+    _rdlat = int(os.environ.get("TEST_READ_LATENCY", "8"))
     slave = DFISlavePHY(dut, dut.aclk, base=base, memory=memory,
-                        strict_write_timing=_strict, write_latency=_wrlat)
+                        strict_write_timing=_strict, write_latency=_wrlat,
+                        strict_read_timing=_strict_rd, read_latency=_rdlat)
     # Demote HARD JEDEC violations to SOFT: we validate data loopback, not
     # the controller's exact tRCD/tFAW here.
     slave.dram = DramStateModel(timings=base.timings, num_banks=NUM_BANKS,
@@ -230,7 +233,8 @@ async def cocotb_test_uart_simple(dut):
 # =============================================================================
 def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
          strict_write_timing: bool = False, write_latency: int = 0,
-         t_phy_wrlat: int = 4, cmd_delay: int = 0):
+         t_phy_wrlat: int = 4, cmd_delay: int = 0,
+         strict_read_timing: bool = False, read_latency: int = 8):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "ddr2_char_uart_tb_top"
     filelist_path = ("projects/NexysA7/ddr2-characterization/"
@@ -257,6 +261,8 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         "TEST_WRITE_LATENCY": str(write_latency),
         "TEST_T_PHY_WRLAT": str(t_phy_wrlat),
         "TEST_CMD_DELAY": str(cmd_delay),
+        "TEST_STRICT_READ_TIMING": "1" if strict_read_timing else "0",
+        "TEST_READ_LATENCY": str(read_latency),
     }
     compile_args = [
         "+define+USE_ASYNC_RESET",
@@ -321,3 +327,20 @@ def test_ddr2_char_uart_smoke_rate2_strict(request):
     # runtime cmd_delay CSR (=1). Net: faithful write_latency=0 oracle passes.
     _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
          strict_write_timing=True, write_latency=0, t_phy_wrlat=0, cmd_delay=1)
+
+
+def test_ddr2_char_uart_smoke_rate2_strict_read(request):
+    # Faithful read gate: rddata returns read_latency after the controller's
+    # dfi_rddata_en (FIFO-ordered per RD command), NOT self-timed off CL. Checks
+    # the controller asserts rddata_en with the right cadence + captures right.
+    _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
+         strict_read_timing=True, read_latency=8, t_phy_wrlat=0, cmd_delay=1)
+
+
+def test_ddr2_char_uart_smoke_rate2_faithful(request):
+    # Full a7ddrphy contract: strict write (write_latency=0) AND strict read
+    # (rddata_en-gated, read_latency=8). If this passes, pumice's DFI drive is
+    # faithful to the real PHY -> the board should read+write correctly.
+    _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
+         strict_write_timing=True, write_latency=0,
+         strict_read_timing=True, read_latency=8, t_phy_wrlat=0, cmd_delay=1)
