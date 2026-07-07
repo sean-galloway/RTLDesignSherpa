@@ -359,6 +359,18 @@ async def cocotb_test_stream_char(dut):
         ok &= await tb.run_ext_suite_test(W=W, H=H)
         assert ok, "ext_suite: one or more addressing cases failed"
 
+    elif test_type == 'ext_char':
+        # TASK-101 characterization: sweep the four modes x sizes, measure RD/WR
+        # perf, dump JSON. Small sizes here validate the perf plumbing in sim;
+        # the full sweep runs on the board via host/stream_ext_char.py.
+        tb.log.info("=== TASK-101 extended-addressing characterization sweep ===")
+        ok = await tb.run_ping_test()
+        sizes = [tuple(int(x) for x in s.split('x'))
+                 for s in os.environ.get('EXT_CHAR_SIZES', '8x8,16x16').split(',')]
+        out = os.environ.get('EXT_CHAR_OUT', 'ext_char_sim.json')
+        ok &= await tb.run_ext_char_test(sizes, out)
+        assert ok, "ext_char: sweep DMA failed (a mode/size did not complete)"
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -652,3 +664,87 @@ def test_stream_char_ext_suite(request):
         plus_args=['--trace'] if enable_waves else [],
     )
     print(f"PASS ext_suite! Logs: {log_path}")
+
+
+def test_stream_char_ext_char(request):
+    """TASK-101 characterization pre-validation: build the char harness param=1
+    and sweep the four addressing modes x (small) sizes, measuring RD/WR perf and
+    dumping JSON. Validates the perf plumbing in sim; the full board sweep uses
+    host/stream_ext_char.py. JSON -> results/ext/ext_char_sim.json for the report
+    generator."""
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+    module, repo_root_path, tests_dir, log_dir, rtl_dict = get_paths({
+        'stream_char': 'projects/NexysA7/stream_characterization/flows-stream-bridge',
+    })
+    dut_name = "stream_char_harness"
+
+    os.environ['STREAM_ROOT'] = os.path.join(repo_root_path, 'projects/components/stream')
+    os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root_path, 'projects/components/converters')
+    os.environ['MISC_ROOT'] = os.path.join(repo_root_path, 'projects/components/misc')
+    os.environ['STREAM_CHAR_ROOT'] = os.path.join(repo_root_path, 'projects/NexysA7/stream_characterization/flows-stream-bridge')
+    os.environ['FRAMEWORK_ROOT'] = os.path.join(repo_root_path, 'projects/NexysA7/stream_characterization/stream_char_framework')
+
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root_path,
+        filelist_path='projects/NexysA7/stream_characterization/flows-stream-bridge/rtl/filelists/stream_char_harness.f',
+    )
+
+    results_dir = os.path.join(os.environ['STREAM_CHAR_ROOT'], 'results', 'ext')
+    os.makedirs(results_dir, exist_ok=True)
+    out_json = os.path.join(results_dir, 'ext_char_sim.json')
+
+    test_name_plus_params = f"test_{dut_name}_ext_char_rowcol"
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    rtl_parameters = {
+        'FPGA_CLK_HZ': str(SIM_FPGA_CLK_HZ),
+        'UART_BAUD':   str(SIM_UART_BAUD),
+        'USE_ROW_COL_MAJOR_ADDRESSING': '1',
+        **{k: str(v) for k, v in BASE_RTL_PARAMS.items()},
+    }
+    extra_env = {
+        'TEST_TYPE':        'ext_char',
+        'EXT_CHAR_SIZES':   os.environ.get('EXT_CHAR_SIZES', '8x8,16x16'),
+        'EXT_CHAR_OUT':     out_json,
+        'FPGA_CLK_HZ':     str(SIM_FPGA_CLK_HZ),
+        'UART_BAUD':        str(SIM_UART_BAUD),
+        'TEST_LEVEL':       'gate',
+        'DUT':              dut_name,
+        'LOG_PATH':         log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': results_path,
+        'SEED':             str(random.randint(0, 100000)),
+    }
+    simulator = os.environ.get('SIM', 'verilator').lower()
+    create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+    compile_args = [
+        "--trace-fst", "--trace-structs", "--trace-depth", "99",
+        "--public-flat-rw",
+        "-Wno-TIMESCALEMOD", "-Wno-MULTIDRIVEN", "-Wno-WIDTHEXPAND",
+        "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-UNOPTFLAT",
+    ]
+    run(
+        python_search=[tests_dir],
+        verilog_sources=verilog_sources,
+        includes=includes,
+        toplevel=dut_name,
+        module=module,
+        testcase="cocotb_test_stream_char",
+        parameters=rtl_parameters,
+        sim_build=sim_build,
+        extra_env=extra_env,
+        simulator=simulator,
+        waves=enable_waves,
+        keep_files=True,
+        compile_args=compile_args,
+        sim_args=["--trace", "--trace-structs", "--trace-depth", "99"],
+        plus_args=['--trace'] if enable_waves else [],
+    )
+    print(f"PASS ext_char! JSON: {out_json}")
