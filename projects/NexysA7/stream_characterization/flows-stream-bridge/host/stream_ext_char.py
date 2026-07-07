@@ -20,7 +20,7 @@ import json
 from typing import List, Tuple
 
 from harness_kick import batch_kick
-from stream_ext_suite import CASES, program_case, wait_done
+from stream_ext_suite import CASES, CH_ERROR, CH_IDLE, program_case, wait_done
 
 # Default sweep: throughput-vs-size per mode. row modes burst; col modes are
 # single-beat, so col/col at the large sizes dominates board runtime.
@@ -111,6 +111,82 @@ def run_sweep(stream, *, channel: int = 0, sizes=DEFAULT_SIZES, cases=CASES,
 
 
 # ---------------------------------------------------------------------------
+# Channel-count scaling: aggregate bus utilization vs. number of channels.
+#
+# The transpose cases (row/col, col/row) run one direction per-beat (single-beat
+# AXI). A single channel there is latency-bound -- the shared bus idles between
+# beats. Firing N channels back-to-back (KICK_GO) lets the shared read/write
+# engine interleave them, hiding per-beat latency, so aggregate utilization is
+# expected to rise 1 -> 8 (with a knee where outstanding transactions cover the
+# latency). Burst cases (row/row) already saturate at N=1 and are included only
+# as the control that should stay flat.
+# ---------------------------------------------------------------------------
+DEFAULT_CHANNEL_COUNTS = (1, 2, 4, 8)
+SCALING_CASES = ("row/col", "col/row")     # the transpose (per-beat) modes
+SCALING_SIZE = (256, 256)                  # fixed tile; big enough to hide poll latency
+
+
+def _wait_all(stream, channels, poll_max: int) -> dict:
+    """Wait for every channel in `channels` to return to IDLE. Fails fast on any
+    channel entering CH_ERROR."""
+    pending = set(channels)
+    for _ in range(poll_max):
+        for ch in list(pending):
+            st = stream.channel_state(ch)
+            if st == CH_ERROR:
+                return dict(ok=False, reason=f"CH_ERROR ch{ch}")
+            if st == CH_IDLE:
+                pending.discard(ch)
+        if not pending:
+            return dict(ok=True, reason="idle")
+    return dict(ok=False, reason=f"timeout pending={sorted(pending)}")
+
+
+def measure_scaling(stream, case: str, W: int, H: int, nch: int,
+                    *, poll_max: int = 40000) -> dict:
+    """Run one (mode, size) across `nch` channels concurrently with the perf
+    windows open; return a record tagged with nch and aggregate metrics.
+
+    All nch channels run the SAME tile config (the synthetic peers ignore the
+    src/dst addresses, so per-channel descriptors may overlap). Channels are
+    kicked back-to-back via the harness KICK_GO fast path so they actually
+    overlap on the shared bus rather than serializing on the transport."""
+    channels = list(range(nch))
+    kicks = {}
+    for ch in channels:
+        kicks[ch] = program_case(stream, ch, case, W, H)
+        stream.enable_channel(ch, True)
+
+    _perf_run(stream, False)          # clean rising edge
+    _perf_run(stream, True)           # open + clear
+    batch_kick(stream.bridge, kicks)  # fire all nch channels on one aclk cycle
+    res = _wait_all(stream, channels, poll_max=poll_max)
+    _perf_run(stream, False)          # close
+
+    rd, wr = _read_perf(stream, "RDMON_PERF"), _read_perf(stream, "WRMON_PERF")
+    return _derive({
+        "case": case, "W": W, "H": H, "nch": nch, "beats": nch * W * H,
+        "ok": res["ok"], "reason": res["reason"], "rd": rd, "wr": wr,
+    })
+
+
+def run_channel_scaling(stream, *, cases=SCALING_CASES, size=SCALING_SIZE,
+                        channel_counts=DEFAULT_CHANNEL_COUNTS,
+                        poll_max: int = 40000, progress=None) -> List[dict]:
+    """For each transpose case, sweep channel count and record aggregate util.
+    Returns one record per (case, nch)."""
+    enable_monitors(stream)
+    W, H = size
+    records = []
+    for case in cases:
+        for nch in channel_counts:
+            if progress:
+                progress(f"{case} {W}x{H} x{nch}ch")
+            records.append(measure_scaling(stream, case, W, H, nch, poll_max=poll_max))
+    return records
+
+
+# ---------------------------------------------------------------------------
 # FPGA entry point
 # ---------------------------------------------------------------------------
 def _configure(stream, harness_csr_base: int) -> None:
@@ -150,9 +226,15 @@ def main(argv=None) -> int:
     ap.add_argument("--channel", type=int, default=0)
     ap.add_argument("--out", default="ext_char.json")
     ap.add_argument("--sizes", default="64x64,256x256,1024x1024,2048x2048")
+    ap.add_argument("--scale-channels", default="1,2,4,8",
+                    help="channel counts for the util-vs-channels sweep (transpose modes); empty to skip")
+    ap.add_argument("--scale-size", default="256x256",
+                    help="fixed tile for the channel-scaling sweep")
     args = ap.parse_args(argv)
 
     sizes = [tuple(int(x) for x in s.split("x")) for s in args.sizes.split(",")]
+    scale_channels = tuple(int(x) for x in args.scale_channels.split(",") if x.strip())
+    scale_w, scale_h = (int(x) for x in args.scale_size.split("x"))
 
     with UARTAxiBridge(args.port, args.baud) as bridge:
         stream = Stream(bridge, "stream0",
@@ -160,10 +242,17 @@ def main(argv=None) -> int:
         _configure(stream, HARNESS_CSR_BASE)
         records = run_sweep(stream, channel=args.channel, sizes=sizes,
                             progress=lambda s: print(f"  {s}"))
+        scaling = []
+        if scale_channels:
+            scaling = run_channel_scaling(stream, size=(scale_w, scale_h),
+                                          channel_counts=scale_channels,
+                                          progress=lambda s: print(f"  scale {s}"))
 
     with open(args.out, "w") as f:
-        json.dump({"records": records, "sizes": [list(s) for s in sizes]}, f, indent=2)
-    print(f"wrote {len(records)} records -> {args.out}")
+        json.dump({"records": records, "sizes": [list(s) for s in sizes],
+                   "scaling": scaling, "scale_channels": list(scale_channels),
+                   "scale_size": [scale_w, scale_h]}, f, indent=2)
+    print(f"wrote {len(records)} records + {len(scaling)} scaling records -> {args.out}")
     return 0
 
 

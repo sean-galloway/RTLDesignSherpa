@@ -50,9 +50,25 @@ def _size_table(records: List[dict], W: int, H: int, clk_hz: float) -> str:
     return "\n".join(rows)
 
 
+def _scaling_table(scaling: List[dict], case: str, clk_hz: float) -> str:
+    """Per-case util/throughput vs. channel count."""
+    rows = ["| channels | RD util | WR util | RD GB/s | WR GB/s | status |",
+            "|---------:|--------:|--------:|--------:|--------:|:------:|"]
+    for r in sorted((x for x in scaling if x["case"] == case), key=lambda x: x["nch"]):
+        rd, wr = r["rd"], r["wr"]
+        rows.append(
+            f"| {r['nch']} | {rd['util']:.2f} | {wr['util']:.2f} "
+            f"| {_gbps(rd['bytes_per_cycle'], clk_hz):.3f} "
+            f"| {_gbps(wr['bytes_per_cycle'], clk_hz):.3f} "
+            f"| {'ok' if r['ok'] else 'FAIL'} |")
+    return "\n".join(rows)
+
+
 def build_report(data: dict, clk_hz: float, source: str) -> str:
     records = data["records"]
     sizes = [tuple(s) for s in data["sizes"]]
+    scaling = data.get("scaling") or []
+    scale_size = data.get("scale_size")
 
     src_note = {
         "board": "Measured on the NexysA7 (real 100 MHz datapath).",
@@ -97,6 +113,27 @@ def build_report(data: dict, clk_hz: float, source: str) -> str:
         md.append(f"### {W} x {H} tile ({W*H} beats)\n")
         md.append(_size_table(records, W, H, clk_hz))
         md.append("")
+
+    if scaling:
+        cases = []
+        for r in scaling:                       # preserve first-seen order
+            if r["case"] not in cases:
+                cases.append(r["case"])
+        sz = f"{scale_size[0]} x {scale_size[1]}" if scale_size else "fixed"
+        md.append("## Utilization vs. channel count\n")
+        md.append(
+            "Aggregate bus utilization as the transpose (single-beat) modes are run "
+            f"across 1..N channels concurrently at a {sz} tile, kicked back-to-back "
+            "via the harness KICK_GO fast path. A single channel is latency-bound "
+            "(the shared bus idles between single beats); firing multiple channels "
+            "lets the shared read/write engine interleave them, hiding per-beat "
+            "AR/AW latency, so the single-beat side's utilization is expected to "
+            "climb with channel count until outstanding transactions cover the "
+            "latency (a knee, typically before 8).\n")
+        for case in cases:
+            md.append(f"### {case}\n")
+            md.append(_scaling_table(scaling, case, clk_hz))
+            md.append("")
 
     md.append("## Findings\n")
     md.append(
