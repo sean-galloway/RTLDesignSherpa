@@ -171,6 +171,10 @@ module ddr2_char_top #(
     // =========================================================================
     localparam int AXI_DATA_WIDTH  = 64;
     localparam int DRAM_BEAT_WIDTH = 32;
+    // Physical DRAM device width: Micron MT47H64M16 is x16. One 32-bit pumice
+    // DRAM beat = 2 physical x16 beats, so a JEDEC BL4 = 2 pumice beats = 1 DFI
+    // cycle; pumice scales its burst-length accounting by 32/16=2 accordingly.
+    localparam int DRAM_DEVICE_WIDTH = 16;
     localparam int DFI_RATE        = 2;
     localparam int DFI_DATA_WIDTH  = DFI_RATE * DRAM_BEAT_WIDTH;   // 64
     localparam int DFI_STRB_WIDTH  = DFI_DATA_WIDTH / 8;           // 16
@@ -211,6 +215,7 @@ module ddr2_char_top #(
     ddr2_char_harness #(
         .AXI_DATA_WIDTH  (AXI_DATA_WIDTH),
         .DRAM_BEAT_WIDTH (DRAM_BEAT_WIDTH),
+        .DRAM_DEVICE_WIDTH (DRAM_DEVICE_WIDTH),
         .DFI_RATE        (DFI_RATE),
         .ROW_WIDTH       (ROW_WIDTH),
         .FPGA_CLK_HZ     (75_000_000)   // sys is now 75 MHz -> UART baud divisor

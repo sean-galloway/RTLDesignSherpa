@@ -82,6 +82,10 @@ module ddr2_char_macro
     // ---- DFI ----
     parameter int DFI_RATE         = 2,
     parameter int DRAM_BEAT_WIDTH  = AXI_DATA_WIDTH,
+    // Physical DRAM device x-width (Nexys A7 MT47H64M16 => 16). Scales the
+    // JEDEC burst length to pumice-beat units in pumice_core_macro so a x16
+    // BL4 = 2 pumice beats = 1 DFI cycle. Default = DRAM_BEAT_WIDTH (ratio 1).
+    parameter int DRAM_DEVICE_WIDTH = DRAM_BEAT_WIDTH,
     // TASK-GEAR: DRAM strobe tracks the DRAM beat (not AXI). With beat < AXI
     // (GEAR>1) these differ; defaulting to AXI_STRB_WIDTH left the DFI mask
     // width stuck at the AXI value when DRAM_BEAT_WIDTH was overridden.
@@ -437,6 +441,7 @@ module ddr2_char_macro
         .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH  (AXI_DATA_WIDTH),
         .DRAM_BEAT_WIDTH (DRAM_BEAT_WIDTH),
+        .DRAM_DEVICE_WIDTH (DRAM_DEVICE_WIDTH),
         .AXI_ID_WIDTH    (AXI_ID_WIDTH),
         .AXI_USER_WIDTH  (AXI_USER_WIDTH),
         .AXI_STRB_WIDTH  (AXI_STRB_WIDTH),

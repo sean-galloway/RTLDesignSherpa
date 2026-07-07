@@ -50,6 +50,15 @@ module pumice_core_macro
 
     // ---- DRAM / DFI ----
     parameter int DRAM_BEAT_WIDTH = AXI_DATA_WIDTH,
+    // Physical DRAM device data width (x8/x16/x32). One pumice DRAM beat
+    // (DRAM_BEAT_WIDTH) packs DRAM_BEAT_WIDTH/DRAM_DEVICE_WIDTH physical DDR
+    // beats, so a JEDEC burst length (physical beats, from MR0) is that many
+    // times SHORTER in pumice-beat units. Default = DRAM_BEAT_WIDTH (ratio 1,
+    // bit-identical to the legacy behavior). For the Nexys A7 x16 MT47H64M16
+    // with DRAM_BEAT_WIDTH=32 the ratio is 2, so JEDEC BL4 = 2 pumice beats
+    // (= 1 DFI cycle) — without this the read/write path over-counts by 2x
+    // (drives/captures 2 DFI cycles for a burst the DRAM delivers in 1).
+    parameter int DRAM_DEVICE_WIDTH = DRAM_BEAT_WIDTH,
     parameter int DFI_RATE        = 2,
     parameter int DRAM_STRB_WIDTH = DRAM_BEAT_WIDTH / 8,
     parameter int MAX_BURST_LEN   = 256,
@@ -317,9 +326,18 @@ module pumice_core_macro
     // command_scheduler → data_path (live MR + CKE)
     logic [3:0]                 cl_val;
     logic [3:0]                 cwl_val;
-    logic [3:0]                 bl_val;
+    logic [3:0]                 bl_val;      // JEDEC burst length (physical beats, from MR0)
     logic [3:0]                 al_val;
     logic [DFI_CS_WIDTH-1:0]    pre_dfi_cke;
+
+    // JEDEC BL (physical DDR beats) -> pumice DRAM-beat units. One pumice beat
+    // (DRAM_BEAT_WIDTH) packs DRAM_BEAT_WIDTH/DRAM_DEVICE_WIDTH physical beats,
+    // so shift the burst length down by log2 of that ratio. Ratio 1 (default)
+    // => no shift => legacy behavior. x16 + DRAM_BEAT_WIDTH=32 => >>1 => BL4->2.
+    localparam int BL_SHIFT = (DRAM_BEAT_WIDTH > DRAM_DEVICE_WIDTH)
+                            ? $clog2(DRAM_BEAT_WIDTH / DRAM_DEVICE_WIDTH) : 0;
+    logic [3:0]                 bl_dram_beats;  // burst length in pumice DRAM beats
+    assign bl_dram_beats = bl_val >> BL_SHIFT;
 
     // wr / rd op fanout (top-level split based on cmd_op)
     logic                       wr_op_valid;
@@ -384,7 +402,7 @@ module pumice_core_macro
         .mc_rst_n                   (mc_rst_n),
         .scheme_active_i            (scheme_active_i),
         .xor_seed_i                 (xor_seed_i),
-        .dram_bl_i                  (bl_val),
+        .dram_bl_i                  (bl_dram_beats),
 
         .s_axi_awid                 (s_axi_awid),
         .s_axi_awaddr               (s_axi_awaddr),
@@ -630,7 +648,7 @@ module pumice_core_macro
         .cl_i                  (cl_val),
         .cwl_i                 (cwl_val),
         .al_i                  (al_val),
-        .bl_i                  (bl_val),
+        .bl_i                  (bl_dram_beats),
         .t_phy_wrlat_i         (t_phy_wrlat_i),
         .t_rddata_en_i         (t_rddata_en_i),
         .rd_in_order_i         (rd_in_order_i),

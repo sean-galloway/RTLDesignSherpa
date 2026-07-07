@@ -72,6 +72,14 @@ DRAM_BL        = 4    # DDR2 MR0 default BL — must match the controller
 # params are set to match by the pytest wrapper.
 DFI_RATE        = int(os.environ.get("TEST_DFI_RATE", "2"))
 DRAM_BEAT_BYTES = int(os.environ.get("TEST_DRAM_BEAT_BYTES", "8"))
+# Physical DRAM device width in bytes (x16 => 2). Default = DRAM_BEAT_BYTES so
+# one pumice DRAM beat == one physical beat (ratio 1, legacy). The board's x16
+# device with a 32b (4-byte) pumice beat packs 2 physical beats per pumice beat,
+# so a JEDEC BL4 delivers DRAM_BL*DEVICE_BYTES/DRAM_BEAT_BYTES = 2 pumice beats
+# (1 DFI cycle) per command — modeling this is what makes the sim reproduce the
+# board's x16 over-read (and validate the burst-length fix).
+DRAM_DEVICE_BYTES = int(os.environ.get("TEST_DRAM_DEVICE_BYTES", str(DRAM_BEAT_BYTES)))
+BEATS_PER_BURST  = max(1, DRAM_BL * DRAM_DEVICE_BYTES // DRAM_BEAT_BYTES)
 
 
 def _make_dfi_slave(dut):
@@ -83,7 +91,7 @@ def _make_dfi_slave(dut):
                              mapping="row|bank|col")
     base = DFIBase(dfi_version=DFIVersion.V2_1, memory_type=MemoryType.DDR2,
                    timings=builtin_timings("ddr2-650-mt47h64m16hr"),
-                   mapping=mapping, beats_per_burst=DRAM_BL)
+                   mapping=mapping, beats_per_burst=BEATS_PER_BURST)
     _strict = os.environ.get("TEST_STRICT_WRITE_TIMING", "0") == "1"
     _wrlat = int(os.environ.get("TEST_WRITE_LATENCY", "0"))
     _strict_rd = os.environ.get("TEST_STRICT_READ_TIMING", "0") == "1"
@@ -241,7 +249,11 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
          strict_write_timing: bool = False, write_latency: int = 0,
          t_phy_wrlat: int = 4, cmd_delay: int = 0,
          strict_read_timing: bool = False, read_latency: int = 8,
-         rd_phase: int = 0, wr_phase: int = 0):
+         rd_phase: int = 0, wr_phase: int = 0, dram_device_width: int = 0):
+    # dram_device_width=0 => default to dram_beat_width (ratio 1, legacy). Set to
+    # 16 to model the board's x16 device (JEDEC BL4 = 1 DFI cycle).
+    if dram_device_width == 0:
+        dram_device_width = dram_beat_width
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "ddr2_char_uart_tb_top"
     filelist_path = ("projects/NexysA7/ddr2-characterization/"
@@ -261,6 +273,7 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         # tell the cocotb test how to size the DFISlavePHY BFM
         "TEST_DFI_RATE": str(dfi_rate),
         "TEST_DRAM_BEAT_BYTES": str(dram_beat_width // 8),
+        "TEST_DRAM_DEVICE_BYTES": str(dram_device_width // 8),
         # Faithful DFI write-timing: capture wrdata at command+write_latency
         # (like real DRAM) instead of lenient FIFO-on-wrdata_en. Reproduces the
         # on-silicon write-timing failure the lenient BFM hides.
@@ -286,7 +299,8 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         testcase=testcase,
         # SV param override so the tb_top's DFI bus matches the BFM geometry.
         parameters={"DFI_RATE": str(dfi_rate),
-                    "DRAM_BEAT_WIDTH": str(dram_beat_width)},
+                    "DRAM_BEAT_WIDTH": str(dram_beat_width),
+                    "DRAM_DEVICE_WIDTH": str(dram_device_width)},
         sim_build=sim_build, simulator="verilator",
         extra_env=extra_env, compile_args=compile_args,
         keep_files=True, timescale="1ns/1ps")
@@ -352,6 +366,20 @@ def test_ddr2_char_uart_smoke_rate2_faithful(request):
     # faithful to the real PHY -> the board should read+write correctly.
     _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
          strict_write_timing=True, write_latency=0,
+         strict_read_timing=True, read_latency=8, t_phy_wrlat=0, cmd_delay=1)
+
+
+def test_ddr2_char_uart_smoke_rate2_x16(request):
+    # Board-accurate x16 model. A 32b pumice DRAM beat packs 2 physical x16
+    # beats, so a JEDEC BL4 = 1 DFI cycle: the oracle delivers beats_per_burst=2
+    # per DRAM command (DRAM_DEVICE_BYTES=2), and pumice scales its burst length
+    # (DRAM_DEVICE_WIDTH=16 => bl_val 4->2) so a 4-beat burst SPLITS into two BL4
+    # commands, each capturing exactly 1 real DFI cycle. Without the scaling
+    # pumice issues one 4-beat command capturing 2 DFI cycles while the DRAM
+    # delivers only 1 -> the on-silicon 50% over-read. This test reproduces that
+    # (fails) without the fix and passes with it.
+    _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
+         dram_device_width=16, strict_write_timing=True, write_latency=0,
          strict_read_timing=True, read_latency=8, t_phy_wrlat=0, cmd_delay=1)
 
 

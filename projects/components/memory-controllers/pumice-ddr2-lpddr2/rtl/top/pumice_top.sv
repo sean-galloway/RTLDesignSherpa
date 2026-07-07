@@ -58,6 +58,10 @@ module pumice_top
     // DFI
     parameter int DFI_RATE         = 2,
     parameter int DRAM_BEAT_WIDTH  = AXI_DATA_WIDTH,
+    // Physical DRAM device x-width (x16 => 16). One pumice DRAM beat packs
+    // DRAM_BEAT_WIDTH/DRAM_DEVICE_WIDTH physical beats; scales JEDEC BL to
+    // pumice-beat units in pumice_core_macro. Default = DRAM_BEAT_WIDTH (ratio 1).
+    parameter int DRAM_DEVICE_WIDTH = DRAM_BEAT_WIDTH,
     // TASK-GEAR: strobe tracks the DRAM beat, not AXI (differ when GEAR>1).
     parameter int DRAM_STRB_WIDTH  = DRAM_BEAT_WIDTH / 8,
     parameter int DFI_DATA_WIDTH   = DRAM_BEAT_WIDTH * DFI_RATE,
@@ -275,6 +279,7 @@ module pumice_top
         .RD_CAM_DEPTH       (RD_CAM_DEPTH),
         .W_BUF_PTR_WIDTH    (W_BUF_PTR_WIDTH),
         .DRAM_BEAT_WIDTH    (DRAM_BEAT_WIDTH),
+        .DRAM_DEVICE_WIDTH  (DRAM_DEVICE_WIDTH),
         .DFI_RATE           (DFI_RATE),
         .DFI_DATA_WIDTH     (DFI_DATA_WIDTH),
         .DRAM_STRB_WIDTH    (DRAM_STRB_WIDTH),

@@ -39,6 +39,10 @@ module ddr2_char_uart_tb_top
 
     // ---- DFI sizing (rate-2 loopback, GEAR=1 — the known-good macro config) ----
     parameter int DRAM_BEAT_WIDTH = AXI_DATA_WIDTH,
+    // Physical DRAM x-width. Default = DRAM_BEAT_WIDTH (ratio 1, legacy). Set to
+    // 16 to model the board's x16 device so a JEDEC BL4 = 1 DFI cycle (exercises
+    // pumice's burst-length scaling / the x16 over-read fix).
+    parameter int DRAM_DEVICE_WIDTH = DRAM_BEAT_WIDTH,
     parameter int DFI_RATE        = 2,
     parameter int DFI_ADDR_BUS_W  = ROW_WIDTH * DFI_RATE,
     parameter int DFI_BANK_BUS_W  = 3 * DFI_RATE,
@@ -111,6 +115,7 @@ module ddr2_char_uart_tb_top
         .APB_ADDR_WIDTH  (APB_ADDR_WIDTH),
         .APB_DATA_WIDTH  (APB_DATA_WIDTH),
         .DRAM_BEAT_WIDTH (DRAM_BEAT_WIDTH),
+        .DRAM_DEVICE_WIDTH (DRAM_DEVICE_WIDTH),
         .DFI_RATE        (DFI_RATE),
         .CMD_MAX_DELAY   (CMD_MAX_DELAY)
     ) u_dut (

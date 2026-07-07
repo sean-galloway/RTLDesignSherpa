@@ -68,6 +68,7 @@ module ddr2_char_harness
     // narrower than the host bus. DRAM_BEAT_WIDTH defaults to AXI (GEAR=1);
     // ddr2_char_top overrides to 32 for the x16 a7ddrphy (AXI=64, rate=4).
     parameter int DRAM_BEAT_WIDTH     = AXI_DATA_WIDTH,
+    parameter int DRAM_DEVICE_WIDTH   = DRAM_BEAT_WIDTH,  // physical DRAM x-width (x16=>16)
     parameter int DFI_RATE            = 2,
     // Bus widths are phase-packed: width = per-phase-width * DFI_RATE. These
     // must track DFI_RATE (were hardcoded at the rate-2 values).
@@ -648,6 +649,7 @@ module ddr2_char_harness
         .AXI_ADDR_WIDTH   (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH   (AXI_DATA_WIDTH),
         .DRAM_BEAT_WIDTH  (DRAM_BEAT_WIDTH),
+        .DRAM_DEVICE_WIDTH(DRAM_DEVICE_WIDTH),
         .DFI_RATE         (DFI_RATE),
         .AXI_ID_WIDTH     (AXI_ID_WIDTH),
         .AXI_USER_WIDTH   (AXI_USER_WIDTH),
