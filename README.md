@@ -169,7 +169,7 @@ Production-shaped reusable IP. Each has its own README + dv/ + dv/tbclasses/.
 
 | Project | Status | Domain | Where |
 |---|---|---|---|
-| STREAM | ✅ Ready | Tutorial DMA + scatter-gather | [`projects/components/stream/`](projects/components/stream/) |
+| STREAM | ✅ Ready | Tutorial DMA + scatter-gather; kick-burst multi-channel start + optional 2-D/transpose addressing | [`projects/components/stream/`](projects/components/stream/) |
 | RAPIDS | 🟡 In progress | Advanced DMA with network interfaces (RAPID AXI Programmable In-band Descriptor System) | [`projects/components/rapids/`](projects/components/rapids/) |
 | Bridge | ✅ Ready | AXI protocol bridges + RDL-generated cfg | [`projects/components/bridge/`](projects/components/bridge/) |
 | Converters | ✅ Ready | UART↔AXIL, protocol conversion | [`projects/components/converters/`](projects/components/converters/) |
