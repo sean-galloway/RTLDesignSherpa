@@ -368,7 +368,7 @@ module ddr2_char_harness
     logic [3:0]   w_cap_lookahead_max, w_cap_synth_mask;
     logic [3:0]   w_cmd_delay_sel;   // DFI_TUNING.cmd_delay (runtime, from CSR)
     logic [3:0]   w_rddata_delay_sel;// DFI_TUNING.rddata_delay (runtime, from CSR)
-    logic [DFI_DATA_WIDTH-1:0] w_dfi_rddata_dly; // PHY rddata realigned to valid
+    (* mark_debug = "true" *) logic [DFI_DATA_WIDTH-1:0] w_dfi_rddata_dly; // PHY rddata realigned to valid (ILA-probed vs raw + valid)
 
     // WR engine cfg
     logic [AXI_ADDR_WIDTH-1:0]        w_cfg_wr_start_addr;
