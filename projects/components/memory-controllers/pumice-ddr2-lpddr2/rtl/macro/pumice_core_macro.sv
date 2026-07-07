@@ -387,6 +387,7 @@ module pumice_core_macro
         .AXI_ADDR_WIDTH       (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH       (AXI_DATA_WIDTH),
         .DRAM_BEAT_WIDTH      (DRAM_BEAT_WIDTH),
+        .DRAM_DEVICE_WIDTH    (DRAM_DEVICE_WIDTH),
         .AXI_ID_WIDTH         (AXI_ID_WIDTH),
         .AXI_USER_WIDTH       (AXI_USER_WIDTH),
         .NUM_RANKS            (NUM_RANKS),

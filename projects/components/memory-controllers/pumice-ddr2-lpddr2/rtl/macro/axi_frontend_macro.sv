@@ -58,6 +58,9 @@ module axi_frontend_macro
     parameter int AXI_STRB_WIDTH       = AXI_DATA_WIDTH / 8,
     // TASK-GEAR: DRAM beat width (<= AXI width); default = AXI => GEAR=1.
     parameter int DRAM_BEAT_WIDTH      = AXI_DATA_WIDTH,
+    // Physical DRAM device data width (x16 => 16). DRAM columns are DEVICE-WORD
+    // granular, not DRAM-beat granular; default = DRAM_BEAT_WIDTH (legacy).
+    parameter int DRAM_DEVICE_WIDTH    = DRAM_BEAT_WIDTH,
     parameter int NUM_RANKS            = 1,
     parameter int NUM_BANKS            = 8,
     parameter int ROW_WIDTH            = 14,
@@ -65,14 +68,17 @@ module axi_frontend_macro
     parameter int BURST_LEN_WIDTH      = 8,
     parameter int W_BUF_DEPTH          = 128,
     parameter int W_BUF_PTR_WIDTH      = $clog2(W_BUF_DEPTH),
-    // TASK-GEAR: DRAM columns are DRAM-beat granular, NOT AXI-beat granular.
-    // addr_mapper strips this many low byte-offset bits to form the column
-    // word, so it must be log2(DRAM beat bytes). At GEAR=1 (DRAM_BEAT_WIDTH ==
-    // AXI_DATA_WIDTH) this is the legacy log2(AXI bytes) = 3; at GEAR>1 (e.g.
-    // 32b DRAM beat) it drops to 2 so multi-chunk column offsets advance by
-    // GEAR DRAM beats instead of AXI beats (was: hardcoded 3, which made
-    // chunk N>0 overwrite chunk N-1's tail — see rate-4 read/write corruption).
-    parameter int BYTE_OFFSET_WIDTH    = $clog2(DRAM_BEAT_WIDTH / 8),
+    // DRAM columns are PHYSICAL-DEVICE-WORD granular (a DDR2 BL increments the
+    // column by 1 device word per beat), NOT DRAM-beat and NOT AXI-beat granular.
+    // addr_mapper strips this many low byte-offset bits to form the column word,
+    // so it must be log2(device-word bytes) = log2(DRAM_DEVICE_WIDTH/8). When the
+    // pumice DRAM beat is wider than the device (e.g. 32b beat over a x16 device),
+    // using log2(DRAM beat bytes) makes multi-chunk column offsets advance by
+    // only half the DRAM's BL span, so chunk N>0 overwrites chunk N-1's tail (the
+    // on-silicon 50% read scramble; the earlier rate-4 fix dropped 3->2 but still
+    // assumed DRAM-beat = device-word). With DRAM_DEVICE_WIDTH < DRAM_BEAT_WIDTH
+    // this correctly drops another log2(ratio): x16 + 32b beat => BO=1.
+    parameter int BYTE_OFFSET_WIDTH    = $clog2(DRAM_DEVICE_WIDTH / 8),
     parameter int WR_CAM_DEPTH         = 16,
     parameter int RD_CAM_DEPTH         = 16,
     parameter int SKID_DEPTH_AW        = 2,
