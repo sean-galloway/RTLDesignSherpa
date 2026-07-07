@@ -56,7 +56,7 @@ The `projects/components/` directory contains demonstration components showcasin
 | **[rapids](#rapids)** | Accelerator | 🔧 In Progress | DMA with network integration | Very High |
 | **[retro_legacy_blocks](#retro_legacy_blocks)** | Peripherals | 🟢 Active Dev | Intel ILB-compatible legacy peripherals | Medium |
 | **[shims](#shims)** | Adapter | ✅ Complete | Protocol conversion adapters | Low-Medium |
-| **[stream](#stream)** | DMA Engine | 🟢 95% Complete | Tutorial-focused scatter-gather DMA | Medium-High |
+| **[stream](#stream)** | DMA Engine | ✅ Complete | Tutorial-focused scatter-gather DMA | Medium-High |
 
 ---
 
@@ -310,7 +310,7 @@ Collection of protocol conversion adapters and glue logic modules for interfacin
 
 **STREAM - Scatter-gather Transfer Rapid Engine for AXI Memory**
 
-**Status:** 🟢 95% Complete - APB Config and Top-Level Wrapper Pending
+**Status:** ✅ Complete - all core blocks + APB config + top-level wrapper passing (on-board FPGA characterization pending)
 
 **Description:**
 Simplified DMA engine designed as a beginner-friendly tutorial demonstrating descriptor-based scatter-gather patterns. Intentionally simplified from RAPIDS for educational purposes.
@@ -1045,7 +1045,7 @@ make help                        # Show all available targets
 **Recent Updates:**
 - **Miscellaneous (NEW):** Created utility component area for ROM/RAM wrappers and other reusable building blocks
 - **Retro Legacy Blocks:** Reorganized apb_hpet as mega-block with 13 total peripherals (2 complete: HPET, 8254 PIT)
-- **STREAM:** Nearly complete at 95%, all core blocks passing tests
+- **STREAM:** Complete - all core blocks passing tests; kick-burst fast path + optional 2-D/transpose addressing added (on-board characterization pending)
 - **Bridge:** 95% complete with comprehensive test infrastructure
 - **BCH and HIVE:** Added as planned components with documentation structure
 - Updated directory structure to reflect all 11 component areas
