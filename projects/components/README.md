@@ -318,10 +318,13 @@ Simplified DMA engine designed as a beginner-friendly tutorial demonstrating des
 **Key Features:**
 - 8 independent channels with shared resources
 - APB configuration with simple kick-off mechanism
+- Kick-burst fast path: program per-channel address registers, then one go-bit write starts N channels back-to-back on a single clock cycle (in addition to the per-channel APB kick)
 - Descriptor-based scatter-gather with chaining support
 - Separate read/write AXI engines (multiple versions planned)
+- Optional extended row/column-major (2-D / transpose) addressing via `dma_address_gen`, compile-time gated (`USE_ROW_COL_MAJOR_ADDRESSING`, default off = legacy linear)
 - Aligned addresses only (tutorial simplification)
 - Length specified in beats (not bytes/chunks)
+- On-board FPGA characterization suite (NexysA7) with by-name register access and per-mode throughput reporting
 
 **Simplifications from RAPIDS:**
 - ✅ Aligned addresses only (no fixup logic)
