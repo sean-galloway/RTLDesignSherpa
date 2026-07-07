@@ -35,6 +35,7 @@ module command_scheduler_macro
     parameter int RD_CAM_DEPTH    = 16,
     parameter int DFI_CS_WIDTH    = NUM_RANKS,
     parameter int PAGE_POLICY     = 32'(PAGE_POLICY_CLOSE),
+    parameter bit PREPULL_EN      = 1'b0,
 
     parameter int IW  = AXI_ID_WIDTH,
     parameter int RKW = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
@@ -47,6 +48,11 @@ module command_scheduler_macro
 ) (
     input  logic                       mc_clk,
     input  logic                       mc_rst_n,
+    // pre-pull: pending write exposed early + data-ready back from sequencer
+    output logic                       wr_prepull_valid_o,
+    output logic [WSL-1:0]             wr_prepull_slot_o,
+    output logic [BLW-1:0]             wr_prepull_len_o,
+    input  logic                       wr_data_ready_i,
 
     // ---- runtime config ----
     input  memtype_e                   memtype_i,
@@ -252,7 +258,8 @@ module command_scheduler_macro
         .COL_WIDTH       (CW),
         .BURST_LEN_WIDTH (BLW),
         .AXI_ID_WIDTH    (IW),
-        .PAGE_POLICY     (PAGE_POLICY)
+        .PAGE_POLICY     (PAGE_POLICY),
+        .PREPULL_EN      (PREPULL_EN)
     ) u_scheduler (
         .mc_clk             (mc_clk),
         .mc_rst_n           (mc_rst_n),
@@ -295,6 +302,10 @@ module command_scheduler_macro
         .init_busy_i        (init_busy),
         .mr_req_i           (mr_req),
         .mr_grant_o         (mr_grant),
+        .wr_prepull_valid_o (wr_prepull_valid_o),
+        .wr_prepull_slot_o  (wr_prepull_slot_o),
+        .wr_prepull_len_o   (wr_prepull_len_o),
+        .wr_data_ready_i    (wr_data_ready_i),
         .init_cmd_valid_i   (init_cmd_valid),
         .init_cmd_op_i      (init_cmd_op),
         .init_cmd_bank_i    (init_cmd_bank),

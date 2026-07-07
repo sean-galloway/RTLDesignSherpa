@@ -53,6 +53,7 @@ module pumice_core_macro
     parameter int DFI_RATE        = 2,
     parameter int DRAM_STRB_WIDTH = DRAM_BEAT_WIDTH / 8,
     parameter int MAX_BURST_LEN   = 256,
+    parameter bit PREPULL_EN      = 1'b0,
 
     // Per-phase DFI widths (multi-phase bus widths are × DFI_RATE)
     parameter int DFI_ADDR_WIDTH  = 14,
@@ -320,6 +321,11 @@ module pumice_core_macro
     // wr / rd op fanout (top-level split based on cmd_op)
     logic                       wr_op_valid;
     logic                       wr_op_ready;
+    // pre-pull: scheduler -> sequencer pending write + data-ready back
+    logic                       wr_prepull_valid;
+    logic [$clog2(WR_CAM_DEPTH)-1:0] wr_prepull_slot;
+    logic [BURST_LEN_WIDTH-1:0] wr_prepull_len;
+    logic                       wr_data_ready;
     logic                       rd_op_valid;
     logic                       rd_op_ready;
     logic [IW-1:0]              rd_op_id;
@@ -506,10 +512,15 @@ module pumice_core_macro
         .WR_CAM_DEPTH    (WR_CAM_DEPTH),
         .RD_CAM_DEPTH    (RD_CAM_DEPTH),
         .DFI_CS_WIDTH    (DFI_CS_WIDTH),
-        .PAGE_POLICY     (PAGE_POLICY)
+        .PAGE_POLICY     (PAGE_POLICY),
+        .PREPULL_EN      (PREPULL_EN)
     ) u_command_scheduler (
         .mc_clk              (mc_clk),
         .mc_rst_n            (mc_rst_n),
+        .wr_prepull_valid_o  (wr_prepull_valid),
+        .wr_prepull_slot_o   (wr_prepull_slot),
+        .wr_prepull_len_o    (wr_prepull_len),
+        .wr_data_ready_i     (wr_data_ready),
         .memtype_i           (memtype_i),
         .t_refi_i            (t_refi_i),
         .t_rcd_i             (t_rcd_i),
@@ -604,10 +615,15 @@ module pumice_core_macro
         .DFI_STRB_WIDTH  (DFI_STRB_WIDTH),
         .DFI_VALID_WIDTH (DFI_VALID_WIDTH),
         .DFI_EN_WIDTH    (DFI_EN_WIDTH),
-        .MAX_BURST_LEN   (MAX_BURST_LEN)
+        .MAX_BURST_LEN   (MAX_BURST_LEN),
+        .PREPULL_EN      (PREPULL_EN)
     ) u_data_path (
         .mc_clk                (mc_clk),
         .mc_rst_n              (mc_rst_n),
+        .wr_prepull_valid_i    (wr_prepull_valid),
+        .wr_prepull_slot_i     (wr_prepull_slot),
+        .wr_prepull_len_i      (wr_prepull_len),
+        .wr_data_ready_o       (wr_data_ready),
         .cl_i                  (cl_val),
         .cwl_i                 (cwl_val),
         .al_i                  (al_val),

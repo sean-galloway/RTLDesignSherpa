@@ -59,6 +59,9 @@ module scheduler
     // page_policy_e in the package). Typed as `int` so the test runner
     // can pass -GPAGE_POLICY=N without WIDTHTRUNC warnings.
     parameter int PAGE_POLICY     = 32'(PAGE_POLICY_CLOSE),
+    // v3 pre-pull: expose the pending write early + gate the WR command on the
+    // sequencer's wr_data_ready so wrdata is staged by command time.
+    parameter bit PREPULL_EN      = 1'b0,
 
     parameter int RKW = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int BKW = $clog2(NUM_BANKS),
@@ -127,6 +130,12 @@ module scheduler
     input  logic                       init_busy_i,
     input  logic                       mr_req_i,
     output logic                       mr_grant_o,
+
+    // ----- pre-pull: expose the pending write early + gate on data-ready -----
+    output logic                       wr_prepull_valid_o,
+    output logic [WSL-1:0]             wr_prepull_slot_o,
+    output logic [BURST_LEN_WIDTH-1:0] wr_prepull_len_o,
+    input  logic                       wr_data_ready_i,
 
     // ----- init-sequencer command injection (issued while init_busy_i) -----
     // The init_sequencer drives DRAM bring-up commands (PRECHARGE_ALL /
@@ -546,7 +555,11 @@ module scheduler
             end
 
             S_NEED_RDWR: begin
-                if (bank_rdwr_ready_i[r_pending_rank][r_pending_bank]) begin
+                // Pre-pull: hold the WR command until the sequencer has staged
+                // the write data (wr_data_ready), so dfi_wrdata is concurrent
+                // with the command (a7ddrphy write_latency=0). Reads unaffected.
+                if (bank_rdwr_ready_i[r_pending_rank][r_pending_bank]
+                    && (!(PREPULL_EN && r_pending_is_wr) || wr_data_ready_i)) begin
                     // Op selection: WR/RD vs WRA/RDA based on policy +
                     // (HAPPY only) per-bank predictor hint.
                     if (r_pending_is_wr)
@@ -747,5 +760,17 @@ module scheduler
     // signals are useful for "prefer row-hit slots" arbitration which
     // is a future enhancement (HAS §3.2.3).
     wire unused_v2 = |{ wr_match_rowhit_i, rd_match_rowhit_i };
+
+    //=========================================================================
+    // Pre-pull: expose the committed pending write from the moment it is
+    // selected (S_NEED_PRE/ACT/RDWR) through command issue, so the sequencer
+    // can start pulling its data early. Combinational for max lead time.
+    //=========================================================================
+    assign wr_prepull_valid_o = PREPULL_EN && r_pending_is_wr
+                             && ((r_state == S_NEED_PRE)
+                              || (r_state == S_NEED_ACT)
+                              || (r_state == S_NEED_RDWR));
+    assign wr_prepull_slot_o  = r_pending_wr_slot;
+    assign wr_prepull_len_o   = r_pending_len;
 
 endmodule : scheduler

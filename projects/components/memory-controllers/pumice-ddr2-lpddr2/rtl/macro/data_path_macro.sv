@@ -37,6 +37,7 @@ module data_path_macro
     parameter int DFI_VALID_WIDTH = 1,
     parameter int DFI_EN_WIDTH    = 1,
     parameter int MAX_BURST_LEN   = 256,
+    parameter bit PREPULL_EN      = 1'b0,
 
     parameter int IW  = AXI_ID_WIDTH,
     parameter int WPW = W_BUF_PTR_WIDTH,
@@ -67,6 +68,11 @@ module data_path_macro
     input  logic                       wr_op_valid_i,
     output logic                       wr_op_ready_o,
     input  logic [WSL-1:0]             wr_op_slot_i,
+    // pre-pull: scheduler's pending write (early) + data-ready back
+    input  logic                       wr_prepull_valid_i,
+    input  logic [WSL-1:0]             wr_prepull_slot_i,
+    input  logic [BLW-1:0]             wr_prepull_len_i,
+    output logic                       wr_data_ready_o,
     input  logic [BLW-1:0]             wr_op_len_i,
 
     // ---- read op handshake (from scheduler/top) ----
@@ -125,7 +131,8 @@ module data_path_macro
         .DRAM_STRB_WIDTH (DRAM_STRB_WIDTH),
         .DFI_STRB_WIDTH  (DFI_STRB_WIDTH),
         .DFI_EN_WIDTH    (DFI_EN_WIDTH),
-        .MAX_BURST_LEN   (MAX_BURST_LEN)
+        .MAX_BURST_LEN   (MAX_BURST_LEN),
+        .PREPULL_EN      (PREPULL_EN)
     ) u_wr_beat_sequencer (
         .mc_clk               (mc_clk),
         .mc_rst_n             (mc_rst_n),
@@ -136,6 +143,10 @@ module data_path_macro
         .op_ready_o           (wr_op_ready_o),
         .op_slot_i            (wr_op_slot_i),
         .op_len_i             (wr_op_len_i),
+        .wr_prepull_valid_i   (wr_prepull_valid_i),
+        .wr_prepull_slot_i    (wr_prepull_slot_i),
+        .wr_prepull_len_i     (wr_prepull_len_i),
+        .wr_data_ready_o      (wr_data_ready_o),
         .beat_pull_strb_o     (beat_pull_strb_o),
         .beat_pull_slot_o     (beat_pull_slot_o),
         .beat_pull_ptr_i      (beat_pull_ptr_i),

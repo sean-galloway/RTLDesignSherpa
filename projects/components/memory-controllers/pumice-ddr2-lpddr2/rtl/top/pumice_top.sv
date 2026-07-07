@@ -72,6 +72,9 @@ module pumice_top
 
     parameter int PAGE_POLICY     = 32'(PAGE_POLICY_CLOSE),
     parameter int MAX_BURST_LEN    = 8,
+    // v3 pre-pull write path (write_latency=0). Default off (original behavior);
+    // enabled by the DDR2 char/board flow to retire the dfi_cmd_delay shim.
+    parameter bit PREPULL_EN       = 1'b0,
 
     // ---- derived ----
     parameter int IW  = AXI_ID_WIDTH,
@@ -278,7 +281,8 @@ module pumice_top
         .DFI_EN_WIDTH       (DFI_EN_WIDTH),
         .DFI_CS_WIDTH       (DFI_CS_WIDTH),
         .MAX_BURST_LEN      (MAX_BURST_LEN),
-        .PAGE_POLICY        (PAGE_POLICY)
+        .PAGE_POLICY        (PAGE_POLICY),
+        .PREPULL_EN         (PREPULL_EN)
     ) u_core (
         .mc_clk              (mc_clk),
         .mc_rst_n            (mc_rst_n),
