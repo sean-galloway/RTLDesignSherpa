@@ -64,7 +64,7 @@
 //                                [24]    rd_in_order
 //   0x64  CTRLR_CAP         RW  [3:0]   cap_lookahead_max
 //                                [7:4]   cap_synth_mask
-//   0x68  DFI_TUNING        RW  [3:0]   cmd_delay (DFI cmd->data align, dflt 5)
+//   0x68  DFI_TUNING        RW  [3:0]   cmd_delay (DFI cmd->data align, dflt 1; pre-pull + pipe trim)
 //
 // -- WR engine cfg (0x100..0x12F) ----------------------------------------
 //   0x100  WR_START_ADDR    RW
@@ -490,7 +490,8 @@ module harness_csr
             r_wr_resp_delay_cyc    <= '0;
             r_ctrlr_cfg            <= '0;
             r_ctrlr_cap            <= '0;
-            r_dfi_tuning           <= 32'd5;   // default cmd_delay=5 (measured skew)
+            r_dfi_tuning           <= 32'd1;   // cmd_delay=1: pre-pull + 1-cyc pipeline trim
+                                               // makes wrdata concurrent natively
 
             r_wr_start_addr        <= '0;
             r_wr_stride_0          <= '0;

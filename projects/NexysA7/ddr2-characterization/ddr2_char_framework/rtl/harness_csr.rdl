@@ -141,10 +141,11 @@ addrmap harness_csr {
     } CTRLR_CAP @ 0x64;
     reg {
         desc = "DFI harness timing tuning (real-time, no rebuild). cmd_delay =
-                sys-cycles the DFI command bus + rddata_en are delayed to land
-                the WR command concurrent with write data (a7ddrphy
-                write_latency=0). Default 5 (measured pumice cmd->data skew).";
-        field { sw = rw; hw = r; } cmd_delay[3:0] = 5;
+                sys-cycles the DFI command bus + rddata_en are delayed to align
+                the WR command with write data (a7ddrphy write_latency=0). With
+                pumice pre-pull (PREPULL_EN) the skew is a fixed 1-cycle pipeline
+                offset -> default 1. Tune live on the board if needed.";
+        field { sw = rw; hw = r; } cmd_delay[3:0] = 1;
     } DFI_TUNING @ 0x68;
 
     //=========================================================================

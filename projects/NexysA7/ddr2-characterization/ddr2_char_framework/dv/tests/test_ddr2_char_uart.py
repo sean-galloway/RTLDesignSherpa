@@ -137,7 +137,9 @@ async def cocotb_test_uart_smoke(dut):
         # flow: BL=4 (= DRAM BL), LFSR pattern (data_mode off), and NO
         # clear_stats between wr and rd (that would drop the latched CRC).
         drv.soft_reset()
-        drv.set_controller_cfg(memtype=dc.MEMTYPE_DDR2, t_phy_wrlat=4,
+        drv.set_dfi_cmd_delay(int(os.environ.get("TEST_CMD_DELAY", "0")))
+        drv.set_controller_cfg(memtype=dc.MEMTYPE_DDR2,
+                               t_phy_wrlat=int(os.environ.get("TEST_T_PHY_WRLAT", "4")),
                                t_rddata_en=4, rd_in_order=True)
         seed = 0xABCD1234
         # stride = burst_len * bytes_per_beat, so bursts don't overlap
@@ -188,7 +190,9 @@ async def cocotb_test_uart_multichunk(dut):
 
     def prog():
         drv.soft_reset()
-        drv.set_controller_cfg(memtype=dc.MEMTYPE_DDR2, t_phy_wrlat=4,
+        drv.set_dfi_cmd_delay(int(os.environ.get("TEST_CMD_DELAY", "0")))
+        drv.set_controller_cfg(memtype=dc.MEMTYPE_DDR2,
+                               t_phy_wrlat=int(os.environ.get("TEST_T_PHY_WRLAT", "4")),
                                t_rddata_en=4, rd_in_order=True)
         return {"bl2": wr_rd(2, 0x5A5A0001),   # 1 chunk (control)
                 "bl4": wr_rd(4, 0x5A5A0001)}   # 2 chunks (the fix)
@@ -225,7 +229,8 @@ async def cocotb_test_uart_simple(dut):
 # pytest wrappers
 # =============================================================================
 def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
-         strict_write_timing: bool = False, write_latency: int = 0):
+         strict_write_timing: bool = False, write_latency: int = 0,
+         t_phy_wrlat: int = 4, cmd_delay: int = 0):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "ddr2_char_uart_tb_top"
     filelist_path = ("projects/NexysA7/ddr2-characterization/"
@@ -250,6 +255,8 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         # on-silicon write-timing failure the lenient BFM hides.
         "TEST_STRICT_WRITE_TIMING": "1" if strict_write_timing else "0",
         "TEST_WRITE_LATENCY": str(write_latency),
+        "TEST_T_PHY_WRLAT": str(t_phy_wrlat),
+        "TEST_CMD_DELAY": str(cmd_delay),
     }
     compile_args = [
         "+define+USE_ASYNC_RESET",
@@ -308,7 +315,9 @@ def test_ddr2_char_uart_multichunk_rate2_beat32(request):
 #      =0) PASSES only with CMD_DELAY=5. Regression guard for the DFI write-timing
 #      contract that the lenient loopback cannot see. -----------------------------
 def test_ddr2_char_uart_smoke_rate2_strict(request):
-    # DFI_TUNING.cmd_delay defaults to 5 in the CSR (measured skew) -> the
-    # command aligns with wrdata, so the faithful write_latency=0 oracle passes.
+    # Pre-pull (PREPULL_EN in the char macro) stages wrdata before the command,
+    # eliminating the ~3-cycle pull-floor skew. The residual is a fixed 1-cycle
+    # pipeline offset (command path 1 stage shorter than wrdata), trimmed by the
+    # runtime cmd_delay CSR (=1). Net: faithful write_latency=0 oracle passes.
     _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
-         strict_write_timing=True, write_latency=0)
+         strict_write_timing=True, write_latency=0, t_phy_wrlat=0, cmd_delay=1)
