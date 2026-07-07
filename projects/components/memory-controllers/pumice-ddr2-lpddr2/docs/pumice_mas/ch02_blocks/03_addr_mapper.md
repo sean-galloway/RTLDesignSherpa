@@ -72,6 +72,8 @@ The simplest mapping; one contiguous row per rank/bank stride. Bit layout:
 
 The byte-in-DQ field is the controller's column-byte offset and is consumed by `wr_data_path_fub` for `wstrb` masking; it is **not** part of the decoded `col_o` (which is column-word aligned).
 
+**Column granularity is the physical device word, not the pumice DRAM beat.** The number of low byte-offset bits stripped to form `col_o` is `BYTE_OFFSET_WIDTH = log2(DRAM_DEVICE_WIDTH/8)` — the **DQ word** size (2 bytes for a x16 device), **not** `log2(DRAM_BEAT_WIDTH/8)`. A DDR2 burst auto-increments the column by one device word per beat, so a BL4 walks 4 physical columns. If `BYTE_OFFSET_WIDTH` used the (wider) DRAM-beat size, each column would span K = `DRAM_BEAT_WIDTH/DRAM_DEVICE_WIDTH` device words, and a burst split into chunk commands (see `axi_intake`) would advance the chunk column by only 1/K of the DRAM's BL span — so chunk *N* overwrites chunk *N-1*'s tail (an on-silicon ~50% read scramble). Default `DRAM_DEVICE_WIDTH = DRAM_BEAT_WIDTH` (K=1) reduces to the legacy column-word granularity. See §`15_gear_dfi` "Narrow-Device (x16) Support".
+
 ROW_MAJOR is best for sequential streaming workloads where a long burst stays in one row.
 
 ### Scheme 2: BANK_INTERLEAVE

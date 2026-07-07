@@ -56,6 +56,7 @@ This Hardware Architecture Specification (HAS) provides a high-level architectur
 |---------|------------|--------------|------------------------------------------------------------------|
 | 0.1     | 2026-06-13 | RTL Design Sherpa | First sketch — module decomposition                         |
 | 0.2     | 2026-06-14 | RTL Design Sherpa | Top-level interface port list (§2.4), FUB SWAG (§2.5), family-wide config-bit registry (§5.4), multi-rank support across §2 / §3.3 / §3.4 / §3.6 / §5.2 / §6.3 |
+| 0.3     | 2026-07-07 | RTL Design Sherpa | Narrow-device (x16) support: distinguish DRAM beat vs physical device word (`DRAM_DEVICE_WIDTH`); device-word column granularity + burst-length scaling; `DFI_PHASE` (rd/wr phase) CSR. Fixes on-silicon DDR2 read failure (Nexys A7 x16 bring-up). |
 
 ---
 

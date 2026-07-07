@@ -59,6 +59,51 @@ PHY pad.
 
 ---
 
+## Narrow-Device (x16) Support and the Two Width Granularities
+
+A subtle but critical distinction: the **pumice DRAM beat** (`DRAM_BEAT_WIDTH`,
+one DFI phase's data) is **not** necessarily the **physical DRAM device word**
+(`DRAM_DEVICE_WIDTH`, the DQ width — e.g. 16 for a x16 device). When a beat is
+wider than the device (e.g. a 32-bit beat over a x16 device, so one beat packs
+**K = DRAM_BEAT_WIDTH / DRAM_DEVICE_WIDTH = 2** physical DDR words), three parts
+of the pipeline must reason in **device-word** units, not beat units. Getting
+this wrong is invisible in a DFI-level behavioral sim but corrupts real silicon
+(the Nexys A7 x16 bring-up hit all three):
+
+1. **Burst length (beats per command).** A JEDEC burst length from MR0 (`bl_o`,
+   BL4/BL8) is expressed in **physical device beats**. `pumice_core_macro` scales
+   it to pumice-beat units — `bl_dram_beats = bl_o >> log2(DRAM_BEAT_WIDTH /
+   DRAM_DEVICE_WIDTH)` — before feeding `axi_intake`'s burst-split (`dram_bl_i`)
+   and `wr_beat_sequencer`'s beat count. Without the scale a x16 BL4 (= 2 pumice
+   beats = 1 DFI cycle) is over-counted as 4, so the controller drives/captures
+   **two** DFI cycles for a burst the DRAM delivers in one.
+
+2. **Column address stride.** DRAM columns are **device-word granular** — a BL4
+   auto-increments 4 physical columns. `addr_mapper`'s `BYTE_OFFSET_WIDTH` must
+   therefore be `log2(DRAM_DEVICE_WIDTH/8)`, not `log2(DRAM_BEAT_WIDTH/8)`. See
+   §`03_addr_mapper`. If it uses the beat width, a split burst's chunk column
+   advances by only half the DRAM's BL span, so chunk *N* overwrites chunk *N-1*'s
+   tail (a ~50% read scramble on silicon).
+
+3. **Read-data / valid alignment (integration).** A given PHY may present read
+   data ahead of, or on a different phase than, `rddata_valid`. The
+   characterization harness carries runtime knobs for this (`DFI_TUNING`
+   `rddata_delay`, and the `DFI_PHASE` CSR below) rather than baking PHY-specific
+   latencies into the controller.
+
+**`DFI_PHASE` CSR (rd_phase / wr_phase):** `dfi_cmd_formatter` places the READ
+command on `rd_phase` and the WRITE command on `wr_phase` (defaults 0; all other
+commands on phase 0), runtime-settable via the `DFI_PHASE` CSR. This matches a
+PHY that consumes a per-command rdphase/wrphase off the DFI bus. Note: the
+LiteDRAM a7ddrphy instead takes the command on phase 0 and applies its rdphase
+**internally**, so on that PHY `rd_phase` stays 0 — the CSR exists for PHYs that
+do not.
+
+Default `DRAM_DEVICE_WIDTH = DRAM_BEAT_WIDTH` (K=1) makes all of the above
+bit-identical to the wide-device / GEAR=1 behavior.
+
+---
+
 ## Synthesis Parameters
 
 | Parameter            | Source           | Effect                                                              |

@@ -58,6 +58,12 @@ All per-phase signals from `cmd_encoder` (through `gear_out`), `wdata_path`, and
 
 Putting the tie-offs in a single module keeps the rest of the controller PHY-detail-free. If we later need to enable a sub-interface (e.g., the training interface for a real PHY that requires it), the change is localized.
 
+### Narrow-Device (x16) Width Granularities
+
+The controller keeps **two** width concepts distinct: the **DRAM beat** (one DFI phase's data, `DRAM_BEAT_WIDTH`) and the **physical device word** (the DQ width, `DRAM_DEVICE_WIDTH`, e.g. 16 for a x16 device). When a beat is wider than the device, the burst length (beats per command) and the **column address stride** are device-word quantities, not beat quantities. The RTL scales the MR0 burst length by `DRAM_BEAT_WIDTH/DRAM_DEVICE_WIDTH` and sizes the address-decode column granularity to the device word; missing either produced the on-silicon DDR2 read failure on the Nexys A7 x16 bring-up (over-read + column-overlap scramble). Detail: MAS §15 (gear/DFI) and §3 (addr_mapper).
+
+PHY read-path integration (data-vs-`rddata_valid` skew and per-command read/write phase) is handled by runtime knobs — the `DFI_PHASE` CSR (`rd_phase`/`wr_phase`) here, plus the characterization harness's `DFI_TUNING` (`rddata_delay`) — rather than hard-coded PHY latencies, so one controller build ports across PHYs.
+
 ---
 
 ## `csr_slave`
