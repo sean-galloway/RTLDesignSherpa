@@ -35,7 +35,7 @@ def set_eye(d, bitslip, tap):
 def one_test(d, base, blen, txn, seed):
     d.soft_reset()
     time.sleep(0.004)
-    d.set_controller_cfg(memtype=dc.MEMTYPE_DDR2, t_phy_wrlat=2,
+    d.set_controller_cfg(memtype=dc.MEMTYPE_DDR2, t_phy_wrlat=0,   # pre-pull: writes staged natively
                          t_rddata_en=6, rd_in_order=True)
     d.clear_stats()
     d.program_wr_engine(start_addr=base, burst_len=blen, txn_count=txn,
