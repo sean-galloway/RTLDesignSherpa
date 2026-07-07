@@ -152,15 +152,16 @@ APB_CH_KICK_STRIDE      = 0x08
 # explicitly clear masks + enable the monitors. The cocotb TB does this
 # (stream_char_tb.py); the runner missed it until now, which is why
 # every prior FPGA sweep reported "Trace: 0 packets, overflow=no".
-APB_DAXMON_ENABLE       = STREAM_APB_BASE + 0x240
-APB_DAXMON_PKT_MASK     = STREAM_APB_BASE + 0x24C
-APB_DAXMON_ERR_CFG      = STREAM_APB_BASE + 0x250
-APB_RDMON_ENABLE        = STREAM_APB_BASE + 0x260
-APB_RDMON_PKT_MASK      = STREAM_APB_BASE + 0x26C
-APB_RDMON_ERR_CFG       = STREAM_APB_BASE + 0x270
-APB_WRMON_ENABLE        = STREAM_APB_BASE + 0x280
-APB_WRMON_PKT_MASK      = STREAM_APB_BASE + 0x28C
-APB_WRMON_ERR_CFG       = STREAM_APB_BASE + 0x290
+from stream_addrs import A as _A   # noqa: E402 (addresses by name; never hardcode)
+APB_DAXMON_ENABLE       = _A("DAXMON_ENABLE")
+APB_DAXMON_PKT_MASK     = _A("DAXMON_PKT_MASK")
+APB_DAXMON_ERR_CFG      = _A("DAXMON_ERR_CFG")
+APB_RDMON_ENABLE        = _A("RDMON_ENABLE")
+APB_RDMON_PKT_MASK      = _A("RDMON_PKT_MASK")
+APB_RDMON_ERR_CFG       = _A("RDMON_ERR_CFG")
+APB_WRMON_ENABLE        = _A("WRMON_ENABLE")
+APB_WRMON_PKT_MASK      = _A("WRMON_PKT_MASK")
+APB_WRMON_ERR_CFG       = _A("WRMON_ERR_CFG")
 
 # WRMON_ENABLE.COMPRESS_EN (bit 5): 1 = compress the monbus write stream,
 # 0 = raw 3-beat records. Only effective on a USE_MON_COMPRESSION=1 build.

@@ -94,7 +94,12 @@ module stream_char_harness #(
 
     localparam int AXI_ID_WIDTH   = 8;
     localparam int AXI_USER_WIDTH = $clog2(NUM_CHANNELS) > 0 ? $clog2(NUM_CHANNELS) : 1;
-    localparam int APB_ADDR_WIDTH = 12;
+    // 13 bits (8 KB) to match stream_top_ch8's default: STREAM's monitor CSR
+    // block was relocated to 0x1000+ (RDMON/WRMON perf @ 0x1180/0x11B0). A
+    // 12-bit (4 KB) window truncated those addresses -> perf CSRs unreachable
+    // (rw_perf / ext_char read zero). The bridge stream_apb page was widened to
+    // 8 KB to match (configs/bridge_stream_char_axil.toml, regenerated).
+    localparam int APB_ADDR_WIDTH = 13;
     localparam int APB_DATA_WIDTH = 32;
 
     localparam int CLKS_PER_BIT = FPGA_CLK_HZ / UART_BAUD;

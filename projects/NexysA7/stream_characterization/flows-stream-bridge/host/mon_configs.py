@@ -66,13 +66,19 @@ from typing import Callable, Dict, List, Optional, Tuple
 # Register geometry
 # --------------------------------------------------------------------------
 
+import os as _os
+import sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+from stream_addrs import A as _A   # addresses by name from stream_regmap.py
+
 STREAM_APB_BASE = 0x0000_0000
 
 # Per-monitor ENABLE base (stride 0x20). desc / read / write.
 MON_BASES: Dict[str, int] = {
-    "daxmon": STREAM_APB_BASE + 0x240,   # descriptor-fetch AXI monitor
-    "rdmon":  STREAM_APB_BASE + 0x260,   # read-engine AXI monitor
-    "wrmon":  STREAM_APB_BASE + 0x280,   # write-engine AXI monitor
+    # Addresses BY NAME from stream_regmap.py (never hardcode -- see stream_addrs).
+    "daxmon": _A("DAXMON_ENABLE"),   # descriptor-fetch AXI monitor
+    "rdmon":  _A("RDMON_ENABLE"),    # read-engine AXI monitor
+    "wrmon":  _A("WRMON_ENABLE"),    # write-engine AXI monitor
 }
 
 # Register offsets within a monitor block.

@@ -61,8 +61,15 @@ if _repo_root:
 # STREAM regblock lives at bridge slave 0 (base 0x0). Block bases + the shared
 # per-register offsets mirror projects/components/stream/rtl/stream_regmap.py.
 STREAM_APB_BASE = 0x0000_0000
-RDMON_PERF_BASE = STREAM_APB_BASE + 0x300
-WRMON_PERF_BASE = STREAM_APB_BASE + 0x330
+# Monitor CSRs relocated to the 0x1000+ MON regfile (STREAM APB now 8 KB);
+# addresses from stream_regmap.py. The char harness stream_apb window was widened
+# to 8 KB to reach them (was 4 KB -> perf read 0).
+from stream_addrs import A   # noqa: E402 (after sys.path setup)
+
+# Addresses resolved BY NAME from stream_regmap.py -- never hardcode (a hardcoded
+# copy drifting from the regmap is what broke perf when monitors moved to 0x1000+).
+RDMON_PERF_BASE = A("RDMON_PERF_CTRL")   # perf-window block base = CTRL reg
+WRMON_PERF_BASE = A("WRMON_PERF_CTRL")
 
 OFF_CTRL          = 0x00
 OFF_STATUS        = 0x04
@@ -81,13 +88,13 @@ PERF_RUN_BIT = 1 << 0
 # Per-channel bucket readout (RFC Stage C, indexed). Select a channel via
 # PERF_CH_SEL, then read the packed {bp,prod}/{idle,starv} regs. Overflow masks
 # expose all channels at once ({prod,bp,starv,idle} sticky per channel).
-PERF_CH_SEL              = STREAM_APB_BASE + 0x35C
-RDMON_PERF_CH_PROD_BP    = STREAM_APB_BASE + 0x360
-RDMON_PERF_CH_STARV_IDLE = STREAM_APB_BASE + 0x364
-WRMON_PERF_CH_PROD_BP    = STREAM_APB_BASE + 0x368
-WRMON_PERF_CH_STARV_IDLE = STREAM_APB_BASE + 0x36C
-RDMON_PERF_CH_OVERFLOW   = STREAM_APB_BASE + 0x370
-WRMON_PERF_CH_OVERFLOW   = STREAM_APB_BASE + 0x374
+PERF_CH_SEL              = A("PERF_CH_SEL")
+RDMON_PERF_CH_PROD_BP    = A("RDMON_PERF_CH_PROD_BP")
+RDMON_PERF_CH_STARV_IDLE = A("RDMON_PERF_CH_STARV_IDLE")
+WRMON_PERF_CH_PROD_BP    = A("WRMON_PERF_CH_PROD_BP")
+WRMON_PERF_CH_STARV_IDLE = A("WRMON_PERF_CH_STARV_IDLE")
+RDMON_PERF_CH_OVERFLOW   = A("RDMON_PERF_CH_OVERFLOW")
+WRMON_PERF_CH_OVERFLOW   = A("WRMON_PERF_CH_OVERFLOW")
 
 
 @dataclass(frozen=True)

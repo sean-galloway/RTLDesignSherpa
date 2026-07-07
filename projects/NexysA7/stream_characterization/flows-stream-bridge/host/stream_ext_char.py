@@ -25,55 +25,44 @@ from stream_ext_suite import CASES, program_case, wait_done
 # single-beat, so col/col at the large sizes dominates board runtime.
 DEFAULT_SIZES: List[Tuple[int, int]] = [(64, 64), (256, 256), (1024, 1024), (2048, 2048)]
 
-# Char-harness datapath monitor + perf-window offsets (relative to the STREAM
-# APB base). These are the addresses the char harness's AXIL xbar actually
-# decodes (the monitor block predates the stream_regmap 0x1000 relocation, which
-# the char build does NOT expose). Enable sequence + perf layout match the proven
-# rw_perf path in stream_char_tb.py.
-_RDMON = dict(ENABLE=0x260, PKT_MASK=0x26C, ERR_CFG=0x270, PERF=0x300)
-_WRMON = dict(ENABLE=0x280, PKT_MASK=0x28C, ERR_CFG=0x290, PERF=0x330)
-_PERF_OFF = dict(CTRL=0x00, STATUS=0x04, WINDOW=0x08, PROD=0x0C, BP=0x10,
-                 STARV=0x14, IDLE=0x18, BEATS=0x1C, BYTE_LO=0x20, BYTE_HI=0x24,
-                 BURST=0x28)
 _MON_ENABLE = 0x0F            # COMPL/TIMEOUT/ERR/... enable
 _MON_PKT_MASK_ALLOW = 0xFFF0  # clear the RDL drop-all default
+_MON_ERR_CFG = 0x0F           # ERR_SELECT route-all
 
 
 def enable_monitors(stream) -> None:
-    """Enable the RD/WR datapath monitors (PKT_MASK + ENABLE + ERR_CFG) so their
-    perf windows observe the bus. Full sequence matching rw_perf."""
-    a = stream.regs.start_address
-    for mon in (_RDMON, _WRMON):
-        stream.bridge.write(a + mon["PKT_MASK"], _MON_PKT_MASK_ALLOW)
-        stream.bridge.write(a + mon["ENABLE"], _MON_ENABLE)
-        stream.bridge.write(a + mon["ERR_CFG"], 0x0)
+    """Enable the RD/WR datapath monitors BY NAME (PKT_MASK + ENABLE + ERR_CFG)
+    so their perf windows observe the bus. Regmap resolves to the relocated
+    0x1000+ MON block (reachable via the 8 KB STREAM APB window)."""
+    for grp in ("RDMON", "WRMON"):
+        stream.write_word(f"{grp}_PKT_MASK", _MON_PKT_MASK_ALLOW)
+        stream.write_word(f"{grp}_ENABLE", _MON_ENABLE)
+        stream.write_word(f"{grp}_ERR_CFG", _MON_ERR_CFG)
 
 
-def _read_perf(stream, mon: dict) -> dict:
-    """Read one datapath perf window. bucket_total = PROD+BP+STARV+IDLE is the
-    closed-window length (WINDOW_CYCLES is live/zeroed on close; buckets hold)."""
-    a = stream.regs.start_address + mon["PERF"]
+def _read_perf(stream, grp: str) -> dict:
+    """Read one RDMON_PERF / WRMON_PERF window BY NAME. bucket_total =
+    PROD+BP+STARV+IDLE is the closed-window length (WINDOW_CYCLES is live/zeroed
+    on close; buckets hold)."""
+    def r(field: str) -> int:
+        return stream.read(f"{grp}_{field}")
 
-    def r(off: int) -> int:
-        return stream.bridge.read(a + off) or 0
-
-    prod, bp = r(_PERF_OFF["PROD"]), r(_PERF_OFF["BP"])
-    starv, idle = r(_PERF_OFF["STARV"]), r(_PERF_OFF["IDLE"])
+    prod, bp = r("PROD_CYCLES"), r("BP_CYCLES")
+    starv, idle = r("STARV_CYCLES"), r("IDLE_CYCLES")
     return {
         "prod": prod, "bp": bp, "starv": starv, "idle": idle,
         "total": prod + bp + starv + idle,
-        "beats": r(_PERF_OFF["BEATS"]), "bursts": r(_PERF_OFF["BURST"]),
-        "bytes": (r(_PERF_OFF["BYTE_HI"]) << 32) | r(_PERF_OFF["BYTE_LO"]),
+        "beats": r("BEAT_COUNT"), "bursts": r("BURST_COUNT"),
+        "bytes": (r("BYTE_COUNT_HI") << 32) | r("BYTE_COUNT_LO"),
     }
 
 
 def _perf_run(stream, on: bool) -> None:
-    """Drive the RD/WR perf-window RUN bit. Rising edge clears + opens the
-    window; falling edge closes (buckets hold)."""
+    """Drive the RD/WR perf-window RUN bit by name. Rising edge clears + opens
+    the window; falling edge closes (buckets hold)."""
     v = 1 if on else 0
-    a = stream.regs.start_address
-    stream.bridge.write(a + _RDMON["PERF"] + _PERF_OFF["CTRL"], v)
-    stream.bridge.write(a + _WRMON["PERF"] + _PERF_OFF["CTRL"], v)
+    stream.write_word("RDMON_PERF_CTRL", v)
+    stream.write_word("WRMON_PERF_CTRL", v)
 
 
 def measure_mode(stream, channel: int, case: str, W: int, H: int,
@@ -86,7 +75,7 @@ def measure_mode(stream, channel: int, case: str, W: int, H: int,
     res = wait_done(stream, channel, poll_max=poll_max)
     _perf_run(stream, False)          # close
 
-    rd, wr = _read_perf(stream, _RDMON), _read_perf(stream, _WRMON)
+    rd, wr = _read_perf(stream, "RDMON_PERF"), _read_perf(stream, "WRMON_PERF")
     return _derive({
         "case": case, "W": W, "H": H, "beats": W * H,
         "ok": res["ok"], "reason": res["reason"], "rd": rd, "wr": wr,
