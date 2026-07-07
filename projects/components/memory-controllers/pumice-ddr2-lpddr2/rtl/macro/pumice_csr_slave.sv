@@ -33,7 +33,8 @@ module pumice_csr_slave
     parameter int APB_ADDR_WIDTH = 12,
     parameter int APB_DATA_WIDTH = 32,
     parameter int APB_STRB_WIDTH = APB_DATA_WIDTH / 8,
-    parameter int APB_PROT_WIDTH = 3
+    parameter int APB_PROT_WIDTH = 3,
+    parameter int PHW            = 1   // DFI command-phase select = clog2(DFI_RATE)
 ) (
     // mc_clk-domain reset + clock
     input  logic                          mc_clk,
@@ -82,6 +83,8 @@ module pumice_csr_slave
     output logic [7:0]                    cfg_t_rfcpb_o,
     output logic [7:0]                    cfg_t_rtp_o,
     output logic [7:0]                    cfg_t_rtw_o,
+    output logic [PHW-1:0]                cfg_rd_phase_o,
+    output logic [PHW-1:0]                cfg_wr_phase_o,
     output logic [15:0]                   cfg_t_init_wait_o,
     output logic [15:0]                   cfg_t_dll_wait_o,
     output logic [7:0]                    cfg_t_mrd_wait_o,
@@ -265,7 +268,9 @@ module pumice_csr_slave
     //=========================================================================
     // 4. Config / status / observation projection (hwif ↔ flat ports)
     //=========================================================================
-    pumice_config_block u_config_block (
+    pumice_config_block #(
+        .PHW (PHW)
+    ) u_config_block (
         .hwif_out                    (hwif_out),
         .hwif_in                     (hwif_in),
 
@@ -293,6 +298,8 @@ module pumice_csr_slave
         .cfg_t_rfcpb_o               (cfg_t_rfcpb_o),
         .cfg_t_rtp_o                 (cfg_t_rtp_o),
         .cfg_t_rtw_o                 (cfg_t_rtw_o),
+        .cfg_rd_phase_o              (cfg_rd_phase_o),
+        .cfg_wr_phase_o              (cfg_wr_phase_o),
         .cfg_t_init_wait_o           (cfg_t_init_wait_o),
         .cfg_t_dll_wait_o            (cfg_t_dll_wait_o),
         .cfg_t_mrd_wait_o            (cfg_t_mrd_wait_o),

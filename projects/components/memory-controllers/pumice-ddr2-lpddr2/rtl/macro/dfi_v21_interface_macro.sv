@@ -44,7 +44,8 @@ module dfi_v21_interface_macro
     parameter int BKW = $clog2(NUM_BANKS),
     parameter int RW  = ROW_WIDTH,
     parameter int CW  = COL_WIDTH,
-    parameter int BLW = BURST_LEN_WIDTH
+    parameter int BLW = BURST_LEN_WIDTH,
+    parameter int PHW = (DFI_RATE > 1) ? $clog2(DFI_RATE) : 1
 ) (
     input  logic                          mc_clk,
     input  logic                          mc_rst_n,
@@ -59,6 +60,10 @@ module dfi_v21_interface_macro
     input  logic [RW-1:0]                 cmd_row_i,
     input  logic [CW-1:0]                 cmd_col_i,
     input  logic [BLW-1:0]                cmd_len_i,
+
+    // ----- runtime DFI command-phase placement (rdphase/wrphase, CSR) -----
+    input  logic [PHW-1:0]                rd_phase_i,
+    input  logic [PHW-1:0]                wr_phase_i,
 
     // ----- pre-pack data from data_path_macro -----
     input  logic [DFI_DATA_WIDTH-1:0]     pre_dfi_wrdata_i,
@@ -141,6 +146,8 @@ module dfi_v21_interface_macro
         .cmd_row_i     (cmd_row_i),
         .cmd_col_i     (cmd_col_i),
         .cmd_len_i     (cmd_len_i),
+        .rd_phase_i    (rd_phase_i),
+        .wr_phase_i    (wr_phase_i),
         .dfi_address_o (pre_dfi_address),
         .dfi_bank_o    (pre_dfi_bank),
         .dfi_cas_n_o   (pre_dfi_cas_n),

@@ -88,6 +88,7 @@ module pumice_csr (
         logic TIMINGS_RTP_RTW;
         logic INIT_TIMING0;
         logic INIT_TIMING1;
+        logic DFI_PHASE;
         struct {
             logic ROW_HIT;
         } OBS_ROW_HIT[8];
@@ -140,6 +141,7 @@ module pumice_csr (
         decoded_reg_strb.TIMINGS_RTP_RTW = cpuif_req_masked & (cpuif_addr == 12'h54);
         decoded_reg_strb.INIT_TIMING0 = cpuif_req_masked & (cpuif_addr == 12'h58);
         decoded_reg_strb.INIT_TIMING1 = cpuif_req_masked & (cpuif_addr == 12'h5c);
+        decoded_reg_strb.DFI_PHASE = cpuif_req_masked & (cpuif_addr == 12'h60);
         for(int i0=0; i0<8; i0++) begin
             decoded_reg_strb.OBS_ROW_HIT[i0].ROW_HIT = cpuif_req_masked & (cpuif_addr == 12'h80 + (12)'(i0) * 12'h4);
         end
@@ -406,6 +408,16 @@ module pumice_csr (
         } INIT_TIMING1;
         struct {
             struct {
+                logic [2:0] next;
+                logic load_next;
+            } rd_phase;
+            struct {
+                logic [2:0] next;
+                logic load_next;
+            } wr_phase;
+        } DFI_PHASE;
+        struct {
+            struct {
                 struct {
                     logic [31:0] next;
                     logic load_next;
@@ -598,6 +610,14 @@ module pumice_csr (
                 logic [7:0] value;
             } t_rfc_wait;
         } INIT_TIMING1;
+        struct {
+            struct {
+                logic [2:0] value;
+            } rd_phase;
+            struct {
+                logic [2:0] value;
+            } wr_phase;
+        } DFI_PHASE;
         struct {
             struct {
                 struct {
@@ -1715,6 +1735,52 @@ module pumice_csr (
         end
     end
     assign hwif_out.INIT_TIMING1.t_rfc_wait.value = field_storage.INIT_TIMING1.t_rfc_wait.value;
+    // Field: pumice_csr.DFI_PHASE.rd_phase
+    always_comb begin
+        automatic logic [2:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.DFI_PHASE.rd_phase.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.DFI_PHASE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.DFI_PHASE.rd_phase.value & ~decoded_wr_biten[2:0]) | (decoded_wr_data[2:0] & decoded_wr_biten[2:0]);
+            load_next_c = '1;
+        end
+        field_combo.DFI_PHASE.rd_phase.next = next_c;
+        field_combo.DFI_PHASE.rd_phase.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.DFI_PHASE.rd_phase.value <= 3'h0;
+        end else begin
+            if(field_combo.DFI_PHASE.rd_phase.load_next) begin
+                field_storage.DFI_PHASE.rd_phase.value <= field_combo.DFI_PHASE.rd_phase.next;
+            end
+        end
+    end
+    assign hwif_out.DFI_PHASE.rd_phase.value = field_storage.DFI_PHASE.rd_phase.value;
+    // Field: pumice_csr.DFI_PHASE.wr_phase
+    always_comb begin
+        automatic logic [2:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.DFI_PHASE.wr_phase.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.DFI_PHASE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.DFI_PHASE.wr_phase.value & ~decoded_wr_biten[6:4]) | (decoded_wr_data[6:4] & decoded_wr_biten[6:4]);
+            load_next_c = '1;
+        end
+        field_combo.DFI_PHASE.wr_phase.next = next_c;
+        field_combo.DFI_PHASE.wr_phase.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.DFI_PHASE.wr_phase.value <= 3'h0;
+        end else begin
+            if(field_combo.DFI_PHASE.wr_phase.load_next) begin
+                field_storage.DFI_PHASE.wr_phase.value <= field_combo.DFI_PHASE.wr_phase.next;
+            end
+        end
+    end
+    assign hwif_out.DFI_PHASE.wr_phase.value = field_storage.DFI_PHASE.wr_phase.value;
     for(genvar i0=0; i0<8; i0++) begin
         // Field: pumice_csr.OBS_ROW_HIT[].ROW_HIT.VAL
         always_comb begin
@@ -1758,7 +1824,7 @@ module pumice_csr (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[60];
+    logic [31:0] readback_array[61];
     assign readback_array[0][0:0] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_start.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_force_restart.value : '0;
     assign readback_array[0][3:2] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
@@ -1839,31 +1905,35 @@ module pumice_csr (
     assign readback_array[21][15:8] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? field_storage.INIT_TIMING1.t_rp_wait.value : '0;
     assign readback_array[21][23:16] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? field_storage.INIT_TIMING1.t_rfc_wait.value : '0;
     assign readback_array[21][31:24] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[22][2:0] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.rd_phase.value : '0;
+    assign readback_array[22][3:3] = '0;
+    assign readback_array[22][6:4] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.wr_phase.value : '0;
+    assign readback_array[22][31:7] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? 25'h0 : '0;
     for(genvar i0=0; i0<8; i0++) begin
-        assign readback_array[i0 * 1 + 22][31:0] = (decoded_reg_strb.OBS_ROW_HIT[i0].ROW_HIT && !decoded_req_is_wr) ? field_storage.OBS_ROW_HIT[i0].ROW_HIT.VAL.value : '0;
+        assign readback_array[i0 * 1 + 23][31:0] = (decoded_reg_strb.OBS_ROW_HIT[i0].ROW_HIT && !decoded_req_is_wr) ? field_storage.OBS_ROW_HIT[i0].ROW_HIT.VAL.value : '0;
     end
     for(genvar i0=0; i0<8; i0++) begin
-        assign readback_array[i0 * 1 + 30][31:0] = (decoded_reg_strb.OBS_REF_LATENCY[i0].REF_LAT && !decoded_req_is_wr) ? hwif_in.OBS_REF_LATENCY[i0].REF_LAT.VAL.next : '0;
+        assign readback_array[i0 * 1 + 31][31:0] = (decoded_reg_strb.OBS_REF_LATENCY[i0].REF_LAT && !decoded_req_is_wr) ? hwif_in.OBS_REF_LATENCY[i0].REF_LAT.VAL.next : '0;
     end
-    assign readback_array[38][31:0] = (decoded_reg_strb.OBS_TXN_QUEUE_DEPTH_MAX && !decoded_req_is_wr) ? hwif_in.OBS_TXN_QUEUE_DEPTH_MAX.VAL.next : '0;
-    assign readback_array[39][31:0] = (decoded_reg_strb.OBS_TXN_QUEUE_DEPTH_AVG && !decoded_req_is_wr) ? hwif_in.OBS_TXN_QUEUE_DEPTH_AVG.VAL.next : '0;
-    assign readback_array[40][31:0] = (decoded_reg_strb.OBS_REFRESH_PENDING_MAX && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_PENDING_MAX.VAL.next : '0;
-    assign readback_array[41][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_0 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_0.VAL.next : '0;
-    assign readback_array[42][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_1 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_1.VAL.next : '0;
-    assign readback_array[43][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_2 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_2.VAL.next : '0;
-    assign readback_array[44][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_3 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_3.VAL.next : '0;
-    assign readback_array[45][31:0] = (decoded_reg_strb.OBS_PAGE_PRED_ACCURACY && !decoded_req_is_wr) ? hwif_in.OBS_PAGE_PRED_ACCURACY.VAL.next : '0;
-    assign readback_array[46][31:0] = (decoded_reg_strb.OBS_AXI_R_LATENCY_AVG && !decoded_req_is_wr) ? hwif_in.OBS_AXI_R_LATENCY_AVG.VAL.next : '0;
-    assign readback_array[47][31:0] = (decoded_reg_strb.OBS_AXI_R_LATENCY_P99 && !decoded_req_is_wr) ? hwif_in.OBS_AXI_R_LATENCY_P99.VAL.next : '0;
-    assign readback_array[48][31:0] = (decoded_reg_strb.OBS_AXI_W_LATENCY_AVG && !decoded_req_is_wr) ? hwif_in.OBS_AXI_W_LATENCY_AVG.VAL.next : '0;
+    assign readback_array[39][31:0] = (decoded_reg_strb.OBS_TXN_QUEUE_DEPTH_MAX && !decoded_req_is_wr) ? hwif_in.OBS_TXN_QUEUE_DEPTH_MAX.VAL.next : '0;
+    assign readback_array[40][31:0] = (decoded_reg_strb.OBS_TXN_QUEUE_DEPTH_AVG && !decoded_req_is_wr) ? hwif_in.OBS_TXN_QUEUE_DEPTH_AVG.VAL.next : '0;
+    assign readback_array[41][31:0] = (decoded_reg_strb.OBS_REFRESH_PENDING_MAX && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_PENDING_MAX.VAL.next : '0;
+    assign readback_array[42][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_0 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_0.VAL.next : '0;
+    assign readback_array[43][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_1 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_1.VAL.next : '0;
+    assign readback_array[44][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_2 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_2.VAL.next : '0;
+    assign readback_array[45][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_3 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_3.VAL.next : '0;
+    assign readback_array[46][31:0] = (decoded_reg_strb.OBS_PAGE_PRED_ACCURACY && !decoded_req_is_wr) ? hwif_in.OBS_PAGE_PRED_ACCURACY.VAL.next : '0;
+    assign readback_array[47][31:0] = (decoded_reg_strb.OBS_AXI_R_LATENCY_AVG && !decoded_req_is_wr) ? hwif_in.OBS_AXI_R_LATENCY_AVG.VAL.next : '0;
+    assign readback_array[48][31:0] = (decoded_reg_strb.OBS_AXI_R_LATENCY_P99 && !decoded_req_is_wr) ? hwif_in.OBS_AXI_R_LATENCY_P99.VAL.next : '0;
+    assign readback_array[49][31:0] = (decoded_reg_strb.OBS_AXI_W_LATENCY_AVG && !decoded_req_is_wr) ? hwif_in.OBS_AXI_W_LATENCY_AVG.VAL.next : '0;
     for(genvar i0=0; i0<9; i0++) begin
-        assign readback_array[i0 * 1 + 49][31:0] = (decoded_reg_strb.OBS_WORDS[i0].WORD && !decoded_req_is_wr) ? hwif_in.OBS_WORDS[i0].WORD.VAL.next : '0;
+        assign readback_array[i0 * 1 + 50][31:0] = (decoded_reg_strb.OBS_WORDS[i0].WORD && !decoded_req_is_wr) ? hwif_in.OBS_WORDS[i0].WORD.VAL.next : '0;
     end
-    assign readback_array[58][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
-    assign readback_array[58][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[58][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
-    assign readback_array[58][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
-    assign readback_array[59][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
+    assign readback_array[59][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
+    assign readback_array[59][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[59][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
+    assign readback_array[59][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
+    assign readback_array[60][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
 
     // Reduce the array
     always_comb begin
@@ -1871,7 +1941,7 @@ module pumice_csr (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<60; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<61; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

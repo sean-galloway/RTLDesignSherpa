@@ -519,6 +519,19 @@ package pumice_csr_pkg;
     } pumice_csr__INIT_TIMING1__out_t;
 
     typedef struct {
+        logic [2:0] value;
+    } pumice_csr__DFI_PHASE__rd_phase__out_t;
+
+    typedef struct {
+        logic [2:0] value;
+    } pumice_csr__DFI_PHASE__wr_phase__out_t;
+
+    typedef struct {
+        pumice_csr__DFI_PHASE__rd_phase__out_t rd_phase;
+        pumice_csr__DFI_PHASE__wr_phase__out_t wr_phase;
+    } pumice_csr__DFI_PHASE__out_t;
+
+    typedef struct {
         pumice_csr__CTRL__out_t CTRL;
         pumice_csr__TIMINGS_RC_RCD_RP_RAS__out_t TIMINGS_RC_RCD_RP_RAS;
         pumice_csr__TIMINGS_RFC_REFI__out_t TIMINGS_RFC_REFI;
@@ -538,5 +551,6 @@ package pumice_csr_pkg;
         pumice_csr__TIMINGS_RTP_RTW__out_t TIMINGS_RTP_RTW;
         pumice_csr__INIT_TIMING0__out_t INIT_TIMING0;
         pumice_csr__INIT_TIMING1__out_t INIT_TIMING1;
+        pumice_csr__DFI_PHASE__out_t DFI_PHASE;
     } pumice_csr__out_t;
 endpackage

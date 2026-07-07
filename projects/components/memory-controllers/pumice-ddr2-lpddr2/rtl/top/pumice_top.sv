@@ -85,7 +85,8 @@ module pumice_top
     parameter int BLW = BURST_LEN_WIDTH,
     parameter int WSL = $clog2(WR_CAM_DEPTH),
     parameter int RSL = $clog2(RD_CAM_DEPTH),
-    parameter int WPW = W_BUF_PTR_WIDTH
+    parameter int WPW = W_BUF_PTR_WIDTH,
+    parameter int PHW = (DFI_RATE > 1) ? $clog2(DFI_RATE) : 1
 ) (
     // Clocks + resets
     input  logic                          mc_clk,
@@ -208,6 +209,7 @@ module pumice_top
     logic [7:0]                           cfg_t_rrd, cfg_t_faw, cfg_t_wtr, cfg_t_ccd;
     logic [7:0]                           cfg_cl, cfg_cwl, cfg_t_wr, cfg_t_rfcpb;
     logic [7:0]                           cfg_t_rtp, cfg_t_rtw;
+    logic [PHW-1:0]                       cfg_rd_phase, cfg_wr_phase;
     logic [15:0]                          cfg_t_init_wait, cfg_t_dll_wait;
     logic [7:0]                           cfg_t_mrd_wait, cfg_t_rp_wait, cfg_t_rfc_wait;
     logic [15:0]                          cfg_mr0, cfg_mr1, cfg_mr2, cfg_mr3;
@@ -303,6 +305,8 @@ module pumice_top
         .t_rtp_i             (cfg_t_rtp),   // now CSR-backed (TIMINGS_RTP_RTW)
         .t_rtw_i             (cfg_t_rtw),   // now CSR-backed + independent of tRTP
         .t_ccd_i             (cfg_t_ccd),   // now CSR-backed (was hardcoded 8'd4)
+        .rd_phase_i          (cfg_rd_phase),// DFI rdphase (CSR-backed: DFI_PHASE)
+        .wr_phase_i          (cfg_wr_phase),// DFI wrphase (CSR-backed: DFI_PHASE)
         .t_faw_i             (cfg_t_faw),
         .t_rrd_i             (cfg_t_rrd),
         // JEDEC init-sequence waits (CSR-backed: INIT_TIMING0/1)
@@ -413,7 +417,8 @@ module pumice_top
 
     pumice_csr_slave #(
         .APB_ADDR_WIDTH (APB_ADDR_WIDTH),
-        .APB_DATA_WIDTH (APB_DATA_WIDTH)
+        .APB_DATA_WIDTH (APB_DATA_WIDTH),
+        .PHW            (PHW)
     ) u_csr (
         .mc_clk                     (mc_clk),
         .mc_rst_n                   (mc_rst_n),
@@ -454,6 +459,8 @@ module pumice_top
         .cfg_t_rfcpb_o              (cfg_t_rfcpb),
         .cfg_t_rtp_o                (cfg_t_rtp),
         .cfg_t_rtw_o                (cfg_t_rtw),
+        .cfg_rd_phase_o             (cfg_rd_phase),
+        .cfg_wr_phase_o             (cfg_wr_phase),
         .cfg_t_init_wait_o          (cfg_t_init_wait),
         .cfg_t_dll_wait_o           (cfg_t_dll_wait),
         .cfg_t_mrd_wait_o           (cfg_t_mrd_wait),

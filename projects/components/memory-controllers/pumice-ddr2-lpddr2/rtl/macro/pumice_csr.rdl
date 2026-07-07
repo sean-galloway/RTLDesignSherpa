@@ -196,6 +196,23 @@ addrmap pumice_csr {
 
     } TIMINGS_RTP_RTW @ 0x054;
 
+    reg {
+        name = "DFI Command Phase Placement";
+        desc = "Which DFI sub-phase carries the READ vs WRITE command, to match
+                the PHY's rdphase/wrphase contract. For the Nexys A7 a7ddrphy
+                (DDR2/CL3/nphases=2) the on-silicon ILA showed the READ burst is
+                delivered aligned to rdphase=1 (wrphase=0): issuing RD on phase 0
+                misaligns the returned burst (1st DFI cycle good, tail corrupt).
+                Defaults 0/0 preserve the legacy all-on-phase-0 behavior. Fields
+                are sliced to clog2(DFI_RATE) bits downstream; upper bits ignored
+                when DFI_RATE < the field width.";
+
+        field { sw = rw; hw = r; desc = "READ command DFI sub-phase";  } rd_phase[2:0]   = 3'd0;
+        field { sw = rw; hw = r; desc = "WRITE command DFI sub-phase"; } wr_phase[6:4]   = 3'd0;
+        field { sw = r;  hw = na; desc = "Reserved";                   } RSVD[31:7]       = 25'h0;
+
+    } DFI_PHASE @ 0x060;
+
     //=========================================================================
     // Mode Register Values (0x020 – 0x02F)
     //=========================================================================

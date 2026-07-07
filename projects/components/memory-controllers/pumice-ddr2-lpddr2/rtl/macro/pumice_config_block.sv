@@ -15,7 +15,9 @@
 
 module pumice_config_block
     import pumice_csr_pkg::*;
-(
+#(
+    parameter int PHW = 1   // DFI command-phase select width = clog2(DFI_RATE)
+) (
     // From regblock
     input  pumice_csr__out_t  hwif_out,
     output pumice_csr__in_t   hwif_in,
@@ -49,6 +51,9 @@ module pumice_config_block
     output logic [7:0]                    cfg_t_rfcpb_o,
     output logic [7:0]                    cfg_t_rtp_o,
     output logic [7:0]                    cfg_t_rtw_o,
+    // DFI command-phase placement (rdphase/wrphase)
+    output logic [PHW-1:0]                cfg_rd_phase_o,
+    output logic [PHW-1:0]                cfg_wr_phase_o,
     // JEDEC init-sequence waits (MC cycles)
     output logic [15:0]                   cfg_t_init_wait_o,
     output logic [15:0]                   cfg_t_dll_wait_o,
@@ -149,6 +154,9 @@ module pumice_config_block
     assign cfg_t_rfcpb_o  = hwif_out.TIMINGS_CL_CWL_WR.tRFCpb.value;
     assign cfg_t_rtp_o    = hwif_out.TIMINGS_RTP_RTW.tRTP.value;
     assign cfg_t_rtw_o    = hwif_out.TIMINGS_RTP_RTW.tRTW.value;
+    // DFI command-phase placement — slice the CSR field to the phase-select width.
+    assign cfg_rd_phase_o = hwif_out.DFI_PHASE.rd_phase.value[PHW-1:0];
+    assign cfg_wr_phase_o = hwif_out.DFI_PHASE.wr_phase.value[PHW-1:0];
     assign cfg_t_init_wait_o = hwif_out.INIT_TIMING0.t_init_wait.value;
     assign cfg_t_dll_wait_o  = hwif_out.INIT_TIMING0.t_dll_wait.value;
     assign cfg_t_mrd_wait_o  = hwif_out.INIT_TIMING1.t_mrd_wait.value;

@@ -64,7 +64,8 @@ module dfi_cmd_formatter
     parameter int DFI_CS_BUS_W    = DFI_CS_WIDTH * DFI_RATE,
 
     parameter int RKW = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
-    parameter int BKW = $clog2(NUM_BANKS)
+    parameter int BKW = $clog2(NUM_BANKS),
+    parameter int PHW = (DFI_RATE > 1) ? $clog2(DFI_RATE) : 1
 ) (
     input  logic                          mc_clk,
     input  logic                          mc_rst_n,
@@ -80,6 +81,14 @@ module dfi_cmd_formatter
     input  logic [ROW_WIDTH-1:0]          cmd_row_i,
     input  logic [COL_WIDTH-1:0]          cmd_col_i,
     input  logic [BURST_LEN_WIDTH-1:0]    cmd_len_i,
+
+    // ----- runtime DFI command-phase placement (CSR-driven) -----
+    // Which DFI sub-phase carries the READ vs WRITE command, to match the PHY's
+    // rdphase/wrphase contract (a7ddrphy DDR2/CL3/nphases=2: rdphase=1,
+    // wrphase=0). All other commands stay on phase 0. Defaults preserve the
+    // legacy "everything on phase 0" behavior when both are 0.
+    input  logic [PHW-1:0]                rd_phase_i,
+    input  logic [PHW-1:0]                wr_phase_i,
 
     // ----- multi-phase DFI control bus -----
     output logic [DFI_ADDR_BUS_W-1:0]     dfi_address_o,
@@ -296,6 +305,20 @@ module dfi_cmd_formatter
     logic [DFI_CS_BUS_W-1:0]    w_dfi_cs_n;
     logic [DFI_CS_BUS_W-1:0]    w_dfi_odt;
 
+    // Target phase for the decoded command: READ on rd_phase, WRITE on
+    // wr_phase, everything else on phase 0. This aligns the R/W command with
+    // the a7ddrphy rdphase/wrphase so the returned/launched burst lands in the
+    // expected DFI cycle. Non-R/W commands (ACT/PRE/REF/MRS) have no data-phase
+    // contract, so phase 0 is fine and preserves legacy behavior.
+    logic [PHW-1:0] w_cmd_phase;
+    always_comb begin
+        unique case (cmd_op_i)
+            OP_RD, OP_RDA: w_cmd_phase = rd_phase_i;
+            OP_WR, OP_WRA: w_cmd_phase = wr_phase_i;
+            default:       w_cmd_phase = '0;
+        endcase
+    end
+
     always_comb begin
         // Start with NOP default for every phase.
         w_dfi_address = '0;
@@ -306,14 +329,14 @@ module dfi_cmd_formatter
         w_dfi_cs_n    = '1;
         w_dfi_odt     = '0;
 
-        // Phase 0 = the decoded command.
-        w_dfi_address[0 +: DFI_ADDR_WIDTH] = w_p0_addr;
-        w_dfi_bank   [0 +: DFI_BANK_WIDTH] = w_p0_bank;
-        w_dfi_cas_n  [0 +: DFI_CTRL_WIDTH] = w_p0_cas_n;
-        w_dfi_ras_n  [0 +: DFI_CTRL_WIDTH] = w_p0_ras_n;
-        w_dfi_we_n   [0 +: DFI_CTRL_WIDTH] = w_p0_we_n;
-        w_dfi_cs_n   [0 +: DFI_CS_WIDTH]   = w_p0_cs_n;
-        w_dfi_odt    [0 +: DFI_CS_WIDTH]   = w_p0_odt;
+        // Place the decoded command on its target phase; the others stay NOP.
+        w_dfi_address[w_cmd_phase*DFI_ADDR_WIDTH +: DFI_ADDR_WIDTH] = w_p0_addr;
+        w_dfi_bank   [w_cmd_phase*DFI_BANK_WIDTH +: DFI_BANK_WIDTH] = w_p0_bank;
+        w_dfi_cas_n  [w_cmd_phase*DFI_CTRL_WIDTH +: DFI_CTRL_WIDTH] = w_p0_cas_n;
+        w_dfi_ras_n  [w_cmd_phase*DFI_CTRL_WIDTH +: DFI_CTRL_WIDTH] = w_p0_ras_n;
+        w_dfi_we_n   [w_cmd_phase*DFI_CTRL_WIDTH +: DFI_CTRL_WIDTH] = w_p0_we_n;
+        w_dfi_cs_n   [w_cmd_phase*DFI_CS_WIDTH   +: DFI_CS_WIDTH]   = w_p0_cs_n;
+        w_dfi_odt    [w_cmd_phase*DFI_CS_WIDTH   +: DFI_CS_WIDTH]   = w_p0_odt;
     end
 
     //=========================================================================

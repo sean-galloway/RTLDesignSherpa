@@ -82,7 +82,8 @@ module pumice_core_macro
     parameter int BLW = BURST_LEN_WIDTH,
     parameter int WPW = W_BUF_PTR_WIDTH,
     parameter int WSL = $clog2(WR_CAM_DEPTH),
-    parameter int RSL = $clog2(RD_CAM_DEPTH)
+    parameter int RSL = $clog2(RD_CAM_DEPTH),
+    parameter int PHW = (DFI_RATE > 1) ? $clog2(DFI_RATE) : 1
 ) (
     input  logic                       mc_clk,
     input  logic                       mc_rst_n,
@@ -105,6 +106,8 @@ module pumice_core_macro
     input  logic [7:0]                 t_rtp_i,
     input  logic [7:0]                 t_rtw_i,
     input  logic [7:0]                 t_ccd_i,
+    input  logic [PHW-1:0]             rd_phase_i,   // DFI rdphase (RD cmd sub-phase)
+    input  logic [PHW-1:0]             wr_phase_i,   // DFI wrphase (WR cmd sub-phase)
     input  logic [7:0]                 t_faw_i,
     input  logic [7:0]                 t_rrd_i,
     // JEDEC init-sequence waits (CSR-backed)
@@ -695,6 +698,8 @@ module pumice_core_macro
         .cmd_row_i              (cmd_row),
         .cmd_col_i              (cmd_col),
         .cmd_len_i              (cmd_len),
+        .rd_phase_i             (rd_phase_i),
+        .wr_phase_i             (wr_phase_i),
         .pre_dfi_wrdata_i       (pre_dfi_wrdata),
         .pre_dfi_wrdata_en_i    (pre_dfi_wrdata_en),
         .pre_dfi_wrdata_mask_i  (pre_dfi_wrdata_mask),
