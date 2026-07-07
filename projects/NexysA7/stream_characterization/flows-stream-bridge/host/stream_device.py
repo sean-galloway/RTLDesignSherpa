@@ -96,11 +96,13 @@ class Stream(Device):
     def kick(self, channel: int, desc_addr: int) -> None:
         """Kick a channel by writing the descriptor address to CHx_CTRL.
 
-        Writes DESC_ADDR_HIGH first (if the address needs it), then DESC_ADDR_LOW
-        which triggers the apbtodescr fetch."""
-        if desc_addr >> 32:
-            self.write(f"CH{channel}_CTRL_HIGH", DESC_ADDR_HIGH=(desc_addr >> 32) & 0xFFFF_FFFF)
+        apbtodescr is a state machine that requires BOTH writes, LOW then HIGH,
+        to complete the kick handshake (IDLE -> RESPOND_LOW -> WAIT_HIGH ->
+        RESPOND_HIGH -> desc_apb_valid). Always write both, LOW first, even when
+        the high word is 0 -- writing only LOW leaves it stuck in WAIT_HIGH and
+        the channel never starts."""
         self.write(f"CH{channel}_CTRL_LOW", DESC_ADDR_LOW=desc_addr & 0xFFFF_FFFF)
+        self.write(f"CH{channel}_CTRL_HIGH", DESC_ADDR_HIGH=(desc_addr >> 32) & 0xFFFF_FFFF)
 
     def run(self, channel: int, kick_addr: Optional[int] = None) -> None:
         """Enable + kick a channel (descriptors must already be loaded)."""

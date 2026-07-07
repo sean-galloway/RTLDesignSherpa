@@ -839,17 +839,7 @@ class StreamCharTB(TBBase):
         perf_ok = all(r["rd"]["total"] > 0 and r["wr"]["total"] > 0 for r in records)
         self.log.info(f"ext_char: {len(records)} records all_ok={ok} "
                       f"perf_nonzero={perf_ok} -> {out_path}")
-        if not perf_ok:
-            # SEPARATE finding (NOT the perf-address bug, which is fixed +
-            # validated by rw_perf): the RD/WR monitors see 0 beats for the
-            # EXTENDED DMA in the char harness, even though the channel completes.
-            # rw_perf's LEGACY DMA registers full perf via the identical read
-            # path, so this is the extended DMA not driving data through the
-            # monitored bus here (descriptor-fetch/length or peer config) --
-            # under investigation. Gate on completion for now.
-            self.log.warning("ext_char: extended DMA shows 0 monitor beats -- "
-                             "sweep completes but perf not captured (see comment)")
-        return ok
+        return ok and perf_ok
 
     async def run_dma_test(self, num_channels: int,
                            descriptors_per_channel: int,

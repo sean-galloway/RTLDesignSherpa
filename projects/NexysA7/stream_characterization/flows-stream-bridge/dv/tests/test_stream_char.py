@@ -369,7 +369,7 @@ async def cocotb_test_stream_char(dut):
                  for s in os.environ.get('EXT_CHAR_SIZES', '8x8,16x16').split(',')]
         out = os.environ.get('EXT_CHAR_OUT', 'ext_char_sim.json')
         ok &= await tb.run_ext_char_test(sizes, out)
-        assert ok, "ext_char: sweep DMA failed (a mode/size did not complete)"
+        assert ok, "ext_char: sweep failed (mode/size did not complete, or perf read zero)"
 
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
