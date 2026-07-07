@@ -47,17 +47,21 @@ def drive_reads(port, baud):
     # net (w_dfi_rddata_dly) vs the raw net + valid.
     d.set_dfi_phase(rd_phase=0, wr_phase=0)
     d.set_dfi_rddata_delay(8)
+    # One LARGE contiguous burst so the read-data stream is many back-to-back DFI
+    # cycles — makes the "every other read cycle is garbage" cadence unmistakable
+    # (vs. short BL4 reads where it looks like a per-command 2nd-cycle loss).
+    BL = 16
     d.clear_stats()
-    d.program_wr_engine(start_addr=0x0, burst_len=4, txn_count=4, stride_0=32,
+    d.program_wr_engine(start_addr=0x0, burst_len=BL, txn_count=4, stride_0=BL * 8,
                         lfsr_seed=SEED, data_mode=True, hash_seed0=SEED)
     d.start_wr(); wait_engine(d, "wr")
-    # Read a few times so there is a read-valid window while the ILA is armed.
     for _ in range(8):
-        d.program_rd_engine(start_addr=0x0, burst_len=4, txn_count=4, stride_0=32,
+        d.program_rd_engine(start_addr=0x0, burst_len=BL, txn_count=4, stride_0=BL * 8,
                             lfsr_seed=SEED, data_mode=True, hash_seed0=SEED)
         d.clear_stats(); d.start_rd(); wait_engine(d, "rd")
         time.sleep(0.05)
-    print(f"[uart] drove reads; beats_mismatched={d.beats_mismatched()}", flush=True)
+    print(f"[uart] drove reads (BL={BL}); beats_mismatched={d.beats_mismatched()}",
+          flush=True)
 
 
 def main():

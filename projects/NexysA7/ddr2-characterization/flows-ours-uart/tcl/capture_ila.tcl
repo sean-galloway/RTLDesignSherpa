@@ -30,14 +30,21 @@ refresh_hw_device [current_hw_device]
 
 set ila [get_hw_ilas -of_objects [current_hw_device]]
 
-# Trigger on read data returning from the PHY (dfi_rddata_valid != 0). Capture
-# with a big pre-trigger window so the preceding write burst + command land in
-# the buffer too.
-set rdv [get_hw_probes -of_objects $ila *w_dfi_rddata_valid*]
-set_property TRIGGER_COMPARE_VALUE {neq2'b00} $rdv
-set_property CONTROL.TRIGGER_POSITION [expr {[get_property CONTROL.DATA_DEPTH $ila] - 512}] $ila
-
-puts "ILA armed (trigger: dfi_rddata_valid != 0). Waiting for a UART read ..."
+# Trigger source: "wr" (default) triggers on the WRITE burst (wrdata_en != 0) with
+# an EARLY trigger position so the post-trigger window captures the write burst +
+# command columns (and the following reads) — to check writes land beats at the
+# right DRAM columns with the bl-scaling split. "rd" triggers on rddata_valid.
+set trig [expr {$argc >= 2 ? [lindex $argv 1] : "wr"}]
+if {$trig eq "rd"} {
+    set p [get_hw_probes -of_objects $ila *w_dfi_rddata_valid*]
+    set_property CONTROL.TRIGGER_POSITION [expr {[get_property CONTROL.DATA_DEPTH $ila] - 512}] $ila
+    puts "ILA armed (trigger: dfi_rddata_valid != 0). Waiting for a UART read ..."
+} else {
+    set p [get_hw_probes -of_objects $ila *w_dfi_wrdata_en*]
+    set_property CONTROL.TRIGGER_POSITION 512 $ila
+    puts "ILA armed (trigger: dfi_wrdata_en != 0). Waiting for a UART write ..."
+}
+set_property TRIGGER_COMPARE_VALUE {neq2'b00} $p
 run_hw_ila $ila
 # Block up to ~60 s for the trigger (the orchestrator drives a read meanwhile).
 wait_on_hw_ila -timeout 60 $ila
