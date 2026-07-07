@@ -112,7 +112,13 @@ module stream_char_top (
         // emitters (descriptor_engine/scheduler) to recover slice/control-set
         // packing on the area-tight xc7a100t. Cosim leaves GEN_MON=1 (default)
         // so the compression-trace tests keep working.
-        .GEN_MON               (1'b0)
+        .GEN_MON               (1'b0),
+        // TASK-101: build the board bitstream with STREAM's extended
+        // dma_address_gen (row/column-major, 2-D/transpose) addressing enabled.
+        // param=1 is a superset -- legacy contiguous descriptors (desc_type=0)
+        // still run unchanged, so this one build serves both the legacy
+        // characterization and the extended-addressing + channel-scaling sweeps.
+        .USE_ROW_COL_MAJOR_ADDRESSING (1)
     ) u_harness (
         .aclk            (aclk),
         .aresetn         (aresetn),
