@@ -19,94 +19,100 @@ from __future__ import annotations
 import json
 from typing import List, Tuple
 
-from harness_kick import batch_kick
+from harness_kick import HARNESS_CSR_BASE, batch_kick
+from read_bus_meters import read_meter, R_METER_BASE, W_METER_BASE
 from stream_ext_suite import CASES, CH_ERROR, CH_IDLE, program_case, wait_done
+
+# Observer histogram CSRs (burst counts) -- mirrors stream_char_tb.py.
+CSR_OBS_HIST_SEL   = HARNESS_CSR_BASE + 0x120
+CSR_OBS_HIST_DATA  = HARNESS_CSR_BASE + 0x124
+CSR_OBS_HIST_TOTAL = HARNESS_CSR_BASE + 0x128
 
 # Default sweep: throughput-vs-size per mode. row modes burst; col modes are
 # single-beat, so col/col at the large sizes dominates board runtime.
 DEFAULT_SIZES: List[Tuple[int, int]] = [(64, 64), (256, 256), (1024, 1024), (2048, 2048)]
 
-_MON_ENABLE = 0x0F            # COMPL/TIMEOUT/ERR/... enable
-_MON_PKT_MASK_ALLOW = 0xFFF0  # clear the RDL drop-all default
-_MON_ERR_CFG = 0x0F           # ERR_SELECT route-all
+def _obs_burst_count(bridge, bus: int, metric: int) -> int:
+    """Observer per-metric transaction (burst) total. bus 0=read, 1=write;
+    metric read 1=AR->RLAST, write 0=AW->B. The TOTAL counts completed
+    transactions = bursts on that side (bin index is don't-care for the total)."""
+    bridge.write(CSR_OBS_HIST_SEL, ((metric & 1) << 1) | (bus & 1))
+    return bridge.read(CSR_OBS_HIST_TOTAL) & 0xFFFF_FFFF
 
 
-def enable_monitors(stream) -> None:
-    """Enable the RD/WR datapath monitors BY NAME (PKT_MASK + ENABLE + ERR_CFG)
-    so their perf windows observe the bus. Regmap resolves to the relocated
-    0x1000+ MON block (reachable via the 8 KB STREAM APB window)."""
-    for grp in ("RDMON", "WRMON"):
-        stream.write_word(f"{grp}_PKT_MASK", _MON_PKT_MASK_ALLOW)
-        stream.write_word(f"{grp}_ENABLE", _MON_ENABLE)
-        stream.write_word(f"{grp}_ERR_CFG", _MON_ERR_CFG)
+def _read_obs(stream) -> tuple:
+    """Read the EXTERNAL DMA observer's aggregate R/W buckets + burst counts.
+    Utilization = prod/(prod+bp+starv+idle); the harness auto-windows the
+    observer around the DMA (frozen by read time). Independent of the DUT's
+    internal monitors -- the same instrument the legacy char now uses, so ext
+    and legacy numbers are apples-to-apples."""
+    br = stream.bridge
+    ra = read_meter(br, R_METER_BASE, 1, 'R').aggregate
+    wa = read_meter(br, W_METER_BASE, 1, 'W').aggregate
+    rd_bursts = _obs_burst_count(br, bus=0, metric=1)   # AR->RLAST = read bursts
+    wr_bursts = _obs_burst_count(br, bus=1, metric=0)   # AW->B    = write bursts
 
-
-def _read_perf(stream, grp: str) -> dict:
-    """Read one RDMON_PERF / WRMON_PERF window BY NAME. bucket_total =
-    PROD+BP+STARV+IDLE is the closed-window length (WINDOW_CYCLES is live/zeroed
-    on close; buckets hold)."""
-    def r(field: str) -> int:
-        return stream.read(f"{grp}_{field}")
-
-    prod, bp = r("PROD_CYCLES"), r("BP_CYCLES")
-    starv, idle = r("STARV_CYCLES"), r("IDLE_CYCLES")
-    return {
-        "prod": prod, "bp": bp, "starv": starv, "idle": idle,
-        "total": prod + bp + starv + idle,
-        "beats": r("BEAT_COUNT"), "bursts": r("BURST_COUNT"),
-        "bytes": (r("BYTE_COUNT_HI") << 32) | r("BYTE_COUNT_LO"),
-    }
-
-
-def _perf_run(stream, on: bool) -> None:
-    """Drive the RD/WR perf-window RUN bit by name. Rising edge clears + opens
-    the window; falling edge closes (buckets hold)."""
-    v = 1 if on else 0
-    stream.write_word("RDMON_PERF_CTRL", v)
-    stream.write_word("WRMON_PERF_CTRL", v)
+    def mk(a, bursts):
+        return {"prod": a.productive, "bp": a.backpressure,
+                "starv": a.starvation, "idle": a.idle,
+                "total": a.total, "bursts": bursts}
+    return mk(ra, rd_bursts), mk(wa, wr_bursts)
 
 
 def measure_mode(stream, channel: int, case: str, W: int, H: int,
-                 *, poll_max: int = 20000) -> dict:
-    """Run one (mode, size) with the perf windows open; return a record."""
-    _perf_run(stream, False)          # ensure low (clean rising edge next)
-    _perf_run(stream, True)           # open + clear
+                 *, reset_fn=None, poll_max: int = 20000) -> dict:
+    """Run one (mode, size) on `channel`; read the external observer.
+
+    reset_fn (soft-reset + reconfigure STREAM) re-arms the observer's auto-window
+    per case -- the window opens on DMA-busy only after obs_started clears on the
+    unit soft-reset, so each measured case needs a fresh reset. Descriptors are
+    (re)programmed after the reset."""
+    if reset_fn:
+        reset_fn()
     kick = program_case(stream, channel, case, W, H)
     stream.enable_channel(channel, True)
     batch_kick(stream.bridge, {channel: kick})   # harness KICK_GO fast path
     res = wait_done(stream, channel, poll_max=poll_max)
-    _perf_run(stream, False)          # close
 
-    rd, wr = _read_perf(stream, "RDMON_PERF"), _read_perf(stream, "WRMON_PERF")
+    rd, wr = _read_obs(stream)
     return _derive({
         "case": case, "W": W, "H": H, "beats": W * H,
+        "bytes_per_beat": stream.desc.bytes_per_beat,
         "ok": res["ok"], "reason": res["reason"], "rd": rd, "wr": wr,
     })
 
 
 def _derive(rec: dict) -> dict:
-    """Add per-direction bytes/cycle throughput + utilization (buckets are the
-    closed-window length; throughput is dimensionless bytes/cycle here — the
-    report multiplies by the clock to get GB/s)."""
+    """Add per-direction utilization + throughput + bucket fractions from the
+    observer aggregate. util = productive fraction; starv_frac is the tell for
+    per-beat (single-beat) modes (bus starved between beats). Throughput is
+    dimensionless bytes/cycle -- the report multiplies by the clock for GB/s."""
+    bs = rec.get("bytes_per_beat", 16)
+    beats = rec["beats"]
     for d in ("rd", "wr"):
         p = rec[d]
         tot = p["total"] or 1
+        p["util"] = p["prod"] / tot                 # productive fraction
+        p["starv_frac"] = p["starv"] / tot          # per-beat starvation tell
+        p["bp_frac"] = p["bp"] / tot
+        p["beats"] = beats
+        p["bytes"] = beats * bs
         p["bytes_per_cycle"] = p["bytes"] / tot
-        p["util"] = p["prod"] / tot          # productive fraction
-        p["avg_burst_beats"] = (p["beats"] / p["bursts"]) if p["bursts"] else 0.0
+        p["avg_burst_beats"] = (beats / p["bursts"]) if p.get("bursts") else 0.0
     return rec
 
 
 def run_sweep(stream, *, channel: int = 0, sizes=DEFAULT_SIZES, cases=CASES,
-              poll_max: int = 20000, progress=None) -> List[dict]:
-    """Sweep cases x sizes; return one record per (mode, size)."""
-    enable_monitors(stream)          # by name; perf windows need the monitors on
+              reset_fn=None, poll_max: int = 20000, progress=None) -> List[dict]:
+    """Sweep cases x sizes; return one record per (mode, size). reset_fn re-arms
+    the observer window per case (see measure_mode)."""
     records = []
     for (W, H) in sizes:
         for case in cases:
             if progress:
                 progress(f"{case} {W}x{H}")
-            records.append(measure_mode(stream, channel, case, W, H, poll_max=poll_max))
+            records.append(measure_mode(stream, channel, case, W, H,
+                                        reset_fn=reset_fn, poll_max=poll_max))
     return records
 
 
@@ -143,46 +149,46 @@ def _wait_all(stream, channels, poll_max: int) -> dict:
 
 
 def measure_scaling(stream, case: str, W: int, H: int, nch: int,
-                    *, poll_max: int = 40000) -> dict:
-    """Run one (mode, size) across `nch` channels concurrently with the perf
-    windows open; return a record tagged with nch and aggregate metrics.
+                    *, reset_fn=None, poll_max: int = 40000) -> dict:
+    """Run one (mode, size) across `nch` channels concurrently; read the external
+    observer aggregate. reset_fn re-arms the observer window per point.
 
     All nch channels run the SAME tile config (the synthetic peers ignore the
     src/dst addresses, so per-channel descriptors may overlap). Channels are
     kicked back-to-back via the harness KICK_GO fast path so they actually
     overlap on the shared bus rather than serializing on the transport."""
+    if reset_fn:
+        reset_fn()
     channels = list(range(nch))
     kicks = {}
     for ch in channels:
         kicks[ch] = program_case(stream, ch, case, W, H)
         stream.enable_channel(ch, True)
 
-    _perf_run(stream, False)          # clean rising edge
-    _perf_run(stream, True)           # open + clear
     batch_kick(stream.bridge, kicks)  # fire all nch channels on one aclk cycle
     res = _wait_all(stream, channels, poll_max=poll_max)
-    _perf_run(stream, False)          # close
 
-    rd, wr = _read_perf(stream, "RDMON_PERF"), _read_perf(stream, "WRMON_PERF")
+    rd, wr = _read_obs(stream)
     return _derive({
         "case": case, "W": W, "H": H, "nch": nch, "beats": nch * W * H,
+        "bytes_per_beat": stream.desc.bytes_per_beat,
         "ok": res["ok"], "reason": res["reason"], "rd": rd, "wr": wr,
     })
 
 
 def run_channel_scaling(stream, *, cases=SCALING_CASES, size=SCALING_SIZE,
-                        channel_counts=DEFAULT_CHANNEL_COUNTS,
+                        channel_counts=DEFAULT_CHANNEL_COUNTS, reset_fn=None,
                         poll_max: int = 40000, progress=None) -> List[dict]:
     """For each transpose case, sweep channel count and record aggregate util.
     Returns one record per (case, nch)."""
-    enable_monitors(stream)
     W, H = size
     records = []
     for case in cases:
         for nch in channel_counts:
             if progress:
                 progress(f"{case} {W}x{H} x{nch}ch")
-            records.append(measure_scaling(stream, case, W, H, nch, poll_max=poll_max))
+            records.append(measure_scaling(stream, case, W, H, nch,
+                                           reset_fn=reset_fn, poll_max=poll_max))
     return records
 
 
@@ -239,13 +245,17 @@ def main(argv=None) -> int:
     with UARTAxiBridge(args.port, args.baud) as bridge:
         stream = Stream(bridge, "stream0",
                         regs_base=STREAM_APB_BASE, desc_ram_base=DESC_RAM_BASE)
-        _configure(stream, HARNESS_CSR_BASE)
+        # reset_fn soft-resets + reconfigures STREAM, which also re-arms the
+        # external observer's auto-window; it runs before every measured case so
+        # each case gets a fresh, frozen observer window.
+        reset_fn = lambda: _configure(stream, HARNESS_CSR_BASE)  # noqa: E731
         records = run_sweep(stream, channel=args.channel, sizes=sizes,
-                            progress=lambda s: print(f"  {s}"))
+                            reset_fn=reset_fn, progress=lambda s: print(f"  {s}"))
         scaling = []
         if scale_channels:
             scaling = run_channel_scaling(stream, size=(scale_w, scale_h),
                                           channel_counts=scale_channels,
+                                          reset_fn=reset_fn,
                                           progress=lambda s: print(f"  scale {s}"))
 
     with open(args.out, "w") as f:
