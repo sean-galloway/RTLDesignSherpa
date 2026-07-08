@@ -1585,8 +1585,22 @@ module stream_char_harness #(
             if (obs_busy && !obs_win_active && !obs_started) begin
                 obs_win_active <= 1'b1; obs_started <= 1'b1; obs_settle <= 5'd0;
             end else if (obs_win_active) begin
-                if (obs_busy) obs_settle <= 5'd0;
-                else if (obs_settle != 5'd16) obs_settle <= obs_settle + 5'd1;
+                if (obs_busy) begin
+                    obs_settle <= 5'd0;
+                end else if (obs_settle != 5'd16) begin
+                    obs_settle <= obs_settle + 5'd1;
+                end else begin
+                    // Settle timeout: 16 idle cycles after the last bus activity
+                    // CLOSE the measurement window so obs_meter_freeze asserts and
+                    // the starvation/idle buckets stop accumulating during the
+                    // post-workload idle (otherwise prod/(bucket-sum) util is
+                    // diluted by unbounded idle). prod is unaffected -- it stops
+                    // on its own when data transfer ends. obs_started stays set,
+                    // so the window reopens only on the next soft-reset: exactly
+                    // one clean, frozen window per measured workload, read back by
+                    // the host over CSR (CSR_OBS_* @ HARNESS_CSR_BASE + 0x100).
+                    obs_win_active <= 1'b0;
+                end
             end
         end
     )

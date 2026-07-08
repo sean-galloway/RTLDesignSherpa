@@ -3,24 +3,25 @@
 # SPDX-FileCopyrightText: 2024-2025 sean galloway
 #
 # Module: read_bus_meters
-# Purpose: Compatibility shim -- reads the IN-CORE STREAM datapath perf monitors
-#          and presents them through the legacy axi_bus_meter API.
+# Purpose: Read the EXTERNAL axi4_dma_observer aggregate bus meter (harness-side,
+#          inline on STREAM's shared AXI masters) through the historical
+#          read_meter()/read_bus_meters() API.
 #
-# RFC Stage E option 2 (Stage E.4) retired the harness-side axi_bus_meter blocks
-# (their CSRs at HARNESS_CSR_BASE + 0x100 / 0x180 were removed). Datapath
-# utilization is now measured IN-CORE by stream_core's RDMON/WRMON perf monitors
-# + per-channel axi_bus_meter, surfaced through the STREAM regblock perf CSRs.
+# Why external: the observer meters the bus independently of the DUT's internal
+# monitors, so the SAME instrument measures STREAM, RAPIDS, or any third-party IP
+# -- apples-to-apples. The DUT needs no monitors of its own (STREAM's in-core
+# monitors are compiled out on the FPGA build to fit + close timing). The observer
+# buckets are surfaced at harness CSR 0x100-0x11C (see above).
 #
-# This module keeps the historical read_meter()/read_bus_meters() interface
-# (and the BucketCounts / ChannelBuckets / MeterSnapshot dataclasses) so callers
-# like run_characterization.py keep working -- it just sources the numbers from
-# the in-core CSRs (via read_rw_perf) instead of the deleted harness meters.
+# Window control: the harness auto-windows the observer -- it opens+clears the
+# meter when the DMA goes busy (after the per-config soft-reset that run_config
+# issues) and freezes it 16 idle cycles after the last beat, so the frozen buckets
+# bracket exactly one workload. There is nothing for the host to open/close, so
+# open_windows()/close_windows() are no-ops kept for call-site compatibility.
 #
-# Window control: the in-core monitor accumulates while RDMON/WRMON_PERF_CTRL.RUN
-# is 1. The caller opens the window before the workload and closes it right after
-# completion (open_windows/close_windows are re-exported from read_rw_perf). The
-# aggregate buckets are 32-bit; per-channel are 16-bit with a sticky overflow
-# mask, exactly as the legacy meter.
+# The observer taps the shared bus, so the meter is aggregate-only (no per-channel
+# breakdown -- per_channel is empty). BucketCounts / ChannelBuckets / MeterSnapshot
+# dataclasses are unchanged so callers like run_characterization.py keep working.
 
 import argparse
 import os
@@ -41,22 +42,35 @@ if not _repo_root:
 if _repo_root:
     sys.path.insert(0, os.path.join(_repo_root, "projects/components/converters/bin"))
 
-# In-core CSR offsets (STREAM regblock; mirror stream_regmap.py). RDMON_PERF and
-# WRMON_PERF aggregate buckets are 32-bit separate registers; per-channel is read
-# via the PERF_CH_SEL indexed mechanism.
-from read_rw_perf import (  # noqa: E402
-    RDMON_PERF_BASE, WRMON_PERF_BASE,
-    OFF_PROD_CYCLES, OFF_BP_CYCLES, OFF_STARV_CYCLES, OFF_IDLE_CYCLES,
-    PERF_CH_SEL, RDMON_PERF_CH_PROD_BP, RDMON_PERF_CH_STARV_IDLE,
-    WRMON_PERF_CH_PROD_BP, WRMON_PERF_CH_STARV_IDLE,
-    RDMON_PERF_CH_OVERFLOW, WRMON_PERF_CH_OVERFLOW,
-    open_windows, close_windows,  # re-exported so the sweep can bracket the run
-)
+# External DMA-observer aggregate bus-meter CSRs (harness-side; independent of the
+# DUT's internal monitors -- apples-to-apples across ANY IP under test). The
+# observer taps STREAM's shared read/write AXI masters inline; the harness auto-
+# windows it (opens+clears on DMA busy after a soft-reset, freezes 16 idle cycles
+# after the last beat) and surfaces the aggregate buckets here. Read-decode layout
+# in harness_csr.sv (0x100-0x11C):
+#   0x100 rd_prod  0x104 rd_bp  0x108 rd_starv  0x10C rd_idle
+#   0x110 wr_prod  0x114 wr_bp  0x118 wr_starv  0x11C wr_idle
+from harness_kick import HARNESS_CSR_BASE  # noqa: E402  (single source of the base)
 
-# Legacy sentinels. run_characterization passes these to read_meter(); they now
-# select the in-core bus rather than a harness CSR base address.
+CSR_OBS_RD_BASE = HARNESS_CSR_BASE + 0x100   # rd prod/bp/starv/idle at +0/4/8/C
+CSR_OBS_WR_BASE = HARNESS_CSR_BASE + 0x110   # wr prod/bp/starv/idle at +0/4/8/C
+OFF_PROD, OFF_BP, OFF_STARV, OFF_IDLE = 0x0, 0x4, 0x8, 0xC
+
+# Sentinels: run_characterization passes these to read_meter() to pick R vs W.
 R_METER_BASE = 'R'
 W_METER_BASE = 'W'
+
+
+# The observer auto-windows in hardware (opens on DMA busy after the per-config
+# soft-reset, freezes 16 idle cycles after the last beat), so the historical
+# open/close-window calls -- which drove the now-removed in-core monitor RUN bit
+# -- are no-ops. Kept so callers that bracket a run keep working unchanged.
+def open_windows(bridge):   # noqa: ARG001
+    return None
+
+
+def close_windows(bridge):  # noqa: ARG001
+    return None
 
 
 @dataclass(frozen=True)
@@ -97,37 +111,21 @@ class MeterSnapshot:
 # ---------------------------------------------------------------------------
 
 def read_meter(bridge, which: str, num_channels: int, name: str) -> MeterSnapshot:
-    """Read one in-core datapath monitor (R or W) and present it as a legacy
-    MeterSnapshot. `which` is R_METER_BASE ('R') or W_METER_BASE ('W')."""
+    """Read one side (R or W) of the external DMA-observer aggregate bus meter and
+    present it as a MeterSnapshot. `which` is R_METER_BASE ('R') or W_METER_BASE
+    ('W'). The observer taps the shared AXI bus, so the meter is aggregate-only --
+    there is no per-channel breakdown at a shared-bus tap, so per_channel is empty.
+    `num_channels` is accepted for API compatibility and ignored."""
     is_read = (which == R_METER_BASE) or (name.upper().startswith('R'))
-    agg_base = RDMON_PERF_BASE if is_read else WRMON_PERF_BASE
-    ch_prod_bp    = RDMON_PERF_CH_PROD_BP    if is_read else WRMON_PERF_CH_PROD_BP
-    ch_starv_idle = RDMON_PERF_CH_STARV_IDLE if is_read else WRMON_PERF_CH_STARV_IDLE
-    ch_overflow   = RDMON_PERF_CH_OVERFLOW   if is_read else WRMON_PERF_CH_OVERFLOW
-
+    base = CSR_OBS_RD_BASE if is_read else CSR_OBS_WR_BASE
     r = lambda a: bridge.read(a) & 0xFFFF_FFFF
     agg = BucketCounts(
-        productive   = r(agg_base + OFF_PROD_CYCLES),
-        backpressure = r(agg_base + OFF_BP_CYCLES),
-        starvation   = r(agg_base + OFF_STARV_CYCLES),
-        idle         = r(agg_base + OFF_IDLE_CYCLES),
+        productive   = r(base + OFF_PROD),
+        backpressure = r(base + OFF_BP),
+        starvation   = r(base + OFF_STARV),
+        idle         = r(base + OFF_IDLE),
     )
-    ovf_word = r(ch_overflow)
-
-    per_channel: List[ChannelBuckets] = []
-    for ch in range(num_channels):
-        bridge.write(PERF_CH_SEL, ch)
-        pb = r(ch_prod_bp)
-        si = r(ch_starv_idle)
-        per_channel.append(ChannelBuckets(
-            channel=ch,
-            productive=pb & 0xFFFF,
-            backpressure=(pb >> 16) & 0xFFFF,
-            starvation=si & 0xFFFF,
-            idle=(si >> 16) & 0xFFFF,
-            overflow=(ovf_word >> (4 * ch)) & 0xF,
-        ))
-    return MeterSnapshot(name=name, aggregate=agg, per_channel=per_channel)
+    return MeterSnapshot(name=name, aggregate=agg, per_channel=[])
 
 
 def read_bus_meters(bridge, num_channels: int) -> dict:
@@ -150,7 +148,7 @@ def _format_pct(num: int, den: int) -> str:
 
 def format_meter(snap: MeterSnapshot, file=sys.stdout) -> None:
     agg = snap.aggregate
-    print(f"=== {snap.name}-bus monitor (in-core) ===", file=file)
+    print(f"=== {snap.name}-bus monitor (external DMA observer) ===", file=file)
     print(f"  Aggregate over {agg.total} cycles "
           f"(~{agg.total * 10e-9 * 1e6:.1f} us at 100 MHz):", file=file)
     print(f"    productive     {agg.productive:>10d}  ({_format_pct(agg.productive, agg.total)})", file=file)
