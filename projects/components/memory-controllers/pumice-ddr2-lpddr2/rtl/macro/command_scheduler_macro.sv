@@ -48,6 +48,9 @@ module command_scheduler_macro
 ) (
     input  logic                       mc_clk,
     input  logic                       mc_rst_n,
+
+    // Runtime page policy (0=param default, 1=OPEN, 2=CLOSE, 3=HYBRID).
+    input  logic [1:0]                 cfg_page_policy_i,
     // pre-pull: pending write exposed early + data-ready back from sequencer
     output logic                       wr_prepull_valid_o,
     output logic [WSL-1:0]             wr_prepull_slot_o,
@@ -263,6 +266,7 @@ module command_scheduler_macro
     ) u_scheduler (
         .mc_clk             (mc_clk),
         .mc_rst_n           (mc_rst_n),
+        .cfg_page_policy_i  (cfg_page_policy_i),
         .q_rank_o           (q_rank_o),
         .q_bank_o           (q_bank_o),
         .q_row_o            (q_row_o),

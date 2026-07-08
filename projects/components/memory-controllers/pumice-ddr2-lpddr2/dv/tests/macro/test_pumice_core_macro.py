@@ -420,6 +420,68 @@ async def cocotb_test_pumice_core_macro(dut):
             if tk_short in trackers:
                 assert_no_divergence(fub_key, trackers[tk_short])
 
+    elif test_type == "perf_page_batching":
+        # PERF GATE + runtime-policy proof. Stream many bursts to ONE (bank,row)
+        # page and program the runtime page policy. The scheduler must honor it:
+        # OPEN -> column ops carry NO auto-precharge (page batched under one
+        # ACT); CLOSE -> every column op auto-precharges. FAILS (RED) if the
+        # page_policy CSR is inert (pre-fix, cfg ignored -> always auto-precharge)
+        # or if OPEN-page batching is broken.
+        policy = os.environ.get("PERF_PAGE_POLICY", "OPEN").upper()
+        pol_code = {"DEFAULT": 0, "OPEN": 1, "CLOSE": 2, "HYBRID": 3}[policy]
+        dut.cfg_page_policy_i.value = pol_code
+
+        from tbclasses.trackers._base import wire_trackers as _wire_trackers
+        trackers = _wire_trackers(
+            dut, output_dir=os.getcwd(), log=tb.log,
+            num_ranks=getattr(tb, "num_ranks", 1), num_banks=8, autostart=True,
+            scope_paths={"sched": "u_dut.u_command_scheduler.u_scheduler"},
+        )
+
+        # 64 write bursts of 8 beats, walking columns within a single page
+        # (row-major: col stride = beat size; stay under the 8 KB bank stride
+        # and inside one row) -> all same (bank,row) => all page hits.
+        BURST = 8
+        NB = 64
+        bb = BURST * (tb.axi_data_width // 8)      # 512 B/burst
+        base = 0x0002_0000                          # page-aligned into one bank/row
+        addresses = [base + i * bb for i in range(NB)]
+
+        from tbclasses.pumice_sequences import build_addr_pattern_sequences
+        from CocoTBFramework.components.axi4.axi4_sequence import (
+            run_axi4_sequence,
+        )
+        ID_MASK = (1 << tb.axi_id_width) - 1
+        wr_seq, _rd_seq, _expected = build_addr_pattern_sequences(
+            burst_len=BURST, data_width=tb.axi_data_width, addresses=addresses,
+            wr_axid_fn=lambda bi: bi & ID_MASK, rd_axid_fn=lambda bi: bi & ID_MASK,
+            name=f"perf_page_batching_{policy}")
+        await run_axi4_sequence(wr_seq, master_wr=tb.axi_master_wr,
+                                raise_on_error=True)
+        await ClockCycles(dut.mc_clk, 300)
+
+        st = trackers["sched"].stats()
+        ap = st["col_ops_with_ap"]
+        op = st["col_ops_open_page"]
+        acts = st["op_counts"].get("ACT", 0)
+        tb.log.info("perf_page_batching[%s]: ACT=%d auto_pre=%d open_page=%d "
+                    "(NB=%d)", policy, acts, ap, op, NB)
+
+        if policy == "OPEN":
+            # Runtime OPEN must be honored: no auto-precharge, page batched.
+            assert op > 0 and ap == 0, (
+                f"OPEN not honored: {ap} auto-precharge col ops (expect 0), "
+                f"{op} open-page (runtime page_policy CSR inert?)")
+            assert acts <= NB // 4, (
+                f"poor OPEN page batching: {acts} ACTs for {NB} same-row bursts "
+                f"(target <= {NB // 4}; expected ~1 ACT + many batched CAS)")
+        elif policy == "CLOSE":
+            # Runtime CLOSE must auto-precharge every column op (proves the CSR
+            # actually switches policy, not just defaults one way).
+            assert ap > 0 and op == 0, (
+                f"CLOSE not honored: {op} open-page col ops (expect all "
+                f"auto-precharge); runtime page_policy CSR not switching")
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -521,6 +583,18 @@ def _run_core_macro(*, test_name, test_type, extra_env_extra=None,
 def test_pumice_core_macro_smoke():
     _run_core_macro(test_name="test_pumice_core_macro_smoke",
                     test_type="smoke")
+
+
+@pytest.mark.parametrize("policy", ["OPEN", "CLOSE"])
+def test_pumice_core_macro_perf_page_batching(policy):
+    """Perf regression gate: stream to one page, program the runtime page
+    policy, assert the scheduler honors it (OPEN batches CAS under one ACT with
+    no auto-precharge; CLOSE auto-precharges every op). Fails if the
+    page_policy CSR is inert or OPEN batching is broken."""
+    _run_core_macro(
+        test_name=f"test_pumice_core_macro_perf_page_batching_{policy}",
+        test_type="perf_page_batching",
+        extra_env_extra={"PERF_PAGE_POLICY": policy})
 
 
 def test_pumice_core_macro_gear2():

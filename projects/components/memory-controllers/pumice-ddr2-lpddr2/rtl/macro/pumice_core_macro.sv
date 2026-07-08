@@ -97,6 +97,10 @@ module pumice_core_macro
     input  logic                       mc_clk,
     input  logic                       mc_rst_n,
 
+    // Runtime page policy (0=param default, 1=OPEN, 2=CLOSE, 3=HYBRID) from
+    // the pumice CSR (REFRESH_TUNING.page_policy_or). No compile-time lock.
+    input  logic [1:0]                 cfg_page_policy_i,
+
     // ========================================================================
     // CSR-driven configuration (was: split between frontend + core)
     // ========================================================================
@@ -539,6 +543,7 @@ module pumice_core_macro
     ) u_command_scheduler (
         .mc_clk              (mc_clk),
         .mc_rst_n            (mc_rst_n),
+        .cfg_page_policy_i   (cfg_page_policy_i),
         .wr_prepull_valid_o  (wr_prepull_valid),
         .wr_prepull_slot_o   (wr_prepull_slot),
         .wr_prepull_len_o    (wr_prepull_len),

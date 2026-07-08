@@ -294,6 +294,10 @@ module pumice_top
         .mc_clk              (mc_clk),
         .mc_rst_n            (mc_rst_n),
 
+        // Runtime page policy (REFRESH_TUNING.page_policy_or) — now live into
+        // the scheduler; no compile-time policy lock.
+        .cfg_page_policy_i   (cfg_page_policy_or),
+
         // Address-map scheme (CSR-driven, previously into the frontend)
         .scheme_active_i     (w_scheme_active),
         .xor_seed_i          (8'h0),

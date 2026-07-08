@@ -71,6 +71,12 @@ module scheduler
     input  logic                       mc_clk,
     input  logic                       mc_rst_n,
 
+    // ----- runtime page policy (REFRESH_TUNING.page_policy_or) -----
+    // Encoding: 0 = use PAGE_POLICY param (reset default), 1 = OPEN,
+    // 2 = CLOSE, 3 = HAPPY_HYBRID. Selected LIVE at runtime; the PAGE_POLICY
+    // parameter is now only the power-on default (no compile-time policy lock).
+    input  logic [1:0]                 cfg_page_policy_i,
+
     // ----- CAM query (drive into axi_frontend_macro) -----
     output logic [RKW-1:0]             q_rank_o,
     output logic [BKW-1:0]             q_bank_o,
@@ -432,9 +438,18 @@ module scheduler
     assign w_row_miss = bank_row_active_i[w_pick_rank][w_pick_bank]
                      && (bank_open_row_i[w_pick_rank][w_pick_bank] != w_pick_row);
 
+    // Effective page policy: runtime CSR (cfg_page_policy_i) overrides; 0 falls
+    // back to the PAGE_POLICY reset default. CSR encoding is offset by 1
+    // (1=OPEN,2=CLOSE,3=HYBRID) vs the pumice_pkg enum (OPEN=0,CLOSE=1,HYBRID=2).
+    logic [1:0] w_eff_policy;
+    always_comb begin
+        if (cfg_page_policy_i == 2'd0) w_eff_policy = PAGE_POLICY[1:0];
+        else                           w_eff_policy = cfg_page_policy_i - 2'd1;
+    end
+
     state_e w_initial_state;
     always_comb begin
-        if (PAGE_POLICY == 32'(PAGE_POLICY_CLOSE)) begin
+        if (w_eff_policy == 2'(PAGE_POLICY_CLOSE)) begin
             w_initial_state = S_NEED_ACT;
         end else begin
             // OPEN or HAPPY_HYBRID
@@ -448,10 +463,10 @@ module scheduler
     // (consumed in S_NEED_RDWR).
     logic w_ap_for_rdwr;
     always_comb begin
-        unique case (PAGE_POLICY)
-            32'(PAGE_POLICY_CLOSE):        w_ap_for_rdwr = 1'b1;
-            32'(PAGE_POLICY_OPEN):         w_ap_for_rdwr = 1'b0;
-            32'(PAGE_POLICY_HAPPY_HYBRID): w_ap_for_rdwr =
+        unique case (w_eff_policy)
+            2'(PAGE_POLICY_CLOSE):        w_ap_for_rdwr = 1'b1;
+            2'(PAGE_POLICY_OPEN):         w_ap_for_rdwr = 1'b0;
+            2'(PAGE_POLICY_HAPPY_HYBRID): w_ap_for_rdwr =
                 !predict_open_i[r_pending_rank][r_pending_bank];
             default:                       w_ap_for_rdwr = 1'b1;
         endcase

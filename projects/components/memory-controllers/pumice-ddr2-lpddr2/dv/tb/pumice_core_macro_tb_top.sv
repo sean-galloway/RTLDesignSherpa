@@ -44,6 +44,7 @@ module pumice_core_macro_tb_top
     input  logic                           mc_rst_n,
 
     // ---- direct cfg surface (no CSR) ----
+    input  logic [1:0]                     cfg_page_policy_i,  // 0=default,1=OPEN,2=CLOSE,3=HYBRID
     input  memtype_e                       memtype_i,
     input  logic [15:0]                    t_refi_i,
     input  logic [7:0]                     t_rcd_i,
@@ -185,6 +186,9 @@ module pumice_core_macro_tb_top
     ) u_dut (
         .mc_clk                 (mc_clk),
         .mc_rst_n               (mc_rst_n),
+        .cfg_page_policy_i      (cfg_page_policy_i),
+        .rd_phase_i             ('0),   // DFI phase-0 default (board rd_phase=0)
+        .wr_phase_i             ('0),   // (pre-existing PINMISSING; now tied)
         .scheme_active_i        (w_scheme_active),
         .xor_seed_i             (8'h0),
 
