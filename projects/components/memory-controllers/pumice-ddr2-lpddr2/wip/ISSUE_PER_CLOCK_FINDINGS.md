@@ -25,7 +25,44 @@ injection gating.
   so forcing PH_ACT waited on bank_act_ready forever; removed that block).
 - pumice_core_macro smoke + ~75/109 of the full matrix.
 
-## The blocker: AXI per-id ordering vs bank-parallel column issue
+## UPDATED root cause (waveform-traced): a slot-reuse RACE
+
+Traced the smallest clean reproducer **`id_fixed_7_n64`** (N=64 same-id-7 BL4
+bursts, all one bank/row; run it alone with a wiped sim_build). Instrumenting the
+scheduler's accepted-command stream + bank-machine state showed:
+
+- The command stream is otherwise textbook and in-order (bank 0, reused slot 0,
+  cols 0,4,8,… each ACT then RDA/WRA) — NOT the cross-bank reordering first
+  suspected.
+- Exactly ONE op is lost per run: e.g. read col 24 gets its ACT but its RDA
+  never issues (the op leaves the bank machine without retiring), so only 63/64
+  RDAs issue. The in-order read aligner then shifts every later burst → the
+  localizer flags a much later burst (e.g. 51). Other runs instead drop/​corrupt
+  a WRITE byte.
+- **It is nondeterministic**: adding/removing a debug `$display` moves the failure
+  (read-drop ↔ write-byte-corruption ↔ passing). Threshold is N > CAM depth (16)
+  — i.e. it only appears once slots are REUSED.
+
+Interpretation: the bank-parallel scheduler retires an op and lets axi_intake
+re-allocate the same CAM slot (slot 0, one-outstanding here) FASTER than the
+previous op's completion machinery drains (issued_we → CAM r_issued → b_complete
+/ rd_beat retire are all registered, multi-cycle). The old ~4-cyc/op FSM never
+reused a slot that fast, so the window was never hit. Under fast reuse there is a
+1-op-wide window where the new occupant of a slot is clobbered / its beat count
+mis-tracked → one op silently lost. This is a scheduler ↔ wr_cmd_cam/rd_cmd_cam/
+axi_intake timing contract, not pure AXI reordering.
+
+Sharp next step for the fix (data-path co-design, the chosen path): make slot
+free→reallocate safe under back-to-back reuse — e.g. the CAM must not present a
+slot as free-for-reallocation until its prior occupant has fully retired
+(issued + b_complete/rd_beat drained), OR the scheduler must not re-pick a slot
+index until its completion has propagated (extend the just-issued shadow to cover
+the full retire latency, and/or gate reuse on a per-slot "fully drained" bit from
+the CAM). The reproducer `id_fixed_7_n64` deterministically stresses the window;
+add a scheduler-level assertion "every issued op eventually retires exactly once"
+to catch the lost op directly instead of via downstream data corruption.
+
+## (Earlier hypothesis) AXI per-id ordering vs bank-parallel column issue
 34/109 core-macro tests fail with WR/RD PATH CORRUPTION (a beat returns 0x00;
 the DRAM memory model has the correct value but the AXI read returns 0, or a
 write beat never lands). Failing set: engine_mirror at scale, hit_miss
