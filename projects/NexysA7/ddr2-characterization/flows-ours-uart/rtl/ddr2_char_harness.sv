@@ -851,9 +851,21 @@ module ddr2_char_harness
     logic        r_running, r_done;
     logic [63:0] r_w_first, r_w_last, r_r_first, r_r_last;
     logic        r_w_first_valid, r_r_first_valid;
+    logic        r_w_last_valid, r_r_last_valid;
+    // Which engines were kicked in the CURRENT window (level, until clear). The
+    // timer stops when every KICKED engine is done, so a single-engine scenario
+    // (write-only or read-only) bounds correctly instead of free-running while
+    // it waits on an engine that never ran this window (or is stale-done from a
+    // prior scenario). Both-engine scenarios still stop only when both are done.
+    logic        r_wr_kicked, r_rd_kicked;
 
     logic run_start;
     assign run_start = w_start_wr_pulse | w_start_rd_pulse;
+
+    logic w_all_kicked_done;
+    assign w_all_kicked_done = (r_wr_kicked | r_rd_kicked)          // >=1 kicked
+                             & (~r_wr_kicked | w_wr_done)           // wr: n/a or done
+                             & (~r_rd_kicked | w_rd_done);          // rd: n/a or done
 
     `ALWAYS_FF_RST(aclk, unit_aresetn,
         if (`RST_ASSERTED(unit_aresetn)) begin
@@ -864,6 +876,10 @@ module ddr2_char_harness
             r_r_first       <= '0; r_r_last <= '0;
             r_w_first_valid <= 1'b0;
             r_r_first_valid <= 1'b0;
+            r_w_last_valid  <= 1'b0;
+            r_r_last_valid  <= 1'b0;
+            r_wr_kicked     <= 1'b0;
+            r_rd_kicked     <= 1'b0;
         end else if (w_timer_clear_pulse) begin
             r_cycles        <= '0;
             r_running       <= 1'b0;
@@ -872,32 +888,47 @@ module ddr2_char_harness
             r_r_first       <= '0; r_r_last <= '0;
             r_w_first_valid <= 1'b0;
             r_r_first_valid <= 1'b0;
+            r_w_last_valid  <= 1'b0;
+            r_r_last_valid  <= 1'b0;
+            r_wr_kicked     <= 1'b0;
+            r_rd_kicked     <= 1'b0;
         end else begin
-            // Start on first kick, keep running until both engines done
+            // Track which engines were kicked this window.
+            if (w_start_wr_pulse) r_wr_kicked <= 1'b1;
+            if (w_start_rd_pulse) r_rd_kicked <= 1'b1;
+
+            // Start on first kick; run until all kicked engines are done.
             if (run_start && !r_running) r_running <= 1'b1;
+
+            // First-cycle stamps on the kick (r_cycles is 0 just after clear).
+            // Latched OUTSIDE the r_running guard so the kick cycle (when
+            // r_running is still being set) is not missed.
+            if (w_start_wr_pulse && !r_w_first_valid) begin
+                r_w_first       <= r_cycles;
+                r_w_first_valid <= 1'b1;
+            end
+            if (w_start_rd_pulse && !r_r_first_valid) begin
+                r_r_first       <= r_cycles;
+                r_r_first_valid <= 1'b1;
+            end
 
             if (r_running) begin
                 r_cycles <= r_cycles + 64'd1;
 
-                // First-beat stamps: sample the first cycle each engine's
-                // done signal is deasserted-and-cfg-was-just-started. In
-                // practice the engine goes busy the cycle after cfg_start
-                // asserts. Use run_start as the first-cycle proxy.
-                if (w_start_wr_pulse && !r_w_first_valid) begin
-                    r_w_first       <= r_cycles;
-                    r_w_first_valid <= 1'b1;
+                // Last stamp on the FIRST done edge of each engine (done is a
+                // held level; capturing once ends the window at completion, not
+                // wherever the other engine happens to finish).
+                if (w_wr_done && !r_w_last_valid) begin
+                    r_w_last       <= r_cycles;
+                    r_w_last_valid <= 1'b1;
                 end
-                if (w_start_rd_pulse && !r_r_first_valid) begin
-                    r_r_first       <= r_cycles;
-                    r_r_first_valid <= 1'b1;
+                if (w_rd_done && !r_r_last_valid) begin
+                    r_r_last       <= r_cycles;
+                    r_r_last_valid <= 1'b1;
                 end
 
-                // Last-beat stamp: latch the cycle each engine reports done.
-                if (w_wr_done) r_w_last <= r_cycles;
-                if (w_rd_done) r_r_last <= r_cycles;
-
-                // Timer transitions to done when both engines report done.
-                if (w_wr_done && w_rd_done) begin
+                // Done when every engine that was kicked reports done.
+                if (w_all_kicked_done) begin
                     r_running <= 1'b0;
                     r_done    <= 1'b1;
                 end

@@ -340,6 +340,18 @@ class CharRecord:
         return (self.bytes_moved / self.rd_cycles) if self.rd_cycles else 0.0
 
     @property
+    def util_reliable(self) -> bool:
+        """True when the bus-meter window (bucket sum) is close to the measured
+        run (hardware timer cycles), so utilization reflects the WORKLOAD rather
+        than host UART observation latency (the start command + status polls
+        elapse while the free-running meter counts). False for tiny runs -- use
+        --char-scale ~1000 on the board. Bandwidth (timer-based) stays reliable
+        regardless."""
+        rd_ratio = self.rd_meter.total / max(self.rd_cycles, 1)
+        wr_ratio = self.wr_meter.total / max(self.wr_cycles, 1)
+        return max(rd_ratio, wr_ratio) <= 2.0
+
+    @property
     def rd_avg_latency_cyc(self) -> float:
         """Mean AR->firstR latency (cycles) from the log2 histogram. Bin b
         counts [2^b, 2^(b+1)); use the geometric-ish midpoint 1.5*2^b (bin 0
@@ -413,26 +425,42 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
 
     cfg.apply(drv)                          # paging / scheduling / refresh
 
+    # Meter window discipline: the bus meter is a free-running counter, and
+    # programming an engine is a dozen UART register writes (thousands of sim
+    # cycles each) during which the AXI bus is idle. So keep the meter FROZEN
+    # while programming, then clear + unfreeze immediately before start -- the
+    # window is (start .. done) plus only the one start-command's transport
+    # latency, not the whole programming sequence. (Clearing before programming
+    # counted that idle as starvation and made util meaningless.)
+
     # ---- write phase ----
-    drv.freeze_trace(False)                 # ensure meters run
-    drv.clear_stats()
-    drv.timer_clear()
+    drv.freeze_trace(True)                  # no counting during programming
     drv.program_wr_engine(**prog)
+    drv.clear_stats()                       # zero buckets + errors AFTER program
+    drv.timer_clear()
+    drv.freeze_trace(False)                 # start counting
     drv.start_wr()
     wr_ok = wait_engine(drv, "wr", timeout_s=timeout_s)
     drv.freeze_trace(True)                  # stop meters BEFORE slow read-back
-    wr_cycles = drv.timer().cycles
+    # Window from the WRITE engine's own hardware stamps (w_last-w_first), NOT
+    # timer.cycles: the harness timer only stops on wr_done AND rd_done, so in a
+    # single-engine phase timer.cycles free-runs (or stops on a stale other-engine
+    # done). The per-engine stamps are latched at this engine's start/done and are
+    # immune to that. See ddr2_char_harness.sv timer block.
+    _tw = drv.timer()
+    wr_cycles = max(_tw.w_last - _tw.w_first, 0)
     wr_meter = _read_meter(drv, "wr")
 
     # ---- read phase ----
-    drv.freeze_trace(False)
+    drv.program_rd_engine(**prog)           # (still frozen from above)
     drv.clear_stats()
     drv.timer_clear()
-    drv.program_rd_engine(**prog)
+    drv.freeze_trace(False)
     drv.start_rd()
     rd_ok = wait_engine(drv, "rd", timeout_s=timeout_s)
     drv.freeze_trace(True)
-    rd_cycles = drv.timer().cycles
+    _tr = drv.timer()                       # read window from r_last-r_first stamps
+    rd_cycles = max(_tr.r_last - _tr.r_first, 0)
     rd_meter = _read_meter(drv, "rd")
     rd_hist, rd_total = drv.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
     drv.freeze_trace(False)                 # leave running for the next scenario
@@ -695,6 +723,11 @@ def summarize(recs: List[CharRecord]) -> List[str]:
         lines.append(f"[config: {cfg}]")
         lines.extend(_summarize_one_config(sub))
     lines.extend(_summarize_cross_config(recs))
+    if recs and not any(r.util_reliable for r in recs):
+        lines.append("[NOTE] utilization is observation-latency-dominated at "
+                     "this run size (meter window >> timer run) -- treat rd/wr "
+                     "util as unreliable; bandwidth (timer-based) is fine. Raise "
+                     "--char-scale (~1000 on the board) for meaningful util.")
     for r in recs:                                   # integrity/completion
         if not r.ok:
             lines.append(f"[FLAG] {r.config}/{r.scenario.name}: NOT OK -- "

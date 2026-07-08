@@ -133,6 +133,30 @@ async def cocotb_test_char_families(dut):
     configs = sorted({r.config for r in recs})
     dut._log.info("\n%s", pc.format_table(recs))
 
+    # Optional raw-data dump (CHAR_DUMP=<path>) for eyeballing that the perf
+    # counters are gathered properly: raw bus-meter buckets + the 16-bin
+    # latency histogram per item. cocotb swallows the sim stdout, so this
+    # writes to a file the caller can read. Inert unless CHAR_DUMP is set.
+    _dump = os.environ.get("CHAR_DUMP")
+    if _dump:
+        with open(_dump, "w") as fh:
+            for r in recs:
+                sc = r.scenario
+                fh.write(f"{r.config}/{sc.name}  ok={r.ok} mism={r.mismatched}"
+                         f"  blen={sc.burst_len} txn={sc.txn_count}\n")
+                fh.write(f"  WR cyc={r.wr_cycles:<6} "
+                         f"[prod={r.wr_meter.prod} bp={r.wr_meter.bp} "
+                         f"starv={r.wr_meter.starv} idle={r.wr_meter.idle}] "
+                         f"util={r.wr_meter.util:.3f} bw={r.wr_bw_mb_s:.1f}\n")
+                fh.write(f"  RD cyc={r.rd_cycles:<6} "
+                         f"[prod={r.rd_meter.prod} bp={r.rd_meter.bp} "
+                         f"starv={r.rd_meter.starv} idle={r.rd_meter.idle}] "
+                         f"util={r.rd_meter.util:.3f} bw={r.rd_bw_mb_s:.1f} "
+                         f"lat={r.rd_avg_latency_cyc:.1f}\n")
+                fh.write(f"  RD hist(total={r.rd_hist_total}) = "
+                         f"{list(r.rd_hist)}\n")
+        dut._log.info("wrote raw perf dump to %s", _dump)
+
     seen_cfgs = set()
     for r in recs:
         sc = r.scenario
