@@ -1325,7 +1325,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.DESCENG_CONFIG.PREFETCH_EN.value <= 1'h0;
+            field_storage.DESCENG_CONFIG.PREFETCH_EN.value <= 1'h1;
         end else begin
             if(field_combo.DESCENG_CONFIG.PREFETCH_EN.load_next) begin
                 field_storage.DESCENG_CONFIG.PREFETCH_EN.value <= field_combo.DESCENG_CONFIG.PREFETCH_EN.next;

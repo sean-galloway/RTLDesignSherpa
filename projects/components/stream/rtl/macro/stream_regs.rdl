@@ -392,10 +392,15 @@ addrmap stream_regs {
         } DESCENG_EN = 1'b1;
 
         field {
-            desc = "Prefetch enable - enable descriptor prefetch";
+            desc = "Prefetch enable - enable descriptor prefetch. Default ENABLED:
+                    with prefetch off the descriptor engine is on-demand (fetch the
+                    next descriptor only after the current one drains), which inserts
+                    a per-descriptor pipeline drain/refill bubble (~40 cycles) on
+                    chains. Prefetch buffers FIFO_THRESH descriptors ahead so the
+                    datapath streams continuously across descriptor boundaries.";
             sw = rw;
             hw = r;
-        } PREFETCH_EN = 1'b0;
+        } PREFETCH_EN = 1'b1;
 
         field {
             desc = "FIFO threshold [5:2] - prefetch threshold (4 bits)";

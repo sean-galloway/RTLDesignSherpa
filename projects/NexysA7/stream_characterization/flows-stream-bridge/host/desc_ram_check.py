@@ -151,7 +151,7 @@ def configure_and_kick(bridge, args, kicks):
     print("[config] STREAM ...")
     bridge.write(APB_SCHED_CONFIG,     0x0F)
     bridge.write(APB_SCHED_TIMEOUT,    0xFFFFFFFF)
-    bridge.write(APB_DESCENG_CONFIG,   0x01)
+    bridge.write(APB_DESCENG_CONFIG,   0x23)  # DESCENG_EN | PREFETCH_EN | FIFO_THRESH=8
     bridge.write(APB_DESCENG_AD0_B,    0x00000000)
     bridge.write(APB_DESCENG_AD0_L,    0xFFFFFFFF)
     bridge.write(APB_AXI_XFER_CONFIG,

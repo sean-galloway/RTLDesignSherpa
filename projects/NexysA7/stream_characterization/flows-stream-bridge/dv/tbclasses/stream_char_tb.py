@@ -693,7 +693,7 @@ class StreamCharTB(TBBase):
         await self.uart_write(APB_GLOBAL_CTRL, 0x01)   # GLOBAL_EN
         await self.uart_write(APB_SCHED_CONFIG, 0x0F)  # sched en + timeout + err + compl
         await self.uart_write(APB_SCHED_TIMEOUT_CYC, 0xFFFFFFFF)
-        await self.uart_write(APB_DESCENG_CONFIG, 0x01)  # descriptor engine en
+        await self.uart_write(APB_DESCENG_CONFIG, 0x23)  # DESCENG_EN | PREFETCH_EN | FIFO_THRESH=8
         await self.uart_write(APB_DESCENG_ADDR0_BASE,  0x0000_0000)
         await self.uart_write(APB_DESCENG_ADDR0_LIMIT, 0xFFFF_FFFF)
         await self.uart_write(APB_DESCENG_ADDR1_BASE,  0x0000_0000)
@@ -919,8 +919,10 @@ class StreamCharTB(TBBase):
         # 32-bit max gives ~42.9 s of per-channel inactivity budget.
         await self.uart_write(APB_SCHED_TIMEOUT_CYC, 0xFFFFFFFF)  # ~42.9s @ 100MHz
 
-        # 3b. Descriptor engine config: enable (no prefetch for now)
-        desceng_cfg = 0x01  # [0]=DESCENG_EN
+        # 3b. Descriptor engine config: enable + prefetch (buffer descriptors ahead
+        # so the datapath streams across descriptor boundaries -- avoids the
+        # per-descriptor drain/refill bubble). [0]=DESCENG_EN [1]=PREFETCH_EN [5:2]=FIFO_THRESH
+        desceng_cfg = 0x01 | 0x02 | (8 << 2)  # 0x23
         await self.uart_write(APB_DESCENG_CONFIG, desceng_cfg)
 
         # 3c. Descriptor address ranges (for chaining validation)

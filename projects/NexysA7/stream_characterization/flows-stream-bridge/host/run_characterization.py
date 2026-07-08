@@ -336,7 +336,7 @@ class CharacterizationRunner:
         self.bridge.write(APB_SCHED_TIMEOUT_CYC, 0xFFFFFFFF)  # 32-bit max, ~42.9s @ 100MHz
 
         # Descriptor engine config
-        self.bridge.write(APB_DESCENG_CONFIG, 0x01)  # DESCENG_EN
+        self.bridge.write(APB_DESCENG_CONFIG, 0x23)  # DESCENG_EN | PREFETCH_EN | FIFO_THRESH=8
 
         # Address ranges (full 32-bit space)
         self.bridge.write(APB_DESCENG_ADDR0_BASE,  0x0000_0000)

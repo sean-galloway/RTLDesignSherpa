@@ -202,7 +202,7 @@ def _configure(stream, harness_csr_base: int) -> None:
     stream.write_word("GLOBAL_CTRL", 0x01)               # GLOBAL_EN
     stream.write_word("SCHED_CONFIG", 0x0F)              # en+timeout+err+compl
     stream.write_word("SCHED_TIMEOUT_CYCLES", 0xFFFFFFFF)
-    stream.write_word("DESCENG_CONFIG", 0x01)
+    stream.write_word("DESCENG_CONFIG", 0x23)  # DESCENG_EN | PREFETCH_EN | FIFO_THRESH=8
     stream.write_word("DESCENG_ADDR0_BASE", 0x0000_0000)
     stream.write_word("DESCENG_ADDR0_LIMIT", 0xFFFF_FFFF)
     stream.write_word("DESCENG_ADDR1_BASE", 0x0000_0000)
