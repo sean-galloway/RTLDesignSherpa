@@ -19,7 +19,8 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(__file__))
 import ddr2_char as dc
-from ddr2_char import DDR2CharDriver, HARNESS_CSR_BASE
+from ddr2_char import DDR2CharDriver, HARNESS_CSR_BASE, HARNESS_REGMAP
+from TBClasses.harness.uart_register_map import UartRegisterMap
 import pumice_master as pm
 
 
@@ -60,71 +61,76 @@ class MockDevice:
 
 
 class MockBridge:
-    """read(addr)->int / write(addr,val)->bool over an in-memory reg model."""
-
-    # plausible non-zero readbacks for the perf/timer windows
-    _DEFAULTS = None
+    """read(addr)->int / write(addr,val)->bool over an in-memory reg model,
+    addressed entirely BY NAME via the same PeakRDL harness regmap the driver
+    uses -- no hardcoded offsets. (self is the bridge; UartRegisterMap.addr()
+    does no I/O, so it is safe to build during construction just to resolve
+    absolute address -> register name.)"""
 
     def __init__(self, dev: MockDevice):
         self.dev = dev
-        self.regs = {}
+        self.regs = {}                       # keyed by register NAME
+        self._rm = UartRegisterMap(self, HARNESS_CSR_BASE,
+                                   regmap_file=HARNESS_REGMAP)
+        self._name = {self._rm.addr(rn): rn for rn in self._rm.registers}
 
-    def _off(self, addr):
-        return addr - HARNESS_CSR_BASE
+    def _reg(self, addr):
+        return self._name.get(addr)
 
     def write(self, addr, val):
-        off = self._off(addr)
-        self.regs[off] = val
-        if off == dc.PHY_CSR_ADDR:
+        name = self._reg(addr)
+        if name is not None:
+            self.regs[name] = val
+        if name == "PHY_CSR_ADDR":
             self.dev.phy_addr = val
-        elif off == dc.PHY_CSR_WDATA:
+        elif name == "PHY_CSR_WDATA":
             self.dev.phy_wdata = val
-        elif off == dc.PHY_CSR_CTRL and (val & 1):
+        elif name == "PHY_CSR_CTRL" and (val & 1):
             self.dev.apply_phy(self.dev.phy_addr, self.dev.phy_wdata)
-        elif off == dc.CTRL:
+        elif name == "CTRL":
             if val & (1 << 0):                       # start_wr
-                self.regs[dc.STATUS] = self.regs.get(dc.STATUS, 0) | (1 << 0)
+                self.regs["STATUS"] = self.regs.get("STATUS", 0) | (1 << 0)
             if val & (1 << 1):                       # start_rd
-                self.regs[dc.STATUS] = self.regs.get(dc.STATUS, 0) | (1 << 1)
+                self.regs["STATUS"] = self.regs.get("STATUS", 0) | (1 << 1)
                 ok = self.dev.read_ok()
-                self.regs[dc.CRC_MATCH]    = 0b111 if ok else 0b110  # valid; match=ok
-                self.regs[dc.CRC_EXPECTED] = 0xABCD
-                self.regs[dc.CRC_ACTUAL]   = 0xABCD if ok else 0xDEAD
-                self.regs[dc.BEATS_MISM]   = 0 if ok else 4
+                self.regs["CRC_MATCH"]    = 0b111 if ok else 0b110  # valid; match=ok
+                self.regs["CRC_EXPECTED"] = 0xABCD
+                self.regs["CRC_ACTUAL"]   = 0xABCD if ok else 0xDEAD
+                self.regs["BEATS_MISM"]   = 0 if ok else 4
             if val & (1 << 2):                       # clear_stats
-                self.regs[dc.STATUS] = 0
+                self.regs["STATUS"] = 0
             if val & (1 << 4):                       # soft_reset
-                self.regs[dc.STATUS] = 0
+                self.regs["STATUS"] = 0
         return True
 
     def read(self, addr):
-        off = self._off(addr)
-        if off == dc.BUILD_ID:
+        name = self._reg(addr)
+        if name == "BUILD_ID":
             return 0x4444_5232
-        if off == dc.PHY_CSR_RDATA:
+        if name == "PHY_CSR_RDATA":
             return 0
         # timer window
-        if off == dc.TIMER_STATUS:
+        if name == "TIMER_STATUS":
             return 0b101                 # done + pass
-        if off in (dc.TIMER_CYC_LO,):
+        if name == "TIMER_CYCLES_LO":
             return 5000
-        if off in (dc.TIMER_R_FIRST_LO, dc.TIMER_W_FIRST_LO):
+        if name in ("TIMER_R_FIRST_LO", "TIMER_W_FIRST_LO"):
             return 10
-        if off in (dc.TIMER_R_LAST_LO, dc.TIMER_W_LAST_LO):
+        if name in ("TIMER_R_LAST_LO", "TIMER_W_LAST_LO"):
             return 5010
         # perf bus meters (util ~= 800/1000 = 80%)
-        if off in (dc.OBS_RD_PROD, dc.OBS_WR_PROD):
+        if name in ("OBS_RD_PROD", "OBS_WR_PROD"):
             return 800
-        if off in (dc.OBS_RD_BP, dc.OBS_WR_BP):
+        if name in ("OBS_RD_BP", "OBS_WR_BP"):
             return 100
-        if off in (dc.OBS_RD_STARV, dc.OBS_WR_STARV,
-                   dc.OBS_RD_IDLE, dc.OBS_WR_IDLE):
+        if name in ("OBS_RD_STARV", "OBS_WR_STARV",
+                    "OBS_RD_IDLE", "OBS_WR_IDLE"):
             return 50
-        if off == dc.OBS_HIST_COUNT:
+        if name == "OBS_HIST_COUNT":
             return 7
-        if off == dc.OBS_HIST_TOTAL:
+        if name == "OBS_HIST_TOTAL":
             return 100
-        return self.regs.get(off, 0)
+        return self.regs.get(name, 0)
 
 
 def _mk_driver(dev: MockDevice) -> DDR2CharDriver:

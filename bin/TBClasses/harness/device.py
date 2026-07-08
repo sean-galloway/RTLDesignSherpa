@@ -53,6 +53,17 @@ class Device:
     def addr(self, reg: str) -> int:
         return self.regs.addr(reg)
 
+    # Attribute-style register access: dev.<REG>.<field> (delegates to the
+    # UartRegisterMap handle). Only register names are proxied; real methods
+    # and attributes resolve normally.
+    def __getattr__(self, name: str):
+        if name.startswith("_"):
+            raise AttributeError(name)
+        regs = self.__dict__.get("regs")
+        if regs is not None and name in regs.registers:
+            return getattr(regs, name)
+        raise AttributeError(name)
+
     @property
     def registers(self) -> dict:
         return self.regs.registers

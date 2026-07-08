@@ -87,43 +87,15 @@ DFI_MON_RAM_BASE  = 0x00080000  # DFI cmd-only observability (4 KB)
 
 
 # =============================================================================
-# harness_csr register offsets (from HARNESS_CSR_BASE).
+# harness_csr / engine / perf registers are accessed BY NAME via the PeakRDL
+# regmap (self.regs.write("CTRL", ...), self.regs.field("STATUS", "init_done")),
+# so no register-offset constants live here — offsets come from
+# harness_csr_regmap.py. See HARNESS_REGMAP above.
 # =============================================================================
-# ---- Harness ctrl / status ----
-CTRL          = 0x00
-STATUS        = 0x04
-DBG_WR_PTR    = 0x08
-DBG_OVERFLOW  = 0x0C
-CRC_EXPECTED  = 0x10
-CRC_ACTUAL    = 0x14
-CRC_MATCH     = 0x18
-SCRATCH       = 0x1C
-BUILD_ID      = 0x20
-BEATS_MISM    = 0x24
-# ---- Timer ----
-TIMER_CTRL    = 0x28
-TIMER_STATUS  = 0x2C
-TIMER_CYC_LO  = 0x30
-TIMER_CYC_HI  = 0x34
-TIMER_EXP_BEATS = 0x38
-RESP_DELAY    = 0x3C
-TIMER_R_FIRST_LO = 0x40
-TIMER_R_FIRST_HI = 0x44
-TIMER_R_LAST_LO  = 0x48
-TIMER_R_LAST_HI  = 0x4C
-TIMER_W_FIRST_LO = 0x50
-TIMER_W_FIRST_HI = 0x54
-TIMER_W_LAST_LO  = 0x58
-TIMER_W_LAST_HI  = 0x5C
-# ---- Runtime controller cfg ----
-CTRLR_CFG     = 0x60
-CTRLR_CAP     = 0x64
-# ---- a7ddrphy calibration CSR passthrough (indirect; firmware leveling) ----
-PHY_CSR_ADDR  = 0x80   # [9:0] a7ddrphy CSR word index (the knob)
-PHY_CSR_WDATA = 0x84   # 32b value to write to the selected knob
-PHY_CSR_CTRL  = 0x88   # [0] pulse -> drive one CSR-bus write (adr,dat)
-PHY_CSR_RDATA = 0x8C   # a7ddrphy dat_r for the current PHY_CSR_ADDR
-# a7ddrphy CSR knob word-indices (rtl-vivado/a7ddrphy/a7ddrphy_csr_map.txt)
+# a7ddrphy CSR knob word-INDICES (rtl-vivado/a7ddrphy/a7ddrphy_csr_map.txt).
+# These are the indirect-passthrough knob VALUES written via phy_poke/phy_peek
+# to the PHY_CSR_* registers (which are themselves addressed by name). The
+# a7ddrphy is LiteDRAM's flat CSR — no RDL/regmap — so these stay as indices.
 PHY_RST              = 0
 PHY_DLY_SEL          = 1    # byte-lane select (x16 -> 2 lanes)
 PHY_HALF_SYS8X_TAPS  = 2
@@ -137,42 +109,6 @@ PHY_WDLY_DQ_BITSLIP_RST = 9  # strobe
 PHY_WDLY_DQ_BITSLIP  = 10   # strobe
 PHY_RDPHASE          = 11
 PHY_WRPHASE          = 12
-# ---- WR engine cfg ----
-WR_START_ADDR    = 0x100
-WR_STRIDE_0      = 0x104
-WR_STRIDE_1      = 0x108
-WR_WRAP_MASK_0   = 0x10C
-WR_WRAP_MASK_1   = 0x110
-WR_BLEN_TXN      = 0x114  # {gap[27:24], txn[23:8], blen[7:0]}
-WR_AXI_ATTR      = 0x118  # {dm[11], burst[10:9], size[8:6], mode[5:4], id[3:0]}
-WR_LFSR_SEED     = 0x11C
-WR_HASH_SEED0    = 0x120
-WR_HASH_SEED1    = 0x124
-WR_HASH_SEED2    = 0x128
-# ---- RD engine cfg ----
-RD_START_ADDR    = 0x180
-RD_STRIDE_0      = 0x184
-RD_STRIDE_1      = 0x188
-RD_WRAP_MASK_0   = 0x18C
-RD_WRAP_MASK_1   = 0x190
-RD_BLEN_TXN      = 0x194
-RD_AXI_ATTR      = 0x198
-RD_LFSR_SEED     = 0x19C
-RD_HASH_SEED0    = 0x1A0
-RD_HASH_SEED1    = 0x1A4
-RD_HASH_SEED2    = 0x1A8
-# ---- Perf observability ----
-OBS_RD_PROD    = 0x1C0
-OBS_RD_BP      = 0x1C4
-OBS_RD_STARV   = 0x1C8
-OBS_RD_IDLE    = 0x1CC
-OBS_WR_PROD    = 0x1D0
-OBS_WR_BP      = 0x1D4
-OBS_WR_STARV   = 0x1D8
-OBS_WR_IDLE    = 0x1DC
-OBS_HIST_SEL   = 0x1E0  # {bin[5:2], metric[1], bus[0]}
-OBS_HIST_COUNT = 0x1E4  # muxed rd/wr on bus bit
-OBS_HIST_TOTAL = 0x1E8
 
 
 # =============================================================================

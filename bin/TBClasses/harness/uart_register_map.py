@@ -39,6 +39,45 @@ from typing import Optional
 from TBClasses.apb.register_map import RegisterMap  # bin/ on PYTHONPATH via env_python
 
 
+class _RegisterHandle:
+    """Attribute-style view of ONE register, for `dev.<REG>.<field>` access.
+
+    Returned by `UartRegisterMap.__getattr__` / `Device.__getattr__`. Reading a
+    field attribute reads the register and extracts the field; assigning a field
+    attribute does a read-modify-write (preserving the other fields). For a
+    multi-field update in one bus transaction use `.write(a=1, b=2)`; for the
+    whole word use `.read()` / `.write_word(v)`.
+
+        pumice.SCHED_TUNING.force_inorder = 1          # RMW one field
+        if harness.STATUS.init_done: ...               # read one field
+        pumice.SCHED_TUNING.write(force_inorder=1, lookahead_active=4)  # batched
+    """
+
+    __slots__ = ("_rm", "_reg")
+
+    def __init__(self, rm: "UartRegisterMap", reg: str):
+        object.__setattr__(self, "_rm", rm)
+        object.__setattr__(self, "_reg", reg)
+
+    def __getattr__(self, field: str) -> int:
+        return self._rm.field(self._reg, field)
+
+    def __setattr__(self, field: str, value: int) -> None:
+        self._rm.write(self._reg, rmw=True, **{field: value})
+
+    def read(self) -> int:
+        return self._rm.read(self._reg)
+
+    def write(self, rmw: bool = False, **fields: int) -> int:
+        return self._rm.write(self._reg, rmw=rmw, **fields)
+
+    def write_word(self, value: int) -> None:
+        self._rm.write_word(self._reg, value)
+
+    def __repr__(self) -> str:
+        return f"<reg {self._reg} @ {self._rm.addr(self._reg):#x}>"
+
+
 class UartRegisterMap:
     """Named register access over a byte-bridge, backed by the PeakRDL regmap.
 
@@ -60,6 +99,17 @@ class UartRegisterMap:
         with contextlib.redirect_stdout(io.StringIO()):
             self._rm = RegisterMap(regmap_file, self.DATA_WIDTH,
                                    self.DATA_WIDTH, start_address, log)
+
+    # ----- attribute-style register access (dev.<REG>.<field>) -------------
+    def __getattr__(self, name: str) -> "_RegisterHandle":
+        # __getattr__ runs only when normal lookup fails, so methods/attrs are
+        # unaffected. Expose each RDL register as an attribute handle.
+        if name.startswith("_"):
+            raise AttributeError(name)
+        rm = self.__dict__.get("_rm")
+        if rm is not None and name in rm.registers:
+            return _RegisterHandle(self, name)
+        raise AttributeError(name)
 
     # ----- introspection ---------------------------------------------------
     @property
