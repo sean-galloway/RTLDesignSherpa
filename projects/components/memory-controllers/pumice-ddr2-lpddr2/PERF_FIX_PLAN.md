@@ -67,6 +67,44 @@ Reuse the existing `SchedulerTracker` (`dv/tbclasses/trackers/scheduler_tracker.
 Pattern B (cocotb_test_* + pytest wrapper). Wire in the sched tracker exactly as
 `patho_addr_pattern` does (test_pumice_core_macro.py:338-351).
 
+## Task 1 (next) — issue-per-cycle scheduler (no FSM), safe-timer gated
+Replace the one-op-in-flight FSM (scheduler.sv: S_IDLE→S_NEED_PRE→S_NEED_ACT→
+S_NEED_RDWR→S_DONE→S_IDLE, ~4 cyc/op, no bank parallelism) with: **each clock,
+issue one command to the best slot whose next-needed command is SAFE now.**
+"Safe" = the JEDEC timers that already exist as scheduler inputs:
+`bank_act_ready_i` (tRCD/tRP/tRC/tRRD via xbank_timers) + `tfaw_window_ok_i` for
+ACT; `bank_pre_ready_i` (tRAS/tWR/tRTP) for PRE; `bank_rdwr_ready_i` (tCCD/tWTR/
+CL/CWL/bus turnaround) for RD/WR; `cmd_ready_i` for the formatter. Per-slot needed
+command from the existing `w_initial_state` logic vs `bank_row_active_i`/
+`bank_open_row_i`. Issuing fires `evt_act/pre/rd/wr` (advances xbank_timers next
+cycle) and, on RD/WR only, `*_issued_we` (retires the CAM slot).
+
+Two hazards MUST be handled:
+1. **Timing closure (~0 slack today).** A flat combinational "issuable" check
+   over all 16 slots x 8 banks + a single-cycle pick will likely miss 100 MHz.
+   Keep the pick PIPELINED (extend the existing registered candidate tree to be
+   readiness-aware: fold each slot's "needed-cmd-ready" into the tree's validity
+   so the winner is the best *issuable* slot), issuing the registered winner next
+   cycle. Preserves the timing structure that closes today.
+2. **Double-issue.** `*_issued_we`→CAM `r_issued` is registered (1-cyc late); the
+   FSM round-trip hid this. Add a 1-cycle "just-issued slot" bypass mask that
+   combinationally excludes the slot issued last cycle from the candidate set,
+   so it isn't re-picked before `r_issued` propagates. (test_command_scheduler_macro
+   `no_double_issue_race` guards this.)
+
+Keep S_IDLE's init/refresh/MR/PDN injection priority (those still gate the bus).
+ACT does NOT retire a slot; only RD/WR does — a slot needing ACT is picked,
+issues ACT, then next cycle (after tRCD) is row-hit and issues its RD/WR. While it
+waits tRCD, the readiness-aware picker issues a DIFFERENT bank's ACT → the
+bank-level parallelism + pipelining that turns ~63 cyc/beat into back-to-back.
+
+Verify (functional AND timing — this is arbitration-core + knife-edge timing):
+- `test_command_scheduler_macro.py` incl. `no_double_issue_race` (no double-issue)
+- scheduler FUB suite (timing-correctness checkers) + macro integrity suites
+- perf gate: extend perf_page_batching to assert commands issue back-to-back
+  (e.g. ACT(bankB) overlaps tRCD(bankA)); add the real-DFI-timing cycles/beat gate
+- **Vivado STA**: `make bitstream` (or synth) — WNS must stay >= 0 (we're at ~0).
+
 ## Verify
     source env_python
     # RED (before fix): the OPEN gate fails — policy inert
