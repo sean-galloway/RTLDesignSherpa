@@ -25,27 +25,23 @@ from __future__ import annotations
 
 from typing import Mapping, Protocol
 
-# Base of the char-harness CSR block in host AXIL space. This is the harness's
-# own control region (distinct from the STREAM IP registers, which resolve by
-# name through stream_regmap.py). Kept here as the single definition.
-HARNESS_CSR_BASE = 0x0001_0000
+from harness_addrs import H, HARNESS_CSR_BASE   # by-name harness CSR resolution (no hardcoded offsets)
 
-# KICK_GO occupies the slot that would otherwise be kick-addr ch=4.
-CSR_KICK_GO = HARNESS_CSR_BASE + 0xC0
+# Back-compat re-export (resolved BY NAME now, not a hardcoded offset).
+CSR_KICK_GO = H("KICK_GO")
 
 
 def kick_addr_csr(ch: int) -> int:
-    """CSR address of the per-channel kick-address shadow register.
+    """Absolute CSR address of the per-channel kick-address shadow register.
 
-    Splits around the 0xC0 KICK_GO slot so the 8-channel layout is unambiguous:
-        ch 0..3 -> 0xB0/0xB4/0xB8/0xBC
-        ch 4..7 -> 0xC4/0xC8/0xCC/0xD0
+    Resolved BY NAME from harness_csr_regmap.py (CH{ch}_KICK_ADDR). The 8-channel
+    layout splits around the 0xC0 KICK_GO slot (ch 0..3 -> 0xB0..0xBC,
+    ch 4..7 -> 0xC4..0xD0); that split now lives in the regmap, not here, so a
+    map change follows automatically.
     """
     if not 0 <= ch < 8:
         raise ValueError(f"channel {ch} out of range 0..7")
-    if ch < 4:
-        return HARNESS_CSR_BASE + 0xB0 + 4 * ch          # ch 0..3
-    return HARNESS_CSR_BASE + 0xC4 + 4 * (ch - 4)        # ch 4..7
+    return H(f"CH{ch}_KICK_ADDR")
 
 
 class _Bridge(Protocol):
@@ -72,6 +68,6 @@ def batch_kick(bridge: _Bridge, kicks: Mapping[int, int]) -> int:
         if not bridge.write(kick_addr_csr(ch), desc_addr & 0xFFFF_FFFF):
             raise IOError(f"kick-addr write failed for channel {ch}")
         mask |= (1 << ch)
-    if not bridge.write(CSR_KICK_GO, mask):
+    if not bridge.write(H("KICK_GO"), mask):
         raise IOError(f"KICK_GO write failed (mask={mask:#x})")
     return mask

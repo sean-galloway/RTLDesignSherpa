@@ -36,6 +36,7 @@ from descriptor_builder import (  # noqa: E402
     _parse_size, _size_label,
     HARNESS_CSR_BASE,
 )
+from harness_addrs import H  # noqa: E402  (by-name harness CSR access)
 import run_characterization as runner_mod  # noqa: E402
 
 # UART bridge — same module the main runner imports lazily.
@@ -52,23 +53,23 @@ from uart_axi_bridge import UARTAxiBridge  # noqa: E402
 # ---------------------------------------------------------------------------
 # Timer CSR map (matches harness_csr.sv 0x28-0x34)
 # ---------------------------------------------------------------------------
-CSR_TIMER_CTRL          = HARNESS_CSR_BASE + 0x28  # W: bit 0 = clear pulse
-CSR_TIMER_STATUS        = HARNESS_CSR_BASE + 0x2C  # R: [0]=done [1]=running [2]=pass
-CSR_TIMER_CYCLES_LO     = HARNESS_CSR_BASE + 0x30
-CSR_TIMER_CYCLES_HI     = HARNESS_CSR_BASE + 0x34
-CSR_TIMER_EXPECTED_BEATS = HARNESS_CSR_BASE + 0x38  # RW: stop when sink beat count >= this
-CSR_RESP_DELAY           = HARNESS_CSR_BASE + 0x3C  # RW: [15:0]=rd_cyc, [31:16]=wr_cyc
+CSR_TIMER_CTRL          = H("TIMER_CTRL") # W: bit 0 = clear pulse
+CSR_TIMER_STATUS        = H("TIMER_STATUS") # R: [0]=done [1]=running [2]=pass
+CSR_TIMER_CYCLES_LO     = H("TIMER_CYCLES_LO")
+CSR_TIMER_CYCLES_HI     = H("TIMER_CYCLES_HI")
+CSR_TIMER_EXPECTED_BEATS = H("TIMER_EXPECTED_BEATS") # RW: stop when sink beat count >= this
+CSR_RESP_DELAY           = H("RESP_DELAY") # RW: [15:0]=rd_cyc, [31:16]=wr_cyc
 
 # Per-engine first/last beat cycle stamps (sampled from the same 64-bit
 # timer base as CSR_TIMER_CYCLES_*). r2r = R_LAST - R_FIRST, w2w likewise.
-CSR_TIMER_R_FIRST_LO     = HARNESS_CSR_BASE + 0x40
-CSR_TIMER_R_FIRST_HI     = HARNESS_CSR_BASE + 0x44
-CSR_TIMER_R_LAST_LO      = HARNESS_CSR_BASE + 0x48
-CSR_TIMER_R_LAST_HI      = HARNESS_CSR_BASE + 0x4C
-CSR_TIMER_W_FIRST_LO     = HARNESS_CSR_BASE + 0x50
-CSR_TIMER_W_FIRST_HI     = HARNESS_CSR_BASE + 0x54
-CSR_TIMER_W_LAST_LO      = HARNESS_CSR_BASE + 0x58
-CSR_TIMER_W_LAST_HI      = HARNESS_CSR_BASE + 0x5C
+CSR_TIMER_R_FIRST_LO     = H("TIMER_R_FIRST_LO")
+CSR_TIMER_R_FIRST_HI     = H("TIMER_R_FIRST_HI")
+CSR_TIMER_R_LAST_LO      = H("TIMER_R_LAST_LO")
+CSR_TIMER_R_LAST_HI      = H("TIMER_R_LAST_HI")
+CSR_TIMER_W_FIRST_LO     = H("TIMER_W_FIRST_LO")
+CSR_TIMER_W_FIRST_HI     = H("TIMER_W_FIRST_HI")
+CSR_TIMER_W_LAST_LO      = H("TIMER_W_LAST_LO")
+CSR_TIMER_W_LAST_HI      = H("TIMER_W_LAST_HI")
 
 
 def _read64(bridge, lo_addr: int, hi_addr: int) -> int:

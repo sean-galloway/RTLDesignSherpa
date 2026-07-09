@@ -46,6 +46,7 @@ sys.path.insert(0,
     '/mnt/data/github/RTLDesignSherpa/projects/components/converters/bin')
 
 from descriptor_builder import DescriptorBuilder, CharConfig
+from harness_addrs import H  # noqa: E402  (by-name harness CSR access)
 from uart_axi_bridge import UARTAxiBridge
 
 # ---------------------------------------------------------------------------
@@ -54,13 +55,13 @@ from uart_axi_bridge import UARTAxiBridge
 HARNESS_CSR_BASE    = 0x0001_0000
 STREAM_APB_BASE     = 0x0000_0000
 
-CSR_CTRL            = HARNESS_CSR_BASE + 0x00
-CSR_STATUS          = HARNESS_CSR_BASE + 0x04
-CSR_BUILD_ID        = HARNESS_CSR_BASE + 0x24
-CSR_TIMER_CTRL      = HARNESS_CSR_BASE + 0x28
-CSR_TIMER_STATUS    = HARNESS_CSR_BASE + 0x2C
-CSR_TIMER_EXPECTED  = HARNESS_CSR_BASE + 0x38
-CSR_KICK_GO         = HARNESS_CSR_BASE + 0xC0
+CSR_CTRL            = H("CTRL")
+CSR_STATUS          = H("STATUS")
+CSR_BUILD_ID        = H("BUILD_ID")
+CSR_TIMER_CTRL      = H("TIMER_CTRL")
+CSR_TIMER_STATUS    = H("TIMER_STATUS")
+CSR_TIMER_EXPECTED  = H("TIMER_EXPECTED_BEATS")
+CSR_KICK_GO         = H("KICK_GO")
 
 EXPECTED_BUILD_ID   = 0x5354_5243   # "STRC"
 
@@ -68,17 +69,18 @@ EXPECTED_BUILD_ID   = 0x5354_5243   # "STRC"
 # Free-running, only cleared by CSR_CTRL[1] clear_stats pulse — they
 # survive soft reset, so they give a snapshot of the wedge at the
 # moment STREAM stopped issuing.
+# desc_ram observation counters — resolved BY NAME from harness_csr_regmap.py.
 OBS_REGS = [
-    ('DESC_SRAM_AR_HS',  0xD4),  # AXIL AR handshakes at SRAM port
-    ('DESC_SRAM_R_HS',   0xD8),  # AXIL R handshakes at SRAM port
-    ('DESC_AR_HS',       0xE0),  # 256b AR at STREAM m_axi_desc
-    ('DESC_AR_STALL',    0xE4),
-    ('DESC_R_HS',        0xE8),  # 256b R at STREAM m_axi_desc
-    ('DESC_R_STALL',     0xEC),
-    ('DESC_AW_HS',       0xF0),  # host AXIL AW at SRAM port
-    ('DESC_W_HS',        0xF4),
-    ('DESC_B_HS',        0xF8),
-    ('DESC_VR_LIVE',     0xFC),  # live 16b snapshot (see harness.sv comment)
+    'DESC_SRAM_AR_HS',  # AXIL AR handshakes at SRAM port
+    'DESC_SRAM_R_HS',   # AXIL R handshakes at SRAM port
+    'DESC_AR_HS',       # 256b AR at STREAM m_axi_desc
+    'DESC_AR_STALL',
+    'DESC_R_HS',        # 256b R at STREAM m_axi_desc
+    'DESC_R_STALL',
+    'DESC_AW_HS',       # host AXIL AW at SRAM port
+    'DESC_W_HS',
+    'DESC_B_HS',
+    'DESC_VR_LIVE',     # live 16b snapshot (see harness.sv comment)
 ]
 
 # DESC_VR_LIVE bit layout (matches harness_csr / stream_char_harness).
@@ -94,9 +96,7 @@ DESC_VR_BITS = [
 
 
 def kick_addr_csr(ch: int) -> int:
-    if ch < 4:
-        return HARNESS_CSR_BASE + 0xB0 + 4 * ch
-    return HARNESS_CSR_BASE + 0xC4 + 4 * (ch - 4)
+    return H(f"CH{ch}_KICK_ADDR")   # by-name (regmap encodes the 0xC0 split)
 
 
 APB_GLOBAL_CTRL     = STREAM_APB_BASE + 0x100
@@ -229,8 +229,8 @@ def dump_obs(bridge):
     path: bridge port (s2_*), STREAM m_axi_desc, host writes."""
     print("[obs] desc_ram observation counters:")
     snap = None
-    for name, off in OBS_REGS:
-        val = bridge.read(HARNESS_CSR_BASE + off)
+    for name in OBS_REGS:
+        val = bridge.read(H(name))
         if val is None:
             print(f"    {name:<16} = READ_FAIL")
             continue

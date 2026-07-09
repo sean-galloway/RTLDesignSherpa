@@ -20,13 +20,14 @@ import json
 from typing import List, Tuple
 
 from harness_kick import HARNESS_CSR_BASE, batch_kick
+from harness_addrs import H  # noqa: E402  (by-name harness CSR access)
 from read_bus_meters import read_meter, R_METER_BASE, W_METER_BASE
 from stream_ext_suite import CASES, CH_ERROR, CH_IDLE, program_case, wait_done
 
 # Observer histogram CSRs (burst counts) -- mirrors stream_char_tb.py.
-CSR_OBS_HIST_SEL   = HARNESS_CSR_BASE + 0x120
-CSR_OBS_HIST_DATA  = HARNESS_CSR_BASE + 0x124
-CSR_OBS_HIST_TOTAL = HARNESS_CSR_BASE + 0x128
+CSR_OBS_HIST_SEL   = H("OBS_HIST_SEL")
+CSR_OBS_HIST_DATA  = H("OBS_HIST_DATA")
+CSR_OBS_HIST_TOTAL = H("OBS_HIST_TOTAL")
 
 # Default sweep: throughput-vs-size per mode. row modes burst; col modes are
 # single-beat, so col/col at the large sizes dominates board runtime.

@@ -23,6 +23,7 @@ from uart_axi_bridge import UARTAxiBridge          # noqa: E402
 from dump_monbus_sram import (                     # noqa: E402
     read_sram_region, parse_records, _rec_to_raw_pair,
 )
+from harness_addrs import H  # noqa: E402  (by-name harness CSR access)
 
 
 def main():
@@ -37,8 +38,8 @@ def main():
     args = p.parse_args()
 
     HARNESS_CSR_BASE = 0x0001_0000
-    CSR_DBG_WR_PTR   = HARNESS_CSR_BASE + 0x08   # write pointer (in 32-bit words)
-    CSR_DBG_OVERFLOW = HARNESS_CSR_BASE + 0x0C
+    CSR_DBG_WR_PTR   = H("DBG_WR_PTR") # write pointer (in 32-bit words)
+    CSR_DBG_OVERFLOW = H("DBG_OVERFLOW")
 
     with UARTAxiBridge(port=args.port, baudrate=args.baud) as bridge:
         wr_ptr = bridge.read(CSR_DBG_WR_PTR) & 0xFFFF_FFFF

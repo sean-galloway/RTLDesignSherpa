@@ -51,9 +51,10 @@ if _repo_root:
 #   0x100 rd_prod  0x104 rd_bp  0x108 rd_starv  0x10C rd_idle
 #   0x110 wr_prod  0x114 wr_bp  0x118 wr_starv  0x11C wr_idle
 from harness_kick import HARNESS_CSR_BASE  # noqa: E402  (single source of the base)
+from harness_addrs import H  # noqa: E402  (by-name harness CSR access)
 
-CSR_OBS_RD_BASE = HARNESS_CSR_BASE + 0x100   # rd prod/bp/starv/idle at +0/4/8/C
-CSR_OBS_WR_BASE = HARNESS_CSR_BASE + 0x110   # wr prod/bp/starv/idle at +0/4/8/C
+CSR_OBS_RD_BASE = H("OBS_RD_PROD") # rd prod/bp/starv/idle at +0/4/8/C
+CSR_OBS_WR_BASE = H("OBS_WR_PROD") # wr prod/bp/starv/idle at +0/4/8/C
 OFF_PROD, OFF_BP, OFF_STARV, OFF_IDLE = 0x0, 0x4, 0x8, 0xC
 
 # Sentinels: run_characterization passes these to read_meter() to pick R vs W.

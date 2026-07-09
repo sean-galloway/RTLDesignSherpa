@@ -70,6 +70,8 @@ from typing import Callable, Dict, List, Optional, Sequence
 THIS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(THIS_DIR))
 
+from harness_addrs import H  # noqa: E402  (by-name harness CSR access)
+
 from dump_monbus_sram import (  # noqa: E402
     dump_json as dump_sram_to_json,
 )
@@ -85,8 +87,8 @@ DEBUG_SRAM_BYTES = 0x40000     # full 256 KB
 # harness_csr offsets we actually use here.
 # 0x00 CTRL  (W): bit[1] = clear_stats_pulse (clears trace SRAM write pointer)
 # 0x08 DBG_WR_PTR (R): trace SRAM write pointer in 32-bit words
-CSR_CTRL        = HARNESS_CSR_BASE + 0x00
-CSR_DBG_WR_PTR  = HARNESS_CSR_BASE + 0x08
+CSR_CTRL        = H("CTRL")
+CSR_DBG_WR_PTR  = H("DBG_WR_PTR")
 
 # STREAM APB register offsets — desc-bus monitor (DAXMON_*).
 # See projects/components/stream/regs/generated/rtl/stream_regs.sv:

@@ -50,6 +50,7 @@ repo_root = script_dir.parent.parent.parent.parent.parent
 sys.path.insert(0, str(repo_root / 'projects' / 'components' / 'converters' / 'bin'))
 sys.path.insert(0, str(script_dir))
 
+from harness_addrs import H  # noqa: E402  (by-name harness CSR access)
 import mon_configs as mon_cfg  # noqa: E402  (named monitor presets)
 
 from descriptor_builder import (
@@ -62,49 +63,49 @@ from descriptor_builder import (
 # =========================================================================
 # Harness CSR addresses
 # =========================================================================
-CSR_CTRL            = HARNESS_CSR_BASE + 0x00
-CSR_STATUS          = HARNESS_CSR_BASE + 0x04
+CSR_CTRL            = H("CTRL")
+CSR_STATUS          = H("STATUS")
 # Response-delay knob -- per-beat hold time injected on R and B channels
 # by the axi_response_delay blocks. [15:0]=rd_delay, [31:16]=wr_delay,
 # in aclk cycles. 0 = bypass.
-CSR_RESP_DELAY      = HARNESS_CSR_BASE + 0x3C
-CSR_DBG_WR_PTR     = HARNESS_CSR_BASE + 0x08
-CSR_DBG_OVERFLOW    = HARNESS_CSR_BASE + 0x0C
-CSR_CRC_RD_EXPECTED = HARNESS_CSR_BASE + 0x10
-CSR_CRC_WR_EXPECTED = HARNESS_CSR_BASE + 0x14
-CSR_CRC_WR_COMPUTED = HARNESS_CSR_BASE + 0x18
-CSR_CRC_MATCH       = HARNESS_CSR_BASE + 0x1C
+CSR_RESP_DELAY      = H("RESP_DELAY")
+CSR_DBG_WR_PTR     = H("DBG_WR_PTR")
+CSR_DBG_OVERFLOW    = H("DBG_OVERFLOW")
+CSR_CRC_RD_EXPECTED = H("CRC_RD_EXPECTED")
+CSR_CRC_WR_EXPECTED = H("CRC_WR_EXPECTED")
+CSR_CRC_WR_COMPUTED = H("CRC_WR_COMPUTED")
+CSR_CRC_MATCH       = H("CRC_MATCH")
 # Per-channel CRC verification (multi-channel)
-CSR_CRC_RD_PER_CH_BASE = HARNESS_CSR_BASE + 0x60
-CSR_CRC_WR_PER_CH_BASE = HARNESS_CSR_BASE + 0x80
-CSR_CRC_VALID_MASK     = HARNESS_CSR_BASE + 0xA0
-CSR_CRC_MATCH_MASK     = HARNESS_CSR_BASE + 0xA4
+CSR_CRC_RD_PER_CH_BASE = H("CRC_RD_PER_CH0")
+CSR_CRC_WR_PER_CH_BASE = H("CRC_WR_PER_CH0")
+CSR_CRC_VALID_MASK     = H("CRC_VALID_MASK")
+CSR_CRC_MATCH_MASK     = H("CRC_MATCH_MASK")
 # Kick-burst fast path — single source of truth in harness_kick.py.
 # (kick_addr_csr splits the per-channel slots around the 0xC0 KICK_GO slot;
 # batch_kick() programs the addresses then writes the go bit.)
 from harness_kick import CSR_KICK_GO, kick_addr_csr, batch_kick  # noqa: E402,F401
-CSR_SCRATCH         = HARNESS_CSR_BASE + 0x20
-CSR_BUILD_ID        = HARNESS_CSR_BASE + 0x24
+CSR_SCRATCH         = H("SCRATCH")
+CSR_BUILD_ID        = H("BUILD_ID")
 
 # Harness timer (the right "DMA is done" signal). The IRQ-on-completion
 # path is not wired by default -- descriptors don't set CTRL_INTERRUPT
 # and no monbus packet type is routed to the err FIFO at boot. The timer
 # fires when the write-side beat count reaches TIMER_EXPECTED_BEATS.
-CSR_TIMER_CTRL          = HARNESS_CSR_BASE + 0x28  # W: bit 0 = clear pulse
-CSR_TIMER_STATUS        = HARNESS_CSR_BASE + 0x2C  # R: [0]=done [1]=running [2]=pass
-CSR_TIMER_CYCLES_LO     = HARNESS_CSR_BASE + 0x30
-CSR_TIMER_CYCLES_HI     = HARNESS_CSR_BASE + 0x34
-CSR_TIMER_EXPECTED_BEATS= HARNESS_CSR_BASE + 0x38  # RW: stop when sink beat >= this
+CSR_TIMER_CTRL          = H("TIMER_CTRL") # W: bit 0 = clear pulse
+CSR_TIMER_STATUS        = H("TIMER_STATUS") # R: [0]=done [1]=running [2]=pass
+CSR_TIMER_CYCLES_LO     = H("TIMER_CYCLES_LO")
+CSR_TIMER_CYCLES_HI     = H("TIMER_CYCLES_HI")
+CSR_TIMER_EXPECTED_BEATS= H("TIMER_EXPECTED_BEATS") # RW: stop when sink beat >= this
 
 # Per-engine first/last beat cycle stamps (steady-state datapath window).
-CSR_TIMER_R_FIRST_LO    = HARNESS_CSR_BASE + 0x40
-CSR_TIMER_R_FIRST_HI    = HARNESS_CSR_BASE + 0x44
-CSR_TIMER_R_LAST_LO     = HARNESS_CSR_BASE + 0x48
-CSR_TIMER_R_LAST_HI     = HARNESS_CSR_BASE + 0x4C
-CSR_TIMER_W_FIRST_LO    = HARNESS_CSR_BASE + 0x50
-CSR_TIMER_W_FIRST_HI    = HARNESS_CSR_BASE + 0x54
-CSR_TIMER_W_LAST_LO     = HARNESS_CSR_BASE + 0x58
-CSR_TIMER_W_LAST_HI     = HARNESS_CSR_BASE + 0x5C
+CSR_TIMER_R_FIRST_LO    = H("TIMER_R_FIRST_LO")
+CSR_TIMER_R_FIRST_HI    = H("TIMER_R_FIRST_HI")
+CSR_TIMER_R_LAST_LO     = H("TIMER_R_LAST_LO")
+CSR_TIMER_R_LAST_HI     = H("TIMER_R_LAST_HI")
+CSR_TIMER_W_FIRST_LO    = H("TIMER_W_FIRST_LO")
+CSR_TIMER_W_FIRST_HI    = H("TIMER_W_FIRST_HI")
+CSR_TIMER_W_LAST_LO     = H("TIMER_W_LAST_LO")
+CSR_TIMER_W_LAST_HI     = H("TIMER_W_LAST_HI")
 
 # (The harness axi_bus_meter readback bases at HARNESS_CSR_BASE + 0x100 / 0x180
 #  were retired in RFC Stage E.4 -- datapath utilization is now read in-core via

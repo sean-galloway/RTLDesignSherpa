@@ -10,6 +10,7 @@ import os
 import sys
 
 from descriptor_builder import HARNESS_CSR_BASE, STREAM_APB_BASE
+from harness_addrs import H  # noqa: E402  (by-name harness CSR access)
 
 # Pull in the same UARTAxiBridge the runner uses.
 # REPO_ROOT must be set in the environment (source env_python).
@@ -23,27 +24,27 @@ sys.path.insert(0, os.path.join(_repo_root, "projects/components/converters/bin"
 from uart_axi_bridge import UARTAxiBridge
 
 # Harness CSR offsets (mirror of run_characterization.py)
-CSR_CTRL          = HARNESS_CSR_BASE + 0x00
-CSR_STATUS        = HARNESS_CSR_BASE + 0x04
-CSR_DBG_WR_PTR    = HARNESS_CSR_BASE + 0x08
-CSR_DBG_OVERFLOW  = HARNESS_CSR_BASE + 0x0C
-CSR_CRC_RD_EXP    = HARNESS_CSR_BASE + 0x10
-CSR_CRC_WR_EXP    = HARNESS_CSR_BASE + 0x14
-CSR_CRC_WR_COMP   = HARNESS_CSR_BASE + 0x18
-CSR_CRC_MATCH     = HARNESS_CSR_BASE + 0x1C
-CSR_BUILD_ID      = HARNESS_CSR_BASE + 0x24
+CSR_CTRL          = H("CTRL")
+CSR_STATUS        = H("STATUS")
+CSR_DBG_WR_PTR    = H("DBG_WR_PTR")
+CSR_DBG_OVERFLOW  = H("DBG_OVERFLOW")
+CSR_CRC_RD_EXP    = H("CRC_RD_EXPECTED")
+CSR_CRC_WR_EXP    = H("CRC_WR_EXPECTED")
+CSR_CRC_WR_COMP   = H("CRC_WR_COMPUTED")
+CSR_CRC_MATCH     = H("CRC_MATCH")
+CSR_BUILD_ID      = H("BUILD_ID")
 
 # desc_ram observation counters (see harness_csr.sv 0xE0..0xFC). 32-bit
 # saturating; clear on CTRL.clear_stats. The AR/R pair is the primary
 # decoder for "is the SRAM responding or is STREAM not accepting?".
-CSR_DESC_AR_HS    = HARNESS_CSR_BASE + 0xE0
-CSR_DESC_AR_STALL = HARNESS_CSR_BASE + 0xE4
-CSR_DESC_R_HS     = HARNESS_CSR_BASE + 0xE8
-CSR_DESC_R_STALL  = HARNESS_CSR_BASE + 0xEC
-CSR_DESC_AW_HS    = HARNESS_CSR_BASE + 0xF0
-CSR_DESC_W_HS     = HARNESS_CSR_BASE + 0xF4
-CSR_DESC_B_HS     = HARNESS_CSR_BASE + 0xF8
-CSR_DESC_VR_LIVE  = HARNESS_CSR_BASE + 0xFC
+CSR_DESC_AR_HS    = H("DESC_AR_HS")
+CSR_DESC_AR_STALL = H("DESC_AR_STALL")
+CSR_DESC_R_HS     = H("DESC_R_HS")
+CSR_DESC_R_STALL  = H("DESC_R_STALL")
+CSR_DESC_AW_HS    = H("DESC_AW_HS")
+CSR_DESC_W_HS     = H("DESC_W_HS")
+CSR_DESC_B_HS     = H("DESC_B_HS")
+CSR_DESC_VR_LIVE  = H("DESC_VR_LIVE")
 
 # desc_ram o_dbg_vr live bit labels (bit -> short name, used for decode).
 DESC_VR_BITS = [
