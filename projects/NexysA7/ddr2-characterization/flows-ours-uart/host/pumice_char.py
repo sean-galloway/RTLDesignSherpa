@@ -189,7 +189,11 @@ class ControllerConfig:
     happy_enable:  Optional[bool] = None    # HAPPY page predictor
     rd_in_order:   bool = True              # R-channel return ordering (harness cfg)
     t_refi:        Optional[int] = None      # refresh interval (MC cycles)
-    t_phy_wrlat:   int = 4
+    # Board (always-on pre-pull / a7ddrphy write_latency=0): t_phy_wrlat MUST be
+    # 0 so write data is presented concurrent with the WR command. The old
+    # default 4 clobbered the leveling-time value every scenario -> writes land
+    # wrong -> every read mismatches (0/N integrity). See pumice_master.py.
+    t_phy_wrlat:   int = 0
     t_rddata_en:   int = 6
 
     def apply(self, drv: DDR2CharDriver) -> None:
