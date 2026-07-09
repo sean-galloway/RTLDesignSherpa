@@ -100,7 +100,7 @@ class A7Leveling:
 
     def __init__(self, drv: DDR2CharDriver, base_addr: int = 0x0000_0000,
                  burst_len: int = 4, txn_count: int = 2,
-                 seed: int = 0x1EAF_F00D, t_phy_wrlat: int = 4,
+                 seed: int = 0x1EAF_F00D, t_phy_wrlat: int = 0,
                  t_rddata_en: int = 6, rddata_delay: int = 0,
                  rd_phase: int = 0, lane_mask: int = 0b11, verbose: bool = True):
         self.drv = drv
@@ -235,7 +235,7 @@ class SimpleResult:
 
 class SimpleTest:
     def __init__(self, drv: DDR2CharDriver, base_addr: int = 0x0000_0000,
-                 t_phy_wrlat: int = 4, t_rddata_en: int = 6,
+                 t_phy_wrlat: int = 0, t_rddata_en: int = 6,
                  rddata_delay: int = 0, rd_phase: int = 0):
         self.drv = drv
         self.base = base_addr
