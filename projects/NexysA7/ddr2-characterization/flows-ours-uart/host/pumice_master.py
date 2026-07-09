@@ -31,6 +31,7 @@ which is robust with the harness's built-in pattern/CRC engines.
 """
 
 import argparse
+import os
 import sys
 import time
 from dataclasses import dataclass, field
@@ -207,19 +208,55 @@ class A7Leveling:
             return res
         _w, bs, (lo, hi) = best
         centre = (lo + hi) // 2
-        # apply the winning bitslip (reset to 0, pulse bs times) + centre tap
-        self._strobe(dc.PHY_RDLY_DQ_BITSLIP_RST)
-        for _ in range(bs):
-            self._strobe(dc.PHY_RDLY_DQ_BITSLIP)
-        self._strobe(dc.PHY_RDLY_DQ_RST)
-        for _ in range(centre):
-            self._strobe(dc.PHY_RDLY_DQ_INC)
+        self.apply_taps(bs, centre)               # winning bitslip + centre tap
         res.bitslip, res.rd_tap, res.rd_window = bs, centre, (lo, hi)
         self._log(f"chosen bitslip {bs}, read tap {centre} (eye {lo}..{hi})")
         res.ok = self._test()
         if not res.ok:
             res.notes.append("final verify at centred (bitslip, tap) failed")
         return res
+
+    # ---- save / restore a known-good read window --------------------------
+    # Leveling is a ~256-iteration UART sweep AND the PHY IDELAY/bitslip state is
+    # lost on every FPGA reprogram, so re-leveling dominates every board run.
+    # Persist the winning (bitslip, tap) once, then RESTORE it (apply + verify,
+    # no sweep) on later runs / after a reprogram. The window is board- and
+    # PHY-specific; a failed restore-verify falls back to a full re-level.
+    def apply_taps(self, bitslip: int, tap: int) -> None:
+        """Apply a known (bitslip, IDELAY tap) directly — no eye sweep."""
+        self._reset_read_path()
+        self._strobe(dc.PHY_RDLY_DQ_BITSLIP_RST)
+        for _ in range(int(bitslip)):
+            self._strobe(dc.PHY_RDLY_DQ_BITSLIP)
+        self._strobe(dc.PHY_RDLY_DQ_RST)
+        for _ in range(int(tap)):
+            self._strobe(dc.PHY_RDLY_DQ_INC)
+
+    def restore(self, saved: "LevelingResult") -> LevelingResult:
+        """Re-apply a saved window (no sweep) and verify one write-read pass."""
+        self.apply_taps(saved.bitslip, saved.rd_tap)
+        res = LevelingResult(ok=self._test(), rd_tap=saved.rd_tap,
+                             rd_window=saved.rd_window, bitslip=saved.bitslip)
+        self._log(f"restored bitslip {saved.bitslip}, tap {saved.rd_tap} "
+                  f"-> verify {'OK' if res.ok else 'FAILED (re-level needed)'}")
+        if not res.ok:
+            res.notes.append("restored (bitslip,tap) failed verify — re-level")
+        return res
+
+    @staticmethod
+    def save_level(path: str, res: "LevelingResult") -> None:
+        import json
+        with open(path, "w") as fh:
+            json.dump({"ok": res.ok, "bitslip": res.bitslip, "rd_tap": res.rd_tap,
+                       "rd_window": list(res.rd_window)}, fh, indent=2)
+
+    @staticmethod
+    def load_level(path: str) -> "LevelingResult":
+        import json
+        d = json.load(open(path))
+        return LevelingResult(ok=bool(d.get("ok", True)), bitslip=int(d["bitslip"]),
+                              rd_tap=int(d["rd_tap"]),
+                              rd_window=tuple(d.get("rd_window", (-1, -1))))
 
 
 # =============================================================================
@@ -236,13 +273,18 @@ class SimpleResult:
 class SimpleTest:
     def __init__(self, drv: DDR2CharDriver, base_addr: int = 0x0000_0000,
                  t_phy_wrlat: int = 0, t_rddata_en: int = 6,
-                 rddata_delay: int = 0, rd_phase: int = 0):
+                 rddata_delay: int = 0, rd_phase: int = 0,
+                 level_cache: Optional[str] = None):
         self.drv = drv
         self.base = base_addr
         self.t_phy_wrlat = t_phy_wrlat
         self.t_rddata_en = t_rddata_en
         self.rddata_delay = rddata_delay
         self.rd_phase = rd_phase
+        # Optional path to persist / reuse the leveled read window (skips the
+        # ~256-iteration sweep on later runs; re-levels + re-saves if the saved
+        # window fails verify, e.g. after a bitstream change).
+        self.level_cache = level_cache
         self.level: Optional[LevelingResult] = None
 
     def init(self, do_leveling: bool = True) -> None:
@@ -256,11 +298,24 @@ class SimpleTest:
         d.set_dfi_rddata_delay(self.rddata_delay)
         d.set_dfi_phase(rd_phase=self.rd_phase, wr_phase=0)
         if do_leveling:
-            self.level = A7Leveling(d, base_addr=self.base,
-                                    t_phy_wrlat=self.t_phy_wrlat,
-                                    t_rddata_en=self.t_rddata_en,
-                                    rddata_delay=self.rddata_delay,
-                                    rd_phase=self.rd_phase).run()
+            lv = A7Leveling(d, base_addr=self.base,
+                            t_phy_wrlat=self.t_phy_wrlat,
+                            t_rddata_en=self.t_rddata_en,
+                            rddata_delay=self.rddata_delay,
+                            rd_phase=self.rd_phase)
+            import os as _os
+            if self.level_cache and _os.path.exists(self.level_cache):
+                self.level = lv.restore(A7Leveling.load_level(self.level_cache))
+                if not self.level.ok:                     # stale -> re-level
+                    print("[simple] cached leveling failed verify; re-leveling")
+                    self.level = lv.run()
+                    if self.level.ok:
+                        A7Leveling.save_level(self.level_cache, self.level)
+            else:
+                self.level = lv.run()
+                if self.level.ok and self.level_cache:
+                    A7Leveling.save_level(self.level_cache, self.level)
+                    print(f"[simple] saved leveling -> {self.level_cache}")
             if not self.level.ok:
                 print(f"[simple] WARNING: leveling not clean: {self.level.notes}")
 
@@ -321,17 +376,18 @@ class FullCharacterization:
 
     def __init__(self, drv: DDR2CharDriver, base_addr: int = 0x0000_0000,
                  txn_count: int = 1024, grid=None, rd_phase: int = 0,
-                 rddata_delay: int = 0):
+                 rddata_delay: int = 0, level_cache: Optional[str] = None):
         self.drv = drv
         self.base = base_addr
         self.txn = txn_count
         self.grid = grid or self.DEFAULT_GRID
         self.rd_phase = rd_phase
         self.rddata_delay = rddata_delay
+        self.level_cache = level_cache
 
     def init(self, do_leveling: bool = True) -> Optional[LevelingResult]:
         st = SimpleTest(self.drv, base_addr=self.base, rd_phase=self.rd_phase,
-                        rddata_delay=self.rddata_delay)
+                        rddata_delay=self.rddata_delay, level_cache=self.level_cache)
         st.init(do_leveling=do_leveling)
         return st.level
 
@@ -411,6 +467,11 @@ def main() -> int:
                          "Overrides --char-configs/--char-level when set")
     ap.add_argument("--csv", default=None,
                     help="write --char records to this CSV path")
+    ap.add_argument("--level-cache", default=None,
+                    help="persist/reuse the leveled read window (JSON). If the "
+                         "file exists it is RESTORED (apply + verify, no ~256-"
+                         "iter sweep); a failed verify re-levels + re-saves. "
+                         "Board+PHY specific; delete it after a bitstream change.")
     ap.add_argument("--clk-mhz", type=float, default=100.0,
                     help="controller clock for bandwidth (MB/s) derivation")
     mode = ap.add_mutually_exclusive_group(required=True)
@@ -432,15 +493,26 @@ def main() -> int:
               "-- wrong bitstream loaded?")
 
     if args.level_only:
-        res = A7Leveling(drv, base_addr=args.base, rd_phase=args.rd_phase,
-                         rddata_delay=args.rd_delay).run()
+        lv = A7Leveling(drv, base_addr=args.base, rd_phase=args.rd_phase,
+                        rddata_delay=args.rd_delay)
+        if args.level_cache and os.path.exists(args.level_cache):
+            res = lv.restore(A7Leveling.load_level(args.level_cache))
+            if not res.ok:
+                res = lv.run()
+                if res.ok:
+                    A7Leveling.save_level(args.level_cache, res)
+        else:
+            res = lv.run()
+            if res.ok and args.level_cache:
+                A7Leveling.save_level(args.level_cache, res)
+                print(f"saved leveling -> {args.level_cache}")
         print(f"leveling ok={res.ok} wr_phase={res.wr_phase} "
               f"rd_tap={res.rd_tap} window={res.rd_window} notes={res.notes}")
         return 0 if res.ok else 1
 
     if args.simple:
         st = SimpleTest(drv, base_addr=args.base, rd_phase=args.rd_phase,
-                        rddata_delay=args.rd_delay)
+                        rddata_delay=args.rd_delay, level_cache=args.level_cache)
         st.init(do_leveling=not args.no_level)
         r = st.run()
         print(f"simple: {'PASS' if r.ok else 'FAIL'} "
@@ -450,7 +522,8 @@ def main() -> int:
 
     if args.full:
         fc = FullCharacterization(drv, base_addr=args.base, rd_phase=args.rd_phase,
-                                  rddata_delay=args.rd_delay)
+                                  rddata_delay=args.rd_delay,
+                                  level_cache=args.level_cache)
         fc.init(do_leveling=not args.no_level)
         pts = fc.run()
         n_ok = sum(1 for p in pts if p.ok)
@@ -463,7 +536,7 @@ def main() -> int:
         import pumice_char as pc
         # Reuse the SimpleTest init path (reset + controller cfg + leveling).
         st = SimpleTest(drv, base_addr=args.base, rd_phase=args.rd_phase,
-                        rddata_delay=args.rd_delay)
+                        rddata_delay=args.rd_delay, level_cache=args.level_cache)
         st.init(do_leveling=not args.no_level)
 
         def _progress(name: str, i: int, n: int) -> None:
