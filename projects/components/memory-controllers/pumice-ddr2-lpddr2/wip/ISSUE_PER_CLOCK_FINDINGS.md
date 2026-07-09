@@ -25,7 +25,48 @@ injection gating.
   so forcing PH_ACT waited on bank_act_ready forever; removed that block).
 - pumice_core_macro smoke + ~75/109 of the full matrix.
 
-## kb32 update 2: age-wrap DISPROVEN; residual is a WRITE-path slot-reuse race
+## kb32 ROOT CAUSE (CONFIRMED): w_buf circular overwrite under out-of-order write completion
+
+Ran kb32 with the bank-parallel WIP swapped in + analyzed the test's DFI dumps
+(dfi_cmd_q/dfi_wr_data/axi_wr_snoop). Findings:
+- 1024 WRA commands issued (correct count); command addresses correct + monotonic
+  per bank (bank-interleaved). So the SCHEDULER is fine.
+- Burst 254's own write DATA (0x00FE0000) is NEVER driven at DFI; burst 286's data
+  is driven TWICE. So the write DATA got mispaired, not the command.
+- Writes are strictly serialized atomic ops (0 overlap; 1024 accept/complete) —
+  so it is NOT a slot-reuse-during-pull or MAX_CONCURRENT mux race.
+
+DECISIVE experiment: W_BUF_DEPTH 128 -> 4096 makes kb32 PASS. => the bug is the
+w_buf circular buffer being overwritten. W_BUF_DEPTH=128 beats = exactly 32 BL4
+bursts; bursts 254 and 286 are 32 apart => SAME w_buf region (both mod 32 = 30 ->
+beat 120). The AW backpressure uses a SCALAR outstanding count (pushed - freed on
+b_complete) which assumes IN-ORDER completion. The bank-parallel scheduler
+completes/drains writes OUT OF ORDER (bank-interleaved), so when a younger burst
+frees its beats while burst 254 (sharing 286's wrap region) is still un-pulled,
+the scalar count under-reports occupancy -> 286's AW is admitted -> 286's W data
+overwrites 254's un-pulled region. Matches every symptom: exactly W_BUF_DEPTH/burst
+apart, top-only (slow drain keeps ~32 outstanding so the wrap region collides),
+bank-parallel-only (the committed FSM retires strictly in-order so the scalar
+count is exact). NOT age-wrap, NOT read-ordering, NOT slot-reuse-during-pull,
+NOT W-data-outrun (command pushes only after wlast).
+
+FIX (IMPLEMENTED + VERIFIED): ordering-aware w_buf backpressure. wr_cmd_cam gains
+a wrap-aware min-age reduction over valid slots and exposes any_outstanding_o +
+oldest_wbuf_ptr_o (= the circular TAIL = base of the oldest un-b_completed burst;
+the oldest outstanding command is always in the CAM). axi_intake computes a TRUE
+circular occupancy = (alloc_head - tail) [WPW-bit sub, W_BUF_DEPTH is pow2 so this
+is mod-DEPTH; head==tail with a burst outstanding => FULL] and uses it for the AW
+backpressure, falling back to the scalar count only when nothing is outstanding
+(exact for in-order/empty). No pointer widening needed. Localized to wr_cmd_cam +
+axi_frontend_macro wiring + axi_intake. Committed FSM path is unaffected (it
+retires in order, so the tail-based occupancy == the old scalar occupancy).
+
+VERIFIED (bank-parallel scheduler swapped in + this fix, W_BUF_DEPTH back to 128):
+kb32 PASS; scheduler FUB 23/23 + command_scheduler_macro 3/3 (26/26); core_macro
+109/109. (Sizing w_buf up was only the root-cause confirmation, NOT the fix — it
+doesn't scale with N.)
+
+## (superseded) kb32 update 2: age-wrap DISPROVEN; residual is a WRITE-path slot-reuse race
 
 Widened the CAM push-order age to 16 bits + made the counter SATURATE (never
 wrap) — implemented across rd/wr_cmd_cam + axi_frontend/pumice_core/command_
