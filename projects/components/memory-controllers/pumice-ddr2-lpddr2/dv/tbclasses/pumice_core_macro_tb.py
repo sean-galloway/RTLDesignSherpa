@@ -162,16 +162,29 @@ class DDR2LPDDR2CoreMacroTB:
         # off the command. Exposes rddata_en/wrdata_en cadence bugs that the
         # lenient (zero-latency) loopback hides but silicon fails on.
         import os as _os
+        from CocoTBFramework.components.dfi.dfi_timing import DFITimingProfile
+        _rlat = int(_os.environ.get("DFI_READ_LATENCY", "6"))
+        _wlat = int(_os.environ.get("DFI_WRITE_LATENCY", "0"))
+        # PHY-agnostic timing profile (the hook surface): DFI_PROFILE selects a
+        # preset (ideal|a7ddrphy|strict_dram). Default None => idealized loopback
+        # (legacy behavior). The old DFI_STRICT_* flags still work as a fallback.
+        _prof = _os.environ.get("DFI_PROFILE", "").strip().lower()
+        _timing = None
+        if _prof in ("a7", "a7ddrphy"):
+            _timing = DFITimingProfile.a7ddrphy(read_latency=_rlat, write_latency=_wlat)
+        elif _prof in ("strict", "strict_dram"):
+            _timing = DFITimingProfile.strict_dram(read_latency=_rlat, write_latency=_wlat)
+        elif _prof in ("ideal",):
+            _timing = DFITimingProfile.ideal()
         def _flag(*names):
             return any(_os.environ.get(n, "") in ("1", "true", "True") for n in names)
         _both = _flag("DFI_STRICT_TIMING")
         _sr = _both or _flag("DFI_STRICT_READ")
         _sw = _both or _flag("DFI_STRICT_WRITE")
-        _rlat = int(_os.environ.get("DFI_READ_LATENCY", "0"))
-        _wlat = int(_os.environ.get("DFI_WRITE_LATENCY", "0"))
         self.dfi_slave = DFISlavePHY(
             self.dut, self.dut.mc_clk,
             base=self.dfi_base, memory=self.memory,
+            timing=_timing,
             strict_read_timing=_sr,
             strict_write_timing=_sw,
             read_latency=_rlat,
