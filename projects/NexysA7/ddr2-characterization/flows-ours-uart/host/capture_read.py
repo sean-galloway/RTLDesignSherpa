@@ -50,17 +50,20 @@ def drive_reads(port, baud):
     # One LARGE contiguous burst so the read-data stream is many back-to-back DFI
     # cycles — makes the "every other read cycle is garbage" cadence unmistakable
     # (vs. short BL4 reads where it looks like a per-command 2nd-cycle loss).
-    BL = 16
+    import os as _os
+    BL  = int(_os.environ.get("CAP_BL", "16"))
+    TXN = int(_os.environ.get("CAP_TXN", "4"))
     d.clear_stats()
-    d.program_wr_engine(start_addr=0x0, burst_len=BL, txn_count=4, stride_0=BL * 8,
+    d.program_wr_engine(start_addr=0x0, burst_len=BL, txn_count=TXN, stride_0=BL * 8,
                         lfsr_seed=SEED, data_mode=True, hash_seed0=SEED)
-    d.start_wr(); wait_engine(d, "wr")
+    d.start_wr(); wr_ok = wait_engine(d, "wr")
+    print(f"[uart] wr done={wr_ok} mism={d.beats_mismatched()}", flush=True)
     for _ in range(8):
-        d.program_rd_engine(start_addr=0x0, burst_len=BL, txn_count=4, stride_0=BL * 8,
+        d.program_rd_engine(start_addr=0x0, burst_len=BL, txn_count=TXN, stride_0=BL * 8,
                             lfsr_seed=SEED, data_mode=True, hash_seed0=SEED)
         d.clear_stats(); d.start_rd(); wait_engine(d, "rd")
         time.sleep(0.05)
-    print(f"[uart] drove reads (BL={BL}); beats_mismatched={d.beats_mismatched()}",
+    print(f"[uart] drove BL={BL} TXN={TXN}; beats_mismatched={d.beats_mismatched()}",
           flush=True)
 
 
