@@ -333,6 +333,12 @@ module axi_frontend_macro
     // port wire-up satisfies lint's declare-before-use check.
     logic [BLW-1:0]       w_wbuf_free_len;
 
+    // Ordered-retire tail from wr_cmd_cam → axi_intake AW backpressure.
+    // Forward-declared here (driven by the wr_cmd_cam instance below) so the
+    // axi_intake port wire-up satisfies lint's declare-before-use check.
+    logic                 w_wr_any_outstanding;
+    logic [WPW-1:0]       w_wr_oldest_wbuf_ptr;
+
     axi_intake #(
         .AXI_ADDR_WIDTH    (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH    (AXI_DATA_WIDTH),
@@ -428,6 +434,10 @@ module axi_frontend_macro
         // play in wbuf, so axi_intake's outstanding counter decrements.
         .wbuf_free_strb_i           (b_complete_strb_i),
         .wbuf_free_len_i            (w_wbuf_free_len),
+        // ordered-retire tail (from wr_cmd_cam) — makes AW backpressure
+        // correct under out-of-order write completion
+        .wbuf_any_outstanding_i     (w_wr_any_outstanding),
+        .wbuf_oldest_ptr_i          (w_wr_oldest_wbuf_ptr),
         .rd_entry_complete_strb_i   (rd_entry_complete_o),
         .rd_entry_complete_id_i     (rd_entry_complete_id_o),
         // Forwarded R
@@ -604,6 +614,9 @@ module axi_frontend_macro
         .snap_qos_o              (w_wr_snap_qos),
         .snap_age_o              (w_wr_snap_age),
         .snap_id_o               (w_wr_snap_id),
+
+        .any_outstanding_o       (w_wr_any_outstanding),
+        .oldest_wbuf_ptr_o       (w_wr_oldest_wbuf_ptr),
 
         .dbg_occupancy_o         (dbg_wr_cam_occ_o)
     );

@@ -227,6 +227,21 @@ module axi_intake
     input  logic [BLW-1:0]       wbuf_free_len_i,
 
     //=========================================================================
+    // Ordered-retire tail (from wr_cmd_cam). `wbuf_oldest_ptr_i` is the base
+    // w_buf pointer of the oldest still-valid (un-b_completed) burst; with
+    // `wbuf_any_outstanding_i` set, the true circular occupancy is
+    // (alloc_head - oldest_ptr). This makes the AW backpressure correct even
+    // when the (bank-parallel) scheduler b_completes writes OUT OF ORDER —
+    // the scalar pushed-minus-freed count under-reports occupancy and lets a
+    // younger AW lap an older un-drained region (kb32 root cause). When no
+    // burst is outstanding the CAM tail is meaningless and the scalar count
+    // (exact for in-order retire) is used instead. FUB-only setups can leave
+    // these idle (any_outstanding=0 → scalar path, unchanged behavior).
+    //=========================================================================
+    input  logic                 wbuf_any_outstanding_i,
+    input  logic [WPW-1:0]       wbuf_oldest_ptr_i,
+
+    //=========================================================================
     // Read completion (from rd_cmd_cam) — reserved for v2
     //=========================================================================
     input  logic                 rd_entry_complete_strb_i,
@@ -544,9 +559,29 @@ module axi_intake
     // would exceed wbuf depth. Without this gate the AW-side pointer
     // wraps and a new burst's beats overwrite still-pending data for an
     // older burst that wr_beat_sequencer hasn't drained yet.
+    //
+    // Occupancy must be a TRUE circular occupancy (alloc_head - tail), NOT
+    // the scalar pushed-minus-freed count: the (bank-parallel) scheduler
+    // b_completes writes OUT OF ORDER, so the scalar count under-reports how
+    // much of the ring is still un-reclaimable and would admit a younger AW
+    // that laps an older un-drained region (kb32: bursts exactly
+    // W_BUF_DEPTH/burst apart share a ring slot). tail = wbuf_oldest_ptr_i =
+    // base of the oldest still-valid burst. W_BUF_DEPTH is a power of two, so
+    // the WPW-bit subtraction is mod-W_BUF_DEPTH; head==tail with an
+    // outstanding burst means the ring is FULL (== W_BUF_DEPTH), not empty.
+    // When nothing is outstanding the tail is meaningless and the scalar
+    // count (exact for in-order / empty) is used.
+    logic [WPW-1:0] w_wbuf_headtail;
+    logic [WPW:0]   w_wbuf_occupancy;
+    assign w_wbuf_headtail = r_aw_pend_next_ptr - wbuf_oldest_ptr_i;
+    assign w_wbuf_occupancy =
+        !wbuf_any_outstanding_i ? (WPW+1)'(r_wbuf_outstanding)
+      : (w_wbuf_headtail == '0)  ? (WPW+1)'(W_BUF_DEPTH)
+      :                            {1'b0, w_wbuf_headtail};
+
     logic w_wbuf_room_for_new_aw;
     assign w_wbuf_room_for_new_aw =
-        ((WPW+1)'(r_wbuf_outstanding) + w_new_aw_burst_size)
+        (w_wbuf_occupancy + w_new_aw_burst_size)
         <= (WPW+1)'(W_BUF_DEPTH);
 
     assign w_aw_pend_wr_valid = fub_axi_awvalid && w_wbuf_room_for_new_aw;

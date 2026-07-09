@@ -125,6 +125,16 @@ module wr_cmd_cam
     // Slot-to-AXI-ID lookup for completion routing
     output logic [CD-1:0][IW-1:0]               snap_id_o,
 
+    // Ordered-retire w_buf reclaim: base pointer of the OLDEST still-valid
+    // (un-b_completed) burst = the circular-buffer TAIL. axi_intake uses
+    // this to compute true occupancy (head - tail) so its AW backpressure is
+    // correct under OUT-OF-ORDER write completion (the bank-parallel
+    // scheduler retires writes out of program order; a scalar pushed-minus-
+    // freed count under-reports occupancy and lets a younger AW lap an older
+    // un-drained region — see wip/ISSUE_PER_CLOCK_FINDINGS.md kb32 root cause).
+    output logic                 any_outstanding_o,   // |r_valid
+    output logic [WPW-1:0]       oldest_wbuf_ptr_o,   // tail (min-age valid slot)
+
     // Telemetry
     output logic [SLW:0]         dbg_occupancy_o
 );
@@ -259,6 +269,36 @@ module wr_cmd_cam
     assign snap_qos_o        = r_qos;
     assign snap_age_o        = r_age;
     assign snap_id_o         = r_id;
+
+    //=========================================================================
+    // Ordered-retire tail: base pointer of the OLDEST still-valid burst.
+    // Wrap-aware min-age reduction over valid slots. r_age is a mod-2^AGEW
+    // monotonic push counter; the outstanding window (<= CD) is far smaller
+    // than 2^(AGEW-1), so "a older than b" == signed(a - b) < 0 == the top
+    // bit of (a - b) is set. r_w_buf_ptr[oldest] is the circular-buffer tail
+    // (oldest un-drained region); axi_intake keeps its AW backpressure from
+    // lapping it even when younger bursts b_complete first.
+    //=========================================================================
+    logic [SLW-1:0]   w_oldest_slot;
+    logic             w_oldest_found;
+    logic [AGEW-1:0]  w_oldest_age;
+    always_comb begin
+        w_oldest_slot  = '0;
+        w_oldest_found = 1'b0;
+        w_oldest_age   = '0;
+        for (int unsigned i = 0; i < CD; i++) begin
+            if (r_valid[i]) begin
+                if (!w_oldest_found
+                    || ((r_age[i] - w_oldest_age) & (AGEW'(1) << (AGEW-1))) != '0) begin
+                    w_oldest_found = 1'b1;
+                    w_oldest_slot  = SLW'(i);
+                    w_oldest_age   = r_age[i];
+                end
+            end
+        end
+    end
+    assign any_outstanding_o = w_oldest_found;
+    assign oldest_wbuf_ptr_o = r_w_buf_ptr[w_oldest_slot];
 
     // Entry-complete strobe — drives axi4_slave B emit + txn_queue clear.
     // entry_complete_is_last_chunk_o lets axi_intake filter: split AXI
