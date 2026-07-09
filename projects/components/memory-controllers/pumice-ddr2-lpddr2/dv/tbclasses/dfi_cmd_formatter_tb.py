@@ -167,7 +167,10 @@ def decode_p0_ddr2(op: int, rank: int, bank: int, row: int, col: int,
         base.cas_n = 0
         base.we_n  = 0
         base.bank  = bank & bank_mask
-        base.addr  = col & addr_mask
+        # MR data is carried on the WIDE cmd_row_i field, not cmd_col_i:
+        # DDR2 MR0 (e.g. 0x532) needs >COL_WIDTH bits. The RTL formatter and
+        # init_sequencer (init_cmd_row_o = "MR data — wide path") agree on row.
+        base.addr  = row & addr_mask
         return base
     # Other ops: drive NOP (defaults)
     base.cs_n = _selected_rank_mask(rank, dfi_cs_w)
