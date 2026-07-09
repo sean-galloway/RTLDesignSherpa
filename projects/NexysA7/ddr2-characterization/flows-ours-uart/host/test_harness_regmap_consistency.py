@@ -65,26 +65,28 @@ def test_regmap_matches_sv_header():
     assert not mismatched, f"offset mismatch (sv, regmap): {mismatched}"
 
 
-def test_regmap_matches_driver_constants():
-    """Every ddr2_char.py <NAME> = 0x.. offset constant matches the regmap
-    (this also covers PHY_CSR_* which the SV header table doesn't list)."""
+def test_regmap_has_phy_csr_window():
+    """The driver accesses the indirect PHY-CSR window BY NAME (it holds no
+    offset constants — all register access goes through UartRegisterMap). This
+    guards that the regmap actually defines that window, which the SV header
+    table omits, so the by-name access the driver relies on resolves."""
     regmap = _load_regmap_offsets()
-    checked = 0
-    for name, val in vars(dc).items():
-        if name in regmap and isinstance(val, int) and not name.startswith("_"):
-            # skip enum-ish constants that happen to share a reg name; only the
-            # offset constants are < 0x1000 and equal the regmap offset.
-            if val == regmap[name]:
-                checked += 1
-            else:
-                # Only flag names that are clearly offset constants (UPPER, and
-                # the value is a plausible csr offset that appears in regmap).
-                assert val == regmap[name], (
-                    f"{name}: driver=0x{val:X} regmap=0x{regmap[name]:X}")
-    # ensure we actually validated the PHY-CSR window the SV header omits
     for phy in ("PHY_CSR_ADDR", "PHY_CSR_WDATA", "PHY_CSR_CTRL", "PHY_CSR_RDATA"):
-        assert getattr(dc, phy) == regmap[phy], f"{phy} offset drift"
-    assert checked >= 40, f"only {checked} driver constants cross-checked"
+        assert phy in regmap, f"{phy} missing from harness regmap"
+
+
+def test_driver_accesses_are_all_by_name():
+    """The driver must not carry hardcoded CSR offset constants (everything is
+    resolved by name from the regmaps). Any UPPER_CASE int attr on ddr2_char
+    that collides with a register name but isn't the regmap offset would be a
+    stale hardcoded copy."""
+    regmap = _load_regmap_offsets()
+    stale = {
+        name: val for name, val in vars(dc).items()
+        if name in regmap and isinstance(val, int) and not name.startswith("_")
+        and val != regmap[name]
+    }
+    assert not stale, f"stale hardcoded offset constants in ddr2_char: {stale}"
 
 
 if __name__ == "__main__":

@@ -63,6 +63,7 @@ sys.path.insert(0, os.path.join(_REPO_ROOT, "projects/components/converters/bin"
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from uart_axi_bridge import UARTAxiBridge  # noqa: E402
 from TBClasses.harness.uart_register_map import UartRegisterMap  # noqa: E402
+from pumice_device import Pumice  # noqa: E402  (controller as its own named device)
 
 # PeakRDL-generated regmap for this project's harness_csr (by-name access).
 HARNESS_REGMAP = os.path.join(
@@ -228,10 +229,11 @@ class DDR2CharDriver:
             port=port, baudrate=baudrate, timeout=timeout)
         self.regs = UartRegisterMap(self.bridge, HARNESS_CSR_BASE,
                                     regmap_file=HARNESS_REGMAP)
-        # pumice controller CSR (APB slave). By-name access to pumice's own
-        # runtime knobs (DFI_PHASE etc.); 12-bit APB addr, 32-bit data.
-        self.pumice = UartRegisterMap(self.bridge, DDR2_APB_BASE,
-                                      regmap_file=PUMICE_REGMAP)
+        # pumice controller CSR (APB slave) as its own named Device. Owns the
+        # controller runtime knobs (DFI phase, paging, refresh, scheduler) by
+        # name; the driver methods below delegate to it. 12-bit APB addr, 32b data.
+        self.pumice = Pumice(self.bridge, "pumice", regs_base=DDR2_APB_BASE,
+                             regmap_file=PUMICE_REGMAP)
 
     # ----- Low-level helpers (by name via the register map) ----------------
     def _rd64(self, lo_name: str, hi_name: str) -> int:
@@ -305,86 +307,47 @@ class DDR2CharDriver:
     def get_dfi_rddata_delay(self) -> int:
         return self.regs.field("DFI_TUNING", "rddata_delay")
 
+    # ----- Controller runtime knobs -- delegate to the Pumice device -------
+    # These all live on the pumice controller CSR; the `Pumice` device
+    # (pumice_device.py) owns the single by-name implementation. The driver
+    # keeps these thin wrappers so existing callers (pumice_master / pumice_char)
+    # are unchanged; `self.pumice.<op>` is equivalent.
     def set_dfi_phase(self, rd_phase: int, wr_phase: int = 0) -> None:
-        """Place the READ/WRITE DFI commands on the given sub-phases to match the
-        a7ddrphy rdphase/wrphase contract. The on-silicon ILA showed the read
-        burst is delivered aligned to rdphase=1 (wrphase=0); issuing RD on phase
-        0 misaligns the burst tail. This is a pumice CSR (DFI_PHASE @ APB 0x060),
-        not a harness reg. Set while idle; 0/0 = legacy all-on-phase-0."""
-        self.pumice.write("DFI_PHASE", rd_phase=rd_phase & 0x7,
-                          wr_phase=wr_phase & 0x7)
+        self.pumice.set_dfi_phase(rd_phase, wr_phase)
 
     def get_dfi_phase(self) -> tuple:
-        return (self.pumice.field("DFI_PHASE", "rd_phase"),
-                self.pumice.field("DFI_PHASE", "wr_phase"))
+        return self.pumice.get_dfi_phase()
 
-    # ----- Controller perf knobs (paging / scheduling / refresh) ----------
-    # All live on the pumice CSR (self.pumice). Fields that share a register
-    # are written read-modify-write so the knobs compose. Data at any address
-    # is decoded the same way on write and read, so changing scheme / policy /
-    # refresh between runs is integrity-safe (it only shifts timing).
     def set_addr_map_scheme(self, scheme: int) -> None:
-        """Select the address-map scheme (paging). SCHEME_ROW_MAJOR /
-        SCHEME_BANK_INTERLEAVE; SCHEME_DEFAULT = build-time. XOR_HASH is not
-        synthesized in the char build (check get_synth_scheme_mask())."""
-        self.pumice.write("ADDR_MAP_TUNING", scheme_or=scheme & 0x3)
+        self.pumice.set_addr_map_scheme(scheme)
 
     def get_synth_scheme_mask(self) -> int:
-        """Bitmask of synthesized schemes: b0=ROW_MAJOR, b1=BANK_INTERLEAVE,
-        b2=XOR_HASH. 0x3 in the char build."""
-        return self.pumice.field("ADDR_MAP_TUNING", "synth_mask_obs")
+        return self.pumice.get_synth_scheme_mask()
 
     def set_page_policy(self, policy: int) -> None:
-        """PAGE_POLICY_OPEN / CLOSE / HYBRID; DEFAULT = build-time."""
-        self.pumice.write("REFRESH_TUNING", rmw=True, page_policy_or=policy & 0x3)
+        self.pumice.set_page_policy(policy)
 
     def set_refresh(self, *, refpb_policy: Optional[int] = None,
                     refresh_defer: Optional[int] = None,
                     zqcs_freq_hz: Optional[int] = None) -> None:
-        """Refresh scheduling knobs (REFRESH_TUNING). Only the supplied fields
-        are changed (rmw)."""
-        kw: Dict[str, int] = {}
-        if refpb_policy is not None:
-            kw["refpb_policy_or"] = refpb_policy & 0x3
-        if refresh_defer is not None:
-            kw["refresh_defer_active"] = refresh_defer & 0xF
-        if zqcs_freq_hz is not None:
-            kw["zqcs_freq_hz"] = zqcs_freq_hz & 0xFFFF
-        if kw:
-            self.pumice.write("REFRESH_TUNING", rmw=True, **kw)
+        self.pumice.set_refresh(refpb_policy=refpb_policy,
+                                refresh_defer=refresh_defer,
+                                zqcs_freq_hz=zqcs_freq_hz)
 
     def set_refresh_interval(self, t_refi: int) -> None:
-        """tREFI in MC cycles (TIMINGS_RFC_REFI.tREFI). Smaller = more frequent
-        refresh = more bandwidth stolen. rmw preserves tRFC."""
-        self.pumice.write("TIMINGS_RFC_REFI", rmw=True, tREFI=t_refi & 0xFFFF)
+        self.pumice.set_refresh_interval(t_refi)
 
     def set_scheduler(self, *, lookahead: Optional[int] = None,
                       force_inorder: Optional[bool] = None,
                       happy_enable: Optional[bool] = None,
                       age_max: Optional[int] = None,
                       txn_high_water: Optional[int] = None) -> None:
-        """Command-scheduler knobs (SCHED_TUNING). lookahead = reorder window
-        depth (0 = off; clamped to lookahead_max_obs by HW); force_inorder = 1
-        disables row-hit reordering (first-ready FIFO). Only supplied fields
-        change (rmw)."""
-        kw: Dict[str, int] = {}
-        if lookahead is not None:
-            kw["lookahead_active"] = lookahead & 0xF
-        if force_inorder is not None:
-            kw["force_inorder"] = 1 if force_inorder else 0
-        if happy_enable is not None:
-            kw["happy_enable"] = 1 if happy_enable else 0
-        if age_max is not None:
-            kw["age_max_runtime"] = age_max & 0xFF
-        if txn_high_water is not None:
-            kw["txn_queue_high_water"] = txn_high_water & 0xFF
-        if kw:
-            self.pumice.write("SCHED_TUNING", rmw=True, **kw)
+        self.pumice.set_scheduler(lookahead=lookahead, force_inorder=force_inorder,
+                                  happy_enable=happy_enable, age_max=age_max,
+                                  txn_high_water=txn_high_water)
 
     def get_lookahead_max(self) -> int:
-        """Build-time max reorder-window depth (SCHED_TUNING.lookahead_max_obs,
-        read-only). lookahead_active is clamped to this by HW."""
-        return self.pumice.field("SCHED_TUNING", "lookahead_max_obs")
+        return self.pumice.get_lookahead_max()
 
     # ----- a7ddrphy calibration CSR (leveling knobs) ----------------------
     def phy_poke(self, knob: int, val: int = 1) -> None:

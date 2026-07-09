@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional
+from typing import Dict, Optional
 
 from TBClasses.harness.device import Device, DeviceBus
 
@@ -67,19 +67,79 @@ class Pumice(Device):
     sugar and write/read/field helpers.
     """
 
-    def set_dfi_phase(self, rd_phase: int = 0, wr_phase: int = 0) -> None:
-        self.write("DFI_PHASE", rd_phase=rd_phase, wr_phase=wr_phase)
+    # ----- DFI phase --------------------------------------------------------
+    def set_dfi_phase(self, rd_phase: int, wr_phase: int = 0) -> None:
+        """Place the READ/WRITE DFI commands on given sub-phases (a7ddrphy
+        rdphase/wrphase contract). DFI_PHASE @ APB 0x060; set while idle."""
+        self.regs.write("DFI_PHASE", rd_phase=rd_phase & 0x7,
+                        wr_phase=wr_phase & 0x7)
 
-    def set_page_policy(self, policy_or: int) -> None:
+    def get_dfi_phase(self) -> tuple:
+        return (self.regs.field("DFI_PHASE", "rd_phase"),
+                self.regs.field("DFI_PHASE", "wr_phase"))
+
+    # ----- address map / paging --------------------------------------------
+    def set_addr_map_scheme(self, scheme: int) -> None:
+        """ADDR_MAP_TUNING.scheme_or (ROW_MAJOR / BANK_INTERLEAVE; DEFAULT =
+        build-time). XOR_HASH may not be synthesized (see get_synth_scheme_mask)."""
+        self.regs.write("ADDR_MAP_TUNING", scheme_or=scheme & 0x3)
+
+    def get_synth_scheme_mask(self) -> int:
+        """Bitmask of synthesized schemes: b0=ROW_MAJOR, b1=BANK_INTERLEAVE,
+        b2=XOR_HASH."""
+        return self.regs.field("ADDR_MAP_TUNING", "synth_mask_obs")
+
+    # ----- refresh ----------------------------------------------------------
+    def set_page_policy(self, policy: int) -> None:
         """REFRESH_TUNING.page_policy_or (0=param default,1=OPEN,2=CLOSE,3=HYBRID)."""
-        self.write("REFRESH_TUNING", rmw=True, page_policy_or=policy_or)
+        self.regs.write("REFRESH_TUNING", rmw=True, page_policy_or=policy & 0x3)
 
-    def set_scheduler(self, **fields: int) -> None:
-        """RMW SCHED_TUNING fields (force_inorder / lookahead_active / ...)."""
-        self.write("SCHED_TUNING", rmw=True, **fields)
+    def set_refresh(self, *, refpb_policy: Optional[int] = None,
+                    refresh_defer: Optional[int] = None,
+                    zqcs_freq_hz: Optional[int] = None) -> None:
+        """Refresh scheduling knobs (REFRESH_TUNING); only supplied fields change."""
+        kw: Dict[str, int] = {}
+        if refpb_policy is not None:
+            kw["refpb_policy_or"] = refpb_policy & 0x3
+        if refresh_defer is not None:
+            kw["refresh_defer_active"] = refresh_defer & 0xF
+        if zqcs_freq_hz is not None:
+            kw["zqcs_freq_hz"] = zqcs_freq_hz & 0xFFFF
+        if kw:
+            self.regs.write("REFRESH_TUNING", rmw=True, **kw)
 
+    def set_refresh_interval(self, t_refi: int) -> None:
+        """tREFI in MC cycles (TIMINGS_RFC_REFI.tREFI); rmw preserves tRFC."""
+        self.regs.write("TIMINGS_RFC_REFI", rmw=True, tREFI=t_refi & 0xFFFF)
+
+    # ----- command scheduler ------------------------------------------------
+    def set_scheduler(self, *, lookahead: Optional[int] = None,
+                      force_inorder: Optional[bool] = None,
+                      happy_enable: Optional[bool] = None,
+                      age_max: Optional[int] = None,
+                      txn_high_water: Optional[int] = None) -> None:
+        """SCHED_TUNING knobs; only supplied fields change (rmw)."""
+        kw: Dict[str, int] = {}
+        if lookahead is not None:
+            kw["lookahead_active"] = lookahead & 0xF
+        if force_inorder is not None:
+            kw["force_inorder"] = 1 if force_inorder else 0
+        if happy_enable is not None:
+            kw["happy_enable"] = 1 if happy_enable else 0
+        if age_max is not None:
+            kw["age_max_runtime"] = age_max & 0xFF
+        if txn_high_water is not None:
+            kw["txn_queue_high_water"] = txn_high_water & 0xFF
+        if kw:
+            self.regs.write("SCHED_TUNING", rmw=True, **kw)
+
+    def get_lookahead_max(self) -> int:
+        """Build-time max reorder-window depth (SCHED_TUNING.lookahead_max_obs)."""
+        return self.regs.field("SCHED_TUNING", "lookahead_max_obs")
+
+    # ----- status -----------------------------------------------------------
     def init_done(self) -> bool:
-        return bool(self.field("STATUS", "init_done"))
+        return bool(self.regs.field("STATUS", "init_done"))
 
 
 def build_ddr2_bus(bridge, *, pumice_base: int = DDR2_APB_BASE,
