@@ -156,9 +156,26 @@ class DDR2LPDDR2CoreMacroTB:
         cocotb.start_soon(_init_complete_after(init_complete_delay))
 
     def init_dfi_slave(self, *, strict_violations: bool = False) -> DFISlavePHY:
+        # Board-faithful DFI cadence via env: DFI_STRICT_TIMING=1 ties read
+        # returns to the controller's dfi_rddata_en (+DFI_READ_LATENCY) and
+        # write captures to command+DFI_WRITE_LATENCY, instead of self-timing
+        # off the command. Exposes rddata_en/wrdata_en cadence bugs that the
+        # lenient (zero-latency) loopback hides but silicon fails on.
+        import os as _os
+        def _flag(*names):
+            return any(_os.environ.get(n, "") in ("1", "true", "True") for n in names)
+        _both = _flag("DFI_STRICT_TIMING")
+        _sr = _both or _flag("DFI_STRICT_READ")
+        _sw = _both or _flag("DFI_STRICT_WRITE")
+        _rlat = int(_os.environ.get("DFI_READ_LATENCY", "0"))
+        _wlat = int(_os.environ.get("DFI_WRITE_LATENCY", "0"))
         self.dfi_slave = DFISlavePHY(
             self.dut, self.dut.mc_clk,
             base=self.dfi_base, memory=self.memory,
+            strict_read_timing=_sr,
+            strict_write_timing=_sw,
+            read_latency=_rlat,
+            write_latency=_wlat,
         )
         if not strict_violations:
             self.dfi_slave.dram = DramStateModel(
