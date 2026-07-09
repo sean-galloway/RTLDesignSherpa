@@ -362,8 +362,11 @@ module scheduler #(
     // Completion flags
     // Combinational checks for phase completion (beats_remaining == 0)
     logic w_read_complete;                        // All source data read
-    logic w_write_complete;                       // All destination data written
-    logic w_transfer_complete;                    // Both read and write complete
+    logic w_write_issued;                         // All destination beats ISSUED (advance gate)
+    logic w_write_complete;                       // All destination beats COMMITTED (channel-done gate)
+    logic w_transfer_complete;                    // read done AND writes ISSUED (per-descriptor advance)
+    logic w_desc_launch;                          // 1-cyc pulse: a descriptor enters CH_XFER_DATA
+    logic [31:0] w_ctc_next;                      // next value of the commit accumulator
 
     //=========================================================================
     // Channel Reset Management
@@ -453,13 +456,20 @@ module scheduler #(
                     end
 
                     CH_COMPLETE: begin
-                        // Descriptor complete - check for chaining
-                        // Chain if: next_descriptor_ptr != 0 AND last flag not set
+                        // Descriptor complete - check for chaining.
+                        // Chained: advance IMMEDIATELY (this descriptor's writes were
+                        // only ISSUED, not necessarily committed -- they commit in the
+                        // background while the next descriptor streams). This is what
+                        // keeps the rd/wr streams continuous across the chain.
+                        // Last descriptor: HOLD here until every write has COMMITTED
+                        // (w_write_complete, the channel-level accumulator) so the
+                        // channel is not reported done/idle before data lands.
                         if (r_descriptor.next_descriptor_ptr != 32'h0 && !r_descriptor.last) begin
-                            w_next_state = CH_NEXT_DESC;  // Fetch next descriptor in chain
-                        end else begin
-                            w_next_state = CH_IDLE;       // Transfer complete, return to idle
+                            w_next_state = CH_NEXT_DESC;  // chained -> advance now (issue-based)
+                        end else if (w_write_complete) begin
+                            w_next_state = CH_IDLE;       // last -> done only after all commits land
                         end
+                        // else: last descriptor, still draining commits -> stay in CH_COMPLETE
                     end
 
                     CH_NEXT_DESC: begin
@@ -524,7 +534,7 @@ module scheduler #(
             r_beats_remaining <= 32'h0;
             r_read_beats_remaining <= 32'h0;
             r_write_beats_remaining <= 32'h0;
-            r_write_beats_to_commit <= 32'h0;
+            // r_write_beats_to_commit reset lives in its own always_ff (below).
             r_rd_run_remaining <= 32'h0;
             r_wr_run_remaining <= 32'h0;
             r_is_ext <= 1'b0;
@@ -578,7 +588,10 @@ module scheduler #(
                     r_beats_remaining <= r_descriptor.length;
                     r_read_beats_remaining <= r_descriptor.length;
                     r_write_beats_remaining <= r_descriptor.length;
-                    r_write_beats_to_commit <= r_descriptor.length;
+                    // r_write_beats_to_commit is NOT loaded here -- it is a
+                    // channel-level running counter (dedicated always_ff below):
+                    // this descriptor's length is ADDED to it on launch so pending
+                    // commits accumulate across the chain instead of resetting.
                     // TASK-101: seed the contiguous-run counters (whole transfer
                     // for legacy, min(inner_count, length) for EXT).
                     r_rd_run_remaining <= w_rd_run_init;
@@ -650,14 +663,11 @@ module scheduler #(
                                                 w_wr_run_size : r_write_beats_remaining;
                     end
 
-                    // Write COMMIT progress: fires on B response (data actually written
-                    // to the destination). Decrements the COMMIT counter, which gates
-                    // completion (w_write_complete) so a channel is not reported done
-                    // until every issued write has been acknowledged.
-                    if (sched_wr_commit_strobe) begin
-                        r_write_beats_to_commit <= (r_write_beats_to_commit >= sched_wr_commit_beats) ?
-                                                (r_write_beats_to_commit - sched_wr_commit_beats) : 32'h0;
-                    end
+                    // Write COMMIT progress is tracked by the channel-level
+                    // r_write_beats_to_commit accumulator below (a dedicated
+                    // always_ff), NOT here -- commits for descriptor N keep
+                    // arriving while N+1 already streams, i.e. while the FSM has
+                    // left CH_XFER_DATA, so the decrement must be state-independent.
                 end
 
                 CH_COMPLETE: begin
@@ -691,11 +701,48 @@ module scheduler #(
     //=========================================================================
 
     assign w_read_complete = (r_read_beats_remaining == 32'h0);
-    // Write is complete only when all issued beats have been COMMITTED (B responses),
-    // not merely issued (r_write_beats_remaining). This prevents the channel from
-    // signalling done/interrupt while write data is still draining to memory.
+
+    // -----------------------------------------------------------------------
+    // Channel-level outstanding-write-COMMIT accumulator (Option A).
+    // Each descriptor ADDS its length when it launches (CH_FETCH_DESC ->
+    // CH_XFER_DATA); every B-response SUBTRACTS its committed beats, REGARDLESS
+    // of FSM state -- commits for descriptor N keep arriving after the FSM has
+    // moved on to N+1. So this tracks total in-flight (issued-but-uncommitted)
+    // write beats across the whole chain and gates ONLY the final channel-done
+    // (never the per-descriptor advance), letting chained descriptors stream
+    // continuously while their writes commit in the background.
+    // -----------------------------------------------------------------------
+    assign w_desc_launch = w_state_fetch_desc && (w_next_state == CH_XFER_DATA);
+    always_comb begin
+        w_ctc_next = r_write_beats_to_commit;
+        if (w_desc_launch)
+            w_ctc_next = w_ctc_next + r_descriptor.length;
+        if (sched_wr_commit_strobe)
+            w_ctc_next = (w_ctc_next >= sched_wr_commit_beats) ?
+                         (w_ctc_next - sched_wr_commit_beats) : 32'h0;
+    end
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n))
+            r_write_beats_to_commit <= 32'h0;
+        else if (r_channel_reset_active)
+            r_write_beats_to_commit <= 32'h0;
+        else
+            r_write_beats_to_commit <= w_ctc_next;
+    )
+
+    // Writes ISSUED (all AW/W handshakes) -> gates the per-descriptor ADVANCE
+    // (CH_XFER_DATA -> CH_COMPLETE), so a chained descriptor streams while its
+    // writes commit in the background. 56486792 wrongly commit-gated this,
+    // serializing the write-drain at every descriptor boundary; that commit gate
+    // now applies only to the final channel-done below.
+    assign w_write_issued   = (r_write_beats_remaining == 32'h0);
+    // Writes COMMITTED (channel-level accumulator) -> gates ONLY the final
+    // CH_COMPLETE -> CH_IDLE (channel-done coherency: no done/interrupt while
+    // write data still drains). In-order AXI: the last descriptor's commits imply
+    // all earlier ones committed.
     assign w_write_complete = (r_write_beats_to_commit == 32'h0);
-    assign w_transfer_complete = w_read_complete && w_write_complete;
+    // Per-descriptor advance is ISSUE-based (streaming); channel-done is COMMIT.
+    assign w_transfer_complete = w_read_complete && w_write_issued;
 
     // Look-ahead completion detection:
     // De-assert valid on the SAME CYCLE that the completion strobe arrives
@@ -1092,11 +1139,14 @@ module scheduler #(
     endproperty
     assert property (descriptor_valid_check);
 
-    // Concurrent transfer completion: Exit CH_XFER_DATA only when BOTH complete
+    // Concurrent transfer completion: Exit CH_XFER_DATA when reads are done AND
+    // all writes are ISSUED (Option A -- advance is issue-based so chained
+    // descriptors stream; write COMMITs drain in the background and gate only the
+    // final CH_COMPLETE -> CH_IDLE, not this transition).
     property concurrent_transfer_complete;
         @(posedge clk) disable iff (!rst_n)
         (r_current_state == CH_XFER_DATA && w_next_state == CH_COMPLETE) |->
-            (w_read_complete && w_write_complete);
+            (w_read_complete && w_write_issued);
     endproperty
     assert property (concurrent_transfer_complete);
 
