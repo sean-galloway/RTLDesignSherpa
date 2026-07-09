@@ -301,10 +301,14 @@ module scheduler
             w_wr_leaf_ok[i] = wr_match_pending_i[i] && !r_pv[bf] && !ji;
         end
         for (int unsigned i = 0; i < RD_CAM_DEPTH; i++) begin
-            automatic int unsigned bf = flat_of(int'(rd_snap_rank_i[i]), int'(rd_snap_bank_i[i]));
+            // Reads: do NOT mask on bank-busy — the tournament must always
+            // surface the GLOBALLY oldest pending read so a younger read on a
+            // free bank can never be assigned ahead of it. Bank-free is enforced
+            // at assignment (!r_pv[w_asg_f]) and one-read-in-flight
+            // (!w_any_read_if) keeps reads issuing strictly in AR order.
             automatic logic ji = (r_rd_ji_v[0] && r_rd_ji_s[0] == RSL'(i))
                                || (r_rd_ji_v[1] && r_rd_ji_s[1] == RSL'(i));
-            w_rd_leaf_ok[i] = rd_match_pending_i[i] && !r_pv[bf] && !ji;
+            w_rd_leaf_ok[i] = rd_match_pending_i[i] && !ji;
         end
     end
 
@@ -493,13 +497,32 @@ module scheduler
     logic w_quiesce_req;
     assign w_quiesce_req = refresh_req_i || mr_req_i || pdn_req_i;
 
+    // Read ordering: the read return path (rd_cl_aligner + axi_intake R-emit)
+    // emits strictly in RD-issue order and the host matches the Nth R burst to
+    // the Nth AR (per id). Bank-parallel read issue would reorder same-id reads
+    // (a read whose bank readies first jumps an older read on a busier bank) ->
+    // the in-order R path mis-pairs data. So keep at most ONE read op in flight:
+    // a read is assigned only when no read is already in a bank machine. With
+    // the oldest-first tournament (and the read leaf below NOT masking bank-busy,
+    // so the GLOBAL oldest read is always the one surfaced) this forces reads to
+    // issue strictly in AR (age) order. Writes stay fully bank-parallel (each
+    // carries its own address, so their issue order is immaterial to data).
+    logic w_any_read_if;
+    always_comb begin
+        w_any_read_if = 1'b0;
+        for (int unsigned f = 0; f < NB_TOT; f++)
+            if (r_pv[f] && !r_pwr[f]) w_any_read_if = 1'b1;
+    end
+
     // Do-assign: a valid best op whose bank machine is free — but NOT while a
-    // refresh/MRS is pending (let the banks drain to idle first).
+    // refresh/MRS is pending (let the banks drain to idle first), and a READ
+    // only when no read is already in flight (in-order read discipline).
     logic          w_do_assign;
     int unsigned   w_asg_f;
     always_comb begin
         w_asg_f     = flat_of(int'(w_asg_rank), int'(w_asg_bank));
-        w_do_assign = w_asg_have && !r_pv[w_asg_f] && !w_quiesce_req;
+        w_do_assign = w_asg_have && !r_pv[w_asg_f] && !w_quiesce_req
+                   && (w_asg_is_wr || !w_any_read_if);
     end
 
     //=========================================================================

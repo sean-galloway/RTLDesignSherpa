@@ -25,6 +25,39 @@ injection gating.
   so forcing PH_ACT waited on bank_act_ready forever; removed that block).
 - pumice_core_macro smoke + ~75/109 of the full matrix.
 
+## kb32 update: read reorder FIXED; residual is a data-path age-wrap bug
+
+Added a self-checking probe (RD column commands must issue in monotonic age
+order) — it caught the reorder and now verifies the fix. Root cause of the
+reorder: at N=1024 the rd_cmd_cam's 8-bit age counter WRAPS (255->0) ~every 256
+reads; same-id reads spanning the wrap sit on DIFFERENT banks, so bank-parallel
+issue let a younger read (age 0) beat an older one (age 241) -> the strictly
+in-issue-order read return path (rd_cl_aligner + axi_intake R-emit) mis-paired
+data with requests.
+
+FIX (in wip, verified reorders=0): reads issue strictly in AR (age) order —
+one read op in flight at a time (`w_any_read_if` gates read assignment) and the
+read tournament leaf drops the bank-busy mask so the GLOBALLY oldest read is
+always surfaced (a younger read on a free bank can't jump an older read on a
+busy bank). Writes stay fully bank-parallel (each carries its own address).
+Probe now reports **0 reorders**.
+
+BUT kb32 still fails (burst 254, then 511 after also serializing writes) —
+always JUST BEFORE an age-wrap multiple (256, 512). Reads AND writes are both
+verified in-order, and the aligner emits in issue order (no age compare in the
+data path), so this is NOT scheduler ordering. It is a DATA-PATH interaction of
+the 8-bit age wrap with real DFI read latency (top-level only — core-macro
+N=1024 passes because its near-zero-latency model never builds the outstanding
+depth that exposes it). Symptom: `wrote f(254) read f(286)` — burst 286's data
+at burst 254's slot (286-254 = 32 = 2xCAM_DEPTH -> slot-reuse). The old FSM's
+slower one-op-at-a-time pacing never reaches this boundary condition.
+
+Next: waveform-debug the read path (rd_cl_aligner per-op DFI capture / staging)
++ write w_buf slot free->reuse at the age-wrap + real-latency boundary; or widen
+the CAM age so it doesn't wrap over the outstanding-window lifetime (invasive:
+AGEW in rd_cmd_cam/wr_cmd_cam + all scheduler age paths). The read-ordering fix
+is correct regardless and stays in the WIP.
+
 ## RESOLVED: the primary bug was refresh interrupting an in-flight op
 
 The "nondeterministic slot-reuse race" below was mis-diagnosed. Waveform tracing
