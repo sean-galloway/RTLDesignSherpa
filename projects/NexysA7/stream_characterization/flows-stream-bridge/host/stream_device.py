@@ -19,10 +19,11 @@ byte channel differs (see TBClasses.harness).
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Optional
 
-from TBClasses.harness.device import Device
+from TBClasses.harness.device import Device, DeviceBus
 from descriptor_builder import DescriptorBuilder
 
 
@@ -49,9 +50,10 @@ class Stream(Device):
 
     def __init__(self, bridge, name: str, *, regs_base: int, desc_ram_base: int,
                  regmap_file: Optional[str] = None, data_width: int = 128,
-                 src_base: int = 0x8000_0000, dst_base: int = 0x9000_0000):
+                 src_base: int = 0x8000_0000, dst_base: int = 0x9000_0000,
+                 log: Optional[logging.Logger] = None):
         super().__init__(bridge, name, regs_base=regs_base,
-                         regmap_file=regmap_file or _default_regmap())
+                         regmap_file=regmap_file or _default_regmap(), log=log)
         self.desc = DescriptorBuilder(data_width=data_width, src_base=src_base,
                                       dst_base=dst_base, desc_ram_base=desc_ram_base)
 
@@ -110,3 +112,34 @@ class Stream(Device):
         if kick_addr is None:
             kick_addr = self.desc.kick_address(channel)
         self.kick(channel, kick_addr)
+
+
+# Base addresses of the two register windows in the char-harness bridge map.
+STREAM_APB_BASE  = 0x0000_0000   # STREAM controller APB slave (stream_regmap.py)
+HARNESS_CSR_BASE = 0x0001_0000   # char-harness control block (harness_csr_regmap.py)
+
+
+def build_stream_bus(bridge, *, stream_base: int = STREAM_APB_BASE,
+                     harness_base: int = HARNESS_CSR_BASE,
+                     desc_ram_base: int = 0x0002_0000,
+                     log: Optional[logging.Logger] = None) -> DeviceBus:
+    """Compose the STREAM char flow's register spaces onto one DeviceBus.
+
+    Each regmap imports on its own as a named Device -- NO hand-merging:
+      * bus["stream"]  -> the generated STREAM controller regmap (stream_regmap.py),
+                          which already includes the monitor block @0x1000 (the
+                          MON regfile is instantiated there by stream_regs.rdl).
+                          Typed as `Stream` so it also carries descriptor/kick ops.
+      * bus["harness"] -> the char-harness regmap (harness_csr_regmap.py, the one
+                          hand-authored CSR map).
+
+    Host tools access everything by name -- bus["stream"].SCHED_CONFIG,
+    bus["harness"].KICK_GO.write_word(m) -- over the one injected bridge, so the
+    same code drives silicon and cocotb sim.
+    """
+    from harness_addrs import _default_regmap as _harness_regmap  # sibling module
+    bus = DeviceBus(bridge, log=log)
+    bus.add("stream", base=stream_base, regmap_file=_default_regmap(),
+            cls=Stream, desc_ram_base=desc_ram_base)
+    bus.add("harness", base=harness_base, regmap_file=_harness_regmap())
+    return bus

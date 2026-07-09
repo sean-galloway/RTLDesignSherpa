@@ -116,7 +116,9 @@ def test_no_hardcoded_harness_offsets_in_host_tools():
     hits = []
     for path in glob.glob(os.path.join(_HERE, "*.py")):
         name = os.path.basename(path)
-        if name in ("harness_addrs.py",):   # the resolver is allowed the base
+        # harness_addrs.py owns the base constant; test_*.py legitimately
+        # compute expected addresses as base + offset.
+        if name == "harness_addrs.py" or name.startswith("test_"):
             continue
         for i, line in enumerate(open(path), 1):
             code = line.split("#", 1)[0]     # ignore comments
