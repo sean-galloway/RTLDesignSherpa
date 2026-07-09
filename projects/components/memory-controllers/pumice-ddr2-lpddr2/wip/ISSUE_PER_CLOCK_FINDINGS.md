@@ -25,7 +25,28 @@ injection gating.
   so forcing PH_ACT waited on bank_act_ready forever; removed that block).
 - pumice_core_macro smoke + ~75/109 of the full matrix.
 
-## kb32 update: read reorder FIXED; residual is a data-path age-wrap bug
+## kb32 update 2: age-wrap DISPROVEN; residual is a WRITE-path slot-reuse race
+
+Widened the CAM push-order age to 16 bits + made the counter SATURATE (never
+wrap) — implemented across rd/wr_cmd_cam + axi_frontend/pumice_core/command_
+scheduler macros + scheduler (AGE_W param). Correct (FUB 23/23, CSM 3/3, core
+depth_n1024 pass) but kb32 fails IDENTICALLY (burst 254, wrote f(254) read
+f(286)). So the age WRAP was NOT the root cause — DISPROVEN. Reverted the widen
+to keep the committed FSM shipping green (it forced widening the FSM too for no
+benefit); the read-ordering WIP stays 8-bit to match the macros.
+
+DEFINITIVE localization: it's a WRITE-path slot-reuse race. 254 mod 16 == 286
+mod 16 == 14 -> burst 254 and burst 286 use the SAME write CAM slot; burst 286's
+data lands at burst 254's DRAM address (memory[addr_254] = f(286)). Reads AND
+writes are both verified issue-in-order (probes), the aligner emits in issue
+order (no age compare), and widening the age changes nothing -> the bug is
+w_buf slot free->reuse vs write-data drain in the data path (wr_beat_sequencer /
+axi_intake / w_buf), exposed by the bank-parallel scheduler's write pacing (the
+old FSM's slower one-op-at-a-time cadence never reaches the reuse window). NEXT:
+gate w_buf slot reuse on the previous write's data fully draining (b_complete),
+or add a per-slot "data valid" interlock — a data-path fix, not scheduler.
+
+## kb32 update 1: read reorder FIXED; (earlier age-wrap hypothesis, now disproven)
 
 Added a self-checking probe (RD column commands must issue in monotonic age
 order) — it caught the reorder and now verifies the fix. Root cause of the
