@@ -37,6 +37,7 @@ module data_path_macro
     parameter int DFI_VALID_WIDTH = 1,
     parameter int DFI_EN_WIDTH    = 1,
     parameter int MAX_BURST_LEN   = 256,
+    parameter bit PREPULL_EN      = 1'b0,
 
     parameter int IW  = AXI_ID_WIDTH,
     parameter int WPW = W_BUF_PTR_WIDTH,
@@ -130,7 +131,8 @@ module data_path_macro
         .DRAM_STRB_WIDTH (DRAM_STRB_WIDTH),
         .DFI_STRB_WIDTH  (DFI_STRB_WIDTH),
         .DFI_EN_WIDTH    (DFI_EN_WIDTH),
-        .MAX_BURST_LEN   (MAX_BURST_LEN)
+        .MAX_BURST_LEN   (MAX_BURST_LEN),
+        .PREPULL_EN      (PREPULL_EN)
     ) u_wr_beat_sequencer (
         .mc_clk               (mc_clk),
         .mc_rst_n             (mc_rst_n),

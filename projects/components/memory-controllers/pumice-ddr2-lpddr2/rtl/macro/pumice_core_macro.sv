@@ -62,6 +62,7 @@ module pumice_core_macro
     parameter int DFI_RATE        = 2,
     parameter int DRAM_STRB_WIDTH = DRAM_BEAT_WIDTH / 8,
     parameter int MAX_BURST_LEN   = 256,
+    parameter bit PREPULL_EN      = 1'b0,
 
     // Per-phase DFI widths (multi-phase bus widths are × DFI_RATE)
     parameter int DFI_ADDR_WIDTH  = 14,
@@ -537,7 +538,8 @@ module pumice_core_macro
         .WR_CAM_DEPTH    (WR_CAM_DEPTH),
         .RD_CAM_DEPTH    (RD_CAM_DEPTH),
         .DFI_CS_WIDTH    (DFI_CS_WIDTH),
-        .PAGE_POLICY     (PAGE_POLICY)
+        .PAGE_POLICY     (PAGE_POLICY),
+        .PREPULL_EN      (PREPULL_EN)
     ) u_command_scheduler (
         .mc_clk              (mc_clk),
         .mc_rst_n            (mc_rst_n),
@@ -640,7 +642,8 @@ module pumice_core_macro
         .DFI_STRB_WIDTH  (DFI_STRB_WIDTH),
         .DFI_VALID_WIDTH (DFI_VALID_WIDTH),
         .DFI_EN_WIDTH    (DFI_EN_WIDTH),
-        .MAX_BURST_LEN   (MAX_BURST_LEN)
+        .MAX_BURST_LEN   (MAX_BURST_LEN),
+        .PREPULL_EN      (PREPULL_EN)
     ) u_data_path (
         .mc_clk                (mc_clk),
         .mc_rst_n              (mc_rst_n),

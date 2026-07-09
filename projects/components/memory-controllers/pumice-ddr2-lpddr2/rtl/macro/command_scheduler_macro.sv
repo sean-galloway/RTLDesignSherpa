@@ -35,6 +35,7 @@ module command_scheduler_macro
     parameter int RD_CAM_DEPTH    = 16,
     parameter int DFI_CS_WIDTH    = NUM_RANKS,
     parameter int PAGE_POLICY     = 32'(PAGE_POLICY_CLOSE),
+    parameter bit PREPULL_EN      = 1'b0,
 
     parameter int IW  = AXI_ID_WIDTH,
     parameter int RKW = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
@@ -260,7 +261,8 @@ module command_scheduler_macro
         .COL_WIDTH       (CW),
         .BURST_LEN_WIDTH (BLW),
         .AXI_ID_WIDTH    (IW),
-        .PAGE_POLICY     (PAGE_POLICY)
+        .PAGE_POLICY     (PAGE_POLICY),
+        .PREPULL_EN      (PREPULL_EN)
     ) u_scheduler (
         .mc_clk             (mc_clk),
         .mc_rst_n           (mc_rst_n),
