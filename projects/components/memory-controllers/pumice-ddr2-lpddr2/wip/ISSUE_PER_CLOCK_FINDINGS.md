@@ -25,7 +25,40 @@ injection gating.
   so forcing PH_ACT waited on bank_act_ready forever; removed that block).
 - pumice_core_macro smoke + ~75/109 of the full matrix.
 
-## UPDATED root cause (waveform-traced): a slot-reuse RACE
+## RESOLVED: the primary bug was refresh interrupting an in-flight op
+
+The "nondeterministic slot-reuse race" below was mis-diagnosed. Waveform tracing
+of `id_fixed_7_n64` (disable refresh via a huge t_refi → it PASSES) pinned the
+real cause: the bank-parallel issuer GRANTED refresh while a column op was mid
+ACT→RDWR, interrupting its data transfer (the old single-op FSM only granted
+refresh in S_IDLE, between ops). Fix (in wip/scheduler_bankparallel_wip.sv):
+**quiesce before refresh/MRS/pdn** — `w_do_assign` is gated by `!w_quiesce_req`
+so no NEW op launches while such a request is pending, and the injection is
+granted only when all banks are idle (`!w_any_pv`); in-flight ops drain first.
+
+Result with the quiesce fix (all clean, refresh enabled):
+- scheduler FUB: **23/23**   - command_scheduler_macro: **3/3**
+- pumice_core_macro: **109/109** (full matrix)
+- pumice_top: **88/89**
+
+REMAINING: `pumice_top engine_mirror[kb32]` (N=1024, FIXED-id, TOP level with
+real DFI PHY timing). The OLD FSM passes it; the bank-parallel version fails with
+a same-id READ reorder — at N=1024 the address range spans many banks, and the
+read return path (rd_cl_aligner + axi_intake R-emit) is strictly in-issue-order
+while the host matches the Nth R burst to the Nth AR. A younger same-id read
+whose bank readies first is issued ahead of an older one → mis-paired data.
+(core-macro same-id tests stay single-bank at their N, so they don't expose it.)
+Attempts to enforce read AR-order in the scheduler (one-read-in-flight; oldest-
+read-only leaf; an age-based issued-guard) moved the failure later (burst
+241→254) but a) did not fully close it and b) broke FUB `random_soak` (the
+age-contiguity assumption / read serialization is too fragile). A correct fix
+needs a dedicated, carefully-verified AR-order read-issue mechanism (e.g. a
+per-id next-expected-age pointer sourced from the rd_cmd_cam's real age
+semantics) checked against BOTH `random_soak` and `kb32`. Until then the
+bank-parallel scheduler is NOT instantiated; committed scheduler.sv (old FSM +
+runtime policy) ships and keeps kb32 green.
+
+## (Earlier mis-diagnosis) slot-reuse RACE
 
 Traced the smallest clean reproducer **`id_fixed_7_n64`** (N=64 same-id-7 BL4
 bursts, all one bank/row; run it alone with a wiped sim_build). Instrumenting the

@@ -476,12 +476,30 @@ module scheduler
         end
     end
 
-    // Do-assign: a valid best op whose bank machine is free.
+    // Any bank machine currently occupied? Used to quiesce before a
+    // refresh/MRS: those commands need all banks idle (JEDEC), and — unlike
+    // the old single-op FSM which only granted refresh between ops — the
+    // bank-parallel issuer could otherwise grant refresh while a column op is
+    // mid ACT->RDWR, interrupting its data transfer and corrupting it.
+    logic w_any_pv;
+    always_comb begin
+        w_any_pv = 1'b0;
+        for (int unsigned f = 0; f < NB_TOT; f++)
+            if (r_pv[f]) w_any_pv = 1'b1;
+    end
+
+    // A refresh/MRS request is pending: stop launching NEW ops so the in-flight
+    // ones drain, then grant once fully quiesced.
+    logic w_quiesce_req;
+    assign w_quiesce_req = refresh_req_i || mr_req_i || pdn_req_i;
+
+    // Do-assign: a valid best op whose bank machine is free — but NOT while a
+    // refresh/MRS is pending (let the banks drain to idle first).
     logic          w_do_assign;
     int unsigned   w_asg_f;
     always_comb begin
         w_asg_f     = flat_of(int'(w_asg_rank), int'(w_asg_bank));
-        w_do_assign = w_asg_have && !r_pv[w_asg_f];
+        w_do_assign = w_asg_have && !r_pv[w_asg_f] && !w_quiesce_req;
     end
 
     //=========================================================================
@@ -624,17 +642,23 @@ module scheduler
                 w_cmd_bank  = init_cmd_bank_i;
                 w_cmd_row   = init_cmd_row_i;
             end
-        end else if (!r_lock_v && mr_req_i) begin
+        // MRS / refresh / pdn are granted ONLY when all banks are idle
+        // (!w_any_pv). While such a request is pending but banks are still
+        // busy, these conditions are false so bank commands fall through and
+        // issue — draining the in-flight ops (new ops are held off by
+        // w_quiesce_req in w_do_assign). This restores the old FSM's invariant
+        // that refresh/MRS never interrupt a column op mid-transfer.
+        end else if (!r_lock_v && mr_req_i && !w_any_pv) begin
             w_inject    = 1'b1;
             w_op        = OP_MRS;
             w_cmd_valid = 1'b1;
             w_mr_grant  = cmd_ready_i;
-        end else if (!r_lock_v && refresh_req_i) begin
+        end else if (!r_lock_v && refresh_req_i && !w_any_pv) begin
             w_inject        = 1'b1;
             w_op            = OP_REF;
             w_cmd_valid     = 1'b1;
             w_refresh_grant = cmd_ready_i;
-        end else if (!r_lock_v && pdn_req_i) begin
+        end else if (!r_lock_v && pdn_req_i && !w_any_pv) begin
             w_inject     = 1'b1;
             w_pdn_grant  = 1'b1;
         end else if (w_any_req) begin
