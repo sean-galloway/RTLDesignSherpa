@@ -74,14 +74,12 @@ module wr_beat_sequencer
     parameter int MAX_BURST_LEN   = 256,
     // v2 multi-outstanding: number of concurrent ops in flight.
     parameter int MAX_CONCURRENT  = 2,
-    // v3 pre-pull: when 1, the op context is allocated (and its data pull
+    // Pre-pull (always on): the op context is allocated (and its data pull
     // started) on the scheduler's PENDING-write signal (wr_prepull_*), BEFORE
     // the WR command is accepted; DRIVE is held until op_valid (the command).
     // With the scheduler gating the WR command on wr_data_ready_o, the write
     // data is staged by command time -> dfi_wrdata concurrent with the command
-    // (a7ddrphy write_latency=0), no cmd-delay shim. PREPULL_EN=0 is the
-    // original behavior (alloc + drive both on op_valid).
-    parameter bit PREPULL_EN      = 1'b0,
+    // (a7ddrphy write_latency=0), no cmd-delay shim.
 
     parameter int WSL = $clog2(WR_CAM_DEPTH),
     parameter int WPW = W_BUF_PTR_WIDTH,
@@ -222,7 +220,7 @@ module wr_beat_sequencer
     // wrdata concurrent with the command (write_latency=0).
     always_comb begin
         wr_data_ready_o = 1'b1;
-        if (PREPULL_EN && wr_prepull_valid_i) begin
+        if (wr_prepull_valid_i) begin
             wr_data_ready_o = w_pp_alloc_hit
                 && (r_op_pull_done[w_pp_alloc_idx]
                     || ({1'b0, r_op_beats_pulled[w_pp_alloc_idx]}
@@ -233,7 +231,7 @@ module wr_beat_sequencer
     // Pre-pull allocation this cycle: a pending write whose slot isn't already
     // allocated, there's a free slot, and op_valid isn't consuming it.
     logic w_prepull_alloc;
-    assign w_prepull_alloc = PREPULL_EN && wr_prepull_valid_i
+    assign w_prepull_alloc = wr_prepull_valid_i
                           && !w_pp_alloc_hit && w_has_free
                           && !(op_valid_i && op_ready_o && !w_ov_prealloc_hit);
 
@@ -395,9 +393,29 @@ module wr_beat_sequencer
             //    No FIFO shift ever runs on this or on drive-last (see
             //    section 4) — same fix pattern as rd_cl_aligner #31.
             //---------------------------------------------------------------
-            if (!PREPULL_EN) begin
-                // Original path: allocate + start driving on op_valid.
-                if (op_valid_i && op_ready_o) begin
+            // Pre-pull path (always on): allocate on the scheduler's PENDING
+            // write (start the data pull early, drive_started=0 so DRIVE holds),
+            // then ARM drive when the WR command is accepted (op_valid).
+            if (w_prepull_alloc) begin
+                r_op_valid        [w_free_slot] <= 1'b1;
+                r_op_slot         [w_free_slot] <= wr_prepull_slot_i;
+                r_op_len          [w_free_slot] <= wr_prepull_len_i;
+                r_op_beats_pulled [w_free_slot] <= '0;
+                r_op_pull_done    [w_free_slot] <= 1'b0;
+                r_op_wait_cnt     [w_free_slot] <= '0;
+                r_op_drive_started[w_free_slot] <= 1'b0;  // pull only, no drive
+                r_op_dfi_cycle_cnt[w_free_slot] <= '0;
+            end
+            if (op_valid_i && op_ready_o) begin
+                if (w_ov_prealloc_hit) begin
+                    // Adopt the pre-pulled op: arm DRIVE now (data staged).
+                    r_op_wait_cnt     [w_ov_prealloc_idx] <= t_phy_wrlat_i;
+                    r_op_drive_started[w_ov_prealloc_idx] <= 1'b1;
+                    r_op_dfi_cycle_cnt[w_ov_prealloc_idx] <= '0;
+                    r_drive_fifo[r_drive_tail_ptr[MCL-1:0]] <= w_ov_prealloc_idx;
+                    r_drive_tail_ptr <= w_drive_tail_next;
+                end else begin
+                    // Fallback: not pre-pulled — allocate + arm as normal.
                     r_op_valid        [w_free_slot] <= 1'b1;
                     r_op_slot         [w_free_slot] <= op_slot_i;
                     r_op_len          [w_free_slot] <= op_len_i;
@@ -408,42 +426,6 @@ module wr_beat_sequencer
                     r_op_dfi_cycle_cnt[w_free_slot] <= '0;
                     r_drive_fifo[r_drive_tail_ptr[MCL-1:0]] <= w_free_slot;
                     r_drive_tail_ptr <= w_drive_tail_next;
-                end
-            end else begin
-                // Pre-pull path: allocate on the scheduler's PENDING write
-                // (start the data pull early, drive_started=0 so DRIVE holds),
-                // then ARM drive when the WR command is accepted (op_valid).
-                if (w_prepull_alloc) begin
-                    r_op_valid        [w_free_slot] <= 1'b1;
-                    r_op_slot         [w_free_slot] <= wr_prepull_slot_i;
-                    r_op_len          [w_free_slot] <= wr_prepull_len_i;
-                    r_op_beats_pulled [w_free_slot] <= '0;
-                    r_op_pull_done    [w_free_slot] <= 1'b0;
-                    r_op_wait_cnt     [w_free_slot] <= '0;
-                    r_op_drive_started[w_free_slot] <= 1'b0;  // pull only, no drive
-                    r_op_dfi_cycle_cnt[w_free_slot] <= '0;
-                end
-                if (op_valid_i && op_ready_o) begin
-                    if (w_ov_prealloc_hit) begin
-                        // Adopt the pre-pulled op: arm DRIVE now (data staged).
-                        r_op_wait_cnt     [w_ov_prealloc_idx] <= t_phy_wrlat_i;
-                        r_op_drive_started[w_ov_prealloc_idx] <= 1'b1;
-                        r_op_dfi_cycle_cnt[w_ov_prealloc_idx] <= '0;
-                        r_drive_fifo[r_drive_tail_ptr[MCL-1:0]] <= w_ov_prealloc_idx;
-                        r_drive_tail_ptr <= w_drive_tail_next;
-                    end else begin
-                        // Fallback: not pre-pulled — allocate + arm as normal.
-                        r_op_valid        [w_free_slot] <= 1'b1;
-                        r_op_slot         [w_free_slot] <= op_slot_i;
-                        r_op_len          [w_free_slot] <= op_len_i;
-                        r_op_beats_pulled [w_free_slot] <= '0;
-                        r_op_pull_done    [w_free_slot] <= 1'b0;
-                        r_op_wait_cnt     [w_free_slot] <= t_phy_wrlat_i;
-                        r_op_drive_started[w_free_slot] <= 1'b1;
-                        r_op_dfi_cycle_cnt[w_free_slot] <= '0;
-                        r_drive_fifo[r_drive_tail_ptr[MCL-1:0]] <= w_free_slot;
-                        r_drive_tail_ptr <= w_drive_tail_next;
-                    end
                 end
             end
 
@@ -532,7 +514,7 @@ module wr_beat_sequencer
             // Free slot for a fresh alloc, OR (pre-pull) the pending write's
             // data is staged so op_valid can adopt its pre-pulled op.
             op_ready_o        <= w_has_free
-                              || (PREPULL_EN && wr_prepull_valid_i && wr_data_ready_o);
+                              || (wr_prepull_valid_i && wr_data_ready_o);
             beat_pull_strb_o  <= w_pull_have_winner;
             beat_pull_slot_o  <= r_op_slot[w_pull_winner];
             dfi_wrdata_o      <= w_dfi_wrdata;

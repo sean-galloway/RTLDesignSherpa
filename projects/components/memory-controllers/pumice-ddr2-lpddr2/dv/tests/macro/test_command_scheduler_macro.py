@@ -101,6 +101,8 @@ class CommandSchedulerMacroTB(TBBase):
         self.dut.rd_snap_len_i.value  = 0
 
         self.dut.cmd_ready_i.value         = 1
+        # Pre-pull always on: model "write data always staged" (no sequencer here).
+        self.dut.wr_data_ready_i.value     = 1
         self.dut.dfi_init_complete_i.value = 0
 
         await self.start_clock('mc_clk', freq=self.CLK, units='ns')

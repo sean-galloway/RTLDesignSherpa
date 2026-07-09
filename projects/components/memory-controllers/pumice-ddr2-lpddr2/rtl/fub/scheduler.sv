@@ -66,9 +66,6 @@ module scheduler
     // page_policy_e in the package). Typed as `int` so the test runner
     // can pass -GPAGE_POLICY=N without WIDTHTRUNC warnings.
     parameter int PAGE_POLICY     = 32'(PAGE_POLICY_CLOSE),
-    // v3 pre-pull: expose the pending write early + gate the WR command on the
-    // sequencer's wr_data_ready so wrdata is staged by command time.
-    parameter bit PREPULL_EN      = 1'b0,
 
     parameter int RKW = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int BKW = $clog2(NUM_BANKS),
@@ -225,6 +222,19 @@ module scheduler
     // cannot switch mid-handshake (which would drop the write -> corruption).
     logic           r_lock_v;
     logic [BFW-1:0] r_lock_f;
+
+    // Committed write target for pre-pull. The bank-parallel arbiter re-picks
+    // its winner every cycle, but pre-pull needs a STABLE target (like the
+    // single-op FSM's r_pending_is_wr) so the sequencer stages the data for
+    // exactly the write that will issue. We latch ONE PH_RDWR write bank as the
+    // committed target, drive wr_prepull_* from it, gate the WR issue on
+    // (bank == committed && wr_data_ready), and clear on issue — one write
+    // pre-pulled/issued at a time (ACT/PRE of other banks + reads still run in
+    // parallel). Driving wr_prepull_* from this REGISTERED target (not the live
+    // winner w_win) also breaks the wr_data_ready -> w_bank_req -> w_win ->
+    // wr_prepull_valid -> (seq) wr_data_ready synthesis combinational loop.
+    logic           r_wrc_v;
+    logic [BFW-1:0] r_wrc_f;
 
     // Flat bank index helper: f = rank*NUM_BANKS + bank (== bank when 1 rank).
     function automatic int unsigned flat_of(input int unsigned rk,
@@ -526,6 +536,31 @@ module scheduler
     end
 
     //=========================================================================
+    // Committed-write selection (pre-pull target). Lowest-index write bank
+    // currently in PH_RDWR — from REGISTERED state, so it is stable. Writes
+    // carry their own address, so issue order among them is a don't-care for
+    // correctness; lowest-index keeps it simple and starvation-free (a bank
+    // stays PH_RDWR until it issues).
+    //=========================================================================
+    logic           w_wrc_cand_v;
+    logic [BFW-1:0] w_wrc_cand_f;
+    always_comb begin
+        w_wrc_cand_v = 1'b0;
+        w_wrc_cand_f = '0;
+        for (int unsigned f = 0; f < NB_TOT; f++) begin
+            if (!w_wrc_cand_v && r_pv[f] && r_pwr[f]
+                              && (r_pphase[f] == PH_RDWR)) begin
+                w_wrc_cand_v = 1'b1;
+                w_wrc_cand_f = BFW'(f);
+            end
+        end
+    end
+    // Is the current committed target still a valid PH_RDWR write this cycle?
+    logic w_wrc_still_valid;
+    assign w_wrc_still_valid = r_wrc_v && r_pv[r_wrc_f] && r_pwr[r_wrc_f]
+                            && (r_pphase[r_wrc_f] == PH_RDWR);
+
+    //=========================================================================
     // Per-bank request: for each bank with a pending op, the command it wants
     // next and whether the safe timer allows issuing it THIS cycle.
     //=========================================================================
@@ -561,8 +596,17 @@ module scheduler
                         w_bank_ap[f]  = ap;
                         w_bank_op[f]  = r_pwr[f] ? (ap ? OP_WRA : OP_WR)
                                                  : (ap ? OP_RDA : OP_RD);
+                        // A WRITE may issue only when it is the committed
+                        // pre-pull target AND its data is staged (wr_data_ready)
+                        // -> wrdata concurrent with the command (write_latency=0)
+                        // AND the sequencer holds exactly this slot's data.
+                        // Reads have no such gate (AR order comes from the
+                        // one-read-in-flight assignment discipline).
                         w_bank_req[f] = bank_rdwr_ready_i[rk][bk]
-                                     && (!(PREPULL_EN && r_pwr[f]) || wr_data_ready_i);
+                                     && (r_pwr[f]
+                                         ? (r_wrc_v && (BFW'(f) == r_wrc_f)
+                                            && wr_data_ready_i)
+                                         : 1'b1);
                     end
                     default: ;
                 endcase
@@ -807,6 +851,8 @@ module scheduler
             r_r_age <= 8'd0;
             r_lock_v <= 1'b0;
             r_lock_f <= '0;
+            r_wrc_v  <= 1'b0;
+            r_wrc_f  <= '0;
         end else begin
             // ----- command-hold lock: set when a bank command is presented
             // but not accepted; clear on accept (or when nothing is presented).
@@ -815,6 +861,17 @@ module scheduler
                 r_lock_f <= BFW'(w_win);
             end else begin
                 r_lock_v <= 1'b0;
+            end
+
+            // ----- committed-write target (pre-pull): hold one PH_RDWR write
+            // stable until it issues, then recommit the next one. -----
+            if (w_bank_go && w_bank_acc && r_pwr[w_win]
+                && (r_pphase[w_win] == PH_RDWR)
+                && r_wrc_v && (BFW'(w_win) == r_wrc_f)) begin
+                r_wrc_v <= 1'b0;              // committed write issued
+            end else if (!w_wrc_still_valid) begin
+                r_wrc_v <= w_wrc_cand_v;      // (re)commit lowest-index RDWR write
+                r_wrc_f <= w_wrc_cand_f;
             end
             // ----- W/R starvation ages (assignment-source fairness) -----
             if (w_have_wr && r_w_age != 8'hFF) r_w_age <= r_w_age + 8'd1;
@@ -882,13 +939,13 @@ module scheduler
     wire unused_v2 = |{ wr_match_rowhit_i, rd_match_rowhit_i };
 
     //=========================================================================
-    // Pre-pull: expose the arbiter-winning write (heading to its RD/WR issue)
-    // so the sequencer can stage its data ahead of the command.
+    // Pre-pull: expose the COMMITTED write (stable, registered) so the
+    // sequencer stages exactly the write that will issue. Registered target ->
+    // no wr_data_ready feedback into w_win -> no combinational loop.
     //=========================================================================
-    assign wr_prepull_valid_o = PREPULL_EN && w_any_req && r_pv[w_win]
-                             && r_pwr[w_win] && (r_pphase[w_win] == PH_RDWR);
-    assign wr_prepull_slot_o  = r_pslot[w_win][WSL-1:0];
-    assign wr_prepull_len_o   = r_plen[w_win];
+    assign wr_prepull_valid_o = r_wrc_v;
+    assign wr_prepull_slot_o  = r_pslot[r_wrc_f][WSL-1:0];
+    assign wr_prepull_len_o   = r_plen[r_wrc_f];
 
 
 

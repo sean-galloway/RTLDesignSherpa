@@ -459,10 +459,9 @@ module ddr2_char_macro
         .W_BUF_DEPTH     (W_BUF_DEPTH),
         .DFI_RATE        (DFI_RATE),
         .PAGE_POLICY     (PAGE_POLICY),
-        .MAX_BURST_LEN   (MAX_BURST_LEN),
-        // Enable the pre-pull write path so wrdata is staged by command time
-        // (a7ddrphy write_latency=0) natively — retires the dfi_cmd_delay shim.
-        .PREPULL_EN      (1'b1)
+        .MAX_BURST_LEN   (MAX_BURST_LEN)
+        // Pre-pull write path is always on (wrdata staged by command time for
+        // a7ddrphy write_latency=0) — PREPULL_EN parameter removed.
     ) u_ctrl (
         .mc_clk                (mc_clk),
         .mc_rst_n              (mc_rst_n),

@@ -99,6 +99,10 @@ class SchedTB(TBBase):
         self.dut.init_busy_i.value   = 0
         self.dut.mr_req_i.value      = 0
         self.dut.cmd_ready_i.value   = 1
+        # Pre-pull is always on: a WRITE issues only when its data is staged.
+        # This FUB has no real sequencer, so model "data always staged" —
+        # writes gate purely on the committed-target + timer readiness.
+        self.dut.wr_data_ready_i.value = 1
 
         await self.start_clock('mc_clk', freq=self.CLK, units='ns')
         self.dut.mc_rst_n.value = 0
@@ -186,7 +190,9 @@ async def cocotb_test_scheduler(dut):
         assert tb.cmd_valid() == 1, "should be issuing"
         assert tb.cmd_op() == OP_ACT, f"got op {tb.cmd_op()}"
         assert tb.evt_act() == 1
-        await tb.wait_clocks('mc_clk', 1)
+        # +1: commit-hold registers the pre-pull target, so WRA is one cycle
+        # after PH_RDWR is entered (was 1; now 2 cycles after ACT).
+        await tb.wait_clocks('mc_clk', 2)
         assert tb.cmd_op() == OP_WRA, f"expected WRA, got {tb.cmd_op()}"
         assert tb.evt_wr() == 1
         # wr_issued_we_o fires the same cycle as the WRA registers
@@ -262,7 +268,7 @@ async def cocotb_test_scheduler(dut):
         await tb.wait_clocks('mc_clk', 1)
         assert tb.cmd_op() == OP_ACT, f"got op {tb.cmd_op()}"
         assert tb.evt_act() == 1
-        await tb.wait_clocks('mc_clk', 1)
+        await tb.wait_clocks('mc_clk', 2)  # +1: commit-hold delays WRA one cycle
         # CLOSE policy → WRA (closed-page default in this test)
         assert tb.cmd_op() == OP_WRA
         tb.clear_pending()
@@ -275,7 +281,7 @@ async def cocotb_test_scheduler(dut):
         tb.dut.bank_row_active_i.value = 1
         tb.dut.bank_open_row_i.value   = 0
         tb.set_wr_pending(slot=0, col=0x40, length=4)
-        await tb.wait_clocks('mc_clk', 4)  # +2 for 2-stage pipelined pick
+        await tb.wait_clocks('mc_clk', 5)  # +2 pick, +1 commit-hold (row-hit WR)
         # No ACT — go straight to RDWR with plain WR
         assert tb.cmd_op() == OP_WR, f"expected WR (no auto-pre), got {tb.cmd_op()}"
         tb.clear_pending()
@@ -292,7 +298,7 @@ async def cocotb_test_scheduler(dut):
         assert tb.cmd_op() == OP_PRE, f"expected PRE, got {tb.cmd_op()}"
         await tb.wait_clocks('mc_clk', 1)
         assert tb.cmd_op() == OP_ACT, f"expected ACT, got {tb.cmd_op()}"
-        await tb.wait_clocks('mc_clk', 1)
+        await tb.wait_clocks('mc_clk', 2)  # +1: commit-hold delays WR one cycle
         assert tb.cmd_op() == OP_WR, f"expected WR, got {tb.cmd_op()}"
         tb.clear_pending()
 
@@ -303,7 +309,7 @@ async def cocotb_test_scheduler(dut):
         tb.set_wr_pending(slot=0, col=0x40, length=4)
         await tb.wait_clocks('mc_clk', 4)  # +2 for 2-stage pipelined pick
         assert tb.cmd_op() == OP_ACT
-        await tb.wait_clocks('mc_clk', 1)
+        await tb.wait_clocks('mc_clk', 2)  # +1: commit-hold delays WR one cycle
         assert tb.cmd_op() == OP_WR, f"OPEN should issue WR, got {tb.cmd_op()}"
         tb.clear_pending()
 
@@ -316,7 +322,7 @@ async def cocotb_test_scheduler(dut):
         tb.set_wr_pending(slot=0, col=0x40, length=4)
         await tb.wait_clocks('mc_clk', 4)  # +2 for 2-stage pipelined pick
         assert tb.cmd_op() == OP_ACT
-        await tb.wait_clocks('mc_clk', 1)
+        await tb.wait_clocks('mc_clk', 2)  # +1: commit-hold delays WR one cycle
         assert tb.cmd_op() == OP_WR, f"HAPPY predict-open → WR, got {tb.cmd_op()}"
         tb.clear_pending()
 
@@ -327,7 +333,7 @@ async def cocotb_test_scheduler(dut):
         tb.set_wr_pending(slot=0, col=0x40, length=4)
         await tb.wait_clocks('mc_clk', 4)  # +2 for 2-stage pipelined pick
         assert tb.cmd_op() == OP_ACT
-        await tb.wait_clocks('mc_clk', 1)
+        await tb.wait_clocks('mc_clk', 2)  # +1: commit-hold delays WRA one cycle
         assert tb.cmd_op() == OP_WRA, f"HAPPY predict-close → WRA, got {tb.cmd_op()}"
         tb.clear_pending()
 
@@ -353,7 +359,7 @@ async def cocotb_test_scheduler(dut):
             assert tb.cmd_op() == OP_ACT, (
                 f"iter {i}: expected ACT, got {tb.cmd_op()}"
             )
-            await tb.wait_clocks('mc_clk', 1)
+            await tb.wait_clocks('mc_clk', 2)  # +1: commit-hold delays WRA
             assert tb.cmd_op() == OP_WRA, (
                 f"iter {i}: CLOSE policy must auto-precharge, got {tb.cmd_op()}"
             )
@@ -392,7 +398,7 @@ async def cocotb_test_scheduler(dut):
             tb.dut.bank_open_row_i.value   = (row << (bank * tb.ROW_WIDTH))
             tb.set_wr_pending_full(slot=0, bank=bank, row=row,
                                    col=v['col'], length=4)
-            await tb.wait_clocks('mc_clk', 4)  # +2 for 2-stage pipelined pick
+            await tb.wait_clocks('mc_clk', 5)  # +2 pick, +1 commit-hold (row-hit WR)
             assert tb.cmd_op() == OP_WR, (
                 f"iter {i}: row-hit must skip ACT and issue WR "
                 f"(bank={bank} row={row:#x}), got {tb.cmd_op()}"
@@ -431,7 +437,7 @@ async def cocotb_test_scheduler(dut):
             assert tb.cmd_op() == OP_ACT, (
                 f"iter {i}: after PRE, expected ACT, got {tb.cmd_op()}"
             )
-            await tb.wait_clocks('mc_clk', 1)
+            await tb.wait_clocks('mc_clk', 2)  # +1: commit-hold delays WR
             assert tb.cmd_op() == OP_WR, (
                 f"iter {i}: OPEN policy must issue plain WR, got {tb.cmd_op()}"
             )
