@@ -62,7 +62,7 @@ if not _REPO_ROOT:
 sys.path.insert(0, os.path.join(_REPO_ROOT, "projects/components/converters/bin"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from uart_axi_bridge import UARTAxiBridge  # noqa: E402
-from TBClasses.harness.uart_register_map import UartRegisterMap  # noqa: E402
+from TBClasses.harness.device import Device  # noqa: E402  (harness as its own named device)
 from pumice_device import Pumice  # noqa: E402  (controller as its own named device)
 
 # PeakRDL-generated regmap for this project's harness_csr (by-name access).
@@ -222,13 +222,15 @@ class DDR2CharDriver:
         (any object with read(addr)->int|None / write(addr,val)->bool) to
         drive the identical register traffic elsewhere — e.g. a cocotb UART
         channel in simulation, or a mock for board-less tests. All register
-        access goes by name through `self.regs` (UartRegisterMap), sourced
+        access goes by name through `self.regs` (a harness Device), sourced
         from the PeakRDL-generated harness regmap — no hardcoded offsets.
         """
         self.bridge = bridge if bridge is not None else UARTAxiBridge(
             port=port, baudrate=baudrate, timeout=timeout)
-        self.regs = UartRegisterMap(self.bridge, HARNESS_CSR_BASE,
-                                    regmap_file=HARNESS_REGMAP)
+        # char-harness CSR block as its own named Device (the hand-authored
+        # regmap). By-name access via self.regs.<op> / self.regs.<REG>.<field>.
+        self.regs = Device(self.bridge, "harness", regs_base=HARNESS_CSR_BASE,
+                           regmap_file=HARNESS_REGMAP)
         # pumice controller CSR (APB slave) as its own named Device. Owns the
         # controller runtime knobs (DFI phase, paging, refresh, scheduler) by
         # name; the driver methods below delegate to it. 12-bit APB addr, 32b data.

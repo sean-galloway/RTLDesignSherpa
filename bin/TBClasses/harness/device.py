@@ -47,8 +47,8 @@ class Device:
     def read(self, reg: str) -> int:
         return self.regs.read(reg)
 
-    def field(self, reg: str, field: str) -> int:
-        return self.regs.field(reg, field)
+    def field(self, reg: str, field: str, word: Optional[int] = None) -> int:
+        return self.regs.field(reg, field, word)
 
     def addr(self, reg: str) -> int:
         return self.regs.addr(reg)
