@@ -376,16 +376,25 @@ Timeout threshold for scheduler (global for all channels).
 
 Scheduler feature enables (global for all channels).
 
-| Bits  | Field       | Type | Reset | Description                              |
-|-------|-------------|------|-------|------------------------------------------|
-| 31:5  | Reserved    | RO   | 0x0   | Reserved                                 |
-| 4     | PERF_EN     | RW   | 0     | Performance monitoring enable            |
-| 3     | COMPL_EN    | RW   | 1     | Completion reporting enable              |
-| 2     | ERR_EN      | RW   | 1     | Error reporting enable                   |
-| 1     | TIMEOUT_EN  | RW   | 1     | Timeout detection enable                 |
-| 0     | SCHED_EN    | RW   | 1     | Scheduler enable                         |
+| Bits  | Field          | Type | Reset | Description                                            |
+|-------|----------------|------|-------|-------------------------------------------------------|
+| 31:6  | Reserved       | RO   | 0x0   | Reserved                                              |
+| 5     | RD_PREFETCH_EN | RW   | 1     | Read-ahead descriptor prefetch (cross-descriptor streaming) |
+| 4     | PERF_EN        | RW   | 0     | Performance monitoring enable                         |
+| 3     | COMPL_EN       | RW   | 1     | Completion reporting enable                           |
+| 2     | ERR_EN         | RW   | 1     | Error reporting enable                                |
+| 1     | TIMEOUT_EN     | RW   | 1     | Timeout detection enable                              |
+| 0     | SCHED_EN       | RW   | 1     | Scheduler enable                                      |
 
 : SCHED_CONFIG
+
+`RD_PREFETCH_EN` (default **enabled**) turns on read-ahead descriptor prefetch:
+on a chained legacy descriptor the scheduler read side loads the next descriptor
+from the descriptor-FIFO head and keeps filling the SRAM while the write side
+drains the current descriptor, collapsing the per-descriptor boundary bubble to
+zero. Clear it for lockstep behaviour (useful for an on-silicon A/B on one
+bitstream). Ignored for EXT (row/col-major) descriptors, which always run
+lockstep. See the Scheduler block (Section 2.4) and HAS Section 5.1.
 
 #### SCHED_TIMEOUT_LIMIT (0x208)
 

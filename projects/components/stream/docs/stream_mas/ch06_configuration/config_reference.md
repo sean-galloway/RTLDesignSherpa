@@ -214,6 +214,24 @@ Enables performance profiling packets (latency, throughput metrics).
 
 ---
 
+### cfg_rd_prefetch_enable
+
+**Type:** Read-ahead descriptor prefetch enable
+**Width:** 1 bit
+**Default:** 1'b1 (enabled)
+**Register:** SCHED_CONFIG @ 0x204[5]
+
+**Description:**
+Enables read-ahead descriptor prefetch. On a chained legacy descriptor the
+scheduler read side loads the next descriptor from the descriptor-FIFO head and
+keeps filling the SRAM while the write side drains the current descriptor,
+collapsing the per-descriptor boundary bubble to zero (cross-descriptor
+streaming). Clear it for lockstep behaviour — useful for an on-silicon A/B on a
+single bitstream. Ignored for EXT (row/col-major) descriptors, which always run
+lockstep. See MAS Section 2.4 (Scheduler) and HAS Section 5.1.
+
+---
+
 ## 3. Descriptor Engine Configuration
 
 ### cfg_desceng_enable

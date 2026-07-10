@@ -26,7 +26,7 @@
 ## STREAM Hardware Architecture Specification
 
 **Document Number:** STREAM-HAS-001
-**Version:** 0.94
+**Version:** 0.95
 **Status:** Draft
 **Classification:** Open Source - Apache 2.0 License
 
@@ -90,6 +90,7 @@ This Hardware Architecture Specification (HAS) provides a high-level architectur
 | 0.92 | 2026-06-05 | seang | Sync to RTL state at 2026-06-05 (17 commits since `be4e5a91`). Documents (1) the 64→128-bit monbus packet migration + new 64-bit side-band timestamp wire — referenced via `docs/markdown/RTLAmba/includes/monitor_package_spec.md`, with `cfg_ts_append_*` removed and m_axil records locked to 3 beats; (2) new APB channel-observation register set (`OBS_CTRL` / `OBS_FLAGS` / `OBS_DATA0` / `OBS_DATA1`) that exposes scheduler error stickies + timeout per channel; (3) BOTH-end descriptor-path monitoring with distinct `(UNIT_ID, AGENT_ID)` for fetch-side vs. consume-side, under the new per-port + global SV-parameter monitor methodology; (4) three RTL fixes — drain-ctrl stale-view race + post-flop wvalid gate (`a82627af`), registered `w_arb_request` for 8-channel timing closure (`4e8f9e02`), reset on SRAM avail outputs (`b619eee9`); (5) `stream_core_mon` duplicate cleanup (`7291c4ef`). |
 | 0.93 | 2026-07-02 | seang | Monitor registers relocated to a separate `stream_mon_regs` regfile at 0x1000 (single APB slave); APB address decode widened to 13 bits / 8 KB so the monitor block is addressable (`ch04_interfaces/02_apb_slave.md`). Companion MAS documents `SCHED_TIMEOUT_LIMIT` + the recoverable scheduler write-progress timeout and functional descriptor prefetch. |
 | 0.94 | 2026-07-07 | seang | Documented the kick-burst fast-path interface (top-level `i_kick_burst_mask` / `i_kick_burst_addr` ports) that starts any subset of channels on a single clock cycle, bypassing the serial APB `CHn_CTRL` kick — added the interface signal table + semantics to `ch04_interfaces/02_apb_slave.md`. Reference integration is the NexysA7 char harness (`CH_KICK_ADDR` shadow registers + `KICK_GO` bitmask CSR). |
+| 0.95 | 2026-07-09 | seang | Documented read-ahead descriptor prefetch: the scheduler read side advances to the next chained legacy descriptor while the write side drains the current one, eliminating the per-descriptor boundary bubble (cross-descriptor streaming). Added a section to `ch05_performance/01_throughput.md` with on-silicon A/B (Nexys A7, single bitstream: 95.3% datapath util prefetch-on vs 76.1% off at 64-beat descriptors; row-major EXT 99.7% util bubble-free; transpose single-beat latency-bound). Runtime `SCHED_CONFIG.RD_PREFETCH_EN`, default on. |
 
 : Document Revision History
 

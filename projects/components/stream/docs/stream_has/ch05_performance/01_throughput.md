@@ -79,6 +79,7 @@
 | Factor | Impact | Mitigation |
 |--------|--------|------------|
 | Descriptor fetch overhead | Fixed per descriptor | Use longer transfers |
+| Per-descriptor boundary bubble | ~13 cyc/descriptor (chains) | Read-ahead prefetch (default on) — eliminates it |
 | SRAM depth | Limits outstanding | Configure adequate depth |
 | Arbitration overhead | Multi-channel penalty | Reduce active channels |
 | Burst splitting | 4KB boundary crossings | Align transfers |
@@ -129,6 +130,32 @@ Desc 2:                         [Fetch][-----Transfer 2-----]
 ```
 
 This pipelining minimizes chaining overhead for continuous transfers.
+
+### Read-Ahead Descriptor Prefetch (Cross-Descriptor Streaming)
+
+Descriptor fetch overlaps the current transfer (above), but the datapath itself
+must also stream across the boundary. Without prefetch the read side stalls at
+each descriptor boundary while the scheduler FSM advances and the read pipeline
+(AR -> R) refills — a per-descriptor **bubble** of ~13 cycles that dominates on
+short-descriptor chains. Read-ahead descriptor prefetch (runtime
+`SCHED_CONFIG.RD_PREFETCH_EN`, default **on**; see MAS Section 2.4) advances the
+read side to descriptor N+1 while the write side still drains N, so the read
+stream never goes cold. The per-descriptor bubble drops to **zero** — chain
+throughput becomes independent of descriptor count, with only a one-time
+fill/drain of overhead.
+
+**Measured on silicon (Nexys A7, 100 MHz, one bitstream, prefetch on vs off):**
+
+| Descriptor size | Prefetch OFF (lockstep) | Prefetch ON |
+|-----------------|-------------------------|-------------|
+| 64 beats (16-desc chain) | 76.1% datapath util | 95.3% |
+| >= 4096 beats | ~99% | 99-100% |
+
+Applies to chained **legacy** descriptors. EXT (row/col-major) descriptors run
+lockstep, but a single row-major descriptor is internally bubble-free (its
+contiguous runs stream through the address-generator base FIFO — measured 99.7%
+util). Transpose access patterns (col-major on either side) are single-beat and
+latency-bound by the memory system, not by a scheduler bubble.
 
 ---
 

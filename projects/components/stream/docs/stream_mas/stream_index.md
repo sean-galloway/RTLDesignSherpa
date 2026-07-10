@@ -23,8 +23,8 @@
 
 # STREAM Specification Index
 
-**Version:** 0.94
-**Date:** 2026-07-02
+**Version:** 0.95
+**Date:** 2026-07-09
 **Purpose:** Complete technical specification for STREAM subsystem
 
 ---

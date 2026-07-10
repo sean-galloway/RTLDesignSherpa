@@ -37,6 +37,7 @@ The Scheduler coordinates descriptor-based memory-to-memory DMA transfers for a 
 ### Key Features
 
 - **Concurrent read/write:** Read and write engines run simultaneously (prevents deadlock)
+- **Read-ahead descriptor prefetch:** On a chained legacy descriptor the read side advances to the next descriptor while the write side still drains the current one, eliminating the per-descriptor boundary bubble (runtime `SCHED_CONFIG.RD_PREFETCH_EN`, default on)
 - **Beat-based tracking:** Length in data width units (STREAM simplification)
 - **Aligned addresses:** No alignment fixup logic (must be pre-aligned)
 - **Descriptor chaining:** Follows next_descriptor_ptr for multi-buffer transfers
@@ -79,6 +80,47 @@ Concurrent operation (CORRECT):
 - Both `sched_rd_valid` and `sched_wr_valid` asserted in CH_XFER_DATA
 - Independent beat counters: `r_read_beats_remaining`, `r_write_beats_remaining`
 - Exit when **BOTH** counters reach zero
+
+---
+
+## Read-Ahead Descriptor Prefetch
+
+Runtime enable: `SCHED_CONFIG.RD_PREFETCH_EN` (default **on**). Applies to chained
+**legacy** descriptors only; EXT (row/col-major) descriptors always run lockstep.
+
+**Problem it solves.** Without prefetch, when descriptor N's reads finish the FSM
+walks `CH_XFER_DATA -> CH_COMPLETE -> CH_NEXT_DESC -> CH_FETCH_DESC` before the
+read engine can restart, and the read pipeline (AR -> R) goes cold at every
+boundary. This is a per-descriptor **bubble** (~13 cycles measured) that caps
+efficiency on short-descriptor chains.
+
+**Mechanism.** The descriptor FIFO (in the descriptor engine, already prefetched)
+is used as a one-entry holding buffer between the read and write sides. A single
+flag, `r_rd_ahead`, sequences the handoff:
+
+- **SET** when the read flops load the next descriptor from the FIFO **head**
+  *without draining the FIFO* — the read side runs one descriptor ahead, filling
+  SRAM with descriptor N+1 while the write side still drains N.
+- **CLEAR** when the write flops load that same descriptor and *drain the FIFO*
+  (the write side catches up; read and write are lockstep again on N+1).
+
+The SRAM sits between the two directions as an in-order FIFO, so racing the reads
+ahead is safe: descriptor N+1's data simply queues behind N's, and the write side
+counts beats to know where N ends and N+1 begins. The in-place advance collapses
+the four-state FSM walk into a single-cycle reload that stays in CH_XFER_DATA, and
+because the read pipeline never goes cold the AR->R refill latency is hidden.
+
+**Result.** The per-descriptor bubble drops from ~13 cycles to 0 — chained
+descriptors stream at full rate; only a one-time fill/drain remains, independent
+of chain length. On-silicon A/B (16 x 64-beat descriptors, one bitstream):
+datapath utilisation 95.3% with prefetch on vs 76.1% off; longer descriptors
+reach 99-100%. See HAS Section 5.1.
+
+**Timing note.** The write-commit accumulator's launch/advance addend is
+registered one cycle early (the add lands the following cycle; safe because commit
+B-responses always lag launches) so the descriptor-FIFO output and the
+launch/advance decode stay off the accumulator's combinational path — required to
+close 100 MHz timing with the added read-ahead fanout.
 
 ---
 
