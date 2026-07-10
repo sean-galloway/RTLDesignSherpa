@@ -34,4 +34,4 @@ $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/OLD
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/OLD/axi_intake.sv
 
 # Macro
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/axi_frontend_macro.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/OLD/axi_frontend_macro.sv

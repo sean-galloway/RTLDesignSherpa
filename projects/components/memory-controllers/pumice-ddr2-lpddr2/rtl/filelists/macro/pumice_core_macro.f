@@ -29,26 +29,26 @@ $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/OLD
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/OLD/axi_intake.sv
 
 # Frontend macro
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/axi_frontend_macro.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/OLD/axi_frontend_macro.sv
 
 # Scheduler + data-path + DFI FUBs
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/scheduler.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/xbank_timers.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/OLD/scheduler.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/OLD/xbank_timers.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/global_timers.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/refresh_ctrl.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/powerdown_ctrl.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/mode_register.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/init_sequencer.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/page_predictor.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/wr_beat_sequencer.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/rd_cl_aligner.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/OLD/wr_beat_sequencer.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/OLD/rd_cl_aligner.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/dfi_cmd_formatter.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/dfi_signal_pack.sv
 
 # Sub-macros (each wraps a coherent FUB group)
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/command_scheduler_macro.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/data_path_macro.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/dfi_v21_interface_macro.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/OLD/command_scheduler_macro.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/OLD/data_path_macro.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/OLD/dfi_v21_interface_macro.sv
 
 # Core macro (contains all of the above)
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_core_macro.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/OLD/pumice_core_macro.sv

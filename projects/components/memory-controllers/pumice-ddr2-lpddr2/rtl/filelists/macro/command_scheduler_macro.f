@@ -7,8 +7,8 @@
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/includes/pumice_pkg.sv
 
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/scheduler.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/xbank_timers.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/OLD/scheduler.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/OLD/xbank_timers.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/global_timers.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/refresh_ctrl.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/powerdown_ctrl.sv
@@ -16,4 +16,4 @@ $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/mod
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/init_sequencer.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/page_predictor.sv
 
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/command_scheduler_macro.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/OLD/command_scheduler_macro.sv

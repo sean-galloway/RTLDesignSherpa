@@ -17,4 +17,4 @@ $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 -f $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/filelists/macro/pumice_csr_slave.f
 
 # This top module
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/top/pumice_top.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/top/OLD/pumice_top.sv
