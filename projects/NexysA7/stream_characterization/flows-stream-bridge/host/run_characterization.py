@@ -119,29 +119,19 @@ DATA_WIDTH_BYTES = 16
 
 EXPECTED_BUILD_ID   = 0x5354_5243
 
-# STREAM APB registers — from projects/components/stream/rtl/stream_regmap.py
-APB_GLOBAL_CTRL         = STREAM_APB_BASE + 0x100
-APB_CHANNEL_ENABLE      = STREAM_APB_BASE + 0x120
-APB_CHANNEL_RESET       = STREAM_APB_BASE + 0x124
-APB_SCHED_TIMEOUT_CYC   = STREAM_APB_BASE + 0x200
-APB_SCHED_CONFIG        = STREAM_APB_BASE + 0x204
-APB_DESCENG_CONFIG      = STREAM_APB_BASE + 0x220
-APB_DESCENG_ADDR0_BASE  = STREAM_APB_BASE + 0x224
-APB_DESCENG_ADDR0_LIMIT = STREAM_APB_BASE + 0x228
-APB_DESCENG_ADDR1_BASE  = STREAM_APB_BASE + 0x22C
-APB_DESCENG_ADDR1_LIMIT = STREAM_APB_BASE + 0x230
-APB_AXI_XFER_CONFIG     = STREAM_APB_BASE + 0x2A0
-APB_CH_KICK_BASE        = STREAM_APB_BASE + 0x000
-APB_CH_KICK_STRIDE      = 0x08
-
-# Monitor configuration. The RDL default leaves PKT_MASK = 0xFFFF which
-# DROPS every packet type at monbus entry -- so the trace SRAM stays
-# empty and the whole monitor system is dark on every run unless we
-# explicitly clear masks + enable the monitors. The cocotb TB does this
-# (stream_char_tb.py); the runner missed it until now, which is why
-# every prior FPGA sweep reported "Trace: 0 packets, overflow=no".
+# STREAM APB registers — addresses resolved BY NAME from the regmap (never a
+# hardcoded STREAM_APB_BASE + 0x.. offset), and writes below go through
+# _stream_write_reg(..., FIELD=..) so register fields are set individually by
+# name. The RDL default also leaves monitor PKT_MASK = 0xFFFF which DROPS every
+# packet type at monbus entry -- so the trace SRAM stays empty and the whole
+# monitor system is dark on every run unless we explicitly clear masks + enable
+# the monitors (mirrors the cocotb TB, stream_char_tb.py).
 from stream_addrs import A as _A   # noqa: E402 (addresses by name; never hardcode)
 from stream_addrs import write_reg as _stream_write_reg  # noqa: E402 (fields by name)
+# Read-side aliases only (status snapshot / reset pulse); all register WRITES use
+# _stream_write_reg("NAME", FIELD=..) so nothing is a hand-assembled bitmask.
+APB_CHANNEL_RESET       = _A("CHANNEL_RESET")
+APB_GLOBAL_CTRL         = _A("GLOBAL_CTRL")
 APB_DAXMON_ENABLE       = _A("DAXMON_ENABLE")
 APB_DAXMON_PKT_MASK     = _A("DAXMON_PKT_MASK")
 APB_DAXMON_ERR_CFG      = _A("DAXMON_ERR_CFG")
@@ -346,16 +336,18 @@ class CharacterizationRunner:
         # because cumulative inter-descriptor stall exceeded the budget on
         # at least one channel. Bump to the field maximum (~42.9 s @ 100 MHz)
         # so the scheduler doesn't bail before the chain naturally completes.
-        self.bridge.write(APB_SCHED_TIMEOUT_CYC, 0xFFFFFFFF)  # 32-bit max, ~42.9s @ 100MHz
+        _stream_write_reg(self.bridge, "SCHED_TIMEOUT_CYCLES",
+                          TIMEOUT_CYCLES=0xFFFFFFFF)  # 32-bit max, ~42.9s @ 100MHz
 
-        # Descriptor engine config
-        self.bridge.write(APB_DESCENG_CONFIG, 0x23)  # DESCENG_EN | PREFETCH_EN | FIFO_THRESH=8
+        # Descriptor engine config (fields by name; was the 0x23 bitmask).
+        _stream_write_reg(self.bridge, "DESCENG_CONFIG",
+                          DESCENG_EN=1, PREFETCH_EN=1, FIFO_THRESH=8)
 
         # Address ranges (full 32-bit space)
-        self.bridge.write(APB_DESCENG_ADDR0_BASE,  0x0000_0000)
-        self.bridge.write(APB_DESCENG_ADDR0_LIMIT, 0xFFFF_FFFF)
-        self.bridge.write(APB_DESCENG_ADDR1_BASE,  0x0000_0000)
-        self.bridge.write(APB_DESCENG_ADDR1_LIMIT, 0xFFFF_FFFF)
+        _stream_write_reg(self.bridge, "DESCENG_ADDR0_BASE",  ADDR0_BASE=0x0000_0000)
+        _stream_write_reg(self.bridge, "DESCENG_ADDR0_LIMIT", ADDR0_LIMIT=0xFFFF_FFFF)
+        _stream_write_reg(self.bridge, "DESCENG_ADDR1_BASE",  ADDR1_BASE=0x0000_0000)
+        _stream_write_reg(self.bridge, "DESCENG_ADDR1_LIMIT", ADDR1_LIMIT=0xFFFF_FFFF)
 
         # AXI burst config: ARLEN (beats-1) for rd [7:0] and wr [15:8]. This is
         # the size of an INDIVIDUAL AXI transaction (the rd/wr xfer-beats config
@@ -365,8 +357,9 @@ class CharacterizationRunner:
         import os as _os
         _rb = int(_os.environ.get('XFER_BEATS_RD', _os.environ.get('XFER_BEATS', '16')))
         _wb = int(_os.environ.get('XFER_BEATS_WR', _os.environ.get('XFER_BEATS', '16')))
-        axi_cfg = ((_rb - 1) & 0xFF) | (((_wb - 1) & 0xFF) << 8)
-        self.bridge.write(APB_AXI_XFER_CONFIG, axi_cfg)
+        _stream_write_reg(self.bridge, "AXI_XFER_CONFIG",
+                          RD_XFER_BEATS=(_rb - 1) & 0xFF,
+                          WR_XFER_BEATS=(_wb - 1) & 0xFF)
 
         # Unblock the monbus monitors so packets actually flow out into
         # debug_sram (and the err FIFO IRQ path). RDL default leaves
@@ -407,13 +400,13 @@ class CharacterizationRunner:
 
         # Global enable + channels. The mask is the OR of the selected physical
         # channels (contiguous 0..N-1 by default, or an explicit subset).
-        self.bridge.write(APB_GLOBAL_CTRL, 0x01)
+        _stream_write_reg(self.bridge, "GLOBAL_CTRL", GLOBAL_EN=1)
         ch_mask = 0
         for ch in channels:
             ch_mask |= (1 << ch)
-        self.bridge.write(APB_CHANNEL_ENABLE, ch_mask)
+        _stream_write_reg(self.bridge, "CHANNEL_ENABLE", CH_EN=ch_mask)
         self.vlog(f"  STREAM configured: rd_prefetch={'on' if self.rd_prefetch else 'off'}, "
-                  f"desceng=0x01, axi=0x{axi_cfg:04X}, ch_mask=0x{ch_mask:02X} "
+                  f"axi_beats rd={_rb} wr={_wb}, ch_mask=0x{ch_mask:02X} "
                   f"(channels {channels})")
 
     def kick_channels(self, kick_addresses: dict):
@@ -711,15 +704,16 @@ class CharacterizationRunner:
     # field block in stream_regs.rdl exposes each engine's outstanding /
     # transaction-count / state-machine snapshots over the APB; reading
     # them on a TIMEOUT tells us which engine got stuck and where.
+    # Status registers, addressed BY NAME (never STREAM_APB_BASE + 0x..).
     _STREAM_STATUS_REGS = [
-        ("GLOBAL_STATUS",     STREAM_APB_BASE + 0x104),
-        ("CHANNEL_ENABLE",    STREAM_APB_BASE + 0x120),
-        ("CHANNEL_IDLE",      STREAM_APB_BASE + 0x140),
-        ("DESC_ENGINE_IDLE",  STREAM_APB_BASE + 0x144),
-        ("SCHEDULER_IDLE",    STREAM_APB_BASE + 0x148),
-        ("AXI_RD_COMPLETE",   STREAM_APB_BASE + 0x174),
-        ("AXI_WR_COMPLETE",   STREAM_APB_BASE + 0x178),
-        ("SCHED_ERROR",       STREAM_APB_BASE + 0x170),
+        ("GLOBAL_STATUS",     _A("GLOBAL_STATUS")),
+        ("CHANNEL_ENABLE",    _A("CHANNEL_ENABLE")),
+        ("CHANNEL_IDLE",      _A("CHANNEL_IDLE")),
+        ("DESC_ENGINE_IDLE",  _A("DESC_ENGINE_IDLE")),
+        ("SCHEDULER_IDLE",    _A("SCHEDULER_IDLE")),
+        ("AXI_RD_COMPLETE",   _A("AXI_RD_COMPLETE")),
+        ("AXI_WR_COMPLETE",   _A("AXI_WR_COMPLETE")),
+        ("SCHED_ERROR",       _A("SCHED_ERROR")),
     ]
 
     def _snapshot_on_hang(self, result: dict) -> None:
@@ -901,8 +895,8 @@ class CharacterizationRunner:
         # window auto-closed when the datapath went idle); if it reads 1 the
         # auto-close did not fire and the buckets are contaminated.
         try:
-            rd_wa = self.bridge.read(STREAM_APB_BASE + 0x304) & 0x1
-            wr_wa = self.bridge.read(STREAM_APB_BASE + 0x334) & 0x1
+            rd_wa = self.bridge.read(_A("RDMON_PERF_STATUS")) & 0x1  # WIN_ACTIVE
+            wr_wa = self.bridge.read(_A("WRMON_PERF_STATUS")) & 0x1
             self.log(f"  [perf-window] WIN_ACTIVE (RUN still high): "
                      f"RD={rd_wa} WR={wr_wa} (0 = auto-closed in hardware)")
         except Exception as _e:

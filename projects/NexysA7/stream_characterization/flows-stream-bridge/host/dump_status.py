@@ -9,8 +9,8 @@ import argparse
 import os
 import sys
 
-from descriptor_builder import HARNESS_CSR_BASE, STREAM_APB_BASE
 from harness_addrs import H  # noqa: E402  (by-name harness CSR access)
+from stream_addrs import A, write_reg  # noqa: E402  (by-name STREAM APB access)
 
 # Pull in the same UARTAxiBridge the runner uses.
 # REPO_ROOT must be set in the environment (source env_python).
@@ -57,24 +57,26 @@ DESC_VR_BITS = [
     (12, "axi_rvalid"),   (13, "axi_rready"),
 ]
 
-# STREAM APB offsets (from stream_regmap.py)
-APB_GLOBAL_CTRL    = STREAM_APB_BASE + 0x100
-APB_GLOBAL_STATUS  = STREAM_APB_BASE + 0x104
-APB_CHANNEL_ENABLE = STREAM_APB_BASE + 0x120
-APB_CHANNEL_RESET  = STREAM_APB_BASE + 0x124
-APB_SCHED_CONFIG   = STREAM_APB_BASE + 0x204
-APB_SCHED_ERROR    = STREAM_APB_BASE + 0x170
-APB_MON_FIFO_STAT  = STREAM_APB_BASE + 0x180
-APB_DESCENG_CFG    = STREAM_APB_BASE + 0x220
-APB_AXI_XFER_CFG   = STREAM_APB_BASE + 0x2A0
+# STREAM APB registers, addressed BY NAME (never STREAM_APB_BASE + 0x..).
+APB_GLOBAL_CTRL    = A("GLOBAL_CTRL")
+APB_GLOBAL_STATUS  = A("GLOBAL_STATUS")
+APB_CHANNEL_ENABLE = A("CHANNEL_ENABLE")
+APB_CHANNEL_RESET  = A("CHANNEL_RESET")
+APB_SCHED_CONFIG   = A("SCHED_CONFIG")
+APB_SCHED_ERROR    = A("SCHED_ERROR")
+# MON_FIFO_STATUS lives in the monitor block @0x1000 (the old 0x180 was a stale
+# pre-relocation offset; by-name follows the regmap automatically).
+APB_MON_FIFO_STAT  = A("MON_FIFO_STATUS")
+APB_DESCENG_CFG    = A("DESCENG_CONFIG")
+APB_AXI_XFER_CFG   = A("AXI_XFER_CONFIG")
 
 # STREAM channel-observation mux. Host writes OBS_CTRL with the channel
 # and category to probe, then reads the three OBS_* status registers.
-# bit [2:0] = ch_sel, bit [4:3] = cat_sel.
-APB_OBS_CTRL       = STREAM_APB_BASE + 0x2C0
-APB_OBS_FLAGS      = STREAM_APB_BASE + 0x2C4
-APB_OBS_DATA0      = STREAM_APB_BASE + 0x2C8
-APB_OBS_DATA1      = STREAM_APB_BASE + 0x2CC
+# CH_SEL[2:0] = ch_sel, CAT_SEL[4:3] = cat_sel.
+APB_OBS_CTRL       = A("OBS_CTRL")
+APB_OBS_FLAGS      = A("OBS_FLAGS")
+APB_OBS_DATA0      = A("OBS_DATA0")
+APB_OBS_DATA1      = A("OBS_DATA1")
 
 # OBS_FLAGS bit layout (see stream_core.sv obs mux block)
 OBS_FLAG_BITS = [
@@ -141,7 +143,7 @@ def main():
         # Channel kick-LOW (read-back is just the value last written)
         print("\n=== Channel kick LOW words (last written values) ===")
         for ch in range(8):
-            rd(b, STREAM_APB_BASE + ch * 0x08, f"CH{ch}_KICK_LO")
+            rd(b, A(f"CH{ch}_CTRL_LOW"), f"CH{ch}_KICK_LO")
 
         print("\n=== desc_ram observation (host AXIL writes / STREAM AXI4 reads) ===")
         ar_hs   = rd(b, CSR_DESC_AR_HS,    "DESC_AR_HS")
@@ -166,7 +168,9 @@ def main():
         print("\n=== STREAM channel-observation mux (0x2C0..0x2CC) ===")
         for ch in range(8):
             for cat in range(4):
-                b.write(APB_OBS_CTRL, (cat << 3) | (ch & 0x7))
+                # OBS_CTRL by name: CAT_SEL[4:3]=cat, CH_SEL[2:0]=ch.
+                # compose("OBS_CTRL", CAT_SEL=cat, CH_SEL=ch) == (cat<<3)|(ch&0x7).
+                write_reg(b, "OBS_CTRL", CAT_SEL=cat, CH_SEL=ch)
                 flags = b.read(APB_OBS_FLAGS)
                 d0    = b.read(APB_OBS_DATA0)
                 d1    = b.read(APB_OBS_DATA1)

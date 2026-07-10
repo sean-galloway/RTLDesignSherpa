@@ -20,7 +20,7 @@ import json
 from typing import List, Tuple
 
 from harness_kick import HARNESS_CSR_BASE, batch_kick
-from harness_addrs import H  # noqa: E402  (by-name harness CSR access)
+from harness_addrs import H, harness_regs  # noqa: E402  (by-name harness CSR access)
 from read_bus_meters import read_meter, R_METER_BASE, W_METER_BASE
 from stream_ext_suite import CASES, CH_ERROR, CH_IDLE, program_case, wait_done
 
@@ -199,16 +199,20 @@ def run_channel_scaling(stream, *, cases=SCALING_CASES, size=SCALING_SIZE,
 def _configure(stream, harness_csr_base: int) -> None:
     """One-time STREAM config by name (+ harness soft-reset). Mirrors the sim
     TB's _configure_stream_for_ext, board-side."""
-    stream.bridge.write(harness_csr_base + 0x00, 0x08)   # CSR_CTRL soft_reset pulse
-    stream.write_word("GLOBAL_CTRL", 0x01)               # GLOBAL_EN
-    stream.write_word("SCHED_CONFIG", 0x0F)              # en+timeout+err+compl
-    stream.write_word("SCHED_TIMEOUT_CYCLES", 0xFFFFFFFF)
-    stream.write_word("DESCENG_CONFIG", 0x23)  # DESCENG_EN | PREFETCH_EN | FIFO_THRESH=8
-    stream.write_word("DESCENG_ADDR0_BASE", 0x0000_0000)
-    stream.write_word("DESCENG_ADDR0_LIMIT", 0xFFFF_FFFF)
-    stream.write_word("DESCENG_ADDR1_BASE", 0x0000_0000)
-    stream.write_word("DESCENG_ADDR1_LIMIT", 0xFFFF_FFFF)
-    stream.write_word("AXI_XFER_CONFIG", (15 & 0xFF) | ((15 & 0xFF) << 8))
+    # Harness soft-reset pulse (CTRL.SOFT_RESET, bit3 == 0x08), by name.
+    harness_regs(stream.bridge, harness_csr_base).CTRL.write(soft_reset=1)
+    stream.write("GLOBAL_CTRL", GLOBAL_EN=1)             # was 0x01
+    # SCHED_CONFIG: en+timeout+err+compl, PLUS RD_PREFETCH_EN (regmap default-on;
+    # the old bare 0x0F silently DISABLED read-ahead -- compose == 0x2F now).
+    stream.write("SCHED_CONFIG", SCHED_EN=1, TIMEOUT_EN=1, ERR_EN=1,
+                 COMPL_EN=1, RD_PREFETCH_EN=1)           # was 0x0F -> now 0x2F
+    stream.write("SCHED_TIMEOUT_CYCLES", TIMEOUT_CYCLES=0xFFFF_FFFF)
+    stream.write("DESCENG_CONFIG", DESCENG_EN=1, PREFETCH_EN=1, FIFO_THRESH=8)  # was 0x23
+    stream.write("DESCENG_ADDR0_BASE", ADDR0_BASE=0x0000_0000)
+    stream.write("DESCENG_ADDR0_LIMIT", ADDR0_LIMIT=0xFFFF_FFFF)
+    stream.write("DESCENG_ADDR1_BASE", ADDR1_BASE=0x0000_0000)
+    stream.write("DESCENG_ADDR1_LIMIT", ADDR1_LIMIT=0xFFFF_FFFF)
+    stream.write("AXI_XFER_CONFIG", RD_XFER_BEATS=15, WR_XFER_BEATS=15)  # was 0x0F0F
 
 
 def main(argv=None) -> int:

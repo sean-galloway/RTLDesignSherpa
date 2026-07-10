@@ -19,13 +19,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from dump_monbus_sram import read_sram_region, words32_to_words64
 from TBClasses.monbus.monbus_compressor import Decoder
+from harness_addrs import H, harness_regs   # by-name harness CSR access
+from stream_addrs import write_reg          # by-name STREAM APB write
 
-H = 0x10000
-CSR_DBG_WR_PTR   = H + 0x08
-CSR_DBG_OVERFLOW = H + 0x0C
-DEBUG_SRAM_BASE  = 0x40000
-STREAM_APB_BASE  = 0x20000
-APB_CHANNEL_RESET = STREAM_APB_BASE + 0x124
+CSR_DBG_WR_PTR   = H("DBG_WR_PTR")
+CSR_DBG_OVERFLOW = H("DBG_OVERFLOW")
+DEBUG_SRAM_BASE  = 0x40000                  # debug trace SRAM region (not a CSR)
 
 
 def main():
@@ -52,12 +51,13 @@ def main():
     from uart_axi_bridge import UARTAxiBridge
     with contextlib.redirect_stdout(io.StringIO()):
         with UARTAxiBridge(port=args.port, baudrate=115200) as b:
-            b.write(H + 0x00, 0x08)             # soft_reset pulse
+            hr = harness_regs(b)                        # by-name harness CSRs
+            hr.CTRL.write(soft_reset=1)                 # 0x08 soft_reset pulse
             time.sleep(0.15)
-            b.write(APB_CHANNEL_RESET, 0xFF)    # per-channel reset (all 8)
+            write_reg(b, "CHANNEL_RESET", CH_RST=0xFF)  # 0xFF per-channel reset (all 8)
             time.sleep(0.05)
-            b.write(APB_CHANNEL_RESET, 0x00)
-            b.write(H + 0x00, 0x02)             # clear_stats / trace ptr
+            write_reg(b, "CHANNEL_RESET", CH_RST=0x00)  # 0x00 release
+            hr.CTRL.write(clear_stats=1)                # 0x02 clear_stats / trace ptr
             time.sleep(0.15)
 
     # Run the compressed workload (run_characterization clears the trace ptr at
