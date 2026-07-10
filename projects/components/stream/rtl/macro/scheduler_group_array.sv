@@ -90,6 +90,7 @@ module scheduler_group_array #(
     // Descriptor Engine Configuration (global - applied to all channels)
     input  logic                                 cfg_desceng_enable,        // Master descriptor engine enable
     input  logic                                 cfg_desceng_prefetch,      // Enable descriptor prefetch
+    input  logic                                 cfg_rd_prefetch_enable,    // Scheduler read-ahead prefetch
     input  logic [3:0]                           cfg_desceng_fifo_thresh,   // FIFO threshold for prefetch
     input  logic [ADDR_WIDTH-1:0]                cfg_desceng_addr0_base,    // Address range 0 base
     input  logic [ADDR_WIDTH-1:0]                cfg_desceng_addr0_limit,   // Address range 0 limit
@@ -349,6 +350,7 @@ module scheduler_group_array #(
 
                 // Descriptor Engine Configuration (global)
                 .cfg_desceng_prefetch       (cfg_desceng_prefetch),
+                .cfg_rd_prefetch_enable     (cfg_rd_prefetch_enable),
                 .cfg_desceng_fifo_thresh    (cfg_desceng_fifo_thresh),
                 .cfg_desceng_addr0_base     (cfg_desceng_addr0_base),
                 .cfg_desceng_addr0_limit    (cfg_desceng_addr0_limit),

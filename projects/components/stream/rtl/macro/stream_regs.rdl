@@ -353,10 +353,22 @@ addrmap stream_regs {
         } PERF_EN = 1'b0;
 
         field {
+            desc = "Read-ahead descriptor prefetch enable. When set, on a chained
+                    legacy descriptor the scheduler read side loads the next
+                    descriptor from the descriptor-FIFO head and keeps filling SRAM
+                    while the write side drains the current one -- collapsing the
+                    per-descriptor boundary bubble to zero (perfect cross-descriptor
+                    streaming). Default enabled; clear for lockstep A/B on the same
+                    bitstream. Ignored for EXT (row/col) descriptors.";
+            sw = rw;
+            hw = r;
+        } RD_PREFETCH_EN = 1'b1;
+
+        field {
             desc = "Reserved";
             sw = r;
             hw = na;
-        } RSVD[31:5] = 27'h0;
+        } RSVD[31:6] = 26'h0;
 
     } SCHED_CONFIG @ 0x204;
 

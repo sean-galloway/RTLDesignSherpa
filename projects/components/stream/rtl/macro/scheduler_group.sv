@@ -65,6 +65,7 @@ module scheduler_group #(
 
     // Descriptor Engine Configuration
     input  logic                        cfg_desceng_prefetch,
+    input  logic                        cfg_rd_prefetch_enable,  // scheduler read-ahead prefetch
     input  logic [3:0]                  cfg_desceng_fifo_thresh,
     input  logic [ADDR_WIDTH-1:0]       cfg_desceng_addr0_base,
     input  logic [ADDR_WIDTH-1:0]       cfg_desceng_addr0_limit,
@@ -288,6 +289,7 @@ module scheduler_group #(
         .cfg_sched_timeout_cycles(cfg_sched_timeout_cycles),
         .cfg_sched_timeout_limit(cfg_sched_timeout_limit),
         .cfg_sched_timeout_enable(cfg_sched_timeout_enable),
+        .cfg_rd_prefetch_enable (cfg_rd_prefetch_enable),
 
         // Status
         .scheduler_idle         (scheduler_idle),

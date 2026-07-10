@@ -97,6 +97,19 @@ module scheduler #(
     input  logic [7:0]                  cfg_sched_timeout_limit,  // Consecutive-timeout windows before fatal escalation (0=never)
     input  logic                        cfg_sched_timeout_enable, // Enable timeout detection
 
+    // Read-ahead descriptor prefetch enable (runtime, default enabled via regmap
+    // SCHED_CONFIG.RD_PREFETCH_EN). When set, on a CHAINED LEGACY descriptor the
+    // read side loads the next descriptor's read flops (src_addr / read-beats)
+    // from the descriptor-FIFO head *without draining the FIFO* -- so reads keep
+    // filling SRAM with descriptor N+1 while the write side is still draining N.
+    // The write side later reloads its flops and drains the FIFO, catching up.
+    // The SRAM is an in-order FIFO between the two directions, so racing reads
+    // ahead is safe (N+1's data queues behind N's). Clearing it forces the
+    // lockstep single-descriptor behavior (for on-silicon A/B on one bitstream).
+    // EXT (TASK-101) descriptors always run lockstep regardless (their run-base
+    // addr-gens are single-descriptor). See r_rd_ahead below.
+    input  logic                        cfg_rd_prefetch_enable,
+
     // Status Interface
     output logic                        scheduler_idle,         // Scheduler idle
     output logic [6:0]                  scheduler_state,        // Current state (for debug) - ONE-HOT
@@ -367,6 +380,41 @@ module scheduler #(
     logic w_transfer_complete;                    // read done AND writes ISSUED (per-descriptor advance)
     logic w_desc_launch;                          // 1-cyc pulse: a descriptor enters CH_XFER_DATA
     logic [31:0] w_ctc_next;                      // next value of the commit accumulator
+    logic        w_ctc_add_en;                    // accumulator add-enable (launch OR advance)
+    logic [31:0] w_ctc_add_len;                   // muxed addend (this descriptor's length)
+    logic [31:0] r_ctc_pending_add;               // registered addend applied next cycle (timing)
+
+    //=========================================================================
+    // Read-ahead descriptor prefetch (cfg_rd_prefetch_enable) -- see port header.
+    //=========================================================================
+    // r_rd_ahead is the flag the whole scheme pivots on:
+    //   SET   when the READ flops load the next descriptor from the FIFO HEAD
+    //         (peek) but the FIFO is NOT drained -- read is one descriptor ahead
+    //         of write.
+    //   CLEAR when the WRITE flops load that same descriptor and the FIFO IS
+    //         drained (pop) -- write has caught up; read/write lockstep again.
+    // Capped at ONE descriptor ahead (peek is gated on !r_rd_ahead), so the
+    // descriptor FIFO head is a stable 1-entry holding register between peek and
+    // the matching pop.
+    logic r_rd_ahead;
+
+    // Is the descriptor the READ side is currently on (== r_descriptor while not
+    // ahead) a legacy, chainable descriptor? Read-ahead only applies to legacy
+    // chained descriptors; EXT and last descriptors run lockstep.
+    logic w_desc_chained;   // current descriptor points to a next (chain continues)
+    // Registered form of w_desc_chained (same retiming rationale as r_is_ext):
+    // the chained test is a 32-bit next_descriptor_ptr != 0 compare; latching it
+    // at descriptor-load keeps that wide OR out of the w_wr_advance -> commit
+    // accumulator critical cone (it was the post-merge FPGA setup path).
+    logic r_desc_chained;
+    logic w_rd_prefetch_en; // feature enabled AND current descriptor is legacy
+    logic w_rd_peek;        // read loads next desc (set r_rd_ahead), no FIFO drain
+    logic w_wr_advance;     // write reloads next desc + drains FIFO (in-place, stays in XFER)
+
+    // Next-descriptor (FIFO head) field views used by peek / advance.
+    logic [63:0] w_next_src_addr;
+    logic [63:0] w_next_dst_addr;
+    logic [31:0] w_next_length;
 
     //=========================================================================
     // Channel Reset Management
@@ -449,7 +497,19 @@ module scheduler #(
                         // sched_wr_ready gate is unnecessary here (and would deadlock,
                         // since sched_wr_ready drops once issue finishes, well before the
                         // final B responses arrive).
-                        if (w_transfer_complete) begin
+                        // USE_RD_PREFETCH: a chained legacy descriptor advances
+                        // IN PLACE (stay in XFER, reload write flops, drain FIFO)
+                        // when the write side finishes issuing -- no COMPLETE walk.
+                        // The `&& !r_rd_ahead` gate suppresses the normal
+                        // completion exit while read is running ahead, because
+                        // w_transfer_complete (which keys off the READ counter)
+                        // then refers to N+1, not the write descriptor N. Both
+                        // w_wr_advance and r_rd_ahead are held 0 while
+                        // cfg_rd_prefetch_enable is deasserted, so this reduces to
+                        // the original `if (w_transfer_complete)` behavior verbatim.
+                        if (w_wr_advance) begin
+                            w_next_state = CH_XFER_DATA;  // in-place descriptor advance
+                        end else if (w_transfer_complete && !r_rd_ahead) begin
                             w_next_state = CH_COMPLETE;
                         end
                         // Note: Stays in XFER_DATA until both conditions met or error
@@ -541,6 +601,8 @@ module scheduler #(
             r_rd_per_beat <= 1'b0;
             r_wr_per_beat <= 1'b0;
             r_fetch_desc_d <= 1'b0;
+            r_rd_ahead <= 1'b0;
+            r_desc_chained <= 1'b0;
         end else begin
             // Track CH_FETCH_DESC for the one-cycle addr-gen start pulse
             r_fetch_desc_d <= w_state_fetch_desc;
@@ -571,6 +633,10 @@ module scheduler #(
                 // instead of a desc_type comparison. Constant for the descriptor;
                 // first consumed in CH_FETCH_DESC, so cycle-behavior is unchanged.
                 r_is_ext      <= w_is_ext_in;
+                // Registered chained bit for THIS descriptor (retiming: keeps the
+                // 32-bit next_ptr compare out of the read-ahead advance path).
+                r_desc_chained <= (descriptor_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO] != 32'h0) &&
+                                  !descriptor_packet[DESC_LAST];
                 r_rd_per_beat <= w_is_ext_in &&
                                  (w_descriptor_ext_in.rd_stride_0 != BEAT_BYTES);
                 r_wr_per_beat <= w_is_ext_in &&
@@ -681,11 +747,58 @@ module scheduler #(
                 end
             endcase
 
+            //-----------------------------------------------------------------
+            // Read-ahead reloads (placed AFTER the case so their nonblocking
+            // writes take priority over the per-cycle decrements; both fire only
+            // when the respective counter has already reached 0, so there is no
+            // genuine conflict). All wires are held 0 while cfg_rd_prefetch_enable
+            // is deasserted, so this section is inactive (lockstep) at runtime.
+            //-----------------------------------------------------------------
+            // PEEK: read loads the FIFO head (N+1) into the read flops and marks
+            // itself one descriptor ahead. FIFO is NOT drained (no descriptor_ready).
+            if (w_rd_peek) begin
+                r_src_addr             <= w_next_src_addr[ADDR_WIDTH-1:0];
+                r_read_beats_remaining <= w_next_length;
+                r_rd_run_remaining     <= w_next_length;   // legacy: run == whole desc
+                r_rd_ahead             <= 1'b1;
+            end
+
+            // ADVANCE: write reloads the FIFO head (N+1) into the write flops and
+            // captures its control fields (so the next w_desc_chained is correct).
+            // The FIFO is drained this cycle via descriptor_ready (see below).
+            if (w_wr_advance) begin
+                r_dst_addr              <= w_next_dst_addr[ADDR_WIDTH-1:0];
+                r_write_beats_remaining <= w_next_length;
+                r_wr_run_remaining      <= w_next_length;   // legacy: run == whole desc
+                r_descriptor.src_addr            <= w_next_src_addr;
+                r_descriptor.dst_addr            <= w_next_dst_addr;
+                r_descriptor.length              <= w_next_length;
+                r_descriptor.next_descriptor_ptr <= descriptor_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO];
+                r_descriptor.valid               <= descriptor_packet[DESC_VALID_BIT];
+                r_descriptor.gen_irq             <= descriptor_packet[DESC_GEN_IRQ];
+                r_descriptor.last                <= descriptor_packet[DESC_LAST];
+                r_descriptor.desc_type           <= desc_type_e'(descriptor_packet[210:208]);
+                r_is_ext                <= w_is_ext_in;     // legacy head -> 0
+                // Registered chained bit follows the newly-loaded N+1 descriptor.
+                r_desc_chained <= (descriptor_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO] != 32'h0) &&
+                                  !descriptor_packet[DESC_LAST];
+                // Read side: if it was NOT already ahead, advance also serves as
+                // its lockstep load onto N+1 (read had just finished N). If it
+                // WAS ahead, leave the read flops alone and just clear the flag.
+                if (!r_rd_ahead) begin
+                    r_src_addr             <= w_next_src_addr[ADDR_WIDTH-1:0];
+                    r_read_beats_remaining <= w_next_length;
+                    r_rd_run_remaining     <= w_next_length;
+                end
+                r_rd_ahead <= 1'b0;
+            end
+
             // Channel reset: Clear state regardless of FSM state
             if (r_channel_reset_active) begin
                 r_descriptor_loaded <= 1'b0;
                 r_read_beats_remaining <= 32'h0;
                 r_write_beats_remaining <= 32'h0;
+                r_rd_ahead <= 1'b0;
             end
         end
     )
@@ -713,10 +826,45 @@ module scheduler #(
     // continuously while their writes commit in the background.
     // -----------------------------------------------------------------------
     assign w_desc_launch = w_state_fetch_desc && (w_next_state == CH_XFER_DATA);
+    // A descriptor's length enters the accumulator either at CH_FETCH_DESC
+    // (w_desc_launch, lockstep) OR at a read-ahead in-place advance (w_wr_advance,
+    // XFER). These are MUTUALLY EXCLUSIVE (different FSM states), so fold the two
+    // conditional adds into a SINGLE add with a muxed addend. A 32-bit mux is far
+    // shallower than a second 32-bit adder, so the commit-accumulator carry chain
+    // stays at ~single-add depth -- this keeps the scheduler off the FPGA setup
+    // critical path (the two-add form regressed WNS on the 8-channel build).
+    assign w_ctc_add_en  = w_desc_launch || w_wr_advance;
+    assign w_ctc_add_len = w_desc_launch ? r_descriptor.length : w_next_length;
+    // Register the launch/advance addend ONE cycle early so the accumulator's
+    // combinational cone is a plain reg+reg add: the launch/advance decode (incl.
+    // w_write_issued's 32-bit ==0) and w_next_length (descriptor-FIFO block-RAM
+    // output -- build #3's worst-path start) leave the critical path. The add
+    // lands one cycle after launch/advance, which is safe: a descriptor's commit
+    // B-responses arrive many cycles later (its writes must issue first), so the
+    // launched beats are always in the accumulator before any of their commits.
+    // Cleared on channel reset so no stale add survives the reset.
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n))
+            r_ctc_pending_add <= 32'h0;
+        else if (r_channel_reset_active)
+            r_ctc_pending_add <= 32'h0;
+        else
+            r_ctc_pending_add <= w_ctc_add_en ? w_ctc_add_len : 32'h0;
+    )
     always_comb begin
-        w_ctc_next = r_write_beats_to_commit;
-        if (w_desc_launch)
-            w_ctc_next = w_ctc_next + r_descriptor.length;
+        // reg + reg add (r_write_beats_to_commit + registered pending addend)
+        w_ctc_next = r_write_beats_to_commit + r_ctc_pending_add;
+        // SATURATING subtract (floor at 0) -- MUST saturate: the write engine can
+        // commit burst-granular B-responses exceeding a short descriptor's
+        // launched length (an 8-beat burst vs a 1-beat descriptor), so the
+        // accumulator legitimately underflows and must clamp rather than wrap (a
+        // wrap leaves w_write_complete stuck low -> channel never idle; regression
+        // datapath_wr_test varying_lengths). Kept in the canonical `>=` form:
+        // Vivado shares the compare with the subtract, and an explicit 33-bit
+        // borrow-subtract + mux (tried) synthesized WORSE. NOTE: the saturate's
+        // clear-to-0 lands on the accumulator FDRE /R cone and is the FPGA setup
+        // critical path once read-ahead's add-enable/mux fanout is added (WNS
+        // ~-0.675). See known_issues -- closing it needs the saturate off /R.
         if (sched_wr_commit_strobe)
             w_ctc_next = (w_ctc_next >= sched_wr_commit_beats) ?
                          (w_ctc_next - sched_wr_commit_beats) : 32'h0;
@@ -743,6 +891,40 @@ module scheduler #(
     assign w_write_complete = (r_write_beats_to_commit == 32'h0);
     // Per-descriptor advance is ISSUE-based (streaming); channel-done is COMMIT.
     assign w_transfer_complete = w_read_complete && w_write_issued;
+
+    // -----------------------------------------------------------------------
+    // Read-ahead prefetch control (USE_RD_PREFETCH, legacy chained only).
+    // -----------------------------------------------------------------------
+    // FIFO-head (next descriptor) field views. Valid to sample only when
+    // descriptor_valid; guarded by that in every use below.
+    assign w_next_src_addr = descriptor_packet[DESC_SRC_ADDR_HI:DESC_SRC_ADDR_LO];
+    assign w_next_dst_addr = descriptor_packet[DESC_DST_ADDR_HI:DESC_DST_ADDR_LO];
+    assign w_next_length   = descriptor_packet[DESC_LENGTH_HI:DESC_LENGTH_LO];
+
+    // Current descriptor continues a chain (same test the CH_COMPLETE state uses).
+    assign w_desc_chained  = r_desc_chained;
+
+    // Enabled only for a legacy CURRENT descriptor whose NEXT (FIFO head) is also
+    // legacy: w_is_ext gates the current, w_is_ext_in gates the head. EXT on
+    // either side falls back to the lockstep FSM (its run-base addr-gens are
+    // single-descriptor and cannot be pipelined this way).
+    assign w_rd_prefetch_en = cfg_rd_prefetch_enable && !w_is_ext && !w_is_ext_in;
+
+    // PEEK: read has drained its current descriptor (read-beats==0) while the
+    // write side is still issuing (!w_write_issued). Load the read flops from the
+    // FIFO head and mark read one descriptor ahead -- WITHOUT draining the FIFO.
+    assign w_rd_peek   = w_rd_prefetch_en && w_state_xfer_data && !r_rd_ahead &&
+                         (r_read_beats_remaining == 32'h0) && !w_write_issued &&
+                         w_desc_chained && descriptor_valid;
+
+    // ADVANCE: write has issued its current descriptor. Reload the write flops
+    // from the FIFO head and DRAIN the FIFO (descriptor_ready pulse), staying in
+    // CH_XFER_DATA -- no COMPLETE/NEXT_DESC/FETCH walk. If read was already ahead
+    // (r_rd_ahead) this just clears the flag (read/write now lockstep on N+1);
+    // otherwise the same reload also advances the read flops (read had finished
+    // N in lockstep). Requires the head present (descriptor_valid) and chained.
+    assign w_wr_advance = w_rd_prefetch_en && w_state_xfer_data && w_write_issued &&
+                          w_desc_chained && descriptor_valid;
 
     // Look-ahead completion detection:
     // De-assert valid on the SAME CYCLE that the completion strobe arrives
@@ -876,7 +1058,12 @@ module scheduler #(
     // Descriptor Engine Interface
     //=========================================================================
 
-    assign descriptor_ready = (r_current_state == CH_IDLE) || (r_current_state == CH_NEXT_DESC);
+    // Pop the descriptor FIFO in CH_IDLE / CH_NEXT_DESC (normal path) and, with
+    // USE_RD_PREFETCH, on an in-place write advance (w_wr_advance drains the head
+    // read peeked earlier). w_wr_advance is constant 0 when the feature is off.
+    assign descriptor_ready = (r_current_state == CH_IDLE) ||
+                              (r_current_state == CH_NEXT_DESC) ||
+                              w_wr_advance;
 
     //=========================================================================
     // Timeout and Error Management
@@ -1035,6 +1222,30 @@ module scheduler #(
                     // No intermediate events during concurrent transfer
                     // Read and write happen simultaneously, only final completion matters
                     // This keeps MonBus traffic low and focuses on meaningful events
+                    //
+                    // EXCEPT: a read-ahead in-place advance (w_wr_advance) retires
+                    // a CHAINED descriptor without passing through CH_COMPLETE, so
+                    // emit that descriptor's completion/IRQ event here to preserve
+                    // per-descriptor MonBus parity with the lockstep path. r_descriptor
+                    // still holds the FINISHING descriptor (N) this edge -- it reloads
+                    // to N+1 in the datapath always_ff at the same edge. w_wr_advance
+                    // is 0 while cfg_rd_prefetch_enable is deasserted, so lockstep
+                    // trace is unchanged.
+                    if (w_wr_advance) begin
+                        r_mon_valid     <= 1'b1;
+                        r_mon_timestamp <= i_mon_time;
+                        if (r_descriptor.gen_irq) begin
+                            r_mon_packet <= create_monitor_packet(
+                                PktTypeCompletion, PROTOCOL_CORE, STREAM_EVENT_IRQ,
+                                MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID,
+                                {32'h0, r_descriptor.length});
+                        end else begin
+                            r_mon_packet <= create_monitor_packet(
+                                PktTypeCompletion, PROTOCOL_CORE, STREAM_EVENT_DESC_COMPLETE,
+                                MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID,
+                                {32'h0, r_descriptor.length});
+                        end
+                    end
                 end
 
                 CH_COMPLETE: begin

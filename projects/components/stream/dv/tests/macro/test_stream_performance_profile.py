@@ -183,6 +183,19 @@ async def cocotb_test_performance_profile(dut):
     if not config:
         raise ValueError(f"Unknown performance config: {config_name}")
 
+    # Descriptor-size sweep overrides (per-descriptor overhead / streaming-knee study):
+    # SWEEP_DESC_COUNT = number of equal-size descriptors in the chain,
+    # SWEEP_DESC_BEATS = beats per descriptor. Copy first so the shared config list
+    # is not mutated across parametrized runs.
+    _sw_dc = os.environ.get('SWEEP_DESC_COUNT')
+    _sw_db = os.environ.get('SWEEP_DESC_BEATS')
+    if _sw_dc or _sw_db:
+        config = dict(config)
+        if _sw_dc:
+            config['desc_count'] = int(_sw_dc)
+        if _sw_db:
+            config['transfer_sizes'] = [int(_sw_db)]
+
     # Initialize testbench with parameters from config
     tb = StreamCoreTB(
         dut,

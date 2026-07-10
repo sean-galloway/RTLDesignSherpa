@@ -331,6 +331,10 @@ module stream_regs (
                 logic next;
                 logic load_next;
             } PERF_EN;
+            struct {
+                logic next;
+                logic load_next;
+            } RD_PREFETCH_EN;
         } SCHED_CONFIG;
         struct {
             struct {
@@ -737,6 +741,9 @@ module stream_regs (
             struct {
                 logic value;
             } PERF_EN;
+            struct {
+                logic value;
+            } RD_PREFETCH_EN;
         } SCHED_CONFIG;
         struct {
             struct {
@@ -1264,6 +1271,29 @@ module stream_regs (
         end
     end
     assign hwif_out.SCHED_CONFIG.PERF_EN.value = field_storage.SCHED_CONFIG.PERF_EN.value;
+    // Field: stream_regs.SCHED_CONFIG.RD_PREFETCH_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SCHED_CONFIG.RD_PREFETCH_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SCHED_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SCHED_CONFIG.RD_PREFETCH_EN.value & ~decoded_wr_biten[5:5]) | (decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
+            load_next_c = '1;
+        end
+        field_combo.SCHED_CONFIG.RD_PREFETCH_EN.next = next_c;
+        field_combo.SCHED_CONFIG.RD_PREFETCH_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SCHED_CONFIG.RD_PREFETCH_EN.value <= 1'h1;
+        end else begin
+            if(field_combo.SCHED_CONFIG.RD_PREFETCH_EN.load_next) begin
+                field_storage.SCHED_CONFIG.RD_PREFETCH_EN.value <= field_combo.SCHED_CONFIG.RD_PREFETCH_EN.next;
+            end
+        end
+    end
+    assign hwif_out.SCHED_CONFIG.RD_PREFETCH_EN.value = field_storage.SCHED_CONFIG.RD_PREFETCH_EN.value;
     // Field: stream_regs.SCHED_TIMEOUT_LIMIT.LIMIT
     always_comb begin
         automatic logic [7:0] next_c;
@@ -2951,7 +2981,8 @@ module stream_regs (
     assign readback_array[20][2:2] = (decoded_reg_strb.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SCHED_CONFIG.ERR_EN.value : '0;
     assign readback_array[20][3:3] = (decoded_reg_strb.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SCHED_CONFIG.COMPL_EN.value : '0;
     assign readback_array[20][4:4] = (decoded_reg_strb.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SCHED_CONFIG.PERF_EN.value : '0;
-    assign readback_array[20][31:5] = (decoded_reg_strb.SCHED_CONFIG && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[20][5:5] = (decoded_reg_strb.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SCHED_CONFIG.RD_PREFETCH_EN.value : '0;
+    assign readback_array[20][31:6] = (decoded_reg_strb.SCHED_CONFIG && !decoded_req_is_wr) ? 26'h0 : '0;
     assign readback_array[21][7:0] = (decoded_reg_strb.SCHED_TIMEOUT_LIMIT && !decoded_req_is_wr) ? field_storage.SCHED_TIMEOUT_LIMIT.LIMIT.value : '0;
     assign readback_array[21][31:8] = '0;
     assign readback_array[22][0:0] = (decoded_reg_strb.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.DESCENG_CONFIG.DESCENG_EN.value : '0;

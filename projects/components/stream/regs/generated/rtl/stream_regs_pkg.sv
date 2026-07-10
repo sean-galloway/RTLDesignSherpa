@@ -552,11 +552,16 @@ package stream_regs_pkg;
     } stream_regs__SCHED_CONFIG__PERF_EN__out_t;
 
     typedef struct {
+        logic value;
+    } stream_regs__SCHED_CONFIG__RD_PREFETCH_EN__out_t;
+
+    typedef struct {
         stream_regs__SCHED_CONFIG__SCHED_EN__out_t SCHED_EN;
         stream_regs__SCHED_CONFIG__TIMEOUT_EN__out_t TIMEOUT_EN;
         stream_regs__SCHED_CONFIG__ERR_EN__out_t ERR_EN;
         stream_regs__SCHED_CONFIG__COMPL_EN__out_t COMPL_EN;
         stream_regs__SCHED_CONFIG__PERF_EN__out_t PERF_EN;
+        stream_regs__SCHED_CONFIG__RD_PREFETCH_EN__out_t RD_PREFETCH_EN;
     } stream_regs__SCHED_CONFIG__out_t;
 
     typedef struct {

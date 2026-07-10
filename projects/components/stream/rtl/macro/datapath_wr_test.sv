@@ -322,6 +322,7 @@ module datapath_wr_test #(
                 .cfg_sched_timeout_cycles(32'd1000),  // Runtime timeout config
                 .cfg_sched_timeout_limit(8'd0),       // 0 = never escalate (pure soft timeout)
                 .cfg_sched_timeout_enable(1'b1),      // Enable timeout
+                .cfg_rd_prefetch_enable (1'b1),       // read-ahead prefetch on
 
                 // Status
                 .scheduler_idle         (sched_idle[i]),

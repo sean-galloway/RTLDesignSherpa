@@ -1096,8 +1096,10 @@ Examples:
   %(prog)s --port /dev/ttyUSB0 -v             # different port, verbose
   %(prog)s --output results.json              # save results to JSON
 """)
-    parser.add_argument('--port', default='/dev/ttyUSB1',
-                        help='Serial port (default: /dev/ttyUSB1)')
+    parser.add_argument('--port', default='auto',
+                        help="Serial port. Default 'auto' probes every /dev/ttyUSB* "
+                             "for the stream harness (SCRATCH round-trip) since the "
+                             "USB-UART re-enumerates. Pass an explicit path to force it.")
     parser.add_argument('--baud', type=int, default=115200,
                         help='Baud rate (default: 115200)')
     parser.add_argument('--mon-config', dest='mon_config',
@@ -1175,6 +1177,44 @@ Examples:
     return parser.parse_args()
 
 
+def autodetect_port(baud, want=None):
+    """Find the ttyUSB the stream harness is on -- the enumeration order is not
+    stable across reboots/replugs, so never hardcode it. Probe each candidate by
+    round-tripping the harness SCRATCH CSR (RW, no side effects); the board that
+    echoes the magic back is ours.
+
+    `want`: if the user passed --port explicitly (not 'auto'), try that first.
+    """
+    import glob
+    from uart_axi_bridge import UARTAxiBridge
+
+    scratch = H('SCRATCH')            # by-name; RW identity register
+    magic = 0xC0FFEE5A
+    cands = []
+    if want and want != 'auto':
+        cands.append(want)
+    cands += sorted(p for p in glob.glob('/dev/ttyUSB*') if p not in cands)
+
+    for port in cands:
+        try:
+            with UARTAxiBridge(port, baud, timeout=0.4) as b:
+                b.write(scratch, magic)
+                if b.read(scratch) == magic:
+                    # restore scratch to 0 so we leave no footprint
+                    try:
+                        b.write(scratch, 0)
+                    except Exception:
+                        pass
+                    print(f"[autodetect] stream harness found on {port}")
+                    return port
+        except Exception:
+            continue
+    raise SystemExit(
+        f"[autodetect] no stream harness responded on any of: "
+        f"{cands or '(no /dev/ttyUSB* present)'}. "
+        f"Is the board powered and programmed with stream_char.bit?")
+
+
 def main():
     args = parse_args()
 
@@ -1250,8 +1290,12 @@ def main():
     # Lazy import — pyserial only needed for real FPGA runs
     from uart_axi_bridge import UARTAxiBridge
 
+    # Resolve the serial port. The USB-UART re-enumerates (ttyUSB index is not
+    # stable), so 'auto' (the default) probes every /dev/ttyUSB* for the harness.
+    port = autodetect_port(args.baud, want=args.port)
+
     # Run
-    with UARTAxiBridge(args.port, args.baud) as bridge:
+    with UARTAxiBridge(port, args.baud) as bridge:
         runner = CharacterizationRunner(
             bridge, data_width=128, verbose=args.verbose,
             mon_config=args.mon_config,

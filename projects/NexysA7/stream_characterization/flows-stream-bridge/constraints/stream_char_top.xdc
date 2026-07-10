@@ -373,3 +373,10 @@ add_cells_to_pblock pblock_compressor [get_cells -quiet u_harness/u_stream/g_mon
 add_cells_to_pblock pblock_compressor [get_cells -quiet u_harness/u_stream/g_monbus_axil.u_monbus_axil_group/u_core/gen_compressor.u_comp_in_skid]
 resize_pblock pblock_compressor -add {CLOCKREGION_X0Y2:CLOCKREGION_X0Y2}
 set_property CONTAIN_ROUTING 0 [get_pblocks pblock_compressor]
+## NOTE: A pblock_scheduler experiment (confine u_scheduler_group_array to the
+## right column X1Y0:X1Y3) was tried and REVERTED -- it regressed WNS from -0.675
+## to -1.118. The scheduler critical path is the 32-bit saturating commit
+## accumulator (r_write_beats_to_commit): its carry chain plus a wide clear cone
+## (channel-reset + timeout-escalate + saturate-to-zero all driving the FDRE /R
+## pin) is a logic-depth problem, not an inter-block placement one, so floorplan
+## made it worse. The close needs an accumulator logic restructure, not a pblock.

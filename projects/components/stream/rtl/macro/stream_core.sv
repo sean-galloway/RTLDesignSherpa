@@ -132,6 +132,7 @@ module stream_core #(
     // Descriptor engine configuration
     input  logic                                cfg_desceng_enable,
     input  logic                                cfg_desceng_prefetch,
+    input  logic                                cfg_rd_prefetch_enable,   // scheduler read-ahead prefetch
     input  logic [3:0]                          cfg_desceng_fifo_thresh,
     input  logic [AW-1:0]                       cfg_desceng_addr0_base,
     input  logic [AW-1:0]                       cfg_desceng_addr0_limit,
@@ -770,6 +771,7 @@ module stream_core #(
         .cfg_sched_perf_enable  (cfg_sched_perf_enable),
         .cfg_desceng_enable     (cfg_desceng_enable),
         .cfg_desceng_prefetch   (cfg_desceng_prefetch),
+        .cfg_rd_prefetch_enable (cfg_rd_prefetch_enable),
         .cfg_desceng_fifo_thresh(cfg_desceng_fifo_thresh),
         .cfg_desceng_addr0_base (cfg_desceng_addr0_base),
         .cfg_desceng_addr0_limit(cfg_desceng_addr0_limit),

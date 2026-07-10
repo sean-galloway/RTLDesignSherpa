@@ -333,6 +333,10 @@ class StreamCoreTB(TBBase):
         self.dut.cfg_sched_err_enable.value = 1
         self.dut.cfg_sched_compl_enable.value = 1
         self.dut.cfg_sched_perf_enable.value = 1
+        # Scheduler read-ahead descriptor prefetch. Default enabled (matches the
+        # SCHED_CONFIG.RD_PREFETCH_EN regmap reset); set USE_RD_PREFETCH=0 to A/B
+        # the lockstep path on the same build.
+        self.dut.cfg_rd_prefetch_enable.value = int(os.environ.get('USE_RD_PREFETCH', '1'))
 
         # Descriptor engine configuration. Prefetch defaults on (matches historical
         # stream_core behavior); DESCENG_PREFETCH=0 selects the on-demand path used by

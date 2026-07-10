@@ -64,6 +64,7 @@ module stream_config_block #(
     input  logic                        reg_sched_config_err_en,
     input  logic                        reg_sched_config_compl_en,
     input  logic                        reg_sched_config_perf_en,
+    input  logic                        reg_sched_config_rd_prefetch_en,
 
     // Descriptor Engine Configuration
     input  logic                        reg_desceng_config_desceng_en,
@@ -162,6 +163,7 @@ module stream_config_block #(
     output logic                        cfg_sched_err_enable,
     output logic                        cfg_sched_compl_enable,
     output logic                        cfg_sched_perf_enable,
+    output logic                        cfg_rd_prefetch_enable,   // scheduler read-ahead prefetch
 
     // Descriptor Engine Configuration
     output logic                        cfg_desceng_enable,
@@ -269,6 +271,7 @@ module stream_config_block #(
     assign cfg_sched_err_enable = reg_sched_config_err_en;
     assign cfg_sched_compl_enable = reg_sched_config_compl_en;
     assign cfg_sched_perf_enable = reg_sched_config_perf_en;
+    assign cfg_rd_prefetch_enable = reg_sched_config_rd_prefetch_en;
 
     //-------------------------------------------------------------------------
     // Descriptor Engine Configuration

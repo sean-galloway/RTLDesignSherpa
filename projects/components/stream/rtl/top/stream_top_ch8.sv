@@ -599,6 +599,7 @@ module stream_top_ch8 #(
     logic                                   cfg_sched_err_enable;
     logic                                   cfg_sched_compl_enable;
     logic                                   cfg_sched_perf_enable;
+    logic                                   cfg_rd_prefetch_enable;   // scheduler read-ahead prefetch
 
     // Descriptor Engine Configuration
     logic                                   cfg_desceng_enable;
@@ -1177,6 +1178,7 @@ module stream_top_ch8 #(
         .reg_sched_config_err_en                    (hwif_out.SCHED_CONFIG.ERR_EN.value),
         .reg_sched_config_compl_en                  (hwif_out.SCHED_CONFIG.COMPL_EN.value),
         .reg_sched_config_perf_en                   (hwif_out.SCHED_CONFIG.PERF_EN.value),
+        .reg_sched_config_rd_prefetch_en            (hwif_out.SCHED_CONFIG.RD_PREFETCH_EN.value),
 
         // Descriptor Engine Configuration
         .reg_desceng_config_desceng_en              (hwif_out.DESCENG_CONFIG.DESCENG_EN.value),
@@ -1271,6 +1273,7 @@ module stream_top_ch8 #(
         .cfg_sched_err_enable               (cfg_sched_err_enable),
         .cfg_sched_compl_enable             (cfg_sched_compl_enable),
         .cfg_sched_perf_enable              (cfg_sched_perf_enable),
+        .cfg_rd_prefetch_enable             (cfg_rd_prefetch_enable),
         .cfg_desceng_enable                 (cfg_desceng_enable),
         .cfg_desceng_prefetch               (cfg_desceng_prefetch),
         .cfg_desceng_fifo_thresh            (cfg_desceng_fifo_thresh),
@@ -1389,6 +1392,7 @@ module stream_top_ch8 #(
                 .cfg_sched_perf_enable      (cfg_sched_perf_enable),
                 .cfg_desceng_enable         (cfg_desceng_enable),
                 .cfg_desceng_prefetch       (cfg_desceng_prefetch),
+                .cfg_rd_prefetch_enable     (cfg_rd_prefetch_enable),
                 .cfg_desceng_fifo_thresh    (cfg_desceng_fifo_thresh),
                 .cfg_desceng_addr0_base     (cfg_desceng_addr0_base),
                 .cfg_desceng_addr0_limit    (cfg_desceng_addr0_limit),
@@ -1688,6 +1692,7 @@ module stream_top_ch8 #(
                 .cfg_sched_perf_enable      (cfg_sched_perf_enable),
                 .cfg_desceng_enable         (cfg_desceng_enable),
                 .cfg_desceng_prefetch       (cfg_desceng_prefetch),
+                .cfg_rd_prefetch_enable     (cfg_rd_prefetch_enable),
                 .cfg_desceng_fifo_thresh    (cfg_desceng_fifo_thresh),
                 .cfg_desceng_addr0_base     (cfg_desceng_addr0_base),
                 .cfg_desceng_addr0_limit    (cfg_desceng_addr0_limit),
