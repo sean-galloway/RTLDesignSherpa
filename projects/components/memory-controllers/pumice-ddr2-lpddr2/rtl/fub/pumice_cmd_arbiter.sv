@@ -143,15 +143,11 @@ module pumice_cmd_arbiter
     logic [NUM_BANKS-1:0] r_guard0, r_guard1;
     logic [NUM_BANKS-1:0] w_guarded;
     assign w_guarded = r_guard0 | r_guard1;
-
-    // Global COLUMN guard. tccd_ok/twtr_ok/trtw_ok are registered (2-cycle
-    // latency), and a just-issued CAM entry stays lookup-visible for a cycle
-    // (r_issued/evict are registered). Block all column picks for 2 cycles after
-    // any RD/WR so the same slot can't be re-issued and cross-bank tCCD spacing
-    // holds. No throughput cost at tCCD>=2 (columns are that far apart anyway).
-    logic [1:0] r_col_guard;
-    logic       w_col_guarded;
-    assign w_col_guarded = (r_col_guard != 2'd0);
+    // NOTE: no global column guard is needed. Both CAMs exclude a just-committed/
+    // issued slot from sched_lu/oldest the next cycle (wr r_sched, rd r_issued),
+    // so the arbiter never re-issues the same slot and columns flow 1/clock.
+    // tCCD (=2 CK) is sub-controller-cycle at nphases>=2, enforced by
+    // tccd_ok_i without throttling consecutive controller cycles.
 
     // ---- drive the per-bank lookups: query {bank j, its open row} ----------
     always_comb begin
@@ -261,12 +257,12 @@ module pumice_cmd_arbiter
             end else begin
                 w_valid = 1'b1; w_op = OP_REF; w_grant = 1'b1;
             end
-        end else if (w_rd_found && !w_col_guarded) begin
+        end else if (w_rd_found) begin
             // 3a. READ row-hit (read-priority).
             w_valid = 1'b1; w_op = w_ap ? OP_RDA : OP_RD;
             w_bank = w_rd_bank; w_col = w_rd_col; w_ap_out = w_ap;
             w_do_rd = 1'b1; w_rd_issue = 1'b1; w_issue_slot = w_rd_slot;
-        end else if (w_wr_found && !w_col_guarded) begin
+        end else if (w_wr_found) begin
             // 3b. WRITE row-hit.
             w_valid = 1'b1; w_op = w_ap ? OP_WRA : OP_WR;
             w_bank = w_wr_bank; w_col = w_wr_col; w_ap_out = w_ap;
@@ -321,19 +317,13 @@ module pumice_cmd_arbiter
     // ---- guard update: 2-cycle per-bank block after an accepted ACT/PRE ----
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_guard0    <= '0;
-            r_guard1    <= '0;
-            r_col_guard <= 2'd0;
+            r_guard0 <= '0;
+            r_guard1 <= '0;
         end else begin
             r_guard1 <= r_guard0;
             r_guard0 <= '0;
             if (w_fire && (w_do_act || w_do_pre))
                 r_guard0 <= (NUM_BANKS'(1) << w_bank);
-            // global column cooldown
-            if (w_fire && (w_do_rd || w_do_wr))
-                r_col_guard <= 2'd2;
-            else if (r_col_guard != 2'd0)
-                r_col_guard <= r_col_guard - 2'd1;
         end
     )
 

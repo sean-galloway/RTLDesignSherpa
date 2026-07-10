@@ -8,6 +8,7 @@ import sys
 import random
 
 import cocotb
+from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths
@@ -123,8 +124,30 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     assert s['act'] == 0, "evt_act must NOT fire while cmd_ready low"
     dut.cmd_ready_i.value = 1
 
+    # ===== 9. 1-CMD/CLOCK: columns issue on CONSECUTIVE cycles (no throttle) =====
+    # Two RD hits on different banks; retire each as it issues (mocking the CAM's
+    # exclude-on-issue). A column must fire on BOTH consecutive clocks.
+    tb._drive_idle(); dut.init_done_i.value = 1
+    tb.set_bank_bits(dut.bank_row_active_i, {1: 1, 6: 1})
+    tb.set_bank_bits(dut.bank_rdwr_ready_i, {1: 1, 6: 1})
+    tb.set_open_rows({1: 0x11, 6: 0x66})
+    dut.cmd_ready_i.value = 1
+    fired = []
+    live = {1: (1, 3, 0x08, 0xC, 20), 6: (1, 7, 0x09, 0xD, 55)}  # bank -> lu tuple
+    for _ in range(2):
+        tb.set_lu('rd', dict(live))
+        await tb.settle()
+        p = tb.picked(); s = tb.strobes()
+        if s['rd']:
+            fired.append(p['bank'])
+            live.pop(p['bank'], None)      # retire the issued bank (exclude-on-issue)
+        await RisingEdge(dut.aclk)
+    assert fired == [6, 1], \
+        f"expected a RD on each of 2 consecutive clocks (oldest first): got {fired}"
+
     tb.log.info("PASS: init, refresh(PRE->REF+grant), read-priority, oldest "
-                "tie-break, write pick, CLOSE auto-PRE, ACT fallback, backpressure")
+                "tie-break, write pick, CLOSE auto-PRE, ACT fallback, backpressure, "
+                "1-cmd/clock consecutive columns")
 
 
 def test_pumice_cmd_arbiter(request):

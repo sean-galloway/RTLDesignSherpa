@@ -132,6 +132,12 @@ module pumice_wr_data_cam #(
     logic [AGE_WIDTH-1:0]    r_age   [NUM_ENTRIES];
     logic [SPTRW-1:0]        r_ptr   [NUM_ENTRIES];   // SRAM slot; set on 1st write
     logic                    r_pv    [NUM_ENTRIES];   // ptr_valid
+    logic                    r_sched [NUM_ENTRIES];   // scheduler committed this
+                                                      // slot -> exclude from
+                                                      // sched_lu/oldest (so the
+                                                      // arbiter can pick the next
+                                                      // entry the very next cycle
+                                                      // => clean 1 cmd/clock).
     logic [AGE_WIDTH-1:0]    r_age_ctr;
 
     // SRAM slot occupancy (pre-allocator), 1 = occupied
@@ -226,8 +232,9 @@ module pumice_wr_data_cam #(
         w_old_found = 1'b0;
         w_old_slot  = '0;
         w_old_best  = '0;
+        // exclude already-scheduled entries so the arbiter picks the next one.
         for (int i = 0; i < NUM_ENTRIES; i++) begin
-            if (r_valid[i] && (!w_old_found || w_rel[i] > w_old_best)) begin
+            if (r_valid[i] && !r_sched[i] && (!w_old_found || w_rel[i] > w_old_best)) begin
                 w_old_found = 1'b1;
                 w_old_best  = w_rel[i];
                 w_old_slot  = PTRW'(i);
@@ -253,7 +260,7 @@ module pumice_wr_data_cam #(
             qbank = sched_lu_bank_i[j*BKW +: BKW];
             qrow  = sched_lu_row_i [j*ROW_WIDTH +: ROW_WIDTH];
             for (int i = 0; i < NUM_ENTRIES; i++) begin
-                if (r_valid[i] && r_bank[i] == qbank && r_row[i] == qrow) begin
+                if (r_valid[i] && !r_sched[i] && r_bank[i] == qbank && r_row[i] == qrow) begin
                     if (!found || w_rel[i] > best) begin
                         found = 1'b1; best = w_rel[i]; slot = PTRW'(i);
                     end
@@ -277,6 +284,25 @@ module pumice_wr_data_cam #(
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(w_sq_wr_valid), .wr_ready(w_sq_wr_ready), .wr_data(w_sn_slot),
         .rd_ready(w_sq_rd_ready), .count(), .rd_valid(w_sq_rd_valid), .rd_data(w_sq_rd_slot)
+    );
+
+    // ---- commit (scheduled-slot) drain FIFO --------------------------------
+    // The arbiter's commit marks a slot scheduled (1 cycle, excluded from
+    // sched_lu/oldest immediately => 1 cmd/clock) and enqueues it here. The
+    // drain read-engine works through scheduled slots at its own pace, streaming
+    // cm_rd to the DFI layer and evicting on last. Decouples marking from drain.
+    logic            w_dq_wr_valid, w_dq_wr_ready, w_dq_rd_valid, w_dq_rd_ready;
+    logic [PTRW-1:0] w_dq_rd_slot;
+
+    logic w_commit_fire;
+    assign w_commit_fire = commit_valid_i && commit_ready_o;
+    assign commit_ready_o = w_dq_wr_ready;    // room in the drain FIFO
+    assign w_dq_wr_valid  = commit_valid_i;
+
+    gaxi_fifo_sync #(.DATA_WIDTH(PTRW), .DEPTH(NUM_ENTRIES)) u_drain_q (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(w_dq_wr_valid), .wr_ready(w_dq_wr_ready), .wr_data(commit_slot_i),
+        .rd_ready(w_dq_rd_ready), .count(), .rd_valid(w_dq_rd_valid), .rd_data(w_dq_rd_slot)
     );
 
     // Fill target SRAM slot: allocate a free slot on the first beat, else reuse
@@ -306,12 +332,12 @@ module pumice_wr_data_cam #(
     assign snarf_rd_last_o  = (r_sn_beat == BCW'(BL-1));
     assign w_sq_rd_ready    = !r_sn_active;  // pop next slot when idle
 
-    // ---- commit read engine + evict ----------------------------------------
-    assign commit_ready_o = !r_cm_active;
+    // ---- commit drain read-engine + evict (sourced from the drain FIFO) ----
     assign cm_rd_valid_o  = r_cm_active;
     assign cm_rd_data_o   = r_sram[w_cm_idx];
     assign cm_rd_strb_o   = r_strb[w_cm_idx];
     assign cm_rd_last_o   = (r_cm_beat == BCW'(BL-1));
+    assign w_dq_rd_ready  = !r_cm_active;   // pop next scheduled slot when idle
 
     logic w_sn_fire, w_cm_fire;
     assign w_sn_fire = snarf_rd_valid_o && snarf_rd_ready_i;
@@ -337,6 +363,7 @@ module pumice_wr_data_cam #(
             for (int i = 0; i < NUM_ENTRIES; i++) begin
                 r_valid[i] <= 1'b0;
                 r_pv[i]    <= 1'b0;
+                r_sched[i] <= 1'b0;
             end
         end else begin
             r_age_ctr <= r_age_ctr + 1'b1;
@@ -375,11 +402,17 @@ module pumice_wr_data_cam #(
                 else                 r_sn_beat   <= r_sn_beat + 1'b1;
             end
 
-            // commit read engine + evict on last
+            // commit MARK: the arbiter's commit sets scheduled (immediate) +
+            // enqueues the slot into the drain FIFO. Excluded from sched_lu/
+            // oldest next cycle => arbiter can pick another slot right away.
+            if (w_commit_fire)
+                r_sched[commit_slot_i] <= 1'b1;
+
+            // commit DRAIN read-engine + evict on last (sourced from drain FIFO)
             if (!r_cm_active) begin
-                if (commit_valid_i) begin
+                if (w_dq_rd_valid) begin
                     r_cm_active <= 1'b1;
-                    r_cm_slot   <= commit_slot_i;
+                    r_cm_slot   <= w_dq_rd_slot;
                     r_cm_beat   <= '0;
                 end
             end else if (w_cm_fire) begin
@@ -387,6 +420,7 @@ module pumice_wr_data_cam #(
                     r_cm_active        <= 1'b0;
                     r_valid[r_cm_slot] <= 1'b0;              // evict entry
                     r_pv   [r_cm_slot] <= 1'b0;
+                    r_sched[r_cm_slot] <= 1'b0;
                     r_sram_occ[r_ptr[r_cm_slot]] <= 1'b0;    // free SRAM slot
                 end else begin
                     r_cm_beat <= r_cm_beat + 1'b1;

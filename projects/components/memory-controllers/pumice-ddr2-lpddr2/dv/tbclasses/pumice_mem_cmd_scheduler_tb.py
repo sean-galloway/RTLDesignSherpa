@@ -109,11 +109,21 @@ class PumiceMemCmdSchedulerTB(TBBase):
         self.dut.cmd_ready_i.value = 1
 
     # ---- mock CAMs: answer lookups from wr_entry/rd_entry ------------------
+    # Model the real CAMs' scheduled/issued exclusion: the moment the arbiter
+    # commits/issues a slot, that entry is removed from sched_lu/oldest (real
+    # wr r_sched / rd r_issued). So an entry whose commit/issue is firing this
+    # cycle is suppressed here, preventing re-issue with no throttle.
     def _apply_cam(self):
+        wr_fire = int(self.dut.wr_commit_valid_o.value)
+        wr_fslot = int(self.dut.wr_commit_slot_o.value)
+        rd_fire = int(self.dut.rd_issue_valid_o.value)
+        rd_fslot = int(self.dut.rd_issue_slot_o.value)
         for pfx, ent in (('wr', self.wr_entry), ('rd', self.rd_entry)):
             hit = slot = col = idv = age = 0
             ov = ob = orow = oslot = 0
-            if ent is not None:
+            fired = ((pfx == 'wr' and wr_fire and ent is not None and ent['slot'] == wr_fslot)
+                     or (pfx == 'rd' and rd_fire and ent is not None and ent['slot'] == rd_fslot))
+            if ent is not None and not fired:
                 b = ent['bank']
                 # lookup port b responds to {bank b, its open row}: the arbiter
                 # queries with bank_open_row; the mock hits when the query row
