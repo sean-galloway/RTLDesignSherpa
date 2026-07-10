@@ -162,12 +162,14 @@ module init_sequencer
                 S_RESET:    r_state <= S_DFI_INIT;
                 S_DFI_INIT: if (dfi_init_complete_i) begin
                                 r_wait  <= W_INIT;
-                                r_next  <= w_is_ddr2 ? S_PREA1 : S_EMR3;
+                                r_next  <= w_is_ddr2 ? S_PREA1 : S_EMR2;
                                 r_state <= S_WAIT;
                             end
-                S_PREA1:    begin r_wait <= W_RP;  r_next <= S_EMR3;    r_state <= S_WAIT; end
-                S_EMR3:     begin r_wait <= W_MRD; r_next <= S_EMR2;    r_state <= S_WAIT; end
-                S_EMR2:     begin r_wait <= W_MRD; r_next <= S_EMR1;    r_state <= S_WAIT; end
+                // JEDEC JESD79-2 mode-register order: EMRS(2), EMRS(3), EMRS(1),
+                // then MRS(0)+DLL-reset.
+                S_PREA1:    begin r_wait <= W_RP;  r_next <= S_EMR2;    r_state <= S_WAIT; end
+                S_EMR2:     begin r_wait <= W_MRD; r_next <= S_EMR3;    r_state <= S_WAIT; end
+                S_EMR3:     begin r_wait <= W_MRD; r_next <= S_EMR1;    r_state <= S_WAIT; end
                 S_EMR1:     begin r_wait <= W_MRD; r_next <= S_MR0_DLL; r_state <= S_WAIT; end
                 S_MR0_DLL:  begin r_wait <= W_DLL;
                                   r_next <= w_is_ddr2 ? S_PREA2 : S_DONE;

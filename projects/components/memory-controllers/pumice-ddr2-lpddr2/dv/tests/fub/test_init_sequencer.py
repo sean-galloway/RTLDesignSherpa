@@ -6,7 +6,7 @@ Unit-test runner for `init_sequencer`. Walks the JEDEC DDR2 init FSM from
 RESET through DONE, verifies dfi_init_start_o asserts, and verifies the full
 mode-register write sequence:
 
-    EMRS(3) EMRS(2) EMRS(1) -> MRS(0)+DLL-reset -> [PREA, REF x2]
+    EMRS(2) EMRS(3) EMRS(1) -> MRS(0)+DLL-reset -> [PREA, REF x2]
     -> MRS(0) -> EMRS(1) OCD exit
 
 DDR2 has no ZQ calibration, so zqcl_req_o stays low (ZQCL is DDR3+).
@@ -47,13 +47,14 @@ DDR2_MR1_DEFAULT = 0x0000
 DDR2_MR2_DEFAULT = 0x0000
 DDR2_MR3_DEFAULT = 0x0000
 
-# Full JEDEC DDR2 mode-register write sequence (index, data), in FSM order:
-#   EMRS3, EMRS2, EMRS1, MRS0+DLL-reset, MRS0, EMRS1 OCD-exit.
+# Full JEDEC DDR2 mode-register write sequence (index, data), in FSM order.
+# JESD79-2 order: EMRS(2), EMRS(3), EMRS(1), MRS(0)+DLL-reset, then (after
+# PREA + REF x2) MRS(0), and EMRS(1) OCD-exit.
 # (S_OCD_DEF issues the OCD-default EMRS but intentionally leaves the shadow
 #  untouched, so it emits no mr_seq_we strobe.)
 DDR2_MR_SEQUENCE = [
-    (3, DDR2_MR3_DEFAULT),
     (2, DDR2_MR2_DEFAULT),
+    (3, DDR2_MR3_DEFAULT),
     (1, DDR2_MR1_DEFAULT),
     (0, DDR2_MR0_DLL),
     (0, DDR2_MR0),
