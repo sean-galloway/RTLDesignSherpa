@@ -51,6 +51,7 @@ sys.path.insert(0, str(repo_root / 'projects' / 'components' / 'converters' / 'b
 sys.path.insert(0, str(script_dir))
 
 from harness_addrs import H  # noqa: E402  (by-name harness CSR access)
+from harness_addrs import autodetect_port  # noqa: E402  (shared ttyUSB probe)
 import mon_configs as mon_cfg  # noqa: E402  (named monitor presets)
 
 from descriptor_builder import (
@@ -1192,44 +1193,6 @@ Examples:
                              'length. If unset, wr_delay = rd_delay for '
                              'each pair.')
     return parser.parse_args()
-
-
-def autodetect_port(baud, want=None):
-    """Find the ttyUSB the stream harness is on -- the enumeration order is not
-    stable across reboots/replugs, so never hardcode it. Probe each candidate by
-    round-tripping the harness SCRATCH CSR (RW, no side effects); the board that
-    echoes the magic back is ours.
-
-    `want`: if the user passed --port explicitly (not 'auto'), try that first.
-    """
-    import glob
-    from uart_axi_bridge import UARTAxiBridge
-
-    scratch = H('SCRATCH')            # by-name; RW identity register
-    magic = 0xC0FFEE5A
-    cands = []
-    if want and want != 'auto':
-        cands.append(want)
-    cands += sorted(p for p in glob.glob('/dev/ttyUSB*') if p not in cands)
-
-    for port in cands:
-        try:
-            with UARTAxiBridge(port, baud, timeout=0.4) as b:
-                b.write(scratch, magic)
-                if b.read(scratch) == magic:
-                    # restore scratch to 0 so we leave no footprint
-                    try:
-                        b.write(scratch, 0)
-                    except Exception:
-                        pass
-                    print(f"[autodetect] stream harness found on {port}")
-                    return port
-        except Exception:
-            continue
-    raise SystemExit(
-        f"[autodetect] no stream harness responded on any of: "
-        f"{cands or '(no /dev/ttyUSB* present)'}. "
-        f"Is the board powered and programmed with stream_char.bit?")
 
 
 def main():

@@ -64,6 +64,44 @@ def has(name: str) -> bool:
     return name in _regmap().registers
 
 
+def autodetect_port(baud: int = 115200, want: Optional[str] = None) -> str:
+    """Find the ttyUSB the stream char harness is on.
+
+    The USB-UART re-enumerates across reboots/replugs, so never hardcode the
+    port. Probe each candidate by round-tripping the harness SCRATCH CSR (RW, no
+    side effects); the board that echoes the magic back is ours. `want`: if the
+    caller passed --port explicitly (not 'auto'), try that first. Requires
+    `uart_axi_bridge` on sys.path (host entrypoints set this up before calling).
+    """
+    import glob
+    from uart_axi_bridge import UARTAxiBridge
+
+    scratch = H("SCRATCH")            # by-name; RW identity register
+    magic = 0xC0FFEE5A
+    cands = []
+    if want and want != "auto":
+        cands.append(want)
+    cands += sorted(p for p in glob.glob("/dev/ttyUSB*") if p not in cands)
+
+    for port in cands:
+        try:
+            with UARTAxiBridge(port, baud, timeout=0.4) as b:
+                b.write(scratch, magic)
+                if b.read(scratch) == magic:
+                    try:
+                        b.write(scratch, 0)   # leave no footprint
+                    except Exception:
+                        pass
+                    print(f"[autodetect] stream harness found on {port}")
+                    return port
+        except Exception:
+            continue
+    raise SystemExit(
+        f"[autodetect] no stream harness responded on any of: "
+        f"{cands or '(no /dev/ttyUSB* present)'}. "
+        f"Is the board powered and programmed with stream_char.bit?")
+
+
 def harness_regs(bridge, base: int = HARNESS_CSR_BASE):
     """By-name + field-sugar accessor for the harness CSRs over a byte-bridge.
 

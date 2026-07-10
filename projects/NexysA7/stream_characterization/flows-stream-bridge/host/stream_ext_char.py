@@ -226,9 +226,13 @@ def main(argv=None) -> int:
     from uart_axi_bridge import UARTAxiBridge
     from stream_device import Stream
     from descriptor_builder import STREAM_APB_BASE, DESC_RAM_BASE, HARNESS_CSR_BASE
+    from harness_addrs import autodetect_port
 
     ap = argparse.ArgumentParser(description="STREAM extended-addressing characterization")
-    ap.add_argument("--port", default="/dev/ttyUSB1")
+    ap.add_argument("--port", default="auto",
+                    help="Serial port. Default 'auto' probes every /dev/ttyUSB* "
+                         "for the stream harness (SCRATCH round-trip) since the "
+                         "USB-UART re-enumerates. Pass an explicit path to force it.")
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--channel", type=int, default=0)
     ap.add_argument("--out", default="ext_char.json")
@@ -238,6 +242,9 @@ def main(argv=None) -> int:
     ap.add_argument("--scale-size", default="256x256",
                     help="fixed tile for the channel-scaling sweep")
     args = ap.parse_args(argv)
+
+    # Resolve the serial port (auto-probes /dev/ttyUSB* for the harness).
+    args.port = autodetect_port(args.baud, want=args.port)
 
     sizes = [tuple(int(x) for x in s.split("x")) for s in args.sizes.split(",")]
     scale_channels = tuple(int(x) for x in args.scale_channels.split(",") if x.strip())
