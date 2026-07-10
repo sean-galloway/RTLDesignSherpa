@@ -108,38 +108,56 @@ class RapidsCharCampaign:
             self.log.info(f"APB WRITE {half.upper()}.{reg_name} "
                           f"(0x{addr:04X}) = 0x{value:08X}")
 
+    def write_fields(self, half: str, reg_name: str, **fields: int) -> None:
+        """Program a DUT register by setting its FIELDS by name (composed at their
+        rapids_regmap offsets/widths) rather than a hand-assembled bitmask.
+        Unspecified fields default to 0."""
+        regs = self.src_regs if half == 'src' else self.snk_regs
+        info = regs.registers[reg_name]
+        word = 0
+        for fname, val in fields.items():
+            fld = info.get(fname)
+            if not isinstance(fld, dict) or 'offset' not in fld:
+                raise KeyError(f"unknown field {reg_name}.{fname}")
+            off = fld['offset']
+            hi, lo = (int(x) for x in off.split(':')) if ':' in off \
+                else (int(off), int(off))
+            mask = ((1 << (hi - lo + 1)) - 1) << lo
+            word = (word & ~mask) | ((int(val) << lo) & mask)
+        self.write_reg(half, reg_name, word)
+
     # ---- DUT config by name (mirrors _configure_via_apb) -------------------
 
     def configure_half(self, half: str) -> None:
         all_ch = (1 << self.num_channels) - 1
 
-        self.write_reg(half, 'SCHED_TIMEOUT_CYCLES', 1_000_000)
-        self.write_reg(half, 'SCHED_TIMEOUT_LIMIT', 0xFF)
-        # SCHED_EN[0] | ERR_EN[2]  (TIMEOUT/COMPL/PERF off)
-        self.write_reg(half, 'SCHED_CONFIG', (1 << 0) | (1 << 2))
+        self.write_fields(half, 'SCHED_TIMEOUT_CYCLES', TIMEOUT_CYCLES=1_000_000)
+        self.write_fields(half, 'SCHED_TIMEOUT_LIMIT', LIMIT=0xFF)
+        self.write_fields(half, 'SCHED_CONFIG', SCHED_EN=1, ERR_EN=1)  # TIMEOUT/COMPL/PERF off
 
-        # DESCENG_EN | PREFETCH_EN | FIFO_THRESH=4
-        self.write_reg(half, 'DESCENG_CONFIG', 0x1 | 0x2 | (4 << 2))
-        self.write_reg(half, 'DESCENG_ADDR0_BASE', 0x0000_0000)
-        self.write_reg(half, 'DESCENG_ADDR0_LIMIT', 0xFFFF_FFFF)
-        self.write_reg(half, 'DESCENG_ADDR1_BASE', 0x0000_0000)
-        self.write_reg(half, 'DESCENG_ADDR1_LIMIT', 0xFFFF_FFFF)
+        self.write_fields(half, 'DESCENG_CONFIG',
+                          DESCENG_EN=1, PREFETCH_EN=1, FIFO_THRESH=4)
+        self.write_fields(half, 'DESCENG_ADDR0_BASE',  ADDR0_BASE=0x0000_0000)
+        self.write_fields(half, 'DESCENG_ADDR0_LIMIT', ADDR0_LIMIT=0xFFFF_FFFF)
+        self.write_fields(half, 'DESCENG_ADDR1_BASE',  ADDR1_BASE=0x0000_0000)
+        self.write_fields(half, 'DESCENG_ADDR1_LIMIT', ADDR1_LIMIT=0xFFFF_FFFF)
 
         # RD/WR=8 beats, ALLOC=16, DRAIN=1.
-        axi_xfer = (1 << 24) | (16 << 16) | (8 << 8) | (8 << 0)
-        self.write_reg(half, 'AXI_XFER_CONFIG', axi_xfer)
+        self.write_fields(half, 'AXI_XFER_CONFIG',
+                          RD_XFER_BEATS=8, WR_XFER_BEATS=8,
+                          ALLOC_SIZE=16, DRAIN_SIZE=1)
 
-        self.write_reg(half, 'CTRL_CONFIG', 0x1)
-        self.write_reg(half, 'CHANNEL_ENABLE', all_ch)
-        self.write_reg(half, 'GLOBAL_CTRL', 0x1)  # GLOBAL_EN (avoid RST bit)
+        self.write_fields(half, 'CTRL_CONFIG', CTRLRD_MAX_TRY=1)
+        self.write_fields(half, 'CHANNEL_ENABLE', CH_EN=all_ch)
+        self.write_fields(half, 'GLOBAL_CTRL', GLOBAL_EN=1)  # avoid RST bit
         self.log.info(f"{half.upper()} half configured via APB (by name)")
 
     def configure(self) -> None:
         # Monitor egress window: sane constants (never 0/0, which stalls the
         # monitor path) — mirrors the cocotb TB's reset defaults.
-        self.io.csr_write(rio.CSR_MON_BASE, 0x0000_1000)
-        self.io.csr_write(rio.CSR_MON_LIMIT, 0x0000_5000 - 1)
-        self.io.csr_write(rio.CSR_MON_FLUSHWM, 3)
+        self.io.csr_write_reg("MON_BASE", VALUE=0x0000_1000)
+        self.io.csr_write_reg("MON_LIMIT", VALUE=0x0000_5000 - 1)
+        self.io.csr_write_reg("MON_FLUSHWM", VALUE=3)
         self.io.cam_clear()
         self.configure_half('src')
         self.configure_half('snk')
@@ -197,19 +215,19 @@ class RapidsCharCampaign:
             self.io.load_descriptor('snk', desc_addr, descriptor_to_words(desc))
 
         # 2. Reset the sink-write CRC checker (1-cycle pulse in HW).
-        self.io.csr_write(rio.CSR_MEM_CTRL, 0x2)  # wr_crc_reset
+        self.io.csr_write_reg("MEM_CTRL", WR_CRC_RESET=1)
 
         # 3. Program + start the AXIS pattern generator (start reseeds LFSR/CRC).
-        # CSR_GEN_SEED==0 selects the DEADBEEF param default; any other value is
+        # GEN_SEED==0 selects the DEADBEEF param default; any other value is
         # used verbatim as the LFSR seed. Golden uses the matching base_seed.
         seed_csr = 0 if base_seed == LFSR_SEED_DEFAULT else base_seed
-        self.io.csr_write(rio.CSR_GEN_SEED, seed_csr)
-        self.io.csr_write(rio.CSR_GEN_NBEATS, beats)
-        self.io.csr_write(rio.CSR_GEN_BPP, 0)       # 0 => one packet per channel
-        self.io.csr_write(rio.CSR_GEN_CHMASK, mask)
-        self.io.csr_write(rio.CSR_GEN_TDEST, 0)
-        self.io.csr_write(rio.CSR_GEN_CTRL, 1)      # arm (level -> rising edge)
-        self.io.csr_write(rio.CSR_GEN_CTRL, 0)      # clear
+        self.io.csr_write_reg("GEN_SEED", VALUE=seed_csr)
+        self.io.csr_write_reg("GEN_NBEATS", VALUE=beats)
+        self.io.csr_write_reg("GEN_BPP", VALUE=0)        # 0 => one packet per channel
+        self.io.csr_write_reg("GEN_CHMASK", VALUE=mask)
+        self.io.csr_write_reg("GEN_TDEST", VALUE=0)
+        self.io.csr_write_reg("GEN_CTRL", GEN_START=1)   # arm (level -> rising edge)
+        self.io.csr_write_reg("GEN_CTRL", GEN_START=0)   # clear
 
         # 4. Kick each channel's SINK descriptor (drains SRAM -> m_axi_wr).
         for ch in active_channels:
@@ -219,10 +237,9 @@ class RapidsCharCampaign:
         expected_total = beats * n_active
 
         def done():
-            status = self.io.read_status()
-            wr_total = self.io.csr_read(rio.CSR_WR_BEATS_T)
-            return (status is not None and (status & rio.STATUS_SNK_IDLE)
-                    and wr_total == expected_total)
+            snk_idle = self.io.csr_field("STATUS", "SNK_IDLE")
+            wr_total = self.io.csr_read_reg("WR_BEATS_T")
+            return bool(snk_idle) and wr_total == expected_total
 
         ok_idle = self._poll(done, timeout_s)
 
@@ -231,11 +248,11 @@ class RapidsCharCampaign:
         return self._score(
             active_channels, beats, expected_total, ok_idle,
             base_seed=base_seed,
-            beat_count_reg=rio.CSR_WR_BEATS_T,
-            sched_err_reg=rio.CSR_SNK_SCHERR,
+            beat_count_reg="WR_BEATS_T",
+            sched_err_reg="SNK_SCHERR",
             label='SINK',
-            authorities=[('wr', rio.CSR_WR_CRC, rio.CSR_WR_CRC_VLD)],
-            corroborators=[('gen', rio.CSR_GEN_EXP_CRC, rio.CSR_GEN_EXP_VLD)],
+            authorities=[('wr', "WR_CRC", "WR_CRC_VLD")],
+            corroborators=[('gen', "GEN_EXP_CRC", "GEN_EXP_VLD")],
             check_data_error=False)
 
     # ---- SOURCE self-check: m_axi_rd LFSR -> source -> m_axis chk ----------
@@ -265,19 +282,19 @@ class RapidsCharCampaign:
         n_active = len(active_channels)
 
         # 1. Reset the source-read LFSR/CRC pattern generator (1-cycle pulse).
-        self.io.csr_write(rio.CSR_MEM_CTRL, 0x1)  # rd_crc_lfsr_reset
+        self.io.csr_write_reg("MEM_CTRL", RD_CRC_LFSR_RESET=1)
 
         # 2. Arm the AXIS pattern checker: chk_ready_en(level) + chk_cfg_start pulse.
         #    Source seed is fixed at the DEADBEEF param (no rd-gen seed CSR), so
         #    the checker seed must match: CSR_CHK_SEED=0 => DEADBEEF.
-        self.io.csr_write(rio.CSR_CHK_SEED, 0)    # 0 => DEADBEEF, matches rd gen
+        self.io.csr_write_reg("CHK_SEED", VALUE=0)  # 0 => DEADBEEF, matches rd gen
         if backpressure:
             # Arm with ready held LOW; the poll loop pulses it to create stalls.
-            self.io.csr_write(rio.CSR_CHK_CTRL, 0x1)  # start[0]=1, ready_en[1]=0
-            self.io.csr_write(rio.CSR_CHK_CTRL, 0x0)  # drop start, ready still low
+            self.io.csr_write_reg("CHK_CTRL", CHK_START=1, CHK_READY_EN=0)
+            self.io.csr_write_reg("CHK_CTRL", CHK_START=0, CHK_READY_EN=0)
         else:
-            self.io.csr_write(rio.CSR_CHK_CTRL, 0x3)  # start[0]=1, ready_en[1]=1
-            self.io.csr_write(rio.CSR_CHK_CTRL, 0x2)  # drop start, keep ready_en
+            self.io.csr_write_reg("CHK_CTRL", CHK_START=1, CHK_READY_EN=1)
+            self.io.csr_write_reg("CHK_CTRL", CHK_START=0, CHK_READY_EN=1)
 
         # 3. Load a SOURCE DATA descriptor per active channel into the SRC RAM.
         for ch in active_channels:
@@ -294,10 +311,9 @@ class RapidsCharCampaign:
         expected_total = beats * n_active
 
         def done():
-            status = self.io.read_status()
-            chk_total = self.io.csr_read(rio.CSR_CHK_BEATS_T)
-            return (status is not None and (status & rio.STATUS_SRC_IDLE)
-                    and chk_total == expected_total)
+            src_idle = self.io.csr_field("STATUS", "SRC_IDLE")
+            chk_total = self.io.csr_read_reg("CHK_BEATS_T")
+            return bool(src_idle) and chk_total == expected_total
 
         if backpressure:
             ok_idle = self._poll_backpressure(done, timeout_s)
@@ -309,11 +325,11 @@ class RapidsCharCampaign:
         return self._score(
             active_channels, beats, expected_total, ok_idle,
             base_seed=LFSR_SEED_DEFAULT,
-            beat_count_reg=rio.CSR_CHK_BEATS_T,
-            sched_err_reg=rio.CSR_SRC_SCHERR,
+            beat_count_reg="CHK_BEATS_T",
+            sched_err_reg="SRC_SCHERR",
             label='SOURCE',
-            authorities=[('rd', rio.CSR_RD_CRC, rio.CSR_RD_CRC_VLD),
-                         ('chk', rio.CSR_CHK_ACT_CRC, rio.CSR_CHK_ACT_VLD)],
+            authorities=[('rd', "RD_CRC", "RD_CRC_VLD"),
+                         ('chk', "CHK_ACT_CRC", "CHK_ACT_VLD")],
             corroborators=[],
             check_data_error=True)
 
@@ -329,13 +345,13 @@ class RapidsCharCampaign:
         deadline = time.time() + timeout_s
         while time.time() < deadline:
             if predicate():
-                self.io.csr_write(rio.CSR_CHK_CTRL, 0x2)  # leave ready asserted
+                self.io.csr_write_reg("CHK_CTRL", CHK_START=0, CHK_READY_EN=1)  # leave ready asserted
                 return True
             # Stall pulse (ready low), then release (ready high). start stays 0.
-            self.io.csr_write(rio.CSR_CHK_CTRL, 0x0)
-            self.io.csr_write(rio.CSR_CHK_CTRL, 0x2)
+            self.io.csr_write_reg("CHK_CTRL", CHK_START=0, CHK_READY_EN=0)
+            self.io.csr_write_reg("CHK_CTRL", CHK_START=0, CHK_READY_EN=1)
             time.sleep(period_s)
-        self.io.csr_write(rio.CSR_CHK_CTRL, 0x2)  # ensure ready before final check
+        self.io.csr_write_reg("CHK_CTRL", CHK_START=0, CHK_READY_EN=1)  # ensure ready before final check
         return predicate()
 
     # ---- shared per-channel scoreboard -------------------------------------
@@ -345,8 +361,9 @@ class RapidsCharCampaign:
                authorities, corroborators, check_data_error):
         """Golden-anchored per-channel scoreboard.
 
-        `authorities` are (name, crc_reg, vld_reg) tuples whose CRC MUST equal
-        the golden model for the run to pass (these are the DATA-path CRCs).
+        `authorities` are (name, crc_reg, vld_reg) tuples where crc_reg / vld_reg
+        are harness-CSR register NAMES (resolved by-name via csr_read_reg) whose
+        CRC MUST equal the golden model for the run to pass (the DATA-path CRCs).
         `corroborators` are compared against golden too but only produce
         NON-FATAL warnings on mismatch or valid==0 (e.g. the generator's
         self-CRC, whose valid flag is a known intermittent-re-arm flake).
@@ -356,19 +373,19 @@ class RapidsCharCampaign:
         warnings = []     # non-fatal (corroboration / valid-flag flakes)
         results = {}
 
-        beat_total = self.io.csr_read(beat_count_reg)
+        beat_total = self.io.csr_read_reg(beat_count_reg)
         status = self.io.read_status()
         if not ok_idle:
             errors.append(f"timeout: status=0x{(status or 0):08X} "
                           f"beat_total={beat_total} (expected {expected_total})")
         if beat_total != expected_total:
             errors.append(f"beat_total={beat_total} != expected {expected_total}")
-        if check_data_error and status is not None and (status & rio.STATUS_DATA_ERROR):
+        if check_data_error and self.io.csr_field("STATUS", "DATA_ERROR"):
             errors.append("o_data_error asserted")
 
-        auth_vld = {name: (self.io.csr_read(vld) or 0)
+        auth_vld = {name: (self.io.csr_read_reg(vld) or 0)
                     for name, _, vld in authorities}
-        corr_vld = {name: (self.io.csr_read(vld) or 0)
+        corr_vld = {name: (self.io.csr_read_reg(vld) or 0)
                     for name, _, vld in corroborators}
         golden_mismatch = False
 
@@ -379,7 +396,7 @@ class RapidsCharCampaign:
             ch_ok = True
 
             for name, crc_reg, _ in authorities:
-                crc = self.io.csr_read(crc_reg)
+                crc = self.io.csr_read_reg(crc_reg)
                 ch_res[name] = crc
                 if not (auth_vld[name] >> ch) & 0x1:
                     warnings.append(f"ch{ch}: {name}_crc_valid=0 (non-fatal; "
@@ -392,7 +409,7 @@ class RapidsCharCampaign:
                         f"{name}=0x{(crc or 0):08X} golden=0x{golden:08X}")
 
             for name, crc_reg, _ in corroborators:
-                crc = self.io.csr_read(crc_reg)
+                crc = self.io.csr_read_reg(crc_reg)
                 ch_res[name] = crc
                 cv = (corr_vld[name] >> ch) & 0x1
                 if crc != golden or not cv:
@@ -411,7 +428,7 @@ class RapidsCharCampaign:
             else:
                 print(f"  ch{ch}: {label} FAIL golden=0x{golden:08X}")
 
-        se = self.io.csr_read(sched_err_reg)
+        se = self.io.csr_read_reg(sched_err_reg)
         if se not in (0, None):
             errors.append(f"{label.lower()}_sched_error=0x{se:X}")
 
