@@ -27,11 +27,11 @@ $REPO_ROOT/rtl/amba/axi4/axi4_slave_rd.sv
 
 # FUBs
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/addr_mapper.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/wr_cmd_cam.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/rd_cmd_cam.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/wr2rd_forward.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/axi_id_side_table.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/axi_intake.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/OLD/wr_cmd_cam.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/OLD/rd_cmd_cam.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/OLD/wr2rd_forward.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/OLD/axi_id_side_table.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/OLD/axi_intake.sv
 
 # Macro
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/axi_frontend_macro.sv
