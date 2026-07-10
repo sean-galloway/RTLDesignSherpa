@@ -140,6 +140,7 @@ APB_CH_KICK_STRIDE      = 0x08
 # (stream_char_tb.py); the runner missed it until now, which is why
 # every prior FPGA sweep reported "Trace: 0 packets, overflow=no".
 from stream_addrs import A as _A   # noqa: E402 (addresses by name; never hardcode)
+from stream_addrs import write_reg as _stream_write_reg  # noqa: E402 (fields by name)
 APB_DAXMON_ENABLE       = _A("DAXMON_ENABLE")
 APB_DAXMON_PKT_MASK     = _A("DAXMON_PKT_MASK")
 APB_DAXMON_ERR_CFG      = _A("DAXMON_ERR_CFG")
@@ -188,11 +189,16 @@ class CharacterizationRunner:
                  verbose: bool = False, mon_config: str = None,
                  poll_interval_s: float = 0.001,
                  aclk_hz: float = 100_000_000.0,
-                 compression: bool = True):
+                 compression: bool = True,
+                 rd_prefetch: bool = True):
         self.bridge = bridge
         self.builder = DescriptorBuilder(data_width=data_width)
         self.verbose = verbose
         self.results = []
+        # Scheduler read-ahead descriptor prefetch (SCHED_CONFIG.RD_PREFETCH_EN).
+        # Default on (matches the regmap reset); --rd-prefetch off runs the
+        # lockstep A/B on the same bitstream.
+        self.rd_prefetch = rd_prefetch
         # Runtime monbus compression toggle. Drives WRMON_ENABLE.COMPRESS_EN
         # (bit 5) after the monitor cones are programmed. Only meaningful on
         # a USE_MON_COMPRESSION=1 bitstream (compressor hardware present);
@@ -325,9 +331,14 @@ class CharacterizationRunner:
         `channels` is the explicit list of physical channels to enable (e.g.
         [0,1,2] or [2,5,7]); the channel-enable mask is the OR of those bits.
         """
-        # Scheduler config
-        sched_cfg = 0x0F  # SCHED_EN + TIMEOUT_EN + ERR_EN + COMPL_EN
-        self.bridge.write(APB_SCHED_CONFIG, sched_cfg)
+        # Scheduler config -- set fields individually by name, then write the
+        # register (never a hand-assembled bitmask: it silently drifts when the
+        # RDL changes, e.g. RD_PREFETCH_EN was added at bit 5). RD_PREFETCH_EN
+        # (read-ahead descriptor prefetch) is gated by self.rd_prefetch so the
+        # on/off A/B runs on the same bitstream (--rd-prefetch off for lockstep).
+        _stream_write_reg(self.bridge, "SCHED_CONFIG",
+                          SCHED_EN=1, TIMEOUT_EN=1, ERR_EN=1, COMPL_EN=1,
+                          RD_PREFETCH_EN=1 if self.rd_prefetch else 0)
         # SCHED_TIMEOUT_CYCLES is a 32-bit field. The earlier 0x0FFFFFFF
         # (28-bit = ~2.68 s) was too tight for deep descriptor chains
         # (16 desc x 1 MB) -- every such config in the matrix timed out
@@ -400,7 +411,7 @@ class CharacterizationRunner:
         for ch in channels:
             ch_mask |= (1 << ch)
         self.bridge.write(APB_CHANNEL_ENABLE, ch_mask)
-        self.vlog(f"  STREAM configured: sched=0x{sched_cfg:02X}, "
+        self.vlog(f"  STREAM configured: rd_prefetch={'on' if self.rd_prefetch else 'off'}, "
                   f"desceng=0x01, axi=0x{axi_cfg:04X}, ch_mask=0x{ch_mask:02X} "
                   f"(channels {channels})")
 
@@ -1114,6 +1125,12 @@ Examples:
                              'on=compress the bulk-trace stream, off=raw 3-beat '
                              'records. Only effective on a USE_MON_COMPRESSION=1 '
                              'bitstream. Default: on.')
+    parser.add_argument('--rd-prefetch', dest='rd_prefetch',
+                        choices=['on', 'off'], default='on',
+                        help='Scheduler read-ahead descriptor prefetch '
+                             '(SCHED_CONFIG.RD_PREFETCH_EN). on=cross-descriptor '
+                             'streaming (bubble-free chains), off=lockstep. Same '
+                             'bitstream either way; use for the on/off A/B. Default: on.')
     parser.add_argument('--phase', type=int, choices=[1, 2],
                         help='Run only phase 1 or phase 2')
     parser.add_argument('--configs', nargs='+',
@@ -1301,7 +1318,8 @@ def main():
             mon_config=args.mon_config,
             poll_interval_s=args.poll_interval_ms / 1000.0,
             aclk_hz=args.aclk_mhz * 1_000_000.0,
-            compression=(args.compression == 'on'))
+            compression=(args.compression == 'on'),
+            rd_prefetch=(args.rd_prefetch == 'on'))
         if args.resp_delays:
             rd = [int(s, 0) for s in args.resp_delays.split(',') if s.strip()]
             if args.resp_delays_wr:

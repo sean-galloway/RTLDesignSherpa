@@ -58,3 +58,40 @@ def A(name: str, base: int = STREAM_APB_BASE) -> int:
 
 def has(name: str) -> bool:
     return name in _regmap().registers
+
+
+def compose(name: str, **fields: int) -> int:
+    """Compose a register word by setting named FIELDS from the regmap.
+
+    The mandated pattern for all testing: set register fields individually by
+    name (each placed at its regmap offset/width) rather than hand-assembling a
+    bitmask -- a hardcoded mask silently drifts when the RDL changes (e.g. a new
+    field shifting RSVD). Unspecified fields keep the register's reset default.
+
+        bridge.write(A("SCHED_CONFIG"),
+                     compose("SCHED_CONFIG", SCHED_EN=1, RD_PREFETCH_EN=1))
+    """
+    info = _regmap().registers.get(name)
+    if info is None:
+        raise KeyError(f"unknown STREAM register {name!r}")
+    word = int(info.get("default", "0x0"), 16)
+    for fname, val in fields.items():
+        fld = info.get(fname)
+        if not isinstance(fld, dict) or "offset" not in fld:
+            raise KeyError(f"unknown field {name}.{fname}")
+        off = fld["offset"]
+        if ":" in off:
+            hi, lo = (int(x) for x in off.split(":"))
+        else:
+            hi = lo = int(off)
+        mask = ((1 << (hi - lo + 1)) - 1) << lo
+        word = (word & ~mask) | ((int(val) << lo) & mask)
+    return word & 0xFFFF_FFFF
+
+
+def write_reg(bridge, name: str, **fields: int) -> int:
+    """Set fields by name (see compose) then write the register to hardware.
+    Returns the word written."""
+    word = compose(name, **fields)
+    bridge.write(A(name), word)
+    return word
