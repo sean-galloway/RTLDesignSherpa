@@ -165,7 +165,8 @@ module pumice_dfi_layer
     // ======================================================================
     pumice_dfi_cmd_path #(
         .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH),
-        .COL_WIDTH(COL_WIDTH), .DFI_RATE(DFI_RATE), .DFI_ADDR_WIDTH(DFI_ADDR_WIDTH),
+        .COL_WIDTH(COL_WIDTH), .DFI_RATE(DFI_RATE), .COL_BURST_CYC(BL_WORDS),
+        .DFI_ADDR_WIDTH(DFI_ADDR_WIDTH),
         .DFI_BANK_WIDTH(DFI_BANK_WIDTH), .DFI_CTRL_WIDTH(DFI_CTRL_WIDTH),
         .DFI_CS_WIDTH(DFI_CS_WIDTH)
     ) u_cmd (

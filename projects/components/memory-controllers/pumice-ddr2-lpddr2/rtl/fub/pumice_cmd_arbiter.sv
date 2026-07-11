@@ -143,11 +143,12 @@ module pumice_cmd_arbiter
     logic [NUM_BANKS-1:0] r_guard0, r_guard1;
     logic [NUM_BANKS-1:0] w_guarded;
     assign w_guarded = r_guard0 | r_guard1;
-    // NOTE: no global column guard is needed. Both CAMs exclude a just-committed/
+    // NOTE: no global column guard here. Both CAMs exclude a just-committed/
     // issued slot from sched_lu/oldest the next cycle (wr r_sched, rd r_issued),
-    // so the arbiter never re-issues the same slot and columns flow 1/clock.
-    // tCCD (=2 CK) is sub-controller-cycle at nphases>=2, enforced by
-    // tccd_ok_i without throttling consecutive controller cycles.
+    // so the arbiter never re-issues the same slot. The shared-DQ-bus occupancy
+    // (a BL burst owns the DQ bus for BL/DFI_RATE dfi cycles) is a dfi_clk-domain
+    // constraint enforced downstream in pumice_dfi_cmd_path (COL_BURST_CYC), not
+    // here — the CDC decouples aclk command issue from the dfi_clk DQ timing.
 
     // ---- drive the per-bank lookups: query {bank j, its open row} ----------
     always_comb begin

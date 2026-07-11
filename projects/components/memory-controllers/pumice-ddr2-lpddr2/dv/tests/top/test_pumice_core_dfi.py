@@ -48,9 +48,9 @@ BL_WORDS = BL // DFI_RATE          # 4 AXI beats / burst
 BURST_INCR = 1
 
 
-def _cfg(dut):
+def _cfg(dut, page_policy=0):
     dut.memtype_i.value = 0
-    dut.page_policy_i.value = 0
+    dut.page_policy_i.value = page_policy
     dut.scheme_active_i.value = 0
     dut.xor_seed_i.value = 0
     for t, v in [("t_rcd_i", 3), ("t_rp_i", 3), ("t_ras_i", 4), ("t_rc_i", 6),
@@ -79,11 +79,16 @@ def _cfg(dut):
     dut.s_axi_rready.value = 1
 
 
-@cocotb.test(timeout_time=30, timeout_unit="ms")
-async def cocotb_test_pumice_core_dfi(dut):
+def _mkaddr(bank, row, col):
+    # {row|bank|col} << byte_offset(=log2(DRAM beat bytes)=3)
+    return ((row << (COL_WIDTH + 3)) | (bank << COL_WIDTH) | col) << 3
+
+
+async def _bring_up(dut, page_policy=0):
+    """clocks + reset + config + strict DFISlavePHY(golden) + init -> returns memory."""
     cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
     cocotb.start_soon(Clock(dut.dfi_clk, 4, units="ns").start())
-    _cfg(dut)
+    _cfg(dut, page_policy)
     dut.aresetn.value = 0
     dut.dfi_rstn.value = 0
     await ClockCycles(dut.aclk, 10)
@@ -91,7 +96,6 @@ async def cocotb_test_pumice_core_dfi(dut):
     dut.dfi_rstn.value = 1
     await ClockCycles(dut.aclk, 6)
 
-    # ---- strict DFISlavePHY + golden MemoryModel on dfi_clk ----
     mapping = AddressMapping(num_ranks=1, num_banks=NUM_BANKS,
                              num_rows=1 << ROW_WIDTH, num_cols=1 << COL_WIDTH,
                              mapping="row|bank|col")
@@ -102,14 +106,10 @@ async def cocotb_test_pumice_core_dfi(dut):
                    mapping=mapping, beats_per_burst=BL)
     slave = DFISlavePHY(dut, dut.dfi_clk, base=base, memory=memory,
                         dfi_phase_bytes=DRAM_BEAT // 8)
-    # don't hard-fail on JEDEC state nits during bring-up of the suite
     slave.dram = DramStateModel(timings=base.timings, num_banks=NUM_BANKS,
                                 policy=ViolationPolicy(hard=frozenset()))
 
-    # init handshake: drive phy_dfi_init_complete once the controller asserts
-    # phy_dfi_init_start (an internal net exposed via --public-flat-rw).
     async def _drive_init():
-        # phy_dfi_init_start is an internal net; drive complete when it asserts
         for _ in range(2000):
             await RisingEdge(dut.dfi_clk)
             try:
@@ -122,12 +122,17 @@ async def cocotb_test_pumice_core_dfi(dut):
                 return
     dut.phy_dfi_init_complete.value = 0
     cocotb.start_soon(_drive_init())
-
     for _ in range(600):
         await RisingEdge(dut.aclk)
         if int(dut.init_done_o.value):
             break
     assert int(dut.init_done_o.value) == 1, "init never completed"
+    return memory
+
+
+@cocotb.test(timeout_time=30, timeout_unit="ms")
+async def cocotb_test_pumice_core_dfi(dut):
+    await _bring_up(dut, page_policy=0)   # OPEN
 
     rng = random.Random(int(os.environ.get("SEED", "1")))
     level = os.environ.get("TEST_LEVEL", "basic").lower()
@@ -224,12 +229,115 @@ async def _ar(dut, addr, rid):
     dut.s_axi_arvalid.value = 0
 
 
-def test_pumice_core_dfi(request):
+@cocotb.test(timeout_time=30, timeout_unit="ms")
+async def cocotb_test_pumice_core_close(dut):
+    """CLOSE page policy: every column op is auto-precharge (RDA/WRA)."""
+    await _bring_up(dut, page_policy=1)   # CLOSE
+    rng = random.Random(int(os.environ.get("SEED", "2")))
+    n = {"basic": 6, "medium": 16, "full": 32}.get(os.environ.get("TEST_LEVEL", "basic").lower(), 6)
+    seen, reqs = set(), []
+    while len(reqs) < n:
+        a = _mkaddr(rng.randint(0, NUM_BANKS - 1), rng.randint(0, 63), rng.randint(0, 63) * BL)
+        if a in seen:
+            continue
+        seen.add(a)
+        reqs.append((a, [rng.randrange(1 << DW) for _ in range(BL_WORDS)]))
+    for k, (addr, data) in enumerate(reqs):
+        await _aw(dut, addr, k & 0xF); await _w(dut, data)
+        for _ in range(400):
+            await RisingEdge(dut.aclk)
+            if int(dut.s_axi_bvalid.value) and int(dut.s_axi_bready.value):
+                break
+    for k, (addr, data) in enumerate(reqs):
+        got = []
+        cocotb.start_soon(_r_sink(dut, got))
+        await _ar(dut, addr, k & 0xF)
+        for _ in range(800):
+            await RisingEdge(dut.aclk)
+            if len(got) >= BL_WORDS:
+                break
+        assert got[:BL_WORDS] == data, f"CLOSE read {k} @ {addr:#x}: {got[:BL_WORDS]} != {data}"
+    dut._log.info(f"PASS: CLOSE policy (auto-precharge) — {n} bursts round-trip vs golden")
+
+
+@cocotb.test(timeout_time=20, timeout_unit="ms")
+async def cocotb_test_pumice_core_waw(dut):
+    """WAW ordering + read-your-write: two writes to the SAME address, then read
+    must return the YOUNGER write (in-order commit + youngest-match)."""
+    await _bring_up(dut, page_policy=0)
+    rng = random.Random(int(os.environ.get("SEED", "3")))
+    n = {"basic": 4, "medium": 10, "full": 20}.get(os.environ.get("TEST_LEVEL", "basic").lower(), 4)
+    for k in range(n):
+        addr = _mkaddr(rng.randint(0, NUM_BANKS - 1), rng.randint(0, 63), rng.randint(0, 63) * BL)
+        a_data = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
+        b_data = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
+        # write A then B to the same address (B is younger)
+        await _aw(dut, addr, k & 0xF); await _w(dut, a_data)
+        await _aw(dut, addr, k & 0xF); await _w(dut, b_data)
+        for _ in range(600):
+            await RisingEdge(dut.aclk)
+            if int(dut.s_axi_bvalid.value):
+                break
+        await ClockCycles(dut.aclk, 200)  # let both writes fully commit+evict to golden
+        got = []
+        cocotb.start_soon(_r_sink(dut, got))
+        await _ar(dut, addr, k & 0xF)
+        for _ in range(800):
+            await RisingEdge(dut.aclk)
+            if len(got) >= BL_WORDS:
+                break
+        assert got[:BL_WORDS] == b_data, \
+            f"WAW read {k} @ {addr:#x} returned {got[:BL_WORDS]} != younger {b_data}"
+    dut._log.info(f"PASS: WAW ordering — {n} same-address overwrites read back the younger write")
+
+
+@cocotb.test(timeout_time=30, timeout_unit="ms")
+async def cocotb_test_pumice_core_b2b(dut):
+    """Back-to-back writes with NO inter-write spacing, then back-to-back reads.
+    Regression sentinel for the DQ-bus-occupancy collision: at BL8/DFI_RATE=2 a
+    burst owns the DQ bus for BL/DFI_RATE cycles, so consecutive column commands
+    must be paced by pumice_dfi_cmd_path or the 2nd burst's wrdata collides and
+    strands in the PHY (which then blocks all reads). Distinct addresses (no
+    snarf) exercise the full write->DRAM->read path under tight issue."""
+    memory = await _bring_up(dut, page_policy=0)
+    rng = random.Random(int(os.environ.get("SEED", "4")))
+    n = {"basic": 8, "medium": 24, "full": 48}.get(os.environ.get("TEST_LEVEL", "basic").lower(), 8)
+    seen, reqs = set(), []
+    while len(reqs) < n:
+        a = _mkaddr(rng.randint(0, NUM_BANKS - 1), rng.randint(0, 63), rng.randint(0, 63) * BL)
+        if a in seen:
+            continue
+        seen.add(a)
+        reqs.append((a, [rng.randrange(1 << DW) for _ in range(BL_WORDS)]))
+    # fire every AW/W with no wait for B between them (tight, back-to-back)
+    for k, (addr, data) in enumerate(reqs):
+        await _aw(dut, addr, k & 0xF)
+        await _w(dut, data)
+    # drain all B responses
+    for _ in range(4000):
+        await RisingEdge(dut.aclk)
+        if not int(dut.s_axi_awvalid.value) and not int(dut.s_axi_wvalid.value):
+            break
+    await ClockCycles(dut.aclk, 300)
+    # read every address back-to-back and check vs golden
+    for k, (addr, data) in enumerate(reqs):
+        got = []
+        cocotb.start_soon(_r_sink(dut, got))
+        await _ar(dut, addr, k & 0xF)
+        for _ in range(1200):
+            await RisingEdge(dut.aclk)
+            if len(got) >= BL_WORDS:
+                break
+        assert got[:BL_WORDS] == data, \
+            f"B2B read {k} @ {addr:#x}: {[hex(x) for x in got[:BL_WORDS]]} != {[hex(x) for x in data]}"
+    dut._log.info(f"PASS: back-to-back — {n} tightly-issued bursts round-trip vs golden (DQ pacing)")
+
+
+def _run(request, testcase):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_core_tb_top"
-    test_name = "cocotb_test_pumice_core_dfi"
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
-    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    sim_build = os.path.join(tests_dir, "local_sim_build", testcase)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     params = {"AXI_ID_WIDTH": "8", "AXI_ADDR_WIDTH": "32", "NUM_RANKS": "1",
@@ -237,14 +345,20 @@ def test_pumice_core_dfi(request):
               "COL_WIDTH": str(COL_WIDTH), "DFI_RATE": str(DFI_RATE),
               "DRAM_BEAT_WIDTH": str(DRAM_BEAT), "BL": str(BL),
               "NUM_ENTRIES": "8", "N_SRAM_SLOTS": "8"}
-    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
+    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{testcase}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
-                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
+                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{testcase}.xml"),
                  "SEED": str(random.randint(0, 100000)),
                  "TEST_LEVEL": os.environ.get("TEST_LEVEL", "basic")}
     extra_env.update(params)
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
-        toplevel=dut_name, module=module, testcase="cocotb_test_pumice_core_dfi",
+        toplevel=dut_name, module=module, testcase=testcase,
         sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
         compile_args=["+define+USE_ASYNC_RESET", "--public-flat-rw"],
         waves=False, keep_files=True, timescale="1ns/1ps")
+
+
+def test_pumice_core_dfi(request):   _run(request, "cocotb_test_pumice_core_dfi")
+def test_pumice_core_close(request): _run(request, "cocotb_test_pumice_core_close")
+def test_pumice_core_waw(request):   _run(request, "cocotb_test_pumice_core_waw")
+def test_pumice_core_b2b(request):   _run(request, "cocotb_test_pumice_core_b2b")

@@ -59,24 +59,50 @@ module pumice_dfi_rd_aligner #(
     localparam int ECNT_SEED_IMM = (BL_WORDS > 2) ? (BL_WORDS - 2) : 0;
 
     // ---- rddata_en window: assert for BL_WORDS cycles, t_rddata_en after RD --
+    // Pipelined like the write serializer: the DFI cmd path paces column
+    // commands BL_WORDS DFI cycles apart (the read burst's DQ-bus occupancy), so
+    // a following RD's window is due the cycle right after this window ends. We
+    // drive contiguous back-to-back en windows with ZERO bubbles; a rd_fire that
+    // arrives mid-window is counted in r_epend (was previously DROPPED, leaving
+    // the second read with no capture window -> stranded in the PHY).
+    localparam int PCW = 3;   // pending-fire counter (paced => small)
     typedef enum logic [1:0] { S_IDLE, S_WAIT, S_EN } en_state_e;
     en_state_e            r_es;
     logic [RDEN_W-1:0]    r_ewait;
-    logic [CNTW:0]        r_ecnt;   // remaining en cycles
+    logic [CNTW:0]        r_ecnt;   // remaining en cycles in the current window
+    logic [PCW-1:0]       r_epend;  // fires awaiting a window
 
-    logic w_en_now;                 // t_rddata_en==0 immediate case
-    assign w_en_now = rd_fire_i && (t_rddata_en_i == '0);
+    logic [PCW-1:0] w_eavail;
+    assign w_eavail = r_epend + (rd_fire_i ? PCW'(1) : PCW'(0));
+
+    // Immediate (t_rddata_en==0) first-window word0 lands on the fire/idle cycle.
+    logic w_en_now;
+    assign w_en_now = (r_es == S_IDLE) && (w_eavail != '0) && (t_rddata_en_i == '0);
     assign dfi_rddata_en_o = ((r_es == S_EN) || w_en_now) ? {DFI_EN_WIDTH{1'b1}} : '0;
+
+    // Consume one pending fire when a window begins (from idle, or seamlessly on
+    // the last en-cycle of the previous window).
+    logic w_econsume;
+    always_comb begin
+        w_econsume = 1'b0;
+        unique case (r_es)
+            S_IDLE:  w_econsume = (w_eavail != '0);
+            S_EN:    w_econsume = (r_ecnt == '0) && (w_eavail != '0);
+            default: w_econsume = 1'b0;   // WAIT: window already consumed
+        endcase
+    end
 
     `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
         if (`RST_ASSERTED(dfi_rstn)) begin
             r_es    <= S_IDLE;
             r_ewait <= '0;
             r_ecnt  <= '0;
+            r_epend <= '0;
         end else begin
+            r_epend <= w_eavail - (w_econsume ? PCW'(1) : PCW'(0));
             unique case (r_es)
                 S_IDLE:
-                    if (rd_fire_i) begin
+                    if (w_eavail != '0) begin
                         if (t_rddata_en_i == '0) begin
                             r_ecnt <= (CNTW+1)'(ECNT_SEED_IMM);
                             r_es   <= (BL_WORDS > 1) ? S_EN : S_IDLE;  // word0 via w_en_now
@@ -90,8 +116,16 @@ module pumice_dfi_rd_aligner #(
                     if (r_ewait == 8'd1) r_es <= S_EN;
                     else                 r_ewait <= r_ewait - 8'd1;
                 S_EN:
-                    if (r_ecnt == '0) r_es <= S_IDLE;
-                    else              r_ecnt <= r_ecnt - 1'b1;
+                    if (r_ecnt == '0) begin
+                        // last en-cycle: seamlessly start the next window's en if
+                        // one is pending (contiguous), else return to idle. A
+                        // continuation window has no w_en_now, so it drives all
+                        // BL_WORDS cycles => reseed ECNT_SEED (BL_WORDS-1).
+                        if (w_eavail != '0) r_ecnt <= (CNTW+1)'(ECNT_SEED);
+                        else                r_es   <= S_IDLE;
+                    end else begin
+                        r_ecnt <= r_ecnt - 1'b1;
+                    end
                 default: r_es <= S_IDLE;
             endcase
         end

@@ -28,6 +28,12 @@ module pumice_dfi_cmd_path
     parameter int COL_WIDTH      = 10,
     parameter int BURST_LEN_WIDTH = 8,
     parameter int DFI_RATE       = 4,
+    // DQ-bus occupancy of one column burst in DFI cycles (= BL/DFI_RATE = the
+    // burst's DFI-word count). A column (RD/WR) command owns the shared DQ bus
+    // for this many cycles, so the next column command must be held that long or
+    // its burst data collides with the previous burst. 1 => no pacing (issue a
+    // column every cycle, valid only when BL == DFI_RATE).
+    parameter int COL_BURST_CYC  = 1,
     parameter int DFI_ADDR_WIDTH = 14,
     parameter int DFI_BANK_WIDTH = 3,
     parameter int DFI_CTRL_WIDTH = 1,
@@ -79,11 +85,28 @@ module pumice_dfi_cmd_path
     dram_op_e             w_op;
     assign {w_ap, w_col, w_row, w_bank, w_rank, w_op} = cmd_data_i;
 
+    // ---- DQ-bus occupancy pacing (column commands only) --------------------
+    // A column command's burst owns the DQ bus for COL_BURST_CYC DFI cycles.
+    // Hold the NEXT column command until that window clears; ACT/PRE/REF do not
+    // touch the DQ bus and flow freely. In-order: a stalled column at the FIFO
+    // head backpressures everything behind it (and, via the CDC, the arbiter).
+    localparam int PCW = (COL_BURST_CYC <= 1) ? 1 : $clog2(COL_BURST_CYC);
+    logic          w_is_wr, w_is_rd, w_is_col;
+    assign w_is_wr  = (w_op == OP_WR) || (w_op == OP_WRA);
+    assign w_is_rd  = (w_op == OP_RD) || (w_op == OP_RDA);
+    assign w_is_col = w_is_wr || w_is_rd;
+
+    logic [PCW-1:0] r_col_pace;
+    logic           w_col_ok, w_gate;
+    assign w_col_ok = (r_col_pace == '0);
+    assign w_gate   = (!w_is_col) || w_col_ok;   // may present head to formatter
+
+    logic w_fmt_ready;
     logic w_fire;
     assign w_fire = cmd_valid_i && cmd_ready_o;
 
-    // dfi_cmd_formatter drives the multi-phase command bus. It has its own
-    // cmd_valid/ready; wire it straight to the FIFO handshake.
+    // dfi_cmd_formatter drives the multi-phase command bus. Gate its valid (and
+    // the FIFO pop) with w_gate so a paced-out column command stays queued.
     dfi_cmd_formatter #(
         .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH),
         .COL_WIDTH(COL_WIDTH), .BURST_LEN_WIDTH(BURST_LEN_WIDTH),
@@ -92,7 +115,7 @@ module pumice_dfi_cmd_path
         .DFI_CS_WIDTH(DFI_CS_WIDTH)
     ) u_fmt (
         .mc_clk(dfi_clk), .mc_rst_n(dfi_rstn), .memtype_i(memtype_i),
-        .cmd_valid_i(cmd_valid_i), .cmd_ready_o(cmd_ready_o),
+        .cmd_valid_i(cmd_valid_i && w_gate), .cmd_ready_o(w_fmt_ready),
         .cmd_op_i(w_op), .cmd_rank_i(w_rank), .cmd_bank_i(w_bank),
         .cmd_row_i(w_row), .cmd_col_i(w_col), .cmd_len_i('0),
         .rd_phase_i(rd_phase_i), .wr_phase_i(wr_phase_i),
@@ -101,12 +124,22 @@ module pumice_dfi_cmd_path
         .dfi_cs_n_o(dfi_cs_n_o), .dfi_odt_o(dfi_odt_o)
     );
 
+    assign cmd_ready_o = w_fmt_ready && w_gate;   // pop FIFO only when allowed
+
+    // DQ-occupancy pacing counter: loaded to COL_BURST_CYC-1 on an accepted
+    // column command, read same-cycle via w_col_ok. COL_BURST_CYC==1 => loads 0
+    // => never blocks (a column every cycle).
+    `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
+        if (`RST_ASSERTED(dfi_rstn)) begin
+            r_col_pace <= '0;
+        end else begin
+            if (r_col_pace != '0) r_col_pace <= r_col_pace - 1'b1;
+            if (w_fire && w_is_col) r_col_pace <= PCW'(COL_BURST_CYC - 1);
+        end
+    )
+
     // Fire strobes (registered 1 cycle to align with the formatter's registered
     // command outputs — the command lands on the bus the cycle after accept).
-    logic w_is_wr, w_is_rd;
-    assign w_is_wr = (w_op == OP_WR) || (w_op == OP_WRA);
-    assign w_is_rd = (w_op == OP_RD) || (w_op == OP_RDA);
-
     `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
         if (`RST_ASSERTED(dfi_rstn)) begin
             wr_fire_o   <= 1'b0;

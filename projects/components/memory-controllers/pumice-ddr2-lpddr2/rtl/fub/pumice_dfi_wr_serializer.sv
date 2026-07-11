@@ -51,58 +51,89 @@ module pumice_dfi_wr_serializer #(
     output logic [DFI_STRB_WIDTH-1:0]   dfi_wrdata_mask_o
 );
 
-    // A tiny latency queue of pending WR fires: each WR command starts a burst
-    // t_phy_wrlat cycles later. With single-issue + tCCD spacing there is at
-    // most one burst in flight, but a small countdown-per-fire is robust.
-    // v1: one outstanding burst (single-issue, tWTR/tCCD spaced).
+    // Pipelined multi-burst serializer. Each WR command (wr_fire_i) queues one
+    // burst; the burst's data drives t_phy_wrlat cycles after that fire, one
+    // DFI-word per cycle until wd_last. The DFI cmd path paces column commands
+    // exactly BL_WORDS DFI cycles apart (= the burst's DQ-bus occupancy), so a
+    // following WR command's data is due the cycle right after the current
+    // burst's last word — for ANY t_phy_wrlat (fire_{n+1}=fire_n+W ->
+    // data_{n+1}=fire_n+W+L = burst_n_end+1). We therefore drive bursts
+    // back-to-back with ZERO bubbles: on the last word, if another fire is
+    // pending we continue straight into the next burst instead of returning to
+    // idle. A fire that arrives while a burst is in flight is counted in
+    // r_pending (was previously DROPPED, stranding the write in the PHY).
+    localparam int PCW = 3;   // pending-fire counter (paced => small)
     typedef enum logic [1:0] { S_IDLE, S_WAIT, S_DRIVE } state_e;
-    state_e            r_state;
+    state_e             r_state;
     logic [WRLAT_W-1:0] r_wait;
+    logic [PCW-1:0]     r_pending;
 
-    // Immediate-drive case: t_phy_wrlat == 0 means dfi_wrdata_en is concurrent
-    // with the WR command (the a7ddrphy pre-pull board config uses this). That
-    // needs a combinational drive on the wr_fire cycle itself.
-    logic w_drive_now;
-    assign w_drive_now = wr_fire_i && (t_phy_wrlat_i == '0);
+    // Fires available to start a burst this cycle (already-pending + this cycle).
+    logic [PCW-1:0] w_avail;
+    assign w_avail = r_pending + (wr_fire_i ? PCW'(1) : PCW'(0));
 
-    // drive when in S_DRIVE (or the immediate case) and the FIFO has the word
+    // Begin a burst's FIRST word this cycle: from idle with t_phy_wrlat==0, or
+    // seamlessly continuing on the previous burst's last word.
+    logic w_start_now;   // drive word0 of a NEW burst this cycle
+    assign w_start_now = (r_state == S_IDLE) && (w_avail != '0) && (t_phy_wrlat_i == '0);
+
+    // drive when mid-burst (S_DRIVE) or starting a burst immediately, FIFO ready
     logic w_drive;
-    assign w_drive    = ((r_state == S_DRIVE) || w_drive_now) && wd_valid_i;
+    assign w_drive    = ((r_state == S_DRIVE) || w_start_now) && wd_valid_i;
     assign wd_ready_o = w_drive;                 // pop as we drive (1 word/cycle)
 
     assign dfi_wrdata_o      = wd_data_i;
     assign dfi_wrdata_en_o   = w_drive ? {DFI_EN_WIDTH{1'b1}}   : '0;
     assign dfi_wrdata_mask_o = w_drive ? ~wd_strb_i             : '0;
 
-    // Latency: first dfi_wrdata_en lands exactly t_phy_wrlat cycles after the
-    // wr_fire pulse. Registered state becomes S_DRIVE at the (t_phy_wrlat-1)-th
-    // edge after fire, so DRIVE is active during cycle fire+t_phy_wrlat.
+    // burst-last strobe (a driven word marked last)
+    logic w_burst_last;
+    assign w_burst_last = w_drive && wd_last_i;
+
+    // Whether we consume a pending fire this cycle to START a new burst.
+    logic w_consume;
+    always_comb begin
+        w_consume = 1'b0;
+        unique case (r_state)
+            S_IDLE:  w_consume = (w_avail != '0);                 // start burst0
+            S_DRIVE: w_consume = w_burst_last && (w_avail != '0); // seamless next
+            default: w_consume = 1'b0;                            // WAIT: already consumed
+        endcase
+    end
+
     `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
         if (`RST_ASSERTED(dfi_rstn)) begin
-            r_state <= S_IDLE;
-            r_wait  <= '0;
+            r_state   <= S_IDLE;
+            r_wait    <= '0;
+            r_pending <= '0;
         end else begin
+            // pending fires: +1 on a fire, -1 when a burst starts driving
+            r_pending <= w_avail - (w_consume ? PCW'(1) : PCW'(0));
+
             unique case (r_state)
                 S_IDLE: begin
-                    if (wr_fire_i) begin
-                        if (t_phy_wrlat_i == '0) begin
-                            // drove word0 combinationally this cycle; continue
-                            // the rest of the burst next cycle unless it was 1 word
+                    if (w_avail != '0) begin
+                        if (t_phy_wrlat_i == '0)
+                            // word0 drove combinationally this cycle; continue
+                            // unless it was a single-word burst
                             r_state <= (wd_valid_i && wd_last_i) ? S_IDLE : S_DRIVE;
-                        end else if (t_phy_wrlat_i == 8'd1) begin
-                            r_state <= S_DRIVE;                 // DRIVE at fire+1
-                        end else begin
-                            r_wait  <= t_phy_wrlat_i - 8'd1;    // WAIT wrlat-1 cyc
+                        else if (t_phy_wrlat_i == 8'd1)
+                            r_state <= S_DRIVE;                  // DRIVE at fire+1
+                        else begin
+                            r_wait  <= t_phy_wrlat_i - 8'd1;     // WAIT wrlat-1
                             r_state <= S_WAIT;
                         end
                     end
                 end
                 S_WAIT: begin
-                    if (r_wait == 8'd1) r_state <= S_DRIVE;     // DRIVE at fire+wrlat
+                    if (r_wait == 8'd1) r_state <= S_DRIVE;      // DRIVE at fire+wrlat
                     else                r_wait  <= r_wait - 8'd1;
                 end
                 S_DRIVE: begin
-                    if (w_drive && wd_last_i) r_state <= S_IDLE;
+                    // On the last word: continue seamlessly if another burst is
+                    // pending (its data is due next cycle), else go idle.
+                    if (w_burst_last)
+                        r_state <= (w_avail != '0) ? S_DRIVE : S_IDLE;
                 end
                 default: r_state <= S_IDLE;
             endcase
