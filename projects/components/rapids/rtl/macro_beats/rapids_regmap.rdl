@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// Regmap-generation wrapper: instantiates ONE RAPIDS (beats) register file at
+// base 0x0 so `peakrdl_generate.py --regmap` emits a per-instance Python map
+// (bare register names at their in-instance offsets 0x000-0xFFF) named
+// rapids_regmap.py. DV/host load that one map twice with the RegisterMap
+// start_address set to 0x0000 (SRC) or 0x1000 (SNK): the two engine instances
+// share an identical register layout, so a single per-instance map covers both.
+//
+// This wrapper exists ONLY because peakrdl --regmap FLATTENS the two instances
+// in rapids_regs.rdl (SRC/SNK @ 0x0000/0x1000) into colliding names; wrapping a
+// single instance keeps the register names clean. NOT used for RTL synthesis
+// (rapids_regs.rdl is the two-instance addrmap the RTL is generated from).
+//
+// Author: sean galloway
+`include "rapids_half_regs.rdl"
+
+addrmap rapids {
+    name = "RAPIDS (beats) per-instance register map (DV/host by-name access)";
+    rapids_half_regs regs @ 0x0;
+};

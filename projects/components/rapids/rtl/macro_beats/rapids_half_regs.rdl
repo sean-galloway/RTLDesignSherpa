@@ -3,8 +3,8 @@
 //
 // RAPIDS (beats) one-half register file (source OR sink): all config/status
 // registers + an optional monitor block (MON @ +0x800). Instantiated twice by
-// rapids_regs.rdl (SRC @ 0x0000, SNK @ 0x1000), and once by rapids_half_regmap.rdl
-// for per-half by-name DV access (RegisterMap used with base 0x0000 / 0x1000).
+// rapids_regs.rdl (SRC @ 0x0000, SNK @ 0x1000), and once by rapids_regmap.rdl
+// for per-instance by-name DV access (RegisterMap used with base 0x0000 / 0x1000).
 //
 // Author: sean galloway
 
