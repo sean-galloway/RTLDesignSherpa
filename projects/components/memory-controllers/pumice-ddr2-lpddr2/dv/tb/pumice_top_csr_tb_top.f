@@ -42,3 +42,4 @@ $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/top/pum
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated/rtl/pumice_csr_pkg.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated/rtl/pumice_csr.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/top/pumice_top.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/dv/tb/pumice_top_csr_tb_top.sv
