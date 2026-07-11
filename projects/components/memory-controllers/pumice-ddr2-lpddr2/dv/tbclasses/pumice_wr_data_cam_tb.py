@@ -80,6 +80,8 @@ class PumiceWrDataCamTB(TBBase):
         self.dut.snarf_probe_bank_i.value = 0
         self.dut.snarf_probe_row_i.value = 0
         self.dut.snarf_probe_col_i.value = 0
+        self.dut.snarf_probe_id_i.value = 0
+        self.dut.snarf_probe_len_i.value = self.BL - 1   # matching burst length
         self.dut.snarf_accept_i.value = 0
         self.dut.snarf_rd_ready_i.value = 1
         self.dut.sched_lu_valid_i.value = 0
@@ -133,12 +135,16 @@ class PumiceWrDataCamTB(TBBase):
                 int(self.dut.oldest_slot_o.value))
 
     # ---- snarf --------------------------------------------------------------
-    async def snarf(self, bank, row, col):
+    async def snarf(self, bank, row, col, rid=0, arlen=None):
         """Probe; if hit, accept (latch youngest slot) and return the streamed
-        burst. Returns (hit, burst_or_None)."""
+        burst. A hit now also requires matching AXI id and burst length (arlen
+        defaults to BL-1, the only admitted write length). Returns
+        (hit, burst_or_None)."""
         self.dut.snarf_probe_bank_i.value = bank
         self.dut.snarf_probe_row_i.value = row
         self.dut.snarf_probe_col_i.value = col
+        self.dut.snarf_probe_id_i.value = rid
+        self.dut.snarf_probe_len_i.value = (self.BL - 1) if arlen is None else arlen
         self.dut.snarf_probe_valid_i.value = 1
         await RisingEdge(self.dut.aclk)
         hit = int(self.dut.snarf_hit_o.value)

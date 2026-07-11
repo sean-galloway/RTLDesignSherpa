@@ -50,18 +50,26 @@ async def cocotb_test_pumice_wr_data_cam(dut):
     assert ov == 1 and (ob, orow, ocol, oid) == (1, 10, 5, 0xA), \
         f"oldest {(ov,ob,orow,ocol,oid)} != entry0"
 
-    # snarf entry1 -> d1
-    hit, burst = await tb.snarf(2, 20, 6)
+    # snarf entry1 -> d1 (matching id 0xB, matching len)
+    hit, burst = await tb.snarf(2, 20, 6, rid=0xB)
     assert hit and burst == d1, f"snarf entry1 hit={hit} burst={burst} != {d1}"
 
-    # snarf miss
-    hit, _ = await tb.snarf(7, 99, 1)
+    # snarf miss (unknown address)
+    hit, _ = await tb.snarf(7, 99, 1, rid=0x0)
     assert hit == 0, "snarf should miss on unknown address"
 
-    # WAW: new write to entry0's exact key -> snarf returns YOUNGEST (dW)
+    # LIMIT 1 — id mismatch: right address but wrong AXI id must NOT snarf
+    hit, _ = await tb.snarf(2, 20, 6, rid=0x3)
+    assert hit == 0, "snarf must miss on id mismatch (cross-id has no ordering)"
+
+    # LIMIT 2 — burst-length mismatch: right addr+id but arlen != BL-1 must NOT snarf
+    hit, _ = await tb.snarf(2, 20, 6, rid=0xB, arlen=0)
+    assert hit == 0, "snarf must miss when read burst length != write burst length"
+
+    # WAW: new write to entry0's exact key -> snarf returns YOUNGEST (dW), id 0xD
     await tb.write_entry(bank=1, row=10, col=5, wid=0xD, data=dW)
     await tb.wait_clocks('aclk', 2)
-    hit, burst = await tb.snarf(1, 10, 5)
+    hit, burst = await tb.snarf(1, 10, 5, rid=0xD)
     assert hit and burst == dW, f"WAW snarf youngest hit={hit} burst={burst} != {dW}"
 
     # scheduler lookups
@@ -80,8 +88,36 @@ async def cocotb_test_pumice_wr_data_cam(dut):
     assert ov2 == 1 and oid2 == 0xB, \
         f"after committing entry0, oldest id {oid2} != 0xB (entry1)"
 
-    tb.log.info("PASS: insert/fill, oldest port, snarf youngest (WAW), "
-                "sched oldest-match, commit+evict")
+    # LIMIT 3 — scheduled write must NOT snarf. Fresh entry; mark-commit it while
+    # holding the drain (cm_rd_ready=0) so it stays valid+scheduled, then probe.
+    dE = mkdata(0xE0)
+    await tb.write_entry(bank=3, row=30, col=8, wid=0xE, data=dE)
+    await tb.wait_clocks('aclk', 2)
+    res = await tb.sched_query([(1, 3, 30)])
+    assert res[0][0] == 1, "fresh entry should be sched-visible before commit"
+    eE_slot = res[0][1]
+    # confirm it snarfs BEFORE being scheduled
+    hit, _ = await tb.snarf(3, 30, 8, rid=0xE)
+    assert hit == 1, "unscheduled fresh write should snarf"
+    tb.dut.cm_rd_ready_i.value = 0                 # freeze the drain
+    while int(tb.dut.commit_ready_o.value) == 0:
+        await tb.wait_clocks('aclk', 1)
+    tb.dut.commit_slot_i.value = eE_slot
+    tb.dut.commit_valid_i.value = 1
+    await tb.wait_clocks('aclk', 1)
+    tb.dut.commit_valid_i.value = 0
+    await tb.wait_clocks('aclk', 2)                # r_sched set; entry still valid
+    hit, _ = await tb.snarf(3, 30, 8, rid=0xE)
+    assert hit == 0, "snarf must miss on a scheduled (committing) write"
+    tb.dut.cm_rd_ready_i.value = 1                 # release; let it drain/evict
+    for _ in range(200):
+        await tb.wait_clocks('aclk', 1)
+        if tb.cm_out:
+            tb.cm_out.popleft()
+            break
+
+    tb.log.info("PASS: insert/fill, oldest port, snarf youngest (WAW), snarf "
+                "limits (id/len/scheduled), sched oldest-match, commit+evict")
 
 
 def test_pumice_wr_data_cam(request):

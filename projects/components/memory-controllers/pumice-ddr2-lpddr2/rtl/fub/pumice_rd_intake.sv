@@ -106,6 +106,8 @@ module pumice_rd_intake #(
     output logic [BKW-1:0]           snarf_probe_bank_o,
     output logic [ROW_WIDTH-1:0]     snarf_probe_row_o,
     output logic [COL_WIDTH-1:0]     snarf_probe_col_o,
+    output logic [IW-1:0]            snarf_probe_id_o,     // read AXI id
+    output logic [7:0]               snarf_probe_len_o,    // read AXI arlen
     input  logic                     snarf_hit_i,
     output logic                     snarf_accept_o,   // AR admitted AND hit
 
@@ -193,6 +195,8 @@ module pumice_rd_intake #(
     assign snarf_probe_bank_o  = w_bank;
     assign snarf_probe_row_o   = w_row;
     assign snarf_probe_col_o   = w_col;
+    assign snarf_probe_id_o    = fub_arid;
+    assign snarf_probe_len_o   = fub_arlen;
 
     logic w_hit;
     assign w_hit = snarf_hit_i;

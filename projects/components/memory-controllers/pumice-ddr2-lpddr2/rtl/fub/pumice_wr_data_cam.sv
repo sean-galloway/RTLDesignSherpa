@@ -71,6 +71,8 @@ module pumice_wr_data_cam #(
     input  logic [BKW-1:0]                snarf_probe_bank_i,
     input  logic [ROW_WIDTH-1:0]          snarf_probe_row_i,
     input  logic [COL_WIDTH-1:0]          snarf_probe_col_i,
+    input  logic [IW-1:0]                 snarf_probe_id_i,   // read AXI id
+    input  logic [7:0]                    snarf_probe_len_i,  // read AXI arlen
     output logic                          snarf_hit_o,
     input  logic                          snarf_accept_i,   // admitted as snarf
 
@@ -204,15 +206,30 @@ module pumice_wr_data_cam #(
     assign w_fq_rd_ready = w_wd_fire && wd_last_i;
 
     // ---- snarf youngest-match (combinational) ------------------------------
+    // Read-your-write forwarding is LIMITED to the safe case: the read may snarf
+    // a write only when
+    //   (1) the write is NOT yet scheduled (!r_sched) — a scheduled write is
+    //       draining/evicting to DRAM, so its CAM data is racy;
+    //   (2) the AXI ids match — same-id W-before-R is the only AXI-ordered case
+    //       where the read is REQUIRED to see the write (cross-id has no ordering
+    //       guarantee, so the read takes the DRAM path instead);
+    //   (3) the read's burst length equals the write's. Every admitted write is
+    //       exactly BL beats (ragged bursts are rejected in pumice_wr_intake), so
+    //       this reduces to arlen == BL-1 — a short/long read must not snarf a
+    //       full-BL write.
     logic            w_sn_found;
     logic [PTRW-1:0] w_sn_slot;
     logic [AGE_WIDTH-1:0] w_sn_best;   // min rel among matches
+    logic            w_sn_len_ok;
+    assign w_sn_len_ok = (snarf_probe_len_i == 8'(BL - 1));
     always_comb begin
         w_sn_found = 1'b0;
         w_sn_slot  = '0;
         w_sn_best  = '0;
         for (int i = 0; i < NUM_ENTRIES; i++) begin
-            if (r_valid[i] && r_pv[i] && r_bank[i] == snarf_probe_bank_i &&
+            if (r_valid[i] && r_pv[i] && !r_sched[i] &&
+                r_id[i]  == snarf_probe_id_i &&
+                r_bank[i] == snarf_probe_bank_i &&
                 r_row[i] == snarf_probe_row_i && r_col[i] == snarf_probe_col_i) begin
                 if (!w_sn_found || w_rel[i] < w_sn_best) begin
                     w_sn_found = 1'b1;
@@ -222,7 +239,7 @@ module pumice_wr_data_cam #(
             end
         end
     end
-    assign snarf_hit_o = snarf_probe_valid_i && w_sn_found;
+    assign snarf_hit_o = snarf_probe_valid_i && w_sn_found && w_sn_len_ok;
 
     // ---- oldest valid (max rel) --------------------------------------------
     logic            w_old_found;

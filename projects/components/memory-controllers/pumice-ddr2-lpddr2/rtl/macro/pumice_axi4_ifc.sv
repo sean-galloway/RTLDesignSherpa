@@ -231,6 +231,7 @@ module pumice_axi4_ifc #(
     logic                snarf_probe_valid, snarf_hit, snarf_accept;
     logic [BKW-1:0]      snarf_bank;    logic [ROW_WIDTH-1:0] snarf_row;
     logic [COL_WIDTH-1:0] snarf_col;
+    logic [IW-1:0]       snarf_id;      logic [7:0]           snarf_len;
     logic                snarf_rd_valid, snarf_rd_ready, snarf_rd_last;
     logic [DW-1:0]       snarf_rd_data;
     logic                ar_push_valid, ar_push_ready;
@@ -283,6 +284,7 @@ module pumice_axi4_ifc #(
         .wd_data_i(wd_data), .wd_strb_i(wd_strb), .wd_last_i(wd_last),
         .snarf_probe_valid_i(snarf_probe_valid), .snarf_probe_bank_i(snarf_bank),
         .snarf_probe_row_i(snarf_row), .snarf_probe_col_i(snarf_col),
+        .snarf_probe_id_i(snarf_id), .snarf_probe_len_i(snarf_len),
         .snarf_hit_o(snarf_hit), .snarf_accept_i(snarf_accept),
         .snarf_rd_valid_o(snarf_rd_valid), .snarf_rd_ready_i(snarf_rd_ready),
         .snarf_rd_data_o(snarf_rd_data), .snarf_rd_last_o(snarf_rd_last),
@@ -325,7 +327,9 @@ module pumice_axi4_ifc #(
         .ar_push_col_o(ar_push_col), .ar_push_id_o(ar_push_id),
         .snarf_probe_valid_o(snarf_probe_valid), .snarf_probe_rank_o(),
         .snarf_probe_bank_o(snarf_bank), .snarf_probe_row_o(snarf_row),
-        .snarf_probe_col_o(snarf_col), .snarf_hit_i(snarf_hit),
+        .snarf_probe_col_o(snarf_col),
+        .snarf_probe_id_o(snarf_id), .snarf_probe_len_o(snarf_len),
+        .snarf_hit_i(snarf_hit),
         .snarf_accept_o(snarf_accept),
         .snarf_rd_valid_i(snarf_rd_valid), .snarf_rd_ready_o(snarf_rd_ready),
         .snarf_rd_data_i(snarf_rd_data), .snarf_rd_last_i(snarf_rd_last),

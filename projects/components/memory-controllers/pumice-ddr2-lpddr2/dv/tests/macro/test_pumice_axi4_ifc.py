@@ -30,23 +30,34 @@ async def cocotb_test_pumice_axi4_ifc(dut):
     await tb.setup_clocks_and_reset()
     N = tb.EXP_BEATS
 
-    DX = [0xAA00 + i for i in range(N)]
-    DY = [0xBB00 + i for i in range(N)]
+    DX  = [0xAA00 + i for i in range(N)]
+    DY  = [0xBB00 + i for i in range(N)]
+    DXX = [0xCC00 + i for i in range(N)]   # DFI-fed data for the cross-id read
     X = 0x1000       # BL-aligned, distinct decode keys
     Y = 0x2000
 
-    # 1. host write to X -> lands in wr CAM. B is commit-driven, so NOT yet.
+    # 1. host write to X (id 3) -> lands in wr CAM. B is commit-driven, so NOT yet.
     await tb.write(X, wid=3, data=DX)
     await tb.wait_clocks('aclk', 12)
     assert len(tb.b_ids) == 0, "B fired before commit (should be commit-driven)"
 
-    # 2. host read to X -> SNARF hit -> R == DX (write still uncommitted)
-    await tb.read_ar(X, rid=5)
+    # 2. host read to X with the SAME id (3) -> SNARF hit -> R == DX (uncommitted).
+    #    Snarf is now limited to same-id, matching-length, unscheduled writes.
+    await tb.read_ar(X, rid=3)
     r = await tb.wait_r()
     assert r is not None, "no R for snarf read"
     assert [b[1] for b in r] == DX, f"snarf R data {[b[1] for b in r]} != {DX}"
-    assert all(b[0] == 5 for b in r), "snarf R id != 5"
+    assert all(b[0] == 3 for b in r), "snarf R id != 3"
     assert r[-1][2] == 1, "snarf R last not set on final beat"
+
+    # 2b. host read to X with a DIFFERENT id (5) -> must NOT snarf (cross-id has no
+    #     AXI ordering); it takes the MISS/DFI path and returns the DFI-fed data.
+    await tb.read_ar(X, rid=5)
+    await tb.service_rd(DXX)
+    r = await tb.wait_r()
+    assert r is not None, "no R for cross-id read"
+    assert [b[1] for b in r] == DXX, f"cross-id read must use DFI path, got {[b[1] for b in r]}"
+    assert all(b[0] == 5 for b in r), "cross-id R id != 5"
 
     # 3. host read to Y (unwritten) -> MISS -> scheduler issues + DFI returns DY
     await tb.read_ar(Y, rid=6)
@@ -65,8 +76,8 @@ async def cocotb_test_pumice_axi4_ifc(dut):
         await tb.wait_clocks('aclk', 1)
     assert len(tb.b_ids) == 1 and tb.b_ids[0] == 3, f"B ids {list(tb.b_ids)} != [3]"
 
-    tb.log.info("PASS: write->snarf-read (DX), miss-read via DFI (DY), "
-                "commit cm_rd (DX) + commit-driven B(id3)")
+    tb.log.info("PASS: write->same-id snarf-read (DX), cross-id read via DFI (DXX), "
+                "miss-read via DFI (DY), commit cm_rd (DX) + commit-driven B(id3)")
 
 
 def test_pumice_axi4_ifc(request):
