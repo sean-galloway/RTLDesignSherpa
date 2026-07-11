@@ -532,6 +532,29 @@ package pumice_csr_pkg;
     } pumice_csr__DFI_PHASE__out_t;
 
     typedef struct {
+        logic [7:0] value;
+    } pumice_csr__PHY_TIMING__t_phy_wrlat__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } pumice_csr__PHY_TIMING__t_rddata_en__out_t;
+
+    typedef struct {
+        logic value;
+    } pumice_csr__PHY_TIMING__memtype__out_t;
+
+    typedef struct {
+        logic [3:0] value;
+    } pumice_csr__PHY_TIMING__refresh_burst__out_t;
+
+    typedef struct {
+        pumice_csr__PHY_TIMING__t_phy_wrlat__out_t t_phy_wrlat;
+        pumice_csr__PHY_TIMING__t_rddata_en__out_t t_rddata_en;
+        pumice_csr__PHY_TIMING__memtype__out_t memtype;
+        pumice_csr__PHY_TIMING__refresh_burst__out_t refresh_burst;
+    } pumice_csr__PHY_TIMING__out_t;
+
+    typedef struct {
         pumice_csr__CTRL__out_t CTRL;
         pumice_csr__TIMINGS_RC_RCD_RP_RAS__out_t TIMINGS_RC_RCD_RP_RAS;
         pumice_csr__TIMINGS_RFC_REFI__out_t TIMINGS_RFC_REFI;
@@ -552,5 +575,6 @@ package pumice_csr_pkg;
         pumice_csr__INIT_TIMING0__out_t INIT_TIMING0;
         pumice_csr__INIT_TIMING1__out_t INIT_TIMING1;
         pumice_csr__DFI_PHASE__out_t DFI_PHASE;
+        pumice_csr__PHY_TIMING__out_t PHY_TIMING;
     } pumice_csr__out_t;
 endpackage

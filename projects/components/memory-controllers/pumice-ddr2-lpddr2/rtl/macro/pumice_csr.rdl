@@ -213,6 +213,22 @@ addrmap pumice_csr {
 
     } DFI_PHASE @ 0x060;
 
+    reg {
+        name = "PHY / DFI data timing + memory config";
+        desc = "t_phy_wrlat: WRITE command -> dfi_wrdata_en (0 for a7ddrphy
+                pre-pull). t_rddata_en: RD command -> dfi_rddata_en window.
+                memtype: 0=DDR2, 1=LPDDR2. refresh_burst: 1..8 REFs drained per
+                request. All hw-readable so they drive the controller core.";
+
+        field { sw = rw; hw = r; desc = "t_phy_wrlat (WR cmd -> wrdata_en)"; } t_phy_wrlat[7:0]   = 8'd0;
+        field { sw = rw; hw = r; desc = "t_rddata_en (RD cmd -> rddata_en)";  } t_rddata_en[15:8]  = 8'd6;
+        field { sw = rw; hw = r; desc = "0=DDR2, 1=LPDDR2";                    } memtype[16:16]     = 1'b0;
+        field { sw = r;  hw = na; desc = "Reserved";                           } RSVD0[19:17]      = 3'h0;
+        field { sw = rw; hw = r; desc = "REFs drained per request (1..8)";     } refresh_burst[23:20] = 4'd1;
+        field { sw = r;  hw = na; desc = "Reserved";                           } RSVD1[31:24]      = 8'h0;
+
+    } PHY_TIMING @ 0x064;
+
     //=========================================================================
     // Mode Register Values (0x020 – 0x02F)
     //=========================================================================
