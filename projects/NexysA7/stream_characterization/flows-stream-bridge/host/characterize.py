@@ -36,7 +36,7 @@ from descriptor_builder import (  # noqa: E402
     _parse_size, _size_label,
     HARNESS_CSR_BASE,
 )
-from harness_addrs import H  # noqa: E402  (by-name harness CSR access)
+from harness_addrs import H, harness_regs  # noqa: E402  (by-name harness CSR access)
 import run_characterization as runner_mod  # noqa: E402
 
 # UART bridge — same module the main runner imports lazily.
@@ -91,7 +91,7 @@ def run_one(runner, bridge, cfg, timeout_s: float, verbose: bool) -> dict:
     # trigger BEFORE clearing the slave CRC stats — once a clear-stats
     # pulse fires, the slave's beat counter resets to 0, so any timer
     # bookkeeping that depended on a non-zero count would be invalidated.
-    bridge.write(CSR_TIMER_CTRL, 0x01)
+    harness_regs(bridge).TIMER_CTRL.write(CLEAR=1)
     bridge.write(CSR_TIMER_EXPECTED_BEATS, expected_beats)
 
     # Existing per-test setup: load descriptors, configure STREAM.

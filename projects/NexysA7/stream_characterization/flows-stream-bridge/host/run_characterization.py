@@ -52,6 +52,7 @@ sys.path.insert(0, str(script_dir))
 
 from harness_addrs import H  # noqa: E402  (by-name harness CSR access)
 from harness_addrs import autodetect_port  # noqa: E402  (shared ttyUSB probe)
+from harness_addrs import harness_regs  # noqa: E402  (by-name harness field access)
 import mon_configs as mon_cfg  # noqa: E402  (named monitor presets)
 
 from descriptor_builder import (
@@ -247,7 +248,7 @@ class CharacterizationRunner:
 
     def clear_stats(self):
         """Clear CRC/LFSR state and debug trace pointer."""
-        self.bridge.write(CSR_CTRL, 0x02)  # clear_stats pulse
+        harness_regs(self.bridge).CTRL.write(CLEAR_STATS=1)  # clear-stats pulse
         time.sleep(0.01)
 
     def cam_clear(self):
@@ -255,7 +256,7 @@ class CharacterizationRunner:
         template CAM + its stat counters, and the monitor transaction CAMs.
         Use between compress runs (when idle) to reset compression statistics
         without a full soft-reset that would strand in-flight transactions."""
-        self.bridge.write(CSR_CTRL, 0x10)  # cam_clear pulse (CTRL bit 4)
+        harness_regs(self.bridge).CTRL.write(CAM_CLEAR=1)  # cam-clear pulse
         time.sleep(0.01)
 
     def set_resp_delay(self, rd_cyc: int, wr_cyc: int) -> None:
@@ -596,7 +597,7 @@ class CharacterizationRunner:
         # Pulse-clear the timer counter + first/last latches, then arm the
         # stop trigger. Order matters: clear first so a stale stop from a
         # previous run can't immediately re-latch done.
-        self.bridge.write(CSR_TIMER_CTRL, 0x1)
+        harness_regs(self.bridge).TIMER_CTRL.write(CLEAR=1)  # pulse-clear
         self.bridge.write(CSR_TIMER_EXPECTED_BEATS, expected_beats)
         self.vlog(f"  Timer armed: expected_beats={expected_beats} "
                   f"(= {total_bytes} bytes / {DATA_WIDTH_BYTES} B/beat)")
@@ -794,7 +795,7 @@ class CharacterizationRunner:
         resets per-channel state inside STREAM; it does not reset the
         monitors, the SRAM controller, or any harness sub-block.
         """
-        self.bridge.write(CSR_CTRL, 0x08)   # bit 3 = soft_reset_pulse
+        harness_regs(self.bridge).CTRL.write(SOFT_RESET=1)  # soft-reset pulse
         time.sleep(0.05)
 
     # -----------------------------------------------------------------

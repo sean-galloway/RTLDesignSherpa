@@ -38,7 +38,8 @@ from descriptor_builder import DescriptorBuilder, CharConfig
 # STREAM register addresses resolved BY NAME from stream_regmap.py -- never
 # hardcode addresses (a hardcoded copy drifting from the regmap is exactly what
 # broke the perf path when the monitors relocated to 0x1000+).
-from stream_addrs import A
+from stream_addrs import A, compose as _scompose
+from harness_addrs import H, compose  # by-name harness CSR access (never hardcode offsets)
 
 
 # =========================================================================
@@ -51,21 +52,21 @@ STREAM_ERR_BASE    = 0x0003_0000
 DEBUG_SRAM_BASE    = 0x0004_0000
 
 # Harness CSR offsets
-CSR_CTRL           = HARNESS_CSR_BASE + 0x00
-CSR_STATUS         = HARNESS_CSR_BASE + 0x04
-CSR_DBG_WR_PTR    = HARNESS_CSR_BASE + 0x08
-CSR_DBG_OVERFLOW   = HARNESS_CSR_BASE + 0x0C
-CSR_CRC_RD_EXPECTED = HARNESS_CSR_BASE + 0x10
-CSR_CRC_WR_EXPECTED = HARNESS_CSR_BASE + 0x14
-CSR_CRC_WR_COMPUTED = HARNESS_CSR_BASE + 0x18
-CSR_CRC_MATCH      = HARNESS_CSR_BASE + 0x1C
+CSR_CTRL              = H("CTRL")
+CSR_STATUS            = H("STATUS")
+CSR_DBG_WR_PTR        = H("DBG_WR_PTR")
+CSR_DBG_OVERFLOW      = H("DBG_OVERFLOW")
+CSR_CRC_RD_EXPECTED   = H("CRC_RD_EXPECTED")
+CSR_CRC_WR_EXPECTED   = H("CRC_WR_EXPECTED")
+CSR_CRC_WR_COMPUTED   = H("CRC_WR_COMPUTED")
+CSR_CRC_MATCH         = H("CRC_MATCH")
 
 # Per-channel CRC verification (multi-channel). Up to 8 channels supported
 # in the layout; only NUM_CHANNELS slots are populated by the harness.
-CSR_CRC_RD_PER_CH_BASE = HARNESS_CSR_BASE + 0x60   # 0x60+4*ch
-CSR_CRC_WR_PER_CH_BASE = HARNESS_CSR_BASE + 0x80   # 0x80+4*ch
-CSR_CRC_VALID_MASK     = HARNESS_CSR_BASE + 0xA0   # [NC-1:0]
-CSR_CRC_MATCH_MASK     = HARNESS_CSR_BASE + 0xA4   # [NC-1:0]
+CSR_CRC_RD_PER_CH_BASE= H("CRC_RD_PER_CH0")   # 0x60+4*ch
+CSR_CRC_WR_PER_CH_BASE= H("CRC_WR_PER_CH0")   # 0x80+4*ch
+CSR_CRC_VALID_MASK    = H("CRC_VALID_MASK")   # [NC-1:0]
+CSR_CRC_MATCH_MASK    = H("CRC_MATCH_MASK")   # [NC-1:0]
 
 # Kick-burst fast path. A single UART write to KICK_GO with a channel bitmask
 # pulses the in-RTL kick lines for every set bit on one aclk cycle -- eliminates
@@ -79,7 +80,7 @@ CSR_CRC_MATCH_MASK     = HARNESS_CSR_BASE + 0xA4   # [NC-1:0]
 # KICK_GO -- it pulses a spurious kick for whichever channels the LSBs happen
 # to encode and never delivers the real address for channels >= 4. Use the
 # kick_addr_csr() helper below instead of the bare base + 4*ch.
-CSR_KICK_GO            = HARNESS_CSR_BASE + 0xC0
+CSR_KICK_GO           = H("KICK_GO")
 
 # Harness timer (matches run_characterization.py). The completion signal the
 # FPGA runner waits on is TIMER_STATUS.done, which fires when the sink-side
@@ -88,9 +89,9 @@ CSR_KICK_GO            = HARNESS_CSR_BASE + 0xC0
 # of an FPGA run -- the IRQ path fires on the first per-burst completion
 # packet, much earlier than the final beat, so sim that polls IRQ "completes"
 # even when the harness timer would still be waiting.
-CSR_TIMER_CTRL           = HARNESS_CSR_BASE + 0x28   # W: bit 0 = clear pulse
-CSR_TIMER_STATUS         = HARNESS_CSR_BASE + 0x2C   # R: [0]=done [1]=running [2]=pass
-CSR_TIMER_EXPECTED_BEATS = HARNESS_CSR_BASE + 0x38   # RW: stop when sink beat >= this
+CSR_TIMER_CTRL        = H("TIMER_CTRL")   # W: bit 0 = clear pulse
+CSR_TIMER_STATUS      = H("TIMER_STATUS")   # R: [0]=done [1]=running [2]=pass
+CSR_TIMER_EXPECTED_BEATS= H("TIMER_EXPECTED_BEATS")   # RW: stop when sink beat >= this
 
 
 def kick_addr_csr(ch: int) -> int:
@@ -98,11 +99,9 @@ def kick_addr_csr(ch: int) -> int:
 
     Skips the 0xC0 KICK_GO slot so the 8-channel layout is unambiguous.
     """
-    if ch < 4:
-        return HARNESS_CSR_BASE + 0xB0 + 4 * ch          # ch 0..3
-    return HARNESS_CSR_BASE + 0xC4 + 4 * (ch - 4)        # ch 4..7
-CSR_SCRATCH        = HARNESS_CSR_BASE + 0x20
-CSR_BUILD_ID       = HARNESS_CSR_BASE + 0x24
+    return H(f"CH{ch}_KICK_ADDR")   # by-name; regmap encodes the 0xC0 KICK_GO split
+CSR_SCRATCH           = H("SCRATCH")
+CSR_BUILD_ID          = H("BUILD_ID")
 
 EXPECTED_BUILD_ID  = 0x5354_5243  # "STRC"
 
@@ -190,20 +189,20 @@ PERF_OFF_BURST_COUNT   = 0x28
 # observer runs inline in parallel with the in-core monitors; the host reads its
 # aggregate buckets and indexed latency histogram entirely over CSR so observer-
 # vs-in-core equivalence can be checked on the real bus (no hierarchy probe).
-CSR_OBS_RD_PROD   = HARNESS_CSR_BASE + 0x100
-CSR_OBS_RD_BP     = HARNESS_CSR_BASE + 0x104
-CSR_OBS_RD_STARV  = HARNESS_CSR_BASE + 0x108
-CSR_OBS_RD_IDLE   = HARNESS_CSR_BASE + 0x10C
-CSR_OBS_WR_PROD   = HARNESS_CSR_BASE + 0x110
-CSR_OBS_WR_BP     = HARNESS_CSR_BASE + 0x114
-CSR_OBS_WR_STARV  = HARNESS_CSR_BASE + 0x118
-CSR_OBS_WR_IDLE   = HARNESS_CSR_BASE + 0x11C
+CSR_OBS_RD_PROD       = H("OBS_RD_PROD")
+CSR_OBS_RD_BP         = H("OBS_RD_BP")
+CSR_OBS_RD_STARV      = H("OBS_RD_STARV")
+CSR_OBS_RD_IDLE       = H("OBS_RD_IDLE")
+CSR_OBS_WR_PROD       = H("OBS_WR_PROD")
+CSR_OBS_WR_BP         = H("OBS_WR_BP")
+CSR_OBS_WR_STARV      = H("OBS_WR_STARV")
+CSR_OBS_WR_IDLE       = H("OBS_WR_IDLE")
 # Indexed histogram readout. HIST_SEL packs {bin[5:2], metric[1], bus[0]}:
 #   bus=0 read-side / bus=1 write-side; metric selects AR->firstR vs AR->RLAST
 #   (read) or AW->B (write); bin indexes the 16-entry log2 histogram.
-CSR_OBS_HIST_SEL  = HARNESS_CSR_BASE + 0x120   # RW
-CSR_OBS_HIST_DATA = HARNESS_CSR_BASE + 0x124   # R: selected bin count
-CSR_OBS_HIST_TOTAL = HARNESS_CSR_BASE + 0x128  # R: selected metric total
+CSR_OBS_HIST_SEL      = H("OBS_HIST_SEL")   # RW
+CSR_OBS_HIST_DATA     = H("OBS_HIST_DATA")   # R: selected bin count
+CSR_OBS_HIST_TOTAL    = H("OBS_HIST_TOTAL")  # R: selected metric total
 
 # Per-channel datapath perf buckets (RFC Stage C, indexed readout). Select a
 # channel via PERF_CH_SEL, then read the packed {bp,prod}/{idle,starv} regs.
@@ -496,7 +495,7 @@ class StreamCharTB(TBBase):
 
     async def clear_stats(self):
         """Pulse clear_stats bit in CTRL."""
-        await self.uart_write(CSR_CTRL, 0x02)
+        await self.uart_write(CSR_CTRL, compose("CTRL", CLEAR_STATS=1))
 
     # =====================================================================
     # Test scenarios
@@ -686,18 +685,18 @@ class StreamCharTB(TBBase):
         """Minimal STREAM config for the extended-addressing suite: soft-reset +
         scheduler / descriptor-engine / AXI config. No monitor/IRQ setup —
         completion is polled via CH_STATE. Mirrors run_dma_test steps 1-3d."""
-        await self.uart_write(CSR_CTRL, 0x08)          # bit 3 = soft_reset pulse
+        await self.uart_write(CSR_CTRL, compose("CTRL", SOFT_RESET=1))
         await self.wait_clocks(self.clk_name, 100)
         await self.clear_stats()
         await self.wait_clocks(self.clk_name, 50)
-        await self.uart_write(APB_GLOBAL_CTRL, 0x01)   # GLOBAL_EN
-        await self.uart_write(APB_SCHED_CONFIG, 0x0F)  # sched en + timeout + err + compl
-        await self.uart_write(APB_SCHED_TIMEOUT_CYC, 0xFFFFFFFF)
-        await self.uart_write(APB_DESCENG_CONFIG, 0x23)  # DESCENG_EN | PREFETCH_EN | FIFO_THRESH=8
-        await self.uart_write(APB_DESCENG_ADDR0_BASE,  0x0000_0000)
-        await self.uart_write(APB_DESCENG_ADDR0_LIMIT, 0xFFFF_FFFF)
-        await self.uart_write(APB_DESCENG_ADDR1_BASE,  0x0000_0000)
-        await self.uart_write(APB_DESCENG_ADDR1_LIMIT, 0xFFFF_FFFF)
+        await self.uart_write(APB_GLOBAL_CTRL, _scompose("GLOBAL_CTRL", GLOBAL_EN=1))
+        await self.uart_write(APB_SCHED_CONFIG, _scompose("SCHED_CONFIG", SCHED_EN=1, TIMEOUT_EN=1, ERR_EN=1, COMPL_EN=1, RD_PREFETCH_EN=1))  # incl read-ahead (default-on)
+        await self.uart_write(APB_SCHED_TIMEOUT_CYC, _scompose("SCHED_TIMEOUT_CYCLES", TIMEOUT_CYCLES=0xFFFFFFFF))
+        await self.uart_write(APB_DESCENG_CONFIG, _scompose("DESCENG_CONFIG", DESCENG_EN=1, PREFETCH_EN=1, FIFO_THRESH=8))
+        await self.uart_write(APB_DESCENG_ADDR0_BASE,  _scompose("DESCENG_ADDR0_BASE", ADDR0_BASE=0x0000_0000))
+        await self.uart_write(APB_DESCENG_ADDR0_LIMIT, _scompose("DESCENG_ADDR0_LIMIT", ADDR0_LIMIT=0xFFFF_FFFF))
+        await self.uart_write(APB_DESCENG_ADDR1_BASE,  _scompose("DESCENG_ADDR1_BASE", ADDR1_BASE=0x0000_0000))
+        await self.uart_write(APB_DESCENG_ADDR1_LIMIT, _scompose("DESCENG_ADDR1_LIMIT", ADDR1_LIMIT=0xFFFF_FFFF))
         axi_cfg = (15 & 0xFF) | ((15 & 0xFF) << 8)      # rd/wr 16-beat max burst
         await self.uart_write(APB_AXI_XFER_CONFIG, axi_cfg)
 
@@ -891,7 +890,7 @@ class StreamCharTB(TBBase):
         # the harness sub-blocks that hold cumulative state. Was just
         # APB_GLOBAL_CTRL bit 1 (STREAM's GLOBAL_RST), which only
         # resets per-channel state inside STREAM.
-        await self.uart_write(CSR_CTRL, 0x08)         # bit 3 = soft_reset_pulse
+        await self.uart_write(CSR_CTRL, compose("CTRL", SOFT_RESET=1))
         await self.wait_clocks(self.clk_name, 100)
         await self.clear_stats()
         await self.wait_clocks(self.clk_name, 50)
@@ -917,7 +916,7 @@ class StreamCharTB(TBBase):
         # for deep descriptor chains -- the scheduler would error out on
         # cumulative inter-descriptor stall before the chain finished. The
         # 32-bit max gives ~42.9 s of per-channel inactivity budget.
-        await self.uart_write(APB_SCHED_TIMEOUT_CYC, 0xFFFFFFFF)  # ~42.9s @ 100MHz
+        await self.uart_write(APB_SCHED_TIMEOUT_CYC, _scompose("SCHED_TIMEOUT_CYCLES", TIMEOUT_CYCLES=0xFFFFFFFF))  # ~42.9s @ 100MHz
 
         # 3b. Descriptor engine config: enable + prefetch (buffer descriptors ahead
         # so the datapath streams across descriptor boundaries -- avoids the
@@ -926,10 +925,10 @@ class StreamCharTB(TBBase):
         await self.uart_write(APB_DESCENG_CONFIG, desceng_cfg)
 
         # 3c. Descriptor address ranges (for chaining validation)
-        await self.uart_write(APB_DESCENG_ADDR0_BASE,  0x0000_0000)
-        await self.uart_write(APB_DESCENG_ADDR0_LIMIT, 0xFFFF_FFFF)
-        await self.uart_write(APB_DESCENG_ADDR1_BASE,  0x0000_0000)
-        await self.uart_write(APB_DESCENG_ADDR1_LIMIT, 0xFFFF_FFFF)
+        await self.uart_write(APB_DESCENG_ADDR0_BASE,  _scompose("DESCENG_ADDR0_BASE", ADDR0_BASE=0x0000_0000))
+        await self.uart_write(APB_DESCENG_ADDR0_LIMIT, _scompose("DESCENG_ADDR0_LIMIT", ADDR0_LIMIT=0xFFFF_FFFF))
+        await self.uart_write(APB_DESCENG_ADDR1_BASE,  _scompose("DESCENG_ADDR1_BASE", ADDR1_BASE=0x0000_0000))
+        await self.uart_write(APB_DESCENG_ADDR1_LIMIT, _scompose("DESCENG_ADDR1_LIMIT", ADDR1_LIMIT=0xFFFF_FFFF))
 
         # 3d. AXI transfer config: burst sizes (ARLEN/AWLEN)
         axi_cfg = (15 & 0xFF) | ((15 & 0xFF) << 8)  # rd=16 beats, wr=16 beats
@@ -956,7 +955,7 @@ class StreamCharTB(TBBase):
 
         # 4. Enable STREAM global + channels
         ch_mask = (1 << num_channels) - 1
-        await self.uart_write(APB_GLOBAL_CTRL, 0x01)       # GLOBAL_EN
+        await self.uart_write(APB_GLOBAL_CTRL, _scompose("GLOBAL_CTRL", GLOBAL_EN=1))
         await self.uart_write(APB_CHANNEL_ENABLE, ch_mask)  # channel mask
         self.log.info(f"  STREAM configured and enabled: ch_mask=0x{ch_mask:02X}")
 
@@ -968,7 +967,7 @@ class StreamCharTB(TBBase):
         # hardware. Total expected_beats = bytes / 16 (DATA_WIDTH=128).
         expected_beats_total = (transfer_bytes * num_channels *
                                 descriptors_per_channel) // 16
-        await self.uart_write(CSR_TIMER_CTRL, 0x1)        # clear pulse
+        await self.uart_write(CSR_TIMER_CTRL, compose("TIMER_CTRL", CLEAR=1))
         await self.uart_write(CSR_TIMER_EXPECTED_BEATS, expected_beats_total)
         self.log.info(
             f"  Timer armed: expected_beats={expected_beats_total} "
@@ -997,7 +996,7 @@ class StreamCharTB(TBBase):
         # the kick so it captures the descriptor-fetch traffic. RUN rising edge
         # clears the counters. Decoupled from the PERF_EN packet path.
         if measure_desc_perf:
-            await self.uart_write(APB_DAXMON_PERF_CTRL, 0x1)
+            await self.uart_write(APB_DAXMON_PERF_CTRL, _scompose("DAXMON_PERF_CTRL", RUN=1))
             self.log.info("  Desc-monitor perf window opened (RUN=1)")
 
         # 4y'. RFC Stage E option 2: open the data-read and data-write datapath
@@ -1106,16 +1105,16 @@ class StreamCharTB(TBBase):
             #                                         (64→256) stalled.
             self.log.error("  desc_ram observation counters:")
             for name, addr in [
-                ("DESC_SRAM_AR_HS", HARNESS_CSR_BASE + 0xD4),
-                ("DESC_SRAM_R_HS",  HARNESS_CSR_BASE + 0xD8),
-                ("DESC_AR_HS",      HARNESS_CSR_BASE + 0xE0),
-                ("DESC_AR_STALL",   HARNESS_CSR_BASE + 0xE4),
-                ("DESC_R_HS",       HARNESS_CSR_BASE + 0xE8),
-                ("DESC_R_STALL",    HARNESS_CSR_BASE + 0xEC),
-                ("DESC_AW_HS",      HARNESS_CSR_BASE + 0xF0),
-                ("DESC_W_HS",       HARNESS_CSR_BASE + 0xF4),
-                ("DESC_B_HS",       HARNESS_CSR_BASE + 0xF8),
-                ("DESC_VR_LIVE",    HARNESS_CSR_BASE + 0xFC),
+                ("DESC_SRAM_AR_HS", H("DESC_SRAM_AR_HS")),
+                ("DESC_SRAM_R_HS",  H("DESC_SRAM_R_HS")),
+                ("DESC_AR_HS",      H("DESC_AR_HS")),
+                ("DESC_AR_STALL",   H("DESC_AR_STALL")),
+                ("DESC_R_HS",       H("DESC_R_HS")),
+                ("DESC_R_STALL",    H("DESC_R_STALL")),
+                ("DESC_AW_HS",      H("DESC_AW_HS")),
+                ("DESC_W_HS",       H("DESC_W_HS")),
+                ("DESC_B_HS",       H("DESC_B_HS")),
+                ("DESC_VR_LIVE",    H("DESC_VR_LIVE")),
             ]:
                 val = await self.uart_read(addr)
                 self.log.error(f"    {name:16s} @ 0x{addr:08X} = {val}"
@@ -1268,7 +1267,7 @@ class StreamCharTB(TBBase):
         # real descriptor fetch must have produced bursts/beats/productive
         # cycles. Stashed on self._desc_perf for the desc_perf test assertions.
         if measure_desc_perf:
-            await self.uart_write(APB_DAXMON_PERF_CTRL, 0x0)  # close + freeze
+            await self.uart_write(APB_DAXMON_PERF_CTRL, _scompose("DAXMON_PERF_CTRL", RUN=0))  # close + freeze
             await self.wait_clocks(self.clk_name, 20)
             byte_lo = await self.uart_read(APB_DAXMON_PERF_BYTE_COUNT_LO) or 0
             byte_hi = await self.uart_read(APB_DAXMON_PERF_BYTE_COUNT_HI) or 0
@@ -1474,12 +1473,11 @@ class StreamCharTB(TBBase):
         # records-out with vs without compression for the same workload.
         try:
             wr_words = await self.uart_read(CSR_DBG_WR_PTR)
-            base = HARNESS_CSR_BASE
-            t1a = await self.uart_read(base + 0x1E0)
-            t1b = await self.uart_read(base + 0x1E4)
-            t1c = await self.uart_read(base + 0x1E8)
-            t0  = await self.uart_read(base + 0x1EC)
-            cam = await self.uart_read(base + 0x1F0)
+            t1a = await self.uart_read(H("COMP_TIER1_A"))
+            t1b = await self.uart_read(H("COMP_TIER1_B"))
+            t1c = await self.uart_read(H("COMP_TIER1_C"))
+            t0  = await self.uart_read(H("COMP_TIER0"))
+            cam = await self.uart_read(H("COMP_CAM_MISS"))
             recs = t1a + t1b + t1c + t0
             self.log.info(
                 f"  MonBus trace: dbg_wr_ptr={wr_words} words "

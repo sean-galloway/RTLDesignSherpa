@@ -70,7 +70,7 @@ from typing import Callable, Dict, List, Optional, Sequence
 THIS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(THIS_DIR))
 
-from harness_addrs import H  # noqa: E402  (by-name harness CSR access)
+from harness_addrs import H, harness_regs  # noqa: E402  (by-name harness CSR access)
 
 from dump_monbus_sram import (  # noqa: E402
     dump_json as dump_sram_to_json,
@@ -208,7 +208,7 @@ def clear_all_sources(bridge: BridgeIO) -> None:
     bridge.write(DAXMON_ENABLE, 0)
     # CTRL bit[1] = clear_stats_pulse. Resets the trace SRAM write
     # pointer + clears sticky overflow. Hardware self-clears.
-    bridge.write(CSR_CTRL, 0x2)
+    harness_regs(bridge).CTRL.write(CLEAR_STATS=1)  # bit[1] clear-stats pulse
     time.sleep(0.05)
 
 

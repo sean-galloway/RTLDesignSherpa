@@ -64,6 +64,28 @@ def has(name: str) -> bool:
     return name in _regmap().registers
 
 
+def compose(name: str, **fields: int) -> int:
+    """Compose a HARNESS CSR word by setting named FIELDS at their regmap
+    offsets/widths (unspecified fields keep the reset default). Mirrors
+    stream_addrs.compose -- for callers that need the word without a live bridge
+    (e.g. the cocotb sim TB's async transport: uart_write(H("CTRL"),
+    compose("CTRL", CLEAR_STATS=1))). For a live sync bridge, prefer
+    harness_regs(bridge).REG.write(field=..)."""
+    info = _regmap().registers.get(name)
+    if info is None:
+        raise KeyError(f"unknown HARNESS register {name!r}")
+    word = int(info.get("default", "0x0"), 16)
+    for fname, val in fields.items():
+        fld = info.get(fname)
+        if not isinstance(fld, dict) or "offset" not in fld:
+            raise KeyError(f"unknown field {name}.{fname}")
+        off = fld["offset"]
+        hi, lo = (int(x) for x in off.split(":")) if ":" in off else (int(off), int(off))
+        mask = ((1 << (hi - lo + 1)) - 1) << lo
+        word = (word & ~mask) | ((int(val) << lo) & mask)
+    return word & 0xFFFF_FFFF
+
+
 def autodetect_port(baud: int = 115200, want: Optional[str] = None) -> str:
     """Find the ttyUSB the stream char harness is on.
 
