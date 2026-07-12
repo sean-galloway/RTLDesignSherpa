@@ -15,8 +15,8 @@ register name to its absolute offset/address, size, reset default, and fields
 in the format consumed by the RegisterMap class (by-name register access).
 
 Usage:
-    from pumice_regmap import top_block
-    reg_map = RegisterMap('pumice_regmap.py', apb_data_width=32,
+    from pumice_csr_regmap import top_block
+    reg_map = RegisterMap('pumice_csr_regmap.py', apb_data_width=32,
                           apb_addr_width=16, start_address=0x0, log=logger)
 """
 
@@ -623,6 +623,19 @@ top_block = {'ADDR_MAP_TUNING': {'RSVD_31_8': {'default': '0x000000',
                          'size': 4,
                          'sw': 'rw',
                          'type': 'reg'},
+ 'PHY_TIMING': {'RSVD0': {'default': '0x0', 'offset': '19:17', 'sw': 'r', 'type': 'field'},
+                'RSVD1': {'default': '0x00', 'offset': '31:24', 'sw': 'r', 'type': 'field'},
+                'address': '0x064',
+                'default': '0x00100600',
+                'memtype': {'default': '0x0', 'offset': '16', 'sw': 'rw', 'type': 'field'},
+                'name': 'PHY_TIMING',
+                'offset': '0x064',
+                'refresh_burst': {'default': '0x1', 'offset': '23:20', 'sw': 'rw', 'type': 'field'},
+                'size': 4,
+                'sw': 'rw',
+                't_phy_wrlat': {'default': '0x00', 'offset': '7:0', 'sw': 'rw', 'type': 'field'},
+                't_rddata_en': {'default': '0x06', 'offset': '15:8', 'sw': 'rw', 'type': 'field'},
+                'type': 'reg'},
  'REFRESH_TUNING': {'RSVD_15_8': {'default': '0x00', 'offset': '15:8', 'sw': 'r', 'type': 'field'},
                     'address': '0x048',
                     'default': '0x00010010',
