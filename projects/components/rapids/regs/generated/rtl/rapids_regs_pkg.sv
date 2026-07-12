@@ -9,111 +9,111 @@ package rapids_regs_pkg;
 
     typedef struct {
         logic next;
-    } rapids_half_regs__GLOBAL_STATUS__SYSTEM_IDLE__in_t;
+    } rapids_engine_regs__GLOBAL_STATUS__SYSTEM_IDLE__in_t;
 
     typedef struct {
-        rapids_half_regs__GLOBAL_STATUS__SYSTEM_IDLE__in_t SYSTEM_IDLE;
-    } rapids_half_regs__GLOBAL_STATUS__in_t;
-
-    typedef struct {
-        logic [7:0] next;
-    } rapids_half_regs__CHANNEL_IDLE__CH_IDLE__in_t;
-
-    typedef struct {
-        rapids_half_regs__CHANNEL_IDLE__CH_IDLE__in_t CH_IDLE;
-    } rapids_half_regs__CHANNEL_IDLE__in_t;
+        rapids_engine_regs__GLOBAL_STATUS__SYSTEM_IDLE__in_t SYSTEM_IDLE;
+    } rapids_engine_regs__GLOBAL_STATUS__in_t;
 
     typedef struct {
         logic [7:0] next;
-    } rapids_half_regs__DESC_ENGINE_IDLE__DESC_IDLE__in_t;
+    } rapids_engine_regs__CHANNEL_IDLE__CH_IDLE__in_t;
 
     typedef struct {
-        rapids_half_regs__DESC_ENGINE_IDLE__DESC_IDLE__in_t DESC_IDLE;
-    } rapids_half_regs__DESC_ENGINE_IDLE__in_t;
+        rapids_engine_regs__CHANNEL_IDLE__CH_IDLE__in_t CH_IDLE;
+    } rapids_engine_regs__CHANNEL_IDLE__in_t;
 
     typedef struct {
         logic [7:0] next;
-    } rapids_half_regs__SCHEDULER_IDLE__SCHED_IDLE__in_t;
+    } rapids_engine_regs__DESC_ENGINE_IDLE__DESC_IDLE__in_t;
 
     typedef struct {
-        rapids_half_regs__SCHEDULER_IDLE__SCHED_IDLE__in_t SCHED_IDLE;
-    } rapids_half_regs__SCHEDULER_IDLE__in_t;
+        rapids_engine_regs__DESC_ENGINE_IDLE__DESC_IDLE__in_t DESC_IDLE;
+    } rapids_engine_regs__DESC_ENGINE_IDLE__in_t;
+
+    typedef struct {
+        logic [7:0] next;
+    } rapids_engine_regs__SCHEDULER_IDLE__SCHED_IDLE__in_t;
+
+    typedef struct {
+        rapids_engine_regs__SCHEDULER_IDLE__SCHED_IDLE__in_t SCHED_IDLE;
+    } rapids_engine_regs__SCHEDULER_IDLE__in_t;
 
     typedef struct {
         logic [6:0] next;
-    } rapids_half_regs__CH_STATE__STATE__STATE__in_t;
+    } rapids_engine_regs__CH_STATE__STATE__STATE__in_t;
 
     typedef struct {
-        rapids_half_regs__CH_STATE__STATE__STATE__in_t STATE;
-    } rapids_half_regs__CH_STATE__STATE__in_t;
+        rapids_engine_regs__CH_STATE__STATE__STATE__in_t STATE;
+    } rapids_engine_regs__CH_STATE__STATE__in_t;
 
     typedef struct {
-        rapids_half_regs__CH_STATE__STATE__in_t STATE;
-    } rapids_half_regs__CH_STATE__in_t;
-
-    typedef struct {
-        logic [7:0] next;
-    } rapids_half_regs__SCHED_ERROR__SCHED_ERR__in_t;
-
-    typedef struct {
-        rapids_half_regs__SCHED_ERROR__SCHED_ERR__in_t SCHED_ERR;
-    } rapids_half_regs__SCHED_ERROR__in_t;
+        rapids_engine_regs__CH_STATE__STATE__in_t STATE;
+    } rapids_engine_regs__CH_STATE__in_t;
 
     typedef struct {
         logic [7:0] next;
-    } rapids_half_regs__AXI_RD_COMPLETE__RD_COMPLETE__in_t;
+    } rapids_engine_regs__SCHED_ERROR__SCHED_ERR__in_t;
 
     typedef struct {
-        rapids_half_regs__AXI_RD_COMPLETE__RD_COMPLETE__in_t RD_COMPLETE;
-    } rapids_half_regs__AXI_RD_COMPLETE__in_t;
+        rapids_engine_regs__SCHED_ERROR__SCHED_ERR__in_t SCHED_ERR;
+    } rapids_engine_regs__SCHED_ERROR__in_t;
 
     typedef struct {
         logic [7:0] next;
-    } rapids_half_regs__AXI_WR_COMPLETE__WR_COMPLETE__in_t;
+    } rapids_engine_regs__AXI_RD_COMPLETE__RD_COMPLETE__in_t;
 
     typedef struct {
-        rapids_half_regs__AXI_WR_COMPLETE__WR_COMPLETE__in_t WR_COMPLETE;
-    } rapids_half_regs__AXI_WR_COMPLETE__in_t;
+        rapids_engine_regs__AXI_RD_COMPLETE__RD_COMPLETE__in_t RD_COMPLETE;
+    } rapids_engine_regs__AXI_RD_COMPLETE__in_t;
 
     typedef struct {
-        logic [31:0] next;
-    } rapids_half_regs__OBS_FLAGS__FLAGS__in_t;
+        logic [7:0] next;
+    } rapids_engine_regs__AXI_WR_COMPLETE__WR_COMPLETE__in_t;
 
     typedef struct {
-        rapids_half_regs__OBS_FLAGS__FLAGS__in_t FLAGS;
-    } rapids_half_regs__OBS_FLAGS__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } rapids_half_regs__OBS_DATA0__DATA__in_t;
-
-    typedef struct {
-        rapids_half_regs__OBS_DATA0__DATA__in_t DATA;
-    } rapids_half_regs__OBS_DATA0__in_t;
+        rapids_engine_regs__AXI_WR_COMPLETE__WR_COMPLETE__in_t WR_COMPLETE;
+    } rapids_engine_regs__AXI_WR_COMPLETE__in_t;
 
     typedef struct {
         logic [31:0] next;
-    } rapids_half_regs__OBS_DATA1__DATA__in_t;
+    } rapids_engine_regs__OBS_FLAGS__FLAGS__in_t;
 
     typedef struct {
-        rapids_half_regs__OBS_DATA1__DATA__in_t DATA;
-    } rapids_half_regs__OBS_DATA1__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } rapids_half_regs__HIST_DATA__VAL__in_t;
-
-    typedef struct {
-        rapids_half_regs__HIST_DATA__VAL__in_t VAL;
-    } rapids_half_regs__HIST_DATA__in_t;
+        rapids_engine_regs__OBS_FLAGS__FLAGS__in_t FLAGS;
+    } rapids_engine_regs__OBS_FLAGS__in_t;
 
     typedef struct {
         logic [31:0] next;
-    } rapids_half_regs__HIST_TOTAL__VAL__in_t;
+    } rapids_engine_regs__OBS_DATA0__DATA__in_t;
 
     typedef struct {
-        rapids_half_regs__HIST_TOTAL__VAL__in_t VAL;
-    } rapids_half_regs__HIST_TOTAL__in_t;
+        rapids_engine_regs__OBS_DATA0__DATA__in_t DATA;
+    } rapids_engine_regs__OBS_DATA0__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } rapids_engine_regs__OBS_DATA1__DATA__in_t;
+
+    typedef struct {
+        rapids_engine_regs__OBS_DATA1__DATA__in_t DATA;
+    } rapids_engine_regs__OBS_DATA1__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } rapids_engine_regs__HIST_DATA__VAL__in_t;
+
+    typedef struct {
+        rapids_engine_regs__HIST_DATA__VAL__in_t VAL;
+    } rapids_engine_regs__HIST_DATA__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } rapids_engine_regs__HIST_TOTAL__VAL__in_t;
+
+    typedef struct {
+        rapids_engine_regs__HIST_TOTAL__VAL__in_t VAL;
+    } rapids_engine_regs__HIST_TOTAL__in_t;
 
     typedef struct {
         logic next;
@@ -476,240 +476,240 @@ package rapids_regs_pkg;
     } rapids_mon_regs__in_t;
 
     typedef struct {
-        rapids_half_regs__GLOBAL_STATUS__in_t GLOBAL_STATUS;
-        rapids_half_regs__CHANNEL_IDLE__in_t CHANNEL_IDLE;
-        rapids_half_regs__DESC_ENGINE_IDLE__in_t DESC_ENGINE_IDLE;
-        rapids_half_regs__SCHEDULER_IDLE__in_t SCHEDULER_IDLE;
-        rapids_half_regs__CH_STATE__in_t CH_STATE[8];
-        rapids_half_regs__SCHED_ERROR__in_t SCHED_ERROR;
-        rapids_half_regs__AXI_RD_COMPLETE__in_t AXI_RD_COMPLETE;
-        rapids_half_regs__AXI_WR_COMPLETE__in_t AXI_WR_COMPLETE;
-        rapids_half_regs__OBS_FLAGS__in_t OBS_FLAGS;
-        rapids_half_regs__OBS_DATA0__in_t OBS_DATA0;
-        rapids_half_regs__OBS_DATA1__in_t OBS_DATA1;
-        rapids_half_regs__HIST_DATA__in_t HIST_DATA;
-        rapids_half_regs__HIST_TOTAL__in_t HIST_TOTAL;
+        rapids_engine_regs__GLOBAL_STATUS__in_t GLOBAL_STATUS;
+        rapids_engine_regs__CHANNEL_IDLE__in_t CHANNEL_IDLE;
+        rapids_engine_regs__DESC_ENGINE_IDLE__in_t DESC_ENGINE_IDLE;
+        rapids_engine_regs__SCHEDULER_IDLE__in_t SCHEDULER_IDLE;
+        rapids_engine_regs__CH_STATE__in_t CH_STATE[8];
+        rapids_engine_regs__SCHED_ERROR__in_t SCHED_ERROR;
+        rapids_engine_regs__AXI_RD_COMPLETE__in_t AXI_RD_COMPLETE;
+        rapids_engine_regs__AXI_WR_COMPLETE__in_t AXI_WR_COMPLETE;
+        rapids_engine_regs__OBS_FLAGS__in_t OBS_FLAGS;
+        rapids_engine_regs__OBS_DATA0__in_t OBS_DATA0;
+        rapids_engine_regs__OBS_DATA1__in_t OBS_DATA1;
+        rapids_engine_regs__HIST_DATA__in_t HIST_DATA;
+        rapids_engine_regs__HIST_TOTAL__in_t HIST_TOTAL;
         rapids_mon_regs__in_t MON;
-    } rapids_half_regs__in_t;
+    } rapids_engine_regs__in_t;
 
     typedef struct {
-        rapids_half_regs__in_t SRC;
-        rapids_half_regs__in_t SNK;
+        rapids_engine_regs__in_t SRC;
+        rapids_engine_regs__in_t SNK;
     } rapids_regs__in_t;
 
     typedef struct {
         logic value;
-    } rapids_half_regs__GLOBAL_CTRL__GLOBAL_EN__out_t;
+    } rapids_engine_regs__GLOBAL_CTRL__GLOBAL_EN__out_t;
 
     typedef struct {
         logic value;
         logic swmod;
-    } rapids_half_regs__GLOBAL_CTRL__GLOBAL_RST__out_t;
+    } rapids_engine_regs__GLOBAL_CTRL__GLOBAL_RST__out_t;
 
     typedef struct {
-        rapids_half_regs__GLOBAL_CTRL__GLOBAL_EN__out_t GLOBAL_EN;
-        rapids_half_regs__GLOBAL_CTRL__GLOBAL_RST__out_t GLOBAL_RST;
-    } rapids_half_regs__GLOBAL_CTRL__out_t;
+        rapids_engine_regs__GLOBAL_CTRL__GLOBAL_EN__out_t GLOBAL_EN;
+        rapids_engine_regs__GLOBAL_CTRL__GLOBAL_RST__out_t GLOBAL_RST;
+    } rapids_engine_regs__GLOBAL_CTRL__out_t;
 
     typedef struct {
         logic [7:0] value;
-    } rapids_half_regs__CHANNEL_ENABLE__CH_EN__out_t;
+    } rapids_engine_regs__CHANNEL_ENABLE__CH_EN__out_t;
 
     typedef struct {
-        rapids_half_regs__CHANNEL_ENABLE__CH_EN__out_t CH_EN;
-    } rapids_half_regs__CHANNEL_ENABLE__out_t;
+        rapids_engine_regs__CHANNEL_ENABLE__CH_EN__out_t CH_EN;
+    } rapids_engine_regs__CHANNEL_ENABLE__out_t;
 
     typedef struct {
         logic [7:0] value;
         logic swmod;
-    } rapids_half_regs__CHANNEL_RESET__CH_RST__out_t;
+    } rapids_engine_regs__CHANNEL_RESET__CH_RST__out_t;
 
     typedef struct {
-        rapids_half_regs__CHANNEL_RESET__CH_RST__out_t CH_RST;
-    } rapids_half_regs__CHANNEL_RESET__out_t;
+        rapids_engine_regs__CHANNEL_RESET__CH_RST__out_t CH_RST;
+    } rapids_engine_regs__CHANNEL_RESET__out_t;
 
     typedef struct {
         logic [31:0] value;
-    } rapids_half_regs__SCHED_TIMEOUT_CYCLES__TIMEOUT_CYCLES__out_t;
+    } rapids_engine_regs__SCHED_TIMEOUT_CYCLES__TIMEOUT_CYCLES__out_t;
 
     typedef struct {
-        rapids_half_regs__SCHED_TIMEOUT_CYCLES__TIMEOUT_CYCLES__out_t TIMEOUT_CYCLES;
-    } rapids_half_regs__SCHED_TIMEOUT_CYCLES__out_t;
-
-    typedef struct {
-        logic value;
-    } rapids_half_regs__SCHED_CONFIG__SCHED_EN__out_t;
+        rapids_engine_regs__SCHED_TIMEOUT_CYCLES__TIMEOUT_CYCLES__out_t TIMEOUT_CYCLES;
+    } rapids_engine_regs__SCHED_TIMEOUT_CYCLES__out_t;
 
     typedef struct {
         logic value;
-    } rapids_half_regs__SCHED_CONFIG__TIMEOUT_EN__out_t;
+    } rapids_engine_regs__SCHED_CONFIG__SCHED_EN__out_t;
 
     typedef struct {
         logic value;
-    } rapids_half_regs__SCHED_CONFIG__ERR_EN__out_t;
+    } rapids_engine_regs__SCHED_CONFIG__TIMEOUT_EN__out_t;
 
     typedef struct {
         logic value;
-    } rapids_half_regs__SCHED_CONFIG__COMPL_EN__out_t;
+    } rapids_engine_regs__SCHED_CONFIG__ERR_EN__out_t;
 
     typedef struct {
         logic value;
-    } rapids_half_regs__SCHED_CONFIG__PERF_EN__out_t;
+    } rapids_engine_regs__SCHED_CONFIG__COMPL_EN__out_t;
 
     typedef struct {
-        rapids_half_regs__SCHED_CONFIG__SCHED_EN__out_t SCHED_EN;
-        rapids_half_regs__SCHED_CONFIG__TIMEOUT_EN__out_t TIMEOUT_EN;
-        rapids_half_regs__SCHED_CONFIG__ERR_EN__out_t ERR_EN;
-        rapids_half_regs__SCHED_CONFIG__COMPL_EN__out_t COMPL_EN;
-        rapids_half_regs__SCHED_CONFIG__PERF_EN__out_t PERF_EN;
-    } rapids_half_regs__SCHED_CONFIG__out_t;
+        logic value;
+    } rapids_engine_regs__SCHED_CONFIG__PERF_EN__out_t;
+
+    typedef struct {
+        rapids_engine_regs__SCHED_CONFIG__SCHED_EN__out_t SCHED_EN;
+        rapids_engine_regs__SCHED_CONFIG__TIMEOUT_EN__out_t TIMEOUT_EN;
+        rapids_engine_regs__SCHED_CONFIG__ERR_EN__out_t ERR_EN;
+        rapids_engine_regs__SCHED_CONFIG__COMPL_EN__out_t COMPL_EN;
+        rapids_engine_regs__SCHED_CONFIG__PERF_EN__out_t PERF_EN;
+    } rapids_engine_regs__SCHED_CONFIG__out_t;
 
     typedef struct {
         logic [7:0] value;
-    } rapids_half_regs__SCHED_TIMEOUT_LIMIT__LIMIT__out_t;
+    } rapids_engine_regs__SCHED_TIMEOUT_LIMIT__LIMIT__out_t;
 
     typedef struct {
-        rapids_half_regs__SCHED_TIMEOUT_LIMIT__LIMIT__out_t LIMIT;
-    } rapids_half_regs__SCHED_TIMEOUT_LIMIT__out_t;
-
-    typedef struct {
-        logic value;
-    } rapids_half_regs__DESCENG_CONFIG__DESCENG_EN__out_t;
+        rapids_engine_regs__SCHED_TIMEOUT_LIMIT__LIMIT__out_t LIMIT;
+    } rapids_engine_regs__SCHED_TIMEOUT_LIMIT__out_t;
 
     typedef struct {
         logic value;
-    } rapids_half_regs__DESCENG_CONFIG__PREFETCH_EN__out_t;
+    } rapids_engine_regs__DESCENG_CONFIG__DESCENG_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } rapids_engine_regs__DESCENG_CONFIG__PREFETCH_EN__out_t;
 
     typedef struct {
         logic [3:0] value;
-    } rapids_half_regs__DESCENG_CONFIG__FIFO_THRESH__out_t;
+    } rapids_engine_regs__DESCENG_CONFIG__FIFO_THRESH__out_t;
 
     typedef struct {
-        rapids_half_regs__DESCENG_CONFIG__DESCENG_EN__out_t DESCENG_EN;
-        rapids_half_regs__DESCENG_CONFIG__PREFETCH_EN__out_t PREFETCH_EN;
-        rapids_half_regs__DESCENG_CONFIG__FIFO_THRESH__out_t FIFO_THRESH;
-    } rapids_half_regs__DESCENG_CONFIG__out_t;
-
-    typedef struct {
-        logic [31:0] value;
-    } rapids_half_regs__DESCENG_ADDR0_BASE__ADDR0_BASE__out_t;
-
-    typedef struct {
-        rapids_half_regs__DESCENG_ADDR0_BASE__ADDR0_BASE__out_t ADDR0_BASE;
-    } rapids_half_regs__DESCENG_ADDR0_BASE__out_t;
+        rapids_engine_regs__DESCENG_CONFIG__DESCENG_EN__out_t DESCENG_EN;
+        rapids_engine_regs__DESCENG_CONFIG__PREFETCH_EN__out_t PREFETCH_EN;
+        rapids_engine_regs__DESCENG_CONFIG__FIFO_THRESH__out_t FIFO_THRESH;
+    } rapids_engine_regs__DESCENG_CONFIG__out_t;
 
     typedef struct {
         logic [31:0] value;
-    } rapids_half_regs__DESCENG_ADDR0_LIMIT__ADDR0_LIMIT__out_t;
+    } rapids_engine_regs__DESCENG_ADDR0_BASE__ADDR0_BASE__out_t;
 
     typedef struct {
-        rapids_half_regs__DESCENG_ADDR0_LIMIT__ADDR0_LIMIT__out_t ADDR0_LIMIT;
-    } rapids_half_regs__DESCENG_ADDR0_LIMIT__out_t;
-
-    typedef struct {
-        logic [31:0] value;
-    } rapids_half_regs__DESCENG_ADDR1_BASE__ADDR1_BASE__out_t;
-
-    typedef struct {
-        rapids_half_regs__DESCENG_ADDR1_BASE__ADDR1_BASE__out_t ADDR1_BASE;
-    } rapids_half_regs__DESCENG_ADDR1_BASE__out_t;
+        rapids_engine_regs__DESCENG_ADDR0_BASE__ADDR0_BASE__out_t ADDR0_BASE;
+    } rapids_engine_regs__DESCENG_ADDR0_BASE__out_t;
 
     typedef struct {
         logic [31:0] value;
-    } rapids_half_regs__DESCENG_ADDR1_LIMIT__ADDR1_LIMIT__out_t;
+    } rapids_engine_regs__DESCENG_ADDR0_LIMIT__ADDR0_LIMIT__out_t;
 
     typedef struct {
-        rapids_half_regs__DESCENG_ADDR1_LIMIT__ADDR1_LIMIT__out_t ADDR1_LIMIT;
-    } rapids_half_regs__DESCENG_ADDR1_LIMIT__out_t;
+        rapids_engine_regs__DESCENG_ADDR0_LIMIT__ADDR0_LIMIT__out_t ADDR0_LIMIT;
+    } rapids_engine_regs__DESCENG_ADDR0_LIMIT__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } rapids_engine_regs__DESCENG_ADDR1_BASE__ADDR1_BASE__out_t;
+
+    typedef struct {
+        rapids_engine_regs__DESCENG_ADDR1_BASE__ADDR1_BASE__out_t ADDR1_BASE;
+    } rapids_engine_regs__DESCENG_ADDR1_BASE__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } rapids_engine_regs__DESCENG_ADDR1_LIMIT__ADDR1_LIMIT__out_t;
+
+    typedef struct {
+        rapids_engine_regs__DESCENG_ADDR1_LIMIT__ADDR1_LIMIT__out_t ADDR1_LIMIT;
+    } rapids_engine_regs__DESCENG_ADDR1_LIMIT__out_t;
 
     typedef struct {
         logic [8:0] value;
-    } rapids_half_regs__CTRL_CONFIG__CTRLRD_MAX_TRY__out_t;
+    } rapids_engine_regs__CTRL_CONFIG__CTRLRD_MAX_TRY__out_t;
 
     typedef struct {
-        rapids_half_regs__CTRL_CONFIG__CTRLRD_MAX_TRY__out_t CTRLRD_MAX_TRY;
-    } rapids_half_regs__CTRL_CONFIG__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } rapids_half_regs__AXI_XFER_CONFIG__RD_XFER_BEATS__out_t;
+        rapids_engine_regs__CTRL_CONFIG__CTRLRD_MAX_TRY__out_t CTRLRD_MAX_TRY;
+    } rapids_engine_regs__CTRL_CONFIG__out_t;
 
     typedef struct {
         logic [7:0] value;
-    } rapids_half_regs__AXI_XFER_CONFIG__WR_XFER_BEATS__out_t;
+    } rapids_engine_regs__AXI_XFER_CONFIG__RD_XFER_BEATS__out_t;
 
     typedef struct {
         logic [7:0] value;
-    } rapids_half_regs__AXI_XFER_CONFIG__ALLOC_SIZE__out_t;
+    } rapids_engine_regs__AXI_XFER_CONFIG__WR_XFER_BEATS__out_t;
 
     typedef struct {
         logic [7:0] value;
-    } rapids_half_regs__AXI_XFER_CONFIG__DRAIN_SIZE__out_t;
+    } rapids_engine_regs__AXI_XFER_CONFIG__ALLOC_SIZE__out_t;
 
     typedef struct {
-        rapids_half_regs__AXI_XFER_CONFIG__RD_XFER_BEATS__out_t RD_XFER_BEATS;
-        rapids_half_regs__AXI_XFER_CONFIG__WR_XFER_BEATS__out_t WR_XFER_BEATS;
-        rapids_half_regs__AXI_XFER_CONFIG__ALLOC_SIZE__out_t ALLOC_SIZE;
-        rapids_half_regs__AXI_XFER_CONFIG__DRAIN_SIZE__out_t DRAIN_SIZE;
-    } rapids_half_regs__AXI_XFER_CONFIG__out_t;
+        logic [7:0] value;
+    } rapids_engine_regs__AXI_XFER_CONFIG__DRAIN_SIZE__out_t;
+
+    typedef struct {
+        rapids_engine_regs__AXI_XFER_CONFIG__RD_XFER_BEATS__out_t RD_XFER_BEATS;
+        rapids_engine_regs__AXI_XFER_CONFIG__WR_XFER_BEATS__out_t WR_XFER_BEATS;
+        rapids_engine_regs__AXI_XFER_CONFIG__ALLOC_SIZE__out_t ALLOC_SIZE;
+        rapids_engine_regs__AXI_XFER_CONFIG__DRAIN_SIZE__out_t DRAIN_SIZE;
+    } rapids_engine_regs__AXI_XFER_CONFIG__out_t;
 
     typedef struct {
         logic value;
-    } rapids_half_regs__PERF_CONFIG__PERF_EN__out_t;
+    } rapids_engine_regs__PERF_CONFIG__PERF_EN__out_t;
 
     typedef struct {
         logic value;
-    } rapids_half_regs__PERF_CONFIG__PERF_MODE__out_t;
+    } rapids_engine_regs__PERF_CONFIG__PERF_MODE__out_t;
 
     typedef struct {
         logic value;
         logic swmod;
-    } rapids_half_regs__PERF_CONFIG__PERF_CLEAR__out_t;
+    } rapids_engine_regs__PERF_CONFIG__PERF_CLEAR__out_t;
 
     typedef struct {
-        rapids_half_regs__PERF_CONFIG__PERF_EN__out_t PERF_EN;
-        rapids_half_regs__PERF_CONFIG__PERF_MODE__out_t PERF_MODE;
-        rapids_half_regs__PERF_CONFIG__PERF_CLEAR__out_t PERF_CLEAR;
-    } rapids_half_regs__PERF_CONFIG__out_t;
+        rapids_engine_regs__PERF_CONFIG__PERF_EN__out_t PERF_EN;
+        rapids_engine_regs__PERF_CONFIG__PERF_MODE__out_t PERF_MODE;
+        rapids_engine_regs__PERF_CONFIG__PERF_CLEAR__out_t PERF_CLEAR;
+    } rapids_engine_regs__PERF_CONFIG__out_t;
 
     typedef struct {
         logic [2:0] value;
-    } rapids_half_regs__OBS_CTRL__CH_SEL__out_t;
+    } rapids_engine_regs__OBS_CTRL__CH_SEL__out_t;
 
     typedef struct {
         logic [1:0] value;
-    } rapids_half_regs__OBS_CTRL__CAT_SEL__out_t;
+    } rapids_engine_regs__OBS_CTRL__CAT_SEL__out_t;
 
     typedef struct {
-        rapids_half_regs__OBS_CTRL__CH_SEL__out_t CH_SEL;
-        rapids_half_regs__OBS_CTRL__CAT_SEL__out_t CAT_SEL;
-    } rapids_half_regs__OBS_CTRL__out_t;
+        rapids_engine_regs__OBS_CTRL__CH_SEL__out_t CH_SEL;
+        rapids_engine_regs__OBS_CTRL__CAT_SEL__out_t CAT_SEL;
+    } rapids_engine_regs__OBS_CTRL__out_t;
 
     typedef struct {
         logic [2:0] value;
-    } rapids_half_regs__PERF_CH_SEL__CH_SEL__out_t;
+    } rapids_engine_regs__PERF_CH_SEL__CH_SEL__out_t;
 
     typedef struct {
-        rapids_half_regs__PERF_CH_SEL__CH_SEL__out_t CH_SEL;
-    } rapids_half_regs__PERF_CH_SEL__out_t;
-
-    typedef struct {
-        logic value;
-    } rapids_half_regs__HIST_SEL__BUS__out_t;
+        rapids_engine_regs__PERF_CH_SEL__CH_SEL__out_t CH_SEL;
+    } rapids_engine_regs__PERF_CH_SEL__out_t;
 
     typedef struct {
         logic value;
-    } rapids_half_regs__HIST_SEL__METRIC__out_t;
+    } rapids_engine_regs__HIST_SEL__BUS__out_t;
+
+    typedef struct {
+        logic value;
+    } rapids_engine_regs__HIST_SEL__METRIC__out_t;
 
     typedef struct {
         logic [3:0] value;
-    } rapids_half_regs__HIST_SEL__BIN__out_t;
+    } rapids_engine_regs__HIST_SEL__BIN__out_t;
 
     typedef struct {
-        rapids_half_regs__HIST_SEL__BUS__out_t BUS;
-        rapids_half_regs__HIST_SEL__METRIC__out_t METRIC;
-        rapids_half_regs__HIST_SEL__BIN__out_t BIN;
-    } rapids_half_regs__HIST_SEL__out_t;
+        rapids_engine_regs__HIST_SEL__BUS__out_t BUS;
+        rapids_engine_regs__HIST_SEL__METRIC__out_t METRIC;
+        rapids_engine_regs__HIST_SEL__BIN__out_t BIN;
+    } rapids_engine_regs__HIST_SEL__out_t;
 
     typedef struct {
         logic value;
@@ -1083,28 +1083,28 @@ package rapids_regs_pkg;
     } rapids_mon_regs__out_t;
 
     typedef struct {
-        rapids_half_regs__GLOBAL_CTRL__out_t GLOBAL_CTRL;
-        rapids_half_regs__CHANNEL_ENABLE__out_t CHANNEL_ENABLE;
-        rapids_half_regs__CHANNEL_RESET__out_t CHANNEL_RESET;
-        rapids_half_regs__SCHED_TIMEOUT_CYCLES__out_t SCHED_TIMEOUT_CYCLES;
-        rapids_half_regs__SCHED_CONFIG__out_t SCHED_CONFIG;
-        rapids_half_regs__SCHED_TIMEOUT_LIMIT__out_t SCHED_TIMEOUT_LIMIT;
-        rapids_half_regs__DESCENG_CONFIG__out_t DESCENG_CONFIG;
-        rapids_half_regs__DESCENG_ADDR0_BASE__out_t DESCENG_ADDR0_BASE;
-        rapids_half_regs__DESCENG_ADDR0_LIMIT__out_t DESCENG_ADDR0_LIMIT;
-        rapids_half_regs__DESCENG_ADDR1_BASE__out_t DESCENG_ADDR1_BASE;
-        rapids_half_regs__DESCENG_ADDR1_LIMIT__out_t DESCENG_ADDR1_LIMIT;
-        rapids_half_regs__CTRL_CONFIG__out_t CTRL_CONFIG;
-        rapids_half_regs__AXI_XFER_CONFIG__out_t AXI_XFER_CONFIG;
-        rapids_half_regs__PERF_CONFIG__out_t PERF_CONFIG;
-        rapids_half_regs__OBS_CTRL__out_t OBS_CTRL;
-        rapids_half_regs__PERF_CH_SEL__out_t PERF_CH_SEL;
-        rapids_half_regs__HIST_SEL__out_t HIST_SEL;
+        rapids_engine_regs__GLOBAL_CTRL__out_t GLOBAL_CTRL;
+        rapids_engine_regs__CHANNEL_ENABLE__out_t CHANNEL_ENABLE;
+        rapids_engine_regs__CHANNEL_RESET__out_t CHANNEL_RESET;
+        rapids_engine_regs__SCHED_TIMEOUT_CYCLES__out_t SCHED_TIMEOUT_CYCLES;
+        rapids_engine_regs__SCHED_CONFIG__out_t SCHED_CONFIG;
+        rapids_engine_regs__SCHED_TIMEOUT_LIMIT__out_t SCHED_TIMEOUT_LIMIT;
+        rapids_engine_regs__DESCENG_CONFIG__out_t DESCENG_CONFIG;
+        rapids_engine_regs__DESCENG_ADDR0_BASE__out_t DESCENG_ADDR0_BASE;
+        rapids_engine_regs__DESCENG_ADDR0_LIMIT__out_t DESCENG_ADDR0_LIMIT;
+        rapids_engine_regs__DESCENG_ADDR1_BASE__out_t DESCENG_ADDR1_BASE;
+        rapids_engine_regs__DESCENG_ADDR1_LIMIT__out_t DESCENG_ADDR1_LIMIT;
+        rapids_engine_regs__CTRL_CONFIG__out_t CTRL_CONFIG;
+        rapids_engine_regs__AXI_XFER_CONFIG__out_t AXI_XFER_CONFIG;
+        rapids_engine_regs__PERF_CONFIG__out_t PERF_CONFIG;
+        rapids_engine_regs__OBS_CTRL__out_t OBS_CTRL;
+        rapids_engine_regs__PERF_CH_SEL__out_t PERF_CH_SEL;
+        rapids_engine_regs__HIST_SEL__out_t HIST_SEL;
         rapids_mon_regs__out_t MON;
-    } rapids_half_regs__out_t;
+    } rapids_engine_regs__out_t;
 
     typedef struct {
-        rapids_half_regs__out_t SRC;
-        rapids_half_regs__out_t SNK;
+        rapids_engine_regs__out_t SRC;
+        rapids_engine_regs__out_t SNK;
     } rapids_regs__out_t;
 endpackage

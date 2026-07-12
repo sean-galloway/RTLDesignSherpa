@@ -14,9 +14,9 @@
 // (rapids_regs.rdl is the two-instance addrmap the RTL is generated from).
 //
 // Author: sean galloway
-`include "rapids_half_regs.rdl"
+`include "rapids_engine_regs.rdl"
 
 addrmap rapids {
     name = "RAPIDS (beats) per-instance register map (DV/host by-name access)";
-    rapids_half_regs regs @ 0x0;
+    rapids_engine_regs regs @ 0x0;
 };

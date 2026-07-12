@@ -10,12 +10,12 @@
 //
 // Author: sean galloway
 
-`include "rapids_half_regs.rdl"
+`include "rapids_engine_regs.rdl"
 
 addrmap rapids_regs {
     name = "RAPIDS (beats) split DMA Engine Registers";
     desc = "Two independent halves: SRC @ 0x0000, SNK @ 0x1000 (each 4KB; monitors @ +0x800)";
 
-    rapids_half_regs SRC @ 0x0000;
-    rapids_half_regs SNK @ 0x1000;
+    rapids_engine_regs SRC @ 0x0000;
+    rapids_engine_regs SNK @ 0x1000;
 };

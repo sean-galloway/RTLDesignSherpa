@@ -1,22 +1,24 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// RAPIDS (beats) one-half register file (source OR sink): all config/status
-// registers + an optional monitor block (MON @ +0x800). Instantiated twice by
-// rapids_regs.rdl (SRC @ 0x0000, SNK @ 0x1000), and once by rapids_regmap.rdl
-// for per-instance by-name DV access (RegisterMap used with base 0x0000 / 0x1000).
+// RAPIDS (beats) per-engine register file (source OR sink engine): all
+// config/status registers + an optional monitor block (MON @ +0x800).
+// Instantiated twice by rapids_regs.rdl (SRC @ 0x0000, SNK @ 0x1000), and once
+// by rapids_regmap.rdl for per-instance by-name DV access (RegisterMap used with
+// base 0x0000 / 0x1000).
 //
 // Author: sean galloway
 
 `include "rapids_mon_regs.rdl"
 
-// One RAPIDS half (source or sink): all config/status registers + an optional
-// monitor register block. Instantiated twice by the rapids_regs addrmap below
-// (SRC @ 0x0000, SNK @ 0x1000) so each half is a self-contained 4KB register
-// space off the single shared APB port. Monitors live at +0x800 within the half.
-regfile rapids_half_regs {
-    name = "RAPIDS (beats) half register file";
-    desc = "Config/status + monitors for one RAPIDS half (source or sink)";
+// One RAPIDS engine instance (source or sink): all config/status registers + an
+// optional monitor register block. Instantiated twice by the rapids_regs addrmap
+// below (SRC @ 0x0000, SNK @ 0x1000) so each instance is a self-contained 4KB
+// register space off the single shared APB port. Monitors live at +0x800 within
+// the instance.
+regfile rapids_engine_regs {
+    name = "RAPIDS (beats) per-engine register file";
+    desc = "Config/status + monitors for one RAPIDS engine (source or sink)";
 
     default regwidth = 32;
     default accesswidth = 32;
@@ -628,7 +630,7 @@ regfile rapids_half_regs {
     } HIST_TOTAL @ 0x380;
 
     //=========================================================================
-    // AXI Monitor register block - within this half at +0x800 (fits in 4KB).
+    // AXI Monitor register block - within this engine instance at +0x800 (fits in 4KB).
     // Hookup chosen by a parameter at integration (USE_MON_REGS / USE_AXI_MONITORS);
     // when strapped off the monitor config outputs are tied off in the config block.
     //=========================================================================
