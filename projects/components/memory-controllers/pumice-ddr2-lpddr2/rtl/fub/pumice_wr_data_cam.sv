@@ -133,7 +133,12 @@ module pumice_wr_data_cam #(
     logic [IW-1:0]           r_id    [NUM_ENTRIES];
     logic [AGE_WIDTH-1:0]    r_age   [NUM_ENTRIES];
     logic [SPTRW-1:0]        r_ptr   [NUM_ENTRIES];   // SRAM slot; set on 1st write
-    logic                    r_pv    [NUM_ENTRIES];   // ptr_valid
+    logic                    r_pv    [NUM_ENTRIES];   // ptr_valid (1st beat filled)
+    logic                    r_fdone [NUM_ENTRIES];   // fill COMPLETE (wd_last seen)
+                                                      // -> only then may the entry be
+                                                      // scheduled/snarfed; otherwise the
+                                                      // commit-drain can outrun a gapped
+                                                      // fill and read stale SRAM beats.
     logic                    r_sched [NUM_ENTRIES];   // scheduler committed this
                                                       // slot -> exclude from
                                                       // sched_lu/oldest (so the
@@ -227,7 +232,7 @@ module pumice_wr_data_cam #(
         w_sn_slot  = '0;
         w_sn_best  = '0;
         for (int i = 0; i < NUM_ENTRIES; i++) begin
-            if (r_valid[i] && r_pv[i] && !r_sched[i] &&
+            if (r_valid[i] && r_fdone[i] && !r_sched[i] &&
                 r_id[i]  == snarf_probe_id_i &&
                 r_bank[i] == snarf_probe_bank_i &&
                 r_row[i] == snarf_probe_row_i && r_col[i] == snarf_probe_col_i) begin
@@ -249,9 +254,10 @@ module pumice_wr_data_cam #(
         w_old_found = 1'b0;
         w_old_slot  = '0;
         w_old_best  = '0;
-        // exclude already-scheduled entries so the arbiter picks the next one.
+        // exclude already-scheduled + not-yet-fully-filled entries so the arbiter
+        // never commits a write whose data isn't fully staged (drain-vs-fill race).
         for (int i = 0; i < NUM_ENTRIES; i++) begin
-            if (r_valid[i] && !r_sched[i] && (!w_old_found || w_rel[i] > w_old_best)) begin
+            if (r_valid[i] && r_fdone[i] && !r_sched[i] && (!w_old_found || w_rel[i] > w_old_best)) begin
                 w_old_found = 1'b1;
                 w_old_best  = w_rel[i];
                 w_old_slot  = PTRW'(i);
@@ -277,7 +283,7 @@ module pumice_wr_data_cam #(
             qbank = sched_lu_bank_i[j*BKW +: BKW];
             qrow  = sched_lu_row_i [j*ROW_WIDTH +: ROW_WIDTH];
             for (int i = 0; i < NUM_ENTRIES; i++) begin
-                if (r_valid[i] && !r_sched[i] && r_bank[i] == qbank && r_row[i] == qrow) begin
+                if (r_valid[i] && r_fdone[i] && !r_sched[i] && r_bank[i] == qbank && r_row[i] == qrow) begin
                     if (!found || w_rel[i] > best) begin
                         found = 1'b1; best = w_rel[i]; slot = PTRW'(i);
                     end
@@ -380,12 +386,13 @@ module pumice_wr_data_cam #(
             for (int i = 0; i < NUM_ENTRIES; i++) begin
                 r_valid[i] <= 1'b0;
                 r_pv[i]    <= 1'b0;
+                r_fdone[i] <= 1'b0;
                 r_sched[i] <= 1'b0;
             end
         end else begin
             r_age_ctr <= r_age_ctr + 1'b1;
 
-            // insert : allocate + capture key/id/age
+            // insert : allocate + capture key/id/age; fill not yet done
             if (w_ins_fire) begin
                 r_valid[w_free_slot] <= 1'b1;
                 r_bank [w_free_slot] <= ins_bank_i;
@@ -393,9 +400,12 @@ module pumice_wr_data_cam #(
                 r_col  [w_free_slot] <= ins_col_i;
                 r_id   [w_free_slot] <= ins_id_i;
                 r_age  [w_free_slot] <= r_age_ctr;
+                r_fdone[w_free_slot] <= 1'b0;
             end
 
-            // fill : allocate SRAM slot on first beat, then write burst
+            // fill : allocate SRAM slot on first beat, then write burst. Mark the
+            // entry fill-COMPLETE on the last beat so it becomes schedulable/
+            // snarfable only once every beat is staged in SRAM.
             if (w_wd_fire) begin
                 if (w_fill_first) begin
                     r_ptr[w_fq_rd_slot]  <= w_slot_free;
@@ -405,6 +415,7 @@ module pumice_wr_data_cam #(
                 r_sram[w_fill_idx] <= wd_data_i;
                 r_strb[w_fill_idx] <= wd_strb_i;
                 r_fill_beat <= wd_last_i ? '0 : (r_fill_beat + 1'b1);
+                if (wd_last_i) r_fdone[w_fq_rd_slot] <= 1'b1;
             end
 
             // snarf read engine
@@ -437,6 +448,7 @@ module pumice_wr_data_cam #(
                     r_cm_active        <= 1'b0;
                     r_valid[r_cm_slot] <= 1'b0;              // evict entry
                     r_pv   [r_cm_slot] <= 1'b0;
+                    r_fdone[r_cm_slot] <= 1'b0;
                     r_sched[r_cm_slot] <= 1'b0;
                     r_sram_occ[r_ptr[r_cm_slot]] <= 1'b0;    // free SRAM slot
                 end else begin
