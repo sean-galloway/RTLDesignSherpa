@@ -368,38 +368,25 @@ def test_pumice_top(request, test_type):
          extra_env={"TEST_TYPE": test_type, "MEM_TYPE": mem})
 
 
-# KNOWN RTL GAP (tracked) — SUSTAINED same-bank back-to-back traffic.
-# The BFM port revealed that pumice_top drops data under HIGH-burst-count,
-# same-bank (row-hit or row-miss) back-to-back traffic — the engine_mirror
-# (N up to 1024, sequential/walking-column) and patho (16-32 bursts, same-bank
-# ACT/PRE/RD churn) suites. Symptoms: a write burst drops a beat (golden stays 0
-# for a written address) and/or a read returns 0 — in BOTH CLOSE and OPEN, with
-# and without periodic refresh, at multiple beat positions. It is load-dependent:
-# the FUNC suite (n<=8, and random MULTI-bank workload_mix) passes; failures scale
-# with burst count and same-bank pressure (CAM depth / backpressure / scheduler
-# under load; the refresh-vs-ACT race — repro PUMICE_SEED=7 patho hit_miss — is one
-# facet). Direct-signal driving masked all of this; the AXI4 BFM timing exposes it.
-# r_fdone fixed the deterministic single-burst last-beat write drop; the sustained
-# cases need a dedicated hardening pass across wr_serializer / CAMs / scheduler.
-# These families are xfail (non-strict — seed/count-dependent) until then.
-_SUSTAINED_XFAIL = pytest.mark.xfail(
-    reason="sustained same-bank back-to-back data-integrity (write beat-drop / read-0; "
-           "CAM/scheduler-under-load + open_page/refresh family) — tracked RTL gap", strict=False)
-
-
+# Sustained same-bank back-to-back traffic (engine_mirror N up to 1024, patho
+# same-bank ACT/PRE/RD churn) previously failed with write beat-drops / read-0 —
+# now FIXED by the FSM-free bank_timer rework: the old double-registered bank
+# readiness (behind a 3-state FSM) let the arbiter and the refresh gate schedule
+# into STALE bank state, which manifested as data landing wrong / a beat dropped.
+# Single-stage countdown "safe" timers (bank_timer.sv) made readiness reflect the
+# just-issued command with one register of latency, and the whole cluster cleared
+# (incl. the refresh-vs-ACT race, repro PUMICE_SEED=7 patho hit_miss). Now hard tests.
 _ENG_N = [16, 17, 18, 32, 64, 128, 1024]
 _ENG_ID = [("fixed", 0), ("fixed", 5), ("fixed", 15), ("counter", 0), ("lfsr", 1), ("lfsr", 42)]
 _PATHO_PROFILES = ["backtoback", "burst_pause", "slow_producer"]
 
 
-@_SUSTAINED_XFAIL
 @pytest.mark.parametrize("n", _ENG_N)
 def test_pumice_top_engine_mirror_kbN(request, n):
     _run(request, "cocotb_test_engine_mirror",
          extra_env={"ENG_N": str(n), "ENG_PROFILE": "backtoback", "ENG_ID_MODE": "counter"})
 
 
-@_SUSTAINED_XFAIL
 @pytest.mark.parametrize("id_mode,id_fixed", _ENG_ID)
 def test_pumice_top_engine_mirror_idmode(request, id_mode, id_fixed):
     _run(request, "cocotb_test_engine_mirror",
@@ -407,7 +394,6 @@ def test_pumice_top_engine_mirror_idmode(request, id_mode, id_fixed):
                     "ENG_ID_MODE": id_mode, "ENG_ID_FIXED": str(id_fixed)})
 
 
-@_SUSTAINED_XFAIL
 @pytest.mark.parametrize("profile", ["backtoback", "burst_pause", "slow_producer"])
 def test_pumice_top_engine_mirror_profile(request, profile):
     _run(request, "cocotb_test_engine_mirror",
@@ -417,7 +403,6 @@ def test_pumice_top_engine_mirror_profile(request, profile):
 _PATHO_KINDS = ["bank_hazard", "page_miss_sustained", "page_close_boundary", "hit_miss_oscillation"]
 
 
-@_SUSTAINED_XFAIL
 @pytest.mark.parametrize("kind", _PATHO_KINDS)
 @pytest.mark.parametrize("profile", _PATHO_PROFILES)
 def test_pumice_top_patho_addr_pattern(request, kind, profile):

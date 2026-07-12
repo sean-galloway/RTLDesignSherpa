@@ -9,6 +9,7 @@ $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/init_sequencer.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/mode_register.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/refresh_ctrl.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_bank_timers.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/global_timers.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv

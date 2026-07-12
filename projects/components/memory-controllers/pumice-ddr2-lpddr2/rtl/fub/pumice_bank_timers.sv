@@ -5,26 +5,19 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: pumice_bank_timers
-// Purpose: Per-(rank,bank) JEDEC "safe" timing tracker for the pumice
-//          command scheduler. OPEN-PAGE capable: after a non-auto-precharge
-//          RD/WR the bank STAYS ACTIVE so column commands can stream to an
-//          open row at tCCD rate (tCCD/tWTR/tRTW turnaround are enforced
-//          globally in pumice_global_timers, ANDed by the arbiter). tRTP/tWR
-//          gate ONLY the precharge, not the next column command.
+// Purpose: Per-(rank,bank) JEDEC "safe" timing for the command scheduler. Thin
+//          aggregator: it stamps ONE `bank_timer` per (rank,bank) and fans the
+//          scheduler's command-event strobes (evt_*) to the addressed instance
+//          as preset strobes. Each bank_timer is FSM-free (preset/decrement
+//          countdown timers + a row-open register); the per-command `safe_*`
+//          are combinational off those single-stage timers, so the readiness the
+//          arbiter reads reflects the just-issued command one cycle later with no
+//          multi-stage lag. (The old design double-registered readiness behind a
+//          3-state FSM, which let REF/columns slip into stale bank state.)
 //
-// Per-bank timers (loaded on the event, count down, saturate at 0):
-//   act_cnt      tRCD  — ACT -> RD/WR         (gates rdwr_ready)
-//   ras_cnt      tRAS  — ACT -> PRE (min)     (gates pre_ready)
-//   rc_cnt       tRC   — ACT -> ACT same bank (gates act_ready)
-//   pre_cnt      tRP   — PRE -> ACT           (gates act_ready)
-//   preblk_cnt   tRTP  (RD) / tWR (WR)        (gates pre_ready ONLY)
-//                NOTE: t_wr_i must be command->earliest-PRE (i.e. include
-//                WL + BL/2); t_rtp_i likewise command-relative.
-//
-// State: BANK_IDLE -> BANK_ACTIVATING -(tRCD)-> BANK_ACTIVE -(pre)->
-//        BANK_PRECHARGING -(tRP)-> BANK_IDLE. Auto-precharge (RDA/WRA) sets
-//        r_ap_pending; when preblk & tRAS clear, the bank auto-transitions
-//        ACTIVE -> PRECHARGING internally (no scheduler PRE).
+//          tCCD/tWTR/tRTW/tFAW/tRRD turnaround stays global (pumice_global_timers),
+//          ANDed by the arbiter. Auto-precharge (RDA/WRA) is handled inside
+//          bank_timer via a single r_ap_pending bit.
 //
 // Documentation: rtl/PUMICE_AXI4_IFC_UARCH.md (scheduler layer)
 `timescale 1ns / 1ps
@@ -60,7 +53,7 @@ module pumice_bank_timers
     input  logic [BKW-1:0]             evt_bank_i,
     input  logic [ROW_WIDTH-1:0]       evt_row_i,
 
-    // ----- per-bank readiness to the arbiter -----
+    // ----- per-bank readiness to the arbiter (combinational, single-stage) -----
     output logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_act_ready_o,
     output logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_rdwr_ready_o,
     output logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_pre_ready_o,
@@ -75,132 +68,34 @@ module pumice_bank_timers
     output logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 obs_ap_pending_o
 );
 
-    bank_state_e [NUM_RANKS-1:0][NUM_BANKS-1:0]            r_state;
-    logic [NUM_RANKS-1:0][NUM_BANKS-1:0][7:0]             r_act_cnt;
-    logic [NUM_RANKS-1:0][NUM_BANKS-1:0][7:0]             r_preblk_cnt;
-    logic [NUM_RANKS-1:0][NUM_BANKS-1:0][7:0]             r_ras_cnt;
-    logic [NUM_RANKS-1:0][NUM_BANKS-1:0][7:0]             r_rc_cnt;
-    logic [NUM_RANKS-1:0][NUM_BANKS-1:0][7:0]             r_pre_cnt;
-    logic [NUM_RANKS-1:0][NUM_BANKS-1:0][ROW_WIDTH-1:0]   r_open_row;
-    logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                  r_ap_pending;
+    for (genvar k = 0; k < NUM_RANKS; k++) begin : g_rank
+        for (genvar b = 0; b < NUM_BANKS; b++) begin : g_bank
+            // route the scheduler's command event to THIS bank only
+            logic w_sel;
+            assign w_sel = (evt_rank_i == RKW'(k)) && (evt_bank_i == BKW'(b));
 
-    `ALWAYS_FF_RST(aclk, aresetn, begin
-        if (`RST_ASSERTED(aresetn)) begin
-            r_state      <= '0;   // BANK_IDLE
-            r_act_cnt    <= '0;
-            r_preblk_cnt <= '0;
-            r_ras_cnt    <= '0;
-            r_rc_cnt     <= '0;
-            r_pre_cnt    <= '0;
-            r_open_row   <= '0;
-            r_ap_pending <= '0;
-        end else begin
-            for (int unsigned k = 0; k < NUM_RANKS; k++) begin
-                for (int unsigned b = 0; b < NUM_BANKS; b++) begin
-                    // 1. countdown (saturate at 0)
-                    if (r_act_cnt   [k][b] > 8'd0) r_act_cnt   [k][b] <= r_act_cnt   [k][b] - 8'd1;
-                    if (r_preblk_cnt[k][b] > 8'd0) r_preblk_cnt[k][b] <= r_preblk_cnt[k][b] - 8'd1;
-                    if (r_ras_cnt   [k][b] > 8'd0) r_ras_cnt   [k][b] <= r_ras_cnt   [k][b] - 8'd1;
-                    if (r_rc_cnt    [k][b] > 8'd0) r_rc_cnt    [k][b] <= r_rc_cnt    [k][b] - 8'd1;
-                    if (r_pre_cnt   [k][b] > 8'd0) r_pre_cnt   [k][b] <= r_pre_cnt   [k][b] - 8'd1;
-
-                    // 2. state transitions on expiry
-                    if (r_state[k][b] == BANK_ACTIVATING && r_act_cnt[k][b] == 8'd1)
-                        r_state[k][b] <= BANK_ACTIVE;
-                    // auto-precharge: internal PRE once preblk AND tRAS are met
-                    if (r_state[k][b] == BANK_ACTIVE && r_ap_pending[k][b]
-                        && r_preblk_cnt[k][b] == 8'd0 && r_ras_cnt[k][b] == 8'd0) begin
-                        r_state     [k][b] <= BANK_PRECHARGING;
-                        r_pre_cnt   [k][b] <= t_rp_i;
-                        r_ap_pending[k][b] <= 1'b0;
-                    end
-                    if (r_state[k][b] == BANK_PRECHARGING && r_pre_cnt[k][b] == 8'd1)
-                        r_state[k][b] <= BANK_IDLE;
-                end
-            end
-
-            // 3. event strobes override for the targeted bank
-            if (evt_act_i) begin
-                r_state     [evt_rank_i][evt_bank_i] <= BANK_ACTIVATING;
-                r_act_cnt   [evt_rank_i][evt_bank_i] <= t_rcd_i;
-                r_rc_cnt    [evt_rank_i][evt_bank_i] <= t_rc_i;
-                r_ras_cnt   [evt_rank_i][evt_bank_i] <= t_ras_i;
-                r_open_row  [evt_rank_i][evt_bank_i] <= evt_row_i;
-                r_ap_pending[evt_rank_i][evt_bank_i] <= 1'b0;
-            end
-            // RD/WR keep the bank ACTIVE (open-page); only load the PRE-block
-            // timer + the auto-precharge flag.
-            if (evt_rd_i) begin
-                r_preblk_cnt[evt_rank_i][evt_bank_i] <= t_rtp_i;
-                r_ap_pending[evt_rank_i][evt_bank_i] <= evt_ap_i;
-            end
-            if (evt_wr_i) begin
-                r_preblk_cnt[evt_rank_i][evt_bank_i] <= t_wr_i;
-                r_ap_pending[evt_rank_i][evt_bank_i] <= evt_ap_i;
-            end
-            if (evt_pre_i) begin
-                r_state     [evt_rank_i][evt_bank_i] <= BANK_PRECHARGING;
-                r_pre_cnt   [evt_rank_i][evt_bank_i] <= t_rp_i;
-                r_ap_pending[evt_rank_i][evt_bank_i] <= 1'b0;
-            end
-        end
-    end)
-
-    //=========================================================================
-    // Combinational readiness (registered out below).
-    //=========================================================================
-    logic [NUM_RANKS-1:0][NUM_BANKS-1:0] w_act_ready;
-    logic [NUM_RANKS-1:0][NUM_BANKS-1:0] w_rdwr_ready;
-    logic [NUM_RANKS-1:0][NUM_BANKS-1:0] w_pre_ready;
-    logic [NUM_RANKS-1:0][NUM_BANKS-1:0] w_row_active;
-
-    always_comb begin
-        for (int unsigned k = 0; k < NUM_RANKS; k++) begin
-            for (int unsigned b = 0; b < NUM_BANKS; b++) begin
-                w_act_ready [k][b] = (r_state[k][b] == BANK_IDLE)
-                                  && (r_pre_cnt[k][b] == 8'd0)
-                                  && (r_rc_cnt[k][b]  == 8'd0);
-                // OPEN-PAGE: column commands gated only by tRCD + ACTIVE (+ global
-                // tCCD in the arbiter); NOT by tRTP/tWR. Blocked while auto-PRE pends.
-                w_rdwr_ready[k][b] = (r_state[k][b] == BANK_ACTIVE)
-                                  && (r_act_cnt[k][b] == 8'd0)
-                                  && !r_ap_pending[k][b];
-                // explicit PRE allowed once tRAS + tRTP/tWR met (non-AP rows)
-                w_pre_ready [k][b] = (r_state[k][b] == BANK_ACTIVE)
-                                  && (r_ras_cnt[k][b]    == 8'd0)
-                                  && (r_preblk_cnt[k][b] == 8'd0)
-                                  && !r_ap_pending[k][b];
-                w_row_active[k][b] = (r_state[k][b] == BANK_ACTIVE);
-            end
-        end
-    end
-
-    `ALWAYS_FF_RST(aclk, aresetn, begin
-        if (`RST_ASSERTED(aresetn)) begin
-            bank_act_ready_o  <= '1;   // all idle -> ready to ACT
-            bank_rdwr_ready_o <= '0;
-            bank_pre_ready_o  <= '0;
-            bank_row_active_o <= '0;
-            bank_open_row_o   <= '0;
-            bank_state_o      <= '0;
-        end else begin
-            bank_act_ready_o  <= w_act_ready;
-            bank_rdwr_ready_o <= w_rdwr_ready;
-            bank_pre_ready_o  <= w_pre_ready;
-            bank_row_active_o <= w_row_active;
-            bank_open_row_o   <= r_open_row;
-            bank_state_o      <= r_state;
-        end
-    end)
-
-    always_comb begin
-        for (int unsigned k = 0; k < NUM_RANKS; k++) begin
-            for (int unsigned b = 0; b < NUM_BANKS; b++) begin
-                obs_act_cnt_nz_o[k][b] = (r_act_cnt   [k][b] != 8'd0);
-                obs_preblk_nz_o [k][b] = (r_preblk_cnt[k][b] != 8'd0);
-                obs_ras_nz_o    [k][b] = (r_ras_cnt   [k][b] != 8'd0);
-                obs_ap_pending_o[k][b] = r_ap_pending [k][b];
-            end
+            bank_timer #(.ROW_WIDTH(ROW_WIDTH)) u_bt (
+                .clk(aclk), .rst_n(aresetn),
+                .t_rcd_i(t_rcd_i), .t_rp_i(t_rp_i), .t_ras_i(t_ras_i),
+                .t_rc_i(t_rc_i), .t_wr_i(t_wr_i), .t_rtp_i(t_rtp_i),
+                .set_act_i(evt_act_i && w_sel),
+                .set_rd_i (evt_rd_i  && w_sel),
+                .set_wr_i (evt_wr_i  && w_sel),
+                .set_pre_i(evt_pre_i && w_sel),
+                .set_ap_i (evt_ap_i),
+                .row_i(evt_row_i),
+                .safe_act_o (bank_act_ready_o [k][b]),
+                .safe_rd_o  (bank_rdwr_ready_o[k][b]),
+                .safe_wr_o  (/* == safe_rd */),
+                .safe_pre_o (bank_pre_ready_o [k][b]),
+                .row_valid_o(bank_row_active_o[k][b]),
+                .open_row_o (bank_open_row_o  [k][b]),
+                .state_o    (bank_state_o     [k][b]),
+                .obs_rcd_nz_o    (obs_act_cnt_nz_o[k][b]),
+                .obs_preblk_nz_o (obs_preblk_nz_o [k][b]),
+                .obs_ras_nz_o    (obs_ras_nz_o    [k][b]),
+                .obs_ap_pending_o(obs_ap_pending_o[k][b])
+            );
         end
     end
 
