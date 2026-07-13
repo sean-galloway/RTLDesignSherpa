@@ -163,6 +163,9 @@ module pumice_axi4_ifc #(
     logic [3:0]    sr_arregion;logic [UW-1:0] sr_aruser; logic       sr_arvalid, sr_arready;
     logic [IW-1:0] sr_rid;    logic [DW-1:0] sr_rdata;   logic [1:0] sr_rresp;
     logic          sr_rlast;  logic [UW-1:0] sr_ruser;   logic sr_rvalid, sr_rready;
+    // R return between u_rd_split and u_rd_aggregator (RLAST reassembly).
+    logic [IW-1:0] agr_rid;   logic [DW-1:0] agr_rdata;  logic [1:0] agr_rresp;
+    logic          agr_rlast; logic [UW-1:0] agr_ruser;  logic agr_rvalid, agr_rready;
 
     axi_master_wr_splitter #(
         .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(AW), .AXI_DATA_WIDTH(DW), .AXI_USER_WIDTH(UW)
@@ -199,9 +202,11 @@ module pumice_axi4_ifc #(
         .fub_arcache(s_axi_arcache), .fub_arprot(s_axi_arprot), .fub_arqos(s_axi_arqos),
         .fub_arregion(s_axi_arregion), .fub_aruser(s_axi_aruser),
         .fub_arvalid(s_axi_arvalid), .fub_arready(s_axi_arready),
-        .fub_rid(s_axi_rid), .fub_rdata(s_axi_rdata), .fub_rresp(s_axi_rresp),
-        .fub_rlast(s_axi_rlast), .fub_ruser(s_axi_ruser),
-        .fub_rvalid(s_axi_rvalid), .fub_rready(s_axi_rready),
+        // R return goes through the aggregator (RLAST reassembly), not directly
+        // to s_axi. The splitter stays a pure request-side transform.
+        .fub_rid(agr_rid), .fub_rdata(agr_rdata), .fub_rresp(agr_rresp),
+        .fub_rlast(agr_rlast), .fub_ruser(agr_ruser),
+        .fub_rvalid(agr_rvalid), .fub_rready(agr_rready),
         .fub_split_addr(), .fub_split_id(), .fub_split_cnt(), .fub_split_valid(),
         .fub_split_ready(1'b1),
         .m_axi_arid(sr_arid), .m_axi_araddr(sr_araddr), .m_axi_arlen(sr_arlen),
@@ -212,6 +217,25 @@ module pumice_axi4_ifc #(
         .m_axi_rid(sr_rid), .m_axi_rdata(sr_rdata), .m_axi_rresp(sr_rresp),
         .m_axi_rlast(sr_rlast), .m_axi_ruser(sr_ruser),
         .m_axi_rvalid(sr_rvalid), .m_axi_rready(sr_rready)
+    );
+
+    // Return-path aggregator: reassembles per-sub-burst RLAST from u_rd_split
+    // into one RLAST per original burst. Snoops the original AR (s_axi_ar) for
+    // the burst length. Pairs with the splitter; keeps R-reassembly out of it.
+    axi_master_rd_aggregator #(
+        .AXI_ID_WIDTH(IW), .AXI_DATA_WIDTH(DW), .AXI_USER_WIDTH(UW)
+    ) u_rd_aggregator (
+        .aclk(aclk), .aresetn(aresetn),
+        // snoop original AR
+        .s_arvalid(s_axi_arvalid), .s_arready(s_axi_arready), .s_arlen(s_axi_arlen),
+        // sub-burst R in (from splitter)
+        .m_rvalid(agr_rvalid), .m_rready(agr_rready),
+        .m_rid(agr_rid), .m_rdata(agr_rdata), .m_rresp(agr_rresp),
+        .m_rlast(agr_rlast), .m_ruser(agr_ruser),
+        // reassembled R out (to master)
+        .fub_rvalid(s_axi_rvalid), .fub_rready(s_axi_rready),
+        .fub_rid(s_axi_rid), .fub_rdata(s_axi_rdata), .fub_rresp(s_axi_rresp),
+        .fub_rlast(s_axi_rlast), .fub_ruser(s_axi_ruser)
     );
 
     // ======================================================================
