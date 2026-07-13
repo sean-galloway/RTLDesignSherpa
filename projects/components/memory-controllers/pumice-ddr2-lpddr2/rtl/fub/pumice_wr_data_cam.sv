@@ -54,6 +54,8 @@ module pumice_wr_data_cam #(
     input  logic [ROW_WIDTH-1:0]          ins_row_i,
     input  logic [COL_WIDTH-1:0]          ins_col_i,
     input  logic [IW-1:0]                 ins_id_i,
+    input  logic                          ins_agg_i,   // part of a split burst
+    input  logic                          ins_last_i,  // final sub of the burst
 
     //=========================================================================
     // Fill data (from wr_intake wdata pop) — written to SRAM in insert order
@@ -145,6 +147,8 @@ module pumice_wr_data_cam #(
                                                       // arbiter can pick the next
                                                       // entry the very next cycle
                                                       // => clean 1 cmd/clock).
+    logic                    r_agg   [NUM_ENTRIES];   // part of a split host burst
+    logic                    r_last  [NUM_ENTRIES];   // final sub of that burst
     logic [AGE_WIDTH-1:0]    r_age_ctr;
 
     // SRAM slot occupancy (pre-allocator), 1 = occupied
@@ -368,7 +372,13 @@ module pumice_wr_data_cam #(
     assign w_sq_rd_ready  = w_sn_fire && snarf_rd_last_o;
     assign w_dq_rd_ready  = w_cm_fire && cm_rd_last_o;
 
-    assign commit_done_valid_o = w_cm_fire && cm_rd_last_o;
+    // B consolidation: a split host burst produces one B, strobed on the FINAL
+    // sub-command's commit (agg && last). Non-split bursts (agg=0) always strobe.
+    // Earlier sub-commands of a split evict silently (no B). Assumes a burst's
+    // sub-commands commit in order (holds when they share a bank/row - the
+    // pumice-aligned case, e.g. consecutive columns).
+    assign commit_done_valid_o = w_cm_fire && cm_rd_last_o &&
+                                 (!r_agg[w_dq_rd_slot] || r_last[w_dq_rd_slot]);
     assign commit_done_id_o    = r_id[w_dq_rd_slot];
 
     assign busy_o = w_old_found || w_sq_rd_valid || w_dq_rd_valid || w_fq_rd_valid;
@@ -399,6 +409,8 @@ module pumice_wr_data_cam #(
                 r_id   [w_free_slot] <= ins_id_i;
                 r_age  [w_free_slot] <= r_age_ctr;
                 r_fdone[w_free_slot] <= 1'b0;
+                r_agg  [w_free_slot] <= ins_agg_i;
+                r_last [w_free_slot] <= ins_last_i;
             end
 
             // fill : allocate SRAM slot on first beat, then write burst. Mark the

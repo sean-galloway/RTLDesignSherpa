@@ -17,10 +17,8 @@ $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_async.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_slave_wr.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_slave_rd.sv
-$REPO_ROOT/rtl/amba/shared/axi_split_combi.sv
-$REPO_ROOT/rtl/amba/shared/axi_master_wr_splitter.sv
-$REPO_ROOT/rtl/amba/shared/axi_master_rd_splitter.sv
-$REPO_ROOT/rtl/amba/shared/axi_master_rd_aggregator.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_axi_burst_chopper.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_wr_splitter.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/addr_mapper.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_wr_intake.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_rd_intake.sv

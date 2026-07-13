@@ -143,7 +143,9 @@ module pumice_axi4_ifc #(
 
     import pumice_pkg::*;
 
-    localparam logic [11:0] ALIGN_MASK = 12'(DRAM_BURST_BYTES - 1);
+    // AXI beats per DFI burst: the chop granularity. Each sub-command spans one
+    // DRAM burst, so the intake sees "one AXI sub-burst == one DFI burst".
+    localparam int CHUNK_BEATS = DRAM_BURST_BYTES / SW;
 
     // ======================================================================
     // Split -> intake AXI nets
@@ -154,23 +156,26 @@ module pumice_axi4_ifc #(
     logic [3:0]    sw_awregion;logic [UW-1:0] sw_awuser; logic       sw_awvalid, sw_awready;
     logic [DW-1:0] sw_wdata;  logic [SW-1:0] sw_wstrb;   logic sw_wlast;
     logic [UW-1:0] sw_wuser;  logic          sw_wvalid,  sw_wready;
-    logic [IW-1:0] sw_bid;    logic [1:0]    sw_bresp;   logic [UW-1:0] sw_buser;
-    logic          sw_bvalid, sw_bready;
 
     logic [IW-1:0] sr_arid;   logic [AW-1:0] sr_araddr;  logic [7:0] sr_arlen;
     logic [2:0]    sr_arsize; logic [1:0]    sr_arburst; logic       sr_arlock;
     logic [3:0]    sr_arcache;logic [2:0]    sr_arprot;  logic [3:0] sr_arqos;
     logic [3:0]    sr_arregion;logic [UW-1:0] sr_aruser; logic       sr_arvalid, sr_arready;
-    logic [IW-1:0] sr_rid;    logic [DW-1:0] sr_rdata;   logic [1:0] sr_rresp;
-    logic          sr_rlast;  logic [UW-1:0] sr_ruser;   logic sr_rvalid, sr_rready;
-    // R return between u_rd_split and u_rd_aggregator (RLAST reassembly).
-    logic [IW-1:0] agr_rid;   logic [DW-1:0] agr_rdata;  logic [1:0] agr_rresp;
-    logic          agr_rlast; logic [UW-1:0] agr_ruser;  logic agr_rvalid, agr_rready;
 
-    axi_master_wr_splitter #(
-        .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(AW), .AXI_DATA_WIDTH(DW), .AXI_USER_WIDTH(UW)
+    // aggregation sideband: chopper/splitter -> intake -> CAM. agg/last ride
+    // with each sub-command so the return path collapses B/RLAST from stored
+    // bits, with no separate snoop-and-count aggregator module.
+    logic sw_aw_agg, sw_aw_last;   // wr_split -> wr_intake
+    logic sr_ar_agg, sr_ar_last;   // rd chopper -> rd_intake
+
+    // ---- WR request side: chop AW into DFI-burst sub-commands + reframe W ---
+    // Tags each sub-AW with agg/last; the wr CAM strobes exactly one host B on
+    // the final sub. B flows wr_intake -> s_axi directly (no aggregator module).
+    pumice_wr_splitter #(
+        .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(AW), .AXI_DATA_WIDTH(DW), .AXI_USER_WIDTH(UW),
+        .CHUNK_BEATS(CHUNK_BEATS)
     ) u_wr_split (
-        .aclk(aclk), .aresetn(aresetn), .alignment_mask(ALIGN_MASK), .block_ready(1'b0),
+        .aclk(aclk), .aresetn(aresetn),
         .fub_awid(s_axi_awid), .fub_awaddr(s_axi_awaddr), .fub_awlen(s_axi_awlen),
         .fub_awsize(s_axi_awsize), .fub_awburst(s_axi_awburst), .fub_awlock(s_axi_awlock),
         .fub_awcache(s_axi_awcache), .fub_awprot(s_axi_awprot), .fub_awqos(s_axi_awqos),
@@ -178,64 +183,36 @@ module pumice_axi4_ifc #(
         .fub_awvalid(s_axi_awvalid), .fub_awready(s_axi_awready),
         .fub_wdata(s_axi_wdata), .fub_wstrb(s_axi_wstrb), .fub_wlast(s_axi_wlast),
         .fub_wuser(s_axi_wuser), .fub_wvalid(s_axi_wvalid), .fub_wready(s_axi_wready),
-        .fub_bid(s_axi_bid), .fub_bresp(s_axi_bresp), .fub_buser(s_axi_buser),
-        .fub_bvalid(s_axi_bvalid), .fub_bready(s_axi_bready),
-        .fub_split_addr(), .fub_split_id(), .fub_split_cnt(), .fub_split_valid(),
-        .fub_split_ready(1'b1),
-        .m_axi_awid(sw_awid), .m_axi_awaddr(sw_awaddr), .m_axi_awlen(sw_awlen),
-        .m_axi_awsize(sw_awsize), .m_axi_awburst(sw_awburst), .m_axi_awlock(sw_awlock),
-        .m_axi_awcache(sw_awcache), .m_axi_awprot(sw_awprot), .m_axi_awqos(sw_awqos),
-        .m_axi_awregion(sw_awregion), .m_axi_awuser(sw_awuser),
-        .m_axi_awvalid(sw_awvalid), .m_axi_awready(sw_awready),
-        .m_axi_wdata(sw_wdata), .m_axi_wstrb(sw_wstrb), .m_axi_wlast(sw_wlast),
-        .m_axi_wuser(sw_wuser), .m_axi_wvalid(sw_wvalid), .m_axi_wready(sw_wready),
-        .m_axi_bid(sw_bid), .m_axi_bresp(sw_bresp), .m_axi_buser(sw_buser),
-        .m_axi_bvalid(sw_bvalid), .m_axi_bready(sw_bready)
+        .m_awid(sw_awid), .m_awaddr(sw_awaddr), .m_awlen(sw_awlen),
+        .m_awsize(sw_awsize), .m_awburst(sw_awburst), .m_awlock(sw_awlock),
+        .m_awcache(sw_awcache), .m_awprot(sw_awprot), .m_awqos(sw_awqos),
+        .m_awregion(sw_awregion), .m_awuser(sw_awuser),
+        .m_awvalid(sw_awvalid), .m_awready(sw_awready),
+        .m_wdata(sw_wdata), .m_wstrb(sw_wstrb), .m_wlast(sw_wlast),
+        .m_wuser(sw_wuser), .m_wvalid(sw_wvalid), .m_wready(sw_wready),
+        .m_aw_agg(sw_aw_agg), .m_aw_last(sw_aw_last)
     );
 
-    axi_master_rd_splitter #(
-        .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(AW), .AXI_DATA_WIDTH(DW), .AXI_USER_WIDTH(UW)
+    // ---- RD request side: chop AR into DFI-burst sub-commands ---------------
+    // Tags each sub-AR with last; the rd intake's AR-order FIFO collapses the
+    // per-sub RLAST. R flows rd_intake -> s_axi directly (no aggregator module).
+    // Reads collapse on `last` alone, so m_ax_agg is unused here.
+    pumice_axi_burst_chopper #(
+        .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(AW), .AXI_USER_WIDTH(UW),
+        .STRB_BYTES(SW), .CHUNK_BEATS(CHUNK_BEATS)
     ) u_rd_split (
-        .aclk(aclk), .aresetn(aresetn), .alignment_mask(ALIGN_MASK), .block_ready(1'b0),
-        .fub_arid(s_axi_arid), .fub_araddr(s_axi_araddr), .fub_arlen(s_axi_arlen),
-        .fub_arsize(s_axi_arsize), .fub_arburst(s_axi_arburst), .fub_arlock(s_axi_arlock),
-        .fub_arcache(s_axi_arcache), .fub_arprot(s_axi_arprot), .fub_arqos(s_axi_arqos),
-        .fub_arregion(s_axi_arregion), .fub_aruser(s_axi_aruser),
-        .fub_arvalid(s_axi_arvalid), .fub_arready(s_axi_arready),
-        // R return goes through the aggregator (RLAST reassembly), not directly
-        // to s_axi. The splitter stays a pure request-side transform.
-        .fub_rid(agr_rid), .fub_rdata(agr_rdata), .fub_rresp(agr_rresp),
-        .fub_rlast(agr_rlast), .fub_ruser(agr_ruser),
-        .fub_rvalid(agr_rvalid), .fub_rready(agr_rready),
-        .fub_split_addr(), .fub_split_id(), .fub_split_cnt(), .fub_split_valid(),
-        .fub_split_ready(1'b1),
-        .m_axi_arid(sr_arid), .m_axi_araddr(sr_araddr), .m_axi_arlen(sr_arlen),
-        .m_axi_arsize(sr_arsize), .m_axi_arburst(sr_arburst), .m_axi_arlock(sr_arlock),
-        .m_axi_arcache(sr_arcache), .m_axi_arprot(sr_arprot), .m_axi_arqos(sr_arqos),
-        .m_axi_arregion(sr_arregion), .m_axi_aruser(sr_aruser),
-        .m_axi_arvalid(sr_arvalid), .m_axi_arready(sr_arready),
-        .m_axi_rid(sr_rid), .m_axi_rdata(sr_rdata), .m_axi_rresp(sr_rresp),
-        .m_axi_rlast(sr_rlast), .m_axi_ruser(sr_ruser),
-        .m_axi_rvalid(sr_rvalid), .m_axi_rready(sr_rready)
-    );
-
-    // Return-path aggregator: reassembles per-sub-burst RLAST from u_rd_split
-    // into one RLAST per original burst. Snoops the original AR (s_axi_ar) for
-    // the burst length. Pairs with the splitter; keeps R-reassembly out of it.
-    axi_master_rd_aggregator #(
-        .AXI_ID_WIDTH(IW), .AXI_DATA_WIDTH(DW), .AXI_USER_WIDTH(UW)
-    ) u_rd_aggregator (
         .aclk(aclk), .aresetn(aresetn),
-        // snoop original AR
-        .s_arvalid(s_axi_arvalid), .s_arready(s_axi_arready), .s_arlen(s_axi_arlen),
-        // sub-burst R in (from splitter)
-        .m_rvalid(agr_rvalid), .m_rready(agr_rready),
-        .m_rid(agr_rid), .m_rdata(agr_rdata), .m_rresp(agr_rresp),
-        .m_rlast(agr_rlast), .m_ruser(agr_ruser),
-        // reassembled R out (to master)
-        .fub_rvalid(s_axi_rvalid), .fub_rready(s_axi_rready),
-        .fub_rid(s_axi_rid), .fub_rdata(s_axi_rdata), .fub_rresp(s_axi_rresp),
-        .fub_rlast(s_axi_rlast), .fub_ruser(s_axi_ruser)
+        .fub_axid(s_axi_arid), .fub_axaddr(s_axi_araddr), .fub_axlen(s_axi_arlen),
+        .fub_axsize(s_axi_arsize), .fub_axburst(s_axi_arburst), .fub_axlock(s_axi_arlock),
+        .fub_axcache(s_axi_arcache), .fub_axprot(s_axi_arprot), .fub_axqos(s_axi_arqos),
+        .fub_axregion(s_axi_arregion), .fub_axuser(s_axi_aruser),
+        .fub_axvalid(s_axi_arvalid), .fub_axready(s_axi_arready),
+        .m_axid(sr_arid), .m_axaddr(sr_araddr), .m_axlen(sr_arlen),
+        .m_axsize(sr_arsize), .m_axburst(sr_arburst), .m_axlock(sr_arlock),
+        .m_axcache(sr_arcache), .m_axprot(sr_arprot), .m_axqos(sr_arqos),
+        .m_axregion(sr_arregion), .m_axuser(sr_aruser),
+        .m_axvalid(sr_arvalid), .m_axready(sr_arready),
+        .m_ax_agg(sr_ar_agg), .m_ax_last(sr_ar_last)
     );
 
     // ======================================================================
@@ -245,6 +222,7 @@ module pumice_axi4_ifc #(
     logic                aw_push_valid, aw_push_ready;
     logic [BKW-1:0]      aw_push_bank;  logic [ROW_WIDTH-1:0] aw_push_row;
     logic [COL_WIDTH-1:0] aw_push_col;  logic [IW-1:0]        aw_push_id;
+    logic                aw_push_agg,   aw_push_last;
     logic                wd_valid, wd_ready, wd_last;
     logic [DW-1:0]       wd_data;       logic [SW-1:0]        wd_strb;
     logic                wr_done_valid; logic [IW-1:0]        wr_done_id;
@@ -278,13 +256,16 @@ module pumice_axi4_ifc #(
         .s_axi_awcache(sw_awcache), .s_axi_awprot(sw_awprot), .s_axi_awqos(sw_awqos),
         .s_axi_awregion(sw_awregion), .s_axi_awuser(sw_awuser),
         .s_axi_awvalid(sw_awvalid), .s_axi_awready(sw_awready),
+        .aw_agg_i(sw_aw_agg), .aw_last_i(sw_aw_last),
         .s_axi_wdata(sw_wdata), .s_axi_wstrb(sw_wstrb), .s_axi_wlast(sw_wlast),
         .s_axi_wuser(sw_wuser), .s_axi_wvalid(sw_wvalid), .s_axi_wready(sw_wready),
-        .s_axi_bid(sw_bid), .s_axi_bresp(sw_bresp), .s_axi_buser(sw_buser),
-        .s_axi_bvalid(sw_bvalid), .s_axi_bready(sw_bready),
+        // consolidated B straight to the host (one B per host burst)
+        .s_axi_bid(s_axi_bid), .s_axi_bresp(s_axi_bresp), .s_axi_buser(s_axi_buser),
+        .s_axi_bvalid(s_axi_bvalid), .s_axi_bready(s_axi_bready),
         .aw_push_valid_o(aw_push_valid), .aw_push_ready_i(aw_push_ready),
         .aw_push_rank_o(), .aw_push_bank_o(aw_push_bank), .aw_push_row_o(aw_push_row),
         .aw_push_col_o(aw_push_col), .aw_push_id_o(aw_push_id), .aw_push_err_o(),
+        .aw_push_agg_o(aw_push_agg), .aw_push_last_o(aw_push_last),
         .wdata_valid_o(wd_valid), .wdata_ready_i(wd_ready),
         .wdata_o(wd_data), .wstrb_o(wd_strb), .wlast_o(wd_last),
         .wr_done_valid_i(wr_done_valid), .wr_done_id_i(wr_done_id), .wr_done_resp_i(2'b00),
@@ -301,6 +282,7 @@ module pumice_axi4_ifc #(
         .ins_valid_i(aw_push_valid), .ins_ready_o(aw_push_ready),
         .ins_bank_i(aw_push_bank), .ins_row_i(aw_push_row),
         .ins_col_i(aw_push_col), .ins_id_i(aw_push_id),
+        .ins_agg_i(aw_push_agg), .ins_last_i(aw_push_last),
         .wd_valid_i(wd_valid), .wd_ready_o(wd_ready),
         .wd_data_i(wd_data), .wd_strb_i(wd_strb), .wd_last_i(wd_last),
         .snarf_probe_valid_i(snarf_probe_valid), .snarf_probe_bank_i(snarf_bank),
@@ -339,9 +321,11 @@ module pumice_axi4_ifc #(
         .s_axi_arcache(sr_arcache), .s_axi_arprot(sr_arprot), .s_axi_arqos(sr_arqos),
         .s_axi_arregion(sr_arregion), .s_axi_aruser(sr_aruser),
         .s_axi_arvalid(sr_arvalid), .s_axi_arready(sr_arready),
-        .s_axi_rid(sr_rid), .s_axi_rdata(sr_rdata), .s_axi_rresp(sr_rresp),
-        .s_axi_rlast(sr_rlast), .s_axi_ruser(sr_ruser),
-        .s_axi_rvalid(sr_rvalid), .s_axi_rready(sr_rready),
+        .ar_agg_i(sr_ar_agg), .ar_last_i(sr_ar_last),
+        // collapsed R straight to the host (one RLAST per host burst)
+        .s_axi_rid(s_axi_rid), .s_axi_rdata(s_axi_rdata), .s_axi_rresp(s_axi_rresp),
+        .s_axi_rlast(s_axi_rlast), .s_axi_ruser(s_axi_ruser),
+        .s_axi_rvalid(s_axi_rvalid), .s_axi_rready(s_axi_rready),
         .ar_push_valid_o(ar_push_valid), .ar_push_ready_i(ar_push_ready),
         .ar_push_rank_o(), .ar_push_bank_o(ar_push_bank), .ar_push_row_o(ar_push_row),
         .ar_push_col_o(ar_push_col), .ar_push_id_o(ar_push_id),

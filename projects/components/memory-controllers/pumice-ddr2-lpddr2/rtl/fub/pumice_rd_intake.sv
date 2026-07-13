@@ -76,6 +76,11 @@ module pumice_rd_intake #(
     input  logic [UW-1:0]            s_axi_aruser,
     input  logic                     s_axi_arvalid,
     output logic                     s_axi_arready,
+    // aggregation sideband (aligned with s_axi_ar, from the splitter): agg=1
+    // when the host read splits into >1 sub-command, last=1 on the final sub.
+    // Used to collapse per-sub RLAST. Default (agg=0) => pass RLAST per sub.
+    input  logic                     ar_agg_i,
+    input  logic                     ar_last_i,
 
     output logic [IW-1:0]            s_axi_rid,
     output logic [DW-1:0]            s_axi_rdata,
@@ -197,8 +202,29 @@ module pumice_rd_intake #(
     logic w_hit;
     assign w_hit = snarf_hit_i;
 
-    // ---- order FIFO : {source, id} -----------------------------------------
-    localparam int ORD_W = 1 + IW;
+    // ---- aggregation sideband skid-alignment FIFO --------------------------
+    // ar_last_i arrives with s_axi_ar (pre-skid). axi4_slave_rd buffers AR in
+    // order (registered skid, >=1 cycle), so capture the sideband on s_axi_ar
+    // acceptance and replay it on fub_ar admission (1:1, in order), where it
+    // rides into the AR-order FIFO to collapse per-sub RLAST.
+    logic       w_side_wr_valid, w_side_rd_ready;
+    logic [1:0] w_side_data;
+    logic       w_side_agg, w_side_last;
+
+    assign w_side_wr_valid = s_axi_arvalid && s_axi_arready;
+
+    gaxi_fifo_sync #(.DATA_WIDTH(2), .DEPTH(SKID_DEPTH_AR + AR_FIFO_DEPTH)) u_ar_side_fifo (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(w_side_wr_valid), .wr_data({ar_agg_i, ar_last_i}),
+        .rd_ready(w_side_rd_ready), .rd_valid(), .rd_data(w_side_data),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .wr_ready(), .count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign {w_side_agg, w_side_last} = w_side_data;
+
+    // ---- order FIFO : {orig_agg, orig_last, source, id} --------------------
+    localparam int ORD_W = 3 + IW;
 
     logic             w_ord_wr_valid, w_ord_wr_ready;
     logic [ORD_W-1:0] w_ord_wr_data;
@@ -211,7 +237,9 @@ module pumice_rd_intake #(
 
     assign fub_arready    = w_can_admit;
     assign w_ord_wr_valid = fub_arvalid && w_can_admit;
-    assign w_ord_wr_data  = {w_hit /*SRC_SNARF=1*/, fub_arid};
+    // pop the sideband in lockstep with the order-FIFO write (fub_ar admit)
+    assign w_side_rd_ready = w_ord_wr_valid;
+    assign w_ord_wr_data  = {w_side_agg, w_side_last, w_hit /*SRC_SNARF=1*/, fub_arid};
 
     // snarf accept = this AR was admitted as a snarf hit
     assign snarf_accept_o = fub_arvalid && w_can_admit && w_hit;
@@ -230,9 +258,9 @@ module pumice_rd_intake #(
         .rd_ready(w_ord_rd_ready), .count(), .rd_valid(w_ord_rd_valid), .rd_data(w_ord_rd_data)
     );
 
-    logic          w_head_src;
+    logic          w_head_agg, w_head_last, w_head_src;
     logic [IW-1:0] w_head_id;
-    assign {w_head_src, w_head_id} = w_ord_rd_data;
+    assign {w_head_agg, w_head_last, w_head_src, w_head_id} = w_ord_rd_data;
 
     // ---- source arbiter : select snarf/DFI by the order-FIFO head ----------
     logic          w_src_valid, w_src_last;
@@ -267,7 +295,13 @@ module pumice_rd_intake #(
     assign w_beat_fire   = w_ord_rd_valid && w_src_valid && w_rd_wr_ready;
 
     assign w_rd_wr_valid = w_ord_rd_valid && w_src_valid;
-    assign w_rd_wr_data  = {w_src_resp, w_src_last, w_head_id, w_src_data};
+    // Collapse per-sub RLAST: for a split (agg=1) the host sees RLAST only on
+    // the final beat of the final sub (w_head_last); a non-split read (agg=0)
+    // passes RLAST per sub unchanged. The order FIFO still pops per sub (on
+    // w_src_last) to advance through the burst's sub-commands.
+    assign w_rd_wr_data  = {w_src_resp,
+                            w_src_last && (!w_head_agg || w_head_last),
+                            w_head_id, w_src_data};
 
     // Ready back to whichever source the head selects.
     assign snarf_rd_ready_o = w_ord_rd_valid && (w_head_src == SRC_SNARF) && w_rd_wr_ready;

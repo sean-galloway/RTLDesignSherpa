@@ -83,6 +83,9 @@ module pumice_wr_intake #(
     input  logic [UW-1:0]            s_axi_awuser,
     input  logic                     s_axi_awvalid,
     output logic                     s_axi_awready,
+    // aggregation sideband (aligned with s_axi_aw, from the splitter)
+    input  logic                     aw_agg_i,
+    input  logic                     aw_last_i,
 
     input  logic [DW-1:0]            s_axi_wdata,
     input  logic [SW-1:0]            s_axi_wstrb,
@@ -108,6 +111,8 @@ module pumice_wr_intake #(
     output logic [COL_WIDTH-1:0]     aw_push_col_o,
     output logic [IW-1:0]            aw_push_id_o,
     output logic                     aw_push_err_o,   // ragged burst (illegal)
+    output logic                     aw_push_agg_o,   // part of a split
+    output logic                     aw_push_last_o,  // final sub of the burst
 
     //=========================================================================
     // Write-data pop (to wr_beat_sequencer, drained in commit order)
@@ -175,9 +180,35 @@ module pumice_wr_intake #(
     );
 
     // ========================================================================
-    // (2) AW-meta FIFO : {err, id, addr}
+    // Aggregation sideband skid-alignment FIFO
+    // ------------------------------------------------------------------------
+    // aw_agg_i/aw_last_i arrive aligned with s_axi_aw (pre-skid). axi4_slave_wr
+    // buffers AW in-order, so the sideband is captured on s_axi_aw acceptance
+    // and replayed on fub_aw acceptance (1:1, in order), where it merges into
+    // the AW-meta FIFO. Depth covers the AW skid occupancy.
     // ========================================================================
-    localparam int AWM_W = 1 + IW + AW;
+    logic       w_side_wr_valid, w_side_rd_ready;
+    logic [1:0] w_side_rd_data;
+    logic       w_side_agg, w_side_last;
+
+    assign w_side_wr_valid = s_axi_awvalid && s_axi_awready;
+
+    gaxi_fifo_sync #(.DATA_WIDTH(2), .DEPTH(SKID_DEPTH_AW + AW_FIFO_DEPTH)) u_aw_side_fifo (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(w_side_wr_valid), .wr_data({aw_agg_i, aw_last_i}),
+        .rd_ready(w_side_rd_ready), .rd_valid(), .rd_data(w_side_rd_data),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .wr_ready(), .count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign {w_side_agg, w_side_last} = w_side_rd_data;
+    // pop in lockstep with the AW-meta FIFO write (fub_aw acceptance)
+    assign w_side_rd_ready = fub_awvalid && fub_awready;
+
+    // ========================================================================
+    // (2) AW-meta FIFO : {err, agg, last, id, addr}
+    // ========================================================================
+    localparam int AWM_W = 3 + IW + AW;
 
     logic          w_aw_err;
     assign w_aw_err = ((32'(fub_awlen) + 32'd1) * GEAR != BL);
@@ -189,7 +220,7 @@ module pumice_wr_intake #(
 
     assign w_awm_wr_valid = fub_awvalid;
     assign fub_awready    = w_awm_wr_ready;
-    assign w_awm_wr_data  = {w_aw_err, fub_awid, fub_awaddr};
+    assign w_awm_wr_data  = {w_aw_err, w_side_agg, w_side_last, fub_awid, fub_awaddr};
 
     gaxi_fifo_sync #(.DATA_WIDTH(AWM_W), .DEPTH(AW_FIFO_DEPTH)) u_aw_meta_fifo (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
@@ -197,10 +228,10 @@ module pumice_wr_intake #(
         .rd_ready(w_awm_rd_ready), .count(), .rd_valid(w_awm_rd_valid), .rd_data(w_awm_rd_data)
     );
 
-    logic          w_head_err;
+    logic          w_head_err, w_head_agg, w_head_last;
     logic [IW-1:0] w_head_id;
     logic [AW-1:0] w_head_addr;
-    assign {w_head_err, w_head_id, w_head_addr} = w_awm_rd_data;
+    assign {w_head_err, w_head_agg, w_head_last, w_head_id, w_head_addr} = w_awm_rd_data;
 
     // Decode the head burst's address to {rank,bank,row,col}
     logic [RKW-1:0]        w_rank;
@@ -225,6 +256,8 @@ module pumice_wr_intake #(
     assign aw_push_col_o   = w_col;
     assign aw_push_id_o    = w_head_id;
     assign aw_push_err_o   = w_head_err;
+    assign aw_push_agg_o   = w_head_agg;
+    assign aw_push_last_o  = w_head_last;
     assign w_awm_rd_ready  = aw_push_ready_i;
 
     // ========================================================================
