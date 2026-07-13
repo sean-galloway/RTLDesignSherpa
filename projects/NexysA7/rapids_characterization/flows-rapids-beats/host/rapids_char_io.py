@@ -64,12 +64,10 @@ APB_SNK_BASE = 0x1000
 
 
 # ---------------------------------------------------------------------------
-# DESC-LOAD (region 1) byte offsets (rapids_char_top.sv).
+# DESC-LOAD (region 1) registers are accessed BY NAME via rapids_harness_desc_regmap
+# (DESC_WORD0-7, DESC_ADDR, DESC_KICK{HALF}, DESC_STATUS{OK}) -- see desc_write_reg /
+# desc_read_reg below. No offset constants: load_descriptor() uses the names.
 # ---------------------------------------------------------------------------
-DESC_WORD0 = 0x000       # DESC_WORD[0..7] at 0x000..0x01C (word i = desc[32i+31:32i])
-DESC_ADDR = 0x020        # target byte address in the descriptor RAM
-DESC_KICK = 0x024        # write issues the AXI4 desc write; data[0]=half (0=SRC,1=SNK)
-DESC_STATUS = 0x028      # read: [0]=last descriptor write BRESP OK
 
 
 # ---------------------------------------------------------------------------

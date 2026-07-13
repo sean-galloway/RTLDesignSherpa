@@ -310,6 +310,24 @@ class RapidsBeatsTopTB(TBBase):
         addr = self.reg_abs(half, reg_name)
         await self.write_apb(addr, value, reg_name=f"{half.upper()}.{reg_name}")
 
+    async def write_fields(self, half: str, reg_name: str, **fields: int):
+        """Program a register by setting its FIELDS by name (composed at their
+        rapids_regmap offsets/widths) rather than a hand-assembled bitmask.
+        Unspecified fields default to 0."""
+        regs = self.src_regs if half == 'src' else self.snk_regs
+        info = regs.registers[reg_name]
+        word = 0
+        for fname, val in fields.items():
+            fld = info.get(fname)
+            if not isinstance(fld, dict) or 'offset' not in fld:
+                raise KeyError(f"unknown field {reg_name}.{fname}")
+            off = fld['offset']
+            hi, lo = (int(x) for x in off.split(':')) if ':' in off \
+                else (int(off), int(off))
+            mask = ((1 << (hi - lo + 1)) - 1) << lo
+            word = (word & ~mask) | ((int(val) << lo) & mask)
+        await self.write_reg(half, reg_name, word)
+
     async def read_reg(self, half: str, reg_name: str) -> int:
         addr = self.reg_abs(half, reg_name)
         return await self.read_apb(addr, reg_name=f"{half.upper()}.{reg_name}")
@@ -361,30 +379,31 @@ class RapidsBeatsTopTB(TBBase):
         all_ch = (1 << self.NUM_CHANNELS) - 1
 
         # --- scheduler --- (timeout + completion monbus OFF for basic tests) ---
-        await self.write_reg(half, 'SCHED_TIMEOUT_CYCLES', 1_000_000)
-        await self.write_reg(half, 'SCHED_TIMEOUT_LIMIT', 0xFF)
-        # SCHED_EN[0] | ERR_EN[2]  (TIMEOUT_EN/COMPL_EN/PERF_EN off)
-        await self.write_reg(half, 'SCHED_CONFIG', (1 << 0) | (1 << 2))
+        await self.write_fields(half, 'SCHED_TIMEOUT_CYCLES', TIMEOUT_CYCLES=1_000_000)
+        await self.write_fields(half, 'SCHED_TIMEOUT_LIMIT', LIMIT=0xFF)
+        await self.write_fields(half, 'SCHED_CONFIG', SCHED_EN=1, ERR_EN=1)  # TIMEOUT/COMPL/PERF off
 
-        # --- descriptor engine --- DESCENG_EN | PREFETCH_EN | FIFO_THRESH=4 ---
-        await self.write_reg(half, 'DESCENG_CONFIG', 0x1 | 0x2 | (4 << 2))
+        # --- descriptor engine ---
+        await self.write_fields(half, 'DESCENG_CONFIG',
+                                DESCENG_EN=1, PREFETCH_EN=1, FIFO_THRESH=4)
         # Address window must cover the descriptor storage region (DESC_BASE).
-        await self.write_reg(half, 'DESCENG_ADDR0_BASE', 0x0000_0000)
-        await self.write_reg(half, 'DESCENG_ADDR0_LIMIT', 0xFFFF_FFFF)
-        await self.write_reg(half, 'DESCENG_ADDR1_BASE', 0x0000_0000)
-        await self.write_reg(half, 'DESCENG_ADDR1_LIMIT', 0xFFFF_FFFF)
+        await self.write_fields(half, 'DESCENG_ADDR0_BASE',  ADDR0_BASE=0x0000_0000)
+        await self.write_fields(half, 'DESCENG_ADDR0_LIMIT', ADDR0_LIMIT=0xFFFF_FFFF)
+        await self.write_fields(half, 'DESCENG_ADDR1_BASE',  ADDR1_BASE=0x0000_0000)
+        await self.write_fields(half, 'DESCENG_ADDR1_LIMIT', ADDR1_LIMIT=0xFFFF_FFFF)
 
         # --- AXI burst sizing: RD/WR=8 beats, ALLOC=16, DRAIN=1 (each half uses
         #     only its own fields; writing the full word is harmless). ---
-        axi_xfer = (1 << 24) | (16 << 16) | (8 << 8) | (8 << 0)
-        await self.write_reg(half, 'AXI_XFER_CONFIG', axi_xfer)
+        await self.write_fields(half, 'AXI_XFER_CONFIG',
+                                RD_XFER_BEATS=8, WR_XFER_BEATS=8,
+                                ALLOC_SIZE=16, DRAIN_SIZE=1)
 
         # --- Phase-2 control-read retry cap ---
-        await self.write_reg(half, 'CTRL_CONFIG', 0x1)
+        await self.write_fields(half, 'CTRL_CONFIG', CTRLRD_MAX_TRY=1)
 
         # --- enable channels, then globally enable last ---
-        await self.write_reg(half, 'CHANNEL_ENABLE', all_ch)
-        await self.write_reg(half, 'GLOBAL_CTRL', 0x1)   # GLOBAL_EN (avoid RST bit)
+        await self.write_fields(half, 'CHANNEL_ENABLE', CH_EN=all_ch)
+        await self.write_fields(half, 'GLOBAL_CTRL', GLOBAL_EN=1)   # avoid RST bit
 
         await self.wait_clocks(self.clk_name, 10)
         self.log.info(f"rapids_beats_top {half.upper()} half configured via APB (by name)")
@@ -687,7 +706,7 @@ class RapidsBeatsTopTB(TBBase):
         DOORBELL_DATA = 0x0000_ABCD   # (DOORBELL_DATA & MASK) == (EXPECTED & MASK)
 
         # Big retry budget so the gate does NOT error out before the producer fires.
-        await self.write_reg(half, 'CTRL_CONFIG', 0x1FF)   # CTRLRD_MAX_TRY = 511
+        await self.write_fields(half, 'CTRL_CONFIG', CTRLRD_MAX_TRY=511)
 
         # Pre-seed the semaphore to a NON-matching value.
         self.seed_semaphore(half, SEM_ADDR, NONMATCH)
