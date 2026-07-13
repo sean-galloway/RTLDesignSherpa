@@ -276,11 +276,13 @@ class DDR2CharDriver:
                            t_phy_wrlat: int = 0,
                            t_rddata_en: int = 0,
                            rd_in_order: bool = False) -> None:
-        self.regs.write("CTRLR_CFG",
-                        memtype=memtype & 1,
-                        t_phy_wrlat=t_phy_wrlat & 0xFF,
-                        t_rddata_en=t_rddata_en & 0xFF,
-                        rd_in_order=1 if rd_in_order else 0)
+        """Program the controller's PHY timing + read ordering by name on the
+        pumice controller CSR (bridge ddr2_apb window). The rearchitected
+        controller no longer takes these as harness signals — config is
+        CSR-driven, so this must land BEFORE init is released."""
+        self.pumice.set_phy_timing(memtype=memtype, t_phy_wrlat=t_phy_wrlat,
+                                   t_rddata_en=t_rddata_en)
+        self.pumice.set_scheduler(force_inorder=rd_in_order)
 
     def set_controller_cap(self, cap_lookahead_max: int,
                            cap_synth_mask: int) -> None:

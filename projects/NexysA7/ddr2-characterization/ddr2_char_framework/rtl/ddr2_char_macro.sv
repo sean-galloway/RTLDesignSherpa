@@ -101,7 +101,10 @@ module ddr2_char_macro
 
     // ---- Controller policy ----
     parameter int PAGE_POLICY      = 32'(PAGE_POLICY_CLOSE),
-    parameter int MAX_BURST_LEN    = 8,
+    // DRAM burst length (JEDEC MR0), in DRAM beats. DDR2 = 4. The controller
+    // divides this by DFI_RATE internally to get AXI beats per burst, so the
+    // host engines issue (DRAM_BL/DFI_RATE) beats per command (rate-2 => 2).
+    parameter int DRAM_BL          = 4,
 
     // ---- Engine workload ranges ----
     parameter int TXN_COUNT_WIDTH  = 16,
@@ -437,37 +440,92 @@ module ddr2_char_macro
     //=========================================================================
     // pumice controller
     //=========================================================================
-    pumice_top #(
-        .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
-        .AXI_DATA_WIDTH  (AXI_DATA_WIDTH),
-        .DRAM_BEAT_WIDTH (DRAM_BEAT_WIDTH),
-        .DRAM_DEVICE_WIDTH (DRAM_DEVICE_WIDTH),
+    // -------------------------------------------------------------------------
+    // Config path: the macro's APB CSR port is adapted to the rearchitected
+    // controller's PeakRDL passthrough ("cpuif") register interface. Software
+    // programs memtype / timings / DFI phase / ADDR_MAP by name through this
+    // window (the retired extern cfg inputs below are no longer wired into the
+    // controller — config is CSR-driven). Mirrors the STREAM stream_apb path.
+    // -------------------------------------------------------------------------
+    logic                        ctrl_cpuif_req, ctrl_cpuif_req_is_wr;
+    logic [APB_ADDR_WIDTH-1:0]   ctrl_cpuif_addr;
+    logic [APB_DATA_WIDTH-1:0]   ctrl_cpuif_wr_data, ctrl_cpuif_wr_biten;
+    logic                        ctrl_cpuif_req_stall_wr, ctrl_cpuif_req_stall_rd;
+    logic                        ctrl_cpuif_rd_ack, ctrl_cpuif_rd_err;
+    logic [APB_DATA_WIDTH-1:0]   ctrl_cpuif_rd_data;
+    logic                        ctrl_cpuif_wr_ack, ctrl_cpuif_wr_err;
+
+    apb_to_peakrdl #(
+        .ADDR_WIDTH (APB_ADDR_WIDTH),
+        .DATA_WIDTH (APB_DATA_WIDTH),
+        .PROT_WIDTH (APB_PROT_WIDTH)
+    ) u_csr_shim (
+        .aclk        (mc_clk),   .aresetn (mc_rst_n),
+        .pclk        (pclk),     .presetn (presetn),
+        .s_apb_PSEL  (s_apb_PSEL),   .s_apb_PENABLE(s_apb_PENABLE),
+        .s_apb_PREADY(s_apb_PREADY), .s_apb_PADDR  (s_apb_PADDR),
+        .s_apb_PWRITE(s_apb_PWRITE), .s_apb_PWDATA (s_apb_PWDATA),
+        .s_apb_PSTRB (s_apb_PSTRB),  .s_apb_PPROT  (s_apb_PPROT),
+        .s_apb_PRDATA(s_apb_PRDATA), .s_apb_PSLVERR(s_apb_PSLVERR),
+        .cpuif_req         (ctrl_cpuif_req),
+        .cpuif_req_is_wr   (ctrl_cpuif_req_is_wr),
+        .cpuif_addr        (ctrl_cpuif_addr),
+        .cpuif_wr_data     (ctrl_cpuif_wr_data),
+        .cpuif_wr_biten    (ctrl_cpuif_wr_biten),
+        .cpuif_req_stall_wr(ctrl_cpuif_req_stall_wr),
+        .cpuif_req_stall_rd(ctrl_cpuif_req_stall_rd),
+        .cpuif_rd_ack      (ctrl_cpuif_rd_ack),
+        .cpuif_rd_err      (ctrl_cpuif_rd_err),
+        .cpuif_rd_data     (ctrl_cpuif_rd_data),
+        .cpuif_wr_ack      (ctrl_cpuif_wr_ack),
+        .cpuif_wr_err      (ctrl_cpuif_wr_err)
+    );
+
+    // Retired DFI sideband pins — the rearchitected controller does not drive
+    // these. Present sane constants so the harness / DFI BFM interface is
+    // unchanged: CKE held active, clock enabled, no ctrlupd / phyupd.
+    assign dfi_cke_o              = '1;
+    assign dfi_dram_clk_disable_o = '0;
+    assign dfi_ctrlupd_req_o      = 1'b0;
+    assign dfi_phyupd_ack_o       = 1'b0;
+
+    // Host AXI is AXI_DATA_WIDTH (64); the controller core + DFI run at
+    // DRAM_BEAT_WIDTH*DFI_RATE. pumice_top_geared bridges the two host<->core
+    // widths with the formal AXI dwidth converters.
+    pumice_top_geared #(
+        .HOST_AXI_DATA_WIDTH (AXI_DATA_WIDTH),
         .AXI_ID_WIDTH    (AXI_ID_WIDTH),
-        .AXI_USER_WIDTH  (AXI_USER_WIDTH),
-        .AXI_STRB_WIDTH  (AXI_STRB_WIDTH),
-        .BURST_LEN_WIDTH (BURST_LEN_WIDTH),
-        .APB_ADDR_WIDTH  (APB_ADDR_WIDTH),
-        .APB_DATA_WIDTH  (APB_DATA_WIDTH),
-        .APB_STRB_WIDTH  (APB_STRB_WIDTH),
-        .APB_PROT_WIDTH  (APB_PROT_WIDTH),
+        .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
         .NUM_RANKS       (NUM_RANKS),
         .NUM_BANKS       (NUM_BANKS),
         .ROW_WIDTH       (ROW_WIDTH),
         .COL_WIDTH       (COL_WIDTH),
-        .WR_CAM_DEPTH    (WR_CAM_DEPTH),
-        .RD_CAM_DEPTH    (RD_CAM_DEPTH),
-        .W_BUF_DEPTH     (W_BUF_DEPTH),
         .DFI_RATE        (DFI_RATE),
-        .PAGE_POLICY     (PAGE_POLICY),
-        .MAX_BURST_LEN   (MAX_BURST_LEN),
-        // Enable the pre-pull write path so wrdata is staged by command time
-        // (a7ddrphy write_latency=0) natively — retires the dfi_cmd_delay shim.
-        .PREPULL_EN      (1'b1)
+        .DRAM_BEAT_WIDTH (DRAM_BEAT_WIDTH),
+        .DRAM_DEVICE_WIDTH (DRAM_DEVICE_WIDTH),
+        .BL              (DRAM_BL),
+        .NUM_ENTRIES     (WR_CAM_DEPTH),
+        .N_SRAM_SLOTS    (WR_CAM_DEPTH),
+        .CSR_ADDR_W      (APB_ADDR_WIDTH)
     ) u_ctrl (
-        .mc_clk                (mc_clk),
-        .mc_rst_n              (mc_rst_n),
-        .pclk                  (pclk),
-        .presetn               (presetn),
+        .aclk                  (mc_clk),
+        .aresetn               (mc_rst_n),
+        .dfi_clk               (mc_clk),
+        .dfi_rstn              (mc_rst_n),
+        // Register cpuif (from the APB->cpuif shim)
+        .s_cpuif_req           (ctrl_cpuif_req),
+        .s_cpuif_req_is_wr     (ctrl_cpuif_req_is_wr),
+        .s_cpuif_addr          (ctrl_cpuif_addr),
+        .s_cpuif_wr_data       (ctrl_cpuif_wr_data),
+        .s_cpuif_wr_biten      (ctrl_cpuif_wr_biten),
+        .s_cpuif_req_stall_wr  (ctrl_cpuif_req_stall_wr),
+        .s_cpuif_req_stall_rd  (ctrl_cpuif_req_stall_rd),
+        .s_cpuif_rd_ack        (ctrl_cpuif_rd_ack),
+        .s_cpuif_rd_err        (ctrl_cpuif_rd_err),
+        .s_cpuif_rd_data       (ctrl_cpuif_rd_data),
+        .s_cpuif_wr_ack        (ctrl_cpuif_wr_ack),
+        .s_cpuif_wr_err        (ctrl_cpuif_wr_err),
+        .init_done_o           (),
         // AXI — writer drives the W half, reader drives the R half
         .s_axi_awid            (wr_awid),
         .s_axi_awaddr          (wr_awaddr),
@@ -513,25 +571,14 @@ module ddr2_char_macro
         .s_axi_ruser           (rd_ruser),
         .s_axi_rvalid          (rd_rvalid),
         .s_axi_rready          (rd_rready),
-        // APB CSR passthrough
-        .s_apb_PSEL            (s_apb_PSEL),
-        .s_apb_PENABLE         (s_apb_PENABLE),
-        .s_apb_PREADY          (s_apb_PREADY),
-        .s_apb_PADDR           (s_apb_PADDR),
-        .s_apb_PWRITE          (s_apb_PWRITE),
-        .s_apb_PWDATA          (s_apb_PWDATA),
-        .s_apb_PSTRB           (s_apb_PSTRB),
-        .s_apb_PPROT           (s_apb_PPROT),
-        .s_apb_PRDATA          (s_apb_PRDATA),
-        .s_apb_PSLVERR         (s_apb_PSLVERR),
-        // DFI passthrough
+        // DFI 2.1 pin bus (the retired cke / dram_clk_disable / ctrlupd /
+        // phyupd sidebands are tied off above; the geared top has no such pins)
         .dfi_address_o         (dfi_address_o),
         .dfi_bank_o            (dfi_bank_o),
         .dfi_cas_n_o           (dfi_cas_n_o),
         .dfi_ras_n_o           (dfi_ras_n_o),
         .dfi_we_n_o            (dfi_we_n_o),
         .dfi_cs_n_o            (dfi_cs_n_o),
-        .dfi_cke_o             (dfi_cke_o),
         .dfi_odt_o             (dfi_odt_o),
         .dfi_wrdata_o          (dfi_wrdata_o),
         .dfi_wrdata_en_o       (dfi_wrdata_en_o),
@@ -539,21 +586,8 @@ module ddr2_char_macro
         .dfi_rddata_en_o       (dfi_rddata_en_o),
         .dfi_rddata_i          (dfi_rddata_i),
         .dfi_rddata_valid_i    (dfi_rddata_valid_i),
-        .dfi_dram_clk_disable_o(dfi_dram_clk_disable_o),
         .dfi_init_start_o      (dfi_init_start_o),
-        .dfi_init_complete_i   (dfi_init_complete_i),
-        .dfi_ctrlupd_req_o     (dfi_ctrlupd_req_o),
-        .dfi_ctrlupd_ack_i     (dfi_ctrlupd_ack_i),
-        .dfi_phyupd_req_i      (dfi_phyupd_req_i),
-        .dfi_phyupd_ack_o      (dfi_phyupd_ack_o),
-        .dfi_phyupd_type_i     (dfi_phyupd_type_i),
-        // Runtime controls
-        .memtype_i             (memtype_i),
-        .t_phy_wrlat_i         (t_phy_wrlat_i),
-        .t_rddata_en_i         (t_rddata_en_i),
-        .rd_in_order_i         (rd_in_order_i),
-        .cap_lookahead_max_i   (cap_lookahead_max_i),
-        .cap_synth_mask_i      (cap_synth_mask_i)
+        .dfi_init_complete_i   (dfi_init_complete_i)
     );
 
     //=========================================================================

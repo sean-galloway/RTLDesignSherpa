@@ -78,16 +78,70 @@ class Pumice(Device):
         return (self.regs.field("DFI_PHASE", "rd_phase"),
                 self.regs.field("DFI_PHASE", "wr_phase"))
 
+    # ----- PHY timing / memtype --------------------------------------------
+    def set_phy_timing(self, *, memtype: Optional[int] = None,
+                       t_phy_wrlat: Optional[int] = None,
+                       t_rddata_en: Optional[int] = None,
+                       refresh_burst: Optional[int] = None) -> None:
+        """PHY_TIMING @ APB 0x064: memtype (0=DDR2,1=LPDDR2), t_phy_wrlat
+        (WR cmd -> dfi_wrdata_en; 0 for a7ddrphy pre-pull), t_rddata_en
+        (RD cmd -> dfi_rddata_en window), refresh_burst (1..8). Only supplied
+        fields change (rmw). Program BEFORE releasing init."""
+        kw: Dict[str, int] = {}
+        if memtype is not None:
+            kw["memtype"] = memtype & 1
+        if t_phy_wrlat is not None:
+            kw["t_phy_wrlat"] = t_phy_wrlat & 0xFF
+        if t_rddata_en is not None:
+            kw["t_rddata_en"] = t_rddata_en & 0xFF
+        if refresh_burst is not None:
+            kw["refresh_burst"] = refresh_burst & 0xF
+        if kw:
+            self.regs.write("PHY_TIMING", rmw=True, **kw)
+
     # ----- address map / paging --------------------------------------------
-    def set_addr_map_scheme(self, scheme: int) -> None:
-        """ADDR_MAP_TUNING.scheme_or (ROW_MAJOR / BANK_INTERLEAVE; DEFAULT =
-        build-time). XOR_HASH may not be synthesized (see get_synth_scheme_mask)."""
-        self.regs.write("ADDR_MAP_TUNING", scheme_or=scheme & 0x3)
+    def set_addr_map(self, *, bank_lsb: Optional[int] = None,
+                     hash_en: Optional[int] = None,
+                     hash_seed: Optional[int] = None) -> None:
+        """ADDR_MAP @ APB 0x04C single-knob mapping: bank_lsb slides the bank
+        field within the AXI address (col_lo|bank|col_hi|row|rank), hash_en
+        folds an XOR hash over the row, hash_seed picks the fold. Only supplied
+        fields change (rmw)."""
+        kw: Dict[str, int] = {}
+        if bank_lsb is not None:
+            kw["bank_lsb"] = bank_lsb & 0x1F
+        if hash_en is not None:
+            kw["hash_en"] = 1 if hash_en else 0
+        if hash_seed is not None:
+            kw["hash_seed"] = hash_seed & 0xFF
+        if kw:
+            self.regs.write("ADDR_MAP", rmw=True, **kw)
+
+    # Legacy scheme API (compat): the retired scheme selector is now a single
+    # bank_lsb knob. Map the old enum onto bank_lsb so scheme-sweep programs
+    # keep working. col_width defaults to the board geometry (10).
+    _SCHEME_ROW_MAJOR = 1
+    _SCHEME_BANK_INTERLEAVE = 2
+    _SCHEME_XOR_HASH = 3
+
+    def set_addr_map_scheme(self, scheme: int, col_width: int = 10) -> None:
+        """Compat: legacy scheme -> ADDR_MAP.bank_lsb / hash_en.
+        ROW_MAJOR = bank above the full column (bank_lsb=col_width);
+        BANK_INTERLEAVE = bank at the LSB column boundary (bank_lsb=0);
+        XOR_HASH = enable the row XOR fold. DEFAULT (0/None) leaves it as built."""
+        if scheme == self._SCHEME_ROW_MAJOR:
+            self.set_addr_map(bank_lsb=col_width, hash_en=0)
+        elif scheme == self._SCHEME_BANK_INTERLEAVE:
+            self.set_addr_map(bank_lsb=0, hash_en=0)
+        elif scheme == self._SCHEME_XOR_HASH:
+            self.set_addr_map(hash_en=1)
+        # scheme 0 / DEFAULT: no write (keep build-time bank_lsb).
 
     def get_synth_scheme_mask(self) -> int:
-        """Bitmask of synthesized schemes: b0=ROW_MAJOR, b1=BANK_INTERLEAVE,
-        b2=XOR_HASH."""
-        return self.regs.field("ADDR_MAP_TUNING", "synth_mask_obs")
+        """Compat: every scheme is now runtime-expressible via bank_lsb + hash,
+        so all three legacy schemes are 'synthesized' (b0=ROW_MAJOR,
+        b1=BANK_INTERLEAVE, b2=XOR_HASH)."""
+        return 0x7
 
     # ----- refresh ----------------------------------------------------------
     def set_page_policy(self, policy: int) -> None:
