@@ -63,7 +63,8 @@ class PumiceTopCsrTB:
                  axi_id_width: int = 8, axi_addr_width: int = 32,
                  num_ranks: int = 1, num_banks: int = 8,
                  row_width: int = 14, col_width: int = 10,
-                 mem_type: str = "DDR2") -> None:
+                 mem_type: str = "DDR2",
+                 host_axi_data_width: int = 0) -> None:
         self.dut = dut
         self.log = logging.getLogger("pumice_top_csr_tb")
         self.log.setLevel(logging.INFO)
@@ -76,6 +77,10 @@ class PumiceTopCsrTB:
         self.dram_beat_bytes = dram_beat_width // 8
         self.axi_data_width = dram_beat_width * dfi_rate
         self.bytes_per_beat = self.axi_data_width // 8
+        # Host-side AXI width (may differ from the core's DW via the geared
+        # wrapper's dwidth converters). Defaults to the core width (GEAR-1).
+        self.host_axi_data_width = host_axi_data_width or self.axi_data_width
+        self.host_bytes_per_beat = self.host_axi_data_width // 8
         self.axi_id_width = axi_id_width
         self.axi_addr_width = axi_addr_width
 
@@ -322,14 +327,16 @@ class PumiceTopCsrTB:
         return self.dfi_monitor
 
     def init_axi_masters(self) -> tuple[AXI4MasterWrite, AXI4MasterRead]:
+        # BFMs run at the HOST width (== core width for GEAR-1; the geared
+        # wrapper's converters bridge host <-> core).
         self.axi_master_wr = AXI4MasterWrite(
             self.dut, self.dut.aclk, prefix="s_axi",
-            data_width=self.axi_data_width, id_width=self.axi_id_width,
+            data_width=self.host_axi_data_width, id_width=self.axi_id_width,
             addr_width=self.axi_addr_width, log=self.log,
         )
         self.axi_master_rd = AXI4MasterRead(
             self.dut, self.dut.aclk, prefix="s_axi",
-            data_width=self.axi_data_width, id_width=self.axi_id_width,
+            data_width=self.host_axi_data_width, id_width=self.axi_id_width,
             addr_width=self.axi_addr_width, log=self.log,
         )
         return self.axi_master_wr, self.axi_master_rd

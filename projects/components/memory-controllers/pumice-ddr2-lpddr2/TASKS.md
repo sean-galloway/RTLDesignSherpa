@@ -23,16 +23,23 @@
 
 # pumice — Open Tasks
 
-## TASK-GEAR: Generic AXI ↔ DRAM-beat width gearing
+## TASK-GEAR: Generic AXI data-width gearing — RESOLVED (external converter)
 
-Decouple `AXI_DATA_WIDTH` from `DRAM_BEAT_WIDTH` (today `axi_intake.sv` hard-assumes
-they're equal). Make AXI width a free parameter (32/64/128/256/512) via an internal
-gearbox localized to `axi_intake` — everything below the AXI↔beat seam is already
-beat-parameterized. Primarily for **future DDR\* IP** (each device/PHY pins its own
-beat/rate; hosts want a fixed AXI width); the Nexys A7 a7ddrphy x16 bring-up
-(beat=32, rate=4) is the first consumer.
+Make host `AXI_DATA_WIDTH` a free parameter (32/64/128/256/512) decoupled from the
+core width `DW = DRAM_BEAT_WIDTH × DFI_RATE`. Family-wide (DDR2/3/4/LPDDR2), for
+future DDR\* IP where each device/PHY pins its own (beat, rate) but the host SoC
+wants a fixed convenient AXI width.
 
-**Full design + effort + risks + resource note:** `docs/AXI_DRAM_GEARING_SCOPE.md`
+Implemented via the EXTERNAL formally-verified `axi4_dwidth_converter_wr/_rd` in a
+wrapper `rtl/top/pumice_top_geared.sv` (host width <-> DW; GEAR-1 = generate bypass,
+bit-identical). Core datapath untouched. Verified end-to-end
+(`test_pumice_top_geared.py`): write bursts at host ∈ {64, 128, 256} round-trip back
+through host-width reads (down-gear / bypass / up-gear). Chose external over the
+internal gearbox because the datapath was freshly stabilized and the converters are
+already formal; also the rearchitecture already solved the original a7ddrphy forcing
+function (AXI = beat×rate = 128, a fine width — no gearing needed for the board).
+
+**Design + rationale + deferred internal-gearbox option:** `docs/AXI_DRAM_GEARING_SCOPE.md`
 
 ## TASK-ADDRMAP: CSR-programmable AXI-address → {bank, row, col} field placement
 

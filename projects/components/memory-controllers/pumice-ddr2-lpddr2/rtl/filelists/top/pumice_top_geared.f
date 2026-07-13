@@ -1,0 +1,53 @@
+# Filelist for pumice_top_geared (pumice_top + formal AXI dwidth converters)
+# Host AXI width decoupled from DW via axi4_dwidth_converter_wr/rd.
++incdir+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/includes
+$REPO_ROOT/rtl/amba/includes/reset_defs.svh
++incdir+$REPO_ROOT/rtl/amba/includes
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/includes/pumice_pkg.sv
+$REPO_ROOT/rtl/common/counter_bin.sv
+$REPO_ROOT/rtl/common/counter_johnson.sv
+$REPO_ROOT/rtl/common/find_first_set.sv
+$REPO_ROOT/rtl/common/find_last_set.sv
+$REPO_ROOT/rtl/common/leading_one_trailing_one.sv
+$REPO_ROOT/rtl/common/grayj2bin.sv
+$REPO_ROOT/rtl/common/glitch_free_n_dff_arn.sv
+$REPO_ROOT/rtl/common/fifo_control.sv
+$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
+$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
+$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_async.sv
+$REPO_ROOT/rtl/amba/axi4/axi4_slave_wr.sv
+$REPO_ROOT/rtl/amba/axi4/axi4_slave_rd.sv
+$REPO_ROOT/rtl/amba/shared/axi_split_combi.sv
+$REPO_ROOT/rtl/amba/shared/axi_master_wr_splitter.sv
+$REPO_ROOT/rtl/amba/shared/axi_master_rd_splitter.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/addr_mapper.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_wr_intake.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_rd_intake.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_wr_data_cam.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_rd_cmd_cam.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_bank_timers.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/global_timers.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/refresh_ctrl.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/init_sequencer.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/mode_register.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/dfi_cmd_formatter.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_cdc.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_cmd_path.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_wr_serializer.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_rd_aligner.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_axi4_ifc.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_mem_cmd_scheduler.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_dfi_layer.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/top/pumice_core.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated/rtl/pumice_csr_pkg.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated/rtl/pumice_csr.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/top/pumice_top.sv
+# ---- AXI data-width converters (host <-> DW) ----
+$REPO_ROOT/projects/components/converters/rtl/axi_data_upsize.sv
+$REPO_ROOT/projects/components/converters/rtl/axi_data_dnsize.sv
+$REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_wr.sv
+$REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_rd.sv
+# ---- geared wrapper ----
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/top/pumice_top_geared.sv
