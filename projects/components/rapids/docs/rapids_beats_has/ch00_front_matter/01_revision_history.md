@@ -27,12 +27,25 @@
 |---------|------|--------|---------|
 | 1.0 | 2026-01-17 | RTL Design Sherpa | Initial release |
 | 0.6 | 2026-07-02 | RTL Design Sherpa | Resynced to RTL top-level integration |
+| 0.7 | 2026-07-13 | RTL Design Sherpa | Added the control-descriptor feature (CTRL_READ consumer gate / CTRL_WRITE producer doorbell) |
 
 : Document Revision History
 
 ---
 
 ## Change Summary
+
+### Version 0.7 (2026-07-13)
+
+**Control-Descriptor Feature**
+
+- Documented the control-descriptor opcodes in Descriptor Format (Section 5.1):
+  `CTRL_READ` (consumer gate -- poll a memory location until
+  `(read & mask) == expected`) and `CTRL_WRITE` (producer doorbell -- single
+  32-bit write), for in-memory producer/consumer synchronization without moving
+  payload. Added the per-opcode field layouts.
+- Added `CTRL_CONFIG` @ 0x240 (`CTRLRD_MAX_TRY[8:0]`, the control-read poll retry
+  budget) to the register map (Section 5.2) and a Key Features entry.
 
 ### Version 0.6 (2026-07-02)
 

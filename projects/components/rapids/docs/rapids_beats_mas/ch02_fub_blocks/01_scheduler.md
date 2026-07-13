@@ -39,6 +39,9 @@ The Scheduler coordinates descriptor-based data transfers for a single RAPIDS ch
 - **Descriptor Processing:** Parses 256-bit descriptors for transfer parameters
 - **Beat-Based Tracking:** All lengths tracked in beats (data-width units)
 - **Concurrent Read/Write:** Simultaneous read and write to prevent deadlock
+- **Three descriptor opcodes:** `DATA` (concurrent read/write), `CTRL_READ`
+  (consumer gate via the control-read engine), `CTRL_WRITE` (producer doorbell
+  via the control-write engine) -- see Control Interface below
 - **Timeout Detection:** Configurable watchdog for stalled transfers
 - **MonBus Integration:** State transition and error event reporting
 - **Error Aggregation:** Combines errors from descriptor engine and data paths
@@ -156,6 +159,42 @@ parameter int DESC_WIDTH = 256;                  // RAPIDS descriptor width
 | `sched_wr_error` | input | 1 | Write error |
 
 : Table 2.1.6: Data Write Interface
+
+### Control Interface
+
+For `CTRL_READ` / `CTRL_WRITE` descriptors the scheduler drives two per-channel
+control engines instead of the data path. Both are request/response handshakes
+whose completion is signalled by the engine's `*_idle` going high after issue.
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `ctrlrd_valid` | output | 1 | Control-read request valid (to `ctrlrd_engine`) |
+| `ctrlrd_ready` | input | 1 | Engine accepted the poll request |
+| `ctrlrd_addr` | output | AW | Gate poll address (descriptor `poll_addr`) |
+| `ctrlrd_data` | output | 32 | Expected value (descriptor `expected`) |
+| `ctrlrd_mask` | output | 32 | Compare mask (descriptor `mask`) |
+| `ctrlrd_error` | input | 1 | Engine error (poll retries exhausted / AXI error) |
+| `ctrlrd_idle` | input | 1 | `ctrlrd_engine_idle` -- gate satisfied (completion) |
+| `ctrlwr_valid` | output | 1 | Control-write request valid (to `ctrlwr_engine`) |
+| `ctrlwr_ready` | input | 1 | Engine accepted the doorbell request |
+| `ctrlwr_addr` | output | AW | Doorbell address (descriptor `wr_addr`) |
+| `ctrlwr_data` | output | 32 | Doorbell value (descriptor `wr_data`) |
+| `ctrlwr_error` | input | 1 | Engine error (AXI error) |
+| `ctrlwr_idle` | input | 1 | `ctrlwr_engine_idle` -- doorbell written (completion) |
+
+: Table 2.1.7: Control Interface (CTRL_READ / CTRL_WRITE)
+
+A `CTRL_READ` descriptor is a **consumer gate**: the scheduler asserts
+`ctrlrd_valid` and holds off the descriptor's completion (and the chain) until
+the control-read engine reports the masked poll matched (`ctrlrd_idle`). The poll
+retry budget is bounded by `CTRL_CONFIG.CTRLRD_MAX_TRY` (Section 3.12) so a
+never-matching gate cannot hang the channel -- exhaustion raises `ctrlrd_error`.
+A `CTRL_WRITE` descriptor is a **producer doorbell**: a single-beat write of
+`ctrlwr_data` to `ctrlwr_addr`, after which the chain continues. The scheduler
+decodes the opcode from the descriptor (`rapids_pkg` `DESC_OP_DATA` /
+`DESC_OP_CTRL_READ` / `DESC_OP_CTRL_WRITE`); `DATA` descriptors ignore this
+interface. The engines are instantiated per channel in `scheduler_group_beats`
+(`u_ctrlrd_engine` / `u_ctrlwr_engine`); see Sections 2.8 and 2.9.
 
 **Completion is gated on write-data COMMIT, not AW issue.** The scheduler
 maintains two independent beat counters for the write side:

@@ -28,12 +28,16 @@
 //     - Write drains SRAM → SRAM has space → read resumes
 //   Without concurrency, 100MB transfer with 2KB SRAM would deadlock!
 //
-// RAPIDS Phase 1 Simplifications:
-//   ✓ Network-to-memory via AXIS interfaces
-//   ✓ No ctrl_rd/ctrl_wr fields (Phase 2 feature)
+// RAPIDS descriptor opcodes (rapids_pkg desc_op_e):
+//   ✓ DATA       - concurrent read/write engines (network-to-memory via AXIS)
+//   ✓ CTRL_READ  - consumer gate: poll ctrlrd_addr until (rd & mask)==expected,
+//                  bounded by CTRL_CONFIG.CTRLRD_MAX_TRY (drives the ctrlrd_engine)
+//   ✓ CTRL_WRITE - producer doorbell: single-beat write of ctrlwr_data to
+//                  ctrlwr_addr, then continue (drives the ctrlwr_engine)
+// Simplifications retained:
 //   ✓ No alignment fixup (addresses must be aligned)
 //   ✓ Beat-based length (not chunks)
-//   ✓ No credit management (Phase 2 feature)
+//   ✓ No credit management
 //   ✓ IRQ event reporting via MonBus (descriptor.gen_irq flag)
 //
 // Key Features:

@@ -23,8 +23,8 @@
 
 # RAPIDS Beats Architecture MAS
 
-**Version:** 0.6
-**Date:** 2026-07-02
+**Version:** 0.7
+**Date:** 2026-07-13
 **Purpose:** Module Architecture Specification for RAPIDS Phase 1 "Beats" Architecture
 
 ---
@@ -57,6 +57,10 @@
 - [Beats Alloc Control](ch02_fub_blocks/05_beats_alloc_ctrl.md)
 - [Beats Drain Control](ch02_fub_blocks/06_beats_drain_ctrl.md)
 - [Beats Latency Bridge](ch02_fub_blocks/07_beats_latency_bridge.md)
+
+**Control Engines:**
+- [Control-Read Engine](ch02_fub_blocks/08_ctrlrd_engine.md)
+- [Control-Write Engine](ch02_fub_blocks/09_ctrlwr_engine.md)
 
 ### Chapter 3: Macro (Integration Blocks)
 
@@ -104,6 +108,8 @@
 | beats_alloc_ctrl | `beats_alloc_ctrl.sv` | Space allocation tracking (virtual FIFO) | Implemented |
 | beats_drain_ctrl | `beats_drain_ctrl.sv` | Data availability tracking (virtual FIFO) | Implemented |
 | beats_latency_bridge | `beats_latency_bridge.sv` | Latency compensation, backpressure management | Implemented |
+| ctrlrd_engine | `ctrlrd_engine.sv` | Control-read consumer gate (poll-until-match, retry budget) | Implemented |
+| ctrlwr_engine | `ctrlwr_engine.sv` | Control-write producer doorbell (single-beat write) | Implemented |
 
 : FUB Module Summary
 
@@ -227,5 +233,5 @@ The "beats" architecture is a Phase 1 implementation of RAPIDS that shares conce
 
 ---
 
-**Last Updated:** 2026-07-02
+**Last Updated:** 2026-07-13
 **Maintained By:** RAPIDS Architecture Team

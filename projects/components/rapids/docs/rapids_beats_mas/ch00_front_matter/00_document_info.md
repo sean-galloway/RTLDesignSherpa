@@ -140,9 +140,10 @@ Revisions follow the convention x.y, where x is the major version and y is the m
 |-----|------|--------|-------|
 | 0.25 | 2025-01-10 | seang | Initial RAPIDS Beats MAS structure |
 | 0.6 | 2026-07-02 | seang | Resynced to RTL: scheduler recoverable write-progress timeout (`cfg_sched_timeout_limit`, strike escalation, `scheduler_idle` excludes CH_ERROR) and B-response commit gating; functional descriptor prefetch (`cfg_prefetch_enable`/`cfg_fifo_threshold`, deferred chaining); AXI write engine COMMIT strobes; commit/timeout-limit plumbing through `rapids_core_beats`; added `rapids_regs` register block (monitors @ 0x1000), `rapids_config_block`, and `rapids_beats_top` integration with the MonBus AXI-Lite group |
+| 0.7 | 2026-07-13 | seang | Documented the control-read / control-write engine subsystem that was in the RTL but undocumented: new fub-block specs for `ctrlrd_engine` (Section 2.8, consumer gate: poll-until-`(rd & mask)==expected`, retry budget) and `ctrlwr_engine` (Section 2.9, producer doorbell: single-beat write); scheduler Control Interface + three-opcode (`DATA`/`CTRL_READ`/`CTRL_WRITE`) operation (Section 2.1); `CTRL_CONFIG` @ 0x240 (`CTRLRD_MAX_TRY`) added to the register map (Section 3.12); `scheduler_group_beats` control-engine instantiation. Naming cleanup: the per-instance register file is `rapids_engine_regs` (was `rapids_half_regs`). |
 
 : Table 0.2: RAPIDS Beats MAS Document Revision History
 
 ---
 
-**Last Updated:** 2026-07-02
+**Last Updated:** 2026-07-13

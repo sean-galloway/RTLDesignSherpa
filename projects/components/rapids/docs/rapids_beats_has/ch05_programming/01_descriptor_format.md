@@ -131,6 +131,48 @@ graph LR
 
 : Address Field Usage
 
+## Descriptor Opcodes (DATA / CTRL_READ / CTRL_WRITE)
+
+Beyond plain `DATA` transfers, a descriptor carries a 2-bit opcode
+(`rapids_pkg` `desc_op_e`) that selects one of three behaviors. `DATA`
+descriptors move payload through the concurrent read/write engines (above);
+the two control opcodes let a channel synchronize with a producer/consumer in
+memory without moving payload -- the basis of the RAPIDS producer/consumer flow.
+
+| Opcode | Value | Behavior |
+|--------|-------|----------|
+| `DATA` | `2'b00` | Concurrent read/write payload transfer (fields as above) |
+| `CTRL_READ` | `2'b01` | **Consumer gate** -- poll a memory location until `(read & mask) == expected`, then release the descriptor/chain |
+| `CTRL_WRITE` | `2'b10` | **Producer doorbell** -- single 32-bit write of a value to a memory location, then continue |
+
+**CTRL_READ (consumer gate)** re-interprets the descriptor fields as a poll
+specification. The scheduler drives the per-channel control-read engine, which
+reads the gate address once per retry and compares the masked value; the
+descriptor completes when the gate is satisfied. The retry budget is bounded by
+`CTRL_CONFIG.CTRLRD_MAX_TRY` (0-511, reset 16) so a never-satisfied gate cannot
+hang the channel -- exhaustion raises an error instead.
+
+| Field | Bits | Usage |
+|-------|------|-------|
+| `poll_addr` | [63:0] | Gate address to poll |
+| `expected` | [95:64] | Expected value after masking |
+| `mask` | [127:96] | Compare mask (`(read & mask) == expected`) |
+| `max_try` | [143:128] | Per-descriptor retry hint (capped by `CTRLRD_MAX_TRY`) |
+
+**CTRL_WRITE (producer doorbell)** performs one single-beat 32-bit AXI write,
+after which the chain continues. It has no poll/retry -- it is an unconditional
+write used to signal a consumer.
+
+| Field | Bits | Usage |
+|-------|------|-------|
+| `wr_addr` | [63:0] | Doorbell address |
+| `wr_data` | [95:64] | 32-bit value to write |
+
+The control opcodes are handled by dedicated engines (control-read /
+control-write), one pair per channel, driven by the scheduler's control
+interface. See the MAS Scheduler (Section 2.1) and Control-Read / Control-Write
+Engine specifications (Sections 2.8 / 2.9).
+
 ## Descriptor Fetch Timing
 
 ![Descriptor Fetch](../assets/wavedrom/descriptor_fetch.svg)

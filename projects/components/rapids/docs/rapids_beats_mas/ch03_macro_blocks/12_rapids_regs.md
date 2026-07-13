@@ -75,6 +75,7 @@ RTL). The APB address bus feeding the block (`APB_ADDR_WIDTH`) must therefore be
 | 0x228 | `DESCENG_ADDR0_LIMIT` | RW | Descriptor address range 0 limit [31:0] |
 | 0x22C | `DESCENG_ADDR1_BASE` | RW | Descriptor address range 1 base [31:0] |
 | 0x230 | `DESCENG_ADDR1_LIMIT` | RW | Descriptor address range 1 limit [31:0] |
+| 0x240 | `CTRL_CONFIG` | RW | `CTRLRD_MAX_TRY[8:0]` control-read poll retry budget (0-511, reset 16) |
 | 0x2A0 | `AXI_XFER_CONFIG` | RW | AXI transfer sizing configuration |
 | 0x2B0 | `PERF_CONFIG` | RW | Performance profiler configuration |
 | 0x2C0 | `OBS_CTRL` | RW | Observation mux control (channel/category select) |
@@ -99,6 +100,14 @@ Reset value is 4.
 **DESCENG_CONFIG (0x220)** -- `PREFETCH_EN[1]` and `FIFO_THRESH[5:2]` control the
 now-functional descriptor prefetch: prefetch off = on-demand chaining (~1 ahead),
 prefetch on = buffer up to `FIFO_THRESH` descriptors ahead.
+
+**CTRL_CONFIG (0x240)** -- `CTRLRD_MAX_TRY[8:0]` bounds the control-read poll
+retry budget (0-511, reset 16) fed to every channel's `ctrlrd_engine`. A
+`CTRL_READ` descriptor polls its gate address once per retry; if the masked value
+never matches within `CTRLRD_MAX_TRY` attempts the engine raises `ctrlrd_error`
+so a never-satisfied gate cannot hang the channel. See the Control-Read /
+Control-Write Engine specs (Sections 2.8 / 2.9) and the Scheduler control
+interface (Section 2.1).
 
 ---
 

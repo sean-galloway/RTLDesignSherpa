@@ -69,6 +69,7 @@ least 13 bits wide.
 | 0x228 | `DESCENG_ADDR0_LIMIT` | RW | Descriptor address range 0 limit [31:0] |
 | 0x22C | `DESCENG_ADDR1_BASE` | RW | Descriptor address range 1 base [31:0] |
 | 0x230 | `DESCENG_ADDR1_LIMIT` | RW | Descriptor address range 1 limit [31:0] |
+| 0x240 | `CTRL_CONFIG` | RW | `CTRLRD_MAX_TRY[8:0]` control-read poll retry budget (0-511, reset 16) |
 | 0x2A0 | `AXI_XFER_CONFIG` | RW | AXI transfer sizing configuration |
 | 0x2B0 | `PERF_CONFIG` | RW | Performance profiler configuration |
 | 0x2C0-0x2CC | `OBS_CTRL`/`OBS_FLAGS`/`OBS_DATA0`/`OBS_DATA1` | RW/RO | Observation mux |

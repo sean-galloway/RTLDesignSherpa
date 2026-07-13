@@ -38,6 +38,9 @@
 - **Automatic Chaining** follows next_descriptor_ptr links
 - **Last Descriptor Flag** terminates chain processing
 - **IRQ Generation** via gen_irq descriptor flag
+- **Control Descriptors** (`CTRL_READ` consumer gate / `CTRL_WRITE` producer
+  doorbell) for in-memory producer/consumer synchronization without moving
+  payload -- see Descriptor Format (Section 5.1)
 
 ### High-Performance Data Paths
 
