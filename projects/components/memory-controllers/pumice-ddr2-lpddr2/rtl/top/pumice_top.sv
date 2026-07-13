@@ -25,6 +25,7 @@ module pumice_top
     parameter int COL_WIDTH      = 10,
     parameter int DFI_RATE       = 2,
     parameter int DRAM_BEAT_WIDTH = 64,
+    parameter int DRAM_DEVICE_WIDTH = DRAM_BEAT_WIDTH,  // physical device word (x16 => 16)
     parameter int BL             = 8,
     parameter int NUM_ENTRIES    = 8,
     parameter int N_SRAM_SLOTS   = 8,
@@ -130,7 +131,8 @@ module pumice_top
     pumice_core #(
         .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(AW), .NUM_RANKS(NUM_RANKS),
         .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH),
-        .DFI_RATE(DFI_RATE), .DRAM_BEAT_WIDTH(DRAM_BEAT_WIDTH), .BL(BL),
+        .DFI_RATE(DFI_RATE), .DRAM_BEAT_WIDTH(DRAM_BEAT_WIDTH),
+        .DRAM_DEVICE_WIDTH(DRAM_DEVICE_WIDTH), .BL(BL),
         .NUM_ENTRIES(NUM_ENTRIES), .N_SRAM_SLOTS(N_SRAM_SLOTS)
     ) u_core (
         .aclk(aclk), .aresetn(aresetn), .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn),

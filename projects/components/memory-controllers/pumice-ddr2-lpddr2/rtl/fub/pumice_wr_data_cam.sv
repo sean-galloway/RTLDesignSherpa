@@ -40,7 +40,7 @@ module pumice_wr_data_cam #(
     parameter int BKW   = $clog2(NUM_BANKS),
     parameter int PTRW  = $clog2(NUM_ENTRIES),
     parameter int SPTRW = $clog2(N_SRAM_SLOTS),
-    parameter int BCW   = $clog2(BL)
+    parameter int BCW   = (BL > 1) ? $clog2(BL) : 1   // beat-counter width (BL=1 => 1b)
 ) (
     input  logic                          aclk,
     input  logic                          aresetn,

@@ -34,13 +34,26 @@ module pumice_core
     parameter int NUM_BANKS      = 8,
     parameter int ROW_WIDTH      = 14,
     parameter int COL_WIDTH      = 10,
-    parameter int BYTE_OFFSET_WIDTH = 3,
     parameter int DFI_RATE       = 2,
     parameter int DRAM_BEAT_WIDTH = 64,
-    parameter int BL             = 8,        // DRAM beats per burst
+    // Physical DRAM device word width. When < DRAM_BEAT_WIDTH (e.g. an x16
+    // device behind a 32b pumice beat) one pumice beat packs
+    // DRAM_BEAT_WIDTH/DRAM_DEVICE_WIDTH physical beats. Default == beat => the
+    // legacy 1:1 behaviour (no column/burst scaling).
+    parameter int DRAM_DEVICE_WIDTH = DRAM_BEAT_WIDTH,
+    parameter int BL             = 8,        // burst length, JEDEC device beats (MR0)
     parameter int NUM_ENTRIES    = 8,
     parameter int N_SRAM_SLOTS   = 8,
     parameter int AGE_WIDTH      = 16,
+
+    // Narrow-device derivations: addr_mapper column stride is the physical
+    // device word (BYTE_OFFSET_WIDTH), and the JEDEC burst length scales down
+    // to pumice DRAM beats (BL_PUMICE). Ratio 1 => BYTE_OFFSET_WIDTH=log2(beat
+    // bytes) and BL_PUMICE=BL, i.e. exactly the legacy values.
+    parameter int BYTE_OFFSET_WIDTH = $clog2(DRAM_DEVICE_WIDTH / 8),
+    parameter int BL_SHIFT   = (DRAM_BEAT_WIDTH > DRAM_DEVICE_WIDTH)
+                             ? $clog2(DRAM_BEAT_WIDTH / DRAM_DEVICE_WIDTH) : 0,
+    parameter int BL_PUMICE  = BL >> BL_SHIFT,
 
     // internal data unit = DFI word
     parameter int DFI_DATA_WIDTH = DRAM_BEAT_WIDTH * DFI_RATE,
@@ -181,7 +194,7 @@ module pumice_core
         .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(AW), .AXI_DATA_WIDTH(DW), .AXI_USER_WIDTH(UW),
         .DRAM_BEAT_WIDTH(DW), .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS),
         .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH), .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH),
-        .BL(BL / DFI_RATE), .NUM_ENTRIES(NUM_ENTRIES), .N_SRAM_SLOTS(N_SRAM_SLOTS),
+        .BL(BL_PUMICE / DFI_RATE), .NUM_ENTRIES(NUM_ENTRIES), .N_SRAM_SLOTS(N_SRAM_SLOTS),
         .N_SCHED_LU(N_LU), .AGE_WIDTH(AGE_WIDTH)
     ) u_ifc (
         .aclk(aclk), .aresetn(aresetn),
@@ -276,7 +289,7 @@ module pumice_core
     pumice_dfi_layer #(
         .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH),
         .COL_WIDTH(COL_WIDTH), .DFI_RATE(DFI_RATE), .DRAM_BEAT_WIDTH(DRAM_BEAT_WIDTH),
-        .BL(BL)
+        .BL(BL_PUMICE)
     ) u_dfi (
         .ctl_clk(aclk), .ctl_rstn(aresetn),
         .cmd_valid_i(w_cmd_v), .cmd_ready_o(w_cmd_rdy), .cmd_data_i(w_cmd_data),
