@@ -345,12 +345,15 @@ def test_ddr2_char_uart_multichunk_rate2_beat32(request):
 #      =0) PASSES only with CMD_DELAY=5. Regression guard for the DFI write-timing
 #      contract that the lenient loopback cannot see. -----------------------------
 def test_ddr2_char_uart_smoke_rate2_strict(request):
-    # Pre-pull (PREPULL_EN in the char macro) stages wrdata before the command,
-    # eliminating the ~3-cycle pull-floor skew. The residual is a fixed 1-cycle
-    # pipeline offset (command path 1 stage shorter than wrdata), trimmed by the
-    # runtime cmd_delay CSR (=1). Net: faithful write_latency=0 oracle passes.
+    # Pre-pull (PREPULL_EN in the char macro) stages wrdata before the command.
+    # With the FSM-free wr-path front end (pumice_wr_splitter chopper + intake),
+    # the DFI command and wrdata are aligned at the strict write_latency=0
+    # window with NO residual offset, so the runtime cmd_delay CSR is 0. (The
+    # prior 1-cycle command-shorter-than-wrdata offset that needed cmd_delay=1
+    # is gone.) A stale cmd_delay=1 rotates the captured stream by one beat
+    # (seed lands at the last column) -> every read beat mismatches.
     _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
-         strict_write_timing=True, write_latency=0, t_phy_wrlat=0, cmd_delay=1)
+         strict_write_timing=True, write_latency=0, t_phy_wrlat=0, cmd_delay=0)
 
 
 def test_ddr2_char_uart_smoke_rate2_strict_read(request):
@@ -358,7 +361,7 @@ def test_ddr2_char_uart_smoke_rate2_strict_read(request):
     # dfi_rddata_en (FIFO-ordered per RD command), NOT self-timed off CL. Checks
     # the controller asserts rddata_en with the right cadence + captures right.
     _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
-         strict_read_timing=True, read_latency=8, t_phy_wrlat=0, cmd_delay=1)
+         strict_read_timing=True, read_latency=8, t_phy_wrlat=0, cmd_delay=0)
 
 
 def test_ddr2_char_uart_smoke_rate2_faithful(request):
@@ -367,7 +370,7 @@ def test_ddr2_char_uart_smoke_rate2_faithful(request):
     # faithful to the real PHY -> the board should read+write correctly.
     _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
          strict_write_timing=True, write_latency=0,
-         strict_read_timing=True, read_latency=8, t_phy_wrlat=0, cmd_delay=1)
+         strict_read_timing=True, read_latency=8, t_phy_wrlat=0, cmd_delay=0)
 
 
 def test_ddr2_char_uart_smoke_rate2_x16(request):
@@ -381,7 +384,7 @@ def test_ddr2_char_uart_smoke_rate2_x16(request):
     # (fails) without the fix and passes with it.
     _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
          dram_device_width=16, strict_write_timing=True, write_latency=0,
-         strict_read_timing=True, read_latency=8, t_phy_wrlat=0, cmd_delay=1)
+         strict_read_timing=True, read_latency=8, t_phy_wrlat=0, cmd_delay=0)
 
 
 def test_ddr2_char_uart_smoke_rate2_rdphase1(request):
@@ -393,5 +396,5 @@ def test_ddr2_char_uart_smoke_rate2_rdphase1(request):
     # digital mechanism that fixes it. See project_ddr2_ila_read_valid_skew.
     _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
          strict_write_timing=True, write_latency=0,
-         strict_read_timing=True, read_latency=8, t_phy_wrlat=0, cmd_delay=1,
+         strict_read_timing=True, read_latency=8, t_phy_wrlat=0, cmd_delay=0,
          rd_phase=1, wr_phase=0)
