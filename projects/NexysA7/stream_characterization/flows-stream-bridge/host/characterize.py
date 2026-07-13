@@ -37,6 +37,7 @@ from descriptor_builder import (  # noqa: E402
     HARNESS_CSR_BASE,
 )
 from harness_addrs import H, harness_regs  # noqa: E402  (by-name harness CSR access)
+from harness_addrs import autodetect_port  # noqa: E402 (shared ttyUSB probe)
 import run_characterization as runner_mod  # noqa: E402
 
 # UART bridge — same module the main runner imports lazily.
@@ -179,7 +180,7 @@ def parse_args():
     p = argparse.ArgumentParser(
         description="Sweep STREAM DMA configurations on the FPGA and "
                     "measure cycles + throughput via the harness timer.")
-    p.add_argument("--port", default="/dev/ttyUSB1")
+    p.add_argument("--port", default='auto')
     p.add_argument("--baud", type=int, default=115200)
 
     # Two ways to pick configs:
@@ -289,6 +290,7 @@ def main() -> int:
               f"wr={wr_delay} cyc (RESP_DELAY=0x{delay_word:08X})")
     print()
     results = []
+    args.port = autodetect_port(args.baud, want=args.port)
     with UARTAxiBridge(args.port, args.baud) as bridge:
         runner = runner_mod.CharacterizationRunner(
             bridge, data_width=128, verbose=args.verbose)

@@ -120,16 +120,19 @@ def main(argv=None) -> int:
             sys.path.insert(0, cand)
             break
     from uart_axi_bridge import UARTAxiBridge
+    from harness_addrs import autodetect_port  # shared ttyUSB probe
     from stream_device import Stream
     from descriptor_builder import STREAM_APB_BASE, DESC_RAM_BASE
 
     ap = argparse.ArgumentParser(description="STREAM extended-addressing FPGA suite")
-    ap.add_argument("--port", default="/dev/ttyUSB1")
+    ap.add_argument("--port", default='auto')
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--channel", type=int, default=0)
     ap.add_argument("--width", type=int, default=4, help="tile width (beats/row)")
     ap.add_argument("--height", type=int, default=4, help="tile height (rows)")
     args = ap.parse_args(argv)
+
+    args.port = autodetect_port(args.baud, want=args.port)
 
     with UARTAxiBridge(args.port, args.baud) as bridge:
         stream = Stream(bridge, "stream0",

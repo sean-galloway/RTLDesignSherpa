@@ -94,7 +94,7 @@ def dump(io: RapidsCharIO, num_channels: int) -> None:
 
 def parse_args():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--port', default='/dev/ttyUSB1', help='UART device')
+    p.add_argument('--port', default='auto', help="UART device ('auto' probes /dev/ttyUSB* for the harness)")
     p.add_argument('--baud', type=int, default=115200)
     p.add_argument('--channels', type=int, default=4,
                    help='NUM_CHANNELS the bitstream was built with')
@@ -103,7 +103,9 @@ def parse_args():
 
 def main() -> int:
     args = parse_args()
-    with RapidsCharIO(port=args.port, baudrate=args.baud) as io:
+    from rapids_char_io import autodetect_port
+    port = autodetect_port(args.baud, want=args.port)
+    with RapidsCharIO(port=port, baudrate=args.baud) as io:
         dump(io, args.channels)
     return 0
 

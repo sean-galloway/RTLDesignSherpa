@@ -10,6 +10,7 @@ import os
 import sys
 
 from harness_addrs import H  # noqa: E402  (by-name harness CSR access)
+from harness_addrs import autodetect_port  # noqa: E402 (shared ttyUSB probe)
 from stream_addrs import A, write_reg  # noqa: E402  (by-name STREAM APB access)
 
 # Pull in the same UARTAxiBridge the runner uses.
@@ -110,9 +111,11 @@ def rd(b, addr, label):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--port", default="/dev/ttyUSB1")
+    ap.add_argument("--port", default='auto')
     ap.add_argument("--baud", type=int, default=115200)
     args = ap.parse_args()
+
+    args.port = autodetect_port(args.baud, want=args.port)
 
     with UARTAxiBridge(args.port, args.baud) as b:
         print("=== Harness CSRs ===")

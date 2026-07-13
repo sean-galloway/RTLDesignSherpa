@@ -83,6 +83,35 @@ DESC_STATUS = 0x028      # read: [0]=last descriptor write BRESP OK
 CSR_ID_EXPECTED = 0x5241_5031  # "RAP1"
 
 
+def autodetect_port(baud: int = 115200, want: str = None) -> str:
+    """Find the ttyUSB the rapids_char harness is on.
+
+    The USB-UART re-enumerates across reboots/replugs, so never hardcode the
+    port. Probe each candidate by reading the CSR_ID register (region 2 @ 0x000);
+    the board that answers with the 'RAP1' magic is ours. `want`: if the caller
+    passed --port explicitly (not 'auto'), try it first. Mirrors the STREAM char
+    harness autodetect (SCRATCH round-trip) with the rapids identity register.
+    """
+    import glob
+    cands = []
+    if want and want != "auto":
+        cands.append(want)
+    cands += sorted(p for p in glob.glob("/dev/ttyUSB*") if p not in cands)
+
+    for port in cands:
+        try:
+            with RapidsCharIO(port=port, baudrate=baud, timeout=0.4) as io:
+                if io.ping():
+                    print(f"[autodetect] rapids_char harness found on {port}")
+                    return port
+        except Exception:
+            continue
+    raise SystemExit(
+        f"[autodetect] no rapids_char harness responded on any of: "
+        f"{cands or '(no /dev/ttyUSB* present)'}. "
+        f"Is the board powered and programmed with rapids_char.bit?")
+
+
 def _harness_regmap(basename: str):
     """Load a hand-rolled harness regmap (../rtl/<basename>) by name."""
     from TBClasses.apb.register_map import RegisterMap

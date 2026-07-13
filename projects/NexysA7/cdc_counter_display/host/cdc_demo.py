@@ -153,6 +153,38 @@ class CdcDemoDriver:
             port=port, baudrate=baud, timeout=timeout)
         self.regs = UartRegisterMap(self.bridge, HARNESS_BASE, regmap_file)
 
+
+def autodetect_port(baud: int = 115200, want: str = None) -> str:
+    """Find the ttyUSB the cdc_demo harness is on.
+
+    The USB-UART re-enumerates across reboots/replugs, so never hardcode the
+    port. Probe each candidate by reading BUILD_ID; the board that answers with
+    the 'CDC1' magic is ours. `want`: if the caller passed --port explicitly (not
+    'auto'), try it first. Mirrors the STREAM/RAPIDS char autodetect with the cdc
+    identity register."""
+    import glob
+    cands = []
+    if want and want != "auto":
+        cands.append(want)
+    cands += sorted(p for p in glob.glob("/dev/ttyUSB*") if p not in cands)
+
+    for port in cands:
+        try:
+            d = CdcDemoDriver(port=port, baud=baud, timeout=0.4)
+            ok = d.build_id() == EXPECTED_BUILD_ID
+            ser = getattr(d.bridge, "ser", None)
+            if ser is not None:
+                ser.close()
+            if ok:
+                print(f"[autodetect] cdc_demo harness found on {port}")
+                return port
+        except Exception:
+            continue
+    raise SystemExit(
+        f"[autodetect] no cdc_demo harness responded on any of: "
+        f"{cands or '(no /dev/ttyUSB* present)'}. "
+        f"Is the board powered and programmed with the cdc_demo bitstream?")
+
     # ----- global registers ------------------------------------------------
     def build_id(self) -> int:
         return self.regs.read("BUILD_ID")

@@ -626,7 +626,7 @@ Examples:
   %(prog)s --suite --suite-channels 1,2,4 --suite-beats 1,4,8,16 \\
            --suite-bp off,on --suite-seeds default,0x12345678
 """)
-    p.add_argument('--port', default='/dev/ttyUSB1', help='UART device')
+    p.add_argument('--port', default='auto', help="UART device. Default 'auto' probes every /dev/ttyUSB* for the harness (CSR_ID round-trip); pass an explicit path to force it.")
     p.add_argument('--baud', type=int, default=115200)
     p.add_argument('--channels', type=int, default=4,
                    help='NUM_CHANNELS the bitstream was built with')
@@ -677,10 +677,14 @@ def main() -> int:
         level=logging.INFO if args.verbose else logging.WARNING,
         format='%(levelname)s %(name)s: %(message)s')
 
-    with RapidsCharIO(port=args.port, baudrate=args.baud) as io:
+    # Resolve the serial port. Default 'auto' probes every /dev/ttyUSB* for the
+    # harness (CSR_ID round-trip) since the USB-UART re-enumerates.
+    port = rio.autodetect_port(args.baud, want=args.port)
+
+    with RapidsCharIO(port=port, baudrate=args.baud) as io:
         if not io.ping():
             print(f"FAIL: rapids_char_top did not respond with ID "
-                  f"0x{rio.CSR_ID_EXPECTED:08X} on {args.port}")
+                  f"0x{rio.CSR_ID_EXPECTED:08X} on {port}")
             return 2
         print(f"Link OK: rapids_char_top ID = 0x{rio.CSR_ID_EXPECTED:08X}")
 

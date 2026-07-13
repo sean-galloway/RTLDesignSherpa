@@ -47,6 +47,7 @@ sys.path.insert(0,
 
 from descriptor_builder import DescriptorBuilder, CharConfig
 from harness_addrs import H, harness_regs  # noqa: E402 (by-name harness CSR access)
+from harness_addrs import autodetect_port  # noqa: E402 (shared ttyUSB probe)
 from stream_addrs import write_reg  # noqa: E402 (by-name STREAM APB register writes)
 from uart_axi_bridge import UARTAxiBridge
 
@@ -303,7 +304,7 @@ def print_diff(golden_writes, mismatches):
 def main():
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
                                  description=__doc__)
-    p.add_argument('--port',           default='/dev/ttyUSB2')
+    p.add_argument('--port',           default='auto')
     p.add_argument('--baud',           type=int, default=115200)
     p.add_argument('--channels',       type=int, default=7)
     p.add_argument('--descriptors',    type=int, default=16)
@@ -359,6 +360,7 @@ def main():
         reprogram_fpga()
 
     readbacks = {}
+    args.port = autodetect_port(args.baud, want=args.port)
     with UARTAxiBridge(args.port, args.baud) as bridge:
         if args.write:
             # Soft reset + clear stats before preload (BY NAME).

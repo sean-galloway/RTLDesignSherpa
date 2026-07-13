@@ -145,8 +145,10 @@ def main():
     p = argparse.ArgumentParser(
         description="Host CLI for cdc_demo_top bitstream.",
         formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__)
-    p.add_argument("--port", default="/dev/ttyUSB1",
-                   help="Serial device (default /dev/ttyUSB1)")
+    p.add_argument("--port", default="auto",
+                   help="Serial device. Default 'auto' probes every /dev/ttyUSB* "
+                        "for the harness (BUILD_ID round-trip); pass an explicit "
+                        "path to force it.")
     p.add_argument("--baud", type=int, default=115200)
     sub = p.add_subparsers(dest="cmd", required=True)
 
@@ -181,7 +183,11 @@ def main():
     pg.add_argument("addr")
 
     args = p.parse_args()
-    drv = cd.CdcDemoDriver(port=args.port, baud=args.baud)
+    # 'set'/'get' are raw-poke debug commands the user aims at a known device; the
+    # rest resolve the port by probing for the harness (BUILD_ID) since ttyUSB
+    # numbering drifts.
+    port = cd.autodetect_port(args.baud, want=args.port)
+    drv = cd.CdcDemoDriver(port=port, baud=args.baud)
     try:
         cmds = {
             "smoke": cmd_smoke, "monitor": cmd_monitor, "press": cmd_press,

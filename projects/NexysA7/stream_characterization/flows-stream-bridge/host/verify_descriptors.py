@@ -51,7 +51,8 @@ from descriptor_builder import (                              # noqa: E402
     CTRL_VALID,
     _W_CONTROL,
 )
-from uart_axi_bridge import UARTAxiBridge                     # noqa: E402
+from uart_axi_bridge import UARTAxiBridge
+from harness_addrs import autodetect_port  # shared ttyUSB probe                     # noqa: E402
 
 
 # -----------------------------------------------------------------
@@ -138,7 +139,7 @@ def _decode_descriptor_words(words: dict, fmt_indent: str = "    ") -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--port", default="/dev/ttyUSB2")
+    ap.add_argument("--port", default='auto')
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument(
         "--configs",
@@ -171,6 +172,7 @@ def main() -> int:
 
     total_pass = 0
     total_fail = 0
+    args.port = autodetect_port(args.baud, want=args.port)
     with UARTAxiBridge(args.port, args.baud) as bridge:
         for cfg in cfgs:
             print(f"\n=== {cfg.name} "

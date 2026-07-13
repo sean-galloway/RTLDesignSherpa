@@ -29,12 +29,17 @@ DEBUG_SRAM_BASE  = 0x40000                  # debug trace SRAM region (not a CSR
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--port", default="/dev/ttyUSB2")
+    ap.add_argument("--port", default="auto",
+                    help="Serial device ('auto' probes /dev/ttyUSB* for the harness)")
     ap.add_argument("--channels", required=True)
     ap.add_argument("--config", required=True)
     ap.add_argument("--size", default="1MB")
     ap.add_argument("--mon-config", default="debug-all")
     args = ap.parse_args()
+    # Resolve the port ONCE (the two bridge opens + the run_characterization
+    # subprocess below all reuse it, so autodetect runs a single time).
+    from harness_addrs import autodetect_port
+    args.port = autodetect_port(115200, want=args.port)
 
     # Full cluster reset BEFORE the run. The soft-reset pulse alone (CTRL
     # bit 3) is NOT enough between back-to-back invocations: per-channel
