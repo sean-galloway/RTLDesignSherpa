@@ -263,6 +263,25 @@ class RapidsCharHarnessTB(TBBase):
         addr = self.reg_abs(half, reg_name)
         await self.write_apb(addr, value, reg_name=f"{half.upper()}.{reg_name}")
 
+    async def write_fields(self, half: str, reg_name: str, **fields: int):
+        """Program a DUT register by setting its FIELDS by name (composed at their
+        rapids_regmap offsets/widths) rather than a hand-assembled bitmask.
+        Mirrors the board host's RapidsCharCampaign.write_fields so sim and board
+        program identically. Unspecified fields default to 0."""
+        regs = self.src_regs if half == 'src' else self.snk_regs
+        info = regs.registers[reg_name]
+        word = 0
+        for fname, val in fields.items():
+            fld = info.get(fname)
+            if not isinstance(fld, dict) or 'offset' not in fld:
+                raise KeyError(f"unknown field {reg_name}.{fname}")
+            off = fld['offset']
+            hi, lo = (int(x) for x in off.split(':')) if ':' in off \
+                else (int(off), int(off))
+            mask = ((1 << (hi - lo + 1)) - 1) << lo
+            word = (word & ~mask) | ((int(val) << lo) & mask)
+        await self.write_reg(half, reg_name, word)
+
     async def write_apb(self, addr: int, data: int, reg_name=None):
         from CocoTBFramework.components.apb.apb_packet import APBPacket
         packet = APBPacket(
@@ -285,26 +304,26 @@ class RapidsCharHarnessTB(TBBase):
         RD/WR=8 beats, ALLOC=16, wide-open address windows, all channels EN)."""
         all_ch = (1 << self.NUM_CHANNELS) - 1
 
-        await self.write_reg(half, 'SCHED_TIMEOUT_CYCLES', 1_000_000)
-        await self.write_reg(half, 'SCHED_TIMEOUT_LIMIT', 0xFF)
-        # SCHED_EN[0] | ERR_EN[2]  (TIMEOUT_EN/COMPL_EN/PERF_EN off)
-        await self.write_reg(half, 'SCHED_CONFIG', (1 << 0) | (1 << 2))
+        await self.write_fields(half, 'SCHED_TIMEOUT_CYCLES', TIMEOUT_CYCLES=1_000_000)
+        await self.write_fields(half, 'SCHED_TIMEOUT_LIMIT', LIMIT=0xFF)
+        await self.write_fields(half, 'SCHED_CONFIG', SCHED_EN=1, ERR_EN=1)  # TIMEOUT/COMPL/PERF off
 
-        # DESCENG_EN | PREFETCH_EN | FIFO_THRESH=4
-        await self.write_reg(half, 'DESCENG_CONFIG', 0x1 | 0x2 | (4 << 2))
-        await self.write_reg(half, 'DESCENG_ADDR0_BASE', 0x0000_0000)
-        await self.write_reg(half, 'DESCENG_ADDR0_LIMIT', 0xFFFF_FFFF)
-        await self.write_reg(half, 'DESCENG_ADDR1_BASE', 0x0000_0000)
-        await self.write_reg(half, 'DESCENG_ADDR1_LIMIT', 0xFFFF_FFFF)
+        await self.write_fields(half, 'DESCENG_CONFIG',
+                                DESCENG_EN=1, PREFETCH_EN=1, FIFO_THRESH=4)
+        await self.write_fields(half, 'DESCENG_ADDR0_BASE',  ADDR0_BASE=0x0000_0000)
+        await self.write_fields(half, 'DESCENG_ADDR0_LIMIT', ADDR0_LIMIT=0xFFFF_FFFF)
+        await self.write_fields(half, 'DESCENG_ADDR1_BASE',  ADDR1_BASE=0x0000_0000)
+        await self.write_fields(half, 'DESCENG_ADDR1_LIMIT', ADDR1_LIMIT=0xFFFF_FFFF)
 
         # RD/WR=8 beats, ALLOC=16, DRAIN=1.
-        axi_xfer = (1 << 24) | (16 << 16) | (8 << 8) | (8 << 0)
-        await self.write_reg(half, 'AXI_XFER_CONFIG', axi_xfer)
+        await self.write_fields(half, 'AXI_XFER_CONFIG',
+                                RD_XFER_BEATS=8, WR_XFER_BEATS=8,
+                                ALLOC_SIZE=16, DRAIN_SIZE=1)
 
-        await self.write_reg(half, 'CTRL_CONFIG', 0x1)
+        await self.write_fields(half, 'CTRL_CONFIG', CTRLRD_MAX_TRY=1)
 
-        await self.write_reg(half, 'CHANNEL_ENABLE', all_ch)
-        await self.write_reg(half, 'GLOBAL_CTRL', 0x1)   # GLOBAL_EN (avoid RST bit)
+        await self.write_fields(half, 'CHANNEL_ENABLE', CH_EN=all_ch)
+        await self.write_fields(half, 'GLOBAL_CTRL', GLOBAL_EN=1)   # avoid RST bit
 
         await self.wait_clocks(self.clk_name, 10)
         self.log.info(f"rapids_char_harness {half.upper()} half configured via APB")
