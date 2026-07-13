@@ -1,0 +1,36 @@
+# High-performance LiteDRAM DDR2 core for the ddr2-characterization harness.
+# Configured to be the apples-to-apples counterpart of a HIGH-PERF pumice
+# (reorder + happy_hybrid preset): ROW_BANK_COL mapping, open-page with
+# lookahead auto-precharge, a deep command/reorder buffer, self-initializing.
+#
+# Board: Nexys A7 (== Nexys4 DDR), MT47H64M16 x16 DDR2, Xilinx A7DDRPHY.
+# Operating point mirrors LiteDRAM's stock nexys4ddr reference (100 MHz sys,
+# 1:4). Proven-safe fallback if timing/leveling is marginal on silicon:
+# 75 MHz sys / 1:2 (the point that passed memtest this session).
+{
+    "speedgrade":       -1,
+    "cpu":              "vexriscv",   # bakes in BIOS -> self-inits DDR2 (init_done)
+    "memtype":          "DDR2",
+    "uart":             "rs232",      # LiteDRAM BIOS console (separate from harness UART)
+
+    "cmd_latency":      0,
+    "sdram_module":     "MT47H64M16",
+    "sdram_module_nb":  2,            # x16 -> 2 byte groups
+    "sdram_rank_nb":    1,
+    "sdram_phy":        "A7DDRPHY",
+
+    "input_clk_freq":   100e6,
+    "sys_clk_freq":     100e6,
+    "iodelay_clk_freq": 200e6,
+
+    # High-perf reorder window (bankmachine lookahead FIFO depth) == pumice
+    # SCHED_TUNING.lookahead. Defaults already give with_auto_precharge=True +
+    # ROW_BANK_COL (== pumice ROW_MAJOR open-page adaptive).
+    "cmd_buffer_depth": 16,
+
+    # ONE 64-bit AXI port to match axi4_master_wr_pattern_gen (id_width 8).
+    # The crossbar inserts any width conversion internally -> no external adapter.
+    "user_ports": {
+        "axi_0": { "type": "axi", "data_width": 64, "id_width": 8 }
+    }
+}
