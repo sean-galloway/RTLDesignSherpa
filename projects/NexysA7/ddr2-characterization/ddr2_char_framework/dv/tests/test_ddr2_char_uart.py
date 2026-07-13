@@ -242,6 +242,59 @@ async def cocotb_test_uart_simple(dut):
                     f"act=0x{res.actual:08X} mismatched={res.mismatched}")
 
 
+@cocotb.test(timeout_time=400, timeout_unit="ms")
+async def cocotb_test_uart_sweep(dut):
+    """Short BOTH-ORDERINGS functional smoke over the COMMON harness. Runs a
+    ~SWEEP_NPKT (default 20) packet write->read integrity pass twice:
+      * in-order : force_inorder=1, single AXI id
+      * ooo      : force_inorder=0, multi-id id-spread (id_mode=COUNTER) so the
+                   scheduler reorders across ids
+    Responses always return in AR order (the rd CAM is a reorder buffer), so the
+    engine's per-beat LFSR check is valid for both legs. One init; force_inorder
+    is a runtime scheduler knob flipped between legs; the ooo leg uses a separate
+    address region so it can't alias the in-order data. Parametrized over the DFI
+    build configs by the pytest wrappers (gear-1 / rate4 / beat32 / x16)."""
+    drv, chan, _dfi, _mem = await _bringup(dut)
+
+    NPKT   = int(os.environ.get("SWEEP_NPKT", "20"))
+    BURST  = 4
+    STRIDE = BURST * 8
+    SEED   = 0xABCD1234
+
+    def _leg(base, force_inorder, id_mode):
+        drv.set_scheduler(force_inorder=force_inorder)   # runtime, next quiet pt
+        drv.program_wr_engine(start_addr=base, burst_len=BURST, txn_count=NPKT,
+                              stride_0=STRIDE, lfsr_seed=SEED,
+                              axi_size=dc.AXI_SIZE_8, id_mode=id_mode)
+        drv.start_wr(); w = pm.wait_engine(drv, "wr", timeout_s=60)
+        drv.program_rd_engine(start_addr=base, burst_len=BURST, txn_count=NPKT,
+                              stride_0=STRIDE, lfsr_seed=SEED,
+                              axi_size=dc.AXI_SIZE_8, id_mode=id_mode)
+        drv.clear_stats(); drv.start_rd()
+        r = pm.wait_engine(drv, "rd", timeout_s=60)
+        return dict(wr=w, rd=r, mism=drv.beats_mismatched())
+
+    def prog():
+        results = {"build_id": drv.build_id()}
+        drv.soft_reset()
+        drv.set_controller_cfg(memtype=dc.MEMTYPE_DDR2, t_phy_wrlat=4,
+                               t_rddata_en=4, rd_in_order=True)
+        drv.set_dfi_phase(rd_phase=0, wr_phase=0)
+        results["inorder"] = _leg(0x00000, force_inorder=True,
+                                  id_mode=dc.ID_MODE_FIXED)
+        results["ooo"]     = _leg(0x40000, force_inorder=False,
+                                  id_mode=dc.ID_MODE_COUNTER)
+        return results
+
+    r = await cocotb.external(prog)()
+    dut._log.info("sweep results (NPKT=%d): %s", NPKT, r)
+    assert r["build_id"] == 0x44445232, f"BUILD_ID mismatch: 0x{r['build_id']:08X}"
+    for name in ("inorder", "ooo"):
+        res = r[name]
+        assert res["wr"] and res["rd"], f"{name}: engine did not finish: {res}"
+        assert res["mism"] == 0, f"{name}: {res['mism']} beat(s) mismatched: {res}"
+
+
 
 # =============================================================================
 # pytest wrappers
@@ -395,3 +448,22 @@ def test_ddr2_char_uart_smoke_rate2_rdphase1(request):
          strict_write_timing=True, write_latency=0,
          strict_read_timing=True, read_latency=8, t_phy_wrlat=0,
          rd_phase=1, wr_phase=0)
+
+
+# ---- short both-orderings functional sweep (in-order + OOO multi-id) ---------
+#      ~20 packets/leg over the common harness, across the DFI build configs.
+def test_ddr2_char_uart_sweep(request):            # gear-1 (AXI=64, beat=64)
+    _run("cocotb_test_uart_sweep", dfi_rate=2, dram_beat_width=64)
+
+
+def test_ddr2_char_uart_sweep_rate4(request):      # board DFI (rate4, beat=32)
+    _run("cocotb_test_uart_sweep", dfi_rate=4, dram_beat_width=32)
+
+
+def test_ddr2_char_uart_sweep_beat32(request):     # rate2 / beat=32
+    _run("cocotb_test_uart_sweep", dfi_rate=2, dram_beat_width=32)
+
+
+def test_ddr2_char_uart_sweep_x16(request):        # x16 device model
+    _run("cocotb_test_uart_sweep", dfi_rate=2, dram_beat_width=32,
+         dram_device_width=16)
