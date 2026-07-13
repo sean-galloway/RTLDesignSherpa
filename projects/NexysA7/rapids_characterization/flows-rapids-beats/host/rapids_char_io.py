@@ -269,6 +269,30 @@ class RapidsCharIO:
     def read_status(self) -> int:
         return self.csr_read_reg("STATUS")
 
+    def read_bus_meter(self, direction: str) -> dict:
+        """Read one direction's frozen axi_bus_meter buckets by name.
+
+        direction: 'rd' (source-read R channel) or 'wr' (sink-write W channel).
+        Returns raw PROD/BP/STARV/IDLE cycle counts + window total + utilization
+        (prod / total). The meter is auto-windowed in the harness (opened on DMA
+        busy, frozen 16 idle cycles after the last beat), so these are the
+        buckets for exactly one workload.
+        """
+        if direction not in ('rd', 'wr'):
+            raise ValueError(f"direction must be 'rd' or 'wr', got {direction!r}")
+        d = direction.upper()
+        prod = self.csr_read_reg(f"OBS_{d}_PROD") or 0
+        bp = self.csr_read_reg(f"OBS_{d}_BP") or 0
+        starv = self.csr_read_reg(f"OBS_{d}_STARV") or 0
+        idle = self.csr_read_reg(f"OBS_{d}_IDLE") or 0
+        total = prod + bp + starv + idle
+        return {'prod': prod, 'bp': bp, 'starv': starv, 'idle': idle,
+                'total': total, 'util': (prod / total) if total else 0.0}
+
+    def read_bus_meters(self) -> dict:
+        """Read both directions' bus meters -> {'rd': {...}, 'wr': {...}}."""
+        return {'rd': self.read_bus_meter('rd'), 'wr': self.read_bus_meter('wr')}
+
     def ping(self) -> bool:
         """Verify the UART link + CSR block are alive via the ID register
         (CTRL @ 0x000 reads back the 'RAP1' magic)."""

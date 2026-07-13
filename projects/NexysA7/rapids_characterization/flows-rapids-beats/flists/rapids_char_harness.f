@@ -36,6 +36,7 @@ $REPO_ROOT/rtl/amba/shared/sdpram_core.sv
 # ---- On-chip pattern generators / checkers + memories ----
 $REPO_ROOT/rtl/amba/shared/axi4_slave_rd_pattern_gen.sv
 $REPO_ROOT/rtl/amba/shared/axi4_slave_wr_crc_check.sv
+$REPO_ROOT/rtl/amba/shared/axi_bus_meter.sv
 $REPO_ROOT/rtl/amba/shared/axis4_master_pattern_gen.sv
 $REPO_ROOT/rtl/amba/shared/axis4_slave_pattern_check.sv
 $REPO_ROOT/rtl/amba/shared/sdpram_slave_axi4_axi4.sv

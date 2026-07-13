@@ -95,6 +95,14 @@
 //   0x0B4 CHK_ACTUAL_CRC_VALID   (NUM_CHANNELS bits)
 //   0x0B8 RD_CRC_VALID           (NUM_CHANNELS bits)
 //   0x0BC WR_CRC_VALID           (NUM_CHANNELS bits)
+//   0x100 OBS_RD_PROD  source-read  R-channel productive cycles (frozen window)
+//   0x104 OBS_RD_BP    source-read  R-channel backpressure cycles
+//   0x108 OBS_RD_STARV source-read  R-channel starvation cycles
+//   0x10C OBS_RD_IDLE  source-read  R-channel idle cycles
+//   0x110 OBS_WR_PROD  sink-write   W-channel productive cycles
+//   0x114 OBS_WR_BP    sink-write   W-channel backpressure cycles
+//   0x118 OBS_WR_STARV sink-write   W-channel starvation cycles
+//   0x11C OBS_WR_IDLE  sink-write   W-channel idle cycles
 //
 // Author: sean galloway
 // Created: 2026-07-03
@@ -257,6 +265,15 @@ module rapids_char_top #(
     localparam logic [11:0] CSR_CHK_ACT_VLD = 12'h0B4;
     localparam logic [11:0] CSR_RD_CRC_VLD  = 12'h0B8;
     localparam logic [11:0] CSR_WR_CRC_VLD  = 12'h0BC;
+    // Per-direction AXI bus-meter buckets (axi_bus_meter in the harness).
+    localparam logic [11:0] CSR_OBS_RD_PROD = 12'h100;
+    localparam logic [11:0] CSR_OBS_RD_BP   = 12'h104;
+    localparam logic [11:0] CSR_OBS_RD_STRV = 12'h108;
+    localparam logic [11:0] CSR_OBS_RD_IDLE = 12'h10C;
+    localparam logic [11:0] CSR_OBS_WR_PROD = 12'h110;
+    localparam logic [11:0] CSR_OBS_WR_BP   = 12'h114;
+    localparam logic [11:0] CSR_OBS_WR_STRV = 12'h118;
+    localparam logic [11:0] CSR_OBS_WR_IDLE = 12'h11C;
 
     // =========================================================================
     // Harness control/status registers (driven by the CSR region)
@@ -310,6 +327,9 @@ module rapids_char_top #(
     logic [NUM_CHANNELS-1:0]    wr_crc_valid;
     logic [31:0]                wr_beat_count_total;
     logic                       wr_mem_busy;
+    // Per-direction AXI bus-meter buckets from the harness.
+    logic [31:0]                obs_rd_prod, obs_rd_bp, obs_rd_starv, obs_rd_idle;
+    logic [31:0]                obs_wr_prod, obs_wr_bp, obs_wr_starv, obs_wr_idle;
     logic                       src_system_idle, snk_system_idle;
     logic [NUM_CHANNELS-1:0]    src_sched_error, snk_sched_error;
     logic                       mon_irq;
@@ -576,6 +596,14 @@ module rapids_char_top #(
                     CSR_CHK_ACT_VLD: w_readmux = 32'(o_chk_actual_crc_valid);
                     CSR_RD_CRC_VLD:  w_readmux = 32'(rd_crc_valid);
                     CSR_WR_CRC_VLD:  w_readmux = 32'(wr_crc_valid);
+                    CSR_OBS_RD_PROD: w_readmux = obs_rd_prod;
+                    CSR_OBS_RD_BP:   w_readmux = obs_rd_bp;
+                    CSR_OBS_RD_STRV: w_readmux = obs_rd_starv;
+                    CSR_OBS_RD_IDLE: w_readmux = obs_rd_idle;
+                    CSR_OBS_WR_PROD: w_readmux = obs_wr_prod;
+                    CSR_OBS_WR_BP:   w_readmux = obs_wr_bp;
+                    CSR_OBS_WR_STRV: w_readmux = obs_wr_starv;
+                    CSR_OBS_WR_IDLE: w_readmux = obs_wr_idle;
                     default:         w_readmux = 32'h0;
                 endcase
             end
@@ -737,6 +765,16 @@ module rapids_char_top #(
         .wr_crc_valid           (wr_crc_valid),
         .wr_beat_count_total    (wr_beat_count_total),
         .wr_mem_busy            (wr_mem_busy),
+
+        // Per-direction AXI bus-meter buckets
+        .obs_rd_prod            (obs_rd_prod),
+        .obs_rd_bp              (obs_rd_bp),
+        .obs_rd_starv           (obs_rd_starv),
+        .obs_rd_idle            (obs_rd_idle),
+        .obs_wr_prod            (obs_wr_prod),
+        .obs_wr_bp              (obs_wr_bp),
+        .obs_wr_starv           (obs_wr_starv),
+        .obs_wr_idle            (obs_wr_idle),
 
         // SOURCE descriptor-RAM host write port
         .desc_src_awid   (AXI_ID_WIDTH'(0)),

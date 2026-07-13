@@ -101,6 +101,15 @@ CSR = [
     (0x0B4, 'CHK_ACT_VLD', 'r', None),
     (0x0B8, 'RD_CRC_VLD',  'r', None),
     (0x0BC, 'WR_CRC_VLD',  'r', None),
+    # per-direction AXI bus-meter buckets (axi_bus_meter, frozen window)
+    (0x100, 'OBS_RD_PROD', 'r', None),
+    (0x104, 'OBS_RD_BP',   'r', None),
+    (0x108, 'OBS_RD_STARV','r', None),
+    (0x10C, 'OBS_RD_IDLE', 'r', None),
+    (0x110, 'OBS_WR_PROD', 'r', None),
+    (0x114, 'OBS_WR_BP',   'r', None),
+    (0x118, 'OBS_WR_STARV','r', None),
+    (0x11C, 'OBS_WR_IDLE', 'r', None),
 ]
 
 _HDR = '''# SPDX-License-Identifier: MIT

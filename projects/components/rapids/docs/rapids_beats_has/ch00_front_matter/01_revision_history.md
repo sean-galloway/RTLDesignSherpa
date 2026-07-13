@@ -28,12 +28,31 @@
 | 1.0 | 2026-01-17 | RTL Design Sherpa | Initial release |
 | 0.6 | 2026-07-02 | RTL Design Sherpa | Resynced to RTL top-level integration |
 | 0.7 | 2026-07-13 | RTL Design Sherpa | Added the control-descriptor feature (CTRL_READ consumer gate / CTRL_WRITE producer doorbell) |
+| 0.8 | 2026-07-13 | RTL Design Sherpa | Added Chapter 6: Performance (throughput targets, latency characteristics, measured resource estimates) |
 
 : Document Revision History
 
 ---
 
 ## Change Summary
+
+### Version 0.8 (2026-07-13)
+
+**Performance Chapter**
+
+- Added Chapter 6: Performance, mirroring the STREAM HAS performance chapter:
+  - Section 6.1 Throughput Targets -- per-interface and aggregate bandwidth
+    (512-bit @ 100 MHz = 6.4 GB/s per direction, 12.8 GB/s full-duplex with
+    concurrent sink + source), practical single/multi-channel efficiency,
+    limiting factors, design targets, and on-silicon golden-CRC validation
+    (48/48 configs).
+  - Section 6.2 Latency Characteristics -- kick-to-first-beat breakdown,
+    control-descriptor latency (`CTRL_READ` retry budget, `CTRL_WRITE`
+    doorbell), variability, and worst-case bounds.
+  - Section 6.3 Resource Estimates -- measured post-implementation utilization
+    from the Nexys A7-100T characterization build (37,555 LUT / 28,683 FF /
+    22 BRAM / 0 DSP at NUM_CHANNELS=4, timing met at 100 MHz), per-block
+    breakdown, and scaling notes.
 
 ### Version 0.7 (2026-07-13)
 

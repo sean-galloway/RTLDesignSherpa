@@ -23,7 +23,7 @@
 
 # RAPIDS Beats Architecture HAS
 
-**Version:** 0.7
+**Version:** 0.8
 **Date:** 2026-07-13
 **Purpose:** Hardware Architecture Specification for RAPIDS Phase 1 "Beats" Architecture
 **Classification:** External Interface Specification
@@ -73,6 +73,12 @@
 - [Register Map](ch05_programming/02_register_map.md)
 - [Initialization Sequence](ch05_programming/03_initialization.md)
 - [Error Handling](ch05_programming/04_error_handling.md)
+
+### Chapter 6: Performance
+
+- [Throughput Targets](ch06_performance/01_throughput.md)
+- [Latency Characteristics](ch06_performance/02_latency.md)
+- [Resource Estimates](ch06_performance/03_resources.md)
 
 ---
 

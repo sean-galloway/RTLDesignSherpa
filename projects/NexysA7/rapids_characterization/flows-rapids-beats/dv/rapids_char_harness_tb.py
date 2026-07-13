@@ -408,6 +408,21 @@ class RapidsCharHarnessTB(TBBase):
         except Exception:
             return -1
 
+    def _read_bus_meter(self, d, direction: str) -> dict:
+        """Read a frozen axi_bus_meter's four aggregate buckets.
+
+        direction: 'rd' (source-read R) or 'wr' (sink-write W). Returns the
+        raw PROD/BP/STARV/IDLE cycle counts plus derived window total and
+        utilization = prod / (prod+bp+starv+idle).
+        """
+        prod = self._read_u32(getattr(d, f'obs_{direction}_prod'))
+        bp = self._read_u32(getattr(d, f'obs_{direction}_bp'))
+        starv = self._read_u32(getattr(d, f'obs_{direction}_starv'))
+        idle = self._read_u32(getattr(d, f'obs_{direction}_idle'))
+        total = prod + bp + starv + idle
+        return {'prod': prod, 'bp': bp, 'starv': starv, 'idle': idle,
+                'total': total, 'util': (prod / total) if total else 0.0}
+
     async def _pulse(self, sig, cycles=1):
         sig.value = 1
         await self.wait_clocks(self.clk_name, cycles)
@@ -514,6 +529,19 @@ class RapidsCharHarnessTB(TBBase):
         if se not in (0, -1):
             errors.append(f"snk_sched_error=0x{se:X}")
 
+        # AXI bus meter (sink-write W channel): the frozen window must have
+        # counted productive beats, and its buckets must sum to a non-zero
+        # window. This proves the reused axi_bus_meter is wired + windowed.
+        wr_util = self._read_bus_meter(d, 'wr')
+        if wr_util['prod'] == 0:
+            errors.append("wr bus-meter productive=0 (meter not counting)")
+        if wr_util['total'] == 0:
+            errors.append("wr bus-meter window empty (bad windowing)")
+        else:
+            self.log.info(f"  SINK bus meter: prod={wr_util['prod']} "
+                          f"bp={wr_util['bp']} starv={wr_util['starv']} "
+                          f"idle={wr_util['idle']} util={wr_util['util']:.1%}")
+
         if errors:
             for e in errors:
                 self.log.error(f"  SCOREBOARD: {e}")
@@ -521,7 +549,8 @@ class RapidsCharHarnessTB(TBBase):
             self.log.info(f"  SCOREBOARD: SINK self-check PASSED for "
                           f"{n_active} channels ({beats} beats each)")
         return (len(errors) == 0), {'errors': errors, 'results': results,
-                                    'wr_beat_count_total': wr_total}
+                                    'wr_beat_count_total': wr_total,
+                                    'wr_bus_meter': wr_util}
 
     # =========================================================================
     # TEST: SOURCE self-check  (m_axi_rd LFSR -> source -> m_axis chk)
@@ -605,6 +634,18 @@ class RapidsCharHarnessTB(TBBase):
         if se not in (0, -1):
             errors.append(f"src_sched_error=0x{se:X}")
 
+        # AXI bus meter (source-read R channel): the frozen window must have
+        # counted productive beats. Proves the read-side meter is wired.
+        rd_util = self._read_bus_meter(d, 'rd')
+        if rd_util['prod'] == 0:
+            errors.append("rd bus-meter productive=0 (meter not counting)")
+        if rd_util['total'] == 0:
+            errors.append("rd bus-meter window empty (bad windowing)")
+        else:
+            self.log.info(f"  SOURCE bus meter: prod={rd_util['prod']} "
+                          f"bp={rd_util['bp']} starv={rd_util['starv']} "
+                          f"idle={rd_util['idle']} util={rd_util['util']:.1%}")
+
         if errors:
             for e in errors:
                 self.log.error(f"  SCOREBOARD: {e}")
@@ -613,4 +654,5 @@ class RapidsCharHarnessTB(TBBase):
                           f"{n_active} channels ({beats} beats each)")
         return (len(errors) == 0), {'errors': errors, 'results': results,
                                     'o_chk_beat_count_total': chk_total,
-                                    'o_data_error': data_error}
+                                    'o_data_error': data_error,
+                                    'rd_bus_meter': rd_util}

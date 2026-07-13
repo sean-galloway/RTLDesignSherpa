@@ -64,6 +64,14 @@ SRC_DATA_BASE = 0x1000_0000    # source data (m_axi_rd) - address agnostic
 DST_DATA_BASE = 0x2000_0000    # sink data dest (m_axi_wr) - address agnostic
 CHANNEL_OFFSET = 0x0010_0000
 
+# Bus-meter throughput math. The data masters are DATA_WIDTH=512b = 64 B/beat,
+# and one PRODUCTIVE meter cycle == one 512b beat transferred. Peak per-direction
+# bandwidth = BYTES_PER_BEAT * ACLK_HZ; effective BW = peak * utilization
+# (util = prod / (prod+bp+starv+idle)).
+BYTES_PER_BEAT = 64
+ACLK_HZ = 100_000_000
+PEAK_BW_PER_DIR = BYTES_PER_BEAT * ACLK_HZ   # 6.4 GB/s at 100 MHz
+
 # APB half bases (DUT-REG region) — match the RegisterMap start_addresses.
 APB_SRC_BASE = rio.APB_SRC_BASE
 APB_SNK_BASE = rio.APB_SNK_BASE
@@ -432,6 +440,29 @@ class RapidsCharCampaign:
         if se not in (0, None):
             errors.append(f"{label.lower()}_sched_error=0x{se:X}")
 
+        # Per-direction AXI bus-meter: read the frozen window's buckets and
+        # derive measured utilization + effective bandwidth. Direction follows
+        # the beat-count register: RD_BEATS_T -> source read, WR_BEATS_T -> sink
+        # write. Non-fatal: a meter read hiccup must not fail a golden-clean run.
+        direction = 'rd' if beat_count_reg.upper().startswith('RD') else 'wr'
+        try:
+            meter = self.io.read_bus_meter(direction)
+        except Exception as exc:  # noqa: BLE001
+            self.log.warning(f"  {label}: bus-meter read failed: {exc}")
+            meter = None
+        perf = None
+        if meter and meter['total'] > 0:
+            eff_bw = PEAK_BW_PER_DIR * meter['util']
+            perf = {'direction': direction, 'util': meter['util'],
+                    'eff_bw_bytes_per_s': eff_bw,
+                    'eff_bw_gb_s': eff_bw / 1e9,
+                    'peak_bw_gb_s': PEAK_BW_PER_DIR / 1e9,
+                    'buckets': meter}
+            print(f"  {label} perf: util={meter['util']:.1%} "
+                  f"eff={eff_bw/1e9:.2f} GB/s of {PEAK_BW_PER_DIR/1e9:.1f} peak "
+                  f"(prod={meter['prod']} bp={meter['bp']} "
+                  f"starv={meter['starv']} idle={meter['idle']})")
+
         passed = len(errors) == 0
         for w in warnings:
             self.log.warning(f"  {label}: {w}")
@@ -442,7 +473,8 @@ class RapidsCharCampaign:
               f"golden-validated){' [WARN: gen-valid flake]' if warnings and passed else ''}")
         return passed, {'errors': errors, 'warnings': warnings,
                         'results': results, 'beat_total': beat_total,
-                        'golden_mismatch': golden_mismatch}
+                        'golden_mismatch': golden_mismatch,
+                        'perf': perf}
 
     # ---- suite: sweep a matrix, one row per config -------------------------
 
@@ -501,6 +533,7 @@ def _jsonable(detail: dict) -> dict:
            'warnings': detail.get('warnings', []),
            'beat_total': detail.get('beat_total'),
            'golden_mismatch': detail.get('golden_mismatch', False),
+           'perf': detail.get('perf'),
            'per_channel': {}}
     for ch, res in (detail.get('results') or {}).items():
         out['per_channel'][str(ch)] = {
@@ -517,13 +550,32 @@ def _print_suite_summary(rows) -> None:
     print(f"SUITE SUMMARY: {len(rows)} configs run, "
           f"{len(passed)} passed, {len(failed)} failed")
     print("=" * 78)
-    print(f"{'#':<4}{'config':<34}{'sink':>8}{'source':>8}{'overall':>9}")
+    def _bw(detail):
+        p = (detail or {}).get('perf')
+        return f"{p['eff_bw_gb_s']:.2f}" if p else "  -"
+
+    print(f"{'#':<4}{'config':<30}{'sink':>6}{'source':>7}{'ovr':>5}"
+          f"{'snkGB/s':>9}{'srcGB/s':>9}")
     print("-" * 78)
     for i, r in enumerate(rows, 1):
-        print(f"{i:<4}{r['name']:<34}"
-              f"{'PASS' if r['sink_pass'] else 'FAIL':>8}"
-              f"{'PASS' if r['source_pass'] else 'FAIL':>8}"
-              f"{'PASS' if r['pass'] else 'FAIL':>9}")
+        print(f"{i:<4}{r['name']:<30}"
+              f"{'PASS' if r['sink_pass'] else 'FAIL':>6}"
+              f"{'PASS' if r['source_pass'] else 'FAIL':>7}"
+              f"{'P' if r['pass'] else 'F':>5}"
+              f"{_bw(r.get('sink')):>9}{_bw(r.get('source')):>9}")
+    # Peak measured throughput across the suite (best single-direction window).
+    def _peak(key):
+        vals = [(r.get(key) or {}).get('perf') for r in rows]
+        vals = [p['eff_bw_gb_s'] for p in vals if p]
+        return max(vals) if vals else None
+    snk_peak, src_peak = _peak('sink'), _peak('source')
+    if snk_peak or src_peak:
+        print("-" * 78)
+        s = f"{snk_peak:.2f}" if snk_peak else "n/a"
+        r = f"{src_peak:.2f}" if src_peak else "n/a"
+        agg = (f"{snk_peak + src_peak:.2f}" if (snk_peak and src_peak) else "n/a")
+        print(f"PEAK MEASURED: sink {s} GB/s + source {r} GB/s "
+              f"= {agg} GB/s full-duplex (of 12.8 peak @ 100 MHz)")
     if failed:
         first = failed[0]
         print("-" * 78)

@@ -132,6 +132,22 @@ module rapids_char_harness #(
     output logic                                    wr_mem_busy,
 
     //-------------------------------------------------------------------------
+    // Per-direction AXI bus-meter buckets (axi_bus_meter, aggregate-only).
+    // Auto-windowed in hardware: opened+cleared on first DMA activity, frozen
+    // 16 idle cycles after the last beat, so the frozen buckets bracket exactly
+    // one workload. PROD/BP/STARV/IDLE sum to the window length; utilization =
+    // prod / (prod+bp+starv+idle). Read back by read_bus_meters.py.
+    //-------------------------------------------------------------------------
+    output logic [31:0]                             obs_rd_prod,   // source read R-channel
+    output logic [31:0]                             obs_rd_bp,
+    output logic [31:0]                             obs_rd_starv,
+    output logic [31:0]                             obs_rd_idle,
+    output logic [31:0]                             obs_wr_prod,   // sink write W-channel
+    output logic [31:0]                             obs_wr_bp,
+    output logic [31:0]                             obs_wr_starv,
+    output logic [31:0]                             obs_wr_idle,
+
+    //-------------------------------------------------------------------------
     // SOURCE descriptor-RAM host write port (port B: descriptor loading)
     //-------------------------------------------------------------------------
     input  logic [AXI_ID_WIDTH-1:0]                 desc_src_awid,
@@ -1062,5 +1078,89 @@ module rapids_char_harness #(
             if (mon_b_beat)                 r_mon_b_cnt  <= r_mon_b_cnt  + 16'd1;
         end
     )
+
+    //=========================================================================
+    // AXI bus meters (per-direction utilization) -- reused, DMA-agnostic
+    //
+    // Two pure-snoop axi_bus_meter instances tap the DUT's source-read (rd_r*)
+    // and sink-write (wr_w*) data masters. Each classifies every window cycle
+    // into PRODUCTIVE (valid&ready), BACKPRESSURE (valid&!ready), STARVATION
+    // (!valid&ready) or IDLE (!valid&!ready). Same instrument STREAM char uses;
+    // RAPIDS has genuinely separate read/write masters so the split is real.
+    //=========================================================================
+    // Measurement-window controller: open+clear the meters on first bus
+    // activity, freeze them 16 idle cycles after the last beat -> exactly one
+    // frozen window per workload (the host reads the frozen buckets over CSR).
+    logic obs_busy;
+    assign obs_busy = rd_arvalid | rd_rvalid | wr_awvalid | wr_wvalid | wr_bvalid;
+    logic       obs_win_active, obs_started;
+    logic [4:0] obs_settle;
+    logic       obs_meter_clear, obs_meter_freeze;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            obs_win_active <= 1'b0; obs_started <= 1'b0; obs_settle <= 5'd0;
+        end else begin
+            if (obs_busy && !obs_win_active && !obs_started) begin
+                obs_win_active <= 1'b1; obs_started <= 1'b1; obs_settle <= 5'd0;
+            end else if (obs_win_active) begin
+                if (obs_busy)                    obs_settle <= 5'd0;
+                else if (obs_settle != 5'd16)    obs_settle <= obs_settle + 5'd1;
+                else                             obs_win_active <= 1'b0;  // close
+            end
+        end
+    )
+    assign obs_meter_clear  = obs_busy && !obs_win_active && !obs_started; // 1-cyc open
+    assign obs_meter_freeze = ~obs_win_active;
+
+    // Per-channel meter outputs unused (aggregate-only, NUM_CHANNELS=1).
+    logic [15:0] obs_rd_ch_prod  [1], obs_rd_ch_bp  [1], obs_rd_ch_starv  [1], obs_rd_ch_idle  [1];
+    logic [15:0] obs_wr_ch_prod  [1], obs_wr_ch_bp  [1], obs_wr_ch_starv  [1], obs_wr_ch_idle  [1];
+    logic [3:0]  obs_rd_ch_ovf, obs_wr_ch_ovf;
+
+    axi_bus_meter #(
+        .NUM_CHANNELS (1)
+    ) u_meter_rd (
+        .aclk    (aclk),
+        .aresetn (aresetn),
+        .i_clear (obs_meter_clear),
+        .i_freeze(obs_meter_freeze),
+        // Snoop the source-read R channel (data returning from source memory).
+        .i_valid        (rd_rvalid),
+        .i_ready        (rd_rready),
+        .i_channel_id   (1'b0),
+        .i_channel_valid(rd_rvalid),
+        .o_agg_productive  (obs_rd_prod),
+        .o_agg_backpressure(obs_rd_bp),
+        .o_agg_starvation  (obs_rd_starv),
+        .o_agg_idle        (obs_rd_idle),
+        .o_ch_productive   (obs_rd_ch_prod),
+        .o_ch_backpressure (obs_rd_ch_bp),
+        .o_ch_starvation   (obs_rd_ch_starv),
+        .o_ch_idle         (obs_rd_ch_idle),
+        .o_ch_overflow     (obs_rd_ch_ovf)
+    );
+
+    axi_bus_meter #(
+        .NUM_CHANNELS (1)
+    ) u_meter_wr (
+        .aclk    (aclk),
+        .aresetn (aresetn),
+        .i_clear (obs_meter_clear),
+        .i_freeze(obs_meter_freeze),
+        // Snoop the sink-write W channel (data draining to sink memory).
+        .i_valid        (wr_wvalid),
+        .i_ready        (wr_wready),
+        .i_channel_id   (1'b0),
+        .i_channel_valid(wr_wvalid),
+        .o_agg_productive  (obs_wr_prod),
+        .o_agg_backpressure(obs_wr_bp),
+        .o_agg_starvation  (obs_wr_starv),
+        .o_agg_idle        (obs_wr_idle),
+        .o_ch_productive   (obs_wr_ch_prod),
+        .o_ch_backpressure (obs_wr_ch_bp),
+        .o_ch_starvation   (obs_wr_ch_starv),
+        .o_ch_idle         (obs_wr_ch_idle),
+        .o_ch_overflow     (obs_wr_ch_ovf)
+    );
 
 endmodule : rapids_char_harness
