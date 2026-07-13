@@ -243,7 +243,8 @@ class PumiceTopCsrTB:
 
     async def program_defaults(self, *, page_policy: int = 1,
                                t_phy_wrlat: int = 1, t_rddata_en: int = 2,
-                               mem_type: str = "DDR2", scheme: int = 0,
+                               mem_type: str = "DDR2", bank_lsb: int = 10,
+                               hash_en: int = 0, hash_seed: int = 0,
                                t_refi: int = 0x0400) -> None:
         """Program the timing / PHY / policy CSRs (by name) to a fast-sim-safe
         DDR2 config, then release init. page_policy is REFRESH_TUNING.page_policy_or,
@@ -272,7 +273,9 @@ class PumiceTopCsrTB:
         await w("PHY_TIMING", "memtype", 1 if mem_type.upper() == "LPDDR2" else 0)
         await w("PHY_TIMING", "refresh_burst", 1)
         await w("REFRESH_TUNING", "page_policy_or", page_policy)
-        await w("ADDR_MAP_TUNING", "scheme_or", scheme)
+        await w("ADDR_MAP", "bank_lsb", bank_lsb)      # 10 = COL_WIDTH = ROW_MAJOR
+        await w("ADDR_MAP", "hash_en", hash_en)
+        await w("ADDR_MAP", "hash_seed", hash_seed)
         # fast init (zero the init waits)
         await w("INIT_TIMING0", "t_init_wait", 0)
         await w("INIT_TIMING0", "t_dll_wait", 0)

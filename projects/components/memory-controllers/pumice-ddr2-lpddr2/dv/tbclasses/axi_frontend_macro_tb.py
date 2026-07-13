@@ -204,9 +204,8 @@ class AxiFrontendMacroTB:
                     timing_profile: str = 'backtoback') -> None:
         cocotb.start_soon(Clock(self.dut.mc_clk, period_ns, units='ns').start())
 
-        # CSR
-        self.dut.scheme_active_i.value = scheme
-        self.dut.xor_seed_i.value      = 0
+        # CSR (ADDR_MAP): map the legacy scheme label -> bank_lsb (+ hash).
+        self.set_scheme(scheme)
 
         # Scheduler stub signals
         self.dut.q_rank_i.value         = 0
@@ -271,9 +270,20 @@ class AxiFrontendMacroTB:
         self.axi_master_rd.r_channel.randomizer  = FlexRandomizer(cfg['slave'])
         self.log.info(f"AXI timing profile = '{profile_name}'")
 
+    # legacy scheme label -> ADDR_MAP.bank_lsb (+ hash). COL_WIDTH=10 default.
+    _COL_WIDTH = 10
+
     def set_scheme(self, scheme: int) -> None:
-        """Live-switch the address-map scheme (CSR-style)."""
-        self.dut.scheme_active_i.value = scheme
+        """Live-switch the address map (CSR-style) via the bank_lsb knob."""
+        if scheme == self.SCHEME_ROW_MAJOR:
+            bank_lsb, hash_en = self._COL_WIDTH, 0    # bank above column
+        elif scheme == self.SCHEME_BANK_INTERLEAVE:
+            bank_lsb, hash_en = 4, 0                  # bank inserted mid-column
+        else:                                         # SCHEME_XOR_HASH
+            bank_lsb, hash_en = 4, 1
+        self.dut.bank_lsb_i.value  = bank_lsb
+        self.dut.hash_en_i.value   = hash_en
+        self.dut.hash_seed_i.value = 0
 
     def stat_snapshot(self) -> Tuple[int, int]:
         """Returns (fwd_hits, fwd_misses) — useful for delta-checking around

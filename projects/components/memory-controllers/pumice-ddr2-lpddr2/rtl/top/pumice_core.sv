@@ -72,8 +72,9 @@ module pumice_core
     // ---- config (ports; CSR rebuild is a follow-up) ----
     input  memtype_e                   memtype_i,
     input  page_policy_e               page_policy_i,
-    input  addr_map_scheme_e           scheme_active_i,
-    input  logic [7:0]                 xor_seed_i,
+    input  logic [4:0]                 bank_lsb_i,
+    input  logic                       hash_en_i,
+    input  logic [7:0]                 hash_seed_i,
     input  logic [7:0]                 t_rcd_i, t_rp_i, t_ras_i, t_rc_i, t_wr_i, t_rtp_i,
     input  logic [7:0]                 t_faw_i, t_rrd_i, t_wtr_i, t_rtw_i, t_ccd_i,
     input  logic [15:0]                t_refi_i,
@@ -184,7 +185,7 @@ module pumice_core
         .N_SCHED_LU(N_LU), .AGE_WIDTH(AGE_WIDTH)
     ) u_ifc (
         .aclk(aclk), .aresetn(aresetn),
-        .scheme_active_i(scheme_active_i), .xor_seed_i(xor_seed_i),
+        .bank_lsb_i(bank_lsb_i), .hash_en_i(hash_en_i), .hash_seed_i(hash_seed_i),
         .s_axi_awid(s_axi_awid), .s_axi_awaddr(s_axi_awaddr), .s_axi_awlen(s_axi_awlen),
         .s_axi_awsize(s_axi_awsize), .s_axi_awburst(s_axi_awburst), .s_axi_awlock(s_axi_awlock),
         .s_axi_awcache(s_axi_awcache), .s_axi_awprot(s_axi_awprot), .s_axi_awqos(s_axi_awqos),

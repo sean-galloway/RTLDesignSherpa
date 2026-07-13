@@ -83,7 +83,7 @@ module pumice_csr (
         logic SCHED_TUNING;
         logic PAGE_PRED_TUNING;
         logic REFRESH_TUNING;
-        logic ADDR_MAP_TUNING;
+        logic ADDR_MAP;
         logic INIT_TUNING;
         logic TIMINGS_RTP_RTW;
         logic INIT_TIMING0;
@@ -137,7 +137,7 @@ module pumice_csr (
         decoded_reg_strb.SCHED_TUNING = cpuif_req_masked & (cpuif_addr == 12'h40);
         decoded_reg_strb.PAGE_PRED_TUNING = cpuif_req_masked & (cpuif_addr == 12'h44);
         decoded_reg_strb.REFRESH_TUNING = cpuif_req_masked & (cpuif_addr == 12'h48);
-        decoded_reg_strb.ADDR_MAP_TUNING = cpuif_req_masked & (cpuif_addr == 12'h4c);
+        decoded_reg_strb.ADDR_MAP = cpuif_req_masked & (cpuif_addr == 12'h4c);
         decoded_reg_strb.INIT_TUNING = cpuif_req_masked & (cpuif_addr == 12'h50);
         decoded_reg_strb.TIMINGS_RTP_RTW = cpuif_req_masked & (cpuif_addr == 12'h54);
         decoded_reg_strb.INIT_TIMING0 = cpuif_req_masked & (cpuif_addr == 12'h58);
@@ -360,10 +360,18 @@ module pumice_csr (
         } REFRESH_TUNING;
         struct {
             struct {
-                logic [1:0] next;
+                logic [4:0] next;
                 logic load_next;
-            } scheme_or;
-        } ADDR_MAP_TUNING;
+            } bank_lsb;
+            struct {
+                logic next;
+                logic load_next;
+            } hash_en;
+            struct {
+                logic [7:0] next;
+                logic load_next;
+            } hash_seed;
+        } ADDR_MAP;
         struct {
             struct {
                 logic [3:0] next;
@@ -592,9 +600,15 @@ module pumice_csr (
         } REFRESH_TUNING;
         struct {
             struct {
-                logic [1:0] value;
-            } scheme_or;
-        } ADDR_MAP_TUNING;
+                logic [4:0] value;
+            } bank_lsb;
+            struct {
+                logic value;
+            } hash_en;
+            struct {
+                logic [7:0] value;
+            } hash_seed;
+        } ADDR_MAP;
         struct {
             struct {
                 logic [3:0] value;
@@ -1539,29 +1553,75 @@ module pumice_csr (
         end
     end
     assign hwif_out.REFRESH_TUNING.zqcs_freq_hz.value = field_storage.REFRESH_TUNING.zqcs_freq_hz.value;
-    // Field: pumice_csr.ADDR_MAP_TUNING.scheme_or
+    // Field: pumice_csr.ADDR_MAP.bank_lsb
     always_comb begin
-        automatic logic [1:0] next_c;
+        automatic logic [4:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.ADDR_MAP_TUNING.scheme_or.value;
+        next_c = field_storage.ADDR_MAP.bank_lsb.value;
         load_next_c = '0;
-        if(decoded_reg_strb.ADDR_MAP_TUNING && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.ADDR_MAP_TUNING.scheme_or.value & ~decoded_wr_biten[1:0]) | (decoded_wr_data[1:0] & decoded_wr_biten[1:0]);
+        if(decoded_reg_strb.ADDR_MAP && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.ADDR_MAP.bank_lsb.value & ~decoded_wr_biten[4:0]) | (decoded_wr_data[4:0] & decoded_wr_biten[4:0]);
             load_next_c = '1;
         end
-        field_combo.ADDR_MAP_TUNING.scheme_or.next = next_c;
-        field_combo.ADDR_MAP_TUNING.scheme_or.load_next = load_next_c;
+        field_combo.ADDR_MAP.bank_lsb.next = next_c;
+        field_combo.ADDR_MAP.bank_lsb.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.ADDR_MAP_TUNING.scheme_or.value <= 2'h0;
+            field_storage.ADDR_MAP.bank_lsb.value <= 5'ha;
         end else begin
-            if(field_combo.ADDR_MAP_TUNING.scheme_or.load_next) begin
-                field_storage.ADDR_MAP_TUNING.scheme_or.value <= field_combo.ADDR_MAP_TUNING.scheme_or.next;
+            if(field_combo.ADDR_MAP.bank_lsb.load_next) begin
+                field_storage.ADDR_MAP.bank_lsb.value <= field_combo.ADDR_MAP.bank_lsb.next;
             end
         end
     end
-    assign hwif_out.ADDR_MAP_TUNING.scheme_or.value = field_storage.ADDR_MAP_TUNING.scheme_or.value;
+    assign hwif_out.ADDR_MAP.bank_lsb.value = field_storage.ADDR_MAP.bank_lsb.value;
+    // Field: pumice_csr.ADDR_MAP.hash_en
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.ADDR_MAP.hash_en.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.ADDR_MAP && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.ADDR_MAP.hash_en.value & ~decoded_wr_biten[8:8]) | (decoded_wr_data[8:8] & decoded_wr_biten[8:8]);
+            load_next_c = '1;
+        end
+        field_combo.ADDR_MAP.hash_en.next = next_c;
+        field_combo.ADDR_MAP.hash_en.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.ADDR_MAP.hash_en.value <= 1'h0;
+        end else begin
+            if(field_combo.ADDR_MAP.hash_en.load_next) begin
+                field_storage.ADDR_MAP.hash_en.value <= field_combo.ADDR_MAP.hash_en.next;
+            end
+        end
+    end
+    assign hwif_out.ADDR_MAP.hash_en.value = field_storage.ADDR_MAP.hash_en.value;
+    // Field: pumice_csr.ADDR_MAP.hash_seed
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.ADDR_MAP.hash_seed.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.ADDR_MAP && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.ADDR_MAP.hash_seed.value & ~decoded_wr_biten[23:16]) | (decoded_wr_data[23:16] & decoded_wr_biten[23:16]);
+            load_next_c = '1;
+        end
+        field_combo.ADDR_MAP.hash_seed.next = next_c;
+        field_combo.ADDR_MAP.hash_seed.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.ADDR_MAP.hash_seed.value <= 8'h0;
+        end else begin
+            if(field_combo.ADDR_MAP.hash_seed.load_next) begin
+                field_storage.ADDR_MAP.hash_seed.value <= field_combo.ADDR_MAP.hash_seed.next;
+            end
+        end
+    end
+    assign hwif_out.ADDR_MAP.hash_seed.value = field_storage.ADDR_MAP.hash_seed.value;
     // Field: pumice_csr.INIT_TUNING.zq_retries
     always_comb begin
         automatic logic [3:0] next_c;
@@ -2014,10 +2074,12 @@ module pumice_csr (
     assign readback_array[16][7:4] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? field_storage.REFRESH_TUNING.refresh_defer_active.value : '0;
     assign readback_array[16][15:8] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? 8'h0 : '0;
     assign readback_array[16][31:16] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? field_storage.REFRESH_TUNING.zqcs_freq_hz.value : '0;
-    assign readback_array[17][1:0] = (decoded_reg_strb.ADDR_MAP_TUNING && !decoded_req_is_wr) ? field_storage.ADDR_MAP_TUNING.scheme_or.value : '0;
-    assign readback_array[17][3:2] = (decoded_reg_strb.ADDR_MAP_TUNING && !decoded_req_is_wr) ? 2'h0 : '0;
-    assign readback_array[17][7:4] = (decoded_reg_strb.ADDR_MAP_TUNING && !decoded_req_is_wr) ? hwif_in.ADDR_MAP_TUNING.synth_mask_obs.next : '0;
-    assign readback_array[17][31:8] = (decoded_reg_strb.ADDR_MAP_TUNING && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[17][4:0] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? field_storage.ADDR_MAP.bank_lsb.value : '0;
+    assign readback_array[17][7:5] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? 3'h0 : '0;
+    assign readback_array[17][8:8] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? field_storage.ADDR_MAP.hash_en.value : '0;
+    assign readback_array[17][15:9] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? 7'h0 : '0;
+    assign readback_array[17][23:16] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? field_storage.ADDR_MAP.hash_seed.value : '0;
+    assign readback_array[17][31:24] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? 8'h0 : '0;
     assign readback_array[18][3:0] = (decoded_reg_strb.INIT_TUNING && !decoded_req_is_wr) ? field_storage.INIT_TUNING.zq_retries.value : '0;
     assign readback_array[18][7:4] = (decoded_reg_strb.INIT_TUNING && !decoded_req_is_wr) ? 4'h0 : '0;
     assign readback_array[18][15:8] = (decoded_reg_strb.INIT_TUNING && !decoded_req_is_wr) ? field_storage.INIT_TUNING.init_timeout_ms.value : '0;

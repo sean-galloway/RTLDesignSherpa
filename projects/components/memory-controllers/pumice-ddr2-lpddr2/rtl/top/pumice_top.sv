@@ -124,10 +124,8 @@ module pumice_top
     // ---- config from CSR (by-name hwif_out) ----
     memtype_e         w_memtype;
     page_policy_e     w_page_policy;
-    addr_map_scheme_e w_scheme;
     assign w_memtype     = memtype_e'(hwif_out.PHY_TIMING.memtype.value);
     assign w_page_policy = page_policy_e'(hwif_out.REFRESH_TUNING.page_policy_or.value);
-    assign w_scheme      = addr_map_scheme_e'(hwif_out.ADDR_MAP_TUNING.scheme_or.value);
 
     pumice_core #(
         .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(AW), .NUM_RANKS(NUM_RANKS),
@@ -137,7 +135,9 @@ module pumice_top
     ) u_core (
         .aclk(aclk), .aresetn(aresetn), .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn),
         .memtype_i(w_memtype), .page_policy_i(w_page_policy),
-        .scheme_active_i(w_scheme), .xor_seed_i(8'h0),
+        .bank_lsb_i(hwif_out.ADDR_MAP.bank_lsb.value),
+        .hash_en_i(hwif_out.ADDR_MAP.hash_en.value),
+        .hash_seed_i(hwif_out.ADDR_MAP.hash_seed.value),
         .t_rcd_i(hwif_out.TIMINGS_RC_RCD_RP_RAS.tRCD.value),
         .t_rp_i (hwif_out.TIMINGS_RC_RCD_RP_RAS.tRP.value),
         .t_ras_i(hwif_out.TIMINGS_RC_RCD_RP_RAS.tRAS.value),

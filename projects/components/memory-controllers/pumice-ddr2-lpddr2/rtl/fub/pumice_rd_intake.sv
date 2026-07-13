@@ -38,9 +38,6 @@ module pumice_rd_intake #(
     parameter int ROW_WIDTH         = 14,
     parameter int COL_WIDTH         = 10,
     parameter int BYTE_OFFSET_WIDTH = 3,
-    parameter bit SYNTH_ROW_MAJOR       = 1'b1,
-    parameter bit SYNTH_BANK_INTERLEAVE = 1'b1,
-    parameter bit SYNTH_XOR_HASH        = 1'b0,
     parameter int BL                = 4,
     parameter int AR_FIFO_DEPTH     = 4,
     parameter int ORDER_FIFO_DEPTH  = 8,
@@ -59,8 +56,9 @@ module pumice_rd_intake #(
     input  logic                     aclk,
     input  logic                     aresetn,
 
-    input  pumice_pkg::addr_map_scheme_e scheme_active_i,
-    input  logic [7:0]               xor_seed_i,
+    input  logic [4:0]               bank_lsb_i,
+    input  logic                     hash_en_i,
+    input  logic [7:0]               hash_seed_i,
 
     //=========================================================================
     // AXI4 read slave (post-split: each burst is exactly one DRAM burst)
@@ -180,12 +178,10 @@ module pumice_rd_intake #(
 
     addr_mapper #(
         .AXI_ADDR_WIDTH(AW), .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS),
-        .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH), .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH),
-        .SYNTH_ROW_MAJOR(SYNTH_ROW_MAJOR), .SYNTH_BANK_INTERLEAVE(SYNTH_BANK_INTERLEAVE),
-        .SYNTH_XOR_HASH(SYNTH_XOR_HASH)
+        .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH), .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH)
     ) u_addr_mapper (
-        .axi_addr_i(fub_araddr), .scheme_active_i(scheme_active_i),
-        .xor_seed_i(xor_seed_i), .bg_field_pos_i(3'd0),
+        .axi_addr_i(fub_araddr),
+        .bank_lsb_i(bank_lsb_i), .hash_en_i(hash_en_i), .hash_seed_i(hash_seed_i),
         .rank_o(w_rank), .bank_o(w_bank), .row_o(w_row), .col_o(w_col)
     );
 

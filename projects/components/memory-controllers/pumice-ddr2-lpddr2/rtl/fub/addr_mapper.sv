@@ -5,23 +5,30 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: addr_mapper
-// Purpose: Decode flat AXI address into (rank, bank, row, col) per the
-//          currently-active address-mapping scheme.
+// Purpose: Decode a flat AXI address into (rank, bank, row, col) using ONE
+//          runtime knob: bank_lsb_i — where the bank field sits in the
+//          byte-offset-stripped word address. The column fills below (col_lo)
+//          and above (col_hi) the bank; row/rank stack above the column region
+//          (their positions are INVARIANT). The classic "schemes" are just
+//          settings of bank_lsb, so there is NO scheme mux:
 //
-// Description:
-//   Combinational FUB (no clock; no reset). One stage from AXI flat
-//   address to DRAM-layer tuple. Sits between axi4_slave and the CAMs
-//   so the CAMs store the decoded tuple, not the raw address.
+//            bank_lsb == COL_WIDTH        -> bank above whole column = ROW_MAJOR
+//            bank_lsb == log2(cols/burst) -> minimal col_lo          = BANK_INTERLEAVE
+//            in between                   -> partial interleave
 //
-//   Three schemes are computed in parallel; the runtime-selected
-//   scheme is the active output. Mirrors the Python AddressMapping
-//   class in the DV repo (bit-for-bit identical decode).
+//          An optional bank XOR-hash (hash_en_i) folds row bits + a seed into
+//          the bank index to defeat power-of-two-stride hot-banking (= XOR_HASH).
 //
-// Documentation:
-//   docs/pumice_mas/ch02_blocks/03_addr_mapper.md
+//          Layout (word address, low -> high):
+//            [ col_lo(bank_lsb) | bank(BW) | col_hi(CW-bank_lsb) | row(RW) | rank(KW) ]
+//            col = { col_hi, col_lo }.  row LSB is always CW+BW.
 //
-// Author: sean galloway
-// Created: 2026-06-17
+//          Combinational, single stage. Software keeps
+//          log2(cols/burst) <= bank_lsb <= COL_WIDTH so a DRAM burst's column
+//          walk stays inside one bank; the RTL clamps to [0, COL_WIDTH] to keep
+//          the field slices legal.
+//
+// Documentation: rtl/macro/pumice_csr.rdl (ADDR_MAP register)
 
 `timescale 1ns / 1ps
 
@@ -33,18 +40,15 @@ module addr_mapper
     parameter int NUM_BANKS            = 8,    // 4 or 8
     parameter int ROW_WIDTH            = 14,
     parameter int COL_WIDTH            = 10,
-    parameter int BYTE_OFFSET_WIDTH    = 3,    // log2(beat byte size); 8 = 64-bit -> 3
-    parameter bit SYNTH_ROW_MAJOR      = 1'b1,
-    parameter bit SYNTH_BANK_INTERLEAVE = 1'b1,
-    parameter bit SYNTH_XOR_HASH        = 1'b0
+    parameter int BYTE_OFFSET_WIDTH    = 3     // log2(beat byte size); 8 = 64-bit -> 3
 ) (
     // Inputs from axi4_slave_fub (AW or AR side)
     input  logic [AXI_ADDR_WIDTH-1:0]       axi_addr_i,
 
-    // Runtime configuration (CSR live)
-    input  addr_map_scheme_e                scheme_active_i,
-    input  logic [7:0]                      xor_seed_i,         // active when XOR_HASH
-    input  logic [2:0]                      bg_field_pos_i,     // reserved (DDR4+); tied 0 here
+    // Runtime configuration (CSR live — ADDR_MAP register)
+    input  logic [4:0]                      bank_lsb_i,   // bank field LSB in word addr
+    input  logic                            hash_en_i,    // enable bank XOR-hash
+    input  logic [7:0]                      hash_seed_i,  // XOR-hash seed
 
     // Decoded outputs to the CAMs
     output logic [$clog2(NUM_RANKS > 1 ? NUM_RANKS : 2)-1:0] rank_o,
@@ -61,152 +65,48 @@ module addr_mapper
     localparam int KW = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1;
     localparam int BO = BYTE_OFFSET_WIDTH;
 
-    // Strip byte-offset bits; what remains is the column-word address space
-    wire [AW-BO-1:0] w_addr_word = axi_addr_i[AW-1:BO];
+    // Byte-offset-stripped word address, zero-extended to 32b for the variable
+    // shift/mask field extraction below.
+    logic [31:0] w_word;
+    assign w_word = 32'(axi_addr_i[AW-1:BO]);
 
-    //=========================================================================
-    // ROW_MAJOR scheme
-    //=========================================================================
-    //   bits: [rank | row | bank | col]
-    // The bank field sits just above the column so the LSBs walk the
-    // column within one row before crossing a bank boundary. Best for
-    // sequential streaming.
+    // Clamp bank_lsb to [0, COL_WIDTH] so col_hi width (CW - bank_lsb) stays >= 0
+    // and the row/rank slices land where the geometry expects. (bank_lsb == CW is
+    // ROW_MAJOR; below CW inserts the bank into the column = interleave.)
+    logic [5:0] w_blsb;
+    always_comb w_blsb = ({1'b0, bank_lsb_i} > 6'(CW)) ? 6'(CW) : {1'b0, bank_lsb_i};
 
-    logic [KW-1:0] w_rm_rank;
-    logic [BW-1:0] w_rm_bank;
-    logic [RW-1:0] w_rm_row;
-    logic [CW-1:0] w_rm_col;
+    // Variable-base field extraction (barrel shifts / masks, 32b intermediates).
+    logic [31:0] w_col_lo, w_col_hi, w_row32, w_rank32, w_bank32;
+    assign w_col_lo = w_word & ((32'd1 << w_blsb) - 32'd1);                    // low col bits below bank
+    assign w_bank32 = (w_word >> w_blsb) & ((32'd1 << BW) - 32'd1);            // BW bits at bank_lsb
+    assign w_col_hi = (w_word >> (w_blsb + 6'(BW))) & ((32'd1 << (6'(CW) - w_blsb)) - 32'd1);
+    assign w_row32  = (w_word >> (6'(CW) + 6'(BW))) & ((32'd1 << RW) - 32'd1); // row LSB invariant = CW+BW
+    assign w_rank32 = (NUM_RANKS > 1)
+                    ? ((w_word >> (6'(CW) + 6'(BW) + 6'(RW))) & ((32'd1 << KW) - 32'd1))
+                    : 32'd0;
 
-    generate
-        if (SYNTH_ROW_MAJOR) begin : g_row_major
-            assign w_rm_col  = w_addr_word[CW-1:0];
-            assign w_rm_bank = w_addr_word[CW +: BW];
-            assign w_rm_row  = w_addr_word[CW + BW +: RW];
-            assign w_rm_rank = (NUM_RANKS > 1)
-                               ? w_addr_word[CW + BW + RW +: KW]
-                               : '0;
-        end else begin : g_row_major_off
-            assign w_rm_col = '0;
-            assign w_rm_bank = '0;
-            assign w_rm_row = '0;
-            assign w_rm_rank = '0;
-        end
-    endgenerate
+    // Reassemble the (split) column: low bits = col_lo, high bits = col_hi.
+    logic [CW-1:0] w_col;
+    assign w_col = CW'(w_col_lo | (w_col_hi << w_blsb));
 
-    //=========================================================================
-    // BANK_INTERLEAVE scheme
-    //=========================================================================
-    //   bits: [rank | row | col_hi | bank | col_lo]
-    // Bank bits sit between low and high column bits. Cache-line stride
-    // round-robins across banks → higher bank parallelism.
+    logic [RW-1:0]  w_row;
+    logic [BW-1:0]  w_bank_raw, w_bank_hashed, w_bank;
+    assign w_row      = RW'(w_row32);
+    assign w_bank_raw = BW'(w_bank32);
 
-    localparam int CL = (CW >= 4) ? 4 : CW;   // col_lo width
-    localparam int CH = CW - CL;              // col_hi width
-
-    logic [KW-1:0] w_bi_rank;
-    logic [BW-1:0] w_bi_bank;
-    logic [RW-1:0] w_bi_row;
-    logic [CW-1:0] w_bi_col;
-
-    generate
-        if (SYNTH_BANK_INTERLEAVE) begin : g_bank_inter
-            logic [CL-1:0] w_bi_col_lo;
-            logic [CH-1:0] w_bi_col_hi;
-            assign w_bi_col_lo = w_addr_word[CL-1:0];
-            assign w_bi_bank   = w_addr_word[CL +: BW];
-            assign w_bi_col_hi = w_addr_word[CL + BW +: CH];
-            assign w_bi_row    = w_addr_word[CL + BW + CH +: RW];
-            assign w_bi_rank   = (NUM_RANKS > 1)
-                                 ? w_addr_word[CL + BW + CH + RW +: KW]
-                                 : '0;
-            assign w_bi_col    = { w_bi_col_hi, w_bi_col_lo };
-        end else begin : g_bank_inter_off
-            assign w_bi_col = '0;
-            assign w_bi_bank = '0;
-            assign w_bi_row = '0;
-            assign w_bi_rank = '0;
-        end
-    endgenerate
-
-    //=========================================================================
-    // XOR_HASH scheme
-    //=========================================================================
-    // Same layout as BANK_INTERLEAVE, but the bank field is XOR'd with
-    // selected row bits + a runtime seed. Defeats power-of-two stride
-    // patterns that hammer one bank.
-
-    logic [KW-1:0] w_xh_rank;
-    logic [BW-1:0] w_xh_bank;
-    logic [RW-1:0] w_xh_row;
-    logic [CW-1:0] w_xh_col;
-
-    generate
-        if (SYNTH_XOR_HASH) begin : g_xor_hash
-            // Base layout = BANK_INTERLEAVE
-            logic [BW-1:0] w_xh_bank_raw;
-            logic [CL-1:0] w_xh_col_lo;
-            logic [CH-1:0] w_xh_col_hi;
-            assign w_xh_col_lo   = w_addr_word[CL-1:0];
-            assign w_xh_bank_raw = w_addr_word[CL +: BW];
-            assign w_xh_col_hi   = w_addr_word[CL + BW +: CH];
-            assign w_xh_row      = w_addr_word[CL + BW + CH +: RW];
-            assign w_xh_rank     = (NUM_RANKS > 1)
-                                   ? w_addr_word[CL + BW + CH + RW +: KW]
-                                   : '0;
-            assign w_xh_col      = { w_xh_col_hi, w_xh_col_lo };
-
-            // Hash: bank XOR row[low BW] XOR row[mid BW] XOR seed[BW-1:0]
-            // (mid-slice indexing clamped so it doesn't run past ROW_WIDTH)
-            for (genvar i = 0; i < BW; i++) begin : g_xh_xor
-                localparam int LOW_IDX = i;
-                localparam int MID_IDX = (i + BW < RW) ? (i + BW) : (RW - 1);
-                assign w_xh_bank[i] = w_xh_bank_raw[i]
-                                    ^ w_xh_row[LOW_IDX]
-                                    ^ w_xh_row[MID_IDX]
-                                    ^ xor_seed_i[i];
-            end
-        end else begin : g_xor_hash_off
-            assign w_xh_col = '0;
-            assign w_xh_bank = '0;
-            assign w_xh_row = '0;
-            assign w_xh_rank = '0;
-        end
-    endgenerate
-
-    //=========================================================================
-    // Runtime scheme mux
-    //=========================================================================
-
-    always_comb begin
-        unique case (scheme_active_i)
-            ADDR_MAP_ROW_MAJOR : begin
-                rank_o = w_rm_rank;
-                bank_o = w_rm_bank;
-                row_o  = w_rm_row;
-                col_o  = w_rm_col;
-            end
-            ADDR_MAP_BANK_INTERLEAVE : begin
-                rank_o = w_bi_rank;
-                bank_o = w_bi_bank;
-                row_o  = w_bi_row;
-                col_o  = w_bi_col;
-            end
-            ADDR_MAP_XOR_HASH : begin
-                rank_o = w_xh_rank;
-                bank_o = w_xh_bank;
-                row_o  = w_xh_row;
-                col_o  = w_xh_col;
-            end
-            default : begin
-                rank_o = '0;
-                bank_o = '0;
-                row_o  = '0;
-                col_o  = '0;
-            end
-        endcase
+    // Bank XOR-hash: bank[i] ^= row[i] ^ row[i+BW] ^ seed[i] (mid slice clamped so
+    // it never runs past ROW_WIDTH). Identical fold to the legacy XOR_HASH scheme.
+    for (genvar i = 0; i < BW; i++) begin : g_hash
+        localparam int MID = (i + BW < RW) ? (i + BW) : (RW - 1);
+        assign w_bank_hashed[i] = w_bank_raw[i] ^ w_row[i] ^ w_row[MID] ^ hash_seed_i[i];
     end
+    assign w_bank = hash_en_i ? w_bank_hashed : w_bank_raw;
 
-    // Pin tie: bg_field_pos_i is reserved for DDR4+ bank groups
-    wire unused_bgfp = |bg_field_pos_i;
+    // Outputs
+    assign col_o  = w_col;
+    assign bank_o = w_bank;
+    assign row_o  = w_row;
+    assign rank_o = (NUM_RANKS > 1) ? w_rank32[$clog2(NUM_RANKS > 1 ? NUM_RANKS : 2)-1:0] : '0;
 
 endmodule : addr_mapper

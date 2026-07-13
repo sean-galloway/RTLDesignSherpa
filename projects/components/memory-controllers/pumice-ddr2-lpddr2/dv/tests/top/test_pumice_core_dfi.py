@@ -51,8 +51,9 @@ BURST_INCR = 1
 def _cfg(dut, page_policy=0):
     dut.memtype_i.value = 0
     dut.page_policy_i.value = page_policy
-    dut.scheme_active_i.value = 0
-    dut.xor_seed_i.value = 0
+    dut.bank_lsb_i.value  = 10   # ROW_MAJOR
+    dut.hash_en_i.value   = 0
+    dut.hash_seed_i.value = 0
     for t, v in [("t_rcd_i", 3), ("t_rp_i", 3), ("t_ras_i", 4), ("t_rc_i", 6),
                  ("t_wr_i", 3), ("t_rtp_i", 2), ("t_faw_i", 6), ("t_rrd_i", 2),
                  ("t_wtr_i", 2), ("t_rtw_i", 2), ("t_ccd_i", 1)]:

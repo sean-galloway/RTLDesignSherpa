@@ -523,7 +523,7 @@ _CORE_PROFILE_MATRIX = _build_core_profile_matrix()
 def _run_core_macro(*, test_name, test_type, extra_env_extra=None,
                     params_extra=None):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "pumice_core_macro_tb_top"
+    dut_name = "pumice_core_macro_tb"
 
     filelist_path = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
                      "rtl/filelists/macro/pumice_core_macro.f")
@@ -532,7 +532,7 @@ def _run_core_macro(*, test_name, test_type, extra_env_extra=None,
     verilog_sources.append(os.path.join(
         repo_root,
         "projects/components/memory-controllers/pumice-ddr2-lpddr2/dv/tb/"
-        "pumice_core_macro_tb_top.sv"))
+        "pumice_core_macro_tb.sv"))
 
     sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
     os.makedirs(sim_build, exist_ok=True)

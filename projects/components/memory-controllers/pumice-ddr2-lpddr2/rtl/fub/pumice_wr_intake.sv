@@ -39,9 +39,6 @@ module pumice_wr_intake #(
     parameter int ROW_WIDTH         = 14,
     parameter int COL_WIDTH         = 10,
     parameter int BYTE_OFFSET_WIDTH = 3,
-    parameter bit SYNTH_ROW_MAJOR       = 1'b1,
-    parameter bit SYNTH_BANK_INTERLEAVE = 1'b1,
-    parameter bit SYNTH_XOR_HASH        = 1'b0,
     parameter int RAGGED_ASSERT     = 1,    // 0 disables the ragged-burst $error (SLVERR test)
     parameter int BL                = 4,    // DRAM burst length, in DRAM beats
     parameter int AW_FIFO_DEPTH     = 4,
@@ -65,9 +62,10 @@ module pumice_wr_intake #(
     input  logic                     aclk,
     input  logic                     aresetn,
 
-    // Address-map config (passed to addr_mapper)
-    input  pumice_pkg::addr_map_scheme_e scheme_active_i,
-    input  logic [7:0]               xor_seed_i,
+    // Address-map config (passed to addr_mapper — ADDR_MAP register)
+    input  logic [4:0]               bank_lsb_i,
+    input  logic                     hash_en_i,
+    input  logic [7:0]               hash_seed_i,
 
     //=========================================================================
     // AXI4 write slave (post-split: each burst is exactly one DRAM burst)
@@ -212,12 +210,10 @@ module pumice_wr_intake #(
 
     addr_mapper #(
         .AXI_ADDR_WIDTH(AW), .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS),
-        .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH), .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH),
-        .SYNTH_ROW_MAJOR(SYNTH_ROW_MAJOR), .SYNTH_BANK_INTERLEAVE(SYNTH_BANK_INTERLEAVE),
-        .SYNTH_XOR_HASH(SYNTH_XOR_HASH)
+        .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH), .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH)
     ) u_addr_mapper (
-        .axi_addr_i(w_head_addr), .scheme_active_i(scheme_active_i),
-        .xor_seed_i(xor_seed_i), .bg_field_pos_i(3'd0),
+        .axi_addr_i(w_head_addr),
+        .bank_lsb_i(bank_lsb_i), .hash_en_i(hash_en_i), .hash_seed_i(hash_seed_i),
         .rank_o(w_rank), .bank_o(w_bank), .row_o(w_row), .col_o(w_col)
     );
 

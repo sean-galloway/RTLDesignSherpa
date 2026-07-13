@@ -89,9 +89,6 @@ module axi_frontend_macro
     parameter int AW_PENDING_DEPTH     = 4,
     parameter int AR_PENDING_DEPTH     = 4,
     parameter int B_FIFO_DEPTH         = 4,
-    parameter bit SYNTH_ROW_MAJOR       = 1'b1,
-    parameter bit SYNTH_BANK_INTERLEAVE = 1'b1,
-    parameter bit SYNTH_XOR_HASH        = 1'b0,
 
     // Aliases
     parameter int AW  = AXI_ADDR_WIDTH,
@@ -113,9 +110,10 @@ module axi_frontend_macro
     input  logic                 mc_clk,
     input  logic                 mc_rst_n,
 
-    // CSR (live)
-    input  addr_map_scheme_e     scheme_active_i,
-    input  logic [7:0]           xor_seed_i,
+    // CSR (live) — ADDR_MAP register
+    input  logic [4:0]           bank_lsb_i,
+    input  logic                 hash_en_i,
+    input  logic [7:0]           hash_seed_i,
     // DRAM burst length (MR0). axi_intake uses this to split AXI bursts
     // that exceed the DRAM BL into chunked CAM entries (issue #22).
     input  logic [3:0]           dram_bl_i,
@@ -479,15 +477,12 @@ module axi_frontend_macro
         .NUM_BANKS             (NUM_BANKS),
         .ROW_WIDTH             (ROW_WIDTH),
         .COL_WIDTH             (COL_WIDTH),
-        .BYTE_OFFSET_WIDTH     (BYTE_OFFSET_WIDTH),
-        .SYNTH_ROW_MAJOR       (SYNTH_ROW_MAJOR),
-        .SYNTH_BANK_INTERLEAVE (SYNTH_BANK_INTERLEAVE),
-        .SYNTH_XOR_HASH        (SYNTH_XOR_HASH)
+        .BYTE_OFFSET_WIDTH     (BYTE_OFFSET_WIDTH)
     ) u_addr_mapper_aw (
         .axi_addr_i      (w_aw_push_addr),
-        .scheme_active_i (scheme_active_i),
-        .xor_seed_i      (xor_seed_i),
-        .bg_field_pos_i  (3'd0),
+        .bank_lsb_i      (bank_lsb_i),
+        .hash_en_i       (hash_en_i),
+        .hash_seed_i     (hash_seed_i),
         .rank_o          (w_aw_rank),
         .bank_o          (w_aw_bank),
         .row_o           (w_aw_row),
@@ -508,15 +503,12 @@ module axi_frontend_macro
         .NUM_BANKS             (NUM_BANKS),
         .ROW_WIDTH             (ROW_WIDTH),
         .COL_WIDTH             (COL_WIDTH),
-        .BYTE_OFFSET_WIDTH     (BYTE_OFFSET_WIDTH),
-        .SYNTH_ROW_MAJOR       (SYNTH_ROW_MAJOR),
-        .SYNTH_BANK_INTERLEAVE (SYNTH_BANK_INTERLEAVE),
-        .SYNTH_XOR_HASH        (SYNTH_XOR_HASH)
+        .BYTE_OFFSET_WIDTH     (BYTE_OFFSET_WIDTH)
     ) u_addr_mapper_ar (
         .axi_addr_i      (w_ar_push_addr),
-        .scheme_active_i (scheme_active_i),
-        .xor_seed_i      (xor_seed_i),
-        .bg_field_pos_i  (3'd0),
+        .bank_lsb_i      (bank_lsb_i),
+        .hash_en_i       (hash_en_i),
+        .hash_seed_i     (hash_seed_i),
         .rank_o          (w_ar_rank),
         .bank_o          (w_ar_bank),
         .row_o           (w_ar_row),

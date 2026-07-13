@@ -44,8 +44,9 @@ module pumice_core_tb_top
     // config
     input  memtype_e         memtype_i,
     input  page_policy_e     page_policy_i,
-    input  addr_map_scheme_e scheme_active_i,
-    input  logic [7:0]       xor_seed_i,
+    input  logic [4:0]       bank_lsb_i,
+    input  logic             hash_en_i,
+    input  logic [7:0]       hash_seed_i,
     input  logic [7:0]       t_rcd_i, t_rp_i, t_ras_i, t_rc_i, t_wr_i, t_rtp_i,
     input  logic [7:0]       t_faw_i, t_rrd_i, t_wtr_i, t_rtw_i, t_ccd_i,
     input  logic [15:0]      t_refi_i,
@@ -133,7 +134,7 @@ module pumice_core_tb_top
     ) u_core (
         .aclk(aclk), .aresetn(aresetn), .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn),
         .memtype_i(memtype_i), .page_policy_i(page_policy_i),
-        .scheme_active_i(scheme_active_i), .xor_seed_i(xor_seed_i),
+        .bank_lsb_i(bank_lsb_i), .hash_en_i(hash_en_i), .hash_seed_i(hash_seed_i),
         .t_rcd_i(t_rcd_i), .t_rp_i(t_rp_i), .t_ras_i(t_ras_i), .t_rc_i(t_rc_i),
         .t_wr_i(t_wr_i), .t_rtp_i(t_rtp_i), .t_faw_i(t_faw_i), .t_rrd_i(t_rrd_i),
         .t_wtr_i(t_wtr_i), .t_rtw_i(t_rtw_i), .t_ccd_i(t_ccd_i),

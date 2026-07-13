@@ -387,24 +387,41 @@ addrmap pumice_csr {
     } REFRESH_TUNING @ 0x048;
 
     reg {
-        name = "Address Map Tuning";
-        desc = "Runtime address-map scheme selection + synthesized mask";
+        name = "Address Map";
+        desc = "AXI-address -> {rank,row,bank,col} mapping. bank_lsb is where the
+                bank field sits in the (byte-offset-stripped) word address; the
+                column fills below (col_lo) and above (col_hi) it, row/rank stack
+                above. ROW_MAJOR / BANK_INTERLEAVE / XOR_HASH are just settings of
+                this register (no separate scheme selector). See addr_mapper.sv.";
+
+        // Bank LSB = # of low column bits kept BELOW the bank field. A DRAM burst
+        // lives in those low bits, so it stays within one bank.
+        //   = COL_WIDTH          -> bank above whole column  = ROW_MAJOR
+        //   = log2(BL/DFI_RATE)  -> minimal col_lo           = max BANK_INTERLEAVE
+        //   in between           -> partial interleave (burst locality preserved)
+        // Constraint: log2(BL/DFI_RATE) <= bank_lsb <= COL_WIDTH (RTL clamps).
+        field {
+            sw = rw; hw = r;
+            desc = "Bank field LSB in the word address (=COL_WIDTH -> ROW_MAJOR)";
+        } bank_lsb[4:0] = 5'd10;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_7_5[7:5] = 3'h0;
 
         field {
             sw = rw; hw = r;
-            desc = "00=build-time, 01=ROW_MAJOR, 10=BANK_INTERLEAVE, 11=XOR_HASH";
-        } scheme_or[1:0] = 2'h0;
+            desc = "Enable bank XOR-hash: bank ^= fold(row) ^ hash_seed";
+        } hash_en[8:8] = 1'b0;
 
-        field { sw = r; hw = na; desc = "Reserved"; } RSVD_3_2[3:2] = 2'h0;
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_15_9[15:9] = 7'h0;
 
         field {
-            sw = r; hw = w;
-            desc = "Bitmask of synthesized schemes (bit0=RM, bit1=BI, bit2=XOR)";
-        } synth_mask_obs[7:4];
+            sw = rw; hw = r;
+            desc = "XOR-hash seed (bank ^= fold(row) ^ seed[BW-1:0])";
+        } hash_seed[23:16] = 8'h00;
 
-        field { sw = r; hw = na; desc = "Reserved"; } RSVD_31_8[31:8] = 24'h0;
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_31_24[31:24] = 8'h0;
 
-    } ADDR_MAP_TUNING @ 0x04C;
+    } ADDR_MAP @ 0x04C;
 
     reg {
         name = "Init Tuning";

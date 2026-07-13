@@ -3,10 +3,12 @@
 
 """Unit-test runner for `addr_mapper`.
 
-Three runtime-selectable address schemes — ROW_MAJOR, BANK_INTERLEAVE,
-XOR_HASH. Only ROW_MAJOR is exercised by any top-level test today
-(the parameter default), so the other two are uncovered. These
-scenarios exercise each scheme directly against a Python reference.
+The mapping is driven by the single ADDR_MAP.bank_lsb knob (+ optional bank
+XOR-hash). The classic "schemes" are just settings: bank_lsb == COL_WIDTH is
+ROW_MAJOR, smaller bank_lsb inserts the bank into the column (BANK_INTERLEAVE),
+and hash_en folds row bits into the bank (XOR_HASH). Every scenario decodes the
+RTL and compares it to the Python reference (addr_mapper_tb.decode_ref), sweeping
+bank_lsb across its legal range + hash on/off.
 """
 
 import os
@@ -28,10 +30,7 @@ from pumice_coverage import (  # noqa: E402
     get_coverage_compile_args, get_coverage_env,
 )
 
-from tbclasses.addr_mapper_tb import (  # noqa: E402
-    AddrMapperTB,
-    SCHEME_ROW_MAJOR, SCHEME_BANK_INTERLEAVE, SCHEME_XOR_HASH,
-)
+from tbclasses.addr_mapper_tb import AddrMapperTB  # noqa: E402
 
 
 @cocotb.test(timeout_time=2, timeout_unit="ms")
@@ -43,7 +42,7 @@ async def cocotb_test_addr_mapper(dut):
         "row_major":        _row_major,
         "bank_interleave":  _bank_interleave,
         "xor_hash":         _xor_hash,
-        "all_schemes":      _all_schemes,
+        "bank_lsb_sweep":   _bank_lsb_sweep,
         "random_soak":      _random_soak,
     }
     if test_type not in scenarios:
@@ -67,81 +66,59 @@ def _assert_match(got, exp, *, tag: str, addr: int) -> None:
 
 
 async def _row_major(tb: AddrMapperTB):
-    """ROW_MAJOR — addresses sweep one column field, then bank field,
-    then row field. Every decode must match the Python reference."""
-    test_addrs = []
-    # Sweep column inside row 0 bank 0
-    for c in range(0, 16):
-        test_addrs.append(c * (1 << tb.BYTE_OFFSET_WIDTH))
-    # Sweep bank inside row 0
-    for b in range(tb.NUM_BANKS):
-        test_addrs.append((b << (tb.COL_WIDTH + tb.BYTE_OFFSET_WIDTH)))
-    # Sweep row inside bank 0
-    for r in range(8):
-        test_addrs.append(r << (tb.COL_WIDTH + tb.BW + tb.BYTE_OFFSET_WIDTH))
-    for addr in test_addrs:
-        got = await tb.decode_rtl(addr, SCHEME_ROW_MAJOR)
-        exp = tb.decode_row_major(addr)
-        _assert_match(got, exp, tag="ROW_MAJOR", addr=addr)
+    """ROW_MAJOR = bank_lsb == COL_WIDTH (bank above the whole column). Sweep
+    column, bank, then row fields; every decode must match the reference."""
+    blsb = tb.COL_WIDTH
+    addrs = [c * (1 << tb.BYTE_OFFSET_WIDTH) for c in range(16)]
+    addrs += [b << (tb.COL_WIDTH + tb.BYTE_OFFSET_WIDTH) for b in range(tb.NUM_BANKS)]
+    addrs += [r << (tb.COL_WIDTH + tb.BW + tb.BYTE_OFFSET_WIDTH) for r in range(8)]
+    for addr in addrs:
+        got = await tb.decode_rtl(addr, blsb)
+        _assert_match(got, tb.decode_ref(addr, blsb), tag="ROW_MAJOR", addr=addr)
 
 
 async def _bank_interleave(tb: AddrMapperTB):
-    """BANK_INTERLEAVE — cache-line stride must round-robin across
-    banks. This scheme is *never* selected at the top, so a synthesis
-    bug here would survive every other test in the suite."""
-    # Cache-line addresses (stride = 2^CL beats) hit a different bank
-    # each iteration.
-    stride = (1 << tb.CL) * (1 << tb.BYTE_OFFSET_WIDTH)
-    seen_banks = set()
+    """BANK_INTERLEAVE = bank_lsb < COL_WIDTH (bank inserted into the column).
+    At bank_lsb=4, cache-line stride (2^4 beats) must round-robin across banks."""
+    blsb = min(4, tb.COL_WIDTH)
+    stride = (1 << blsb) * (1 << tb.BYTE_OFFSET_WIDTH)
+    seen = set()
     for k in range(tb.NUM_BANKS):
         addr = k * stride
-        got = await tb.decode_rtl(addr, SCHEME_BANK_INTERLEAVE)
-        exp = tb.decode_bank_interleave(addr)
-        _assert_match(got, exp, tag="BANK_INTERLEAVE", addr=addr)
-        seen_banks.add(got.bank)
-    # Stride-walking the cache line must visit every bank exactly once.
-    assert seen_banks == set(range(tb.NUM_BANKS)), (
-        f"BANK_INTERLEAVE: walking N cache-lines visited banks "
-        f"{seen_banks}, expected {set(range(tb.NUM_BANKS))}"
-    )
+        got = await tb.decode_rtl(addr, blsb)
+        _assert_match(got, tb.decode_ref(addr, blsb), tag="BANK_INTERLEAVE", addr=addr)
+        seen.add(got.bank)
+    assert seen == set(range(tb.NUM_BANKS)), (
+        f"BANK_INTERLEAVE(bank_lsb={blsb}): stride walk visited banks {seen}, "
+        f"expected {set(range(tb.NUM_BANKS))}")
 
 
 async def _xor_hash(tb: AddrMapperTB):
-    """XOR_HASH — bank index is `bank_raw XOR row[low] XOR row[mid]
-    XOR seed[low]`. Test several seeds against the Python reference,
-    and verify two row addresses that would collide under
-    BANK_INTERLEAVE land on different banks under XOR_HASH (the
-    point of the hash)."""
+    """XOR_HASH = interleave placement + hash_en. bank ^= row-fold ^ seed.
+    Sweep several seeds against the reference."""
+    blsb = min(4, tb.COL_WIDTH)
     rng = random.Random(tb.SEED ^ 0xBAD5)
-    test_addrs = [rng.randint(0, (1 << tb.AXI_ADDR_WIDTH) - 1)
-                  for _ in range(24)]
+    addrs = [rng.randint(0, (1 << tb.AXI_ADDR_WIDTH) - 1) for _ in range(24)]
     for seed in (0x00, 0x5A, 0xA5, 0xFF):
-        for addr in test_addrs:
-            got = await tb.decode_rtl(addr, SCHEME_XOR_HASH, xor_seed=seed)
-            exp = tb.decode_xor_hash(addr, xor_seed=seed)
-            _assert_match(got, exp,
-                          tag=f"XOR_HASH(seed={seed:#x})", addr=addr)
+        for addr in addrs:
+            got = await tb.decode_rtl(addr, blsb, hash_en=1, hash_seed=seed)
+            exp = tb.decode_ref(addr, blsb, hash_en=1, hash_seed=seed)
+            _assert_match(got, exp, tag=f"XOR_HASH(seed={seed:#x})", addr=addr)
 
 
-async def _all_schemes(tb: AddrMapperTB):
-    """Same input address into all three schemes — verifies the
-    runtime mux at the bottom of addr_mapper picks the right per-
-    scheme computation (a "mux all to ROW_MAJOR" regression would
-    fire here)."""
-    rng = random.Random(tb.SEED ^ 0xC0DA)
-    for _ in range(16):
-        addr = rng.randint(0, (1 << tb.AXI_ADDR_WIDTH) - 1)
-        seed = rng.randint(0, 0xFF)
-        got_rm = await tb.decode_rtl(addr, SCHEME_ROW_MAJOR)
-        got_bi = await tb.decode_rtl(addr, SCHEME_BANK_INTERLEAVE)
-        got_xh = await tb.decode_rtl(addr, SCHEME_XOR_HASH,
-                                     xor_seed=seed)
-        _assert_match(got_rm, tb.decode_row_major(addr),
-                      tag="all/ROW_MAJOR", addr=addr)
-        _assert_match(got_bi, tb.decode_bank_interleave(addr),
-                      tag="all/BANK_INTERLEAVE", addr=addr)
-        _assert_match(got_xh, tb.decode_xor_hash(addr, seed),
-                      tag="all/XOR_HASH", addr=addr)
+async def _bank_lsb_sweep(tb: AddrMapperTB):
+    """Sweep bank_lsb across its full legal range [0, COL_WIDTH] (+ over-range,
+    which the RTL clamps to COL_WIDTH), hash off and on. Any per-bank_lsb
+    slicing drift between RTL and the reference fires here."""
+    rng = random.Random(tb.SEED ^ 0x105B)
+    addrs = [rng.randint(0, (1 << tb.AXI_ADDR_WIDTH) - 1) for _ in range(12)]
+    for blsb in range(0, tb.COL_WIDTH + 3):     # includes over-range (clamped)
+        for he in (0, 1):
+            seed = rng.randint(0, 0xFF)
+            for addr in addrs:
+                got = await tb.decode_rtl(addr, blsb, hash_en=he, hash_seed=seed)
+                exp = tb.decode_ref(addr, blsb, hash_en=he, hash_seed=seed)
+                _assert_match(got, exp, tag=f"sweep(blsb={blsb},he={he})", addr=addr)
 
 
 async def _random_soak(tb: AddrMapperTB):
@@ -149,21 +126,13 @@ async def _random_soak(tb: AddrMapperTB):
     n = {'gate': 32, 'func': 128, 'full': 512}.get(
         os.environ.get("TEST_LEVEL", "FUNC").lower(), 128)
     for _ in range(n):
-        addr   = rng.randint(0, (1 << tb.AXI_ADDR_WIDTH) - 1)
-        scheme = rng.choice([SCHEME_ROW_MAJOR, SCHEME_BANK_INTERLEAVE,
-                             SCHEME_XOR_HASH])
-        seed   = rng.randint(0, 0xFF)
-        got = await tb.decode_rtl(addr, scheme, xor_seed=seed)
-        if scheme == SCHEME_ROW_MAJOR:
-            exp = tb.decode_row_major(addr)
-            tag = "soak/ROW_MAJOR"
-        elif scheme == SCHEME_BANK_INTERLEAVE:
-            exp = tb.decode_bank_interleave(addr)
-            tag = "soak/BANK_INTERLEAVE"
-        else:
-            exp = tb.decode_xor_hash(addr, seed)
-            tag = "soak/XOR_HASH"
-        _assert_match(got, exp, tag=tag, addr=addr)
+        addr = rng.randint(0, (1 << tb.AXI_ADDR_WIDTH) - 1)
+        blsb = rng.randint(0, tb.COL_WIDTH)
+        he   = rng.randint(0, 1)
+        seed = rng.randint(0, 0xFF)
+        got = await tb.decode_rtl(addr, blsb, hash_en=he, hash_seed=seed)
+        exp = tb.decode_ref(addr, blsb, hash_en=he, hash_seed=seed)
+        _assert_match(got, exp, tag=f"soak(blsb={blsb},he={he})", addr=addr)
 
 
 # ---------------------------------------------------------------------------
@@ -171,7 +140,7 @@ async def _random_soak(tb: AddrMapperTB):
 # ---------------------------------------------------------------------------
 
 _ALL_TYPES = ["row_major", "bank_interleave", "xor_hash",
-              "all_schemes", "random_soak"]
+              "bank_lsb_sweep", "random_soak"]
 _GATE = [(t,) for t in ["row_major", "bank_interleave", "xor_hash"]]
 _FUNC = [(t,) for t in _ALL_TYPES]
 _FULL = _FUNC
@@ -218,12 +187,6 @@ def test_addr_mapper(request, test_type):
         "ROW_WIDTH":         "14",
         "COL_WIDTH":         "10",
         "BYTE_OFFSET_WIDTH": "3",
-        # All three synth flags ON — otherwise the BANK_INTERLEAVE /
-        # XOR_HASH branches collapse to '0 and the test can't decide
-        # whether the mux logic is correct.
-        "SYNTH_ROW_MAJOR":       "1",
-        "SYNTH_BANK_INTERLEAVE": "1",
-        "SYNTH_XOR_HASH":        "1",
     }
 
     enable_waves = bool(int(os.environ.get("WAVES", "0")))

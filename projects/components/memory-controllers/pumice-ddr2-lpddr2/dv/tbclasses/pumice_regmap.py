@@ -15,28 +15,24 @@ register name to its absolute offset/address, size, reset default, and fields
 in the format consumed by the RegisterMap class (by-name register access).
 
 Usage:
-    from pumice_csr_regmap import top_block
-    reg_map = RegisterMap('pumice_csr_regmap.py', apb_data_width=32,
+    from pumice_regmap import top_block
+    reg_map = RegisterMap('pumice_regmap.py', apb_data_width=32,
                           apb_addr_width=16, start_address=0x0, log=logger)
 """
 
-top_block = {'ADDR_MAP_TUNING': {'RSVD_31_8': {'default': '0x000000',
-                                   'offset': '31:8',
-                                   'sw': 'r',
-                                   'type': 'field'},
-                     'RSVD_3_2': {'default': '0x0', 'offset': '3:2', 'sw': 'r', 'type': 'field'},
-                     'address': '0x04C',
-                     'default': '0x00000000',
-                     'name': 'ADDR_MAP_TUNING',
-                     'offset': '0x04C',
-                     'scheme_or': {'default': '0x0', 'offset': '1:0', 'sw': 'rw', 'type': 'field'},
-                     'size': 4,
-                     'sw': 'rw',
-                     'synth_mask_obs': {'default': '0x0',
-                                        'offset': '7:4',
-                                        'sw': 'r',
-                                        'type': 'field'},
-                     'type': 'reg'},
+top_block = {'ADDR_MAP': {'RSVD_15_9': {'default': '0x00', 'offset': '15:9', 'sw': 'r', 'type': 'field'},
+              'RSVD_31_24': {'default': '0x00', 'offset': '31:24', 'sw': 'r', 'type': 'field'},
+              'RSVD_7_5': {'default': '0x0', 'offset': '7:5', 'sw': 'r', 'type': 'field'},
+              'address': '0x04C',
+              'bank_lsb': {'default': '0x0A', 'offset': '4:0', 'sw': 'rw', 'type': 'field'},
+              'default': '0x0000000A',
+              'hash_en': {'default': '0x0', 'offset': '8', 'sw': 'rw', 'type': 'field'},
+              'hash_seed': {'default': '0x00', 'offset': '23:16', 'sw': 'rw', 'type': 'field'},
+              'name': 'ADDR_MAP',
+              'offset': '0x04C',
+              'size': 4,
+              'sw': 'rw',
+              'type': 'reg'},
  'BUILD': {'VAL': {'default': '0x00000000', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
            'address': '0xFF4',
            'default': '0x00000000',

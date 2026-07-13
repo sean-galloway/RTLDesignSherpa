@@ -58,7 +58,7 @@ Queues / arrays it owns
 
 What it does
 - Translates AXI byte address to (rank, bank, row, col).
-- Three schemes selected by `scheme_active_i`: ROW_MAJOR / BANK_INTERLEAVE
+- Address map driven by `ADDR_MAP.bank_lsb` (+ hash): ROW_MAJOR / BANK_INTERLEAVE
   / XOR_HASH.
 - The column is **physical device-word** granular: `BYTE_OFFSET_WIDTH =
   log2(DRAM_DEVICE_WIDTH/8)` (x16 => 2-byte columns), NOT the pumice DRAM-beat

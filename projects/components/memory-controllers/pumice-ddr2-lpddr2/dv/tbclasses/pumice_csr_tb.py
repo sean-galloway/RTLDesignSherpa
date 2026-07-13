@@ -42,7 +42,7 @@ class DDR2LPDDR2RegisterMap:
     SCHED_TUNING          = 0x040
     PAGE_PRED_TUNING      = 0x044
     REFRESH_TUNING        = 0x048
-    ADDR_MAP_TUNING       = 0x04C
+    ADDR_MAP              = 0x04C
     INIT_TUNING           = 0x050
 
     # Per-bank obs (rank 0, NUM_BANKS=8)
@@ -102,7 +102,7 @@ class DDR2LPDDR2RegisterMap:
         0x040: "SCHED_TUNING",
         0x044: "PAGE_PRED_TUNING",
         0x048: "REFRESH_TUNING",
-        0x04C: "ADDR_MAP_TUNING",
+        0x04C: "ADDR_MAP",
         0x050: "INIT_TUNING",
         0xFF0: "ID", 0xFF4: "BUILD",
     }

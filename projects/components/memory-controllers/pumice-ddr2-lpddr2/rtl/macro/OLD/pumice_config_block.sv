@@ -191,7 +191,10 @@ module pumice_config_block
     assign cfg_page_policy_or_o       = hwif_out.REFRESH_TUNING.page_policy_or.value;
     assign cfg_refresh_defer_active_o = hwif_out.REFRESH_TUNING.refresh_defer_active.value;
     assign cfg_zqcs_freq_hz_o         = hwif_out.REFRESH_TUNING.zqcs_freq_hz.value;
-    assign cfg_addr_map_scheme_or_o   = hwif_out.ADDR_MAP_TUNING.scheme_or.value;
+    // ADDR_MAP_TUNING.scheme_or retired (CSR is now ADDR_MAP.bank_lsb). This OLD
+    // config block is superseded by the generated pumice_csr; the scheme output
+    // is dead here, tied off so the sentinel test still compiles.
+    assign cfg_addr_map_scheme_or_o   = '0;
     assign cfg_zq_retries_o           = hwif_out.INIT_TUNING.zq_retries.value;
     assign cfg_init_timeout_ms_o      = hwif_out.INIT_TUNING.init_timeout_ms.value;
 
@@ -213,7 +216,8 @@ module pumice_config_block
 
         // Build-time discovery echoes (RO observed fields)
         hwif_in.SCHED_TUNING.lookahead_max_obs.next   = cap_lookahead_max_i;
-        hwif_in.ADDR_MAP_TUNING.synth_mask_obs.next   = cap_synth_mask_i;
+        // ADDR_MAP_TUNING.synth_mask_obs retired (see above); cap_synth_mask_i
+        // kept as a port for the sentinel tb but no longer echoed to a CSR.
 
         // Per-bank observation (rank 0, NUM_BANKS=8)
         for (int b = 0; b < 8; b++) begin

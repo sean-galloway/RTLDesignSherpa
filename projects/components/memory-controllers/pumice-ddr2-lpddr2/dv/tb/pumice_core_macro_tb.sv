@@ -11,7 +11,7 @@
 
 `timescale 1ns / 1ps
 
-module pumice_core_macro_tb_top
+module pumice_core_macro_tb
     import pumice_pkg::*;
 #(
     parameter int AXI_ADDR_WIDTH   = 32,
@@ -162,9 +162,9 @@ module pumice_core_macro_tb_top
                      phy_dfi_freq_change_req, phy_dfi_disconnect_req,
                      phy_dfi_phymstr_req };
 
-    // Default scheme: ROW_MAJOR. xor_seed=0.
-    addr_map_scheme_e w_scheme_active;
-    assign w_scheme_active = ADDR_MAP_ROW_MAJOR;
+    // Default address map: ROW_MAJOR (bank_lsb = COL_WIDTH), hash off.
+    logic [4:0] w_bank_lsb;
+    assign w_bank_lsb = 5'(COL_WIDTH);
 
     pumice_core_macro #(
         .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
@@ -189,8 +189,9 @@ module pumice_core_macro_tb_top
         .cfg_page_policy_i      (cfg_page_policy_i),
         .rd_phase_i             ('0),   // DFI phase-0 default (board rd_phase=0)
         .wr_phase_i             ('0),   // (pre-existing PINMISSING; now tied)
-        .scheme_active_i        (w_scheme_active),
-        .xor_seed_i             (8'h0),
+        .bank_lsb_i             (w_bank_lsb),
+        .hash_en_i              (1'b0),
+        .hash_seed_i            (8'h0),
 
         .memtype_i              (memtype_i),
         .t_refi_i               (t_refi_i),
@@ -296,4 +297,4 @@ module pumice_core_macro_tb_top
         .obs_words_o            ()
     );
 
-endmodule : pumice_core_macro_tb_top
+endmodule : pumice_core_macro_tb

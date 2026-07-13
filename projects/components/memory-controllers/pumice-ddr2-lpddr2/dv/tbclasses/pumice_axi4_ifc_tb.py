@@ -67,8 +67,9 @@ class PumiceAxi4IfcTB(TBBase):
         self.dut.aresetn.value = 1
 
     def _drive_idle(self):
-        self.dut.scheme_active_i.value = 0
-        self.dut.xor_seed_i.value = 0
+        self.dut.bank_lsb_i.value  = 10   # ROW_MAJOR (bank_lsb == COL_WIDTH)
+        self.dut.hash_en_i.value   = 0
+        self.dut.hash_seed_i.value = 0
         for s in ['awid', 'awaddr', 'awlen', 'awsize', 'awburst', 'awlock', 'awcache',
                   'awprot', 'awqos', 'awregion', 'awuser', 'awvalid',
                   'wdata', 'wstrb', 'wlast', 'wuser', 'wvalid',

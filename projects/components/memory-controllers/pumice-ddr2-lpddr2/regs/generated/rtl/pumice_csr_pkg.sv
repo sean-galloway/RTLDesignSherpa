@@ -65,14 +65,6 @@ package pumice_csr_pkg;
     } pumice_csr__SCHED_TUNING__in_t;
 
     typedef struct {
-        logic [3:0] next;
-    } pumice_csr__ADDR_MAP_TUNING__synth_mask_obs__in_t;
-
-    typedef struct {
-        pumice_csr__ADDR_MAP_TUNING__synth_mask_obs__in_t synth_mask_obs;
-    } pumice_csr__ADDR_MAP_TUNING__in_t;
-
-    typedef struct {
         logic [31:0] next;
     } pumice_csr__OBS_ROW_HIT__ROW_HIT__VAL__in_t;
 
@@ -201,7 +193,6 @@ package pumice_csr_pkg;
         pumice_csr__STATUS_HISTORY__in_t STATUS_HISTORY;
         pumice_csr__TEMP_DERATE_RANK0__in_t TEMP_DERATE_RANK0;
         pumice_csr__SCHED_TUNING__in_t SCHED_TUNING;
-        pumice_csr__ADDR_MAP_TUNING__in_t ADDR_MAP_TUNING;
         pumice_csr__OBS_ROW_HIT__in_t OBS_ROW_HIT[8];
         pumice_csr__OBS_REF_LATENCY__in_t OBS_REF_LATENCY[8];
         pumice_csr__OBS_TXN_QUEUE_DEPTH_MAX__in_t OBS_TXN_QUEUE_DEPTH_MAX;
@@ -454,12 +445,22 @@ package pumice_csr_pkg;
     } pumice_csr__REFRESH_TUNING__out_t;
 
     typedef struct {
-        logic [1:0] value;
-    } pumice_csr__ADDR_MAP_TUNING__scheme_or__out_t;
+        logic [4:0] value;
+    } pumice_csr__ADDR_MAP__bank_lsb__out_t;
 
     typedef struct {
-        pumice_csr__ADDR_MAP_TUNING__scheme_or__out_t scheme_or;
-    } pumice_csr__ADDR_MAP_TUNING__out_t;
+        logic value;
+    } pumice_csr__ADDR_MAP__hash_en__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } pumice_csr__ADDR_MAP__hash_seed__out_t;
+
+    typedef struct {
+        pumice_csr__ADDR_MAP__bank_lsb__out_t bank_lsb;
+        pumice_csr__ADDR_MAP__hash_en__out_t hash_en;
+        pumice_csr__ADDR_MAP__hash_seed__out_t hash_seed;
+    } pumice_csr__ADDR_MAP__out_t;
 
     typedef struct {
         logic [3:0] value;
@@ -569,7 +570,7 @@ package pumice_csr_pkg;
         pumice_csr__SCHED_TUNING__out_t SCHED_TUNING;
         pumice_csr__PAGE_PRED_TUNING__out_t PAGE_PRED_TUNING;
         pumice_csr__REFRESH_TUNING__out_t REFRESH_TUNING;
-        pumice_csr__ADDR_MAP_TUNING__out_t ADDR_MAP_TUNING;
+        pumice_csr__ADDR_MAP__out_t ADDR_MAP;
         pumice_csr__INIT_TUNING__out_t INIT_TUNING;
         pumice_csr__TIMINGS_RTP_RTW__out_t TIMINGS_RTP_RTW;
         pumice_csr__INIT_TIMING0__out_t INIT_TIMING0;

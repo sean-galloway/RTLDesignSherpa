@@ -41,32 +41,26 @@ function (AXI = beat×rate = 128, a fine width — no gearing needed for the boa
 
 **Design + rationale + deferred internal-gearbox option:** `docs/AXI_DRAM_GEARING_SCOPE.md`
 
-## TASK-ADDRMAP: CSR-programmable AXI-address → {bank, row, col} field placement
+## TASK-ADDRMAP: single-register AXI-address → {bank,row,col} mapping — RESOLVED
 
-Today `addr_mapper.sv` runtime-selects among three *fixed* schemes (ROW_MAJOR,
-BANK_INTERLEAVE, XOR_HASH via `scheme_active_i`). Extend it so the AXI-address
-decomposition into bank/row/col is fully **CSR-programmable at runtime** — i.e. cfg
-bits select which AXI address bits land in each field (field bit positions / order),
-not just one of three hardwired layouts.
+`addr_mapper.sv` is now driven by ONE knob — `ADDR_MAP.bank_lsb` (the CSR register
+that replaced the old scheme selector) — plus an optional bank XOR-hash
+(`ADDR_MAP.hash_en`/`hash_seed`). The mapping is derived by stacking fields around
+the bank position: `col_lo(bank_lsb) | bank | col_hi | row | rank`, row LSB invariant
+at `CW+BW`. The classic schemes are just settings, no scheme mux:
+`bank_lsb == COL_WIDTH` = ROW_MAJOR; `bank_lsb == log2(cols/burst)` = max
+BANK_INTERLEAVE (burst locality preserved by col_lo); `hash_en` = XOR_HASH on top.
 
-**Ordering (important):** the cfg field-placement mapping is the FIRST stage — it
-defines the raw AXI-address → {bank, row, col} bit extraction. The runtime scheme
-(interleave / XOR-hash) is applied AFTER, composed on top of the cfg mapping. So the
-pipeline is `AXI addr → cfg field map → scheme transform → {bank,row,col}`, NOT the
-scheme selecting a whole fixed layout up front.
-
-- Add CSRs for per-field placement (e.g. bank/row/col base-bit + width, or a
-  compact "map descriptor") in the pumice regmap; the three current fixed schemes
-  become power-on presets of the cfg mapping, with the scheme transform layered after.
-- `addr_mapper.sv` becomes a programmable shift/mask decode driven by those CSRs
-  (still combinational, single stage), with the scheme transform as a second
-  combinational stage downstream of it.
-- Keep the DV-side `AddressMapping` decode bit-for-bit identical (the RTL comment
-  contract) — extend the Python model in lockstep (same cfg-map-then-scheme order)
-  and cover with the existing addr_mapper conformance test.
-- Motivation: real controllers expose address-remap registers so a host can retune
-  bank/row/col interleave for a given traffic pattern without a rebuild; also needed
-  when device geometry (bank count / row / col width) varies across the DDR\* family.
+Landed: RDL ADDR_MAP register (regenerated CSR + regmap via bin/peakrdl_generate.py);
+addr_mapper rewritten (single stacked extraction + hash, 3 generate blocks + mux
+gone); bank_lsb/hash_en/hash_seed threaded through pumice_axi4_ifc / wr+rd intakes /
+pumice_core / pumice_top (driven from hwif_out.ADDR_MAP); program_defaults +
+test_pumice_top_csr + core tests updated. FUB conformance (test_addr_mapper) rewritten
+to sweep bank_lsb across [0,COL_WIDTH] + hash on/off vs a Python reference — 5/5.
+`addr_map_scheme_e` retained only for the retired OLD macro sentinels
+(pumice_core_macro / axi_frontend_macro / pumice_config_block), which were carried to
+the new intake interface (candidates for future retirement). Full suite: 407 pass, 0
+fail (macro 141 + fub/top 266).
 
 ## TASK-LPDDR2-INIT: full LPDDR2 mode-register init — RESOLVED
 

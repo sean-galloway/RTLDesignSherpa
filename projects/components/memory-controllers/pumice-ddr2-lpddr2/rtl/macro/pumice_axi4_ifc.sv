@@ -33,9 +33,6 @@ module pumice_axi4_ifc #(
     parameter int ROW_WIDTH         = 14,
     parameter int COL_WIDTH         = 10,
     parameter int BYTE_OFFSET_WIDTH = 3,
-    parameter bit SYNTH_ROW_MAJOR       = 1'b1,
-    parameter bit SYNTH_BANK_INTERLEAVE = 1'b1,
-    parameter bit SYNTH_XOR_HASH        = 1'b0,
     parameter int BL              = 4,
     parameter int NUM_ENTRIES     = 8,
     parameter int N_SRAM_SLOTS    = 8,
@@ -57,8 +54,9 @@ module pumice_axi4_ifc #(
     input  logic                     aclk,
     input  logic                     aresetn,
 
-    input  pumice_pkg::addr_map_scheme_e scheme_active_i,
-    input  logic [7:0]               xor_seed_i,
+    input  logic [4:0]               bank_lsb_i,   // ADDR_MAP.bank_lsb
+    input  logic                     hash_en_i,    // ADDR_MAP.hash_en
+    input  logic [7:0]               hash_seed_i,  // ADDR_MAP.hash_seed
 
     //=========================================================================
     // Host AXI4 (pre-split)
@@ -247,11 +245,10 @@ module pumice_axi4_ifc #(
         .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(AW), .AXI_DATA_WIDTH(DW), .AXI_USER_WIDTH(UW),
         .DRAM_BEAT_WIDTH(DRAM_BEAT_WIDTH), .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS),
         .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH), .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH),
-        .SYNTH_ROW_MAJOR(SYNTH_ROW_MAJOR), .SYNTH_BANK_INTERLEAVE(SYNTH_BANK_INTERLEAVE),
-        .SYNTH_XOR_HASH(SYNTH_XOR_HASH), .BL(BL)
+        .BL(BL)
     ) u_wr_intake (
         .aclk(aclk), .aresetn(aresetn),
-        .scheme_active_i(scheme_active_i), .xor_seed_i(xor_seed_i),
+        .bank_lsb_i(bank_lsb_i), .hash_en_i(hash_en_i), .hash_seed_i(hash_seed_i),
         .s_axi_awid(sw_awid), .s_axi_awaddr(sw_awaddr), .s_axi_awlen(sw_awlen),
         .s_axi_awsize(sw_awsize), .s_axi_awburst(sw_awburst), .s_axi_awlock(sw_awlock),
         .s_axi_awcache(sw_awcache), .s_axi_awprot(sw_awprot), .s_axi_awqos(sw_awqos),
@@ -309,11 +306,10 @@ module pumice_axi4_ifc #(
         .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(AW), .AXI_DATA_WIDTH(DW), .AXI_USER_WIDTH(UW),
         .DRAM_BEAT_WIDTH(DRAM_BEAT_WIDTH), .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS),
         .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH), .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH),
-        .SYNTH_ROW_MAJOR(SYNTH_ROW_MAJOR), .SYNTH_BANK_INTERLEAVE(SYNTH_BANK_INTERLEAVE),
-        .SYNTH_XOR_HASH(SYNTH_XOR_HASH), .BL(BL)
+        .BL(BL)
     ) u_rd_intake (
         .aclk(aclk), .aresetn(aresetn),
-        .scheme_active_i(scheme_active_i), .xor_seed_i(xor_seed_i),
+        .bank_lsb_i(bank_lsb_i), .hash_en_i(hash_en_i), .hash_seed_i(hash_seed_i),
         .s_axi_arid(sr_arid), .s_axi_araddr(sr_araddr), .s_axi_arlen(sr_arlen),
         .s_axi_arsize(sr_arsize), .s_axi_arburst(sr_arburst), .s_axi_arlock(sr_arlock),
         .s_axi_arcache(sr_arcache), .s_axi_arprot(sr_arprot), .s_axi_arqos(sr_arqos),

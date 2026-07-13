@@ -104,8 +104,9 @@ module pumice_core_macro
     // ========================================================================
     // CSR-driven configuration (was: split between frontend + core)
     // ========================================================================
-    input  addr_map_scheme_e           scheme_active_i,
-    input  logic [7:0]                 xor_seed_i,
+    input  logic [4:0]                 bank_lsb_i,
+    input  logic                       hash_en_i,
+    input  logic [7:0]                 hash_seed_i,
 
     // ---- runtime config ----
     input  memtype_e                   memtype_i,
@@ -405,8 +406,9 @@ module pumice_core_macro
     ) u_axi_frontend (
         .mc_clk                     (mc_clk),
         .mc_rst_n                   (mc_rst_n),
-        .scheme_active_i            (scheme_active_i),
-        .xor_seed_i                 (xor_seed_i),
+        .bank_lsb_i                 (bank_lsb_i),
+        .hash_en_i                  (hash_en_i),
+        .hash_seed_i                (hash_seed_i),
         .dram_bl_i                  (bl_dram_beats),
 
         .s_axi_awid                 (s_axi_awid),

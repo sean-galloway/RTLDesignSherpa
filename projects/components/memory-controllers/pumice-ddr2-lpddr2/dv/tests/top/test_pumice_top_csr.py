@@ -112,7 +112,7 @@ async def cocotb_test_pumice_top_csr(dut):
     await _csr_wr(dut, DFI_PHASE, pk((0, 0), (0, 4)))                    # rd_phase,wr_phase
     await _csr_wr(dut, PHY_TIMING, pk((1, 0), (2, 8), (0, 16), (1, 20))) # wrlat,rddata_en,memtype,refresh_burst
     await _csr_wr(dut, REFRESH_TUNING, pk((0, 2)))                        # page_policy_or=OPEN @ [3:2]
-    await _csr_wr(dut, ADDR_MAP, pk((0, 0)))                              # scheme=row_major
+    await _csr_wr(dut, ADDR_MAP, pk((10, 0)))                             # bank_lsb=10=ROW_MAJOR
     await _csr_wr(dut, INIT0, 0)                                          # fast init
     await _csr_wr(dut, INIT1, 0)
 
