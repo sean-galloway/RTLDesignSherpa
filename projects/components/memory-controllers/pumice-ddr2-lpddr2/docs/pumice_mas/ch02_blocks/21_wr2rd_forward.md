@@ -21,63 +21,71 @@
 
 <!-- End Header -->
 
-# Write-to-Read Forward (`wr2rd_forward`)
+# Write-to-Read Forward — RETIRED as a standalone block
 
-**Module:** `wr2rd_forward.sv`
-**Location:** `rtl/fub/`
-**Category:** FUB
-**Parent macro:** `axi_frontend_macro`
-**Status:** v1 implemented
+**Status:** RETIRED. There is no `wr2rd_forward.sv` in the live RTL.
+**Replaced by:** the **snarf mover inside `pumice_wr_data_cam`** (see §17,
+the Write Data Path chapter).
+**Probe driver:** `pumice_rd_intake` (the snarf probe on the AR path).
 
-## Purpose
+## Why it was retired
 
-Write-to-read forwarding ("snarf") — when an AR's decoded address matches
-an in-flight write that has not yet drained to DRAM, the read pulls data
-straight from `axi_intake.w_buf` instead of issuing a DRAM read.
+The rearchitected AXI4 interface (`pumice_axi4_ifc`) folded write-to-read
+forwarding into the write CAM rather than keeping it as a separate FUB on
+the AR path. The old `wr2rd_forward` block sat between `addr_mapper` and
+`rd_cmd_cam` and compared each AR against a `wr_cmd_cam` snapshot bus;
+that snapshot bus, the standalone comparator, and the separate `w_buf`
+storage it read from no longer exist. Forwarding is now a native operation
+of `pumice_wr_data_cam`, which already holds the pending writes and their
+burst data in its SRAM.
 
-This preserves AXI per-ID in-order semantics for the common case where a
-write is immediately followed by a read on the same line, without
-serializing them through DRAM.
+## Where forwarding lives now
 
-## Placement
+Write-to-read forwarding ("snarf") is the **snarf mover** of
+`pumice_wr_data_cam`. The flow is:
 
-Sits between `addr_mapper` and `rd_cmd_cam` on the AR path. For each
-incoming AR:
+1. `pumice_rd_intake` presents an incoming AR's decoded key
+   `{bank, row, col}` plus its AXI id and `arlen` on the CAM's
+   `snarf_probe_*` port.
+2. `pumice_wr_data_cam` combinationally searches its entries and asserts
+   `snarf_hit_o` for a **youngest** match, subject to the safe-case
+   restrictions.
+3. On `snarf_accept_i`, the matched slot is queued into the snarf request
+   FIFO and the snarf mover streams the write's SRAM beats back on
+   `snarf_rd_*` (non-destructively — the write still drains to DRAM
+   normally). Otherwise the read takes the DRAM miss path through
+   `pumice_rd_cmd_cam` (§18).
 
-1. Combinationally compares the decoded (rank, bank, row, col, burst_len)
-   against every `wr_cmd_cam` slot's snapshot bus.
-2. If a matching in-flight write exists AND its burst length matches AND
-   it is full-beat (no byte-strobe gaps), redirect the AR to the
-   forwarded path:
-   - Do NOT push to `rd_cmd_cam`.
-   - Emit `fwd_valid_o` with the write's `w_buf_ptr` and length so the
-     read side can pull beats from `w_buf`.
-   - Use the AR's own `axi_id` for the AXI rid echo.
-3. Otherwise, pass the AR straight through to `rd_cmd_cam`.
+## Restrictions (narrower than the old block)
 
-## Design Notes
+The live snarf is limited to the safe case — a write is snarfable only if
+**all three** hold:
 
-- **Last-write-wins**: if multiple writes match (programmer error or
-  intentional double-write), the highest-slot-index match is taken —
-  the most recently pushed write.
-- **Pure flag-and-counter**, no FSM. Match lines are parallel comparators
-  across the wr_cmd_cam snapshot bus.
-- **Strb-coverage** in v1 is conservative: requires the AR's first beat
-  AND every beat thereafter to be all-1 in the write's `strb_buf` (the
-  write filled the entire read window). Partial overlaps fall through
-  to DRAM.
+- **Unscheduled** (`!r_sched`): a scheduled write is draining/evicting to
+  DRAM, so its CAM data is racy.
+- **Same AXI id**: same-id write-before-read is the only AXI-ordered case
+  where the read is *required* to see the write. Cross-id reads have no
+  ordering guarantee and take the DRAM path.
+- **Same burst length** (`arlen == BL-1`): every admitted write is exactly
+  `BL` beats (ragged bursts are rejected in `pumice_wr_intake`), so a short
+  or long read cannot snarf a full-BL write.
+
+The match must also be fill-complete (`r_fdone`); among candidates the
+**youngest** wins (latest data). This differs from the old block's
+"last-write-wins by highest slot index, any matching id, conservative
+all-1 strb-coverage" policy — the live rule is youngest + same-id +
+same-BL + unscheduled.
 
 ## Memory Ordering
 
-Forwarding preserves AXI per-ID in-order semantics — the snarf path
-returns the same data the DRAM read would have, just earlier. Reads on
-different IDs are unconstrained by AXI ordering so the snarf doesn't
-violate any guarantees.
+Forwarding preserves AXI per-ID in-order semantics: the snarf path returns
+the same data a DRAM read would have, just earlier. Because it is
+restricted to same-id matches, it never forwards across an unordered
+cross-id pair.
 
 ## Tests
 
-Covered by the `axi_frontend_macro` integration tests
-(`dv/tests/macro/test_axi_frontend_macro.py`) including the
-`snarf_stream`, `last_write_wins`, and `issued_then_snarf` scenarios.
-No FUB-level standalone test (the comparator + slot snapshot interface
-is hard to mock without the full CAM).
+Covered by the `pumice_wr_data_cam` FUB test and the `pumice_axi4_ifc`
+integration tests (snarf stream, snarf-vs-DRAM-path selection, and the
+same-id / same-BL / unscheduled exclusion scenarios). See §17 for the
+detailed test plan.

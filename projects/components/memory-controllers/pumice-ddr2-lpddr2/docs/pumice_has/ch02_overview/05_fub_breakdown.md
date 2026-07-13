@@ -24,11 +24,11 @@
 # FUB Breakdown
 
 This section documents the **actual** Functional Unit Block decomposition as
-implemented in the RTL. It supersedes the early SWAG, which proposed ~14 FUBs
-in a flat layout; the implementation converged on **16 leaf FUBs grouped under
-5 macros**.
+implemented in the rearchitected RTL: three integration layers under
+`pumice_core`, each built from leaf FUBs, driven by a PeakRDL CSR block in
+`pumice_top`.
 
-## Stream FUB Convention
+## Component Layout
 
 Per the standard component layout:
 
@@ -37,241 +37,229 @@ pumice/
 ├── docs/                      # this HAS, MAS, generated PDFs
 ├── dv/                        # cocotb tests, BFM glue, tbclasses
 └── rtl/
-    ├── fub/                   # 16 leaf FUBs (this section)
-    ├── macro/                 # 5 integration macros
-    ├── includes/              # shared `defines, package files
-    ├── filelists/
-    │   ├── fub/               # one .f per FUB
-    │   └── macro/             # one .f per macro
-    └── (no top/ — top-level is the outermost macro)
+    ├── top/                   # pumice_top, pumice_core, pumice_top_geared
+    ├── macro/                 # the three layer macros + pumice_csr.rdl + generated/
+    ├── fub/                   # leaf FUBs (this section)
+    ├── includes/              # shared `defines, package files (pumice_pkg)
+    └── filelists/
+        ├── top/               # one .f per top
+        ├── macro/             # one .f per layer
+        └── fub/               # one .f per FUB
 ```
 
-Each FUB has:
-- One top SystemVerilog file named `<fub>.sv` with module `<fub>`
-- A filelist `filelists/fub/<fub>.f`
-- A cocotb testbench in `dv/tests/fub/test_<fub>.py`
-- All outputs are **strict-flop registered** (Q of a dedicated flop, no
-  combinational driver). See commit 97a91fb8.
+Each FUB has one top SystemVerilog file named `<fub>.sv` with module `<fub>`,
+a filelist under `filelists/fub/`, and a cocotb testbench under `dv/tests/`.
 
-## Macro Hierarchy
+## Layer Hierarchy
 
-The 16 FUBs are grouped into **5 macros**. The top-of-tree is the outermost
-macro that the SoC instantiates:
+`pumice_top` instantiates the PeakRDL `pumice_csr` block (config by name) and
+`pumice_core`, which wires the three layers:
 
 ```
-pumice_core_macro                       (skeleton wrapper)
-├── command_scheduler_macro                  ("what command to issue this cycle")
-│   ├── scheduler                            FR-FCFS w/ closed-page policy
-│   ├── xbank_timers                         per-(rank,bank) JEDEC timers
-│   ├── global_timers                        tFAW / tRRD / tWTR / tRTW windows
-│   ├── refresh_ctrl                         tREFI postponer, REFab/REFpb dispatch
-│   ├── powerdown_ctrl                       Active / APD / SR / DPD FSM, CKE
-│   ├── mode_register                        MR0/1/2/3 decode → live CL/CWL/BL/AL
-│   └── init_sequencer                       cold-boot microprogram + MRS issue
-├── data_path_macro                          ("move bytes between AXI and DFI")
-│   ├── wr_beat_sequencer                    W-buf pull → DFI wrdata + mask
-│   └── rd_cl_aligner                        DFI rddata capture → rd_inject beats
-└── dfi_v21_interface_macro                  ("DFI v2.1 wire pack")
-    ├── dfi_cmd_formatter                    JEDEC truth table for ACT/RD/WR/PRE/REF/MRS
-    └── dfi_signal_pack                      multi-phase DFI signal aggregation
-
-axi_frontend_macro                           ("host AXI4 → CAM-cached requests")
-├── axi_intake                               AXI4 protocol + w_buf + b_fifo + R-emit
-├── addr_mapper                              flat AXI addr → (rank, bank, row, col)
-├── wr_cmd_cam                               W-side CAM (slot mgmt + match query)
-├── rd_cmd_cam                               R-side CAM (slot mgmt + match query)
-└── wr2rd_forward                            snarf-and-bypass for W-then-R same line
+pumice_top                                (CSR block + core)
+└── pumice_core
+    ├── pumice_axi4_ifc                        ("host AXI4 -> CAM-buffered requests")
+    │   ├── pumice_wr_intake                   AXI4 slave wr + AW-meta FIFO + wr-data FIFO
+    │   ├── pumice_rd_intake                   AXI4 slave rd + snarf probe
+    │   ├── addr_mapper                        flat AXI addr -> (rank, bank, row, col)
+    │   ├── pumice_wr_data_cam                 WR CAM + wr-data SRAM (fill/commit-drain/snarf)
+    │   └── pumice_rd_cmd_cam                  RD CAM + rd SRAM (return-fill/drain)
+    ├── pumice_mem_cmd_scheduler               ("what command to issue this cycle")
+    │   ├── pumice_cmd_arbiter                 single pick core (open-page inline)
+    │   ├── pumice_bank_timers (bank_timer)    per-(rank,bank) FSM-free JEDEC "safe" timers
+    │   ├── global_timers                      tFAW / tRRD / tWTR / tRTW / tCCD turnaround
+    │   ├── refresh_ctrl                       tREFI postponer, REFab/REFpb dispatch
+    │   ├── init_sequencer                     DDR2 + LPDDR2 JEDEC MR init
+    │   └── mode_register                      MR shadow -> live CL/CWL/BL/AL
+    └── pumice_dfi_layer                       ("single CDC + DFI v2.1 datapath")
+        ├── pumice_dfi_cdc                     the ONE clock crossing (async gaxi FIFOs)
+        ├── pumice_dfi_cmd_path                unpack cmd, drive DFI via dfi_cmd_formatter
+        │       (uses dfi_cmd_formatter + dfi_signal_pack)
+        ├── pumice_dfi_wr_serializer           commit-drain WR CAM -> dfi_wrdata + mask
+        └── pumice_dfi_rd_aligner              dfi_rddata capture -> return-fill RD CAM
 ```
+
+Also present but not in the default top build: `page_predictor` and
+`powerdown_ctrl` (referenced / optional; verify against the filelists).
 
 ## FUB Inventory
 
-The 16 FUBs by macro grouping.
+### `pumice_axi4_ifc`
 
-### `axi_frontend_macro` (5 FUBs)
+#### `pumice_wr_intake`
+- **Purpose**: AXI4 slave write engine. AW/W/B handshakes with an AW-meta FIFO
+  and a wr-data FIFO; splits each host burst at DRAM-burst byte boundaries so
+  each command maps to one DRAM burst.
+- **Key params**: `AXI_DATA_WIDTH`, `AXI_ID_WIDTH`, `AXI_ADDR_WIDTH`, `BL`,
+  `NUM_ENTRIES`.
+- **Downstream**: `addr_mapper`, `pumice_wr_data_cam`.
 
-#### `axi_intake`
-- **Purpose**: AXI4 slave protocol engine; AW/W/B and AR/R channel handshakes;
-  w_buf for write data staging; b_fifo for ID-aware completion ordering;
-  forwarded R-emit path from the wr2rd snarf bypass.
-- **Key params**: `AXI_DATA_WIDTH`, `AXI_ID_WIDTH`, `AXI_ADDR_WIDTH`,
-  `WR_CAM_DEPTH`, `RD_CAM_DEPTH`.
-- **Upstream**: top-level AXI ports.
-- **Downstream**: `addr_mapper` (address), `wr_cmd_cam` / `rd_cmd_cam`
-  (slot push), `wr_beat_sequencer` (w_buf pull), `rd_cl_aligner` (rd_inject).
+#### `pumice_rd_intake`
+- **Purpose**: AXI4 slave read engine; splits the read burst; probes the
+  write-data CAM for a read-your-write snarf hit (unscheduled, same-id,
+  same-BL) before committing the read command.
+- **Key params**: `AXI_DATA_WIDTH`, `AXI_ID_WIDTH`, `AXI_ADDR_WIDTH`, `BL`,
+  `NUM_ENTRIES`.
 
 #### `addr_mapper`
-- **Purpose**: Decode flat AXI address into (rank, bank, row, column) per the
-  active address-mapping scheme.
-- **Key params**: `NUM_RANKS`, `NUM_BANKS`, `ROW_WIDTH`, `COL_WIDTH`,
-  `ADDR_MAP_SCHEMES_SYNTH`, `ADDR_MAP_SCHEME_DEFAULT`.
-- **Notable**: Mirrors the Python `AddressMapping` class in the DV repo; the
-  same decode function is used by RTL and BFM.
+- **Purpose**: Decode a flat AXI address into (rank, bank, row, col) using the
+  single `bank_lsb` knob: the bank field slides within the byte-offset-stripped
+  word address and the column auto-splits below (`col_lo`) and above (`col_hi`)
+  it, with the row/rank positions invariant. An optional bank XOR-hash folds
+  row bits (+ a seed) into the bank index. Combinational, single stage.
+- **Key params**: `AXI_ADDR_WIDTH`, `NUM_RANKS`, `NUM_BANKS`, `ROW_WIDTH`,
+  `COL_WIDTH`.
+- **Runtime inputs**: `bank_lsb_i`, `hash_en_i`, `hash_seed_i`
+  (`ADDR_MAP.bank_lsb` / `hash_en` / `hash_seed`).
+- **Notable**: Mirrors the Python address-mapping class in the DV repo; the
+  same decode drives RTL and BFM. There is no scheme selector.
 
-#### `wr_cmd_cam`
-- **Purpose**: Per-write-op slot bank. Holds (rank, bank, row, len, slot
-  metadata) for in-flight writes. Provides match-query output to the
-  scheduler and beat-pull state to the wr_beat_sequencer.
-- **Key params**: `WR_CAM_DEPTH`, `NUM_RANKS`, `NUM_BANKS`, `ROW_WIDTH`.
+#### `pumice_wr_data_cam`
+- **Purpose**: Write-data CAM. Fills each write burst into an SRAM and records
+  the command; provides scheduler lookup / oldest / commit ports; commit-drains
+  the burst to the DFI write serializer; and is the snarf source for read
+  forwarding. An `r_fdone` fill-complete flag gates schedulability and snarf.
+  Streaming read engine is FIFO-fed / oldest-pick — no active-slot state latch.
+- **Key params**: `NUM_ENTRIES`, `N_SRAM_SLOTS`, `NUM_RANKS`, `NUM_BANKS`,
+  `ROW_WIDTH`, `BL`.
 
-#### `rd_cmd_cam`
-- **Purpose**: Per-read-op slot bank. Same role as wr_cmd_cam for reads,
-  including the in-order-completion bookkeeping for the rd_cl_aligner.
-- **Key params**: `RD_CAM_DEPTH`, `NUM_RANKS`, `NUM_BANKS`, `ROW_WIDTH`.
+#### `pumice_rd_cmd_cam`
+- **Purpose**: Read-command CAM / reorder buffer. Records read commands;
+  return-fills DRAM read beats into an SRAM; oldest-first drain engine (gated
+  on data-ready) streams beats back to `pumice_rd_intake`. No active-slot latch.
+- **Key params**: `NUM_ENTRIES`, `N_SRAM_SLOTS`, `NUM_RANKS`, `NUM_BANKS`,
+  `ROW_WIDTH`, `BL`.
 
-#### `wr2rd_forward`
-- **Purpose**: Snarf-and-bypass path for a read that hits an in-flight write's
-  staged data (same address). Returns data directly from `w_buf` without
-  issuing the read on the DRAM, preserving AXI ordering.
-- **Key params**: `WR_CAM_DEPTH`, `W_BUF_DEPTH`.
+### `pumice_mem_cmd_scheduler`
 
-### `command_scheduler_macro` (8 FUBs)
+#### `pumice_cmd_arbiter`
+- **Purpose**: The single command-pick core. Picks one abstract command per
+  cycle from {ACT, RD/RDA, WR/WRA, PRE, REF, MRS, NOP} from the CAM lookups,
+  gated by the per-(rank,bank) `safe_*` from `pumice_bank_timers` and the
+  turnaround windows from `global_timers`. The open-page decision is inline.
+- **Page policy**: OPEN (row-hit reuse + explicit PRE on miss), CLOSE (auto-pre
+  on every column op via RDA/WRA), or HAPPY_HYBRID (predictor-selected).
+  Programmed via `REFRESH_TUNING.page_policy_or`.
+- **Key params**: `NUM_ENTRIES`, `NUM_RANKS`, `NUM_BANKS`, `AGE_WIDTH`.
+- **Notable**: A combinational picker with registered feedback — always
+  macro-test it, since registered-feedback latency created double-issue hazards
+  caught only at the layer level.
 
-#### `scheduler`
-- **Purpose**: "What command to issue this cycle?" — picks one CMD per cycle
-  from {ACT, RD/RDA, WR/WRA, PRE, REF, MRS, NOP} based on per-(rank,bank)
-  ready, cross-bank windows, refresh priority, init/MR priority.
-- **Page policy**: parameterizable — CLOSE (auto-pre on every column op),
-  OPEN (row-hit reuse + explicit PRE on miss), or HAPPY_HYBRID (per-bank
-  predictor selects). W/R arbitration is round-robin.
-- **Key params**: `WR_CAM_DEPTH`, `RD_CAM_DEPTH`, `NUM_RANKS`, `NUM_BANKS`,
-  `PAGE_POLICY`.
-- **Notable**: The single hardest timing FUB. Outputs all strict-flop
-  registered for hierarchical timing closure.
-
-#### `page_predictor`
-- **Purpose**: Per-(rank, bank) 2-bit saturating predictor of whether the
-  next access will hit the bank's currently open row. Drives
-  `predict_open_o[r][b]` consumed by the scheduler in HAPPY_HYBRID mode.
+#### `pumice_bank_timers` (instantiates `bank_timer`)
+- **Purpose**: Stamps one `bank_timer` per (rank, bank) and fans the arbiter's
+  command-event strobes to the addressed instance. `bank_timer` is FSM-free:
+  preset/decrement countdown timers (tRCD, tRAS, tRC, tRP, precharge-block) +
+  a row-open register + a single auto-precharge bit. The per-command `safe_*`
+  outputs are combinational off the timers (one register stage), so the arbiter
+  sees the just-issued command's effect one cycle later with no multi-stage lag.
 - **Key params**: `NUM_RANKS`, `NUM_BANKS`, `ROW_WIDTH`.
-- **Update rules**: ACT on same row → counter saturates up; ACT on
-  different row → saturates down. First ACT on a bank just records.
-
-#### `xbank_timers`
-- **Purpose**: Per-(rank, bank) JEDEC timing counters (tRCD, tRP, tWR, tRTP,
-  tRC, tRAS); exposes per-bank `act_ready`, `rdwr_ready`, `pre_ready` to the
-  scheduler.
-- **Key params**: `NUM_RANKS`, `NUM_BANKS`.
-- **Notable**: Absorbed what the early SWAG called `bank_machine_fub`; the
-  per-bank FSM became distributed across the CAMs + scheduler + this FUB.
+- **Runtime inputs**: `t_rcd_i`, `t_rp_i`, `t_ras_i`, `t_rc_i`, `t_wr_i`,
+  `t_rtp_i`.
 
 #### `global_timers`
-- **Purpose**: Cross-bank / cross-rank timing windows: tFAW (4-ACT window),
-  tRRD, tWTR, tRTW. Drives `_window_ok` signals into the scheduler.
-- **Key params**: `NUM_RANKS`.
-- **Storage**: 4-entry tFAW shift-register per rank.
+- **Purpose**: Cross-bank / cross-rank turnaround windows: tFAW (4-ACT window),
+  tRRD, tWTR, tRTW, tCCD. ANDed by the arbiter.
+- **Runtime inputs**: `t_faw_i`, `t_rrd_i`, `t_wtr_i`, `t_rtw_i`, `t_ccd_i`.
 
 #### `refresh_ctrl`
 - **Purpose**: tREFI down-counter; postponed-refresh accumulator (JEDEC max 8);
-  refresh-pending signal to scheduler.
-- **Key params**: `NUM_RANKS`, `REFRESH_DEFER_MAX`.
-
-#### `powerdown_ctrl`
-- **Purpose**: Active / Active-Power-Down / Self-Refresh / Deep-Power-Down
-  FSM; per-rank CKE drive; SR-entry / SR-exit coordination with
-  `refresh_ctrl`.
-- **Key params**: `NUM_RANKS`, `MEMTYPE` (DPD is LPDDR2 only).
-
-#### `mode_register`
-- **Purpose**: MR0/MR1/MR2/MR3 register file + decode to live CL/CWL/BL/AL,
-  drive_strength, ODT values consumed by the data-path FUBs and scheduler.
-- **Key params**: `MEMTYPE`.
+  refresh-pending signal to the arbiter; REFab / REFpb dispatch
+  (`REFRESH_TUNING.refpb_policy_or`).
+- **Runtime inputs**: `t_refi_i`, `refresh_burst_i`.
 
 #### `init_sequencer`
-- **Purpose**: Cold-boot microprogram. Step-table per `MEMTYPE` driving CKE,
-  RESET_N, MR-write strobes into `mode_register`. Emits `init_busy_o` to
-  block the scheduler until init completes.
-- **Key params**: `MEMTYPE`, `SIM_INIT_SCALE`.
+- **Purpose**: Cold-boot engine that runs the memtype-specific JEDEC MR/init
+  sequence (DDR2 and LPDDR2), driving CKE / RESET_N and MR-write strobes into
+  `mode_register`, and holds off traffic until init completes.
+- **Runtime inputs**: `t_init_wait_i`, `t_dll_wait_i`, `t_mrd_wait_i`,
+  `t_rp_wait_i`, `t_rfc_wait_i`, `memtype_i`.
 
-### `data_path_macro` (2 FUBs)
+#### `mode_register`
+- **Purpose**: Per-rank Mode Register shadow + live decode to CL / CWL / BL / AL
+  (memtype-dependent), plus drive-strength and ODT-rule outputs consumed by the
+  DFI layer.
+- **Key params**: `NUM_RANKS`, `MAX_MR_IDX` (17; covers DDR2 MR0..3 and LPDDR2
+  MR0..16).
 
-#### `wr_beat_sequencer`
-- **Purpose**: Pulls W beats out of `axi_intake.w_buf` via beat_pull; packs
-  them into DFI_RATE DRAM beats per DFI cycle; drives `dfi_wrdata` /
-  `dfi_wrdata_en` / `dfi_wrdata_mask` with PHY alignment; emits b_complete
-  back to wr CAM.
-- **Key params**: `DRAM_BEAT_WIDTH`, `DFI_RATE`, `MAX_BURST_LEN`,
-  `WR_CAM_DEPTH`.
+### `pumice_dfi_layer`
+
+#### `pumice_dfi_cdc`
+- **Purpose**: The single controller-to-PHY clock crossing, built from
+  asynchronous gaxi FIFOs (command, write-data, read-data). One FIFO word is
+  one DFI cycle, so the datapaths are bubble-free.
+- **Key params**: `CMD_FIFO_DEPTH`, `WD_FIFO_DEPTH`, `RD_FIFO_DEPTH`,
+  `N_FLOP_CROSS`.
+
+#### `pumice_dfi_cmd_path` (uses `dfi_cmd_formatter` + `dfi_signal_pack`)
+- **Purpose**: DFI-domain command path. Pops the abstract command stream from
+  the CDC FIFO, unpacks {op, rank, bank, row, col, ap}, and drives the
+  multi-phase DFI command bus via `dfi_cmd_formatter`; emits wr_fire / rd_fire
+  strobes so the serializer / aligner can schedule their data phases.
+- **`dfi_cmd_formatter`**: JEDEC command encoding into DFI wires — DDR2 drives
+  cs_n / ras_n / cas_n / we_n / address / bank (including the A10 auto-precharge
+  bit and ODT rule); LPDDR2 packs the 10-bit CA-bus command (two edges) onto
+  `dfi_address`, per a `memtype` branch. Swap this when moving DFI generations.
+- **`dfi_signal_pack`**: multi-phase aggregation — widens each DFI control bus
+  to per-phase × `DFI_RATE`.
+
+#### `pumice_dfi_wr_serializer`
+- **Purpose**: On wr_fire, commit-drains the write burst from
+  `pumice_wr_data_cam`'s SRAM and drives `dfi_wrdata` / `dfi_wrdata_en` /
+  `dfi_wrdata_mask` with PHY alignment.
 - **AXI ↔ DFI mask polarity**: AXI `wstrb`=1 means write; DFI `mask`=1 means
   do-not-write → `dfi_wrdata_mask = ~wstrb`.
 
-#### `rd_cl_aligner`
-- **Purpose**: Drives `dfi_rddata_en` t_rddata_en cycles after a READ command;
-  captures `dfi_rddata` beats; streams them out as DRAM-beat-wide
-  `rd_inject_*` handshakes to `axi_intake.R-emit`. Pulses `rd_beat_we`
-  per accepted beat so the rd CAM slot retires.
-- **Key params**: `DRAM_BEAT_WIDTH`, `DFI_RATE`, `MAX_BURST_LEN`,
-  `RD_CAM_DEPTH`.
+#### `pumice_dfi_rd_aligner`
+- **Purpose**: Drives `dfi_rddata_en` `t_rddata_en` cycles after a READ command;
+  captures `dfi_rddata` beats; return-fills them into `pumice_rd_cmd_cam`.
+- **Runtime inputs**: `t_rddata_en_i`, `t_phy_wrlat_i`, `rd_phase_i`,
+  `wr_phase_i`.
 
-### `dfi_v21_interface_macro` (2 FUBs)
+## Data Width and Gearing
 
-#### `dfi_cmd_formatter`
-- **Purpose**: JEDEC truth table for ACT / RD / RDA / WR / WRA / PRE / PREA /
-  REF / REFpb / MRS / NOP into DFI control wires (cs_n, ras_n, cas_n, we_n,
-  address, bank). Includes ODT timing rule and A10 auto-precharge bit.
-  Swap THIS FUB when moving to DFI v3/v4/v5/v6.
-- **Key params**: `MEMTYPE`, `DFI_ADDR_WIDTH`, `DFI_BANK_WIDTH`, `DFI_RATE`.
-- **Notable**: Absorbed what the SWAG called `cmd_encoder_fub` plus the
-  `odt_ctrl_fub` rules.
+Two distinct concepts:
 
-#### `dfi_signal_pack`
-- **Purpose**: Multi-phase DFI aggregation. For `DFI_RATE = N`, every DFI
-  control bus is widened to per-phase × N; v1 uses phase 0 for the command,
-  other phases drive NOP.
-- **Key params**: `DFI_RATE`, `DFI_ADDR_WIDTH`, `DFI_BANK_WIDTH`,
-  `DFI_CS_WIDTH`.
+1. **Internal DFI geometry.** `DW = DRAM_BEAT_WIDTH * DFI_RATE` (128 default).
+   One AXI beat is one DFI word is `DFI_RATE` DRAM beats; one AXI burst is one
+   DRAM burst. The DW → per-phase split happens in `dfi_signal_pack` / the DFI
+   layer. The host AXI data width equals `DW` at `pumice_top`.
+2. **Host-width freedom.** The optional `pumice_top_geared` wrapper adds a free
+   `HOST_AXI_DATA_WIDTH` and inserts the repository's formally-verified
+   `axi4_dwidth_converter_wr` / `_rd` between a host-width slave and the fixed-DW
+   core. `HOST_AXI_DATA_WIDTH == DW` is a bit-identical generate bypass. Verified
+   host ∈ {64, 128, 256}.
 
-### `pumice_core_macro`
+## What Changed vs the Earlier Architecture
 
-Skeleton wrapper around the three sub-macros above. Pure structural — no
-behavioral logic. Tie-offs in place for a future `ctrl_update_fub`
-(quiet-point CSR update propagation).
+The controller was rearchitected from an earlier FSM-based decomposition. The
+following blocks were retired; their behavior now lives in the FUBs shown:
 
-## FUB Count Summary
+| Retired block             | Replaced by                                                                        |
+|---------------------------|------------------------------------------------------------------------------------|
+| `txn_queue`               | the two CAMs: `pumice_wr_data_cam` + `pumice_rd_cmd_cam`                            |
+| `bank_machine`            | FSM-free `bank_timer`, stamped by `pumice_bank_timers`                              |
+| `xbank_timers`            | `global_timers` (turnaround) + `pumice_bank_timers` (per-bank)                      |
+| `cmd_encoder`             | `dfi_cmd_formatter` (+ `dfi_signal_pack`)                                           |
+| `odt_ctrl`                | ODT inside `dfi_cmd_formatter` / `mode_register` (no standalone block)              |
+| `page_predictor` (standalone) | open-page decision inline in `pumice_cmd_arbiter` (`page_predictor.sv` optional) |
+| `wr_cmd_cam`              | `pumice_wr_data_cam`                                                                |
+| `scheduler`               | `pumice_mem_cmd_scheduler` (`pumice_cmd_arbiter` + timers + refresh + init)         |
+| `gear_dfi`                | `pumice_dfi_layer`                                                                  |
+| `axi_frontend` / `axi_intake` / `*_macro`-as-architecture | `pumice_axi4_ifc`, generated `pumice_csr`, `pumice_core` |
 
-| Macro                          | FUBs | Names                                                                       |
-|--------------------------------|------|-----------------------------------------------------------------------------|
-| `axi_frontend_macro`           | 5    | `axi_intake`, `addr_mapper`, `wr_cmd_cam`, `rd_cmd_cam`, `wr2rd_forward`    |
-| `command_scheduler_macro`      | 8    | `scheduler`, `page_predictor`, `xbank_timers`, `global_timers`, `refresh_ctrl`, `powerdown_ctrl`, `mode_register`, `init_sequencer` |
-| `data_path_macro`              | 2    | `wr_beat_sequencer`, `rd_cl_aligner`                                        |
-| `dfi_v21_interface_macro`      | 2    | `dfi_cmd_formatter`, `dfi_signal_pack`                                      |
-| `pumice_core_macro`       | —    | (skeleton; wraps the three above)                                           |
-| **Total leaf FUBs**            | **17** |                                                                           |
-
-## Divergence from the Early SWAG
-
-The early SWAG proposed a different decomposition. The implementation
-diverged because the v1 scheduler policy (closed-page with RDA/WRA
-auto-precharge) made several SWAG FUBs unnecessary:
-
-| SWAG FUB                  | Status today                          | Why                                                                                   |
-|---------------------------|---------------------------------------|---------------------------------------------------------------------------------------|
-| `txn_queue_fub`           | Absorbed into `axi_intake` + CAMs     | Per-direction CAMs + b_fifo replace the unified queue                                 |
-| `page_predictor_fub`      | Restored in v2 as `page_predictor`    | HAPPY_HYBRID policy added in v2; predictor reactivated as a distinct FUB              |
-| `bank_machine_fub`        | Absorbed into CAMs + `xbank_timers`   | Per-bank FSM became per-bank timing counters + per-slot CAM state                     |
-| `odt_ctrl_fub`            | Absorbed into `dfi_cmd_formatter`     | ODT rules are part of the JEDEC command table, not a separate FSM                     |
-| `dfi_master`              | Renamed → `dfi_signal_pack`           | Final wire packing only; protocol formatting is `dfi_cmd_formatter`                   |
-| `csr_apb_fub`             | Not yet implemented                   | Planned for v2; CSR-load currently via testbench driver                               |
-| (none)                    | NEW: `wr_cmd_cam`, `rd_cmd_cam`       | Split CAMs make per-direction match-query simpler                                     |
-| (none)                    | NEW: `wr2rd_forward`                  | Snarf path for W-then-R same-line ordering                                            |
-| (none)                    | NEW: `mode_register`                  | MR0/1/2/3 decode broken out (was conceptually inside `init_engine`)                   |
-| (none)                    | NEW: `global_timers`                  | Cross-bank windows separated from per-bank counters                                   |
+The old names may still appear in retired sentinel tests; they are not part of
+the current architecture.
 
 ## Integration
 
-The 5 macros are pure structural wiring; no behavioral logic. Every
-behavioral statement belongs in a leaf FUB. The principal wiring concerns:
+The three layer macros are structural wiring; behavioral logic lives in the
+leaf FUBs. The principal wiring concerns:
 
-1. **Scheduler ↔ timing fan-out**: `xbank_timers` exposes per-(rank,bank)
-   `act_ready` / `rdwr_ready` / `pre_ready` arrays; `global_timers`
-   exposes per-rank window-OK signals. Scheduler reduces these into a
-   single CMD decision per cycle.
-2. **Per-rank fan-out** of CKE (from `powerdown_ctrl`) and CS_n / ODT
-   (formatted by `dfi_cmd_formatter`).
-3. **Per-phase fan-out** to `dfi_signal_pack`.
-4. **CAM ↔ data-path coupling**: wr CAM's beat_pull controls
-   `wr_beat_sequencer`'s pull state; rd CAM's slot bookkeeping is
-   advanced by `rd_cl_aligner`'s per-beat strobe.
-
-All inter-FUB outputs are strict-flop registered, so all macro-level
-inter-FUB paths add one register stage per hop. This is a deliberate
-trade for hierarchical timing closure.
+1. **Arbiter ↔ timing fan-out**: `pumice_bank_timers` exposes per-(rank,bank)
+   `safe_*` off single-stage timers; `global_timers` exposes turnaround-OK
+   signals. `pumice_cmd_arbiter` reduces these into one command per cycle.
+2. **CAM ↔ DFI-datapath coupling**: `pumice_wr_data_cam`'s commit-drain feeds
+   `pumice_dfi_wr_serializer`; `pumice_dfi_rd_aligner`'s return-fill advances
+   `pumice_rd_cmd_cam`.
+3. **The single CDC**: everything up to `pumice_dfi_cdc` is on `aclk`; the
+   command path, serializer, and aligner are on `dfi_clk`.

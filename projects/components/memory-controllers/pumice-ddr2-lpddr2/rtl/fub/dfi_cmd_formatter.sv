@@ -4,8 +4,8 @@
 // Module: dfi_cmd_formatter
 // Purpose: Translate the scheduler's chosen `dram_op_e` plus
 //          (rank, bank, row, col) into the DFI v2.1 control bus signals
-//          per JEDEC truth table for DDR2 (LPDDR2 reuses dfi_address
-//          as a 20-bit CA bus — TODO).
+//          per JEDEC truth table for DDR2, and the bit-exact JESD209-2F
+//          Table 60 CA-bus encoding for LPDDR2 (memtype_i selects).
 //
 // Multi-phase output:
 //   For DFI_RATE = N, every DFI control signal is packed as N phases:
@@ -34,8 +34,12 @@
 //
 //   cs_n is per-rank: cs_n[r]=0 selects rank r; '1 all-deselected = NOP.
 //
-// LPDDR2 (TODO): dfi_address reused as a 20-bit CA bus, RAS/CAS/WE held
-//   idle. Drives NOP for now when memtype_i == MEMTYPE_LPDDR2.
+// LPDDR2 (memtype_i == MEMTYPE_LPDDR2): the command + scrambled address ride
+//   a 10-bit CA bus over two edges, packed as a flat 20-bit word on dfi_address
+//   (bit i = CA{i} rising, bit 10+i = CA{i} falling); RAS/CAS/WE held idle, cs_n
+//   asserted on phase 0. Bit-exact per JESD209-2F Table 60 — see the w_lpddr2_ca
+//   block below and rtl/LPDDR2_CA_ENCODING.md (the shared source of truth with the
+//   DV BFM's lpddr_ca.py).
 
 `timescale 1ns / 1ps
 

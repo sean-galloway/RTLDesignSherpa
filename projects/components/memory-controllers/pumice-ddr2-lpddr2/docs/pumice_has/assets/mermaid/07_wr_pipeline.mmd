@@ -1,30 +1,34 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
-sequenceDiagram
-    autonumber
-    participant MC as scheduler
-    participant CE as cmd_encoder
-    participant WD as wdata_path
-    participant DM as dfi_master
-    participant PHY as PHY
+flowchart LR
+    %% Write path: pumice_wr_intake -> pumice_wr_data_cam (fill/commit-drain/snarf)
+    %% -> pumice_dfi_wr_serializer -> DFI. De-FSM'd streaming movers.
+    aw[/"AXI4 AW + W<br/>(from SoC)"/]
 
-    Note over MC,PHY: T = cycle index relative to WR command issue
+    subgraph INTAKE["pumice_wr_intake"]
+        direction TB
+        slv["axi4_slave_wr<br/>+ AW-meta FIFO + wr-data FIFO"]
+        amap["addr_mapper<br/>(axi_addr -> bank/row/col via bank_lsb)"]
+        slv --> amap
+    end
 
-    MC->>CE: cycle 0: issue WR (bank, col)
-    CE->>DM: cycle 1: drive (cs_n=0, ras_n=1, cas_n=0, we_n=0)
-    DM->>PHY: cycle 1: WR on dfi_address, dfi_bank
+    subgraph CAM["pumice_wr_data_cam (WR CAM + wr-data SRAM)"]
+        direction TB
+        fill["fill mover<br/>(burst data -> SRAM slot on insert)"]
+        entry["CAM entry {bank,row,col} + age<br/>r_fdone gates schedulability"]
+        snarf["snarf mover<br/>(read-your-write forward: unscheduled,<br/>same-id, same-BL -> rd path)"]
+        commit["commit-drain mover<br/>(oldest-per-row -> DFI wrdata beats)"]
+        fill --> entry
+        entry --> snarf
+        entry --> commit
+    end
 
-    Note over WD: countdown CWL cycles
+    aw --> slv
+    amap --> fill
+    entry -. bank/row/col + age .-> arb["pumice_cmd_arbiter<br/>(picks WR / WRA; evt_wr -> commit_slot)"]
+    arb -. commit_slot .-> commit
 
-    MC->>WD: cycle 0: alert (AXI ID, burst_len)
-    WD->>WD: cycle 1..CWL: pull beats from AXI W FIFO
+    commit --> ser["pumice_dfi_wr_serializer<br/>(DFI word -> phase beats, wrdata_en)"]
+    ser --> cdc["pumice_dfi_cdc<br/>(single CDC)"]
+    cdc --> dfi[/"DFI wrdata / wrdata_en<br/>(to PHY)"/]
 
-    WD->>DM: cycle CWL+1: drive dfi_wrdata_en=1
-    WD->>DM: cycle CWL+1: drive dfi_wrdata (beat 1)
-    WD->>DM: cycle CWL+2: drive dfi_wrdata (beat 2)
-    Note over WD,DM: ... up to BL beats
-    WD->>DM: cycle CWL+BL: drive dfi_wrdata (last beat)
-    WD->>DM: cycle CWL+BL+1: dfi_wrdata_en=0
-
-    DM->>PHY: write data train delivered
-
-    Note over MC: cycle 0+ε: B response issued to AXI (posted-write semantics)
+    snarf -. forwarded data .-> rdp["pumice_rd_intake<br/>(R return)"]

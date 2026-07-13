@@ -23,7 +23,7 @@
 
 # Error Handling
 
-> The controller's error reporting paths and the recommended software response model. Per HAS §2.4 §4 for the IRQ port list and the per-FUB CSR-hook sections in MAS Ch 2.
+> The controller's error-reporting paths and the recommended software response model. Register accesses are the PeakRDL cpuif (`csr_write`/`csr_read`); config fields drive the core live with no apply/commit step (see §4.3).
 
 ---
 
@@ -31,153 +31,100 @@
 
 | Category                       | Detection                                | Reporting                                          |
 |--------------------------------|------------------------------------------|----------------------------------------------------|
-| Init failure                   | `init_engine_fub` WAIT_FOR_BIT timeout or ZQ retries exhausted | `STATUS.init_error = 1`, `irq_init_error` pulse |
-| AXI queue overflow             | Hard backpressure exceeded (rare)         | `STATUS.txn_queue_full_pulses` + `irq_overflow`     |
-| Refresh deadline miss          | `refresh_owed` exceeds safety margin     | `irq_overflow`                                     |
-| DFI rddata-valid timeout       | RD issued, no rddata arrived in CL × N + slack | `irq_overflow` + `SLVERR` on the AXI R           |
-| AXI burst boundary violation   | Per §3.1                                  | `SLVERR` on B/R; no IRQ                            |
-| ZQ calibration failure (silicon issue) | DFI signal-integrity check via training | Caught at PHY layer, not this controller          |
-| Multi-bit DRAM error           | Out of scope (no inline ECC in v1)        | Would need ECC sideband                            |
+| Init failure                   | `init_sequencer` timeout / ZQ retries exhausted | `STATUS.init_error = 1`; `STATUS.init_step_dbg` shows where |
+| DFI rddata-valid timeout       | RD issued, no rddata in the expected window | `SLVERR` on the AXI R (bring-up: check DFI phase / `t_rddata_en`) |
+| AXI burst boundary violation   | Per §3.1 (one AXI burst == one DRAM burst) | `SLVERR` on B/R                                   |
+| ZQ calibration failure (silicon) | DFI signal-integrity, caught at PHY layer | Not this controller                              |
+| Multi-bit DRAM error           | Out of scope (no inline ECC)              | Would need ECC sideband                            |
 
-## IRQ Topology
-
-Per HAS §2.4 §4:
-
-| IRQ                    | Source                                       | Latch behavior            |
-|------------------------|----------------------------------------------|---------------------------|
-| `irq_init_done`        | `init_engine.END` step                       | One-cycle pulse           |
-| `irq_init_error`       | `init_engine.INIT_ERROR` state               | Latched until CSR-cleared |
-| `irq_overflow`         | OR of queue overflow, refresh miss, rddata timeout | Latched               |
-
-IRQs assert in the `mc_clk` domain. The SoC's interrupt controller is responsible for any re-synchronization to its own clock if different.
+Note: `STATUS` is currently a declared RO register whose `hwif_in` is tied off in `pumice_top` (see §4.1). `init_done` is exposed directly as the top-level `init_done_o` port. There is no dedicated IRQ port list wired in this build; software polls `STATUS`/`init_done_o`. A queue-overflow / refresh-miss IRQ is a possible follow-up.
 
 ## Software Response Patterns
 
 ### Init Failure
 
 ```c
-void handle_init_error_irq(void) {
-    uint32_t s = apb_read(STATUS);
+void handle_init_error(void) {
+    uint32_t s = csr_read(STATUS);
     uint8_t step = STATUS_INIT_STEP_DBG(s);
 
     log_error("DRAM init failed at step %d", step);
 
-    // Inspect step-specific telemetry
-    switch (step) {
-        case INIT_STEP_WAIT_DFI_INIT_COMPLETE:
-            log_error("PHY init did not complete — check PHY config");
-            break;
-        case INIT_STEP_ZQ_CAL:
-            log_error("ZQ calibration failed — check VDDQ supply, board impedance");
-            break;
-        case INIT_STEP_MRS_LOAD:
-            log_error("MRS load failed — verify CSR-loaded MR values");
-            break;
-        // ... more cases per step table ...
-    }
-
-    // Clear the latched error
-    apb_write(STATUS, STATUS_INIT_ERROR_CLEAR);   // W1C semantics
-
-    // Attempt re-init
-    apb_write(CTRL, CTRL_INIT_FORCE_RESTART);
+    // init_sequencer step encodings (r_state), for reference:
+    //   S_DFI_INIT  -> PHY init did not complete (check PHY config)
+    //   S_EMR*/S_MR0* / S_L_* -> MRS/MRW issue phase (verify MR values, CA-bus)
+    //   S_REF1/S_REF2 -> refresh phase
+    // Force re-init (config CSRs are preserved)
+    csr_write(CTRL, CTRL_INIT_FORCE_RESTART);
 }
 ```
 
-### AXI Queue Overflow
+### DFI Read-Data Timeout (board bring-up)
+
+A read that returns no data almost always means the DFI read window is misaligned for the attached PHY. The knobs are `DFI_PHASE.rd_phase`, `PHY_TIMING.t_rddata_en`, and `PHY_TIMING.t_phy_wrlat`:
 
 ```c
-void handle_overflow_irq(void) {
-    uint32_t s = apb_read(STATUS);
-    uint32_t pulses = apb_read(TXN_QUEUE_FULL_PULSES);
-
-    log_warn("AXI queue overflow: %u pulses", pulses);
-
-    // Read the high-water threshold and current depth
-    uint32_t sched = apb_read(SCHED_TUNING);
-    log_warn("High-water threshold: %u, current depth: %u",
-             (sched >> 16) & 0xFF, STATUS_TXN_QUEUE_OCC(s));
-
-    // Mitigation: drop the high-water threshold to backpressure earlier
-    sched = (sched & ~0xFF0000) | ((current_depth - 4) << 16);
-    apb_write(SCHED_TUNING, sched);
-    apb_write(CTRL, CTRL_CONFIG_APPLY);
-    while (!(apb_read(STATUS) & STATUS_CONFIG_SETTLED));
-}
+// Nexys A7 a7ddrphy known-good: rd_phase=0, t_rddata_en=6, t_phy_wrlat=0
+csr_write(DFI_PHASE,   RD_PHASE(0) | WR_PHASE(0));
+csr_write(PHY_TIMING,  MEMTYPE(DDR2) | T_RDDATA_EN(6) | T_PHY_WRLAT(0) | REFRESH_BURST(1));
 ```
 
-### Refresh Deadline Miss
+Set these during bring-up before triggering init; they take effect immediately (config-drive, no commit step).
+
+### Refresh Pressure
+
+Watch `OBS_REFRESH_PENDING_MAX` (0x108). If it approaches the deferral budget, reduce batching:
 
 ```c
-void handle_refresh_miss(void) {
-    uint32_t owed = apb_read(REFRESH_PENDING_MAX);
-    log_error("Refresh deadline missed; owed = %u", owed);
-
-    // Inspect refresh manager state
-    uint32_t state = STATUS_REFRESH_MGR_STATE(apb_read(STATUS));
-    log_error("Refresh FSM stuck in state %u", state);
-
-    // Mitigation: temporarily disable batching to catch up
-    uint32_t v = apb_read(REFRESH_TUNING);
-    v = (v & ~REFRESH_DEFER_ACTIVE_MASK) | REFRESH_DEFER_ACTIVE(1);
-    apb_write(REFRESH_TUNING, v);
-    apb_write(CTRL, CTRL_CONFIG_APPLY);
-    while (!(apb_read(STATUS) & STATUS_CONFIG_SETTLED));
-
-    // After catch-up, optionally re-enable batching
-}
+uint32_t v = csr_read(REFRESH_TUNING);
+v = (v & ~REFRESH_DEFER_ACTIVE_MASK) | REFRESH_DEFER_ACTIVE(1);  // no batching
+csr_write(REFRESH_TUNING, v);   // live on the next refresh event boundary
 ```
 
 ## STATUS_HISTORY for Bring-Up
 
-The `STATUS_HISTORY` register captures the last 8 power-state transitions (4 bits each). Useful when the controller is oscillating between states (e.g., entering and exiting APD repeatedly):
+The `STATUS_HISTORY` register (0x008) captures the last 8 power-state transitions (4 bits each, most recent in [3:0]). Useful when the controller oscillates between power states:
 
 ```c
 void dump_state_history(void) {
-    uint32_t hist = apb_read(STATUS_HISTORY);
-    for (int i = 0; i < 8; i++) {
-        uint8_t state = (hist >> (i * 4)) & 0xF;
-        log_info("State[-%d]: %s", i, power_state_name(state));
-    }
+    uint32_t hist = csr_read(STATUS_HISTORY);
+    for (int i = 0; i < 8; i++)
+        log_info("State[-%d]: %s", i, power_state_name((hist >> (i*4)) & 0xF));
 }
 ```
 
-This is more useful than polling current state — it captures fast transitions that polling would miss.
+(As with `STATUS`, this readback depends on `hwif_in` being wired — a follow-up per §4.1.)
 
 ## Diagnostic Sequence for Suspected Bug
 
 ```
-1. Read STATUS.init_done (must be 1)
-2. Read STATUS.power_state (should be ACTIVE)
-3. Read STATUS_HISTORY (look for oscillation)
-4. Read STATUS.txn_queue_occ + STATUS.refresh_pending_max (check for backlog)
-5. Read OBS_AXI_R_LATENCY_P99 (tail latency telemetry)
-6. Read OBS_ROW_HIT_RANK<R>_BANK<N> (per-bank traffic distribution)
-7. Read OBS_REF_LATENCY_RANK<R>_BANK<N> (per-bank refresh fairness)
-8. Check IRQ status; clear and re-arm if needed
+1. Read STATUS.init_done (or the init_done_o port) — must be 1
+2. Read STATUS.power_state — should be ACTIVE
+3. Read STATUS_HISTORY — look for oscillation
+4. Read OBS_TXN_QUEUE_DEPTH_MAX / OBS_REFRESH_PENDING_MAX — check for backlog
+5. Read OBS_AXI_R_LATENCY_P99 — tail latency telemetry
+6. Read OBS_ROW_HIT[bank] — per-bank traffic distribution
+7. Read OBS_REF_LATENCY[bank] — per-bank refresh fairness
 ```
 
 This is the bring-up team's first-pass diagnostic flow.
 
 ## Soft Reset vs. Re-Init
 
-`CTRL.soft_reset` (bit 31 of `CTRL`) asserts an internal soft reset that re-clears all FUB state without affecting the CSR contents. Use this when the controller is in an inconsistent state but the software's CSR config is correct:
+`CTRL.soft_reset` (bit 31, self-clearing) requests an internal soft reset that re-clears datapath state without disturbing the CSR contents. Use it when the controller is in an inconsistent state but the software's config is correct:
 
 ```c
 void soft_reset(void) {
-    apb_write(CTRL, CTRL_SOFT_RESET);
-    // Self-clearing; wait a few cycles
-    for (int i = 0; i < 16; i++) asm volatile("nop");
-
-    // Re-trigger init (CSRs are preserved)
-    apb_write(CTRL, CTRL_INIT_START);
+    csr_write(CTRL, CTRL_SOFT_RESET);
+    for (int i = 0; i < 16; i++) asm volatile("nop");  // self-clearing
+    csr_write(CTRL, CTRL_INIT_START);                  // CSRs preserved
 }
 ```
 
-For hard cases (silicon bug, persistent failure), the SoC PMU should drive the asynchronous reset and software should re-bring-up from scratch.
+For hard cases (silicon bug, persistent failure), the SoC PMU drives the asynchronous reset and software re-brings-up from scratch.
 
 ## Open Questions / Future Work
 
-- **Per-rank error reporting.** When a fault is localized to one rank (signal integrity, board fault), it would be useful to report which rank. Currently the IRQs are channel-wide. v2 enhancement.
-- **Error histogram.** A short rolling history of recent errors (last 16) would help post-mortem analysis. Costs CSR area; punt.
-- **Auto-recovery vs. report-only.** The controller could auto-recover from some errors (e.g., refresh deadline miss → drop batching automatically). Currently report-only; software must intervene.
+- **IRQ port.** This build polls `STATUS`/`init_done_o`. A latched error/IRQ output (init error, refresh miss, rddata timeout) is a candidate feature.
+- **Observation readback wiring.** The `STATUS`/`OBS_*` diagnostics assume `hwif_in` is connected; it is tied off today (§4.1).
+- **Per-rank error reporting.** When multi-rank lands, localizing a fault to a rank would help board bring-up.

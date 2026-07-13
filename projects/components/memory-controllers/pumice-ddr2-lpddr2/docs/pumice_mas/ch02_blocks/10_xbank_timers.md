@@ -21,329 +21,291 @@
 
 <!-- End Header -->
 
-# Cross-Bank Timers (`xbank_timers`)
+# Global Timers (`global_timers`)
 
-**Module:** `xbank_timers.sv`
+**Module:** `global_timers.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent macro:** `command_scheduler_macro`
-**Status:** v1 implemented (outputs strict-flop registered)
+**Parent macro:** `pumice_mem_cmd_scheduler`
+**Status:** Implemented (per-rank tFAW/tRRD; global tWTR/tRTW/tCCD; strict-flop outputs)
 
-> Architectural context: HAS §3.3.
+> **Replaces the retired cross-bank timer block.** The original `xbank_timers`
+> FUB owned a mix of per-bank AND cross-bank counters. That mix has been split:
 >
-> **Scope evolution vs early SWAG:** the SWAG had this FUB own only
-> *cross-bank* constraints, with per-bank constraints (tRCD, tRAS, tRP, tRTP,
-> tWR) inside a per-bank `bank_machine_fub`. In the implementation,
-> `bank_machine_fub` was absorbed — the per-bank counters moved **into**
-> `xbank_timers`, and the cross-bank / cross-rank windows moved out into a
-> separate [`global_timers`](19_global_timers.md) FUB.
+> - **Per-bank** timing (tRCD, tRP, tRAS, tRC, tWR/tRTP) moved into
+>   [`bank_timer`](09_bank_machine.md), stamped per (rank, bank) by
+>   `pumice_bank_timers`.
+> - **Cross-bank / channel-wide** turnaround (tFAW, tRRD, tWTR, tRTW, tCCD)
+>   lives here in `global_timers`.
 >
-> **What this FUB actually owns today:** per-(rank, bank) JEDEC timing
-> counters (tRCD, tRP, tWR, tRTP, tRAS, tRC) exposed as the per-bank ready
-> arrays `bank_act_ready_o[r][b]`, `bank_rdwr_ready_o[r][b]`,
-> `bank_pre_ready_o[r][b]`. The scheduler ANDs these with the
-> `global_timers` `_window_ok` signals to decide eligibility.
->
-> The text below (constraint inventory, per-rank vs global partition) is
-> **the architectural reasoning**; the actual signal split now follows the
-> xbank_timers / global_timers boundary above.
+> The retired block's cross-rank extras (`tRTRS`, `tCS`, the `last_rd_rank` /
+> `last_cmd_rank` chains, and the wide `blocks_*[NR][NB]` broadcast) are **not**
+> in the live RTL. `global_timers` emits compact per-rank / global `*_window_ok`
+> readiness bits that the arbiter ANDs with `bank_timer`'s `safe_*` outputs.
 
 ---
 
 ## Purpose
 
-`xbank_timers` holds the per-(rank, bank) JEDEC timing counters that govern
-when each bank is ready to accept the next ACT, RD/WR, or PRE. The scheduler
-queries these per-bank ready arrays (along with `global_timers` cross-bank
-windows) to decide which slot can fire each cycle.
+`global_timers` holds the controller-wide DRAM constraints that span banks and
+therefore cannot live inside a single bank's timer:
+
+- **tFAW** — no more than four ACT commands within a rolling `t_faw_i` window.
+  Tracked **per rank** (each rank has its own 4-deep sliding window) so a
+  multi-rank build enforces the device-local four-activate limit independently.
+- **tRRD** — minimum cycles between any two ACTs, **per rank**.
+- **tWTR** — cycles since the last WR (global; the DQ bus is shared).
+- **tRTW** — cycles since the last RD (global; shared DQ bus).
+- **tCCD** — cycles since the last column command (global; paces back-to-back
+  RD/WR across banks on the shared DQ bus).
+
+The arbiter reads five readiness outputs — `tfaw_window_ok_o[r]`,
+`trrd_window_ok_o[r]` (per rank), and `twtr_global_ok_o`, `trtw_window_ok_o`,
+`tccd_window_ok_o` (global) — and ANDs the relevant subset into its eligibility
+decision alongside the per-bank `safe_*` bits.
 
 ---
 
-## Constraint Inventory
+## Constraint Scope
 
-Per HAS §3.3, the cross-bank constraints partition into three scopes:
+| Constraint | Scope            | Why                                                                 |
+|------------|------------------|---------------------------------------------------------------------|
+| `tFAW`     | per rank         | Four-Activate-Window — device-local thermal/power limit             |
+| `tRRD`     | per rank         | Minimum ACT-to-ACT stagger inside one DRAM device                   |
+| `tCCD`     | global (channel) | Column-to-column pacing on the shared DQ bus                        |
+| `tWTR`     | global (channel) | Write → read turnaround on the shared DQ bus                        |
+| `tRTW`     | global (channel) | Read → write turnaround on the shared DQ bus                        |
 
-| Constraint | Scope                       | Why                                                                       |
-|------------|-----------------------------|---------------------------------------------------------------------------|
-| `tRRD`     | per-rank                    | Limits ACT-to-ACT stagger inside one DRAM device                          |
-| `tFAW`     | per-rank                    | Four-Activate-Window — device-local thermal/power limit                   |
-| `tCCD`     | global (channel)            | Column-to-column on shared DQ bus                                         |
-| `tWTR`     | global (channel)            | Write-data → read-data turnaround on shared DQ bus                        |
-| `tRTW`     | global (channel)            | Read-data → write-data turnaround on shared DQ bus                        |
-| `tRTRS`    | cross-rank only (NR > 1)    | Rank-to-rank DQ-bus handoff on consecutive reads to different ranks       |
-| `tCS`      | cross-rank only (NR > 1)    | Chip-select setup when issuing a command to a different rank than the last |
-
-For `NUM_RANKS == 1` builds, the cross-rank section is fully omitted at elaboration — the `tRTRS_cnt` and `tCS_cnt` flops are not synthesized and the `last_rd_rank` / `last_cmd_rank` registers tie off. The other tracker categories are present in every build.
+There is **no cross-rank (tRTRS / tCS) tracking** in the live module. `NUM_RANKS`
+only sizes the per-rank tFAW/tRRD arrays; for `NUM_RANKS == 1` those arrays are a
+single element and the per-rank outputs collapse to a single bit. The DQ-bus
+turnaround counters (tWTR/tRTW/tCCD) are single global counters shared across all
+ranks because the DQ bus is physically shared.
 
 ---
 
 ## Synthesis Parameters
 
-| Parameter            | Source            | Effect                                                                |
-|----------------------|-------------------|-----------------------------------------------------------------------|
-| `NUM_RANKS`          | top               | Per-rank tracker fanout; enables cross-rank gates when `> 1`           |
-| `NUM_BANKS`          | top               | Output fanout: `blocks_*[NR][NB]`                                     |
-| `T_RRD_WIDTH`        | derived           | Width of `tRRD_cnt` (sized to span max CSR-loaded tRRD value)         |
-| `T_FAW_WIDTH`        | derived           | Width of each `tFAW_fifo` counter                                     |
-| `T_CCD_WIDTH`        | derived           | Width of global `tCCD_cnt`                                            |
-| `T_WTR_WIDTH`        | derived           | Width of global `tWTR_cnt`                                            |
-| `T_RTW_WIDTH`        | derived           | Width of global `tRTW_cnt`                                            |
-| `T_RTRS_WIDTH`       | derived (NR>1)    | Width of `tRTRS_cnt` (typically 2-bit for DDR2/3 1-cycle tRTRS)        |
-| `T_CS_WIDTH`         | derived (NR>1)    | Width of `tCS_cnt` (typically 1-cycle on Artix-class FPGA targets)     |
+| Parameter    | Default            | Effect                                                    |
+|--------------|--------------------|-----------------------------------------------------------|
+| `NUM_RANKS`  | 1                  | Number of per-rank tFAW windows and tRRD counters         |
+| `NUM_BANKS`  | 8                  | Present for interface symmetry; not used to size counters |
+| `RKW`        | `clog2(NUM_RANKS)` | Width of `evt_act_rank_i` (min 1)                         |
+| `BKW`        | `clog2(NUM_BANKS)` | Bank-select width (interface symmetry)                    |
 
-The `T_*_WIDTH` parameters are computed at elaboration from the maximum CSR-loadable timing value. CSR values themselves are live (loaded once at init) and feed the counter-load values directly.
-
----
-
-## Block Internals
-
-![xbank_timers Constraint Tracker Pool](../assets/mermaid/08_xbank_timers_scope.png)
-
-**Source:** [08_xbank_timers_scope.mmd](../assets/mermaid/08_xbank_timers_scope.mmd)
-
-The diagram shows three tracker pools (per-rank, global, cross-rank), the scheduler-issue inputs that load them, and the per-(rank, bank) `blocks_*` combinational outputs.
+All timing reload values are runtime CSR-backed 8-bit inputs (`t_faw_i`,
+`t_rrd_i`, `t_wtr_global_i`, `t_rtw_i`, `t_ccd_i`) — not parameters.
 
 ---
 
 ## Per-Rank Trackers
 
-### `tRRD_cnt[NR]`
+### tFAW window — `r_faw_slots[NUM_RANKS][4]`
 
-One down-counter per rank.
+Each rank owns a 4-deep pool of 8-bit down-counters (`logic
+[NUM_RANKS-1:0][3:0][7:0]`). Every cycle each non-zero slot decrements. On an
+ACT to a rank, the slot with the **smallest remaining count** is reloaded with
+`t_faw_i`:
 
-- **Load**: `issue_op_o == ACT` on rank `r` → `tRRD_cnt[r] = TIMINGS_RRD_FAW_WTR.tRRD`
-- **Decrement**: `tRRD_cnt[r] > 0` decrements every cycle
-- **Effect**: contributes to `blocks_act[r][*]` (gates *all banks* of rank `r`, since tRRD spans banks within the rank)
-- **No cross-rank interference**: an ACT on rank 0 does not affect `tRRD_cnt[1]`
-
-At the default tRRD ~5 cycles (DDR2-800), the counter is 3 bits. At 200 MHz the load-to-zero latency is 5 cycles — well within the scheduler's per-cycle reckoning.
-
-### `tFAW_fifo[NR]`
-
-Four-Activate-Window per rank. Implementation is a 4-entry counter pool (not a true FIFO of timestamps):
-
-```
-struct tFAW_slot_t {
-    logic [T_FAW_WIDTH-1:0] cnt;   // down-counter; 0 means "this slot is free"
-};
-
-tFAW_slot_t tFAW_fifo[NUM_RANKS][4];
-
-// Per cycle, per slot:
-//   if (cnt > 0) cnt = cnt - 1;
-
-// On ACT issue to rank r:
-//   pick the slot in tFAW_fifo[r] with the smallest cnt (the next-to-evict slot;
-//   one of them is guaranteed to be 0 if blocks_act_faw is currently low)
-//   load that slot's cnt = TIMINGS_RRD_FAW_WTR.tFAW
-
-// blocks_act_faw[r] = AND over all 4 slots: (cnt > 0)
+```systemverilog
+if (evt_act_i) begin
+    // pick the slot with the smallest remaining count for this rank
+    automatic int unsigned slot_pick = 0;
+    automatic logic [7:0] slot_min = 8'hFF;
+    for (int unsigned i = 0; i < 4; i++) begin
+        if (r_faw_slots[evt_act_rank_i][i] < slot_min) begin
+            slot_min  = r_faw_slots[evt_act_rank_i][i];
+            slot_pick = i;
+        end
+    end
+    r_faw_slots[evt_act_rank_i][slot_pick] <= t_faw_i;
+    r_trrd_cnt [evt_act_rank_i]            <= t_rrd_i;
+end
 ```
 
-The "pick smallest" load policy is equivalent to "replace the oldest entry," which is correct for a rolling-window tFAW check. The check `AND over 4 slots cnt > 0` is "all 4 most-recent ACTs are still within tFAW" — block.
+The window is "OK" (an ACT may issue) when **at least one** of the rank's four
+slots is at 0 — i.e. fewer than four of the most-recent ACTs are still inside the
+tFAW window:
 
-**Why not a literal FIFO of timestamps.** A timestamp FIFO requires subtraction at check time (`now - oldest_ts > tFAW?`) and a wide subtractor. The counter-pool approach is a 4-entry comparison-to-zero, which is one LUT layer.
+```systemverilog
+w_tfaw_ok[k] = 1'b0;
+for (int unsigned i = 0; i < 4; i++)
+    if (r_faw_slots[k][i] == 8'd0) w_tfaw_ok[k] = 1'b1;
+```
 
-At default tFAW ~32 cycles (DDR2-800), each slot's counter is 5 bits. Total `tFAW_fifo` storage per rank: 4 × 5 = 20 flops. Across 4 ranks: 80 flops. Trivial.
+The "pick smallest count" load policy is equivalent to "replace the oldest
+entry," which is the correct rolling-window behavior. It avoids a timestamp FIFO
+(which would need a subtractor at check time); the check is a 4-way
+compare-to-zero, one LUT layer.
+
+### tRRD — `r_trrd_cnt[NUM_RANKS]`
+
+One 8-bit down-counter per rank, reloaded with `t_rrd_i` on each ACT to that rank
+(see the ACT block above). `trrd_window_ok_o[r]` is `(r_trrd_cnt[r] == 0)`.
+An ACT on rank 0 does not affect `r_trrd_cnt[1]`.
 
 ---
 
 ## Global Trackers (channel-wide)
 
-### `tCCD_cnt`
+Three single 8-bit counters shared across all ranks:
 
-Single down-counter. Tracks the minimum gap between *any* column command (RD, RDA, WR, WRA) and the *next* column command anywhere on the channel.
+| Counter      | Reload trigger        | Reload value       | Drives                |
+|--------------|-----------------------|--------------------|-----------------------|
+| `r_twtr_cnt` | `evt_wr_i` (WR event) | `t_wtr_global_i`   | `twtr_global_ok_o`    |
+| `r_trtw_cnt` | `evt_rd_i` (RD event) | `t_rtw_i`          | `trtw_window_ok_o`    |
+| `r_tccd_cnt` | `evt_wr_i` OR `evt_rd_i` (any column command) | `t_ccd_i` | `tccd_window_ok_o` |
 
-- **Load**: any column command issue → `tCCD_cnt = TIMINGS_RRD_FAW_WTR.tCCD`
-- **Effect**: contributes to both `blocks_rd[*][*]` and `blocks_wr[*][*]`
+```systemverilog
+if (evt_wr_i) begin r_twtr_cnt <= t_wtr_global_i; r_tccd_cnt <= t_ccd_i; end
+if (evt_rd_i) begin r_trtw_cnt <= t_rtw_i;        r_tccd_cnt <= t_ccd_i; end
+```
 
-At DDR2-800 with BL=4, tCCD = 2 cycles. The counter is 2 bits.
+Each `*_ok` output is asserted when its counter is 0. tCCD reloads on **either** a
+read or a write, so it paces every column-to-column gap on the shared bus. tWTR
+loads on writes and gates reads; tRTW loads on reads and gates writes.
 
-### `tWTR_cnt`
+At DDR2-800 tRTW is typically 0 cycles, but the counter is still synthesized for
+parameter consistency and forward-compatibility with DDR3+ where tRTW matters.
 
-Single down-counter. Tracks the minimum gap between the **last write data beat** completing and the **next read** issuing.
-
-- **Load**: `wr_data_path_fub` strobes `wr_last_beat` → `tWTR_cnt = TIMINGS_RRD_FAW_WTR.tWTR`
-- **Effect**: contributes to `blocks_rd[*][*]`
-- **Subtle point**: loaded from the data-path event, *not* from the WR command issue. This is because tWTR is "last write data on DQ → first read CAS," not "WR command → RD command." The two are different by CWL + BL/2 cycles.
-
-### `tRTW_cnt`
-
-Symmetric to tWTR. Tracks the minimum gap between the **last read data beat** completing and the **next write** issuing.
-
-- **Load**: `rd_data_path_fub` strobes `rd_last_beat` → `tRTW_cnt = TIMINGS_CL_CWL_WR.tRTW` (CSR field added in v0.2)
-- **Effect**: contributes to `blocks_wr[*][*]`
-
-At DDR2-800 tRTW is typically 0 cycles, but the counter is still synthesized for parameterization and verification consistency. At DDR3+ tRTW becomes a relevant constraint; we want the FUB to be ready.
+> **Note on the tWTR trigger.** In the live RTL, tWTR reloads on the WR
+> *command* event (`evt_wr_i`), not on a separate last-write-data-beat strobe.
+> The CSR-supplied `t_wtr_global_i` value therefore carries whatever additional
+> WL+BL/2 offset the timing programming folds in; there is no data-path
+> `wr_last_beat` input to this module.
 
 ---
 
-## Cross-Rank Trackers (only when `NUM_RANKS > 1`)
+## Readiness Outputs (strict-flop)
 
-These trackers synthesize only when `NUM_RANKS > 1` — at single-rank, they tie off and consume no flops.
+The `*_window_ok_o` outputs are **registered** (strict-flop house style). Each
+cycle the module computes the next-cycle window-ok values combinationally, then
+flops them:
 
-### `last_rd_rank` register
+```systemverilog
+// next-cycle tFAW-ok (combinational, per rank)
+tfaw_window_ok_o <= w_tfaw_ok;
+for (int unsigned k = 0; k < NUM_RANKS; k++)
+    trrd_window_ok_o[k] <= (r_trrd_cnt[k] == 8'd0);
+twtr_global_ok_o <= (r_twtr_cnt == 8'd0);
+trtw_window_ok_o <= (r_trtw_cnt == 8'd0);
+tccd_window_ok_o <= (r_tccd_cnt == 8'd0);
+```
 
-`$clog2(NR)`-bit register holding the rank of the most recent RD/RDA issue. Used to detect rank-switching for the tRTRS gate.
+Out of reset, every `*_ok` output is driven to its permissive value (`'1` /
+`1'b1`) so the arbiter is not spuriously blocked before any command has issued.
 
-### `tRTRS_cnt`
-
-Single down-counter. Tracks the rank-to-rank read switching delay. DDR2 spec: 1 cycle when consecutive RDs target different ranks; 0 when same rank.
-
-- **Load**: RD/RDA issued to rank `r`, and `r != last_rd_rank` → `tRTRS_cnt = TIMINGS_RTRS.tRTRS`
-- **Effect**: contributes to `blocks_rd[r'][*]` *for `r' != last_rd_rank`* (block reads to a different rank while the bus handoff window is open)
-- **Reset rule**: when an intervening WR or PRE breaks the read chain, `tRTRS_cnt` does not need to fire on the next RD. Implemented by also clearing on any non-RD issue.
-
-### `last_cmd_rank` register and `tCS_cnt`
-
-Similar pair for the chip-select setup constraint. When any new command targets a rank different from the previous command, tCS-cycles must pass before the new `CS_n[r']` can drive.
-
-- **Load**: any command issue where target rank `r != last_cmd_rank` → `tCS_cnt = TIMINGS_CS.tCS`
-- **Effect**: contributes to `blocks_act[r'][*]`, `blocks_rd[r'][*]`, `blocks_wr[r'][*]` *for `r' != last_cmd_rank`*
-
-On Artix-class FPGAs targeting DDR2-800, `tCS` is typically met by IOB setup margin and the counter loads with 0 cycles. The flop and gate exist for parameter-driven verification and for stricter-margin platforms.
+Because the outputs are flopped, the arbiter sees a one-cycle-registered view of
+the counters — the same single-stage discipline as `bank_timer`'s combinational
+`safe_*`, one flop deeper. The arbiter accounts for this uniform one-cycle
+readiness latency across both timer FUBs.
 
 ---
 
-## Combinational `blocks_*` Outputs
+## Observability
 
-The final per-(rank, bank) outputs are pure ORs of the relevant tracker bits:
+All observability outputs are combinational "counter non-zero" flags:
 
-```
-// Common cross-rank block gates (only when NR > 1; else 0)
-cross_rank_block[r] = (NR > 1)
-                      AND (tCS_cnt > 0)
-                      AND (r != last_cmd_rank)
-
-cross_rank_block_rd[r] = cross_rank_block[r]
-                       OR ( (NR > 1)
-                            AND (tRTRS_cnt > 0)
-                            AND (r != last_rd_rank) )
-
-cross_rank_block_wr[r] = cross_rank_block[r]    // no tRTW-rank-switch gate in v1
-
-// Per-(rank, bank) outputs (same for all banks of a rank)
-blocks_act[r][b] = (tRRD_cnt[r] > 0)
-                OR (tFAW_fifo[r].all_busy)
-                OR cross_rank_block[r]
-
-blocks_rd[r][b] = (tCCD_cnt > 0)
-               OR (tWTR_cnt > 0)
-               OR cross_rank_block_rd[r]
-
-blocks_wr[r][b] = (tCCD_cnt > 0)
-               OR (tRTW_cnt > 0)
-               OR cross_rank_block_wr[r]
-```
-
-Note that `blocks_*[r][b]` does not depend on `b` — every bank within a rank sees the same xbank gate. The 2-D `blocks_*` output is a fanout convenience for the top-level wiring; the underlying logic is `NR`-wide, then broadcast to `NB` banks.
-
-This is a deliberate fanout: the bank machine port (§2.9) accepts `xbank_blocks_i` as a per-(rank, bank) struct because the wider port is symmetric with the bank machine's other 2-D-indexed signals. The cost is one extra wire-fanout layer at the top; the benefit is the bank-machine module declaration doesn't have to be parameterized differently.
+| Signal            | Width | Meaning                          |
+|-------------------|-------|----------------------------------|
+| `obs_faw_nz_o`    | NR    | Rank's tFAW window currently full (`!w_tfaw_ok[r]`) |
+| `obs_trrd_nz_o`   | NR    | `r_trrd_cnt[r] != 0`             |
+| `obs_twtr_nz_o`   | 1     | `r_twtr_cnt != 0`               |
+| `obs_trtw_nz_o`   | 1     | `r_trtw_cnt != 0`               |
+| `obs_tccd_nz_o`   | 1     | `r_tccd_cnt != 0`               |
 
 ---
 
 ## Interface
 
-### Inputs from Scheduler
+### Clocks / Reset
 
-| Signal                       | Direction | Width             | Description                                          |
-|------------------------------|-----------|-------------------|------------------------------------------------------|
-| `issue_op_i`                 | input     | 4                 | Same encoding as `scheduler.issue_op_o`          |
-| `issue_rank_i`               | input     | `$clog2(NR)`      | Rank being issued to                                 |
-| `issue_strobe_i`             | input     | 1                 | `(issue_op_i != NOP) && issue_valid`                  |
+| Signal       | Direction | Description               |
+|--------------|-----------|---------------------------|
+| `mc_clk`     | input     | Controller clock          |
+| `mc_rst_n`   | input     | Active-low async reset    |
 
-### Inputs from Data Paths
+### Timing config (CSR-backed)
 
-| Signal              | Direction | Width  | Description                                          |
-|---------------------|-----------|--------|------------------------------------------------------|
-| `wr_last_beat_i`    | input     | 1      | Last beat of a WR burst pushed to DFI wrdata         |
-| `wr_last_rank_i`    | input     | `$clog2(NR)` | Rank of that burst                            |
-| `rd_last_beat_i`    | input     | 1      | Last beat of an RD burst returned from DFI rddata    |
-| `rd_last_rank_i`    | input     | `$clog2(NR)` | Rank of that burst                            |
+| Signal            | Width | Constraint          |
+|-------------------|-------|---------------------|
+| `t_faw_i`         | 8     | tFAW                |
+| `t_rrd_i`         | 8     | tRRD                |
+| `t_wtr_global_i`  | 8     | tWTR                |
+| `t_rtw_i`         | 8     | tRTW                |
+| `t_ccd_i`         | 8     | tCCD (CAS-to-CAS)   |
 
-### Inputs from CSR (live)
+### Events from the arbiter
 
-| Signal           | Direction | Width   | Source                                  |
-|------------------|-----------|---------|-----------------------------------------|
-| `t_rrd_i`        | input     | width   | `TIMINGS_RRD_FAW_WTR.tRRD`              |
-| `t_faw_i`        | input     | width   | `TIMINGS_RRD_FAW_WTR.tFAW`              |
-| `t_ccd_i`        | input     | width   | `TIMINGS_RRD_FAW_WTR.tCCD`              |
-| `t_wtr_i`        | input     | width   | `TIMINGS_RRD_FAW_WTR.tWTR`              |
-| `t_rtw_i`        | input     | width   | `TIMINGS_CL_CWL_WR.tRTW`                |
-| `t_rtrs_i`       | input     | 4       | `TIMINGS_XRANK.tRTRS` (only when NR>1)  |
-| `t_cs_i`         | input     | 4       | `TIMINGS_XRANK.tCS` (only when NR>1)    |
+| Signal            | Width | Description                       |
+|-------------------|-------|-----------------------------------|
+| `evt_act_i`       | 1     | ACT issued this cycle             |
+| `evt_act_rank_i`  | RKW   | Rank of the ACT (selects tFAW/tRRD) |
+| `evt_rd_i`        | 1     | RD issued this cycle              |
+| `evt_wr_i`        | 1     | WR issued this cycle              |
 
-### Outputs to Bank Machines
+### Readiness to the arbiter
 
-| Signal                    | Direction | Width        | Description                          |
-|---------------------------|-----------|--------------|--------------------------------------|
-| `blocks_act_o[NR][NB]`    | output    | NR×NB        | Per-(rank, bank) ACT gate            |
-| `blocks_rd_o[NR][NB]`     | output    | NR×NB        | Per-(rank, bank) RD gate             |
-| `blocks_wr_o[NR][NB]`     | output    | NR×NB        | Per-(rank, bank) WR gate             |
+| Signal               | Width | Description                          |
+|----------------------|-------|--------------------------------------|
+| `tfaw_window_ok_o`   | NR    | Per-rank: rank may issue another ACT |
+| `trrd_window_ok_o`   | NR    | Per-rank: tRRD elapsed               |
+| `twtr_global_ok_o`   | 1     | Global: tWTR elapsed (RD may follow WR) |
+| `trtw_window_ok_o`   | 1     | Global: tRTW elapsed (WR may follow RD) |
+| `tccd_window_ok_o`   | 1     | Global: tCCD elapsed (next column cmd OK) |
 
-### Debug Outputs
+### Observability
 
-| Signal                          | Description                                              |
-|---------------------------------|----------------------------------------------------------|
-| `dbg_t_rrd_obs_o[NR]`           | Live `tRRD_cnt[r]` values for waveform-debug             |
-| `dbg_tfaw_busy_count_o[NR]`     | Per-rank count of non-zero tFAW slots                    |
-| `dbg_xrank_block_active_o`      | One-bit: any cross-rank gate currently asserted          |
+`obs_faw_nz_o[NR]`, `obs_trrd_nz_o[NR]`, `obs_twtr_nz_o`, `obs_trtw_nz_o`,
+`obs_tccd_nz_o`.
 
 ---
 
 ## Timing Budget
 
-The path from scheduler issue → `blocks_*` update is single-cycle:
+Event → readiness is single-cycle plus the output flop:
 
 ```
-cycle T:   scheduler asserts issue_strobe_i with issue_op_i = ACT, issue_rank_i = r
-cycle T:   load tRRD_cnt[r], push tFAW_fifo[r], load tCS_cnt (if rank-switched)
-cycle T+1: tRRD_cnt[r] now > 0, blocks_act_o[r][*] = 1
+cycle T:   arbiter asserts evt_act_i, evt_act_rank_i = r
+cycle T:   r_trrd_cnt[r] <- t_rrd_i; picked tFAW slot <- t_faw_i
+cycle T+1: trrd_window_ok_o[r] = 0 (registered); another ACT to rank r blocked
 ```
 
-The `blocks_*_o` outputs are combinational from the registers; the scheduler's Stage-1 path consumes them in the *same* cycle they update. So the scheduler always sees the post-issue gate state on the next cycle — no race where the scheduler picks two same-rank ACTs back-to-back.
-
-For 500 MHz targets, the per-(rank, bank) fan-out path (NR × NB destinations) may need registered outputs. The 200 MHz default budget is comfortable.
-
-**Per-bank fan-out concern.** At NR=4, NB=8, each `blocks_*` signal fans out 32 ways. Synthesis will buffer this automatically; no manual replication needed in RTL.
-
----
-
-## CSR Hooks
-
-| CSR field                          | Source                                  | Use case                                |
-|------------------------------------|-----------------------------------------|-----------------------------------------|
-| `STATUS.xbank_blocking_pct` (R)    | Rolling count of cycles where ANY `blocks_*` is asserted | Bandwidth-headroom telemetry |
-| `OBS_TFAW_HITS_RANK<R>` (R)        | Incremented when ACT was blocked by tFAW for rank `r`     | Characterization: tFAW pressure |
-| `OBS_TWTR_HITS` (R)                | Incremented when RD was blocked by tWTR                  | DQ-bus turnaround pressure |
-| `OBS_XRANK_SWITCHES` (R)           | Incremented on every `last_cmd_rank` change (NR>1)        | Rank-locality telemetry |
-
-The cross-rank counters are only present at `NUM_RANKS > 1` builds; at single-rank they tie to zero and read 0.
+The window-ok comparators are one LUT layer (compare-to-zero) feeding the output
+flop, so the path is short. The arbiter combines these with the per-bank
+`safe_*` bits; the aggregate eligibility AND is the arbiter's own critical path
+(§2.7), not this module's.
 
 ---
 
 ## Verification Notes (cocotb test plan)
 
-| Scenario                                                                          | What it proves                                          |
-|-----------------------------------------------------------------------------------|---------------------------------------------------------|
-| Two ACTs to different banks of same rank, gap = tRRD - 1 cycle                    | Second ACT blocks; `blocks_act[r][*]` was high           |
-| Two ACTs to different banks of same rank, gap = tRRD cycles                       | Second ACT issues at exactly tRRD                       |
-| Five ACTs to rank 0 within tFAW window                                            | Fifth blocks; tFAW gate engages                          |
-| Five ACTs spaced across tFAW boundary (4 in + 1 out)                              | Fifth issues; tFAW slot 1 has aged out                  |
-| Multi-rank: ACTs on rank 0 do NOT block ACTs on rank 1                            | Per-rank tRRD / tFAW isolation                          |
-| Multi-rank: RD to rank 0 then RD to rank 1, gap < tRTRS                           | Second blocks; `blocks_rd[1][*]` was high               |
-| Multi-rank: RD to rank 0, then PRE to rank 0, then RD to rank 1                    | Intervening PRE clears tRTRS gate                       |
-| WR last beat → RD before tWTR elapsed                                              | RD blocks; tWTR gate engaged                            |
-| RD last beat → WR before tRTW elapsed (DDR3+ scenario)                            | WR blocks; tRTW gate engaged                            |
-| Multi-rank with tCS > 0: cross-rank ACT blocks for tCS cycles                     | tCS gate works                                          |
-| `NUM_RANKS = 1` build: cross-rank gates synthesize to 0                          | Synthesis sanity                                        |
-| Heavy multi-rank traffic: telemetry counter increments correctly                  | CSR observability                                       |
+| Scenario                                                            | What it proves                                  |
+|---------------------------------------------------------------------|-------------------------------------------------|
+| Two ACTs to same rank, gap < tRRD                                   | Second blocked; `trrd_window_ok_o[r]` low       |
+| Two ACTs to same rank, gap == tRRD                                  | Second issues exactly at tRRD                   |
+| Five ACTs to one rank inside tFAW window                            | Fifth blocked; all four slots non-zero          |
+| Five ACTs spanning the tFAW boundary (4 in + 1 aged out)            | Fifth issues; oldest slot returned to 0         |
+| Multi-rank: ACTs on rank 0 do not block ACTs on rank 1              | Per-rank tRRD / tFAW isolation                  |
+| WR then RD before tWTR elapses                                      | RD blocked; `twtr_global_ok_o` low              |
+| RD then WR before tRTW elapses                                      | WR blocked; `trtw_window_ok_o` low              |
+| Back-to-back column commands before tCCD elapses                    | Second column blocked; `tccd_global_ok_o` low   |
+| Reset → all `*_ok` outputs assert permissively                      | Reset default correctness                       |
+| tFAW "pick smallest" evicts the oldest slot                         | Rolling-window load policy                      |
 
 ---
 
 ## Open Questions / Future Work
 
-- **tRTW cross-rank rank-switch gate.** Currently `cross_rank_block_wr` only depends on tCS (any rank switch), not on a separate "tRTRS-equivalent for writes." DDR4 introduced this; for DDR2/3 it's typically subsumed by tCS + tRTW. Worth a verification scenario at DDR3+ to confirm.
-- **tFAW slot-selection policy.** "Pick smallest cnt" works correctly but doesn't necessarily match the literal "evict oldest by arrival." For a 4-entry pool with same-cycle arrivals, the two are equivalent. If multiple ACTs hit in the same cycle (single-issue scheduler means this doesn't currently happen), behavior would need re-spec.
-- **Per-rank tCCD?** DDR4 introduced bank groups, with same-group tCCD_L being longer than different-group tCCD_S. For DDR2/LPDDR2 this is not relevant (no bank groups). The DDR3+ family controllers will add a per-bank-group tCCD tracker.
-- **Counter-shift vs flop-pool for tFAW.** An alternative implementation is a single shift register that ratchets a tFAW-cycles delay line. Saves one comparator but consumes the same flops. Not worth changing in v1; revisit if Synth flags the comparator chain.
+- **Cross-rank turnaround (tRTRS / tCS).** The live module has no rank-switch
+  DQ-handoff or chip-select-setup tracking. On the DDR2/LPDDR2 board targets
+  (single rank, or same-rank streaming) these are met by IOB margin. A true
+  multi-rank DDR3/DDR4 build would add a `last_rd_rank` / `last_cmd_rank` pair
+  and cross-rank gate here — reserved but not implemented.
+- **tWTR from data-path event.** tWTR currently reloads on the WR command event,
+  relying on the CSR value to fold in WL+BL/2. A more precise implementation
+  would load from the last-write-data-beat strobe; add a `wr_last_beat_i` input
+  if characterization shows the command-relative approximation costs bandwidth.
+- **Bank-group tCCD (DDR4).** DDR4 splits tCCD into same-group (tCCD_L) vs
+  different-group (tCCD_S). DDR2/LPDDR2 have no bank groups, so the single global
+  tCCD is exact here; the DDR4 family controller adds per-group tracking.

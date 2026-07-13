@@ -1,79 +1,66 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
 flowchart LR
-    subgraph IN["Inputs from scheduler"]
-        iss_act["issue ACT<br/>(+ target rank)"]
-        iss_rd["issue RD/RDA<br/>(+ target rank)"]
-        iss_wr["issue WR/WRA<br/>(+ target rank)"]
-        last_w_beat["wr_data_path last_beat<br/>(+ target rank)"]
-        last_r_beat["rd_data_path last_beat<br/>(+ target rank)"]
+    subgraph IN["Event strobes from pumice_cmd_arbiter"]
+        evt_act["evt_act_i<br/>(+ evt_act_rank_i)"]
+        evt_rd["evt_rd_i"]
+        evt_wr["evt_wr_i"]
     end
 
-    subgraph PER_RANK["Per-rank trackers (NR copies)"]
-        tRRD["tRRD_cnt[r]<br/>(down-counter,<br/>loaded on ACT to rank r)"]
-        tFAW["tFAW_fifo[r]<br/>(4-entry counter pool;<br/>ACT-rate gate per rank)"]
+    subgraph CFG["Timing config (CSR)"]
+        c["t_faw_i, t_rrd_i,<br/>t_wtr_global_i,<br/>t_rtw_i, t_ccd_i"]
     end
 
-    subgraph GLOBAL["Global trackers (1 copy)"]
-        tCCD["tCCD_cnt<br/>(any col cmd)"]
-        tWTR["tWTR_cnt<br/>(WR last beat → RD)"]
-        tRTW["tRTW_cnt<br/>(RD last beat → WR)"]
+    subgraph PER_RANK["Per-rank trackers (NUM_RANKS copies)"]
+        faw["r_faw_slots[rank][4]<br/>(tFAW: 4-deep sliding window;<br/>load smallest slot on ACT)"]
+        rrd["r_trrd_cnt[rank]<br/>(tRRD: reload on ACT to rank)"]
     end
 
-    subgraph CROSS["Cross-rank trackers (only when NR > 1)"]
-        last_rd_rank["last_rd_rank<br/>register"]
-        last_cmd_rank["last_cmd_rank<br/>register"]
-        tRTRS["tRTRS_cnt<br/>(rank-switch on RD)"]
-        tCS["tCS_cnt<br/>(rank-switch on any cmd)"]
+    subgraph GLOBAL["Global trackers (1 copy — shared DQ bus)"]
+        wtr["r_twtr_cnt<br/>(tWTR: WR -> RD)"]
+        rtw["r_trtw_cnt<br/>(tRTW: RD -> WR)"]
+        ccd["r_tccd_cnt<br/>(tCCD: any col cmd)"]
     end
 
-    subgraph COMP["Per-(rank,bank) block computation (combinational)"]
-        blk_act["blocks_act[r][b] =<br/>(tRRD_cnt[r] > 0)<br/>OR tFAW_fifo[r].full<br/>OR cross_rank_block[r]"]
-        blk_rd["blocks_rd[r][b] =<br/>(tCCD_cnt > 0)<br/>OR (tWTR_cnt > 0)<br/>OR cross_rank_block_rd[r]"]
-        blk_wr["blocks_wr[r][b] =<br/>(tCCD_cnt > 0)<br/>OR (tRTW_cnt > 0)<br/>OR cross_rank_block_wr[r]"]
+    subgraph OUT["Readiness back to arbiter"]
+        o_faw["tfaw_window_ok_o[rank]"]
+        o_rrd["trrd_window_ok_o[rank]"]
+        o_wtr["twtr_global_ok_o"]
+        o_rtw["trtw_window_ok_o"]
+        o_ccd["tccd_window_ok_o"]
     end
 
-    iss_act --> tRRD
-    iss_act --> tFAW
-    iss_act --> last_cmd_rank
-    iss_act --> tCS
-    iss_rd --> tCCD
-    iss_rd --> last_rd_rank
-    iss_rd --> last_cmd_rank
-    iss_rd --> tCS
-    iss_rd --> tRTRS
-    iss_wr --> tCCD
-    iss_wr --> last_cmd_rank
-    iss_wr --> tCS
-    last_w_beat --> tWTR
-    last_r_beat --> tRTW
+    evt_act --> faw
+    evt_act --> rrd
+    evt_rd --> ccd
+    evt_rd --> wtr
+    evt_wr --> ccd
+    evt_wr --> rtw
+    c --> faw
+    c --> rrd
+    c --> wtr
+    c --> rtw
+    c --> ccd
 
-    tRRD --> blk_act
-    tFAW --> blk_act
-    tCCD --> blk_rd
-    tCCD --> blk_wr
-    tWTR --> blk_rd
-    tRTW --> blk_wr
-    tRTRS --> blk_rd
-    last_rd_rank --> blk_rd
-    tCS --> blk_act
-    tCS --> blk_rd
-    tCS --> blk_wr
-    last_cmd_rank --> blk_act
-    last_cmd_rank --> blk_rd
-    last_cmd_rank --> blk_wr
+    faw --> o_faw
+    rrd --> o_rrd
+    wtr --> o_wtr
+    rtw --> o_rtw
+    ccd --> o_ccd
 
-    blk_act --> OUT_BM[/"to bank_machine[r][b]<br/>xbank_blocks_act"/]
-    blk_rd --> OUT_BM_R[/"to bank_machine[r][b]<br/>xbank_blocks_rd"/]
-    blk_wr --> OUT_BM_W[/"to bank_machine[r][b]<br/>xbank_blocks_wr"/]
+    o_faw --> ARB[/"pumice_cmd_arbiter<br/>tfaw_ok_i / trrd_ok_i (per-rank)<br/>twtr_ok_i / trtw_ok_i / tccd_ok_i"/]
+    o_rrd --> ARB
+    o_wtr --> ARB
+    o_rtw --> ARB
+    o_ccd --> ARB
 
     classDef inblock fill:#f0f0f0,stroke:#666666,stroke-width:2px
+    classDef cfgb fill:#f0e8f4,stroke:#7B228B,stroke-width:2px
     classDef perrank fill:#e8f4e8,stroke:#228B22,stroke-width:2px
     classDef glb fill:#fef0e0,stroke:#B88B22,stroke-width:2px
-    classDef cross fill:#f0e8f4,stroke:#7B228B,stroke-width:2px
-    classDef comp fill:#e0e8fa,stroke:#3366CC,stroke-width:2px
+    classDef outblock fill:#e0e8fa,stroke:#3366CC,stroke-width:2px
 
-    class iss_act,iss_rd,iss_wr,last_w_beat,last_r_beat inblock
-    class tRRD,tFAW perrank
-    class tCCD,tWTR,tRTW glb
-    class last_rd_rank,last_cmd_rank,tRTRS,tCS cross
-    class blk_act,blk_rd,blk_wr comp
+    class evt_act,evt_rd,evt_wr inblock
+    class c cfgb
+    class faw,rrd perrank
+    class wtr,rtw,ccd glb
+    class o_faw,o_rrd,o_wtr,o_rtw,o_ccd outblock

@@ -23,96 +23,45 @@
 
 # Write and Read Data Paths
 
-The write and read data paths bridge the AXI W / R channels and the DFI wrdata / rddata sub-interfaces with the JEDEC-required CWL / CL timing alignment.
+The data path spans two clock domains. On the controller (`aclk`) side the two CAMs in `pumice_axi4_ifc` buffer burst data; on the DFI (`dfi_clk`) side the write serializer and read aligner drive/capture the DFI data bus. All four are **de-FSM'd streaming readers** — they are FIFO-fed / beat-counter datapaths with no active/slot state latch.
 
-## `wdata_path`
+## Controller-Side CAMs
 
-### Purpose
+### `pumice_wr_data_cam`
 
-Stream AXI W beats onto the DFI write-data bus with correct CWL alignment relative to the issued WR command.
+RTL: `rtl/fub/pumice_wr_data_cam.sv`. A write-command CAM plus a write-data SRAM. Entries are keyed on `{bank, row, col}` with a free-running age; the burst payload lives in an SRAM slot. Three data movers stream over the SRAM:
 
-### Inputs
+- **fill** — captures W beats into the slot on insert.
+- **commit-drain** — streams the slot to the DFI write path when the scheduler commits the entry.
+- **snarf** — forwards a slot to a matching read (read-your-write), limited to unscheduled entries with a matching id and burst length.
 
-- AXI W channel beats (after `axi4_slave` accepts them into the internal FIFO)
-- Issued WR command notification from `scheduler` (includes AXI ID and burst length)
-- CWL value from `csr_slave` (programmed at init)
-- `WRPHASE` parameter from elaboration
+Age is compared wrap-safe as a relative age (`age_ctr - entry_age`). The snarf lookup returns the **youngest** match (latest data), the scheduler lookup returns the **oldest** match (in-order commit per row), and the `oldest` port returns the oldest valid entry for the scheduler fallback. A fill-complete flag gates schedulability and snarf so a partially-filled burst is never committed or forwarded.
 
-### Outputs
+There is no standalone `wr2rd_forward` block — write-to-read forwarding is exactly the snarf mover in this CAM.
 
-- `dfi_wrdata` — write data, driven on the correct phase
-- `dfi_wrdata_en` — driven high CWL cycles after the WR command for the burst duration
-- `dfi_wrdata_mask` — byte mask, driven from inverted AXI strobes (DFI convention: 1 = mask, 0 = write)
+### `pumice_rd_cmd_cam`
 
-### Behavior
+RTL: `rtl/fub/pumice_rd_cmd_cam.sv`. The read miss path — an outstanding-read tracker acting as a **reorder buffer**. Entries are keyed `{bank, row, col}` with a free-running age and N scheduler lookups so reads row-hit-schedule like writes. Data flows the opposite direction from the write CAM: it comes **in** from the DFI read return and drains **out** to `pumice_rd_intake`. DRAM read data returns in issue order and is buffered per entry; it drains in AR (insert) order, which is what enforces per-ID read ordering.
 
-1. On WR command issue, the scheduler tags the AXI ID and burst length.
-2. The write-data path begins a CWL-cycle countdown.
-3. After CWL cycles, the path pulls beats from the AXI W FIFO matching the tagged ID and drives them onto `dfi_wrdata` for the burst duration.
-4. `dfi_wrdata_mask` is computed from the AXI `strb` field with bit inversion (AXI: 1 = byte enable; DFI: 1 = mask).
-5. After the last beat, `dfi_wrdata_en` deasserts.
+The issue-side oldest/lookups pick the oldest not-yet-issued entry; the drain side releases the oldest valid entry gated on data-ready. There is no snarf port (that is a write-CAM concept).
 
+## DFI-Side Data Movers
 
-### Write Command Pipeline
+Both movers live in the DFI layer on `dfi_clk`. Their internal unit is the **DFI word** (`DRAM_BEAT_WIDTH * DFI_RATE` wide), which already carries all `DFI_RATE` phases; `dfi_signal_pack` splits it to the pins. One FIFO pop is one DFI cycle, so both are bubble-free.
 
-![WR Command Pipeline with CWL Alignment](../assets/mermaid/07_wr_pipeline.png)
+### `pumice_dfi_wr_serializer`
 
-**Source:** [07_wr_pipeline.mmd](../assets/mermaid/07_wr_pipeline.mmd)
+RTL: `rtl/fub/pumice_dfi_wr_serializer.sv`. On a `wr_fire` from the command path it waits `t_phy_wrlat_i` DFI cycles, then streams one DFI-word per cycle from the write-data FIFO onto `dfi_wrdata` (with `dfi_wrdata_en` and `dfi_wrdata_mask`) until the burst's `last` word. Because the write CAM pre-stages the burst into the FIFO when the command is scheduled, the burst is already waiting at `wr_fire` and the drive never stalls. The DFI byte mask is the inverted AXI strobe (`mask = ~strb`; AXI `wstrb=1` = write byte, DFI `mask=1` = mask).
 
-### B-Response Generation
+### `pumice_dfi_rd_aligner`
 
-A B-channel response is generated when the WR command is **scheduled**, not when the data commits to the DRAM array. This matches AXI4 posted-write semantics and decouples B latency from DRAM-side delays.
+RTL: `rtl/fub/pumice_dfi_rd_aligner.sv`. The mirror of the write serializer. On a `rd_fire` it drives `dfi_rddata_en` for the read window starting `t_rddata_en_i` DFI cycles later, captures `dfi_rddata` whenever the PHY asserts `dfi_rddata_valid`, and pushes one DFI-word per valid cycle into the read FIFO as `{last, resp, data}`. `BL_WORDS = BL/DFI_RATE` words per burst; `last` marks the final word so the read intake can split words back into AXI R beats. v1 supports one outstanding read window (single-issue, tRTW/tCCD spaced).
 
-### Write Cancellation
+## Response Generation
 
-Not supported. Once a WR is committed by the scheduler, it must drain. The AXI master must not retract a posted write.
+- **B response** — the write intake returns B when the write CAM signals commit-done for the transaction id, matching AXI4 posted-write semantics and decoupling B latency from DRAM-side delays.
+- **R response** — the read intake drains the read CAM onto the R channel in AR order with the correct id and `rlast`. In v1 all reads return `OKAY` (the DFI `resp` field is carried through but DDR2/LPDDR2 have no CA parity to surface).
 
----
+## Runtime PHY Timing
 
-## `rdata_path`
-
-### Purpose
-
-Sample DFI rddata with correct CL alignment relative to the issued RD command, and stream the beats back on the AXI R channel with the correct ID and burst tagging.
-
-### Inputs
-
-- DFI `rddata`, `rddata_valid` — driven by the PHY
-- Issued RD command notification from `scheduler` (AXI ID, burst length)
-- CL value from `csr_slave`
-- `RDPHASE` parameter
-
-### Outputs
-
-- AXI R channel — `rdata`, `rid`, `rresp`, `rlast`, `rvalid`
-
-### Behavior
-
-1. On RD command issue, the scheduler tags the AXI ID and burst length.
-2. The read-data path begins a CL-cycle countdown.
-3. After CL cycles, the path samples `rddata` and `rddata_valid` for the burst duration.
-4. Valid beats are tagged with the original AXI ID and streamed onto the AXI R channel.
-5. `rlast` is asserted on the final beat of each AXI transaction.
-
-
-### Read Command Pipeline
-
-![RD Command Pipeline with CL Alignment](../assets/mermaid/08_rd_pipeline.png)
-
-**Source:** [08_rd_pipeline.mmd](../assets/mermaid/08_rd_pipeline.mmd)
-
-### Out-of-Order Completion
-
-The path supports out-of-order R-channel completion across AXI IDs (when `AXI_OOO_ACROSS_IDS` is enabled). Within an ID, ordering is preserved.
-
-### Read Error Handling
-
-If the burst's underlying PHY reports an issue (e.g., uncorrected parity error — though DDR2 / LPDDR2 don't have CA parity), `rresp` is set to `SLVERR` for the affected beats. In v1 of this controller, all reads return `OKAY`.
-
-### Read Data Capture Timing
-
-`CL` is programmed via CSR at init. The path uses the programmed value directly; it does not learn CL from the PHY. This works because LPDDR2 init sequence has the controller program MR2 with the desired CL / CWL values, and the same value is mirrored in CSR.
-
-### Stale Read Suppression
-
-If the AXI R channel is back-pressured for an extended period, the path will eventually report a timeout. The default timeout is 1024 cycles; configurable via CSR. The timeout indicates a downstream consumer is stuck, which is typically a system-level bug rather than a controller bug.
+The write and read timing offsets are runtime CSR knobs rather than hard-coded PHY latencies, so one build ports across PHYs: `t_phy_wrlat` (WR command to `dfi_wrdata_en`) and `t_rddata_en` (RD command to `dfi_rddata_en`), plus the `DFI_PHASE` CSR (`rd_phase` / `wr_phase`) covered in the DFI/CSR chapter.

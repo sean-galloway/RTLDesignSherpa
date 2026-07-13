@@ -1,20 +1,35 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
 stateDiagram-v2
     direction LR
-    state "rd_cmd_cam slot" as RD_GROUP {
-        [*] --> RD_EMPTY
-        RD_EMPTY --> RD_PEND : push from axi4_slave<br/>(rank,bank,row,col,len)
-        RD_PEND --> RD_ISSUED : scheduler picks
-        RD_ISSUED --> RD_RETURNING : first R beat<br/>from rd_data_path
-        RD_RETURNING --> RD_RETURNING : beat_we_i<br/>(beats_returned++)
-        RD_RETURNING --> RD_EMPTY : beats_returned == burst_len<br/>(entry_complete)
+
+    state "pumice_wr_data_cam entry" as WR_GROUP {
+        [*] --> WR_INVALID
+        WR_INVALID --> WR_FILLING : ins_valid captures bank/row/col/id
+        WR_FILLING --> WR_FILLING : wd fill beat (r_fill_beat++)
+        WR_FILLING --> WR_FILLED : wd_last sets r_fdone
+        WR_FILLED --> WR_SCHED : commit_valid sets r_sched
+        WR_SCHED --> WR_INVALID : commit-drain last beat evicts slot
+        WR_FILLED --> WR_FILLED : snarf_rd read-your-write forward
     }
 
-    state "wr_cmd_cam slot" as WR_GROUP {
-        [*] --> WR_EMPTY
-        WR_EMPTY --> WR_PEND : push from axi4_slave<br/>(...,w_buf_ptr,strb_ptr)
-        WR_PEND --> WR_ISSUED : scheduler picks
-        WR_ISSUED --> WR_BEATS : beat_pull_o<br/>(beats_issued++)
-        WR_BEATS --> WR_BPENDING : beat_pull_last<br/>(b_pending_set)
-        WR_BPENDING --> WR_EMPTY : write window done<br/>(b_complete from xbank_timers)
+    state "pumice_rd_cmd_cam entry" as RD_GROUP {
+        [*] --> RD_INVALID
+        RD_INVALID --> RD_PENDING : ins_valid captures bank/row/col/id
+        RD_PENDING --> RD_ISSUED : issue_valid sets r_issued
+        RD_ISSUED --> RD_RETURNING : dfi_ret beat (r_ret_beat++)
+        RD_RETURNING --> RD_READY : dfi_ret_last sets r_ready and r_resp
+        RD_READY --> RD_INVALID : drain last beat evicts slot
     }
+
+    note right of WR_GROUP
+      r_fdone gates schedulability AND snarf.
+      Snarf limited to unscheduled, same-id, same-BL.
+      Fill / commit-drain / snarf are beat-counter
+      movers (FIFO-fed), NOT a slot-state FSM.
+    end note
+
+    note right of RD_GROUP
+      Drain is oldest-first, gated on r_ready
+      (data staged in SRAM). Beat-counter mover
+      only; no active/slot state latch.
+    end note

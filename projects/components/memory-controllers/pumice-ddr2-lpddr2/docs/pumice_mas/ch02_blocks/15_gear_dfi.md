@@ -21,320 +21,253 @@
 
 <!-- End Header -->
 
-# DFI Signal Pack (`dfi_signal_pack`)
+# DFI Layer and Host-Width Gearing (`pumice_dfi_layer` + `pumice_top_geared`)
 
-**Module:** `dfi_signal_pack.sv`
-**Location:** `rtl/fub/`
-**Category:** FUB
-**Parent macro:** `dfi_v21_interface_macro`
-**Status:** v1 implemented (phase-0 carries cmd; other phases NOP)
+**Module:** `pumice_dfi_layer.sv` (macro) / `pumice_top_geared.sv` (top wrapper)
+**Location:** `rtl/macro/` and `rtl/top/`
+**Category:** Macro / Top wrapper
+**Status:** Implemented (single-CDC DFI datapath; formal-IP host-width gearing wrapper)
 
-> Architectural context: HAS §3.6.
+> **Replaces the retired `gear_dfi_fub`.** The original chapter described a
+> phase-packing FUB (`gear_dfi_fub` / `dfi_signal_pack`) that spread a single MC
+> command and burst-of-`N` data beats into per-phase DFI slots. That
+> phase-packing role is real but small — it lives inside `dfi_signal_pack` and
+> the DFI-layer sub-FUBs. This chapter now covers the two live, distinct concepts
+> that carry the word "gearing" in pumice, and it keeps them separate:
 >
-> **Renamed:** the SWAG called this `gear_dfi_fub`; the implementation
-> name is `dfi_signal_pack`. The parameter `N_PHASES` is now `DFI_RATE`.
+> 1. **The DFI layer** (`pumice_dfi_layer`) — the single controller/PHY
+>    clock-domain crossing plus the DFI-clock command/write/read datapath. This
+>    is where the internal `DW`-wide word is split into `DFI_RATE` DRAM beats.
+> 2. **Host-width gearing** (`pumice_top_geared`) — an OPTIONAL top wrapper that
+>    lets a host SoC use any AXI data width, inserting the repo's formally
+>    verified AXI data-width converters between the host and the fixed-width core.
 >
-> **Strict-flop outputs:** every aggregated DFI control bus output is
-> registered.
+> These are orthogonal: (1) is about DRAM-beat phasing on the PHY side; (2) is
+> about AXI beat width on the host side.
 
 ---
 
-## Purpose
+## Concept 1 — The DFI Layer (`pumice_dfi_layer`)
 
-DFI v2.1 runs at the PHY clock; the controller side runs at the MC clock,
-which is the PHY clock divided by `DFI_RATE`. Each MC cycle therefore
-corresponds to `DFI_RATE` consecutive PHY-side DFI cycles ("phases").
-`dfi_signal_pack` aggregates the controller's single-issue command and
-burst-of-`DFI_RATE` data beats into the right phase slots.
+### Purpose
 
-In v1, phase 0 carries the command emitted by `dfi_cmd_formatter` and the
-other phases drive NOP. Data-path FUBs (`wr_beat_sequencer`,
-`rd_cl_aligner`) pre-pack `DFI_RATE` DRAM beats per DFI cycle, so the data
-path is naturally per-MC-cycle aligned.
+`pumice_dfi_layer` presents the controller-clock command/wrdata/rddata streams on
+one side and the DFI 2.1 pin bus on the other. It holds the **single**
+controller/PHY clock-domain crossing and the DFI-clock-side datapath. Its
+internal datapath unit is the DFI word (`dfi_wrdata` width = all `DFI_RATE`
+phases): one FIFO word equals one DFI cycle, which keeps the datapath bubble-free.
 
-Upstream FUBs are rate-blind: scheduler, init, refresh, powerdown,
-mode_register, dfi_cmd_formatter all see one issue per MC clock. The
-output of this FUB is the per-phase × `DFI_RATE` bus that routes to the
-PHY pad.
+Two clock domains:
+
+- **`ctl_clk`** — command from the scheduler, write data from the WR CAM, read
+  data to the RD CAM, and the `init_start` / `init_complete` handshake.
+- **`dfi_clk`** — the DFI command bus, `dfi_wrdata`/en/mask, `dfi_rddata`/en/
+  valid, and `dfi_init_start`/complete.
+
+### Internal structure (verified against the RTL)
+
+`pumice_dfi_layer` instantiates exactly four sub-FUBs:
+
+| Sub-FUB                    | Domain    | Role                                                             |
+|----------------------------|-----------|-----------------------------------------------------------------|
+| `pumice_dfi_cdc`           | ctl↔dfi   | The **single** clock crossing — async gaxi FIFOs only (cmd, wrdata, rddata, plus init-start/complete bit crossings) |
+| `pumice_dfi_cmd_path`      | dfi_clk   | cmd FIFO → DFI command bus + `wr_fire`/`rd_fire` strobes; instantiates `dfi_cmd_formatter` (§2.14) and `dfi_signal_pack` |
+| `pumice_dfi_wr_serializer` | dfi_clk   | wrdata FIFO → `dfi_wrdata` at `t_phy_wrlat`                       |
+| `pumice_dfi_rd_aligner`    | dfi_clk   | `dfi_rddata` → rddata FIFO at `t_rddata_en`                      |
+
+The CDC (`pumice_dfi_cdc`) is the only place the domains meet; everything
+downstream of it runs entirely in `dfi_clk`. The command path emits `wr_fire_o` /
+`rd_fire_o` strobes that time the serializer and aligner relative to the issued
+command.
+
+### Key parameters
+
+| Parameter          | Default | Effect                                                          |
+|--------------------|---------|-----------------------------------------------------------------|
+| `NUM_RANKS`        | 1       | CS/rank fan-out                                                 |
+| `NUM_BANKS`        | 8       | Bank-field width                                               |
+| `ROW_WIDTH`        | 14      | Row / DFI address width                                        |
+| `COL_WIDTH`        | 10      | Column width                                                   |
+| `DFI_RATE`         | 2       | DRAM beats per DFI word (phase count)                          |
+| `DRAM_BEAT_WIDTH`  | 64      | One DRAM beat's data width                                     |
+| `BL`               | 8       | DRAM beats per burst; `BL_WORDS = BL / DFI_RATE` DFI words/burst |
+| `CMD/WD/RD_FIFO_DEPTH` | 8/16/16 | CDC FIFO depths                                             |
+| `N_FLOP_CROSS`     | 2       | Synchronizer flop stages in the async FIFOs                    |
+
+Derived DFI geometry: `DFI_DATA_WIDTH = DRAM_BEAT_WIDTH * DFI_RATE`,
+`DFI_STRB_WIDTH = DFI_DATA_WIDTH/8`, `DFI_EN_WIDTH = DFI_VALID_WIDTH = DFI_RATE`.
+The FIFO payloads pack the command (`CMD_DW`), `{last,strb,data}` for writes
+(`WD_DW`), and `{last,resp,data}` for reads (`RD_DW`).
+
+### DFI-clock runtime knobs
+
+| Signal          | Width | Description                                             |
+|-----------------|-------|---------------------------------------------------------|
+| `memtype_i`     | enum  | DDR2 / LPDDR2 selector for the command path              |
+| `rd_phase_i`    | PHW   | DFI sub-phase carrying the READ command (see §2.14)      |
+| `wr_phase_i`    | PHW   | DFI sub-phase carrying the WRITE command                 |
+| `t_phy_wrlat_i` | 8     | PHY write latency — when the serializer launches wrdata  |
+| `t_rddata_en_i` | 8     | When the aligner strobes `dfi_rddata_en` / captures data |
+
+These are the PHY-integration knobs surfaced through the CSR (`DFI_PHASE`,
+`DFI_TIMING`); they carry the PHY-specific latencies rather than baking them into
+the datapath, which is what let on-board bring-up dial in `t_rddata_en` / phase
+placement without an RTL change.
 
 ---
 
-## Narrow-Device (x16) Support and the Two Width Granularities
+## Concept 2 — Host-Width Gearing (`pumice_top_geared`)
 
-A subtle but critical distinction: the **pumice DRAM beat** (`DRAM_BEAT_WIDTH`,
-one DFI phase's data) is **not** necessarily the **physical DRAM device word**
-(`DRAM_DEVICE_WIDTH`, the DQ width — e.g. 16 for a x16 device). When a beat is
-wider than the device (e.g. a 32-bit beat over a x16 device, so one beat packs
-**K = DRAM_BEAT_WIDTH / DRAM_DEVICE_WIDTH = 2** physical DDR words), three parts
-of the pipeline must reason in **device-word** units, not beat units. Getting
-this wrong is invisible in a DFI-level behavioral sim but corrupts real silicon
-(the Nexys A7 x16 bring-up hit all three):
+### Purpose
 
-1. **Burst length (beats per command).** A JEDEC burst length from MR0 (`bl_o`,
-   BL4/BL8) is expressed in **physical device beats**. `pumice_core_macro` scales
-   it to pumice-beat units — `bl_dram_beats = bl_o >> log2(DRAM_BEAT_WIDTH /
-   DRAM_DEVICE_WIDTH)` — before feeding `axi_intake`'s burst-split (`dram_bl_i`)
-   and `wr_beat_sequencer`'s beat count. Without the scale a x16 BL4 (= 2 pumice
-   beats = 1 DFI cycle) is over-counted as 4, so the controller drives/captures
-   **two** DFI cycles for a burst the DRAM delivers in one.
+The controller core is fixed at its natural width `DW = DRAM_BEAT_WIDTH *
+DFI_RATE` (default 128): one AXI beat == one DFI word == `DFI_RATE` DRAM beats,
+and one AXI burst (`BL/DFI_RATE` beats) == one DRAM burst (`BL` beats).
+`pumice_top_geared` wraps `pumice_top` with a **free** `HOST_AXI_DATA_WIDTH`,
+inserting the repo's formally verified data-width converters
+(`axi4_dwidth_converter_wr` / `_rd`) between a host-width AXI slave and the
+fixed-`DW` core.
 
-2. **Column address stride.** DRAM columns are **device-word granular** — a BL4
-   auto-increments 4 physical columns. `addr_mapper`'s `BYTE_OFFSET_WIDTH` must
-   therefore be `log2(DRAM_DEVICE_WIDTH/8)`, not `log2(DRAM_BEAT_WIDTH/8)`. See
-   §`03_addr_mapper`. If it uses the beat width, a split burst's chunk column
-   advances by only half the DRAM's BL span, so chunk *N* overwrites chunk *N-1*'s
-   tail (a ~50% read scramble on silicon).
+This is the family-wide gearing path (DDR2/DDR3/DDR4/LPDDR2), reusing proven +
+formal IP rather than re-verifying a bespoke gearbox inside the freshly
+stabilized controller datapath.
 
-3. **Read-data / valid alignment (integration).** A given PHY may present read
-   data ahead of, or on a different phase than, `rddata_valid`. The
-   characterization harness carries runtime knobs for this (`DFI_TUNING`
-   `rddata_delay`, and the `DFI_PHASE` CSR below) rather than baking PHY-specific
-   latencies into the controller.
+> **The old coupling is gone.** Do not describe the retired "AXI_DATA_WIDTH ==
+> DRAM_BEAT_WIDTH" constraint. Internal geometry is `DW = DRAM_BEAT_WIDTH *
+> DFI_RATE`; the DW→phase split happens inside the DFI layer / `dfi_signal_pack`,
+> and the host AXI width is decoupled from it by this wrapper.
 
-**`DFI_PHASE` CSR (rd_phase / wr_phase):** `dfi_cmd_formatter` places the READ
-command on `rd_phase` and the WRITE command on `wr_phase` (defaults 0; all other
-commands on phase 0), runtime-settable via the `DFI_PHASE` CSR. This matches a
-PHY that consumes a per-command rdphase/wrphase off the DFI bus. Note: the
-LiteDRAM a7ddrphy instead takes the command on phase 0 and applies its rdphase
-**internally**, so on that PHY `rd_phase` stays 0 — the CSR exists for PHYs that
-do not.
+### GEAR-1 bypass (bit-identical)
+
+When `HOST_AXI_DATA_WIDTH == DW`, a `generate` selects the `g_direct` branch: the
+host AXI signals are wired straight through to the core with no converter and no
+added latency. Existing `DW`-width builds are therefore bit-identical whether they
+instantiate `pumice_top` directly or through `pumice_top_geared`.
+
+### Geared branch
+
+When `HOST_AXI_DATA_WIDTH != DW`, the `g_conv` branch instantiates the two
+formal converters:
+
+```systemverilog
+axi4_dwidth_converter_wr #(.S_AXI_DATA_WIDTH(HOST_AXI_DATA_WIDTH), .M_AXI_DATA_WIDTH(DW), ...)
+axi4_dwidth_converter_rd #(.S_AXI_DATA_WIDTH(HOST_AXI_DATA_WIDTH), .M_AXI_DATA_WIDTH(DW), ...)
+```
+
+The host slave ports (`s_axi_*` at `HOST_AXI_DATA_WIDTH`) feed the converters; the
+converters' master ports (the internal `c_*` nets at `DW`) feed `pumice_top`. The
+CSR cpuif and the DFI pin bus pass straight through the wrapper unmodified.
+
+**Burst geometry.** The core still requires one AXI burst == one DRAM burst at its
+`DW` side (`(awlen+1) * DFI_RATE == BL`). The host issues bursts at host width; the
+converter translates them to `DW`-width bursts of that geometry. Host burst sizing
+is the host's contract (the same spirit as the core's ragged-burst check).
+Verified for host widths in {64, 128, 256}. Full scope in
+`docs/AXI_DRAM_GEARING_SCOPE.md`.
+
+### Key parameters
+
+| Parameter              | Default | Effect                                                   |
+|------------------------|---------|----------------------------------------------------------|
+| `HOST_AXI_DATA_WIDTH`  | 128     | Host AXI data width (free); == `DW` triggers the bypass  |
+| `DW` (derived)         | `DRAM_BEAT_WIDTH * DFI_RATE` | Fixed core width                          |
+| core geometry params   | —       | `AXI_ID_WIDTH`, `AXI_ADDR_WIDTH`, `NUM_RANKS`, `NUM_BANKS`, `ROW_WIDTH`, `COL_WIDTH`, `DFI_RATE`, `DRAM_BEAT_WIDTH`, `BL`, ... mirror `pumice_top` |
+
+---
+
+## Narrow-Device (x16) Support — the Two Width Granularities
+
+A distinction that is separate from both concepts above but which the DFI layer
+must respect: the **pumice DRAM beat** (`DRAM_BEAT_WIDTH`, one DFI phase's data)
+is not necessarily the **physical DRAM device word** (`DRAM_DEVICE_WIDTH`, the DQ
+width — e.g. 16 for an x16 device). When a beat is wider than the device (a
+32-bit beat over an x16 device packs `K = DRAM_BEAT_WIDTH / DRAM_DEVICE_WIDTH = 2`
+physical DDR words), three parts of the pipeline must reason in **device-word**
+units. Getting this wrong is invisible in a DFI-level behavioral sim but corrupts
+real silicon — the Nexys A7 x16 bring-up hit all three:
+
+1. **Burst length (beats per command).** A JEDEC BL from MR0 (`bl_o`, BL4/BL8) is
+   in physical device beats; the core scales it to pumice-beat units before
+   feeding the burst-split and serializer, else an x16 BL4 is over-counted and the
+   controller drives/captures an extra DFI cycle.
+2. **Column address stride.** DRAM columns are device-word granular, so
+   `addr_mapper`'s `BYTE_OFFSET_WIDTH` must be `log2(DRAM_DEVICE_WIDTH/8)`, not
+   `log2(DRAM_BEAT_WIDTH/8)`; using the beat width makes a split burst's chunk
+   overwrite the previous chunk's tail (a ~50% read scramble on silicon).
+3. **Read-data / valid alignment.** A PHY may present read data ahead of, or on a
+   different phase than, `rddata_valid`. This is handled at runtime by the
+   `t_rddata_en` knob and the `DFI_PHASE` CSR (below) rather than baked-in
+   latencies.
 
 Default `DRAM_DEVICE_WIDTH = DRAM_BEAT_WIDTH` (K=1) makes all of the above
-bit-identical to the wide-device / GEAR=1 behavior.
+bit-identical to the wide-device behavior.
+
+### `DFI_PHASE` CSR (rd_phase / wr_phase)
+
+`dfi_cmd_formatter` places the READ command on `rd_phase` and the WRITE command on
+`wr_phase` (defaults 0; all other commands on phase 0), runtime-settable via the
+`DFI_PHASE` CSR through `pumice_dfi_layer`'s `rd_phase_i` / `wr_phase_i`. This
+matches a PHY that consumes a per-command rdphase/wrphase off the DFI bus. The
+LiteDRAM a7ddrphy instead takes the command on phase 0 and applies its rdphase
+internally, so on that PHY `rd_phase` stays 0 — the CSR exists for PHYs that do
+not.
 
 ---
 
-## Synthesis Parameters
+## Interface Summary
 
-| Parameter            | Source           | Effect                                                              |
-|----------------------|------------------|---------------------------------------------------------------------|
-| `N_PHASES`           | top (default 4)  | Number of DFI phases per MC clock (`{1, 2, 4}`)                     |
-| `WRPHASE`            | top (default 0)  | Phase slot that carries `dfi_wrdata`, `dfi_wrdata_en`, `dfi_wrdata_mask` |
-| `RDPHASE`            | top (default 0)  | Phase slot that strobes `dfi_rddata_en`                              |
-| `DFI_DATA_WIDTH`     | top              | Per-phase DFI data width                                            |
-| `AXI_DATA_WIDTH`     | top              | Source data width (consumed by `wr_data_path` upstream)              |
+### `pumice_dfi_layer` — controller side (`ctl_clk`)
 
-The constraint `WRPHASE < N_PHASES` and `RDPHASE < N_PHASES` is checked at elaboration.
+| Signal          | Direction | Description                              |
+|-----------------|-----------|------------------------------------------|
+| `cmd_valid_i` / `cmd_ready_o` / `cmd_data_i[CMD_DW]` | in/out/in | Command stream from the scheduler |
+| `wd_valid_i` / `wd_ready_o` / `wd_data_i[WD_DW]` | in/out/in | Write data from the WR CAM drain ({last,strb,data}) |
+| `rd_valid_o` / `rd_ready_i` / `rd_data_o[RD_DW]` | out/in/out | Read data to the RD CAM ({last,resp,data}) |
+| `init_start_i` / `init_complete_o` | in/out | Init handshake, controller side |
 
----
+### `pumice_dfi_layer` — PHY side (`dfi_clk`)
 
-## Frame Packing View
+DFI command bus (`dfi_address_o`, `dfi_bank_o`, `dfi_cas_n_o`, `dfi_ras_n_o`,
+`dfi_we_n_o`, `dfi_cs_n_o`, `dfi_odt_o`), write data (`dfi_wrdata_o`,
+`dfi_wrdata_en_o`, `dfi_wrdata_mask_o`), read data (`dfi_rddata_en_o`,
+`dfi_rddata_i`, `dfi_rddata_valid_i`), and the DFI init handshake
+(`dfi_init_start_o`, `dfi_init_complete_i`), plus the runtime knobs above.
 
-![Gear Packing — per-phase slot layout, WRPHASE, RDPHASE, NOP fill](../assets/mermaid/13_gear_dfi_packing.png)
+### `pumice_top_geared`
 
-**Source:** [13_gear_dfi_packing.mmd](../assets/mermaid/13_gear_dfi_packing.mmd)
-
-Each MC cycle produces one "frame" of N DFI cycles. The command always goes in phase 0 by spec convention (PHY samples cmds on phase 0); write data goes in `WRPHASE`; read-data-enable is strobed in `RDPHASE`.
-
----
-
-## Command Lane
-
-The command from `cmd_encoder` is single-cycle-valid in the MC domain. The gear replicates each command signal across the per-phase output, **but only phase 0 carries the real command** — other phases drive idle (NOP) patterns:
-
-```
-for p in 0..N_PHASES-1:
-    if (p == 0):
-        // Phase 0 carries the actual command
-        dfi_cs_n[p][r]   = cmd_encoder.dfi_cs_n_o[r]      // for all ranks r
-        dfi_ras_n[p]     = cmd_encoder.dfi_ras_n_o
-        dfi_cas_n[p]     = cmd_encoder.dfi_cas_n_o
-        dfi_we_n[p]      = cmd_encoder.dfi_we_n_o
-        dfi_address[p]   = cmd_encoder.dfi_address_o
-        dfi_bank[p]      = cmd_encoder.dfi_bank_o
-    else:
-        // Other phases: idle pattern (NOP-equivalent)
-        dfi_cs_n[p][*]   = 1
-        dfi_ras_n[p]     = 1
-        dfi_cas_n[p]     = 1
-        dfi_we_n[p]      = 1
-        dfi_address[p]   = 0
-        dfi_bank[p]      = 0
-```
-
-The PHY clock runs N× faster than the MC clock; the PHY samples commands on phase 0 each MC cycle and ignores the other phases (they're NOPs). This is the simplest gear and works at all N_PHASES values.
-
-For `N_PHASES = 1` (no gear), there's only one phase and the command goes directly through with no replication.
-
-### Why Always Phase 0?
-
-DDR2 / LPDDR2 PHYs typically sample command at phase 0 of the MC clock. Some PHYs allow command at other phases via a "CMDPHASE" parameter; the controller doesn't currently expose this since the bring-up board's a7ddrphy uses the conventional layout. If a future PHY requires it, add a `CMDPHASE` parameter symmetric with `WRPHASE`/`RDPHASE`.
-
----
-
-## Write Data Lane
-
-When the controller issues a write, `wr_data_path_fub` produces N consecutive data beats over `BL/2` MC cycles (where BL = burst length, typically 4 or 8). The gear packs these beats into `WRPHASE` of each successive MC cycle:
-
-```
-// In wr_data_path's beat-per-MC-cycle output:
-//   wr_beat_data, wr_beat_mask, wr_beat_valid
-
-for p in 0..N_PHASES-1:
-    if (p == WRPHASE):
-        dfi_wrdata[p]       = wr_data_path.wr_beat_data
-        dfi_wrdata_mask[p]  = wr_data_path.wr_beat_mask
-        dfi_wrdata_en[p]    = wr_data_path.wr_beat_valid
-    else:
-        dfi_wrdata[p]       = 0
-        dfi_wrdata_mask[p]  = 0      // mask all
-        dfi_wrdata_en[p]    = 0
-```
-
-For a BL=4 burst at `N_PHASES = 4`, the burst fits in **one** MC cycle (4 phases × 1 beat = 4 beats). For BL=4 at `N_PHASES = 2`, the burst takes **2** MC cycles. For BL=4 at `N_PHASES = 1`, the burst takes **4** MC cycles.
-
-The width-conversion from AXI's `AXI_DATA_WIDTH` to DFI's `DFI_DATA_WIDTH` happens upstream in `wr_data_path`; gear just routes pre-packed beats to the WRPHASE slot.
-
-### tCWL Latency Handling
-
-The DRAM expects the first write data beat at `CWL` PHY cycles after the WR command. Since the command is on phase 0 and the data is on WRPHASE of a later MC cycle, the gear's "later MC cycle" must satisfy `((MC_cycle_delta × N_PHASES) + WRPHASE) == CWL`. The cmd_encoder's WR command issue and the wr_data_path's data-push are aligned by the scheduler; gear just passes them through. Verification cross-checks this against the live `CL_CWL_WR` CSR values.
-
----
-
-## Read Data Lane
-
-For reads, the gear has the inverse job: capture per-phase rddata returns from the PHY into a stream that `rd_data_path_fub` can consume one beat per MC cycle.
-
-```
-// Phase-by-phase rddata input from PHY:
-for p in 0..N_PHASES-1:
-    if (p == RDPHASE):
-        rd_data_path.rd_beat_data  = dfi_rddata[p]
-        rd_data_path.rd_beat_valid = dfi_rddata_valid[p]
-    // Other phases are ignored (no real read data)
-
-// Strobe rddata_en in RDPHASE on the cycle the data should be valid:
-dfi_rddata_en[RDPHASE] = rd_strobe_at_CL    // computed from scheduler issue + CL
-```
-
-The `dfi_rddata_en` is the strobe to the PHY saying "capture this DRAM data beat at this phase." It's asserted exactly `CL` PHY cycles after the corresponding RD command. The gear converts the MC-cycle-relative timing to phase-relative.
-
-### CL-Aware Pre-Drive of `dfi_rddata_en`
-
-The gear has a small N-deep shift register that delays `rd_strobe_at_CL` by the appropriate number of phases. The strobe enters when the RD/RDA command issues (from cmd_encoder) and shifts out at the right cycle. The shift register is `(max_CL × N_PHASES)` deep — small (default 32 entries × 1 bit at 7-series).
-
----
-
-## Cross-Phase Signals: CKE and ODT
-
-Some signals are held across the entire MC cycle (cross-phase): CKE and ODT in particular. The gear drives them identically on every phase:
-
-```
-for p in 0..N_PHASES-1:
-    dfi_cke[p][r]  = cke_from_power_state[r]    // for all ranks r
-    dfi_odt[p][r]  = odt_from_odt_ctrl[r]
-```
-
-These signals don't change within an MC cycle — they reflect the controller's CKE/ODT decision made at the start of the cycle. The PHY samples them at its own rate (DDR-style ODT timing) using the held value.
-
----
-
-## DFI v2.1 Status / Update Lane
-
-The DFI status sub-interface (`dfi_init_complete`, `dfi_ctrlupd_req`, `dfi_phyupd_req`, etc.) is **not gear-packed** — it's a single-bit-per-event signal that crosses MC ↔ PHY clock domains through standard CDC, independent of the phase. The gear passes them through without modification.
-
----
-
-## Interface
-
-### From `cmd_encoder_fub` (one cycle, MC clock)
-
-| Signal              | Direction | Width                | Description                                |
-|---------------------|-----------|----------------------|--------------------------------------------|
-| `cmd_cs_n_i[NR]`    | input     | NR                   | Per-rank CS_n from cmd_encoder              |
-| `cmd_ras_n_i`       | input     | 1                    |                                            |
-| `cmd_cas_n_i`       | input     | 1                    |                                            |
-| `cmd_we_n_i`        | input     | 1                    |                                            |
-| `cmd_address_i`     | input     | `DFI_ADDR_WIDTH`     |                                            |
-| `cmd_bank_i`        | input     | `$clog2(NB)`         |                                            |
-| `cmd_strobe_i`      | input     | 1                    | 1 when a command is being issued this cycle |
-| `cmd_rd_strobe_i`   | input     | 1                    | 1 when the issue is a RD/RDA (for rddata_en shift register) |
-| `cmd_cl_i`          | input     | 4                    | CAS latency for this RD (snapshot at issue) |
-
-### From `wr_data_path_fub` and `rd_data_path_fub`
-
-| Signal                  | Direction | Width                | Description                                |
-|-------------------------|-----------|----------------------|--------------------------------------------|
-| `wr_beat_data_i`        | input     | `DFI_DATA_WIDTH`     | One beat per MC cycle                       |
-| `wr_beat_mask_i`        | input     | `DFI_DATA_WIDTH/8`   |                                            |
-| `wr_beat_valid_i`       | input     | 1                    |                                            |
-| `rd_beat_data_o`        | output    | `DFI_DATA_WIDTH`     | Forwarded to rd_data_path                  |
-| `rd_beat_valid_o`       | output    | 1                    |                                            |
-
-### From `power_state_fub` and `odt_ctrl_fub`
-
-| Signal              | Direction | Width  | Description                                          |
-|---------------------|-----------|--------|------------------------------------------------------|
-| `cke_i[NR]`         | input     | NR     | Per-rank CKE (already-muxed init/normal)             |
-| `odt_i[NR]`         | input     | NR     | Per-rank ODT                                          |
-
-### DFI Master Outputs (per-phase)
-
-| Signal                            | Direction | Width                                       | Description                          |
-|-----------------------------------|-----------|---------------------------------------------|--------------------------------------|
-| `dfi_cs_n_o[NP][NR]`              | output    | NP × NR                                     | Per-phase per-rank CS_n              |
-| `dfi_ras_n_o[NP]`                 | output    | NP                                          | Per-phase RAS                        |
-| `dfi_cas_n_o[NP]`                 | output    | NP                                          | Per-phase CAS                        |
-| `dfi_we_n_o[NP]`                  | output    | NP                                          | Per-phase WE                         |
-| `dfi_address_o[NP]`               | output    | NP × `DFI_ADDR_WIDTH`                        | Per-phase address operand            |
-| `dfi_bank_o[NP]`                  | output    | NP × `$clog2(NB)`                           | Per-phase bank                       |
-| `dfi_wrdata_o[NP]`                | output    | NP × `DFI_DATA_WIDTH`                       | Per-phase write data                 |
-| `dfi_wrdata_mask_o[NP]`           | output    | NP × `DFI_DATA_WIDTH/8`                     | Per-phase byte mask                  |
-| `dfi_wrdata_en_o[NP]`             | output    | NP                                          | Per-phase write enable               |
-| `dfi_rddata_en_o[NP]`             | output    | NP                                          | Per-phase read-data-enable strobe    |
-| `dfi_cke_o[NR]`                   | output    | NR                                          | Per-rank CKE (cross-phase)           |
-| `dfi_odt_o[NR]`                   | output    | NR                                          | Per-rank ODT (cross-phase)           |
-
-### DFI Read-Data Inputs (per-phase, from PHY)
-
-| Signal                            | Direction | Width                                       | Description                          |
-|-----------------------------------|-----------|---------------------------------------------|--------------------------------------|
-| `dfi_rddata_i[NP]`                | input     | NP × `DFI_DATA_WIDTH`                       | Per-phase read data from PHY         |
-| `dfi_rddata_valid_i[NP]`          | input     | NP                                          | Per-phase rddata valid                |
-
----
-
-## Pipeline Staging
-
-The command path is single-cycle combinational (zero gear pipeline latency). The write data path has one MC-cycle pipeline stage (the beat-data flop) so the AXI-data-width to DFI-data-width width-conversion in `wr_data_path` can register its output. The read data path is single-cycle from PHY input to `rd_data_path` output.
-
-At `N_PHASES = 4`, `DFI_DATA_WIDTH = 32`, the per-phase data bus is 128 bits wide (4 × 32) on the gear output — manageable in 7-series routing. At `N_PHASES = 4`, `DFI_DATA_WIDTH = 128`, it's 512 bits — wider but still OK with appropriate placement.
-
----
-
-## CSR Hooks
-
-| CSR field                          | Source                            | Use case                                |
-|------------------------------------|-----------------------------------|-----------------------------------------|
-| `STATUS.gear_dfi_wrphase_obs` (R)  | `WRPHASE` parameter echo          | Software-visible build config            |
-| `STATUS.gear_dfi_rdphase_obs` (R)  | `RDPHASE` parameter echo          | Software-visible build config            |
-| `STATUS.gear_dfi_n_phases_obs` (R) | `N_PHASES` parameter echo         | Software-visible build config            |
-
-There are no runtime tunables — gear ratio is build-time only.
+Host AXI4 slave at `HOST_AXI_DATA_WIDTH`, PeakRDL cpuif passthrough
+(`s_cpuif_*`), `init_done_o`, and the DFI 2.1 pin bus straight through. Internally
+wires either directly (`g_direct`) or via the two converters (`g_conv`) to
+`pumice_top` at `DW`.
 
 ---
 
 ## Verification Notes (cocotb test plan)
 
-| Scenario                                                                          | What it proves                                              |
-|-----------------------------------------------------------------------------------|-------------------------------------------------------------|
-| `N_PHASES = 1`: command and data on the single phase                              | No-gear smoke                                               |
-| `N_PHASES = 2`: command on phase 0, write data on phase 0 (`WRPHASE=0`)            | 2x gear baseline                                            |
-| `N_PHASES = 4, WRPHASE = 0`: BL=4 write completes in 1 MC cycle (4 beats × 1 phase) | Full-width gear                                          |
-| `N_PHASES = 4, WRPHASE = 2`: write data offset by 2 phases relative to cmd        | Off-zero WRPHASE                                            |
-| Read with CL=5, N_PHASES=4: `dfi_rddata_en` asserts at the correct phase           | CL-aware shift register                                     |
-| Read in flight; PHY drives rddata; gear forwards beat-per-MC-cycle to rd_data_path | Read data reconstruction                                    |
-| Command on phase 0, NOPs on other phases — PHY sees only the one cmd              | Phase-replication idle correctness                          |
-| Per-rank CKE held cross-phase                                                      | CKE pass-through                                            |
-| Per-rank ODT held cross-phase                                                      | ODT pass-through                                            |
-| `WRPHASE = N_PHASES` (illegal) at elaboration → assertion fires                    | Elaboration-time bounds check                                |
-| Multi-rank: ACT on rank 1; phase 0 has `dfi_cs_n[0][1]=0`; other ranks have CS_n=1 | Per-rank CS_n routes through phase 0                        |
+| Scenario                                                                          | What it proves                                  |
+|-----------------------------------------------------------------------------------|-------------------------------------------------|
+| Command/wrdata/rddata cross the CDC bubble-free at `DFI_RATE = 2`                  | Single-CDC datapath, one FIFO word = one DFI cycle |
+| Write burst: `wr_fire` → serializer launches `dfi_wrdata` at `t_phy_wrlat`         | Write-latency alignment                          |
+| Read burst: `rd_fire` → aligner strobes `dfi_rddata_en` at `t_rddata_en`           | Read-capture alignment                           |
+| `rd_phase = 1`: RD command lands on DFI phase 1                                    | `DFI_PHASE` CSR routing                          |
+| x16 device (K=2): BL4 uses one DFI cycle, columns stride by device words           | Two-granularity handling                         |
+| `pumice_top_geared` with `HOST_AXI_DATA_WIDTH == DW`: `g_direct` bypass            | GEAR-1 bit-identical to bare `pumice_top`        |
+| Host 64 → `DW` 128 via `axi4_dwidth_converter_wr/_rd`: burst geometry preserved    | Geared write/read path                           |
+| Host 256 → `DW` 128: read data reassembled correctly at host width                 | Wide-host gearing                                |
+| CSR cpuif and DFI pins identical whether geared or direct                          | Passthrough correctness                          |
 
 ---
 
 ## Open Questions / Future Work
 
-- **Configurable CMDPHASE.** Currently command is always on phase 0. Some PHYs allow command on other phases. Worth a build parameter symmetric with WRPHASE/RDPHASE if the controller targets non-7-series PHYs. Punt; revisit at DDR3+ family.
-- **Two-cycle command paths.** LPDDR2's 2-cycle CA-bus protocol is already absorbed in cmd_encoder (which emits a 20-bit dfi_address); the gear sees one MC-cycle frame. But if a future memtype has commands that span multiple MC cycles (rather than multiple phases within one MC cycle), the gear would need a multi-cycle replicator. Not in v1.
-- **Late rddata capture.** If a PHY has variable rddata return latency (training-dependent), the controller may need a CL_SHIFT register driven by training rather than fixed CSR value. Today the shift-register depth is built from a CSR-loaded CL — works for fixed-latency PHYs only. Add at DDR3+ family controller.
-- **N_PHASES = 8 or higher.** DDR3+ and LPDDR3+ support higher gear ratios. The current shift-register and replicator design scales linearly to N_PHASES = 8 without architectural changes; the routing buses just get wider. Validate when we get there.
+- **Multi-command-per-cycle.** The command path places one issued command per DFI
+  word today (multi-phase content passes through, but a single command occupies
+  a word). Emitting multiple commands per DFI cycle is a scheduler-side feature;
+  the bus widths are already in place.
+- **`dfi_dram_clk_disable` / power-down.** `dfi_signal_pack` holds clk-disable at
+  0; wiring the power-state machine through the DFI layer is future work.
+- **Higher gear ratios.** `DFI_RATE = 4` (and DDR3+ higher ratios) scale the DFI
+  geometry linearly; validate the CDC FIFO depths and serializer/aligner timing
+  when the family controller targets them.
+- **Host width coverage.** Gearing is verified for host ∈ {64, 128, 256}; add 512
+  when a host SoC requires it. See `docs/AXI_DRAM_GEARING_SCOPE.md`.

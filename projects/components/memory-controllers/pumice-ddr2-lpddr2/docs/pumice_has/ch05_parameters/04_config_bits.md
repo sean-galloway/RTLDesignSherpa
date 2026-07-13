@@ -74,14 +74,24 @@ Register block at the same offset (0x040) in every controller. These bits govern
 | `fgr_mode`            | 2     | DDR3+       | Fine-Granularity Refresh mode (DDR3 1x/2x/4x; DDR4 fixed-rate, on-the-fly). N/A in DDR2. |
 | `refresh_per_rank`    | 1     | all         | Force per-rank dispatch even when `NUM_RANKS=1` (debug). Reset = 1 always when multi-rank. |
 
-## ADDR_MAP_TUNING (Address-Mapping Family Bits)
+## ADDR_MAP (Address-Mapping Family Bits)
 
-| Bit Field            | Width | Apply       | Description                                                          |
-|----------------------|-------|-------------|----------------------------------------------------------------------|
-| `scheme_or`          | 2     | all         | Runtime scheme mux (ROW_MAJOR, BANK_INTERLEAVE, XOR_HASH)            |
-| `synth_mask_obs`     | 4     | all (R only)| Bitmask of synthesized schemes. Software discovery.                  |
-| `bg_field_position`  | 3     | DDR4+       | Bit position of bank-group field in flat address. N/A pre-DDR4.      |
-| `xor_seed_runtime`   | 8     | all         | Runtime seed for the XOR_HASH scheme (changes hash without rebuild). |
+The address-map register at 0x04C is a single **placement knob**, not a scheme
+mux. The old `ADDR_MAP_TUNING` register (with a `scheme_or` selector and a
+`synth_mask_obs` synthesized-scheme bitmask) has been **retired** in this
+generation: the classic ROW_MAJOR / BANK_INTERLEAVE / XOR_HASH schemes are just
+settings of `bank_lsb` plus the optional `hash_en` fold, so there is nothing to
+mux (see §5.4 §3/§4 and `rtl/fub/addr_mapper.sv`).
+
+| Bit Field   | Width | Apply       | Description                                                                 |
+|-------------|-------|-------------|-----------------------------------------------------------------------------|
+| `bank_lsb`  | 5     | all         | Bank-field LSB in the word address. `= COL_WIDTH` -> ROW_MAJOR; lower -> interleave. RTL clamps to `[0, COL_WIDTH]`. |
+| `hash_en`   | 1     | all         | Enable bank XOR-hash fold (`bank ^= fold(row) ^ hash_seed`) = the old XOR_HASH scheme. |
+| `hash_seed` | 8     | all         | XOR-hash seed. Runtime seed change without rebuild.                         |
+
+Family note: for DDR4+ the bank-group field is placed by extending the same
+`bank_lsb`-relative stack rather than by a separate `bg_field_position`
+selector; that generation's RDL documents the exact field split.
 
 ## INIT_TUNING (Init Family Bits)
 
@@ -127,13 +137,25 @@ These are present in any flavor with `NUM_RANKS > 1`. For `NUM_RANKS = 1` builds
 
 ## Quiet-Point Behavior
 
-All runtime config bits take effect at the **next configuration quiet point** — no DRAM commands in flight, no refresh sequence in progress. The CSR slave does not enforce quiet points automatically; software requests one by writing `CTRL.config_apply = 1`, which triggers a controlled drain. Reads of `STATUS.config_settled` indicate when the override propagation has completed.
+Runtime config bits take effect at the **next configuration quiet point** — no
+DRAM commands in flight, no refresh sequence in progress. The register block
+does not enforce quiet points automatically; SoC firmware is responsible for
+sequencing writes at a drain point (typically during init or an
+orchestrated idle window). This generation's RDL does not implement a
+`config_apply` strobe or a `config_settled` status bit — a future family
+revision may add one; today the SoC owns the drain.
 
 The quiet-point requirement is family-wide because every flavor has hand-off state between scheduler / refresh / power-state that would be corrupted by mid-flight reconfiguration.
 
-## Bit Discovery via the Capability Vector
+## Bit Discovery via the ID Register
 
-At `0xFF8` of each controller's CSR map, a **capability vector** is exposed:
+This generation does not implement a dedicated capability vector; software
+discovers the build via the `ID` register at `0xFF0` (see §6.3): `memtype`,
+`n_phases` (gear ratio), and `version` are readable there, and `module_id` is
+the fixed `0xD2` family tag. Echo fields embedded in the tuning registers
+(`SCHED_TUNING.lookahead_max_obs`, etc.) expose the remaining synthesized
+ceilings. A future family revision may add a packed capability vector along the
+lines below:
 
 | Bits  | Field             | Description                                              |
 |-------|-------------------|----------------------------------------------------------|
@@ -144,12 +166,10 @@ At `0xFF8` of each controller's CSR map, a **capability vector** is exposed:
 | 4     | `cap_dpd`         | 1 = Deep-Power-Down supported (LP-only)                  |
 | 5     | `cap_wl`          | 1 = Write-leveling implemented (DDR3+)                   |
 | 6     | `cap_cbt`         | 1 = CBT implemented (LPDDR4-only)                        |
-| 7     | `cap_xor_hash`    | 1 = XOR_HASH address scheme synthesized                  |
+| 7     | `cap_xor_hash`    | 1 = bank XOR-hash implemented                            |
 | 11:8  | `cap_max_ranks`   | Build-time `NUM_RANKS` (echo of geometry)                |
-| 15:12 | `cap_n_phases`    | Build-time `N_PHASES`                                    |
+| 15:12 | `cap_n_phases`    | Build-time gear ratio (`DFI_RATE`)                       |
 | 19:16 | `cap_memtype`     | 0 = DDR2, 1 = DDR3, 2 = DDR4, 4 = LPDDR2, 5 = LPDDR3, 6 = LPDDR4 |
-
-Software queries this once at boot to decide which family-wide bits are meaningful on the current flavor.
 
 ## Per-Flavor Applicability Matrix
 
@@ -169,6 +189,6 @@ Software queries this once at boot to decide which family-wide bits are meaningf
 | `ckedis_after_sr`     | —    | ✓    | ✓    | —      | —      | —      |
 | `rank_enable_mask`    | ✓    | ✓    | ✓    | ✓      | ✓      | ✓      |
 | `odt_rule_or`         | ✓    | ✓    | ✓    | ✓      | ✓      | ✓      |
-| `xor_seed_runtime`    | ✓    | ✓    | ✓    | ✓      | ✓      | ✓      |
+| `hash_en` / `hash_seed` | ✓  | ✓    | ✓    | ✓      | ✓      | ✓      |
 
 The "—" entries are present in the CSR map at the documented offsets but read 0 and ignore writes in that flavor. Software treats these as "soft-N/A" — not an error condition, just an absent feature.

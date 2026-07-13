@@ -86,7 +86,30 @@ For debug:     Sweep policies on real workloads with no rebuilds.
 
 The build-time choice `PAGE_POLICY = OPEN` would have omitted the HAPPY predictor table from the synthesized design entirely, saving area but losing the ability to switch to HAPPY at runtime. The build-time choice `PAGE_POLICY = HAPPY_HYBRID` synthesizes everything, paying the area cost for the predictor table, in exchange for the ability to switch among any of the three at runtime.
 
-The same pattern applies to `REFPB_POLICY`, `ADDR_MAP_SCHEME`, `SCHEDULER_MODE`, and HAPPY enable/disable.
+The same pattern applies to `REFPB_POLICY`, `SCHEDULER_MODE`, and HAPPY enable/disable.
+
+Note that address mapping is **not** an example of this pattern. Earlier revisions exposed an `ADDR_MAP_SCHEME` build-time set plus an `ADDR_MAP_TUNING.scheme_or` runtime mux; both have been retired. Address mapping is now a single runtime placement knob — see "The 'Runtime Placement' Pattern" below.
+
+## The "Runtime Placement" Pattern
+
+Some knobs neither gate synthesized alternatives nor cap a synthesized MAX — they simply reposition a field within already-present combinational logic. There is no mux and no area choice; the same decode hardware produces different behavior depending on a runtime value.
+
+Address mapping is the canonical case. `addr_mapper.sv` decodes a flat AXI address into `{rank, bank, row, col}` from **one** runtime CSR field, `ADDR_MAP.bank_lsb`, which selects where the bank field sits in the byte-offset-stripped word address. The column fills below (`col_lo`) and above (`col_hi`) the bank; row/rank stack above at invariant positions. The classic "schemes" are just settings of `bank_lsb`:
+
+```
+Runtime CSR:   ADDR_MAP.bank_lsb [4:0]   (reset = 0x0A = COL_WIDTH = ROW_MAJOR)
+               = COL_WIDTH               -> bank above whole column = ROW_MAJOR
+               = log2(BL/DFI_RATE)       -> minimal col_lo          = BANK_INTERLEAVE
+               in between                -> partial interleave
+
+Runtime CSR:   ADDR_MAP.hash_en [8], ADDR_MAP.hash_seed [23:16]
+               folds row bits + seed into the bank index (= XOR_HASH),
+               defeating power-of-two-stride hot-banking.
+```
+
+There is no build-time parameter and no scheme selector: `ROW_MAJOR`, `BANK_INTERLEAVE`, and `XOR_HASH` are all reachable by writing `bank_lsb` (and optionally `hash_en`/`hash_seed`) at runtime. The address-decode logic is combinational and always present.
+
+`MEMTYPE` is likewise a runtime knob in this generation, not a build-time string. The core decodes `memtype_e` from the CSR field `PHY_TIMING.memtype` (`0 = DDR2`, `1 = LPDDR2`) — see `pumice_top.sv` `w_memtype`. There is no `MEMTYPE` build parameter that gates an encoder or step table; the DDR2 vs LPDDR2 behavior is selected at runtime within the synthesized datapath.
 
 ## The "Runtime Only" Pattern
 
@@ -96,7 +119,7 @@ These have no build-time presence at all.
 
 ## Configuration Quiet Points
 
-Runtime CSR writes that change scheduler or refresh-manager behavior take effect at the next **configuration quiet point** — defined as: no DRAM commands in flight, no refresh sequence in progress, and the relevant FSM in its idle state. The CSR slave does not enforce quiet-point writes; the SoC firmware is responsible for sequencing. Writing during normal operation is well-defined but the change does not apply until the next quiet point — which can be enforced by writing to the `CTRL.config_apply` strobe to force a brief drain.
+Runtime CSR writes that change scheduler or refresh-manager behavior take effect at the next **configuration quiet point** — defined as: no DRAM commands in flight, no refresh sequence in progress, and the relevant FSM in its idle state. The CSR slave does not enforce quiet-point writes; the SoC firmware is responsible for sequencing. Writing during normal operation is well-defined but the change does not apply until the next quiet point. There is **no** `config_apply` strobe in this generation — the SoC owns the drain and must quiesce host AXI traffic (and, if needed, wait out any in-flight refresh) before the change is guaranteed to take effect.
 
 Writes to register-file CSRs that have no FSM impact (timing parameter overrides, MR override values, observation counters) take effect immediately and have no quiet-point requirement.
 

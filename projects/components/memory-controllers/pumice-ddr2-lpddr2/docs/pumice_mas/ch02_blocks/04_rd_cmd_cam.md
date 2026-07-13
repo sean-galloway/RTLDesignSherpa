@@ -21,176 +21,148 @@
 
 <!-- End Header -->
 
-# Read Command CAM (`rd_cmd_cam`)
+# Read Command CAM (`pumice_rd_cmd_cam`)
 
-**Module:** `rd_cmd_cam.sv`
+**Module:** `pumice_rd_cmd_cam.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent:** `pumice_ctrl`
-**Status:** Skeleton
+**Parent:** `pumice_axi4_ifc`
+**Status:** Implemented (de-FSM'd streaming drain)
+
+> **Rearchitected:** the SWAG CAM was keyed by AXI ID and drove a `match_pending`
+> vector with per-slot beat counters and an issue FSM. The live
+> `pumice_rd_cmd_cam` is keyed by `{bank, row}` with a free-running age, exposes
+> `N_SCHED_LU` parallel scheduler lookups plus an oldest port, and is a **read
+> reorder buffer**: DRAM read data returns in *issue* order into per-entry SRAM
+> slots and drains to the intake in *AR (insert)* order. The drain has **no**
+> active/slot state latch — a burst beat-counter and the combinational
+> oldest-valid pick are the only sequencing.
 
 ---
 
 ## Purpose
 
-`rd_cmd_cam` is the **read-side content-addressable storage** of in-flight read commands. It holds the DRAM-layer view (rank, bank, row, col) of every read burst that has been pushed by `axi4_slave_fub` and not yet fully returned on the AXI R-channel.
+`pumice_rd_cmd_cam` tracks every outstanding DRAM read (the MISS path — snarf
+hits never enter this CAM). It is the mirror of `pumice_wr_data_cam` on the issue
+side, but the data direction is opposite: data comes **in** from the DFI read
+return and drains **out** to `pumice_rd_intake`. There is no snarf port (that is
+a write-CAM concept).
 
-The CAM is keyed by **AXI ID**, allowing the scheduler to find all reads to a given (rank, bank) without iterating the queue and allowing `rd_data_path_fub` to find the right entry to decrement when a read beat returns.
-
-The read CAM and write CAM are intentionally separate FUBs — see §1.1 for the rationale.
+It acts as a reorder buffer because DRAM read data returns in the order the
+scheduler *issued* commands (which is row-hit reordered), whereas the AXI R
+channel must see reads in AR order. Data is buffered per entry, then released
+oldest-first once complete.
 
 ## Parameters
 
-| Parameter            | Default | Purpose                              |
-|----------------------|---------|--------------------------------------|
-| `RD_CAM_DEPTH`       | 16      | Number of in-flight read slots       |
-| `IDW`                | `AXI_ID_WIDTH` | Key width                       |
-| `BURST_LEN_WIDTH`    | 8       | Burst-length field width             |
+| Parameter       | Default        | Purpose                                         |
+|-----------------|----------------|-------------------------------------------------|
+| `NUM_ENTRIES`   | 8              | In-flight read slots (`PTRW = $clog2`)          |
+| `N_SCHED_LU`    | 4              | Parallel scheduler lookup ports                 |
+| `NUM_BANKS`     | 8              | `BKW = $clog2(NUM_BANKS)`                        |
+| `ROW_WIDTH`     | 14             |                                                 |
+| `COL_WIDTH`     | 10             |                                                 |
+| `AXI_ID_WIDTH`  | 8              | `IW`                                            |
+| `AXI_DATA_WIDTH`| 64             | `DW` (the DFI word at the IFC)                  |
+| `BL`            | 4              | Beats per burst (`BCW = $clog2(BL)`)            |
+| `AGE_WIDTH`     | 16             | Free-running age counter width                  |
+| `N_SRAM_SLOTS`  | `NUM_ENTRIES`  | SRAM data slots (may be `< NUM_ENTRIES`)        |
 
-## Storage Per Slot
+## Entry state (per slot)
 
-| Field            | Width                 | Description                                          |
-|------------------|-----------------------|------------------------------------------------------|
-| `valid`          | 1                     | Slot occupied                                        |
-| `axi_id`         | `IDW`                 | Key — the originating AXI ID                         |
-| `rank`           | `$clog2(NR)`          | Decoded rank                                         |
-| `bank`           | `BA`                  | Decoded bank                                         |
-| `row`            | `ROW_WIDTH`           | Decoded row                                          |
-| `col_start`      | `COL_WIDTH`           | Starting column                                      |
-| `burst_len`      | `BURST_LEN_WIDTH`     | Total beats in burst                                 |
-| `beats_returned` | `BURST_LEN_WIDTH`     | Beats already returned on R                          |
-| `issued`         | 1                     | Scheduler has picked this entry                      |
-| `last_beat_at`   | small                 | Cycle of last beat return (for latency telemetry)    |
+| Field       | Description                                                    |
+|-------------|----------------------------------------------------------------|
+| `r_valid`   | Slot occupied                                                  |
+| `r_issued`  | Scheduler has issued this read to DRAM                         |
+| `r_ready`   | Data complete (last DFI return beat seen)                      |
+| `r_bank`    | Decoded bank (key)                                            |
+| `r_row`     | Decoded row (key)                                             |
+| `r_col`     | Decoded column                                               |
+| `r_id`      | AXI ID (echoed on drain)                                      |
+| `r_resp`    | Captured DFI return response                                  |
+| `r_age`     | Insert-time snapshot of `r_age_ctr`                          |
+| `r_ptr` / `r_pv` | SRAM slot index (set on first return beat) + its valid flag |
 
-Total per-slot width (default config): ~46 bits.
-
-Total storage (16 entries × 46 b): ~92 bytes — small enough to fit comfortably in distributed flops with no SRAM macro.
+Relative age is `w_rel[i] = r_age_ctr - r_age[i]` (wrap-safe); larger `rel` =
+older. The burst data lives in a distributed-RAM array `r_sram[N_SRAM_SLOTS*BL]`.
 
 ## Interfaces
 
-### Push (from `axi4_slave_fub`)
+### Insert (from `pumice_rd_intake` `ar_push`, AR order)
 
-| Signal       | Direction | Width             | Description                                |
-|--------------|-----------|-------------------|--------------------------------------------|
-| `push_valid` | input     | 1                 | New read burst arriving                    |
-| `push_ready` | output    | 1                 | CAM has a free slot                        |
-| `push_id`    | input     | `IDW`             | AXI ID                                     |
-| `push_rank`  | input     | `$clog2(NR)`      | from `addr_mapper`                         |
-| `push_bank`  | input     | `BA`              |                                            |
-| `push_row`   | input     | `ROW_WIDTH`       |                                            |
-| `push_col`   | input     | `COL_WIDTH`       |                                            |
-| `push_len`   | input     | `BURST_LEN_WIDTH` |                                            |
+`ins_valid_i` / `ins_ready_o` with `{bank, row, col, id}`. `ins_ready_o` is
+`w_have_free` (any `!r_valid[i]`). On fire the slot is allocated, `r_issued` /
+`r_ready` cleared, key/id captured, and `r_age <= r_age_ctr`.
 
-### Scheduler Query
+### Scheduler lookups (N, keyed `{bank, row}`)
 
-The scheduler scans the full match vector across **all** slots and picks
-by AXI QoS (highest wins; lowest-slot-index breaks ties). It does NOT
-drive `q_rank_i` / `q_bank_i` / `q_row_i` in the v1 revision — those
-ports are tied to 0 inside `scheduler.sv`. The CAM therefore exposes
-two distinct match vectors with two distinct contracts:
+For each of `N_SCHED_LU` ports the CAM returns the **oldest NOT-ISSUED** entry
+matching `{bank, row}` (max `rel` among `valid && !issued`), with its slot, col,
+id, and age. This lets the arbiter row-hit-schedule reads exactly like writes.
 
-| Signal              | Direction | Description                                                                              |
-|---------------------|-----------|------------------------------------------------------------------------------------------|
-| `q_rank_i`          | input     | Query rank (not driven by scheduler in v1)                                               |
-| `q_bank_i`          | input     | Query bank (not driven by scheduler in v1)                                               |
-| `q_row_i`           | input     | Query row (not driven by scheduler in v1)                                                |
-| `match_pending_o`   | output    | One-hot vector of slots that are valid and not issued. **Independent of `q_*`.** The scheduler's slot-picker scans this; gating on the q_* ports here would silently hide every non-`q_*` slot from the picker. |
-| `match_rowhit_o`    | output    | Subset of `match_pending_o` further restricted to slots whose `(rank, bank, row)` equals `(q_rank_i, q_bank_i, q_row_i)`. The scheduler does not yet consume this — reserved for a future row-hit-first picker. |
+### Oldest not-issued port
 
-**Snapshot interface.** The scheduler reads the picked slot's payload
-(rank, bank, row, col, len, qos, id) directly from per-slot snapshot
-output ports (`snap_rank_o`, `snap_bank_o`, …, `snap_id_o`) instead of
-a single muxed `match_data_o`. This avoids re-driving the query bus
-once the picker has selected a slot.
+`oldest_valid_o` + `{bank, row, col, id, slot}` — the oldest `valid && !issued`
+entry, the arbiter's fallback ACT target.
 
-> **Implementation note — match_pending contract.** The `valid & !issued`
-> contract on `match_pending_o` is load-bearing: the scheduler picks
-> across **all** valid+unissued slots regardless of bank. A pre-v1 mistake
-> gated `match_pending_o` on `(r_bank == q_bank_i) && (r_rank == q_rank_i)`
-> with `q_*` tied to 0, which collapsed all reads onto bank 0 — every
-> AXI read to bank 1-7 sat in the CAM forever. Pinned at FUB level by
-> `test_rd_cmd_cam[match_pending_scheduler_contract]`.
+### Issue notify
 
-### Issue Notification
+`issue_valid_i` / `issue_ready_o` / `issue_slot_i`. The scheduler tells the CAM
+which slot it issued. On fire, `r_issued[slot] <= 1` **and** the slot is pushed
+into an **issue-order FIFO** (`u_issue_q`, depth `NUM_ENTRIES`) so returns fill
+the right slot in issue order.
 
-When the scheduler picks an entry from this CAM:
+### DFI read return (data in, issue order)
 
-| Signal           | Direction | Description                                |
-|------------------|-----------|--------------------------------------------|
-| `issued_slot_i`  | input     | Slot index to mark as issued               |
-| `issued_we_i`    | input     | Mark-issued strobe                         |
+`dfi_ret_valid_i` / `dfi_ret_ready_o` with `{data, resp, last}`. The return-fill
+engine writes each beat into the SRAM slot of the **issue-FIFO head**
+(`w_iq_rd_slot`):
 
-### Beat Return (from `rd_data_path_fub`)
+- On the first beat (`r_ret_beat == 0`) it pre-allocates a free SRAM slot
+  (`w_slot_free`) and records it in `r_ptr[head]`, marking `r_sram_occ`.
+- `dfi_ret_ready_o` is gated on the issue FIFO being non-empty and (first-beat
+  only) a free SRAM slot existing.
+- On `dfi_ret_last_i` the entry is marked `r_ready`, `r_resp` captured, and the
+  issue FIFO popped (`w_iq_rd_ready`).
 
-The retire interface is keyed by **slot index**, not AXI ID. The
-slot→ID mapping is exposed separately on `snap_id_o` (see the snapshot
-interface) so `rd_cl_aligner` can stamp the right `rd_inject_id_o` on
-each returned beat.
+### Drain to `pumice_rd_intake` (AR order, oldest-first, ready-gated)
 
-| Signal           | Direction | Description                                                            |
-|------------------|-----------|------------------------------------------------------------------------|
-| `beat_slot_i`    | input     | Slot index of returning beat                                           |
-| `beat_we_i`      | input     | Beat-arrived strobe                                                    |
-| `entry_complete_o` | output  | High in the same cycle the last beat retires                            |
-| `entry_complete_slot_o` | output | Slot index that just completed                                     |
-| `entry_complete_id_o` | output | AXI ID of the completed entry — feeds the AXI R-channel's `rid` echo |
+`drain_valid_o` / `drain_ready_i` with `{data, id, resp, last}`. The draining
+slot **is** the combinational oldest-valid pick `w_dro_slot` (max `rel` among all
+`valid`), which is stable across a burst: the entry stays valid until its own
+last-beat evict, and later inserts are always younger, so no other entry can
+become "more oldest" mid-burst. Drain is enabled when
+`w_dr_go = oldest-found && r_ready[oldest]` (data staged). Only a burst
+beat-counter `r_dr_beat` is registered; `drain_last_o = (r_dr_beat == BL-1)`.
 
-On entry-complete the slot's `valid` is cleared in the next cycle.
+## De-FSM'd sequencing
 
-> **Implementation note — `snap_id_o` must flow.** The `snap_id_o`
-> port is what carries the AR's AXI ID up to `pumice_top.sv` so
-> the core's `rd_op_id` lookup (indexed by `cmd_rd_slot`) can stamp
-> `rd_cl_aligner`'s `op_id_i`, which becomes `rd_inject_id_o` on each
-> beat. If `snap_id_o` is dropped at the macro boundary or the top
-> ties `rd_snap_id` to `'0`, every read response is stamped with
-> `id=0` and any multi-ID OOO workload silently mis-routes its R
-> beats. Pinned at FUB level by `test_rd_cl_aligner[id_propagate]`'s
-> `verify_capture` assertion that `rd_inject_id_o == op_id_i` for
-> every beat.
+There is **no** active/slot FSM on the return or drain path. The return path
+targets the issue-FIFO head; the drain path targets the oldest-valid pick. Both
+"active" slots are combinational functions of registered state and remain stable
+until their burst's last beat. The only registered burst state is the two
+beat-counters (`r_ret_beat`, `r_dr_beat`) plus the age counter and per-entry
+flags. This mirrors the write CAM and removes the SWAG's issue FSM entirely.
 
-## Lookup Mechanism
+## Eviction
 
-The CAM exposes two parallel match-line structures:
+On the drain last beat (`w_dr_fire && drain_last_o`): `r_valid[oldest] <= 0`,
+`r_pv` cleared, `r_dr_beat` reset, and the SRAM slot freed
+(`r_sram_occ[r_ptr[oldest]] <= 0`). AR-order release is a natural consequence of
+always draining the oldest entry.
 
-  * `match_pending_o[i]` is a 1-bit per slot equal to `r_valid[i] &&
-    !r_issued[i]`. No comparator — this is the broad "needs servicing"
-    vector the scheduler consumes.
-  * `match_rowhit_o[i]` adds three equality comparators on
-    `(rank, bank, row)` against the `q_*` query bus. Reserved for a
-    future row-hit-first picker; not driven by the scheduler in v1.
+## Reset
 
-For the typical RD_CAM_DEPTH of 16 with `BA=3` and `$clog2(NR)=1..2`,
-`match_rowhit_o` is 16 18-19-bit equality comparators in parallel —
-still trivial silicon.
+`ALWAYS_FF_RST(aclk, aresetn, ...)`: clears `r_age_ctr`, both beat-counters,
+`r_sram_occ`, and per-entry `r_valid` / `r_issued` / `r_ready` / `r_pv`. `busy_o`
+is `oldest-found || issue-FIFO non-empty`.
 
-The scheduler's slot-picker iterates over `match_pending_o`, picking
-the slot with the highest AXI QoS (ties go to the lowest slot index —
-oldest under the free-slot priority encoder).
+## Notes / flags
 
-## Per-ID Beat Counting
-
-Because reads return in-order *per AXI ID* (an AXI ordering rule), the read CAM does not need a per-beat slot table. A slot's `beats_returned` increments on each beat that returns with that ID, and when `beats_returned == burst_len` the slot completes and clears.
-
-If `AXI_OOO_ACROSS_IDS == false` (rare), the SoC has asked for in-order return across all IDs, and the read CAM enforces this by issuing a head-of-queue priority hint to the scheduler — entries are still cleared in arrival order. The OoO-across-IDs default is `true`; per-ID in-order is the AXI default and is preserved.
-
-## Timing Budget
-
-| Path                                  | Budget       |
-|---------------------------------------|--------------|
-| `push_valid` → slot occupy (1 cycle)  | 1 cycle      |
-| `q_rank_i / q_bank_i` → `match_*_o`   | combinational |
-| `beat_id_i` → `beats_returned[slot]+1` | 1 cycle     |
-| `entry_complete_o` → slot clear        | 1 cycle     |
-
-The combinational match path is on the scheduler's critical loop and is shared with `wr_cmd_cam` and the bank machines' state matrix. See `ch02_blocks/07_scheduler.md` for the full critical-path breakdown.
-
-## CSR Hooks
-
-- `STATUS.rd_cam_occ` — current occupancy
-- `OBS_RD_CAM_HIGH_WATER` — peak occupancy observed since last read
-
-## TODO
-
-- Mermaid for the parallel match-line topology
-- Wavedrom: push → scheduler-match → issue → beats return → clear
-- Per-ID head-of-queue ordering corner case spec
+- Reads are keyed on `{bank, row}` only (not AXI ID); ID is carried for the R
+  echo and drained with the data. There is no per-ID beat table.
+- The `drain_id_o` port is driven but left unconnected at the IFC (the intake's
+  order FIFO already carries the R-channel id); `oldest_id_o` and
+  `sched_lu_id_o` are likewise informational — the arbiter's `unused` sink
+  absorbs the id/slot buses it does not consume.
+- No CSR/QoS priority in this CAM — selection is purely by wrap-safe age.

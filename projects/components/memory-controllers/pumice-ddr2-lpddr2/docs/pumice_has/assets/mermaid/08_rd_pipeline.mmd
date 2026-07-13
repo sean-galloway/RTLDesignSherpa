@@ -1,30 +1,33 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
-sequenceDiagram
-    autonumber
-    participant MC as scheduler
-    participant CE as cmd_encoder
-    participant RD as rdata_path
-    participant DM as dfi_master
-    participant PHY as PHY
+flowchart LR
+    %% Read path: pumice_rd_intake -> pumice_rd_cmd_cam (return-fill / oldest-drain,
+    %% reorder buffer) -> pumice_dfi_rd_aligner -> AXI R. De-FSM'd streaming movers.
+    ar[/"AXI4 AR<br/>(from SoC)"/]
 
-    Note over MC,PHY: T = cycle index relative to RD command issue
+    subgraph INTAKE["pumice_rd_intake"]
+        direction TB
+        slv["axi4_slave_rd"]
+        amap["addr_mapper<br/>(axi_addr -> bank/row/col via bank_lsb)"]
+        snarfp["snarf probe<br/>(hit in wr_data_cam? take forwarded data)"]
+        slv --> amap --> snarfp
+    end
 
-    MC->>CE: cycle 0: issue RD (bank, col)
-    CE->>DM: cycle 1: drive (cs_n=0, ras_n=1, cas_n=0, we_n=1)
-    DM->>PHY: cycle 1: RD on dfi_address, dfi_bank
+    subgraph CAM["pumice_rd_cmd_cam (RD CAM + rd SRAM = reorder buffer)"]
+        direction TB
+        entry["CAM entry {bank,row,col} + age<br/>(insert in AR order)"]
+        rfill["return-fill mover<br/>(DFI read return -> entry SRAM, issue order)"]
+        drain["oldest-drain mover<br/>(oldest valid, gated data-ready -> AR-order release)"]
+        entry --> rfill --> drain
+    end
 
-    MC->>RD: cycle 0: alert (AXI ID, burst_len)
-    RD->>DM: cycle 0..CL-1: drive dfi_rddata_en=1 (anticipation)
+    ar --> slv
+    amap --> entry
+    entry -. bank/row/col + age .-> arb["pumice_cmd_arbiter<br/>(picks RD / RDA, read-priority; evt_rd -> issue_slot)"]
+    arb -. issue_slot .-> entry
 
-    Note over RD: countdown CL cycles
+    dfi[/"DFI rddata / rddata_valid<br/>(from PHY)"/] --> cdc["pumice_dfi_cdc<br/>(single CDC)"]
+    cdc --> align["pumice_dfi_rd_aligner<br/>(CL-align phase beats -> DFI word)"]
+    align --> rfill
 
-    PHY->>DM: cycle CL: dfi_rddata_valid=1
-    PHY->>DM: cycle CL: dfi_rddata (beat 1)
-    PHY->>DM: cycle CL+1: dfi_rddata (beat 2)
-    Note over PHY,DM: ... up to BL beats
-    PHY->>DM: cycle CL+BL-1: dfi_rddata (last beat)
-
-    DM->>RD: cycle CL: latch beats
-    RD->>RD: tag beats with AXI ID
-
-    Note over RD: stream beats to AXI R channel<br/>with rlast on final beat
+    drain --> r[/"AXI4 R channel<br/>(rlast on final beat)"/]
+    snarfp -. write-forwarded read .-> r

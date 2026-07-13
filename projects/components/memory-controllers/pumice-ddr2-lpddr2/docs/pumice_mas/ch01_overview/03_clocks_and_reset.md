@@ -25,60 +25,74 @@
 
 ## Clock Domains
 
-| Clock         | Frequency      | Polarity | Domain Members                                                |
-|---------------|----------------|----------|---------------------------------------------------------------|
-| `mc_clk`      | 100–500 MHz    | Posedge  | All DRAM-layer FUBs, `axi4_slave`, data paths                  |
-| `apb_pclk`    | 25–100 MHz     | Posedge  | `csr_apb_fub` only                                            |
+The controller has exactly two clock domains. Everything from the host AXI face
+through the command scheduler runs on `aclk`; the DFI datapath and PHY pin bus
+run on `dfi_clk`. The register block `pumice_csr` runs on `aclk` (there is no
+separate APB CSR clock).
 
-The DFI v2.1 interface is driven on `mc_clk` (the controller side of DFI is always controller-clock; the DFI PHY runs at the DRAM clock and the gear mapping is the gear FUB's responsibility).
+| Clock       | Polarity | Domain members                                                                 |
+|-------------|----------|--------------------------------------------------------------------------------|
+| `aclk`      | Posedge  | `pumice_csr`, `pumice_axi4_ifc` (AXI slave, burst splitters, both CAMs), `pumice_mem_cmd_scheduler` (arbiter, bank/global timers, refresh, init, mode register) |
+| `dfi_clk`   | Posedge  | `pumice_dfi_layer` command path, write serializer, read aligner; the DFI 2.1 pin bus |
+
+`aclk` and `dfi_clk` are independent. The DFI-word datapath unit means one FIFO
+word equals one `dfi_clk` cycle, so the crossing is bubble-free at rate.
 
 ## Reset Topology
 
-| Reset           | Polarity     | Type                              | Domain     |
-|-----------------|--------------|-----------------------------------|------------|
-| `mc_rst_n`      | Active-low   | Async assert, sync deassert       | `mc_clk`   |
-| `apb_presetn`   | Active-low   | Async assert, sync deassert       | `apb_pclk` |
+| Reset       | Polarity   | Type                         | Domain    |
+|-------------|------------|------------------------------|-----------|
+| `aresetn`   | Active-low | Async assert                 | `aclk`    |
+| `dfi_rstn`  | Active-low | Async assert                 | `dfi_clk` |
 
-Each reset has its own 2-flop synchronizer for the deassert edge, instantiated in the FUB that owns the domain:
-
-- `mc_rst_n` sync — in `power_state_fub`
-- `apb_presetn` sync — in `csr_apb_fub`
-
-Both synchronizers are clear-on-async-assert, hold-during-async-low. No reset-glitch filter is in the controller — the SoC's PMU is expected to drive a clean reset.
+Each domain has its own reset. `pumice_csr` takes `rst = ~aresetn` (the PeakRDL
+block uses active-high internally). All flops use the repo reset macros
+(`reset_defs.svh`); SRAMs inside the CAMs have no reset port. The SoC's PMU is
+expected to drive clean, de-glitched resets -- there is no reset-glitch filter
+in the controller.
 
 ## CDC
 
-Exactly one CDC in the controller: APB → MC for CSR overrides and MC → APB for CSR readback. Both are handled in `csr_apb_fub`. The two directions use different mechanisms:
+There is exactly **one** clock-domain crossing in the whole controller, and it
+lives in `pumice_dfi_cdc` inside `pumice_dfi_layer`. It is built from **async
+gaxi FIFOs only** (`N_FLOP_CROSS` = 2 by default). Four things cross it:
 
-- **APB → MC** (write side): 4-flop synchronizer per register field, with a per-field `apb_write_strobe` edge-detect on the MC side to latch the new value into the staging register. Staging held until next quiet point.
-- **MC → APB** (read side): per-counter pulse synchronizers feed Gray-coded saturating counters; APB reads sample the Gray code and decode locally. The MC-side counters never wrap synchronously between reads.
+| Stream               | Direction            | Payload                                  |
+|----------------------|----------------------|------------------------------------------|
+| Command              | `aclk` -> `dfi_clk`  | `{op, rank, bank, row, col, ap}` (`CMD_DW`) |
+| Write data           | `aclk` -> `dfi_clk`  | `{last, strb, data}` DFI-word (`WD_DW`)   |
+| Read data            | `dfi_clk` -> `aclk`  | `{last, resp, data}` DFI-word (`RD_DW`)   |
+| Init handshake       | both                 | `init_start` out, `init_complete` back    |
 
-![Clock Domains and CDC Topology](../assets/mermaid/04_clocks_cdc.png)
+There is **no** APB-to-MC CSR crossing, no quiet-point override-staging
+crossing, and no CDC in the AXI4 datapath -- `pumice_axi4_ifc` runs entirely on
+`aclk`. If the SoC's AXI master is on a different clock, an external clock
+converter is required upstream. The register block also runs on `aclk`, so CSR
+writes take effect combinationally through `hwif_out.*` into the config ports of
+`pumice_core` (no staging register). Timing/phase/policy fields should be
+programmed while the controller is idle (before `init_start`, or at a quiet
+point) since they feed the timers and phase-packers directly.
 
-**Source:** [04_clocks_cdc.mmd](../assets/mermaid/04_clocks_cdc.mmd)
-
-## Quiet Points
-
-A **configuration quiet point** is the only safe moment to propagate CSR overrides from staging registers into the live datapath. Quiet points are defined by:
-
-- `txn_queue_fub` is empty *or* all pending entries are in `PENDING` state (no `ISSUED`/`COMPLETING`)
-- `refresh_mgr_fub` is in IDLE (not WAIT_BANK_GNTS, DO_REFRESH, DO_ZQCS)
-- `power_state_fub` is in ACTIVE (not transitioning)
-- No DFI command is in flight (the encoder's per-phase pipeline has drained)
-
-When all four hold, `power_state_fub` asserts `quiet_point`. Override-staging in `csr_apb_fub` watches this signal and commits all queued overrides in one MC-clock edge.
-
-Software triggers quiet-point drain via `CTRL.config_apply`. The CSR slave returns `STATUS.config_settled` when commit is complete.
-
-## Reset Sequence
+## Reset / Init Sequence
 
 On power-on:
 
-1. `mc_rst_n` and `apb_presetn` are asserted (both low). PHY drives `dfi_init_complete = 0`.
-2. SoC deasserts `apb_presetn`. `csr_apb_fub` comes out of reset; CSRs are R/W-able. Software loads timing CSRs (MR0..MR3, timings, address-map scheme, refresh tuning).
-3. SoC deasserts `mc_rst_n`. All DRAM-layer FUBs come out of reset. Controller idles in **POST_RESET** state.
-4. Software writes `CTRL.init_start = 1`. `init_engine_fub` walks the per-memtype step table, driving `dfi_reset_n`, MR loads, ZQCAL, etc.
-5. On completion, `init_engine_fub` asserts `irq_init_done` (one cycle) and `STATUS.init_done = 1`. Controller transitions to ACTIVE.
-6. AXI traffic from the host is honored.
+1. `aresetn` and `dfi_rstn` are asserted (both low). The PHY drives
+   `dfi_init_complete_i = 0`.
+2. The SoC deasserts both resets. `pumice_csr` becomes R/W-able on `aclk`;
+   software programs the timing, DFI-phase, page-policy, and address-map fields
+   by name (never by hardcoded offset -- see `dv/tbclasses/pumice_regmap.py`).
+   The controller idles with `init_done_o = 0`; AXI traffic is held off.
+3. The `init_sequencer` (inside `pumice_mem_cmd_scheduler`) drives
+   `dfi_init_start_o` and walks the per-memtype JEDEC MRS init sequence,
+   emitting init commands into the same arbiter path as normal traffic and
+   waiting on the programmed init timings (`t_init_wait`, `t_dll_wait`,
+   `t_mrd_wait`, `t_rp_wait`, `t_rfc_wait`) plus `dfi_init_complete_i` from the
+   PHY. The `mode_register` shadow captures the MRS writes and exposes
+   CL/CWL/BL to the DFI layer.
+4. On completion the sequencer asserts `init_done_o`; the controller begins
+   honoring host AXI traffic and the refresh controller is enabled.
 
-The minimum gap between `apb_presetn` and `mc_rst_n` deassertion is 16 `mc_clk` cycles (the synchronizer chain depth). Software does not need to wait — the controller stalls at POST_RESET until both resets are released.
+Because the CSR block and the scheduler share `aclk`, no inter-clock handshake
+gates step 2; software only needs both resets released and the register bus
+alive.

@@ -1,58 +1,37 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
 flowchart TB
-    subgraph MC["MC clock domain (one issue per MC cycle)"]
-        cmd_in["cmd_encoder output:<br/>dfi_cs_n[NR], dfi_ras_n,<br/>dfi_cas_n, dfi_we_n,<br/>dfi_address, dfi_bank"]
-        wr_in["wr_data_path output:<br/>wr_burst beat data,<br/>byte mask, valid"]
-        rd_out["rd_data_path input:<br/>rddata + valid<br/>(arrives N+CL phases later)"]
-        cke_in["pre-muxed CKE[NR]"]
-        odt_in["odt_ctrl ODT[NR]"]
+    subgraph HOSTGEAR["Host-width gearing — pumice_top_geared (OPTIONAL)"]
+        host["Host AXI @ HOST_AXI_DATA_WIDTH"]
+        conv["axi4_dwidth_converter_wr/_rd<br/>(formal IP; only when<br/>HOST_AXI_DATA_WIDTH != DW;<br/>HOST==DW is a bit-identical bypass)"]
+        core_axi["core AXI @ DW<br/>(DW = DRAM_BEAT_WIDTH * DFI_RATE)"]
     end
 
-    subgraph FRAME["MC cycle frame (N_PHASES slots)"]
-        slot0["Phase 0"]
-        slot1["Phase 1"]
-        slot2["Phase 2"]
-        slot3["Phase 3"]
+    subgraph INTERNAL["Internal geometry (fixed DW)"]
+        geo["1 AXI beat == 1 DFI word == DFI_RATE DRAM beats<br/>1 AXI burst (BL/DFI_RATE beats) == 1 DRAM burst (BL beats)"]
     end
 
-    subgraph CFG["Build-time"]
-        wrphase["WRPHASE<br/>(default 0)"]
-        rdphase["RDPHASE<br/>(default 0)"]
-        cmdphase["CMD always phase 0<br/>(spec convention)"]
+    subgraph DFILAYER["pumice_dfi_layer — DFI-word packing (DW -> DFI_RATE phases)"]
+        wr_ser["pumice_dfi_wr_serializer<br/>on wr_fire wait t_phy_wrlat,<br/>stream DFI word/cycle from FIFO<br/>-> dfi_wrdata_o[DFI_DATA_WIDTH],<br/>dfi_wrdata_en_o, dfi_wrdata_mask_o"]
+        cmd_fmt["dfi_cmd_formatter / dfi_signal_pack<br/>DFI word split across DFI_RATE phases;<br/>CMD on phase 0, RD/WR on rd_phase/wr_phase"]
+        rd_align["pumice_dfi_rd_aligner<br/>on rd_fire drive dfi_rddata_en_o<br/>for t_rddata_en; capture DFI_RATE-phase<br/>valid words -> DFI word/cycle to FIFO"]
     end
 
-    subgraph DFI["DFI v2.1 per-phase output"]
-        dfi_cmd_p0["phase 0:<br/>dfi_address[0],<br/>dfi_cs_n[0][NR],<br/>dfi_ras_n[0], etc.<br/>(CMD slot, always)"]
-        dfi_cmd_pN["phases 1..N-1:<br/>dfi_address[i] = idle<br/>dfi_cs_n[i][*] = 1<br/>dfi_ras_n[i] etc. = 1<br/>(NOP slots)"]
-        dfi_wr_pW["phase WRPHASE:<br/>dfi_wrdata,<br/>dfi_wrdata_mask,<br/>dfi_wrdata_en"]
-        dfi_rd_pR["phase RDPHASE:<br/>dfi_rddata_en<br/>(strobed for capture)"]
-        dfi_cke["dfi_cke[NR]<br/>(cross-phase; held)"]
-        dfi_odt["dfi_odt[NR]<br/>(cross-phase; held)"]
-    end
+    dfi_bus[/"DFI v2.1 pin bus (DFI_RATE phases)"/]
 
-    cmd_in --> slot0
-    slot0 --> dfi_cmd_p0
-    slot1 --> dfi_cmd_pN
-    slot2 --> dfi_cmd_pN
-    slot3 --> dfi_cmd_pN
+    host --> conv
+    conv --> core_axi
+    core_axi --> geo
+    geo --> wr_ser
+    geo --> cmd_fmt
+    wr_ser --> dfi_bus
+    cmd_fmt --> dfi_bus
+    dfi_bus --> rd_align
+    rd_align --> geo
 
-    wr_in --> wrphase
-    wrphase --> dfi_wr_pW
+    classDef gear fill:#f0e8f4,stroke:#7B228B,stroke-width:2px
+    classDef geob fill:#fef0e0,stroke:#B88B22,stroke-width:2px
+    classDef dfi fill:#e8f4e8,stroke:#228B22,stroke-width:2px
 
-    rdphase --> dfi_rd_pR
-    dfi_rd_pR -.captured rddata.-> rd_out
-
-    cke_in --> dfi_cke
-    odt_in --> dfi_odt
-
-    cmdphase --> slot0
-
-    classDef inblock fill:#f0f0f0,stroke:#666666,stroke-width:2px
-    classDef frameblock fill:#fef0e0,stroke:#B88B22,stroke-width:2px
-    classDef cfgblock fill:#f0e8f4,stroke:#7B228B,stroke-width:2px
-    classDef dfiblock fill:#e8f4e8,stroke:#228B22,stroke-width:2px
-
-    class cmd_in,wr_in,rd_out,cke_in,odt_in inblock
-    class slot0,slot1,slot2,slot3 frameblock
-    class wrphase,rdphase,cmdphase cfgblock
-    class dfi_cmd_p0,dfi_cmd_pN,dfi_wr_pW,dfi_rd_pR,dfi_cke,dfi_odt dfiblock
+    class host,conv,core_axi gear
+    class geo geob
+    class wr_ser,cmd_fmt,rd_align dfi

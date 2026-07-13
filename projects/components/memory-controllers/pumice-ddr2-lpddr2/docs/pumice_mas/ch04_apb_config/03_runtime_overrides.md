@@ -21,130 +21,76 @@
 
 <!-- End Header -->
 
-# Runtime Overrides and Quiet Points
+# Runtime CSR Fields (Config-Drive Model)
 
-> Per HAS §5.1 for the build-time-vs-runtime principle and HAS §6.3 for the field-level register map. This MAS chapter is the **implementation protocol** for how runtime overrides actually commit to the live datapath.
+> Per HAS §5.1 for the build-time-vs-runtime principle and §4.2 for the field-level register map. This MAS chapter is the **implementation protocol** for how runtime CSR fields reach the live datapath.
 >
-> Quiet-point detection lives in `power_state_fub` (§2.13); the override staging registers and APB↔MC CDC live in `csr_apb_fub` (referenced throughout §2).
+> In the rearchitected controller, `pumice_top` wires the register block's `hwif_out.*` fields **by name** directly into `pumice_core` (see `rtl/top/pumice_top.sv`). There is **no** staging/commit two-cell architecture, **no** `CTRL.config_apply`, **no** `STATUS.config_settled`, and **no** quiet-point drain FSM. A CSR write updates the field's storage and the corresponding core input tracks it combinationally.
 
 ---
 
-## Override Categories
+## What "Runtime" Means Here
 
-| Category                          | Examples                                          | Commit point              |
-|-----------------------------------|---------------------------------------------------|---------------------------|
-| Synthesized-MAX, runtime-active   | `lookahead_active`, `refresh_defer_active`         | Next quiet point          |
-| Synthesized-set, runtime-mux      | `scheme_or`, `refpb_policy_or`, `page_policy_or`   | Next quiet point          |
-| Pure runtime                      | `zqcs_freq_hz`, `init_timeout_ms`, idle thresholds | Live (no quiet point)     |
-| Behavioral kill-switch            | `force_inorder`, `happy_enable`                    | Next quiet point          |
+Most of the controller's behavior is programmed at runtime by CSR fields, not fixed by parameters. The following are all live CSR-driven core inputs (see the `u_core` port map in `rtl/top/pumice_top.sv`):
 
-The "pure runtime" category commits immediately on the APB write because the fields don't gate any in-flight DRAM state — they're consumed by counter reload-comparators that sample on the next event boundary anyway.
+| Domain            | CSR field(s)                                                        | Core input                              |
+|-------------------|---------------------------------------------------------------------|-----------------------------------------|
+| Memory type       | `PHY_TIMING.memtype`                                                 | `memtype_i` (0=DDR2, 1=LPDDR2)          |
+| Page policy       | `REFRESH_TUNING.page_policy_or`                                     | `page_policy_i`                         |
+| Address mapping   | `ADDR_MAP.bank_lsb` / `.hash_en` / `.hash_seed`                     | `bank_lsb_i` / `hash_en_i` / `hash_seed_i` |
+| Core JEDEC timing | `TIMINGS_RC_RCD_RP_RAS`, `TIMINGS_CL_CWL_WR.tWR`, `TIMINGS_RTP_RTW`, `TIMINGS_RRD_FAW_WTR_CCD`, `TIMINGS_RFC_REFI.tREFI` | `t_rcd_i`/`t_rp_i`/`t_ras_i`/`t_rc_i`/`t_wr_i`/`t_rtp_i`/`t_rtw_i`/`t_faw_i`/`t_rrd_i`/`t_wtr_i`/`t_ccd_i`/`t_refi_i` |
+| Refresh burst     | `PHY_TIMING.refresh_burst`                                          | `refresh_burst_i`                       |
+| Init waits        | `INIT_TIMING0` / `INIT_TIMING1`                                     | `t_init_wait_i`/`t_dll_wait_i`/`t_mrd_wait_i`/`t_rp_wait_i`/`t_rfc_wait_i` |
+| DFI phase         | `DFI_PHASE.rd_phase` / `.wr_phase`                                  | `rd_phase_i`/`wr_phase_i` (sliced to `clog2(DFI_RATE)`) |
+| PHY data timing   | `PHY_TIMING.t_phy_wrlat` / `.t_rddata_en`                          | `t_phy_wrlat_i`/`t_rddata_en_i`         |
 
-The other three categories require a quiet point because changing them mid-cycle could corrupt scheduler decisions, refresh sequencing, or address-mapping state.
+CL/CWL/BL are **not** driven from the timing CSRs at the core boundary — they are decoded from the mode-register shadow inside the scheduler layer (`mode_register.sv`) as the init sequencer programs MR0..MR3 (see §5.1). The `TIMINGS_CL_CWL_WR.CL`/`.CWL` fields are informational in this build.
 
-## Quiet Point Definition
+## Commit Semantics
 
-Per §2.13:
+Because the fields drive the core directly, a write takes effect as soon as it lands in the register storage. There is no explicit apply step. Two practical timing classes:
 
-```
-quiet_point = (txn_queue empty OR all entries PENDING)
-            AND (refresh_mgr.dbg_state == IDLE)
-            AND (init_engine.init_in_progress == 0)
-            AND (cmd_encoder pipeline drained)
-            AND (all ranks' power state == ACTIVE)
-```
+| Class                         | Fields                                                       | When it takes effect                          |
+|-------------------------------|--------------------------------------------------------------|-----------------------------------------------|
+| Sampled at an event boundary  | JEDEC timings, refresh interval/burst, page policy, scheduler knobs | On the next counter reload / arbiter decision that consumes the value |
+| Sampled continuously          | `memtype`, `bank_lsb`/`hash_*`, DFI phase, PHY data timing    | Combinationally; affects the next command that uses the mapper/formatter |
 
-The detector is combinational; `csr_apb_fub` samples it on the rising edge of each MC clock.
+## Safe-Change Guidance
 
-## Software-Side Sequence
+The controller does not enforce a quiet point, so **software** is responsible for not changing a field mid-transaction when that would corrupt in-flight state:
 
-```c
-// Pseudocode for runtime override commit
-void write_override(uint32_t reg_offset, uint32_t value) {
-    // 1. Write the staging field (returns immediately)
-    apb_write(reg_offset, value);
+- **Timings, page policy, scheduler knobs, refresh interval**: safe to change during light traffic; the new value is picked up at the next event boundary. For a clean swap, quiesce AXI traffic first (stop issuing, let outstanding responses drain) then write.
+- **`memtype`, address-map (`bank_lsb`/`hash_*`)**: these define how addresses decode and how commands are encoded. Change them **only before init** (or with the datapath fully idle). Changing address mapping under traffic re-decodes in-flight addresses inconsistently.
+- **DFI phase / PHY data timing**: board bring-up knobs; set once during bring-up and leave fixed. `rd_phase`/`t_rddata_en`/`t_phy_wrlat` are matched to the attached PHY (e.g., the Nexys A7 a7ddrphy uses `rd_phase=0`, `t_rddata_en=6`, `t_phy_wrlat=0`).
 
-    // 2. Request immediate commit (otherwise wait for natural quiet point)
-    apb_write(CTRL, CTRL_CONFIG_APPLY);
+## Recommended Programming Order
 
-    // 3. Poll for completion
-    while (!(apb_read(STATUS) & STATUS_CONFIG_SETTLED)) {
-        // typically settles in < 256 MC cycles
-    }
-
-    // 4. Clear config_apply
-    apb_write(CTRL, 0);
-}
-```
-
-The drain phase between step 2 and step 3 is bounded — typically < 256 MC cycles for a healthy queue, longer if there's an active refresh batch.
-
-## Hardware-Side Sequence
-
-```
-cycle T:    APB write to staging field; staging register updates immediately
-cycle T:    cfg_apply asserts via APB (separate write)
-cycle T+1:  csr_apb_fub assert quiet_drain_request
-cycle T+1:  scheduler stops accepting new issues; txn_queue drains
-cycle T+1:  refresh_mgr completes any in-flight batch, then idles
-cycle T+1:  cmd_encoder pipeline naturally drains over a few cycles
-cycle T+1+N (N=drain): power_state_fub.quiet_point = 1
-cycle T+1+N+1: csr_apb_fub copies staging → live for ALL R/W fields with pending writes
-cycle T+1+N+1: csr_apb_fub releases quiet_drain_request; STATUS.config_settled = 1
-cycle T+1+N+2: scheduler resumes normal operation with the new live values
-```
-
-The "ALL R/W fields with pending writes" behavior means **batch commit**: software can write multiple staging fields, then issue one `config_apply`, and all commit atomically.
-
-## Batch Commit Example
-
-To swap from `PAGE_POLICY = OPEN` to `PAGE_POLICY = HAPPY_HYBRID` and bump lookahead:
+For a clean bring-up the register writes happen while init is still gated (before `CTRL.init_start`):
 
 ```c
-// Stage all the changes
-apb_write(REFRESH_TUNING, REFRESH_TUNING_PAGE_POLICY_OR_HAPPY_HYBRID);
-apb_write(SCHED_TUNING, SCHED_TUNING_LOOKAHEAD_ACTIVE(4) | SCHED_TUNING_HAPPY_ENABLE);
+// 1. Select memory type and address mapping (must be set before init)
+csr_write(PHY_TIMING, memtype_field | t_rddata_en_field | t_phy_wrlat_field | refresh_burst_field);
+csr_write(ADDR_MAP,   bank_lsb_field | hash_en_field | hash_seed_field);
 
-// Single commit
-apb_write(CTRL, CTRL_CONFIG_APPLY);
-while (!(apb_read(STATUS) & STATUS_CONFIG_SETTLED)) { /* ... */ }
-apb_write(CTRL, 0);
+// 2. Program JEDEC timings for the attached part
+csr_write(TIMINGS_RC_RCD_RP_RAS, ...);
+csr_write(TIMINGS_RFC_REFI,      ...);
+csr_write(TIMINGS_RRD_FAW_WTR_CCD, ...);
+csr_write(TIMINGS_CL_CWL_WR,     ...);
+csr_write(TIMINGS_RTP_RTW,       ...);
+csr_write(INIT_TIMING0, ...);  csr_write(INIT_TIMING1, ...);
 
-// All three fields are now live, with the same quiet-point edge
+// 3. Program MR0..MR3 and (LPDDR2) PASR
+csr_write(MR0, ...); csr_write(MR1, ...); csr_write(MR2, ...); csr_write(MR3, ...);
+
+// 4. Trigger init — the values above are already live at the core boundary
+csr_write(CTRL, CTRL_INIT_START);
 ```
 
-This is the recommended pattern for any multi-field configuration change.
-
-## Quiet-Point Drain Latency
-
-Empirical bounds:
-
-| Scenario                                          | Drain latency               |
-|---------------------------------------------------|----------------------------|
-| Idle controller (no in-flight)                    | ~5 MC cycles                 |
-| Light traffic (queue < 4 entries)                 | ~20 MC cycles                |
-| Heavy traffic (queue near full)                   | ~100–256 MC cycles           |
-| Active refresh batch                              | + REFRESH_DEFER_MAX × tRFCpb |
-| Active ZQCS (rare)                                | + tZQCS                      |
-
-For software that must complete a config swap in bounded time, time the wait against the worst-case bound:
-
-```c
-uint32_t timeout = WORST_CASE_DRAIN_CYCLES / mc_clk_to_apb_clk_ratio;
-while (timeout-- && !(apb_read(STATUS) & STATUS_CONFIG_SETTLED));
-if (!timeout) {
-    // Timeout — diagnostic; should never happen on a healthy controller
-}
-```
-
-## Conflicting Override Detection
-
-If software writes the same field twice before commit, the second write supersedes the first. The staging register holds the latest value; there's no queue of pending changes.
-
-If software issues `config_apply` while a previous commit is still in flight (`STATUS.config_settled = 0`), the new request is honored — the next quiet point will commit all pending changes.
+There is no apply/poll handshake between the writes — each write is already visible to the core.
 
 ## Open Questions / Future Work
 
-- **Priority commits.** When refresh fires during a commit drain, refresh wins (per the priority hierarchy in §2.7). The commit waits. For software with hard real-time bounds, an "abort current refresh" mechanism could let commit win — but it violates JEDEC. Punt; rely on the worst-case bound.
-- **Per-field commit.** Currently all pending stagings commit at once. A "commit-this-field-only" mode could reduce drain pressure. Adds CSR area; minor benefit. Punt.
-- **Notification interrupt.** Software currently polls `STATUS.config_settled`. An IRQ option (`irq_config_settled`) would save polling cycles. Worth considering for SoCs with constrained CPU budget.
+- **Mid-traffic re-tuning guard.** A future revision could add an optional per-field commit gate (re-introducing a lightweight quiet point) for fields that software wants to change under load. Not present in this build.
+- **CL/CWL CSR coupling.** The `TIMINGS_CL_CWL_WR.CL`/`.CWL` fields are currently informational; the live decode comes from the MR shadow. Deciding whether the CSR or the MR shadow is authoritative is a cleanup item.
+- **Observation readback.** `STATUS`/`OBS_*` are declared but `hwif_in` is tied off in `pumice_top` (see §4.1); wiring them back is a follow-up.

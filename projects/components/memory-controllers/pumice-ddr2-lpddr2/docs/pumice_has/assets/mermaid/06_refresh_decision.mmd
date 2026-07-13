@@ -1,35 +1,33 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
 flowchart TD
-    tick(["tREFI counter expires"])
-    tick --> incr["refresh_pending++<br/>(saturate at REFRESH_DEFER_MAX)"]
-    incr --> sched["Inform scheduler:<br/>refresh request available"]
-    sched --> prio{"refresh_pending<br/>vs thresholds"}
+    %% refresh_ctrl (rtl/fub/refresh_ctrl.sv): tREFI countdown -> pending
+    %% accumulator (max 8) -> drain quota. The arbiter does precharge-then-REF.
+    en{"enable_i<br/>(init done)?"}
+    en -->|no| hold["Hold r_refi_cnt = t_refi_i<br/>(no ticks until init completes)"]
+    en -->|yes| tick["r_refi_cnt counts down from t_refi_i"]
 
-    prio -->|"&lt; soft (idle)"| skip["Defer<br/>row-hits beat refresh"]
-    prio -->|"soft &le; pending &lt; critical"| medium["Boost priority<br/>(row-miss equivalent)"]
-    prio -->|"pending &ge; critical"| crit["Critical<br/>override all column cmds"]
+    tick --> exp{r_refi_cnt == 0?}
+    exp -->|no| tick
+    exp -->|yes| accum["r_pending++ (saturate at 8)<br/>reload r_refi_cnt = t_refi_i"]
 
-    skip --> chosen
-    medium --> chosen{"scheduler<br/>picks refresh"}
-    crit --> chosen
+    accum --> req["refresh_req_o = (r_pending > 0)"]
+    req --> drain["Drain quota:<br/>load min(refresh_burst_i, r_pending)<br/>refresh_drain_active_o high"]
 
-    chosen -->|"yes"| memtype{MEMTYPE?}
-    chosen -->|"no"| skip
+    drain --> kind{refpb_mode_i?}
+    kind -->|"0 = REFab (DDR2)"| refab["refresh_kind = REFab<br/>refresh_bank = 0"]
+    kind -->|"1 = REFpb (LPDDR2)"| refpb["refresh_kind = REFpb<br/>bank rotor 0..NUM_BANKS-1 per grant"]
 
-    memtype -->|"DDR2"| refab["Wait all banks IDLE"]
-    memtype -->|"LPDDR2"| policy{REFPB_POLICY}
+    refab --> arb
+    refpb --> arb
 
-    policy -->|"ROUND_ROBIN"| rr["Pick next cyclic bank<br/>(skip PASR-masked)"]
-    policy -->|"OLDEST_FIRST"| oldest["Pick max last_ref_age<br/>(skip PASR-masked)"]
-    policy -->|"DARP"| darp["Pick max last_ref_age<br/>among IDLE banks<br/>(skip PASR-masked)"]
+    subgraph ARB["pumice_cmd_arbiter (priority 2: refresh)"]
+        direction TB
+        anyact{any bank active?}
+        anyact -->|yes| pre["Issue PRE to an active bank<br/>(one per cycle)"]
+        anyact -->|no| ref["Issue REF + pulse refresh_grant"]
+        pre --> anyact
+    end
 
-    darp -->|"none idle"| oldest_fallback["Fallback: OLDEST_FIRST"]
-    darp -->|"found idle bank"| issue_pb
-    oldest_fallback --> issue_pb
-
-    rr --> issue_pb["Issue REFpb to picked bank<br/>(wait for it to be IDLE)"]
-    oldest --> issue_pb
-
-    refab --> issue_ab["Issue REF (REFab)<br/>all banks REFRESHING"]
-    issue_ab --> dec["refresh_pending--"]
-    issue_pb --> dec
+    arb["arbiter sees refresh_req / drain_active"] --> ARB
+    ref --> dec["refresh_grant -> r_pending--<br/>burst_remaining-- ; bank rotor advances"]
+    dec --> req

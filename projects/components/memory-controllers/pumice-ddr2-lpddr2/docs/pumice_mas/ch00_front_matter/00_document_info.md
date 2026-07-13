@@ -26,8 +26,8 @@
 ## DDR2 / LPDDR2 Family Controller Micro-Architecture Specification
 
 **Document Number:** DDR2-LPDDR2-MAS-001
-**Version:** 0.1
-**Status:** Draft - Skeleton
+**Version:** 0.4
+**Status:** Draft - reconciled with rearchitected RTL
 **Classification:** Open Source - Apache 2.0 License
 
 ---
@@ -81,3 +81,4 @@ This document does **not** cover:
 | 0.1     | 2026-06-14 | RTL Design Sherpa | Initial skeleton — chapter outline, FUB list, port list scaffold |
 | 0.2     | 2026-07-07 | RTL Design Sherpa | Narrow-device (x16) support: `DRAM_DEVICE_WIDTH` param; burst-length scaling to device-word units (§15); `addr_mapper` column granularity = device word via `BYTE_OFFSET_WIDTH` (§3); `DFI_PHASE` CSR (rd_phase/wr_phase). Fixes the on-silicon DDR2 read failure (Nexys A7 x16). |
 | 0.3     | 2026-07-07 | RTL Design Sherpa | §20 mode_register: document burst length as a fixed-per-instance init constant, decoded (not hardcoded) so the same RTL retargets DDR2 BL4 / DDR3-DDR4 BL8; BC4/burst-chop declared out of scope (always issue full BL). |
+| 0.4     | 2026-07-12 | RTL Design Sherpa | Full reconciliation with the rearchitected RTL. ch02 block chapters rewritten to the live FUBs: retired txn_queue/bank_machine/xbank_timers/cmd_encoder/odt_ctrl/standalone page_predictor -> CAMs / FSM-free bank_timer / global_timers / dfi_cmd_formatter / arbiter inline open-page. `addr_mapper` = single `ADDR_MAP.bank_lsb` knob (scheme mux retired). LPDDR2 fully functional (bit-exact JESD209-2F CA + JEDEC MR init). `pumice_top_geared` host-width gearing. CSR map reconciled to the RDL. All block diagrams regenerated. |

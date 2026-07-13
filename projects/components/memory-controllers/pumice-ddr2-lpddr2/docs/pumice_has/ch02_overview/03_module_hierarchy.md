@@ -23,11 +23,11 @@
 
 # Module Hierarchy
 
-The controller is decomposed into **16 leaf FUBs grouped under 5 macros**.
-Each FUB is independently verified at the unit level; each macro is verified
-as an integration unit. See [FUB Breakdown](05_fub_breakdown.md) for the
-per-FUB role descriptions and [Chapter 3](../ch03_architecture/) for the
-behavioral details.
+The controller is decomposed into **three layers under `pumice_core`**, each
+built from leaf FUBs. Each FUB is independently verified at the unit level;
+each layer is verified as an integration ("macro") unit. See
+[FUB Breakdown](05_fub_breakdown.md) for the per-FUB role descriptions and
+[Chapter 3](../ch03_architecture/) for the behavioral details.
 
 ## Hierarchy Tree
 
@@ -35,68 +35,72 @@ behavioral details.
 
 **Source:** [02_module_hierarchy.mmd](../assets/mermaid/02_module_hierarchy.mmd)
 
-## Three-Tier Organization
+## Layered Organization
 
 ```
 SoC level
-└── pumice_core_macro          ← outermost macro the SoC instantiates
-    ├── command_scheduler_macro     ← "what command to issue this cycle"
-    ├── data_path_macro             ← "move bytes between AXI and DFI"
-    └── dfi_v21_interface_macro     ← "translate to DFI v2.1 wires"
-
-axi_frontend_macro                  ← parallel; lives next to core_macro
-                                      under the top-of-tree integration
+└── pumice_top_geared            ← OPTIONAL host-width wrapper
+    │                              (axi4_dwidth_converter_wr/_rd when HOST != DW)
+    └── pumice_top               ← instantiated by the SoC
+        ├── pumice_csr           ← PeakRDL passthrough cpuif register block
+        └── pumice_core          ← the controller proper
+            ├── pumice_axi4_ifc          ← host AXI + wr/rd CAMs
+            ├── pumice_mem_cmd_scheduler ← "what command to issue this cycle"
+            └── pumice_dfi_layer         ← single CDC + DFI v2.1 datapath
 ```
 
-The `axi_frontend_macro` is intentionally outside `pumice_core_macro`
-so it can be reused by a different DFI version (v3/v4/v5/v6) controller
-without changes — only the `dfi_v21_interface_macro` swap is needed for
-DFI version changes.
+The single controller-to-PHY clock crossing lives inside `pumice_dfi_layer`
+(`pumice_dfi_cdc`, async FIFOs only). The host AXI interface, CAMs, and
+command scheduler all run on `aclk`; the DFI command path, write serializer,
+and read aligner run on `dfi_clk`.
 
-## FUB Groupings
+## Layer Groupings
 
-| Macro                          | FUBs                                                                                                                       |
+| Layer / macro                  | FUBs                                                                                                                       |
 |--------------------------------|----------------------------------------------------------------------------------------------------------------------------|
-| `axi_frontend_macro`           | `axi_intake`, `addr_mapper`, `wr_cmd_cam`, `rd_cmd_cam`, `wr2rd_forward`                                                   |
-| `command_scheduler_macro`      | `scheduler`, `xbank_timers`, `global_timers`, `refresh_ctrl`, `powerdown_ctrl`, `mode_register`, `init_sequencer`          |
-| `data_path_macro`              | `wr_beat_sequencer`, `rd_cl_aligner`                                                                                       |
-| `dfi_v21_interface_macro`      | `dfi_cmd_formatter`, `dfi_signal_pack`                                                                                     |
-| `pumice_core_macro`       | (wraps `command_scheduler_macro` + `data_path_macro` + `dfi_v21_interface_macro`)                                          |
+| `pumice_axi4_ifc`              | `pumice_wr_intake`, `pumice_rd_intake`, `addr_mapper`, `pumice_wr_data_cam`, `pumice_rd_cmd_cam`                            |
+| `pumice_mem_cmd_scheduler`     | `pumice_cmd_arbiter`, `pumice_bank_timers` (`bank_timer`), `global_timers`, `refresh_ctrl`, `init_sequencer`, `mode_register` |
+| `pumice_dfi_layer`             | `pumice_dfi_cdc`, `pumice_dfi_cmd_path` (`dfi_cmd_formatter`, `dfi_signal_pack`), `pumice_dfi_wr_serializer`, `pumice_dfi_rd_aligner` |
+| `pumice_core`                  | (wraps the three layers above)                                                                                             |
 
-Chapter 3 follows the function-group ordering (one section per
-architectural layer, with module names hyperlinked to their MAS chapters).
+Also present in the tree but not in the default top build: `page_predictor`
+and `powerdown_ctrl` (referenced / optional; verify against the filelists in
+`rtl/filelists/`).
+
+Chapter 3 follows the layer ordering (one section per architectural layer,
+with module names hyperlinked to their MAS chapters).
 
 ## Memtype-Conditional Logic
 
-Two FUBs contain memtype-conditional logic that is selected at elaboration:
+Memtype (DDR2 vs LPDDR2) is a runtime CSR selection (`PHY_TIMING.memtype`),
+not an elaboration parameter. The memtype-dependent logic lives in:
 
-- **`dfi_cmd_formatter`** — JEDEC truth table is DDR2-specific in v1; an
-  LPDDR2 variant (CA-bus packed) will be selected at elaboration by
-  `MEMTYPE` in a future revision.
-- **`init_sequencer`** — its step table is loaded from either
-  `ddr2_init_steps_pkg` or `lpddr2_init_steps_pkg`.
-- **`powerdown_ctrl`** — handles Self-Refresh (DDR2) or Deep Power Down
-  (LPDDR2) entry sequences.
+- **`dfi_cmd_formatter`** — a memtype branch: DDR2 drives ras/cas/we; LPDDR2
+  packs the 10-bit JESD209-2F CA-bus command (two edges) onto `dfi_address`.
+- **`init_sequencer`** — runs the DDR2 or LPDDR2 JEDEC MR/init sequence.
+- **`mode_register`** — CL / CWL / BL / AL decode differs by memtype.
 
-Synthesis dead-code-eliminates the unused paths. The same RTL source
-supports both targets.
+Both memtypes pass the full simulation suite.
 
-## Strict-Flop Output Convention
+## Single Clock-Domain Crossing
 
-Every FUB output port is the Q of a dedicated flop. No combinational
-output drivers. This adds one register stage per macro boundary but
-guarantees hierarchical timing closure and clean lint coverage. See
-commit 97a91fb8 for the refactor that established this.
+The design has exactly one clock-domain crossing: `pumice_dfi_cdc` inside
+`pumice_dfi_layer`, built from asynchronous gaxi FIFOs. One FIFO word is one
+DFI cycle, so the command / write-data / read-data datapaths are bubble-free.
+Everything up to the CDC is on `aclk`; everything past it is on `dfi_clk`.
 
-## What Changed vs Early SWAG
+## What Changed vs the Earlier Architecture
 
-The SWAG proposed ~17 modules in a flat hierarchy. The implementation
-diverged: see [FUB Breakdown § Divergence](05_fub_breakdown.md#divergence-from-the-early-swag)
-for the full SWAG → reality mapping. Notably:
+The controller was rearchitected from an earlier FSM-based, elaboration-time
+decomposition into the current three-layer, CSR-driven design. Notably:
 
-- **Removed**: `txn_queue`, `page_predictor`, `bank_machine`, `odt_ctrl`
-  (absorbed into CAMs, scheduler, xbank_timers, dfi_cmd_formatter
-  respectively)
-- **Added**: `wr_cmd_cam`, `rd_cmd_cam`, `wr2rd_forward`, `mode_register`,
-  `global_timers`
-- **Introduced**: 5-macro grouping for synthesis hierarchy
+- **Retired**: `txn_queue`, `bank_machine`, `xbank_timers`, `cmd_encoder`,
+  `odt_ctrl`, `scheme selector`, the `*_macro`-as-architecture names, and
+  `axi_intake`/`axi_frontend`.
+- **Replaced by**: the two CAMs (`pumice_wr_data_cam` + `pumice_rd_cmd_cam`),
+  FSM-free `bank_timer` (stamped by `pumice_bank_timers`), `global_timers`,
+  `dfi_cmd_formatter` (+ `dfi_signal_pack`), and the single `ADDR_MAP.bank_lsb`
+  knob.
+- **Introduced**: the single-CDC DFI layer, the PeakRDL `pumice_csr` block
+  (configuration by name), and the optional `pumice_top_geared` host-width
+  wrapper.

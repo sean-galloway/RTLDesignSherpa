@@ -1,26 +1,29 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
 flowchart TD
-    start(["init_start asserted<br/>(power-state FSM enters INIT)"])
-    start --> load["Load step table<br/>(memtype-specific ROM)"]
-    load --> fetch["Fetch step N<br/>(step_type, payload, post_delay)"]
-    fetch --> decode{decode step_type}
+    %% init_sequencer (rtl/fub/init_sequencer.sv): issues real MRS/PRE/REF to the
+    %% DRAM via the arbiter while init_busy. Each cmd state = one cycle, then S_WAIT.
+    start(["S_RESET -> assert dfi_init_start"])
+    start --> dfi["S_DFI_INIT:<br/>wait dfi_init_complete,<br/>then tINIT settle"]
+    dfi --> mt{memtype?}
 
-    decode -->|"SET_CTRL_BITS"| ctrl["Drive CKE / ODT / RESET_N<br/>per payload"]
-    decode -->|"DELAY"| delay["Wait post_delay cycles<br/>(scaled by SIM_INIT_SCALE)"]
-    decode -->|"MRS_LOAD"| mrs["Issue MRS:<br/>address = MR value<br/>bank = MR index"]
-    decode -->|"ISSUE_CMD"| cmd["Issue command<br/>(PREA, REF, ZQCS, etc.)"]
-    decode -->|"WAIT_FOR_BIT"| wait["Wait for signal<br/>(dfi_init_complete, etc.)<br/>timeout: 1ms"]
-    decode -->|"END"| done(["Assert init_done<br/>FSM transitions to ACTIVE"])
+    mt -->|DDR2| d_prea1["PREA (Precharge All)"]
+    d_prea1 --> d_emr2["EMR2 = 0x0000"]
+    d_emr2 --> d_emr3["EMR3 = 0x0000"]
+    d_emr3 --> d_emr1["EMR1 = 0x0000"]
+    d_emr1 --> d_mr0dll["MR0 + DLL reset = 0x0532<br/>(wait tDLLK)"]
+    d_mr0dll --> d_prea2["PREA (Precharge All)"]
+    d_prea2 --> d_ref1["REF #1 (wait tRFC)"]
+    d_ref1 --> d_ref2["REF #2 (wait tRFC)"]
+    d_ref2 --> d_mr0["MR0 = 0x0432<br/>(DLL-reset bit cleared)"]
+    d_mr0 --> d_ocddef["EMR1 + OCD default = 0x0380"]
+    d_ocddef --> d_ocdexit["EMR1 + OCD exit = 0x0000"]
+    d_ocdexit --> done
 
-    ctrl --> next_step
-    delay --> next_step
-    mrs --> next_step
-    cmd --> next_step
-    wait --> wait_check{success?}
+    mt -->|LPDDR2| l_reset["MRW(MR63) Reset<br/>(wait tINIT4)"]
+    l_reset --> l_zq["MRW(MR10) ZQ Init = 0xFF<br/>(wait tZQINIT)"]
+    l_zq --> l_mr1["MRW(MR1) = 0x23 (BL8/nWR3)"]
+    l_mr1 --> l_mr2["MRW(MR2) = 0x01 (RL3/WL1)"]
+    l_mr2 --> l_mr3["MRW(MR3) = 0x02 (DS 40ohm)"]
+    l_mr3 --> done
 
-    wait_check -->|"yes"| next_step
-    wait_check -->|"timeout"| retry{"retry &lt;<br/>INIT_ZQ_RETRIES?"}
-    retry -->|"yes"| fetch
-    retry -->|"no"| err(["init_error<br/>FSM enters INIT_ERROR"])
-
-    next_step["N = N + 1"] --> fetch
+    done(["S_DONE: init_done=1,<br/>refresh enabled, arbiter runs"])

@@ -27,73 +27,74 @@ All build-time parameters for the controller, with type, default, valid range, t
 
 ## Parameter Table
 
-| Parameter                   | Type    | Default                          | Range                                        | Section | Purpose                                                                 |
-|-----------------------------|---------|----------------------------------|----------------------------------------------|---------|-------------------------------------------------------------------------|
-| `MEMTYPE`                   | string  | `"DDR2"`                         | `{"DDR2", "LPDDR2"}`                         | §3.6    | Picks encoder + step table at build time                                |
-| `N_PHASES`                  | int     | 4                                | `{1, 2, 4}`                                  | §3.6    | DFI frequency-ratio gear                                                |
-| `AXI_DATA_WIDTH`            | int     | 64                               | `{64, 128, 256}`                             | §3.1    | AXI4 data bus width                                                     |
-| `AXI_ID_WIDTH`              | int     | 4                                | 1–16                                         | §3.1    | AXI ID tag width                                                        |
-| `AXI_ADDR_WIDTH`            | int     | 32                               | 24–40                                        | §3.1    | AXI flat address width                                                  |
-| `AXI_OOO_ACROSS_IDS`        | bool    | `true`                           | `{true, false}`                              | §3.1    | Allow out-of-order completion across AXI IDs                            |
-| `SCHEDULER_MODE`            | enum    | `OOO`                            | `{OOO, INORDER}`                             | §3.2    | `OOO` = synthesize the full FR-FCFS scheduling logic (default; debug-friendly — INORDER mode is then available via runtime CSR). `INORDER` = omit FR-FCFS at elaboration; smaller area but permanent in-order operation. **Runtime override: `SCHED_TUNING.force_inorder`** forces FIFO at runtime without rebuild when `OOO` is synthesized. |
-| `SUPPORT_FIXED_BURST`       | bool    | `false`                          | `{true, false}`                              | §3.1    | AXI4 FIXED burst type support                                           |
-| `SUPPORT_WRAP_BURST`        | bool    | `false`                          | `{true, false}`                              | §3.1    | AXI4 WRAP burst type support                                            |
-| `NUM_RANKS`                 | int     | 1                                | `{1, 2, 4}`                                  | §3.3    | Number of physical ranks (per-rank `CS_n`, `CKE`, `ODT`). 1 = single-rank point-to-point; 2 / 4 = DIMM-class. Rank bits are placed in the address map (see §3.1) and refresh state is tracked per (rank, bank). |
-| `NUM_BANKS`                 | int     | 8                                | `{4, 8}`                                     | §3.3    | Per-device bank count (per rank)                                        |
-| `ODT_RULE_MULTIRANK`        | enum    | `JEDEC_DDR2`                     | `{JEDEC_DDR2, JEDEC_LPDDR2, OFF}`            | §3.6    | Multi-rank ODT termination policy. `JEDEC_DDR2` = read→ODT-high on the non-accessed rank during the read window, write→ODT-high on the accessed rank during the write window. `JEDEC_LPDDR2` = LPDDR2's simpler always-off-during-read rule. `OFF` = no ODT driving (point-to-point only; valid only for `NUM_RANKS=1`). Forced to `OFF` when `NUM_RANKS=1`. |
-| `ROW_WIDTH`                 | int     | 14                               | 12–16                                        | §3.3    | Row-address width                                                       |
-| `COL_WIDTH`                 | int     | 10                               | 9–12                                         | §3.3    | Column-address width                                                    |
-| `DFI_DATA_WIDTH`            | int     | 32                               | 16–128                                       | §3.6    | Per-phase DFI data width                                                |
-| `DFI_ADDR_WIDTH`            | int     | 14 (DDR2) / 20 (LPDDR2)          | ≥14 (DDR2), ≥20 (LPDDR2)                     | §3.6    | DFI address bus width                                                   |
-| `WRPHASE`                   | int     | 0                                | 0 .. `N_PHASES-1`                            | §3.6    | Which DFI phase carries write data                                      |
-| `RDPHASE`                   | int     | 0                                | 0 .. `N_PHASES-1`                            | §3.6    | Which DFI phase carries read data                                       |
-| `TXN_QUEUE_DEPTH`           | int     | 16                               | 4–64                                         | §3.2    | Pending-transaction queue depth                                         |
-| `AGE_MAX`                   | int     | 256                              | 32–1024                                      | §3.2    | FR-FCFS anti-starvation cap                                             |
-| `LOOKAHEAD_DEPTH_MAX`       | int     | 4                                | `{0, 1, 2, 4}`                               | §3.2    | Synthesized MAX number of same-bank lookahead comparators per bank. `0` omits lookahead at elaboration. **Runtime active depth: `SCHED_TUNING.lookahead_active`** picks how many of the synthesized comparators are gated on (0 .. MAX) without rebuild. Reset value of `lookahead_active` matches the build's recommended default (typically 1). |
-| `PAGE_POLICY`               | enum    | `HAPPY_HYBRID` (LPDDR2) / `OPEN` (DDR2) | `{OPEN, CLOSE, HAPPY_HYBRID}`           | §3.2    | Fallback policy when lookahead is inconclusive                          |
-| `PAGE_PREDICTOR_TABLE_BITS` | int     | 12                               | 8–16                                         | §3.2    | HAPPY predictor table size (synthesized only when `PAGE_POLICY` is `HAPPY_HYBRID`). **Runtime kill-switch: `SCHED_TUNING.happy_enable`** disables predictor lookup without rebuild — useful for A/B'ing HAPPY's contribution to perf. |
-| `ADDR_MAP_SCHEMES_SYNTH`    | set     | `{ROW_MAJOR}`                    | subset of `{ROW_MAJOR, BANK_INTERLEAVE, XOR_HASH}` | §3.1 | Schemes synthesized for runtime mux. Including more schemes adds a small amount of address-decode logic. **Runtime mux: `ADDR_MAP_TUNING.scheme_or`** picks the active scheme among the synthesized set. |
-| `ADDR_MAP_SCHEME_DEFAULT`   | enum    | `ROW_MAJOR`                      | one of `ADDR_MAP_SCHEMES_SYNTH`              | §3.1    | Reset-state choice among the synthesized schemes (used when CSR override is 00).        |
-| `REFPB_POLICY`              | enum    | `DARP`                           | `{ROUND_ROBIN, OLDEST_FIRST, DARP}`          | §3.4    | Per-bank refresh scheduling policy                                      |
-| `REFRESH_DEFER_MAX`         | int     | 8                                | 1–8                                          | §3.4    | Synthesized MAX refresh-postponement count (counter width is `clog2(MAX)`). **Runtime active: `REFRESH_TUNING.refresh_defer_active`** picks any value 1..MAX without rebuild. 1 = no batching (every tREFI fires one refresh). |
-| `SIM_INIT_SCALE`            | int     | 1                                | 1–10000                                      | §3.5    | Init-delay divider for sim runs (silicon always uses 1)                 |
+The parameters below are the actual elaboration parameters of `pumice_top` / `pumice_core` (with the host-width parameter added by `pumice_top_geared`). Several knobs that earlier revisions listed as build-time — `MEMTYPE`, `WRPHASE`, `RDPHASE`, and the address-map scheme set — are runtime CSR fields in this generation and are called out under "Runtime CSR knobs (not build parameters)" below.
 
-**Runtime-only knobs** (no build-time presence — purely register-file values):
+| Parameter             | Type | Default | Range / valid set        | Section | Purpose                                                                 |
+|-----------------------|------|---------|--------------------------|---------|-------------------------------------------------------------------------|
+| `AXI_ID_WIDTH`        | int  | 8       | 1-16                     | §3.1    | AXI ID tag width (`IW`).                                                 |
+| `AXI_ADDR_WIDTH`      | int  | 32      | 24-40                    | §3.1    | AXI flat address width (`AW`).                                          |
+| `NUM_RANKS`           | int  | 1       | `{1, 2, 4}`              | §3.3    | Number of physical ranks (per-rank `CS_n`, `CKE`, `ODT`). 1 = single-rank point-to-point; 2 / 4 = DIMM-class. Rank bits stack at the top of the address map (§3.1) and refresh state is tracked per (rank, bank). |
+| `NUM_BANKS`           | int  | 8       | `{4, 8}`                 | §3.3    | Per-device bank count (per rank). Sets the bank-machine / lookup count. |
+| `ROW_WIDTH`           | int  | 14      | 12-16                    | §3.3    | Row-address width.                                                      |
+| `COL_WIDTH`           | int  | 10      | 9-12                     | §3.3    | Column-address width. Also the `ROW_MAJOR` setting of `ADDR_MAP.bank_lsb`. |
+| `DFI_RATE`            | int  | 2       | `{1, 2, 4}`              | §3.6    | DFI frequency-ratio gear (phase count). Drives all DFI bus widths and the internal data-unit width. This is the gear parameter formerly called `N_PHASES`. |
+| `DRAM_BEAT_WIDTH`     | int  | 64      | `{16, 32, 64}`           | §3.6    | Width of one DRAM data beat (per DFI phase).                            |
+| `BL`                  | int  | 8       | `{4, 8}`                 | §3.6    | DRAM burst length in beats. The AXI intake splits host bursts into fixed-`BL` commands; one AXI burst at the core (`DW`) side is `(awlen+1)*DFI_RATE == BL`. |
+| `NUM_ENTRIES`         | int  | 8       | 4-32 (power of 2)        | §3.2    | Depth of the read/write command CAMs (in-flight transaction slots). Pointer width is `clog2(NUM_ENTRIES)`. |
+| `N_SRAM_SLOTS`        | int  | 8       | 4-32 (power of 2)        | §3.2    | Write-data SRAM slot count (buffered write payloads awaiting commit).   |
+| `BYTE_OFFSET_WIDTH`   | int  | 3       | `clog2(beat byte size)`  | §3.1    | Low byte-offset bits stripped before address decode (`log2` of beat byte size). |
+| `AGE_WIDTH`           | int  | 16      | 8-24                     | §3.2    | Width of the per-transaction age counter used for FR-FCFS anti-starvation tie-breaking. |
+| `HOST_AXI_DATA_WIDTH` | int  | 128     | `{64, 128, 256}` (verified) | §3.1 | **`pumice_top_geared` only.** Free host-side AXI data width. Formally-verified `axi4_dwidth_converter_wr/_rd` shims bridge the host width to the fixed core width `DW`. `HOST_AXI_DATA_WIDTH == DW` is a generate-bypassed, bit-identical direct connection (no converter, no added latency). |
 
-- `REFRESH_TUNING.zqcs_freq_hz` (16-bit) — Periodic ZQCS interval in Hz. 0 disables periodic ZQCS (init-only). Reset = 1 Hz.
-- `INIT_TUNING.zq_retries` (4-bit) — ZQ calibration retry count before raising `init_error`. Reset = 3.
-- `INIT_TUNING.init_timeout_ms` (8-bit) — Per-step init timeout. Reset = 10.
+**Derived parameters** (computed at elaboration, not overridable independently):
+
+- `DW = DRAM_BEAT_WIDTH * DFI_RATE` — the fixed core AXI data width **and** the DFI word width (default `64 * 2 = 128`). `DFI_DATA_WIDTH = DW`. One core AXI beat == one DFI word == `DFI_RATE` DRAM beats.
+- `SW = DW / 8` — core AXI / DFI strobe width.
+- `PHW = clog2(DFI_RATE)` (min 1) — DFI sub-phase index width.
+- `DFI_STRB_WIDTH = DW/8`, `DFI_EN_WIDTH = DFI_VALID_WIDTH = DFI_RATE`, `DFI_ADDR_BUS_W = ROW_WIDTH*DFI_RATE`, `DFI_BANK_BUS_W = clog2(NUM_BANKS)*DFI_RATE`, `DFI_CS_BUS_W = NUM_RANKS*DFI_RATE` — the DFI 2.1 pin-bus widths, all scaled by `DFI_RATE`.
+
+**Runtime CSR knobs (not build parameters):**
+
+These select behavior at runtime and have no build-time parameter in this generation. Full field detail is in §6.3.
+
+- `PHY_TIMING.memtype` (1-bit) — `0 = DDR2`, `1 = LPDDR2`. The core decodes `memtype_e` from this field (`pumice_top.sv` `w_memtype`); there is no build-time `MEMTYPE` string.
+- `DFI_PHASE.wr_phase` / `DFI_PHASE.rd_phase` (3-bit each, sliced to `PHW` downstream) — which DFI sub-phase carries the WRITE / READ command. Defaults 0/0. These replace the former build-time `WRPHASE` / `RDPHASE`.
+- `ADDR_MAP.bank_lsb` (5-bit, reset `0x0A` = `COL_WIDTH` = ROW_MAJOR), `ADDR_MAP.hash_en` (1-bit), `ADDR_MAP.hash_seed` (8-bit) — the single address-map placement knob (+ optional bank XOR-hash). The classic ROW_MAJOR / BANK_INTERLEAVE / XOR_HASH "schemes" are just settings of these fields; there is no `ADDR_MAP_SCHEMES_SYNTH` / `ADDR_MAP_SCHEME_DEFAULT` build parameter and no scheme mux. See `addr_mapper.sv`.
+- `REFRESH_TUNING.page_policy_or` (2-bit) — `00 = build-time default`, `01 = OPEN`, `10 = CLOSE`, `11 = HAPPY_HYBRID`.
+- `REFRESH_TUNING.refpb_policy_or` (2-bit), `REFRESH_TUNING.refresh_defer_active` (4-bit), `REFRESH_TUNING.zqcs_freq_hz` (16-bit, reset 1 Hz).
+- `SCHED_TUNING.lookahead_active` (4-bit), `force_inorder` (1-bit), `happy_enable` (1-bit, reset 1), `age_max_runtime` (8-bit), `txn_queue_high_water` (8-bit); `lookahead_max_obs` (4-bit, RO echo of the build MAX).
+- `PAGE_PRED_TUNING.warmup_cycles` (16-bit, reset 1024), `hysteresis` (8-bit, reset 2).
+- Timing CSRs — `TIMINGS_RC_RCD_RP_RAS` (tRC/tRCD/tRP/tRAS), `TIMINGS_RFC_REFI` (tRFC/tREFI), `TIMINGS_RRD_FAW_WTR_CCD` (tRRD/tFAW/tWTR/tCCD), `TIMINGS_CL_CWL_WR` (CL/CWL/tWR/tRFCpb), `TIMINGS_RTP_RTW` (tRTP/tRTW).
+- `PHY_TIMING.refresh_burst` (4-bit, 1..8), `PHY_TIMING.t_phy_wrlat` (8-bit), `PHY_TIMING.t_rddata_en` (8-bit).
+- Init timings — `INIT_TIMING0` (t_init_wait/t_dll_wait), `INIT_TIMING1` (t_mrd_wait/t_rp_wait/t_rfc_wait), `INIT_TUNING.zq_retries` (4-bit, reset 3), `INIT_TUNING.init_timeout_ms` (8-bit, reset 10).
 
 These cost zero silicon area beyond the register flops; making them build-time parameters would have been wrong (and was, in earlier revisions of this document).
 
 ## Memtype-Dependent Constraints
 
-Some parameters have memtype-dependent constraints checked at elaboration:
+`MEMTYPE` is a runtime CSR field (`PHY_TIMING.memtype`) rather than an elaboration parameter, so the DDR2-vs-LPDDR2 selection does not gate elaboration-time asserts. The memtype-dependent behavior is instead enforced at run time within the synthesized datapath:
 
-- `MEMTYPE == "LPDDR2"` ⇒ `DFI_ADDR_WIDTH ≥ 20` (CA bus packing requirement)
-- `MEMTYPE == "DDR2"` ⇒ `DFI_ADDR_WIDTH ≥ ROW_WIDTH`
-- `PAGE_POLICY == HAPPY_HYBRID` ⇒ `PAGE_PREDICTOR_TABLE_BITS` must be in range; otherwise the predictor module is not instantiated and the parameter is ignored
+- `PHY_TIMING.memtype == 1` (LPDDR2) enables the LPDDR2-only features (PASR bank/segment masks, DPD request, temperature-derate readback, per-bank tRFC via `TIMINGS_CL_CWL_WR.tRFCpb`).
+- `PHY_TIMING.memtype == 0` (DDR2) uses the DDR2 command encoding and all-bank refresh.
+- The DFI address bus is `ROW_WIDTH * DFI_RATE` wide (`DFI_ADDR_BUS_W`) and carries the LPDDR2 CA packing when `memtype == 1`; it must be wide enough for whichever memtype is programmed, which is guaranteed by `ROW_WIDTH >= 14`.
 
 ## Timing-Configuration Sanity Checks
 
-The controller performs the following elaboration-time assertions on the loaded timing CSR values:
+The controller expects the following relationships to hold on the loaded timing CSR values. Because timings are runtime CSRs, these are boot-time programming contracts the SoC firmware must honor (they are documented here so the sweep tool and bring-up scripts can assert them):
 
-- `tREFI_cycles ≥ 100` — the MC clock must be fast enough relative to tREFI that the refresh timer is well-resolved. If not, elaboration fails with a clear error.
-- `tRCD_cycles ≥ 2`, `tRP_cycles ≥ 2`, `tRC_cycles ≥ tRAS + tRP` — basic JEDEC consistency checks.
+- `tREFI_cycles >= 100` — the MC clock must be fast enough relative to tREFI that the refresh timer is well-resolved.
+- `tRCD_cycles >= 2`, `tRP_cycles >= 2`, `tRC_cycles >= tRAS + tRP` — basic JEDEC consistency checks.
 - `tRFC_cycles > tRP_cycles` — the refresh-cycle time must exceed the precharge time.
 
-These are not preventable run-time errors — they're configuration bugs that should be caught at synthesis or boot time before silicon ships.
+These are configuration bugs that should be caught at boot time before traffic starts, not preventable run-time faults.
 
 ## Parameter Categories
 
 | Category         | Parameters                                                                                          |
 |------------------|-----------------------------------------------------------------------------------------------------|
-| Memtype          | `MEMTYPE`                                                                                           |
 | Geometry         | `NUM_RANKS`, `NUM_BANKS`, `ROW_WIDTH`, `COL_WIDTH`                                                  |
-| Multi-rank       | `NUM_RANKS`, `ODT_RULE_MULTIRANK`                                                                   |
-| Bus widths       | `AXI_DATA_WIDTH`, `AXI_ID_WIDTH`, `AXI_ADDR_WIDTH`, `DFI_DATA_WIDTH`, `DFI_ADDR_WIDTH`              |
-| Gear             | `N_PHASES`, `WRPHASE`, `RDPHASE`                                                                    |
-| AXI features     | `AXI_OOO_ACROSS_IDS`, `SUPPORT_FIXED_BURST`, `SUPPORT_WRAP_BURST`                                   |
-| Capacity         | `TXN_QUEUE_DEPTH`, `AGE_MAX`                                                                        |
-| Characterization | `LOOKAHEAD_DEPTH_MAX`, `PAGE_POLICY`, `PAGE_PREDICTOR_TABLE_BITS`, `ADDR_MAP_SCHEMES_SYNTH`, `REFPB_POLICY`, `REFRESH_DEFER_MAX` (all paired with runtime CSR overrides — see §6.3) |
-| Init             | `SIM_INIT_SCALE`                                                                                    |
+| Multi-rank       | `NUM_RANKS`                                                                                         |
+| Bus widths       | `AXI_ID_WIDTH`, `AXI_ADDR_WIDTH`, `DRAM_BEAT_WIDTH`, `BYTE_OFFSET_WIDTH`, `HOST_AXI_DATA_WIDTH`; derived `DW`/`DFI_DATA_WIDTH` |
+| Gear / DFI       | `DFI_RATE`, `BL` (with runtime `DFI_PHASE.rd_phase` / `DFI_PHASE.wr_phase`)                         |
+| Capacity         | `NUM_ENTRIES`, `N_SRAM_SLOTS`, `AGE_WIDTH`                                                          |
+| Characterization | Runtime CSR knobs paired with the geometry above — `SCHED_TUNING.lookahead_active`, `REFRESH_TUNING.page_policy_or` / `refpb_policy_or` / `refresh_defer_active`, `PAGE_PRED_TUNING.*`, `ADDR_MAP.bank_lsb` / `hash_en` (see §5.3 and §6.3) |

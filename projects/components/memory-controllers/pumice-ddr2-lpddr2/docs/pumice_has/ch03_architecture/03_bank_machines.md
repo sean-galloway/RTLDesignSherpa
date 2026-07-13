@@ -21,137 +21,85 @@
 
 <!-- End Header -->
 
-# Bank Machines and Cross-Bank Timers
+# Bank Timers and Cross-Bank Timers
 
-Per-bank state machines enforce JEDEC timing locally; a shared cross-bank timer pool enforces the constraints that span banks.
+Per-bank JEDEC timing is tracked by an **FSM-free** `bank_timer` per (rank, bank); cross-bank / bus-turnaround timing is tracked by `global_timers`. There is no multi-state bank machine in this design.
 
-## `bank_machine`
+## `bank_timer`
 
 ### Purpose
 
-One FSM instance per bank. Enforces per-bank JEDEC timing constraints; tracks open-row state.
+Track one DRAM bank's JEDEC "safe" timing. RTL: `rtl/fub/bank_timer.sv`. It is **not a state machine** — it is a set of preset/decrement countdown timers plus a trivial row-open register and a single auto-precharge bit. The arbiter drives one `set_*` strobe per issued command; each timer loads its config value on its trigger, free-runs decrementing (saturating at 0), and reports its constraint as "safe" when the count is 0.
+
+Because the per-command `safe_*` outputs are a purely combinational AND of the relevant timers behind a **single register stage** (the counter), a just-issued command is reflected one cycle later with no multi-stage lag. This was the point of retiring the old 3-state FSM, whose double-registered state was the root cause of the refresh-vs-ACT and column-vs-PRE hazards.
 
 ### Instantiation
 
-`NUM_RANKS × NUM_BANKS` instances — one FSM per (rank, bank) pair. For the default (`NUM_RANKS=1`, `NUM_BANKS=8`) this is 8 instances; for a 2-rank DIMM with 8-bank devices it is 16; for a 4-rank configuration it is 32. The (rank, bank) tuple is the bank machine's index; all per-bank state (`open_row`, timing counters, `last_ref_age`) is independent across ranks because JEDEC tracks every rank's banks separately.
+`pumice_bank_timers` (`rtl/fub/pumice_bank_timers.sv`) stamps one `bank_timer` per `(rank, bank)` pair — for the default (`NUM_RANKS=1`, `NUM_BANKS=8`) that is 8 instances. It routes the arbiter's `evt_*` event strobes to the addressed bank and fans the per-bank readiness back out to the arbiter.
 
-### FSM States
+### Timers
 
-| State          | Description                                       |
-|----------------|---------------------------------------------------|
-| `IDLE`         | Bank closed; ready to accept ACT                  |
-| `ACTIVATING`   | Counting tRCD; row is being opened                |
-| `ACTIVE`       | Row open; ready for RD / WR                       |
-| `RD_BUSY`      | Read in progress; counting CL for data return     |
-| `WR_BUSY`      | Write in progress; counting CWL + tWR window      |
-| `PRECHARGING`  | Counting tRP                                      |
-| `REFRESHING`   | Counting tRFCpb (per-bank refresh)                |
+Each timer loads on its event, counts down, and saturates at 0:
 
+| Timer        | JEDEC     | Loaded on           | Gates             |
+|--------------|-----------|---------------------|-------------------|
+| `r_rcd`      | tRCD      | ACT                 | `safe_rd`/`safe_wr` |
+| `r_ras`      | tRAS      | ACT                 | `safe_pre`        |
+| `r_rc`       | tRC       | ACT                 | `safe_act`        |
+| `r_rp`       | tRP       | explicit PRE or auto-PRE fire | `safe_act` |
+| `r_preblk`   | tRTP (RD) / tWR (WR) | RD / WR    | `safe_pre` only   |
 
-### FSM Diagram
+The timer config inputs (`t_rcd_i`, `t_rp_i`, `t_ras_i`, `t_rc_i`, `t_wr_i`, `t_rtp_i`) are controller-cycle, command-relative values supplied by the scheduler layer from CSRs.
 
-![Per-Bank FSM](../assets/mermaid/03_bank_machine_fsm.png)
+### Row State (minimal — not an FSM)
 
-**Source:** [03_bank_machine_fsm.mmd](../assets/mermaid/03_bank_machine_fsm.mmd)
+Two elements track row occupancy:
 
-### Per-Bank Registers
+- `r_row_valid` + `r_open_row` — set on ACT (captures `row_i`), cleared on an explicit PRE or when an auto-precharge completes.
+- `r_ap_pending` — a single bit set from the `set_ap_i` qualifier on a RD/WR. When both `r_preblk` and `r_ras` reach 0, the auto-precharge "fires" (`w_ap_fire`): the row closes internally and tRP loads — with no scheduler PRE and no extra states.
 
-| Register          | Width                   | Purpose                                       |
-|-------------------|-------------------------|-----------------------------------------------|
-| `open_row`        | `ROW_WIDTH`             | Valid in `{ACTIVE, RD_BUSY, WR_BUSY}`         |
-| `t_rcd_cnt`       | small                   | tRCD down-counter (loaded on ACT issue)       |
-| `t_ras_cnt`       | small                   | tRAS down-counter                              |
-| `t_rp_cnt`        | small                   | tRP down-counter                               |
-| `t_rc_cnt`        | small                   | tRC down-counter                               |
-| `t_wr_cnt`        | small                   | tWR down-counter                               |
-| `t_rfcpb_cnt`     | small                   | tRFCpb down-counter                            |
-| `last_ref_age`    | wider                   | Cycles since last refresh (for DARP / OLDEST_FIRST) |
+### Combinational Safe Outputs
 
-All counters saturate at zero.
+The readiness outputs are combinational off the timers (single register stage behind):
 
-### Outputs to Scheduler
+- `safe_act_o = !r_row_valid && (r_rp == 0) && (r_rc == 0)` — bank precharged, tRP since PRE, tRC since last ACT.
+- `safe_rd_o = r_row_valid && (r_rcd == 0) && !r_ap_pending` — row open, tRCD met, not auto-precharging.
+- `safe_wr_o = safe_rd_o` — same condition.
+- `safe_pre_o = r_row_valid && (r_ras == 0) && (r_preblk == 0) && !r_ap_pending` — row open, tRAS and tRTP/tWR met, not auto-precharging.
 
-- `state` — current FSM state
-- `open_row` — row register (valid when state ∈ active set)
-- `accepts_act` — combinational: 1 when state == IDLE and t_rp_cnt == 0
-- `accepts_rd`, `accepts_wr` — 1 when state == ACTIVE and constraints met
-- `accepts_pre` — 1 when state == ACTIVE and t_ras_cnt == 0
-- `accepts_ref` — 1 when state == IDLE
-- `last_ref_age` — exposed to refresh manager
+Open-page behavior falls out naturally: RD/WR only load `r_preblk` and (optionally) the auto-PRE bit, so column commands stream to an open row. The tCCD / tWTR / tRTW turnaround constraints are enforced globally in `global_timers` and ANDed by the arbiter, not here.
 
-### Refresh Handshake Interface
+### Observability State
 
-In addition to the scheduler-side signals above, each bank machine exposes a dedicated **refresh handshake** pair to the `refresh_mgr`:
+For debug only, `state_o` is derived combinationally from the timers into a `bank_state_e` value (`BANK_IDLE`, `BANK_ACTIVATING`, `BANK_ACTIVE`, `BANK_PRECHARGING`). No downstream logic depends on it — it is purely an observation output alongside the `obs_*_nz` timer-nonzero flags.
 
-| Signal         | Direction          | Purpose                                                                 |
-|----------------|--------------------|-------------------------------------------------------------------------|
-| `refresh_req`  | refresh_mgr → bank | Refresh manager wants to issue REF; bank should drain to a quiescent state |
-| `refresh_gnt`  | bank → refresh_mgr | Bank acknowledges it is in IDLE (or REFRESHING for a per-bank refresh) and the controller may proceed |
+### Refresh Interaction
 
-The handshake is the explicit version of "wait for all banks idle." The refresh manager asserts `refresh_req` to all bank machines; each bank machine, on completing its current activity and landing in IDLE, asserts `refresh_gnt`. The refresh manager waits until **all** bank-machine grants are high (for REFab) or the **selected** bank's grant is high (for REFpb) before issuing the actual sequence. When the refresh manager deasserts `refresh_req`, the bank machine drops `refresh_gnt` and resumes normal operation.
-
-The handshake gives the refresh manager deterministic acknowledgment timing rather than relying on a race-prone "wait for state == IDLE" poll.
-
-### Inputs from Cross-Bank Timers
-
-The cross-bank timer pool feeds blocking signals:
-
-- `xbank_blocks_act` — tRRD or tFAW prevents new ACT
-- `xbank_blocks_wr_after_rd` — tCCD or tWTR prevents WR after recent RD
-- `xbank_blocks_rd_after_wr` — tWTR prevents RD after recent WR data beat
-
-These gate the per-bank `accepts_*` signals.
-
-### Auto-Precharge Handling
-
-RDA / WRA commands trigger an automatic transition `RD_BUSY → PRECHARGING` (or `WR_BUSY → PRECHARGING`) without a separate PRE command from the scheduler. Internal book-keeping handles the timing.
+There is no per-bank refresh handshake. The arbiter serializes refresh: on a refresh request it precharges active banks one per cycle (using `safe_pre` / `bank_row_active`), then issues `REF` once no bank has an open row. The `bank_timer` participates only through its standard row-open and `safe_pre` outputs.
 
 ---
 
-## `xbank_timers`
+## `global_timers`
 
 ### Purpose
 
-Enforce cross-bank timing constraints. Implemented as a single shared module rather than per-bank to share the FIFO buffer for tFAW.
+Enforce the cross-bank and shared-bus turnaround constraints that a single bank cannot see locally. RTL: `rtl/fub/global_timers.sv`. Implemented once (not per bank) because these constraints are inherently global.
 
 ### Tracked Constraints
 
-| Constraint | Description                                                        |
-|------------|--------------------------------------------------------------------|
-| `tRRD`     | Minimum gap between any two ACT commands                           |
-| `tFAW`     | At most 4 ACTs in any rolling tFAW window                          |
-| `tWTR`     | Write-to-read column-to-column on different banks                  |
-| `tCCD`     | Column-to-column (any column command to any other)                 |
+| Constraint | Description                                            | Scope        |
+|------------|--------------------------------------------------------|--------------|
+| `tFAW`     | At most 4 ACTs in any rolling tFAW window              | per-rank     |
+| `tRRD`     | Minimum gap between any two ACT commands               | per-rank     |
+| `tWTR`     | Write-to-read data-bus turnaround                      | global       |
+| `tRTW`     | Read-to-write data-bus turnaround                      | global       |
+| `tCCD`     | Column-to-column spacing                               | global       |
 
-### Implementation
+### Interface
 
-| Constraint | Storage                                                            |
-|------------|--------------------------------------------------------------------|
-| `tRRD`     | Single saturating down-counter loaded on any ACT issue             |
-| `tFAW`     | 4-entry FIFO of recent ACT timestamps; new ACT blocked if oldest is younger than (now − tFAW_cycles) |
-| `tCCD`     | Small down-counter loaded on any RD / WR issue                     |
-| `tWTR`     | Down-counter loaded on the last WR data beat completion            |
+The timers consume the arbiter's `evt_act` (with `evt_act_rank`), `evt_rd`, and `evt_wr` strobes and produce the readiness window signals the arbiter ANDs into its pick:
 
-### Outputs
+- `tfaw_window_ok_o` / `trrd_window_ok_o` — per-rank vectors, gate `ACT`.
+- `twtr_global_ok_o` / `trtw_window_ok_o` / `tccd_window_ok_o` — gate column commands.
 
-- Per-bank `blocks_act` / `blocks_rdwr` signals that the bank machines AND into their respective `accepts_*` outputs.
-
-### Why Shared Rather Than Per-Bank
-
-Cross-bank constraints are global: a single tRRD counter can be checked by all banks simultaneously, and the tFAW FIFO needs to see all recent ACTs across all banks. Replicating these per bank would be wasteful.
-
-### Per-Rank vs. Cross-Rank Scope
-
-When `NUM_RANKS > 1`, each cross-bank constraint must be evaluated at the correct scope:
-
-| Constraint | Scope                  | Rationale                                                                 |
-|------------|------------------------|---------------------------------------------------------------------------|
-| `tRRD`     | per-rank               | tRRD limits how fast a single device can stagger ACTs; different ranks have independent activate stagger budgets |
-| `tFAW`     | per-rank               | tFAW is a device-local thermal/power limit; each rank has its own 4-ACT rolling window |
-| `tCCD`     | global (all ranks)     | The DQ bus is shared across ranks; column commands to different ranks still share the data window |
-| `tWTR`     | global (all ranks)     | Same reason — data-bus turnaround applies regardless of rank              |
-| `tRTW`     | global (all ranks)     | Same reason — data-bus turnaround applies regardless of rank              |
-| `tRTRS`    | cross-rank only        | Rank-to-rank read switching delay (1 cycle DDR2/3); applies when consecutive RDs target different ranks |
-| `tCS`      | cross-rank only        | Chip-select setup; only relevant when switching ranks mid-burst           |
-
-The implementation therefore has a per-rank tRRD counter (`NUM_RANKS` copies) and a per-rank tFAW FIFO (`NUM_RANKS` copies, 4 entries each), with the global tCCD / tWTR / tRTW counters shared as before. Two additional cross-rank counters (`tRTRS_cnt`, `tCS_cnt`) are added when `NUM_RANKS > 1` and gate `accepts_rd` / `accepts_wr` whenever the candidate's rank differs from the most recent rank seen on the data bus.
+tFAW / tRRD are kept per-rank because they are device-local activate-stagger limits; the data-bus turnaround windows (tWTR / tRTW / tCCD) are global because the DQ bus is shared across ranks.

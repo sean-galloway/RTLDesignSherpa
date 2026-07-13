@@ -26,8 +26,8 @@
 ## DDR2 / LPDDR2 Family Controller Hardware Architecture Specification
 
 **Document Number:** DDR2-LPDDR2-HAS-001
-**Version:** 0.2
-**Status:** Draft - First Sketch
+**Version:** 0.4
+**Status:** Draft - reconciled with rearchitected RTL
 **Classification:** Open Source - Apache 2.0 License
 
 ---
@@ -57,6 +57,7 @@ This Hardware Architecture Specification (HAS) provides a high-level architectur
 | 0.1     | 2026-06-13 | RTL Design Sherpa | First sketch — module decomposition                         |
 | 0.2     | 2026-06-14 | RTL Design Sherpa | Top-level interface port list (§2.4), FUB SWAG (§2.5), family-wide config-bit registry (§5.4), multi-rank support across §2 / §3.3 / §3.4 / §3.6 / §5.2 / §6.3 |
 | 0.3     | 2026-07-07 | RTL Design Sherpa | Narrow-device (x16) support: distinguish DRAM beat vs physical device word (`DRAM_DEVICE_WIDTH`); device-word column granularity + burst-length scaling; `DFI_PHASE` (rd/wr phase) CSR. Fixes on-silicon DDR2 read failure (Nexys A7 x16 bring-up). |
+| 0.4     | 2026-07-12 | RTL Design Sherpa | Full reconciliation with the rearchitected RTL: three-layer core (`pumice_axi4_ifc` / `pumice_mem_cmd_scheduler` / `pumice_dfi_layer`); FSM-free `bank_timer`; de-FSM'd CAMs; single `ADDR_MAP.bank_lsb` address knob (scheme selector retired); fully-functional LPDDR2 (bit-exact JESD209-2F CA + JEDEC MR init); host-width `pumice_top_geared` gearing; block/hierarchy diagrams regenerated. |
 
 ---
 
