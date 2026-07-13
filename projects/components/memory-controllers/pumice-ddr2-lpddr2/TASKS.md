@@ -78,25 +78,14 @@ with the current shallow init):
 Prereq/relationship: independent of the LPDDR2 read bring-up (CA traffic encoding);
 that path only needs init to *complete*, not to program correct MR contents.
 
-## TASK-LPDDR2-WRPATH: LPDDR2 write-data commit drops writes under mixed cadence
+## TASK-LPDDR2-WRPATH: LPDDR2 write-auto-precharge dropped writes — RESOLVED
 
-With bit-exact CA encoding landed, LPDDR2 *reads* work (`smoke_lpddr2` +
-`open_page_lpddr2` pass). But `workload_mix_lpddr2` (xfail) drops a write: under mixed
-read/write traffic the DFI slave logs ~48 "wrdata_en asserted but no pending write —
-stray data beat" warnings and a golden location reads back 0 (`WRITE path: golden
-@ 0x77e350 = 0x0 != wrote 0x1`).
-
-Key facts:
-- DDR2 `workload_mix` passes with ZERO stray-beat warnings → LPDDR2-specific.
-- The downstream write path (scheduler / `pumice_dfi_wr_serializer` / DFI CDC) is
-  memtype-agnostic; only the command *encoding* in `dfi_cmd_formatter` differs. So the
-  suspect is the WR command's cs_n / decode timing (LPDDR2 flat CA word, cs_n on
-  phase 0) vs the pre-pulled `wrdata_en` cadence — the slave sees the data before a
-  pending write is registered and drops it.
-- `open_page_lpddr2` writes commit fine → it is a cadence/interleave effect (mixed
-  profile), not a blanket write break.
-
-Investigate with a waveform: compare, for a dropped write, the dfi cycle of the WR CA
-command (cs_n phase-0 assert) against the `wrdata_en` window the serializer drives.
-Likely fix is on the RTL/BFM boundary (write-data-vs-command alignment for LPDDR2) or
-a slave-model pending-write ordering assumption. NOT a read-path or CA-encoding issue.
+RESOLVED (RDS-DV DFISlavePHY fix). `workload_mix_lpddr2` had dropped writes under
+LPDDR2's HAPPY_HYBRID row-miss policy, which issues WRA (write-auto-precharge). Root
+cause was NOT the CA encoding or write cadence: the DFI slave `_handle_command` had
+branches for WR/RD but none for WRA/RDA. DDR2's decoder never returns WRA/RDA (it
+returns WR/RD and carries auto-precharge in addr bit 10), but the bit-exact LPDDR2 CA
+decoder folds AP into the opcode → returns WRA/RDA → fell through → no pending write →
+wrdata_en became "stray data beats" and the write was silently dropped. Fix: fold
+WRA→WR and RDA→RD in `_handle_command` (auto-precharge already carried in addr bit 10
+for both paths). All LPDDR2 traffic tests now pass; xfail removed.
