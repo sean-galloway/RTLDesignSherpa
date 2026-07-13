@@ -355,6 +355,26 @@ module src_data_path_axis_test_beats #(
                 .sched_rd_error         (sched_rd_error[i]),
                 .sched_wr_error         (1'b0),
 
+                // Control-read / control-write engine interface. Data-only test
+                // wrapper (no control engines): tie the scheduler's ctrl INPUTS
+                // to a benign present-but-idle state and leave the ctrl request
+                // OUTPUTS open. The scheduler consumes these only for CTRL
+                // descriptors (ctrl*_valid / w_is_ctrl*), never issued by a
+                // pure-data workload, so the values are don't-care.
+                .ctrlrd_valid           (),
+                .ctrlrd_ready           (1'b1),
+                .ctrlrd_addr            (),
+                .ctrlrd_data            (),
+                .ctrlrd_mask            (),
+                .ctrlrd_error           (1'b0),
+                .ctrlrd_idle            (1'b1),
+                .ctrlwr_valid           (),
+                .ctrlwr_ready           (1'b1),
+                .ctrlwr_addr            (),
+                .ctrlwr_data            (),
+                .ctrlwr_error           (1'b0),
+                .ctrlwr_idle            (1'b1),
+
                 // Monitor bus (tied off for test)
                 .mon_valid              (),
                 .mon_ready              (1'b1),
