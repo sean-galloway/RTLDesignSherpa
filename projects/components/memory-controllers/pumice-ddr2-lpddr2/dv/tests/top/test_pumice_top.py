@@ -345,20 +345,22 @@ def _run(request, testcase, extra_env=None, params_over=None):
         waves=False, keep_files=True, timescale="1ns/1ps")
 
 
-# LPDDR2 read-path is not yet functional in the rearchitected controller (DDR2 is
-# the board target; LPDDR2 is family-reuse future). smoke_lpddr2 still exercises the
-# LPDDR2 init/CA path; the LPDDR2 *traffic* branches are xfail until the LPDDR2 read
-# return is implemented in the new u_dfi/u_sched path.
-_LPDDR2_TRAFFIC_XFAIL = pytest.mark.xfail(
-    reason="LPDDR2 read return not yet implemented in rearchitected top", strict=True)
+# LPDDR2 read return now works (bit-exact JESD209-2F CA encoding — see
+# rtl/LPDDR2_CA_ENCODING.md): smoke_lpddr2 + open_page_lpddr2 pass. workload_mix_lpddr2
+# still fails on the WRITE path — under mixed read/write cadence the slave sees
+# wrdata_en with no pending write ("stray data beat") and a write is dropped. DDR2
+# workload_mix passes with zero such warnings, so this is LPDDR2-specific and distinct
+# from the (now-fixed) read return. See TASK-LPDDR2-WRPATH.
+_LPDDR2_WRPATH_XFAIL = pytest.mark.xfail(
+    reason="LPDDR2 write-data commit drops writes under mixed cadence "
+           "(stray wrdata_en, no pending write) — TASK-LPDDR2-WRPATH", strict=True)
 
 _FUNC = ["smoke", "configure_via_csr", "axi_write_smoke", "wr_rd_roundtrip",
          "wr_rd_b2b_multi", "wr2rd_forward_burst", "wr_rd_bank_sweep",
          "fresh_read_each_bank", "row_hit_pattern", "workload_mix",
          "wr_rd_ooo_multi_id", "open_page_workload", "happy_page_workload",
-         "smoke_lpddr2",
-         pytest.param("workload_mix_lpddr2", marks=_LPDDR2_TRAFFIC_XFAIL),
-         pytest.param("open_page_lpddr2", marks=_LPDDR2_TRAFFIC_XFAIL)]
+         "smoke_lpddr2", "open_page_lpddr2",
+         pytest.param("workload_mix_lpddr2", marks=_LPDDR2_WRPATH_XFAIL)]
 
 
 @pytest.mark.parametrize("test_type", _FUNC)
