@@ -430,7 +430,7 @@ class FullCharacterization:
 # =============================================================================
 def main() -> int:
     ap = argparse.ArgumentParser(description="pumice DDR2 characterization master")
-    ap.add_argument("--port", default="/dev/ttyUSB1", help="UART device")
+    ap.add_argument("--port", default="auto", help="UART device")
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--base", type=lambda x: int(x, 0), default=0x0,
                     help="DRAM base address for the workload")
@@ -485,6 +485,8 @@ def main() -> int:
                       help="init + access-pattern characterization sweep "
                            "(incremental / row-major / col-major page attack)")
     args = ap.parse_args()
+
+    args.port = dc.autodetect_port(args.baud, want=args.port)
 
     drv = DDR2CharDriver(port=args.port, baudrate=args.baud)
     bid = drv.build_id()

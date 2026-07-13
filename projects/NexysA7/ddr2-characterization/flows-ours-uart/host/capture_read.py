@@ -69,7 +69,7 @@ def drive_reads(port, baud):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--port", default="/dev/ttyUSB2")
+    ap.add_argument("--port", default="auto")
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--out", default=os.path.join(_SELF, "reports/ila_capture.csv"))
     args = ap.parse_args()
@@ -92,6 +92,7 @@ def main():
         proc.wait(); sys.exit(1)
 
     time.sleep(1.0)  # let the arm settle
+    args.port = dc.autodetect_port(args.baud, want=args.port)
     drive_reads(args.port, args.baud)
 
     # Drain the rest of Vivado's output (upload + CSV write).

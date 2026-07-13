@@ -573,16 +573,50 @@ class DDR2CharDriver:
         return bool(self.regs.field("DBG_OVERFLOW", "overflow"))
 
 
+def autodetect_port(baud: int = 115200, want: str = None) -> str:
+    """Find the ttyUSB the pumice DDR2 char harness is on.
+
+    The USB-UART re-enumerates across reboots/replugs, so never hardcode the
+    port. Probe each candidate by reading BUILD_ID; the board that answers with
+    the 'DDR2' magic (DDR2CharDriver.BUILD_ID_MAGIC) is ours. `want`: if the
+    caller passed --port explicitly (not 'auto'), try it first. Mirrors the
+    STREAM/RAPIDS/CDC char autodetect with the pumice identity register.
+    """
+    import glob
+    cands = []
+    if want and want != "auto":
+        cands.append(want)
+    cands += sorted(p for p in glob.glob("/dev/ttyUSB*") if p not in cands)
+
+    for port in cands:
+        try:
+            d = DDR2CharDriver(port=port, baudrate=baud, timeout=0.4)
+            ok = d.build_id() == DDR2CharDriver.BUILD_ID_MAGIC
+            ser = getattr(d.bridge, "ser", None)
+            if ser is not None:
+                ser.close()
+            if ok:
+                print(f"[autodetect] pumice DDR2 char harness found on {port}")
+                return port
+        except Exception:
+            continue
+    raise SystemExit(
+        f"[autodetect] no pumice DDR2 char harness responded on any of: "
+        f"{cands or '(no /dev/ttyUSB* present)'}. "
+        f"Is the board powered and programmed with the pumice DDR2 bitstream?")
+
+
 # =============================================================================
 # Quick CLI for one-shot smoke reads (dump_status.py style)
 # =============================================================================
 def _cli() -> None:
     import argparse
     p = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
-    p.add_argument("--port", default="/dev/ttyUSB1")
+    p.add_argument("--port", default="auto")
     p.add_argument("--baud", type=int, default=115200)
     args = p.parse_args()
 
+    args.port = autodetect_port(args.baud, want=args.port)
     d = DDR2CharDriver(port=args.port, baudrate=args.baud)
     bid = d.build_id()
     print(f"BUILD_ID    = 0x{bid:08X} ({'ok' if bid == d.BUILD_ID_MAGIC else 'MISMATCH'})")

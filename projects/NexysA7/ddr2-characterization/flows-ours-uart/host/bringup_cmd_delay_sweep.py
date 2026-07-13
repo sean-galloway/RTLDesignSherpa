@@ -55,7 +55,7 @@ def one_test(d, base, blen, txn, seed):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--port", default="/dev/ttyUSB2")
+    ap.add_argument("--port", default="auto")
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--cmd-delays", default="0,1,2,3,4,5,6,7,8")
     ap.add_argument("--tap", type=int, default=16)
@@ -68,6 +68,8 @@ def main():
 
     delays = [int(x) for x in args.cmd_delays.split(",")]
     total = args.blen * args.txn
+
+    args.port = dc.autodetect_port(args.baud, want=args.port)
 
     d = DDR2CharDriver(port=args.port, baudrate=args.baud)
     print(f"BUILD_ID=0x{d.build_id():08X}  (full-mismatch = {total})", flush=True)

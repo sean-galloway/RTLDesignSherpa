@@ -26,7 +26,7 @@ T_RDDATA_EN = 6
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--port", default="/dev/ttyUSB2")
+    ap.add_argument("--port", default="auto")
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--base", type=lambda x: int(x, 0), default=0x0)
     ap.add_argument("--rd-phase", type=int, default=0)
@@ -38,6 +38,8 @@ def main() -> int:
     ap.add_argument("--families", default="incremental,row_major",
                     help="comma list: incremental,row_major")
     args = ap.parse_args()
+
+    args.port = dc.autodetect_port(args.baud, want=args.port)
 
     drv = DDR2CharDriver(port=args.port, baudrate=args.baud)
     bid = drv.build_id()

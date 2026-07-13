@@ -55,7 +55,7 @@ def one_test(drv, wrlat, rden, base, blen, txn, seed):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--port", default="/dev/ttyUSB2")
+    ap.add_argument("--port", default="auto")
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--wrlat", default="0,1,2,3")
     ap.add_argument("--rden", default="5,6,7,8,9")
@@ -68,6 +68,8 @@ def main():
     wrlats = [int(x) for x in args.wrlat.split(",")]
     rdens = [int(x) for x in args.rden.split(",")]
     total = args.blen * args.txn
+
+    args.port = dc.autodetect_port(args.baud, want=args.port)
 
     drv = DDR2CharDriver(port=args.port, baudrate=args.baud)
     print(f"BUILD_ID=0x{drv.build_id():08X}  (full-mismatch = {total} beats)")

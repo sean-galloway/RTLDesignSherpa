@@ -70,7 +70,7 @@ def try_point(drv: DDR2CharDriver, wrlat: int, rden: int, base: int,
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--port", default="/dev/ttyUSB2")
+    ap.add_argument("--port", default="auto")
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--bitslip", type=int, default=EYE_BITSLIP)
     ap.add_argument("--tap", type=int, default=EYE_TAP)
@@ -85,6 +85,8 @@ def main() -> None:
 
     wrlats = [int(x) for x in args.wrlat.split(",")]
     rdens = [int(x) for x in args.rden.split(",")]
+
+    args.port = dc.autodetect_port(args.baud, want=args.port)
 
     drv = DDR2CharDriver(port=args.port, baudrate=args.baud)
     bid = drv.build_id()

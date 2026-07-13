@@ -22,11 +22,13 @@ SEED = 0xA5A5_1234
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--port", default="/dev/ttyUSB2")
+    ap.add_argument("--port", default="auto")
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--lo", type=int, default=0)
     ap.add_argument("--hi", type=int, default=15)
     args = ap.parse_args()
+
+    args.port = dc.autodetect_port(args.baud, want=args.port)
 
     d = DDR2CharDriver(port=args.port, baudrate=args.baud)
     print(f"BUILD_ID=0x{d.build_id():08X} cmd_delay={d.get_dfi_cmd_delay()}",
