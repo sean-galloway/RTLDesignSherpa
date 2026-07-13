@@ -250,30 +250,32 @@ module pumice_rd_cmd_cam #(
     end
 
     // ---- drain engine : oldest-first, gated on data-ready (AR-order) -------
-    logic            r_dr_active;
-    logic [PTRW-1:0] r_dr_slot;
+    // NO active/slot FSM — the draining slot IS the oldest-valid pick
+    // (w_dro_slot), which is stable across a burst: the entry stays valid until
+    // its own last-beat evict, and later inserts are younger so they can never
+    // become "more oldest". Only a burst beat-counter is registered.
     logic [BCW-1:0]  r_dr_beat;
+    logic            w_dr_go;
     logic [31:0]     w_dr_idx;
-    assign w_dr_idx = 32'(r_ptr[r_dr_slot]) * 32'(BL) + 32'(r_dr_beat);
+    assign w_dr_go  = w_dro_found && r_ready[w_dro_slot];   // oldest + data staged
+    assign w_dr_idx = 32'(r_ptr[w_dro_slot]) * 32'(BL) + 32'(r_dr_beat);
 
-    assign drain_valid_o = r_dr_active;
+    assign drain_valid_o = w_dr_go;
     assign drain_data_o  = r_sram[w_dr_idx];
-    assign drain_id_o    = r_id[r_dr_slot];
-    assign drain_resp_o  = r_resp[r_dr_slot];
+    assign drain_id_o    = r_id[w_dro_slot];
+    assign drain_resp_o  = r_resp[w_dro_slot];
     assign drain_last_o  = (r_dr_beat == BCW'(BL-1));
 
     logic w_dr_fire;
     assign w_dr_fire = drain_valid_o && drain_ready_i;
 
-    assign busy_o = w_dro_found || r_dr_active || w_iq_rd_valid;
+    assign busy_o = w_dro_found || w_iq_rd_valid;
 
     // ---- sequential --------------------------------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_age_ctr   <= '0;
             r_ret_beat  <= '0;
-            r_dr_active <= 1'b0;
-            r_dr_slot   <= '0;
             r_dr_beat   <= '0;
             r_sram_occ  <= '0;
             for (int i = 0; i < NUM_ENTRIES; i++) begin
@@ -318,19 +320,14 @@ module pumice_rd_cmd_cam #(
                 end
             end
 
-            // drain (oldest-first, gated on ready)
-            if (!r_dr_active) begin
-                if (w_dro_found && r_ready[w_dro_slot]) begin
-                    r_dr_active <= 1'b1;
-                    r_dr_slot   <= w_dro_slot;
-                    r_dr_beat   <= '0;
-                end
-            end else if (w_dr_fire) begin
+            // drain (oldest-first, gated on ready): advance the beat counter;
+            // evict the head (w_dro_slot) on the last beat. No active latch.
+            if (w_dr_fire) begin
                 if (drain_last_o) begin
-                    r_dr_active        <= 1'b0;
-                    r_valid[r_dr_slot] <= 1'b0;              // evict entry
-                    r_pv   [r_dr_slot] <= 1'b0;
-                    r_sram_occ[r_ptr[r_dr_slot]] <= 1'b0;    // free SRAM slot
+                    r_dr_beat             <= '0;
+                    r_valid[w_dro_slot]   <= 1'b0;           // evict entry
+                    r_pv   [w_dro_slot]   <= 1'b0;
+                    r_sram_occ[r_ptr[w_dro_slot]] <= 1'b0;   // free SRAM slot
                 end else begin
                     r_dr_beat <= r_dr_beat + 1'b1;
                 end

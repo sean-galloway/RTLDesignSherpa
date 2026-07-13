@@ -335,52 +335,50 @@ module pumice_wr_data_cam #(
     assign w_fill_first = (r_fill_beat == '0);
     assign w_fill_slot  = w_fill_first ? w_slot_free : r_ptr[w_fq_rd_slot];
 
-    // Engine state (declared before the index helpers that reference them)
-    logic            r_sn_active;
-    logic [PTRW-1:0] r_sn_slot;
-    logic [BCW-1:0]  r_sn_beat;
-    logic            r_cm_active;
-    logic [PTRW-1:0] r_cm_slot;
-    logic [BCW-1:0]  r_cm_beat;
+    // Engine state: just a burst beat-counter each — NO active/slot FSM. Both
+    // readers stream straight off their request-FIFO head (stable until popped),
+    // exactly like the fill engine reads its fill FIFO. The head slot IS the
+    // "active" slot; "active" == FIFO non-empty; the slot FIFO is popped on the
+    // last beat. (declared before the index helpers that reference them)
+    logic [BCW-1:0]  r_sn_beat;   // snarf-stream beat within the burst
+    logic [BCW-1:0]  r_cm_beat;   // commit-drain beat within the burst
 
-    // SRAM flat-index helpers (index by ptr; explicit 32-bit for width)
+    // SRAM flat-index helpers (index by the FIFO-head slot's ptr; 32-bit width)
     logic [31:0] w_sn_idx, w_cm_idx, w_fill_idx;
-    assign w_sn_idx   = 32'(r_ptr[r_sn_slot]) * 32'(BL) + 32'(r_sn_beat);
-    assign w_cm_idx   = 32'(r_ptr[r_cm_slot]) * 32'(BL) + 32'(r_cm_beat);
-    assign w_fill_idx = 32'(w_fill_slot)      * 32'(BL) + 32'(r_fill_beat);
+    assign w_sn_idx   = 32'(r_ptr[w_sq_rd_slot]) * 32'(BL) + 32'(r_sn_beat);
+    assign w_cm_idx   = 32'(r_ptr[w_dq_rd_slot]) * 32'(BL) + 32'(r_cm_beat);
+    assign w_fill_idx = 32'(w_fill_slot)         * 32'(BL) + 32'(r_fill_beat);
 
-    // ---- snarf read engine -------------------------------------------------
-    assign snarf_rd_valid_o = r_sn_active;
+    // ---- snarf read engine (FIFO-fed, beat-counter only) -------------------
+    assign snarf_rd_valid_o = w_sq_rd_valid;                 // a slot is queued
     assign snarf_rd_data_o  = r_sram[w_sn_idx];
     assign snarf_rd_last_o  = (r_sn_beat == BCW'(BL-1));
-    assign w_sq_rd_ready    = !r_sn_active;  // pop next slot when idle
 
-    // ---- commit drain read-engine + evict (sourced from the drain FIFO) ----
-    assign cm_rd_valid_o  = r_cm_active;
+    // ---- commit drain read-engine + evict (FIFO-fed, beat-counter only) ----
+    assign cm_rd_valid_o  = w_dq_rd_valid;                   // a slot is queued
     assign cm_rd_data_o   = r_sram[w_cm_idx];
     assign cm_rd_strb_o   = r_strb[w_cm_idx];
     assign cm_rd_last_o   = (r_cm_beat == BCW'(BL-1));
-    assign w_dq_rd_ready  = !r_cm_active;   // pop next scheduled slot when idle
 
     logic w_sn_fire, w_cm_fire;
     assign w_sn_fire = snarf_rd_valid_o && snarf_rd_ready_i;
     assign w_cm_fire = cm_rd_valid_o    && cm_rd_ready_i;
 
-    assign commit_done_valid_o = w_cm_fire && cm_rd_last_o;
-    assign commit_done_id_o    = r_id[r_cm_slot];
+    // pop the request FIFO once the final beat of the burst is accepted
+    assign w_sq_rd_ready  = w_sn_fire && snarf_rd_last_o;
+    assign w_dq_rd_ready  = w_cm_fire && cm_rd_last_o;
 
-    assign busy_o = w_old_found || r_sn_active || r_cm_active || w_fq_rd_valid;
+    assign commit_done_valid_o = w_cm_fire && cm_rd_last_o;
+    assign commit_done_id_o    = r_id[w_dq_rd_slot];
+
+    assign busy_o = w_old_found || w_sq_rd_valid || w_dq_rd_valid || w_fq_rd_valid;
 
     // ---- sequential --------------------------------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_age_ctr   <= '0;
             r_fill_beat <= '0;
-            r_sn_active <= 1'b0;
-            r_sn_slot   <= '0;
             r_sn_beat   <= '0;
-            r_cm_active <= 1'b0;
-            r_cm_slot   <= '0;
             r_cm_beat   <= '0;
             r_sram_occ  <= '0;
             for (int i = 0; i < NUM_ENTRIES; i++) begin
@@ -418,17 +416,10 @@ module pumice_wr_data_cam #(
                 if (wd_last_i) r_fdone[w_fq_rd_slot] <= 1'b1;
             end
 
-            // snarf read engine
-            if (!r_sn_active) begin
-                if (w_sq_rd_valid) begin
-                    r_sn_active <= 1'b1;
-                    r_sn_slot   <= w_sq_rd_slot;
-                    r_sn_beat   <= '0;
-                end
-            end else if (w_sn_fire) begin
-                if (snarf_rd_last_o) r_sn_active <= 1'b0;
-                else                 r_sn_beat   <= r_sn_beat + 1'b1;
-            end
+            // snarf read engine: advance the beat counter; the head slot is
+            // popped combinationally (w_sq_rd_ready) on the last beat.
+            if (w_sn_fire)
+                r_sn_beat <= snarf_rd_last_o ? '0 : (r_sn_beat + 1'b1);
 
             // commit MARK: the arbiter's commit sets scheduled (immediate) +
             // enqueues the slot into the drain FIFO. Excluded from sched_lu/
@@ -436,21 +427,17 @@ module pumice_wr_data_cam #(
             if (w_commit_fire)
                 r_sched[commit_slot_i] <= 1'b1;
 
-            // commit DRAIN read-engine + evict on last (sourced from drain FIFO)
-            if (!r_cm_active) begin
-                if (w_dq_rd_valid) begin
-                    r_cm_active <= 1'b1;
-                    r_cm_slot   <= w_dq_rd_slot;
-                    r_cm_beat   <= '0;
-                end
-            end else if (w_cm_fire) begin
+            // commit DRAIN read-engine + evict on last (sourced from drain FIFO;
+            // the head slot is popped combinationally on the last beat). The
+            // draining slot is the FIFO head (w_dq_rd_slot), stable until pop.
+            if (w_cm_fire) begin
                 if (cm_rd_last_o) begin
-                    r_cm_active        <= 1'b0;
-                    r_valid[r_cm_slot] <= 1'b0;              // evict entry
-                    r_pv   [r_cm_slot] <= 1'b0;
-                    r_fdone[r_cm_slot] <= 1'b0;
-                    r_sched[r_cm_slot] <= 1'b0;
-                    r_sram_occ[r_ptr[r_cm_slot]] <= 1'b0;    // free SRAM slot
+                    r_cm_beat              <= '0;
+                    r_valid[w_dq_rd_slot]  <= 1'b0;          // evict entry
+                    r_pv   [w_dq_rd_slot]  <= 1'b0;
+                    r_fdone[w_dq_rd_slot]  <= 1'b0;
+                    r_sched[w_dq_rd_slot]  <= 1'b0;
+                    r_sram_occ[r_ptr[w_dq_rd_slot]] <= 1'b0; // free SRAM slot
                 end else begin
                     r_cm_beat <= r_cm_beat + 1'b1;
                 end
