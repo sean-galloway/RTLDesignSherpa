@@ -165,6 +165,14 @@ module axi4_dwidth_converter_rd #(
     logic                        int_rlast;
     logic [AXI_USER_WIDTH-1:0]   int_ruser;
 
+    // Burst-length FIFO handshake (used only in the wide->narrow R data path,
+    // i.e. UPSIZE mode). Frames each outstanding read burst's original narrow
+    // length to when that burst drains through axi_data_dnsize. Driven with
+    // safe pass-through defaults in DOWNSIZE mode (see gen_r_downsize).
+    logic                        w_blen_wr_ready;   // FIFO has room for a new AR
+    logic                        w_blen_rd_valid;   // a pending burst length exists
+    logic [7:0]                  w_blen_rd_data;    // head = current burst narrow len
+
     //==========================================================================
     // AR Channel Skid Buffer (Timing Closure)
     //==========================================================================
@@ -263,8 +271,10 @@ module axi4_dwidth_converter_rd #(
             assign m_axi_arqos    = int_arqos;
             assign m_axi_arregion = int_arregion;
             assign m_axi_aruser   = int_aruser;
-            assign m_axi_arvalid  = int_ar_valid;
-            assign int_ar_ready   = m_axi_arready;
+            // Gate AR on burst-length FIFO space so every outstanding read
+            // burst is tracked (prevents overflow -> lost RLAST framing).
+            assign m_axi_arvalid  = int_ar_valid && w_blen_wr_ready;
+            assign int_ar_ready   = m_axi_arready && w_blen_wr_ready;
         end
     endgenerate
 
@@ -328,12 +338,61 @@ module axi4_dwidth_converter_rd #(
                 .wide_last       (int_rlast)
             );
 
+            // No burst-length FIFO needed on the narrow->wide (upsize) data
+            // path; keep the shared handshake wires inert.
+            assign w_blen_wr_ready = 1'b1;
+            assign w_blen_rd_valid = 1'b0;
+            assign w_blen_rd_data  = '0;
+
         end else begin : gen_r_upsize
             // Slave narrow, master wide. R direction: master → slave, so
-            // wide → narrow. axi_data_dnsize with TRACK_BURSTS=1 to
-            // assert narrow_last on the last narrow beat of the slave's
-            // original (pre-rewrite) burst length. RRESP broadcasts to
-            // every narrow beat that comes from the same wide beat.
+            // wide → narrow. axi_data_dnsize (TRACK_BURSTS=1) asserts
+            // narrow_last on the last narrow beat of each burst, using that
+            // burst's ORIGINAL (pre-rewrite) narrow length.
+            //
+            // Several read requests can be accepted back-to-back before any R
+            // data returns. A single burst_len wire + AR-accept start pulse
+            // frames only the FIRST burst: the dnsize ignores start pulses
+            // while a burst is active and has no length queue, so bursts 2..N
+            // drain with narrow_last never asserted (collapsing N read bursts
+            // into one). A small FIFO holds one narrow arlen per outstanding
+            // burst; its head feeds the dnsize (burst_start held while the
+            // FIFO is non-empty) and is popped when each narrow burst
+            // completes, so every burst is framed regardless of overlap.
+            // Self-contained circular FIFO (no submodule dependency, so this
+            // widely-instantiated converter adds no new filelist deps). Depth
+            // covers the max outstanding read bursts; AR is back-pressured when
+            // full (see gen_ar_upsize) so it can never overflow.
+            localparam int BLEN_FIFO_DEPTH = 16;
+            localparam int BLEN_AW         = $clog2(BLEN_FIFO_DEPTH);
+
+            logic [7:0]         blen_mem [BLEN_FIFO_DEPTH];
+            logic [BLEN_AW:0]   blen_wptr, blen_rptr;   // extra MSB for full/empty
+            logic               w_blen_push, w_blen_pop;
+
+            // AR accepted -> enqueue its narrow length. A slave-side (narrow)
+            // burst completes on its last-beat handshake -> dequeue.
+            assign w_blen_push = int_ar_valid && int_ar_ready;
+            assign w_blen_pop  = int_r_valid && int_r_ready && int_rlast;
+
+            assign w_blen_wr_ready = !((blen_wptr[BLEN_AW-1:0] == blen_rptr[BLEN_AW-1:0]) &&
+                                       (blen_wptr[BLEN_AW]     != blen_rptr[BLEN_AW]));   // !full
+            assign w_blen_rd_valid = (blen_wptr != blen_rptr);                            // !empty
+            assign w_blen_rd_data  = blen_mem[blen_rptr[BLEN_AW-1:0]];
+
+            `ALWAYS_FF_RST(aclk, aresetn,
+                if (`RST_ASSERTED(aresetn)) begin
+                    blen_wptr <= '0;
+                    blen_rptr <= '0;
+                end else begin
+                    if (w_blen_push) begin
+                        blen_mem[blen_wptr[BLEN_AW-1:0]] <= int_arlen;
+                        blen_wptr <= blen_wptr + 1'b1;
+                    end
+                    if (w_blen_pop) blen_rptr <= blen_rptr + 1'b1;
+                end
+            )
+
             axi_data_dnsize #(
                 .WIDE_WIDTH       (M_AXI_DATA_WIDTH),
                 .NARROW_WIDTH     (S_AXI_DATA_WIDTH),
@@ -346,8 +405,8 @@ module axi4_dwidth_converter_rd #(
             ) u_r_dnsize (
                 .aclk            (aclk),
                 .aresetn         (aresetn),
-                .burst_len       (int_arlen),
-                .burst_start     (int_ar_valid && int_ar_ready),
+                .burst_len       (w_blen_rd_data),
+                .burst_start     (w_blen_rd_valid),
                 .wide_valid      (m_axi_rvalid),
                 .wide_ready      (m_axi_rready),
                 .wide_data       (m_axi_rdata),
