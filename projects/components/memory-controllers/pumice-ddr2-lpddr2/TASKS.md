@@ -61,22 +61,23 @@ scheme selecting a whole fixed layout up front.
   bank/row/col interleave for a given traffic pattern without a rebuild; also needed
   when device geometry (bank count / row / col width) varies across the DDR\* family.
 
-## TASK-LPDDR2-INIT: full LPDDR2 mode-register init (wide MR index + JEDEC values)
+## TASK-LPDDR2-INIT: full LPDDR2 mode-register init — RESOLVED
 
-The LPDDR2 CA command formatter (`dfi_cmd_formatter.sv`) and BFM (`lpddr_ca.py`) now
-encode MRW bit-exactly (JESD209-2F Table 60), but `init_sequencer.sv` carries the MR
-index on the 3-bit `init_cmd_bank_o`, so only MR0..MR7 are expressible — LPDDR2 needs
-MR1/2/3/10/63 etc. To bring up LPDDR2 *init* (as opposed to traffic reads, which work
-with the current shallow init):
+Implemented the JEDEC JESD209-2F LPDDR2 init sequence in `init_sequencer.sv`
+(memtype-gated): MRW Reset(MR63) -> ZQ Init(MR10=0xFF) -> MR1(BL8/nWR3=0x23) ->
+MR2(RL3/WL1=0x01) -> MR3(DS 40ohm=0x02). The wide MR index (MA up to MR63) reaches
+the CA formatter via the ROW request field packed as {MA[5:0], OP[7:0]}
+(`dfi_cmd_formatter` unpacks row[13:8]=MA, row[7:0]=OP) — no 3-bit bank-port limit.
+Only MR1/2/3 update the CL/CWL/BL shadow; MR63/MR10 are issued but not shadowed.
+`mode_register.sv` LPDDR2 CL/CWL decode made JEDEC-faithful (MR2[3:0] RL&WL enum).
+Verified: DFISlavePHY now records decoded MRW ({index:data}); `smoke_lpddr2` asserts
+init programmed {63:0x00, 10:0xFF, 1:0x23, 2:0x01, 3:0x02}. Formatter conformance +
+init_sequencer FUB updated.
 
-- Widen the init MR-index path (bank port → dedicated 8-bit MA field) end-to-end
-  (init_sequencer → scheduler → formatter `w_mr_ma`).
-- Add the LPDDR2 JEDEC init sequence values (MR-reset via MR63, MR10 ZQ calibration,
-  MR1/2/3 device config) to the init sequencer, gated by `memtype`.
-- Verify against the BFM's decoded MR shadow (the slave already decodes MRW).
-
-Prereq/relationship: independent of the LPDDR2 read bring-up (CA traffic encoding);
-that path only needs init to *complete*, not to program correct MR contents.
+NOTE (silicon): the sim gates PHY-init-complete on config-ready (TB) so the sequencer
+latches the correct memtype ("config before init"). Real LPDDR2 silicon needs memtype
+stable before init — a strap or gating the sequencer's start on CTRL.init_start. DDR2
+(the board target) is unaffected: its reset default IS DDR2.
 
 ## TASK-LPDDR2-WRPATH: LPDDR2 write-auto-precharge dropped writes — RESOLVED
 

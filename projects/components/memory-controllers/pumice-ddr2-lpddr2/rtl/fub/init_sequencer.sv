@@ -30,9 +30,18 @@
 //          The mode_register shadow is updated in lockstep (mr_seq_we_o) so
 //          the controller's live CL/CWL/BL decode tracks what was programmed.
 //
-//          LPDDR2: issues the 3 EMR + MR0 MRS writes with LPDDR2 defaults then
-//          finishes (its JEDEC init — MR63 reset / MR10 ZQ / per-step tINIT —
-//          is a v3 TODO; DDR2 is the validated path).
+//          LPDDR2 sequence (JEDEC JESD209-2F §3.4.1 power-up + §3.5 MRs):
+//            1. dfi_init_start; wait dfi_init_complete; tINIT settle.
+//            2. MRW(MR63) = Reset (OP don't-care); wait tINIT4.
+//            3. MRW(MR10) = 0xFF ZQ Init Calibration; wait tZQINIT.
+//            4. MRW(MR1) = BL8/nWR3 (0x23), MRW(MR2) = RL3/WL1 (0x01),
+//               MRW(MR3) = DS 40ohm (0x02) — configure the device.
+//            5. init_done.
+//          The MR index (MA, up to MR63) + data (OP) are carried in the ROW
+//          request field packed as {MA[5:0], OP[7:0]} (dfi_cmd_formatter unpacks
+//          it for the LPDDR2 CA MRW word — a 3-bit bank port can't reach MR10/63).
+//          Only MR1/MR2/MR3 update the CL/CWL/BL decode shadow; MR63/MR10 are
+//          issued to the DRAM but not shadowed.
 //
 // History: was a "simplified" 4-MR shadow-only walk that NEVER issued MRS/
 //   precharge/refresh to the DRAM. On the DFI-loopback sim the memory model
@@ -101,10 +110,22 @@ module init_sequencer
     localparam logic [15:0] DDR2_MR2       = 16'h0000;
     localparam logic [15:0] DDR2_MR3       = 16'h0000;
 
-    // LPDDR2 defaults (skeleton — see header).
-    localparam logic [15:0] LPDDR2_MR1     = 16'h0082;  // BL4, nWR=3
-    localparam logic [15:0] LPDDR2_MR2     = 16'h0004;  // RL3/WL1
-    localparam logic [15:0] LPDDR2_MR3     = 16'h0001;  // DS=34ohm
+    // LPDDR2 mode-register OP (data) values — JEDEC JESD209-2F §3.5. 8-bit OP;
+    // the index (MA) is a separate field packed with OP into the row request.
+    localparam logic [7:0] LPDDR2_MR63_OP = 8'h00;  // MRW(63) Reset — OP don't-care
+    localparam logic [7:0] LPDDR2_MR10_OP = 8'hFF;  // MR10 ZQ Init Calibration
+    localparam logic [7:0] LPDDR2_MR1_OP  = 8'h23;  // MR1: nWR3(001)|WC0|BT0|BL8(011)
+    localparam logic [7:0] LPDDR2_MR2_OP  = 8'h01;  // MR2: RL3/WL1 (default)
+    localparam logic [7:0] LPDDR2_MR3_OP  = 8'h02;  // MR3: DS 40ohm (default)
+    // MR indices (MA). MR10/MR63 exceed the 5-bit shadow index -> not shadowed.
+    localparam int LPDDR2_MR63 = 63;
+    localparam int LPDDR2_MR10 = 10;
+
+    // Pack {MA[5:0], OP[7:0]} into the ROW request field (dfi_cmd_formatter
+    // unpacks row[13:8]=MA, row[7:0]=OP for the LPDDR2 CA MRW word).
+    function automatic logic [ROW_WIDTH-1:0] mrw_row(input int idx, input logic [7:0] op);
+        mrw_row = ROW_WIDTH'((32'(idx[5:0]) << 8) | 32'(op));
+    endfunction
 
     //=========================================================================
     // Inter-command wait counts (mc_clk cycles). One-time init, so generous
@@ -138,7 +159,13 @@ module init_sequencer
         S_OCD_DEF  = 5'd11,  // EMR + OCD default
         S_OCD_EXIT = 5'd12,  // EMR + OCD exit
         S_WAIT     = 5'd13,  // inter-command delay, then -> r_next
-        S_DONE     = 5'd14
+        S_DONE     = 5'd14,
+        // ----- LPDDR2-only MRW sequence -----
+        S_L_RESET  = 5'd15,  // MRW(MR63) Reset
+        S_L_ZQ     = 5'd16,  // MRW(MR10) ZQ Init Calibration
+        S_L_MR1    = 5'd17,  // MRW(MR1) BL/nWR
+        S_L_MR2    = 5'd18,  // MRW(MR2) RL/WL
+        S_L_MR3    = 5'd19   // MRW(MR3) drive strength
     } state_e;
 
     state_e             r_state;
@@ -162,7 +189,7 @@ module init_sequencer
                 S_RESET:    r_state <= S_DFI_INIT;
                 S_DFI_INIT: if (dfi_init_complete_i) begin
                                 r_wait  <= W_INIT;
-                                r_next  <= w_is_ddr2 ? S_PREA1 : S_EMR2;
+                                r_next  <= w_is_ddr2 ? S_PREA1 : S_L_RESET;
                                 r_state <= S_WAIT;
                             end
                 // JEDEC JESD79-2 mode-register order: EMRS(2), EMRS(3), EMRS(1),
@@ -172,7 +199,7 @@ module init_sequencer
                 S_EMR3:     begin r_wait <= W_MRD; r_next <= S_EMR1;    r_state <= S_WAIT; end
                 S_EMR1:     begin r_wait <= W_MRD; r_next <= S_MR0_DLL; r_state <= S_WAIT; end
                 S_MR0_DLL:  begin r_wait <= W_DLL;
-                                  r_next <= w_is_ddr2 ? S_PREA2 : S_DONE;
+                                  r_next <= S_PREA2;  // DDR2-only path
                                   r_state <= S_WAIT; end
                 S_PREA2:    begin r_wait <= W_RP;  r_next <= S_REF1;    r_state <= S_WAIT; end
                 S_REF1:     begin r_wait <= W_RFC; r_next <= S_REF2;    r_state <= S_WAIT; end
@@ -180,6 +207,14 @@ module init_sequencer
                 S_MR0:      begin r_wait <= W_MRD; r_next <= S_OCD_DEF; r_state <= S_WAIT; end
                 S_OCD_DEF:  begin r_wait <= W_MRD; r_next <= S_OCD_EXIT;r_state <= S_WAIT; end
                 S_OCD_EXIT: begin r_wait <= W_MRD; r_next <= S_DONE;    r_state <= S_WAIT; end
+                // ----- LPDDR2 MRW chain: Reset -> ZQ -> MR1 -> MR2 -> MR3 -----
+                // Reuse the CSR waits: W_INIT covers tINIT4, W_DLL covers tZQINIT,
+                // W_MRD covers post-MRW (tMRW).
+                S_L_RESET:  begin r_wait <= W_INIT; r_next <= S_L_ZQ;   r_state <= S_WAIT; end
+                S_L_ZQ:     begin r_wait <= W_DLL;  r_next <= S_L_MR1;  r_state <= S_WAIT; end
+                S_L_MR1:    begin r_wait <= W_MRD;  r_next <= S_L_MR2;  r_state <= S_WAIT; end
+                S_L_MR2:    begin r_wait <= W_MRD;  r_next <= S_L_MR3;  r_state <= S_WAIT; end
+                S_L_MR3:    begin r_wait <= W_MRD;  r_next <= S_DONE;   r_state <= S_WAIT; end
                 S_WAIT:     if (r_wait == 16'd0) r_state <= r_next;
                             else                 r_wait  <= r_wait - 16'd1;
                 S_DONE:     r_state <= S_DONE;
@@ -210,42 +245,77 @@ module init_sequencer
                 init_cmd_valid_o = 1'b1;
                 init_cmd_op_o    = OP_REF;
             end
+            // S_EMR*/S_MR0* are DDR2-only (LPDDR2 uses the S_L_* chain below).
             S_EMR3: begin
                 init_cmd_valid_o = 1'b1;
                 init_cmd_op_o    = OP_MRS;
                 init_cmd_bank_o  = BKW'(3);
-                init_cmd_row_o   = ROW_WIDTH'(w_is_ddr2 ? DDR2_MR3 : LPDDR2_MR3);
+                init_cmd_row_o   = ROW_WIDTH'(DDR2_MR3);
                 mr_seq_we_o      = 1'b1;
                 mr_seq_index_o   = 5'd3;
-                mr_seq_data_o    = w_is_ddr2 ? DDR2_MR3 : LPDDR2_MR3;
+                mr_seq_data_o    = DDR2_MR3;
             end
             S_EMR2: begin
                 init_cmd_valid_o = 1'b1;
                 init_cmd_op_o    = OP_MRS;
                 init_cmd_bank_o  = BKW'(2);
-                init_cmd_row_o   = ROW_WIDTH'(w_is_ddr2 ? DDR2_MR2 : LPDDR2_MR2);
+                init_cmd_row_o   = ROW_WIDTH'(DDR2_MR2);
                 mr_seq_we_o      = 1'b1;
                 mr_seq_index_o   = 5'd2;
-                mr_seq_data_o    = w_is_ddr2 ? DDR2_MR2 : LPDDR2_MR2;
+                mr_seq_data_o    = DDR2_MR2;
             end
             S_EMR1: begin
                 init_cmd_valid_o = 1'b1;
                 init_cmd_op_o    = OP_MRS;
                 init_cmd_bank_o  = BKW'(1);
-                init_cmd_row_o   = ROW_WIDTH'(w_is_ddr2 ? DDR2_MR1 : LPDDR2_MR1);
+                init_cmd_row_o   = ROW_WIDTH'(DDR2_MR1);
                 mr_seq_we_o      = 1'b1;
                 mr_seq_index_o   = 5'd1;
-                mr_seq_data_o    = w_is_ddr2 ? DDR2_MR1 : LPDDR2_MR1;
+                mr_seq_data_o    = DDR2_MR1;
             end
             S_MR0_DLL: begin
                 init_cmd_valid_o = 1'b1;
                 init_cmd_op_o    = OP_MRS;
                 init_cmd_bank_o  = BKW'(0);
-                // LPDDR2 MR0 is read-only -> write 0.
-                init_cmd_row_o   = ROW_WIDTH'(w_is_ddr2 ? DDR2_MR0_DLL : 16'd0);
+                init_cmd_row_o   = ROW_WIDTH'(DDR2_MR0_DLL);
                 mr_seq_we_o      = 1'b1;
                 mr_seq_index_o   = 5'd0;
-                mr_seq_data_o    = w_is_ddr2 ? DDR2_MR0_DLL : 16'd0;
+                mr_seq_data_o    = DDR2_MR0_DLL;
+            end
+            // ----- LPDDR2 MRW chain -----
+            S_L_RESET: begin  // MRW(MR63) Reset — issued, not shadowed
+                init_cmd_valid_o = 1'b1;
+                init_cmd_op_o    = OP_MRS;
+                init_cmd_row_o   = mrw_row(LPDDR2_MR63, LPDDR2_MR63_OP);
+            end
+            S_L_ZQ: begin     // MRW(MR10) ZQ Init — issued, not shadowed
+                init_cmd_valid_o = 1'b1;
+                init_cmd_op_o    = OP_MRS;
+                init_cmd_row_o   = mrw_row(LPDDR2_MR10, LPDDR2_MR10_OP);
+            end
+            S_L_MR1: begin
+                init_cmd_valid_o = 1'b1;
+                init_cmd_op_o    = OP_MRS;
+                init_cmd_row_o   = mrw_row(1, LPDDR2_MR1_OP);
+                mr_seq_we_o      = 1'b1;
+                mr_seq_index_o   = 5'd1;
+                mr_seq_data_o    = {8'd0, LPDDR2_MR1_OP};
+            end
+            S_L_MR2: begin
+                init_cmd_valid_o = 1'b1;
+                init_cmd_op_o    = OP_MRS;
+                init_cmd_row_o   = mrw_row(2, LPDDR2_MR2_OP);
+                mr_seq_we_o      = 1'b1;
+                mr_seq_index_o   = 5'd2;
+                mr_seq_data_o    = {8'd0, LPDDR2_MR2_OP};
+            end
+            S_L_MR3: begin
+                init_cmd_valid_o = 1'b1;
+                init_cmd_op_o    = OP_MRS;
+                init_cmd_row_o   = mrw_row(3, LPDDR2_MR3_OP);
+                mr_seq_we_o      = 1'b1;
+                mr_seq_index_o   = 5'd3;
+                mr_seq_data_o    = {8'd0, LPDDR2_MR3_OP};
             end
             S_MR0: begin  // DDR2-only (LPDDR2 jumps to DONE after S_MR0_DLL)
                 init_cmd_valid_o = 1'b1;

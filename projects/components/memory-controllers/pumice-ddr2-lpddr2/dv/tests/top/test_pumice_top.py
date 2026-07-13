@@ -141,6 +141,16 @@ async def cocotb_test_pumice_top(dut):
         idv = await tb.csr_read_field("ID", "module_id")
         assert idv == 0xD2, f"ID.module_id {idv:#x} != 0xD2"
         assert int(dut.init_done_o.value) == 1
+        if mem_type == "LPDDR2":
+            # Verify the JEDEC LPDDR2 init programmed the expected mode registers
+            # (decoded off the CA bus by the DFI slave). MR63=Reset, MR10=ZQ Init,
+            # MR1=BL8/nWR3, MR2=RL3/WL1, MR3=DS 40ohm.
+            mr = tb.dfi_slave.mode_regs
+            expected = {63: 0x00, 10: 0xFF, 1: 0x23, 2: 0x01, 3: 0x02}
+            for idx, val in expected.items():
+                assert mr.get(idx) == val, \
+                    f"LPDDR2 MR{idx} = {mr.get(idx)} != {val:#x} (decoded MRs: {mr})"
+            tb.log.info(f"PASS smoke_lpddr2: init programmed MRs {mr}")
         tb.log.info(f"PASS smoke ({mem_type}): init_done + ID ok")
         return
 

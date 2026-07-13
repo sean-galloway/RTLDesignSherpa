@@ -121,6 +121,11 @@ All other CA pins `X`.
 | f    | MA6 | MA7 | OP0 | OP1 | OP2 | OP3 | OP4 | OP5 | OP6 | OP7 |
 
 - `MA[7:0]` = mode-register address, `OP[7:0]` = mode-register data (opcode).
+- Controller plumbing: the scheduler carries the MRW fields in the ROW request as
+  `{MA[5:0], OP[7:0]}` (row[13:8]=index, row[7:0]=data), which `dfi_cmd_formatter`
+  unpacks into `w_mr_ma`/`w_mr_op`. This reaches the full MR0..MR63 range (a 3-bit
+  bank port could not); MA[7:6]=0. The `init_sequencer` LPDDR2 chain (Reset MR63 ->
+  ZQ MR10 -> MR1/2/3) drives it.
 
 ---
 

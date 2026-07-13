@@ -249,8 +249,12 @@ module dfi_cmd_formatter
     logic [7:0]  w_mr_ma, w_mr_op; // MRW: MA[7:0] (index), OP[7:0] (data)
     assign w_row15 = 15'(cmd_row_i);
     assign w_col12 = 12'(cmd_col_i);
-    assign w_mr_ma = 8'(cmd_bank_i);   // NOTE: init carries MR index on bank (3b)
-    assign w_mr_op = w_row15[7:0];     //       and MR data on row; see MRW note
+    // MRW field packing: the scheduler carries {MR index, MR data} in the ROW
+    // field so the full LPDDR2 MR range (MR0..MR63 = MA[5:0]) is reachable
+    // without a 3-bit bank port. row[13:8] = MA[5:0] (index), row[7:0] = OP[7:0]
+    // (data). MA[7:6] are 0 (MR<=63). See rtl/LPDDR2_CA_ENCODING.md §4.
+    assign w_mr_ma = {2'b0, w_row15[13:8]};
+    assign w_mr_op = w_row15[7:0];
 
     assign w_ca_ap = (cmd_op_i == OP_RDA) || (cmd_op_i == OP_WRA);
 

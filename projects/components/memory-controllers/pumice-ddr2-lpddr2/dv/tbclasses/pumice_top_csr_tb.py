@@ -32,7 +32,7 @@ from typing import Optional, Sequence
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import ClockCycles, RisingEdge, Timer
+from cocotb.triggers import ClockCycles, RisingEdge, Timer, Event
 
 from CocoTBFramework.components.axi4.axi4_interfaces import (
     AXI4MasterRead, AXI4MasterWrite,
@@ -166,6 +166,12 @@ class PumiceTopCsrTB:
                 pass
         self.dut.phy_dfi_init_complete.value = 0
 
+        # Gate PHY-init-complete on config-ready: the init_sequencer latches
+        # memtype (DDR2 vs LPDDR2) when it leaves S_DFI_INIT (on init_complete),
+        # so config CSRs (esp. PHY_TIMING.memtype) must be written first. Models
+        # "config programmed before init". program_defaults() sets this gate.
+        self._cfg_gate = Event()
+
         self.dut.aresetn.value = 0
         self.dut.dfi_rstn.value = 0
         await ClockCycles(self.dut.aclk, 10)
@@ -177,6 +183,9 @@ class PumiceTopCsrTB:
             for _ in range(4000):
                 await RisingEdge(self.dut.dfi_clk)
                 if int(self.dut.phy_dfi_init_start.value):
+                    # Hold init-complete until config (memtype) is programmed so
+                    # the sequencer latches the right memory family.
+                    await self._cfg_gate.wait()
                     await ClockCycles(self.dut.dfi_clk, n)
                     self.dut.phy_dfi_init_complete.value = 1
                     return
@@ -267,6 +276,9 @@ class PumiceTopCsrTB:
         await w("INIT_TIMING1", "t_rfc_wait", 0)
         # kick init
         await w("CTRL", "init_start", 1)
+        # config is now programmed -> release the PHY-init-complete gate so the
+        # init sequencer proceeds and latches the correct memtype.
+        self._cfg_gate.set()
 
     async def wait_for_init_done(self, timeout_cycles: int = 4000) -> None:
         for _ in range(timeout_cycles):

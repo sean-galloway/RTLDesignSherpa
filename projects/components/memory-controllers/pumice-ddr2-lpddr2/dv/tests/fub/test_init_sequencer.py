@@ -162,18 +162,20 @@ async def cocotb_test_init_sequencer(dut):
         await tb.wait_clocks('mc_clk', 1)
         assert tb.init_start() == 1
         tb.dut.dfi_init_complete_i.value = 1
-        # LPDDR2 v2 defaults — see init_sequencer.sv LPDDR2_MR{1,2,3}_DEFAULT.
-        # MR0 is read-only in LPDDR2, so the sequencer writes 0 there.
+        # LPDDR2 JEDEC init (JESD209-2F): MRW Reset(MR63) -> ZQ(MR10) ->
+        # MR1/MR2/MR3. Only MR1/MR2/MR3 update the CL/CWL/BL decode shadow;
+        # MR63/MR10 are issued to the DRAM but not shadowed. See init_sequencer.sv
+        # LPDDR2_MR{1,2,3}_OP.
         expected_lpddr2 = {
-            0: 0x0000,
-            1: 0x0082,   # BL4, nWR=3
-            2: 0x0004,   # RL3/WL1
-            3: 0x0001,   # DS=34Ω
+            1: 0x23,   # BL8, nWR=3
+            2: 0x01,   # RL3/WL1
+            3: 0x02,   # DS 40ohm
         }
-        seen = await tb.capture_mr_seq(max_cycles=10)
-        for idx, data in seen:
-            assert data == expected_lpddr2.get(idx, 0), (
-                f"LPDDR2 MR{idx} got {data:#x} want {expected_lpddr2.get(idx, 0):#x}"
+        seen = await tb.capture_mr_seq(max_cycles=20)
+        seen_map = dict(seen)
+        for idx, val in expected_lpddr2.items():
+            assert seen_map.get(idx) == val, (
+                f"LPDDR2 MR{idx} got {seen_map.get(idx)} want {val:#x} (seen={seen})"
             )
         tb.dut.zqcl_grant_i.value = 1
         await tb.wait_clocks('mc_clk', 5)

@@ -123,19 +123,33 @@ module mode_register
         end
     end
 
-    // CL — DDR2: MR0[6:4]; LPDDR2: MR2[3:0].
+    // LPDDR2 RL/WL from the MR2[3:0] "RL & WL" enum (JESD209-2F Table, MR2):
+    //   0001->RL3/WL1  0010->RL4/WL2  0011->RL5/WL2
+    //   0100->RL6/WL3  0101->RL7/WL4  0110->RL8/WL4
+    logic [3:0] w_lp_rl, w_lp_wl;
+    always_comb begin
+        unique case (w_mr2[3:0])
+            4'b0001: begin w_lp_rl = 4'd3; w_lp_wl = 4'd1; end
+            4'b0010: begin w_lp_rl = 4'd4; w_lp_wl = 4'd2; end
+            4'b0011: begin w_lp_rl = 4'd5; w_lp_wl = 4'd2; end
+            4'b0100: begin w_lp_rl = 4'd6; w_lp_wl = 4'd3; end
+            4'b0101: begin w_lp_rl = 4'd7; w_lp_wl = 4'd4; end
+            4'b0110: begin w_lp_rl = 4'd8; w_lp_wl = 4'd4; end
+            default: begin w_lp_rl = 4'd3; w_lp_wl = 4'd1; end
+        endcase
+    end
+
+    // CL — DDR2: MR0[6:4]; LPDDR2: RL from the MR2[3:0] enum.
     assign w_cl = (memtype_i == MEMTYPE_DDR2)
                 ? {1'b0, w_mr0[6:4]}
-                : w_mr2[3:0];
+                : w_lp_rl;
 
-    // CWL — DDR2: CL-1; LPDDR2: MR2[7:4] (fallback CL-1).
+    // CWL — DDR2: CL-1; LPDDR2: WL from the MR2[3:0] enum.
     always_comb begin
         if (memtype_i == MEMTYPE_DDR2) begin
             w_cwl = (w_cl == 4'd0) ? 4'd0 : (w_cl - 4'd1);
         end else begin
-            w_cwl = (w_mr2[7:4] == 4'd0)
-                  ? ((w_cl == 4'd0) ? 4'd0 : (w_cl - 4'd1))
-                  : w_mr2[7:4];
+            w_cwl = w_lp_wl;
         end
     end
 

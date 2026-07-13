@@ -360,8 +360,9 @@ class DfiCmdFormatterTB(TBBase):
         elif cmd in (_DC.PRE,):
             kw.update(bank=bank_m)
         elif cmd == _DC.MRS:
-            # init plumbing: MR index on bank (3b), MR data low-8 on row
-            kw.update(mr_addr=bank_m, mr_data=row_m & 0xFF)
+            # init plumbing packs {MA[5:0], OP[7:0]} in the ROW field:
+            # row[13:8] = MR index, row[7:0] = MR data.
+            kw.update(mr_addr=(row_m >> 8) & 0x3F, mr_data=row_m & 0xFF)
         expected_word = encode_lpddr2_ca(cmd, **kw)
 
         # Full flat dfi_address; the CA word lives in the low 20 bits.
@@ -389,7 +390,8 @@ class DfiCmdFormatterTB(TBBase):
         elif cmd == _DC.REF:
             assert args["all_banks"] == extra["all_banks"]
         elif cmd == _DC.MRS:
-            assert args.get("mr_addr") == bank_m and args.get("mr_data") == (row_m & 0xFF)
+            assert args.get("mr_addr") == ((row_m >> 8) & 0x3F) \
+                and args.get("mr_data") == (row_m & 0xFF)
 
         # Control strobes idle; cs_n active for the target rank on phase 0 only,
         # deselected ('1) on all upper phases.
