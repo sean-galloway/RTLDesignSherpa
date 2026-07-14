@@ -138,8 +138,63 @@ module pumice_cmd_arbiter
     // ACT/PRE to it. (Column ops self-limit: the CAM retires the entry on
     // commit/issue, so sch_valid drops the next cycle => no re-issue.)
     logic [NUM_BANKS-1:0] r_guard0, r_guard1;
+
+    // ---- output pipeline: the registered arbiter DECISION ------------------
+    // The pick -> bank-timer / CAM fan-out is registered into its own cycle so
+    // the scheduler cone splits (fan-in | logic | fan-out). Declared early so
+    // the in-flight forward-masks below can reference it. Backpressure: the
+    // decision is held until the cmd FIFO accepts it (see the ALWAYS_FF at the
+    // end).
+    logic                 r_pick_valid;
+    dram_op_e             r_op;
+    logic [BKW-1:0]       r_bank;
+    logic [ROW_WIDTH-1:0] r_row;
+    logic [COL_WIDTH-1:0] r_col_out;
+    logic                 r_ap_out;
+    logic                 r_do_act, r_do_rd, r_do_wr, r_do_pre, r_grant;
+    logic                 r_wr_commit, r_rd_issue;
+    logic [PTRW-1:0]      r_commit_slot, r_issue_slot;
+
+    // Forward-masks covering the extra output-register cycle:
+    //  - an in-flight (registered) ACT/PRE keeps ITS bank guarded until the
+    //    timers reflect it (folded into w_guarded below);
+    //  - an in-flight column blocks the NEXT column pick, so the arbiter can't
+    //    re-issue the same slot before the CAM r_sched update is visible, and
+    //    can't overrun tCCD (which the 1-cycle-stale registered bank-readiness
+    //    would otherwise allow). Free: tCCD already spaces columns >=2 apart.
+    logic w_inflight_col, w_inflight_preact;
+    assign w_inflight_col    = r_pick_valid && (r_do_rd || r_do_wr);
+    assign w_inflight_preact = r_pick_valid && (r_do_act || r_do_pre);
+
     logic [NUM_BANKS-1:0] w_guarded;
-    assign w_guarded = r_guard0 | r_guard1;
+    assign w_guarded = r_guard0 | r_guard1
+                     | (w_inflight_preact ? (NUM_BANKS'(1) << r_bank) : '0);
+
+    // ---- pipeline: register the bank-timer fan-in at the arbiter input ------
+    // The worst w_sys_i path is bank_timer -> arbiter pick -> bank_timer (the
+    // scheduler cone: ~83% route, from the 8 scattered per-bank timers fanning
+    // into the arbiter and set_* fanning back out). Register the per-bank
+    // readiness / open-row here so that fan-in becomes a clean register hop; the
+    // pick then reads 1-cycle-old bank state. The existing ACT/PRE guard already
+    // covers this staleness (a bank is guarded 2 cycles after an ACT/PRE, which
+    // spans the register delay before the timer load is visible). Columns still
+    // use the COMBINATIONAL CAM exclusion (sch_valid) + tCCD, so no column
+    // double-issue / tCCD hazard is introduced.
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                r_bank_act_ready, r_bank_rdwr_ready;
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                r_bank_pre_ready,  r_bank_row_active;
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0][ROW_WIDTH-1:0] r_bank_open_row;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_bank_act_ready <= '0; r_bank_rdwr_ready <= '0;
+            r_bank_pre_ready <= '0; r_bank_row_active <= '0; r_bank_open_row <= '0;
+        end else begin
+            r_bank_act_ready  <= bank_act_ready_i;
+            r_bank_rdwr_ready <= bank_rdwr_ready_i;
+            r_bank_pre_ready  <= bank_pre_ready_i;
+            r_bank_row_active <= bank_row_active_i;
+            r_bank_open_row   <= bank_open_row_i;
+        end
+    )
 
     // ---- per-entry field extractors --------------------------------------
     function automatic logic [BKW-1:0]       f_bank(input logic [NUM_ENTRIES*BKW-1:0] v, input logic [PTRW-1:0] e);
@@ -164,10 +219,10 @@ module pumice_cmd_arbiter
             automatic logic [PTRW-1:0]      ei = PTRW'(e);
             automatic logic [BKW-1:0]       rb = f_bank(rd_sch_bank_i, ei);
             automatic logic [BKW-1:0]       wb = f_bank(wr_sch_bank_i, ei);
-            automatic logic                 rhit = bank_row_active_i[RK0][rb]
-                                                   && (f_row(rd_sch_row_i, ei) == bank_open_row_i[RK0][rb]);
-            automatic logic                 whit = bank_row_active_i[RK0][wb]
-                                                   && (f_row(wr_sch_row_i, ei) == bank_open_row_i[RK0][wb]);
+            automatic logic                 rhit = r_bank_row_active[RK0][rb]
+                                                   && (f_row(rd_sch_row_i, ei) == r_bank_open_row[RK0][rb]);
+            automatic logic                 whit = r_bank_row_active[RK0][wb]
+                                                   && (f_row(wr_sch_row_i, ei) == r_bank_open_row[RK0][wb]);
             // READ entry. The column (RD) commit enqueues into the rd CAM's
             // issue-order FIFO, so it may ONLY fire when that FIFO has room
             // (rd_issue_ready_i) — otherwise the read would issue to DRAM but
@@ -175,24 +230,24 @@ module pumice_cmd_arbiter
             // don't touch the CAM, so they stay free -> the arbiter does other
             // work while the FIFO is full (no bubble).
             if (rd_sch_valid_i[e]) begin
-                rd_col_m[e] = rhit && bank_rdwr_ready_i[RK0][rb] && tccd_ok_i && twtr_ok_i
-                              && rd_issue_ready_i;
-                rd_act_m[e] = !bank_row_active_i[RK0][rb] && !w_guarded[rb]
-                              && bank_act_ready_i[RK0][rb] && tfaw_ok_i[RK0] && trrd_ok_i[RK0];
-                rd_pre_m[e] = bank_row_active_i[RK0][rb] && !w_guarded[rb] && !rhit
-                              && bank_pre_ready_i[RK0][rb];
+                rd_col_m[e] = rhit && r_bank_rdwr_ready[RK0][rb] && tccd_ok_i && twtr_ok_i
+                              && rd_issue_ready_i && !w_inflight_col;
+                rd_act_m[e] = !r_bank_row_active[RK0][rb] && !w_guarded[rb]
+                              && r_bank_act_ready[RK0][rb] && tfaw_ok_i[RK0] && trrd_ok_i[RK0];
+                rd_pre_m[e] = r_bank_row_active[RK0][rb] && !w_guarded[rb] && !rhit
+                              && r_bank_pre_ready[RK0][rb];
             end
             // WRITE entry. The column (WR) commit enqueues into the wr CAM's
             // drain FIFO, so gate it on drain-FIFO room (wr_commit_ready_i) —
             // else the write issues to DRAM but its data never drains (stale
             // DRAM) and the slot re-issues. ACT/PRE stay free.
             if (wr_sch_valid_i[e]) begin
-                wr_col_m[e] = whit && bank_rdwr_ready_i[RK0][wb] && tccd_ok_i && trtw_ok_i
-                              && wr_commit_ready_i;
-                wr_act_m[e] = !bank_row_active_i[RK0][wb] && !w_guarded[wb]
-                              && bank_act_ready_i[RK0][wb] && tfaw_ok_i[RK0] && trrd_ok_i[RK0];
-                wr_pre_m[e] = bank_row_active_i[RK0][wb] && !w_guarded[wb] && !whit
-                              && bank_pre_ready_i[RK0][wb];
+                wr_col_m[e] = whit && r_bank_rdwr_ready[RK0][wb] && tccd_ok_i && trtw_ok_i
+                              && wr_commit_ready_i && !w_inflight_col;
+                wr_act_m[e] = !r_bank_row_active[RK0][wb] && !w_guarded[wb]
+                              && r_bank_act_ready[RK0][wb] && tfaw_ok_i[RK0] && trrd_ok_i[RK0];
+                wr_pre_m[e] = r_bank_row_active[RK0][wb] && !w_guarded[wb] && !whit
+                              && r_bank_pre_ready[RK0][wb];
             end
         end
     end
@@ -238,11 +293,11 @@ module pumice_cmd_arbiter
     logic            w_any_active, w_rfsh_pre_found;
     logic [BKW-1:0]  w_rfsh_pre_bank;
     always_comb begin
-        w_any_active     = |bank_row_active_i[RK0];
+        w_any_active     = |r_bank_row_active[RK0];
         w_rfsh_pre_found = 1'b0;
         w_rfsh_pre_bank  = '0;
         for (int j = NUM_BANKS-1; j >= 0; j--)
-            if (bank_row_active_i[RK0][j] && bank_pre_ready_i[RK0][j] && !w_guarded[j]) begin
+            if (r_bank_row_active[RK0][j] && r_bank_pre_ready[RK0][j] && !w_guarded[j]) begin
                 w_rfsh_pre_found = 1'b1;
                 w_rfsh_pre_bank  = BKW'(j);
             end
@@ -315,37 +370,68 @@ module pumice_cmd_arbiter
         end
     end
 
-    // Issue only when the command sink accepts the push.
-    logic w_fire;
-    assign w_fire = w_valid && cmd_ready_i;
+    // ---- output register: capture the pick, drain to the cmd FIFO ----------
+    // Accept a new pick when the output stage is empty or draining this cycle;
+    // otherwise hold the decision (backpressure from a full cmd FIFO).
+    logic w_out_ready, w_fire_out;
+    assign w_out_ready = !r_pick_valid || cmd_ready_i;   // may capture a new pick
+    assign w_fire_out  = r_pick_valid && cmd_ready_i;     // registered cmd accepted
 
-    // ---- command push outputs ----
-    assign cmd_valid_o = w_valid;
-    assign cmd_op_o    = w_op;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_pick_valid <= 1'b0;
+            r_do_act <= 1'b0; r_do_rd <= 1'b0; r_do_wr <= 1'b0; r_do_pre <= 1'b0;
+            r_grant  <= 1'b0; r_wr_commit <= 1'b0; r_rd_issue <= 1'b0;
+        end else if (w_out_ready) begin
+            r_pick_valid  <= w_valid;
+            r_op          <= w_op;
+            r_bank        <= w_bank;
+            r_row         <= w_row;
+            r_col_out     <= w_col;
+            r_ap_out      <= w_ap_out;
+            r_do_act      <= w_do_act;
+            r_do_rd       <= w_do_rd;
+            r_do_wr       <= w_do_wr;
+            r_do_pre      <= w_do_pre;
+            r_grant       <= w_grant;
+            r_wr_commit   <= w_wr_commit;
+            r_commit_slot <= w_commit_slot;
+            r_rd_issue    <= w_rd_issue;
+            r_issue_slot  <= w_issue_slot;
+        end
+    )
+
+    // ---- command push outputs (from the registered decision) ----
+    assign cmd_valid_o = r_pick_valid;
+    assign cmd_op_o    = r_op;
     assign cmd_rank_o  = RKW'(RK0);
-    assign cmd_bank_o  = w_bank;
-    assign cmd_row_o   = w_row;
-    assign cmd_col_o   = w_col;
-    assign cmd_ap_o    = w_ap_out;
+    assign cmd_bank_o  = r_bank;
+    assign cmd_row_o   = r_row;
+    assign cmd_col_o   = r_col_out;
+    assign cmd_ap_o    = r_ap_out;
 
-    // ---- event strobes (only on accepted issue) ----
-    assign evt_act_o = w_fire && w_do_act;
-    assign evt_rd_o  = w_fire && w_do_rd;
-    assign evt_wr_o  = w_fire && w_do_wr;
-    assign evt_pre_o = w_fire && w_do_pre;
-    assign evt_ap_o  = w_ap_out;
+    // ---- event strobes (fire when the registered command is accepted) ----
+    assign evt_act_o = w_fire_out && r_do_act;
+    assign evt_rd_o  = w_fire_out && r_do_rd;
+    assign evt_wr_o  = w_fire_out && r_do_wr;
+    assign evt_pre_o = w_fire_out && r_do_pre;
+    assign evt_ap_o  = r_ap_out;
     assign evt_rank_o = RKW'(RK0);
-    assign evt_bank_o = w_bank;
-    assign evt_row_o  = w_row;
+    assign evt_bank_o = r_bank;
+    assign evt_row_o  = r_row;
 
-    // ---- CAM commit / issue / refresh grant (only on accepted issue) ----
-    assign wr_commit_valid_o = w_fire && w_wr_commit;
-    assign wr_commit_slot_o  = w_commit_slot;
-    assign rd_issue_valid_o  = w_fire && w_rd_issue;
-    assign rd_issue_slot_o   = w_issue_slot;
-    assign refresh_grant_o   = w_fire && w_grant;
+    // ---- CAM commit / issue / refresh grant (on accepted issue) ----
+    assign wr_commit_valid_o = w_fire_out && r_wr_commit;
+    assign wr_commit_slot_o  = r_commit_slot;
+    assign rd_issue_valid_o  = w_fire_out && r_rd_issue;
+    assign rd_issue_slot_o   = r_issue_slot;
+    assign refresh_grant_o   = w_fire_out && r_grant;
 
-    // ---- guard update: 2-cycle per-bank block after an accepted ACT/PRE ----
+    // ---- guard update: 2-cycle per-bank block after a FIRED ACT/PRE. The
+    // in-flight ACT/PRE (w_inflight_preact, folded into w_guarded) protects the
+    // bank while the decision is held/draining; r_guard0/1 then cover the 2
+    // cycles after it fires, spanning the input-register + timer latency before
+    // the bank reads busy. ----
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_guard0 <= '0;
@@ -353,8 +439,8 @@ module pumice_cmd_arbiter
         end else begin
             r_guard1 <= r_guard0;
             r_guard0 <= '0;
-            if (w_fire && (w_do_act || w_do_pre))
-                r_guard0 <= (NUM_BANKS'(1) << w_bank);
+            if (w_fire_out && (r_do_act || r_do_pre))
+                r_guard0 <= (NUM_BANKS'(1) << r_bank);
         end
     )
 

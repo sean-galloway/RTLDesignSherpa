@@ -138,6 +138,12 @@ class PumiceCmdArbiterTB(TBBase):
         getattr(self.dut, f'{pfx}_sch_older_i').value = older
 
     async def settle(self):
+        # The arbiter is a 2-stage pipeline: it registers the per-bank timer
+        # fan-in at its INPUT (1 cycle), then registers the DECISION at its
+        # OUTPUT (1 cycle). So a pick reflecting freshly-set bank state / CAM
+        # entries appears 2 edges later. Advance both, then settle combinational.
+        await RisingEdge(self.dut.aclk)
+        await RisingEdge(self.dut.aclk)
         await Timer(1, units='ns')
 
     # ---- readback -----------------------------------------------------------
