@@ -32,6 +32,9 @@ with the high-level fields:
     source           start point pin / port
     destination      end point pin / port
     slack_ns         slack in nanoseconds (negative = violated)
+    prop_ns          Data Path Delay (source->dest propagation/arrival delay)
+    logic_ns         logic (cell) portion of prop_ns
+    route_ns         route (net) portion of prop_ns
 
 Two modes:
 
@@ -42,7 +45,10 @@ Two modes:
       Collapse `[<digits>]` indices in source / destination to `[*]`, then
       keep only the worst-slack violation per (violation_type, source,
       destination) bucket. Useful when many bit-level violations share the
-      same root cause and you want the unique-hierarchy hot list.
+      same root cause and you want the unique-hierarchy hot list. Each kept
+      line carries `count` = how many raw violations collapsed into it (so a
+      256-endpoint hot spot is distinguishable from a 2). The prop/logic/route
+      shown are the worst-slack representative's.
 
 USAGE:
     bin/vivado_timing_failures.py <report.txt>
@@ -82,6 +88,11 @@ SOURCE_RE     = re.compile(r"^\s*Source:\s+(\S+)")
 DEST_RE       = re.compile(r"^\s*Destination:\s+(\S+)")
 PATH_GROUP_RE = re.compile(r"^\s*Path Group:\s+(.+?)\s*$")
 PATH_TYPE_RE  = re.compile(r"^\s*Path Type:\s+(.+?)\s*$")
+# "Data Path Delay:        43.580ns  (logic 13.671ns ...  route 29.909ns ...)"
+# -> the source-to-dest propagation (arrival) delay, plus its logic/route split.
+DATA_DELAY_RE = re.compile(
+    r"^\s*Data Path Delay:\s+([-\d.]+)ns"
+    r"(?:.*?logic\s+([-\d.]+)ns.*?route\s+([-\d.]+)ns)?")
 
 # Bracket-index pattern: matches one `[<digits>]` group. Replacing all
 # occurrences with "[*]" collapses both bit positions (`r_data_reg[3]`)
@@ -97,11 +108,16 @@ class Violation:
     source:         str
     destination:    str
     slack_ns:       float
+    prop_ns:        Optional[float] = None  # Data Path Delay (arrival/prop)
+    logic_ns:       Optional[float] = None  # logic (cell) portion of prop
+    route_ns:       Optional[float] = None  # route (net) portion of prop
+    count:          Optional[int]   = None  # raw violations collapsed (bucketize)
 
     @staticmethod
     def field_order() -> List[str]:
         return ["violation_type", "path_group", "path_type",
-                "source", "destination", "slack_ns"]
+                "source", "destination", "count", "slack_ns",
+                "prop_ns", "logic_ns", "route_ns"]
 
     def bucketized(self) -> "Violation":
         """Return a copy with bracket-indices collapsed to `[*]`."""
@@ -112,6 +128,10 @@ class Violation:
             source=BRACKET_INDEX_RE.sub("[*]", self.source),
             destination=BRACKET_INDEX_RE.sub("[*]", self.destination),
             slack_ns=self.slack_ns,
+            prop_ns=self.prop_ns,
+            logic_ns=self.logic_ns,
+            route_ns=self.route_ns,
+            count=self.count,
         )
 
 
@@ -149,6 +169,9 @@ def parse_violations(stream: TextIO,
             source=block["source"],
             destination=block["destination"],
             slack_ns=block["slack_ns"],
+            prop_ns=float(block["prop_ns"]) if "prop_ns" in block else None,
+            logic_ns=float(block["logic_ns"]) if "logic_ns" in block else None,
+            route_ns=float(block["route_ns"]) if "route_ns" in block else None,
         )
 
     for line in stream:
@@ -168,6 +191,18 @@ def parse_violations(stream: TextIO,
 
         if pending is None:
             continue  # text before the first Slack block
+
+        # Data Path Delay carries three groups (prop / logic / route); handle
+        # it separately from the single-group fields below.
+        if "prop_ns" not in pending:
+            m = DATA_DELAY_RE.match(line)
+            if m:
+                pending["prop_ns"] = m.group(1)
+                if m.group(2):
+                    pending["logic_ns"] = m.group(2)
+                if m.group(3):
+                    pending["route_ns"] = m.group(3)
+                continue
 
         # Only fill each field once per block (Vivado prints them at most
         # once anyway, but be defensive against the per-pin path detail
@@ -193,14 +228,22 @@ def parse_violations(stream: TextIO,
 
 
 def bucketize_worst(violations: List[Violation]) -> List[Violation]:
-    """Collapse `[<digits>]` indices and keep the worst slack per bucket."""
+    """Collapse `[<digits>]` indices and keep the worst slack per bucket.
+
+    Each kept representative gets `count` = how many raw violations collapsed
+    into its bucket, so a 256-endpoint hot spot is distinguishable from a 2.
+    """
     buckets: dict = {}
+    counts: dict = {}
     for v in violations:
         b = v.bucketized()
         key = (b.violation_type, b.source, b.destination)
+        counts[key] = counts.get(key, 0) + 1
         existing = buckets.get(key)
         if existing is None or b.slack_ns < existing.slack_ns:
             buckets[key] = b
+    for key, b in buckets.items():
+        b.count = counts[key]
     return list(buckets.values())
 
 
@@ -208,9 +251,16 @@ def bucketize_worst(violations: List[Violation]) -> List[Violation]:
 # Output
 # ---------------------------------------------------------------------------
 
+def _fmt(x: Optional[float]) -> str:
+    return f"{x:.3f}" if x is not None else ""
+
+
 def _row(v: Violation) -> List[str]:
     return [v.violation_type, v.path_group, v.path_type,
-            v.source, v.destination, f"{v.slack_ns:.3f}"]
+            v.source, v.destination,
+            str(v.count) if v.count is not None else "",
+            f"{v.slack_ns:.3f}",
+            _fmt(v.prop_ns), _fmt(v.logic_ns), _fmt(v.route_ns)]
 
 
 def write_tabular(rows: List[Violation], out: TextIO, delimiter: str) -> None:

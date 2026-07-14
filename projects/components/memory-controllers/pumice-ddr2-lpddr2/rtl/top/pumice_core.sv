@@ -148,18 +148,12 @@ module pumice_core
     localparam int WD_DW  = 1 + DFI_STRB_WIDTH + DFI_DATA_WIDTH;
     localparam int RD_DW  = 1 + 2 + DFI_DATA_WIDTH;
 
-    // ---- scheduler <-> IFC CAM nets ----
-    logic [N_LU-1:0]           w_wr_lu_v, w_wr_lu_hit, w_rd_lu_v, w_rd_lu_hit;
-    logic [N_LU*BKW-1:0]       w_wr_lu_bank, w_rd_lu_bank;
-    logic [N_LU*ROW_WIDTH-1:0] w_wr_lu_row,  w_rd_lu_row;
-    logic [N_LU*PTRW-1:0]      w_wr_lu_slot, w_rd_lu_slot;
-    logic [N_LU*COL_WIDTH-1:0] w_wr_lu_col,  w_rd_lu_col;
-    logic [N_LU*IW-1:0]        w_wr_lu_id,   w_rd_lu_id;
-    logic [N_LU*AGE_WIDTH-1:0] w_wr_lu_age,  w_rd_lu_age;
-    logic                      w_wr_old_v, w_rd_old_v;
-    logic [BKW-1:0]            w_wr_old_bank, w_rd_old_bank;
-    logic [ROW_WIDTH-1:0]      w_wr_old_row,  w_rd_old_row;
-    logic [PTRW-1:0]           w_wr_old_slot, w_rd_old_slot;
+    // ---- scheduler <-> IFC CAM per-entry vectors ----
+    logic [NUM_ENTRIES-1:0]             w_wr_sch_v,     w_rd_sch_v;
+    logic [NUM_ENTRIES*BKW-1:0]         w_wr_sch_bank,  w_rd_sch_bank;
+    logic [NUM_ENTRIES*ROW_WIDTH-1:0]   w_wr_sch_row,   w_rd_sch_row;
+    logic [NUM_ENTRIES*COL_WIDTH-1:0]   w_wr_sch_col,   w_rd_sch_col;
+    logic [NUM_ENTRIES*NUM_ENTRIES-1:0] w_wr_sch_older, w_rd_sch_older;
     logic                      w_wr_commit_v, w_wr_commit_rdy;
     logic [PTRW-1:0]           w_wr_commit_slot;
     logic                      w_rd_issue_v, w_rd_issue_rdy;
@@ -216,26 +210,16 @@ module pumice_core
         .s_axi_rid(s_axi_rid), .s_axi_rdata(s_axi_rdata), .s_axi_rresp(s_axi_rresp),
         .s_axi_rlast(s_axi_rlast), .s_axi_ruser(s_axi_ruser),
         .s_axi_rvalid(s_axi_rvalid), .s_axi_rready(s_axi_rready),
-        // wr CAM sched ports
-        .wr_oldest_valid_o(w_wr_old_v), .wr_oldest_bank_o(w_wr_old_bank),
-        .wr_oldest_row_o(w_wr_old_row), .wr_oldest_col_o(), .wr_oldest_id_o(),
-        .wr_oldest_slot_o(w_wr_old_slot),
-        .wr_sched_lu_valid_i(w_wr_lu_v), .wr_sched_lu_bank_i(w_wr_lu_bank),
-        .wr_sched_lu_row_i(w_wr_lu_row), .wr_sched_lu_hit_o(w_wr_lu_hit),
-        .wr_sched_lu_slot_o(w_wr_lu_slot), .wr_sched_lu_col_o(w_wr_lu_col),
-        .wr_sched_lu_id_o(w_wr_lu_id), .wr_sched_lu_age_o(w_wr_lu_age),
+        // wr CAM per-entry vectors + commit
+        .wr_sch_valid_o(w_wr_sch_v), .wr_sch_bank_o(w_wr_sch_bank), .wr_sch_row_o(w_wr_sch_row),
+        .wr_sch_col_o(w_wr_sch_col), .wr_sch_older_o(w_wr_sch_older),
         .wr_commit_valid_i(w_wr_commit_v), .wr_commit_ready_o(w_wr_commit_rdy),
         .wr_commit_slot_i(w_wr_commit_slot),
         .wr_cm_rd_valid_o(w_cm_v), .wr_cm_rd_ready_i(w_cm_rdy),
         .wr_cm_rd_data_o(w_cm_data), .wr_cm_rd_strb_o(w_cm_strb), .wr_cm_rd_last_o(w_cm_last),
-        // rd CAM sched ports
-        .rd_oldest_valid_o(w_rd_old_v), .rd_oldest_bank_o(w_rd_old_bank),
-        .rd_oldest_row_o(w_rd_old_row), .rd_oldest_col_o(), .rd_oldest_id_o(),
-        .rd_oldest_slot_o(w_rd_old_slot),
-        .rd_sched_lu_valid_i(w_rd_lu_v), .rd_sched_lu_bank_i(w_rd_lu_bank),
-        .rd_sched_lu_row_i(w_rd_lu_row), .rd_sched_lu_hit_o(w_rd_lu_hit),
-        .rd_sched_lu_slot_o(w_rd_lu_slot), .rd_sched_lu_col_o(w_rd_lu_col),
-        .rd_sched_lu_id_o(w_rd_lu_id), .rd_sched_lu_age_o(w_rd_lu_age),
+        // rd CAM per-entry vectors + issue
+        .rd_sch_valid_o(w_rd_sch_v), .rd_sch_bank_o(w_rd_sch_bank), .rd_sch_row_o(w_rd_sch_row),
+        .rd_sch_col_o(w_rd_sch_col), .rd_sch_older_o(w_rd_sch_older),
         .rd_issue_valid_i(w_rd_issue_v), .rd_issue_ready_o(w_rd_issue_rdy),
         .rd_issue_slot_i(w_rd_issue_slot),
         .rd_dfi_ret_valid_i(w_ret_v), .rd_dfi_ret_ready_o(w_ret_rdy),
@@ -262,21 +246,16 @@ module pumice_core
         .t_mrd_wait_i(t_mrd_wait_i), .t_rp_wait_i(t_rp_wait_i), .t_rfc_wait_i(t_rfc_wait_i),
         .dfi_init_start_o(w_init_start), .dfi_init_complete_i(w_init_complete),
         .init_done_o(init_done_o), .cl_o(cl_o), .cwl_o(cwl_o), .bl_o(bl_o),
-        // wr CAM oldest + commit
-        .wr_oldest_valid_i(w_wr_old_v), .wr_oldest_bank_i(w_wr_old_bank),
-        .wr_oldest_row_i(w_wr_old_row), .wr_oldest_slot_i(w_wr_old_slot),
+        // wr CAM per-entry vectors + commit
+        .wr_sch_valid_i(w_wr_sch_v), .wr_sch_bank_i(w_wr_sch_bank), .wr_sch_row_i(w_wr_sch_row),
+        .wr_sch_col_i(w_wr_sch_col), .wr_sch_older_i(w_wr_sch_older),
+        .wr_commit_ready_i(w_wr_commit_rdy),
         .wr_commit_valid_o(w_wr_commit_v), .wr_commit_slot_o(w_wr_commit_slot),
-        // rd CAM oldest + issue
-        .rd_oldest_valid_i(w_rd_old_v), .rd_oldest_bank_i(w_rd_old_bank),
-        .rd_oldest_row_i(w_rd_old_row), .rd_oldest_slot_i(w_rd_old_slot),
+        // rd CAM per-entry vectors + issue
+        .rd_sch_valid_i(w_rd_sch_v), .rd_sch_bank_i(w_rd_sch_bank), .rd_sch_row_i(w_rd_sch_row),
+        .rd_sch_col_i(w_rd_sch_col), .rd_sch_older_i(w_rd_sch_older),
+        .rd_issue_ready_i(w_rd_issue_rdy),
         .rd_issue_valid_o(w_rd_issue_v), .rd_issue_slot_o(w_rd_issue_slot),
-        // scheduler lookup ports (wired to the IFC's wr/rd_sched_lu_*)
-        .wr_lu_valid_o(w_wr_lu_v), .wr_lu_bank_o(w_wr_lu_bank), .wr_lu_row_o(w_wr_lu_row),
-        .wr_lu_hit_i(w_wr_lu_hit), .wr_lu_slot_i(w_wr_lu_slot), .wr_lu_col_i(w_wr_lu_col),
-        .wr_lu_id_i(w_wr_lu_id), .wr_lu_age_i(w_wr_lu_age),
-        .rd_lu_valid_o(w_rd_lu_v), .rd_lu_bank_o(w_rd_lu_bank), .rd_lu_row_o(w_rd_lu_row),
-        .rd_lu_hit_i(w_rd_lu_hit), .rd_lu_slot_i(w_rd_lu_slot), .rd_lu_col_i(w_rd_lu_col),
-        .rd_lu_id_i(w_rd_lu_id), .rd_lu_age_i(w_rd_lu_age),
         // command stream out
         .cmd_valid_o(w_cmd_v), .cmd_ready_i(w_cmd_rdy), .cmd_op_o(w_cmd_op),
         .cmd_rank_o(w_cmd_rank), .cmd_bank_o(w_cmd_bank), .cmd_row_o(w_cmd_row),

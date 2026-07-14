@@ -63,12 +63,12 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     dut.refresh_req_i.value = 0
 
     # ===== 3. READ-PRIORITY row-hit: RD wins over WR when both hit =====
-    # bank 5 open @ row 0x100; both a RD and WR hit; RD must be picked.
+    # bank 5 open @ row 0x100; both a RD and WR entry hit it; RD must be picked.
     tb.set_bank_bits(dut.bank_row_active_i, {5: 1})
     tb.set_bank_bits(dut.bank_rdwr_ready_i, {5: 1})
     tb.set_open_rows({5: 0x100})
-    tb.set_lu('rd', {5: (1, 4, 0x40, 0xA, 10)})
-    tb.set_lu('wr', {5: (1, 2, 0x40, 0xB, 99)})   # older WR, but RD has priority
+    tb.set_entries('rd', {4: (5, 0x100, 0x40, 10)})
+    tb.set_entries('wr', {2: (5, 0x100, 0x40, 99)})   # older WR, but RD has priority
     await tb.settle()
     p = tb.picked(); s = tb.strobes()
     assert p['op'] == OP_RD and p['bank'] == 5 and p['col'] == 0x40, f"read-priority pick: {p}"
@@ -76,23 +76,23 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     assert s['wr'] == 0 and s['wr_commit'] == 0, "WR must not fire under read-priority"
 
     # ===== 4. OLDEST tie-break among RD candidates =====
-    # banks 1 and 6 both RD-hit; bank 6 older (higher age) -> wins.
+    # banks 1 and 6 both RD-hit; slot 7 (bank 6) older (higher rel age) -> wins.
     tb._drive_idle(); dut.init_done_i.value = 1
     tb.set_bank_bits(dut.bank_row_active_i, {1: 1, 6: 1})
     tb.set_bank_bits(dut.bank_rdwr_ready_i, {1: 1, 6: 1})
     tb.set_open_rows({1: 0x11, 6: 0x66})
-    tb.set_lu('rd', {1: (1, 3, 0x08, 0xC, 20), 6: (1, 7, 0x09, 0xD, 55)})
+    tb.set_entries('rd', {3: (1, 0x11, 0x08, 20), 7: (6, 0x66, 0x09, 55)})
     await tb.settle()
     p = tb.picked(); s = tb.strobes()
     assert p['op'] == OP_RD and p['bank'] == 6 and s['rd_issue_slot'] == 7, \
-        f"oldest tie-break should pick bank6 (age55): {p} {s}"
+        f"oldest tie-break should pick bank6 slot7 (age55): {p} {s}"
 
     # ===== 5. WRITE pick when no RD candidate =====
     tb._drive_idle(); dut.init_done_i.value = 1
     tb.set_bank_bits(dut.bank_row_active_i, {4: 1})
     tb.set_bank_bits(dut.bank_rdwr_ready_i, {4: 1})
     tb.set_open_rows({4: 0x222})
-    tb.set_lu('wr', {4: (1, 5, 0x1C, 0xE, 30)})
+    tb.set_entries('wr', {5: (4, 0x222, 0x1C, 30)})
     await tb.settle()
     p = tb.picked(); s = tb.strobes()
     assert p['op'] == OP_WR and p['bank'] == 4 and p['col'] == 0x1C, f"write pick: {p}"
@@ -105,15 +105,14 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     assert p['ap'] == 1 and p['op'] == 0x5, f"CLOSE policy should emit WRA (ap=1): {p}"
     dut.page_policy_i.value = PAGE_OPEN
 
-    # ===== 7. ACT fallback toward oldest pending op (no row-hit) =====
+    # ===== 7. ACTIVATE the pending op's idle bank (no row open yet) =====
     tb._drive_idle(); dut.init_done_i.value = 1
     tb.set_bank_bits(dut.bank_act_ready_i, {2: 1})
-    dut.rd_oldest_valid_i.value = 1
-    dut.rd_oldest_bank_i.value = 2
-    dut.rd_oldest_row_i.value = 0x333
+    # a pending read in an idle (not row_active) bank -> arbiter ACTs it.
+    tb.set_entries('rd', {0: (2, 0x333, 0x00, 40)})
     await tb.settle()
     p = tb.picked(); s = tb.strobes()
-    assert p['op'] == OP_ACT and p['bank'] == 2 and p['row'] == 0x333, f"ACT fallback: {p}"
+    assert p['op'] == OP_ACT and p['bank'] == 2 and p['row'] == 0x333, f"ACT idle bank: {p}"
     assert s['act'] == 1, f"act strobe: {s}"
 
     # ===== 8. cmd_ready backpressure: pick shown, but NO side-effect strobes =====
@@ -133,21 +132,44 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     tb.set_open_rows({1: 0x11, 6: 0x66})
     dut.cmd_ready_i.value = 1
     fired = []
-    live = {1: (1, 3, 0x08, 0xC, 20), 6: (1, 7, 0x09, 0xD, 55)}  # bank -> lu tuple
+    live = {3: (1, 0x11, 0x08, 20), 7: (6, 0x66, 0x09, 55)}  # slot -> entry tuple
     for _ in range(2):
-        tb.set_lu('rd', dict(live))
+        tb.set_entries('rd', dict(live))
         await tb.settle()
         p = tb.picked(); s = tb.strobes()
         if s['rd']:
             fired.append(p['bank'])
-            live.pop(p['bank'], None)      # retire the issued bank (exclude-on-issue)
+            live.pop(s['rd_issue_slot'], None)   # retire the issued slot (exclude-on-issue)
         await RisingEdge(dut.aclk)
     assert fired == [6, 1], \
         f"expected a RD on each of 2 consecutive clocks (oldest first): got {fired}"
 
+    # ===== 10. BANK-PARALLEL activate: consecutive ACTs to DIFFERENT idle banks =====
+    # The bubble fix: two pending ops in different idle banks must get ACTed on
+    # back-to-back cycles (their tRCDs overlap) instead of the arbiter stalling on
+    # one bank. Mock the CAM/timers: an ACTed bank becomes row_active next cycle.
+    tb._drive_idle(); dut.init_done_i.value = 1
+    tb.set_bank_bits(dut.bank_act_ready_i, {2: 1, 3: 1})
+    tb.set_entries('rd', {0: (2, 0x333, 0x00, 20), 1: (3, 0x444, 0x00, 55)})
+    dut.cmd_ready_i.value = 1
+    acts = []
+    for _cyc in range(3):
+        # Registered bank state: banks ACTed in PRIOR cycles are row_active now.
+        # (Apply at cycle start so it is stable through the settle->edge window,
+        # exactly like the real bank_timers — never mutate mid-cycle or the
+        # combinational pick/guard re-evaluate against a state that hasn't clocked.)
+        tb.set_bank_bits(dut.bank_row_active_i, {b: 1 for b in acts})
+        await tb.settle()
+        p = tb.picked(); s = tb.strobes()
+        if s['act'] and p['bank'] not in acts:
+            acts.append(p['bank'])
+        await RisingEdge(dut.aclk)
+    assert sorted(acts) == [2, 3] and acts[0] == 3, \
+        f"bank-parallel: expect ACT to both idle banks on consecutive clocks, oldest(3) first: {acts}"
+
     tb.log.info("PASS: init, refresh(PRE->REF+grant), read-priority, oldest "
-                "tie-break, write pick, CLOSE auto-PRE, ACT fallback, backpressure, "
-                "1-cmd/clock consecutive columns")
+                "tie-break, write pick, CLOSE auto-PRE, ACT idle bank, backpressure, "
+                "1-cmd/clock consecutive columns, bank-parallel activate")
 
 
 def test_pumice_cmd_arbiter(request):

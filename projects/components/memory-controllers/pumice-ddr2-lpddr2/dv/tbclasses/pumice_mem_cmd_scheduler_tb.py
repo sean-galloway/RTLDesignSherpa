@@ -95,57 +95,46 @@ class PumiceMemCmdSchedulerTB(TBBase):
         self.dut.t_rp_wait_i.value = 0
         self.dut.t_rfc_wait_i.value = 0
         self.dut.dfi_init_complete_i.value = 0
-        # CAM lookup / oldest inputs (driven by _cam_model)
+        # CAM per-entry vector inputs (driven by _cam_model)
         for pfx in ('wr', 'rd'):
-            getattr(self.dut, f'{pfx}_lu_hit_i').value = 0
-            getattr(self.dut, f'{pfx}_lu_slot_i').value = 0
-            getattr(self.dut, f'{pfx}_lu_col_i').value = 0
-            getattr(self.dut, f'{pfx}_lu_id_i').value = 0
-            getattr(self.dut, f'{pfx}_lu_age_i').value = 0
-            getattr(self.dut, f'{pfx}_oldest_valid_i').value = 0
-            getattr(self.dut, f'{pfx}_oldest_bank_i').value = 0
-            getattr(self.dut, f'{pfx}_oldest_row_i').value = 0
-            getattr(self.dut, f'{pfx}_oldest_slot_i').value = 0
+            getattr(self.dut, f'{pfx}_sch_valid_i').value = 0
+            getattr(self.dut, f'{pfx}_sch_bank_i').value = 0
+            getattr(self.dut, f'{pfx}_sch_row_i').value = 0
+            getattr(self.dut, f'{pfx}_sch_col_i').value = 0
+            getattr(self.dut, f'{pfx}_sch_older_i').value = 0
         self.dut.cmd_ready_i.value = 1
+        self.dut.wr_commit_ready_i.value = 1
+        self.dut.rd_issue_ready_i.value = 1
 
-    # ---- mock CAMs: answer lookups from wr_entry/rd_entry ------------------
+    # ---- mock CAMs: expose wr_entry/rd_entry as per-entry vectors -----------
     # Model the real CAMs' scheduled/issued exclusion: the moment the arbiter
-    # commits/issues a slot, that entry is removed from sched_lu/oldest (real
+    # commits/issues a slot, that entry drops out of the schedulable set (real
     # wr r_sched / rd r_issued). So an entry whose commit/issue is firing this
-    # cycle is suppressed here, preventing re-issue with no throttle.
+    # cycle is suppressed here, preventing re-issue with no throttle. The arbiter
+    # now does the {bank,row} match itself, so the mock just places the entry's
+    # registered fields at its slot index in the sch_* vectors.
     def _apply_cam(self):
         wr_fire = int(self.dut.wr_commit_valid_o.value)
         wr_fslot = int(self.dut.wr_commit_slot_o.value)
         rd_fire = int(self.dut.rd_issue_valid_o.value)
         rd_fslot = int(self.dut.rd_issue_slot_o.value)
-        for pfx, ent in (('wr', self.wr_entry), ('rd', self.rd_entry)):
-            hit = slot = col = idv = age = 0
-            ov = ob = orow = oslot = 0
-            fired = ((pfx == 'wr' and wr_fire and ent is not None and ent['slot'] == wr_fslot)
-                     or (pfx == 'rd' and rd_fire and ent is not None and ent['slot'] == rd_fslot))
+        for pfx, ent, fire, fslot in (('wr', self.wr_entry, wr_fire, wr_fslot),
+                                      ('rd', self.rd_entry, rd_fire, rd_fslot)):
+            valid = bank = row = col = 0
+            fired = (ent is not None and fire and ent['slot'] == fslot)
             if ent is not None and not fired:
-                b = ent['bank']
-                # lookup port b responds to {bank b, its open row}: the arbiter
-                # queries with bank_open_row; the mock hits when the query row
-                # equals the entry's row. Query row = arbiter's lu_row_o[b].
-                qrow = (int(getattr(self.dut, f'{pfx}_lu_row_o').value)
-                        >> (b * self.ROW_WIDTH)) & ((1 << self.ROW_WIDTH) - 1)
-                if qrow == ent['row']:
-                    hit |= (1 << b)
-                    slot |= (ent['slot'] & ((1 << self.PTRW) - 1)) << (b * self.PTRW)
-                    col  |= (ent['col'] & ((1 << self.COL_WIDTH) - 1)) << (b * self.COL_WIDTH)
-                    idv  |= (ent['id'] & ((1 << self.AXI_ID_WIDTH) - 1)) << (b * self.AXI_ID_WIDTH)
-                    age  |= (ent['age'] & 0xFFFF) << (b * self.AGE_WIDTH)
-                ov, ob, orow, oslot = 1, ent['bank'], ent['row'], ent['slot']
-            getattr(self.dut, f'{pfx}_lu_hit_i').value = hit
-            getattr(self.dut, f'{pfx}_lu_slot_i').value = slot
-            getattr(self.dut, f'{pfx}_lu_col_i').value = col
-            getattr(self.dut, f'{pfx}_lu_id_i').value = idv
-            getattr(self.dut, f'{pfx}_lu_age_i').value = age
-            getattr(self.dut, f'{pfx}_oldest_valid_i').value = ov
-            getattr(self.dut, f'{pfx}_oldest_bank_i').value = ob
-            getattr(self.dut, f'{pfx}_oldest_row_i').value = orow
-            getattr(self.dut, f'{pfx}_oldest_slot_i').value = oslot
+                e = ent['slot']
+                valid |= (1 << e)
+                bank |= (ent['bank'] & ((1 << self.BKW) - 1)) << (e * self.BKW)
+                row  |= (ent['row']  & ((1 << self.ROW_WIDTH) - 1)) << (e * self.ROW_WIDTH)
+                col  |= (ent['col']  & ((1 << self.COL_WIDTH) - 1)) << (e * self.COL_WIDTH)
+            getattr(self.dut, f'{pfx}_sch_valid_i').value = valid
+            getattr(self.dut, f'{pfx}_sch_bank_i').value = bank
+            getattr(self.dut, f'{pfx}_sch_row_i').value = row
+            getattr(self.dut, f'{pfx}_sch_col_i').value = col
+            # single pending entry per side -> it is trivially the oldest, so the
+            # order matrix is don't-care (arg_oldest needs no OTHER masked entry).
+            getattr(self.dut, f'{pfx}_sch_older_i').value = 0
 
     async def _cam_model(self):
         while True:

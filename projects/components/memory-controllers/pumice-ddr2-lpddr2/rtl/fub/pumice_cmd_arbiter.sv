@@ -11,20 +11,30 @@
 //          is enforced via the per-bank (pumice_bank_timers) and global
 //          (global_timers) readiness inputs.
 //
+// The arbiter reads the CAMs' per-entry state as flat REGISTERED vectors
+// ({valid,bank,row,col,age} indexed by entry) and does the match + argmax
+// itself. No sched-lookup query round-trip into the CAMs, and — crucially —
+// it can ACTIVATE MANY BANKS IN PARALLEL: the fallback opens the oldest pending
+// op's row among ANY idle+ready bank, not just the single global-oldest bank.
+// That bank-parallel activation is what removes the per-transaction bubble
+// (previously bank N sat through its whole tRCD before bank N+1 was even
+// activated, serializing every access to full ACT->data latency).
+//
 // Priority per cycle:
 //   1. init      : !init_done -> forward the init_sequencer command.
 //   2. refresh   : refresh_req -> PRE active banks (one/cycle), then REF+grant.
-//   3. column    : row-hit RD/WR to an open row (bank_rdwr_ready & tCCD & turn-
-//                  around). READ-PRIORITY; OLDEST (CAM age) tie-break.
-//   4. fallback  : no ready row-hit -> ACT the oldest pending op's row (idle
-//                  bank) or PRE a bank open on the wrong row.
+//   3. column    : row-hit RD/WR to an open, tRCD-met row (READ-priority;
+//                  OLDEST CAM age tie-break). Streams at tCCD rate.
+//   4. activate  : oldest pending op whose bank is idle+act-ready -> ACT it.
+//                  Scans ALL entries, so successive cycles open DIFFERENT banks
+//                  (their tRCDs overlap) => no activate bubble.
+//   5. precharge : oldest pending op whose bank is open on the WRONG row -> PRE.
 //
 // Page policy (page_policy_i): OPEN (ap=0, rows stay open) | CLOSE (ap=1, every
-// column op auto-precharges) | HAPPY_HYBRID (v1: treated as OPEN — page_predictor
-// hook is a TODO).
+// column op auto-precharges) | HAPPY_HYBRID (v1: treated as OPEN).
 //
-// v1 scope: single-rank pick (rank 0); write-drain watermark + multi-rank +
-// powerdown are TODO. Documentation: rtl/PUMICE_MEM_CMD_SCHEDULER_UARCH.md
+// v1 scope: single-rank pick (rank 0). Documentation:
+// rtl/PUMICE_MEM_CMD_SCHEDULER_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
@@ -32,14 +42,13 @@
 module pumice_cmd_arbiter
     import pumice_pkg::*;
 #(
-    parameter int NUM_RANKS  = 1,
-    parameter int NUM_BANKS  = 8,
-    parameter int ROW_WIDTH  = 14,
-    parameter int COL_WIDTH  = 10,
+    parameter int NUM_RANKS   = 1,
+    parameter int NUM_BANKS   = 8,
+    parameter int ROW_WIDTH   = 14,
+    parameter int COL_WIDTH   = 10,
     parameter int AXI_ID_WIDTH = 8,
     parameter int NUM_ENTRIES = 8,
-    parameter int AGE_WIDTH  = 16,
-    parameter int N_LU       = NUM_BANKS,          // one lookup per bank
+    parameter int AGE_WIDTH   = 16,
     parameter int RKW  = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int BKW  = $clog2(NUM_BANKS),
     parameter int PTRW = $clog2(NUM_ENTRIES),
@@ -75,37 +84,25 @@ module pumice_cmd_arbiter
     input  logic                      trtw_ok_i,
     input  logic                      tccd_ok_i,
 
-    // ---- wr CAM sched lookup (drive queries, read results) ----
-    output logic [N_LU-1:0]           wr_lu_valid_o,
-    output logic [N_LU*BKW-1:0]       wr_lu_bank_o,
-    output logic [N_LU*ROW_WIDTH-1:0] wr_lu_row_o,
-    input  logic [N_LU-1:0]           wr_lu_hit_i,
-    input  logic [N_LU*PTRW-1:0]      wr_lu_slot_i,
-    input  logic [N_LU*COL_WIDTH-1:0] wr_lu_col_i,
-    input  logic [N_LU*IW-1:0]        wr_lu_id_i,
-    input  logic [N_LU*AGE_WIDTH-1:0] wr_lu_age_i,
-    input  logic                      wr_oldest_valid_i,
-    input  logic [BKW-1:0]            wr_oldest_bank_i,
-    input  logic [ROW_WIDTH-1:0]      wr_oldest_row_i,
-    input  logic [PTRW-1:0]           wr_oldest_slot_i,
-    output logic                      wr_commit_valid_o,
-    output logic [PTRW-1:0]           wr_commit_slot_o,
+    // ---- wr CAM per-entry vectors (registered) + commit ----
+    input  logic [NUM_ENTRIES-1:0]              wr_sch_valid_i,
+    input  logic [NUM_ENTRIES*BKW-1:0]          wr_sch_bank_i,
+    input  logic [NUM_ENTRIES*ROW_WIDTH-1:0]    wr_sch_row_i,
+    input  logic [NUM_ENTRIES*COL_WIDTH-1:0]    wr_sch_col_i,
+    input  logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  wr_sch_older_i,
+    input  logic                                wr_commit_ready_i,   // wr CAM drain-FIFO room
+    output logic                                wr_commit_valid_o,
+    output logic [PTRW-1:0]                     wr_commit_slot_o,
 
-    // ---- rd CAM sched lookup ----
-    output logic [N_LU-1:0]           rd_lu_valid_o,
-    output logic [N_LU*BKW-1:0]       rd_lu_bank_o,
-    output logic [N_LU*ROW_WIDTH-1:0] rd_lu_row_o,
-    input  logic [N_LU-1:0]           rd_lu_hit_i,
-    input  logic [N_LU*PTRW-1:0]      rd_lu_slot_i,
-    input  logic [N_LU*COL_WIDTH-1:0] rd_lu_col_i,
-    input  logic [N_LU*IW-1:0]        rd_lu_id_i,
-    input  logic [N_LU*AGE_WIDTH-1:0] rd_lu_age_i,
-    input  logic                      rd_oldest_valid_i,
-    input  logic [BKW-1:0]            rd_oldest_bank_i,
-    input  logic [ROW_WIDTH-1:0]      rd_oldest_row_i,
-    input  logic [PTRW-1:0]           rd_oldest_slot_i,
-    output logic                      rd_issue_valid_o,
-    output logic [PTRW-1:0]           rd_issue_slot_o,
+    // ---- rd CAM per-entry vectors (registered) + issue ----
+    input  logic [NUM_ENTRIES-1:0]              rd_sch_valid_i,
+    input  logic [NUM_ENTRIES*BKW-1:0]          rd_sch_bank_i,
+    input  logic [NUM_ENTRIES*ROW_WIDTH-1:0]    rd_sch_row_i,
+    input  logic [NUM_ENTRIES*COL_WIDTH-1:0]    rd_sch_col_i,
+    input  logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  rd_sch_older_i,
+    input  logic                                rd_issue_ready_i,    // rd CAM issue-FIFO room
+    output logic                                rd_issue_valid_o,
+    output logic [PTRW-1:0]                     rd_issue_slot_o,
 
     // ---- event strobes to bank + global timers ----
     output logic                      evt_act_o,
@@ -139,61 +136,102 @@ module pumice_cmd_arbiter
     // stateless combinational arbiter would re-issue ACT/PRE to the same bank
     // before the timers reflect it. Guard a bank for 2 cycles after issuing an
     // ACT/PRE to it. (Column ops self-limit: the CAM retires the entry on
-    // commit/issue, so no guard needed there.)
+    // commit/issue, so sch_valid drops the next cycle => no re-issue.)
     logic [NUM_BANKS-1:0] r_guard0, r_guard1;
     logic [NUM_BANKS-1:0] w_guarded;
     assign w_guarded = r_guard0 | r_guard1;
-    // NOTE: no global column guard here. Both CAMs exclude a just-committed/
-    // issued slot from sched_lu/oldest the next cycle (wr r_sched, rd r_issued),
-    // so the arbiter never re-issues the same slot. The shared-DQ-bus occupancy
-    // (a BL burst owns the DQ bus for BL/DFI_RATE dfi cycles) is a dfi_clk-domain
-    // constraint enforced downstream in pumice_dfi_cmd_path (COL_BURST_CYC), not
-    // here — the CDC decouples aclk command issue from the dfi_clk DQ timing.
 
-    // ---- drive the per-bank lookups: query {bank j, its open row} ----------
+    // ---- per-entry field extractors --------------------------------------
+    function automatic logic [BKW-1:0]       f_bank(input logic [NUM_ENTRIES*BKW-1:0] v, input logic [PTRW-1:0] e);
+        return v[e*BKW +: BKW];
+    endfunction
+    function automatic logic [ROW_WIDTH-1:0] f_row (input logic [NUM_ENTRIES*ROW_WIDTH-1:0] v, input logic [PTRW-1:0] e);
+        return v[e*ROW_WIDTH +: ROW_WIDTH];
+    endfunction
+    function automatic logic [COL_WIDTH-1:0] f_col (input logic [NUM_ENTRIES*COL_WIDTH-1:0] v, input logic [PTRW-1:0] e);
+        return v[e*COL_WIDTH +: COL_WIDTH];
+    endfunction
+
+    // ---- classify each entry into column / activate / precharge -----------
+    // Mutually exclusive per entry: an open bank is either on the right row
+    // (column) or the wrong row (precharge); a closed bank activates.
+    logic [NUM_ENTRIES-1:0] rd_col_m, rd_act_m, rd_pre_m;
+    logic [NUM_ENTRIES-1:0] wr_col_m, wr_act_m, wr_pre_m;
     always_comb begin
-        for (int j = 0; j < N_LU; j++) begin
-            wr_lu_valid_o[j]                     = bank_row_active_i[RK0][j];
-            wr_lu_bank_o[j*BKW +: BKW]           = BKW'(j);
-            wr_lu_row_o[j*ROW_WIDTH +: ROW_WIDTH] = bank_open_row_i[RK0][j];
-            rd_lu_valid_o[j]                     = bank_row_active_i[RK0][j];
-            rd_lu_bank_o[j*BKW +: BKW]           = BKW'(j);
-            rd_lu_row_o[j*ROW_WIDTH +: ROW_WIDTH] = bank_open_row_i[RK0][j];
+        rd_col_m = '0; rd_act_m = '0; rd_pre_m = '0;
+        wr_col_m = '0; wr_act_m = '0; wr_pre_m = '0;
+        for (int e = 0; e < NUM_ENTRIES; e++) begin
+            automatic logic [PTRW-1:0]      ei = PTRW'(e);
+            automatic logic [BKW-1:0]       rb = f_bank(rd_sch_bank_i, ei);
+            automatic logic [BKW-1:0]       wb = f_bank(wr_sch_bank_i, ei);
+            automatic logic                 rhit = bank_row_active_i[RK0][rb]
+                                                   && (f_row(rd_sch_row_i, ei) == bank_open_row_i[RK0][rb]);
+            automatic logic                 whit = bank_row_active_i[RK0][wb]
+                                                   && (f_row(wr_sch_row_i, ei) == bank_open_row_i[RK0][wb]);
+            // READ entry. The column (RD) commit enqueues into the rd CAM's
+            // issue-order FIFO, so it may ONLY fire when that FIFO has room
+            // (rd_issue_ready_i) — otherwise the read would issue to DRAM but
+            // the CAM would drop it (double-issue + misrouted return). ACT/PRE
+            // don't touch the CAM, so they stay free -> the arbiter does other
+            // work while the FIFO is full (no bubble).
+            if (rd_sch_valid_i[e]) begin
+                rd_col_m[e] = rhit && bank_rdwr_ready_i[RK0][rb] && tccd_ok_i && twtr_ok_i
+                              && rd_issue_ready_i;
+                rd_act_m[e] = !bank_row_active_i[RK0][rb] && !w_guarded[rb]
+                              && bank_act_ready_i[RK0][rb] && tfaw_ok_i[RK0] && trrd_ok_i[RK0];
+                rd_pre_m[e] = bank_row_active_i[RK0][rb] && !w_guarded[rb] && !rhit
+                              && bank_pre_ready_i[RK0][rb];
+            end
+            // WRITE entry. The column (WR) commit enqueues into the wr CAM's
+            // drain FIFO, so gate it on drain-FIFO room (wr_commit_ready_i) —
+            // else the write issues to DRAM but its data never drains (stale
+            // DRAM) and the slot re-issues. ACT/PRE stay free.
+            if (wr_sch_valid_i[e]) begin
+                wr_col_m[e] = whit && bank_rdwr_ready_i[RK0][wb] && tccd_ok_i && trtw_ok_i
+                              && wr_commit_ready_i;
+                wr_act_m[e] = !bank_row_active_i[RK0][wb] && !w_guarded[wb]
+                              && bank_act_ready_i[RK0][wb] && tfaw_ok_i[RK0] && trrd_ok_i[RK0];
+                wr_pre_m[e] = bank_row_active_i[RK0][wb] && !w_guarded[wb] && !whit
+                              && bank_pre_ready_i[RK0][wb];
+            end
         end
     end
 
-    // ---- scan for oldest ready row-hit RD and WR ---------------------------
-    // A hit is issuable when the bank is column-ready and the shared-bus
-    // turnaround/pacing timers allow it. OLDEST (max CAM rel-age) wins.
-    logic            w_rd_found, w_wr_found;
-    logic [BKW-1:0]  w_rd_bank,  w_wr_bank;
-    logic [PTRW-1:0] w_rd_slot,  w_wr_slot;
-    logic [COL_WIDTH-1:0] w_rd_col, w_wr_col;
-    logic [AGE_WIDTH-1:0] w_rd_best, w_wr_best;
-
-    always_comb begin
-        w_rd_found = 1'b0; w_rd_bank = '0; w_rd_slot = '0; w_rd_col = '0; w_rd_best = '0;
-        w_wr_found = 1'b0; w_wr_bank = '0; w_wr_slot = '0; w_wr_col = '0; w_wr_best = '0;
-        for (int j = 0; j < N_LU; j++) begin
-            automatic logic [AGE_WIDTH-1:0] rd_age = rd_lu_age_i[j*AGE_WIDTH +: AGE_WIDTH];
-            automatic logic [AGE_WIDTH-1:0] wr_age = wr_lu_age_i[j*AGE_WIDTH +: AGE_WIDTH];
-            // RD candidate
-            if (rd_lu_hit_i[j] && bank_rdwr_ready_i[RK0][j] && tccd_ok_i && twtr_ok_i) begin
-                if (!w_rd_found || rd_age > w_rd_best) begin
-                    w_rd_found = 1'b1;  w_rd_best = rd_age;  w_rd_bank = BKW'(j);
-                    w_rd_slot  = rd_lu_slot_i[j*PTRW +: PTRW];
-                    w_rd_col   = rd_lu_col_i [j*COL_WIDTH +: COL_WIDTH];
-                end
-            end
-            // WR candidate
-            if (wr_lu_hit_i[j] && bank_rdwr_ready_i[RK0][j] && tccd_ok_i && trtw_ok_i) begin
-                if (!w_wr_found || wr_age > w_wr_best) begin
-                    w_wr_found = 1'b1;  w_wr_best = wr_age;  w_wr_bank = BKW'(j);
-                    w_wr_slot  = wr_lu_slot_i[j*PTRW +: PTRW];
-                    w_wr_col   = wr_lu_col_i [j*COL_WIDTH +: COL_WIDTH];
-                end
-            end
+    // ---- oldest-in-mask via the age-order matrix : returns {found, slot} ----
+    // Entry i is the oldest of `mask` iff it is masked AND older than every
+    // OTHER masked entry (older[i][j] for all masked j != i). With a total
+    // insertion order exactly one entry qualifies -> `is_old` is one-hot. All
+    // 1-bit ops (an N-input AND per entry) — no wide age compares.
+    function automatic logic [PTRW:0] arg_oldest(
+        input logic [NUM_ENTRIES-1:0]              mask,
+        input logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  older
+    );
+        logic                   found;
+        logic [PTRW-1:0]        slot;
+        logic [NUM_ENTRIES-1:0] is_old;
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            automatic logic [NUM_ENTRIES-1:0] orow = older[i*NUM_ENTRIES +: NUM_ENTRIES];
+            automatic logic ge_all = 1'b1;
+            for (int j = 0; j < NUM_ENTRIES; j++)
+                if ((j != i) && mask[j] && !orow[j]) ge_all = 1'b0;
+            is_old[i] = mask[i] && ge_all;
         end
+        found = |is_old;
+        slot  = '0;
+        for (int i = NUM_ENTRIES-1; i >= 0; i--)
+            if (is_old[i]) slot = PTRW'(i);
+        return {found, slot};
+    endfunction
+
+    logic            rd_col_f, wr_col_f, rd_act_f, wr_act_f, rd_pre_f, wr_pre_f;
+    logic [PTRW-1:0] rd_col_s, wr_col_s, rd_act_s, wr_act_s, rd_pre_s, wr_pre_s;
+    always_comb begin
+        {rd_col_f, rd_col_s} = arg_oldest(rd_col_m, rd_sch_older_i);
+        {wr_col_f, wr_col_s} = arg_oldest(wr_col_m, wr_sch_older_i);
+        {rd_act_f, rd_act_s} = arg_oldest(rd_act_m, rd_sch_older_i);
+        {wr_act_f, wr_act_s} = arg_oldest(wr_act_m, wr_sch_older_i);
+        {rd_pre_f, rd_pre_s} = arg_oldest(rd_pre_m, rd_sch_older_i);
+        {wr_pre_f, wr_pre_s} = arg_oldest(wr_pre_m, wr_sch_older_i);
     end
 
     // ---- refresh: pick the lowest active bank that can precharge ------------
@@ -208,18 +246,6 @@ module pumice_cmd_arbiter
                 w_rfsh_pre_found = 1'b1;
                 w_rfsh_pre_bank  = BKW'(j);
             end
-    end
-
-    // ---- fallback target (read-priority): oldest pending op ----------------
-    logic            w_fb_valid;
-    logic [BKW-1:0]  w_fb_bank;
-    logic [ROW_WIDTH-1:0] w_fb_row;
-    always_comb begin
-        if (rd_oldest_valid_i) begin
-            w_fb_valid = 1'b1; w_fb_bank = rd_oldest_bank_i; w_fb_row = rd_oldest_row_i;
-        end else begin
-            w_fb_valid = wr_oldest_valid_i; w_fb_bank = wr_oldest_bank_i; w_fb_row = wr_oldest_row_i;
-        end
     end
 
     // ========================================================================
@@ -258,30 +284,34 @@ module pumice_cmd_arbiter
             end else begin
                 w_valid = 1'b1; w_op = OP_REF; w_grant = 1'b1;
             end
-        end else if (w_rd_found) begin
+        end else if (rd_col_f) begin
             // 3a. READ row-hit (read-priority).
             w_valid = 1'b1; w_op = w_ap ? OP_RDA : OP_RD;
-            w_bank = w_rd_bank; w_col = w_rd_col; w_ap_out = w_ap;
-            w_do_rd = 1'b1; w_rd_issue = 1'b1; w_issue_slot = w_rd_slot;
-        end else if (w_wr_found) begin
+            w_bank = f_bank(rd_sch_bank_i, rd_col_s); w_col = f_col(rd_sch_col_i, rd_col_s);
+            w_ap_out = w_ap; w_do_rd = 1'b1; w_rd_issue = 1'b1; w_issue_slot = rd_col_s;
+        end else if (wr_col_f) begin
             // 3b. WRITE row-hit.
             w_valid = 1'b1; w_op = w_ap ? OP_WRA : OP_WR;
-            w_bank = w_wr_bank; w_col = w_wr_col; w_ap_out = w_ap;
-            w_do_wr = 1'b1; w_wr_commit = 1'b1; w_commit_slot = w_wr_slot;
-        end else if (w_fb_valid) begin
-            // 4. FALLBACK — open the oldest op's row, or close a conflicting row.
-            //    Guarded banks (recent ACT/PRE) are skipped so we don't re-issue
-            //    before the timers reflect the previous command.
-            if (!bank_row_active_i[RK0][w_fb_bank] && !w_guarded[w_fb_bank]
-                && bank_act_ready_i[RK0][w_fb_bank] && tfaw_ok_i[RK0] && trrd_ok_i[RK0]) begin
-                w_valid = 1'b1; w_op = OP_ACT; w_bank = w_fb_bank; w_row = w_fb_row;
-                w_do_act = 1'b1;
-            end else if (bank_row_active_i[RK0][w_fb_bank] && !w_guarded[w_fb_bank]
-                         && (bank_open_row_i[RK0][w_fb_bank] != w_fb_row)
-                         && bank_pre_ready_i[RK0][w_fb_bank]) begin
-                w_valid = 1'b1; w_op = OP_PRE; w_bank = w_fb_bank;
-                w_do_pre = 1'b1;
-            end
+            w_bank = f_bank(wr_sch_bank_i, wr_col_s); w_col = f_col(wr_sch_col_i, wr_col_s);
+            w_ap_out = w_ap; w_do_wr = 1'b1; w_wr_commit = 1'b1; w_commit_slot = wr_col_s;
+        end else if (rd_act_f) begin
+            // 4a. ACTIVATE the oldest pending READ's idle bank (bank-parallel).
+            w_valid = 1'b1; w_op = OP_ACT;
+            w_bank = f_bank(rd_sch_bank_i, rd_act_s); w_row = f_row(rd_sch_row_i, rd_act_s);
+            w_do_act = 1'b1;
+        end else if (wr_act_f) begin
+            // 4b. ACTIVATE the oldest pending WRITE's idle bank.
+            w_valid = 1'b1; w_op = OP_ACT;
+            w_bank = f_bank(wr_sch_bank_i, wr_act_s); w_row = f_row(wr_sch_row_i, wr_act_s);
+            w_do_act = 1'b1;
+        end else if (rd_pre_f) begin
+            // 5a. PRECHARGE a bank open on the wrong row for a pending read.
+            w_valid = 1'b1; w_op = OP_PRE; w_bank = f_bank(rd_sch_bank_i, rd_pre_s);
+            w_do_pre = 1'b1;
+        end else if (wr_pre_f) begin
+            // 5b. PRECHARGE a bank open on the wrong row for a pending write.
+            w_valid = 1'b1; w_op = OP_PRE; w_bank = f_bank(wr_sch_bank_i, wr_pre_s);
+            w_do_pre = 1'b1;
         end
     end
 
@@ -327,7 +357,5 @@ module pumice_cmd_arbiter
                 r_guard0 <= (NUM_BANKS'(1) << w_bank);
         end
     )
-
-    wire unused = &{1'b0, wr_lu_id_i, rd_lu_id_i, wr_oldest_slot_i, rd_oldest_slot_i, 1'b0};
 
 endmodule : pumice_cmd_arbiter

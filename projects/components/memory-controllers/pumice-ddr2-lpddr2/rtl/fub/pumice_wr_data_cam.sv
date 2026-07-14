@@ -107,6 +107,20 @@ module pumice_wr_data_cam #(
     output logic [N_SCHED_LU*AGE_WIDTH-1:0]   sched_lu_age_o,
 
     //=========================================================================
+    // Per-entry scheduling vectors (registered fields; the scheduler does the
+    // match + argmax itself, so it can pick a row-hit column OR activate any
+    // idle bank in parallel — and there is NO cross-module lookup round-trip).
+    // Indexed by entry slot. sch_valid = schedulable (filled, not yet committed).
+    //=========================================================================
+    output logic [NUM_ENTRIES-1:0]              sch_valid_o,
+    output logic [NUM_ENTRIES*BKW-1:0]          sch_bank_o,
+    output logic [NUM_ENTRIES*ROW_WIDTH-1:0]    sch_row_o,
+    output logic [NUM_ENTRIES*COL_WIDTH-1:0]    sch_col_o,
+    // age-order matrix (flattened): bit [i*NUM_ENTRIES + j] = entry i is OLDER
+    // than entry j. 1-bit compares on the scheduler path (vs a 16-bit age key).
+    output logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  sch_older_o,
+
+    //=========================================================================
     // Commit — stream SRAM[slot] to wr_beat_sequencer, then evict on last
     //=========================================================================
     input  logic                          commit_valid_i,
@@ -150,6 +164,14 @@ module pumice_wr_data_cam #(
     logic                    r_agg   [NUM_ENTRIES];   // part of a split host burst
     logic                    r_last  [NUM_ENTRIES];   // final sub of that burst
     logic [AGE_WIDTH-1:0]    r_age_ctr;
+
+    // Age-order matrix: r_older[i][j] = entry i was inserted strictly before
+    // entry j (i is "older"). The relative order of two live entries never
+    // changes, so this is maintained on INSERT only. It replaces the
+    // free-running-age argmax key on the scheduler path with 1-bit compares;
+    // r_age/r_age_ctr/w_rel are kept only for the snarf youngest-match (which is
+    // off the scheduler/bank-timer critical path).
+    logic [NUM_ENTRIES-1:0]  r_older [NUM_ENTRIES];
 
     // SRAM slot occupancy (pre-allocator), 1 = occupied
     logic [N_SRAM_SLOTS-1:0] r_sram_occ;
@@ -301,6 +323,17 @@ module pumice_wr_data_cam #(
         end
     end
 
+    // ---- per-entry scheduling vectors (registered fields, 1-level derive) ---
+    always_comb begin
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            sch_valid_o[i]                       = r_valid[i] && r_fdone[i] && !r_sched[i];
+            sch_bank_o [i*BKW       +: BKW]      = r_bank[i];
+            sch_row_o  [i*ROW_WIDTH +: ROW_WIDTH] = r_row[i];
+            sch_col_o  [i*COL_WIDTH +: COL_WIDTH] = r_col[i];
+            sch_older_o[i*NUM_ENTRIES +: NUM_ENTRIES] = r_older[i];
+        end
+    end
+
     // ---- snarf-stream request FIFO (slots to stream, in accept order) ------
     logic            w_sq_wr_valid, w_sq_wr_ready, w_sq_rd_valid, w_sq_rd_ready;
     logic [PTRW-1:0] w_sq_rd_slot;
@@ -396,6 +429,7 @@ module pumice_wr_data_cam #(
                 r_pv[i]    <= 1'b0;
                 r_fdone[i] <= 1'b0;
                 r_sched[i] <= 1'b0;
+                r_older[i] <= '0;
             end
         end else begin
             r_age_ctr <= r_age_ctr + 1'b1;
@@ -411,6 +445,12 @@ module pumice_wr_data_cam #(
                 r_fdone[w_free_slot] <= 1'b0;
                 r_agg  [w_free_slot] <= ins_agg_i;
                 r_last [w_free_slot] <= ins_last_i;
+                // age matrix: the new slot is the YOUNGEST -> older than nobody,
+                // and every other slot is older than it.
+                for (int j = 0; j < NUM_ENTRIES; j++) begin
+                    r_older[w_free_slot][j] <= 1'b0;
+                    if (j != int'(w_free_slot)) r_older[j][w_free_slot] <= 1'b1;
+                end
             end
 
             // fill : allocate SRAM slot on first beat, then write burst. Mark the

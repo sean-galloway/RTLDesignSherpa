@@ -84,16 +84,14 @@ class PumiceCmdArbiterTB(TBBase):
         self.dut.trtw_ok_i.value = 1
         self.dut.tccd_ok_i.value = 1
         for pfx in ('wr', 'rd'):
-            getattr(self.dut, f'{pfx}_lu_hit_i').value = 0
-            getattr(self.dut, f'{pfx}_lu_slot_i').value = 0
-            getattr(self.dut, f'{pfx}_lu_col_i').value = 0
-            getattr(self.dut, f'{pfx}_lu_id_i').value = 0
-            getattr(self.dut, f'{pfx}_lu_age_i').value = 0
-            getattr(self.dut, f'{pfx}_oldest_valid_i').value = 0
-            getattr(self.dut, f'{pfx}_oldest_bank_i').value = 0
-            getattr(self.dut, f'{pfx}_oldest_row_i').value = 0
-            getattr(self.dut, f'{pfx}_oldest_slot_i').value = 0
+            getattr(self.dut, f'{pfx}_sch_valid_i').value = 0
+            getattr(self.dut, f'{pfx}_sch_bank_i').value = 0
+            getattr(self.dut, f'{pfx}_sch_row_i').value = 0
+            getattr(self.dut, f'{pfx}_sch_col_i').value = 0
+            getattr(self.dut, f'{pfx}_sch_older_i').value = 0
         self.dut.cmd_ready_i.value = 1
+        self.dut.wr_commit_ready_i.value = 1   # CAM drain FIFO has room
+        self.dut.rd_issue_ready_i.value = 1    # CAM issue FIFO has room
 
     # ---- helpers: pack per-bank vectors -------------------------------------
     def set_bank_bits(self, sig, bank_to_val):
@@ -110,21 +108,34 @@ class PumiceCmdArbiterTB(TBBase):
             v |= (r & ((1 << self.ROW_WIDTH) - 1)) << (b * self.ROW_WIDTH)
         self.dut.bank_open_row_i.value = v
 
-    def set_lu(self, pfx, per_bank):
-        """per_bank: {bank: (hit, slot, col, id, age)}. Packs the N_LU busses."""
-        hit = slot = col = idv = age = 0
-        for b, (h, s, c, i, a) in per_bank.items():
-            if h:
-                hit |= (1 << b)
-            slot |= (s & ((1 << self.PTRW) - 1)) << (b * self.PTRW)
-            col  |= (c & ((1 << self.COL_WIDTH) - 1)) << (b * self.COL_WIDTH)
-            idv  |= (i & ((1 << self.AXI_ID_WIDTH) - 1)) << (b * self.AXI_ID_WIDTH)
-            age  |= (a & 0xFFFF) << (b * self.AGE_WIDTH)
-        getattr(self.dut, f'{pfx}_lu_hit_i').value = hit
-        getattr(self.dut, f'{pfx}_lu_slot_i').value = slot
-        getattr(self.dut, f'{pfx}_lu_col_i').value = col
-        getattr(self.dut, f'{pfx}_lu_id_i').value = idv
-        getattr(self.dut, f'{pfx}_lu_age_i').value = age
+    def set_entries(self, pfx, entries):
+        """entries: {slot: (bank, row, col, age)} (col optional). Listed slots
+        are schedulable (sch_valid=1); the arbiter picks the OLDEST via the
+        age-order matrix, which we synthesize here from the given ages:
+        older[i][j] = age[i] > age[j] (higher age == older, matching the old key)."""
+        N = self.NUM_ENTRIES
+        valid = bank = row = col = older = 0
+        ages = {}
+        for e, vals in entries.items():
+            if len(vals) == 4:
+                b, r, c, a = vals
+            else:
+                b, r, a = vals
+                c = 0
+            ages[e] = a
+            valid |= (1 << e)
+            bank |= (b & ((1 << self.BKW) - 1)) << (e * self.BKW)
+            row  |= (r & ((1 << self.ROW_WIDTH) - 1)) << (e * self.ROW_WIDTH)
+            col  |= (c & ((1 << self.COL_WIDTH) - 1)) << (e * self.COL_WIDTH)
+        for i, ai in ages.items():
+            for j, aj in ages.items():
+                if i != j and ai > aj:
+                    older |= (1 << (i * N + j))
+        getattr(self.dut, f'{pfx}_sch_valid_i').value = valid
+        getattr(self.dut, f'{pfx}_sch_bank_i').value = bank
+        getattr(self.dut, f'{pfx}_sch_row_i').value = row
+        getattr(self.dut, f'{pfx}_sch_col_i').value = col
+        getattr(self.dut, f'{pfx}_sch_older_i').value = older
 
     async def settle(self):
         await Timer(1, units='ns')

@@ -70,6 +70,19 @@ module pumice_rd_cmd_cam #(
     output logic [N_SCHED_LU*AGE_WIDTH-1:0]   sched_lu_age_o,
 
     //=========================================================================
+    // Per-entry scheduling vectors (registered fields; the scheduler does the
+    // match + argmax itself -> bank-parallel activation, no lookup round-trip).
+    // Indexed by entry slot. sch_valid = schedulable (valid, not yet issued).
+    //=========================================================================
+    output logic [NUM_ENTRIES-1:0]              sch_valid_o,
+    output logic [NUM_ENTRIES*BKW-1:0]          sch_bank_o,
+    output logic [NUM_ENTRIES*ROW_WIDTH-1:0]    sch_row_o,
+    output logic [NUM_ENTRIES*COL_WIDTH-1:0]    sch_col_o,
+    // age-order matrix (flattened): bit [i*NUM_ENTRIES + j] = entry i is OLDER
+    // than entry j. 1-bit compares on the scheduler path (vs a 16-bit age key).
+    output logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  sch_older_o,
+
+    //=========================================================================
     // Oldest not-issued port (scheduler fallback)
     //=========================================================================
     output logic                          oldest_valid_o,
@@ -124,6 +137,12 @@ module pumice_rd_cmd_cam #(
     logic [SPTRW-1:0]     r_ptr    [NUM_ENTRIES];   // SRAM slot; set on 1st return
     logic                 r_pv     [NUM_ENTRIES];   // ptr_valid
     logic [AGE_WIDTH-1:0] r_age_ctr;
+
+    // Age-order matrix: r_older[i][j] = entry i inserted strictly before j (i
+    // older). Maintained on INSERT only; replaces the 16-bit age argmax key on
+    // the scheduler path with 1-bit compares (r_age kept for the drain-order
+    // oldest pick, which is off the scheduler critical path).
+    logic [NUM_ENTRIES-1:0] r_older [NUM_ENTRIES];
 
     logic [AGE_WIDTH-1:0] w_rel [NUM_ENTRIES];
     always_comb
@@ -237,16 +256,35 @@ module pumice_rd_cmd_cam #(
         end
     end
 
-    // ---- drain-side oldest valid (max rel among ALL valid) -----------------
+    // ---- per-entry scheduling vectors (registered fields, 1-level derive) ---
+    always_comb begin
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            sch_valid_o[i]                        = r_valid[i] && !r_issued[i];
+            sch_bank_o [i*BKW       +: BKW]       = r_bank[i];
+            sch_row_o  [i*ROW_WIDTH +: ROW_WIDTH] = r_row[i];
+            sch_col_o  [i*COL_WIDTH +: COL_WIDTH] = r_col[i];
+            sch_older_o[i*NUM_ENTRIES +: NUM_ENTRIES] = r_older[i];
+        end
+    end
+
+    // ---- drain-side oldest valid (AR order) via the age-order matrix -------
+    // The oldest valid entry = the one older than every OTHER valid entry
+    // (1-bit compares; replaces the 16-bit max-rel argmax so r_age_ctr stays
+    // off this w_sys_i path).
     logic            w_dro_found;
     logic [PTRW-1:0] w_dro_slot;
-    logic [AGE_WIDTH-1:0] w_dro_best;
     always_comb begin
-        w_dro_found = 1'b0; w_dro_slot = '0; w_dro_best = '0;
-        for (int i = 0; i < NUM_ENTRIES; i++)
-            if (r_valid[i] && (!w_dro_found || w_rel[i] > w_dro_best)) begin
-                w_dro_found = 1'b1; w_dro_best = w_rel[i]; w_dro_slot = PTRW'(i);
-            end
+        automatic logic [NUM_ENTRIES-1:0] w_dro_is;
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            automatic logic ge_all = 1'b1;
+            for (int j = 0; j < NUM_ENTRIES; j++)
+                if ((j != i) && r_valid[j] && !r_older[i][j]) ge_all = 1'b0;
+            w_dro_is[i] = r_valid[i] && ge_all;
+        end
+        w_dro_found = |w_dro_is;
+        w_dro_slot  = '0;
+        for (int i = NUM_ENTRIES-1; i >= 0; i--)
+            if (w_dro_is[i]) w_dro_slot = PTRW'(i);
     end
 
     // ---- drain engine : oldest-first, gated on data-ready (AR-order) -------
@@ -283,6 +321,7 @@ module pumice_rd_cmd_cam #(
                 r_issued[i] <= 1'b0;
                 r_ready[i]  <= 1'b0;
                 r_pv[i]     <= 1'b0;
+                r_older[i]  <= '0;
             end
         end else begin
             r_age_ctr <= r_age_ctr + 1'b1;
@@ -297,6 +336,12 @@ module pumice_rd_cmd_cam #(
                 r_col   [w_free_slot] <= ins_col_i;
                 r_id    [w_free_slot] <= ins_id_i;
                 r_age   [w_free_slot] <= r_age_ctr;
+                // age matrix: new slot is YOUNGEST -> older than nobody, and
+                // every other slot is older than it.
+                for (int j = 0; j < NUM_ENTRIES; j++) begin
+                    r_older[w_free_slot][j] <= 1'b0;
+                    if (j != int'(w_free_slot)) r_older[j][w_free_slot] <= 1'b1;
+                end
             end
 
             // issue notify -> mark issued (issue_q push is handled by the FIFO)
