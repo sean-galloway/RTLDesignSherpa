@@ -37,6 +37,7 @@ from CocoTBFramework.components.dfi.dram_state import (
     AddressMapping, DramStateModel, ViolationPolicy,
 )
 from CocoTBFramework.components.dfi.jedec_timings import builtin_timings
+from CocoTBFramework.components.dfi.dfi_timing import DFITimingProfile
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 
 _REPO = os.environ["REPO_ROOT"]
@@ -101,9 +102,22 @@ def _make_dfi_slave(dut):
     _wrlat = int(os.environ.get("TEST_WRITE_LATENCY", "0"))
     _strict_rd = os.environ.get("TEST_STRICT_READ_TIMING", "0") == "1"
     _rdlat = int(os.environ.get("TEST_READ_LATENCY", "8"))
+    # Faithful a7ddrphy read model: rddata_valid is presented a fixed latency
+    # after the READ COMMAND and (read_en_gated) driven ONLY on cycles the
+    # controller asserts dfi_rddata_en — the real Artix-7 ISERDES capture
+    # window. Unlike the strict_read_timing path (read_ref=rddata_en, which
+    # SLAVES the return to whatever cadence the controller's rddata_en has and
+    # thus masks an aligner mis-pacing), this catches a controller that fires
+    # rddata_en at the wrong cadence for tCCD-paced reads.
+    _a7_gated = os.environ.get("TEST_A7_READ_GATED", "0") == "1"
+    _timing = (DFITimingProfile.a7ddrphy(read_latency=_rdlat,
+                                         write_latency=_wrlat,
+                                         read_en_gated=True)
+               if _a7_gated else None)
     slave = DFISlavePHY(dut, dut.aclk, base=base, memory=memory,
                         strict_write_timing=_strict, write_latency=_wrlat,
                         strict_read_timing=_strict_rd, read_latency=_rdlat,
+                        timing=_timing,
                         # DFI phase (pumice DRAM beat) width for bus slicing;
                         # memory is device-word granular. Equal => legacy K=1.
                         dfi_phase_bytes=DRAM_BEAT_BYTES)
@@ -303,7 +317,8 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
          strict_write_timing: bool = False, write_latency: int = 0,
          t_phy_wrlat: int = 4, cmd_delay: int = 0,
          strict_read_timing: bool = False, read_latency: int = 8,
-         rd_phase: int = 0, wr_phase: int = 0, dram_device_width: int = 0):
+         rd_phase: int = 0, wr_phase: int = 0, dram_device_width: int = 0,
+         a7_read_gated: bool = False):
     # dram_device_width=0 => default to dram_beat_width (ratio 1, legacy). Set to
     # 16 to model the board's x16 device (JEDEC BL4 = 1 DFI cycle).
     if dram_device_width == 0:
@@ -339,6 +354,7 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         "TEST_READ_LATENCY": str(read_latency),
         "TEST_RD_PHASE": str(rd_phase),
         "TEST_WR_PHASE": str(wr_phase),
+        "TEST_A7_READ_GATED": "1" if a7_read_gated else "0",
     }
     compile_args = [
         "+define+USE_ASYNC_RESET",
@@ -435,6 +451,28 @@ def test_ddr2_char_uart_smoke_rate2_x16(request):
     _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
          dram_device_width=16, strict_write_timing=True, write_latency=0,
          strict_read_timing=True, read_latency=8, t_phy_wrlat=0)
+
+
+def test_ddr2_char_uart_smoke_rate2_x16_a7gated(request):
+    # BOARD-FAITHFUL a7ddrphy read model: rddata_valid presented read_latency
+    # after the READ COMMAND and driven ONLY inside the controller's rddata_en
+    # window (read_en_gated). Unlike the strict_read path (which slaves the
+    # return to the controller's own rddata_en cadence and thus HIDES an aligner
+    # mis-pacing), this reproduces the on-silicon read failure: pumice's DFI
+    # scheduler paces same-row reads at tCCD=2, but pumice_dfi_rd_aligner drives
+    # CONTIGUOUS (zero-bubble, BL_WORDS-apart) rddata_en windows, so the 2nd
+    # read's enable fires a cycle early and captures a ZERO beat (ILA-confirmed,
+    # beats_mismatched=32). EXPECTED TO FAIL until the aligner respects the
+    # per-command (tCCD) read cadence.
+    # read_latency MUST match the controller's t_rddata_en (=4 in the smoke prog)
+    # so the command-anchored data window overlaps the enable window: with that
+    # aligned, a SINGLE read works and only the tCCD read-cadence bug (2nd+ read's
+    # enable a cycle early) can make it fail. read_latency != t_rddata_en would
+    # stall unconditionally (gated model) and mask the actual defect.
+    _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
+         dram_device_width=16, strict_write_timing=True, write_latency=0,
+         strict_read_timing=True, read_latency=4, t_phy_wrlat=0,
+         a7_read_gated=True)
 
 
 def test_ddr2_char_uart_smoke_rate2_rdphase1(request):

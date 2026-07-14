@@ -51,92 +51,58 @@ module pumice_dfi_wr_serializer #(
     output logic [DFI_STRB_WIDTH-1:0]   dfi_wrdata_mask_o
 );
 
-    // Pipelined multi-burst serializer. Each WR command (wr_fire_i) queues one
-    // burst; the burst's data drives t_phy_wrlat cycles after that fire, one
-    // DFI-word per cycle until wd_last. The DFI cmd path paces column commands
-    // exactly BL_WORDS DFI cycles apart (= the burst's DQ-bus occupancy), so a
-    // following WR command's data is due the cycle right after the current
-    // burst's last word — for ANY t_phy_wrlat (fire_{n+1}=fire_n+W ->
-    // data_{n+1}=fire_n+W+L = burst_n_end+1). We therefore drive bursts
-    // back-to-back with ZERO bubbles: on the last word, if another fire is
-    // pending we continue straight into the next burst instead of returning to
-    // idle. A fire that arrives while a burst is in flight is counted in
-    // r_pending (was previously DROPPED, stranding the write in the PHY).
-    localparam int PCW = 3;   // pending-fire counter (paced => small)
-    typedef enum logic [1:0] { S_IDLE, S_WAIT, S_DRIVE } state_e;
-    state_e             r_state;
-    logic [WRLAT_W-1:0] r_wait;
-    logic [PCW-1:0]     r_pending;
+    // STATELESS multi-burst serializer (no FSM — mirror of pumice_dfi_rd_aligner).
+    // Each WR command (wr_fire_i) MATURES t_phy_wrlat DFI cycles later, when its
+    // burst becomes eligible to drive; the burst then streams one DFI-word/cycle
+    // from the FIFO until wd_last. Track fires in a shift register and count
+    // matured-but-not-finished bursts in r_owed. Drive whenever a burst is owed
+    // and the FIFO has a word. This handles every write cadence by construction:
+    // consecutive bursts BL_WORDS apart mature back-to-back (contiguous drive);
+    // tCCD-paced writes (tCCD > DQ occupancy, the x16 BL4 case) mature with a
+    // matching bubble; N in flight -> N owed. The prior FSM's "seamless
+    // continuation" assumed the next burst was always due the cycle after the
+    // last word, which drops the tCCD bubble and drives write data early.
+    localparam int MAX_WRLAT = 31;                 // DFI cycles; DDR2/3 wr-lat fits
+    localparam int PIPE       = MAX_WRLAT + 1;
 
-    // Fires available to start a burst this cycle (already-pending + this cycle).
-    logic [PCW-1:0] w_avail;
-    assign w_avail = r_pending + (wr_fire_i ? PCW'(1) : PCW'(0));
+    logic [PIPE-1:0] r_age;
+    // w_fired[j] = a WR command fired j cycles ago; j=0 is this cycle (so
+    // t_phy_wrlat==0 matures/drives word0 on the fire cycle itself).
+    logic [PIPE:0]   w_fired;
+    assign w_fired = {r_age, wr_fire_i};
 
-    // Begin a burst's FIRST word this cycle: from idle with t_phy_wrlat==0, or
-    // seamlessly continuing on the previous burst's last word.
-    logic w_start_now;   // drive word0 of a NEW burst this cycle
-    assign w_start_now = (r_state == S_IDLE) && (w_avail != '0) && (t_phy_wrlat_i == '0);
+    // A fire matures (its burst becomes eligible to drive) at age t_phy_wrlat.
+    logic w_mature;
+    always_comb begin
+        automatic int unsigned midx = int'(t_phy_wrlat_i);
+        w_mature = (midx <= PIPE) ? w_fired[midx] : 1'b0;
+    end
 
-    // drive when mid-burst (S_DRIVE) or starting a burst immediately, FIFO ready
+    // Matured bursts owed a drive (including one maturing this cycle).
+    localparam int OWEDW = 3;   // paced => small; bounded by in-flight WR depth
+    logic [OWEDW-1:0] r_owed;
+    logic [OWEDW-1:0] w_owed_now;
+    assign w_owed_now = r_owed + (w_mature ? OWEDW'(1) : OWEDW'(0));
+
     logic w_drive;
-    assign w_drive    = ((r_state == S_DRIVE) || w_start_now) && wd_valid_i;
+    assign w_drive    = (w_owed_now != '0) && wd_valid_i;
     assign wd_ready_o = w_drive;                 // pop as we drive (1 word/cycle)
 
     assign dfi_wrdata_o      = wd_data_i;
     assign dfi_wrdata_en_o   = w_drive ? {DFI_EN_WIDTH{1'b1}}   : '0;
     assign dfi_wrdata_mask_o = w_drive ? ~wd_strb_i             : '0;
 
-    // burst-last strobe (a driven word marked last)
+    // a driven word marked last completes the front burst
     logic w_burst_last;
     assign w_burst_last = w_drive && wd_last_i;
 
-    // Whether we consume a pending fire this cycle to START a new burst.
-    logic w_consume;
-    always_comb begin
-        w_consume = 1'b0;
-        unique case (r_state)
-            S_IDLE:  w_consume = (w_avail != '0);                 // start burst0
-            S_DRIVE: w_consume = w_burst_last && (w_avail != '0); // seamless next
-            default: w_consume = 1'b0;                            // WAIT: already consumed
-        endcase
-    end
-
     `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
         if (`RST_ASSERTED(dfi_rstn)) begin
-            r_state   <= S_IDLE;
-            r_wait    <= '0;
-            r_pending <= '0;
+            r_age  <= '0;
+            r_owed <= '0;
         end else begin
-            // pending fires: +1 on a fire, -1 when a burst starts driving
-            r_pending <= w_avail - (w_consume ? PCW'(1) : PCW'(0));
-
-            unique case (r_state)
-                S_IDLE: begin
-                    if (w_avail != '0) begin
-                        if (t_phy_wrlat_i == '0)
-                            // word0 drove combinationally this cycle; continue
-                            // unless it was a single-word burst
-                            r_state <= (wd_valid_i && wd_last_i) ? S_IDLE : S_DRIVE;
-                        else if (t_phy_wrlat_i == 8'd1)
-                            r_state <= S_DRIVE;                  // DRIVE at fire+1
-                        else begin
-                            r_wait  <= t_phy_wrlat_i - 8'd1;     // WAIT wrlat-1
-                            r_state <= S_WAIT;
-                        end
-                    end
-                end
-                S_WAIT: begin
-                    if (r_wait == 8'd1) r_state <= S_DRIVE;      // DRIVE at fire+wrlat
-                    else                r_wait  <= r_wait - 8'd1;
-                end
-                S_DRIVE: begin
-                    // On the last word: continue seamlessly if another burst is
-                    // pending (its data is due next cycle), else go idle.
-                    if (w_burst_last)
-                        r_state <= (w_avail != '0) ? S_DRIVE : S_IDLE;
-                end
-                default: r_state <= S_IDLE;
-            endcase
+            r_age  <= {r_age[PIPE-2:0], wr_fire_i};
+            r_owed <= w_owed_now - (w_burst_last ? OWEDW'(1) : OWEDW'(0));
         end
     )
 

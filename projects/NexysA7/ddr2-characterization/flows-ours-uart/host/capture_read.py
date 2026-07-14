@@ -72,12 +72,15 @@ def main():
     ap.add_argument("--port", default="auto")
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--out", default=os.path.join(_SELF, "reports/ila_capture.csv"))
+    ap.add_argument("--trig", default="wr", choices=["wr", "rd"],
+                    help="ILA trigger: wr=wrdata_en (default), rd=rddata_valid")
     args = ap.parse_args()
 
     tcl = os.path.join(_SELF, "tcl/capture_ila.tcl")
     vivado = os.environ.get("VIVADO", "vivado")
     proc = subprocess.Popen(
-        [vivado, "-mode", "batch", "-notrace", "-source", tcl, "-tclargs", args.out],
+        [vivado, "-mode", "batch", "-notrace", "-source", tcl,
+         "-tclargs", args.out, args.trig],
         cwd=_SELF, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 
     # Wait for the ILA to be armed before driving traffic.

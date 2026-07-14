@@ -112,21 +112,87 @@ async def _run_burst(dut, WRLAT):
                   f"{BL_WORDS} contiguous cycles (0 bubbles), data+mask correct")
 
 
-def test_pumice_dfi_wr_serializer(request):
+@cocotb.test(timeout_time=3, timeout_unit="ms")
+async def cocotb_test_wr_serializer_tccd_paced(dut):
+    """x16 BL4 (single-DFI-word bursts) at t_phy_wrlat>0: writes paced at
+    tCCD=2, one cycle WIDER than the DQ-bus occupancy (1 word). Each burst's
+    wrdata_en/wrdata must land at ITS OWN fire+t_phy_wrlat (tCCD apart), NOT
+    collapse into contiguous back-to-back drives. Collapsing drives the 2nd+
+    write's data a cycle early -> latent silicon write corruption whenever
+    t_phy_wrlat>0 (the pre-pull t_phy_wrlat=0 board config sidesteps it via the
+    combinational word0 path, which is why board writes survived). Mirror of the
+    rd_aligner tCCD case."""
+    cocotb.start_soon(Clock(dut.dfi_clk, 10, units='ns').start())
+    dut.dfi_rstn.value = 0
+    dut.t_phy_wrlat_i.value = 0
+    dut.wr_fire_i.value = 0
+    dut.wd_valid_i.value = 0
+    dut.wd_data_i.value = 0
+    dut.wd_strb_i.value = 0
+    dut.wd_last_i.value = 0
+    for _ in range(4):
+        await RisingEdge(dut.dfi_clk)
+    dut.dfi_rstn.value = 1
+    for _ in range(3):
+        await RisingEdge(dut.dfi_clk)
+
+    WRLAT, TCCD, NWR = 3, 2, 3
+    dut.t_phy_wrlat_i.value = WRLAT
+    strb = (1 << DFI_SW) - 1
+    q = deque([0xA1, 0xB2, 0xC3])          # 3 single-word bursts
+    fire_cycles = [i * TCCD for i in range(NWR)]   # 0, 2, 4 — tCCD-paced
+    en_cycles = []
+    for c in range(fire_cycles[-1] + WRLAT + 8):
+        if q:                               # present head; single word => last
+            dut.wd_data_i.value = q[0]
+            dut.wd_strb_i.value = strb
+            dut.wd_last_i.value = 1
+            dut.wd_valid_i.value = 1
+        else:
+            dut.wd_valid_i.value = 0
+        dut.wr_fire_i.value = 1 if c in fire_cycles else 0
+        await RisingEdge(dut.dfi_clk)
+        if int(dut.dfi_wrdata_en_o.value) != 0:
+            en_cycles.append(c)
+            if q and int(dut.wd_ready_o.value):
+                q.popleft()
+    dut.wr_fire_i.value = 0
+
+    assert len(en_cycles) == NWR, \
+        f"expected {NWR} wrdata_en pulses, got {en_cycles}"
+    gaps = [b - a for a, b in zip(en_cycles, en_cycles[1:])]
+    assert all(g == TCCD for g in gaps), (
+        f"wrdata_en pulses at {en_cycles} (gaps {gaps}) — expected tCCD spacing "
+        f"{TCCD}. Contiguous (gap 1) means the serializer collapsed the tCCD-"
+        f"paced writes: the 2nd+ write's data drives a cycle early (latent write "
+        f"corruption at t_phy_wrlat>0).")
+    dut._log.info("PASS: wrdata_en follows tCCD write cadence %s (gaps %s)", en_cycles, gaps)
+
+
+def _run_wr_fub(testcase: str):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_dfi_wr_serializer"
-    test_name = "cocotb_test_pumice_dfi_wr_serializer"
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
-    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    sim_build = os.path.join(tests_dir, "local_sim_build", testcase)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     params = {"DFI_DATA_WIDTH": str(DFI_DW), "DFI_RATE": str(DFI_RATE)}
-    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
+    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{testcase}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
-                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
+                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{testcase}.xml"),
                  "SEED": str(random.randint(0, 100000))}
     extra_env.update(params)
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
-        toplevel=dut_name, module=module, testcase="cocotb_test_pumice_dfi_wr_serializer",
+        toplevel=dut_name, module=module, testcase=testcase,
         sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
         compile_args=["+define+USE_ASYNC_RESET"], waves=False, keep_files=True, timescale="1ns/1ps")
+
+
+def test_pumice_dfi_wr_serializer(request):
+    _run_wr_fub("cocotb_test_pumice_dfi_wr_serializer")
+
+
+def test_pumice_dfi_wr_serializer_tccd_paced(request):
+    # x16 BL4 single-word bursts paced at tCCD > DQ occupancy, t_phy_wrlat>0.
+    # Reproduces the latent write-serializer cadence bug at the FUB level.
+    _run_wr_fub("cocotb_test_wr_serializer_tccd_paced")

@@ -13,8 +13,10 @@
 //
 //          Internal unit is the DFI word (= dfi_rddata width). BL_WORDS =
 //          BL/DFI_RATE words per burst; `last` marks the final word so the read
-//          intake can split words back to AXI R beats. v1: one outstanding read
-//          window (single-issue, tRTW/tCCD spaced).
+//          intake can split words back to AXI R beats. The rddata_en window is a
+//          STATELESS delay line (shift register of fires + windowed-OR), so any
+//          number of outstanding reads at any cadence (contiguous BL_WORDS-apart
+//          OR tCCD-spaced with a DQ bubble) are handled by construction — no FSM.
 //
 // Documentation: rtl/PUMICE_DFI_LAYER_UARCH.md
 `timescale 1ns / 1ps
@@ -52,83 +54,39 @@ module pumice_dfi_rd_aligner #(
 
     localparam logic [1:0] RESP_OKAY = 2'b00;
     localparam int CNTW = (BL_WORDS > 1) ? $clog2(BL_WORDS) : 1;
-    // S_EN en-cycle count = r_ecnt_seed + 1. When t_rddata_en==0 the fire cycle
-    // already drives word0 (w_en_now), so S_EN needs BL_WORDS-1 more (seed-2);
-    // otherwise S_EN covers all BL_WORDS (seed-1).
-    localparam int ECNT_SEED     = (BL_WORDS > 1) ? (BL_WORDS - 1) : 0;
-    localparam int ECNT_SEED_IMM = (BL_WORDS > 2) ? (BL_WORDS - 2) : 0;
 
-    // ---- rddata_en window: assert for BL_WORDS cycles, t_rddata_en after RD --
-    // Pipelined like the write serializer: the DFI cmd path paces column
-    // commands BL_WORDS DFI cycles apart (the read burst's DQ-bus occupancy), so
-    // a following RD's window is due the cycle right after this window ends. We
-    // drive contiguous back-to-back en windows with ZERO bubbles; a rd_fire that
-    // arrives mid-window is counted in r_epend (was previously DROPPED, leaving
-    // the second read with no capture window -> stranded in the PHY).
-    localparam int PCW = 3;   // pending-fire counter (paced => small)
-    typedef enum logic [1:0] { S_IDLE, S_WAIT, S_EN } en_state_e;
-    en_state_e            r_es;
-    logic [RDEN_W-1:0]    r_ewait;
-    logic [CNTW:0]        r_ecnt;   // remaining en cycles in the current window
-    logic [PCW-1:0]       r_epend;  // fires awaiting a window
+    // ---- rddata_en window: a STATELESS delay line (no FSM) ------------------
+    // A read fired k cycles ago is "due" its rddata_en window over the cycles
+    // [t_rddata_en, t_rddata_en+BL_WORDS-1] after the fire. Track fires in a
+    // shift register (r_age[k] = a read fired k+1 cycles ago) and assert enable
+    // whenever ANY in-flight fire is inside its own window. This handles every
+    // read cadence by construction: reads BL_WORDS apart -> adjacent windows ->
+    // contiguous enable; reads paced further (tCCD > BL_WORDS, the x16 BL4 case)
+    // -> a matching bubble; N reads in flight -> N independent windows. There is
+    // no "next window" decision to mis-time — the prior FSM's contiguous-window
+    // assumption is what dropped the tCCD bubble and read a zero beat on silicon.
+    localparam int MAX_RDDATA_EN = 31;                 // DFI cycles; DDR2/3 rd-lat fits
+    localparam int PIPE          = MAX_RDDATA_EN + BL_WORDS;
 
-    logic [PCW-1:0] w_eavail;
-    assign w_eavail = r_epend + (rd_fire_i ? PCW'(1) : PCW'(0));
+    logic [PIPE-1:0] r_age;
+    // w_fired[j] = a read fired j cycles ago; j=0 is this cycle (combinational,
+    // so t_rddata_en==0 drives word0 on the fire cycle itself).
+    logic [PIPE:0]   w_fired;
+    assign w_fired = {r_age, rd_fire_i};
 
-    // Immediate (t_rddata_en==0) first-window word0 lands on the fire/idle cycle.
-    logic w_en_now;
-    assign w_en_now = (r_es == S_IDLE) && (w_eavail != '0) && (t_rddata_en_i == '0);
-    assign dfi_rddata_en_o = ((r_es == S_EN) || w_en_now) ? {DFI_EN_WIDTH{1'b1}} : '0;
-
-    // Consume one pending fire when a window begins (from idle, or seamlessly on
-    // the last en-cycle of the previous window).
-    logic w_econsume;
+    logic w_en;
     always_comb begin
-        w_econsume = 1'b0;
-        unique case (r_es)
-            S_IDLE:  w_econsume = (w_eavail != '0);
-            S_EN:    w_econsume = (r_ecnt == '0) && (w_eavail != '0);
-            default: w_econsume = 1'b0;   // WAIT: window already consumed
-        endcase
+        w_en = 1'b0;
+        for (int b = 0; b < BL_WORDS; b++) begin
+            automatic int unsigned idx = int'(t_rddata_en_i) + b;
+            if (idx <= PIPE) w_en |= w_fired[idx];
+        end
     end
+    assign dfi_rddata_en_o = w_en ? {DFI_EN_WIDTH{1'b1}} : '0;
 
     `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
-        if (`RST_ASSERTED(dfi_rstn)) begin
-            r_es    <= S_IDLE;
-            r_ewait <= '0;
-            r_ecnt  <= '0;
-            r_epend <= '0;
-        end else begin
-            r_epend <= w_eavail - (w_econsume ? PCW'(1) : PCW'(0));
-            unique case (r_es)
-                S_IDLE:
-                    if (w_eavail != '0) begin
-                        if (t_rddata_en_i == '0) begin
-                            r_ecnt <= (CNTW+1)'(ECNT_SEED_IMM);
-                            r_es   <= (BL_WORDS > 1) ? S_EN : S_IDLE;  // word0 via w_en_now
-                        end else begin
-                            r_ecnt <= (CNTW+1)'(ECNT_SEED);
-                            if (t_rddata_en_i == 8'd1) r_es <= S_EN;
-                            else begin r_ewait <= t_rddata_en_i - 8'd1; r_es <= S_WAIT; end
-                        end
-                    end
-                S_WAIT:
-                    if (r_ewait == 8'd1) r_es <= S_EN;
-                    else                 r_ewait <= r_ewait - 8'd1;
-                S_EN:
-                    if (r_ecnt == '0) begin
-                        // last en-cycle: seamlessly start the next window's en if
-                        // one is pending (contiguous), else return to idle. A
-                        // continuation window has no w_en_now, so it drives all
-                        // BL_WORDS cycles => reseed ECNT_SEED (BL_WORDS-1).
-                        if (w_eavail != '0) r_ecnt <= (CNTW+1)'(ECNT_SEED);
-                        else                r_es   <= S_IDLE;
-                    end else begin
-                        r_ecnt <= r_ecnt - 1'b1;
-                    end
-                default: r_es <= S_IDLE;
-            endcase
-        end
+        if (`RST_ASSERTED(dfi_rstn)) r_age <= '0;
+        else                         r_age <= {r_age[PIPE-2:0], rd_fire_i};
     )
 
     // ---- capture: push a word to the read FIFO on each rddata_valid ---------
