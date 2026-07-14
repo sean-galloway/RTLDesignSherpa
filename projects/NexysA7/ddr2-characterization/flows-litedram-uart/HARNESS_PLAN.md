@@ -5,8 +5,20 @@ timer, and UART/CSR path, so `pumice_char` bandwidth/latency numbers are directl
 comparable. `litedram_core` replaces pumice+DFI+a7ddrphy (it has its own PLL,
 a7ddrphy, DDR2 init, and a 64-bit AXI4 user port).
 
-Status: **scaffold + spec** (this doc). The RTL top + build flow are NOT wired yet.
-Discovery below is complete; execution is a focused build (board-iterated).
+Status: **WIRED** (verilator-lint-clean harness) + build flow present. Remaining is
+board bring-up (proper LiteDRAM regen, XDC reconcile, host variant) — see "Board
+bring-up TODO" at the end.
+
+Built (commit adds):
+- `rtl/char_engine_harness.sv` — DUT-agnostic harness (engines + perf meters +
+  bandwidth timer + harness_csr + UART bridge) exposing an AXI4 master. **Passes
+  `verilator --lint-only`** standalone (wiring verified).
+- `rtl/litedram_char_top.sv` — board top: `litedram_core` + `char_engine_harness`
+  on `user_clk`, `init_done`-gated. AXI user port wired (awsize/arsize
+  zero-extended 3->4b; addr [26:0]; no user/lock/cache on the litedram port).
+- `rtl/filelists/litedram_char_harness.f`, `constraints/litedram_char.xdc`
+  (Nexys A7 pins), `tcl/build_all.tcl` + `tcl/program_fpga.tcl`, `Makefile`
+  (`make regen|bitstream|program|characterize`).
 
 ## litedram_core interface (build_board/gateware/litedram_core.v)
 
@@ -100,3 +112,18 @@ cocotb-drive the AXI user port if a pre-board smoke is wanted.
 - BIOS auto-init timing/behavior with `uart_rx` idle (verify `init_done` asserts).
 - user_clk CDC for the FTDI UART (single-domain design avoids it).
 - XDC `ddram_*` pin set must match `litedram_core.xdc` (generated) exactly.
+
+## Board bring-up TODO (before/while building)
+1. `make regen` (`./regen.sh --bios`) — the shipped core has an empty BIOS ROM AND
+   placeholder `LOC X` pins; a proper Nexys-A7 regen emits a functional BIOS +
+   real ddram pins + a7ddrphy IODELAY constraints in `litedram_core.xdc`.
+2. XDC reconcile: `constraints/litedram_char.xdc` currently carries the full
+   Nexys A7 pin map (copied from the pumice flow). Once `litedram_core.xdc` has
+   real ddram pins, REMOVE the `ddram_*` lines from `litedram_char.xdc` and
+   uncomment the `read_xdc .../litedram_core.xdc` line in `tcl/build_all.tcl`
+   (keeps CLK/UART/LED/7seg here, ddram + PHY there — no double-constraint).
+3. Host variant: copy `flows-ours-uart/host/ddr2_char.py` + `pumice_master.py`,
+   drop the `set_controller_cfg` pumice-CSR writes (litedram self-configures),
+   keep engine cfg + perf/timer bandwidth readout. `harness_csr` is at base 0
+   (direct UART->CSR, no 1->5 bridge). Wire `make characterize` to it.
+4. `make bitstream && make program && make characterize UART=/dev/ttyUSBx`.
