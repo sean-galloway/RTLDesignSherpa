@@ -114,10 +114,13 @@ def _make_dfi_slave(dut):
                                          write_latency=_wrlat,
                                          read_en_gated=True)
                if _a7_gated else None)
+    # a7ddrphy 4-phase read-window offset (RDS-DV #32): non-zero reproduces the
+    # nphases=4-PHY / DFI_RATE=2-controller device-word read corruption in sim.
+    _dwoff = int(os.environ.get("TEST_READ_DW_OFFSET", "0"))
     slave = DFISlavePHY(dut, dut.aclk, base=base, memory=memory,
                         strict_write_timing=_strict, write_latency=_wrlat,
                         strict_read_timing=_strict_rd, read_latency=_rdlat,
-                        timing=_timing,
+                        timing=_timing, read_device_word_offset=_dwoff,
                         # DFI phase (pumice DRAM beat) width for bus slicing;
                         # memory is device-word granular. Equal => legacy K=1.
                         dfi_phase_bytes=DRAM_BEAT_BYTES)
@@ -318,7 +321,7 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
          t_phy_wrlat: int = 4, cmd_delay: int = 0,
          strict_read_timing: bool = False, read_latency: int = 8,
          rd_phase: int = 0, wr_phase: int = 0, dram_device_width: int = 0,
-         a7_read_gated: bool = False):
+         a7_read_gated: bool = False, read_device_word_offset: int = 0):
     # dram_device_width=0 => default to dram_beat_width (ratio 1, legacy). Set to
     # 16 to model the board's x16 device (JEDEC BL4 = 1 DFI cycle).
     if dram_device_width == 0:
@@ -355,6 +358,7 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         "TEST_RD_PHASE": str(rd_phase),
         "TEST_WR_PHASE": str(wr_phase),
         "TEST_A7_READ_GATED": "1" if a7_read_gated else "0",
+        "TEST_READ_DW_OFFSET": str(read_device_word_offset),
     }
     compile_args = [
         "+define+USE_ASYNC_RESET",
@@ -451,6 +455,28 @@ def test_ddr2_char_uart_smoke_rate2_x16(request):
     _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
          dram_device_width=16, strict_write_timing=True, write_latency=0,
          strict_read_timing=True, read_latency=8, t_phy_wrlat=0)
+
+
+def test_ddr2_char_uart_smoke_rate2_x16_readshift(request):
+    # Reproduce the on-board read corruption (#143) in sim: model the a7ddrphy
+    # 4-phase read-window offset (RDS-DV #32). offset=2 makes the DFISlavePHY hand
+    # back device-word-SHIFTED read data (slots grabbed wrong), so the char engine
+    # sees mism != 0 exactly like the board. EXPECTED TO FAIL until the DFI read
+    # latency is fixed so the effective offset is 0. The companion _readshift0
+    # test (offset=0) must still PASS -> proves the model is the only variable.
+    _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
+         dram_device_width=16, strict_write_timing=True, write_latency=0,
+         strict_read_timing=True, read_latency=8, t_phy_wrlat=0,
+         read_device_word_offset=2)
+
+
+def test_ddr2_char_uart_smoke_rate2_x16_readshift0(request):
+    # Control: same config, offset=0 (ideal window) -> reads clean. Guards that
+    # the new DFISlavePHY knob is bit-exact at 0 (no regression).
+    _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
+         dram_device_width=16, strict_write_timing=True, write_latency=0,
+         strict_read_timing=True, read_latency=8, t_phy_wrlat=0,
+         read_device_word_offset=0)
 
 
 def test_ddr2_char_uart_smoke_rate2_x16_a7gated(request):
