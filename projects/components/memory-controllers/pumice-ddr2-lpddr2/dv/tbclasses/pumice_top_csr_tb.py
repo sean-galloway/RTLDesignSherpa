@@ -472,6 +472,20 @@ class PumiceTopCsrTB:
                 return (byte_addr, mem_int, actual_int, rid)
         return None
 
+    def verify_axi_rd_device_word_order(self, device_word_bytes: int = None) -> list:
+        """CONTRACT (docs/pumice_signal_contracts.xlsx Sheet 1, s_axi_rdata):
+        every R beat presents DRAM data in ascending device-word order. Unlike the
+        beat-level compare above, this LOCALIZES a de-interleave error to the wrong
+        device-word slot and classifies it (dropped / shifted / corrupt) — the
+        on-silicon x16 read failure. Returns [] when the contract holds."""
+        from .axi_rd_device_word_check import check_read_device_word_order, format_violations
+        dwb = device_word_bytes or getattr(self, "dram_device_bytes", None) or self.dram_beat_bytes
+        gr = lambda addr, n: int.from_bytes(bytes(self.memory.read(addr, n)), "little")
+        v = check_read_device_word_order(self.axi_rd_snoop, gr, self.bytes_per_beat, dwb)
+        if v:
+            self.log.error(format_violations(v))
+        return v
+
     def verify_memory_matches_axi_wr(self) -> Optional[tuple]:
         bpb = self.bytes_per_beat
         for byte_addr, expected_int in self.axi_wr_snoop.items():
