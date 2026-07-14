@@ -231,21 +231,34 @@ module pumice_rd_intake #(
     logic             w_ord_rd_valid, w_ord_rd_ready;
     logic [ORD_W-1:0] w_ord_rd_data;
 
-    // Admit an AR when the order FIFO has room AND, for a MISS, ar_push is ready.
-    logic w_can_admit;
+    // The snarf probe is REGISTERED in the wr CAM (pipelines the rd_intake->
+    // wr_cam cross-module route, the worst w_sys_i path), so the hit lands one
+    // cycle after the probe is presented. r_armed marks that the registered
+    // probe belongs to the CURRENT head AR (the AR was held stable last cycle);
+    // only then is w_hit meaningful and the AR admissible. This costs one extra
+    // cycle of admit latency per read (reads self-limit to <= DRAM read rate, so
+    // no sustained-throughput loss), and does not change the RAW-forward result
+    // (the compare still runs against the live wr-CAM state at admit).
+    logic r_armed, w_can_admit, w_admit;
     assign w_can_admit = w_ord_wr_ready && (w_hit ? 1'b1 : ar_push_ready_i);
+    assign w_admit     = fub_arvalid && r_armed && w_can_admit;
 
-    assign fub_arready    = w_can_admit;
-    assign w_ord_wr_valid = fub_arvalid && w_can_admit;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) r_armed <= 1'b0;
+        else                        r_armed <= fub_arvalid && !w_admit;
+    )
+
+    assign fub_arready    = r_armed && w_can_admit;
+    assign w_ord_wr_valid = w_admit;
     // pop the sideband in lockstep with the order-FIFO write (fub_ar admit)
     assign w_side_rd_ready = w_ord_wr_valid;
     assign w_ord_wr_data  = {w_side_agg, w_side_last, w_hit /*SRC_SNARF=1*/, fub_arid};
 
     // snarf accept = this AR was admitted as a snarf hit
-    assign snarf_accept_o = fub_arvalid && w_can_admit && w_hit;
+    assign snarf_accept_o = w_admit && w_hit;
 
     // MISS -> ar_push (fires with admission)
-    assign ar_push_valid_o = fub_arvalid && !w_hit && w_ord_wr_ready;
+    assign ar_push_valid_o = fub_arvalid && r_armed && !w_hit && w_ord_wr_ready;
     assign ar_push_rank_o  = w_rank;
     assign ar_push_bank_o  = w_bank;
     assign ar_push_row_o   = w_row;

@@ -248,29 +248,44 @@ module pumice_wr_data_cam #(
     //       exactly BL beats (ragged bursts are rejected in pumice_wr_intake), so
     //       this reduces to arlen == BL-1 — a short/long read must not snarf a
     //       full-BL write.
+    // The probe from pumice_rd_intake is REGISTERED here (r_sp_*) before the
+    // associative compare, so the rd_intake->wr_cam cross-module route (the
+    // worst w_sys_i path) gets a full cycle. Youngest match uses the age-order
+    // matrix (i is youngest iff every OTHER matched j is older: r_older[j][i])
+    // instead of a 16-bit rel-age argmin. snarf_hit_o is thus valid one cycle
+    // after the probe is presented; rd_intake holds the AR and admits on it.
+    logic                 r_sp_valid;
+    logic [BKW-1:0]       r_sp_bank;
+    logic [ROW_WIDTH-1:0] r_sp_row;
+    logic [COL_WIDTH-1:0] r_sp_col;
+    logic [IW-1:0]        r_sp_id;
+    logic [7:0]           r_sp_len;
+
+    logic [NUM_ENTRIES-1:0] w_sn_match;
     logic            w_sn_found;
     logic [PTRW-1:0] w_sn_slot;
-    logic [AGE_WIDTH-1:0] w_sn_best;   // min rel among matches
     logic            w_sn_len_ok;
-    assign w_sn_len_ok = (snarf_probe_len_i == 8'(BL - 1));
+    assign w_sn_len_ok = (r_sp_len == 8'(BL - 1));
     always_comb begin
-        w_sn_found = 1'b0;
-        w_sn_slot  = '0;
-        w_sn_best  = '0;
+        automatic logic [NUM_ENTRIES-1:0] is_young;
+        for (int i = 0; i < NUM_ENTRIES; i++)
+            w_sn_match[i] = r_valid[i] && r_fdone[i] && !r_sched[i]
+                            && (r_id[i]   == r_sp_id)
+                            && (r_bank[i] == r_sp_bank)
+                            && (r_row[i]  == r_sp_row)
+                            && (r_col[i]  == r_sp_col);
         for (int i = 0; i < NUM_ENTRIES; i++) begin
-            if (r_valid[i] && r_fdone[i] && !r_sched[i] &&
-                r_id[i]  == snarf_probe_id_i &&
-                r_bank[i] == snarf_probe_bank_i &&
-                r_row[i] == snarf_probe_row_i && r_col[i] == snarf_probe_col_i) begin
-                if (!w_sn_found || w_rel[i] < w_sn_best) begin
-                    w_sn_found = 1'b1;
-                    w_sn_best  = w_rel[i];
-                    w_sn_slot  = PTRW'(i);
-                end
-            end
+            automatic logic yg = 1'b1;
+            for (int j = 0; j < NUM_ENTRIES; j++)
+                if ((j != i) && w_sn_match[j] && !r_older[j][i]) yg = 1'b0;
+            is_young[i] = w_sn_match[i] && yg;
         end
+        w_sn_found = |is_young;
+        w_sn_slot  = '0;
+        for (int i = NUM_ENTRIES-1; i >= 0; i--)
+            if (is_young[i]) w_sn_slot = PTRW'(i);
     end
-    assign snarf_hit_o = snarf_probe_valid_i && w_sn_found && w_sn_len_ok;
+    assign snarf_hit_o = r_sp_valid && w_sn_found && w_sn_len_ok;
 
     // ---- oldest valid (max rel) --------------------------------------------
     logic            w_old_found;
@@ -424,6 +439,7 @@ module pumice_wr_data_cam #(
             r_sn_beat   <= '0;
             r_cm_beat   <= '0;
             r_sram_occ  <= '0;
+            r_sp_valid  <= 1'b0;
             for (int i = 0; i < NUM_ENTRIES; i++) begin
                 r_valid[i] <= 1'b0;
                 r_pv[i]    <= 1'b0;
@@ -433,6 +449,14 @@ module pumice_wr_data_cam #(
             end
         end else begin
             r_age_ctr <= r_age_ctr + 1'b1;
+
+            // register the snarf probe (pipelines the rd_intake->wr_cam route)
+            r_sp_valid <= snarf_probe_valid_i;
+            r_sp_bank  <= snarf_probe_bank_i;
+            r_sp_row   <= snarf_probe_row_i;
+            r_sp_col   <= snarf_probe_col_i;
+            r_sp_id    <= snarf_probe_id_i;
+            r_sp_len   <= snarf_probe_len_i;
 
             // insert : allocate + capture key/id/age; fill not yet done
             if (w_ins_fire) begin

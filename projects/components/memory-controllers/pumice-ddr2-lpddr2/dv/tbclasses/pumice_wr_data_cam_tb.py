@@ -146,7 +146,12 @@ class PumiceWrDataCamTB(TBBase):
         self.dut.snarf_probe_id_i.value = rid
         self.dut.snarf_probe_len_i.value = (self.BL - 1) if arlen is None else arlen
         self.dut.snarf_probe_valid_i.value = 1
-        await RisingEdge(self.dut.aclk)
+        # The wr CAM registers the probe (1-cycle pipeline) before the compare,
+        # so snarf_hit_o is valid the cycle AFTER the probe is presented. Present
+        # for one edge to load r_sp, then read the hit; hold the probe while
+        # accepting so snarf_accept_i AND snarf_hit_o coincide at the enqueue.
+        await RisingEdge(self.dut.aclk)   # r_sp <= probe
+        await RisingEdge(self.dut.aclk)   # snarf_hit_o now reflects r_sp
         hit = int(self.dut.snarf_hit_o.value)
         if hit:
             self.dut.snarf_accept_i.value = 1
