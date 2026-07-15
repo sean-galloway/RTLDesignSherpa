@@ -73,6 +73,7 @@ module pumice_dfi_cmd_path
     // ---- fire strobes to the data paths (1-cycle, on accepted command) ----
     output logic                       wr_fire_o,   // WR / WRA issued
     output logic                       rd_fire_o,   // RD / RDA issued
+    input  logic                       rd_op_ready_i, // rd aligner has a free slot
     output logic [RKW-1:0]             fire_rank_o
 );
 
@@ -99,7 +100,11 @@ module pumice_dfi_cmd_path
     logic [PCW-1:0] r_col_pace;
     logic           w_col_ok, w_gate;
     assign w_col_ok = (r_col_pace == '0);
-    assign w_gate   = (!w_is_col) || w_col_ok;   // may present head to formatter
+    // Column pacing (DQ occupancy) AND, for reads, the aligner's outstanding-op
+    // backpressure: hold a RD command if the read aligner's tracking queue is
+    // full so no return is ever untracked. Sized so it never fires in steady
+    // state (MAX_OUTSTANDING >= RD_CAM_DEPTH).
+    assign w_gate   = ((!w_is_col) || w_col_ok) && (!w_is_rd || rd_op_ready_i);
 
     logic w_fmt_ready;
     logic w_fire;

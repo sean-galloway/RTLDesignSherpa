@@ -56,6 +56,13 @@ module pumice_dfi_layer
     parameter int BKW = $clog2(NUM_BANKS),
     parameter int PHW = (DFI_RATE > 1) ? $clog2(DFI_RATE) : 1,
     parameter int BL_WORDS = BL / DFI_RATE,
+    // Read aligner outstanding-read tracking depth (exposed). Size >= the read
+    // CAM depth so op_ready never deasserts in steady state; the valid/ready
+    // handshake to command issue is the just-in-case backpressure.
+    parameter int RD_MAX_OUTSTANDING = 16,
+    // rddata_en window width (DQ-bus occupancy of one read). Defaults to
+    // BL_WORDS (legacy); set separately when the DRAM beat != device word.
+    parameter int RD_EN_CYC = BL_WORDS,
     // FIFO payloads
     parameter int CMD_DW = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1,
     parameter int WD_DW  = 1 + DFI_STRB_WIDTH + DFI_DATA_WIDTH,   // {last,strb,data}
@@ -122,7 +129,7 @@ module pumice_dfi_layer
     logic               pinit_start;
 
     // ---- fire strobes ----
-    logic               w_wr_fire, w_rd_fire;
+    logic               w_wr_fire, w_rd_fire, w_rd_op_ready;
     logic [RKW-1:0]     w_fire_rank;
 
     // ---- unpack wrdata / pack rddata ----
@@ -176,7 +183,8 @@ module pumice_dfi_layer
         .dfi_address_o(dfi_address_o), .dfi_bank_o(dfi_bank_o),
         .dfi_cas_n_o(dfi_cas_n_o), .dfi_ras_n_o(dfi_ras_n_o), .dfi_we_n_o(dfi_we_n_o),
         .dfi_cs_n_o(dfi_cs_n_o), .dfi_odt_o(dfi_odt_o),
-        .wr_fire_o(w_wr_fire), .rd_fire_o(w_rd_fire), .fire_rank_o(w_fire_rank)
+        .wr_fire_o(w_wr_fire), .rd_fire_o(w_rd_fire), .fire_rank_o(w_fire_rank),
+        .rd_op_ready_i(w_rd_op_ready)
     );
 
     // ======================================================================
@@ -198,10 +206,11 @@ module pumice_dfi_layer
     // ======================================================================
     pumice_dfi_rd_aligner #(
         .DFI_DATA_WIDTH(DFI_DATA_WIDTH), .DFI_RATE(DFI_RATE),
-        .DFI_VALID_WIDTH(DFI_VALID_WIDTH), .BL_WORDS(BL_WORDS)
+        .DFI_VALID_WIDTH(DFI_VALID_WIDTH), .BL_WORDS(BL_WORDS),
+        .EN_CYC(RD_EN_CYC), .MAX_OUTSTANDING(RD_MAX_OUTSTANDING)
     ) u_rd (
         .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn), .t_rddata_en_i(t_rddata_en_i),
-        .rd_fire_i(w_rd_fire),
+        .op_valid_i(w_rd_fire), .op_ready_o(w_rd_op_ready),
         .dfi_rddata_en_o(dfi_rddata_en_o), .dfi_rddata_i(dfi_rddata_i),
         .dfi_rddata_valid_i(dfi_rddata_valid_i),
         .rd_valid_o(prd_valid), .rd_ready_i(prd_ready),
