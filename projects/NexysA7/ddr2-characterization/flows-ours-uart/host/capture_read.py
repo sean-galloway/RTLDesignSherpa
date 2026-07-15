@@ -40,13 +40,14 @@ def drive_reads(port, baud):
           flush=True)
     d.soft_reset(); time.sleep(0.01)
     d.set_controller_cfg(memtype=dc.MEMTYPE_DDR2, t_phy_wrlat=0,
-                         t_rddata_en=6, rd_in_order=True)
+                         t_rddata_en=int(os.environ.get("CAP_TRE", "6")),
+                         rd_in_order=True)
     # Known-good board config: RD command on phase 0 (a7ddrphy applies rdphase=1
     # internally), read data delayed 8 cycles to meet the late rddata_valid. This
     # capture measures where the 2nd DFI cycle (beats 2,3) lands on the DELAYED
     # net (w_dfi_rddata_dly) vs the raw net + valid.
     d.set_dfi_phase(rd_phase=0, wr_phase=0)
-    d.set_dfi_rddata_delay(8)
+    d.set_dfi_rddata_delay(int(os.environ.get("CAP_RDDLY", "8")))
     # One LARGE contiguous burst so the read-data stream is many back-to-back DFI
     # cycles — makes the "every other read cycle is garbage" cadence unmistakable
     # (vs. short BL4 reads where it looks like a per-command 2nd-cycle loss).

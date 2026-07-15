@@ -52,6 +52,18 @@ inserts the formally-verified `axi4_dwidth_converter_wr/_rd` between a
 host-width AXI slave and the fixed-`DW` core (`HOST_AXI_DATA_WIDTH == DW` is a
 bit-identical generate bypass). See `docs/AXI_DRAM_GEARING_SCOPE.md`.
 
+**Hard width rule (compile-enforced).** `HOST_AXI_DATA_WIDTH : DW` **MUST** be an
+exact power-of-two ratio (`AXI:DFI = G:1` or `1:G`, `G ∈ {1,2,4,8,…}`). An
+`initial assert … $fatal` in `pumice_top_geared` **fails elaboration / Vivado
+synthesis** on any other pairing — a bad width choice is a compile error, not a
+silent broken build. This mirrors LiteDRAM exactly (AXI frontend 1:1 with its
+native port; all width change via a power-of-two stride converter). Because the
+DFI word is the atomic memory-side transfer, an AXI beat must be a whole
+power-of-two number of DFI words. `HOST_AXI_DATA_WIDTH` and `DW` are the **only**
+compile-time width parameters; **gear ratio and burst length are runtime CSRs**
+(`gear_ratio`, `bl`), built for max and selected at runtime — a wrong value is
+bad config programming, never a parameter/synthesis mismatch.
+
 ## Burst Splitting
 
 Each host burst is split at DRAM-burst-byte boundaries by

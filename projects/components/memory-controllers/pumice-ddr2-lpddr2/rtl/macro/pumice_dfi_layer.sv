@@ -100,6 +100,11 @@ module pumice_dfi_layer
     input  logic [PHW-1:0]             wr_phase_i,
     input  logic [7:0]                 t_phy_wrlat_i,
     input  logic [7:0]                 t_rddata_en_i,
+    // Active DFI gear = log2(active DFI rate). DFI_RATE is the compile-time MAX
+    // rate that sizes every bus; gear_i selects how many of those phases are
+    // active. active_rate = 1 << gear_i. At gear_i = log2(DFI_RATE) (board /
+    // default) the mask is all-ones and the DFI en outputs are UNCHANGED.
+    input  logic [1:0]                 gear_i,
 
     // DFI command bus
     output logic [DFI_ADDR_BUS_W-1:0]  dfi_address_o,
@@ -131,6 +136,26 @@ module pumice_dfi_layer
     // ---- fire strobes ----
     logic               w_wr_fire, w_rd_fire, w_rd_op_ready;
     logic [RKW-1:0]     w_fire_rank;
+
+    // ---- active-gear phase mask ------------------------------------------
+    // active_rate = 1 << gear_i (number of low DFI phases that are active).
+    // Sized to hold DFI_RATE. When active_rate == DFI_RATE (gear_i =
+    // log2(DFI_RATE), the board/default), w_phase_active is all-ones and the
+    // en outputs below are bit-identical to the un-masked fub outputs.
+    localparam int RATEW = $clog2(DFI_RATE) + 1;
+    logic [RATEW-1:0]        w_active_rate;
+    assign w_active_rate = (RATEW'(1) << gear_i);
+
+    logic [DFI_EN_WIDTH-1:0] w_phase_active;
+    always_comb begin
+        for (int p = 0; p < DFI_EN_WIDTH; p++)
+            w_phase_active[p] = (RATEW'(p) < w_active_rate);
+    end
+
+    // fub-driven (un-masked) DFI en; gated to the active phases at the output.
+    logic [DFI_EN_WIDTH-1:0] w_dfi_wrdata_en, w_dfi_rddata_en;
+    assign dfi_wrdata_en_o = w_dfi_wrdata_en & w_phase_active;
+    assign dfi_rddata_en_o = w_dfi_rddata_en & w_phase_active;
 
     // ---- unpack wrdata / pack rddata ----
     logic                      w_wd_last;
@@ -197,7 +222,7 @@ module pumice_dfi_layer
         .wr_fire_i(w_wr_fire),
         .wd_valid_i(pwd_valid), .wd_ready_o(pwd_ready),
         .wd_data_i(w_wd_data), .wd_strb_i(w_wd_strb), .wd_last_i(w_wd_last),
-        .dfi_wrdata_o(dfi_wrdata_o), .dfi_wrdata_en_o(dfi_wrdata_en_o),
+        .dfi_wrdata_o(dfi_wrdata_o), .dfi_wrdata_en_o(w_dfi_wrdata_en),
         .dfi_wrdata_mask_o(dfi_wrdata_mask_o)
     );
 
@@ -211,7 +236,7 @@ module pumice_dfi_layer
     ) u_rd (
         .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn), .t_rddata_en_i(t_rddata_en_i),
         .op_valid_i(w_rd_fire), .op_ready_o(w_rd_op_ready),
-        .dfi_rddata_en_o(dfi_rddata_en_o), .dfi_rddata_i(dfi_rddata_i),
+        .dfi_rddata_en_o(w_dfi_rddata_en), .dfi_rddata_i(dfi_rddata_i),
         .dfi_rddata_valid_i(dfi_rddata_valid_i),
         .rd_valid_o(prd_valid), .rd_ready_i(prd_ready),
         .rd_data_o(w_rd_data), .rd_resp_o(w_rd_resp), .rd_last_o(w_rd_last)

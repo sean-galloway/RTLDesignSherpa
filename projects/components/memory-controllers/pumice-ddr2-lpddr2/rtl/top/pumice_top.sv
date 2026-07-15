@@ -162,6 +162,7 @@ module pumice_top
         .wr_phase_i(hwif_out.DFI_PHASE.wr_phase.value[PHW-1:0]),
         .t_phy_wrlat_i(hwif_out.PHY_TIMING.t_phy_wrlat.value),
         .t_rddata_en_i(hwif_out.PHY_TIMING.t_rddata_en.value),
+        .gear_i(hwif_out.DFI_PHASE.gear_ratio.value),
         .cl_o(), .cwl_o(), .bl_o(), .init_done_o(init_done_o),
         .s_axi_awid(s_axi_awid), .s_axi_awaddr(s_axi_awaddr), .s_axi_awlen(s_axi_awlen),
         .s_axi_awsize(s_axi_awsize), .s_axi_awburst(s_axi_awburst), .s_axi_awlock(s_axi_awlock),

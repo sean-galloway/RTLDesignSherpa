@@ -15,8 +15,8 @@ register name to its absolute offset/address, size, reset default, and fields
 in the format consumed by the RegisterMap class (by-name register access).
 
 Usage:
-    from pumice_regmap import top_block
-    reg_map = RegisterMap('pumice_regmap.py', apb_data_width=32,
+    from pumice_csr_regmap import top_block
+    reg_map = RegisterMap('pumice_csr_regmap.py', apb_data_width=32,
                           apb_addr_width=16, start_address=0x0, log=logger)
 """
 
@@ -57,9 +57,10 @@ top_block = {'ADDR_MAP': {'RSVD_15_9': {'default': '0x00', 'offset': '15:9', 'sw
           'soft_reset': {'default': '0x0', 'offset': '31', 'sw': 'rw', 'type': 'field'},
           'sw': 'rw',
           'type': 'reg'},
- 'DFI_PHASE': {'RSVD': {'default': '0x0000000', 'offset': '31:7', 'sw': 'r', 'type': 'field'},
+ 'DFI_PHASE': {'RSVD': {'default': '0x000000', 'offset': '31:9', 'sw': 'r', 'type': 'field'},
                'address': '0x060',
-               'default': '0x00000000',
+               'default': '0x00000100',
+               'gear_ratio': {'default': '0x2', 'offset': '8:7', 'sw': 'rw', 'type': 'field'},
                'name': 'DFI_PHASE',
                'offset': '0x060',
                'rd_phase': {'default': '0x0', 'offset': '2:0', 'sw': 'rw', 'type': 'field'},

@@ -316,8 +316,9 @@ class DDR2CharDriver:
     # (pumice_device.py) owns the single by-name implementation. The driver
     # keeps these thin wrappers so existing callers (pumice_master / pumice_char)
     # are unchanged; `self.pumice.<op>` is equivalent.
-    def set_dfi_phase(self, rd_phase: int, wr_phase: int = 0) -> None:
-        self.pumice.set_dfi_phase(rd_phase, wr_phase)
+    def set_dfi_phase(self, rd_phase: int, wr_phase: int = 0,
+                      gear_ratio=None) -> None:
+        self.pumice.set_dfi_phase(rd_phase, wr_phase, gear_ratio=gear_ratio)
 
     def get_dfi_phase(self) -> tuple:
         return self.pumice.get_dfi_phase()

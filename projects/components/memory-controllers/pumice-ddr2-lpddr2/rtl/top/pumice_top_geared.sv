@@ -28,7 +28,32 @@
 //          bursts of that geometry (host burst sizing is the host's contract,
 //          same spirit as the core's ragged-burst check).
 //
-// Documentation: docs/AXI_DRAM_GEARING_SCOPE.md
+// =====================================================================
+// *** HARD WIDTH CONSTRAINT (COMPILE-ENFORCED) — READ BEFORE SETTING DWs ***
+// =====================================================================
+//   HOST_AXI_DATA_WIDTH and the DFI word DW ( = DRAM_BEAT_WIDTH * DFI_RATE )
+//   MUST relate by an EXACT POWER-OF-TWO RATIO. i.e. AXI:DFI is G:1 or 1:G,
+//   with G a power of two {1,2,4,8,...}. This is asserted below (initial
+//   assert -> $fatal) and FAILS ELABORATION/SYNTHESIS if violated — a bad
+//   width pairing is a compile error, never a silent broken hybrid.
+//
+//   WHY (and it is exactly what LiteDRAM does): the DFI word is the atomic
+//   memory-side transfer, so one AXI beat must be a WHOLE power-of-two number
+//   of DFI words (or vice versa). Any other ratio yields partial words /
+//   fractional CHUNK_BEATS / ragged bursts. LiteDRAM enforces the identical
+//   rule: its AXI frontend is 1:1 with its native port (frontend/axi.py:
+//   `assert axi.data_width == port.data_width`) and ALL width change goes
+//   through a dedicated stride converter that requires exact divisibility +
+//   log2_int(ratio) (frontend/adapter.py LiteDRAMNativePortUp/DownConverter).
+//   We mirror that: the core is fixed 1:1 at DW; THIS wrapper is the only
+//   place width changes, via the formal power-of-2 converters.
+//
+//   Everything else that FRAMES the data (active gear phases, burst length)
+//   is a runtime CONFIG register (build-for-max) — only these two DWs are
+//   compile-time parameters. See HAS ch03/ch04, MAS AXI-DRAM gearing.
+//
+// Documentation: docs/AXI_DRAM_GEARING_SCOPE.md ; HAS ch03_architecture,
+//   ch04_interfaces ; MAS (AXI<->DFI width gearing).
 `timescale 1ns / 1ps
 
 module pumice_top_geared
@@ -126,6 +151,24 @@ module pumice_top_geared
     output logic                       dfi_init_start_o,
     input  logic                       dfi_init_complete_i
 );
+
+    // ===================================================================
+    // HARD WIDTH CONSTRAINT (compile-enforced) — see the header block.
+    // HOST_AXI_DATA_WIDTH : DFI word DW must be an EXACT POWER-OF-TWO ratio
+    // (AXI:DFI = G:1 or 1:G). Anything else -> partial words / ragged bursts.
+    // This $fatal fires at ELABORATION/SYNTH (proven: same idiom as
+    // pumice_axi_burst_chopper's CHUNK_BEATS check errored in Vivado synth),
+    // so a bad width pairing is a compile error, not a silent broken build.
+    // Mirrors LiteDRAM (axi frontend 1:1 + power-of-2 stride converter).
+    // ===================================================================
+    localparam int W_HI  = (HOST_AXI_DATA_WIDTH >= DW) ? HOST_AXI_DATA_WIDTH : DW;
+    localparam int W_LO  = (HOST_AXI_DATA_WIDTH >= DW) ? DW : HOST_AXI_DATA_WIDTH;
+    localparam int W_RAT = W_HI / W_LO;
+    initial begin
+        assert ((W_LO >= 1) && (W_HI % W_LO == 0) && (W_RAT == (1 << $clog2(W_RAT))))
+            else $fatal(1, "pumice_top_geared: HOST_AXI_DATA_WIDTH=%0d and DFI word DW=%0d must relate by a power-of-two ratio (AXI:DFI = G:1 or 1:G); got %0d:%0d. Fix the DW pairing where these params are set.",
+                HOST_AXI_DATA_WIDTH, DW, W_HI, W_LO);
+    end
 
     // ---- core-side (DW-width) AXI nets between converters and pumice_top ----
     logic [IW-1:0]  c_awid;   logic [AW-1:0] c_awaddr;

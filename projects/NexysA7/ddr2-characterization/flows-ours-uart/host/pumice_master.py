@@ -113,6 +113,12 @@ class A7Leveling:
         self.rden = t_rddata_en
         self.rddly = rddata_delay       # dfi_rddata->rddata_valid realign (ILA=8)
         self.rdphase = rd_phase         # a7ddrphy rdphase=1 (RD cmd on phase 1)
+        # gear_ratio CSR (log2 active DFI rate). None => rmw-preserve the RTL
+        # reset (2 = 1:4, the board's fixed nphases=4). The sim exercises rate-2
+        # legacy builds too, where the reset (2) is wrong; those set TEST_GEAR_RATIO
+        # so set_dfi_phase does not leave gear masking off the read path.
+        _g = os.environ.get("TEST_GEAR_RATIO")
+        self.gear = int(_g) if _g is not None else None
         self.lanes = lane_mask          # x16 -> both byte lanes together (0b11)
         self.verbose = verbose
 
@@ -135,7 +141,8 @@ class A7Leveling:
                                     t_phy_wrlat=self.wrlat,
                                     t_rddata_en=self.rden, rd_in_order=True)
         self.drv.set_dfi_rddata_delay(self.rddly)
-        self.drv.set_dfi_phase(rd_phase=self.rdphase, wr_phase=0)
+        self.drv.set_dfi_phase(rd_phase=self.rdphase, wr_phase=0,
+                               gear_ratio=self.gear)
         # A prior failing read leaves a STICKY rd_error/any_error latch that
         # soft_reset does not clear (it lives in harness_csr) — clear_stats
         # does. Without this, wait_engine() would false-negative every write

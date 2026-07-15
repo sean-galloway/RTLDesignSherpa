@@ -23,21 +23,42 @@ DRAM beat width, "within reason."
 
 ## 1. Gearing definition
 
+The controller core is fixed **1:1 at the DFI word**: `DW = DFI_DATA_WIDTH =
+DRAM_BEAT_WIDTH × DFI_RATE`, and one core AXI beat == one DFI word. The ONLY
+place a host may use a different width is `pumice_top_geared`, which inserts the
+repo's formally-verified AXI dwidth converters between the host and the core.
+
+### *** HARD, COMPILE-ENFORCED WIDTH RULE ***
+
 ```
-GEAR = AXI_DATA_WIDTH / DRAM_BEAT_WIDTH        (down-gear: AXI wider than beat)
+HOST_AXI_DATA_WIDTH : DW   MUST be an EXACT POWER-OF-TWO ratio
+                          (AXI:DFI = G:1 or 1:G, G ∈ {1,2,4,8,...})
+where DW (the DFI word) = DRAM_BEAT_WIDTH × DFI_RATE
 ```
 
-Constraints (checked with an elaboration assertion):
-- `AXI_DATA_WIDTH >= DRAM_BEAT_WIDTH`
-- `AXI_DATA_WIDTH % DRAM_BEAT_WIDTH == 0`, and GEAR a power of two
-- Recommended `AXI_DATA_WIDTH <= 128` for area-sensitive builds (see §5)
+This is checked by an **elaboration assertion in `pumice_top_geared`** (`initial
+assert … $fatal`) that **fails Vivado synthesis / verilator elaboration** — a
+bad width pairing is a **compile error**, never a silent broken hybrid. Set the
+two DWs together with this rule in mind; nothing else about the datapath is a
+width parameter.
 
-Today's design is exactly `GEAR == 1`. Nexys A7 (beat=32): AXI 32→G1, 64→G2,
-128→G4, 256→G8, 512→G16.
+**Why the DFI word, and why power-of-two (this is exactly what LiteDRAM does):**
+the DFI word is the atomic memory-side transfer, so one AXI beat must be a
+*whole* power-of-two number of DFI words (or vice versa). Any other ratio yields
+partial words, fractional `CHUNK_BEATS`, and ragged bursts. LiteDRAM enforces
+the identical rule: its AXI frontend is 1:1 with its native port
+(`frontend/axi.py`: `assert axi.data_width == port.data_width`) and **all** width
+change goes through a dedicated stride converter requiring exact divisibility +
+`log2_int(ratio)` (`frontend/adapter.py`: `LiteDRAMNativePortUp/DownConverter`).
 
-`DRAM_BEAT_WIDTH` itself stays = DFI per-phase = 2 × physical DQ width, and
-`DFI_DATA_WIDTH = DRAM_BEAT_WIDTH * DFI_RATE`. Gearing does **not** touch the
-DFI rate — `DFI_RATE` continues to equal the PHY phase count (4 for a7ddrphy).
+Nexys A7 (beat=32, DFI_RATE=4 → DW=128): host 128→G1 (1:1, converter bypassed),
+256→2:1, 512→4:1; a narrower host (64) attaches 1:2 through the converter.
+
+`DRAM_BEAT_WIDTH` = DFI per-phase = 2 × physical DQ width. Gearing does **not**
+touch the DFI rate — `DFI_RATE` (the gear) continues to equal the PHY phase
+count (4 for a7ddrphy) and is a build-for-max value the runtime `gear_ratio` CSR
+selects within; likewise burst length is the runtime `bl` CSR. Only
+`HOST_AXI_DATA_WIDTH` and `DW` are compile-time width parameters.
 
 ### Why generic (not a one-off for this board)
 

@@ -37,7 +37,7 @@ when DFI_RATE &lt; the field width.</p>
         <th></th>
     </tr>
     <tr id="RSVD">
-        <td>[31:7]</td>
+        <td>[31:9]</td>
         <td><a href="#RSVD.desc">RSVD</a></td>
         <td>
             <span title='Read-only'>r</span></td>
@@ -54,6 +54,26 @@ when DFI_RATE &lt; the field width.</p>
                 title="Switch radix" aria-label="Switch radix"
                 data-name="RSVD" onclick="onRadixSwitch(this)">H</button>
             <a class="headerlink" href="#RSVD" title="Permalink to this row"></a>
+        </td>
+    </tr>
+    <tr id="gear_ratio">
+        <td>[8:7]</td>
+        <td><a href="#gear_ratio.desc">gear_ratio</a></td>
+        <td>
+            <span title='Readable and Writable'>rw</span></td>
+        <td>0x2
+        </td>
+        <td>
+            <input id="_FieldValueTestergear_ratio" class="field-value-tester"
+                type="text" autocomplete="off"
+                data-name="gear_ratio" oninput="onDecodedFieldInput(this)"/>
+        </td>
+        <td>-</td>
+        <td>
+            <button type="button" id="_RadixButtongear_ratio" class="radix-button"
+                title="Switch radix" aria-label="Switch radix"
+                data-name="gear_ratio" onclick="onRadixSwitch(this)">H</button>
+            <a class="headerlink" href="#gear_ratio" title="Permalink to this row"></a>
         </td>
     </tr>
     <tr id="wr_phase">
@@ -120,6 +140,13 @@ when DFI_RATE &lt; the field width.</p>
 </h3>
 <div id="_Content.RSVD.desc">
 <p>Reserved</p>
+</div>
+
+<h3 id="gear_ratio.desc">gear_ratio
+    <a class="headerlink" href="#gear_ratio.desc" title="Permalink to this headline"></a>
+</h3>
+<div id="_Content.gear_ratio.desc">
+<p>gear_ratio = log2(active DFI_RATE)</p>
 </div>
 
 <h3 id="wr_phase.desc">wr_phase

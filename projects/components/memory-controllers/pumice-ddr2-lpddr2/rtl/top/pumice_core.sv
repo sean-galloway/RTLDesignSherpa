@@ -96,6 +96,11 @@ module pumice_core
     input  logic [7:0]                 t_mrd_wait_i, t_rp_wait_i, t_rfc_wait_i,
     input  logic [PHW-1:0]             rd_phase_i, wr_phase_i,
     input  logic [7:0]                 t_phy_wrlat_i, t_rddata_en_i,
+    // Active DFI gear = log2(active DFI rate). DFI_RATE is the compile-time MAX
+    // that sizes all buses; gear_i selects the active phase count at runtime.
+    // gear_i = log2(DFI_RATE) (board/default) => active_rate == DFI_RATE => the
+    // DFI en masks are all-ones => behaviour is bit-identical to today.
+    input  logic [1:0]                 gear_i,
     output logic [3:0]                 cl_o, cwl_o, bl_o,
     output logic                       init_done_o,
 
@@ -279,6 +284,7 @@ module pumice_core
         .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn), .memtype_i(memtype_i),
         .rd_phase_i(rd_phase_i), .wr_phase_i(wr_phase_i),
         .t_phy_wrlat_i(t_phy_wrlat_i), .t_rddata_en_i(t_rddata_en_i),
+        .gear_i(gear_i),
         .dfi_address_o(dfi_address_o), .dfi_bank_o(dfi_bank_o),
         .dfi_cas_n_o(dfi_cas_n_o), .dfi_ras_n_o(dfi_ras_n_o), .dfi_we_n_o(dfi_we_n_o),
         .dfi_cs_n_o(dfi_cs_n_o), .dfi_odt_o(dfi_odt_o),

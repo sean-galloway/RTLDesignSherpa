@@ -209,7 +209,14 @@ addrmap pumice_csr {
 
         field { sw = rw; hw = r; desc = "READ command DFI sub-phase";  } rd_phase[2:0]   = 3'd0;
         field { sw = rw; hw = r; desc = "WRITE command DFI sub-phase"; } wr_phase[6:4]   = 3'd0;
-        field { sw = r;  hw = na; desc = "Reserved";                   } RSVD[31:7]       = 25'h0;
+        // gear_ratio = log2(active DFI_RATE): 0=1:1, 1=1:2, 2=1:4, 3=1:8. The
+        // controller datapath is BUILT for MAX_DFI_RATE (this build = 4); this
+        // register selects how many of those phases are ACTIVE at runtime and
+        // MUST equal the PHY's gear (nphases). On this board the a7ddrphy is
+        // fixed nphases=4, so reset = 2 (1:4). Prep for a variable-gear PHY
+        // (task #144/#145) -- gear is NEVER inferred, always this fixed register.
+        field { sw = rw; hw = r; desc = "gear_ratio = log2(active DFI_RATE)"; } gear_ratio[8:7] = 2'd2;
+        field { sw = r;  hw = na; desc = "Reserved";                   } RSVD[31:9]       = 23'h0;
 
     } DFI_PHASE @ 0x060;
 

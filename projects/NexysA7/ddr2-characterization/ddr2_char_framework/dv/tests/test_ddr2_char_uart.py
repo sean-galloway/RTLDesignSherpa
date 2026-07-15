@@ -70,6 +70,13 @@ DRAM_BL        = 4    # DDR2 MR0 default BL — must match the controller
 # params are set to match by the pytest wrapper.
 DFI_RATE        = int(os.environ.get("TEST_DFI_RATE", "2"))
 DRAM_BEAT_BYTES = int(os.environ.get("TEST_DRAM_BEAT_BYTES", "8"))
+# gear_ratio CSR = log2(active DFI rate) and MUST match the compile-time DFI_RATE
+# of this build (rate-2 => 1, rate-4 => 2). set_dfi_phase does a full-word
+# DFI_PHASE write, so we pass this explicitly; otherwise gear_ratio would be
+# clobbered (=1:1) and pumice masks off all but DFI phase 0 -> reads never
+# complete. (A build that never calls set_dfi_phase keeps the RTL reset, which
+# is 2=1:4 -- correct for the board's fixed nphases=4 but NOT for a rate-2 sim.)
+GEAR_RATIO      = DFI_RATE.bit_length() - 1
 # Physical DRAM device width in bytes (x16 => 2). Default = DRAM_BEAT_BYTES so
 # one pumice DRAM beat == one physical beat (ratio 1, legacy). The board's x16
 # device with a 32b (4-byte) pumice beat packs 2 physical beats per pumice beat,
@@ -110,10 +117,21 @@ def _make_dfi_slave(dut):
     # thus masks an aligner mis-pacing), this catches a controller that fires
     # rddata_en at the wrong cadence for tCCD-paced reads.
     _a7_gated = os.environ.get("TEST_A7_READ_GATED", "0") == "1"
-    _timing = (DFITimingProfile.a7ddrphy(read_latency=_rdlat,
-                                         write_latency=_wrlat,
-                                         read_en_gated=True)
-               if _a7_gated else None)
+    # a7ddrphy-faithful free-running ISERDES read model: DATA anchored to the
+    # command, VALID = rddata_en delayed by TEST_A7_READ_VALID_LAT. Decoupled
+    # data/valid reproduce the on-silicon consecutive-read one-slot shift.
+    _a7_free = os.environ.get("TEST_A7_READ_FREE", "0") == "1"
+    _vlat = int(os.environ.get("TEST_A7_READ_VALID_LAT", str(_rdlat)))
+    if _a7_free:
+        _timing = DFITimingProfile.a7ddrphy_free_running(
+            read_latency=_rdlat, read_valid_latency=_vlat,
+            write_latency=_wrlat)
+    elif _a7_gated:
+        _timing = DFITimingProfile.a7ddrphy(read_latency=_rdlat,
+                                            write_latency=_wrlat,
+                                            read_en_gated=True)
+    else:
+        _timing = None
     # a7ddrphy 4-phase read-window offset (RDS-DV #32): non-zero reproduces the
     # nphases=4-PHY / DFI_RATE=2-controller device-word read corruption in sim.
     _dwoff = int(os.environ.get("TEST_READ_DW_OFFSET", "0"))
@@ -175,7 +193,8 @@ async def cocotb_test_uart_smoke(dut):
         # rdphase=1 path (RD command on DFI phase 1). The phase-aware DFISlavePHY
         # follows whichever phase carries the command.
         drv.set_dfi_phase(rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
-                          wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")))
+                          wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
+                          gear_ratio=GEAR_RATIO)
         seed = 0xABCD1234
         # stride = burst_len * bytes_per_beat, so bursts don't overlap
         stride = 4 * 8
@@ -202,6 +221,58 @@ async def cocotb_test_uart_smoke(dut):
     tx = chan.tx_bytes()
     assert tx.count(b"\n") >= 10, "too few UART commands captured"
     assert tx.startswith((b"R ", b"W ")), f"unexpected first bytes: {tx[:8]!r}"
+
+
+@cocotb.test(timeout_time=200, timeout_unit="ms")
+async def cocotb_test_uart_pagehit(dut):
+    """Board-failing pattern: MANY page-hit reads paced at tCCD=2.
+
+    The on-silicon ILA showed the read corruption only appears when the
+    controller issues MULTIPLE sequential-column reads in ONE open row
+    (page hits) paced at tCCD=2 PAIRS. The return is shifted by one READ:
+    read N's data lands in read N+1's slot; read 0's slot returns ZERO ->
+    beats_mismatched == 2 * txn_count. A single read (smoke's txn=4 is too
+    few / not tightly tCCD-paced) cannot exhibit a one-read SHIFT.
+
+    This drives write-then-read of the SAME region: BL4, TEST_PAGEHIT_TXN
+    (default 8) sequential columns in one row, stride = BL*8 bytes. NO
+    clear_stats between wr and rd (keeps the latched CRC)."""
+    drv, chan, _dfi, _mem = await _bringup(dut)
+
+    NTXN = int(os.environ.get("TEST_PAGEHIT_TXN", "8"))
+
+    def prog():
+        results = {}
+        drv.soft_reset()
+        drv.set_dfi_cmd_delay(int(os.environ.get("TEST_CMD_DELAY", "0")))
+        drv.set_controller_cfg(memtype=dc.MEMTYPE_DDR2,
+                               t_phy_wrlat=int(os.environ.get("TEST_T_PHY_WRLAT", "4")),
+                               t_rddata_en=int(os.environ.get("TEST_T_RDDATA_EN", "4")),
+                               rd_in_order=True)
+        drv.set_dfi_phase(rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
+                          wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
+                          gear_ratio=GEAR_RATIO)
+        seed = 0xABCD1234
+        stride = 4 * 8   # BL * bytes_per_beat -> consecutive columns, same row
+        drv.program_wr_engine(start_addr=0x0, burst_len=4, txn_count=NTXN,
+                              stride_0=stride, lfsr_seed=seed,
+                              axi_size=dc.AXI_SIZE_8)
+        drv.start_wr(); results["wr"] = pm.wait_engine(drv, "wr", timeout_s=60)
+        drv.program_rd_engine(start_addr=0x0, burst_len=4, txn_count=NTXN,
+                              stride_0=stride, lfsr_seed=seed,
+                              axi_size=dc.AXI_SIZE_8)
+        drv.start_rd(); results["rd"] = pm.wait_engine(drv, "rd", timeout_s=60)
+        exp, act, match, valid = drv.crc()
+        results.update(exp=exp, act=act, match=match, valid=valid,
+                       mism=drv.beats_mismatched())
+        return results
+
+    r = await cocotb.external(prog)()
+    dut._log.info("PAGEHIT results (NTXN=%d): %s", NTXN, r)
+    assert r["wr"] and r["rd"], f"engine did not finish: {r}"
+    assert r["valid"] and r["match"] and r["mism"] == 0, (
+        f"page-hit read mismatch (NTXN={NTXN}): {r} "
+        f"(board fails here with mism == 2*txn == {2*NTXN})")
 
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
@@ -296,7 +367,7 @@ async def cocotb_test_uart_sweep(dut):
         drv.soft_reset()
         drv.set_controller_cfg(memtype=dc.MEMTYPE_DDR2, t_phy_wrlat=4,
                                t_rddata_en=4, rd_in_order=True)
-        drv.set_dfi_phase(rd_phase=0, wr_phase=0)
+        drv.set_dfi_phase(rd_phase=0, wr_phase=0, gear_ratio=GEAR_RATIO)
         results["inorder"] = _leg(0x00000, force_inorder=True,
                                   id_mode=dc.ID_MODE_FIXED)
         results["ooo"]     = _leg(0x40000, force_inorder=False,
@@ -321,7 +392,9 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
          t_phy_wrlat: int = 4, cmd_delay: int = 0,
          strict_read_timing: bool = False, read_latency: int = 8,
          rd_phase: int = 0, wr_phase: int = 0, dram_device_width: int = 0,
-         a7_read_gated: bool = False, read_device_word_offset: int = 0):
+         a7_read_gated: bool = False, read_device_word_offset: int = 0,
+         a7_read_free: bool = False, a7_read_valid_lat: int = -1,
+         pagehit_txn: int = 8):
     # dram_device_width=0 => default to dram_beat_width (ratio 1, legacy). Set to
     # 16 to model the board's x16 device (JEDEC BL4 = 1 DFI cycle).
     if dram_device_width == 0:
@@ -344,6 +417,10 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{tag}.xml"),
         # tell the cocotb test how to size the DFISlavePHY BFM
         "TEST_DFI_RATE": str(dfi_rate),
+        # gear_ratio CSR for this build = log2(DFI_RATE). Threaded to host progs
+        # (SimpleTest) that call set_dfi_phase, so the full-word DFI_PHASE write
+        # sets the correct active-phase count instead of clobbering it to 1:1.
+        "TEST_GEAR_RATIO": str(dfi_rate.bit_length() - 1),
         "TEST_DRAM_BEAT_BYTES": str(dram_beat_width // 8),
         "TEST_DRAM_DEVICE_BYTES": str(dram_device_width // 8),
         # Faithful DFI write-timing: capture wrdata at command+write_latency
@@ -357,8 +434,13 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         "TEST_READ_LATENCY": str(read_latency),
         "TEST_RD_PHASE": str(rd_phase),
         "TEST_WR_PHASE": str(wr_phase),
+        "TEST_T_RDDATA_EN": os.environ.get("TEST_T_RDDATA_EN", "4"),
         "TEST_A7_READ_GATED": "1" if a7_read_gated else "0",
         "TEST_READ_DW_OFFSET": str(read_device_word_offset),
+        "TEST_A7_READ_FREE": "1" if a7_read_free else "0",
+        "TEST_A7_READ_VALID_LAT": str(a7_read_valid_lat if a7_read_valid_lat >= 0
+                                      else read_latency),
+        "TEST_PAGEHIT_TXN": str(pagehit_txn),
     }
     compile_args = [
         "+define+USE_ASYNC_RESET",
@@ -398,6 +480,27 @@ def test_ddr2_char_uart_smoke_rate4(request):
 
 def test_ddr2_char_uart_multichunk_rate4(request):
     _run("cocotb_test_uart_multichunk", dfi_rate=4, dram_beat_width=32)
+
+
+def test_ddr2_char_uart_smoke_rate4_x16(request):
+    # THE BOARD CONFIG, and the gate for task #146: gear 1:4 (DFI_RATE=4) + true
+    # x16 (32b pumice beat, 16b device). A JEDEC BL4 x16 burst = BL_PUMICE*beat =
+    # 2*32 = 64b = HALF the 128b DFI word, so 2 BL4 reads pack into one DFI cycle
+    # (like LiteDRAM). pumice's datapath currently assumes a burst >= 1 DFI word
+    # (.BL(BL_PUMICE/DFI_RATE)=2/4=0 -> CHUNK_BEATS=0 -> chopper power-of-2 assert),
+    # so this test FAILS today and MUST pass once the sub-DFI-word burst datapath
+    # fix lands. The rate4 tests above use device==beat (no x16), which is why they
+    # stayed green while the board synth failed.
+    _run("cocotb_test_uart_smoke", dfi_rate=4, dram_beat_width=32,
+         dram_device_width=16, strict_read_timing=True, read_latency=8,
+         t_phy_wrlat=0)
+
+
+def test_ddr2_char_uart_multichunk_rate4_x16(request):
+    # Multi-read page-hit under the board x16+gear1:4 config (2 BL4 reads/DFI word).
+    _run("cocotb_test_uart_multichunk", dfi_rate=4, dram_beat_width=32,
+         dram_device_width=16, strict_read_timing=True, read_latency=8,
+         t_phy_wrlat=0)
 
 
 # ---- rate-2 / GEAR-2 (the NEW board config: match LiteDRAM's proven nphases=2,
@@ -455,6 +558,61 @@ def test_ddr2_char_uart_smoke_rate2_x16(request):
     _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
          dram_device_width=16, strict_write_timing=True, write_latency=0,
          strict_read_timing=True, read_latency=8, t_phy_wrlat=0)
+
+
+def test_ddr2_char_uart_pagehit_rate2_x16(request):
+    # Board-failing PATTERN under the faithful x16 strict-read config
+    # (offset=0, no artificial injection). Drives many page-hit reads paced
+    # at tCCD=2 -- the exact pattern the on-silicon ILA showed corrupts
+    # (mism == 2*txn). If this fails NATURALLY, the sim reproduces the board
+    # bug from the pattern alone. If it PASSES, the DFISlavePHY read model is
+    # not faithful enough to the a7ddrphy consecutive-read timing.
+    _run("cocotb_test_uart_pagehit", dfi_rate=2, dram_beat_width=32,
+         dram_device_width=16, strict_write_timing=True, write_latency=0,
+         strict_read_timing=True, read_latency=8, t_phy_wrlat=0)
+
+
+def test_ddr2_char_uart_pagehit_rate2_x16_a7gated(request):
+    # Same board-failing page-hit pattern but under the a7ddrphy COMMAND-
+    # anchored, rddata_en-GATED read model (read_ref=command, not slaved to
+    # the controller's rddata_en cadence). read_latency == t_rddata_en(=4)
+    # so a single read aligns; only the tCCD consecutive-read cadence bug can
+    # break it. This is the model most likely to expose the one-read shift.
+    _run("cocotb_test_uart_pagehit", dfi_rate=2, dram_beat_width=32,
+         dram_device_width=16, strict_write_timing=True, write_latency=0,
+         strict_read_timing=True, read_latency=4, t_phy_wrlat=0,
+         a7_read_gated=True)
+
+
+def test_ddr2_char_uart_pagehit_rate2_x16_free(request):
+    # a7ddrphy-FAITHFUL free-running ISERDES read model on the board-failing
+    # page-hit pattern. DATA is anchored to the READ COMMAND (read_latency=8);
+    # VALID is the controller's rddata_en delayed by read_valid_latency. Data
+    # and valid are DECOUPLED (unlike strict_read / a7_gated, which re-lock them
+    # and hide the shift). read_valid_latency == read_latency => aligned control
+    # (should read clean, proving the model is bit-exact when timing matches).
+    # read_valid_latency=5 lands the valid strobe INSIDE the command-anchored
+    # data window (aligned control -> reads clean; empirically 4 or 5 pass).
+    _run("cocotb_test_uart_pagehit", dfi_rate=2, dram_beat_width=32,
+         dram_device_width=16, strict_write_timing=True, write_latency=0,
+         strict_read_timing=True, read_latency=8, t_phy_wrlat=0,
+         a7_read_free=True, a7_read_valid_lat=5)
+
+
+def test_ddr2_char_uart_pagehit_rate2_x16_free_earlyen(request):
+    # *** THE BOARD BUG, REPRODUCED NATURALLY IN SIM (offset=0). ***
+    # Same free-running a7ddrphy model, but the rddata_en->valid strobe is
+    # DECOUPLED from the command-anchored DATA by one DFI cycle (tCCD): the
+    # valid samples the DQ bus one cycle after the correct data has been
+    # OVERWRITTEN by the next read's word -> read N's data appears in read N+1's
+    # slot and read 0's slot returns ZERO, giving beats_mismatched == 2*txn
+    # (mism=16 for NTXN=8) -- the EXACT on-silicon ILA signature, with NO
+    # artificial read_device_word_offset injection. EXPECTED TO FAIL until the
+    # aligner respects the per-command (tCCD) read cadence in RTL.
+    _run("cocotb_test_uart_pagehit", dfi_rate=2, dram_beat_width=32,
+         dram_device_width=16, strict_write_timing=True, write_latency=0,
+         strict_read_timing=True, read_latency=8, t_phy_wrlat=0,
+         a7_read_free=True, a7_read_valid_lat=6)
 
 
 def test_ddr2_char_uart_smoke_rate2_x16_readshift(request):

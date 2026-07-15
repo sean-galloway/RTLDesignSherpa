@@ -756,7 +756,8 @@ when DFI_RATE &lt; the field width.</p>
 |----|----------|------|-----|----|
 | 2:0| rd_phase |  rw  | 0x0 |  — |
 | 6:4| wr_phase |  rw  | 0x0 |  — |
-|31:7|   RSVD   |   r  | 0x0 |  — |
+| 8:7|gear_ratio|  rw  | 0x2 |  — |
+|31:9|   RSVD   |   r  | 0x0 |  — |
 
 #### rd_phase field
 
@@ -765,6 +766,10 @@ when DFI_RATE &lt; the field width.</p>
 #### wr_phase field
 
 <p>WRITE command DFI sub-phase</p>
+
+#### gear_ratio field
+
+<p>gear_ratio = log2(active DFI_RATE)</p>
 
 #### RSVD field
 

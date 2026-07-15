@@ -1,6 +1,6 @@
 -------------------------------------
 | Tool Version : Vivado v.2025.1
-| Date         : Thu Jul  9 06:20:51 2026
+| Date         : Tue Jul 14 23:19:46 2026
 | Host         : amdtrp
 | Design       : synth_1
 | Device       : xc7a100t-csg324-1--

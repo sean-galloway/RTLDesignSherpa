@@ -163,11 +163,16 @@ module ddr2_char_top #(
     // =========================================================================
     // Flat DFI wires (harness <-> adapter <-> a7ddrphy)
     //
-    // a7ddrphy config (Artix-7 x16 DDR2): 1:2 / nphases=2 — matches LiteDRAM's
-    // board-proven config. The PHY exposes 4 DFI phase ports but only serializes
-    // phases 0,1 (DATA_WIDTH=4, 4 beats/sys-cycle), so the controller drives
-    // DFI_RATE=2; the adapter NOPs PHY phases 2,3. DRAM beat = 2*DQ = 32b,
-    // DFI_DATA_WIDTH = 32*2 = 64, GEAR = AXI/beat = 2.
+    // a7ddrphy config (Artix-7 x16 DDR2): 1:4 / nphases=4 — the a7ddrphy is
+    // FIXED at nphases=4, so it serializes ALL 4 DFI phases. The controller must
+    // therefore drive DFI_RATE=4 so the adapter (g_rd4 branch) gathers all four
+    // read phases {p3,p2,p1,p0}; a DFI_RATE=2 controller only fills phases 0,1
+    // and the adapter drops half the read data (on-board read corruption,
+    // beats_mismatched == 2*txn). DRAM beat = 2*DQ = 32b, so
+    // DFI_DATA_WIDTH = 32*4 = 128; GEAR = AXI/beat = 64/32 = 2 (host 64b <-> 128b
+    // DFI word, geared internally by pumice_core). The runtime gear_ratio CSR
+    // (DFI_PHASE.gear_ratio, reset 2 = 1:4) selects the active phase count and is
+    // left at its 1:4 default for this build.
     // =========================================================================
     localparam int AXI_DATA_WIDTH  = 64;
     localparam int DRAM_BEAT_WIDTH = 32;
@@ -175,8 +180,8 @@ module ddr2_char_top #(
     // DRAM beat = 2 physical x16 beats, so a JEDEC BL4 = 2 pumice beats = 1 DFI
     // cycle; pumice scales its burst-length accounting by 32/16=2 accordingly.
     localparam int DRAM_DEVICE_WIDTH = 16;
-    localparam int DFI_RATE        = 2;
-    localparam int DFI_DATA_WIDTH  = DFI_RATE * DRAM_BEAT_WIDTH;   // 64
+    localparam int DFI_RATE        = 4;
+    localparam int DFI_DATA_WIDTH  = DFI_RATE * DRAM_BEAT_WIDTH;   // 128
     localparam int DFI_STRB_WIDTH  = DFI_DATA_WIDTH / 8;           // 16
     localparam int DFI_ADDR_BUS_W  = ROW_WIDTH * DFI_RATE;         // 52
     localparam int DFI_BANK_BUS_W  = 3 * DFI_RATE;                 // 12
