@@ -33,6 +33,12 @@ This directory contains documentation for the common RTL modules library, provid
 
 ### Arithmetic and Math Operations
 
+> **Start here:** [**Math Library overview**](math_library.md) — the whole `math_*`
+> family organized by operation → methodology (Brent-Kung / Han-Carlson /
+> Kogge-Stone adders, Dadda / Wallace multipliers, IEEE-754 fp32/fp16/bf16/fp8
+> operators, conversions, and activations), each with its research reference and
+> a link to the detailed doc below, plus the `bin/` code-generation automation.
+
 #### Basic Arithmetic
 - **[math_adder_basic](math_adder_basic.md)** - Single-bit adders (full and half adder)
   - Includes: `math_adder_full.sv`, `math_adder_half.sv`, `math_adder_full_nbit.sv`
@@ -114,6 +120,7 @@ This directory contains documentation for the common RTL modules library, provid
 
 #### Compressors and Prefix Cells
 - **[math_compressor_4to2](math_compressor_4to2.md)** - 4:2 compressor for fast parallel reduction
+- **[mod_3_compress](mod_3_compress.md)** - Combinational `X - (X mod 3)` carry-save rounding (monbus record packing)
   - Includes: `math_compressor_4to2.sv`
 - **[math_prefix_cell](math_prefix_cell.md)** - Black cell for parallel prefix adders
   - Includes: `math_prefix_cell.sv`
@@ -139,6 +146,7 @@ This directory contains documentation for the common RTL modules library, provid
 - **[arbiter_round_robin_simple](arbiter_round_robin_simple.md)** - Simple round-robin arbiter with rotation
 - **[arbiter_round_robin](arbiter_round_robin.md)** - Advanced round-robin arbiter
 - **[arbiter_round_robin_weighted](arbiter_round_robin_weighted.md)** - Weighted round-robin arbiter
+- **[arbiter_single_client](arbiter_single_client.md)** - Degenerate single-client arbiter (registered ack-held grant)
 - **[arbiter_priority_encoder](arbiter_priority_encoder.md)** - Priority-based arbiter
 
 ### Clock and Reset Management
@@ -197,6 +205,7 @@ This directory contains documentation for the common RTL modules library, provid
 #### Shifters
 - **[shifter_barrel](shifter_barrel.md)** - Barrel shifter for rotation and shifting
 - **[shifter_universal](shifter_universal.md)** - Universal shifter (left/right, logical/arithmetic)
+- **[shifter_beat_pack](shifter_beat_pack.md)** - Bit-granular beat-packing shifter (runtime beat width)
 
 #### Linear Feedback Shift Registers
 - **[shifter_lfsr](shifter_lfsr.md)** - Basic Linear Feedback Shift Register
@@ -207,6 +216,8 @@ This directory contains documentation for the common RTL modules library, provid
 
 #### FIFO Implementations
 - **[fifo_sync](fifo_sync.md)** - Synchronous FIFO with configurable depth
+- **[fifo_sync_multi](fifo_sync_multi.md)** - Multi-field FIFO wrapper (packs addr/ctrl/data into one fifo_sync)
+- **[fifo_sync_multi_sigmap](fifo_sync_multi_sigmap.md)** - fifo_sync_multi with generic positional signal-map ports
 - **[fifo_async](fifo_async.md)** - Asynchronous FIFO for clock domain crossing
 - **[fifo_async_div2](fifo_async_div2.md)** - Asynchronous FIFO optimized for divide-by-2 clocks
 - **[fifo_control](fifo_control.md)** - FIFO control logic
