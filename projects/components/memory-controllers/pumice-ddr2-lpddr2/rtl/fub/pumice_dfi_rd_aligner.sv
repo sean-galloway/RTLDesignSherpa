@@ -89,37 +89,24 @@ module pumice_dfi_rd_aligner #(
         else                         r_age <= {r_age[PIPE-2:0], rd_fire_i};
     )
 
-    // ---- capture: gate to the aligner's own enable window -------------------
-    // The a7ddrphy asserts a PREAMBLE dfi_rddata_valid one cycle BEFORE the
-    // enable window (data still 0), then the real valid+data after. Capturing on
-    // raw |dfi_rddata_valid| grabs that zero preamble beat and shifts the whole
-    // read stream -> the on-silicon 2-of-4 device-word corruption. Only data that
-    // arrives once THIS read's enable window has opened is real: accumulate a
-    // per-read capture CREDIT of +1 per ENABLE cycle (= BL_WORDS per read, and
-    // never before the enable, so the pre-enable preamble is skipped), -1 per
-    // captured word; capture only while credit != 0.
-    localparam int CRDW = $clog2((PIPE + 1) * BL_WORDS + 1) + 1;
-    logic [CRDW-1:0] r_credit;
-    logic [CNTW:0]   r_rcnt;    // words captured so far in this burst
+    // ---- capture: push a word to the read FIFO on each rddata_valid ---------
+    logic            w_word_valid;
+    assign w_word_valid = |dfi_rddata_valid_i;
 
-    logic w_capture, w_cap_fire;
-    assign w_capture  = (|dfi_rddata_valid_i) && (r_credit != '0);
-    assign w_cap_fire = w_capture && rd_ready_i;
+    logic [CNTW:0] r_rcnt;    // words captured so far in this burst
+    logic          r_rbusy;
 
-    assign rd_valid_o = w_capture;
+    assign rd_valid_o = w_word_valid;
     assign rd_data_o  = dfi_rddata_i;
     assign rd_resp_o  = RESP_OKAY;
-    assign rd_last_o  = w_capture && (r_rcnt == (CNTW+1)'(BL_WORDS - 1));
+    assign rd_last_o  = w_word_valid && (r_rcnt == (CNTW+1)'(BL_WORDS - 1));
 
     `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
         if (`RST_ASSERTED(dfi_rstn)) begin
-            r_rcnt   <= '0;
-            r_credit <= '0;
+            r_rcnt  <= '0;
+            r_rbusy <= 1'b0;
         end else begin
-            r_credit <= r_credit
-                      + (w_en       ? CRDW'(1) : CRDW'(0))   // +1 per enable cycle
-                      - (w_cap_fire ? CRDW'(1) : CRDW'(0));
-            if (w_cap_fire) begin
+            if (w_word_valid && rd_ready_i) begin
                 if (r_rcnt == (CNTW+1)'(BL_WORDS - 1)) r_rcnt <= '0;   // burst done
                 else                                    r_rcnt <= r_rcnt + 1'b1;
             end
