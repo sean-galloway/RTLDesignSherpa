@@ -139,6 +139,59 @@ async def cocotb_test_rd_aligner_tccd_paced(dut):
     dut._log.info("PASS: rddata_en follows tCCD read cadence %s (gaps %s)", en_cycles, gaps)
 
 
+@cocotb.test(timeout_time=3, timeout_unit="ms")
+async def cocotb_test_rd_aligner_preamble_valid(dut):
+    """x16 board reality: the a7ddrphy asserts a PREAMBLE dfi_rddata_valid one
+    cycle BEFORE the aligner's enable window (data still 0), then the real
+    valid+data one cycle AFTER (ILA reports/ila_read_fixed.csv: en@N,
+    spurious valid@N-1 data=0, real valid@N+1). Capturing on raw |valid| grabs
+    the zero preamble beat and shifts the whole read stream -> the on-silicon
+    2-of-4 device-word corruption. The aligner MUST capture only within its own
+    expected data window (keyed on the enable), ignoring the pre-enable preamble.
+    EXPECTED TO FAIL until the capture is gated to the enable window."""
+    cocotb.start_soon(Clock(dut.dfi_clk, 10, units='ns').start())
+    dut.dfi_rstn.value = 0
+    dut.t_rddata_en_i.value = 0
+    dut.rd_fire_i.value = 0
+    dut.dfi_rddata_i.value = 0
+    dut.dfi_rddata_valid_i.value = 0
+    dut.rd_ready_i.value = 1
+    for _ in range(4):
+        await RisingEdge(dut.dfi_clk)
+    dut.dfi_rstn.value = 1
+    for _ in range(3):
+        await RisingEdge(dut.dfi_clk)
+
+    assert BL_WORDS == 1, f"preamble case targets x16 BL_WORDS=1; got {BL_WORDS}"
+    RDEN = 4
+    REAL = 0xA5A03F18A5A03F1C
+    ALLV = (1 << DFI_RATE) - 1
+    dut.t_rddata_en_i.value = RDEN
+    got = []
+    for c in range(RDEN + 8):
+        dut.rd_fire_i.value = 1 if c == 0 else 0
+        if c == RDEN - 1:                    # PREAMBLE: valid high, data still 0
+            dut.dfi_rddata_valid_i.value = ALLV
+            dut.dfi_rddata_i.value = 0
+        elif c == RDEN + 1:                  # REAL: valid + data (en window +1)
+            dut.dfi_rddata_valid_i.value = ALLV
+            dut.dfi_rddata_i.value = REAL
+        else:
+            dut.dfi_rddata_valid_i.value = 0
+            dut.dfi_rddata_i.value = 0
+        await RisingEdge(dut.dfi_clk)
+        if int(dut.rd_valid_o.value) and int(dut.rd_ready_i.value):
+            got.append(int(dut.rd_data_o.value))
+    dut.dfi_rddata_valid_i.value = 0
+
+    assert got == [REAL], (
+        f"aligner captured {[hex(x) for x in got]}, expected [{hex(REAL)}]: the "
+        f"pre-enable preamble valid (data=0) was captured, shifting the read "
+        f"stream (the on-board 2-of-4 device-word corruption). Gate capture to "
+        f"the enable window.")
+    dut._log.info("PASS: preamble valid ignored; captured only real data")
+
+
 def _run_fub(testcase: str, bl_words: int):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_dfi_rd_aligner"
@@ -166,3 +219,9 @@ def test_pumice_dfi_rd_aligner_tccd_paced(request):
     # x16 BL4 (BL_WORDS=1): reads paced at tCCD > DQ occupancy. Reproduces the
     # on-silicon read failure at the FUB level (no PHY model needed).
     _run_fub("cocotb_test_rd_aligner_tccd_paced", bl_words=1)
+
+
+def test_pumice_dfi_rd_aligner_preamble_valid(request):
+    # x16 BL4 (BL_WORDS=1): a7ddrphy preamble rddata_valid before the enable
+    # window. Reproduces the on-silicon 2-of-4 device-word corruption at FUB level.
+    _run_fub("cocotb_test_rd_aligner_preamble_valid", bl_words=1)
