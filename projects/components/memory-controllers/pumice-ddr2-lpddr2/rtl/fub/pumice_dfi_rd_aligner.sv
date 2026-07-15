@@ -102,8 +102,15 @@ module pumice_dfi_rd_aligner #(
     logic [CRDW-1:0] r_credit;
     logic [CNTW:0]   r_rcnt;    // words captured so far in this burst
 
+    // Credit available THIS cycle = registered credit + a combinational +1 while
+    // the enable window is asserted, so data arriving AT the enable cycle (read
+    // latency 0) is captured too — while a pre-enable preamble (w_en=0,
+    // r_credit=0) still sees 0 and is skipped.
+    logic [CRDW-1:0] w_avail;
+    assign w_avail = r_credit + (w_en ? CRDW'(1) : CRDW'(0));
+
     logic w_capture, w_cap_fire;
-    assign w_capture  = (|dfi_rddata_valid_i) && (r_credit != '0);
+    assign w_capture  = (|dfi_rddata_valid_i) && (w_avail != '0);
     assign w_cap_fire = w_capture && rd_ready_i;
 
     assign rd_valid_o = w_capture;
@@ -116,9 +123,7 @@ module pumice_dfi_rd_aligner #(
             r_rcnt   <= '0;
             r_credit <= '0;
         end else begin
-            r_credit <= r_credit
-                      + (w_en       ? CRDW'(1) : CRDW'(0))   // +1 per enable cycle
-                      - (w_cap_fire ? CRDW'(1) : CRDW'(0));
+            r_credit <= w_avail - (w_cap_fire ? CRDW'(1) : CRDW'(0));
             if (w_cap_fire) begin
                 if (r_rcnt == (CNTW+1)'(BL_WORDS - 1)) r_rcnt <= '0;   // burst done
                 else                                    r_rcnt <= r_rcnt + 1'b1;
