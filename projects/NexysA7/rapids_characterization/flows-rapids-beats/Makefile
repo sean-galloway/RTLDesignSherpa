@@ -47,10 +47,23 @@ REPORTS   := $(SELF_DIR)/reports
 
 HARNESS_TEST := projects/NexysA7/rapids_characterization/flows-rapids-beats/dv/test_rapids_char_harness.py
 
+# ---- Board target ----------------------------------------------------------
+# BOARD selects the FPGA target: nexys (Artix-7 100T, default) or genesys2
+# (Kintex-7 325T-2). Passed through to create_project.tcl; the genesys2 build
+# uses the rapids_char_genesys2_top wrapper (MMCM 200->100 MHz) and defaults to
+# the full 8-channel geometry.
+BOARD ?= nexys
+export BOARD
+
 # ---- Characterization knobs -----------------------------------------------
 # CHANNELS is exported as the build generic (RAPIDS_NUM_CHANNELS) AND passed to
 # the host, so the bitstream and the host campaign can never silently disagree.
+# Default follows the board: 8 on the roomy Genesys 2, 4 on the tight Nexys.
+ifeq ($(BOARD),genesys2)
+CHANNELS ?= 8
+else
 CHANNELS ?= 4
+endif
 ACTIVE   ?= $(CHANNELS)
 BEATS    ?= 8
 PORT     ?= /dev/ttyUSB1

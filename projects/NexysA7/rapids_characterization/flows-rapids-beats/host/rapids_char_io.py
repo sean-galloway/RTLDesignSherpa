@@ -269,29 +269,60 @@ class RapidsCharIO:
     def read_status(self) -> int:
         return self.csr_read_reg("STATUS")
 
-    def read_bus_meter(self, direction: str) -> dict:
-        """Read one direction's frozen axi_bus_meter buckets by name.
+    def meter_arm(self) -> None:
+        """Pulse OBS_CTRL.ARM to clear + re-arm both bus meters. MUST be called
+        before each measured run: there is no per-run reset, so without this the
+        meters stay frozen on the first window captured after board reset."""
+        self.csr_write_reg("OBS_CTRL", ARM=1)
 
-        direction: 'rd' (source-read R channel) or 'wr' (sink-write W channel).
-        Returns raw PROD/BP/STARV/IDLE cycle counts + window total + utilization
-        (prod / total). The meter is auto-windowed in the harness (opened on DMA
-        busy, frozen 16 idle cycles after the last beat), so these are the
-        buckets for exactly one workload.
+    IFACES = ('rd', 'wr', 'sin', 'sout')
+
+    def read_bus_meter(self, direction: str) -> dict:
+        """Read one interface's frozen axi_bus_meter buckets by name.
+
+        iface: one of the four datapath interfaces --
+          'rd'   AXI4 source read     'wr'   AXI4 sink write
+          'sin'  AXIS sink ingress    'sout' AXIS source egress
+        Returns raw PROD/BP/STARV/IDLE cycle counts plus:
+          engaged = prod+bp+starv  (cycles the transfer was in flight)
+          total   = prod+bp+starv+idle  (full frozen window)
+          util    = prod / engaged  -- ENGAGED utilization: the fraction of
+                    in-flight cycles that were productive. Trailing IDLE (arm-to-
+                    first-beat + the settle tail after the last beat) is excluded
+                    so the number is independent of the window padding. This is
+                    the meaningful bus-efficiency figure; effective bandwidth =
+                    peak * util.
+        The window is host-armed (meter_arm) before the run and auto-freezes
+        after a long idle gap, so it brackets exactly one workload.
         """
-        if direction not in ('rd', 'wr'):
-            raise ValueError(f"direction must be 'rd' or 'wr', got {direction!r}")
+        if direction not in self.IFACES:
+            raise ValueError(f"iface must be one of {self.IFACES}, got {direction!r}")
         d = direction.upper()
         prod = self.csr_read_reg(f"OBS_{d}_PROD") or 0
         bp = self.csr_read_reg(f"OBS_{d}_BP") or 0
         starv = self.csr_read_reg(f"OBS_{d}_STARV") or 0
         idle = self.csr_read_reg(f"OBS_{d}_IDLE") or 0
-        total = prod + bp + starv + idle
+        engaged = prod + bp + starv
+        total = engaged + idle
         return {'prod': prod, 'bp': bp, 'starv': starv, 'idle': idle,
-                'total': total, 'util': (prod / total) if total else 0.0}
+                'engaged': engaged, 'total': total,
+                'util': (prod / engaged) if engaged else 0.0}
 
     def read_bus_meters(self) -> dict:
-        """Read both directions' bus meters -> {'rd': {...}, 'wr': {...}}."""
-        return {'rd': self.read_bus_meter('rd'), 'wr': self.read_bus_meter('wr')}
+        """Read all four interface meters -> {'rd':{..},'wr':{..},'sin':{..},'sout':{..}}."""
+        return {i: self.read_bus_meter(i) for i in self.IFACES}
+
+    def read_axis_extras(self, direction: str) -> dict:
+        """Read an AXIS interface's native throughput counters (axis_bus_meter):
+        exact bytes (64-bit, from tstrb) and packets (from tlast). direction is
+        'sin' (sink ingress) or 'sout' (source egress)."""
+        if direction not in ('sin', 'sout'):
+            raise ValueError(f"AXIS extras only for 'sin'/'sout', got {direction!r}")
+        d = direction.upper()
+        lo = self.csr_read_reg(f"OBS_{d}_BYTES_LO") or 0
+        hi = self.csr_read_reg(f"OBS_{d}_BYTES_HI") or 0
+        pkts = self.csr_read_reg(f"OBS_{d}_PKTS") or 0
+        return {'bytes': (hi << 32) | lo, 'packets': pkts}
 
     def ping(self) -> bool:
         """Verify the UART link + CSR block are alive via the ID register

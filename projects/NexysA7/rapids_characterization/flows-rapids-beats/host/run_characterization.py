@@ -215,6 +215,9 @@ class RapidsCharCampaign:
         for ch in active_channels:
             mask |= (1 << ch)
 
+        # Re-arm the bus meters so this run gets a fresh measurement window.
+        self.io.meter_arm()
+
         # 1. Load a SINK DATA descriptor per active channel into the SNK RAM.
         for ch in active_channels:
             desc_addr = DESC_BASE + ch * 0x1000
@@ -288,6 +291,9 @@ class RapidsCharCampaign:
                       f"{beats} beats/channel, "
                       f"backpressure={'ON' if backpressure else 'off'} ===")
         n_active = len(active_channels)
+
+        # Re-arm the bus meters so this run gets a fresh measurement window.
+        self.io.meter_arm()
 
         # 1. Reset the source-read LFSR/CRC pattern generator (1-cycle pulse).
         self.io.csr_write_reg("MEM_CTRL", RD_CRC_LFSR_RESET=1)
@@ -440,28 +446,48 @@ class RapidsCharCampaign:
         if se not in (0, None):
             errors.append(f"{label.lower()}_sched_error=0x{se:X}")
 
-        # Per-direction AXI bus-meter: read the frozen window's buckets and
-        # derive measured utilization + effective bandwidth. Direction follows
-        # the beat-count register: RD_BEATS_T -> source read, WR_BEATS_T -> sink
-        # write. Non-fatal: a meter read hiccup must not fail a golden-clean run.
-        direction = 'rd' if beat_count_reg.upper().startswith('RD') else 'wr'
-        try:
-            meter = self.io.read_bus_meter(direction)
-        except Exception as exc:  # noqa: BLE001
-            self.log.warning(f"  {label}: bus-meter read failed: {exc}")
-            meter = None
-        perf = None
-        if meter and meter['total'] > 0:
-            eff_bw = PEAK_BW_PER_DIR * meter['util']
-            perf = {'direction': direction, 'util': meter['util'],
-                    'eff_bw_bytes_per_s': eff_bw,
-                    'eff_bw_gb_s': eff_bw / 1e9,
-                    'peak_bw_gb_s': PEAK_BW_PER_DIR / 1e9,
-                    'buckets': meter}
-            print(f"  {label} perf: util={meter['util']:.1%} "
-                  f"eff={eff_bw/1e9:.2f} GB/s of {PEAK_BW_PER_DIR/1e9:.1f} peak "
-                  f"(prod={meter['prod']} bp={meter['bp']} "
-                  f"starv={meter['starv']} idle={meter['idle']})")
+        # Bus meters: read BOTH interfaces on this run's direction from the frozen
+        # window. A SINK run drives AXIS ingress (sin) -> AXI4 write (wr); a SOURCE
+        # run drives AXI4 read (rd) -> AXIS egress (sout). Report each interface's
+        # engaged utilization + effective bandwidth. Non-fatal on read hiccups.
+        if label.upper() == 'SOURCE':
+            ifaces = [('rd', 'AXI4-rd'), ('sout', 'AXIS-out')]   # SOURCE path
+        else:
+            ifaces = [('sin', 'AXIS-in'), ('wr', 'AXI4-wr')]     # SINK path
+        perf = {'ifaces': {}}
+        for key, disp in ifaces:
+            try:
+                m = self.io.read_bus_meter(key)
+            except Exception as exc:  # noqa: BLE001
+                self.log.warning(f"  {label}: {key} bus-meter read failed: {exc}")
+                continue
+            if m['engaged'] <= 0:
+                continue
+            eff_bw = PEAK_BW_PER_DIR * m['util']
+            rec = {'iface': key, 'util': m['util'],
+                   'eff_bw_gb_s': eff_bw / 1e9,
+                   'peak_bw_gb_s': PEAK_BW_PER_DIR / 1e9, 'buckets': m}
+            print(f"  {label} {disp}: util={m['util']:.1%} "
+                  f"eff={eff_bw/1e9:.2f} GB/s (prod={m['prod']} bp={m['bp']} "
+                  f"starv={m['starv']} idle={m['idle']})")
+            # AXIS interfaces expose exact byte/packet counts (axis_bus_meter).
+            # Byte-derived throughput over the full frozen window cross-checks the
+            # cycle-utilization figure and is exact regardless of window padding.
+            if key in ('sin', 'sout'):
+                try:
+                    ex = self.io.read_axis_extras(key)
+                    win = m['total']
+                    bw = (ex['bytes'] * ACLK_HZ / win) if win else 0.0
+                    rec['bytes'] = ex['bytes']
+                    rec['packets'] = ex['packets']
+                    rec['byte_bw_gb_s'] = bw / 1e9
+                    print(f"    {disp} axis: {ex['bytes']} B, {ex['packets']} pkts, "
+                          f"{bw/1e9:.2f} GB/s (byte-derived)")
+                except Exception as exc:  # noqa: BLE001
+                    self.log.warning(f"  {label}: {key} axis extras read failed: {exc}")
+            perf['ifaces'][key] = rec
+        if not perf['ifaces']:
+            perf = None
 
         passed = len(errors) == 0
         for w in warnings:
@@ -550,23 +576,28 @@ def _print_suite_summary(rows) -> None:
     print(f"SUITE SUMMARY: {len(rows)} configs run, "
           f"{len(passed)} passed, {len(failed)} failed")
     print("=" * 78)
-    def _bw(detail):
-        p = (detail or {}).get('perf')
-        return f"{p['eff_bw_gb_s']:.2f}" if p else "  -"
+    # The direction's throughput is set by its slower (bottleneck) interface.
+    def _min_util(detail):
+        ifs = ((detail or {}).get('perf') or {}).get('ifaces') or {}
+        return min((v['util'] for v in ifs.values()), default=None)
 
-    print(f"{'#':<4}{'config':<30}{'sink':>6}{'source':>7}{'ovr':>5}"
+    def _bw(detail):
+        u = _min_util(detail)
+        return f"{PEAK_BW_PER_DIR * u / 1e9:.2f}" if u is not None else "  -"
+
+    print(f"{'#':<4}{'config':<28}{'snk':>5}{'src':>5}{'ovr':>4}"
           f"{'snkGB/s':>9}{'srcGB/s':>9}")
     print("-" * 78)
     for i, r in enumerate(rows, 1):
-        print(f"{i:<4}{r['name']:<30}"
-              f"{'PASS' if r['sink_pass'] else 'FAIL':>6}"
-              f"{'PASS' if r['source_pass'] else 'FAIL':>7}"
-              f"{'P' if r['pass'] else 'F':>5}"
+        print(f"{i:<4}{r['name']:<28}"
+              f"{'P' if r['sink_pass'] else 'F':>5}"
+              f"{'P' if r['source_pass'] else 'F':>5}"
+              f"{'P' if r['pass'] else 'F':>4}"
               f"{_bw(r.get('sink')):>9}{_bw(r.get('source')):>9}")
-    # Peak measured throughput across the suite (best single-direction window).
+    # Peak measured throughput across the suite (best bottleneck-limited window).
     def _peak(key):
-        vals = [(r.get(key) or {}).get('perf') for r in rows]
-        vals = [p['eff_bw_gb_s'] for p in vals if p]
+        vals = [_min_util(r.get(key)) for r in rows]
+        vals = [PEAK_BW_PER_DIR * u / 1e9 for u in vals if u is not None]
         return max(vals) if vals else None
     snk_peak, src_peak = _peak('sink'), _peak('source')
     if snk_peak or src_peak:

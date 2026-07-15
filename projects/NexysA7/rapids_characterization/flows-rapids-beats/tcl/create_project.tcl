@@ -20,7 +20,25 @@
 
 set project_name "rapids_char"
 set project_dir  "build/vivado_project"
-set part_name    "xc7a100tcsg324-1"
+
+# Board target selection (env BOARD=nexys|genesys2; default nexys). The genesys2
+# target is the Kintex-7 325T-2 (~3.2x LUTs, faster grade) whose wrapper top
+# derives 100 MHz from the 200 MHz LVDS sysclk via an MMCM; everything else is
+# shared with the Nexys build.
+set part_name      "xc7a100tcsg324-1"
+set board_part_str "digilentinc.com:nexys-a7-100t:part0:1.3"
+set top_name       "rapids_char_top"
+set top_flist_name "rapids_char_top.f"
+set xdc_name       "rapids_char_top.xdc"
+set board_label    "Nexys A7-100T (xc7a100t-1)"
+if {[info exists ::env(BOARD)] && $::env(BOARD) eq "genesys2"} {
+    set part_name      "xc7k325tffg900-2"
+    set board_part_str "digilentinc.com:genesys2:part0:1.1"
+    set top_name       "rapids_char_genesys2_top"
+    set top_flist_name "rapids_char_genesys2_top.f"
+    set xdc_name       "rapids_char_genesys2_top.xdc"
+    set board_label    "Genesys 2 (xc7k325t-2)"
+}
 
 set script_dir   [file dirname [file normalize [info script]]]
 set project_root [file normalize "$script_dir/.."]
@@ -35,7 +53,10 @@ if {![info exists ::env(REPO_ROOT)]} {
     exit 1
 }
 
+# Default channel count: the Genesys 2 (Kintex 325T-2) closes the full 8-channel
+# geometry with margin; the Nexys A7-100T (-1) is narrowed to 4.
 set num_channels 4
+if {[info exists ::env(BOARD)] && $::env(BOARD) eq "genesys2"} { set num_channels 8 }
 if {[info exists ::env(RAPIDS_NUM_CHANNELS)]} {
     set num_channels $::env(RAPIDS_NUM_CHANNELS)
 }
@@ -52,10 +73,11 @@ set desc_ram_entries 256
 if {[info exists ::env(RAPIDS_DESC_RAM_ENTRIES)]} { set desc_ram_entries $::env(RAPIDS_DESC_RAM_ENTRIES) }
 
 puts "========================================================================"
-puts "RTL Design Sherpa — RAPIDS beats Characterization (Nexys A7-100T)"
+puts "RTL Design Sherpa — RAPIDS beats Characterization ($board_label)"
 puts "========================================================================"
 puts "Project root:      $project_root"
 puts "REPO_ROOT:         $::env(REPO_ROOT)"
+puts "Part / top:        $part_name / $top_name"
 puts "NUM_CHANNELS:      $num_channels"
 puts "SRAM_DEPTH:        $sram_depth"
 puts "DESC_RAM_ENTRIES:  $desc_ram_entries"
@@ -71,7 +93,6 @@ set_property -name "simulator_language" -value "Mixed"           -objects $obj
 # Optional board-part association — only applied if the Digilent board files
 # are installed. Not required for synthesis/impl since the part is already set
 # and the XDC handles all pin mapping.
-set board_part_str "digilentinc.com:nexys-a7-100t:part0:1.3"
 if {[lsearch -exact [get_board_parts] $board_part_str] >= 0} {
     set_property board_part $board_part_str [current_project]
     puts "Board-part set: $board_part_str"
@@ -85,7 +106,7 @@ if {[lsearch -exact [get_board_parts] $board_part_str] >= 0} {
 # ----------------------------------------------------------------------------
 source "$script_dir/filelist_utils.tcl"
 
-set top_filelist "$project_root/flists/rapids_char_top.f"
+set top_filelist "$project_root/flists/$top_flist_name"
 puts "\nExpanding filelist: $top_filelist"
 lassign [filelist::flatten $top_filelist] sv_sources incdirs defines
 
@@ -122,7 +143,6 @@ if {[llength $defines] > 0} {
     set_property verilog_define $defines $src_fs
 }
 
-set top_name rapids_char_top
 puts "Setting top module: $top_name"
 set_property top $top_name $src_fs
 
@@ -136,7 +156,7 @@ update_compile_order -fileset sources_1
 # ----------------------------------------------------------------------------
 set cf [get_filesets constrs_1]
 add_files -norecurse -fileset $cf \
-    "$project_root/constraints/rapids_char_top.xdc"
+    "$project_root/constraints/$xdc_name"
 
 # ----------------------------------------------------------------------------
 # Synthesis / implementation strategy

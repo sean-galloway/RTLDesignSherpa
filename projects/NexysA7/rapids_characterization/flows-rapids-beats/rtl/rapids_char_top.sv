@@ -76,6 +76,7 @@
 //   0x054 MON_LIMIT_ADDR [31:0]
 //   0x058 MON_FLUSH_WM   [15:0]
 //   0x060 CH_SEL         [CIW-1:0] selects channel for indexed per-ch reads
+//   0x0C0 OBS_CTRL       [0] obs_arm (1-cycle pulse; re-arms the bus meters)
 //   Readable:
 //   0x000 ID             0x52415031 ("RAP1")
 //   0x080 STATUS         [0]mon_irq [1]src_idle [2]snk_idle [3]gen_busy
@@ -103,6 +104,8 @@
 //   0x114 OBS_WR_BP    sink-write   W-channel backpressure cycles
 //   0x118 OBS_WR_STARV sink-write   W-channel starvation cycles
 //   0x11C OBS_WR_IDLE  sink-write   W-channel idle cycles
+//   0x120..0x12C OBS_SIN_{PROD,BP,STARV,IDLE}  AXIS sink ingress (s_axis)
+//   0x130..0x13C OBS_SOUT_{PROD,BP,STARV,IDLE} AXIS source egress (m_axis)
 //
 // Author: sean galloway
 // Created: 2026-07-03
@@ -247,6 +250,7 @@ module rapids_char_top #(
     localparam logic [11:0] CSR_MON_LIMIT   = 12'h054;
     localparam logic [11:0] CSR_MON_FLUSHWM = 12'h058;
     localparam logic [11:0] CSR_CH_SEL      = 12'h060;
+    localparam logic [11:0] CSR_OBS_CTRL    = 12'h0C0;  // [0] ARM (1-cyc pulse)
 
     localparam logic [11:0] CSR_ID          = 12'h000;
     localparam logic [11:0] CSR_STATUS      = 12'h080;
@@ -274,6 +278,21 @@ module rapids_char_top #(
     localparam logic [11:0] CSR_OBS_WR_BP   = 12'h114;
     localparam logic [11:0] CSR_OBS_WR_STRV = 12'h118;
     localparam logic [11:0] CSR_OBS_WR_IDLE = 12'h11C;
+    localparam logic [11:0] CSR_OBS_SIN_PROD  = 12'h120;  // AXIS sink ingress
+    localparam logic [11:0] CSR_OBS_SIN_BP    = 12'h124;
+    localparam logic [11:0] CSR_OBS_SIN_STRV  = 12'h128;
+    localparam logic [11:0] CSR_OBS_SIN_IDLE  = 12'h12C;
+    localparam logic [11:0] CSR_OBS_SOUT_PROD = 12'h130;  // AXIS source egress
+    localparam logic [11:0] CSR_OBS_SOUT_BP   = 12'h134;
+    localparam logic [11:0] CSR_OBS_SOUT_STRV = 12'h138;
+    localparam logic [11:0] CSR_OBS_SOUT_IDLE = 12'h13C;
+    // AXIS-native throughput counters (bytes 64-bit -> LO/HI, packets 32-bit)
+    localparam logic [11:0] CSR_OBS_SIN_BYTES_LO  = 12'h140;
+    localparam logic [11:0] CSR_OBS_SIN_BYTES_HI  = 12'h144;
+    localparam logic [11:0] CSR_OBS_SIN_PKTS      = 12'h148;
+    localparam logic [11:0] CSR_OBS_SOUT_BYTES_LO = 12'h14C;
+    localparam logic [11:0] CSR_OBS_SOUT_BYTES_HI = 12'h150;
+    localparam logic [11:0] CSR_OBS_SOUT_PKTS     = 12'h154;
 
     // =========================================================================
     // Harness control/status registers (driven by the CSR region)
@@ -327,9 +346,15 @@ module rapids_char_top #(
     logic [NUM_CHANNELS-1:0]    wr_crc_valid;
     logic [31:0]                wr_beat_count_total;
     logic                       wr_mem_busy;
-    // Per-direction AXI bus-meter buckets from the harness.
+    // Per-interface bus-meter buckets from the harness (AXI4 rd/wr + AXIS sin/sout).
     logic [31:0]                obs_rd_prod, obs_rd_bp, obs_rd_starv, obs_rd_idle;
     logic [31:0]                obs_wr_prod, obs_wr_bp, obs_wr_starv, obs_wr_idle;
+    logic [31:0]                obs_sin_prod, obs_sin_bp, obs_sin_starv, obs_sin_idle;
+    logic [31:0]                obs_sout_prod, obs_sout_bp, obs_sout_starv, obs_sout_idle;
+    // AXIS-native throughput counters (axis_bus_meter): exact bytes + packets.
+    logic [63:0]                obs_sin_bytes, obs_sout_bytes;
+    logic [31:0]                obs_sin_packets, obs_sout_packets;
+    logic                       r_obs_arm;   // 1-cycle bus-meter re-arm pulse
     logic                       src_system_idle, snk_system_idle;
     logic [NUM_CHANNELS-1:0]    src_sched_error, snk_sched_error;
     logic                       mon_irq;
@@ -504,6 +529,7 @@ module rapids_char_top #(
             r_ch_sel                <= '0;
             r_desc_data             <= '0;
             r_desc_addr             <= '0;
+            r_obs_arm               <= 1'b0;
         end else begin
             // Pulses default low; re-asserted for one cycle on a matching write.
             // The gen/chk START bits are ALSO 1-cycle pulses (not held levels):
@@ -518,10 +544,12 @@ module rapids_char_top #(
             r_wr_crc_reset      <= 1'b0;
             r_cfg_gen_start     <= 1'b0;
             r_chk_cfg_start     <= 1'b0;
+            r_obs_arm           <= 1'b0;
 
             if (w_csr_we) begin
                 case (w_woff)
                     CSR_CTRL:        r_cam_clear             <= r_wdata[0];
+                    CSR_OBS_CTRL:    r_obs_arm               <= r_wdata[0];
                     CSR_GEN_CTRL:    r_cfg_gen_start         <= r_wdata[0];
                     CSR_GEN_SEED:    r_cfg_gen_lfsr_seed     <= r_wdata;
                     CSR_GEN_NBEATS:  r_cfg_gen_num_beats     <= r_wdata;
@@ -604,6 +632,20 @@ module rapids_char_top #(
                     CSR_OBS_WR_BP:   w_readmux = obs_wr_bp;
                     CSR_OBS_WR_STRV: w_readmux = obs_wr_starv;
                     CSR_OBS_WR_IDLE: w_readmux = obs_wr_idle;
+                    CSR_OBS_SIN_PROD:  w_readmux = obs_sin_prod;
+                    CSR_OBS_SIN_BP:    w_readmux = obs_sin_bp;
+                    CSR_OBS_SIN_STRV:  w_readmux = obs_sin_starv;
+                    CSR_OBS_SIN_IDLE:  w_readmux = obs_sin_idle;
+                    CSR_OBS_SOUT_PROD: w_readmux = obs_sout_prod;
+                    CSR_OBS_SOUT_BP:   w_readmux = obs_sout_bp;
+                    CSR_OBS_SOUT_STRV: w_readmux = obs_sout_starv;
+                    CSR_OBS_SOUT_IDLE: w_readmux = obs_sout_idle;
+                    CSR_OBS_SIN_BYTES_LO:  w_readmux = obs_sin_bytes[31:0];
+                    CSR_OBS_SIN_BYTES_HI:  w_readmux = obs_sin_bytes[63:32];
+                    CSR_OBS_SIN_PKTS:      w_readmux = obs_sin_packets;
+                    CSR_OBS_SOUT_BYTES_LO: w_readmux = obs_sout_bytes[31:0];
+                    CSR_OBS_SOUT_BYTES_HI: w_readmux = obs_sout_bytes[63:32];
+                    CSR_OBS_SOUT_PKTS:     w_readmux = obs_sout_packets;
                     default:         w_readmux = 32'h0;
                 endcase
             end
@@ -766,7 +808,8 @@ module rapids_char_top #(
         .wr_beat_count_total    (wr_beat_count_total),
         .wr_mem_busy            (wr_mem_busy),
 
-        // Per-direction AXI bus-meter buckets
+        // Per-interface bus-meter buckets (AXI4 rd/wr + AXIS sin/sout)
+        .obs_arm                (r_obs_arm),
         .obs_rd_prod            (obs_rd_prod),
         .obs_rd_bp              (obs_rd_bp),
         .obs_rd_starv           (obs_rd_starv),
@@ -775,6 +818,18 @@ module rapids_char_top #(
         .obs_wr_bp              (obs_wr_bp),
         .obs_wr_starv           (obs_wr_starv),
         .obs_wr_idle            (obs_wr_idle),
+        .obs_sin_prod           (obs_sin_prod),
+        .obs_sin_bp             (obs_sin_bp),
+        .obs_sin_starv          (obs_sin_starv),
+        .obs_sin_idle           (obs_sin_idle),
+        .obs_sout_prod          (obs_sout_prod),
+        .obs_sout_bp            (obs_sout_bp),
+        .obs_sout_starv         (obs_sout_starv),
+        .obs_sout_idle          (obs_sout_idle),
+        .obs_sin_bytes          (obs_sin_bytes),
+        .obs_sin_packets        (obs_sin_packets),
+        .obs_sout_bytes         (obs_sout_bytes),
+        .obs_sout_packets       (obs_sout_packets),
 
         // SOURCE descriptor-RAM host write port
         .desc_src_awid   (AXI_ID_WIDTH'(0)),

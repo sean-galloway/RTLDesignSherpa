@@ -43,7 +43,11 @@ module scheduler_group_beats #(
     // Direction enables (see scheduler_beats): SOURCE half = read-only (EN_WRITE=0),
     // SINK half = write-only (EN_READ=0); default both preserves mem-to-mem behavior.
     parameter bit EN_READ  = 1'b1,
-    parameter bit EN_WRITE = 1'b1
+    parameter bit EN_WRITE = 1'b1,
+    // GEN_MON=0 gates this group's per-channel MonBus emitters (descriptor,
+    // scheduler, ctrl-rd, ctrl-wr) to 0 so synthesis prunes the emitter cones.
+    // Default 1 preserves production behavior.
+    parameter bit GEN_MON = 1'b1
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -553,7 +557,9 @@ module scheduler_group_beats #(
         .block_arb              (1'b0),
         // 4 sources: descriptor_engine, scheduler, ctrlrd_engine, ctrlwr_engine.
         // Each client carries packet + side-band timestamp atomically.
-        .monbus_valid_in        ('{desceng_mon_valid,     sched_mon_valid,     ctrlrd_mon_valid,     ctrlwr_mon_valid}),
+        // GEN_MON gates all four emitter valids to 0 -> the arbiter emits
+        // valid=0 and synthesis prunes the upstream emitter register cones.
+        .monbus_valid_in        ('{desceng_mon_valid & GEN_MON, sched_mon_valid & GEN_MON, ctrlrd_mon_valid & GEN_MON, ctrlwr_mon_valid & GEN_MON}),
         .monbus_ready_in        ('{desceng_mon_ready,     sched_mon_ready,     ctrlrd_mon_ready,     ctrlwr_mon_ready}),
         .monbus_packet_in       ('{desceng_mon_packet,    sched_mon_packet,    ctrlrd_mon_packet,    ctrlwr_mon_packet}),
         .monbus_timestamp_in    ('{desceng_mon_timestamp, sched_mon_timestamp, ctrlrd_mon_timestamp, ctrlwr_mon_timestamp}),

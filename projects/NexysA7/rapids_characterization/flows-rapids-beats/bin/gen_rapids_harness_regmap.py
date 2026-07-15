@@ -80,6 +80,7 @@ CSR = [
     (0x054, 'MON_LIMIT',   'rw', None),
     (0x058, 'MON_FLUSHWM', 'rw', None),
     (0x060, 'CH_SEL',      'rw', None),                               # indexed-read selector
+    (0x0C0, 'OBS_CTRL',    'w',  [('ARM', 0, 0, 'w')]),               # bus-meter re-arm pulse
     # ---- readable status ----  (CSR_ID aliases 0x000 on the read path)
     (0x080, 'STATUS',      'r',  [('MON_IRQ', 0, 0, 'r'), ('SRC_IDLE', 1, 1, 'r'),
                                   ('SNK_IDLE', 2, 2, 'r'), ('GEN_BUSY', 3, 3, 'r'),
@@ -110,6 +111,21 @@ CSR = [
     (0x114, 'OBS_WR_BP',   'r', None),
     (0x118, 'OBS_WR_STARV','r', None),
     (0x11C, 'OBS_WR_IDLE', 'r', None),
+    (0x120, 'OBS_SIN_PROD', 'r', None),   # AXIS sink ingress (s_axis)
+    (0x124, 'OBS_SIN_BP',   'r', None),
+    (0x128, 'OBS_SIN_STARV','r', None),
+    (0x12C, 'OBS_SIN_IDLE', 'r', None),
+    (0x130, 'OBS_SOUT_PROD', 'r', None),  # AXIS source egress (m_axis)
+    (0x134, 'OBS_SOUT_BP',   'r', None),
+    (0x138, 'OBS_SOUT_STARV','r', None),
+    (0x13C, 'OBS_SOUT_IDLE', 'r', None),
+    # AXIS-native throughput (axis_bus_meter): exact bytes (64b LO/HI) + packets
+    (0x140, 'OBS_SIN_BYTES_LO', 'r', None),
+    (0x144, 'OBS_SIN_BYTES_HI', 'r', None),
+    (0x148, 'OBS_SIN_PKTS',     'r', None),
+    (0x14C, 'OBS_SOUT_BYTES_LO','r', None),
+    (0x150, 'OBS_SOUT_BYTES_HI','r', None),
+    (0x154, 'OBS_SOUT_PKTS',    'r', None),
 ]
 
 _HDR = '''# SPDX-License-Identifier: MIT

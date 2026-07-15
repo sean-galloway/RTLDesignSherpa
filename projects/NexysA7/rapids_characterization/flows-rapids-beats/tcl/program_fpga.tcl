@@ -32,7 +32,9 @@ if {$tgt eq ""} {
 puts "Opening hw_target $tgt (serial $want_serial)"
 open_hw_target $tgt
 
-set dev [lindex [get_hw_devices xc7a100t_0] 0]
+# Auto-select the device on the chosen target (board-agnostic: xc7a100t_0 on the
+# Nexys, xc7k325t_0 on the Genesys 2). Assumes a single FPGA in the JTAG chain.
+set dev [lindex [get_hw_devices] 0]
 current_hw_device $dev
 refresh_hw_device [current_hw_device]
 

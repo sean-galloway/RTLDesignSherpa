@@ -159,6 +159,7 @@ class RapidsCharHarnessTB(TBBase):
 
         # Monitor CAM sync-clear.
         d.cam_clear.value = 0
+        d.obs_arm.value = 0
 
         # APB idle until the APB master takes over (post-reset).
         d.s_apb_psel.value = 0
@@ -315,7 +316,11 @@ class RapidsCharHarnessTB(TBBase):
         await self.write_fields(half, 'DESCENG_ADDR1_BASE',  ADDR1_BASE=0x0000_0000)
         await self.write_fields(half, 'DESCENG_ADDR1_LIMIT', ADDR1_LIMIT=0xFFFF_FFFF)
 
-        # RD/WR=8 beats, ALLOC=16, DRAIN=1.
+        # 512-byte AXI bursts (8 beats x 64 B) on read and write; ALLOC=16, and
+        # DRAIN_SIZE=1 to MATCH the board campaign (run_characterization). NOTE:
+        # DRAIN_SIZE>1 was tried here and DROPPED SOURCE BEATS (o_chk_beat_count
+        # short, CRC mismatch) -- a real bug in the drain path at DRAIN_SIZE>1 --
+        # and did not improve utilization, so it is kept at 1. See known_issues.
         await self.write_fields(half, 'AXI_XFER_CONFIG',
                                 RD_XFER_BEATS=8, WR_XFER_BEATS=8,
                                 ALLOC_SIZE=16, DRAIN_SIZE=1)
@@ -419,9 +424,17 @@ class RapidsCharHarnessTB(TBBase):
         bp = self._read_u32(getattr(d, f'obs_{direction}_bp'))
         starv = self._read_u32(getattr(d, f'obs_{direction}_starv'))
         idle = self._read_u32(getattr(d, f'obs_{direction}_idle'))
-        total = prod + bp + starv + idle
+        engaged = prod + bp + starv          # in-flight cycles (idle excluded)
+        total = engaged + idle
         return {'prod': prod, 'bp': bp, 'starv': starv, 'idle': idle,
-                'total': total, 'util': (prod / total) if total else 0.0}
+                'engaged': engaged, 'total': total,
+                'util': (prod / engaged) if engaged else 0.0}
+
+    async def meter_arm(self):
+        """Pulse obs_arm to clear + re-arm the bus meters (1 cycle)."""
+        self.dut.obs_arm.value = 1
+        await self.wait_clocks(self.clk_name, 1)
+        self.dut.obs_arm.value = 0
 
     async def _pulse(self, sig, cycles=1):
         sig.value = 1
@@ -451,6 +464,8 @@ class RapidsCharHarnessTB(TBBase):
         mask = 0
         for ch in active_channels:
             mask |= (1 << ch)
+
+        await self.meter_arm()   # fresh bus-meter window for this run
 
         # 1. Load a SINK DATA descriptor per active channel into the SNK desc RAM.
         for ch in active_channels:
@@ -529,18 +544,19 @@ class RapidsCharHarnessTB(TBBase):
         if se not in (0, -1):
             errors.append(f"snk_sched_error=0x{se:X}")
 
-        # AXI bus meter (sink-write W channel): the frozen window must have
-        # counted productive beats, and its buckets must sum to a non-zero
-        # window. This proves the reused axi_bus_meter is wired + windowed.
-        wr_util = self._read_bus_meter(d, 'wr')
-        if wr_util['prod'] == 0:
-            errors.append("wr bus-meter productive=0 (meter not counting)")
-        if wr_util['total'] == 0:
-            errors.append("wr bus-meter window empty (bad windowing)")
-        else:
-            self.log.info(f"  SINK bus meter: prod={wr_util['prod']} "
-                          f"bp={wr_util['bp']} starv={wr_util['starv']} "
-                          f"idle={wr_util['idle']} util={wr_util['util']:.1%}")
+        # Bus meters on the SINK path interfaces: AXIS ingress (sin) -> AXI4
+        # write (wr). Both must have counted productive beats in the frozen
+        # window (proves the beat-driven window brackets the transfer).
+        meters = {i: self._read_bus_meter(d, i) for i in ('sin', 'wr')}
+        for name, m in meters.items():
+            if m['prod'] == 0:
+                errors.append(f"{name} bus-meter productive=0 (meter not counting)")
+            elif m['engaged'] == 0:
+                errors.append(f"{name} bus-meter window empty (bad windowing)")
+            else:
+                self.log.info(f"  SINK {name} meter: prod={m['prod']} "
+                              f"bp={m['bp']} starv={m['starv']} idle={m['idle']} "
+                              f"util={m['util']:.1%}")
 
         if errors:
             for e in errors:
@@ -550,7 +566,7 @@ class RapidsCharHarnessTB(TBBase):
                           f"{n_active} channels ({beats} beats each)")
         return (len(errors) == 0), {'errors': errors, 'results': results,
                                     'wr_beat_count_total': wr_total,
-                                    'wr_bus_meter': wr_util}
+                                    'bus_meters': meters}
 
     # =========================================================================
     # TEST: SOURCE self-check  (m_axi_rd LFSR -> source -> m_axis chk)
@@ -561,6 +577,8 @@ class RapidsCharHarnessTB(TBBase):
                       f"{beats} beats/channel ===")
         d = self.dut
         n_active = len(active_channels)
+
+        await self.meter_arm()   # fresh bus-meter window for this run
 
         # 1. Reset the source-read LFSR/CRC pattern generator.
         await self._pulse(d.rd_crc_lfsr_reset)
@@ -634,17 +652,19 @@ class RapidsCharHarnessTB(TBBase):
         if se not in (0, -1):
             errors.append(f"src_sched_error=0x{se:X}")
 
-        # AXI bus meter (source-read R channel): the frozen window must have
-        # counted productive beats. Proves the read-side meter is wired.
-        rd_util = self._read_bus_meter(d, 'rd')
-        if rd_util['prod'] == 0:
-            errors.append("rd bus-meter productive=0 (meter not counting)")
-        if rd_util['total'] == 0:
-            errors.append("rd bus-meter window empty (bad windowing)")
-        else:
-            self.log.info(f"  SOURCE bus meter: prod={rd_util['prod']} "
-                          f"bp={rd_util['bp']} starv={rd_util['starv']} "
-                          f"idle={rd_util['idle']} util={rd_util['util']:.1%}")
+        # Bus meters on the SOURCE path interfaces: AXI4 read (rd) -> AXIS
+        # egress (sout). Both must have counted productive beats -- this is what
+        # exposed the old windowing bug where the read meter read prod=0.
+        meters = {i: self._read_bus_meter(d, i) for i in ('rd', 'sout')}
+        for name, m in meters.items():
+            if m['prod'] == 0:
+                errors.append(f"{name} bus-meter productive=0 (meter not counting)")
+            elif m['engaged'] == 0:
+                errors.append(f"{name} bus-meter window empty (bad windowing)")
+            else:
+                self.log.info(f"  SOURCE {name} meter: prod={m['prod']} "
+                              f"bp={m['bp']} starv={m['starv']} idle={m['idle']} "
+                              f"util={m['util']:.1%}")
 
         if errors:
             for e in errors:
@@ -655,4 +675,4 @@ class RapidsCharHarnessTB(TBBase):
         return (len(errors) == 0), {'errors': errors, 'results': results,
                                     'o_chk_beat_count_total': chk_total,
                                     'o_data_error': data_error,
-                                    'rd_bus_meter': rd_util}
+                                    'bus_meters': meters}

@@ -74,6 +74,10 @@ module rapids_core_beats #(
     parameter int DESC_AXI_MON_AGENT_ID = 8,     // 0x08 - Descriptor AXI Master Monitor
     parameter int MON_UNIT_ID = 1,               // 0x1
     parameter int MON_MAX_TRANSACTIONS = 16,
+    // Monitor synthesis gates (default 1 = production unchanged); see
+    // scheduler_group_array_beats. Threaded to both halves.
+    parameter int USE_AXI_MONITORS = 1,
+    parameter bit GEN_MON          = 1'b1,
 
     // Short aliases
     parameter int NC = NUM_CHANNELS,
@@ -480,7 +484,9 @@ module rapids_core_beats #(
         .SCHED_MON_BASE_AGENT_ID(SCHED_MON_BASE_AGENT_ID),
         .DESC_AXI_MON_AGENT_ID  (DESC_AXI_MON_AGENT_ID),
         .MON_UNIT_ID            (MON_UNIT_ID),
-        .MON_MAX_TRANSACTIONS   (MON_MAX_TRANSACTIONS)
+        .MON_MAX_TRANSACTIONS   (MON_MAX_TRANSACTIONS),
+        .USE_AXI_MONITORS       (USE_AXI_MONITORS),
+        .GEN_MON                (GEN_MON)
     ) u_src (
         .clk                        (clk),
         .rst_n                      (rst_n),
@@ -670,7 +676,9 @@ module rapids_core_beats #(
         .SCHED_MON_BASE_AGENT_ID(SCHED_MON_BASE_AGENT_ID),
         .DESC_AXI_MON_AGENT_ID  (DESC_AXI_MON_AGENT_ID),
         .MON_UNIT_ID            (MON_UNIT_ID),
-        .MON_MAX_TRANSACTIONS   (MON_MAX_TRANSACTIONS)
+        .MON_MAX_TRANSACTIONS   (MON_MAX_TRANSACTIONS),
+        .USE_AXI_MONITORS       (USE_AXI_MONITORS),
+        .GEN_MON                (GEN_MON)
     ) u_snk (
         .clk                        (clk),
         .rst_n                      (rst_n),

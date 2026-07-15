@@ -64,6 +64,15 @@ module rapids_beats_top #(
     parameter int APB_DATA_WIDTH = 32,
     // Monitor sizing (in-core descriptor AXI monitors)
     parameter int MON_MAX_TRANSACTIONS = 16,
+    // Monitor synthesis gates (default 1 = production behavior unchanged).
+    //   USE_AXI_MONITORS=0 omits the descriptor-AXI monitor hardware AND the
+    //     top-level monbus_axil_axil_group (egress capture/err-drain/IRQ); the
+    //     m_axil_mon_*/mon_irq/s_axil_err_* ports are tied off.
+    //   GEN_MON=0 omits the per-channel completion/error MonBus emitters.
+    // For an FPGA characterization build that meters externally, set both 0 to
+    // reclaim the monitor LUTs and ease timing (mirrors stream_top_ch8).
+    parameter int USE_AXI_MONITORS     = 1,
+    parameter bit GEN_MON              = 1'b1,
     parameter int AR_MAX_OUTSTANDING   = 8,
     parameter int AW_MAX_OUTSTANDING   = 8,
     // AXIS network-interface parameters (tid carries the channel id)
@@ -1041,7 +1050,9 @@ module rapids_beats_top #(
         .AXIS_ID_WIDTH        (AXIS_ID_WIDTH),
         .AXIS_DEST_WIDTH      (AXIS_DEST_WIDTH),
         .AXIS_USER_WIDTH      (AXIS_USER_WIDTH),
-        .MON_MAX_TRANSACTIONS (MON_MAX_TRANSACTIONS)
+        .MON_MAX_TRANSACTIONS (MON_MAX_TRANSACTIONS),
+        .USE_AXI_MONITORS     (USE_AXI_MONITORS),
+        .GEN_MON              (GEN_MON)
     ) u_core (
         .clk    (aclk),
         .rst_n  (aresetn),
@@ -1364,6 +1375,8 @@ module rapids_beats_top #(
     // not wired here; per-half egress splitting is a later stage).
     //=========================================================================
     monitor_common_pkg::monbus_timestamp_t mon_grp_time_w;
+    generate
+    if (USE_AXI_MONITORS != 0) begin : g_monbus_axil
     monbus_axil_axil_group #(
         .FIFO_DEPTH_ERR     (64),
         .FIFO_DEPTH_WRITE   (96),
@@ -1463,5 +1476,28 @@ module rapids_beats_top #(
         .mon_compressor_stat_ed_delta_ovf   ()
         /* verilator lint_on PINCONNECTEMPTY */
     );
+    end else begin : g_monbus_tieoff
+        // Monitors compiled out: tie off the egress so the top ports are legal
+        // and the core's merged MonBus (which is all-zero when USE_AXI_MONITORS
+        // and GEN_MON are 0) is never back-pressured. Mirrors stream_top_ch8's
+        // g_monbus_tieoff.
+        assign core_mon_ready     = 1'b1;
+        assign mon_grp_time_w     = '0;
+        assign mon_irq            = 1'b0;
+        // AXI-Lite err-drain slave (host reads -> return zero, never stall).
+        assign s_axil_err_arready = 1'b1;
+        assign s_axil_err_rvalid  = 1'b0;
+        assign s_axil_err_rdata   = '0;
+        assign s_axil_err_rresp   = 2'b00;
+        // AXI-Lite bulk-capture master (idle).
+        assign m_axil_mon_awvalid = 1'b0;
+        assign m_axil_mon_awaddr  = '0;
+        assign m_axil_mon_awprot  = 3'b000;
+        assign m_axil_mon_wvalid  = 1'b0;
+        assign m_axil_mon_wdata   = '0;
+        assign m_axil_mon_wstrb   = '0;
+        assign m_axil_mon_bready  = 1'b0;
+    end
+    endgenerate
 
 endmodule : rapids_beats_top

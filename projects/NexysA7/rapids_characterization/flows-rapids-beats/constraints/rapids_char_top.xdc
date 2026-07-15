@@ -157,6 +157,15 @@ set_max_delay -datapath_only \
 set_false_path -to [get_ports {LED[*]}]
 
 ##==============================================================================
+## Floorplanning note (6-channel timing): pblock experiments (column-split and
+## tight 2-region boxes on the source/sink data paths) did NOT close the -0.38 ns
+## miss -- the chained per-channel arbiter (r_arb_grant_id) is route-bound at
+## ~66% and the -1 100T fabric is at its limit. Tightening caused congestion
+## (-1.05 ns). Removed; 6-ch closure needs either an arbiter pipeline (RTL) or a
+## faster/larger part (Genesys 2 Kintex-7 -2). 4-ch closes clean unconstrained.
+##==============================================================================
+
+##==============================================================================
 ## Configuration / Bitstream
 ##==============================================================================
 set_property CONFIG_VOLTAGE 3.3 [current_design]

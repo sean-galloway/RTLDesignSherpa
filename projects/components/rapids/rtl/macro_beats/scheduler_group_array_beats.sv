@@ -47,7 +47,15 @@ module scheduler_group_array_beats #(
     // Direction enables (see scheduler_beats): SOURCE array = read-only (EN_WRITE=0),
     // SINK array = write-only (EN_READ=0); default both preserves mem-to-mem behavior.
     parameter bit EN_READ  = 1'b1,
-    parameter bit EN_WRITE = 1'b1
+    parameter bit EN_WRITE = 1'b1,
+    // Monitor synthesis gates (default 1 = production behavior unchanged):
+    //   USE_AXI_MONITORS=0 omits the descriptor-AXI monitor hardware (base+CAM+
+    //     reporters) via axi4_master_rd_mon.USE_MONITOR, keeping the AR/R
+    //     pass-through and tying its MonBus source to 0.
+    //   GEN_MON=0 omits the per-channel completion/error MonBus emitters inside
+    //     each scheduler_group_beats.
+    parameter int USE_AXI_MONITORS = 1,
+    parameter bit GEN_MON          = 1'b1
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -379,7 +387,8 @@ module scheduler_group_array_beats #(
                 .MON_UNIT_ID            (8'(MON_UNIT_ID)),
                 .MON_CHANNEL_ID         (9'(ch)),
                 .EN_READ                (EN_READ),
-                .EN_WRITE               (EN_WRITE)
+                .EN_WRITE               (EN_WRITE),
+                .GEN_MON                (GEN_MON)
             ) u_beats_scheduler_group (
                 .clk                    (clk),
                 .rst_n                  (rst_n),
@@ -800,7 +809,10 @@ module scheduler_group_array_beats #(
         .UNIT_ID                (8'(MON_UNIT_ID)),
         .AGENT_ID               (16'(DESC_AXI_MON_AGENT_ID)),
         .MAX_TRANSACTIONS       (MON_MAX_TRANSACTIONS),
-        .ENABLE_FILTERING       (1)
+        .ENABLE_FILTERING       (1),
+        // Synthesis gate: 0 omits base+CAM+reporters, keeps AR/R pass-through,
+        // ties monbus_valid/status to 0 (see axi4_master_rd_mon USE_MONITOR).
+        .USE_MONITOR            (USE_AXI_MONITORS == 1)
     ) u_desc_axi_monitor (
         .aclk                   (clk),
         .aresetn                (rst_n),
