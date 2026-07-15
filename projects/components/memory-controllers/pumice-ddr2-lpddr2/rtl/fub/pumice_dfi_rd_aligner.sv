@@ -89,24 +89,37 @@ module pumice_dfi_rd_aligner #(
         else                         r_age <= {r_age[PIPE-2:0], rd_fire_i};
     )
 
-    // ---- capture: push a word to the read FIFO on each rddata_valid ---------
-    logic            w_word_valid;
-    assign w_word_valid = |dfi_rddata_valid_i;
+    // ---- capture: gate to exactly BL_WORDS words per issued read ------------
+    // The 4-phase a7ddrphy can assert SPURIOUS dfi_rddata_valid cycles (a real
+    // beat plus an empty/duplicate one). The OLD rd_cl_aligner captured exactly
+    // the expected word count per read; capturing on raw |dfi_rddata_valid|
+    // over-collected the spurious beat -> a shifted extra word -> every
+    // downstream device-word wrong (the on-board 2-of-4 read corruption). Track
+    // a per-read word CREDIT: +BL_WORDS on each rd_fire, -1 per captured word;
+    // capture only while a read is outstanding (credit != 0), so spurious valids
+    // beyond the count are dropped and the read stream stays word-aligned.
+    localparam int CRDW = $clog2((PIPE + 1) * BL_WORDS + 1) + 1;
+    logic [CRDW-1:0] r_credit;
+    logic [CNTW:0]   r_rcnt;    // words captured so far in this burst
 
-    logic [CNTW:0] r_rcnt;    // words captured so far in this burst
-    logic          r_rbusy;
+    logic w_capture, w_cap_fire;
+    assign w_capture  = (|dfi_rddata_valid_i) && (r_credit != '0);
+    assign w_cap_fire = w_capture && rd_ready_i;
 
-    assign rd_valid_o = w_word_valid;
+    assign rd_valid_o = w_capture;
     assign rd_data_o  = dfi_rddata_i;
     assign rd_resp_o  = RESP_OKAY;
-    assign rd_last_o  = w_word_valid && (r_rcnt == (CNTW+1)'(BL_WORDS - 1));
+    assign rd_last_o  = w_capture && (r_rcnt == (CNTW+1)'(BL_WORDS - 1));
 
     `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
         if (`RST_ASSERTED(dfi_rstn)) begin
-            r_rcnt  <= '0;
-            r_rbusy <= 1'b0;
+            r_rcnt   <= '0;
+            r_credit <= '0;
         end else begin
-            if (w_word_valid && rd_ready_i) begin
+            r_credit <= r_credit
+                      + (rd_fire_i  ? CRDW'(BL_WORDS) : CRDW'(0))
+                      - (w_cap_fire ? CRDW'(1)        : CRDW'(0));
+            if (w_cap_fire) begin
                 if (r_rcnt == (CNTW+1)'(BL_WORDS - 1)) r_rcnt <= '0;   // burst done
                 else                                    r_rcnt <= r_rcnt + 1'b1;
             end
