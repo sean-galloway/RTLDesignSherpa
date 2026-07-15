@@ -533,6 +533,6 @@ amortize address-channel overhead), switch the wrapper to
 | [`monbus_cam_pipe`](monbus_cam_pipe.md) | Pipelined LRU CAM backing the compressor (production) |
 | [`monbus_cam`](monbus_cam.md) | Unpipelined reference CAM (superseded by `monbus_cam_pipe`) |
 | [`monbus_arbiter`](monbus_arbiter.md) | Upstream multi-source merge (instantiate before this family if you have N>1 sources) |
-| [`sdpram_slave`](sdpram_slave.md) | Canonical memory-ring backend for the master-write port (AXIL/AXIL variant pairs with `sdpram_slave_axil_axil`) |
+| [`sdpram_slave_axil_axil`](sdpram_slave_axil_axil.md) | Canonical memory-ring backend for the master-write port (AXIL/AXIL variant pairs with `sdpram_slave_axil_axil`) |
 | [`axi_monitor_base`](axi_monitor_base.md) | Source of the monitor packets this family captures |
 | [`axi_monitor_reporter`](axi_monitor_reporter.md) | Per-protocol packet-emission frontend |
