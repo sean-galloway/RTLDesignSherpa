@@ -429,6 +429,10 @@ module pumice_csr (
                 logic [1:0] next;
                 logic load_next;
             } gear_ratio;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } bl;
         } DFI_PHASE;
         struct {
             struct {
@@ -658,6 +662,9 @@ module pumice_csr (
             struct {
                 logic [1:0] value;
             } gear_ratio;
+            struct {
+                logic [3:0] value;
+            } bl;
         } DFI_PHASE;
         struct {
             struct {
@@ -1905,6 +1912,29 @@ module pumice_csr (
         end
     end
     assign hwif_out.DFI_PHASE.gear_ratio.value = field_storage.DFI_PHASE.gear_ratio.value;
+    // Field: pumice_csr.DFI_PHASE.bl
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.DFI_PHASE.bl.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.DFI_PHASE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.DFI_PHASE.bl.value & ~decoded_wr_biten[12:9]) | (decoded_wr_data[12:9] & decoded_wr_biten[12:9]);
+            load_next_c = '1;
+        end
+        field_combo.DFI_PHASE.bl.next = next_c;
+        field_combo.DFI_PHASE.bl.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.DFI_PHASE.bl.value <= 4'h4;
+        end else begin
+            if(field_combo.DFI_PHASE.bl.load_next) begin
+                field_storage.DFI_PHASE.bl.value <= field_combo.DFI_PHASE.bl.next;
+            end
+        end
+    end
+    assign hwif_out.DFI_PHASE.bl.value = field_storage.DFI_PHASE.bl.value;
     // Field: pumice_csr.PHY_TIMING.t_phy_wrlat
     always_comb begin
         automatic logic [7:0] next_c;
@@ -2127,7 +2157,8 @@ module pumice_csr (
     assign readback_array[22][3:3] = '0;
     assign readback_array[22][6:4] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.wr_phase.value : '0;
     assign readback_array[22][8:7] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.gear_ratio.value : '0;
-    assign readback_array[22][31:9] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? 23'h0 : '0;
+    assign readback_array[22][12:9] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.bl.value : '0;
+    assign readback_array[22][31:13] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? 19'h0 : '0;
     assign readback_array[23][7:0] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.t_phy_wrlat.value : '0;
     assign readback_array[23][15:8] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.t_rddata_en.value : '0;
     assign readback_array[23][16:16] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.memtype.value : '0;

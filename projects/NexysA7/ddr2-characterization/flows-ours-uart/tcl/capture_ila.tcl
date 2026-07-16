@@ -44,7 +44,10 @@ if {$trig eq "rd"} {
     set_property CONTROL.TRIGGER_POSITION 512 $ila
     puts "ILA armed (trigger: dfi_wrdata_en != 0). Waiting for a UART write ..."
 }
-set_property TRIGGER_COMPARE_VALUE {neq2'b00} $p
+# Width-agnostic "!= 0" — the probe width depends on DFI_RATE (2 bits at rate-2,
+# 4 bits at rate-4), so derive it instead of hardcoding 2'b00.
+set _pw [get_property WIDTH $p]
+set_property TRIGGER_COMPARE_VALUE "neq${_pw}'h0" $p
 run_hw_ila $ila
 # Block up to ~60 s for the trigger (the orchestrator drives a read meanwhile).
 wait_on_hw_ila -timeout 60 $ila

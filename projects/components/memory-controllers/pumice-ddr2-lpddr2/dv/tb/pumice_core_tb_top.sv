@@ -143,6 +143,12 @@ module pumice_core_tb_top
         .t_mrd_wait_i(t_mrd_wait_i), .t_rp_wait_i(t_rp_wait_i), .t_rfc_wait_i(t_rfc_wait_i),
         .rd_phase_i(rd_phase_i), .wr_phase_i(wr_phase_i),
         .t_phy_wrlat_i(t_phy_wrlat_i), .t_rddata_en_i(t_rddata_en_i),
+        // gear_i = log2(DFI_RATE) so the ACTIVE DFI rate == the build DFI_RATE
+        // (full rate, all phases active) — bit-identical to the pre-gear
+        // behavior. bl_i = build BL so the runtime sub-DFI-word framing matches
+        // the compile geometry.
+        .gear_i(2'($clog2(DFI_RATE))),
+        .bl_i(4'(BL)),
         .cl_o(cl_o), .cwl_o(cwl_o), .bl_o(bl_o), .init_done_o(init_done_o),
         .s_axi_awid(s_axi_awid), .s_axi_awaddr(s_axi_awaddr), .s_axi_awlen(s_axi_awlen),
         .s_axi_awsize(s_axi_awsize), .s_axi_awburst(s_axi_awburst), .s_axi_awlock(s_axi_awlock),

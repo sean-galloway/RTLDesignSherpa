@@ -33,7 +33,18 @@ module pumice_dfi_layer
     parameter int COL_WIDTH      = 10,
     parameter int DFI_RATE       = 2,
     parameter int DRAM_BEAT_WIDTH = 64,
-    parameter int BL             = 8,     // DRAM beats per burst
+    parameter int BL             = 8,     // DRAM beats per burst (BL_PUMICE)
+    // Sub-DFI-word burst framing (task #146). N_SUBCMD DRAM column commands are
+    // issued per DFI word when a burst is smaller than one DFI word (gear 1:4 +
+    // x16 BL4 => N_SUBCMD=2); SUB_COL_STRIDE (device-word col units) separates
+    // them. BURST_WORDS = DFI words captured/driven per burst-group (clamps to 1
+    // in the sub-word regime). Defaults => N_SUBCMD=1 => legacy (bit-identical).
+    parameter int N_SUBCMD       = 1,
+    parameter int SUB_COL_STRIDE = 1,
+    // Compile MAX DFI-phase stride between packed sub-bursts (= BL_PUMICE).
+    parameter int SUB_PHASE_STRIDE = (N_SUBCMD > 1) ? (DFI_RATE / N_SUBCMD) : 1,
+    parameter int SUBW_MAX       = $clog2(N_SUBCMD + 1),
+    parameter int BURST_WORDS    = (BL >= DFI_RATE) ? (BL / DFI_RATE) : 1,
     parameter int CMD_FIFO_DEPTH = 8,
     parameter int WD_FIFO_DEPTH  = 16,
     parameter int RD_FIFO_DEPTH  = 16,
@@ -55,7 +66,9 @@ module pumice_dfi_layer
     parameter int RKW = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int BKW = $clog2(NUM_BANKS),
     parameter int PHW = (DFI_RATE > 1) ? $clog2(DFI_RATE) : 1,
-    parameter int BL_WORDS = BL / DFI_RATE,
+    // DFI words captured/driven per burst-group. Clamped to >=1 so the
+    // sub-DFI-word regime (BL/DFI_RATE < 1) frames exactly one DFI word.
+    parameter int BL_WORDS = BURST_WORDS,
     // Read aligner outstanding-read tracking depth (exposed). Size >= the read
     // CAM depth so op_ready never deasserts in steady state; the valid/ready
     // handshake to command issue is the just-in-case backpressure.
@@ -105,6 +118,13 @@ module pumice_dfi_layer
     // active. active_rate = 1 << gear_i. At gear_i = log2(DFI_RATE) (board /
     // default) the mask is all-ones and the DFI en outputs are UNCHANGED.
     input  logic [1:0]                 gear_i,
+    // Runtime sub-DFI-word framing (from the bl+gear CSRs; <= compile MAX).
+    // n_subcmd_i = active DRAM commands per DFI word; sub_col_stride_i = active
+    // device-word column stride; sub_phase_stride_i = active DFI-phase stride
+    // (= active bl_pumice) between the packed sub-bursts. Board/default => MAX.
+    input  logic [SUBW_MAX-1:0]        n_subcmd_i,
+    input  logic [COL_WIDTH-1:0]       sub_col_stride_i,
+    input  logic [PHW-1:0]             sub_phase_stride_i,
 
     // DFI command bus
     output logic [DFI_ADDR_BUS_W-1:0]  dfi_address_o,
@@ -198,12 +218,16 @@ module pumice_dfi_layer
     pumice_dfi_cmd_path #(
         .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH),
         .COL_WIDTH(COL_WIDTH), .DFI_RATE(DFI_RATE), .COL_BURST_CYC(BL_WORDS),
+        .N_SUBCMD(N_SUBCMD), .SUB_COL_STRIDE(SUB_COL_STRIDE),
+        .SUB_PHASE_STRIDE(SUB_PHASE_STRIDE),
         .DFI_ADDR_WIDTH(DFI_ADDR_WIDTH),
         .DFI_BANK_WIDTH(DFI_BANK_WIDTH), .DFI_CTRL_WIDTH(DFI_CTRL_WIDTH),
         .DFI_CS_WIDTH(DFI_CS_WIDTH)
     ) u_cmd (
         .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn), .memtype_i(memtype_i),
         .rd_phase_i(rd_phase_i), .wr_phase_i(wr_phase_i),
+        .n_subcmd_i(n_subcmd_i), .sub_col_stride_i(sub_col_stride_i),
+        .sub_phase_stride_i(sub_phase_stride_i),
         .cmd_valid_i(pcmd_valid), .cmd_ready_o(pcmd_ready), .cmd_data_i(pcmd_data),
         .dfi_address_o(dfi_address_o), .dfi_bank_o(dfi_bank_o),
         .dfi_cas_n_o(dfi_cas_n_o), .dfi_ras_n_o(dfi_ras_n_o), .dfi_we_n_o(dfi_we_n_o),

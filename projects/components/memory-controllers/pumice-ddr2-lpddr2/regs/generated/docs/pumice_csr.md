@@ -752,12 +752,13 @@ Defaults 0/0 preserve the legacy all-on-phase-0 behavior. Fields
 are sliced to clog2(DFI_RATE) bits downstream; upper bits ignored
 when DFI_RATE &lt; the field width.</p>
 
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-| 2:0| rd_phase |  rw  | 0x0 |  — |
-| 6:4| wr_phase |  rw  | 0x0 |  — |
-| 8:7|gear_ratio|  rw  | 0x2 |  — |
-|31:9|   RSVD   |   r  | 0x0 |  — |
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 2:0 | rd_phase |  rw  | 0x0 |  — |
+| 6:4 | wr_phase |  rw  | 0x0 |  — |
+| 8:7 |gear_ratio|  rw  | 0x2 |  — |
+| 12:9|    bl    |  rw  | 0x4 |  — |
+|31:13|   RSVD   |   r  | 0x0 |  — |
 
 #### rd_phase field
 
@@ -770,6 +771,10 @@ when DFI_RATE &lt; the field width.</p>
 #### gear_ratio field
 
 <p>gear_ratio = log2(active DFI_RATE)</p>
+
+#### bl field
+
+<p>JEDEC burst length (MR0 device beats): 4/8/16</p>
 
 #### RSVD field
 

@@ -216,7 +216,17 @@ addrmap pumice_csr {
         // fixed nphases=4, so reset = 2 (1:4). Prep for a variable-gear PHY
         // (task #144/#145) -- gear is NEVER inferred, always this fixed register.
         field { sw = rw; hw = r; desc = "gear_ratio = log2(active DFI_RATE)"; } gear_ratio[8:7] = 2'd2;
-        field { sw = r;  hw = na; desc = "Reserved";                   } RSVD[31:9]       = 23'h0;
+        // JEDEC burst length (MR0 device beats): 4, 8, or 16. The SINGLE source
+        // of truth for the burst geometry (task #146). Combined with gear_ratio
+        // it selects the ACTIVE sub-DFI-word framing at runtime: when one DFI
+        // word packs N = DFI_RATE/(bl>>BL_SHIFT) JEDEC bursts (board: gear 1:4 +
+        // x16 BL4 => N=2), the DFI layer issues N consecutive-column DRAM
+        // commands per AXI beat. The controller datapath is BUILT for MAX (this
+        // build = BL4), so a wrong value here is BAD CONFIG PROGRAMMING, never a
+        // synth mismatch. Reset = 4 matches the board (DDR2 BL4). It also carries
+        // the burst length that MR0 encodes, so software programs one value.
+        field { sw = rw; hw = r; desc = "JEDEC burst length (MR0 device beats): 4/8/16"; } bl[12:9] = 4'd4;
+        field { sw = r;  hw = na; desc = "Reserved";                   } RSVD[31:13]      = 19'h0;
 
     } DFI_PHASE @ 0x060;
 

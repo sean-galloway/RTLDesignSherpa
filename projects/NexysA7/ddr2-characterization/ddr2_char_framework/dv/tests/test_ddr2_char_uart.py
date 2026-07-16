@@ -23,7 +23,6 @@ import os
 import sys
 
 import cocotb
-import pytest
 from cocotb.triggers import ClockCycles
 from cocotb_test.simulator import run
 
@@ -122,7 +121,18 @@ def _make_dfi_slave(dut):
     # data/valid reproduce the on-silicon consecutive-read one-slot shift.
     _a7_free = os.environ.get("TEST_A7_READ_FREE", "0") == "1"
     _vlat = int(os.environ.get("TEST_A7_READ_VALID_LAT", str(_rdlat)))
-    if _a7_free:
+    # a7ddrphy BL < 2*nphases anchored-phase read model (RDS-DV, task #146). A BL4
+    # read on the fixed nphases=4 PHY fills only its rd_phase-anchored phase-pair;
+    # the other phases hold the OTHER packed read's beats (stale). pumice's
+    # grab-all aligner captures the whole DFI word -> 2 of 4 device-words stale ->
+    # beats_mismatched == 2*txn (the on-silicon rate4_x16 fingerprint, invariant to
+    # gear since the board built at DFI_RATE=nphases=4 and still failed).
+    _a7_bl4 = os.environ.get("TEST_A7_READ_BL4", "0") == "1"
+    if _a7_bl4:
+        _timing = DFITimingProfile.a7ddrphy_bl4(
+            read_latency=_rdlat, write_latency=_wrlat,
+            read_en_gated=(os.environ.get("TEST_A7_READ_GATED", "0") == "1"))
+    elif _a7_free:
         _timing = DFITimingProfile.a7ddrphy_free_running(
             read_latency=_rdlat, read_valid_latency=_vlat,
             write_latency=_wrlat)
@@ -194,7 +204,7 @@ async def cocotb_test_uart_smoke(dut):
         # follows whichever phase carries the command.
         drv.set_dfi_phase(rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
                           wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
-                          gear_ratio=GEAR_RATIO)
+                          gear_ratio=GEAR_RATIO, bl=DRAM_BL)
         seed = 0xABCD1234
         # stride = burst_len * bytes_per_beat, so bursts don't overlap
         stride = 4 * 8
@@ -251,7 +261,7 @@ async def cocotb_test_uart_pagehit(dut):
                                rd_in_order=True)
         drv.set_dfi_phase(rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
                           wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
-                          gear_ratio=GEAR_RATIO)
+                          gear_ratio=GEAR_RATIO, bl=DRAM_BL)
         seed = 0xABCD1234
         stride = 4 * 8   # BL * bytes_per_beat -> consecutive columns, same row
         drv.program_wr_engine(start_addr=0x0, burst_len=4, txn_count=NTXN,
@@ -300,6 +310,14 @@ async def cocotb_test_uart_multichunk(dut):
         drv.set_controller_cfg(memtype=dc.MEMTYPE_DDR2,
                                t_phy_wrlat=int(os.environ.get("TEST_T_PHY_WRLAT", "4")),
                                t_rddata_en=4, rd_in_order=True)
+        # Program DFI_PHASE for THIS build. The RTL gear_ratio resets to 1:4
+        # (2'd2) and bl resets to 4; a rate-2 build MUST override gear_ratio to
+        # log2(DFI_RATE) or the runtime active-rate (=1<<gear) exceeds the built
+        # phase count and reads never complete. Every other test does this via
+        # set_dfi_phase; multichunk previously relied on the (wrong) reset.
+        drv.set_dfi_phase(rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
+                          wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
+                          gear_ratio=GEAR_RATIO, bl=DRAM_BL)
         return {"bl2": wr_rd(2, 0x5A5A0001),   # 1 chunk (control)
                 "bl4": wr_rd(4, 0x5A5A0001)}   # 2 chunks (the fix)
 
@@ -367,7 +385,7 @@ async def cocotb_test_uart_sweep(dut):
         drv.soft_reset()
         drv.set_controller_cfg(memtype=dc.MEMTYPE_DDR2, t_phy_wrlat=4,
                                t_rddata_en=4, rd_in_order=True)
-        drv.set_dfi_phase(rd_phase=0, wr_phase=0, gear_ratio=GEAR_RATIO)
+        drv.set_dfi_phase(rd_phase=0, wr_phase=0, gear_ratio=GEAR_RATIO, bl=DRAM_BL)
         results["inorder"] = _leg(0x00000, force_inorder=True,
                                   id_mode=dc.ID_MODE_FIXED)
         results["ooo"]     = _leg(0x40000, force_inorder=False,
@@ -394,6 +412,7 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
          rd_phase: int = 0, wr_phase: int = 0, dram_device_width: int = 0,
          a7_read_gated: bool = False, read_device_word_offset: int = 0,
          a7_read_free: bool = False, a7_read_valid_lat: int = -1,
+         a7_read_bl4: bool = False,
          pagehit_txn: int = 8):
     # dram_device_width=0 => default to dram_beat_width (ratio 1, legacy). Set to
     # 16 to model the board's x16 device (JEDEC BL4 = 1 DFI cycle).
@@ -421,6 +440,10 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         # (SimpleTest) that call set_dfi_phase, so the full-word DFI_PHASE write
         # sets the correct active-phase count instead of clobbering it to 1:1.
         "TEST_GEAR_RATIO": str(dfi_rate.bit_length() - 1),
+        # JEDEC burst length for this build (DDR2 MR0 BL4). SimpleTest.init reads
+        # this so its set_dfi_phase programs bl for the build (board omits it =>
+        # preserve the RTL reset bl=4).
+        "TEST_DRAM_BL": str(DRAM_BL),
         "TEST_DRAM_BEAT_BYTES": str(dram_beat_width // 8),
         "TEST_DRAM_DEVICE_BYTES": str(dram_device_width // 8),
         # Faithful DFI write-timing: capture wrdata at command+write_latency
@@ -440,6 +463,7 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         "TEST_A7_READ_FREE": "1" if a7_read_free else "0",
         "TEST_A7_READ_VALID_LAT": str(a7_read_valid_lat if a7_read_valid_lat >= 0
                                       else read_latency),
+        "TEST_A7_READ_BL4": "1" if a7_read_bl4 else "0",
         "TEST_PAGEHIT_TXN": str(pagehit_txn),
     }
     compile_args = [
@@ -482,24 +506,61 @@ def test_ddr2_char_uart_multichunk_rate4(request):
     _run("cocotb_test_uart_multichunk", dfi_rate=4, dram_beat_width=32)
 
 
+# The rate4_x16 tests are the BOARD config (gear 1:4 == PHY nphases=4, x16, BL4)
+# INTEGRATION GATE, run under the faithful a7ddrphy BL4 anchored read model. They
+# are now GREEN (task #146 sub-DFI-word packing landed; verified 2026-07-15):
+#
+#   FIX: the DFI command path issues the N_SUBCMD (=2 here) BL4 sub-column reads
+#   in ONE DFI cycle at command phases {rd_phase, rd_phase+bl_pumice} = {0, 2}.
+#   The faithful a7ddrphy de-interleaver anchors each sub's BL beats to its
+#   command phase, so BOTH anchored runs land in ONE 128b DFI word -> fully
+#   packed, ZERO stale. The read aligner captures that ONE word (BL_WORDS=1) and
+#   returns it -> reads COMPLETE and beats_mismatched == 0.
+#
+# The on-board BUG (issue ONE BL4 read per DFI word -> the other phase-pair holds
+# the previous read's beats, 2 of 4 device-words stale, beats_mismatched == 2*txn)
+# and the FIX (2 packed reads -> 0 stale) are BOTH proven at the model level in
+# test_a7ddrphy_bl4_anchored.py against the SHARED DV de-interleaver
+# (dfi_slave_phy.deinterleave_read_window + dfi_timing.bl_anchored_slot_mask); the
+# RTL mirrors that geometry in pumice_dfi_cmd_path's elaboration assertion. These
+# integration gates assert the positive result (mism == 0, reads complete).
+#
+# NOTE (pytest surface): a cocotb run() failure surfaces as SystemExit here; the
+# honest signal is the cocotb log line "<PHASE> results ...: {'rd': ..., 'mism': ...}".
+
+
 def test_ddr2_char_uart_smoke_rate4_x16(request):
-    # THE BOARD CONFIG, and the gate for task #146: gear 1:4 (DFI_RATE=4) + true
-    # x16 (32b pumice beat, 16b device). A JEDEC BL4 x16 burst = BL_PUMICE*beat =
-    # 2*32 = 64b = HALF the 128b DFI word, so 2 BL4 reads pack into one DFI cycle
-    # (like LiteDRAM). pumice's datapath currently assumes a burst >= 1 DFI word
-    # (.BL(BL_PUMICE/DFI_RATE)=2/4=0 -> CHUNK_BEATS=0 -> chopper power-of-2 assert),
-    # so this test FAILS today and MUST pass once the sub-DFI-word burst datapath
-    # fix lands. The rate4 tests above use device==beat (no x16), which is why they
-    # stayed green while the board synth failed.
+    # BOARD CONFIG integration gate (task #146): gear 1:4 (DFI_RATE=4) + true x16
+    # (32b pumice beat, 16b device). A JEDEC BL4 x16 burst delivers 4 device-words
+    # = 2 DFI phases = HALF the fixed nphases=4 8-slot de-interleave window. The
+    # faithful a7ddrphy BL4 read model (a7ddrphy_bl4) anchors each RD's beats to its
+    # command phase. GREEN: the RTL packs the two BL4 sub-reads into one DFI word at
+    # phases {0,2}, so the read completes and mism == 0 (the smoke path asserts it).
     _run("cocotb_test_uart_smoke", dfi_rate=4, dram_beat_width=32,
-         dram_device_width=16, strict_read_timing=True, read_latency=8,
+         dram_device_width=16, a7_read_bl4=True, read_latency=8,
          t_phy_wrlat=0)
 
 
 def test_ddr2_char_uart_multichunk_rate4_x16(request):
-    # Multi-read page-hit under the board x16+gear1:4 config (2 BL4 reads/DFI word).
+    # Multi-read under the board x16+gear1:4 config, faithful a7ddrphy BL4 anchored
+    # read model. GREEN: the sub-DFI-word packing lands the two BL4 sub-reads in one
+    # DFI word (phases {0,2}) so reads complete with mism == 0.
     _run("cocotb_test_uart_multichunk", dfi_rate=4, dram_beat_width=32,
-         dram_device_width=16, strict_read_timing=True, read_latency=8,
+         dram_device_width=16, a7_read_bl4=True, read_latency=8,
+         t_phy_wrlat=0)
+
+
+def test_ddr2_char_uart_pagehit_rate4_x16(request):
+    # The EXACT board DFI config (gear 1:4 == PHY nphases=4, x16, BL4) under the
+    # faithful a7ddrphy BL4 anchored read model, driven by the on-silicon page-hit
+    # pattern (many tCCD-paced sequential-column reads) — the closest integration
+    # analogue of the board run. On the board this returned 2-of-4 device-words
+    # STALE (beats_mismatched == 2*txn). GREEN now: the RTL issues the two BL4
+    # sub-reads in one DFI cycle at command phases {0,2}, the a7ddrphy packs both
+    # anchored runs into one DFI word (0 stale), so the page-hit read stream
+    # completes with beats_mismatched == 0 (the pagehit path asserts mism == 0).
+    _run("cocotb_test_uart_pagehit", dfi_rate=4, dram_beat_width=32,
+         dram_device_width=16, a7_read_bl4=True, read_latency=8,
          t_phy_wrlat=0)
 
 

@@ -1,5 +1,19 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
+#
+# *** SUPERSEDED (2026-07-15) — THE GEAR-RATIO THEORY BELOW IS WRONG. ***
+# The board bitstream was rebuilt at DFI_RATE=4 (== PHY nphases=4, gear MATCHED —
+# see flows-ours-uart synth logs "Parameter DFI_RATE bound to ...0100") and STILL
+# read exactly 2 of every 4 device-words wrong. So the failure is NOT a gear-ratio
+# mismatch. The real mechanism is that a BL4 read is SHORTER than a full BL8 DFI
+# cycle: it fills only its rd_phase-anchored phase-pair and the other phases hold
+# the OTHER packed read's beats (stale), which pumice's grab-all aligner captures
+# as the read's data -> 2/4 wrong INDEPENDENT of gear. The correct, current proof
+# is test_a7ddrphy_bl4_anchored.py (BL-anchored contract, gear=4, phase-distinct
+# pattern). This file is retained ONLY as a historical record of the disproven
+# theory; its tests are skipped so they cannot be mistaken for ground truth.
+#
+# Original (disproven) docstring follows.
 """DETERMINISTIC PROOF that the on-board pumice read failure is a GEAR-RATIO
 mismatch, and that matching the gear (DFI_RATE == PHY nphases) fixes it.
 
@@ -21,6 +35,15 @@ proves, with zero board access:
   - gear=4 (gather all 8 slots)   -> every read exact     (the fix)
 """
 import random
+
+import pytest
+
+# SUPERSEDED: the gear-ratio theory was disproven on silicon (see the header).
+# Skip so these disproven assertions cannot be read as ground truth; the current
+# proof is test_a7ddrphy_bl4_anchored.py.
+pytestmark = pytest.mark.skip(
+    reason="Gear-ratio theory disproven on silicon (board DFI_RATE=4 still read "
+           "2/4 wrong). Superseded by test_a7ddrphy_bl4_anchored.py.")
 
 # The model lives in the project tbclasses; import via file path to avoid a
 # package-name dependency (dv trees aren't always importable packages).

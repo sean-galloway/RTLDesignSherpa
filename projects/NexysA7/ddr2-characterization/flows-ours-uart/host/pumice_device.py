@@ -69,30 +69,41 @@ class Pumice(Device):
 
     # ----- DFI phase --------------------------------------------------------
     def set_dfi_phase(self, rd_phase: int, wr_phase: int = 0,
-                      gear_ratio: Optional[int] = None) -> None:
+                      gear_ratio: Optional[int] = None,
+                      bl: Optional[int] = None) -> None:
         """Place the READ/WRITE DFI commands on given sub-phases (a7ddrphy
         rdphase/wrphase contract). DFI_PHASE @ APB 0x060; set while idle.
 
         DFI_PHASE also carries gear_ratio[8:7] (= log2(active DFI rate): 0=1:1,
-        1=1:2, 2=1:4). This is a FULL-WORD write (rd_phase/wr_phase are the only
-        other named fields), so writing it naively would clobber gear_ratio to 0
-        and pumice would mask off all but DFI phase 0 -> the geared read/write
-        path collapses (reads never complete). gear_ratio is therefore
-        PRESERVED by default: pass gear_ratio=None (default) to read-modify-write
-        and keep whatever the RTL reset / a prior write established, or pass an
-        explicit log2(active DFI rate) to set it. The board build's RTL reset is
-        2 (=1:4, matching the fixed nphases=4 a7ddrphy), so the None default
-        leaves the board (and the rate-4 sim) at 1:4 as intended; a rate-2 build
-        keeps its own reset/programmed gear."""
-        if gear_ratio is None:
-            # rmw: splice rd/wr phase in, leave gear_ratio (+ any other bits)
+        1=1:2, 2=1:4) and bl[12:9] (= JEDEC burst length in device beats, the
+        single source of truth for the sub-DFI-word framing, task #146). This is
+        a FULL-WORD write (rd_phase/wr_phase are the only other named fields), so
+        writing it naively would clobber gear_ratio/bl to 0 and pumice would mask
+        off all but DFI phase 0 / collapse the burst framing -> the geared
+        read/write path breaks (reads never complete). Both are therefore
+        PRESERVED by default: pass gear_ratio/bl=None (default) to read-modify-
+        write and keep whatever the RTL reset / a prior write established, or pass
+        explicit values. The board build's RTL reset is gear_ratio=2 (=1:4,
+        matching the fixed nphases=4 a7ddrphy) and bl=4 (DDR2 BL4), so the None
+        defaults leave the board (and the rate-4 sim) correct as intended."""
+        if gear_ratio is None and bl is None:
+            # rmw: splice rd/wr phase in, leave gear_ratio/bl (+ any other bits)
             # untouched so the geared DFI read path is not broken.
             self.regs.write("DFI_PHASE", rmw=True, rd_phase=rd_phase & 0x7,
                             wr_phase=wr_phase & 0x7)
-        else:
+        elif gear_ratio is not None and bl is not None:
+            # full-word: set every named field explicitly (no rmw needed).
             self.regs.write("DFI_PHASE", rd_phase=rd_phase & 0x7,
                             wr_phase=wr_phase & 0x7,
-                            gear_ratio=gear_ratio & 0x3)
+                            gear_ratio=gear_ratio & 0x3, bl=bl & 0xF)
+        else:
+            # only one of gear_ratio/bl given -> rmw to preserve the other field.
+            fields = dict(rd_phase=rd_phase & 0x7, wr_phase=wr_phase & 0x7)
+            if gear_ratio is not None:
+                fields["gear_ratio"] = gear_ratio & 0x3
+            if bl is not None:
+                fields["bl"] = bl & 0xF
+            self.regs.write("DFI_PHASE", rmw=True, **fields)
 
     def get_dfi_phase(self) -> tuple:
         return (self.regs.field("DFI_PHASE", "rd_phase"),

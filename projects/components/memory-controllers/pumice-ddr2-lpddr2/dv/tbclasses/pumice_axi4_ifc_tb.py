@@ -6,7 +6,8 @@ Integration testbench for `pumice_axi4_ifc`.
 
 The TB plays three external roles at once:
   * host AXI4 master  (drive AW/W/AR, observe B/R)
-  * scheduler         (read the CAM oldest ports; drive wr_commit / rd_issue)
+  * scheduler         (derive oldest from the exported sch_valid/sch_older
+                       vectors; drive wr_commit / rd_issue)
   * DFI data path     (consume wr commit-data; produce rd return-data)
 
 Flow proven:
@@ -83,15 +84,11 @@ class PumiceAxi4IfcTB(TBBase):
         self.dut.s_axi_bready.value = 1
         self.dut.s_axi_rready.value = 1
         # scheduler / DFI idle
-        self.dut.wr_sched_lu_valid_i.value = 0
-        self.dut.wr_sched_lu_bank_i.value = 0
-        self.dut.wr_sched_lu_row_i.value = 0
+        # (the CAM lookup ports are internalized in pumice_axi4_ifc, tied to '0;
+        #  the scheduler consumes the exported wr_sch_*_o / rd_sch_*_o vectors)
         self.dut.wr_commit_valid_i.value = 0
         self.dut.wr_commit_slot_i.value = 0
         self.dut.wr_cm_rd_ready_i.value = 1
-        self.dut.rd_sched_lu_valid_i.value = 0
-        self.dut.rd_sched_lu_bank_i.value = 0
-        self.dut.rd_sched_lu_row_i.value = 0
         self.dut.rd_issue_valid_i.value = 0
         self.dut.rd_issue_slot_i.value = 0
         self.dut.rd_dfi_ret_valid_i.value = 0
@@ -169,13 +166,36 @@ class PumiceAxi4IfcTB(TBBase):
         self.dut.s_axi_arvalid.value = 0
 
     # ---- scheduler / DFI roles ---------------------------------------------
+    @staticmethod
+    def _pick_oldest(valid_bits, older_bits, n):
+        """Emulate the CAM's oldest-valid pick from the exported scheduler
+        vectors (the dedicated oldest_* ports are internalized now). sch_valid[i]
+        = schedulable; sch_older[i*n + j] == 1 iff entry i is older than entry j.
+        The oldest schedulable slot is older than every OTHER schedulable slot."""
+        valids = [i for i in range(n) if (valid_bits >> i) & 1]
+        for i in valids:
+            if all((older_bits >> (i * n + j)) & 1 for j in valids if j != i):
+                return i
+        return None
+
+    def _wr_oldest_slot(self):
+        n = len(self.dut.wr_sch_valid_o.value)
+        return self._pick_oldest(int(self.dut.wr_sch_valid_o.value),
+                                 int(self.dut.wr_sch_older_o.value), n)
+
+    def _rd_oldest_slot(self):
+        n = len(self.dut.rd_sch_valid_o.value)
+        return self._pick_oldest(int(self.dut.rd_sch_valid_o.value),
+                                 int(self.dut.rd_sch_older_o.value), n)
+
     async def commit_wr(self):
         """Commit the oldest write; return the cm_rd burst."""
+        slot = None
         for _ in range(200):
-            if int(self.dut.wr_oldest_valid_o.value):
+            slot = self._wr_oldest_slot()
+            if slot is not None:
                 break
             await RisingEdge(self.dut.aclk)
-        slot = int(self.dut.wr_oldest_slot_o.value)
         while int(self.dut.wr_commit_ready_o.value) == 0:
             await RisingEdge(self.dut.aclk)
         self.dut.wr_commit_slot_i.value = slot
@@ -190,11 +210,12 @@ class PumiceAxi4IfcTB(TBBase):
 
     async def service_rd(self, data, resp=0):
         """Issue the oldest pending read, then drive its DFI return data."""
+        slot = None
         for _ in range(200):
-            if int(self.dut.rd_oldest_valid_o.value):
+            slot = self._rd_oldest_slot()
+            if slot is not None:
                 break
             await RisingEdge(self.dut.aclk)
-        slot = int(self.dut.rd_oldest_slot_o.value)
         while int(self.dut.rd_issue_ready_o.value) == 0:
             await RisingEdge(self.dut.aclk)
         self.dut.rd_issue_slot_i.value = slot

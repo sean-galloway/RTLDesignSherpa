@@ -317,8 +317,11 @@ class DDR2CharDriver:
     # keeps these thin wrappers so existing callers (pumice_master / pumice_char)
     # are unchanged; `self.pumice.<op>` is equivalent.
     def set_dfi_phase(self, rd_phase: int, wr_phase: int = 0,
-                      gear_ratio=None) -> None:
-        self.pumice.set_dfi_phase(rd_phase, wr_phase, gear_ratio=gear_ratio)
+                      gear_ratio=None, bl=None) -> None:
+        # bl = JEDEC burst length (device beats), the single source of truth for
+        # the sub-DFI-word framing (task #146). None => preserve the CSR reset.
+        self.pumice.set_dfi_phase(rd_phase, wr_phase, gear_ratio=gear_ratio,
+                                  bl=bl)
 
     def get_dfi_phase(self) -> tuple:
         return self.pumice.get_dfi_phase()

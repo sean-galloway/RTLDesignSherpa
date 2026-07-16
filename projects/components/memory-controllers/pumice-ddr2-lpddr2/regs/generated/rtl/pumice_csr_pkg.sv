@@ -532,9 +532,14 @@ package pumice_csr_pkg;
     } pumice_csr__DFI_PHASE__gear_ratio__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } pumice_csr__DFI_PHASE__bl__out_t;
+
+    typedef struct {
         pumice_csr__DFI_PHASE__rd_phase__out_t rd_phase;
         pumice_csr__DFI_PHASE__wr_phase__out_t wr_phase;
         pumice_csr__DFI_PHASE__gear_ratio__out_t gear_ratio;
+        pumice_csr__DFI_PHASE__bl__out_t bl;
     } pumice_csr__DFI_PHASE__out_t;
 
     typedef struct {

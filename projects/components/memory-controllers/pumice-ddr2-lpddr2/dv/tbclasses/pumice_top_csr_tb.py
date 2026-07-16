@@ -268,6 +268,11 @@ class PumiceTopCsrTB:
         await w("TIMINGS_RTP_RTW", "tRTW", 2)
         await w("DFI_PHASE", "rd_phase", 0)
         await w("DFI_PHASE", "wr_phase", 0)
+        # Class-C structural CSRs: must MATCH the built params (design-requirements
+        # "config not param" — a wrong value here is bad config programming, not a
+        # synth mismatch). gear_ratio = log2(active DFI_RATE); bl = JEDEC burst len.
+        await w("DFI_PHASE", "gear_ratio", self.dfi_rate.bit_length() - 1)
+        await w("DFI_PHASE", "bl", self.dram_bl)
         await w("PHY_TIMING", "t_phy_wrlat", t_phy_wrlat)
         await w("PHY_TIMING", "t_rddata_en", t_rddata_en)
         await w("PHY_TIMING", "memtype", 1 if mem_type.upper() == "LPDDR2" else 0)

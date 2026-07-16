@@ -55,6 +55,29 @@ module pumice_core
                              ? $clog2(DRAM_BEAT_WIDTH / DRAM_DEVICE_WIDTH) : 0,
     parameter int BL_PUMICE  = BL >> BL_SHIFT,
 
+    // ---- sub-DFI-word burst framing (task #146) --------------------------
+    // A JEDEC burst is BL_PUMICE DRAM beats. In DFI words that is
+    // BL_PUMICE/DFI_RATE. Two regimes, exactly one active for a given build:
+    //   * burst >= one DFI word (legacy, incl. x64 BL8 and rate2 x16):
+    //       BURST_WORDS = BL_PUMICE/DFI_RATE DFI words per burst, N_SUBCMD = 1.
+    //       One AXI beat == one DFI word feeds BURST_WORDS beats/burst as today.
+    //   * burst <  one DFI word (the board: gear 1:4 + x16 BL4):
+    //       one DFI word holds N_SUBCMD = DFI_RATE/BL_PUMICE JEDEC bursts, so
+    //       BURST_WORDS clamps to 1 (the DFI word IS the transfer unit) and the
+    //       DFI layer issues N_SUBCMD consecutive-column DRAM commands per word.
+    // Both quantities are derived from the compile params (build-for-max sizes
+    // every bus); N_SUBCMD>1 is a normal config, not a special case. Legacy
+    // (N_SUBCMD==1) is bit-identical: BURST_WORDS==BL_PUMICE/DFI_RATE as before.
+    parameter int BURST_WORDS = (BL_PUMICE >= DFI_RATE) ? (BL_PUMICE / DFI_RATE) : 1,
+    parameter int N_SUBCMD    = (DFI_RATE > BL_PUMICE) ? (DFI_RATE / BL_PUMICE) : 1,
+    // Column stride (device-word units, addr_mapper granularity) between the
+    // N_SUBCMD sub-bursts of one DFI word = one JEDEC burst = BL device beats.
+    parameter int SUB_COL_STRIDE = BL,
+    // DFI-phase stride between the packed sub-bursts (= BL_PUMICE = the phases
+    // one JEDEC burst occupies). The N_SUBCMD sub anchors {0, BL_PUMICE, ...}
+    // tile the DFI cycle: N_SUBCMD*BL_PUMICE == DFI_RATE in the sub-word regime.
+    parameter int SUB_PHASE_STRIDE = (N_SUBCMD > 1) ? (DFI_RATE / N_SUBCMD) : 1,
+
     // internal data unit = DFI word
     parameter int DFI_DATA_WIDTH = DRAM_BEAT_WIDTH * DFI_RATE,
     parameter int DW  = DFI_DATA_WIDTH,      // host AXI data width == DFI word
@@ -101,6 +124,13 @@ module pumice_core
     // gear_i = log2(DFI_RATE) (board/default) => active_rate == DFI_RATE => the
     // DFI en masks are all-ones => behaviour is bit-identical to today.
     input  logic [1:0]                 gear_i,
+    // JEDEC burst length (device beats: 4/8/16) — the single source of truth for
+    // the burst geometry (task #146, DFI_PHASE.bl CSR). Combined with gear_i it
+    // derives the ACTIVE sub-DFI-word framing (n_subcmd / col stride) below. The
+    // datapath is BUILT for MAX (compile params); this is the runtime selector,
+    // so a wrong value is bad config, never a synth mismatch. Board/default value
+    // (== compile BL) reproduces the compile-time framing bit-for-bit.
+    input  logic [3:0]                 bl_i,
     output logic [3:0]                 cl_o, cwl_o, bl_o,
     output logic                       init_done_o,
 
@@ -153,6 +183,34 @@ module pumice_core
     localparam int WD_DW  = 1 + DFI_STRB_WIDTH + DFI_DATA_WIDTH;
     localparam int RD_DW  = 1 + 2 + DFI_DATA_WIDTH;
 
+    // ---- runtime sub-DFI-word framing from the bl (device beats) + gear CSRs --
+    // BL_SHIFT is a compile device-geometry constant (DRAM_BEAT/DRAM_DEVICE).
+    //   bl_pumice = bl_i >> BL_SHIFT            (active DRAM beats / burst)
+    //   active_rate = 1 << gear_i               (active DFI phases)
+    //   n_subcmd  = active_rate > bl_pumice ? active_rate/bl_pumice : 1
+    //   stride    = bl_i                        (device-word column stride)
+    // Sized/clamped to the compile MAX (N_SUBCMD) — a value beyond MAX is bad
+    // config, never a synth mismatch. Board/default (bl_i==BL, gear==log2 rate)
+    // => n_subcmd==N_SUBCMD, stride==SUB_COL_STRIDE => bit-identical framing.
+    localparam int SUBW_MAX = $clog2(N_SUBCMD + 1);
+    logic [3:0]          w_bl_pumice;
+    logic [4:0]          w_active_rate;
+    logic [SUBW_MAX-1:0] w_n_subcmd;
+    logic [COL_WIDTH-1:0] w_sub_col_stride;
+    logic [PHW-1:0]      w_sub_phase_stride;
+    always_comb begin
+        w_bl_pumice   = bl_i >> BL_SHIFT;
+        w_active_rate = 5'(1) << gear_i;
+        if ((w_bl_pumice != '0) && (w_active_rate > 5'(w_bl_pumice)))
+            w_n_subcmd = SUBW_MAX'(w_active_rate / 5'(w_bl_pumice));
+        else
+            w_n_subcmd = SUBW_MAX'(1);
+        w_sub_col_stride = COL_WIDTH'(bl_i);
+        // Active DFI-phase stride between packed sub-bursts = active bl_pumice
+        // (the phases one JEDEC burst occupies). Board/default == SUB_PHASE_STRIDE.
+        w_sub_phase_stride = PHW'(w_bl_pumice);
+    end
+
     // ---- scheduler <-> IFC CAM per-entry vectors ----
     logic [NUM_ENTRIES-1:0]             w_wr_sch_v,     w_rd_sch_v;
     logic [NUM_ENTRIES*BKW-1:0]         w_wr_sch_bank,  w_rd_sch_bank;
@@ -191,9 +249,13 @@ module pumice_core
     // ======================================================================
     pumice_axi4_ifc #(
         .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(AW), .AXI_DATA_WIDTH(DW), .AXI_USER_WIDTH(UW),
+        // Intake/CAM stay DFI-word granular (one AXI beat == one DFI word):
+        // DRAM_BEAT_WIDTH(DW) => GEAR==1, and BL == BURST_WORDS (DFI words per
+        // burst-group). N_SUBCMD>1 (sub-DFI-word burst) is expanded downstream
+        // in the DFI layer, so the front end frames exactly one DFI word/beat.
         .DRAM_BEAT_WIDTH(DW), .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS),
         .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH), .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH),
-        .BL(BL_PUMICE / DFI_RATE), .NUM_ENTRIES(NUM_ENTRIES), .N_SRAM_SLOTS(N_SRAM_SLOTS),
+        .BL(BURST_WORDS), .NUM_ENTRIES(NUM_ENTRIES), .N_SRAM_SLOTS(N_SRAM_SLOTS),
         .N_SCHED_LU(N_LU), .AGE_WIDTH(AGE_WIDTH)
     ) u_ifc (
         .aclk(aclk), .aresetn(aresetn),
@@ -273,7 +335,9 @@ module pumice_core
     pumice_dfi_layer #(
         .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH),
         .COL_WIDTH(COL_WIDTH), .DFI_RATE(DFI_RATE), .DRAM_BEAT_WIDTH(DRAM_BEAT_WIDTH),
-        .BL(BL_PUMICE)
+        .BL(BL_PUMICE), .N_SUBCMD(N_SUBCMD), .SUB_COL_STRIDE(SUB_COL_STRIDE),
+        .SUB_PHASE_STRIDE(SUB_PHASE_STRIDE),
+        .SUBW_MAX(SUBW_MAX), .BURST_WORDS(BURST_WORDS)
     ) u_dfi (
         .ctl_clk(aclk), .ctl_rstn(aresetn),
         .cmd_valid_i(w_cmd_v), .cmd_ready_o(w_cmd_rdy), .cmd_data_i(w_cmd_data),
@@ -285,6 +349,8 @@ module pumice_core
         .rd_phase_i(rd_phase_i), .wr_phase_i(wr_phase_i),
         .t_phy_wrlat_i(t_phy_wrlat_i), .t_rddata_en_i(t_rddata_en_i),
         .gear_i(gear_i),
+        .n_subcmd_i(w_n_subcmd), .sub_col_stride_i(w_sub_col_stride),
+        .sub_phase_stride_i(w_sub_phase_stride),
         .dfi_address_o(dfi_address_o), .dfi_bank_o(dfi_bank_o),
         .dfi_cas_n_o(dfi_cas_n_o), .dfi_ras_n_o(dfi_ras_n_o), .dfi_we_n_o(dfi_we_n_o),
         .dfi_cs_n_o(dfi_cs_n_o), .dfi_odt_o(dfi_odt_o),

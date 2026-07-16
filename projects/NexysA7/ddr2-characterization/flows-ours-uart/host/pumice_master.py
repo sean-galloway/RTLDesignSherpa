@@ -303,7 +303,18 @@ class SimpleTest:
                              t_rddata_en=self.t_rddata_en,
                              rd_in_order=True)
         d.set_dfi_rddata_delay(self.rddata_delay)
-        d.set_dfi_phase(rd_phase=self.rd_phase, wr_phase=0)
+        # gear_ratio / bl: None => rmw-preserve the RTL reset (board = 2 = 1:4,
+        # bl = 4), which is correct on-silicon. The sim exercises non-rate-4
+        # legacy builds (e.g. rate-2) where the reset gear is wrong and would mask
+        # off the read path -> those set TEST_GEAR_RATIO / TEST_DRAM_BL so
+        # set_dfi_phase programs the build's actual gear (same pattern as
+        # A7Leveling/MasterTest). Absent env (board) => None => preserve.
+        import os as _os
+        _g = _os.environ.get("TEST_GEAR_RATIO")
+        _bl = _os.environ.get("TEST_DRAM_BL")
+        d.set_dfi_phase(rd_phase=self.rd_phase, wr_phase=0,
+                        gear_ratio=(int(_g) if _g is not None else None),
+                        bl=(int(_bl) if _bl is not None else None))
         if do_leveling:
             lv = A7Leveling(d, base_addr=self.base,
                             t_phy_wrlat=self.t_phy_wrlat,
