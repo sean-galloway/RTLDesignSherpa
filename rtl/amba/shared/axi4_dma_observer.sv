@@ -62,6 +62,20 @@ module axi4_dma_observer
     parameter int MAX_TRANSACTIONS      = 16,
     parameter logic [7:0] UNIT_ID       = 8'h10, // distinguishes this observer's packets
 
+    // ---------- Per-tap monitor cone enables ----------
+    // Default = perf-only, the FPGA-trimmed footprint that fits the xc7a100t
+    // (each non-perf cone pulls in a transaction CAM + reporter and dominates
+    // the observer's LUT cost -- see commit f4b1a732). Instances that need the
+    // completion/error monbus dump path (e.g. the standalone observer unit
+    // test) override the relevant enable to 1'b1. Synthesized characterization
+    // instances keep the perf-only defaults, so the FPGA footprint is unchanged.
+    parameter bit TAP_ENABLE_ERROR_LOGIC     = 1'b0,
+    parameter bit TAP_ENABLE_TIMEOUT_LOGIC   = 1'b0,
+    parameter bit TAP_ENABLE_COMPL_LOGIC     = 1'b0,
+    parameter bit TAP_ENABLE_THRESHOLD_LOGIC = 1'b0,
+    parameter bit TAP_ENABLE_PERF_LOGIC      = 1'b1,
+    parameter bit TAP_ENABLE_DEBUG_LOGIC     = 1'b0,
+
     // ---------- axi_bus_meter integration ----------
     parameter bit ENABLE_BUS_METER      = 1'b1,  // 0 = omit meters, tie outputs to 0
     // 1 = derive write per-channel attribution from awid via an internal AW->W
@@ -420,16 +434,15 @@ module axi4_dma_observer
                 .UNIT_ID         (UNIT_ID),
                 .AGENT_ID        ({8'h00, 4'h0, gi[3:0]}),  // RD ports: [3:0]=index, [7:4]=0
                 .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
-                // Observer tap: perf-only (lock-step with the in-core datapath
-                // perf monitors). The error/timeout/compl/threshold/debug cones
-                // each add a CAM + reporter -- not needed for the perf/latency
-                // cross-check, and they dominate the observer's LUT footprint.
-                .ENABLE_ERROR_LOGIC     (1'b0),
-                .ENABLE_TIMEOUT_LOGIC   (1'b0),
-                .ENABLE_COMPL_LOGIC     (1'b0),
-                .ENABLE_THRESHOLD_LOGIC (1'b0),
-                .ENABLE_PERF_LOGIC      (1'b1),
-                .ENABLE_DEBUG_LOGIC     (1'b0)
+                // Observer tap cone enables (default perf-only -- see the
+                // TAP_ENABLE_* parameter block for why). Overridable per-instance
+                // so the dump-path unit test can enable completions.
+                .ENABLE_ERROR_LOGIC     (TAP_ENABLE_ERROR_LOGIC),
+                .ENABLE_TIMEOUT_LOGIC   (TAP_ENABLE_TIMEOUT_LOGIC),
+                .ENABLE_COMPL_LOGIC     (TAP_ENABLE_COMPL_LOGIC),
+                .ENABLE_THRESHOLD_LOGIC (TAP_ENABLE_THRESHOLD_LOGIC),
+                .ENABLE_PERF_LOGIC      (TAP_ENABLE_PERF_LOGIC),
+                .ENABLE_DEBUG_LOGIC     (TAP_ENABLE_DEBUG_LOGIC)
             ) u_rd_mon (
                 .aclk    (aclk),
                 .aresetn (aresetn),
@@ -556,15 +569,15 @@ module axi4_dma_observer
                 .UNIT_ID         (UNIT_ID),
                 .AGENT_ID        ({8'h00, 4'h1, gi[3:0]}),  // WR ports: [3:0]=idx, [7:4]=1
                 .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
-                // Observer tap: perf-only (lock-step with the in-core datapath
-                // perf monitors); drop the CAM-backed error/timeout/compl/
-                // threshold/debug cones (the observer's main LUT cost).
-                .ENABLE_ERROR_LOGIC     (1'b0),
-                .ENABLE_TIMEOUT_LOGIC   (1'b0),
-                .ENABLE_COMPL_LOGIC     (1'b0),
-                .ENABLE_THRESHOLD_LOGIC (1'b0),
-                .ENABLE_PERF_LOGIC      (1'b1),
-                .ENABLE_DEBUG_LOGIC     (1'b0)
+                // Observer tap cone enables (default perf-only -- see the
+                // TAP_ENABLE_* parameter block). Overridable per-instance so the
+                // dump-path unit test can enable completions.
+                .ENABLE_ERROR_LOGIC     (TAP_ENABLE_ERROR_LOGIC),
+                .ENABLE_TIMEOUT_LOGIC   (TAP_ENABLE_TIMEOUT_LOGIC),
+                .ENABLE_COMPL_LOGIC     (TAP_ENABLE_COMPL_LOGIC),
+                .ENABLE_THRESHOLD_LOGIC (TAP_ENABLE_THRESHOLD_LOGIC),
+                .ENABLE_PERF_LOGIC      (TAP_ENABLE_PERF_LOGIC),
+                .ENABLE_DEBUG_LOGIC     (TAP_ENABLE_DEBUG_LOGIC)
             ) u_wr_mon (
                 .aclk    (aclk),
                 .aresetn (aresetn),
