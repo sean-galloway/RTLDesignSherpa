@@ -84,7 +84,7 @@ def add_scenario_marker(filepath: Path, method_name: str, marker: str):
 
 def main():
     """Main function to add all scenario markers."""
-    tb_dir = Path('/mnt/data/github/rtldesignsherpa/projects/components/rapids/dv/tbclasses')
+    tb_dir = Path('/mnt/data/github/rtldesignsherpa/projects/components/dmas/rapids/dv/tbclasses')
 
     total = 0
     success = 0

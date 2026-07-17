@@ -16,7 +16,7 @@ PKGS :=
 DEPS :=
 
 # Device under test
-DUT := $(REPO_ROOT)/projects/components/stream/rtl/top/cmdrsp_router.sv
+DUT := $(REPO_ROOT)/projects/components/dmas/stream/rtl/top/cmdrsp_router.sv
 
 .PHONY: prove cover clean
 

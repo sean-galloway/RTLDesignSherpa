@@ -55,7 +55,7 @@ from descriptor_builder import (  # noqa: E402
 from rapids_char_golden import golden_crc, LFSR_SEED_DEFAULT  # noqa: E402
 
 RAPIDS_REGMAP_PATH = os.path.join(
-    _REPO_ROOT, 'projects/components/rapids/rtl/rapids_regmap.py')
+    _REPO_ROOT, 'projects/components/dmas/rapids/rtl/rapids_regmap.py')
 
 # Address layout — identical to rapids_char_harness_tb.py so the on-chip fetch
 # address equals the host-load address.
@@ -63,6 +63,20 @@ DESC_BASE = 0x3000_0000        # descriptor RAM byte address base
 SRC_DATA_BASE = 0x1000_0000    # source data (m_axi_rd) - address agnostic
 DST_DATA_BASE = 0x2000_0000    # sink data dest (m_axi_wr) - address agnostic
 CHANNEL_OFFSET = 0x0010_0000
+
+# Atomic-launch CSR offsets (raw region-2 byte offsets; not in the by-name
+# regmap). Mirror rapids_char_top.sv CSR_KICK_*/CSR_GO. The host stages every
+# CSR + descriptor over UART, then a single GO write arms the meter window,
+# starts the AXIS gen (sink), and fires all descriptor kicks on-chip in a few
+# aclk cycles -- keeping UART latency OUT of the measured window.
+CSR_KICK_CFG     = 0x064   # [0]=half(0 SRC/1 SNK) [1]=start_gen_on_go
+CSR_KICK_MASK    = 0x068   # [NUM_CHANNELS-1:0] channels to kick
+CSR_KICK_BASE_LO = 0x06C   # descriptor base addr [31:0]
+CSR_KICK_BASE_HI = 0x070   # descriptor base addr [63:32]
+CSR_KICK_STRIDE  = 0x074   # per-channel byte stride (base + ch*stride)
+CSR_GO           = 0x078   # [0]=GO
+CSR_OBS_TARGET   = 0x07C   # freeze the meter window at N productive beats (0=off)
+KICK_STRIDE      = 0x1000  # per-channel descriptor stride (matches DESC_BASE math)
 
 # Bus-meter throughput math. The data masters are DATA_WIDTH=512b = 64 B/beat,
 # and one PRODUCTIVE meter cycle == one 512b beat transferred. Peak per-direction
@@ -184,6 +198,38 @@ class RapidsCharCampaign:
         if self.verbose:
             self.log.info(f"kicked {half} ch{channel} desc @ 0x{descriptor_addr:016X}")
 
+    # ---- atomic launch: stage kicks as config, then a single on-chip GO -----
+
+    def _stage_kicks(self, half: str, mask: int, *, start_gen: bool) -> None:
+        """Stage the on-chip kick sequencer (fired later by go()): which half,
+        which channels, and the descriptor base/stride. Replaces the per-channel
+        UART kick writes so the kicks land within a few aclk cycles of GO."""
+        cfg = (1 if half == 'snk' else 0) | ((1 << 1) if start_gen else 0)
+        self.io.csr_write(CSR_KICK_CFG, cfg)
+        self.io.csr_write(CSR_KICK_MASK, mask)
+        self.io.csr_write(CSR_KICK_BASE_LO, DESC_BASE & 0xFFFF_FFFF)
+        self.io.csr_write(CSR_KICK_BASE_HI, (DESC_BASE >> 32) & 0xFFFF_FFFF)
+        self.io.csr_write(CSR_KICK_STRIDE, KICK_STRIDE)
+
+    def go(self) -> None:
+        """Single atomic GO: arm the meter window + start the AXIS gen (if
+        staged) + fire every staged descriptor kick, all on-chip within a few
+        aclk cycles. No UART latency enters the measured window."""
+        self.io.csr_write(CSR_GO, 1)
+
+    def reset_channels(self) -> None:
+        """Pulse CHANNEL_RESET on both halves to clear stale scheduler /
+        descriptor-engine state before a run (forces the channel FSMs to
+        CH_IDLE and flushes the descriptor FIFOs). The sink does NOT return to
+        a clean state on its own after a transfer, so without this a second
+        back-to-back run — or any active<build_width config — inherits stale
+        state and wedges (sink writes 0 beats). Board-confirmed: baseline 1/4,
+        with reset 5/5, and active=1/2/4/8 all pass."""
+        allch = (1 << self.num_channels) - 1
+        for half in ('snk', 'src'):
+            self.write_fields(half, 'CHANNEL_RESET', CH_RST=allch)
+            self.write_fields(half, 'CHANNEL_RESET', CH_RST=0x00)
+
     # ---- polling -----------------------------------------------------------
 
     def _poll(self, predicate, timeout_s: float, period_s: float = 0.02) -> bool:
@@ -215,9 +261,10 @@ class RapidsCharCampaign:
         for ch in active_channels:
             mask |= (1 << ch)
 
-        # Re-arm the bus meters so this run gets a fresh measurement window.
-        self.io.meter_arm()
+        # Clear any stale scheduler/descriptor state from a prior run first.
+        self.reset_channels()
 
+        # ---- STAGE everything over UART (meter NOT armed yet) ---------------
         # 1. Load a SINK DATA descriptor per active channel into the SNK RAM.
         for ch in active_channels:
             desc_addr = DESC_BASE + ch * 0x1000
@@ -228,29 +275,32 @@ class RapidsCharCampaign:
         # 2. Reset the sink-write CRC checker (1-cycle pulse in HW).
         self.io.csr_write_reg("MEM_CTRL", WR_CRC_RESET=1)
 
-        # 3. Program + start the AXIS pattern generator (start reseeds LFSR/CRC).
-        # GEN_SEED==0 selects the DEADBEEF param default; any other value is
-        # used verbatim as the LFSR seed. Golden uses the matching base_seed.
+        # 3. Program the AXIS pattern generator but DO NOT start it -- GO starts
+        #    it. GEN_SEED==0 selects the DEADBEEF param default; any other value
+        #    is the LFSR seed verbatim. Golden uses the matching base_seed.
         seed_csr = 0 if base_seed == LFSR_SEED_DEFAULT else base_seed
         self.io.csr_write_reg("GEN_SEED", VALUE=seed_csr)
         self.io.csr_write_reg("GEN_NBEATS", VALUE=beats)
         self.io.csr_write_reg("GEN_BPP", VALUE=0)        # 0 => one packet per channel
         self.io.csr_write_reg("GEN_CHMASK", VALUE=mask)
         self.io.csr_write_reg("GEN_TDEST", VALUE=0)
-        self.io.csr_write_reg("GEN_CTRL", GEN_START=1)   # arm (level -> rising edge)
-        self.io.csr_write_reg("GEN_CTRL", GEN_START=0)   # clear
 
-        # 4. Kick each channel's SINK descriptor (drains SRAM -> m_axi_wr).
-        for ch in active_channels:
-            self.kick_channel('snk', ch, DESC_BASE + ch * 0x1000)
-
-        # 5. Wait for the sink idle AND all beats CRC'd.
+        # 4. Stage the descriptor kicks (SNK half, gen-start-on-GO) + the
+        #    deterministic window-close target: the meter freezes the cycle after
+        #    the wr path completes all `expected_total` writes, so the window
+        #    brackets exactly the transfer regardless of when snk_system_idle
+        #    (unreliable at large beat counts) asserts.
         expected_total = beats * n_active
+        self._stage_kicks('snk', mask, start_gen=True)
+        self.io.csr_write(CSR_OBS_TARGET, expected_total)
 
+        # ---- GO: arm meter + start gen + kick all channels, on-chip ---------
+        self.go()
+
+        # 5. Wait for all beats written (deterministic; the HW meter freeze does
+        #    not depend on this poll -- it just tells the host when to read).
         def done():
-            snk_idle = self.io.csr_field("STATUS", "SNK_IDLE")
-            wr_total = self.io.csr_read_reg("WR_BEATS_T")
-            return bool(snk_idle) and wr_total == expected_total
+            return self.io.csr_read_reg("WR_BEATS_T") == expected_total
 
         ok_idle = self._poll(done, timeout_s)
 
@@ -292,15 +342,21 @@ class RapidsCharCampaign:
                       f"backpressure={'ON' if backpressure else 'off'} ===")
         n_active = len(active_channels)
 
-        # Re-arm the bus meters so this run gets a fresh measurement window.
-        self.io.meter_arm()
+        mask = 0
+        for ch in active_channels:
+            mask |= (1 << ch)
 
+        # Clear any stale scheduler/descriptor state from a prior run first.
+        self.reset_channels()
+
+        # ---- STAGE everything over UART (meter NOT armed yet) ---------------
         # 1. Reset the source-read LFSR/CRC pattern generator (1-cycle pulse).
         self.io.csr_write_reg("MEM_CTRL", RD_CRC_LFSR_RESET=1)
 
         # 2. Arm the AXIS pattern checker: chk_ready_en(level) + chk_cfg_start pulse.
-        #    Source seed is fixed at the DEADBEEF param (no rd-gen seed CSR), so
-        #    the checker seed must match: CSR_CHK_SEED=0 => DEADBEEF.
+        #    Source has no gen, so GO does not touch the checker -- it is armed
+        #    here and stays ready. Source seed is fixed at the DEADBEEF param
+        #    (no rd-gen seed CSR), so CSR_CHK_SEED=0 => DEADBEEF.
         self.io.csr_write_reg("CHK_SEED", VALUE=0)  # 0 => DEADBEEF, matches rd gen
         if backpressure:
             # Arm with ready held LOW; the poll loop pulses it to create stalls.
@@ -317,17 +373,19 @@ class RapidsCharCampaign:
             desc = build_data_descriptor(src_addr, 0, beats, channel_id=ch)
             self.io.load_descriptor('src', desc_addr, descriptor_to_words(desc))
 
-        # 4. Kick each channel's SOURCE descriptor.
-        for ch in active_channels:
-            self.kick_channel('src', ch, DESC_BASE + ch * 0x1000)
-
-        # 5. Wait for the source idle AND all beats checked.
+        # 4. Stage the descriptor kicks (SRC half, no gen) + deterministic
+        #    window-close target: freeze after the egress path checks all beats.
         expected_total = beats * n_active
+        self._stage_kicks('src', mask, start_gen=False)
+        self.io.csr_write(CSR_OBS_TARGET, expected_total)
 
+        # ---- GO: arm meter + kick all channels, on-chip --------------------
+        self.go()
+
+        # 5. Wait for all beats checked (deterministic read trigger; the HW
+        #    meter freeze is independent of this poll).
         def done():
-            src_idle = self.io.csr_field("STATUS", "SRC_IDLE")
-            chk_total = self.io.csr_read_reg("CHK_BEATS_T")
-            return bool(src_idle) and chk_total == expected_total
+            return self.io.csr_read_reg("CHK_BEATS_T") == expected_total
 
         if backpressure:
             ok_idle = self._poll_backpressure(done, timeout_s)

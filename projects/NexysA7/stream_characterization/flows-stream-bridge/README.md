@@ -135,7 +135,7 @@ python3 host/run_test.py --port /dev/ttyUSB1
 ## Dependencies
 
 - `projects/components/converters/rtl/uart_to_axil4/` -- UART AXIL bridge
-- `projects/components/stream/rtl/top/stream_top_ch8.sv` -- STREAM DMA core
+- `projects/components/dmas/stream/rtl/top/stream_top_ch8.sv` -- STREAM DMA core
 - `projects/components/misc/rtl/axi4_slave_rd_pattern_gen.sv` -- source
 - `projects/components/misc/rtl/axi4_slave_wr_crc_check.sv` -- sink
 - `rtl/amba/includes/reset_defs.svh` -- reset macros

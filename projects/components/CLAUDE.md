@@ -136,8 +136,8 @@ logic [31:0] scaled_data = coefficient * input_data;
 ```
 
 **See Examples In:**
-- `projects/components/stream/rtl/stream_fub/simple_sram.sv` - SRAM with attributes
-- `projects/components/rapids/rtl/rapids_fub/descriptor_engine.sv` - FIFO with attributes
+- `projects/components/dmas/stream/rtl/stream_fub/simple_sram.sv` - SRAM with attributes
+- `projects/components/dmas/rapids/rtl/rapids_fub/descriptor_engine.sv` - FIFO with attributes
 
 ---
 
@@ -192,7 +192,7 @@ module simple_sram #(
 endmodule
 ```
 
-**See:** `projects/components/stream/rtl/stream_fub/simple_sram.sv`
+**See:** `projects/components/dmas/stream/rtl/stream_fub/simple_sram.sv`
 
 ---
 
@@ -213,15 +213,15 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 # Import from PROJECT AREA (not framework!)
-from projects.components.stream.dv.tbclasses.scheduler_tb import SchedulerTB
+from projects.components.dmas.stream.dv.tbclasses.scheduler_tb import SchedulerTB
 
 # Shared framework components
 from CocoTBFramework.components.axi4.axi4_master import AXI4Master
 ```
 
 **Examples:**
-- `projects/components/rapids/dv/tbclasses/` - RAPIDS TBs
-- `projects/components/stream/dv/tbclasses/` - STREAM TBs
+- `projects/components/dmas/rapids/dv/tbclasses/` - RAPIDS TBs
+- `projects/components/dmas/stream/dv/tbclasses/` - STREAM TBs
 
 ---
 
@@ -290,8 +290,8 @@ endmodule : streaming_engine
 ```
 
 **See also:**
-- `projects/components/stream/rtl/stream_fub/axi_read_engine.sv`
-- `projects/components/stream/rtl/stream_fub/axi_write_engine.sv`
+- `projects/components/dmas/stream/rtl/stream_fub/axi_read_engine.sv`
+- `projects/components/dmas/stream/rtl/stream_fub/axi_write_engine.sv`
 
 ---
 
@@ -393,8 +393,8 @@ endmodule : descriptor_engine
 ```
 
 **See also:**
-- `projects/components/stream/rtl/stream_fub/descriptor_engine.sv`
-- `projects/components/rapids/rtl/rapids_fub/descriptor_engine.sv`
+- `projects/components/dmas/stream/rtl/stream_fub/descriptor_engine.sv`
+- `projects/components/dmas/rapids/rtl/rapids_fub/descriptor_engine.sv`
 
 ---
 
@@ -509,8 +509,8 @@ endmodule : sram_buffer
 ```
 
 **See also:**
-- `projects/components/stream/rtl/stream_fub/sram_controller.sv`
-- `projects/components/stream/rtl/stream_fub/simple_sram.sv`
+- `projects/components/dmas/stream/rtl/stream_fub/sram_controller.sv`
+- `projects/components/dmas/stream/rtl/stream_fub/simple_sram.sv`
 
 ---
 
@@ -594,16 +594,16 @@ logic [31:0] mem [DEPTH];
 **Usage:**
 ```bash
 # Dry-run to see what would change
-python3 bin/update_resets.py projects/components/stream/rtl/ --dry-run
+python3 bin/update_resets.py projects/components/dmas/stream/rtl/ --dry-run
 
 # Convert files (writes to UPDATED/ directory)
-python3 bin/update_resets.py projects/components/stream/rtl/
+python3 bin/update_resets.py projects/components/dmas/stream/rtl/
 
 # Review changes
-diff -u projects/components/stream/rtl/scheduler.sv UPDATED/scheduler.sv
+diff -u projects/components/dmas/stream/rtl/scheduler.sv UPDATED/scheduler.sv
 
 # Copy corrected files back
-cp UPDATED/*.sv projects/components/stream/rtl/
+cp UPDATED/*.sv projects/components/dmas/stream/rtl/
 ```
 
 **What it does:**
@@ -649,15 +649,15 @@ cat projects/components/{component}/CLAUDE.md
 Each component has its own CLAUDE.md and PRD.md files with detailed guidance:
 
 ### STREAM Component
-- **Location:** `projects/components/stream/`
-- **CLAUDE.md:** `projects/components/stream/CLAUDE.md`
-- **PRD.md:** `projects/components/stream/PRD.md`
+- **Location:** `projects/components/dmas/stream/`
+- **CLAUDE.md:** `projects/components/dmas/stream/CLAUDE.md`
+- **PRD.md:** `projects/components/dmas/stream/PRD.md`
 - **Focus:** Streaming datapath engines, AXI masters, SRAM control
 
 ### RAPIDS Component
-- **Location:** `projects/components/rapids/`
-- **CLAUDE.md:** `projects/components/rapids/CLAUDE.md`
-- **PRD.md:** `projects/components/rapids/PRD.md`
+- **Location:** `projects/components/dmas/rapids/`
+- **CLAUDE.md:** `projects/components/dmas/rapids/CLAUDE.md`
+- **PRD.md:** `projects/components/dmas/rapids/PRD.md`
 - **Focus:** Descriptor-driven accelerators, scheduler groups
 
 ### APB HPET Component

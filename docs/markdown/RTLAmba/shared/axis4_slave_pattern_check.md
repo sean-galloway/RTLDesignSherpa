@@ -223,7 +223,7 @@ assign stream_ok = !chk_data_error && (chk_crc[ch] == gen_expected_crc[ch]);
 ### Documentation
 - Architecture: `docs/markdown/RTLAmba/shared/README.md`
 - Index: `docs/markdown/RTLAmba/index.md`
-- Harness: `projects/components/rapids/CONTROL_ENGINE_INTEGRATION.md`
+- Harness: `projects/components/dmas/rapids/CONTROL_ENGINE_INTEGRATION.md`
 
 ---
 

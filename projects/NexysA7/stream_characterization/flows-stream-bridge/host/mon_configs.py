@@ -28,7 +28,7 @@
 # up" -- the event-code mask drops them after the type filter.
 #
 # Register layout (offsets relative to each monitor's ENABLE base; see
-# projects/components/stream/regs/generated/.../stream_regs.html):
+# projects/components/dmas/stream/regs/generated/.../stream_regs.html):
 #   +0x00 ENABLE   [MON_EN, ERR_EN, COMPL_EN, TIMEOUT_EN, PERF_EN]
 #   +0x0C PKT_MASK [15:0]  1 = drop that packet type at monbus entry
 #   +0x10 ERR_CFG  [3:0] ERR_SELECT, [15:8] ERR_MASK

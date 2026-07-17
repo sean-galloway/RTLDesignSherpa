@@ -34,7 +34,7 @@ def _default_regmap() -> str:
         return env
     d = os.path.dirname(os.path.abspath(__file__))
     for _ in range(12):
-        cand = os.path.join(d, "projects/components/stream/rtl/stream_regmap.py")
+        cand = os.path.join(d, "projects/components/dmas/stream/rtl/stream_regmap.py")
         if os.path.isfile(cand):
             return cand
         d = os.path.dirname(d)

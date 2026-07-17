@@ -149,8 +149,8 @@ make clean-rapids
 ### Component DV Test Makefile (component/dv/tests/Makefile)
 
 **Locations:**
-- `projects/components/stream/dv/tests/Makefile`
-- `projects/components/rapids/dv/tests/Makefile`
+- `projects/components/dmas/stream/dv/tests/Makefile`
+- `projects/components/dmas/rapids/dv/tests/Makefile`
 - ... etc
 
 **Key Targets:**
@@ -211,8 +211,8 @@ make help
 ### Component RTL Lint Makefile (component/rtl/Makefile)
 
 **Locations:**
-- `projects/components/stream/rtl/Makefile`
-- `projects/components/rapids/rtl/Makefile`
+- `projects/components/dmas/stream/rtl/Makefile`
+- `projects/components/dmas/rapids/rtl/Makefile`
 - ... etc
 
 **Key Targets:**
@@ -283,7 +283,7 @@ make status-lint
 
 ```bash
 # From specific component - focused work
-cd $REPO_ROOT/projects/components/stream/dv/tests
+cd $REPO_ROOT/projects/components/dmas/stream/dv/tests
 
 # Quick iterative development
 make run-fub-gate                  # Quick smoke test
@@ -357,7 +357,7 @@ cd $REPO_ROOT/projects/components
 make test-stream-gate-parallel
 
 # Option 3: From component directory (most direct)
-cd $REPO_ROOT/projects/components/stream/dv/tests
+cd $REPO_ROOT/projects/components/dmas/stream/dv/tests
 make run-all-gate-parallel
 
 # Flow (all options):
@@ -398,7 +398,7 @@ make run-all-gate-parallel
 
 ```bash
 # 1. Start at Tier 3 - focused component work
-cd $REPO_ROOT/projects/components/stream/dv/tests
+cd $REPO_ROOT/projects/components/dmas/stream/dv/tests
 make run-fub-gate                  # Quick smoke test
 
 # 2. Iterate with Tier 3

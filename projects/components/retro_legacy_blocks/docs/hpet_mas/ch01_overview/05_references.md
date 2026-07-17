@@ -190,7 +190,7 @@
 **RTL Design Sherpa Components:**
 - APB HPET (this component)
 - AMBA AXI4 Monitors (`rtl/amba/`)
-- RAPIDS DMA Engine (`projects/components/rapids/`)
+- RAPIDS DMA Engine (`projects/components/dmas/rapids/`)
 - Delta Network Arbiter (`projects/components/delta/`)
 
 **External Dependencies:**

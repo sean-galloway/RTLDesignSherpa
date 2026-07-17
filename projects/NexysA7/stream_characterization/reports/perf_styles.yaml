@@ -1,5 +1,5 @@
 # RTL Design Sherpa Corporate Document Styles — STREAM Characterization
-# Mirrors projects/components/stream/docs/stream_mas/stream_styles.yaml
+# Mirrors projects/components/dmas/stream/docs/stream_mas/stream_styles.yaml
 company:
   name: "RTL Design Sherpa"
   confidential_text: "Open Source - Apache 2.0 License"

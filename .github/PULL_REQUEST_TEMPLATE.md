@@ -20,7 +20,7 @@
 
 ## Subsystems touched
 
-<!-- e.g., rtl/amba/shared, projects/components/stream, val/common, docs -->
+<!-- e.g., rtl/amba/shared, projects/components/dmas/stream, val/common, docs -->
 
 ## Related issue
 

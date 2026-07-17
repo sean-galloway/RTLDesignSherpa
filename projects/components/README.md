@@ -262,8 +262,8 @@ Complex hardware accelerator demonstrating descriptor-based DMA operations with 
 - Documentation: `PRD.md`, `CLAUDE.md`, `docs/rapids_spec/` (complete specification)
 
 **📖 See:**
-- [`rapids/PRD.md`](rapids/PRD.md) - Requirements overview
-- [`rapids/docs/rapids_spec/rapids_index.md`](rapids/docs/rapids_spec/rapids_index.md) - Complete specification
+- [`dmas/rapids/PRD.md`](dmas/rapids/PRD.md) - Requirements overview
+- [`dmas/rapids/docs/rapids_spec/rapids_index.md`](dmas/rapids/docs/rapids_spec/rapids_index.md) - Complete specification
 
 ---
 
@@ -351,7 +351,7 @@ Simplified DMA engine designed as a beginner-friendly tutorial demonstrating des
 - Documentation: `PRD.md`, `CLAUDE.md`, `docs/stream_spec/` (complete microarchitecture)
 - Performance Model: `bin/dma_model/` (comprehensive analytical + SimPy models)
 
-**📖 See:** [`stream/PRD.md`](stream/PRD.md) for complete specification
+**📖 See:** [`dmas/stream/PRD.md`](dmas/stream/PRD.md) for complete specification
 
 ---
 
@@ -774,23 +774,23 @@ gtkwave hpet/logs/{test_name}.vcd
 
 ```bash
 # Using make targets (RECOMMENDED)
-cd projects/components/rapids/dv/tests/
+cd projects/components/dmas/rapids/dv/tests/
 make run-fub-func-parallel          # FUB tests, 48 workers
 make run-macro-func-parallel        # Macro tests, 48 workers
 make run-system-func-parallel       # System tests, 48 workers
 make run-all-gate-parallel          # Quick smoke test
 
 # Direct pytest invocation
-pytest projects/components/rapids/dv/tests/fub_tests/scheduler/ -v
-pytest projects/components/rapids/dv/tests/fub_tests/descriptor_engine/ -v
-pytest projects/components/rapids/dv/tests/integration_tests/ -v
-pytest projects/components/rapids/dv/tests/ -v
+pytest projects/components/dmas/rapids/dv/tests/fub_tests/scheduler/ -v
+pytest projects/components/dmas/rapids/dv/tests/fub_tests/descriptor_engine/ -v
+pytest projects/components/dmas/rapids/dv/tests/integration_tests/ -v
+pytest projects/components/dmas/rapids/dv/tests/ -v
 ```
 
 #### Running STREAM Performance Models
 
 ```bash
-cd projects/components/stream/bin/dma_model/bin/
+cd projects/components/dmas/stream/bin/dma_model/bin/
 
 # Comprehensive analysis with all modes
 python3 comprehensive_analysis.py --include-perfect --plots --report
@@ -1002,7 +1002,7 @@ pytest projects/components/{component}/dv/tests/ -v
 verilator --lint-only projects/components/{component}/rtl/{module}.sv
 
 # Generate performance reports (stream)
-cd projects/components/stream/bin/dma_model/bin/
+cd projects/components/dmas/stream/bin/dma_model/bin/
 python3 comprehensive_analysis.py --report
 
 # View waveforms

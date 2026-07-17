@@ -615,7 +615,7 @@ cd projects/components/bridge/docs
 ./generate_mas_pdf.sh
 
 # Example for Stream
-cd projects/components/stream/docs
+cd projects/components/dmas/stream/docs
 ./generate_has_pdf.sh
 ./generate_pdf.sh  # For spec document
 

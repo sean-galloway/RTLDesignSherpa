@@ -250,6 +250,20 @@ module rapids_char_top #(
     localparam logic [11:0] CSR_MON_LIMIT   = 12'h054;
     localparam logic [11:0] CSR_MON_FLUSHWM = 12'h058;
     localparam logic [11:0] CSR_CH_SEL      = 12'h060;
+    // Atomic launch (stage-all-then-GO): the host programs every CSR + descriptor
+    // over the slow UART FIRST, stages the per-channel descriptor kicks as config
+    // below, then issues ONE CSR_GO write. GO arms the meter window, (optionally)
+    // pulses the AXIS gen start, and starts an on-chip kick-sequencer that replays
+    // the LOW/HIGH APB kick writes for every masked channel back-to-back at aclk.
+    // This keeps ALL UART latency OUT of the measured window (which is otherwise
+    // smeared across seconds and dilutes utilization to ~0%).
+    localparam logic [11:0] CSR_KICK_CFG    = 12'h064;  // [0]=half(0 SRC/1 SNK) [1]=start_gen_on_go
+    localparam logic [11:0] CSR_KICK_MASK   = 12'h068;  // [NUM_CHANNELS-1:0] kick channel mask
+    localparam logic [11:0] CSR_KICK_BASE_LO= 12'h06C;  // descriptor base addr [31:0]
+    localparam logic [11:0] CSR_KICK_BASE_HI= 12'h070;  // descriptor base addr [63:32]
+    localparam logic [11:0] CSR_KICK_STRIDE = 12'h074;  // per-channel byte stride (base+ch*stride)
+    localparam logic [11:0] CSR_GO          = 12'h078;  // [0]=GO (arm+gen+kick, 1-cyc)
+    localparam logic [11:0] CSR_OBS_TARGET  = 12'h07C;  // freeze window at N productive beats
     localparam logic [11:0] CSR_OBS_CTRL    = 12'h0C0;  // [0] ARM (1-cyc pulse)
 
     localparam logic [11:0] CSR_ID          = 12'h000;
@@ -313,6 +327,16 @@ module rapids_char_top #(
     logic [31:0]                r_cfg_mon_limit_addr;
     logic [15:0]                r_cfg_mon_flush_wm;
     logic [CIW-1:0]             r_ch_sel;
+
+    // Atomic-launch (GO) staging registers + kick-sequencer state
+    logic                       r_kick_half;       // 0=SRC, 1=SNK APB kick window
+    logic                       r_kick_start_gen;  // GO also pulses cfg_gen_start (sink)
+    logic [NUM_CHANNELS-1:0]    r_kick_mask;       // channels to kick on GO
+    logic [31:0]                r_kick_base_lo;    // descriptor base addr [31:0]
+    logic [31:0]                r_kick_base_hi;    // descriptor base addr [63:32]
+    logic [31:0]                r_kick_stride;     // per-channel byte stride
+    logic                       r_go;              // 1-cycle GO pulse
+    logic [31:0]                r_obs_target;      // freeze window at N productive beats
 
     // Descriptor-load holding registers
     logic [DESC_DATA_WIDTH-1:0] r_desc_data;
@@ -530,6 +554,14 @@ module rapids_char_top #(
             r_desc_data             <= '0;
             r_desc_addr             <= '0;
             r_obs_arm               <= 1'b0;
+            r_kick_half             <= 1'b0;
+            r_kick_start_gen        <= 1'b0;
+            r_kick_mask             <= '0;
+            r_kick_base_lo          <= '0;
+            r_kick_base_hi          <= '0;
+            r_kick_stride           <= '0;
+            r_go                    <= 1'b0;
+            r_obs_target            <= '0;
         end else begin
             // Pulses default low; re-asserted for one cycle on a matching write.
             // The gen/chk START bits are ALSO 1-cycle pulses (not held levels):
@@ -545,6 +577,7 @@ module rapids_char_top #(
             r_cfg_gen_start     <= 1'b0;
             r_chk_cfg_start     <= 1'b0;
             r_obs_arm           <= 1'b0;
+            r_go                <= 1'b0;
 
             if (w_csr_we) begin
                 case (w_woff)
@@ -569,6 +602,22 @@ module rapids_char_top #(
                     CSR_MON_LIMIT:   r_cfg_mon_limit_addr    <= r_wdata;
                     CSR_MON_FLUSHWM: r_cfg_mon_flush_wm      <= r_wdata[15:0];
                     CSR_CH_SEL:      r_ch_sel                <= r_wdata[CIW-1:0];
+                    // --- atomic-launch staging (levels, held until next write) ---
+                    CSR_KICK_CFG: begin
+                        r_kick_half      <= r_wdata[0];
+                        r_kick_start_gen <= r_wdata[1];
+                    end
+                    CSR_KICK_MASK:    r_kick_mask    <= r_wdata[NUM_CHANNELS-1:0];
+                    CSR_KICK_BASE_LO: r_kick_base_lo <= r_wdata;
+                    CSR_KICK_BASE_HI: r_kick_base_hi <= r_wdata;
+                    CSR_KICK_STRIDE:  r_kick_stride  <= r_wdata;
+                    CSR_OBS_TARGET:   r_obs_target   <= r_wdata;
+                    // --- GO: one write fires meter-arm + gen-start + kicks ---
+                    CSR_GO: begin
+                        r_go            <= r_wdata[0];
+                        r_obs_arm       <= r_wdata[0];                    // arm meter window
+                        r_cfg_gen_start <= r_wdata[0] & r_kick_start_gen; // start AXIS gen (sink)
+                    end
                     default: ; // no-op
                 endcase
             end
@@ -714,19 +763,94 @@ module rapids_char_top #(
     assign uart_rdata   = r_rdata;
 
     // =========================================================================
-    // APB command/response mux (write and read FSMs are mutually exclusive
-    // because the UART master issues one transaction at a time).
+    // Atomic-launch kick sequencer: on GO, replay the LOW/HIGH APB descriptor
+    // kicks for every masked channel back-to-back at aclk, sourcing the DUT's
+    // own apbtodescr kick window (paddr = {half@bit12} + ch*8, +0=LOW/+4=HIGH;
+    // pwdata = descriptor addr {base + ch*stride}). This does on-chip in tens of
+    // cycles what the host used to do over UART in milliseconds, so the meter
+    // window brackets only the transfer.
+    // =========================================================================
+    typedef enum logic [1:0] { KST_IDLE, KST_SCAN, KST_LOW, KST_HIGH } kstate_t;
+    kstate_t     r_kstate;
+    logic [7:0]  r_kick_ch;      // current channel (NUM_CHANNELS <= 8)
+    logic [63:0] r_kick_addr;    // running descriptor address (base + ch*stride)
+    logic        r_kick_acc;     // cmd accepted, awaiting rsp
+
+    wire w_kick_active = (r_kstate != KST_IDLE);
+    wire w_kick_cmd    = (r_kstate == KST_LOW) || (r_kstate == KST_HIGH);
+    wire [APB_ADDR_WIDTH-1:0] w_kick_base  = r_kick_half ? {1'b1, 12'h000} : '0; // bit[12]=half
+    wire [APB_ADDR_WIDTH-1:0] w_kick_paddr =
+              w_kick_base
+            + (APB_ADDR_WIDTH'(r_kick_ch) << 3)
+            + ((r_kstate == KST_HIGH) ? APB_ADDR_WIDTH'('h4) : '0);
+    wire [31:0] w_kick_pwdata = (r_kstate == KST_HIGH) ? r_kick_addr[63:32]
+                                                       : r_kick_addr[31:0];
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_kstate    <= KST_IDLE;
+            r_kick_ch   <= '0;
+            r_kick_addr <= '0;
+            r_kick_acc  <= 1'b0;
+        end else begin
+            case (r_kstate)
+                KST_IDLE: begin
+                    if (r_go) begin
+                        r_kick_ch   <= '0;
+                        r_kick_addr <= {r_kick_base_hi, r_kick_base_lo};
+                        r_kick_acc  <= 1'b0;
+                        r_kstate    <= KST_SCAN;
+                    end
+                end
+                KST_SCAN: begin
+                    if (r_kick_ch >= 8'(NUM_CHANNELS)) begin
+                        r_kstate <= KST_IDLE;
+                    end else if (r_kick_mask[r_kick_ch[CIW-1:0]]) begin
+                        r_kstate <= KST_LOW;
+                    end else begin
+                        r_kick_addr <= r_kick_addr + {32'b0, r_kick_stride};
+                        r_kick_ch   <= r_kick_ch + 8'd1;
+                    end
+                end
+                KST_LOW: begin
+                    if (apb_cmd_valid && apb_cmd_ready) r_kick_acc <= 1'b1;
+                    if (apb_rsp_valid && apb_rsp_ready) begin
+                        r_kick_acc <= 1'b0;
+                        r_kstate   <= KST_HIGH;   // HIGH write triggers the kick
+                    end
+                end
+                KST_HIGH: begin
+                    if (apb_cmd_valid && apb_cmd_ready) r_kick_acc <= 1'b1;
+                    if (apb_rsp_valid && apb_rsp_ready) begin
+                        r_kick_acc  <= 1'b0;
+                        r_kick_addr <= r_kick_addr + {32'b0, r_kick_stride};
+                        r_kick_ch   <= r_kick_ch + 8'd1;
+                        r_kstate    <= KST_SCAN;
+                    end
+                end
+                default: r_kstate <= KST_IDLE;
+            endcase
+        end
+    )
+
+    // =========================================================================
+    // APB command/response mux. Host write/read FSMs are mutually exclusive
+    // (the UART master issues one transaction at a time); the kick sequencer
+    // takes priority but only ever runs when the host is idle (post-GO).
     // =========================================================================
     wire w_apb_active = (r_wstate == WST_APB);
     wire r_apb_active = (r_rstate == RST_APB);
-    assign apb_cmd_valid  = (w_apb_active && !r_apb_cmd_acc_w)
-                         || (r_apb_active && !r_apb_cmd_acc_r);
-    assign apb_cmd_pwrite = w_apb_active;   // read active => 0
-    assign apb_cmd_paddr  = w_apb_active ? r_waddr[APB_ADDR_WIDTH-1:0]
-                                         : r_raddr[APB_ADDR_WIDTH-1:0];
-    assign apb_cmd_pwdata = r_wdata;
-    assign apb_cmd_pstrb  = w_apb_active ? r_wstrb : 4'hF;
-    assign apb_rsp_ready  = w_apb_active || r_apb_active;
+    assign apb_cmd_valid  = w_kick_active
+                          ? (w_kick_cmd && !r_kick_acc)
+                          : ((w_apb_active && !r_apb_cmd_acc_w)
+                              || (r_apb_active && !r_apb_cmd_acc_r));
+    assign apb_cmd_pwrite = w_kick_active ? 1'b1 : w_apb_active;   // read active => 0
+    assign apb_cmd_paddr  = w_kick_active ? w_kick_paddr
+                          : (w_apb_active ? r_waddr[APB_ADDR_WIDTH-1:0]
+                                          : r_raddr[APB_ADDR_WIDTH-1:0]);
+    assign apb_cmd_pwdata = w_kick_active ? w_kick_pwdata : r_wdata;
+    assign apb_cmd_pstrb  = w_kick_active ? 4'hF : (w_apb_active ? r_wstrb : 4'hF);
+    assign apb_rsp_ready  = w_kick_active ? 1'b1 : (w_apb_active || r_apb_active);
 
     // =========================================================================
     // Descriptor-load AXI4 single-beat write payload (shared by SRC/SNK)
@@ -810,6 +934,8 @@ module rapids_char_top #(
 
         // Per-interface bus-meter buckets (AXI4 rd/wr + AXIS sin/sout)
         .obs_arm                (r_obs_arm),
+        .obs_target             (r_obs_target),
+        .obs_active_half        (r_kick_half),   // 1=SNK(wr) 0=SRC(sout) completion meter
         .obs_rd_prod            (obs_rd_prod),
         .obs_rd_bp              (obs_rd_bp),
         .obs_rd_starv           (obs_rd_starv),

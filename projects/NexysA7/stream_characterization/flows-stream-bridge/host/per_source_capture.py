@@ -91,7 +91,7 @@ CSR_CTRL        = H("CTRL")
 CSR_DBG_WR_PTR  = H("DBG_WR_PTR")
 
 # STREAM APB register offsets — desc-bus monitor (DAXMON_*).
-# See projects/components/stream/regs/generated/rtl/stream_regs.sv:
+# See projects/components/dmas/stream/regs/generated/rtl/stream_regs.sv:
 #   0x240 DAXMON_ENABLE    [MON_EN, ERR_EN, COMPL_EN, TIMEOUT_EN, PERF_EN]
 #   0x244 DAXMON_TIMEOUT   cycles
 #   0x248 DAXMON_LATENCY_THRESH

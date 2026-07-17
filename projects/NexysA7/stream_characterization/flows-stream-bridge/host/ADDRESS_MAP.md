@@ -74,7 +74,7 @@ to compute the right shadow address.
 ## `stream_apb` register map (base = 0x0000_0000)
 
 Decoded from STREAM's PeakRDL-generated `stream_regmap.py` (see
-`projects/components/stream/regs/`). Offsets shown are the ones the
+`projects/components/dmas/stream/regs/`). Offsets shown are the ones the
 host actually pokes during a characterization run.
 
 | Offset | Name                  | RW | Notes                                                              |

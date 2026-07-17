@@ -231,7 +231,7 @@ axis4_master_pattern_gen #(
 ### Documentation
 - Architecture: `docs/markdown/RTLAmba/shared/README.md`
 - Index: `docs/markdown/RTLAmba/index.md`
-- Harness: `projects/components/rapids/CONTROL_ENGINE_INTEGRATION.md`
+- Harness: `projects/components/dmas/rapids/CONTROL_ENGINE_INTEGRATION.md`
 
 ---
 

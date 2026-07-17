@@ -7,11 +7,11 @@ SV2V      := sv2v
 
 # Include paths for sv2v preprocessing
 INC := -I$(REPO_ROOT)/rtl/amba/includes \
-       -I$(REPO_ROOT)/projects/components/stream/rtl/includes
+       -I$(REPO_ROOT)/projects/components/dmas/stream/rtl/includes
 
 # Package files (order matters: dependencies first)
 PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
-        $(REPO_ROOT)/projects/components/stream/rtl/includes/stream_pkg.sv
+        $(REPO_ROOT)/projects/components/dmas/stream/rtl/includes/stream_pkg.sv
 
 # RTL dependencies (FIFO and counter submodules)
 DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
@@ -19,7 +19,7 @@ DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv
 
 # Device under test
-DUT := $(REPO_ROOT)/projects/components/stream/rtl/fub/perf_profiler.sv
+DUT := $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/perf_profiler.sv
 
 .PHONY: prove cover clean
 

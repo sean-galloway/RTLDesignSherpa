@@ -7,14 +7,14 @@ SV2V      := sv2v
 
 # Include paths for sv2v preprocessing
 INC := -I$(REPO_ROOT)/rtl/amba/includes \
-       -I$(REPO_ROOT)/projects/components/rapids/rtl/includes
+       -I$(REPO_ROOT)/projects/components/dmas/rapids/rtl/includes
 
 # RTL dependencies
 DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/common/fifo_control.sv
 
 # Device under test
-DUT := $(REPO_ROOT)/projects/components/rapids/rtl/fub_beats/drain_ctrl_beats.sv
+DUT := $(REPO_ROOT)/projects/components/dmas/rapids/rtl/fub_beats/drain_ctrl_beats.sv
 
 .PHONY: prove cover clean
 

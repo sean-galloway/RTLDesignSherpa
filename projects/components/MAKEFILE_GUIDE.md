@@ -183,7 +183,7 @@ rtl/lint_reports/
 
 ```bash
 # Navigate to component
-cd $REPO_ROOT/projects/components/stream/dv/tests
+cd $REPO_ROOT/projects/components/dmas/stream/dv/tests
 
 # Run quick gate-level test
 make run-all-gate
@@ -195,7 +195,7 @@ make run-all-gate
 
 ```bash
 # Navigate to component
-cd $REPO_ROOT/projects/components/rapids/dv/tests
+cd $REPO_ROOT/projects/components/dmas/rapids/dv/tests
 
 # Run comprehensive tests in parallel
 make run-all-full-parallel
@@ -207,7 +207,7 @@ make run-all-full-parallel
 
 ```bash
 # Navigate to RTL directory
-cd $REPO_ROOT/projects/components/stream/rtl
+cd $REPO_ROOT/projects/components/dmas/stream/rtl
 
 # Run all lint tools
 make lint-all
@@ -220,10 +220,10 @@ make report
 
 ```bash
 # 1. Modify RTL
-vim projects/components/stream/rtl/stream_fub/scheduler.sv
+vim projects/components/dmas/stream/rtl/stream_fub/scheduler.sv
 
 # 2. Lint the RTL
-cd projects/components/stream/rtl
+cd projects/components/dmas/stream/rtl
 make verilator
 
 # 3. Run quick smoke test
@@ -272,8 +272,8 @@ The root Makefile delegates to component Makefiles:
 
 ```bash
 # From repository root
-make test-stream          # Calls projects/components/stream/dv/tests/Makefile
-make lint-stream          # Calls projects/components/stream/rtl/Makefile
+make test-stream          # Calls projects/components/dmas/stream/dv/tests/Makefile
+make lint-stream          # Calls projects/components/dmas/stream/rtl/Makefile
 ```
 
 **Root Makefile targets:**
@@ -301,11 +301,11 @@ When creating a new component, copy the Makefile structure from an existing comp
 
 ```bash
 # Copy DV test Makefile from STREAM
-cp projects/components/stream/dv/tests/Makefile \
+cp projects/components/dmas/stream/dv/tests/Makefile \
    projects/components/new_component/dv/tests/Makefile
 
 # Copy RTL lint Makefile from STREAM
-cp projects/components/stream/rtl/Makefile \
+cp projects/components/dmas/stream/rtl/Makefile \
    projects/components/new_component/rtl/Makefile
 
 # Update component name in both Makefiles (search for "STREAM", replace with "NEW_COMPONENT")

@@ -487,7 +487,7 @@ def test_stream_char(request, test_type, test_level):
 
     # Build source list via filelist.
     # Environment variables needed by the filelist:
-    os.environ['STREAM_ROOT'] = os.path.join(repo_root_path, 'projects/components/stream')
+    os.environ['STREAM_ROOT'] = os.path.join(repo_root_path, 'projects/components/dmas/stream')
     os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root_path, 'projects/components/converters')
     os.environ['MISC_ROOT'] = os.path.join(repo_root_path, 'projects/components/misc')
     os.environ['STREAM_CHAR_ROOT'] = os.path.join(repo_root_path, 'projects/NexysA7/stream_characterization/flows-stream-bridge')
@@ -511,9 +511,15 @@ def test_stream_char(request, test_type, test_level):
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
+    # Monitor-validation test_types need the full in-core monitor suite (latency
+    # histograms + DAXMON descriptor monitor), so build them with USE_AXI_MONITORS=1.
+    # The board build (stream_char_top) stays monitors-off; its always-on bus
+    # meters still give datapath utilisation (proven by test_stream_perf_window_arm).
+    _MON_ON_TYPES = {'rw_perf', 'obs_equiv', 'desc_perf'}
     rtl_parameters = {
         'FPGA_CLK_HZ': str(SIM_FPGA_CLK_HZ),
         'UART_BAUD':   str(SIM_UART_BAUD),
+        'USE_AXI_MONITORS': '1' if test_type in _MON_ON_TYPES else '0',
         **{k: str(v) for k, v in BASE_RTL_PARAMS.items()},
     }
 
@@ -600,7 +606,7 @@ def test_stream_char_ext_suite(request):
     })
     dut_name = "stream_char_harness"
 
-    os.environ['STREAM_ROOT'] = os.path.join(repo_root_path, 'projects/components/stream')
+    os.environ['STREAM_ROOT'] = os.path.join(repo_root_path, 'projects/components/dmas/stream')
     os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root_path, 'projects/components/converters')
     os.environ['MISC_ROOT'] = os.path.join(repo_root_path, 'projects/components/misc')
     os.environ['STREAM_CHAR_ROOT'] = os.path.join(repo_root_path, 'projects/NexysA7/stream_characterization/flows-stream-bridge')
@@ -678,7 +684,7 @@ def test_stream_char_ext_char(request):
     })
     dut_name = "stream_char_harness"
 
-    os.environ['STREAM_ROOT'] = os.path.join(repo_root_path, 'projects/components/stream')
+    os.environ['STREAM_ROOT'] = os.path.join(repo_root_path, 'projects/components/dmas/stream')
     os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root_path, 'projects/components/converters')
     os.environ['MISC_ROOT'] = os.path.join(repo_root_path, 'projects/components/misc')
     os.environ['STREAM_CHAR_ROOT'] = os.path.join(repo_root_path, 'projects/NexysA7/stream_characterization/flows-stream-bridge')

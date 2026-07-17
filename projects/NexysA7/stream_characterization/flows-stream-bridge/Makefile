@@ -29,7 +29,7 @@ export FLOW_ROOT         := $(SELF_DIR)
 export STREAM_CHAR_ROOT  := $(SELF_DIR)
 export FRAMEWORK_ROOT    := $(CHAR_ROOT)/stream_char_framework
 export DOCS_ROOT         := $(CHAR_ROOT)/docs
-export STREAM_ROOT       := $(REPO_ROOT)/projects/components/stream
+export STREAM_ROOT       := $(REPO_ROOT)/projects/components/dmas/stream
 export CONVERTERS_ROOT   := $(REPO_ROOT)/projects/components/converters
 export MISC_ROOT         := $(REPO_ROOT)/projects/components/misc
 

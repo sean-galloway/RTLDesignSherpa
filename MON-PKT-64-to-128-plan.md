@@ -272,8 +272,8 @@ rtl/amba/apb/apb_monitor.sv
 
 | File | Change |
 | ---- | ------ |
-| `projects/components/stream/rtl/macro/monbus_axil_group.sv` | (1) `monbus_valid/ready/packet` port + internal FIFOs (`gaxi_fifo_sync`, `DATA_WIDTH(128)`). (2) **Bump `m_axil_*` data width from 32 to 64** so a 128-bit packet writes in 2 beats; with timestamp-append enabled and 64-bit timestamps, a packet+stamp writes in 3 beats. Slave AXIL stays 32-bit (CPU reads IRQ status one word at a time). (3) **NEW: optional timestamp-append on the AXIL master write path** — see below. |
-| `projects/components/rapids/rtl/macro/monbus_axil_group.sv` | Same as above. |
+| `projects/components/dmas/stream/rtl/macro/monbus_axil_group.sv` | (1) `monbus_valid/ready/packet` port + internal FIFOs (`gaxi_fifo_sync`, `DATA_WIDTH(128)`). (2) **Bump `m_axil_*` data width from 32 to 64** so a 128-bit packet writes in 2 beats; with timestamp-append enabled and 64-bit timestamps, a packet+stamp writes in 3 beats. Slave AXIL stays 32-bit (CPU reads IRQ status one word at a time). (3) **NEW: optional timestamp-append on the AXIL master write path** — see below. |
+| `projects/components/dmas/rapids/rtl/macro/monbus_axil_group.sv` | Same as above. |
 
 #### 4.4.1 — Counter ownership, distribution, and timestamp append
 
@@ -444,13 +444,13 @@ format. Three places need to account for this:
 
 | File | Change |
 | ---- | ------ |
-| `projects/components/stream/rtl/fub/descriptor_engine.sv` | Any `monbus_packet` output / internal nets. |
-| `projects/components/stream/rtl/fub/scheduler.sv` | Same. |
-| `projects/components/stream/rtl/macro/scheduler_group_array.sv` | Same. |
-| `projects/components/rapids/rtl/macro/scheduler_group.sv` | Same. |
-| `projects/components/rapids/rtl/macro/scheduler_group_array.sv` | Same. |
-| `projects/components/rapids/rtl/macro_beats/scheduler_group_beats.sv` | Same. |
-| `projects/components/rapids/rtl/macro_beats/scheduler_group_array_beats.sv` | Same. |
+| `projects/components/dmas/stream/rtl/fub/descriptor_engine.sv` | Any `monbus_packet` output / internal nets. |
+| `projects/components/dmas/stream/rtl/fub/scheduler.sv` | Same. |
+| `projects/components/dmas/stream/rtl/macro/scheduler_group_array.sv` | Same. |
+| `projects/components/dmas/rapids/rtl/macro/scheduler_group.sv` | Same. |
+| `projects/components/dmas/rapids/rtl/macro/scheduler_group_array.sv` | Same. |
+| `projects/components/dmas/rapids/rtl/macro_beats/scheduler_group_beats.sv` | Same. |
+| `projects/components/dmas/rapids/rtl/macro_beats/scheduler_group_array_beats.sv` | Same. |
 
 ### 4.6 — Bridge generator (Python)
 

@@ -55,7 +55,7 @@ if _repo_root:
     sys.path.insert(0, os.path.join(_repo_root, "projects/components/converters/bin"))
 
 # STREAM regblock lives at bridge slave 0 (base 0x0). Offsets mirror
-# projects/components/stream/rtl/stream_regmap.py (RFC Stage E block).
+# projects/components/dmas/stream/rtl/stream_regmap.py (RFC Stage E block).
 STREAM_APB_BASE        = 0x0000_0000
 from stream_addrs import A as _A   # noqa: E402 (addresses by name; never hardcode)
 OFF_PERF_CTRL          = _A("DAXMON_PERF_CTRL")   # perf-window base = CTRL reg

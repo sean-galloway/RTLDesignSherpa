@@ -84,7 +84,7 @@ from rapids_char_golden import golden_crc  # noqa: E402
 
 # By-name register description generated from the RAPIDS half regmap (split-proof).
 RAPIDS_REGMAP_PATH = os.path.join(
-    repo_root, 'projects/components/rapids/rtl/rapids_regmap.py')
+    repo_root, 'projects/components/dmas/rapids/rtl/rapids_regmap.py')
 
 # APB address bit[12] selects the half: SRC config/kick at 0x0000, SNK at 0x1000.
 SRC_BASE_ADDR = 0x0000
@@ -160,6 +160,8 @@ class RapidsCharHarnessTB(TBBase):
         # Monitor CAM sync-clear.
         d.cam_clear.value = 0
         d.obs_arm.value = 0
+        d.obs_target.value = 0          # 0 => system_idle-settle close (default)
+        d.obs_active_half.value = 0     # 0=SRC(sout) 1=SNK(wr) completion meter
 
         # APB idle until the APB master takes over (post-reset).
         d.s_apb_psel.value = 0
@@ -465,6 +467,9 @@ class RapidsCharHarnessTB(TBBase):
         for ch in active_channels:
             mask |= (1 << ch)
 
+        # SNK path: wr is the completion meter; freeze after all writes done.
+        self.dut.obs_active_half.value = 1
+        self.dut.obs_target.value = beats * n_active
         await self.meter_arm()   # fresh bus-meter window for this run
 
         # 1. Load a SINK DATA descriptor per active channel into the SNK desc RAM.
@@ -477,22 +482,27 @@ class RapidsCharHarnessTB(TBBase):
         # 2. Reset the sink-write CRC checker.
         await self._pulse(d.wr_crc_reset)
 
-        # 3. Program + start the AXIS pattern generator (cfg_start reseeds/clears
-        #    its per-channel LFSR + expected CRC).
+        # 3. Kick each channel's SINK descriptor FIRST. This makes the scheduler
+        #    go busy -> snk_system_idle deasserts -> the system_idle observation
+        #    window OPENS before any AXIS ingress. The sink still waits for
+        #    `beats` beats before it can finish, so it stays busy and the SRAM
+        #    still buffers as ingress outruns the drain. (If the generator were
+        #    started first, the front-loaded ingress would fly by while the
+        #    window was still closed and the sin bus-meter would read prod=0 --
+        #    a windowing artifact, not a wiring fault.)
+        for ch in active_channels:
+            desc_addr = self.DESC_BASE + ch * 0x1000
+            await self.kick_off_channel('snk', ch, desc_addr)
+
+        # 4. Program + start the AXIS pattern generator; ingress now flows into
+        #    the open window. cfg_start reseeds/clears the per-channel LFSR +
+        #    expected CRC.
         d.cfg_gen_lfsr_seed.value = 0            # 0 => DEADBEEF param
         d.cfg_gen_num_beats.value = beats        # beats PER CHANNEL
         d.cfg_gen_beats_per_pkt.value = 0        # 0 => one packet per channel
         d.cfg_gen_channel_mask.value = mask
         d.cfg_gen_tdest.value = 0
         await self._pulse(d.cfg_gen_start)
-
-        # Let the generator push some beats into the sink SRAM before draining.
-        await self.wait_clocks(self.clk_name, 20)
-
-        # 4. Kick each channel's SINK descriptor over APB (drains SRAM -> m_axi_wr).
-        for ch in active_channels:
-            desc_addr = self.DESC_BASE + ch * 0x1000
-            await self.kick_off_channel('snk', ch, desc_addr)
 
         # 5. Wait for the sink to go idle AND for all beats to be CRC'd.
         expected_total = beats * n_active
@@ -578,6 +588,9 @@ class RapidsCharHarnessTB(TBBase):
         d = self.dut
         n_active = len(active_channels)
 
+        # SRC path: sout is the completion meter; freeze after all beats egress.
+        d.obs_active_half.value = 0
+        d.obs_target.value = beats * n_active
         await self.meter_arm()   # fresh bus-meter window for this run
 
         # 1. Reset the source-read LFSR/CRC pattern generator.

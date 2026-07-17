@@ -5,8 +5,8 @@
                     "rtl/integ_amba",
                     "rtl/integ_common",
                     "rtl/xilinx",
-                    "projects/components/rapids/rtl/rapids_fub",
-                    "projects/components/rapids/rtl/rapids_macro"
+                    "projects/components/dmas/rapids/rtl/rapids_fub",
+                    "projects/components/dmas/rapids/rtl/rapids_macro"
                 ],
     "lint_reports": {"lint":"./reports/lint/", "verible":"./reports/verible/"}
 }

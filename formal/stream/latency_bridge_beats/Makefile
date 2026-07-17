@@ -7,7 +7,7 @@ SV2V      := sv2v
 
 # Include paths for sv2v preprocessing
 INC := -I$(REPO_ROOT)/rtl/amba/includes \
-       -I$(REPO_ROOT)/projects/components/rapids/rtl/includes
+       -I$(REPO_ROOT)/projects/components/dmas/rapids/rtl/includes
 
 # RTL dependencies
 DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
@@ -15,7 +15,7 @@ DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv
 
 # Device under test
-DUT := $(REPO_ROOT)/projects/components/rapids/rtl/fub_beats/latency_bridge_beats.sv
+DUT := $(REPO_ROOT)/projects/components/dmas/rapids/rtl/fub_beats/latency_bridge_beats.sv
 
 .PHONY: prove cover clean
 

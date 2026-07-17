@@ -151,6 +151,13 @@ module rapids_char_harness #(
     // without re-arming every config would read the same stale frozen window.
     //-------------------------------------------------------------------------
     input  logic                                    obs_arm,
+    // Deterministic window close: freeze when the completion interface's
+    // productive-beat count reaches obs_target (0 => disabled, fall back to the
+    // system_idle settle close). obs_active_half selects which interface's
+    // productive count is the trigger (and which half's system_idle gates busy):
+    // 1 = SNK write path (obs_wr_prod), 0 = SRC egress path (obs_sout_prod).
+    input  logic [31:0]                             obs_target,
+    input  logic                                    obs_active_half,
     output logic [31:0]                             obs_rd_prod,   // AXI4 source read
     output logic [31:0]                             obs_rd_bp,
     output logic [31:0]                             obs_rd_starv,
@@ -1131,8 +1138,14 @@ module rapids_char_harness #(
     // bound). The trailing settle idle lands in the IDLE bucket, excluded from
     // engaged utilization (prod / (prod+bp+starv)).
     localparam int OBS_SETTLE_CYCLES = 255;   // ~2.5us @ 100 MHz -- bridge idle blips
+    // Busy is gated by the ACTIVE half only. Keying on both halves let a stuck
+    // (non-idle) idle half from a prior run poison the window forever, so it
+    // never closed and ran until the host read it (util diluted to ~0%).
     logic obs_dut_busy;
-    assign obs_dut_busy = ~(src_system_idle & snk_system_idle);
+    assign obs_dut_busy = obs_active_half ? ~snk_system_idle : ~src_system_idle;
+    // Completion trigger: productive beats on the LAST interface of the path.
+    wire [31:0] w_obs_trigger = obs_active_half ? obs_wr_prod : obs_sout_prod;
+    wire        w_obs_target_hit = (obs_target != 32'd0) && (w_obs_trigger >= obs_target);
     logic        obs_win_active, obs_started;
     logic [7:0]  obs_settle;
     logic        obs_meter_clear, obs_meter_freeze;
@@ -1145,7 +1158,11 @@ module rapids_char_harness #(
             if (obs_dut_busy && !obs_win_active && !obs_started) begin
                 obs_win_active <= 1'b1; obs_started <= 1'b1; obs_settle <= 8'd0;
             end else if (obs_win_active) begin
-                if (obs_dut_busy)                              obs_settle <= 8'd0;
+                // Deterministic close the cycle after the target-th productive
+                // beat -- immune to whether system_idle ever asserts. The
+                // system_idle settle remains a fallback when obs_target == 0.
+                if (w_obs_target_hit)                          obs_win_active <= 1'b0;
+                else if (obs_dut_busy)                         obs_settle <= 8'd0;
                 else if (obs_settle != OBS_SETTLE_CYCLES[7:0]) obs_settle <= obs_settle + 8'd1;
                 else                                           obs_win_active <= 1'b0;  // close
             end

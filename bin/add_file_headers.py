@@ -169,7 +169,11 @@ def determine_subsystem(filepath: Path, repo_root: Path) -> str:
         if 'projects' in parts:
             idx = parts.index('components')
             if idx + 1 < len(parts):
-                return parts[idx + 1]  # e.g., projects/components/rapids -> rapids
+                comp = parts[idx + 1]
+                # Components grouped under a subdir (e.g. dmas/) -> real name.
+                if comp == 'dmas' and idx + 2 < len(parts):
+                    comp = parts[idx + 2]
+                return comp  # e.g., projects/components/dmas/rapids -> rapids
     elif 'bin/TBClasses' in str(rel_path):
         return 'framework'
     elif 'val' in parts or 'dv' in parts:

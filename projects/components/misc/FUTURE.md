@@ -10,7 +10,7 @@ Markdown (working tracker, not a house-style deliverable doc).
 **Status:** Idea / thought experiment (scoped, not started)
 **Priority:** P3 (opt-in, post-v1.0 enhancement — NOT a base-STREAM fix)
 **Module:** `projects/components/misc/rtl/dma_address_gen.sv`
-**Consumer:** `projects/components/stream/rtl/fub/scheduler.sv`
+**Consumer:** `projects/components/dmas/stream/rtl/fub/scheduler.sv`
 
 ### Idea
 
@@ -62,7 +62,7 @@ addr-gens, the variable-length descriptor layout (`desc_type` in chunk 0
 selecting 256b legacy vs 512b extended), acceptance criteria, worked cfg
 examples, and rejected alternatives — lives in **STREAM TASK-101**:
 
-- `projects/components/stream/TASKS.md` -> "TASK-101: Descriptor-driven
+- `projects/components/dmas/stream/TASKS.md` -> "TASK-101: Descriptor-driven
   2D/strided addressing via dma_address_gen (STREAM Extended)"
 
 This file is the pointer from the module's home directory; keep the detailed
@@ -71,7 +71,7 @@ descriptor layout in TASK-101 only (single source of truth).
 ### Tutorial-simplicity note
 
 STREAM is intentionally simplified for teaching (aligned-only, linear,
-no circular buffers — see `projects/components/stream/CLAUDE.md` Rule #0.1).
+no circular buffers — see `projects/components/dmas/stream/CLAUDE.md` Rule #0.1).
 This integration is therefore an explicit **STREAM-Extended**, opt-in-per-
 descriptor feature, not a change to base-tutorial behavior.
 

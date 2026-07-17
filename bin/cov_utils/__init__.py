@@ -52,7 +52,7 @@ Usage - Python API:
     from bin.cov_utils import ProtocolCoverageBase, ReportGenerator
 
     # Project-specific import (preferred for extending)
-    from projects.components.stream.dv.stream_coverage import CoverageHelper
+    from projects.components.dmas.stream.dv.stream_coverage import CoverageHelper
 """
 
 from .protocol_coverage_base import (

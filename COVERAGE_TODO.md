@@ -114,8 +114,8 @@ def _aggregate_coverage():
 
 ### Reference Implementations
 
-- **STREAM coverage:** `projects/components/stream/dv/tests/fub/Makefile`
-- **RAPIDS coverage:** `projects/components/rapids/dv/tests/Makefile`
+- **STREAM coverage:** `projects/components/dmas/stream/dv/tests/fub/Makefile`
+- **RAPIDS coverage:** `projects/components/dmas/rapids/dv/tests/Makefile`
 - **Bridge coverage:** `projects/components/bridge/dv/tests/Makefile` (uses shared module)
 - **Converters coverage:** `projects/components/converters/dv/tests/Makefile` (uses shared module)
 - **Shared coverage utils:** `bin/cov_utils/` (16 files)

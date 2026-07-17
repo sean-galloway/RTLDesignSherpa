@@ -28,6 +28,11 @@ module stream_char_harness #(
     parameter int DATA_WIDTH   = 128,
     parameter int ADDR_WIDTH   = 32,
     parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,  // TASK-101 STREAM Extended
+    // Heavy in-core AXI monitors (CAM/reporter cones + latency histograms).
+    // Default 0 = board build (area): the always-on bus meters still give
+    // utilisation. Cosim monitor-validation tests (rw_perf hist tail, obs_equiv,
+    // desc_perf) override to 1 to exercise the full monitor suite.
+    parameter int USE_AXI_MONITORS = 0,
     parameter int SRAM_DEPTH   = 256,
     // NUM_CHANNELS is overridable so the FPGA target can build a 4-channel
     // configuration to fit the Artix-7 100T without changing the DUT's native
@@ -1861,7 +1866,7 @@ module stream_char_harness #(
         // cones (including PERF) are dead weight here -- and at 8 channels with
         // TASK-101 extended addressing enabled they overflow the xc7a100t LUTs.
         // Removing them (param=0) reclaims the LUTs; the addr-gen logic stays.
-        .USE_AXI_MONITORS   (0),
+        .USE_AXI_MONITORS   (USE_AXI_MONITORS),
         .USE_MON_COMPRESSION(0),
         .USE_MON_HALFBEAT   (0),
         .CDC_ENABLE         (0),

@@ -54,7 +54,7 @@ This paper is not a status snapshot of the current implementation — for that,
 see the per-module docs under `docs/markdown/RTLAmba/shared/`
 (`monbus_axil_group`, `arbiter_monbus_common`, `axi_monitor_base`, etc.) and
 the integration patterns in `projects/components/bridge/` and
-`projects/components/stream/`.
+`projects/components/dmas/stream/`.
 
 What this paper *does* is frame the monitor system as a *design surface*: a
 fixed spine (packet format, transport, drain paths) with several explicitly
@@ -116,7 +116,7 @@ directory level the monitor system has a small fixed set of homes:
 
 ### Where the system shows up in real designs
 
-- **`projects/components/stream/`** — the STREAM DMA engine instantiates per-channel monitors on its descriptor / read / write AXI engines and aggregates everything onto a single `monbus_axil_group` that exposes both a slave-AXIL drain (for CPU/IRQ consumption) and a master-AXIL drain (for bulk-trace writes into a SoC-side capture region).
+- **`projects/components/dmas/stream/`** — the STREAM DMA engine instantiates per-channel monitors on its descriptor / read / write AXI engines and aggregates everything onto a single `monbus_axil_group` that exposes both a slave-AXIL drain (for CPU/IRQ consumption) and a master-AXIL drain (for bulk-trace writes into a SoC-side capture region).
 - **`projects/NexysA7/stream_characterization/`** — wraps STREAM (`stream_top_ch8`) plus an `axi_response_delay` injector and per-engine `axi_bus_meter` instances inside a harness whose `m_axil_mon` drain lands in a `debug_sram` BRAM. This is the SoC built into the Nexys A7 image used for monitor-system characterization on real hardware. See the diagram in §2.
 - **`projects/components/bridge/`** — the bridge generator emits a tree of monitor wrappers at every external port and aggregates them through `monbus_arbiter` instances into a per-bridge `monbus_axil_group`. The bridge is the most heavily exercised consumer today; integration tests there are what catch most monitor-system regressions.
 

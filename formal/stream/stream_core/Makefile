@@ -13,7 +13,7 @@ TMPDIR    := .sv2v_prep
 
 # Include paths for sv2v preprocessing
 INC := -I$(REPO_ROOT)/rtl/amba/includes \
-       -I$(REPO_ROOT)/projects/components/stream/rtl/includes
+       -I$(REPO_ROOT)/projects/components/dmas/stream/rtl/includes
 
 # Package files (order matters: dependencies first)
 # NOTE: monitor_pkg.sv is NOT included - we replace its imports with sub-packages
@@ -22,7 +22,7 @@ PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/monitor_amba5_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/monitor_arbiter_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/axi_pkg.sv \
-        $(REPO_ROOT)/projects/components/stream/rtl/includes/stream_pkg.sv
+        $(REPO_ROOT)/projects/components/dmas/stream/rtl/includes/stream_pkg.sv
 
 # Common primitives
 COMMON := $(REPO_ROOT)/rtl/common/counter_bin.sv \
@@ -51,23 +51,23 @@ MON_ORIG := $(REPO_ROOT)/rtl/amba/shared/axi_monitor_timer.sv \
 MON_PREP := $(patsubst %,$(TMPDIR)/%, $(notdir $(MON_ORIG)))
 
 # Stream FUBs
-FUBS := $(REPO_ROOT)/projects/components/stream/rtl/fub/descriptor_engine.sv \
-        $(REPO_ROOT)/projects/components/stream/rtl/fub/scheduler.sv \
-        $(REPO_ROOT)/projects/components/stream/rtl/fub/stream_alloc_ctrl.sv \
-        $(REPO_ROOT)/projects/components/stream/rtl/fub/stream_drain_ctrl.sv \
-        $(REPO_ROOT)/projects/components/stream/rtl/fub/stream_latency_bridge.sv \
-        $(REPO_ROOT)/projects/components/stream/rtl/fub/sram_controller_unit.sv \
-        $(REPO_ROOT)/projects/components/stream/rtl/fub/sram_controller.sv \
-        $(REPO_ROOT)/projects/components/stream/rtl/fub/axi_read_engine.sv \
-        $(REPO_ROOT)/projects/components/stream/rtl/fub/axi_write_engine.sv \
-        $(REPO_ROOT)/projects/components/stream/rtl/fub/perf_profiler.sv
+FUBS := $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/descriptor_engine.sv \
+        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/scheduler.sv \
+        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/stream_alloc_ctrl.sv \
+        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/stream_drain_ctrl.sv \
+        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/stream_latency_bridge.sv \
+        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/sram_controller_unit.sv \
+        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/sram_controller.sv \
+        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/axi_read_engine.sv \
+        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/axi_write_engine.sv \
+        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/perf_profiler.sv
 
 # Stream macros
-MACROS := $(REPO_ROOT)/projects/components/stream/rtl/macro/scheduler_group.sv \
-          $(REPO_ROOT)/projects/components/stream/rtl/macro/scheduler_group_array.sv
+MACROS := $(REPO_ROOT)/projects/components/dmas/stream/rtl/macro/scheduler_group.sv \
+          $(REPO_ROOT)/projects/components/dmas/stream/rtl/macro/scheduler_group_array.sv
 
 # Device under test
-DUT := $(REPO_ROOT)/projects/components/stream/rtl/macro/stream_core.sv
+DUT := $(REPO_ROOT)/projects/components/dmas/stream/rtl/macro/stream_core.sv
 
 .PHONY: prove cover clean
 

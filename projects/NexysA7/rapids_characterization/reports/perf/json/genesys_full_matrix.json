@@ -1,0 +1,3470 @@
+{
+  "timestamp": "2026-07-16T00:37:19",
+  "total": 24,
+  "passed": 24,
+  "failed": 0,
+  "configs": [
+    {
+      "name": "ch1_b4_bpoff_seeddefault",
+      "active_channels": 1,
+      "channels": [
+        0
+      ],
+      "beats": 4,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 4,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.0,
+              "eff_bw_gb_s": 0.0,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 0,
+                "bp": 0,
+                "starv": 10,
+                "idle": 0,
+                "engaged": 10,
+                "total": 10,
+                "util": 0.0
+              },
+              "bytes": 0,
+              "packets": 0,
+              "byte_bw_gb_s": 0.0
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.4,
+              "eff_bw_gb_s": 2.56,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 4,
+                "bp": 0,
+                "starv": 6,
+                "idle": 0,
+                "engaged": 10,
+                "total": 10,
+                "util": 0.4
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20F5B1C9",
+            "wr": "0x20F5B1C9",
+            "gen": "0x20F5B1C9"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 4,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.2857142857142857,
+              "eff_bw_gb_s": 1.8285714285714285,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 4,
+                "bp": 0,
+                "starv": 10,
+                "idle": 0,
+                "engaged": 14,
+                "total": 14,
+                "util": 0.2857142857142857
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.2857142857142857,
+              "eff_bw_gb_s": 1.8285714285714285,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 4,
+                "bp": 0,
+                "starv": 10,
+                "idle": 0,
+                "engaged": 14,
+                "total": 14,
+                "util": 0.2857142857142857
+              },
+              "bytes": 256,
+              "packets": 2,
+              "byte_bw_gb_s": 1.8285714285714285
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20F5B1C9",
+            "rd": "0x20F5B1C9",
+            "chk": "0x20F5B1C9"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch1_b16_bpoff_seeddefault",
+      "active_channels": 1,
+      "channels": [
+        0
+      ],
+      "beats": 16,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 16,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.0,
+              "eff_bw_gb_s": 0.0,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 0,
+                "bp": 0,
+                "starv": 22,
+                "idle": 0,
+                "engaged": 22,
+                "total": 22,
+                "util": 0.0
+              },
+              "bytes": 0,
+              "packets": 0,
+              "byte_bw_gb_s": 0.0
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.7272727272727273,
+              "eff_bw_gb_s": 4.654545454545455,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 16,
+                "bp": 0,
+                "starv": 6,
+                "idle": 0,
+                "engaged": 22,
+                "total": 22,
+                "util": 0.7272727272727273
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x96D52D23",
+            "wr": "0x96D52D23",
+            "gen": "0x96D52D23"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 16,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.6153846153846154,
+              "eff_bw_gb_s": 3.9384615384615387,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 16,
+                "bp": 0,
+                "starv": 10,
+                "idle": 0,
+                "engaged": 26,
+                "total": 26,
+                "util": 0.6153846153846154
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.6153846153846154,
+              "eff_bw_gb_s": 3.9384615384615387,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 16,
+                "bp": 0,
+                "starv": 10,
+                "idle": 0,
+                "engaged": 26,
+                "total": 26,
+                "util": 0.6153846153846154
+              },
+              "bytes": 1024,
+              "packets": 8,
+              "byte_bw_gb_s": 3.9384615384615382
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x96D52D23",
+            "rd": "0x96D52D23",
+            "chk": "0x96D52D23"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch1_b64_bpoff_seeddefault",
+      "active_channels": 1,
+      "channels": [
+        0
+      ],
+      "beats": 64,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 64,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.4714285714285714,
+              "eff_bw_gb_s": 3.017142857142857,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 33,
+                "bp": 0,
+                "starv": 37,
+                "idle": 0,
+                "engaged": 70,
+                "total": 70,
+                "util": 0.4714285714285714
+              },
+              "bytes": 2112,
+              "packets": 1,
+              "byte_bw_gb_s": 3.017142857142857
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.9142857142857143,
+              "eff_bw_gb_s": 5.851428571428571,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 64,
+                "bp": 0,
+                "starv": 6,
+                "idle": 0,
+                "engaged": 70,
+                "total": 70,
+                "util": 0.9142857142857143
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x2ECD0400",
+            "wr": "0x2ECD0400",
+            "gen": "0x2ECD0400"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 64,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.8648648648648649,
+              "eff_bw_gb_s": 5.535135135135135,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 64,
+                "bp": 0,
+                "starv": 10,
+                "idle": 0,
+                "engaged": 74,
+                "total": 74,
+                "util": 0.8648648648648649
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.8648648648648649,
+              "eff_bw_gb_s": 5.535135135135135,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 64,
+                "bp": 0,
+                "starv": 10,
+                "idle": 0,
+                "engaged": 74,
+                "total": 74,
+                "util": 0.8648648648648649
+              },
+              "bytes": 4096,
+              "packets": 32,
+              "byte_bw_gb_s": 5.5351351351351346
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x2ECD0400",
+            "rd": "0x2ECD0400",
+            "chk": "0x2ECD0400"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch1_b256_bpoff_seeddefault",
+      "active_channels": 1,
+      "channels": [
+        0
+      ],
+      "beats": 256,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 256,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.8587786259541985,
+              "eff_bw_gb_s": 5.4961832061068705,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 225,
+                "bp": 0,
+                "starv": 37,
+                "idle": 0,
+                "engaged": 262,
+                "total": 262,
+                "util": 0.8587786259541985
+              },
+              "bytes": 14400,
+              "packets": 1,
+              "byte_bw_gb_s": 5.4961832061068705
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.9770992366412213,
+              "eff_bw_gb_s": 6.253435114503817,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 256,
+                "bp": 0,
+                "starv": 6,
+                "idle": 0,
+                "engaged": 262,
+                "total": 262,
+                "util": 0.9770992366412213
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20638443",
+            "wr": "0x20638443",
+            "gen": "0x20638443"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 256,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.9624060150375939,
+              "eff_bw_gb_s": 6.159398496240602,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 256,
+                "bp": 0,
+                "starv": 10,
+                "idle": 0,
+                "engaged": 266,
+                "total": 266,
+                "util": 0.9624060150375939
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.9624060150375939,
+              "eff_bw_gb_s": 6.159398496240602,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 256,
+                "bp": 0,
+                "starv": 10,
+                "idle": 0,
+                "engaged": 266,
+                "total": 266,
+                "util": 0.9624060150375939
+              },
+              "bytes": 16384,
+              "packets": 128,
+              "byte_bw_gb_s": 6.159398496240602
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20638443",
+            "rd": "0x20638443",
+            "chk": "0x20638443"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch1_b1024_bpoff_seeddefault",
+      "active_channels": 1,
+      "channels": [
+        0
+      ],
+      "beats": 1024,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 1024,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.9640776699029127,
+              "eff_bw_gb_s": 6.170097087378641,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 993,
+                "bp": 0,
+                "starv": 37,
+                "idle": 0,
+                "engaged": 1030,
+                "total": 1030,
+                "util": 0.9640776699029127
+              },
+              "bytes": 63552,
+              "packets": 1,
+              "byte_bw_gb_s": 6.170097087378641
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.9941747572815534,
+              "eff_bw_gb_s": 6.362718446601941,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 1024,
+                "bp": 0,
+                "starv": 6,
+                "idle": 0,
+                "engaged": 1030,
+                "total": 1030,
+                "util": 0.9941747572815534
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0xABD06621",
+            "wr": "0xABD06621",
+            "gen": "0xABD06621"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 1024,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.9903288201160542,
+              "eff_bw_gb_s": 6.3381044487427465,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 1024,
+                "bp": 0,
+                "starv": 10,
+                "idle": 0,
+                "engaged": 1034,
+                "total": 1034,
+                "util": 0.9903288201160542
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.9903288201160542,
+              "eff_bw_gb_s": 6.3381044487427465,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 1024,
+                "bp": 0,
+                "starv": 10,
+                "idle": 0,
+                "engaged": 1034,
+                "total": 1034,
+                "util": 0.9903288201160542
+              },
+              "bytes": 65536,
+              "packets": 512,
+              "byte_bw_gb_s": 6.3381044487427465
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0xABD06621",
+            "rd": "0xABD06621",
+            "chk": "0xABD06621"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch1_b4096_bpoff_seeddefault",
+      "active_channels": 1,
+      "channels": [
+        0
+      ],
+      "beats": 4096,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 4096,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.9909800097513408,
+              "eff_bw_gb_s": 6.342272062408581,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 4065,
+                "bp": 0,
+                "starv": 37,
+                "idle": 0,
+                "engaged": 4102,
+                "total": 4102,
+                "util": 0.9909800097513408
+              },
+              "bytes": 260160,
+              "packets": 1,
+              "byte_bw_gb_s": 6.342272062408581
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.9985372988785958,
+              "eff_bw_gb_s": 6.390638712823013,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 4096,
+                "bp": 0,
+                "starv": 6,
+                "idle": 0,
+                "engaged": 4102,
+                "total": 4102,
+                "util": 0.9985372988785958
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x9DEB76BA",
+            "wr": "0x9DEB76BA",
+            "gen": "0x9DEB76BA"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 4096,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.997564539698003,
+              "eff_bw_gb_s": 6.384413054067219,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 4096,
+                "bp": 0,
+                "starv": 10,
+                "idle": 0,
+                "engaged": 4106,
+                "total": 4106,
+                "util": 0.997564539698003
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.997564539698003,
+              "eff_bw_gb_s": 6.384413054067219,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 4096,
+                "bp": 0,
+                "starv": 10,
+                "idle": 0,
+                "engaged": 4106,
+                "total": 4106,
+                "util": 0.997564539698003
+              },
+              "bytes": 262144,
+              "packets": 2048,
+              "byte_bw_gb_s": 6.384413054067219
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x9DEB76BA",
+            "rd": "0x9DEB76BA",
+            "chk": "0x9DEB76BA"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch2_b4_bpoff_seeddefault",
+      "active_channels": 2,
+      "channels": [
+        0,
+        1
+      ],
+      "beats": 4,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 8,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.0,
+              "eff_bw_gb_s": 0.0,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 0,
+                "bp": 0,
+                "starv": 32,
+                "idle": 0,
+                "engaged": 32,
+                "total": 32,
+                "util": 0.0
+              },
+              "bytes": 0,
+              "packets": 0,
+              "byte_bw_gb_s": 0.0
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.25,
+              "eff_bw_gb_s": 1.6,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8,
+                "bp": 0,
+                "starv": 24,
+                "idle": 0,
+                "engaged": 32,
+                "total": 32,
+                "util": 0.25
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20F5B1C9",
+            "wr": "0x20F5B1C9",
+            "gen": "0x20F5B1C9"
+          },
+          "1": {
+            "golden": "0xA1D72AB4",
+            "wr": "0xA1D72AB4",
+            "gen": "0xA1D72AB4"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 8,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.2222222222222222,
+              "eff_bw_gb_s": 1.422222222222222,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8,
+                "bp": 0,
+                "starv": 28,
+                "idle": 0,
+                "engaged": 36,
+                "total": 36,
+                "util": 0.2222222222222222
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.2222222222222222,
+              "eff_bw_gb_s": 1.422222222222222,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8,
+                "bp": 0,
+                "starv": 28,
+                "idle": 0,
+                "engaged": 36,
+                "total": 36,
+                "util": 0.2222222222222222
+              },
+              "bytes": 512,
+              "packets": 4,
+              "byte_bw_gb_s": 1.4222222222222223
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20F5B1C9",
+            "rd": "0x20F5B1C9",
+            "chk": "0x20F5B1C9"
+          },
+          "1": {
+            "golden": "0xA1D72AB4",
+            "rd": "0xA1D72AB4",
+            "chk": "0xA1D72AB4"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch2_b16_bpoff_seeddefault",
+      "active_channels": 2,
+      "channels": [
+        0,
+        1
+      ],
+      "beats": 16,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 32,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.022727272727272728,
+              "eff_bw_gb_s": 0.14545454545454548,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 1,
+                "bp": 0,
+                "starv": 43,
+                "idle": 0,
+                "engaged": 44,
+                "total": 44,
+                "util": 0.022727272727272728
+              },
+              "bytes": 64,
+              "packets": 1,
+              "byte_bw_gb_s": 0.14545454545454548
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.7272727272727273,
+              "eff_bw_gb_s": 4.654545454545455,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32,
+                "bp": 0,
+                "starv": 12,
+                "idle": 0,
+                "engaged": 44,
+                "total": 44,
+                "util": 0.7272727272727273
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x96D52D23",
+            "wr": "0x96D52D23",
+            "gen": "0x96D52D23"
+          },
+          "1": {
+            "golden": "0xC932F9C7",
+            "wr": "0xC932F9C7",
+            "gen": "0xC932F9C7"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 32,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.6666666666666666,
+              "eff_bw_gb_s": 4.266666666666667,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32,
+                "bp": 0,
+                "starv": 16,
+                "idle": 0,
+                "engaged": 48,
+                "total": 48,
+                "util": 0.6666666666666666
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.6666666666666666,
+              "eff_bw_gb_s": 4.266666666666667,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32,
+                "bp": 0,
+                "starv": 16,
+                "idle": 0,
+                "engaged": 48,
+                "total": 48,
+                "util": 0.6666666666666666
+              },
+              "bytes": 2048,
+              "packets": 16,
+              "byte_bw_gb_s": 4.266666666666667
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x96D52D23",
+            "rd": "0x96D52D23",
+            "chk": "0x96D52D23"
+          },
+          "1": {
+            "golden": "0xC932F9C7",
+            "rd": "0xC932F9C7",
+            "chk": "0xC932F9C7"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch2_b64_bpoff_seeddefault",
+      "active_channels": 2,
+      "channels": [
+        0,
+        1
+      ],
+      "beats": 64,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 128,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.6879432624113475,
+              "eff_bw_gb_s": 4.402836879432624,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 97,
+                "bp": 0,
+                "starv": 44,
+                "idle": 0,
+                "engaged": 141,
+                "total": 141,
+                "util": 0.6879432624113475
+              },
+              "bytes": 6208,
+              "packets": 2,
+              "byte_bw_gb_s": 4.402836879432624
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.9078014184397163,
+              "eff_bw_gb_s": 5.809929078014184,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 128,
+                "bp": 0,
+                "starv": 13,
+                "idle": 0,
+                "engaged": 141,
+                "total": 141,
+                "util": 0.9078014184397163
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x2ECD0400",
+            "wr": "0x2ECD0400",
+            "gen": "0x2ECD0400"
+          },
+          "1": {
+            "golden": "0x0D704332",
+            "wr": "0x0D704332",
+            "gen": "0x0D704332"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 128,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.9014084507042254,
+              "eff_bw_gb_s": 5.769014084507042,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 128,
+                "bp": 0,
+                "starv": 14,
+                "idle": 0,
+                "engaged": 142,
+                "total": 142,
+                "util": 0.9014084507042254
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.9014084507042254,
+              "eff_bw_gb_s": 5.769014084507042,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 128,
+                "bp": 0,
+                "starv": 14,
+                "idle": 0,
+                "engaged": 142,
+                "total": 142,
+                "util": 0.9014084507042254
+              },
+              "bytes": 8192,
+              "packets": 65,
+              "byte_bw_gb_s": 5.769014084507042
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x2ECD0400",
+            "rd": "0x2ECD0400",
+            "chk": "0x2ECD0400"
+          },
+          "1": {
+            "golden": "0x0D704332",
+            "rd": "0x0D704332",
+            "chk": "0x0D704332"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch2_b256_bpoff_seeddefault",
+      "active_channels": 2,
+      "channels": [
+        0,
+        1
+      ],
+      "beats": 256,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 512,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.921455938697318,
+              "eff_bw_gb_s": 5.897318007662835,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 481,
+                "bp": 0,
+                "starv": 41,
+                "idle": 0,
+                "engaged": 522,
+                "total": 522,
+                "util": 0.921455938697318
+              },
+              "bytes": 30784,
+              "packets": 2,
+              "byte_bw_gb_s": 5.897318007662835
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.9808429118773946,
+              "eff_bw_gb_s": 6.277394636015326,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 512,
+                "bp": 0,
+                "starv": 10,
+                "idle": 0,
+                "engaged": 522,
+                "total": 522,
+                "util": 0.9808429118773946
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20638443",
+            "wr": "0x20638443",
+            "gen": "0x20638443"
+          },
+          "1": {
+            "golden": "0xB5987718",
+            "wr": "0xB5987718",
+            "gen": "0xB5987718"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 512,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.9552238805970149,
+              "eff_bw_gb_s": 6.113432835820896,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 512,
+                "bp": 0,
+                "starv": 24,
+                "idle": 0,
+                "engaged": 536,
+                "total": 536,
+                "util": 0.9552238805970149
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.9552238805970149,
+              "eff_bw_gb_s": 6.113432835820896,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 512,
+                "bp": 0,
+                "starv": 24,
+                "idle": 0,
+                "engaged": 536,
+                "total": 536,
+                "util": 0.9552238805970149
+              },
+              "bytes": 32768,
+              "packets": 259,
+              "byte_bw_gb_s": 6.113432835820896
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20638443",
+            "rd": "0x20638443",
+            "chk": "0x20638443"
+          },
+          "1": {
+            "golden": "0xB5987718",
+            "rd": "0xB5987718",
+            "chk": "0xB5987718"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch2_b1024_bpoff_seeddefault",
+      "active_channels": 2,
+      "channels": [
+        0,
+        1
+      ],
+      "beats": 1024,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 2048,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.9819863680623174,
+              "eff_bw_gb_s": 6.284712755598831,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 2017,
+                "bp": 0,
+                "starv": 37,
+                "idle": 0,
+                "engaged": 2054,
+                "total": 2054,
+                "util": 0.9819863680623174
+              },
+              "bytes": 129088,
+              "packets": 2,
+              "byte_bw_gb_s": 6.284712755598831
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.997078870496592,
+              "eff_bw_gb_s": 6.381304771178189,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 2048,
+                "bp": 0,
+                "starv": 6,
+                "idle": 0,
+                "engaged": 2054,
+                "total": 2054,
+                "util": 0.997078870496592
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0xABD06621",
+            "wr": "0xABD06621",
+            "gen": "0xABD06621"
+          },
+          "1": {
+            "golden": "0x469653A2",
+            "wr": "0x469653A2",
+            "gen": "0x469653A2"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 2048,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.9678638941398866,
+              "eff_bw_gb_s": 6.1943289224952744,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 2048,
+                "bp": 0,
+                "starv": 68,
+                "idle": 0,
+                "engaged": 2116,
+                "total": 2116,
+                "util": 0.9678638941398866
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.9678638941398866,
+              "eff_bw_gb_s": 6.1943289224952744,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 2048,
+                "bp": 0,
+                "starv": 68,
+                "idle": 0,
+                "engaged": 2116,
+                "total": 2116,
+                "util": 0.9678638941398866
+              },
+              "bytes": 131072,
+              "packets": 1038,
+              "byte_bw_gb_s": 6.1943289224952744
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0xABD06621",
+            "rd": "0xABD06621",
+            "chk": "0xABD06621"
+          },
+          "1": {
+            "golden": "0x469653A2",
+            "rd": "0x469653A2",
+            "chk": "0x469653A2"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch2_b4096_bpoff_seeddefault",
+      "active_channels": 2,
+      "channels": [
+        0,
+        1
+      ],
+      "beats": 4096,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 8192,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.9946374162096283,
+              "eff_bw_gb_s": 6.365679463741621,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8161,
+                "bp": 0,
+                "starv": 44,
+                "idle": 0,
+                "engaged": 8205,
+                "total": 8205,
+                "util": 0.9946374162096283
+              },
+              "bytes": 522304,
+              "packets": 2,
+              "byte_bw_gb_s": 6.365679463741621
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.9984156002437538,
+              "eff_bw_gb_s": 6.389859841560024,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8192,
+                "bp": 0,
+                "starv": 13,
+                "idle": 0,
+                "engaged": 8205,
+                "total": 8205,
+                "util": 0.9984156002437538
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x9DEB76BA",
+            "wr": "0x9DEB76BA",
+            "gen": "0x9DEB76BA"
+          },
+          "1": {
+            "golden": "0x2C8D6C6D",
+            "wr": "0x2C8D6C6D",
+            "gen": "0x2C8D6C6D"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 8192,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.9718827856210701,
+              "eff_bw_gb_s": 6.220049827974849,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8192,
+                "bp": 0,
+                "starv": 237,
+                "idle": 0,
+                "engaged": 8429,
+                "total": 8429,
+                "util": 0.9718827856210701
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.9718827856210701,
+              "eff_bw_gb_s": 6.220049827974849,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8192,
+                "bp": 0,
+                "starv": 237,
+                "idle": 0,
+                "engaged": 8429,
+                "total": 8429,
+                "util": 0.9718827856210701
+              },
+              "bytes": 524288,
+              "packets": 4152,
+              "byte_bw_gb_s": 6.220049827974849
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x9DEB76BA",
+            "rd": "0x9DEB76BA",
+            "chk": "0x9DEB76BA"
+          },
+          "1": {
+            "golden": "0x2C8D6C6D",
+            "rd": "0x2C8D6C6D",
+            "chk": "0x2C8D6C6D"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch4_b4_bpoff_seeddefault",
+      "active_channels": 4,
+      "channels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "beats": 4,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 16,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.0,
+              "eff_bw_gb_s": 0.0,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 0,
+                "bp": 0,
+                "starv": 76,
+                "idle": 0,
+                "engaged": 76,
+                "total": 76,
+                "util": 0.0
+              },
+              "bytes": 0,
+              "packets": 0,
+              "byte_bw_gb_s": 0.0
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.21052631578947367,
+              "eff_bw_gb_s": 1.3473684210526315,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 16,
+                "bp": 0,
+                "starv": 60,
+                "idle": 0,
+                "engaged": 76,
+                "total": 76,
+                "util": 0.21052631578947367
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20F5B1C9",
+            "wr": "0x20F5B1C9",
+            "gen": "0x20F5B1C9"
+          },
+          "1": {
+            "golden": "0xA1D72AB4",
+            "wr": "0xA1D72AB4",
+            "gen": "0xA1D72AB4"
+          },
+          "2": {
+            "golden": "0x3938A00B",
+            "wr": "0x3938A00B",
+            "gen": "0x3938A00B"
+          },
+          "3": {
+            "golden": "0xB81A3B76",
+            "wr": "0xB81A3B76",
+            "gen": "0xB81A3B76"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 16,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.2,
+              "eff_bw_gb_s": 1.28,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 16,
+                "bp": 0,
+                "starv": 64,
+                "idle": 0,
+                "engaged": 80,
+                "total": 80,
+                "util": 0.2
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.2,
+              "eff_bw_gb_s": 1.28,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 16,
+                "bp": 0,
+                "starv": 64,
+                "idle": 0,
+                "engaged": 80,
+                "total": 80,
+                "util": 0.2
+              },
+              "bytes": 1024,
+              "packets": 8,
+              "byte_bw_gb_s": 1.28
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20F5B1C9",
+            "rd": "0x20F5B1C9",
+            "chk": "0x20F5B1C9"
+          },
+          "1": {
+            "golden": "0xA1D72AB4",
+            "rd": "0xA1D72AB4",
+            "chk": "0xA1D72AB4"
+          },
+          "2": {
+            "golden": "0x3938A00B",
+            "rd": "0x3938A00B",
+            "chk": "0x3938A00B"
+          },
+          "3": {
+            "golden": "0xB81A3B76",
+            "rd": "0xB81A3B76",
+            "chk": "0xB81A3B76"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch4_b16_bpoff_seeddefault",
+      "active_channels": 4,
+      "channels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "beats": 16,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 64,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.375,
+              "eff_bw_gb_s": 2.4,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 33,
+                "bp": 0,
+                "starv": 55,
+                "idle": 0,
+                "engaged": 88,
+                "total": 88,
+                "util": 0.375
+              },
+              "bytes": 2112,
+              "packets": 3,
+              "byte_bw_gb_s": 2.4
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.7272727272727273,
+              "eff_bw_gb_s": 4.654545454545455,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 64,
+                "bp": 0,
+                "starv": 24,
+                "idle": 0,
+                "engaged": 88,
+                "total": 88,
+                "util": 0.7272727272727273
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x96D52D23",
+            "wr": "0x96D52D23",
+            "gen": "0x96D52D23"
+          },
+          "1": {
+            "golden": "0xC932F9C7",
+            "wr": "0xC932F9C7",
+            "gen": "0xC932F9C7"
+          },
+          "2": {
+            "golden": "0x1C00B97B",
+            "wr": "0x1C00B97B",
+            "gen": "0x1C00B97B"
+          },
+          "3": {
+            "golden": "0x43E76D9F",
+            "wr": "0x43E76D9F",
+            "gen": "0x43E76D9F"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 64,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.6956521739130435,
+              "eff_bw_gb_s": 4.452173913043478,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 64,
+                "bp": 0,
+                "starv": 28,
+                "idle": 0,
+                "engaged": 92,
+                "total": 92,
+                "util": 0.6956521739130435
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.6956521739130435,
+              "eff_bw_gb_s": 4.452173913043478,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 64,
+                "bp": 0,
+                "starv": 28,
+                "idle": 0,
+                "engaged": 92,
+                "total": 92,
+                "util": 0.6956521739130435
+              },
+              "bytes": 4096,
+              "packets": 32,
+              "byte_bw_gb_s": 4.452173913043478
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x96D52D23",
+            "rd": "0x96D52D23",
+            "chk": "0x96D52D23"
+          },
+          "1": {
+            "golden": "0xC932F9C7",
+            "rd": "0xC932F9C7",
+            "chk": "0xC932F9C7"
+          },
+          "2": {
+            "golden": "0x1C00B97B",
+            "rd": "0x1C00B97B",
+            "chk": "0x1C00B97B"
+          },
+          "3": {
+            "golden": "0x43E76D9F",
+            "rd": "0x43E76D9F",
+            "chk": "0x43E76D9F"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch4_b64_bpoff_seeddefault",
+      "active_channels": 4,
+      "channels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "beats": 64,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 256,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.8364312267657993,
+              "eff_bw_gb_s": 5.353159851301115,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 225,
+                "bp": 0,
+                "starv": 44,
+                "idle": 0,
+                "engaged": 269,
+                "total": 269,
+                "util": 0.8364312267657993
+              },
+              "bytes": 14400,
+              "packets": 4,
+              "byte_bw_gb_s": 5.353159851301115
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.9516728624535316,
+              "eff_bw_gb_s": 6.090706319702602,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 256,
+                "bp": 0,
+                "starv": 13,
+                "idle": 0,
+                "engaged": 269,
+                "total": 269,
+                "util": 0.9516728624535316
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x2ECD0400",
+            "wr": "0x2ECD0400",
+            "gen": "0x2ECD0400"
+          },
+          "1": {
+            "golden": "0x0D704332",
+            "wr": "0x0D704332",
+            "gen": "0x0D704332"
+          },
+          "2": {
+            "golden": "0xF3572F92",
+            "wr": "0xF3572F92",
+            "gen": "0xF3572F92"
+          },
+          "3": {
+            "golden": "0xD0EA68A0",
+            "wr": "0xD0EA68A0",
+            "gen": "0xD0EA68A0"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 256,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.9045936395759717,
+              "eff_bw_gb_s": 5.789399293286219,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 256,
+                "bp": 0,
+                "starv": 27,
+                "idle": 0,
+                "engaged": 283,
+                "total": 283,
+                "util": 0.9045936395759717
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.9045936395759717,
+              "eff_bw_gb_s": 5.789399293286219,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 256,
+                "bp": 0,
+                "starv": 27,
+                "idle": 0,
+                "engaged": 283,
+                "total": 283,
+                "util": 0.9045936395759717
+              },
+              "bytes": 16384,
+              "packets": 133,
+              "byte_bw_gb_s": 5.789399293286219
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x2ECD0400",
+            "rd": "0x2ECD0400",
+            "chk": "0x2ECD0400"
+          },
+          "1": {
+            "golden": "0x0D704332",
+            "rd": "0x0D704332",
+            "chk": "0x0D704332"
+          },
+          "2": {
+            "golden": "0xF3572F92",
+            "rd": "0xF3572F92",
+            "chk": "0xF3572F92"
+          },
+          "3": {
+            "golden": "0xD0EA68A0",
+            "rd": "0xD0EA68A0",
+            "chk": "0xD0EA68A0"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch4_b256_bpoff_seeddefault",
+      "active_channels": 4,
+      "channels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "beats": 256,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 1024,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.9529750479846449,
+              "eff_bw_gb_s": 6.099040307101728,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 993,
+                "bp": 0,
+                "starv": 49,
+                "idle": 0,
+                "engaged": 1042,
+                "total": 1042,
+                "util": 0.9529750479846449
+              },
+              "bytes": 63552,
+              "packets": 4,
+              "byte_bw_gb_s": 6.099040307101728
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.982725527831094,
+              "eff_bw_gb_s": 6.289443378119001,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 1024,
+                "bp": 0,
+                "starv": 18,
+                "idle": 0,
+                "engaged": 1042,
+                "total": 1042,
+                "util": 0.982725527831094
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20638443",
+            "wr": "0x20638443",
+            "gen": "0x20638443"
+          },
+          "1": {
+            "golden": "0xB5987718",
+            "wr": "0xB5987718",
+            "gen": "0xB5987718"
+          },
+          "2": {
+            "golden": "0x13DFDD4B",
+            "wr": "0x13DFDD4B",
+            "gen": "0x13DFDD4B"
+          },
+          "3": {
+            "golden": "0x86242E10",
+            "wr": "0x86242E10",
+            "gen": "0x86242E10"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 1024,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.9368709972552608,
+              "eff_bw_gb_s": 5.995974382433669,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 1024,
+                "bp": 0,
+                "starv": 69,
+                "idle": 0,
+                "engaged": 1093,
+                "total": 1093,
+                "util": 0.9368709972552608
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.9368709972552608,
+              "eff_bw_gb_s": 5.995974382433669,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 1024,
+                "bp": 0,
+                "starv": 69,
+                "idle": 0,
+                "engaged": 1093,
+                "total": 1093,
+                "util": 0.9368709972552608
+              },
+              "bytes": 65536,
+              "packets": 535,
+              "byte_bw_gb_s": 5.995974382433669
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20638443",
+            "rd": "0x20638443",
+            "chk": "0x20638443"
+          },
+          "1": {
+            "golden": "0xB5987718",
+            "rd": "0xB5987718",
+            "chk": "0xB5987718"
+          },
+          "2": {
+            "golden": "0x13DFDD4B",
+            "rd": "0x13DFDD4B",
+            "chk": "0x13DFDD4B"
+          },
+          "3": {
+            "golden": "0x86242E10",
+            "rd": "0x86242E10",
+            "chk": "0x86242E10"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch4_b1024_bpoff_seeddefault",
+      "active_channels": 4,
+      "channels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "beats": 1024,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 4096,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.9909800097513408,
+              "eff_bw_gb_s": 6.342272062408581,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 4065,
+                "bp": 0,
+                "starv": 37,
+                "idle": 0,
+                "engaged": 4102,
+                "total": 4102,
+                "util": 0.9909800097513408
+              },
+              "bytes": 260160,
+              "packets": 4,
+              "byte_bw_gb_s": 6.342272062408581
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.9985372988785958,
+              "eff_bw_gb_s": 6.390638712823013,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 4096,
+                "bp": 0,
+                "starv": 6,
+                "idle": 0,
+                "engaged": 4102,
+                "total": 4102,
+                "util": 0.9985372988785958
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0xABD06621",
+            "wr": "0xABD06621",
+            "gen": "0xABD06621"
+          },
+          "1": {
+            "golden": "0x469653A2",
+            "wr": "0x469653A2",
+            "gen": "0x469653A2"
+          },
+          "2": {
+            "golden": "0xDD7FF697",
+            "wr": "0xDD7FF697",
+            "gen": "0xDD7FF697"
+          },
+          "3": {
+            "golden": "0x3039C314",
+            "wr": "0x3039C314",
+            "gen": "0x3039C314"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 4096,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.9448673587081892,
+              "eff_bw_gb_s": 6.047151095732411,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 4096,
+                "bp": 0,
+                "starv": 239,
+                "idle": 0,
+                "engaged": 4335,
+                "total": 4335,
+                "util": 0.9448673587081892
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.9388696655132641,
+              "eff_bw_gb_s": 6.00876585928489,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 4070,
+                "bp": 0,
+                "starv": 265,
+                "idle": 0,
+                "engaged": 4335,
+                "total": 4335,
+                "util": 0.9388696655132641
+              },
+              "bytes": 260480,
+              "packets": 2132,
+              "byte_bw_gb_s": 6.00876585928489
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0xABD06621",
+            "rd": "0xABD06621",
+            "chk": "0xABD06621"
+          },
+          "1": {
+            "golden": "0x469653A2",
+            "rd": "0x469653A2",
+            "chk": "0x469653A2"
+          },
+          "2": {
+            "golden": "0xDD7FF697",
+            "rd": "0xDD7FF697",
+            "chk": "0xDD7FF697"
+          },
+          "3": {
+            "golden": "0x3039C314",
+            "rd": "0x3039C314",
+            "chk": "0x3039C314"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch4_b4096_bpoff_seeddefault",
+      "active_channels": 4,
+      "channels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "beats": 4096,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 16384,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.9973165823016406,
+              "eff_bw_gb_s": 6.3828261267304995,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 16353,
+                "bp": 0,
+                "starv": 44,
+                "idle": 0,
+                "engaged": 16397,
+                "total": 16397,
+                "util": 0.9973165823016406
+              },
+              "bytes": 1046592,
+              "packets": 4,
+              "byte_bw_gb_s": 6.3828261267304995
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.9992071720436665,
+              "eff_bw_gb_s": 6.394925901079466,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 16384,
+                "bp": 0,
+                "starv": 13,
+                "idle": 0,
+                "engaged": 16397,
+                "total": 16397,
+                "util": 0.9992071720436665
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x9DEB76BA",
+            "wr": "0x9DEB76BA",
+            "gen": "0x9DEB76BA"
+          },
+          "1": {
+            "golden": "0x2C8D6C6D",
+            "wr": "0x2C8D6C6D",
+            "gen": "0x2C8D6C6D"
+          },
+          "2": {
+            "golden": "0xA2315B6A",
+            "wr": "0xA2315B6A",
+            "gen": "0xA2315B6A"
+          },
+          "3": {
+            "golden": "0x135741BD",
+            "wr": "0x135741BD",
+            "gen": "0x135741BD"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 16384,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.9852667027482109,
+              "eff_bw_gb_s": 6.30570689758855,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 16384,
+                "bp": 0,
+                "starv": 245,
+                "idle": 0,
+                "engaged": 16629,
+                "total": 16629,
+                "util": 0.9852667027482109
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.9656022611101088,
+              "eff_bw_gb_s": 6.179854471104696,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 16057,
+                "bp": 0,
+                "starv": 572,
+                "idle": 0,
+                "engaged": 16629,
+                "total": 16629,
+                "util": 0.9656022611101088
+              },
+              "bytes": 1027648,
+              "packets": 8241,
+              "byte_bw_gb_s": 6.179854471104696
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x9DEB76BA",
+            "rd": "0x9DEB76BA",
+            "chk": "0x9DEB76BA"
+          },
+          "1": {
+            "golden": "0x2C8D6C6D",
+            "rd": "0x2C8D6C6D",
+            "chk": "0x2C8D6C6D"
+          },
+          "2": {
+            "golden": "0xA2315B6A",
+            "rd": "0xA2315B6A",
+            "chk": "0xA2315B6A"
+          },
+          "3": {
+            "golden": "0x135741BD",
+            "rd": "0x135741BD",
+            "chk": "0x135741BD"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b4_bpoff_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 4,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 32,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.006097560975609756,
+              "eff_bw_gb_s": 0.03902439024390244,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 1,
+                "bp": 0,
+                "starv": 163,
+                "idle": 0,
+                "engaged": 164,
+                "total": 164,
+                "util": 0.006097560975609756
+              },
+              "bytes": 64,
+              "packets": 1,
+              "byte_bw_gb_s": 0.03902439024390244
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.1951219512195122,
+              "eff_bw_gb_s": 1.248780487804878,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32,
+                "bp": 0,
+                "starv": 132,
+                "idle": 0,
+                "engaged": 164,
+                "total": 164,
+                "util": 0.1951219512195122
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20F5B1C9",
+            "wr": "0x20F5B1C9",
+            "gen": "0x20F5B1C9"
+          },
+          "1": {
+            "golden": "0xA1D72AB4",
+            "wr": "0xA1D72AB4",
+            "gen": "0xA1D72AB4"
+          },
+          "2": {
+            "golden": "0x3938A00B",
+            "wr": "0x3938A00B",
+            "gen": "0x3938A00B"
+          },
+          "3": {
+            "golden": "0xB81A3B76",
+            "wr": "0xB81A3B76",
+            "gen": "0xB81A3B76"
+          },
+          "4": {
+            "golden": "0x136F924D",
+            "wr": "0x136F924D",
+            "gen": "0x136F924D"
+          },
+          "5": {
+            "golden": "0x924D0930",
+            "wr": "0x924D0930",
+            "gen": "0x924D0930"
+          },
+          "6": {
+            "golden": "0x0AA2838F",
+            "wr": "0x0AA2838F",
+            "gen": "0x0AA2838F"
+          },
+          "7": {
+            "golden": "0x8B8018F2",
+            "wr": "0x8B8018F2",
+            "gen": "0x8B8018F2"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 32,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.19047619047619047,
+              "eff_bw_gb_s": 1.219047619047619,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32,
+                "bp": 0,
+                "starv": 136,
+                "idle": 0,
+                "engaged": 168,
+                "total": 168,
+                "util": 0.19047619047619047
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.19047619047619047,
+              "eff_bw_gb_s": 1.219047619047619,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32,
+                "bp": 0,
+                "starv": 136,
+                "idle": 0,
+                "engaged": 168,
+                "total": 168,
+                "util": 0.19047619047619047
+              },
+              "bytes": 2048,
+              "packets": 16,
+              "byte_bw_gb_s": 1.2190476190476192
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20F5B1C9",
+            "rd": "0x20F5B1C9",
+            "chk": "0x20F5B1C9"
+          },
+          "1": {
+            "golden": "0xA1D72AB4",
+            "rd": "0xA1D72AB4",
+            "chk": "0xA1D72AB4"
+          },
+          "2": {
+            "golden": "0x3938A00B",
+            "rd": "0x3938A00B",
+            "chk": "0x3938A00B"
+          },
+          "3": {
+            "golden": "0xB81A3B76",
+            "rd": "0xB81A3B76",
+            "chk": "0xB81A3B76"
+          },
+          "4": {
+            "golden": "0x136F924D",
+            "rd": "0x136F924D",
+            "chk": "0x136F924D"
+          },
+          "5": {
+            "golden": "0x924D0930",
+            "rd": "0x924D0930",
+            "chk": "0x924D0930"
+          },
+          "6": {
+            "golden": "0x0AA2838F",
+            "rd": "0x0AA2838F",
+            "chk": "0x0AA2838F"
+          },
+          "7": {
+            "golden": "0x8B8018F2",
+            "rd": "0x8B8018F2",
+            "chk": "0x8B8018F2"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b16_bpoff_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 16,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 128,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.5511363636363636,
+              "eff_bw_gb_s": 3.5272727272727273,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 97,
+                "bp": 0,
+                "starv": 79,
+                "idle": 0,
+                "engaged": 176,
+                "total": 176,
+                "util": 0.5511363636363636
+              },
+              "bytes": 6208,
+              "packets": 7,
+              "byte_bw_gb_s": 3.5272727272727273
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.7272727272727273,
+              "eff_bw_gb_s": 4.654545454545455,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 128,
+                "bp": 0,
+                "starv": 48,
+                "idle": 0,
+                "engaged": 176,
+                "total": 176,
+                "util": 0.7272727272727273
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x96D52D23",
+            "wr": "0x96D52D23",
+            "gen": "0x96D52D23"
+          },
+          "1": {
+            "golden": "0xC932F9C7",
+            "wr": "0xC932F9C7",
+            "gen": "0xC932F9C7"
+          },
+          "2": {
+            "golden": "0x1C00B97B",
+            "wr": "0x1C00B97B",
+            "gen": "0x1C00B97B"
+          },
+          "3": {
+            "golden": "0x43E76D9F",
+            "wr": "0x43E76D9F",
+            "gen": "0x43E76D9F"
+          },
+          "4": {
+            "golden": "0xB7BC2847",
+            "wr": "0xB7BC2847",
+            "gen": "0xB7BC2847"
+          },
+          "5": {
+            "golden": "0xE85BFCA3",
+            "wr": "0xE85BFCA3",
+            "gen": "0xE85BFCA3"
+          },
+          "6": {
+            "golden": "0x3D69BC1F",
+            "wr": "0x3D69BC1F",
+            "gen": "0x3D69BC1F"
+          },
+          "7": {
+            "golden": "0x628E68FB",
+            "wr": "0x628E68FB",
+            "gen": "0x628E68FB"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 128,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.7111111111111111,
+              "eff_bw_gb_s": 4.551111111111112,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 128,
+                "bp": 0,
+                "starv": 52,
+                "idle": 0,
+                "engaged": 180,
+                "total": 180,
+                "util": 0.7111111111111111
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.7111111111111111,
+              "eff_bw_gb_s": 4.551111111111112,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 128,
+                "bp": 0,
+                "starv": 52,
+                "idle": 0,
+                "engaged": 180,
+                "total": 180,
+                "util": 0.7111111111111111
+              },
+              "bytes": 8192,
+              "packets": 64,
+              "byte_bw_gb_s": 4.551111111111111
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x96D52D23",
+            "rd": "0x96D52D23",
+            "chk": "0x96D52D23"
+          },
+          "1": {
+            "golden": "0xC932F9C7",
+            "rd": "0xC932F9C7",
+            "chk": "0xC932F9C7"
+          },
+          "2": {
+            "golden": "0x1C00B97B",
+            "rd": "0x1C00B97B",
+            "chk": "0x1C00B97B"
+          },
+          "3": {
+            "golden": "0x43E76D9F",
+            "rd": "0x43E76D9F",
+            "chk": "0x43E76D9F"
+          },
+          "4": {
+            "golden": "0xB7BC2847",
+            "rd": "0xB7BC2847",
+            "chk": "0xB7BC2847"
+          },
+          "5": {
+            "golden": "0xE85BFCA3",
+            "rd": "0xE85BFCA3",
+            "chk": "0xE85BFCA3"
+          },
+          "6": {
+            "golden": "0x3D69BC1F",
+            "rd": "0x3D69BC1F",
+            "chk": "0x3D69BC1F"
+          },
+          "7": {
+            "golden": "0x628E68FB",
+            "rd": "0x628E68FB",
+            "chk": "0x628E68FB"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b64_bpoff_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 64,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 512,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.9161904761904762,
+              "eff_bw_gb_s": 5.863619047619048,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 481,
+                "bp": 0,
+                "starv": 44,
+                "idle": 0,
+                "engaged": 525,
+                "total": 525,
+                "util": 0.9161904761904762
+              },
+              "bytes": 30784,
+              "packets": 8,
+              "byte_bw_gb_s": 5.863619047619047
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.9752380952380952,
+              "eff_bw_gb_s": 6.24152380952381,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 512,
+                "bp": 0,
+                "starv": 13,
+                "idle": 0,
+                "engaged": 525,
+                "total": 525,
+                "util": 0.9752380952380952
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x2ECD0400",
+            "wr": "0x2ECD0400",
+            "gen": "0x2ECD0400"
+          },
+          "1": {
+            "golden": "0x0D704332",
+            "wr": "0x0D704332",
+            "gen": "0x0D704332"
+          },
+          "2": {
+            "golden": "0xF3572F92",
+            "wr": "0xF3572F92",
+            "gen": "0xF3572F92"
+          },
+          "3": {
+            "golden": "0xD0EA68A0",
+            "wr": "0xD0EA68A0",
+            "gen": "0xD0EA68A0"
+          },
+          "4": {
+            "golden": "0xAEE72338",
+            "wr": "0xAEE72338",
+            "gen": "0xAEE72338"
+          },
+          "5": {
+            "golden": "0x8D5A640A",
+            "wr": "0x8D5A640A",
+            "gen": "0x8D5A640A"
+          },
+          "6": {
+            "golden": "0x737D08AA",
+            "wr": "0x737D08AA",
+            "gen": "0x737D08AA"
+          },
+          "7": {
+            "golden": "0x50C04F98",
+            "wr": "0x50C04F98",
+            "gen": "0x50C04F98"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 512,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.9258589511754068,
+              "eff_bw_gb_s": 5.925497287522604,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 512,
+                "bp": 0,
+                "starv": 41,
+                "idle": 0,
+                "engaged": 553,
+                "total": 553,
+                "util": 0.9258589511754068
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.9258589511754068,
+              "eff_bw_gb_s": 5.925497287522604,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 512,
+                "bp": 0,
+                "starv": 41,
+                "idle": 0,
+                "engaged": 553,
+                "total": 553,
+                "util": 0.9258589511754068
+              },
+              "bytes": 32768,
+              "packets": 269,
+              "byte_bw_gb_s": 5.925497287522604
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x2ECD0400",
+            "rd": "0x2ECD0400",
+            "chk": "0x2ECD0400"
+          },
+          "1": {
+            "golden": "0x0D704332",
+            "rd": "0x0D704332",
+            "chk": "0x0D704332"
+          },
+          "2": {
+            "golden": "0xF3572F92",
+            "rd": "0xF3572F92",
+            "chk": "0xF3572F92"
+          },
+          "3": {
+            "golden": "0xD0EA68A0",
+            "rd": "0xD0EA68A0",
+            "chk": "0xD0EA68A0"
+          },
+          "4": {
+            "golden": "0xAEE72338",
+            "rd": "0xAEE72338",
+            "chk": "0xAEE72338"
+          },
+          "5": {
+            "golden": "0x8D5A640A",
+            "rd": "0x8D5A640A",
+            "chk": "0x8D5A640A"
+          },
+          "6": {
+            "golden": "0x737D08AA",
+            "rd": "0x737D08AA",
+            "chk": "0x737D08AA"
+          },
+          "7": {
+            "golden": "0x50C04F98",
+            "rd": "0x50C04F98",
+            "chk": "0x50C04F98"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b256_bpoff_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 256,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 2048,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.9762826718296225,
+              "eff_bw_gb_s": 6.248209099709584,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 2017,
+                "bp": 0,
+                "starv": 49,
+                "idle": 0,
+                "engaged": 2066,
+                "total": 2066,
+                "util": 0.9762826718296225
+              },
+              "bytes": 129088,
+              "packets": 8,
+              "byte_bw_gb_s": 6.248209099709583
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.9912875121006777,
+              "eff_bw_gb_s": 6.344240077444337,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 2048,
+                "bp": 0,
+                "starv": 18,
+                "idle": 0,
+                "engaged": 2066,
+                "total": 2066,
+                "util": 0.9912875121006777
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20638443",
+            "wr": "0x20638443",
+            "gen": "0x20638443"
+          },
+          "1": {
+            "golden": "0xB5987718",
+            "wr": "0xB5987718",
+            "gen": "0xB5987718"
+          },
+          "2": {
+            "golden": "0x13DFDD4B",
+            "wr": "0x13DFDD4B",
+            "gen": "0x13DFDD4B"
+          },
+          "3": {
+            "golden": "0x86242E10",
+            "wr": "0x86242E10",
+            "gen": "0x86242E10"
+          },
+          "4": {
+            "golden": "0x7170F1F4",
+            "wr": "0x7170F1F4",
+            "gen": "0x7170F1F4"
+          },
+          "5": {
+            "golden": "0xE48B02AF",
+            "wr": "0xE48B02AF",
+            "gen": "0xE48B02AF"
+          },
+          "6": {
+            "golden": "0x42CCA8FC",
+            "wr": "0x42CCA8FC",
+            "gen": "0x42CCA8FC"
+          },
+          "7": {
+            "golden": "0xD7375BA7",
+            "wr": "0xD7375BA7",
+            "gen": "0xD7375BA7"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 2048,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.9761677788369876,
+              "eff_bw_gb_s": 6.24747378455672,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 2048,
+                "bp": 0,
+                "starv": 50,
+                "idle": 0,
+                "engaged": 2098,
+                "total": 2098,
+                "util": 0.9761677788369876
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.9761677788369876,
+              "eff_bw_gb_s": 6.24747378455672,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 2048,
+                "bp": 0,
+                "starv": 50,
+                "idle": 0,
+                "engaged": 2098,
+                "total": 2098,
+                "util": 0.9761677788369876
+              },
+              "bytes": 131072,
+              "packets": 1039,
+              "byte_bw_gb_s": 6.24747378455672
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20638443",
+            "rd": "0x20638443",
+            "chk": "0x20638443"
+          },
+          "1": {
+            "golden": "0xB5987718",
+            "rd": "0xB5987718",
+            "chk": "0xB5987718"
+          },
+          "2": {
+            "golden": "0x13DFDD4B",
+            "rd": "0x13DFDD4B",
+            "chk": "0x13DFDD4B"
+          },
+          "3": {
+            "golden": "0x86242E10",
+            "rd": "0x86242E10",
+            "chk": "0x86242E10"
+          },
+          "4": {
+            "golden": "0x7170F1F4",
+            "rd": "0x7170F1F4",
+            "chk": "0x7170F1F4"
+          },
+          "5": {
+            "golden": "0xE48B02AF",
+            "rd": "0xE48B02AF",
+            "chk": "0xE48B02AF"
+          },
+          "6": {
+            "golden": "0x42CCA8FC",
+            "rd": "0x42CCA8FC",
+            "chk": "0x42CCA8FC"
+          },
+          "7": {
+            "golden": "0xD7375BA7",
+            "rd": "0xD7375BA7",
+            "chk": "0xD7375BA7"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b1024_bpoff_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 1024,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 8192,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.9954867040741644,
+              "eff_bw_gb_s": 6.371114906074652,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8161,
+                "bp": 0,
+                "starv": 37,
+                "idle": 0,
+                "engaged": 8198,
+                "total": 8198,
+                "util": 0.9954867040741644
+              },
+              "bytes": 522304,
+              "packets": 8,
+              "byte_bw_gb_s": 6.371114906074653
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.9992681141741888,
+              "eff_bw_gb_s": 6.395315930714808,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8192,
+                "bp": 0,
+                "starv": 6,
+                "idle": 0,
+                "engaged": 8198,
+                "total": 8198,
+                "util": 0.9992681141741888
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0xABD06621",
+            "wr": "0xABD06621",
+            "gen": "0xABD06621"
+          },
+          "1": {
+            "golden": "0x469653A2",
+            "wr": "0x469653A2",
+            "gen": "0x469653A2"
+          },
+          "2": {
+            "golden": "0xDD7FF697",
+            "wr": "0xDD7FF697",
+            "gen": "0xDD7FF697"
+          },
+          "3": {
+            "golden": "0x3039C314",
+            "wr": "0x3039C314",
+            "gen": "0x3039C314"
+          },
+          "4": {
+            "golden": "0xAB420001",
+            "wr": "0xAB420001",
+            "gen": "0xAB420001"
+          },
+          "5": {
+            "golden": "0x46043582",
+            "wr": "0x46043582",
+            "gen": "0x46043582"
+          },
+          "6": {
+            "golden": "0xDDED90B7",
+            "wr": "0xDDED90B7",
+            "gen": "0xDDED90B7"
+          },
+          "7": {
+            "golden": "0x30ABA534",
+            "wr": "0x30ABA534",
+            "gen": "0x30ABA534"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 8192,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.993933511283669,
+              "eff_bw_gb_s": 6.361174472215482,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8192,
+                "bp": 0,
+                "starv": 50,
+                "idle": 0,
+                "engaged": 8242,
+                "total": 8242,
+                "util": 0.993933511283669
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.993933511283669,
+              "eff_bw_gb_s": 6.361174472215482,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8192,
+                "bp": 0,
+                "starv": 50,
+                "idle": 0,
+                "engaged": 8242,
+                "total": 8242,
+                "util": 0.993933511283669
+              },
+              "bytes": 524288,
+              "packets": 4111,
+              "byte_bw_gb_s": 6.361174472215482
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0xABD06621",
+            "rd": "0xABD06621",
+            "chk": "0xABD06621"
+          },
+          "1": {
+            "golden": "0x469653A2",
+            "rd": "0x469653A2",
+            "chk": "0x469653A2"
+          },
+          "2": {
+            "golden": "0xDD7FF697",
+            "rd": "0xDD7FF697",
+            "chk": "0xDD7FF697"
+          },
+          "3": {
+            "golden": "0x3039C314",
+            "rd": "0x3039C314",
+            "chk": "0x3039C314"
+          },
+          "4": {
+            "golden": "0xAB420001",
+            "rd": "0xAB420001",
+            "chk": "0xAB420001"
+          },
+          "5": {
+            "golden": "0x46043582",
+            "rd": "0x46043582",
+            "chk": "0x46043582"
+          },
+          "6": {
+            "golden": "0xDDED90B7",
+            "rd": "0xDDED90B7",
+            "chk": "0xDDED90B7"
+          },
+          "7": {
+            "golden": "0x30ABA534",
+            "rd": "0x30ABA534",
+            "chk": "0x30ABA534"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b4096_bpoff_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 4096,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 32768,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.9986577590677527,
+              "eff_bw_gb_s": 6.391409658033617,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32737,
+                "bp": 0,
+                "starv": 44,
+                "idle": 0,
+                "engaged": 32781,
+                "total": 32781,
+                "util": 0.9986577590677527
+              },
+              "bytes": 2095168,
+              "packets": 8,
+              "byte_bw_gb_s": 6.391409658033617
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.9996034288154724,
+              "eff_bw_gb_s": 6.397461944419024,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32768,
+                "bp": 0,
+                "starv": 13,
+                "idle": 0,
+                "engaged": 32781,
+                "total": 32781,
+                "util": 0.9996034288154724
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x9DEB76BA",
+            "wr": "0x9DEB76BA",
+            "gen": "0x9DEB76BA"
+          },
+          "1": {
+            "golden": "0x2C8D6C6D",
+            "wr": "0x2C8D6C6D",
+            "gen": "0x2C8D6C6D"
+          },
+          "2": {
+            "golden": "0xA2315B6A",
+            "wr": "0xA2315B6A",
+            "gen": "0xA2315B6A"
+          },
+          "3": {
+            "golden": "0x135741BD",
+            "wr": "0x135741BD",
+            "gen": "0x135741BD"
+          },
+          "4": {
+            "golden": "0xB596B538",
+            "wr": "0xB596B538",
+            "gen": "0xB596B538"
+          },
+          "5": {
+            "golden": "0x04F0AFEF",
+            "wr": "0x04F0AFEF",
+            "gen": "0x04F0AFEF"
+          },
+          "6": {
+            "golden": "0x8A4C98E8",
+            "wr": "0x8A4C98E8",
+            "gen": "0x8A4C98E8"
+          },
+          "7": {
+            "golden": "0x3B2A823F",
+            "wr": "0x3B2A823F",
+            "gen": "0x3B2A823F"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 32768,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.9984764458528856,
+              "eff_bw_gb_s": 6.390249253458468,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32768,
+                "bp": 0,
+                "starv": 50,
+                "idle": 0,
+                "engaged": 32818,
+                "total": 32818,
+                "util": 0.9984764458528856
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.9984764458528856,
+              "eff_bw_gb_s": 6.390249253458468,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32768,
+                "bp": 0,
+                "starv": 50,
+                "idle": 0,
+                "engaged": 32818,
+                "total": 32818,
+                "util": 0.9984764458528856
+              },
+              "bytes": 2097152,
+              "packets": 16399,
+              "byte_bw_gb_s": 6.390249253458467
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x9DEB76BA",
+            "rd": "0x9DEB76BA",
+            "chk": "0x9DEB76BA"
+          },
+          "1": {
+            "golden": "0x2C8D6C6D",
+            "rd": "0x2C8D6C6D",
+            "chk": "0x2C8D6C6D"
+          },
+          "2": {
+            "golden": "0xA2315B6A",
+            "rd": "0xA2315B6A",
+            "chk": "0xA2315B6A"
+          },
+          "3": {
+            "golden": "0x135741BD",
+            "rd": "0x135741BD",
+            "chk": "0x135741BD"
+          },
+          "4": {
+            "golden": "0xB596B538",
+            "rd": "0xB596B538",
+            "chk": "0xB596B538"
+          },
+          "5": {
+            "golden": "0x04F0AFEF",
+            "rd": "0x04F0AFEF",
+            "chk": "0x04F0AFEF"
+          },
+          "6": {
+            "golden": "0x8A4C98E8",
+            "rd": "0x8A4C98E8",
+            "chk": "0x8A4C98E8"
+          },
+          "7": {
+            "golden": "0x3B2A823F",
+            "rd": "0x3B2A823F",
+            "chk": "0x3B2A823F"
+          }
+        }
+      }
+    }
+  ]
+}
