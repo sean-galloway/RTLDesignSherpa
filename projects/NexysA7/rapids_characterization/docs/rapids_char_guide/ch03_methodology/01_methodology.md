@@ -28,6 +28,12 @@ single `CSR_GO` that arms the bus meters, starts the generator, and fires the
 channel kicks together. `CSR_OBS_TARGET = channels × beats` freezes the meter
 window deterministically; the host then reads the CRCs and counters.
 
+### Figure 3.1: Measurement Pipeline
+
+![Measurement pipeline](../assets/mermaid/02_measurement_pipeline.png)
+
+**Source:** [02_measurement_pipeline.mmd](../assets/mermaid/02_measurement_pipeline.mmd)
+
 ## Workloads
 
 | Axis | Values |
