@@ -20,8 +20,11 @@ help:
 	@echo "Formal Verification - RTL Design Sherpa"
 	@echo "================================================================================"
 	@echo ""
-	@echo "  make formal           Run ALL formal proofs"
+	@echo "  make formal           Run ALL formal proofs (common + stream + rapids)"
 	@echo "  make formal-common    Common building blocks (arbiter, counter, FIFO)"
+	@echo "  make formal-stream    STREAM DMA blocks (dmas/stream)"
+	@echo "  make formal-rapids    RAPIDS DMA blocks (dmas/rapids *_beats)"
+	@echo "  make formal-dma       STREAM + RAPIDS"
 	@echo "  make formal-bridge    Bridge AXI4 protocol (requires SVA-AXI4-FVIP submodule)"
 	@echo "  make formal-quick     Quick check: counter_bin only (~seconds)"
 	@echo ""
@@ -38,7 +41,7 @@ check-tools:
 	@which z3 > /dev/null 2>&1 && echo "  z3:        found" || echo "  z3:        NOT FOUND (optional fallback solver)"
 
 .PHONY: formal
-formal: formal-common
+formal: formal-common formal-stream formal-rapids
 	@echo "================================================================================"
 	@echo "All formal proofs complete"
 	@echo "================================================================================"
@@ -46,6 +49,17 @@ formal: formal-common
 .PHONY: formal-common
 formal-common:
 	$(MAKE) -C common all
+
+.PHONY: formal-stream
+formal-stream:
+	$(MAKE) -C stream prove-all
+
+.PHONY: formal-rapids
+formal-rapids:
+	$(MAKE) -C rapids prove-all
+
+.PHONY: formal-dma
+formal-dma: formal-stream formal-rapids
 
 .PHONY: formal-bridge
 formal-bridge:
