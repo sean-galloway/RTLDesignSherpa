@@ -31,6 +31,24 @@ descriptors into `desc_ram`, set the memory-latency model (`RESP_DELAY`), kick v
 and CRCs. Monitor presets (`perf-mon`, `debug-compl`, …) select which MonBus cones
 are active.
 
+The timer captures the edges of the window — kick, first/last AR/R and W/B — so a
+run's throughput and latency are derived from a well-defined interval:
+
+### Figure 3.1: Measurement Timer Windows
+
+![Measurement timer windows](../assets/dot/05_timer_windows.png)
+
+**Source:** [05_timer_windows.dot](../assets/dot/05_timer_windows.dot)
+
+The emulated memory latency is a per-beat timestamp FIFO — the `RESP_DELAY` CSR
+sets how long each beat dwells before it is released to the DUT:
+
+### Figure 3.2: Response-Delay Latency Model
+
+![Response-delay latency model](../assets/dot/03_response_delay.png)
+
+**Source:** [03_response_delay.dot](../assets/dot/03_response_delay.dot)
+
 ## Workloads
 
 | Axis | Values |

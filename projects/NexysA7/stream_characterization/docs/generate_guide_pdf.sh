@@ -80,6 +80,7 @@ python3 "${REPO_ROOT}/bin/md_to_docx.py" \
   --assets-dir "${ASSETS}/images" \
   --assets-dir "${ASSETS}/mermaid" \
   --assets-dir "${ASSETS}/wavedrom" \
+  --assets-dir "${ASSETS}/dot" \
   --quiet
 
 echo
