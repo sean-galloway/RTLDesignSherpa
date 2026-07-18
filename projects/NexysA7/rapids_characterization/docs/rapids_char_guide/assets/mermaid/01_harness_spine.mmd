@@ -1,0 +1,26 @@
+flowchart LR
+    USB[USB / FTDI]
+    UART["uart_axil_bridge<br/>W/R ASCII to AXI4-Lite"]
+    DEC{"region decode<br/>addr 19:16"}
+    APBM[apb_master]
+    DESC["descriptor RAM<br/>load / kick"]
+    CSR["harness CSR<br/>gen / chk / mem / mon / obs"]
+    subgraph HARN["rapids_char_harness"]
+        GEN["AXIS pattern gen"]
+        DUT["rapids_beats_top<br/>SRC + SNK (DUT)"]
+        CHK["AXIS pattern check"]
+        RDGEN["AXI rd pattern gen"]
+        WRCHK["AXI wr CRC check"]
+        GEN -->|s_axis| DUT
+        DUT -->|m_axis| CHK
+        RDGEN -->|m_axi_rd| DUT
+        DUT -->|m_axi_wr| WRCHK
+    end
+    USB -->|UART| UART
+    UART --> DEC
+    DEC -->|region 0 DUT-REG| APBM
+    APBM -->|APB SRC 0x0000 / SNK 0x1000| DUT
+    DEC -->|region 1 DESC-LOAD| DESC
+    DESC --> DUT
+    DEC -->|region 2 HARNESS CSR| CSR
+    CSR --> HARN

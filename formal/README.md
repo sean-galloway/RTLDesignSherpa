@@ -22,15 +22,19 @@ make -C formal formal
 
 ```
 formal/
-├── common/                          Building block proofs
-│   ├── arbiter_round_robin_simple/  Round-robin arbiter (safety + fairness)
-│   ├── counter_bin/                 Binary counter (wraparound correctness)
-│   └── fifo_sync/                   Synchronous FIFO (pointer/flag correctness)
+├── common/                          Building block proofs (counters, arbiters, FIFOs)
+├── amba/                            AMBA infrastructure (APB, AXI4 monitors, monbus)
+├── apb_xbar/                        APB crossbar proofs
+├── converters/                      Width/protocol converter proofs
 ├── bridge/                          Bridge AXI4 protocol verification
-│   └── axi4_protocol/              Uses SVA-AXI4-FVIP for protocol checking
+│   └── axi4_protocol/               Uses SVA-AXI4-FVIP for protocol checking
+├── stream/                          STREAM DMA blocks (dmas/stream RTL)
+├── rapids/                          RAPIDS DMA blocks (dmas/rapids *_beats RTL)
 └── ext/                             External formal verification IP
-    └── SVA-AXI4-FVIP/              YosysHQ AXI4 protocol checker (git submodule)
+    └── SVA-AXI4-FVIP/               YosysHQ AXI4 protocol checker (git submodule)
 ```
+
+Per-block proofs are run from their directory, e.g. `cd formal/rapids/scheduler_beats && sby -f scheduler_beats.sby prove`. Each block's Makefile flattens the current RTL via sv2v (`make <block>_flat.v`) before `sby` reads the plain Verilog.
 
 ## What Gets Proved
 

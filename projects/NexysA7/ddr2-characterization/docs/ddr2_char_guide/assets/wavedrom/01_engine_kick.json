@@ -1,0 +1,12 @@
+{ "signal": [
+  { "name": "aclk",              "wave": "p........" },
+  {},
+  { "name": "W CTRL.start_wr",   "wave": "0.10.....", "node": ".a" },
+  { "name": "WR engine busy",    "wave": "0..1...0.", "node": "..b...c" },
+  { "name": "STATUS.wr_done",    "wave": "0......1.", "node": "......d" },
+  {},
+  { "name": "R STATUS (poll)",   "wave": "x.3.3.3.3", "data": ["0","0","0","done"] }
+],
+  "edge": ["a~>b kick", "c~>d latch"],
+  "head": { "text": "Characterization engine: kick (CTRL.start_wr) -> poll STATUS.wr_done" }
+}

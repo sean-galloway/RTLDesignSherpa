@@ -1,0 +1,12 @@
+{ "signal": [
+  { "name": "aclk",             "wave": "p........" },
+  {},
+  { "name": "W CSR_KICK_MASK",  "wave": "0.10.....", "node": ".a" },
+  { "name": "W CSR_GO",         "wave": "0...10...", "node": "...b" },
+  { "name": "meter armed",      "wave": "0....1...", "node": "....c" },
+  { "name": "gen busy",         "wave": "0....1..0", "node": "....d..e" },
+  { "name": "STATUS.GEN_DONE",  "wave": "0.......1", "node": ".......f" }
+],
+  "edge": ["b~>c", "b~>d", "e~>f"],
+  "head": { "text": "Atomic launch: stage KICK_* then one CSR_GO fires meter+gen+kicks" }
+}

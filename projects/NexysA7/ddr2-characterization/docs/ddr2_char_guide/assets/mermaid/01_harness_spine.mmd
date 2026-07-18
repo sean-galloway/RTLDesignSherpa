@@ -1,0 +1,30 @@
+flowchart LR
+    USB[USB / FTDI]
+    subgraph FPGA["Nexys A7-100T"]
+        UART[uart_axil_bridge<br/>W/R ASCII &rarr; AXI4-Lite]
+        subgraph BR["bridge_ddr2_char_axil (1&rarr;4)"]
+            direction TB
+            S0[ddr2_apb<br/>0x00000]
+            S1[harness_csr<br/>0x10000]
+            S2[debug_sram<br/>0x40000]
+            S3[dfi_mon_ram<br/>0x80000]
+        end
+        subgraph MACRO["ddr2_char_macro"]
+            WRENG[WR pattern-gen engine]
+            RDENG[RD CRC-check engine]
+            PERF[perf meters + latency hist]
+        end
+        PUMICE[[pumice DDR2 controller<br/>separate IP - black box]]
+        ADAPT[dfi_v21_flat_to_a7ddrphy]
+        PHY[[a7ddrphy<br/>not simulatable]]
+    end
+    DRAM[(Micron DDR2<br/>MT47H64M16)]
+
+    USB -- UART --> UART
+    UART -- AXI4-Lite --> BR
+    S0 -. APB cfg .-> PUMICE
+    S1 -- cfg / status --> MACRO
+    MACRO -- AXI4 --> PUMICE
+    PUMICE -- flat DFI v2.1 --> ADAPT
+    ADAPT -- per-phase DFI --> PHY
+    PHY -- DQ/DQS/cmd --> DRAM

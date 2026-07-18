@@ -3,6 +3,11 @@
 **Rule:** All documents must follow the RTL Design Sherpa house style
 **unless** the document is a *throwaway* or a *tracking* file.
 
+> **Mechanics (how to actually build one):** see [`bin/DOC_GENERATION.md`](../../../../bin/DOC_GENERATION.md)
+> — document-unit layout, the generate-script template, the LoF/LoT/LoW caption
+> encoding, and the toolchain gotchas (LibreOffice `--style` path, headless
+> `mmdc --no-sandbox`). This file is the *policy*; that one is the *how*.
+
 ## House style (deliverables)
 
 Any doc that ships or is reviewed as a deliverable is rendered through

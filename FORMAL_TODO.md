@@ -90,7 +90,6 @@
 | math_fp8_e4m3_softmax_8 | common | Too complex for BMC | Skip |
 | math_fp8_e5m2_softmax_8 | common | Too complex for BMC | Skip |
 | stream_core | stream | Yosys flatten name collision (2x axi4_master_rd) | Deferred |
-| stream_core_mon | stream | Same as stream_core | Deferred |
 
 ### Cover Failures (2 modules, prove PASS)
 
@@ -115,14 +114,14 @@ These have prove PASS but no cover task defined, or cover not yet run:
 | axi_monitor_filtered | amba | prove_boundary+prove_low8 PASS, no cover |
 | axi_monitor_trans_mgr | amba | prove_boundary+prove_low8 PASS, no cover |
 | axi_read_engine | stream | prove_boundary+prove_low8 PASS, no cover |
-| axi_read_engine_beats | stream | prove_boundary+prove_low8 PASS, no cover |
+| axi_read_engine_beats | rapids | prove_boundary+prove_low8 PASS, no cover |
 | axi_write_engine | stream | prove_boundary+prove_low8 PASS, no cover |
-| axi_write_engine_beats | stream | prove_boundary+prove_low8 PASS, no cover |
+| axi_write_engine_beats | rapids | prove_boundary+prove_low8 PASS, no cover |
 | datapath_rd_test | stream | prove_boundary+prove_low8 PASS, no cover |
 | datapath_wr_test | stream | prove_boundary+prove_low8 PASS, no cover |
-| descriptor_engine_beats | stream | prove_boundary+prove_low8 PASS, no cover |
+| descriptor_engine_beats | rapids | prove_boundary+prove_low8 PASS, no cover |
 | scheduler | stream | prove_boundary+prove_low8 PASS, no cover |
-| scheduler_beats | stream | prove_boundary+prove_low8 PASS, no cover |
+| scheduler_beats | rapids | prove_boundary+prove_low8 PASS, no cover |
 | scheduler_group_array | stream | prove_boundary+prove_low8 PASS, no cover |
 
 ### Deferred (not tractable for BMC)
@@ -130,7 +129,6 @@ These have prove PASS but no cover task defined, or cover not yet run:
 | Module | Area | Reason |
 |--------|------|--------|
 | stream_core | stream | Yosys flatten name collision (two axi4_master_rd instances) |
-| stream_core_mon | stream | Same blocker as stream_core |
 | stream_top_ch8 | stream | 40+ source files, 10K+ lines -- state space too large |
 
 ---

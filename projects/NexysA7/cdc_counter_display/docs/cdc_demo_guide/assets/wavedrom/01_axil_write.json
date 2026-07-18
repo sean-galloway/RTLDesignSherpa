@@ -1,0 +1,17 @@
+{ "signal": [
+  { "name": "aclk",    "wave": "p......" },
+  {},
+  { "name": "awvalid", "wave": "01..0.." },
+  { "name": "awready", "wave": "0.10..." },
+  { "name": "awaddr",  "wave": "x3...x.", "data": ["CTRL 0x008"] },
+  {},
+  { "name": "wvalid",  "wave": "01..0.." },
+  { "name": "wready",  "wave": "0.10..." },
+  { "name": "wdata",   "wave": "x4...x.", "data": ["0x1"] },
+  {},
+  { "name": "bvalid",  "wave": "0...10." },
+  { "name": "bready",  "wave": "1......" }
+],
+  "config": { "hscale": 1 },
+  "head": { "text": "AXI4-Lite single-beat write (harness CSR)" }
+}
