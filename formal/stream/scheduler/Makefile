@@ -7,18 +7,18 @@ SV2V      := sv2v
 
 # Include paths for sv2v preprocessing
 INC := -I$(REPO_ROOT)/rtl/amba/includes \
-       -I$(REPO_ROOT)/projects/components/stream/rtl/includes
+       -I$(REPO_ROOT)/projects/components/dmas/stream/rtl/includes
 
 # Package files (order matters: dependencies first)
 PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/monitor_arbiter_pkg.sv \
-        $(REPO_ROOT)/projects/components/stream/rtl/includes/stream_pkg.sv
+        $(REPO_ROOT)/projects/components/dmas/stream/rtl/includes/stream_pkg.sv
 
 # RTL dependencies (scheduler is pure logic + FSM, no submodule instantiations)
 DEPS :=
 
 # Device under test
-DUT := $(REPO_ROOT)/projects/components/stream/rtl/fub/scheduler.sv
+DUT := $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/scheduler.sv
 
 .PHONY: prove cover clean
 

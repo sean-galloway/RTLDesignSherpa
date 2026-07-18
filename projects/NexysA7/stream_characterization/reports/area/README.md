@@ -19,7 +19,7 @@ comparison against other SG-DMA cores (vendor / open-source).
   address map byte-identical) and synthesizes against it, removing that dead CSR
   logic. Saves a **flat ~830–890 LUTs at every channel count** (the register
   block is channel-count independent). See `flows-stream-bridge/Makefile` and
-  `projects/components/stream/bin/rdl_monitors_ro.py`.
+  `projects/components/dmas/stream/bin/rdl_monitors_ro.py`.
 
 ## Methodology
 

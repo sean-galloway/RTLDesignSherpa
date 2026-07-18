@@ -112,7 +112,7 @@ Pick the right one for the traffic shape. This page lists every CDC primitive in
 
 - [`val/common/`](../../val/common/) — tests for the `rtl/common/` CDC primitives (`test_fifo_async*`, `test_bin2gray`, `test_gray2bin`, `test_counter_bingray`, `test_reset_sync`)
 - [`val/amba/`](../../val/amba/) — tests for the `rtl/amba/shared/` CDC primitives (cdc handshakes, synchronizer) and AMBA-shaped async FIFOs/skids
-- Project-level CDC validation lives in each project's `dv/` tree (e.g., `projects/components/stream/dv/`)
+- Project-level CDC validation lives in each project's `dv/` tree (e.g., `projects/components/dmas/stream/dv/`)
 
 ## Further reading
 

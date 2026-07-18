@@ -19,15 +19,28 @@ class UARTAxiBridge:
     on AXI4-Lite bus.
     """
     
-    def __init__(self, port='/dev/ttyUSB1', baudrate=115200, timeout=1.0):
+    def __init__(self, port='/dev/ttyUSB1', baudrate=115200, timeout=1.0,
+                 channel=None):
         """
-        Initialize UART connection to FPGA
-        
+        Initialize the AXI-over-UART bridge.
+
+        The W/R ASCII protocol is transport-agnostic: it only needs a byte
+        pipe duck-typing serial.Serial's write / read_until / reset_*_buffer /
+        is_open / close. By default we open a real pyserial port (the FPGA
+        path — unchanged). Inject ``channel`` to drive the *identical* byte
+        stream elsewhere, e.g. a cocotb UARTMaster/Monitor in simulation, or a
+        TracingChannel that records the wire for equivalence checking.
+
         Args:
-            port: Serial port device (e.g., '/dev/ttyUSB1' on Linux, 'COM3' on Windows)
-            baudrate: Baud rate (must match FPGA configuration, default 115200)
-            timeout: Read timeout in seconds
+            port: Serial port device (used only when channel is None)
+            baudrate: Baud rate (must match FPGA config, default 115200)
+            timeout: Read timeout in seconds (used only when channel is None)
+            channel: optional injected ByteChannel; when given, overrides
+                     port/baudrate/timeout and no serial port is opened
         """
+        if channel is not None:
+            self.ser = channel
+            return
         try:
             self.ser = serial.Serial(port, baudrate, timeout=timeout)
             time.sleep(0.1)  # Let UART stabilize

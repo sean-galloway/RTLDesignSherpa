@@ -23,45 +23,46 @@
 
 # AXI4 Frontend
 
-The AXI frontend comprises two modules: `axi4_slave` (channel handshake and decoupling) and `addr_mapper` (flat-address-to-DRAM-coordinates translation).
+The AXI frontend is `pumice_axi4_ifc` (`rtl/macro/pumice_axi4_ifc.sv`). It bolts the repository's common AXI burst splitters onto two "dumb" 1:1 intakes and holds the two CAMs that decouple AXI-side handshake from the DRAM-side command scheduler:
 
-## `axi4_slave`
+```
+host AXI4 -> [axi_master_wr_splitter] -> pumice_wr_intake -> pumice_wr_data_cam
+          -> [axi_master_rd_splitter] -> pumice_rd_intake -> pumice_rd_cmd_cam
+```
+
+The intakes each contain a common `axi4_slave` (write or read side) plus an `addr_mapper` that translates the flat AXI address into `(rank, bank, row, col)`. The write intake also carries an AW-meta FIFO and a write-data FIFO; the read intake carries a snarf (read-your-write) probe into the write CAM. This chapter covers the splitters, the intakes, and `addr_mapper`. The two CAMs are covered in the data-paths chapter (`07_data_paths.md`).
+
+## Burst Splitters
+
+`axi_master_wr_splitter` and `axi_master_rd_splitter` are formally-verified common modules. Each host burst is split at DRAM-burst-byte boundaries so every burst that reaches an intake maps to exactly one DRAM burst. The alignment mask is `DRAM_BURST_BYTES - 1`, where `DRAM_BURST_BYTES = BL * (DRAM_BEAT_WIDTH / 8)`. Splitting is transparent to the AXI master: a host burst that crosses a DRAM-burst boundary is decomposed into multiple aligned sub-bursts, each of which becomes one CAM entry / one DRAM command.
+
+## `pumice_wr_intake` / `pumice_rd_intake`
 
 ### Purpose
 
-Absorb AXI4 channel pressure and decouple SoC-side handshake behavior from the controller's internal clock-aligned pipeline. The slave terminates the five AXI channels (AW, W, B, AR, R) and presents a simplified internal interface to the rest of the controller.
+Terminate the AXI channels (via the embedded `axi4_slave`), decode each transaction's address, and push a `{rank, bank, row, col, id}` insert request downstream into the corresponding CAM. The intakes are deliberately "dumb": there is no reordering or scheduling here — that lives in the scheduler layer reading the CAMs.
 
-### Internal State
+### Write intake
 
-| Element                | Description                                     |
-|------------------------|-------------------------------------------------|
-| AW skid buffer         | 2-deep; absorbs back-pressure timing            |
-| AR skid buffer         | 2-deep                                          |
-| W skid buffer          | 2-deep                                          |
-| B response FIFO        | Indexed by AXI ID; preserves per-ID order       |
-| R response staging     | Per-ID burst beat buffer                        |
+- Accepts AW transactions and issues an `aw_push` insert into `pumice_wr_data_cam`.
+- Streams W beats into the write-data FIFO tagged for the CAM SRAM fill mover.
+- Returns the B response when the CAM signals commit-done for the transaction ID (`wr_done_valid` / `wr_done_id`), matching AXI4 posted-write semantics.
 
-### Behavior
+### Read intake
 
-- Accepts AW transactions; emits an internal `txn_alloc` request to `addr_mapper` and `txn_queue`. Acknowledges AW once both downstream slots are reserved.
-- AR transactions are handled identically.
-- W beats stream into a write-data FIFO with the originating transaction ID attached.
-- B and R responses come back from the controller core and are routed to their channels with the correct ID.
+- Accepts AR transactions and issues an `ar_push` insert into `pumice_rd_cmd_cam`.
+- Before committing a miss to the read CAM, it probes the write CAM with a snarf query (`snarf_probe_*`). On a snarf hit the read is serviced directly from the write CAM's SRAM (read-your-write forwarding) rather than being scheduled to DRAM.
+- Drains the read CAM (in AR order) onto the AXI R channel with the correct ID and `rlast`.
 
 ### Per-ID Ordering
 
-AXI4 requires reads from the same ID to return in order, and writes from the same ID to commit in order. The slave preserves order **per ID**. Across IDs, out-of-order completion is permitted by default (controlled by the `AXI_OOO_ACROSS_IDS` parameter — defaults to `true`).
-
-### Burst Splitting
-
-AXI4 permits up to 256 beats per burst; a DRAM row contains `2^COL_WIDTH` columns. If an AXI burst exceeds the remaining columns in the current row, `axi4_slave` splits the burst at the row boundary. Splitting is transparent to the AXI master — internally, the burst is recorded as two transactions with a "continuation" flag that prevents the second half from being scheduled before the first completes.
+AXI4 requires reads from the same ID to return in order and writes from the same ID to commit in order. Because each intake inserts in AR/AW arrival order and the read CAM drains in insert order, per-ID ordering is preserved. The CAMs allow row-hit scheduling to reorder DRAM commands across entries, but the AXI completion layer honors per-ID order.
 
 ### Backpressure
 
-- AW `.ready` deasserts when the transaction queue is full or has no available slots for the requested burst size.
-- AR `.ready` follows the same rule.
-- W `.ready` deasserts when the write-data FIFO is full.
-- R and B `.valid` follow standard AXI protocol; consumers may stall the channels indefinitely without affecting the controller core.
+- AW/AR `.ready` deassert when the corresponding CAM has no free entry (`ins_ready` low).
+- W `.ready` deasserts when the write-data FIFO/SRAM fill path is full.
+- R and B `.valid` follow standard AXI protocol; a stalled consumer stalls only the drain path and does not corrupt the controller core.
 
 ---
 
@@ -69,41 +70,59 @@ AXI4 permits up to 256 beats per burst; a DRAM row contains `2^COL_WIDTH` column
 
 ### Purpose
 
-Translate a flat AXI address into DRAM coordinates `(bank, row, col)`. The mapping is parameterizable so the same module supports different memory geometries and different scheduling-friendly bank interleavings.
+Translate a flat AXI address into DRAM coordinates `(rank, bank, row, col)`. RTL: `rtl/fub/addr_mapper.sv`. It is combinational and single-stage, instantiated inside each intake.
 
 ### Interfaces
 
 **Inputs:**
 
-- `axi_addr` — `AXI_ADDR_WIDTH` bits wide
+- `axi_addr_i` — `AXI_ADDR_WIDTH` bits
+- `bank_lsb_i[4:0]` — the `ADDR_MAP.bank_lsb` CSR field
+- `hash_en_i` — the `ADDR_MAP.hash_en` CSR field
+- `hash_seed_i[7:0]` — the `ADDR_MAP.hash_seed` CSR field
 
 **Outputs:**
 
-- `bank` — `$clog2(NUM_BANKS)` bits
-- `row` — `ROW_WIDTH` bits
-- `col` — `COL_WIDTH` bits
+- `rank_o` — `$clog2(NUM_RANKS)` bits
+- `bank_o` — `$clog2(NUM_BANKS)` bits
+- `row_o` — `ROW_WIDTH` bits
+- `col_o` — `COL_WIDTH` bits
 
-### Mapping Function
+### Mapping Function (single knob: `bank_lsb`)
 
-The default mapping is row-major (column in the low bits, bank above, row above that):
+There is **no scheme selector** anymore. The mapping is driven by one runtime knob, `ADDR_MAP.bank_lsb`, which places the bank field within the byte-offset-stripped word address (`word = axi_addr >> BYTE_OFFSET_WIDTH`). The column auto-splits around the bank; row and rank stack above the column region and their positions are **invariant**:
 
 ```
-axi_addr[AXI_ADDR_WIDTH-1 : ROW_WIDTH + BANK_WIDTH + COL_WIDTH] = unused
-axi_addr[ROW_WIDTH + BANK_WIDTH + COL_WIDTH - 1 : BANK_WIDTH + COL_WIDTH] = row
-axi_addr[BANK_WIDTH + COL_WIDTH - 1 : COL_WIDTH] = bank
-axi_addr[COL_WIDTH - 1 : 0] = col
+word address, low -> high:
+[ col_lo(bank_lsb) | bank(BW) | col_hi(CW - bank_lsb) | row(RW) | rank(KW) ]
+col = { col_hi, col_lo }
+row LSB is always at CW + BW (invariant — only the bank slides)
 ```
 
-### Alternative Mappings
+The RTL clamps `bank_lsb` to `[0, COL_WIDTH]` so the `col_hi` width stays non-negative and the row/rank slices land where the geometry expects.
 
-A parameter `ADDR_MAP_SCHEME` selects from three predefined mappings:
+### Classic Schemes as `bank_lsb` Settings
 
-| Scheme              | Layout                                          | When to use                                        |
-|---------------------|-------------------------------------------------|----------------------------------------------------|
-| `ROW_MAJOR`         | row \| bank \| col                              | Default; good for streaming workloads              |
-| `BANK_INTERLEAVE`   | row \| col \| bank                              | Improves bank-parallelism for random workloads     |
-| `XOR_HASH`          | row \| bank ⊕ row_low \| col                    | Breaks pathological row-conflict patterns          |
+The former named schemes are just settings of the one knob:
+
+| Effect              | Setting                                    | Notes                                              |
+|---------------------|--------------------------------------------|----------------------------------------------------|
+| `ROW_MAJOR`         | `bank_lsb == COL_WIDTH`                     | Bank above the whole column; default (`0x0A`)      |
+| max `BANK_INTERLEAVE` | `bank_lsb == log2(cols/burst)`            | Minimal `col_lo` keeps a DRAM burst inside one bank |
+| partial interleave  | any value in between                       | Column splits around the bank                       |
+
+Software keeps `log2(cols/burst) <= bank_lsb <= COL_WIDTH` so a DRAM burst's column walk stays inside one bank.
+
+### Optional Bank XOR-Hash
+
+When `hash_en` is set, the bank index is XOR-folded with row bits and the seed to defeat power-of-two-stride hot-banking (the former `XOR_HASH` scheme, now an orthogonal overlay on any `bank_lsb` placement):
+
+```
+bank[i] ^= row[i] ^ row[i + BW] ^ hash_seed[i]
+```
+
+The mid-slice index is clamped so it never runs past `ROW_WIDTH`.
 
 ### Relationship to the DFI BFM
 
-This module mirrors the `AddressMapping` class in the DFI BFM (`src/CocoTBFramework/components/dfi/dfi_signals.py`). The same mapping object can drive both RTL elaboration and BFM verification, ensuring address-decode consistency between simulation and silicon.
+This module mirrors the `AddressMapping` class in the DFI BFM (`CocoTBFramework/components/dfi/`). The same `bank_lsb` / hash configuration drives both RTL elaboration-time verification and BFM checking, so the address decode is consistent between simulation and silicon.

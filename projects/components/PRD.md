@@ -218,7 +218,7 @@ FPGA synthesis attributes:
 
 See reference implementations:
 - `rtl/common/fifo_sync.sv` - FIFO with auto memory inference
-- `projects/components/stream/rtl/stream_fub/simple_sram.sv` - SRAM with attributes
+- `projects/components/dmas/stream/rtl/stream_fub/simple_sram.sv` - SRAM with attributes
 
 ---
 
@@ -352,8 +352,8 @@ SRAM modules without reset:
 #### 2.4.5 Examples
 
 Reference implementations:
-- `projects/components/stream/rtl/stream_fub/simple_sram.sv` - SRAM module
-- `projects/components/stream/rtl/stream_fub/sram_controller.sv` - Controller with reset
+- `projects/components/dmas/stream/rtl/stream_fub/simple_sram.sv` - SRAM module
+- `projects/components/dmas/stream/rtl/stream_fub/sram_controller.sv` - Controller with reset
 
 ---
 
@@ -574,7 +574,7 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 # Import from project area
-from projects.components.stream.dv.tbclasses.scheduler_tb import SchedulerTB
+from projects.components.dmas.stream.dv.tbclasses.scheduler_tb import SchedulerTB
 
 # Import shared framework components
 from CocoTBFramework.components.axi4.axi4_master import AXI4Master
@@ -817,8 +817,8 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 ### 8.2 Component-Specific Documents
 
 Each component has detailed documentation:
-- `projects/components/stream/CLAUDE.md` and `PRD.md`
-- `projects/components/rapids/CLAUDE.md` and `PRD.md`
+- `projects/components/dmas/stream/CLAUDE.md` and `PRD.md`
+- `projects/components/dmas/rapids/CLAUDE.md` and `PRD.md`
 - `projects/components/apb_hpet/CLAUDE.md` and `PRD.md`
 - `projects/components/bridge/CLAUDE.md` and `PRD.md`
 

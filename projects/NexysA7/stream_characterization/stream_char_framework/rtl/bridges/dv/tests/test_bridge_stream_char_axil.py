@@ -315,7 +315,7 @@ async def cocotb_test_bridge_stream_char_axil_boundary_probe(dut):
     tb.log.info("=" * 80)
 
     tb.log.info(f"Master 0 (host)")
-    # Slave 0 (stream_apb): 0x00000000-0x00000fff
+    # Slave 0 (stream_apb): 0x00000000-0x00001fff
     pages_0_0 = tb.slave_probe_pages(0, mode=mode)
     in_page_0_0 = tb.page_probe_offsets(0, master_idx=0)
     tb.log.info(f"  slave 0: {len(pages_0_0)} pages x 3 probes/page")

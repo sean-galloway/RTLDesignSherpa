@@ -33,11 +33,11 @@ AXI4 allows narrow transfers (data width less than bus width). The current plan 
 
 ### 2. AXI4 Read-Modify-Write Strobe Handling
 
-Partial writes in DDR2 / LPDDR2 use `wrdata_mask` to mask byte lanes; this is straightforward. **Confirm** that per-byte masking is wired all the way through `wdata_path` and that `axi4_slave` doesn't widen narrow writes implicitly.
+Partial writes in DDR2 / LPDDR2 use `wrdata_mask` to mask byte lanes; this is straightforward. **Confirm** that per-byte masking is wired all the way through the write path (`pumice_wr_intake` -> `pumice_wr_data_cam` -> `pumice_dfi_wr_serializer`) and that `pumice_wr_intake` doesn't widen narrow writes implicitly.
 
-### 3. APB CSR Address Space Allocation
+### 3. CSR Address Space Allocation
 
-12-bit `paddr` provides a 4 KB region. **Confirm** the SoC's APB address-map allocation has at least 4 KB available, and that there's no conflict with adjacent peripherals.
+The config bus is a PeakRDL passthrough cpuif on `aclk` (no APB slave, no separate `apb_pclk`). `CSR_ADDR_W = 12` provides a 4 KB register region. **Confirm** the SoC's address-map allocation has at least 4 KB available for the cpuif window, and that there's no conflict with adjacent peripherals.
 
 ### 4. Per-Bank Refresh Book-Keeping Cost
 
@@ -49,23 +49,23 @@ Ghasempour 2015 suggests bank-XOR-low-row-bits as the hash function. **Confirm**
 
 ### 6. Self-Refresh Exit Latency
 
-JESD79-2 requires `tXSNR` (~200 ns) before any command after SR exit. **Confirm** the power-state FSM enforces this correctly and that the scheduler is gated for the full duration.
+JESD79-2 requires `tXSNR` (~200 ns) before any command after SR exit. **Confirm** the optional `powerdown_ctrl` enforces this correctly and that the scheduler is gated for the full duration.
 
-### 7. Init Engine Retry on Error
+### 7. Init Sequencer Retry on Error
 
-If ZQ fails, do we retry up to 3 times then halt, or just halt? Current plan: 3 retries (parameter `INIT_ZQ_RETRIES`) then raise `init_error`. **Confirm** with the system architect — some systems prefer fail-fast.
+If ZQ fails, do we retry up to 3 times then halt, or just halt? Current plan: 3 retries (parameter `INIT_ZQ_RETRIES`) then raise `init_error`. **Confirm** with the system architect — some systems prefer fail-fast. (Note: DDR2 ZQ init differs from LPDDR2 — `init_sequencer` handles both JEDEC sequences.)
 
 ### 8. CSR Write Atomicity
 
-Multi-register parameter changes (e.g., updating both `MR0` and a related timing) need a "config quiet period" to take effect atomically. **Document** the protocol the SoC software should follow; potentially expose a `config_apply` strobe.
+Multi-register parameter changes (e.g., updating both `MR0` and a related timing) need a "config quiet period" to take effect atomically. Today the SoC owns the drain: software is expected to quiesce AXI traffic before reprogramming timing/mode CSRs. A dedicated `config_apply` strobe (hardware-enforced quiet period) is **not implemented** and is a possible future addition. **Document** the software drain protocol regardless.
 
 ### 9. Burst Splitting at Row Boundaries
 
-AXI4 allows up to 256 beats per burst; a DRAM row contains `2^COL_WIDTH` columns. Burst splitting happens in `axi4_slave`. **Confirm** the split logic correctly tracks partial-burst completion for ID-based ordering.
+AXI4 allows up to 256 beats per burst; a DRAM row contains `2^COL_WIDTH` columns. Burst splitting into fixed-BL commands happens in `pumice_wr_intake` / `pumice_rd_intake`. **Confirm** the split logic correctly tracks partial-burst completion for ID-based ordering.
 
 ### 10. Multi-Rank
 
-Explicitly out of scope for v1. **Note for v2**: add a `RANK_WIDTH` parameter, rank-aware bank machines, and rank-coordinated refresh.
+Multi-rank scaffolding now exists: `NUM_RANKS` is a real build parameter (default 1), the DFI `dfi_cs_n_o` / `dfi_odt_o` buses are per-rank (width `NUM_RANKS * DFI_RATE`), and `addr_mapper` carries a rank field (`rank_o`) at the top of the address stack. The command path and bank timers are stamped per (rank, bank). **Remaining gap**: per-rank refresh coordination, PASR (partial-array self-refresh), and per-rank observation registers are not yet implemented. **Confirm** the multi-rank data path with a `NUM_RANKS > 1` build before relying on it.
 
 ### 11. ECC
 
@@ -87,11 +87,19 @@ Currently single AXI port. **Decide** whether to add a multi-port AXI crossbar i
 
 Observation counters (row-hit, queue depth max, etc.) are 32-bit. At high traffic rates they could wrap. **Decide** on overflow handling: saturate, clear-on-read, or rely on SoC reading frequently.
 
+### 16. Retired-Architecture Modules Still on Disk (`OLD/`)
+
+The pre-rearchitecture modules still live under `rtl/fub/OLD/`, `rtl/macro/OLD/`, and `rtl/top/OLD/` (e.g. `scheduler.sv`, `wr_cmd_cam.sv`, `rd_cmd_cam.sv`, `xbank_timers.sv`, `axi_intake.sv`, the `*_macro.sv` blocks, `pumice_csr_slave.sv`). They are referenced only by retired sentinel tests in `dv/tests/` (`test_scheduler.py`, `test_wr_cmd_cam.py`, `test_xbank_timers.py`, `test_axi_intake.py`, and the `*_macro` tests). **Remove** the `OLD/` trees and their sentinel tests once the new architecture is fully signed off, so the live module set is the only thing that builds.
+
+### 17. Open-Page Read-Fetches-Zero Under Gapped Reads
+
+A known scheduler/CAM interaction: under open-page policy with gapped read traffic, a read can be fetched before its data is valid (returns zero) in a narrow timing window (reproduces at `PUMICE_SEED=2`, the burst-pause / hit-miss-oscillation pattern). **Root-cause and fix** the read-fetch gating in the open-page path before promoting the HAS to formal status. The `r_fdone` fill-complete gating in the CAMs is the relevant mechanism.
+
 ## TODOs Before v0.2
 
-- Add bit-level pinout tables for the AXI, DFI, and APB interfaces
+- Add bit-level pinout tables for the AXI, DFI, and cpuif (register) interfaces
 - Add timing diagrams for the WR / RD command issue, including CWL / CL alignment
-- Add FSM state-transition diagrams for `bank_machine`, `power_state`, and `init_engine`
+- Add sequence diagrams for `init_sequencer` (DDR2 and LPDDR2 MR init) and, where present, the optional `powerdown_ctrl`; document the FSM-free `bank_timer` countdown timers rather than an FSM diagram
 - Add a draft of the Verilog package skeletons for `ddr2_init_steps_pkg.sv` and `lpddr2_init_steps_pkg.sv`
 - Cross-reference each section to the corresponding pre-aspec.md bullet
 - Add quantitative area / power estimates per module (synthesis pass needed)

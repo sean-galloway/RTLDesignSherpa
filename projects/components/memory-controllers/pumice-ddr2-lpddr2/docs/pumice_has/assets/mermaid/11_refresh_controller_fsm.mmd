@@ -1,30 +1,35 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
-stateDiagram-v2
-    [*] --> IDLE
+flowchart LR
+    %% refresh_ctrl is an ACCUMULATOR + drain quota, NOT a multi-state FSM.
+    %% (The retired design had a WAIT_BANK_GNTS/DO_REFRESH/ZQCS FSM; there is no
+    %% ZQCS for DDR2, and precharge-then-REF now lives in the arbiter.) See dgm 06.
 
-    IDLE --> WAIT_BANK_GNTS: wants_refresh<br/>(postponer fired)
+    subgraph CNT["tREFI counter"]
+        direction TB
+        refi["r_refi_cnt: down-count from t_refi_i<br/>(only ticks when enable_i = init done)"]
+        exp["expiry -> reload + pending++"]
+        refi --> exp
+    end
 
-    WAIT_BANK_GNTS --> DO_REFRESH: all bank_machines<br/>asserted refresh_gnt
+    subgraph ACC["Pending accumulator (JEDEC max 8 postponed)"]
+        direction TB
+        pend["r_pending<br/>+1 on tREFI expiry (sat 8)<br/>-1 on refresh_grant"]
+        req["refresh_req_o = (r_pending > 0)"]
+        pend --> req
+    end
 
-    DO_REFRESH --> CHECK_ZQCS: refresh sequencer done<br/>(N refreshes issued)
+    subgraph DRN["Drain quota + REFpb rotor"]
+        direction TB
+        burst["r_burst_remaining =<br/>min(refresh_burst_i, r_pending)"]
+        active["refresh_drain_active_o<br/>(keep granting REF back-to-back)"]
+        rotor["bank rotor 0..N-1 in REFpb;<br/>refresh_kind = REFab / REFpb"]
+        burst --> active
+    end
 
-    CHECK_ZQCS --> DO_ZQCS: wants_zqcs<br/>(zqcs timer fired)
-    CHECK_ZQCS --> RELEASE: zqcs not due
-
-    DO_ZQCS --> RELEASE: ZQCS executer done
-
-    RELEASE --> IDLE: deassert refresh_req<br/>(banks can leave REFRESHING)
-
-    note right of DO_REFRESH
-      Sequencer issues N
-      back-to-back PRE_ALL +
-      AUTO_REF commands
-      (deterministic batching)
-    end note
-
-    note right of DO_ZQCS
-      Piggybacked on refresh:
-      reuses 'all banks idle'
-      guarantee, no separate
-      bus-blocking event
-    end note
+    exp --> pend
+    req --> burst
+    active --> arb["pumice_cmd_arbiter:<br/>precharge active banks, then REF + grant"]
+    rotor --> arb
+    arb -->|refresh_grant| pend
+    arb -->|refresh_grant| burst
+    arb -->|refresh_grant| rotor

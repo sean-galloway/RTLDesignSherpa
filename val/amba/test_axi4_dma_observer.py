@@ -614,6 +614,12 @@ def test_axi4_dma_observer(request):
         # Exercise the AW->W order tracker: derive write per-channel attribution
         # from awid (the driver issues awid=(i&0xF)+1) instead of the sideband.
         'WR_CH_FROM_AWID':      1,
+        # The synthesized characterization instances default the observer taps to
+        # perf-only (fits the xc7a100t). This unit test exercises the monbus dump
+        # path (Phase 3), which is completion-driven, so enable the completion
+        # cone here. Perf stays on for the bus_meter/histogram checks.
+        'TAP_ENABLE_COMPL_LOGIC': 1,
+        'TAP_ENABLE_PERF_LOGIC':  1,
     }
 
     extra_env = {

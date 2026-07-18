@@ -67,7 +67,7 @@ make program  # Program FPGA
 
 **On-chip DMA characterization of the STREAM engine (2×2 DMA × bridge matrix)**
 
-- **Component:** [stream](components/stream/) — docs: [PRD](components/stream/PRD.md)
+- **Component:** [stream](components/dmas/stream/) — docs: [PRD](components/dmas/stream/PRD.md)
 - **Report:** [findings](NexysA7/stream_characterization/docs/characterization_v1_findings.md) · sub-reports: [perf](NexysA7/stream_characterization/reports/perf/README.md), [area](NexysA7/stream_characterization/reports/area/README.md), [compression](NexysA7/stream_characterization/reports/compression/README.md)
 - **Board:** Nexys A7-100T · UART host + on-chip pattern/CRC memory
 - **Status:** ✅ Characterized (perf + area + compression sweeps)
@@ -78,7 +78,7 @@ make program  # Program FPGA
 
 **On-chip characterization of the split RAPIDS "beats" DMA (two wholly-separate src/snk engines)**
 
-- **Component:** [rapids](components/rapids/) — docs: [PRD](components/rapids/PRD.md) · [spec](components/rapids/docs/)
+- **Component:** [rapids](components/dmas/rapids/) — docs: [PRD](components/dmas/rapids/PRD.md) · [spec](components/dmas/rapids/docs/)
 - **Report:** [characterization findings](NexysA7/rapids_characterization/docs/rapids_characterization_findings.md) (regenerate the PDF with `docs/generate_pdf.sh`) · host flow: [flows-rapids-beats](NexysA7/rapids_characterization/flows-rapids-beats/)
 - **Board:** Nexys A7-100T · timing-closed @ 100 MHz; both data paths CRC-validated on silicon (`make smoke` / `make suite`)
 - **Status:** ✅ Characterized (split engines, golden-CRC suite 48/48 on hardware)
@@ -229,8 +229,8 @@ When adding new projects:
 |-----------|--------|------|
 | [converters](components/converters/) | Production Ready | [README](components/converters/README.md) |
 | [apb_xbar](components/apb_xbar/) | Production Ready | [PRD](components/apb_xbar/PRD.md) |
-| [stream](components/stream/) | Active | [PRD](components/stream/PRD.md) · char: [report](NexysA7/stream_characterization/docs/characterization_v1_findings.md) |
-| [rapids](components/rapids/) | Active | [PRD](components/rapids/PRD.md) · [spec](components/rapids/docs/) · char: [report](NexysA7/rapids_characterization/docs/rapids_characterization_findings.md) |
+| [stream](components/dmas/stream/) | Active | [PRD](components/dmas/stream/PRD.md) · char: [report](NexysA7/stream_characterization/docs/characterization_v1_findings.md) |
+| [rapids](components/dmas/rapids/) | Active | [PRD](components/dmas/rapids/PRD.md) · [spec](components/dmas/rapids/docs/) · char: [report](NexysA7/rapids_characterization/docs/rapids_characterization_findings.md) |
 | [bridge](components/bridge/) | Active | [PRD](components/bridge/PRD.md) |
 | [memory-controllers](components/memory-controllers/) | Active | [README](components/memory-controllers/README.md) · char: [ddr2](NexysA7/ddr2-characterization/) |
 | [hive](components/hive/) | Spec | [PRD](components/hive/PRD.md) · [spec](components/hive/docs/hive_spec/) |

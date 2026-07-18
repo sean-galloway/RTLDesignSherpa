@@ -21,106 +21,146 @@
 
 <!-- End Header -->
 
-# AXI4 Intake (`axi_intake`)
+# AXI4 Slave + Intakes (`axi4_slave_wr` / `axi4_slave_rd`)
 
-**Module:** `axi_intake.sv`
-**Location:** `rtl/fub/`
-**Category:** FUB
-**Parent macro:** `axi_frontend_macro`
-**Status:** v1 implemented (outputs strict-flop registered)
+**Modules:** `axi4_slave_wr` / `axi4_slave_rd` (repo AMBA IP) inside
+`pumice_wr_intake` / `pumice_rd_intake`
+**Location:** intakes in `rtl/fub/`; slaves in the shared AMBA library
+**Category:** FUB (intakes)
+**Parent:** `pumice_axi4_ifc`
+**Status:** Implemented
 
-> **Renamed:** the SWAG called this `axi4_slave_fub`; the implementation
-> name is `axi_intake`. It owns the AXI4 protocol engine, the `w_buf` for
-> write data staging, the `b_fifo` for ID-aware B-channel ordering, and the
-> R-emit FSM that returns read beats (from `rd_inject` and the
-> `wr2rd_forward` snarf path).
+> **Rearchitected:** the SWAG had a single `axi4_slave_fub` that also owned
+> transaction state and an R-emit FSM. That block is retired. In the live design
+> the AXI4 protocol engine is the repo's `axi4_slave_wr` / `axi4_slave_rd` skid
+> IP, and each is wrapped by a thin **intake** FUB (`pumice_wr_intake`,
+> `pumice_rd_intake`) that is FIFO-based and FSM-free. All in-flight transaction
+> state lives downstream in the two CAMs (see [ch02/04](04_rd_cmd_cam.md),
+> [ch02/05](05_wr_cmd_cam.md)).
 
 ---
 
 ## Purpose
 
-`axi4_slave_fub` is the AXI4 host-facing protocol engine. It accepts AW/W/AR transactions from the SoC, hands off the address to `addr_mapper` for decode, and pushes the resulting transaction into the appropriate CAM (`wr_cmd_cam` or `rd_cmd_cam`). On B and R returns, it pulls completion signals from the CAMs and merges them with AXI-side metadata to produce protocol-compliant responses.
+The host-facing AXI4 protocol handling is split by direction and factored into
+two layers each:
 
-The FUB owns the AXI ID side table — the per-ID set of fields (`awcache`, `awprot`, `awqos`, `awregion`, `bid` echo, `rid` echo) that never need to cross into the DRAM-layer state.
+- **`axi4_slave_wr` / `axi4_slave_rd`** — the repo's standard AXI4 slave skid
+  buffers. They do the channel handshakes, provide `SKID_DEPTH_*` buffering, and
+  present a clean post-skid "fub" face (`fub_axi_*`).
+- **`pumice_wr_intake` / `pumice_rd_intake`** — the pumice-specific intake FUBs
+  that sit on the post-skid face. They decode the burst address via
+  `addr_mapper`, push a decoded command downstream to a CAM, stream write/read
+  data through FIFOs, and return B/R responses.
 
-## External Interface (AXI side)
+Ahead of both intakes, `pumice_axi4_ifc` places the repo's
+`axi_master_wr_splitter` / `axi_master_rd_splitter` so that each burst delivered
+to an intake is **exactly one DRAM burst** (aligned to `DRAM_BURST_BYTES =
+BL * DRAM_BEAT_WIDTH/8`). The intakes therefore assume "one AXI burst == one DFI
+burst" and carry no burst-splitting logic.
 
-Per HAS §2.4 §1 — full AW/W/B/AR/R channel signal list. No additions in MAS.
+## `pumice_wr_intake` — structure
 
-## Internal Buffers
+Exactly three things plus the address decoder, per the locked µarch spec:
 
-| Buffer            | Depth                           | Width                                                                | Purpose                                          |
-|-------------------|---------------------------------|----------------------------------------------------------------------|--------------------------------------------------|
-| `aw_buf`          | `TXN_QUEUE_DEPTH/2` (default 8) | `AW + IDW + 8(len) + 3(size) + 2(burst) + 4(cache) + 3(prot) + 4(qos) + 4(region)` | Pending AW until CAM push |
-| `w_buf`           | `TXN_QUEUE_DEPTH × max(burst_len)` | `DW + SW + 1(last)` per beat                                       | Write data staging                               |
-| `ar_buf`          | `TXN_QUEUE_DEPTH/2` (default 8) | same AW fields                                                       | Pending AR until CAM push                        |
-| `b_response_fifo` | small (4)                       | `IDW + 2(resp)`                                                      | Pending B responses                              |
-| `r_response_fifo` | small (4)                       | `IDW + DW + 2(resp) + 1(last)` per beat                              | Pending R responses                              |
-| `id_side_table`   | `2^IDW`                         | `4(cache) + 3(prot) + 4(qos) + 4(region)`                            | Per-ID AXI metadata, indexed by `awid`/`arid`    |
+1. **`axi4_slave_wr` (`u_slave_wr`)** — AXI protocol / skid buffering. Parameters
+   `SKID_DEPTH_AW=2`, `SKID_DEPTH_W=4`, `SKID_DEPTH_B=2`.
+2. **AW-meta FIFO (`u_aw_meta_fifo`)** — a `gaxi_fifo_sync`, depth `AW_FIFO_DEPTH`
+   (4), width `AWM_W = 1 + IW + AW`, capturing `{err, awid, awaddr}` per burst.
+3. **wr-data FIFO (`u_wr_data_fifo`)** — a `gaxi_fifo_sync`, depth
+   `WDATA_FIFO_DEPTH` (16), width `WD_W = 1 + SW + DW`, capturing
+   `{wlast, wstrb, wdata}` per AXI beat.
+4. **`addr_mapper` (`u_addr_mapper`)** — combinational decode of the FIFO-head
+   address into `{rank, bank, row, col}` for the downstream `aw_push`.
 
-The buffers above are FUB-internal; they do **not** appear in the architecture-level transaction queue (`txn_queue_fub`). The transaction queue holds the DRAM-layer view of pending work; these buffers hold the AXI-layer view of in-flight bursts.
+Plus a **B-response FIFO (`u_b_fifo`)**, depth `B_FIFO_DEPTH` (4), width
+`B_W = 2 + IW`.
 
-## Data Flow
+### Write data flow
 
-### Write Path
+1. **AW intake** — `fub_awvalid` writes `{err, awid, awaddr}` into the AW-meta
+   FIFO. `fub_awready = w_awm_wr_ready` (accept while the FIFO has room).
+2. **W intake** — `fub_wvalid` writes `{wlast, wstrb, wdata}` into the wr-data
+   FIFO; `fub_wready = w_wd_wr_ready`. AW and W are decoupled — each has its own
+   FIFO.
+3. **Decode + push** — the AW-meta FIFO head address is decoded by `addr_mapper`;
+   the decoded `{bank, row, col, id, err}` is presented on `aw_push_*` and
+   valid whenever the AW-meta FIFO is non-empty. It pops on the downstream
+   `aw_push_ready_i` handshake. (`aw_push_rank_o` is driven but left unconnected
+   at the IFC — single-rank pick.)
+4. **wr-data pop** — the wr-data FIFO head is exposed on `wdata_*` and drained by
+   the wr-data CAM (`wdata_ready_i`) in commit order.
+5. **B response** — a completed commit strobes `wr_done_valid_i` / `wr_done_id_i`
+   from the CAM; that pushes `{resp, id}` into the B FIFO, which drives the
+   AXI B channel.
 
-1. AW intake: capture `aw*` fields; push to `aw_buf`. Compute outstanding-count and assert `awready` if `aw_buf` not full.
-2. W intake: accept `w*` beats into `w_buf`. Each W beat carries `wstrb` and `wlast`. The W path does not wait for AW — W can lead AW or trail it within AXI ordering rules.
-3. CAM push: when both `aw_buf` head and the matching `w_buf` head are present (or when a write-only / address-only burst's prerequisites are satisfied), push to `wr_cmd_cam` with:
-   - `key = awid`
-   - `data = (rank, bank, row, col, burst_len, w_buf_ptr, strb_ptr)`
-   - where (rank, bank, row, col) come from `addr_mapper` (combinational, same cycle)
-4. Scheduler issue: when scheduler picks this entry, the FUB hands `w_data_path_fub` the `w_buf_ptr` and `strb_ptr` for it to walk the data beats.
-5. B response: when `wr_cmd_cam` reports the entry complete (last W beat issued + tDFI write to DFI), the FUB pops the AXI ID, joins with `id_side_table[id].axi_metadata`, and pushes `b_response_fifo`.
-6. B emit: standard B-channel handshake; pop `b_response_fifo`.
+### Ragged-burst handling
 
-### Read Path
+The intake computes `w_aw_err = ((awlen+1)*GEAR != BL)` where
+`GEAR = AXI_DATA_WIDTH / DRAM_BEAT_WIDTH`. On a ragged burst the intake
+**self-generates** a `SLVERR` B response at the `aw_push` pop (err takes
+priority over a `wr_done`), and the downstream CAM drops the illegal command. A
+simulation `$error` fires when `RAGGED_ASSERT != 0` (a guardrail under
+`translate_off`); a companion assertion catches a B-push collision between the
+err path and a same-cycle `wr_done`.
 
-1. AR intake: capture `ar*` fields; push to `ar_buf`. Assert `arready` if not full.
-2. CAM push: pop `ar_buf` head; push to `rd_cmd_cam` with:
-   - `key = arid`
-   - `data = (rank, bank, row, col, burst_len, rid_counter, expected_beats)`
-   - where (rank, bank, row, col) come from `addr_mapper`
-   - `rid_counter` is the AXI ID echo
-3. Scheduler issue: when scheduler picks this entry, it commands the issue of RD / RDA. `rd_data_path_fub` watches for the corresponding DFI rddata beats.
-4. R response: as each R beat completes, `rd_data_path_fub` strobes `rd_cmd_cam` to decrement `expected_beats`; the CAM emits `r_beat_to_axi` with `rid`, beat data, `rlast` when the last beat arrives.
-5. R emit: standard R-channel handshake; pop `r_response_fifo`.
+## `pumice_rd_intake` — structure
 
-## Outstanding Burst Tracking
+Mirror of the write intake, plus the read **snarf** path:
 
-The FUB enforces:
+1. **`axi4_slave_rd` (`u_slave_rd`)** — AXI protocol / skid buffering
+   (`SKID_DEPTH_AR=2`, `SKID_DEPTH_R=4`).
+2. **`addr_mapper` (`u_addr_mapper`)** — decode `fub_araddr` → `{rank, bank,
+   row, col}` at the AR inlet (combinational).
+3. **Snarf probe** — the decoded `{bank, row, col, id, len}` is presented on the
+   `snarf_probe_*` ports every cycle `fub_arvalid` is high; the wr-data CAM
+   returns a combinational `snarf_hit_i`.
+4. **Order FIFO (`u_order_fifo`)** — a `gaxi_fifo_sync`, depth `ORDER_FIFO_DEPTH`
+   (8), width `ORD_W = 1 + IW`, storing `{source, id}` per admitted read to
+   preserve AR order (`SRC_SNARF=1`, `SRC_DFI=0`).
+5. **Source arbiter** — a combinational mux selecting the snarf stream or the DFI
+   read-return stream by the order-FIFO head's `source` tag.
+6. **rd-data FIFO (`u_rd_data_fifo`)** — a `gaxi_fifo_sync`, depth
+   `RD_FIFO_DEPTH` (16), width `RD_W = 2 + 1 + IW + DW` = `{resp, last, id,
+   data}`, feeding the AXI R channel.
 
-| Limit                     | Constraint                                            |
-|---------------------------|-------------------------------------------------------|
-| Total in-flight reads     | ≤ `rd_cmd_cam` depth (default 16)                 |
-| Total in-flight writes    | ≤ `wr_cmd_cam` depth (default 16)                 |
-| Per-ID in-flight reads    | ≤ `MAX_PER_ID_READS` parameter (default 4)            |
-| Per-ID in-flight writes   | ≤ `MAX_PER_ID_WRITES` parameter (default 4)           |
+### Read admission and ordering
 
-If `AXI_OOO_ACROSS_IDS == false`, the per-ID counts reduce to "one in-flight per ID" — the AXI completion is strictly in-order per ID, but the issue order at the scheduler is still OoO.
+- An AR is admitted (`w_can_admit`) when the order FIFO has room **and**, for a
+  MISS, `ar_push_ready_i` is asserted. `fub_arready = w_can_admit`.
+- On a **HIT** (`snarf_hit_i`) the read is tagged `SRC_SNARF`, `snarf_accept_o`
+  fires, and no `ar_push` is emitted (the data is streamed from the write CAM's
+  SRAM — DRAM is stale for the in-flight write).
+- On a **MISS** the read is tagged `SRC_DFI` and `ar_push_valid_o` fires with the
+  decoded `{bank, row, col, id}` toward the scheduler / rd CAM.
+- The source arbiter drains one burst at a time in AR order: the order-FIFO head's
+  `source` selects which input stream is connected to the rd-data FIFO, and the
+  head is popped only when the last beat of that burst is accepted. So a
+  snarf-ready read still waits behind an earlier DFI read at the head (in-order R
+  per the AXI contract).
 
-## Timing Budget
+## External interface
 
-| Path                                       | Budget               |
-|--------------------------------------------|----------------------|
-| `awvalid` → `awready` (combinational)      | ≤ 0.7 of cycle      |
-| `aw_buf` push to `addr_mapper` valid       | 0 cycles (combinational) |
-| `addr_mapper` valid to CAM push            | 1 cycle              |
-| `wr_cmd_cam` push to scheduler-visible     | 1 cycle              |
-| Worst path: `awvalid` → CAM-push register | 2 cycles             |
+Both intakes present a full AXI4 write (AW/W/B) or read (AR/R) slave face plus:
 
-The two-cycle AXI→CAM latency is the limit on AXI sustained issue rate; with default config it allows 1 burst per 2 cycles, well within the AXI burst rate at 200 MHz.
+| Port group        | Direction | Purpose                                             |
+|-------------------|-----------|-----------------------------------------------------|
+| `bank_lsb_i` / `hash_en_i` / `hash_seed_i` | in | `ADDR_MAP` config forwarded to `addr_mapper` |
+| `aw_push_*` / `ar_push_*` | out | Decoded command to the wr/rd CAM              |
+| `wdata_*` (wr)    | out       | Write-data pop to the wr-data CAM                   |
+| `wr_done_*` (wr)  | in        | Commit-completion strobe from the CAM → B response  |
+| `snarf_probe_*` / `snarf_hit_i` / `snarf_accept_o` (rd) | in/out | Read-your-write probe into the wr CAM |
+| `snarf_rd_*` (rd) | in        | Snarf data stream from the wr CAM SRAM              |
+| `dfi_rd_*` (rd)   | in        | DFI read-return stream (MISS reads) from the rd CAM |
+| `busy_o`          | out       | Any FIFO non-empty / slave busy                     |
 
-## CSR Hooks
+## Notes
 
-- `STATUS.axi_inflight_rd` (R only) — current count of in-flight read bursts
-- `STATUS.axi_inflight_wr` (R only) — current count of in-flight write bursts
-- `STATUS.axi_id_table_occ` (R only) — number of distinct AXI IDs currently in the side table
-- `OBS_AXI_R_LATENCY_AVG`, `OBS_AXI_W_LATENCY_AVG` — driven from R/B-channel sampling in this FUB
-
-## TODO (week-of-MAS work)
-
-- FSM diagram for the AW/W join and the AR intake (mermaid)
-- B/R response-ordering corner cases (per HAS §3.1 OoO-across-IDs)
-- Waveform examples (wavedrom) for back-pressure scenarios
-- Detailed table of `id_side_table` field widths and reset values
+- There is **no** AXI ID side table, no `w_buf`/`b_fifo` in the SWAG sense, and no
+  R-emit FSM. Per-ID metadata that must survive into the DRAM layer is carried in
+  the CAM entries; everything else is dropped at the intake.
+- Outstanding-count limits are structural: writes are bounded by the wr-data CAM
+  depth (`NUM_ENTRIES`), reads by the rd-cmd CAM depth plus the order FIFO depth.
+  There are no `MAX_PER_ID_*` parameters.
+- The intakes are strict-FIFO and back-pressure cleanly: an intake stalls its AXI
+  channel when the relevant FIFO or the downstream CAM is full.

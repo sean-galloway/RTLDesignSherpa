@@ -21,115 +21,80 @@
 
 <!-- End Header -->
 
-# Command Encoder and Gear Output
+# Command Formatter and Signal Pack
 
-This section covers the two modules that translate the controller's internal generic command bus into DFI wire signals: `cmd_encoder` (memtype-specific wire mapping) and `gear_out` (1-phase to N-phase replication).
+Two modules translate the scheduler's abstract command into DFI wire signals: `dfi_cmd_formatter` (memtype-specific encoding and phase placement) and `dfi_signal_pack` (the final registered pipeline stage). `dfi_cmd_formatter` is instantiated inside `pumice_dfi_cmd_path` in the DFI layer.
 
-## `cmd_encoder`
+## `dfi_cmd_formatter`
 
 ### Purpose
 
-Translate the controller's internal generic command record into the DFI wire signals appropriate for the target memory. The encoder is the only place where DDR2 and LPDDR2 differ at the wire layer.
+Translate the scheduler's chosen `dram_op_e` plus `(rank, bank, row, col)` into the multi-phase DFI v2.1 control bus. RTL: `rtl/fub/dfi_cmd_formatter.sv`. It is the only place where DDR2 and LPDDR2 differ at the wire layer, and its outputs are strict-flopped.
 
-### Input Record
+### Input
 
-The internal generic command is:
+The command arrives on `cmd_valid_i` / `cmd_ready_o` (always ready) with `cmd_op_i` (`dram_op_e`), `cmd_rank_i`, `cmd_bank_i`, `cmd_row_i`, `cmd_col_i`, `cmd_len_i`, and the runtime phase-placement knobs `rd_phase_i` / `wr_phase_i`.
 
-```
-{
-  cmd        : { NOP, DESEL, ACT, RD, WR, RDA, WRA,
-                 PRE, PREA, REF, REFPB, MRS, ZQCS, ZQCL },
-  bank       : log2(NUM_BANKS),
-  row        : ROW_WIDTH,
-  col        : COL_WIDTH,
-  ap         : 1,           // auto-precharge bit
-  all_banks  : 1,           // all-banks variant of PRE / REF
-  mr_addr    : 8,           // MR / EMR address
-  mr_data    : 16           // MR / EMR data (LPDDR2 only; DDR2 packs into addr)
-}
-```
+### Multi-Phase Output
 
-### DDR2 Encoder
+For `DFI_RATE = N`, every control signal is packed as N phases side by side on the bus (`dfi_address_o`, `dfi_bank_o`, `dfi_cas_n_o`, `dfi_ras_n_o`, `dfi_we_n_o`, `dfi_cs_n_o`, `dfi_odt_o`). The decoded command is placed on its target phase and the other phases emit selected/deselected NOP. The target phase is:
 
-Outputs the standard DDR2 command-bus signals per JESD79-2 Table 67:
+- `rd_phase_i` for `OP_RD` / `OP_RDA`,
+- `wr_phase_i` for `OP_WR` / `OP_WRA`,
+- phase 0 for everything else (ACT/PRE/REF/MRS have no data-phase contract).
 
-- `cs_n` — asserted (low) on command issue; high in idle
-- `ras_n`, `cas_n`, `we_n` — set per the JESD79-2 lookup table
-- `bank` — driven from the command record's `bank` field
-- `address` — driven from `row` for ACT; from `col` for RD / WR (with `addr[10]` carrying the AP bit for column commands or the AB bit for PRE)
-- `cke` — held high during normal operation; lowered by the power-state FSM
-- `odt` — driven from a small lookup based on transaction type
-- `reset_n` — DDR2 has no reset_n; held high
+The R/W phase knobs match the PHY's rdphase/wrphase contract (e.g. a7ddrphy DDR2 CL3 nphases=2). Defaults of 0/0 preserve the legacy "everything on phase 0" behavior. `cs_n` is per-rank: `cs_n[r]=0` selects rank `r`; all-ones is a deselected NOP.
 
-### LPDDR2 Encoder
+### DDR2 Encoding
 
-Per DFI v2.1 Table 1, LPDDR2 carries the command on the `dfi_address` 20-bit CA word:
+Combinational truth table per JESD79-2 Table 49:
 
-- `cs_n` — asserted on command issue
-- `ras_n`, `cas_n`, `we_n`, `bank` — held at their idle values (1, 1, 1, 0)
-- `address[19:0]` — packed CA word via the algorithm in our existing `lpddr_ca` encoder (`src/CocoTBFramework/components/dfi/lpddr_ca.py`):
-  - `address[9:0]` = CA cycle 1
-  - `address[19:10]` = CA cycle 2
-- `cke` — used by the power-state FSM (LPDDR2 has the richer CKE state machine)
-- `odt` — LPDDR2 has no ODT; held low
-- `reset_n` — held high during normal operation
+| op   | cs_n | ras_n | cas_n | we_n | bank | addr           |
+|------|------|-------|-------|------|------|----------------|
+| NOP  | sel  | 1     | 1     | 1    | -    | -              |
+| ACT  | sel  | 0     | 1     | 1    | BA   | row            |
+| RD   | sel  | 1     | 0     | 1    | BA   | col (A10=0)    |
+| RDA  | sel  | 1     | 0     | 1    | BA   | col + (1<<10)  |
+| WR   | sel  | 1     | 0     | 0    | BA   | col            |
+| WRA  | sel  | 1     | 0     | 0    | BA   | col + (1<<10)  |
+| PRE  | sel  | 0     | 1     | 0    | BA   | A10=0          |
+| PREA | sel  | 0     | 1     | 0    | -    | (1<<10)        |
+| REF  | sel  | 0     | 0     | 1    | -    | -              |
+| MRS  | sel  | 0     | 0     | 0    | MR   | MR data        |
 
-### Memtype Selection
+The auto-precharge / all-bank bit is A10. MRS data rides `cmd_row_i` (ROW_WIDTH), not `cmd_col_i` — MR0 = `0x532` needs bit 10, which a 10-bit column field would truncate.
 
-At elaboration, the appropriate encoder is instantiated based on `MEMTYPE`. Only one is synthesized; the other path is dead code.
+### LPDDR2 Encoding (bit-exact CA bus)
+
+For LPDDR2 the command rides the multiplexed 10-bit CA bus over 2 edges, packed as a flat 20-bit word carried on `dfi_address` (low bits); `ras_n`/`cas_n`/`we_n` stay idle and `cs_n` asserts for the target rank. The two CA edges are already inside the word, so there is no per-DFI-phase command placement.
+
+The CA word is built **bit-exact to JESD209-2F Table 60**, matching the DV BFM's `lpddr_ca` encoder. Layout: `w_lpddr2_ca[i] = CA{i}` rising edge (i = 0..9), `w_lpddr2_ca[10+i] = CA{i}` falling edge. Encoded commands include ACT, RD/RDA, WR/WRA, PRE, PREA, REF (all-bank), REFPB (per-bank), and MRW; NOP/Deselect drives CA0r..CA3r high. Column bit C0 is implied 0 and never transmitted; the auto-precharge flag lands on CA0f. The transcription reference is `rtl/LPDDR2_CA_ENCODING.md`.
+
+For MRW, `MA0..MA5` map to `CA4r..CA9r`, `MA6/MA7` to `CA0f/CA1f`, and `OP0..OP7` to `CA2f..CA9f`. The init sequencer supplies the full MR index by packing `{MA[5:0], OP[7:0]}` into the ROW field, so MR10/MR63 are reachable.
+
+> Note: the module's top-of-file header comment still carries a stale "LPDDR2 (TODO)" line from an earlier revision. The body implements the full bit-exact CA encoding above; LPDDR2 reads and writes are functional and pass the sim suite.
 
 ### Idle Defaults
 
-When the controller is not issuing a command, the encoder drives the bus to its deselected idle state:
-
-- DDR2: `cs_n=1, ras_n=1, cas_n=1, we_n=1, bank=0, address=0, odt=0`
-- LPDDR2: `cs_n=1, address=0`
-
-This convention matches the DFI v2.1 Table 2 default values.
-
-### Verification
-
-Per-encoder unit tests:
-
-- DDR2 encoder: round-trip table test against the JESD79-2 truth table
-- LPDDR2 encoder: leverages our existing 30 round-trip tests for the CA bus encoder (`tests/unit/test_lpddr_ca.py` in the DV repo)
+When not issuing, every phase is driven to its deselected idle: `cs_n=1, ras_n=1, cas_n=1, we_n=1, bank=0, address=0, odt=0` (DFI v2.1 Table 2 defaults). ODT is driven from this module — there is no standalone `odt_ctrl` block.
 
 ---
 
-## `gear_out`
+## `dfi_signal_pack`
 
 ### Purpose
 
-Replicate the 1-phase internal command bus onto N parallel DFI output phases, where `N_PHASES ∈ {1, 2, 4}`.
+Final pipeline-register stage on the DFI v2.1 bus. RTL: `rtl/fub/dfi_signal_pack.sv`. It latches every command / write-data / read-data-enable input and drives it out the next MC cycle, owning `dfi_dram_clk_disable` and reset-safe output values.
 
 ### Behavior
 
-- Phase 0 by convention carries the active command on the cycle it's issued.
-- Other phases idle (drive their deselected defaults).
-- For `N_PHASES == 1`: pass-through. Synthesis will optimize the module away.
-- For `N_PHASES == 2` or `4`: the output stage tracks which phase a command should land on. Some implementations assign the phase based on workload; ours uses the simpler "always phase 0" rule and relies on the PHY to serialize correctly per the DFI frequency-ratio spec.
+- v1 is a pure one-cycle registered pipeline. Bus widths are `DFI_*_WIDTH * DFI_RATE`, so the multi-phase content from `dfi_cmd_formatter` passes through unchanged. This is where the internal `DW = DRAM_BEAT_WIDTH * DFI_RATE` word is presented across the `DFI_RATE` phases.
+- `dram_clk_disable` is held at 0 in v1; per-phase staggering and power-down assertion are documented TODOs.
 
 ### Multi-Cycle Commands
 
-LPDDR2's 2-cycle commands are **not** split here. They are packed into a single 20-bit `dfi_address` word by the encoder; the PHY's job is to split them into two DRAM cycles per DFI v2.1 §3.1.
-
-### Phase Naming
-
-Per-phase signals follow the DFI naming convention with `_p0` through `_pN_PHASES-1` suffixes. For `N_PHASES == 1`, the suffix may be elided per DFI v2.1 §3.1 ("phase 0 may exclude the suffix"), but this controller always includes the suffix for naming clarity.
-
-### Write / Read Data Phase Assignment
-
-The write-data and read-data sub-interfaces also replicate per phase. Two additional parameters control phase placement:
-
-- `WRPHASE` — which phase carries the active write-data beat (default: phase 0)
-- `RDPHASE` — which phase carries the active read-data beat (default: phase 0)
-
-These are PHY-vendor-specific in real silicon; we make them parameters so a real-PHY integration can override.
-
-### Idle Phase Drives
-
-The gear output stage drives the per-phase signals to their deselected idle values per DFI v2.1 Table 2 when no command is being issued on that phase. This includes both the inactive phases when a single-phase command is issued, and all phases when the scheduler issues NOP.
+LPDDR2's 2-edge CA command is not split here. The 20-bit CA word is already packed onto `dfi_address` by `dfi_cmd_formatter`; the PHY splits it into two DRAM cycles per DFI v2.1.
 
 ### Verification
 
-Reuses the DFI BFM's `DFIPhaseAdapter` (Python) as a reference model — the same gear ratios, the same conventions. The RTL output passes through the adapter and round-trips via the BFM monitor.
+The RTL output round-trips against the DFI BFM: the DDR2 truth table against the JESD79-2 reference, and the LPDDR2 CA bus against the shared `lpddr_ca` encoder/decoder (the same layout the RTL encodes).

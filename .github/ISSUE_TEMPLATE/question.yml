@@ -16,7 +16,7 @@ body:
     attributes:
       label: Subsystem / area (optional)
       description: Which part of the repo does this relate to?
-      placeholder: rtl/amba/shared/, projects/components/stream, docs, …
+      placeholder: rtl/amba/shared/, projects/components/dmas/stream, docs, …
 
   - type: textarea
     id: question

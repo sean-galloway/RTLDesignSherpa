@@ -21,301 +21,285 @@
 
 <!-- End Header -->
 
-# DFI Command Formatter (`dfi_cmd_formatter`)
+# DFI Command Formatter (`dfi_cmd_formatter` + `dfi_signal_pack`)
 
-**Module:** `dfi_cmd_formatter.sv`
+**Module:** `dfi_cmd_formatter.sv` (command decode) / `dfi_signal_pack.sv` (final DFI pipe stage)
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent macro:** `dfi_v21_interface_macro`
-**Status:** v1 implemented (DDR2 truth table; LPDDR2 deferred to v2)
+**Parent macro:** `pumice_dfi_layer`
+**Status:** Implemented (DDR2 truth table + bit-exact LPDDR2 CA-bus encoding; both memtypes functional)
 
-> Architectural context: HAS §3.6.
+> **Replaces the retired command encoder.** The original `cmd_encoder_fub` (with
+> its `ddr2_cmd_encoder` / `lpddr2_cmd_encoder` generate-branch sub-modules and a
+> separate `odt_ctrl_fub`) is gone. The live design is `dfi_cmd_formatter.sv` — a
+> single module with a runtime `memtype_i` branch (not an elaboration-time
+> generate) — followed by `dfi_signal_pack.sv`, the final registered DFI-bus
+> pipeline stage.
 >
-> **Renamed:** the SWAG called this `cmd_encoder_fub`; the implementation
-> name is `dfi_cmd_formatter`.
+> **LPDDR2 is now fully implemented.** The retired chapter listed LPDDR2 as
+> "deferred to v2." The live formatter builds the bit-exact JESD209-2F Table 60
+> CA-bus word for every command; the transcription lives in
+> `rtl/LPDDR2_CA_ENCODING.md`, and the DV BFM (`lpddr_ca.py`) encodes/decodes
+> against the identical layout.
 >
-> **Absorbed:** the SWAG's separate `odt_ctrl_fub` (ODT timing) was
-> absorbed into this FUB — ODT rules follow deterministically from the
-> issued command so they live in the same JEDEC truth table.
->
-> **Strict-flop outputs:** every DFI control output (cs_n, ras_n, cas_n,
-> we_n, address, bank) is registered.
->
-> **v1 vs SWAG:** v1 implements the DDR2 truth table. LPDDR2's 20-bit
-> CA-bus packed encoding is deferred to v2.
+> **ODT is absorbed here.** There is no standalone ODT block (see the retired
+> ODT chapter). `dfi_cmd_formatter` drives `dfi_odt_o`; the DDR2 ODT rule follows
+> from the same truth table. In v1 `dfi_odt_o` is driven to 0 (the decode leaves
+> `w_p0_odt` at its NOP default for every op); the JEDEC ODT-timing hooks live in
+> `mode_register`'s `odt_o` decode.
 
 ---
 
 ## Purpose
 
-`dfi_cmd_formatter` takes an abstract DRAM command operand `(op, rank, bank,
-row, col, auto_pre)` from the scheduler and emits the wire-level DFI command
-bits:
+`dfi_cmd_formatter` translates the scheduler's abstract command — `(cmd_op,
+rank, bank, row, col, len)` plus an implicit auto-precharge encoded in the op
+(RDA/WRA vs RD/WR) — into wire-level DFI v2.1 control-bus signals, packed across
+`DFI_RATE` phases. For DDR2 it drives the classic `{ras_n, cas_n, we_n}` strobes
+plus `dfi_address` / `dfi_bank`; for LPDDR2 it packs the multiplexed 10-bit CA
+bus (two edges = a flat 20-bit word) onto `dfi_address`.
 
-- For **DDR2**: traditional `dfi_ras_n` / `dfi_cas_n` / `dfi_we_n` strobes
-  plus `dfi_address` and `dfi_bank`.
-- For **LPDDR2** (v2): the JEDEC 20-bit CA-bus packed encoding per DFI v2.1
-  §3.1 Table 1.
+`dfi_signal_pack` is the final pipeline register on the DFI v2.1 bus. It latches
+the formatter's command bus together with the write/read data-enable signals and
+drives reset-safe NOP values during reset. It owns `dfi_dram_clk_disable`
+(currently held 0).
 
-Per-rank `dfi_cs_n[NR]` driving is this FUB's job — derives the per-rank
-chip-select pattern from the issue's target rank.
-
-ODT timing also lives here: WR/WRA turn ODT on at CWL-2, off after the
-burst; RD turns ODT on the *other* rank. Both rules are derived from the
-same truth table as ras_n/cas_n/we_n.
-
-All outputs are flopped at the end of this FUB; `dfi_signal_pack` widens
-them to per-phase × `DFI_RATE`.
+Both modules run in the DFI clock domain inside `pumice_dfi_layer` (see
+[the DFI layer / gearing chapter](15_gear_dfi.md)); the formatter is instantiated
+via `pumice_dfi_cmd_path`.
 
 ---
 
-## Synthesis Parameters
+## Synthesis Parameters (`dfi_cmd_formatter`)
 
-| Parameter        | Source           | Effect                                                              |
-|------------------|------------------|---------------------------------------------------------------------|
-| `MEMTYPE`        | top              | Picks the DDR2 or LPDDR2 branch (only one branch is synthesized)    |
-| `NUM_RANKS`      | top              | Width of `dfi_cs_n[NR]` output                                       |
-| `NUM_BANKS`      | top              | Bank-field width                                                    |
-| `ROW_WIDTH`      | top              | Row operand width                                                   |
-| `COL_WIDTH`      | top              | Column operand width                                                |
-| `DFI_ADDR_WIDTH` | top              | Width of `dfi_address` output (14 for DDR2, 20 for LPDDR2)           |
+| Parameter          | Default | Effect                                                          |
+|--------------------|---------|-----------------------------------------------------------------|
+| `NUM_RANKS`        | 1       | Width of the per-rank `dfi_cs_n` / `dfi_odt` output             |
+| `NUM_BANKS`        | 8       | Bank-field width (`BKW`)                                        |
+| `ROW_WIDTH`        | 14      | Row operand width (also carries DDR2 MR data and LPDDR2 MRW field) |
+| `COL_WIDTH`        | 10      | Column operand width                                           |
+| `BURST_LEN_WIDTH`  | 8       | `cmd_len_i` width (currently unused — tied into `unused_v1`)     |
+| `DFI_RATE`         | 2       | Phases per DFI-layer word; sets the multi-phase bus widths       |
+| `DFI_ADDR_WIDTH`   | 14      | Per-phase address width; the LPDDR2 CA word needs `DFI_ADDR_BUS_W >= 20` |
+| `DFI_BANK_WIDTH`   | 3       | Per-phase bank width                                           |
+| `DFI_CTRL_WIDTH`   | 1       | Per-phase width of each ras/cas/we strobe                      |
+| `DFI_CS_WIDTH`     | NUM_RANKS | Per-phase CS/ODT width                                        |
+
+The multi-phase bus widths (`DFI_*_BUS_W = DFI_*_WIDTH * DFI_RATE`) are derived.
+`memtype_i` is a **runtime input** (`MEMTYPE_DDR2` / `MEMTYPE_LPDDR2`), not a
+parameter — both encoding paths are synthesized and the branch is selected live,
+so one bitstream can serve either family.
 
 ---
 
-## Branch Selection (Elaboration-Time)
+## Command Interface and Runtime Phase Placement
 
-![Command-Encoder Branches — DDR2 strobes vs LPDDR2 CA-bus, shared per-rank CS_n stage](../assets/mermaid/12_cmd_encoder_branches.png)
+The formatter takes a valid/ready command handshake from the DFI-layer command
+FIFO:
 
-**Source:** [12_cmd_encoder_branches.mmd](../assets/mermaid/12_cmd_encoder_branches.mmd)
+| Signal          | Width           | Description                                     |
+|-----------------|-----------------|-------------------------------------------------|
+| `cmd_valid_i`   | 1               | Command present                                 |
+| `cmd_ready_o`   | 1               | Always 1 (registered) — formatter never stalls  |
+| `cmd_op_i`      | `dram_op_e`     | The chosen operation                            |
+| `cmd_rank_i`    | RKW             | Target rank (selects the active CS_n)           |
+| `cmd_bank_i`    | BKW             | Target bank (MR index for MRS)                  |
+| `cmd_row_i`     | ROW_WIDTH       | Row (ACT); DDR2 MR data; LPDDR2 packed MRW field |
+| `cmd_col_i`     | COL_WIDTH       | Column (RD/WR)                                  |
+| `cmd_len_i`     | BURST_LEN_WIDTH | Burst length (reserved; unused in v1)           |
+| `rd_phase_i`    | PHW             | DFI sub-phase carrying the READ command         |
+| `wr_phase_i`    | PHW             | DFI sub-phase carrying the WRITE command        |
 
-```systemverilog
-generate
-    if (MEMTYPE == "DDR2") begin : g_ddr2_enc
-        ddr2_cmd_encoder #(
-            .NUM_RANKS(NUM_RANKS),
-            .NUM_BANKS(NUM_BANKS),
-            .ROW_WIDTH(ROW_WIDTH),
-            .COL_WIDTH(COL_WIDTH),
-            .DFI_ADDR_WIDTH(DFI_ADDR_WIDTH)
-        ) u_enc ( ... );
-    end
-    else begin : g_lpddr2_enc
-        lpddr2_cmd_encoder #(
-            .NUM_RANKS(NUM_RANKS),
-            .NUM_BANKS(NUM_BANKS),
-            .ROW_WIDTH(ROW_WIDTH),
-            .COL_WIDTH(COL_WIDTH),
-            .DFI_ADDR_WIDTH(DFI_ADDR_WIDTH)
-        ) u_enc ( ... );
-    end
-endgenerate
-```
-
-Only one encoder is in silicon per build. The two encoders share the per-rank CS_n drive stage (next section), which is post-branch.
+`rd_phase_i` / `wr_phase_i` are CSR-driven (`DFI_PHASE` CSR). The decoded command
+is placed on `wr_phase` for WR/WRA, `rd_phase` for RD/RDA, and phase 0 for
+everything else. This matches a PHY that consumes a per-command rdphase/wrphase
+off the DFI bus. Defaults are 0, which reproduces the legacy "everything on phase
+0" behavior — notably the LiteDRAM a7ddrphy takes the command on phase 0 and
+applies its rdphase internally, so on the board target these stay 0. (See the
+gearing chapter §"DFI_PHASE CSR".)
 
 ---
 
 ## DDR2 Encoding Branch
 
-DDR2 uses the classic `{RAS_n, CAS_n, WE_n}` strobe encoding with the row/column operand on `dfi_address`. The 16-entry lookup is purely combinational:
+For `memtype_i == MEMTYPE_DDR2`, a combinational block builds the phase-0
+command fields (`w_p0_*`). The default is an all-deselected NOP; when a command
+is valid, `w_p0_cs_n` is set to the active-rank mask (`w_active_rank_mask`, bit
+`r` low for the target rank) and the strobes/address are driven per the JEDEC
+JESD79-2 truth table (transcribed verbatim from the RTL):
 
-| Opcode    | `ras_n` | `cas_n` | `we_n` | `dfi_address`                          | `dfi_bank`     | Auto-pre via A10 |
-|-----------|---------|---------|--------|-----------------------------------------|----------------|------------------|
-| `ACT`     | 0       | 1       | 1      | row                                    | bank           | n/a              |
-| `RD`      | 1       | 0       | 1      | {col, A10=0}                            | bank           | A10=0            |
-| `RDA`     | 1       | 0       | 1      | {col, A10=1}                            | bank           | A10=1            |
-| `WR`      | 1       | 0       | 0      | {col, A10=0}                            | bank           | A10=0            |
-| `WRA`     | 1       | 0       | 0      | {col, A10=1}                            | bank           | A10=1            |
-| `PRE`     | 0       | 1       | 0      | A10=0 (specific bank)                  | bank           | n/a              |
-| `PREA`    | 0       | 1       | 0      | A10=1 (all banks)                       | x              | n/a              |
-| `REF`     | 0       | 0       | 1      | x                                      | x              | n/a              |
-| `MRS`     | 0       | 0       | 0      | MR value                               | MR index (0..3) | n/a              |
-| `ZQCS`    | 1       | 1       | 0      | A10=0                                  | x              | n/a              |
-| `ZQCL`    | 1       | 1       | 0      | A10=1                                  | x              | n/a              |
-| `NOP`     | 1       | 1       | 1      | x                                      | x              | n/a              |
+| Op       | `cs_n`      | `ras_n` | `cas_n` | `we_n` | `bank` | `address`                          |
+|----------|-------------|---------|---------|--------|--------|-------------------------------------|
+| `OP_NOP` | active mask | 1       | 1       | 1      | 0      | 0                                  |
+| `OP_ACT` | active mask | 0       | 1       | 1      | bank   | row                                |
+| `OP_RD`  | active mask | 1       | 0       | 1      | bank   | col (A10 = 0)                      |
+| `OP_RDA` | active mask | 1       | 0       | 1      | bank   | col with bit 10 set (auto-PRE)     |
+| `OP_WR`  | active mask | 1       | 0       | 0      | bank   | col (A10 = 0)                      |
+| `OP_WRA` | active mask | 1       | 0       | 0      | bank   | col with bit 10 set (auto-PRE)     |
+| `OP_PRE` | active mask | 0       | 1       | 0      | bank   | 0 (A10 = 0, single-bank)           |
+| `OP_PREA`| active mask | 0       | 1       | 0      | 0      | bit 10 set (all-bank)              |
+| `OP_REF` | active mask | 0       | 0       | 1      | 0      | 0                                  |
+| `OP_MRS` | active mask | 0       | 0       | 0      | MR idx | MR data from `cmd_row_i`            |
 
-The A10 bit doubles as the auto-precharge flag (for RD/WR) and the all-bank flag (for PRE). Both meanings are mutually exclusive — there's no ambiguity because the same opcode never uses both.
+`cs_n` is per-rank: bit `r` is 0 for the selected rank, 1 elsewhere; all-1 is an
+all-deselected NOP. The A10 auto-precharge bit is set by OR-ing `1 << 10` into
+the address for RDA/WRA, and doubles as the all-bank flag for PREA.
 
-For multi-cycle DDR2 commands that don't exist in the base set (e.g., DDR2 doesn't have a per-bank refresh — REFpb opcode is silently encoded as REF in DDR2 builds via a generate-time assertion).
+**MRS carries data on the ROW field, not the column.** The RTL comment is
+explicit: MR0 = 0x532 needs bit 10 (tWR[1]), which a `COL_WIDTH` (10-bit) field
+would truncate — so the formatter reads MR data from `cmd_row_i` (ROW_WIDTH) and
+the MR index from `cmd_bank_i`. This matches `init_sequencer`, which drives MR
+data on `init_cmd_row_o`.
 
-### DDR2-Specific Multi-Cycle Behavior
-
-DDR2 commands are single-cycle at the DFI command interface. The encoder's output is valid one MC cycle after the issue strobe; gear_dfi packs it into the appropriate DFI phase slot. There is no command-side multi-cycle protocol on DDR2 — all such complexity is on the data path side.
-
----
-
-## LPDDR2 Encoding Branch
-
-LPDDR2 uses a packed 20-bit Command-Address (CA) bus per DFI v2.1 §3.1 Table 1. The CA bus is 10 bits wide and runs at DDR rate, so each logical DRAM command occupies 2 CA cycles (CA0 on rising edge, CA1 on falling edge equivalent — gear_dfi handles the phase split).
-
-The encoder produces a flat 20-bit `dfi_address[19:0]` where:
-
-- `dfi_address[9:0]` = first CA cycle bits (CA0)
-- `dfi_address[19:10]` = second CA cycle bits (CA1)
-
-### CA-Bus Encoding (Selected Subset)
-
-LPDDR2's CA encoding is more compact than the JEDEC spec text suggests. Per DFI v2.1 §3.1 Table 1, the relevant bit patterns (this table is the canonical lookup):
-
-| Opcode   | CA0 (first cycle, bits 9..0)                              | CA1 (second cycle, bits 9..0)                  |
-|----------|----------------------------------------------------------|-----------------------------------------------|
-| `ACT`    | `{Row[16:14], 0, 0, 1, BA[2:0], Row[13:11]}`              | `{Row[10:0]}`                                  |
-| `RD`     | `{0, 0, 1, AP, BA[2:0], 0, 0, Col[9]}`                    | `{0, Col[11:10], Col[8:1]}`                    |
-| `WR`     | `{0, 0, 0, AP, BA[2:0], 0, 0, Col[9]}`                    | `{0, Col[11:10], Col[8:1]}`                    |
-| `PRE`    | `{1, 0, 0, 1, AB, BA[2:0], 0, 0}`                          | `{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}`               |
-| `REFpb`  | `{1, 0, 1, 0, 0, BA[2:0], 0, 0}`                           | `{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}`               |
-| `REFab`  | `{1, 0, 1, 0, 1, 0, 0, 0, 0, 0}`                           | `{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}`               |
-| `MRW`    | `{0, 1, 1, 0, MRA[7:0]}`                                   | `{OP[7:0], 0, 0}`                              |
-| `MRR`    | `{0, 1, 0, 0, MRA[7:0]}`                                   | `{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}`               |
-| `ZQC`    | `{1, 0, 0, 1, 0, ZQ_type[1:0], 0, 0, 0}`                   | (don't care)                                   |
-| `NOP`    | all-1                                                      | all-1                                          |
-
-The flat 20-bit `dfi_address` is the concatenation of CA0 and CA1; `gear_dfi_fub` splits them across the appropriate DFI phases.
-
-### Address-Bit Spreading
-
-LPDDR2 spreads row and column bits across CA0 and CA1 in a non-contiguous pattern. The encoder is responsible for the spreading; the rest of the controller uses contiguous `row[ROW_WIDTH-1:0]` and `col[COL_WIDTH-1:0]` representations. This conversion is the only "interesting" combinational work in the LPDDR2 branch — the rest is just lookup table indexing.
-
-The DDR2 strobes (`dfi_ras_n` / `dfi_cas_n` / `dfi_we_n`) are tied high in LPDDR2 builds. They are present at the DFI port (per HAS §2.4) because the same top-level header serves both memtypes, but they carry no information.
+Unhandled DDR2-irrelevant ops (`OP_REFPB`, `OP_ZQCS`/`ZQCL`, self-refresh entry/
+exit) fall through the `default` arm and emit NOP — they are driven via CKE / a
+separate sequencer, not the strobe truth table.
 
 ---
 
-## Per-Rank CS_n Drive (Shared Post-Branch Stage)
+## LPDDR2 Encoding Branch (bit-exact JESD209-2F Table 60)
 
-After the memtype-specific encoding, the shared stage drives `dfi_cs_n[NR]` per the issue's `issue_rank` and `issue_op`:
+LPDDR2 has no `ras_n`/`cas_n`/`we_n`. The command AND a scrambled address are
+multiplexed onto a 10-bit CA bus over two clock edges (rising `r`, falling `f`),
+carried on the DFI bus as a flat 20-bit word. The formatter builds two 10-bit
+half-words `w_ca_r` / `w_ca_f` and concatenates them:
 
-```
-// Single-rank commands (default for most opcodes):
-for r in 0..NR-1:
-    dfi_cs_n[r] = (r == issue_rank) ? 0 : 1
-
-// Special cases:
-NOP / no-issue:
-    dfi_cs_n[*] = 1                  // no rank selected
-
-REFab from refresh_mgr round-robin:
-    dfi_cs_n[round_robin_rank] = 0
-    dfi_cs_n[other ranks] = 1        // per HAS §3.4 v0.2 multi-rank REFab
-
-REFab from init (init-time global REF):
-    dfi_cs_n[*] = 0                  // init can broadcast to all ranks
+```systemverilog
+assign w_lpddr2_ca = {w_ca_f, w_ca_r};   // [19:10] = falling, [9:0] = rising
 ```
 
-The init-time `dfi_cs_n[*] = 0` case is the only opcode that drives multiple CS_n low simultaneously — and even that is only during init, when no other rank-targeted command is active.
+This is the exact layout locked in `rtl/LPDDR2_CA_ENCODING.md` and enforced by a
+round-trip conformance test against the DV decoder (`lpddr_ca.py`). Per JEDEC,
+any other bit ordering is prohibited, so bit-exactness is a spec requirement.
 
-The driver also coordinates with `odt_ctrl_fub` (see §2.16) which needs to know which rank is being targeted and what command type to apply the correct ODT termination rules. The `odt_ctrl` interface receives `issue_rank` and `issue_op` as inputs and computes `dfi_odt[NR]` independently.
+**Command decode** is by the rising-edge opcode bits {CA0r, CA1r, CA2r, CA3r},
+transcribed from the RTL `unique case`:
+
+| Op                | Rising opcode bits set                     | Payload placement |
+|-------------------|--------------------------------------------|-------------------|
+| `OP_ACT`          | CA1r = 1                                   | bank → CA7r..CA9r; row hi R8..R12 → CA2r..CA6r; row lo R0..R7 → CA0f..CA7f; R13 → CA8f; R14 → CA9f |
+| `OP_RD` / `OP_RDA`| CA0r = 1, CA2r = 1 (read)                  | bank → CA7r..CA9r; C1,C2 → CA5r,CA6r; AP → CA0f; C3..C11 → CA1f..CA9f |
+| `OP_WR` / `OP_WRA`| CA0r = 1, CA2r = 0 (write)                 | same column/bank/AP placement as read |
+| `OP_PRE`          | CA0r=1, CA1r=1, CA3r=1 (AB=0)              | bank → CA7r..CA9r |
+| `OP_PREA`         | CA0r=1, CA1r=1, CA3r=1, CA4r=1 (AB=1)      | bank don't-care |
+| `OP_REF`          | CA2r=1, CA3r=1 (all-bank)                  | — |
+| `OP_REFPB`        | CA2r=1 (per-bank; CA3r=0)                  | bank implied by device counter |
+| `OP_MRS` (MRW)    | all opcode bits 0                          | MA0..MA5 → CA4r..CA9r; MA6,MA7 → CA0f,CA1f; OP0..OP7 → CA2f..CA9f |
+| default (NOP)     | CA0r=CA1r=CA2r=CA3r=1                       | — |
+
+Auto-precharge is `w_ca_ap = (op == OP_RDA) || (op == OP_WRA)`, placed on CA0f.
+C0 is implied 0 and never transmitted (only C1..C11 ride the bus). Row/column/
+bank are zero-extended (`w_row15`, `w_col12`) so wider geometries (R14, C10, C11)
+light up their reserved pins cleanly.
+
+**MRW field packing.** LPDDR2 mode-register addresses reach MR63 (MA[5:0]), which
+a 3-bit bank port cannot express. The scheduler therefore carries the MRW fields
+in the ROW request as `{MA[5:0], OP[7:0]}` — `w_mr_ma = {2'b0, cmd_row_i[13:8]}`,
+`w_mr_op = cmd_row_i[7:0]` — matching `init_sequencer`'s `mrw_row()` packing.
+MA[7:6] are 0 (MR <= 63).
 
 ---
 
-## Bypass-Path Sources
+## Multi-Phase Packing and CS_n
 
-The encoder accepts commands from four upstream sources, multiplexed at the input boundary:
+After the decode, a combinational stage packs the command into the multi-phase
+buses (`w_dfi_*`). Every phase starts at NOP (cs_n = 1, ras/cas/we = 1); then:
 
-| Source                | Path                                          | Active when                          |
-|-----------------------|-----------------------------------------------|--------------------------------------|
-| `scheduler`       | `sched_cmd_*` (normal traffic)                | `init_in_progress == 0`              |
-| `init_engine_fub`     | `init_cmd_*` (cold boot)                       | `init_in_progress == 1`              |
-| `refresh_mgr_fub`     | `refresh_issue_*` (REF / REFpb)                | Inside refresh-priority window       |
-| `power_state_fub`     | `pwr_cmd_*` (SREFE, SREFX, DPDE, DPDX)         | Power-state transitions              |
+- **DDR2:** the decoded `w_p0_*` fields are placed on the target phase
+  `w_cmd_phase` (rd_phase for reads, wr_phase for writes, phase 0 otherwise); the
+  other phases stay NOP.
+- **LPDDR2:** the whole 20-bit CA word is written to `w_dfi_address[19:0]` (low
+  bits), ras/cas/we stay idle, and `dfi_cs_n` is asserted for the target rank on
+  phase 0 when the op is not NOP. The two CA edges are already inside the word,
+  so there is no per-DFI-phase command placement for LPDDR2.
 
-The input mux is priority-ordered (init > power > refresh > scheduler). At any given cycle exactly one strobe is asserted (the upstream FUBs coordinate to ensure this); the encoder treats input as a single combined `issue_*` bus and doesn't need to know which source.
+The active-rank CS_n mask is built once (`w_active_rank_mask`): bit `r` = 0 when
+`r == cmd_rank_i`, else 1. For `NUM_RANKS == 1` only bit 0 exists.
 
 ---
 
-## Interface
+## `dfi_signal_pack` — Final Registered DFI Stage
 
-### Issue Input (combined from all upstream sources)
+`dfi_signal_pack` is a pure one-cycle registered pipeline. It latches the
+formatter's command bus plus the data-enable/mask signals from the write/read
+serializers and drives them to the PHY the next DFI cycle. Its value is the
+reset-safe defaults it guarantees during reset / before first issue:
 
-| Signal              | Direction | Width                | Description                                          |
-|---------------------|-----------|----------------------|------------------------------------------------------|
-| `issue_strobe_i`    | input     | 1                    | A command is being issued this cycle                 |
-| `issue_op_i`        | input     | 4                    | Opcode (encoded per scheduler §2.7)                  |
-| `issue_rank_i`      | input     | `$clog2(NR)`         | Target rank                                          |
-| `issue_bank_i`      | input     | `$clog2(NB)`         | Target bank (or MR index for MRS/MRW)                |
-| `issue_row_i`       | input     | `ROW_WIDTH`          | Row operand (for ACT, MRS value also goes here)       |
-| `issue_col_i`       | input     | `COL_WIDTH`          | Column operand (for RD/WR)                           |
-| `issue_auto_pre_i`  | input     | 1                    | Auto-pre flag (for RDA/WRA)                          |
-| `issue_all_bank_i`  | input     | 1                    | All-bank flag (for PREA / REFab)                     |
+| Output                     | Reset value | Meaning                              |
+|----------------------------|-------------|--------------------------------------|
+| `dfi_cs_n_o`               | all-1       | all-deselected                       |
+| `dfi_ras_n_o/cas_n_o/we_n_o` | all-1     | NOP                                  |
+| `dfi_cke_o`                | 0           | DRAM held CKE-low until init          |
+| `dfi_odt_o`                | 0           | ODT off                              |
+| `dfi_wrdata_en_o` / `dfi_rddata_en_o` | 0 | no data movement                     |
+| `dfi_wrdata_mask_o`        | all-1       | mask all bytes (write nothing)       |
+| `dfi_dram_clk_disable_o`   | 0           | clock enabled (power-state TODO)     |
 
-### DFI Command Outputs
+It owns `dfi_dram_clk_disable` for a future power-state machine (held 0 today).
+Phase staggering and CKE power-down driving are v2 TODOs noted in the RTL header;
+today it is a transparent width-preserving flop.
 
-| Signal              | Direction | Width                       | Description                                          |
-|---------------------|-----------|-----------------------------|------------------------------------------------------|
-| `dfi_cs_n_o[NR]`    | output    | NR                          | Per-rank chip-select                                 |
-| `dfi_ras_n_o`       | output    | 1                           | DDR2 RAS strobe (tied high for LPDDR2)               |
-| `dfi_cas_n_o`       | output    | 1                           | DDR2 CAS strobe (tied high for LPDDR2)               |
-| `dfi_we_n_o`        | output    | 1                           | DDR2 WE strobe (tied high for LPDDR2)                |
-| `dfi_address_o`     | output    | `DFI_ADDR_WIDTH`             | DDR2: row/col operand; LPDDR2: packed 20-bit CA      |
-| `dfi_bank_o`        | output    | `$clog2(NB)`                | DDR2: bank operand; LPDDR2: tied (bank is in CA bus) |
+---
 
-### ODT / Power Coordination (pass-through)
+## Interface (`dfi_cmd_formatter` outputs)
 
-| Signal              | Direction | Width  | Description                                          |
-|---------------------|-----------|--------|------------------------------------------------------|
-| `dfi_cke_i[NR]`     | input     | NR     | Pre-muxed CKE from CKE-routing topology (§2.13)      |
-| `dfi_cke_o[NR]`     | output    | NR     | Pass-through to gear                                  |
-| `dfi_odt_i[NR]`     | input     | NR     | From `odt_ctrl_fub`                                   |
-| `dfi_odt_o[NR]`     | output    | NR     | Pass-through to gear                                  |
+| Signal          | Width           | Description                          |
+|-----------------|-----------------|--------------------------------------|
+| `dfi_address_o` | DFI_ADDR_BUS_W  | DDR2 row/col operand per phase; LPDDR2 flat CA word |
+| `dfi_bank_o`    | DFI_BANK_BUS_W  | Per-phase bank (DDR2)                |
+| `dfi_cas_n_o`   | DFI_CTRL_BUS_W  | Per-phase CAS strobe                 |
+| `dfi_ras_n_o`   | DFI_CTRL_BUS_W  | Per-phase RAS strobe                 |
+| `dfi_we_n_o`    | DFI_CTRL_BUS_W  | Per-phase WE strobe                  |
+| `dfi_cs_n_o`    | DFI_CS_BUS_W    | Per-phase per-rank chip-select       |
+| `dfi_odt_o`     | DFI_CS_BUS_W    | Per-phase per-rank ODT (0 in v1)     |
 
-The CKE and ODT are pass-throughs here because they're already finalized upstream; the encoder isn't allowed to modify them.
-
-### Telemetry
-
-| Signal              | Description                                              |
-|---------------------|----------------------------------------------------------|
-| `dbg_last_op_o`     | Last issued opcode — drives `STATUS.issue_op_obs`        |
-| `dbg_last_rank_o`   | Last issued rank                                         |
+All outputs are strict-flopped; `dfi_signal_pack` widens/relatches them onto the
+PHY pins unchanged.
 
 ---
 
 ## Timing Budget
 
-The encoder is single-cycle combinational from input to output. At the worst case (LPDDR2 ACT with full row-bit spreading across CA0+CA1), the path is:
-
-| Path                                                                    | Levels (FPGA) | Budget   |
-|-------------------------------------------------------------------------|---------------|----------|
-| `issue_op_i` → opcode lookup table                                      | 2 LUT levels  | 0.4 ns   |
-| `issue_row_i / issue_col_i` → CA bit spreading network                   | 3 LUT levels  | 0.6 ns   |
-| `issue_rank_i` + opcode → per-rank `dfi_cs_n_o`                         | 2 LUT levels  | 0.4 ns   |
-| Routing / setup margin                                                  |               | 0.3 ns   |
-| **Total**                                                               |               | **1.7 ns** |
-
-Comfortable for 500 MHz. The encoder is rarely on the critical path — that's dominated by the scheduler upstream.
-
----
-
-## CSR Hooks
-
-| CSR field                          | Source                            | Use case                                |
-|------------------------------------|-----------------------------------|-----------------------------------------|
-| `STATUS.issue_op_obs` (R)          | `dbg_last_op_o`                  | What was the last DRAM command issued    |
-| `STATUS.issue_rank_obs` (R)        | `dbg_last_rank_o`                | What rank was last targeted              |
+The formatter is combinational decode into a single output flop; `dfi_signal_pack`
+adds one more flop. The worst path is the LPDDR2 ACT with full row-bit spreading
+across CA0r/CA0f (bank + 5 rising row bits + 8 falling row bits), which is a few
+LUT levels feeding the output register — well within the DFI clock budget. The
+formatter is not the controller's critical path; that is the arbiter upstream.
 
 ---
 
 ## Verification Notes (cocotb test plan)
 
-| Scenario                                                                          | What it proves                                              |
-|-----------------------------------------------------------------------------------|-------------------------------------------------------------|
-| DDR2 build: ACT to bank 3 row 0x1234; `{ras_n, cas_n, we_n} = {0, 1, 1}`, dfi_address = 0x1234, dfi_bank = 3 | DDR2 ACT encoding                          |
-| DDR2 build: RDA to bank 3 col 0x040; A10 set; `{ras_n, cas_n, we_n} = {1, 0, 1}` | DDR2 auto-precharge via A10                                 |
-| DDR2 build: PREA; A10 set; dfi_bank = don't care                                  | DDR2 all-bank precharge via A10                             |
-| LPDDR2 build: ACT to bank 3 row 0x1234; CA0/CA1 packed per DFI v2.1 §3.1         | LPDDR2 ACT encoding                                          |
-| LPDDR2 build: WR to bank 3 col 0x040 with auto-pre; AP bit set in CA0            | LPDDR2 auto-precharge via CA bit                            |
-| LPDDR2 build: REFpb to bank 3; CA encoding matches §3.1 table                    | LPDDR2 REFpb encoding                                       |
-| LPDDR2 build: REFab; CA encoding matches §3.1 table                              | LPDDR2 REFab encoding                                       |
-| Multi-rank: ACT to rank 1; `dfi_cs_n = {0, 1}` (rank 1 selected); rank 0 inactive | Per-rank CS_n drive                                         |
-| Multi-rank REFab from refresh_mgr round-robin: only target rank's CS_n low       | Per-rank REFab dispatch                                     |
-| Init-time REF: `dfi_cs_n[*] = 0` (all ranks targeted)                              | Init broadcast CS_n                                          |
-| NOP cycle: `dfi_cs_n[*] = 1`                                                      | No-issue idle pattern                                       |
-| Two back-to-back commands in same MC cycle (impossible — single-issue scheduler)  | Sanity: only one strobe asserted at a time                  |
-| DDR2 build accidentally invokes REFpb opcode                                      | Elaboration-time assertion fires                            |
+| Scenario                                                                          | What it proves                          |
+|-----------------------------------------------------------------------------------|-----------------------------------------|
+| DDR2 ACT bank 3 row 0x1234 → `{ras,cas,we}={0,1,1}`, address=0x1234, bank=3       | DDR2 ACT truth-table row                |
+| DDR2 RDA bank 3 col 0x40 → `{ras,cas,we}={1,0,1}`, address bit 10 set             | DDR2 auto-precharge via A10             |
+| DDR2 PREA → `{ras,cas,we}={0,1,0}`, address bit 10 set                            | DDR2 all-bank precharge via A10         |
+| DDR2 MRS MR0=0x532 → MR data on address (bit 10 present, not truncated)           | MRS data on ROW field                   |
+| LPDDR2 ACT bank 3 row 0x1234 → `w_lpddr2_ca` bit-exact vs `lpddr_ca.py` decode    | LPDDR2 ACT CA packing                   |
+| LPDDR2 WRA bank 3 col 0x40 → AP bit (CA0f) set                                     | LPDDR2 auto-precharge via CA            |
+| LPDDR2 REFpb (CA2r=1, CA3r=0) vs REFab (CA2r=1, CA3r=1)                            | LPDDR2 refresh CA decode                |
+| LPDDR2 MRW MR63 → MA/OP packed on CA4r..CA9r / CA0f.. per Table 60                 | LPDDR2 MRW field packing                |
+| Multi-rank ACT rank 1 → `dfi_cs_n` bit 1 low, bit 0 high                          | Per-rank CS_n mask                      |
+| rd_phase=1 → RD command lands on DFI phase 1, other phases NOP                    | Runtime phase placement                 |
+| NOP / `!cmd_valid` → all-deselected (cs_n all-1), strobes all-1                   | Idle pattern                            |
+| Reset → `dfi_signal_pack` drives cs_n=1, cke=0, wrdata_mask=all-1                 | Reset-safe NOP defaults                 |
 
 ---
 
 ## Open Questions / Future Work
 
-- **LPDDR2 chip-id (multi-die) encoding.** LPDDR2 supports a chip-id bit for stacked-die parts. v1 doesn't expose this — the controller treats each rank as a single die. When DDR3+ family adds 3DS support, the encoder will need a `chip_id_i` input that goes into the CA bus encoding (per LPDDR2 §x.y). Punt to v2.
-- **MRR (mode-register read) path.** LPDDR2 supports MRR for software to read DRAM state (temperature, ZQ status). v1 encodes MRR but the read-data path back through DFI is not in scope yet — needs `rd_data_path_fub` cooperation to deliver the MR value back to CSR. Add in v0.2 of MAS.
-- **DDR2 OCD calibration commands.** DDR2 OCD (Off-Chip Driver) calibration uses extended MRS sequences. Not in v1; revisit when characterization on real DDR2 silicon flags drive-impedance issues.
-- **Encoder LUT generation.** Currently the LPDDR2 CA-bus table is hand-coded from DFI v2.1 §3.1. Could be generated from a JSON/YAML spec file — easier to maintain when DFI v3+ changes the encoding (HAS v6.0 scope memory notes the changes). Punt; revisit at DDR3-LPDDR3 family controller.
+- **ODT driving.** `dfi_odt_o` is held 0 in v1 (the decode leaves the ODT default
+  at NOP). Multi-rank DDR2 needs the JEDEC cross-termination window (ODT-high on
+  the non-accessed rank during a read, on the accessed rank during a write). The
+  hooks exist (`mode_register.odt_o` decodes the DDR2 MR1 ODT bits); wiring the
+  timed ODT window through the formatter is future work — see the absorbed ODT
+  chapter.
+- **`cmd_len_i` unused.** The burst-length input is reserved (tied into
+  `unused_v1`); burst geometry is handled by the data-path serializers, so the
+  formatter does not need it today.
+- **Phase staggering / clk-disable.** `dfi_signal_pack` is a plain relatch;
+  per-phase output staggering and `dfi_dram_clk_disable` driving (for power-down)
+  are v2 items noted in the RTL header.
+- **LPDDR2 BL16.** `mode_register.bl_o` is 4-bit and clips BL16 to BL8; only
+  BL4/BL8 are wired end-to-end. Widening the burst path is a separate item.

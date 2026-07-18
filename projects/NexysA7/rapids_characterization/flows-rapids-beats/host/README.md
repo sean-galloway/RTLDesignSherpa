@@ -17,7 +17,7 @@ source env_python            # from the repo root: sets PYTHONPATH + provides
 
 - `pyserial` — the UART driver (bundled in the repo venv / env_python).
 - `RegisterMap` (`bin/TBClasses/apb/register_map.py`) — for by-name DUT register
-  access. It reads the generated `projects/components/rapids/rtl/rapids_regmap.py`.
+  access. It reads the generated `projects/components/dmas/rapids/rtl/rapids_regmap.py`.
 - `UARTAxiBridge` (`projects/components/converters/bin/uart_axi_bridge.py`) — the
   existing ASCII UART <-> AXIL wire driver; reused as-is, not re-implemented.
 

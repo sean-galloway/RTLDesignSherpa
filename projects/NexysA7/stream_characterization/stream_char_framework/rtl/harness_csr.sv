@@ -49,7 +49,7 @@
 //                              [2] = pass   (CRC matched at stop edge)
 //   0x30  TIMER_CYCLES_LO R   Low 32 b of 64 b cycle counter (10 ns / cycle)
 //   0x34  TIMER_CYCLES_HI R   High 32 b
-//   0x38  TIMER_EXP_BEATS RW  Expected sink-side beat count (host programs
+//   0x38  TIMER_EXPECTED_BEATS RW  Expected sink-side beat count (host programs
 //                              this before the kick; timer stops when the
 //                              sink slave's write_beat_count >= this value).
 //                              Write 0 to disable beat-based stop.

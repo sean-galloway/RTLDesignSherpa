@@ -1,25 +1,40 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
-stateDiagram-v2
-    [*] --> FREE: reset
+classDiagram
+    note "txn_queue is RETIRED.\nTransaction state now lives as per-slot fields\nin the two CAMs (pumice_wr_data_cam / pumice_rd_cmd_cam).\nStreaming readers are beat-counter movers, NOT slot-state FSMs."
 
-    FREE --> PENDING: insert from CAM<br/>captures rank, bank, row,<br/>is_write, cam_slot_idx,<br/>row_hit_cached, age=0
+    class pumice_wr_data_cam_entry {
+        r_valid : entry occupied
+        r_bank / r_row / r_col : DRAM address
+        r_id : AXI write ID
+        r_age : insertion timestamp (wrap-safe)
+        r_ptr / r_pv : wr-data SRAM slot + ptr_valid
+        r_fdone : FILL COMPLETE (wd_last seen)
+        r_sched : scheduled (set by commit_valid)
+    }
 
-    PENDING --> ISSUED: scheduler picks<br/>pick_one_hot[i]
+    class pumice_rd_cmd_cam_entry {
+        r_valid : entry occupied
+        r_bank / r_row / r_col : DRAM address
+        r_id : AXI read ID
+        r_age : insertion timestamp (wrap-safe)
+        r_ptr / r_pv : rd SRAM slot + ptr_valid
+        r_issued : command issued (set by issue_valid)
+        r_ready : all BL beats returned (dfi_ret_last)
+        r_resp : DFI response (captured on last)
+    }
 
-    ISSUED --> COMPLETING: rd — first beat returns<br/>wr — last W beat issued
+    class wr_sram {
+        r_sram[N_SRAM_SLOTS*BL] : burst data
+        r_strb[N_SRAM_SLOTS*BL] : byte strobes
+        r_sram_occ : slot occupancy
+        movers : fill / commit-drain / snarf
+    }
 
-    COMPLETING --> FREE: rd — beats_returned == len<br/>wr — b_complete from xbank<br/>cleared by CAM strobe
+    class rd_sram {
+        r_sram[N_SRAM_SLOTS*BL] : return data
+        r_sram_occ : slot occupancy
+        movers : return-fill / drain (oldest-first)
+    }
 
-    note right of PENDING
-      Visible to scheduler every cycle.
-      Each cycle: age++ (saturating).
-      row_hit_cached refreshes on
-      bank-state change (1-cycle lag).
-    end note
-
-    note right of ISSUED
-      Hidden from scheduler
-      (pick_valid_mask excludes
-      ISSUED + COMPLETING).
-      Slot still occupies queue cell.
-    end note
+    pumice_wr_data_cam_entry --> wr_sram : r_ptr indexes
+    pumice_rd_cmd_cam_entry --> rd_sram : r_ptr indexes

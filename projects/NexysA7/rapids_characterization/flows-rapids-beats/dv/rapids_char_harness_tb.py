@@ -84,7 +84,7 @@ from rapids_char_golden import golden_crc  # noqa: E402
 
 # By-name register description generated from the RAPIDS half regmap (split-proof).
 RAPIDS_REGMAP_PATH = os.path.join(
-    repo_root, 'projects/components/rapids/rtl/rapids_regmap.py')
+    repo_root, 'projects/components/dmas/rapids/rtl/rapids_regmap.py')
 
 # APB address bit[12] selects the half: SRC config/kick at 0x0000, SNK at 0x1000.
 SRC_BASE_ADDR = 0x0000
@@ -159,6 +159,9 @@ class RapidsCharHarnessTB(TBBase):
 
         # Monitor CAM sync-clear.
         d.cam_clear.value = 0
+        d.obs_arm.value = 0
+        d.obs_target.value = 0          # 0 => system_idle-settle close (default)
+        d.obs_active_half.value = 0     # 0=SRC(sout) 1=SNK(wr) completion meter
 
         # APB idle until the APB master takes over (post-reset).
         d.s_apb_psel.value = 0
@@ -263,6 +266,25 @@ class RapidsCharHarnessTB(TBBase):
         addr = self.reg_abs(half, reg_name)
         await self.write_apb(addr, value, reg_name=f"{half.upper()}.{reg_name}")
 
+    async def write_fields(self, half: str, reg_name: str, **fields: int):
+        """Program a DUT register by setting its FIELDS by name (composed at their
+        rapids_regmap offsets/widths) rather than a hand-assembled bitmask.
+        Mirrors the board host's RapidsCharCampaign.write_fields so sim and board
+        program identically. Unspecified fields default to 0."""
+        regs = self.src_regs if half == 'src' else self.snk_regs
+        info = regs.registers[reg_name]
+        word = 0
+        for fname, val in fields.items():
+            fld = info.get(fname)
+            if not isinstance(fld, dict) or 'offset' not in fld:
+                raise KeyError(f"unknown field {reg_name}.{fname}")
+            off = fld['offset']
+            hi, lo = (int(x) for x in off.split(':')) if ':' in off \
+                else (int(off), int(off))
+            mask = ((1 << (hi - lo + 1)) - 1) << lo
+            word = (word & ~mask) | ((int(val) << lo) & mask)
+        await self.write_reg(half, reg_name, word)
+
     async def write_apb(self, addr: int, data: int, reg_name=None):
         from CocoTBFramework.components.apb.apb_packet import APBPacket
         packet = APBPacket(
@@ -285,26 +307,30 @@ class RapidsCharHarnessTB(TBBase):
         RD/WR=8 beats, ALLOC=16, wide-open address windows, all channels EN)."""
         all_ch = (1 << self.NUM_CHANNELS) - 1
 
-        await self.write_reg(half, 'SCHED_TIMEOUT_CYCLES', 1_000_000)
-        await self.write_reg(half, 'SCHED_TIMEOUT_LIMIT', 0xFF)
-        # SCHED_EN[0] | ERR_EN[2]  (TIMEOUT_EN/COMPL_EN/PERF_EN off)
-        await self.write_reg(half, 'SCHED_CONFIG', (1 << 0) | (1 << 2))
+        await self.write_fields(half, 'SCHED_TIMEOUT_CYCLES', TIMEOUT_CYCLES=1_000_000)
+        await self.write_fields(half, 'SCHED_TIMEOUT_LIMIT', LIMIT=0xFF)
+        await self.write_fields(half, 'SCHED_CONFIG', SCHED_EN=1, ERR_EN=1)  # TIMEOUT/COMPL/PERF off
 
-        # DESCENG_EN | PREFETCH_EN | FIFO_THRESH=4
-        await self.write_reg(half, 'DESCENG_CONFIG', 0x1 | 0x2 | (4 << 2))
-        await self.write_reg(half, 'DESCENG_ADDR0_BASE', 0x0000_0000)
-        await self.write_reg(half, 'DESCENG_ADDR0_LIMIT', 0xFFFF_FFFF)
-        await self.write_reg(half, 'DESCENG_ADDR1_BASE', 0x0000_0000)
-        await self.write_reg(half, 'DESCENG_ADDR1_LIMIT', 0xFFFF_FFFF)
+        await self.write_fields(half, 'DESCENG_CONFIG',
+                                DESCENG_EN=1, PREFETCH_EN=1, FIFO_THRESH=4)
+        await self.write_fields(half, 'DESCENG_ADDR0_BASE',  ADDR0_BASE=0x0000_0000)
+        await self.write_fields(half, 'DESCENG_ADDR0_LIMIT', ADDR0_LIMIT=0xFFFF_FFFF)
+        await self.write_fields(half, 'DESCENG_ADDR1_BASE',  ADDR1_BASE=0x0000_0000)
+        await self.write_fields(half, 'DESCENG_ADDR1_LIMIT', ADDR1_LIMIT=0xFFFF_FFFF)
 
-        # RD/WR=8 beats, ALLOC=16, DRAIN=1.
-        axi_xfer = (1 << 24) | (16 << 16) | (8 << 8) | (8 << 0)
-        await self.write_reg(half, 'AXI_XFER_CONFIG', axi_xfer)
+        # 512-byte AXI bursts (8 beats x 64 B) on read and write; ALLOC=16, and
+        # DRAIN_SIZE=1 to MATCH the board campaign (run_characterization). NOTE:
+        # DRAIN_SIZE>1 was tried here and DROPPED SOURCE BEATS (o_chk_beat_count
+        # short, CRC mismatch) -- a real bug in the drain path at DRAIN_SIZE>1 --
+        # and did not improve utilization, so it is kept at 1. See known_issues.
+        await self.write_fields(half, 'AXI_XFER_CONFIG',
+                                RD_XFER_BEATS=8, WR_XFER_BEATS=8,
+                                ALLOC_SIZE=16, DRAIN_SIZE=1)
 
-        await self.write_reg(half, 'CTRL_CONFIG', 0x1)
+        await self.write_fields(half, 'CTRL_CONFIG', CTRLRD_MAX_TRY=1)
 
-        await self.write_reg(half, 'CHANNEL_ENABLE', all_ch)
-        await self.write_reg(half, 'GLOBAL_CTRL', 0x1)   # GLOBAL_EN (avoid RST bit)
+        await self.write_fields(half, 'CHANNEL_ENABLE', CH_EN=all_ch)
+        await self.write_fields(half, 'GLOBAL_CTRL', GLOBAL_EN=1)   # avoid RST bit
 
         await self.wait_clocks(self.clk_name, 10)
         self.log.info(f"rapids_char_harness {half.upper()} half configured via APB")
@@ -389,6 +415,29 @@ class RapidsCharHarnessTB(TBBase):
         except Exception:
             return -1
 
+    def _read_bus_meter(self, d, direction: str) -> dict:
+        """Read a frozen axi_bus_meter's four aggregate buckets.
+
+        direction: 'rd' (source-read R) or 'wr' (sink-write W). Returns the
+        raw PROD/BP/STARV/IDLE cycle counts plus derived window total and
+        utilization = prod / (prod+bp+starv+idle).
+        """
+        prod = self._read_u32(getattr(d, f'obs_{direction}_prod'))
+        bp = self._read_u32(getattr(d, f'obs_{direction}_bp'))
+        starv = self._read_u32(getattr(d, f'obs_{direction}_starv'))
+        idle = self._read_u32(getattr(d, f'obs_{direction}_idle'))
+        engaged = prod + bp + starv          # in-flight cycles (idle excluded)
+        total = engaged + idle
+        return {'prod': prod, 'bp': bp, 'starv': starv, 'idle': idle,
+                'engaged': engaged, 'total': total,
+                'util': (prod / engaged) if engaged else 0.0}
+
+    async def meter_arm(self):
+        """Pulse obs_arm to clear + re-arm the bus meters (1 cycle)."""
+        self.dut.obs_arm.value = 1
+        await self.wait_clocks(self.clk_name, 1)
+        self.dut.obs_arm.value = 0
+
     async def _pulse(self, sig, cycles=1):
         sig.value = 1
         await self.wait_clocks(self.clk_name, cycles)
@@ -418,6 +467,11 @@ class RapidsCharHarnessTB(TBBase):
         for ch in active_channels:
             mask |= (1 << ch)
 
+        # SNK path: wr is the completion meter; freeze after all writes done.
+        self.dut.obs_active_half.value = 1
+        self.dut.obs_target.value = beats * n_active
+        await self.meter_arm()   # fresh bus-meter window for this run
+
         # 1. Load a SINK DATA descriptor per active channel into the SNK desc RAM.
         for ch in active_channels:
             desc_addr = self.DESC_BASE + ch * 0x1000
@@ -428,22 +482,27 @@ class RapidsCharHarnessTB(TBBase):
         # 2. Reset the sink-write CRC checker.
         await self._pulse(d.wr_crc_reset)
 
-        # 3. Program + start the AXIS pattern generator (cfg_start reseeds/clears
-        #    its per-channel LFSR + expected CRC).
+        # 3. Kick each channel's SINK descriptor FIRST. This makes the scheduler
+        #    go busy -> snk_system_idle deasserts -> the system_idle observation
+        #    window OPENS before any AXIS ingress. The sink still waits for
+        #    `beats` beats before it can finish, so it stays busy and the SRAM
+        #    still buffers as ingress outruns the drain. (If the generator were
+        #    started first, the front-loaded ingress would fly by while the
+        #    window was still closed and the sin bus-meter would read prod=0 --
+        #    a windowing artifact, not a wiring fault.)
+        for ch in active_channels:
+            desc_addr = self.DESC_BASE + ch * 0x1000
+            await self.kick_off_channel('snk', ch, desc_addr)
+
+        # 4. Program + start the AXIS pattern generator; ingress now flows into
+        #    the open window. cfg_start reseeds/clears the per-channel LFSR +
+        #    expected CRC.
         d.cfg_gen_lfsr_seed.value = 0            # 0 => DEADBEEF param
         d.cfg_gen_num_beats.value = beats        # beats PER CHANNEL
         d.cfg_gen_beats_per_pkt.value = 0        # 0 => one packet per channel
         d.cfg_gen_channel_mask.value = mask
         d.cfg_gen_tdest.value = 0
         await self._pulse(d.cfg_gen_start)
-
-        # Let the generator push some beats into the sink SRAM before draining.
-        await self.wait_clocks(self.clk_name, 20)
-
-        # 4. Kick each channel's SINK descriptor over APB (drains SRAM -> m_axi_wr).
-        for ch in active_channels:
-            desc_addr = self.DESC_BASE + ch * 0x1000
-            await self.kick_off_channel('snk', ch, desc_addr)
 
         # 5. Wait for the sink to go idle AND for all beats to be CRC'd.
         expected_total = beats * n_active
@@ -495,6 +554,20 @@ class RapidsCharHarnessTB(TBBase):
         if se not in (0, -1):
             errors.append(f"snk_sched_error=0x{se:X}")
 
+        # Bus meters on the SINK path interfaces: AXIS ingress (sin) -> AXI4
+        # write (wr). Both must have counted productive beats in the frozen
+        # window (proves the beat-driven window brackets the transfer).
+        meters = {i: self._read_bus_meter(d, i) for i in ('sin', 'wr')}
+        for name, m in meters.items():
+            if m['prod'] == 0:
+                errors.append(f"{name} bus-meter productive=0 (meter not counting)")
+            elif m['engaged'] == 0:
+                errors.append(f"{name} bus-meter window empty (bad windowing)")
+            else:
+                self.log.info(f"  SINK {name} meter: prod={m['prod']} "
+                              f"bp={m['bp']} starv={m['starv']} idle={m['idle']} "
+                              f"util={m['util']:.1%}")
+
         if errors:
             for e in errors:
                 self.log.error(f"  SCOREBOARD: {e}")
@@ -502,7 +575,8 @@ class RapidsCharHarnessTB(TBBase):
             self.log.info(f"  SCOREBOARD: SINK self-check PASSED for "
                           f"{n_active} channels ({beats} beats each)")
         return (len(errors) == 0), {'errors': errors, 'results': results,
-                                    'wr_beat_count_total': wr_total}
+                                    'wr_beat_count_total': wr_total,
+                                    'bus_meters': meters}
 
     # =========================================================================
     # TEST: SOURCE self-check  (m_axi_rd LFSR -> source -> m_axis chk)
@@ -513,6 +587,11 @@ class RapidsCharHarnessTB(TBBase):
                       f"{beats} beats/channel ===")
         d = self.dut
         n_active = len(active_channels)
+
+        # SRC path: sout is the completion meter; freeze after all beats egress.
+        d.obs_active_half.value = 0
+        d.obs_target.value = beats * n_active
+        await self.meter_arm()   # fresh bus-meter window for this run
 
         # 1. Reset the source-read LFSR/CRC pattern generator.
         await self._pulse(d.rd_crc_lfsr_reset)
@@ -586,6 +665,20 @@ class RapidsCharHarnessTB(TBBase):
         if se not in (0, -1):
             errors.append(f"src_sched_error=0x{se:X}")
 
+        # Bus meters on the SOURCE path interfaces: AXI4 read (rd) -> AXIS
+        # egress (sout). Both must have counted productive beats -- this is what
+        # exposed the old windowing bug where the read meter read prod=0.
+        meters = {i: self._read_bus_meter(d, i) for i in ('rd', 'sout')}
+        for name, m in meters.items():
+            if m['prod'] == 0:
+                errors.append(f"{name} bus-meter productive=0 (meter not counting)")
+            elif m['engaged'] == 0:
+                errors.append(f"{name} bus-meter window empty (bad windowing)")
+            else:
+                self.log.info(f"  SOURCE {name} meter: prod={m['prod']} "
+                              f"bp={m['bp']} starv={m['starv']} idle={m['idle']} "
+                              f"util={m['util']:.1%}")
+
         if errors:
             for e in errors:
                 self.log.error(f"  SCOREBOARD: {e}")
@@ -594,4 +687,5 @@ class RapidsCharHarnessTB(TBBase):
                           f"{n_active} channels ({beats} beats each)")
         return (len(errors) == 0), {'errors': errors, 'results': results,
                                     'o_chk_beat_count_total': chk_total,
-                                    'o_data_error': data_error}
+                                    'o_data_error': data_error,
+                                    'bus_meters': meters}

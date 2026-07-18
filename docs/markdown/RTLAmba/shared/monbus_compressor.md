@@ -626,7 +626,7 @@ The dataset and acceptance recipe live at
 | [`monbus_cam`](monbus_cam.md) | Single-cycle reference CAM (superseded; kept for comparison) |
 | `monbus_halfbeat_packer.sv` | Pairs two 30-bit half-slots into one 64-bit beat downstream of the compressor (enabled by `HALF_BEAT_EN=1`) |
 | [`monbus_group` family](monbus_group.md) | Host of the compressor, plus the master writer that drains slots to memory |
-| [`sdpram_slave_axil_axil`](sdpram_slave.md) | Typical SRAM-ring backend for the compressed slot stream |
+| [`sdpram_slave_axil_axil`](sdpram_slave_axil_axil.md) | Typical SRAM-ring backend for the compressed slot stream |
 | `bin/TBClasses/monbus/monbus_compressor.py` | Python golden encoder/decoder — the format spec |
 
 ---

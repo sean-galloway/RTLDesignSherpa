@@ -70,6 +70,8 @@ from typing import Callable, Dict, List, Optional, Sequence
 THIS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(THIS_DIR))
 
+from harness_addrs import H, harness_regs  # noqa: E402  (by-name harness CSR access)
+
 from dump_monbus_sram import (  # noqa: E402
     dump_json as dump_sram_to_json,
 )
@@ -85,19 +87,22 @@ DEBUG_SRAM_BYTES = 0x40000     # full 256 KB
 # harness_csr offsets we actually use here.
 # 0x00 CTRL  (W): bit[1] = clear_stats_pulse (clears trace SRAM write pointer)
 # 0x08 DBG_WR_PTR (R): trace SRAM write pointer in 32-bit words
-CSR_CTRL        = HARNESS_CSR_BASE + 0x00
-CSR_DBG_WR_PTR  = HARNESS_CSR_BASE + 0x08
+CSR_CTRL        = H("CTRL")
+CSR_DBG_WR_PTR  = H("DBG_WR_PTR")
 
 # STREAM APB register offsets — desc-bus monitor (DAXMON_*).
-# See projects/components/stream/regs/generated/rtl/stream_regs.sv:
+# See projects/components/dmas/stream/regs/generated/rtl/stream_regs.sv:
 #   0x240 DAXMON_ENABLE    [MON_EN, ERR_EN, COMPL_EN, TIMEOUT_EN, PERF_EN]
 #   0x244 DAXMON_TIMEOUT   cycles
 #   0x248 DAXMON_LATENCY_THRESH
 #   0x24c DAXMON_PKT_MASK
-DAXMON_ENABLE = STREAM_APB_BASE + 0x240
-DAXMON_TIMEOUT = STREAM_APB_BASE + 0x244
-DAXMON_LATENCY_THRESH = STREAM_APB_BASE + 0x248
-DAXMON_PKT_MASK = STREAM_APB_BASE + 0x24C
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+from stream_addrs import A as _A   # addresses by name; never hardcode
+DAXMON_ENABLE = _A("DAXMON_ENABLE")
+DAXMON_TIMEOUT = _A("DAXMON_TIMEOUT")
+DAXMON_LATENCY_THRESH = _A("DAXMON_LATENCY_THRESH")
+DAXMON_PKT_MASK = _A("DAXMON_PKT_MASK")
 
 # Bit layout of DAXMON_ENABLE (single-bit fields). The PeakRDL block
 # packs each enable into the LSB of a 32b register slot, so the
@@ -203,7 +208,7 @@ def clear_all_sources(bridge: BridgeIO) -> None:
     bridge.write(DAXMON_ENABLE, 0)
     # CTRL bit[1] = clear_stats_pulse. Resets the trace SRAM write
     # pointer + clears sticky overflow. Hardware self-clears.
-    bridge.write(CSR_CTRL, 0x2)
+    harness_regs(bridge).CTRL.write(CLEAR_STATS=1)  # bit[1] clear-stats pulse
     time.sleep(0.05)
 
 

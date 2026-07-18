@@ -92,7 +92,7 @@ def get_sources_from_filelist(repo_root, filelist_path):
     os.environ['BRIDGE_ROOT'] = os.path.join(components_root, 'bridge')
     os.environ['CONVERTERS_ROOT'] = os.path.join(components_root, 'converters')
     os.environ['RETRO_ROOT'] = os.path.join(components_root, 'retro_legacy_blocks')
-    os.environ['STREAM_ROOT'] = os.path.join(components_root, 'stream')
+    os.environ['STREAM_ROOT'] = os.path.join(components_root, 'dmas', 'stream')
 
     # Construct absolute path to file list
     filelist_abs = os.path.join(repo_root, filelist_path)

@@ -84,8 +84,8 @@ Some tests (especially integration tests) use `TEST_LEVEL` instead of `REG_LEVEL
 
 **Usage:**
 ```bash
-TEST_LEVEL=basic pytest projects/components/stream/dv/tests/integration/ -v
-TEST_LEVEL=full pytest projects/components/stream/dv/tests/integration/ -v
+TEST_LEVEL=basic pytest projects/components/dmas/stream/dv/tests/integration/ -v
+TEST_LEVEL=full pytest projects/components/dmas/stream/dv/tests/integration/ -v
 ```
 
 ### Combining Environment Variables
@@ -282,10 +282,10 @@ pytest val/amba/ -v
 pytest val/common/ -v
 
 # STREAM project
-pytest projects/components/stream/dv/tests/fub_tests/ -v
+pytest projects/components/dmas/stream/dv/tests/fub_tests/ -v
 
 # RAPIDS project
-pytest projects/components/rapids/dv/tests/fub_tests/ -v
+pytest projects/components/dmas/rapids/dv/tests/fub_tests/ -v
 ```
 
 ### Regression Suites
@@ -377,8 +377,8 @@ Examples:
 
 ```
 ✅ CORRECT:
-projects/components/stream/dv/tbclasses/scheduler_tb.py
-projects/components/rapids/dv/tbclasses/descriptor_engine_tb.py
+projects/components/dmas/stream/dv/tbclasses/scheduler_tb.py
+projects/components/dmas/rapids/dv/tbclasses/descriptor_engine_tb.py
 
 ❌ WRONG:
 bin/TBClasses/stream/scheduler_tb.py  # Don't put in framework!

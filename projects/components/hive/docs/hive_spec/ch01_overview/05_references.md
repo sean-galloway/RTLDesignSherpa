@@ -34,7 +34,7 @@
 ### Related Component Specifications
 - **[RAPIDS Specification](../../../rapids/docs/rapids_spec/rapids_index.md)** - DMA engine controlled by HIVE-C
 - **[Delta Network Specification](../../../delta/docs/delta_spec/delta_index.md)** - 4×4 mesh NoC for compute fabric
-- **[STREAM Specification](../../../stream/PRD.md)** - Simplified DMA tutorial project (educational reference)
+- **[STREAM Specification](../../../../dmas/stream/PRD.md)** - Simplified DMA tutorial project (educational reference)
 
 ---
 
@@ -249,7 +249,7 @@
   - `sw/` - VexRiscv and SERV firmware
 
 ### Related Projects
-- **RAPIDS:** `projects/components/rapids/`
+- **RAPIDS:** `projects/components/dmas/rapids/`
 - **Delta Network:** `projects/components/delta/`
 - **Common RTL:** `rtl/common/`, `rtl/amba/`
 

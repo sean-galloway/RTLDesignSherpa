@@ -46,21 +46,19 @@ sys.path.insert(0,
     '/mnt/data/github/RTLDesignSherpa/projects/components/converters/bin')
 
 from descriptor_builder import DescriptorBuilder, CharConfig
+from harness_addrs import H, harness_regs  # noqa: E402 (by-name harness CSR access)
+from harness_addrs import autodetect_port  # noqa: E402 (shared ttyUSB probe)
+from stream_addrs import write_reg  # noqa: E402 (by-name STREAM APB register writes)
 from uart_axi_bridge import UARTAxiBridge
 
 # ---------------------------------------------------------------------------
-# Address constants (mirror host/run_characterization.py)
+# Harness CSR read addresses (resolved BY NAME via H(); base in harness_addrs).
+# Writes go through harness_regs(bridge).<REG>.write(FIELD=..) (field-by-name),
+# so only the registers we READ need a standing address alias here.
 # ---------------------------------------------------------------------------
-HARNESS_CSR_BASE    = 0x0001_0000
-STREAM_APB_BASE     = 0x0000_0000
-
-CSR_CTRL            = HARNESS_CSR_BASE + 0x00
-CSR_STATUS          = HARNESS_CSR_BASE + 0x04
-CSR_BUILD_ID        = HARNESS_CSR_BASE + 0x24
-CSR_TIMER_CTRL      = HARNESS_CSR_BASE + 0x28
-CSR_TIMER_STATUS    = HARNESS_CSR_BASE + 0x2C
-CSR_TIMER_EXPECTED  = HARNESS_CSR_BASE + 0x38
-CSR_KICK_GO         = HARNESS_CSR_BASE + 0xC0
+CSR_STATUS          = H("STATUS")
+CSR_BUILD_ID        = H("BUILD_ID")
+CSR_TIMER_STATUS    = H("TIMER_STATUS")
 
 EXPECTED_BUILD_ID   = 0x5354_5243   # "STRC"
 
@@ -68,17 +66,18 @@ EXPECTED_BUILD_ID   = 0x5354_5243   # "STRC"
 # Free-running, only cleared by CSR_CTRL[1] clear_stats pulse — they
 # survive soft reset, so they give a snapshot of the wedge at the
 # moment STREAM stopped issuing.
+# desc_ram observation counters — resolved BY NAME from harness_csr_regmap.py.
 OBS_REGS = [
-    ('DESC_SRAM_AR_HS',  0xD4),  # AXIL AR handshakes at SRAM port
-    ('DESC_SRAM_R_HS',   0xD8),  # AXIL R handshakes at SRAM port
-    ('DESC_AR_HS',       0xE0),  # 256b AR at STREAM m_axi_desc
-    ('DESC_AR_STALL',    0xE4),
-    ('DESC_R_HS',        0xE8),  # 256b R at STREAM m_axi_desc
-    ('DESC_R_STALL',     0xEC),
-    ('DESC_AW_HS',       0xF0),  # host AXIL AW at SRAM port
-    ('DESC_W_HS',        0xF4),
-    ('DESC_B_HS',        0xF8),
-    ('DESC_VR_LIVE',     0xFC),  # live 16b snapshot (see harness.sv comment)
+    'DESC_SRAM_AR_HS',  # AXIL AR handshakes at SRAM port
+    'DESC_SRAM_R_HS',   # AXIL R handshakes at SRAM port
+    'DESC_AR_HS',       # 256b AR at STREAM m_axi_desc
+    'DESC_AR_STALL',
+    'DESC_R_HS',        # 256b R at STREAM m_axi_desc
+    'DESC_R_STALL',
+    'DESC_AW_HS',       # host AXIL AW at SRAM port
+    'DESC_W_HS',
+    'DESC_B_HS',
+    'DESC_VR_LIVE',     # live 16b snapshot (see harness.sv comment)
 ]
 
 # DESC_VR_LIVE bit layout (matches harness_csr / stream_char_harness).
@@ -94,19 +93,7 @@ DESC_VR_BITS = [
 
 
 def kick_addr_csr(ch: int) -> int:
-    if ch < 4:
-        return HARNESS_CSR_BASE + 0xB0 + 4 * ch
-    return HARNESS_CSR_BASE + 0xC4 + 4 * (ch - 4)
-
-
-APB_GLOBAL_CTRL     = STREAM_APB_BASE + 0x100
-APB_CHANNEL_ENABLE  = STREAM_APB_BASE + 0x120
-APB_SCHED_TIMEOUT   = STREAM_APB_BASE + 0x200
-APB_SCHED_CONFIG    = STREAM_APB_BASE + 0x204
-APB_DESCENG_CONFIG  = STREAM_APB_BASE + 0x220
-APB_DESCENG_AD0_B   = STREAM_APB_BASE + 0x224
-APB_DESCENG_AD0_L   = STREAM_APB_BASE + 0x228
-APB_AXI_XFER_CONFIG = STREAM_APB_BASE + 0x2A0
+    return H(f"CH{ch}_KICK_ADDR")   # by-name (regmap encodes the 0xC0 split)
 
 
 # ---------------------------------------------------------------------------
@@ -149,30 +136,37 @@ def write_chain(bridge, writes, label='preload'):
 
 def configure_and_kick(bridge, args, kicks):
     print("[config] STREAM ...")
-    bridge.write(APB_SCHED_CONFIG,     0x0F)
-    bridge.write(APB_SCHED_TIMEOUT,    0xFFFFFFFF)
-    bridge.write(APB_DESCENG_CONFIG,   0x01)
-    bridge.write(APB_DESCENG_AD0_B,    0x00000000)
-    bridge.write(APB_DESCENG_AD0_L,    0xFFFFFFFF)
-    bridge.write(APB_AXI_XFER_CONFIG,
-                 (15 & 0xFF) | ((15 & 0xFF) << 8))
+    # STREAM APB regs written BY NAME (each field placed at its regmap offset).
+    # SCHED_CONFIG default sets RD_PREFETCH_EN=1 (0x2F); the original 0x0F word
+    # cleared it, so PERF_EN/RD_PREFETCH_EN are pinned to 0 to reproduce 0x0F.
+    write_reg(bridge, "SCHED_CONFIG",
+              SCHED_EN=1, TIMEOUT_EN=1, ERR_EN=1, COMPL_EN=1,
+              PERF_EN=0, RD_PREFETCH_EN=0)                      # -> 0x0F
+    write_reg(bridge, "SCHED_TIMEOUT_CYCLES", TIMEOUT_CYCLES=0xFFFFFFFF)
+    write_reg(bridge, "DESCENG_CONFIG",
+              DESCENG_EN=1, PREFETCH_EN=1, FIFO_THRESH=8)       # -> 0x23
+    write_reg(bridge, "DESCENG_ADDR0_BASE",  ADDR0_BASE=0x00000000)
+    write_reg(bridge, "DESCENG_ADDR0_LIMIT", ADDR0_LIMIT=0xFFFFFFFF)
+    write_reg(bridge, "AXI_XFER_CONFIG",
+              RD_XFER_BEATS=15, WR_XFER_BEATS=15)               # -> 0x0F0F
     ch_mask = (1 << args.channels) - 1
-    bridge.write(APB_GLOBAL_CTRL,      0x01)
-    bridge.write(APB_CHANNEL_ENABLE,   ch_mask)
+    write_reg(bridge, "GLOBAL_CTRL",    GLOBAL_EN=1)            # -> 0x01
+    write_reg(bridge, "CHANNEL_ENABLE", CH_EN=ch_mask)
 
+    regs = harness_regs(bridge)
     bytes_per_beat = args.data_width // 8
     expected_beats = (args.transfer_bytes * args.channels *
                       args.descriptors) // bytes_per_beat
-    bridge.write(CSR_TIMER_CTRL,       0x1)
-    bridge.write(CSR_TIMER_EXPECTED,   expected_beats)
+    regs.TIMER_CTRL.write(CLEAR=1)                              # -> 0x1
+    regs.TIMER_EXPECTED_BEATS.write(VALUE=expected_beats)
     print(f"[config] timer expected_beats={expected_beats}")
 
     print("[kick] burst ...")
     mask = 0
     for ch, addr in sorted(kicks.items()):
-        bridge.write(kick_addr_csr(ch), addr & 0xFFFFFFFF)
+        regs.write(f"CH{ch}_KICK_ADDR", VALUE=addr & 0xFFFFFFFF)
         mask |= (1 << ch)
-    bridge.write(CSR_KICK_GO, mask)
+    regs.KICK_GO.write(MASK=mask)
     print(f"[kick] mask=0x{mask:02X}")
 
 
@@ -202,10 +196,17 @@ def soft_reset_and_probe(bridge, attempts=3, ping_settle_s=0.1):
     Returns True if a BUILD_ID read of EXPECTED_BUILD_ID came back at
     least once. SRAM contents (BRAM) survive aresetn, so this recovers
     the bus without wiping the descriptors we want to inspect."""
+    regs = harness_regs(bridge)
     for i in range(attempts):
-        print(f"[recover] CSR_CTRL[3] soft-reset pulse "
+        print(f"[recover] CTRL.SOFT_RESET pulse "
               f"(attempt {i+1}/{attempts}) ...")
-        bridge.write(CSR_CTRL, 0x08)
+        try:
+            regs.CTRL.write(SOFT_RESET=1)   # -> 0x08 (CTRL[3])
+        except IOError:
+            # The bus may be dead here (that's exactly what we're recovering
+            # from). Preserve the original bridge.write() ignore-failure
+            # behaviour so we keep pulsing + probing BUILD_ID.
+            pass
         time.sleep(ping_settle_s)
         # Drain any stale serial chatter before probing.
         try:
@@ -229,8 +230,8 @@ def dump_obs(bridge):
     path: bridge port (s2_*), STREAM m_axi_desc, host writes."""
     print("[obs] desc_ram observation counters:")
     snap = None
-    for name, off in OBS_REGS:
-        val = bridge.read(HARNESS_CSR_BASE + off)
+    for name in OBS_REGS:
+        val = bridge.read(H(name))
         if val is None:
             print(f"    {name:<16} = READ_FAIL")
             continue
@@ -303,7 +304,7 @@ def print_diff(golden_writes, mismatches):
 def main():
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
                                  description=__doc__)
-    p.add_argument('--port',           default='/dev/ttyUSB2')
+    p.add_argument('--port',           default='auto')
     p.add_argument('--baud',           type=int, default=115200)
     p.add_argument('--channels',       type=int, default=7)
     p.add_argument('--descriptors',    type=int, default=16)
@@ -359,12 +360,14 @@ def main():
         reprogram_fpga()
 
     readbacks = {}
+    args.port = autodetect_port(args.baud, want=args.port)
     with UARTAxiBridge(args.port, args.baud) as bridge:
         if args.write:
-            # Soft reset + clear stats before preload.
-            bridge.write(CSR_CTRL, 0x08)
+            # Soft reset + clear stats before preload (BY NAME).
+            regs = harness_regs(bridge)
+            regs.CTRL.write(SOFT_RESET=1)    # -> 0x08 (CTRL[3])
             time.sleep(0.01)
-            bridge.write(CSR_CTRL, 0x02)
+            regs.CTRL.write(CLEAR_STATS=1)   # -> 0x02 (CTRL[1])
             time.sleep(0.01)
             write_chain(bridge, writes)
 

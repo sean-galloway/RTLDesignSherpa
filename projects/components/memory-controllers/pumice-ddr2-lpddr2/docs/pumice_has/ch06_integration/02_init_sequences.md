@@ -23,94 +23,104 @@
 
 # Init Sequences
 
-The full cold-boot init sequences for DDR2 and LPDDR2. These are the step lists embedded in `ddr2_init_steps_pkg.sv` and `lpddr2_init_steps_pkg.sv`.
+The cold-boot init sequences for DDR2 and LPDDR2 are implemented as a single
+FSM in `rtl/fub/init_sequencer.sv` (not separate step-package files). The FSM
+issues real MRS / precharge / refresh commands to the DRAM through the command
+scheduler while `init_busy_o` is high, and updates the mode-register shadow in
+lockstep so the live CL / CWL / BL decode tracks what was programmed. The
+`memtype_i` input selects the DDR2 or the LPDDR2 branch.
+
+The DDR2 branch mirrors LiteDRAM's `get_ddr2_phy_init_sequence` and is proven on
+the Nexys A7 board.
 
 ## DDR2 Cold Init
 
-Per JESD79-2F §4.1 and Micron TN-47-09.
+Per JESD79-2F. FSM states from `init_sequencer.sv`; MR data rides the ROW
+request field (`init_cmd_row_o`), and the MR / EMR number is carried in the bank
+index (`init_cmd_bank_o`).
 
-| Step | Type             | Description                                                     |
-|------|------------------|-----------------------------------------------------------------|
-| 1    | `SET_CTRL_BITS`  | Power stable; CKE = 0 for ≥ 200 µs                              |
-| 2    | `DELAY`          | NOP for ≥ 400 ns                                                |
-| 3    | `SET_CTRL_BITS`  | CKE → 1, ODT = 0, RESET_N = 1                                   |
-| 4    | `ISSUE_CMD`      | PRECHARGE all banks (PREA with addr[10] = 1)                    |
-| 5    | `MRS_LOAD`       | EMRS(2) = 0 (extended mode register 2 defaults)                 |
-| 6    | `MRS_LOAD`       | EMRS(3) = 0                                                     |
-| 7    | `MRS_LOAD`       | EMRS(1) = enable DLL                                            |
-| 8    | `MRS_LOAD`       | MRS = reset DLL + initial CL / BL                               |
-| 9    | `ISSUE_CMD`      | PRECHARGE all                                                   |
-| 10   | `ISSUE_CMD`      | AUTO REFRESH (REF)                                              |
-| 11   | `ISSUE_CMD`      | AUTO REFRESH (REF)                                              |
-| 12   | `MRS_LOAD`       | MRS = final CL / BL / WR config (no DLL reset)                  |
-| 13   | `MRS_LOAD`       | EMRS(1) = OCD default                                           |
-| 14   | `MRS_LOAD`       | EMRS(1) = OCD exit                                              |
-| 15   | `END`            | Assert `init_done`                                              |
+| Step | State        | Command                | MR data  | Post-wait |
+|------|--------------|------------------------|----------|-----------|
+| 1    | `S_DFI_INIT` | assert `dfi_init_start`, wait `dfi_init_complete`, then tINIT | —        | `t_init_wait` |
+| 2    | `S_PREA1`    | PRECHARGE all          | —        | `t_rp_wait` (tRP)  |
+| 3    | `S_EMR2`     | MRS EMR(2)             | `0x0000` | `t_mrd_wait` (tMRD) |
+| 4    | `S_EMR3`     | MRS EMR(3)             | `0x0000` | `t_mrd_wait` |
+| 5    | `S_EMR1`     | MRS EMR(1)             | `0x0000` | `t_mrd_wait` |
+| 6    | `S_MR0_DLL`  | MRS MR0 + DLL reset    | `0x0532` (BL4 / CL3 / tWR3 / DLL_RESET) | `t_dll_wait` (tDLLK) |
+| 7    | `S_PREA2`    | PRECHARGE all          | —        | `t_rp_wait` |
+| 8    | `S_REF1`     | AUTO REFRESH           | —        | `t_rfc_wait` (tRFC) |
+| 9    | `S_REF2`     | AUTO REFRESH           | —        | `t_rfc_wait` |
+| 10   | `S_MR0`      | MRS MR0 (DLL reset cleared) | `0x0432` | `t_mrd_wait` |
+| 11   | `S_OCD_DEF`  | MRS EMR(1) + OCD default | `0x0380` | `t_mrd_wait` |
+| 12   | `S_OCD_EXIT` | MRS EMR(1) + OCD exit  | `0x0000` | `t_mrd_wait` |
+| 13   | `S_DONE`     | assert `init_done`     | —        | —          |
 
-Real-time delays embedded in `post_delay`: step 1 = 200 µs; step 2 = 400 ns; step 3 = 200 ns NOPs; intermediate MRS steps = tMRD (≥ 2 clocks).
+Note the JEDEC extended-mode-register order: EMR(2), then EMR(3), then EMR(1),
+before MR0. The OCD-default state (`S_OCD_DEF`) leaves the MR1 shadow unchanged;
+`S_OCD_EXIT` restores it to the final `0x0000` value so the live decode is
+stable.
 
 ## LPDDR2 Cold Init
 
-Per JESD209-2F §6.1 and Micron TN-46-22.
+Per JESD209-2F. LPDDR2 uses the Mode Register Write (MRW) chain. Because the MR
+address (MA) can reach MR63 / MR10 — beyond a 3-bit bank port — the sequencer
+packs `{MA[5:0], OP[7:0]}` into the ROW request field, and `dfi_cmd_formatter.sv`
+unpacks it (row[13:8] = MA, row[7:0] = OP) to build the bit-exact LPDDR2 CA-bus
+MRW word. Only MR1 / MR2 / MR3 update the CL / CWL / BL decode shadow; MR63 and
+MR10 are issued to the DRAM but not shadowed.
 
-| Step | Type             | Description                                                     |
-|------|------------------|-----------------------------------------------------------------|
-| 1    | `SET_CTRL_BITS`  | tINIT1: CKE low ≥ 100 ns                                        |
-| 2    | `SET_CTRL_BITS`  | tINIT2: CKE high ≥ 200 µs                                       |
-| 3    | `DELAY`          | tINIT3: NOP ≥ 11 µs                                             |
-| 4    | `MRS_LOAD`       | MR63 reset                                                      |
-| 5    | `DELAY`          | tINIT5: ≥ 10 µs                                                 |
-| 6    | `MRS_LOAD`       | MR10 ZQ calibration                                             |
-| 7    | `WAIT_FOR_BIT`   | Wait `dfi_init_complete` (ZQ done)                              |
-| 8    | `MRS_LOAD`       | MR1: BL, WRAP, BT                                               |
-| 9    | `MRS_LOAD`       | MR2: RL, WL                                                     |
-| 10   | `MRS_LOAD`       | MR3: drive strength                                             |
-| 11   | `MRS_LOAD`       | MR4 read for temperature class (programs internal tREFI scale)  |
-| 12   | `MRS_LOAD`       | MR16: PASR bank mask (default 0 = all banks refresh)            |
-| 13   | `MRS_LOAD`       | MR17: PASR segment mask (default 0)                             |
-| 14   | `END`            | Assert `init_done`                                              |
+| Step | State       | Command                    | OP data | Post-wait               |
+|------|-------------|----------------------------|---------|-------------------------|
+| 1    | `S_DFI_INIT`| assert `dfi_init_start`, wait `dfi_init_complete`, then tINIT | —       | `t_init_wait`           |
+| 2    | `S_L_RESET` | MRW(MR63) Reset            | `0x00`  | `t_init_wait` (tINIT4)  |
+| 3    | `S_L_ZQ`    | MRW(MR10) ZQ Init Calibration | `0xFF`  | `t_dll_wait` (tZQINIT)  |
+| 4    | `S_L_MR1`   | MRW(MR1) BL8 / nWR3        | `0x23`  | `t_mrd_wait` (tMRW)     |
+| 5    | `S_L_MR2`   | MRW(MR2) RL3 / WL1         | `0x01`  | `t_mrd_wait`            |
+| 6    | `S_L_MR3`   | MRW(MR3) DS 40 ohm         | `0x02`  | `t_mrd_wait`            |
+| 7    | `S_DONE`    | assert `init_done`         | —       | —                       |
 
-Real-time delays embedded in `post_delay`: step 1 = 100 ns; step 2 = 200 µs; step 3 = 11 µs; step 5 = 10 µs; step 7 timeout = 1 ms; subsequent MRS = tMRD.
+The LPDDR2 branch reuses the same CSR waits as DDR2: `t_init_wait` covers both
+tINIT and tINIT4, `t_dll_wait` covers tZQINIT, and `t_mrd_wait` covers the
+post-MRW tMRW delay.
 
-## Self-Refresh Entry (Both Memtypes)
+LPDDR2 is now fully functional in sim: reads and writes, bit-exact JESD209-2F CA
+encoding, and the full MR init chain above.
 
-Used during power-state FSM transitions:
+## Inter-Command Waits (CSR-Backed)
 
-| Step | Type             | Description                                            |
-|------|------------------|--------------------------------------------------------|
-| 1    | `WAIT_FOR_BIT`   | Wait for all banks idle and refresh complete           |
-| 2    | `ISSUE_CMD`      | PRECHARGE all                                          |
-| 3    | `SET_CTRL_BITS`  | CKE low + ODT off (initiates self-refresh)             |
-| 4    | `END`            | FSM transitions to SELF_REFRESH state                  |
+The JEDEC inter-command delays were previously hardcoded; they are now driven by
+CSR fields (zero-extended to the 16-bit internal countdown). All counts are in
+MC (`aclk`) cycles.
 
-## Self-Refresh Exit (Both Memtypes)
+| CSR field                  | Purpose                | Reset value |
+|----------------------------|------------------------|-------------|
+| `INIT_TIMING0.t_init_wait` | CKE / tINIT settle     | 512         |
+| `INIT_TIMING0.t_dll_wait`  | DLL lock (tDLLK)       | 256         |
+| `INIT_TIMING1.t_mrd_wait`  | post mode-register (tMRD) | 8        |
+| `INIT_TIMING1.t_rp_wait`   | post precharge (tRP)   | 8           |
+| `INIT_TIMING1.t_rfc_wait`  | post auto-refresh (tRFC) | 16        |
 
-| Step | Type             | Description                                            |
-|------|------------------|--------------------------------------------------------|
-| 1    | `SET_CTRL_BITS`  | CKE high (initiates self-refresh exit)                 |
-| 2    | `DELAY`          | tXSNR (~200 ns)                                        |
-| 3    | `END`            | FSM transitions to ACTIVE                              |
+Init is a one-time event, so generous margins are fine — the reset defaults
+comfortably cover the JEDEC minimums at the on-board clock rate. Simulation
+programs shorter `INIT_TIMING*` values to keep test runtimes practical; there is
+no separate scaling parameter — the shorter waits are just smaller CSR values.
 
-## LPDDR2 Deep Power Down Entry
+## Power-State Transitions
 
-| Step | Type             | Description                                            |
-|------|------------------|--------------------------------------------------------|
-| 1    | `WAIT_FOR_BIT`   | Wait for all banks idle and refresh complete           |
-| 2    | `ISSUE_CMD`      | PRECHARGE all                                          |
-| 3    | `ISSUE_CMD`      | DPD command (special LPDDR2 encoding)                  |
-| 4    | `SET_CTRL_BITS`  | CKE low                                                |
-| 5    | `END`            | FSM transitions to DPD state                           |
+Self-refresh and deep-power-down transitions are handled by the optional
+`powerdown_ctrl.sv` power-state FSM, not by the init sequencer. On an idle
+threshold it requests a low-power state and drops CKE (`dfi_cke_o`); it wakes on
+any new controller activity. The two supported entry modes are:
 
-## LPDDR2 Deep Power Down Exit
+- Precharge Power Down (PDE) — CKE low, banks may stay active.
+- Self Refresh (SR) — CKE low plus the SRE command; the DRAM self-refreshes
+  internally and the controller stops issuing REFs.
 
-DPD exit loses DRAM content; the full cold-init sequence (LPDDR2 init above) must run again. The DPD exit step table is effectively just:
+Self-refresh entry requires all banks precharged first (the scheduler enforces
+this precondition before granting). Self-refresh exit timing (tXSDLL for DDR2 /
+tXSR for LPDDR2) is enforced by the scheduler; the power-state FSM itself only
+drops and restores CKE.
 
-| Step | Type             | Description                                            |
-|------|------------------|--------------------------------------------------------|
-| 1    | `JUMP_TO_TABLE`  | Restart the LPDDR2 cold init step table from step 1    |
-
-This is implemented by having the power-state FSM signal `init_engine` to restart, rather than a separate step table.
-
-## Sim Scaling
-
-All `post_delay` fields are scaled by `SIM_INIT_SCALE` during simulation. For example, a 200 µs delay (about 20,000 cycles at 100 MHz) becomes 20 cycles at `SIM_INIT_SCALE = 1000`. This keeps test runtimes practical without changing the step table logic. Silicon builds always use `SIM_INIT_SCALE = 1`.
+LPDDR2 Deep Power Down (DPD) is supported as a planned power-state entry (CKE
+low after precharge-all). DPD exit loses DRAM content, so the full LPDDR2 cold
+init sequence above must run again.

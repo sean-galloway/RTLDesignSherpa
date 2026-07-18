@@ -51,5 +51,5 @@ implied_coverage:
 
 notes: |
   Combinational decoder mapping AXI byte address into (rank, bank, row, col).
-  Three schemes selected by scheme_active_i. No FUB-level test — exercised
+  Address map driven by ADDR_MAP.bank_lsb (+ hash). FUB test sweeps bank_lsb — exercised
   through axi_frontend_macro's scheme_sweep + addr_space_sweep.

@@ -19,7 +19,8 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(__file__))
 import ddr2_char as dc
-from ddr2_char import DDR2CharDriver, HARNESS_CSR_BASE
+from ddr2_char import DDR2CharDriver, HARNESS_CSR_BASE, HARNESS_REGMAP
+from TBClasses.harness.uart_register_map import UartRegisterMap
 import pumice_master as pm
 
 
@@ -27,15 +28,17 @@ import pumice_master as pm
 # Mock device + bridge
 # --------------------------------------------------------------------------
 class MockDevice:
-    """Models a7ddrphy calibration: read CRC passes iff the write phase equals
-    GOOD_WR_PHASE and the read IDELAY tap sits inside [EYE_LO, EYE_HI]."""
+    """Models a7ddrphy READ calibration (A7 = read-leveling only): a read
+    passes iff the read bitslip equals GOOD_BITSLIP and the read IDELAY tap
+    sits inside [EYE_LO, EYE_HI]. Mirrors the corrected A7Leveling sweep
+    (bitslip x IDELAY tap, dly_sel-bracketed strobes, no PHY_RST/wrphase)."""
 
-    def __init__(self, good_wr_phase=1, eye=(8, 22), has_eye=True):
-        self.good_wr_phase = good_wr_phase
+    def __init__(self, good_bitslip=2, eye=(8, 22), has_eye=True):
+        self.good_bitslip = good_bitslip
         self.eye_lo, self.eye_hi = eye
         self.has_eye = has_eye
         self.rdly_tap = 0
-        self.wrphase = 0
+        self.bitslip = 0
         self.phy_addr = 0
         self.phy_wdata = 0
 
@@ -44,90 +47,99 @@ class MockDevice:
             self.rdly_tap = 0
         elif knob == dc.PHY_RDLY_DQ_INC:
             self.rdly_tap += 1
-        elif knob == dc.PHY_WRPHASE:
-            self.wrphase = val
-        # rst / bitslips / phase / lane-select are no-ops for this model
+        elif knob == dc.PHY_RDLY_DQ_BITSLIP_RST:
+            self.bitslip = 0
+        elif knob == dc.PHY_RDLY_DQ_BITSLIP:
+            self.bitslip = (self.bitslip + 1) % 8
+        # dly_sel / wrphase / rst / wdly bitslips are no-ops for this model
 
     def read_ok(self):
         if not self.has_eye:
             return False
-        return (self.wrphase == self.good_wr_phase
+        return (self.bitslip == self.good_bitslip
                 and self.eye_lo <= self.rdly_tap <= self.eye_hi)
 
 
 class MockBridge:
-    """read(addr)->int / write(addr,val)->bool over an in-memory reg model."""
-
-    # plausible non-zero readbacks for the perf/timer windows
-    _DEFAULTS = None
+    """read(addr)->int / write(addr,val)->bool over an in-memory reg model,
+    addressed entirely BY NAME via the same PeakRDL harness regmap the driver
+    uses -- no hardcoded offsets. (self is the bridge; UartRegisterMap.addr()
+    does no I/O, so it is safe to build during construction just to resolve
+    absolute address -> register name.)"""
 
     def __init__(self, dev: MockDevice):
         self.dev = dev
-        self.regs = {}
+        self.regs = {}                       # keyed by register NAME
+        self._rm = UartRegisterMap(self, HARNESS_CSR_BASE,
+                                   regmap_file=HARNESS_REGMAP)
+        self._name = {self._rm.addr(rn): rn for rn in self._rm.registers}
 
-    def _off(self, addr):
-        return addr - HARNESS_CSR_BASE
+    def _reg(self, addr):
+        return self._name.get(addr)
 
     def write(self, addr, val):
-        off = self._off(addr)
-        self.regs[off] = val
-        if off == dc.PHY_CSR_ADDR:
+        name = self._reg(addr)
+        if name is not None:
+            self.regs[name] = val
+        if name == "PHY_CSR_ADDR":
             self.dev.phy_addr = val
-        elif off == dc.PHY_CSR_WDATA:
+        elif name == "PHY_CSR_WDATA":
             self.dev.phy_wdata = val
-        elif off == dc.PHY_CSR_CTRL and (val & 1):
+        elif name == "PHY_CSR_CTRL" and (val & 1):
             self.dev.apply_phy(self.dev.phy_addr, self.dev.phy_wdata)
-        elif off == dc.CTRL:
+        elif name == "CTRL":
             if val & (1 << 0):                       # start_wr
-                self.regs[dc.STATUS] = self.regs.get(dc.STATUS, 0) | (1 << 0)
+                self.regs["STATUS"] = self.regs.get("STATUS", 0) | (1 << 0)
             if val & (1 << 1):                       # start_rd
-                self.regs[dc.STATUS] = self.regs.get(dc.STATUS, 0) | (1 << 1)
+                self.regs["STATUS"] = self.regs.get("STATUS", 0) | (1 << 1)
                 ok = self.dev.read_ok()
-                self.regs[dc.CRC_MATCH]    = 0b111 if ok else 0b110  # valid; match=ok
-                self.regs[dc.CRC_EXPECTED] = 0xABCD
-                self.regs[dc.CRC_ACTUAL]   = 0xABCD if ok else 0xDEAD
-                self.regs[dc.BEATS_MISM]   = 0 if ok else 4
+                self.regs["CRC_MATCH"]    = 0b111 if ok else 0b110  # valid; match=ok
+                self.regs["CRC_EXPECTED"] = 0xABCD
+                self.regs["CRC_ACTUAL"]   = 0xABCD if ok else 0xDEAD
+                self.regs["BEATS_MISM"]   = 0 if ok else 4
             if val & (1 << 2):                       # clear_stats
-                self.regs[dc.STATUS] = 0
+                self.regs["STATUS"] = 0
             if val & (1 << 4):                       # soft_reset
-                self.regs[dc.STATUS] = 0
+                self.regs["STATUS"] = 0
         return True
 
     def read(self, addr):
-        off = self._off(addr)
-        if off == dc.BUILD_ID:
+        name = self._reg(addr)
+        if name == "BUILD_ID":
             return 0x4444_5232
-        if off == dc.PHY_CSR_RDATA:
+        if name == "PHY_CSR_RDATA":
             return 0
         # timer window
-        if off == dc.TIMER_STATUS:
+        if name == "TIMER_STATUS":
             return 0b101                 # done + pass
-        if off in (dc.TIMER_CYC_LO,):
+        if name == "TIMER_CYCLES_LO":
             return 5000
-        if off in (dc.TIMER_R_FIRST_LO, dc.TIMER_W_FIRST_LO):
+        if name in ("TIMER_R_FIRST_LO", "TIMER_W_FIRST_LO"):
             return 10
-        if off in (dc.TIMER_R_LAST_LO, dc.TIMER_W_LAST_LO):
+        if name in ("TIMER_R_LAST_LO", "TIMER_W_LAST_LO"):
             return 5010
         # perf bus meters (util ~= 800/1000 = 80%)
-        if off in (dc.OBS_RD_PROD, dc.OBS_WR_PROD):
+        if name in ("OBS_RD_PROD", "OBS_WR_PROD"):
             return 800
-        if off in (dc.OBS_RD_BP, dc.OBS_WR_BP):
+        if name in ("OBS_RD_BP", "OBS_WR_BP"):
             return 100
-        if off in (dc.OBS_RD_STARV, dc.OBS_WR_STARV,
-                   dc.OBS_RD_IDLE, dc.OBS_WR_IDLE):
+        if name in ("OBS_RD_STARV", "OBS_WR_STARV",
+                    "OBS_RD_IDLE", "OBS_WR_IDLE"):
             return 50
-        if off == dc.OBS_HIST_COUNT:
+        if name == "OBS_HIST_COUNT":
             return 7
-        if off == dc.OBS_HIST_TOTAL:
+        if name == "OBS_HIST_TOTAL":
             return 100
-        return self.regs.get(off, 0)
+        return self.regs.get(name, 0)
 
 
 def _mk_driver(dev: MockDevice) -> DDR2CharDriver:
-    """Build a DDR2CharDriver with the mock bridge (no serial port opened)."""
-    drv = object.__new__(DDR2CharDriver)
-    drv.bridge = MockBridge(dev)
-    return drv
+    """Build a DDR2CharDriver with the mock bridge (no serial port opened).
+
+    Uses the real constructor via bridge injection, so this exercises the
+    same by-name UartRegisterMap path as the silicon/sim flows.
+    """
+    return DDR2CharDriver(bridge=MockBridge(dev))
 
 
 # --------------------------------------------------------------------------
@@ -139,11 +151,11 @@ def test_build_id_reads_back():
 
 
 def test_leveling_finds_eye():
-    dev = MockDevice(good_wr_phase=2, eye=(9, 21))
+    dev = MockDevice(good_bitslip=2, eye=(9, 21))
     drv = _mk_driver(dev)
-    res = pm.A7Leveling(drv, base_addr=0x0, txn_count=4, verbose=False).run()
+    res = pm.A7Leveling(drv, base_addr=0x0, txn_count=2, verbose=False).run()
     assert res.ok, res.notes
-    assert res.wr_phase == 2
+    assert res.bitslip == 2
     lo, hi = res.rd_window
     assert (lo, hi) == (9, 21)
     assert res.rd_tap == (9 + 21) // 2          # centred
@@ -159,7 +171,7 @@ def test_leveling_fails_without_eye():
 
 
 def test_simple_passes_after_leveling():
-    dev = MockDevice(good_wr_phase=1, eye=(8, 22))
+    dev = MockDevice(good_bitslip=1, eye=(8, 22))
     drv = _mk_driver(dev)
     st = pm.SimpleTest(drv, base_addr=0x0)
     st.init(do_leveling=True)
@@ -171,7 +183,7 @@ def test_simple_passes_after_leveling():
 
 def test_simple_fails_when_uncalibrated():
     # skip leveling on a device whose default (phase 0, tap 0) is outside the eye
-    dev = MockDevice(good_wr_phase=1, eye=(8, 22))
+    dev = MockDevice(good_bitslip=1, eye=(8, 22))
     drv = _mk_driver(dev)
     st = pm.SimpleTest(drv, base_addr=0x0)
     st.init(do_leveling=False)
@@ -180,7 +192,7 @@ def test_simple_fails_when_uncalibrated():
 
 
 def test_full_characterization_sweep():
-    dev = MockDevice(good_wr_phase=1, eye=(8, 22))
+    dev = MockDevice(good_bitslip=1, eye=(8, 22))
     drv = _mk_driver(dev)
     fc = pm.FullCharacterization(drv, base_addr=0x0, txn_count=8)
     fc.init(do_leveling=True)

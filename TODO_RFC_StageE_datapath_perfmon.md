@@ -41,7 +41,7 @@ signals out," **there is no `axi_monitor` watching the STREAM datapath R or W
 bus anywhere inside the core.** Confirmed topology:
 
 - The **only** in-core AXI monitor is the **descriptor-fetch monitor**
-  (`axi4_master_rd_mon` at `projects/components/stream/rtl/macro/scheduler_group_array.sv:499`).
+  (`axi4_master_rd_mon` at `projects/components/dmas/stream/rtl/macro/scheduler_group_array.sv:499`).
   Option 1 already surfaced *its* perf window to CSR. It measures the
   **descriptor-fetch R bus only** — not the datapath.
 - **Datapath R/W utilization** (every bucket number in the perf report and the
@@ -91,7 +91,7 @@ Option 1 established the exact end-to-end route. Mirror it:
    `cfg_start_trigger = run`, `cfg_end_trigger = ~run`, `cfg_window_force_close=0`.
    Decoupled from `cfg_perf_enable` so the window accumulates without emitting
    `PktTypePerf` packets.
-3. **CSRs** added to `projects/components/stream/rtl/macro/stream_regs.rdl`
+3. **CSRs** added to `projects/components/dmas/stream/rtl/macro/stream_regs.rdl`
    (status regs `sw=r hw=w`, control reg `sw=rw hw=r`), regblock regenerated,
    `stream_regmap.py` mirrored, `stream_top_ch8.sv` drives `hwif_in.*.next` from
    the monitor outputs (see the `always_comb` block that drives `OBS_*`/`DAXMON_PERF_*`).
@@ -146,7 +146,7 @@ Bitstream only at the very end.
 - Add an `axi4_master_rd_mon` (or the lighter perf-only monitor, if you create
   one) on the **read engine R bus** and an `axi4_master_wr_mon` on the **write
   engine W bus**, inside `stream_core.sv` (alongside the read/write engines in
-  `projects/components/stream/rtl/fub/axi_read_engine.sv` /
+  `projects/components/dmas/stream/rtl/fub/axi_read_engine.sv` /
   `axi_write_engine.sv`). NOTE: `stream_core.sv` already has *dead* config hooks
   `cfg_rdeng_mon_*` / `cfg_wreng_mon_*` (assigned but never consumed) — wire the
   new monitors to those instead of inventing new config.
@@ -209,13 +209,13 @@ Bitstream only at the very end.
   sideband (`wr_active_channel_id/_valid`), already produced by `axi_write_engine.sv`
   and surfaced through `stream_core.sv`/`stream_top_ch8.sv` for the bus_meter.
 - **CRITICAL RULE #0**: the regblock under
-  `projects/components/stream/regs/generated/rtl/` is generated. After editing
+  `projects/components/dmas/stream/regs/generated/rtl/` is generated. After editing
   `stream_regs.rdl`, regenerate fully:
   ```
-  cd projects/components/stream/rtl/macro
+  cd projects/components/dmas/stream/rtl/macro
   peakrdl regblock stream_regs.rdl --cpuif passthrough -o ../../regs/generated/rtl/
   ```
-  and mirror offsets in `projects/components/stream/rtl/stream_regmap.py`.
+  and mirror offsets in `projects/components/dmas/stream/rtl/stream_regmap.py`.
 - **Area/timing**: two more full AXI monitors + per-channel arrays + histograms
   on the FPGA (xc7a100t) may stress utilization/timing. Check
   `make utilization` / `make timing` after the build; the baseline closed with
@@ -249,13 +249,13 @@ Bitstream only at the very end.
 |---|---|
 | Perf primitives (ports, window FSM, buckets) | `rtl/amba/shared/axi_monitor_base.sv` (window FSM `:542`, buckets `:617`, `WIN_CLOSING` zero `:562`) |
 | Read/write monitor wrappers | `rtl/amba/axi4/axi4_master_rd_mon.sv`, `axi4_master_wr_mon.sv` |
-| Desc monitor instance (option-1 template) | `projects/components/stream/rtl/macro/scheduler_group_array.sv:499` |
-| Datapath engines (where new monitors go) | `projects/components/stream/rtl/fub/axi_read_engine.sv`, `axi_write_engine.sv` |
-| Core (dead `cfg_rdeng_mon_*`/`cfg_wreng_mon_*` hooks to reuse) | `projects/components/stream/rtl/macro/stream_core.sv` |
-| Top (two `USE_AXI_MONITORS` variants) | `projects/components/stream/rtl/top/stream_top_ch8.sv` |
-| CSR source (regenerate after edits) | `projects/components/stream/rtl/macro/stream_regs.rdl` |
-| Generated regblock (RULE #0) | `projects/components/stream/regs/generated/rtl/stream_regs{,_pkg}.sv` |
-| Python regmap mirror | `projects/components/stream/rtl/stream_regmap.py` |
+| Desc monitor instance (option-1 template) | `projects/components/dmas/stream/rtl/macro/scheduler_group_array.sv:499` |
+| Datapath engines (where new monitors go) | `projects/components/dmas/stream/rtl/fub/axi_read_engine.sv`, `axi_write_engine.sv` |
+| Core (dead `cfg_rdeng_mon_*`/`cfg_wreng_mon_*` hooks to reuse) | `projects/components/dmas/stream/rtl/macro/stream_core.sv` |
+| Top (two `USE_AXI_MONITORS` variants) | `projects/components/dmas/stream/rtl/top/stream_top_ch8.sv` |
+| CSR source (regenerate after edits) | `projects/components/dmas/stream/rtl/macro/stream_regs.rdl` |
+| Generated regblock (RULE #0) | `projects/components/dmas/stream/regs/generated/rtl/stream_regs{,_pkg}.sv` |
+| Python regmap mirror | `projects/components/dmas/stream/rtl/stream_regmap.py` |
 | `axi_bus_meter` (to retire) | `rtl/amba/shared/axi_bus_meter.sv` |
 | Bus-meter instances + harness CSR | `projects/NexysA7/stream_characterization/flows-stream-bridge/rtl/stream_char_harness.sv:1667,1699`; `…/stream_char_framework/rtl/harness_csr.sv` (R `+0x100`, W `+0x180`) |
 | Host meter reader (to repoint) | `…/flows-stream-bridge/host/read_bus_meters.py` |

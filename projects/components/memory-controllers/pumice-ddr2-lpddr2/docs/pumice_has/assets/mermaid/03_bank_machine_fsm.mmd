@@ -1,40 +1,64 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
-stateDiagram-v2
-    [*] --> IDLE: reset
+flowchart LR
+    %% bank_timer is FSM-FREE: preset/decrement countdown timers feeding a
+    %% combinational "safe_*" gate. No state machine (retired bank_machine).
 
-    IDLE --> ACTIVATING: ACT cmd
+    subgraph EVT["set_* strobes (one per issued cmd, from arbiter)"]
+        direction TB
+        s_act["set_act (+ row_i)"]
+        s_rd["set_rd"]
+        s_wr["set_wr"]
+        s_pre["set_pre"]
+        s_ap["set_ap (RD/WR qualifier)"]
+    end
 
-    ACTIVATING --> ACTIVE: tRCD elapsed
+    subgraph TIMERS["Countdown timers (load on event, dec to 0)"]
+        direction TB
+        rcd["r_rcd  = tRCD   (ACT->RD/WR)"]
+        ras["r_ras  = tRAS   (ACT->PRE min)"]
+        rc["r_rc   = tRC    (ACT->ACT)"]
+        rp["r_rp   = tRP    (PRE->ACT)"]
+        preblk["r_preblk = tRTP(RD)/tWR(WR)"]
+    end
 
-    ACTIVE --> RD_BUSY: RD cmd
-    ACTIVE --> WR_BUSY: WR cmd
-    ACTIVE --> PRECHARGING: PRE cmd (tRAS met)
+    subgraph ROW["Row state (not an FSM)"]
+        direction TB
+        rowv["r_row_valid + r_open_row<br/>(set on ACT; cleared on PRE / AP-fire)"]
+        append["r_ap_pending bit<br/>(single auto-precharge flag)"]
+    end
 
-    RD_BUSY --> ACTIVE: CL+BL beats done
-    RD_BUSY --> PRECHARGING: RDA (auto-pre)
+    s_act --> rcd
+    s_act --> ras
+    s_act --> rc
+    s_act --> rowv
+    s_pre --> rp
+    s_rd --> preblk
+    s_wr --> preblk
+    s_ap --> append
 
-    WR_BUSY --> ACTIVE: CWL+BL beats done
-    WR_BUSY --> PRECHARGING: WRA (auto-pre)
+    apfire{{"w_ap_fire =<br/>ap_pending &&<br/>preblk==0 && ras==0"}}
+    append --> apfire
+    preblk --> apfire
+    ras --> apfire
+    apfire -->|fires| rp
+    apfire -->|"closes row"| rowv
 
-    PRECHARGING --> IDLE: tRP elapsed
+    subgraph SAFE["Combinational safe_* (single register stage = the timers)"]
+        direction TB
+        safe_act["safe_act = !row_valid && rp==0 && rc==0"]
+        safe_rdwr["safe_rd/safe_wr = row_valid && rcd==0 && !ap_pending"]
+        safe_pre["safe_pre = row_valid && ras==0 && preblk==0 && !ap_pending"]
+    end
 
-    IDLE --> REFRESHING: REFpb cmd (LPDDR2)
-    REFRESHING --> IDLE: tRFCpb elapsed
+    rp --> safe_act
+    rc --> safe_act
+    rowv --> safe_act
+    rowv --> safe_rdwr
+    rcd --> safe_rdwr
+    append --> safe_rdwr
+    rowv --> safe_pre
+    ras --> safe_pre
+    preblk --> safe_pre
+    append --> safe_pre
 
-    note right of ACTIVATING
-      Counts tRCD
-      open_row stored
-    end note
-
-    note right of WR_BUSY
-      Counts CWL pipeline
-      then BL beats
-      then tWR
-    end note
-
-    note left of PRECHARGING
-      Triggered by:
-      - explicit PRE
-      - RDA / WRA
-      - row conflict
-    end note
+    SAFE --> arb["arbiter reads readiness<br/>(1-cycle latency; no multi-stage FSM lag)"]

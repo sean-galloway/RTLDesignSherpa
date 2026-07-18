@@ -8,12 +8,12 @@ SV2V      := sv2v
 
 # Include paths for sv2v preprocessing
 INC := -I$(REPO_ROOT)/rtl/amba/includes \
-       -I$(REPO_ROOT)/projects/components/stream/rtl/includes
+       -I$(REPO_ROOT)/projects/components/dmas/stream/rtl/includes
 
 # Package files (order matters: dependencies first)
 PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/monitor_arbiter_pkg.sv \
-        $(REPO_ROOT)/projects/components/stream/rtl/includes/stream_pkg.sv
+        $(REPO_ROOT)/projects/components/dmas/stream/rtl/includes/stream_pkg.sv
 
 # RTL dependencies (full transitive closure)
 # descriptor_engine deps: gaxi_fifo_sync, gaxi_skid_buffer, counter_bin, fifo_control
@@ -26,11 +26,11 @@ DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
         $(REPO_ROOT)/rtl/amba/shared/monbus_arbiter.sv \
-        $(REPO_ROOT)/projects/components/stream/rtl/fub/descriptor_engine.sv \
-        $(REPO_ROOT)/projects/components/stream/rtl/fub/scheduler.sv
+        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/descriptor_engine.sv \
+        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/scheduler.sv
 
 # Device under test
-DUT := $(REPO_ROOT)/projects/components/stream/rtl/macro/scheduler_group.sv
+DUT := $(REPO_ROOT)/projects/components/dmas/stream/rtl/macro/scheduler_group.sv
 
 # Post-processing script to fix multi-driver issues in sv2v output.
 # The descriptor_engine RTL (instantiated inside scheduler_group) has two

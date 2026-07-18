@@ -52,7 +52,7 @@
 
 ### Related Components
 - **RAPIDS DMA**: Rapid AXI Programmable In-band Descriptor System
-  - See `projects/components/rapids/docs/rapids_spec/`
+  - See `projects/components/dmas/rapids/docs/rapids_spec/`
 - **HIVE Control**: VexRiscv-based control plane
   - See `projects/components/hive/` (if available)
 

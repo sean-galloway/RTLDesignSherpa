@@ -126,7 +126,11 @@ addr_width  = 32
 data_width  = 32
 user_width  = 0
 base_addr   = "0x00000000"
-addr_range  = "0x00001000"     # 4 KB
+# 8 KB: STREAM's monitor CSR block was relocated to 0x1000+ (APB_ADDR_WIDTH=13
+# in stream_top_ch8). The decode window must cover 0x0000-0x1FFF or the RDMON/
+# WRMON perf CSRs at 0x1180/0x11B0 are a decode hole (was 4 KB -> perf unreadable).
+# harness_csr is at 0x10000, so there is ample room below it.
+addr_range  = "0x00002000"     # 8 KB (was 4 KB; monitors @ 0x1000+)
 
 [[bridge.slaves]]
 name        = "harness_csr"

@@ -56,7 +56,7 @@ The `projects/components/` directory contains demonstration components showcasin
 | **[rapids](#rapids)** | Accelerator | 🔧 In Progress | DMA with network integration | Very High |
 | **[retro_legacy_blocks](#retro_legacy_blocks)** | Peripherals | 🟢 Active Dev | Intel ILB-compatible legacy peripherals | Medium |
 | **[shims](#shims)** | Adapter | ✅ Complete | Protocol conversion adapters | Low-Medium |
-| **[stream](#stream)** | DMA Engine | 🟢 95% Complete | Tutorial-focused scatter-gather DMA | Medium-High |
+| **[stream](#stream)** | DMA Engine | ✅ Complete | Tutorial-focused scatter-gather DMA | Medium-High |
 
 ---
 
@@ -262,8 +262,8 @@ Complex hardware accelerator demonstrating descriptor-based DMA operations with 
 - Documentation: `PRD.md`, `CLAUDE.md`, `docs/rapids_spec/` (complete specification)
 
 **📖 See:**
-- [`rapids/PRD.md`](rapids/PRD.md) - Requirements overview
-- [`rapids/docs/rapids_spec/rapids_index.md`](rapids/docs/rapids_spec/rapids_index.md) - Complete specification
+- [`dmas/rapids/PRD.md`](dmas/rapids/PRD.md) - Requirements overview
+- [`dmas/rapids/docs/rapids_spec/rapids_index.md`](dmas/rapids/docs/rapids_spec/rapids_index.md) - Complete specification
 
 ---
 
@@ -310,7 +310,7 @@ Collection of protocol conversion adapters and glue logic modules for interfacin
 
 **STREAM - Scatter-gather Transfer Rapid Engine for AXI Memory**
 
-**Status:** 🟢 95% Complete - APB Config and Top-Level Wrapper Pending
+**Status:** ✅ Complete - all core blocks + APB config + top-level wrapper passing (on-board FPGA characterization pending)
 
 **Description:**
 Simplified DMA engine designed as a beginner-friendly tutorial demonstrating descriptor-based scatter-gather patterns. Intentionally simplified from RAPIDS for educational purposes.
@@ -318,10 +318,13 @@ Simplified DMA engine designed as a beginner-friendly tutorial demonstrating des
 **Key Features:**
 - 8 independent channels with shared resources
 - APB configuration with simple kick-off mechanism
+- Kick-burst fast path: program per-channel address registers, then one go-bit write starts N channels back-to-back on a single clock cycle (in addition to the per-channel APB kick)
 - Descriptor-based scatter-gather with chaining support
 - Separate read/write AXI engines (multiple versions planned)
+- Optional extended row/column-major (2-D / transpose) addressing via `dma_address_gen`, compile-time gated (`USE_ROW_COL_MAJOR_ADDRESSING`, default off = legacy linear)
 - Aligned addresses only (tutorial simplification)
 - Length specified in beats (not bytes/chunks)
+- On-board FPGA characterization suite (NexysA7) with by-name register access and per-mode throughput reporting
 
 **Simplifications from RAPIDS:**
 - ✅ Aligned addresses only (no fixup logic)
@@ -348,7 +351,7 @@ Simplified DMA engine designed as a beginner-friendly tutorial demonstrating des
 - Documentation: `PRD.md`, `CLAUDE.md`, `docs/stream_spec/` (complete microarchitecture)
 - Performance Model: `bin/dma_model/` (comprehensive analytical + SimPy models)
 
-**📖 See:** [`stream/PRD.md`](stream/PRD.md) for complete specification
+**📖 See:** [`dmas/stream/PRD.md`](dmas/stream/PRD.md) for complete specification
 
 ---
 
@@ -771,23 +774,23 @@ gtkwave hpet/logs/{test_name}.vcd
 
 ```bash
 # Using make targets (RECOMMENDED)
-cd projects/components/rapids/dv/tests/
+cd projects/components/dmas/rapids/dv/tests/
 make run-fub-func-parallel          # FUB tests, 48 workers
 make run-macro-func-parallel        # Macro tests, 48 workers
 make run-system-func-parallel       # System tests, 48 workers
 make run-all-gate-parallel          # Quick smoke test
 
 # Direct pytest invocation
-pytest projects/components/rapids/dv/tests/fub_tests/scheduler/ -v
-pytest projects/components/rapids/dv/tests/fub_tests/descriptor_engine/ -v
-pytest projects/components/rapids/dv/tests/integration_tests/ -v
-pytest projects/components/rapids/dv/tests/ -v
+pytest projects/components/dmas/rapids/dv/tests/fub_tests/scheduler/ -v
+pytest projects/components/dmas/rapids/dv/tests/fub_tests/descriptor_engine/ -v
+pytest projects/components/dmas/rapids/dv/tests/integration_tests/ -v
+pytest projects/components/dmas/rapids/dv/tests/ -v
 ```
 
 #### Running STREAM Performance Models
 
 ```bash
-cd projects/components/stream/bin/dma_model/bin/
+cd projects/components/dmas/stream/bin/dma_model/bin/
 
 # Comprehensive analysis with all modes
 python3 comprehensive_analysis.py --include-perfect --plots --report
@@ -999,7 +1002,7 @@ pytest projects/components/{component}/dv/tests/ -v
 verilator --lint-only projects/components/{component}/rtl/{module}.sv
 
 # Generate performance reports (stream)
-cd projects/components/stream/bin/dma_model/bin/
+cd projects/components/dmas/stream/bin/dma_model/bin/
 python3 comprehensive_analysis.py --report
 
 # View waveforms
@@ -1042,7 +1045,7 @@ make help                        # Show all available targets
 **Recent Updates:**
 - **Miscellaneous (NEW):** Created utility component area for ROM/RAM wrappers and other reusable building blocks
 - **Retro Legacy Blocks:** Reorganized apb_hpet as mega-block with 13 total peripherals (2 complete: HPET, 8254 PIT)
-- **STREAM:** Nearly complete at 95%, all core blocks passing tests
+- **STREAM:** Complete - all core blocks passing tests; kick-burst fast path + optional 2-D/transpose addressing added (on-board characterization pending)
 - **Bridge:** 95% complete with comprehensive test infrastructure
 - **BCH and HIVE:** Added as planned components with documentation structure
 - Updated directory structure to reflect all 11 component areas

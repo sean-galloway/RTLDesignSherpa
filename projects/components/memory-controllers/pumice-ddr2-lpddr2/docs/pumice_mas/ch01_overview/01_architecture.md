@@ -23,108 +23,135 @@
 
 # Architecture and Datapath
 
-This chapter is the implementation-level architectural orientation: the macro
-hierarchy, the read/write datapath flow, and the clocking topology. Per-FUB
-detail is in §2.
+This chapter is the implementation-level architectural orientation: the live
+three-layer hierarchy, the read/write datapath flow, and the clocking
+topology. Per-macro detail is in section 2; per-interface detail is in
+section 3.
 
-## Macro Hierarchy
+## Layer Hierarchy
 
-The controller is decomposed into **16 leaf FUBs grouped under 5 macros**.
-The top-of-tree is `pumice_core_macro` (which the SoC instantiates
-alongside `axi_frontend_macro`):
+The controller is a **three-layer core** wrapped by a top that adds the
+PeakRDL-generated register block. The top-of-tree is `pumice_top`
+(`rtl/top/pumice_top.sv`), with an optional host-width wrapper
+`pumice_top_geared` above it:
 
 ```
-SoC top
-├── axi_frontend_macro            5 FUBs  — host AXI4 + CAMs + snarf
-└── pumice_core_macro
-    ├── command_scheduler_macro   7 FUBs  — "what command to issue this cycle"
-    ├── data_path_macro           2 FUBs  — "move bytes between AXI and DFI"
-    └── dfi_v21_interface_macro   2 FUBs  — "translate to DFI v2.1 wires"
+pumice_top_geared (rtl/top/pumice_top_geared.sv)   -- OPTIONAL host-width wrapper
+  |- axi4_dwidth_converter_wr/_rd (formal IP; only when HOST_AXI_DATA_WIDTH != DW)
+  |- pumice_top (rtl/top/pumice_top.sv)
+       |- pumice_csr (regs/generated/rtl/, PeakRDL passthrough cpuif)
+       |- pumice_core (rtl/top/pumice_core.sv)
+            |- pumice_axi4_ifc          (rtl/macro/pumice_axi4_ifc.sv)
+            |- pumice_mem_cmd_scheduler (rtl/macro/pumice_mem_cmd_scheduler.sv)
+            |- pumice_dfi_layer         (rtl/macro/pumice_dfi_layer.sv)
 ```
 
-Per-macro FUB rosters:
+`pumice_core` wires the three macros, built bottom-up:
 
-| Macro                          | FUBs                                                                                                                       |
-|--------------------------------|----------------------------------------------------------------------------------------------------------------------------|
-| `axi_frontend_macro`           | `axi_intake`, `addr_mapper`, `wr_cmd_cam`, `rd_cmd_cam`, `wr2rd_forward`                                                   |
-| `command_scheduler_macro`      | `scheduler`, `xbank_timers`, `global_timers`, `refresh_ctrl`, `powerdown_ctrl`, `mode_register`, `init_sequencer`          |
-| `data_path_macro`              | `wr_beat_sequencer`, `rd_cl_aligner`                                                                                       |
-| `dfi_v21_interface_macro`      | `dfi_cmd_formatter`, `dfi_signal_pack`                                                                                     |
+| Macro (module)             | Role                                                          | Chapter |
+|----------------------------|---------------------------------------------------------------|---------|
+| `pumice_axi4_ifc`          | Host AXI4 slave + burst splitters + write/read CAMs + snarf    | 2.1     |
+| `pumice_mem_cmd_scheduler` | Arbiter + per-bank/global timers + refresh + init + mode reg   | 2.2     |
+| `pumice_dfi_layer`         | Single async-FIFO CDC + DFI-clock command/write/read datapath  | 2.4     |
 
-All FUB outputs are strict-flop registered (Q of a dedicated flop). Macros
-are pure structural — no behavioral logic. This adds one register stage per
-macro boundary but guarantees hierarchical timing closure.
+The data path is **not** a standalone macro. Write and read burst buffers live
+in the CAMs inside `pumice_axi4_ifc` (SRAM-backed, de-FSM'd streaming readers);
+the DFI-clock serializer / aligner live in `pumice_dfi_layer`. Section 2.3
+documents this split in place of the old `data_path_macro`.
 
-## Top-Level FUB Topology
+Configuration (timings, DFI phases, page policy, address map) is delivered to
+`pumice_core` on ports, driven **by name** from the CSR `hwif_out.*` fields in
+`pumice_top`. There are no config ports on `pumice_top` other than the register
+cpuif -- software programs every timing/phase/policy through the register bus.
 
-The top-level wiring view, with macro boundaries shown:
+## Read / Write Datapath: AXI -> split -> intake -> CAM
 
-![Top-Level FUB Topology](../assets/mermaid/01_top_fub_topology.png)
+The host AXI4 face is `pumice_axi4_ifc`. Each host burst is first split at
+DRAM-burst-byte boundaries by the shared `axi_master_wr_splitter` /
+`axi_master_rd_splitter` (one DRAM burst per split command), then handed to the
+dumb 1:1 intakes:
 
-**Source:** [01_top_fub_topology.mmd](../assets/mermaid/01_top_fub_topology.mmd)
+- `pumice_wr_intake` (`axi4_slave_wr` + AW-meta FIFO + wr-data FIFO + `addr_mapper`)
+  pushes `(bank, row, col, id)` plus write data into `pumice_wr_data_cam`.
+- `pumice_rd_intake` (`axi4_slave_rd` + `addr_mapper` + snarf probe) pushes
+  `(bank, row, col, id)` into `pumice_rd_cmd_cam`, and probes the write CAM for
+  read-your-write forwarding.
 
-The salient property: there is exactly **one** stage where AXI-layer concepts (burst, ID, write strobe) cross into DRAM-layer concepts (rank, bank, row, column). That stage is `addr_mapper` → `{rd,wr}_cmd_cam`. Upstream of `addr_mapper` everything is AXI; downstream of the CAMs everything is DRAM.
-
-## Read / Write Datapath: AXI → addr-hash → CAM
-
-The user-facing entry point is `axi_intake`. From the intake, the read and write paths share `addr_mapper` (one cycle) and then split into two separate CAMs:
-
-![AXI → addr_mapper → CAMs Datapath](../assets/mermaid/02_axi_to_cam_datapath.png)
-
-**Source:** [02_axi_to_cam_datapath.mmd](../assets/mermaid/02_axi_to_cam_datapath.mmd)
+The salient property: there is exactly **one** stage where AXI-layer concepts
+(burst, ID, write strobe) cross into DRAM-layer concepts (rank, bank, row,
+column). That stage is `addr_mapper` inside each intake. Upstream everything is
+AXI; downstream of the CAMs everything is DRAM.
 
 ### Why Two CAMs, Not One
 
-The CAM split happens here, not at the scheduler, because read and write CAMs hold **different metadata** and have **different lifetimes**:
+The CAM split is between the write and read paths because the two CAMs hold
+**different metadata**, carry **different data**, and have **different
+lifetimes**:
 
-| CAM            | Key      | Data                                                       | Cleared on             |
-|----------------|----------|------------------------------------------------------------|------------------------|
-| `wr_cmd_cam`   | AXI ID   | (rank, bank, row, col, burst_len, **w_buf_ptr**, **strb_ptr**) | B-channel response push |
-| `rd_cmd_cam`   | AXI ID   | (rank, bank, row, col, burst_len, **rid_counter**, **expected_beats**) | last R beat of the burst |
+| CAM                  | Key         | Data / storage                                                          | Retired on           |
+|----------------------|-------------|-------------------------------------------------------------------------|----------------------|
+| `pumice_wr_data_cam` | (bank, row) | (col, id, age, slot) + write-data SRAM; fill/commit-drain/snarf movers  | commit-done (B push) |
+| `pumice_rd_cmd_cam`  | (bank, row) | (col, id, age, slot) + read-return SRAM; return-fill/drain movers       | last drained R beat  |
 
-A single unified CAM would either carry both metadata sets (wasteful) or force an awkward "is_write" predicate on every lookup. Keeping the CAMs separate also means the read and write paths can be sized independently — the read path typically deeper because read latency is longer; the write path can be shallower because write completion is fire-and-forget.
+A single unified CAM would either carry both data sets (the write CAM needs a
+write-data SRAM the read CAM does not) or force an awkward "is_write" predicate
+on every scheduler lookup. Keeping them separate lets the read and write paths
+size independently.
 
-The two CAMs have visibly different lifecycles — note in particular that the write side stays "alive" through the post-issue write window (waiting on `b_complete` from `xbank_timers`) while the read side just counts beats:
+Both CAMs are **de-FSM'd**: each stores burst data in an SRAM and exposes a
+streaming read engine that is FIFO-fed / oldest-pick beat-counter driven -- no
+active/slot state latch. The `r_fdone` fill-complete flag gates schedulability
+(and, on the write side, snarf).
 
-![CAM Slot Lifecycles (read vs. write)](../assets/mermaid/03_cam_lifecycles.png)
+### Snarf (read-your-write forwarding)
 
-**Source:** [03_cam_lifecycles.mmd](../assets/mermaid/03_cam_lifecycles.mmd)
+`pumice_rd_intake` probes the write CAM before scheduling a read. On a hit the
+read is streamed directly from the write CAM's SRAM via the **snarf mover** in
+`pumice_wr_data_cam` -- there is no standalone `wr2rd_forward` block in the live
+path. Snarf is limited to unscheduled writes with the same id and same burst
+length.
 
-### Why the XOR Happens Before the CAM
+## Scheduler and Command Stream
 
-Address XOR / hash (`addr_mapper`) **must** happen before the CAM push because the CAM stores the post-decode (rank, bank, row, col) tuple — not the raw AXI address. Two reasons:
-
-1. **Stable CAM key data.** The CAM is queried by the scheduler in the (rank, bank) dimension — for example, "do any pending writes target rank 0 bank 3, row R?" Storing the post-decode tuple makes this a direct comparison; storing the raw AXI address would force the scheduler to re-XOR on every match.
-
-2. **Address-mapping scheme is per-controller, not per-burst.** The `ADDR_MAP_TUNING.scheme_or` field is global to the controller. If we stored raw addresses, a runtime scheme change (which can happen at any quiet point) would force a CAM walk to re-decode every entry. Storing the decoded tuple means a scheme change only affects **new** AXI bursts — old in-flight bursts continue with their decoded address. This matches the quiet-point semantics in HAS §6.3.
-
-The `addr_mapper` is **combinational** — no pipeline stage between AXI intake and CAM push — so the timing budget for the XOR network is one cycle minus the AXI register-slice slack. See `ch02_blocks/03_addr_mapper.md` for the timing breakdown.
-
-### Why the AXI-side metadata stays in `axi_intake`
-
-Some AXI fields (`awcache`, `awprot`, `awqos`, `awregion`, `bid`/`rid`) never need to cross into DRAM-layer state. These are held in small **side tables** inside `axi_intake`, indexed by the same AXI ID that keys the CAMs. The CAM holds the *DRAM* state; the side table holds the *AXI* state. On B/R completion, the CAM produces the completion signal and the side table produces the response metadata; the two are joined at the AXI return port.
-
-This split keeps the CAM narrow (16 ID slots × ~36 bits in the default config) and pushes the AXI-specific clutter into the FUB that already owns the protocol.
+`pumice_mem_cmd_scheduler` queries both CAMs in the (bank, row) dimension via
+`N_LU = NUM_BANKS` parallel lookup ports, picks one command with
+`pumice_cmd_arbiter` (the open-page decision is **inline** in the arbiter --
+there is no separate `page_predictor` in the issue path), and emits a single
+abstract DRAM command `{op, rank, bank, row, col, ap}` into an output command
+FIFO. The scheduler is single-issue, PHY/nphases-agnostic, and runs entirely on
+`aclk`. Per-bank JEDEC readiness is stamped by `pumice_bank_timers` (wrapping
+the FSM-free `bank_timer`); cross-bank turnaround windows
+(tFAW/tRRD/tWTR/tRTW/tCCD) come from `global_timers`.
 
 ## Clocking Topology
 
-Two external clocks; one CDC.
+Two external clocks; exactly one CDC.
 
-| Clock         | Frequency Range | Drives                                                |
-|---------------|-----------------|-------------------------------------------------------|
-| `mc_clk`      | 100–500 MHz     | All DRAM-layer FUBs (everything in core_macro) plus `axi_frontend_macro` |
-| `apb_pclk`    | 25–100 MHz      | (CSR slave — not yet implemented)                     |
+| Clock     | Domain members                                                          |
+|-----------|-------------------------------------------------------------------------|
+| `aclk`    | Host AXI, burst splitters, both CAMs, and the whole command scheduler   |
+| `dfi_clk` | DFI command path, write serializer, read aligner, DFI 2.1 pin bus       |
 
-A future CSR slave will own the single CDC between `apb_pclk` and `mc_clk`. CSR overrides will be handed off across this CDC into a quiet-point staging register; override-application happens at the next quiet point on `mc_clk`. Quiet-point detection lives in `powerdown_ctrl` (no commands in flight, no refresh in progress). v1 has no CSR — runtime values are driven directly from the testbench.
-
-There is **no CDC** in the AXI4 datapath — `axi_intake` runs in the `mc_clk` domain. If the SoC's AXI master is on a different clock, an external clock converter is required upstream of the controller.
+The single CDC lives inside `pumice_dfi_layer` (`pumice_dfi_cdc`) and is built
+from **async gaxi FIFOs only** -- the command, write-data, and read-data streams
+plus the init handshake cross there. No other clock crossing exists in the
+controller. If the SoC's AXI master is on a different clock than `aclk`, an
+external clock converter is required upstream. See section 1.3 for the reset
+topology.
 
 ## DFI Phase / Rate Topology
 
-The DFI v2.1 master interface is `DFI_RATE`-deep (per-phase × N widths). The
-MC clock drives one frame of `DFI_RATE` DFI cycles per MC clock cycle. The
-`dfi_signal_pack` FUB aggregates scheduler-issued commands and data into the
-right per-phase slot. The scheduler does not see the phase dimension — its
-issue rate is one command per MC clock; the pack absorbs all of the
-phase-level scheduling. v1 uses phase 0 for the command; other phases drive
-NOP.
+The internal data unit is the **DFI word**: `DW = DRAM_BEAT_WIDTH * DFI_RATE`
+(128 by default). One AXI beat == one DFI word == `DFI_RATE` DRAM beats; one AXI
+burst (`BL/DFI_RATE` beats) == one DRAM burst (`BL` beats). The DFI command path
+in `pumice_dfi_layer` phase-packs the abstract command onto the `DFI_RATE`
+phases, placing the command and CS/ODT on `wr_phase` / `rd_phase` as programmed
+by the `DFI_PHASE` CSR; `pumice_dfi_wr_serializer` and `pumice_dfi_rd_aligner`
+handle the DFI-word to per-phase data split. The scheduler never sees the phase
+dimension -- its issue rate is one command per `aclk`.
+
+The old "AXI_DATA_WIDTH == DRAM_BEAT_WIDTH" coupling is gone. Host-width freedom
+is a separate concern handled by the optional `pumice_top_geared` wrapper, which
+inserts the formally-verified `axi4_dwidth_converter_wr/_rd` between a
+host-width AXI slave and the fixed-`DW` core (HOST == DW is a bit-identical
+generate bypass). See `docs/AXI_DRAM_GEARING_SCOPE.md`.

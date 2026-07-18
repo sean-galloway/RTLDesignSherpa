@@ -10,4 +10,4 @@ $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/include
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/dfi_cmd_formatter.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/dfi_signal_pack.sv
 
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/dfi_v21_interface_macro.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/OLD/dfi_v21_interface_macro.sv

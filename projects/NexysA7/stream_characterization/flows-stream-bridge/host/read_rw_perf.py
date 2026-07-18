@@ -25,20 +25,20 @@
 # 64-bit (LO/HI).
 #
 # Register map (STREAM regblock, base = 0x0; see stream_regmap.py). Both blocks
-# share an identical 11-register layout at 0x04 stride, so one base + offset
-# table reads either:
-#   +0x00 PERF_CTRL    RUN[0]
-#   +0x04 PERF_STATUS  WIN_ACTIVE[0]
-#   +0x08 WINDOW_CYCLES
-#   +0x0C PROD_CYCLES
-#   +0x10 BP_CYCLES
-#   +0x14 STARV_CYCLES
-#   +0x18 IDLE_CYCLES
-#   +0x1C BEAT_COUNT
-#   +0x20 BYTE_COUNT_LO
-#   +0x24 BYTE_COUNT_HI
-#   +0x28 BURST_COUNT
-# RDMON_PERF base = 0x300, WRMON_PERF base = 0x330.
+# share an identical 11-register layout, so one name PREFIX + the shared
+# per-metric suffixes resolves either block BY NAME (A("<prefix>_<suffix>")):
+#   <prefix>_CTRL          RUN[0]
+#   <prefix>_STATUS        WIN_ACTIVE[0]
+#   <prefix>_WINDOW_CYCLES
+#   <prefix>_PROD_CYCLES
+#   <prefix>_BP_CYCLES
+#   <prefix>_STARV_CYCLES
+#   <prefix>_IDLE_CYCLES
+#   <prefix>_BEAT_COUNT
+#   <prefix>_BYTE_COUNT_LO
+#   <prefix>_BYTE_COUNT_HI
+#   <prefix>_BURST_COUNT
+# prefix = "RDMON_PERF" (data-read) | "WRMON_PERF" (data-write).
 
 import argparse
 import os
@@ -59,35 +59,30 @@ if _repo_root:
     sys.path.insert(0, os.path.join(_repo_root, "projects/components/converters/bin"))
 
 # STREAM regblock lives at bridge slave 0 (base 0x0). Block bases + the shared
-# per-register offsets mirror projects/components/stream/rtl/stream_regmap.py.
+# per-register offsets mirror projects/components/dmas/stream/rtl/stream_regmap.py.
 STREAM_APB_BASE = 0x0000_0000
-RDMON_PERF_BASE = STREAM_APB_BASE + 0x300
-WRMON_PERF_BASE = STREAM_APB_BASE + 0x330
+# Monitor CSRs relocated to the 0x1000+ MON regfile (STREAM APB now 8 KB);
+# addresses from stream_regmap.py. The char harness stream_apb window was widened
+# to 8 KB to reach them (was 4 KB -> perf read 0).
+from stream_addrs import A, write_reg   # noqa: E402 (after sys.path setup)
 
-OFF_CTRL          = 0x00
-OFF_STATUS        = 0x04
-OFF_WINDOW_CYCLES = 0x08
-OFF_PROD_CYCLES   = 0x0C
-OFF_BP_CYCLES     = 0x10
-OFF_STARV_CYCLES  = 0x14
-OFF_IDLE_CYCLES   = 0x18
-OFF_BEAT_COUNT    = 0x1C
-OFF_BYTE_COUNT_LO = 0x20
-OFF_BYTE_COUNT_HI = 0x24
-OFF_BURST_COUNT   = 0x28
-
-PERF_RUN_BIT = 1 << 0
+# Every perf CSR is resolved BY NAME from stream_regmap.py -- never a hardcoded
+# offset (a hardcoded copy drifting from the regmap is what broke perf when the
+# monitors moved to 0x1000+). Each datapath block is a register-name PREFIX;
+# _read_window() appends the shared per-metric suffixes (STATUS, PROD_CYCLES,
+# ... BURST_COUNT) and A() resolves each sub-register on its own name.
+RDMON_PERF_PREFIX = "RDMON_PERF"   # data-read R bus perf-window registers
+WRMON_PERF_PREFIX = "WRMON_PERF"   # data-write W bus perf-window registers
 
 # Per-channel bucket readout (RFC Stage C, indexed). Select a channel via
 # PERF_CH_SEL, then read the packed {bp,prod}/{idle,starv} regs. Overflow masks
 # expose all channels at once ({prod,bp,starv,idle} sticky per channel).
-PERF_CH_SEL              = STREAM_APB_BASE + 0x35C
-RDMON_PERF_CH_PROD_BP    = STREAM_APB_BASE + 0x360
-RDMON_PERF_CH_STARV_IDLE = STREAM_APB_BASE + 0x364
-WRMON_PERF_CH_PROD_BP    = STREAM_APB_BASE + 0x368
-WRMON_PERF_CH_STARV_IDLE = STREAM_APB_BASE + 0x36C
-RDMON_PERF_CH_OVERFLOW   = STREAM_APB_BASE + 0x370
-WRMON_PERF_CH_OVERFLOW   = STREAM_APB_BASE + 0x374
+RDMON_PERF_CH_PROD_BP    = A("RDMON_PERF_CH_PROD_BP")
+RDMON_PERF_CH_STARV_IDLE = A("RDMON_PERF_CH_STARV_IDLE")
+WRMON_PERF_CH_PROD_BP    = A("WRMON_PERF_CH_PROD_BP")
+WRMON_PERF_CH_STARV_IDLE = A("WRMON_PERF_CH_STARV_IDLE")
+RDMON_PERF_CH_OVERFLOW   = A("RDMON_PERF_CH_OVERFLOW")
+WRMON_PERF_CH_OVERFLOW   = A("WRMON_PERF_CH_OVERFLOW")
 
 
 @dataclass(frozen=True)
@@ -125,39 +120,41 @@ class RwPerfSnapshot:
 
 def open_windows(bridge) -> None:
     """Clear + start both datapath perf windows (RUN rising edge)."""
-    bridge.write(RDMON_PERF_BASE + OFF_CTRL, PERF_RUN_BIT)
-    bridge.write(WRMON_PERF_BASE + OFF_CTRL, PERF_RUN_BIT)
+    write_reg(bridge, "RDMON_PERF_CTRL", RUN=1)
+    write_reg(bridge, "WRMON_PERF_CTRL", RUN=1)
 
 
 def close_windows(bridge) -> None:
     """Close + freeze both datapath perf windows."""
-    bridge.write(RDMON_PERF_BASE + OFF_CTRL, 0)
-    bridge.write(WRMON_PERF_BASE + OFF_CTRL, 0)
+    write_reg(bridge, "RDMON_PERF_CTRL", RUN=0)
+    write_reg(bridge, "WRMON_PERF_CTRL", RUN=0)
 
 
-def _read_window(bridge, base: int, bus: str) -> RwPerfSnapshot:
-    r = lambda off: bridge.read(base + off) & 0xFFFF_FFFF
-    byte_lo = r(OFF_BYTE_COUNT_LO)
-    byte_hi = r(OFF_BYTE_COUNT_HI)
+def _read_window(bridge, prefix: str, bus: str) -> RwPerfSnapshot:
+    # Each per-metric sub-register resolved on its own name: A("<prefix>_STATUS"),
+    # A("<prefix>_PROD_CYCLES"), ... (prefix = RDMON_PERF | WRMON_PERF).
+    r = lambda suffix: bridge.read(A(f"{prefix}_{suffix}")) & 0xFFFF_FFFF
+    byte_lo = r("BYTE_COUNT_LO")
+    byte_hi = r("BYTE_COUNT_HI")
     return RwPerfSnapshot(
         bus           = bus,
-        win_active    = r(OFF_STATUS) & 0x1,
-        window_cycles = r(OFF_WINDOW_CYCLES),
-        productive    = r(OFF_PROD_CYCLES),
-        backpressure  = r(OFF_BP_CYCLES),
-        starvation    = r(OFF_STARV_CYCLES),
-        idle          = r(OFF_IDLE_CYCLES),
-        beats         = r(OFF_BEAT_COUNT),
+        win_active    = r("STATUS") & 0x1,
+        window_cycles = r("WINDOW_CYCLES"),
+        productive    = r("PROD_CYCLES"),
+        backpressure  = r("BP_CYCLES"),
+        starvation    = r("STARV_CYCLES"),
+        idle          = r("IDLE_CYCLES"),
+        beats         = r("BEAT_COUNT"),
         bytes_moved   = (byte_hi << 32) | byte_lo,
-        bursts        = r(OFF_BURST_COUNT),
+        bursts        = r("BURST_COUNT"),
     )
 
 
 def read_rw_perf(bridge) -> dict:
     """Read both datapath monitor perf windows. Returns {'r': snap, 'w': snap}."""
     return {
-        'r': _read_window(bridge, RDMON_PERF_BASE, 'read'),
-        'w': _read_window(bridge, WRMON_PERF_BASE, 'write'),
+        'r': _read_window(bridge, RDMON_PERF_PREFIX, 'read'),
+        'w': _read_window(bridge, WRMON_PERF_PREFIX, 'write'),
     }
 
 
@@ -181,7 +178,7 @@ def read_rw_perf_channels(bridge, num_channels: int) -> dict:
     """
     rd, wr = [], []
     for ch in range(num_channels):
-        bridge.write(PERF_CH_SEL, ch)
+        write_reg(bridge, "PERF_CH_SEL", CH_SEL=ch)
         rd.append(_decode_packed(bridge.read(RDMON_PERF_CH_PROD_BP) & 0xFFFF_FFFF,
                                  bridge.read(RDMON_PERF_CH_STARV_IDLE) & 0xFFFF_FFFF))
         wr.append(_decode_packed(bridge.read(WRMON_PERF_CH_PROD_BP) & 0xFFFF_FFFF,

@@ -483,15 +483,15 @@ coverage:
 	@echo "================================================================================"
 	@echo ""
 	@echo "Phase 1: STREAM coverage..."
-	@if [ -f $(PROJECTS_DIR)/stream/dv/tests/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/stream/dv/tests fresh-coverage || true; \
+	@if [ -f $(PROJECTS_DIR)/dmas/stream/dv/tests/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/dmas/stream/dv/tests fresh-coverage || true; \
 	else \
 		echo "  STREAM coverage Makefile not found - skipping"; \
 	fi
 	@echo ""
 	@echo "Phase 2: RAPIDS coverage..."
-	@if [ -f $(PROJECTS_DIR)/rapids/dv/tests/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/rapids/dv/tests coverage-full-report || true; \
+	@if [ -f $(PROJECTS_DIR)/dmas/rapids/dv/tests/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/dmas/rapids/dv/tests coverage-full-report || true; \
 	else \
 		echo "  RAPIDS coverage Makefile not found - skipping"; \
 	fi
@@ -521,15 +521,15 @@ coverage-report:
 	@echo "================================================================================"
 	@echo ""
 	@echo "STREAM coverage report:"
-	@if [ -f $(PROJECTS_DIR)/stream/dv/tests/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/stream/dv/tests coverage-report || true; \
+	@if [ -f $(PROJECTS_DIR)/dmas/stream/dv/tests/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/dmas/stream/dv/tests coverage-report || true; \
 	else \
 		echo "  Not available"; \
 	fi
 	@echo ""
 	@echo "RAPIDS coverage report:"
-	@if [ -f $(PROJECTS_DIR)/rapids/dv/tests/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/rapids/dv/tests coverage-report || true; \
+	@if [ -f $(PROJECTS_DIR)/dmas/rapids/dv/tests/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/dmas/rapids/dv/tests coverage-report || true; \
 	else \
 		echo "  Not available"; \
 	fi
@@ -617,8 +617,8 @@ lint-rtl:
 .PHONY: lint-stream
 lint-stream:
 	@echo "=== STREAM RTL Lint ==="
-	@if [ -f $(PROJECTS_DIR)/stream/rtl/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/stream/rtl lint-all || true; \
+	@if [ -f $(PROJECTS_DIR)/dmas/stream/rtl/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/dmas/stream/rtl lint-all || true; \
 	else \
 		echo "⚠ STREAM RTL Makefile not found"; \
 	fi
@@ -626,8 +626,8 @@ lint-stream:
 .PHONY: lint-rapids
 lint-rapids:
 	@echo "=== RAPIDS RTL Lint ==="
-	@if [ -f $(PROJECTS_DIR)/rapids/rtl/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/rapids/rtl lint-all || true; \
+	@if [ -f $(PROJECTS_DIR)/dmas/rapids/rtl/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/dmas/rapids/rtl lint-all || true; \
 	else \
 		echo "⚠ RAPIDS RTL Makefile not found"; \
 	fi

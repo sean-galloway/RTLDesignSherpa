@@ -20,30 +20,30 @@ REPO_ROOT = Path(__file__).parent.parent
 
 # Test files to update (excluding test_datapath_rd_test.py which is already done)
 TEST_FILES = [
-    'projects/components/stream/dv/tests/fub_tests/test_datapath_wr_test.py',
-    'projects/components/stream/dv/tests/fub_tests/test_perf_profiler.py',
-    'projects/components/stream/dv/tests/fub_tests/test_apbtodescr.py',
-    'projects/components/stream/dv/tests/fub_tests/test_simple_sram.py',
-    'projects/components/stream/dv/tests/fub_tests/test_axi_read_engine.py',
-    'projects/components/stream/dv/tests/fub_tests/test_axi_write_engine.py',
-    'projects/components/stream/dv/tests/fub_tests/test_descriptor_engine.py',
-    'projects/components/stream/dv/tests/fub_tests/test_scheduler.py',
-    'projects/components/stream/dv/tests/fub_tests/test_sram_controller.py',
-    'projects/components/stream/dv/tests/fub_tests/test_datapath_burst_sweep.py',
-    'projects/components/stream/dv/tests/fub_tests/test_datapath_integrated.py',
+    'projects/components/dmas/stream/dv/tests/fub_tests/test_datapath_wr_test.py',
+    'projects/components/dmas/stream/dv/tests/fub_tests/test_perf_profiler.py',
+    'projects/components/dmas/stream/dv/tests/fub_tests/test_apbtodescr.py',
+    'projects/components/dmas/stream/dv/tests/fub_tests/test_simple_sram.py',
+    'projects/components/dmas/stream/dv/tests/fub_tests/test_axi_read_engine.py',
+    'projects/components/dmas/stream/dv/tests/fub_tests/test_axi_write_engine.py',
+    'projects/components/dmas/stream/dv/tests/fub_tests/test_descriptor_engine.py',
+    'projects/components/dmas/stream/dv/tests/fub_tests/test_scheduler.py',
+    'projects/components/dmas/stream/dv/tests/fub_tests/test_sram_controller.py',
+    'projects/components/dmas/stream/dv/tests/fub_tests/test_datapath_burst_sweep.py',
+    'projects/components/dmas/stream/dv/tests/fub_tests/test_datapath_integrated.py',
 ]
 
 # TB classes to update
 TB_FILES = [
-    'projects/components/stream/dv/tbclasses/datapath_wr_test_tb.py',
-    'projects/components/stream/dv/tbclasses/perf_profiler_tb.py',
-    'projects/components/stream/dv/tbclasses/apbtodescr_tb.py',
-    'projects/components/stream/dv/tbclasses/simple_sram_tb.py',
-    'projects/components/stream/dv/tbclasses/axi_read_engine_tb.py',
-    'projects/components/stream/dv/tbclasses/axi_write_engine_tb.py',
-    'projects/components/stream/dv/tbclasses/descriptor_engine_tb.py',
-    'projects/components/stream/dv/tbclasses/scheduler_tb.py',
-    'projects/components/stream/dv/tbclasses/sram_controller_tb.py',
+    'projects/components/dmas/stream/dv/tbclasses/datapath_wr_test_tb.py',
+    'projects/components/dmas/stream/dv/tbclasses/perf_profiler_tb.py',
+    'projects/components/dmas/stream/dv/tbclasses/apbtodescr_tb.py',
+    'projects/components/dmas/stream/dv/tbclasses/simple_sram_tb.py',
+    'projects/components/dmas/stream/dv/tbclasses/axi_read_engine_tb.py',
+    'projects/components/dmas/stream/dv/tbclasses/axi_write_engine_tb.py',
+    'projects/components/dmas/stream/dv/tbclasses/descriptor_engine_tb.py',
+    'projects/components/dmas/stream/dv/tbclasses/scheduler_tb.py',
+    'projects/components/dmas/stream/dv/tbclasses/sram_controller_tb.py',
 ]
 
 

@@ -37,7 +37,7 @@
 //   - AXIS_DATA_WIDTH must be a multiple of LFSR_WIDTH.
 //   - s_axis_tready = ready_en (pure sink; deassert to model backpressure).
 //
-// Documentation: projects/components/rapids/CONTROL_ENGINE_INTEGRATION.md (harness)
+// Documentation: projects/components/dmas/rapids/CONTROL_ENGINE_INTEGRATION.md (harness)
 // Subsystem: amba/shared
 
 `timescale 1ns / 1ps

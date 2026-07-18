@@ -2,9 +2,14 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
 """
-Unit-test runner for `init_sequencer`. Walks the FSM from RESET
-through DONE, verifies dfi_init_start_o asserts, verifies the MR
-write sequence (MR2 → MR3 → MR1 → MR0), and checks ZQCL handshake.
+Unit-test runner for `init_sequencer`. Walks the JEDEC DDR2 init FSM from
+RESET through DONE, verifies dfi_init_start_o asserts, and verifies the full
+mode-register write sequence:
+
+    EMRS(2) EMRS(3) EMRS(1) -> MRS(0)+DLL-reset -> [PREA, REF x2]
+    -> MRS(0) -> EMRS(1) OCD exit
+
+DDR2 has no ZQ calibration, so zqcl_req_o stays low (ZQCL is DDR3+).
 """
 
 import os
@@ -34,11 +39,27 @@ from tbclasses.trackers import InitSequencerTracker  # noqa: E402
 MEMTYPE_DDR2   = 0
 MEMTYPE_LPDDR2 = 1
 
-# Default MR values per init_sequencer
-DDR2_MR0_DEFAULT = 0x0152
+# DDR2 MR values emitted by init_sequencer (must match the RTL localparams
+# in rtl/fub/init_sequencer.sv — these are the board-tuned BL4/CL3/tWR3 set).
+DDR2_MR0_DLL     = 0x0532   # MR0 with DLL reset (A8=1) — first MRS(0)
+DDR2_MR0         = 0x0432   # MR0, DLL-reset cleared   — second MRS(0)
 DDR2_MR1_DEFAULT = 0x0000
 DDR2_MR2_DEFAULT = 0x0000
 DDR2_MR3_DEFAULT = 0x0000
+
+# Full JEDEC DDR2 mode-register write sequence (index, data), in FSM order.
+# JESD79-2 order: EMRS(2), EMRS(3), EMRS(1), MRS(0)+DLL-reset, then (after
+# PREA + REF x2) MRS(0), and EMRS(1) OCD-exit.
+# (S_OCD_DEF issues the OCD-default EMRS but intentionally leaves the shadow
+#  untouched, so it emits no mr_seq_we strobe.)
+DDR2_MR_SEQUENCE = [
+    (2, DDR2_MR2_DEFAULT),
+    (3, DDR2_MR3_DEFAULT),
+    (1, DDR2_MR1_DEFAULT),
+    (0, DDR2_MR0_DLL),
+    (0, DDR2_MR0),
+    (1, DDR2_MR1_DEFAULT),
+]
 
 
 class InitTB(TBBase):
@@ -48,6 +69,14 @@ class InitTB(TBBase):
         self.dut.memtype_i.value             = memtype
         self.dut.dfi_init_complete_i.value   = 0
         self.dut.zqcl_grant_i.value          = 0
+        # Zero the JEDEC timing waits so the FSM advances one state per S_WAIT
+        # bounce — keeps the unit walk deterministic and fast (the real tINIT/
+        # tRFC/tDLLK budgets are exercised at the macro/top level).
+        self.dut.t_init_wait_i.value = 0
+        self.dut.t_dll_wait_i.value  = 0
+        self.dut.t_mrd_wait_i.value  = 0
+        self.dut.t_rp_wait_i.value   = 0
+        self.dut.t_rfc_wait_i.value  = 0
         await self.start_clock('mc_clk', freq=self.CLK, units='ns')
         self.dut.mc_rst_n.value = 0
         await self.wait_clocks('mc_clk', 5)
@@ -101,28 +130,22 @@ async def cocotb_test_init_sequencer(dut):
         assert tb.init_start() == 1
         assert tb.init_busy() == 1
         assert tb.init_done() == 0
-        # PHY completes init
+        # PHY completes init -> FSM walks the full JEDEC MRS sequence.
         tb.dut.dfi_init_complete_i.value = 1
-        # Capture MR sequence
-        seen = await tb.capture_mr_seq(max_cycles=10)
-        # Should see MR2, MR3, MR1, MR0 in order
-        seq = [(idx, data) for idx, data in seen]
-        expected = [
-            (2, DDR2_MR2_DEFAULT),
-            (3, DDR2_MR3_DEFAULT),
-            (1, DDR2_MR1_DEFAULT),
-            (0, DDR2_MR0_DEFAULT),
-        ]
-        assert seq == expected, f"MR seq mismatch: got {seq}, want {expected}"
-        # ZQCL request follows
-        await tb.wait_clocks('mc_clk', 1)
-        assert tb.zqcl_req() == 1
-        # Grant; advance to DONE
-        tb.dut.zqcl_grant_i.value = 1
-        await tb.wait_clocks('mc_clk', 2)
-        tb.dut.zqcl_grant_i.value = 0
-        await tb.wait_clocks('mc_clk', 2)
-        assert tb.init_done() == 1
+        # Capture the whole sequence (6 MRS strobes; each state pairs with an
+        # S_WAIT bounce, and the mid-sequence PREA/REF states add cycles).
+        seen = await tb.capture_mr_seq(max_cycles=40)
+        assert seen == DDR2_MR_SEQUENCE, (
+            f"MR seq mismatch: got {seen}, want {DDR2_MR_SEQUENCE}"
+        )
+        # DDR2 has no ZQ calibration — zqcl_req must stay low throughout.
+        assert tb.zqcl_req() == 0, "zqcl_req asserted for DDR2 (should be DDR3+ only)"
+        # FSM reaches DONE after the last MRS.
+        for _ in range(20):
+            await tb.wait_clocks('mc_clk', 1)
+            if tb.init_done():
+                break
+        assert tb.init_done() == 1, "init_sequencer never reached DONE"
         assert tb.init_busy() == 0
 
     elif test_type == "wait_for_complete":
@@ -139,18 +162,20 @@ async def cocotb_test_init_sequencer(dut):
         await tb.wait_clocks('mc_clk', 1)
         assert tb.init_start() == 1
         tb.dut.dfi_init_complete_i.value = 1
-        # LPDDR2 v2 defaults — see init_sequencer.sv LPDDR2_MR{1,2,3}_DEFAULT.
-        # MR0 is read-only in LPDDR2, so the sequencer writes 0 there.
+        # LPDDR2 JEDEC init (JESD209-2F): MRW Reset(MR63) -> ZQ(MR10) ->
+        # MR1/MR2/MR3. Only MR1/MR2/MR3 update the CL/CWL/BL decode shadow;
+        # MR63/MR10 are issued to the DRAM but not shadowed. See init_sequencer.sv
+        # LPDDR2_MR{1,2,3}_OP.
         expected_lpddr2 = {
-            0: 0x0000,
-            1: 0x0082,   # BL4, nWR=3
-            2: 0x0004,   # RL3/WL1
-            3: 0x0001,   # DS=34Ω
+            1: 0x23,   # BL8, nWR=3
+            2: 0x01,   # RL3/WL1
+            3: 0x02,   # DS 40ohm
         }
-        seen = await tb.capture_mr_seq(max_cycles=10)
-        for idx, data in seen:
-            assert data == expected_lpddr2.get(idx, 0), (
-                f"LPDDR2 MR{idx} got {data:#x} want {expected_lpddr2.get(idx, 0):#x}"
+        seen = await tb.capture_mr_seq(max_cycles=20)
+        seen_map = dict(seen)
+        for idx, val in expected_lpddr2.items():
+            assert seen_map.get(idx) == val, (
+                f"LPDDR2 MR{idx} got {seen_map.get(idx)} want {val:#x} (seen={seen})"
             )
         tb.dut.zqcl_grant_i.value = 1
         await tb.wait_clocks('mc_clk', 5)
@@ -177,15 +202,16 @@ async def cocotb_test_init_sequencer(dut):
             await tb.wait_clocks('mc_clk', 3)
             tb.dut.mc_rst_n.value = 1
             await tb.wait_clocks('mc_clk', rng.randint(2, 6))
-            # Variable PHY-complete delay
+            # Variable PHY-complete delay, then let the FSM run to DONE. The
+            # full DDR2 JEDEC walk (PREA, EMRS x3, MRS0+DLL, PREA, REF x2, MRS0,
+            # OCD default+exit) is ~24 cycles with zero timing waits; LPDDR2 is
+            # shorter. Poll rather than assume a fixed cycle count.
+            await tb.wait_clocks('mc_clk', rng.randint(0, 4))
             tb.dut.dfi_init_complete_i.value = 1
-            # FSM walks S_DFI_INIT → MR2 → MR3 → MR1 → MR0 → S_ZQCL,
-            # which is 5 cycles minimum. Give it ≥6 to be safe; add
-            # randomness on top.
-            await tb.wait_clocks('mc_clk', 6 + rng.randint(0, 6))
-            # Variable ZQCL-grant delay
-            tb.dut.zqcl_grant_i.value = 1
-            await tb.wait_clocks('mc_clk', 4 + rng.randint(0, 4))
+            for _ in range(48):
+                await tb.wait_clocks('mc_clk', 1)
+                if tb.init_done():
+                    break
             assert tb.init_done() == 1, f"init not done with memtype={memtype}"
 
     else:

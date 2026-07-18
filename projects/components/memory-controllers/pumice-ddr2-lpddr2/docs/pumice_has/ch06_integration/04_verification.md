@@ -29,35 +29,38 @@ A layered verification approach with the existing DFI BFM as the primary referen
 
 ### Layer 1: Module-Level Unit Tests
 
-Each of the 17 modules gets cocotb unit tests:
+Each live FUB gets its own cocotb unit test (see `dv/tests/fub/`):
 
-| Module             | Test focus                                                       |
-|--------------------|------------------------------------------------------------------|
-| `axi4_slave`       | Channel handshakes, backpressure, burst splitting, ordering      |
-| `addr_mapper`      | Address translation across `ADDR_MAP_SCHEME` modes               |
-| `txn_queue`        | Insert / scan / removal; age saturation; row-hit caching         |
-| `scheduler`        | FR-FCFS priority order; page-policy dispatch; refresh prioritization |
-| `page_predictor`   | HAPPY table read/write; accuracy after warm-up                   |
-| `bank_machine`     | FSM transitions; timing-counter enforcement                      |
-| `xbank_timers`     | tRRD / tFAW / tWTR / tCCD against JESD79-2 / JESD209-2 truth tables |
-| `refresh_mgr`      | tREFI counter; REFab / REFpb selection; DARP idle-bank logic     |
-| `power_state`      | All FSM transitions; SR-entry/exit; DPD entry/exit (LPDDR2)      |
-| `init_engine`      | Step-by-step execution against canonical init sequences          |
-| `cmd_encoder`      | Round-trip table tests against JEDEC encoding                    |
-| `gear_out`         | 1-phase to N-phase replication; idle-phase handling              |
-| `wdata_path`       | CWL alignment; ID tagging; mask conversion                       |
-| `rdata_path`       | CL alignment; OOO completion; back-pressure                      |
-| `dfi_master`       | Tie-off behavior; aggregation correctness                        |
-| `csr_slave`        | APB3 protocol; CDC; error responses                              |
+| Module                      | Test focus                                                             |
+|-----------------------------|------------------------------------------------------------------------|
+| `pumice_wr_intake`          | AW-meta + wr-data FIFO handshakes; backpressure; burst splitting into fixed-BL commands |
+| `pumice_rd_intake`          | AR channel handshakes; address mapping; snarf (read-your-write) probe   |
+| `pumice_wr_data_cam`        | WR CAM fill / commit-drain / snarf movers; `r_fdone` fill-complete gating |
+| `pumice_rd_cmd_cam`         | RD CAM return-fill / drain movers; oldest-first, data-ready gating       |
+| `addr_mapper`               | Address translation across `ADDR_MAP.bank_lsb` settings (ROW_MAJOR .. interleave) and hash on/off |
+| `pumice_cmd_arbiter`        | Single-pick priority order; inline open-page decision; refresh prioritization |
+| `pumice_bank_timers` / `bank_timer` | Per-(rank,bank) preset/decrement timers; combinational safe_act/rd/wr/pre readiness |
+| `global_timers`             | tFAW / tRRD / tWTR / tRTW / tCCD against JESD79-2 / JESD209-2 truth tables |
+| `refresh_ctrl`              | tREFI counter; refresh-deferral; refresh request/ack handshake          |
+| `init_sequencer`            | Step-by-step DDR2 and LPDDR2 JEDEC MR init sequences                     |
+| `mode_register`             | CL / CWL / BL / AL decode (DDR2 and LPDDR2 MR2 RL/WL enum)               |
+| `dfi_cmd_formatter`         | Round-trip table tests against JEDEC encoding; LPDDR2 CA-bus branch      |
+| `dfi_signal_pack`           | DW-to-phase split; idle-phase handling                                  |
+| `pumice_dfi_cdc`            | The single async-FIFO clock-domain crossing; bubble-free cmd/wr/rd flow  |
+| `pumice_dfi_wr_serializer`  | CWL alignment; write-data serialization onto DFI phases                  |
+| `pumice_dfi_rd_aligner`     | CL alignment; read-data assembly; back-pressure                          |
+
+The four macro wrappers and the integration levels are exercised at Layer 2/3:
+`pumice_axi4_ifc`, `pumice_mem_cmd_scheduler`, `pumice_dfi_layer`, `pumice_core`,
+and `pumice_top` (the PeakRDL `pumice_csr` register block is verified with the top).
 
 ### Layer 2: Subsystem Tests
 
-Multi-module integration tests:
+Multi-module integration tests, framed around the three macro layers (see `dv/tests/macro/`):
 
-- **AXI frontend** (axi4_slave + addr_mapper + txn_queue): full AXI transaction flow with diverse traffic
-- **Scheduler subsystem** (scheduler + page_predictor + bank_machines + xbank_timers): scheduler decisions on representative queue contents
-- **Refresh subsystem** (refresh_mgr + bank_machines): REFab / REFpb sequencing on uneven bank activity
-- **Init + power FSM** (init_engine + power_state): full init followed by SR entry/exit cycle
+- **AXI interface** (`pumice_axi4_ifc` = wr/rd intakes + the two CAMs): full AXI transaction flow with diverse traffic, including read-your-write snarf forwarding
+- **Command scheduler** (`pumice_mem_cmd_scheduler` = cmd arbiter + bank/global timers + refresh + init + mode register): scheduler decisions on representative queue contents, inline open-page reordering, refresh interleave
+- **DFI layer** (`pumice_dfi_layer` = single CDC + cmd path + wr serializer + rd aligner): command/data flow across the clock-domain crossing with the DFI BFM slave
 
 ### Layer 3: End-to-End with DFI BFM Slave
 
@@ -75,7 +78,9 @@ For DDR2: cross-validate against LiteDRAM's DDR2 model.
 - Both drive the same DFI BFM slave with the same AXI stimulus
 - Compare command streams; differences flag potential design issues
 
-LPDDR2 has no LiteDRAM analog. Cross-validation for LPDDR2 is limited to the BFM master ↔ BFM slave path.
+This is a real, proven path. A LiteDRAM DDR2 memtest passes on the Nexys A7 board (128 MiB), which confirmed the board, PHY, pin-out, and DRAM are good. pumice itself is now board-proven on the same Nexys A7: DDR2 reads and writes are clean (0 mismatches across the characterization traffic). Both memtypes pass the full sim suite.
+
+LPDDR2 has no LiteDRAM analog, so cross-validation for LPDDR2 is limited to the BFM master to BFM slave path. LPDDR2 is nonetheless fully functional in sim (reads and writes, bit-exact JESD209-2F CA encoding, full MR init) and passes the sim suite.
 
 ## Characterization Sweep
 
@@ -90,7 +95,8 @@ Post-functional verification, the sweep runs each characterization parameter thr
 | `REFPB_POLICY`       | ROUND_ROBIN, OLDEST_FIRST, DARP             |
 | `REFRESH_DEFER_MAX`  | 1, 2, 4, 8                                  |
 | `TXN_QUEUE_DEPTH`    | 8, 16, 32                                   |
-| `N_PHASES`           | (build-determined; usually 4)               |
+| `DFI_RATE`           | (build-determined; usually 4)               |
+| `ADDR_MAP.bank_lsb`  | ROW_MAJOR (== COL_WIDTH), interleave, hash on/off |
 
 The full cross-product would be 4 × 3 × 3 × 4 × 3 = 432 builds; in practice we sweep one parameter at a time holding others at recommended defaults, which reduces to ~17 builds per memtype. The exception is the `LOOKAHEAD_DEPTH × PAGE_POLICY` pair — these interact strongly (the fallback policy only matters when lookahead is inconclusive), so this pair is swept as a full 4 × 3 = 12-point grid.
 
@@ -145,12 +151,12 @@ Specific events can be wired to a test-bench-controlled waveform-capture trigger
 
 Functional coverage (collected during regression):
 
-- All FSM states reached in each module
+- All FSM states reached in each module that has one (the bank timers and CAMs are FSM-free; their timer/counter states are covered instead)
 - All page policies exercised
 - All refresh policies exercised
 - All scheduler priority levels exercised
 - All AXI burst types exercised (if enabled)
-- All `ADDR_MAP_SCHEME` modes exercised
+- All `ADDR_MAP.bank_lsb` settings (ROW_MAJOR .. interleave) exercised, with hash on and off
 
 Code coverage targets: 100% line / branch coverage for all modules.
 

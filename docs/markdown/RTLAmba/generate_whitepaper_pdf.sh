@@ -12,7 +12,7 @@ set -euo pipefail
 #
 # Builds the AMBA Monitor System whitepaper as a single-file
 # DOCX + PDF via bin/md_to_docx.py. Models the same flag set
-# as projects/components/stream/docs/generate_mas_pdf.sh so
+# as projects/components/dmas/stream/docs/generate_mas_pdf.sh so
 # the corporate styling stays consistent across documents.
 # ------------------------------------------------------------
 
@@ -68,7 +68,7 @@ OUTPUT_DOCX="${OUTPUT_BASENAME}.docx"
 OUTPUT_PDF="${OUTPUT_BASENAME}.pdf"
 
 # Local style sheet derived from STREAM's corporate single-source-of-truth
-# (projects/components/stream/docs/stream_mas/stream_styles.yaml). Only the
+# (projects/components/dmas/stream/docs/stream_mas/stream_styles.yaml). Only the
 # title_page block is customized for this document; fonts / colors / heading
 # rules match the corporate template so this PDF renders consistently with
 # the STREAM and bridge spec PDFs. The logo path inside the YAML points back

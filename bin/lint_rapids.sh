@@ -10,8 +10,8 @@
 set -e  # Exit on error
 
 REPO_ROOT="/mnt/data/github/rtldesignsherpa"
-RAPIDS_RTL="$REPO_ROOT/projects/components/rapids/rtl"
-RAPIDS_REPORTS="$REPO_ROOT/projects/components/rapids/reports/lint"
+RAPIDS_RTL="$REPO_ROOT/projects/components/dmas/rapids/rtl"
+RAPIDS_REPORTS="$REPO_ROOT/projects/components/dmas/rapids/reports/lint"
 
 # Tool paths
 VERILATOR="verilator"

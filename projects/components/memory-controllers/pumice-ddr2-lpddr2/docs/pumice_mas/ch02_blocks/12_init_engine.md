@@ -26,317 +26,309 @@
 **Module:** `init_sequencer.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent macro:** `command_scheduler_macro`
-**Status:** v1 implemented (DDR2 step table; LPDDR2 step table deferred to v2)
+**Parent macro:** `pumice_mem_cmd_scheduler`
+**Status:** Implemented — DDR2 and LPDDR2 sequences both complete (DDR2 validated on the Nexys A7 board; LPDDR2 passes the full sim suite for family reuse)
 
-> **Renamed:** the SWAG called this `init_engine_fub`; the implementation
-> name is `init_sequencer`. It drives MR-write strobes into
-> [`mode_register`](20_mode_register.md) (which owns the MR shadow + decode);
-> the SWAG's combined "init + MRS" responsibilities are split.
-
-> Architectural context: HAS §3.5. The HAS flow diagram is in `pumice_has/assets/mermaid/05_init_engine_flow.png` and is the canonical step-decode reference — this section is the implementation view (ROM organization, step encoding, FSM, bypass path into bank machines, multi-rank MRS loop, sim shortcut).
+> **Renamed / re-scoped:** an early sketch called this an `init_engine_fub`
+> built on a microprogram step-record ROM (opcodes, a step interpreter FSM,
+> `SIM_INIT_SCALE`, `WAIT_FOR_BIT` polling, ZQ retry loops, an `init_error`
+> path, IRQ outputs, and a CSR MR-override path). **None of that ROM
+> machinery was built.** The implemented module is a small hard-coded FSM
+> that issues a fixed JEDEC bring-up sequence. It drives MR-write strobes into
+> [`mode_register`](20_mode_register.md) (which owns the MR shadow + live
+> CL/CWL/BL decode), and it issues the real DRAM commands (PRECHARGE, REFRESH,
+> MRS/MRW) through the command path while `init_busy_o` is high.
 
 ---
 
 ## Purpose
 
-`init_engine_fub` walks the JEDEC cold-boot DRAM initialization sequence — the deterministic recipe of CKE wiggles, RESET_N pulses, MRS writes, ZQ calibration, and PRE/REF settling cycles that must complete before any normal traffic can issue.
+`init_sequencer` walks the JEDEC cold-boot DRAM initialization sequence — the
+deterministic recipe of DFI init handshake, PRECHARGE-ALL, mode-register
+loads, and REFRESH settling that must complete before any normal traffic can
+issue. It is memtype-specific: `memtype_i` selects between the DDR2 sequence
+(mirrors LiteDRAM's proven Nexys A7 recipe) and the LPDDR2 MRW sequence
+(JEDEC JESD209-2F).
 
-The init sequence is **memtype-specific** (DDR2 vs LPDDR2 differ at MRS layout, ZQ flow, and the existence of a RESET_N pin), and **partially multi-rank-aware** (per-rank MRS loads and per-rank ZQ calibration retries). The FUB resolves both via a single microprogram architecture: a small step-table ROM per memtype, a step interpreter FSM, and a bypass path that pushes commands directly into the bank-machine and command-encoder fabric without going through the FR-FCFS scheduler.
+Two things happen for each mode-register step:
 
-The init engine is "above" the scheduler in the controller's command-priority hierarchy. While `init_in_progress` is asserted, the scheduler is gated (per §2.7 Stage 2 `init_mask`); only the init engine drives DRAM commands. Once init completes, control hands to the scheduler and refresh manager for normal operation.
+1. A real DRAM command is issued. The sequencer drives a single-cycle command
+   request (`init_cmd_valid_o` / `init_cmd_op_o` / `init_cmd_bank_o` /
+   `init_cmd_row_o`) that the parent scheduler forwards to
+   [`dfi_cmd_formatter`](14_cmd_encoder.md). Because the scheduler stays
+   idle during init (it owns nothing else while `init_busy_o` is high) and the
+   formatter is always `cmd_ready`, a single-cycle pulse issues exactly one
+   command — no grant handshake is needed.
+2. The `mode_register` shadow is updated in lockstep (`mr_seq_we_o`) so the
+   controller's live CL/CWL/BL decode tracks what was actually programmed.
+
+The init sequencer sits above the scheduler in the command-priority hierarchy.
+`init_done_o` also drives [`refresh_ctrl`](11_refresh_mgr.md)`.enable_i` —
+periodic refresh does not start until init reports done.
+
+> **History (why the sequence is "full").** An earlier version was a
+> "simplified" 4-MR shadow-only walk that never issued MRS/PRECHARGE/REFRESH to
+> the DRAM. On the DFI-loopback sim the memory model stores/returns data
+> regardless of init state, so it passed. On real DDR2 the read DLL never
+> locked (no proper reset + refresh sequence) and no IDELAY tap found a read
+> eye. The full sequence documented here fixed on-board bring-up.
 
 ---
 
 ## Synthesis Parameters
 
-| Parameter            | Source            | Effect                                                                      |
-|----------------------|-------------------|-----------------------------------------------------------------------------|
-| `MEMTYPE`            | top               | Picks which step-table ROM is instantiated; tied to `cmd_encoder` MEMTYPE   |
-| `NUM_RANKS`          | top               | Per-rank MRS loop count; per-rank ZQ calibration retries                    |
-| `SIM_INIT_SCALE`     | top (default 1)   | Divides post-step delays for sim runs (silicon always 1)                    |
-| `INIT_ROM_DEPTH`     | derived           | Number of entries in the active step-table ROM (DDR2 ~32, LPDDR2 ~28)        |
-| `STEP_PAYLOAD_WIDTH` | derived           | Width of the per-step payload field (carries MRS values, delay counts, etc.) |
+| Parameter    | Default | Effect                                                             |
+|--------------|---------|--------------------------------------------------------------------|
+| `ROW_WIDTH`  | 14      | Width of the `init_cmd_row_o` request field (carries MR data; must hold DDR2 MR0=0x532 which needs bit 10, so a narrower COL-based path would truncate). |
+| `NUM_BANKS`  | 8       | Number of DRAM banks.                                              |
+| `BKW`        | derived | `$clog2(NUM_BANKS)` — width of `init_cmd_bank_o` (bank / MR index). |
 
----
-
-## Microprogram ROM Organization
-
-The init sequence is encoded as a small ROM of step records. Each step has the same fixed-width encoding regardless of opcode — the opcode field tells the interpreter how to read the payload field.
-
-### Step Record Encoding
-
-| Field          | Width         | Description                                                  |
-|----------------|---------------|--------------------------------------------------------------|
-| `opcode`       | 3             | One of `SET_CTRL_BITS`, `DELAY`, `MRS_LOAD`, `ISSUE_CMD`, `WAIT_FOR_BIT`, `END` |
-| `payload`      | 20            | Opcode-dependent — see decoder table below                   |
-| `post_delay`   | 12            | Cycles to wait after the step completes (scaled by `SIM_INIT_SCALE`) |
-| `per_rank`     | 1             | When 1, the step iterates over all ranks (only meaningful for `MRS_LOAD` and `ISSUE_CMD`) |
-
-Total per-step width: 36 bits. ROM depth is ~32 for DDR2 and ~28 for LPDDR2; total ROM footprint ~150 bytes per memtype.
-
-### Opcode Decoder
-
-| Opcode           | Payload Interpretation                                                                          |
-|------------------|-------------------------------------------------------------------------------------------------|
-| `SET_CTRL_BITS`  | `{cke[NR-1:0], odt[NR-1:0], reset_n}` — drive these output-pin states for the duration of the step |
-| `DELAY`          | `delay_cycles[19:0]` — explicit delay above and beyond `post_delay`; used for very-long settling delays like tINIT0 (200 µs) |
-| `MRS_LOAD`       | `{mr_index[2:0], mr_value[15:0]}` — issue MRS to MR `mr_index` with value `mr_value`. When `per_rank == 1`, iterates over ranks 0 .. NR−1 |
-| `ISSUE_CMD`      | `{op[3:0], bank[2:0], row_or_col[13:0]}` — issue raw DRAM command (PREA, REF, ZQCS, ZQCL). When `per_rank`, issues to each rank |
-| `WAIT_FOR_BIT`   | `{bit_id[3:0], timeout_us[15:0]}` — poll a status bit (e.g., `dfi_init_complete`); fail to `INIT_ERROR` on timeout |
-| `END`            | None — assert `init_done_o`, transition to ACTIVE                                              |
-
-### Memtype Selection
-
-```systemverilog
-generate
-    if (MEMTYPE == "DDR2") begin : g_rom_ddr2
-        init_steps_ddr2_rom #(
-            .DEPTH(INIT_ROM_DEPTH)
-        ) u_rom (.addr(step_pc_o), .data(step_record_i));
-    end
-    else begin : g_rom_lpddr2
-        init_steps_lpddr2_rom #(
-            .DEPTH(INIT_ROM_DEPTH)
-        ) u_rom (.addr(step_pc_o), .data(step_record_i));
-    end
-endgenerate
-```
-
-The ROMs live in `rtl/macro/init_steps_ddr2_rom.sv` and `rtl/macro/init_steps_lpddr2_rom.sv`. They are written by hand from JEDEC initialization sequences and are *not* generated — the sequences are deliberate, short, and reviewable.
-
-The choice of separate ROM modules (rather than a single ROM with a memtype-indexed lookup) keeps the unused ROM out of the synthesis pass when `MEMTYPE` is fixed at elaboration. The resulting bit-stream contains only the relevant init recipe.
-
----
-
-## FSM
-
-The interpreter is a five-state FSM:
-
-| State              | Held while                                                            | Exits via                                                  |
-|--------------------|-----------------------------------------------------------------------|------------------------------------------------------------|
-| `IDLE`             | `CTRL.init_start` not asserted; controller sits in POST_RESET         | `init_start` rising edge → `FETCH`                         |
-| `FETCH`            | One cycle to address the ROM and latch the step record                | Step record valid → `EXECUTE`                              |
-| `EXECUTE`          | Step's action being performed (drive ctrl bits, issue command, etc.)   | Action complete → `POST_DELAY` (if `post_delay > 0`) or `FETCH` (next step) |
-| `POST_DELAY`       | Down-counter from `post_delay` (scaled by `SIM_INIT_SCALE`)            | Counter == 0 → `FETCH` (next step), or `END` if last        |
-| `INIT_ERROR`       | A `WAIT_FOR_BIT` timed out or ZQ retried out — terminal state          | Software writes `CTRL.init_force_restart` → `IDLE`         |
-
-There is no separate state per opcode — the `EXECUTE` state runs a small combinational dispatch on the opcode field. This keeps the FSM minimal and the `init_step_dbg` CSR (per HAS §6.3 STATUS) reports the step PC directly.
-
----
-
-## Step Execution Detail
-
-### `SET_CTRL_BITS`
-
-Drives the controller's output-pin staging registers:
-
-```
-dfi_cke[NR-1:0] = payload[NR-1+NR : NR]
-dfi_odt[NR-1:0] = payload[NR-1 : 0]
-dfi_reset_n     = payload[NR*2]
-```
-
-These outputs route through `power_state_fub` → `odt_ctrl_fub` → `gear_dfi_fub` to the DFI master pins. While init is in progress, the power-state FSM mirrors the init engine's `dfi_cke` instead of its own.
-
-### `DELAY`
-
-Loads a separate `long_delay_cnt` register with `payload[19:0]` and waits in `EXECUTE` until it reaches zero. `SIM_INIT_SCALE > 1` divides the load value at elaboration *and* at run-time CSR write (so the runtime override `INIT_TUNING.init_timeout_ms` honors the scale too). For tINIT0-class delays (200 µs at 200 MHz = 40 K cycles), this counter is 20 bits.
-
-### `MRS_LOAD`
-
-Issues an MRS DRAM command through the bypass-into-encoder path:
-
-```
-init_cmd_op_o        = MRS
-init_cmd_bank_o      = mr_index           // the bank field encodes the MR index in JEDEC
-init_cmd_row_or_col  = mr_value
-init_cmd_rank_o      = current_rank       // iterates 0..NR-1 if per_rank
-init_cmd_strobe_o    = 1
-```
-
-The bank machines see the MRS issue and don't change state (MRS doesn't affect bank state); the command flows through `cmd_encoder` → `gear_dfi` to the DFI master. When `per_rank == 1`, the FSM uses a small `rank_iter` counter and stays in `EXECUTE` across NR cycles, advancing one rank per MC clock. tMRD-class minimum-gap is honored via `post_delay`.
-
-### `ISSUE_CMD`
-
-Generic command issue — same path as MRS_LOAD but with the opcode and bank/column from the payload. Used for PREA (all-bank precharge), REF (initial refresh batches), ZQCL (init-time ZQ calibration long), and ZQCS (init-time ZQ short).
-
-### `WAIT_FOR_BIT`
-
-Polls a controller-internal status signal (`bit_id` is one of: `dfi_init_complete`, `zq_done`, `mrs_ack`, etc.). The interpreter holds `EXECUTE` until the bit asserts. A timeout counter loaded from `payload[19:4]` (in microseconds, scaled appropriately) drives `INIT_ERROR` if the bit doesn't assert in time.
-
-For ZQ calibration specifically, the timeout-retry path consults `INIT_TUNING.zq_retries`:
-
-```
-if (timeout AND zq_retry_cnt < zq_retries):
-    zq_retry_cnt = zq_retry_cnt + 1
-    re-execute ZQ command and re-poll        // back-edge to FETCH on same step
-else if (timeout AND retries exhausted):
-    → INIT_ERROR
-```
-
-### `END`
-
-Asserts `init_done_o` for one cycle (driving the `irq_init_done` IRQ and `STATUS.init_done = 1`), then transitions to `IDLE` for the next init request.
-
----
-
-## Bypass Path Into Bank Machines
-
-Init commands do not go through the scheduler. Instead, the init engine has a direct path into each bank machine and into the command encoder, via the `init_cmd_if` interface declared in §2.9:
-
-```
-init_cmd_op_o      → all bank machines (each watches its own rank/bank match)
-init_cmd_rank_o    → cmd_encoder rank-select
-init_cmd_bank_o    → cmd_encoder bank-select; bank_machine identity match
-init_cmd_row_or_col → cmd_encoder address operand
-init_cmd_strobe_o  → all bank machines and cmd_encoder
-```
-
-Bank machines treat init commands as if they came from the scheduler — they transition states accordingly (PRE → PRECHARGING, REF → REFRESHING, etc.). The scheduler does not observe these commands' issue; from its point of view, the bus is just "blocked by init."
-
-The command encoder accepts init commands on the bypass path and serializes them onto DFI through the same gear logic as scheduler-issued commands. There is no separate init-mode signal in `cmd_encoder`; the path is symmetric.
-
----
-
-## Multi-Rank Init Loop
-
-For per-rank steps (`per_rank == 1`), the FSM uses a `rank_iter` counter:
-
-```
-EXECUTE state:
-    if (per_rank):
-        issue command to rank_iter
-        rank_iter = (rank_iter + 1) % NR
-        if (rank_iter == 0):                  // wrapped, all ranks done
-            advance to POST_DELAY / FETCH
-        else:
-            stay in EXECUTE (next cycle issues to next rank)
-    else:
-        issue command (rank-agnostic; CS_n[*] = 0)
-        advance to POST_DELAY / FETCH
-```
-
-This means a `per_rank` MRS_LOAD step takes NR cycles in EXECUTE. For NR=4, eight cycles for an MR0+MR1+MR2+MR3 sequence on 4 ranks — small overhead in the init context (where individual delays run hundreds of microseconds anyway).
-
-The `tMRD` minimum-gap between MRS to the same rank is honored via `post_delay`. The minimum-gap between MRS to *different* ranks is shorter (`tMRD_inter_rank`, typically 0 or 1 cycle) and is absorbed by the natural pipelining of the EXECUTE loop.
-
----
-
-## SIM_INIT_SCALE — The 200µs → 200 cycles trick
-
-JEDEC init has several multi-hundred-µs delays (tINIT0 = 200 µs, tINIT1 = 500 µs, tINIT3 = 200 µs). At 200 MHz silicon clock, that's 40,000 cycles each — and simulation at cycle-accurate speeds would take minutes per test just for init.
-
-`SIM_INIT_SCALE` divides all delay loads at elaboration:
-
-```
-effective_delay = delay_from_rom / SIM_INIT_SCALE
-```
-
-Setting `SIM_INIT_SCALE = 10000` reduces tINIT0 from 40 K cycles to 4 cycles in sim. Silicon always uses `SIM_INIT_SCALE = 1`; the scale is parameter-only, not CSR (writing it would corrupt silicon init).
-
-The scale applies to both `DELAY` opcode payloads and `post_delay` fields. The `WAIT_FOR_BIT` timeout is *not* scaled — timing-out on a DFI handshake should still be detected in sim.
-
----
-
-## Init-in-Progress Gating
-
-While the FSM is anywhere except `IDLE`:
-
-- `init_in_progress_o = 1`
-- Scheduler is gated (per §2.7 Stage 2)
-- Refresh manager is gated (per §2.11 FSM)
-- Power-state FSM mirrors init's `dfi_cke` outputs
-- AXI4 slave is *not* gated at the AXI boundary (AXI bursts can accumulate in `aw_buf` / `ar_buf` while init runs); they just can't reach DFI
-
-When `END` executes, `init_in_progress_o` drops, scheduler and refresh resume, and accumulated AXI bursts begin issuing through the normal path.
+There is no `MEMTYPE` synthesis parameter — the sequence is selected at
+run-time by the `memtype_i` input, so one elaboration supports both families.
 
 ---
 
 ## Interface
 
-### Outputs to Bank Machines (init bypass)
+### Clock / reset
 
-| Signal              | Direction | Width                | Description                                          |
-|---------------------|-----------|----------------------|------------------------------------------------------|
-| `init_cmd_strobe_o` | output    | 1                    | A new init command is being issued this cycle        |
-| `init_cmd_op_o`     | output    | 4                    | DRAM command opcode (same encoding as scheduler issue) |
-| `init_cmd_rank_o`   | output    | `$clog2(NR)`         | Target rank                                          |
-| `init_cmd_bank_o`   | output    | `$clog2(NB)`         | Target bank / MR index for MRS                       |
-| `init_cmd_row_o`    | output    | `ROW_WIDTH`          | Row (for ACT) or MR value (for MRS)                  |
-| `init_cmd_col_o`    | output    | `COL_WIDTH`          | Column (for RD/WR; init doesn't normally use)        |
+| Signal     | Direction | Description                              |
+|------------|-----------|------------------------------------------|
+| `mc_clk`   | input     | Memory-controller clock.                 |
+| `mc_rst_n` | input     | Active-low async reset (house macros).   |
 
-### Outputs to Power-State / ODT / Pins
+### Configuration
 
-| Signal              | Direction | Width  | Description                                                |
-|---------------------|-----------|--------|------------------------------------------------------------|
-| `init_cke_o[NR]`    | output    | NR     | Direct CKE drive during init (`power_state` muxes this in)  |
-| `init_odt_o[NR]`    | output    | NR     | Direct ODT drive during init                                |
-| `init_reset_n_o`    | output    | 1      | DDR2 RESET_N pin drive (tied 1 for LPDDR2 builds)           |
+| Signal        | Direction | Width | Description                              |
+|---------------|-----------|-------|------------------------------------------|
+| `memtype_i`   | input     | enum  | `MEMTYPE_DDR2` selects the DDR2 sequence; anything else selects the LPDDR2 MRW chain. |
 
-### Status / IRQ Outputs
+### JEDEC init-sequence waits (CSR-backed, MC cycles)
 
-| Signal                  | Direction | Width  | Description                                          |
-|-------------------------|-----------|--------|------------------------------------------------------|
-| `init_in_progress_o`    | output    | 1      | High during any non-IDLE state                       |
-| `init_done_o`           | output    | 1      | One-cycle pulse on `END`; drives `irq_init_done`     |
-| `init_error_o`          | output    | 1      | Latched on `INIT_ERROR`; drives `irq_init_error`     |
-| `init_step_pc_o`        | output    | 8      | Current step PC; drives `STATUS.init_step_dbg`       |
+All countdowns run internally as 16-bit values; the 8-bit inputs are
+zero-extended. Defaults live in the CSR (mentioned as 512 / 256 / 8 / 8 / 16),
+so these were promoted from hardcoded constants to `INIT_TIMING`-programmable.
 
-### Inputs from CSR
+| Signal          | Width | Internal name | JEDEC parameter                         |
+|-----------------|-------|---------------|-----------------------------------------|
+| `t_init_wait_i` | 16    | `W_INIT`      | CKE / tINIT settle (also LPDDR2 tINIT4). |
+| `t_dll_wait_i`  | 16    | `W_DLL`       | DLL lock tDLLK (also LPDDR2 tZQINIT).    |
+| `t_mrd_wait_i`  | 8     | `W_MRD`       | tMRD, post mode-register-set.            |
+| `t_rp_wait_i`   | 8     | `W_RP`        | tRP, post precharge.                     |
+| `t_rfc_wait_i`  | 8     | `W_RFC`       | tRFC, post auto-refresh.                 |
 
-| Signal                       | Direction | Width  | Source                                          |
-|------------------------------|-----------|--------|-------------------------------------------------|
-| `cfg_init_start_i`           | input     | 1      | `CTRL.init_start` (rising edge starts)          |
-| `cfg_init_force_restart_i`   | input     | 1      | `CTRL.init_force_restart`                       |
-| `cfg_zq_retries_i`           | input     | 4      | `INIT_TUNING.zq_retries`                        |
-| `cfg_init_timeout_ms_i`      | input     | 8      | `INIT_TUNING.init_timeout_ms`                   |
-| `cfg_mr_values_i[4]`         | input     | 16 × 4 | `MR0..MR3` from CSR (override the ROM default)  |
+### DFI status
 
-The `MR0..MR3` CSR override path is important — software writes the MR values before asserting `init_start`, and the init engine substitutes them for the ROM-baked defaults during MRS_LOAD steps. This is how the LPDDR2 boot agent picks burst length, CAS latency, etc. without re-ROM-ing the controller.
+| Signal                | Direction | Description                                                       |
+|-----------------------|-----------|-------------------------------------------------------------------|
+| `dfi_init_start_o`    | output    | Asserted (registered) once `r_state != S_RESET`. Tells the PHY to begin its own init. |
+| `dfi_init_complete_i` | input     | PHY reports its DLL-lock / IO training complete. Gates the exit from `S_DFI_INIT`. |
 
-### Inputs from DFI (status polling)
+### MR-shadow write port (muxed with CSR by `pumice_mem_cmd_scheduler`)
 
-| Signal                  | Direction | Width  | Source                                          |
-|-------------------------|-----------|--------|-------------------------------------------------|
-| `dfi_init_complete_i`   | input     | 1      | DFI status sub-interface                        |
-| `zq_done_i`             | input     | 1      | Internal: ZQ window expired without error       |
-| `mrs_ack_i`             | input     | 1      | Bank machine acknowledges MRS settled            |
+| Signal           | Direction | Width | Description                          |
+|------------------|-----------|-------|--------------------------------------|
+| `mr_seq_we_o`    | output    | 1     | Write-enable strobe into `mode_register`. |
+| `mr_seq_index_o` | output    | 5     | MR index (0..3) being shadowed.      |
+| `mr_seq_data_o`  | output    | 16    | MR data being shadowed.              |
+
+### DRAM command request into the scheduler (issued while init_busy)
+
+| Signal             | Direction | Width       | Description                                         |
+|--------------------|-----------|-------------|-----------------------------------------------------|
+| `init_cmd_valid_o` | output    | 1           | Single-cycle command pulse.                         |
+| `init_cmd_op_o`    | output    | `dram_op_e` | `OP_PREA`, `OP_REF`, or `OP_MRS`.                   |
+| `init_cmd_bank_o`  | output    | `BKW`       | MR index for MRS (DDR2) / bank field.               |
+| `init_cmd_row_o`   | output    | `ROW_WIDTH` | MR data for MRS on the wide row path (see MR tables). |
+
+### Legacy ZQCL handshake (DDR3+; unused for DDR2/LPDDR2)
+
+| Signal          | Direction | Description                                          |
+|-----------------|-----------|------------------------------------------------------|
+| `zqcl_req_o`    | output    | Tied to 0 — DDR2 has no ZQCL command.                |
+| `zqcl_grant_i`  | input     | Unused (tied off via a `_unused` sink).              |
+
+### Status
+
+| Signal        | Direction | Description                                                        |
+|---------------|-----------|--------------------------------------------------------------------|
+| `init_busy_o` | output    | Registered; high whenever `r_state != S_DONE`. Reset value is 1.   |
+| `init_done_o` | output    | Registered; high when `r_state == S_DONE`. Drives `refresh_ctrl.enable_i`. |
 
 ---
 
-## CSR Hooks
+## FSM
 
-| CSR field                          | Source                                  | Use case                                |
-|------------------------------------|-----------------------------------------|-----------------------------------------|
-| `STATUS.init_done` (R)             | Latched `init_done_o`                  | Software polls for init complete         |
-| `STATUS.init_error` (R/clear)      | Latched `init_error_o`                  | Software polls for init failure          |
-| `STATUS.init_step_dbg` (R)         | `init_step_pc_o`                        | Bring-up: where did init get stuck?     |
-| `OBS_INIT_DURATION_MS` (R)         | Total init duration counter             | Telemetry: how long did init take       |
+A single 5-bit `state_e` enum drives everything. Each command state is occupied
+for exactly one cycle (an unconditional transition to `S_WAIT`), so the
+combinational command decode produces a single-cycle pulse per command. `S_WAIT`
+holds for the programmed inter-command delay: it counts `r_wait` down and, when
+it reaches zero, jumps to `r_next` (the resume state latched by the command
+state).
+
+| State        | Value | Role                                                        | Wait after (into S_WAIT) |
+|--------------|-------|-------------------------------------------------------------|--------------------------|
+| `S_RESET`    | 0     | Reset entry; unconditionally advances.                      | — (→ `S_DFI_INIT`)       |
+| `S_DFI_INIT` | 1     | Wait for `dfi_init_complete_i`, then arm `W_INIT`.          | `W_INIT`                 |
+| `S_PREA1`    | 2     | DDR2: Precharge All (pre-EMR).                              | `W_RP` → `S_EMR2`        |
+| `S_EMR3`     | 3     | DDR2: MRS EMR(3).                                           | `W_MRD` → `S_EMR1`       |
+| `S_EMR2`     | 4     | DDR2: MRS EMR(2).                                           | `W_MRD` → `S_EMR3`       |
+| `S_EMR1`     | 5     | DDR2: MRS EMR(1).                                           | `W_MRD` → `S_MR0_DLL`    |
+| `S_MR0_DLL`  | 6     | DDR2: MRS MR0 + DLL reset (0x532).                          | `W_DLL` → `S_PREA2`      |
+| `S_PREA2`    | 7     | DDR2: Precharge All (pre-refresh).                          | `W_RP` → `S_REF1`        |
+| `S_REF1`     | 8     | DDR2: Auto Refresh #1.                                      | `W_RFC` → `S_REF2`       |
+| `S_REF2`     | 9     | DDR2: Auto Refresh #2.                                      | `W_RFC` → `S_MR0`        |
+| `S_MR0`      | 10    | DDR2: MRS MR0, DLL-reset bit cleared (0x432).              | `W_MRD` → `S_OCD_DEF`    |
+| `S_OCD_DEF`  | 11    | DDR2: MRS EMR(1) + OCD default (0x380).                    | `W_MRD` → `S_OCD_EXIT`   |
+| `S_OCD_EXIT` | 12    | DDR2: MRS EMR(1) + OCD exit (0x000).                       | `W_MRD` → `S_DONE`       |
+| `S_WAIT`     | 13    | Inter-command countdown; `r_wait==0` → `r_next`.           | —                        |
+| `S_DONE`     | 14    | Terminal; `init_done_o` high, self-loop.                   | —                        |
+| `S_L_RESET`  | 15    | LPDDR2: MRW(MR63) Reset.                                    | `W_INIT` → `S_L_ZQ`      |
+| `S_L_ZQ`     | 16    | LPDDR2: MRW(MR10) ZQ Init Calibration.                     | `W_DLL` → `S_L_MR1`      |
+| `S_L_MR1`    | 17    | LPDDR2: MRW(MR1) BL8 / nWR3.                                | `W_MRD` → `S_L_MR2`      |
+| `S_L_MR2`    | 18    | LPDDR2: MRW(MR2) RL3 / WL1.                                 | `W_MRD` → `S_L_MR3`      |
+| `S_L_MR3`    | 19    | LPDDR2: MRW(MR3) drive strength 40ohm.                     | `W_MRD` → `S_DONE`       |
+
+`memtype_i` only branches once: on exit from `S_DFI_INIT`, `r_next` is set to
+`S_PREA1` for DDR2 or `S_L_RESET` otherwise. From there each path is a fixed
+chain of command states separated by `S_WAIT`.
+
+`S_DONE` is a hard self-loop — there is no restart, no `init_error`, and no
+software-triggered re-run in the RTL. A fresh init requires `mc_rst_n`.
+
+---
+
+## DDR2 Sequence
+
+Mirrors LiteDRAM's `get_ddr2_phy_init_sequence` (`litedram/init.py`), the
+reference proven on the Nexys A7:
+
+1. Assert `dfi_init_start_o`; wait `dfi_init_complete_i` (PHY runs its own
+   DLL-lock / IO training). Then wait `W_INIT` (tINIT / CKE settle).
+2. Precharge All (`S_PREA1`), wait `W_RP`.
+3. Load the extended mode registers in JEDEC JESD79-2 order **EMR(2), EMR(3),
+   EMR(1)** — the state chain is `S_EMR2 → S_EMR3 → S_EMR1` — each followed by
+   `W_MRD`. (Note the enum numbering: `S_EMR2` = 4, `S_EMR3` = 3, so the values
+   are out of numeric order but the executed order is 2 → 3 → 1.)
+4. Load MR0 + DLL reset (`S_MR0_DLL`, 0x532: BL4 / CL3 / tWR3 / DLL_RESET);
+   wait `W_DLL` for the DLL to lock (~200 DRAM clocks).
+5. Precharge All (`S_PREA2`), wait `W_RP`.
+6. Auto Refresh x2 (`S_REF1`, `S_REF2`), each followed by `W_RFC`.
+7. Load MR0 with the DLL-reset bit cleared (`S_MR0`, 0x432); wait `W_MRD`.
+8. EMR(1) + OCD Default (`S_OCD_DEF`, 0x380) → EMR(1) + OCD Exit
+   (`S_OCD_EXIT`, 0x000).
+9. `S_DONE`: `init_done_o = 1`.
+
+MR data is carried on `init_cmd_row_o` (ROW_WIDTH wide, MR index on
+`init_cmd_bank_o`), because MR0 = 0x532 sets bit 10 and a 10-bit column-based
+path would truncate it.
+
+### DDR2 MR values
+
+Localparams, transcribed exactly:
+
+| Symbol          | Value    | State        | Meaning                                   | Shadowed? |
+|-----------------|----------|--------------|-------------------------------------------|-----------|
+| `DDR2_MR0_DLL`  | `0x0532` | `S_MR0_DLL`  | MR0: BL4 / CL3 / tWR3 / DLL_RESET.        | Yes (MR0) |
+| `DDR2_MR0`      | `0x0432` | `S_MR0`      | MR0 with DLL_RESET cleared.               | Yes (MR0) |
+| `DDR2_MR1`      | `0x0000` | `S_EMR1`, `S_OCD_EXIT` | EMR(1): Rtt disabled, ODS full. | Yes (MR1) |
+| `DDR2_MR1_OCD`  | `0x0380` | `S_OCD_DEF`  | EMR(1) + OCD calibration default.         | No — transient calibration; shadow left at final EMR value. |
+| `DDR2_MR2`      | `0x0000` | `S_EMR2`     | EMR(2).                                   | Yes (MR2) |
+| `DDR2_MR3`      | `0x0000` | `S_EMR3`     | EMR(3).                                   | Yes (MR3) |
+
+`DDR2_MR0_DLL` decomposes as `log2(BL=4)=2 | (CL=3<<4)=0x30 | (tWR=3<<9)=0x400 =
+0x432`, plus `reset_dll = 1<<8 = 0x100`, giving 0x532. OCD default = `EMR |
+(7<<7) = 0x380`; OCD exit = `EMR = 0`.
+
+---
+
+## LPDDR2 Sequence
+
+JEDEC JESD209-2F §3.4.1 power-up + §3.5 mode registers:
+
+1. Assert `dfi_init_start_o`; wait `dfi_init_complete_i`; wait `W_INIT` (tINIT
+   settle).
+2. MRW(MR63) = Reset (`S_L_RESET`, OP don't-care); wait `W_INIT` (tINIT4).
+3. MRW(MR10) = 0xFF ZQ Init Calibration (`S_L_ZQ`); wait `W_DLL` (tZQINIT).
+4. Configure the device: MRW(MR1) = BL8 / nWR3 (`S_L_MR1`, 0x23),
+   MRW(MR2) = RL3 / WL1 (`S_L_MR2`, 0x01), MRW(MR3) = DS 40ohm
+   (`S_L_MR3`, 0x02) — each followed by `W_MRD` (tMRW).
+5. `S_DONE`.
+
+The CSR waits are reused: `W_INIT` covers tINIT4, `W_DLL` covers tZQINIT,
+`W_MRD` covers post-MRW settling.
+
+LPDDR2 mode-register writes must reach indices up to MR63, which a 3-bit bank
+port cannot express. So the index (MA) and data (OP) are packed together into
+the wide row request by the `mrw_row()` function as `{MA[5:0], OP[7:0]}`
+(`init_cmd_row_o[13:8]` = MA index, `init_cmd_row_o[7:0]` = OP data);
+`dfi_cmd_formatter` unpacks this for the LPDDR2 CA MRW word.
+
+### LPDDR2 MR values
+
+| Symbol           | OP value | State        | Meaning                       | Shadowed?               |
+|------------------|----------|--------------|-------------------------------|-------------------------|
+| `LPDDR2_MR63_OP` | `0x00`   | `S_L_RESET`  | MRW(63) Reset (OP don't-care). | No — issued, not shadowed (MR63 exceeds the 5-bit index). |
+| `LPDDR2_MR10_OP` | `0xFF`   | `S_L_ZQ`     | MR10 ZQ Init Calibration.     | No — issued, not shadowed. |
+| `LPDDR2_MR1_OP`  | `0x23`   | `S_L_MR1`    | MR1: nWR3 \| BL8.             | Yes (MR1).              |
+| `LPDDR2_MR2_OP`  | `0x01`   | `S_L_MR2`    | MR2: RL3 / WL1.               | Yes (MR2).              |
+| `LPDDR2_MR3_OP`  | `0x02`   | `S_L_MR3`    | MR3: DS 40ohm.                | Yes (MR3).              |
+
+Only MR1 / MR2 / MR3 update the `mode_register` shadow (`mr_seq_we_o`), because
+those are the registers that feed the CL/CWL/BL decode. MR63 and MR10 are
+issued to the DRAM but not shadowed.
+
+---
+
+## Init-Busy Gating
+
+`init_busy_o` is high from reset (its reset value is 1) through every state
+except `S_DONE`. While busy:
+
+- The parent `pumice_mem_cmd_scheduler` forwards the sequencer's command
+  request to `dfi_cmd_formatter` and issues nothing of its own — the scheduler
+  parks so exactly one command reaches DFI per `init_cmd_valid_o` pulse.
+- `refresh_ctrl.enable_i` is low (driven by `init_done_o`), so periodic refresh
+  does not start until init completes.
+
+When the FSM reaches `S_DONE`, `init_busy_o` drops and `init_done_o` rises;
+the scheduler and refresh controller take over normal operation.
 
 ---
 
 ## Verification Notes (cocotb test plan)
 
-| Scenario                                                                          | What it proves                                              |
-|-----------------------------------------------------------------------------------|-------------------------------------------------------------|
-| DDR2 init from cold reset to `init_done`                                          | Full DDR2 step sequence executes                            |
-| LPDDR2 init from cold reset to `init_done`                                        | Full LPDDR2 step sequence executes                          |
-| Multi-rank init (NR=2): each MRS_LOAD step issues to both ranks                   | Per-rank MRS loop                                           |
-| `WAIT_FOR_BIT dfi_init_complete` times out → `INIT_ERROR`                         | Timeout path                                                |
-| ZQ calibration fails, retries `zq_retries` times, then `INIT_ERROR`               | ZQ retry logic                                              |
-| Software overrides MR0 via CSR; init uses the override, not ROM default          | MR override path                                            |
-| `SIM_INIT_SCALE = 10000`: tINIT0 delay completes in 4 cycles instead of 40 K      | Sim shortcut works                                          |
-| `init_force_restart` mid-sequence → `IDLE` → restart from step 0                  | Restart path                                                |
-| AXI bursts queued during init → no DFI issue until `init_done` asserts            | Init-in-progress gating                                     |
-| Scheduler `init_mask` correctly blocks normal traffic during init                 | Cross-FUB integration                                       |
-| Init completes; refresh manager's first `wants_refresh` fires after at least tREFI cycles | Refresh handoff timing                              |
+| Scenario                                                                           | What it proves                                              |
+|------------------------------------------------------------------------------------|-------------------------------------------------------------|
+| DDR2 init from cold reset to `init_done_o`                                         | Full DDR2 state chain executes in order.                    |
+| Observe the DDR2 command stream: PREA, MRS×3 (EMR2/EMR3/EMR1), MRS MR0_DLL, PREA, REF×2, MRS MR0, MRS OCD_DEF, MRS OCD_EXIT | Exact JEDEC order + op/index/data on each `init_cmd_*` pulse. |
+| DDR2 MR values on `init_cmd_row_o` match 0x532 / 0x432 / 0x380 / 0x000            | Wide row path carries bit 10 without truncation.            |
+| LPDDR2 init from cold reset to `init_done_o`                                       | Full LPDDR2 MRW chain executes.                             |
+| LPDDR2 `mrw_row()` packing: MR63/MR10 reach the DRAM; only MR1/MR2/MR3 set `mr_seq_we_o` | Index/data packing + selective shadowing.             |
+| `dfi_init_complete_i` held low → FSM stalls in `S_DFI_INIT`, `init_busy_o` stays high | DFI handshake gating.                                   |
+| Each command state produces exactly one `init_cmd_valid_o` cycle, then `S_WAIT`   | Single-cycle pulse behavior.                                |
+| Program short `t_*_wait_i` values → inter-command `S_WAIT` countdown matches       | CSR-backed wait timing.                                     |
+| `mr_seq_*` shadow tracks the MRS writes (MR0/MR1/MR2/MR3 for DDR2)                 | Shadow lockstep with issued commands; OCD_DEF not shadowed. |
+| After `init_done_o`, `refresh_ctrl.enable_i` asserts and refresh begins            | Init → refresh handoff.                                     |
 
 ---
 
 ## Open Questions / Future Work
 
-- **MR4 readback during init.** LPDDR2 requires reading MR4 to detect device temperature class. Currently the init engine doesn't do this — it leaves MR4 readback to the post-init power-state FSM. Could fold it into the init sequence (as a `WAIT_FOR_BIT` or a new `MR_READ` opcode), at the cost of a slightly longer init. Likely worth doing in v2 to remove the post-init MR4 race.
-- **Step ROM versioning.** When silicon ships and a new DRAM part requires a tweaked init sequence, the ROM has to change. Should there be a CSR-side "ROM patch" path (writeable RAM that overlays specific ROM entries)? Adds CSR area but enables in-field updates. Punt until a real DRAM-compat issue forces the question.
-- **Parallel multi-rank init.** Currently the per-rank loop is serial — NR cycles per per-rank step. Could issue MRS to multiple ranks in parallel (broadcast MRS with CS_n driven on multiple ranks). Saves init cycles at the cost of more cross-rank gate logic. Probably not worth it; init runs once at boot.
-- **Soft-reset semantics during init.** If `mc_rst_n` asserts during init, the FUB cleanly returns to IDLE. But if `soft_reset` (CSR write) asserts during init, behavior is currently to also return to IDLE. Should the CSR soft-reset complete the current step first to avoid DRAM in an inconsistent state? Worth a verification scenario to document the current behavior.
+- **No restart / error path.** `S_DONE` is terminal and there is no
+  `init_error`, timeout, or software-triggered re-run — a fresh init requires
+  `mc_rst_n`. If a DFI handshake never completes, the FSM simply parks in
+  `S_DFI_INIT` forever. A future variant could add a timeout on
+  `dfi_init_complete_i` and a status/restart CSR, but that machinery is not in
+  the current RTL.
+- **MR4 readback (LPDDR2).** LPDDR2 supports reading MR4 for device temperature
+  class. The current sequencer only writes mode registers; it does no MRR
+  readback. Folding a temperature read into or after init is possible future
+  work but is not implemented.
+- **ZQCL / ZQCS.** The `zqcl_req_o` / `zqcl_grant_i` ports exist only as a
+  legacy DDR3+ handshake and are tied off; DDR2 has no ZQCL and LPDDR2 does its
+  ZQ init via the MR10 MRW. If the family is extended to DDR3/DDR4, this port
+  becomes a real ZQ-calibration handshake and the FSM would gain a ZQ state.
+- **Per-rank MRS.** The sequencer issues a single stream of commands with no
+  rank iteration; multi-rank support would require a rank field and a per-rank
+  MRS loop. Out of scope for the current single-rank Nexys A7 target.

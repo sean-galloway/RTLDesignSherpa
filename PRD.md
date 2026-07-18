@@ -144,8 +144,8 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../..
 sys.path.insert(0, repo_root)
 
 # Import from PROJECT AREA
-from projects.components.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
-from projects.components.stream.dv.tbclasses.descriptor_engine_tb import DescriptorEngineTB
+from projects.components.dmas.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
+from projects.components.dmas.stream.dv.tbclasses.descriptor_engine_tb import DescriptorEngineTB
 
 # Shared infrastructure still comes from framework
 from TBClasses.shared.tbbase import TBBase
@@ -186,8 +186,8 @@ Is this code specific to a single project component (RAPIDS, STREAM, Bridge)?
 
 | Project | Location | Status | TB Classes Location |
 |---------|----------|--------|---------------------|
-| **RAPIDS** | `projects/components/rapids/` | 🟡 Active | `rapids/dv/tbclasses/` ✅ |
-| **STREAM** | `projects/components/stream/` | 🟡 Initial | `stream/dv/tbclasses/` ✅ |
+| **RAPIDS** | `projects/components/dmas/rapids/` | 🟡 Active | `rapids/dv/tbclasses/` ✅ |
+| **STREAM** | `projects/components/dmas/stream/` | 🟡 Initial | `stream/dv/tbclasses/` ✅ |
 | **Bridge** | `projects/components/bridge/` | 🟡 Planning | `bridge/dv/tbclasses/` ✅ |
 
 #### 2.3.7 Benefits of This Organization

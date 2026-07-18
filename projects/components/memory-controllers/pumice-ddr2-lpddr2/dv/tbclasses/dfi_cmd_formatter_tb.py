@@ -40,6 +40,14 @@ if _repo_root not in sys.path:
 
 from TBClasses.shared.tbbase import TBBase  # noqa: E402
 
+# LPDDR2 CA-bus conformance: the SAME encoder/decoder the DFI BFM uses, checked
+# against the RTL formatter's output. Both encode against Table 60 via
+# rtl/LPDDR2_CA_ENCODING.md.
+from CocoTBFramework.components.dfi.lpddr_ca import (  # noqa: E402
+    encode_lpddr2_ca, decode_lpddr2_ca,
+)
+from CocoTBFramework.components.dfi.dfi_packet import DRAMCommand as _DC  # noqa: E402
+
 
 # ---------------------------------------------------------------------------
 # Constants — must match pumice_pkg.sv
@@ -167,7 +175,10 @@ def decode_p0_ddr2(op: int, rank: int, bank: int, row: int, col: int,
         base.cas_n = 0
         base.we_n  = 0
         base.bank  = bank & bank_mask
-        base.addr  = col & addr_mask
+        # MR data is carried on the WIDE cmd_row_i field, not cmd_col_i:
+        # DDR2 MR0 (e.g. 0x532) needs >COL_WIDTH bits. The RTL formatter and
+        # init_sequencer (init_cmd_row_o = "MR data — wide path") agree on row.
+        base.addr  = row & addr_mask
         return base
     # Other ops: drive NOP (defaults)
     base.cs_n = _selected_rank_mask(rank, dfi_cs_w)
@@ -251,16 +262,32 @@ class DfiCmdFormatterTB(TBBase):
                                           self.DFI_BANK_WIDTH,
                                           self.DFI_CS_WIDTH)
             self._check_phase(0, expected_p0)
+        elif valid and memtype == MEMTYPE_LPDDR2 and op == OP_NOP:
+            # LPDDR2 NOP: fully deselected — cs_n + ctrl idle every phase. The
+            # CA/address bus is don't-care while deselected, so it is NOT checked.
+            full_cs   = (1 << self.DFI_CS_WIDTH) - 1
+            full_ctrl = (1 << self.DFI_CTRL_WIDTH) - 1
+            for p in range(self.DFI_RATE):
+                assert self._slice(self.dut.dfi_cs_n_o,  p, self.DFI_CS_WIDTH) == full_cs
+                assert self._slice(self.dut.dfi_ras_n_o, p, self.DFI_CTRL_WIDTH) == full_ctrl
+                assert self._slice(self.dut.dfi_cas_n_o, p, self.DFI_CTRL_WIDTH) == full_ctrl
+                assert self._slice(self.dut.dfi_we_n_o,  p, self.DFI_CTRL_WIDTH) == full_ctrl
         elif valid and memtype == MEMTYPE_LPDDR2:
-            # LPDDR2 skeleton: cs_n active for the targeted rank, but
-            # ras/cas/we hold idle (LPDDR2 has no parallel strobes).
-            # CA encoding is in dfi_address — not bit-exact to JESD209-2
-            # yet (v3 TODO). Only verify the framework switched.
-            self._check_phase_lpddr2_active(0, rank)
+            # LPDDR2: bit-exact CA-bus conformance (JESD209-2F Table 60) —
+            # the 20-bit dfi_address word must match the BFM encoder, and
+            # ras/cas/we hold idle with cs_n active on phase 0.
+            self._check_lpddr2_ca(op=op, rank=rank, bank=bank, row=row, col=col)
         else:
             self._check_phase(0, PhaseDecoded.nop(self.DFI_CS_WIDTH))
-        for p in range(1, self.DFI_RATE):
-            self._check_phase(p, PhaseDecoded.nop(self.DFI_CS_WIDTH))
+
+        # Phases 1..N-1 must be NOP — but for LPDDR2 the flat 20-bit CA word
+        # legitimately occupies the low bits of dfi_address (spanning into upper
+        # phases' address slices), so its address is NOT per-phase NOP. cs_n /
+        # ctrl idle on the upper phases is already verified inside the LPDDR2
+        # checks above.
+        if memtype != MEMTYPE_LPDDR2:
+            for p in range(1, self.DFI_RATE):
+                self._check_phase(p, PhaseDecoded.nop(self.DFI_CS_WIDTH))
 
     def _check_phase(self, phase: int, expected: PhaseDecoded) -> None:
         addr = self._slice(self.dut.dfi_address_o, phase,
@@ -294,29 +321,97 @@ class DfiCmdFormatterTB(TBBase):
             f"phase {phase}: dfi_odt got {odt:#x} want {expected.odt:#x}"
         )
 
-    def _check_phase_lpddr2_active(self, phase: int, rank: int) -> None:
-        """LPDDR2 framework check: cs_n is active for the targeted rank,
-        and ras/cas/we hold idle (1). CA encoding bit-pattern is not yet
-        verified — JESD209-2 spec compliance is v3 work."""
-        cas = self._slice(self.dut.dfi_cas_n_o, phase, self.DFI_CTRL_WIDTH)
-        ras = self._slice(self.dut.dfi_ras_n_o, phase, self.DFI_CTRL_WIDTH)
-        we  = self._slice(self.dut.dfi_we_n_o,  phase, self.DFI_CTRL_WIDTH)
-        csn = self._slice(self.dut.dfi_cs_n_o,  phase, self.DFI_CS_WIDTH)
+    # op -> (DRAMCommand, extra encode kwargs) for LPDDR2 conformance
+    _OP2CA = {
+        OP_ACT:   (_DC.ACT,  {}),
+        OP_RD:    (_DC.RD,   {}),
+        OP_RDA:   (_DC.RDA,  {}),
+        OP_WR:    (_DC.WR,   {}),
+        OP_WRA:   (_DC.WRA,  {}),
+        OP_PRE:   (_DC.PRE,  {}),
+        OP_PREA:  (_DC.PREA, {}),
+        OP_REF:   (_DC.REF,  {"all_banks": True}),
+        OP_REFPB: (_DC.REF,  {"all_banks": False}),
+        OP_MRS:   (_DC.MRS,  {}),
+    }
 
-        cs_mask = ((1 << self.DFI_CS_WIDTH) - 1) & ~(1 << rank)
-        assert csn == cs_mask, (
-            f"phase {phase}: LPDDR2 cs_n got {csn:#x} want {cs_mask:#x} "
-            f"(rank {rank} active)"
+    def _check_lpddr2_ca(self, *, op: int, rank: int, bank: int,
+                         row: int, col: int) -> None:
+        """Bit-exact LPDDR2 CA-bus conformance against the BFM encoder/decoder.
+
+        The whole command rides the flat 20-bit CA word on dfi_address (low
+        bits); ras/cas/we hold idle; cs_n is active for the target rank on
+        phase 0. The RTL word must equal `encode_lpddr2_ca(...)` and must
+        round-trip through `decode_lpddr2_ca(...)` back to the driven fields.
+        """
+        assert op in self._OP2CA, f"op {op:#x} not an LPDDR2 CA command"
+        cmd, extra = self._OP2CA[op]
+
+        row_m = row & ((1 << self.ROW_WIDTH) - 1)
+        col_m = col & ((1 << self.COL_WIDTH) - 1)
+        bank_m = bank & ((1 << self.BKW) - 1)
+
+        # Build encode kwargs mirroring the RTL field plumbing.
+        kw = dict(extra)
+        if cmd == _DC.ACT:
+            kw.update(bank=bank_m, row=row_m)
+        elif cmd in (_DC.RD, _DC.RDA, _DC.WR, _DC.WRA):
+            kw.update(bank=bank_m, col=col_m)
+        elif cmd in (_DC.PRE,):
+            kw.update(bank=bank_m)
+        elif cmd == _DC.MRS:
+            # init plumbing packs {MA[5:0], OP[7:0]} in the ROW field:
+            # row[13:8] = MR index, row[7:0] = MR data.
+            kw.update(mr_addr=(row_m >> 8) & 0x3F, mr_data=row_m & 0xFF)
+        expected_word = encode_lpddr2_ca(cmd, **kw)
+
+        # Full flat dfi_address; the CA word lives in the low 20 bits.
+        raw = int(self.dut.dfi_address_o.value)
+        got_word = raw & 0xFFFFF
+        assert got_word == expected_word, (
+            f"LPDDR2 {cmd.name}: dfi_address[19:0] got {got_word:#07x} "
+            f"want {expected_word:#07x} (bank={bank_m} row={row_m:#x} col={col_m:#x})"
         )
-        assert ras == ((1 << self.DFI_CTRL_WIDTH) - 1), (
-            f"phase {phase}: LPDDR2 ras_n must hold idle, got {ras}"
-        )
-        assert cas == ((1 << self.DFI_CTRL_WIDTH) - 1), (
-            f"phase {phase}: LPDDR2 cas_n must hold idle, got {cas}"
-        )
-        assert we == ((1 << self.DFI_CTRL_WIDTH) - 1), (
-            f"phase {phase}: LPDDR2 we_n must hold idle, got {we}"
-        )
+
+        # Round-trip decode must recover the command + fields (C0 implied 0).
+        dcmd, args = decode_lpddr2_ca(got_word)
+        assert dcmd == cmd, f"decode got {dcmd.name} want {cmd.name}"
+        if cmd == _DC.ACT:
+            assert args["bank"] == bank_m and args["row"] == row_m, (
+                f"ACT decode {args} vs bank={bank_m} row={row_m:#x}")
+        elif cmd in (_DC.RD, _DC.RDA, _DC.WR, _DC.WRA):
+            assert args["bank"] == bank_m and args["col"] == (col_m & ~1), (
+                f"{cmd.name} decode {args} vs bank={bank_m} col={col_m & ~1:#x}")
+            assert args["auto_precharge"] == (cmd in (_DC.RDA, _DC.WRA))
+        elif cmd == _DC.PRE:
+            assert args["bank"] == bank_m and not args["all_banks"]
+        elif cmd == _DC.PREA:
+            assert args["all_banks"]
+        elif cmd == _DC.REF:
+            assert args["all_banks"] == extra["all_banks"]
+        elif cmd == _DC.MRS:
+            assert args.get("mr_addr") == ((row_m >> 8) & 0x3F) \
+                and args.get("mr_data") == (row_m & 0xFF)
+
+        # Control strobes idle; cs_n active for the target rank on phase 0 only,
+        # deselected ('1) on all upper phases.
+        full_cs = (1 << self.DFI_CS_WIDTH) - 1
+        cs_mask = full_cs & ~(1 << rank)
+        csn0 = self._slice(self.dut.dfi_cs_n_o, 0, self.DFI_CS_WIDTH)
+        assert csn0 == cs_mask, (
+            f"LPDDR2 cs_n[phase0] got {csn0:#x} want {cs_mask:#x} (rank {rank})")
+        for p in range(1, self.DFI_RATE):
+            csnp = self._slice(self.dut.dfi_cs_n_o, p, self.DFI_CS_WIDTH)
+            assert csnp == full_cs, (
+                f"LPDDR2 cs_n[phase{p}] got {csnp:#x} want deselected {full_cs:#x}")
+        full_ctrl = (1 << self.DFI_CTRL_WIDTH) - 1
+        for name, sig in (("ras_n", self.dut.dfi_ras_n_o),
+                          ("cas_n", self.dut.dfi_cas_n_o),
+                          ("we_n",  self.dut.dfi_we_n_o)):
+            for p in range(self.DFI_RATE):
+                v = self._slice(sig, p, self.DFI_CTRL_WIDTH)
+                assert v == full_ctrl, (
+                    f"LPDDR2 {name} phase {p} must hold idle, got {v}")
 
     @staticmethod
     def _slice(sig, phase: int, width: int) -> int:

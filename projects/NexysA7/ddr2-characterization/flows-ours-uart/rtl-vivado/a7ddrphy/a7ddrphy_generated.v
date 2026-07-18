@@ -1,9 +1,3 @@
-// GENERATED FILE -- DO NOT EDIT BY HAND.
-// Source: LiteDRAM A7DDRPHY (DDR2, Artix-7, 4:1/nphases=4), MT47H64M16, sys=100MHz iodelay=200MHz.
-// Regenerate: bin/elaborate_a7ddrphy.py in the py3.10 litex venv (see bin/README_a7ddrphy.md).
-// DFI 4-phase (dfi_p0..p3, 13b addr, 32b wrdata/phase); calib CSR bus (adr/we/dat_w/dat_r);
-// clocks sys/sys2x/sys4x/sys4x_dqs; IDELAYCTRL is provided by the harness (not this module).
-
 /* Machine-generated using Migen */
 module a7ddrphy(
 	output [12:0] ddram_a,
@@ -24,10 +18,10 @@ module a7ddrphy(
 	input sys_rst,
 	input sys2x_clk,
 	input sys2x_rst,
-	input sys4x_clk,
-	input sys4x_rst,
-	input sys4x_dqs_clk,
-	input sys4x_dqs_rst,
+	input sys2x_clk_1,
+	input sys2x_rst_1,
+	input sys2x_dqs_clk,
+	input sys2x_dqs_rst,
 	input [12:0] dfi_p0_address,
 	input [2:0] dfi_p0_bank,
 	input dfi_p0_cas_n,
@@ -102,7 +96,7 @@ reg a7ddrphy_rst_storage = 1'd0;
 reg a7ddrphy_rst_re = 1'd0;
 reg [1:0] a7ddrphy_dly_sel_storage = 2'd0;
 reg a7ddrphy_dly_sel_re = 1'd0;
-reg [4:0] a7ddrphy_half_sys8x_taps_storage = 5'd8;
+reg [4:0] a7ddrphy_half_sys8x_taps_storage = 5'd21;
 reg a7ddrphy_half_sys8x_taps_re = 1'd0;
 reg a7ddrphy_wlevel_en_storage = 1'd0;
 reg a7ddrphy_wlevel_en_re = 1'd0;
@@ -134,9 +128,9 @@ reg a7ddrphy_wdly_dq_bitslip_re;
 wire a7ddrphy_wdly_dq_bitslip_r;
 reg a7ddrphy_wdly_dq_bitslip_we;
 reg a7ddrphy_wdly_dq_bitslip_w = 1'd0;
-reg [1:0] a7ddrphy_rdphase_storage = 2'd2;
+reg a7ddrphy_rdphase_storage = 1'd1;
 reg a7ddrphy_rdphase_re = 1'd0;
-reg [1:0] a7ddrphy_wrphase_storage = 2'd3;
+reg a7ddrphy_wrphase_storage = 1'd0;
 reg a7ddrphy_wrphase_re = 1'd0;
 wire a7ddrphy_sd_clk_se_nodelay;
 wire [2:0] a7ddrphy_pads_ba;
@@ -144,8 +138,7 @@ reg a7ddrphy_dqs_oe;
 wire a7ddrphy_dqs_preamble;
 wire a7ddrphy_dqs_postamble;
 wire a7ddrphy_dqs_oe_delay_tappeddelayline;
-reg a7ddrphy_dqs_oe_delay_tappeddelayline_tappeddelayline0 = 1'd0;
-reg a7ddrphy_dqs_oe_delay_tappeddelayline_tappeddelayline1 = 1'd0;
+reg a7ddrphy_dqs_oe_delay_tappeddelayline_tappeddelayline = 1'd0;
 reg a7ddrphy_dqspattern0 = 1'd0;
 reg a7ddrphy_dqspattern1 = 1'd0;
 reg [7:0] a7ddrphy_dqspattern_o0;
@@ -170,8 +163,7 @@ reg [2:0] a7ddrphy_bitslip1_value1 = 3'd7;
 reg [15:0] a7ddrphy_bitslip1_r1 = 16'd0;
 wire a7ddrphy_dq_oe;
 wire a7ddrphy_dq_oe_delay_tappeddelayline;
-reg a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline0 = 1'd0;
-reg a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline1 = 1'd0;
+reg a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline = 1'd0;
 wire a7ddrphy_dq_o_nodelay0;
 wire a7ddrphy_dq_i_nodelay0;
 wire a7ddrphy_dq_i_delayed0;
@@ -358,7 +350,6 @@ reg a7ddrphy_rddata_en_tappeddelayline6 = 1'd0;
 reg a7ddrphy_rddata_en_tappeddelayline7 = 1'd0;
 reg a7ddrphy_wrdata_en_tappeddelayline0 = 1'd0;
 reg a7ddrphy_wrdata_en_tappeddelayline1 = 1'd0;
-reg a7ddrphy_wrdata_en_tappeddelayline2 = 1'd0;
 reg re = 1'd0;
 reg rst0_re;
 wire rst0_r;
@@ -377,13 +368,13 @@ wire wlevel_en0_r;
 reg wlevel_en0_we;
 wire wlevel_en0_w;
 reg rdphase0_re;
-wire [1:0] rdphase0_r;
+wire rdphase0_r;
 reg rdphase0_we;
-wire [1:0] rdphase0_w;
+wire rdphase0_w;
 reg wrphase0_re;
-wire [1:0] wrphase0_r;
+wire wrphase0_r;
 reg wrphase0_we;
-wire [1:0] wrphase0_w;
+wire wrphase0_w;
 wire sel;
 
 // synthesis translate_off
@@ -566,7 +557,7 @@ assign dfi_p0_rddata_valid = (a7ddrphy_rddata_en_tappeddelayline7 | a7ddrphy_wle
 assign dfi_p1_rddata_valid = (a7ddrphy_rddata_en_tappeddelayline7 | a7ddrphy_wlevel_en_storage);
 assign dfi_p2_rddata_valid = (a7ddrphy_rddata_en_tappeddelayline7 | a7ddrphy_wlevel_en_storage);
 assign dfi_p3_rddata_valid = (a7ddrphy_rddata_en_tappeddelayline7 | a7ddrphy_wlevel_en_storage);
-assign a7ddrphy_dq_oe = a7ddrphy_wrdata_en_tappeddelayline1;
+assign a7ddrphy_dq_oe = a7ddrphy_wrdata_en_tappeddelayline0;
 
 // synthesis translate_off
 reg dummy_d_4;
@@ -582,8 +573,8 @@ always @(*) begin
 	dummy_d_4 <= dummy_s;
 // synthesis translate_on
 end
-assign a7ddrphy_dqs_preamble = (a7ddrphy_wrdata_en_tappeddelayline0 & (~a7ddrphy_wrdata_en_tappeddelayline1));
-assign a7ddrphy_dqs_postamble = (a7ddrphy_wrdata_en_tappeddelayline2 & (~a7ddrphy_wrdata_en_tappeddelayline1));
+assign a7ddrphy_dqs_preamble = (a7ddrphy_wrdata_en_tappeddelayline1 & (~a7ddrphy_wrdata_en_tappeddelayline0));
+assign a7ddrphy_dqs_postamble = (a7ddrphy_wrdata_en_tappeddelayline1 & (~a7ddrphy_wrdata_en_tappeddelayline0));
 
 // synthesis translate_off
 reg dummy_d_5;
@@ -2080,7 +2071,7 @@ always @(*) begin
 	dummy_d_52 <= dummy_s;
 // synthesis translate_on
 end
-assign rdphase0_r = dat_w[1:0];
+assign rdphase0_r = dat_w[0];
 
 // synthesis translate_off
 reg dummy_d_53;
@@ -2096,7 +2087,7 @@ always @(*) begin
 	dummy_d_53 <= dummy_s;
 // synthesis translate_on
 end
-assign wrphase0_r = dat_w[1:0];
+assign wrphase0_r = dat_w[0];
 
 // synthesis translate_off
 reg dummy_d_54;
@@ -2116,12 +2107,11 @@ assign rst0_w = a7ddrphy_rst_storage;
 assign dly_sel0_w = a7ddrphy_dly_sel_storage[1:0];
 assign half_sys8x_taps0_w = a7ddrphy_half_sys8x_taps_storage[4:0];
 assign wlevel_en0_w = a7ddrphy_wlevel_en_storage;
-assign rdphase0_w = a7ddrphy_rdphase_storage[1:0];
-assign wrphase0_w = a7ddrphy_wrphase_storage[1:0];
+assign rdphase0_w = a7ddrphy_rdphase_storage;
+assign wrphase0_w = a7ddrphy_wrphase_storage;
 
 always @(posedge sys_clk) begin
-	a7ddrphy_dqs_oe_delay_tappeddelayline_tappeddelayline0 <= a7ddrphy_dqs_oe_delay_tappeddelayline;
-	a7ddrphy_dqs_oe_delay_tappeddelayline_tappeddelayline1 <= a7ddrphy_dqs_oe_delay_tappeddelayline_tappeddelayline0;
+	a7ddrphy_dqs_oe_delay_tappeddelayline_tappeddelayline <= a7ddrphy_dqs_oe_delay_tappeddelayline;
 	a7ddrphy_dqspattern_o1 <= a7ddrphy_dqspattern_o0;
 	if ((a7ddrphy_dly_sel_storage[0] & a7ddrphy_wdly_dq_bitslip_re)) begin
 		a7ddrphy_bitslip0_value0 <= (a7ddrphy_bitslip0_value0 + 1'd1);
@@ -2151,8 +2141,7 @@ always @(posedge sys_clk) begin
 		a7ddrphy_bitslip1_value1 <= 3'd7;
 	end
 	a7ddrphy_bitslip1_r1 <= {{dfi_p3_wrdata_mask[3], dfi_p3_wrdata_mask[1], dfi_p2_wrdata_mask[3], dfi_p2_wrdata_mask[1], dfi_p1_wrdata_mask[3], dfi_p1_wrdata_mask[1], dfi_p0_wrdata_mask[3], dfi_p0_wrdata_mask[1]}, a7ddrphy_bitslip1_r1[15:8]};
-	a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline0 <= a7ddrphy_dq_oe_delay_tappeddelayline;
-	a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline1 <= a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline0;
+	a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline <= a7ddrphy_dq_oe_delay_tappeddelayline;
 	if ((a7ddrphy_dly_sel_storage[0] & a7ddrphy_wdly_dq_bitslip_re)) begin
 		a7ddrphy_bitslip0_value2 <= (a7ddrphy_bitslip0_value2 + 1'd1);
 	end
@@ -2377,7 +2366,7 @@ always @(posedge sys_clk) begin
 		a7ddrphy_bitslip15_value1 <= 3'd7;
 	end
 	a7ddrphy_bitslip15_r1 <= {a7ddrphy_bitslip151, a7ddrphy_bitslip15_r1[15:8]};
-	a7ddrphy_rddata_en_tappeddelayline0 <= (((dfi_p0_rddata_en | dfi_p1_rddata_en) | dfi_p2_rddata_en) | dfi_p3_rddata_en);
+	a7ddrphy_rddata_en_tappeddelayline0 <= (dfi_p0_rddata_en | dfi_p1_rddata_en);
 	a7ddrphy_rddata_en_tappeddelayline1 <= a7ddrphy_rddata_en_tappeddelayline0;
 	a7ddrphy_rddata_en_tappeddelayline2 <= a7ddrphy_rddata_en_tappeddelayline1;
 	a7ddrphy_rddata_en_tappeddelayline3 <= a7ddrphy_rddata_en_tappeddelayline2;
@@ -2385,9 +2374,8 @@ always @(posedge sys_clk) begin
 	a7ddrphy_rddata_en_tappeddelayline5 <= a7ddrphy_rddata_en_tappeddelayline4;
 	a7ddrphy_rddata_en_tappeddelayline6 <= a7ddrphy_rddata_en_tappeddelayline5;
 	a7ddrphy_rddata_en_tappeddelayline7 <= a7ddrphy_rddata_en_tappeddelayline6;
-	a7ddrphy_wrdata_en_tappeddelayline0 <= (((dfi_p0_wrdata_en | dfi_p1_wrdata_en) | dfi_p2_wrdata_en) | dfi_p3_wrdata_en);
+	a7ddrphy_wrdata_en_tappeddelayline0 <= (dfi_p0_wrdata_en | dfi_p1_wrdata_en);
 	a7ddrphy_wrdata_en_tappeddelayline1 <= a7ddrphy_wrdata_en_tappeddelayline0;
-	a7ddrphy_wrdata_en_tappeddelayline2 <= a7ddrphy_wrdata_en_tappeddelayline1;
 	dat_r <= 1'd0;
 	if (sel) begin
 		case (adr[8:0])
@@ -2449,11 +2437,11 @@ always @(posedge sys_clk) begin
 	end
 	a7ddrphy_wlevel_en_re <= wlevel_en0_re;
 	if (rdphase0_re) begin
-		a7ddrphy_rdphase_storage[1:0] <= rdphase0_r;
+		a7ddrphy_rdphase_storage <= rdphase0_r;
 	end
 	a7ddrphy_rdphase_re <= rdphase0_re;
 	if (wrphase0_re) begin
-		a7ddrphy_wrphase_storage[1:0] <= wrphase0_r;
+		a7ddrphy_wrphase_storage <= wrphase0_r;
 	end
 	a7ddrphy_wrphase_re <= wrphase0_re;
 	if (sys_rst) begin
@@ -2461,23 +2449,21 @@ always @(posedge sys_clk) begin
 		a7ddrphy_rst_re <= 1'd0;
 		a7ddrphy_dly_sel_storage <= 2'd0;
 		a7ddrphy_dly_sel_re <= 1'd0;
-		a7ddrphy_half_sys8x_taps_storage <= 5'd8;
+		a7ddrphy_half_sys8x_taps_storage <= 5'd21;
 		a7ddrphy_half_sys8x_taps_re <= 1'd0;
 		a7ddrphy_wlevel_en_storage <= 1'd0;
 		a7ddrphy_wlevel_en_re <= 1'd0;
-		a7ddrphy_rdphase_storage <= 2'd2;
+		a7ddrphy_rdphase_storage <= 1'd1;
 		a7ddrphy_rdphase_re <= 1'd0;
-		a7ddrphy_wrphase_storage <= 2'd3;
+		a7ddrphy_wrphase_storage <= 1'd0;
 		a7ddrphy_wrphase_re <= 1'd0;
-		a7ddrphy_dqs_oe_delay_tappeddelayline_tappeddelayline0 <= 1'd0;
-		a7ddrphy_dqs_oe_delay_tappeddelayline_tappeddelayline1 <= 1'd0;
+		a7ddrphy_dqs_oe_delay_tappeddelayline_tappeddelayline <= 1'd0;
 		a7ddrphy_dqspattern_o1 <= 8'd0;
 		a7ddrphy_bitslip0_value0 <= 3'd7;
 		a7ddrphy_bitslip1_value0 <= 3'd7;
 		a7ddrphy_bitslip0_value1 <= 3'd7;
 		a7ddrphy_bitslip1_value1 <= 3'd7;
-		a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline0 <= 1'd0;
-		a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline1 <= 1'd0;
+		a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline <= 1'd0;
 		a7ddrphy_bitslip0_value2 <= 3'd7;
 		a7ddrphy_bitslip0_value3 <= 3'd7;
 		a7ddrphy_bitslip1_value2 <= 3'd7;
@@ -2520,18 +2506,17 @@ always @(posedge sys_clk) begin
 		a7ddrphy_rddata_en_tappeddelayline7 <= 1'd0;
 		a7ddrphy_wrdata_en_tappeddelayline0 <= 1'd0;
 		a7ddrphy_wrdata_en_tappeddelayline1 <= 1'd0;
-		a7ddrphy_wrdata_en_tappeddelayline2 <= 1'd0;
 	end
 end
 
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(1'd0),
 	.D2(1'd1),
@@ -2555,11 +2540,11 @@ OBUFDS OBUFDS(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_1 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_cs_n),
 	.D2(dfi_p0_cs_n),
@@ -2577,11 +2562,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_2 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_address[0]),
 	.D2(dfi_p0_address[0]),
@@ -2599,11 +2584,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_3 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_address[1]),
 	.D2(dfi_p0_address[1]),
@@ -2621,11 +2606,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_4 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_address[2]),
 	.D2(dfi_p0_address[2]),
@@ -2643,11 +2628,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_5 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_address[3]),
 	.D2(dfi_p0_address[3]),
@@ -2665,11 +2650,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_6 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_address[4]),
 	.D2(dfi_p0_address[4]),
@@ -2687,11 +2672,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_7 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_address[5]),
 	.D2(dfi_p0_address[5]),
@@ -2709,11 +2694,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_8 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_address[6]),
 	.D2(dfi_p0_address[6]),
@@ -2731,11 +2716,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_9 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_address[7]),
 	.D2(dfi_p0_address[7]),
@@ -2753,11 +2738,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_10 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_address[8]),
 	.D2(dfi_p0_address[8]),
@@ -2775,11 +2760,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_11 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_address[9]),
 	.D2(dfi_p0_address[9]),
@@ -2797,11 +2782,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_12 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_address[10]),
 	.D2(dfi_p0_address[10]),
@@ -2819,11 +2804,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_13 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_address[11]),
 	.D2(dfi_p0_address[11]),
@@ -2841,11 +2826,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_14 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_address[12]),
 	.D2(dfi_p0_address[12]),
@@ -2863,11 +2848,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_15 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_bank[0]),
 	.D2(dfi_p0_bank[0]),
@@ -2885,11 +2870,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_16 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_bank[1]),
 	.D2(dfi_p0_bank[1]),
@@ -2907,11 +2892,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_17 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_bank[2]),
 	.D2(dfi_p0_bank[2]),
@@ -2929,11 +2914,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_18 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_ras_n),
 	.D2(dfi_p0_ras_n),
@@ -2951,11 +2936,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_19 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_cas_n),
 	.D2(dfi_p0_cas_n),
@@ -2973,11 +2958,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_20 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_we_n),
 	.D2(dfi_p0_we_n),
@@ -2995,11 +2980,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_21 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_cke),
 	.D2(dfi_p0_cke),
@@ -3017,11 +3002,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_22 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(dfi_p0_odt),
 	.D2(dfi_p0_odt),
@@ -3039,11 +3024,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_23 (
-	.CLK(sys4x_dqs_clk),
+	.CLK(sys2x_dqs_clk),
 	.CLKDIV(sys_clk),
 	.D1(a7ddrphy_bitslip00[0]),
 	.D2(a7ddrphy_bitslip00[1]),
@@ -3055,7 +3040,7 @@ OSERDESE2 #(
 	.D8(a7ddrphy_bitslip00[7]),
 	.OCE(1'd1),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
-	.T1((~a7ddrphy_dqs_oe_delay_tappeddelayline_tappeddelayline1)),
+	.T1((~a7ddrphy_dqs_oe_delay_tappeddelayline_tappeddelayline)),
 	.TCE(1'd1),
 	.OFB(a7ddrphy0),
 	.OQ(a7ddrphy_dqs_o_no_delay0),
@@ -3072,11 +3057,11 @@ IOBUFDS IOBUFDS(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_24 (
-	.CLK(sys4x_dqs_clk),
+	.CLK(sys2x_dqs_clk),
 	.CLKDIV(sys_clk),
 	.D1(a7ddrphy_bitslip10[0]),
 	.D2(a7ddrphy_bitslip10[1]),
@@ -3088,7 +3073,7 @@ OSERDESE2 #(
 	.D8(a7ddrphy_bitslip10[7]),
 	.OCE(1'd1),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
-	.T1((~a7ddrphy_dqs_oe_delay_tappeddelayline_tappeddelayline1)),
+	.T1((~a7ddrphy_dqs_oe_delay_tappeddelayline_tappeddelayline)),
 	.TCE(1'd1),
 	.OFB(a7ddrphy1),
 	.OQ(a7ddrphy_dqs_o_no_delay1),
@@ -3105,11 +3090,11 @@ IOBUFDS IOBUFDS_1(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_25 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(a7ddrphy_bitslip01[0]),
 	.D2(a7ddrphy_bitslip01[1]),
@@ -3127,11 +3112,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_26 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(a7ddrphy_bitslip11[0]),
 	.D2(a7ddrphy_bitslip11[1]),
@@ -3149,11 +3134,11 @@ OSERDESE2 #(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_27 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(a7ddrphy_bitslip02[0]),
 	.D2(a7ddrphy_bitslip02[1]),
@@ -3165,7 +3150,7 @@ OSERDESE2 #(
 	.D8(a7ddrphy_bitslip02[7]),
 	.OCE(1'd1),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
-	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline1)),
+	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline)),
 	.TCE(1'd1),
 	.OQ(a7ddrphy_dq_o_nodelay0),
 	.TQ(a7ddrphy_dq_t0)
@@ -3173,7 +3158,7 @@ OSERDESE2 #(
 
 ISERDESE2 #(
 	.DATA_RATE("DDR"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.INTERFACE_TYPE("NETWORKING"),
 	.IOBDELAY("IFD"),
 	.NUM_CE(1'd1),
@@ -3181,8 +3166,8 @@ ISERDESE2 #(
 ) ISERDESE2 (
 	.BITSLIP(1'd0),
 	.CE1(1'd1),
-	.CLK(sys4x_clk),
-	.CLKB((~sys4x_clk)),
+	.CLK(sys2x_clk),
+	.CLKB((~sys2x_clk)),
 	.CLKDIV(sys_clk),
 	.DDLY(a7ddrphy_dq_i_delayed0),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
@@ -3225,11 +3210,11 @@ IOBUF IOBUF(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_28 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(a7ddrphy_bitslip12[0]),
 	.D2(a7ddrphy_bitslip12[1]),
@@ -3241,7 +3226,7 @@ OSERDESE2 #(
 	.D8(a7ddrphy_bitslip12[7]),
 	.OCE(1'd1),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
-	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline1)),
+	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline)),
 	.TCE(1'd1),
 	.OQ(a7ddrphy_dq_o_nodelay1),
 	.TQ(a7ddrphy_dq_t1)
@@ -3249,7 +3234,7 @@ OSERDESE2 #(
 
 ISERDESE2 #(
 	.DATA_RATE("DDR"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.INTERFACE_TYPE("NETWORKING"),
 	.IOBDELAY("IFD"),
 	.NUM_CE(1'd1),
@@ -3257,8 +3242,8 @@ ISERDESE2 #(
 ) ISERDESE2_1 (
 	.BITSLIP(1'd0),
 	.CE1(1'd1),
-	.CLK(sys4x_clk),
-	.CLKB((~sys4x_clk)),
+	.CLK(sys2x_clk),
+	.CLKB((~sys2x_clk)),
 	.CLKDIV(sys_clk),
 	.DDLY(a7ddrphy_dq_i_delayed1),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
@@ -3301,11 +3286,11 @@ IOBUF IOBUF_1(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_29 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(a7ddrphy_bitslip20[0]),
 	.D2(a7ddrphy_bitslip20[1]),
@@ -3317,7 +3302,7 @@ OSERDESE2 #(
 	.D8(a7ddrphy_bitslip20[7]),
 	.OCE(1'd1),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
-	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline1)),
+	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline)),
 	.TCE(1'd1),
 	.OQ(a7ddrphy_dq_o_nodelay2),
 	.TQ(a7ddrphy_dq_t2)
@@ -3325,7 +3310,7 @@ OSERDESE2 #(
 
 ISERDESE2 #(
 	.DATA_RATE("DDR"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.INTERFACE_TYPE("NETWORKING"),
 	.IOBDELAY("IFD"),
 	.NUM_CE(1'd1),
@@ -3333,8 +3318,8 @@ ISERDESE2 #(
 ) ISERDESE2_2 (
 	.BITSLIP(1'd0),
 	.CE1(1'd1),
-	.CLK(sys4x_clk),
-	.CLKB((~sys4x_clk)),
+	.CLK(sys2x_clk),
+	.CLKB((~sys2x_clk)),
 	.CLKDIV(sys_clk),
 	.DDLY(a7ddrphy_dq_i_delayed2),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
@@ -3377,11 +3362,11 @@ IOBUF IOBUF_2(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_30 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(a7ddrphy_bitslip30[0]),
 	.D2(a7ddrphy_bitslip30[1]),
@@ -3393,7 +3378,7 @@ OSERDESE2 #(
 	.D8(a7ddrphy_bitslip30[7]),
 	.OCE(1'd1),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
-	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline1)),
+	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline)),
 	.TCE(1'd1),
 	.OQ(a7ddrphy_dq_o_nodelay3),
 	.TQ(a7ddrphy_dq_t3)
@@ -3401,7 +3386,7 @@ OSERDESE2 #(
 
 ISERDESE2 #(
 	.DATA_RATE("DDR"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.INTERFACE_TYPE("NETWORKING"),
 	.IOBDELAY("IFD"),
 	.NUM_CE(1'd1),
@@ -3409,8 +3394,8 @@ ISERDESE2 #(
 ) ISERDESE2_3 (
 	.BITSLIP(1'd0),
 	.CE1(1'd1),
-	.CLK(sys4x_clk),
-	.CLKB((~sys4x_clk)),
+	.CLK(sys2x_clk),
+	.CLKB((~sys2x_clk)),
 	.CLKDIV(sys_clk),
 	.DDLY(a7ddrphy_dq_i_delayed3),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
@@ -3453,11 +3438,11 @@ IOBUF IOBUF_3(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_31 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(a7ddrphy_bitslip40[0]),
 	.D2(a7ddrphy_bitslip40[1]),
@@ -3469,7 +3454,7 @@ OSERDESE2 #(
 	.D8(a7ddrphy_bitslip40[7]),
 	.OCE(1'd1),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
-	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline1)),
+	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline)),
 	.TCE(1'd1),
 	.OQ(a7ddrphy_dq_o_nodelay4),
 	.TQ(a7ddrphy_dq_t4)
@@ -3477,7 +3462,7 @@ OSERDESE2 #(
 
 ISERDESE2 #(
 	.DATA_RATE("DDR"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.INTERFACE_TYPE("NETWORKING"),
 	.IOBDELAY("IFD"),
 	.NUM_CE(1'd1),
@@ -3485,8 +3470,8 @@ ISERDESE2 #(
 ) ISERDESE2_4 (
 	.BITSLIP(1'd0),
 	.CE1(1'd1),
-	.CLK(sys4x_clk),
-	.CLKB((~sys4x_clk)),
+	.CLK(sys2x_clk),
+	.CLKB((~sys2x_clk)),
 	.CLKDIV(sys_clk),
 	.DDLY(a7ddrphy_dq_i_delayed4),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
@@ -3529,11 +3514,11 @@ IOBUF IOBUF_4(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_32 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(a7ddrphy_bitslip50[0]),
 	.D2(a7ddrphy_bitslip50[1]),
@@ -3545,7 +3530,7 @@ OSERDESE2 #(
 	.D8(a7ddrphy_bitslip50[7]),
 	.OCE(1'd1),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
-	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline1)),
+	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline)),
 	.TCE(1'd1),
 	.OQ(a7ddrphy_dq_o_nodelay5),
 	.TQ(a7ddrphy_dq_t5)
@@ -3553,7 +3538,7 @@ OSERDESE2 #(
 
 ISERDESE2 #(
 	.DATA_RATE("DDR"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.INTERFACE_TYPE("NETWORKING"),
 	.IOBDELAY("IFD"),
 	.NUM_CE(1'd1),
@@ -3561,8 +3546,8 @@ ISERDESE2 #(
 ) ISERDESE2_5 (
 	.BITSLIP(1'd0),
 	.CE1(1'd1),
-	.CLK(sys4x_clk),
-	.CLKB((~sys4x_clk)),
+	.CLK(sys2x_clk),
+	.CLKB((~sys2x_clk)),
 	.CLKDIV(sys_clk),
 	.DDLY(a7ddrphy_dq_i_delayed5),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
@@ -3605,11 +3590,11 @@ IOBUF IOBUF_5(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_33 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(a7ddrphy_bitslip60[0]),
 	.D2(a7ddrphy_bitslip60[1]),
@@ -3621,7 +3606,7 @@ OSERDESE2 #(
 	.D8(a7ddrphy_bitslip60[7]),
 	.OCE(1'd1),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
-	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline1)),
+	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline)),
 	.TCE(1'd1),
 	.OQ(a7ddrphy_dq_o_nodelay6),
 	.TQ(a7ddrphy_dq_t6)
@@ -3629,7 +3614,7 @@ OSERDESE2 #(
 
 ISERDESE2 #(
 	.DATA_RATE("DDR"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.INTERFACE_TYPE("NETWORKING"),
 	.IOBDELAY("IFD"),
 	.NUM_CE(1'd1),
@@ -3637,8 +3622,8 @@ ISERDESE2 #(
 ) ISERDESE2_6 (
 	.BITSLIP(1'd0),
 	.CE1(1'd1),
-	.CLK(sys4x_clk),
-	.CLKB((~sys4x_clk)),
+	.CLK(sys2x_clk),
+	.CLKB((~sys2x_clk)),
 	.CLKDIV(sys_clk),
 	.DDLY(a7ddrphy_dq_i_delayed6),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
@@ -3681,11 +3666,11 @@ IOBUF IOBUF_6(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_34 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(a7ddrphy_bitslip70[0]),
 	.D2(a7ddrphy_bitslip70[1]),
@@ -3697,7 +3682,7 @@ OSERDESE2 #(
 	.D8(a7ddrphy_bitslip70[7]),
 	.OCE(1'd1),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
-	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline1)),
+	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline)),
 	.TCE(1'd1),
 	.OQ(a7ddrphy_dq_o_nodelay7),
 	.TQ(a7ddrphy_dq_t7)
@@ -3705,7 +3690,7 @@ OSERDESE2 #(
 
 ISERDESE2 #(
 	.DATA_RATE("DDR"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.INTERFACE_TYPE("NETWORKING"),
 	.IOBDELAY("IFD"),
 	.NUM_CE(1'd1),
@@ -3713,8 +3698,8 @@ ISERDESE2 #(
 ) ISERDESE2_7 (
 	.BITSLIP(1'd0),
 	.CE1(1'd1),
-	.CLK(sys4x_clk),
-	.CLKB((~sys4x_clk)),
+	.CLK(sys2x_clk),
+	.CLKB((~sys2x_clk)),
 	.CLKDIV(sys_clk),
 	.DDLY(a7ddrphy_dq_i_delayed7),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
@@ -3757,11 +3742,11 @@ IOBUF IOBUF_7(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_35 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(a7ddrphy_bitslip80[0]),
 	.D2(a7ddrphy_bitslip80[1]),
@@ -3773,7 +3758,7 @@ OSERDESE2 #(
 	.D8(a7ddrphy_bitslip80[7]),
 	.OCE(1'd1),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
-	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline1)),
+	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline)),
 	.TCE(1'd1),
 	.OQ(a7ddrphy_dq_o_nodelay8),
 	.TQ(a7ddrphy_dq_t8)
@@ -3781,7 +3766,7 @@ OSERDESE2 #(
 
 ISERDESE2 #(
 	.DATA_RATE("DDR"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.INTERFACE_TYPE("NETWORKING"),
 	.IOBDELAY("IFD"),
 	.NUM_CE(1'd1),
@@ -3789,8 +3774,8 @@ ISERDESE2 #(
 ) ISERDESE2_8 (
 	.BITSLIP(1'd0),
 	.CE1(1'd1),
-	.CLK(sys4x_clk),
-	.CLKB((~sys4x_clk)),
+	.CLK(sys2x_clk),
+	.CLKB((~sys2x_clk)),
 	.CLKDIV(sys_clk),
 	.DDLY(a7ddrphy_dq_i_delayed8),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
@@ -3833,11 +3818,11 @@ IOBUF IOBUF_8(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_36 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(a7ddrphy_bitslip90[0]),
 	.D2(a7ddrphy_bitslip90[1]),
@@ -3849,7 +3834,7 @@ OSERDESE2 #(
 	.D8(a7ddrphy_bitslip90[7]),
 	.OCE(1'd1),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
-	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline1)),
+	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline)),
 	.TCE(1'd1),
 	.OQ(a7ddrphy_dq_o_nodelay9),
 	.TQ(a7ddrphy_dq_t9)
@@ -3857,7 +3842,7 @@ OSERDESE2 #(
 
 ISERDESE2 #(
 	.DATA_RATE("DDR"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.INTERFACE_TYPE("NETWORKING"),
 	.IOBDELAY("IFD"),
 	.NUM_CE(1'd1),
@@ -3865,8 +3850,8 @@ ISERDESE2 #(
 ) ISERDESE2_9 (
 	.BITSLIP(1'd0),
 	.CE1(1'd1),
-	.CLK(sys4x_clk),
-	.CLKB((~sys4x_clk)),
+	.CLK(sys2x_clk),
+	.CLKB((~sys2x_clk)),
 	.CLKDIV(sys_clk),
 	.DDLY(a7ddrphy_dq_i_delayed9),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
@@ -3909,11 +3894,11 @@ IOBUF IOBUF_9(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_37 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(a7ddrphy_bitslip100[0]),
 	.D2(a7ddrphy_bitslip100[1]),
@@ -3925,7 +3910,7 @@ OSERDESE2 #(
 	.D8(a7ddrphy_bitslip100[7]),
 	.OCE(1'd1),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
-	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline1)),
+	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline)),
 	.TCE(1'd1),
 	.OQ(a7ddrphy_dq_o_nodelay10),
 	.TQ(a7ddrphy_dq_t10)
@@ -3933,7 +3918,7 @@ OSERDESE2 #(
 
 ISERDESE2 #(
 	.DATA_RATE("DDR"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.INTERFACE_TYPE("NETWORKING"),
 	.IOBDELAY("IFD"),
 	.NUM_CE(1'd1),
@@ -3941,8 +3926,8 @@ ISERDESE2 #(
 ) ISERDESE2_10 (
 	.BITSLIP(1'd0),
 	.CE1(1'd1),
-	.CLK(sys4x_clk),
-	.CLKB((~sys4x_clk)),
+	.CLK(sys2x_clk),
+	.CLKB((~sys2x_clk)),
 	.CLKDIV(sys_clk),
 	.DDLY(a7ddrphy_dq_i_delayed10),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
@@ -3985,11 +3970,11 @@ IOBUF IOBUF_10(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_38 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(a7ddrphy_bitslip110[0]),
 	.D2(a7ddrphy_bitslip110[1]),
@@ -4001,7 +3986,7 @@ OSERDESE2 #(
 	.D8(a7ddrphy_bitslip110[7]),
 	.OCE(1'd1),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
-	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline1)),
+	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline)),
 	.TCE(1'd1),
 	.OQ(a7ddrphy_dq_o_nodelay11),
 	.TQ(a7ddrphy_dq_t11)
@@ -4009,7 +3994,7 @@ OSERDESE2 #(
 
 ISERDESE2 #(
 	.DATA_RATE("DDR"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.INTERFACE_TYPE("NETWORKING"),
 	.IOBDELAY("IFD"),
 	.NUM_CE(1'd1),
@@ -4017,8 +4002,8 @@ ISERDESE2 #(
 ) ISERDESE2_11 (
 	.BITSLIP(1'd0),
 	.CE1(1'd1),
-	.CLK(sys4x_clk),
-	.CLKB((~sys4x_clk)),
+	.CLK(sys2x_clk),
+	.CLKB((~sys2x_clk)),
 	.CLKDIV(sys_clk),
 	.DDLY(a7ddrphy_dq_i_delayed11),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
@@ -4061,11 +4046,11 @@ IOBUF IOBUF_11(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_39 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(a7ddrphy_bitslip120[0]),
 	.D2(a7ddrphy_bitslip120[1]),
@@ -4077,7 +4062,7 @@ OSERDESE2 #(
 	.D8(a7ddrphy_bitslip120[7]),
 	.OCE(1'd1),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
-	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline1)),
+	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline)),
 	.TCE(1'd1),
 	.OQ(a7ddrphy_dq_o_nodelay12),
 	.TQ(a7ddrphy_dq_t12)
@@ -4085,7 +4070,7 @@ OSERDESE2 #(
 
 ISERDESE2 #(
 	.DATA_RATE("DDR"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.INTERFACE_TYPE("NETWORKING"),
 	.IOBDELAY("IFD"),
 	.NUM_CE(1'd1),
@@ -4093,8 +4078,8 @@ ISERDESE2 #(
 ) ISERDESE2_12 (
 	.BITSLIP(1'd0),
 	.CE1(1'd1),
-	.CLK(sys4x_clk),
-	.CLKB((~sys4x_clk)),
+	.CLK(sys2x_clk),
+	.CLKB((~sys2x_clk)),
 	.CLKDIV(sys_clk),
 	.DDLY(a7ddrphy_dq_i_delayed12),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
@@ -4137,11 +4122,11 @@ IOBUF IOBUF_12(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_40 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(a7ddrphy_bitslip130[0]),
 	.D2(a7ddrphy_bitslip130[1]),
@@ -4153,7 +4138,7 @@ OSERDESE2 #(
 	.D8(a7ddrphy_bitslip130[7]),
 	.OCE(1'd1),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
-	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline1)),
+	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline)),
 	.TCE(1'd1),
 	.OQ(a7ddrphy_dq_o_nodelay13),
 	.TQ(a7ddrphy_dq_t13)
@@ -4161,7 +4146,7 @@ OSERDESE2 #(
 
 ISERDESE2 #(
 	.DATA_RATE("DDR"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.INTERFACE_TYPE("NETWORKING"),
 	.IOBDELAY("IFD"),
 	.NUM_CE(1'd1),
@@ -4169,8 +4154,8 @@ ISERDESE2 #(
 ) ISERDESE2_13 (
 	.BITSLIP(1'd0),
 	.CE1(1'd1),
-	.CLK(sys4x_clk),
-	.CLKB((~sys4x_clk)),
+	.CLK(sys2x_clk),
+	.CLKB((~sys2x_clk)),
 	.CLKDIV(sys_clk),
 	.DDLY(a7ddrphy_dq_i_delayed13),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
@@ -4213,11 +4198,11 @@ IOBUF IOBUF_13(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_41 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(a7ddrphy_bitslip140[0]),
 	.D2(a7ddrphy_bitslip140[1]),
@@ -4229,7 +4214,7 @@ OSERDESE2 #(
 	.D8(a7ddrphy_bitslip140[7]),
 	.OCE(1'd1),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
-	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline1)),
+	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline)),
 	.TCE(1'd1),
 	.OQ(a7ddrphy_dq_o_nodelay14),
 	.TQ(a7ddrphy_dq_t14)
@@ -4237,7 +4222,7 @@ OSERDESE2 #(
 
 ISERDESE2 #(
 	.DATA_RATE("DDR"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.INTERFACE_TYPE("NETWORKING"),
 	.IOBDELAY("IFD"),
 	.NUM_CE(1'd1),
@@ -4245,8 +4230,8 @@ ISERDESE2 #(
 ) ISERDESE2_14 (
 	.BITSLIP(1'd0),
 	.CE1(1'd1),
-	.CLK(sys4x_clk),
-	.CLKB((~sys4x_clk)),
+	.CLK(sys2x_clk),
+	.CLKB((~sys2x_clk)),
 	.CLKDIV(sys_clk),
 	.DDLY(a7ddrphy_dq_i_delayed14),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
@@ -4289,11 +4274,11 @@ IOBUF IOBUF_14(
 OSERDESE2 #(
 	.DATA_RATE_OQ("DDR"),
 	.DATA_RATE_TQ("BUF"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.SERDES_MODE("MASTER"),
 	.TRISTATE_WIDTH(1'd1)
 ) OSERDESE2_42 (
-	.CLK(sys4x_clk),
+	.CLK(sys2x_clk),
 	.CLKDIV(sys_clk),
 	.D1(a7ddrphy_bitslip150[0]),
 	.D2(a7ddrphy_bitslip150[1]),
@@ -4305,7 +4290,7 @@ OSERDESE2 #(
 	.D8(a7ddrphy_bitslip150[7]),
 	.OCE(1'd1),
 	.RST((sys_rst | a7ddrphy_rst_storage)),
-	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline1)),
+	.T1((~a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline)),
 	.TCE(1'd1),
 	.OQ(a7ddrphy_dq_o_nodelay15),
 	.TQ(a7ddrphy_dq_t15)
@@ -4313,7 +4298,7 @@ OSERDESE2 #(
 
 ISERDESE2 #(
 	.DATA_RATE("DDR"),
-	.DATA_WIDTH(4'd8),
+	.DATA_WIDTH(3'd4),
 	.INTERFACE_TYPE("NETWORKING"),
 	.IOBDELAY("IFD"),
 	.NUM_CE(1'd1),
@@ -4321,8 +4306,8 @@ ISERDESE2 #(
 ) ISERDESE2_15 (
 	.BITSLIP(1'd0),
 	.CE1(1'd1),
-	.CLK(sys4x_clk),
-	.CLKB((~sys4x_clk)),
+	.CLK(sys2x_clk),
+	.CLKB((~sys2x_clk)),
 	.CLKDIV(sys_clk),
 	.DDLY(a7ddrphy_dq_i_delayed15),
 	.RST((sys_rst | a7ddrphy_rst_storage)),

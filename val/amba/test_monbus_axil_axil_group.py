@@ -60,7 +60,7 @@ from TBClasses.amba.monbus_axil_axil_group.monbus_axil_axil_group_tb import Monb
 # area because that's where its instrumentation/scoreboards are tuned;
 # val/amba tests degrade gracefully when it's not importable.
 try:
-    from projects.components.stream.dv.stream_coverage import (
+    from projects.components.dmas.stream.dv.stream_coverage import (
         CoverageHelper,
         get_coverage_compile_args,
         get_coverage_env

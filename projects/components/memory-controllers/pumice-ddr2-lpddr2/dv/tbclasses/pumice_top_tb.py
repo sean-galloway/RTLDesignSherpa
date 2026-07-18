@@ -206,7 +206,10 @@ class DDR2LPDDR2TopTB:
         cocotb.start_soon(_init_complete_after(init_complete_delay))
 
     def init_dfi_slave(self, *,
-                       strict_violations: bool = False) -> DFISlavePHY:
+                       strict_violations: bool = False,
+                       strict_timing: bool = False,
+                       read_latency: int = 0,
+                       write_latency: int = 0) -> DFISlavePHY:
         """Instantiate the DFISlavePHY BFM bound to phy_dfi_* signals.
 
         Call AFTER reset() so the bus is live when the BFM samples it.
@@ -218,10 +221,47 @@ class DDR2LPDDR2TopTB:
         Flip it on to enforce full JEDEC timing checking — the
         controller's tRCD / tFAW / etc. must then match the
         ddr2-650 preset exactly.
+
+        `strict_timing=True` makes the BFM model the REAL PHY data cadence:
+        reads return exactly `read_latency` cycles after the controller
+        asserts dfi_rddata_en (not self-timed off the RD command), and writes
+        are captured at command + `write_latency` (not on any wrdata_en). This
+        is the faithful board behavior — the lenient default self-times off the
+        command and ignores the controller's data-enable cadence, which hides
+        exactly the kind of cadence bug that fails on silicon but passes the
+        zero-latency DFI loopback. Board-matching values: write_latency=0
+        (t_phy_wrlat=0, pre-pull concurrent), read_latency≈the a7ddrphy
+        rddata_en→rddata_valid delay.
         """
+        # Env overrides so any existing test can be run board-faithful without
+        # editing it: DFI_STRICT_TIMING=1, DFI_READ_LATENCY=N, DFI_WRITE_LATENCY=N.
+        import os as _os
+        from CocoTBFramework.components.dfi.dfi_timing import DFITimingProfile
+        if _os.environ.get("DFI_STRICT_TIMING", "") in ("1", "true", "True"):
+            strict_timing = True
+        read_latency  = int(_os.environ.get("DFI_READ_LATENCY",  read_latency))
+        write_latency = int(_os.environ.get("DFI_WRITE_LATENCY", write_latency))
+        # PHY-agnostic timing profile (hook surface). DFI_PROFILE selects a
+        # preset (ideal|a7ddrphy|strict_dram); default None => idealized loopback
+        # (unless the legacy strict_timing arg/env is set). See dfi_timing.py.
+        _prof = _os.environ.get("DFI_PROFILE", "").strip().lower()
+        _timing = None
+        if _prof in ("a7", "a7ddrphy"):
+            _timing = DFITimingProfile.a7ddrphy(read_latency=read_latency,
+                                                write_latency=write_latency)
+        elif _prof in ("strict", "strict_dram"):
+            _timing = DFITimingProfile.strict_dram(read_latency=read_latency,
+                                                   write_latency=write_latency)
+        elif _prof in ("ideal",):
+            _timing = DFITimingProfile.ideal()
         self.dfi_slave = DFISlavePHY(
             self.dut, self.dut.mc_clk,
             base=self.dfi_base, memory=self.memory,
+            timing=_timing,
+            strict_read_timing=strict_timing,
+            strict_write_timing=strict_timing,
+            read_latency=read_latency,
+            write_latency=write_latency,
         )
         if not strict_violations:
             self.dfi_slave.dram = DramStateModel(

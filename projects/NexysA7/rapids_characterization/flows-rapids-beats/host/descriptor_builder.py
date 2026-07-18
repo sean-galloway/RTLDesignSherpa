@@ -4,7 +4,7 @@
 # Module: descriptor_builder
 # Purpose: Build 256-bit RAPIDS descriptors for the rapids_char_top host
 #          campaign. Mirrors the descriptor layout in
-#          projects/components/rapids/rtl/includes/rapids_pkg.sv and the
+#          projects/components/dmas/rapids/rtl/includes/rapids_pkg.sv and the
 #          create_descriptor() helper in the cocotb harness TB
 #          (dv/rapids_char_harness_tb.py) so the on-chip descriptor engine sees
 #          exactly the same bytes whether kicked from sim or from the board.

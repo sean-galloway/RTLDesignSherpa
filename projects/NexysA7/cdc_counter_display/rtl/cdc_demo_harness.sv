@@ -18,6 +18,15 @@
 // All R/W is single-beat. AXIL responses are always OKAY; writes to
 // undecoded offsets are silently dropped, reads to undecoded offsets
 // return 0.
+//
+// Register table (GLOBALS — parsed by host/test_cdc_demo_regmap_consistency.py;
+// keep aligned with rtl/cdc_demo_csr.rdl). Per-counter registers are the
+// CTR_OFF_* localparams below, at base 0x40 + i*0x40:
+//   0x000  BUILD_ID     R   ASCII "CDC1"
+//   0x004  STATUS       R   live alive/uart/any-written flags
+//   0x008  CTRL         RW  soft_reset / freeze / ignore_btn
+//   0x00C  DISP_SELECT  RW  which counter drives the 7-seg
+//   0x010  SCRATCH      RW  host link-sanity scratch
 
 `timescale 1ns / 1ps
 

@@ -472,7 +472,7 @@ module bridge_stream_char_axil_xbar (
     // Using 32b path from adapter (APB LCD width)
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
-    wire host_32b_aw_to_stream_apb = (host_32b_aw.addr <= 32'h00000fff);
+    wire host_32b_aw_to_stream_apb = (host_32b_aw.addr <= 32'h00001fff);
     assign stream_apb_axi_awid     = host_32b_aw_to_stream_apb ? host_32b_aw.id : '0;
     assign stream_apb_axi_awaddr   = host_32b_aw_to_stream_apb ? host_32b_aw.addr : '0;
     assign stream_apb_axi_awlen    = host_32b_aw_to_stream_apb ? host_32b_aw.len : '0;
@@ -521,7 +521,7 @@ module bridge_stream_char_axil_xbar (
     assign stream_apb_axi_bridge_id_aw = host_32b_aw_to_stream_apb ? host_bridge_id_aw : '0;
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
-    wire host_32b_ar_to_stream_apb = (host_32b_ar.addr <= 32'h00000fff);
+    wire host_32b_ar_to_stream_apb = (host_32b_ar.addr <= 32'h00001fff);
     assign stream_apb_axi_arid     = host_32b_ar_to_stream_apb ? host_32b_ar.id : '0;
     assign stream_apb_axi_araddr   = host_32b_ar_to_stream_apb ? host_32b_ar.addr : '0;
     assign stream_apb_axi_arlen    = host_32b_ar_to_stream_apb ? host_32b_ar.len : '0;

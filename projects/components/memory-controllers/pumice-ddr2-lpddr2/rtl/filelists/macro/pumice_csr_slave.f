@@ -30,7 +30,7 @@ $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/genera
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated/rtl/pumice_csr.sv
 
 # Config-block projection
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_config_block.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/OLD/pumice_config_block.sv
 
 # CSR slave macro
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_csr_slave.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/OLD/pumice_csr_slave.sv

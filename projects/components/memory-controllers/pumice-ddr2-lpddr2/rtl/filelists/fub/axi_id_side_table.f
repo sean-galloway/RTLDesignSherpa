@@ -15,4 +15,4 @@ $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/includes/pumice_pkg.sv
 
 # This FUB
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/axi_id_side_table.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/OLD/axi_id_side_table.sv

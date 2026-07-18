@@ -82,7 +82,7 @@ For modern DMA functionality, use the Stream DMA project instead of 8237:
 
 | Module | Location | Description |
 |--------|----------|-------------|
-| **Stream DMA** | projects/components/stream/ | Modern AXI-based descriptor DMA engine |
+| **Stream DMA** | projects/components/dmas/stream/ | Modern AXI-based descriptor DMA engine |
 
 The Stream DMA provides:
 - Descriptor-based operation

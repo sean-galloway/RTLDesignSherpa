@@ -61,10 +61,11 @@ integrator that only needs error packets pays no LUT/FF for the others.
 | **axi_monitor_trans_mgr** | Transaction table management (CAM-backed) | Out-of-order tracking, ID management | [axi_monitor_trans_mgr.md](axi_monitor_trans_mgr.md) |
 | **monitor_trans_cam** | Multi-port ID CAM with payload | 3 lookup ports, 3-way alloc mutex, used by trans_mgr | [monitor_trans_cam.md](monitor_trans_cam.md) |
 | **axi_monitor_reporter** | Event packet dispatcher | Top-level mux over 6 detection sub-blocks (error / timeout / compl / threshold / perf / debug), each gated by `ENABLE_*_LOGIC` | [axi_monitor_reporter.md](axi_monitor_reporter.md) |
-| `axi_monitor_reporter_{error,timeout,compl,threshold,perf,debug}` | Per-packet-type detection sub-blocks | Private to the reporter family — see the reporter doc | (covered in [axi_monitor_reporter.md](axi_monitor_reporter.md)) |
+| `axi_monitor_reporter_{error,timeout,compl,threshold,perf,debug}` | Per-packet-type detection sub-blocks | One MonBus packet type each, muxed by axi_monitor_reporter; each gated by `ENABLE_*_LOGIC` | [error](axi_monitor_reporter_error.md) · [timeout](axi_monitor_reporter_timeout.md) · [compl](axi_monitor_reporter_compl.md) · [threshold](axi_monitor_reporter_threshold.md) · [perf](axi_monitor_reporter_perf.md) · [debug](axi_monitor_reporter_debug.md) |
 | **axi_monitor_timeout** | Timeout detection | Configurable thresholds, multi-channel monitoring | [axi_monitor_timeout.md](axi_monitor_timeout.md) |
 | **axi_monitor_timer** | Frequency-invariant timer | Configurable tick generation | [axi_monitor_timer.md](axi_monitor_timer.md) |
 | **axi_monitor_addr_check** | Address-match watchpoints | Per-channel address compare and event emission | [axi_monitor_addr_check.md](axi_monitor_addr_check.md) |
+| **apb_monitor_addr_check** | APB address-range filter | N configurable ranges; emits APB address-range error packets | [apb_monitor_addr_check.md](apb_monitor_addr_check.md) |
 | **amba_clock_gate_ctrl** | Clock gating control | Dynamic gating, idle detection | [amba_clock_gate_ctrl.md](amba_clock_gate_ctrl.md) |
 
 ### Monitor Bus Delivery + Bulk-Trace Compression
@@ -76,11 +77,12 @@ the matching fabric without spurious AXI4-only fields on AXIL sides.
 
 | Module | Purpose | Key Features | Documentation |
 |--------|---------|--------------|---------------|
-| **monbus_group_core** | Protocol-agnostic core | Per-protocol filter, err FIFO (record-granular), write FIFO (beat-granular), watermark+timeout burst writer, 4KB-boundary aware, optional bulk-trace compression | [monbus_group.md](monbus_group.md) |
-| **monbus_axil_axil_group** | Wrapper — AXIL/AXIL | Slave-read + master-write both AXIL (single-beat). Replaces legacy monbus_axil_group. | (same) |
-| **monbus_axil_axi4_group** | Wrapper — AXIL/AXI4 | AXIL slave-read + AXI4 burst master-write (up to 256 beats/burst) | (same) |
-| **monbus_axi4_axil_group** | Wrapper — AXI4/AXIL | AXI4 burst slave-read + AXIL master-write | (same) |
-| **monbus_axi4_axi4_group** | Wrapper — AXI4/AXI4 | Burst on both sides | (same) |
+| **monbus_group_core** | Protocol-agnostic core | Per-protocol filter, err FIFO (record-granular), write FIFO (beat-granular), watermark+timeout burst writer, 4KB-boundary aware, optional bulk-trace compression | [monbus_group_core.md](monbus_group_core.md) (family: [monbus_group.md](monbus_group.md)) |
+| **monbus_axil_axil_group** | Wrapper — AXIL/AXIL | Slave-read + master-write both AXIL (single-beat). Replaces legacy monbus_axil_group. | [monbus_axil_axil_group.md](monbus_axil_axil_group.md) |
+| **monbus_axil_axi4_group** | Wrapper — AXIL/AXI4 | AXIL slave-read + AXI4 burst master-write (up to 256 beats/burst) | [monbus_axil_axi4_group.md](monbus_axil_axi4_group.md) |
+| **monbus_axi4_axil_group** | Wrapper — AXI4/AXIL | AXI4 burst slave-read + AXIL master-write | [monbus_axi4_axil_group.md](monbus_axi4_axil_group.md) |
+| **monbus_axi4_axi4_group** | Wrapper — AXI4/AXI4 | Burst on both sides | [monbus_axi4_axi4_group.md](monbus_axi4_axi4_group.md) |
+| **monbus_halfbeat_packer** | Half-beat packer | Packs MonBus records into half-beats to push past the compressor's ~66.7% ceiling; bit-exact to Python golden | [monbus_halfbeat_packer.md](monbus_halfbeat_packer.md) |
 | **monbus_compressor** | Bulk-trace encoder | 32-entry LRU CAM, 4-tag slot format, ~2.6× ratio, 2-stage pipeline, per-template `delta_ts`, optional half-beat packing, bit-exact to Python golden | [monbus_compressor.md](monbus_compressor.md) |
 | **monbus_cam_pipe** | Pipelined LRU CAM (production) | 2-cycle compare + commit, depth-1 forwarding, sync `clear`, self-derived TOUCH/INSTALL — used in `monbus_compressor` | [monbus_cam_pipe.md](monbus_cam_pipe.md) |
 | **monbus_cam** | LRU CAM (reference) | Single-cycle reference design — same LRU semantics, superseded by `monbus_cam_pipe` in production | [monbus_cam.md](monbus_cam.md) |
@@ -102,8 +104,9 @@ Companion piece to the per-DMA `axi_monitor_*` family.
 | Module | Purpose | Key Features | Documentation |
 |--------|---------|--------------|---------------|
 | **axi4_dma_observer** | Standalone DMA observability harness | NUM_RD + NUM_WR tap pairs, monbus_arbiter + monbus_axil_axi4_group, axi_bus_meter + axi_perf_latency_hist per tap; reads via rid map, writes via AW→W awid tracker | [axi4_dma_observer.md](axi4_dma_observer.md) |
-| **axi_bus_meter** | Per-cycle valid/ready bucket counter | 4 buckets (productive / backpressure / starvation / idle), aggregate + per-channel | (covered in axi4_dma_observer.md) |
-| **axi_perf_latency_hist** | Per-transaction latency histogram | 16 log2 bins; read AR→first-R + AR→RLAST, write AW→B; per-channel timestamp FIFOs; indexed readout | (covered in axi4_dma_observer.md) |
+| **axi_bus_meter** | Per-cycle valid/ready bucket counter | 4 buckets (productive / backpressure / starvation / idle), aggregate + per-channel | [axi_bus_meter.md](axi_bus_meter.md) |
+| **axis_bus_meter** | AXIS per-cycle bucket counter + throughput | Same 4 buckets plus window-independent byte (tstrb) / beat / packet (tlast) counters, per-tid bins | [axis_bus_meter.md](axis_bus_meter.md) |
+| **axi_perf_latency_hist** | Per-transaction latency histogram | 16 log2 bins; read AR→first-R + AR→RLAST, write AW→B; per-channel timestamp FIFOs; indexed readout | [axi_perf_latency_hist.md](axi_perf_latency_hist.md) |
 
 ### Memory / BRAM Slave (sdpram_slave family)
 
@@ -116,11 +119,29 @@ wrapper module name).
 
 | Module | Purpose | Wr / Rd ports | Documentation |
 |--------|---------|---|---|
-| **sdpram_slave** | Common backend (BRAM glue, clear FSM, protocol skids) | AXI4 superset (parameterized) | [sdpram_slave.md](sdpram_slave.md) |
-| **sdpram_slave_axi4_axi4** | Wrapper — pure AXI4 | `s_axi_*` / `s_axi_*` | (same) |
-| **sdpram_slave_axi4_axil** | Wrapper — AXI4 wr + AXIL rd | `s_axi_*` / `s_axil_*` | (same) |
-| **sdpram_slave_axil_axi4** | Wrapper — AXIL wr + AXI4 rd | `s_axil_*` / `s_axi_*` | (same) |
-| **sdpram_slave_axil_axil** | Wrapper — pure AXIL (canonical SRAM-ring backend) | `s_axil_*` / `s_axil_*` | (same) |
+| **sdpram_core** | Common backend (BRAM glue, clear FSM, protocol skids) | AXI4 superset (parameterized) | [sdpram_core.md](sdpram_core.md) |
+| **sdpram_slave_axi4_axi4** | Wrapper — pure AXI4 | `s_axi_*` / `s_axi_*` | [sdpram_slave_axi4_axi4.md](sdpram_slave_axi4_axi4.md) |
+| **sdpram_slave_axi4_axil** | Wrapper — AXI4 wr + AXIL rd | `s_axi_*` / `s_axil_*` | [sdpram_slave_axi4_axil.md](sdpram_slave_axi4_axil.md) |
+| **sdpram_slave_axil_axi4** | Wrapper — AXIL wr + AXI4 rd | `s_axil_*` / `s_axi_*` | [sdpram_slave_axil_axi4.md](sdpram_slave_axil_axi4.md) |
+| **sdpram_slave_axil_axil** | Wrapper — pure AXIL (canonical SRAM-ring backend) | `s_axil_*` / `s_axil_*` | [sdpram_slave_axil_axil.md](sdpram_slave_axil_axil.md) |
+
+### Characterization Data-Plane (on-chip pattern gen / check)
+
+Synthesizable, self-checking traffic generators and checkers used by the
+FPGA characterization harnesses (`stream_char_harness`, `rapids_char_harness`,
+`ddr2_char_harness`) as on-chip stimulus + verification — no host memory model
+needed. All share one LFSR (`0xDEADBEEF`, taps {32,22,2,1}) + CRC-32 config so
+generated and checked data stay bit-consistent across every block.
+
+| Module | Purpose | Interface | Documentation |
+|--------|---------|-----------|---------------|
+| **axi4_slave_rd_pattern_gen** | Read-data source (LFSR) | AXI4 slave (R) | [axi4_slave_rd_pattern_gen.md](axi4_slave_rd_pattern_gen.md) |
+| **axi4_slave_wr_crc_check** | Write-data verify (per-channel CRC) | AXI4 slave (W/B) | [axi4_slave_wr_crc_check.md](axi4_slave_wr_crc_check.md) |
+| **axi4_master_rd_crc_check** | CSR-driven read master + CRC compare | AXI4 master (AR/R) | [axi4_master_rd_crc_check.md](axi4_master_rd_crc_check.md) |
+| **axi4_master_wr_pattern_gen** | CSR-driven write master (LFSR/hash) | AXI4 master (AW/W/B) | [axi4_master_wr_pattern_gen.md](axi4_master_wr_pattern_gen.md) |
+| **axis4_master_pattern_gen** | AXIS stream source | AXIS master | [axis4_master_pattern_gen.md](axis4_master_pattern_gen.md) |
+| **axis4_slave_pattern_check** | AXIS stream verify | AXIS slave | [axis4_slave_pattern_check.md](axis4_slave_pattern_check.md) |
+| **axi4_dma_slaves** | Source/sink bundle (rd gen + wr check) | AXI4 slaves | [axi4_dma_slaves.md](axi4_dma_slaves.md) |
 
 ### Arbitration (4 modules)
 

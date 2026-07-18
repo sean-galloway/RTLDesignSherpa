@@ -71,7 +71,11 @@ package pumice_pkg;
     //=========================================================================
     // Address-Map Scheme
     //=========================================================================
-    // See HAS §3.1 / MAS §2.3.
+    // NOTE: the LIVE addr_mapper no longer uses this enum — it is driven by the
+    // single ADDR_MAP.bank_lsb knob (+ hash), and the "schemes" are just settings
+    // of it (see rtl/fub/addr_mapper.sv). The enum is retained ONLY because the
+    // retired macro/ OLD/ modules (pumice_core_macro, axi_frontend_macro,
+    // pumice_config_block) still reference the type in their regression sentinels.
 
     typedef enum logic [1:0] {
         ADDR_MAP_ROW_MAJOR       = 2'h0,

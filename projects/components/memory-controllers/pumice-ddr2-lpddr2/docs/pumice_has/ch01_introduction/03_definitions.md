@@ -78,24 +78,24 @@
 
 ## Defined Terms
 
-**Bank Machine** — A finite state machine instance dedicated to one DRAM bank that enforces JEDEC timing constraints locally and tracks open-row state.
+**Bank Timer** — A per-bank JEDEC "safe" timing tracker (`bank_timer`). It is *not* a finite state machine: it is a set of preset/decrement countdown timers (tRCD, tRAS, tRC, tRP, precharge-block) plus a small open-row register and a single auto-precharge bit. The per-command `safe_*` outputs are combinational off the timers (one register stage). `pumice_bank_timers` stamps one instance per (rank, bank).
 
-**Characterization Knob** — A build-time or runtime parameter intentionally exposed for performance sweeping during system characterization. Page policy and refresh policy are the two principal knobs in this controller.
+**Characterization Knob** — A build-time or runtime CSR field intentionally exposed for performance sweeping during system characterization. Page policy, refresh policy, and address map are the principal knobs in this controller.
 
-**Command Encoder** — The module that translates the controller's internal generic command record into DFI wire signals. Two implementations: `ddr2_encoder` and `lpddr2_encoder`. Selected at elaboration time via `MEMTYPE`.
+**Command Formatter** — `dfi_cmd_formatter`: the module that translates the controller's abstract command record into DFI wire signals. A single module with a memtype branch — DDR2 drives ras/cas/we; LPDDR2 packs the 10-bit CA bus (two edges) onto `dfi_address`. `dfi_signal_pack` performs the final per-phase wire packing.
+
+**Command Arbiter** — `pumice_cmd_arbiter`: the single command-pick core. It scans CAM readiness against the bank and global timers, applies the page policy (the open-page decision is inline here), and emits one abstract DRAM command per cycle.
 
 **FR-FCFS** — First-Ready, First-Come-First-Served. The baseline DRAM scheduling policy: ready commands beat unready, row-hits beat row-misses, older entries beat younger on ties. Established by Rixner et al. (ISCA 2000).
 
-**Gear Output Stage** — The module that replicates a 1-phase internal command bus into `N_PHASES` parallel DFI output phases.
+**Gearing (two senses)** — (1) The internal DFI-rate split: one AXI/DFI word is spread across `DFI_RATE` DRAM beats and packed to per-phase buses in `dfi_signal_pack` / the DFI layer. (2) Host-width gearing: `pumice_top_geared` inserts formally-verified AXI data-width converters so the host AXI data width can differ from the core width.
 
-**Microprogram Engine** — The init sequencer: a small instruction-decoded FSM that reads a memtype-specific ROM (step table) and issues the corresponding control bits, MR loads, and commands.
+**Init Sequencer** — `init_sequencer`: the cold-boot engine that issues the memtype-specific JEDEC MR/init sequence, driving MR loads and commands and holding off traffic until init completes.
 
 **Page Hit / Row Hit** — An access whose target row matches the currently open row in the target bank. Avoids the tRP + tRCD penalty.
 
 **Page Conflict / Row Miss** — An access whose target row differs from the currently open row in the target bank. Pays tRP + tRCD before the access can begin.
 
-**Page Policy** — The strategy for when to close an open row. See `PAGE_POLICY` parameter.
+**Page Policy** — The strategy for when to close an open row. Programmed via `REFRESH_TUNING.page_policy_or` (OPEN / CLOSE / HAPPY_HYBRID); the decision is inline in `pumice_cmd_arbiter`.
 
-**Row-Hit Caching** — Storing the row-hit / row-miss decision on each transaction at queue insertion time, rather than recomputing each scheduler tick.
-
-**Transaction Queue** — The pending-request buffer between the AXI frontend and the scheduler.
+**Command CAMs** — The two content-addressable buffers that hold in-flight requests between the AXI interface and the scheduler: `pumice_wr_data_cam` (write data buffer + snarf source) and `pumice_rd_cmd_cam` (read reorder buffer). Both store burst data in an SRAM with FIFO-fed / oldest-pick streaming read engines and no active-slot state latch.

@@ -730,7 +730,7 @@ module snk_sram_controller_beats (
 	output wire [NC - 1:0] dbg_bridge_pending;
 	output wire [NC - 1:0] dbg_bridge_out_valid;
 	initial if (NC > 128) begin
-		$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/rapids/rtl/macro_beats/snk_sram_controller_beats.sv:99:13 - snk_sram_controller_beats.<unnamed_block>.<unnamed_block>\n msg: ", $time, "snk_sram_controller: NUM_CHANNELS=%0d exceeds maximum of 128", NC);
+		$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dmas/rapids/rtl/macro_beats/snk_sram_controller_beats.sv:99:13 - snk_sram_controller_beats.<unnamed_block>.<unnamed_block>\n msg: ", $time, "snk_sram_controller: NUM_CHANNELS=%0d exceeds maximum of 128", NC);
 		$finish(1);
 	end
 	reg [NC - 1:0] fill_valid_decoded;

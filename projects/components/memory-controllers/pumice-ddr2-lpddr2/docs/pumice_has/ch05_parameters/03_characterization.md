@@ -36,8 +36,8 @@ A subset of the build-time parameters is intentionally left configurable for **c
 | `REFRESH_DEFER_MAX`        | 1 – 8                                    | 8 (JEDEC ceiling)            | Stuecheli MICRO 2010: deferring up to 8 maximizes Elastic Refresh benefit. Set to 1 for real-time predictability. |
 | `TXN_QUEUE_DEPTH`          | 4 – 64                                   | 16                           | Larger queues help bandwidth on multi-master AXI; smaller queues reduce area.              |
 | `AGE_MAX`                  | 32 – 1024                                | 256                          | Caps FR-FCFS starvation; larger values let row-hits dominate longer at the cost of tail latency. |
-| `N_PHASES`                 | 1 / 2 / 4                                | depends on PHY               | 4 typical for FPGA SoCs; 2 for slower mobile platforms; 1 for simulation-only.             |
-| `ADDR_MAP_SCHEME`          | ROW_MAJOR / BANK_INTERLEAVE / XOR_HASH   | ROW_MAJOR                    | Default works for streaming; BANK_INTERLEAVE for random; XOR_HASH for adversarial.         |
+| `DFI_RATE`                 | 1 / 2 / 4                                | depends on PHY               | Build-time DFI gear (phase count). 4 typical for FPGA SoCs; 2 for slower mobile platforms; 1 for simulation-only. Formerly named `N_PHASES`. |
+| `ADDR_MAP.bank_lsb` (+ `hash_en`) | `log2(BL/DFI_RATE)` .. `COL_WIDTH`, hash off / on | `bank_lsb = COL_WIDTH` (ROW_MAJOR), hash off | Runtime address-map placement knob (not a build parameter). `bank_lsb = COL_WIDTH` = ROW_MAJOR (best for streaming); lowering `bank_lsb` toward `log2(BL/DFI_RATE)` interleaves banks (best for random); `hash_en` folds row bits into the bank index to defeat power-of-two-stride hot-banking (adversarial). Sweep `bank_lsb` across the legal range with hash off, then repeat the best point with hash on. See `addr_mapper.sv`. |
 
 ## Sweep Plan
 
@@ -83,9 +83,10 @@ The defaults shown in the parameter table above are the **expected** outcomes ba
 
 Some characterization parameters are also accessible at runtime via CSR (see §6.3). This allows in-system tuning without rebuild:
 
-- `PAGE_POLICY` runtime override
-- `REFPB_POLICY` runtime override
-- Page predictor warm-up cycles and hysteresis
+- `PAGE_POLICY` runtime override (`REFRESH_TUNING.page_policy_or`)
+- `REFPB_POLICY` runtime override (`REFRESH_TUNING.refpb_policy_or`)
+- Address-map placement (`ADDR_MAP.bank_lsb`, `hash_en`, `hash_seed`) — this is a runtime knob outright, not an override of a build default
+- Page predictor warm-up cycles and hysteresis (`PAGE_PRED_TUNING.warmup_cycles` / `hysteresis`)
 
 Runtime overrides take effect at the next "quiet point" (no commands in flight). The SoC is responsible for ensuring no DRAM traffic during the transition.
 
@@ -93,10 +94,11 @@ Runtime overrides take effect at the next "quiet point" (no commands in flight).
 
 The CSR exposes the following observation counters (described in §6.3):
 
-- Per-bank row-hit count
-- Average refresh latency
-- Max transaction queue depth
-- Page-predictor accuracy (HAPPY mode)
-- Refresh deferral histogram
+- `OBS_ROW_HIT[8]` — per-bank rolling row-hit count (clear-on-read).
+- `OBS_REF_LATENCY[8]` — per-bank average refresh-blocking cycles.
+- `OBS_TXN_QUEUE_DEPTH_MAX` / `OBS_TXN_QUEUE_DEPTH_AVG` — max and time-averaged transaction-queue depth.
+- `OBS_PAGE_PRED_ACCURACY` — HAPPY-mode rolling prediction accuracy (%).
+- `OBS_REFRESH_DEFER_HIST_0..3` — refresh-deferral histogram bins (plus `OBS_REFRESH_PENDING_MAX` for the max `refresh_pending` observed).
+- `OBS_AXI_R_LATENCY_AVG` / `OBS_AXI_R_LATENCY_P99` / `OBS_AXI_W_LATENCY_AVG` — AXI read/write latency counters.
 
 These feed back into the sweep tool for in-loop default selection.

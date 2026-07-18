@@ -510,7 +510,7 @@ module host_adapter #(
 
     // ================================================================
     // Address decode (slave selection) - Write
-    // Slave 0 (stream_apb): 0x00000000 - 0x00000FFF
+    // Slave 0 (stream_apb): 0x00000000 - 0x00001FFF
     // Slave 1 (harness_csr): 0x00010000 - 0x00010FFF
     // Slave 2 (desc_ram): 0x00020000 - 0x0002FFFF
     // Slave 3 (stream_err): 0x00030000 - 0x00030FFF
@@ -520,7 +520,7 @@ module host_adapter #(
     logic [NUM_SLAVES-1:0] comb_slave_select_aw;
     always_comb begin
         comb_slave_select_aw = '0;
-        if (fub_axi_awaddr <= 32'h00000FFF) begin
+        if (fub_axi_awaddr <= 32'h00001FFF) begin
             comb_slave_select_aw[0] = 1'b1;  // stream_apb
         end
         else if (fub_axi_awaddr >= 32'h00010000 && fub_axi_awaddr <= 32'h00010FFF) begin
@@ -545,7 +545,7 @@ module host_adapter #(
 
     // ================================================================
     // Address decode (slave selection) - Read
-    // Slave 0 (stream_apb): 0x00000000 - 0x00000FFF
+    // Slave 0 (stream_apb): 0x00000000 - 0x00001FFF
     // Slave 1 (harness_csr): 0x00010000 - 0x00010FFF
     // Slave 2 (desc_ram): 0x00020000 - 0x0002FFFF
     // Slave 3 (stream_err): 0x00030000 - 0x00030FFF
@@ -555,7 +555,7 @@ module host_adapter #(
     logic [NUM_SLAVES-1:0] comb_slave_select_ar;
     always_comb begin
         comb_slave_select_ar = '0;
-        if (fub_axi_araddr <= 32'h00000FFF) begin
+        if (fub_axi_araddr <= 32'h00001FFF) begin
             comb_slave_select_ar[0] = 1'b1;  // stream_apb
         end
         else if (fub_axi_araddr >= 32'h00010000 && fub_axi_araddr <= 32'h00010FFF) begin

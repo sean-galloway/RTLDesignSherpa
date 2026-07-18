@@ -168,15 +168,15 @@ module axi4_slave_wr_crc_check #(
     // FUB burst state (declared early — used by per-channel CRC gating)
     //==========================================================================
 
-    logic                      r_b_pending;
     logic [AXI_ID_WIDTH-1:0]   r_wr_id;
     logic [AXI_USER_WIDTH-1:0] r_wr_user;
     logic                      r_wr_active;
-    // B-response id/user latched at WLAST: when bursts run back-to-back, r_wr_id
-    // is reloaded with the next burst's id on the same cycle the current burst
-    // completes, so the completed burst's B must use a separately-latched id.
-    logic [AXI_ID_WIDTH-1:0]   r_b_id;
-    logic [AXI_USER_WIDTH-1:0] r_b_user;
+    // B responses are queued in a small FIFO (see below): with 8 channels issuing
+    // gapless back-to-back bursts (and a trailing 1-beat burst), two WLASTs can
+    // land within the B-drain window. The old single r_b_pending bit dropped the
+    // new B whenever a WLAST coincided with a B consume -> ~1 dropped B per
+    // channel -> the DUT's write-commit counter stalled and the channel never
+    // returned to idle. The module comment already called for a B FIFO here.
 
     // Active channel index for the in-flight burst (low bits of captured AW ID).
     logic [CIW-1:0] w_active_ch;
@@ -265,19 +265,55 @@ module axi4_slave_wr_crc_check #(
                           fub_axi_wlast;
     assign fub_axi_awready = !r_wr_active || w_wr_last_beat;
     assign fub_axi_wready  = r_wr_active;
-    assign fub_axi_bid     = r_b_id;
     assign fub_axi_bresp   = 2'b00;  // OKAY
-    assign fub_axi_buser   = r_b_user;
-    assign fub_axi_bvalid  = r_b_pending;
+
+    // B-response FIFO (inline, self-contained): push {user,id} of the completing
+    // burst on every WLAST, pop on the B handshake. Holds multiple outstanding B's
+    // so gapless multi-channel bursts never drop one (the single r_b_pending bit
+    // did). Kept inline (no gaxi_fifo_sync dependency) so this shared test-infra
+    // slave pulls no extra modules into any consumer's filelist.
+    localparam int BFIFO_W     = AXI_USER_WIDTH + AXI_ID_WIDTH;
+    localparam int BFIFO_DEPTH = 16;
+    localparam int BFIFO_AW    = $clog2(BFIFO_DEPTH);
+
+    logic [BFIFO_W-1:0] r_bfifo_mem [BFIFO_DEPTH];
+    logic [BFIFO_AW-1:0] r_bfifo_wptr, r_bfifo_rptr;
+    logic [BFIFO_AW:0]   r_bfifo_count;
+
+    wire   w_bfifo_din_valid = w_wr_last_beat;             // push
+    wire   w_bfifo_rd_valid  = (r_bfifo_count != '0);      // not empty
+    wire   w_bfifo_pop       = w_bfifo_rd_valid && fub_axi_bready;
+    wire [BFIFO_W-1:0] w_bfifo_din = {r_wr_user, r_wr_id};
+
+    assign fub_axi_bvalid = w_bfifo_rd_valid;
+    assign {fub_axi_buser, fub_axi_bid} = r_bfifo_mem[r_bfifo_rptr];
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_bfifo_wptr  <= '0;
+            r_bfifo_rptr  <= '0;
+            r_bfifo_count <= '0;
+        end else begin
+            if (w_bfifo_din_valid) begin
+                r_bfifo_mem[r_bfifo_wptr] <= w_bfifo_din;
+                r_bfifo_wptr <= r_bfifo_wptr + 1'b1;
+            end
+            if (w_bfifo_pop) begin
+                r_bfifo_rptr <= r_bfifo_rptr + 1'b1;
+            end
+            case ({w_bfifo_din_valid, w_bfifo_pop})
+                2'b10:   r_bfifo_count <= r_bfifo_count + 1'b1;
+                2'b01:   r_bfifo_count <= r_bfifo_count - 1'b1;
+                default: r_bfifo_count <= r_bfifo_count;
+            endcase
+        end
+    )
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_wr_active <= 1'b0;
-            r_b_pending <= 1'b0;
             r_wr_id <= '0;
             r_wr_user <= '0;
-            r_b_id <= '0;
-            r_b_user <= '0;
         end else begin
             // AW acceptance — start a new burst from idle.
             if (fub_axi_awvalid && fub_axi_awready && !r_wr_active) begin
@@ -286,15 +322,10 @@ module axi4_slave_wr_crc_check #(
                 r_wr_user <= fub_axi_awuser;
             end
 
-            // W last beat — complete the burst: latch its id/user for B, raise
-            // B-pending, and accept the next AW back-to-back if one is waiting
-            // (stay active so wready never drops). Single-burst B-pending is
-            // safe here because STREAM drains B within the burst period (16
-            // cycles) -- a higher-rate multi-channel slave would need a B FIFO.
+            // W last beat — complete the burst: its {user,id} is pushed to the B
+            // FIFO (above) so no B is ever dropped; accept the next AW back-to-back
+            // if one is waiting (stay active so wready never drops).
             if (w_wr_last_beat) begin
-                r_b_id      <= r_wr_id;
-                r_b_user    <= r_wr_user;
-                r_b_pending <= 1'b1;
                 if (fub_axi_awvalid) begin
                     r_wr_id   <= fub_axi_awid;
                     r_wr_user <= fub_axi_awuser;
@@ -302,11 +333,6 @@ module axi4_slave_wr_crc_check #(
                 end else begin
                     r_wr_active <= 1'b0;
                 end
-            end
-
-            // B consumed by skid buffer
-            if (r_b_pending && fub_axi_bready) begin
-                r_b_pending <= 1'b0;
             end
         end
     )

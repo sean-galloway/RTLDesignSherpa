@@ -38,6 +38,11 @@ What it does
 - Generates B responses out of a per-id FIFO.
 - AR fans to wr2rd_forward (snarf) or to rd_cmd_cam (DRAM-fetch path).
 - Replays R beats either from wbuf (forwarded) or rd_inject (DRAM-served).
+- Splits an AXI burst longer than the DRAM burst length into fixed-BL DRAM
+  commands (`dram_bl_i`, in pumice DRAM-beat units — device-word-scaled from the
+  JEDEC BL; see §12). Each chunk's column advances by one BL span; the span is
+  device-word granular (see §2), so chunks do not overlap on a narrow (x16)
+  device.
 
 Queues / arrays it owns
 - `r_w_buf [W_BUF_DEPTH]` — beat data buffer (128 deep × DRAM beat width).
@@ -53,8 +58,13 @@ Queues / arrays it owns
 
 What it does
 - Translates AXI byte address to (rank, bank, row, col).
-- Three schemes selected by `scheme_active_i`: ROW_MAJOR / BANK_INTERLEAVE
+- Address map driven by `ADDR_MAP.bank_lsb` (+ hash): ROW_MAJOR / BANK_INTERLEAVE
   / XOR_HASH.
+- The column is **physical device-word** granular: `BYTE_OFFSET_WIDTH =
+  log2(DRAM_DEVICE_WIDTH/8)` (x16 => 2-byte columns), NOT the pumice DRAM-beat
+  width. A DDR2 burst auto-increments the column one device word per beat, so
+  this makes the burst-split chunk column stride match the DRAM's BL span
+  (fixes the on-silicon x16 chunk-overlap; default ratio 1 = legacy).
 
 Queues / arrays
 - None (pure combinational).
@@ -172,6 +182,11 @@ What it does
 What it does
 - Holds MR0..MR3 live values (CL, CWL, BL, AL) for the data path.
 - Handles MR-write commands from init_sequencer + CSR.
+- `bl_o` is the JEDEC burst length (physical device beats). `pumice_core_macro`
+  scales it to pumice DRAM-beat units for the split + sequencers:
+  `bl_dram_beats = bl_o >> log2(DRAM_BEAT_WIDTH/DRAM_DEVICE_WIDTH)` — e.g. a x16
+  BL4 = 2 pumice beats = 1 DFI cycle. Fixed per instance (BL4 DDR2 / BL8
+  DDR3-DDR4); decoded, not hardcoded, for family reuse.
 
 Queues / arrays
 - 4 × 16-bit MR registers.
@@ -203,6 +218,9 @@ What it does
 - On scheduler write-op handshake, opens a per-slot pull pipeline:
   walks `wbuf` at the slot's `w_buf_ptr` for `bl_i` beats, with
   byte-strobe masking from `strb_buf`.
+- `bl_i` is the device-word-scaled DRAM BL (`bl_dram_beats`, see §12), so it
+  drives exactly the beats the DRAM transfers per command — one DFI cycle for a
+  x16 BL4 (not two).
 - Pads short AXI bursts to DRAM BL (e.g. 1-beat AXI to BL=4).
 - Strobes `b_complete` + `b_complete_len` back to axi_intake's
   `wbuf_free` so wbuf flow control can decrement.
@@ -241,6 +259,11 @@ What it does
   per-phase address / bank / cas_n / ras_n / we_n bus values.
 - DDR2 vs LPDDR2 CA-bus encoding selected by `memtype_i`.
 - Handles MRS, ZQCL/ZQCS, REF, PRE-ALL.
+- Places the READ command on `rd_phase_i` and the WRITE command on `wr_phase_i`
+  (all other commands on phase 0), runtime-settable via the `DFI_PHASE` CSR, to
+  match a PHY that consumes a per-command rdphase/wrphase off the DFI bus.
+  Default 0 = phase 0 (the LiteDRAM a7ddrphy applies rdphase internally, so it
+  stays 0 there).
 
 Queues / arrays
 - 1-stage pre-formatted command register (combinational packing).

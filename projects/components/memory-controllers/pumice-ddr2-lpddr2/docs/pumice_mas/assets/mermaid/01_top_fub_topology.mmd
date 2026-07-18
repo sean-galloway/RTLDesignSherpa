@@ -1,93 +1,87 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
 flowchart TB
-    subgraph TOP["ddr2_lpddr2_ctrl (rtl/top)"]
+    subgraph GEARED["pumice_top_geared (rtl/top) — OPTIONAL host-width wrapper"]
+        dwc["axi4_dwidth_converter_wr/_rd<br/>(formal IP; only when<br/>HOST_AXI_DATA_WIDTH != DW)"]
 
-        subgraph FRONT["AXI Frontend"]
-            axi4_slave["axi4_slave_fub"]
-            addr_mapper["addr_mapper<br/>(XOR / scheme mux,<br/>combinational)"]
-            rd_cam["rd_cmd_cam<br/>(reads)"]
-            wr_cam["wr_cmd_cam<br/>(writes)"]
+        subgraph TOP["pumice_top (rtl/top)"]
+            csr["pumice_csr<br/>(PeakRDL cpuif;<br/>memtype, page_policy,<br/>timings, phases)"]
+
+            subgraph CORE["pumice_core (rtl/top)"]
+
+                subgraph IFC["pumice_axi4_ifc (rtl/macro)"]
+                    wr_intake["pumice_wr_intake<br/>(axi4_slave_wr +<br/>AW-meta FIFO +<br/>wr-data FIFO + addr_mapper)"]
+                    rd_intake["pumice_rd_intake<br/>(axi4_slave_rd +<br/>addr_mapper + snarf probe)"]
+                    wr_cam["pumice_wr_data_cam<br/>(WR CAM + wr-data SRAM;<br/>fill / commit-drain / snarf)"]
+                    rd_cam["pumice_rd_cmd_cam<br/>(RD CAM + rd SRAM;<br/>return-fill / drain)"]
+                end
+
+                subgraph SCHED["pumice_mem_cmd_scheduler (rtl/macro)"]
+                    arb["pumice_cmd_arbiter<br/>(single pick core;<br/>open-page INLINE)"]
+                    bank_timers["pumice_bank_timers<br/>-> bank_timer[rank][bank]<br/>(FSM-free JEDEC timers)"]
+                    global_timers["global_timers<br/>(tFAW/tRRD per-rank,<br/>tWTR/tRTW/tCCD global)"]
+                    refresh["refresh_ctrl<br/>(tREFI drain quota)"]
+                    init_seq["init_sequencer<br/>(DDR2 + LPDDR2 MR init)"]
+                    mode_reg["mode_register<br/>(CL/CWL/BL/AL decode)"]
+                end
+
+                subgraph DFI["pumice_dfi_layer (rtl/macro)"]
+                    dfi_cdc["pumice_dfi_cdc<br/>(SINGLE CDC;<br/>async gaxi FIFOs)"]
+                    dfi_cmd["pumice_dfi_cmd_path<br/>(+ dfi_cmd_formatter<br/>+ dfi_signal_pack)"]
+                    dfi_wr["pumice_dfi_wr_serializer"]
+                    dfi_rd["pumice_dfi_rd_aligner"]
+                end
+            end
         end
-
-        subgraph SCHED["Buffering + Scheduling"]
-            txn_queue["txn_queue_fub"]
-            scheduler["scheduler<br/>(FR-FCFS)"]
-            page_predictor["page_predictor_fub<br/>(HAPPY, optional)"]
-        end
-
-        subgraph BANKS["Per-(rank,bank) State + Timing"]
-            bank_machines["bank_machine_fub<br/>[NUM_RANKS × NUM_BANKS]"]
-            xbank_timers["xbank_timers<br/>(tRRD/tFAW per-rank,<br/>tCCD/tWTR global)"]
-        end
-
-        subgraph REFPWR["Refresh / Init / Power"]
-            refresh_mgr["refresh_mgr_fub<br/>(REFab round-robin,<br/>REFpb DARP)"]
-            init_engine["init_engine_fub"]
-            power_state["power_state_fub<br/>(+ quiet-point)"]
-        end
-
-        subgraph ENC["Encoding + Output Gear"]
-            cmd_encoder["cmd_encoder_fub<br/>(DDR2 ras/cas/we OR<br/>LPDDR2 CA bus)"]
-            gear_dfi["gear_dfi_fub<br/>(1 → N_PHASES)"]
-            odt_ctrl["odt_ctrl_fub<br/>(per-rank ODT)"]
-        end
-
-        subgraph DATA["Data Paths"]
-            wr_data["wr_data_path_fub"]
-            rd_data["rd_data_path_fub"]
-        end
-
-        subgraph CFG["Configuration"]
-            csr_apb["csr_apb_fub<br/>(apb_pclk → mc_clk CDC)"]
-        end
-
     end
 
-    AXI[/"AXI4 Slave Port<br/>(host)"/] --> axi4_slave
-    axi4_slave --> addr_mapper
-    addr_mapper --> rd_cam
-    addr_mapper --> wr_cam
-    rd_cam --> txn_queue
-    wr_cam --> txn_queue
-    txn_queue --> scheduler
-    scheduler <--> page_predictor
-    scheduler <--> bank_machines
-    bank_machines <--> xbank_timers
-    refresh_mgr <--> bank_machines
-    refresh_mgr --> scheduler
-    init_engine --> scheduler
-    power_state --> scheduler
-    refresh_mgr --> power_state
-    scheduler --> cmd_encoder
-    cmd_encoder --> gear_dfi
-    odt_ctrl --> gear_dfi
-    power_state --> odt_ctrl
-    wr_data --> gear_dfi
-    gear_dfi --> rd_data
-    axi4_slave --> wr_data
-    rd_data --> axi4_slave
-    rd_cam -.completion.-> axi4_slave
-    wr_cam -.completion.-> axi4_slave
-    gear_dfi --> DFI[/"DFI v2.1 Master Port<br/>(to PHY)"/]
-    csr_apb -.config.-> scheduler
-    csr_apb -.config.-> refresh_mgr
-    csr_apb -.config.-> addr_mapper
-    csr_apb -.config.-> power_state
-    csr_apb -.config.-> odt_ctrl
-    APB[/"APB CSR Slave Port<br/>(config)"/] --> csr_apb
+    HOST[/"Host AXI4 Slave Port<br/>(HOST_AXI_DATA_WIDTH)"/] --> dwc
+    dwc -- "DW-width AXI" --> wr_intake
+    dwc -- "DW-width AXI" --> rd_intake
 
-    classDef frontend fill:#e8f4e8,stroke:#228B22,stroke-width:2px
+    wr_intake -- "aw_push / wd fill" --> wr_cam
+    rd_intake -- "ar_push" --> rd_cam
+    rd_intake -- "snarf_probe" --> wr_cam
+    wr_cam -- "snarf_rd data" --> rd_intake
+
+    wr_cam -- "oldest / sched_lu" --> arb
+    rd_cam -- "oldest / sched_lu" --> arb
+    arb -- "wr_commit" --> wr_cam
+    arb -- "rd_issue" --> rd_cam
+
+    arb -- "evt_* strobes" --> bank_timers
+    bank_timers -- "bank_*_ready" --> arb
+    arb -- "evt_act/rd/wr" --> global_timers
+    global_timers -- "t*_ok" --> arb
+    refresh <-- "req / grant" --> arb
+    init_seq -- "init_cmd" --> arb
+    init_seq -- "mr_seq" --> mode_reg
+    mode_reg -- "cl/cwl/bl" --> arb
+
+    arb -- "cmd stream<br/>(op,rank,bank,row,col,ap)" --> dfi_cdc
+    wr_cam -- "cm_rd (commit-drain data)" --> dfi_cdc
+    dfi_cdc -- "rd return data" --> rd_cam
+
+    dfi_cdc --> dfi_cmd
+    dfi_cdc --> dfi_wr
+    dfi_rd --> dfi_cdc
+    dfi_cmd -- "wr_fire" --> dfi_wr
+    dfi_cmd -- "rd_fire" --> dfi_rd
+
+    dfi_cmd --> DFIPIN[/"DFI v2.1 Master Port<br/>(to PHY)"/]
+    dfi_wr --> DFIPIN
+    dfi_rd <--> DFIPIN
+
+    CPUIF[/"cpuif CSR Port<br/>(config)"/] --> csr
+    csr -.config.-> arb
+    csr -.config.-> refresh
+    csr -.memtype / phases.-> dfi_cmd
+
+    classDef ifc fill:#e8f4e8,stroke:#228B22,stroke-width:2px
     classDef sched fill:#f0e8f4,stroke:#7B228B,stroke-width:2px
-    classDef banks fill:#fef0e0,stroke:#B88B22,stroke-width:2px
-    classDef refpwr fill:#e0e8fa,stroke:#3366CC,stroke-width:2px
-    classDef enc fill:#fae0e0,stroke:#CC3322,stroke-width:2px
-    classDef data fill:#e8fae0,stroke:#558B22,stroke-width:2px
+    classDef dfi fill:#e0e8fa,stroke:#3366CC,stroke-width:2px
     classDef cfg fill:#f0f0f0,stroke:#666666,stroke-width:2px
 
-    class axi4_slave,addr_mapper,rd_cam,wr_cam frontend
-    class txn_queue,scheduler,page_predictor sched
-    class bank_machines,xbank_timers banks
-    class refresh_mgr,init_engine,power_state refpwr
-    class cmd_encoder,gear_dfi,odt_ctrl enc
-    class wr_data,rd_data data
-    class csr_apb cfg
+    class wr_intake,rd_intake,wr_cam,rd_cam ifc
+    class arb,bank_timers,global_timers,refresh,init_seq,mode_reg sched
+    class dfi_cdc,dfi_cmd,dfi_wr,dfi_rd dfi
+    class csr,dwc cfg

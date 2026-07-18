@@ -286,19 +286,26 @@ This project demonstrates proper reuse of the rtldesignsherpa common library:
 
 ## Simulation
 
-CocoTB testbench available for pre-implementation verification:
+**Phase 1** (`cdc_counter_display_top`) — CocoTB testbench for pre-implementation
+verification:
 
 ```bash
-cd sim
-pytest test_cdc_counter_display.py -v
+make sim          # cd sim && pytest test_cdc_counter_display.py -v
 ```
 
-The testbench verifies:
-- Clock generation
-- Button debouncing
-- Counter increment
-- CDC pulse transfer
-- Display update
+Verifies clock generation, button debouncing, counter increment, CDC pulse
+transfer, and display update.
+
+**Phase 2** (`cdc_demo_top`) — UART-characterization **equivalence** sim: wraps the
+real `uart_axil_bridge` + `cdc_demo_harness` and runs the **same host programs**
+that drive the FPGA (`host/cdc_programs.py`) over a cocotb UART master, so sim and
+silicon are byte-for-byte identical at the wire. See [`docs/HARNESS.md`](docs/HARNESS.md).
+
+```bash
+make regmap       # regenerate the by-name regmap from rtl/cdc_demo_csr.rdl
+make consistency  # guard: regmap vs hand-written harness SV
+make sim-demo     # smoke / press / cfg_load / cdc_mode over the real bridge RTL
+```
 
 ---
 

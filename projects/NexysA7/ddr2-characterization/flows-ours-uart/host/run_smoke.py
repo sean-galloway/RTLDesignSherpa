@@ -24,6 +24,7 @@ import sys
 
 from ddr2_char import (
     DDR2CharDriver,
+    autodetect_port,
     MEMTYPE_DDR2,
     ID_MODE_FIXED,
     AXI_SIZE_8,
@@ -37,7 +38,7 @@ from ddr2_char import (
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
-    ap.add_argument("--port",       default="/dev/ttyUSB1")
+    ap.add_argument("--port",       default="auto")
     ap.add_argument("--baud",       type=int, default=115200)
     ap.add_argument("--base-addr",  type=lambda s: int(s, 0), default=0x0)
     ap.add_argument("--txn",        type=int, default=1024,
@@ -50,6 +51,7 @@ def main() -> int:
     ap.add_argument("--phy-rdlat",  type=int, default=6)
     args = ap.parse_args()
 
+    args.port = autodetect_port(args.baud, want=args.port)
     d = DDR2CharDriver(port=args.port, baudrate=args.baud)
 
     # 1. Identity ping. Bad BUILD_ID = wrong bitstream or dead UART.

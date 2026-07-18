@@ -31,6 +31,8 @@ $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/verila
 # Flat DFI -> per-phase adapter + a7ddrphy black-box stub. Vivado excludes
 # a7ddrphy_stub.sv and substitutes the LiteDRAM-generated a7ddrphy.v at
 # build time; the stub is here so verilator / cocotb can lint the top.
+$REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/dfi_cmd_delay.sv
+$REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/dfi_rddata_delay.sv
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/dfi_v21_flat_to_a7ddrphy.sv
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/a7ddrphy_stub.sv
 

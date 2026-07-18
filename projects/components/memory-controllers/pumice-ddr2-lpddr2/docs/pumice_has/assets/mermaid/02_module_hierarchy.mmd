@@ -1,37 +1,49 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
 graph TD
-    soc["SoC top"]
-    soc --> axi_frontend["axi_frontend_macro"]
-    soc --> core["ddr2_lpddr2_core_macro"]
+    geared["pumice_top_geared<br/><i>optional host-width wrapper</i>"]
+    dwc["axi4_dwidth_converter_wr / _rd<br/><i>formal IP; only when HOST != DW</i>"]
+    top["pumice_top"]
+    csr["pumice_csr<br/><i>PeakRDL passthrough cpuif</i>"]
+    core["pumice_core"]
 
-    axi_frontend --> axi_intake["axi_intake<br/><i>AXI4 protocol + w_buf + b_fifo</i>"]
-    axi_frontend --> addr_mapper["addr_mapper<br/><i>flat addr to bank/row/col</i>"]
-    axi_frontend --> wr_cmd_cam["wr_cmd_cam<br/><i>W-side slot bank</i>"]
-    axi_frontend --> rd_cmd_cam["rd_cmd_cam<br/><i>R-side slot bank</i>"]
-    axi_frontend --> wr2rd_forward["wr2rd_forward<br/><i>W to R snarf bypass</i>"]
+    geared --> dwc
+    geared --> top
+    top --> csr
+    top --> core
 
-    core --> command_scheduler["command_scheduler_macro"]
-    core --> data_path["data_path_macro"]
-    core --> dfi_v21_interface["dfi_v21_interface_macro"]
+    core --> ifc["pumice_axi4_ifc"]
+    core --> sched["pumice_mem_cmd_scheduler"]
+    core --> dfi["pumice_dfi_layer"]
 
-    command_scheduler --> scheduler["scheduler<br/><i>FR-FCFS closed-page</i>"]
-    command_scheduler --> xbank_timers["xbank_timers<br/><i>per-(rank,bank) JEDEC counters</i>"]
-    command_scheduler --> global_timers["global_timers<br/><i>tFAW/tRRD/tWTR/tRTW windows</i>"]
-    command_scheduler --> refresh_ctrl["refresh_ctrl<br/><i>tREFI postponer</i>"]
-    command_scheduler --> powerdown_ctrl["powerdown_ctrl<br/><i>Active/APD/SR/DPD FSM, CKE</i>"]
-    command_scheduler --> mode_register["mode_register<br/><i>MR0-3 decode to live CL/CWL/BL/AL</i>"]
-    command_scheduler --> init_sequencer["init_sequencer<br/><i>cold-boot microprogram</i>"]
+    ifc --> wr_intake["pumice_wr_intake<br/><i>axi4_slave_wr + AW-meta FIFO + wr-data FIFO + addr_mapper</i>"]
+    ifc --> rd_intake["pumice_rd_intake<br/><i>axi4_slave_rd + addr_mapper + snarf probe</i>"]
+    ifc --> wr_data_cam["pumice_wr_data_cam<br/><i>WR CAM + wr-data SRAM; fill/commit-drain/snarf</i>"]
+    ifc --> rd_cmd_cam["pumice_rd_cmd_cam<br/><i>RD CAM + rd SRAM; return-fill/drain</i>"]
 
-    data_path --> wr_beat_sequencer["wr_beat_sequencer<br/><i>w_buf pull to DFI wrdata</i>"]
-    data_path --> rd_cl_aligner["rd_cl_aligner<br/><i>DFI rddata capture to rd_inject</i>"]
+    sched --> cmd_arbiter["pumice_cmd_arbiter<br/><i>single pick core; open-page INLINE</i>"]
+    sched --> bank_timers["pumice_bank_timers<br/><i>stamps bank_timer per rank,bank</i>"]
+    sched --> global_timers["global_timers<br/><i>tFAW/tRRD/tWTR/tRTW/tCCD</i>"]
+    sched --> refresh_ctrl["refresh_ctrl<br/><i>tREFI accumulator + drain</i>"]
+    sched --> init_sequencer["init_sequencer<br/><i>DDR2 + LPDDR2 JEDEC MR init</i>"]
+    sched --> mode_register["mode_register<br/><i>CL/CWL/BL/AL decode</i>"]
 
-    dfi_v21_interface --> dfi_cmd_formatter["dfi_cmd_formatter<br/><i>JEDEC cmd truth table</i>"]
-    dfi_v21_interface --> dfi_signal_pack["dfi_signal_pack<br/><i>multi-phase DFI pack</i>"]
+    bank_timers --> bank_timer["bank_timer<br/><i>FSM-free per-bank safe_* timers</i>"]
 
-    classDef soc fill:#404040,stroke:#228B22,stroke-width:2px,color:#fff
+    dfi --> dfi_cdc["pumice_dfi_cdc<br/><i>SINGLE CDC; async gaxi FIFOs</i>"]
+    dfi --> dfi_cmd_path["pumice_dfi_cmd_path<br/><i>+ dfi_cmd_formatter + dfi_signal_pack</i>"]
+    dfi --> dfi_wr_ser["pumice_dfi_wr_serializer"]
+    dfi --> dfi_rd_align["pumice_dfi_rd_aligner"]
+
+    opt["page_predictor / powerdown_ctrl<br/><i>live but not in default build</i>"]
+
+    classDef top fill:#404040,stroke:#228B22,stroke-width:2px,color:#fff
     classDef macro fill:#fef6c8,stroke:#b08000,stroke-width:2px,color:#000
     classDef fub fill:#e8f4e8,stroke:#228B22,stroke-width:1px,color:#000
+    classDef ip fill:#f0f0f0,stroke:#404040,stroke-width:1px,color:#000
+    classDef optcls fill:#f5f5f5,stroke:#999,stroke-width:1px,stroke-dasharray:4 3,color:#333
 
-    class soc soc
-    class axi_frontend,core,command_scheduler,data_path,dfi_v21_interface macro
-    class axi_intake,addr_mapper,wr_cmd_cam,rd_cmd_cam,wr2rd_forward,scheduler,xbank_timers,global_timers,refresh_ctrl,powerdown_ctrl,mode_register,init_sequencer,wr_beat_sequencer,rd_cl_aligner,dfi_cmd_formatter,dfi_signal_pack fub
+    class geared,top top
+    class core,ifc,sched,dfi macro
+    class csr,dwc ip
+    class wr_intake,rd_intake,wr_data_cam,rd_cmd_cam,cmd_arbiter,bank_timers,bank_timer,global_timers,refresh_ctrl,init_sequencer,mode_register,dfi_cdc,dfi_cmd_path,dfi_wr_ser,dfi_rd_align fub
+    class opt optcls

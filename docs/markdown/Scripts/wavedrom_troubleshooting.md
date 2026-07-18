@@ -58,7 +58,7 @@ WaveDrom is a digital timing diagram rendering engine that uses JSON to describe
 **Project Locations:**
 ```
 projects/components/bridge/docs/bridge_has/assets/wavedrom/
-projects/components/stream/docs/stream_spec/assets/wavedrom/
+projects/components/dmas/stream/docs/stream_spec/assets/wavedrom/
 projects/components/retro_legacy_blocks/docs/pit_8254_mas/assets/wavedrom/
 ```
 
@@ -556,7 +556,7 @@ Use external JSON files and reference them:
 
 **Step 1: Create WaveDrom JSON file:**
 ```bash
-# projects/components/stream/docs/stream_spec/assets/wavedrom/apb_read_access.json
+# projects/components/dmas/stream/docs/stream_spec/assets/wavedrom/apb_read_access.json
 {
   "signal": [
     {"name": "pclk", "wave": "p......."},
@@ -570,7 +570,7 @@ Use external JSON files and reference them:
 
 **Step 2: Render to SVG/PNG:**
 ```bash
-cd projects/components/stream/docs/stream_spec/assets/wavedrom/
+cd projects/components/dmas/stream/docs/stream_spec/assets/wavedrom/
 wavedrom-cli -i apb_read_access.json -s apb_read_access.svg
 ```
 
@@ -643,7 +643,7 @@ projects/components/{component}/docs/{doc_name}/
 **Generation Script:**
 ```bash
 #!/bin/bash
-# projects/components/stream/docs/stream_spec/render_wavedrom.sh
+# projects/components/dmas/stream/docs/stream_spec/render_wavedrom.sh
 
 WAVEDROM_DIR="assets/wavedrom"
 

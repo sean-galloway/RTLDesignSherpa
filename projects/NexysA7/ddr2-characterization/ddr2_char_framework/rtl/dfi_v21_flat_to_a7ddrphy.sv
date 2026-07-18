@@ -36,26 +36,31 @@ module dfi_v21_flat_to_a7ddrphy #(
     parameter int DFI_ADDR_W  = 13,     // row-address bits (ROW_WIDTH)
     parameter int DFI_BANK_W  = 3,
     parameter int PHASE_DATA  = 32,     // per-phase DFI data (= 2 x DQ width)
-    parameter int NPHASES     = 4,      // fixed 4 for a7ddrphy
+    // Controller DFI phase count = DFI_RATE. The a7ddrphy ALWAYS exposes 4 DFI
+    // phase ports, but at nphases=2 it only serializes phases 0,1 (4 beats/sys)
+    // — see litedram s7ddrphy (DATA_WIDTH=2*nphases). So a DFI_RATE=2 controller
+    // drives the low CTRL_PHASES phases and the upper (CTRL_PHASES..3) are tied
+    // to a deselected NOP (cs_n=1) so no spurious commands are issued.
+    parameter int CTRL_PHASES = 4,
     parameter int PHASE_STRB  = PHASE_DATA / 8
 ) (
     // ------------------------------------------------------------------
     // Flat (phase-packed) DFI side — from pumice_top / char macro.
     // ------------------------------------------------------------------
-    input  logic [DFI_ADDR_W*NPHASES-1:0]  dfi_address_flat,
-    input  logic [DFI_BANK_W*NPHASES-1:0]  dfi_bank_flat,
-    input  logic [NPHASES-1:0]             dfi_cas_n_flat,
-    input  logic [NPHASES-1:0]             dfi_ras_n_flat,
-    input  logic [NPHASES-1:0]             dfi_we_n_flat,
-    input  logic [NPHASES-1:0]             dfi_cs_n_flat,
-    input  logic [NPHASES-1:0]             dfi_cke_flat,
-    input  logic [NPHASES-1:0]             dfi_odt_flat,
-    input  logic [PHASE_DATA*NPHASES-1:0]  dfi_wrdata_flat,
-    input  logic [PHASE_STRB*NPHASES-1:0]  dfi_wrdata_mask_flat,
-    input  logic [NPHASES-1:0]             dfi_wrdata_en_flat,
-    input  logic [NPHASES-1:0]             dfi_rddata_en_flat,
-    output logic [PHASE_DATA*NPHASES-1:0]  dfi_rddata_flat,
-    output logic [NPHASES-1:0]             dfi_rddata_valid_flat,
+    input  logic [DFI_ADDR_W*CTRL_PHASES-1:0]  dfi_address_flat,
+    input  logic [DFI_BANK_W*CTRL_PHASES-1:0]  dfi_bank_flat,
+    input  logic [CTRL_PHASES-1:0]             dfi_cas_n_flat,
+    input  logic [CTRL_PHASES-1:0]             dfi_ras_n_flat,
+    input  logic [CTRL_PHASES-1:0]             dfi_we_n_flat,
+    input  logic [CTRL_PHASES-1:0]             dfi_cs_n_flat,
+    input  logic [CTRL_PHASES-1:0]             dfi_cke_flat,
+    input  logic [CTRL_PHASES-1:0]             dfi_odt_flat,
+    input  logic [PHASE_DATA*CTRL_PHASES-1:0]  dfi_wrdata_flat,
+    input  logic [PHASE_STRB*CTRL_PHASES-1:0]  dfi_wrdata_mask_flat,
+    input  logic [CTRL_PHASES-1:0]             dfi_wrdata_en_flat,
+    input  logic [CTRL_PHASES-1:0]             dfi_rddata_en_flat,
+    output logic [PHASE_DATA*CTRL_PHASES-1:0]  dfi_rddata_flat,
+    output logic [CTRL_PHASES-1:0]             dfi_rddata_valid_flat,
 
     // ------------------------------------------------------------------
     // Per-phase DFI (to a7ddrphy).
@@ -103,16 +108,51 @@ module dfi_v21_flat_to_a7ddrphy #(
         assign dfi_p``P``_wrdata_en  = dfi_wrdata_en_flat[P]; \
         assign dfi_p``P``_rddata_en  = dfi_rddata_en_flat[P];
 
+    // Deselected-NOP driver for an unused (nphases<4) phase P.
+    `define DFI_PHASE_NOP(P) \
+        assign dfi_p``P``_address    = '0; \
+        assign dfi_p``P``_bank       = '0; \
+        assign dfi_p``P``_cas_n      = 1'b1; \
+        assign dfi_p``P``_ras_n      = 1'b1; \
+        assign dfi_p``P``_we_n       = 1'b1; \
+        assign dfi_p``P``_cs_n       = 1'b1;                 /* deselected */ \
+        assign dfi_p``P``_cke        = dfi_cke_flat[0];      /* keep CKE high */ \
+        assign dfi_p``P``_odt        = 1'b0; \
+        assign dfi_p``P``_reset_n    = dfi_cke_flat[0]; \
+        assign dfi_p``P``_act_n      = 1'b1; \
+        assign dfi_p``P``_wrdata     = '0; \
+        assign dfi_p``P``_wrdata_mask= '1;                   /* masked */ \
+        assign dfi_p``P``_wrdata_en  = 1'b0; \
+        assign dfi_p``P``_rddata_en  = 1'b0;
+
+    // Phases 0,1 are always live (CTRL_PHASES is 2 or 4). Phases 2,3 are sliced
+    // when the controller drives 4 phases, else NOP'd (nphases=2 uses 0,1 only).
     `DFI_PHASE_SLICE(0)
     `DFI_PHASE_SLICE(1)
-    `DFI_PHASE_SLICE(2)
-    `DFI_PHASE_SLICE(3)
+    generate
+        if (CTRL_PHASES >= 4) begin : g_p23_live
+            `DFI_PHASE_SLICE(2)
+            `DFI_PHASE_SLICE(3)
+        end else begin : g_p23_nop
+            `DFI_PHASE_NOP(2)
+            `DFI_PHASE_NOP(3)
+        end
+    endgenerate
     `undef DFI_PHASE_SLICE
+    `undef DFI_PHASE_NOP
 
-    // Read return: pack per-phase rddata / valid back into the flat bus.
-    assign dfi_rddata_flat = {dfi_p3_rddata, dfi_p2_rddata,
-                              dfi_p1_rddata, dfi_p0_rddata};
-    assign dfi_rddata_valid_flat = {dfi_p3_rddata_valid, dfi_p2_rddata_valid,
-                                    dfi_p1_rddata_valid, dfi_p0_rddata_valid};
+    // Read return: pack the live phases back into the flat bus (the PHY's
+    // upper-phase rddata is don't-care at nphases=2).
+    generate
+        if (CTRL_PHASES >= 4) begin : g_rd4
+            assign dfi_rddata_flat = {dfi_p3_rddata, dfi_p2_rddata,
+                                      dfi_p1_rddata, dfi_p0_rddata};
+            assign dfi_rddata_valid_flat = {dfi_p3_rddata_valid, dfi_p2_rddata_valid,
+                                            dfi_p1_rddata_valid, dfi_p0_rddata_valid};
+        end else begin : g_rd2
+            assign dfi_rddata_flat = {dfi_p1_rddata, dfi_p0_rddata};
+            assign dfi_rddata_valid_flat = {dfi_p1_rddata_valid, dfi_p0_rddata_valid};
+        end
+    endgenerate
 
 endmodule : dfi_v21_flat_to_a7ddrphy

@@ -237,15 +237,15 @@ The easiest approach is to copy from STREAM and adapt:
 
 ```bash
 # Copy coverage package (note: renamed to stream_coverage)
-cp -r projects/components/stream/dv/stream_coverage \
+cp -r projects/components/dmas/stream/dv/stream_coverage \
       projects/components/{component}/dv/{component}_coverage
 
 # Copy report generator
-cp projects/components/stream/bin/generate_coverage_report.py \
+cp projects/components/dmas/stream/bin/generate_coverage_report.py \
    projects/components/{component}/bin/
 
 # Copy documentation template
-cp projects/components/stream/dv/COVERAGE_METHODOLOGY.md \
+cp projects/components/dmas/stream/dv/COVERAGE_METHODOLOGY.md \
    projects/components/{component}/dv/
 ```
 
@@ -740,7 +740,7 @@ coverage-status:
 The simplest way to add coverage to tests:
 
 ```python
-from projects.components.stream.dv.stream_coverage import CoverageHelper
+from projects.components.dmas.stream.dv.stream_coverage import CoverageHelper
 
 # Get or create helper instance
 coverage = CoverageHelper.get_instance("test_name", log=dut._log)
@@ -780,7 +780,7 @@ coverage.save()
 Hook into GAXI BFMs for automatic transaction coverage:
 
 ```python
-from projects.components.stream.dv.stream_coverage import (
+from projects.components.dmas.stream.dv.stream_coverage import (
     CoverageHelper,
     register_bfm_coverage
 )
@@ -1216,11 +1216,11 @@ Check:
 
 See STREAM component for complete reference:
 
-- **Coverage package:** `projects/components/stream/dv/stream_coverage/`
-- **Legal config:** `projects/components/stream/dv/stream_coverage/legal_coverage_config.py`
-- **FUB tests:** `projects/components/stream/dv/tests/fub/test_scheduler.py`
-- **Macro tests:** `projects/components/stream/dv/tests/macro/test_stream_core.py`
-- **Top tests:** `projects/components/stream/dv/tests/top/test_stream_top.py`
-- **FUB conftest:** `projects/components/stream/dv/tests/fub/conftest.py`
-- **Makefile:** `projects/components/stream/dv/tests/Makefile`
-- **Methodology doc:** `projects/components/stream/dv/COVERAGE_METHODOLOGY.md`
+- **Coverage package:** `projects/components/dmas/stream/dv/stream_coverage/`
+- **Legal config:** `projects/components/dmas/stream/dv/stream_coverage/legal_coverage_config.py`
+- **FUB tests:** `projects/components/dmas/stream/dv/tests/fub/test_scheduler.py`
+- **Macro tests:** `projects/components/dmas/stream/dv/tests/macro/test_stream_core.py`
+- **Top tests:** `projects/components/dmas/stream/dv/tests/top/test_stream_top.py`
+- **FUB conftest:** `projects/components/dmas/stream/dv/tests/fub/conftest.py`
+- **Makefile:** `projects/components/dmas/stream/dv/tests/Makefile`
+- **Methodology doc:** `projects/components/dmas/stream/dv/COVERAGE_METHODOLOGY.md`

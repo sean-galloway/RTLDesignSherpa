@@ -1,63 +1,55 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
 flowchart TB
-    subgraph FRONT["axi_frontend_macro"]
-        axi_intake["axi_intake<br/>(AXI4 protocol +<br/>w_buf + b_fifo)"]
-        addr_mapper["addr_mapper"]
-        wr_cmd_cam["wr_cmd_cam"]
-        rd_cmd_cam["rd_cmd_cam"]
-        wr2rd_forward["wr2rd_forward<br/>(snarf bypass)"]
-    end
+    subgraph CORE["pumice_core"]
 
-    subgraph CORE["ddr2_lpddr2_core_macro"]
-
-        subgraph CSCHED["command_scheduler_macro"]
-            scheduler["scheduler<br/>(FR-FCFS, closed-page)"]
-            xbank_timers["xbank_timers<br/>(per-(rank,bank) JEDEC)"]
-            global_timers["global_timers<br/>(tFAW/tRRD/tWTR/tRTW)"]
-            refresh_ctrl["refresh_ctrl<br/>(tREFI postponer)"]
-            mode_register["mode_register<br/>(MR0-3 → CL/CWL/BL/AL)"]
-            init_sequencer["init_sequencer<br/>(cold-boot microprogram)"]
-            powerdown_ctrl["powerdown_ctrl<br/>(Active/APD/SR/DPD)"]
+        subgraph IFC["pumice_axi4_ifc"]
+            wr_intake["pumice_wr_intake<br/>(axi4_slave_wr +<br/>AW-meta FIFO + wr-data FIFO +<br/>addr_mapper)"]
+            rd_intake["pumice_rd_intake<br/>(axi4_slave_rd +<br/>addr_mapper + snarf probe)"]
+            wr_data_cam["pumice_wr_data_cam<br/>(WR CAM + wr-data SRAM;<br/>fill / commit-drain / snarf)"]
+            rd_cmd_cam["pumice_rd_cmd_cam<br/>(RD CAM + rd SRAM;<br/>return-fill / oldest-drain)"]
         end
 
-        subgraph DPATH["data_path_macro"]
-            wr_beat_sequencer["wr_beat_sequencer<br/>(W-buf pull → DFI wrdata)"]
-            rd_cl_aligner["rd_cl_aligner<br/>(DFI rddata → rd_inject)"]
+        subgraph SCHED["pumice_mem_cmd_scheduler"]
+            cmd_arbiter["pumice_cmd_arbiter<br/>(single pick core;<br/>open-page decision INLINE)"]
+            bank_timers["pumice_bank_timers<br/>(stamps bank_timer per rank,bank;<br/>FSM-free JEDEC safe_* timers)"]
+            global_timers["global_timers<br/>(tFAW/tRRD/tWTR/tRTW/tCCD)"]
+            refresh_ctrl["refresh_ctrl<br/>(tREFI accumulator + drain)"]
+            init_sequencer["init_sequencer<br/>(DDR2 + LPDDR2 JEDEC MR init)"]
+            mode_register["mode_register<br/>(CL/CWL/BL/AL decode)"]
         end
 
-        subgraph DFI["dfi_v21_interface_macro"]
-            dfi_cmd_formatter["dfi_cmd_formatter<br/>(JEDEC truth table + ODT)"]
-            dfi_signal_pack["dfi_signal_pack<br/>(multi-phase pack)"]
+        subgraph DFI["pumice_dfi_layer"]
+            dfi_cdc["pumice_dfi_cdc<br/>(SINGLE clock-domain crossing;<br/>async gaxi FIFOs)"]
+            dfi_cmd_path["pumice_dfi_cmd_path<br/>(+ dfi_cmd_formatter + dfi_signal_pack)"]
+            dfi_wr_ser["pumice_dfi_wr_serializer"]
+            dfi_rd_align["pumice_dfi_rd_aligner"]
         end
 
     end
 
-    AXI[/"AXI4 Slave Port<br/>(from SoC)"/] --> axi_intake
-    axi_intake --> addr_mapper
-    addr_mapper --> wr_cmd_cam
-    addr_mapper --> rd_cmd_cam
-    wr_cmd_cam <--> wr2rd_forward
-    rd_cmd_cam <--> wr2rd_forward
-    wr2rd_forward --> axi_intake
+    AXI[/"AXI4 Slave Port<br/>(from SoC; fixed DW)"/] --> wr_intake
+    AXI --> rd_intake
 
-    wr_cmd_cam --> scheduler
-    rd_cmd_cam --> scheduler
-    xbank_timers <--> scheduler
-    global_timers <--> scheduler
-    refresh_ctrl --> scheduler
-    init_sequencer --> scheduler
-    powerdown_ctrl --> scheduler
-    mode_register --> scheduler
+    wr_intake --> wr_data_cam
+    rd_intake --> rd_cmd_cam
+    wr_data_cam -. snarf forward .-> rd_intake
+
+    wr_data_cam --> cmd_arbiter
+    rd_cmd_cam --> cmd_arbiter
+    bank_timers <--> cmd_arbiter
+    global_timers <--> cmd_arbiter
+    refresh_ctrl <--> cmd_arbiter
+    init_sequencer --> cmd_arbiter
+    mode_register --> cmd_arbiter
     init_sequencer --> mode_register
 
-    scheduler --> dfi_cmd_formatter
-    scheduler --> wr_beat_sequencer
-    scheduler --> rd_cl_aligner
+    cmd_arbiter --> dfi_cdc
+    wr_data_cam -. commit-drain wrdata .-> dfi_wr_ser
+    dfi_rd_align -. return-fill rddata .-> rd_cmd_cam
 
-    axi_intake -.w_buf pull.-> wr_beat_sequencer
-    rd_cl_aligner -.rd_inject.-> axi_intake
-
-    dfi_cmd_formatter --> dfi_signal_pack
-    wr_beat_sequencer --> dfi_signal_pack
-    rd_cl_aligner --> dfi_signal_pack
-    dfi_signal_pack --> DFI[/"DFI v2.1 Master Port<br/>(to PHY)"/]
+    dfi_cdc --> dfi_cmd_path
+    dfi_cdc <--> dfi_wr_ser
+    dfi_cdc <--> dfi_rd_align
+    dfi_cmd_path --> DFI[/"DFI v2.1 Master Port<br/>(to PHY)"/]
+    dfi_wr_ser --> DFI
+    dfi_rd_align --> DFI

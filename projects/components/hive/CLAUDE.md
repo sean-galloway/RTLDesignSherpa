@@ -248,7 +248,7 @@ Switching Sequence:
 
 ### Related Component Specifications
 
-- `projects/components/rapids/docs/rapids_spec/` - RAPIDS DMA specification
+- `projects/components/dmas/rapids/docs/rapids_spec/` - RAPIDS DMA specification
 - `projects/components/delta/docs/delta_spec/` - Delta Network specification
 
 ---

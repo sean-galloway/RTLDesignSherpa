@@ -87,7 +87,7 @@ class BridgeStreamCharAxilTB(TBBase):
         # Per-slave metadata used by misroute checks and pattern computation.
         # slave_info[i] = (protocol, base_addr, addr_range, data_width)
         self.slave_info = {
-            0: ('apb', 0x00000000, 0x00001000, 32),  # stream_apb
+            0: ('apb', 0x00000000, 0x00002000, 32),  # stream_apb
             1: ('axil', 0x00010000, 0x00001000, 32),  # harness_csr
             2: ('axi4', 0x00020000, 0x00010000, 256),  # desc_ram
             3: ('axil', 0x00030000, 0x00001000, 32),  # stream_err
@@ -346,7 +346,7 @@ class BridgeStreamCharAxilTB(TBBase):
         """Set up protocol BFM and pre-seeded MemoryModel for slave 0: stream_apb (protocol: apb)"""
         # APB slave — APBSlave manages its own internal memory; pre-seed
         # it with the slave-specific pattern via direct memory writes.
-        preset = self._build_preset(0, 0x00001000, 32)
+        preset = self._build_preset(0, 0x00002000, 32)
         self.slave_apb[0] = APBSlave(
             entity=self.dut,
             title="APB_S0",

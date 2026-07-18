@@ -1,42 +1,49 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
 flowchart LR
-    subgraph APB_DOM["apb_pclk domain (25–100 MHz)"]
-        apb_proto["APB3 protocol engine"]
-        apb_staging["staging registers<br/>(per R/W field)"]
-        apb_read_sync["read-side<br/>Gray-decode"]
+    subgraph CTL["aclk domain (controller)"]
+        ifc["pumice_axi4_ifc<br/>(intakes + CAMs)"]
+        sched["pumice_mem_cmd_scheduler<br/>(arbiter + timers +<br/>refresh + init)"]
+        csr["pumice_csr<br/>(cpuif; config regs)"]
     end
 
-    subgraph CDC["CDC (in csr_apb_fub)"]
-        wr_sync["write-side<br/>4-flop sync<br/>+ edge detect"]
-        rd_sync["read-side<br/>pulse-sync<br/>+ Gray counter"]
+    subgraph CDC["pumice_dfi_cdc — the SINGLE crossing"]
+        cmd_fifo["u_cmd_fifo<br/>(gaxi_fifo_async;<br/>ctl -> dfi)"]
+        wd_fifo["u_wd_fifo<br/>(gaxi_fifo_async;<br/>ctl -> dfi)"]
+        rd_fifo["u_rd_fifo<br/>(gaxi_fifo_async;<br/>dfi -> ctl)"]
+        istart_tok["u_istart_tok<br/>(init_start token;<br/>ctl -> dfi)"]
+        icmp_tok["u_icmp_tok<br/>(init_complete token;<br/>dfi -> ctl)"]
     end
 
-    subgraph MC_DOM["mc_clk domain (100–500 MHz)"]
-        live_regs["live CSR cells"]
-        quiet_pt["quiet_point detector<br/>(power_state_fub)"]
-        commit["commit-on-quiet-point<br/>(staging → live)"]
-        obs_cnt["observation counters<br/>(rolling, gray-coded)"]
-        live_datapath["live datapath<br/>(scheduler, refresh, etc.)"]
+    subgraph DFIDOM["dfi_clk domain (PHY side)"]
+        cmd_path["pumice_dfi_cmd_path<br/>(dfi_cmd_formatter +<br/>dfi_signal_pack)"]
+        wr_ser["pumice_dfi_wr_serializer"]
+        rd_align["pumice_dfi_rd_aligner"]
     end
 
-    APB[/"APB master"/] --> apb_proto
-    apb_proto --> apb_staging
-    apb_staging --> wr_sync
-    wr_sync --> commit
-    quiet_pt --> commit
-    commit --> live_regs
-    live_regs --> live_datapath
+    sched -- "cmd (op,rank,bank,row,col,ap)" --> cmd_fifo
+    ifc -- "cm_rd wrdata (data,strb,last)" --> wd_fifo
+    sched -- "dfi_init_start" --> istart_tok
 
-    live_datapath --> obs_cnt
-    obs_cnt --> rd_sync
-    rd_sync --> apb_read_sync
-    apb_read_sync --> apb_proto
-    apb_proto --> APB
+    cmd_fifo -- "pcmd" --> cmd_path
+    wd_fifo -- "pwd" --> wr_ser
+    istart_tok -- "pinit_start (sticky)" --> cmd_path
 
-    classDef apb fill:#f0f0f0,stroke:#666666,stroke-width:2px
+    rd_align -- "prd (data,resp,last)" --> rd_fifo
+    rd_fifo -- "rd return" --> ifc
+    icmp_tok -- "init_complete (sticky)" --> sched
+
+    cmd_path -- "wr_fire" --> wr_ser
+    cmd_path -- "rd_fire" --> rd_align
+    PHY[/"dfi_init_complete"/] --> icmp_tok
+
+    cmd_path --> DFIPIN[/"DFI v2.1 pin bus"/]
+    wr_ser --> DFIPIN
+    DFIPIN --> rd_align
+
+    classDef ctl fill:#e8f4e8,stroke:#228B22,stroke-width:2px
     classDef cdc fill:#fef0e0,stroke:#B88B22,stroke-width:2px
-    classDef mc fill:#e8f4e8,stroke:#228B22,stroke-width:2px
+    classDef dfi fill:#e0e8fa,stroke:#3366CC,stroke-width:2px
 
-    class apb_proto,apb_staging,apb_read_sync apb
-    class wr_sync,rd_sync cdc
-    class live_regs,quiet_pt,commit,obs_cnt,live_datapath mc
+    class ifc,sched,csr ctl
+    class cmd_fifo,wd_fifo,rd_fifo,istart_tok,icmp_tok cdc
+    class cmd_path,wr_ser,rd_align dfi

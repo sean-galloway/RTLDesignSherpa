@@ -18,7 +18,7 @@ SV2V      := sv2v
 
 # Include paths for sv2v preprocessing
 INC := -I$(REPO_ROOT)/rtl/amba/includes \
-       -I$(REPO_ROOT)/projects/components/stream/rtl/includes
+       -I$(REPO_ROOT)/projects/components/dmas/stream/rtl/includes
 
 # Package files (order matters: dependencies first)
 # monitor_pkg_stub.sv provides an empty monitor_pkg so sv2v resolves the import
@@ -26,7 +26,7 @@ PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/monitor_amba4_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/monitor_arbiter_pkg.sv \
         monitor_pkg_stub.sv \
-        $(REPO_ROOT)/projects/components/stream/rtl/includes/stream_pkg.sv
+        $(REPO_ROOT)/projects/components/dmas/stream/rtl/includes/stream_pkg.sv
 
 # All RTL dependencies requiring monitor_pkg stripping
 # (axi4_master_rd_mon and its monitor infrastructure)
@@ -49,12 +49,12 @@ CLEAN_DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
               $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
               $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
               $(REPO_ROOT)/rtl/amba/shared/monbus_arbiter.sv \
-              $(REPO_ROOT)/projects/components/stream/rtl/fub/descriptor_engine.sv \
-              $(REPO_ROOT)/projects/components/stream/rtl/fub/scheduler.sv \
-              $(REPO_ROOT)/projects/components/stream/rtl/macro/scheduler_group.sv
+              $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/descriptor_engine.sv \
+              $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/scheduler.sv \
+              $(REPO_ROOT)/projects/components/dmas/stream/rtl/macro/scheduler_group.sv
 
 # Device under test
-DUT := $(REPO_ROOT)/projects/components/stream/rtl/macro/scheduler_group_array.sv
+DUT := $(REPO_ROOT)/projects/components/dmas/stream/rtl/macro/scheduler_group_array.sv
 
 # Post-processing script to fix multi-driver issues in sv2v output.
 # descriptor_engine has two always_ff blocks driving r_descriptor_error

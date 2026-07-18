@@ -230,6 +230,18 @@ add_cells_to_pblock pblock_rd_cl_aligner \
     [get_cells -quiet u_harness/u_dut/u_ctrl/u_core/u_data_path/u_rd_cl_aligner]
 resize_pblock pblock_rd_cl_aligner -add {CLOCKREGION_X0Y2:CLOCKREGION_X0Y3}
 
+## NOTE: a pblock on u_sched+u_ifc (tried CLOCKREGION_X1Y1:X1Y3) made WNS WORSE
+## (-30.5 -> -33.0): forcing u_ifc into one column pushed rd_intake and wr_cam
+## apart and LENGTHENED the snarf route (rd_intake AR -> wr_cam snarf_q), which
+## is the worst path. Left to the placer FREE (consistent with the rd_cl_aligner
+## note above: constraining the pumice cone backfires here). The route wall on
+## the snarf/scheduler cone needs a pipeline register, not floorplanning.
+
+## bank_lsb (address-map config CSR) is set once before init and is CONSTANT
+## during DRAM traffic, so its combinational fan-out into the address mapper /
+## CAMs never needs to meet a per-cycle deadline. Relax paths that START there.
+set_false_path -from [get_cells -quiet -hier -filter {NAME =~ *field_storage_reg*bank_lsb*}]
+
 ##==============================================================================
 ## Configuration / Bitstream
 ##==============================================================================

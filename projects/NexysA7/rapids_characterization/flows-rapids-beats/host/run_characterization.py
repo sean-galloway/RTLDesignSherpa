@@ -55,7 +55,7 @@ from descriptor_builder import (  # noqa: E402
 from rapids_char_golden import golden_crc, LFSR_SEED_DEFAULT  # noqa: E402
 
 RAPIDS_REGMAP_PATH = os.path.join(
-    _REPO_ROOT, 'projects/components/rapids/rtl/rapids_regmap.py')
+    _REPO_ROOT, 'projects/components/dmas/rapids/rtl/rapids_regmap.py')
 
 # Address layout — identical to rapids_char_harness_tb.py so the on-chip fetch
 # address equals the host-load address.
@@ -63,6 +63,28 @@ DESC_BASE = 0x3000_0000        # descriptor RAM byte address base
 SRC_DATA_BASE = 0x1000_0000    # source data (m_axi_rd) - address agnostic
 DST_DATA_BASE = 0x2000_0000    # sink data dest (m_axi_wr) - address agnostic
 CHANNEL_OFFSET = 0x0010_0000
+
+# Atomic-launch CSR offsets (raw region-2 byte offsets; not in the by-name
+# regmap). Mirror rapids_char_top.sv CSR_KICK_*/CSR_GO. The host stages every
+# CSR + descriptor over UART, then a single GO write arms the meter window,
+# starts the AXIS gen (sink), and fires all descriptor kicks on-chip in a few
+# aclk cycles -- keeping UART latency OUT of the measured window.
+CSR_KICK_CFG     = 0x064   # [0]=half(0 SRC/1 SNK) [1]=start_gen_on_go
+CSR_KICK_MASK    = 0x068   # [NUM_CHANNELS-1:0] channels to kick
+CSR_KICK_BASE_LO = 0x06C   # descriptor base addr [31:0]
+CSR_KICK_BASE_HI = 0x070   # descriptor base addr [63:32]
+CSR_KICK_STRIDE  = 0x074   # per-channel byte stride (base + ch*stride)
+CSR_GO           = 0x078   # [0]=GO
+CSR_OBS_TARGET   = 0x07C   # freeze the meter window at N productive beats (0=off)
+KICK_STRIDE      = 0x1000  # per-channel descriptor stride (matches DESC_BASE math)
+
+# Bus-meter throughput math. The data masters are DATA_WIDTH=512b = 64 B/beat,
+# and one PRODUCTIVE meter cycle == one 512b beat transferred. Peak per-direction
+# bandwidth = BYTES_PER_BEAT * ACLK_HZ; effective BW = peak * utilization
+# (util = prod / (prod+bp+starv+idle)).
+BYTES_PER_BEAT = 64
+ACLK_HZ = 100_000_000
+PEAK_BW_PER_DIR = BYTES_PER_BEAT * ACLK_HZ   # 6.4 GB/s at 100 MHz
 
 # APB half bases (DUT-REG region) — match the RegisterMap start_addresses.
 APB_SRC_BASE = rio.APB_SRC_BASE
@@ -108,38 +130,56 @@ class RapidsCharCampaign:
             self.log.info(f"APB WRITE {half.upper()}.{reg_name} "
                           f"(0x{addr:04X}) = 0x{value:08X}")
 
+    def write_fields(self, half: str, reg_name: str, **fields: int) -> None:
+        """Program a DUT register by setting its FIELDS by name (composed at their
+        rapids_regmap offsets/widths) rather than a hand-assembled bitmask.
+        Unspecified fields default to 0."""
+        regs = self.src_regs if half == 'src' else self.snk_regs
+        info = regs.registers[reg_name]
+        word = 0
+        for fname, val in fields.items():
+            fld = info.get(fname)
+            if not isinstance(fld, dict) or 'offset' not in fld:
+                raise KeyError(f"unknown field {reg_name}.{fname}")
+            off = fld['offset']
+            hi, lo = (int(x) for x in off.split(':')) if ':' in off \
+                else (int(off), int(off))
+            mask = ((1 << (hi - lo + 1)) - 1) << lo
+            word = (word & ~mask) | ((int(val) << lo) & mask)
+        self.write_reg(half, reg_name, word)
+
     # ---- DUT config by name (mirrors _configure_via_apb) -------------------
 
     def configure_half(self, half: str) -> None:
         all_ch = (1 << self.num_channels) - 1
 
-        self.write_reg(half, 'SCHED_TIMEOUT_CYCLES', 1_000_000)
-        self.write_reg(half, 'SCHED_TIMEOUT_LIMIT', 0xFF)
-        # SCHED_EN[0] | ERR_EN[2]  (TIMEOUT/COMPL/PERF off)
-        self.write_reg(half, 'SCHED_CONFIG', (1 << 0) | (1 << 2))
+        self.write_fields(half, 'SCHED_TIMEOUT_CYCLES', TIMEOUT_CYCLES=1_000_000)
+        self.write_fields(half, 'SCHED_TIMEOUT_LIMIT', LIMIT=0xFF)
+        self.write_fields(half, 'SCHED_CONFIG', SCHED_EN=1, ERR_EN=1)  # TIMEOUT/COMPL/PERF off
 
-        # DESCENG_EN | PREFETCH_EN | FIFO_THRESH=4
-        self.write_reg(half, 'DESCENG_CONFIG', 0x1 | 0x2 | (4 << 2))
-        self.write_reg(half, 'DESCENG_ADDR0_BASE', 0x0000_0000)
-        self.write_reg(half, 'DESCENG_ADDR0_LIMIT', 0xFFFF_FFFF)
-        self.write_reg(half, 'DESCENG_ADDR1_BASE', 0x0000_0000)
-        self.write_reg(half, 'DESCENG_ADDR1_LIMIT', 0xFFFF_FFFF)
+        self.write_fields(half, 'DESCENG_CONFIG',
+                          DESCENG_EN=1, PREFETCH_EN=1, FIFO_THRESH=4)
+        self.write_fields(half, 'DESCENG_ADDR0_BASE',  ADDR0_BASE=0x0000_0000)
+        self.write_fields(half, 'DESCENG_ADDR0_LIMIT', ADDR0_LIMIT=0xFFFF_FFFF)
+        self.write_fields(half, 'DESCENG_ADDR1_BASE',  ADDR1_BASE=0x0000_0000)
+        self.write_fields(half, 'DESCENG_ADDR1_LIMIT', ADDR1_LIMIT=0xFFFF_FFFF)
 
         # RD/WR=8 beats, ALLOC=16, DRAIN=1.
-        axi_xfer = (1 << 24) | (16 << 16) | (8 << 8) | (8 << 0)
-        self.write_reg(half, 'AXI_XFER_CONFIG', axi_xfer)
+        self.write_fields(half, 'AXI_XFER_CONFIG',
+                          RD_XFER_BEATS=8, WR_XFER_BEATS=8,
+                          ALLOC_SIZE=16, DRAIN_SIZE=1)
 
-        self.write_reg(half, 'CTRL_CONFIG', 0x1)
-        self.write_reg(half, 'CHANNEL_ENABLE', all_ch)
-        self.write_reg(half, 'GLOBAL_CTRL', 0x1)  # GLOBAL_EN (avoid RST bit)
+        self.write_fields(half, 'CTRL_CONFIG', CTRLRD_MAX_TRY=1)
+        self.write_fields(half, 'CHANNEL_ENABLE', CH_EN=all_ch)
+        self.write_fields(half, 'GLOBAL_CTRL', GLOBAL_EN=1)  # avoid RST bit
         self.log.info(f"{half.upper()} half configured via APB (by name)")
 
     def configure(self) -> None:
         # Monitor egress window: sane constants (never 0/0, which stalls the
         # monitor path) — mirrors the cocotb TB's reset defaults.
-        self.io.csr_write(rio.CSR_MON_BASE, 0x0000_1000)
-        self.io.csr_write(rio.CSR_MON_LIMIT, 0x0000_5000 - 1)
-        self.io.csr_write(rio.CSR_MON_FLUSHWM, 3)
+        self.io.csr_write_reg("MON_BASE", VALUE=0x0000_1000)
+        self.io.csr_write_reg("MON_LIMIT", VALUE=0x0000_5000 - 1)
+        self.io.csr_write_reg("MON_FLUSHWM", VALUE=3)
         self.io.cam_clear()
         self.configure_half('src')
         self.configure_half('snk')
@@ -157,6 +197,38 @@ class RapidsCharCampaign:
         self.io.dut_reg_write(base + channel * 0x008 + 0x004, high)
         if self.verbose:
             self.log.info(f"kicked {half} ch{channel} desc @ 0x{descriptor_addr:016X}")
+
+    # ---- atomic launch: stage kicks as config, then a single on-chip GO -----
+
+    def _stage_kicks(self, half: str, mask: int, *, start_gen: bool) -> None:
+        """Stage the on-chip kick sequencer (fired later by go()): which half,
+        which channels, and the descriptor base/stride. Replaces the per-channel
+        UART kick writes so the kicks land within a few aclk cycles of GO."""
+        cfg = (1 if half == 'snk' else 0) | ((1 << 1) if start_gen else 0)
+        self.io.csr_write(CSR_KICK_CFG, cfg)
+        self.io.csr_write(CSR_KICK_MASK, mask)
+        self.io.csr_write(CSR_KICK_BASE_LO, DESC_BASE & 0xFFFF_FFFF)
+        self.io.csr_write(CSR_KICK_BASE_HI, (DESC_BASE >> 32) & 0xFFFF_FFFF)
+        self.io.csr_write(CSR_KICK_STRIDE, KICK_STRIDE)
+
+    def go(self) -> None:
+        """Single atomic GO: arm the meter window + start the AXIS gen (if
+        staged) + fire every staged descriptor kick, all on-chip within a few
+        aclk cycles. No UART latency enters the measured window."""
+        self.io.csr_write(CSR_GO, 1)
+
+    def reset_channels(self) -> None:
+        """Pulse CHANNEL_RESET on both halves to clear stale scheduler /
+        descriptor-engine state before a run (forces the channel FSMs to
+        CH_IDLE and flushes the descriptor FIFOs). The sink does NOT return to
+        a clean state on its own after a transfer, so without this a second
+        back-to-back run — or any active<build_width config — inherits stale
+        state and wedges (sink writes 0 beats). Board-confirmed: baseline 1/4,
+        with reset 5/5, and active=1/2/4/8 all pass."""
+        allch = (1 << self.num_channels) - 1
+        for half in ('snk', 'src'):
+            self.write_fields(half, 'CHANNEL_RESET', CH_RST=allch)
+            self.write_fields(half, 'CHANNEL_RESET', CH_RST=0x00)
 
     # ---- polling -----------------------------------------------------------
 
@@ -189,6 +261,10 @@ class RapidsCharCampaign:
         for ch in active_channels:
             mask |= (1 << ch)
 
+        # Clear any stale scheduler/descriptor state from a prior run first.
+        self.reset_channels()
+
+        # ---- STAGE everything over UART (meter NOT armed yet) ---------------
         # 1. Load a SINK DATA descriptor per active channel into the SNK RAM.
         for ch in active_channels:
             desc_addr = DESC_BASE + ch * 0x1000
@@ -197,32 +273,34 @@ class RapidsCharCampaign:
             self.io.load_descriptor('snk', desc_addr, descriptor_to_words(desc))
 
         # 2. Reset the sink-write CRC checker (1-cycle pulse in HW).
-        self.io.csr_write(rio.CSR_MEM_CTRL, 0x2)  # wr_crc_reset
+        self.io.csr_write_reg("MEM_CTRL", WR_CRC_RESET=1)
 
-        # 3. Program + start the AXIS pattern generator (start reseeds LFSR/CRC).
-        # CSR_GEN_SEED==0 selects the DEADBEEF param default; any other value is
-        # used verbatim as the LFSR seed. Golden uses the matching base_seed.
+        # 3. Program the AXIS pattern generator but DO NOT start it -- GO starts
+        #    it. GEN_SEED==0 selects the DEADBEEF param default; any other value
+        #    is the LFSR seed verbatim. Golden uses the matching base_seed.
         seed_csr = 0 if base_seed == LFSR_SEED_DEFAULT else base_seed
-        self.io.csr_write(rio.CSR_GEN_SEED, seed_csr)
-        self.io.csr_write(rio.CSR_GEN_NBEATS, beats)
-        self.io.csr_write(rio.CSR_GEN_BPP, 0)       # 0 => one packet per channel
-        self.io.csr_write(rio.CSR_GEN_CHMASK, mask)
-        self.io.csr_write(rio.CSR_GEN_TDEST, 0)
-        self.io.csr_write(rio.CSR_GEN_CTRL, 1)      # arm (level -> rising edge)
-        self.io.csr_write(rio.CSR_GEN_CTRL, 0)      # clear
+        self.io.csr_write_reg("GEN_SEED", VALUE=seed_csr)
+        self.io.csr_write_reg("GEN_NBEATS", VALUE=beats)
+        self.io.csr_write_reg("GEN_BPP", VALUE=0)        # 0 => one packet per channel
+        self.io.csr_write_reg("GEN_CHMASK", VALUE=mask)
+        self.io.csr_write_reg("GEN_TDEST", VALUE=0)
 
-        # 4. Kick each channel's SINK descriptor (drains SRAM -> m_axi_wr).
-        for ch in active_channels:
-            self.kick_channel('snk', ch, DESC_BASE + ch * 0x1000)
-
-        # 5. Wait for the sink idle AND all beats CRC'd.
+        # 4. Stage the descriptor kicks (SNK half, gen-start-on-GO) + the
+        #    deterministic window-close target: the meter freezes the cycle after
+        #    the wr path completes all `expected_total` writes, so the window
+        #    brackets exactly the transfer regardless of when snk_system_idle
+        #    (unreliable at large beat counts) asserts.
         expected_total = beats * n_active
+        self._stage_kicks('snk', mask, start_gen=True)
+        self.io.csr_write(CSR_OBS_TARGET, expected_total)
 
+        # ---- GO: arm meter + start gen + kick all channels, on-chip ---------
+        self.go()
+
+        # 5. Wait for all beats written (deterministic; the HW meter freeze does
+        #    not depend on this poll -- it just tells the host when to read).
         def done():
-            status = self.io.read_status()
-            wr_total = self.io.csr_read(rio.CSR_WR_BEATS_T)
-            return (status is not None and (status & rio.STATUS_SNK_IDLE)
-                    and wr_total == expected_total)
+            return self.io.csr_read_reg("WR_BEATS_T") == expected_total
 
         ok_idle = self._poll(done, timeout_s)
 
@@ -231,11 +309,11 @@ class RapidsCharCampaign:
         return self._score(
             active_channels, beats, expected_total, ok_idle,
             base_seed=base_seed,
-            beat_count_reg=rio.CSR_WR_BEATS_T,
-            sched_err_reg=rio.CSR_SNK_SCHERR,
+            beat_count_reg="WR_BEATS_T",
+            sched_err_reg="SNK_SCHERR",
             label='SINK',
-            authorities=[('wr', rio.CSR_WR_CRC, rio.CSR_WR_CRC_VLD)],
-            corroborators=[('gen', rio.CSR_GEN_EXP_CRC, rio.CSR_GEN_EXP_VLD)],
+            authorities=[('wr', "WR_CRC", "WR_CRC_VLD")],
+            corroborators=[('gen', "GEN_EXP_CRC", "GEN_EXP_VLD")],
             check_data_error=False)
 
     # ---- SOURCE self-check: m_axi_rd LFSR -> source -> m_axis chk ----------
@@ -264,20 +342,29 @@ class RapidsCharCampaign:
                       f"backpressure={'ON' if backpressure else 'off'} ===")
         n_active = len(active_channels)
 
+        mask = 0
+        for ch in active_channels:
+            mask |= (1 << ch)
+
+        # Clear any stale scheduler/descriptor state from a prior run first.
+        self.reset_channels()
+
+        # ---- STAGE everything over UART (meter NOT armed yet) ---------------
         # 1. Reset the source-read LFSR/CRC pattern generator (1-cycle pulse).
-        self.io.csr_write(rio.CSR_MEM_CTRL, 0x1)  # rd_crc_lfsr_reset
+        self.io.csr_write_reg("MEM_CTRL", RD_CRC_LFSR_RESET=1)
 
         # 2. Arm the AXIS pattern checker: chk_ready_en(level) + chk_cfg_start pulse.
-        #    Source seed is fixed at the DEADBEEF param (no rd-gen seed CSR), so
-        #    the checker seed must match: CSR_CHK_SEED=0 => DEADBEEF.
-        self.io.csr_write(rio.CSR_CHK_SEED, 0)    # 0 => DEADBEEF, matches rd gen
+        #    Source has no gen, so GO does not touch the checker -- it is armed
+        #    here and stays ready. Source seed is fixed at the DEADBEEF param
+        #    (no rd-gen seed CSR), so CSR_CHK_SEED=0 => DEADBEEF.
+        self.io.csr_write_reg("CHK_SEED", VALUE=0)  # 0 => DEADBEEF, matches rd gen
         if backpressure:
             # Arm with ready held LOW; the poll loop pulses it to create stalls.
-            self.io.csr_write(rio.CSR_CHK_CTRL, 0x1)  # start[0]=1, ready_en[1]=0
-            self.io.csr_write(rio.CSR_CHK_CTRL, 0x0)  # drop start, ready still low
+            self.io.csr_write_reg("CHK_CTRL", CHK_START=1, CHK_READY_EN=0)
+            self.io.csr_write_reg("CHK_CTRL", CHK_START=0, CHK_READY_EN=0)
         else:
-            self.io.csr_write(rio.CSR_CHK_CTRL, 0x3)  # start[0]=1, ready_en[1]=1
-            self.io.csr_write(rio.CSR_CHK_CTRL, 0x2)  # drop start, keep ready_en
+            self.io.csr_write_reg("CHK_CTRL", CHK_START=1, CHK_READY_EN=1)
+            self.io.csr_write_reg("CHK_CTRL", CHK_START=0, CHK_READY_EN=1)
 
         # 3. Load a SOURCE DATA descriptor per active channel into the SRC RAM.
         for ch in active_channels:
@@ -286,18 +373,19 @@ class RapidsCharCampaign:
             desc = build_data_descriptor(src_addr, 0, beats, channel_id=ch)
             self.io.load_descriptor('src', desc_addr, descriptor_to_words(desc))
 
-        # 4. Kick each channel's SOURCE descriptor.
-        for ch in active_channels:
-            self.kick_channel('src', ch, DESC_BASE + ch * 0x1000)
-
-        # 5. Wait for the source idle AND all beats checked.
+        # 4. Stage the descriptor kicks (SRC half, no gen) + deterministic
+        #    window-close target: freeze after the egress path checks all beats.
         expected_total = beats * n_active
+        self._stage_kicks('src', mask, start_gen=False)
+        self.io.csr_write(CSR_OBS_TARGET, expected_total)
 
+        # ---- GO: arm meter + kick all channels, on-chip --------------------
+        self.go()
+
+        # 5. Wait for all beats checked (deterministic read trigger; the HW
+        #    meter freeze is independent of this poll).
         def done():
-            status = self.io.read_status()
-            chk_total = self.io.csr_read(rio.CSR_CHK_BEATS_T)
-            return (status is not None and (status & rio.STATUS_SRC_IDLE)
-                    and chk_total == expected_total)
+            return self.io.csr_read_reg("CHK_BEATS_T") == expected_total
 
         if backpressure:
             ok_idle = self._poll_backpressure(done, timeout_s)
@@ -309,11 +397,11 @@ class RapidsCharCampaign:
         return self._score(
             active_channels, beats, expected_total, ok_idle,
             base_seed=LFSR_SEED_DEFAULT,
-            beat_count_reg=rio.CSR_CHK_BEATS_T,
-            sched_err_reg=rio.CSR_SRC_SCHERR,
+            beat_count_reg="CHK_BEATS_T",
+            sched_err_reg="SRC_SCHERR",
             label='SOURCE',
-            authorities=[('rd', rio.CSR_RD_CRC, rio.CSR_RD_CRC_VLD),
-                         ('chk', rio.CSR_CHK_ACT_CRC, rio.CSR_CHK_ACT_VLD)],
+            authorities=[('rd', "RD_CRC", "RD_CRC_VLD"),
+                         ('chk', "CHK_ACT_CRC", "CHK_ACT_VLD")],
             corroborators=[],
             check_data_error=True)
 
@@ -329,13 +417,13 @@ class RapidsCharCampaign:
         deadline = time.time() + timeout_s
         while time.time() < deadline:
             if predicate():
-                self.io.csr_write(rio.CSR_CHK_CTRL, 0x2)  # leave ready asserted
+                self.io.csr_write_reg("CHK_CTRL", CHK_START=0, CHK_READY_EN=1)  # leave ready asserted
                 return True
             # Stall pulse (ready low), then release (ready high). start stays 0.
-            self.io.csr_write(rio.CSR_CHK_CTRL, 0x0)
-            self.io.csr_write(rio.CSR_CHK_CTRL, 0x2)
+            self.io.csr_write_reg("CHK_CTRL", CHK_START=0, CHK_READY_EN=0)
+            self.io.csr_write_reg("CHK_CTRL", CHK_START=0, CHK_READY_EN=1)
             time.sleep(period_s)
-        self.io.csr_write(rio.CSR_CHK_CTRL, 0x2)  # ensure ready before final check
+        self.io.csr_write_reg("CHK_CTRL", CHK_START=0, CHK_READY_EN=1)  # ensure ready before final check
         return predicate()
 
     # ---- shared per-channel scoreboard -------------------------------------
@@ -345,8 +433,9 @@ class RapidsCharCampaign:
                authorities, corroborators, check_data_error):
         """Golden-anchored per-channel scoreboard.
 
-        `authorities` are (name, crc_reg, vld_reg) tuples whose CRC MUST equal
-        the golden model for the run to pass (these are the DATA-path CRCs).
+        `authorities` are (name, crc_reg, vld_reg) tuples where crc_reg / vld_reg
+        are harness-CSR register NAMES (resolved by-name via csr_read_reg) whose
+        CRC MUST equal the golden model for the run to pass (the DATA-path CRCs).
         `corroborators` are compared against golden too but only produce
         NON-FATAL warnings on mismatch or valid==0 (e.g. the generator's
         self-CRC, whose valid flag is a known intermittent-re-arm flake).
@@ -356,19 +445,19 @@ class RapidsCharCampaign:
         warnings = []     # non-fatal (corroboration / valid-flag flakes)
         results = {}
 
-        beat_total = self.io.csr_read(beat_count_reg)
+        beat_total = self.io.csr_read_reg(beat_count_reg)
         status = self.io.read_status()
         if not ok_idle:
             errors.append(f"timeout: status=0x{(status or 0):08X} "
                           f"beat_total={beat_total} (expected {expected_total})")
         if beat_total != expected_total:
             errors.append(f"beat_total={beat_total} != expected {expected_total}")
-        if check_data_error and status is not None and (status & rio.STATUS_DATA_ERROR):
+        if check_data_error and self.io.csr_field("STATUS", "DATA_ERROR"):
             errors.append("o_data_error asserted")
 
-        auth_vld = {name: (self.io.csr_read(vld) or 0)
+        auth_vld = {name: (self.io.csr_read_reg(vld) or 0)
                     for name, _, vld in authorities}
-        corr_vld = {name: (self.io.csr_read(vld) or 0)
+        corr_vld = {name: (self.io.csr_read_reg(vld) or 0)
                     for name, _, vld in corroborators}
         golden_mismatch = False
 
@@ -379,7 +468,7 @@ class RapidsCharCampaign:
             ch_ok = True
 
             for name, crc_reg, _ in authorities:
-                crc = self.io.csr_read(crc_reg)
+                crc = self.io.csr_read_reg(crc_reg)
                 ch_res[name] = crc
                 if not (auth_vld[name] >> ch) & 0x1:
                     warnings.append(f"ch{ch}: {name}_crc_valid=0 (non-fatal; "
@@ -392,7 +481,7 @@ class RapidsCharCampaign:
                         f"{name}=0x{(crc or 0):08X} golden=0x{golden:08X}")
 
             for name, crc_reg, _ in corroborators:
-                crc = self.io.csr_read(crc_reg)
+                crc = self.io.csr_read_reg(crc_reg)
                 ch_res[name] = crc
                 cv = (corr_vld[name] >> ch) & 0x1
                 if crc != golden or not cv:
@@ -411,9 +500,52 @@ class RapidsCharCampaign:
             else:
                 print(f"  ch{ch}: {label} FAIL golden=0x{golden:08X}")
 
-        se = self.io.csr_read(sched_err_reg)
+        se = self.io.csr_read_reg(sched_err_reg)
         if se not in (0, None):
             errors.append(f"{label.lower()}_sched_error=0x{se:X}")
+
+        # Bus meters: read BOTH interfaces on this run's direction from the frozen
+        # window. A SINK run drives AXIS ingress (sin) -> AXI4 write (wr); a SOURCE
+        # run drives AXI4 read (rd) -> AXIS egress (sout). Report each interface's
+        # engaged utilization + effective bandwidth. Non-fatal on read hiccups.
+        if label.upper() == 'SOURCE':
+            ifaces = [('rd', 'AXI4-rd'), ('sout', 'AXIS-out')]   # SOURCE path
+        else:
+            ifaces = [('sin', 'AXIS-in'), ('wr', 'AXI4-wr')]     # SINK path
+        perf = {'ifaces': {}}
+        for key, disp in ifaces:
+            try:
+                m = self.io.read_bus_meter(key)
+            except Exception as exc:  # noqa: BLE001
+                self.log.warning(f"  {label}: {key} bus-meter read failed: {exc}")
+                continue
+            if m['engaged'] <= 0:
+                continue
+            eff_bw = PEAK_BW_PER_DIR * m['util']
+            rec = {'iface': key, 'util': m['util'],
+                   'eff_bw_gb_s': eff_bw / 1e9,
+                   'peak_bw_gb_s': PEAK_BW_PER_DIR / 1e9, 'buckets': m}
+            print(f"  {label} {disp}: util={m['util']:.1%} "
+                  f"eff={eff_bw/1e9:.2f} GB/s (prod={m['prod']} bp={m['bp']} "
+                  f"starv={m['starv']} idle={m['idle']})")
+            # AXIS interfaces expose exact byte/packet counts (axis_bus_meter).
+            # Byte-derived throughput over the full frozen window cross-checks the
+            # cycle-utilization figure and is exact regardless of window padding.
+            if key in ('sin', 'sout'):
+                try:
+                    ex = self.io.read_axis_extras(key)
+                    win = m['total']
+                    bw = (ex['bytes'] * ACLK_HZ / win) if win else 0.0
+                    rec['bytes'] = ex['bytes']
+                    rec['packets'] = ex['packets']
+                    rec['byte_bw_gb_s'] = bw / 1e9
+                    print(f"    {disp} axis: {ex['bytes']} B, {ex['packets']} pkts, "
+                          f"{bw/1e9:.2f} GB/s (byte-derived)")
+                except Exception as exc:  # noqa: BLE001
+                    self.log.warning(f"  {label}: {key} axis extras read failed: {exc}")
+            perf['ifaces'][key] = rec
+        if not perf['ifaces']:
+            perf = None
 
         passed = len(errors) == 0
         for w in warnings:
@@ -425,7 +557,8 @@ class RapidsCharCampaign:
               f"golden-validated){' [WARN: gen-valid flake]' if warnings and passed else ''}")
         return passed, {'errors': errors, 'warnings': warnings,
                         'results': results, 'beat_total': beat_total,
-                        'golden_mismatch': golden_mismatch}
+                        'golden_mismatch': golden_mismatch,
+                        'perf': perf}
 
     # ---- suite: sweep a matrix, one row per config -------------------------
 
@@ -484,6 +617,7 @@ def _jsonable(detail: dict) -> dict:
            'warnings': detail.get('warnings', []),
            'beat_total': detail.get('beat_total'),
            'golden_mismatch': detail.get('golden_mismatch', False),
+           'perf': detail.get('perf'),
            'per_channel': {}}
     for ch, res in (detail.get('results') or {}).items():
         out['per_channel'][str(ch)] = {
@@ -500,13 +634,37 @@ def _print_suite_summary(rows) -> None:
     print(f"SUITE SUMMARY: {len(rows)} configs run, "
           f"{len(passed)} passed, {len(failed)} failed")
     print("=" * 78)
-    print(f"{'#':<4}{'config':<34}{'sink':>8}{'source':>8}{'overall':>9}")
+    # The direction's throughput is set by its slower (bottleneck) interface.
+    def _min_util(detail):
+        ifs = ((detail or {}).get('perf') or {}).get('ifaces') or {}
+        return min((v['util'] for v in ifs.values()), default=None)
+
+    def _bw(detail):
+        u = _min_util(detail)
+        return f"{PEAK_BW_PER_DIR * u / 1e9:.2f}" if u is not None else "  -"
+
+    print(f"{'#':<4}{'config':<28}{'snk':>5}{'src':>5}{'ovr':>4}"
+          f"{'snkGB/s':>9}{'srcGB/s':>9}")
     print("-" * 78)
     for i, r in enumerate(rows, 1):
-        print(f"{i:<4}{r['name']:<34}"
-              f"{'PASS' if r['sink_pass'] else 'FAIL':>8}"
-              f"{'PASS' if r['source_pass'] else 'FAIL':>8}"
-              f"{'PASS' if r['pass'] else 'FAIL':>9}")
+        print(f"{i:<4}{r['name']:<28}"
+              f"{'P' if r['sink_pass'] else 'F':>5}"
+              f"{'P' if r['source_pass'] else 'F':>5}"
+              f"{'P' if r['pass'] else 'F':>4}"
+              f"{_bw(r.get('sink')):>9}{_bw(r.get('source')):>9}")
+    # Peak measured throughput across the suite (best bottleneck-limited window).
+    def _peak(key):
+        vals = [_min_util(r.get(key)) for r in rows]
+        vals = [PEAK_BW_PER_DIR * u / 1e9 for u in vals if u is not None]
+        return max(vals) if vals else None
+    snk_peak, src_peak = _peak('sink'), _peak('source')
+    if snk_peak or src_peak:
+        print("-" * 78)
+        s = f"{snk_peak:.2f}" if snk_peak else "n/a"
+        r = f"{src_peak:.2f}" if src_peak else "n/a"
+        agg = (f"{snk_peak + src_peak:.2f}" if (snk_peak and src_peak) else "n/a")
+        print(f"PEAK MEASURED: sink {s} GB/s + source {r} GB/s "
+              f"= {agg} GB/s full-duplex (of 12.8 peak @ 100 MHz)")
     if failed:
         first = failed[0]
         print("-" * 78)
@@ -609,7 +767,7 @@ Examples:
   %(prog)s --suite --suite-channels 1,2,4 --suite-beats 1,4,8,16 \\
            --suite-bp off,on --suite-seeds default,0x12345678
 """)
-    p.add_argument('--port', default='/dev/ttyUSB1', help='UART device')
+    p.add_argument('--port', default='auto', help="UART device. Default 'auto' probes every /dev/ttyUSB* for the harness (CSR_ID round-trip); pass an explicit path to force it.")
     p.add_argument('--baud', type=int, default=115200)
     p.add_argument('--channels', type=int, default=4,
                    help='NUM_CHANNELS the bitstream was built with')
@@ -660,10 +818,14 @@ def main() -> int:
         level=logging.INFO if args.verbose else logging.WARNING,
         format='%(levelname)s %(name)s: %(message)s')
 
-    with RapidsCharIO(port=args.port, baudrate=args.baud) as io:
+    # Resolve the serial port. Default 'auto' probes every /dev/ttyUSB* for the
+    # harness (CSR_ID round-trip) since the USB-UART re-enumerates.
+    port = rio.autodetect_port(args.baud, want=args.port)
+
+    with RapidsCharIO(port=port, baudrate=args.baud) as io:
         if not io.ping():
             print(f"FAIL: rapids_char_top did not respond with ID "
-                  f"0x{rio.CSR_ID_EXPECTED:08X} on {args.port}")
+                  f"0x{rio.CSR_ID_EXPECTED:08X} on {port}")
             return 2
         print(f"Link OK: rapids_char_top ID = 0x{rio.CSR_ID_EXPECTED:08X}")
 

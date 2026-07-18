@@ -21,340 +21,250 @@
 
 <!-- End Header -->
 
-# Read CL Aligner (`rd_cl_aligner`)
+# Read Data Path (`pumice_rd_cmd_cam` + `pumice_dfi_rd_aligner`)
 
-**Module:** `rd_cl_aligner.sv`
+**Modules:** `pumice_rd_cmd_cam.sv`, `pumice_dfi_rd_aligner.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent macro:** `data_path_macro`
-**Status:** v1 implemented (single-burst FSM; outputs strict-flop registered)
+**Parents:** `pumice_axi4_ifc` (CAM), `pumice_dfi_layer` (aligner)
+**Status:** implemented
 
-> **Renamed:** the SWAG called this `rd_data_path_fub`; the implementation
-> name is `rd_cl_aligner`. It drives `dfi_rddata_en` at the right cycle
-> for an issued READ, captures `dfi_rddata` beats (`DFI_RATE` DRAM beats
-> per DFI cycle), and streams them out as DRAM-beat-wide `rd_inject_*`
-> handshakes to `axi_intake.R-emit`.
+> The old single-block `rd_cl_aligner` / `rd_data_path_fub` no longer
+> exists. In the rearchitected controller the read data path is split
+> across two clock domains and two FUBs:
 >
-> **Strict-flop output design note:** the FSM uses a lookahead on the
-> "next beats_emitted" value so the registered data_o / valid_o stay
-> aligned with the external handshake. See commit 97a91fb8.
+> - `pumice_dfi_rd_aligner` (DFI domain, inside `pumice_dfi_layer`) —
+>   drives `dfi_rddata_en` at the right cycle for an issued READ and
+>   captures `dfi_rddata` words into the read return FIFO.
+> - `pumice_rd_cmd_cam` (MC domain, inside `pumice_axi4_ifc`) — an
+>   outstanding-read reorder buffer: DRAM data returns in *issue* order
+>   and buffers per entry; it drains to `pumice_rd_intake` in *AR* order.
+>
+> The single clock-domain crossing between them is `pumice_dfi_cdc`
+> (async gaxi FIFOs). This chapter documents both halves.
 
-> Architectural context: HAS §3.7. The micro-architecture closely mirrors the **stream** `axi_read_engine` (`projects/components/stream/rtl/fub/axi_read_engine.sv`): a streaming pipeline with **no FSM**, only flags, counters, and shift registers. Per-burst state is implicit in pointers and an ID-indexed inflight ring buffer; sequence is enforced by data-flow handshakes, not by enumerated states.
+> Architectural context: HAS §3.7 and `_SWEEP_GROUND_TRUTH.md` §8. The CAM
+> has no datapath FSM — the movers are burst beat-counters over the SRAM.
+> The DFI aligner has a small pacing FSM for the `dfi_rddata_en` window
+> only. Sequence is enforced by data-flow handshakes, not by slot state.
 
 ---
 
 ## Purpose
 
-`rd_data_path_fub` captures DRAM read-data beats arriving from `gear_dfi_fub`, width-converts them to AXI form, routes them to the correct AXI ID based on the in-flight CAM slot mapping, and presents them on the AXI R channel for `axi4_slave_fub` to drive back to the host.
+The read data path is the miss path: reads that cannot be satisfied by a
+snarf from the write CAM (see §17) go to DRAM. `pumice_rd_cmd_cam` is the
+mirror of `pumice_wr_data_cam` — entries keyed `{bank, row, col}` with a
+free-running age, an oldest port, and `N_SCHED_LU` scheduler lookups, so
+reads row-hit-schedule exactly like writes. It also acts as a **reorder
+buffer**: it accepts AR inserts in AR order, lets the scheduler issue them
+in an order it chooses (row-hit optimized), receives DRAM data in *issue*
+order, and drains it back to the host in *AR/oldest* order.
 
-CL (CAS Latency) alignment is the inverse of `wr_data_path_fub`'s CWL alignment: when the scheduler issues a RD/RDA, the first beat will appear from DFI rddata exactly CL PHY cycles later. A small CL-aware shift register holds the slot index so it pops out at the right cycle to tag the arriving beats.
+`pumice_dfi_rd_aligner` is the DFI-domain endpoint. On a RD command strobe
+(`rd_fire_i`) it drives the `dfi_rddata_en` capture window starting
+`t_rddata_en` DFI cycles later, and pushes one DFI word per
+`dfi_rddata_valid` cycle into the read return FIFO as `{data, resp, last}`.
 
-There are no enumerated FSM states. Internal state is:
-
-- A small CL-align shift register that times slot-index handoff to the inflight ring buffer
-- An ID-indexed ring buffer of (slot, beats_remaining) tuples for in-flight reads
-- A width-conversion shift register pipeline
-
-This is exactly the "streaming pipeline + flags" model from stream's `axi_read_engine`, adapted to the slave-side direction (DRAM → AXI host rather than memory → internal SRAM).
-
----
-
-## Stream Uarch Heritage
-
-This FUB is modeled after stream's `axi_read_engine` with the following deliberate parallels:
-
-| Property                                  | Stream `axi_read_engine`                  | This FUB                                   |
-|-------------------------------------------|-------------------------------------------|--------------------------------------------|
-| No enumerated FSM                          | Yes — streaming flags only                | Yes — streaming flags only                 |
-| Streaming data path                        | Direct passthrough AXI R → SRAM            | Direct passthrough DFI rddata → AXI R       |
-| ID-based completion routing                | `m_axi_rid` → channel ID                  | `dfi_rddata` arrival time → slot index via CL pipe; slot ID → AXI ID via CAM |
-| Pre-allocation handshake                  | `rd_alloc_size` reserves SRAM space        | rd_cmd_cam slot reservation in `axi4_slave_fub` (upstream)|
-| Combinational AR / R outputs               | Yes (option to register for timing)        | `r_beat_*` outputs are registered (1-cycle pipeline stage) |
-| Strobe-on-handshake completion             | `done_strobe` on AR handshake              | `entry_complete` to rd_cmd_cam on last beat |
-| Out-of-order completion across IDs         | Inherent — channel ID is part of AXI ID   | Inherent — slot index travels with the data |
-| Per-PERFORMANCE mode parameter             | `PERFORMANCE` ∈ LOW/MED/HIGH               | `RD_DATAPATH_PIPELINE` ∈ {0, 1} for v1; deeper modes deferred to v2 |
-
-Where stream's read engine tracks per-channel inflight reads, this FUB tracks per-CAM-slot inflight reads. The slot index in `rd_cmd_cam` is the analog of stream's channel ID.
-
-**No FSMs anywhere in this FUB.** When the description below uses words like "first beat" or "burst completion" it does NOT mean an enumerated state — it's encoded in the inflight ring buffer's `beats_remaining` counter and the data-flow valid/last bits.
+Compared to the write CAM there is **no snarf port** here — snarf is a
+write-CAM concept (§17). Data flows *in* from the DFI return and *out* to
+`pumice_rd_intake`.
 
 ---
 
-## Synthesis Parameters
+## `pumice_rd_cmd_cam` — reorder buffer, two movers over one SRAM
 
-| Parameter                  | Source            | Effect                                                            |
-|----------------------------|-------------------|-------------------------------------------------------------------|
-| `AXI_DATA_WIDTH`           | top               | Output (destination) width                                        |
-| `DFI_DATA_WIDTH`           | top               | Per-phase source width                                            |
-| `N_PHASES`                 | top               | Phases per MC cycle                                               |
-| `RD_CAM_DEPTH`             | top               | Number of inflight read slots tracked                              |
-| `RD_DATAPATH_PIPELINE`     | top (default 0)   | 0 = single-cycle; 1 = registered intermediate stage                |
-| `CL_MAX`                   | derived           | Max CAS latency for the CL-align shift register                    |
+The CAM stores each burst's return data in an SRAM (`r_sram[N_SRAM_SLOTS*BL]`)
+and runs two de-FSM'd movers, each a burst beat-counter:
+
+| Mover           | Trigger source            | Direction         | Beat counter |
+|-----------------|---------------------------|-------------------|--------------|
+| **return-fill** | `u_issue_q` (issue-order slot FIFO) | dfi_ret → SRAM | `r_ret_beat` |
+| **drain**       | oldest-valid pick, data-ready gated | SRAM → drain   | `r_dr_beat`  |
+
+### Entry state and age
+
+Per entry (`NUM_ENTRIES`, default 8): `r_valid`, `r_issued` (scheduler has
+issued it to DRAM), `r_ready` (return data complete), `r_bank`, `r_row`,
+`r_col`, `r_id`, `r_resp`, `r_age`, plus `r_ptr` (SRAM slot, set on the
+first return beat) and `r_pv` (pointer valid). `r_age_ctr` is free-running;
+relative age `w_rel[i] = r_age_ctr - r_age[i]` is wrap-safe.
+
+SRAM slot pre-allocation is identical to the write CAM: `r_sram_occ`
+bitmap, highest-index-first free scan, allocate on first return beat, free
+on drain evict.
+
+### The three age selectors
+
+- **issue-side oldest** — oldest valid **not-yet-issued** entry (max rel).
+  Scheduler fallback; drives the `oldest_*` port.
+- **scheduler lookups** (`N_SCHED_LU`, default 4) — per `{bank, row}`
+  query, the oldest not-issued match. Row-hit read scheduling.
+- **drain-side oldest** — oldest valid entry over **all** valid entries
+  (max rel), regardless of issued/ready. This is `w_dro_slot`.
+
+### Ordering guarantee
+
+Inserts happen in AR order and each new insert is *younger*, so the
+drain-side oldest pick `w_dro_slot` is stable across a burst: the entry
+stays valid until its own last-beat evict, and later inserts can never
+become "more oldest". The drain mover therefore needs no active latch —
+the draining slot IS the oldest-valid pick. It only fires when that oldest
+entry's data is staged: `w_dr_go = w_dro_found && r_ready[w_dro_slot]`.
+This is what enforces AR-order release even though DRAM returns arrive in
+issue order.
+
+### Issue-order return fill
+
+When the scheduler issues a read it notifies the CAM (`issue_valid_i` /
+`issue_slot_i`), which sets `r_issued[slot]` and pushes the slot into
+`u_issue_q`. DRAM returns arrive in the same order the reads were issued,
+so the return-fill mover writes each return burst into the issue-FIFO head
+slot's SRAM region. On the burst's `dfi_ret_last`, it sets `r_ready`,
+captures `r_resp`, and pops `u_issue_q`.
+
+---
+
+## `pumice_dfi_rd_aligner` — the DFI-domain endpoint
+
+This FUB mirrors `pumice_dfi_wr_serializer`. Its internal unit is the DFI
+word (`= dfi_rddata` width); `BL_WORDS = BL/DFI_RATE` words per burst.
+
+It has two independent concerns:
+
+**1. `dfi_rddata_en` window (small pacing FSM).** A 3-state FSM
+(`S_IDLE`, `S_WAIT`, `S_EN`) plus a pending-fire counter `r_epend`:
+
+- `S_IDLE`: on an available fire, if `t_rddata_en==0` drive word 0's
+  enable combinationally (`w_en_now`) and seed the remaining-cycle counter
+  for `BL_WORDS-1` more en cycles; if `==1` go straight to `S_EN`; else
+  load `r_ewait = t_rddata_en-1` and go `S_WAIT`.
+- `S_WAIT`: count down, enter `S_EN` at fire+`t_rddata_en`.
+- `S_EN`: assert `dfi_rddata_en_o` for the window. On the last en-cycle, if
+  another fire is pending reseed for a contiguous back-to-back window (zero
+  bubbles); else return to `S_IDLE`.
+
+Like the write serializer, the DFI cmd path paces column commands
+`BL_WORDS` apart, so windows abut with zero bubbles. A `rd_fire` arriving
+mid-window is counted in `r_epend` (previously it was dropped, leaving the
+second read with no capture window and stranding it in the PHY).
+
+**2. Capture (flag-and-counter only).** On each `dfi_rddata_valid`
+(`w_word_valid = |dfi_rddata_valid_i`) a word is pushed to the read FIFO:
+`rd_data_o = dfi_rddata_i`, `rd_resp_o = OKAY`, and `rd_last_o` asserts on
+word `BL_WORDS-1`. A single word counter `r_rcnt` tracks progress; it wraps
+on the last word.
+
+> v1 note: `rd_resp_o` is hardwired `RESP_OKAY` — the DFI rddata-error
+> signal is not yet wired. The aligner supports one outstanding read window
+> (single-issue, tRTW/tCCD spaced by the scheduler / `global_timers`).
 
 ---
 
 ## Block Pipeline View
 
-![Read Data Path — streaming pipeline, no FSM, CL-aware id tag + inflight ring + width unconv](../assets/mermaid/16_rd_data_path_pipeline.png)
+![Read Data Path — DFI en-window aligner + issue-order fill + AR-order drain reorder buffer](../assets/mermaid/16_rd_data_path_pipeline.png)
 
 **Source:** [16_rd_data_path_pipeline.mmd](../assets/mermaid/16_rd_data_path_pipeline.mmd)
 
 ---
 
-## Datapath Stages (all combinational unless noted)
+## `pumice_rd_cmd_cam` interface
 
-### Stage 1 — CL-Aligned Slot Tagging
+### Insert (from `pumice_rd_intake` ar_push, AR order)
 
-When the scheduler issues RD/RDA, the slot index is shifted into a small CL-align register:
+| Signal        | Dir | Width       | Description         |
+|---------------|-----|-------------|---------------------|
+| `ins_valid_i` | in  | 1           | Allocate an entry   |
+| `ins_ready_o` | out | 1           | Free entry available|
+| `ins_bank/row/col/id_i` | in | key + id | Decoded key + AXI id |
 
-```
-// On scheduler RD/RDA issue strobe:
-cl_pipe.shift_in(slot, valid=1)
+### Scheduler ports (to `pumice_cmd_arbiter`)
 
-// Each MC cycle:
-cl_pipe.shift_left()
+| Signal              | Dir | Description                                      |
+|---------------------|-----|--------------------------------------------------|
+| `sched_lu_valid_i[N]` + `sched_lu_{bank,row}_i` | in | Per-port {bank,row} queries |
+| `sched_lu_hit_o[N]` + `sched_lu_{slot,col,id,age}_o` | out | Oldest not-issued match per port |
+| `oldest_valid_o` + `oldest_{bank,row,col,id,slot}_o` | out | Oldest not-issued entry |
 
-// At depth = cl_in_mc_cycles + 1, the slot index pops out → enters inflight_q
-```
+### Issue notify (from scheduler)
 
-The shift register depth is `(CL_MAX × N_PHASES + 1) / N_PHASES` ≈ 4 entries at default config. Per-entry width is `clog2(RD_CAM_DEPTH) + 1` ≈ 5 bits. ~20 flops total.
+| Signal          | Dir | Description                                          |
+|-----------------|-----|------------------------------------------------------|
+| `issue_valid_i` | in  | Scheduler issued this slot to DRAM                   |
+| `issue_ready_o` | out | Room in the issue-order FIFO                         |
+| `issue_slot_i`  | in  | Slot issued (records issue order for return fill)    |
 
-No FSM — the position in the shift register IS the cycle offset from issue.
+### DFI return (from `pumice_dfi_layer` read path, issue order)
 
-### Stage 2 — Inflight Ring Buffer
+| Signal             | Dir | Description                                       |
+|--------------------|-----|---------------------------------------------------|
+| `dfi_ret_valid_i`  | in  | Return beat valid                                 |
+| `dfi_ret_ready_o`  | out | Issue-FIFO head present AND SRAM slot free        |
+| `dfi_ret_data_i`   | in  | Return beat data                                  |
+| `dfi_ret_resp_i`   | in  | Return response (captured on last)                |
+| `dfi_ret_last_i`   | in  | Last beat (sets `r_ready`, pops issue FIFO)       |
 
-When the CL pipe pops a slot, it's pushed into an ID-indexed inflight ring buffer:
+### Drain (to `pumice_rd_intake` R source, AR order)
 
-```
-struct inflight_t {
-    logic valid;
-    logic [$clog2(RD_CAM_DEPTH)-1:0] slot;
-    logic [BURST_LEN_WIDTH-1:0]       beats_remaining;
-};
-
-inflight_t inflight_q[RD_CAM_DEPTH];        // CAM-indexed, NOT FIFO-ordered
-
-// On CL pipe pop:
-inflight_q[popped_slot].valid           = 1
-inflight_q[popped_slot].slot            = popped_slot
-inflight_q[popped_slot].beats_remaining = burst_len_from_cam[popped_slot]
-```
-
-The ring buffer is CAM-indexed by the slot number (which is, in turn, the AXI ID echo from the CAM). Because the CAM enforces "at most one entry per AXI ID at a time" (or `MAX_PER_ID_READS = N` per HAS §3.1), there's never a collision on `inflight_q[slot]`.
-
-No FSM — each entry is just (valid, slot, counter), and the counter is decremented when a beat is consumed. When `beats_remaining` reaches 0, the entry's valid clears.
-
-### Stage 3 — Width Conversion (DFI → AXI)
-
-The conversion is the inverse of `wr_data_path_fub` Stage 2:
-
-```
-// Case 1: AXI_DATA_WIDTH == N_PHASES × DFI_DATA_WIDTH (typical)
-//         1 MC cycle of DFI beats → 1 AXI beat; pure wire connection
-axi_beat_data = rd_beat_data
-
-// Case 2: AXI_DATA_WIDTH > N_PHASES × DFI_DATA_WIDTH
-//         K MC cycles → 1 AXI beat
-// Accumulator concatenates K MC cycles before forwarding
-
-// Case 3: AXI_DATA_WIDTH < N_PHASES × DFI_DATA_WIDTH
-//         1 MC cycle → K AXI beats
-// Shift register emits K sub-beats over K successive cycles
-//   sub_beat_cnt is a saturating counter, NOT a state machine
-```
-
-Same sub-beat-counter pattern as the write path. No enumerated states.
-
-### Stage 4 — Beat Router and AXI R Drive
-
-The beat router takes the converted data and looks up the destination slot from the inflight ring:
-
-```
-// On rd_beat_valid (from gear_dfi):
-//   target_slot = head_of_cl_pipe                 // the slot the CL pipe is currently serving
-//   data        = width_converted_beat
-//   beat_last   = (inflight_q[target_slot].beats_remaining == 1)
-//
-//   inflight_q[target_slot].beats_remaining = beats_remaining - 1
-//   if (beats_remaining was 1):
-//     inflight_q[target_slot].valid = 0
-//     entry_complete strobe to rd_cmd_cam for slot
-//
-// Drive AXI R outputs:
-//   r_beat_id   = cam.axi_id[target_slot]
-//   r_beat_data = data
-//   r_beat_resp = OKAY (or SLVERR on DFI rddata error)
-//   r_beat_last = beat_last
-//   r_beat_valid = 1
-```
-
-The beat router is again **flag-and-counter only** — no state register, no transition table. The `beats_remaining` counter is the per-burst progress; the CAM slot is the AXI-ID anchor; the gear's `rd_beat_valid` is the data-flow handshake.
-
-### Stage 5 — Output Register
-
-```
-r_beat_id_o    ← r_beat_id    (registered)
-r_beat_data_o  ← r_beat_data  (registered)
-r_beat_resp_o  ← r_beat_resp  (registered)
-r_beat_last_o  ← r_beat_last  (registered)
-r_beat_valid_o ← r_beat_valid (registered)
-```
-
-Per-MC-cycle output to `axi4_slave_fub`'s `r_response_fifo`. The single register stage matches stream's V1 default.
+| Signal             | Dir | Description                                       |
+|--------------------|-----|---------------------------------------------------|
+| `drain_valid_o`    | out | Oldest entry with data ready                      |
+| `drain_ready_i`    | in  | Downstream accepts                                |
+| `drain_data_o`     | out | Beat data                                         |
+| `drain_id_o`       | out | AXI id (rid echo)                                 |
+| `drain_resp_o`     | out | rresp                                             |
+| `drain_last_o`     | out | Last beat (evicts entry, frees SRAM slot)         |
+| `busy_o`           | out | Oldest-valid present OR issue FIFO non-empty      |
 
 ---
 
-## Out-of-Order Completion (Inherent)
+## `pumice_dfi_rd_aligner` parameters
 
-Stream's read engine handles OoO completion across channels because the AXI ID carries the channel index. This FUB handles OoO across AXI IDs because the CL pipe tags each in-flight read with its slot index *before* the data arrives.
-
-The first beat of a read to AXI ID 0x3 might arrive in the same MC cycle as the last beat of an earlier read to AXI ID 0x7. The CL pipe sourced the slot indexes in the correct order; the inflight ring buffer tracks each independently; the AXI R channel returns each beat with its correct ID.
-
-**Per-ID ordering is preserved** because each AXI ID has at most `MAX_PER_ID_READS` (typically 1 in v1) in flight, so beats to the same ID can never arrive out of order from the DRAM (a single in-flight read returns all its beats in burst order). Cross-ID ordering is *not* preserved — that's the whole point of OoO.
-
-This matches the AXI4 ordering semantics: per-ID in-order, cross-ID OoO (when `AXI_OOO_ACROSS_IDS = true`).
-
----
-
-## CL Alignment Concrete Example
-
-At DDR2-800, `CL = 5`, `N_PHASES = 4`:
-
-| MC cycle from RD issue | What's happening                                  | CL pipe head |
-|------------------------|---------------------------------------------------|--------------|
-| 0                      | scheduler RD issued                               | empty        |
-| 0                      | CL pipe.shift_in(slot=3)                          | slot=3       |
-| 1                      | gear_dfi presents RD on phase 0                   | slot=3       |
-| 2                      | tied to CL counter inside DRAM                    | slot=3       |
-| 2 (shift_left)         |                                                   | slot=3 → next position |
-| 3                      | DFI rddata begins arriving                        | slot=3 → head |
-| 3                      | inflight_q[3].valid = 1; beats_remaining = burst_len | slot=3 |
-| 3                      | first beat: drive r_beat_id = cam.axi_id[3], r_beat_valid = 1 | |
-| 4                      | second beat                                       |              |
-| 5                      | third beat                                        |              |
-| 6                      | last beat; beats_remaining → 0; inflight_q[3].valid = 0; entry_complete to rd_cmd_cam | |
-
-This is the rough timing — actual cycles depend on `CL`, `N_PHASES`, `BL`, and the gear's per-phase mapping. The CL pipe absorbs all of that complexity in its shift register depth.
+| Parameter         | Default | Effect                                     |
+|-------------------|---------|--------------------------------------------|
+| `DFI_DATA_WIDTH`  | 128     | DFI-word width                             |
+| `DFI_RATE`        | 2       | Phases per DFI word (`= DFI_EN_WIDTH`, `DFI_VALID_WIDTH`) |
+| `BL_WORDS`        | 4       | DFI words per read burst (`= BL/DFI_RATE`) |
+| `RDEN_W`          | 8       | Width of `t_rddata_en_i`                   |
 
 ---
 
-## Interface
+## Out-of-Order Completion (across AXI IDs)
 
-### From `scheduler` (CL alignment intake)
-
-| Signal              | Direction | Width                    | Description                                          |
-|---------------------|-----------|--------------------------|------------------------------------------------------|
-| `rd_issue_strobe_i` | input     | 1                        | Scheduler issued a RD/RDA this cycle                 |
-| `rd_issue_slot_i`   | input     | `$clog2(RD_CAM_DEPTH)`   | Which CAM slot                                       |
-| `rd_issue_burst_len_i` | input  | `BURST_LEN_WIDTH`        | Total beats for the burst (for inflight_q counter)    |
-
-### From `gear_dfi_fub` (per-MC-cycle beat input)
-
-| Signal              | Direction | Width                              | Description                                          |
-|---------------------|-----------|------------------------------------|------------------------------------------------------|
-| `rd_beat_data_i`    | input     | `N_PHASES × DFI_DATA_WIDTH`        | One MC-cycle frame's worth of read data              |
-| `rd_beat_valid_i`   | input     | 1                                  | Frame is valid this cycle                            |
-
-### From `rd_cmd_cam` (slot → AXI ID lookup)
-
-| Signal              | Direction | Width                                              | Description                              |
-|---------------------|-----------|----------------------------------------------------|------------------------------------------|
-| `cam_axi_id_i[RD_CAM_DEPTH]`  | input | RD_CAM_DEPTH × AXI_ID_WIDTH | Per-slot AXI ID (combinational read)             |
-
-> **v1 implementation note.** In the v1 split, `rd_cl_aligner.sv`
-> receives the AR's AXI ID once on the `op_valid_i` handshake (via
-> `op_id_i`) and latches it into its per-slot `r_op_id[]` register;
-> every emitted beat then drives `rd_inject_id_o <= r_op_id[w_emit_op]`.
-> The `cam_axi_id_i[]` cross-bar above is the v2 abstraction. The
-> chain that delivers the ID to `op_id_i` is:
->
-> `rd_cmd_cam.snap_id_o` → `axi_frontend_macro.rd_snap_id_o`
-> → `pumice_top.rd_snap_id` → `pumice_core_macro.rd_snap_id_i`
-> → `rd_op_id = rd_snap_id_i[cmd_rd_slot]` → `rd_cl_aligner.op_id_i`.
->
-> Every link in that chain must be wired. A pre-v1 mistake tied
-> `rd_snap_id = '0` at the top, collapsing every R response onto
-> `id=0` and breaking multi-ID OOO workloads silently (G-01c). Pinned
-> at the FUB level by `test_rd_cl_aligner.verify_capture`'s id-flow
-> assertion and the `id_propagate` scenario.
-
-### To `rd_cmd_cam` (entry-complete strobe)
-
-| Signal                  | Direction | Width                    | Description                                          |
-|-------------------------|-----------|--------------------------|------------------------------------------------------|
-| `entry_complete_strb_o` | output    | 1                        | Last beat of a burst was just emitted                |
-| `entry_complete_slot_o` | output    | `$clog2(RD_CAM_DEPTH)`   | Which slot just completed                            |
-
-### To `axi4_slave_fub` (AXI R-channel push)
-
-| Signal              | Direction | Width                | Description                                          |
-|---------------------|-----------|----------------------|------------------------------------------------------|
-| `r_beat_id_o`       | output    | `AXI_ID_WIDTH`       | rid                                                  |
-| `r_beat_data_o`     | output    | `AXI_DATA_WIDTH`     | rdata                                                |
-| `r_beat_resp_o`     | output    | 2                    | rresp (OKAY / SLVERR)                                |
-| `r_beat_last_o`     | output    | 1                    | rlast                                                |
-| `r_beat_valid_o`    | output    | 1                    | rvalid                                                |
-| `r_beat_ready_i`    | input     | 1                    | rready (back-pressure from axi4_slave's r_response_fifo) |
-
-### To `xbank_timers`
-
-| Signal              | Direction | Width  | Description                                          |
-|---------------------|-----------|--------|------------------------------------------------------|
-| `rd_last_beat_o`    | output    | 1      | Used by `xbank_timers.tRTW_cnt` reload (§2.10)        |
-| `rd_last_rank_o`    | output    | `$clog2(NR)` | Rank of the burst                              |
-
-### Debug
-
-| Signal                          | Description                                              |
-|---------------------------------|----------------------------------------------------------|
-| `dbg_cl_pipe_depth_o`           | CL-align shift register fill level                       |
-| `dbg_inflight_count_o`          | Number of in-flight reads (popcount of inflight_q.valid)  |
-| `dbg_sub_beat_cnt_o`            | Sub-beat counter (when width-conversion is active)        |
-
----
-
-## Backpressure Handling
-
-The AXI R-channel ready (`r_beat_ready_i`) is the only backpressure source. If the host's R-channel master stalls and the `r_response_fifo` fills, `rd_data_path_fub` cannot pull from `gear_dfi`. Currently the gear has no backpressure signal — it expects to deliver every rd_beat as it arrives from the PHY.
-
-A small skid buffer (1-2 deep) inside this FUB absorbs the brief stalls between R-channel handshakes. For sustained backpressure, the architecture relies on the scheduler not issuing new RD commands when `r_beat_ready_i` has been low for `R_STALL_THRESHOLD` cycles — this hint flows back to the scheduler via the `STATUS.axi_r_stall` CSR observation.
-
----
-
-## CSR Hooks
-
-| CSR field                          | Source                            | Use case                                |
-|------------------------------------|-----------------------------------|-----------------------------------------|
-| `STATUS.rd_beats_in_flight` (R)    | popcount over inflight_q.valid     | Live in-flight burst count               |
-| `STATUS.axi_r_stall` (R)           | r_beat_ready_i low for N cycles   | Host backpressure indicator              |
-| `OBS_AXI_R_LATENCY_AVG` (R)        | Avg time from rd_issue_strobe to first beat | AXI read latency telemetry        |
-| `OBS_AXI_R_LATENCY_P99` (R)        | 99th percentile of the above       | Tail latency                            |
+The CAM preserves AXI ordering the way the standard requires: per-ID reads
+complete in issue order (a single in-flight read returns all its beats in
+burst order), while cross-ID reads may complete out of order because the
+scheduler is free to issue them in row-hit order. The reorder buffer's
+AR-order drain (oldest-first, data-ready gated) makes the release order
+deterministic; the `drain_id_o` echo tags each beat with its original AXI
+id.
 
 ---
 
 ## Verification Notes (cocotb test plan)
 
-| Scenario                                                                          | What it proves                                              |
-|-----------------------------------------------------------------------------------|-------------------------------------------------------------|
-| Single BL=4 read, AXI_DW = N_PHASES × DFI_DW (1:1)                                 | Smoke: beats flow through with no width conversion          |
-| Single BL=8 read, 1:1 width                                                       | Multi-beat burst smoke                                       |
-| First beat arrives exactly CL cycles after scheduler issue                        | CL alignment shift register                                  |
-| OoO across IDs: read to ID 0x3 then read to ID 0x7; ID 0x7 returns first         | OoO across IDs preserves rid tagging                         |
-| Per-ID in-order: two reads to same ID complete in issue order                     | Per-ID ordering preservation                                  |
-| Asymmetric width AXI_DW > DFI_DW × NP: K-cycle accumulator drives 1 AXI beat      | Accumulating width conversion                                |
-| Asymmetric width AXI_DW < DFI_DW × NP: 1 MC cycle drives K AXI beats              | Sub-beat width conversion                                    |
-| `entry_complete` to rd_cmd_cam fires exactly once per burst at last beat          | CAM completion strobe                                        |
-| `rd_last_beat_o` to xbank_timers fires for tRTW reload                            | xbank tRTW plumbing                                           |
-| AXI R back-pressure (rready=0): skid buffer absorbs 1-2 beats                     | Backpressure smoke                                            |
-| DFI rddata error during burst (rresp = SLVERR): propagates to AXI R               | Error propagation                                             |
-| Reset during in-flight read: inflight_q clears, no spurious r_beat_valid          | Reset behavior                                                |
-| Concurrent: AR for ID 0x3 + last-beat of ID 0x7 + first beat of ID 0x5; all three correct in same cycle | Concurrent-ID throughput              |
+| Scenario                                                                 | What it proves                              |
+|--------------------------------------------------------------------------|---------------------------------------------|
+| Insert AR, issue, DFI return, drain: BL burst round-trips                | Full miss-path smoke                        |
+| Returns in issue order buffered into correct SRAM slots                  | Issue-order return fill                     |
+| Out-of-issue-order scheduling but AR-order drain release                 | Reorder-buffer ordering guarantee           |
+| Drain gated on `r_ready`: oldest entry with data not yet complete stalls | Data-ready gate                             |
+| SRAM slot exhaustion deasserts `dfi_ret_ready_o`                         | Return-side pre-allocation backpressure     |
+| DFI aligner `t_rddata_en` sweep (0, 1, N); en-window at fire+t_rddata_en | Read-latency window alignment               |
+| Back-to-back RD fires paced `BL_WORDS` apart: contiguous en windows      | `r_epend` seamless continuation             |
+| `rd_fire` mid-window counted, not dropped                                | `r_epend` regression                        |
+| `rd_last_o` on DFI word `BL_WORDS-1`                                      | Word counter / burst boundary               |
 
 ---
 
 ## Open Questions / Future Work
 
-- **Skid buffer sizing.** Currently spec'd at 1-2 deep. Under heavy host backpressure, may need to be deeper. Verify with traffic mix; bump if needed.
-- **V2 / V3 performance modes.** Stream's V2 / V3 modes for read engine include OoO completion (V3) which this FUB already supports inherently. The V2 "command-pipelined" mode is already the baseline here since CL pipe is multi-deep. The MAS-level mode parameter is therefore vestigial; revisit at v0.2 of MAS.
-- **DFI rddata error handling.** Currently `rresp = OKAY` always; the DFI rddata-error signal is not wired in v1. Add at the DFI status sub-interface level when bring-up flags PHY error conditions.
-- **Read interleaving with refresh.** When a refresh interrupts in-flight reads (per §2.11 refresh handshake), the bank machine drains the read first before granting refresh. The inflight_q should naturally drain through the CL pipe; verify the timing in a concurrent refresh-during-read test.
+- **DFI rddata error propagation.** `rd_resp_o` is fixed OKAY in v1; wire
+  the PHY rddata-error to `rd_resp_o` (and thence `r_resp` → AXI rresp)
+  during bring-up.
+- **Multi-outstanding read windows.** The aligner is single-issue in v1;
+  the `r_epend` counter already tolerates paced back-to-back fires, but
+  overlapping windows would need a deeper capture-side counter.
+- **Read-path parallelism for reorder / col-major.** Deferred perf item —
+  the drain mover releases one oldest burst at a time.

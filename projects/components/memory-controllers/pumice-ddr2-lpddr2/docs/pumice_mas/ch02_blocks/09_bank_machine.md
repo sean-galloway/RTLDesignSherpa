@@ -21,300 +21,346 @@
 
 <!-- End Header -->
 
-# Bank Machine (absorbed)
+# Bank Timer (`bank_timer` + `pumice_bank_timers`)
 
-> ## ⚠️ ABSORBED — No standalone FUB
->
-> The per-bank FSM described below was **absorbed** during implementation:
->
-> - **Per-(rank, bank) timing counters** (tRCD, tRP, tWR, tRTP, tRAS,
->   tRC) live in [`xbank_timers`](10_xbank_timers.md), which exposes
->   `bank_act_ready_o[r][b]`, `bank_rdwr_ready_o[r][b]`, `bank_pre_ready_o[r][b]`
->   arrays to the scheduler.
-> - **"Row open" state** is implicit in the v1 closed-page policy (every
->   column command issues with auto-precharge, so no row stays open).
-> - **Per-slot bookkeeping** (in-flight ACT, awaiting WR/RD, awaiting PRE)
->   is held in the slot records of [`wr_cmd_cam`](05_wr_cmd_cam.md) and
->   [`rd_cmd_cam`](04_rd_cmd_cam.md).
->
-> The chapter's per-bank FSM and refresh handshake design are retained for
-> reasoning — the closed-page policy makes the FSM mostly degenerate
-> (one-shot ACT → R/W → auto-PRE), but the counter discipline lives on
-> in `xbank_timers`.
+**Module:** `bank_timer.sv` (per-bank) / `pumice_bank_timers.sv` (aggregator)
+**Location:** `rtl/fub/`
+**Category:** FUB
+**Parent macro:** `pumice_mem_cmd_scheduler`
+**Status:** Implemented (FSM-free countdown-timer model)
 
-**Status:** Absorbed (was Draft v0.1)
-**Status:** Draft v0.1
-
-> Architectural context: HAS §3.3. The FSM state diagram is in `pumice_has/assets/mermaid/03_bank_machine_fsm.png` and is the canonical state reference — this section is the implementation view (port interface, counter pool, broadcast updates, multi-rank instantiation, timing).
+> **Replaces the retired bank machine.** The original architecture placed a
+> per-(rank, bank) seven-state FSM (`bank_machine_fub`) between the scheduler
+> and the DFI encoder. That block **no longer exists**. Per-bank JEDEC timing
+> is now enforced by `bank_timer.sv` — a set of preset/decrement countdown
+> timers with a trivial row-open register and **no state machine at all**.
+> `pumice_bank_timers.sv` stamps one `bank_timer` per (rank, bank) and fans the
+> scheduler's command-event strobes to the addressed instance.
+>
+> The retirement was deliberate: the old FSM double-registered readiness (state
+> register + next-state combinational + accepts flop), so the scheduler saw
+> readiness two cycles stale. That staleness was the root cause of the
+> refresh-vs-ACT and column-vs-PRE hazards observed during bring-up. The
+> FSM-free model collapses the readiness path to a **single register stage**
+> (the timers themselves), so the arbiter sees the just-issued command's effect
+> exactly one cycle later.
 
 ---
 
 ## Purpose
 
-`bank_machine_fub` is the per-(rank, bank) state machine that enforces JEDEC per-bank timing constraints. One FSM instance per (rank, bank) — so a 1-rank 8-bank build has 8 instances, a 2-rank 8-bank build has 16, a 4-rank 8-bank build has 32. Each instance tracks:
+`bank_timer` tracks one DRAM bank's JEDEC "safe" timing. For each JEDEC
+per-bank constraint it holds a down-counter that is preset on the triggering
+command and free-runs toward zero (saturating at 0). A constraint is "safe"
+when its counter reads 0. The per-command readiness outputs (`safe_act`,
+`safe_rd`, `safe_wr`, `safe_pre`) are a **combinational AND** of the relevant
+timers plus a one-bit row-open flag — no FSM, no multi-stage lag.
 
-- Open-row state and the row identifier
-- All per-bank timing counters (tRCD, tRAS, tRP, tRC, tWR, tRFCpb, plus per-RD CL and per-WR CWL windows)
-- The "last refreshed" age used by DARP per-bank refresh selection
-- The refresh handshake state to `refresh_mgr_fub`
+The scheduler (`pumice_cmd_arbiter`, the single command issuer in the design)
+drives one `set_*` strobe per issued command. Each timer reloads its config
+value on its trigger; the `safe_*` outputs therefore reflect the just-issued
+command one cycle later. The arbiter ANDs these per-bank `safe_*` signals with
+the channel-wide turnaround windows from `global_timers` (§2.10) to decide
+which command may fire.
 
-The instance fans its outputs into:
-
-- A per-(rank, bank) row of the scheduler's bank-state matrix
-- The `txn_queue`'s row-hit-cache refresh broadcast (`open_row_changed[r][b]` + `new_open_row[r][b]`)
-- The refresh manager's `refresh_gnt[r][b]` array and the `last_ref_age[r][b]` DARP selection input
-
-The bank machine is the most-replicated FUB in the design. Per-instance area is small (~150–300 LUTs, see below), but the replication factor (NR × NB, up to 32) makes total bank-machine area the second-largest after the scheduler.
+`pumice_bank_timers` is a thin aggregator: it instantiates `NUM_RANKS ×
+NUM_BANKS` copies of `bank_timer` and routes the arbiter's single command-event
+bus (`evt_*` + `evt_rank_i` / `evt_bank_i`) to the one addressed instance. All
+other instances see their `set_*` strobes deasserted that cycle and simply
+continue counting down.
 
 ---
 
 ## Synthesis Parameters
 
-| Parameter            | Source           | Effect on this FUB                                             |
-|----------------------|------------------|----------------------------------------------------------------|
-| `ROW_WIDTH`          | top              | Width of `open_row` register and `new_open_row` broadcast       |
-| `COL_WIDTH`          | top              | Width of column passthrough (consumed by `cmd_encoder`, not stored) |
-| `MEMTYPE`            | top              | Controls whether the `REFRESHING` state uses tRFCab or tRFCpb (LPDDR2 only has REFpb) |
-| `T_*_WIDTH_MAX`      | derived          | Width of each timing-counter register (set by max CSR-loaded tREFI, tRC, tRFCpb, etc.) |
-| `LAST_REF_AGE_WIDTH` | derived          | Width of `last_ref_age` counter; sized to span `8 × tREFI_cycles` without saturation |
+### `bank_timer`
 
-The bank machine takes **no rank/bank identifier as a parameter** — every instance is identical. Identity comes from the position in the top-level generate block and is passed in via wire-level `bank_id_i` and `rank_id_i` ports (used only for assertion messages and CSR routing; the FSM logic is identity-agnostic).
+| Parameter    | Default | Effect on this FUB                                              |
+|--------------|---------|-----------------------------------------------------------------|
+| `ROW_WIDTH`  | 14      | Width of `open_row_o` register and the `row_i` input            |
+| `TW`         | 8       | Timer width (bits) for all five countdown timers                |
+
+### `pumice_bank_timers`
+
+| Parameter    | Default             | Effect                                                          |
+|--------------|---------------------|-----------------------------------------------------------------|
+| `NUM_RANKS`  | 1                   | Rank dimension of the instance array; width of `evt_rank_i` sel |
+| `NUM_BANKS`  | 8                   | Bank dimension of the instance array; width of `evt_bank_i` sel |
+| `ROW_WIDTH`  | 14                  | Passed to each `bank_timer`                                     |
+| `RKW`        | `clog2(NUM_RANKS)`  | Rank-select width (min 1)                                       |
+| `BKW`        | `clog2(NUM_BANKS)`  | Bank-select width                                              |
+
+There is **no per-instance rank/bank identifier parameter**. Identity comes from
+the genvar position in `pumice_bank_timers`' nested generate loop; the arbiter
+selects an instance by comparing `evt_rank_i` / `evt_bank_i` against that
+position (`w_sel`). All five timers share the same `TW`-bit width; the
+JEDEC cycle counts are supplied at runtime on the `t_*_i` ports (CSR-backed),
+not fixed as parameters.
 
 ---
 
 ## Instantiation Pattern
 
-Recap from §2.1 top-integration:
+From `pumice_bank_timers.sv` — the nested generate that stamps the array:
 
 ```systemverilog
-generate
-    for (genvar r = 0; r < NUM_RANKS; r++) begin : g_rank
-        for (genvar b = 0; b < NUM_BANKS; b++) begin : g_bank
-            bank_machine_fub #(.ROW_WIDTH(ROW_WIDTH)) u_bank_machine (
-                .mc_clk             (mc_clk),
-                .mc_rst_n           (mc_rst_n),
-                .rank_id_i          (r[$clog2(NR)-1:0]),
-                .bank_id_i          (b[$clog2(NB)-1:0]),
-                .sched_issue_if     (sched_to_bank[r][b]),
-                .xbank_blocks_i     (xbank_to_bank[r][b]),
-                .refresh_req_i      (refresh_req[r][b]),
-                .refresh_gnt_o      (refresh_gnt[r][b]),
-                .init_cmd_if        (init_to_bank[r][b]),
-                .state_o            (bank_state[r][b]),
-                .open_row_o         (bank_open_row[r][b]),
-                .accepts_o          (bank_accepts[r][b]),
-                .open_row_changed_o (orw_changed[r][b]),
-                .new_open_row_o     (new_orw[r][b]),
-                .last_ref_age_o     (bank_last_ref_age[r][b])
-            );
-        end
+for (genvar k = 0; k < NUM_RANKS; k++) begin : g_rank
+    for (genvar b = 0; b < NUM_BANKS; b++) begin : g_bank
+        // route the scheduler's command event to THIS bank only
+        logic w_sel;
+        assign w_sel = (evt_rank_i == RKW'(k)) && (evt_bank_i == BKW'(b));
+
+        bank_timer #(.ROW_WIDTH(ROW_WIDTH)) u_bt (
+            .clk(aclk), .rst_n(aresetn),
+            .t_rcd_i(t_rcd_i), .t_rp_i(t_rp_i), .t_ras_i(t_ras_i),
+            .t_rc_i(t_rc_i), .t_wr_i(t_wr_i), .t_rtp_i(t_rtp_i),
+            .set_act_i(evt_act_i && w_sel),
+            .set_rd_i (evt_rd_i  && w_sel),
+            .set_wr_i (evt_wr_i  && w_sel),
+            .set_pre_i(evt_pre_i && w_sel),
+            .set_ap_i (evt_ap_i),
+            .row_i(evt_row_i),
+            .safe_act_o (bank_act_ready_o [k][b]),
+            .safe_rd_o  (bank_rdwr_ready_o[k][b]),
+            .safe_wr_o  (/* == safe_rd */),
+            .safe_pre_o (bank_pre_ready_o [k][b]),
+            .row_valid_o(bank_row_active_o[k][b]),
+            .open_row_o (bank_open_row_o  [k][b]),
+            .state_o    (bank_state_o     [k][b]),
+            /* obs_* ... */
+        );
     end
-endgenerate
+end
 ```
 
-The outputs are 2-D-indexed arrays at the top level. The scheduler and txn_queue consume them by name; no aggregation logic in the top — pure structural wiring.
+The per-(rank, bank) readiness outputs are 2-D-packed arrays
+(`logic [NUM_RANKS-1:0][NUM_BANKS-1:0]`) consumed directly by
+`pumice_cmd_arbiter`. There is no aggregation logic beyond the packing — pure
+structural fan-out. Note that `safe_wr_o` is left unconnected in the aggregator
+because inside `bank_timer` it is identical to `safe_rd_o` (see the RTL: `assign
+safe_wr_o = safe_rd_o`); the arbiter uses the single `bank_rdwr_ready_o` bit for
+both RD and WR column commands.
 
 ---
 
-## Block Internals
+## The Timer Pool (per bank)
 
-![Bank-Machine Internals — port boundary, counter pool, FSM, broadcasts](../assets/mermaid/07_bank_machine_internals.png)
+`bank_timer` holds five countdown registers (`r_rcd`, `r_ras`, `r_rc`, `r_rp`,
+`r_preblk`), each `TW` bits, plus a one-bit `r_row_valid`, the `r_open_row`
+register, and a single `r_ap_pending` auto-precharge bit. Every timer is a
+down-counter: reload on its trigger, else decrement while non-zero (saturate
+at 0).
 
-**Source:** [07_bank_machine_internals.mmd](../assets/mermaid/07_bank_machine_internals.mmd)
+| Timer      | JEDEC constraint | Reload trigger              | Reload value | Gates          |
+|------------|------------------|-----------------------------|--------------|----------------|
+| `r_rcd`    | tRCD (ACT → RD/WR) | `set_act_i`               | `t_rcd_i`    | `safe_rd/wr`   |
+| `r_ras`    | tRAS (ACT → PRE min) | `set_act_i`             | `t_ras_i`    | `safe_pre`     |
+| `r_rc`     | tRC  (ACT → ACT same bank) | `set_act_i`       | `t_rc_i`     | `safe_act`     |
+| `r_rp`     | tRP  (PRE → ACT)   | `set_pre_i` OR auto-PRE fire | `t_rp_i`   | `safe_act`     |
+| `r_preblk` | tRTP (RD) / tWR (WR) | `set_rd_i` / `set_wr_i` | `t_rtp_i` / `t_wr_i` | `safe_pre` |
 
-The diagram above is the implementation view. The HAS state-diagram view is at `pumice_has/assets/mermaid/03_bank_machine_fsm.png` — refer to it for state transitions; this section is the port + counter detail.
+The `t_*_i` reload values are supplied by the parent (`pumice_bank_timers`
+forwards its own 8-bit `t_*_i` inputs, which are CSR-backed JEDEC timing
+fields). They are sampled live on each reload — the timer does not stage them.
 
----
-
-## FSM States and Transition Triggers
-
-Recap of the seven states (full state diagram in HAS):
-
-| State          | Held while                                                        | Exits via                                          |
-|----------------|-------------------------------------------------------------------|----------------------------------------------------|
-| `IDLE`         | No row open; bank free                                            | ACT or REFpb issued by scheduler                   |
-| `ACTIVATING`   | `t_rcd_cnt > 0`                                                   | `t_rcd_cnt == 0` → `ACTIVE`                        |
-| `ACTIVE`       | Row open; awaiting column command or PRE                          | RD/RDA, WR/WRA, or PRE issued by scheduler         |
-| `RD_BUSY`      | `t_cl_cnt > 0` (CL + BL/2 beats remaining)                        | Last beat returned → `ACTIVE` (bare RD) or `PRECHARGING` (RDA) |
-| `WR_BUSY`      | `t_cwl_cnt > 0` (CWL + BL/2 + tWR window)                         | Window expired → `ACTIVE` (bare WR) or `PRECHARGING` (WRA) |
-| `PRECHARGING`  | `t_rp_cnt > 0`                                                    | `t_rp_cnt == 0` → `IDLE`                           |
-| `REFRESHING`   | `t_rfc_cnt > 0` (tRFCpb for LPDDR2, tRFCab for DDR2 REFab)        | `t_rfc_cnt == 0` → `IDLE`                          |
-
-**Auto-precharge handling.** RDA / WRA do not require a separate state — they are encoded as an "auto-pre pending" flag set when the FSM enters `RD_BUSY` / `WR_BUSY`. When the busy window expires, the flag steers the next-state to `PRECHARGING` instead of `ACTIVE`. No PRE command is consumed from the scheduler — the precharge timing is purely internal. This is the same trick the cmd_encoder uses to fold RDA into one DRAM command.
-
-**Init-engine bypass.** During init, the `init_cmd_if` path can issue ACT, PRE, MRS, REF directly without going through the scheduler. The FSM honors these as if they came from the scheduler — same state transitions, same counter reloads. The init engine knows the JEDEC sequence; the bank machine just executes it.
+**Note:** the retired FSM's separate `t_cl_cnt` / `t_cwl_cnt` (column-busy
+windows) are **gone**. Column-to-column pacing (tCCD) and the read-drives-DQ /
+write-recovery windows are enforced globally in `global_timers` (tCCD/tWTR/tRTW)
+and, for the write-recovery-before-precharge case, folded into the `r_preblk`
+timer here. There is no per-bank "RD_BUSY / WR_BUSY" occupancy state anymore.
 
 ---
 
-## Counter Pool
+## Row-Open Register and Auto-Precharge (no FSM)
 
-All counters are **down-counters that saturate at 0**. Each is loaded with a CSR-supplied cycle count on the relevant trigger.
+Row state is a two-element register — `r_row_valid` + `r_open_row` — plus one
+`r_ap_pending` bit. There is no enumerated state; the priority in the RTL is
+**ACT > explicit PRE > auto-PRE fire > column**:
 
-| Counter         | Load Trigger                          | Reload Value (cycles)                | Saturates At | Width  |
-|-----------------|---------------------------------------|--------------------------------------|--------------|--------|
-| `t_rcd_cnt`     | ACT issued                            | `TIMINGS_RC_RCD_RP.tRCD`             | 0            | 8 bits |
-| `t_ras_cnt`     | ACT issued                            | `TIMINGS_RC_RCD_RP.tRAS`             | 0            | 8 bits |
-| `t_rp_cnt`      | PRE or PREA issued; or RDA/WRA window expiration | `TIMINGS_RC_RCD_RP.tRP`     | 0            | 8 bits |
-| `t_rc_cnt`      | ACT issued                            | `TIMINGS_RC_RCD_RP.tRC`              | 0            | 8 bits |
-| `t_wr_cnt`      | WR or WRA last beat issued            | `TIMINGS_CL_CWL_WR.tWR`              | 0            | 8 bits |
-| `t_rfcpb_cnt`   | REF or REFpb issued                   | LPDDR2 `tRFCpb` / DDR2 `tRFCab`      | 0            | 16 bits |
-| `t_cl_cnt`      | RD or RDA issued                      | `TIMINGS_CL_CWL_WR.CL + BL/2`        | 0            | 8 bits |
-| `t_cwl_cnt`     | WR or WRA issued                      | `TIMINGS_CL_CWL_WR.CWL + BL/2 + tWR` | 0            | 8 bits |
-| `last_ref_age`  | REF or REFpb completion (`t_rfcpb_cnt → 0`) | reload to 0; otherwise +1 per cycle | does not saturate (wide enough for 8 × tREFI) | 24 bits |
-
-The CSR-supplied values are read from `TIMINGS_*` registers in `csr_apb_fub`; the values are live (not staged) since timing parameters are *typically* loaded once at init and not changed at runtime. Software *can* change them at quiet points, but the bank machine doesn't enforce quiet-point staging — it just samples them on each counter load.
-
-**`last_ref_age` is non-saturating** because DARP needs to distinguish an entry that was refreshed 10 cycles ago from one refreshed 10,000 cycles ago. A 24-bit width supports `2^24 / 200 MHz = 84 ms` of age, well past 8 × tREFI (typically 50 µs).
-
----
-
-## Outputs to Scheduler (`accepts_*`)
-
-The `accepts_o` struct is the **combinational readiness output** consumed by the scheduler's Stage-1 readiness computation. Each member is the AND of "FSM state permits this command" and "all relevant counters are 0" and "xbank constraints permit this command":
-
-```
-accepts_act = (state == IDLE)
-           AND (t_rp_cnt == 0)
-           AND (t_rc_cnt == 0)
-           AND NOT xbank_blocks_act
-
-accepts_rd  = (state == ACTIVE)
-           AND (t_rcd_cnt == 0)
-           AND NOT xbank_blocks_rd
-
-accepts_wr  = (state == ACTIVE)
-           AND (t_rcd_cnt == 0)
-           AND NOT xbank_blocks_wr
-
-accepts_pre = (state == ACTIVE)
-           AND (t_ras_cnt == 0)
-
-accepts_ref = (state == IDLE)
-           AND (t_rp_cnt == 0)
-           AND (t_rc_cnt == 0)
+```systemverilog
+if (set_act_i) begin
+    r_row_valid  <= 1'b1;
+    r_open_row   <= row_i;
+    r_ap_pending <= 1'b0;
+end else if (set_pre_i) begin
+    r_row_valid  <= 1'b0;
+    r_ap_pending <= 1'b0;
+end else if (w_ap_fire) begin
+    r_row_valid  <= 1'b0;
+    r_ap_pending <= 1'b0;
+end else if (set_rd_i || set_wr_i) begin
+    r_ap_pending <= set_ap_i;   // latch the RDA/WRA qualifier
+end
 ```
 
-These are pure combinational — no flop between the state register and the scheduler. The scheduler's Stage-1 critical path (per §2.7) routes through these comparators.
+**Auto-precharge** (RDA / WRA) is a single bit, not a state. `set_ap_i`
+qualifies a RD/WR issue; if set, `r_ap_pending` latches. The auto-precharge
+"fires" combinationally once the read/write recovery window and tRAS have both
+elapsed:
 
-**Why xbank lives outside.** Cross-bank constraints (tRRD, tFAW, tCCD, tWTR, tRTW) are shared across all banks of a rank or globally across the channel — they can't be enforced inside a per-bank FSM. The `xbank_timers` (§2.10) aggregates them and presents the per-(rank, bank) AND-mask via `xbank_blocks_i`.
+```systemverilog
+assign w_ap_fire = r_ap_pending && (r_preblk == '0) && (r_ras == '0);
+```
 
----
+When `w_ap_fire` asserts, the row closes internally (`r_row_valid <= 0`) and
+`r_rp` reloads with `t_rp_i` — exactly as an explicit PRE would. No PRE command
+is consumed from the scheduler and no extra state is entered. This is the same
+degeneracy the old FSM's "auto-pre pending" trick achieved, but here it is one
+flop and one AND gate.
 
-## Refresh Handshake Protocol
-
-The bank machine cooperates with `refresh_mgr_fub` via a two-wire handshake per (rank, bank):
-
-| Signal              | Direction              | Meaning                                                                |
-|---------------------|------------------------|------------------------------------------------------------------------|
-| `refresh_req_i`     | refresh_mgr → bank     | "Drain to a quiet state and await my REF / REFpb command"             |
-| `refresh_gnt_o`     | bank → refresh_mgr     | "I am in IDLE (or REFRESHING) and will not issue any column command"  |
-
-The bank machine's protocol:
-
-1. **`refresh_req` asserts** while the bank is in `ACTIVE` / `RD_BUSY` / `WR_BUSY`: the bank does not assert `refresh_gnt` yet. It finishes its current column command (if any) and falls back to `ACTIVE`. The scheduler is masked from issuing new column commands to this bank during the refresh window (`txn_queue` watchpoint — see §2.6 and §2.7).
-2. **`refresh_req` asserts** while the bank is `ACTIVE` and no column command is in flight: the bank issues an internal precharge (driving `accepts_pre` high to signal the scheduler can issue PRE; or, if the scheduler is gated for the refresh window, the bank can self-issue PRE on `t_ras_cnt == 0`). Once `state == IDLE` and `t_rp_cnt == 0`, `refresh_gnt` asserts.
-3. **`refresh_req` asserts** while the bank is in `IDLE`: `refresh_gnt` asserts the same cycle.
-4. **REF/REFpb arrives** from the scheduler (via the refresh manager's priority path): FSM transitions `IDLE → REFRESHING`, `t_rfcpb_cnt` loads, `last_ref_age` resets to 0.
-5. **`refresh_req` deasserts** after refresh completes: bank machine drops `refresh_gnt`, transitions `REFRESHING → IDLE` on `t_rfcpb_cnt == 0`, and is free to accept new ACTs.
-
-For multi-rank REFab dispatch (per §2.11 refresh_mgr), the refresh manager asserts `refresh_req[r][*]` for all banks on the target rank simultaneously and waits for all `refresh_gnt[r][*]` before issuing REF. Other ranks' bank machines see `refresh_req[r' ≠ r] = 0` throughout and continue normal operation.
+**Open-page behavior.** A bare RD/WR (with `set_ap_i` low) only reloads
+`r_preblk` and leaves `r_row_valid` set, so the row stays open. Successive
+column commands to the open row stream at the channel-wide tCCD rate enforced by
+`global_timers`; the bank timer imposes no additional per-column pacing.
 
 ---
 
-## Open-Row Change Broadcast
+## Combinational `safe_*` Outputs
 
-When the FSM transitions in a way that changes the open row, the bank machine asserts a one-cycle broadcast to `txn_queue_fub`:
+The readiness outputs are pure combinational functions of the timer/flag
+registers — one register stage behind the arbiter's issue decision:
 
-| Transition                                  | `open_row_changed_o` | `new_open_row_o`           |
-|---------------------------------------------|----------------------|----------------------------|
-| `IDLE → ACTIVATING` (via ACT)               | 1 cycle              | The ACT's row              |
-| `ACTIVE → PRECHARGING → IDLE` (after RDA/WRA or explicit PRE) | 1 cycle (on entering IDLE) | 0 (no row open)            |
-| `REFRESHING → IDLE`                         | 1 cycle              | 0 (no row open)            |
-| `ACTIVATING → ACTIVE`                       | not asserted (row was already valid as of ACTIVATING) | — |
+```systemverilog
+// ACT: bank precharged (row closed), tRP since PRE, tRC since last ACT.
+assign safe_act_o = !r_row_valid && (r_rp == '0) && (r_rc == '0);
+// RD/WR: row open, tRCD met, not auto-precharging.
+assign safe_rd_o  = r_row_valid && (r_rcd == '0) && !r_ap_pending;
+assign safe_wr_o  = safe_rd_o;
+// PRE: row open, tRAS + tRTP/tWR met, not auto-precharging.
+assign safe_pre_o = r_row_valid && (r_ras == '0) && (r_preblk == '0) && !r_ap_pending;
+```
 
-This is the path that drives `txn_queue`'s `row_hit_cached` refresh, as described in §2.6. The one-cycle lag (broadcast at T, queue refresh visible at T+1) is the deliberate trade described in both this block and the scheduler (§2.7).
+The `!r_ap_pending` term on `safe_rd_o` / `safe_pre_o` is what makes an
+auto-precharging bank refuse further column commands and a redundant explicit
+PRE while its internal auto-PRE is still pending — the arbiter naturally skips
+the bank until the row closes and `safe_act_o` re-asserts.
 
-`new_open_row_o = 0` when the bank is leaving an open-row state is a convention — the queue's refresh path compares against the new row only when the bank ends in an active state. When ending in IDLE, the queue sets `row_hit_cached = 0` for all entries targeting this (rank, bank) regardless of `new_open_row_o`.
-
----
-
-## Per-Instance vs. Aggregated Storage
-
-What lives per-instance (NR × NB copies):
-
-- `state` register (3 bits)
-- `open_row` register (ROW_WIDTH bits)
-- All counters (~80 bits per instance)
-- `auto_pre_pending` flag (1 bit)
-
-What is aggregated at the top level (one copy each):
-
-- `bank_state[NR][NB]` — concatenation of per-instance `state` outputs into a 2-D array
-- `bank_accepts[NR][NB]` — concatenation of `accepts` structs
-- The DARP candidate-set vector (computed by `refresh_mgr_fub` from the array of `last_ref_age` outputs)
-- The scheduler's match vector (computed by the scheduler from `bank_state` and `bank_accepts`)
-
-This separation matters for synthesis: the per-instance flops are local to each bank machine (good for placement); the aggregation buses are wide (NR × NB × ~30 bits = up to ~1000 bits at 4×8) and route across the chip to the scheduler and refresh manager.
-
-**Routing concern.** At `NUM_RANKS=4`, `NUM_BANKS=8`, the bank-state array routes 32 instances' worth of state and accepts wires to the scheduler. This is a ~1000-bit bus and is the second-widest in the design (after `txn_queue.q_entries_o`). The scheduler's Stage-1 critical path absorbs this in the 200 MHz target with slack; the 500 MHz target requires registered bank-state outputs (which adds one cycle to the scheduler-to-issue latency but is otherwise harmless — bank states change slowly compared to scheduler issue).
+Because these are combinational off single-stage registers, the arbiter's
+per-cycle pick sees the effect of the command it issued on cycle *T* on cycle
+*T+1*. There is no second flop between the timer and the arbiter, so a command
+issued this cycle cannot be double-issued next cycle — the class of hazard that
+motivated retiring the FSM.
 
 ---
 
-## Per-Instance Area Estimate
+## Derived State (observability only)
 
-At default config (ROW_WIDTH=14, COL_WIDTH=10, 8-bit timing counters, 24-bit `last_ref_age`):
+A `bank_state_e` (`state_o`) is produced **purely for observability** — no
+downstream logic reads it. It is decoded combinationally from the row-valid flag
+and the timers:
 
-| Item                                | Per instance      |
-|-------------------------------------|-------------------|
-| FSM state (3 bits + 3-bit next)     | ~10 LUTs          |
-| Counter pool (8 down-counters)      | ~60 flops + 30 LUTs |
-| `open_row` register (14 bits)       | 14 flops          |
-| `last_ref_age` (24 bits)            | 24 flops          |
-| `auto_pre_pending` + combinational `accepts_*` glue | ~20 LUTs |
-| **Per-instance total**              | **~120 flops + 60 LUTs ≈ 100–150 LUTs** |
-| 32-instance total (4-rank × 8-bank) | **~3,200–4,800 LUTs** |
+```systemverilog
+if (r_row_valid) state_o = (r_rcd != '0) ? BANK_ACTIVATING : BANK_ACTIVE;
+else             state_o = (r_rp  != '0) ? BANK_PRECHARGING : BANK_IDLE;
+```
 
-This is ~25% of the controller's total LUT budget at the max-rank config — significant. At single-rank, the bank machines fall to ~800–1,200 LUTs, comfortably in budget.
+This gives waveform viewers and CSR telemetry the familiar IDLE / ACTIVATING /
+ACTIVE / PRECHARGING names without the design actually implementing them as a
+sequencer. It is a decode of the timers, not the source of truth.
+
+The remaining observability outputs are single-bit non-zero flags on the timers
+and the auto-pre bit: `obs_rcd_nz_o`, `obs_preblk_nz_o`, `obs_ras_nz_o`,
+`obs_ap_pending_o` (per bank, fanned out to `obs_*` arrays in the aggregator).
 
 ---
 
-## CSR Hooks
+## Interface (`pumice_bank_timers`)
 
-| CSR field                                | Source signal                                | Use case                                    |
-|------------------------------------------|----------------------------------------------|---------------------------------------------|
-| `OBS_ROW_HIT_RANK<R>_BANK<N>` (R)        | Driven by scheduler when row-hit picks this bank | Per-bank row-hit telemetry (HAS §6.3)   |
-| `OBS_REF_LATENCY_RANK<R>_BANK<N>` (R)    | Time from `refresh_req` to `refresh_gnt`     | Per-bank refresh-blocking time              |
-| `OBS_BANK_OPEN_ROW_R<R>_B<N>` (R)        | Current `open_row` value                     | Debug: which row is currently open          |
-| `OBS_BANK_STATE_R<R>_B<N>` (R)           | Current FSM state (3-bit encoding)           | Debug: bank state for bring-up              |
-| `STATUS.bank_idle_mask` (R)              | One bit per (rank, bank): `state == IDLE`    | Quick visibility into bank availability     |
+### Clocks / Reset
 
-The per-(rank, bank) observation registers are sparse at multi-rank — at NR=4, NB=8 there are 32 of each. The CSR slave generates them from a YAML template (see §4.2). Software queries the `cap_max_ranks` and `NUM_BANKS` capability bits (§4.4) to know which registers exist.
+| Signal     | Direction | Description                        |
+|------------|-----------|------------------------------------|
+| `aclk`     | input     | Controller clock                   |
+| `aresetn`  | input     | Active-low async reset             |
+
+### Timing config (CSR-backed, per-bank JEDEC cycle counts)
+
+| Signal      | Width | Constraint |
+|-------------|-------|------------|
+| `t_rcd_i`   | 8     | tRCD       |
+| `t_rp_i`    | 8     | tRP        |
+| `t_ras_i`   | 8     | tRAS       |
+| `t_rc_i`    | 8     | tRC        |
+| `t_wr_i`    | 8     | tWR (WR cmd → earliest PRE, incl WL+BL/2) |
+| `t_rtp_i`   | 8     | tRTP (RD cmd → earliest PRE) |
+
+### Command-event strobes from the arbiter
+
+| Signal        | Width | Description                              |
+|---------------|-------|------------------------------------------|
+| `evt_act_i`   | 1     | ACT issued this cycle                    |
+| `evt_rd_i`    | 1     | RD  issued this cycle                    |
+| `evt_wr_i`    | 1     | WR  issued this cycle                    |
+| `evt_pre_i`   | 1     | PRE issued this cycle                    |
+| `evt_ap_i`    | 1     | Auto-precharge qualifier (with RD/WR)    |
+| `evt_rank_i`  | RKW   | Rank of the issued command (selects instance) |
+| `evt_bank_i`  | BKW   | Bank of the issued command (selects instance) |
+| `evt_row_i`   | ROW_WIDTH | Row operand (latched on ACT)          |
+
+### Per-bank readiness to the arbiter (combinational, single-stage)
+
+| Signal                       | Width           | Description                     |
+|------------------------------|-----------------|---------------------------------|
+| `bank_act_ready_o[NR][NB]`   | 1 each          | `safe_act` per bank             |
+| `bank_rdwr_ready_o[NR][NB]`  | 1 each          | `safe_rd` (== `safe_wr`) per bank |
+| `bank_pre_ready_o[NR][NB]`   | 1 each          | `safe_pre` per bank             |
+| `bank_row_active_o[NR][NB]`  | 1 each          | `row_valid` per bank            |
+| `bank_open_row_o[NR][NB]`    | ROW_WIDTH each  | Open row per bank               |
+| `bank_state_o[NR][NB]`       | `bank_state_e`  | Decoded state (observability)   |
+
+### Observability
+
+`obs_act_cnt_nz_o`, `obs_preblk_nz_o`, `obs_ras_nz_o`, `obs_ap_pending_o` —
+each a `[NR][NB]` bit array, mirroring the per-bank `obs_*` outputs.
+
+---
+
+## Timing Budget
+
+The path from a command event to updated readiness is single-cycle:
+
+```
+cycle T:   arbiter asserts evt_act_i with evt_rank_i=r, evt_bank_i=b
+cycle T:   w_sel picks instance (r,b); r_rcd/r_ras/r_rc load, r_row_valid <- 1
+cycle T+1: safe_act_o[r][b] = 0 (r_rc/row_valid now block ACT),
+           safe_rd_o[r][b]  gated by r_rcd countdown
+```
+
+`safe_*_o` is combinational from the registers, so the arbiter consumes the
+post-event readiness on the very next cycle — no race allowing a second issue to
+the same bank while its constraint is still counting. This one-cycle discipline
+is the whole point of the FSM-free rework: readiness is exactly one register
+stage deep, versus the retired FSM's two (state + accepts).
 
 ---
 
 ## Verification Notes (cocotb test plan)
 
-| Scenario                                                                          | What it proves                                                  |
-|-----------------------------------------------------------------------------------|-----------------------------------------------------------------|
-| Single ACT → RD → PRE → IDLE on bank 0                                            | Smoke: each counter loads and decrements correctly              |
-| ACT → RDA: bank auto-precharges without explicit PRE from scheduler                | Auto-precharge flag steers RD_BUSY → PRECHARGING                |
-| ACT → WRA: bank auto-precharges; `t_wr_cnt` window respected                       | Write recovery before precharge                                 |
-| Scheduler issues RD while `t_rcd_cnt > 0`                                          | Assertion fires; `accepts_rd` was 0 — should be impossible      |
-| `refresh_req` asserts during `ACTIVATING`                                          | `refresh_gnt` waits until bank reaches IDLE                     |
-| `refresh_req` asserts during `RD_BUSY`                                             | Bank completes RD, returns to ACTIVE, then drains via PRE       |
-| `refresh_req` asserts when bank is IDLE                                            | `refresh_gnt` asserts same cycle                                 |
-| REF completion → `last_ref_age` resets to 0                                       | DARP age-tracking correctness                                    |
-| Two adjacent ACTs to different rows on same bank — second blocks on `t_rp_cnt`     | Per-bank tRP enforcement                                         |
-| Cross-bank ACT (handled by xbank_timers) — should NOT affect this bank             | Per-bank FSM is rank/bank-local                                  |
-| Multi-rank (NR=2): refresh on rank 0 bank 3; rank 1 bank 3 continues normal ops    | Per-rank refresh isolation                                       |
-| Open-row change broadcast: ACT issued, `open_row_changed` asserts for 1 cycle      | Broadcast timing correctness                                     |
-| Soft reset during `WR_BUSY` — counters clear, state returns to IDLE                | Reset behavior                                                   |
+| Scenario                                                                | What it proves                                            |
+|-------------------------------------------------------------------------|-----------------------------------------------------------|
+| ACT → wait tRCD → RD; RD blocked until `r_rcd == 0`                     | tRCD gate on `safe_rd`                                    |
+| ACT → RDA; row auto-closes once `r_preblk` and `r_ras` clear            | `w_ap_fire` closes row, reloads `r_rp`; no scheduler PRE  |
+| ACT → WRA; `r_preblk` loads tWR; auto-PRE waits for tWR AND tRAS        | Write-recovery folded into `r_preblk`                     |
+| Bare RD (set_ap=0) keeps row open; second RD to same row allowed        | Open-page: `r_row_valid` stays set                        |
+| ACT → PRE (explicit) → ACT; second ACT blocked until `r_rp == 0`        | tRP gate on `safe_act`                                    |
+| Two ACTs same bank; second blocked until `r_rc == 0`                    | tRC gate on `safe_act`                                    |
+| `safe_rd` deasserts while `r_ap_pending` set (mid auto-PRE)             | Auto-precharging bank refuses new column commands         |
+| Aggregator: `evt_bank_i=b` only reloads instance b; others count down   | `w_sel` routing correctness                               |
+| `state_o` decode matches timers (ACTIVATING while `r_rcd != 0`)         | Observability decode                                      |
+| Reset during any countdown → all timers and row flag clear              | Reset behavior                                            |
 
 ---
 
 ## Open Questions / Future Work
 
-- **CSR coverage of per-bank state.** At NR=4, NB=8 the `OBS_BANK_OPEN_ROW_*` registers consume 32 CSR slots — non-trivial. Worth gating behind a `cap_per_bank_obs` capability bit so smaller builds skip them entirely?
-- **Per-instance vs centralized `last_ref_age`.** Could the age counters live in `refresh_mgr_fub` and free up flops per bank machine? Slight area win but adds a wide read port from refresh_mgr to bank_machine for age comparison; punt to v2.
-- **Auto-pre flag clear timing.** Currently the `auto_pre_pending` flag clears on entering `PRECHARGING`. If a refresh request arrives mid-RD with auto-pre pending, the bank still does the auto-pre (drains via tRP) before granting refresh. This is correct per JEDEC, but worth a verification scenario (added above).
-- **tWR vs tRP composition.** A WRA → PRECHARGING transition needs `max(t_wr_cnt, t_rp_load)` cycles. Implementation: the FSM enters PRECHARGING after `t_wr_cnt` expires and *then* loads `t_rp_cnt`. This is the simplest correct sequence; alternative is to start `t_rp_cnt` early and gate `IDLE` on `max(t_wr_cnt, t_rp_cnt)`. The simpler form is preferred unless characterization shows it costs measurable bandwidth.
+- **Timer width.** `TW = 8` covers the DDR2/LPDDR2 board targets (tRC ≈ tens of
+  cycles). A DDR3/DDR4 family part at a higher CK:MC ratio could need wider
+  timers; `TW` is already a parameter, so this is a re-elaboration, not a rework.
+- **Per-bank vs shared tRC.** tRC is enforced per bank here. If a future family
+  needs same-bank-group tRC differentiation (DDR4 bank groups), that logic would
+  land in `global_timers`, not here — `bank_timer` stays bank-local by design.
+- **Auto-PRE vs explicit PRE priority.** The RTL priority is ACT > explicit PRE >
+  auto-PRE. If the arbiter ever issued an explicit PRE to a bank with a pending
+  auto-PRE, the explicit PRE wins and `r_ap_pending` clears. The arbiter does not
+  do this today (it treats an auto-precharging bank as un-schedulable via
+  `safe_*`), but the RTL is safe if it ever did.

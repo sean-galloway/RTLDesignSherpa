@@ -60,7 +60,22 @@ if not _REPO_ROOT:
         "importing this module."
     )
 sys.path.insert(0, os.path.join(_REPO_ROOT, "projects/components/converters/bin"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from uart_axi_bridge import UARTAxiBridge  # noqa: E402
+from TBClasses.harness.device import Device  # noqa: E402  (harness as its own named device)
+from pumice_device import Pumice  # noqa: E402  (controller as its own named device)
+
+# PeakRDL-generated regmap for this project's harness_csr (by-name access).
+HARNESS_REGMAP = os.path.join(
+    _REPO_ROOT, "projects/NexysA7/ddr2-characterization/"
+    "ddr2_char_framework/dv/tbclasses/harness_csr_regmap.py")
+
+# PeakRDL-generated regmap for the pumice controller CSR (APB slave, base 0x0
+# in the bridge map). Used for by-name access to pumice's own runtime knobs
+# (e.g. DFI_PHASE rd_phase/wr_phase). 12-bit APB address space, 32-bit data.
+PUMICE_REGMAP = os.path.join(
+    _REPO_ROOT, "projects/components/memory-controllers/"
+    "pumice-ddr2-lpddr2/dv/tbclasses/pumice_regmap.py")
 
 
 # =============================================================================
@@ -73,43 +88,15 @@ DFI_MON_RAM_BASE  = 0x00080000  # DFI cmd-only observability (4 KB)
 
 
 # =============================================================================
-# harness_csr register offsets (from HARNESS_CSR_BASE).
+# harness_csr / engine / perf registers are accessed BY NAME via the PeakRDL
+# regmap (self.regs.write("CTRL", ...), self.regs.field("STATUS", "init_done")),
+# so no register-offset constants live here — offsets come from
+# harness_csr_regmap.py. See HARNESS_REGMAP above.
 # =============================================================================
-# ---- Harness ctrl / status ----
-CTRL          = 0x00
-STATUS        = 0x04
-DBG_WR_PTR    = 0x08
-DBG_OVERFLOW  = 0x0C
-CRC_EXPECTED  = 0x10
-CRC_ACTUAL    = 0x14
-CRC_MATCH     = 0x18
-SCRATCH       = 0x1C
-BUILD_ID      = 0x20
-BEATS_MISM    = 0x24
-# ---- Timer ----
-TIMER_CTRL    = 0x28
-TIMER_STATUS  = 0x2C
-TIMER_CYC_LO  = 0x30
-TIMER_CYC_HI  = 0x34
-TIMER_EXP_BEATS = 0x38
-RESP_DELAY    = 0x3C
-TIMER_R_FIRST_LO = 0x40
-TIMER_R_FIRST_HI = 0x44
-TIMER_R_LAST_LO  = 0x48
-TIMER_R_LAST_HI  = 0x4C
-TIMER_W_FIRST_LO = 0x50
-TIMER_W_FIRST_HI = 0x54
-TIMER_W_LAST_LO  = 0x58
-TIMER_W_LAST_HI  = 0x5C
-# ---- Runtime controller cfg ----
-CTRLR_CFG     = 0x60
-CTRLR_CAP     = 0x64
-# ---- a7ddrphy calibration CSR passthrough (indirect; firmware leveling) ----
-PHY_CSR_ADDR  = 0x80   # [9:0] a7ddrphy CSR word index (the knob)
-PHY_CSR_WDATA = 0x84   # 32b value to write to the selected knob
-PHY_CSR_CTRL  = 0x88   # [0] pulse -> drive one CSR-bus write (adr,dat)
-PHY_CSR_RDATA = 0x8C   # a7ddrphy dat_r for the current PHY_CSR_ADDR
-# a7ddrphy CSR knob word-indices (rtl-vivado/a7ddrphy/a7ddrphy_csr_map.txt)
+# a7ddrphy CSR knob word-INDICES (rtl-vivado/a7ddrphy/a7ddrphy_csr_map.txt).
+# These are the indirect-passthrough knob VALUES written via phy_poke/phy_peek
+# to the PHY_CSR_* registers (which are themselves addressed by name). The
+# a7ddrphy is LiteDRAM's flat CSR — no RDL/regmap — so these stay as indices.
 PHY_RST              = 0
 PHY_DLY_SEL          = 1    # byte-lane select (x16 -> 2 lanes)
 PHY_HALF_SYS8X_TAPS  = 2
@@ -123,42 +110,6 @@ PHY_WDLY_DQ_BITSLIP_RST = 9  # strobe
 PHY_WDLY_DQ_BITSLIP  = 10   # strobe
 PHY_RDPHASE          = 11
 PHY_WRPHASE          = 12
-# ---- WR engine cfg ----
-WR_START_ADDR    = 0x100
-WR_STRIDE_0      = 0x104
-WR_STRIDE_1      = 0x108
-WR_WRAP_MASK_0   = 0x10C
-WR_WRAP_MASK_1   = 0x110
-WR_BLEN_TXN      = 0x114  # {gap[27:24], txn[23:8], blen[7:0]}
-WR_AXI_ATTR      = 0x118  # {dm[11], burst[10:9], size[8:6], mode[5:4], id[3:0]}
-WR_LFSR_SEED     = 0x11C
-WR_HASH_SEED0    = 0x120
-WR_HASH_SEED1    = 0x124
-WR_HASH_SEED2    = 0x128
-# ---- RD engine cfg ----
-RD_START_ADDR    = 0x180
-RD_STRIDE_0      = 0x184
-RD_STRIDE_1      = 0x188
-RD_WRAP_MASK_0   = 0x18C
-RD_WRAP_MASK_1   = 0x190
-RD_BLEN_TXN      = 0x194
-RD_AXI_ATTR      = 0x198
-RD_LFSR_SEED     = 0x19C
-RD_HASH_SEED0    = 0x1A0
-RD_HASH_SEED1    = 0x1A4
-RD_HASH_SEED2    = 0x1A8
-# ---- Perf observability ----
-OBS_RD_PROD    = 0x1C0
-OBS_RD_BP      = 0x1C4
-OBS_RD_STARV   = 0x1C8
-OBS_RD_IDLE    = 0x1CC
-OBS_WR_PROD    = 0x1D0
-OBS_WR_BP      = 0x1D4
-OBS_WR_STARV   = 0x1D8
-OBS_WR_IDLE    = 0x1DC
-OBS_HIST_SEL   = 0x1E0  # {bin[5:2], metric[1], bus[0]}
-OBS_HIST_COUNT = 0x1E4  # muxed rd/wr on bus bit
-OBS_HIST_TOTAL = 0x1E8
 
 
 # =============================================================================
@@ -189,6 +140,26 @@ HIST_BUS_RD    = 0
 HIST_BUS_WR    = 1
 HIST_METRIC_0  = 0  # AR->firstR (RD) or AW->B (WR)
 HIST_METRIC_1  = 1  # AR->RLAST (RD only; WR ignores)
+
+# ---- Controller runtime perf knobs (pumice CSR override fields; 0 = build
+#      default). These select paging / scheduling / refresh behaviour live.
+# Address-map scheme (ADDR_MAP_TUNING.scheme_or). Only ROW_MAJOR +
+# BANK_INTERLEAVE are synthesized in the char build (XOR_HASH is not; read
+# ADDR_MAP_TUNING.synth_mask_obs to confirm).
+SCHEME_DEFAULT         = 0
+SCHEME_ROW_MAJOR       = 1
+SCHEME_BANK_INTERLEAVE = 2
+SCHEME_XOR_HASH        = 3
+# Page policy (REFRESH_TUNING.page_policy_or).
+PAGE_POLICY_DEFAULT = 0
+PAGE_POLICY_OPEN    = 1
+PAGE_POLICY_CLOSE   = 2
+PAGE_POLICY_HYBRID  = 3
+# Per-bank/all-bank refresh policy (REFRESH_TUNING.refpb_policy_or).
+REFPB_DEFAULT = 0
+REFPB_RR      = 1
+REFPB_OLDEST  = 2
+REFPB_DARP    = 3
 
 
 # =============================================================================
@@ -244,55 +215,60 @@ class DDR2CharDriver:
     BUILD_ID_MAGIC = 0x44445232  # ASCII "DDR2"
 
     def __init__(self, port: str = "/dev/ttyUSB1", baudrate: int = 115200,
-                 timeout: float = 1.0):
-        self.bridge = UARTAxiBridge(port=port, baudrate=baudrate,
-                                    timeout=timeout)
+                 timeout: float = 1.0, bridge=None):
+        """Open the harness driver.
 
-    # ----- Low-level helpers -----------------------------------------------
-    def _rd(self, off: int) -> int:
-        val = self.bridge.read(HARNESS_CSR_BASE + off)
-        if val is None:
-            raise IOError(f"UART read failed at csr+0x{off:03X}")
-        return val
+        By default a real UART bridge is opened on `port`. Inject `bridge`
+        (any object with read(addr)->int|None / write(addr,val)->bool) to
+        drive the identical register traffic elsewhere — e.g. a cocotb UART
+        channel in simulation, or a mock for board-less tests. All register
+        access goes by name through `self.regs` (a harness Device), sourced
+        from the PeakRDL-generated harness regmap — no hardcoded offsets.
+        """
+        self.bridge = bridge if bridge is not None else UARTAxiBridge(
+            port=port, baudrate=baudrate, timeout=timeout)
+        # char-harness CSR block as its own named Device (the hand-authored
+        # regmap). By-name access via self.regs.<op> / self.regs.<REG>.<field>.
+        self.regs = Device(self.bridge, "harness", regs_base=HARNESS_CSR_BASE,
+                           regmap_file=HARNESS_REGMAP)
+        # pumice controller CSR (APB slave) as its own named Device. Owns the
+        # controller runtime knobs (DFI phase, paging, refresh, scheduler) by
+        # name; the driver methods below delegate to it. 12-bit APB addr, 32b data.
+        self.pumice = Pumice(self.bridge, "pumice", regs_base=DDR2_APB_BASE,
+                             regmap_file=PUMICE_REGMAP)
 
-    def _wr(self, off: int, val: int) -> None:
-        if not self.bridge.write(HARNESS_CSR_BASE + off, val & 0xFFFFFFFF):
-            raise IOError(f"UART write failed at csr+0x{off:03X}")
-
-    def _rd64(self, off_lo: int, off_hi: int) -> int:
-        return (self._rd(off_hi) << 32) | self._rd(off_lo)
+    # ----- Low-level helpers (by name via the register map) ----------------
+    def _rd64(self, lo_name: str, hi_name: str) -> int:
+        return (self.regs.read(hi_name) << 32) | self.regs.read(lo_name)
 
     # ----- Identity + reset ------------------------------------------------
     def build_id(self) -> int:
-        return self._rd(BUILD_ID)
+        return self.regs.read("BUILD_ID")
 
     def scratch(self, val: Optional[int] = None) -> int:
         """Ping test — write then read back if `val` supplied."""
         if val is not None:
-            self._wr(SCRATCH, val)
-        return self._rd(SCRATCH)
+            self.regs.write_word("SCRATCH", val)
+        return self.regs.read("SCRATCH")
 
     def clear_stats(self) -> None:
         """Pulse CTRL.clear_stats. Zeros the debug_sram write pointer,
         the sticky error latches, all bus-meter buckets, and the
         latency-histogram bins."""
-        self._wr(CTRL, 1 << 2)
+        self.regs.write("CTRL", clear_stats=1)
 
     def soft_reset(self) -> None:
-        self._wr(CTRL, 1 << 4)
+        self.regs.write("CTRL", soft_reset=1)
 
     def freeze_trace(self, on: bool = True) -> None:
         """Latch or unlatch CTRL.freeze_trace.
 
         NB: freeze_trace also freezes the perf meters/histograms (they
         share the perf_freeze wire from harness_csr). Turn it OFF before
-        starting a new run.
+        starting a new run. The other CTRL bits are self-clearing pulses,
+        so writing only this field (the rest 0) leaves them inert.
         """
-        # freeze_trace is a *latch*, not a pulse — write reads back next
-        # AXIL cycle. To un-freeze we have to write the whole CTRL word
-        # with the bit clear, but the other CTRL bits are all self-
-        # clearing pulses, so writing 0 works.
-        self._wr(CTRL, (1 << 3) if on else 0)
+        self.regs.write("CTRL", freeze_trace=1 if on else 0)
 
     # ----- Controller runtime cfg -----------------------------------------
     def set_controller_cfg(self,
@@ -300,48 +276,121 @@ class DDR2CharDriver:
                            t_phy_wrlat: int = 0,
                            t_rddata_en: int = 0,
                            rd_in_order: bool = False) -> None:
-        val = ((memtype & 1)
-               | ((t_phy_wrlat & 0xFF) << 8)
-               | ((t_rddata_en & 0xFF) << 16)
-               | ((1 if rd_in_order else 0) << 24))
-        self._wr(CTRLR_CFG, val)
+        """Program the controller's PHY timing + read ordering by name on the
+        pumice controller CSR (bridge ddr2_apb window). The rearchitected
+        controller no longer takes these as harness signals — config is
+        CSR-driven, so this must land BEFORE init is released."""
+        self.pumice.set_phy_timing(memtype=memtype, t_phy_wrlat=t_phy_wrlat,
+                                   t_rddata_en=t_rddata_en)
+        self.pumice.set_scheduler(force_inorder=rd_in_order)
 
     def set_controller_cap(self, cap_lookahead_max: int,
                            cap_synth_mask: int) -> None:
-        val = ((cap_lookahead_max & 0xF)
-               | ((cap_synth_mask & 0xF) << 4))
-        self._wr(CTRLR_CAP, val)
+        self.regs.write("CTRLR_CAP",
+                        cap_lookahead_max=cap_lookahead_max & 0xF,
+                        cap_synth_mask=cap_synth_mask & 0xF)
+
+    def set_dfi_cmd_delay(self, cmd_delay: int) -> None:
+        """Real-time DFI command->write-data alignment (a7ddrphy
+        write_latency=0). Sweep live over UART, no rebuild. Set while idle."""
+        # rmw: DFI_TUNING also holds rddata_delay — preserve it.
+        self.regs.write("DFI_TUNING", rmw=True, cmd_delay=cmd_delay & 0xF)
+
+    def get_dfi_cmd_delay(self) -> int:
+        return self.regs.field("DFI_TUNING", "cmd_delay")
+
+    def set_dfi_rddata_delay(self, rddata_delay: int) -> None:
+        """Real-time DFI read-data->rddata_valid alignment. The a7ddrphy presents
+        read data ~read_latency sys-cycles before its rddata_valid; this delays
+        dfi_rddata to meet the late valid so pumice captures the right beats.
+        Set to the PHY read_latency (~8 for DDR2/CL3/nphases=2); 0=passthrough.
+        Sweep live over UART, no rebuild. Set while idle."""
+        # rmw: DFI_TUNING also holds cmd_delay — preserve it.
+        self.regs.write("DFI_TUNING", rmw=True, rddata_delay=rddata_delay & 0xF)
+
+    def get_dfi_rddata_delay(self) -> int:
+        return self.regs.field("DFI_TUNING", "rddata_delay")
+
+    # ----- Controller runtime knobs -- delegate to the Pumice device -------
+    # These all live on the pumice controller CSR; the `Pumice` device
+    # (pumice_device.py) owns the single by-name implementation. The driver
+    # keeps these thin wrappers so existing callers (pumice_master / pumice_char)
+    # are unchanged; `self.pumice.<op>` is equivalent.
+    def set_dfi_phase(self, rd_phase: int, wr_phase: int = 0,
+                      gear_ratio=None, bl=None) -> None:
+        # bl = JEDEC burst length (device beats), the single source of truth for
+        # the sub-DFI-word framing (task #146). None => preserve the CSR reset.
+        self.pumice.set_dfi_phase(rd_phase, wr_phase, gear_ratio=gear_ratio,
+                                  bl=bl)
+
+    def get_dfi_phase(self) -> tuple:
+        return self.pumice.get_dfi_phase()
+
+    def set_addr_map_scheme(self, scheme: int) -> None:
+        self.pumice.set_addr_map_scheme(scheme)
+
+    def get_synth_scheme_mask(self) -> int:
+        return self.pumice.get_synth_scheme_mask()
+
+    def set_page_policy(self, policy: int) -> None:
+        self.pumice.set_page_policy(policy)
+
+    def set_refresh(self, *, refpb_policy: Optional[int] = None,
+                    refresh_defer: Optional[int] = None,
+                    zqcs_freq_hz: Optional[int] = None) -> None:
+        self.pumice.set_refresh(refpb_policy=refpb_policy,
+                                refresh_defer=refresh_defer,
+                                zqcs_freq_hz=zqcs_freq_hz)
+
+    def set_refresh_interval(self, t_refi: int) -> None:
+        self.pumice.set_refresh_interval(t_refi)
+
+    def set_scheduler(self, *, lookahead: Optional[int] = None,
+                      force_inorder: Optional[bool] = None,
+                      happy_enable: Optional[bool] = None,
+                      age_max: Optional[int] = None,
+                      txn_high_water: Optional[int] = None) -> None:
+        self.pumice.set_scheduler(lookahead=lookahead, force_inorder=force_inorder,
+                                  happy_enable=happy_enable, age_max=age_max,
+                                  txn_high_water=txn_high_water)
+
+    def get_lookahead_max(self) -> int:
+        return self.pumice.get_lookahead_max()
 
     # ----- a7ddrphy calibration CSR (leveling knobs) ----------------------
     def phy_poke(self, knob: int, val: int = 1) -> None:
         """Write `val` to the a7ddrphy CSR word `knob` via the indirect
         passthrough (set ADDR + WDATA, then pulse CTRL). For strobe knobs
         (rdly_dq_inc etc.) the value is a 1-cycle pulse; pass val=1."""
-        self._wr(PHY_CSR_ADDR,  knob & 0x3FF)
-        self._wr(PHY_CSR_WDATA, val & 0xFFFFFFFF)
-        self._wr(PHY_CSR_CTRL,  1)
+        self.regs.write_word("PHY_CSR_ADDR",  knob & 0x3FF)
+        self.regs.write_word("PHY_CSR_WDATA", val & 0xFFFFFFFF)
+        self.regs.write("PHY_CSR_CTRL", pulse=1)
 
     def phy_peek(self, knob: int) -> int:
         """Read the a7ddrphy dat_r for CSR word `knob` (set ADDR, read RDATA)."""
-        self._wr(PHY_CSR_ADDR, knob & 0x3FF)
-        return self._rd(PHY_CSR_RDATA)
+        self.regs.write_word("PHY_CSR_ADDR", knob & 0x3FF)
+        return self.regs.read("PHY_CSR_RDATA")
 
     # ----- Engine programming ---------------------------------------------
-    def _pack_blen_txn(self, burst_len: int, txn_count: int, gap: int) -> int:
-        return ((burst_len & 0xFF)
-                | ((txn_count & 0xFFFF) << 8)
-                | ((gap & 0xF) << 24))
-
-    def _pack_axi_attr(self, axi_id: int, id_mode: int, axi_size: int,
-                       axi_burst: int, data_mode: int) -> int:
-        # [7:0]axi_id [9:8]id_mode [12:10]axi_size [14:13]axi_burst [15]data_mode
-        # (widened from the 4-bit id-width layout to match the 8-bit id
-        # the pattern-gen engines' internal LFSR consumes.)
-        return ((axi_id & 0xFF)
-                | ((id_mode & 3) << 8)
-                | ((axi_size & 7) << 10)
-                | ((axi_burst & 3) << 13)
-                | ((1 if data_mode else 0) << 15))
+    def _program_engine(self, pfx: str, *, start_addr, stride_0, stride_1,
+                        wrap_mask_0, wrap_mask_1, burst_len, txn_count, gap,
+                        axi_id, id_mode, axi_size, axi_burst, data_mode,
+                        lfsr_seed, hash_seed0, hash_seed1, hash_seed2) -> None:
+        """Program one pattern engine's cfg registers by name (pfx = WR|RD)."""
+        r = self.regs
+        r.write_word(f"{pfx}_START_ADDR",  start_addr)
+        r.write_word(f"{pfx}_STRIDE_0",    stride_0 & 0xFFFFFFFF)
+        r.write_word(f"{pfx}_STRIDE_1",    stride_1 & 0xFFFFFFFF)
+        r.write_word(f"{pfx}_WRAP_MASK_0", wrap_mask_0)
+        r.write_word(f"{pfx}_WRAP_MASK_1", wrap_mask_1)
+        r.write(f"{pfx}_BLEN_TXN", burst_len=burst_len, txn_count=txn_count, gap=gap)
+        r.write(f"{pfx}_AXI_ATTR", axi_id=axi_id, id_mode=id_mode,
+                axi_size=axi_size, axi_burst=axi_burst,
+                data_mode=1 if data_mode else 0)
+        r.write_word(f"{pfx}_LFSR_SEED",  lfsr_seed)
+        r.write_word(f"{pfx}_HASH_SEED0", hash_seed0)
+        r.write_word(f"{pfx}_HASH_SEED1", hash_seed1)
+        r.write_word(f"{pfx}_HASH_SEED2", hash_seed2)
 
     def program_wr_engine(self, *,
                           start_addr:    int,
@@ -361,18 +410,13 @@ class DDR2CharDriver:
                           hash_seed0:    int = 0,
                           hash_seed1:    int = 0,
                           hash_seed2:    int = 0) -> None:
-        self._wr(WR_START_ADDR,  start_addr)
-        self._wr(WR_STRIDE_0,    stride_0 & 0xFFFFFFFF)
-        self._wr(WR_STRIDE_1,    stride_1 & 0xFFFFFFFF)
-        self._wr(WR_WRAP_MASK_0, wrap_mask_0)
-        self._wr(WR_WRAP_MASK_1, wrap_mask_1)
-        self._wr(WR_BLEN_TXN,    self._pack_blen_txn(burst_len, txn_count, gap))
-        self._wr(WR_AXI_ATTR,    self._pack_axi_attr(axi_id, id_mode, axi_size,
-                                                     axi_burst, data_mode))
-        self._wr(WR_LFSR_SEED,   lfsr_seed)
-        self._wr(WR_HASH_SEED0,  hash_seed0)
-        self._wr(WR_HASH_SEED1,  hash_seed1)
-        self._wr(WR_HASH_SEED2,  hash_seed2)
+        self._program_engine(
+            "WR", start_addr=start_addr, stride_0=stride_0, stride_1=stride_1,
+            wrap_mask_0=wrap_mask_0, wrap_mask_1=wrap_mask_1,
+            burst_len=burst_len, txn_count=txn_count, gap=gap,
+            axi_id=axi_id, id_mode=id_mode, axi_size=axi_size,
+            axi_burst=axi_burst, data_mode=data_mode, lfsr_seed=lfsr_seed,
+            hash_seed0=hash_seed0, hash_seed1=hash_seed1, hash_seed2=hash_seed2)
 
     def program_rd_engine(self, *,
                           start_addr:    int,
@@ -392,40 +436,36 @@ class DDR2CharDriver:
                           hash_seed0:    int = 0,
                           hash_seed1:    int = 0,
                           hash_seed2:    int = 0) -> None:
-        self._wr(RD_START_ADDR,  start_addr)
-        self._wr(RD_STRIDE_0,    stride_0 & 0xFFFFFFFF)
-        self._wr(RD_STRIDE_1,    stride_1 & 0xFFFFFFFF)
-        self._wr(RD_WRAP_MASK_0, wrap_mask_0)
-        self._wr(RD_WRAP_MASK_1, wrap_mask_1)
-        self._wr(RD_BLEN_TXN,    self._pack_blen_txn(burst_len, txn_count, gap))
-        self._wr(RD_AXI_ATTR,    self._pack_axi_attr(axi_id, id_mode, axi_size,
-                                                     axi_burst, data_mode))
-        self._wr(RD_LFSR_SEED,   lfsr_seed)
-        self._wr(RD_HASH_SEED0,  hash_seed0)
-        self._wr(RD_HASH_SEED1,  hash_seed1)
-        self._wr(RD_HASH_SEED2,  hash_seed2)
+        self._program_engine(
+            "RD", start_addr=start_addr, stride_0=stride_0, stride_1=stride_1,
+            wrap_mask_0=wrap_mask_0, wrap_mask_1=wrap_mask_1,
+            burst_len=burst_len, txn_count=txn_count, gap=gap,
+            axi_id=axi_id, id_mode=id_mode, axi_size=axi_size,
+            axi_burst=axi_burst, data_mode=data_mode, lfsr_seed=lfsr_seed,
+            hash_seed0=hash_seed0, hash_seed1=hash_seed1, hash_seed2=hash_seed2)
 
     # ----- Run control -----------------------------------------------------
     def start_wr(self) -> None:
-        self._wr(CTRL, 1 << 0)
+        self.regs.write("CTRL", start_wr=1)
 
     def start_rd(self) -> None:
-        self._wr(CTRL, 1 << 1)
+        self.regs.write("CTRL", start_rd=1)
 
     def start_both(self) -> None:
-        self._wr(CTRL, (1 << 0) | (1 << 1))
+        self.regs.write("CTRL", start_wr=1, start_rd=1)
 
     def status(self) -> Status:
-        s = self._rd(STATUS)
+        f = self.regs.field
+        s = self.regs.read("STATUS")
         return Status(
-            wr_done        = bool(s & (1 << 0)),
-            rd_done        = bool(s & (1 << 1)),
-            wr_error       = bool(s & (1 << 2)),
-            rd_error       = bool(s & (1 << 3)),
-            any_error      = bool(s & (1 << 4)),
-            dbg_clear_busy = bool(s & (1 << 5)),
-            init_done      = bool(s & (1 << 6)),
-            init_fail      = bool(s & (1 << 7)),
+            wr_done        = bool(f("STATUS", "wr_done", s)),
+            rd_done        = bool(f("STATUS", "rd_done", s)),
+            wr_error       = bool(f("STATUS", "wr_error", s)),
+            rd_error       = bool(f("STATUS", "rd_error", s)),
+            any_error      = bool(f("STATUS", "any_error", s)),
+            dbg_clear_busy = bool(f("STATUS", "dbg_clear_busy", s)),
+            init_done      = bool(f("STATUS", "init_done", s)),
+            init_fail      = bool(f("STATUS", "init_fail", s)),
         )
 
     def wait_done(self, timeout_s: float = 30.0,
@@ -450,63 +490,58 @@ class DDR2CharDriver:
     # ----- Result readback -------------------------------------------------
     def crc(self) -> Tuple[int, int, bool, bool]:
         """Return (expected, actual, match, both_valid)."""
-        exp = self._rd(CRC_EXPECTED)
-        act = self._rd(CRC_ACTUAL)
-        m   = self._rd(CRC_MATCH)
-        return exp, act, bool(m & 1), (m & 6) == 6
+        exp = self.regs.read("CRC_EXPECTED")
+        act = self.regs.read("CRC_ACTUAL")
+        m   = self.regs.read("CRC_MATCH")
+        match = bool(self.regs.field("CRC_MATCH", "match", m))
+        valid = bool(self.regs.field("CRC_MATCH", "exp_valid", m)
+                     and self.regs.field("CRC_MATCH", "act_valid", m))
+        return exp, act, match, valid
 
     def beats_mismatched(self) -> int:
-        return self._rd(BEATS_MISM)
+        return self.regs.read("BEATS_MISM")
 
     # ----- Timer -----------------------------------------------------------
     def timer_clear(self) -> None:
-        self._wr(TIMER_CTRL, 1)
+        self.regs.write("TIMER_CTRL", clear=1)
 
     def set_timer_expected_beats(self, n: int) -> None:
-        self._wr(TIMER_EXP_BEATS, n & 0xFFFFFFFF)
+        self.regs.write_word("TIMER_EXP_BEATS", n & 0xFFFFFFFF)
 
     def timer(self) -> TimerState:
-        st = self._rd(TIMER_STATUS)
+        st = self.regs.read("TIMER_STATUS")
         return TimerState(
-            done    = bool(st & 1),
-            running = bool(st & 2),
-            passed  = bool(st & 4),
-            cycles  = self._rd64(TIMER_CYC_LO, TIMER_CYC_HI),
-            r_first = self._rd64(TIMER_R_FIRST_LO, TIMER_R_FIRST_HI),
-            r_last  = self._rd64(TIMER_R_LAST_LO,  TIMER_R_LAST_HI),
-            w_first = self._rd64(TIMER_W_FIRST_LO, TIMER_W_FIRST_HI),
-            w_last  = self._rd64(TIMER_W_LAST_LO,  TIMER_W_LAST_HI),
+            done    = bool(self.regs.field("TIMER_STATUS", "done", st)),
+            running = bool(self.regs.field("TIMER_STATUS", "running", st)),
+            passed  = bool(self.regs.field("TIMER_STATUS", "pass", st)),
+            cycles  = self._rd64("TIMER_CYCLES_LO", "TIMER_CYCLES_HI"),
+            r_first = self._rd64("TIMER_R_FIRST_LO", "TIMER_R_FIRST_HI"),
+            r_last  = self._rd64("TIMER_R_LAST_LO",  "TIMER_R_LAST_HI"),
+            w_first = self._rd64("TIMER_W_FIRST_LO", "TIMER_W_FIRST_HI"),
+            w_last  = self._rd64("TIMER_W_LAST_LO",  "TIMER_W_LAST_HI"),
         )
 
     # ----- Response-delay knobs (currently unwired on the RTL side; see
     #        harness_csr comment at 0x3C — kept here so a follow-up that
     #        instantiates axi_response_delay has the API in place). ----
     def set_resp_delay(self, rd_cycles: int, wr_cycles: int) -> None:
-        self._wr(RESP_DELAY,
-                 ((wr_cycles & 0xFFFF) << 16) | (rd_cycles & 0xFFFF))
+        self.regs.write("RESP_DELAY",
+                        rd_delay=rd_cycles & 0xFFFF,
+                        wr_delay=wr_cycles & 0xFFFF)
 
     # ----- Perf: bus meters -----------------------------------------------
     def perf_meters(self) -> Dict[str, MeterCounts]:
-        rd = MeterCounts(
-            prod  = self._rd(OBS_RD_PROD),
-            bp    = self._rd(OBS_RD_BP),
-            starv = self._rd(OBS_RD_STARV),
-            idle  = self._rd(OBS_RD_IDLE),
-        )
-        wr = MeterCounts(
-            prod  = self._rd(OBS_WR_PROD),
-            bp    = self._rd(OBS_WR_BP),
-            starv = self._rd(OBS_WR_STARV),
-            idle  = self._rd(OBS_WR_IDLE),
-        )
+        r = self.regs.read
+        rd = MeterCounts(prod=r("OBS_RD_PROD"), bp=r("OBS_RD_BP"),
+                         starv=r("OBS_RD_STARV"), idle=r("OBS_RD_IDLE"))
+        wr = MeterCounts(prod=r("OBS_WR_PROD"), bp=r("OBS_WR_BP"),
+                         starv=r("OBS_WR_STARV"), idle=r("OBS_WR_IDLE"))
         return {"rd": rd, "wr": wr}
 
     # ----- Perf: latency histograms ---------------------------------------
     def _write_hist_sel(self, bus: int, metric: int, bin_idx: int) -> None:
-        sel = ((bus & 1)
-               | ((metric & 1) << 1)
-               | ((bin_idx & 0xF) << 2))
-        self._wr(OBS_HIST_SEL, sel)
+        self.regs.write("OBS_HIST_SEL",
+                        bus=bus & 1, metric=metric & 1, bin=bin_idx & 0xF)
 
     def perf_hist_bin(self, bus: int, metric: int, bin_idx: int
                       ) -> Tuple[int, int]:
@@ -518,7 +553,7 @@ class DDR2CharDriver:
         `bin_idx` = 0..15 (log2 latency bin b covers [2^b, 2^(b+1)) cycles)
         """
         self._write_hist_sel(bus, metric, bin_idx)
-        return self._rd(OBS_HIST_COUNT), self._rd(OBS_HIST_TOTAL)
+        return self.regs.read("OBS_HIST_COUNT"), self.regs.read("OBS_HIST_TOTAL")
 
     def perf_hist_dump(self, bus: int, metric: int = HIST_METRIC_0
                        ) -> Tuple[List[int], int]:
@@ -538,10 +573,43 @@ class DDR2CharDriver:
     # ----- debug_sram trace ring pointer ----------------------------------
     def dbg_wr_ptr(self) -> int:
         """Words written to debug_sram since last clear."""
-        return self._rd(DBG_WR_PTR)
+        return self.regs.read("DBG_WR_PTR")
 
     def dbg_overflow(self) -> bool:
-        return bool(self._rd(DBG_OVERFLOW) & 1)
+        return bool(self.regs.field("DBG_OVERFLOW", "overflow"))
+
+
+def autodetect_port(baud: int = 115200, want: str = None) -> str:
+    """Find the ttyUSB the pumice DDR2 char harness is on.
+
+    The USB-UART re-enumerates across reboots/replugs, so never hardcode the
+    port. Probe each candidate by reading BUILD_ID; the board that answers with
+    the 'DDR2' magic (DDR2CharDriver.BUILD_ID_MAGIC) is ours. `want`: if the
+    caller passed --port explicitly (not 'auto'), try it first. Mirrors the
+    STREAM/RAPIDS/CDC char autodetect with the pumice identity register.
+    """
+    import glob
+    cands = []
+    if want and want != "auto":
+        cands.append(want)
+    cands += sorted(p for p in glob.glob("/dev/ttyUSB*") if p not in cands)
+
+    for port in cands:
+        try:
+            d = DDR2CharDriver(port=port, baudrate=baud, timeout=0.4)
+            ok = d.build_id() == DDR2CharDriver.BUILD_ID_MAGIC
+            ser = getattr(d.bridge, "ser", None)
+            if ser is not None:
+                ser.close()
+            if ok:
+                print(f"[autodetect] pumice DDR2 char harness found on {port}")
+                return port
+        except Exception:
+            continue
+    raise SystemExit(
+        f"[autodetect] no pumice DDR2 char harness responded on any of: "
+        f"{cands or '(no /dev/ttyUSB* present)'}. "
+        f"Is the board powered and programmed with the pumice DDR2 bitstream?")
 
 
 # =============================================================================
@@ -550,10 +618,11 @@ class DDR2CharDriver:
 def _cli() -> None:
     import argparse
     p = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
-    p.add_argument("--port", default="/dev/ttyUSB1")
+    p.add_argument("--port", default="auto")
     p.add_argument("--baud", type=int, default=115200)
     args = p.parse_args()
 
+    args.port = autodetect_port(args.baud, want=args.port)
     d = DDR2CharDriver(port=args.port, baudrate=args.baud)
     bid = d.build_id()
     print(f"BUILD_ID    = 0x{bid:08X} ({'ok' if bid == d.BUILD_ID_MAGIC else 'MISMATCH'})")

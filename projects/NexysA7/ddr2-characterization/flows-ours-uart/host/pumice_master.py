@@ -31,6 +31,7 @@ which is robust with the harness's built-in pattern/CRC engines.
 """
 
 import argparse
+import os
 import sys
 import time
 from dataclasses import dataclass, field
@@ -68,129 +69,201 @@ class LevelingResult:
     ok:          bool
     rd_tap:      int = -1           # centred read IDELAY tap
     rd_window:   Tuple[int, int] = (-1, -1)  # (first, last) passing tap
-    wr_phase:    int = -1           # working write phase
+    bitslip:     int = -1           # winning read bitslip (coarse word align)
+    wr_phase:    int = -1           # kept for API compat (A7 fixes wrphase=3)
     notes:       List[str] = field(default_factory=list)
 
 
 class A7Leveling:
-    """Drives the a7ddrphy calibration CSR knobs to align the DQ capture.
+    """A7DDRPHY READ leveling (A7 has no write leveling / output ODELAY — the
+    wlevel_*/wdly_*/half_sys8x_taps CSRs are inert; do not touch them).
 
-    Read leveling: reset the DQ IDELAY, write a known pattern once, then step
-    the read delay tap while re-reading + CRC-checking; the contiguous range
-    of passing taps is the data eye, and we park the tap at its centre.
-    Write leveling: sweep the write phase (0..DFI_RATE-1) and keep the first
-    phase that yields a clean write-then-read.
+    Per LiteDRAM's read-leveling: for each byte lane sweep the read IDELAY tap
+    (rdly_dq_inc, 0..31) within each coarse word-alignment bitslip
+    (rdly_dq_bitslip, 0..7), writing a known pattern and checking that the read
+    back has zero mismatched beats. The longest contiguous passing tap-run is
+    the data eye; park the tap at its centre under the widest-eye bitslip.
+
+    Discipline (learned the hard way on silicon):
+      * Every rdly/bitslip strobe is dly_sel-bracketed — the PHY gates these by
+        dly_sel, so an un-bracketed pulse is a silent no-op.
+      * PHY_RST is NEVER pulsed post-init: it tears down the DFI link and only a
+        reprogram recovers. Reset the read path with rdly_dq_rst / bitslip_rst.
+      * A failing read can wedge the controller; each tap test issues a
+        soft_reset first (which now re-inits the controller datapath but
+        preserves the PHY CSR taps + cfg) so the pattern write is always clean.
+      * wrphase/rdphase stay at the PHY defaults (3/2) — sweeping wrphase breaks
+        the write path (pumice's DFI adapter is fixed to those phases).
     """
 
-    MAX_RD_TAPS = 32     # Artix-7 IDELAYE2 has 32 taps (5-bit)
-    N_WR_PHASES = 4      # DFI_RATE = 4 on the a7ddrphy config
+    N_BITSLIPS  = 8      # a7ddrphy ISERDES bitslip range (mod-8)
+    MAX_RD_TAPS = 32     # IDELAYE2 5-bit tap
 
     def __init__(self, drv: DDR2CharDriver, base_addr: int = 0x0000_0000,
-                 burst_len: int = 8, txn_count: int = 32,
-                 seed: int = 0x1EAF_F00D, verbose: bool = True):
+                 burst_len: int = 4, txn_count: int = 2,
+                 seed: int = 0x1EAF_F00D, t_phy_wrlat: int = 0,
+                 t_rddata_en: int = 6, rddata_delay: int = 0,
+                 rd_phase: int = 0, lane_mask: int = 0b11, verbose: bool = True):
         self.drv = drv
         self.base = base_addr
         self.blen = burst_len
         self.txn = txn_count
         self.seed = seed
+        self.wrlat = t_phy_wrlat
+        self.rden = t_rddata_en
+        self.rddly = rddata_delay       # dfi_rddata->rddata_valid realign (ILA=8)
+        self.rdphase = rd_phase         # a7ddrphy rdphase=1 (RD cmd on phase 1)
+        # gear_ratio CSR (log2 active DFI rate). None => rmw-preserve the RTL
+        # reset (2 = 1:4, the board's fixed nphases=4). The sim exercises rate-2
+        # legacy builds too, where the reset (2) is wrong; those set TEST_GEAR_RATIO
+        # so set_dfi_phase does not leave gear masking off the read path.
+        _g = os.environ.get("TEST_GEAR_RATIO")
+        self.gear = int(_g) if _g is not None else None
+        self.lanes = lane_mask          # x16 -> both byte lanes together (0b11)
         self.verbose = verbose
 
     def _log(self, msg: str) -> None:
         if self.verbose:
             print(f"[level] {msg}")
 
-    # ---- low-level engine sequencing (write THEN read, phased) -----------
-    def _write_pattern(self) -> bool:
-        self.drv.program_wr_engine(start_addr=self.base, burst_len=self.blen,
-                                   txn_count=self.txn, lfsr_seed=self.seed,
-                                   data_mode=True, hash_seed0=self.seed)
-        self.drv.start_wr()
-        return wait_engine(self.drv, "wr")
+    # ---- dly_sel-bracketed PHY strobe (the PHY gates rdly/bitslip by dly_sel)
+    def _strobe(self, knob: int) -> None:
+        self.drv.phy_poke(dc.PHY_DLY_SEL, self.lanes)
+        self.drv.phy_poke(knob, 1)
+        self.drv.phy_poke(dc.PHY_DLY_SEL, 0)
 
-    def _read_check(self) -> bool:
-        """Read the pattern back; True iff CRC matches and no beats mismatch."""
+    # ---- controller recovery (soft_reset now re-inits the datapath; PHY taps
+    #      + cfg persist) so every pattern write starts from a clean state
+    def _reinit(self) -> None:
+        self.drv.soft_reset()
+        time.sleep(0.005)
+        self.drv.set_controller_cfg(memtype=dc.MEMTYPE_DDR2,
+                                    t_phy_wrlat=self.wrlat,
+                                    t_rddata_en=self.rden, rd_in_order=True)
+        self.drv.set_dfi_rddata_delay(self.rddly)
+        self.drv.set_dfi_phase(rd_phase=self.rdphase, wr_phase=0,
+                               gear_ratio=self.gear)
+        # A prior failing read leaves a STICKY rd_error/any_error latch that
+        # soft_reset does not clear (it lives in harness_csr) — clear_stats
+        # does. Without this, wait_engine() would false-negative every write
+        # after the first bad read. beats_mismatched (our metric) is also reset.
+        self.drv.clear_stats()
+
+    def _test(self) -> bool:
+        """reinit -> write pattern -> read back; True iff zero beats mismatched."""
+        self._reinit()
+        self.drv.program_wr_engine(start_addr=self.base, burst_len=self.blen,
+                                   txn_count=self.txn, stride_0=self.blen * 8,
+                                   lfsr_seed=self.seed, data_mode=True,
+                                   hash_seed0=self.seed)
+        self.drv.start_wr()
+        if not wait_engine(self.drv, "wr"):
+            return False
         self.drv.program_rd_engine(start_addr=self.base, burst_len=self.blen,
-                                   txn_count=self.txn, lfsr_seed=self.seed,
-                                   data_mode=True, hash_seed0=self.seed)
+                                   txn_count=self.txn, stride_0=self.blen * 8,
+                                   lfsr_seed=self.seed, data_mode=True,
+                                   hash_seed0=self.seed)
         self.drv.clear_stats()
         self.drv.start_rd()
-        if not wait_engine(self.drv, "rd"):
-            return False
-        _exp, _act, match, valid = self.drv.crc()
-        return valid and match and (self.drv.beats_mismatched() == 0)
+        wait_engine(self.drv, "rd")   # rd_error on mismatch is fine; check beats
+        return self.drv.beats_mismatched() == 0
 
-    # ---- knob helpers ----------------------------------------------------
-    def reset_phy(self) -> None:
-        self.drv.phy_poke(dc.PHY_RST, 1)
-        self.drv.phy_poke(dc.PHY_RST, 0)
-        # Reset the read-path delay + bitslip to a known zero.
-        self.drv.phy_poke(dc.PHY_RDLY_DQ_RST, 1)
-        self.drv.phy_poke(dc.PHY_RDLY_DQ_BITSLIP_RST, 1)
-        self.drv.phy_poke(dc.PHY_WDLY_DQ_BITSLIP_RST, 1)
+    def _reset_read_path(self) -> None:
+        self._strobe(dc.PHY_RDLY_DQ_RST)
+        self._strobe(dc.PHY_RDLY_DQ_BITSLIP_RST)
 
-    def _select_lane(self, lane: int) -> None:
-        self.drv.phy_poke(dc.PHY_DLY_SEL, 1 << lane)
-
-    # ---- leveling passes -------------------------------------------------
-    def _scan_read_taps(self) -> Tuple[int, Tuple[int, int]]:
-        """With a pattern already written at the current write phase, sweep the
-        read IDELAY tap and return (centre, (first,last)) of the longest
-        CRC-passing run, or (-1,(-1,-1)) if none passes. Leaves the tap parked
-        at the centre when a window is found."""
-        self.drv.phy_poke(dc.PHY_RDLY_DQ_RST, 1)
-        passing: List[int] = []
+    def _scan_taps(self):
+        """At the current bitslip, sweep the 32 IDELAY taps; return passing taps."""
+        self._strobe(dc.PHY_RDLY_DQ_RST)          # tap 0
+        passing = []
         for tap in range(self.MAX_RD_TAPS):
-            if self._read_check():
+            if self._test():
                 passing.append(tap)
-            self.drv.phy_poke(dc.PHY_RDLY_DQ_INC, 1)
-        self.drv.phy_poke(dc.PHY_RDLY_DQ_RST, 1)     # back to tap 0
-        if not passing:
-            return -1, (-1, -1)
-        first, last = self._longest_run(passing)
-        centre = (first + last) // 2
-        for _ in range(centre):
-            self.drv.phy_poke(dc.PHY_RDLY_DQ_INC, 1)
-        return centre, (first, last)
+            self._strobe(dc.PHY_RDLY_DQ_INC)
+        self._strobe(dc.PHY_RDLY_DQ_RST)          # back to tap 0
+        return passing
 
     @staticmethod
-    def _longest_run(vals: List[int]) -> Tuple[int, int]:
+    def _longest_run(vals):
         best = (vals[0], vals[0]); cur = (vals[0], vals[0])
         for v in vals[1:]:
-            if v == cur[1] + 1:
-                cur = (cur[0], v)
-            else:
-                cur = (v, v)
+            cur = (cur[0], v) if v == cur[1] + 1 else (v, v)
             if (cur[1] - cur[0]) > (best[1] - best[0]):
                 best = cur
         return best
 
     def run(self) -> LevelingResult:
-        """Joint (write-phase, read-tap) calibration. Write leveling on the
-        a7ddrphy is data-independent in JEDEC (DQS-vs-CK), but with the harness
-        pattern/CRC engines the practical detector is a joint search: for each
-        write phase, write a pattern and sweep the read taps; the first phase
-        that yields a passing tap-window wins, and we centre the read tap in it.
-        """
+        """Sweep bitslip x IDELAY-tap, find the widest read eye, centre the tap."""
         res = LevelingResult(ok=False)
-        self._log("resetting PHY calibration state")
-        self.reset_phy()
-        for phase in range(self.N_WR_PHASES):
-            self.drv.phy_poke(dc.PHY_WRPHASE, phase)
-            if not self._write_pattern():
-                continue
-            centre, window = self._scan_read_taps()
-            if centre < 0:
-                self._log(f"write phase {phase}: no read eye")
-                continue
-            self._log(f"write phase {phase}: read eye {window}, centre {centre}")
-            res.wr_phase, res.rd_tap, res.rd_window = phase, centre, window
-            # Final confirmation at the centred (phase, tap).
-            res.ok = self._write_pattern() and self._read_check()
-            if not res.ok:
-                res.notes.append("final verify at centred (phase,tap) failed")
+        self._log("A7 read leveling (read-only, dly_sel-bracketed, no PHY_RST)")
+        self._reset_read_path()
+        best = None                     # (width, bitslip, (lo, hi))
+        for bs in range(self.N_BITSLIPS):
+            passing = self._scan_taps()
+            if passing:
+                lo, hi = self._longest_run(passing)
+                self._log(f"bitslip {bs}: eye taps {lo}..{hi} (width {hi - lo + 1})")
+                if best is None or (hi - lo + 1) > best[0]:
+                    best = (hi - lo + 1, bs, (lo, hi))
+            else:
+                self._log(f"bitslip {bs}: no passing tap")
+            self._strobe(dc.PHY_RDLY_DQ_BITSLIP)   # advance bitslip (wraps mod-8)
+        if best is None:
+            res.notes.append("no (bitslip, tap) combination passed — analog "
+                             "read path (DQ/DQS capture) not recoverable by "
+                             "IDELAY/bitslip; check sys4x_dqs clock / IO / pins")
             return res
-        res.notes.append("no (write phase, read tap) combination passed")
+        _w, bs, (lo, hi) = best
+        centre = (lo + hi) // 2
+        self.apply_taps(bs, centre)               # winning bitslip + centre tap
+        res.bitslip, res.rd_tap, res.rd_window = bs, centre, (lo, hi)
+        self._log(f"chosen bitslip {bs}, read tap {centre} (eye {lo}..{hi})")
+        res.ok = self._test()
+        if not res.ok:
+            res.notes.append("final verify at centred (bitslip, tap) failed")
         return res
+
+    # ---- save / restore a known-good read window --------------------------
+    # Leveling is a ~256-iteration UART sweep AND the PHY IDELAY/bitslip state is
+    # lost on every FPGA reprogram, so re-leveling dominates every board run.
+    # Persist the winning (bitslip, tap) once, then RESTORE it (apply + verify,
+    # no sweep) on later runs / after a reprogram. The window is board- and
+    # PHY-specific; a failed restore-verify falls back to a full re-level.
+    def apply_taps(self, bitslip: int, tap: int) -> None:
+        """Apply a known (bitslip, IDELAY tap) directly — no eye sweep."""
+        self._reset_read_path()
+        self._strobe(dc.PHY_RDLY_DQ_BITSLIP_RST)
+        for _ in range(int(bitslip)):
+            self._strobe(dc.PHY_RDLY_DQ_BITSLIP)
+        self._strobe(dc.PHY_RDLY_DQ_RST)
+        for _ in range(int(tap)):
+            self._strobe(dc.PHY_RDLY_DQ_INC)
+
+    def restore(self, saved: "LevelingResult") -> LevelingResult:
+        """Re-apply a saved window (no sweep) and verify one write-read pass."""
+        self.apply_taps(saved.bitslip, saved.rd_tap)
+        res = LevelingResult(ok=self._test(), rd_tap=saved.rd_tap,
+                             rd_window=saved.rd_window, bitslip=saved.bitslip)
+        self._log(f"restored bitslip {saved.bitslip}, tap {saved.rd_tap} "
+                  f"-> verify {'OK' if res.ok else 'FAILED (re-level needed)'}")
+        if not res.ok:
+            res.notes.append("restored (bitslip,tap) failed verify — re-level")
+        return res
+
+    @staticmethod
+    def save_level(path: str, res: "LevelingResult") -> None:
+        import json
+        with open(path, "w") as fh:
+            json.dump({"ok": res.ok, "bitslip": res.bitslip, "rd_tap": res.rd_tap,
+                       "rd_window": list(res.rd_window)}, fh, indent=2)
+
+    @staticmethod
+    def load_level(path: str) -> "LevelingResult":
+        import json
+        d = json.load(open(path))
+        return LevelingResult(ok=bool(d.get("ok", True)), bitslip=int(d["bitslip"]),
+                              rd_tap=int(d["rd_tap"]),
+                              rd_window=tuple(d.get("rd_window", (-1, -1))))
 
 
 # =============================================================================
@@ -206,11 +279,19 @@ class SimpleResult:
 
 class SimpleTest:
     def __init__(self, drv: DDR2CharDriver, base_addr: int = 0x0000_0000,
-                 t_phy_wrlat: int = 4, t_rddata_en: int = 6):
+                 t_phy_wrlat: int = 0, t_rddata_en: int = 6,
+                 rddata_delay: int = 0, rd_phase: int = 0,
+                 level_cache: Optional[str] = None):
         self.drv = drv
         self.base = base_addr
         self.t_phy_wrlat = t_phy_wrlat
         self.t_rddata_en = t_rddata_en
+        self.rddata_delay = rddata_delay
+        self.rd_phase = rd_phase
+        # Optional path to persist / reuse the leveled read window (skips the
+        # ~256-iteration sweep on later runs; re-levels + re-saves if the saved
+        # window fails verify, e.g. after a bitstream change).
+        self.level_cache = level_cache
         self.level: Optional[LevelingResult] = None
 
     def init(self, do_leveling: bool = True) -> None:
@@ -221,8 +302,38 @@ class SimpleTest:
                              t_phy_wrlat=self.t_phy_wrlat,
                              t_rddata_en=self.t_rddata_en,
                              rd_in_order=True)
+        d.set_dfi_rddata_delay(self.rddata_delay)
+        # gear_ratio / bl: None => rmw-preserve the RTL reset (board = 2 = 1:4,
+        # bl = 4), which is correct on-silicon. The sim exercises non-rate-4
+        # legacy builds (e.g. rate-2) where the reset gear is wrong and would mask
+        # off the read path -> those set TEST_GEAR_RATIO / TEST_DRAM_BL so
+        # set_dfi_phase programs the build's actual gear (same pattern as
+        # A7Leveling/MasterTest). Absent env (board) => None => preserve.
+        import os as _os
+        _g = _os.environ.get("TEST_GEAR_RATIO")
+        _bl = _os.environ.get("TEST_DRAM_BL")
+        d.set_dfi_phase(rd_phase=self.rd_phase, wr_phase=0,
+                        gear_ratio=(int(_g) if _g is not None else None),
+                        bl=(int(_bl) if _bl is not None else None))
         if do_leveling:
-            self.level = A7Leveling(d, base_addr=self.base).run()
+            lv = A7Leveling(d, base_addr=self.base,
+                            t_phy_wrlat=self.t_phy_wrlat,
+                            t_rddata_en=self.t_rddata_en,
+                            rddata_delay=self.rddata_delay,
+                            rd_phase=self.rd_phase)
+            import os as _os
+            if self.level_cache and _os.path.exists(self.level_cache):
+                self.level = lv.restore(A7Leveling.load_level(self.level_cache))
+                if not self.level.ok:                     # stale -> re-level
+                    print("[simple] cached leveling failed verify; re-leveling")
+                    self.level = lv.run()
+                    if self.level.ok:
+                        A7Leveling.save_level(self.level_cache, self.level)
+            else:
+                self.level = lv.run()
+                if self.level.ok and self.level_cache:
+                    A7Leveling.save_level(self.level_cache, self.level)
+                    print(f"[simple] saved leveling -> {self.level_cache}")
             if not self.level.ok:
                 print(f"[simple] WARNING: leveling not clean: {self.level.notes}")
 
@@ -237,12 +348,21 @@ class SimpleTest:
                             hash_seed0=seed)
         d.start_wr()
         wr_ok = wait_engine(d, "wr")
-        d.clear_stats()
+        # NB: do NOT clear_stats() between write and read — it wipes the WR
+        # engine's latched expected-CRC (and exp_valid), so the read-side
+        # CRC comparison would then compare against 0. beats_mismatched is
+        # the authoritative per-beat integrity signal; CRC is the summary.
         d.start_rd()
         rd_ok = wait_engine(d, "rd")
         exp, act, match, valid = d.crc()
         mism = d.beats_mismatched()
-        ok = wr_ok and rd_ok and valid and match and mism == 0
+        # beats_mismatched is the authoritative per-beat integrity signal and
+        # is valid in every mode. The summary CRC is only produced in LFSR
+        # (data_mode off) mode; in data_mode the engine checks address-hashed
+        # data per beat and leaves the CRC latches invalid — so only enforce a
+        # CRC match when the CRC is actually valid.
+        crc_ok = match if valid else True
+        ok = wr_ok and rd_ok and (mism == 0) and crc_ok
         return SimpleResult(ok=ok, expected=exp, actual=act, mismatched=mism)
 
 
@@ -273,14 +393,19 @@ class FullCharacterization:
     ]
 
     def __init__(self, drv: DDR2CharDriver, base_addr: int = 0x0000_0000,
-                 txn_count: int = 1024, grid=None):
+                 txn_count: int = 1024, grid=None, rd_phase: int = 0,
+                 rddata_delay: int = 0, level_cache: Optional[str] = None):
         self.drv = drv
         self.base = base_addr
         self.txn = txn_count
         self.grid = grid or self.DEFAULT_GRID
+        self.rd_phase = rd_phase
+        self.rddata_delay = rddata_delay
+        self.level_cache = level_cache
 
     def init(self, do_leveling: bool = True) -> Optional[LevelingResult]:
-        st = SimpleTest(self.drv, base_addr=self.base)
+        st = SimpleTest(self.drv, base_addr=self.base, rd_phase=self.rd_phase,
+                        rddata_delay=self.rddata_delay, level_cache=self.level_cache)
         st.init(do_leveling=do_leveling)
         return st.level
 
@@ -323,12 +448,50 @@ class FullCharacterization:
 # =============================================================================
 def main() -> int:
     ap = argparse.ArgumentParser(description="pumice DDR2 characterization master")
-    ap.add_argument("--port", default="/dev/ttyUSB1", help="UART device")
+    ap.add_argument("--port", default="auto", help="UART device")
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--base", type=lambda x: int(x, 0), default=0x0,
                     help="DRAM base address for the workload")
     ap.add_argument("--no-level", action="store_true",
                     help="skip a7ddrphy leveling (assume already levelled)")
+    ap.add_argument("--rd-phase", type=int, default=0,
+                    help="DFI sub-phase for the READ command. The Nexys a7ddrphy "
+                         "takes the DFI command on phase 0 and handles rdphase "
+                         "internally, so 0 is correct here (on-silicon: rd_phase=1 "
+                         "made reads WORSE, 16/16). Non-zero is for a PHY that "
+                         "genuinely consumes a per-command rdphase off the DFI bus.")
+    ap.add_argument("--rd-delay", type=int, default=8,
+                    help="dfi_rddata_delay: sys-cycles to delay read data to "
+                         "meet the a7ddrphy's late rddata_valid (~read_latency=8; "
+                         "0=passthrough, for a PHY with no rddata/valid skew)")
+    ap.add_argument("--char-level", default="medium",
+                    choices=["basic", "medium", "full"],
+                    help="scenario depth for --char (basic/medium/full)")
+    ap.add_argument("--char-scale", type=int, default=1,
+                    help="workload cycle multiplier for --char. Base counts are "
+                         "sim-sized (quick); use ~1000 on the FPGA for a long "
+                         "soak with stable perf counters (clamped to the 16-bit "
+                         "engine txn limit)")
+    ap.add_argument("--char-configs", default="baseline",
+                    help="controller configs to cross against every generator "
+                         "scenario: 'baseline' (default, single), 'matrix' (the "
+                         "isolating set: baseline/bank_interleave/open_page/"
+                         "inorder/reorder), 'all', or a comma-separated list of "
+                         "preset names (paging/OOO/refresh)")
+    ap.add_argument("--char-profile", default=None,
+                    help="run a named RUN_PROFILES matrix (smoke/matrix/full) -- "
+                         "the SAME definition the sim harness pulls, so a board "
+                         "run and a sim run are identical bar --char-scale. "
+                         "Overrides --char-configs/--char-level when set")
+    ap.add_argument("--csv", default=None,
+                    help="write --char records to this CSV path")
+    ap.add_argument("--level-cache", default=None,
+                    help="persist/reuse the leveled read window (JSON). If the "
+                         "file exists it is RESTORED (apply + verify, no ~256-"
+                         "iter sweep); a failed verify re-levels + re-saves. "
+                         "Board+PHY specific; delete it after a bitstream change.")
+    ap.add_argument("--clk-mhz", type=float, default=100.0,
+                    help="controller clock for bandwidth (MB/s) derivation")
     mode = ap.add_mutually_exclusive_group(required=True)
     mode.add_argument("--level-only", action="store_true",
                       help="run leveling and report the eye, nothing else")
@@ -336,7 +499,12 @@ def main() -> int:
                       help="init + one write-then-read integrity pass")
     mode.add_argument("--full", action="store_true",
                       help="init + full workload-sweep characterization")
+    mode.add_argument("--char", action="store_true",
+                      help="init + access-pattern characterization sweep "
+                           "(incremental / row-major / col-major page attack)")
     args = ap.parse_args()
+
+    args.port = dc.autodetect_port(args.baud, want=args.port)
 
     drv = DDR2CharDriver(port=args.port, baudrate=args.baud)
     bid = drv.build_id()
@@ -345,13 +513,26 @@ def main() -> int:
               "-- wrong bitstream loaded?")
 
     if args.level_only:
-        res = A7Leveling(drv, base_addr=args.base).run()
+        lv = A7Leveling(drv, base_addr=args.base, rd_phase=args.rd_phase,
+                        rddata_delay=args.rd_delay)
+        if args.level_cache and os.path.exists(args.level_cache):
+            res = lv.restore(A7Leveling.load_level(args.level_cache))
+            if not res.ok:
+                res = lv.run()
+                if res.ok:
+                    A7Leveling.save_level(args.level_cache, res)
+        else:
+            res = lv.run()
+            if res.ok and args.level_cache:
+                A7Leveling.save_level(args.level_cache, res)
+                print(f"saved leveling -> {args.level_cache}")
         print(f"leveling ok={res.ok} wr_phase={res.wr_phase} "
               f"rd_tap={res.rd_tap} window={res.rd_window} notes={res.notes}")
         return 0 if res.ok else 1
 
     if args.simple:
-        st = SimpleTest(drv, base_addr=args.base)
+        st = SimpleTest(drv, base_addr=args.base, rd_phase=args.rd_phase,
+                        rddata_delay=args.rd_delay, level_cache=args.level_cache)
         st.init(do_leveling=not args.no_level)
         r = st.run()
         print(f"simple: {'PASS' if r.ok else 'FAIL'} "
@@ -360,12 +541,43 @@ def main() -> int:
         return 0 if r.ok else 1
 
     if args.full:
-        fc = FullCharacterization(drv, base_addr=args.base)
+        fc = FullCharacterization(drv, base_addr=args.base, rd_phase=args.rd_phase,
+                                  rddata_delay=args.rd_delay,
+                                  level_cache=args.level_cache)
         fc.init(do_leveling=not args.no_level)
         pts = fc.run()
         n_ok = sum(1 for p in pts if p.ok)
         print(f"\nfull characterization: {n_ok}/{len(pts)} workloads passed")
         return 0 if n_ok == len(pts) else 1
+
+    if args.char:
+        # Lazy import keeps pumice_char's `from pumice_master import wait_engine`
+        # free of an import cycle (this module is fully loaded before main runs).
+        import pumice_char as pc
+        # Reuse the SimpleTest init path (reset + controller cfg + leveling).
+        st = SimpleTest(drv, base_addr=args.base, rd_phase=args.rd_phase,
+                        rddata_delay=args.rd_delay, level_cache=args.level_cache)
+        st.init(do_leveling=not args.no_level)
+
+        def _progress(name: str, i: int, n: int) -> None:
+            print(f"[char {i}/{n}] {name}", file=sys.stderr)
+
+        if args.char_profile:
+            recs = pc.run_profile(drv, args.char_profile,
+                                 txn_scale=args.char_scale, base_addr=args.base,
+                                 clk_mhz=args.clk_mhz, progress=_progress)
+        else:
+            recs = pc.run_matrix(drv, configs=args.char_configs,
+                                level=args.char_level, txn_scale=args.char_scale,
+                                base_addr=args.base, clk_mhz=args.clk_mhz,
+                                progress=_progress)
+        print()
+        pc.print_report(recs)
+        if args.csv:
+            pc.write_csv(recs, args.csv)
+            print(f"\nwrote {len(recs)} records to {args.csv}")
+        n_ok = sum(1 for r in recs if r.ok)
+        return 0 if n_ok == len(recs) else 1
 
     return 0
 

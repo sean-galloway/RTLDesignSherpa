@@ -7,17 +7,17 @@ SV2V      := sv2v
 
 # Include paths for sv2v preprocessing
 INC := -I$(REPO_ROOT)/rtl/amba/includes \
-       -I$(REPO_ROOT)/projects/components/stream/rtl/includes
+       -I$(REPO_ROOT)/projects/components/dmas/stream/rtl/includes
 
 # Package files (order matters: dependencies first)
 PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
-        $(REPO_ROOT)/projects/components/stream/rtl/includes/stream_pkg.sv
+        $(REPO_ROOT)/projects/components/dmas/stream/rtl/includes/stream_pkg.sv
 
 # RTL dependencies (none - pure logic + FSM)
 DEPS :=
 
 # Device under test
-DUT := $(REPO_ROOT)/projects/components/stream/rtl/fub/apbtodescr.sv
+DUT := $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/apbtodescr.sv
 
 .PHONY: prove cover clean
 

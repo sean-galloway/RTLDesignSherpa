@@ -200,15 +200,15 @@ If you find generated files at the top level:
 **📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 2.1 for complete TB location requirements
 
 **Quick Summary - Project-Specific TB Classes:**
-- **RAPIDS:** `projects/components/rapids/dv/tbclasses/` ✅
-- **STREAM:** `projects/components/stream/dv/tbclasses/` ✅
+- **RAPIDS:** `projects/components/dmas/rapids/dv/tbclasses/` ✅
+- **STREAM:** `projects/components/dmas/stream/dv/tbclasses/` ✅
 - **Bridge:** `projects/components/bridge/dv/tbclasses/` ✅
 - **Framework (shared only):** `bin/TBClasses/` ✅
 
 **Import Pattern:**
 ```python
 # Project-specific TBs
-from projects.components.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
+from projects.components.dmas.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
 
 # Shared infrastructure
 from TBClasses.shared.tbbase import TBBase
@@ -461,7 +461,7 @@ def test_basic(request, addr_width, data_width):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/stream/rtl/filelists/fub/simple_sram.f'
+        filelist_path='projects/components/dmas/stream/rtl/filelists/fub/simple_sram.f'
     )
 
     run(
@@ -518,7 +518,7 @@ def test_stress(request, addr_width, data_width):
 
 **Complete Working Example (Pattern B):**
 
-See `projects/components/stream/dv/tests/fub_tests/simple_sram/test_simple_sram.py` for reference implementation.
+See `projects/components/dmas/stream/dv/tests/fub_tests/simple_sram/test_simple_sram.py` for reference implementation.
 
 **🚨 MANDATORY: Pytest Function Naming Convention 🚨**
 

@@ -23,160 +23,94 @@
 
 # Multi-Rank Programming
 
-> Per HAS §2.1 (multi-rank as differentiator), HAS §3.3 / §3.4 / §3.6 (architecture). FUB-level detail in MAS §2.9 (bank machine per-rank), §2.11 (refresh round-robin + DARP), §2.13 (per-rank power state), §2.14 (per-rank CS_n drive), §2.16 (cross-rank ODT).
+> Per HAS §2.1 (multi-rank as differentiator), HAS §3.3 / §3.4 / §3.6 (architecture). FUB-level detail in MAS §2 (`pumice_bank_timers` per (rank,bank), `refresh_ctrl` round-robin, `dfi_cmd_formatter` CS_n / ODT).
+>
+> Note: the default board build is single-rank (`NUM_RANKS = 1`). This chapter documents the intended multi-rank programming model; the single-rank RDL declares only `*_RANK0` registers, and per-rank register generation is a follow-up (see §4.2).
 
 ---
 
 ## Discovery
 
-Software discovers rank count via the capability vector at 0xFF8:
-
-```c
-uint8_t get_num_ranks(void) {
-    return (apb_read(0xFF8) >> 8) & 0xF;
-}
-```
-
-This is the actual synthesized `NUM_RANKS`; software should treat it as the authoritative value rather than assuming a default.
+There is no capability vector register in this build. Software knows `NUM_RANKS` from the build parameter (it is a synthesis-time geometry parameter, see §6.1); the `ID` register (0xFF0) reports memtype and phase count but not rank count. Treat the build parameter as authoritative.
 
 ## Per-Rank Mode Register Loads
 
-During init, the controller's microprogram automatically iterates the MRS loads across all ranks. Software just writes MR0..MR3 once, and the init engine handles rank iteration:
+During init, the sequencer (intended multi-rank extension) iterates the MRS/MRW loads across ranks. Software writes MR0..MR3 once:
 
 ```c
-apb_write(MR0, mr0_value);   // applied to all ranks during init
-apb_write(MR1, mr1_value);
-apb_write(MR2, mr2_value);
-apb_write(MR3, mr3_value);
+csr_write(MR0, mr0_value);   // applied to all ranks during init
+csr_write(MR1, mr1_value);
+csr_write(MR2, mr2_value);
+csr_write(MR3, mr3_value);
 ```
 
-For per-rank MR variations (rare — most multi-rank systems use identical DRAM parts), software can intercept the init engine sequence:
-
-```c
-// Stop after pre-MRS phase
-apb_write(CTRL, CTRL_INIT_START);
-while (STATUS_INIT_STEP_DBG(apb_read(STATUS)) < INIT_STEP_PRE_MRS);
-
-// Drive MRS to each rank individually via the test access path
-// (not currently exposed in v1; this is a hypothetical extension)
-
-// Resume
-```
-
-In v1, the simpler model is "all ranks use the same MR values"; per-rank MR override is a v2 feature.
+For DDR2 the sequencer uses its own JEDEC-correct MR words; the `MR*` CSRs are the software-visible shadow (see §5.1). Per-rank MR variation (rare) is a future feature.
 
 ## Per-Rank PASR (LPDDR2)
 
-Already covered in §5.2. Recap:
+Already covered in §5.2. In the single-rank build:
 
 ```c
-for (int r = 0; r < num_ranks; r++) {
-    apb_write(PASR_BANK_MASK_RANK0 + r*4, mask[r]);
-}
+csr_write(PASR_BANK_MASK_RANK0, mask);
 ```
 
-PASR is **per-rank** because each rank has independent MR16/MR17.
+A multi-rank build adds `PASR_BANK_MASK_RANK{N}` registers (each rank has independent MR16/MR17).
 
-## ODT Rule Selection
+## ODT
 
-The controller's ODT behavior is per HAS §3.6 with three modes; runtime selectable via `RANK_TUNING.odt_rule_or`. See §2.16 for the rule details.
-
-```c
-void configure_odt_for_dimm(uint8_t mode) {
-    // mode: 0 = build default, 1 = DDR2, 2 = LPDDR2, 3 = OFF (NR=1 only)
-    uint32_t v = apb_read(RANK_TUNING);
-    v = (v & ~ODT_RULE_OR_MASK) | ODT_RULE_OR(mode);
-    apb_write(RANK_TUNING, v);
-
-    apb_write(CTRL, CTRL_CONFIG_APPLY);
-    while (!(apb_read(STATUS) & STATUS_CONFIG_SETTLED));
-    apb_write(CTRL, 0);
-}
-```
-
-For boards with non-standard impedance budgets, override to a specific rule rather than relying on the build-time default.
+ODT is handled inside `dfi_cmd_formatter` / `mode_register` (there is no standalone ODT control block and no `RANK_TUNING.odt_rule_or` CSR). `dfi_odt_o` is driven per command. Board-specific ODT rule selection is not a runtime CSR knob in this build; it is baked into the formatter's per-command ODT logic. For boards with non-standard impedance budgets, adjust the formatter's ODT policy at build time.
 
 ## Per-Rank Disable
 
-To disable a rank entirely (e.g., for power testing or to skip a faulty rank):
-
-```c
-void disable_rank(uint8_t rank) {
-    uint32_t v = apb_read(RANK_TUNING);
-    v &= ~(1 << (RANK_ENABLE_MASK_SHIFT + rank));
-    apb_write(RANK_TUNING, v);
-
-    apb_write(CTRL, CTRL_CONFIG_APPLY);
-    while (!(apb_read(STATUS) & STATUS_CONFIG_SETTLED));
-    apb_write(CTRL, 0);
-}
-```
-
-The scheduler suppresses all commands to disabled ranks. AXI bursts addressing a disabled rank are returned with `SLVERR`.
+There is no `RANK_TUNING` rank-enable CSR in this build. Rank enable/disable is a multi-rank feature to be added alongside per-rank register generation. In the single-rank build there is one rank and it is always active.
 
 ## Address Mapping for Multi-Rank
 
-The rank field's position in the AXI flat address depends on the scheme:
+The rank field always sits in the high bits of the (byte-offset-stripped) word address, above the row — its position is invariant. The single `ADDR_MAP.bank_lsb` knob only slides the **bank** field within the column region (see §4.4 and `rtl/fub/addr_mapper.sv`); the rank field is unaffected by `bank_lsb`. The `hash_en` XOR-hash folds row bits into the bank index only — it does not touch the rank field.
 
-| Scheme               | Rank field position                        |
-|----------------------|--------------------------------------------|
-| `ROW_MAJOR`          | High bits, above row                       |
-| `BANK_INTERLEAVE`    | High bits, above row                       |
-| `XOR_HASH`           | High bits (identity), but bank field hashed |
-
-For interleaved-rank access (where consecutive cache lines round-robin across ranks for max parallelism), this is currently NOT a built-in scheme. v2 may add `RANK_INTERLEAVE` if characterization shows the benefit.
-
-For now, software-managed rank interleaving (e.g., the OS striping memory allocations across rank-aligned regions) is the workaround.
+There is no rank-interleave mode. Software-managed rank interleaving (the OS striping allocations across rank-aligned regions) is the workaround if consecutive-line rank striping is desired.
 
 ## Refresh Behavior with Multi-Rank
 
-Per HAS §3.4 v0.2 and §2.11:
+Per HAS §3.4 and MAS §2 (`refresh_ctrl`, intended multi-rank extension):
 
 - REFab dispatches per-rank in round-robin (not all-rank simultaneously)
-- REFpb selects (rank, bank) tuples via DARP across the full product set
+- REFpb (LPDDR2) selects (rank, bank) tuples via the `REFRESH_TUNING.refpb_policy_or` policy
 - Per-rank PASR masks are honored independently
-- Per-rank `last_ref_age` counters drive DARP fairness
 
-This means a 4-rank system has 4× the refresh time concentrated, but distributed across the timeline so any single rank only blocks for tRFC per refresh — non-target ranks keep operating.
+A multi-rank system distributes refresh across the timeline so any single rank only blocks for tRFC per refresh — non-target ranks keep operating.
 
 ## Power State Per-Rank
 
-Per §2.13:
+- Channel-wide CSR `CTRL.pwr_req_*` applies to all ranks (there is no per-rank power request CSR)
+- `STATUS.power_state[7:4]` reports the encoded state
+- Per-rank auto-low-power is not a CSR feature in this build (there is no `POWER_TUNING`; see §5.2)
 
-- Each rank has its own FSM (ACTIVE / APD / SRF / DPD)
-- Channel-wide CSR `CTRL.pwr_req_*` applies to all ranks in v1
-- Per-rank auto-APD / SRF triggers based on per-rank idleness (AXI traffic to rank r resets rank r's idle counter)
-- v1: software can't request "low-power on rank 1 only"; v2 adds per-rank request
+## Per-Rank / Per-Bank Observation
 
-Workloads that consolidate to rank 0 will see ranks 1+ auto-enter low-power without software intervention.
-
-## Per-Rank Observation
-
-Telemetry registers exist per (rank, bank):
+The RDL declares per-bank observation arrays for rank 0: `OBS_ROW_HIT[8]` (0x080..0x09C) and `OBS_REF_LATENCY[8]` (0x0C0..0x0DC). The generated regmap flattens them to indexed names:
 
 ```c
-uint32_t get_row_hit_rate(uint8_t rank, uint8_t bank) {
-    return apb_read(OBS_ROW_HIT_RANK0_BANK0 + (rank * num_banks + bank) * 4);
+uint32_t get_row_hit(uint8_t bank) {
+    return csr_read(OBS_ROW_HIT0_ROW_HIT + bank * 4);   // read-clear
 }
 ```
 
-At NR=1 NB=8, 8 such registers. At NR=4 NB=8, 32. Software queries `num_ranks` and `num_banks` from the capability vector to know how many to iterate.
+A multi-rank build adds the per-rank arrays. (Note: `hwif_in` observation readback is tied off in `pumice_top` today — see §4.1.)
 
 ## Multi-Rank Bring-Up Checklist
 
 | Step                                                                 | Why                                       |
 |----------------------------------------------------------------------|-------------------------------------------|
-| Verify `0xFF8.cap_max_ranks` matches expected DIMM rank count        | Build / board mismatch                    |
-| Check `0xFF8.cap_pasr` if using LPDDR2                                | Need PASR for LPDDR2 bring-up               |
-| Set `ODT_RULE_MULTIRANK` per board impedance design                  | Signal integrity                          |
+| Verify the build's `NUM_RANKS` matches the expected DIMM rank count  | Build / board mismatch                    |
+| Program `PASR_*_RANK{N}` if using LPDDR2                              | PASR for LPDDR2 bring-up                   |
 | Verify per-rank ZQ calibration succeeds during init                   | Each rank's drive impedance               |
-| Sweep `OBS_REF_LATENCY_RANK<R>_BANK<N>` across rank workload mix     | Per-rank refresh fairness               |
-| Stress-test rank-switching (read alternating ranks)                   | tRTRS / tCS timing                         |
-| Verify per-rank auto-APD triggers correctly                           | Power telemetry                            |
+| Sweep `OBS_REF_LATENCY[bank]` across rank workload mix               | Per-rank refresh fairness                 |
+| Stress-test rank-switching (read alternating ranks)                   | tRTRS / tCS timing                        |
 
 ## Open Questions / Future Work
 
-- **Per-rank MR override.** v2 feature; some DIMMs have rank-specific tuning (rare).
-- **Per-rank CSR power control.** v2 feature; in v1 it's channel-wide.
-- **RANK_INTERLEAVE address scheme.** v2; needs characterization to confirm benefit.
-- **3DS / LRDIMM logical-rank support.** DDR3+ feature; not in DDR2/LPDDR2 anyway.
+- **Per-rank register generation.** The RDL declares only `*_RANK0`; a `NUM_RANKS` loop is needed for PASR/temp/observation and rank-enable.
+- **Per-rank MR override.** Some DIMMs have rank-specific tuning (rare).
+- **Per-rank power control.** `CTRL.pwr_req_*` is channel-wide; per-rank request registers are a follow-up.
+- **Runtime ODT rule select.** ODT is currently baked into `dfi_cmd_formatter`; a runtime CSR knob could be reintroduced if board diversity needs it.

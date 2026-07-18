@@ -23,9 +23,14 @@
 
 # AXI4 Slave Protocol
 
-> Per HAS §2.4 §1 for the full per-channel signal list. This chapter is the **wire-level contract** specific to this controller — what's supported, what's relaxed, what's omitted, and the timing / ordering / backpressure semantics the integrator can rely on.
+> This chapter is the **wire-level contract** of the controller's host AXI4
+> slave face -- what's supported, what's relaxed, what's omitted, and the
+> timing / ordering / backpressure semantics the integrator can rely on.
 >
-> For the FUB that implements this interface, see §2.2 (`axi4_slave_fub`).
+> The interface is implemented by `pumice_axi4_ifc` (section 2.1): a pair of
+> AMBA burst splitters feed the dumb `pumice_wr_intake` / `pumice_rd_intake`
+> blocks (each wrapping `axi4_slave_wr` / `axi4_slave_rd`), which push into the
+> write / read CAMs.
 
 ---
 
@@ -34,108 +39,120 @@
 | Aspect                          | Support level                                              |
 |---------------------------------|------------------------------------------------------------|
 | AXI4 (ARM IHI 0022) signal set  | Full AW/W/B/AR/R                                            |
-| AXI4-Lite                       | Not supported (use APB CSR for control)                    |
+| AXI4-Lite                       | Not supported (use the register cpuif for control)         |
 | AXI4-Stream                     | Not applicable                                              |
 | AXI5                            | Not supported                                              |
 
-## Supported Features (v1)
+## Data Width
+
+The core's AXI data width is the **DFI word**: `DW = DRAM_BEAT_WIDTH * DFI_RATE`
+(128 by default). One AXI beat == one DFI word == `DFI_RATE` DRAM beats. If the
+SoC master runs a different width, wrap the core in `pumice_top_geared`, which
+inserts the formally-verified `axi4_dwidth_converter_wr/_rd` between a
+host-width AXI slave and the fixed-`DW` core (`HOST_AXI_DATA_WIDTH == DW` is a
+bit-identical generate bypass). See `docs/AXI_DRAM_GEARING_SCOPE.md`.
+
+**Hard width rule (compile-enforced).** `HOST_AXI_DATA_WIDTH : DW` **MUST** be an
+exact power-of-two ratio (`AXI:DFI = G:1` or `1:G`, `G ∈ {1,2,4,8,…}`). An
+`initial assert … $fatal` in `pumice_top_geared` **fails elaboration / Vivado
+synthesis** on any other pairing — a bad width choice is a compile error, not a
+silent broken build. This mirrors LiteDRAM exactly (AXI frontend 1:1 with its
+native port; all width change via a power-of-two stride converter). Because the
+DFI word is the atomic memory-side transfer, an AXI beat must be a whole
+power-of-two number of DFI words. `HOST_AXI_DATA_WIDTH` and `DW` are the **only**
+compile-time width parameters; **gear ratio and burst length are runtime CSRs**
+(`gear_ratio`, `bl`), built for max and selected at runtime — a wrong value is
+bad config programming, never a parameter/synthesis mismatch.
+
+## Burst Splitting
+
+Each host burst is split at DRAM-burst-byte boundaries by
+`axi_master_wr_splitter` / `axi_master_rd_splitter`
+(`ALIGN_MASK = BL*(DRAM_BEAT_WIDTH/8) - 1`), so every command handed to an
+intake is exactly one DRAM burst. This is how an arbitrary AXI `awlen`/`arlen`
+maps onto the fixed DRAM burst length.
+
+## Supported Features
 
 - INCR burst type (mandatory)
-- Burst length 1..256 beats
-- Burst size 2^0..2^7 bytes
-- ID-aware OoO completion (when `AXI_OOO_ACROSS_IDS = true`; default)
-- Per-ID in-order completion (AXI4 spec mandate; always enforced)
-- 4 KB burst boundary check (slave returns `SLVERR` on cross-4KB bursts)
-- `awqos`/`arqos` observed and forwarded to scheduler (not yet used in v1 priority function)
+- Arbitrary INCR burst length (split into DRAM-burst commands as above)
+- ID-carried requests; per-ID in-order completion (AXI4 mandate)
+- Cross-ID reordering at the DRAM layer, with AXI response ordering honored at
+  the response side (per HAS 3.1)
+- `awqos`/`arqos`/`awregion`/`arregion` carried through the splitters (observed,
+  not yet used for scheduler priority)
+- Single-bit `awuser`/`aruser`/`wuser` ports carried through the front-end
+  (echoed on B/R `buser`/`ruser`)
 
-## Optional Features (build-time)
+## Unsupported / Ignored
 
-| Feature              | Parameter                | Default |
-|----------------------|--------------------------|---------|
-| FIXED burst type     | `SUPPORT_FIXED_BURST`    | `false` |
-| WRAP burst type      | `SUPPORT_WRAP_BURST`     | `false` |
-| OoO across IDs       | `AXI_OOO_ACROSS_IDS`     | `true`  |
-
-When `SUPPORT_FIXED_BURST = false`, an AW or AR with `awburst = 00` returns `SLVERR` on the corresponding B / R response.
-
-## Unsupported Features
-
-- AXI4 exclusive accesses (`awlock`, `arlock` observed but ignored; behaves as normal access)
-- AXI4 user signals (no `AWUSER`/`WUSER`/`BUSER`/`ARUSER`/`RUSER` ports)
-- AXI4 cache-coherent extensions (`awcache`/`arcache` observed but no behavior)
+- AXI4 exclusive accesses (`awlock`, `arlock` observed but ignored; treated as
+  normal accesses)
+- AXI4 cache-coherent behavior (`awcache`/`arcache` observed, no behavior)
+- FIXED / WRAP burst types are not a design target; the front-end is built for
+  INCR traffic
 
 ## Backpressure Semantics
 
-The slave asserts backpressure via standard AXI handshake:
+The slave asserts backpressure via the standard AXI handshake. Backpressure
+originates in the intake FIFOs and CAM fill:
 
 | Channel | Backpressure reason                                                            |
 |---------|--------------------------------------------------------------------------------|
-| AW      | `aw_buf` full in `axi4_slave_fub`, or `txn_queue` at `SCHED_TUNING.txn_queue_high_water` |
-| W       | `w_buf` full in `axi4_slave_fub`                                               |
-| AR      | `ar_buf` full in `axi4_slave_fub`, or `txn_queue` at high water                |
-| B       | Standard `bready` handshake; controller does not stall waiting for `bready`     |
-| R       | Standard `rready` handshake; sustained stall triggers `STATUS.axi_r_stall` hint to scheduler (per §2.18) |
+| AW      | AW-meta FIFO full in `pumice_wr_intake`, or `pumice_wr_data_cam` has no free slot |
+| W       | Write-data FIFO / write-data SRAM full in the write path                        |
+| AR      | `pumice_rd_cmd_cam` has no free slot                                            |
+| B       | Standard `bready` handshake                                                     |
+| R       | Standard `rready` handshake; the drain mover in `pumice_rd_cmd_cam` stalls until `rready` |
 
-The high-water threshold (`SCHED_TUNING.txn_queue_high_water`) is software-tunable to provide a few-burst headroom before hard backpressure. Default is `TXN_QUEUE_DEPTH - 2`.
+Total in-flight depth per direction is set by `NUM_ENTRIES` (CAM depth) with
+`N_SRAM_SLOTS` burst-data SRAM slots per CAM.
 
 ## Response Ordering
 
-Two ordering rules apply:
+1. **Per-ID in-order** -- always enforced. Two accesses with the same ID
+   complete in issue order.
+2. **Cross-ID** -- reordering is allowed at the DRAM layer (the scheduler picks
+   by bank/row/age), but the CAMs drain and the intakes emit responses so that
+   the AXI-visible ordering rules hold.
 
-1. **Per-ID in-order** — Always enforced. Two reads with the same ID complete in issue order; two writes with the same ID generate B responses in issue order.
-2. **Cross-ID OoO** — Default on (`AXI_OOO_ACROSS_IDS = true`). Reads/writes with different IDs can complete in any order. When set to `false`, the slave enforces global in-order completion at the response side regardless of scheduler decisions.
+## Read-Your-Write Forwarding (snarf)
 
-Per HAS §3.1, even when scheduling is OoO at the DRAM layer, AXI response ordering is honored at the response side.
-
-## 4 KB Burst Boundary
-
-AXI4 specifies that a burst must not cross a 4 KB address boundary. The slave checks this at AW/AR intake:
-
-```
-boundary_cross = ( (addr & 0xFFF) + ((arlen+1) << arsize) ) > 0x1000
-```
-
-On detection, the slave still accepts the burst (the spec doesn't permit deassert of `arready`/`awready` mid-handshake on a valid request), but marks it for `SLVERR` response on B / R. The DRAM-side issue is suppressed for the offending burst.
+`pumice_rd_intake` probes `pumice_wr_data_cam` before a read is scheduled. On a
+hit against an unscheduled write with the same id and same burst length, the
+read is streamed straight from the write CAM's SRAM (the **snarf mover**) with
+no DRAM round-trip. On a miss the read goes through the normal DRAM path.
 
 ## Timing Contract
 
 | Path                                       | Behavior                                          |
 |--------------------------------------------|---------------------------------------------------|
-| `awvalid` → `awready` accept               | ≤ 1 cycle when `aw_buf` has space                  |
-| `awready` accept → CAM push                | 1 cycle                                            |
-| `aw_buf` → DRAM issue                      | Depends on scheduler / refresh state (typically 0–~256 cycles) |
-| Last W beat → B response                   | tCWL + tWR window + scheduler backlog               |
-| `arvalid` → first R beat                   | DRAM access latency (typically 30–100 ns) + bus rounding |
-| Successive R beats (same burst)            | 1 per MC cycle (sustained streaming)               |
+| `awvalid` -> `awready`                      | <= 1 cycle when the AW-meta FIFO has space         |
+| `awready` accept -> CAM push                | 1 cycle                                            |
+| CAM push -> DRAM issue                      | scheduler / refresh dependent (typically 0 to ~256 cycles) |
+| Last W beat -> B response                   | commit + write-recovery window + scheduler backlog  |
+| `arvalid` -> first R beat                   | DRAM access latency (typically 30-100 ns) + bus rounding, or ~0 on a snarf hit |
+| Successive R beats (same burst)            | 1 per `aclk` cycle (sustained streaming)           |
 
-The slave does not register a registered output on its AXI ports by default. If timing closure requires it on a specific target, an external `axi_register_slice` from the AMBA library is the right answer; the controller deliberately does not embed one.
-
-## Per-ID Outstanding Limits
-
-| Limit                       | Parameter                  | Default |
-|-----------------------------|----------------------------|---------|
-| Total in-flight reads       | `RD_CAM_DEPTH`             | 16      |
-| Total in-flight writes      | `WR_CAM_DEPTH`             | 16      |
-| Per-ID in-flight reads      | `MAX_PER_ID_READS`         | 4       |
-| Per-ID in-flight writes     | `MAX_PER_ID_WRITES`        | 4       |
-
-When `AXI_OOO_ACROSS_IDS = false`, per-ID limits reduce to 1 (the slave enforces strict in-order across all IDs at the response side).
+The slave does not embed an AXI register slice. If a target needs one for
+closure, add an external `axi_register_slice` from the AMBA library, or use
+`pumice_top_geared` (whose dwidth converters register the boundary).
 
 ## Error Responses
 
-| Condition                                              | Response       | Hint to software                    |
+| Condition                                              | Response       | Notes                               |
 |--------------------------------------------------------|----------------|-------------------------------------|
-| Cross-4 KB burst                                       | `SLVERR`       | None — software bug                  |
-| FIXED burst when `SUPPORT_FIXED_BURST = false`         | `SLVERR`       | Recompile or rework software         |
-| WRAP burst when `SUPPORT_WRAP_BURST = false`           | `SLVERR`       | Recompile or rework software         |
-| Address outside `AXI_ADDR_WIDTH` range                  | `SLVERR`       | None — software bug                  |
-| DFI rddata-error from PHY (rare)                       | `SLVERR`       | `irq_overflow` asserts                |
-| Init not done                                          | `SLVERR`       | Poll `STATUS.init_done` before traffic |
+| Traffic before `init_done_o`                           | held / SLVERR  | Poll `STATUS.init_done` (or the `init_done_o` pin) before issuing traffic |
+| DFI read return flagged bad by the aligner             | `SLVERR`       | Propagated on the affected R beats  |
 
-DECERR is never returned — the slave's address space is monolithic.
+DECERR is never returned -- the address space is monolithic.
 
 ## Open Questions / Future Work
 
-- **QoS-driven priority.** `awqos`/`arqos` are observed but not yet used in the scheduler. v2 would feed them into the Stage-2 priority mask (see §2.7).
-- **AXI4 user signals.** Some SoCs use USER signals for sideband info (security tags, cache hints). If the SoC needs them, add `USER_WIDTH` parameters and forward through the id_side_table.
-- **AXI register slice option.** A build-time `INSERT_AXI_REGSLICE` parameter could embed register slices at the AXI boundary for very-high-frequency targets. Not in v1.
+- **QoS-driven priority.** `awqos`/`arqos` are carried but not yet consumed by
+  `pumice_cmd_arbiter`. A future revision would fold them into the pick.
+- **Wider USER signals.** The front-end carries single-bit user today; wider
+  sideband would need a `USER_WIDTH` parameter threaded through the intakes and
+  CAMs.
+- **AXI register-slice option.** Currently external / via the geared wrapper; a
+  build-time embed could be added for very-high-frequency targets.

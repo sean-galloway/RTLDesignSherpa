@@ -23,7 +23,7 @@ $REPO_ROOT/rtl/amba/axi4/axi4_slave_wr.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_slave_rd.sv
 
 # Child FUB (F4 split-out)
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/axi_id_side_table.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/OLD/axi_id_side_table.sv
 
 # This FUB
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/axi_intake.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/OLD/axi_intake.sv

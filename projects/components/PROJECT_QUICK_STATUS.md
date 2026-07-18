@@ -122,7 +122,7 @@
 
 **Status:** 🟢 Active Development (95% complete)
 **Version:** 1.0
-**Location:** `projects/components/stream/`
+**Location:** `projects/components/dmas/stream/`
 
 **What it does:**
 - Tutorial-focused descriptor-based DMA engine for memory-to-memory transfers
@@ -211,7 +211,7 @@
 
 **Status:** 🟡 Active Development (~80% test coverage)
 **Version:** 1.0
-**Location:** `projects/components/rapids/`
+**Location:** `projects/components/dmas/rapids/`
 
 **What it does:**
 - Custom DMA-style accelerator with network interfaces for descriptor injection

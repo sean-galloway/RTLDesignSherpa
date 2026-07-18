@@ -9,7 +9,9 @@ import argparse
 import os
 import sys
 
-from descriptor_builder import HARNESS_CSR_BASE, STREAM_APB_BASE
+from harness_addrs import H  # noqa: E402  (by-name harness CSR access)
+from harness_addrs import autodetect_port  # noqa: E402 (shared ttyUSB probe)
+from stream_addrs import A, write_reg  # noqa: E402  (by-name STREAM APB access)
 
 # Pull in the same UARTAxiBridge the runner uses.
 # REPO_ROOT must be set in the environment (source env_python).
@@ -23,27 +25,27 @@ sys.path.insert(0, os.path.join(_repo_root, "projects/components/converters/bin"
 from uart_axi_bridge import UARTAxiBridge
 
 # Harness CSR offsets (mirror of run_characterization.py)
-CSR_CTRL          = HARNESS_CSR_BASE + 0x00
-CSR_STATUS        = HARNESS_CSR_BASE + 0x04
-CSR_DBG_WR_PTR    = HARNESS_CSR_BASE + 0x08
-CSR_DBG_OVERFLOW  = HARNESS_CSR_BASE + 0x0C
-CSR_CRC_RD_EXP    = HARNESS_CSR_BASE + 0x10
-CSR_CRC_WR_EXP    = HARNESS_CSR_BASE + 0x14
-CSR_CRC_WR_COMP   = HARNESS_CSR_BASE + 0x18
-CSR_CRC_MATCH     = HARNESS_CSR_BASE + 0x1C
-CSR_BUILD_ID      = HARNESS_CSR_BASE + 0x24
+CSR_CTRL          = H("CTRL")
+CSR_STATUS        = H("STATUS")
+CSR_DBG_WR_PTR    = H("DBG_WR_PTR")
+CSR_DBG_OVERFLOW  = H("DBG_OVERFLOW")
+CSR_CRC_RD_EXP    = H("CRC_RD_EXPECTED")
+CSR_CRC_WR_EXP    = H("CRC_WR_EXPECTED")
+CSR_CRC_WR_COMP   = H("CRC_WR_COMPUTED")
+CSR_CRC_MATCH     = H("CRC_MATCH")
+CSR_BUILD_ID      = H("BUILD_ID")
 
 # desc_ram observation counters (see harness_csr.sv 0xE0..0xFC). 32-bit
 # saturating; clear on CTRL.clear_stats. The AR/R pair is the primary
 # decoder for "is the SRAM responding or is STREAM not accepting?".
-CSR_DESC_AR_HS    = HARNESS_CSR_BASE + 0xE0
-CSR_DESC_AR_STALL = HARNESS_CSR_BASE + 0xE4
-CSR_DESC_R_HS     = HARNESS_CSR_BASE + 0xE8
-CSR_DESC_R_STALL  = HARNESS_CSR_BASE + 0xEC
-CSR_DESC_AW_HS    = HARNESS_CSR_BASE + 0xF0
-CSR_DESC_W_HS     = HARNESS_CSR_BASE + 0xF4
-CSR_DESC_B_HS     = HARNESS_CSR_BASE + 0xF8
-CSR_DESC_VR_LIVE  = HARNESS_CSR_BASE + 0xFC
+CSR_DESC_AR_HS    = H("DESC_AR_HS")
+CSR_DESC_AR_STALL = H("DESC_AR_STALL")
+CSR_DESC_R_HS     = H("DESC_R_HS")
+CSR_DESC_R_STALL  = H("DESC_R_STALL")
+CSR_DESC_AW_HS    = H("DESC_AW_HS")
+CSR_DESC_W_HS     = H("DESC_W_HS")
+CSR_DESC_B_HS     = H("DESC_B_HS")
+CSR_DESC_VR_LIVE  = H("DESC_VR_LIVE")
 
 # desc_ram o_dbg_vr live bit labels (bit -> short name, used for decode).
 DESC_VR_BITS = [
@@ -56,24 +58,26 @@ DESC_VR_BITS = [
     (12, "axi_rvalid"),   (13, "axi_rready"),
 ]
 
-# STREAM APB offsets (from stream_regmap.py)
-APB_GLOBAL_CTRL    = STREAM_APB_BASE + 0x100
-APB_GLOBAL_STATUS  = STREAM_APB_BASE + 0x104
-APB_CHANNEL_ENABLE = STREAM_APB_BASE + 0x120
-APB_CHANNEL_RESET  = STREAM_APB_BASE + 0x124
-APB_SCHED_CONFIG   = STREAM_APB_BASE + 0x204
-APB_SCHED_ERROR    = STREAM_APB_BASE + 0x170
-APB_MON_FIFO_STAT  = STREAM_APB_BASE + 0x180
-APB_DESCENG_CFG    = STREAM_APB_BASE + 0x220
-APB_AXI_XFER_CFG   = STREAM_APB_BASE + 0x2A0
+# STREAM APB registers, addressed BY NAME (never STREAM_APB_BASE + 0x..).
+APB_GLOBAL_CTRL    = A("GLOBAL_CTRL")
+APB_GLOBAL_STATUS  = A("GLOBAL_STATUS")
+APB_CHANNEL_ENABLE = A("CHANNEL_ENABLE")
+APB_CHANNEL_RESET  = A("CHANNEL_RESET")
+APB_SCHED_CONFIG   = A("SCHED_CONFIG")
+APB_SCHED_ERROR    = A("SCHED_ERROR")
+# MON_FIFO_STATUS lives in the monitor block @0x1000 (the old 0x180 was a stale
+# pre-relocation offset; by-name follows the regmap automatically).
+APB_MON_FIFO_STAT  = A("MON_FIFO_STATUS")
+APB_DESCENG_CFG    = A("DESCENG_CONFIG")
+APB_AXI_XFER_CFG   = A("AXI_XFER_CONFIG")
 
 # STREAM channel-observation mux. Host writes OBS_CTRL with the channel
 # and category to probe, then reads the three OBS_* status registers.
-# bit [2:0] = ch_sel, bit [4:3] = cat_sel.
-APB_OBS_CTRL       = STREAM_APB_BASE + 0x2C0
-APB_OBS_FLAGS      = STREAM_APB_BASE + 0x2C4
-APB_OBS_DATA0      = STREAM_APB_BASE + 0x2C8
-APB_OBS_DATA1      = STREAM_APB_BASE + 0x2CC
+# CH_SEL[2:0] = ch_sel, CAT_SEL[4:3] = cat_sel.
+APB_OBS_CTRL       = A("OBS_CTRL")
+APB_OBS_FLAGS      = A("OBS_FLAGS")
+APB_OBS_DATA0      = A("OBS_DATA0")
+APB_OBS_DATA1      = A("OBS_DATA1")
 
 # OBS_FLAGS bit layout (see stream_core.sv obs mux block)
 OBS_FLAG_BITS = [
@@ -107,9 +111,11 @@ def rd(b, addr, label):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--port", default="/dev/ttyUSB1")
+    ap.add_argument("--port", default='auto')
     ap.add_argument("--baud", type=int, default=115200)
     args = ap.parse_args()
+
+    args.port = autodetect_port(args.baud, want=args.port)
 
     with UARTAxiBridge(args.port, args.baud) as b:
         print("=== Harness CSRs ===")
@@ -140,7 +146,7 @@ def main():
         # Channel kick-LOW (read-back is just the value last written)
         print("\n=== Channel kick LOW words (last written values) ===")
         for ch in range(8):
-            rd(b, STREAM_APB_BASE + ch * 0x08, f"CH{ch}_KICK_LO")
+            rd(b, A(f"CH{ch}_CTRL_LOW"), f"CH{ch}_KICK_LO")
 
         print("\n=== desc_ram observation (host AXIL writes / STREAM AXI4 reads) ===")
         ar_hs   = rd(b, CSR_DESC_AR_HS,    "DESC_AR_HS")
@@ -165,7 +171,9 @@ def main():
         print("\n=== STREAM channel-observation mux (0x2C0..0x2CC) ===")
         for ch in range(8):
             for cat in range(4):
-                b.write(APB_OBS_CTRL, (cat << 3) | (ch & 0x7))
+                # OBS_CTRL by name: CAT_SEL[4:3]=cat, CH_SEL[2:0]=ch.
+                # compose("OBS_CTRL", CAT_SEL=cat, CH_SEL=ch) == (cat<<3)|(ch&0x7).
+                write_reg(b, "OBS_CTRL", CAT_SEL=cat, CH_SEL=ch)
                 flags = b.read(APB_OBS_FLAGS)
                 d0    = b.read(APB_OBS_DATA0)
                 d1    = b.read(APB_OBS_DATA1)

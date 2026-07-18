@@ -44,10 +44,10 @@ module a7ddrphy (
     input  logic sys_rst,
     input  logic sys2x_clk,
     input  logic sys2x_rst,
-    input  logic sys4x_clk,
-    input  logic sys4x_rst,
-    input  logic sys4x_dqs_clk,
-    input  logic sys4x_dqs_rst,
+    input  logic sys2x_clk_1,
+    input  logic sys2x_rst_1,
+    input  logic sys2x_dqs_clk,
+    input  logic sys2x_dqs_rst,
 
     // DFI phase 0
     input  logic [12:0] dfi_p0_address,
@@ -152,8 +152,8 @@ module a7ddrphy (
     // Keep unused inputs quiet for verilator.
     /* verilator lint_off UNUSED */
     wire _unused = &{1'b0,
-        sys_clk, sys_rst, sys2x_clk, sys2x_rst, sys4x_clk, sys4x_rst,
-        sys4x_dqs_clk, sys4x_dqs_rst,
+        sys_clk, sys_rst, sys2x_clk, sys2x_rst, sys2x_clk_1, sys2x_rst_1,
+        sys2x_dqs_clk, sys2x_dqs_rst,
         dfi_p0_address, dfi_p0_bank, dfi_p0_cas_n, dfi_p0_cs_n, dfi_p0_ras_n,
         dfi_p0_we_n, dfi_p0_cke, dfi_p0_odt, dfi_p0_reset_n, dfi_p0_act_n,
         dfi_p0_wrdata, dfi_p0_wrdata_en, dfi_p0_wrdata_mask, dfi_p0_rddata_en,

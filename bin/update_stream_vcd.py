@@ -21,9 +21,9 @@ from pathlib import Path
 
 
 def find_stream_test_files(root_dir):
-    """Find all test files in projects/components/stream/dv/tests/"""
+    """Find all test files in projects/components/dmas/stream/dv/tests/"""
     test_files = []
-    stream_tests_dir = os.path.join(root_dir, 'projects/components/stream/dv/tests')
+    stream_tests_dir = os.path.join(root_dir, 'projects/components/dmas/stream/dv/tests')
 
     if os.path.exists(stream_tests_dir):
         for root, dirs, files in os.walk(stream_tests_dir):

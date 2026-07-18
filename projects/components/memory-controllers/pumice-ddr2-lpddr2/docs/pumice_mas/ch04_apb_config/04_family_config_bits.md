@@ -21,123 +21,103 @@
 
 <!-- End Header -->
 
-# Family-Wide Config-Bit Applicability
+# Family Config Knobs (DDR2 / LPDDR2)
 
-> Per HAS §5.4 for the family-wide config-bit registry, applicability matrix, and capability vector at 0xFF8. This MAS chapter is the **implementation-level** detail for **this controller** specifically.
+> Per HAS §5.4 for the family-wide config philosophy. This MAS chapter is the **implementation-level** detail for **this controller** specifically: which CSR fields select DDR2-vs-LPDDR2 behavior and which fields are present-but-inert on this generation.
+>
+> The controller is a two-family design (DDR2 + LPDDR2). The single most important family selector is `PHY_TIMING.memtype` (0 = DDR2, 1 = LPDDR2), which `pumice_top` maps to the core's `memtype_i` and which the init sequencer and DFI command formatter branch on. There is **no** separate family capability vector register; `ID` @ 0xFF0 echoes the build's memtype and phase count.
 
 ---
 
-## Implementation Status in This Controller
+## The Family Selector: `PHY_TIMING.memtype`
 
-The HAS-side registry enumerates 25+ bits that span DDR2/3/4 and LPDDR2/3/4 controllers. This controller implements the subset relevant to DDR2/LPDDR2. Bits flagged for higher generations are present in the CSR map at the documented offsets but **read as 0 and silently ignore writes**.
+| memtype | Family | What it changes                                                                 |
+|---------|--------|---------------------------------------------------------------------------------|
+| 0       | DDR2   | `init_sequencer` runs the DDR2 MRS/precharge/refresh chain; `dfi_cmd_formatter` drives the DDR2 RAS/CAS/WE command bus |
+| 1       | LPDDR2 | `init_sequencer` runs the LPDDR2 MRW chain (MR63/MR10/MR1/MR2/MR3); `dfi_cmd_formatter` packs the JESD209-2F CA-bus word onto `dfi_address` |
 
-## Bit-by-Bit Implementation Notes (DDR2 / LPDDR2)
+`memtype` is set before init and left fixed (see §4.3). DDR2 is the board target; LPDDR2 is the family-reuse path. Both pass the full sim suite.
 
-### SCHED_TUNING family
+## Field-by-Field Applicability
 
-| Bit                     | This controller                                              |
-|-------------------------|--------------------------------------------------------------|
-| `lookahead_active`      | Live; drives `scheduler.cfg_lookahead_active_i` (§2.7)    |
-| `force_inorder`         | Live; drives `scheduler.cfg_force_inorder_i`              |
-| `happy_enable`          | Live when `PAGE_POLICY == HAPPY_HYBRID`; reads as 0 otherwise (the FUB isn't synthesized) |
-| `age_max_runtime`       | Live; clipped to `≤ AGE_MAX` build-time parameter             |
-| `txn_queue_high_water`  | Live; drives backpressure threshold                           |
-| `lookahead_max_obs`     | RO echo of build-time `LOOKAHEAD_DEPTH_MAX`                   |
-| `qos_high_priority`     | **Sampled but no behavior in v1**; reserved for v2 QoS feature |
-| `bank_group_balance`    | **Reads as 0**; DDR2/LPDDR2 has no bank groups                |
+Fields below are the real CSR fields in `rtl/macro/pumice_csr.rdl` (see §4.2). "DDR2 / LPDDR2" notes whether the field is meaningful on each family in this build.
 
-### REFRESH_TUNING family
+### SCHED_TUNING (0x040)
 
-| Bit                       | This controller                                                |
-|---------------------------|----------------------------------------------------------------|
-| `refpb_policy_or`         | Live for LPDDR2 builds; reads as 0 in DDR2 builds (no REFpb)   |
-| `page_policy_or`          | Live; drives `scheduler` page-policy fallback                  |
-| `refresh_defer_active`    | Live; clipped to `≤ REFRESH_DEFER_MAX` build-time              |
-| `zqcs_freq_hz`            | Live; drives periodic ZQCS timer                                |
-| `fgr_mode`                | **Reads as 0**; FGR is DDR3+ feature                            |
-| `refresh_per_rank`        | Tied to 1 when `NUM_RANKS > 1`; reads as 0 at NR=1              |
+| Field                  | Applicability                                                        |
+|------------------------|----------------------------------------------------------------------|
+| `lookahead_active`     | Both; scheduler lookahead window (0 disables)                        |
+| `force_inorder`        | Both; forces first-ready FIFO ordering                               |
+| `happy_enable`         | Both, only meaningful when the HAPPY predictor is synthesized/selected |
+| `age_max_runtime`      | Both; anti-starvation AGE_MAX override                               |
+| `txn_queue_high_water` | Both; backpressure threshold                                        |
+| `lookahead_max_obs`    | RO echo of build-time LOOKAHEAD_DEPTH_MAX                            |
 
-### ADDR_MAP_TUNING family
+### REFRESH_TUNING (0x048)
 
-| Bit                       | This controller                                                |
-|---------------------------|----------------------------------------------------------------|
-| `scheme_or`               | Live; drives `addr_mapper.scheme_active_i` (§2.3)           |
-| `synth_mask_obs`          | RO echo of build-time `ADDR_MAP_SCHEMES_SYNTH`                 |
-| `bg_field_position`       | **Reads as 0**; bank groups are DDR4+ feature                  |
-| `xor_seed_runtime`        | Live when XOR_HASH scheme is synthesized                        |
+| Field                  | Applicability                                                        |
+|------------------------|----------------------------------------------------------------------|
+| `page_policy_or`       | Both; drives `page_policy_i` (00 build-time, 01 OPEN, 10 CLOSE, 11 HAPPY_HYBRID) |
+| `refresh_defer_active` | Both; refresh deferral / batching count                             |
+| `zqcs_freq_hz`         | Both; periodic ZQCS interval (DDR2 has no ZQCL, but ZQCS calibration short is JEDEC) |
+| `refpb_policy_or`      | **LPDDR2-relevant** (per-bank refresh); DDR2 uses all-bank REFab only |
 
-### INIT_TUNING family
+### ADDR_MAP (0x04C) — family-agnostic
 
-| Bit                       | This controller                                                |
-|---------------------------|----------------------------------------------------------------|
-| `zq_retries`              | Live; drives `init_engine.cfg_zq_retries_i` (§2.12)             |
-| `init_timeout_ms`         | Live; drives per-step timeout                                  |
-| `wl_retries`              | **Reads as 0**; write-leveling is DDR3+ feature                |
-| `mpr_enable`              | **Reads as 0**; MPR is DDR3+ feature                            |
-| `ca_train_enable`         | **Reads as 0**; CA training is LPDDR3+ feature                  |
-| `cbt_enable`              | **Reads as 0**; CBT is LPDDR4-only feature                      |
+| Field       | Applicability                                                               |
+|-------------|-----------------------------------------------------------------------------|
+| `bank_lsb`  | Both; the single address-map knob. `= COL_WIDTH` -> ROW_MAJOR; smaller -> interleave. No scheme selector exists. |
+| `hash_en`   | Both; enables the bank XOR-hash (the old XOR_HASH "scheme")                  |
+| `hash_seed` | Both; XOR-hash seed                                                         |
 
-### POWER_TUNING family
+DDR2/LPDDR2 have no bank groups, so there is no bank-group field. The retired `ADDR_MAP_TUNING` register (with `scheme_or` / `synth_mask_obs` / `xor_seed_runtime`) does not exist; all address mapping is the `ADDR_MAP` register above.
 
-| Bit                       | This controller                                                |
-|---------------------------|----------------------------------------------------------------|
-| `apd_idle_threshold`      | Live; drives `power_state_fub.cfg_apd_idle_threshold_i`         |
-| `srf_idle_threshold`      | Live; drives `power_state_fub.cfg_srf_idle_threshold_i`         |
-| `dpd_enable`              | Live for LPDDR2 builds; reads as 0 in DDR2 builds              |
-| `pasr_active`             | RO; OR over per-rank PASR masks (LPDDR2 only)                   |
-| `ckedis_after_sr`         | **Reads as 0**; DDR3+ feature                                   |
-| `low_freq_mode`           | **Reads as 0**; DDR3+ feature                                   |
+### INIT_TUNING (0x050) / INIT_TIMING0/1 (0x058/0x05C)
 
-### RANK_TUNING family
+| Field                                     | Applicability                                                |
+|-------------------------------------------|--------------------------------------------------------------|
+| `zq_retries`, `init_timeout_ms`           | Both                                                         |
+| `t_init_wait`, `t_dll_wait`               | Both; on LPDDR2 the sequencer reuses `t_init_wait` for tINIT4 and `t_dll_wait` for tZQINIT (see §5.1) |
+| `t_mrd_wait`, `t_rp_wait`, `t_rfc_wait`   | DDR2 uses all three; LPDDR2 reuses `t_mrd_wait` for post-MRW (`t_rp_wait`/`t_rfc_wait` are inert on the LPDDR2 chain) |
 
-| Bit                       | This controller                                                |
-|---------------------------|----------------------------------------------------------------|
-| `rank_enable_mask`        | Live; drives per-rank scheduler enable                          |
-| `odt_rule_or`             | Live; drives `odt_ctrl_fub.cfg_odt_rule_or_i` (§2.16)            |
-| `num_ranks_obs`           | RO echo of build-time `NUM_RANKS`                              |
-| `cs_assert_cycles`        | Live; drives per-command CS_n hold cycles in `cmd_encoder`      |
+### PHY_TIMING (0x064)
 
-### ECC_TUNING family (reserved)
+| Field           | Applicability                                                             |
+|-----------------|---------------------------------------------------------------------------|
+| `memtype`       | The family selector (above)                                              |
+| `t_phy_wrlat`   | Both; WR cmd -> dfi_wrdata_en (0 = a7ddrphy pre-pull)                     |
+| `t_rddata_en`   | Both; RD cmd -> dfi_rddata_en window                                     |
+| `refresh_burst` | Both; REFs drained per request                                           |
 
-| Bit                       | This controller                                                |
-|---------------------------|----------------------------------------------------------------|
-| `ecc_enable`              | **Reads as 0**; inline ECC out of scope for v1                  |
-| `ecc_correct_mode`        | **Reads as 0**                                                  |
+### LPDDR2-only registers
 
-## Capability Vector at 0xFF8 (This Build)
+| Register                          | Applicability                                             |
+|-----------------------------------|-----------------------------------------------------------|
+| `PASR_BANK_MASK_RANK0` (0x030)    | LPDDR2 partial-array self-refresh (MR16); inert on DDR2   |
+| `PASR_SEG_MASK_RANK0` (0x034)     | LPDDR2 PASR segment mask; inert on DDR2                    |
+| `TEMP_DERATE_RANK0` (0x038)       | LPDDR2 MR4 temperature class (RO); inert on DDR2          |
+| `TIMINGS_CL_CWL_WR.tRFCpb`        | LPDDR2 per-bank tRFC; unused by DDR2                      |
+| `CTRL.pwr_req_dpd`                | LPDDR2 Deep Power Down request; inert on DDR2             |
 
-The capability vector advertises what this controller supports:
+## Feature Discovery
 
-| Bits  | Field             | Value (DDR2 single-rank build)         | Value (LPDDR2 4-rank build)     |
-|-------|-------------------|----------------------------------------|---------------------------------|
-| 0     | `cap_happy`       | 1 if `PAGE_POLICY == HAPPY_HYBRID`     | 1 if `PAGE_POLICY == HAPPY_HYBRID` |
-| 1     | `cap_bg_balance`  | 0 (DDR2 has no bank groups)            | 0 (LPDDR2 has no bank groups)   |
-| 2     | `cap_fgr`         | 0                                       | 0                                |
-| 3     | `cap_pasr`        | 0                                       | 1                                |
-| 4     | `cap_dpd`         | 0                                       | 1                                |
-| 5     | `cap_wl`          | 0                                       | 0                                |
-| 6     | `cap_cbt`         | 0                                       | 0                                |
-| 7     | `cap_xor_hash`    | 1 if XOR_HASH is in `ADDR_MAP_SCHEMES_SYNTH` | same                       |
-| 11:8  | `cap_max_ranks`   | 1                                       | 4                                |
-| 15:12 | `cap_n_phases`    | 4 (default)                            | 4                                |
-| 19:16 | `cap_memtype`     | 0 (DDR2)                                | 4 (LPDDR2)                       |
+There is no `0xFF8` capability vector in this RDL. Software identifies the build via the `ID` register at 0xFF0:
 
-Software queries this once at boot to know what to write — writing un-capable bits is silently ignored (reads as 0).
+| Bits  | Field       | Meaning                            |
+|-------|-------------|------------------------------------|
+| 7:0   | `version`   | Build version (0x01)               |
+| 15:8  | `memtype`   | Build memtype echo (0 DDR2 / 1 LPDDR2) |
+| 23:16 | `n_phases`  | Gear ratio (1 / 2 / 4)             |
+| 31:24 | `module_id` | Fixed 0xD2                         |
 
-## Soft-N/A Behavior Summary
+Note the `ID.memtype` field is a build-time echo (default reflects the DDR2 build); the **runtime** family select is `PHY_TIMING.memtype`, which software programs before init.
 
-The "soft-N/A" mechanism — writes to un-capable bits silently ignored, no `pslverr` — is deliberate. It lets the same SoC software (e.g., a Linux kernel driver) write the family-wide config word on any flavor and have the un-applicable bits drop without error. This is the same approach taken by family-wide config registers in commercial controllers.
+## Not Present in This Generation
 
-Exceptions (where `pslverr` IS returned, per §4.1):
-
-- Writes to rank N where `N >= NUM_RANKS` (per-rank registers)
-- Writes to address-map scheme not in `ADDR_MAP_SCHEMES_SYNTH`
-- Writes to `RANK_TUNING.odt_rule_or` with un-synthesized rule
-
-These are caught at decode time because they reference resources that don't exist at all in the build.
+The following belong to higher DDR/LPDDR generations and have **no** field in this controller's CSR map: fine-granularity refresh (FGR), write-leveling, MPR, CA training, command-bus training (CBT), bank groups, and inline ECC. They were speculative entries in an earlier family registry and are omitted here rather than tied off.
 
 ## Open Questions / Future Work
 
-- **`cap_qos`.** v2 QoS feature would add a `cap_qos` bit. Reserve bit 23 of `0xFF8` for it.
-- **Capability discovery vs. memory-mapped probe.** Some SoCs prefer to probe memory-mapped capabilities; others trust a single capability word. The current single-word approach is the documented pattern; we keep it.
-- **Per-family vs. per-component capability.** Currently the capability vector tells software what THIS controller supports. A finer-grained per-component vector would let software check, e.g., "does the scheduler have a specific feature." Punt — current granularity is sufficient.
+- **Multi-rank family fields.** PASR/temperature registers are declared for rank 0 only; a `NUM_RANKS` loop in the RDL would add `*_RANK{N}`.
+- **Capability register.** If a family capability vector proves useful for a generic SoC driver, it can be re-added as an RO register; for now `ID` carries the essentials.
+- **DPD power-state path.** `CTRL.pwr_req_dpd` is defined; the LPDDR2 DPD entry/exit datapath is a follow-up (see §5.2).

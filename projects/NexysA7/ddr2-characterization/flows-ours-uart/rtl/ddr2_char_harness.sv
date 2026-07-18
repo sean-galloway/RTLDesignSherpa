@@ -68,6 +68,7 @@ module ddr2_char_harness
     // narrower than the host bus. DRAM_BEAT_WIDTH defaults to AXI (GEAR=1);
     // ddr2_char_top overrides to 32 for the x16 a7ddrphy (AXI=64, rate=4).
     parameter int DRAM_BEAT_WIDTH     = AXI_DATA_WIDTH,
+    parameter int DRAM_DEVICE_WIDTH   = DRAM_BEAT_WIDTH,  // physical DRAM x-width (x16=>16)
     parameter int DFI_RATE            = 2,
     // Bus widths are phase-packed: width = per-phase-width * DFI_RATE. These
     // must track DFI_RATE (were hardcoded at the rate-2 values).
@@ -76,7 +77,12 @@ module ddr2_char_harness
     parameter int DFI_CTRL_BUS_W      = DFI_RATE,
     parameter int DFI_CS_BUS_W        = DFI_RATE,
     parameter int DFI_DATA_WIDTH      = DFI_RATE * DRAM_BEAT_WIDTH,
-    parameter int DFI_STRB_WIDTH      = DFI_DATA_WIDTH / 8
+    parameter int DFI_STRB_WIDTH      = DFI_DATA_WIDTH / 8,
+    // Max runtime-selectable DFI command-bus delay (sys-cycles). The ACTUAL
+    // delay is set at runtime via the DFI_TUNING.cmd_delay CSR (real-time
+    // tuning, no rebuild) to align the WR command with write data for the
+    // a7ddrphy's write_latency=0. See dfi_cmd_delay.
+    parameter int CMD_MAX_DELAY       = 8
 ) (
     // Clock / reset (aclk = mc_clk = pclk = 100 MHz on the Nexys A7 board)
     input  logic                        aclk,
@@ -361,6 +367,9 @@ module ddr2_char_harness
     logic [7:0]   w_t_phy_wrlat, w_t_rddata_en;
     logic         w_rd_in_order;
     logic [3:0]   w_cap_lookahead_max, w_cap_synth_mask;
+    logic [3:0]   w_cmd_delay_sel;   // DFI_TUNING.cmd_delay (runtime, from CSR)
+    logic [3:0]   w_rddata_delay_sel;// DFI_TUNING.rddata_delay (runtime, from CSR)
+    (* mark_debug = "true" *) logic [DFI_DATA_WIDTH-1:0] w_dfi_rddata_dly; // PHY rddata realigned to valid (ILA-probed vs raw + valid)
 
     // WR engine cfg
     logic [AXI_ADDR_WIDTH-1:0]        w_cfg_wr_start_addr;
@@ -481,6 +490,8 @@ module ddr2_char_harness
         .o_rd_in_order       (w_rd_in_order),
         .o_cap_lookahead_max (w_cap_lookahead_max),
         .o_cap_synth_mask    (w_cap_synth_mask),
+        .o_cmd_delay         (w_cmd_delay_sel),
+        .o_rddata_delay      (w_rddata_delay_sel),
 
         // a7ddrphy calibration CSR passthrough -> harness boundary -> top -> PHY
         .o_phy_csr_adr       (o_phy_csr_adr),
@@ -600,16 +611,45 @@ module ddr2_char_harness
     );
 
     // =========================================================================
+    // Datapath soft-reset (CTRL.soft_reset). harness_csr emits a 1-cycle
+    // pulse; stretch it into a short synchronous reset window that re-resets
+    // the pumice controller + pattern engines (mc domain) so a wedged / stuck
+    // read can be recovered over UART WITHOUT reprogramming. The control plane
+    // (UART bridge + 1->N bridge + harness_csr + trace SRAMs) stays on
+    // unit_aresetn, so the very transaction that issues soft_reset survives and
+    // the engine/controller cfg registers (held in harness_csr) persist.
+    // Previously w_soft_reset_pulse was unconnected — soft_reset was a no-op.
+    // =========================================================================
+    logic [3:0] r_soft_rst_cnt;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn)                    r_soft_rst_cnt <= 4'd0;
+        else if (w_soft_reset_pulse)     r_soft_rst_cnt <= 4'd15;   // stretch
+        else if (r_soft_rst_cnt != 4'd0) r_soft_rst_cnt <= r_soft_rst_cnt - 4'd1;
+    end
+    logic dp_aresetn;   // datapath reset: power-on reset OR soft-reset window
+    assign dp_aresetn = unit_aresetn & (r_soft_rst_cnt == 4'd0);
+
+    // =========================================================================
     // ddr2_char_macro — the DUT (writer + reader + controller top)
     // =========================================================================
     logic w_bresp_error, w_rresp_error, w_data_error;
     logic w_rd_dbg_valid, w_rd_dbg_ready, w_rd_dbg_mismatch;
     logic [AXI_DATA_WIDTH-1:0] w_rd_dbg_actual, w_rd_dbg_expected;
 
+    // Controller DFI command outputs (pre-delay). The command bus is delayed by
+    // CMD_DELAY (in dfi_cmd_delay below) to land concurrent with the undelayed
+    // write data, satisfying the a7ddrphy write_latency=0 contract.
+    logic [DFI_ADDR_BUS_W-1:0] w_c_dfi_address;
+    logic [DFI_BANK_BUS_W-1:0] w_c_dfi_bank;
+    logic [DFI_CTRL_BUS_W-1:0] w_c_dfi_cas_n, w_c_dfi_ras_n, w_c_dfi_we_n;
+    logic [DFI_CS_BUS_W-1:0]   w_c_dfi_cs_n, w_c_dfi_cke, w_c_dfi_odt;
+    logic [DFI_RATE-1:0]       w_c_dfi_rddata_en;
+
     ddr2_char_macro #(
         .AXI_ADDR_WIDTH   (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH   (AXI_DATA_WIDTH),
         .DRAM_BEAT_WIDTH  (DRAM_BEAT_WIDTH),
+        .DRAM_DEVICE_WIDTH(DRAM_DEVICE_WIDTH),
         .DFI_RATE         (DFI_RATE),
         .AXI_ID_WIDTH     (AXI_ID_WIDTH),
         .AXI_USER_WIDTH   (AXI_USER_WIDTH),
@@ -617,9 +657,11 @@ module ddr2_char_harness
         .APB_ADDR_WIDTH   (APB_ADDR_WIDTH),
         .APB_DATA_WIDTH   (APB_DATA_WIDTH)
     ) u_dut (
-        // clocks / resets (single-domain: aclk drives everything)
+        // clocks / resets (single-domain: aclk drives everything).
+        // mc side takes the datapath reset so CTRL.soft_reset clears a wedged
+        // read + re-runs DRAM init; presetn/config stays up (host re-programs).
         .mc_clk   (aclk),
-        .mc_rst_n (unit_aresetn),
+        .mc_rst_n (dp_aresetn),
         .pclk     (aclk),
         .presetn  (unit_aresetn),
 
@@ -686,20 +728,22 @@ module ddr2_char_harness
         .s_apb_PRDATA  (apb_prdata),
         .s_apb_PSLVERR (apb_pslverr),
 
-        // DFI — routed to top boundary
-        .dfi_address_o          (o_dfi_address),
-        .dfi_bank_o             (o_dfi_bank),
-        .dfi_cas_n_o            (o_dfi_cas_n),
-        .dfi_ras_n_o            (o_dfi_ras_n),
-        .dfi_we_n_o             (o_dfi_we_n),
-        .dfi_cs_n_o             (o_dfi_cs_n),
-        .dfi_cke_o              (o_dfi_cke),
-        .dfi_odt_o              (o_dfi_odt),
+        // DFI — command bus goes through dfi_cmd_delay (below) to align with
+        // write data (write_latency=0); wrdata path is undelayed.
+        .dfi_address_o          (w_c_dfi_address),
+        .dfi_bank_o             (w_c_dfi_bank),
+        .dfi_cas_n_o            (w_c_dfi_cas_n),
+        .dfi_ras_n_o            (w_c_dfi_ras_n),
+        .dfi_we_n_o             (w_c_dfi_we_n),
+        .dfi_cs_n_o             (w_c_dfi_cs_n),
+        .dfi_cke_o              (w_c_dfi_cke),
+        .dfi_odt_o              (w_c_dfi_odt),
         .dfi_wrdata_o           (o_dfi_wrdata),
         .dfi_wrdata_mask_o      (o_dfi_wrdata_mask),
         .dfi_wrdata_en_o        (o_dfi_wrdata_en),
-        .dfi_rddata_en_o        (o_dfi_rddata_en),
-        .dfi_rddata_i           (i_dfi_rddata),
+        .dfi_rddata_en_o        (w_c_dfi_rddata_en),
+        // rddata realigned to the late a7ddrphy rddata_valid via dfi_rddata_delay.
+        .dfi_rddata_i           (w_dfi_rddata_dly),
         .dfi_rddata_valid_i     (i_dfi_rddata_valid),
         .dfi_dram_clk_disable_o (o_dfi_dram_clk_disable),
         .dfi_init_start_o       (o_dfi_init_start),
@@ -745,6 +789,52 @@ module ddr2_char_harness
         .perf_rd_hist_total   (w_obs_rd_hist_total)
     );
 
+    dfi_cmd_delay #(
+        .DFI_ADDR_BUS_W (DFI_ADDR_BUS_W),
+        .DFI_BANK_BUS_W (DFI_BANK_BUS_W),
+        .DFI_CTRL_BUS_W (DFI_CTRL_BUS_W),
+        .DFI_CS_BUS_W   (DFI_CS_BUS_W),
+        .DFI_RATE       (DFI_RATE),
+        .MAX_DELAY      (CMD_MAX_DELAY)
+    ) u_dfi_cmd_delay (
+        .mc_clk      (aclk),
+        .mc_rst_n    (aresetn),
+        .sel_i       (w_cmd_delay_sel[$clog2(CMD_MAX_DELAY+1)-1:0]),
+        .i_address   (w_c_dfi_address),
+        .i_bank      (w_c_dfi_bank),
+        .i_cas_n     (w_c_dfi_cas_n),
+        .i_ras_n     (w_c_dfi_ras_n),
+        .i_we_n      (w_c_dfi_we_n),
+        .i_cs_n      (w_c_dfi_cs_n),
+        .i_cke       (w_c_dfi_cke),
+        .i_odt       (w_c_dfi_odt),
+        .i_rddata_en (w_c_dfi_rddata_en),
+        .o_address   (o_dfi_address),
+        .o_bank      (o_dfi_bank),
+        .o_cas_n     (o_dfi_cas_n),
+        .o_ras_n     (o_dfi_ras_n),
+        .o_we_n      (o_dfi_we_n),
+        .o_cs_n      (o_dfi_cs_n),
+        .o_cke       (o_dfi_cke),
+        .o_odt       (o_dfi_odt),
+        .o_rddata_en (o_dfi_rddata_en)
+    );
+
+    // Read-side mirror of dfi_cmd_delay: realign the a7ddrphy read DATA (which
+    // the on-silicon ILA showed leads its rddata_valid by ~read_latency cycles)
+    // with the late valid, so pumice's valid-gated rd_cl_aligner captures the
+    // right beats. sel=0 -> passthrough. See project_ddr2_ila_read_valid_skew.
+    dfi_rddata_delay #(
+        .DFI_DATA_WIDTH (DFI_DATA_WIDTH),
+        .MAX_DELAY      (15)
+    ) u_dfi_rddata_delay (
+        .mc_clk   (aclk),
+        .mc_rst_n (aresetn),
+        .sel_i    (w_rddata_delay_sel),
+        .i_rddata (i_dfi_rddata),
+        .o_rddata (w_dfi_rddata_dly)
+    );
+
     assign w_rd_dbg_ready = 1'b1;   // always accept
     assign w_wr_error     = w_bresp_error;
     assign w_rd_error     = w_rresp_error | w_data_error | w_rd_dbg_mismatch;
@@ -761,9 +851,21 @@ module ddr2_char_harness
     logic        r_running, r_done;
     logic [63:0] r_w_first, r_w_last, r_r_first, r_r_last;
     logic        r_w_first_valid, r_r_first_valid;
+    logic        r_w_last_valid, r_r_last_valid;
+    // Which engines were kicked in the CURRENT window (level, until clear). The
+    // timer stops when every KICKED engine is done, so a single-engine scenario
+    // (write-only or read-only) bounds correctly instead of free-running while
+    // it waits on an engine that never ran this window (or is stale-done from a
+    // prior scenario). Both-engine scenarios still stop only when both are done.
+    logic        r_wr_kicked, r_rd_kicked;
 
     logic run_start;
     assign run_start = w_start_wr_pulse | w_start_rd_pulse;
+
+    logic w_all_kicked_done;
+    assign w_all_kicked_done = (r_wr_kicked | r_rd_kicked)          // >=1 kicked
+                             & (~r_wr_kicked | w_wr_done)           // wr: n/a or done
+                             & (~r_rd_kicked | w_rd_done);          // rd: n/a or done
 
     `ALWAYS_FF_RST(aclk, unit_aresetn,
         if (`RST_ASSERTED(unit_aresetn)) begin
@@ -774,6 +876,10 @@ module ddr2_char_harness
             r_r_first       <= '0; r_r_last <= '0;
             r_w_first_valid <= 1'b0;
             r_r_first_valid <= 1'b0;
+            r_w_last_valid  <= 1'b0;
+            r_r_last_valid  <= 1'b0;
+            r_wr_kicked     <= 1'b0;
+            r_rd_kicked     <= 1'b0;
         end else if (w_timer_clear_pulse) begin
             r_cycles        <= '0;
             r_running       <= 1'b0;
@@ -782,32 +888,47 @@ module ddr2_char_harness
             r_r_first       <= '0; r_r_last <= '0;
             r_w_first_valid <= 1'b0;
             r_r_first_valid <= 1'b0;
+            r_w_last_valid  <= 1'b0;
+            r_r_last_valid  <= 1'b0;
+            r_wr_kicked     <= 1'b0;
+            r_rd_kicked     <= 1'b0;
         end else begin
-            // Start on first kick, keep running until both engines done
+            // Track which engines were kicked this window.
+            if (w_start_wr_pulse) r_wr_kicked <= 1'b1;
+            if (w_start_rd_pulse) r_rd_kicked <= 1'b1;
+
+            // Start on first kick; run until all kicked engines are done.
             if (run_start && !r_running) r_running <= 1'b1;
+
+            // First-cycle stamps on the kick (r_cycles is 0 just after clear).
+            // Latched OUTSIDE the r_running guard so the kick cycle (when
+            // r_running is still being set) is not missed.
+            if (w_start_wr_pulse && !r_w_first_valid) begin
+                r_w_first       <= r_cycles;
+                r_w_first_valid <= 1'b1;
+            end
+            if (w_start_rd_pulse && !r_r_first_valid) begin
+                r_r_first       <= r_cycles;
+                r_r_first_valid <= 1'b1;
+            end
 
             if (r_running) begin
                 r_cycles <= r_cycles + 64'd1;
 
-                // First-beat stamps: sample the first cycle each engine's
-                // done signal is deasserted-and-cfg-was-just-started. In
-                // practice the engine goes busy the cycle after cfg_start
-                // asserts. Use run_start as the first-cycle proxy.
-                if (w_start_wr_pulse && !r_w_first_valid) begin
-                    r_w_first       <= r_cycles;
-                    r_w_first_valid <= 1'b1;
+                // Last stamp on the FIRST done edge of each engine (done is a
+                // held level; capturing once ends the window at completion, not
+                // wherever the other engine happens to finish).
+                if (w_wr_done && !r_w_last_valid) begin
+                    r_w_last       <= r_cycles;
+                    r_w_last_valid <= 1'b1;
                 end
-                if (w_start_rd_pulse && !r_r_first_valid) begin
-                    r_r_first       <= r_cycles;
-                    r_r_first_valid <= 1'b1;
+                if (w_rd_done && !r_r_last_valid) begin
+                    r_r_last       <= r_cycles;
+                    r_r_last_valid <= 1'b1;
                 end
 
-                // Last-beat stamp: latch the cycle each engine reports done.
-                if (w_wr_done) r_w_last <= r_cycles;
-                if (w_rd_done) r_r_last <= r_cycles;
-
-                // Timer transitions to done when both engines report done.
-                if (w_wr_done && w_rd_done) begin
+                // Done when every engine that was kicked reports done.
+                if (w_all_kicked_done) begin
                     r_running <= 1'b0;
                     r_done    <= 1'b1;
                 end
@@ -892,7 +1013,6 @@ module ddr2_char_harness
         end
     endgenerate
     wire _unused_ok = &{1'b0,
-        w_soft_reset_pulse,
         w_timer_expected_beats,
         w_rd_resp_delay_cyc, w_wr_resp_delay_cyc,
         w_rd_dbg_valid, w_rd_dbg_actual, w_rd_dbg_expected,

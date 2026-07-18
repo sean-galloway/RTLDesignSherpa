@@ -551,7 +551,7 @@ the AXI masters).
 
 This is the worked example proper: 11 STREAM FUBs, 144 rows total, one
 row per `(FUB, port)` pair.  Walking
-[`rtl/fub/stream_latency_bridge.sv`](../stream/rtl/fub/stream_latency_bridge.sv)
+[`rtl/fub/stream_latency_bridge.sv`](../../components/dmas/stream/rtl/fub/stream_latency_bridge.sv)
 by hand gave the first ten rows; the other ten FUBs were filled in the
 same way.
 

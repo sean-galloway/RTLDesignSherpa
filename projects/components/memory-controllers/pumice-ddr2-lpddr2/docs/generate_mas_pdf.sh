@@ -17,9 +17,9 @@ set -euo pipefail
 # ------------------------------------------------------------
 
 # Default values
-REV="0.1"
-ASSETS="ddr2_lpddr2_mas/assets"
-MAS_INDEX="ddr2_lpddr2_mas/ddr2_lpddr2_mas_index.md"
+REV="0.4"
+ASSETS="pumice_mas/assets"
+MAS_INDEX="pumice_mas/pumice_mas_index.md"
 
 # md_to_docx.py lives in the RTLDesignSherpa repo, not this directory.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -144,7 +144,7 @@ echo "------------------------------------------------------------"
 
 python3 "${MD2DOCX}" \
   "${MAS_INDEX}" "${OUTPUT_DOCX}" \
-  --style "ddr2_lpddr2_mas/ddr2_lpddr2_mas_styles.yaml" \
+  --style "pumice_mas/pumice_mas_styles.yaml" \
   --expand-index \
   --skip-index-content \
   --toc \

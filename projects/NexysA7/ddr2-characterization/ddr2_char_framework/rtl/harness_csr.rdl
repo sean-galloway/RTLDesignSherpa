@@ -1,0 +1,215 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 sean galloway
+//
+// DDR2/LPDDR2 Characterization Harness CSR — PeakRDL source (DESCRIPTOR ONLY)
+//
+// This RDL mirrors the HAND-WRITTEN register map in harness_csr.sv. The RTL is
+// NOT generated from this file — harness_csr.sv contains self-clearing pulse
+// bits, latches, and the a7ddrphy CSR indirect passthrough (0x80..0x8C) that
+// PeakRDL regblock cannot express. This RDL exists so the host/sim flow gets
+// by-name register access via bin/TBClasses/apb/register_map.RegisterMap, the
+// same methodology pumice uses (rtl/macro/pumice_csr.rdl).
+//
+// Keep in sync with harness_csr.sv; a host consistency test parses the SV
+// header table and asserts it matches the generated regmap.
+//
+// Regenerate the regmap collateral (regmap only, no RTL/docs):
+//   cd $REPO_ROOT && source env_python
+//   python3 bin/peakrdl_generate.py \
+//       projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/harness_csr.rdl \
+//       --regmap --docs-only --no-html --no-markdown \
+//       --regmap-output projects/NexysA7/ddr2-characterization/ddr2_char_framework/dv/tbclasses/harness_csr_regmap.py
+//
+// Address space: harness_csr base = 0x0001_0000 in the bridge map; offsets
+// below are relative to that base. 32-bit registers, little-endian.
+
+addrmap harness_csr {
+    name = "DDR2/LPDDR2 Characterization Harness CSR";
+    desc = "Control/status/engine-cfg/observability registers for the char harness";
+
+    default regwidth = 32;
+    default accesswidth = 32;
+    default alignment = 4;
+
+    //=========================================================================
+    // Reusable register types
+    //=========================================================================
+    reg word_ro_t { desc = "32-bit read-only word";
+        field { sw = r;  hw = w; } value[31:0] = 0; };
+    reg word_rw_t { desc = "32-bit read-write word";
+        field { sw = rw; hw = r; } value[31:0] = 0; };
+
+    // Engine cfg register types (shared WR/RD layout, distinct instance names)
+    reg blen_txn_t {
+        desc = "burst_len / txn_count / inter-burst gap";
+        field { sw = rw; hw = r; } burst_len[7:0]   = 0;
+        field { sw = rw; hw = r; } txn_count[23:8]  = 0;
+        field { sw = rw; hw = r; } gap[27:24]        = 0;
+    };
+    reg axi_attr_t {
+        desc = "AXI id/id_mode/size/burst/data_mode";
+        field { sw = rw; hw = r; } axi_id[7:0]    = 0;
+        field { sw = rw; hw = r; } id_mode[9:8]   = 0;
+        field { sw = rw; hw = r; } axi_size[12:10]= 0;
+        field { sw = rw; hw = r; } axi_burst[14:13]= 0;
+        field { sw = rw; hw = r; } data_mode[15:15]= 0;
+    };
+
+    //=========================================================================
+    // Harness control / status (0x00..0x24)
+    //=========================================================================
+    reg {
+        desc = "Harness control (all bits self-clearing pulses except freeze_trace)";
+        field { sw = rw; hw = r; } start_wr[0:0]     = 0;
+        field { sw = rw; hw = r; } start_rd[1:1]     = 0;
+        field { sw = rw; hw = r; } clear_stats[2:2]  = 0;
+        field { sw = rw; hw = r; } freeze_trace[3:3] = 0;
+        field { sw = rw; hw = r; } soft_reset[4:4]   = 0;
+    } CTRL @ 0x00;
+
+    reg {
+        desc = "Harness status";
+        field { sw = r; hw = w; } wr_done[0:0]        = 0;
+        field { sw = r; hw = w; } rd_done[1:1]        = 0;
+        field { sw = r; hw = w; } wr_error[2:2]       = 0;
+        field { sw = r; hw = w; } rd_error[3:3]       = 0;
+        field { sw = r; hw = w; } any_error[4:4]      = 0;
+        field { sw = r; hw = w; } dbg_clear_busy[5:5] = 0;
+        field { sw = r; hw = w; } init_done[6:6]      = 0;
+        field { sw = r; hw = w; } init_fail[7:7]      = 0;
+    } STATUS @ 0x04;
+
+    word_ro_t DBG_WR_PTR   @ 0x08;
+    reg { desc = "Sticky trace-overflow flag";
+        field { sw = r; hw = w; } overflow[0:0] = 0; } DBG_OVERFLOW @ 0x0C;
+    word_ro_t CRC_EXPECTED @ 0x10;
+    word_ro_t CRC_ACTUAL   @ 0x14;
+    reg {
+        desc = "CRC comparison result";
+        field { sw = r; hw = w; } match[0:0]         = 0;
+        field { sw = r; hw = w; } exp_valid[1:1]     = 0;
+        field { sw = r; hw = w; } act_valid[2:2]     = 0;
+        field { sw = r; hw = w; } beats_mism_nz[3:3] = 0;
+    } CRC_MATCH @ 0x18;
+    word_rw_t SCRATCH  @ 0x1C;
+    reg { desc = "Parameter-driven build ID (ASCII DDR2)";
+        field { sw = r; hw = w; } value[31:0] = 0x44445232; } BUILD_ID @ 0x20;
+    word_ro_t BEATS_MISM @ 0x24;
+
+    //=========================================================================
+    // Characterization timer (0x28..0x5C)
+    //=========================================================================
+    reg { desc = "Timer control (clear pulse)";
+        field { sw = rw; hw = r; } clear[0:0] = 0; } TIMER_CTRL @ 0x28;
+    reg {
+        desc = "Timer status";
+        field { sw = r; hw = w; } done[0:0]    = 0;
+        field { sw = r; hw = w; } running[1:1] = 0;
+        field { sw = r; hw = w; } pass[2:2]    = 0;
+    } TIMER_STATUS @ 0x2C;
+    word_ro_t TIMER_CYCLES_LO @ 0x30;
+    word_ro_t TIMER_CYCLES_HI @ 0x34;
+    word_rw_t TIMER_EXP_BEATS @ 0x38;
+    reg {
+        desc = "AXI response-delay knobs";
+        field { sw = rw; hw = r; } rd_delay[15:0]  = 0;
+        field { sw = rw; hw = r; } wr_delay[31:16] = 0;
+    } RESP_DELAY @ 0x3C;
+    word_ro_t TIMER_R_FIRST_LO @ 0x40;
+    word_ro_t TIMER_R_FIRST_HI @ 0x44;
+    word_ro_t TIMER_R_LAST_LO  @ 0x48;
+    word_ro_t TIMER_R_LAST_HI  @ 0x4C;
+    word_ro_t TIMER_W_FIRST_LO @ 0x50;
+    word_ro_t TIMER_W_FIRST_HI @ 0x54;
+    word_ro_t TIMER_W_LAST_LO  @ 0x58;
+    word_ro_t TIMER_W_LAST_HI  @ 0x5C;
+
+    //=========================================================================
+    // Runtime controller cfg (0x60..0x64)
+    //=========================================================================
+    reg {
+        desc = "Controller runtime cfg";
+        field { sw = rw; hw = r; } memtype[0:0]      = 0;
+        field { sw = rw; hw = r; } t_phy_wrlat[15:8] = 0;
+        field { sw = rw; hw = r; } t_rddata_en[23:16]= 0;
+        field { sw = rw; hw = r; } rd_in_order[24:24]= 0;
+    } CTRLR_CFG @ 0x60;
+    reg {
+        desc = "Capture lookahead / synth mask";
+        field { sw = rw; hw = r; } cap_lookahead_max[3:0] = 0;
+        field { sw = rw; hw = r; } cap_synth_mask[7:4]    = 0;
+    } CTRLR_CAP @ 0x64;
+    reg {
+        desc = "DFI harness timing tuning (real-time, no rebuild). cmd_delay =
+                sys-cycles the DFI command bus + rddata_en are delayed to align
+                the WR command with write data (a7ddrphy write_latency=0). With
+                pumice pre-pull (PREPULL_EN) the skew is a fixed 1-cycle pipeline
+                offset -> default 1. rddata_delay = sys-cycles dfi_rddata is
+                delayed to realign the a7ddrphy read data (presented early,
+                coincident with rddata_en) with its late rddata_valid; set to the
+                PHY read_latency (~8 for DDR2/CL3/nphases=2), default 0 =
+                passthrough. Tune both live on the board if needed.";
+        field { sw = rw; hw = r; } cmd_delay[3:0]    = 1;
+        field { sw = rw; hw = r; } rddata_delay[7:4] = 0;
+    } DFI_TUNING @ 0x68;
+
+    //=========================================================================
+    // a7ddrphy calibration CSR passthrough (indirect; firmware leveling)
+    //=========================================================================
+    reg { desc = "a7ddrphy CSR word index (the knob)";
+        field { sw = rw; hw = r; } addr[9:0] = 0; } PHY_CSR_ADDR @ 0x80;
+    word_rw_t PHY_CSR_WDATA @ 0x84;
+    reg { desc = "Pulse -> drive one a7ddrphy CSR-bus write";
+        field { sw = rw; hw = r; } pulse[0:0] = 0; } PHY_CSR_CTRL @ 0x88;
+    word_ro_t PHY_CSR_RDATA @ 0x8C;
+
+    //=========================================================================
+    // WR engine cfg (0x100..0x128)
+    //=========================================================================
+    word_rw_t  WR_START_ADDR  @ 0x100;
+    word_rw_t  WR_STRIDE_0     @ 0x104;
+    word_rw_t  WR_STRIDE_1     @ 0x108;
+    word_rw_t  WR_WRAP_MASK_0  @ 0x10C;
+    word_rw_t  WR_WRAP_MASK_1  @ 0x110;
+    blen_txn_t WR_BLEN_TXN     @ 0x114;
+    axi_attr_t WR_AXI_ATTR     @ 0x118;
+    word_rw_t  WR_LFSR_SEED    @ 0x11C;
+    word_rw_t  WR_HASH_SEED0   @ 0x120;
+    word_rw_t  WR_HASH_SEED1   @ 0x124;
+    word_rw_t  WR_HASH_SEED2   @ 0x128;
+
+    //=========================================================================
+    // RD engine cfg (0x180..0x1A8) — mirror of WR
+    //=========================================================================
+    word_rw_t  RD_START_ADDR  @ 0x180;
+    word_rw_t  RD_STRIDE_0     @ 0x184;
+    word_rw_t  RD_STRIDE_1     @ 0x188;
+    word_rw_t  RD_WRAP_MASK_0  @ 0x18C;
+    word_rw_t  RD_WRAP_MASK_1  @ 0x190;
+    blen_txn_t RD_BLEN_TXN     @ 0x194;
+    axi_attr_t RD_AXI_ATTR     @ 0x198;
+    word_rw_t  RD_LFSR_SEED    @ 0x19C;
+    word_rw_t  RD_HASH_SEED0   @ 0x1A0;
+    word_rw_t  RD_HASH_SEED1   @ 0x1A4;
+    word_rw_t  RD_HASH_SEED2   @ 0x1A8;
+
+    //=========================================================================
+    // Perf observability (0x1C0..0x1E8)
+    //=========================================================================
+    word_ro_t OBS_RD_PROD  @ 0x1C0;
+    word_ro_t OBS_RD_BP    @ 0x1C4;
+    word_ro_t OBS_RD_STARV @ 0x1C8;
+    word_ro_t OBS_RD_IDLE  @ 0x1CC;
+    word_ro_t OBS_WR_PROD  @ 0x1D0;
+    word_ro_t OBS_WR_BP    @ 0x1D4;
+    word_ro_t OBS_WR_STARV @ 0x1D8;
+    word_ro_t OBS_WR_IDLE  @ 0x1DC;
+    reg {
+        desc = "Indexed histogram selector";
+        field { sw = rw; hw = r; } bus[0:0]    = 0;
+        field { sw = rw; hw = r; } metric[1:1] = 0;
+        field { sw = rw; hw = r; } bin[5:2]     = 0;
+    } OBS_HIST_SEL @ 0x1E0;
+    word_ro_t OBS_HIST_COUNT @ 0x1E4;
+    word_ro_t OBS_HIST_TOTAL @ 0x1E8;
+};

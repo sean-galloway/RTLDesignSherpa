@@ -50,6 +50,9 @@ repo_root = script_dir.parent.parent.parent.parent.parent
 sys.path.insert(0, str(repo_root / 'projects' / 'components' / 'converters' / 'bin'))
 sys.path.insert(0, str(script_dir))
 
+from harness_addrs import H  # noqa: E402  (by-name harness CSR access)
+from harness_addrs import autodetect_port  # noqa: E402  (shared ttyUSB probe)
+from harness_addrs import harness_regs  # noqa: E402  (by-name harness field access)
 import mon_configs as mon_cfg  # noqa: E402  (named monitor presets)
 
 from descriptor_builder import (
@@ -62,63 +65,49 @@ from descriptor_builder import (
 # =========================================================================
 # Harness CSR addresses
 # =========================================================================
-CSR_CTRL            = HARNESS_CSR_BASE + 0x00
-CSR_STATUS          = HARNESS_CSR_BASE + 0x04
+CSR_CTRL            = H("CTRL")
+CSR_STATUS          = H("STATUS")
 # Response-delay knob -- per-beat hold time injected on R and B channels
 # by the axi_response_delay blocks. [15:0]=rd_delay, [31:16]=wr_delay,
 # in aclk cycles. 0 = bypass.
-CSR_RESP_DELAY      = HARNESS_CSR_BASE + 0x3C
-CSR_DBG_WR_PTR     = HARNESS_CSR_BASE + 0x08
-CSR_DBG_OVERFLOW    = HARNESS_CSR_BASE + 0x0C
-CSR_CRC_RD_EXPECTED = HARNESS_CSR_BASE + 0x10
-CSR_CRC_WR_EXPECTED = HARNESS_CSR_BASE + 0x14
-CSR_CRC_WR_COMPUTED = HARNESS_CSR_BASE + 0x18
-CSR_CRC_MATCH       = HARNESS_CSR_BASE + 0x1C
+CSR_RESP_DELAY      = H("RESP_DELAY")
+CSR_DBG_WR_PTR     = H("DBG_WR_PTR")
+CSR_DBG_OVERFLOW    = H("DBG_OVERFLOW")
+CSR_CRC_RD_EXPECTED = H("CRC_RD_EXPECTED")
+CSR_CRC_WR_EXPECTED = H("CRC_WR_EXPECTED")
+CSR_CRC_WR_COMPUTED = H("CRC_WR_COMPUTED")
+CSR_CRC_MATCH       = H("CRC_MATCH")
 # Per-channel CRC verification (multi-channel)
-CSR_CRC_RD_PER_CH_BASE = HARNESS_CSR_BASE + 0x60
-CSR_CRC_WR_PER_CH_BASE = HARNESS_CSR_BASE + 0x80
-CSR_CRC_VALID_MASK     = HARNESS_CSR_BASE + 0xA0
-CSR_CRC_MATCH_MASK     = HARNESS_CSR_BASE + 0xA4
-# Kick-burst fast path. KICK_GO sits at 0xC0 (in the middle of the kick-addr
-# slot range), so the per-channel kick-address slots are split into two banks:
-#   ch 0..3 -> 0xB0/0xB4/0xB8/0xBC  (4-byte stride from 0xB0)
-#   ch 4..7 -> 0xC4/0xC8/0xCC/0xD0  (4-byte stride from 0xC4)
-# A naive `4*ch` stride hits 0xC0 for ch=4 and writes the kick address into
-# KICK_GO -- it pulses a spurious kick for whichever channels the LSBs happen
-# to encode and never delivers the real address for channels >= 4. Use the
-# kick_addr_csr() helper below instead of the bare base + 4*ch.
-CSR_KICK_GO            = HARNESS_CSR_BASE + 0xC0
-
-def kick_addr_csr(ch: int) -> int:
-    """CSR address for the per-channel kick-address shadow register.
-
-    Skips the 0xC0 KICK_GO slot so the 8-channel layout is unambiguous.
-    """
-    if ch < 4:
-        return HARNESS_CSR_BASE + 0xB0 + 4 * ch          # ch 0..3
-    return HARNESS_CSR_BASE + 0xC4 + 4 * (ch - 4)        # ch 4..7
-CSR_SCRATCH         = HARNESS_CSR_BASE + 0x20
-CSR_BUILD_ID        = HARNESS_CSR_BASE + 0x24
+CSR_CRC_RD_PER_CH_BASE = H("CRC_RD_PER_CH0")
+CSR_CRC_WR_PER_CH_BASE = H("CRC_WR_PER_CH0")
+CSR_CRC_VALID_MASK     = H("CRC_VALID_MASK")
+CSR_CRC_MATCH_MASK     = H("CRC_MATCH_MASK")
+# Kick-burst fast path — single source of truth in harness_kick.py.
+# (kick_addr_csr splits the per-channel slots around the 0xC0 KICK_GO slot;
+# batch_kick() programs the addresses then writes the go bit.)
+from harness_kick import CSR_KICK_GO, kick_addr_csr, batch_kick  # noqa: E402,F401
+CSR_SCRATCH         = H("SCRATCH")
+CSR_BUILD_ID        = H("BUILD_ID")
 
 # Harness timer (the right "DMA is done" signal). The IRQ-on-completion
 # path is not wired by default -- descriptors don't set CTRL_INTERRUPT
 # and no monbus packet type is routed to the err FIFO at boot. The timer
 # fires when the write-side beat count reaches TIMER_EXPECTED_BEATS.
-CSR_TIMER_CTRL          = HARNESS_CSR_BASE + 0x28  # W: bit 0 = clear pulse
-CSR_TIMER_STATUS        = HARNESS_CSR_BASE + 0x2C  # R: [0]=done [1]=running [2]=pass
-CSR_TIMER_CYCLES_LO     = HARNESS_CSR_BASE + 0x30
-CSR_TIMER_CYCLES_HI     = HARNESS_CSR_BASE + 0x34
-CSR_TIMER_EXPECTED_BEATS= HARNESS_CSR_BASE + 0x38  # RW: stop when sink beat >= this
+CSR_TIMER_CTRL          = H("TIMER_CTRL") # W: bit 0 = clear pulse
+CSR_TIMER_STATUS        = H("TIMER_STATUS") # R: [0]=done [1]=running [2]=pass
+CSR_TIMER_CYCLES_LO     = H("TIMER_CYCLES_LO")
+CSR_TIMER_CYCLES_HI     = H("TIMER_CYCLES_HI")
+CSR_TIMER_EXPECTED_BEATS= H("TIMER_EXPECTED_BEATS") # RW: stop when sink beat >= this
 
 # Per-engine first/last beat cycle stamps (steady-state datapath window).
-CSR_TIMER_R_FIRST_LO    = HARNESS_CSR_BASE + 0x40
-CSR_TIMER_R_FIRST_HI    = HARNESS_CSR_BASE + 0x44
-CSR_TIMER_R_LAST_LO     = HARNESS_CSR_BASE + 0x48
-CSR_TIMER_R_LAST_HI     = HARNESS_CSR_BASE + 0x4C
-CSR_TIMER_W_FIRST_LO    = HARNESS_CSR_BASE + 0x50
-CSR_TIMER_W_FIRST_HI    = HARNESS_CSR_BASE + 0x54
-CSR_TIMER_W_LAST_LO     = HARNESS_CSR_BASE + 0x58
-CSR_TIMER_W_LAST_HI     = HARNESS_CSR_BASE + 0x5C
+CSR_TIMER_R_FIRST_LO    = H("TIMER_R_FIRST_LO")
+CSR_TIMER_R_FIRST_HI    = H("TIMER_R_FIRST_HI")
+CSR_TIMER_R_LAST_LO     = H("TIMER_R_LAST_LO")
+CSR_TIMER_R_LAST_HI     = H("TIMER_R_LAST_HI")
+CSR_TIMER_W_FIRST_LO    = H("TIMER_W_FIRST_LO")
+CSR_TIMER_W_FIRST_HI    = H("TIMER_W_FIRST_HI")
+CSR_TIMER_W_LAST_LO     = H("TIMER_W_LAST_LO")
+CSR_TIMER_W_LAST_HI     = H("TIMER_W_LAST_HI")
 
 # (The harness axi_bus_meter readback bases at HARNESS_CSR_BASE + 0x100 / 0x180
 #  were retired in RFC Stage E.4 -- datapath utilization is now read in-core via
@@ -131,36 +120,28 @@ DATA_WIDTH_BYTES = 16
 
 EXPECTED_BUILD_ID   = 0x5354_5243
 
-# STREAM APB registers — from projects/components/stream/rtl/stream_regmap.py
-APB_GLOBAL_CTRL         = STREAM_APB_BASE + 0x100
-APB_CHANNEL_ENABLE      = STREAM_APB_BASE + 0x120
-APB_CHANNEL_RESET       = STREAM_APB_BASE + 0x124
-APB_SCHED_TIMEOUT_CYC   = STREAM_APB_BASE + 0x200
-APB_SCHED_CONFIG        = STREAM_APB_BASE + 0x204
-APB_DESCENG_CONFIG      = STREAM_APB_BASE + 0x220
-APB_DESCENG_ADDR0_BASE  = STREAM_APB_BASE + 0x224
-APB_DESCENG_ADDR0_LIMIT = STREAM_APB_BASE + 0x228
-APB_DESCENG_ADDR1_BASE  = STREAM_APB_BASE + 0x22C
-APB_DESCENG_ADDR1_LIMIT = STREAM_APB_BASE + 0x230
-APB_AXI_XFER_CONFIG     = STREAM_APB_BASE + 0x2A0
-APB_CH_KICK_BASE        = STREAM_APB_BASE + 0x000
-APB_CH_KICK_STRIDE      = 0x08
-
-# Monitor configuration. The RDL default leaves PKT_MASK = 0xFFFF which
-# DROPS every packet type at monbus entry -- so the trace SRAM stays
-# empty and the whole monitor system is dark on every run unless we
-# explicitly clear masks + enable the monitors. The cocotb TB does this
-# (stream_char_tb.py); the runner missed it until now, which is why
-# every prior FPGA sweep reported "Trace: 0 packets, overflow=no".
-APB_DAXMON_ENABLE       = STREAM_APB_BASE + 0x240
-APB_DAXMON_PKT_MASK     = STREAM_APB_BASE + 0x24C
-APB_DAXMON_ERR_CFG      = STREAM_APB_BASE + 0x250
-APB_RDMON_ENABLE        = STREAM_APB_BASE + 0x260
-APB_RDMON_PKT_MASK      = STREAM_APB_BASE + 0x26C
-APB_RDMON_ERR_CFG       = STREAM_APB_BASE + 0x270
-APB_WRMON_ENABLE        = STREAM_APB_BASE + 0x280
-APB_WRMON_PKT_MASK      = STREAM_APB_BASE + 0x28C
-APB_WRMON_ERR_CFG       = STREAM_APB_BASE + 0x290
+# STREAM APB registers — addresses resolved BY NAME from the regmap (never a
+# hardcoded STREAM_APB_BASE + 0x.. offset), and writes below go through
+# _stream_write_reg(..., FIELD=..) so register fields are set individually by
+# name. The RDL default also leaves monitor PKT_MASK = 0xFFFF which DROPS every
+# packet type at monbus entry -- so the trace SRAM stays empty and the whole
+# monitor system is dark on every run unless we explicitly clear masks + enable
+# the monitors (mirrors the cocotb TB, stream_char_tb.py).
+from stream_addrs import A as _A   # noqa: E402 (addresses by name; never hardcode)
+from stream_addrs import write_reg as _stream_write_reg  # noqa: E402 (fields by name)
+# Read-side aliases only (status snapshot / reset pulse); all register WRITES use
+# _stream_write_reg("NAME", FIELD=..) so nothing is a hand-assembled bitmask.
+APB_CHANNEL_RESET       = _A("CHANNEL_RESET")
+APB_GLOBAL_CTRL         = _A("GLOBAL_CTRL")
+APB_DAXMON_ENABLE       = _A("DAXMON_ENABLE")
+APB_DAXMON_PKT_MASK     = _A("DAXMON_PKT_MASK")
+APB_DAXMON_ERR_CFG      = _A("DAXMON_ERR_CFG")
+APB_RDMON_ENABLE        = _A("RDMON_ENABLE")
+APB_RDMON_PKT_MASK      = _A("RDMON_PKT_MASK")
+APB_RDMON_ERR_CFG       = _A("RDMON_ERR_CFG")
+APB_WRMON_ENABLE        = _A("WRMON_ENABLE")
+APB_WRMON_PKT_MASK      = _A("WRMON_PKT_MASK")
+APB_WRMON_ERR_CFG       = _A("WRMON_ERR_CFG")
 
 # WRMON_ENABLE.COMPRESS_EN (bit 5): 1 = compress the monbus write stream,
 # 0 = raw 3-beat records. Only effective on a USE_MON_COMPRESSION=1 build.
@@ -200,11 +181,16 @@ class CharacterizationRunner:
                  verbose: bool = False, mon_config: str = None,
                  poll_interval_s: float = 0.001,
                  aclk_hz: float = 100_000_000.0,
-                 compression: bool = True):
+                 compression: bool = True,
+                 rd_prefetch: bool = True):
         self.bridge = bridge
         self.builder = DescriptorBuilder(data_width=data_width)
         self.verbose = verbose
         self.results = []
+        # Scheduler read-ahead descriptor prefetch (SCHED_CONFIG.RD_PREFETCH_EN).
+        # Default on (matches the regmap reset); --rd-prefetch off runs the
+        # lockstep A/B on the same bitstream.
+        self.rd_prefetch = rd_prefetch
         # Runtime monbus compression toggle. Drives WRMON_ENABLE.COMPRESS_EN
         # (bit 5) after the monitor cones are programmed. Only meaningful on
         # a USE_MON_COMPRESSION=1 bitstream (compressor hardware present);
@@ -262,7 +248,7 @@ class CharacterizationRunner:
 
     def clear_stats(self):
         """Clear CRC/LFSR state and debug trace pointer."""
-        self.bridge.write(CSR_CTRL, 0x02)  # clear_stats pulse
+        harness_regs(self.bridge).CTRL.write(CLEAR_STATS=1)  # clear-stats pulse
         time.sleep(0.01)
 
     def cam_clear(self):
@@ -270,7 +256,7 @@ class CharacterizationRunner:
         template CAM + its stat counters, and the monitor transaction CAMs.
         Use between compress runs (when idle) to reset compression statistics
         without a full soft-reset that would strand in-flight transactions."""
-        self.bridge.write(CSR_CTRL, 0x10)  # cam_clear pulse (CTRL bit 4)
+        harness_regs(self.bridge).CTRL.write(CAM_CLEAR=1)  # cam-clear pulse
         time.sleep(0.01)
 
     def set_resp_delay(self, rd_cyc: int, wr_cyc: int) -> None:
@@ -337,25 +323,32 @@ class CharacterizationRunner:
         `channels` is the explicit list of physical channels to enable (e.g.
         [0,1,2] or [2,5,7]); the channel-enable mask is the OR of those bits.
         """
-        # Scheduler config
-        sched_cfg = 0x0F  # SCHED_EN + TIMEOUT_EN + ERR_EN + COMPL_EN
-        self.bridge.write(APB_SCHED_CONFIG, sched_cfg)
+        # Scheduler config -- set fields individually by name, then write the
+        # register (never a hand-assembled bitmask: it silently drifts when the
+        # RDL changes, e.g. RD_PREFETCH_EN was added at bit 5). RD_PREFETCH_EN
+        # (read-ahead descriptor prefetch) is gated by self.rd_prefetch so the
+        # on/off A/B runs on the same bitstream (--rd-prefetch off for lockstep).
+        _stream_write_reg(self.bridge, "SCHED_CONFIG",
+                          SCHED_EN=1, TIMEOUT_EN=1, ERR_EN=1, COMPL_EN=1,
+                          RD_PREFETCH_EN=1 if self.rd_prefetch else 0)
         # SCHED_TIMEOUT_CYCLES is a 32-bit field. The earlier 0x0FFFFFFF
         # (28-bit = ~2.68 s) was too tight for deep descriptor chains
         # (16 desc x 1 MB) -- every such config in the matrix timed out
         # because cumulative inter-descriptor stall exceeded the budget on
         # at least one channel. Bump to the field maximum (~42.9 s @ 100 MHz)
         # so the scheduler doesn't bail before the chain naturally completes.
-        self.bridge.write(APB_SCHED_TIMEOUT_CYC, 0xFFFFFFFF)  # 32-bit max, ~42.9s @ 100MHz
+        _stream_write_reg(self.bridge, "SCHED_TIMEOUT_CYCLES",
+                          TIMEOUT_CYCLES=0xFFFFFFFF)  # 32-bit max, ~42.9s @ 100MHz
 
-        # Descriptor engine config
-        self.bridge.write(APB_DESCENG_CONFIG, 0x01)  # DESCENG_EN
+        # Descriptor engine config (fields by name; was the 0x23 bitmask).
+        _stream_write_reg(self.bridge, "DESCENG_CONFIG",
+                          DESCENG_EN=1, PREFETCH_EN=1, FIFO_THRESH=8)
 
         # Address ranges (full 32-bit space)
-        self.bridge.write(APB_DESCENG_ADDR0_BASE,  0x0000_0000)
-        self.bridge.write(APB_DESCENG_ADDR0_LIMIT, 0xFFFF_FFFF)
-        self.bridge.write(APB_DESCENG_ADDR1_BASE,  0x0000_0000)
-        self.bridge.write(APB_DESCENG_ADDR1_LIMIT, 0xFFFF_FFFF)
+        _stream_write_reg(self.bridge, "DESCENG_ADDR0_BASE",  ADDR0_BASE=0x0000_0000)
+        _stream_write_reg(self.bridge, "DESCENG_ADDR0_LIMIT", ADDR0_LIMIT=0xFFFF_FFFF)
+        _stream_write_reg(self.bridge, "DESCENG_ADDR1_BASE",  ADDR1_BASE=0x0000_0000)
+        _stream_write_reg(self.bridge, "DESCENG_ADDR1_LIMIT", ADDR1_LIMIT=0xFFFF_FFFF)
 
         # AXI burst config: ARLEN (beats-1) for rd [7:0] and wr [15:8]. This is
         # the size of an INDIVIDUAL AXI transaction (the rd/wr xfer-beats config
@@ -365,8 +358,9 @@ class CharacterizationRunner:
         import os as _os
         _rb = int(_os.environ.get('XFER_BEATS_RD', _os.environ.get('XFER_BEATS', '16')))
         _wb = int(_os.environ.get('XFER_BEATS_WR', _os.environ.get('XFER_BEATS', '16')))
-        axi_cfg = ((_rb - 1) & 0xFF) | (((_wb - 1) & 0xFF) << 8)
-        self.bridge.write(APB_AXI_XFER_CONFIG, axi_cfg)
+        _stream_write_reg(self.bridge, "AXI_XFER_CONFIG",
+                          RD_XFER_BEATS=(_rb - 1) & 0xFF,
+                          WR_XFER_BEATS=(_wb - 1) & 0xFF)
 
         # Unblock the monbus monitors so packets actually flow out into
         # debug_sram (and the err FIFO IRQ path). RDL default leaves
@@ -407,13 +401,13 @@ class CharacterizationRunner:
 
         # Global enable + channels. The mask is the OR of the selected physical
         # channels (contiguous 0..N-1 by default, or an explicit subset).
-        self.bridge.write(APB_GLOBAL_CTRL, 0x01)
+        _stream_write_reg(self.bridge, "GLOBAL_CTRL", GLOBAL_EN=1)
         ch_mask = 0
         for ch in channels:
             ch_mask |= (1 << ch)
-        self.bridge.write(APB_CHANNEL_ENABLE, ch_mask)
-        self.vlog(f"  STREAM configured: sched=0x{sched_cfg:02X}, "
-                  f"desceng=0x01, axi=0x{axi_cfg:04X}, ch_mask=0x{ch_mask:02X} "
+        _stream_write_reg(self.bridge, "CHANNEL_ENABLE", CH_EN=ch_mask)
+        self.vlog(f"  STREAM configured: rd_prefetch={'on' if self.rd_prefetch else 'off'}, "
+                  f"axi_beats rd={_rb} wr={_wb}, ch_mask=0x{ch_mask:02X} "
                   f"(channels {channels})")
 
     def kick_channels(self, kick_addresses: dict):
@@ -603,7 +597,7 @@ class CharacterizationRunner:
         # Pulse-clear the timer counter + first/last latches, then arm the
         # stop trigger. Order matters: clear first so a stale stop from a
         # previous run can't immediately re-latch done.
-        self.bridge.write(CSR_TIMER_CTRL, 0x1)
+        harness_regs(self.bridge).TIMER_CTRL.write(CLEAR=1)  # pulse-clear
         self.bridge.write(CSR_TIMER_EXPECTED_BEATS, expected_beats)
         self.vlog(f"  Timer armed: expected_beats={expected_beats} "
                   f"(= {total_bytes} bytes / {DATA_WIDTH_BYTES} B/beat)")
@@ -711,15 +705,16 @@ class CharacterizationRunner:
     # field block in stream_regs.rdl exposes each engine's outstanding /
     # transaction-count / state-machine snapshots over the APB; reading
     # them on a TIMEOUT tells us which engine got stuck and where.
+    # Status registers, addressed BY NAME (never STREAM_APB_BASE + 0x..).
     _STREAM_STATUS_REGS = [
-        ("GLOBAL_STATUS",     STREAM_APB_BASE + 0x104),
-        ("CHANNEL_ENABLE",    STREAM_APB_BASE + 0x120),
-        ("CHANNEL_IDLE",      STREAM_APB_BASE + 0x140),
-        ("DESC_ENGINE_IDLE",  STREAM_APB_BASE + 0x144),
-        ("SCHEDULER_IDLE",    STREAM_APB_BASE + 0x148),
-        ("AXI_RD_COMPLETE",   STREAM_APB_BASE + 0x174),
-        ("AXI_WR_COMPLETE",   STREAM_APB_BASE + 0x178),
-        ("SCHED_ERROR",       STREAM_APB_BASE + 0x170),
+        ("GLOBAL_STATUS",     _A("GLOBAL_STATUS")),
+        ("CHANNEL_ENABLE",    _A("CHANNEL_ENABLE")),
+        ("CHANNEL_IDLE",      _A("CHANNEL_IDLE")),
+        ("DESC_ENGINE_IDLE",  _A("DESC_ENGINE_IDLE")),
+        ("SCHEDULER_IDLE",    _A("SCHEDULER_IDLE")),
+        ("AXI_RD_COMPLETE",   _A("AXI_RD_COMPLETE")),
+        ("AXI_WR_COMPLETE",   _A("AXI_WR_COMPLETE")),
+        ("SCHED_ERROR",       _A("SCHED_ERROR")),
     ]
 
     def _snapshot_on_hang(self, result: dict) -> None:
@@ -800,7 +795,7 @@ class CharacterizationRunner:
         resets per-channel state inside STREAM; it does not reset the
         monitors, the SRAM controller, or any harness sub-block.
         """
-        self.bridge.write(CSR_CTRL, 0x08)   # bit 3 = soft_reset_pulse
+        harness_regs(self.bridge).CTRL.write(SOFT_RESET=1)  # soft-reset pulse
         time.sleep(0.05)
 
     # -----------------------------------------------------------------
@@ -901,8 +896,8 @@ class CharacterizationRunner:
         # window auto-closed when the datapath went idle); if it reads 1 the
         # auto-close did not fire and the buckets are contaminated.
         try:
-            rd_wa = self.bridge.read(STREAM_APB_BASE + 0x304) & 0x1
-            wr_wa = self.bridge.read(STREAM_APB_BASE + 0x334) & 0x1
+            rd_wa = self.bridge.read(_A("RDMON_PERF_STATUS")) & 0x1  # WIN_ACTIVE
+            wr_wa = self.bridge.read(_A("WRMON_PERF_STATUS")) & 0x1
             self.log(f"  [perf-window] WIN_ACTIVE (RUN still high): "
                      f"RD={rd_wa} WR={wr_wa} (0 = auto-closed in hardware)")
         except Exception as _e:
@@ -1108,8 +1103,10 @@ Examples:
   %(prog)s --port /dev/ttyUSB0 -v             # different port, verbose
   %(prog)s --output results.json              # save results to JSON
 """)
-    parser.add_argument('--port', default='/dev/ttyUSB1',
-                        help='Serial port (default: /dev/ttyUSB1)')
+    parser.add_argument('--port', default='auto',
+                        help="Serial port. Default 'auto' probes every /dev/ttyUSB* "
+                             "for the stream harness (SCRATCH round-trip) since the "
+                             "USB-UART re-enumerates. Pass an explicit path to force it.")
     parser.add_argument('--baud', type=int, default=115200,
                         help='Baud rate (default: 115200)')
     parser.add_argument('--mon-config', dest='mon_config',
@@ -1124,6 +1121,12 @@ Examples:
                              'on=compress the bulk-trace stream, off=raw 3-beat '
                              'records. Only effective on a USE_MON_COMPRESSION=1 '
                              'bitstream. Default: on.')
+    parser.add_argument('--rd-prefetch', dest='rd_prefetch',
+                        choices=['on', 'off'], default='on',
+                        help='Scheduler read-ahead descriptor prefetch '
+                             '(SCHED_CONFIG.RD_PREFETCH_EN). on=cross-descriptor '
+                             'streaming (bubble-free chains), off=lockstep. Same '
+                             'bitstream either way; use for the on/off A/B. Default: on.')
     parser.add_argument('--phase', type=int, choices=[1, 2],
                         help='Run only phase 1 or phase 2')
     parser.add_argument('--configs', nargs='+',
@@ -1262,14 +1265,19 @@ def main():
     # Lazy import — pyserial only needed for real FPGA runs
     from uart_axi_bridge import UARTAxiBridge
 
+    # Resolve the serial port. The USB-UART re-enumerates (ttyUSB index is not
+    # stable), so 'auto' (the default) probes every /dev/ttyUSB* for the harness.
+    port = autodetect_port(args.baud, want=args.port)
+
     # Run
-    with UARTAxiBridge(args.port, args.baud) as bridge:
+    with UARTAxiBridge(port, args.baud) as bridge:
         runner = CharacterizationRunner(
             bridge, data_width=128, verbose=args.verbose,
             mon_config=args.mon_config,
             poll_interval_s=args.poll_interval_ms / 1000.0,
             aclk_hz=args.aclk_mhz * 1_000_000.0,
-            compression=(args.compression == 'on'))
+            compression=(args.compression == 'on'),
+            rd_prefetch=(args.rd_prefetch == 'on'))
         if args.resp_delays:
             rd = [int(s, 0) for s in args.resp_delays.split(',') if s.strip()]
             if args.resp_delays_wr:

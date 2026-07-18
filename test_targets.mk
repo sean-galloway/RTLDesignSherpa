@@ -239,124 +239,124 @@ coverage-val-integ-amba:
 .PHONY: test-stream
 test-stream:
 	@echo "=== stream FUNC (parallel) ==="
-	@cd projects/components/stream/dv/tests && TEST_LEVEL=func $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/dmas/stream/dv/tests && TEST_LEVEL=func $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-stream-gate
 test-stream-gate:
 	@echo "=== stream GATE (parallel) ==="
-	@cd projects/components/stream/dv/tests && TEST_LEVEL=gate $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/dmas/stream/dv/tests && TEST_LEVEL=gate $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-stream-func
 test-stream-func:
 	@echo "=== stream FUNC (parallel) ==="
-	@cd projects/components/stream/dv/tests && TEST_LEVEL=func $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/dmas/stream/dv/tests && TEST_LEVEL=func $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-stream-full
 test-stream-full:
 	@echo "=== stream FULL (parallel) ==="
-	@cd projects/components/stream/dv/tests && TEST_LEVEL=full $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/dmas/stream/dv/tests && TEST_LEVEL=full $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-stream-gate-waves
 test-stream-gate-waves:
 	@echo "=== stream GATE (parallel + waves) ==="
-	@cd projects/components/stream/dv/tests && TEST_LEVEL=gate WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/dmas/stream/dv/tests && TEST_LEVEL=gate WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-stream-func-waves
 test-stream-func-waves:
 	@echo "=== stream FUNC (parallel + waves) ==="
-	@cd projects/components/stream/dv/tests && TEST_LEVEL=func WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/dmas/stream/dv/tests && TEST_LEVEL=func WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-stream-full-waves
 test-stream-full-waves:
 	@echo "=== stream FULL (parallel + waves) ==="
-	@cd projects/components/stream/dv/tests && TEST_LEVEL=full WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/dmas/stream/dv/tests && TEST_LEVEL=full WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-stream-gate-serial
 test-stream-gate-serial:
 	@echo "=== stream GATE (serial) ==="
-	@cd projects/components/stream/dv/tests && TEST_LEVEL=gate $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/dmas/stream/dv/tests && TEST_LEVEL=gate $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-stream-func-serial
 test-stream-func-serial:
 	@echo "=== stream FUNC (serial) ==="
-	@cd projects/components/stream/dv/tests && TEST_LEVEL=func $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/dmas/stream/dv/tests && TEST_LEVEL=func $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-stream-full-serial
 test-stream-full-serial:
 	@echo "=== stream FULL (serial) ==="
-	@cd projects/components/stream/dv/tests && TEST_LEVEL=full $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/dmas/stream/dv/tests && TEST_LEVEL=full $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: coverage-stream
 coverage-stream:
 	@echo "=== stream coverage ==="
-	@$(MAKE) -C projects/components/stream/dv/tests fresh-coverage
+	@$(MAKE) -C projects/components/dmas/stream/dv/tests fresh-coverage
 
 .PHONY: coverage-report-stream
 coverage-report-stream:
 	@echo "=== stream coverage report ==="
-	@$(MAKE) -C projects/components/stream/dv/tests coverage-report
+	@$(MAKE) -C projects/components/dmas/stream/dv/tests coverage-report
 
 # --- rapids: RAPIDS descriptor-driven accelerator ---
 
 .PHONY: test-rapids
 test-rapids:
 	@echo "=== rapids FUNC (parallel) ==="
-	@cd projects/components/rapids/dv/tests && REG_LEVEL=FUNC $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/dmas/rapids/dv/tests && REG_LEVEL=FUNC $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-rapids-gate
 test-rapids-gate:
 	@echo "=== rapids GATE (parallel) ==="
-	@cd projects/components/rapids/dv/tests && REG_LEVEL=GATE $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/dmas/rapids/dv/tests && REG_LEVEL=GATE $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-rapids-func
 test-rapids-func:
 	@echo "=== rapids FUNC (parallel) ==="
-	@cd projects/components/rapids/dv/tests && REG_LEVEL=FUNC $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/dmas/rapids/dv/tests && REG_LEVEL=FUNC $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-rapids-full
 test-rapids-full:
 	@echo "=== rapids FULL (parallel) ==="
-	@cd projects/components/rapids/dv/tests && REG_LEVEL=FULL $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/dmas/rapids/dv/tests && REG_LEVEL=FULL $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-rapids-gate-waves
 test-rapids-gate-waves:
 	@echo "=== rapids GATE (parallel + waves) ==="
-	@cd projects/components/rapids/dv/tests && REG_LEVEL=GATE WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/dmas/rapids/dv/tests && REG_LEVEL=GATE WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-rapids-func-waves
 test-rapids-func-waves:
 	@echo "=== rapids FUNC (parallel + waves) ==="
-	@cd projects/components/rapids/dv/tests && REG_LEVEL=FUNC WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/dmas/rapids/dv/tests && REG_LEVEL=FUNC WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-rapids-full-waves
 test-rapids-full-waves:
 	@echo "=== rapids FULL (parallel + waves) ==="
-	@cd projects/components/rapids/dv/tests && REG_LEVEL=FULL WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/dmas/rapids/dv/tests && REG_LEVEL=FULL WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-rapids-gate-serial
 test-rapids-gate-serial:
 	@echo "=== rapids GATE (serial) ==="
-	@cd projects/components/rapids/dv/tests && REG_LEVEL=GATE $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/dmas/rapids/dv/tests && REG_LEVEL=GATE $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-rapids-func-serial
 test-rapids-func-serial:
 	@echo "=== rapids FUNC (serial) ==="
-	@cd projects/components/rapids/dv/tests && REG_LEVEL=FUNC $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/dmas/rapids/dv/tests && REG_LEVEL=FUNC $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-rapids-full-serial
 test-rapids-full-serial:
 	@echo "=== rapids FULL (serial) ==="
-	@cd projects/components/rapids/dv/tests && REG_LEVEL=FULL $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/dmas/rapids/dv/tests && REG_LEVEL=FULL $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: coverage-rapids
 coverage-rapids:
 	@echo "=== rapids coverage ==="
-	@$(MAKE) -C projects/components/rapids/dv/tests coverage-full-report
+	@$(MAKE) -C projects/components/dmas/rapids/dv/tests coverage-full-report
 
 .PHONY: coverage-report-rapids
 coverage-report-rapids:
 	@echo "=== rapids coverage report ==="
-	@$(MAKE) -C projects/components/rapids/dv/tests coverage-report
+	@$(MAKE) -C projects/components/dmas/rapids/dv/tests coverage-report
 
 # --- bridge: AXI4 crossbar bridge (sequential only — ~1GB per test) ---
 

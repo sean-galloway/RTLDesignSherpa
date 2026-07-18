@@ -20,7 +20,7 @@ read -formal -sv formal_stream_drain_ctrl.sv
 prep -top formal_stream_drain_ctrl
 
 [files]
-stream_drain_ctrl.sv ../../../projects/components/stream/rtl/fub/stream_drain_ctrl.sv
+stream_drain_ctrl.sv ../../../projects/components/dmas/stream/rtl/fub/stream_drain_ctrl.sv
 counter_bin.sv ../../../rtl/common/counter_bin.sv
 fifo_control.sv ../../../rtl/common/fifo_control.sv
 formal_stream_drain_ctrl.sv

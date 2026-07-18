@@ -21,130 +21,94 @@
 
 <!-- End Header -->
 
-# Init Engine and Power State
+# Init Sequencer and Power-Down
 
-This section covers the cold-boot initialization engine and the top-level power-state FSM that owns transitions between Active, power-down, and self-refresh / deep-power-down modes.
+Cold-boot bring-up is handled by `init_sequencer`; low-power entry/exit by `powerdown_ctrl`.
 
-## `init_engine` and Step Tables
+## `init_sequencer`
 
 ### Purpose
 
-Sequence the cold-boot initialization: CKE control, MR and EMR loads, ZQ calibration. Implemented as a small microprogram sequencer reading a memtype-specific step table ROM.
+Sequence post-reset DRAM bring-up: the DFI init handshake, JEDEC mode-register loads, precharge, and refresh. RTL: `rtl/fub/init_sequencer.sv`. It is a compact hard-coded FSM (not a microprogram ROM). Its commands are **issued to the DRAM**, not merely shadowed — this was the fix for the on-board bring-up failure where an earlier shadow-only walk left the read DLL unlocked.
 
-### Microprogram Instruction Format
+### Command Path
 
-Each step in the table is a fixed-width record:
+While `init_busy_o` is high, the scheduler stays idle and forwards the sequencer's single-cycle command pulses (`init_cmd_valid_o` / `init_cmd_op_o` / `init_cmd_bank_o` / `init_cmd_row_o`) straight to `dfi_cmd_formatter`. Each command state is occupied for exactly one cycle, then the FSM parks in `S_WAIT` for the JEDEC inter-command delay before advancing. Because `dfi_cmd_formatter` is always `cmd_ready`, a single-cycle pulse issues exactly one command with no grant handshake.
 
-| Field           | Width   | Purpose                                                |
-|-----------------|---------|--------------------------------------------------------|
-| `step_type`     | 4       | Opcode: `SET_CTRL_BITS`, `DELAY`, `MRS_LOAD`, `ISSUE_CMD`, `WAIT_FOR_BIT`, `END` |
-| `payload_bank`  | 3       | Used by MRS and ISSUE_CMD                              |
-| `payload_addr`  | 16      | MR address / value, or command address                 |
-| `post_delay`    | 24      | Cycles to wait after step completes (scaled by `SIM_INIT_SCALE` in sim) |
+The `mode_register` shadow is updated in lockstep (`mr_seq_we_o` / `mr_seq_index_o` / `mr_seq_data_o`) so the live CL/CWL/BL decode tracks what was programmed.
 
-### Step Tables
+### CSR-Backed Waits
 
-Two compile-time-included Verilog packages:
+The inter-command delays are CSR-backed (INIT_TIMING registers), zero-extended into a 16-bit countdown, rather than hardcoded:
 
-- **`ddr2_init_steps_pkg.sv`** — DDR2 cold-init sequence
-- **`lpddr2_init_steps_pkg.sv`** — LPDDR2 cold-init sequence
+| Input            | JEDEC          | Default |
+|------------------|----------------|---------|
+| `t_init_wait_i`  | CKE / tINIT    | 512     |
+| `t_dll_wait_i`   | DLL lock tDLLK | 256     |
+| `t_mrd_wait_i`   | tMRD           | 8       |
+| `t_rp_wait_i`    | tRP            | 8       |
+| `t_rfc_wait_i`   | tRFC           | 8       |
 
-The engine reads its table sequentially. On encountering `END`, asserts `init_done`.
+### DDR2 Sequence
 
-### Init Sequence Outlines
+Mirrors LiteDRAM's DDR2 PHY init (the reference proven on the Nexys A7 board):
 
-See §6.2 for the full step lists. Summary:
+1. Assert `dfi_init_start_o`; wait `dfi_init_complete_i` (the PHY runs its own DLL-lock / IO training), then wait tINIT.
+2. Precharge All.
+3. EMRS in JEDEC order EMRS(2) then EMRS(3) then EMRS(1) — all defaults 0.
+4. MRS(0) + DLL reset (`0x532` = BL4/CL3/tWR3/DLL_RESET); wait tDLLK.
+5. Precharge All.
+6. Auto Refresh x2 (each followed by tRFC).
+7. MRS(0) without DLL reset (`0x432`) — clears the reset bit.
+8. EMRS(1) + OCD default (`0x380`) then EMRS(1) + OCD exit (`0x000`).
+9. `init_done_o = 1`.
 
-- **DDR2:** 13 steps — power-up wait, CKE high, NOP, PRECHARGE all, EMRS(2/3) defaults, EMRS(1) enable DLL, MRS reset DLL, PRECHARGE all, AUTO REFRESH × 2, MRS final config, EMRS(1) OCD default, EMRS(1) OCD exit, END.
-- **LPDDR2:** 13 steps — tINIT1 CKE low, tINIT2 CKE high, tINIT3 NOP, MR63 reset, tINIT5 wait, MR10 ZQ + wait for done, MR1 BL/WRAP/BT, MR2 RL/WL, MR3 drive strength, MR4 read for temp class, MR16 PASR bank mask, MR17 PASR segment mask, END.
+The DDR2 MR values are `localparam` constants (MR0 `0x432`/`0x532`, MR1 `0x0000`, OCD default `0x380`, MR2/MR3 `0x0000`).
 
-### Outputs
+### LPDDR2 Sequence (fully functional)
 
-| Signal           | Width   | Purpose                                              |
-|------------------|---------|------------------------------------------------------|
-| `init_done`      | 1       | Asserted after `END`                                 |
-| `init_error`     | 1       | Asserted on step failure (timeout, ZQ failure)       |
-| `init_step_dbg`  | 8       | Current step number (for bring-up observability)     |
+Per JESD209-2F power-up and mode-register configuration:
 
+1. Assert `dfi_init_start_o`; wait `dfi_init_complete_i`; tINIT settle.
+2. MRW(MR63) = Reset (OP don't-care).
+3. MRW(MR10) = `0xFF` ZQ Init Calibration.
+4. MRW(MR1) = `0x23` (BL8 / nWR3), MRW(MR2) = `0x01` (RL3 / WL1), MRW(MR3) = `0x02` (DS 40 ohm).
+5. `init_done_o = 1`.
 
-### Init Engine Flowchart
+Only MR1/MR2/MR3 update the CL/CWL/BL decode shadow; MR63/MR10 are issued to the DRAM but not shadowed (they exceed the 5-bit shadow index). The MR index (MA, up to MR63) and data (OP) are carried packed as `{MA[5:0], OP[7:0]}` in the ROW request field, so `dfi_cmd_formatter` can build the full LPDDR2 CA MRW word — a 3-bit bank port alone could not reach MR10/MR63.
 
-![Init Engine Flow](../assets/mermaid/05_init_engine_flow.png)
+### Memtype Selection
 
-**Source:** [05_init_engine_flow.mmd](../assets/mermaid/05_init_engine_flow.mmd)
+`memtype_i` (from the PHY_TIMING CSR: 0 = DDR2, 1 = LPDDR2) chooses the sequence at runtime. After the shared DFI-init step, DDR2 branches to `S_PREA1` and LPDDR2 to `S_L_RESET`.
 
-### SIM_INIT_SCALE
+### Status Outputs
 
-Real init sequences include multi-microsecond delays (200 µs power-up wait, etc.) that are impractical to simulate at cycle granularity. The `SIM_INIT_SCALE` parameter scales delays during simulation: a value of 1 uses real values; a value of 1000 divides all delays by 1000. Silicon builds always use SIM_INIT_SCALE = 1.
-
-### Restart on Warm Reset
-
-The engine restarts from step zero on warm-reset deassertion. Cold reset (DRAM content lost) and warm reset (CKE gated only) take the same code path; the step table is identical. This simplifies the FSM and avoids subtle bring-up bugs.
-
-### Error Handling
-
-If a `WAIT_FOR_BIT` step times out (e.g., ZQ done never asserts), the engine retries up to 3 times before raising `init_error` and halting. The SoC can clear via CSR and re-issue `init_start`.
-
-### MR Value Configurability
-
-MR and EMR values are CSR-configurable before `init_start` is asserted, with sensible defaults baked into the step table. The step table references named CSRs (`MR0`, `MR1`, etc.), not literals, so the SoC can override `CL`, `BL`, `WL`, and PASR masks without rebuilding the controller.
+| Signal             | Purpose                                        |
+|--------------------|------------------------------------------------|
+| `dfi_init_start_o` | High after leaving reset                        |
+| `init_busy_o`      | High until the FSM reaches `S_DONE`             |
+| `init_done_o`      | Asserted at `S_DONE`                            |
+| `zqcl_req_o`       | Tied off — DDR2 has no ZQCL                      |
 
 ---
 
-## `power_state` (Top-Level FSM)
+## `powerdown_ctrl`
 
 ### Purpose
 
-Own the top-level power-state transitions. Coordinate with the init engine, refresh manager, and scheduler when entering / exiting low-power states.
+Idle-detect into a low-power state. RTL: `rtl/fub/powerdown_ctrl.sv`. It is available but not in the default top build; it is documented here for completeness.
 
-### FSM States
+### Modes
 
-| State            | Description                                          |
-|------------------|------------------------------------------------------|
-| `RESET`          | `mc_rstn` asserted                                   |
-| `INIT`           | `init_engine` running                                |
-| `ACTIVE`         | Normal operation                                     |
-| `ACTIVE_PD`      | Active Power-Down (CKE low, rows kept open)          |
-| `PRECHARGE_PD`   | Precharge Power-Down (CKE low, all banks idle)       |
-| `SELF_REFRESH`   | DDR2 self-refresh (CKE low, internal refresh)        |
-| `SR_LP2`         | LPDDR2 self-refresh (same role, different exit FSM)  |
-| `DPD`            | LPDDR2 Deep Power Down (content lost, requires re-init) |
+- **PDE (Precharge Power Down)** — CKE low, banks may stay active. Wakes on new activity within ~tXPDLL cycles.
+- **SR (Self Refresh)** — CKE low plus an SRE command issued by the scheduler; the DRAM self-refreshes internally and the controller stops issuing REFs. Exit requires SRX plus tXSDLL (DDR2) / tXSR (LPDDR2) before new commands. SR entry requires all banks precharged first (the scheduler enforces the precondition).
 
+### Selection
 
-### Power State Diagram
+- `enable_sref_i` high: on the idle threshold, request SR (`pdn_kind_o = 1`).
+- `enable_sref_i` low, `enable_pde_i` high: request PDE (`pdn_kind_o = 0`).
+- neither: never request.
 
-![Power-State FSM](../assets/mermaid/04_power_state_fsm.png)
+### Scope / TODO
 
-**Source:** [04_power_state_fsm.mmd](../assets/mermaid/04_power_state_fsm.mmd)
-
-### Transitions
-
-Transitions are driven by SoC requests via CSR:
-
-- `req_low_power` — request entry into APD or PRECHARGE_PD
-- `req_self_refresh` — request entry into SR
-- `req_dpd` — request entry into DPD (LPDDR2 only)
-- `req_active` — wake up to ACTIVE
-
-The FSM defers entry until the refresh manager signals that no auto-refresh is in progress.
-
-### Step Tables for Power Transitions
-
-Power-state transitions reuse the microprogram engine pattern:
-
-- `sr_entry_steps_pkg.sv` — common entry sequence (drain pending, CKE low)
-- `sr_exit_steps_pkg.sv` — common exit sequence (CKE high, wait tXSNR, resume)
-- `dpd_entry_steps_pkg.sv` — LPDDR2 DPD entry
-- `dpd_exit_steps_pkg.sv` — LPDDR2 DPD exit (which re-runs the full init sequence)
-
-### DPD Entry Constraints
-
-Deep Power Down loses all DRAM content. The controller does not enforce that the SoC has flushed dirty caches before requesting DPD — that's the SoC's responsibility. The controller simply executes the transition. Misuse will cause data corruption, which is the price of the deepest-sleep mode.
-
-### Self-Refresh Exit Latency
-
-JEDEC requires a self-refresh-exit-to-next-command latency `tXSNR` (~200 ns for DDR2). The power-state FSM honors this with an internal counter; the scheduler is gated until the counter expires.
-
-### Power-State Observation
-
-Current state is exposed in the `STATUS` CSR (bits [7:4]), and the recent transition history (last 8 transitions) is exposed in `STATUS_HISTORY` for bring-up debugging.
+Deep Power Down (LPDDR2), per-rank power-down, and the `dfi_dram_clk_disable` cooperation with `dfi_signal_pack` are documented TODOs. The block currently powers down all ranks together and trusts the scheduler not to grant before init completes.

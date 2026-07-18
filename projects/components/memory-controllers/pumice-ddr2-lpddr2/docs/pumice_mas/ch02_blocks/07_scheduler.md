@@ -21,373 +21,152 @@
 
 <!-- End Header -->
 
-# Scheduler (`scheduler`)
+# Command Arbiter (`pumice_cmd_arbiter`)
 
-**Module:** `scheduler.sv`
+**Module:** `pumice_cmd_arbiter.sv`
 **Location:** `rtl/fub/`
-**Category:** FUB
-**Parent macro:** `command_scheduler_macro`
-**Status:** v2 implemented (CLOSE / OPEN / HAPPY_HYBRID page policies;
-W/R round-robin arbitration; outputs strict-flop registered)
+**Category:** FUB (the pick core)
+**Parent:** `pumice_mem_cmd_scheduler`
+**Status:** Implemented (single-issue, single-rank v1)
 
-> Architectural context: HAS §3.2 (priority function, refresh / init priority).
-> This block-level MAS section is the implementation view.
->
-> **v2 vs v1:**
-> - **Page policy is now selectable** via the `PAGE_POLICY` parameter
->   (CLOSE / OPEN / HAPPY_HYBRID). v1 was CLOSE only.
-> - **HAPPY_HYBRID** consults [`page_predictor`](08_page_predictor.md)'s
->   per-bank hint to decide auto-precharge per command.
-> - **W/R arbitration** is now round-robin (toggle on every issue) instead
->   of strict W-then-R. Prevents read starvation under bursty write.
->
-> **Implementation notes:**
-> - **No standalone `txn_queue` or `bank_machine`** — absorbed into CAMs +
->   `xbank_timers`. Scheduler reads CAM match buses + per-(rank, bank)
->   ready arrays.
-> - **No CAM query bus driven** — scheduler uses CAM snapshots
->   (`wr_snap_*` / `rd_snap_*`) to pick a slot and use its decoded
->   (rank, bank, row, col) directly.
-> - **No lookahead** — one CMD per cycle from the current match.
+> **Rearchitected:** the SWAG `scheduler.sv` was a multi-mask priority-encoder
+> pipeline (Stages 1–4) over a wide `txn_queue` snapshot with a column-op FSM
+> (S_NEED_PRE → S_NEED_ACT → S_NEED_RDWR → S_DONE) and a round-robin W/R toggle.
+> That block is retired. The live pick core is `pumice_cmd_arbiter` — a
+> **combinational, single-issue, FSM-free** priority picker that reads the CAM
+> lookup/oldest ports and the per-bank / global readiness inputs and emits ONE
+> abstract DRAM command per cycle. It is instantiated inside
+> `pumice_mem_cmd_scheduler` alongside the timers, refresh, init, and
+> mode-register (see [ch02/19](19_global_timers.md), [ch02/09](09_bank_machine.md),
+> [ch02/11](11_refresh_mgr.md), [ch02/12](12_init_engine.md)).
 
 ---
 
 ## Purpose
 
-`scheduler` is the central command issue engine. Every MC clock cycle it:
+`pumice_cmd_arbiter` picks one abstract DRAM command each cycle and pushes it into
+the scheduler → DFI command interface. It is PHY/nphases-agnostic and
+single-issue; JEDEC timing is enforced by the per-bank (`pumice_bank_timers`) and
+global (`global_timers`) readiness inputs it consumes. Open-page vs auto-precharge
+is decided **inline** from `page_policy_i` — there is no standalone page
+predictor in the build (see [ch02/08](08_page_predictor.md)).
 
-1. Snapshots the wr/rd CAM match-query, `xbank_timers` ready arrays,
-   and `global_timers` window OK signals.
-2. Picks a slot (CLOSE always; OPEN/HAPPY prefers row-hit).
-3. Decides the **initial state** based on policy + bank state.
-4. Walks through PRE → ACT → RD/WR via the column-op FSM.
+The wider `pumice_mem_cmd_scheduler` wrapper wires the arbiter to those timers,
+the refresh controller, the init sequencer + mode-register shadow, and an output
+command FIFO; the CAM sched-lookup / oldest / commit / issue ports pass through to
+`pumice_axi4_ifc`.
 
-## Page-Policy Decision Table
+## Priority (each cycle)
 
-At slot pick time, the scheduler's initial FSM state is:
+The pick is a single combinational `if/else` cascade producing an abstract
+command plus its side-effects (event strobes, CAM commit/issue, refresh grant),
+all gated on the command sink accepting the push:
 
-| `PAGE_POLICY`     | Bank state     | Open row vs req row | Initial state |
-|-------------------|----------------|---------------------|---------------|
-| CLOSE             | (any)          | (any)               | S_NEED_ACT    |
-| OPEN              | IDLE           | n/a                 | S_NEED_ACT    |
-| OPEN              | ACTIVE         | match (hit)         | S_NEED_RDWR   |
-| OPEN              | ACTIVE         | mismatch (miss)     | S_NEED_PRE    |
-| HAPPY_HYBRID      | (same as OPEN — predictor only changes the `ap` bit in S_NEED_RDWR) | | |
+1. **INIT** (`!init_done_i`) — forward the `init_sequencer` command verbatim
+   (`init_cmd_op/bank/row`).
+2. **REFRESH** (`refresh_req_i || refresh_drain_i`) — if any bank is active,
+   precharge the lowest active, precharge-ready, un-guarded bank (one/cycle); once
+   no bank is active, issue `OP_REF` and assert `refresh_grant_o`.
+3. **COLUMN row-hit** — an issuable RD/WR to an open row.
+   **READ-PRIORITY**: a ready read wins over a ready write. Within each
+   direction, **oldest** (max CAM relative age) wins the tie-break.
+4. **FALLBACK** — no ready row-hit: `ACT` the oldest pending op's row on an idle,
+   act-ready, un-guarded bank; or `PRE` a bank that is open on the wrong row.
 
-## Column-Op Selection (S_NEED_RDWR)
+### Column issuability
 
-| `PAGE_POLICY`     | Predictor hint     | OP for WR | OP for RD |
-|-------------------|--------------------|-----------|-----------|
-| CLOSE             | (ignored)          | WRA       | RDA       |
-| OPEN              | (ignored)          | WR        | RD        |
-| HAPPY_HYBRID      | `predict_open=1`   | WR        | RD        |
-| HAPPY_HYBRID      | `predict_open=0`   | WRA       | RDA       |
+For each bank `j` the arbiter drives the CAM lookups with `{bank j, that bank's
+open row}` (`bank_open_row_i`), gated valid by `bank_row_active_i`. A returned hit
+is issuable when:
 
-`evt_ap_o` is driven high together with `evt_wr_o`/`evt_rd_o` when the
-issued op was WRA/RDA; this tells [`xbank_timers`](10_xbank_timers.md) to
-transition the bank to PRECHARGING instead of ACTIVE after tWR/tRTP.
+- **RD**: `rd_lu_hit && bank_rdwr_ready && tccd_ok && twtr_ok`
+- **WR**: `wr_lu_hit && bank_rdwr_ready && tccd_ok && trtw_ok`
 
-## W/R Arbitration
+The oldest issuable RD (max `rd_lu_age`) and oldest issuable WR are scanned in
+parallel across all `N_LU = NUM_BANKS` lookups; read-priority then selects RD over
+WR if both exist.
 
-Round-robin: an `r_arb_prefer_rd` toggle flips on every successful issue
-(in S_DONE). When both W and R have pending slots, the toggle picks which
-goes first. When only one direction has pending, that one wins.
-
-## FSM States
-
-```
-S_IDLE   → S_NEED_PRE | S_NEED_ACT | S_NEED_RDWR   (by policy + bank state)
-S_NEED_PRE   → S_NEED_ACT     (after PRE handshake)
-S_NEED_ACT   → S_NEED_RDWR    (after ACT handshake)
-S_NEED_RDWR  → S_DONE         (after RD/WR/RDA/WRA handshake)
-S_DONE       → S_IDLE         (mark_issued pulse; toggle W/R preference)
-```
-
-Issue rate is **one command per MC clock**. The scheduler does not see
-the DFI multi-phase dimension — `dfi_signal_pack` absorbs it.
-
-The block is the **single hardest synthesis-timing FUB** in the design — the
-parallel match-line into per-entry readiness, then into priority encoders,
-is what sets the MC clock frequency ceiling. All outputs are strict-flop
-registered.
-
----
-
-## Synthesis Parameters
-
-| Parameter                 | Source                          | Effect on this FUB                                                |
-|---------------------------|---------------------------------|-------------------------------------------------------------------|
-| `SCHEDULER_MODE`          | top                             | `"OOO"` synthesizes the full FR-FCFS comparator network; `"INORDER"` synthesizes only the first-ready FIFO path (smaller area, no row-hit reordering). |
-| `TXN_QUEUE_DEPTH`         | top (default 16)                | Number of parallel readiness comparators                          |
-| `LOOKAHEAD_DEPTH_MAX`     | top (default 4)                 | Width of the lookahead window peek into `txn_queue`               |
-| `PAGE_POLICY`             | top                             | Picks which Stage-4 auto-precharge decoder is synthesized          |
-| `NUM_RANKS`, `NUM_BANKS`  | top                             | Width of the bank-state input matrix                              |
-| `AGE_MAX`                 | top (default 256)               | Width of per-entry age counter (clog2(AGE_MAX))                   |
-
-The `"INORDER"` synthesis variant is a different decoder tree, not a runtime gate of the OoO tree. The runtime `SCHED_TUNING.force_inorder` bit is honored *only* when `SCHEDULER_MODE == "OOO"` was synthesized (the bit becomes a tied observation in `INORDER` builds, per HAS §3.2).
-
----
-
-## Interface
-
-### Inputs
-
-| Signal                                        | Direction | Width                         | Description                                                  |
-|-----------------------------------------------|-----------|-------------------------------|--------------------------------------------------------------|
-| `mc_clk`, `mc_rst_n`                          | input     | 1, 1                          | MC clock + async-assert / sync-deassert reset                |
-| `q_entries_i[TXN_QUEUE_DEPTH-1:0]`            | input     | per HAS §3.2                  | Live queue snapshot: per entry `{valid, is_write, rank, bank, row, col, burst_len, row_hit_cached, age, state, cam_slot_idx}` |
-| `bank_state_i[NUM_RANKS][NUM_BANKS]`          | input     | per `bank_machine_fub`        | Per-(rank, bank): `state`, `open_row`, `accepts_act/rd/wr/pre/ref` |
-| `xbank_blocks_i`                              | input     | struct                        | `blocks_act_per_rank[NR]`, `blocks_xrank_rd`, `blocks_xrank_wr` |
-| `refresh_wants_i`                             | input     | 1                             | One-bit "refresh due now" from `refresh_mgr_fub`             |
-| `refresh_done_for_i[NUM_RANKS][NUM_BANKS]`    | input     | NR×NB                         | Per-(rank, bank) "refresh handshake granted" from `refresh_mgr_fub` |
-| `init_in_progress_i`                          | input     | 1                             | From `init_engine_fub` — blocks all normal traffic           |
-| `predict_hit_i[NUM_RANKS][NUM_BANKS]`         | input     | NR×NB                         | HAPPY predictor output (tied 0 when `PAGE_POLICY != HAPPY_HYBRID`) |
-| `cfg_force_inorder_i`                         | input     | 1                             | `SCHED_TUNING.force_inorder` runtime override                |
-| `cfg_lookahead_active_i`                      | input     | 4                             | `SCHED_TUNING.lookahead_active`                              |
-| `cfg_page_policy_or_i`                        | input     | 2                             | `REFRESH_TUNING.page_policy_or`                              |
-| `cfg_happy_enable_i`                          | input     | 1                             | `SCHED_TUNING.happy_enable`                                  |
-
-### Outputs
-
-| Signal                  | Direction | Width                | Description                                                              |
-|-------------------------|-----------|----------------------|--------------------------------------------------------------------------|
-| `issue_valid_o`         | output    | 1                    | A command is being issued this cycle                                     |
-| `issue_op_o`            | output    | 4                    | One of `{NOP, ACT, RD, RDA, WR, WRA, PRE, PREA, REF, REFPB, MRS, ZQCS, ZQCL}` |
-| `issue_rank_o`          | output    | `$clog2(NR)`         | Target rank                                                              |
-| `issue_bank_o`          | output    | `$clog2(NB)`         | Target bank                                                              |
-| `issue_row_o`           | output    | `ROW_WIDTH`          | Target row (for ACT) or open-row pass-through (for RD/WR)                |
-| `issue_col_o`           | output    | `COL_WIDTH`          | Target column (for RD/WR)                                                |
-| `issue_axi_id_o`        | output    | `AXI_ID_WIDTH`       | Originating AXI ID (passed to the CAM for completion routing)            |
-| `issue_cam_slot_o`      | output    | clog2(CAM_DEPTH)     | Index into `rd_cmd_cam` or `wr_cmd_cam` to mark "issued"                  |
-| `issue_is_write_o`      | output    | 1                    | Picks `wr_cmd_cam` vs `rd_cmd_cam` for the mark-issued strobe            |
-| `predict_query_o`       | output    | struct               | (rank, bank, row) query to `page_predictor_fub` for stage-4 auto-pre     |
-| `dbg_inorder_active_o`  | output    | 1                    | (debug) High when current cycle picked the in-order path                  |
-| `dbg_refresh_blocking_o`| output    | 1                    | (debug) High when `wants_refresh` reduced the candidate pool              |
-
----
-
-## v1 Implementation Deviation
-
-Stages 1-3 below describe the **target** scheduler — a multi-mask
-priority-encoder pipeline that consumes per-entry row-hit caches and
-refresh-set flags. The current `scheduler.sv` (v1) is a simpler
-flat-scan pre-cursor:
-
-1. **Picker** — combinational scan of `wr_match_pending_i` and
-   `rd_match_pending_i` across all CAM slots. The slot with the highest
-   AXI QoS wins; ties go to the lowest slot index (oldest under the
-   free-slot priority encoder).
-2. **W/R arbitration** — age-weighted starvation counter (`r_w_age`
-   vs. `r_r_age`) decides which direction wins when both have
-   candidates.
-3. **Page-policy decision** — the page-policy table above selects the
-   initial FSM state and (for HAPPY_HYBRID) consults the
-   `page_predictor` hint for the AP bit.
-
-The v1 picker does **not** drive `q_rank_o / q_bank_o / q_row_o` —
-those outputs are hard-tied to 0 in the `else` branch of the strict-
-flop block. The CAMs must therefore expose a `match_pending_o` vector
-that is `valid && !issued` only (no `(rank, bank)` gate); see
-`04_rd_cmd_cam.md` for the contract. The reachability check on
-`(rank, bank, row)` lives in `match_rowhit_o`, which the v1 scheduler
-ignores.
-
-The target pipeline below (Stages 1-3) lands in v2 along with the
-`age_pe` row-hit encoder, the lookahead window, and the proper
-row-hit cache. The page-policy decision and the column-op selection
-tables above are accurate for v1 as well.
-
-## Decision Pipeline (target / v2)
-
-The decision is a single MC-clock-cycle combinational pipeline broken into four conceptual stages, finishing in a registered output. Stages 1–3 are combinational; Stage 4 latches the final command into output flops.
-
-![Scheduler Priority Pipeline](../assets/mermaid/05_scheduler_priority_pipeline.png)
-
-**Source:** [05_scheduler_priority_pipeline.mmd](../assets/mermaid/05_scheduler_priority_pipeline.mmd)
-
-### Stage 1 — Per-Entry Readiness (combinational, N parallel comparators)
-
-For each of `TXN_QUEUE_DEPTH` entries, in parallel:
+### Auto-precharge (inline page policy)
 
 ```
-ready[i] = q_entries[i].valid
-         AND  (q_entries[i].state == PENDING)
-         AND  bank_machine[r,b].accepts_X
-         AND  NOT xbank_blocks_X
-         AND  ( NOT refresh_wants
-                OR  bank_machine[r,b].in_refresh_done_set )
-
-is_row_hit[i] = q_entries[i].row_hit_cached
-                ( cached at queue insert; refreshed when bank_machine[r,b]
-                  state changes — see "Cache Coherency" below )
-
-needs_act[i]  = NOT bank_active[r,b]
-                OR  bank_open_row[r,b] != q_entries[i].row
+w_ap = (page_policy_i == PAGE_POLICY_CLOSE);
 ```
 
-Where `X` is `rd` if `is_write == 0`, `wr` if `is_write == 1`. `r = q_entries[i].rank`, `b = q_entries[i].bank`.
+A column op becomes `OP_RDA` / `OP_WRA` when `w_ap` is set, else `OP_RD` /
+`OP_WR`. `evt_ap_o = w_ap_out` tells the bank timers to model the auto-precharge.
+`PAGE_POLICY_OPEN` leaves rows open; `PAGE_POLICY_HAPPY_HYBRID` is treated as OPEN
+in v1 (the predictor hook is a TODO — see [ch02/08](08_page_predictor.md)).
 
-`ready[i]` answers "could I issue *some* command for this entry this cycle without violating any per-bank or cross-bank timer?" `is_row_hit[i]` answers "if I do, is it a column command on the already-open row?" `needs_act[i]` answers "is the preliminary command actually ACT (or PRE+ACT) rather than RD/WR?"
+## Per-bank ACT/PRE re-issue guard
 
-### Stage 2 — Priority Masking (combinational)
+Because `pumice_bank_timers` register their readiness outputs (a 2-cycle latency
+from an `evt` to `act/pre_ready` dropping), a purely combinational arbiter would
+re-issue ACT/PRE to the same bank before the timers reflect it. The arbiter keeps
+a **2-cycle per-bank guard** (`r_guard0`, `r_guard1`; `w_guarded = guard0 |
+guard1`) set on any accepted ACT/PRE, and skips guarded banks in the refresh-PRE
+and fallback paths.
 
-Five masks, computed in parallel from the Stage-1 vector and the config inputs:
+Column ops need **no** guard: both CAMs exclude a just-committed/issued slot from
+their lookup/oldest ports the next cycle (`r_sched` on the write side, `r_issued`
+on the read side), so the arbiter never re-issues the same slot. The shared-DQ-bus
+occupancy (a BL burst owns the DQ bus for `BL/DFI_RATE` dfi cycles) is a
+`dfi_clk`-domain constraint enforced **downstream** in `pumice_dfi_cmd_path`
+(`COL_BURST_CYC`), not here — the CDC decouples `aclk` command issue from
+`dfi_clk` DQ timing.
 
-| Mask              | Definition                                                        | Effect                                       |
-|-------------------|-------------------------------------------------------------------|----------------------------------------------|
-| `init_mask`       | `init_in_progress ? 0 : ready[i]`                                  | Block all normal entries during init         |
-| `refresh_mask`    | `refresh_wants ? (ready[i] AND bank_in_refresh_done_set) : ready[i]` | Allow only entries whose target rank+bank has already been granted the refresh handshake (i.e., already transitioned out of REFRESHING, or never entered it) |
-| `inorder_mask`    | `force_inorder ? oldest_ready_one_hot : ready[i]`                  | Collapse to first-ready FIFO                 |
-| `row_hit_mask`    | `ready[i] AND is_row_hit[i] AND NOT needs_act[i]`                  | Row-hit candidates (column-only)             |
-| `row_miss_mask`   | `ready[i] AND (NOT is_row_hit[i] OR needs_act[i])`                 | Row-miss candidates (need ACT or PRE+ACT)    |
+## Interface (arbiter)
 
-The composed candidate vectors are:
+| Group                     | Direction | Notes                                                        |
+|---------------------------|-----------|--------------------------------------------------------------|
+| `page_policy_i`           | in        | OPEN / CLOSE / HAPPY_HYBRID (HAPPY == OPEN in v1)            |
+| init passthrough          | in        | `init_done_i`, `init_cmd_{valid,op,bank,row}_i`             |
+| refresh                   | in/out    | `refresh_req_i`, `refresh_drain_i`, `refresh_grant_o`       |
+| per-bank readiness        | in        | `bank_{act,rdwr,pre}_ready_i`, `bank_row_active_i`, `bank_open_row_i` (`[NUM_RANKS][NUM_BANKS]`) |
+| global readiness          | in        | `tfaw_ok_i`, `trrd_ok_i` (per-rank), `twtr_ok_i`, `trtw_ok_i`, `tccd_ok_i` |
+| wr CAM lookup + oldest + commit | in/out | `wr_lu_*` (drive + read), `wr_oldest_*`, `wr_commit_{valid,slot}_o` |
+| rd CAM lookup + oldest + issue  | in/out | `rd_lu_*`, `rd_oldest_*`, `rd_issue_{valid,slot}_o`         |
+| event strobes             | out       | `evt_{act,rd,wr,pre,ap}_o`, `evt_{rank,bank,row}_o` (to timers) |
+| command push              | out/in    | `cmd_{valid,op,rank,bank,row,col,ap}_o`, `cmd_ready_i`      |
 
-```
-cands_row_hit  = init_mask AND refresh_mask AND inorder_mask AND row_hit_mask
-cands_row_miss = init_mask AND refresh_mask AND inorder_mask AND row_miss_mask
-```
+## Side-effects (all gated on `w_fire = w_valid && cmd_ready_i`)
 
-### Stage 3 — Selection (combinational priority encoders)
+- `evt_act/rd/wr/pre_o` — strobe the bank + global timers on an accepted issue.
+- `wr_commit_valid_o` / `wr_commit_slot_o` — on an accepted WR/WRA, mark the wr
+  CAM slot scheduled (enqueue to its drain FIFO).
+- `rd_issue_valid_o` / `rd_issue_slot_o` — on an accepted RD/RDA, mark the rd CAM
+  slot issued (enqueue to its issue FIFO).
+- `refresh_grant_o` — on an accepted `OP_REF`.
 
-Two parallel age-priority encoders, then a 2:1 mux:
+`cmd_valid_o` is asserted whenever a command is picked; `cmd_rank_o` is tied to
+rank 0 (`RK0`) — v1 is a single-rank pick.
 
-```
-winner_hit  = age_pe(cands_row_hit)    // index of oldest entry in cands_row_hit, or none
-winner_miss = age_pe(cands_row_miss)   // index of oldest entry in cands_row_miss, or none
+## v1 scope / TODO
 
-picked = winner_hit  IS_VALID ? winner_hit
-       : winner_miss IS_VALID ? winner_miss
-                              : NONE   // issue NOP
-```
+- **Single-rank** pick (`RK0 = 0`); multi-rank arbitration is a TODO.
+- **HAPPY_HYBRID == OPEN**; the per-bank page predictor is not in the build.
+- Write-drain watermark and powerdown are TODO.
+- Unused CAM buses (`wr_lu_id_i`, `rd_lu_id_i`, `*_oldest_slot_i`) are absorbed by
+  an explicit `unused` sink.
 
-The age priority encoder is the slowest path in this stage — it's an `N`-entry tournament on `clog2(AGE_MAX) = 8`-bit ages. For `N = 16` (the default), that's 4 levels of pairwise compare-and-select. Synthesizable in two LUT layers per level on 7-series; ~30 LUT-delays in the typical config.
+## `pumice_mem_cmd_scheduler` wrapper
 
-### Stage 4 — Command Formation (registered)
+The macro instantiates, on a single `aclk`:
 
-Once an entry is picked, Stage 4 turns it into a DRAM command. This stage **may pre-flop intermediate signals** for timing closure on the highest clock targets (see "Pipeline Staging" below).
+| Instance          | Module               | Role                                              |
+|-------------------|----------------------|---------------------------------------------------|
+| `u_init`          | `init_sequencer`     | JEDEC MRS init; gates traffic until `init_done`   |
+| `u_mode_reg`      | `mode_register`      | MRS-updated CL/CWL/BL shadow → `cl_o/cwl_o/bl_o`  |
+| `u_refresh`       | `refresh_ctrl`       | tREFI + postpone; enabled after init              |
+| `u_bank_timers`   | `pumice_bank_timers` | per-(rank,bank) safe timers + open-row            |
+| `u_global_timers` | `global_timers`      | tFAW/tRRD (per-rank), tWTR/tRTW/tCCD (global)     |
+| `u_arbiter`       | `pumice_cmd_arbiter` | the pick core (above)                             |
+| `u_cmd_fifo`      | `gaxi_fifo_sync`     | output command FIFO, packs `{op,rank,bank,row,col,ap}` (`CMD_W = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1`, depth `CMD_FIFO_DEPTH=8`) |
 
-1. **Lookahead peek** — examine the next `cfg_lookahead_active` queue entries *after* the picked one to see if any target the same (rank, bank).
-2. **Auto-precharge decision** — per HAS §3.2 (lookahead first, fallback to `PAGE_POLICY`):
-   - Same-bank entry found AND its row matches the open row → **keep open** → bare RD / WR
-   - Same-bank entry found AND its row differs → **close** → RDA / WRA
-   - No same-bank entry within window → consult `cfg_page_policy_or`:
-     - OPEN → bare RD / WR
-     - CLOSE → RDA / WRA
-     - HAPPY_HYBRID → query `predict_hit_i[r][b]`; if predicted hit → bare; else RDA/WRA
-3. **Op encoding** — generate the 4-bit `issue_op_o` from `(is_write, needs_act, auto_pre)`:
-   - `needs_act` and bank state == IDLE → `ACT`
-   - `needs_act` and bank state == ACTIVE (different row) → `PRE` (the column command follows next cycle after tRP)
-   - `NOT needs_act` and `is_write` → `WR` or `WRA`
-   - `NOT needs_act` and `NOT is_write` → `RD` or `RDA`
-4. **Latch** outputs into the issue flops.
+The arbiter pushes into `u_cmd_fifo`; the FIFO read side is the macro's
+`cmd_*_o` command stream to the DFI layer. `busy_o` is
+`!init_done || refresh_req || cmd-fifo-non-empty || any-bank-active`.
 
-### Refresh Window Behavior
-
-When `refresh_wants_i` is high, `refresh_mgr_fub` is asserting `refresh_req` to one or more bank machines. Those bank machines drive `refresh_done_for_i[r][b] = 1` only after reaching IDLE and handing over the grant. While `refresh_done_for_i[r][b] == 0`, that bank's entries are masked out — no new column commands to a bank that's about to refresh.
-
-Bank machines for *other* ranks (in the multi-rank REFab round-robin) or *other* banks (in REFpb) remain available, so the scheduler continues to drain those during the refresh window. This is what makes per-rank REFab dispatch beneficial — the non-refreshing ranks keep their throughput.
-
-When all required refreshes complete and `refresh_wants_i` drops, the masks lift and normal FR-FCFS resumes the next cycle.
-
----
-
-## Cache Coherency: `row_hit_cached`
-
-`q_entries[i].row_hit_cached` is computed at queue insertion (by `axi4_slave_fub` via a one-cycle query to `bank_machine[r,b].open_row`) and stored in the queue entry. This avoids re-querying every cycle. But the bank state can change between insertion and selection:
-
-- When `bank_machine[r,b]` transitions ACTIVE → ACTIVE on a different row (via PRE + ACT to a new row), all `q_entries` with `(rank, bank) == (r, b)` need their `row_hit_cached` recomputed against the new `open_row`.
-- When `bank_machine[r,b]` transitions IDLE → ACTIVATING, the queue entries get `row_hit_cached = 1` for entries whose row matches the in-flight ACT.
-
-This is implemented as a **broadcast update**: on every bank state transition that affects the open row, the bank machine emits `open_row_changed[r][b]` + the new `open_row`. The queue has a per-entry update path that, in parallel, recomputes `row_hit_cached`. This is a one-cycle update — the recomputed value is visible to the scheduler in the cycle *after* the bank transition.
-
-The one-cycle lag means the scheduler may make an "outdated row-hit" decision once per row change. The downside is one mis-categorized RD/WR (issued as bare when RDA was warranted, or vice versa); the worst case is one extra PRE later. This is a deliberate trade — the alternative is a combinational broadcast from bank state through every queue entry's row-hit comparator, which would inflate the Stage-1 critical path.
-
----
-
-## Pipeline Staging
-
-The default build is a **single-cycle combinational** scheduler — Stages 1–3 are combinational; Stage 4's auto-precharge decoder is combinational; only the final issue-flop is registered. On 7-series FPGA at 200 MHz this closes timing comfortably. For 14 nm targets at 500+ MHz, two timing-closure escape hatches:
-
-1. **Stage 3 → Stage 4 flop insertion** — register `picked` between stages. Adds one cycle of issue latency. Throughput is unchanged because the pipeline is single-issue anyway; the only visible difference is that a request inserted at cycle T can first issue at cycle T+3 instead of T+2.
-
-2. **Stage 1 partition by bank** — partition the readiness comparator network by (rank, bank) so each partition produces a per-bank ready vector independently, then aggregate. Useful when `NUM_RANKS × NUM_BANKS` is small (the default 1×8 = 8 partitions) and routing congestion dominates.
-
-These are not on by default; they're synthesis-script switches, not RTL parameters.
-
----
-
-## Strict In-Order Mode (collapse)
-
-When `cfg_force_inorder_i = 1` (and `SCHEDULER_MODE == "OOO"` is synthesized):
-
-- `inorder_mask` collapses to `oldest_ready_one_hot` — a one-hot vector that picks the *oldest valid ready entry* by age.
-- This drops the row-hit prioritization (no row-hit vs row-miss split — both go through `cands_row_miss` since age order rules).
-- Refresh priority is preserved (JEDEC requirement).
-- Lookahead and HAPPY remain on at elaboration but can be independently disabled at runtime (`cfg_lookahead_active = 0`, `cfg_happy_enable = 0`) for a pure first-ready FIFO.
-
-When `SCHEDULER_MODE == "INORDER"` is synthesized:
-
-- The Stage-2 / Stage-3 priority encoders are different RTL: the row-hit/row-miss split is omitted; only the oldest-ready selector is built.
-- `cfg_force_inorder_i` becomes a tied observation bit at `STATUS.force_inorder_obs = 1`.
-
----
-
-## Critical-Path Analysis (rough budget at 500 MHz target, 2 ns cycle)
-
-| Path                                                                            | Levels (approx) | Budget   |
-|---------------------------------------------------------------------------------|-----------------|----------|
-| `bank_state_i.accepts_X` → `ready[i]` → row-hit mask → `cands_row_hit[i]`        | 4 LUT levels    | 0.7 ns   |
-| `cands_row_hit` → age priority encoder → `winner_hit` (16-entry tournament)      | 4 levels × 2 LUT each = 8 | 1.2 ns |
-| `winner_hit / winner_miss` → 2:1 mux → `picked`                                  | 1 LUT level     | 0.2 ns   |
-| Routing / setup margin                                                          |                 | 0.3 ns   |
-| **Total Stage 1–3**                                                             |                 | **2.4 ns** |
-
-So at 500 MHz the path **misses by ~400 ps** and needs Stage 3 → Stage 4 flop insertion (the first escape hatch above). At 200 MHz target (5 ns cycle, embedded SoC default), the path closes with ~2.6 ns of slack — no escape hatch needed.
-
-The 500 MHz analysis is FPGA-pessimistic; ASIC targets close 500 MHz on this path comfortably with standard pipelining.
-
----
-
-## CSR Hooks
-
-The scheduler drives several CSR observability fields:
-
-| CSR field                            | Source signal                                          | Use case                                          |
-|--------------------------------------|--------------------------------------------------------|---------------------------------------------------|
-| `STATUS.issue_op_obs` (R)            | Last issued `issue_op_o`                                | Bring-up debug: what was the last DRAM command    |
-| `STATUS.scheduler_idle_pct` (R)      | Rolling counter — fraction of cycles `issue_valid_o = 0` | Bandwidth-headroom telemetry                      |
-| `OBS_ROW_HIT_RANK<R>_BANK<N>` (R)    | Incremented when row-hit path wins for that bank        | Per-bank row-hit rate (HAS §6.3)                  |
-| `OBS_INORDER_FALLBACKS` (R)          | Incremented when `force_inorder` ate a row-hit win      | Tells software how much OoO is currently giving up |
-| `OBS_LOOKAHEAD_HITS` (R)             | Incremented when Stage-4 lookahead was conclusive       | Tunes `LOOKAHEAD_DEPTH_MAX` characterization sweep |
-| `STATUS.force_inorder_obs` (R)       | Echo of effective force-inorder state                   | Software-readable confirmation                    |
-
----
-
-## Verification Notes (cocotb test plan)
-
-| Scenario                                                                  | What it proves                                              |
-|---------------------------------------------------------------------------|-------------------------------------------------------------|
-| Single-write, single-bank, single-rank                                    | Smoke test: ACT → WR → b_complete cycle                     |
-| Single-read, single-bank, single-rank                                     | Smoke test: ACT → RD → beat return                          |
-| Two reads, same bank, same row, oldest first                              | Row-hit reordering not invoked (already in order)           |
-| Two reads, same bank, *different* rows, oldest is row-conflict             | OoO: younger row-hit wins over older row-miss               |
-| Same as above with `force_inorder = 1`                                    | OoO disabled: older row-miss wins despite younger row-hit   |
-| Cross-bank: rd to bank 0 and rd to bank 1, bank 0 row-miss, bank 1 row-hit | Bank parallelism: bank-1 issue fires first                  |
-| Cross-rank (NUM_RANKS=2): rd to rank 0 bank 3 and rd to rank 1 bank 3      | Per-rank bank parallelism                                   |
-| Refresh during in-flight burst                                            | Refresh window correctly drains and resumes                  |
-| Refresh during multi-rank traffic (REFab on rank 0, traffic on rank 1)    | Per-rank REFab dispatch: rank-1 traffic continues           |
-| Age-saturation under sustained row-conflict from younger IDs               | Older row-conflict eventually wins via age priority         |
-| `LOOKAHEAD_DEPTH_MAX = 4`, lookahead concludes auto-precharge correctly    | Lookahead path                                              |
-| `LOOKAHEAD_DEPTH_MAX = 0`, HAPPY predictor used                           | Fallback path through page predictor                        |
-| `PAGE_POLICY = CLOSE`, every column command is auto-pre                   | CLOSE policy                                                |
-| Init-in-progress blocks normal traffic                                     | `init_mask` gating                                          |
-| Queue full + back-pressure to AXI                                         | `axi4_slave` does not accept new bursts                     |
-
----
-
-## Open Questions / Future Work
-
-- Should QoS (`awqos` / `arqos`) be promoted from the v1 "no behavior" pass-through to a real priority boost in the FR-FCFS function? Currently HAS §3.2 leaves QoS as a side-band hint for v2. The hook would be a `qos_boost_mask` between the row-hit and row-miss stages.
-- The cross-rank read-to-write turnaround (`tRTRS` + write window) lives in `xbank_timers` today; the scheduler consumes the gate but does not pre-plan around it. A smarter scheduler could **batch by rank** (issue all ready reads on rank 0, then all on rank 1) to amortize `tRTRS`. This is a v2 feature; v1 takes the simpler per-cycle gating.
-- Whether `OBS_INORDER_FALLBACKS` is useful for characterization is not yet validated; the counter is cheap, but if it's never read by the bring-up team it can be dropped in v2.
+Issue rate is **one command per `aclk`**. The arbiter never sees the DFI
+multi-phase dimension — the DFI layer packs phases downstream. Selection is
+oldest-first by wrap-safe CAM age; there is no QoS, no lookahead window, and no
+`SCHEDULER_MODE` OOO/INORDER synthesis switch.

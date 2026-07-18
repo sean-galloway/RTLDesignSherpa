@@ -182,7 +182,7 @@ gaxi_fifo_async_multi, gaxi_fifo_sync_multi,
 gaxi_skid_buffer_multi, gaxi_skid_buffer_multi_sigmap,
 gaxi_skid_buffer_async_multi
 
-### projects/components/stream/ -- 19 of 30 PASS
+### projects/components/dmas/stream/ -- 19 of 30 PASS
 
 **FUB (11 PASS):** stream_alloc_ctrl, stream_drain_ctrl, stream_latency_bridge,
 axi_read_engine (prove), axi_write_engine (prove), descriptor_engine,

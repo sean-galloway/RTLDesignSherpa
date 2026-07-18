@@ -13,8 +13,8 @@ This document consolidates all **MANDATORY** requirements found across repositor
 **Sources Analyzed:**
 - Root `/CLAUDE.md`
 - `projects/components/CLAUDE.md`
-- `projects/components/rapids/CLAUDE.md`
-- `projects/components/stream/CLAUDE.md`
+- `projects/components/dmas/rapids/CLAUDE.md`
+- `projects/components/dmas/stream/CLAUDE.md`
 - `bin/TBClasses/CLAUDE.md`
 - `rtl/amba/CLAUDE.md`
 - `rtl/common/CLAUDE.md`
@@ -168,7 +168,7 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../..
 sys.path.insert(0, repo_root)
 
 # Import from PROJECT AREA
-from projects.components.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
+from projects.components.dmas.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
 
 # Shared framework utilities
 from TBClasses.shared.tbbase import TBBase
@@ -662,8 +662,8 @@ Use this checklist when creating new RTL or testbenches:
 - `bin/TBClasses/CLAUDE.md` - Framework patterns
 
 **Subsystem Documentation:**
-- `projects/components/rapids/CLAUDE.md` - RAPIDS guidance
-- `projects/components/stream/CLAUDE.md` - STREAM guidance
+- `projects/components/dmas/rapids/CLAUDE.md` - RAPIDS guidance
+- `projects/components/dmas/stream/CLAUDE.md` - STREAM guidance
 - `rtl/amba/CLAUDE.md` - AMBA subsystem guidance
 - `rtl/common/CLAUDE.md` - Common RTL library guidance
 

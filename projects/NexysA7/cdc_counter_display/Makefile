@@ -6,6 +6,7 @@
 
 .PHONY: help build sim program clean cleanall lint
 .PHONY: build-demo sim-demo program-demo lint-demo create-demo cleanall-demo host-smoke host-watch-fail
+.PHONY: regmap consistency
 
 # Default target
 help:
@@ -23,7 +24,9 @@ help:
 	@echo "  make cleanall     - Clean all generated files"
 	@echo ""
 	@echo "Phase 2 (UART harness, cdc_demo_top — 4 counters, NO-CDC demo):"
-	@echo "  make sim-demo         - CocoTB sim of the harness"
+	@echo "  make regmap           - Regenerate cdc_demo_csr regmap from the RDL"
+	@echo "  make consistency      - Check RDL/regmap vs hand-written harness SV"
+	@echo "  make sim-demo         - UART-equivalence CocoTB sim (runs host programs)"
 	@echo "  make build-demo       - Build phase-2 bitstream (~5-10 min)"
 	@echo "  make program-demo     - Flash phase-2 bitstream"
 	@echo "  make lint-demo        - Verilator lint of the harness RTL"
@@ -120,11 +123,27 @@ create:
 REPO_ROOT := $(abspath ../../..)
 PORT      ?= /dev/ttyUSB1
 
-# CocoTB sim of the harness
+# Regenerate the PeakRDL regmap from the RDL descriptor (CRITICAL RULE #0:
+# generated collateral — never hand-edit dv/tbclasses/cdc_demo_csr_regmap.py).
+regmap:
+	@echo "Regenerating cdc_demo_csr regmap from RDL..."
+	cd $(REPO_ROOT) && python3 bin/peakrdl_generate.py \
+		projects/NexysA7/cdc_counter_display/rtl/cdc_demo_csr.rdl \
+		--regmap --docs-only --no-html --no-markdown \
+		--regmap-output projects/NexysA7/cdc_counter_display/dv/tbclasses/cdc_demo_csr_regmap.py
+	@echo "Done. dv/tbclasses/cdc_demo_csr_regmap.py"
+
+# Guard: generated regmap must match the hand-written harness SV + RDL.
+consistency:
+	python3 -m pytest host/test_cdc_demo_regmap_consistency.py -q
+
+# UART-equivalence CocoTB sim: wraps the real uart_axil_bridge + harness and runs
+# the UNMODIFIED host programs (cdc_programs.*) via cocotb.external — the same
+# programs run_cdc_demo.py runs on the FPGA. See docs/HARNESS.md.
 sim-demo:
-	@echo "Running CocoTB harness sim..."
-	cd sim && pytest test_cdc_demo.py -v -s
-	@echo "Done. Build dir: sim/sim_build_demo/"
+	@echo "Running UART-equivalence CocoTB sim (dv/tests)..."
+	cd dv/tests && python3 -m pytest test_cdc_demo_uart.py -v -s
+	@echo "Done. Build dir: dv/tests/local_sim_build/"
 
 # Verilator lint of just the harness RTL + counter domain + top
 lint-demo:
@@ -132,6 +151,7 @@ lint-demo:
 	verilator --lint-only -Wno-fatal -Wno-WIDTH -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM -Wno-DECLFILENAME \
 		-I$(REPO_ROOT)/rtl/amba/includes \
 		--top-module cdc_demo_top \
+		rtl/verilator_xilinx_stubs.sv \
 		$(REPO_ROOT)/rtl/common/clock_divider.sv \
 		$(REPO_ROOT)/rtl/common/gray2bin.sv \
 		$(REPO_ROOT)/rtl/common/bin2gray.sv \

@@ -23,7 +23,7 @@
 
 # Refresh and Power-State Programming
 
-> Per HAS §3.4 / §3.5 for architecture and §2.11 / §2.13 for FUB detail. This chapter is the **software-side** view of refresh and power configuration.
+> Per HAS §3.4 / §3.5 for architecture and §2.11 for FUB detail. This chapter is the **software-side** view of refresh and power configuration. Register writes are the PeakRDL cpuif (`csr_write`/`csr_read`); there is no apply/commit handshake — fields drive the core live (see §4.3).
 
 ---
 
@@ -31,29 +31,25 @@
 
 ```c
 void configure_refresh(refresh_config_t* cfg) {
-    // Base tREFI (already set during init; can be retuned at runtime via TIMINGS_RAS_RFC_REFI)
-    apb_write(TIMINGS_RAS_RFC_REFI, REFI_PACK(cfg->trfc, cfg->trefi));
+    // Base tREFI / tRFC (also set during init; retunable at runtime)
+    csr_write(TIMINGS_RFC_REFI, REFI_PACK(cfg->trfc, cfg->trefi));
 
-    // Postponer batch depth (1..REFRESH_DEFER_MAX)
-    // 1 = no batching; 8 = maximum batching (default)
-    uint32_t v = REFRESH_DEFER_ACTIVE(cfg->defer_active);
+    // REFRESH_TUNING packs deferral count, page/refpb policy, ZQCS interval.
+    uint32_t v = REFRESH_DEFER_ACTIVE(cfg->defer_active);   // 1..8
 
-    // REFpb policy override (LPDDR2 only)
-    if (cfg->refpb_policy == DARP)            v |= REFPB_POLICY_OR_DARP;
-    else if (cfg->refpb_policy == OLDEST)     v |= REFPB_POLICY_OR_OLDEST;
-    else if (cfg->refpb_policy == ROUND_ROBIN) v |= REFPB_POLICY_OR_ROUND_ROBIN;
+    // REFpb policy override (LPDDR2 only): 01 RR, 10 OLDEST_FIRST, 11 DARP
+    if (cfg->refpb_policy == DARP)             v |= REFPB_POLICY_OR(3);
+    else if (cfg->refpb_policy == OLDEST)      v |= REFPB_POLICY_OR(2);
+    else if (cfg->refpb_policy == ROUND_ROBIN) v |= REFPB_POLICY_OR(1);
 
-    // Periodic ZQCS interval (0 = disable, else Hz)
+    // Periodic ZQCS interval in Hz (0 = disable)
     v |= ZQCS_FREQ_HZ(cfg->zqcs_freq_hz);
 
-    apb_write(REFRESH_TUNING, v);
-
-    // Commit (quiet-point)
-    apb_write(CTRL, CTRL_CONFIG_APPLY);
-    while (!(apb_read(STATUS) & STATUS_CONFIG_SETTLED));
-    apb_write(CTRL, 0);
+    csr_write(REFRESH_TUNING, v);   // live on the next refresh event boundary
 }
 ```
+
+`PHY_TIMING.refresh_burst` (1..8) additionally controls how many REFs are drained per refresh request.
 
 ### When to Tune
 
@@ -69,19 +65,14 @@ void configure_refresh(refresh_config_t* cfg) {
 PASR masks DRAM regions that hold no data, reducing refresh power.
 
 ```c
-void set_pasr_per_rank(uint8_t rank, uint8_t bank_mask, uint8_t seg_mask) {
-    apb_write(PASR_BANK_MASK_RANK0 + rank*4, bank_mask);
-    apb_write(PASR_SEG_MASK_RANK0 + rank*4,  seg_mask);
-
-    // Wait for next self-refresh entry to propagate to DRAM via MR16/MR17
-    // OR force immediate via quiet-point:
-    apb_write(CTRL, CTRL_CONFIG_APPLY);
-    while (!(apb_read(STATUS) & STATUS_CONFIG_SETTLED));
-    apb_write(CTRL, 0);
+void set_pasr_rank0(uint8_t bank_mask, uint8_t seg_mask) {
+    csr_write(PASR_BANK_MASK_RANK0, bank_mask);
+    csr_write(PASR_SEG_MASK_RANK0,  seg_mask);
+    // Propagated to DRAM via MR16/MR17 at the next self-refresh entry.
 }
 ```
 
-The PASR mask is propagated lazily — typically at the next self-refresh entry — to avoid an extra bus-blocking MR write during normal operation. Forcing immediate propagation via `config_apply` is the right call when the application has decided "we just freed half the DRAM, refresh-power matters NOW."
+The single-rank build exposes `PASR_BANK_MASK_RANK0` / `PASR_SEG_MASK_RANK0`; multi-rank `*_RANK{N}` registers are a follow-up (see §4.2). The PASR mask is propagated lazily — typically at the next self-refresh entry — to avoid an extra bus-blocking MR write during normal operation.
 
 ## Temperature Compensation (LPDDR2)
 
@@ -89,96 +80,59 @@ LPDDR2 devices expose temperature classification in MR4. The SoC reads this via 
 
 Software updates the controller's tREFI scaling:
 
+`TEMP_DERATE_RANK0.temp_class` (0 = nominal, 1 = 2x refresh, 2 = 4x refresh) is a **read-only, hardware-written** field in this build — the controller captures the LPDDR2 MR4 class rather than software programming it. Software reads it to inform its own tREFI scaling via `TIMINGS_RFC_REFI`:
+
 ```c
-void update_temperature_class(uint8_t rank, uint8_t temp_class) {
-    // temp_class: 0 = nominal, 1 = 2x refresh, 2 = 4x refresh
-    // Per-rank because ranks can be at different temperatures
-    uint32_t v = apb_read(TEMP_DERATE_RANK0 + rank*4);
-    v = (v & ~TEMP_CLASS_MASK) | TEMP_CLASS(temp_class);
-    apb_write(TEMP_DERATE_RANK0 + rank*4, v);
-
-    // Live — no quiet point needed (just scales the next t_refi_cnt reload)
-}
+uint8_t temp = csr_read(TEMP_DERATE_RANK0) & 0x3;
+// Scale tREFI down for 2x/4x refresh as temp rises
+csr_write(TIMINGS_RFC_REFI, REFI_PACK(trfc, trefi >> temp));  // live next reload
 ```
-
-The refresh manager scales tREFI by the per-rank class on the next reload.
 
 ## Self-Refresh Entry
 
 For periods of inactivity, software (or auto-detection) can put the DRAM into self-refresh:
 
+The power-state request bits live in `CTRL`: `pwr_req_low_power`, `pwr_req_self_refresh`, `pwr_req_active`, `pwr_req_dpd`. `STATUS.power_state[7:4]` reports the current encoded state (RO, hw-written).
+
 ```c
 void enter_self_refresh(void) {
-    // Channel-wide request (v1)
-    apb_write(CTRL, CTRL_PWR_REQ_SELF_REFRESH);
-
-    // Poll for SR state
-    while (1) {
-        uint32_t s = apb_read(STATUS);
-        uint8_t pstate = STATUS_POWER_STATE(s);
-        if (pstate == POWER_STATE_SELF_REFRESH) break;
-    }
+    csr_write(CTRL, CTRL_PWR_REQ_SELF_REFRESH);
+    while (STATUS_POWER_STATE(csr_read(STATUS)) != POWER_STATE_SELF_REFRESH);
 }
 
 void exit_self_refresh(void) {
-    apb_write(CTRL, CTRL_PWR_REQ_ACTIVE);
-
-    while (STATUS_POWER_STATE(apb_read(STATUS)) != POWER_STATE_ACTIVE);
+    csr_write(CTRL, CTRL_PWR_REQ_ACTIVE);
+    while (STATUS_POWER_STATE(csr_read(STATUS)) != POWER_STATE_ACTIVE);
 }
 ```
 
-Note: any AXI traffic to a rank will auto-wake it from SR. Explicit exit is only needed when the application knows it wants to be ready before issuing.
+Note: any AXI traffic to a rank will auto-wake it from SR. Explicit exit is only needed when the application wants to be ready before issuing.
 
-## Auto Power-Down Tuning
-
-```c
-void configure_auto_power_down(uint32_t apd_threshold, uint32_t srf_threshold) {
-    apb_write(POWER_TUNING,
-              POWER_TUNING_APD(apd_threshold) |
-              POWER_TUNING_SRF(srf_threshold));
-
-    apb_write(CTRL, CTRL_CONFIG_APPLY);
-    while (!(apb_read(STATUS) & STATUS_CONFIG_SETTLED));
-    apb_write(CTRL, 0);
-}
-```
-
-| Threshold                    | Effect                                                                |
-|------------------------------|----------------------------------------------------------------------|
-| `apd_threshold = 1024`       | Default; ~5 µs idleness → APD                                          |
-| `apd_threshold = 0xFFFF`     | Effectively disabled                                                  |
-| `srf_threshold = 16M`        | Default; ~80 ms idleness → SRF                                         |
-| `srf_threshold = 0xFFFFFF`   | Effectively disabled                                                  |
-
-Per-rank idleness counters mean each rank enters APD/SRF independently if traffic concentrates on a subset.
+There is no `POWER_TUNING` register in this build — idle-threshold auto-APD/SRF is not a CSR knob here. Power-state entry is software-requested via `CTRL`. (An auto-low-power threshold register is a possible follow-up; see below.)
 
 ## DPD (LPDDR2 Deep Power Down)
 
-DPD is the deepest power state on LPDDR2 — DRAM is fully off; software must full-init to exit.
+DPD is the deepest power state on LPDDR2 — DRAM is fully off; software must full-init to exit. The request bit is `CTRL.pwr_req_dpd` (inert on DDR2). Check the build memtype via `ID` (0xFF0) rather than a capability vector (there is no `0xFF8`):
 
 ```c
 void enter_dpd(void) {
-    // Sanity: LPDDR2 only
-    if (!(apb_read(0xFF8) & CAP_DPD)) {
-        log_error("DPD not supported on this build");
+    if (((csr_read(ID) >> 8) & 0xFF) != MEMTYPE_LPDDR2) {
+        log_error("DPD is LPDDR2-only");
         return;
     }
-
-    apb_write(CTRL, CTRL_PWR_REQ_DPD);
-
-    while (STATUS_POWER_STATE(apb_read(STATUS)) != POWER_STATE_DPD);
+    csr_write(CTRL, CTRL_PWR_REQ_DPD);
+    while (STATUS_POWER_STATE(csr_read(STATUS)) != POWER_STATE_DPD);
 }
 
 void exit_dpd(void) {
-    // Re-init the rank
-    start_dram_init();
+    start_dram_init();   // full re-init
 }
 ```
 
-DPD is rare in practice — typical use is "DRAM is fully unused for hours" (long-suspend laptop). The full-init exit takes ~250 µs.
+DPD is rare in practice (DRAM fully unused for hours). Note the runtime family select is `PHY_TIMING.memtype`; `ID.memtype` is the build-time echo.
 
 ## Open Questions / Future Work
 
-- **Per-rank CSR control.** Channel-wide power request is v1. Per-rank request (`CTRL.pwr_req_low_power_rank_R<R>`) for partial low-power without affecting active ranks would be useful for many workloads. Not in v1; see §2.13 open questions.
-- **SR lock.** Software-forced SR can be woken by AXI traffic. A "stay in SR until I say go" mode would be useful for guaranteed-low-power testing. Punt to v2.
-- **Auto-tune from telemetry.** The refresh-deferral histogram (`OBS_REFRESH_DEFER_HIST_*`) hints at what `defer_active` should be. Could a kernel/firmware loop auto-tune? Likely yes; needs characterization data first.
+- **Auto power-down thresholds.** This build has no `POWER_TUNING` register — APD/SRF is request-driven. Adding idle-threshold CSRs for automatic low-power entry is a candidate feature.
+- **Per-rank power control.** `CTRL.pwr_req_*` is channel-wide. Per-rank request registers are a multi-rank follow-up.
+- **Observation readback.** `STATUS.power_state`, `STATUS_HISTORY`, and the `OBS_REFRESH_DEFER_HIST_*` telemetry are declared but `hwif_in` is tied off in `pumice_top` today (see §4.1); wiring them enables telemetry-driven auto-tuning.

@@ -1,20 +1,44 @@
-# Filelist for pumice_top — integration of all three macros.
-
-# Include directories
+# Filelist for pumice_top (new controller top: pumice_core + PeakRDL CSR)
 +incdir+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/includes
-+incdir+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated/rtl
-+incdir+$REPO_ROOT/rtl/amba/includes
-
-# Header files
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
-
-# Pull in the sub-macros + CSR slave via their own filelists.
--f $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/filelists/macro/axi_frontend_macro.f
--f $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/filelists/macro/command_scheduler_macro.f
--f $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/filelists/macro/data_path_macro.f
--f $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/filelists/macro/dfi_v21_interface_macro.f
--f $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/filelists/macro/pumice_core_macro.f
--f $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/filelists/macro/pumice_csr_slave.f
-
-# This top module
++incdir+$REPO_ROOT/rtl/amba/includes
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/includes/pumice_pkg.sv
+$REPO_ROOT/rtl/common/counter_bin.sv
+$REPO_ROOT/rtl/common/counter_johnson.sv
+$REPO_ROOT/rtl/common/find_first_set.sv
+$REPO_ROOT/rtl/common/find_last_set.sv
+$REPO_ROOT/rtl/common/leading_one_trailing_one.sv
+$REPO_ROOT/rtl/common/grayj2bin.sv
+$REPO_ROOT/rtl/common/glitch_free_n_dff_arn.sv
+$REPO_ROOT/rtl/common/fifo_control.sv
+$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
+$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
+$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_async.sv
+$REPO_ROOT/rtl/amba/axi4/axi4_slave_wr.sv
+$REPO_ROOT/rtl/amba/axi4/axi4_slave_rd.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_axi_burst_chopper.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_wr_splitter.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/addr_mapper.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_wr_intake.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_rd_intake.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_wr_data_cam.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_rd_cmd_cam.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_bank_timers.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/global_timers.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/refresh_ctrl.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/init_sequencer.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/mode_register.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/dfi_cmd_formatter.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_cdc.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_cmd_path.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_wr_serializer.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_rd_aligner.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_axi4_ifc.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_mem_cmd_scheduler.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_dfi_layer.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/top/pumice_core.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated/rtl/pumice_csr_pkg.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated/rtl/pumice_csr.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/top/pumice_top.sv

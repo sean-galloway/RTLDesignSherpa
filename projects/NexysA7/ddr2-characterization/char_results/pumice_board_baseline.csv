@@ -1,0 +1,5 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,notes
+baseline,incremental,incremental,8,1024,0,0,1,0,65536,100.0,514841,0.0014,12.73,514850,0.0014,12.73,3063.79,1023,hist total 1023 != txn_count 1024
+baseline,row_major,row_major,8,1024,0,0,1,0,65536,100.0,516081,0.0014,12.70,516090,0.0014,12.70,3063.79,1023,hist total 1023 != txn_count 1024
+baseline,col_major,col_major,8,1024,0,0,1,0,65536,100.0,516081,0.0014,12.70,516090,0.0014,12.70,3063.79,1023,hist total 1023 != txn_count 1024
+baseline,col_major_interleaved,col_major_interleaved,8,1024,0,0,0,68,65536,100.0,475196,0.0014,13.79,475207,0.0014,13.79,3061.16,1023,read engine did not complete; 68 beats mismatched; hist total 1023 != txn_count 1024

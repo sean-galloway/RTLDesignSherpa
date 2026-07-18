@@ -184,6 +184,68 @@ addrmap pumice_csr {
 
     } TIMINGS_CL_CWL_WR @ 0x01C;
 
+    reg {
+        name = "Timings: tRTP / tRTW";
+        desc = "Read-to-precharge and read-to-write turn-around (JEDEC), in MC
+                cycles. Previously tRTP was hardcoded (8'd4, 'not yet in CSR map')
+                and tRTW was tied to tRTP; now both are independent configs.";
+
+        field { sw = rw; hw = r; desc = "Read to precharge"; } tRTP[7:0]  = 8'd4;
+        field { sw = rw; hw = r; desc = "Read to write";     } tRTW[15:8] = 8'd6;
+        field { sw = r;  hw = na; desc = "Reserved";         } RSVD[31:16] = 16'h0;
+
+    } TIMINGS_RTP_RTW @ 0x054;
+
+    reg {
+        name = "DFI Command Phase Placement";
+        desc = "Which DFI sub-phase carries the READ vs WRITE command, to match
+                the PHY's rdphase/wrphase contract. For the Nexys A7 a7ddrphy
+                (DDR2/CL3/nphases=2) the on-silicon ILA showed the READ burst is
+                delivered aligned to rdphase=1 (wrphase=0): issuing RD on phase 0
+                misaligns the returned burst (1st DFI cycle good, tail corrupt).
+                Defaults 0/0 preserve the legacy all-on-phase-0 behavior. Fields
+                are sliced to clog2(DFI_RATE) bits downstream; upper bits ignored
+                when DFI_RATE < the field width.";
+
+        field { sw = rw; hw = r; desc = "READ command DFI sub-phase";  } rd_phase[2:0]   = 3'd0;
+        field { sw = rw; hw = r; desc = "WRITE command DFI sub-phase"; } wr_phase[6:4]   = 3'd0;
+        // gear_ratio = log2(active DFI_RATE): 0=1:1, 1=1:2, 2=1:4, 3=1:8. The
+        // controller datapath is BUILT for MAX_DFI_RATE (this build = 4); this
+        // register selects how many of those phases are ACTIVE at runtime and
+        // MUST equal the PHY's gear (nphases). On this board the a7ddrphy is
+        // fixed nphases=4, so reset = 2 (1:4). Prep for a variable-gear PHY
+        // (task #144/#145) -- gear is NEVER inferred, always this fixed register.
+        field { sw = rw; hw = r; desc = "gear_ratio = log2(active DFI_RATE)"; } gear_ratio[8:7] = 2'd2;
+        // JEDEC burst length (MR0 device beats): 4, 8, or 16. The SINGLE source
+        // of truth for the burst geometry (task #146). Combined with gear_ratio
+        // it selects the ACTIVE sub-DFI-word framing at runtime: when one DFI
+        // word packs N = DFI_RATE/(bl>>BL_SHIFT) JEDEC bursts (board: gear 1:4 +
+        // x16 BL4 => N=2), the DFI layer issues N consecutive-column DRAM
+        // commands per AXI beat. The controller datapath is BUILT for MAX (this
+        // build = BL4), so a wrong value here is BAD CONFIG PROGRAMMING, never a
+        // synth mismatch. Reset = 4 matches the board (DDR2 BL4). It also carries
+        // the burst length that MR0 encodes, so software programs one value.
+        field { sw = rw; hw = r; desc = "JEDEC burst length (MR0 device beats): 4/8/16"; } bl[12:9] = 4'd4;
+        field { sw = r;  hw = na; desc = "Reserved";                   } RSVD[31:13]      = 19'h0;
+
+    } DFI_PHASE @ 0x060;
+
+    reg {
+        name = "PHY / DFI data timing + memory config";
+        desc = "t_phy_wrlat: WRITE command -> dfi_wrdata_en (0 for a7ddrphy
+                pre-pull). t_rddata_en: RD command -> dfi_rddata_en window.
+                memtype: 0=DDR2, 1=LPDDR2. refresh_burst: 1..8 REFs drained per
+                request. All hw-readable so they drive the controller core.";
+
+        field { sw = rw; hw = r; desc = "t_phy_wrlat (WR cmd -> wrdata_en)"; } t_phy_wrlat[7:0]   = 8'd0;
+        field { sw = rw; hw = r; desc = "t_rddata_en (RD cmd -> rddata_en)";  } t_rddata_en[15:8]  = 8'd6;
+        field { sw = rw; hw = r; desc = "0=DDR2, 1=LPDDR2";                    } memtype[16:16]     = 1'b0;
+        field { sw = r;  hw = na; desc = "Reserved";                           } RSVD0[19:17]      = 3'h0;
+        field { sw = rw; hw = r; desc = "REFs drained per request (1..8)";     } refresh_burst[23:20] = 4'd1;
+        field { sw = r;  hw = na; desc = "Reserved";                           } RSVD1[31:24]      = 8'h0;
+
+    } PHY_TIMING @ 0x064;
+
     //=========================================================================
     // Mode Register Values (0x020 – 0x02F)
     //=========================================================================
@@ -342,24 +404,41 @@ addrmap pumice_csr {
     } REFRESH_TUNING @ 0x048;
 
     reg {
-        name = "Address Map Tuning";
-        desc = "Runtime address-map scheme selection + synthesized mask";
+        name = "Address Map";
+        desc = "AXI-address -> {rank,row,bank,col} mapping. bank_lsb is where the
+                bank field sits in the (byte-offset-stripped) word address; the
+                column fills below (col_lo) and above (col_hi) it, row/rank stack
+                above. ROW_MAJOR / BANK_INTERLEAVE / XOR_HASH are just settings of
+                this register (no separate scheme selector). See addr_mapper.sv.";
+
+        // Bank LSB = # of low column bits kept BELOW the bank field. A DRAM burst
+        // lives in those low bits, so it stays within one bank.
+        //   = COL_WIDTH          -> bank above whole column  = ROW_MAJOR
+        //   = log2(BL/DFI_RATE)  -> minimal col_lo           = max BANK_INTERLEAVE
+        //   in between           -> partial interleave (burst locality preserved)
+        // Constraint: log2(BL/DFI_RATE) <= bank_lsb <= COL_WIDTH (RTL clamps).
+        field {
+            sw = rw; hw = r;
+            desc = "Bank field LSB in the word address (=COL_WIDTH -> ROW_MAJOR)";
+        } bank_lsb[4:0] = 5'd10;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_7_5[7:5] = 3'h0;
 
         field {
             sw = rw; hw = r;
-            desc = "00=build-time, 01=ROW_MAJOR, 10=BANK_INTERLEAVE, 11=XOR_HASH";
-        } scheme_or[1:0] = 2'h0;
+            desc = "Enable bank XOR-hash: bank ^= fold(row) ^ hash_seed";
+        } hash_en[8:8] = 1'b0;
 
-        field { sw = r; hw = na; desc = "Reserved"; } RSVD_3_2[3:2] = 2'h0;
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_15_9[15:9] = 7'h0;
 
         field {
-            sw = r; hw = w;
-            desc = "Bitmask of synthesized schemes (bit0=RM, bit1=BI, bit2=XOR)";
-        } synth_mask_obs[7:4];
+            sw = rw; hw = r;
+            desc = "XOR-hash seed (bank ^= fold(row) ^ seed[BW-1:0])";
+        } hash_seed[23:16] = 8'h00;
 
-        field { sw = r; hw = na; desc = "Reserved"; } RSVD_31_8[31:8] = 24'h0;
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_31_24[31:24] = 8'h0;
 
-    } ADDR_MAP_TUNING @ 0x04C;
+    } ADDR_MAP @ 0x04C;
 
     reg {
         name = "Init Tuning";
@@ -371,6 +450,28 @@ addrmap pumice_csr {
         field { sw = r;  hw = na; desc = "Reserved";              } RSVD_31_16[31:16] = 16'h0;
 
     } INIT_TUNING @ 0x050;
+
+    reg {
+        name = "Init Timing 0: tINIT / tDLLK";
+        desc = "JEDEC init-sequence waits (MC cycles): CKE/tINIT settle and DLL
+                lock. Previously hardcoded in init_sequencer.";
+
+        field { sw = rw; hw = r; desc = "CKE/tINIT settle"; } t_init_wait[15:0]  = 16'd512;
+        field { sw = rw; hw = r; desc = "DLL lock (tDLLK)"; } t_dll_wait[31:16]  = 16'd256;
+
+    } INIT_TIMING0 @ 0x058;
+
+    reg {
+        name = "Init Timing 1: tMRD / tRP / tRFC (init)";
+        desc = "JEDEC init-sequence waits (MC cycles): post-MRS (tMRD),
+                post-precharge (tRP), post-refresh (tRFC). Previously hardcoded.";
+
+        field { sw = rw; hw = r; desc = "tMRD (post mode-reg)"; } t_mrd_wait[7:0]  = 8'd8;
+        field { sw = rw; hw = r; desc = "tRP (post precharge)"; } t_rp_wait[15:8]  = 8'd8;
+        field { sw = rw; hw = r; desc = "tRFC (post refresh)";  } t_rfc_wait[23:16]= 8'd16;
+        field { sw = r;  hw = na; desc = "Reserved";            } RSVD[31:24] = 8'h0;
+
+    } INIT_TIMING1 @ 0x05C;
 
     //=========================================================================
     // Per-Bank Observation (0x080 – 0x09F) — NUM_BANKS=8, rank 0

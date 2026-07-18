@@ -25,86 +25,95 @@
 
 ## Clock Domains
 
-The controller uses three independent clocks.
+The controller uses two independent clocks. The register block is a PeakRDL
+passthrough `cpuif` clocked by `aclk` — there is no separate management clock.
 
-### `mc_clk`
+### `aclk`
 
-Primary controller clock. All scheduler, bank machines, command pipeline, and AXI4-side logic run on `mc_clk`. The DFI master output stage launches its signals on `mc_clk`.
+Controller clock. All host-AXI4 logic, the scheduler, the bank timers, the
+write/read CAMs, and the register block (`pumice_csr`) run on `aclk`. The
+controller-side of the command / write-data / read-data streams into the DFI
+layer is on `aclk`.
 
-Typical frequency: 100 – 200 MHz on FPGA SoCs; up to 533 MHz on silicon for DDR2-1066 / LPDDR2-800.
+Typical frequency: 100 – 200 MHz on FPGA SoCs; higher on silicon.
 
-### `phy_clk`
+### `dfi_clk`
 
-PHY-side clock. Runs at `N_PHASES × mc_clk` rate. The PHY consumes DFI signals on `phy_clk`.
+PHY / DFI-side clock. The DFI 2.1 command bus, write serializer, and read
+aligner run on `dfi_clk`; the PHY consumes and drives the DFI pin bus on this
+clock. The gear ratio (`DFI_RATE`) sets how many DRAM phases each `dfi_clk`
+cycle carries.
 
-For `N_PHASES = 4`, `phy_clk` = 4 × `mc_clk`. For `N_PHASES = 2`, `phy_clk` = 2 × `mc_clk`. For `N_PHASES = 1`, `phy_clk` = `mc_clk` (they may be the same signal in this case).
-
-The relationship is asynchronous from the controller's perspective — the PHY handles the rate conversion. The DFI v2.1 specification's frequency-ratio scheme is what makes this work without explicit FIFO crossings.
-
-### `apb_pclk`
-
-APB CSR bus clock. Independent of `mc_clk` — typically a slower SoC management clock. CDC inside `csr_slave` transfers configuration writes into the `mc_clk` domain via 2-flop synchronizer plus handshake.
+`aclk` and `dfi_clk` are asynchronous to each other. The single crossing
+between them lives inside `pumice_dfi_layer` (see the CDC summary below).
 
 ## Reset Signals
 
-### `mc_rstn` (active low)
+Both resets are active-low.
 
-Primary controller reset. Synchronously deasserted on `mc_clk`. Resets:
+### `aresetn` (active low, controller / AXI domain)
 
-- AXI4 slave state machines
-- Transaction queue
-- Scheduler and bank machines
-- Cross-bank timers
-- Refresh manager (clears tREFI counter and `refresh_pending`)
-- Power-state FSM (transitions to RESET state)
-- Init engine (resets to step 0)
-- All observation counters
+Controller reset, tied to the `aclk` domain. The register block resets on
+`~aresetn` (`pumice_csr` `.rst(~aresetn)`). Resets:
 
-### `phy_rstn` (active low)
+- Host AXI4 interface state (`pumice_axi4_ifc`)
+- Write-data and read-command CAMs
+- Command scheduler and bank timers (`pumice_mem_cmd_scheduler`)
+- Refresh manager and init sequencer
+- Register block (`pumice_csr`) and observation state
 
-Controlled by `init_engine` during the reset-release phase of the init sequence. Asserted at startup; deasserted as the first step of the init step table.
+### `dfi_rstn` (active low, DFI / PHY domain)
 
-### `dfi_rstn` (active low, MC → PHY)
+DFI-domain reset, tied to the `dfi_clk` domain. Resets the DFI command path,
+the write serializer, the read aligner, and the DFI-side of the CDC FIFOs
+inside `pumice_dfi_layer`.
 
-DFI reset signal driven to the PHY. Controlled by `init_engine` per the init step table; allows the PHY to perform its own reset sequence during DRAM init.
-
-### `apb_presetn` (active low)
-
-APB CSR bus reset. Synchronously deasserted on `apb_pclk`. Resets the CSR slave state machine.
+> Note: `init_sequencer` names its ports `mc_clk` / `mc_rst_n` internally, but
+> the top level (`pumice_top` → `pumice_core`) ties these to `aclk` / `aresetn`.
 
 ## Reset Sequencing
 
 ### Cold Boot
 
-1. All resets asserted (`mc_rstn`, `phy_rstn`, `dfi_rstn`, `apb_presetn`)
+1. Both resets asserted (`aresetn`, `dfi_rstn`)
 2. Clocks stable
-3. `apb_presetn` deasserted (SoC programs CSR if needed; otherwise defaults)
-4. `mc_rstn` deasserted
-5. Init engine starts; runs step table; drives `phy_rstn` and `dfi_rstn` per the sequence
-6. On `init_done`, power-state FSM transitions to ACTIVE
-7. Controller services AXI traffic
+3. `dfi_rstn` deasserted; `aresetn` deasserted (software programs the CSR
+   timings/phases/policy via the register `cpuif`, or defaults are used)
+4. The init sequencer asserts `dfi_init_start_o` and waits on
+   `dfi_init_complete_i` (the PHY runs its own DLL-lock / IO training)
+5. The init sequencer walks the JEDEC MRS / precharge / refresh sequence
+   (see the Init Sequences chapter)
+6. On `init_done_o`, the controller begins servicing AXI traffic
 
 ### Warm Reset (Clock-Gated)
 
 The SoC can warm-reset the controller without losing DRAM content:
 
-1. SoC requests self-refresh entry via CSR
+1. SoC requests self-refresh entry (via `powerdown_ctrl`, optional)
 2. Controller acknowledges; DRAM is in self-refresh
-3. SoC asserts `mc_rstn`; clocks may be gated
-4. SoC deasserts `mc_rstn`; clocks resume
-5. Controller re-runs init from the table (the table is idempotent — it does not corrupt DRAM in self-refresh)
+3. SoC asserts `aresetn`; clocks may be gated
+4. SoC deasserts `aresetn`; clocks resume
+5. Controller re-runs the init sequence
 6. Controller resumes normal operation
-
-The init step table is designed to be cold-boot-correct **and** warm-boot-safe. The step list for LPDDR2 includes a check on MR4 for the current temperature; if the temperature changed during the warm reset, the controller updates its tREFI scale accordingly.
 
 ## Clock Domain Crossing Summary
 
-| Crossing                | Mechanism                                    | Latency                       |
-|-------------------------|----------------------------------------------|-------------------------------|
-| `apb_pclk` → `mc_clk`   | 2-flop sync + handshake                      | ~3-4 `mc_clk` cycles          |
-| `mc_clk` → `apb_pclk`   | 2-flop sync (observation reads)              | ~3-4 `apb_pclk` cycles        |
-| `mc_clk` → `phy_clk`    | DFI frequency-ratio scheme (no explicit CDC) | 0 (combinational replication) |
+There is exactly one clock-domain crossing in the design: the `aclk` ↔
+`dfi_clk` crossing inside `pumice_dfi_layer` (`pumice_dfi_cdc.sv`). It is built
+from asynchronous `gaxi` FIFOs only — command, write-data, and read-data each
+get their own async FIFO, plus the `init_start` / `init_complete` handshake.
+The register `cpuif` shares the `aclk` domain, so there is no CSR-clock CDC.
+
+| Crossing              | Mechanism                                          | Latency                     |
+|-----------------------|----------------------------------------------------|-----------------------------|
+| `aclk` → `dfi_clk`    | Async `gaxi` FIFOs (cmd / wrdata) in `pumice_dfi_cdc` | FIFO + `N_FLOP_CROSS`-flop sync |
+| `dfi_clk` → `aclk`    | Async `gaxi` FIFO (rddata) in `pumice_dfi_cdc`     | FIFO + `N_FLOP_CROSS`-flop sync |
 
 ## Reset and Power Considerations
 
-Note that DFI v2.1 §4.1 requires `dfi_init_start` to be asserted by the controller as part of init; the controller does this during the reset-release step. The PHY's `dfi_init_complete` signal indicates that the PHY has finished its own initialization; the controller's init engine waits on this before proceeding to MRS loads.
+DFI v2.1 requires `dfi_init_start` to be asserted by the controller as part of
+init; the init sequencer drives `dfi_init_start_o` out of reset (once it leaves
+`S_RESET`) and waits on the PHY's `dfi_init_complete_i` before proceeding to
+the MRS / precharge / refresh walk. The `init_start` / `init_complete` handshake
+crosses the `aclk` ↔ `dfi_clk` boundary through the same CDC as the command and
+data streams.

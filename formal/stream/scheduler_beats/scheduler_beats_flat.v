@@ -69,7 +69,7 @@ module scheduler_beats (
 	input wire mon_ready;
 	output wire [63:0] mon_packet;
 	initial if (DESC_WIDTH != 256) begin
-		$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/rapids/rtl/fub_beats/scheduler_beats.sv:137:13 - scheduler_beats.<unnamed_block>.<unnamed_block>\n msg: ", $time, "scheduler (RAPIDS): DESC_WIDTH must be 256, got %0d.", DESC_WIDTH);
+		$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dmas/rapids/rtl/fub_beats/scheduler_beats.sv:137:13 - scheduler_beats.<unnamed_block>.<unnamed_block>\n msg: ", $time, "scheduler (RAPIDS): DESC_WIDTH must be 256, got %0d.", DESC_WIDTH);
 		$finish(1);
 	end
 	localparam signed [31:0] DESC_SRC_ADDR_LO = 0;

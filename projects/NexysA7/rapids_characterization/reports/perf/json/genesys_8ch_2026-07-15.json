@@ -1,0 +1,2870 @@
+{
+  "timestamp": "2026-07-15T21:35:42",
+  "total": 14,
+  "passed": 7,
+  "failed": 7,
+  "configs": [
+    {
+      "name": "ch8_b1_bpoff_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 1,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 8,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.0,
+              "eff_bw_gb_s": 0.0,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 0,
+                "bp": 0,
+                "starv": 161,
+                "idle": 0,
+                "engaged": 161,
+                "total": 161,
+                "util": 0.0
+              },
+              "bytes": 0,
+              "packets": 0,
+              "byte_bw_gb_s": 0.0
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.049689440993788817,
+              "eff_bw_gb_s": 0.31801242236024846,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8,
+                "bp": 0,
+                "starv": 153,
+                "idle": 0,
+                "engaged": 161,
+                "total": 161,
+                "util": 0.049689440993788817
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x1A5A601F",
+            "wr": "0x1A5A601F",
+            "gen": "0x1A5A601F"
+          },
+          "1": {
+            "golden": "0xA2E6077A",
+            "wr": "0xA2E6077A",
+            "gen": "0xA2E6077A"
+          },
+          "2": {
+            "golden": "0xB053A894",
+            "wr": "0xB053A894",
+            "gen": "0xB053A894"
+          },
+          "3": {
+            "golden": "0x08EFCFF1",
+            "wr": "0x08EFCFF1",
+            "gen": "0x08EFCFF1"
+          },
+          "4": {
+            "golden": "0x9538F748",
+            "wr": "0x9538F748",
+            "gen": "0x9538F748"
+          },
+          "5": {
+            "golden": "0x2D84902D",
+            "wr": "0x2D84902D",
+            "gen": "0x2D84902D"
+          },
+          "6": {
+            "golden": "0x3F313FC3",
+            "wr": "0x3F313FC3",
+            "gen": "0x3F313FC3"
+          },
+          "7": {
+            "golden": "0x878D58A6",
+            "wr": "0x878D58A6",
+            "gen": "0x878D58A6"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 8,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.048484848484848485,
+              "eff_bw_gb_s": 0.3103030303030303,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8,
+                "bp": 0,
+                "starv": 157,
+                "idle": 0,
+                "engaged": 165,
+                "total": 165,
+                "util": 0.048484848484848485
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.048484848484848485,
+              "eff_bw_gb_s": 0.3103030303030303,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8,
+                "bp": 0,
+                "starv": 157,
+                "idle": 0,
+                "engaged": 165,
+                "total": 165,
+                "util": 0.048484848484848485
+              },
+              "bytes": 512,
+              "packets": 8,
+              "byte_bw_gb_s": 0.3103030303030303
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x1A5A601F",
+            "rd": "0x1A5A601F",
+            "chk": "0x1A5A601F"
+          },
+          "1": {
+            "golden": "0xA2E6077A",
+            "rd": "0xA2E6077A",
+            "chk": "0xA2E6077A"
+          },
+          "2": {
+            "golden": "0xB053A894",
+            "rd": "0xB053A894",
+            "chk": "0xB053A894"
+          },
+          "3": {
+            "golden": "0x08EFCFF1",
+            "rd": "0x08EFCFF1",
+            "chk": "0x08EFCFF1"
+          },
+          "4": {
+            "golden": "0x9538F748",
+            "rd": "0x9538F748",
+            "chk": "0x9538F748"
+          },
+          "5": {
+            "golden": "0x2D84902D",
+            "rd": "0x2D84902D",
+            "chk": "0x2D84902D"
+          },
+          "6": {
+            "golden": "0x3F313FC3",
+            "rd": "0x3F313FC3",
+            "chk": "0x3F313FC3"
+          },
+          "7": {
+            "golden": "0x878D58A6",
+            "rd": "0x878D58A6",
+            "chk": "0x878D58A6"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b1_bpon_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 1,
+      "source_backpressure": true,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 8,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.0,
+              "eff_bw_gb_s": 0.0,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 0,
+                "bp": 0,
+                "starv": 161,
+                "idle": 0,
+                "engaged": 161,
+                "total": 161,
+                "util": 0.0
+              },
+              "bytes": 0,
+              "packets": 0,
+              "byte_bw_gb_s": 0.0
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.049689440993788817,
+              "eff_bw_gb_s": 0.31801242236024846,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8,
+                "bp": 0,
+                "starv": 153,
+                "idle": 0,
+                "engaged": 161,
+                "total": 161,
+                "util": 0.049689440993788817
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x1A5A601F",
+            "wr": "0x1A5A601F",
+            "gen": "0x1A5A601F"
+          },
+          "1": {
+            "golden": "0xA2E6077A",
+            "wr": "0xA2E6077A",
+            "gen": "0xA2E6077A"
+          },
+          "2": {
+            "golden": "0xB053A894",
+            "wr": "0xB053A894",
+            "gen": "0xB053A894"
+          },
+          "3": {
+            "golden": "0x08EFCFF1",
+            "wr": "0x08EFCFF1",
+            "gen": "0x08EFCFF1"
+          },
+          "4": {
+            "golden": "0x9538F748",
+            "wr": "0x9538F748",
+            "gen": "0x9538F748"
+          },
+          "5": {
+            "golden": "0x2D84902D",
+            "wr": "0x2D84902D",
+            "gen": "0x2D84902D"
+          },
+          "6": {
+            "golden": "0x3F313FC3",
+            "wr": "0x3F313FC3",
+            "gen": "0x3F313FC3"
+          },
+          "7": {
+            "golden": "0x878D58A6",
+            "wr": "0x878D58A6",
+            "gen": "0x878D58A6"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 8,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.019230769230769232,
+              "eff_bw_gb_s": 0.12307692307692308,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8,
+                "bp": 0,
+                "starv": 408,
+                "idle": 0,
+                "engaged": 416,
+                "total": 416,
+                "util": 0.019230769230769232
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.0,
+              "eff_bw_gb_s": 0.0,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 0,
+                "bp": 407,
+                "starv": 0,
+                "idle": 9,
+                "engaged": 407,
+                "total": 416,
+                "util": 0.0
+              },
+              "bytes": 0,
+              "packets": 0,
+              "byte_bw_gb_s": 0.0
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x1A5A601F",
+            "rd": "0x1A5A601F",
+            "chk": "0x1A5A601F"
+          },
+          "1": {
+            "golden": "0xA2E6077A",
+            "rd": "0xA2E6077A",
+            "chk": "0xA2E6077A"
+          },
+          "2": {
+            "golden": "0xB053A894",
+            "rd": "0xB053A894",
+            "chk": "0xB053A894"
+          },
+          "3": {
+            "golden": "0x08EFCFF1",
+            "rd": "0x08EFCFF1",
+            "chk": "0x08EFCFF1"
+          },
+          "4": {
+            "golden": "0x9538F748",
+            "rd": "0x9538F748",
+            "chk": "0x9538F748"
+          },
+          "5": {
+            "golden": "0x2D84902D",
+            "rd": "0x2D84902D",
+            "chk": "0x2D84902D"
+          },
+          "6": {
+            "golden": "0x3F313FC3",
+            "rd": "0x3F313FC3",
+            "chk": "0x3F313FC3"
+          },
+          "7": {
+            "golden": "0x878D58A6",
+            "rd": "0x878D58A6",
+            "chk": "0x878D58A6"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b4_bpoff_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 4,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 32,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.006097560975609756,
+              "eff_bw_gb_s": 0.03902439024390244,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 1,
+                "bp": 0,
+                "starv": 163,
+                "idle": 0,
+                "engaged": 164,
+                "total": 164,
+                "util": 0.006097560975609756
+              },
+              "bytes": 64,
+              "packets": 1,
+              "byte_bw_gb_s": 0.03902439024390244
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.1951219512195122,
+              "eff_bw_gb_s": 1.248780487804878,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32,
+                "bp": 0,
+                "starv": 132,
+                "idle": 0,
+                "engaged": 164,
+                "total": 164,
+                "util": 0.1951219512195122
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20F5B1C9",
+            "wr": "0x20F5B1C9",
+            "gen": "0x20F5B1C9"
+          },
+          "1": {
+            "golden": "0xA1D72AB4",
+            "wr": "0xA1D72AB4",
+            "gen": "0xA1D72AB4"
+          },
+          "2": {
+            "golden": "0x3938A00B",
+            "wr": "0x3938A00B",
+            "gen": "0x3938A00B"
+          },
+          "3": {
+            "golden": "0xB81A3B76",
+            "wr": "0xB81A3B76",
+            "gen": "0xB81A3B76"
+          },
+          "4": {
+            "golden": "0x136F924D",
+            "wr": "0x136F924D",
+            "gen": "0x136F924D"
+          },
+          "5": {
+            "golden": "0x924D0930",
+            "wr": "0x924D0930",
+            "gen": "0x924D0930"
+          },
+          "6": {
+            "golden": "0x0AA2838F",
+            "wr": "0x0AA2838F",
+            "gen": "0x0AA2838F"
+          },
+          "7": {
+            "golden": "0x8B8018F2",
+            "wr": "0x8B8018F2",
+            "gen": "0x8B8018F2"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 32,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.19047619047619047,
+              "eff_bw_gb_s": 1.219047619047619,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32,
+                "bp": 0,
+                "starv": 136,
+                "idle": 0,
+                "engaged": 168,
+                "total": 168,
+                "util": 0.19047619047619047
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.19047619047619047,
+              "eff_bw_gb_s": 1.219047619047619,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32,
+                "bp": 0,
+                "starv": 136,
+                "idle": 0,
+                "engaged": 168,
+                "total": 168,
+                "util": 0.19047619047619047
+              },
+              "bytes": 2048,
+              "packets": 16,
+              "byte_bw_gb_s": 1.2190476190476192
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20F5B1C9",
+            "rd": "0x20F5B1C9",
+            "chk": "0x20F5B1C9"
+          },
+          "1": {
+            "golden": "0xA1D72AB4",
+            "rd": "0xA1D72AB4",
+            "chk": "0xA1D72AB4"
+          },
+          "2": {
+            "golden": "0x3938A00B",
+            "rd": "0x3938A00B",
+            "chk": "0x3938A00B"
+          },
+          "3": {
+            "golden": "0xB81A3B76",
+            "rd": "0xB81A3B76",
+            "chk": "0xB81A3B76"
+          },
+          "4": {
+            "golden": "0x136F924D",
+            "rd": "0x136F924D",
+            "chk": "0x136F924D"
+          },
+          "5": {
+            "golden": "0x924D0930",
+            "rd": "0x924D0930",
+            "chk": "0x924D0930"
+          },
+          "6": {
+            "golden": "0x0AA2838F",
+            "rd": "0x0AA2838F",
+            "chk": "0x0AA2838F"
+          },
+          "7": {
+            "golden": "0x8B8018F2",
+            "rd": "0x8B8018F2",
+            "chk": "0x8B8018F2"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b4_bpon_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 4,
+      "source_backpressure": true,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 32,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.006097560975609756,
+              "eff_bw_gb_s": 0.03902439024390244,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 1,
+                "bp": 0,
+                "starv": 163,
+                "idle": 0,
+                "engaged": 164,
+                "total": 164,
+                "util": 0.006097560975609756
+              },
+              "bytes": 64,
+              "packets": 1,
+              "byte_bw_gb_s": 0.03902439024390244
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.1951219512195122,
+              "eff_bw_gb_s": 1.248780487804878,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32,
+                "bp": 0,
+                "starv": 132,
+                "idle": 0,
+                "engaged": 164,
+                "total": 164,
+                "util": 0.1951219512195122
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20F5B1C9",
+            "wr": "0x20F5B1C9",
+            "gen": "0x20F5B1C9"
+          },
+          "1": {
+            "golden": "0xA1D72AB4",
+            "wr": "0xA1D72AB4",
+            "gen": "0xA1D72AB4"
+          },
+          "2": {
+            "golden": "0x3938A00B",
+            "wr": "0x3938A00B",
+            "gen": "0x3938A00B"
+          },
+          "3": {
+            "golden": "0xB81A3B76",
+            "wr": "0xB81A3B76",
+            "gen": "0xB81A3B76"
+          },
+          "4": {
+            "golden": "0x136F924D",
+            "wr": "0x136F924D",
+            "gen": "0x136F924D"
+          },
+          "5": {
+            "golden": "0x924D0930",
+            "wr": "0x924D0930",
+            "gen": "0x924D0930"
+          },
+          "6": {
+            "golden": "0x0AA2838F",
+            "wr": "0x0AA2838F",
+            "gen": "0x0AA2838F"
+          },
+          "7": {
+            "golden": "0x8B8018F2",
+            "wr": "0x8B8018F2",
+            "gen": "0x8B8018F2"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 32,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.07692307692307693,
+              "eff_bw_gb_s": 0.49230769230769234,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32,
+                "bp": 0,
+                "starv": 384,
+                "idle": 0,
+                "engaged": 416,
+                "total": 416,
+                "util": 0.07692307692307693
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.0,
+              "eff_bw_gb_s": 0.0,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 0,
+                "bp": 407,
+                "starv": 0,
+                "idle": 9,
+                "engaged": 407,
+                "total": 416,
+                "util": 0.0
+              },
+              "bytes": 0,
+              "packets": 0,
+              "byte_bw_gb_s": 0.0
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20F5B1C9",
+            "rd": "0x20F5B1C9",
+            "chk": "0x20F5B1C9"
+          },
+          "1": {
+            "golden": "0xA1D72AB4",
+            "rd": "0xA1D72AB4",
+            "chk": "0xA1D72AB4"
+          },
+          "2": {
+            "golden": "0x3938A00B",
+            "rd": "0x3938A00B",
+            "chk": "0x3938A00B"
+          },
+          "3": {
+            "golden": "0xB81A3B76",
+            "rd": "0xB81A3B76",
+            "chk": "0xB81A3B76"
+          },
+          "4": {
+            "golden": "0x136F924D",
+            "rd": "0x136F924D",
+            "chk": "0x136F924D"
+          },
+          "5": {
+            "golden": "0x924D0930",
+            "rd": "0x924D0930",
+            "chk": "0x924D0930"
+          },
+          "6": {
+            "golden": "0x0AA2838F",
+            "rd": "0x0AA2838F",
+            "chk": "0x0AA2838F"
+          },
+          "7": {
+            "golden": "0x8B8018F2",
+            "rd": "0x8B8018F2",
+            "chk": "0x8B8018F2"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b16_bpoff_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 16,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 128,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.5511363636363636,
+              "eff_bw_gb_s": 3.5272727272727273,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 97,
+                "bp": 0,
+                "starv": 79,
+                "idle": 0,
+                "engaged": 176,
+                "total": 176,
+                "util": 0.5511363636363636
+              },
+              "bytes": 6208,
+              "packets": 7,
+              "byte_bw_gb_s": 3.5272727272727273
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.7272727272727273,
+              "eff_bw_gb_s": 4.654545454545455,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 128,
+                "bp": 0,
+                "starv": 48,
+                "idle": 0,
+                "engaged": 176,
+                "total": 176,
+                "util": 0.7272727272727273
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x96D52D23",
+            "wr": "0x96D52D23",
+            "gen": "0x96D52D23"
+          },
+          "1": {
+            "golden": "0xC932F9C7",
+            "wr": "0xC932F9C7",
+            "gen": "0xC932F9C7"
+          },
+          "2": {
+            "golden": "0x1C00B97B",
+            "wr": "0x1C00B97B",
+            "gen": "0x1C00B97B"
+          },
+          "3": {
+            "golden": "0x43E76D9F",
+            "wr": "0x43E76D9F",
+            "gen": "0x43E76D9F"
+          },
+          "4": {
+            "golden": "0xB7BC2847",
+            "wr": "0xB7BC2847",
+            "gen": "0xB7BC2847"
+          },
+          "5": {
+            "golden": "0xE85BFCA3",
+            "wr": "0xE85BFCA3",
+            "gen": "0xE85BFCA3"
+          },
+          "6": {
+            "golden": "0x3D69BC1F",
+            "wr": "0x3D69BC1F",
+            "gen": "0x3D69BC1F"
+          },
+          "7": {
+            "golden": "0x628E68FB",
+            "wr": "0x628E68FB",
+            "gen": "0x628E68FB"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 128,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.7111111111111111,
+              "eff_bw_gb_s": 4.551111111111112,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 128,
+                "bp": 0,
+                "starv": 52,
+                "idle": 0,
+                "engaged": 180,
+                "total": 180,
+                "util": 0.7111111111111111
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.7111111111111111,
+              "eff_bw_gb_s": 4.551111111111112,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 128,
+                "bp": 0,
+                "starv": 52,
+                "idle": 0,
+                "engaged": 180,
+                "total": 180,
+                "util": 0.7111111111111111
+              },
+              "bytes": 8192,
+              "packets": 64,
+              "byte_bw_gb_s": 4.551111111111111
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x96D52D23",
+            "rd": "0x96D52D23",
+            "chk": "0x96D52D23"
+          },
+          "1": {
+            "golden": "0xC932F9C7",
+            "rd": "0xC932F9C7",
+            "chk": "0xC932F9C7"
+          },
+          "2": {
+            "golden": "0x1C00B97B",
+            "rd": "0x1C00B97B",
+            "chk": "0x1C00B97B"
+          },
+          "3": {
+            "golden": "0x43E76D9F",
+            "rd": "0x43E76D9F",
+            "chk": "0x43E76D9F"
+          },
+          "4": {
+            "golden": "0xB7BC2847",
+            "rd": "0xB7BC2847",
+            "chk": "0xB7BC2847"
+          },
+          "5": {
+            "golden": "0xE85BFCA3",
+            "rd": "0xE85BFCA3",
+            "chk": "0xE85BFCA3"
+          },
+          "6": {
+            "golden": "0x3D69BC1F",
+            "rd": "0x3D69BC1F",
+            "chk": "0x3D69BC1F"
+          },
+          "7": {
+            "golden": "0x628E68FB",
+            "rd": "0x628E68FB",
+            "chk": "0x628E68FB"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b16_bpon_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 16,
+      "source_backpressure": true,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 128,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.5511363636363636,
+              "eff_bw_gb_s": 3.5272727272727273,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 97,
+                "bp": 0,
+                "starv": 79,
+                "idle": 0,
+                "engaged": 176,
+                "total": 176,
+                "util": 0.5511363636363636
+              },
+              "bytes": 6208,
+              "packets": 7,
+              "byte_bw_gb_s": 3.5272727272727273
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.7272727272727273,
+              "eff_bw_gb_s": 4.654545454545455,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 128,
+                "bp": 0,
+                "starv": 48,
+                "idle": 0,
+                "engaged": 176,
+                "total": 176,
+                "util": 0.7272727272727273
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x96D52D23",
+            "wr": "0x96D52D23",
+            "gen": "0x96D52D23"
+          },
+          "1": {
+            "golden": "0xC932F9C7",
+            "wr": "0xC932F9C7",
+            "gen": "0xC932F9C7"
+          },
+          "2": {
+            "golden": "0x1C00B97B",
+            "wr": "0x1C00B97B",
+            "gen": "0x1C00B97B"
+          },
+          "3": {
+            "golden": "0x43E76D9F",
+            "wr": "0x43E76D9F",
+            "gen": "0x43E76D9F"
+          },
+          "4": {
+            "golden": "0xB7BC2847",
+            "wr": "0xB7BC2847",
+            "gen": "0xB7BC2847"
+          },
+          "5": {
+            "golden": "0xE85BFCA3",
+            "wr": "0xE85BFCA3",
+            "gen": "0xE85BFCA3"
+          },
+          "6": {
+            "golden": "0x3D69BC1F",
+            "wr": "0x3D69BC1F",
+            "gen": "0x3D69BC1F"
+          },
+          "7": {
+            "golden": "0x628E68FB",
+            "wr": "0x628E68FB",
+            "gen": "0x628E68FB"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 128,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.3062200956937799,
+              "eff_bw_gb_s": 1.9598086124401912,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 128,
+                "bp": 0,
+                "starv": 290,
+                "idle": 0,
+                "engaged": 418,
+                "total": 418,
+                "util": 0.3062200956937799
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.0,
+              "eff_bw_gb_s": 0.0,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 0,
+                "bp": 409,
+                "starv": 0,
+                "idle": 9,
+                "engaged": 409,
+                "total": 418,
+                "util": 0.0
+              },
+              "bytes": 0,
+              "packets": 0,
+              "byte_bw_gb_s": 0.0
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x96D52D23",
+            "rd": "0x96D52D23",
+            "chk": "0x96D52D23"
+          },
+          "1": {
+            "golden": "0xC932F9C7",
+            "rd": "0xC932F9C7",
+            "chk": "0xC932F9C7"
+          },
+          "2": {
+            "golden": "0x1C00B97B",
+            "rd": "0x1C00B97B",
+            "chk": "0x1C00B97B"
+          },
+          "3": {
+            "golden": "0x43E76D9F",
+            "rd": "0x43E76D9F",
+            "chk": "0x43E76D9F"
+          },
+          "4": {
+            "golden": "0xB7BC2847",
+            "rd": "0xB7BC2847",
+            "chk": "0xB7BC2847"
+          },
+          "5": {
+            "golden": "0xE85BFCA3",
+            "rd": "0xE85BFCA3",
+            "chk": "0xE85BFCA3"
+          },
+          "6": {
+            "golden": "0x3D69BC1F",
+            "rd": "0x3D69BC1F",
+            "chk": "0x3D69BC1F"
+          },
+          "7": {
+            "golden": "0x628E68FB",
+            "rd": "0x628E68FB",
+            "chk": "0x628E68FB"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b64_bpoff_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 64,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 512,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.9161904761904762,
+              "eff_bw_gb_s": 5.863619047619048,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 481,
+                "bp": 0,
+                "starv": 44,
+                "idle": 0,
+                "engaged": 525,
+                "total": 525,
+                "util": 0.9161904761904762
+              },
+              "bytes": 30784,
+              "packets": 8,
+              "byte_bw_gb_s": 5.863619047619047
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.9752380952380952,
+              "eff_bw_gb_s": 6.24152380952381,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 512,
+                "bp": 0,
+                "starv": 13,
+                "idle": 0,
+                "engaged": 525,
+                "total": 525,
+                "util": 0.9752380952380952
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x2ECD0400",
+            "wr": "0x2ECD0400",
+            "gen": "0x2ECD0400"
+          },
+          "1": {
+            "golden": "0x0D704332",
+            "wr": "0x0D704332",
+            "gen": "0x0D704332"
+          },
+          "2": {
+            "golden": "0xF3572F92",
+            "wr": "0xF3572F92",
+            "gen": "0xF3572F92"
+          },
+          "3": {
+            "golden": "0xD0EA68A0",
+            "wr": "0xD0EA68A0",
+            "gen": "0xD0EA68A0"
+          },
+          "4": {
+            "golden": "0xAEE72338",
+            "wr": "0xAEE72338",
+            "gen": "0xAEE72338"
+          },
+          "5": {
+            "golden": "0x8D5A640A",
+            "wr": "0x8D5A640A",
+            "gen": "0x8D5A640A"
+          },
+          "6": {
+            "golden": "0x737D08AA",
+            "wr": "0x737D08AA",
+            "gen": "0x737D08AA"
+          },
+          "7": {
+            "golden": "0x50C04F98",
+            "wr": "0x50C04F98",
+            "gen": "0x50C04F98"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 512,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.9258589511754068,
+              "eff_bw_gb_s": 5.925497287522604,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 512,
+                "bp": 0,
+                "starv": 41,
+                "idle": 0,
+                "engaged": 553,
+                "total": 553,
+                "util": 0.9258589511754068
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.9258589511754068,
+              "eff_bw_gb_s": 5.925497287522604,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 512,
+                "bp": 0,
+                "starv": 41,
+                "idle": 0,
+                "engaged": 553,
+                "total": 553,
+                "util": 0.9258589511754068
+              },
+              "bytes": 32768,
+              "packets": 269,
+              "byte_bw_gb_s": 5.925497287522604
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x2ECD0400",
+            "rd": "0x2ECD0400",
+            "chk": "0x2ECD0400"
+          },
+          "1": {
+            "golden": "0x0D704332",
+            "rd": "0x0D704332",
+            "chk": "0x0D704332"
+          },
+          "2": {
+            "golden": "0xF3572F92",
+            "rd": "0xF3572F92",
+            "chk": "0xF3572F92"
+          },
+          "3": {
+            "golden": "0xD0EA68A0",
+            "rd": "0xD0EA68A0",
+            "chk": "0xD0EA68A0"
+          },
+          "4": {
+            "golden": "0xAEE72338",
+            "rd": "0xAEE72338",
+            "chk": "0xAEE72338"
+          },
+          "5": {
+            "golden": "0x8D5A640A",
+            "rd": "0x8D5A640A",
+            "chk": "0x8D5A640A"
+          },
+          "6": {
+            "golden": "0x737D08AA",
+            "rd": "0x737D08AA",
+            "chk": "0x737D08AA"
+          },
+          "7": {
+            "golden": "0x50C04F98",
+            "rd": "0x50C04F98",
+            "chk": "0x50C04F98"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b64_bpon_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 64,
+      "source_backpressure": true,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": false,
+      "source_pass": false,
+      "pass": false,
+      "sink": {
+        "errors": [
+          "timeout: status=0x00000002 beat_total=0 (expected 512)",
+          "beat_total=0 != expected 512",
+          "ch0: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x2ECD0400",
+          "ch1: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x0D704332",
+          "ch2: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0xF3572F92",
+          "ch3: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0xD0EA68A0",
+          "ch4: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0xAEE72338",
+          "ch5: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x8D5A640A",
+          "ch6: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x737D08AA",
+          "ch7: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x50C04F98"
+        ],
+        "warnings": [
+          "ch0: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch1: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch2: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch3: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch4: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch5: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch6: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch7: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)"
+        ],
+        "beat_total": 0,
+        "golden_mismatch": true,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 3.289805663518265e-07,
+              "eff_bw_gb_s": 2.1054756246516895e-06,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 511,
+                "bp": 0,
+                "starv": 1553282729,
+                "idle": 0,
+                "engaged": 1553283240,
+                "total": 1553283240,
+                "util": 3.289805663518265e-07
+              },
+              "bytes": 32704,
+              "packets": 8,
+              "byte_bw_gb_s": 2.1054756246516895e-06
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.0,
+              "eff_bw_gb_s": 0.0,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 0,
+                "bp": 0,
+                "starv": 1564491096,
+                "idle": 0,
+                "engaged": 1564491096,
+                "total": 1564491096,
+                "util": 0.0
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x2ECD0400",
+            "wr": "0x00000000",
+            "gen": "0x2ECD0400"
+          },
+          "1": {
+            "golden": "0x0D704332",
+            "wr": "0x00000000",
+            "gen": "0x0D704332"
+          },
+          "2": {
+            "golden": "0xF3572F92",
+            "wr": "0x00000000",
+            "gen": "0xF3572F92"
+          },
+          "3": {
+            "golden": "0xD0EA68A0",
+            "wr": "0x00000000",
+            "gen": "0xD0EA68A0"
+          },
+          "4": {
+            "golden": "0xAEE72338",
+            "wr": "0x00000000",
+            "gen": "0xAEE72338"
+          },
+          "5": {
+            "golden": "0x8D5A640A",
+            "wr": "0x00000000",
+            "gen": "0x8D5A640A"
+          },
+          "6": {
+            "golden": "0x737D08AA",
+            "wr": "0x00000000",
+            "gen": "0x737D08AA"
+          },
+          "7": {
+            "golden": "0x50C04F98",
+            "wr": "0x00000000",
+            "gen": "0x50C04F98"
+          }
+        }
+      },
+      "source": {
+        "errors": [
+          "timeout: status=0x00000002 beat_total=0 (expected 512)",
+          "beat_total=0 != expected 512",
+          "ch0: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x2ECD0400",
+          "ch0: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x2ECD0400",
+          "ch1: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x0D704332",
+          "ch1: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x0D704332",
+          "ch2: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0xF3572F92",
+          "ch2: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0xF3572F92",
+          "ch3: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0xD0EA68A0",
+          "ch3: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0xD0EA68A0",
+          "ch4: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0xAEE72338",
+          "ch4: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0xAEE72338",
+          "ch5: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x8D5A640A",
+          "ch5: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x8D5A640A",
+          "ch6: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x737D08AA",
+          "ch6: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x737D08AA",
+          "ch7: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x50C04F98",
+          "ch7: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x50C04F98"
+        ],
+        "warnings": [
+          "ch0: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch0: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch1: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch1: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch2: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch2: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch3: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch3: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch4: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch4: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch5: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch5: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch6: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch6: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch7: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch7: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)"
+        ],
+        "beat_total": 0,
+        "golden_mismatch": true,
+        "perf": null,
+        "per_channel": {
+          "0": {
+            "golden": "0x2ECD0400",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "1": {
+            "golden": "0x0D704332",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "2": {
+            "golden": "0xF3572F92",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "3": {
+            "golden": "0xD0EA68A0",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "4": {
+            "golden": "0xAEE72338",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "5": {
+            "golden": "0x8D5A640A",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "6": {
+            "golden": "0x737D08AA",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "7": {
+            "golden": "0x50C04F98",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b256_bpoff_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 256,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": false,
+      "source_pass": false,
+      "pass": false,
+      "sink": {
+        "errors": [
+          "timeout: status=0x0000000A beat_total=0 (expected 2048)",
+          "beat_total=0 != expected 2048",
+          "ch0: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x20638443",
+          "ch1: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0xB5987718",
+          "ch2: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x13DFDD4B",
+          "ch3: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x86242E10",
+          "ch4: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x7170F1F4",
+          "ch5: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0xE48B02AF",
+          "ch6: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x42CCA8FC",
+          "ch7: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0xD7375BA7"
+        ],
+        "warnings": [
+          "ch0: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch0: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x185B4F2A valid=1 golden=0x20638443",
+          "ch1: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch1: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0xB5987718",
+          "ch2: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch2: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x13DFDD4B",
+          "ch3: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch3: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x86242E10",
+          "ch4: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch4: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x7170F1F4",
+          "ch5: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch5: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0xE48B02AF",
+          "ch6: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch6: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x42CCA8FC",
+          "ch7: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch7: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0xD7375BA7"
+        ],
+        "beat_total": 0,
+        "golden_mismatch": true,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 1.1664780542543869e-07,
+              "eff_bw_gb_s": 7.465459547228076e-07,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 181,
+                "bp": 1551679247,
+                "starv": 0,
+                "idle": 0,
+                "engaged": 1551679428,
+                "total": 1551679428,
+                "util": 1.1664780542543869e-07
+              },
+              "bytes": 11584,
+              "packets": 0,
+              "byte_bw_gb_s": 7.465459547228075e-07
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.0,
+              "eff_bw_gb_s": 0.0,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 0,
+                "bp": 0,
+                "starv": 1564478306,
+                "idle": 0,
+                "engaged": 1564478306,
+                "total": 1564478306,
+                "util": 0.0
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20638443",
+            "wr": "0x00000000",
+            "gen": "0x185B4F2A"
+          },
+          "1": {
+            "golden": "0xB5987718",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "2": {
+            "golden": "0x13DFDD4B",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "3": {
+            "golden": "0x86242E10",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "4": {
+            "golden": "0x7170F1F4",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "5": {
+            "golden": "0xE48B02AF",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "6": {
+            "golden": "0x42CCA8FC",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "7": {
+            "golden": "0xD7375BA7",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          }
+        }
+      },
+      "source": {
+        "errors": [
+          "timeout: status=0x0000000A beat_total=0 (expected 2048)",
+          "beat_total=0 != expected 2048",
+          "ch0: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x20638443",
+          "ch0: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x20638443",
+          "ch1: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0xB5987718",
+          "ch1: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0xB5987718",
+          "ch2: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x13DFDD4B",
+          "ch2: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x13DFDD4B",
+          "ch3: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x86242E10",
+          "ch3: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x86242E10",
+          "ch4: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x7170F1F4",
+          "ch4: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x7170F1F4",
+          "ch5: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0xE48B02AF",
+          "ch5: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0xE48B02AF",
+          "ch6: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x42CCA8FC",
+          "ch6: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x42CCA8FC",
+          "ch7: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0xD7375BA7",
+          "ch7: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0xD7375BA7"
+        ],
+        "warnings": [
+          "ch0: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch0: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch1: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch1: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch2: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch2: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch3: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch3: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch4: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch4: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch5: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch5: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch6: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch6: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch7: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch7: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)"
+        ],
+        "beat_total": 0,
+        "golden_mismatch": true,
+        "perf": null,
+        "per_channel": {
+          "0": {
+            "golden": "0x20638443",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "1": {
+            "golden": "0xB5987718",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "2": {
+            "golden": "0x13DFDD4B",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "3": {
+            "golden": "0x86242E10",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "4": {
+            "golden": "0x7170F1F4",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "5": {
+            "golden": "0xE48B02AF",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "6": {
+            "golden": "0x42CCA8FC",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "7": {
+            "golden": "0xD7375BA7",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b256_bpon_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 256,
+      "source_backpressure": true,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": false,
+      "source_pass": false,
+      "pass": false,
+      "sink": {
+        "errors": [
+          "timeout: status=0x0000000A beat_total=0 (expected 2048)",
+          "beat_total=0 != expected 2048",
+          "ch0: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x20638443",
+          "ch1: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0xB5987718",
+          "ch2: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x13DFDD4B",
+          "ch3: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x86242E10",
+          "ch4: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x7170F1F4",
+          "ch5: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0xE48B02AF",
+          "ch6: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x42CCA8FC",
+          "ch7: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0xD7375BA7"
+        ],
+        "warnings": [
+          "ch0: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch0: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x185B4F2A valid=1 golden=0x20638443",
+          "ch1: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch1: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0xB5987718",
+          "ch2: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch2: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x13DFDD4B",
+          "ch3: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch3: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x86242E10",
+          "ch4: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch4: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x7170F1F4",
+          "ch5: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch5: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0xE48B02AF",
+          "ch6: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch6: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x42CCA8FC",
+          "ch7: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch7: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0xD7375BA7"
+        ],
+        "beat_total": 0,
+        "golden_mismatch": true,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.0,
+              "eff_bw_gb_s": 0.0,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 0,
+                "bp": 1551644329,
+                "starv": 0,
+                "idle": 0,
+                "engaged": 1551644329,
+                "total": 1551644329,
+                "util": 0.0
+              },
+              "bytes": 0,
+              "packets": 0,
+              "byte_bw_gb_s": 0.0
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.0,
+              "eff_bw_gb_s": 0.0,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 0,
+                "bp": 0,
+                "starv": 1564441605,
+                "idle": 0,
+                "engaged": 1564441605,
+                "total": 1564441605,
+                "util": 0.0
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20638443",
+            "wr": "0x00000000",
+            "gen": "0x185B4F2A"
+          },
+          "1": {
+            "golden": "0xB5987718",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "2": {
+            "golden": "0x13DFDD4B",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "3": {
+            "golden": "0x86242E10",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "4": {
+            "golden": "0x7170F1F4",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "5": {
+            "golden": "0xE48B02AF",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "6": {
+            "golden": "0x42CCA8FC",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "7": {
+            "golden": "0xD7375BA7",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          }
+        }
+      },
+      "source": {
+        "errors": [
+          "timeout: status=0x0000000A beat_total=0 (expected 2048)",
+          "beat_total=0 != expected 2048",
+          "ch0: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x20638443",
+          "ch0: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x20638443",
+          "ch1: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0xB5987718",
+          "ch1: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0xB5987718",
+          "ch2: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x13DFDD4B",
+          "ch2: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x13DFDD4B",
+          "ch3: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x86242E10",
+          "ch3: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x86242E10",
+          "ch4: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x7170F1F4",
+          "ch4: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x7170F1F4",
+          "ch5: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0xE48B02AF",
+          "ch5: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0xE48B02AF",
+          "ch6: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x42CCA8FC",
+          "ch6: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x42CCA8FC",
+          "ch7: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0xD7375BA7",
+          "ch7: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0xD7375BA7"
+        ],
+        "warnings": [
+          "ch0: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch0: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch1: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch1: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch2: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch2: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch3: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch3: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch4: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch4: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch5: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch5: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch6: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch6: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch7: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch7: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)"
+        ],
+        "beat_total": 0,
+        "golden_mismatch": true,
+        "perf": null,
+        "per_channel": {
+          "0": {
+            "golden": "0x20638443",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "1": {
+            "golden": "0xB5987718",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "2": {
+            "golden": "0x13DFDD4B",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "3": {
+            "golden": "0x86242E10",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "4": {
+            "golden": "0x7170F1F4",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "5": {
+            "golden": "0xE48B02AF",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "6": {
+            "golden": "0x42CCA8FC",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "7": {
+            "golden": "0xD7375BA7",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b1024_bpoff_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 1024,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": false,
+      "source_pass": false,
+      "pass": false,
+      "sink": {
+        "errors": [
+          "timeout: status=0x0000000A beat_total=0 (expected 8192)",
+          "beat_total=0 != expected 8192",
+          "ch0: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0xABD06621",
+          "ch1: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x469653A2",
+          "ch2: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0xDD7FF697",
+          "ch3: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x3039C314",
+          "ch4: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0xAB420001",
+          "ch5: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x46043582",
+          "ch6: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0xDDED90B7",
+          "ch7: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x30ABA534"
+        ],
+        "warnings": [
+          "ch0: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch0: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x185B4F2A valid=1 golden=0xABD06621",
+          "ch1: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch1: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x469653A2",
+          "ch2: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch2: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0xDD7FF697",
+          "ch3: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch3: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x3039C314",
+          "ch4: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch4: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0xAB420001",
+          "ch5: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch5: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x46043582",
+          "ch6: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch6: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0xDDED90B7",
+          "ch7: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch7: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x30ABA534"
+        ],
+        "beat_total": 0,
+        "golden_mismatch": true,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.0,
+              "eff_bw_gb_s": 0.0,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 0,
+                "bp": 1551711473,
+                "starv": 0,
+                "idle": 0,
+                "engaged": 1551711473,
+                "total": 1551711473,
+                "util": 0.0
+              },
+              "bytes": 0,
+              "packets": 0,
+              "byte_bw_gb_s": 0.0
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.0,
+              "eff_bw_gb_s": 0.0,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 0,
+                "bp": 0,
+                "starv": 1564503862,
+                "idle": 0,
+                "engaged": 1564503862,
+                "total": 1564503862,
+                "util": 0.0
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0xABD06621",
+            "wr": "0x00000000",
+            "gen": "0x185B4F2A"
+          },
+          "1": {
+            "golden": "0x469653A2",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "2": {
+            "golden": "0xDD7FF697",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "3": {
+            "golden": "0x3039C314",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "4": {
+            "golden": "0xAB420001",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "5": {
+            "golden": "0x46043582",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "6": {
+            "golden": "0xDDED90B7",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "7": {
+            "golden": "0x30ABA534",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          }
+        }
+      },
+      "source": {
+        "errors": [
+          "timeout: status=0x0000000A beat_total=0 (expected 8192)",
+          "beat_total=0 != expected 8192",
+          "ch0: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0xABD06621",
+          "ch0: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0xABD06621",
+          "ch1: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x469653A2",
+          "ch1: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x469653A2",
+          "ch2: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0xDD7FF697",
+          "ch2: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0xDD7FF697",
+          "ch3: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x3039C314",
+          "ch3: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x3039C314",
+          "ch4: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0xAB420001",
+          "ch4: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0xAB420001",
+          "ch5: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x46043582",
+          "ch5: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x46043582",
+          "ch6: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0xDDED90B7",
+          "ch6: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0xDDED90B7",
+          "ch7: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x30ABA534",
+          "ch7: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x30ABA534"
+        ],
+        "warnings": [
+          "ch0: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch0: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch1: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch1: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch2: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch2: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch3: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch3: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch4: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch4: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch5: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch5: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch6: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch6: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch7: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch7: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)"
+        ],
+        "beat_total": 0,
+        "golden_mismatch": true,
+        "perf": null,
+        "per_channel": {
+          "0": {
+            "golden": "0xABD06621",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "1": {
+            "golden": "0x469653A2",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "2": {
+            "golden": "0xDD7FF697",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "3": {
+            "golden": "0x3039C314",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "4": {
+            "golden": "0xAB420001",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "5": {
+            "golden": "0x46043582",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "6": {
+            "golden": "0xDDED90B7",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "7": {
+            "golden": "0x30ABA534",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b1024_bpon_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 1024,
+      "source_backpressure": true,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": false,
+      "source_pass": false,
+      "pass": false,
+      "sink": {
+        "errors": [
+          "timeout: status=0x0000000A beat_total=0 (expected 8192)",
+          "beat_total=0 != expected 8192",
+          "ch0: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0xABD06621",
+          "ch1: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x469653A2",
+          "ch2: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0xDD7FF697",
+          "ch3: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x3039C314",
+          "ch4: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0xAB420001",
+          "ch5: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x46043582",
+          "ch6: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0xDDED90B7",
+          "ch7: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x30ABA534"
+        ],
+        "warnings": [
+          "ch0: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch0: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x185B4F2A valid=1 golden=0xABD06621",
+          "ch1: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch1: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x469653A2",
+          "ch2: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch2: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0xDD7FF697",
+          "ch3: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch3: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x3039C314",
+          "ch4: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch4: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0xAB420001",
+          "ch5: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch5: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x46043582",
+          "ch6: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch6: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0xDDED90B7",
+          "ch7: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch7: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x30ABA534"
+        ],
+        "beat_total": 0,
+        "golden_mismatch": true,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.0,
+              "eff_bw_gb_s": 0.0,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 0,
+                "bp": 1551680996,
+                "starv": 0,
+                "idle": 0,
+                "engaged": 1551680996,
+                "total": 1551680996,
+                "util": 0.0
+              },
+              "bytes": 0,
+              "packets": 0,
+              "byte_bw_gb_s": 0.0
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.0,
+              "eff_bw_gb_s": 0.0,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 0,
+                "bp": 0,
+                "starv": 1564478227,
+                "idle": 0,
+                "engaged": 1564478227,
+                "total": 1564478227,
+                "util": 0.0
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0xABD06621",
+            "wr": "0x00000000",
+            "gen": "0x185B4F2A"
+          },
+          "1": {
+            "golden": "0x469653A2",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "2": {
+            "golden": "0xDD7FF697",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "3": {
+            "golden": "0x3039C314",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "4": {
+            "golden": "0xAB420001",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "5": {
+            "golden": "0x46043582",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "6": {
+            "golden": "0xDDED90B7",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "7": {
+            "golden": "0x30ABA534",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          }
+        }
+      },
+      "source": {
+        "errors": [
+          "timeout: status=0x0000000A beat_total=0 (expected 8192)",
+          "beat_total=0 != expected 8192",
+          "ch0: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0xABD06621",
+          "ch0: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0xABD06621",
+          "ch1: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x469653A2",
+          "ch1: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x469653A2",
+          "ch2: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0xDD7FF697",
+          "ch2: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0xDD7FF697",
+          "ch3: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x3039C314",
+          "ch3: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x3039C314",
+          "ch4: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0xAB420001",
+          "ch4: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0xAB420001",
+          "ch5: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x46043582",
+          "ch5: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x46043582",
+          "ch6: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0xDDED90B7",
+          "ch6: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0xDDED90B7",
+          "ch7: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x30ABA534",
+          "ch7: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x30ABA534"
+        ],
+        "warnings": [
+          "ch0: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch0: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch1: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch1: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch2: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch2: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch3: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch3: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch4: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch4: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch5: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch5: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch6: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch6: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch7: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch7: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)"
+        ],
+        "beat_total": 0,
+        "golden_mismatch": true,
+        "perf": null,
+        "per_channel": {
+          "0": {
+            "golden": "0xABD06621",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "1": {
+            "golden": "0x469653A2",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "2": {
+            "golden": "0xDD7FF697",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "3": {
+            "golden": "0x3039C314",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "4": {
+            "golden": "0xAB420001",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "5": {
+            "golden": "0x46043582",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "6": {
+            "golden": "0xDDED90B7",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "7": {
+            "golden": "0x30ABA534",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b4096_bpoff_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 4096,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": false,
+      "source_pass": false,
+      "pass": false,
+      "sink": {
+        "errors": [
+          "timeout: status=0x0000000A beat_total=0 (expected 32768)",
+          "beat_total=0 != expected 32768",
+          "ch0: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x9DEB76BA",
+          "ch1: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x2C8D6C6D",
+          "ch2: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0xA2315B6A",
+          "ch3: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x135741BD",
+          "ch4: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0xB596B538",
+          "ch5: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x04F0AFEF",
+          "ch6: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x8A4C98E8",
+          "ch7: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x3B2A823F"
+        ],
+        "warnings": [
+          "ch0: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch0: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x185B4F2A valid=1 golden=0x9DEB76BA",
+          "ch1: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch1: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x2C8D6C6D",
+          "ch2: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch2: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0xA2315B6A",
+          "ch3: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch3: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x135741BD",
+          "ch4: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch4: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0xB596B538",
+          "ch5: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch5: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x04F0AFEF",
+          "ch6: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch6: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x8A4C98E8",
+          "ch7: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch7: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x3B2A823F"
+        ],
+        "beat_total": 0,
+        "golden_mismatch": true,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.0,
+              "eff_bw_gb_s": 0.0,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 0,
+                "bp": 1564550488,
+                "starv": 0,
+                "idle": 0,
+                "engaged": 1564550488,
+                "total": 1564550488,
+                "util": 0.0
+              },
+              "bytes": 0,
+              "packets": 0,
+              "byte_bw_gb_s": 0.0
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.0,
+              "eff_bw_gb_s": 0.0,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 0,
+                "bp": 0,
+                "starv": 1577296957,
+                "idle": 0,
+                "engaged": 1577296957,
+                "total": 1577296957,
+                "util": 0.0
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x9DEB76BA",
+            "wr": "0x00000000",
+            "gen": "0x185B4F2A"
+          },
+          "1": {
+            "golden": "0x2C8D6C6D",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "2": {
+            "golden": "0xA2315B6A",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "3": {
+            "golden": "0x135741BD",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "4": {
+            "golden": "0xB596B538",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "5": {
+            "golden": "0x04F0AFEF",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "6": {
+            "golden": "0x8A4C98E8",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "7": {
+            "golden": "0x3B2A823F",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          }
+        }
+      },
+      "source": {
+        "errors": [
+          "timeout: status=0x0000000A beat_total=0 (expected 32768)",
+          "beat_total=0 != expected 32768",
+          "ch0: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x9DEB76BA",
+          "ch0: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x9DEB76BA",
+          "ch1: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x2C8D6C6D",
+          "ch1: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x2C8D6C6D",
+          "ch2: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0xA2315B6A",
+          "ch2: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0xA2315B6A",
+          "ch3: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x135741BD",
+          "ch3: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x135741BD",
+          "ch4: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0xB596B538",
+          "ch4: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0xB596B538",
+          "ch5: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x04F0AFEF",
+          "ch5: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x04F0AFEF",
+          "ch6: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x8A4C98E8",
+          "ch6: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x8A4C98E8",
+          "ch7: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x3B2A823F",
+          "ch7: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x3B2A823F"
+        ],
+        "warnings": [
+          "ch0: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch0: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch1: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch1: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch2: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch2: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch3: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch3: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch4: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch4: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch5: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch5: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch6: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch6: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch7: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch7: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)"
+        ],
+        "beat_total": 0,
+        "golden_mismatch": true,
+        "perf": null,
+        "per_channel": {
+          "0": {
+            "golden": "0x9DEB76BA",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "1": {
+            "golden": "0x2C8D6C6D",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "2": {
+            "golden": "0xA2315B6A",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "3": {
+            "golden": "0x135741BD",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "4": {
+            "golden": "0xB596B538",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "5": {
+            "golden": "0x04F0AFEF",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "6": {
+            "golden": "0x8A4C98E8",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "7": {
+            "golden": "0x3B2A823F",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b4096_bpon_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 4096,
+      "source_backpressure": true,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": false,
+      "source_pass": false,
+      "pass": false,
+      "sink": {
+        "errors": [
+          "timeout: status=0x0000000A beat_total=0 (expected 32768)",
+          "beat_total=0 != expected 32768",
+          "ch0: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x9DEB76BA",
+          "ch1: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x2C8D6C6D",
+          "ch2: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0xA2315B6A",
+          "ch3: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x135741BD",
+          "ch4: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0xB596B538",
+          "ch5: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x04F0AFEF",
+          "ch6: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x8A4C98E8",
+          "ch7: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x00000000 golden=0x3B2A823F"
+        ],
+        "warnings": [
+          "ch0: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch0: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x185B4F2A valid=1 golden=0x9DEB76BA",
+          "ch1: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch1: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x2C8D6C6D",
+          "ch2: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch2: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0xA2315B6A",
+          "ch3: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch3: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x135741BD",
+          "ch4: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch4: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0xB596B538",
+          "ch5: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch5: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x04F0AFEF",
+          "ch6: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch6: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x8A4C98E8",
+          "ch7: wr_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch7: gen self-CRC corroboration off (known gen-valid flake, NON-FATAL) gen=0x00000000 valid=0 golden=0x3B2A823F"
+        ],
+        "beat_total": 0,
+        "golden_mismatch": true,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.0,
+              "eff_bw_gb_s": 0.0,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 0,
+                "bp": 1564492960,
+                "starv": 0,
+                "idle": 0,
+                "engaged": 1564492960,
+                "total": 1564492960,
+                "util": 0.0
+              },
+              "bytes": 0,
+              "packets": 0,
+              "byte_bw_gb_s": 0.0
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.0,
+              "eff_bw_gb_s": 0.0,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 0,
+                "bp": 0,
+                "starv": 1577291371,
+                "idle": 0,
+                "engaged": 1577291371,
+                "total": 1577291371,
+                "util": 0.0
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x9DEB76BA",
+            "wr": "0x00000000",
+            "gen": "0x185B4F2A"
+          },
+          "1": {
+            "golden": "0x2C8D6C6D",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "2": {
+            "golden": "0xA2315B6A",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "3": {
+            "golden": "0x135741BD",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "4": {
+            "golden": "0xB596B538",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "5": {
+            "golden": "0x04F0AFEF",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "6": {
+            "golden": "0x8A4C98E8",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          },
+          "7": {
+            "golden": "0x3B2A823F",
+            "wr": "0x00000000",
+            "gen": "0x00000000"
+          }
+        }
+      },
+      "source": {
+        "errors": [
+          "timeout: status=0x0000000A beat_total=0 (expected 32768)",
+          "beat_total=0 != expected 32768",
+          "ch0: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x9DEB76BA",
+          "ch0: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x9DEB76BA",
+          "ch1: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x2C8D6C6D",
+          "ch1: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x2C8D6C6D",
+          "ch2: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0xA2315B6A",
+          "ch2: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0xA2315B6A",
+          "ch3: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x135741BD",
+          "ch3: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x135741BD",
+          "ch4: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0xB596B538",
+          "ch4: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0xB596B538",
+          "ch5: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x04F0AFEF",
+          "ch5: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x04F0AFEF",
+          "ch6: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x8A4C98E8",
+          "ch6: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x8A4C98E8",
+          "ch7: SOURCE GOLDEN MISMATCH (DUT DATA BUG) rd=0x00000000 golden=0x3B2A823F",
+          "ch7: SOURCE GOLDEN MISMATCH (DUT DATA BUG) chk=0x00000000 golden=0x3B2A823F"
+        ],
+        "warnings": [
+          "ch0: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch0: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch1: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch1: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch2: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch2: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch3: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch3: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch4: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch4: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch5: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch5: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch6: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch6: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch7: rd_crc_valid=0 (non-fatal; golden comparison is authoritative)",
+          "ch7: chk_crc_valid=0 (non-fatal; golden comparison is authoritative)"
+        ],
+        "beat_total": 0,
+        "golden_mismatch": true,
+        "perf": null,
+        "per_channel": {
+          "0": {
+            "golden": "0x9DEB76BA",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "1": {
+            "golden": "0x2C8D6C6D",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "2": {
+            "golden": "0xA2315B6A",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "3": {
+            "golden": "0x135741BD",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "4": {
+            "golden": "0xB596B538",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "5": {
+            "golden": "0x04F0AFEF",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "6": {
+            "golden": "0x8A4C98E8",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          },
+          "7": {
+            "golden": "0x3B2A823F",
+            "rd": "0x00000000",
+            "chk": "0x00000000"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -7,7 +7,7 @@ SV2V      := sv2v
 
 # Include paths for sv2v preprocessing
 INC := -I$(REPO_ROOT)/rtl/amba/includes \
-       -I$(REPO_ROOT)/projects/components/stream/rtl/includes
+       -I$(REPO_ROOT)/projects/components/dmas/stream/rtl/includes
 
 # Package files (order matters: dependencies first)
 PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv
@@ -21,7 +21,7 @@ DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/amba/axil4/axil4_master_wr.sv
 
 # Device under test
-DUT := $(REPO_ROOT)/projects/components/stream/rtl/macro/monbus_axil_group.sv
+DUT := $(REPO_ROOT)/projects/components/dmas/stream/rtl/macro/monbus_axil_group.sv
 
 .PHONY: prove cover clean
 

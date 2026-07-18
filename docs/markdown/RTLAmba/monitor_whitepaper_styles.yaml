@@ -2,7 +2,7 @@
 # AMBA Monitor System Whitepaper
 #
 # This file is a near-copy of
-# projects/components/stream/docs/stream_mas/stream_styles.yaml
+# projects/components/dmas/stream/docs/stream_mas/stream_styles.yaml
 # (the corporate single-source-of-truth for spec docs). Only the
 # title_page block is customized for this document; fonts, colors,
 # heading rules, table styling, headers/footers, and margins follow
@@ -116,7 +116,7 @@ lists:
 # corporate logo asset (single source of truth) via relative path.
 title_page:
   enabled: true
-  logo: "../../../projects/components/stream/docs/stream_mas/assets/images/logo.png"
+  logo: "../../../projects/components/dmas/stream/docs/stream_mas/assets/images/logo.png"
   logo_width: 2.5
   company: "RTL Design Sherpa"
   title: "AMBA Monitor System"

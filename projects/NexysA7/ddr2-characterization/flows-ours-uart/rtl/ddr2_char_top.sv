@@ -82,27 +82,33 @@ module ddr2_char_top #(
     end
 
     // =========================================================================
-    // Clock generation for the a7ddrphy (4:1). The PHY needs sys (100),
-    // sys2x (200), sys4x (400) and sys4x_dqs (400, 90-deg), plus a 200 MHz
-    // IDELAYCTRL reference. The controller + harness run on sys.
+    // Clock generation for the a7ddrphy (1:2 / nphases=2) at 300 MT/s — the
+    // config LiteDRAM proved on this Nexys A7. The nphases=2 PHY serializes at
+    // sys2x (DATA_WIDTH=4) and needs sys (75), sys2x (150) and sys2x_dqs
+    // (150, 90-deg); CK = sys2x = 150 MHz -> 300 MT/s, CL-3/CWL-2. IDELAYCTRL
+    // needs a dedicated 200 MHz ref. Controller + harness run on sys (75).
     //   * DDR2_CHAR_SYNTH: real MMCME2_BASE + BUFGs + IDELAYCTRL (Vivado).
     //   * else (verilator/cocotb): all clocks alias CLK100MHZ, locked=1 —
     //     the a7ddrphy stub ignores the fast clocks anyway.
     // =========================================================================
-    wire w_sys, w_sys2x, w_sys4x, w_sys4x_dqs;
+    wire w_sys, w_sys2x, w_sys2x_dqs, w_idelay;
     wire w_clk_locked;
+    // IDELAYCTRL calibration-ready. If this never asserts, every IDELAY tap is
+    // uncalibrated -> read DQ is garbage at all taps. Gated into aresetn below
+    // (LiteDRAM holds the design in reset until idelayctrl.ready).
+    (* mark_debug = "true" *) wire w_idelay_rdy;
 
 `ifdef DDR2_CHAR_SYNTH
-    wire w_sys_i, w_sys2x_i, w_sys4x_i, w_sys4x_dqs_i, w_clkfb_i, w_clkfb;
+    wire w_sys_i, w_sys2x_i, w_sys2x_dqs_i, w_idelay_i, w_clkfb_i, w_clkfb;
     MMCME2_BASE #(
         .CLKIN1_PERIOD   (10.0),   // 100 MHz board clock
         .DIVCLK_DIVIDE   (1),
-        .CLKFBOUT_MULT_F (8.0),    // VCO = 800 MHz
-        .CLKOUT0_DIVIDE_F(8.0),    // sys        = 100 MHz
-        .CLKOUT1_DIVIDE  (4),      // sys2x      = 200 MHz (also IDELAYCTRL ref)
-        .CLKOUT2_DIVIDE  (2),      // sys4x      = 400 MHz
-        .CLKOUT3_DIVIDE  (2),      // sys4x_dqs  = 400 MHz
-        .CLKOUT3_PHASE   (90.0)    // DQS 90-deg
+        .CLKFBOUT_MULT_F (6.0),    // VCO = 600 MHz
+        .CLKOUT0_DIVIDE_F(8.0),    // sys        = 75  MHz
+        .CLKOUT1_DIVIDE  (4),      // sys2x      = 150 MHz  (= DRAM CK, 300 MT/s)
+        .CLKOUT2_DIVIDE  (4),      // sys2x_dqs  = 150 MHz
+        .CLKOUT2_PHASE   (90.0),   // DQS 90-deg
+        .CLKOUT3_DIVIDE  (3)       // idelay ref = 200 MHz
     ) u_mmcm (
         .CLKIN1   (CLK100MHZ),
         .CLKFBIN  (w_clkfb),
@@ -110,8 +116,8 @@ module ddr2_char_top #(
         .CLKFBOUTB(),
         .CLKOUT0  (w_sys_i),      .CLKOUT0B(),
         .CLKOUT1  (w_sys2x_i),    .CLKOUT1B(),
-        .CLKOUT2  (w_sys4x_i),    .CLKOUT2B(),
-        .CLKOUT3  (w_sys4x_dqs_i),.CLKOUT3B(),
+        .CLKOUT2  (w_sys2x_dqs_i),.CLKOUT2B(),
+        .CLKOUT3  (w_idelay_i),   .CLKOUT3B(),
         .CLKOUT4  (), .CLKOUT5(), .CLKOUT6(),
         .LOCKED   (w_clk_locked),
         .PWRDWN   (1'b0),
@@ -120,21 +126,26 @@ module ddr2_char_top #(
     BUFG u_bufg_fb  (.I(w_clkfb_i),      .O(w_clkfb));
     BUFG u_bufg_sys (.I(w_sys_i),        .O(w_sys));
     BUFG u_bufg_2x  (.I(w_sys2x_i),      .O(w_sys2x));
-    BUFG u_bufg_4x  (.I(w_sys4x_i),      .O(w_sys4x));
-    BUFG u_bufg_4xd (.I(w_sys4x_dqs_i),  .O(w_sys4x_dqs));
-    // IODELAY reference (200 MHz). One control per I/O bank the DQ/DQS use.
-    IDELAYCTRL u_idelayctrl (.REFCLK(w_sys2x), .RST(~w_clk_locked), .RDY());
+    BUFG u_bufg_2xd (.I(w_sys2x_dqs_i),  .O(w_sys2x_dqs));
+    BUFG u_bufg_idly(.I(w_idelay_i),     .O(w_idelay));
+    // IODELAY reference (200 MHz, dedicated). One control per I/O bank DQ/DQS use.
+    IDELAYCTRL u_idelayctrl (.REFCLK(w_idelay), .RST(~w_clk_locked), .RDY(w_idelay_rdy));
 `else
     assign w_sys       = CLK100MHZ;
     assign w_sys2x     = CLK100MHZ;
-    assign w_sys4x     = CLK100MHZ;
-    assign w_sys4x_dqs = CLK100MHZ;
+    assign w_sys2x_dqs = CLK100MHZ;
+    assign w_idelay    = CLK100MHZ;
+    assign w_idelay_rdy = 1'b1;
     assign w_clk_locked = 1'b1;
 `endif
 
-    // Controller + harness run on sys. Hold reset until the MMCM locks.
+    // Controller + harness run on sys. Hold reset until the MMCM locks AND the
+    // IDELAYCTRL has calibrated (idelay_rdy) — LiteDRAM holds its design in
+    // reset until idelayctrl.ready so the read IDELAYs are never used
+    // uncalibrated. Diagnostic corollary: if RDY never asserts, UART stays dead
+    // (the board still programs, DONE high) — a clean on-board signal.
     wire aclk    = w_sys;
-    wire aresetn = r_rst_sync & w_clk_locked;
+    wire aresetn = r_rst_sync & w_clk_locked & w_idelay_rdy;
 
     // =========================================================================
     // 7-segment glue: harness emits o_seg[6:0] = {g,f,e,d,c,b,a}. Fan into
@@ -152,28 +163,44 @@ module ddr2_char_top #(
     // =========================================================================
     // Flat DFI wires (harness <-> adapter <-> a7ddrphy)
     //
-    // a7ddrphy config (Artix-7 x16 DDR2): 4:1 gearing (DFI_RATE=4 = the PHY's
-    // phase count), DRAM beat = 2*DQ = 32b. TASK-GEAR lets the controller run
-    // AXI=64 while the DFI beat is 32b. DFI_DATA_WIDTH = 32*4 = 128.
+    // a7ddrphy config (Artix-7 x16 DDR2): 1:4 / nphases=4 — the a7ddrphy is
+    // FIXED at nphases=4, so it serializes ALL 4 DFI phases. The controller must
+    // therefore drive DFI_RATE=4 so the adapter (g_rd4 branch) gathers all four
+    // read phases {p3,p2,p1,p0}; a DFI_RATE=2 controller only fills phases 0,1
+    // and the adapter drops half the read data (on-board read corruption,
+    // beats_mismatched == 2*txn). DRAM beat = 2*DQ = 32b, so
+    // DFI_DATA_WIDTH = 32*4 = 128; GEAR = AXI/beat = 64/32 = 2 (host 64b <-> 128b
+    // DFI word, geared internally by pumice_core). The runtime gear_ratio CSR
+    // (DFI_PHASE.gear_ratio, reset 2 = 1:4) selects the active phase count and is
+    // left at its 1:4 default for this build.
     // =========================================================================
     localparam int AXI_DATA_WIDTH  = 64;
     localparam int DRAM_BEAT_WIDTH = 32;
+    // Physical DRAM device width: Micron MT47H64M16 is x16. One 32-bit pumice
+    // DRAM beat = 2 physical x16 beats, so a JEDEC BL4 = 2 pumice beats = 1 DFI
+    // cycle; pumice scales its burst-length accounting by 32/16=2 accordingly.
+    localparam int DRAM_DEVICE_WIDTH = 16;
     localparam int DFI_RATE        = 4;
     localparam int DFI_DATA_WIDTH  = DFI_RATE * DRAM_BEAT_WIDTH;   // 128
     localparam int DFI_STRB_WIDTH  = DFI_DATA_WIDTH / 8;           // 16
     localparam int DFI_ADDR_BUS_W  = ROW_WIDTH * DFI_RATE;         // 52
     localparam int DFI_BANK_BUS_W  = 3 * DFI_RATE;                 // 12
 
-    logic [DFI_ADDR_BUS_W-1:0]     w_dfi_address;
-    logic [DFI_BANK_BUS_W-1:0]     w_dfi_bank;
-    logic [DFI_RATE-1:0]           w_dfi_cas_n, w_dfi_ras_n, w_dfi_we_n;
-    logic [DFI_RATE-1:0]           w_dfi_cs_n, w_dfi_cke, w_dfi_odt;
-    logic [DFI_DATA_WIDTH-1:0]     w_dfi_wrdata;
+    // (* mark_debug *) on the DFI-at-PHY-boundary nets: an ILA on aclk (sys)
+    // captures exactly what pumice drives into the a7ddrphy (command + wrdata)
+    // and what the PHY returns (rddata/valid) — the analog OSERDES/ISERDES layer
+    // is not fabric-visible, but this boundary is the diagnostic surface.
+    (* mark_debug = "true" *) logic [DFI_ADDR_BUS_W-1:0]     w_dfi_address;
+    (* mark_debug = "true" *) logic [DFI_BANK_BUS_W-1:0]     w_dfi_bank;
+    (* mark_debug = "true" *) logic [DFI_RATE-1:0]           w_dfi_cas_n, w_dfi_ras_n, w_dfi_we_n;
+    (* mark_debug = "true" *) logic [DFI_RATE-1:0]           w_dfi_cs_n;
+    logic [DFI_RATE-1:0]           w_dfi_cke, w_dfi_odt;
+    (* mark_debug = "true" *) logic [DFI_DATA_WIDTH-1:0]     w_dfi_wrdata;
     logic [DFI_STRB_WIDTH-1:0]     w_dfi_wrdata_mask;
-    logic [DFI_RATE-1:0]           w_dfi_wrdata_en;
-    logic [DFI_RATE-1:0]           w_dfi_rddata_en;
-    logic [DFI_DATA_WIDTH-1:0]     w_dfi_rddata;
-    logic [DFI_RATE-1:0]           w_dfi_rddata_valid;
+    (* mark_debug = "true" *) logic [DFI_RATE-1:0]           w_dfi_wrdata_en;
+    (* mark_debug = "true" *) logic [DFI_RATE-1:0]           w_dfi_rddata_en;
+    (* mark_debug = "true" *) logic [DFI_DATA_WIDTH-1:0]     w_dfi_rddata;
+    (* mark_debug = "true" *) logic [DFI_RATE-1:0]           w_dfi_rddata_valid;
     logic [DFI_RATE-1:0]           w_dfi_dram_clk_disable;
     logic                          w_dfi_init_start;
     logic                          w_dfi_init_complete;
@@ -193,8 +220,12 @@ module ddr2_char_top #(
     ddr2_char_harness #(
         .AXI_DATA_WIDTH  (AXI_DATA_WIDTH),
         .DRAM_BEAT_WIDTH (DRAM_BEAT_WIDTH),
+        .DRAM_DEVICE_WIDTH (DRAM_DEVICE_WIDTH),
         .DFI_RATE        (DFI_RATE),
-        .ROW_WIDTH       (ROW_WIDTH)
+        .ROW_WIDTH       (ROW_WIDTH),
+        .FPGA_CLK_HZ     (75_000_000)   // sys is now 75 MHz -> UART baud divisor
+        // DFI command->data alignment is now a runtime CSR (DFI_TUNING.cmd_delay,
+        // default 5) — tune live over UART, no rebuild. CMD_MAX_DELAY defaults 8.
     ) u_harness (
         .aclk    (aclk),
         .aresetn (aresetn),
@@ -261,7 +292,7 @@ module ddr2_char_top #(
         .DFI_ADDR_W (ROW_WIDTH),
         .DFI_BANK_W (3),
         .PHASE_DATA (DRAM_BEAT_WIDTH),
-        .NPHASES    (DFI_RATE)
+        .CTRL_PHASES (DFI_RATE)
     ) u_dfi_adapter (
         .dfi_address_flat      (w_dfi_address),
         .dfi_bank_flat         (w_dfi_bank),
@@ -316,12 +347,10 @@ module ddr2_char_top #(
     // Per-domain sync-high resets share the single aresetn (already gated
     // on MMCM lock).
     wire sys2x_clk       = w_sys2x;
-    wire sys4x_clk       = w_sys4x;
-    wire sys4x_dqs_clk   = w_sys4x_dqs;
+    wire sys2x_dqs_clk   = w_sys2x_dqs;
     wire sys_rst_p       = ~aresetn;
     wire sys2x_rst_p     = ~aresetn;
-    wire sys4x_rst_p     = ~aresetn;
-    wire sys4x_dqs_rst_p = ~aresetn;
+    wire sys2x_dqs_rst_p = ~aresetn;
 
     // =========================================================================
     // a7ddrphy — LiteDRAM PHY. Black box for lint/sim (a7ddrphy_stub.sv);
@@ -333,10 +362,10 @@ module ddr2_char_top #(
         .sys_rst         (sys_rst_p),
         .sys2x_clk       (sys2x_clk),
         .sys2x_rst       (sys2x_rst_p),
-        .sys4x_clk       (sys4x_clk),
-        .sys4x_rst       (sys4x_rst_p),
-        .sys4x_dqs_clk   (sys4x_dqs_clk),
-        .sys4x_dqs_rst   (sys4x_dqs_rst_p),
+        .sys2x_clk_1     (sys2x_clk),
+        .sys2x_rst_1     (sys2x_rst_p),
+        .sys2x_dqs_clk   (sys2x_dqs_clk),
+        .sys2x_dqs_rst   (sys2x_dqs_rst_p),
 
         .dfi_p0_address(w_p0_addr), .dfi_p0_bank(w_p0_bank),
         .dfi_p0_cas_n(w_p0_cas_n), .dfi_p0_cs_n(w_p0_cs_n),

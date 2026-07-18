@@ -1,0 +1,2144 @@
+`timescale 1ns / 1ps
+
+//-----------------------------------------------------------------------------
+// Module: stream_top_ch8
+// Description:
+//   Top-level wrapper for STREAM core with 8 channels (configurable monitors).
+//
+//   Integration hierarchy:
+//     APB Interface
+//       → apb_slave_cdc (or apb_slave if CDC_ENABLE=0)
+//       → cmdrsp_router (address-based routing)
+//         → apbtodescr (channel kick-off, 0x000-0x03F)
+//         → peakrdl_to_cmdrsp (APB → CMD/RSP conversion)
+//           → stream_regs (PeakRDL registers, 0x100-0x3FF)
+//       → stream_config_block (register mapping)
+//       → stream_core (conditional: monitors enabled/disabled)
+//       → monbus_axil_group (monitor bus → AXI-Lite, USE_AXI_MONITORS=1)
+//
+//   APB Address Map:
+//     0x000-0x03F: Channel kick-off (apbtodescr)
+//     0x100-0x3FF: Configuration registers (PeakRDL)
+//
+//   Features:
+//     - 8 independent DMA channels
+//     - APB4 configuration interface with optional CDC
+//     - 3 AXI4 masters (descriptor fetch, read data, write data)
+//     - Configurable AXI transaction monitors (USE_AXI_MONITORS parameter)
+//     - Monitor bus to AXI-Lite conversion (error FIFO + master write)
+//     - Single interrupt output (stream_irq from monbus_axil_group)
+//     - Performance profiler interface (integrated in cmdrsp_router @ 0x040-0x0FF)
+//
+// Parameters:
+//   NUM_CHANNELS: Number of DMA channels (fixed at 8)
+//   DATA_WIDTH: AXI data bus width (512 bits default)
+//   ADDR_WIDTH: AXI address width (64 bits)
+//   SRAM_DEPTH: Internal SRAM buffer depth (4096 default)
+//   APB_ADDR_WIDTH: APB address width (13 bits for 8KB space; monitors @ 0x1000+)
+//   APB_DATA_WIDTH: APB data width (32 bits)
+//   USE_AXI_MONITORS: Enable/disable AXI monitors (0=disabled, 1=enabled)
+//   CDC_ENABLE: Enable/disable APB CDC (0=same clock, 1=different clocks)
+//
+// Interfaces:
+//   - APB4 slave (s_apb_*): Configuration interface
+//   - AXI4 master desc (m_axi_desc_*): 256-bit descriptor fetch
+//   - AXI4 master rd (m_axi_rd_*): Parameterizable read data
+//   - AXI4 master wr (m_axi_wr_*): Parameterizable write data
+//   - AXI4-Lite slave (s_axil_err_*): Monitor error/interrupt FIFO reads
+//   - AXI4-Lite master (m_axil_mon_*): Monitor data writes
+//   - Interrupt (stream_irq): Single interrupt output
+//
+//-----------------------------------------------------------------------------
+
+`include "stream_imports.svh"
+`include "reset_defs.svh"
+
+module stream_top_ch8 #(
+    parameter int NUM_CHANNELS = 8,
+    parameter int DATA_WIDTH = 512,
+    parameter int ADDR_WIDTH = 64,
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,  // TASK-101 STREAM Extended
+    parameter int SRAM_DEPTH = 4096,
+    parameter int APB_ADDR_WIDTH = 13,
+    parameter int APB_DATA_WIDTH = 32,
+    parameter int AXI_ID_WIDTH = 8,
+    parameter int AXI_USER_WIDTH = 3,    // $clog2(NUM_CHANNELS) for channel ID
+    parameter int USE_AXI_MONITORS = 0,  // 0 = Disable monitors, 1 = Enable monitors
+    parameter bit GEN_MON = 1'b1,        // 0 = omit per-channel completion/error MonBus emitters (area)
+    parameter int CDC_ENABLE = 1,        // 0 = Same clock (pclk=aclk), 1 = Different clocks (CDC)
+    // Bulk-trace MonBus compressor select. Only meaningful when
+    // USE_AXI_MONITORS=1; pass-through to monbus_axil_group.USE_COMPRESSION.
+    //   0: raw 3-beat-per-record writer (default, byte-exact prior behaviour)
+    //   1: 32-entry LRU CAM-based compressor in front of the writer, 1 beat
+    //      per slot with a 4-bit format tag in bits [63:60] of each slot.
+    parameter int USE_MON_COMPRESSION = 0,
+    // Half-beat packing: pack two 30-bit slots per 64-bit beat downstream of
+    // the compressor (requires USE_MON_COMPRESSION=1). Breaks the 1-beat/record
+    // 66.7% ceiling -> ~80%. 0 = one 64-bit slot/record (prior behaviour).
+    parameter int USE_MON_HALFBEAT = 0,
+    // Engine-side outstanding queue (side-Q) depths. Defaulted to the
+    // historical stream_core values so existing instantiations are unchanged.
+    // Override at the next level up to sweep latency-tolerance.
+    parameter int AR_MAX_OUTSTANDING = 8,
+    parameter int AW_MAX_OUTSTANDING = 8,
+
+    // Desc-bus monitor reporter sub-block enables. Pass-through to
+    // stream_core → scheduler_group_array → axi4_master_rd_mon.
+    // Defaults match the unit-level wrapper (5 cones on, debug on for
+    // stream's compression dataset use). Only meaningful when
+    // USE_AXI_MONITORS=1; ignored otherwise. Override at the harness
+    // level to drop cones for area on tight bitstreams.
+    parameter bit DESC_MON_ENABLE_ERROR_LOGIC     = 1'b1,
+    parameter bit DESC_MON_ENABLE_TIMEOUT_LOGIC   = 1'b1,
+    parameter bit DESC_MON_ENABLE_COMPL_LOGIC     = 1'b1,
+    parameter bit DESC_MON_ENABLE_THRESHOLD_LOGIC = 1'b1,
+    parameter bit DESC_MON_ENABLE_PERF_LOGIC      = 1'b1,
+    parameter bit DESC_MON_ENABLE_DEBUG_LOGIC     = 1'b1
+) (
+    //-------------------------------------------------------------------------
+    // Clock and Reset
+    //-------------------------------------------------------------------------
+    input  logic                                    aclk,
+    input  logic                                    aresetn,
+    // Synchronous clear of ALL CAMs in the stream: the monbus compressor
+    // template CAM (+ stats) and the descriptor monitor's transaction CAM.
+    // Pulse when idle (e.g. between compress runs) -- no full reset needed.
+    input  logic                                    cam_clear,
+
+    // Optional separate APB clock domain
+    input  logic                                    pclk,
+    input  logic                                    presetn,
+
+    //-------------------------------------------------------------------------
+    // Kick-Burst Interface (fast-path multi-channel kick from harness CSR)
+    //-------------------------------------------------------------------------
+    // Bypasses the slow APB-via-UART kick path. Pulse i_kick_burst_mask[ch]
+    // for one cycle with the channel's first descriptor address on
+    // i_kick_burst_addr[ch] to enqueue a kick. We latch into pending bits
+    // and drive the descriptor_engine's apb_valid until accepted, so no
+    // beats are lost even if a channel is briefly unready.
+    input  logic [NUM_CHANNELS-1:0]                 i_kick_burst_mask,
+    input  logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0] i_kick_burst_addr,
+
+    //-------------------------------------------------------------------------
+    // APB4 Configuration Interface
+    //-------------------------------------------------------------------------
+    input  logic [APB_ADDR_WIDTH-1:0]               s_apb_paddr,
+    input  logic                                    s_apb_psel,
+    input  logic                                    s_apb_penable,
+    input  logic                                    s_apb_pwrite,
+    input  logic [APB_DATA_WIDTH-1:0]               s_apb_pwdata,
+    input  logic [(APB_DATA_WIDTH/8)-1:0]           s_apb_pstrb,
+    output logic [APB_DATA_WIDTH-1:0]               s_apb_prdata,
+    output logic                                    s_apb_pready,
+    output logic                                    s_apb_pslverr,
+
+    //-------------------------------------------------------------------------
+    // AXI4 Master - Descriptor Fetch (256-bit)
+    //-------------------------------------------------------------------------
+    // Read Address Channel
+    output logic [AXI_ID_WIDTH-1:0]                 m_axi_desc_arid,
+    output logic [ADDR_WIDTH-1:0]                   m_axi_desc_araddr,
+    output logic [7:0]                              m_axi_desc_arlen,
+    output logic [2:0]                              m_axi_desc_arsize,
+    output logic [1:0]                              m_axi_desc_arburst,
+    output logic                                    m_axi_desc_arlock,
+    output logic [3:0]                              m_axi_desc_arcache,
+    output logic [2:0]                              m_axi_desc_arprot,
+    output logic [3:0]                              m_axi_desc_arqos,
+    output logic [3:0]                              m_axi_desc_arregion,
+    output logic [AXI_USER_WIDTH-1:0]               m_axi_desc_aruser,
+    output logic                                    m_axi_desc_arvalid,
+    input  logic                                    m_axi_desc_arready,
+
+    // Read Data Channel
+    input  logic [AXI_ID_WIDTH-1:0]                 m_axi_desc_rid,
+    input  logic [255:0]                            m_axi_desc_rdata,
+    input  logic [1:0]                              m_axi_desc_rresp,
+    input  logic                                    m_axi_desc_rlast,
+    input  logic [AXI_USER_WIDTH-1:0]               m_axi_desc_ruser,
+    input  logic                                    m_axi_desc_rvalid,
+    output logic                                    m_axi_desc_rready,
+
+    //-------------------------------------------------------------------------
+    // AXI4 Master - Data Read (parameterizable width)
+    //-------------------------------------------------------------------------
+    // Read Address Channel
+    output logic [AXI_ID_WIDTH-1:0]                 m_axi_rd_arid,
+    output logic [ADDR_WIDTH-1:0]                   m_axi_rd_araddr,
+    output logic [7:0]                              m_axi_rd_arlen,
+    output logic [2:0]                              m_axi_rd_arsize,
+    output logic [1:0]                              m_axi_rd_arburst,
+    output logic                                    m_axi_rd_arlock,
+    output logic [3:0]                              m_axi_rd_arcache,
+    output logic [2:0]                              m_axi_rd_arprot,
+    output logic [3:0]                              m_axi_rd_arqos,
+    output logic [3:0]                              m_axi_rd_arregion,
+    output logic [AXI_USER_WIDTH-1:0]               m_axi_rd_aruser,
+    output logic                                    m_axi_rd_arvalid,
+    input  logic                                    m_axi_rd_arready,
+
+    // Read Data Channel
+    input  logic [AXI_ID_WIDTH-1:0]                 m_axi_rd_rid,
+    input  logic [DATA_WIDTH-1:0]                   m_axi_rd_rdata,
+    input  logic [1:0]                              m_axi_rd_rresp,
+    input  logic                                    m_axi_rd_rlast,
+    input  logic [AXI_USER_WIDTH-1:0]               m_axi_rd_ruser,
+    input  logic                                    m_axi_rd_rvalid,
+    output logic                                    m_axi_rd_rready,
+
+    //-------------------------------------------------------------------------
+    // AXI4 Master - Data Write (parameterizable width)
+    //-------------------------------------------------------------------------
+    // Write Address Channel
+    output logic [AXI_ID_WIDTH-1:0]                 m_axi_wr_awid,
+    output logic [ADDR_WIDTH-1:0]                   m_axi_wr_awaddr,
+    output logic [7:0]                              m_axi_wr_awlen,
+    output logic [2:0]                              m_axi_wr_awsize,
+    output logic [1:0]                              m_axi_wr_awburst,
+    output logic                                    m_axi_wr_awlock,
+    output logic [3:0]                              m_axi_wr_awcache,
+    output logic [2:0]                              m_axi_wr_awprot,
+    output logic [3:0]                              m_axi_wr_awqos,
+    output logic [3:0]                              m_axi_wr_awregion,
+    output logic [AXI_USER_WIDTH-1:0]               m_axi_wr_awuser,
+    output logic                                    m_axi_wr_awvalid,
+    input  logic                                    m_axi_wr_awready,
+
+    // Write Data Channel
+    output logic [DATA_WIDTH-1:0]                   m_axi_wr_wdata,
+    output logic [(DATA_WIDTH/8)-1:0]               m_axi_wr_wstrb,
+    output logic                                    m_axi_wr_wlast,
+    output logic [AXI_USER_WIDTH-1:0]               m_axi_wr_wuser,
+    output logic                                    m_axi_wr_wvalid,
+    input  logic                                    m_axi_wr_wready,
+
+    // Write Response Channel
+    input  logic [AXI_ID_WIDTH-1:0]                 m_axi_wr_bid,
+    input  logic [1:0]                              m_axi_wr_bresp,
+    input  logic [AXI_USER_WIDTH-1:0]               m_axi_wr_buser,
+    input  logic                                    m_axi_wr_bvalid,
+    output logic                                    m_axi_wr_bready,
+
+    //-------------------------------------------------------------------------
+    // AXI4-Lite Slave - MonBus Error/Interrupt FIFO Read Interface
+    //-------------------------------------------------------------------------
+    // Slave read interface for error/interrupt FIFO
+    input  logic                                    s_axil_err_arvalid,
+    output logic                                    s_axil_err_arready,
+    input  logic [31:0]                             s_axil_err_araddr,
+    input  logic [2:0]                              s_axil_err_arprot,
+    output logic                                    s_axil_err_rvalid,
+    input  logic                                    s_axil_err_rready,
+    output logic [31:0]                             s_axil_err_rdata,
+    output logic [1:0]                              s_axil_err_rresp,
+
+    //-------------------------------------------------------------------------
+    // AXI4-Lite Master - MonBus Master Write Interface
+    //-------------------------------------------------------------------------
+    // Master write interface for monitor data
+    output logic                                    m_axil_mon_awvalid,
+    input  logic                                    m_axil_mon_awready,
+    output logic [31:0]                             m_axil_mon_awaddr,
+    output logic [2:0]                              m_axil_mon_awprot,
+    output logic                                    m_axil_mon_wvalid,
+    input  logic                                    m_axil_mon_wready,
+    output logic [63:0]                             m_axil_mon_wdata,
+    output logic [7:0]                              m_axil_mon_wstrb,
+    input  logic                                    m_axil_mon_bvalid,
+    output logic                                    m_axil_mon_bready,
+    input  logic [1:0]                              m_axil_mon_bresp,
+
+    //-------------------------------------------------------------------------
+    // Interrupt Output
+    //-------------------------------------------------------------------------
+    output logic                                    stream_irq,
+
+    //-------------------------------------------------------------------------
+    // MonBus compressor statistics. Live only when USE_MON_COMPRESSION=1
+    // (0 otherwise). Surfaced so the SoC integrator (stream_char harness)
+    // can expose them via harness_csr for in-hardware compression-ratio
+    // characterization.
+    //-------------------------------------------------------------------------
+    output logic [31:0]                             mon_compressor_stat_tier1_a,
+    output logic [31:0]                             mon_compressor_stat_tier1_b,
+    output logic [31:0]                             mon_compressor_stat_tier1_c,
+    output logic [31:0]                             mon_compressor_stat_tier0,
+    output logic [31:0]                             mon_compressor_stat_cam_miss,
+    output logic [31:0]                             mon_compressor_stat_delta_ts_ovf,
+    output logic [31:0]                             mon_compressor_stat_event_data_ovf,
+    output logic [31:0]                             mon_compressor_stat_ed_delta_ovf,
+
+    //-------------------------------------------------------------------------
+    // Monitor capture region (used by monbus_axil_group's master writes when
+    // USE_AXI_MONITORS=1). The SoC integrator points these at whatever
+    // memory region collects the dumped packets -- in stream_char that's
+    // debug_sram at 0x0004_0000+. Defaults to {0,0} (writes pinned to
+    // address 0; effectively disables capture) so the existing tests
+    // that don't drive these ports still get the legacy behaviour.
+    // Ignored when USE_AXI_MONITORS=0.
+    input  logic [31:0]                             cfg_mon_base_addr,
+    input  logic [31:0]                             cfg_mon_limit_addr,
+    // Master-write flush watermark (beats): the monbus group fires a
+    // bulk-trace burst once this many beats are buffered (or on
+    // FLUSH_TIMEOUT_CYCLES). Config input like base/limit; default 0
+    // (implicit input default) means flush-eagerly per record.
+    input  logic [15:0]                             cfg_mon_flush_watermark,
+
+    //-------------------------------------------------------------------------
+    // Debug Outputs - expose hwif_in values for testbench probing
+    //-------------------------------------------------------------------------
+    output logic [7:0]                              debug_hwif_scheduler_idle,
+    output logic [7:0]                              debug_hwif_desc_engine_idle,
+    output logic [7:0]                              debug_hwif_channel_idle,
+    // Debug outputs for stream_regs interface
+    output logic                                    debug_regblk_req,
+    output logic                                    debug_regblk_req_is_wr,
+    output logic [11:0]                             debug_regblk_addr,
+    output logic [31:0]                             debug_regblk_rd_data,
+    output logic                                    debug_regblk_rd_ack,
+    // Debug outputs for command path to peakrdl_to_cmdrsp
+    output logic                                    debug_peakrdl_cmd_valid,
+    output logic [11:0]                             debug_peakrdl_cmd_paddr,
+    output logic                                    debug_peakrdl_rsp_valid,
+    output logic [31:0]                             debug_peakrdl_rsp_prdata,
+    // Registered debug capture - holds last read transaction values
+    output logic [9:0]                              debug_last_cpuif_addr,
+    output logic [31:0]                             debug_last_cpuif_rd_data,
+    output logic                                    debug_last_cpuif_rd_ack,
+    // Debug outputs for APB command path (from apb_slave_cdc)
+    output logic                                    debug_apb_cmd_valid,
+    output logic                                    debug_apb_cmd_ready,
+    output logic                                    debug_apb_cmd_pwrite,
+    output logic [11:0]                             debug_apb_cmd_paddr,
+    // Debug outputs for APB response path
+    output logic                                    debug_apb_rsp_valid,
+    output logic                                    debug_apb_rsp_ready,
+    output logic [31:0]                             debug_apb_rsp_prdata,
+    // Registered debug captures (hold values after transaction)
+    output logic                                    debug_apb_rd_cmd_seen,
+    output logic [11:0]                             debug_apb_rd_cmd_addr,
+    output logic [31:0]                             debug_apb_rsp_prdata_captured,
+    // Sticky counters - count total reads at each stage
+    output logic [7:0]                              debug_apb_rd_count,
+    output logic [7:0]                              debug_peakrdl_rd_count,
+    output logic [7:0]                              debug_regblk_rd_count
+    // (The o_wr_active_channel_* sideband ports were removed in RFC Stage E.4 --
+    //  the harness axi_bus_meter that consumed them was retired, and the in-core
+    //  per-channel meter uses the engine sideband internally to stream_core.)
+);
+
+    //=========================================================================
+    // Internal Signals
+    //=========================================================================
+
+    //-------------------------------------------------------------------------
+    // APB CDC (if needed) - synchronize APB to AXI clock domain
+    //-------------------------------------------------------------------------
+    logic [APB_ADDR_WIDTH-1:0]  apb_cdc_paddr;
+    logic                       apb_cdc_psel;
+    logic                       apb_cdc_penable;
+    logic                       apb_cdc_pwrite;
+    logic [APB_DATA_WIDTH-1:0]  apb_cdc_pwdata;
+    logic [(APB_DATA_WIDTH/8)-1:0] apb_cdc_pstrb;
+    logic [APB_DATA_WIDTH-1:0]  apb_cdc_prdata;
+    logic                       apb_cdc_pready;
+    logic                       apb_cdc_pslverr;
+
+    //-------------------------------------------------------------------------
+    // CMD/RSP Interface - from peakrdl_to_cmdrsp
+    //-------------------------------------------------------------------------
+    logic                       cmd_valid;
+    logic                       cmd_ready;
+    logic                       cmd_pwrite;
+    logic [APB_ADDR_WIDTH-1:0]  cmd_paddr;
+    logic [APB_DATA_WIDTH-1:0]  cmd_pwdata;
+    logic [(APB_DATA_WIDTH/8)-1:0] cmd_pstrb;
+
+    logic                       rsp_valid;
+    logic                       rsp_ready;
+    logic [APB_DATA_WIDTH-1:0]  rsp_prdata;
+    logic                       rsp_pslverr;
+
+    //-------------------------------------------------------------------------
+    // Routed CMD/RSP - after address demux
+    //-------------------------------------------------------------------------
+    // To apbtodescr (kick-off)
+    logic                       kickoff_cmd_valid;
+    logic                       kickoff_cmd_ready;
+    logic [APB_ADDR_WIDTH-1:0]  kickoff_cmd_paddr;
+    logic [APB_DATA_WIDTH-1:0]  kickoff_cmd_pwdata;
+    logic                       kickoff_cmd_pwrite;
+    logic [(APB_DATA_WIDTH/8)-1:0] kickoff_cmd_pstrb;
+
+    logic                       kickoff_rsp_valid;
+    logic                       kickoff_rsp_ready;
+    logic [APB_DATA_WIDTH-1:0]  kickoff_rsp_prdata;
+    logic                       kickoff_rsp_pslverr;
+
+    // To stream_regs (PeakRDL)
+    logic                       regs_cmd_valid;
+    logic                       regs_cmd_ready;
+    logic [APB_ADDR_WIDTH-1:0]  regs_cmd_paddr;
+    logic [APB_DATA_WIDTH-1:0]  regs_cmd_pwdata;
+    logic                       regs_cmd_pwrite;
+    logic [(APB_DATA_WIDTH/8)-1:0] regs_cmd_pstrb;
+
+    logic                       regs_rsp_valid;
+    logic                       regs_rsp_ready;
+    logic [APB_DATA_WIDTH-1:0]  regs_rsp_prdata;
+    logic                       regs_rsp_pslverr;
+
+    //-------------------------------------------------------------------------
+    // Address Decode
+    //-------------------------------------------------------------------------
+    logic cmd_to_kickoff;
+    logic cmd_to_regs;
+    logic r_last_access_kickoff;  // Track which block was accessed
+
+    //-------------------------------------------------------------------------
+    // Descriptor Kick-off Signals (renamed to match stream_core)
+    //-------------------------------------------------------------------------
+    // Two upstream sources feed the descriptor_engine kick interface:
+    //   1. apbtodescr — slow APB / UART path (kick via APB writes)
+    //   2. kick-burst inputs — fast hardware-trigger path from harness_csr
+    // Both share the same downstream apb_valid / apb_addr / apb_ready bus
+    // to the descriptor_engine; we OR-mux them below with priority to
+    // whichever source is currently asserting.
+    logic [NUM_CHANNELS-1:0]                 apb_valid;
+    logic [NUM_CHANNELS-1:0]                 apb_ready;
+    logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0] apb_addr;
+
+    // Apbtodescr-side outputs (renamed; final apb_* are the OR-mux).
+    logic [NUM_CHANNELS-1:0]                 apb_valid_apbtodescr;
+    logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0] apb_addr_apbtodescr;
+
+    // Kick-burst latch: holds a kick request high until the engine accepts
+    // it (apb_ready), so a single 1-cycle trigger pulse from harness_csr
+    // can't be missed even if the engine isn't immediately ready.
+    logic [NUM_CHANNELS-1:0]                 r_kick_burst_pending;
+    logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0] r_kick_burst_addr;
+
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_kick_burst_pending <= '0;
+            r_kick_burst_addr    <= '{default:'0};
+        end else begin
+            for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
+                // Trigger pulse: latch new address and mark pending. If a
+                // pending kick is already waiting on this channel, the new
+                // address overwrites — host should not retrigger before
+                // the previous one has been accepted.
+                if (i_kick_burst_mask[ch]) begin
+                    r_kick_burst_pending[ch] <= 1'b1;
+                    r_kick_burst_addr[ch]    <= i_kick_burst_addr[ch];
+                end
+                // Clear when the descriptor_engine accepts the kick.
+                else if (r_kick_burst_pending[ch] && apb_ready[ch]) begin
+                    r_kick_burst_pending[ch] <= 1'b0;
+                end
+            end
+        end
+    end
+
+    // OR-mux: whichever path has a valid request drives the bus. apbtodescr
+    // path wins on the address when both fire (rare — APB kicks are slow).
+    always_comb begin
+        for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
+            apb_valid[ch] = apb_valid_apbtodescr[ch] | r_kick_burst_pending[ch];
+            apb_addr [ch] = apb_valid_apbtodescr[ch] ? apb_addr_apbtodescr[ch]
+                                                     : r_kick_burst_addr[ch];
+        end
+    end
+
+    //-------------------------------------------------------------------------
+    // Status Signals from stream_core
+    //-------------------------------------------------------------------------
+    logic                                   system_idle;
+    logic [NUM_CHANNELS-1:0]                descriptor_engine_idle;
+    logic [NUM_CHANNELS-1:0]                scheduler_idle;
+    logic [NUM_CHANNELS-1:0][6:0]           scheduler_state;
+    logic [NUM_CHANNELS-1:0]                sched_error;
+    logic [NUM_CHANNELS-1:0]                axi_rd_all_complete;
+    logic [NUM_CHANNELS-1:0]                axi_wr_all_complete;
+
+    //-------------------------------------------------------------------------
+    // Monitor Status Signals from stream_core
+    //-------------------------------------------------------------------------
+    logic                                   cfg_sts_desc_mon_busy;
+    logic [7:0]                             cfg_sts_desc_mon_active_txns;
+    logic [15:0]                            cfg_sts_desc_mon_error_count;
+    logic [31:0]                            cfg_sts_desc_mon_txn_count;
+    logic                                   cfg_sts_desc_mon_conflict_error;
+
+    logic                                   cfg_sts_rdeng_skid_busy;
+    logic [7:0]                             cfg_sts_rdeng_mon_active_txns;
+    logic [15:0]                            cfg_sts_rdeng_mon_error_count;
+    logic [31:0]                            cfg_sts_rdeng_mon_txn_count;
+    logic                                   cfg_sts_rdeng_mon_conflict_error;
+
+    logic                                   cfg_sts_wreng_skid_busy;
+    logic [7:0]                             cfg_sts_wreng_mon_active_txns;
+    logic [15:0]                            cfg_sts_wreng_mon_error_count;
+    logic [31:0]                            cfg_sts_wreng_mon_txn_count;
+    logic                                   cfg_sts_wreng_mon_conflict_error;
+
+    //-------------------------------------------------------------------------
+    // Performance Profiler Interface
+    //-------------------------------------------------------------------------
+    // Performance profiler configuration signals
+    logic                                   perf_cfg_enable;
+    logic                                   perf_cfg_mode;
+    logic                                   perf_cfg_clear;
+
+    // Performance profiler FIFO interface signals
+    logic                                   perf_fifo_empty;
+    logic                                   perf_fifo_full;
+    logic [15:0]                            perf_fifo_count;
+    logic                                   perf_fifo_rd;
+    logic [31:0]                            perf_fifo_data_low;
+    logic [31:0]                            perf_fifo_data_high;
+
+    //-------------------------------------------------------------------------
+    // Monitor Bus AXI-Lite Group Status
+    //-------------------------------------------------------------------------
+    logic                                   mon_err_fifo_full;
+    logic                                   mon_write_fifo_full;
+    logic [7:0]                             mon_err_fifo_count;
+    logic [7:0]                             mon_write_fifo_count;
+
+    //-------------------------------------------------------------------------
+    // Monitor Bus (to monbus_axil_group)
+    //-------------------------------------------------------------------------
+    logic                                          mon_valid;
+    logic                                          mon_ready;
+    monitor_common_pkg::monitor_packet_t           mon_packet;
+    monitor_common_pkg::monbus_timestamp_t         mon_timestamp;
+    monitor_common_pkg::monbus_timestamp_t         mon_time_w;
+
+    // (The write-engine active-channel sideband is no longer surfaced here --
+    //  the harness axi_bus_meter that consumed it was retired in RFC Stage E.4;
+    //  the in-core per-channel meter uses it internally to stream_core.)
+
+    //-------------------------------------------------------------------------
+    // Configuration Signals - from stream_config_block
+    //-------------------------------------------------------------------------
+    // Global and Channel Control
+    logic [NUM_CHANNELS-1:0]                cfg_channel_enable;
+    logic [NUM_CHANNELS-1:0]                cfg_channel_reset;
+
+    // Channel-Observation Mux (internal — between stream_config_block and
+    // stream_core). selector is sourced from hwif_out.OBS_CTRL; muxed words
+    // come back from stream_core and feed hwif_in.OBS_*.next.
+    logic [2:0]                             cfg_obs_ch_sel;
+    logic [1:0]                             cfg_obs_cat_sel;
+    logic [31:0]                            obs_flags;
+    logic [31:0]                            obs_data0;
+    logic [31:0]                            obs_data1;
+
+    // Descriptor monitor perf-window readback (RFC Stage E CSR route).
+    // Driven by stream_core; feed hwif_in.MON.DAXMON_PERF_*.next (@ 0x2D4-0x2F8).
+    logic                                   dmon_perf_window_active;
+    logic [31:0]                            dmon_perf_window_cycles;
+    logic [31:0]                            dmon_perf_prod_cycles;
+    logic [31:0]                            dmon_perf_bp_cycles;
+    logic [31:0]                            dmon_perf_starv_cycles;
+    logic [31:0]                            dmon_perf_idle_cycles;
+    logic [31:0]                            dmon_perf_beat_count;
+    logic [63:0]                            dmon_perf_byte_count;
+    logic [31:0]                            dmon_perf_burst_count;
+
+    // Data-read datapath monitor perf-window readback (RFC Stage E CSR route).
+    // Driven by stream_core; feed hwif_in.MON.RDMON_PERF_*.next (@ 0x304-0x328).
+    logic                                   rdmon_perf_window_active;
+    logic [31:0]                            rdmon_perf_window_cycles;
+    logic [31:0]                            rdmon_perf_prod_cycles;
+    logic [31:0]                            rdmon_perf_bp_cycles;
+    logic [31:0]                            rdmon_perf_starv_cycles;
+    logic [31:0]                            rdmon_perf_idle_cycles;
+    logic [31:0]                            rdmon_perf_beat_count;
+    logic [63:0]                            rdmon_perf_byte_count;
+    logic [31:0]                            rdmon_perf_burst_count;
+
+    // Data-write datapath monitor perf-window readback (RFC Stage E CSR route).
+    // Driven by stream_core; feed hwif_in.MON.WRMON_PERF_*.next (@ 0x334-0x358).
+    logic                                   wrmon_perf_window_active;
+    logic [31:0]                            wrmon_perf_window_cycles;
+    logic [31:0]                            wrmon_perf_prod_cycles;
+    logic [31:0]                            wrmon_perf_bp_cycles;
+    logic [31:0]                            wrmon_perf_starv_cycles;
+    logic [31:0]                            wrmon_perf_idle_cycles;
+    logic [31:0]                            wrmon_perf_beat_count;
+    logic [63:0]                            wrmon_perf_byte_count;
+    logic [31:0]                            wrmon_perf_burst_count;
+
+    // Per-channel datapath perf buckets (RFC Stage C, indexed readout). The
+    // four 16-bit buckets are for the PERF_CH_SEL channel; overflow masks
+    // expose all channels. Driven by stream_core's in-core axi_bus_meter mux.
+    logic [15:0]                            rdmon_ch_prod_cycles;
+    logic [15:0]                            rdmon_ch_bp_cycles;
+    logic [15:0]                            rdmon_ch_starv_cycles;
+    logic [15:0]                            rdmon_ch_idle_cycles;
+    logic [NUM_CHANNELS*4-1:0]              rdmon_ch_overflow;
+    logic [15:0]                            wrmon_ch_prod_cycles;
+    logic [15:0]                            wrmon_ch_bp_cycles;
+    logic [15:0]                            wrmon_ch_starv_cycles;
+    logic [15:0]                            wrmon_ch_idle_cycles;
+    logic [NUM_CHANNELS*4-1:0]              wrmon_ch_overflow;
+
+    // Datapath latency-histogram indexed readout (RFC Stage D). Driven by
+    // stream_core; selected via HIST_SEL, feed hwif_in.HIST_DATA/HIST_TOTAL.
+    logic [31:0]                            perf_hist_data;
+    logic [31:0]                            perf_hist_total;
+
+    // Scheduler Configuration
+    logic                                   cfg_sched_enable;
+    logic [31:0]                            cfg_sched_timeout_cycles;
+    logic [7:0]                             cfg_sched_timeout_limit;
+    logic                                   cfg_sched_timeout_enable;
+    logic                                   cfg_sched_err_enable;
+    logic                                   cfg_sched_compl_enable;
+    logic                                   cfg_sched_perf_enable;
+    logic                                   cfg_rd_prefetch_enable;   // scheduler read-ahead prefetch
+
+    // Descriptor Engine Configuration
+    logic                                   cfg_desceng_enable;
+    logic                                   cfg_desceng_prefetch;
+    logic [3:0]                             cfg_desceng_fifo_thresh;
+    logic [ADDR_WIDTH-1:0]                  cfg_desceng_addr0_base;
+    logic [ADDR_WIDTH-1:0]                  cfg_desceng_addr0_limit;
+    logic [ADDR_WIDTH-1:0]                  cfg_desceng_addr1_base;
+    logic [ADDR_WIDTH-1:0]                  cfg_desceng_addr1_limit;
+
+    // Monitor Configuration (output by stream_config_block but tied off by stream_core when USE_AXI_MONITORS=0)
+    logic                                   cfg_desc_mon_enable;
+    logic                                   cfg_desc_mon_err_enable;
+    logic                                   cfg_desc_mon_perf_enable;
+    logic                                   cfg_desc_mon_timeout_enable;
+    logic [31:0]                            cfg_desc_mon_timeout_cycles;
+    logic [31:0]                            cfg_desc_mon_latency_thresh;
+    logic [15:0]                            cfg_desc_mon_pkt_mask;
+    logic [3:0]                             cfg_desc_mon_err_select;
+    logic [7:0]                             cfg_desc_mon_err_mask;
+    logic [7:0]                             cfg_desc_mon_timeout_mask;
+    logic [7:0]                             cfg_desc_mon_compl_mask;
+    logic [7:0]                             cfg_desc_mon_thresh_mask;
+    logic [7:0]                             cfg_desc_mon_perf_mask;
+    logic [7:0]                             cfg_desc_mon_addr_mask;
+    logic [7:0]                             cfg_desc_mon_debug_mask;
+
+    logic                                   cfg_rdeng_mon_enable;
+    logic                                   cfg_rdeng_mon_err_enable;
+    logic                                   cfg_rdeng_mon_perf_enable;
+    logic                                   cfg_rdeng_mon_timeout_enable;
+    logic [31:0]                            cfg_rdeng_mon_timeout_cycles;
+    logic [31:0]                            cfg_rdeng_mon_latency_thresh;
+    logic [15:0]                            cfg_rdeng_mon_pkt_mask;
+    logic [3:0]                             cfg_rdeng_mon_err_select;
+    logic [7:0]                             cfg_rdeng_mon_err_mask;
+    logic [7:0]                             cfg_rdeng_mon_timeout_mask;
+    logic [7:0]                             cfg_rdeng_mon_compl_mask;
+    logic [7:0]                             cfg_rdeng_mon_thresh_mask;
+    logic [7:0]                             cfg_rdeng_mon_perf_mask;
+    logic [7:0]                             cfg_rdeng_mon_addr_mask;
+    logic [7:0]                             cfg_rdeng_mon_debug_mask;
+
+    logic                                   cfg_wreng_mon_enable;
+    logic                                   cfg_wreng_mon_err_enable;
+    logic                                   cfg_wreng_mon_perf_enable;
+    logic                                   cfg_wreng_mon_timeout_enable;
+    logic [31:0]                            cfg_wreng_mon_timeout_cycles;
+    logic [31:0]                            cfg_wreng_mon_latency_thresh;
+    logic [15:0]                            cfg_wreng_mon_pkt_mask;
+    logic [3:0]                             cfg_wreng_mon_err_select;
+    logic [7:0]                             cfg_wreng_mon_err_mask;
+    logic [7:0]                             cfg_wreng_mon_timeout_mask;
+    logic [7:0]                             cfg_wreng_mon_compl_mask;
+    logic [7:0]                             cfg_wreng_mon_thresh_mask;
+    logic [7:0]                             cfg_wreng_mon_perf_mask;
+    logic [7:0]                             cfg_wreng_mon_addr_mask;
+    logic [7:0]                             cfg_wreng_mon_debug_mask;
+
+    // AXI Transfer Configuration
+    logic [7:0]                             cfg_axi_rd_xfer_beats;
+    logic [7:0]                             cfg_axi_wr_xfer_beats;
+
+    // Performance Profiler Configuration
+    logic                                   cfg_perf_enable;
+    logic                                   cfg_perf_mode;
+    logic                                   cfg_perf_clear;
+
+    //=========================================================================
+    // APB Clock Domain Crossing (APB → CMD/RSP)
+    //=========================================================================
+    // Conditional CDC based on CDC_ENABLE parameter:
+    //   CDC_ENABLE=1: apb_slave_cdc (pclk ≠ aclk, clock domain crossing)
+    //   CDC_ENABLE=0: apb_slave (pclk = aclk, same clock domain)
+    logic                       apb_cmd_valid;
+    logic                       apb_cmd_ready;
+    logic                       apb_cmd_pwrite;
+    logic [APB_ADDR_WIDTH-1:0]  apb_cmd_paddr;
+    logic [APB_DATA_WIDTH-1:0]  apb_cmd_pwdata;
+    logic [(APB_DATA_WIDTH/8)-1:0] apb_cmd_pstrb;
+    logic                       apb_rsp_valid;
+    logic                       apb_rsp_ready;
+    logic [APB_DATA_WIDTH-1:0]  apb_rsp_prdata;
+    logic                       apb_rsp_pslverr;
+
+    generate
+        if (CDC_ENABLE != 0) begin : g_apb_slave_cdc
+            // Clock Domain Crossing version for async clocks
+            apb_slave_cdc #(
+                .ADDR_WIDTH(APB_ADDR_WIDTH),
+                .DATA_WIDTH(APB_DATA_WIDTH)
+            ) u_apb_slave_cdc (
+                .aclk                   (aclk),
+                .aresetn                (aresetn),
+                .pclk                   (pclk),
+                .presetn                (presetn),
+
+                // APB Slave (from external interface, pclk domain)
+                .s_apb_PSEL             (s_apb_psel),
+                .s_apb_PENABLE          (s_apb_penable),
+                .s_apb_PREADY           (s_apb_pready),
+                .s_apb_PADDR            (s_apb_paddr),
+                .s_apb_PWRITE           (s_apb_pwrite),
+                .s_apb_PWDATA           (s_apb_pwdata),
+                .s_apb_PSTRB            (s_apb_pstrb),
+                .s_apb_PPROT            (3'b000),  // Unused
+                .s_apb_PRDATA           (s_apb_prdata),
+                .s_apb_PSLVERR          (s_apb_pslverr),
+
+                // CMD/RSP Master (to cmdrsp_router, aclk domain)
+                .cmd_valid              (apb_cmd_valid),
+                .cmd_ready              (apb_cmd_ready),
+                .cmd_pwrite             (apb_cmd_pwrite),
+                .cmd_paddr              (apb_cmd_paddr),
+                .cmd_pwdata             (apb_cmd_pwdata),
+                .cmd_pstrb              (apb_cmd_pstrb),
+                .cmd_pprot              (),  // Unused
+                .rsp_valid              (apb_rsp_valid),
+                .rsp_ready              (apb_rsp_ready),
+                .rsp_prdata             (apb_rsp_prdata),
+                .rsp_pslverr            (apb_rsp_pslverr)
+            );
+        end else begin : g_apb_passthrough
+            // Same clock domain version (pclk = aclk)
+            apb_slave #(
+                .ADDR_WIDTH(APB_ADDR_WIDTH),
+                .DATA_WIDTH(APB_DATA_WIDTH)
+            ) u_apb_slave (
+                .pclk                   (aclk),         // Use aclk (pclk = aclk when CDC disabled)
+                .presetn                (aresetn),      // Use aresetn (presetn = aresetn)
+
+                // APB Slave (from external interface)
+                .s_apb_PSEL             (s_apb_psel),
+                .s_apb_PENABLE          (s_apb_penable),
+                .s_apb_PREADY           (s_apb_pready),
+                .s_apb_PADDR            (s_apb_paddr),
+                .s_apb_PWRITE           (s_apb_pwrite),
+                .s_apb_PWDATA           (s_apb_pwdata),
+                .s_apb_PSTRB            (s_apb_pstrb),
+                .s_apb_PPROT            (3'b000),       // Unused
+                .s_apb_PRDATA           (s_apb_prdata),
+                .s_apb_PSLVERR          (s_apb_pslverr),
+
+                // CMD/RSP Master (to cmdrsp_router, same clock domain)
+                .cmd_valid              (apb_cmd_valid),
+                .cmd_ready              (apb_cmd_ready),
+                .cmd_pwrite             (apb_cmd_pwrite),
+                .cmd_paddr              (apb_cmd_paddr),
+                .cmd_pwdata             (apb_cmd_pwdata),
+                .cmd_pstrb              (apb_cmd_pstrb),
+                .cmd_pprot              (),             // Unused
+                .rsp_valid              (apb_rsp_valid),
+                .rsp_ready              (apb_rsp_ready),
+                .rsp_prdata             (apb_rsp_prdata),
+                .rsp_pslverr            (apb_rsp_pslverr)
+            );
+        end
+    endgenerate
+
+    //=========================================================================
+    // CMD/RSP Address Router
+    //=========================================================================
+    // Routes CMD/RSP transactions (from apb_slave_cdc) based on address:
+    //   0x000-0x03F: apbtodescr (channel kick-off)
+    //   0x100-0x3FF: peakrdl_to_cmdrsp (configuration registers)
+
+    // CMD/RSP signals to peakrdl_to_cmdrsp (m1 master)
+    logic                       peakrdl_cmd_valid;
+    logic                       peakrdl_cmd_ready;
+    logic                       peakrdl_cmd_pwrite;
+    logic [APB_ADDR_WIDTH-1:0]  peakrdl_cmd_paddr;
+    logic [APB_DATA_WIDTH-1:0]  peakrdl_cmd_pwdata;
+    logic                       peakrdl_rsp_valid;
+    logic                       peakrdl_rsp_ready;
+    logic [APB_DATA_WIDTH-1:0]  peakrdl_rsp_prdata;
+    logic                       peakrdl_rsp_pslverr;
+
+    cmdrsp_router #(
+        .ADDR_WIDTH(APB_ADDR_WIDTH),
+        .DATA_WIDTH(APB_DATA_WIDTH)
+    ) u_cmdrsp_router (
+        .clk                        (aclk),
+        .rst_n                      (aresetn),
+
+        // CMD/RSP Slave (from apb_slave_cdc)
+        .s_cmd_valid                (apb_cmd_valid),
+        .s_cmd_ready                (apb_cmd_ready),
+        .s_cmd_pwrite               (apb_cmd_pwrite),
+        .s_cmd_paddr                (apb_cmd_paddr),
+        .s_cmd_pwdata               (apb_cmd_pwdata),
+        .s_rsp_valid                (apb_rsp_valid),
+        .s_rsp_ready                (apb_rsp_ready),
+        .s_rsp_prdata               (apb_rsp_prdata),
+        .s_rsp_pslverr              (apb_rsp_pslverr),
+
+        // CMD/RSP Master 0: apbtodescr (0x000-0x03F)
+        .m0_cmd_valid               (kickoff_cmd_valid),
+        .m0_cmd_ready               (kickoff_cmd_ready),
+        .m0_cmd_pwrite              (kickoff_cmd_pwrite),
+        .m0_cmd_paddr               (kickoff_cmd_paddr),
+        .m0_cmd_pwdata              (kickoff_cmd_pwdata),
+        .m0_rsp_valid               (kickoff_rsp_valid),
+        .m0_rsp_ready               (kickoff_rsp_ready),
+        .m0_rsp_prdata              (kickoff_rsp_prdata),
+        .m0_rsp_pslverr             (kickoff_rsp_pslverr),
+
+        // CMD/RSP Master 1: peakrdl_to_cmdrsp (0x100-0x3FF)
+        .m1_cmd_valid               (peakrdl_cmd_valid),
+        .m1_cmd_ready               (peakrdl_cmd_ready),
+        .m1_cmd_pwrite              (peakrdl_cmd_pwrite),
+        .m1_cmd_paddr               (peakrdl_cmd_paddr),
+        .m1_cmd_pwdata              (peakrdl_cmd_pwdata),
+        .m1_rsp_valid               (peakrdl_rsp_valid),
+        .m1_rsp_ready               (peakrdl_rsp_ready),
+        .m1_rsp_prdata              (peakrdl_rsp_prdata),
+        .m1_rsp_pslverr             (peakrdl_rsp_pslverr),
+
+        // Performance Profiler Interface (0x040-0x0FF, integrated registers)
+        .perf_cfg_enable            (perf_cfg_enable),
+        .perf_cfg_mode              (perf_cfg_mode),
+        .perf_cfg_clear             (perf_cfg_clear),
+        .perf_fifo_data_low         (perf_fifo_data_low),
+        .perf_fifo_data_high        (perf_fifo_data_high),
+        .perf_fifo_empty            (perf_fifo_empty),
+        .perf_fifo_full             (perf_fifo_full),
+        .perf_fifo_count            (perf_fifo_count),
+        .perf_fifo_rd               (perf_fifo_rd)
+    );
+
+    //=========================================================================
+    // Channel Kick-off Router (apbtodescr)
+    //=========================================================================
+    apbtodescr #(
+        .NUM_CHANNELS    (NUM_CHANNELS),
+        .ADDR_WIDTH      (APB_ADDR_WIDTH),  // narrow APB bus address (~12 bits)
+        .DATA_WIDTH      (APB_DATA_WIDTH),
+        .DESC_ADDR_WIDTH (ADDR_WIDTH)       // wide descriptor address (AXI)
+    ) u_apbtodescr (
+        .clk                            (aclk),
+        .rst_n                          (aresetn),
+
+        // CMD/RSP Interface (from cmdrsp_router m0)
+        .apb_cmd_valid                  (kickoff_cmd_valid),
+        .apb_cmd_ready                  (kickoff_cmd_ready),
+        .apb_cmd_addr                   (kickoff_cmd_paddr),
+        .apb_cmd_wdata                  (kickoff_cmd_pwdata),
+        .apb_cmd_write                  (kickoff_cmd_pwrite),
+
+        .apb_rsp_valid                  (kickoff_rsp_valid),
+        .apb_rsp_ready                  (kickoff_rsp_ready),
+        .apb_rsp_rdata                  (kickoff_rsp_prdata),
+        .apb_rsp_error                  (kickoff_rsp_pslverr),
+
+        // Descriptor Engine Outputs (apbtodescr's contribution to the
+        // shared kick bus — final apb_* is OR-muxed with the kick-burst
+        // path above).
+        .desc_apb_valid                 (apb_valid_apbtodescr),
+        .desc_apb_ready                 (apb_ready),
+        .desc_apb_addr                  (apb_addr_apbtodescr),
+
+        // Debug output (unused)
+        .apb_descriptor_kickoff_hit     ()
+    );
+
+    //=========================================================================
+    // CMD/RSP to Passthrough Adapter (peakrdl_to_cmdrsp)
+    //=========================================================================
+    // Converts CMD/RSP protocol to PeakRDL passthrough interface
+
+    // Passthrough interface signals to stream_regs
+    logic                       regblk_req;
+    logic                       regblk_req_is_wr;
+    logic [APB_ADDR_WIDTH-1:0]  regblk_addr;
+    logic [APB_DATA_WIDTH-1:0]  regblk_wr_data;
+    logic [APB_DATA_WIDTH-1:0]  regblk_wr_biten;
+    logic                       regblk_req_stall_wr;
+    logic                       regblk_req_stall_rd;
+    logic                       regblk_rd_ack;
+    logic                       regblk_rd_err;
+    logic [APB_DATA_WIDTH-1:0]  regblk_rd_data;
+    logic                       regblk_wr_ack;
+    logic                       regblk_wr_err;
+
+    peakrdl_to_cmdrsp #(
+        .ADDR_WIDTH(APB_ADDR_WIDTH),
+        .DATA_WIDTH(APB_DATA_WIDTH)
+    ) u_peakrdl_adapter (
+        .aclk                   (aclk),
+        .aresetn                (aresetn),
+
+        // CMD/RSP input (from cmdrsp_router m1)
+        .cmd_valid              (peakrdl_cmd_valid),
+        .cmd_ready              (peakrdl_cmd_ready),
+        .cmd_pwrite             (peakrdl_cmd_pwrite),
+        .cmd_paddr              (peakrdl_cmd_paddr),
+        .cmd_pwdata             (peakrdl_cmd_pwdata),
+        .cmd_pstrb              ({(APB_DATA_WIDTH/8){1'b1}}),  // All bytes valid
+        .rsp_valid              (peakrdl_rsp_valid),
+        .rsp_ready              (peakrdl_rsp_ready),
+        .rsp_prdata             (peakrdl_rsp_prdata),
+        .rsp_pslverr            (peakrdl_rsp_pslverr),
+
+        // Passthrough interface (to stream_regs)
+        .regblk_req             (regblk_req),
+        .regblk_req_is_wr       (regblk_req_is_wr),
+        .regblk_addr            (regblk_addr),
+        .regblk_wr_data         (regblk_wr_data),
+        .regblk_wr_biten        (regblk_wr_biten),
+        .regblk_req_stall_wr    (regblk_req_stall_wr),
+        .regblk_req_stall_rd    (regblk_req_stall_rd),
+        .regblk_rd_ack          (regblk_rd_ack),
+        .regblk_rd_err          (regblk_rd_err),
+        .regblk_rd_data         (regblk_rd_data),
+        .regblk_wr_ack          (regblk_wr_ack),
+        .regblk_wr_err          (regblk_wr_err)
+    );
+
+    //=========================================================================
+    // PeakRDL Register Block (stream_regs)
+    //=========================================================================
+    // PeakRDL generated register file with passthrough interface
+    // Import register package
+    import stream_regs_pkg::*;
+
+    // Hardware interface to/from register file
+    stream_regs__in_t  hwif_in;
+    stream_regs__out_t hwif_out;
+
+    // Intermediate signals for hwif_in fields
+    // Use explicit signals before struct assignment for better simulator struct handling
+    logic          hwif_system_idle;
+    logic [7:0]    hwif_channel_idle;
+    logic [7:0]    hwif_desc_engine_idle;
+    logic [7:0]    hwif_scheduler_idle;
+    logic [6:0]    hwif_ch_state [NUM_CHANNELS];
+
+    // Compute intermediate signals
+    assign hwif_system_idle = system_idle;
+    assign hwif_channel_idle = scheduler_idle & descriptor_engine_idle;
+    assign hwif_desc_engine_idle = descriptor_engine_idle;
+    assign hwif_scheduler_idle = scheduler_idle;
+
+    generate
+        for (genvar i = 0; i < NUM_CHANNELS; i++) begin : g_hwif_state
+            assign hwif_ch_state[i] = scheduler_state[i];
+        end
+    endgenerate
+
+    // Use combinational assignment for hwif_in struct
+    // Note: registered struct member assignments through ports may have simulation issues
+    always_comb begin
+        hwif_in.GLOBAL_STATUS.SYSTEM_IDLE.next = hwif_system_idle;
+        hwif_in.CHANNEL_IDLE.CH_IDLE.next = hwif_channel_idle;
+        hwif_in.DESC_ENGINE_IDLE.DESC_IDLE.next = hwif_desc_engine_idle;
+        hwif_in.SCHEDULER_IDLE.SCHED_IDLE.next = hwif_scheduler_idle;
+        for (int i = 0; i < NUM_CHANNELS; i++) begin
+            hwif_in.CH_STATE[i].STATE.STATE.next = hwif_ch_state[i];
+        end
+
+        // Channel-Observation Mux readback (driven by stream_core via
+        // stream_config_block; see OBS_CTRL @ 0x2C0 for the selector).
+        hwif_in.OBS_FLAGS.FLAGS.next = obs_flags;
+        hwif_in.OBS_DATA0.DATA.next  = obs_data0;
+        hwif_in.OBS_DATA1.DATA.next  = obs_data1;
+
+        // Descriptor AXI monitor perf-window readback (RFC Stage E CSR route;
+        // see DAXMON_PERF_CTRL @ 0x2D0 for the run control).
+        hwif_in.MON.DAXMON_PERF_STATUS.WIN_ACTIVE.next  = dmon_perf_window_active;
+        hwif_in.MON.DAXMON_PERF_WINDOW_CYCLES.VAL.next  = dmon_perf_window_cycles;
+        hwif_in.MON.DAXMON_PERF_PROD_CYCLES.VAL.next    = dmon_perf_prod_cycles;
+        hwif_in.MON.DAXMON_PERF_BP_CYCLES.VAL.next      = dmon_perf_bp_cycles;
+        hwif_in.MON.DAXMON_PERF_STARV_CYCLES.VAL.next   = dmon_perf_starv_cycles;
+        hwif_in.MON.DAXMON_PERF_IDLE_CYCLES.VAL.next    = dmon_perf_idle_cycles;
+        hwif_in.MON.DAXMON_PERF_BEAT_COUNT.VAL.next     = dmon_perf_beat_count;
+        hwif_in.MON.DAXMON_PERF_BYTE_COUNT_LO.VAL.next  = dmon_perf_byte_count[31:0];
+        hwif_in.MON.DAXMON_PERF_BYTE_COUNT_HI.VAL.next  = dmon_perf_byte_count[63:32];
+        hwif_in.MON.DAXMON_PERF_BURST_COUNT.VAL.next    = dmon_perf_burst_count;
+
+        // Data-read datapath monitor perf-window readback (RFC Stage E option 2;
+        // see RDMON_PERF_CTRL @ 0x300 for the run control).
+        hwif_in.MON.RDMON_PERF_STATUS.WIN_ACTIVE.next   = rdmon_perf_window_active;
+        hwif_in.MON.RDMON_PERF_WINDOW_CYCLES.VAL.next   = rdmon_perf_window_cycles;
+        hwif_in.MON.RDMON_PERF_PROD_CYCLES.VAL.next     = rdmon_perf_prod_cycles;
+        hwif_in.MON.RDMON_PERF_BP_CYCLES.VAL.next       = rdmon_perf_bp_cycles;
+        hwif_in.MON.RDMON_PERF_STARV_CYCLES.VAL.next    = rdmon_perf_starv_cycles;
+        hwif_in.MON.RDMON_PERF_IDLE_CYCLES.VAL.next     = rdmon_perf_idle_cycles;
+        hwif_in.MON.RDMON_PERF_BEAT_COUNT.VAL.next      = rdmon_perf_beat_count;
+        hwif_in.MON.RDMON_PERF_BYTE_COUNT_LO.VAL.next   = rdmon_perf_byte_count[31:0];
+        hwif_in.MON.RDMON_PERF_BYTE_COUNT_HI.VAL.next   = rdmon_perf_byte_count[63:32];
+        hwif_in.MON.RDMON_PERF_BURST_COUNT.VAL.next     = rdmon_perf_burst_count;
+
+        // Data-write datapath monitor perf-window readback (RFC Stage E option 2;
+        // see WRMON_PERF_CTRL @ 0x330 for the run control).
+        hwif_in.MON.WRMON_PERF_STATUS.WIN_ACTIVE.next   = wrmon_perf_window_active;
+        hwif_in.MON.WRMON_PERF_WINDOW_CYCLES.VAL.next   = wrmon_perf_window_cycles;
+        hwif_in.MON.WRMON_PERF_PROD_CYCLES.VAL.next     = wrmon_perf_prod_cycles;
+        hwif_in.MON.WRMON_PERF_BP_CYCLES.VAL.next       = wrmon_perf_bp_cycles;
+        hwif_in.MON.WRMON_PERF_STARV_CYCLES.VAL.next    = wrmon_perf_starv_cycles;
+        hwif_in.MON.WRMON_PERF_IDLE_CYCLES.VAL.next     = wrmon_perf_idle_cycles;
+        hwif_in.MON.WRMON_PERF_BEAT_COUNT.VAL.next      = wrmon_perf_beat_count;
+        hwif_in.MON.WRMON_PERF_BYTE_COUNT_LO.VAL.next   = wrmon_perf_byte_count[31:0];
+        hwif_in.MON.WRMON_PERF_BYTE_COUNT_HI.VAL.next   = wrmon_perf_byte_count[63:32];
+        hwif_in.MON.WRMON_PERF_BURST_COUNT.VAL.next     = wrmon_perf_burst_count;
+
+        // Per-channel datapath perf buckets (RFC Stage C). Packed exactly like
+        // the FPGA-char harness meter: {bp[31:16], prod[15:0]} and
+        // {idle[31:16], starv[15:0]} for the PERF_CH_SEL-selected channel. The
+        // overflow masks are zero-extended to 32 bits (NUM_CHANNELS*4 valid).
+        hwif_in.MON.RDMON_PERF_CH_PROD_BP.VAL.next    = {rdmon_ch_bp_cycles,   rdmon_ch_prod_cycles};
+        hwif_in.MON.RDMON_PERF_CH_STARV_IDLE.VAL.next = {rdmon_ch_idle_cycles, rdmon_ch_starv_cycles};
+        hwif_in.MON.WRMON_PERF_CH_PROD_BP.VAL.next    = {wrmon_ch_bp_cycles,   wrmon_ch_prod_cycles};
+        hwif_in.MON.WRMON_PERF_CH_STARV_IDLE.VAL.next = {wrmon_ch_idle_cycles, wrmon_ch_starv_cycles};
+        hwif_in.MON.RDMON_PERF_CH_OVERFLOW.VAL.next   = 32'(rdmon_ch_overflow);
+        hwif_in.MON.WRMON_PERF_CH_OVERFLOW.VAL.next   = 32'(wrmon_ch_overflow);
+
+        // Datapath latency histograms (RFC Stage D), indexed by HIST_SEL.
+        hwif_in.HIST_DATA.VAL.next  = perf_hist_data;
+        hwif_in.HIST_TOTAL.VAL.next = perf_hist_total;
+    end
+
+    // Debug outputs - expose what stream_regs should see for hwif_in values
+    assign debug_hwif_scheduler_idle = hwif_in.SCHEDULER_IDLE.SCHED_IDLE.next;
+    assign debug_hwif_desc_engine_idle = hwif_in.DESC_ENGINE_IDLE.DESC_IDLE.next;
+    assign debug_hwif_channel_idle = hwif_in.CHANNEL_IDLE.CH_IDLE.next;
+
+    // Debug outputs for stream_regs interface - trace the regblk signals
+    assign debug_regblk_req = regblk_req;
+    assign debug_regblk_req_is_wr = regblk_req_is_wr;
+    assign debug_regblk_addr = regblk_addr;
+    assign debug_regblk_rd_data = regblk_rd_data;
+    assign debug_regblk_rd_ack = regblk_rd_ack;
+
+    // Additional debug: probe peakrdl_to_cmdrsp response
+    // This lets us compare what peakrdl_to_cmdrsp receives vs what it outputs
+    assign debug_peakrdl_cmd_valid = peakrdl_cmd_valid;
+    assign debug_peakrdl_cmd_paddr = peakrdl_cmd_paddr;
+    assign debug_peakrdl_rsp_valid = peakrdl_rsp_valid;
+    assign debug_peakrdl_rsp_prdata = peakrdl_rsp_prdata;
+
+    // Registered debug capture - captures transaction values when read ack occurs
+    // This preserves the values for probing after the transaction completes
+    logic [9:0] r_debug_last_cpuif_addr;
+    logic [31:0] r_debug_last_cpuif_rd_data;
+    logic r_debug_last_cpuif_rd_ack;
+
+    // STICKY counter: counts every time regblk_req fires for a read
+    logic [7:0] r_debug_regblk_rd_count;
+    // STICKY counter: counts every time peakrdl_cmd_valid fires for a read
+    logic [7:0] r_debug_peakrdl_rd_count;
+    // STICKY counter: counts every time apb_cmd_valid fires for a read
+    logic [7:0] r_debug_apb_rd_count;
+
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_debug_last_cpuif_addr <= '0;
+            r_debug_last_cpuif_rd_data <= '0;
+            r_debug_last_cpuif_rd_ack <= '0;
+            r_debug_regblk_rd_count <= '0;
+            r_debug_peakrdl_rd_count <= '0;
+            r_debug_apb_rd_count <= '0;
+        end else begin
+            // Capture when a read request occurs (regblk_req && !regblk_req_is_wr)
+            if (regblk_req && !regblk_req_is_wr) begin
+                r_debug_last_cpuif_addr <= regblk_addr[9:0];
+                r_debug_last_cpuif_rd_data <= regblk_rd_data;
+                r_debug_last_cpuif_rd_ack <= regblk_rd_ack;
+                r_debug_regblk_rd_count <= r_debug_regblk_rd_count + 1'b1;
+            end
+            // Count peakrdl read commands
+            if (peakrdl_cmd_valid && !peakrdl_cmd_pwrite) begin
+                r_debug_peakrdl_rd_count <= r_debug_peakrdl_rd_count + 1'b1;
+            end
+            // Count apb read commands
+            if (apb_cmd_valid && !apb_cmd_pwrite) begin
+                r_debug_apb_rd_count <= r_debug_apb_rd_count + 1'b1;
+            end
+        end
+    end
+
+    assign debug_last_cpuif_addr = r_debug_last_cpuif_addr;
+    assign debug_last_cpuif_rd_data = r_debug_last_cpuif_rd_data;
+    assign debug_last_cpuif_rd_ack = r_debug_last_cpuif_rd_ack;
+
+    // Registered debug capture for APB read commands (captures when read cmd is accepted)
+    logic r_debug_apb_rd_cmd_seen;
+    logic [11:0] r_debug_apb_rd_cmd_addr;
+    logic [31:0] r_debug_apb_rsp_prdata_captured;
+
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_debug_apb_rd_cmd_seen <= 1'b0;
+            r_debug_apb_rd_cmd_addr <= '0;
+            r_debug_apb_rsp_prdata_captured <= '0;
+        end else begin
+            // Capture when a read command is accepted (cmd_valid && cmd_ready && !cmd_pwrite)
+            if (apb_cmd_valid && apb_cmd_ready && !apb_cmd_pwrite) begin
+                r_debug_apb_rd_cmd_seen <= 1'b1;
+                r_debug_apb_rd_cmd_addr <= apb_cmd_paddr;
+            end
+            // Capture response data when response is valid
+            if (apb_rsp_valid) begin
+                r_debug_apb_rsp_prdata_captured <= apb_rsp_prdata;
+            end
+        end
+    end
+
+    // Debug outputs for APB command/response path (direct combinational)
+    assign debug_apb_cmd_valid = apb_cmd_valid;
+    assign debug_apb_cmd_ready = apb_cmd_ready;
+    assign debug_apb_cmd_pwrite = apb_cmd_pwrite;
+    assign debug_apb_cmd_paddr = apb_cmd_paddr;
+    assign debug_apb_rsp_valid = apb_rsp_valid;
+    assign debug_apb_rsp_ready = apb_rsp_ready;
+    assign debug_apb_rsp_prdata = apb_rsp_prdata;
+    // Registered debug captures
+    assign debug_apb_rd_cmd_seen = r_debug_apb_rd_cmd_seen;
+    assign debug_apb_rd_cmd_addr = r_debug_apb_rd_cmd_addr;
+    assign debug_apb_rsp_prdata_captured = r_debug_apb_rsp_prdata_captured;
+    // Sticky counters - count reads at each pipeline stage
+    assign debug_apb_rd_count = r_debug_apb_rd_count;
+    assign debug_peakrdl_rd_count = r_debug_peakrdl_rd_count;
+    assign debug_regblk_rd_count = r_debug_regblk_rd_count;
+
+    stream_regs u_stream_regs (
+        .clk                    (aclk),
+        .rst                    (~aresetn),  // Active-high reset for PeakRDL
+
+        // Passthrough CPU interface
+        .s_cpuif_req            (regblk_req),
+        .s_cpuif_req_is_wr      (regblk_req_is_wr),
+        .s_cpuif_addr           (13'(regblk_addr)),  // 13-bit address (monitor block @ 0x1000+)
+        .s_cpuif_wr_data        (regblk_wr_data),
+        .s_cpuif_wr_biten       (regblk_wr_biten),
+        .s_cpuif_req_stall_wr   (regblk_req_stall_wr),
+        .s_cpuif_req_stall_rd   (regblk_req_stall_rd),
+        .s_cpuif_rd_ack         (regblk_rd_ack),
+        .s_cpuif_rd_err         (regblk_rd_err),
+        .s_cpuif_rd_data        (regblk_rd_data),
+        .s_cpuif_wr_ack         (regblk_wr_ack),
+        .s_cpuif_wr_err         (regblk_wr_err),
+
+        // Hardware interface
+        .hwif_in                (hwif_in),
+        .hwif_out               (hwif_out)
+    );
+
+    //=========================================================================
+    // Configuration Mapping Block
+    //=========================================================================
+    // Extracts PeakRDL register values from hwif_out and maps them to
+    // stream_core configuration signals
+    stream_config_block #(
+        .NUM_CHANNELS(NUM_CHANNELS),
+        .ADDR_WIDTH(ADDR_WIDTH)
+    ) u_config_block (
+        .clk                (aclk),
+        .rst_n              (aresetn),
+
+        //---------------------------------------------------------------------
+        // PeakRDL Register Outputs (extracted from hwif_out)
+        //---------------------------------------------------------------------
+
+        // Global Control
+        .reg_global_ctrl_global_en          (hwif_out.GLOBAL_CTRL.GLOBAL_EN.value),
+        .reg_global_ctrl_global_rst         (hwif_out.GLOBAL_CTRL.GLOBAL_RST.value),
+
+        // Channel Control
+        .reg_channel_enable_ch_en           (hwif_out.CHANNEL_ENABLE.CH_EN.value),
+        .reg_channel_reset_ch_rst           (hwif_out.CHANNEL_RESET.CH_RST.value),
+
+        // Scheduler Configuration
+        .reg_sched_timeout_cycles_timeout_cycles    (hwif_out.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value),
+        .reg_sched_timeout_limit_limit              (hwif_out.SCHED_TIMEOUT_LIMIT.LIMIT.value),
+        .reg_sched_config_sched_en                  (hwif_out.SCHED_CONFIG.SCHED_EN.value),
+        .reg_sched_config_timeout_en                (hwif_out.SCHED_CONFIG.TIMEOUT_EN.value),
+        .reg_sched_config_err_en                    (hwif_out.SCHED_CONFIG.ERR_EN.value),
+        .reg_sched_config_compl_en                  (hwif_out.SCHED_CONFIG.COMPL_EN.value),
+        .reg_sched_config_perf_en                   (hwif_out.SCHED_CONFIG.PERF_EN.value),
+        .reg_sched_config_rd_prefetch_en            (hwif_out.SCHED_CONFIG.RD_PREFETCH_EN.value),
+
+        // Descriptor Engine Configuration
+        .reg_desceng_config_desceng_en              (hwif_out.DESCENG_CONFIG.DESCENG_EN.value),
+        .reg_desceng_config_prefetch_en             (hwif_out.DESCENG_CONFIG.PREFETCH_EN.value),
+        .reg_desceng_config_fifo_thresh             (hwif_out.DESCENG_CONFIG.FIFO_THRESH.value),
+        .reg_desceng_addr0_base_addr0_base          (hwif_out.DESCENG_ADDR0_BASE.ADDR0_BASE.value),
+        .reg_desceng_addr0_limit_addr0_limit        (hwif_out.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value),
+        .reg_desceng_addr1_base_addr1_base          (hwif_out.DESCENG_ADDR1_BASE.ADDR1_BASE.value),
+        .reg_desceng_addr1_limit_addr1_limit        (hwif_out.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value),
+
+        // Descriptor AXI Monitor Configuration
+        .reg_daxmon_enable_mon_en                   (hwif_out.MON.DAXMON_ENABLE.MON_EN.value),
+        .reg_daxmon_enable_err_en                   (hwif_out.MON.DAXMON_ENABLE.ERR_EN.value),
+        .reg_daxmon_enable_compl_en                 (hwif_out.MON.DAXMON_ENABLE.COMPL_EN.value),
+        .reg_daxmon_enable_timeout_en               (hwif_out.MON.DAXMON_ENABLE.TIMEOUT_EN.value),
+        .reg_daxmon_enable_perf_en                  (hwif_out.MON.DAXMON_ENABLE.PERF_EN.value),
+        .reg_daxmon_timeout_timeout_cycles          (hwif_out.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value),
+        .reg_daxmon_latency_thresh_latency_thresh   (hwif_out.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value),
+        .reg_daxmon_pkt_mask_pkt_mask               (hwif_out.MON.DAXMON_PKT_MASK.PKT_MASK.value),
+        .reg_daxmon_err_cfg_err_select              (hwif_out.MON.DAXMON_ERR_CFG.ERR_SELECT.value),
+        .reg_daxmon_err_cfg_err_mask                (hwif_out.MON.DAXMON_ERR_CFG.ERR_MASK.value),
+        .reg_daxmon_mask1_timeout_mask              (hwif_out.MON.DAXMON_MASK1.TIMEOUT_MASK.value),
+        .reg_daxmon_mask1_compl_mask                (hwif_out.MON.DAXMON_MASK1.COMPL_MASK.value),
+        .reg_daxmon_mask2_thresh_mask               (hwif_out.MON.DAXMON_MASK2.THRESH_MASK.value),
+        .reg_daxmon_mask2_perf_mask                 (hwif_out.MON.DAXMON_MASK2.PERF_MASK.value),
+        .reg_daxmon_mask3_addr_mask                 (hwif_out.MON.DAXMON_MASK3.ADDR_MASK.value),
+        .reg_daxmon_mask3_debug_mask                (hwif_out.MON.DAXMON_MASK3.DEBUG_MASK.value),
+
+        // Read Engine AXI Monitor Configuration
+        .reg_rdmon_enable_mon_en                    (hwif_out.MON.RDMON_ENABLE.MON_EN.value),
+        .reg_rdmon_enable_err_en                    (hwif_out.MON.RDMON_ENABLE.ERR_EN.value),
+        .reg_rdmon_enable_compl_en                  (hwif_out.MON.RDMON_ENABLE.COMPL_EN.value),
+        .reg_rdmon_enable_timeout_en                (hwif_out.MON.RDMON_ENABLE.TIMEOUT_EN.value),
+        .reg_rdmon_enable_perf_en                   (hwif_out.MON.RDMON_ENABLE.PERF_EN.value),
+        .reg_rdmon_timeout_timeout_cycles           (hwif_out.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value),
+        .reg_rdmon_latency_thresh_latency_thresh    (hwif_out.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value),
+        .reg_rdmon_pkt_mask_pkt_mask                (hwif_out.MON.RDMON_PKT_MASK.PKT_MASK.value),
+        .reg_rdmon_err_cfg_err_select               (hwif_out.MON.RDMON_ERR_CFG.ERR_SELECT.value),
+        .reg_rdmon_err_cfg_err_mask                 (hwif_out.MON.RDMON_ERR_CFG.ERR_MASK.value),
+        .reg_rdmon_mask1_timeout_mask               (hwif_out.MON.RDMON_MASK1.TIMEOUT_MASK.value),
+        .reg_rdmon_mask1_compl_mask                 (hwif_out.MON.RDMON_MASK1.COMPL_MASK.value),
+        .reg_rdmon_mask2_thresh_mask                (hwif_out.MON.RDMON_MASK2.THRESH_MASK.value),
+        .reg_rdmon_mask2_perf_mask                  (hwif_out.MON.RDMON_MASK2.PERF_MASK.value),
+        .reg_rdmon_mask3_addr_mask                  (hwif_out.MON.RDMON_MASK3.ADDR_MASK.value),
+        .reg_rdmon_mask3_debug_mask                 (hwif_out.MON.RDMON_MASK3.DEBUG_MASK.value),
+
+        // Write Engine AXI Monitor Configuration
+        .reg_wrmon_enable_mon_en                    (hwif_out.MON.WRMON_ENABLE.MON_EN.value),
+        .reg_wrmon_enable_err_en                    (hwif_out.MON.WRMON_ENABLE.ERR_EN.value),
+        .reg_wrmon_enable_compl_en                  (hwif_out.MON.WRMON_ENABLE.COMPL_EN.value),
+        .reg_wrmon_enable_timeout_en                (hwif_out.MON.WRMON_ENABLE.TIMEOUT_EN.value),
+        .reg_wrmon_enable_perf_en                   (hwif_out.MON.WRMON_ENABLE.PERF_EN.value),
+        .reg_wrmon_timeout_timeout_cycles           (hwif_out.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value),
+        .reg_wrmon_latency_thresh_latency_thresh    (hwif_out.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value),
+        .reg_wrmon_pkt_mask_pkt_mask                (hwif_out.MON.WRMON_PKT_MASK.PKT_MASK.value),
+        .reg_wrmon_err_cfg_err_select               (hwif_out.MON.WRMON_ERR_CFG.ERR_SELECT.value),
+        .reg_wrmon_err_cfg_err_mask                 (hwif_out.MON.WRMON_ERR_CFG.ERR_MASK.value),
+        .reg_wrmon_mask1_timeout_mask               (hwif_out.MON.WRMON_MASK1.TIMEOUT_MASK.value),
+        .reg_wrmon_mask1_compl_mask                 (hwif_out.MON.WRMON_MASK1.COMPL_MASK.value),
+        .reg_wrmon_mask2_thresh_mask                (hwif_out.MON.WRMON_MASK2.THRESH_MASK.value),
+        .reg_wrmon_mask2_perf_mask                  (hwif_out.MON.WRMON_MASK2.PERF_MASK.value),
+        .reg_wrmon_mask3_addr_mask                  (hwif_out.MON.WRMON_MASK3.ADDR_MASK.value),
+        .reg_wrmon_mask3_debug_mask                 (hwif_out.MON.WRMON_MASK3.DEBUG_MASK.value),
+
+        // AXI Transfer Configuration
+        .reg_axi_xfer_config_rd_xfer_beats          (hwif_out.AXI_XFER_CONFIG.RD_XFER_BEATS.value),
+        .reg_axi_xfer_config_wr_xfer_beats          (hwif_out.AXI_XFER_CONFIG.WR_XFER_BEATS.value),
+
+        // Performance Profiler Configuration
+        .reg_perf_config_perf_en                    (hwif_out.PERF_CONFIG.PERF_EN.value),
+        .reg_perf_config_perf_mode                  (hwif_out.PERF_CONFIG.PERF_MODE.value),
+        .reg_perf_config_perf_clear                 (hwif_out.PERF_CONFIG.PERF_CLEAR.value),
+
+        // Observation Mux selector (host writes OBS_CTRL @ 0x2C0)
+        .reg_obs_ctrl_ch_sel                        (hwif_out.OBS_CTRL.CH_SEL.value),
+        .reg_obs_ctrl_cat_sel                       (hwif_out.OBS_CTRL.CAT_SEL.value),
+
+        // Observation Mux status (driven by stream_core; muxed to OBS_FLAGS/DATA*)
+        .i_obs_flags                        (obs_flags),
+        .i_obs_data0                        (obs_data0),
+        .i_obs_data1                        (obs_data1),
+
+        //---------------------------------------------------------------------
+        // STREAM Core Configuration Outputs
+        //---------------------------------------------------------------------
+        .cfg_channel_enable                 (cfg_channel_enable),
+        .cfg_channel_reset                  (cfg_channel_reset),
+        .cfg_sched_enable                   (cfg_sched_enable),
+        .cfg_sched_timeout_cycles           (cfg_sched_timeout_cycles),
+        .cfg_sched_timeout_limit            (cfg_sched_timeout_limit),
+        .cfg_sched_timeout_enable           (cfg_sched_timeout_enable),
+        .cfg_sched_err_enable               (cfg_sched_err_enable),
+        .cfg_sched_compl_enable             (cfg_sched_compl_enable),
+        .cfg_sched_perf_enable              (cfg_sched_perf_enable),
+        .cfg_rd_prefetch_enable             (cfg_rd_prefetch_enable),
+        .cfg_desceng_enable                 (cfg_desceng_enable),
+        .cfg_desceng_prefetch               (cfg_desceng_prefetch),
+        .cfg_desceng_fifo_thresh            (cfg_desceng_fifo_thresh),
+        .cfg_desceng_addr0_base             (cfg_desceng_addr0_base),
+        .cfg_desceng_addr0_limit            (cfg_desceng_addr0_limit),
+        .cfg_desceng_addr1_base             (cfg_desceng_addr1_base),
+        .cfg_desceng_addr1_limit            (cfg_desceng_addr1_limit),
+        .cfg_desc_mon_enable                (cfg_desc_mon_enable),
+        .cfg_desc_mon_err_enable            (cfg_desc_mon_err_enable),
+        .cfg_desc_mon_perf_enable           (cfg_desc_mon_perf_enable),
+        .cfg_desc_mon_timeout_enable        (cfg_desc_mon_timeout_enable),
+        .cfg_desc_mon_timeout_cycles        (cfg_desc_mon_timeout_cycles),
+        .cfg_desc_mon_latency_thresh        (cfg_desc_mon_latency_thresh),
+        .cfg_desc_mon_pkt_mask              (cfg_desc_mon_pkt_mask),
+        .cfg_desc_mon_err_select            (cfg_desc_mon_err_select),
+        .cfg_desc_mon_err_mask              (cfg_desc_mon_err_mask),
+        .cfg_desc_mon_timeout_mask          (cfg_desc_mon_timeout_mask),
+        .cfg_desc_mon_compl_mask            (cfg_desc_mon_compl_mask),
+        .cfg_desc_mon_thresh_mask           (cfg_desc_mon_thresh_mask),
+        .cfg_desc_mon_perf_mask             (cfg_desc_mon_perf_mask),
+        .cfg_desc_mon_addr_mask             (cfg_desc_mon_addr_mask),
+        .cfg_desc_mon_debug_mask            (cfg_desc_mon_debug_mask),
+        .cfg_rdeng_mon_enable               (cfg_rdeng_mon_enable),
+        .cfg_rdeng_mon_err_enable           (cfg_rdeng_mon_err_enable),
+        .cfg_rdeng_mon_perf_enable          (cfg_rdeng_mon_perf_enable),
+        .cfg_rdeng_mon_timeout_enable       (cfg_rdeng_mon_timeout_enable),
+        .cfg_rdeng_mon_timeout_cycles       (cfg_rdeng_mon_timeout_cycles),
+        .cfg_rdeng_mon_latency_thresh       (cfg_rdeng_mon_latency_thresh),
+        .cfg_rdeng_mon_pkt_mask             (cfg_rdeng_mon_pkt_mask),
+        .cfg_rdeng_mon_err_select           (cfg_rdeng_mon_err_select),
+        .cfg_rdeng_mon_err_mask             (cfg_rdeng_mon_err_mask),
+        .cfg_rdeng_mon_timeout_mask         (cfg_rdeng_mon_timeout_mask),
+        .cfg_rdeng_mon_compl_mask           (cfg_rdeng_mon_compl_mask),
+        .cfg_rdeng_mon_thresh_mask          (cfg_rdeng_mon_thresh_mask),
+        .cfg_rdeng_mon_perf_mask            (cfg_rdeng_mon_perf_mask),
+        .cfg_rdeng_mon_addr_mask            (cfg_rdeng_mon_addr_mask),
+        .cfg_rdeng_mon_debug_mask           (cfg_rdeng_mon_debug_mask),
+        .cfg_wreng_mon_enable               (cfg_wreng_mon_enable),
+        .cfg_wreng_mon_err_enable           (cfg_wreng_mon_err_enable),
+        .cfg_wreng_mon_perf_enable          (cfg_wreng_mon_perf_enable),
+        .cfg_wreng_mon_timeout_enable       (cfg_wreng_mon_timeout_enable),
+        .cfg_wreng_mon_timeout_cycles       (cfg_wreng_mon_timeout_cycles),
+        .cfg_wreng_mon_latency_thresh       (cfg_wreng_mon_latency_thresh),
+        .cfg_wreng_mon_pkt_mask             (cfg_wreng_mon_pkt_mask),
+        .cfg_wreng_mon_err_select           (cfg_wreng_mon_err_select),
+        .cfg_wreng_mon_err_mask             (cfg_wreng_mon_err_mask),
+        .cfg_wreng_mon_timeout_mask         (cfg_wreng_mon_timeout_mask),
+        .cfg_wreng_mon_compl_mask           (cfg_wreng_mon_compl_mask),
+        .cfg_wreng_mon_thresh_mask          (cfg_wreng_mon_thresh_mask),
+        .cfg_wreng_mon_perf_mask            (cfg_wreng_mon_perf_mask),
+        .cfg_wreng_mon_addr_mask            (cfg_wreng_mon_addr_mask),
+        .cfg_wreng_mon_debug_mask           (cfg_wreng_mon_debug_mask),
+        .cfg_axi_rd_xfer_beats              (cfg_axi_rd_xfer_beats),
+        .cfg_axi_wr_xfer_beats              (cfg_axi_wr_xfer_beats),
+        .cfg_perf_enable                    (cfg_perf_enable),
+        .cfg_perf_mode                      (cfg_perf_mode),
+        .cfg_perf_clear                     (cfg_perf_clear),
+
+        // Observation Mux selector — to stream_core
+        .cfg_obs_ch_sel                     (cfg_obs_ch_sel),
+        .cfg_obs_cat_sel                    (cfg_obs_cat_sel),
+
+        // Observation Mux status — already wired in via i_obs_*; expose
+        // here too so stream_top_ch8 can drive hwif_in.OBS_*.next directly.
+        .obs_flags_to_regs                  (/* hwif_in driven below */),
+        .obs_data0_to_regs                  (/* hwif_in driven below */),
+        .obs_data1_to_regs                  (/* hwif_in driven below */)
+    );
+
+    //=========================================================================
+    // STREAM Core (single instance; USE_AXI_MONITORS parameter switches the
+    // internal monitor block on/off without changing the module identity)
+    //=========================================================================
+    generate
+        if (USE_AXI_MONITORS == 1) begin : g_stream_core_mon_enabled
+            stream_core #(
+                .NUM_CHANNELS(NUM_CHANNELS),
+                .DATA_WIDTH(DATA_WIDTH),
+                .ADDR_WIDTH(ADDR_WIDTH),
+                .USE_ROW_COL_MAJOR_ADDRESSING(USE_ROW_COL_MAJOR_ADDRESSING),
+                .AXI_ID_WIDTH(AXI_ID_WIDTH),
+                .FIFO_DEPTH(SRAM_DEPTH),  // Pass SRAM_DEPTH as FIFO_DEPTH
+                .AR_MAX_OUTSTANDING(AR_MAX_OUTSTANDING),
+                .AW_MAX_OUTSTANDING(AW_MAX_OUTSTANDING),
+                .USE_AXI_MONITORS(1),     // Enable monitors
+                .GEN_MON(GEN_MON),
+                .DESC_MON_ENABLE_ERROR_LOGIC     (DESC_MON_ENABLE_ERROR_LOGIC),
+                .DESC_MON_ENABLE_TIMEOUT_LOGIC   (DESC_MON_ENABLE_TIMEOUT_LOGIC),
+                .DESC_MON_ENABLE_COMPL_LOGIC     (DESC_MON_ENABLE_COMPL_LOGIC),
+                .DESC_MON_ENABLE_THRESHOLD_LOGIC (DESC_MON_ENABLE_THRESHOLD_LOGIC),
+                .DESC_MON_ENABLE_PERF_LOGIC      (DESC_MON_ENABLE_PERF_LOGIC),
+                .DESC_MON_ENABLE_DEBUG_LOGIC     (DESC_MON_ENABLE_DEBUG_LOGIC)
+            ) u_stream_core (
+                .clk                        (aclk),
+                .rst_n                      (aresetn),
+                .cam_clear                  (cam_clear),
+
+                //---------------------------------------------------------------------
+                // APB Programming Interface
+                //---------------------------------------------------------------------
+                .apb_valid                  (apb_valid),
+                .apb_ready                  (apb_ready),
+                .apb_addr                   (apb_addr),
+
+                //---------------------------------------------------------------------
+                // Configuration Interface
+                //---------------------------------------------------------------------
+                .cfg_channel_enable         (cfg_channel_enable),
+                .cfg_channel_reset          (cfg_channel_reset),
+                .cfg_sched_enable           (cfg_sched_enable),
+                .cfg_sched_timeout_cycles   (cfg_sched_timeout_cycles),
+                .cfg_sched_timeout_limit    (cfg_sched_timeout_limit),
+                .cfg_sched_timeout_enable   (cfg_sched_timeout_enable),
+                .cfg_sched_err_enable       (cfg_sched_err_enable),
+                .cfg_sched_compl_enable     (cfg_sched_compl_enable),
+                .cfg_sched_perf_enable      (cfg_sched_perf_enable),
+                .cfg_desceng_enable         (cfg_desceng_enable),
+                .cfg_desceng_prefetch       (cfg_desceng_prefetch),
+                .cfg_rd_prefetch_enable     (cfg_rd_prefetch_enable),
+                .cfg_desceng_fifo_thresh    (cfg_desceng_fifo_thresh),
+                .cfg_desceng_addr0_base     (cfg_desceng_addr0_base),
+                .cfg_desceng_addr0_limit    (cfg_desceng_addr0_limit),
+                .cfg_desceng_addr1_base     (cfg_desceng_addr1_base),
+                .cfg_desceng_addr1_limit    (cfg_desceng_addr1_limit),
+
+                // Descriptor AXI Monitor Configuration
+                .cfg_desc_mon_enable        (cfg_desc_mon_enable),
+                .cfg_desc_mon_err_enable    (cfg_desc_mon_err_enable),
+                .cfg_desc_mon_perf_enable   (cfg_desc_mon_perf_enable),
+                .cfg_desc_mon_timeout_enable(cfg_desc_mon_timeout_enable),
+                .cfg_desc_mon_timeout_cycles(cfg_desc_mon_timeout_cycles),
+                .cfg_desc_mon_latency_thresh(cfg_desc_mon_latency_thresh),
+                .cfg_desc_mon_pkt_mask      (cfg_desc_mon_pkt_mask),
+                .cfg_desc_mon_err_select    (cfg_desc_mon_err_select),
+                .cfg_desc_mon_err_mask      (cfg_desc_mon_err_mask),
+                .cfg_desc_mon_timeout_mask  (cfg_desc_mon_timeout_mask),
+                .cfg_desc_mon_compl_mask    (cfg_desc_mon_compl_mask),
+                .cfg_desc_mon_thresh_mask   (cfg_desc_mon_thresh_mask),
+                .cfg_desc_mon_perf_mask     (cfg_desc_mon_perf_mask),
+                .cfg_desc_mon_addr_mask     (cfg_desc_mon_addr_mask),
+                .cfg_desc_mon_debug_mask    (cfg_desc_mon_debug_mask),
+                // RFC Stage E perf-window run control (DAXMON_PERF_CTRL @ 0x2D0)
+                .cfg_desc_mon_perf_run      (hwif_out.MON.DAXMON_PERF_CTRL.RUN.value),
+
+                // Descriptor monitor perf-window readback (RFC Stage E CSR route)
+                .perf_window_active         (dmon_perf_window_active),
+                .perf_window_cycles         (dmon_perf_window_cycles),
+                .perf_prod_cycles           (dmon_perf_prod_cycles),
+                .perf_bp_cycles             (dmon_perf_bp_cycles),
+                .perf_starv_cycles          (dmon_perf_starv_cycles),
+                .perf_idle_cycles           (dmon_perf_idle_cycles),
+                .perf_beat_count            (dmon_perf_beat_count),
+                .perf_byte_count            (dmon_perf_byte_count),
+                .perf_burst_count           (dmon_perf_burst_count),
+
+                // Read Engine AXI Monitor Configuration
+                .cfg_rdeng_mon_enable       (cfg_rdeng_mon_enable),
+                .cfg_rdeng_mon_err_enable   (cfg_rdeng_mon_err_enable),
+                .cfg_rdeng_mon_perf_enable  (cfg_rdeng_mon_perf_enable),
+                .cfg_rdeng_mon_timeout_enable(cfg_rdeng_mon_timeout_enable),
+                .cfg_rdeng_mon_timeout_cycles(cfg_rdeng_mon_timeout_cycles),
+                .cfg_rdeng_mon_latency_thresh(cfg_rdeng_mon_latency_thresh),
+                .cfg_rdeng_mon_pkt_mask     (cfg_rdeng_mon_pkt_mask),
+                .cfg_rdeng_mon_err_select   (cfg_rdeng_mon_err_select),
+                .cfg_rdeng_mon_err_mask     (cfg_rdeng_mon_err_mask),
+                .cfg_rdeng_mon_timeout_mask (cfg_rdeng_mon_timeout_mask),
+                .cfg_rdeng_mon_compl_mask   (cfg_rdeng_mon_compl_mask),
+                .cfg_rdeng_mon_thresh_mask  (cfg_rdeng_mon_thresh_mask),
+                .cfg_rdeng_mon_perf_mask    (cfg_rdeng_mon_perf_mask),
+                .cfg_rdeng_mon_addr_mask    (cfg_rdeng_mon_addr_mask),
+                .cfg_rdeng_mon_debug_mask   (cfg_rdeng_mon_debug_mask),
+                // RFC Stage E perf-window run control (RDMON_PERF_CTRL @ 0x300)
+                .cfg_rdeng_mon_perf_run     (hwif_out.MON.RDMON_PERF_CTRL.RUN.value),
+
+                // Read datapath monitor perf-window readback (RFC Stage E CSR route)
+                .rdmon_perf_window_active   (rdmon_perf_window_active),
+                .rdmon_perf_window_cycles   (rdmon_perf_window_cycles),
+                .rdmon_perf_prod_cycles     (rdmon_perf_prod_cycles),
+                .rdmon_perf_bp_cycles       (rdmon_perf_bp_cycles),
+                .rdmon_perf_starv_cycles    (rdmon_perf_starv_cycles),
+                .rdmon_perf_idle_cycles     (rdmon_perf_idle_cycles),
+                .rdmon_perf_beat_count      (rdmon_perf_beat_count),
+                .rdmon_perf_byte_count      (rdmon_perf_byte_count),
+                .rdmon_perf_burst_count     (rdmon_perf_burst_count),
+
+                // Write Engine AXI Monitor Configuration
+                .cfg_wreng_mon_enable       (cfg_wreng_mon_enable),
+                .cfg_wreng_mon_err_enable   (cfg_wreng_mon_err_enable),
+                .cfg_wreng_mon_perf_enable  (cfg_wreng_mon_perf_enable),
+                .cfg_wreng_mon_timeout_enable(cfg_wreng_mon_timeout_enable),
+                .cfg_wreng_mon_timeout_cycles(cfg_wreng_mon_timeout_cycles),
+                .cfg_wreng_mon_latency_thresh(cfg_wreng_mon_latency_thresh),
+                .cfg_wreng_mon_pkt_mask     (cfg_wreng_mon_pkt_mask),
+                .cfg_wreng_mon_err_select   (cfg_wreng_mon_err_select),
+                .cfg_wreng_mon_err_mask     (cfg_wreng_mon_err_mask),
+                .cfg_wreng_mon_timeout_mask (cfg_wreng_mon_timeout_mask),
+                .cfg_wreng_mon_compl_mask   (cfg_wreng_mon_compl_mask),
+                .cfg_wreng_mon_thresh_mask  (cfg_wreng_mon_thresh_mask),
+                .cfg_wreng_mon_perf_mask    (cfg_wreng_mon_perf_mask),
+                .cfg_wreng_mon_addr_mask    (cfg_wreng_mon_addr_mask),
+                .cfg_wreng_mon_debug_mask   (cfg_wreng_mon_debug_mask),
+                // RFC Stage E perf-window run control (WRMON_PERF_CTRL @ 0x330)
+                .cfg_wreng_mon_perf_run     (hwif_out.MON.WRMON_PERF_CTRL.RUN.value),
+
+                // Write datapath monitor perf-window readback (RFC Stage E CSR route)
+                .wrmon_perf_window_active   (wrmon_perf_window_active),
+                .wrmon_perf_window_cycles   (wrmon_perf_window_cycles),
+                .wrmon_perf_prod_cycles     (wrmon_perf_prod_cycles),
+                .wrmon_perf_bp_cycles       (wrmon_perf_bp_cycles),
+                .wrmon_perf_starv_cycles    (wrmon_perf_starv_cycles),
+                .wrmon_perf_idle_cycles     (wrmon_perf_idle_cycles),
+                .wrmon_perf_beat_count      (wrmon_perf_beat_count),
+                .wrmon_perf_byte_count      (wrmon_perf_byte_count),
+                .wrmon_perf_burst_count     (wrmon_perf_burst_count),
+
+                // Per-channel datapath perf buckets (RFC Stage C, indexed readout).
+                // cfg_perf_ch_sel from PERF_CH_SEL.CH_SEL; outputs are the
+                // selected channel's buckets + all-channel overflow masks.
+                // (In the monitors-disabled variant stream_core ties these to 0.)
+                .cfg_perf_ch_sel            (hwif_out.PERF_CH_SEL.CH_SEL.value[((NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1)-1:0]),
+                .rdmon_ch_prod_cycles       (rdmon_ch_prod_cycles),
+                .rdmon_ch_bp_cycles         (rdmon_ch_bp_cycles),
+                .rdmon_ch_starv_cycles      (rdmon_ch_starv_cycles),
+                .rdmon_ch_idle_cycles       (rdmon_ch_idle_cycles),
+                .rdmon_ch_overflow          (rdmon_ch_overflow),
+                .wrmon_ch_prod_cycles       (wrmon_ch_prod_cycles),
+                .wrmon_ch_bp_cycles         (wrmon_ch_bp_cycles),
+                .wrmon_ch_starv_cycles      (wrmon_ch_starv_cycles),
+                .wrmon_ch_idle_cycles       (wrmon_ch_idle_cycles),
+                .wrmon_ch_overflow          (wrmon_ch_overflow),
+
+                // Datapath latency histograms (RFC Stage D), indexed by HIST_SEL.
+                .cfg_perf_hist_bus          (hwif_out.HIST_SEL.BUS.value),
+                .cfg_perf_hist_metric       (hwif_out.HIST_SEL.METRIC.value),
+                .cfg_perf_hist_bin          (hwif_out.HIST_SEL.BIN.value),
+                .perf_hist_data             (perf_hist_data),
+                .perf_hist_total            (perf_hist_total),
+
+                // AXI Transfer Configuration
+                .cfg_axi_rd_xfer_beats      (cfg_axi_rd_xfer_beats),
+                .cfg_axi_wr_xfer_beats      (cfg_axi_wr_xfer_beats),
+
+                // Performance Profiler Configuration
+                .cfg_perf_enable            (cfg_perf_enable),
+                .cfg_perf_mode              (cfg_perf_mode),
+                .cfg_perf_clear             (cfg_perf_clear),
+
+                //---------------------------------------------------------------------
+                // Status Interface
+                //---------------------------------------------------------------------
+                .system_idle                (system_idle),
+                .descriptor_engine_idle     (descriptor_engine_idle),
+                .scheduler_idle             (scheduler_idle),
+                .scheduler_state            (scheduler_state),
+                .sched_error                (sched_error),
+                .axi_rd_all_complete        (axi_rd_all_complete),
+                .axi_wr_all_complete        (axi_wr_all_complete),
+
+                // Performance Profiler Status
+                .perf_fifo_empty            (perf_fifo_empty),
+                .perf_fifo_full             (perf_fifo_full),
+                .perf_fifo_count            (perf_fifo_count),
+                .perf_fifo_rd               (perf_fifo_rd),
+                .perf_fifo_data_low         (perf_fifo_data_low),
+                .perf_fifo_data_high        (perf_fifo_data_high),
+
+                //---------------------------------------------------------------------
+                // External AXI4 Master - Descriptor Fetch (256-bit)
+                //---------------------------------------------------------------------
+                .m_axi_desc_arid            (m_axi_desc_arid),
+                .m_axi_desc_araddr          (m_axi_desc_araddr),
+                .m_axi_desc_arlen           (m_axi_desc_arlen),
+                .m_axi_desc_arsize          (m_axi_desc_arsize),
+                .m_axi_desc_arburst         (m_axi_desc_arburst),
+                .m_axi_desc_arlock          (m_axi_desc_arlock),
+                .m_axi_desc_arcache         (m_axi_desc_arcache),
+                .m_axi_desc_arprot          (m_axi_desc_arprot),
+                .m_axi_desc_arqos           (m_axi_desc_arqos),
+                .m_axi_desc_arregion        (m_axi_desc_arregion),
+                .m_axi_desc_aruser          (m_axi_desc_aruser),
+                .m_axi_desc_arvalid         (m_axi_desc_arvalid),
+                .m_axi_desc_arready         (m_axi_desc_arready),
+                .m_axi_desc_rid             (m_axi_desc_rid),
+                .m_axi_desc_rdata           (m_axi_desc_rdata),
+                .m_axi_desc_rresp           (m_axi_desc_rresp),
+                .m_axi_desc_rlast           (m_axi_desc_rlast),
+                .m_axi_desc_ruser           (m_axi_desc_ruser),
+                .m_axi_desc_rvalid          (m_axi_desc_rvalid),
+                .m_axi_desc_rready          (m_axi_desc_rready),
+
+                //---------------------------------------------------------------------
+                // External AXI4 Master - Data Read
+                //---------------------------------------------------------------------
+                .m_axi_rd_arid              (m_axi_rd_arid),
+                .m_axi_rd_araddr            (m_axi_rd_araddr),
+                .m_axi_rd_arlen             (m_axi_rd_arlen),
+                .m_axi_rd_arsize            (m_axi_rd_arsize),
+                .m_axi_rd_arburst           (m_axi_rd_arburst),
+                .m_axi_rd_arlock            (m_axi_rd_arlock),
+                .m_axi_rd_arcache           (m_axi_rd_arcache),
+                .m_axi_rd_arprot            (m_axi_rd_arprot),
+                .m_axi_rd_arqos             (m_axi_rd_arqos),
+                .m_axi_rd_arregion          (m_axi_rd_arregion),
+                .m_axi_rd_aruser            (m_axi_rd_aruser),
+                .m_axi_rd_arvalid           (m_axi_rd_arvalid),
+                .m_axi_rd_arready           (m_axi_rd_arready),
+                .m_axi_rd_rid               (m_axi_rd_rid),
+                .m_axi_rd_rdata             (m_axi_rd_rdata),
+                .m_axi_rd_rresp             (m_axi_rd_rresp),
+                .m_axi_rd_rlast             (m_axi_rd_rlast),
+                .m_axi_rd_ruser             (m_axi_rd_ruser),
+                .m_axi_rd_rvalid            (m_axi_rd_rvalid),
+                .m_axi_rd_rready            (m_axi_rd_rready),
+
+                //---------------------------------------------------------------------
+                // External AXI4 Master - Data Write
+                //---------------------------------------------------------------------
+                .m_axi_wr_awid              (m_axi_wr_awid),
+                .m_axi_wr_awaddr            (m_axi_wr_awaddr),
+                .m_axi_wr_awlen             (m_axi_wr_awlen),
+                .m_axi_wr_awsize            (m_axi_wr_awsize),
+                .m_axi_wr_awburst           (m_axi_wr_awburst),
+                .m_axi_wr_awlock            (m_axi_wr_awlock),
+                .m_axi_wr_awcache           (m_axi_wr_awcache),
+                .m_axi_wr_awprot            (m_axi_wr_awprot),
+                .m_axi_wr_awqos             (m_axi_wr_awqos),
+                .m_axi_wr_awregion          (m_axi_wr_awregion),
+                .m_axi_wr_awuser            (m_axi_wr_awuser),
+                .m_axi_wr_awvalid           (m_axi_wr_awvalid),
+                .m_axi_wr_awready           (m_axi_wr_awready),
+                .m_axi_wr_wdata             (m_axi_wr_wdata),
+                .m_axi_wr_wstrb             (m_axi_wr_wstrb),
+                .m_axi_wr_wlast             (m_axi_wr_wlast),
+                .m_axi_wr_wuser             (m_axi_wr_wuser),
+                .m_axi_wr_wvalid            (m_axi_wr_wvalid),
+                .m_axi_wr_wready            (m_axi_wr_wready),
+                .m_axi_wr_bid               (m_axi_wr_bid),
+                .m_axi_wr_bresp             (m_axi_wr_bresp),
+                .m_axi_wr_buser             (m_axi_wr_buser),
+                .m_axi_wr_bvalid            (m_axi_wr_bvalid),
+                .m_axi_wr_bready            (m_axi_wr_bready),
+
+                //---------------------------------------------------------------------
+                // Status/Debug Outputs
+                //---------------------------------------------------------------------
+                .cfg_sts_desc_mon_busy          (cfg_sts_desc_mon_busy),
+                .cfg_sts_desc_mon_active_txns   (cfg_sts_desc_mon_active_txns),
+                .cfg_sts_desc_mon_error_count   (cfg_sts_desc_mon_error_count),
+                .cfg_sts_desc_mon_txn_count     (cfg_sts_desc_mon_txn_count),
+                .cfg_sts_desc_mon_conflict_error(cfg_sts_desc_mon_conflict_error),
+                .cfg_sts_rdeng_skid_busy        (cfg_sts_rdeng_skid_busy),
+                .cfg_sts_rdeng_mon_active_txns  (cfg_sts_rdeng_mon_active_txns),
+                .cfg_sts_rdeng_mon_error_count  (cfg_sts_rdeng_mon_error_count),
+                .cfg_sts_rdeng_mon_txn_count    (cfg_sts_rdeng_mon_txn_count),
+                .cfg_sts_rdeng_mon_conflict_error(cfg_sts_rdeng_mon_conflict_error),
+                .cfg_sts_wreng_skid_busy        (cfg_sts_wreng_skid_busy),
+                .cfg_sts_wreng_mon_active_txns  (cfg_sts_wreng_mon_active_txns),
+                .cfg_sts_wreng_mon_error_count  (cfg_sts_wreng_mon_error_count),
+                .cfg_sts_wreng_mon_txn_count    (cfg_sts_wreng_mon_txn_count),
+                .cfg_sts_wreng_mon_conflict_error(cfg_sts_wreng_mon_conflict_error),
+
+                //---------------------------------------------------------------------
+                // Unified Monitor Bus Interface (128-bit + ts side-band)
+                //---------------------------------------------------------------------
+                .i_mon_time                 (mon_time_w),
+                .mon_valid                  (mon_valid),
+                .mon_ready                  (mon_ready),
+                .mon_packet                 (mon_packet),
+                .mon_timestamp              (mon_timestamp),
+
+                // (write-engine active-channel sideband retired -- RFC Stage E.4)
+
+                // Channel-Observation Mux (internal — feeds stream_config_block)
+                .cfg_obs_ch_sel             (cfg_obs_ch_sel),
+                .cfg_obs_cat_sel            (cfg_obs_cat_sel),
+                .obs_flags                  (obs_flags),
+                .obs_data0                  (obs_data0),
+                .obs_data1                  (obs_data1)
+            );
+        end else begin : g_stream_core
+            // Instantiate stream_core with monitors disabled
+            stream_core #(
+                .NUM_CHANNELS(NUM_CHANNELS),
+                .DATA_WIDTH(DATA_WIDTH),
+                .ADDR_WIDTH(ADDR_WIDTH),
+                .USE_ROW_COL_MAJOR_ADDRESSING(USE_ROW_COL_MAJOR_ADDRESSING),
+                .AXI_ID_WIDTH(AXI_ID_WIDTH),
+                .FIFO_DEPTH(SRAM_DEPTH),  // Pass SRAM_DEPTH as FIFO_DEPTH
+                .AR_MAX_OUTSTANDING(AR_MAX_OUTSTANDING),
+                .AW_MAX_OUTSTANDING(AW_MAX_OUTSTANDING),
+                .USE_AXI_MONITORS(0),     // Explicitly disable monitors
+                .GEN_MON(GEN_MON)
+            ) u_stream_core (
+                .clk                        (aclk),
+                .rst_n                      (aresetn),
+                .cam_clear                  (cam_clear),
+
+                //---------------------------------------------------------------------
+                // APB Programming Interface
+                //---------------------------------------------------------------------
+                .apb_valid                  (apb_valid),
+                .apb_ready                  (apb_ready),
+                .apb_addr                   (apb_addr),
+
+                //---------------------------------------------------------------------
+                // Configuration Interface
+                //---------------------------------------------------------------------
+                .cfg_channel_enable         (cfg_channel_enable),
+                .cfg_channel_reset          (cfg_channel_reset),
+                .cfg_sched_enable           (cfg_sched_enable),
+                .cfg_sched_timeout_cycles   (cfg_sched_timeout_cycles),
+                .cfg_sched_timeout_limit    (cfg_sched_timeout_limit),
+                .cfg_sched_timeout_enable   (cfg_sched_timeout_enable),
+                .cfg_sched_err_enable       (cfg_sched_err_enable),
+                .cfg_sched_compl_enable     (cfg_sched_compl_enable),
+                .cfg_sched_perf_enable      (cfg_sched_perf_enable),
+                .cfg_desceng_enable         (cfg_desceng_enable),
+                .cfg_desceng_prefetch       (cfg_desceng_prefetch),
+                .cfg_rd_prefetch_enable     (cfg_rd_prefetch_enable),
+                .cfg_desceng_fifo_thresh    (cfg_desceng_fifo_thresh),
+                .cfg_desceng_addr0_base     (cfg_desceng_addr0_base),
+                .cfg_desceng_addr0_limit    (cfg_desceng_addr0_limit),
+                .cfg_desceng_addr1_base     (cfg_desceng_addr1_base),
+                .cfg_desceng_addr1_limit    (cfg_desceng_addr1_limit),
+
+                // Monitor config tied off internally when USE_AXI_MONITORS=0
+                .cfg_desc_mon_enable        (1'b0),
+                .cfg_desc_mon_err_enable    (1'b0),
+                .cfg_desc_mon_perf_enable   (1'b0),
+                .cfg_desc_mon_timeout_enable(1'b0),
+                .cfg_desc_mon_timeout_cycles(32'h0),
+                .cfg_desc_mon_latency_thresh(32'h0),
+                .cfg_desc_mon_pkt_mask      (16'h0),
+                .cfg_desc_mon_err_select    (4'h0),
+                .cfg_desc_mon_err_mask      (8'h0),
+                .cfg_desc_mon_timeout_mask  (8'h0),
+                .cfg_desc_mon_compl_mask    (8'h0),
+                .cfg_desc_mon_thresh_mask   (8'h0),
+                .cfg_desc_mon_perf_mask     (8'h0),
+                .cfg_desc_mon_addr_mask     (8'h0),
+                .cfg_desc_mon_debug_mask    (8'h0),
+                .cfg_desc_mon_perf_run      (hwif_out.MON.DAXMON_PERF_CTRL.RUN.value),  // always-on perf window
+
+                // Perf-window readback ties to the same wires (read 0 with
+                // monitors disabled — stream_core tied them off internally)
+                .perf_window_active         (dmon_perf_window_active),
+                .perf_window_cycles         (dmon_perf_window_cycles),
+                .perf_prod_cycles           (dmon_perf_prod_cycles),
+                .perf_bp_cycles             (dmon_perf_bp_cycles),
+                .perf_starv_cycles          (dmon_perf_starv_cycles),
+                .perf_idle_cycles           (dmon_perf_idle_cycles),
+                .perf_beat_count            (dmon_perf_beat_count),
+                .perf_byte_count            (dmon_perf_byte_count),
+                .perf_burst_count           (dmon_perf_burst_count),
+
+                .cfg_rdeng_mon_enable       (1'b0),
+                .cfg_rdeng_mon_err_enable   (1'b0),
+                .cfg_rdeng_mon_perf_enable  (1'b0),
+                .cfg_rdeng_mon_timeout_enable(1'b0),
+                .cfg_rdeng_mon_timeout_cycles(32'h0),
+                .cfg_rdeng_mon_latency_thresh(32'h0),
+                .cfg_rdeng_mon_pkt_mask     (16'h0),
+                .cfg_rdeng_mon_err_select   (4'h0),
+                .cfg_rdeng_mon_err_mask     (8'h0),
+                .cfg_rdeng_mon_timeout_mask (8'h0),
+                .cfg_rdeng_mon_compl_mask   (8'h0),
+                .cfg_rdeng_mon_thresh_mask  (8'h0),
+                .cfg_rdeng_mon_perf_mask    (8'h0),
+                .cfg_rdeng_mon_addr_mask    (8'h0),
+                .cfg_rdeng_mon_debug_mask   (8'h0),
+                .cfg_rdeng_mon_perf_run     (hwif_out.MON.RDMON_PERF_CTRL.RUN.value),  // always-on perf window
+
+                // Perf-window readback ties to the same wires (read 0 with
+                // monitors disabled — stream_core tied them off internally)
+                .rdmon_perf_window_active   (rdmon_perf_window_active),
+                .rdmon_perf_window_cycles   (rdmon_perf_window_cycles),
+                .rdmon_perf_prod_cycles     (rdmon_perf_prod_cycles),
+                .rdmon_perf_bp_cycles       (rdmon_perf_bp_cycles),
+                .rdmon_perf_starv_cycles    (rdmon_perf_starv_cycles),
+                .rdmon_perf_idle_cycles     (rdmon_perf_idle_cycles),
+                .rdmon_perf_beat_count      (rdmon_perf_beat_count),
+                .rdmon_perf_byte_count      (rdmon_perf_byte_count),
+                .rdmon_perf_burst_count     (rdmon_perf_burst_count),
+
+                .cfg_wreng_mon_enable       (1'b0),
+                .cfg_wreng_mon_err_enable   (1'b0),
+                .cfg_wreng_mon_perf_enable  (1'b0),
+                .cfg_wreng_mon_timeout_enable(1'b0),
+                .cfg_wreng_mon_timeout_cycles(32'h0),
+                .cfg_wreng_mon_latency_thresh(32'h0),
+                .cfg_wreng_mon_pkt_mask     (16'h0),
+                .cfg_wreng_mon_err_select   (4'h0),
+                .cfg_wreng_mon_err_mask     (8'h0),
+                .cfg_wreng_mon_timeout_mask (8'h0),
+                .cfg_wreng_mon_compl_mask   (8'h0),
+                .cfg_wreng_mon_thresh_mask  (8'h0),
+                .cfg_wreng_mon_perf_mask    (8'h0),
+                .cfg_wreng_mon_addr_mask    (8'h0),
+                .cfg_wreng_mon_debug_mask   (8'h0),
+                .cfg_wreng_mon_perf_run     (hwif_out.MON.WRMON_PERF_CTRL.RUN.value),  // always-on perf window
+
+                // Perf-window readback ties to the same wires (read 0 with
+                // monitors disabled — stream_core tied them off internally)
+                .wrmon_perf_window_active   (wrmon_perf_window_active),
+                .wrmon_perf_window_cycles   (wrmon_perf_window_cycles),
+                .wrmon_perf_prod_cycles     (wrmon_perf_prod_cycles),
+                .wrmon_perf_bp_cycles       (wrmon_perf_bp_cycles),
+                .wrmon_perf_starv_cycles    (wrmon_perf_starv_cycles),
+                .wrmon_perf_idle_cycles     (wrmon_perf_idle_cycles),
+                .wrmon_perf_beat_count      (wrmon_perf_beat_count),
+                .wrmon_perf_byte_count      (wrmon_perf_byte_count),
+                .wrmon_perf_burst_count     (wrmon_perf_burst_count),
+
+                // Per-channel datapath perf buckets (RFC Stage C, indexed readout).
+                // cfg_perf_ch_sel from PERF_CH_SEL.CH_SEL; outputs are the
+                // selected channel's buckets + all-channel overflow masks.
+                // (In the monitors-disabled variant stream_core ties these to 0.)
+                .cfg_perf_ch_sel            (hwif_out.PERF_CH_SEL.CH_SEL.value[((NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1)-1:0]),
+                .rdmon_ch_prod_cycles       (rdmon_ch_prod_cycles),
+                .rdmon_ch_bp_cycles         (rdmon_ch_bp_cycles),
+                .rdmon_ch_starv_cycles      (rdmon_ch_starv_cycles),
+                .rdmon_ch_idle_cycles       (rdmon_ch_idle_cycles),
+                .rdmon_ch_overflow          (rdmon_ch_overflow),
+                .wrmon_ch_prod_cycles       (wrmon_ch_prod_cycles),
+                .wrmon_ch_bp_cycles         (wrmon_ch_bp_cycles),
+                .wrmon_ch_starv_cycles      (wrmon_ch_starv_cycles),
+                .wrmon_ch_idle_cycles       (wrmon_ch_idle_cycles),
+                .wrmon_ch_overflow          (wrmon_ch_overflow),
+
+                // Datapath latency histograms (RFC Stage D), indexed by HIST_SEL.
+                .cfg_perf_hist_bus          (hwif_out.HIST_SEL.BUS.value),
+                .cfg_perf_hist_metric       (hwif_out.HIST_SEL.METRIC.value),
+                .cfg_perf_hist_bin          (hwif_out.HIST_SEL.BIN.value),
+                .perf_hist_data             (perf_hist_data),
+                .perf_hist_total            (perf_hist_total),
+
+                // AXI Transfer Configuration
+                .cfg_axi_rd_xfer_beats      (cfg_axi_rd_xfer_beats),
+                .cfg_axi_wr_xfer_beats      (cfg_axi_wr_xfer_beats),
+
+                // Performance Profiler Configuration
+                .cfg_perf_enable            (cfg_perf_enable),
+                .cfg_perf_mode              (cfg_perf_mode),
+                .cfg_perf_clear             (cfg_perf_clear),
+
+                //---------------------------------------------------------------------
+                // Status Interface
+                //---------------------------------------------------------------------
+                .system_idle                (system_idle),
+                .descriptor_engine_idle     (descriptor_engine_idle),
+                .scheduler_idle             (scheduler_idle),
+                .scheduler_state            (scheduler_state),
+                .sched_error                (sched_error),
+                .axi_rd_all_complete        (axi_rd_all_complete),
+                .axi_wr_all_complete        (axi_wr_all_complete),
+
+                // Performance Profiler Status
+                .perf_fifo_empty            (perf_fifo_empty),
+                .perf_fifo_full             (perf_fifo_full),
+                .perf_fifo_count            (perf_fifo_count),
+                .perf_fifo_rd               (perf_fifo_rd),
+                .perf_fifo_data_low         (perf_fifo_data_low),
+                .perf_fifo_data_high        (perf_fifo_data_high),
+
+                //---------------------------------------------------------------------
+                // External AXI4 Master - Descriptor Fetch (256-bit)
+                //---------------------------------------------------------------------
+                .m_axi_desc_arid            (m_axi_desc_arid),
+                .m_axi_desc_araddr          (m_axi_desc_araddr),
+                .m_axi_desc_arlen           (m_axi_desc_arlen),
+                .m_axi_desc_arsize          (m_axi_desc_arsize),
+                .m_axi_desc_arburst         (m_axi_desc_arburst),
+                .m_axi_desc_arlock          (m_axi_desc_arlock),
+                .m_axi_desc_arcache         (m_axi_desc_arcache),
+                .m_axi_desc_arprot          (m_axi_desc_arprot),
+                .m_axi_desc_arqos           (m_axi_desc_arqos),
+                .m_axi_desc_arregion        (m_axi_desc_arregion),
+                .m_axi_desc_aruser          (m_axi_desc_aruser),
+                .m_axi_desc_arvalid         (m_axi_desc_arvalid),
+                .m_axi_desc_arready         (m_axi_desc_arready),
+                .m_axi_desc_rid             (m_axi_desc_rid),
+                .m_axi_desc_rdata           (m_axi_desc_rdata),
+                .m_axi_desc_rresp           (m_axi_desc_rresp),
+                .m_axi_desc_rlast           (m_axi_desc_rlast),
+                .m_axi_desc_ruser           (m_axi_desc_ruser),
+                .m_axi_desc_rvalid          (m_axi_desc_rvalid),
+                .m_axi_desc_rready          (m_axi_desc_rready),
+
+                //---------------------------------------------------------------------
+                // External AXI4 Master - Data Read
+                //---------------------------------------------------------------------
+                .m_axi_rd_arid              (m_axi_rd_arid),
+                .m_axi_rd_araddr            (m_axi_rd_araddr),
+                .m_axi_rd_arlen             (m_axi_rd_arlen),
+                .m_axi_rd_arsize            (m_axi_rd_arsize),
+                .m_axi_rd_arburst           (m_axi_rd_arburst),
+                .m_axi_rd_arlock            (m_axi_rd_arlock),
+                .m_axi_rd_arcache           (m_axi_rd_arcache),
+                .m_axi_rd_arprot            (m_axi_rd_arprot),
+                .m_axi_rd_arqos             (m_axi_rd_arqos),
+                .m_axi_rd_arregion          (m_axi_rd_arregion),
+                .m_axi_rd_aruser            (m_axi_rd_aruser),
+                .m_axi_rd_arvalid           (m_axi_rd_arvalid),
+                .m_axi_rd_arready           (m_axi_rd_arready),
+                .m_axi_rd_rid               (m_axi_rd_rid),
+                .m_axi_rd_rdata             (m_axi_rd_rdata),
+                .m_axi_rd_rresp             (m_axi_rd_rresp),
+                .m_axi_rd_rlast             (m_axi_rd_rlast),
+                .m_axi_rd_ruser             (m_axi_rd_ruser),
+                .m_axi_rd_rvalid            (m_axi_rd_rvalid),
+                .m_axi_rd_rready            (m_axi_rd_rready),
+
+                //---------------------------------------------------------------------
+                // External AXI4 Master - Data Write
+                //---------------------------------------------------------------------
+                .m_axi_wr_awid              (m_axi_wr_awid),
+                .m_axi_wr_awaddr            (m_axi_wr_awaddr),
+                .m_axi_wr_awlen             (m_axi_wr_awlen),
+                .m_axi_wr_awsize            (m_axi_wr_awsize),
+                .m_axi_wr_awburst           (m_axi_wr_awburst),
+                .m_axi_wr_awlock            (m_axi_wr_awlock),
+                .m_axi_wr_awcache           (m_axi_wr_awcache),
+                .m_axi_wr_awprot            (m_axi_wr_awprot),
+                .m_axi_wr_awqos             (m_axi_wr_awqos),
+                .m_axi_wr_awregion          (m_axi_wr_awregion),
+                .m_axi_wr_awuser            (m_axi_wr_awuser),
+                .m_axi_wr_awvalid           (m_axi_wr_awvalid),
+                .m_axi_wr_awready           (m_axi_wr_awready),
+                .m_axi_wr_wdata             (m_axi_wr_wdata),
+                .m_axi_wr_wstrb             (m_axi_wr_wstrb),
+                .m_axi_wr_wlast             (m_axi_wr_wlast),
+                .m_axi_wr_wuser             (m_axi_wr_wuser),
+                .m_axi_wr_wvalid            (m_axi_wr_wvalid),
+                .m_axi_wr_wready            (m_axi_wr_wready),
+                .m_axi_wr_bid               (m_axi_wr_bid),
+                .m_axi_wr_bresp             (m_axi_wr_bresp),
+                .m_axi_wr_buser             (m_axi_wr_buser),
+                .m_axi_wr_bvalid            (m_axi_wr_bvalid),
+                .m_axi_wr_bready            (m_axi_wr_bready),
+
+                //---------------------------------------------------------------------
+                // Status/Debug Outputs (tied off when monitors disabled)
+                //---------------------------------------------------------------------
+                .cfg_sts_desc_mon_busy          (cfg_sts_desc_mon_busy),
+                .cfg_sts_desc_mon_active_txns   (cfg_sts_desc_mon_active_txns),
+                .cfg_sts_desc_mon_error_count   (cfg_sts_desc_mon_error_count),
+                .cfg_sts_desc_mon_txn_count     (cfg_sts_desc_mon_txn_count),
+                .cfg_sts_desc_mon_conflict_error(cfg_sts_desc_mon_conflict_error),
+                .cfg_sts_rdeng_skid_busy        (cfg_sts_rdeng_skid_busy),
+                .cfg_sts_rdeng_mon_active_txns  (cfg_sts_rdeng_mon_active_txns),
+                .cfg_sts_rdeng_mon_error_count  (cfg_sts_rdeng_mon_error_count),
+                .cfg_sts_rdeng_mon_txn_count    (cfg_sts_rdeng_mon_txn_count),
+                .cfg_sts_rdeng_mon_conflict_error(cfg_sts_rdeng_mon_conflict_error),
+                .cfg_sts_wreng_skid_busy        (cfg_sts_wreng_skid_busy),
+                .cfg_sts_wreng_mon_active_txns  (cfg_sts_wreng_mon_active_txns),
+                .cfg_sts_wreng_mon_error_count  (cfg_sts_wreng_mon_error_count),
+                .cfg_sts_wreng_mon_txn_count    (cfg_sts_wreng_mon_txn_count),
+                .cfg_sts_wreng_mon_conflict_error(cfg_sts_wreng_mon_conflict_error),
+
+                //---------------------------------------------------------------------
+                // Unified Monitor Bus Interface (inactive when monitors disabled)
+                //---------------------------------------------------------------------
+                .i_mon_time                 ('0),    // Monitors off — time tied low
+                .mon_valid                  (mon_valid),
+                .mon_ready                  (1'b1),  // Always ready (no backpressure)
+                .mon_packet                 (mon_packet),
+                .mon_timestamp              (mon_timestamp),
+
+                // (write-engine active-channel sideband retired -- RFC Stage E.4)
+
+                // Channel-Observation Mux (internal — feeds stream_config_block)
+                .cfg_obs_ch_sel             (cfg_obs_ch_sel),
+                .cfg_obs_cat_sel            (cfg_obs_cat_sel),
+                .obs_flags                  (obs_flags),
+                .obs_data0                  (obs_data0),
+                .obs_data1                  (obs_data1)
+            );
+        end
+    endgenerate
+
+    //=========================================================================
+    // Performance Profiler Interface Router
+    //=========================================================================
+    // Performance profiler interface is connected through cmdrsp_router
+    // (see router instantiation above for perf_cfg_* and perf_fifo_* connections)
+    //
+    // Address map (via cmdrsp_router):
+    //   0x040: PERF_CONFIG      - R/W configuration register
+    //   0x044: PERF_DATA_LOW    - RO FIFO data (timestamp/elapsed)
+    //   0x048: PERF_DATA_HIGH   - RO FIFO metadata (event_type, channel_id)
+    //   0x04C: PERF_STATUS      - RO FIFO status (count, full, empty)
+
+    //=========================================================================
+    // MonBus AXI-Lite Group (Monitor Bus to AXI-Lite Converter)
+    //=========================================================================
+    // Conditional instantiation: Only when USE_AXI_MONITORS=1
+    generate
+        if (USE_AXI_MONITORS == 1) begin : g_monbus_axil
+            monbus_axil_axil_group #(
+                .FIFO_DEPTH_ERR     (64),    // Error/interrupt FIFO depth
+                .FIFO_DEPTH_WRITE   (96),    // Write data FIFO depth (BEATS)
+                .ADDR_WIDTH         (32),    // AXI-Lite address width
+                // Err-FIFO drain (CPU IRQ status read) is 32-bit to match the
+                // 32-bit stream_char host crossbar (s_axil_err_rdata[31:0]).
+                // The group's 2:1 read serializer presents each 64-bit record
+                // slice as two 32-bit beats (low then high) -> 6 beats/record.
+                // The master-write bulk-trace port stays 64-bit (3 beats/record:
+                // {tag,source_ts}, packet[127:64], packet[63:0]).
+                .S_AXIL_DATA_WIDTH  (32),
+                .NUM_PROTOCOLS      (3),     // 3 protocols: desc, rd, wr
+                .USE_COMPRESSION    (USE_MON_COMPRESSION),
+                .HALF_BEAT_EN       (USE_MON_HALFBEAT)
+            ) u_monbus_axil_group (
+                .axi_aclk           (aclk),
+                .axi_aresetn        (aresetn),
+                .cam_clear          (cam_clear),
+
+                // Monitor Bus Input (from stream_core)
+                .monbus_valid       (mon_valid),
+                .monbus_ready       (mon_ready),
+                .monbus_packet      (mon_packet),
+                .monbus_timestamp   (mon_timestamp),
+
+                // Free-running timestamp counter — broadcast to wrappers
+                .mon_time_out       (mon_time_w),
+
+                // Error/Interrupt FIFO - Slave Read Interface (AXI-Lite)
+                .s_axil_arvalid     (s_axil_err_arvalid),
+                .s_axil_arready     (s_axil_err_arready),
+                .s_axil_araddr      (s_axil_err_araddr),
+                .s_axil_arprot      (s_axil_err_arprot),
+                .s_axil_rvalid      (s_axil_err_rvalid),
+                .s_axil_rready      (s_axil_err_rready),
+                .s_axil_rdata       (s_axil_err_rdata),
+                .s_axil_rresp       (s_axil_err_rresp),
+
+                // Master Write Interface (AXI-Lite)
+                .m_axil_awvalid     (m_axil_mon_awvalid),
+                .m_axil_awready     (m_axil_mon_awready),
+                .m_axil_awaddr      (m_axil_mon_awaddr),
+                .m_axil_awprot      (m_axil_mon_awprot),
+                .m_axil_wvalid      (m_axil_mon_wvalid),
+                .m_axil_wready      (m_axil_mon_wready),
+                .m_axil_wdata       (m_axil_mon_wdata),
+                .m_axil_wstrb       (m_axil_mon_wstrb),
+                .m_axil_bvalid      (m_axil_mon_bvalid),
+                .m_axil_bready      (m_axil_mon_bready),
+                .m_axil_bresp       (m_axil_mon_bresp),
+
+                // Interrupt Output
+                .irq_out            (stream_irq),
+
+                // Configuration - Base/Limit Addresses driven from
+                // top-level inputs so the SoC integrator (stream_char
+                // harness, etc.) can point the monitor write region at
+                // whatever memory captures the dumped packets. Default
+                // is {0,0} via the implicit input default -- behaves
+                // the same as the previous hard-coded tie-off.
+                .cfg_base_addr      (cfg_mon_base_addr),
+                .cfg_limit_addr     (cfg_mon_limit_addr),
+                // Flush watermark (beats) -- driven from the top-level
+                // cfg input alongside base/limit (no hardcoded constant).
+                .cfg_flush_watermark (cfg_mon_flush_watermark),
+                // Runtime compression enable -- host-controllable via
+                // WRMON_ENABLE.COMPRESS_EN (1=compress, 0=raw 3-beat).
+                .cfg_compress_en     (hwif_out.MON.WRMON_ENABLE.COMPRESS_EN.value),
+
+                //---------------------------------------------------------------------
+                // Protocol 0 Configuration - Descriptor AXI Monitor (DAXMON)
+                //---------------------------------------------------------------------
+                .cfg_axi_pkt_mask       (hwif_out.MON.DAXMON_PKT_MASK.PKT_MASK.value),
+                .cfg_axi_err_select     (hwif_out.MON.DAXMON_ERR_CFG.ERR_SELECT.value),
+                .cfg_axi_error_mask     (hwif_out.MON.DAXMON_ERR_CFG.ERR_MASK.value),
+                .cfg_axi_timeout_mask   (hwif_out.MON.DAXMON_MASK1.TIMEOUT_MASK.value),
+                .cfg_axi_compl_mask     (hwif_out.MON.DAXMON_MASK1.COMPL_MASK.value),
+                .cfg_axi_thresh_mask    (hwif_out.MON.DAXMON_MASK2.THRESH_MASK.value),
+                .cfg_axi_perf_mask      (hwif_out.MON.DAXMON_MASK2.PERF_MASK.value),
+                .cfg_axi_addr_mask      (hwif_out.MON.DAXMON_MASK3.ADDR_MASK.value),
+                .cfg_axi_debug_mask     (hwif_out.MON.DAXMON_MASK3.DEBUG_MASK.value),
+
+                //---------------------------------------------------------------------
+                // Protocol 1 Configuration - Read Engine Monitor (RDMON)
+                // Note: Using AXIS ports for read engine AXI monitor (protocol reuse)
+                //---------------------------------------------------------------------
+                .cfg_axis_pkt_mask      (hwif_out.MON.RDMON_PKT_MASK.PKT_MASK.value),
+                .cfg_axis_err_select    (hwif_out.MON.RDMON_ERR_CFG.ERR_SELECT.value),
+                .cfg_axis_error_mask    (hwif_out.MON.RDMON_ERR_CFG.ERR_MASK.value),
+                .cfg_axis_timeout_mask  (hwif_out.MON.RDMON_MASK1.TIMEOUT_MASK.value),
+                .cfg_axis_compl_mask    (hwif_out.MON.RDMON_MASK1.COMPL_MASK.value),
+                .cfg_axis_credit_mask   (hwif_out.MON.RDMON_MASK2.THRESH_MASK.value),   // Thresh → Credit
+                .cfg_axis_channel_mask  (hwif_out.MON.RDMON_MASK2.PERF_MASK.value),     // Perf → Channel
+                .cfg_axis_stream_mask   (hwif_out.MON.RDMON_MASK3.ADDR_MASK.value),     // Addr → Stream
+
+                //---------------------------------------------------------------------
+                // Protocol 2 Configuration - Write Engine Monitor (WRMON)
+                // Note: Using CORE ports for write engine AXI monitor (protocol reuse)
+                //---------------------------------------------------------------------
+                .cfg_core_pkt_mask      (hwif_out.MON.WRMON_PKT_MASK.PKT_MASK.value),
+                .cfg_core_err_select    (hwif_out.MON.WRMON_ERR_CFG.ERR_SELECT.value),
+                .cfg_core_error_mask    (hwif_out.MON.WRMON_ERR_CFG.ERR_MASK.value),
+                .cfg_core_timeout_mask  (hwif_out.MON.WRMON_MASK1.TIMEOUT_MASK.value),
+                .cfg_core_compl_mask    (hwif_out.MON.WRMON_MASK1.COMPL_MASK.value),
+                .cfg_core_thresh_mask   (hwif_out.MON.WRMON_MASK2.THRESH_MASK.value),
+                .cfg_core_perf_mask     (hwif_out.MON.WRMON_MASK2.PERF_MASK.value),
+                .cfg_core_debug_mask    (hwif_out.MON.WRMON_MASK3.DEBUG_MASK.value),
+
+                //---------------------------------------------------------------------
+                // Status Outputs
+                //---------------------------------------------------------------------
+                .err_fifo_full      (mon_err_fifo_full),
+                .write_fifo_full    (mon_write_fifo_full),
+                .err_fifo_count     (mon_err_fifo_count),
+                .write_fifo_count   (mon_write_fifo_count),
+
+                // Compressor stats (tied to 0 internally when USE_COMPRESSION=0;
+                // leave dangling -- top-level harness can hook them later for
+                // FPGA characterization once compression is the default).
+                /* verilator lint_off PINCONNECTEMPTY */
+                .mon_compressor_stat_tier1_a        (mon_compressor_stat_tier1_a),
+                .mon_compressor_stat_tier1_b        (mon_compressor_stat_tier1_b),
+                .mon_compressor_stat_tier1_c        (mon_compressor_stat_tier1_c),
+                .mon_compressor_stat_tier0          (mon_compressor_stat_tier0),
+                .mon_compressor_stat_cam_miss       (mon_compressor_stat_cam_miss),
+                .mon_compressor_stat_delta_ts_ovf   (mon_compressor_stat_delta_ts_ovf),
+                .mon_compressor_stat_event_data_ovf (mon_compressor_stat_event_data_ovf),
+                .mon_compressor_stat_ed_delta_ovf   (mon_compressor_stat_ed_delta_ovf)
+                /* verilator lint_on PINCONNECTEMPTY */
+            );
+        end else begin : g_monbus_tieoff
+            // Monitors disabled - tie off monitor bus and AXI-Lite interfaces
+            assign mon_ready = 1'b1;  // Always ready (backpressure disabled)
+            assign stream_irq = 1'b0;  // No interrupts
+
+            // Tie off AXI-Lite slave interface (error FIFO reads)
+            assign s_axil_err_arready = 1'b1;
+            assign s_axil_err_rvalid = 1'b0;
+            assign s_axil_err_rdata = 32'h0;
+            assign s_axil_err_rresp = 2'b00;
+
+            // Tie off AXI-Lite master interface (monitor writes)
+            assign m_axil_mon_awvalid = 1'b0;
+            assign m_axil_mon_awaddr = 32'h0;
+            assign m_axil_mon_awprot = 3'b000;
+            assign m_axil_mon_wvalid = 1'b0;
+            assign m_axil_mon_wdata = 32'h0;
+            assign m_axil_mon_wstrb = 4'h0;
+            assign m_axil_mon_bready = 1'b0;
+
+            // Tie off status signals
+            assign mon_err_fifo_full = 1'b0;
+            assign mon_write_fifo_full = 1'b0;
+            assign mon_err_fifo_count = 8'h00;
+            assign mon_write_fifo_count = 8'h00;
+
+            // Tie off compressor statistics (no monitors -> no compressor).
+            assign mon_compressor_stat_tier1_a        = 32'h0;
+            assign mon_compressor_stat_tier1_b        = 32'h0;
+            assign mon_compressor_stat_tier1_c        = 32'h0;
+            assign mon_compressor_stat_tier0          = 32'h0;
+            assign mon_compressor_stat_cam_miss       = 32'h0;
+            assign mon_compressor_stat_delta_ts_ovf   = 32'h0;
+            assign mon_compressor_stat_event_data_ovf = 32'h0;
+            assign mon_compressor_stat_ed_delta_ovf   = 32'h0;
+        end
+    endgenerate
+
+endmodule : stream_top_ch8
+

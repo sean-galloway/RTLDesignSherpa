@@ -200,7 +200,14 @@ def test_cdc_counter_display():
     common_dir = os.path.join(repo_root, "rtl/common")
     amba_shared_dir = os.path.join(repo_root, "rtl/amba/shared")
 
+    # Reset-macro header (`ALWAYS_FF_RST` etc.) — must be compiled first and its
+    # dir on the include path, matching rtl/amba/includes usage in the common lib.
+    includes_dir = os.path.join(repo_root, "rtl/amba/includes")
+
     verilog_sources = [
+        # Header macros first (clock_divider.sv uses `ALWAYS_FF_RST)
+        os.path.join(includes_dir, "reset_defs.svh"),
+
         # Top-level design
         os.path.join(rtl_dir, "cdc_counter_display_top.sv"),
 
@@ -237,6 +244,7 @@ def test_cdc_counter_display():
     run(
         python_search=[script_dir],
         verilog_sources=verilog_sources,
+        includes=[includes_dir],
         toplevel=toplevel,
         module=module,
         parameters=parameters,

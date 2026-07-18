@@ -19,6 +19,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+from harness_addrs import H  # noqa: E402  (by-name harness CSR access)
 
 # REPO_ROOT must be set in the environment (source env_python).
 _repo_root = os.environ.get("REPO_ROOT")
@@ -32,14 +33,14 @@ sys.path.insert(0, os.path.join(_repo_root, "projects/components/converters/bin"
 from uart_axi_bridge import UARTAxiBridge  # noqa: E402
 
 HARNESS_CSR_BASE       = 0x0001_0000
-CSR_CRC_RD_EXPECTED    = HARNESS_CSR_BASE + 0x10
-CSR_CRC_WR_EXPECTED    = HARNESS_CSR_BASE + 0x14
-CSR_CRC_WR_COMPUTED    = HARNESS_CSR_BASE + 0x18
-CSR_CRC_MATCH          = HARNESS_CSR_BASE + 0x1C
-CSR_CRC_RD_PER_CH_BASE = HARNESS_CSR_BASE + 0x60
-CSR_CRC_WR_PER_CH_BASE = HARNESS_CSR_BASE + 0x80
-CSR_CRC_VALID_MASK     = HARNESS_CSR_BASE + 0xA0
-CSR_CRC_MATCH_MASK     = HARNESS_CSR_BASE + 0xA4
+CSR_CRC_RD_EXPECTED    = H("CRC_RD_EXPECTED")
+CSR_CRC_WR_EXPECTED    = H("CRC_WR_EXPECTED")
+CSR_CRC_WR_COMPUTED    = H("CRC_WR_COMPUTED")
+CSR_CRC_MATCH          = H("CRC_MATCH")
+CSR_CRC_RD_PER_CH_BASE = H("CRC_RD_PER_CH0")
+CSR_CRC_WR_PER_CH_BASE = H("CRC_WR_PER_CH0")
+CSR_CRC_VALID_MASK     = H("CRC_VALID_MASK")
+CSR_CRC_MATCH_MASK     = H("CRC_MATCH_MASK")
 
 
 def main():

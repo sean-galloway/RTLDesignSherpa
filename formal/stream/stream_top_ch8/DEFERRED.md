@@ -17,7 +17,7 @@ stream_top_ch8 is the top-level STREAM wrapper (1648 lines) that integrates:
 ### Specific blockers
 
 1. **PeakRDL-generated stream_regs.sv**: Located at
-   `projects/components/stream/regs/generated/rtl/stream_regs.sv`.
+   `projects/components/dmas/stream/regs/generated/rtl/stream_regs.sv`.
    This is auto-generated code with a large register map. Adding it to
    the sv2v dependency chain significantly increases flattened Verilog size
    and formal state space.
@@ -31,7 +31,7 @@ stream_top_ch8 is the top-level STREAM wrapper (1648 lines) that integrates:
    block still needs both modules available for sv2v.
 
 4. **stream_config_block.sv**: Register-to-config mapping at
-   `projects/components/stream/rtl/top/stream_config_block.sv`.
+   `projects/components/dmas/stream/rtl/top/stream_config_block.sv`.
    Large combinational mapping logic.
 
 5. **Transitive dependency count**: stream_top_ch8 requires ~40+ source files

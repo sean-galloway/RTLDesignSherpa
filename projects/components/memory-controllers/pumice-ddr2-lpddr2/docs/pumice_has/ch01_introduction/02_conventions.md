@@ -30,8 +30,8 @@
 | `monospace`    | Module names, parameter names, signal names, register names |
 | **bold**       | Defined terms on first introduction; important warnings |
 | *italic*       | Emphasis; placeholder values to be replaced            |
-| `MEMTYPE`      | Top-level build-time parameter (all caps)              |
-| `bank_machine` | RTL module name (lowercase with underscores)           |
+| `NUM_RANKS`    | Top-level build-time parameter (all caps)              |
+| `bank_timer`   | RTL module name (lowercase with underscores)           |
 | `tRC`, `tRCD`  | JEDEC timing parameters (as in JESD79-2 / JESD209-2)   |
 
 ## Numbering Conventions

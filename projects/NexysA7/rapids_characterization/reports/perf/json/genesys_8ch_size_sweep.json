@@ -1,0 +1,1156 @@
+{
+  "total": 6,
+  "passed": 6,
+  "failed": 0,
+  "board": "Genesys 2 (xc7k325t)",
+  "channels": 8,
+  "note": "per-size fresh-programmed runs merged (DUT wedges across back-to-back runs)",
+  "configs": [
+    {
+      "name": "ch8_b4_bpoff_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 4,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 32,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.006097560975609756,
+              "eff_bw_gb_s": 0.03902439024390244,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 1,
+                "bp": 0,
+                "starv": 163,
+                "idle": 0,
+                "engaged": 164,
+                "total": 164,
+                "util": 0.006097560975609756
+              },
+              "bytes": 64,
+              "packets": 1,
+              "byte_bw_gb_s": 0.03902439024390244
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.1951219512195122,
+              "eff_bw_gb_s": 1.248780487804878,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32,
+                "bp": 0,
+                "starv": 132,
+                "idle": 0,
+                "engaged": 164,
+                "total": 164,
+                "util": 0.1951219512195122
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20F5B1C9",
+            "wr": "0x20F5B1C9",
+            "gen": "0x20F5B1C9"
+          },
+          "1": {
+            "golden": "0xA1D72AB4",
+            "wr": "0xA1D72AB4",
+            "gen": "0xA1D72AB4"
+          },
+          "2": {
+            "golden": "0x3938A00B",
+            "wr": "0x3938A00B",
+            "gen": "0x3938A00B"
+          },
+          "3": {
+            "golden": "0xB81A3B76",
+            "wr": "0xB81A3B76",
+            "gen": "0xB81A3B76"
+          },
+          "4": {
+            "golden": "0x136F924D",
+            "wr": "0x136F924D",
+            "gen": "0x136F924D"
+          },
+          "5": {
+            "golden": "0x924D0930",
+            "wr": "0x924D0930",
+            "gen": "0x924D0930"
+          },
+          "6": {
+            "golden": "0x0AA2838F",
+            "wr": "0x0AA2838F",
+            "gen": "0x0AA2838F"
+          },
+          "7": {
+            "golden": "0x8B8018F2",
+            "wr": "0x8B8018F2",
+            "gen": "0x8B8018F2"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 32,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.19047619047619047,
+              "eff_bw_gb_s": 1.219047619047619,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32,
+                "bp": 0,
+                "starv": 136,
+                "idle": 0,
+                "engaged": 168,
+                "total": 168,
+                "util": 0.19047619047619047
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.19047619047619047,
+              "eff_bw_gb_s": 1.219047619047619,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32,
+                "bp": 0,
+                "starv": 136,
+                "idle": 0,
+                "engaged": 168,
+                "total": 168,
+                "util": 0.19047619047619047
+              },
+              "bytes": 2048,
+              "packets": 16,
+              "byte_bw_gb_s": 1.2190476190476192
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20F5B1C9",
+            "rd": "0x20F5B1C9",
+            "chk": "0x20F5B1C9"
+          },
+          "1": {
+            "golden": "0xA1D72AB4",
+            "rd": "0xA1D72AB4",
+            "chk": "0xA1D72AB4"
+          },
+          "2": {
+            "golden": "0x3938A00B",
+            "rd": "0x3938A00B",
+            "chk": "0x3938A00B"
+          },
+          "3": {
+            "golden": "0xB81A3B76",
+            "rd": "0xB81A3B76",
+            "chk": "0xB81A3B76"
+          },
+          "4": {
+            "golden": "0x136F924D",
+            "rd": "0x136F924D",
+            "chk": "0x136F924D"
+          },
+          "5": {
+            "golden": "0x924D0930",
+            "rd": "0x924D0930",
+            "chk": "0x924D0930"
+          },
+          "6": {
+            "golden": "0x0AA2838F",
+            "rd": "0x0AA2838F",
+            "chk": "0x0AA2838F"
+          },
+          "7": {
+            "golden": "0x8B8018F2",
+            "rd": "0x8B8018F2",
+            "chk": "0x8B8018F2"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b16_bpoff_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 16,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 128,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 1.0,
+              "eff_bw_gb_s": 6.4,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 97,
+                "bp": 0,
+                "starv": 0,
+                "idle": 79,
+                "engaged": 97,
+                "total": 176,
+                "util": 1.0
+              },
+              "bytes": 6208,
+              "packets": 7,
+              "byte_bw_gb_s": 3.5272727272727273
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.7272727272727273,
+              "eff_bw_gb_s": 4.654545454545455,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 128,
+                "bp": 0,
+                "starv": 48,
+                "idle": 0,
+                "engaged": 176,
+                "total": 176,
+                "util": 0.7272727272727273
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x96D52D23",
+            "wr": "0x96D52D23",
+            "gen": "0x96D52D23"
+          },
+          "1": {
+            "golden": "0xC932F9C7",
+            "wr": "0xC932F9C7",
+            "gen": "0xC932F9C7"
+          },
+          "2": {
+            "golden": "0x1C00B97B",
+            "wr": "0x1C00B97B",
+            "gen": "0x1C00B97B"
+          },
+          "3": {
+            "golden": "0x43E76D9F",
+            "wr": "0x43E76D9F",
+            "gen": "0x43E76D9F"
+          },
+          "4": {
+            "golden": "0xB7BC2847",
+            "wr": "0xB7BC2847",
+            "gen": "0xB7BC2847"
+          },
+          "5": {
+            "golden": "0xE85BFCA3",
+            "wr": "0xE85BFCA3",
+            "gen": "0xE85BFCA3"
+          },
+          "6": {
+            "golden": "0x3D69BC1F",
+            "wr": "0x3D69BC1F",
+            "gen": "0x3D69BC1F"
+          },
+          "7": {
+            "golden": "0x628E68FB",
+            "wr": "0x628E68FB",
+            "gen": "0x628E68FB"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 128,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.7111111111111111,
+              "eff_bw_gb_s": 4.551111111111112,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 128,
+                "bp": 0,
+                "starv": 52,
+                "idle": 0,
+                "engaged": 180,
+                "total": 180,
+                "util": 0.7111111111111111
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.7111111111111111,
+              "eff_bw_gb_s": 4.551111111111112,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 128,
+                "bp": 0,
+                "starv": 52,
+                "idle": 0,
+                "engaged": 180,
+                "total": 180,
+                "util": 0.7111111111111111
+              },
+              "bytes": 8192,
+              "packets": 64,
+              "byte_bw_gb_s": 4.551111111111111
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x96D52D23",
+            "rd": "0x96D52D23",
+            "chk": "0x96D52D23"
+          },
+          "1": {
+            "golden": "0xC932F9C7",
+            "rd": "0xC932F9C7",
+            "chk": "0xC932F9C7"
+          },
+          "2": {
+            "golden": "0x1C00B97B",
+            "rd": "0x1C00B97B",
+            "chk": "0x1C00B97B"
+          },
+          "3": {
+            "golden": "0x43E76D9F",
+            "rd": "0x43E76D9F",
+            "chk": "0x43E76D9F"
+          },
+          "4": {
+            "golden": "0xB7BC2847",
+            "rd": "0xB7BC2847",
+            "chk": "0xB7BC2847"
+          },
+          "5": {
+            "golden": "0xE85BFCA3",
+            "rd": "0xE85BFCA3",
+            "chk": "0xE85BFCA3"
+          },
+          "6": {
+            "golden": "0x3D69BC1F",
+            "rd": "0x3D69BC1F",
+            "chk": "0x3D69BC1F"
+          },
+          "7": {
+            "golden": "0x628E68FB",
+            "rd": "0x628E68FB",
+            "chk": "0x628E68FB"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b64_bpoff_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 64,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 512,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 1.0,
+              "eff_bw_gb_s": 6.4,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 481,
+                "bp": 0,
+                "starv": 0,
+                "idle": 44,
+                "engaged": 481,
+                "total": 525,
+                "util": 1.0
+              },
+              "bytes": 30784,
+              "packets": 8,
+              "byte_bw_gb_s": 5.863619047619047
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.9752380952380952,
+              "eff_bw_gb_s": 6.24152380952381,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 512,
+                "bp": 0,
+                "starv": 13,
+                "idle": 0,
+                "engaged": 525,
+                "total": 525,
+                "util": 0.9752380952380952
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x2ECD0400",
+            "wr": "0x2ECD0400",
+            "gen": "0x2ECD0400"
+          },
+          "1": {
+            "golden": "0x0D704332",
+            "wr": "0x0D704332",
+            "gen": "0x0D704332"
+          },
+          "2": {
+            "golden": "0xF3572F92",
+            "wr": "0xF3572F92",
+            "gen": "0xF3572F92"
+          },
+          "3": {
+            "golden": "0xD0EA68A0",
+            "wr": "0xD0EA68A0",
+            "gen": "0xD0EA68A0"
+          },
+          "4": {
+            "golden": "0xAEE72338",
+            "wr": "0xAEE72338",
+            "gen": "0xAEE72338"
+          },
+          "5": {
+            "golden": "0x8D5A640A",
+            "wr": "0x8D5A640A",
+            "gen": "0x8D5A640A"
+          },
+          "6": {
+            "golden": "0x737D08AA",
+            "wr": "0x737D08AA",
+            "gen": "0x737D08AA"
+          },
+          "7": {
+            "golden": "0x50C04F98",
+            "wr": "0x50C04F98",
+            "gen": "0x50C04F98"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 512,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.9258589511754068,
+              "eff_bw_gb_s": 5.925497287522604,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 512,
+                "bp": 0,
+                "starv": 41,
+                "idle": 0,
+                "engaged": 553,
+                "total": 553,
+                "util": 0.9258589511754068
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.9258589511754068,
+              "eff_bw_gb_s": 5.925497287522604,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 512,
+                "bp": 0,
+                "starv": 41,
+                "idle": 0,
+                "engaged": 553,
+                "total": 553,
+                "util": 0.9258589511754068
+              },
+              "bytes": 32768,
+              "packets": 269,
+              "byte_bw_gb_s": 5.925497287522604
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x2ECD0400",
+            "rd": "0x2ECD0400",
+            "chk": "0x2ECD0400"
+          },
+          "1": {
+            "golden": "0x0D704332",
+            "rd": "0x0D704332",
+            "chk": "0x0D704332"
+          },
+          "2": {
+            "golden": "0xF3572F92",
+            "rd": "0xF3572F92",
+            "chk": "0xF3572F92"
+          },
+          "3": {
+            "golden": "0xD0EA68A0",
+            "rd": "0xD0EA68A0",
+            "chk": "0xD0EA68A0"
+          },
+          "4": {
+            "golden": "0xAEE72338",
+            "rd": "0xAEE72338",
+            "chk": "0xAEE72338"
+          },
+          "5": {
+            "golden": "0x8D5A640A",
+            "rd": "0x8D5A640A",
+            "chk": "0x8D5A640A"
+          },
+          "6": {
+            "golden": "0x737D08AA",
+            "rd": "0x737D08AA",
+            "chk": "0x737D08AA"
+          },
+          "7": {
+            "golden": "0x50C04F98",
+            "rd": "0x50C04F98",
+            "chk": "0x50C04F98"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b256_bpoff_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 256,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 2048,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 1.0,
+              "eff_bw_gb_s": 6.4,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 2017,
+                "bp": 0,
+                "starv": 0,
+                "idle": 49,
+                "engaged": 2017,
+                "total": 2066,
+                "util": 1.0
+              },
+              "bytes": 129088,
+              "packets": 8,
+              "byte_bw_gb_s": 6.248209099709583
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.9912875121006777,
+              "eff_bw_gb_s": 6.344240077444337,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 2048,
+                "bp": 0,
+                "starv": 18,
+                "idle": 0,
+                "engaged": 2066,
+                "total": 2066,
+                "util": 0.9912875121006777
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20638443",
+            "wr": "0x20638443",
+            "gen": "0x20638443"
+          },
+          "1": {
+            "golden": "0xB5987718",
+            "wr": "0xB5987718",
+            "gen": "0xB5987718"
+          },
+          "2": {
+            "golden": "0x13DFDD4B",
+            "wr": "0x13DFDD4B",
+            "gen": "0x13DFDD4B"
+          },
+          "3": {
+            "golden": "0x86242E10",
+            "wr": "0x86242E10",
+            "gen": "0x86242E10"
+          },
+          "4": {
+            "golden": "0x7170F1F4",
+            "wr": "0x7170F1F4",
+            "gen": "0x7170F1F4"
+          },
+          "5": {
+            "golden": "0xE48B02AF",
+            "wr": "0xE48B02AF",
+            "gen": "0xE48B02AF"
+          },
+          "6": {
+            "golden": "0x42CCA8FC",
+            "wr": "0x42CCA8FC",
+            "gen": "0x42CCA8FC"
+          },
+          "7": {
+            "golden": "0xD7375BA7",
+            "wr": "0xD7375BA7",
+            "gen": "0xD7375BA7"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 2048,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.9761677788369876,
+              "eff_bw_gb_s": 6.24747378455672,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 2048,
+                "bp": 0,
+                "starv": 50,
+                "idle": 0,
+                "engaged": 2098,
+                "total": 2098,
+                "util": 0.9761677788369876
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.9761677788369876,
+              "eff_bw_gb_s": 6.24747378455672,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 2048,
+                "bp": 0,
+                "starv": 50,
+                "idle": 0,
+                "engaged": 2098,
+                "total": 2098,
+                "util": 0.9761677788369876
+              },
+              "bytes": 131072,
+              "packets": 1039,
+              "byte_bw_gb_s": 6.24747378455672
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x20638443",
+            "rd": "0x20638443",
+            "chk": "0x20638443"
+          },
+          "1": {
+            "golden": "0xB5987718",
+            "rd": "0xB5987718",
+            "chk": "0xB5987718"
+          },
+          "2": {
+            "golden": "0x13DFDD4B",
+            "rd": "0x13DFDD4B",
+            "chk": "0x13DFDD4B"
+          },
+          "3": {
+            "golden": "0x86242E10",
+            "rd": "0x86242E10",
+            "chk": "0x86242E10"
+          },
+          "4": {
+            "golden": "0x7170F1F4",
+            "rd": "0x7170F1F4",
+            "chk": "0x7170F1F4"
+          },
+          "5": {
+            "golden": "0xE48B02AF",
+            "rd": "0xE48B02AF",
+            "chk": "0xE48B02AF"
+          },
+          "6": {
+            "golden": "0x42CCA8FC",
+            "rd": "0x42CCA8FC",
+            "chk": "0x42CCA8FC"
+          },
+          "7": {
+            "golden": "0xD7375BA7",
+            "rd": "0xD7375BA7",
+            "chk": "0xD7375BA7"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b1024_bpoff_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 1024,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 8192,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 1.0,
+              "eff_bw_gb_s": 6.4,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8161,
+                "bp": 0,
+                "starv": 0,
+                "idle": 37,
+                "engaged": 8161,
+                "total": 8198,
+                "util": 1.0
+              },
+              "bytes": 522304,
+              "packets": 8,
+              "byte_bw_gb_s": 6.371114906074653
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.9992681141741888,
+              "eff_bw_gb_s": 6.395315930714808,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8192,
+                "bp": 0,
+                "starv": 6,
+                "idle": 0,
+                "engaged": 8198,
+                "total": 8198,
+                "util": 0.9992681141741888
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0xABD06621",
+            "wr": "0xABD06621",
+            "gen": "0xABD06621"
+          },
+          "1": {
+            "golden": "0x469653A2",
+            "wr": "0x469653A2",
+            "gen": "0x469653A2"
+          },
+          "2": {
+            "golden": "0xDD7FF697",
+            "wr": "0xDD7FF697",
+            "gen": "0xDD7FF697"
+          },
+          "3": {
+            "golden": "0x3039C314",
+            "wr": "0x3039C314",
+            "gen": "0x3039C314"
+          },
+          "4": {
+            "golden": "0xAB420001",
+            "wr": "0xAB420001",
+            "gen": "0xAB420001"
+          },
+          "5": {
+            "golden": "0x46043582",
+            "wr": "0x46043582",
+            "gen": "0x46043582"
+          },
+          "6": {
+            "golden": "0xDDED90B7",
+            "wr": "0xDDED90B7",
+            "gen": "0xDDED90B7"
+          },
+          "7": {
+            "golden": "0x30ABA534",
+            "wr": "0x30ABA534",
+            "gen": "0x30ABA534"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 8192,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.993933511283669,
+              "eff_bw_gb_s": 6.361174472215482,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8192,
+                "bp": 0,
+                "starv": 50,
+                "idle": 0,
+                "engaged": 8242,
+                "total": 8242,
+                "util": 0.993933511283669
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.993933511283669,
+              "eff_bw_gb_s": 6.361174472215482,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8192,
+                "bp": 0,
+                "starv": 50,
+                "idle": 0,
+                "engaged": 8242,
+                "total": 8242,
+                "util": 0.993933511283669
+              },
+              "bytes": 524288,
+              "packets": 4111,
+              "byte_bw_gb_s": 6.361174472215482
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0xABD06621",
+            "rd": "0xABD06621",
+            "chk": "0xABD06621"
+          },
+          "1": {
+            "golden": "0x469653A2",
+            "rd": "0x469653A2",
+            "chk": "0x469653A2"
+          },
+          "2": {
+            "golden": "0xDD7FF697",
+            "rd": "0xDD7FF697",
+            "chk": "0xDD7FF697"
+          },
+          "3": {
+            "golden": "0x3039C314",
+            "rd": "0x3039C314",
+            "chk": "0x3039C314"
+          },
+          "4": {
+            "golden": "0xAB420001",
+            "rd": "0xAB420001",
+            "chk": "0xAB420001"
+          },
+          "5": {
+            "golden": "0x46043582",
+            "rd": "0x46043582",
+            "chk": "0x46043582"
+          },
+          "6": {
+            "golden": "0xDDED90B7",
+            "rd": "0xDDED90B7",
+            "chk": "0xDDED90B7"
+          },
+          "7": {
+            "golden": "0x30ABA534",
+            "rd": "0x30ABA534",
+            "chk": "0x30ABA534"
+          }
+        }
+      }
+    },
+    {
+      "name": "ch8_b4096_bpoff_seeddefault",
+      "active_channels": 8,
+      "channels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "beats": 4096,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 32768,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 1.0,
+              "eff_bw_gb_s": 6.4,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32737,
+                "bp": 0,
+                "starv": 0,
+                "idle": 44,
+                "engaged": 32737,
+                "total": 32781,
+                "util": 1.0
+              },
+              "bytes": 2095168,
+              "packets": 8,
+              "byte_bw_gb_s": 6.391409658033617
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.9996034288154724,
+              "eff_bw_gb_s": 6.397461944419024,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32768,
+                "bp": 0,
+                "starv": 13,
+                "idle": 0,
+                "engaged": 32781,
+                "total": 32781,
+                "util": 0.9996034288154724
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x9DEB76BA",
+            "wr": "0x9DEB76BA",
+            "gen": "0x9DEB76BA"
+          },
+          "1": {
+            "golden": "0x2C8D6C6D",
+            "wr": "0x2C8D6C6D",
+            "gen": "0x2C8D6C6D"
+          },
+          "2": {
+            "golden": "0xA2315B6A",
+            "wr": "0xA2315B6A",
+            "gen": "0xA2315B6A"
+          },
+          "3": {
+            "golden": "0x135741BD",
+            "wr": "0x135741BD",
+            "gen": "0x135741BD"
+          },
+          "4": {
+            "golden": "0xB596B538",
+            "wr": "0xB596B538",
+            "gen": "0xB596B538"
+          },
+          "5": {
+            "golden": "0x04F0AFEF",
+            "wr": "0x04F0AFEF",
+            "gen": "0x04F0AFEF"
+          },
+          "6": {
+            "golden": "0x8A4C98E8",
+            "wr": "0x8A4C98E8",
+            "gen": "0x8A4C98E8"
+          },
+          "7": {
+            "golden": "0x3B2A823F",
+            "wr": "0x3B2A823F",
+            "gen": "0x3B2A823F"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 32768,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.9984764458528856,
+              "eff_bw_gb_s": 6.390249253458468,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32768,
+                "bp": 0,
+                "starv": 50,
+                "idle": 0,
+                "engaged": 32818,
+                "total": 32818,
+                "util": 0.9984764458528856
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.9984764458528856,
+              "eff_bw_gb_s": 6.390249253458468,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 32768,
+                "bp": 0,
+                "starv": 50,
+                "idle": 0,
+                "engaged": 32818,
+                "total": 32818,
+                "util": 0.9984764458528856
+              },
+              "bytes": 2097152,
+              "packets": 16399,
+              "byte_bw_gb_s": 6.390249253458467
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x9DEB76BA",
+            "rd": "0x9DEB76BA",
+            "chk": "0x9DEB76BA"
+          },
+          "1": {
+            "golden": "0x2C8D6C6D",
+            "rd": "0x2C8D6C6D",
+            "chk": "0x2C8D6C6D"
+          },
+          "2": {
+            "golden": "0xA2315B6A",
+            "rd": "0xA2315B6A",
+            "chk": "0xA2315B6A"
+          },
+          "3": {
+            "golden": "0x135741BD",
+            "rd": "0x135741BD",
+            "chk": "0x135741BD"
+          },
+          "4": {
+            "golden": "0xB596B538",
+            "rd": "0xB596B538",
+            "chk": "0xB596B538"
+          },
+          "5": {
+            "golden": "0x04F0AFEF",
+            "rd": "0x04F0AFEF",
+            "chk": "0x04F0AFEF"
+          },
+          "6": {
+            "golden": "0x8A4C98E8",
+            "rd": "0x8A4C98E8",
+            "chk": "0x8A4C98E8"
+          },
+          "7": {
+            "golden": "0x3B2A823F",
+            "rd": "0x3B2A823F",
+            "chk": "0x3B2A823F"
+          }
+        }
+      }
+    }
+  ]
+}

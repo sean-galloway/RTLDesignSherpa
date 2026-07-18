@@ -41,7 +41,7 @@ from tbclasses.trackers import DfiCmdFormatterTracker  # noqa: E402
 from tbclasses.dfi_cmd_formatter_tb import (  # noqa: E402
     DfiCmdFormatterTB,
     OP_NOP, OP_ACT, OP_RD, OP_RDA, OP_WR, OP_WRA,
-    OP_PRE, OP_PREA, OP_REF, OP_MRS,
+    OP_PRE, OP_PREA, OP_REF, OP_REFPB, OP_MRS,
     MEMTYPE_DDR2, MEMTYPE_LPDDR2,
 )
 
@@ -67,7 +67,7 @@ async def cocotb_test_dfi_cmd_formatter(dut):
         "multi_rank":   _multi_rank,
         "a10_auto_pre": _a10_auto_pre,
         "cmd_invalid":  _cmd_invalid,
-        "lpddr2_nop":   _lpddr2_nop,
+        "lpddr2_ca":    _lpddr2_ca,
         "random_soak":  _random_soak,
     }
     if test_type not in scenarios:
@@ -125,11 +125,36 @@ async def _cmd_invalid(tb: DfiCmdFormatterTB):
                                   valid=False)
 
 
-async def _lpddr2_nop(tb: DfiCmdFormatterTB):
-    """memtype = LPDDR2 (TODO encoding) → drive NOP for every op."""
-    for op in ALL_OPS:
-        await tb.drive_and_check(op=op, rank=0, bank=4, row=0x200, col=0x10,
-                                  memtype=MEMTYPE_LPDDR2)
+LPDDR2_CA_OPS = [OP_ACT, OP_RD, OP_RDA, OP_WR, OP_WRA,
+                 OP_PRE, OP_PREA, OP_REF, OP_REFPB, OP_MRS]
+
+
+async def _lpddr2_ca(tb: DfiCmdFormatterTB):
+    """memtype = LPDDR2 → bit-exact CA-bus conformance (JESD209-2F Table 60).
+
+    Each CA command's 20-bit dfi_address word must equal the BFM encoder and
+    round-trip through the decoder. Sweep bank/row/col so the scrambled
+    row/column pin assignment (the easy-to-get-wrong part) is exercised, not
+    just the opcode bits. NOP under LPDDR2 stays fully deselected."""
+    # deselected NOP: cs_n all-idle every phase
+    await tb.drive_and_check(op=OP_NOP, rank=0, bank=0, row=0, col=0,
+                             memtype=MEMTYPE_LPDDR2)
+
+    rng = random.Random(tb.SEED ^ 0x1DD2)
+    n = {'gate': 1, 'func': 6, 'full': 24}.get(tb.TEST_LEVEL, 6)
+    # walking-ones + random field values to catch bit-position errors
+    seeds = [0x0, 0x1, 0x2AAA, 0x1555, 0x3FFF, 0x1234]
+    for op in LPDDR2_CA_OPS:
+        for i in range(n):
+            if i < len(seeds):
+                row = seeds[i] & ((1 << tb.ROW_WIDTH) - 1)
+                col = seeds[i] & ((1 << tb.COL_WIDTH) - 1)
+            else:
+                row = rng.randint(0, (1 << tb.ROW_WIDTH) - 1)
+                col = rng.randint(0, (1 << tb.COL_WIDTH) - 1)
+            bank = rng.randint(0, tb.NUM_BANKS - 1)
+            await tb.drive_and_check(op=op, rank=0, bank=bank, row=row, col=col,
+                                     memtype=MEMTYPE_LPDDR2)
 
 
 async def _random_soak(tb: DfiCmdFormatterTB):
@@ -155,12 +180,12 @@ _ALL_TYPES = [
     "multi_rank",
     "a10_auto_pre",
     "cmd_invalid",
-    "lpddr2_nop",
+    "lpddr2_ca",
     "random_soak",
 ]
 
 # (test_type, DFI_RATE, NUM_RANKS)
-_GATE = [(t, 2, 1) for t in ["all_ops", "a10_auto_pre", "cmd_invalid"]]
+_GATE = [(t, 2, 1) for t in ["all_ops", "a10_auto_pre", "cmd_invalid", "lpddr2_ca"]]
 _FUNC = [(t, 2, 1) for t in _ALL_TYPES] + [
     (t, 4, 1) for t in ["all_ops", "a10_auto_pre", "cmd_invalid"]
 ] + [

@@ -4,7 +4,7 @@ set -euo pipefail
 # ------------------------------------------------------------
 # STREAM Characterization Reports PDF Generator
 # ------------------------------------------------------------
-# Mirrors projects/components/stream/docs/generate_{has,mas}_pdf.sh.
+# Mirrors projects/components/dmas/stream/docs/generate_{has,mas}_pdf.sh.
 # Builds DOCX + PDF for the STREAM characterization reports
 # (perf + compression) from their Markdown READMEs using
 # bin/md_to_docx.py with the RTL Design Sherpa house style.

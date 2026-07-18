@@ -21,297 +21,96 @@
 
 <!-- End Header -->
 
-# ODT Control (absorbed)
+# ODT Control (absorbed — no standalone block)
 
-> ## ⚠️ ABSORBED — No standalone FUB
+> ## ABSORBED — No standalone FUB
 >
-> The dedicated ODT control FUB described below was **absorbed** into
-> [`dfi_cmd_formatter`](14_cmd_encoder.md): ODT timing follows
-> deterministically from the issued command (WR/WRA turns ODT on at
-> CWL-2, off after the burst; RD turns ODT on the *other* rank), so it
-> can be derived from the same JEDEC truth table that produces the
-> ras_n/cas_n/we_n encoding rather than maintained as a separate FSM.
+> There is **no `odt_ctrl` module** in the live RTL. The dedicated ODT-control
+> FUB the original architecture planned was never built as a separate block. ODT
+> responsibility is split between two modules that already exist:
 >
-> The cross-rank ODT-on-other-rank rule and the multi-rank
-> termination-window reasoning in this chapter still apply — they live
-> inside `dfi_cmd_formatter`'s output stage.
+> - **`dfi_cmd_formatter.sv`** (see [the command-formatter chapter](14_cmd_encoder.md))
+>   owns the `dfi_odt_o` output. ODT follows deterministically from the issued
+>   command, so it belongs on the same output stage as the ras/cas/we truth table
+>   rather than in a separate FSM.
+> - **`mode_register.sv`** decodes the DDR2 ODT rule bits from the mode registers
+>   into an `odt_o` field (see [the mode-register chapter](20_mode_register.md)).
+>
+> This chapter is retained only to explain where ODT lives and to record the
+> current (minimal) state honestly.
 
-**Status:** Absorbed (was Draft v0.1)
-**Status:** Draft v0.1
-
-> Architectural context: HAS §3.6 and the `ODT_RULE_MULTIRANK` parameter in HAS §5.2. This is the FUB where the famous "ODT-high on the non-accessed rank during read" JEDEC rule lives. It is also the single most multi-rank-specific block in the design — for `NUM_RANKS=1`, the FUB synthesizes to a trivial tie-off.
-
----
-
-## Purpose
-
-`odt_ctrl_fub` produces the per-rank `dfi_odt[NR]` signals that drive each DRAM rank's On-Die Termination network. ODT is a JEDEC-mandated impedance-matching feature: a DDR2/3 DRAM device contains internal termination resistors that the controller selectively turns on to terminate the DQ/DQS bus at the appropriate end of a read or write.
-
-The rule is asymmetric:
-
-- **During a read**, the rank being read **drives** the DQ bus. *Other* ranks should drive their ODT high to terminate the bus from the controller side of the channel.
-- **During a write**, the controller drives the DQ bus. The *target* rank drives ODT high to terminate at the receiving end.
-
-For a single-rank point-to-point system (`NUM_RANKS=1`), ODT serves no purpose — there's nothing else on the bus — and the FUB ties `dfi_odt[0] = 0` always. For multi-rank, the JEDEC cross-termination rules apply.
-
-The FUB is implementation-light: a small combinational rule decoder feeding per-rank pulse generators that produce the timed ODT windows.
+**Status:** Absorbed / minimal — ODT is decoded but not yet actively driven
 
 ---
 
-## Synthesis Parameters
+## Where ODT Lives Today
 
-| Parameter              | Source                | Effect                                                              |
-|------------------------|-----------------------|---------------------------------------------------------------------|
-| `NUM_RANKS`            | top                   | Per-rank pulse generator fanout; `NUM_RANKS=1` collapses to tie-off |
-| `ODT_RULE_MULTIRANK`   | top                   | One of `JEDEC_DDR2`, `JEDEC_LPDDR2`, `OFF`; forced to `OFF` when NR=1 |
-| `MEMTYPE`              | top                   | Picks DDR2 vs LPDDR2 turn-on/turn-off timings (tAOND/tAOFD)         |
-| `T_AOND_WIDTH`         | derived               | Width of the ODT turn-on delay counter (typically 3 bits)            |
-| `T_AOFD_WIDTH`         | derived               | Width of the ODT turn-off delay counter                              |
+| Concern                          | Live location                    | State                                  |
+|----------------------------------|----------------------------------|----------------------------------------|
+| `dfi_odt_o` bus (per-rank, per-phase) | `dfi_cmd_formatter.sv` output | Driven to 0 in v1 (decode leaves `w_p0_odt` at the NOP default for every op) |
+| `dfi_odt_o` reset value          | `dfi_signal_pack.sv`             | 0 (ODT off during reset / before init) |
+| DDR2 ODT-rule decode from MRs     | `mode_register.sv` `odt_o[1:0]`  | Decoded from MR1 (`{w_mr1[6], w_mr1[2]}`); informational, not wired to the pin driver |
+| LPDDR2 ODT                        | `mode_register.sv`               | `odt_o = 0` (LPDDR2 typically point-to-point) |
 
-The `ODT_RULE_MULTIRANK = OFF` mode is the forced value at single-rank — even if software writes `RANK_TUNING.odt_rule_or = JEDEC_DDR2`, the CSR slave returns `pslverr` because the option isn't available.
-
----
-
-## ODT Rules
-
-![ODT Rules — decoder, per-rank pulse generators, CKE / power gating](../assets/mermaid/14_odt_ctrl_rules.png)
-
-**Source:** [14_odt_ctrl_rules.mmd](../assets/mermaid/14_odt_ctrl_rules.mmd)
-
-### `JEDEC_DDR2` Rule (Default for Multi-Rank DDR2)
-
-```
-For each issued RD / RDA targeting rank R:
-    For each rank r in 0..NR-1:
-        if (r != R):
-            odt_target[r] = 1     // ODT-high on non-accessed ranks
-        else:
-            odt_target[r] = 0     // accessed rank drives data, no ODT
-
-For each issued WR / WRA targeting rank R:
-    For each rank r in 0..NR-1:
-        if (r == R):
-            odt_target[r] = 1     // ODT-high on accessed rank (receiver)
-        else:
-            odt_target[r] = 0     // other ranks idle
-```
-
-This is the textbook DDR2 multi-rank ODT pattern from JESD79-2 §x.y.
-
-### `JEDEC_LPDDR2` Rule
-
-LPDDR2 systems are usually single-rank point-to-point. The few multi-rank LPDDR2 systems use a simpler rule:
-
-```
-For each issued WR / WRA targeting rank R:
-    odt_target[R] = 1                // ODT-high on accessed rank
-    odt_target[r != R] = 0           // others idle
-
-For each issued RD / RDA:
-    odt_target[*] = 0                // no ODT during read on LPDDR2 (per LPDDR2 spec)
-```
-
-LPDDR2 multi-rank usage is uncommon enough that this rule is mostly a placeholder — the v1 controller defaults to JEDEC_DDR2 for either memtype when NR > 1; software can override to JEDEC_LPDDR2 if the board demands it.
-
-### `OFF` Rule
-
-```
-odt_target[*] = 0   always
-```
-
-Forced when `NUM_RANKS=1`. The FUB collapses to a tie-off — no pulse generators, no rule decoder, no flops.
+`mode_register` exposes `odt_o` as one of its live decoded outputs, but the RTL
+comment marks it "informational; not used" — the value is computed from the DDR2
+MR1 ODT bits but is not currently consumed to time a termination window.
+`dfi_cmd_formatter` drives `dfi_odt_o` from `w_p0_odt`, which the DDR2 decode
+never raises above its NOP default, so on the DDR2/LPDDR2 board targets (both
+effectively single-rank point-to-point) ODT stays off.
 
 ---
 
-## Per-Rank Pulse Generators
+## Why ODT Is Off on the Board Target
 
-Each rank gets a small pulse generator that converts the rule decoder's `odt_target[r]` into a properly-timed ODT window. The window for a DDR2 read on a non-accessed rank, for example, is:
+ODT is a JEDEC impedance-matching feature: a DDR2 device contains internal
+termination resistors that the controller selectively enables to terminate the
+DQ/DQS bus. The rule is asymmetric and only matters with more than one device on
+the bus:
 
-```
-turn-on at:    cycle (issue + tAOND)              // issue is the RD command issue cycle
-turn-off at:   cycle (issue + tAOND + BL/2)        // BL/2 = number of beats over which the read drives DQ
-```
+- **During a read**, the accessed rank drives DQ; *other* ranks should terminate.
+- **During a write**, the controller drives DQ; the *target* rank should
+  terminate.
 
-For a DDR2 write on the accessed rank:
-
-```
-turn-on at:    cycle (issue + tAOND + CWL - 1)    // turn on 1 cycle before first write beat
-turn-off at:   cycle (issue + tAOND + CWL + BL/2 + tAOFD)
-```
-
-The pulse generator is implemented as a small shift register (depth = `max(CL, CWL) + BL/2 + tAOFD ~ 16 cycles`). When `odt_target[r] = 1` for the current issue, a "pulse plan" record (turn-on delay, hold duration) is loaded into the shift register; each cycle, the bit corresponding to "is the ODT window currently active" is read out.
-
-### Concrete Timing Example — DDR2-800, CL=5, CWL=5, BL=4
-
-| Cycle (from RD issue) | What's happening                       | ODT on non-accessed rank |
-|-----------------------|----------------------------------------|--------------------------|
-| 0                     | RD issued by scheduler                 | 0 (idle)                 |
-| 1                     | gear_dfi presents on phase 0           | 0                        |
-| 2                     | tAOND (2 cycles for DDR2-800)          | 1 (turn-on)              |
-| 3                     | DRAM begins CL-counting                | 1                        |
-| 4                     | continue                                | 1                        |
-| 5                     | continue                                | 1                        |
-| 6                     | first data beat (CL cycles after issue)| 1                        |
-| 7                     | data beat 2                             | 1                        |
-| 8                     | data beat 3                             | 1                        |
-| 9                     | data beat 4 (last for BL=4)             | 1                        |
-| 10                    | tAOFD (1 cycle for DDR2-800)            | 0 (turn-off)             |
-
-So the ODT window is `cycles 2..9` (8 cycles total) for a CL=5 BL=4 read. The pulse generator handles this with a counter that loads at issue time and decrements per cycle.
+For a single-rank point-to-point system there is nothing else on the bus, so ODT
+serves no purpose and 0 is correct. The pumice board bring-up (Nexys A7, single
+x16 DDR2 device) is exactly this case — which is why the v1 controller ships with
+ODT decoded-but-not-driven and passes on silicon.
 
 ---
 
-## Concurrent-Issue Edge Case
+## What a Full ODT Implementation Would Add
 
-Per the scheduler design (§2.7), only one command issues per MC cycle. So at most one pulse-plan is loaded per cycle per rank. But the *window* of a previously-loaded pulse can overlap with a new issue:
-
-- Cycle 0: RD to rank 0 issued → ODT-on rank 1 from cycle 2..9
-- Cycle 4: RD to rank 1 issued → ODT-on rank 0 from cycle 6..13
-
-In cycle 6..9, both ranks need ODT-on at the same time (the first read's window overlapping the second read's window). The per-rank pulse generators handle this independently — each has its own shift register and OR-aggregator. The final `dfi_odt[r]` is the OR of all in-flight pulses for that rank.
-
-The shift register is sized to hold ~3 in-flight pulses per rank (rare for back-to-back same-rank-target reads; more common at high gear ratios with deep queues).
-
----
-
-## CKE / Power-State Gating
-
-ODT is only valid when CKE is asserted — if a rank is in APD, SR, or DPD, its ODT should be off regardless of pulse-plan state. The output stage gates each pulse with the per-rank CKE:
-
-```
-dfi_odt_o[r] = pulse_active[r]
-            AND cke_i[r]
-            AND (ODT_RULE_MULTIRANK != "OFF")
-```
-
-When `power_state_fub` drops CKE on a rank, ODT for that rank goes to 0 immediately, even mid-pulse. This is correct — the DRAM stops listening to the command bus and won't see the ODT anyway.
-
----
-
-## Init-Time ODT
-
-During init, the init engine drives `init_odt[NR]` directly (per the SET_CTRL_BITS opcode in §2.12). The output mux selects `init_odt[r]` when `init_in_progress == 1`:
-
-```
-dfi_odt_o[r] = init_in_progress ? init_odt_i[r] : (pulse_active[r] AND cke_i[r] AND ...)
-```
-
-Init typically holds ODT at a default (often 0) throughout the init sequence; the JEDEC init flow doesn't require ODT to be on during the MRS sequence.
-
----
-
-## Runtime Override
-
-`RANK_TUNING.odt_rule_or` is the runtime override per HAS §5.4:
-
-| Value | Meaning                                                  |
-|-------|----------------------------------------------------------|
-| 00    | Use build-time `ODT_RULE_MULTIRANK` default              |
-| 01    | Force JEDEC_DDR2                                          |
-| 10    | Force JEDEC_LPDDR2                                        |
-| 11    | Force OFF (only valid when NR=1; else `pslverr` on write) |
-
-Override takes effect at the next quiet point (per §4.3). Writing an un-synthesized rule returns `pslverr` immediately on APB.
-
-The override mux is a small 4:1 mux in the rule decoder:
-
-```
-active_rule = cfg_odt_rule_or == 00 ? ODT_RULE_MULTIRANK
-            : cfg_odt_rule_or == 01 ? JEDEC_DDR2
-            : cfg_odt_rule_or == 10 ? JEDEC_LPDDR2
-                                    : OFF
-```
-
----
-
-## Interface
-
-### Issue Input (from cmd_encoder bypass)
-
-| Signal              | Direction | Width                | Description                                          |
-|---------------------|-----------|----------------------|------------------------------------------------------|
-| `issue_strobe_i`    | input     | 1                    | A command is being issued this cycle                 |
-| `issue_op_i`        | input     | 4                    | Same opcode as cmd_encoder                            |
-| `issue_rank_i`      | input     | `$clog2(NR)`         | Target rank                                          |
-
-### CSR (live)
-
-| Signal                  | Direction | Width  | Source                              |
-|-------------------------|-----------|--------|-------------------------------------|
-| `cfg_cl_i`              | input     | 4      | `TIMINGS_CL_CWL_WR.CL`              |
-| `cfg_cwl_i`             | input     | 4      | `TIMINGS_CL_CWL_WR.CWL`             |
-| `cfg_bl_i`              | input     | 4      | Burst length (from MR0)             |
-| `cfg_t_aond_i`          | input     | `T_AOND_WIDTH` | ODT turn-on delay              |
-| `cfg_t_aofd_i`          | input     | `T_AOFD_WIDTH` | ODT turn-off delay             |
-| `cfg_odt_rule_or_i`     | input     | 2      | `RANK_TUNING.odt_rule_or`           |
-
-### CKE / Init Coordination
-
-| Signal              | Direction | Width  | Description                                                |
-|---------------------|-----------|--------|------------------------------------------------------------|
-| `cke_i[NR]`         | input     | NR     | From `power_state_fub` (already-muxed with init)            |
-| `init_in_progress_i`| input     | 1      | From `init_engine_fub`                                     |
-| `init_odt_i[NR]`    | input     | NR     | From `init_engine_fub` (drives during init)                |
-
-### Outputs (to gear)
-
-| Signal              | Direction | Width  | Description                                                |
-|---------------------|-----------|--------|------------------------------------------------------------|
-| `dfi_odt_o[NR]`     | output    | NR     | Final per-rank ODT to `gear_dfi`                            |
-
-### Telemetry
-
-| Signal                          | Description                                  |
-|---------------------------------|----------------------------------------------|
-| `dbg_odt_pulse_active_o[NR]`    | Per-rank pulse-active state (for waveform)   |
-| `dbg_odt_rule_active_o`         | Currently-active rule (2-bit, after override) |
-
----
-
-## Multi-Rank Fan-Out and Area
-
-| Configuration                     | Per-instance area | Total area     |
-|-----------------------------------|-------------------|----------------|
-| NR=1 (tied off)                   | ~0 LUTs           | 0 LUTs          |
-| NR=2, JEDEC_DDR2                  | ~30 LUTs/rank + ~16 flops/rank | ~100 LUTs |
-| NR=4, JEDEC_DDR2                  | ~30 LUTs/rank + ~16 flops/rank | ~250 LUTs |
-
-The pulse-generator shift register dominates the per-rank flop count. The rule decoder is a small 4:1 mux per rank. Total at maximum config is ~0.5% of the controller's overall LUT budget — negligible.
-
----
-
-## CSR Hooks
-
-| CSR field                          | Source                            | Use case                                |
-|------------------------------------|-----------------------------------|-----------------------------------------|
-| `STATUS.odt_rule_active` (R)       | `dbg_odt_rule_active_o`           | Software check of effective rule         |
-| `RANK_TUNING.odt_rule_or` (R/W)    | `cfg_odt_rule_or_i`               | Runtime rule override                    |
-| `OBS_ODT_PULSE_PCT_R<R>` (R)       | Rolling fraction of cycles ODT-on per rank | Power telemetry                  |
+If a multi-rank DDR2 target is brought up, the timed ODT window would be added
+inside `dfi_cmd_formatter`'s output stage (not as a new block), consuming
+`mode_register.odt_o` plus CL/CWL and burst length to compute per-rank turn-on/
+turn-off. The JEDEC cross-termination pattern (ODT-high on the non-accessed rank
+during a read, on the accessed rank during a write) would drive `w_p0_odt` per
+target rank instead of the current constant 0. Because the rule follows
+deterministically from the issued op and the MR-decoded termination value, it
+stays in the formatter's truth table — the reason the standalone block was never
+needed.
 
 ---
 
 ## Verification Notes (cocotb test plan)
 
-| Scenario                                                                          | What it proves                                              |
-|-----------------------------------------------------------------------------------|-------------------------------------------------------------|
-| NR=1: `dfi_odt[0]` always 0 regardless of traffic                                 | Tie-off behavior                                            |
-| NR=2 JEDEC_DDR2: RD to rank 0; rank 1 ODT-on during the read window               | Cross-rank read ODT                                          |
-| NR=2 JEDEC_DDR2: WR to rank 0; rank 0 ODT-on during the write window              | Same-rank write ODT                                          |
-| NR=2: back-to-back RD to rank 0 then rank 1; both ranks ODT-on during overlap     | Concurrent pulses, OR aggregation                            |
-| NR=4: RD to rank 1; ranks 0, 2, 3 ODT-on; rank 1 off                              | Multi-rank cross-termination                                 |
-| ODT turn-on at exactly `tAOND` cycles after issue; turn-off at `BL/2 + tAOFD`     | Timing precision per JEDEC                                   |
-| Power-down on rank 1 during a RD to rank 0 → rank 1 ODT goes to 0 mid-pulse        | CKE gating                                                   |
-| Init sequence: `init_odt[NR]` drives output regardless of pulse state              | Init bypass                                                  |
-| Runtime override JEDEC_DDR2 → OFF; ODT goes to 0 at next quiet point               | Runtime rule override                                        |
-| Runtime override to JEDEC_LPDDR2 (NR=2 LPDDR2 build): RD on rank 0 → no ODT       | LPDDR2 rule                                                  |
-| NR=1 + write `RANK_TUNING.odt_rule_or = JEDEC_DDR2` → APB `pslverr`               | Single-rank override rejection                               |
-| Multi-rank simulator: bring-up engineer captures `OBS_ODT_PULSE_PCT_R<R>`         | Power-telemetry plumbing works                               |
+| Scenario                                                        | What it proves                          |
+|-----------------------------------------------------------------|-----------------------------------------|
+| Single-rank DDR2: `dfi_odt_o` stays 0 for all traffic           | Current behavior (point-to-point board target) |
+| Reset: `dfi_signal_pack` drives `dfi_odt_o = 0`                 | Reset-safe ODT-off                      |
+| `mode_register` MR1 ODT bits decode into `odt_o`                | Decode present for future use            |
+| LPDDR2: `mode_register.odt_o = 0`                               | No ODT on LPDDR2 point-to-point          |
 
 ---
 
 ## Open Questions / Future Work
 
-- **ODT during precharge / refresh.** Currently the rule decoder only emits ODT pulses for RD / RDA / WR / WRA. During PRE, REF, ZQCS the ODT is off. This matches typical JEDEC interpretation, but some board designs want ODT held high during refresh to avoid bus floating. Could add a `RANK_TUNING.odt_during_refresh` bit. Not in v1; revisit if bring-up flags signal-integrity issues.
-- **Dynamic ODT (DDR3+).** DDR3 introduced Rtt_Wr (write ODT) vs Rtt_Nom (idle ODT), allowing different termination values during different windows. DDR2/LPDDR2 only has Rtt_Nom. The FUB has hooks for dynamic ODT (a 2-bit `odt_level_o[NR]` output is reserved) but the v1 controller doesn't drive them. Add in DDR3-LPDDR3 family controller.
-- **ODT during write-leveling.** DDR3+ has a write-leveling phase where ODT is held in a specific pattern. DDR2 doesn't have write leveling, so this is a DDR3+ concern. Reserve the `wl_odt_pattern_i` input on this FUB for forward compat.
-- **Per-pulse shift register depth tuning.** Currently sized for 3 concurrent pulses per rank. At very deep queues + high gear ratio, more could overlap. Worth a verification scenario to confirm the depth holds under stress; bump if it doesn't.
+- **Timed ODT window (multi-rank DDR2).** Not implemented. Would live in
+  `dfi_cmd_formatter`'s output stage, driven by `mode_register.odt_o` + CL/CWL +
+  BL. Add when a multi-rank DDR2 board is targeted.
+- **Dynamic ODT (DDR3+).** DDR3 introduced Rtt_Wr vs Rtt_Nom; DDR2/LPDDR2 have
+  only Rtt_Nom. A DDR3+ family controller would extend the decode.
+- **ODT during refresh/precharge.** Some boards want ODT held during refresh to
+  avoid a floating bus. Revisit only if signal-integrity characterization flags
+  it on a multi-rank target.

@@ -27,6 +27,12 @@ module stream_char_harness #(
     parameter int UART_BAUD    = 115_200,
     parameter int DATA_WIDTH   = 128,
     parameter int ADDR_WIDTH   = 32,
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,  // TASK-101 STREAM Extended
+    // Heavy in-core AXI monitors (CAM/reporter cones + latency histograms).
+    // Default 0 = board build (area): the always-on bus meters still give
+    // utilisation. Cosim monitor-validation tests (rw_perf hist tail, obs_equiv,
+    // desc_perf) override to 1 to exercise the full monitor suite.
+    parameter int USE_AXI_MONITORS = 0,
     parameter int SRAM_DEPTH   = 256,
     // NUM_CHANNELS is overridable so the FPGA target can build a 4-channel
     // configuration to fit the Artix-7 100T without changing the DUT's native
@@ -93,7 +99,12 @@ module stream_char_harness #(
 
     localparam int AXI_ID_WIDTH   = 8;
     localparam int AXI_USER_WIDTH = $clog2(NUM_CHANNELS) > 0 ? $clog2(NUM_CHANNELS) : 1;
-    localparam int APB_ADDR_WIDTH = 12;
+    // 13 bits (8 KB) to match stream_top_ch8's default: STREAM's monitor CSR
+    // block was relocated to 0x1000+ (RDMON/WRMON perf @ 0x1180/0x11B0). A
+    // 12-bit (4 KB) window truncated those addresses -> perf CSRs unreachable
+    // (rw_perf / ext_char read zero). The bridge stream_apb page was widened to
+    // 8 KB to match (configs/bridge_stream_char_axil.toml, regenerated).
+    localparam int APB_ADDR_WIDTH = 13;
     localparam int APB_DATA_WIDTH = 32;
 
     localparam int CLKS_PER_BIT = FPGA_CLK_HZ / UART_BAUD;
@@ -1579,8 +1590,22 @@ module stream_char_harness #(
             if (obs_busy && !obs_win_active && !obs_started) begin
                 obs_win_active <= 1'b1; obs_started <= 1'b1; obs_settle <= 5'd0;
             end else if (obs_win_active) begin
-                if (obs_busy) obs_settle <= 5'd0;
-                else if (obs_settle != 5'd16) obs_settle <= obs_settle + 5'd1;
+                if (obs_busy) begin
+                    obs_settle <= 5'd0;
+                end else if (obs_settle != 5'd16) begin
+                    obs_settle <= obs_settle + 5'd1;
+                end else begin
+                    // Settle timeout: 16 idle cycles after the last bus activity
+                    // CLOSE the measurement window so obs_meter_freeze asserts and
+                    // the starvation/idle buckets stop accumulating during the
+                    // post-workload idle (otherwise prod/(bucket-sum) util is
+                    // diluted by unbounded idle). prod is unaffected -- it stops
+                    // on its own when data transfer ends. obs_started stays set,
+                    // so the window reopens only on the next soft-reset: exactly
+                    // one clean, frozen window per measured workload, read back by
+                    // the host over CSR (CSR_OBS_* @ HARNESS_CSR_BASE + 0x100).
+                    obs_win_active <= 1'b0;
+                end
             end
         end
     )
@@ -1829,28 +1854,30 @@ module stream_char_harness #(
         .NUM_CHANNELS       (NUM_CHANNELS),
         .DATA_WIDTH         (DATA_WIDTH),
         .ADDR_WIDTH         (ADDR_WIDTH),
+        .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
         .SRAM_DEPTH         (SRAM_DEPTH),
         .APB_ADDR_WIDTH     (APB_ADDR_WIDTH),
         .APB_DATA_WIDTH     (APB_DATA_WIDTH),
         .AXI_ID_WIDTH       (AXI_ID_WIDTH),
         .AXI_USER_WIDTH     (AXI_USER_WIDTH),
-        .USE_AXI_MONITORS   (1),
-        .USE_MON_COMPRESSION(USE_MON_COMPRESSION),
-        .USE_MON_HALFBEAT   (USE_MON_HALFBEAT),
+        // Monitors compiled OUT of STREAM (param=0). Utilization is measured by
+        // the perf-only module in the harness (external to STREAM), so STREAM's
+        // in-core AXI monitors, MonBus compression/half-beat, and all DESC-monitor
+        // cones (including PERF) are dead weight here -- and at 8 channels with
+        // TASK-101 extended addressing enabled they overflow the xc7a100t LUTs.
+        // Removing them (param=0) reclaims the LUTs; the addr-gen logic stays.
+        .USE_AXI_MONITORS   (USE_AXI_MONITORS),
+        .USE_MON_COMPRESSION(0),
+        .USE_MON_HALFBEAT   (0),
         .CDC_ENABLE         (0),
         .AR_MAX_OUTSTANDING (AR_MAX_OUTSTANDING),
         .AW_MAX_OUTSTANDING (AW_MAX_OUTSTANDING),
-        // Characterization only needs the datapath perf buckets. Drop the DESC
-        // monitor's error/timeout/compl/threshold/debug cones (perf-only, like
-        // the datapath monitors), and -- on the area-tight FPGA build, via
-        // GEN_MON=0 from stream_char_top -- the per-channel completion/error
-        // MonBus emitters. GEN_MON defaults 1 so cosim keeps the trace.
-        .GEN_MON            (GEN_MON),
+        .GEN_MON            (1'b0),
         .DESC_MON_ENABLE_ERROR_LOGIC     (1'b0),
         .DESC_MON_ENABLE_TIMEOUT_LOGIC   (1'b0),
         .DESC_MON_ENABLE_COMPL_LOGIC     (1'b0),
         .DESC_MON_ENABLE_THRESHOLD_LOGIC (1'b0),
-        .DESC_MON_ENABLE_PERF_LOGIC      (1'b1),
+        .DESC_MON_ENABLE_PERF_LOGIC      (1'b0),
         .DESC_MON_ENABLE_DEBUG_LOGIC     (1'b0)
     ) u_stream (
         .aclk    (aclk),   .aresetn(unit_aresetn),

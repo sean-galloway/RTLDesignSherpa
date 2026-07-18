@@ -7,7 +7,7 @@
 
 Any doc that ships or is reviewed as a deliverable is rendered through
 the house PDF pipeline: `bin/md_to_docx.py` driven by a style YAML
-cloned from `projects/components/stream/docs/stream_mas/stream_styles.yaml`.
+cloned from `projects/components/dmas/stream/docs/stream_mas/stream_styles.yaml`.
 
 That gives the standard look:
 - Sherpa logo title page
@@ -19,7 +19,7 @@ That gives the standard look:
 ### Reference generators
 
 - `projects/NexysA7/stream_characterization/docs/generate_pdf.sh` — the STREAM characterization report
-- `projects/components/stream/docs/generate_{has,mas}_pdf.sh` — STREAM HAS / MAS specs
+- `projects/components/dmas/stream/docs/generate_{has,mas}_pdf.sh` — STREAM HAS / MAS specs
 - `projects/NexysA7/stream_characterization/reports/generate_reports_pdf.sh` — perf + compression reports
 
 Clone the closest one and point it at the new Markdown source + a style YAML.

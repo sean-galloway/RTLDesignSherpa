@@ -1,39 +1,31 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
 stateDiagram-v2
-    [*] --> RESET
+    %% powerdown_ctrl (rtl/fub/powerdown_ctrl.sv)
+    %% OPTIONAL block: live RTL, but NOT in the default top build.
+    [*] --> S_AWAKE: reset (CKE high)
 
-    RESET --> INIT: mc_rstn deasserted
-    INIT --> ACTIVE: init_done
-    INIT --> INIT_ERROR: init_error
+    S_AWAKE --> S_ARMING: request_enabled && controller_idle
+    S_ARMING --> S_AWAKE: activity / modes disabled
+    S_ARMING --> S_REQ: idle_cnt >= idle_threshold (latch kind SR else PDE)
 
-    ACTIVE --> ACTIVE_PD: req_low_power + banks open
-    ACTIVE --> PRECHARGE_PD: req_low_power + banks idle
-    ACTIVE --> SELF_REFRESH: req_self_refresh (DDR2 or LPDDR2)
-    ACTIVE --> DPD: req_dpd (LPDDR2 only)
+    S_REQ --> S_AWAKE: activity / modes disabled
+    S_REQ --> S_ASLEEP: pdn_grant (CKE low)
 
-    ACTIVE_PD --> ACTIVE: req_active
-    PRECHARGE_PD --> ACTIVE: req_active
+    S_ASLEEP --> S_AWAKE: any new activity<br/>(SR exit timing enforced by scheduler)
 
-    SELF_REFRESH --> ACTIVE: req_active + tXSNR elapsed
-
-    DPD --> INIT: req_active (full re-init required)
-
-    INIT_ERROR --> INIT: soft_reset via CSR
-
-    note right of SELF_REFRESH
-      CKE low
-      DRAM self-refreshes
-      Controller tREFI paused
+    note right of S_ARMING
+      Counts idle cycles
+      toward the entry threshold
     end note
 
-    note right of DPD
-      LPDDR2 only
-      DRAM content lost
-      SoC must flush caches first
+    note right of S_REQ
+      pdn_req high, awaiting grant
+      kind = SR (self-refresh) over
+      PDE (precharge power-down)
     end note
 
-    note left of INIT
-      Microprogram engine
-      executes memtype-specific
-      step table
+    note left of S_ASLEEP
+      CKE dropped (dfi_cke=0)
+      r_kind=1 -> SR (sref_active)
+      r_kind=0 -> PDE
     end note
