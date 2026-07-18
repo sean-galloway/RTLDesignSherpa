@@ -1,0 +1,28 @@
+flowchart LR
+    USB[USB / FTDI]
+    UART["uart_axil_bridge<br/>W/R ASCII to AXI4-Lite"]
+    subgraph FPGA["Nexys A7-100T (stream_char_top)"]
+        subgraph BR["bridge_stream_char_axil (1 to N)"]
+            direction TB
+            S0["stream_apb<br/>0x00000"]
+            S1["harness_csr<br/>0x10000"]
+            S2["desc_ram<br/>0x20000"]
+            S3["stream_err<br/>0x30000"]
+            S4["debug_sram<br/>0x40000"]
+            S5["bridge_trace_sram<br/>0xC0000"]
+        end
+        subgraph HARN["stream_char_harness"]
+            SLAVES["axi4_dma_slaves<br/>pattern-gen + CRC-check"]
+            RESP["axi_response_delay<br/>latency model"]
+            OBS["axi4_dma_observer<br/>bus meters + compression"]
+            DUT["stream_top_ch8 (DUT)"]
+        end
+    end
+    USB -->|UART| UART --> BR
+    S0 -->|APB cfg| DUT
+    S1 --> HARN
+    S2 -->|256b desc| DUT
+    DUT <-->|m_axi_rd/wr 128b| SLAVES
+    SLAVES --- RESP
+    DUT --- OBS
+    DUT -->|MonBus| S4

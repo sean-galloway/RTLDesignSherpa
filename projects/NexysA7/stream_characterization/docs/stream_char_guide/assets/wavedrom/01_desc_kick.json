@@ -1,0 +1,11 @@
+{ "signal": [
+  { "name": "aclk",              "wave": "p........" },
+  {},
+  { "name": "host desc write",   "wave": "0.1..0...", "node": ".a" },
+  { "name": "W KICK_GO.mask",    "wave": "0....10..", "node": "....b" },
+  { "name": "STREAM busy",       "wave": "0.....1.0", "node": ".....c.d" },
+  { "name": "AXI_WR_COMPLETE",   "wave": "0.......1", "node": ".......e" }
+],
+  "edge": ["a~>b load then kick", "d~>e done"],
+  "head": { "text": "Descriptor load then KICK_GO; poll AXI_WR_COMPLETE" }
+}
