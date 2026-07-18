@@ -11,6 +11,17 @@
    Changed `stream_core.sv` to assign channel ID to `fub_rd_axi_ruser` and
    `fub_wr_axi_buser` instead of tying to `'0`.
 
+## Regenerated (2026-07-18)
+
+`stream_core_flat.v` and the `.sv2v_prep/` snapshots were re-flattened from current
+RTL after the always-on datapath-perf refactor (`stream_core.sv`, commit `a1760aaf`):
+`USE_AXI_MONITORS` now gates only the heavy `axi4_master_*_mon` cones + latency
+histograms, while the in-core `axi_bus_meter` buckets and beat/byte/burst/window
+counters (`perf_prod_cycles`, `rdmon_perf_window_active`, ...) are always-on. The
+previous committed flat predated this and was stale. The properties below are
+unaffected (perf meters are passive/additive). The block remains DEFERRED by the
+blocker below.
+
 ## Remaining Blocker: yosys flatten name collision
 
 After the above fixes, sv2v and yosys `prep` succeed through hierarchy/proc/opt,

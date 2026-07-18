@@ -90,7 +90,6 @@
 | math_fp8_e4m3_softmax_8 | common | Too complex for BMC | Skip |
 | math_fp8_e5m2_softmax_8 | common | Too complex for BMC | Skip |
 | stream_core | stream | Yosys flatten name collision (2x axi4_master_rd) | Deferred |
-| stream_core_mon | stream | Same as stream_core | Deferred |
 
 ### Cover Failures (2 modules, prove PASS)
 
@@ -130,7 +129,6 @@ These have prove PASS but no cover task defined, or cover not yet run:
 | Module | Area | Reason |
 |--------|------|--------|
 | stream_core | stream | Yosys flatten name collision (two axi4_master_rd instances) |
-| stream_core_mon | stream | Same blocker as stream_core |
 | stream_top_ch8 | stream | 40+ source files, 10K+ lines -- state space too large |
 
 ---
