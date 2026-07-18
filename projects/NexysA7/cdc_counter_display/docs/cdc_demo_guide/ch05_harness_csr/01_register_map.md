@@ -13,7 +13,7 @@ test guards the three against drift.
 Every named write becomes a single AXI4-Lite beat that the UART bridge drives
 into the harness (a named read is the mirror AR/R exchange):
 
-#### Waveform 4.1: AXI4-Lite Single-Beat Write
+#### Waveform 5.1: AXI4-Lite Single-Beat Write
 
 ![AXI4-Lite single-beat write](../assets/wavedrom/01_axil_write.svg)
 

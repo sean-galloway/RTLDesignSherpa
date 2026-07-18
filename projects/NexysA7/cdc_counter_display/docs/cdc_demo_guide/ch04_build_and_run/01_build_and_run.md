@@ -44,7 +44,7 @@ make regmap  ->  make consistency  ->  make sim-demo   (prove it in simulation)
 |--------|--------------|
 | `make build-demo` | Build the phase-2 bitstream `cdc_demo.bit` with Vivado (~5–10 min). |
 | `make program-demo` | Flash the board with `cdc_demo.bit`. |
-| `make lint-demo` | Verilator lint of the phase-2 RTL (Xilinx clocking primitives are stubbed — see Chapter 6). |
+| `make lint-demo` | Verilator lint of the phase-2 RTL (Xilinx clocking primitives are stubbed — see Chapter 7). |
 
 : Bitstream make targets
 

@@ -49,21 +49,25 @@ configuration. The STREAM scatter-gather DMA is the device under test.
 
 - [Architecture: Spine, Bridge, Harness](ch02_how_it_works/01_architecture.md)
 
-### Chapter 3: Build and Run
+### Chapter 3: Test Methodology
 
-- [Make Targets and the Host Tools](ch03_build_and_run/01_build_and_run.md)
+- [What Is Tested and How](ch03_methodology/01_methodology.md)
 
-### Chapter 4: Harness CSR Configuration
+### Chapter 4: Build and Run
 
-- [Address Map and Register Map](ch04_harness_csr/01_register_map.md)
+- [Make Targets and the Host Tools](ch04_build_and_run/01_build_and_run.md)
 
-### Chapter 5: Simulation / Silicon Equivalence
+### Chapter 5: Harness CSR Configuration
 
-- [One Program, Two Targets](ch05_sim_equivalence/01_equivalence.md)
+- [Address Map and Register Map](ch05_harness_csr/01_register_map.md)
 
-### Chapter 6: Troubleshooting
+### Chapter 6: Simulation / Silicon Equivalence
 
-- [Known State and Common Issues](ch06_troubleshooting/01_troubleshooting.md)
+- [One Program, Two Targets](ch06_sim_equivalence/01_equivalence.md)
+
+### Chapter 7: Troubleshooting
+
+- [Known State and Common Issues](ch07_troubleshooting/01_troubleshooting.md)
 
 ---
 

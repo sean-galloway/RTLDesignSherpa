@@ -11,7 +11,7 @@ across burst-length / stride / gap / page-policy / scheme sweeps.
 
 There is no soft CPU in the FPGA — an off-board Python **host** drives the
 harness over the FTDI USB-UART (115200 8N1). The same host programs run against
-a cocotb simulation (Chapter 5).
+a cocotb simulation (Chapter 6).
 
 ## The three flows
 

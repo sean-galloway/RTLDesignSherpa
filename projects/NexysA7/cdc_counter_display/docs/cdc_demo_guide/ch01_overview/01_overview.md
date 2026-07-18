@@ -32,7 +32,7 @@ instances and collects their CDC'd status back.
 - **Five selectable CDC strategies** per counter: NO-CDC, stretch, sync-FIFO,
   two-phase handshake, four-phase handshake.
 - **Sim / silicon equivalence.** The same host program drives the FPGA and a
-  cocotb simulation over the identical UART byte stream (Chapter 5).
+  cocotb simulation over the identical UART byte stream (Chapter 6).
 
 ## What you need
 

@@ -26,7 +26,7 @@ SNK `0x1000`, 13-bit APB) for by-name DUT config.
 The identity register: region-2 `CTRL`/`ID` @ 0x000 reads **`0x5241_5031`**
 ("RAP1") — the BUILD_ID equivalent used for `ping()` and port autodetect.
 
-### Waveform 4.1: Atomic Launch
+### Waveform 5.1: Atomic Launch
 
 ![Atomic launch sequence](../assets/wavedrom/01_atomic_launch.svg)
 

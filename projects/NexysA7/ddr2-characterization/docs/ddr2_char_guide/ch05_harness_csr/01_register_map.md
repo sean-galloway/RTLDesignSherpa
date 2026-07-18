@@ -31,7 +31,7 @@ python3 bin/peakrdl_generate.py \
 A consistency test (`host/test_harness_regmap_consistency.py`) asserts the
 generated regmap matches the SV header table.
 
-### Waveform 4.1: Engine Kick and Poll
+### Waveform 5.1: Engine Kick and Poll
 
 ![Engine kick and poll](../assets/wavedrom/01_engine_kick.svg)
 
@@ -80,7 +80,7 @@ generated regmap matches the SV header table.
 | Register | Offset | Field | Bits | Access | Description |
 |----------|:------:|-------|:----:|:------:|-------------|
 | `CTRLR_CFG` | 0x60 | `memtype` | [0] | RW | 0 = DDR2, 1 = LPDDR2 |
-| `CTRLR_CFG` | 0x60 | `t_phy_wrlat` | [15:8] | RW | PHY write latency (see Chapter 6 — board wants **0**) |
+| `CTRLR_CFG` | 0x60 | `t_phy_wrlat` | [15:8] | RW | PHY write latency (see Chapter 7 — board wants **0**) |
 | `CTRLR_CFG` | 0x60 | `t_rddata_en` | [23:16] | RW | Read-data-enable latency |
 | `CTRLR_CFG` | 0x60 | `rd_in_order` | [24] | RW | Force in-order reads |
 | `CTRLR_CAP` | 0x64 | `cap_lookahead_max` | [3:0] | RW | Advertised OOO look-ahead depth |

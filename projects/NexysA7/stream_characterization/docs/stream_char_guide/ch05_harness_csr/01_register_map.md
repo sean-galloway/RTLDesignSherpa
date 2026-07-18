@@ -16,7 +16,7 @@ The **STREAM DUT's** APB config, by contrast, *is* PeakRDL-generated
 (`stream_regmap.py` from `stream_regs.rdl`), accessed by name via
 `host/stream_addrs.py` `A("NAME")` — see the monitor-window note below.
 
-### Waveform 4.1: Descriptor Load and Kick
+### Waveform 5.1: Descriptor Load and Kick
 
 ![Descriptor load and kick](../assets/wavedrom/01_desc_kick.svg)
 

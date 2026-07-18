@@ -60,5 +60,5 @@ bottleneck. The harness instantiates (all sharing LFSR `0xDEADBEEF`, taps
 To start a measured run coherently, the host stages the kick parameters
 (`CSR_KICK_MASK`, `CSR_KICK_BASE_*`, `CSR_KICK_STRIDE`) and then writes a single
 `CSR_GO`, which arms the bus meters, starts the generator, and fires the channel
-kicks together (Chapter 4). A run latches PASS (`0x0123`) or FAIL (`0x9999`) on
+kicks together (Chapter 5). A run latches PASS (`0x0123`) or FAIL (`0x9999`) on
 the LEDs and 7-seg once `gen_done & src_idle & snk_idle`.

@@ -47,21 +47,25 @@ CSR configuration.
 
 - [Architecture, Clocking, and CDC Modes](ch02_how_it_works/01_architecture.md)
 
-### Chapter 3: Build and Run
+### Chapter 3: Test Methodology
 
-- [Makefile Targets and the Host CLI](ch03_build_and_run/01_build_and_run.md)
+- [What Is Tested and How](ch03_methodology/01_methodology.md)
 
-### Chapter 4: Harness CSR Configuration
+### Chapter 4: Build and Run
 
-- [Register Map and By-Name Access](ch04_harness_csr/01_register_map.md)
+- [Makefile Targets and the Host CLI](ch04_build_and_run/01_build_and_run.md)
 
-### Chapter 5: Simulation / Silicon Equivalence
+### Chapter 5: Harness CSR Configuration
 
-- [One Program, Two Targets](ch05_sim_equivalence/01_equivalence.md)
+- [Register Map and By-Name Access](ch05_harness_csr/01_register_map.md)
 
-### Chapter 6: Troubleshooting
+### Chapter 6: Simulation / Silicon Equivalence
 
-- [Common Issues and Fixes](ch06_troubleshooting/01_troubleshooting.md)
+- [One Program, Two Targets](ch06_sim_equivalence/01_equivalence.md)
+
+### Chapter 7: Troubleshooting
+
+- [Common Issues and Fixes](ch07_troubleshooting/01_troubleshooting.md)
 
 ---
 

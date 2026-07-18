@@ -53,4 +53,4 @@ If it still fails, the SV header table or the `CTR_OFF_*` localparams in
 If a UART-equivalence test hangs, the transport is almost certainly using a pump
 instead of `cocotb.function`, or `CLKS_PER_BIT` was left at the silicon value
 (868), making each command hundreds of thousands of clocks. Both are covered in
-Chapter 5.
+Chapter 6.

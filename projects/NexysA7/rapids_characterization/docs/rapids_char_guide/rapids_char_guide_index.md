@@ -45,21 +45,25 @@ CSR configuration. The RAPIDS beats DMA core is the device under test.
 
 - [Architecture: Region Decode, Harness, Engines](ch02_how_it_works/01_architecture.md)
 
-### Chapter 3: Build and Run
+### Chapter 3: Test Methodology
 
-- [Make Targets and the Host Campaign](ch03_build_and_run/01_build_and_run.md)
+- [What Is Tested and How](ch03_methodology/01_methodology.md)
 
-### Chapter 4: Harness CSR Configuration
+### Chapter 4: Build and Run
 
-- [Region Map and Register Map](ch04_harness_csr/01_register_map.md)
+- [Make Targets and the Host Campaign](ch04_build_and_run/01_build_and_run.md)
 
-### Chapter 5: Simulation vs Silicon
+### Chapter 5: Harness CSR Configuration
 
-- [Two Paths to the Same Golden CRC](ch05_sim_equivalence/01_equivalence.md)
+- [Region Map and Register Map](ch05_harness_csr/01_register_map.md)
 
-### Chapter 6: Troubleshooting
+### Chapter 6: Simulation vs Silicon
 
-- [Known State and Common Issues](ch06_troubleshooting/01_troubleshooting.md)
+- [Two Paths to the Same Golden CRC](ch06_sim_equivalence/01_equivalence.md)
+
+### Chapter 7: Troubleshooting
+
+- [Known State and Common Issues](ch07_troubleshooting/01_troubleshooting.md)
 
 ---
 

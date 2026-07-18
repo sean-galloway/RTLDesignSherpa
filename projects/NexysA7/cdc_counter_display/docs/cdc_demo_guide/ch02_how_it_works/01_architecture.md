@@ -7,7 +7,7 @@ The board top instantiates, from UART inward:
 1. **`uart_axil_bridge`** — decodes the ASCII `W <addr> <data>` / `R <addr>`
    protocol into single-beat AXI4-Lite. `CLKS_PER_BIT` is derived from
    `SYS_CLK_HZ / 115200`.
-2. **`cdc_demo_harness`** — the AXI4-Lite CSR slave (Chapter 4). Stores per-counter
+2. **`cdc_demo_harness`** — the AXI4-Lite CSR slave (Chapter 5). Stores per-counter
    config, exposes CDC'd status, and generates single-cycle pulses (`CFG_LOAD`,
    `HOST_PRESS`).
 3. **Clocking tree** — an `MMCME2_BASE` produces four co-prime divided clocks;
@@ -67,7 +67,7 @@ button, a `HOST_PRESS` pulse, or — when `AUTO_INC = 1` — every `ctr_clk` edg
 source clock the bits arrive skewed and the host reads transient garbage. That is
 the intended failure. In Verilator (no metastability model) mode 0 reads the true
 value deterministically, which is why the simulation asserts on mode 0 for exact
-values (Chapter 5) but the *board* shows scramble at speed.
+values (Chapter 6) but the *board* shows scramble at speed.
 
 ## Display
 
