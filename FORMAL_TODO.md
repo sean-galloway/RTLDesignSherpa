@@ -114,14 +114,14 @@ These have prove PASS but no cover task defined, or cover not yet run:
 | axi_monitor_filtered | amba | prove_boundary+prove_low8 PASS, no cover |
 | axi_monitor_trans_mgr | amba | prove_boundary+prove_low8 PASS, no cover |
 | axi_read_engine | stream | prove_boundary+prove_low8 PASS, no cover |
-| axi_read_engine_beats | stream | prove_boundary+prove_low8 PASS, no cover |
+| axi_read_engine_beats | rapids | prove_boundary+prove_low8 PASS, no cover |
 | axi_write_engine | stream | prove_boundary+prove_low8 PASS, no cover |
-| axi_write_engine_beats | stream | prove_boundary+prove_low8 PASS, no cover |
+| axi_write_engine_beats | rapids | prove_boundary+prove_low8 PASS, no cover |
 | datapath_rd_test | stream | prove_boundary+prove_low8 PASS, no cover |
 | datapath_wr_test | stream | prove_boundary+prove_low8 PASS, no cover |
-| descriptor_engine_beats | stream | prove_boundary+prove_low8 PASS, no cover |
+| descriptor_engine_beats | rapids | prove_boundary+prove_low8 PASS, no cover |
 | scheduler | stream | prove_boundary+prove_low8 PASS, no cover |
-| scheduler_beats | stream | prove_boundary+prove_low8 PASS, no cover |
+| scheduler_beats | rapids | prove_boundary+prove_low8 PASS, no cover |
 | scheduler_group_array | stream | prove_boundary+prove_low8 PASS, no cover |
 
 ### Deferred (not tractable for BMC)

@@ -574,7 +574,10 @@ module axi_read_engine_beats (
 	localparam signed [31:0] MOW = $clog2(AR_MAX_OUTSTANDING + 1);
 	reg [NC - 1:0] r_outstanding_limit;
 	reg [(NC * MOW) - 1:0] r_outstanding_count;
+	wire w_arb_grant_valid;
+	wire [NC - 1:0] w_arb_grant;
 	wire [CW - 1:0] w_arb_grant_id;
+	wire [NC - 1:0] w_arb_grant_ack;
 	function automatic signed [MOW - 1:0] sv2v_cast_04DDF_signed;
 		input reg signed [MOW - 1:0] inp;
 		sv2v_cast_04DDF_signed = inp;
@@ -685,14 +688,24 @@ module axi_read_engine_beats (
 				end
 		end
 	end
-	wire w_arb_grant_valid;
-	wire [NC - 1:0] w_arb_grant;
-	wire [NC - 1:0] w_arb_grant_ack;
+	reg [NC - 1:0] r_arb_request;
+	always @(posedge clk)
+		if (!rst_n)
+			r_arb_request <= 1'sb0;
+		else
+			r_arb_request <= w_arb_request;
 	generate
 		if (NC == 1) begin : gen_single_channel
-			assign w_arb_grant_valid = w_arb_request[0];
-			assign w_arb_grant = w_arb_request;
-			assign w_arb_grant_id = 1'b0;
+			arbiter_single_client #(.WAIT_GNT_ACK(1)) u_arbiter_single(
+				.clk(clk),
+				.rst_n(rst_n),
+				.block_arb(1'b0),
+				.request(r_arb_request[0]),
+				.grant_ack(w_arb_grant_ack[0]),
+				.grant_valid(w_arb_grant_valid),
+				.grant(w_arb_grant[0]),
+				.grant_id(w_arb_grant_id[0])
+			);
 		end
 		else begin : gen_multi_channel
 			arbiter_round_robin #(
@@ -702,7 +715,7 @@ module axi_read_engine_beats (
 				.clk(clk),
 				.rst_n(rst_n),
 				.block_arb(1'b0),
-				.request(w_arb_request),
+				.request(r_arb_request),
 				.grant_ack(w_arb_grant_ack),
 				.grant_valid(w_arb_grant_valid),
 				.grant(w_arb_grant),
@@ -711,7 +724,7 @@ module axi_read_engine_beats (
 			);
 		end
 	endgenerate
-	assign m_axi_arvalid = w_arb_grant_valid;
+	assign m_axi_arvalid = w_arb_grant_valid && sched_rd_valid[w_arb_grant_id];
 	assign m_axi_arid = {{IW - CW {1'b0}}, w_arb_grant_id};
 	assign m_axi_araddr = sched_rd_addr[w_arb_grant_id * AW+:AW];
 	assign m_axi_arlen = w_transfer_size[w_arb_grant_id * 8+:8];
@@ -721,7 +734,9 @@ module axi_read_engine_beats (
 	endfunction
 	assign m_axi_arsize = sv2v_cast_3_signed(AXSIZE);
 	assign m_axi_arburst = 2'b01;
-	assign w_arb_grant_ack = w_arb_grant & {NC {m_axi_arvalid && m_axi_arready}};
+	wire [NC - 1:0] w_stale_grant;
+	assign w_stale_grant = w_arb_grant & ~sched_rd_valid;
+	assign w_arb_grant_ack = (w_arb_grant & {NC {m_axi_arvalid && m_axi_arready}}) | w_stale_grant;
 	reg r_alloc_req;
 	reg [7:0] r_alloc_size;
 	reg [IW - 1:0] r_alloc_id;

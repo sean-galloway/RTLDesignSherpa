@@ -694,6 +694,7 @@ module snk_sram_controller_beats (
 	drain_req,
 	drain_size,
 	drain_valid,
+	drain_valid_comb,
 	drain_read,
 	drain_id,
 	drain_data,
@@ -715,22 +716,23 @@ module snk_sram_controller_beats (
 	input wire fill_alloc_req;
 	input wire [7:0] fill_alloc_size;
 	input wire [CIW - 1:0] fill_alloc_id;
-	output wire [(NC * SCW) - 1:0] fill_space_free;
+	output reg [(NC * SCW) - 1:0] fill_space_free;
 	input wire fill_valid;
 	output reg fill_ready;
 	input wire [CIW - 1:0] fill_id;
 	input wire [DW - 1:0] fill_data;
-	output wire [(NC * SCW) - 1:0] drain_data_avail;
+	output reg [(NC * SCW) - 1:0] drain_data_avail;
 	input wire [NC - 1:0] drain_req;
 	input wire [(NC * 8) - 1:0] drain_size;
-	output wire [NC - 1:0] drain_valid;
+	output reg [NC - 1:0] drain_valid;
+	output wire [NC - 1:0] drain_valid_comb;
 	input wire drain_read;
 	input wire [CIW - 1:0] drain_id;
 	output reg [DW - 1:0] drain_data;
 	output wire [NC - 1:0] dbg_bridge_pending;
 	output wire [NC - 1:0] dbg_bridge_out_valid;
 	initial if (NC > 128) begin
-		$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dmas/rapids/rtl/macro_beats/snk_sram_controller_beats.sv:99:13 - snk_sram_controller_beats.<unnamed_block>.<unnamed_block>\n msg: ", $time, "snk_sram_controller: NUM_CHANNELS=%0d exceeds maximum of 128", NC);
+		$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dmas/rapids/rtl/macro_beats/snk_sram_controller_beats.sv:100:13 - snk_sram_controller_beats.<unnamed_block>.<unnamed_block>\n msg: ", $time, "snk_sram_controller: NUM_CHANNELS=%0d exceeds maximum of 128", NC);
 		$finish(1);
 	end
 	reg [NC - 1:0] fill_valid_decoded;
@@ -738,6 +740,8 @@ module snk_sram_controller_beats (
 	reg [NC - 1:0] drain_read_decoded;
 	wire [(NC * DW) - 1:0] drain_data_per_channel;
 	reg [NC - 1:0] fill_alloc_req_decoded;
+	wire [(NC * SCW) - 1:0] fill_space_free_comb;
+	wire [(NC * SCW) - 1:0] drain_data_avail_comb;
 	always @(*) begin
 		if (_sv2v_0)
 			;
@@ -789,19 +793,30 @@ module snk_sram_controller_beats (
 				.fill_valid(fill_valid_decoded[i]),
 				.fill_ready(fill_ready_per_channel[i]),
 				.fill_data(fill_data),
-				.drain_valid(drain_valid[i]),
+				.drain_valid(drain_valid_comb[i]),
 				.drain_ready(drain_read_decoded[i]),
 				.drain_data(drain_data_per_channel[i * DW+:DW]),
 				.fill_alloc_req(fill_alloc_req_decoded[i]),
 				.fill_alloc_size(fill_alloc_size),
-				.fill_space_free(fill_space_free[i * SCW+:SCW]),
+				.fill_space_free(fill_space_free_comb[i * SCW+:SCW]),
 				.drain_req(drain_req[i]),
 				.drain_size(drain_size[i * 8+:8]),
-				.drain_data_avail(drain_data_avail[i * SCW+:SCW]),
+				.drain_data_avail(drain_data_avail_comb[i * SCW+:SCW]),
 				.dbg_bridge_pending(dbg_bridge_pending[i]),
 				.dbg_bridge_out_valid(dbg_bridge_out_valid[i])
 			);
 		end
 	endgenerate
+	always @(posedge clk)
+		if (!rst_n) begin
+			fill_space_free <= 1'sb0;
+			drain_data_avail <= 1'sb0;
+			drain_valid <= 1'sb0;
+		end
+		else begin
+			fill_space_free <= fill_space_free_comb;
+			drain_data_avail <= drain_data_avail_comb;
+			drain_valid <= drain_valid_comb;
+		end
 	initial _sv2v_0 = 0;
 endmodule
