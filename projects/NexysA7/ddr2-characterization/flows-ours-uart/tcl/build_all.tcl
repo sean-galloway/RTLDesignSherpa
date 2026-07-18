@@ -37,7 +37,9 @@ close_design
 # done; if we're skating close to 100 MHz, phys_opt closes the last few
 # hundred ps by replicating / relocating the marginal endpoints.
 puts "\n--- Implementation ---"
-set_property STEPS.PLACE_DESIGN.DIRECTIVE               ExtraTimingOpt    [get_runs impl_1]
+set _place_dir [expr {[info exists ::env(PLACE_DIRECTIVE)] ? $::env(PLACE_DIRECTIVE) : "AltSpreadLogic_high"}]
+puts "PLACE_DESIGN directive: $_place_dir"
+set_property STEPS.PLACE_DESIGN.DIRECTIVE               $_place_dir       [get_runs impl_1]
 set_property STEPS.PHYS_OPT_DESIGN.IS_ENABLED           true              [get_runs impl_1]
 set_property STEPS.PHYS_OPT_DESIGN.DIRECTIVE            AggressiveExplore [get_runs impl_1]
 set_property STEPS.ROUTE_DESIGN.DIRECTIVE               Explore           [get_runs impl_1]

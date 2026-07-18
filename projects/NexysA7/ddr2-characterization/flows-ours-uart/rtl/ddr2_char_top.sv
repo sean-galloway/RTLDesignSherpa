@@ -183,6 +183,11 @@ module ddr2_char_top #(
     localparam int DFI_RATE        = 4;
     localparam int DFI_DATA_WIDTH  = DFI_RATE * DRAM_BEAT_WIDTH;   // 128
     localparam int DFI_STRB_WIDTH  = DFI_DATA_WIDTH / 8;           // 16
+    // Legal-AxLEN quantum: AXI beats that make one DRAM burst. cfg_wr/rd_burst_len
+    // (host BLEN_TXN) MUST be a nonzero multiple of this. Board = BL8 x16 host-64:
+    // one BL8 burst = 8 device-words*16b = 128b = 2 host-64b beats -> quantum = 2.
+    localparam int DRAM_BL         = 8;   // matches ddr2_char_macro default (BL8)
+    localparam int BURST_LEN_MULTIPLE = (DRAM_BL * DRAM_DEVICE_WIDTH) / AXI_DATA_WIDTH;
     localparam int DFI_ADDR_BUS_W  = ROW_WIDTH * DFI_RATE;         // 52
     localparam int DFI_BANK_BUS_W  = 3 * DFI_RATE;                 // 12
 
@@ -222,6 +227,7 @@ module ddr2_char_top #(
         .DRAM_BEAT_WIDTH (DRAM_BEAT_WIDTH),
         .DRAM_DEVICE_WIDTH (DRAM_DEVICE_WIDTH),
         .DFI_RATE        (DFI_RATE),
+        .BURST_LEN_MULTIPLE(BURST_LEN_MULTIPLE),
         .ROW_WIDTH       (ROW_WIDTH),
         .FPGA_CLK_HZ     (75_000_000)   // sys is now 75 MHz -> UART baud divisor
         // DFI command->data alignment is now a runtime CSR (DFI_TUNING.cmd_delay,

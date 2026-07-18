@@ -261,6 +261,63 @@ async def cocotb_test_pumice_core_close(dut):
     dut._log.info(f"PASS: CLOSE policy (auto-precharge) — {n} bursts round-trip vs golden")
 
 
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_pumice_core_refresh_collide(dut):
+    """Directed refresh-vs-read collision (TASK-SCHED-REFRESH).
+
+    CLOSE policy (each read = ACT + RDA) + sustained SAME-bank page-hit reads +
+    a SMALL tREFI so a refresh lands between a read's ACT and its RDA. Two checks
+    fire on the bug (data-checking rule — never sequencing alone):
+      * the standalone command-history scoreboard (u_cmd_history) asserts on the
+        SEQUENCING violation (REFab granted while a bank row is still OPEN);
+      * the golden compare below asserts on the corrupted DATA (the read that
+        followed the refresh returns garbage).
+    Expected RED on current RTL, GREEN after the arbiter refresh-sequencing fix.
+    """
+    memory = await _bring_up(dut, page_policy=1)     # CLOSE / auto-precharge
+    dut.t_refi_i.value = 0x30                         # frequent refresh
+    BANK, ROW, N = 3, 5, 64
+
+    exp = []
+    for k in range(N):
+        addr = _mkaddr(BANK, ROW, k * BL)
+        data = [((k << 16) | (0xAB0 + i)) & ((1 << DW) - 1) for i in range(BL_WORDS)]
+        exp.append((addr, data))
+        await _aw(dut, addr, k & 0xF)
+        await _w(dut, data)
+    await ClockCycles(dut.aclk, 500)                 # drain writes into golden
+
+    got = []
+    async def _collect():
+        cur = []
+        while len(got) < N:
+            await RisingEdge(dut.aclk)
+            if int(dut.s_axi_rvalid.value) and int(dut.s_axi_rready.value):
+                cur.append(int(dut.s_axi_rdata.value) & ((1 << DW) - 1))
+                if int(dut.s_axi_rlast.value):
+                    got.append(cur); cur = []
+    dut.s_axi_rready.value = 1
+    cocotb.start_soon(_collect())
+
+    for k in range(N):                               # sustained same-bank reads
+        await _ar(dut, exp[k][0], k & 0xF)
+    for _ in range(6000):
+        if len(got) >= N:
+            break
+        await RisingEdge(dut.aclk)
+
+    bad = 0
+    for k, (addr, data) in enumerate(exp):
+        if k >= len(got) or got[k][:BL_WORDS] != data:
+            g = [hex(x) for x in got[k][:BL_WORDS]] if k < len(got) else "MISSING"
+            dut._log.info(f"read {k} @ {addr:#x}: {g} != {[hex(x) for x in data]}")
+            bad += 1
+    assert bad == 0, (f"refresh collided with {bad}/{N} same-bank reads "
+                      f"(golden data mismatch) — see CMD_HISTORY assertions for the "
+                      f"REFab-while-row-open sequencing violation")
+    dut._log.info(f"PASS: {N} same-bank reads clean across refreshes (no collision)")
+
+
 @cocotb.test(timeout_time=20, timeout_unit="ms")
 async def cocotb_test_pumice_core_waw(dut):
     """WAW ordering + read-your-write: two writes to the SAME address, then read
@@ -355,11 +412,14 @@ def _run(request, testcase):
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module, testcase=testcase,
         sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
-        compile_args=["+define+USE_ASYNC_RESET", "--public-flat-rw"],
-        waves=False, keep_files=True, timescale="1ns/1ps")
+        compile_args=["+define+USE_ASYNC_RESET", "--public-flat-rw", "--assert"],
+        waves=(os.environ.get("WAVES", "0") == "1"),
+        plus_args=(["--trace"] if os.environ.get("WAVES", "0") == "1" else []),
+        keep_files=True, timescale="1ns/1ps")
 
 
 def test_pumice_core_dfi(request):   _run(request, "cocotb_test_pumice_core_dfi")
+def test_pumice_core_refresh_collide(request): _run(request, "cocotb_test_pumice_core_refresh_collide")
 def test_pumice_core_close(request): _run(request, "cocotb_test_pumice_core_close")
 def test_pumice_core_waw(request):   _run(request, "cocotb_test_pumice_core_waw")
 def test_pumice_core_b2b(request):   _run(request, "cocotb_test_pumice_core_b2b")

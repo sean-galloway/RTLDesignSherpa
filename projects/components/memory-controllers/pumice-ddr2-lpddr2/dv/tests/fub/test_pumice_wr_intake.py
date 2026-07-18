@@ -110,10 +110,10 @@ async def cocotb_test_pumice_wr_intake_ragged(dut):
 # ---------------------------------------------------------------------------
 # Pytest wrappers
 # ---------------------------------------------------------------------------
-def _run(request, testcase, ragged_assert):
+def _run(request, testcase, ragged_assert, bl=4):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_wr_intake"
-    test_name = f"{testcase}"
+    test_name = f"{testcase}_bl{bl}"
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=_FILELIST
@@ -133,7 +133,7 @@ def _run(request, testcase, ragged_assert):
         "ROW_WIDTH":       "14",
         "COL_WIDTH":       "10",
         "BYTE_OFFSET_WIDTH": "3",
-        "BL":              "4",
+        "BL":              str(bl),
         "RAGGED_ASSERT":   str(ragged_assert),
     }
     extra_env = {
@@ -169,8 +169,21 @@ def _run(request, testcase, ragged_assert):
 
 
 def test_pumice_wr_intake(request):
-    _run(request, "cocotb_test_pumice_wr_intake", ragged_assert=1)
+    _run(request, "cocotb_test_pumice_wr_intake", ragged_assert=1, bl=4)
 
 
 def test_pumice_wr_intake_ragged(request):
-    _run(request, "cocotb_test_pumice_wr_intake_ragged", ragged_assert=0)
+    _run(request, "cocotb_test_pumice_wr_intake_ragged", ragged_assert=0, bl=4)
+
+
+# BL8 variants — the board config (DDR2 BL8 x16 / nphases=4). The stale BL4-only
+# coverage let the on-silicon-BL8 sub-DFI-word path (and the AxLEN==BL contract)
+# go untested at BL8; these close that gap. EXP_BEATS = BL/GEAR = 8 here.
+def test_pumice_wr_intake_bl8(request):
+    """Legal BL8 burst: (awlen+1)*GEAR == BL(8) -> decode + full data pass."""
+    _run(request, "cocotb_test_pumice_wr_intake", ragged_assert=1, bl=8)
+
+
+def test_pumice_wr_intake_ragged_bl8(request):
+    """Ragged BL8 burst: (awlen+1)*GEAR != BL(8) -> aw_push_err + bresp=SLVERR."""
+    _run(request, "cocotb_test_pumice_wr_intake_ragged", ragged_assert=0, bl=8)

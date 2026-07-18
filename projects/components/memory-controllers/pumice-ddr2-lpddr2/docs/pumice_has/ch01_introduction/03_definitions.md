@@ -32,7 +32,8 @@
 | AP      | Auto-Precharge (DRAM column command modifier)          |
 | APD     | Active Power Down                                      |
 | AXI     | Advanced eXtensible Interface (ARM AMBA)               |
-| BL      | Burst Length                                           |
+| AxLEN   | AXI burst length — the `AWLEN` / `ARLEN` signals (beats = `AxLEN`+1). NOT the DRAM BL: one AXI burst at core width is `(AxLEN+1)/DFI_RATE` DFI words and splits into fixed-BL DRAM commands. Use "AxLEN" whenever burst length refers to the AXI side, to avoid confusion with the JEDEC BL below. |
+| BL      | Burst Length — JEDEC/DRAM burst (MR0 device beats: BL4/BL8). Distinct from AxLEN. |
 | CA      | Command/Address (LPDDR2/3/4 multiplexed bus)           |
 | CDC     | Clock Domain Crossing                                  |
 | CL      | CAS Latency                                            |

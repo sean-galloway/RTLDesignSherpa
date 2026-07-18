@@ -347,9 +347,9 @@ async def _is_last_chunk_gate(tb: RdClAlignerTB):
 
 async def _intake_split_16chunks(tb: RdClAlignerTB):
     """FUB-level reproducer for the rd_cl_aligner EN-pipeline skip bug
-    observed at macro level as patho_bl256_n1 (RTLDesignSherpa#29).
+    observed at macro level as patho_AxLEN256_n1 (RTLDesignSherpa#29).
 
-    Scenario mirrors axi_intake's 16-way burst split: an AXI BL=64
+    Scenario mirrors axi_intake's 16-way burst split: an AxLEN64
     read gets split into 16 chunks of DRAM BL=4, each pushed as a
     fresh op_valid_i pulse. The macro trace showed 2 chunks (s11 and
     s13) got OP_ACCEPT + CAPTURE but no EN_CYC pulses, so their

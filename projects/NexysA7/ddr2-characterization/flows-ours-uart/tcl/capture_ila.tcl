@@ -34,20 +34,47 @@ set ila [get_hw_ilas -of_objects [current_hw_device]]
 # an EARLY trigger position so the post-trigger window captures the write burst +
 # command columns (and the following reads) — to check writes land beats at the
 # right DRAM columns with the bl-scaling split. "rd" triggers on rddata_valid.
+# "ref" triggers on a REFRESH command (ras_n AND cas_n both asserted — the unique
+# DDR2 REF encoding vs ACT=ras-only / RD|WR=cas-only), positioned MID-buffer so the
+# window shows the ACT before + the RD after the refresh — to see a refresh
+# colliding with an in-flight read (ACT->REF->RD).
 set trig [expr {$argc >= 2 ? [lindex $argv 1] : "wr"}]
-if {$trig eq "rd"} {
+if {$trig eq "ref"} {
+    # Compound trigger: BOTH ras_n and cas_n asserted (!= all-ones) => REF only.
+    # Basic ILA ANDs all probes that have a compare value set (global AND).
+    set pr [get_hw_probes -of_objects $ila *w_dfi_ras_n*]
+    set pc [get_hw_probes -of_objects $ila *w_dfi_cas_n*]
+    set wr [get_property WIDTH $pr]
+    set wc [get_property WIDTH $pc]
+    set onr [format %X [expr {(1 << $wr) - 1}]]
+    set onc [format %X [expr {(1 << $wc) - 1}]]
+    set_property TRIGGER_COMPARE_VALUE "neq${wr}'h${onr}" $pr
+    set_property TRIGGER_COMPARE_VALUE "neq${wc}'h${onc}" $pc
+    # Qualify with read activity so we only trigger on a refresh that lands WHILE
+    # reads are in flight (rddata_en != 0) — i.e. the ACT->REF->RD collision, not
+    # a refresh in an idle gap. Global-AND of all three compares.
+    if {![info exists env(CAP_REF_QUAL)] || $env(CAP_REF_QUAL) ne "0"} {
+        set pe [get_hw_probes -of_objects $ila *w_dfi_rddata_en*]
+        set we2 [get_property WIDTH $pe]
+        set_property TRIGGER_COMPARE_VALUE "neq${we2}'h0" $pe
+        puts "ILA armed (trigger: REF & rddata_en != 0 = refresh during a read)."
+    } else {
+        puts "ILA armed (trigger: REF = ras_n & cas_n both asserted). Waiting for a refresh ..."
+    }
+    set_property CONTROL.TRIGGER_POSITION [expr {[get_property CONTROL.DATA_DEPTH $ila] / 2}] $ila
+} elseif {$trig eq "rd"} {
     set p [get_hw_probes -of_objects $ila *w_dfi_rddata_valid*]
     set_property CONTROL.TRIGGER_POSITION [expr {[get_property CONTROL.DATA_DEPTH $ila] - 512}] $ila
+    set _pw [get_property WIDTH $p]
+    set_property TRIGGER_COMPARE_VALUE "neq${_pw}'h0" $p
     puts "ILA armed (trigger: dfi_rddata_valid != 0). Waiting for a UART read ..."
 } else {
     set p [get_hw_probes -of_objects $ila *w_dfi_wrdata_en*]
     set_property CONTROL.TRIGGER_POSITION 512 $ila
+    set _pw [get_property WIDTH $p]
+    set_property TRIGGER_COMPARE_VALUE "neq${_pw}'h0" $p
     puts "ILA armed (trigger: dfi_wrdata_en != 0). Waiting for a UART write ..."
 }
-# Width-agnostic "!= 0" — the probe width depends on DFI_RATE (2 bits at rate-2,
-# 4 bits at rate-4), so derive it instead of hardcoding 2'b00.
-set _pw [get_property WIDTH $p]
-set_property TRIGGER_COMPARE_VALUE "neq${_pw}'h0" $p
 run_hw_ila $ila
 # Block up to ~60 s for the trigger (the orchestrator drives a read meanwhile).
 wait_on_hw_ila -timeout 60 $ila

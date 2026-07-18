@@ -195,7 +195,7 @@ async def cocotb_test_pumice_core_macro(dut):
         # raise_on_error=True surfaces read_transaction BFM exceptions
         # (e.g. TimeoutError from a missing beat) as a clear RuntimeError
         # instead of a downstream NoneType shape-mismatch — see #31
-        # patho_bl256_n1 for the worked example that motivated this.
+        # patho_AxLEN256_n1 for the worked example that motivated this.
         rd_dicts = await run_axi4_sequence(
             rd_seq, master_rd=tb.axi_master_rd, raise_on_error=True,
         )
@@ -637,13 +637,14 @@ _DEPTH = [
     (16, 17, 18, 20, 24, 32, 48, 64, 96, 128, 1024)
 ]
 
-# --- 2. BL sweep × N=32, FIXED@0 (4 cfg)
+# --- 2. AxLEN sweep × N=32, FIXED@0 (4 cfg)
+# AxLEN = AXI burst length (BURST_LEN beats), NOT the JEDEC/DRAM BL (MR0).
 _BL = [
-    _eng(f"bl{bl}_n32", N=32, BURST_LEN=bl) for bl in (1, 2, 4, 8)
+    _eng(f"AxLEN{bl}_n32", N=32, BURST_LEN=bl) for bl in (1, 2, 4, 8)
 ]
-# --- 2b. BL sweep × N=128 (kb4 scale) (4 cfg)
+# --- 2b. AxLEN sweep × N=128 (kb4 scale) (4 cfg)
 _BL += [
-    _eng(f"bl{bl}_n128", N=128, BURST_LEN=bl) for bl in (1, 2, 4, 8)
+    _eng(f"AxLEN{bl}_n128", N=128, BURST_LEN=bl) for bl in (1, 2, 4, 8)
 ]
 
 # --- 3. id_mode × id_base sweep at N=64, BL=4 (12 cfg)
@@ -725,7 +726,7 @@ for mode in ("FIXED", "COUNTER", "LFSR"):
 # --- 9. Pathological smokes (5 cfg) — patho_n2048 restored post-mem-perf.
 _PATHO = [
     _eng("patho_single_burst",      N=1,    BURST_LEN=1),
-    _eng("patho_bl256_n1",          N=1,    BURST_LEN=64),
+    _eng("patho_AxLEN256_n1",      N=1,    BURST_LEN=64),  # AxLEN256 = 64-beat AXI burst
     _eng("patho_n2048",             N=2048),
     _eng("patho_high_id_counter",   N=128,  ID_MODE="COUNTER", AXI_ID_BASE=15),
     _eng(f"patho_lfsr_burst_pause_n{_SLOW_N}",
@@ -733,9 +734,9 @@ _PATHO = [
          SLAVE_PROFILE="burst_pause"),
 ]
 
-# --- 10. BL × N grid (16 cfg)  — every combination at default id_mode
+# --- 10. AxLEN × N grid (16 cfg)  — every combination at default id_mode
 _BL_N = [
-    _eng(f"grid_bl{bl}_n{n}", N=n, BURST_LEN=bl)
+    _eng(f"grid_AxLEN{bl}_n{n}", N=n, BURST_LEN=bl)
     for bl in (1, 2, 4, 8)
     for n in (16, 32, 64, 128)
 ]
@@ -847,18 +848,18 @@ for base in ("0x10000", "0x80000", "0x200000", "0x400000"):
             ))
 
 # --- 19. Deep-N variants (8 cfg) — RESTORED post-mem-perf.
-# BL=2 dropped: three N tiers × BL=2 didn't add coverage over BL=4/8
-# in the tail behavior; kept BL ∈ {4, 8} across four depth points.
+# AxLEN=2 dropped: three N tiers × AxLEN=2 didn't add coverage over AxLEN=4/8
+# in the tail behavior; kept AxLEN ∈ {4, 8} across four depth points.
 _DEEP_N = []
 for n in (256, 512, 1024, 2048):
     for bl in (4, 8):
-        _DEEP_N.append(_eng(f"deep_n{n}_bl{bl}", N=n, BURST_LEN=bl))
+        _DEEP_N.append(_eng(f"deep_n{n}_AxLEN{bl}", N=n, BURST_LEN=bl))
 
 # --- 20. Tiny / boundary fuzzed (12 cfg)
 _TINY = []
 for n in (1, 2, 3, 4):
     for bl in (1, 2, 4):
-        _TINY.append(_eng(f"tiny_n{n}_bl{bl}", N=n, BURST_LEN=bl))
+        _TINY.append(_eng(f"tiny_n{n}_AxLEN{bl}", N=n, BURST_LEN=bl))
 
 # Tiered matrices
 _ENG_GATE = [

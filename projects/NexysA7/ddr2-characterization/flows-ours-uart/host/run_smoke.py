@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 
 from ddr2_char import (
     DDR2CharDriver,
@@ -47,8 +48,13 @@ def main() -> int:
                     help="Beats per burst (AXI4 burst length)")
     ap.add_argument("--seed",       type=lambda s: int(s, 0), default=0xDEADBEEF)
     ap.add_argument("--timeout",    type=float, default=30.0)
-    ap.add_argument("--phy-wrlat",  type=int, default=4)
-    ap.add_argument("--phy-rdlat",  type=int, default=6)
+    ap.add_argument("--phy-wrlat",  type=int, default=0,
+                    help="PHY_TIMING.t_phy_wrlat (board known-good = 0)")
+    ap.add_argument("--phy-rdlat",  type=int, default=6,
+                    help="PHY_TIMING.t_rddata_en (board known-good = 6)")
+    ap.add_argument("--rddata-delay", type=int, default=8,
+                    help="DFI_TUNING.dfi_rddata_delay read-capture leveling "
+                         "(board known-good = 8; sweep with sweep_rddata_delay.py)")
     args = ap.parse_args()
 
     args.port = autodetect_port(args.baud, want=args.port)
@@ -62,18 +68,29 @@ def main() -> int:
         return 2
     print(f"identity ok: BUILD_ID=0x{bid:08X}")
 
-    # 2. Wait for controller init before touching cfg. If init_fail
-    #    latched, the whole run is a bust.
-    s = d.status()
-    if not s.init_done:
-        print(f"FAIL: controller init did not complete (init_done=0 "
+    # 2. Reset the DUT + pattern gen + CRC checker to a clean slate before the
+    #    run (soft_reset drives dp_aresetn over the mc-domain macro = controller
+    #    + wr-gen + rd-crc; harness_csr cfg persists). Without this, a wedged
+    #    read or a sticky rd_error latch from a prior run survives into this one
+    #    and reports a false failure. (STREAM lesson: reset dut+observer+gen/crc
+    #    between runs; clear_stats below resets the observer.)
+    d.soft_reset()
+    time.sleep(0.02)
+
+    # Wait for the post-reset controller init (soft_reset re-runs DRAM init).
+    for _ in range(200):
+        s = d.status()
+        if s.init_done or s.init_fail:
+            break
+        time.sleep(0.01)
+    if not s.init_done or s.init_fail:
+        print(f"FAIL: controller init did not complete (init_done={s.init_done} "
               f"init_fail={s.init_fail})", file=sys.stderr)
         return 2
     print(f"init ok: init_done=1 init_fail={s.init_fail}")
 
-    # 3. Runtime controller cfg. Values below are placeholders -- the real
-    #    numbers come from the JEDEC datasheet for MT47H64M16HR-25E once
-    #    a7ddrphy is wired up and calibration completes.
+    # 3. Runtime controller cfg. Board known-good bring-up point:
+    #    t_phy_wrlat=0, t_rddata_en=6, rd_phase=0, dfi_rddata_delay=8.
     d.set_controller_cfg(
         memtype     = MEMTYPE_DDR2,
         t_phy_wrlat = args.phy_wrlat,
@@ -81,6 +98,12 @@ def main() -> int:
         rd_in_order = False,
     )
     d.set_controller_cap(cap_lookahead_max=4, cap_synth_mask=0xF)
+    # Read-capture leveling: realign the captured DFI read data to the late
+    # dfi_rddata_valid. This is the knob the design-requirements DFI/PHY table
+    # calls "dfi_rddata_delay"; run_smoke previously never programmed it, so the
+    # read path ran at the reset default and every read mis-captured. Sweep with
+    # sweep_rddata_delay.py if the board eye moves.
+    d.set_dfi_rddata_delay(args.rddata_delay)
 
     # 4. Program both engines with a matching workload.
     #    - Linear stride: each burst covers blen*8 bytes (64b data bus).

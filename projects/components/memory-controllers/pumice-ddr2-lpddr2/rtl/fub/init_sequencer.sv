@@ -98,13 +98,17 @@ module init_sequencer
 
     //=========================================================================
     // Mode-register data (DDR2). MR0 mirrors LiteDRAM's mr + reset_dll:
-    //   mr = log2(BL=4)=2 | (CL=3 << 4)=0x30 | (tWR=3 << 9)=0x400 = 0x432
-    //   reset_dll = 1 << 8 = 0x100  ->  MR0+reset_dll = 0x532
+    //   mr = log2(BL=8)=3 | (CL=3 << 4)=0x30 | (tWR=3 << 9)=0x400 = 0x433
+    //   reset_dll = 1 << 8 = 0x100  ->  MR0+reset_dll = 0x533
     //   MR1(EMR)=0 (Rtt disabled, ODS full — matches LiteDRAM); OCD default =
     //   EMR | (7<<7) = 0x380; OCD exit = EMR = 0.
+    // BL8 (MR0[2:0]=011): at nphases=4 a BL8 x16 read fills one full 128b DFI
+    // word in ONE 8-slot PHY event (BL4 filled only 4 of 8 slots -> stale
+    // half; the on-silicon read-fail root cause). log2(BL) encoding: 2=BL4,
+    // 3=BL8.
     //=========================================================================
-    localparam logic [15:0] DDR2_MR0_DLL  = 16'h0532;  // BL4/CL3/tWR3/DLL_RESET
-    localparam logic [15:0] DDR2_MR0       = 16'h0432;  // same, DLL_RESET cleared
+    localparam logic [15:0] DDR2_MR0_DLL  = 16'h0533;  // BL8/CL3/tWR3/DLL_RESET
+    localparam logic [15:0] DDR2_MR0       = 16'h0433;  // same, DLL_RESET cleared
     localparam logic [15:0] DDR2_MR1       = 16'h0000;
     localparam logic [15:0] DDR2_MR1_OCD   = 16'h0380;  // OCD calibration default
     localparam logic [15:0] DDR2_MR2       = 16'h0000;

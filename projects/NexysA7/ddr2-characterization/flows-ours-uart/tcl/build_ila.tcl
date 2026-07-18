@@ -22,6 +22,16 @@ puts "========================================================================"
 
 source "$script_dir/create_project.tcl"
 
+# ---- Enable the aligner's param-gated deskew debug probes (ILA build only) ----
+# +define+DESKEW_DEBUG lights up the (* mark_debug *) nets inside
+# pumice_dfi_rd_aligner (deskew value reaching the aligner + raw vs deskewed
+# word). The release build (build_all.tcl) never sets this, so it stays clean.
+set _dbg_fs [get_filesets sources_1]
+set _dbg_def [get_property verilog_define $_dbg_fs]
+lappend _dbg_def "DESKEW_DEBUG"
+set_property verilog_define $_dbg_def $_dbg_fs
+puts "ILA build: +define+DESKEW_DEBUG (aligner deskew probes enabled)"
+
 # ---- Synthesis (keep MARK_DEBUG nets) ----
 puts "\n--- Synthesis ---"
 reset_run synth_1

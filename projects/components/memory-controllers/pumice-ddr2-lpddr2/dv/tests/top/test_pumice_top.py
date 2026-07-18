@@ -352,7 +352,13 @@ def _run(request, testcase, extra_env=None, params_over=None):
         toplevel=dut_name, module=module, testcase=testcase,
         sim_build=sim_build, simulator="verilator", extra_env=env, parameters=params,
         compile_args=["+define+USE_ASYNC_RESET", "--public-flat-rw", "-Wno-MULTIDRIVEN"],
-        waves=False, keep_files=True, timescale="1ns/1ps")
+        waves=(os.environ.get("WAVES", "0") == "1"),
+        # cocotb_test compiles --trace-fst under waves= but never passes the
+        # RUNTIME --trace argv (cocotb's verilator.cpp only opens dump.fst when
+        # the sim binary gets --trace), so waves alone produces no dump. Pass it
+        # through plus_args (runtime argv = [binary] + plus_args).
+        plus_args=(["--trace"] if os.environ.get("WAVES", "0") == "1" else []),
+        keep_files=True, timescale="1ns/1ps")
 
 
 # LPDDR2 traffic (reads AND writes) now works end-to-end: bit-exact JESD209-2F CA

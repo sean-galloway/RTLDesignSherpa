@@ -29,6 +29,7 @@ module pumice_top
     parameter int BL             = 8,
     parameter int NUM_ENTRIES    = 8,
     parameter int N_SRAM_SLOTS   = 8,
+    parameter int DESKEW_W       = 1,     // per-beat read-deskew field width (1 = 0..1 cyc)
 
     parameter int DW  = DRAM_BEAT_WIDTH * DFI_RATE,
     parameter int SW  = DW / 8,
@@ -133,7 +134,7 @@ module pumice_top
         .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH),
         .DFI_RATE(DFI_RATE), .DRAM_BEAT_WIDTH(DRAM_BEAT_WIDTH),
         .DRAM_DEVICE_WIDTH(DRAM_DEVICE_WIDTH), .BL(BL),
-        .NUM_ENTRIES(NUM_ENTRIES), .N_SRAM_SLOTS(N_SRAM_SLOTS)
+        .NUM_ENTRIES(NUM_ENTRIES), .N_SRAM_SLOTS(N_SRAM_SLOTS), .DESKEW_W(DESKEW_W)
     ) u_core (
         .aclk(aclk), .aresetn(aresetn), .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn),
         .memtype_i(w_memtype), .page_policy_i(w_page_policy),
@@ -162,6 +163,9 @@ module pumice_top
         .wr_phase_i(hwif_out.DFI_PHASE.wr_phase.value[PHW-1:0]),
         .t_phy_wrlat_i(hwif_out.PHY_TIMING.t_phy_wrlat.value),
         .t_rddata_en_i(hwif_out.PHY_TIMING.t_rddata_en.value),
+        // CSR fields are 2-bit; take the low DESKEW_W bits for the sized core port.
+        .deskew_lo_i(hwif_out.PHY_TIMING.deskew_lo.value[DESKEW_W-1:0]),
+        .deskew_hi_i(hwif_out.PHY_TIMING.deskew_hi.value[DESKEW_W-1:0]),
         .gear_i(hwif_out.DFI_PHASE.gear_ratio.value),
         .bl_i(hwif_out.DFI_PHASE.bl.value),
         .cl_o(), .cwl_o(), .bl_o(), .init_done_o(init_done_o),

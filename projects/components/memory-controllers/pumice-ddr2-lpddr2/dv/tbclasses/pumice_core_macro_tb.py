@@ -21,6 +21,7 @@ the profile-sweep matrix.
 from __future__ import annotations
 
 import logging
+import os as _os
 from typing import Optional
 
 import cocotb
@@ -103,8 +104,12 @@ class DDR2LPDDR2CoreMacroTB:
             log=self.log,
         )
 
-        # Same BL=4 lock-step contract as the top-level TB.
-        self.dram_bl = 4
+        # DRAM burst length — MUST match the DUT (pumice_core_tb_top BL, default
+        # 8). The BFM queues beats_per_burst pending device-word columns per WR
+        # command; if it undercounts (e.g. stale 4 vs a BL8 DUT) it drops the
+        # burst's upper half as "stray" -> false WR-path corruption. Override via
+        # TEST_DRAM_BL to match a non-default DUT BL.
+        self.dram_bl = int(_os.environ.get("TEST_DRAM_BL", "8"))
         self.dfi_base = DFIBase(
             dfi_version=DFIVersion.V2_1,
             memory_type=MemoryType.DDR2,

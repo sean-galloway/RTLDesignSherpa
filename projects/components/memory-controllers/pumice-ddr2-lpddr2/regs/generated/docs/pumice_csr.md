@@ -757,7 +757,7 @@ when DFI_RATE &lt; the field width.</p>
 | 2:0 | rd_phase |  rw  | 0x0 |  — |
 | 6:4 | wr_phase |  rw  | 0x0 |  — |
 | 8:7 |gear_ratio|  rw  | 0x2 |  — |
-| 12:9|    bl    |  rw  | 0x4 |  — |
+| 12:9|    bl    |  rw  | 0x8 |  — |
 |31:13|   RSVD   |   r  | 0x0 |  — |
 
 #### rd_phase field
@@ -798,7 +798,9 @@ request. All hw-readable so they drive the controller core.</p>
 |  16 |   memtype   |  rw  | 0x0 |  — |
 |19:17|    RSVD0    |   r  | 0x0 |  — |
 |23:20|refresh_burst|  rw  | 0x1 |  — |
-|31:24|    RSVD1    |   r  | 0x0 |  — |
+|25:24|  deskew_lo  |  rw  | 0x0 |  — |
+|27:26|  deskew_hi  |  rw  | 0x0 |  — |
+|31:28|    RSVD1    |   r  | 0x0 |  — |
 
 #### t_phy_wrlat field
 
@@ -819,6 +821,14 @@ request. All hw-readable so they drive the controller core.</p>
 #### refresh_burst field
 
 <p>REFs drained per request (1..8)</p>
+
+#### deskew_lo field
+
+<p>read DESKEW: low 64b beat capture delay (DFI cyc)</p>
+
+#### deskew_hi field
+
+<p>read DESKEW: high 64b beat capture delay (DFI cyc)</p>
 
 #### RSVD1 field
 

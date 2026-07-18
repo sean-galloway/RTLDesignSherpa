@@ -44,7 +44,7 @@
 //   rtl/amba/axi4/axi4_slave_wr.sv
 //   rtl/amba/axi4/axi4_slave_rd.sv
 //   rtl/amba/gaxi/gaxi_fifo_sync.sv
-//   projects/components/stream/rtl/fub/axi_write_engine.sv
+//   projects/components/dmas/stream/rtl/fub/axi_write_engine.sv
 //   docs/pumice_mas/ch02_blocks/02_axi4_slave.md
 //
 // Author: sean galloway

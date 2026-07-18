@@ -127,6 +127,10 @@ sweep-rddly:
 	@echo "[sweep-rddly] sweep DFI_TUNING.rddata_delay 0..15, report beats_mismatched"
 	@cd $(SELF_DIR)/host && python3 sweep_rddata_delay.py --port $(UART) --baud $(BAUD)
 
+train-deskew:
+	@echo "[train-deskew] sweep PHY_TIMING.deskew_lo x deskew_hi, find beats_mismatched==0"
+	@cd $(SELF_DIR)/host && python3 train_deskew.py --port $(UART) --baud $(BAUD)
+
 simple:
 	@echo "[simple] init (+leveling) + one write-then-read integrity pass"
 	@cd $(SELF_DIR)/host && python3 pumice_master.py --port $(UART) --baud $(BAUD) --simple

@@ -46,8 +46,25 @@ def drive_reads(port, baud):
     # internally), read data delayed 8 cycles to meet the late rddata_valid. This
     # capture measures where the 2nd DFI cycle (beats 2,3) lands on the DELAYED
     # net (w_dfi_rddata_dly) vs the raw net + valid.
-    d.set_dfi_phase(rd_phase=0, wr_phase=0)
+    _rdph = int(os.environ.get("CAP_RDPHASE", "0"))
+    d.set_dfi_phase(rd_phase=_rdph, wr_phase=0)
+    print(f"[uart] rd_phase={_rdph}", flush=True)
     d.set_dfi_rddata_delay(int(os.environ.get("CAP_RDDLY", "8")))
+    # Per-beat deskew under test. Capture once at 0/0 and once at the trained
+    # value (e.g. CAP_DESKEW_HI=1) and diff the aligner's w_dbg_rd_data probe:
+    # if the high 64b beat shifts, the deskew reaches the aligner and works
+    # (real skew != model); if identical, the CSR isn't reaching the aligner.
+    _dlo = int(os.environ.get("CAP_DESKEW_LO", "0"), 0)
+    _dhi = int(os.environ.get("CAP_DESKEW_HI", "0"), 0)
+    d.set_deskew(deskew_lo=_dlo, deskew_hi=_dhi)
+    print(f"[uart] deskew lo={_dlo} hi={_dhi}", flush=True)
+    # Optional: stress refresh recovery (small tREFI) to expose a tRFC (REF->ACT)
+    # violation on silicon — the sim scoreboard flagged ACT issued too soon after
+    # REFab. CAP_TREFI=0 (default) leaves the board's programmed tREFI alone.
+    _trefi = int(os.environ.get("CAP_TREFI", "0"), 0)
+    if _trefi:
+        d.set_refresh_interval(_trefi)
+        print(f"[uart] tREFI set to {_trefi} (stress refresh recovery)", flush=True)
     # One LARGE contiguous burst so the read-data stream is many back-to-back DFI
     # cycles — makes the "every other read cycle is garbage" cadence unmistakable
     # (vs. short BL4 reads where it looks like a per-command 2nd-cycle loss).
@@ -73,8 +90,11 @@ def main():
     ap.add_argument("--port", default="auto")
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--out", default=os.path.join(_SELF, "reports/ila_capture.csv"))
-    ap.add_argument("--trig", default="wr", choices=["wr", "rd"],
-                    help="ILA trigger: wr=wrdata_en (default), rd=rddata_valid")
+    ap.add_argument("--trig", default="wr", choices=["wr", "rd", "ref"],
+                    help="ILA trigger: wr=wrdata_en (default), rd=rddata_valid, "
+                         "ref=REF refresh command (ras_n & cas_n both asserted) — "
+                         "use a large CAP_TXN so reads stream continuously and a "
+                         "refresh lands mid-read (the ACT->REF->RD collision)")
     args = ap.parse_args()
 
     tcl = os.path.join(_SELF, "tcl/capture_ila.tcl")

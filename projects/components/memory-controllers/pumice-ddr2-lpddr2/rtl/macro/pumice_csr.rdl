@@ -219,13 +219,14 @@ addrmap pumice_csr {
         // JEDEC burst length (MR0 device beats): 4, 8, or 16. The SINGLE source
         // of truth for the burst geometry (task #146). Combined with gear_ratio
         // it selects the ACTIVE sub-DFI-word framing at runtime: when one DFI
-        // word packs N = DFI_RATE/(bl>>BL_SHIFT) JEDEC bursts (board: gear 1:4 +
-        // x16 BL4 => N=2), the DFI layer issues N consecutive-column DRAM
-        // commands per AXI beat. The controller datapath is BUILT for MAX (this
-        // build = BL4), so a wrong value here is BAD CONFIG PROGRAMMING, never a
-        // synth mismatch. Reset = 4 matches the board (DDR2 BL4). It also carries
+        // word packs N = DFI_RATE/(bl>>BL_SHIFT) JEDEC bursts. The controller
+        // datapath is BUILT for MAX, so a wrong value here is BAD CONFIG
+        // PROGRAMMING, never a synth mismatch. Reset = 8 matches the board (DDR2
+        // BL8): at nphases=4/x16 a BL8 read fills one full 128b DFI word in one
+        // 8-slot PHY event (N=1, no sub-word packing) — BL4 filled only half the
+        // window (stale) = the on-silicon read-fail root cause. It also carries
         // the burst length that MR0 encodes, so software programs one value.
-        field { sw = rw; hw = r; desc = "JEDEC burst length (MR0 device beats): 4/8/16"; } bl[12:9] = 4'd4;
+        field { sw = rw; hw = r; desc = "JEDEC burst length (MR0 device beats): 4/8/16"; } bl[12:9] = 4'd8;
         field { sw = r;  hw = na; desc = "Reserved";                   } RSVD[31:13]      = 19'h0;
 
     } DFI_PHASE @ 0x060;
@@ -242,7 +243,14 @@ addrmap pumice_csr {
         field { sw = rw; hw = r; desc = "0=DDR2, 1=LPDDR2";                    } memtype[16:16]     = 1'b0;
         field { sw = r;  hw = na; desc = "Reserved";                           } RSVD0[19:17]      = 3'h0;
         field { sw = rw; hw = r; desc = "REFs drained per request (1..8)";     } refresh_burst[23:20] = 4'd1;
-        field { sw = r;  hw = na; desc = "Reserved";                           } RSVD1[31:24]      = 8'h0;
+        // Per-beat DFI read DESKEW (class-B capture-alignment / leveling knobs).
+        // The a7ddrphy returns the two 64b beats of a 128b DFI word at DIFFERENT
+        // capture latencies; deskew_lo/hi independently delay the LOW/HIGH beat
+        // capture (0..3 DFI cycles) to realign them. Trained at bring-up (sweep
+        // for beats_mismatched==0). 0/0 = bit-identical. Change only when idle.
+        field { sw = rw; hw = r; desc = "read DESKEW: low 64b beat capture delay (DFI cyc)";  } deskew_lo[25:24] = 2'd0;
+        field { sw = rw; hw = r; desc = "read DESKEW: high 64b beat capture delay (DFI cyc)"; } deskew_hi[27:26] = 2'd0;
+        field { sw = r;  hw = na; desc = "Reserved";                           } RSVD1[31:28]      = 4'h0;
 
     } PHY_TIMING @ 0x064;
 

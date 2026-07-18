@@ -70,6 +70,9 @@ module ddr2_char_harness
     parameter int DRAM_BEAT_WIDTH     = AXI_DATA_WIDTH,
     parameter int DRAM_DEVICE_WIDTH   = DRAM_BEAT_WIDTH,  // physical DRAM x-width (x16=>16)
     parameter int DFI_RATE            = 2,
+    // Legal-AxLEN quantum forwarded to the engines (= AXI beats per DRAM burst).
+    // 1 = unconstrained (default); ddr2_char_top sets the board value.
+    parameter int BURST_LEN_MULTIPLE  = 1,
     // Bus widths are phase-packed: width = per-phase-width * DFI_RATE. These
     // must track DFI_RATE (were hardcoded at the rate-2 values).
     parameter int DFI_ADDR_BUS_W      = ROW_WIDTH * DFI_RATE,
@@ -651,6 +654,7 @@ module ddr2_char_harness
         .DRAM_BEAT_WIDTH  (DRAM_BEAT_WIDTH),
         .DRAM_DEVICE_WIDTH(DRAM_DEVICE_WIDTH),
         .DFI_RATE         (DFI_RATE),
+        .BURST_LEN_MULTIPLE(BURST_LEN_MULTIPLE),
         .AXI_ID_WIDTH     (AXI_ID_WIDTH),
         .AXI_USER_WIDTH   (AXI_USER_WIDTH),
         .ROW_WIDTH        (ROW_WIDTH),

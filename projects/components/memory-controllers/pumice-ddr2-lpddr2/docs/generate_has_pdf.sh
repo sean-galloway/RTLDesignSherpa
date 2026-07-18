@@ -12,7 +12,7 @@ set -euo pipefail
 #
 # This script builds the DDR2/LPDDR2 Family Controller HAS document
 # (DOCX and PDF) from Markdown sources using md_to_docx.py.
-# Modeled directly on RTLDesignSherpa/projects/components/stream/docs/
+# Modeled directly on RTLDesignSherpa/projects/components/dmas/stream/docs/
 # generate_has_pdf.sh.
 # ------------------------------------------------------------
 

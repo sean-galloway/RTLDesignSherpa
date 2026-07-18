@@ -112,6 +112,13 @@ module axi4_master_rd_crc_check #(
     parameter int INDEX_WIDTH     = 16,
     parameter int STRIDE_WIDTH    = 24,
 
+    // Legal-AxLEN quantum: AXI beats per DRAM burst; cfg_burst_len MUST be a
+    // nonzero integer multiple of this (one AXI burst -> integer DRAM bursts).
+    // Project-specific (DRAM BL x gear x device width) -> a PARAMETER. 1 =
+    // unconstrained (default). A non-conforming arlen SLVERR/partial-writes at
+    // the intake and the CRC read-back then mismatches. Mirror of the write gen.
+    parameter int BURST_LEN_MULTIPLE = 1,
+
     // ---- Debug observability ----
     // When > 0, instantiate a `DBG_FIFO_DEPTH`-deep gaxi_fifo_sync that
     // captures (actual_rdata, expected_data, mismatch_bit) on every R
@@ -215,6 +222,26 @@ module axi4_master_rd_crc_check #(
     output logic [DW-1:0]              dbg_expected,
     output logic                       dbg_mismatch
 );
+
+    //==========================================================================
+    // Config guard — the AxLEN==integer-multiple-of-DRAM-burst requirement (read
+    // side). On each cfg_start, verify cfg_burst_len is a nonzero multiple of
+    // BURST_LEN_MULTIPLE (AXI beats per DRAM burst). A non-conforming value SLVERRs
+    // / partial-reads at the intake and the CRC read-back mismatches. Sim-only
+    // ($error); the host must validate before programming BLEN_TXN on silicon.
+    // Skipped when BURST_LEN_MULTIPLE==1 (unconstrained). Mirror of the write gen.
+    //==========================================================================
+`ifndef SYNTHESIS
+    always_ff @(posedge aclk) begin
+        if (aresetn && cfg_start && (BURST_LEN_MULTIPLE > 1)) begin
+            assert (cfg_burst_len != 8'd0)
+                else $error("axi4_master_rd_crc_check: cfg_burst_len=0 illegal");
+            assert ((32'(cfg_burst_len) % BURST_LEN_MULTIPLE) == 0)
+                else $error("axi4_master_rd_crc_check: cfg_burst_len=%0d not a multiple of BURST_LEN_MULTIPLE=%0d (AXI beats per DRAM burst) -> ragged burst -> SLVERR/partial read",
+                            cfg_burst_len, BURST_LEN_MULTIPLE);
+        end
+    end
+`endif
 
     //==========================================================================
     // FSM — fully decoupled AR and R (two independent addr-gens). arvalid

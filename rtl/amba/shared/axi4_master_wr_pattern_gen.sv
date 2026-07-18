@@ -96,6 +96,14 @@ module axi4_master_wr_pattern_gen #(
     parameter int INDEX_WIDTH     = 16,
     parameter int STRIDE_WIDTH    = 24,
 
+    // Legal-AxLEN quantum: the number of AXI beats that make one DRAM burst, i.e.
+    // cfg_burst_len MUST be a nonzero integer multiple of this (one AXI burst maps
+    // to an integer number of DRAM bursts). Project-specific — depends on the DRAM
+    // BL, the AXI:DRAM-beat gear, and the device width — so it is a PARAMETER. 1 =
+    // unconstrained (default; no check). A non-conforming cfg_burst_len yields a
+    // ragged final sub-command in pumice_wr_splitter -> SLVERR / partial write.
+    parameter int BURST_LEN_MULTIPLE = 1,
+
     // ---- Aliases ----
     parameter int IW = AXI_ID_WIDTH,
     parameter int AW = AXI_ADDR_WIDTH,
@@ -193,6 +201,27 @@ module axi4_master_wr_pattern_gen #(
     input  logic                       m_axi_bvalid,
     output logic                       m_axi_bready
 );
+
+    //==========================================================================
+    // Config guard — the AxLEN==integer-multiple-of-DRAM-burst requirement.
+    // On each cfg_start, verify cfg_burst_len is a nonzero multiple of
+    // BURST_LEN_MULTIPLE (AXI beats per DRAM burst). A non-conforming value would
+    // otherwise SILENTLY produce a ragged final sub-command (pumice_wr_splitter)
+    // that SLVERRs / partial-writes at pumice_wr_intake. Sim-only ($error); on
+    // silicon the host must validate before programming BLEN_TXN. Skipped when
+    // BURST_LEN_MULTIPLE==1 (unconstrained).
+    //==========================================================================
+`ifndef SYNTHESIS
+    always_ff @(posedge aclk) begin
+        if (aresetn && cfg_start && (BURST_LEN_MULTIPLE > 1)) begin
+            assert (cfg_burst_len != 8'd0)
+                else $error("axi4_master_wr_pattern_gen: cfg_burst_len=0 illegal");
+            assert ((32'(cfg_burst_len) % BURST_LEN_MULTIPLE) == 0)
+                else $error("axi4_master_wr_pattern_gen: cfg_burst_len=%0d not a multiple of BURST_LEN_MULTIPLE=%0d (AXI beats per DRAM burst) -> ragged burst -> SLVERR/partial write",
+                            cfg_burst_len, BURST_LEN_MULTIPLE);
+        end
+    end
+`endif
 
     //==========================================================================
     // FSM — fully decoupled AW and W (two independent addr-gens). awvalid

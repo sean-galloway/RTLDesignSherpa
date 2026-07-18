@@ -35,5 +35,5 @@ JEDEC era) into a single controller engine with a swappable command encoder.
 | [`ddr3-lpddr3/`](ddr3-lpddr3/) | DDR3 + LPDDR3 unified | v3.1 | Planned; structure only |
 | [`ddr4-lpddr4/`](ddr4-lpddr4/) | DDR4 + LPDDR4 unified | v4.0 | Planned; structure only |
 
-See [`../stream/README.md`](../stream/README.md) for the per-component
+See [`../dmas/stream/README.md`](../dmas/stream/README.md) for the per-component
 layout convention this directory follows.

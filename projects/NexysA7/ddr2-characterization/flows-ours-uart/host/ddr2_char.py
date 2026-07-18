@@ -231,6 +231,12 @@ class DDR2CharDriver:
         # regmap). By-name access via self.regs.<op> / self.regs.<REG>.<field>.
         self.regs = Device(self.bridge, "harness", regs_base=HARNESS_CSR_BASE,
                            regmap_file=HARNESS_REGMAP)
+        # Legal-AxLEN quantum (AXI beats per DRAM burst): program_wr/rd_engine
+        # rejects a burst_len that is not a nonzero multiple of this, so one AXI
+        # burst always maps to an integer number of DRAM bursts (else the HW
+        # SLVERRs / partial-transfers and the read-back mismatches). Mirrors the
+        # RTL BURST_LEN_MULTIPLE param. Board (BL8 x16 host-64) = 2; 1 disables.
+        self.burst_len_multiple = 1
         # pumice controller CSR (APB slave) as its own named Device. Owns the
         # controller runtime knobs (DFI phase, paging, refresh, scheduler) by
         # name; the driver methods below delegate to it. 12-bit APB addr, 32b data.
@@ -289,6 +295,14 @@ class DDR2CharDriver:
         self.regs.write("CTRLR_CAP",
                         cap_lookahead_max=cap_lookahead_max & 0xF,
                         cap_synth_mask=cap_synth_mask & 0xF)
+
+    def set_deskew(self, deskew_lo: int = 0, deskew_hi: int = 0) -> None:
+        """Per-64b-beat read DESKEW (PHY_TIMING.deskew_lo/hi). The a7ddrphy returns
+        the two 64b beats of a 128b DFI word at different capture latencies; these
+        independently delay the LOW/HIGH beat capture to realign them. Train at
+        bring-up (sweep for beats_mismatched==0); set while idle. rmw preserves the
+        other PHY_TIMING fields (t_phy_wrlat/t_rddata_en/memtype/refresh_burst)."""
+        self.pumice.set_deskew(deskew_lo=deskew_lo, deskew_hi=deskew_hi)
 
     def set_dfi_cmd_delay(self, cmd_delay: int) -> None:
         """Real-time DFI command->write-data alignment (a7ddrphy
@@ -377,6 +391,14 @@ class DDR2CharDriver:
                         axi_id, id_mode, axi_size, axi_burst, data_mode,
                         lfsr_seed, hash_seed0, hash_seed1, hash_seed2) -> None:
         """Program one pattern engine's cfg registers by name (pfx = WR|RD)."""
+        q = getattr(self, "burst_len_multiple", 1)
+        if q > 1 and (burst_len == 0 or burst_len % q != 0):
+            raise ValueError(
+                f"{pfx} burst_len={burst_len} must be a nonzero multiple of the "
+                f"DRAM-burst quantum ({q} AXI beats/DRAM burst): one AXI burst "
+                f"must map to an integer number of DRAM bursts, else the HW "
+                f"SLVERRs / partial-transfers. Use a multiple of {q}, or set "
+                f"driver.burst_len_multiple=1 to disable this guard.")
         r = self.regs
         r.write_word(f"{pfx}_START_ADDR",  start_addr)
         r.write_word(f"{pfx}_STRIDE_0",    stride_0 & 0xFFFFFFFF)

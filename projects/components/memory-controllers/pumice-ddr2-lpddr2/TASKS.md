@@ -91,3 +91,94 @@ decoder folds AP into the opcode → returns WRA/RDA → fell through → no pen
 wrdata_en became "stray data beats" and the write was silently dropped. Fix: fold
 WRA→WR and RDA→RD in `_handle_command` (auto-precharge already carried in addr bit 10
 for both paths). All LPDDR2 traffic tests now pass; xfail removed.
+
+## TASK-SCHED-REFRESH: refresh collides with an open row (arbiter registered-feedback hazard) — OPEN
+
+**Bug (#2, command-sequencing).** The arbiter (`pumice_cmd_arbiter`) can grant a
+`REFab` immediately after an `ACT` to the same bank WITHOUT a `PRE` in between —
+refreshing a row that is still open — and the following `RD` then returns garbage
+(zero) for that one read. Root: the per-bank "safe signals" (`pumice_bank_timers`
+readiness) are COARSE and REGISTERED (2-cycle event→ready latency, see the
+`r_guard` note in the arbiter), so the combinational picker issues the `ACT`, and
+the refresh path's precharge-before-REF check does not yet see the just-opened row
+→ REF fires with the row open.
+
+**Reproduced pre-silicon** in `engine_mirror[64]` (`test_pumice_top`), gear-2/BL8,
+sustained b2b: burst 25 shows `ACT@31920000 → REF@31940000 (no PRE) → RD@31980000`
+→ read returns `0x0` (golden `0x190000`); refresh cadence ~10.25 µs lands on one
+read. On the BOARD (gear-4, ILA `reports/ila_refresh_collide.csv`) the refresh is
+correctly sequenced (`RD→PRE→REF→ACT→RD`, no collision) — so this is NOT the board
+blocker (the board fails on the separate device-word / half-DFI-word phase skew),
+but it IS a real arbiter defect.
+
+**Instrument (built, needs wiring):** `dv/checkers/pumice_cmd_history_checker.sv` —
+a FINE-GRAINED per-(rank,bank) command-history shift register (slot = cycles-since
+issue) that binds to the arbiter's `cmd_valid/op/rank/bank` and audits JEDEC
+same-bank sequencing the coarse gate misses. Ships the refresh-collision assertion
+(no `REFab` with any bank row open) plus optional tRCD/tRP/tRAS positional checks.
+Coarse = *permission to issue* (forward, lossy); fine = *record of what issued*
+(backward, exact) — you need the fine one to audit the coarse one.
+
+**TODO:**
+1. `bind` the checker in the arbiter FUB (`test_pumice_cmd_arbiter`) and/or the
+   scheduler MACRO (`test_pumice_core_macro`) TBs; add `--assert` to the verilator
+   compile args.
+2. Reproduce #2 as a directed pre-silicon test — small `tREFI` + sustained
+   same-bank reads → the checker fires RED. **The test MUST also do DATA checking**
+   (golden read compare), not just the sequencing assertion.
+3. Fix the arbiter refresh sequencing: the precharge-before-REF logic must account
+   for a just-issued `ACT` (don't grant `REF`/`REFab` while any bank's most-recent
+   row-affecting op is an `ACT`), or block the `ACT` when a refresh is being
+   sequenced. Mirror the fix in `refresh_ctrl`/`pumice_cmd_arbiter`.
+4. Re-verify: checker GREEN, `engine_mirror[64]` burst-25 read == golden, macro
+   109 + gear2 + FUB stay green.
+
+Scope note: this checker catches command-SEQUENCING bugs only. The board's actual
+read blocker is the DFI-read device-word/phase skew (data-path) — see
+`[[project_pumice_pipeline_board_read_regression]]`; pair this with the
+DFI-read-boundary device-word DATA check for that class.
+
+## TASK-DESKEW: per-beat DFI read deskew (the board read fix) — IN PROGRESS
+
+The board read blocker is a HALF-DFI-WORD PHASE SKEW: the a7ddrphy returns the two
+64b beats of a 128b DFI read word at DIFFERENT capture latencies (the two packed
+sub-reads arrive skewed in time), so a single whole-word capture takes one beat
+correct and the other STALE from the previous read -> exactly 2-of-4 device-words
+wrong, EVERY read, INVARIANT to rddata_delay (which shifts both beats together and
+so can never fix a skew BETWEEN them). This is why leveling found "no passing tap".
+
+FIX: independent per-64b-beat capture delays. `deskew_lo`/`deskew_hi` slide the
+LOW/HIGH beat capture (0..3 DFI cycles) so the earlier beat is delayed to meet the
+later one. Class-B leveling knobs (config, trained at bring-up, change only when
+idle). Trainable — sweep deskew for beats_mismatched==0; structural + stable
+(train-once), like bitslip/tap.
+
+DONE:
+- `pumice_dfi_rd_aligner.sv`: per-beat delay lines, runtime max-deskew capture so
+  deskew 0/0 is BIT-IDENTICAL, zero added latency. Verified (3 existing aligner
+  FUB pass; macro 398 pass — no fallout).
+- Red->green FUB: `test_pumice_dfi_rd_aligner_deskew` (deskew_hi=1 realigns a
+  modelled skewed stream -> correct) + `_deskew_red` (deskew_hi=0 -> the 2/4
+  corruption baseline). No PHY model needed.
+- CSR: `PHY_TIMING.deskew_lo[25:24]`/`deskew_hi[27:26]` (regen in lockstep,
+  regmap synced). Threaded top->core->dfi_layer->aligner. Top wr_rd_roundtrip
+  green (bit-identical at reset default 0/0).
+
+DONE (cont.):
+- FAITHFUL model hook: opt-in per-64b-beat skew in DFISlavePHY (RDS-DV,
+  `read_hi_skew`/`read_lo_skew`, default 0 = bit-identical; char rate4_x16 skew-off
+  3/3 pass). Char env knobs `TEST_READ_HI_SKEW`/`TEST_DESKEW_HI`.
+- Host `set_deskew()` (pumice_device -> PHY_TIMING by name) + `train_deskew.py`
+  sweep (deskew_lo x deskew_hi, phase-distinct pattern, pick mism==0) + `make
+  train-deskew`.
+
+DONE (integration red->green):
+- Refined the model to a per-cycle 1-deep DQ-bus pipeline (`_skew_post`, run EVERY
+  dfi cycle incl. idle, via `_skew_cur` set by the serve step) so read N's high
+  beat lands on cycle N+1 (the trailing-cycle drive the crude hold lacked).
+  `test_ddr2_char_uart_pagehit_rate4_x16_deskew` (skew=1 + deskew_hi=1) PASSES
+  (mism==0); skew=1/deskew=0 fails (the 2/4). Skew-off rate4_x16 stays green.
+
+TODO:
+1. Board: rebuild bitstream, `make train-deskew`, confirm reads clean (the standing
+   silicon blocker). Expected ~deskew_lo=0/deskew_hi=1.

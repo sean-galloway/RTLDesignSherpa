@@ -84,7 +84,9 @@ class Pumice(Device):
         PRESERVED by default: pass gear_ratio/bl=None (default) to read-modify-
         write and keep whatever the RTL reset / a prior write established, or pass
         explicit values. The board build's RTL reset is gear_ratio=2 (=1:4,
-        matching the fixed nphases=4 a7ddrphy) and bl=4 (DDR2 BL4), so the None
+        matching the fixed nphases=4 a7ddrphy) and bl=8 (DDR2 BL8 — a BL8 x16
+        read fills one full 128b DFI word in one 8-slot PHY event; BL4 filled
+        only half -> stale -> the on-silicon read-fail root cause), so the None
         defaults leave the board (and the rate-4 sim) correct as intended."""
         if gear_ratio is None and bl is None:
             # rmw: splice rd/wr phase in, leave gear_ratio/bl (+ any other bits)
@@ -127,6 +129,19 @@ class Pumice(Device):
             kw["t_rddata_en"] = t_rddata_en & 0xFF
         if refresh_burst is not None:
             kw["refresh_burst"] = refresh_burst & 0xF
+        if kw:
+            self.regs.write("PHY_TIMING", rmw=True, **kw)
+
+    def set_deskew(self, *, deskew_lo: Optional[int] = None,
+                   deskew_hi: Optional[int] = None) -> None:
+        """PHY_TIMING @ APB 0x064 deskew_lo[25:24]/deskew_hi[27:26]: per-64b-beat
+        read-capture DESKEW (realigns the two beats of a 128b DFI word the
+        a7ddrphy returns skewed). Trained at bring-up; set while idle. rmw."""
+        kw: Dict[str, int] = {}
+        if deskew_lo is not None:
+            kw["deskew_lo"] = deskew_lo & 0x3
+        if deskew_hi is not None:
+            kw["deskew_hi"] = deskew_hi & 0x3
         if kw:
             self.regs.write("PHY_TIMING", rmw=True, **kw)
 

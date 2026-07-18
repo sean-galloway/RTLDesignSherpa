@@ -228,3 +228,69 @@ def test_pumice_dfi_rd_aligner_tccd_paced(request):
 def test_pumice_dfi_rd_aligner_backpressure(request):
     # Multi-outstanding + op_ready backpressure with a small tracking depth.
     _run_fub("cocotb_test_rd_aligner_backpressure", bl_words=1, max_outstanding=2)
+
+
+@cocotb.test(timeout_time=3, timeout_unit="ms")
+async def cocotb_test_rd_aligner_deskew(dut):
+    """Per-beat DESKEW. Models the a7ddrphy read skew: the HIGH 64b beat of each
+    DFI word arrives ONE dfi_clk LATER than the low beat. deskew_hi=0 captures
+    {stale hi | correct lo} == the on-silicon 2/4 fingerprint; deskew_hi=1 taps
+    the high beat one cycle later == correct. No PHY model. DESKEW_HI env = 0/1."""
+    HW = DFI_DW // 2
+    deskew_hi = int(os.environ.get("DESKEW_HI", "1"))
+    cocotb.start_soon(Clock(dut.dfi_clk, 10, units='ns').start())
+    for s, v in [("dfi_rstn", 0), ("t_rddata_en_i", 0), ("op_valid_i", 0),
+                 ("dfi_rddata_i", 0), ("dfi_rddata_valid_i", 0), ("rd_ready_i", 1),
+                 ("deskew_lo_i", 0), ("deskew_hi_i", deskew_hi)]:
+        getattr(dut, s).value = v
+    for _ in range(4):
+        await RisingEdge(dut.dfi_clk)
+    dut.dfi_rstn.value = 1
+    for _ in range(4):
+        await RisingEdge(dut.dfi_clk)
+
+    rng = random.Random(7)
+    lo = [(rng.randrange(1 << HW) | 1) for _ in range(BL_WORDS)]
+    hi = [(rng.randrange(1 << HW) | 1) for _ in range(BL_WORDS)]
+    words = [(hi[i] << HW) | lo[i] for i in range(BL_WORDS)]
+
+    dut.op_valid_i.value = 1
+    await RisingEdge(dut.dfi_clk)
+    dut.op_valid_i.value = 0
+    for _ in range(3):
+        await RisingEdge(dut.dfi_clk)
+
+    # SKEWED bus: cycle i -> low=lo[i] (on time), high=hi[i-1] (previous, stale);
+    # so hi[i] lands one cycle late. Drive one extra cycle for the last high beat.
+    got = []
+    for i in range(BL_WORDS + 1):
+        cur_lo = lo[i] if i < BL_WORDS else 0
+        cur_hi = hi[i - 1] if i >= 1 else 0
+        dut.dfi_rddata_i.value = (cur_hi << HW) | cur_lo
+        dut.dfi_rddata_valid_i.value = (1 << DFI_RATE) - 1
+        await RisingEdge(dut.dfi_clk)
+        if int(dut.rd_valid_o.value) and int(dut.rd_ready_i.value):
+            got.append(int(dut.rd_data_o.value))
+    dut.dfi_rddata_valid_i.value = 0
+    await RisingEdge(dut.dfi_clk)
+
+    match = (got[:BL_WORDS] == words)
+    dut._log.info(f"DESKEW_HI={deskew_hi}: got={[hex(x) for x in got[:BL_WORDS]]} "
+                  f"exp={[hex(x) for x in words]} match={match}")
+    if deskew_hi:
+        assert match, (f"deskew_hi=1 must realign the skewed high beat: "
+                       f"{[hex(x) for x in got[:BL_WORDS]]} != {[hex(x) for x in words]}")
+    else:
+        assert not match, "deskew_hi=0 must MISMATCH the skewed stream (red baseline)"
+
+
+def test_pumice_dfi_rd_aligner_deskew(request):
+    # GREEN: deskew_hi=1 realigns the skewed high beat -> correct read data.
+    os.environ["DESKEW_HI"] = "1"
+    _run_fub("cocotb_test_rd_aligner_deskew", bl_words=4)
+
+
+def test_pumice_dfi_rd_aligner_deskew_red(request):
+    # RED baseline: deskew_hi=0 on the SAME skewed stream -> 2/4 corruption.
+    os.environ["DESKEW_HI"] = "0"
+    _run_fub("cocotb_test_rd_aligner_deskew", bl_words=4)

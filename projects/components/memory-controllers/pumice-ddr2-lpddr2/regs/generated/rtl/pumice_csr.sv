@@ -451,6 +451,14 @@ module pumice_csr (
                 logic [3:0] next;
                 logic load_next;
             } refresh_burst;
+            struct {
+                logic [1:0] next;
+                logic load_next;
+            } deskew_lo;
+            struct {
+                logic [1:0] next;
+                logic load_next;
+            } deskew_hi;
         } PHY_TIMING;
         struct {
             struct {
@@ -679,6 +687,12 @@ module pumice_csr (
             struct {
                 logic [3:0] value;
             } refresh_burst;
+            struct {
+                logic [1:0] value;
+            } deskew_lo;
+            struct {
+                logic [1:0] value;
+            } deskew_hi;
         } PHY_TIMING;
         struct {
             struct {
@@ -1927,7 +1941,7 @@ module pumice_csr (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.DFI_PHASE.bl.value <= 4'h4;
+            field_storage.DFI_PHASE.bl.value <= 4'h8;
         end else begin
             if(field_combo.DFI_PHASE.bl.load_next) begin
                 field_storage.DFI_PHASE.bl.value <= field_combo.DFI_PHASE.bl.next;
@@ -2027,6 +2041,52 @@ module pumice_csr (
         end
     end
     assign hwif_out.PHY_TIMING.refresh_burst.value = field_storage.PHY_TIMING.refresh_burst.value;
+    // Field: pumice_csr.PHY_TIMING.deskew_lo
+    always_comb begin
+        automatic logic [1:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PHY_TIMING.deskew_lo.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PHY_TIMING && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PHY_TIMING.deskew_lo.value & ~decoded_wr_biten[25:24]) | (decoded_wr_data[25:24] & decoded_wr_biten[25:24]);
+            load_next_c = '1;
+        end
+        field_combo.PHY_TIMING.deskew_lo.next = next_c;
+        field_combo.PHY_TIMING.deskew_lo.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PHY_TIMING.deskew_lo.value <= 2'h0;
+        end else begin
+            if(field_combo.PHY_TIMING.deskew_lo.load_next) begin
+                field_storage.PHY_TIMING.deskew_lo.value <= field_combo.PHY_TIMING.deskew_lo.next;
+            end
+        end
+    end
+    assign hwif_out.PHY_TIMING.deskew_lo.value = field_storage.PHY_TIMING.deskew_lo.value;
+    // Field: pumice_csr.PHY_TIMING.deskew_hi
+    always_comb begin
+        automatic logic [1:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PHY_TIMING.deskew_hi.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PHY_TIMING && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PHY_TIMING.deskew_hi.value & ~decoded_wr_biten[27:26]) | (decoded_wr_data[27:26] & decoded_wr_biten[27:26]);
+            load_next_c = '1;
+        end
+        field_combo.PHY_TIMING.deskew_hi.next = next_c;
+        field_combo.PHY_TIMING.deskew_hi.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PHY_TIMING.deskew_hi.value <= 2'h0;
+        end else begin
+            if(field_combo.PHY_TIMING.deskew_hi.load_next) begin
+                field_storage.PHY_TIMING.deskew_hi.value <= field_combo.PHY_TIMING.deskew_hi.next;
+            end
+        end
+    end
+    assign hwif_out.PHY_TIMING.deskew_hi.value = field_storage.PHY_TIMING.deskew_hi.value;
     for(genvar i0=0; i0<8; i0++) begin
         // Field: pumice_csr.OBS_ROW_HIT[].ROW_HIT.VAL
         always_comb begin
@@ -2164,7 +2224,9 @@ module pumice_csr (
     assign readback_array[23][16:16] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.memtype.value : '0;
     assign readback_array[23][19:17] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? 3'h0 : '0;
     assign readback_array[23][23:20] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.refresh_burst.value : '0;
-    assign readback_array[23][31:24] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[23][25:24] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.deskew_lo.value : '0;
+    assign readback_array[23][27:26] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.deskew_hi.value : '0;
+    assign readback_array[23][31:28] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? 4'h0 : '0;
     for(genvar i0=0; i0<8; i0++) begin
         assign readback_array[i0 * 1 + 24][31:0] = (decoded_reg_strb.OBS_ROW_HIT[i0].ROW_HIT && !decoded_req_is_wr) ? field_storage.OBS_ROW_HIT[i0].ROW_HIT.VAL.value : '0;
     end

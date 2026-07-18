@@ -43,4 +43,7 @@ $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/p
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_dfi_layer.sv
 # top
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/top/pumice_core.sv
+# dv checkers (standalone scoreboards, instantiated in the tb top)
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/dv/checkers/pumice_cmd_history_checker.sv
+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/dv/checkers/pumice_dfi_rd_return_checker.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/dv/tb/pumice_core_tb_top.sv

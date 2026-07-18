@@ -1,4 +1,5 @@
 <!-- RTL Design Sherpa Documentation Header -->
+
 <table>
 <tr>
 <td width="80">
@@ -145,7 +146,7 @@ style preference. Many are enforced by elaboration asserts or by DV gates.
 - **Build-for-max, select-at-runtime.** Physical buses/FIFOs are sized for the
   maximum (widest gear × config range) — you cannot resize wires at runtime.
   Runtime registers select the *active* subset. This is the same pattern for
-  gear phases and burst length.
+  gear phases and burst length. The modivation for this is to simplify characterization across many modes. With one bitstream program, one can run the full characterization suite.
 - **Layering:** `pumice_axi4_ifc` (host AXI + CAMs) → `pumice_mem_cmd_scheduler`
   (bank timers + arbiter + refresh/init) → `pumice_dfi_layer` (single async CDC +
   DFI datapath). Internal data unit throughout is the **DFI word**.
@@ -161,30 +162,30 @@ never compile-time constants. Complete list, grouped by register:
 
 ### JEDEC timing parameters (in MC/DRAM cycles)
 
-| Register @ offset | Fields |
-|---|---|
-| `TIMINGS_RC_RCD_RP_RAS` @ 0x010 | `tRC`, `tRCD`, `tRP`, `tRAS` |
-| `TIMINGS_RFC_REFI` @ 0x014 | `tRFC`, `tREFI` |
-| `TIMINGS_RRD_FAW_WTR_CCD` @ 0x018 | `tRRD`, `tFAW`, `tWTR`, `tCCD` |
-| `TIMINGS_CL_CWL_WR` @ 0x01C | `CL`, `CWL`, `tWR`, `tRFCpb` (LPDDR2 per-bank) |
-| `TIMINGS_RTP_RTW` @ 0x054 | `tRTP`, `tRTW` |
+| Register @ offset                 | Fields                                         |
+| --------------------------------- | ---------------------------------------------- |
+| `TIMINGS_RC_RCD_RP_RAS` @ 0x010   | `tRC`, `tRCD`, `tRP`, `tRAS`                   |
+| `TIMINGS_RFC_REFI` @ 0x014        | `tRFC`, `tREFI`                                |
+| `TIMINGS_RRD_FAW_WTR_CCD` @ 0x018 | `tRRD`, `tFAW`, `tWTR`, `tCCD`                 |
+| `TIMINGS_CL_CWL_WR` @ 0x01C       | `CL`, `CWL`, `tWR`, `tRFCpb` (LPDDR2 per-bank) |
+| `TIMINGS_RTP_RTW` @ 0x054         | `tRTP`, `tRTW`                                 |
 
 ### DFI / PHY timing + framing
 
-| Register @ offset | Fields |
-|---|---|
-| `DFI_PHASE` @ 0x060 | `rd_phase`, `wr_phase`, `gear_ratio`, `bl` |
-| `PHY_TIMING` @ 0x064 | `t_phy_wrlat`, `t_rddata_en`, `memtype`, `refresh_burst` |
+| Register @ offset       | Fields                                                                      |
+| ----------------------- | --------------------------------------------------------------------------- |
+| `DFI_PHASE` @ 0x060     | `rd_phase`, `wr_phase`, `gear_ratio`, `bl`                                  |
+| `PHY_TIMING` @ 0x064    | `t_phy_wrlat`, `t_rddata_en`, `memtype`, `refresh_burst`                    |
 | (harness-side bring-up) | `dfi_cmd_delay`, `dfi_rddata_delay` — analog cmd↔DQ / read-capture leveling |
 
 ### Mode registers + init timing
 
-| Register @ offset | Fields |
-|---|---|
+| Register @ offset                     | Fields                                                          |
+| ------------------------------------- | --------------------------------------------------------------- |
 | `MR0`/`MR1`/`MR2`/`MR3` @ 0x020–0x02C | 16-bit DRAM mode-register values (encode CL, BL, WR, DLL, ODT…) |
-| `INIT_TUNING` @ 0x050 | `zq_retries`, `init_timeout_ms` |
-| `INIT_TIMING0` @ 0x058 | `t_init_wait` (tINIT/CKE settle), `t_dll_wait` (tDLLK) |
-| `INIT_TIMING1` @ 0x05C | `t_mrd_wait` (tMRD), `t_rp_wait`, `t_rfc_wait` (tRFC) |
+| `INIT_TUNING` @ 0x050                 | `zq_retries`, `init_timeout_ms`                                 |
+| `INIT_TIMING0` @ 0x058                | `t_init_wait` (tINIT/CKE settle), `t_dll_wait` (tDLLK)          |
+| `INIT_TIMING1` @ 0x05C                | `t_mrd_wait` (tMRD), `t_rp_wait`, `t_rfc_wait` (tRFC)           |
 
 ### "Safe signals" — what may change at runtime, and what must not
 
@@ -331,12 +332,12 @@ recomputes timing.
 
 ## Enforcement summary
 
-| Requirement | Enforced by |
-|---|---|
-| `HOST_AXI_DATA_WIDTH : DW` power-of-two | `initial assert $fatal` in `pumice_top_geared` (synth/elab) |
-| One AXI burst == one DRAM burst at DW | `pumice_wr_intake` ragged-burst assert |
-| `CHUNK_BEATS` power-of-two | `pumice_axi_burst_chopper` assert |
-| `DFI_RATE == nphases` (gear lockstep) | design rule + `gear_ratio` CSR set to PHY nphases |
-| gear=MAX bit-identical | macro regression (109) + `test_a7ddrphy_gear_mismatch` |
-| No hardcoded offsets | config reached by name via generated `*_regmap.py` |
-| Config not param (gear, BL, timings) | runtime CSRs; a wrong value is bad programming, not a rebuild |
+| Requirement                             | Enforced by                                                   |
+| --------------------------------------- | ------------------------------------------------------------- |
+| `HOST_AXI_DATA_WIDTH : DW` power-of-two | `initial assert $fatal` in `pumice_top_geared` (synth/elab)   |
+| One AXI burst == one DRAM burst at DW   | `pumice_wr_intake` ragged-burst assert                        |
+| `CHUNK_BEATS` power-of-two              | `pumice_axi_burst_chopper` assert                             |
+| `DFI_RATE == nphases` (gear lockstep)   | design rule + `gear_ratio` CSR set to PHY nphases             |
+| gear=MAX bit-identical                  | macro regression (109) + `test_a7ddrphy_gear_mismatch`        |
+| No hardcoded offsets                    | config reached by name via generated `*_regmap.py`            |
+| Config not param (gear, BL, timings)    | runtime CSRs; a wrong value is bad programming, not a rebuild |

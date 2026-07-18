@@ -178,4 +178,52 @@ module pumice_core_tb_top
         .dfi_init_start_o(phy_dfi_init_start), .dfi_init_complete_i(phy_dfi_init_complete)
     );
 
+    // ---- fine-grained per-bank command-history scoreboard (standalone) ------
+    // Taps the scheduler's issued abstract-command stream (aclk domain) and
+    // audits JEDEC same-bank sequencing the COARSE bank-timer readiness misses —
+    // e.g. a REFab granted while a bank row is still OPEN (ACT with no PRE), the
+    // registered-feedback refresh-collision hazard. Sequencing checks only;
+    // pair with the DFI-read data check for de-interleave/skew defects.
+    pumice_cmd_history_checker #(
+        .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS), .DEPTH(32),
+        // JEDEC same-bank windows (match the tb _cfg timings): catches a column
+        // op issued too soon after ACT (tRCD) etc. — e.g. a refresh-disturbed
+        // ACT->RDA spacing.
+        .T_RCD(3), .T_RP(3), .T_RAS(4), .T_RFC(8)
+    ) u_cmd_history (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .cmd_valid_i(u_core.w_cmd_v),
+        .cmd_op_i   (u_core.w_cmd_op),
+        .cmd_rank_i (u_core.w_cmd_rank),
+        .cmd_bank_i (u_core.w_cmd_bank)
+    );
+
+    // ---- param-gated DFI read-return scoreboard (data-path debug tooling) ----
+    // Reconciles reads ISSUED (scheduler OP_RD/OP_RDA) vs DATA RETURNED on the DFI
+    // read path, correlated with refresh — catches the refresh-drain read-data
+    // loss (drop / zero-return) the command scoreboard can't see. DEBUG_EN=0
+    // synthesizes it away; the dbg_* counters are CSR-ready for on-silicon use.
+    logic [15:0] w_dbg_rd_issued, w_dbg_rd_returned, w_dbg_rd_drops,
+                 w_dbg_rd_zero,   w_dbg_rd_ref_inflight;
+    logic        w_dbg_rd_error;
+    pumice_dfi_rd_return_checker #(
+        .DEBUG_EN(1), .DW(DW), .TIMEOUT(512), .REF_WINDOW(64)
+    ) u_rd_return_chk (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .dbg_clear_i(1'b0),
+        .cmd_valid_i(u_core.w_cmd_v),
+        .cmd_op_i   (u_core.w_cmd_op),
+        .ret_valid_i(u_core.w_ret_v),
+        .ret_last_i (u_core.w_ret_last),
+        .ret_data_i (u_core.w_ret_data),
+        .dbg_reads_issued_o  (w_dbg_rd_issued),
+        .dbg_reads_returned_o(w_dbg_rd_returned),
+        .dbg_drops_o         (w_dbg_rd_drops),
+        .dbg_zero_returns_o  (w_dbg_rd_zero),
+        .dbg_ref_inflight_o  (w_dbg_rd_ref_inflight),
+        .dbg_error_o         (w_dbg_rd_error)
+    );
+
 endmodule : pumice_core_tb_top

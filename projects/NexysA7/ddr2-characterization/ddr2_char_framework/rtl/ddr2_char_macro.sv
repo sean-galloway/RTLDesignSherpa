@@ -101,10 +101,21 @@ module ddr2_char_macro
 
     // ---- Controller policy ----
     parameter int PAGE_POLICY      = 32'(PAGE_POLICY_CLOSE),
-    // DRAM burst length (JEDEC MR0), in DRAM beats. DDR2 = 4. The controller
-    // divides this by DFI_RATE internally to get AXI beats per burst, so the
-    // host engines issue (DRAM_BL/DFI_RATE) beats per command (rate-2 => 2).
-    parameter int DRAM_BL          = 4,
+    // DRAM burst length (JEDEC MR0), in DRAM beats. The controller divides this
+    // by DFI_RATE internally to get AXI beats per burst. BL8 at nphases=4/x16:
+    // a BL8 read = 8 device-words = one FULL 128b DFI word in one 8-slot PHY
+    // event, so the read aligner's grab-all captures the whole word cleanly.
+    // BL4 filled only 4 of 8 slots (half stale) -> the on-silicon read-fail
+    // root cause. N_SUBCMD collapses to 1 at BL8 (no sub-word packing).
+    parameter int DRAM_BL          = 8,
+
+    // Legal-AxLEN quantum for the pattern generators: cfg_wr/rd_burst_len must be
+    // a nonzero integer multiple of this (one AXI burst -> integer DRAM bursts).
+    // = AXI beats per DRAM burst = DRAM_BL*DRAM_DEVICE_WIDTH/AXI_DATA_WIDTH. 1 =
+    // unconstrained (DEFAULT — the DV engine sweeps burst_len 1/2/4/8 for
+    // coverage). Real projects (e.g. the board top) set the computed value so a
+    // SW BLEN_TXN misconfig fails loud instead of silently SLVERR/partial-write.
+    parameter int BURST_LEN_MULTIPLE = 1,
 
     // ---- Engine workload ranges ----
     parameter int TXN_COUNT_WIDTH  = 16,
@@ -319,7 +330,8 @@ module ddr2_char_macro
         .AXI_WSTRB_WIDTH (AXI_STRB_WIDTH),
         .TXN_COUNT_WIDTH (TXN_COUNT_WIDTH),
         .INDEX_WIDTH     (INDEX_WIDTH),
-        .STRIDE_WIDTH    (STRIDE_WIDTH)
+        .STRIDE_WIDTH    (STRIDE_WIDTH),
+        .BURST_LEN_MULTIPLE (BURST_LEN_MULTIPLE)
     ) u_wr_engine (
         .aclk                 (mc_clk),
         .aresetn              (mc_rst_n),
@@ -382,6 +394,7 @@ module ddr2_char_macro
         .TXN_COUNT_WIDTH (TXN_COUNT_WIDTH),
         .INDEX_WIDTH     (INDEX_WIDTH),
         .STRIDE_WIDTH    (STRIDE_WIDTH),
+        .BURST_LEN_MULTIPLE (BURST_LEN_MULTIPLE),
         .DBG_FIFO_DEPTH  (RD_DBG_FIFO_DEPTH)
     ) u_rd_engine (
         .aclk                 (mc_clk),
