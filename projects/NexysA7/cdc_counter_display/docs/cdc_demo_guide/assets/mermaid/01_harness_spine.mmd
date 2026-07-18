@@ -1,0 +1,19 @@
+flowchart LR
+    USB[USB / FTDI]
+    subgraph FPGA["Nexys A7-100T (sys_clk 100 MHz)"]
+        UART[uart_axil_bridge<br/>W/R ASCII &rarr; AXI4-Lite]
+        HARN[cdc_demo_harness<br/>CSR + per-counter fan-out]
+        subgraph DOMAINS["4x cdc_counter_domain"]
+            C0[counter 0<br/>ctr_clk0]
+            C1[counter 1<br/>ctr_clk1]
+            C2[counter 2<br/>ctr_clk2]
+            C3[counter 3<br/>ctr_clk3]
+        end
+        MMCM[MMCM + BUFGMUX tree<br/>4 co-prime clocks]
+        SEG[7-seg display]
+    end
+    USB -- UART --> UART
+    UART -- AXI4-Lite --> HARN
+    HARN -- cfg / status --> DOMAINS
+    MMCM -- ctr_clk[i] --> DOMAINS
+    DOMAINS -- value --> SEG
