@@ -21,30 +21,35 @@ functional_scenarios:
   test_function: test_basic_alloc_drain
   priority: high
   status: verified
+  covers_lines: [38, 39, 42, 44, 47, 48, 51, 54, 55, 61, 69, 75, 90]
 - id: ALLOC-02
   name: Full detection
   description: Full flag assertion when capacity reached
   test_function: test_full_detection
   priority: high
   status: verified
+  covers_lines: [38, 39, 42, 44, 47, 48, 51, 54, 55, 61, 69, 75, 90]
 - id: ALLOC-03
   name: Empty detection
   description: Empty flag assertion when buffer drained
   test_function: test_empty_detection
   priority: high
   status: verified
+  covers_lines: [38, 39, 42, 44, 47, 48, 51, 54, 55, 61, 69, 75, 90]
 - id: ALLOC-04
   name: Variable size allocation
   description: Allocations of varying sizes (1 to max)
   test_function: test_variable_size
   priority: high
   status: verified
+  covers_lines: [38, 39, 42, 44, 47, 48, 51, 54, 55, 61, 69, 75, 90]
 - id: ALLOC-05
   name: Stress rapid operations
   description: Rapid allocation and drain operations
   test_function: test_stress
   priority: high
   status: verified
+  covers_lines: [38, 39, 42, 44, 47, 48, 51, 54, 55, 61, 69, 75, 90]
 parameter_coverage:
 - DEPTH: 512
   ALMOST_WR_MARGIN: 1

@@ -15,30 +15,35 @@ functional_scenarios:
   test_function: test_basic_drain
   priority: high
   status: verified
+  covers_lines: [38, 39, 42, 43, 46, 48, 54, 55, 61, 69, 76, 105]
 - id: DRAIN-02
   name: Empty detection
   description: Empty flag assertion when buffer drained
   test_function: test_empty_detection
   priority: high
   status: verified
+  covers_lines: [38, 39, 42, 43, 46, 48, 54, 55, 61, 69, 76, 105]
 - id: DRAIN-03
   name: Almost empty detection
   description: Almost empty early warning
   test_function: test_almost_empty
   priority: high
   status: verified
+  covers_lines: [38, 39, 42, 43, 46, 48, 54, 55, 61, 69, 76, 105]
 - id: DRAIN-04
   name: Rapid drain operations
   description: Back-to-back drain cycles
   test_function: test_rapid_drain
   priority: medium
   status: verified
+  covers_lines: [38, 39, 42, 43, 46, 48, 54, 55, 61, 69, 76, 105]
 - id: DRAIN-05
   name: Drain with backpressure
   description: Drain operations with downstream backpressure
   test_function: test_drain_backpressure
   priority: medium
   status: verified
+  covers_lines: [38, 39, 42, 43, 46, 48, 54, 55, 61, 69, 76, 105]
 parameter_coverage:
 - DEPTH: 512
   ALMOST_RD_MARGIN: 1

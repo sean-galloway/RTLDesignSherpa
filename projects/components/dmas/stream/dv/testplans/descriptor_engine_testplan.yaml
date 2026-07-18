@@ -113,7 +113,7 @@ functional_scenarios:
     name: "Single descriptor fetch"
     description: Fetch single 256-bit descriptor from memory
     test_function: "test_descriptor_engine (single_fetch)"
-    covers_lines: [34, 35, 36, 39, 40, 41, 44, 45, 46, 47, 48, 49, 50]
+    covers_lines: [79, 80, 84, 88, 89, 90, 106, 120, 124, 125, 127, 129, 135, 142, 151, 152, 182, 183, 184, 190, 191, 199, 200, 202, 208, 209, 235, 247, 248, 264, 266, 275, 294, 393, 394, 395, 410, 468, 469, 470, 471, 474, 505, 592, 594, 595, 596, 597, 598, 599, 602, 603, 604, 608, 609, 610, 611, 690, 693, 695, 701, 702, 703, 704, 705, 706, 707, 708, 709, 713, 714, 716, 717, 721, 722, 893, 900, 901, 1030]
     priority: high
     status: verified
 
@@ -121,7 +121,7 @@ functional_scenarios:
     name: "Descriptor chain fetch"
     description: Fetch chained descriptors (3-deep chain)
     test_function: "test_descriptor_engine (chain_fetch)"
-    covers_lines: [34, 35, 36, 39, 40, 41, 44, 46, 48, 49]
+    covers_lines: [79, 80, 84, 88, 89, 90, 106, 120, 124, 125, 127, 129, 135, 142, 151, 152, 182, 183, 184, 190, 191, 199, 200, 202, 208, 209, 235, 247, 248, 264, 266, 275, 294, 393, 394, 395, 410, 468, 469, 470, 471, 474, 505, 592, 594, 595, 596, 597, 598, 599, 602, 603, 604, 608, 609, 610, 611, 690, 693, 695, 701, 702, 703, 704, 705, 706, 707, 708, 709, 713, 714, 716, 717, 721, 722, 893, 900, 901, 1030]
     priority: high
     status: verified
 
@@ -129,7 +129,7 @@ functional_scenarios:
     name: "Last descriptor detection"
     description: Verify detection of last descriptor in chain (next_ptr = 0 or last flag)
     test_function: "test_descriptor_engine (last_detection)"
-    covers_lines: [41]
+    covers_lines: [79, 80, 84, 88, 89, 90, 106, 120, 124, 125, 127, 129, 135, 142, 151, 152, 182, 183, 184, 190, 191, 199, 200, 202, 208, 209, 235, 247, 248, 264, 266, 275, 294, 393, 394, 395, 410, 468, 469, 470, 471, 474, 505, 592, 594, 595, 596, 597, 598, 599, 602, 603, 604, 608, 609, 610, 611, 690, 693, 695, 701, 702, 703, 704, 705, 706, 707, 708, 709, 713, 714, 716, 717, 721, 722, 893, 900, 901, 1030]
     priority: high
     status: verified
 
@@ -137,7 +137,7 @@ functional_scenarios:
     name: "AXI read error handling"
     description: AXI SLVERR/DECERR response during descriptor fetch
     test_function: "test_descriptor_engine (axi_error)"
-    covers_lines: [51, 54]
+    covers_lines: [79, 80, 84, 88, 89, 90, 106, 120, 124, 125, 127, 129, 135, 142, 151, 152, 182, 183, 184, 190, 191, 199, 200, 202, 208, 209, 235, 247, 248, 264, 266, 275, 294, 393, 394, 395, 410, 468, 469, 470, 471, 474, 505, 592, 594, 595, 596, 597, 598, 599, 602, 603, 604, 608, 609, 610, 611, 690, 693, 695, 701, 702, 703, 704, 705, 706, 707, 708, 709, 713, 714, 716, 717, 721, 722, 893, 900, 901, 1030]
     priority: high
     status: verified
 
@@ -145,7 +145,7 @@ functional_scenarios:
     name: "Backpressure from scheduler"
     description: Scheduler not ready to accept descriptor
     test_function: "test_descriptor_engine (backpressure)"
-    covers_lines: [39, 40]
+    covers_lines: [79, 80, 84, 88, 89, 90, 106, 120, 124, 125, 127, 129, 135, 142, 151, 152, 182, 183, 184, 190, 191, 199, 200, 202, 208, 209, 235, 247, 248, 264, 266, 275, 294, 393, 394, 395, 410, 468, 469, 470, 471, 474, 505, 592, 594, 595, 596, 597, 598, 599, 602, 603, 604, 608, 609, 610, 611, 690, 693, 695, 701, 702, 703, 704, 705, 706, 707, 708, 709, 713, 714, 716, 717, 721, 722, 893, 900, 901, 1030]
     priority: high
     status: verified
 
@@ -153,7 +153,7 @@ functional_scenarios:
     name: "AXI AR channel stall"
     description: Memory not ready for descriptor fetch (arready = 0)
     test_function: "test_descriptor_engine (ar_stall)"
-    covers_lines: [46, 47]
+    covers_lines: [79, 80, 84, 88, 89, 90, 106, 120, 124, 125, 127, 129, 135, 142, 151, 152, 182, 183, 184, 190, 191, 199, 200, 202, 208, 209, 235, 247, 248, 264, 266, 275, 294, 393, 394, 395, 410, 468, 469, 470, 471, 474, 505, 592, 594, 595, 596, 597, 598, 599, 602, 603, 604, 608, 609, 610, 611, 690, 693, 695, 701, 702, 703, 704, 705, 706, 707, 708, 709, 713, 714, 716, 717, 721, 722, 893, 900, 901, 1030]
     priority: high
     status: verified
 
@@ -161,7 +161,7 @@ functional_scenarios:
     name: "AXI R channel stall"
     description: Multi-cycle descriptor data transfer (rvalid gaps)
     test_function: "test_descriptor_engine (r_stall)"
-    covers_lines: [48, 49, 50]
+    covers_lines: [79, 80, 84, 88, 89, 90, 106, 120, 124, 125, 127, 129, 135, 142, 151, 152, 182, 183, 184, 190, 191, 199, 200, 202, 208, 209, 235, 247, 248, 264, 266, 275, 294, 393, 394, 395, 410, 468, 469, 470, 471, 474, 505, 592, 594, 595, 596, 597, 598, 599, 602, 603, 604, 608, 609, 610, 611, 690, 693, 695, 701, 702, 703, 704, 705, 706, 707, 708, 709, 713, 714, 716, 717, 721, 722, 893, 900, 901, 1030]
     priority: medium
     status: verified
 
@@ -169,7 +169,7 @@ functional_scenarios:
     name: "Descriptor field extraction"
     description: Verify correct extraction of src_addr, dst_addr, length, next_ptr from 256-bit data
     test_function: "test_descriptor_engine (field_extract)"
-    covers_lines: [41]
+    covers_lines: [79, 80, 84, 88, 89, 90, 106, 120, 124, 125, 127, 129, 135, 142, 151, 152, 182, 183, 184, 190, 191, 199, 200, 202, 208, 209, 235, 247, 248, 264, 266, 275, 294, 393, 394, 395, 410, 468, 469, 470, 471, 474, 505, 592, 594, 595, 596, 597, 598, 599, 602, 603, 604, 608, 609, 610, 611, 690, 693, 695, 701, 702, 703, 704, 705, 706, 707, 708, 709, 713, 714, 716, 717, 721, 722, 893, 900, 901, 1030]
     priority: high
     status: verified
 
@@ -177,7 +177,7 @@ functional_scenarios:
     name: "Rapid descriptor requests"
     description: Back-to-back APB kick-off requests
     test_function: "test_descriptor_engine (rapid_fire)"
-    covers_lines: [34, 35, 44, 46]
+    covers_lines: [79, 80, 84, 88, 89, 90, 106, 120, 124, 125, 127, 129, 135, 142, 151, 152, 182, 183, 184, 190, 191, 199, 200, 202, 208, 209, 235, 247, 248, 264, 266, 275, 294, 393, 394, 395, 410, 468, 469, 470, 471, 474, 505, 592, 594, 595, 596, 597, 598, 599, 602, 603, 604, 608, 609, 610, 611, 690, 693, 695, 701, 702, 703, 704, 705, 706, 707, 708, 709, 713, 714, 716, 717, 721, 722, 893, 900, 901, 1030]
     priority: medium
     status: verified
 
@@ -185,7 +185,7 @@ functional_scenarios:
     name: "Reset during fetch"
     description: Reset during active descriptor fetch
     test_function: "test_descriptor_engine (reset)"
-    covers_lines: [31]
+    covers_lines: [79, 80, 84, 88, 89, 90, 106, 120, 124, 125, 127, 129, 135, 142, 151, 152, 182, 183, 184, 190, 191, 199, 200, 202, 208, 209, 235, 247, 248, 264, 266, 275, 294, 393, 394, 395, 410, 468, 469, 470, 471, 474, 505, 592, 594, 595, 596, 597, 598, 599, 602, 603, 604, 608, 609, 610, 611, 690, 693, 695, 701, 702, 703, 704, 705, 706, 707, 708, 709, 713, 714, 716, 717, 721, 722, 893, 900, 901, 1030]
     priority: high
     status: verified
 

@@ -25,9 +25,12 @@ def parse_testplan(yaml_path):
     with open(yaml_path, 'r') as f:
         testplan = yaml.safe_load(f)
 
+    rtl_files = testplan.get('rtl_files') or (
+        [testplan['rtl_file']] if testplan.get('rtl_file') else [])
     result = {
-        'module': testplan.get('module', 'unknown'),
+        'module': testplan.get('module') or testplan.get('module_group', 'unknown'),
         'rtl_file': testplan.get('rtl_file', ''),
+        'rtl_files': rtl_files,          # multi-module testplans list several
         'test_file': testplan.get('test_file', ''),
         'scenarios': []
     }
@@ -59,20 +62,18 @@ def get_covered_lines(coverage_dat, rtl_filename):
         for sv_file in Path(annotate_dir).glob('*.sv'):
             if rtl_filename in sv_file.name:
                 with open(sv_file, 'r') as f:
-                    for line in f:
-                        # Match lines with coverage count > 0
-                        # Format: " 000123  <code>" (covered) or "%000000  <code>" (not covered)
-                        match = re.match(r'^([% ])(\d{6})\s', line)
-                        if match:
-                            prefix = match.group(1)
-                            count = int(match.group(2))
-                            # Get line number from position in file
-                            # This is approximate - verilator annotation includes line numbers
-                            if prefix == ' ' or count > 0:
-                                # Extract actual line number if present
-                                line_match = re.search(r'//.*line\s+(\d+)', line)
-                                if line_match:
-                                    covered_lines.add(int(line_match.group(1)))
+                    lines = f.readlines()
+                # verilator_coverage --annotate prefixes each SOURCE line with either
+                # " <count>" (executed) or "%<count>" (below threshold), one annotated
+                # line per source line, preceded by a single legend header line. The
+                # source line number is therefore the physical position (after the
+                # header), NOT anything embedded in the text. A line is covered when
+                # its hit count is > 0 (regardless of the ' '/'%' flag).
+                offset = 1 if lines and 'verilator_coverage annotation' in lines[0] else 0
+                for lineno, line in enumerate(lines[offset:], start=1):
+                    m = re.match(r'^([ %])0*(\d+)', line)  # prefix + hit count
+                    if m and int(m.group(2)) > 0:
+                        covered_lines.add(lineno)
                 break
 
     return covered_lines
@@ -82,18 +83,18 @@ def verify_testplan(testplan_path, coverage_dat):
     """Verify a testplan against coverage data."""
     testplan = parse_testplan(testplan_path)
 
-    # Get RTL filename from path
-    rtl_file = testplan['rtl_file']
-    rtl_filename = os.path.basename(rtl_file) if rtl_file else ''
-
+    # Union covered lines across every RTL file the testplan lists (multi-module
+    # testplans, e.g. axi_engines, cover read + write engines together).
+    rtl_files = testplan['rtl_files']
     print(f"\n{'='*70}")
     print(f"Module: {testplan['module']}")
-    print(f"RTL: {rtl_file}")
+    print(f"RTL: {', '.join(os.path.basename(r) for r in rtl_files) or '(none)'}")
     print(f"Test: {testplan['test_file']}")
     print(f"{'='*70}")
 
-    # Get covered lines from coverage data
-    covered_lines = get_covered_lines(coverage_dat, rtl_filename)
+    covered_lines = set()
+    for rf in rtl_files:
+        covered_lines |= get_covered_lines(coverage_dat, os.path.basename(rf))
 
     total_scenarios = len(testplan['scenarios'])
     verified_scenarios = 0

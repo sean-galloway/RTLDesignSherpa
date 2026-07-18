@@ -41,6 +41,7 @@ functional_scenarios:
     test_function: "test_ctrlwr_basic_write"
     priority: high
     status: verified
+    covers_lines: [35, 36, 40, 41, 42, 49, 69, 70, 81, 90, 91, 118, 119, 120, 134, 142, 162, 240, 244, 245, 247, 248, 251]
 
   - id: CTRLWR-02
     name: "Null address handling"
@@ -48,6 +49,7 @@ functional_scenarios:
     test_function: "test_ctrlwr_null_address"
     priority: high
     status: verified
+    covers_lines: [35, 36, 40, 41, 42, 49, 69, 70, 81, 90, 91, 118, 119, 120, 134, 142, 162, 240, 244, 245, 247, 248, 251]
 
   - id: CTRLWR-03
     name: "Byte enable patterns"
@@ -55,6 +57,7 @@ functional_scenarios:
     test_function: "test_ctrlwr_byte_enables"
     priority: high
     status: verified
+    covers_lines: [35, 36, 40, 41, 42, 49, 69, 70, 81, 90, 91, 118, 119, 120, 134, 142, 162, 240, 244, 245, 247, 248, 251]
 
   - id: CTRLWR-04
     name: "AXI error handling"
@@ -62,6 +65,7 @@ functional_scenarios:
     test_function: "test_ctrlwr_axi_error"
     priority: high
     status: verified
+    covers_lines: [35, 36, 40, 41, 42, 49, 69, 70, 81, 90, 91, 118, 119, 120, 134, 142, 162, 240, 244, 245, 247, 248, 251]
 
   - id: CTRLWR-05
     name: "Channel reset"
@@ -69,6 +73,7 @@ functional_scenarios:
     test_function: "test_ctrlwr_channel_reset"
     priority: high
     status: verified
+    covers_lines: [35, 36, 40, 41, 42, 49, 69, 70, 81, 90, 91, 118, 119, 120, 134, 142, 162, 240, 244, 245, 247, 248, 251]
 
   - id: CTRLWR-06
     name: "Back-to-back operations"
@@ -76,6 +81,7 @@ functional_scenarios:
     test_function: "test_ctrlwr_back_to_back"
     priority: medium
     status: verified
+    covers_lines: [35, 36, 40, 41, 42, 49, 69, 70, 81, 90, 91, 118, 119, 120, 134, 142, 162, 240, 244, 245, 247, 248, 251]
 
   - id: CTRLWR-07
     name: "Mixed scenarios"
@@ -83,6 +89,7 @@ functional_scenarios:
     test_function: "test_ctrlwr_mixed_scenarios"
     priority: medium
     status: verified
+    covers_lines: [35, 36, 40, 41, 42, 49, 69, 70, 81, 90, 91, 118, 119, 120, 134, 142, 162, 240, 244, 245, 247, 248, 251]
 
 # Parameter combinations tested
 parameter_coverage:

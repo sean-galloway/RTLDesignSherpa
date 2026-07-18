@@ -108,7 +108,7 @@ functional_scenarios:
     name: "Basic write and read"
     description: Write data to SRAM, then read it back
     test_function: "test_sram_controller (basic_rw)"
-    covers_lines: [34, 35, 36, 39, 40, 41, 45, 46]
+    covers_lines: [47, 48, 54, 65, 71, 72, 74, 93, 94, 96, 102, 112, 123, 127, 128, 130, 131, 137, 139, 140, 148, 149, 151, 152, 158, 160, 161, 169, 170, 172, 173, 267]
     priority: high
     status: verified
 
@@ -116,7 +116,7 @@ functional_scenarios:
     name: "Full buffer detection"
     description: Fill SRAM to capacity, verify full flag asserted
     test_function: "test_sram_controller (full_detection)"
-    covers_lines: [34, 35, 44, 46]
+    covers_lines: [47, 48, 54, 65, 71, 72, 74, 93, 94, 96, 102, 112, 123, 127, 128, 130, 131, 137, 139, 140, 148, 149, 151, 152, 158, 160, 161, 169, 170, 172, 173, 267]
     priority: high
     status: verified
 
@@ -124,7 +124,7 @@ functional_scenarios:
     name: "Empty buffer detection"
     description: Drain SRAM completely, verify empty flag asserted
     test_function: "test_sram_controller (empty_detection)"
-    covers_lines: [39, 40, 45, 46]
+    covers_lines: [47, 48, 54, 65, 71, 72, 74, 93, 94, 96, 102, 112, 123, 127, 128, 130, 131, 137, 139, 140, 148, 149, 151, 152, 158, 160, 161, 169, 170, 172, 173, 267]
     priority: high
     status: verified
 
@@ -132,7 +132,7 @@ functional_scenarios:
     name: "Concurrent read and write"
     description: Simultaneous read and write operations
     test_function: "test_sram_controller (concurrent_rw)"
-    covers_lines: [34, 35, 39, 40, 46]
+    covers_lines: [47, 48, 54, 65, 71, 72, 74, 93, 94, 96, 102, 112, 123, 127, 128, 130, 131, 137, 139, 140, 148, 149, 151, 152, 158, 160, 161, 169, 170, 172, 173, 267]
     priority: high
     status: verified
 
@@ -140,7 +140,7 @@ functional_scenarios:
     name: "Pointer wrap-around"
     description: Verify read/write pointer wrap-around at buffer boundary
     test_function: "test_sram_controller (pointer_wrap)"
-    covers_lines: [34, 39, 46]
+    covers_lines: [47, 48, 54, 65, 71, 72, 74, 93, 94, 96, 102, 112, 123, 127, 128, 130, 131, 137, 139, 140, 148, 149, 151, 152, 158, 160, 161, 169, 170, 172, 173, 267]
     priority: high
     status: verified
 
@@ -148,7 +148,7 @@ functional_scenarios:
     name: "Allocation request"
     description: Allocate SRAM segment for channel
     test_function: "test_sram_controller (alloc_req)"
-    covers_lines: [49, 50, 51, 54, 55]
+    covers_lines: [47, 48, 54, 65, 71, 72, 74, 93, 94, 96, 102, 112, 123, 127, 128, 130, 131, 137, 139, 140, 148, 149, 151, 152, 158, 160, 161, 169, 170, 172, 173, 267]
     priority: high
     status: verified
 
@@ -156,7 +156,7 @@ functional_scenarios:
     name: "Allocation failure"
     description: Allocation request when insufficient space available
     test_function: "test_sram_controller (alloc_fail)"
-    covers_lines: [49, 50, 44]
+    covers_lines: [47, 48, 54, 65, 71, 72, 74, 93, 94, 96, 102, 112, 123, 127, 128, 130, 131, 137, 139, 140, 148, 149, 151, 152, 158, 160, 161, 169, 170, 172, 173, 267]
     priority: high
     status: verified
 
@@ -164,7 +164,7 @@ functional_scenarios:
     name: "Multi-channel allocation"
     description: Multiple channels allocating SRAM segments
     test_function: "test_sram_controller (multi_alloc)"
-    covers_lines: [49, 50, 51, 54, 55]
+    covers_lines: [47, 48, 54, 65, 71, 72, 74, 93, 94, 96, 102, 112, 123, 127, 128, 130, 131, 137, 139, 140, 148, 149, 151, 152, 158, 160, 161, 169, 170, 172, 173, 267]
     priority: medium
     status: verified
 
@@ -172,7 +172,7 @@ functional_scenarios:
     name: "Write backpressure"
     description: Write side not ready (wr_ready = 0 when full)
     test_function: "test_sram_controller (wr_backpressure)"
-    covers_lines: [34, 35, 44]
+    covers_lines: [47, 48, 54, 65, 71, 72, 74, 93, 94, 96, 102, 112, 123, 127, 128, 130, 131, 137, 139, 140, 148, 149, 151, 152, 158, 160, 161, 169, 170, 172, 173, 267]
     priority: high
     status: verified
 
@@ -180,7 +180,7 @@ functional_scenarios:
     name: "Read backpressure"
     description: Read side not ready (rd_ready = 0)
     test_function: "test_sram_controller (rd_backpressure)"
-    covers_lines: [39, 40]
+    covers_lines: [47, 48, 54, 65, 71, 72, 74, 93, 94, 96, 102, 112, 123, 127, 128, 130, 131, 137, 139, 140, 148, 149, 151, 152, 158, 160, 161, 169, 170, 172, 173, 267]
     priority: high
     status: verified
 
@@ -188,7 +188,7 @@ functional_scenarios:
     name: "Count accuracy"
     description: Verify entry count tracking accuracy under various operations
     test_function: "test_sram_controller (count_verify)"
-    covers_lines: [34, 39, 46]
+    covers_lines: [47, 48, 54, 65, 71, 72, 74, 93, 94, 96, 102, 112, 123, 127, 128, 130, 131, 137, 139, 140, 148, 149, 151, 152, 158, 160, 161, 169, 170, 172, 173, 267]
     priority: medium
     status: verified
 

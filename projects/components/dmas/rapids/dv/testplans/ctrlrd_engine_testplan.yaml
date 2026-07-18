@@ -41,6 +41,7 @@ functional_scenarios:
     test_function: "test_ctrlrd_basic_read_match"
     priority: high
     status: verified
+    covers_lines: [36, 37, 41, 42, 43, 56, 78, 83, 92, 93, 96, 122, 123, 124, 143, 149, 153, 173, 259, 263, 264, 266, 267, 270, 411, 524]
 
   - id: CTRLRD-02
     name: "Null address handling"
@@ -48,6 +49,7 @@ functional_scenarios:
     test_function: "test_ctrlrd_null_address"
     priority: high
     status: verified
+    covers_lines: [36, 37, 41, 42, 43, 56, 78, 83, 92, 93, 96, 122, 123, 124, 143, 149, 153, 173, 259, 263, 264, 266, 267, 270, 411, 524]
 
   - id: CTRLRD-03
     name: "Read-retry-match"
@@ -55,6 +57,7 @@ functional_scenarios:
     test_function: "test_ctrlrd_read_retry_match"
     priority: high
     status: verified
+    covers_lines: [36, 37, 41, 42, 43, 56, 78, 83, 92, 93, 96, 122, 123, 124, 143, 149, 153, 173, 259, 263, 264, 266, 267, 270, 411, 524]
 
   - id: CTRLRD-04
     name: "Max retries exceeded"
@@ -62,6 +65,7 @@ functional_scenarios:
     test_function: "test_ctrlrd_max_retries_exceeded"
     priority: high
     status: verified
+    covers_lines: [36, 37, 41, 42, 43, 56, 78, 83, 92, 93, 96, 122, 123, 124, 143, 149, 153, 173, 259, 263, 264, 266, 267, 270, 411, 524]
 
   - id: CTRLRD-05
     name: "Masked comparison"
@@ -69,6 +73,7 @@ functional_scenarios:
     test_function: "test_ctrlrd_masked_comparison"
     priority: high
     status: verified
+    covers_lines: [36, 37, 41, 42, 43, 56, 78, 83, 92, 93, 96, 122, 123, 124, 143, 149, 153, 173, 259, 263, 264, 266, 267, 270, 411, 524]
 
   - id: CTRLRD-06
     name: "AXI error handling"
@@ -76,6 +81,7 @@ functional_scenarios:
     test_function: "test_ctrlrd_axi_error"
     priority: high
     status: verified
+    covers_lines: [36, 37, 41, 42, 43, 56, 78, 83, 92, 93, 96, 122, 123, 124, 143, 149, 153, 173, 259, 263, 264, 266, 267, 270, 411, 524]
 
   - id: CTRLRD-07
     name: "Channel reset"
@@ -83,6 +89,7 @@ functional_scenarios:
     test_function: "test_ctrlrd_channel_reset"
     priority: high
     status: verified
+    covers_lines: [36, 37, 41, 42, 43, 56, 78, 83, 92, 93, 96, 122, 123, 124, 143, 149, 153, 173, 259, 263, 264, 266, 267, 270, 411, 524]
 
   - id: CTRLRD-08
     name: "Back-to-back operations"
@@ -90,6 +97,7 @@ functional_scenarios:
     test_function: "test_ctrlrd_back_to_back"
     priority: medium
     status: verified
+    covers_lines: [36, 37, 41, 42, 43, 56, 78, 83, 92, 93, 96, 122, 123, 124, 143, 149, 153, 173, 259, 263, 264, 266, 267, 270, 411, 524]
 
   - id: CTRLRD-09
     name: "Mixed scenarios"
@@ -97,6 +105,7 @@ functional_scenarios:
     test_function: "test_ctrlrd_mixed_scenarios"
     priority: medium
     status: verified
+    covers_lines: [36, 37, 41, 42, 43, 56, 78, 83, 92, 93, 96, 122, 123, 124, 143, 149, 153, 173, 259, 263, 264, 266, 267, 270, 411, 524]
 
 # Parameter combinations tested
 parameter_coverage:

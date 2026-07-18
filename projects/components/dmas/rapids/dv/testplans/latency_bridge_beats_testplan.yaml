@@ -15,30 +15,35 @@ functional_scenarios:
   test_function: test_basic_latency
   priority: high
   status: verified
+  covers_lines: [50, 51, 57, 58, 59, 65, 66, 67, 72, 77, 78, 86, 89, 90, 91, 92, 101, 131, 132, 137, 146]
 - id: BRIDGE-02
   name: Backpressure propagation
   description: Backpressure through pipeline stages
   test_function: test_backpressure
   priority: high
   status: verified
+  covers_lines: [50, 51, 57, 58, 59, 65, 66, 67, 72, 77, 78, 86, 89, 90, 91, 92, 101, 131, 132, 137, 146]
 - id: BRIDGE-03
   name: Data integrity
   description: Data integrity through pipeline
   test_function: test_data_integrity
   priority: high
   status: verified
+  covers_lines: [50, 51, 57, 58, 59, 65, 66, 67, 72, 77, 78, 86, 89, 90, 91, 92, 101, 131, 132, 137, 146]
 - id: BRIDGE-04
   name: Rapid transactions
   description: Back-to-back transactions through bridge
   test_function: test_rapid_transactions
   priority: medium
   status: verified
+  covers_lines: [50, 51, 57, 58, 59, 65, 66, 67, 72, 77, 78, 86, 89, 90, 91, 92, 101, 131, 132, 137, 146]
 - id: BRIDGE-05
   name: Multiple pipeline stages
   description: Test with varying pipeline depths
   test_function: test_multi_stage
   priority: medium
   status: verified
+  covers_lines: [50, 51, 57, 58, 59, 65, 66, 67, 72, 77, 78, 86, 89, 90, 91, 92, 101, 131, 132, 137, 146]
 parameter_coverage:
 - DATA_WIDTH: 512
   PIPELINE_STAGES: 1

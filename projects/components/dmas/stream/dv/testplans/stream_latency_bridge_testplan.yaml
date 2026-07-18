@@ -75,7 +75,7 @@ functional_scenarios:
     name: "Basic streaming transfer"
     description: Stream data through bridge without stalls
     test_function: "test_stream_latency_bridge (basic_stream)"
-    covers_lines: [24, 25, 26, 29, 30, 31]
+    covers_lines: [50, 51, 57, 58, 59, 65, 66, 67, 72, 77, 78, 86, 89, 90, 91, 92, 101, 131, 132, 137, 146]
     priority: high
     status: verified
 
@@ -83,7 +83,7 @@ functional_scenarios:
     name: "Upstream backpressure"
     description: Downstream not ready (m_ready = 0), verify upstream backpressure (s_ready = 0)
     test_function: "test_stream_latency_bridge (upstream_backpressure)"
-    covers_lines: [24, 25, 30, 34]
+    covers_lines: [50, 51, 57, 58, 59, 65, 66, 67, 72, 77, 78, 86, 89, 90, 91, 92, 101, 131, 132, 137, 146]
     priority: high
     status: verified
 
@@ -91,7 +91,7 @@ functional_scenarios:
     name: "Downstream stall"
     description: Downstream intermittent ready, verify bridge buffering
     test_function: "test_stream_latency_bridge (downstream_stall)"
-    covers_lines: [29, 30, 34, 35]
+    covers_lines: [50, 51, 57, 58, 59, 65, 66, 67, 72, 77, 78, 86, 89, 90, 91, 92, 101, 131, 132, 137, 146]
     priority: high
     status: verified
 
@@ -99,7 +99,7 @@ functional_scenarios:
     name: "Buffer full condition"
     description: Fill buffer to capacity, verify almost_full flag
     test_function: "test_stream_latency_bridge (buffer_full)"
-    covers_lines: [24, 25, 34]
+    covers_lines: [50, 51, 57, 58, 59, 65, 66, 67, 72, 77, 78, 86, 89, 90, 91, 92, 101, 131, 132, 137, 146]
     priority: high
     status: verified
 
@@ -107,7 +107,7 @@ functional_scenarios:
     name: "Buffer empty condition"
     description: Drain buffer completely, verify almost_empty flag
     test_function: "test_stream_latency_bridge (buffer_empty)"
-    covers_lines: [29, 30, 35]
+    covers_lines: [50, 51, 57, 58, 59, 65, 66, 67, 72, 77, 78, 86, 89, 90, 91, 92, 101, 131, 132, 137, 146]
     priority: high
     status: verified
 
@@ -115,7 +115,7 @@ functional_scenarios:
     name: "Burst transfer"
     description: Back-to-back transfers filling bridge buffer
     test_function: "test_stream_latency_bridge (burst_transfer)"
-    covers_lines: [24, 25, 29, 30]
+    covers_lines: [50, 51, 57, 58, 59, 65, 66, 67, 72, 77, 78, 86, 89, 90, 91, 92, 101, 131, 132, 137, 146]
     priority: medium
     status: verified
 
@@ -123,7 +123,7 @@ functional_scenarios:
     name: "Variable latency compensation"
     description: Varying upstream and downstream timing, verify latency hiding
     test_function: "test_stream_latency_bridge (variable_latency)"
-    covers_lines: [24, 25, 29, 30, 34, 35]
+    covers_lines: [50, 51, 57, 58, 59, 65, 66, 67, 72, 77, 78, 86, 89, 90, 91, 92, 101, 131, 132, 137, 146]
     priority: high
     status: verified
 
@@ -131,7 +131,7 @@ functional_scenarios:
     name: "Data integrity"
     description: Verify data passes through bridge without corruption
     test_function: "test_stream_latency_bridge (data_integrity)"
-    covers_lines: [26, 31]
+    covers_lines: [50, 51, 57, 58, 59, 65, 66, 67, 72, 77, 78, 86, 89, 90, 91, 92, 101, 131, 132, 137, 146]
     priority: high
     status: verified
 
@@ -139,7 +139,7 @@ functional_scenarios:
     name: "Reset during transfer"
     description: Reset during active streaming
     test_function: "test_stream_latency_bridge (reset)"
-    covers_lines: [21]
+    covers_lines: [50, 51, 57, 58, 59, 65, 66, 67, 72, 77, 78, 86, 89, 90, 91, 92, 101, 131, 132, 137, 146]
     priority: high
     status: verified
 

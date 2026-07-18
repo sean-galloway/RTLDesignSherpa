@@ -144,7 +144,7 @@ functional_scenarios:
     name: "Single channel descriptor flow"
     description: APB kick-off → descriptor fetch → parse → read req → write req → complete
     test_function: "test_stream_core (gate)"
-    covers_lines: [34, 35, 36, 39, 40, 41, 42, 43, 44, 47, 48, 49, 50, 53, 54, 55, 56, 59, 60, 63, 64]
+    covers_lines: [46, 47, 50, 51, 55, 59, 61, 62, 63, 67, 68, 69, 71, 73, 76, 77, 87, 88, 91, 101, 102, 105, 110, 116, 117, 122, 124, 126, 138, 139, 151, 152, 162, 169, 170, 174, 175]
     priority: high
     status: integration_tested
     note: "Tested via stream_core single channel test"
@@ -153,7 +153,7 @@ functional_scenarios:
     name: "Descriptor chain processing"
     description: Follow next_descriptor_ptr chain
     test_function: "test_stream_core (func)"
-    covers_lines: [34, 35, 39, 40, 42, 43, 47, 53, 63]
+    covers_lines: [46, 47, 50, 51, 55, 59, 61, 62, 63, 67, 68, 69, 71, 73, 76, 77, 87, 88, 91, 101, 102, 105, 110, 116, 117, 122, 124, 126, 138, 139, 151, 152, 162, 169, 170, 174, 175]
     priority: high
     status: integration_tested
 
@@ -161,7 +161,7 @@ functional_scenarios:
     name: "Descriptor engine backpressure"
     description: Scheduler not ready for descriptor (desc_ready = 0)
     test_function: "test_stream_core (func)"
-    covers_lines: [40, 41, 44]
+    covers_lines: [46, 47, 50, 51, 55, 59, 61, 62, 63, 67, 68, 69, 71, 73, 76, 77, 87, 88, 91, 101, 102, 105, 110, 116, 117, 122, 124, 126, 138, 139, 151, 152, 162, 169, 170, 174, 175]
     priority: high
     status: integration_tested
 
@@ -169,7 +169,7 @@ functional_scenarios:
     name: "Read engine backpressure"
     description: Read engine not ready (rd_req_ready = 0)
     test_function: "test_stream_core (medium)"
-    covers_lines: [47, 48]
+    covers_lines: [46, 47, 50, 51, 55, 59, 61, 62, 63, 67, 68, 69, 71, 73, 76, 77, 87, 88, 91, 101, 102, 105, 110, 116, 117, 122, 124, 126, 138, 139, 151, 152, 162, 169, 170, 174, 175]
     priority: high
     status: integration_tested
 
@@ -177,7 +177,7 @@ functional_scenarios:
     name: "Write engine backpressure"
     description: Write engine not ready (wr_req_ready = 0)
     test_function: "test_stream_core (medium)"
-    covers_lines: [53, 54]
+    covers_lines: [46, 47, 50, 51, 55, 59, 61, 62, 63, 67, 68, 69, 71, 73, 76, 77, 87, 88, 91, 101, 102, 105, 110, 116, 117, 122, 124, 126, 138, 139, 151, 152, 162, 169, 170, 174, 175]
     priority: high
     status: integration_tested
 
@@ -185,7 +185,7 @@ functional_scenarios:
     name: "Error propagation"
     description: Error from descriptor fetch or transfer engines
     test_function: "test_stream_core (error_injection)"
-    covers_lines: [63, 64]
+    covers_lines: [46, 47, 50, 51, 55, 59, 61, 62, 63, 67, 68, 69, 71, 73, 76, 77, 87, 88, 91, 101, 102, 105, 110, 116, 117, 122, 124, 126, 138, 139, 151, 152, 162, 169, 170, 174, 175]
     priority: high
     status: integration_tested
 
@@ -193,7 +193,7 @@ functional_scenarios:
     name: "Completion reporting"
     description: Generate completion event with descriptor ID
     test_function: "test_stream_core (func/full)"
-    covers_lines: [63, 64]
+    covers_lines: [46, 47, 50, 51, 55, 59, 61, 62, 63, 67, 68, 69, 71, 73, 76, 77, 87, 88, 91, 101, 102, 105, 110, 116, 117, 122, 124, 126, 138, 139, 151, 152, 162, 169, 170, 174, 175]
     priority: medium
     status: integration_tested
 
