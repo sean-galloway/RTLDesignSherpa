@@ -15,18 +15,18 @@ PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/monitor_amba4_pkg.sv
 
 # RTL dependencies (all submodules of axi_monitor_base)
-DEPS := $(REPO_ROOT)/rtl/amba/shared/axi_monitor_trans_mgr.sv \
-        $(REPO_ROOT)/rtl/amba/shared/axi_monitor_timer.sv \
+DEPS := $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_trans_mgr.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timer.sv \
         $(REPO_ROOT)/rtl/common/counter_freq_invariant.sv \
         $(REPO_ROOT)/rtl/common/counter_load_clear.sv \
-        $(REPO_ROOT)/rtl/amba/shared/axi_monitor_timeout.sv \
-        $(REPO_ROOT)/rtl/amba/shared/axi_monitor_reporter.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timeout.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
         $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/common/fifo_control.sv
 
 # Device under test
-DUT := $(REPO_ROOT)/rtl/amba/shared/axi_monitor_base.sv
+DUT := $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_base.sv
 
 TMPDIR := /tmp/formal_axi_monitor_base
 

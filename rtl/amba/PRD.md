@@ -627,7 +627,7 @@ pytest val/amba/ -v
 pytest val/amba/test_axi_monitor.py -v
 
 # Lint monitor RTL
-verilator --lint-only rtl/amba/shared/axi_monitor_base.sv
+verilator --lint-only rtl/amba/monitor/axi_monitor_base.sv
 
 # View detailed docs
 cat docs/markdown/RTLAmba/index.md

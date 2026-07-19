@@ -198,7 +198,7 @@ The 3-bit state codes follow `transaction_state_t` (`TRANS_IDLE=0`, `ADDR_PHASE=
 ## References
 
 ### Source Code
-- RTL: `rtl/amba/shared/axi_monitor_reporter_debug.sv`
+- RTL: `rtl/amba/monitor/axi_monitor_reporter_debug.sv`
 
 ### Documentation
 - Packet format: `docs/markdown/RTLAmba/includes/monitor_package_spec.md`

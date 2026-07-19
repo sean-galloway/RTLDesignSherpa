@@ -189,7 +189,7 @@ The packer holds at most one pending half. It never accumulates more than two re
 ## References
 
 ### Source Code
-- RTL: `rtl/amba/shared/monbus_halfbeat_packer.sv`
+- RTL: `rtl/amba/monitor/monbus_halfbeat_packer.sv`
 - Golden model: `monbus_compressor.py` (`Encoder(half_beat=True)`)
 
 ### Documentation

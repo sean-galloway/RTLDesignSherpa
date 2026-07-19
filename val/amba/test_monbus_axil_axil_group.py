@@ -18,7 +18,7 @@
 """
 MonBus AXIL/AXIL Group Integration Test
 
-Test suite for `rtl/amba/shared/monbus_axil_axil_group.sv` -- the
+Test suite for `rtl/amba/monitor/monbus_axil_axil_group.sv` -- the
 AXIL/AXIL member of the monbus_<p1>_<p2>_group family. Drives the
 single-input monitor bus, drains the error FIFO via the AXIL slave-read
 interface, and lets the master-write side flush into a synthetic sink
@@ -53,7 +53,7 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 # Import the shared TB from bin/TBClasses (colocated with the shared
-# rtl/amba/shared/monbus_axil_axil_group.sv module the test targets).
+# rtl/amba/monitor/monbus_axil_axil_group.sv module the test targets).
 from TBClasses.amba.monbus_axil_axil_group.monbus_axil_axil_group_tb import MonbusAxilAxilGroupTB
 
 # Coverage integration - optional import. Lives in the STREAM project

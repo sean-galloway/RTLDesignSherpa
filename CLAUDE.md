@@ -724,7 +724,7 @@ gtkwave waves.vcd
 
 ```bash
 # Lint single file
-verilator --lint-only rtl/amba/shared/axi_monitor_base.sv
+verilator --lint-only rtl/amba/monitor/axi_monitor_base.sv
 
 # Check synthesis
 verilator --cc rtl/common/counter_bin.sv --top-module counter_bin

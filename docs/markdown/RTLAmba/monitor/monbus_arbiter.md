@@ -305,7 +305,7 @@ The module includes comprehensive assertions:
 - Internal: docs/markdown/RTLAmba/includes/monitor_package_spec.md (monitor bus protocol)
 
 ### Source Code
-- RTL: `rtl/amba/shared/monbus_arbiter.sv`
+- RTL: `rtl/amba/monitor/monbus_arbiter.sv`
 - Tests: `val/amba/test_monbus_arbiter.py` (if exists)
 
 ---

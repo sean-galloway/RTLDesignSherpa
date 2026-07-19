@@ -206,8 +206,8 @@ The 16 × 32-bit latency registers plus 16 threshold flags are the reason disabl
 ## References
 
 ### Source Code
-- RTL: `rtl/amba/shared/axi_monitor_reporter_threshold.sv`
-- Parent: `rtl/amba/shared/axi_monitor_reporter.sv`
+- RTL: `rtl/amba/monitor/axi_monitor_reporter_threshold.sv`
+- Parent: `rtl/amba/monitor/axi_monitor_reporter.sv`
 - Packages: `rtl/amba/includes/monitor_common_pkg.sv`, `rtl/amba/includes/monitor_amba4_pkg.sv`
 
 ### Documentation

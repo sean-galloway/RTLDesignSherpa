@@ -15,7 +15,7 @@ PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
         monitor_pkg_stub.sv
 
 # Device under test
-DUT := $(REPO_ROOT)/rtl/amba/shared/axi_monitor_timeout.sv
+DUT := $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timeout.sv
 
 .PHONY: prove cover clean
 

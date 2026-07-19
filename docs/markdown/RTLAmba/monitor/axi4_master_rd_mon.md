@@ -692,7 +692,7 @@ Monitors up to `MAX_TRANSACTIONS` concurrent transactions:
 - Monitor Bus Packet Format: [monitor_package_spec.md](../includes/monitor_package_spec.md)
 
 ### Source Code
-- RTL: `rtl/amba/axi4/axi4_master_rd_mon.sv`
+- RTL: `rtl/amba/monitor/axi4_master_rd_mon.sv`
 - Tests: `val/amba/test_axi4_master_rd_mon.py`
 - Framework: `bin/TBClasses/components/axi4/`
 

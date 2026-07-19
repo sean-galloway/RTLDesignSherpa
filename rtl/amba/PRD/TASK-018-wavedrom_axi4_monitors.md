@@ -292,7 +292,7 @@ done
 - **Pattern:** `val/amba/test_gaxi_buffer_sync.py`
 - **Framework:** `bin/TBClasses/components/wavedrom/`
 - **AXI4 Spec:** ARM IHI0022 (AMBA AXI Protocol Specification)
-- **Monitor RTL:** `rtl/amba/axi4/axi4_master_rd_mon.sv`
+- **Monitor RTL:** `rtl/amba/monitor/axi4_master_rd_mon.sv`
 
 ## Related Tasks
 

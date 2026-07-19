@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
 # Purpose: Acceptance test for the half-beat packing path
-#          (rtl/amba/shared/monbus_compressor.sv HALF_BEAT_EN=1 +
+#          (rtl/amba/monitor/monbus_compressor.sv HALF_BEAT_EN=1 +
 #           monbus_halfbeat_packer.sv) against the Python golden
 #           Encoder(half_beat=True) in monbus_compressor.py.
 #

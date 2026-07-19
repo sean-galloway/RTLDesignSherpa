@@ -132,7 +132,7 @@ The reporter dispatcher provides:
 
 ## Port Groups
 
-**See RTL source:** `rtl/amba/shared/axi_monitor_reporter.sv` for complete port listing.
+**See RTL source:** `rtl/amba/monitor/axi_monitor_reporter.sv` for complete port listing.
 
 Key interface groups:
 - Clock and reset

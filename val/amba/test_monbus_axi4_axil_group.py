@@ -11,7 +11,7 @@
 # Created: 2026-06-11
 
 """
-Test for `rtl/amba/shared/monbus_axi4_axil_group.sv` — the AXI4-burst
+Test for `rtl/amba/monitor/monbus_axi4_axil_group.sv` — the AXI4-burst
 slave-read + AXIL master-write member of the family. This file member
 had no dedicated test before
 [MONBUS_GROUP_AXIL_MASTER_RAWMODE_FLUSH_BUG.md](../../MONBUS_GROUP_AXIL_MASTER_RAWMODE_FLUSH_BUG.md)

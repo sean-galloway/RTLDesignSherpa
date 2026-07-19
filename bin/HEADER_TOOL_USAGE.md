@@ -244,7 +244,7 @@ The script only adds headers to files without them. To update existing headers:
 Scanning for files in: /mnt/data/github/rtldesignsherpa
 Found 247 files to process
 
-✓ rtl/amba/shared/axi_monitor_base.sv: Header added
+✓ rtl/amba/monitor/axi_monitor_base.sv: Header added
 ✓ rtl/common/counter_bin.sv: Header added
 - rtl/common/fifo_sync.sv: Already has header
 ✓ projects/components/dmas/rapids/rtl/rapids_fub/scheduler.sv: Header added

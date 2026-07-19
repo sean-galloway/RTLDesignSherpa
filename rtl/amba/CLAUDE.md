@@ -733,7 +733,7 @@ ls rtl/amba/KNOWN_ISSUES/
 cat rtl/amba/KNOWN_ISSUES/axi_monitor_reporter.md
 
 # Lint
-verilator --lint-only rtl/amba/shared/axi_monitor_base.sv
+verilator --lint-only rtl/amba/monitor/axi_monitor_base.sv
 ```
 
 ---

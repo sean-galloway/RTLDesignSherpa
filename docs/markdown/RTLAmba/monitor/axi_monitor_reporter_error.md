@@ -180,7 +180,7 @@ Because `pkt_event_code` comes from the slot's `event_code.raw_code`, this cone 
 ## References
 
 ### Source Code
-- RTL: `rtl/amba/shared/axi_monitor_reporter_error.sv`
+- RTL: `rtl/amba/monitor/axi_monitor_reporter_error.sv`
 
 ### Documentation
 - Packet format: `docs/markdown/RTLAmba/includes/monitor_package_spec.md`

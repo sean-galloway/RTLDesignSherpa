@@ -82,7 +82,7 @@ The `arbiter_monbus_common` module is the core building block for:
 
 ## Port Groups
 
-**See RTL source:** `rtl/amba/shared/arbiter_monbus_common.sv` for complete port listing.
+**See RTL source:** `rtl/amba/monitor/arbiter_monbus_common.sv` for complete port listing.
 
 Key interface groups:
 - Clock and reset

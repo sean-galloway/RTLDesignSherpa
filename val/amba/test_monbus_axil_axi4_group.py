@@ -11,7 +11,7 @@
 # Created: 2026-06-11
 
 """
-Burst-coverage test for `rtl/amba/shared/monbus_axil_axi4_group.sv`.
+Burst-coverage test for `rtl/amba/monitor/monbus_axil_axi4_group.sv`.
 
 The AXIL/AXIL family member exercises the master-write path one beat
 at a time, so it doesn't catch bugs in AXI4 burst behavior. This test

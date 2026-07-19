@@ -255,8 +255,8 @@ The error-drain path is byte-for-byte the same as the AXI4/AXI4 group — the re
 ## References
 
 ### Source Code
-- RTL: `rtl/amba/shared/monbus_axi4_axil_group.sv`
-- Core: `rtl/amba/shared/monbus_group_core.sv`
+- RTL: `rtl/amba/monitor/monbus_axi4_axil_group.sv`
+- Core: `rtl/amba/monitor/monbus_group_core.sv`
 
 ### Documentation
 - Architecture: `docs/markdown/RTLAmba/shared/README.md`

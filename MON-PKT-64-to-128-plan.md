@@ -226,14 +226,14 @@ format in the codebase. Future width changes are another atomic PR.
 
 | File | Change |
 | ---- | ------ |
-| `rtl/amba/shared/axi_monitor_base.sv` | `monbus_packet` port + every internal `[63:0]` net → `monitor_packet_t`. **NEW: input `i_mon_time[MONBUS_TS_WIDTH-1:0]`, output `monbus_timestamp[MONBUS_TS_WIDTH-1:0]`** (both widths come from the package localparam — no module parameter). Sample `i_mon_time` on the same cycle the reporter asserts `monbus_valid`; drive that sampled value on `monbus_timestamp`. |
-| `rtl/amba/shared/axi_monitor_reporter.sv` | Same packet-width updates. **NEW: pipeline the sampled-time register alongside the packet so it flows out coincident with `monbus_valid`.** |
-| `rtl/amba/shared/axi_monitor_filtered.sv` | Same packet-width updates. Pass-through for the timestamp side-band (no semantics here, just route it). |
-| `rtl/amba/shared/axi_monitor_addr_check.sv` | Restructure `event_data_field`. Drop `is_read` (recover from `IS_READ` parameter on consumer). Keep `range_index`. Put full address in low 64 bits of event_data. **NEW: also drive its own `monbus_timestamp` output by sampling `i_mon_time` on emission.** |
-| `rtl/amba/shared/monbus_arbiter.sv` | (1) `monbus_packet_in[CLIENTS]`, `monbus_packet`, internal skid buffers → `MONBUS_PKT_WIDTH`. (2) **NEW: `monbus_timestamp_in[CLIENTS]` array (each `MONBUS_TS_WIDTH` wide), `monbus_timestamp` output.** Single combined skid buffer with `DATA_WIDTH = MONBUS_PKT_WIDTH + MONBUS_TS_WIDTH` so both fields ride the same grant cycle atomically. Pack/unpack at the buffer boundary. |
-| `rtl/amba/shared/arbiter_monbus_common.sv` | Update event-packet assembly. |
-| `rtl/amba/shared/arbiter_rr_pwm_monbus.sv` | Same. |
-| `rtl/amba/shared/arbiter_wrr_pwm_monbus.sv` | Same. |
+| `rtl/amba/monitor/axi_monitor_base.sv` | `monbus_packet` port + every internal `[63:0]` net → `monitor_packet_t`. **NEW: input `i_mon_time[MONBUS_TS_WIDTH-1:0]`, output `monbus_timestamp[MONBUS_TS_WIDTH-1:0]`** (both widths come from the package localparam — no module parameter). Sample `i_mon_time` on the same cycle the reporter asserts `monbus_valid`; drive that sampled value on `monbus_timestamp`. |
+| `rtl/amba/monitor/axi_monitor_reporter.sv` | Same packet-width updates. **NEW: pipeline the sampled-time register alongside the packet so it flows out coincident with `monbus_valid`.** |
+| `rtl/amba/monitor/axi_monitor_filtered.sv` | Same packet-width updates. Pass-through for the timestamp side-band (no semantics here, just route it). |
+| `rtl/amba/monitor/axi_monitor_addr_check.sv` | Restructure `event_data_field`. Drop `is_read` (recover from `IS_READ` parameter on consumer). Keep `range_index`. Put full address in low 64 bits of event_data. **NEW: also drive its own `monbus_timestamp` output by sampling `i_mon_time` on emission.** |
+| `rtl/amba/monitor/monbus_arbiter.sv` | (1) `monbus_packet_in[CLIENTS]`, `monbus_packet`, internal skid buffers → `MONBUS_PKT_WIDTH`. (2) **NEW: `monbus_timestamp_in[CLIENTS]` array (each `MONBUS_TS_WIDTH` wide), `monbus_timestamp` output.** Single combined skid buffer with `DATA_WIDTH = MONBUS_PKT_WIDTH + MONBUS_TS_WIDTH` so both fields ride the same grant cycle atomically. Pack/unpack at the buffer boundary. |
+| `rtl/amba/monitor/arbiter_monbus_common.sv` | Update event-packet assembly. |
+| `rtl/amba/monitor/arbiter_rr_pwm_monbus.sv` | Same. |
+| `rtl/amba/monitor/arbiter_wrr_pwm_monbus.sv` | Same. |
 
 #### 4.2.1 — Wrapper ports: new inputs/outputs
 
@@ -259,13 +259,13 @@ All have an `output logic [63:0] monbus_packet` port + an internal
 `gen_no_monitor` branch that drives `monbus_packet = 64'h0`. Change both.
 
 ```
-rtl/amba/axi4/axi4_master_rd_mon.sv         + _cg, _wr, _wr_cg
-rtl/amba/axi4/axi4_slave_rd_mon.sv          + _cg, _wr, _wr_cg
-rtl/amba/axi5/axi5_master_rd_mon.sv         + _cg, _wr, _wr_cg
-rtl/amba/axi5/axi5_slave_rd_mon.sv          + _cg, _wr, _wr_cg
-rtl/amba/axil4/axil4_master_rd_mon.sv       + _cg, _wr, _wr_cg
-rtl/amba/axil4/axil4_slave_rd_mon.sv        + _cg, _wr, _wr_cg
-rtl/amba/apb/apb_monitor.sv
+rtl/amba/monitor/axi4_master_rd_mon.sv         + _cg, _wr, _wr_cg
+rtl/amba/monitor/axi4_slave_rd_mon.sv          + _cg, _wr, _wr_cg
+rtl/amba/monitor/axi5_master_rd_mon.sv         + _cg, _wr, _wr_cg
+rtl/amba/monitor/axi5_slave_rd_mon.sv          + _cg, _wr, _wr_cg
+rtl/amba/monitor/axil4_master_rd_mon.sv       + _cg, _wr, _wr_cg
+rtl/amba/monitor/axil4_slave_rd_mon.sv        + _cg, _wr, _wr_cg
+rtl/amba/monitor/apb_monitor.sv
 ```
 
 ### 4.4 — Monitor-group consumers
@@ -641,7 +641,7 @@ Run in this order; do NOT proceed past a failure:
    doubles the per-entry storage in the write FIFO when enabled — decide
    if that gets a separate (smaller) FIFO or rides on the main one.
 
-4. **APB monbus path:** `rtl/amba/apb/apb_monitor.sv` reports via the same
+4. **APB monbus path:** `rtl/amba/monitor/apb_monitor.sv` reports via the same
    packet format. Confirm with the APB owner that bumping width doesn't
    collide with any in-flight APB-specific work.
 

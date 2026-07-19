@@ -367,7 +367,7 @@ characterization harness (AXIS gen/checker already built + verified) on the spli
 
 ## Monbus hierarchy (user directive) — 3 levels
 Each half (rapids_src_beats / rapids_snk_beats) instantiates its OWN monbus_arbiter
-(rtl/amba/shared/monbus_arbiter.sv) aggregating that half's monitor source(s) -> single
+(rtl/amba/monitor/monbus_arbiter.sv) aggregating that half's monitor source(s) -> single
 per-half monitor_packet_t stream. rapids_core_beats instantiates ONE MORE monbus_arbiter
 merging src_mon + snk_mon -> a SINGLE mon output. The top then routes that single stream to
 the axil-mon module (monbus_axil_axil_group -> m_axil_mon). Half mon interface widened from

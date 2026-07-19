@@ -312,7 +312,7 @@ See arbiter_monbus_common.md for complete monitoring details. Key points:
 - Internal: docs/markdown/RTLAmba/arbiter_monbus_common.md (monitoring details)
 
 ### Source Code
-- RTL: `rtl/amba/shared/arbiter_rr_pwm_monbus.sv`
+- RTL: `rtl/amba/monitor/arbiter_rr_pwm_monbus.sv`
 - Tests: `val/amba/test_arbiter_rr_pwm_monbus.py`
 
 ---

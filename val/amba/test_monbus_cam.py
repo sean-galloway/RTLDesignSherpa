@@ -5,9 +5,9 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Module: test_monbus_cam
-# Purpose: FUB cocotb tests for rtl/amba/shared/monbus_cam.sv
+# Purpose: FUB cocotb tests for rtl/amba/monitor/monbus_cam.sv
 #
-# Documentation: rtl/amba/shared/monbus_cam.sv (header comment)
+# Documentation: rtl/amba/monitor/monbus_cam.sv (header comment)
 # Subsystem: tests
 #
 # Author: sean galloway

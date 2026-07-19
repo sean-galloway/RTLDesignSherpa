@@ -18,7 +18,7 @@
 """
 MonBus AXIL/AXIL Group testbench — covers the AXIL-slave-read +
 AXIL-master-write member of the monbus_<p1>_<p2>_group family
-(`rtl/amba/shared/monbus_axil_axil_group.sv`). The other family
+(`rtl/amba/monitor/monbus_axil_axil_group.sv`). The other family
 members (axil_axi4, axi4_axil, axi4_axi4) have separate TBs / tests
 because their port surfaces differ.
 

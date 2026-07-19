@@ -345,7 +345,7 @@ The burst is always sized so its last byte stays at or below `cfg_limit_addr` an
 ## References
 
 ### Source Code
-- RTL: `rtl/amba/shared/monbus_group_core.sv`
+- RTL: `rtl/amba/monitor/monbus_group_core.sv`
 - Package: `rtl/amba/includes/monitor_common_pkg.sv`
 
 ### Documentation

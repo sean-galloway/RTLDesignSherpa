@@ -5,9 +5,9 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Module: test_monitor_trans_cam
-# Purpose: FUB cocotb tests for rtl/amba/shared/monitor_trans_cam.sv
+# Purpose: FUB cocotb tests for rtl/amba/monitor/monitor_trans_cam.sv
 #
-# Documentation: rtl/amba/shared/monitor_trans_cam.sv (header comment)
+# Documentation: rtl/amba/monitor/monitor_trans_cam.sv (header comment)
 # Subsystem: tests
 #
 # Author: sean galloway

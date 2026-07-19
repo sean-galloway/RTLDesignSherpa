@@ -316,8 +316,8 @@ The filter, FIFOs, burst writer, and drain live once in `monbus_group_core`; the
 ## References
 
 ### Source Code
-- RTL: `rtl/amba/shared/monbus_axil_axi4_group.sv`
-- Core: `rtl/amba/shared/monbus_group_core.sv`
+- RTL: `rtl/amba/monitor/monbus_axil_axi4_group.sv`
+- Core: `rtl/amba/monitor/monbus_group_core.sv`
 - Tests: `val/amba/test_monbus_axil_axi4_group.py`
 
 ### Documentation

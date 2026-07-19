@@ -103,7 +103,7 @@ Option 1 established the exact end-to-end route. Mirror it:
 
 ### Critical semantics gotcha (already discovered in option 1)
 `window_cycles` is a **live** counter that `axi_monitor_base` **zeroes when the
-window closes** (`WIN_CLOSING_S` in `rtl/amba/shared/axi_monitor_base.sv:562`).
+window closes** (`WIN_CLOSING_S` in `rtl/amba/monitor/axi_monitor_base.sv:562`).
 It is meant to be sampled at close for the legacy WIN_END packet, **not** polled
 after. The **four bucket counters HOLD** after close (`axi_monitor_base.sv:655`),
 so **`bucket_total = prod+bp+starv+idle` is the authoritative closed-window
@@ -116,7 +116,7 @@ instead (option 1 did this in the RDL field desc, host reader, and TB).
 
 ## 4. `axi_monitor_base` perf surface (already available, per bus)
 
-These output ports exist on `rtl/amba/shared/axi_monitor_base.sv` (and pass
+These output ports exist on `rtl/amba/monitor/axi_monitor_base.sv` (and pass
 through the `axi4_master_rd_mon` / `axi4_master_wr_mon` wrappers):
 
 ```
@@ -190,7 +190,7 @@ Bitstream only at the very end.
   generalized version of `read_desc_perf.py`). Update `run_characterization.py`
   to open/close the perf window and read the monitor CSRs instead of the meters.
 - Retire the legacy `PktTypePerf` emission path
-  (`rtl/amba/shared/axi_monitor_reporter_perf.sv`, gated by `cfg_*_mon_perf_enable`)
+  (`rtl/amba/monitor/axi_monitor_reporter_perf.sv`, gated by `cfg_*_mon_perf_enable`)
   only if it is no longer needed — confirm no other consumer relies on it first.
 - **Acceptance:** the full sweep (`run_characterization.py`) produces the same
   four-bucket numbers it produces today, sourced from monitor CSRs.
@@ -247,8 +247,8 @@ Bitstream only at the very end.
 
 | Purpose | File |
 |---|---|
-| Perf primitives (ports, window FSM, buckets) | `rtl/amba/shared/axi_monitor_base.sv` (window FSM `:542`, buckets `:617`, `WIN_CLOSING` zero `:562`) |
-| Read/write monitor wrappers | `rtl/amba/axi4/axi4_master_rd_mon.sv`, `axi4_master_wr_mon.sv` |
+| Perf primitives (ports, window FSM, buckets) | `rtl/amba/monitor/axi_monitor_base.sv` (window FSM `:542`, buckets `:617`, `WIN_CLOSING` zero `:562`) |
+| Read/write monitor wrappers | `rtl/amba/monitor/axi4_master_rd_mon.sv`, `axi4_master_wr_mon.sv` |
 | Desc monitor instance (option-1 template) | `projects/components/dmas/stream/rtl/macro/scheduler_group_array.sv:499` |
 | Datapath engines (where new monitors go) | `projects/components/dmas/stream/rtl/fub/axi_read_engine.sv`, `axi_write_engine.sv` |
 | Core (dead `cfg_rdeng_mon_*`/`cfg_wreng_mon_*` hooks to reuse) | `projects/components/dmas/stream/rtl/macro/stream_core.sv` |

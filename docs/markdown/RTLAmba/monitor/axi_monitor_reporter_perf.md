@@ -207,8 +207,8 @@ Both counters are 16-bit and wrap on overflow. For very long runs the host shoul
 ## References
 
 ### Source Code
-- RTL: `rtl/amba/shared/axi_monitor_reporter_perf.sv`
-- Parent: `rtl/amba/shared/axi_monitor_reporter.sv`
+- RTL: `rtl/amba/monitor/axi_monitor_reporter_perf.sv`
+- Parent: `rtl/amba/monitor/axi_monitor_reporter.sv`
 - Packages: `rtl/amba/includes/monitor_common_pkg.sv`, `rtl/amba/includes/monitor_amba4_pkg.sv`
 
 ### Documentation

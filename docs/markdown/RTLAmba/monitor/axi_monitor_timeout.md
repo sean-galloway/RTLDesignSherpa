@@ -73,7 +73,7 @@ The `axi_monitor_timeout` module is the core building block for:
 
 ## Port Groups
 
-**See RTL source:** `rtl/amba/shared/axi_monitor_timeout.sv` for complete port listing.
+**See RTL source:** `rtl/amba/monitor/axi_monitor_timeout.sv` for complete port listing.
 
 Key interface groups:
 - Clock and reset

@@ -223,7 +223,7 @@ Program `cfg_addr_range_low[i] == cfg_addr_range_high[i]` to turn a range into a
 ## References
 
 ### Source Code
-- RTL: `rtl/amba/shared/apb_monitor_addr_check.sv`
+- RTL: `rtl/amba/monitor/apb_monitor_addr_check.sv`
 
 ### Documentation
 - Packet format: `docs/markdown/RTLAmba/includes/monitor_package_spec.md`

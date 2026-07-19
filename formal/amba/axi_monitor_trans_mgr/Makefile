@@ -19,7 +19,7 @@ PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
 DEPS :=
 
 # Device under test
-DUT := $(REPO_ROOT)/rtl/amba/shared/axi_monitor_trans_mgr.sv
+DUT := $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_trans_mgr.sv
 
 .PHONY: prove cover clean
 

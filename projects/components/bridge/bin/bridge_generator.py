@@ -905,29 +905,29 @@ def _emit_bridge_variant(
         # monitor_trans_cam backs axi_monitor_trans_mgr's transaction
         # table -- listed before trans_mgr so verilator finds the module
         # at the point trans_mgr instantiates it.
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/monitor_trans_cam.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_trans_mgr.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_timer.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_timeout.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/monitor/monitor_trans_cam.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/monitor/axi_monitor_trans_mgr.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/monitor/axi_monitor_timer.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/monitor/axi_monitor_timeout.sv")
         # Reporter sub-blocks (must precede the reporter top wrapper).
         # These are the 0.9-monitor refactor outputs (657e00b3).
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_error.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_timeout.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_compl.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_threshold.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_perf.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_error.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_timeout.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_compl.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_threshold.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_perf.sv")
         # debug cone -- pulled in by axi_monitor_reporter when the
         # adapter exposes cfg_debug_enable (task 114). Must precede
         # the reporter top wrapper that instantiates it.
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_debug.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_base.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_filtered.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_debug.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/monitor/axi_monitor_base.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/monitor/axi_monitor_filtered.sv")
         filelist_lines.append("# _mon wrapper variants (instantiated by adapters when use_monitor=true)")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_slave_wr_mon.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_slave_rd_mon.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_master_wr_mon.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_master_rd_mon.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/monitor/axi4_slave_wr_mon.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/monitor/axi4_slave_rd_mon.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/monitor/axi4_master_wr_mon.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/monitor/axi4_master_rd_mon.sv")
         # Monbus aggregator. The arbiter (+ its sync FIFO) is always
         # instantiated; the monbus_<p1>_<p2>_group family + its leaf skids
         # are only pulled in when the bridge owns an internal group
@@ -935,7 +935,7 @@ def _emit_bridge_variant(
         # from [bridge.mon_group] (axil/axil legacy default).
         filelist_lines.append("# Monbus arbiter (always present in mon variant)")
         filelist_lines.append("$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/monbus_arbiter.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/monitor/monbus_arbiter.sv")
         if getattr(config, 'internal_axil_group', True):
             mg = getattr(config, 'mon_group', None)
             slave_axi4 = bool(mg and mg.slave_protocol == 'axi4')

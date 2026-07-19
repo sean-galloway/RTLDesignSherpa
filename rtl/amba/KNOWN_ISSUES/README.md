@@ -63,7 +63,7 @@ Workaround: `make program` to clear; reprogram periodically for long runs.
 - Unable to track transaction completions during stress tests
 
 **Fix Applied:**
-- **File:** `rtl/amba/shared/axi_monitor_reporter.sv`
+- **File:** `rtl/amba/monitor/axi_monitor_reporter.sv`
 - **Change:** Added `TRANS_ORPHANED` state to `w_events_to_mark` logic
 - **Result:** All 11/11 tests now passing
 

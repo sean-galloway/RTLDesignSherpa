@@ -5,7 +5,7 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Module: test_monbus_compressor
-# Purpose: Acceptance test for rtl/amba/shared/monbus_compressor.sv
+# Purpose: Acceptance test for rtl/amba/monitor/monbus_compressor.sv
 #          against the Python golden Encoder in monbus_compressor.py
 #          and the real-silicon dataset in
 #          projects/NexysA7/stream_characterization/reports/compression_dataset/

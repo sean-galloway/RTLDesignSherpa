@@ -181,8 +181,8 @@ Correct single-reporting depends on the top reporter driving `event_reported` an
 ## References
 
 ### Source Code
-- RTL: `rtl/amba/shared/axi_monitor_reporter_timeout.sv`
-- Parent: `rtl/amba/shared/axi_monitor_reporter.sv`
+- RTL: `rtl/amba/monitor/axi_monitor_reporter_timeout.sv`
+- Parent: `rtl/amba/monitor/axi_monitor_reporter.sv`
 - Packages: `rtl/amba/includes/monitor_common_pkg.sv`, `rtl/amba/includes/monitor_amba4_pkg.sv`
 
 ### Documentation

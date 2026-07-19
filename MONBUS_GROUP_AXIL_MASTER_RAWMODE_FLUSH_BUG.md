@@ -1,6 +1,6 @@
 # Bug (RESOLVED): monbus group master-write path never flushed for an AXIL master in raw mode
 
-**Status:** RESOLVED — fixed in `rtl/amba/shared/monbus_group_core.sv` and
+**Status:** RESOLVED — fixed in `rtl/amba/monitor/monbus_group_core.sv` and
 validated (the bridge capture test went from 0 → 9 master-write beats).
 **Severity:** High — the bulk-trace (master-write) path was completely
 non-functional for two of the four `monbus_<p1>_<p2>_group` members.
@@ -43,7 +43,7 @@ affected, because a 1-beat record fits a 1-beat burst.
 
 ### The geometry pipeline
 
-`rtl/amba/shared/monbus_group_core.sv`
+`rtl/amba/monitor/monbus_group_core.sv`
 
 ```
 BEATS_PER_UNIT = (USE_COMPRESSION == 0) ? 3 : 1;
@@ -137,10 +137,10 @@ mode, which is why it caught it.
 
 ## Key file references
 
-- `rtl/amba/shared/monbus_group_core.sv` — `BEATS_PER_UNIT`, byte→beat budget
+- `rtl/amba/monitor/monbus_group_core.sv` — `BEATS_PER_UNIT`, byte→beat budget
   (`bytes_to_limit` overflow), `beats_cap_max` / `beats_planned`,
   round-down-to-unit, `WR_IDLE → WR_AW` guard.
-- `rtl/amba/shared/monbus_axil_axil_group.sv` / `monbus_axi4_axil_group.sv` —
+- `rtl/amba/monitor/monbus_axil_axil_group.sv` / `monbus_axi4_axil_group.sv` —
   `.MAX_BURST_BEATS(1)`.
 - `val/amba/test_monbus_axil_axil_group.py:23-25` — "no master-write assertions".
 - `projects/components/bridge/dv/tests/test_bridge_1x2_rd_monitor_capture.py` — repro.

@@ -68,7 +68,7 @@ The AMBA subsystem provides production-ready monitoring, observation, and bus-in
 | **AXI4** | ✅ Complete | `rtl/amba/axi4/axi4_{master,slave}_{rd,wr}_mon.sv` (+ `_cg` clock-gated variants) | Burst, out-of-order, outstanding |
 | **AXI4-Lite** | ✅ Complete | `rtl/amba/axil4/axil4_{master,slave}_{rd,wr}_mon.sv` (+ `_cg`) — **dedicated wrappers**, not shared with AXI4 | Single-beat, simplified |
 | **AXI5** | ✅ Available | `rtl/amba/axi5/` | AXI5 extensions |
-| **APB / APB5** | ✅ Complete | `rtl/amba/apb/apb_monitor.sv`, `rtl/amba/apb5/` | Peripheral bus |
+| **APB / APB5** | ✅ Complete | `rtl/amba/monitor/apb_monitor.sv`, `rtl/amba/apb5/` | Peripheral bus |
 | **AXI-Stream** | ✅ Complete | `rtl/amba/axis4/`, `rtl/amba/axis5/` | Streaming data |
 
 **Detailed specs:** See `docs/markdown/RTLAmba/`
@@ -606,8 +606,8 @@ pytest val/amba/test_apb_monitor.py -v          # APB monitor
 pytest val/amba/ -v                             # All AMBA tests
 
 # Lint RTL
-verilator --lint-only rtl/amba/shared/axi_monitor_base.sv
-verilator --lint-only rtl/amba/axi4/axi4_master_rd_mon.sv
+verilator --lint-only rtl/amba/monitor/axi_monitor_base.sv
+verilator --lint-only rtl/amba/monitor/axi4_master_rd_mon.sv
 
 # View documentation
 cat docs/markdown/RTLAmba/index.md

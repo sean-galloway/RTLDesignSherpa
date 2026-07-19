@@ -97,7 +97,7 @@ NOP (lone pad):     sub=0
 counters/sequential addresses. Tier-1 records that fit neither stay a full
 64-bit beat; a lone trailing half rounds up to a full beat. Widths locked in
 `host/monbus_halfbeat_model.py` (lines 50–62), mirrored bit-exact by
-`rtl/amba/shared/monbus_halfbeat_packer.sv`.
+`rtl/amba/monitor/monbus_halfbeat_packer.sv`.
 
 ---
 

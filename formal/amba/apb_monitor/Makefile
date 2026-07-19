@@ -24,7 +24,7 @@ DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv
 
 # Device under test
-DUT := $(REPO_ROOT)/rtl/amba/apb/apb_monitor.sv
+DUT := $(REPO_ROOT)/rtl/amba/monitor/apb_monitor.sv
 
 .PHONY: prove cover clean
 

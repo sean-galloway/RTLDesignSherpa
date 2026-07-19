@@ -211,7 +211,7 @@ waivers:
   # ---------------------------------------------------------------------------
 
   - id: DC-001
-    pattern: "rtl/amba/shared/axi_monitor_base.sv"
+    pattern: "rtl/amba/monitor/axi_monitor_base.sv"
     lines: "142-148"
     type: branch
     category: defensive_code
@@ -332,7 +332,7 @@ waivers:
   # ---------------------------------------------------------------------------
 
   - id: DB-001
-    pattern: "rtl/amba/shared/axi_monitor_base.sv"
+    pattern: "rtl/amba/monitor/axi_monitor_base.sv"
     lines: "ifdef SIMULATION assertion block"
     type: all
     category: debug_only
@@ -432,7 +432,7 @@ waivers:
   # ---------------------------------------------------------------------------
 
   - id: RT-001
-    pattern: "rtl/amba/shared/axi_monitor_base.sv"
+    pattern: "rtl/amba/monitor/axi_monitor_base.sv"
     lines: "async reset path for state and counter registers"
     type: toggle
     category: defensive_code

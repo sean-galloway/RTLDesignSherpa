@@ -327,14 +327,14 @@ Create AXI4-Lite monitor wrappers by adapting the existing AXI4 monitor pattern 
 - [x] Follow proven AXI4 pattern with AXIL simplifications ✅
 
 **Created Files (2025-10-11):**
-- `rtl/amba/axil4/axil4_master_rd_mon.sv` (12KB)
-- `rtl/amba/axil4/axil4_master_wr_mon.sv` (12KB)
-- `rtl/amba/axil4/axil4_slave_rd_mon.sv` (12KB)
-- `rtl/amba/axil4/axil4_slave_wr_mon.sv` (13KB)
-- `rtl/amba/axil4/axil4_master_rd_mon_cg.sv` (9.3KB)
-- `rtl/amba/axil4/axil4_master_wr_mon_cg.sv` (9.8KB)
-- `rtl/amba/axil4/axil4_slave_rd_mon_cg.sv` (9.0KB)
-- `rtl/amba/axil4/axil4_slave_wr_mon_cg.sv` (9.8KB)
+- `rtl/amba/monitor/axil4_master_rd_mon.sv` (12KB)
+- `rtl/amba/monitor/axil4_master_wr_mon.sv` (12KB)
+- `rtl/amba/monitor/axil4_slave_rd_mon.sv` (12KB)
+- `rtl/amba/monitor/axil4_slave_wr_mon.sv` (13KB)
+- `rtl/amba/monitor/axil4_master_rd_mon_cg.sv` (9.3KB)
+- `rtl/amba/monitor/axil4_master_wr_mon_cg.sv` (9.8KB)
+- `rtl/amba/monitor/axil4_slave_rd_mon_cg.sv` (9.0KB)
+- `rtl/amba/monitor/axil4_slave_wr_mon_cg.sv` (9.8KB)
 
 ---
 
@@ -1080,7 +1080,7 @@ The APB monitor was believed to be non-functional, but verification testing reve
 
 **Investigation Completed:**
 - ✅ Tested APB monitor with `test_apb_monitor.py`
-- ✅ Reviewed APB monitor RTL architecture (`rtl/amba/apb/apb_monitor.sv`)
+- ✅ Reviewed APB monitor RTL architecture (`rtl/amba/monitor/apb_monitor.sv`)
 - ✅ Verified transaction tracking implementation
 - ✅ Confirmed packet generation logic working
 - ✅ Ran comprehensive APB transaction tests

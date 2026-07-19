@@ -472,7 +472,7 @@ Use shared timer unless monitors operate at different frequencies or in differen
 - Transaction Manager: [axi_monitor_trans_mgr.md](axi_monitor_trans_mgr.md)
 
 ### Source Code
-- RTL: `rtl/amba/shared/axi_monitor_timer.sv`
+- RTL: `rtl/amba/monitor/axi_monitor_timer.sv`
 - Counter: `rtl/common/counter_freq_invariant.sv`
 - Documentation: `docs/markdown/RTLCommon/counter_freq_invariant.md`
 - Tests: `val/amba/test_axi4_master_rd_mon.py` (integration)

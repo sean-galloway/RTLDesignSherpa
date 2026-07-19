@@ -8,7 +8,7 @@
 // Purpose: Multi-port ID CAM with payload storage for the AXI monitor
 //          transaction manager family (axi_monitor_trans_mgr et al).
 //
-// Documentation: docs/markdown/RTLAmba/shared/monitor_trans_cam.md  (TBD)
+// Documentation: docs/markdown/RTLAmba/monitor/monitor_trans_cam.md  (TBD)
 // Subsystem: amba
 //
 // Author: sean galloway
