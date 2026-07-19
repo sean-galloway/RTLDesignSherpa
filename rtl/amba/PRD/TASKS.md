@@ -1240,6 +1240,33 @@ spine, here are the axes, here are the tweaks."
 
 ---
 
+### TASK-025: Update formal proofs for the monitor logic
+
+**Priority:** Medium
+**Status:** [ ] Open
+
+**Context:** The monitor modules moved from `rtl/amba/shared/` (and the per-protocol
+dirs) to **`rtl/amba/monitor/`**, and the monitor RTL gained new logic since the
+formal proofs were last exercised (perfmon window/counters, `cam_clear`, the
+`cfg_compl/threshold/debug` enables, `ENABLE_*_LOGIC` synthesis cones, always-on
+CAM pipelining). The `formal/amba/*` Makefiles + `.sby` files were path-updated to
+`monitor/` and verified to resolve, but the **SymbiYosys proofs were not re-run**.
+
+**Checklist:**
+- [ ] Run `make` in each `formal/amba/{axi_monitor_base,axi_monitor_filtered,
+      axi_monitor_reporter,axi_monitor_timer,axi_monitor_timeout,axi_monitor_trans_mgr,
+      axi_monitor_addr_check,axi4_*_mon,apb_monitor,apb5_monitor}/` and confirm they pass
+      after the move.
+- [ ] Extend the proofs to cover the new perfmon window state machine + the four
+      utilization / beat-byte-burst counters (`axi_monitor_base`).
+- [ ] Add a `cam_clear` synchronous-clear property to the trans-CAM proofs.
+- [ ] Confirm the `ENABLE_*_LOGIC=0` cone-drop configurations still prove (or are
+      excluded intentionally).
+- [ ] Update any formal filelist/`.sby` that still assumes the old `shared/` layout
+      (paths were swept, but re-verify against the current `rtl/amba/monitor/` set).
+
+---
+
 ## Notes
 
 ### Code Reuse Principle
