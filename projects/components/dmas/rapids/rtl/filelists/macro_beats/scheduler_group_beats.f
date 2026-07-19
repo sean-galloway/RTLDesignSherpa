@@ -12,7 +12,7 @@ $REPO_ROOT/projects/components/dmas/rapids/rtl/fub/ctrlrd_engine.sv
 $REPO_ROOT/projects/components/dmas/rapids/rtl/fub/ctrlwr_engine.sv
 
 # Additional components used by beats_scheduler_group
-$REPO_ROOT/rtl/amba/shared/monbus_arbiter.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_arbiter.sv
 
 # Common utilities
 $REPO_ROOT/rtl/common/arbiter_round_robin.sv

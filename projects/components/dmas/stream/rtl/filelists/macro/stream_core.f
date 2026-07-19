@@ -47,7 +47,7 @@ $REPO_ROOT/rtl/amba/axi4/axi4_master_wr.sv
 # (RFC Stage E option 2). Listed AFTER scheduler_group_array.f so monitor_pkg
 # and the shared axi_monitor stack (also used by the read-side axi4_master_rd_mon)
 # are already declared. axi4_master_rd_mon itself comes from that include.
-$REPO_ROOT/rtl/amba/axi4/axi4_master_wr_mon.sv
+$REPO_ROOT/rtl/amba/monitor/axi4_master_wr_mon.sv
 
 # Per-channel perf-bucket counter for the datapath monitors (RFC Stage C /
 # Stage E option 2). The in-core equivalent of the FPGA-char harness meter.

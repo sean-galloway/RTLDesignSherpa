@@ -11,7 +11,7 @@
 -f $REPO_ROOT/projects/components/dmas/rapids/rtl/filelists/fub/ctrlwr_engine.f
 
 # Additional components used by scheduler_group
-$REPO_ROOT/rtl/amba/shared/monbus_arbiter.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_arbiter.sv
 
 # Additional AXI4 components
 $REPO_ROOT/rtl/amba/axi4/axi4_master_rd.sv

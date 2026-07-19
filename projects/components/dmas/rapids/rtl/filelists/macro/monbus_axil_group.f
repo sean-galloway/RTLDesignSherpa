@@ -16,7 +16,7 @@ $REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
 $REPO_ROOT/projects/components/dmas/rapids/rtl/includes/rapids_pkg.sv
 
 # Monitor bus arbiter
-$REPO_ROOT/rtl/amba/shared/monbus_arbiter.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_arbiter.sv
 
 # GAXI FIFO (used for error and write FIFOs)
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
@@ -39,7 +39,7 @@ $REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
 
 # AXIL/AXIL wrapper for this consumer (other family variants:
 # monbus_axil_axi4_group.sv, monbus_axi4_axil_group.sv, monbus_axi4_axi4_group.sv).
-$REPO_ROOT/rtl/amba/shared/monbus_axil_axil_group.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_axil_axil_group.sv
 
 # RAPIDS 2-input wrapper: monbus_arbiter(2) + the shared AXIL/AXIL group
 $REPO_ROOT/projects/components/dmas/rapids/rtl/macro/monbus_axil_group_2in.sv

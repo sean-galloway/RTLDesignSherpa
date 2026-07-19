@@ -69,7 +69,7 @@ $REPO_ROOT/projects/components/converters/rtl/peakrdl_to_cmdrsp.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv
 # Monbus group core family (cam/compressor/core + div-by-3 helper) -- shared.
 -f $REPO_ROOT/rtl/amba/filelists/monbus_group.f
-$REPO_ROOT/rtl/amba/shared/monbus_axil_axil_group.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_axil_axil_group.sv
 
 # Top-level wrapper files (unique to this filelist)
 $STREAM_ROOT/rtl/top/stream_config_block.sv

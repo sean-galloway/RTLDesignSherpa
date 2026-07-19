@@ -37,7 +37,7 @@ $REPO_ROOT/rtl/amba/shared/axi4_dma_slaves.sv
 # latency-hist + mon-tap deps are already pulled via stream_top_ch8.f above;
 # only the observer wrapper and its AXIL-read / AXI4-write monbus output stage
 # are new here.
-$REPO_ROOT/rtl/amba/shared/monbus_axil_axi4_group.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_axil_axi4_group.sv
 $REPO_ROOT/rtl/amba/shared/axi4_dma_observer.sv
 
 # Flow-specific top-level harness wrapper (instantiates STREAM + the

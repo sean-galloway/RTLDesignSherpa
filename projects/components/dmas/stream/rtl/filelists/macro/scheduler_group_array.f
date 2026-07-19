@@ -32,7 +32,7 @@ $REPO_ROOT/rtl/common/arbiter_single_client.sv
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_mon.f
 
 # Dependencies - MonBus Infrastructure (for aggregating 9 MonBus sources)
-$REPO_ROOT/rtl/amba/shared/monbus_arbiter.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_arbiter.sv
 
 # Include macro-level component via -f (automatically pulls in FUB dependencies)
 -f $STREAM_ROOT/rtl/filelists/macro/scheduler_group.f

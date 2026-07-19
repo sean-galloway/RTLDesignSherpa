@@ -29,7 +29,7 @@
 $REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv
 -f $REPO_ROOT/rtl/amba/filelists/monbus_group.f
-$REPO_ROOT/rtl/amba/shared/monbus_axil_axil_group.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_axil_axil_group.sv
 
 # ---- APB -> register chain ----
 $REPO_ROOT/projects/components/dmas/stream/rtl/includes/stream_pkg.sv

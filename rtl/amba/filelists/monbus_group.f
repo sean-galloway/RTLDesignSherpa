@@ -22,12 +22,12 @@ $REPO_ROOT/rtl/common/math_adder_carry_save_nbit.sv
 $REPO_ROOT/rtl/common/mod_3_compress.sv
 
 # Compressor (optional; selected by USE_COMPRESSION=1 + cfg_compress_en).
-$REPO_ROOT/rtl/amba/shared/monbus_cam.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_cam.sv
 # Pipelined CAM -- the compressor's only CAM path (always pipelined).
-$REPO_ROOT/rtl/amba/shared/monbus_cam_pipe.sv
-$REPO_ROOT/rtl/amba/shared/monbus_compressor.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_cam_pipe.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_compressor.sv
 # Half-beat packer (optional; selected by HALF_BEAT_EN=1, two 30-bit slots/beat).
-$REPO_ROOT/rtl/amba/shared/monbus_halfbeat_packer.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_halfbeat_packer.sv
 
 # Protocol-agnostic core.
-$REPO_ROOT/rtl/amba/shared/monbus_group_core.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_group_core.sv

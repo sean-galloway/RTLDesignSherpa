@@ -9,18 +9,18 @@
 # Counter dependencies (needed by axi_monitor_timer)
 $REPO_ROOT/rtl/common/counter_load_clear.sv
 $REPO_ROOT/rtl/common/counter_freq_invariant.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_trans_mgr.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_timer.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_timeout.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_base.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_filtered.sv
+$REPO_ROOT/rtl/amba/monitor/axi_monitor_trans_mgr.sv
+$REPO_ROOT/rtl/amba/monitor/axi_monitor_timer.sv
+$REPO_ROOT/rtl/amba/monitor/axi_monitor_timeout.sv
+$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter.sv
+$REPO_ROOT/rtl/amba/monitor/axi_monitor_base.sv
+$REPO_ROOT/rtl/amba/monitor/axi_monitor_filtered.sv
 
 # AXI4 Master Monitor modules (base + clock gating versions)
-$REPO_ROOT/rtl/amba/axi4/axi4_master_rd_mon.sv
-$REPO_ROOT/rtl/amba/axi4/axi4_master_wr_mon.sv
-$REPO_ROOT/rtl/amba/axi4/axi4_master_rd_mon_cg.sv
-$REPO_ROOT/rtl/amba/axi4/axi4_master_wr_mon_cg.sv
+$REPO_ROOT/rtl/amba/monitor/axi4_master_rd_mon.sv
+$REPO_ROOT/rtl/amba/monitor/axi4_master_wr_mon.sv
+$REPO_ROOT/rtl/amba/monitor/axi4_master_rd_mon_cg.sv
+$REPO_ROOT/rtl/amba/monitor/axi4_master_wr_mon_cg.sv
 
 # DUT module
 $REPO_ROOT/projects/components/dmas/rapids/rtl/macro/scheduler_group_array.sv

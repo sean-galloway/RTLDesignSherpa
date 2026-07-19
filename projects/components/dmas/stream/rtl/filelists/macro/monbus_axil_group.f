@@ -42,4 +42,4 @@ $REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv
 
 # AXIL/AXIL wrapper for this consumer (other family variants:
 # monbus_axil_axi4_group.sv, monbus_axi4_axil_group.sv, monbus_axi4_axi4_group.sv).
-$REPO_ROOT/rtl/amba/shared/monbus_axil_axil_group.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_axil_axil_group.sv

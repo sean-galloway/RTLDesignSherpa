@@ -25,20 +25,20 @@ $REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
 $REPO_ROOT/rtl/common/arbiter_round_robin.sv
 
 # Dependencies - Monitor Infrastructure (order matters - base modules first)
-$REPO_ROOT/rtl/amba/shared/monitor_trans_cam.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_trans_mgr.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_timer.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_timeout.sv
+$REPO_ROOT/rtl/amba/monitor/monitor_trans_cam.sv
+$REPO_ROOT/rtl/amba/monitor/axi_monitor_trans_mgr.sv
+$REPO_ROOT/rtl/amba/monitor/axi_monitor_timer.sv
+$REPO_ROOT/rtl/amba/monitor/axi_monitor_timeout.sv
 # Reporter sub-blocks (must precede the reporter top wrapper)
-$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_error.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_timeout.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_compl.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_threshold.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_perf.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_debug.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_base.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_filtered.sv
+$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_error.sv
+$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_timeout.sv
+$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_compl.sv
+$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_threshold.sv
+$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_perf.sv
+$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_debug.sv
+$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter.sv
+$REPO_ROOT/rtl/amba/monitor/axi_monitor_base.sv
+$REPO_ROOT/rtl/amba/monitor/axi_monitor_filtered.sv
 
 # Dependencies - GAXI Skid Buffers (used by axi4_master_wr)
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
@@ -47,4 +47,4 @@ $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_master_wr.sv
 
 # This module - AXI4 Master Write Monitor
-$REPO_ROOT/rtl/amba/axi4/axi4_master_wr_mon.sv
+$REPO_ROOT/rtl/amba/monitor/axi4_master_wr_mon.sv
