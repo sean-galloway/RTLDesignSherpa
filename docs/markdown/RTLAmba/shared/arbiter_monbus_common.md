@@ -65,8 +65,18 @@ The `arbiter_monbus_common` module is the core building block for:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `N` | int | 4 | Number of monitor sources to arbitrate |
-| `DATA_WIDTH` | int | 64 | Monitor packet width |
+| `CLIENTS` | int | 4 | Number of monitor sources to arbitrate |
+| `WAIT_GNT_ACK` | int | 0 | 1 = require a grant-ACK handshake |
+| `WEIGHTED_MODE` | int | 0 | 1 = weighted round-robin, 0 = plain round-robin |
+| `MON_AGENT_ID` | logic [15:0] | 16'h0010 | Monitor agent identifier (16-bit) |
+| `MON_UNIT_ID` | logic [7:0] | 8'h00 | Monitor unit identifier (8-bit) |
+| `MON_FIFO_DEPTH` | int | 8 | Monitor packet FIFO depth |
+| `MON_FIFO_ALMOST_MARGIN` | int | 1 | Almost-full margin for the monitor FIFO |
+| `FAIRNESS_REPORT_CYCLES` | int | 256 | Window (cycles) for fairness reporting |
+| `MIN_GRANTS_FOR_FAIRNESS` | int | 100 | Minimum grants before a fairness report is valid |
+| `DEFAULT_ACK_TIMEOUT` | int | 64 | Default grant-ACK timeout (cycles) |
+
+`N` (`$clog2(CLIENTS)`), `MON_FIFO_COUNT_WIDTH`, and the weight-vector widths are derived localparams, not user-settable parameters.
 
 ---
 

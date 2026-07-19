@@ -124,6 +124,14 @@ flowchart TB
 | ADD_PIPELINE_STAGE | bit | 0 | Add pipeline stage for timing |
 | USE_MONITOR | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
 | N_ADDR_RANGES | int | 0 | Number of address-range comparators. 0 = checker omitted (zero area). >0 = N independent [low, high] ranges; hits emit PktTypeError + AXI_ERR_ADDR_RANGE on monbus. |
+| ENABLE_ERROR_LOGIC | bit | 1 | Compile-in the error-detection cone (0 drops it for area). |
+| ENABLE_TIMEOUT_LOGIC | bit | 1 | Compile-in the timeout cone and the `axi_monitor_timeout` instance. |
+| ENABLE_COMPL_LOGIC | bit | 1 | Compile-in the completion cone. |
+| ENABLE_THRESHOLD_LOGIC | bit | 1 | Compile-in the threshold cone. |
+| ENABLE_PERF_LOGIC | bit | 1 | Compile-in the perfmon measurement window and utilization/throughput counters. |
+| ENABLE_DEBUG_LOGIC | bit | 0 | Compile-in the debug cone (off by default). |
+
+> **Synthesis-cone note:** the six `ENABLE_*_LOGIC` parameters gate each detection cone at synthesis via generate-if, so unused logic drops to zero area (classic cones default on, debug off). Inside the wrapper's `axi_monitor_filtered` instance the perf/debug master switches are fixed (`ENABLE_PERF_PACKETS = 1`, `ENABLE_DEBUG_MODULE = 0`). The former `CAM_PIPELINE` / `TRANS_CAM_PIPELINE` parameters were removed — the transaction CAM is now always pipelined.
 
 ---
 
@@ -186,9 +194,13 @@ Same as `axi5_slave_rd` - see [AXI5 Slave Read](axi5_slave_rd.md) for complete p
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
 | cfg_monitor_enable | 1 | Input | Enable completion packets |
+| cam_clear | 1 | Input | Synchronous clear of the monitor transaction CAM (driven from the harness clear control bit, e.g. CTRL[4]) |
 | cfg_error_enable | 1 | Input | Enable error packets |
 | cfg_timeout_enable | 1 | Input | Enable timeout packets |
-| cfg_perf_enable | 1 | Input | Enable performance packets |
+| cfg_perf_enable | 1 | Input | Enable performance packets (see [Performance Monitoring](#performance-monitoring)) |
+| cfg_compl_enable | 1 | Input | Enable transaction-completion packets |
+| cfg_threshold_enable | 1 | Input | Enable threshold-crossed packets |
+| cfg_debug_enable | 1 | Input | Enable debug/trace packets (gates the debug cone — the 6th reporter sub-block) |
 | cfg_timeout_cycles | 16 | Input | Timeout threshold (cycles) |
 | cfg_latency_threshold | 32 | Input | High latency threshold (cycles) |
 | cfg_axi_pkt_mask | 16 | Input | Packet type filter mask |
@@ -200,6 +212,8 @@ Same as `axi5_slave_rd` - see [AXI5 Slave Read](axi5_slave_rd.md) for complete p
 | cfg_axi_perf_mask | 16 | Input | Performance event filter |
 | cfg_axi_addr_mask | 16 | Input | Address event filter |
 | cfg_axi_debug_mask | 16 | Input | Debug event filter |
+
+> **Detection-cone enables:** `cfg_compl_enable`, `cfg_threshold_enable`, and `cfg_debug_enable` turn on the completion, threshold, and debug reporter sub-blocks respectively. `cfg_debug_enable` gates the **debug cone** — the 6th reporter sub-block (`axi_monitor_reporter_debug`). In this wrapper the debug module's `cfg_debug_level` (4), `cfg_debug_mask` (16), and `cfg_active_trans_threshold` (16) inputs are tied to their defaults (`4'h0` / `16'h0` / `16'd8`) and are not exposed as wrapper ports.
 
 ### Monitor Bus Output
 
@@ -220,6 +234,64 @@ Same as `axi5_slave_rd` - see [AXI5 Slave Read](axi5_slave_rd.md) for complete p
 | error_count | 16 | Output | Total errors detected |
 | transaction_count | 32 | Output | Total transactions completed |
 | cfg_conflict_error | 1 | Output | Configuration conflict detected |
+
+---
+
+## Performance Monitoring
+
+When performance tracking is compiled in (`ENABLE_PERF_LOGIC = 1`, the wrapper default, with `ENABLE_PERF_PACKETS` fixed to 1 inside the monitor instance) and `cfg_perf_enable` is asserted at runtime, the monitor runs a **measurement-window state machine** plus a bank of data-channel utilization counters. All counters accumulate **only while a window is open** (`window_active = 1`) and hold their values between windows so the host can read a completed window's totals.
+
+### The measurement window
+
+A window is opened by a **start event** and closed by an **end event**. The event sources are selected by `cfg_start_event_sel` / `cfg_end_event_sel` (3-bit; e.g. `3'b010` selects the `cfg_perf_enable` edge) and can also be fired directly by the `cfg_start_trigger` / `cfg_end_trigger` pulses (from an engine or CSR write). `cfg_window_force_close` is a software override that closes the window immediately. While the window is open:
+
+- `window_active` is high.
+- `window_cycles` free-runs, counting every clock elapsed inside the window.
+
+### Utilization buckets (R data channel)
+
+Every cycle inside the window is classified by the **R** data channel's valid/ready handshake into exactly one of four buckets:
+
+| Output | Width | Condition | Meaning |
+|--------|:-----:|-----------|---------|
+| `perf_prod_cycles`  | 32 | `rvalid && rready`   | productive beat transferred |
+| `perf_bp_cycles`    | 32 | `rvalid && !rready`  | back-pressure (data offered, sink not ready) |
+| `perf_starv_cycles` | 32 | `!rvalid && rready`  | starvation (sink ready, no data) |
+| `perf_idle_cycles`  | 32 | `!rvalid && !rready` | idle |
+
+The four buckets sum to `window_cycles`, so utilization = `perf_prod_cycles / window_cycles`.
+
+### Throughput counters
+
+| Output | Width | Meaning |
+|--------|:-----:|---------|
+| `perf_beat_count`  | 32 | R data beats transferred (= `perf_prod_cycles`, 1 beat/cycle) |
+| `perf_byte_count`  | 64 | bytes transferred = beats x (1 << latched ARSIZE), using the ARSIZE captured at the most recent AR address phase |
+| `perf_burst_count` | 32 | AR address-phase handshakes |
+
+Average burst length is `perf_beat_count / perf_burst_count`.
+
+### Performance Monitoring Ports
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| cfg_perf_enable | 1 | Input | Enable performance-metric packet generation (also listed under Monitor Configuration) |
+| cfg_start_event_sel | 3 | Input | Window **start** event source select |
+| cfg_end_event_sel | 3 | Input | Window **end** event source select |
+| cfg_start_trigger | 1 | Input | Pulse: open the measurement window |
+| cfg_end_trigger | 1 | Input | Pulse: close the measurement window |
+| cfg_window_force_close | 1 | Input | Software override: force the window closed |
+| window_active | 1 | Output | High while a measurement window is open |
+| window_cycles | 32 | Output | Cycles elapsed in the current window |
+| perf_prod_cycles | 32 | Output | `rvalid && rready` cycles |
+| perf_bp_cycles | 32 | Output | `rvalid && !rready` cycles (back-pressure) |
+| perf_starv_cycles | 32 | Output | `!rvalid && rready` cycles (starvation) |
+| perf_idle_cycles | 32 | Output | `!rvalid && !rready` cycles |
+| perf_beat_count | 32 | Output | R data beats transferred |
+| perf_byte_count | 64 | Output | bytes transferred |
+| perf_burst_count | 32 | Output | AR address-phase handshakes |
+
+When `USE_MONITOR = 0` (or `ENABLE_PERF_LOGIC = 0`) all perfmon outputs are tied to 0.
 
 ---
 

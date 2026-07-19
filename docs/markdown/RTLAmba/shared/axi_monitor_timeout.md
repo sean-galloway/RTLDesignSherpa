@@ -66,8 +66,8 @@ The `axi_monitor_timeout` module is the core building block for:
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `MAX_TRANSACTIONS` | int | 16 | Number of transactions to monitor |
-| `ID_WIDTH` | int | 8 | Transaction ID width |
 | `ADDR_WIDTH` | int | 32 | Address width for reporting |
+| `IS_READ` | bit | 1 | 1 = read channel, 0 = write channel |
 
 ---
 

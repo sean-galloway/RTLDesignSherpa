@@ -32,7 +32,12 @@
 
 ## Overview
 
-The `axi_monitor_filtered` module provides 3-level packet filtering for monitor bus traffic management.
+`axi_monitor_filtered` is a **filtering wrapper around [`axi_monitor_base`](./axi_monitor_base.md)**.
+It instantiates one `axi_monitor_base` internally, taps the same AXI/AXIL command,
+data, and response channels, and then applies a configurable drop filter to the
+128-bit monitor packets the base emits before forwarding them downstream. It does
+**not** take a monitor-bus input stream — it produces the monitor bus from the
+channels it observes.
 
 This is a **shared infrastructure module** used internally by AXI/AXIL monitors. It is not typically instantiated directly by users but is critical for understanding the monitor architecture.
 
@@ -40,12 +45,13 @@ This is a **shared infrastructure module** used internally by AXI/AXIL monitors.
 
 ## Key Features
 
-- ✅ **Level 1:** Packet type masks (error/completion/timeout/perf/debug)
-- ✅ **Level 2:** Error routing priorities (critical vs informational)
-- ✅ **Level 3:** Individual event masking (per-event granularity)
-- ✅ **Configuration conflict detection and warnings:** Configuration conflict detection and warnings
-- ✅ **Packet statistics and drop counters:** Packet statistics and drop counters
-- ✅ **Bypass mode for full pass-through:** Bypass mode for full pass-through
+- ✅ **Wraps `axi_monitor_base`:** all transaction tracking, timeout, threshold, and perfmon logic lives in the base; this module only filters its output stream.
+- ✅ **Level 1 — packet-type drop mask** (`cfg_axi_pkt_mask`): drop entire packet types by index.
+- ✅ **Level 2 — error select** (`cfg_axi_err_select`): reserved for cross-routing; in the AXI wrapper it is used only for **configuration-conflict validation** (see `cfg_conflict_error`), not applied to the stream.
+- ✅ **Level 3 — per-event-code masking:** one 16-bit drop mask per packet type (`cfg_axi_error_mask`, `cfg_axi_timeout_mask`, `cfg_axi_compl_mask`, `cfg_axi_thresh_mask`, `cfg_axi_perf_mask`, `cfg_axi_addr_mask`, `cfg_axi_debug_mask`) indexed by the packet's event code.
+- ✅ **Configuration conflict detection:** `cfg_conflict_error` flags overlapping `cfg_axi_pkt_mask` / `cfg_axi_err_select` bits.
+- ✅ **Bypass mode:** `ENABLE_FILTERING=0` passes every packet straight through.
+- ✅ **Optional pipeline stage:** `ADD_PIPELINE_STAGE=1` registers the filtered output for timing closure.
 
 ---
 
@@ -53,10 +59,10 @@ This is a **shared infrastructure module** used internally by AXI/AXIL monitors.
 
 The `axi_monitor_filtered` module is the core building block for:
 
-1. **Traffic Management:** Reduces monitor bus congestion through intelligent filtering
-2. **Prioritization:** Routes critical errors while filtering informational events
-3. **Configuration Validation:** Detects conflicting filter settings
-4. **Flexibility:** Supports per-packet-type and per-event granular control
+1. **Traffic Management:** Reduces monitor bus congestion by dropping unwanted packet types and event codes at the source.
+2. **Granular Control:** Supports per-packet-type (Level 1) and per-event-code (Level 3) drop masking.
+3. **Configuration Validation:** Flags conflicting mask settings via `cfg_conflict_error`.
+4. **Protocol Isolation:** Drops any non-AXI-protocol packet (protocol field ≠ `4'h0`), which should never occur inside an AXI monitor.
 
 ---
 
@@ -85,21 +91,31 @@ The `axi_monitor_filtered` module is the core building block for:
 
 ## Port Groups
 
-### Monitor Bus Input
+### Observed AXI/AXIL Channels (inputs to the wrapped base)
+
+This module has **no monitor-bus input stream.** It taps the same command, data,
+and response channels as `axi_monitor_base` and passes them through unchanged. See
+[`axi_monitor_base`](./axi_monitor_base.md) for full descriptions.
+
+| Group | Ports |
+|-------|-------|
+| Command (AW/AR) | `cmd_addr`, `cmd_id`, `cmd_len`, `cmd_size`, `cmd_burst`, `cmd_valid`, `cmd_ready` |
+| Data (W/R) | `data_id`, `data_last`, `data_resp`, `data_valid`, `data_ready` |
+| Response (B) | `resp_id`, `resp_code`, `resp_valid`, `resp_ready` |
+| Timer / enables / thresholds | `cfg_freq_sel`, `cfg_addr_cnt`, `cfg_data_cnt`, `cfg_resp_cnt`, `cfg_error_enable`, `cfg_compl_enable`, `cfg_threshold_enable`, `cfg_timeout_enable`, `cfg_perf_enable`, `cfg_debug_enable`, `cfg_debug_level`, `cfg_debug_mask`, `cfg_active_trans_threshold`, `cfg_latency_threshold` |
+| Address-range checker (when `N_ADDR_RANGES > 0`) | `cfg_addr_check_enable`, `cfg_addr_range_enable`, `cfg_addr_range_low`, `cfg_addr_range_high` |
+| Side-band time | `i_mon_time` (`monbus_timestamp_t`) |
+
+All of the above are passed through to the internal `axi_monitor_base` verbatim.
+
+### Monitor Bus Output (filtered)
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `i_monbus_valid` | Input | 1 | Input packet valid |
-| `i_monbus_ready` | Output | 1 | Input packet ready |
-| `i_monbus_packet` | Input | 128 | Input `monitor_packet_t` |
-
-### Monitor Bus Output
-
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `o_monbus_valid` | Output | 1 | Output packet valid |
-| `o_monbus_ready` | Input | 1 | Output packet ready |
-| `o_monbus_packet` | Output | 128 | Filtered `monitor_packet_t` |
+| `monbus_valid` | Output | 1 | Filtered packet valid (base valid AND not dropped) |
+| `monbus_ready` | Input | 1 | Downstream ready |
+| `monbus_packet` | Output | 128 | Filtered `monitor_packet_t` (unmodified; only passed or dropped) |
+| `monbus_timestamp` | Output | 64 | `monbus_timestamp_t` paired atomically with `monbus_packet` |
 
 ### Reset and Synchronous Control
 
@@ -110,11 +126,30 @@ The `axi_monitor_filtered` module is the core building block for:
 
 ### Filter Configuration
 
+All filter masks use **drop semantics**: a set bit drops the corresponding packet
+type or event code. All masks are 16-bit.
+
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `cfg_pkt_type_mask` | Input | 6 | Packet type enable mask (ERROR/COMPL/TIMEOUT/THRESH/PERF/DEBUG) |
-| `cfg_error_routing` | Input | 4 | Error priority routing configuration |
-| `cfg_event_mask` | Input | 16 | Individual event enable mask |
+| `cfg_axi_pkt_mask` | Input | 16 | **Level 1** packet-type drop mask. Bit `pkt_type` set → drop all packets of that type |
+| `cfg_axi_err_select` | Input | 16 | **Level 2** error-select. Reserved for cross-routing; in the AXI wrapper it is consumed only by the conflict check, not applied to the stream |
+| `cfg_axi_error_mask` | Input | 16 | **Level 3** per-event-code drop mask for Error packets |
+| `cfg_axi_timeout_mask` | Input | 16 | Level 3 drop mask for Timeout packets |
+| `cfg_axi_compl_mask` | Input | 16 | Level 3 drop mask for Completion packets |
+| `cfg_axi_thresh_mask` | Input | 16 | Level 3 drop mask for Threshold packets |
+| `cfg_axi_perf_mask` | Input | 16 | Level 3 drop mask for Performance packets |
+| `cfg_axi_addr_mask` | Input | 16 | Level 3 drop mask for Address-Match packets |
+| `cfg_axi_debug_mask` | Input | 16 | Level 3 drop mask for Debug packets |
+
+The Level 3 masks are indexed by the packet's event code (low nibble). For each
+packet the wrapper selects the mask matching its packet type, then drops the packet
+if `mask[event_code[3:0]]` is set.
+
+### Configuration Status Output
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `cfg_conflict_error` | Output | 1 | Asserted when `cfg_axi_pkt_mask & cfg_axi_err_select` is non-zero (overlapping type is both dropped and error-selected) |
 
 ### Performance Window Control (Stage A of perfmon RFC)
 
@@ -153,16 +188,20 @@ software reads them after the close edge.
 
 ```mermaid
 flowchart TB
-    in["Monitor Packets"] --> l1
-    subgraph Cascade["Three-Level Filter Cascade"]
-        l1["Level 1 Filter<br/>Packet Type Masks<br/>(ERROR/COMPL/etc.)"]
-        l1 --> l2["Level 2 Filter<br/>Error Routing<br/>(Critical vs Info)"]
-        l2 --> l3["Level 3 Filter<br/>Event Masking<br/>(Per-event control)"]
+    ch["AXI/AXIL cmd / data / resp channels"] --> base["axi_monitor_base<br/>(tracking, timeout,<br/>threshold, perfmon)"]
+    base -->|"128b packet + 64b ts"| filt
+    subgraph filt["Filter (ENABLE_FILTERING)"]
+        l1["Level 1<br/>cfg_axi_pkt_mask<br/>(drop by type)"]
+        l1 --> l3["Level 3<br/>per-type event masks<br/>(drop by event code)"]
     end
-    l3 --> out["Filtered Packets"]
+    l3 --> pipe["Optional pipeline<br/>(ADD_PIPELINE_STAGE)"]
+    pipe --> out["monbus_valid / packet / timestamp"]
 ```
 
-Three-level filtering cascade provides maximum flexibility while minimizing resource usage.
+The base monitor generates every packet; the filter then drops unwanted ones. A
+dropped packet is acknowledged back to the base (`base_monbus_ready`) so the base
+never stalls on packets that will be discarded. Level 2 (`cfg_axi_err_select`) is a
+validation-only input in this wrapper and is not shown in the drop path.
 
 ---
 
@@ -185,25 +224,33 @@ This module is instantiated automatically within higher-level monitor modules. U
 
 ### Filter Strategy
 
-**Functional Verification (Default):**
+`cfg_axi_pkt_mask` uses **drop semantics** — a bit set at index `pkt_type` drops
+that type. Leave a bit `0` to keep the type. Indices follow `monitor_common_pkg`
+(`PktTypeError`, `PktTypeCompletion`, `PktTypeThreshold`, `PktTypeTimeout`,
+`PktTypePerf`, `PktTypeAddrMatch`, `PktTypeDebug`). Tie the per-event Level 3 masks
+to `16'h0000` unless you need to suppress specific event codes.
+
+**Pass everything (no filtering):**
 ```systemverilog
-.cfg_pkt_type_mask(6'b000111)  // ERROR + COMPL + TIMEOUT only
+.cfg_axi_pkt_mask   (16'h0000),  // drop nothing
+// or set ENABLE_FILTERING = 0 at elaboration for full bypass
 ```
 
-**Performance Analysis:**
+**Suppress performance packets (typical functional run):**
 ```systemverilog
-.cfg_pkt_type_mask(6'b010001)  // ERROR + PERF only
+.cfg_axi_pkt_mask   (16'h0000 | (16'h1 << PktTypePerf)),  // drop only Perf
 ```
 
-**Debug Mode:**
+**Performance-only capture (drop completions to cut traffic):**
 ```systemverilog
-.cfg_pkt_type_mask(6'b111111)  // All packet types
+.cfg_axi_pkt_mask   ((16'h1 << PktTypeCompletion) |
+                     (16'h1 << PktTypeTimeout)),          // keep Error + Perf
 ```
 
-**Critical Errors Only:**
+**Suppress one Error event code (Level 3):**
 ```systemverilog
-.cfg_pkt_type_mask(6'b000001)  // ERROR packets only
-.cfg_error_routing(4'b0001)     // Critical errors only
+.cfg_axi_pkt_mask   (16'h0000),                 // keep all types
+.cfg_axi_error_mask (16'h1 << ERR_EVENT_CODE),  // drop just that error event
 ```
 
 ---
@@ -222,18 +269,20 @@ This module is instantiated automatically within higher-level monitor modules. U
 
 ### Key Test Scenarios
 
-1. **Filter Masking:**
-   - Send all packet types
-   - Configure masks to allow/block each type
-   - Verify correct filtering behavior
+1. **Level 1 masking:**
+   - Generate all packet types from the base
+   - Set individual `cfg_axi_pkt_mask` bits and verify only the masked types are dropped
 
-2. **Configuration Conflicts:**
-   - Set conflicting enables (e.g., `cfg_compl_enable=1` but type mask blocks completions)
-   - Verify warning/error detection
+2. **Level 3 masking:**
+   - Set a per-type event mask (e.g. `cfg_axi_error_mask`) and verify only packets whose event code matches the set bit are dropped
 
-3. **Packet Integrity:**
-   - Verify filtered packets are not modified (only dropped or passed)
-   - Check backpressure handling
+3. **Configuration conflict:**
+   - Set the same bit in both `cfg_axi_pkt_mask` and `cfg_axi_err_select` and verify `cfg_conflict_error` asserts
+
+4. **Packet integrity:**
+   - Verify passed packets are bit-identical to the base output (filter only drops, never mutates)
+   - Verify a dropped packet is acked to the base so it never stalls
+   - Exercise `ADD_PIPELINE_STAGE=1` and confirm one-cycle latency with correct backpressure
 
 ---
 

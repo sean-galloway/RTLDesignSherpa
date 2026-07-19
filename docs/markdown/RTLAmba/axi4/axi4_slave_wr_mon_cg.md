@@ -63,6 +63,21 @@ In addition to all [axi4_slave_wr_mon](./axi4_slave_wr_mon.md) parameters (inclu
 | `USE_MONITOR` | 1 | Synthesis-time monitor enable (forwarded to inner monitor). |
 | `N_ADDR_RANGES` | 0 | Number of address-range comparators (forwarded to base module). |
 
+All base-module ports are forwarded unchanged, including the full performance-monitoring interface (see [Performance Monitoring](#performance-monitoring) below). The six `ENABLE_*_LOGIC` synthesis-cone parameters (`ENABLE_ERROR_LOGIC`, `ENABLE_TIMEOUT_LOGIC`, `ENABLE_COMPL_LOGIC`, `ENABLE_THRESHOLD_LOGIC`, `ENABLE_PERF_LOGIC`, `ENABLE_DEBUG_LOGIC`) and the `cfg_compl_enable` / `cfg_threshold_enable` / `cfg_debug_enable` control enables are also passed straight through.
+
+---
+
+## Performance Monitoring
+
+The clock-gated wrapper exposes the full perfmon interface of the base module and **forwards every port unchanged** to the inner `axi4_slave_wr_mon`. The measurement-window state machine, the four W-channel utilization buckets (productive / back-pressure / starvation / idle), and the beat/byte/burst throughput counters behave exactly as documented in the base module — see [Performance Monitoring in axi4_slave_wr_mon](./axi4_slave_wr_mon.md#performance-monitoring) for the full narrative and per-bit semantics.
+
+Forwarded perfmon ports (identical width and direction to the base module):
+
+- **Inputs:** `cfg_perf_enable`, `cfg_start_event_sel` (3), `cfg_end_event_sel` (3), `cfg_start_trigger`, `cfg_end_trigger`, `cfg_window_force_close`
+- **Outputs:** `window_active`, `window_cycles` (32), `perf_prod_cycles` (32), `perf_bp_cycles` (32), `perf_starv_cycles` (32), `perf_idle_cycles` (32), `perf_beat_count` (32), `perf_byte_count` (64), `perf_burst_count` (32)
+
+The `perf_burst_count` output tracks AW (write address) handshakes. Clock gating never suppresses these paths: while a measurement window is open the monitor stays awake, so window cycle accounting remains exact regardless of `CG_IDLE_CYCLES`.
+
 ---
 
 ## Quick Usage

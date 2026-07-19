@@ -37,8 +37,8 @@ module apb_monitor
 #(
     parameter int ADDR_WIDTH          = 32,
     parameter int DATA_WIDTH          = 32,
-    parameter int UNIT_ID             = 1,     // 4-bit Unit ID
-    parameter int AGENT_ID            = 10,    // 8-bit Agent ID
+    parameter logic [7:0]  UNIT_ID    = 8'h01,     // 8-bit Unit ID
+    parameter logic [15:0] AGENT_ID   = 16'h000A,  // 16-bit Agent ID
     parameter int MAX_TRANSACTIONS    = 4,     // APB is typically single outstanding
     parameter int MONITOR_FIFO_DEPTH  = 8,     // Monitor packet FIFO depth
 
@@ -109,8 +109,8 @@ module apb_monitor
 |-----------|------|---------|-------------|
 | ADDR_WIDTH | int | 32 | APB address bus width |
 | DATA_WIDTH | int | 32 | APB data bus width |
-| UNIT_ID | int | 1 | 4-bit Unit identifier for monitor packets |
-| AGENT_ID | int | 10 | 8-bit Agent identifier for monitor packets |
+| UNIT_ID | logic [7:0] | 8'h01 | 8-bit Unit identifier for monitor packets |
+| AGENT_ID | logic [15:0] | 16'h000A | 16-bit Agent identifier for monitor packets |
 | MAX_TRANSACTIONS | int | 4 | Maximum concurrent transactions (APB typically 1-4) |
 | MONITOR_FIFO_DEPTH | int | 8 | Internal FIFO depth for monitor packets |
 | USE_MONITOR | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |

@@ -60,8 +60,8 @@ The standardized internal configurations (PWM width, FIFO depth, fairness interv
 |-----------|------|---------|-------------|
 | CLIENTS | int | 4 | Number of arbitration clients (1-64) |
 | WAIT_GNT_ACK | int | 0 | ACK protocol enable (0=disable, 1=enable) |
-| MON_AGENT_ID | logic [7:0] | 8'h10 | Monitor agent identifier |
-| MON_UNIT_ID | logic [3:0] | 4'h0 | Monitor unit identifier |
+| MON_AGENT_ID | logic [15:0] | 16'h0010 | Monitor agent identifier (16-bit per monitor bus protocol) |
+| MON_UNIT_ID | logic [7:0] | 8'h00 | Monitor unit identifier (8-bit per monitor bus protocol) |
 | USE_MONITOR | bit | 1 | Synthesis-time monitor enable. When 0, omits monbus telemetry block (arbiter and PWM remain intact). When 1, full monitoring. |
 
 ### Fixed Internal Configurations (Not User-Configurable)
@@ -193,8 +193,8 @@ Comprehensive monitoring via arbiter_monbus_common:
 arbiter_rr_pwm_monbus #(
     .CLIENTS      (8),
     .WAIT_GNT_ACK (0),        // No ACK protocol
-    .MON_AGENT_ID (8'h15),
-    .MON_UNIT_ID  (4'h3)
+    .MON_AGENT_ID (16'h0015),
+    .MON_UNIT_ID  (8'h03)
 ) u_rr_arb (
     .clk                     (clk),
     .rst_n                   (rst_n),

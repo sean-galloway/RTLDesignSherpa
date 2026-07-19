@@ -56,7 +56,16 @@ The global timestamp counter provides cycle-accurate timing for latency measurem
 
 ## Parameters
 
-This module has no parameters. All configuration is runtime via cfg_freq_sel.
+Runtime frequency selection is via `cfg_freq_sel`. The module also exposes elaboration parameters that size the clock-frequency-invariant (CFI) counter table:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `CFI_MIN_FREQ_MHZ` | int | 5 | Minimum frequency (MHz) in the CFI table |
+| `CFI_MAX_FREQ_MHZ` | int | 220 | Maximum frequency (MHz) in the CFI table |
+| `CFI_NUM_FREQ_ENTRIES` | int | 16 | Number of frequency entries |
+| `CFI_FREQ_STRATEGY` | int | 0 | Frequency-spacing strategy selector |
+
+`SEL_WIDTH` is derived from `CFI_NUM_FREQ_ENTRIES` and sizes `cfg_freq_sel`.
 
 ---
 

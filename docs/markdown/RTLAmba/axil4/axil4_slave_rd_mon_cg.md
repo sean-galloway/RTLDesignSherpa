@@ -62,6 +62,19 @@ In addition to all [axil4_slave_rd_mon](./axil4_slave_rd_mon.md) parameters (inc
 | `CG_GATE_*` | 1 | Domain-specific gating enables |
 | `USE_MONITOR` | 1 | Synthesis-time monitor enable (forwarded to inner monitor). |
 
+All base-module ports are forwarded unchanged, including the `cam_clear` control input (Input, 1) - synchronous clear of the monitor transaction CAM (driven from the harness clear control bit, e.g. CTRL[4]).
+
+---
+
+## Performance Monitoring
+
+The clock-gated wrapper forwards the base module's full performance-monitoring interface to `axi_monitor_base` **unchanged** — clock gating neither adds, removes, nor retimes any perfmon port. They behave exactly as documented for [axil4_slave_rd_mon](./axil4_slave_rd_mon.md#performance-monitoring):
+
+- **Config inputs:** `cfg_perf_enable`, `cfg_start_event_sel`, `cfg_end_event_sel`, `cfg_start_trigger`, `cfg_end_trigger`, `cfg_window_force_close`
+- **Status / counters:** `window_active`, `window_cycles`, `perf_prod_cycles`, `perf_bp_cycles`, `perf_starv_cycles`, `perf_idle_cycles`, `perf_beat_count`, `perf_byte_count`, `perf_burst_count`
+
+The completion/threshold/debug enables (`cfg_compl_enable`, `cfg_threshold_enable`, `cfg_debug_enable`) and the synthesis-cone parameters (`ENABLE_ERROR_LOGIC`, `ENABLE_TIMEOUT_LOGIC`, `ENABLE_COMPL_LOGIC`, `ENABLE_THRESHOLD_LOGIC`, `ENABLE_PERF_LOGIC`, `ENABLE_DEBUG_LOGIC`) are likewise forwarded unchanged. The utilization buckets watch the **R** (read-data) channel; for AXI4-Lite each transaction is a single data beat, so `perf_burst_count` counts AR handshakes = transactions.
+
 ---
 
 ## Quick Usage

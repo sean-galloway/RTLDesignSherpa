@@ -138,6 +138,12 @@ flowchart TB
 | ADD_PIPELINE_STAGE | bit | 0 | Add pipeline stage in monitor |
 | USE_MONITOR | bit | 1 | Synthesis-time monitor enable (forwarded to inner monitor). |
 | N_ADDR_RANGES | int | 0 | Number of address-range comparators (forwarded to base module). |
+| ENABLE_ERROR_LOGIC | bit | 1 | Synthesis-cone enable for error detection (forwarded to base module) |
+| ENABLE_TIMEOUT_LOGIC | bit | 1 | Synthesis-cone enable for timeout detection (forwarded to base module) |
+| ENABLE_COMPL_LOGIC | bit | 1 | Synthesis-cone enable for completion tracking (forwarded to base module) |
+| ENABLE_THRESHOLD_LOGIC | bit | 1 | Synthesis-cone enable for threshold detection (forwarded to base module) |
+| ENABLE_PERF_LOGIC | bit | 1 | Synthesis-cone enable for the perfmon window + counters (forwarded to base module) |
+| ENABLE_DEBUG_LOGIC | bit | 0 | Synthesis-cone enable for the debug/trace cone (forwarded to base module) |
 | **CG_IDLE_COUNT_WIDTH** | int | 4 | Width of idle counter (max 2^N-1 cycles) |
 
 ---
@@ -243,6 +249,21 @@ m_axi_bready = cg_gating ? 1'b0 : int_bready;
 ```
 
 This ensures protocol compliance during power management across all write phases.
+
+---
+
+## Performance Monitoring
+
+The clock-gated wrapper exposes the full perfmon interface of the base module and **forwards every port unchanged** to the inner `axi5_master_wr_mon`. The measurement-window state machine, the four W-channel utilization buckets (productive / back-pressure / starvation / idle), and the beat/byte/burst throughput counters behave exactly as documented in the base module — see [Performance Monitoring in axi5_master_wr_mon](axi5_master_wr_mon.md#performance-monitoring) for the full narrative and per-bit semantics.
+
+Forwarded perfmon ports (identical width and direction to the base module):
+
+- **Inputs:** `cfg_perf_enable`, `cfg_start_event_sel` (3), `cfg_end_event_sel` (3), `cfg_start_trigger`, `cfg_end_trigger`, `cfg_window_force_close`
+- **Outputs:** `window_active`, `window_cycles` (32), `perf_prod_cycles` (32), `perf_bp_cycles` (32), `perf_starv_cycles` (32), `perf_idle_cycles` (32), `perf_beat_count` (32), `perf_byte_count` (64), `perf_burst_count` (32)
+
+The `perf_burst_count` output tracks AW (write address) handshakes. Clock gating never suppresses these paths: while a measurement window is open the monitor stays awake, so window cycle accounting remains exact regardless of the idle-count setting.
+
+Alongside perfmon, the wrapper forwards the `cfg_compl_enable`, `cfg_threshold_enable`, and `cfg_debug_enable` control inputs, plus the six `ENABLE_*_LOGIC` synthesis-cone parameters (see [Parameters](#parameters)), straight through to the base monitor.
 
 ---
 

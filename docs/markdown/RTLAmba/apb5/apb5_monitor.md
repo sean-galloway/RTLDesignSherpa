@@ -42,7 +42,7 @@ The APB5 Monitor provides comprehensive protocol monitoring for APB5 interfaces 
 - Transaction timeout detection
 - Performance latency measurement
 - Protocol violation detection
-- 128-bit monitor bus packet output paired with 64-bit side-band timestamp
+- 64-bit monitor bus packet output (legacy format — no side-band timestamp)
 
 ---
 
@@ -69,7 +69,7 @@ flowchart TB
     subgraph OUTPUT["Monitor Bus"]
         fifo["Monitor<br/>FIFO"]
         skid["Output<br/>Skid Buffer"]
-        monbus["128-bit<br/>Packet + 64-bit<br/>Timestamp"]
+        monbus["64-bit<br/>Packet"]
     end
 
     cmd --> trans_track
@@ -105,6 +105,7 @@ flowchart TB
 | MAX_TRANSACTIONS | int | 4 | Maximum concurrent transactions |
 | MONITOR_FIFO_DEPTH | int | 8 | Monitor packet FIFO depth |
 | ENABLE_PARITY_MON | bit | 0 | Enable parity monitoring |
+| N_ADDR_RANGES | int | 0 | Number of `apb_monitor_addr_check` comparators. 0 = address-range checker not synthesized |
 | USE_MONITOR | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
 
 ---
@@ -170,15 +171,31 @@ flowchart TB
 | cfg_latency_threshold | 32 | Input | Latency threshold value |
 | cfg_wakeup_timeout_cnt | 16 | Input | Wake-up timeout threshold |
 
+### Address-Range Checker Configuration
+
+Active only when `N_ADDR_RANGES > 0`; otherwise these inputs are ignored and the
+`apb_monitor_addr_check` block is not synthesized. Range-violation packets are
+merged onto the monitor bus at lower priority than the event FIFO.
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| cfg_addr_check_enable | 1 | Input | Master enable for the address-range checker |
+| cfg_addr_range_enable | N_ADDR_RANGES | Input | Per-range enable bit vector |
+| cfg_addr_range_low | N_ADDR_RANGES × ADDR_WIDTH | Input | Per-range low (inclusive) bounds |
+| cfg_addr_range_high | N_ADDR_RANGES × ADDR_WIDTH | Input | Per-range high (inclusive) bounds |
+
 ### Monitor Bus Output
+
+The APB5 monitor emits the **64-bit legacy monitor-bus format**. There is **no**
+`monbus_timestamp` output and **no** `i_mon_time` input — timing lives in the
+packet's own event-data field, populated from the internal free-running
+`r_timestamp` counter.
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
 | monbus_valid | 1 | Output | Monitor packet valid |
 | monbus_ready | 1 | Input | Monitor bus ready |
-| monbus_packet | 128 | Output | `monitor_packet_t` (see format below) |
-| monbus_timestamp | 64 | Output | `monbus_timestamp_t` paired atomically with `monbus_packet` |
-| i_mon_time | 64 | Input | Free-running counter from `monbus_axil_group`, sampled at packet emission |
+| monbus_packet | 64 | Output | 64-bit monitor packet (see format below) |
 
 ### Status Outputs
 
@@ -193,49 +210,54 @@ flowchart TB
 
 ## Monitor Packet Format
 
-### 128-bit Packet Structure (paired with 64-bit side-band timestamp)
+### 64-bit Packet Structure
 
-The 128-bit `monbus_packet` (paired with the 64-bit `monbus_timestamp` side-band signal) follows the standardized APB monitor bus format. The layout is identical across protocols:
+The APB5 monitor drives a single 64-bit `monbus_packet` (no side-band timestamp).
+Fields are packed as follows (see `w_fifo_pkt_data` in the RTL):
 
 ```
-Bits [127:124] - Packet Type:
-  0x0 = ERROR      Error events (SLVERR, protocol violations)
-  0x1 = COMPL      Completion events (transaction finished)
-  0x2 = THRESH     Threshold events
-  0x3 = TIMEOUT    Timeout events
-  0x4 = PERF       Performance metrics
-  0x8 = ADDR_MATCH Address match events
-  0x9 = APB        APB-specific events
-  0xF = DEBUG      Debug events
-Bits [123:109] - Reserved (15 bits, forward-compat slack)
-Bits [108:105] - Protocol (4 bits): 0x0=AXI, 0x1=AXIS, 0x2=APB, 0x3=ARB, 0x4=CORE
-Bits [104:97]  - Event Code (8 bits, protocol-specific)
-Bits [96:88]   - Channel ID (9 bits)
-Bits [87:72]   - Agent ID (16 bits, from AGENT_ID parameter)
-Bits [71:64]   - Unit ID (8 bits, from UNIT_ID parameter)
-Bits [63:0]    - Event Data (64 bits — full address, latency, etc.)
+Bits [63:60] - Packet Type (4 bits, see table below)
+Bits [59:57] - Protocol (3 bits): fixed to PROTOCOL_APB (0x2)
+Bits [56:53] - Event Code (4 bits, APB-specific)
+Bits [52:47] - Channel ID (6 bits, always 0 for APB)
+Bits [46:43] - Unit ID (4 bits, from UNIT_ID[3:0])
+Bits [42:35] - Agent ID (8 bits, from AGENT_ID[7:0])
+Bits [34:3]  - Event Data (32 bits — address, latency, wakeup timer, etc.)
+Bits [2:0]   - Aux Data (3 bits — packet-specific side info)
 ```
 
 ### Packet Types
 
-| Value | Type | Description |
-|-------|------|-------------|
-| 0 | Error | Protocol errors, SLVERR |
-| 1 | Completion | Transaction completed |
-| 2 | Timeout | Command/response timeout |
-| 3 | Threshold | Threshold exceeded |
-| 4 | Performance | Latency metrics |
-| 5 | APB | APB-specific events (wake-up) |
+Packet-type codes follow `monitor_common_pkg`. The APB5 monitor emits the subset
+marked below; other codes are defined for cross-protocol consistency.
+
+| Value | Type | Emitted by APB5 monitor | Description |
+|-------|------|:-----------------------:|-------------|
+| 0x0 | Error | ✅ | SLVERR, protocol violations, parity errors |
+| 0x1 | Completion | ✅ | Transaction completed without error |
+| 0x2 | Threshold | — | Threshold-crossed events (not generated here) |
+| 0x3 | Timeout | ✅ | Command / response / wake-up timeout |
+| 0x4 | Performance | ✅ | Latency-threshold-exceeded metric |
+| 0x8 | AddrMatch | — | Address-range violation (from `apb_monitor_addr_check` when `N_ADDR_RANGES > 0`) |
+| 0x9 | APB | ✅ | APB-specific events (wake-up request/acknowledge) |
+| 0xF | Debug | — | Debug/trace events (not generated here) |
+
+> **Note:** parity error events are emitted as **Error** packets (type `0x0`) with an
+> APB5 parity event code — not as a distinct packet type.
 
 ### APB5-Specific Event Codes
 
-| Code | Event | Description |
-|------|-------|-------------|
-| APB5_WAKEUP_REQUEST | 0x0 | PWAKEUP rising edge |
-| APB5_WAKEUP_ACKNOWLEDGED | 0x1 | PWAKEUP falling edge |
-| APB5_PARITY_PWDATA_ERROR | 0x4 | Write data parity error |
-| APB5_PARITY_PRDATA_ERROR | 0x5 | Read data parity error |
-| APB5_PARITY_PREADY_ERROR | 0x6 | PREADY parity error |
+Event codes live in per-category enums, so a given numeric code is disambiguated by
+the packet type it rides on. Wake-up codes ride the **APB** packet type (`0x9`);
+parity codes ride the **Error** packet type (`0x0`).
+
+| Event | Code | Packet Type | Description |
+|-------|------|-------------|-------------|
+| APB5_WAKEUP_REQUEST | 0x0 | APB (0x9) | PWAKEUP rising edge |
+| APB5_WAKEUP_ACKNOWLEDGED | 0x1 | APB (0x9) | PWAKEUP falling edge |
+| APB5_PARITY_PWDATA_ERROR | 0x0 | Error (0x0) | Write data parity error |
+| APB5_PARITY_PRDATA_ERROR | 0x1 | Error (0x0) | Read data parity error |
+| APB5_PARITY_PREADY_ERROR | 0x2 | Error (0x0) | PREADY parity error |
 
 ---
 

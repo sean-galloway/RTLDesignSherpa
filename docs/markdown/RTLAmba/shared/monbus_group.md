@@ -413,7 +413,8 @@ rtl/amba/filelists/monbus_group.f
 ```
 
 It lists `math_adder_carry_save_nbit` + `mod_3_compress` + `monbus_cam` +
-`monbus_compressor` + `monbus_group_core`. All consumers (`val/amba`
+`monbus_cam_pipe` + `monbus_compressor` + `monbus_halfbeat_packer` +
+`monbus_group_core`. All consumers (`val/amba`
 tests, RAPIDS / STREAM macro filelists) `-f`-include it rather than
 listing those sources inline.
 
@@ -486,8 +487,13 @@ The legacy `monbus_axil_group.sv` module is gone. Callers should
 migrate to the wrapper matching their fabric. Key port-surface
 changes:
 
-1. **`S_AXIL_DATA_WIDTH` / `M_AXIL_DATA_WIDTH` parameters dropped** —
-   data width is locked at 64 bits in the family.
+1. **`M_AXIL_DATA_WIDTH` dropped; `S_AXIL_DATA_WIDTH` retained** — the
+   master-write data path is locked at 64 bits, so `M_AXIL_DATA_WIDTH`
+   is gone. `S_AXIL_DATA_WIDTH` survives on the two AXIL-slave-read
+   wrappers (`monbus_axil_axil_group`, `monbus_axil_axi4_group`) with a
+   default of 64 (one beat per record slice); set it to 32 to enable the
+   built-in 2:1 read serializer for a 32-bit host crossbar (6 beats per
+   record). The AXI4-slave-read wrappers have no such parameter.
 2. **`cfg_flush_watermark[15:0]` is a new required input.** Set to 1
    for the legacy "fire immediately" behavior; set higher to batch.
 3. **`err_fifo_count` and `write_fifo_count` are now 16 bits** (were 8).
