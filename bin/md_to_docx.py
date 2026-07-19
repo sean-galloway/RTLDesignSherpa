@@ -301,10 +301,30 @@ def rewrite_image_paths_for_file(text: str, source_file: pathlib.Path) -> str:
         return m.group(0)
     return IMG_RE.sub(_sub, text)
 
-def concat_markdown(files: list[pathlib.Path], pagebreak: bool) -> str:
+# Repeated per-doc branding header block: from the "Documentation Header" marker
+# through the matching "End Header" marker (inclusive of the <table> + rule).
+DOC_HEADER_RE = re.compile(
+    r'<!--\s*RTL Design Sherpa Documentation Header\s*-->.*?<!--\s*End Header\s*-->[ \t]*\n?',
+    re.DOTALL | re.IGNORECASE)
+
+
+def strip_doc_header(text: str) -> str:
+    """Remove the repeated RTL Design Sherpa logo header block from a doc.
+
+    Each source doc under docs/markdown/ begins with the same logo/header table;
+    when many docs are concatenated (--expand-index) that block repeats on every
+    one. Strip the first occurrence so the branding lives on the title page only.
+    """
+    return DOC_HEADER_RE.sub('', text, count=1).lstrip('\n')
+
+
+def concat_markdown(files: list[pathlib.Path], pagebreak: bool,
+                    strip_header: bool = False) -> str:
     parts = []
     for i, f in enumerate(files):
         text = read_text(f).rstrip() + "\n"
+        if strip_header:
+            text = strip_doc_header(text)
         # Rewrite relative image paths to absolute paths
         text = rewrite_image_paths_for_file(text, f)
         parts.append(text)
@@ -506,6 +526,9 @@ def parse_args():
                 help="Parse the input index and inline linked chapter .md files in order.")
     p.add_argument("--skip-index-content", action="store_true",
                 help="When using --expand-index, don't include the index file content (only chapters).")
+    p.add_argument("--strip-doc-header", action="store_true",
+                help="Strip the repeated RTL Design Sherpa logo header block from each "
+                     "concatenated doc (for multi-doc --expand-index library builds).")
     p.add_argument("--debug-md", action="store_true",
                 help="Save the merged markdown file for debugging (as output.build.md).")
     p.add_argument("--no-mermaid", action="store_true",
@@ -1641,7 +1664,8 @@ def main():
         if front_lists:
             chunks.append(front_lists)
 
-        merged = concat_markdown(files, args.pagebreak)
+        merged = concat_markdown(files, args.pagebreak,
+                                 strip_header=args.strip_doc_header)
         merged = strip_or_map_emoji(merged)
         merged = rewrite_wavedrom_images(merged, in_path.parent, tmp_imgs)
         if not args.no_wavedrom:
