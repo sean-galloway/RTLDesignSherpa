@@ -89,8 +89,8 @@ axis_slave_cg #(
 - **Base Module Functionality:** [axis_slave.md](./axis_slave.md)
 - **Clock Gating Guide:** [clock_gated_variants.md](../shared/clock_gated_variants.md)
 - **Detailed CG Examples:**
-  - [axi4_master_rd_mon_cg.md](../axi4/axi4_master_rd_mon_cg.md) (AXI4 monitor)
-  - [axil4_master_rd_mon_cg.md](../axil4/axil4_master_rd_mon_cg.md) (AXIL4 monitor)
+  - [axi4_master_rd_mon_cg.md](../monitor/axi4_master_rd_mon_cg.md) (AXI4 monitor)
+  - [axil4_master_rd_mon_cg.md](../monitor/axil4_master_rd_mon_cg.md) (AXIL4 monitor)
   - [apb_slave_cg.md](../apb/apb_slave_cg.md) (APB interface)
 
 ---

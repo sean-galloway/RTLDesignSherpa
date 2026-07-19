@@ -315,7 +315,7 @@ Clock-gated variants (`*_cg`) add power management:
 - **[GAXI Modules](../gaxi/README.md)** - Generic AXI utilities (buffers, FIFOs)
 
 ### Configuration and Integration
-- **[AXI Monitor Configuration Guide](../shared/axi_monitor_base.md)** - Monitor setup strategies
+- **[AXI Monitor Configuration Guide](../monitor/axi_monitor_base.md)** - Monitor setup strategies
 - **[Monitor Packet Specification](../includes/monitor_package_spec.md)** - 64-bit packet format
 
 ### Source Code

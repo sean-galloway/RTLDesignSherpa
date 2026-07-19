@@ -302,10 +302,10 @@ explicit at the file level.
 ## Related Documentation
 
 - **[`monitor_system_whitepaper.md`](../monitor_system_whitepaper.md)** — Design-surface view: identity allocation, timestamp policy, drain paths, aggregation topology.
-- **[`shared/axi_monitor_base.md`](../shared/axi_monitor_base.md)** — Core monitor that emits packets.
-- **[`shared/axi_monitor_reporter.md`](../shared/axi_monitor_reporter.md)** — Packet formatting logic (where `create_monitor_packet` is invoked).
-- **[`shared/axi_monitor_addr_check.md`](../shared/axi_monitor_addr_check.md)** — Address-range checker, canonical example of structured `event_data`.
-- **[`shared/monbus_arbiter.md`](../shared/monbus_arbiter.md)** — 192-bit atomic packet+timestamp arbitration.
+- **[`../monitor/axi_monitor_base.md`](../monitor/axi_monitor_base.md)** — Core monitor that emits packets.
+- **[`../monitor/axi_monitor_reporter.md`](../monitor/axi_monitor_reporter.md)** — Packet formatting logic (where `create_monitor_packet` is invoked).
+- **[`../monitor/axi_monitor_addr_check.md`](../monitor/axi_monitor_addr_check.md)** — Address-range checker, canonical example of structured `event_data`.
+- **[`../monitor/monbus_arbiter.md`](../monitor/monbus_arbiter.md)** — 192-bit atomic packet+timestamp arbitration.
 
 ---
 

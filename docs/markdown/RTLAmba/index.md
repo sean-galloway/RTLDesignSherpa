@@ -48,7 +48,7 @@ Simple, low-power peripheral bus for control registers and low-bandwidth devices
 - **[apb_master_cg](apb/apb_master_cg.md)** - Clock-gated APB master for power optimization
 - **[apb_slave](apb/apb_slave.md)** - APB slave with configurable address decoding and response generation
 - **[apb_slave_cg](apb/apb_slave_cg.md)** - Clock-gated APB slave for power optimization
-- **[apb_monitor](apb/apb_monitor.md)** - APB protocol monitor for verification and debugging
+- **[apb_monitor](monitor/apb_monitor.md)** - APB protocol monitor for verification and debugging
 
 #### Clock Domain Crossing
 - **[apb_slave_cdc](apb/apb_slave_cdc.md)** - APB slave with clock domain crossing support
@@ -142,7 +142,7 @@ Enhanced APB with wake-up signaling, non-secure extension, and user signals.
 - **[apb5_master](apb5/apb5_master.md)** - APB5 master with command/response interface
 - **[apb5_slave](apb5/apb5_slave.md)** - APB5 slave with buffered cmd/rsp interface
 - **[apb5_slave_cdc](apb5/apb5_slave_cdc.md)** - APB5 slave with clock domain crossing
-- **[apb5_monitor](apb5/apb5_monitor.md)** - APB5 transaction monitor
+- **[apb5_monitor](monitor/apb5_monitor.md)** - APB5 transaction monitor
 
 #### Clock-Gated Variants
 - **[apb5_master_cg](apb5/apb5_master_cg.md)** - Clock-gated APB5 master
@@ -181,14 +181,14 @@ Enhanced AXI with atomic operations, memory tagging, and extended QoS.
 - **[axi5_slave_wr_cg](axi5/axi5_slave_wr_cg.md)** - Clock-gated AXI5 write slave
 
 #### Integrated Monitor Modules
-- **[axi5_master_rd_mon](axi5/axi5_master_rd_mon.md)** - Read master with integrated monitor
-- **[axi5_master_rd_mon_cg](axi5/axi5_master_rd_mon_cg.md)** - Clock-gated read master with monitor
-- **[axi5_master_wr_mon](axi5/axi5_master_wr_mon.md)** - Write master with integrated monitor
-- **[axi5_master_wr_mon_cg](axi5/axi5_master_wr_mon_cg.md)** - Clock-gated write master with monitor
-- **[axi5_slave_rd_mon](axi5/axi5_slave_rd_mon.md)** - Read slave with integrated monitor
-- **[axi5_slave_rd_mon_cg](axi5/axi5_slave_rd_mon_cg.md)** - Clock-gated read slave with monitor
-- **[axi5_slave_wr_mon](axi5/axi5_slave_wr_mon.md)** - Write slave with integrated monitor
-- **[axi5_slave_wr_mon_cg](axi5/axi5_slave_wr_mon_cg.md)** - Clock-gated write slave with monitor
+- **[axi5_master_rd_mon](monitor/axi5_master_rd_mon.md)** - Read master with integrated monitor
+- **[axi5_master_rd_mon_cg](monitor/axi5_master_rd_mon_cg.md)** - Clock-gated read master with monitor
+- **[axi5_master_wr_mon](monitor/axi5_master_wr_mon.md)** - Write master with integrated monitor
+- **[axi5_master_wr_mon_cg](monitor/axi5_master_wr_mon_cg.md)** - Clock-gated write master with monitor
+- **[axi5_slave_rd_mon](monitor/axi5_slave_rd_mon.md)** - Read slave with integrated monitor
+- **[axi5_slave_rd_mon_cg](monitor/axi5_slave_rd_mon_cg.md)** - Clock-gated read slave with monitor
+- **[axi5_slave_wr_mon](monitor/axi5_slave_wr_mon.md)** - Write slave with integrated monitor
+- **[axi5_slave_wr_mon_cg](monitor/axi5_slave_wr_mon_cg.md)** - Clock-gated write slave with monitor
 
 ---
 
@@ -227,33 +227,33 @@ Infrastructure components used across all AMBA protocols.
 
 ### Arbitration and Control
 
-- **[arbiter_monbus_common](shared/arbiter_monbus_common.md)** - Common arbitration logic for monitoring bus
-- **[arbiter_rr_pwm_monbus](shared/arbiter_rr_pwm_monbus.md)** - Round-robin PWM arbiter for monbus
-- **[arbiter_wrr_pwm_monbus](shared/arbiter_wrr_pwm_monbus.md)** - Weighted round-robin PWM arbiter
-- **[monbus_arbiter](shared/monbus_arbiter.md)** - Monitoring bus arbiter
+- **[arbiter_monbus_common](monitor/arbiter_monbus_common.md)** - Common arbitration logic for monitoring bus
+- **[arbiter_rr_pwm_monbus](monitor/arbiter_rr_pwm_monbus.md)** - Round-robin PWM arbiter for monbus
+- **[arbiter_wrr_pwm_monbus](monitor/arbiter_wrr_pwm_monbus.md)** - Weighted round-robin PWM arbiter
+- **[monbus_arbiter](monitor/monbus_arbiter.md)** - Monitoring bus arbiter
 
 ### AXI Monitoring and Analysis
 
-- **[axi_monitor_base](shared/axi_monitor_base.md)** - Base AXI/AXIL transaction monitor (per-DMA)
-- **[axi_monitor_reporter](shared/axi_monitor_reporter.md)** - Thin dispatcher + 6 packet-type sub-blocks (error / timeout / compl / threshold / perf / debug) gated by ENABLE_*_LOGIC
-- **[axi_monitor_timeout](shared/axi_monitor_timeout.md)** - AXI timeout detection
-- **[axi_monitor_timer](shared/axi_monitor_timer.md)** - AXI timing analysis
-- **[axi_monitor_trans_mgr](shared/axi_monitor_trans_mgr.md)** - AXI transaction-table management (CAM-backed)
-- **[monitor_trans_cam](shared/monitor_trans_cam.md)** - Multi-port ID CAM with opaque payload (backs trans_mgr)
-- **[axi_monitor_addr_check](shared/axi_monitor_addr_check.md)** - Per-channel address-match watchpoints
+- **[axi_monitor_base](monitor/axi_monitor_base.md)** - Base AXI/AXIL transaction monitor (per-DMA)
+- **[axi_monitor_reporter](monitor/axi_monitor_reporter.md)** - Thin dispatcher + 6 packet-type sub-blocks (error / timeout / compl / threshold / perf / debug) gated by ENABLE_*_LOGIC
+- **[axi_monitor_timeout](monitor/axi_monitor_timeout.md)** - AXI timeout detection
+- **[axi_monitor_timer](monitor/axi_monitor_timer.md)** - AXI timing analysis
+- **[axi_monitor_trans_mgr](monitor/axi_monitor_trans_mgr.md)** - AXI transaction-table management (CAM-backed)
+- **[monitor_trans_cam](monitor/monitor_trans_cam.md)** - Multi-port ID CAM with opaque payload (backs trans_mgr)
+- **[axi_monitor_addr_check](monitor/axi_monitor_addr_check.md)** - Per-channel address-match watchpoints
 - **[axi4_dma_observer](shared/axi4_dma_observer.md)** - Standalone, DMA-agnostic observability harness (wraps any AXI4 DMA from outside; companion to the per-DMA `axi_monitor_*` family). Includes `axi_bus_meter` and `axi_perf_latency_hist` per port.
 
 ### Monitor Bus Delivery + Bulk-Trace Compression
 
 Path from in-flight monitor packets to host-visible memory + CPU IRQs.
 
-- **[monbus_group (family)](shared/monbus_group.md)** - Protocol-agnostic core + four protocol-permutation wrappers:
+- **[monbus_group (family)](monitor/monbus_group.md)** - Protocol-agnostic core + four protocol-permutation wrappers:
   - `monbus_axil_axil_group` (AXIL slave-read + AXIL master-write, replaces legacy `monbus_axil_group`)
   - `monbus_axil_axi4_group` (AXIL slave-read + AXI4 burst master-write)
   - `monbus_axi4_axil_group` (AXI4 burst slave-read + AXIL master-write)
   - `monbus_axi4_axi4_group` (burst on both sides)
-- **[monbus_compressor](shared/monbus_compressor.md)** - Bulk-trace encoder, 2-stage pipeline, per-template `delta_ts`, bit-exact to Python golden (~2.6× ratio)
-- **[monbus_cam](shared/monbus_cam.md)** - 32-entry LRU CAM with per-entry 24b `last_ts` (backs the compressor)
+- **[monbus_compressor](monitor/monbus_compressor.md)** - Bulk-trace encoder, 2-stage pipeline, per-template `delta_ts`, bit-exact to Python golden (~2.6× ratio)
+- **[monbus_cam](monitor/monbus_cam.md)** - 32-entry LRU CAM with per-entry 24b `last_ts` (backs the compressor)
 
 ### Memory / BRAM Slave (sdpram_slave family)
 

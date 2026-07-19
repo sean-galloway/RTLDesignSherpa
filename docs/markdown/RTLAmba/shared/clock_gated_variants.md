@@ -315,7 +315,7 @@ For power-specific verification:
 
 | Base Module | CG Variant | Documentation |
 |-------------|------------|---------------|
-| `axi4_master_rd_mon.sv` | `axi4_master_rd_mon_cg.sv` | [Example](../axi4/axi4_master_rd_mon_cg.md) |
+| `axi4_master_rd_mon.sv` | `axi4_master_rd_mon_cg.sv` | [Example](../monitor/axi4_master_rd_mon_cg.md) |
 | `axi4_master_wr_mon.sv` | `axi4_master_wr_mon_cg.sv` | See CG guide (this doc) |
 | `axi4_slave_rd_mon.sv` | `axi4_slave_rd_mon_cg.sv` | See CG guide (this doc) |
 | `axi4_slave_wr_mon.sv` | `axi4_slave_wr_mon_cg.sv` | See CG guide (this doc) |
@@ -328,7 +328,7 @@ For power-specific verification:
 
 | Base Module | CG Variant | Documentation |
 |-------------|------------|---------------|
-| `axil4_master_rd_mon.sv` | `axil4_master_rd_mon_cg.sv` | [Example](../axil4/axil4_master_rd_mon_cg.md) |
+| `axil4_master_rd_mon.sv` | `axil4_master_rd_mon_cg.sv` | [Example](../monitor/axil4_master_rd_mon_cg.md) |
 | `axil4_master_wr_mon.sv` | `axil4_master_wr_mon_cg.sv` | See CG guide (this doc) |
 | `axil4_slave_rd_mon.sv` | `axil4_slave_rd_mon_cg.sv` | See CG guide (this doc) |
 | `axil4_slave_wr_mon.sv` | `axil4_slave_wr_mon_cg.sv` | See CG guide (this doc) |
@@ -360,8 +360,8 @@ For power-specific verification:
 
 For detailed implementation examples with complete parameter lists, port connections, and usage scenarios, see:
 
-- **AXI4 Monitor Example:** [axi4_master_rd_mon_cg.md](../axi4/axi4_master_rd_mon_cg.md)
-- **AXIL4 Monitor Example:** [axil4_master_rd_mon_cg.md](../axil4/axil4_master_rd_mon_cg.md)
+- **AXI4 Monitor Example:** [axi4_master_rd_mon_cg.md](../monitor/axi4_master_rd_mon_cg.md)
+- **AXIL4 Monitor Example:** [axil4_master_rd_mon_cg.md](../monitor/axil4_master_rd_mon_cg.md)
 - **APB Interface Example:** [apb_slave_cg.md](../apb/apb_slave_cg.md)
 
 These examples provide complete instantiation templates, synthesis scripts, and verification strategies specific to each protocol variant.
