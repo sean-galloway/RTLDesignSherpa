@@ -29,6 +29,23 @@ $REPO_ROOT/rtl/amba/includes/apb5_pkg.sv
 
 # =============================================================================
 # SHARED INFRASTRUCTURE (Base modules used by multiple protocols)
+$REPO_ROOT/rtl/amba/shared/axi4_dma_observer.sv
+$REPO_ROOT/rtl/amba/shared/axi4_dma_slaves.sv
+$REPO_ROOT/rtl/amba/shared/axi4_master_rd_crc_check.sv
+$REPO_ROOT/rtl/amba/shared/axi4_master_wr_pattern_gen.sv
+$REPO_ROOT/rtl/amba/shared/axi4_slave_rd_pattern_gen.sv
+$REPO_ROOT/rtl/amba/shared/axi4_slave_wr_crc_check.sv
+$REPO_ROOT/rtl/amba/shared/axi_bus_meter.sv
+$REPO_ROOT/rtl/amba/shared/axi_perf_latency_hist.sv
+$REPO_ROOT/rtl/amba/shared/axis4_master_pattern_gen.sv
+$REPO_ROOT/rtl/amba/shared/axis4_slave_pattern_check.sv
+$REPO_ROOT/rtl/amba/shared/axis_bus_meter.sv
+$REPO_ROOT/rtl/amba/shared/sdpram_core.sv
+$REPO_ROOT/rtl/amba/shared/sdpram_slave_axi4_axi4.sv
+$REPO_ROOT/rtl/amba/shared/sdpram_slave_axi4_axil.sv
+$REPO_ROOT/rtl/amba/shared/sdpram_slave_axil_axi4.sv
+$REPO_ROOT/rtl/amba/shared/sdpram_slave_axil_axil.sv
+
 # =============================================================================
 $REPO_ROOT/rtl/amba/shared/amba_clock_gate_ctrl.sv
 $REPO_ROOT/rtl/amba/monitor/arbiter_monbus_common.sv
@@ -56,6 +73,8 @@ $REPO_ROOT/rtl/amba/monitor/monbus_arbiter.sv
 
 # =============================================================================
 # GAXI - Generic AXI Utilities (FIFOs, Skid Buffers)
+$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer_dbldrn.sv
+
 # =============================================================================
 $REPO_ROOT/rtl/amba/gaxi/gaxi_drop_fifo_sync.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_async.sv
@@ -113,10 +132,6 @@ $REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_rd_stub.sv
 $REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_stub.sv
 $REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_wr_stub.sv
 
-# AXI4 Future (Under development)
-$REPO_ROOT/rtl/amba/axi4/FUTURE/axi4_master_rd_hp_mon.sv
-$REPO_ROOT/rtl/amba/axi4/FUTURE/axi4_master_rd_lp_mon.sv
-
 # =============================================================================
 # AXI4-Lite - AXI4 Subset (Single beat transactions only)
 # =============================================================================
@@ -153,5 +168,74 @@ $REPO_ROOT/rtl/amba/axis4/axis_slave.sv
 $REPO_ROOT/rtl/amba/axis4/axis_slave_cg.sv
 
 # ==============================================================================
+# =============================================================================
+# APB5 - Advanced Peripheral Bus v5
+# =============================================================================
+$REPO_ROOT/rtl/amba/apb5/apb5_master.sv
+$REPO_ROOT/rtl/amba/apb5/apb5_master_cg.sv
+$REPO_ROOT/rtl/amba/apb5/apb5_master_stub.sv
+$REPO_ROOT/rtl/amba/apb5/apb5_slave.sv
+$REPO_ROOT/rtl/amba/apb5/apb5_slave_cdc.sv
+$REPO_ROOT/rtl/amba/apb5/apb5_slave_cdc_cg.sv
+$REPO_ROOT/rtl/amba/apb5/apb5_slave_cg.sv
+$REPO_ROOT/rtl/amba/apb5/apb5_slave_stub.sv
+
+# =============================================================================
+# AXI5 - Advanced eXtensible Interface v5
+# =============================================================================
+$REPO_ROOT/rtl/amba/axi5/axi5_master_rd.sv
+$REPO_ROOT/rtl/amba/axi5/axi5_master_rd_cg.sv
+$REPO_ROOT/rtl/amba/axi5/axi5_master_wr.sv
+$REPO_ROOT/rtl/amba/axi5/axi5_master_wr_cg.sv
+$REPO_ROOT/rtl/amba/axi5/axi5_slave_rd.sv
+$REPO_ROOT/rtl/amba/axi5/axi5_slave_rd_cg.sv
+$REPO_ROOT/rtl/amba/axi5/axi5_slave_wr.sv
+$REPO_ROOT/rtl/amba/axi5/axi5_slave_wr_cg.sv
+$REPO_ROOT/rtl/amba/axi5/stubs/axi5_master_rd_stub.sv
+$REPO_ROOT/rtl/amba/axi5/stubs/axi5_master_stub.sv
+$REPO_ROOT/rtl/amba/axi5/stubs/axi5_master_wr_stub.sv
+$REPO_ROOT/rtl/amba/axi5/stubs/axi5_slave_rd_stub.sv
+$REPO_ROOT/rtl/amba/axi5/stubs/axi5_slave_stub.sv
+$REPO_ROOT/rtl/amba/axi5/stubs/axi5_slave_wr_stub.sv
+
+# =============================================================================
+# AXIS5 - AXI Stream v5
+# =============================================================================
+$REPO_ROOT/rtl/amba/axis5/axis5_master.sv
+$REPO_ROOT/rtl/amba/axis5/axis5_master_cg.sv
+$REPO_ROOT/rtl/amba/axis5/axis5_slave.sv
+$REPO_ROOT/rtl/amba/axis5/axis5_slave_cg.sv
+
+# =============================================================================
+# CDC - Clock Domain Crossing primitives
+# =============================================================================
+$REPO_ROOT/rtl/amba/cdc/cdc_open_loop.sv
+$REPO_ROOT/rtl/amba/cdc/cdc_synchronizer.sv
+
+# =============================================================================
+# MONITOR SUBSYSTEM (protocol monitors, monbus, CAM)
+# =============================================================================
+$REPO_ROOT/rtl/amba/monitor/apb5_monitor.sv
+$REPO_ROOT/rtl/amba/monitor/apb_monitor_addr_check.sv
+$REPO_ROOT/rtl/amba/monitor/axi5_master_rd_mon.sv
+$REPO_ROOT/rtl/amba/monitor/axi5_master_rd_mon_cg.sv
+$REPO_ROOT/rtl/amba/monitor/axi5_master_wr_mon.sv
+$REPO_ROOT/rtl/amba/monitor/axi5_master_wr_mon_cg.sv
+$REPO_ROOT/rtl/amba/monitor/axi5_slave_rd_mon.sv
+$REPO_ROOT/rtl/amba/monitor/axi5_slave_rd_mon_cg.sv
+$REPO_ROOT/rtl/amba/monitor/axi5_slave_wr_mon.sv
+$REPO_ROOT/rtl/amba/monitor/axi5_slave_wr_mon_cg.sv
+$REPO_ROOT/rtl/amba/monitor/axi_monitor_addr_check.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_axi4_axi4_group.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_axi4_axil_group.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_axil_axi4_group.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_axil_axil_group.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_cam.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_cam_pipe.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_compressor.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_group_core.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_halfbeat_packer.sv
+$REPO_ROOT/rtl/amba/monitor/monitor_trans_cam.sv
+
 # End of filelist
 # ==============================================================================

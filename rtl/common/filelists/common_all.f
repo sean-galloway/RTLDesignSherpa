@@ -17,6 +17,7 @@ $REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
 $REPO_ROOT/rtl/common/arbiter_round_robin.sv
 $REPO_ROOT/rtl/common/arbiter_round_robin_simple.sv
 $REPO_ROOT/rtl/common/arbiter_round_robin_weighted.sv
+$REPO_ROOT/rtl/common/arbiter_single_client.sv
 
 # Binary/Gray Code Converters
 $REPO_ROOT/rtl/common/bin2gray.sv
@@ -100,8 +101,12 @@ $REPO_ROOT/rtl/common/math_adder_brent_kung_pg.sv
 $REPO_ROOT/rtl/common/math_adder_brent_kung_sum.sv
 
 # Math - Multipliers
+$REPO_ROOT/rtl/common/math_compressor_4to2.sv
 $REPO_ROOT/rtl/common/math_multiplier_basic_cell.sv
 $REPO_ROOT/rtl/common/math_multiplier_carry_save.sv
+$REPO_ROOT/rtl/common/math_multiplier_dadda_4to2_008.sv
+$REPO_ROOT/rtl/common/math_multiplier_dadda_4to2_011.sv
+$REPO_ROOT/rtl/common/math_multiplier_dadda_4to2_024.sv
 $REPO_ROOT/rtl/common/math_multiplier_dadda_tree_008.sv
 $REPO_ROOT/rtl/common/math_multiplier_dadda_tree_016.sv
 $REPO_ROOT/rtl/common/math_multiplier_dadda_tree_032.sv
@@ -129,6 +134,7 @@ $REPO_ROOT/rtl/common/sync_pulse.sv
 # Shifters
 $REPO_ROOT/rtl/common/reverse_vector.sv
 $REPO_ROOT/rtl/common/shifter_barrel.sv
+$REPO_ROOT/rtl/common/shifter_beat_pack.sv
 $REPO_ROOT/rtl/common/shifter_lfsr.sv
 $REPO_ROOT/rtl/common/shifter_lfsr_fibonacci.sv
 $REPO_ROOT/rtl/common/shifter_lfsr_galois.sv
@@ -138,5 +144,154 @@ $REPO_ROOT/rtl/common/shifter_universal.sv
 $REPO_ROOT/rtl/common/sort.sv
 
 # ==============================================================================
+# Math - Adders (Han-Carlson)
+$REPO_ROOT/rtl/common/math_adder_han_carlson_016.sv
+$REPO_ROOT/rtl/common/math_adder_han_carlson_022.sv
+$REPO_ROOT/rtl/common/math_adder_han_carlson_032.sv
+$REPO_ROOT/rtl/common/math_adder_han_carlson_044.sv
+$REPO_ROOT/rtl/common/math_adder_han_carlson_048.sv
+$REPO_ROOT/rtl/common/math_adder_han_carlson_072.sv
+
+# Math - Floating Point (BF16)
+$REPO_ROOT/rtl/common/math_bf16_adder.sv
+$REPO_ROOT/rtl/common/math_bf16_clamp.sv
+$REPO_ROOT/rtl/common/math_bf16_comparator.sv
+$REPO_ROOT/rtl/common/math_bf16_divider.sv
+$REPO_ROOT/rtl/common/math_bf16_exp2.sv
+$REPO_ROOT/rtl/common/math_bf16_exponent_adder.sv
+$REPO_ROOT/rtl/common/math_bf16_fast_reciprocal.sv
+$REPO_ROOT/rtl/common/math_bf16_fma.sv
+$REPO_ROOT/rtl/common/math_bf16_gelu.sv
+$REPO_ROOT/rtl/common/math_bf16_goldschmidt_div.sv
+$REPO_ROOT/rtl/common/math_bf16_leaky_relu.sv
+$REPO_ROOT/rtl/common/math_bf16_log2.sv
+$REPO_ROOT/rtl/common/math_bf16_log2_scale.sv
+$REPO_ROOT/rtl/common/math_bf16_mantissa_mult.sv
+$REPO_ROOT/rtl/common/math_bf16_max.sv
+$REPO_ROOT/rtl/common/math_bf16_max_tree.sv
+$REPO_ROOT/rtl/common/math_bf16_max_tree_8.sv
+$REPO_ROOT/rtl/common/math_bf16_min.sv
+$REPO_ROOT/rtl/common/math_bf16_min_tree_8.sv
+$REPO_ROOT/rtl/common/math_bf16_multiplier.sv
+$REPO_ROOT/rtl/common/math_bf16_newton_raphson_recip.sv
+$REPO_ROOT/rtl/common/math_bf16_reciprocal.sv
+$REPO_ROOT/rtl/common/math_bf16_relu.sv
+$REPO_ROOT/rtl/common/math_bf16_scale_to_int8.sv
+$REPO_ROOT/rtl/common/math_bf16_sigmoid.sv
+$REPO_ROOT/rtl/common/math_bf16_silu.sv
+$REPO_ROOT/rtl/common/math_bf16_softmax_8.sv
+$REPO_ROOT/rtl/common/math_bf16_tanh.sv
+$REPO_ROOT/rtl/common/math_bf16_to_fp16.sv
+$REPO_ROOT/rtl/common/math_bf16_to_fp32.sv
+$REPO_ROOT/rtl/common/math_bf16_to_fp8_e4m3.sv
+$REPO_ROOT/rtl/common/math_bf16_to_fp8_e5m2.sv
+$REPO_ROOT/rtl/common/math_bf16_to_int.sv
+$REPO_ROOT/rtl/common/math_int_to_bf16.sv
+
+# Math - Floating Point (FP16)
+$REPO_ROOT/rtl/common/math_fp16_clamp.sv
+$REPO_ROOT/rtl/common/math_fp16_comparator.sv
+$REPO_ROOT/rtl/common/math_fp16_gelu.sv
+$REPO_ROOT/rtl/common/math_fp16_leaky_relu.sv
+$REPO_ROOT/rtl/common/math_fp16_max.sv
+$REPO_ROOT/rtl/common/math_fp16_max_tree_8.sv
+$REPO_ROOT/rtl/common/math_fp16_min.sv
+$REPO_ROOT/rtl/common/math_fp16_min_tree_8.sv
+$REPO_ROOT/rtl/common/math_fp16_relu.sv
+$REPO_ROOT/rtl/common/math_fp16_sigmoid.sv
+$REPO_ROOT/rtl/common/math_fp16_silu.sv
+$REPO_ROOT/rtl/common/math_fp16_softmax_8.sv
+$REPO_ROOT/rtl/common/math_fp16_tanh.sv
+$REPO_ROOT/rtl/common/math_fp16_to_bf16.sv
+$REPO_ROOT/rtl/common/math_fp16_to_fp32.sv
+$REPO_ROOT/rtl/common/math_fp16_to_fp8_e4m3.sv
+$REPO_ROOT/rtl/common/math_fp16_to_fp8_e5m2.sv
+
+# Math - Floating Point (FP32)
+$REPO_ROOT/rtl/common/math_fp32_clamp.sv
+$REPO_ROOT/rtl/common/math_fp32_comparator.sv
+$REPO_ROOT/rtl/common/math_fp32_gelu.sv
+$REPO_ROOT/rtl/common/math_fp32_leaky_relu.sv
+$REPO_ROOT/rtl/common/math_fp32_max.sv
+$REPO_ROOT/rtl/common/math_fp32_max_tree_8.sv
+$REPO_ROOT/rtl/common/math_fp32_min.sv
+$REPO_ROOT/rtl/common/math_fp32_min_tree_8.sv
+$REPO_ROOT/rtl/common/math_fp32_relu.sv
+$REPO_ROOT/rtl/common/math_fp32_sigmoid.sv
+$REPO_ROOT/rtl/common/math_fp32_silu.sv
+$REPO_ROOT/rtl/common/math_fp32_softmax_8.sv
+$REPO_ROOT/rtl/common/math_fp32_tanh.sv
+$REPO_ROOT/rtl/common/math_fp32_to_bf16.sv
+$REPO_ROOT/rtl/common/math_fp32_to_fp16.sv
+$REPO_ROOT/rtl/common/math_fp32_to_fp8_e4m3.sv
+$REPO_ROOT/rtl/common/math_fp32_to_fp8_e5m2.sv
+
+# Math - Floating Point (FP8 E4M3)
+$REPO_ROOT/rtl/common/math_fp8_e4m3_adder.sv
+$REPO_ROOT/rtl/common/math_fp8_e4m3_clamp.sv
+$REPO_ROOT/rtl/common/math_fp8_e4m3_comparator.sv
+$REPO_ROOT/rtl/common/math_fp8_e4m3_exponent_adder.sv
+$REPO_ROOT/rtl/common/math_fp8_e4m3_fma.sv
+$REPO_ROOT/rtl/common/math_fp8_e4m3_gelu.sv
+$REPO_ROOT/rtl/common/math_fp8_e4m3_leaky_relu.sv
+$REPO_ROOT/rtl/common/math_fp8_e4m3_mantissa_mult.sv
+$REPO_ROOT/rtl/common/math_fp8_e4m3_max.sv
+$REPO_ROOT/rtl/common/math_fp8_e4m3_max_tree_8.sv
+$REPO_ROOT/rtl/common/math_fp8_e4m3_min.sv
+$REPO_ROOT/rtl/common/math_fp8_e4m3_min_tree_8.sv
+$REPO_ROOT/rtl/common/math_fp8_e4m3_multiplier.sv
+$REPO_ROOT/rtl/common/math_fp8_e4m3_relu.sv
+$REPO_ROOT/rtl/common/math_fp8_e4m3_sigmoid.sv
+$REPO_ROOT/rtl/common/math_fp8_e4m3_silu.sv
+$REPO_ROOT/rtl/common/math_fp8_e4m3_softmax_8.sv
+$REPO_ROOT/rtl/common/math_fp8_e4m3_tanh.sv
+$REPO_ROOT/rtl/common/math_fp8_e4m3_to_bf16.sv
+$REPO_ROOT/rtl/common/math_fp8_e4m3_to_fp16.sv
+$REPO_ROOT/rtl/common/math_fp8_e4m3_to_fp32.sv
+$REPO_ROOT/rtl/common/math_fp8_e4m3_to_fp8_e5m2.sv
+
+# Math - Floating Point (FP8 E5M2)
+$REPO_ROOT/rtl/common/math_fp8_e5m2_adder.sv
+$REPO_ROOT/rtl/common/math_fp8_e5m2_clamp.sv
+$REPO_ROOT/rtl/common/math_fp8_e5m2_comparator.sv
+$REPO_ROOT/rtl/common/math_fp8_e5m2_exponent_adder.sv
+$REPO_ROOT/rtl/common/math_fp8_e5m2_fma.sv
+$REPO_ROOT/rtl/common/math_fp8_e5m2_gelu.sv
+$REPO_ROOT/rtl/common/math_fp8_e5m2_leaky_relu.sv
+$REPO_ROOT/rtl/common/math_fp8_e5m2_mantissa_mult.sv
+$REPO_ROOT/rtl/common/math_fp8_e5m2_max.sv
+$REPO_ROOT/rtl/common/math_fp8_e5m2_max_tree_8.sv
+$REPO_ROOT/rtl/common/math_fp8_e5m2_min.sv
+$REPO_ROOT/rtl/common/math_fp8_e5m2_min_tree_8.sv
+$REPO_ROOT/rtl/common/math_fp8_e5m2_multiplier.sv
+$REPO_ROOT/rtl/common/math_fp8_e5m2_relu.sv
+$REPO_ROOT/rtl/common/math_fp8_e5m2_sigmoid.sv
+$REPO_ROOT/rtl/common/math_fp8_e5m2_silu.sv
+$REPO_ROOT/rtl/common/math_fp8_e5m2_softmax_8.sv
+$REPO_ROOT/rtl/common/math_fp8_e5m2_tanh.sv
+$REPO_ROOT/rtl/common/math_fp8_e5m2_to_bf16.sv
+$REPO_ROOT/rtl/common/math_fp8_e5m2_to_fp16.sv
+$REPO_ROOT/rtl/common/math_fp8_e5m2_to_fp32.sv
+$REPO_ROOT/rtl/common/math_fp8_e5m2_to_fp8_e4m3.sv
+
+# Math - Floating Point (IEEE 754-2008)
+$REPO_ROOT/rtl/common/math_ieee754_2008_fp16_adder.sv
+$REPO_ROOT/rtl/common/math_ieee754_2008_fp16_exponent_adder.sv
+$REPO_ROOT/rtl/common/math_ieee754_2008_fp16_fma.sv
+$REPO_ROOT/rtl/common/math_ieee754_2008_fp16_mantissa_mult.sv
+$REPO_ROOT/rtl/common/math_ieee754_2008_fp16_multiplier.sv
+$REPO_ROOT/rtl/common/math_ieee754_2008_fp32_adder.sv
+$REPO_ROOT/rtl/common/math_ieee754_2008_fp32_exponent_adder.sv
+$REPO_ROOT/rtl/common/math_ieee754_2008_fp32_fma.sv
+$REPO_ROOT/rtl/common/math_ieee754_2008_fp32_mantissa_mult.sv
+$REPO_ROOT/rtl/common/math_ieee754_2008_fp32_multiplier.sv
+
+# Math - Modular
+$REPO_ROOT/rtl/common/mod_3_compress.sv
+
+# Math - Prefix Cells
+$REPO_ROOT/rtl/common/math_prefix_cell.sv
+$REPO_ROOT/rtl/common/math_prefix_cell_gray.sv
+
 # End of filelist
 # ==============================================================================
