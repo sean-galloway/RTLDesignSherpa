@@ -59,6 +59,7 @@ from CocoTBFramework.components.wavedrom.constraint_solver import (
     TemporalRelation
 )
 from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 async def run_basic_functional_test(dut):
@@ -693,10 +694,9 @@ def test_gaxi_wavedrom_example(data_width, depth, trim_mode, enable_wavedrom):
     , 'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "gaxi_skid_buffer"
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_common'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_skid_buffer.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/gaxi_skid_buffer.f")
     parameters = {
         'DATA_WIDTH': data_width,
         'DEPTH': depth
@@ -747,7 +747,7 @@ def test_gaxi_wavedrom_example(data_width, depth, trim_mode, enable_wavedrom):
         waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
         plus_args=(['--trace'] if enable_waves else []),
         testcase="gaxi_comprehensive_wavedrom_test",
-        includes=[rtl_dict['rtl_amba_includes']]
+        includes=includes
     )
 
 

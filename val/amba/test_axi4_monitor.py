@@ -38,6 +38,7 @@ import pytest
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.monbus.monbus_slave import MonbusSlave
 from TBClasses.monbus.monbus_types import (
     MonitorPacket, PktType, ProtocolType, AXIErrorCode, AXITimeoutCode
@@ -503,6 +504,7 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
         'rtl_gaxi':          'rtl/amba/gaxi',
         'rtl_common':        'rtl/common',
         'rtl_shared':        'rtl/amba/shared',
+        'rtl_monitor': 'rtl/amba/monitor',
         'rtl_amba_includes': 'rtl/amba/includes',
     })
 
@@ -518,32 +520,9 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
-    verilog_sources = [
-        # Monitor packages (must be compiled in order)
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_common_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba4_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba5_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_arbiter_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_pkg.sv"),
-        os.path.join(rtl_dict['rtl_common'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_common'], "counter_load_clear.sv"),
-        os.path.join(rtl_dict['rtl_common'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_common'], "counter_freq_invariant.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "monitor_trans_cam.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_trans_mgr.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_timer.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_timeout.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_error.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_timeout.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_compl.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_threshold.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_perf.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_debug.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_base.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axi_monitor_base.f")
 
     rtl_parameters = {
         'ID_WIDTH': str(iw),
@@ -597,7 +576,7 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[rtl_dict['rtl_amba_includes'], rtl_dict['rtl_common'], sim_build],
+            includes=includes + [rtl_dict['rtl_common'], sim_build],
             toplevel=dut_name,
             module=module,
             parameters=rtl_parameters,

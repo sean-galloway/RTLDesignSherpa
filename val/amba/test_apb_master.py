@@ -37,6 +37,7 @@ from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.amba_random_configs import APB_SLAVE_RANDOMIZER_CONFIGS, AXI_RANDOMIZER_CONFIGS
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # WaveDrom support
 from CocoTBFramework.components.wavedrom.constraint_solver import (
@@ -1061,10 +1062,9 @@ def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
     dut_name = "apb_master"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_amba'], f"apb/{dut_name}.sv")
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/apb_master.f")
 
     # create a human readable test identifier
     aw_str = TBBase.format_dec(addr_width, 3)
@@ -1085,7 +1085,7 @@ def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = [rtl_dict['rtl_amba_includes']]
+    includes=includes
     # RTL parameters
     rtl_parameters = {k.upper(): str(v) for k, v in locals().items() if k in ["addr_width", "data_width", "cmd_depth", "rsp_depth"]}
 
@@ -1181,14 +1181,9 @@ def test_apb_master_wavedrom(request, addr_width, data_width, cmd_depth, rsp_dep
 
     toplevel = "apb_master"
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "counter_load_clear.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_apb'], "apb_master.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/apb_master.f")
 
     aw_str = TBBase.format_dec(addr_width, 3)
     dw_str = TBBase.format_dec(data_width, 3)
@@ -1203,7 +1198,7 @@ def test_apb_master_wavedrom(request, addr_width, data_width, cmd_depth, rsp_dep
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = [rtl_dict['rtl_amba_includes']]
+    includes=includes
     rtl_parameters = {}
     for param_name in ['addr_width', 'data_width', 'cmd_depth', 'rsp_depth']:
         if param_name in locals():

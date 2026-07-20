@@ -48,6 +48,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../bin'))
 from TBClasses.gaxi.gaxi_drop_fifo_sync_tb import GaxiDropFifoSyncTB
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 @cocotb.test()
@@ -145,13 +146,9 @@ def test_gaxi_drop_fifo_capacity(request, data_width, depth, registered):
     })
 
     dut_name = "gaxi_drop_fifo_sync"
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba_includes'], "fifo_defs.svh"),
-        os.path.join(rtl_dict['rtl_amba'], 'gaxi/gaxi_drop_fifo_sync.sv'),
-        os.path.join(rtl_dict['rtl_cmn'], 'counter_bin.sv'),
-        os.path.join(rtl_dict['rtl_cmn'], 'counter_bin_load.sv'),
-        os.path.join(rtl_dict['rtl_cmn'], 'fifo_control.sv'),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/gaxi_drop_fifo_sync.f")
 
     mode_str = 'mux' if registered == 0 else 'flop'
     reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
@@ -162,7 +159,7 @@ def test_gaxi_drop_fifo_capacity(request, data_width, depth, registered):
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
-    includes=[rtl_dict['rtl_amba_includes']]
+    includes=includes
 
     parameters = {
         'DATA_WIDTH': str(data_width),
@@ -238,13 +235,9 @@ if __name__ == "__main__":
     })
 
     dut_name = "gaxi_drop_fifo_sync"
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba_includes'], "fifo_defs.svh"),
-        os.path.join(rtl_dict['rtl_amba'], 'gaxi/gaxi_drop_fifo_sync.sv'),
-        os.path.join(rtl_dict['rtl_cmn'], 'counter_bin.sv'),
-        os.path.join(rtl_dict['rtl_cmn'], 'counter_bin_load.sv'),
-        os.path.join(rtl_dict['rtl_cmn'], 'fifo_control.sv'),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/gaxi_drop_fifo_sync.f")
 
     mode_str = 'mux' if registered == 0 else 'flop'
     test_name = f"test_{worker_id}_capacity_dw{data_width}_d{depth}_{mode_str}"
@@ -254,7 +247,7 @@ if __name__ == "__main__":
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
-    includes=[rtl_dict['rtl_amba_includes']]
+    includes=includes
 
     parameters = {
         'DATA_WIDTH': str(data_width),

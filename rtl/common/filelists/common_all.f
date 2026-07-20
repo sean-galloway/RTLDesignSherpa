@@ -22,7 +22,7 @@ $REPO_ROOT/rtl/common/arbiter_round_robin_weighted.sv
 $REPO_ROOT/rtl/common/bin2gray.sv
 $REPO_ROOT/rtl/common/bin_to_bcd.sv
 $REPO_ROOT/rtl/common/gray2bin.sv
-$REPO_ROOT/rtl/common/grayj2bin.sv
+$REPO_ROOT/rtl/common/johnson2bin.sv
 
 # CAM
 $REPO_ROOT/rtl/common/cam_tag.sv
@@ -65,7 +65,6 @@ $REPO_ROOT/rtl/common/hex_to_7seg.sv
 
 # FIFOs
 $REPO_ROOT/rtl/common/fifo_async.sv
-$REPO_ROOT/rtl/common/fifo_async_div2.sv
 $REPO_ROOT/rtl/common/fifo_control.sv
 $REPO_ROOT/rtl/common/fifo_sync.sv
 

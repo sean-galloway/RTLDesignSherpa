@@ -527,6 +527,7 @@ def test_axi4_dma_observer(request):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_includes': 'rtl/amba/includes',
         'rtl_shared':   'rtl/amba/shared',
+        'rtl_monitor': 'rtl/amba/monitor',
         'rtl_axil4':    'rtl/amba/axil4',
         'rtl_axi4':     'rtl/amba/axi4',
         'rtl_gaxi':     'rtl/amba/gaxi',
@@ -543,57 +544,9 @@ def test_axi4_dma_observer(request):
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
-    verilog_sources = [
-        # Monitor packages
-        os.path.join(rtl_dict['rtl_includes'], "monitor_common_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_amba4_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_amba5_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_arbiter_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_pkg.sv"),
-        # Common building blocks
-        os.path.join(rtl_dict['rtl_common'],   "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_common'],   "counter_load_clear.sv"),
-        os.path.join(rtl_dict['rtl_common'],   "counter_freq_invariant.sv"),
-        os.path.join(rtl_dict['rtl_common'],   "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_common'],   "arbiter_priority_encoder.sv"),
-        os.path.join(rtl_dict['rtl_common'],   "arbiter_round_robin.sv"),
-        # Skid + FIFO
-        os.path.join(rtl_dict['rtl_gaxi'],     "gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'],     "gaxi_skid_buffer.sv"),
-        # AXI / AXIL leaves
-        os.path.join(rtl_dict['rtl_axil4'],    "axil4_slave_rd.sv"),
-        os.path.join(rtl_dict['rtl_axi4'],     "axi4_master_wr.sv"),
-        os.path.join(rtl_dict['rtl_axi4'],     "axi4_master_rd.sv"),
-        # Monitor infrastructure
-        os.path.join(rtl_dict['rtl_shared'],   "monitor_trans_cam.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "axi_monitor_trans_mgr.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "axi_monitor_addr_check.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "axi_monitor_timer.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "axi_monitor_timeout.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "axi_monitor_reporter_error.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "axi_monitor_reporter_timeout.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "axi_monitor_reporter_compl.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "axi_monitor_reporter_threshold.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "axi_monitor_reporter_perf.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "axi_monitor_reporter_debug.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "axi_monitor_reporter.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "axi_monitor_base.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "axi_monitor_filtered.sv"),
-        # AXI _mon wrappers
-        os.path.join(rtl_dict['rtl_axi4'],     "axi4_master_rd_mon.sv"),
-        os.path.join(rtl_dict['rtl_axi4'],     "axi4_master_wr_mon.sv"),
-        # Monbus delivery -- group core family (cam/compressor/core +
-        # div-by-3 helper) from the shared canonical filelist.
-        *get_sources_from_filelist(repo_root, 'rtl/amba/filelists/monbus_group.f')[0],
-        os.path.join(rtl_dict['rtl_shared'],   "monbus_axil_axi4_group.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "monbus_arbiter.sv"),
-        # Per-cycle valid/ready bucket counter (moved into shared)
-        os.path.join(rtl_dict['rtl_shared'],   "axi_bus_meter.sv"),
-        # Per-transaction latency histograms (RFC Stage E.3)
-        os.path.join(rtl_dict['rtl_shared'],   "axi_perf_latency_hist.sv"),
-        # The observer itself
-        os.path.join(rtl_dict['rtl_shared'],   f"{dut_name}.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axi4_dma_observer.f")
     for src in verilog_sources:
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")
@@ -643,7 +596,7 @@ def test_axi4_dma_observer(request):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[rtl_dict['rtl_includes'], rtl_dict['rtl_shared'], sim_build],
+            includes=includes + [rtl_dict['rtl_shared'], sim_build],
             toplevel=dut_name,
             module='test_axi4_dma_observer',
             testcase="cocotb_test_axi4_dma_observer",

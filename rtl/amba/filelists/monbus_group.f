@@ -25,6 +25,7 @@ $REPO_ROOT/rtl/common/mod_3_compress.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_cam.sv
 # Pipelined CAM -- the compressor's only CAM path (always pipelined).
 $REPO_ROOT/rtl/amba/monitor/monbus_cam_pipe.sv
+$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_compressor.sv
 # Half-beat packer (optional; selected by HALF_BEAT_EN=1, two 30-bit slots/beat).
 $REPO_ROOT/rtl/amba/monitor/monbus_halfbeat_packer.sv

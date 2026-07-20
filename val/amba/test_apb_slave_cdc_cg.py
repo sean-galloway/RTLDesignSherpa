@@ -40,6 +40,7 @@ from TBClasses.amba.amba_random_configs import (
     AXI_RANDOMIZER_CONFIGS
 )
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 class APBSlaveCDCCGTB(TBBase):
@@ -1165,6 +1166,7 @@ def test_apb_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idle
         'rtl_cmn':        'rtl/common',
         'rtl_amba':       'rtl/amba',
         'rtl_amba_shared':'rtl/amba/shared',
+        'rtl_amba_cdc': 'rtl/amba/cdc',
         'rtl_apb':        'rtl/amba/apb',
         'rtl_gaxi':       'rtl/amba/gaxi',
      'rtl_amba_includes': 'rtl/amba/includes'})
@@ -1172,16 +1174,9 @@ def test_apb_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idle
     dut_name = "apb_slave_cdc_cg"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'],          "icg.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],          "clock_gate_ctrl.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'],         "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_2_phase_handshake.sv"),
-        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_4_phase_handshake.sv"),
-        os.path.join(rtl_dict['rtl_amba_shared'],  "amba_clock_gate_ctrl.sv"),
-        os.path.join(rtl_dict['rtl_apb'],          "apb_slave.sv"),
-        os.path.join(rtl_dict['rtl_apb'],         f"{dut_name}.sv")
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/apb_slave_cdc_cg.f")
 
     aw_str = TBBase.format_dec(addr_width, 3)
     dw_str = TBBase.format_dec(data_width, 3)
@@ -1247,7 +1242,7 @@ def test_apb_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idle
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[rtl_dict['rtl_amba_includes']],
+            includes=includes,
             toplevel=toplevel,
             module=module,
             parameters=rtl_parameters,
@@ -1281,6 +1276,7 @@ def test_apb_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idle
         'rtl_cmn':        'rtl/common',
         'rtl_amba':       'rtl/amba',
         'rtl_amba_shared':'rtl/amba/shared',
+        'rtl_amba_cdc': 'rtl/amba/cdc',
         'rtl_apb':        'rtl/amba/apb',
         'rtl_gaxi':       'rtl/amba/gaxi',
      'rtl_amba_includes': 'rtl/amba/includes'})
@@ -1288,16 +1284,9 @@ def test_apb_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idle
     dut_name = "apb_slave_cdc_cg"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'],          "icg.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],          "clock_gate_ctrl.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'],         "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_2_phase_handshake.sv"),
-        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_4_phase_handshake.sv"),
-        os.path.join(rtl_dict['rtl_amba_shared'],  "amba_clock_gate_ctrl.sv"),
-        os.path.join(rtl_dict['rtl_apb'],          "apb_slave.sv"),
-        os.path.join(rtl_dict['rtl_apb'],         f"{dut_name}.sv")
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/apb_slave_cdc_cg.f")
 
     aw_str = TBBase.format_dec(addr_width, 3)
     dw_str = TBBase.format_dec(data_width, 3)
@@ -1363,7 +1352,7 @@ def test_apb_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idle
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[rtl_dict['rtl_amba_includes']],
+            includes=includes,
             toplevel=toplevel,
             module=module,
             parameters=rtl_parameters,

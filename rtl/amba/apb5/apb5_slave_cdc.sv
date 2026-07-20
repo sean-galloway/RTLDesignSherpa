@@ -36,7 +36,7 @@ module apb5_slave_cdc #(
     parameter int DEPTH           = 2,
     parameter bit ENABLE_PARITY   = 0,
     // CDC handshake variant: 1 = 2-phase (toggle, faster), 0 = 4-phase (level, classic)
-    parameter bit USE_2_PHASE_CDC = 1'b1,
+    parameter bit USE_2_PHASE_CDC = 1'b1,   // deprecated, ignored
     // Short Parameters
     parameter int DW  = DATA_WIDTH,
     parameter int AW  = ADDR_WIDTH,
@@ -209,94 +209,62 @@ module apb5_slave_cdc #(
         .parity_error_ctrl (parity_error_ctrl)
     );
 
-    // Command CDC handshake (pclk -> aclk)
-    generate
-    if (USE_2_PHASE_CDC) begin : g_cmd_2phase
-        cdc_2_phase_handshake #(
-            .DATA_WIDTH      (CPW)
-        ) u_cmd_cdc_handshake (
-            .clk_src         (pclk),
-            .rst_src_n       (presetn),
-            .src_valid       (w_cmd_valid),
-            .src_ready       (w_cmd_ready),
-            .src_data        ({w_cmd_pwrite, w_cmd_pprot, w_cmd_pstrb, w_cmd_paddr, w_cmd_pwdata,
-                              w_cmd_pauser, w_cmd_pwuser}),
-            /* verilator lint_off PINCONNECTEMPTY */
-            .src_timeout     (),
-            /* verilator lint_on PINCONNECTEMPTY */
+    // -------------------------------------------------------------------------
+    // CDC: gray-pointer async FIFOs (cmd pclk->aclk, rsp aclk->pclk).
+    //
+    // gaxi_fifo_async resets each domain's own pointer AND that domain's crossed
+    // copy of the remote pointer from the LOCAL reset, so a domain reset in
+    // isolation leaves that side's view self-consistent (both pointers 0 =>
+    // empty). Pointers are absolute positions, not toggle parity, so an
+    // independent reset of one side cannot fabricate or swallow a transfer the
+    // way the previous 2-phase handshake could. This matters here because the
+    // APB side (presetn) and the register/core side (aresetn) are separate reset
+    // domains -- e.g. the ddr2-char harness pulses only the core-side reset on
+    // CTRL.soft_reset while the APB side stays up.
+    //
+    // CDC_FIFO_DEPTH is the FIFO depth; >=2, power of 2 preferred for the gray/
+    // Johnson pointer encoding.
+    // -------------------------------------------------------------------------
+    localparam int CDC_FIFO_DEPTH = (DEPTH < 4) ? 4 : DEPTH;
 
-            .clk_dst         (aclk),
-            .rst_dst_n       (aresetn),
-            .dst_valid       (cmd_valid),
-            .dst_ready       (cmd_ready),
-            .dst_data        ({cmd_pwrite, cmd_pprot, cmd_pstrb, cmd_paddr, cmd_pwdata,
-                              cmd_pauser, cmd_pwuser})
-        );
-    end else begin : g_cmd_4phase
-        cdc_4_phase_handshake #(
-            .DATA_WIDTH      (CPW)
-        ) u_cmd_cdc_handshake (
-            .clk_src         (pclk),
-            .rst_src_n       (presetn),
-            .src_valid       (w_cmd_valid),
-            .src_ready       (w_cmd_ready),
-            .src_data        ({w_cmd_pwrite, w_cmd_pprot, w_cmd_pstrb, w_cmd_paddr, w_cmd_pwdata,
-                              w_cmd_pauser, w_cmd_pwuser}),
-            /* verilator lint_off PINCONNECTEMPTY */
-            .src_timeout     (),
-            /* verilator lint_on PINCONNECTEMPTY */
+    gaxi_fifo_async #(
+        .DATA_WIDTH   (CPW),
+        .DEPTH        (CDC_FIFO_DEPTH),
+        .N_FLOP_CROSS (2)
+    ) u_cmd_cdc_fifo (
+        .axi_wr_aclk    (pclk),
+        .axi_wr_aresetn (presetn),
+        .axi_rd_aclk    (aclk),
+        .axi_rd_aresetn (aresetn),
 
-            .clk_dst         (aclk),
-            .rst_dst_n       (aresetn),
-            .dst_valid       (cmd_valid),
-            .dst_ready       (cmd_ready),
-            .dst_data        ({cmd_pwrite, cmd_pprot, cmd_pstrb, cmd_paddr, cmd_pwdata,
-                              cmd_pauser, cmd_pwuser})
-        );
-    end
-    endgenerate
+        .wr_valid       (w_cmd_valid),
+        .wr_ready       (w_cmd_ready),
+        .wr_data        ({w_cmd_pwrite, w_cmd_pprot, w_cmd_pstrb, w_cmd_paddr, w_cmd_pwdata,
+                          w_cmd_pauser, w_cmd_pwuser}),
 
-    // Response CDC handshake (aclk -> pclk)
-    generate
-    if (USE_2_PHASE_CDC) begin : g_rsp_2phase
-        cdc_2_phase_handshake #(
-            .DATA_WIDTH      (RPW)
-        ) u_rsp_cdc_handshake (
-            .clk_src         (aclk),
-            .rst_src_n       (aresetn),
-            .src_valid       (rsp_valid),
-            .src_ready       (rsp_ready),
-            .src_data        ({rsp_pslverr, rsp_prdata, rsp_pruser, rsp_pbuser}),
-            /* verilator lint_off PINCONNECTEMPTY */
-            .src_timeout     (),
-            /* verilator lint_on PINCONNECTEMPTY */
+        .rd_ready       (cmd_ready),
+        .rd_valid       (cmd_valid),
+        .rd_data        ({cmd_pwrite, cmd_pprot, cmd_pstrb, cmd_paddr, cmd_pwdata,
+                          cmd_pauser, cmd_pwuser})
+    );
 
-            .clk_dst         (pclk),
-            .rst_dst_n       (presetn),
-            .dst_valid       (w_rsp_valid),
-            .dst_ready       (w_rsp_ready),
-            .dst_data        ({w_rsp_pslverr, w_rsp_prdata, w_rsp_pruser, w_rsp_pbuser})
-        );
-    end else begin : g_rsp_4phase
-        cdc_4_phase_handshake #(
-            .DATA_WIDTH      (RPW)
-        ) u_rsp_cdc_handshake (
-            .clk_src         (aclk),
-            .rst_src_n       (aresetn),
-            .src_valid       (rsp_valid),
-            .src_ready       (rsp_ready),
-            .src_data        ({rsp_pslverr, rsp_prdata, rsp_pruser, rsp_pbuser}),
-            /* verilator lint_off PINCONNECTEMPTY */
-            .src_timeout     (),
-            /* verilator lint_on PINCONNECTEMPTY */
+    gaxi_fifo_async #(
+        .DATA_WIDTH   (RPW),
+        .DEPTH        (CDC_FIFO_DEPTH),
+        .N_FLOP_CROSS (2)
+    ) u_rsp_cdc_fifo (
+        .axi_wr_aclk    (aclk),
+        .axi_wr_aresetn (aresetn),
+        .axi_rd_aclk    (pclk),
+        .axi_rd_aresetn (presetn),
 
-            .clk_dst         (pclk),
-            .rst_dst_n       (presetn),
-            .dst_valid       (w_rsp_valid),
-            .dst_ready       (w_rsp_ready),
-            .dst_data        ({w_rsp_pslverr, w_rsp_prdata, w_rsp_pruser, w_rsp_pbuser})
-        );
-    end
-    endgenerate
+        .wr_valid       (rsp_valid),
+        .wr_ready       (rsp_ready),
+        .wr_data        ({rsp_pslverr, rsp_prdata, rsp_pruser, rsp_pbuser}),
+
+        .rd_ready       (w_rsp_ready),
+        .rd_valid       (w_rsp_valid),
+        .rd_data        ({w_rsp_pslverr, w_rsp_prdata, w_rsp_pruser, w_rsp_pbuser})
+    );
 
 endmodule : apb5_slave_cdc

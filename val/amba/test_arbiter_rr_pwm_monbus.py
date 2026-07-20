@@ -41,6 +41,7 @@ from cocotb.triggers import RisingEdge, Timer, ClockCycles
 from cocotb.clock import Clock
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 @cocotb.test(timeout_time=30, timeout_unit="ms")
@@ -421,6 +422,7 @@ def test_arbiter_rr_pwm_monbus(request, clients, wait_gnt_ack, agent_id, unit_id
         'rtl_cmn':           'rtl/common',
         'rtl_amba_includes': 'rtl/amba/includes',
         'rtl_amba_shared':   'rtl/amba/shared',
+        'rtl_monitor':       'rtl/amba/monitor',
         'rtl_gaxi':          'rtl/amba/gaxi',
     })
 
@@ -428,28 +430,9 @@ def test_arbiter_rr_pwm_monbus(request, clients, wait_gnt_ack, agent_id, unit_id
     toplevel = dut_name
 
     # RTL sources - all components needed for integration
-    verilog_sources = [
-        # Monitor packages (must be compiled in dependency order)
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_common_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_arbiter_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba4_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba5_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_pkg.sv"),
-
-        # Common components (include all arbiter dependencies)
-        os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "arbiter_priority_encoder.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "pwm.sv"),
-
-        # GAXI components
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
-
-        # AMBA shared components (monitor and top-level)
-        os.path.join(rtl_dict['rtl_amba_shared'], "arbiter_monbus_common.sv"),
-        os.path.join(rtl_dict['rtl_amba_shared'], f"{dut_name}.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/arbiter_rr_pwm_monbus.f")
 
     # Create a human readable test identifier following repo pattern
     c_str = TBBase.format_dec(clients, 2)
@@ -519,7 +502,7 @@ def test_arbiter_rr_pwm_monbus(request, clients, wait_gnt_ack, agent_id, unit_id
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[rtl_dict['rtl_amba_includes']],  # Include monitor_pkg.sv
+            includes=includes,  # Include monitor_pkg.sv
             toplevel=toplevel,
             module=module,
             parameters=parameters,
@@ -574,28 +557,9 @@ if __name__ == "__main__":
     toplevel = dut_name
 
     # RTL sources - all components needed for integration
-    verilog_sources = [
-        # Monitor packages (must be compiled in dependency order)
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_common_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_arbiter_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba4_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba5_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_pkg.sv"),
-
-        # Common components (include all arbiter dependencies)
-        os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "arbiter_priority_encoder.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "pwm.sv"),
-
-        # GAXI components
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
-
-        # AMBA shared components (monitor and top-level)
-        os.path.join(rtl_dict['rtl_amba_shared'], "arbiter_monbus_common.sv"),
-        os.path.join(rtl_dict['rtl_amba_shared'], f"{dut_name}.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/arbiter_rr_pwm_monbus.f")
 
     # Create a human readable test identifier following repo pattern
     c_str = TBBase.format_dec(clients, 2)
@@ -665,7 +629,7 @@ if __name__ == "__main__":
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[rtl_dict['rtl_amba_includes']],  # Include monitor_pkg.sv
+            includes=includes,  # Include monitor_pkg.sv
             toplevel=toplevel,
             module=module,
             parameters=parameters,

@@ -502,81 +502,38 @@ module axi_monitor_trans_mgr
     assign trans_table = cam_entry_payload;
 
     // ========================================================================
-    // Active-transaction counter and state-change detection
+    // Active-transaction counter (exact CAM occupancy) and state-change detection
     //
-    // Identical to the production module -- the alloc and cleanup
-    // adder trees are pipelined one stage to close the long
-    // combinational path at 100 MHz on the Artix-7 -1 part.
+    // active_count is the number of LIVE CAM entries, derived directly as the
+    // pop-count of cam_entry_valid and registered once -- NOT as a free-running
+    // alloc-minus-cleanup accumulator.  The former accumulator (see git history)
+    // could desync from true occupancy and UNDERFLOW to 0xFF under legal AXI,
+    // sticking busy high and block_ready low for the rest of the session -- found
+    // by the SymbiYosys proof (see
+    // rtl/amba/KNOWN_ISSUES/axi_monitor_active_count_underflow.md).  A registered
+    // pop-count is structurally bounded to [0, N] and can never underflow.
+    //
+    // Timing: cam_entry_valid is already a register, so the pop-count is a clean
+    // adder tree sitting between two flops (one pipeline stage) -- it is NOT on
+    // the match->alloc critical path the old comment worried about.  active_count
+    // lags occupancy by a single cycle, which block_ready's BLOCK_MARGIN absorbs.
     // ========================================================================
-    logic [$clog2(N+1)-1:0] w_alloc_cnt;
-    logic [$clog2(N+1)-1:0] w_cleanup_cnt;
-    logic [$clog2(N+1)-1:0] r_alloc_cnt;
-    logic [$clog2(N+1)-1:0] r_cleanup_cnt;
     logic [7:0]             r_active_count;
+    logic [$clog2(N+1)-1:0] w_occupancy;
 
-    // Alloc/cleanup one-hot vectors feeding the popcount adder trees. These are
-    // ALWAYS registered (q) so the popcount no longer sits on the route-bound
-    // match -> alloc critical path. alloc and cleanup are registered by the
-    // SAME amount so the active_count accounting (alloc - cleanup) stays
-    // consistent -- it just lags one extra cycle overall.
-    logic [N-1:0] w_cleanup_vec;
-    logic [N-1:0] q_addr_alloc_oh, q_data_alloc_oh, q_resp_alloc_oh, q_cleanup_vec;
     always_comb begin
+        w_occupancy = '0;
         for (int i = 0; i < N; i++)
-            w_cleanup_vec[i] = cam_entry_valid[i] && w_can_cleanup[i];
+            w_occupancy += {{($clog2(N+1)-1){1'b0}}, cam_entry_valid[i]};
     end
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            q_addr_alloc_oh <= '0; q_data_alloc_oh <= '0;
-            q_resp_alloc_oh <= '0; q_cleanup_vec   <= '0;
-        end else if (clear) begin
-            q_addr_alloc_oh <= '0; q_data_alloc_oh <= '0;
-            q_resp_alloc_oh <= '0; q_cleanup_vec   <= '0;
-        end else begin
-            q_addr_alloc_oh <= addr_alloc_oh;
-            q_data_alloc_oh <= data_alloc_oh;
-            q_resp_alloc_oh <= resp_alloc_oh;
-            q_cleanup_vec   <= w_cleanup_vec;
-        end
-    )
-
-    always_comb begin
-        w_alloc_cnt = '0;
-        for (int i = 0; i < N; i++) begin
-            w_alloc_cnt = w_alloc_cnt +
-                          {{($clog2(N+1)-1){1'b0}}, q_addr_alloc_oh[i]} +
-                          {{($clog2(N+1)-1){1'b0}}, q_data_alloc_oh[i]} +
-                          {{($clog2(N+1)-1){1'b0}}, q_resp_alloc_oh[i]};
-        end
-        w_cleanup_cnt = '0;
-        for (int i = 0; i < N; i++) begin
-            w_cleanup_cnt = w_cleanup_cnt +
-                            {{($clog2(N+1)-1){1'b0}}, q_cleanup_vec[i]};
-        end
-    end
-
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_alloc_cnt   <= '0;
-            r_cleanup_cnt <= '0;
-        end else if (clear) begin
-            r_alloc_cnt   <= '0;
-            r_cleanup_cnt <= '0;
-        end else begin
-            r_alloc_cnt   <= w_alloc_cnt;
-            r_cleanup_cnt <= w_cleanup_cnt;
-        end
-    )
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_active_count <= '0;
         end else if (clear) begin
-            r_active_count <= '0;
+            r_active_count <= '0;   // synchronous CAM clear zeroes occupancy too
         end else begin
-            r_active_count <= r_active_count +
-                              {{(8-$clog2(N+1)){1'b0}}, r_alloc_cnt} -
-                              {{(8-$clog2(N+1)){1'b0}}, r_cleanup_cnt};
+            r_active_count <= {{(8-$clog2(N+1)){1'b0}}, w_occupancy};
         end
     )
 

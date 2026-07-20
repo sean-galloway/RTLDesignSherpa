@@ -516,8 +516,9 @@ Audit all modules for parameter consistency and best practices.
    - Convert CHUNKS to localparam (derived from DATA_WIDTH)
    - Document CW, DW abbreviations
 
-3. **fifo_async_div2** (54/100)
+3. **fifo_async** (54/100)
    - Document 6 undocumented parameters
+   - (fifo_async_div2 retired; Johnson mode is now fifo_async USE_JOHNSON=1)
 
 **Category Scores:**
 - Counters: 95.6/100 ✅

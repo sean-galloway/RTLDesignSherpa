@@ -54,6 +54,7 @@ from cocotb_test.simulator import run
 
 # Import path utilities
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 ##############################################################################
@@ -193,13 +194,9 @@ def test_gaxi_drop_fifo_sync(request, data_width, depth, registered, test_id):
 
     # DUT information
     dut_name = "gaxi_drop_fifo_sync"
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba_includes'], "fifo_defs.svh"),
-        os.path.join(rtl_dict['rtl_amba'], 'gaxi/gaxi_drop_fifo_sync.sv'),
-        os.path.join(rtl_dict['rtl_cmn'], 'counter_bin.sv'),
-        os.path.join(rtl_dict['rtl_cmn'], 'counter_bin_load.sv'),
-        os.path.join(rtl_dict['rtl_cmn'], 'fifo_control.sv'),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/gaxi_drop_fifo_sync.f")
     toplevel = dut_name
 
     # Create human-readable test identifier
@@ -214,7 +211,7 @@ def test_gaxi_drop_fifo_sync(request, data_width, depth, registered, test_id):
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes=[rtl_dict['rtl_amba_includes']]
+    includes=includes
 
     # RTL parameters
     parameters = {

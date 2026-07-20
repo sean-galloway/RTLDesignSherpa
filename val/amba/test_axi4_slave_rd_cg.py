@@ -32,6 +32,7 @@ from cocotb.triggers import RisingEdge, Timer
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.amba.amba_cg_ctrl import AxiClockGateCtrl
 
 # Import the base testbench (we'll extend it for CG testing)  
@@ -400,14 +401,9 @@ def test_axi4_slave_read_cg(id_width, addr_width, data_width, user_width, ar_dep
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     # RTL files for clock gated slave read
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "icg.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "clock_gate_ctrl.sv"),
-        os.path.join(rtl_dict['rtl_amba_shared'], "amba_clock_gate_ctrl.sv"),  # Clock gate controller
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_axi4'], "axi4_slave_rd.sv"),  # Base module
-        os.path.join(rtl_dict['rtl_axi4'], f"{dut_name}.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axi4_slave_rd_cg.f")
 
     # Check that files exist
     for src in verilog_sources:
@@ -456,7 +452,7 @@ def test_axi4_slave_read_cg(id_width, addr_width, data_width, user_width, ar_dep
     }
 
     # Simulation settings
-    includes = [rtl_dict['rtl_amba_includes']]
+    includes=includes
     # VCD waveform generation support via WAVES environment variable
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging

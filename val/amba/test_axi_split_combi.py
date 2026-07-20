@@ -41,6 +41,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 class RealisticAxiSplitTB(TBBase):
@@ -861,9 +862,9 @@ def test_axi_split_realistic(request, params):
 
     dut_name = "axi_split_combi"
     toplevel = dut_name
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba_shared'], "axi_split_combi.sv")
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axi_split_combi.f")
 
     # Create test identifier following pattern: test_<module>_<params>
     t_aw = params['AW']
@@ -964,9 +965,9 @@ def test_axi_split_realistic(request, params):
 
     dut_name = "axi_split_combi"
     toplevel = dut_name
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba_shared'], "axi_split_combi.sv")
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axi_split_combi.f")
 
     # Create test identifier following pattern: test_<module>_<params>
     t_aw = params['AW']

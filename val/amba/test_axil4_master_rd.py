@@ -30,6 +30,7 @@ import cocotb
 from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import the testbench
 from TBClasses.axil4.axil4_master_read_tb import AXIL4MasterReadTB
@@ -278,10 +279,9 @@ def test_axil4_read_master(request, addr_width, data_width, ar_depth, r_depth, t
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     # Verilog sources - include dependencies for gaxi_skid_buffer
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_axil4'], f"{dut_name}.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axil4_master_rd.f")
 
     # Check that files exist
     for src in verilog_sources:
@@ -334,7 +334,7 @@ def test_axil4_read_master(request, addr_width, data_width, ar_depth, r_depth, t
     }
 
     # Simulation settings
-    includes = [rtl_dict['rtl_amba_includes']]
+    includes=includes
     # VCD waveform generation support via WAVES environment variable
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
@@ -418,10 +418,9 @@ def test_axil4_read_master(request, addr_width, data_width, ar_depth, r_depth, t
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     # Verilog sources - include dependencies for gaxi_skid_buffer
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_axil4'], f"{dut_name}.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axil4_master_rd.f")
 
     # Check that files exist
     for src in verilog_sources:
@@ -474,7 +473,7 @@ def test_axil4_read_master(request, addr_width, data_width, ar_depth, r_depth, t
     }
 
     # Simulation settings
-    includes = [rtl_dict['rtl_amba_includes']]
+    includes=includes
     # VCD waveform generation support via WAVES environment variable
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging

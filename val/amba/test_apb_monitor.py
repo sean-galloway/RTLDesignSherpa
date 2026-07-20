@@ -40,6 +40,7 @@ import pytest
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 class SimpleAPBMonitorTB(TBBase):
@@ -534,6 +535,7 @@ def test_apb_monitor():
         'rtl_gaxi':          'rtl/amba/gaxi',
         'rtl_apb':           'rtl/amba/apb',
         'rtl_amba_shared':   'rtl/amba/shared',
+        'rtl_monitor':       'rtl/amba/monitor',
         'rtl_amba_includes': 'rtl/amba/includes',
     })
 
@@ -552,20 +554,9 @@ def test_apb_monitor():
 
     # RTL sources (validated from compilation test)
     # NOTE: Monitor packages must be in dependency order!
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_common_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_arbiter_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba4_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba5_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_pkg.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "counter_load_clear.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "counter_freq_invariant.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_apb'], "apb_monitor.sv")
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/apb_monitor.f")
 
     # Parameters
     parameters = {
@@ -618,7 +609,7 @@ def test_apb_monitor():
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[rtl_dict['rtl_amba_includes']],
+            includes=includes,
             toplevel='apb_monitor',
             module='test_apb_monitor',
             parameters=parameters,

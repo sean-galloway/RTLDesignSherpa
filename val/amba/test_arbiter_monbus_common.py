@@ -29,6 +29,7 @@ import pytest
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 @cocotb.test(timeout_time=5000, timeout_unit="ms")
 async def arbiter_monbus_common_test(dut):
@@ -524,6 +525,7 @@ def test_arbiter_monbus_common(request, clients, wait_gnt_ack, weighted_mode, fi
         'rtl_cmn':           'rtl/common',
         'rtl_amba_includes': 'rtl/amba/includes',
         'rtl_amba_shared':   'rtl/amba/shared',
+        'rtl_monitor':       'rtl/amba/monitor',
         'rtl_gaxi':          'rtl/amba/gaxi',
     })
 
@@ -531,22 +533,9 @@ def test_arbiter_monbus_common(request, clients, wait_gnt_ack, weighted_mode, fi
     toplevel = dut_name
 
     # Verilog sources
-    verilog_sources = [
-        # Monitor packages (must be compiled in dependency order)
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_common_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_arbiter_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba4_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba5_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_pkg.sv"),
-
-        # Fifo components
-        os.path.join(rtl_dict['rtl_cmn'],           "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],           "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'],          "gaxi_fifo_sync.sv"),
-
-        # monitor
-        os.path.join(rtl_dict['rtl_amba_shared'],  f"{dut_name}.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/arbiter_monbus_common.f")
 
     # Create a human readable test identifier
     c_str = TBBase.format_dec(clients, 2)
@@ -569,9 +558,7 @@ def test_arbiter_monbus_common(request, clients, wait_gnt_ack, weighted_mode, fi
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = [
-        rtl_dict['rtl_amba_includes'],
-    ]
+    includes=includes
 
     # RTL parameters for MonBus Common
     parameters = {

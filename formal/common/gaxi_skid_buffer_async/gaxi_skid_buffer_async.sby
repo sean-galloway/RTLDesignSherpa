@@ -20,7 +20,7 @@ read -formal -sv -Iincludes glitch_free_n_dff_arn.sv
 read -formal -sv -Iincludes find_first_set.sv
 read -formal -sv -Iincludes find_last_set.sv
 read -formal -sv -Iincludes leading_one_trailing_one.sv
-read -formal -sv -Iincludes grayj2bin.sv
+read -formal -sv -Iincludes johnson2bin.sv
 read -formal -sv -Iincludes gaxi_fifo_async.sv
 read -formal -sv -Iincludes gaxi_skid_buffer.sv
 read -formal -sv -Iincludes gaxi_skid_buffer_async_formal.sv
@@ -35,7 +35,7 @@ glitch_free_n_dff_arn.sv ../fifo_async/glitch_free_n_dff_arn_formal.sv
 find_first_set.sv ../../../rtl/common/find_first_set.sv
 find_last_set.sv ../../../rtl/common/find_last_set.sv
 leading_one_trailing_one.sv ../../../rtl/common/leading_one_trailing_one.sv
-grayj2bin.sv ../../../rtl/common/grayj2bin.sv
+johnson2bin.sv ../../../rtl/common/johnson2bin.sv
 gaxi_fifo_async.sv ../gaxi_fifo_async/gaxi_fifo_async_formal.sv
 gaxi_skid_buffer.sv ../../../rtl/amba/gaxi/gaxi_skid_buffer.sv
 gaxi_skid_buffer_async_formal.sv

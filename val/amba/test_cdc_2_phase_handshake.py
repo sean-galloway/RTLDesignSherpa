@@ -28,6 +28,7 @@ import cocotb
 from cocotb_test.simulator import run
 from TBClasses.amba.cdc_2_phase_handshake import CDC2PhaseHandshakeTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 @cocotb.test(timeout_time=30, timeout_unit="ms")
@@ -213,14 +214,15 @@ def test_cdc_2_phase_handshake(request, params):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn': 'rtl/common',
         'rtl_amba_shared':'rtl/amba/shared',
+        'rtl_amba_cdc': 'rtl/amba/cdc',
      'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "cdc_2_phase_handshake"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba_shared'], f"{dut_name}.sv")
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/cdc_2_phase_handshake.f")
 
     # Extract test parameters
     src_period = params['clk_src_period_ns']
@@ -252,7 +254,7 @@ def test_cdc_2_phase_handshake(request, params):
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = [rtl_dict['rtl_amba_includes']]
+    includes=includes
     # RTL parameters
     total_width = 32 + 32 + 32//8 + 1 + 3  # addr + data + strb + write + prot
     rtl_parameters = {

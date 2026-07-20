@@ -23,6 +23,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.monbus.monbus_compressor import Encoder
 from TBClasses.monbus.sniffer import load_capture
 
@@ -180,6 +181,7 @@ async def monbus_halfbeat_test(dut):
 def test_monbus_halfbeat(request):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_shared':   'rtl/amba/shared',
+        'rtl_monitor': 'rtl/amba/monitor',
         'rtl_includes': 'rtl/amba/includes',
         'val_amba':     'val/amba',
     })
@@ -195,21 +197,9 @@ def test_monbus_halfbeat(request):
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_includes'], "monitor_common_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_amba4_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_amba5_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_arbiter_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_pkg.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "monbus_cam.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "monbus_cam_pipe.sv"),
-        os.path.join(repo_root, "rtl/common/counter_bin.sv"),
-        os.path.join(repo_root, "rtl/common/fifo_control.sv"),
-        os.path.join(repo_root, "rtl/amba/gaxi/gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "monbus_compressor.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "monbus_halfbeat_packer.sv"),
-        os.path.join(rtl_dict['val_amba'],     f"{dut_name}.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/monbus_halfbeat_dut.f")
     for src in verilog_sources:
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")
@@ -236,7 +226,7 @@ def test_monbus_halfbeat(request):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[rtl_dict['rtl_includes'], rtl_dict['rtl_shared'], sim_build],
+            includes=includes + [rtl_dict['rtl_shared'], sim_build],
             toplevel=dut_name,
             module=module,
             sim_build=sim_build,

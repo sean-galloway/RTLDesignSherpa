@@ -24,7 +24,7 @@ This test generates high-quality waveforms showcasing the unique Johnson counter
 - 2×WIDTH states (8 states for WIDTH=4)
 - Self-starting behavior
 
-KEY FEATURE: Johnson counters are used in fifo_async_div2 for CDC!
+KEY FEATURE: Johnson counters are used by fifo_async (USE_JOHNSON=1) for CDC!
              This test shows why single-bit transitions are critical.
 
 WaveDrom Output:
@@ -62,7 +62,7 @@ class CounterJohnsonWaveDromTB(TBBase):
     - Johnson counter sequence (shift with inverted feedback)
     - Walking ones and walking zeros patterns
     - Single-bit transitions (CDC safety)
-    - Relationship to fifo_async_div2 CDC mechanism
+    - Relationship to the fifo_async USE_JOHNSON=1 CDC mechanism
     """
 
     def __init__(self, dut):
@@ -248,7 +248,7 @@ class CounterJohnsonWaveDromTB(TBBase):
         Demonstrates that Johnson counters have single-bit transitions:
         - Each state change modifies only ONE bit
         - CDC-safe like Gray codes
-        - Critical for fifo_async_div2 CDC mechanism
+        - Critical for the fifo_async USE_JOHNSON=1 CDC mechanism
 
         Transition Analysis:
         - 0000 → 0001: bit[0] changes (0→1)
@@ -260,7 +260,7 @@ class CounterJohnsonWaveDromTB(TBBase):
         - 1100 → 1000: bit[2] changes (1→0)
         - 1000 → 0000: bit[3] changes (1→0)
 
-        THIS IS WHY Johnson counters are used in fifo_async_div2!
+        THIS IS WHY Johnson counters are used at USE_JOHNSON=1!
         Single-bit transitions prevent metastability when crossing clock domains.
         """
         self.log.info(f"SCENARIO 2: Single-bit transitions (CDC safety){self.get_time_ns_str()}")

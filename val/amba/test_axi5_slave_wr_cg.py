@@ -30,6 +30,7 @@ from cocotb.triggers import RisingEdge, Timer
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.amba.amba_cg_ctrl import AxiClockGateCtrl
 from TBClasses.axi5.axi5_slave_write_tb import AXI5SlaveWriteTB
 
@@ -283,14 +284,9 @@ def test_axi5_slave_wr_cg(id_width, addr_width, data_width, user_width, aw_depth
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "icg.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "clock_gate_ctrl.sv"),
-        os.path.join(rtl_dict['rtl_amba_shared'], "amba_clock_gate_ctrl.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_axi5'], "axi5_slave_wr.sv"),
-        os.path.join(rtl_dict['rtl_axi5'], f"{dut_name}.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axi5_slave_wr_cg.f")
 
     for src in verilog_sources:
         if not os.path.exists(src):
@@ -341,7 +337,7 @@ def test_axi5_slave_wr_cg(id_width, addr_width, data_width, user_width, aw_depth
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[rtl_dict['rtl_amba_includes'], rtl_dict['rtl_cmn'], sim_build],
+            includes=includes + [rtl_dict['rtl_cmn'], sim_build],
             toplevel=dut_name,
             module="test_axi5_slave_wr_cg",
             parameters=rtl_parameters,

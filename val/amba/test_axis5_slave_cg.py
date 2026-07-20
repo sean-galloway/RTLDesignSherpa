@@ -28,6 +28,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 class AXIS5SlaveCGBasicTB(TBBase):
@@ -132,18 +133,9 @@ def test_axis5_slave_cg(request, skid_depth, data_width, enable_wakeup, enable_p
 
     toplevel = "axis5_slave_cg"
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "icg.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "counter_load_clear.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "clock_gate_ctrl.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "amba_clock_gate_ctrl.sv"),
-        os.path.join(rtl_dict['rtl_axis5'], "axis5_slave.sv"),
-        os.path.join(rtl_dict['rtl_axis5'], "axis5_slave_cg.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axis5_slave_cg.f")
 
     # Test identifier
     sd_str = TBBase.format_dec(skid_depth, 1)
@@ -158,7 +150,7 @@ def test_axis5_slave_cg(request, skid_depth, data_width, enable_wakeup, enable_p
     os.makedirs(log_dir, exist_ok=True)
 
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-    includes = [rtl_dict['rtl_amba_includes']]
+    includes=includes
 
     rtl_parameters = {
         'SKID_DEPTH': str(skid_depth),

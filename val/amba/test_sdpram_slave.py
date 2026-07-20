@@ -25,6 +25,8 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, ReadOnly
 import pytest
+
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from cocotb_test.simulator import run
 
 
@@ -431,19 +433,9 @@ def test_sdpram_slave(request, wr_protocol, rd_protocol, data_width, mem_depth):
     sim_build.mkdir(parents=True, exist_ok=True)
     log_path = log_dir / f"sdpram_slave_{tag}.log"
 
-    amba = Path(_repo_root) / "rtl/amba"
-
-    verilog_sources = [
-        str(amba / "gaxi" / "gaxi_skid_buffer.sv"),
-        str(amba / "axi4" / "axi4_slave_wr.sv"),
-        str(amba / "axi4" / "axi4_slave_rd.sv"),
-        str(amba / "axil4" / "axil4_slave_wr.sv"),
-        str(amba / "axil4" / "axil4_slave_rd.sv"),
-        str(amba / "shared" / "axi_gen_addr.sv"),
-        str(amba / "shared" / "sdpram_core.sv"),
-        str(amba / "shared" / "sdpram_slave_axi4_axi4.sv"),
-    ]
-    includes = [str(amba / "includes"), str(Path(_repo_root) / "rtl/common")]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=_repo_root,
+        filelist_path="rtl/amba/filelists/sdpram_slave_axi4_axi4.f")
 
     extra_env = {
         "DUT_DATA_WIDTH":   str(data_width),

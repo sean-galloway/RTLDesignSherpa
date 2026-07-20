@@ -29,6 +29,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.axi4.monitor.axi4_slave_monitor_tb import AXI4SlaveMonitorTB
 from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 def validate_addr_width(addr_width):
@@ -143,6 +144,7 @@ def test_axi4_slave_wr_mon_cg(id_width, addr_width, data_width, user_width, wstr
         'rtl_includes': 'rtl/amba/includes',
         'rtl_common': 'rtl/common',
         'rtl_shared': 'rtl/amba/shared',
+        'rtl_monitor': 'rtl/amba/monitor',
      'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "axi4_slave_wr_mon_cg"
@@ -156,36 +158,9 @@ def test_axi4_slave_wr_mon_cg(id_width, addr_width, data_width, user_width, wstr
     os.makedirs(log_dir, exist_ok=True)
 
     # Verilog sources (includes axi4_slave_wr_mon which the CG version instantiates)
-    verilog_sources = [
-        # Monitor packages (must be compiled in order)
-        os.path.join(rtl_dict['rtl_includes'], "monitor_common_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_amba4_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_amba5_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_arbiter_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_pkg.sv"),
-        os.path.join(rtl_dict['rtl_common'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_common'], "counter_load_clear.sv"),
-        os.path.join(rtl_dict['rtl_common'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_common'], "counter_freq_invariant.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_axi4'], "axi4_slave_wr.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "monitor_trans_cam.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_trans_mgr.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_timer.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_timeout.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_error.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_timeout.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_compl.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_threshold.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_perf.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_debug.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_base.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_filtered.sv"),
-        os.path.join(rtl_dict['rtl_axi4'], "axi4_slave_wr_mon.sv"),  # Base monitor (instantiated by CG)
-        os.path.join(rtl_dict['rtl_axi4'], f"{dut_name}.sv"),  # CG wrapper
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axi4_slave_wr_mon_cg.f")
 
     # Check files exist
     for src in verilog_sources:
@@ -262,5 +237,5 @@ def test_axi4_slave_wr_mon_cg(id_width, addr_width, data_width, user_width, wstr
         extra_env=extra_env,
         waves=enable_waves,  # Disable waves for CG tests to avoid Verilator FST issues
         plus_args=(['--trace'] if enable_waves else []),
-        includes=[rtl_dict['rtl_amba_includes']]
+        includes=includes
     )

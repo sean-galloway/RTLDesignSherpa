@@ -46,15 +46,12 @@ module gaxi_skid_buffer_async_multi #(
     output logic [AW-1:0] rd_addr,
     output logic [CW-1:0] rd_ctrl,
     output logic [DW-1:0] rd_data0,
-    output logic [DW-1:0] rd_data1,
-    output logic [AW-1:0] rd_addr,
-    output logic [CW-1:0] rd_ctrl,
-    output logic [DW-1:0] rd_data0,
     output logic [DW-1:0] rd_data1
 );
 
-    logic                 r_xfer_valid;
-    logic                 r_xfer_ready;
+    logic                        r_xfer_valid;
+    logic                        r_xfer_ready;
+    logic [AW+CW+DW+DW-1:0]      r_xfer_data;   // was implicit (undeclared)
 
     // Instantiate the axi_skid_buffer module
     gaxi_skid_buffer #(
@@ -90,8 +87,7 @@ module gaxi_skid_buffer_async_multi #(
         .wr_data       (r_xfer_data),
         .rd_ready      (rd_ready),
         .rd_valid      (rd_valid),
-        .rd_data        ({rd_addr, rd_ctrl, rd_data1, rd_data0}),
-        .rd_data         ({rd_addr,   rd_ctrl,  rd_data1,  rd_data0})
+        .rd_data       ({rd_addr, rd_ctrl, rd_data1, rd_data0})
     );
 
 endmodule : gaxi_skid_buffer_async_multi

@@ -53,6 +53,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.gaxi.gaxi_buffer import GaxiBufferTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # WaveDrom support
 from TBClasses.wavedrom_user.gaxi import (
@@ -501,18 +502,9 @@ def test_gaxi_buffer_async_wavedrom(request, data_width, depth, wr_clk_period, r
     toplevel = dut_name
 
     # Get verilog sources based on mode for async versions
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba_includes'], "fifo_defs.svh"),
-        os.path.join(rtl_dict['rtl_cmn'],  "find_first_set.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "find_last_set.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "leading_one_trailing_one.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "counter_johnson.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "grayj2bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "glitch_free_n_dff_arn.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_async.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/gaxi_fifo_async.f")
 
     if mode == 'skid':
         verilog_sources.append(os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"))
@@ -542,7 +534,7 @@ def test_gaxi_buffer_async_wavedrom(request, data_width, depth, wr_clk_period, r
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes=[rtl_dict['rtl_amba_includes']]
+    includes=includes
 
     # RTL parameters - Handle string parameters specially for Verilator
     rtl_parameters = {}
@@ -635,8 +627,9 @@ def generate_params():
     if reg_level == 'GATE':
         # Minimal - just prove it works with one clock ratio
         # 1 test: skid mode, 1.2x ratio (10:12), basic level
+        # depth 4 is a power of 2 -> default Gray encoding (USE_JOHNSON=0)
         return [
-            (8, 4, 10, 12, 'skid', 'gate'),
+            (8, 4, 10, 12, 'skid', 0, 'gate'),
         ]
 
     elif reg_level == 'FUNC':
@@ -646,13 +639,21 @@ def generate_params():
         test_levels = ['gate', 'func', 'full']
 
         # Use 1.2x ratio (10:12) - typical async scenario
-        return list(product([8], [4], [10], [12], modes, test_levels))
+        # depth 4 is a power of 2 -> default Gray encoding (USE_JOHNSON=0)
+        return list(product([8], [4], [10], [12], modes, [0], test_levels))
 
     else:  # FULL
         # Comprehensive testing - all modes, multiple clock ratios, multiple depths
         # 3 modes × 4 ratios × 4 depths × full level = 48 tests
         modes = ['skid', 'fifo_mux', 'fifo_flop']
-        depths = [4, 6, 8, 10]
+
+        # Depth is paired with the pointer encoding (gaxi_fifo_async USE_JOHNSON):
+        #   Gray (0)    -- power-of-2 depths ONLY; a non-power-of-2 depth fails
+        #                  elaboration with an explicit $error.
+        #   Johnson (1) -- any even depth.
+        # The 6/10 entries below exist to exercise non-power-of-2 sizing, so they
+        # must run with Johnson pointers; 4/8 stay on the default Gray encoding.
+        depth_encodings = [(4, 0), (8, 0), (6, 1), (10, 1)]
 
         # Test meaningful clock ratio combinations
         clock_configs = [
@@ -663,16 +664,17 @@ def generate_params():
         ]
 
         params = []
-        for mode, depth, (wr_clk, rd_clk) in product(modes, depths, clock_configs):
-            params.append((8, depth, wr_clk, rd_clk, mode, 'full'))
+        for mode, (depth, use_johnson), (wr_clk, rd_clk) in product(
+                modes, depth_encodings, clock_configs):
+            params.append((8, depth, wr_clk, rd_clk, mode, use_johnson, 'full'))
 
         return params
 
 
 params = generate_params()
 
-@pytest.mark.parametrize("data_width, depth, wr_clk_period, rd_clk_period, mode, test_level", params)
-def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_period, mode, test_level):
+@pytest.mark.parametrize("data_width, depth, wr_clk_period, rd_clk_period, mode, use_johnson, test_level", params)
+def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_period, mode, use_johnson, test_level):
     """
     Parameterized GAXI async buffer test with configurable test levels and independent clock domains.
 
@@ -709,18 +711,9 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
 
     # Get verilog sources based on mode for async versions
     #
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba_includes'], "fifo_defs.svh"),
-        os.path.join(rtl_dict['rtl_cmn'],  "find_first_set.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "find_last_set.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "leading_one_trailing_one.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "counter_johnson.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "grayj2bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "glitch_free_n_dff_arn.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_async.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/gaxi_fifo_async.f")
 
     if mode == 'skid':
         verilog_sources.append(os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"))
@@ -749,13 +742,13 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes=[rtl_dict['rtl_amba_includes']]
+    includes=includes
 
     # RTL parameters - Handle string parameters specially for Verilator
     rtl_parameters = {}
 
     # Add numeric parameters normally
-    for param_name in ['data_width', 'depth']:
+    for param_name in ['data_width', 'depth', 'use_johnson']:
         if param_name in locals():
             rtl_parameters[param_name.upper()] = str(locals()[param_name])
 
