@@ -715,11 +715,71 @@ loss of ~96 flops plus a wider pointer comparator on the critical path.
    sits relative to the primitive's step size, not relative to the next power
    of two.
 
+#### On an ASIC the granularity argument disappears
+
+Everything in Step 5 above is an FPGA argument. SRL32 and BRAM have a fixed step
+size, and that step size is what absorbs the rounding and erases Johnson's
+advantage. On an ASIC there is no such step: both **register files** and
+**compiled SRAM** are generated to a requested word count, and every memory
+compiler in common use accepts an even depth. So the depth you compute is the
+depth you instantiate, and an odd rounding to the next power of two is pure
+wasted silicon rather than something a primitive was going to charge you for
+anyway.
+
+**Worked case: a required depth of 36.** Take the same 512-bit path, but with a
+rate analysis that lands on 36 entries -- above 32, so Gray must round to 64.
+
+| | Depth | Storage at 512 b |
+|---|---|---|
+| Gray (power of 2) | 64 | 32 768 b (4 KiB) |
+| Johnson (even) | 36 | 18 432 b (2.25 KiB) |
+| **Delta** | **28 entries** | **14 336 b (1.75 KiB)** |
+
+: Depth-36 case: storage delta when Gray must round 36 up to 64
+
+Gray pays for 28 entries it will never use -- 44 percent of the array -- because
+36 is not a power of two. The pointer cost runs the other way, by the same
+accounting as Step 4:
+
+| | Gray (depth 64) | Johnson (depth 36) |
+|---|---|---|
+| Pointer width | 7 b | 36 b |
+| Per domain: own binary + encoded pointer | 7 + 7 = 14 | 7 + 36 = 43 |
+| Per domain: synchronized remote pointer | 2 x 7 = 14 | 2 x 36 = 72 |
+| Per domain: bin converter | 0 (combinational) | 7 (registered) |
+| **Both domains** | **~56 flops** | **~244 flops** |
+
+: Depth-36 case: pointer flop cost
+
+Johnson costs about **+188 flops** to save **14 336 memory bits** -- roughly a
+76:1 return, better than the depth-20 case because the rounding gap is wider.
+
+**Which ASIC memory style.** At depth 36 both are available, and the choice is
+about aspect ratio rather than about the encoding:
+
+| Style | Even depth? | Fit at 36 x 512 |
+|-------|-------------|-----------------|
+| Flop array | Yes, no granularity at all | Works, but 18 432 flops is a lot of area and a synthesis burden |
+| Register file | Yes, word count is a compiler argument | Good fit. Shallow and wide is what register files are for |
+| Compiled SRAM | Yes, word count is a compiler argument | Works, but 36 words is shallow for SRAM; check the compiler's minimum depth and its area per bit at this aspect ratio |
+
+: Depth-36 case: ASIC memory styles, all of which accept an even depth
+
+The practical answer at this shape is usually a register file: it takes depth 36
+directly, it is denser than a flop array, and it avoids the periphery overhead
+that makes a 36-word SRAM inefficient. Confirm against your own compiler --
+minimum depth, word-count granularity (some compilers step in multiples of 4 or
+8 words, which would reintroduce a smaller version of the FPGA problem), and
+area per bit at a shallow, wide aspect ratio.
+
 **Rule of thumb.** Compute the required depth first. Then ask what the memory
 maps to and what its step size is. Only if the rounding actually crosses a step
-boundary -- or there is no step, as with flops -- does `USE_JOHNSON=1` buy you
-anything. Otherwise take Gray: narrower pointers, a combinational `gray2bin`
-instead of a registered `johnson2bin`, and one less thing to reason about.
+boundary -- or there is no step, as with flops, register files, and compiled
+SRAM -- does `USE_JOHNSON=1` buy you anything. On an ASIC that condition is
+usually met, so Johnson is worth pricing whenever the required depth is not
+already a power of two. On an FPGA it usually is not met, and Gray is the
+default: narrower pointers, a combinational `gray2bin` instead of a registered
+`johnson2bin`, and one less thing to reason about.
 
 ---
 

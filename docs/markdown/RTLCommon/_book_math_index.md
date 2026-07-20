@@ -8,7 +8,6 @@
 - [Carry-Save Adder](math_adder_carry_save.md)
 - [math_adder_full](math_adder_full.md)
 - [Han-Carlson Parallel Prefix Adder](math_adder_han_carlson.md)
-- [Kogge-Stone Parallel Prefix Adder](math_adder_kogge_stone.md)
 - [Carry Lookahead Adder](math_adder_pg_chain.md)
 - [Ripple Carry Adder](math_adder_ripple_carry.md)
 - [Add/Subtract Unit](math_addsub.md)
