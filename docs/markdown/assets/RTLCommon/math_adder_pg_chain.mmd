@@ -6,7 +6,7 @@ flowchart TB
         CIN[i_cin]
     end
 
-    subgraph math_adder_carry_lookahead["math_adder_carry_lookahead"]
+    subgraph math_adder_pg_chain["math_adder_pg_chain"]
         subgraph PG_Gen["P/G Generation"]
             PG["P = A ^ B (propagate)\nG = A & B (generate)"]
         end

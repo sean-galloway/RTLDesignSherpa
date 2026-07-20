@@ -32,7 +32,7 @@
 - `axi_monitor_reporter_perf.sv` — performance-packet generation (counters + 5-state FSM)
 - `axi_monitor_reporter_debug.sv` — debug-packet generation
 
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Category:** Core Infrastructure
 **Status:** Production Ready (refactored to sub-blocks 2026-06-06)
 

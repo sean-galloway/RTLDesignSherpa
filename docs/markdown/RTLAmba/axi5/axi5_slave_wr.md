@@ -33,9 +33,11 @@
 
 The AXI5 Slave Write module implements a complete AMBA AXI5 slave write interface with full AXI5 protocol support. It receives write requests from external masters and forwards them to backend memory/logic (FUB interface).
 
+**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. `AWATOP` is carried through unmodified but no atomic read-modify-write is performed, no MTE tag checking or `BTAGMATCH` generation is performed, and no outstanding-transaction tracking is done. Those behaviors belong to the endpoints on either side. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
+
 ### Key Features
 
-- Full AMBA AXI5 slave protocol compliance
+- Carries the full AXI5 signal set listed below, unmodified, across the SKID buffers
 - **AWATOP:** Atomic transaction operation type
 - **AWNSAID:** Non-secure access identifier reception
 - **AWTRACE:** Trace signal support
@@ -48,7 +50,7 @@ The AXI5 Slave Write module implements a complete AMBA AXI5 slave write interfac
 - **BTRACE/BTAG/BTAGMATCH:** Response extensions
 - SKID buffering for AW, W, and B channels
 - Busy signal for power management
-- Deprecated AWREGION removed (not recommended for new designs)
+- AWREGION not implemented (see *Design Notes*)
 
 ---
 
@@ -109,6 +111,19 @@ flowchart LR
 | ENABLE_UNIQUE | bit | 1 | Enable unique ID indicator |
 | ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
 | ENABLE_POISON | bit | 1 | Enable poison indicator |
+
+### Derived Parameters
+
+These are computed inside the module from the parameters above. Do not override them.
+
+| Parameter | Expression | Description |
+|-----------|------------|-------------|
+| SW | AXI_WSTRB_WIDTH | Write strobe width, one bit per data byte |
+| NUM_TAGS | max(AXI_DATA_WIDTH / 128, 1) | MTE tags carried per beat (one tag per 16 bytes) |
+| TW | AXI_TAG_WIDTH * NUM_TAGS | Total width of the `awtag` / `wtag` / `btag` fields |
+| AWSize | Sum of the enabled AW fields | AW SKID buffer payload width |
+| WSize | Sum of the enabled W fields | W SKID buffer payload width |
+| BSize | Sum of the enabled B fields | B SKID buffer payload width |
 
 ---
 
@@ -208,18 +223,27 @@ This slave module acts as an adapter between:
 
 ### Basic Write Transaction
 
-<!-- TODO: Add wavedrom timing diagram -->
-```
-TODO: Wavedrom showing AW/W request from external master
-      flowing through to backend FUB interface
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - ACLK
+> - S_AXI_AWID, S_AXI_AWADDR, S_AXI_AWVALID, S_AXI_AWREADY
+> - S_AXI_WDATA, S_AXI_WSTRB, S_AXI_WLAST, S_AXI_WVALID, S_AXI_WREADY
+> - FUB_AXI_AW* and FUB_AXI_W* (request forwarded to the backend)
+> - FUB_AXI_BRESP, FUB_AXI_BVALID, FUB_AXI_BREADY
+> - S_AXI_BID, S_AXI_BRESP, S_AXI_BVALID, S_AXI_BREADY
+
 
 ### Write with Poison Indicator
 
-<!-- TODO: Add wavedrom timing diagram -->
-```
-TODO: Wavedrom showing write transaction with WPOISON asserted
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - ACLK
+> - S_AXI_WDATA, S_AXI_WVALID, S_AXI_WREADY
+> - S_AXI_WPOISON asserted on the poisoned beat
+> - FUB_AXI_WPOISON transported to the backend on the same beat
+
 
 ---
 
@@ -249,7 +273,7 @@ axi5_slave_wr #(
     .s_axi_awid         (s_axi_awid),
     .s_axi_awaddr       (s_axi_awaddr),
     .s_axi_awlen        (s_axi_awlen),
-    // ... (connect all slave AW signals)
+    // Every remaining s_axi_aw* port mirrors the fub_axi_aw* list. All must be connected.
     .s_axi_awatop       (s_axi_awatop),
     .s_axi_awnsaid      (s_axi_awnsaid),
     .s_axi_awtrace      (s_axi_awtrace),
@@ -257,11 +281,11 @@ axi5_slave_wr #(
 
     .s_axi_wdata        (s_axi_wdata),
     .s_axi_wstrb        (s_axi_wstrb),
-    // ... (connect all slave W signals)
+    // Every remaining s_axi_w* port mirrors the fub_axi_w* list. All must be connected.
 
     .s_axi_bid          (s_axi_bid),
     .s_axi_bresp        (s_axi_bresp),
-    // ... (connect all slave B signals)
+    // Every remaining s_axi_b* port mirrors the fub_axi_b* list. All must be connected.
 
     // FUB interface (to backend)
     .fub_axi_awid       (mem_awid),
@@ -281,7 +305,7 @@ axi5_slave_wr #(
 - SKID buffers improve timing by breaking long combinational paths
 - W channel SKID depth typically larger than AW/B due to burst data
 - Feature enables allow area optimization by disabling unused AXI5 extensions
-- AWREGION deprecated in AXI5 (not recommended for new designs)
+- AWREGION has no port on this module. AxREGION is not deprecated by AXI5; it remains a valid optional signal and is simply omitted here. Decode or route by address instead, or use `axi4_slave_wr`
 
 ---
 
@@ -290,7 +314,7 @@ axi5_slave_wr #(
 - **[AXI5 Slave Read](axi5_slave_rd.md)** - Slave read interface
 - **[AXI5 Master Write](axi5_master_wr.md)** - Master write interface
 - **[AXI5 Slave Write CG](axi5_slave_wr_cg.md)** - Clock-gated variant
-- **[AXI5 Slave Write Monitor](axi5_slave_wr_mon.md)** - With integrated monitoring
+- **[AXI5 Slave Write Monitor](../monitor/axi5_slave_wr_mon.md)** - With integrated monitoring
 
 ---
 

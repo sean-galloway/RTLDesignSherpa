@@ -383,25 +383,15 @@ run-top-full-parallel:
 # Run Targets - All Tests
 # ==============================================================================
 
+# run-all[-parallel] run the tiers SERIALLY (fub -> macro -> top).  Lumping all
+# three dirs into one pytest pool let heavy top sims run alongside fub/macro and
+# caused cross-tier interference; running one tier to completion before the next
+# avoids it.  Delegates to the serial fan-out rules below.
 .PHONY: run-all
-run-all:
-	@echo "================================================================================"
-	@echo "Running ALL STREAM Tests (FUB + Macro + Top, TEST_LEVEL=$(TEST_LEVEL))"
-	@echo "================================================================================"
-	TEST_LEVEL=$(TEST_LEVEL) $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) \
-		$(FUB_TESTS_DIR)/test_*.py \
-		$(MACRO_TESTS_DIR)/test_*.py \
-		$(TOP_TESTS_DIR)/test_*.py
+run-all: run
 
 .PHONY: run-all-parallel
-run-all-parallel:
-	@echo "================================================================================"
-	@echo "Running ALL STREAM Tests (Parallel - 48 workers)"
-	@echo "================================================================================"
-	TEST_LEVEL=$(TEST_LEVEL) $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) \
-		$(FUB_TESTS_DIR)/test_*.py \
-		$(MACRO_TESTS_DIR)/test_*.py \
-		$(TOP_TESTS_DIR)/test_*.py
+run-all-parallel: run-parallel
 
 # ==============================================================================
 # Top-level "run everything" - fan out to every environment's parallel targets.
@@ -423,66 +413,26 @@ run-full-parallel run-full-parallel-waves:
 	@echo "STREAM aggregate '$@' across: $(PARALLEL_DIRS)"
 	@for d in $(PARALLEL_DIRS); do echo "==> $$d ($@)"; $(MAKE) -C $$d $@ || exit 1; done
 
-# Explicit TEST_LEVEL variants - All tests
-.PHONY: run-all-gate
-run-all-gate:
-	@echo "================================================================================"
-	@echo "Running ALL STREAM Tests - GATE level (quick smoke test)"
-	@echo "================================================================================"
-	TEST_LEVEL=gate $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) \
-		$(FUB_TESTS_DIR)/test_*.py \
-		$(MACRO_TESTS_DIR)/test_*.py \
-		$(TOP_TESTS_DIR)/test_*.py
+# Non-parallel companion (same serial fan-out, one tier at a time, no -n workers).
+# All three tiers (fub/macro/top) now expose these non-parallel targets.
+.PHONY: run run-gate run-func run-full
+run run-gate run-func run-full:
+	@echo "STREAM aggregate '$@' across: $(PARALLEL_DIRS)"
+	@for d in $(PARALLEL_DIRS); do echo "==> $$d ($@)"; $(MAKE) -C $$d $@ || exit 1; done
 
-.PHONY: run-all-func
-run-all-func:
-	@echo "================================================================================"
-	@echo "Running ALL STREAM Tests - FUNC level (functional coverage)"
-	@echo "================================================================================"
-	TEST_LEVEL=func $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) \
-		$(FUB_TESTS_DIR)/test_*.py \
-		$(MACRO_TESTS_DIR)/test_*.py \
-		$(TOP_TESTS_DIR)/test_*.py
+# run-all-* run the tiers SERIALLY (fub -> macro -> top); the -parallel variants
+# use 48 workers within each tier.  Serial-by-tier avoids the cross-tier
+# interference that a single lumped pytest -n48 pool caused (heavy top sims
+# running alongside fub/macro).
+.PHONY: run-all-gate run-all-func run-all-full
+run-all-gate: run-gate
+run-all-func: run-func
+run-all-full: run-full
 
-.PHONY: run-all-full
-run-all-full:
-	@echo "================================================================================"
-	@echo "Running ALL STREAM Tests - FULL level (comprehensive)"
-	@echo "================================================================================"
-	TEST_LEVEL=full $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) \
-		$(FUB_TESTS_DIR)/test_*.py \
-		$(MACRO_TESTS_DIR)/test_*.py \
-		$(TOP_TESTS_DIR)/test_*.py
-
-.PHONY: run-all-gate-parallel
-run-all-gate-parallel:
-	@echo "================================================================================"
-	@echo "Running ALL STREAM Tests - GATE level PARALLEL (48 workers)"
-	@echo "================================================================================"
-	TEST_LEVEL=gate $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) \
-		$(FUB_TESTS_DIR)/test_*.py \
-		$(MACRO_TESTS_DIR)/test_*.py \
-		$(TOP_TESTS_DIR)/test_*.py
-
-.PHONY: run-all-func-parallel
-run-all-func-parallel:
-	@echo "================================================================================"
-	@echo "Running ALL STREAM Tests - FUNC level PARALLEL (48 workers)"
-	@echo "================================================================================"
-	TEST_LEVEL=func $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) \
-		$(FUB_TESTS_DIR)/test_*.py \
-		$(MACRO_TESTS_DIR)/test_*.py \
-		$(TOP_TESTS_DIR)/test_*.py
-
-.PHONY: run-all-full-parallel
-run-all-full-parallel:
-	@echo "================================================================================"
-	@echo "Running ALL STREAM Tests - FULL level PARALLEL (48 workers)"
-	@echo "================================================================================"
-	TEST_LEVEL=full $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) \
-		$(FUB_TESTS_DIR)/test_*.py \
-		$(MACRO_TESTS_DIR)/test_*.py \
-		$(TOP_TESTS_DIR)/test_*.py
+.PHONY: run-all-gate-parallel run-all-func-parallel run-all-full-parallel
+run-all-gate-parallel: run-gate-parallel
+run-all-func-parallel: run-func-parallel
+run-all-full-parallel: run-full-parallel
 
 # ==============================================================================
 # Wave-Enabled Targets (WAVES=1 enables VCD dump)

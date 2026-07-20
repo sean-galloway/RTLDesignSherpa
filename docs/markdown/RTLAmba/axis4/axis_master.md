@@ -83,11 +83,15 @@ module axis_master #(
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| SKID_DEPTH | int | 4 | Skid buffer depth (2^N entries) |
-| AXIS_DATA_WIDTH | int | 32 | AXI4-Stream data bus width (bytes) |
+| SKID_DEPTH | int | 4 | Skid buffer depth in **entries** (not a log2 exponent). Passed directly to `gaxi_skid_buffer.DEPTH`, which supports `{2, 4, 6, 8}` |
+| AXIS_DATA_WIDTH | int | 32 | AXI4-Stream data bus width in **bits** (must be a multiple of 8; `SW = AXIS_DATA_WIDTH/8`) |
 | AXIS_ID_WIDTH | int | 8 | Stream ID width (0 to disable) |
 | AXIS_DEST_WIDTH | int | 4 | Destination width (0 to disable) |
 | AXIS_USER_WIDTH | int | 1 | User signal width (0 to disable) |
+
+> **SKID_DEPTH is a literal entry count.** `SKID_DEPTH = 4` yields a 4-entry buffer, not 16.
+> The underlying `gaxi_skid_buffer` is a shift-register FIFO whose `count` port is 4 bits wide;
+> only the values `{2, 4, 6, 8}` are supported. Odd values such as 3 or 5 are not legal.
 
 ## Ports
 
@@ -164,10 +168,21 @@ FUB AXIS → Skid Buffer → Master AXIS → Downstream
 | Signal | Width | Description |
 |--------|-------|-------------|
 | TDATA | 8-512 bits | Primary data payload |
-| TSTRB | TDATA/8 bits | Byte lane strobes (1=valid byte) |
+| TSTRB | TDATA/8 bits | Byte lane strobes, one bit per byte lane |
 | TVALID | 1 bit | Transfer valid indicator |
 | TREADY | 1 bit | Transfer ready (backpressure) |
 | TLAST | 1 bit | Last transfer in packet/frame |
+
+#### TSTRB and TKEEP
+
+ARM IHI 0051A defines two byte qualifiers: `TKEEP` (byte is part of the data stream) and
+`TSTRB` (byte is a data byte rather than a position byte). This module implements **`TSTRB`
+only** — there is no `TKEEP` port.
+
+The buffer is byte-qualifier agnostic: `fub_axis_tstrb` is packed into the skid buffer entry
+and reproduced on `m_axis_tstrb` unmodified, so it can equally carry a `TKEEP` mask if the
+surrounding design treats it that way. Doing so is a naming convention on the integrator's
+side, not protocol-compliant `TKEEP` support. See [Known Limitations](#known-limitations).
 
 ### Optional Sideband Signals
 
@@ -213,26 +228,43 @@ busy = (buffer_count > 0) || fub_axis_tvalid;
 
 | Characteristic | Value | Description |
 |----------------|-------|-------------|
-| Buffer Depth | 16 entries (default) | 2^SKID_DEPTH entries |
+| Buffer Depth | 4 entries (default) | `SKID_DEPTH` entries, verbatim |
 | Buffering Latency | 1 clock cycle | Input to output delay |
 | Flow Control Latency | 1 clock cycle | Ready propagation |
 
+`gaxi_skid_buffer` registers both `rd_valid` and the storage array, so the 1-cycle
+input-to-output latency applies on **every** transfer, including the unstalled case. This is
+not a bypass ("zero-bubble") skid buffer; there is no combinational path from
+`fub_axis_tdata` to `m_axis_tdata`. Full throughput (one beat per cycle) is still sustained
+once the pipeline is primed.
+
 ### Throughput Metrics
 
-| Metric | Value | Conditions |
-|--------|-------|------------|
-| Maximum Frequency | 400-800 MHz | Technology dependent |
-| Peak Throughput | 3.2-25.6 GB/s | 32-bit at max frequency |
+The figures below are **design targets for scoping purposes, not measured synthesis
+results.** No target device, technology node, or timing report backs them. Treat them as
+order-of-magnitude guidance and re-derive from your own synthesis run before committing to
+a system budget.
+
+| Metric | Indicative Value | Conditions |
+|--------|------------------|------------|
+| Maximum Frequency | 400-800 MHz | Technology dependent; unqualified by node |
+| Peak Throughput | 3.2-25.6 GB/s | 64-bit to 512-bit at the frequencies above |
 | Sustained Throughput | 95-99% of peak | With proper buffering |
 | Pipeline Efficiency | >95% | Continuous data flow |
 
 ## Usage Examples
 
+> **Notation:** some examples below abbreviate a full port list as `.m_axis_*(name_*)` or
+> `.fub_axis_*(iface.*)`. **This is shorthand for the reader, not legal SystemVerilog** — a
+> port-name wildcard of that form does not compile. Expand it to explicit named connections
+> (as in the "Basic Video Stream Processing" example) or use an interface port. The examples
+> using this shorthand are illustrative of topology only and are not drop-in compilable.
+
 ### Basic Video Stream Processing
 
 ```systemverilog
 axis_master #(
-    .SKID_DEPTH(4),           // 16-entry buffer
+    .SKID_DEPTH(4),           // 4-entry buffer
     .AXIS_DATA_WIDTH(64),     // 8 bytes per transfer
     .AXIS_ID_WIDTH(4),        // Support 16 streams
     .AXIS_DEST_WIDTH(4),      // Support 16 destinations
@@ -270,7 +302,7 @@ axis_master #(
 ```systemverilog
 // High-performance packet processing
 axis_master #(
-    .SKID_DEPTH(5),           // 32-entry buffer for latency tolerance
+    .SKID_DEPTH(8),           // 8-entry buffer (deepest legal) for latency tolerance
     .AXIS_DATA_WIDTH(512),    // 64 bytes per beat (512-bit)
     .AXIS_ID_WIDTH(8),        // 256 flow IDs
     .AXIS_DEST_WIDTH(6),      // 64 output ports
@@ -301,7 +333,7 @@ axis_master #(
 ```systemverilog
 // DSP processing chain with minimal sideband
 axis_master #(
-    .SKID_DEPTH(3),           // 8-entry buffer
+    .SKID_DEPTH(2),           // 2-entry buffer (minimum latency)
     .AXIS_DATA_WIDTH(128),    // 4 x 32-bit samples
     .AXIS_ID_WIDTH(0),        // No stream ID needed
     .AXIS_DEST_WIDTH(0),      // No destination routing
@@ -407,8 +439,11 @@ module axis_cdc_system (
 
     // Source domain buffering
     axis_master #(
-        .SKID_DEPTH(3),
-        .AXIS_DATA_WIDTH(32)
+        .SKID_DEPTH(2),
+        .AXIS_DATA_WIDTH(32),
+        .AXIS_ID_WIDTH(4),
+        .AXIS_DEST_WIDTH(4),
+        .AXIS_USER_WIDTH(1)
     ) u_src_master (
         .aclk(src_clk),
         .aresetn(src_resetn),
@@ -417,10 +452,13 @@ module axis_cdc_system (
         .busy(src_busy)
     );
 
-    // Async clock domain crossing
+    // Async clock domain crossing.
+    // gaxi_fifo_async.DEPTH is also a literal entry count (default 16).
+    // DATA_WIDTH must equal the packed TSize of the stream being carried:
+    //   TSize = DW + DW/8 + 1 + IW_WIDTH + DESTW_WIDTH + UW_WIDTH
     gaxi_fifo_async #(
-        .DEPTH(6),  // 64 entries
-        .DATA_WIDTH(32+4+1+4+4+1)
+        .DEPTH(64),                        // 64 entries
+        .DATA_WIDTH(32 + 4 + 1 + 4 + 4 + 1)  // DW=32, SW=4, TLAST, TID=4, TDEST=4, TUSER=1
     ) u_cdc_fifo (
         .wr_clk(src_clk),
         .wr_resetn(src_resetn),
@@ -450,7 +488,7 @@ module stream_pipeline (
     axi4s_if stage3_out();
 
     // Stage 1: Input buffering
-    axis_master #(.SKID_DEPTH(3), .AXIS_DATA_WIDTH(64))
+    axis_master #(.SKID_DEPTH(2), .AXIS_DATA_WIDTH(64))
     u_stage1 (
         .aclk(clk), .aresetn(resetn),
         .fub_axis_*(input_stream.*),
@@ -492,12 +530,17 @@ endmodule
 
 Choose buffer depths based on application characteristics:
 
-| Application Type | Recommended DEPTH | Buffer Size | Rationale |
-|------------------|-------------------|-------------|-----------|
-| Low Latency DSP | 2-3 (4-8 entries) | Minimal | Reduce processing delay |
-| Video Streaming | 4-5 (16-32 entries) | Medium | Handle line buffers |
-| Network Packets | 5-6 (32-64 entries) | Large | Variable packet sizes |
-| High Throughput | 6-7 (64-128 entries) | Very Large | Maximum bandwidth |
+Legal values are `{2, 4, 6, 8}` entries. The skid buffer is a *timing* element, not a rate
+adaptation FIFO — if an application needs tens or hundreds of entries of elastic storage,
+place a `gaxi_fifo_sync` (or `gaxi_fifo_async` across clock domains) downstream rather than
+attempting to scale `SKID_DEPTH`.
+
+| Application Type | Recommended SKID_DEPTH | Buffer Size | Rationale |
+|------------------|------------------------|-------------|-----------|
+| Low Latency DSP | 2 | 2 entries | Reduce processing delay |
+| Video Streaming | 4 | 4 entries | Absorb short backpressure bubbles |
+| Network Packets | 6 | 6 entries | Tolerate bursty sink stalls |
+| High Throughput | 8 | 8 entries | Maximum decoupling available |
 
 ### Data Width Optimization
 
@@ -523,36 +566,49 @@ axis_master #(
     .AXIS_ID_WIDTH(0),     // Disable TID
     .AXIS_DEST_WIDTH(0),   // Disable TDEST
     .AXIS_USER_WIDTH(4),   // Minimal TUSER
-    .SKID_DEPTH(3)
+    .SKID_DEPTH(2)
 ) u_optimized_master (...);
 ```
 
 ## Clock Gating Integration
 
+The clock-gated variant `axis_master_cg` wraps this module and drives it from a gated clock.
+Its control ports are `cfg_cg_enable` and `cfg_cg_idle_count`; its status ports are
+`cg_gating` and `cg_idle`. There is **no `cg_enable`, no `cg_test_enable`, and no `busy`
+output** on the `_cg` wrapper — the base module's `busy` is consumed internally as one of the
+wakeup terms.
+
 ```systemverilog
 // Clock gated version for power optimization
 axis_master_cg #(
     .SKID_DEPTH(4),
-    .AXIS_DATA_WIDTH(64)
+    .AXIS_DATA_WIDTH(64),
+    .CG_IDLE_COUNT_WIDTH(4)
 ) u_cg_master (
-    .aclk            (axi_clk),
-    .aresetn         (axi_resetn),
+    .aclk               (axi_clk),
+    .aresetn            (axi_resetn),
 
-    // Standard AXI4-Stream interfaces
-    .fub_axis_*(fub_axis_*),
-    .m_axis_*(m_axis_*),
+    // Clock gating configuration
+    .cfg_cg_enable      (stream_cg_enable),
+    .cfg_cg_idle_count  (4'd8),
 
-    // Clock gating control
-    .cg_enable       (stream_enable),
-    .cg_test_enable  (scan_mode),
-    .busy            (stream_busy)
+    // Standard AXI4-Stream interfaces (expand to explicit connections)
+    // .fub_axis_tdata (...), ... , .m_axis_tready (...),
+
+    // Clock gating status
+    .cg_gating          (stream_clk_gated),
+    .cg_idle            (stream_idle)
 );
 
 // System-level power management
 always_ff @(posedge axi_clk) begin
-    stream_power_down <= !stream_busy && (idle_time > POWER_DOWN_DELAY);
+    stream_power_down <= stream_idle && (idle_time > POWER_DOWN_DELAY);
 end
 ```
+
+See the [AXIS4 Clock-Gated Variants Guide](axis_clock_gating_guide.md) for gating and
+ungating behaviour, including the ungating latency and the `fub_axis_tready` hold-off while
+gated.
 
 ## Synthesis Considerations
 
@@ -589,12 +645,27 @@ end
 - Verify buffer utilization efficiency
 - Check latency characteristics
 
+## Known Limitations
+
+| Limitation | Detail |
+|------------|--------|
+| No `TKEEP` | Only `TSTRB` is implemented. A protocol-compliant null-byte / position-byte distinction is not available. See [TSTRB and TKEEP](#tstrb-and-tkeep) |
+| No `TWAKEUP` | The AXI4-Stream `TWAKEUP` low-power signal is not implemented |
+| No native CDC | Both interfaces are on `aclk`. Crossing clock domains requires an external `gaxi_fifo_async` |
+| No reordering or arbitration | The module is a single-stream elastic buffer. `TID`/`TDEST` are carried through unmodified; they are not decoded for routing |
+| No protocol checking | The module does not detect or report `TVALID` deassertion before `TREADY`, or `TLAST` framing errors |
+| `SKID_DEPTH` limited to `{2, 4, 6, 8}` | The buffer is a timing element, not a rate adapter. Use a `gaxi_fifo_sync` downstream for deep elastic storage |
+
 ## Related Modules
 
 - **axis_master_cg**: Clock-gated version for power optimization
 - **axis_slave**: Complementary AXI4-Stream slave implementation
 - **gaxi_skid_buffer**: Underlying buffer infrastructure
 - **gaxi_fifo_async**: Asynchronous FIFO for clock domain crossing
-- **axis_interconnect**: AXI4-Stream interconnect for routing
+
+> The `axis_arbiter` and `axis_interconnect` blocks referenced in the "Multi-Stream Router
+> Integration" example above are **not part of this repository**. That example illustrates a
+> system topology built around `axis_master`; the arbitration block is left to the
+> integrator.
 
 The `axis_master` module provides a complete, high-performance solution for AXI4-Stream master functionality with advanced buffering, flexible signal configuration, and comprehensive system integration capabilities.

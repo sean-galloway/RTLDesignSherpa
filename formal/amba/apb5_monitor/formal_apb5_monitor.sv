@@ -79,7 +79,10 @@ module formal_apb5_monitor (
     // DUT outputs
     // =========================================================================
     wire              monbus_valid;
-    wire [127:0]      monbus_packet;
+    // apb5_monitor emits the compact 64-bit monbus word (NOT the 128-bit
+    // monitor_packet_t that apb_monitor uses).  Field map (apb5_monitor.sv):
+    //   [63:60] packet_type   [59:57] protocol (3-bit here)   [56:53] event_code
+    wire [63:0]       monbus_packet;
     wire [63:0]       monbus_timestamp;
     wire [7:0]        active_count;
     wire [15:0]       error_count;
@@ -165,10 +168,11 @@ module formal_apb5_monitor (
             ap_reset_monbus_valid: assert (!monbus_valid);
     end
 
-    // P2: monbus_packet protocol field is APB when valid
+    // P2: monbus_packet protocol field is APB when valid.  In the 64-bit word the
+    // protocol occupies [59:57] (PROTOCOL_APB = 4'h2 truncated to 3 bits = 3'h2).
     always @(posedge clk) begin
         if (rst_n && monbus_valid)
-            ap_protocol_apb: assert (monbus_packet[108:105] == 4'h2);
+            ap_protocol_apb: assert (monbus_packet[59:57] == 3'h2);
     end
 
     // P3: monbus_valid handshake -- once asserted, held until ready
@@ -187,7 +191,7 @@ module formal_apb5_monitor (
             cp_cmd_handshake:  cover (cmd_valid && cmd_ready);
             cp_rsp_handshake:  cover (rsp_valid && rsp_ready);
             cp_wakeup_rising:  cover (apb5_pwakeup && wakeup_active);
-            cp_error_event:    cover (monbus_valid && monbus_packet[127:124] == 4'h0);
+            cp_error_event:    cover (monbus_valid && monbus_packet[63:60] == 4'h0);
         end
     end
 

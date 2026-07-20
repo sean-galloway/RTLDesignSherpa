@@ -36,7 +36,7 @@ The AXIS4 subsystem provides a complete implementation of the ARM AMBA AXI4-Stre
 ### Key Features
 
 - ✅ **AXI4-Stream Protocol:** Streaming-optimized subset (no address channels)
-- ✅ **High Throughput:** Up to 25.6 GB/s (512-bit @ 400 MHz)
+- ✅ **High Throughput:** One beat per cycle sustained; e.g. 25.6 GB/s at 512-bit / 400 MHz
 - ✅ **Flexible Sideband Signals:** TID, TDEST, TUSER for routing/control
 - ✅ **Packet Framing:** TLAST for packet/frame boundaries
 - ✅ **Elastic Buffering:** Integrated skid buffers for timing closure
@@ -95,6 +95,14 @@ AXI4-Stream uses a single channel for streaming data:
 - **TDEST** - Destination routing
 - **TUSER** - User-defined control/status
 
+**Not implemented:** ARM IHI 0051A also defines **TKEEP** (byte is part of the data stream,
+as distinct from **TSTRB**, which marks a data byte versus a position byte) and **TWAKEUP**.
+Neither has a port in these modules — only `TSTRB` is present. The buffer treats `TSTRB` as
+an opaque per-byte-lane field and carries it through unmodified, so a design may route a
+`TKEEP` mask over it as a local convention. That is not protocol-compliant `TKEEP` support:
+a receiver cannot distinguish null bytes from position bytes. Examples below that connect
+signals named `*_keep` to `*_tstrb` are relying on exactly that convention.
+
 ### Key Signals
 
 **Data Transfer:**
@@ -119,8 +127,8 @@ AXI4-Stream uses a single channel for streaming data:
 
 ```systemverilog
 axis_master #(
-    .SKID_DEPTH(4),           // 16 entries
-    .AXIS_DATA_WIDTH(64),     // 8 bytes per transfer
+    .SKID_DEPTH(4),           // 4 entries
+    .AXIS_DATA_WIDTH(64),     // 64 bits = 8 bytes per transfer
     .AXIS_ID_WIDTH(4),        // 16 streams
     .AXIS_DEST_WIDTH(4),      // 16 destinations
     .AXIS_USER_WIDTH(8)       // 8-bit control
@@ -150,7 +158,7 @@ axis_master #(
 
 ```systemverilog
 axis_slave #(
-    .SKID_DEPTH(4),           // 16 entries
+    .SKID_DEPTH(4),           // 4 entries
     .AXIS_DATA_WIDTH(64),
     .AXIS_ID_WIDTH(8),
     .AXIS_DEST_WIDTH(4),
@@ -182,7 +190,7 @@ axis_slave #(
 ```systemverilog
 // Video frame buffer with packet boundaries
 axis_master #(
-    .SKID_DEPTH(5),           // 32-entry buffer
+    .SKID_DEPTH(4),           // 4-entry buffer
     .AXIS_DATA_WIDTH(96),     // 4 pixels x 24-bit RGB
     .AXIS_ID_WIDTH(0),        // No stream ID
     .AXIS_DEST_WIDTH(4),      // 16 display outputs
@@ -220,7 +228,7 @@ axis_master #(
 ```systemverilog
 // High-bandwidth packet processing
 axis_slave #(
-    .SKID_DEPTH(6),           // 64-entry buffer for latency
+    .SKID_DEPTH(6),           // 6-entry buffer for latency
     .AXIS_DATA_WIDTH(512),    // 64 bytes per beat
     .AXIS_ID_WIDTH(8),        // 256 flow IDs
     .AXIS_DEST_WIDTH(6),      // 64 output ports
@@ -283,9 +291,10 @@ pytest val/amba/test_axis_master.py --vcd=waves.vcd -v
 
 All core modules use `gaxi_skid_buffer`:
 - Decouples source and sink timing
-- Configurable depth per module
-- 1-cycle latency overhead
-- Full backpressure handling
+- Configurable depth per module (`{2, 4, 6, 8}` entries)
+- 1-cycle latency overhead on **every** transfer — the buffer registers both data and
+  `rd_valid`, so this is not a zero-bubble bypass skid
+- Full backpressure handling, one beat per cycle sustained once primed
 
 ### Pattern 2: Packet Framing
 
@@ -313,14 +322,21 @@ TID enables multiple logical streams:
 ### Pattern 4: Clock Gating
 
 Clock-gated variants (`*_cg`) add power management:
-- Dynamic gating based on busy signal
-- Configurable idle threshold
-- 0-cycle ungating latency
+- Dynamic gating driven by TVALID on either side, the downstream TREADY, and buffer occupancy
+- Runtime-configurable idle threshold (`cfg_cg_enable`, `cfg_cg_idle_count`)
+- 1 wake-up register stage; the first usable gated-clock edge arrives 2 cycles after activity, during which the incoming TREADY is held low
 - Best for packet-based streams with idle gaps
+
+See the [AXIS4 Clock-Gated Variants Guide](axis_clock_gating_guide.md) for the exact wakeup
+terms and the ungating latency breakdown.
 
 ---
 
 ## Performance Characteristics
+
+The tables in this section are **design targets for scoping, not measured synthesis or
+power results.** No target device or technology node backs them; re-derive from your own
+synthesis run before committing to a system budget.
 
 ### Throughput
 
@@ -347,7 +363,10 @@ Clock-gated variants (`*_cg`) add power management:
 | Clock-gated (+cg) | +50 | +30 | 0 | Clock gating logic |
 | Wider data (512-bit) | ~400 | ~350 | 0 | 8x data width |
 
-**vs AXI4:** ~60-70% resource savings (no address channels, simpler protocol)
+**vs AXI4:** an estimated 60-70% resource saving, attributable to the absence of the five
+address/response channels and of any outstanding-transaction tracking. No AXI4 baseline
+measurement is published in this document, so treat the figure as a rough expectation rather
+than a benchmarked result.
 
 ---
 
@@ -364,7 +383,7 @@ Clock-gated variants (`*_cg`) add power management:
 **Recommended Configuration:**
 ```systemverilog
 .AXIS_DATA_WIDTH(64-128),  // Multiple pixels per cycle
-.SKID_DEPTH(4-5),          // 16-32 entry buffer
+.SKID_DEPTH(4),            // 4-entry buffer
 .AXIS_USER_WIDTH(8-16)     // Frame/line metadata
 ```
 
@@ -379,7 +398,7 @@ Clock-gated variants (`*_cg`) add power management:
 **Recommended Configuration:**
 ```systemverilog
 .AXIS_DATA_WIDTH(256-512), // Wide data bus
-.SKID_DEPTH(5-6),          // 32-64 entry buffer
+.SKID_DEPTH(6),            // 6-entry buffer
 .AXIS_ID_WIDTH(8),         // 256 flows
 .AXIS_DEST_WIDTH(6)        // 64 ports
 ```
@@ -395,7 +414,7 @@ Clock-gated variants (`*_cg`) add power management:
 **Recommended Configuration:**
 ```systemverilog
 .AXIS_DATA_WIDTH(32-128),  // Sample data
-.SKID_DEPTH(2-3),          // Minimal buffer
+.SKID_DEPTH(2),            // Minimal buffer
 .AXIS_ID_WIDTH(0),         // No multiplexing
 .AXIS_DEST_WIDTH(0),       // No routing
 .AXIS_USER_WIDTH(4)        // Minimal metadata
@@ -418,13 +437,19 @@ Clock-gated variants (`*_cg`) add power management:
 
 ### Buffer Depth (SKID_DEPTH)
 
+`SKID_DEPTH` is a **literal entry count**, not a log2 exponent, and is passed straight to
+`gaxi_skid_buffer.DEPTH`. Only the values `{2, 4, 6, 8}` are supported.
+
 | SKID_DEPTH | Buffer Size | Use Case |
 |------------|-------------|----------|
-| 2 | 4 entries | Low latency, continuous streams |
-| 3 | 8 entries | Typical DSP pipelines |
-| 4 | 16 entries | Video processing (default) |
-| 5 | 32 entries | Network packets, variable latency |
-| 6 | 64 entries | High-latency tolerance |
+| 2 | 2 entries | Low latency, continuous streams |
+| 4 | 4 entries | Video processing, typical DSP pipelines (default) |
+| 6 | 6 entries | Network packets, variable latency |
+| 8 | 8 entries | Maximum decoupling available |
+
+The skid buffer is a timing element, not a rate-adaptation FIFO. If an application needs
+tens or hundreds of entries of elastic storage, place a `gaxi_fifo_sync` (or
+`gaxi_fifo_async` across clock domains) downstream instead of scaling `SKID_DEPTH`.
 
 ### Sideband Signal Widths
 
@@ -445,6 +470,23 @@ Clock-gated variants (`*_cg`) add power management:
 
 ---
 
+## Known Limitations
+
+Applies to `axis_master`, `axis_slave`, and their `_cg` variants:
+
+| Limitation | Detail |
+|------------|--------|
+| No `TKEEP` | Only `TSTRB` is implemented. Null bytes cannot be distinguished from position bytes |
+| No `TWAKEUP` | The AXI4-Stream low-power handshake signal is not implemented |
+| No native CDC | Both interfaces of every module are on `aclk`. Crossing clock domains requires an external `gaxi_fifo_async` |
+| No routing, arbitration, or multiplexing | `TID`/`TDEST` are carried through unmodified, never decoded. No `axis_arbiter` or `axis_interconnect` module exists in this repository |
+| No protocol checking | These modules do not detect or report `TVALID` deassertion before `TREADY`, or `TLAST` framing errors |
+| No monitor bus output | Unlike the AXI4/AXIL4/APB monitors, the AXIS4 modules emit no monbus packets. For stream instrumentation see [axis_bus_meter](../shared/axis_bus_meter.md) |
+| `SKID_DEPTH` limited to `{2, 4, 6, 8}` | The skid buffer is a timing element, not a rate adapter |
+| 1 register stage / 2-cycle ungating latency (`_cg`) | The first beat after an idle period is backpressured while the clock restarts |
+
+---
+
 ## Related Documentation
 
 ### Protocol Specifications
@@ -459,7 +501,7 @@ Clock-gated variants (`*_cg`) add power management:
 ### Source Code
 - RTL: `rtl/amba/axis4/`
 - Tests: `val/amba/test_axis*.py`
-- Framework: `bin/TBClasses/components/axis4/`
+- Framework: `bin/TBClasses/axis4/`
 - Shared Infrastructure: `rtl/amba/shared/` (gaxi_skid_buffer)
 
 ---
@@ -483,13 +525,13 @@ Clock-gated variants (`*_cg`) add power management:
 
 ### Buffer Depth Trade-offs
 
-**Shallow Buffers (SKID_DEPTH = 2-3):**
+**Shallow Buffers (SKID_DEPTH = 2):**
 - ✅ Lower latency
 - ✅ Smaller area
 - ❌ Less tolerance for backpressure
 - **Use for:** Low-latency DSP, continuous streams
 
-**Deep Buffers (SKID_DEPTH = 5-6):**
+**Deep Buffers (SKID_DEPTH = 6-8):**
 - ✅ High backpressure tolerance
 - ✅ Better throughput under variable load
 - ❌ Higher latency

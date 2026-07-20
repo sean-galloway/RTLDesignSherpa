@@ -299,7 +299,7 @@ binary_out <= converted_value;
 - **bin2gray**: Performs inverse conversion (binary to Gray)
 - **counter_bingray**: Combined binary/Gray counter
 - **fifo_async**: Uses Gray codes for CDC
-- **grayj2bin**: Johnson counter to binary converter (different algorithm)
+- **johnson2bin**: Johnson counter to binary converter (different algorithm)
 
 ## Navigation
 

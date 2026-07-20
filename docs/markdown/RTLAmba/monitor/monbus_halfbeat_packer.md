@@ -24,7 +24,7 @@
 # MonBus Half-Beat Packer
 
 **Module:** `monbus_halfbeat_packer.sv`
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Status:** Production Ready
 
 ---

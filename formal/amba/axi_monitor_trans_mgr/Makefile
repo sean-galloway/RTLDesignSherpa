@@ -1,25 +1,26 @@
 # SPDX-License-Identifier: MIT
 # Formal verification Makefile for axi_monitor_trans_mgr
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog
+#
+# DEPS is the transitive module closure of axi_monitor_trans_mgr (leaves first), regenerated
+# by tools/gen_formal_deps.py after the rtl/amba/monitor/ move, the reporter
+# split (axi_monitor_reporter_*), and the monitor_trans_cam extraction.  The
+# sv2v file list is derived from $(DEPS) so the two cannot drift.
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      := /mnt/data/tools/sv2v
 
-# Include paths for sv2v preprocessing
 INC := -I$(REPO_ROOT)/rtl/amba/includes
 
-# Package files (order matters: dependencies first)
-# Note: monitor_pkg excluded -- it re-exports types from monitor_amba4_pkg
-# which causes sv2v "ambiguous identifier" errors. The DUT's
-# `import monitor_pkg::*;` is stripped via sed before sv2v runs.
 PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/monitor_amba4_pkg.sv
 
-# RTL dependencies (pure logic - no submodule instantiations)
-DEPS :=
+# RTL dependencies (transitive closure of axi_monitor_trans_mgr, leaves first)
+DEPS := $(REPO_ROOT)/rtl/amba/monitor/monitor_trans_cam.sv
 
-# Device under test
 DUT := $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_trans_mgr.sv
+
+TMPDIR := /tmp/formal_axi_monitor_trans_mgr
 
 .PHONY: prove cover clean
 
@@ -29,9 +30,18 @@ prove: axi_monitor_trans_mgr_flat.v
 cover: axi_monitor_trans_mgr_flat.v
 	sby -f axi_monitor_trans_mgr.sby cover
 
-axi_monitor_trans_mgr_flat.v: $(DUT) $(PKGS)
-	sed 's/import monitor_pkg::\*;//g' $(DUT) > /tmp/axi_monitor_trans_mgr_nopkg.sv
-	$(SV2V) $(INC) $(PKGS) /tmp/axi_monitor_trans_mgr_nopkg.sv > $@
+# Strip `import monitor_pkg::*;` and `monitor_pkg::` scope prefixes (monitor_pkg
+# re-exports sub-package types and trips sv2v "ambiguous identifier"), then
+# flatten DUT + closure into a single Verilog file.
+axi_monitor_trans_mgr_flat.v: $(DUT) $(PKGS) $(DEPS)
+	@mkdir -p $(TMPDIR)
+	@for f in $(DEPS) $(DUT); do \
+		sed -e 's/import monitor_pkg::\*;//g' \
+		    -e 's/monitor_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \
+	done
+	$(SV2V) $(INC) $(PKGS) \
+		$(addprefix $(TMPDIR)/,$(notdir $(DEPS) $(DUT))) > $@
+	@rm -rf $(TMPDIR)
 
 clean:
 	rm -rf *_flat.v *_prove *_cover

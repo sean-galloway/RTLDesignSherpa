@@ -96,10 +96,10 @@ Eight digits, left-to-right = AN[7]…AN[0]. Active-low cathodes (segment lit = 
 | Display (AN[7:6]) | Mode # | Name | Underlying RTL module | Expected behavior |
 |---|---|---|---|---|
 | **`00`** | 0 | **NO-CDC** | (raw flop per bit, no module, `ASYNC_REG="FALSE"`) | Clean at slow pickoff. Visibly flickers/scrambles at fast pickoff. The textbook "no CDC" failure. |
-| **`01`** | 1 | **STRETCH** | [`cdc_open_loop`](../../../../rtl/amba/shared/cdc_open_loop.sv) with `STRETCH_CYCLES=1`, `SYNC_STAGES=3` | Source pulse-stretches data+valid for 1 ctr_clk; dst synchronizes through 3 flops. **Tuned to work up to ~20–25 MHz `ctr_clk`, lose values above** (dst misses pulses that don't outlast the synchronizer chain). |
+| **`01`** | 1 | **STRETCH** | [`cdc_open_loop`](../../../../rtl/amba/cdc/cdc_open_loop.sv) with `STRETCH_CYCLES=1`, `SYNC_STAGES=3` | Source pulse-stretches data+valid for 1 ctr_clk; dst synchronizes through 3 flops. **Tuned to work up to ~20–25 MHz `ctr_clk`, lose values above** (dst misses pulses that don't outlast the synchronizer chain). |
 | **`02`** | 2 | **SYNC FIFO** | [`fifo_async`](../../../../rtl/common/fifo_async.sv), depth 16, Gray-pointer | Push every press in ctr_clk, pop continuously in sys_clk. Gray-coded pointer CDC is always safe — clean across the whole pickoff range. The "robust" reference path. |
-| **`03`** | 3 | **2-PHASE** | [`cdc_2_phase_handshake`](../../../../rtl/amba/shared/cdc_2_phase_handshake.sv) | Toggle (NRZ) handshake; periodic snapshots every 256 ctr_clk. Never garbage; value lags by the handshake round-trip. Faster than 4-phase. |
-| **`04`** | 4 | **4-PHASE** | [`cdc_4_phase_handshake`](../../../../rtl/amba/shared/cdc_4_phase_handshake.sv) | RTZ req/ack handshake; periodic snapshots every 256 ctr_clk. Most conservative, slowest. Same "safe but lagged" character as `03`. |
+| **`03`** | 3 | **2-PHASE** | [`cdc_2_phase_handshake`](../../../../rtl/amba/cdc/cdc_2_phase_handshake.sv) | Toggle (NRZ) handshake; periodic snapshots every 256 ctr_clk. Never garbage; value lags by the handshake round-trip. Faster than 4-phase. |
+| **`04`** | 4 | **4-PHASE** | [`cdc_4_phase_handshake`](../../../../rtl/amba/cdc/cdc_4_phase_handshake.sv) | RTZ req/ack handshake; periodic snapshots every 256 ctr_clk. Most conservative, slowest. Same "safe but lagged" character as `03`. |
 
 Press **BTNL** to cycle: `00 → 01 → 02 → 03 → 04 → 00 → …`. The 3-bit field has room for 8 modes; values 5–7 are reserved (writing them via CSR falls through to NO-CDC behavior).
 

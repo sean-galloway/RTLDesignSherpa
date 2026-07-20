@@ -1,5 +1,5 @@
-# Filelist for math_adder_carry_lookahead module
-# Location: rtl/common/filelists/math_adder_carry_lookahead.f
+# Filelist for math_adder_pg_chain module
+# Location: rtl/common/filelists/math_adder_pg_chain.f
 
 # Include directories
 +incdir+$REPO_ROOT/rtl/amba/includes
@@ -7,5 +7,5 @@
 # Header files with macros (MUST be compiled first)
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 
-# math_adder_carry_lookahead module
-$REPO_ROOT/rtl/common/math_adder_carry_lookahead.sv
+# math_adder_pg_chain module
+$REPO_ROOT/rtl/common/math_adder_pg_chain.sv

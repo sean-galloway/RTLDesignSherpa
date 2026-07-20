@@ -24,7 +24,7 @@
 # MonBus Group — AXI4 / AXIL
 
 **Module:** `monbus_axi4_axil_group.sv`
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Status:** Production Ready
 
 ---

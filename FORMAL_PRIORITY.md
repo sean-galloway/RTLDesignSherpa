@@ -25,7 +25,6 @@ Status: PASSING = proved (prove+cover), PROVE = prove-only PASS, ERROR = prove f
 | ---------------------- | -------- | ------- | ----------------------------------------------------------- |
 | fifo_sync              | 1        | PASSING | 9 safety + 4 cover (ghost counter)                          |
 | fifo_async             | 1        | PASSING | CDC critical — Gray pointer sync, empty/full across domains |
-| fifo_async_div2        | 1        | PASSING | Johnson counter variant of async FIFO                       |
 | fifo_control           | 2        | PASSING | Flag generation logic, used by both sync/async FIFOs        |
 | fifo_sync_multi        | 3        | PASSING | Multi-signal variant                                        |
 | fifo_sync_multi_sigmap | 3        | PASSING | Signal-mapped variant                                       |
@@ -59,7 +58,7 @@ Status: PASSING = proved (prove+cover), PROVE = prove-only PASS, ERROR = prove f
 | --------- | -------- | ------ | ------------------------------------------------------ |
 | bin2gray  | 1        | PASSING | Prove: gray = bin ^ (bin >> 1), used everywhere in CDC |
 | gray2bin  | 1        | PASSING | Prove: inverse of bin2gray, roundtrip correctness      |
-| grayj2bin | 1        | PASSING | Johnson-to-binary, used in fifo_async_div2             |
+| johnson2bin | 1        | PASSING | Johnson-to-binary, used by fifo_async (USE_JOHNSON=1)             |
 
 ### Data Integrity
 
@@ -123,7 +122,7 @@ Status: PASSING = proved (prove+cover), PROVE = prove-only PASS, ERROR = prove f
 | math_adder_full                   | 2        | PASSING | Reference: a+b+cin = {cout, sum}  |
 | math_adder_half                   | 0        |        | Trivial                           |
 | math_adder_ripple_carry           | 2        | PASSING | Prove matches full_nbit           |
-| math_adder_carry_lookahead        | 2        | PASSING | Prove matches ripple_carry output |
+| math_adder_pg_chain        | 2        | PASSING | Prove matches ripple_carry output |
 | math_adder_brent_kung_008         | 2        | PASSING | Prove matches reference adder     |
 | math_adder_brent_kung_016         | 2        | PASSING | Same                              |
 | math_adder_brent_kung_032         | 3        | PASSING | Same, larger                      |
@@ -133,7 +132,6 @@ Status: PASSING = proved (prove+cover), PROVE = prove-only PASS, ERROR = prove f
 | math_adder_han_carlson_048        | 0        |        | Large                             |
 | math_adder_han_carlson_072        | 0        |        | Large                             |
 | math_adder_han_carlson_022        | 0        |        | Odd size                          |
-| math_adder_kogge_stone_nbit       | 3        | PASSING | Prove matches reference           |
 | math_adder_carry_save             | 0        |        | Internal building block           |
 | math_adder_carry_save_nbit        | 0        |        | Internal                          |
 | math_adder_full_nbit              | 0        |        | Wrapper                           |

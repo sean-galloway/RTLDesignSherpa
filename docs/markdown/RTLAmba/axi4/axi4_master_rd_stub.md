@@ -75,8 +75,8 @@ flowchart LR
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| SKID_DEPTH_AR | int | 2 | AR channel skid buffer depth (log2) |
-| SKID_DEPTH_R | int | 4 | R channel skid buffer depth (log2) |
+| SKID_DEPTH_AR | int | 2 | AR channel skid buffer depth in entries (2, 4, 6, or 8) |
+| SKID_DEPTH_R | int | 4 | R channel skid buffer depth in entries (2, 4, 6, or 8) |
 | AXI_ID_WIDTH | int | 8 | AXI transaction ID width |
 | AXI_ADDR_WIDTH | int | 32 | AXI address bus width |
 | AXI_DATA_WIDTH | int | 32 | AXI data bus width |
@@ -228,15 +228,16 @@ sequenceDiagram
 ### Timing
 
 <!-- TODO: Add wavedrom timing diagram for stub transactions -->
-```
-TODO: Wavedrom timing diagram showing:
-- aclk
-- fub_axi_arvalid, fub_axi_arready, fub_axi_ar_pkt
-- AXI AR signals (m_axi_arvalid, m_axi_araddr, m_axi_arlen, etc.)
-- AXI R signals (m_axi_rvalid, m_axi_rdata, m_axi_rlast, etc.)
-- fub_axi_rvalid, fub_axi_rready, fub_axi_r_pkt
-- Packet-to-AXI timing relationship with skid buffer operation
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - aclk
+> - fub_axi_arvalid, fub_axi_arready, fub_axi_ar_pkt
+> - AXI AR signals (m_axi_arvalid, m_axi_araddr, m_axi_arlen, etc.)
+> - AXI R signals (m_axi_rvalid, m_axi_rdata, m_axi_rlast, etc.)
+> - fub_axi_rvalid, fub_axi_rready, fub_axi_r_pkt
+> - Packet-to-AXI timing relationship with skid buffer operation
+
 
 ---
 

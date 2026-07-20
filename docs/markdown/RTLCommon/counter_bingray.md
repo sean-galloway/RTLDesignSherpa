@@ -471,13 +471,12 @@ Binary-Gray counters are the foundation of the standard `fifo_async` module:
 | **Depth Support** | Power-of-2 only | Any even number |
 | **Resource Efficiency** | Logarithmic (better for large depths) | Linear |
 | **Conversion** | XOR tree (simple) | Position detection (complex) |
-| **Used In** | `fifo_async` (standard) | `fifo_async_div2` (flexible) |
+| **Used In** | `fifo_async` USE_JOHNSON=0 | `fifo_async` USE_JOHNSON=1 |
 
 **Comparison with Other Modules:**
 
 - `test_counter_johnson_wavedrom.py` - Johnson counter (even depths, linear width)
 - `test_fifo_async_wavedrom.py` - BinGray counter in action (async FIFO, power-of-2)
-- `test_fifo_async_div2_wavedrom.py` - Johnson counter in action (async FIFO, even depths)
 
 ## Test and Verification
 

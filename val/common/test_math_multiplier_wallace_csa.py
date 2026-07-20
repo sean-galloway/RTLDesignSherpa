@@ -95,6 +95,18 @@ def test_math_multiplier_wallace_tree_csa(request, params):
     verilog_sources = [
         os.path.join(rtl_dict['rtl_cmn'], "math_adder_half.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "math_adder_carry_save.sv"),
+        # The reduction tree uses carry-save 3:2 compressors, but the final
+        # carry-propagate adder is built from full adders regardless of variant.
+        os.path.join(rtl_dict['rtl_cmn'], "math_adder_full.sv"),
+        # Final carry-propagate adder: the reduction tree hands two rows to a
+        # Brent-Kung CPA whose width is the PRODUCT width, i.e. 2*N.
+        os.path.join(rtl_dict['rtl_cmn'], "math_adder_brent_kung_pg.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "math_adder_brent_kung_black.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "math_adder_brent_kung_gray.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "math_adder_brent_kung_bitwisepg.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "math_adder_brent_kung_sum.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], f"math_adder_brent_kung_grouppg_{2*n:03d}.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], f"math_adder_brent_kung_{2*n:03d}.sv"),
         os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv"),
     ]
 

@@ -40,19 +40,25 @@ All AXIL4 modules have clock-gated (`_cg`) variants that add power management th
 | `axil4_master_wr_cg` | [axil4_master_wr](axil4_master_wr.md) | Clock-gated write master |
 | `axil4_slave_rd_cg` | [axil4_slave_rd](axil4_slave_rd.md) | Clock-gated read slave |
 | `axil4_slave_wr_cg` | [axil4_slave_wr](axil4_slave_wr.md) | Clock-gated write slave |
-| `axil4_master_rd_mon_cg` | [axil4_master_rd_mon](axil4_master_rd_mon.md) | Clock-gated read master + monitor |
-| `axil4_master_wr_mon_cg` | [axil4_master_wr_mon](axil4_master_wr_mon.md) | Clock-gated write master + monitor |
-| `axil4_slave_rd_mon_cg` | [axil4_slave_rd_mon](axil4_slave_rd_mon.md) | Clock-gated read slave + monitor |
-| `axil4_slave_wr_mon_cg` | [axil4_slave_wr_mon](axil4_slave_wr_mon.md) | Clock-gated write slave + monitor |
+| `axil4_master_rd_mon_cg` | [axil4_master_rd_mon](../monitor/axil4_master_rd_mon.md) | Clock-gated read master + monitor |
+| `axil4_master_wr_mon_cg` | [axil4_master_wr_mon](../monitor/axil4_master_wr_mon.md) | Clock-gated write master + monitor |
+| `axil4_slave_rd_mon_cg` | [axil4_slave_rd_mon](../monitor/axil4_slave_rd_mon.md) | Clock-gated read slave + monitor |
+| `axil4_slave_wr_mon_cg` | [axil4_slave_wr_mon](../monitor/axil4_slave_wr_mon.md) | Clock-gated write slave + monitor |
+
+The four `*_mon_cg` modules live in `rtl/amba/monitor/`; the four plain
+`*_cg` modules live in `rtl/amba/axil4/`.
 
 ### Key Features
 
 - ✅ **Dynamic Clock Gating:** Automatic clock disable during idle
 - ✅ **Configurable Idle Threshold:** Programmable idle count before gating
 - ✅ **Full Functional Equivalence:** Identical to base modules
-- ✅ **Status Monitoring:** Real-time gating status and clock count
-- ✅ **Test Mode Support:** Bypass for scan testing
-- ✅ **Zero Performance Impact:** Immediate ungating on activity
+- ✅ **Status Monitoring:** `cg_gating` and `cg_idle` status outputs
+- ✅ **Runtime Bypass:** `cfg_cg_enable = 0` disables gating entirely
+
+There is **no scan/test-mode bypass port**. `clock_gate_ctrl` exposes only
+`cfg_cg_enable`; a DFT flow must drive that low (or bypass the ICG cell in the
+scan-insertion step) to hold the clock free-running during scan.
 
 ---
 
@@ -80,9 +86,15 @@ All AXIL4 modules have clock-gated (`_cg`) variants that add power management th
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `cg_gating` | Output | 1 | Clock currently gated (1=gated, 0=running) |
-| `cg_clk_count` | Output | 32 | Cumulative gated clock cycles |
+| `cg_idle` | Output | 1 | No activity was seen on the previous cycle (registered `~wakeup`) |
 
-**All other ports identical to base module.**
+**All other ports are identical to the base module, with one exception:** the
+base module's `busy` output is **not** brought out on the `_cg` wrapper. It is
+consumed internally as one of the wakeup terms. Use `cg_idle` (or `cg_gating`)
+for interface idle detection on a `_cg` module.
+
+There is no cumulative gated-cycle counter on these modules. If you need one,
+count `cg_gating` in the surrounding logic on the ungated clock.
 
 ---
 
@@ -107,12 +119,12 @@ axil4_master_rd_cg #(
     .cfg_cg_idle_count(4'd5),     // Gate after 5 idle cycles
 
     // AXIL signals (identical to base module)
-    .fub_axil_araddr(cpu_araddr),
+    .fub_araddr(cpu_araddr),
     // ... rest of AR/R signals ...
 
     // Clock gating status
     .cg_gating(rd_clk_gated),
-    .cg_clk_count(rd_gated_cycles)
+    .cg_idle(rd_idle)
 );
 ```
 
@@ -120,16 +132,50 @@ axil4_master_rd_cg #(
 
 ## Clock Gating Behavior
 
+The `_cg` wrapper builds a wakeup term from the module's channel activity and
+the base module's internal `busy`, and hands it to `amba_clock_gate_ctrl`, which
+registers it and drives `clock_gate_ctrl` and its ICG cell. For
+`axil4_master_rd_cg` the terms are:
+
+```systemverilog
+assign user_valid = fub_arvalid || fub_rready || int_busy;
+assign axi_valid  = m_axil_arvalid || m_axil_rvalid;
+```
+
 **Gating Conditions (All Must Be True):**
-1. Interface idle (no valid/ready handshakes)
-2. Idle for ≥ `cfg_cg_idle_count` consecutive cycles
+1. No activity in `user_valid` or `axi_valid`
+2. Idle for `cfg_cg_idle_count` consecutive cycles (the idle counter counts down
+   to 0 and holds)
 3. Gating enabled (`cfg_cg_enable = 1`)
 
-**Ungating Conditions (Any Triggers Immediate Ungating):**
-1. Any `*valid` signal asserted on any channel
-2. Configuration change
+**Ungating Conditions (Any Triggers Ungating):**
+1. Any `*valid` signal asserted on either side of the module
+2. `fub_rready` asserted, or the base module still `busy`
 
-**Ungating Latency:** 0 cycles (immediate)
+**Gating latency:** `cfg_cg_idle_count + 1` clocks after the internal wakeup
+deasserts, which is `cfg_cg_idle_count + 2` clocks after the last bus activity
+on AXI4-Lite (one extra for the `r_wakeup` flop).
+
+**Ungating latency:** activity is registered once (AXI4, AXI5, AXI4-Lite,
+AXI4-Stream) or twice (APB, APB5, AXI5-Stream) before reaching the ICG enable,
+which is combinational. The AXIL4 `_cg` wrappers drive `user_valid`/`axi_valid`
+combinationally, so there is exactly **1 register stage** — `r_wakeup` inside
+`amba_clock_gate_ctrl` — and the first gated-clock rising edge available to the
+block arrives **2 clocks** after activity asserts, not 0. Note that
+`clock_gate_ctrl` contributes no flop of its own: `w_gate_enable` is
+combinational from `wakeup` straight into the ICG enable, so the second clock is
+the released edge itself rather than a further register stage. The
+wrapper covers this by forcing the module's `ready` outputs low while
+`cg_gating` is asserted, for example:
+
+```systemverilog
+assign fub_arready   = cg_gating ? 1'b0 : int_arready;
+assign m_axil_rready = cg_gating ? 1'b0 : int_rready;
+```
+
+so a request presented while gated is simply not accepted until the clock is
+running again. No data is lost, but a transaction that arrives into a gated
+interface pays the wakeup cost before its first handshake.
 
 ---
 
@@ -179,8 +225,14 @@ axil4_master_rd_cg #(
 
 ### Typical Savings (AXI4-Lite Register Access)
 
-| Traffic Pattern | Duty Cycle | Idle Count | Power Savings |
-|-----------------|------------|------------|---------------|
+The percentages below are **rough expectations for dynamic clock power in the
+gated block only**, relative to the same module with `cfg_cg_enable = 0` at the
+same frequency. They are not measured power-analysis results, they exclude
+leakage (which gating does not reduce), and they exclude the clock tree upstream
+of the ICG cell. Run power analysis on your own target before relying on them.
+
+| Traffic Pattern | Duty Cycle | Idle Count | Est. Dynamic Power Savings |
+|-----------------|------------|------------|----------------------------|
 | Burst register reads | 20% | 1 | 35-40% |
 | Sporadic writes | 10% | 1 | 40-45% |
 | Periodic polling | 50% | 5 | 20-25% |
@@ -200,7 +252,6 @@ axil4_master_rd_cg #(
   - Detailed gating behavior and state machine
   - Power savings calculations and examples
   - Dynamic configuration patterns
-  - Test mode support
   - Synthesis considerations
 
 **AXIL4-specific notes:**
@@ -217,7 +268,7 @@ axil4_master_rd_cg #(
 - **[axil4_master_wr](axil4_master_wr.md)** - Base write master
 - **[axil4_slave_rd](axil4_slave_rd.md)** - Base read slave
 - **[axil4_slave_wr](axil4_slave_wr.md)** - Base write slave
-- **[Monitor modules](axil4_master_rd_mon.md)** - Base monitor modules
+- **[Monitor modules](../monitor/axil4_master_rd_mon.md)** - Base monitor modules
 
 ### Architecture
 - **[AXI4 Clock Gating Guide](../axi4/axi4_clock_gating_guide.md)** - Complete reference
@@ -226,7 +277,7 @@ axil4_master_rd_cg #(
 
 ---
 
-**Last Updated:** 2025-10-20
+**Last Updated:** 2026-07-19
 
 ---
 

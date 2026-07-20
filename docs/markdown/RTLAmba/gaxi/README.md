@@ -159,6 +159,15 @@ gaxi_fifo_sync #(
 
 ### Asynchronous FIFO (Clock Domain Crossing)
 
+> **Two depth rules in this directory, and they are not a contradiction.**
+> The shallow skid buffers (`gaxi_skid_buffer`, `gaxi_skid_buffer_struct`,
+> `gaxi_skid_buffer_dbldrn`) store entries in a small unpacked array and accept
+> `DEPTH` in `{2, 4, 6, 8}`. The FIFOs (`gaxi_fifo_sync`, `gaxi_drop_fifo_sync`,
+> `gaxi_fifo_async`) address memory with a binary pointer and need a power of 2
+> -- except `gaxi_fifo_async` with `USE_JOHNSON=1`, where Johnson pointers allow
+> any even depth. Check the module you are instantiating, not the directory.
+
+
 ```systemverilog
 gaxi_fifo_async #(
     .DATA_WIDTH(32),

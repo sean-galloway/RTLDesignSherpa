@@ -78,7 +78,7 @@ module apb_slave_stub #(
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| DEPTH | int | 4 | Internal buffering depth |
+| DEPTH | int | 4 | Skid-buffer depth in **entries** (not a log2 exponent); must be one of `{2, 4, 6, 8}` |
 | DATA_WIDTH | int | 32 | APB data bus width |
 | ADDR_WIDTH | int | 32 | APB address bus width |
 | STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |
@@ -141,6 +141,34 @@ The stub uses packed interfaces to simplify testbench integration:
 **Response Packet Format** (MSB to LSB):
 - `pslverr` (1 bit): Slave error
 - `prdata` (DW bits): Read data
+
+### Packet Format Is Not Symmetric With `apb_master_stub`
+
+`apb_master_stub` carries two extra bits in each direction -- `first` and `last`:
+
+| | `apb_slave_stub` | `apb_master_stub` |
+|---|---|---|
+| `CMD_PACKET_WIDTH` | `AW + DW + SW + 4` | `AW + DW + SW + 3 + 1 + 1 + 1` |
+| Command fields | pwrite, pprot, pstrb, paddr, pwdata | last, first, pwrite, pprot, pstrb, paddr, pwdata |
+| `RESP_PACKET_WIDTH` | `DW + 1` | `DW + 1 + 1 + 1` |
+| Response fields | pslverr, prdata | last, first, pslverr, prdata |
+
+**This is intentional, not a defect.** The `first`/`last` bits exist so
+`apb_master_stub` can carry AXI4 burst framing through the AXI4-to-APB bridge;
+an APB slave has no burst to frame and so has no use for them.
+
+The two stubs are **never** connected packed-side to packed-side. They face each
+other across the APB bus, and the APB bus itself has no `first`/`last` signals,
+so no incompatibility arises. Do not attempt to wire `apb_master_stub.cmd_data`
+directly into `apb_slave_stub` -- the widths differ and the field alignment
+differs.
+
+### Difference From `apb_slave`
+
+This stub is a simplified two-state FSM (`IDLE`, `XFER_DATA`) with combinational
+outputs. It does **not** implement the `PENABLE` rising-edge detect or the
+orphan-response guard present in [apb_slave](apb_slave.md). Use `apb_slave` for
+anything synthesized into a real design, particularly behind a CDC.
 
 ### Operation
 
@@ -233,14 +261,15 @@ The stub expects immediate response from the test driver. For multi-cycle latenc
 
 ## References
 
-- **APB Protocol**: AMBA APB Protocol Specification v2.0
+- **APB Protocol**: ARM IHI 0024C -- AMBA APB Protocol Specification, Version 2.0 (APB4)
 - **Full APB Slave**: [apb_slave.md](apb_slave.md)
 - **APB Master Stub**: [apb_master_stub.md](apb_master_stub.md)
+- **APB5 Equivalent**: [apb5_slave_stub.md](../apb5/apb5_slave_stub.md)
 
 ---
 
 ## Navigation
 
-- **[← Back to APB Index](README.md)** (if exists, otherwise remove this line)
+- **[← Back to APB Index](README.md)**
 - **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

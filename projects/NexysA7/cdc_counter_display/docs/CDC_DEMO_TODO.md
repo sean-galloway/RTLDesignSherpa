@@ -10,10 +10,10 @@
 
 | # | Module | Location | One-line purpose |
 |---|---|---|---|
-| 1 | `cdc_synchronizer`          | `rtl/amba/shared/cdc_synchronizer.sv`          | 2- or 3-FF synchronizer for a single quasi-static control bit. |
-| 2 | `cdc_2_phase_handshake`     | `rtl/amba/shared/cdc_2_phase_handshake.sv`     | Toggle / NRZ handshake for word-at-a-time data with throughput focus. |
-| 3 | `cdc_4_phase_handshake`     | `rtl/amba/shared/cdc_4_phase_handshake.sv`     | Req/ack level handshake — classic, conservative, debug-friendly. |
-| 4 | `fifo_async` / `fifo_async_div2` | `rtl/common/fifo_async*.sv`               | Gray-pointer asynchronous FIFO for sustained streaming data. |
+| 1 | `cdc_synchronizer`          | `rtl/amba/cdc/cdc_synchronizer.sv`          | 2- or 3-FF synchronizer for a single quasi-static control bit. |
+| 2 | `cdc_2_phase_handshake`     | `rtl/amba/cdc/cdc_2_phase_handshake.sv`     | Toggle / NRZ handshake for word-at-a-time data with throughput focus. |
+| 3 | `cdc_4_phase_handshake`     | `rtl/amba/cdc/cdc_4_phase_handshake.sv`     | Req/ack level handshake — classic, conservative, debug-friendly. |
+| 4 | `fifo_async`                    | `rtl/common/fifo_async.sv`                | Gray-pointer asynchronous FIFO for sustained streaming data. |
 
 Supporting primitives (not counted as top-level "types" but worth noting):
 - `sync_pulse.sv`   — edge-to-pulse converter built on a synchronizer.

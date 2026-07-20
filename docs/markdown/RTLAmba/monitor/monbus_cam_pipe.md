@@ -24,7 +24,7 @@
 # Monitor Bus LRU CAM (Pipelined)
 
 **Module:** `monbus_cam_pipe.sv`
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Category:** Bulk-Trace Compression Infrastructure
 **Status:** Production — replaces [`monbus_cam`](monbus_cam.md) inside the compressor
 

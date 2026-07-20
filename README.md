@@ -112,7 +112,7 @@ Reusable primitives, technology-agnostic. **~224 modules.** Click any class name
 |---|---|---|---|
 | [Counters](docs/classes/common/counters.md) | 8 | [`rtl/common/`](rtl/common/) (`counter_*.sv`) | [`counter_bin`](rtl/common/counter_bin.sv), [`counter_bingray`](rtl/common/counter_bingray.sv), [`counter_load_clear`](rtl/common/counter_load_clear.sv), [`counter_johnson`](rtl/common/counter_johnson.sv), [`counter_ring`](rtl/common/counter_ring.sv), [`counter_freq_invariant`](rtl/common/counter_freq_invariant.sv) |
 | [Arbiters](docs/classes/common/arbiters.md) | 4 | [`rtl/common/`](rtl/common/) (`arbiter_*.sv`) | [`arbiter_round_robin`](rtl/common/arbiter_round_robin.sv), [`arbiter_round_robin_weighted`](rtl/common/arbiter_round_robin_weighted.sv), PWM variants |
-| [FIFOs](docs/classes/common/fifos.md) | 4 | [`rtl/common/`](rtl/common/) (`fifo_*.sv`) | [`fifo_sync`](rtl/common/fifo_sync.sv), [`fifo_async`](rtl/common/fifo_async.sv), [`fifo_async_div2`](rtl/common/fifo_async_div2.sv) |
+| [FIFOs](docs/classes/common/fifos.md) | 3 | [`rtl/common/`](rtl/common/) (`fifo_*.sv`) | [`fifo_sync`](rtl/common/fifo_sync.sv), [`fifo_async`](rtl/common/fifo_async.sv) |
 | [Shift / LFSR](docs/classes/common/shift_lfsr.md) | — | [`rtl/common/`](rtl/common/) (`shifter_*.sv`) | Fibonacci LFSR, Galois LFSR, universal shifters |
 | [Math — integer arithmetic](docs/classes/common/math_integer.md) | 40+ | [`rtl/common/`](rtl/common/) (`math_adder_*`, `math_mult_*`, `math_div_*`) | Han-Carlson prefix adders (16/22/32/44/48/72-bit), Dadda 4:2 compressor mults (8/11/24-bit), leading-zero count, parity |
 | [Math — floating point](docs/classes/common/math_float.md) | 120+ | [`rtl/common/`](rtl/common/) (`math_float_*`) | BF16, FP16, FP32, FP8 (E4M3/E5M2): adder, multiplier, FMA, recip, divide, sqrt; cross-format converters |
@@ -150,14 +150,14 @@ CDC primitives live in multiple subsystems. Pulled together here so you don't ha
 
 | Module | Where | Use |
 |---|---|---|
-| [`cdc_synchronizer.sv`](rtl/amba/shared/cdc_synchronizer.sv) | [`rtl/amba/shared/`](rtl/amba/shared/) | Plain N-flop bit synchronizer |
-| [`cdc_2_phase_handshake.sv`](rtl/amba/shared/cdc_2_phase_handshake.sv) | [`rtl/amba/shared/`](rtl/amba/shared/) | 2-phase req/ack data CDC |
-| [`cdc_4_phase_handshake.sv`](rtl/amba/shared/cdc_4_phase_handshake.sv) | [`rtl/amba/shared/`](rtl/amba/shared/) | 4-phase req/ack data CDC |
-| [`cdc_open_loop.sv`](rtl/amba/shared/cdc_open_loop.sv) | [`rtl/amba/shared/`](rtl/amba/shared/) | Fire-and-forget pulse CDC |
+| [`cdc_synchronizer.sv`](rtl/amba/cdc/cdc_synchronizer.sv) | [`rtl/amba/shared/`](rtl/amba/shared/) | Plain N-flop bit synchronizer |
+| [`cdc_2_phase_handshake.sv`](rtl/amba/cdc/cdc_2_phase_handshake.sv) | [`rtl/amba/shared/`](rtl/amba/shared/) | 2-phase req/ack data CDC |
+| [`cdc_4_phase_handshake.sv`](rtl/amba/cdc/cdc_4_phase_handshake.sv) | [`rtl/amba/shared/`](rtl/amba/shared/) | 4-phase req/ack data CDC |
+| [`cdc_open_loop.sv`](rtl/amba/cdc/cdc_open_loop.sv) | [`rtl/amba/shared/`](rtl/amba/shared/) | Fire-and-forget pulse CDC |
 | [`reset_sync.sv`](rtl/common/reset_sync.sv) | [`rtl/common/`](rtl/common/) | Async-assert / sync-deassert reset CDC |
 | [`bin2gray.sv`](rtl/common/bin2gray.sv) / [`gray2bin.sv`](rtl/common/gray2bin.sv) | [`rtl/common/`](rtl/common/) | Gray-code conversion for pointer CDC |
 | [`counter_bingray.sv`](rtl/common/counter_bingray.sv) | [`rtl/common/`](rtl/common/) | Binary/Gray dual counter for FIFO pointers |
-| [`fifo_async.sv`](rtl/common/fifo_async.sv) / [`fifo_async_div2.sv`](rtl/common/fifo_async_div2.sv) | [`rtl/common/`](rtl/common/) | Async FIFOs for word-width CDC |
+| [`fifo_async.sv`](rtl/common/fifo_async.sv) | [`rtl/common/`](rtl/common/) | Async FIFOs for word-width CDC |
 | `gaxi_fifo_async*.sv`, `gaxi_skid_buffer_async*.sv` | [`rtl/amba/gaxi/`](rtl/amba/gaxi/) | AXI-shaped async FIFO + skid |
 | `apb_slave_cdc.sv` (and `apb5_slave_cdc.sv`) | [`rtl/amba/apb/`](rtl/amba/apb/) / [`rtl/amba/apb5/`](rtl/amba/apb5/) | APB slave with CDC built in |
 

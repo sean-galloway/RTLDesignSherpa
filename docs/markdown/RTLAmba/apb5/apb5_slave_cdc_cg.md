@@ -90,9 +90,14 @@ flowchart TB
 | WUSER_WIDTH | int | 4 | Write user signal width |
 | RUSER_WIDTH | int | 4 | Read user signal width |
 | BUSER_WIDTH | int | 4 | Response user signal width |
-| DEPTH | int | 2 | Internal buffer depth |
-| ENABLE_PARITY | bit | 0 | Enable parity signals |
-| CG_IDLE_COUNT_WIDTH | int | 4 | Width of idle counter |
+| STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |
+| DEPTH | int | 2 | Skid-buffer depth of the wrapped slave; CDC FIFOs use `max(DEPTH, 4)` |
+| ENABLE_PARITY | bit | 0 | Enable parity generation and checking |
+| CG_IDLE_COUNT_WIDTH | int | 4 | Width of idle counter (max idle = 2^N-1 cycles) |
+| USE_2_PHASE_CDC | bit | 1 | Deprecated and ignored -- retained for source compatibility |
+
+As with [apb5_slave_cdc](apb5_slave_cdc.md), there is no `SYNC_STAGES`
+parameter: pointer synchronization is fixed at 2 flops inside the async FIFOs.
 
 ---
 
@@ -138,42 +143,52 @@ Same command/response interface as [apb5_slave_cdc](apb5_slave_cdc.md) - operate
 
 ```mermaid
 flowchart TD
-    subgraph WAKE["Wake-up Triggers"]
+    subgraph PCLK_TRIG["Wake-up Triggers (pclk domain)"]
         psel["PSEL"]
         penable["PENABLE"]
+    end
+
+    subgraph ACLK_TRIG["Wake-up Triggers (aclk domain)"]
         cmd_valid["cmd_valid"]
         rsp_valid["rsp_valid"]
         wakeup_req["wakeup_request"]
     end
 
-    subgraph CG["Clock Gate Control"]
+    subgraph CG["Clock Gate Control (pclk domain)"]
+        sync["2-FF Synchronizer<br/>r_aclk_activity_sync1/2"]
         wakeup["r_wakeup<br/>(OR of all triggers)"]
-        gate["amba_clock_gate_ctrl"]
+        gate["amba_clock_gate_ctrl<br/>(+1 flop, then ICG)"]
     end
 
     psel --> wakeup
     penable --> wakeup
-    cmd_valid --> wakeup
-    rsp_valid --> wakeup
-    wakeup_req --> wakeup
+    cmd_valid --> sync
+    rsp_valid --> sync
+    wakeup_req --> sync
+    sync --> wakeup
 
     wakeup -->|user_valid| gate
     gate --> gated_pclk
 ```
 
+The `aclk`-domain activity terms are ORed together and passed through a two-flop
+synchronizer before being combined with the `pclk`-domain terms. Without that
+synchronizer these signals would cross domains unsynchronized.
+
 ### Timing Considerations
 
 <!-- TODO: Add wavedrom timing diagram for CDC+CG -->
-```
-TODO: Wavedrom timing diagram showing:
-- pclk (ungated)
-- gated_pclk
-- aclk (different frequency)
-- s_apb_PSEL (wake trigger)
-- apb_clock_gating indicator
-- Transaction flow across CDC with gating
-- Wake-up latency from PSEL to clock active
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - pclk (ungated)
+> - gated_pclk
+> - aclk (different frequency)
+> - s_apb_PSEL (wake trigger)
+> - apb_clock_gating indicator
+> - Transaction flow across CDC with gating
+> - Wake-up latency from PSEL to clock active
+
 
 ---
 
@@ -230,13 +245,30 @@ apb5_slave_cdc_cg #(
 
 ### Power and Latency Trade-offs
 
-| Configuration | Power Savings | Wake-up Latency |
-|---------------|---------------|-----------------|
-| CG disabled | None | 0 cycles |
-| CG idle=4 | Moderate | 0 cycles (instant wake) |
-| CG idle=16 | Good | 0 cycles (instant wake) |
+Wake-up is **registered, not combinational**. Activity is registered once (AXI4,
+AXI5, AXI4-Lite, AXI4-Stream) or twice (APB, APB5, AXI5-Stream) before reaching
+the ICG enable, which is combinational. A pclk-domain trigger (PSEL or PENABLE)
+passes through this wrapper's `r_wakeup` and then through the flop inside
+`amba_clock_gate_ctrl`, so APB5 is a two-stage family and the first usable gated
+`pclk` rising edge arrives **3 ungated `pclk` cycles** after the trigger. An
+aclk-domain trigger (`cmd_valid`, `rsp_valid`, `wakeup_request`) first crosses a
+2-flop synchronizer into `pclk`, adding about two more `pclk` cycles.
 
-**Note:** Wake-up is instant from PSEL assertion due to combinational wake-up logic.
+| Configuration | Power Savings | Wake-up Latency from PSEL |
+|---------------|---------------|---------------------------|
+| CG disabled | None | 0 cycles (clock always running) |
+| CG idle=4 | Moderate | 2 register stages; first usable edge 3 ungated pclk cycles |
+| CG idle=16 | Good | 2 register stages; first usable edge 3 ungated pclk cycles |
+
+The wake-up latency does not depend on `cfg_cg_idle_count`; the idle count only
+controls how long the block waits before gating. Latency is absorbed as APB wait
+states, since the slave holds PREADY low until it is running again.
+
+Deliberately keeping the wake-up path registered avoids driving a clock-gate
+enable from a combinational function of a bus input. The gating element itself
+is an ICG cell instantiated by `clock_gate_ctrl`, which is glitch-free by
+construction. ICG cells are an ASIC library primitive; FPGA targets should use a
+clock-enable approach instead.
 
 ### Combined Feature Hierarchy
 
@@ -254,10 +286,15 @@ flowchart TB
 
 ### Reset Considerations
 
-- APB domain reset (`presetn`) controls APB interface and clock gate
-- User domain reset (`aresetn`) controls backend interface
-- Both resets must be properly synchronized to their domains
-- Module handles internal CDC for reset coordination
+- APB domain reset (`presetn`) controls the APB interface, the wake-up
+  synchronizer and the clock gate
+- User domain reset (`aresetn`) controls the backend side of the CDC FIFOs
+- Each reset must already be synchronized (or asynchronously asserted and
+  synchronously deasserted) in its own domain by the integrator; this module
+  does not synchronize either reset into the other domain
+- The async FIFOs tolerate a one-sided reset without corrupting the pointer
+  state -- see [apb5_slave_cdc](apb5_slave_cdc.md) for the mechanism and for the
+  in-flight transaction caveat
 
 ---
 
@@ -271,6 +308,6 @@ flowchart TB
 
 ## Navigation
 
-- **[<- Back to APB5 Index](README.md)**
-- **[<- Back to RTLAmba Index](../index.md)**
-- **[<- Back to Main Documentation Index](../../index.md)**
+- **[← Back to APB5 Index](README.md)**
+- **[← Back to RTLAmba Index](../index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

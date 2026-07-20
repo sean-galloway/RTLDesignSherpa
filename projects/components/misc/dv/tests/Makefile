@@ -52,6 +52,19 @@ run-fub:
 run-fub-parallel:
 	@$(MAKE) --no-print-directory -C fub run-all-parallel
 
+# Standard run-all-<gate|func|full>[-parallel] interface (see projects/components/
+# Makefile).  misc has a single 'fub' tier, so each just forwards to fub/'s
+# same-named target.
+.PHONY: run-all run-all-parallel \
+        run-all-gate run-all-gate-parallel \
+        run-all-func run-all-func-parallel \
+        run-all-full run-all-full-parallel
+run-all run-all-parallel \
+run-all-gate run-all-gate-parallel \
+run-all-func run-all-func-parallel \
+run-all-full run-all-full-parallel:
+	@$(MAKE) --no-print-directory -C fub $@
+
 # Generic delegation: `make fub-<anything>` runs `<anything>` inside fub/.
 # Combined with the `%-waves` pattern below, you get every fub/ target's
 # wave variant for free, e.g. `make fub-run-all-gate-waves`.

@@ -24,7 +24,7 @@
 # AXI Monitor Transaction Manager
 
 **Module:** `axi_monitor_trans_mgr.sv`
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Category:** Core Infrastructure
 **Status:** Production Ready (CAM-backed revision, 2026-06-08)
 

@@ -24,7 +24,7 @@
 # AXI Monitor Base
 
 **Module:** `axi_monitor_base.sv`
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Category:** Core Infrastructure
 **Status:** ✅ Production Ready
 

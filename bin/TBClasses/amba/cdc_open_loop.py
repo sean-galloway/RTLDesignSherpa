@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2026 sean galloway
 #
 # Module: CDCOpenLoopTB
-# Purpose: Testbench for rtl/amba/shared/cdc_open_loop.sv — multi-bit
+# Purpose: Testbench for rtl/amba/cdc/cdc_open_loop.sv — multi-bit
 #          open-loop (fire-and-forget) CDC via data/valid stretch.
 #
 # The interface is simpler than the req/ack handshakes:

@@ -24,7 +24,7 @@
 # AXI4 Write Data Width Converter
 
 **Module:** `axi4_dwidth_converter_wr.sv`
-**Location:** `rtl/amba/axi4/`
+**Location:** `projects/components/converters/rtl/`
 **Status:** ✅ Production Ready
 
 ---
@@ -425,15 +425,29 @@ Same alignment requirements as [axi4_dwidth_converter](axi4_dwidth_converter.md)
 
 **Upsize:**
 ```
-Master AWLEN = (Slave AWLEN + 1) / WIDTH_RATIO - 1
-Master AWSIZE = Slave AWSIZE + $clog2(WIDTH_RATIO)
+Master AWLEN  = (Slave AWLEN + WIDTH_RATIO) / WIDTH_RATIO - 1   // ceiling divide
+Master AWSIZE = $clog2(M_AXI_DATA_WIDTH / 8)                    // full master width
 ```
 
 **Downsize:**
 ```
-Master AWLEN = (Slave AWLEN + 1) * WIDTH_RATIO - 1
-Master AWSIZE = Slave AWSIZE - $clog2(WIDTH_RATIO)
+Master AWLEN  = (Slave AWLEN + 1) * WIDTH_RATIO - 1
+Master AWSIZE = $clog2(M_AXI_DATA_WIDTH / 8)                    // full master width
 ```
+
+`AWSIZE` on the master side is not derived from the slave `AWSIZE`; it is driven
+to the master interface's full byte width in both directions.
+
+**Non-divisible burst lengths (upsize):** the length divide rounds *up*. A slave
+burst whose beat count is not a multiple of `WIDTH_RATIO` is legal and produces a
+final master beat whose unused byte lanes are masked off by `WSTRB`. No error is
+raised.
+
+**Address alignment (upsize):** unlike the read converter, the write converter
+passes `AWADDR` through unmodified while promoting `AWSIZE` to the full master
+width. Supply an address already aligned to `M_AXI_DATA_WIDTH / 8`; a misaligned
+address combined with the promoted `AWSIZE` is not protocol-legal for an `INCR`
+burst and the module does not detect or correct it.
 
 See [axi4_dwidth_converter](axi4_dwidth_converter.md) for detailed examples.
 

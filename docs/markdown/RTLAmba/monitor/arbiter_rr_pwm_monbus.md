@@ -24,7 +24,7 @@
 # Round-Robin Arbiter with PWM and Monitor Bus
 
 **Module:** `arbiter_rr_pwm_monbus.sv`
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Status:** Production Ready
 
 ---

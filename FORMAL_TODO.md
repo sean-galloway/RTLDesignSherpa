@@ -140,8 +140,8 @@ These have prove PASS but no cover task defined, or cover not yet run:
 **Non-math (53 prove+cover PASS):**
 arbiter_round_robin_simple, arbiter_round_robin, arbiter_round_robin_weighted,
 arbiter_priority_encoder, counter_bin_load, counter_bingray, counter_freq_invariant (cover only),
-counter_johnson, counter_load_clear, counter_ring, bin2gray, gray2bin, grayj2bin,
-glitch_free_n_dff_arn, fifo_sync, fifo_async, fifo_async_div2, fifo_control,
+counter_johnson, counter_load_clear, counter_ring, bin2gray, gray2bin, johnson2bin,
+glitch_free_n_dff_arn, fifo_sync, fifo_async, fifo_control,
 fifo_sync_multi, gaxi_skid_buffer, gaxi_skid_buffer_dbldrn, gaxi_skid_buffer_async,
 gaxi_skid_buffer_struct, gaxi_fifo_sync, gaxi_fifo_async, gaxi_drop_fifo_sync,
 gaxi_regslice, monbus_arbiter, axi_gen_addr, dataint_crc_xor_shift,

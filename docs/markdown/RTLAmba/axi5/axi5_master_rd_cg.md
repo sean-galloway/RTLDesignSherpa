@@ -33,9 +33,11 @@
 
 The AXI5 Master Read with Clock Gating module wraps the standard `axi5_master_rd` core with intelligent clock gating for power optimization. It automatically gates the clock when no AXI activity is detected for a configurable number of idle cycles.
 
+**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking or `RTAGMATCH` generation, no chunk reassembly, no poison generation, and no outstanding-transaction tracking. Those behaviors belong to the endpoints on either side. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
+
 ### Key Features
 
-- Full AMBA AXI5 protocol compliance (wraps `axi5_master_rd`)
+- Carries the same AXI5 signal set as `axi5_master_rd`, which it wraps
 - **ARNSAID:** Non-secure access identifier for security domains
 - **ARTRACE:** Trace signal for debug and performance monitoring
 - **ARMPAM:** Memory Partitioning and Monitoring (PartID + PMG)
@@ -130,6 +132,20 @@ flowchart LR
 | ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
 | ENABLE_POISON | bit | 1 | Enable poison indicator |
 | **CG_IDLE_COUNT_WIDTH** | int | 4 | Width of idle counter (max 2^N-1 cycles) |
+
+### Derived Parameters
+
+These are computed inside the module from the parameters above. Do not override them.
+
+| Parameter | Expression | Description |
+|-----------|------------|-------------|
+| NUM_TAGS | max(AXI_DATA_WIDTH / 128, 1) | MTE tags carried per beat (one tag per 16 bytes) |
+| TW | AXI_TAG_WIDTH * NUM_TAGS | Total width of the `rtag` field |
+| CHUNK_STRB_WIDTH | max(AXI_DATA_WIDTH / 128, 1) | Width of `rchunkstrb`, one bit per 128-bit granule |
+| ARSize | Sum of the enabled AR fields | AR SKID buffer payload width |
+| RSize | Sum of the enabled R fields | R SKID buffer payload width |
+
+**Note on AXI_WSTRB_WIDTH:** this module declares `AXI_WSTRB_WIDTH` (default `AXI_DATA_WIDTH/8`) and its short alias `SW`, but neither is used. A read module has no W channel and therefore no write strobes. The parameter is retained only so the read and write module parameter lists line up; overriding it has no effect.
 
 ---
 
@@ -245,9 +261,26 @@ fub_axi_arready = cg_gating ? 1'b0 : int_arready;
 m_axi_rready = cg_gating ? 1'b0 : int_rready;
 ```
 
+### Ready Deassertion and Wake Behavior
+
+While `cg_gating` is asserted, the ready outputs listed above are forced low.
+
+This is legal AXI. A READY output may be deasserted for any number of cycles, and neither side may assume READY asserts within a bounded time, so holding it low is ordinary backpressure rather than a protocol violation. It cannot deadlock either: the same VALID being held off also feeds the activity detector, so gating releases and READY returns to the core's value.
+
+Two consequences are worth designing around:
+
+- **Wake latency adds to first-transfer latency.** Activity is registered once (AXI4, AXI5, AXI4-Lite, AXI4-Stream) or twice (APB, APB5, AXI5-Stream) before reaching the ICG enable, which is combinational. The AXI5 `_cg` wrappers drive the activity terms combinationally, so there is 1 register stage and the first usable gated-clock edge arrives 2 cycles after activity asserts. Size `cfg_cg_idle_count` so that cost is amortized over the traffic burst that follows.
+- **READY is a combinational function of `cg_gating`.** The path from the idle counter to the `fub_axi_arready` output may need attention during timing closure, particularly at high frequency.
+
+### Integration Caveat: `fub_axi_rready` in the Activity Term
+
+The activity detector treats `fub_axi_rready` as activity, not just the corresponding VALID. A FUB that ties `fub_axi_rready` high permanently, which is a common and otherwise entirely correct style, holds `user_valid` asserted forever. The idle counter then never expires and the clock never gates.
+
+If a clock-gated instance appears to save no power, check this first. To get gating with an always-ready consumer, either assert `fub_axi_rready` only while a response is genuinely expected, or instantiate the non-gated base module and gate at a level where real idleness is visible.
+
 ### Idle Counter Configuration
 
-The `cfg_cg_idle_count` parameter sets how many consecutive idle cycles are required before clock gating activates:
+The `cfg_cg_idle_count` parameter sets how many consecutive idle cycles are required before clock gating activates. Gating engages `cfg_cg_idle_count + 1` clocks after the internal wakeup deasserts, which is `cfg_cg_idle_count + 2` clocks after the last bus activity on AXI5 (one extra for the `r_wakeup` flop). The "Idle Cycles" column below counts from the internal wakeup deassertion:
 
 | cfg_cg_idle_count | Idle Cycles | Use Case |
 |-------------------|-------------|----------|
@@ -261,14 +294,16 @@ The `cfg_cg_idle_count` parameter sets how many consecutive idle cycles are requ
 ### Power Savings Analysis
 
 **Clock gating effectiveness:**
-- Dynamic power reduction proportional to idle time
-- Typical savings: 20-40% in bursty traffic scenarios
-- Maximum savings: >90% in mostly-idle systems
+- Dynamic power of the gated logic falls roughly in proportion to the gated fraction of time
+- Order-of-magnitude expectation: tens of percent of this module's dynamic power under bursty traffic; most of it in a mostly-idle system
 
 **Trade-offs:**
-- Wake latency: 1-2 clock cycles
-- Area increase: ~5% (clock gating logic)
+- Wake latency: 1 register stage; first usable gated-clock edge 2 clock cycles after activity
+- Area increase: a few percent (clock gate cell plus idle counter)
 - Best suited for: Intermittent traffic patterns
+
+All power figures on this page are first-order estimates derived from duty cycle, not measured results. No power analysis (gate-level or otherwise) has been run against these modules. Actual savings depend on the gated logic's share of total design power, the technology library's clock-gate cell, and leakage, which clock gating does not reduce at all. Treat these numbers as a sizing aid and characterize your own instance before quoting a savings figure.
+
 
 ---
 
@@ -277,29 +312,31 @@ The `cfg_cg_idle_count` parameter sets how many consecutive idle cycles are requ
 ### Clock Gating Activation
 
 <!-- TODO: Add wavedrom timing diagram for clock gating activation -->
-```
-TODO: Wavedrom timing diagram showing:
-- ACLK (ungated)
-- GATED_ACLK (gated clock)
-- user_valid, axi_valid activity
-- Idle counter incrementing
-- cg_idle assertion
-- cg_gating activation
-- Clock stops after idle count
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - ACLK (ungated)
+> - GATED_ACLK (gated clock)
+> - user_valid, axi_valid activity
+> - Idle counter incrementing
+> - cg_idle assertion
+> - cg_gating activation
+> - Clock stops after idle count
+
 
 ### Clock Gating Wake-up
 
 <!-- TODO: Add wavedrom timing diagram for clock gating wake-up -->
-```
-TODO: Wavedrom timing diagram showing:
-- ACLK (ungated)
-- GATED_ACLK resuming
-- Activity detection (arvalid assertion)
-- cg_gating deactivation
-- arready response after wake
-- Normal AXI transaction proceeds
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - ACLK (ungated)
+> - GATED_ACLK resuming
+> - Activity detection (arvalid assertion)
+> - cg_gating deactivation
+> - arready response after wake
+> - Normal AXI transaction proceeds
+
 
 ---
 
@@ -376,7 +413,8 @@ axi5_master_rd_cg #(
     // Master interface (output side)
     .m_axi_arid         (m_axi_arid),
     .m_axi_araddr       (m_axi_araddr),
-    // ... (connect all master signals similarly)
+    // Every remaining m_axi_* port mirrors the fub_axi_* list above,
+    // same names and widths, opposite directions. All must be connected.
 
     // Clock gating status
     .cg_gating          (clock_gated),
@@ -401,7 +439,7 @@ end
 | Aspect | Always-On | Clock Gated |
 |--------|-----------|-------------|
 | Power (idle) | 100% | 10-30% |
-| Wake latency | 0 cycles | 1-2 cycles |
+| Wake latency | 0 cycles | 1 register stage; first usable edge 2 cycles after activity |
 | Area overhead | 0% | ~5% |
 | Best for | Continuous traffic | Bursty traffic |
 
@@ -463,7 +501,7 @@ When verifying clock-gated designs:
 
 - **[AXI5 Master Read](axi5_master_rd.md)** - Non-gated base module
 - **[AXI5 Master Write CG](axi5_master_wr_cg.md)** - Write with clock gating
-- **[AXI5 Master Read Monitor CG](axi5_master_rd_mon_cg.md)** - With monitoring + clock gating
+- **[AXI5 Master Read Monitor CG](../monitor/axi5_master_rd_mon_cg.md)** - With monitoring + clock gating
 - **[AMBA Clock Gate Controller](../shared/amba_clock_gate_ctrl.md)** - Clock gating controller spec
 
 ---

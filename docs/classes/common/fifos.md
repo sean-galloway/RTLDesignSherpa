@@ -31,7 +31,7 @@
 
 ## What this is
 
-The base synchronous and asynchronous FIFO library. `fifo_sync` is a single-clock FIFO; `fifo_async` is a Gray-pointer CDC FIFO restricted to power-of-2 depths; `fifo_async_div2` is a Johnson-pointer CDC FIFO that works at any even depth; `fifo_control` is the shared full/empty pointer-arithmetic block used inside the three FIFO wrappers.
+The base synchronous and asynchronous FIFO library. `fifo_sync` is a single-clock FIFO; `fifo_async` is a CDC FIFO that uses Gray pointers (power-of-2 depths) or Johnson pointers at any even depth via `USE_JOHNSON=1`; `fifo_control` is the shared full/empty pointer-arithmetic block used inside the three FIFO wrappers.
 
 ## Why use this class
 
@@ -44,11 +44,10 @@ Every interface in the repo eventually buffers — pipelines need elasticity, CD
 | [`fifo_control.sv`](../../../rtl/common/fifo_control.sv) | Shared full/empty generator used by all FIFO variants | Building a custom FIFO — reuse this for status |
 | [`fifo_sync.sv`](../../../rtl/common/fifo_sync.sv) | Single-clock synchronous FIFO | Same-clock buffering, pipeline elasticity |
 | [`fifo_async.sv`](../../../rtl/common/fifo_async.sv) | Async CDC FIFO with Gray-coded pointers, power-of-2 depths | CDC FIFO, standard case |
-| [`fifo_async_div2.sv`](../../../rtl/common/fifo_async_div2.sv) | Async CDC FIFO using Johnson counters, any even depth | CDC FIFO when depth must not be power-of-2 |
 
 ## Picking guide
 
-Same clock domain: `fifo_sync`. Crossing clock domains with a depth like 8/16/32/64: `fifo_async`. Crossing clock domains but you need depth 6 or 10 (e.g., to match a beat count or area target): `fifo_async_div2`. `fifo_control` is a leaf — only instantiate it directly if you are building a new FIFO flavor and want to reuse the proven status generator.
+Same clock domain: `fifo_sync`. Crossing clock domains with a depth like 8/16/32/64: `fifo_async`. Crossing clock domains but you need depth 6 or 10 (e.g., to match a beat count or area target): `fifo_async` with `USE_JOHNSON=1`. `fifo_control` is a leaf — only instantiate it directly if you are building a new FIFO flavor and want to reuse the proven status generator.
 
 ## Tests
 

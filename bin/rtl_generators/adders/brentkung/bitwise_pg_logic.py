@@ -42,7 +42,7 @@ class BitwisePGLogic(Module):
         self.instruction('// Loop over bits')
         self.instruction('genvar k;')
         self.instruction('generate')
-        self.instruction('    for (k = 0; k < N; k=k+1) begin : gen_loop ')
+        self.instruction('    for (k = 0; k < N; k++) begin : gen_loop ')
         self.instruction('        math_adder_brent_kung_pg PG_Bit(.i_a(i_a[k]),.i_b(i_b[k]),.ow_p(ow_p[k+1]),.ow_g(ow_g[k+1]));')
         self.instruction('    end')
         self.instruction('endgenerate')

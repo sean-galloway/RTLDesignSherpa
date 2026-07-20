@@ -4,7 +4,7 @@
 // Yosys-compatible copy of cdc_handshake.sv for formal verification.
 // Changes from original:
 //   - Replaced `include "reset_defs.svh" macros with explicit always_ff blocks
-//   - Everything else identical to rtl/amba/shared/cdc_handshake.sv
+//   - Everything else identical to rtl/amba/cdc/cdc_handshake.sv
 
 `timescale 1ns / 1ps
 

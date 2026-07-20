@@ -24,7 +24,7 @@
 # AXI Monitor Reporter — Timeout Packets
 
 **Module:** `axi_monitor_reporter_timeout.sv`
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Status:** Production Ready
 
 ---

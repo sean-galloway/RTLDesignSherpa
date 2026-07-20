@@ -54,11 +54,10 @@ When you need an adder or multiplier, the question is never "can I build one?" �
 | Module | Role | Pick when |
 |---|---|---|
 | [`math_adder_ripple_carry.sv`](../../../rtl/common/math_adder_ripple_carry.sv) | O(N) ripple carry | Area-critical, low frequency |
-| [`math_adder_carry_lookahead.sv`](../../../rtl/common/math_adder_carry_lookahead.sv) | CLA, P/G | 4–16 bits, balanced PPA |
+| [`math_adder_pg_chain.sv`](../../../rtl/common/math_adder_pg_chain.sv) | CLA, P/G | 4–16 bits, balanced PPA |
 | [`math_adder_carry_save.sv`](../../../rtl/common/math_adder_carry_save.sv) / [`_nbit`](../../../rtl/common/math_adder_carry_save_nbit.sv) | 3:2 compressor, constant depth | Multi-operand sums, inside multipliers |
 | [`math_adder_brent_kung_{008,016,032}.sv`](../../../rtl/common/) | Brent-Kung parallel-prefix | Log-depth adder, area-aware |
 | [`math_adder_han_carlson_{016,022,032,044,048,072}.sv`](../../../rtl/common/) | Han-Carlson sparsity-2 prefix | Log-depth adder, BF16 mantissa (48b) |
-| [`math_adder_kogge_stone_nbit.sv`](../../../rtl/common/math_adder_kogge_stone_nbit.sv) | Kogge-Stone-inspired | Generic-width parameterizable variant |
 | [`math_adder_full_nbit.sv`](../../../rtl/common/math_adder_full_nbit.sv) | N-bit chained full adder | Simplest n-bit wrapper |
 | [`math_addsub_full_nbit.sv`](../../../rtl/common/math_addsub_full_nbit.sv) | Shared add/sub via XOR + carry-in | Need both ops in one unit |
 

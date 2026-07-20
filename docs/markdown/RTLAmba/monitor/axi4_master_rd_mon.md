@@ -134,7 +134,7 @@ The monitor exposes a `block_ready` signal that goes low when its internal FIFO 
 - **Where the stall lands**: the upstream `fub_axi_arready` is forced low until the monitor drains.
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
 
-This replaces a previous bug where `block_ready` was left unconnected and a full monitor FIFO would silently lose events.
+`block_ready` must be connected: when the monitor FIFO fills, it backpressures the monitored channel rather than silently dropping events. Leaving it unconnected loses events with no indication.
 
 ---
 
@@ -194,7 +194,7 @@ The four buckets sum to `window_cycles`, so utilization = `perf_prod_cycles / wi
 | Output | Width | Meaning |
 |--------|:-----:|---------|
 | `perf_beat_count`  | 32 | R data beats transferred (= `perf_prod_cycles`, 1 beat/cycle) |
-| `perf_byte_count`  | 64 | bytes transferred = beats × (1 << ARSIZE), using the ARSIZE captured at the most recent AR address phase |
+| `perf_byte_count`  | 64 | bytes transferred = beats × (1 << ARSIZE), using the ARSIZE captured at the most recent AR address phase (upper bound: counts full-width beats; an unaligned start address means the first beat carries fewer useful bytes) |
 | `perf_burst_count` | 32 | AR address-phase handshakes |
 
 The integrator computes average burst length as `perf_beat_count / perf_burst_count`.
@@ -675,7 +675,7 @@ Monitors up to `MAX_TRANSACTIONS` concurrent transactions:
 - **axi4_slave_wr_mon** - AXI4 slave write with monitoring
 
 ### Base Modules
-- **[axi4_master_rd](axi4_master_rd.md)** - Functional AXI4 master read (without monitoring)
+- **[axi4_master_rd](../axi4/axi4_master_rd.md)** - Functional AXI4 master read (without monitoring)
 - **axi_monitor_filtered** - Monitoring engine with filtering (shared/)
 
 ### Used Components

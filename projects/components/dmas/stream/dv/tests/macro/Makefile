@@ -551,6 +551,21 @@ run-full-parallel-waves:
 	@echo "Running STREAM macro tests at FULL level in parallel with waveforms..."
 	WAVES=1 REG_LEVEL=FULL TEST_LEVEL=full $(PYTEST) $(PARALLEL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
+# Non-parallel companions (serial within the tier: same tests, no -n workers/reruns).
+# These let the umbrella run-all-<level> targets fan out serially per tier exactly
+# like the -parallel variants above.  Default level is gate (mirrors run-parallel).
+.PHONY: run run-gate run-func run-full
+run: run-gate
+run-gate:
+	@echo "Running STREAM macro tests at GATE level..."
+	REG_LEVEL=GATE TEST_LEVEL=gate $(PYTEST) $(PARALLEL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+run-func:
+	@echo "Running STREAM macro tests at FUNC level..."
+	REG_LEVEL=FUNC TEST_LEVEL=func $(PYTEST) $(PARALLEL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+run-full:
+	@echo "Running STREAM macro tests at FULL level..."
+	REG_LEVEL=FULL TEST_LEVEL=full $(PYTEST) $(PARALLEL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
 # Performance benchmarks (test_stream_performance_profile.py) are opt-in and NOT
 # part of the regression fan-out above -- run them via the run-perf / run-perf-waves
 # / run-perf-parallel / run-perf-parallel-waves targets defined earlier.

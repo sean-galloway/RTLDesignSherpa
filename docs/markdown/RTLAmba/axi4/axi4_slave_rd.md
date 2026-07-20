@@ -227,8 +227,8 @@ flowchart LR
 
 The `busy` output indicates active transactions:
 ```systemverilog
-busy = (ar_count > 0) || (r_count > 0) ||
-       s_axi_arvalid || fub_axi_rvalid
+assign busy = (int_ar_count > 0) || (int_r_count > 0) ||
+                s_axi_arvalid || fub_axi_rvalid;
 ```
 
 Use cases:
@@ -241,6 +241,11 @@ Use cases:
 ## Configuration Guidelines
 
 ### Buffer Depth Selection
+
+`SKID_DEPTH_*` is an entry count, not a log2 exponent. The underlying
+`gaxi_skid_buffer` allocates one register slot per entry and tracks occupancy
+with a 4-bit counter, so legal values are 2, 4, 6, and 8. Values greater than 8
+overflow the occupancy counter and are not supported.
 
 **Read Address (SKID_DEPTH_AR):**
 - Default: 2 (sufficient for most cases)
@@ -270,7 +275,7 @@ axi4_slave_rd #(
 ```systemverilog
 axi4_slave_rd #(
     .SKID_DEPTH_AR(4),
-    .SKID_DEPTH_R(16)    // Deep for burst data
+    .SKID_DEPTH_R(8)     // Deep for burst data
 ) u_slave_rd ( ... );
 ```
 
@@ -278,7 +283,7 @@ axi4_slave_rd #(
 ```systemverilog
 axi4_slave_rd #(
     .SKID_DEPTH_AR(8),
-    .SKID_DEPTH_R(16)
+    .SKID_DEPTH_R(8)
 ) u_slave_rd ( ... );
 ```
 

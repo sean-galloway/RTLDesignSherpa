@@ -154,11 +154,11 @@ flowchart TB
 
 ### Slave AXI5 Interface
 
-Same as `axi5_slave_rd` - see [AXI5 Slave Read](axi5_slave_rd.md) for complete port list.
+Same as `axi5_slave_rd` - see [AXI5 Slave Read](../axi5/axi5_slave_rd.md) for complete port list.
 
 ### FUB Interface
 
-Same as `axi5_slave_rd` - see [AXI5 Slave Read](axi5_slave_rd.md) for complete port list.
+Same as `axi5_slave_rd` - see [AXI5 Slave Read](../axi5/axi5_slave_rd.md) for complete port list.
 
 ### Monitor Configuration
 
@@ -368,8 +368,8 @@ gaxi_fifo_sync #(.DATA_WIDTH(64), .DEPTH(256)) u_mon_fifo (
 
 ## Related Documentation
 
-- **[AXI5 Slave Read](axi5_slave_rd.md)** - Non-monitored, non-gated version
-- **[AXI5 Slave Read CG](axi5_slave_rd_cg.md)** - Clock-gated without monitoring
+- **[AXI5 Slave Read](../axi5/axi5_slave_rd.md)** - Non-monitored, non-gated version
+- **[AXI5 Slave Read CG](../axi5/axi5_slave_rd_cg.md)** - Clock-gated without monitoring
 - **[AXI5 Slave Read Monitor](axi5_slave_rd_mon.md)** - Monitored without clock gating
 - **[AXI5 Slave Write Monitor CG](axi5_slave_wr_mon_cg.md)** - Write variant
 - **[AMBA Clock Gate Control](../shared/amba_clock_gate_ctrl.md)** - Clock gating controller

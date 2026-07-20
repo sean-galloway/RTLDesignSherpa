@@ -4,7 +4,7 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: test_math_adder_carry_lookahead
+# Module: test_math_adder_pg_chain
 # Purpose: Test for the carry lookahead adder module.
 #
 # Documentation: PRD.md
@@ -64,20 +64,20 @@ async def adder_test(dut):
     await tb.main_loop()
 
 @pytest.mark.parametrize("n", get_width_params())
-def test_math_adder_carry_lookahead(request, n):
+def test_math_adder_pg_chain(request, n):
     """PyTest function to run the cocotb test."""
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn': 'rtl/common'
     })
 
-    dut_name = "math_adder_carry_lookahead"
+    dut_name = "math_adder_pg_chain"
     toplevel = dut_name
 
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/math_adder_carry_lookahead.f'
+        filelist_path='rtl/common/filelists/math_adder_pg_chain.f'
     )
 
     # Define test parameters

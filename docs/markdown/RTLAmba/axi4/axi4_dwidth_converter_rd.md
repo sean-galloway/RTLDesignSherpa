@@ -24,7 +24,7 @@
 # AXI4 Read Data Width Converter
 
 **Module:** `axi4_dwidth_converter_rd.sv`
-**Location:** `rtl/amba/axi4/`
+**Location:** `projects/components/converters/rtl/`
 **Status:** ✅ Production Ready
 
 ---
@@ -376,15 +376,32 @@ Same alignment requirements as [axi4_dwidth_converter](axi4_dwidth_converter.md)
 
 **Upsize:**
 ```
-Master ARLEN = (Slave ARLEN + 1) / WIDTH_RATIO - 1
-Master ARSIZE = Slave ARSIZE + $clog2(WIDTH_RATIO)
+Master ARLEN  = (Slave ARLEN + WIDTH_RATIO) / WIDTH_RATIO - 1   // ceiling divide
+Master ARSIZE = $clog2(M_AXI_DATA_WIDTH / 8)                    // full master width
 ```
 
 **Downsize:**
 ```
-Master ARLEN = (Slave ARLEN + 1) * WIDTH_RATIO - 1
-Master ARSIZE = Slave ARSIZE - $clog2(WIDTH_RATIO)
+Master ARLEN  = (Slave ARLEN + 1) * WIDTH_RATIO - 1
+Master ARSIZE = $clog2(M_AXI_DATA_WIDTH / 8)                    // full master width
 ```
+
+`ARSIZE` on the master side is not derived from the slave `ARSIZE`; it is driven
+to the master interface's full byte width in both directions.
+
+**Non-divisible burst lengths (upsize):** the length divide rounds *up*. A slave
+burst whose beat count is not a multiple of `WIDTH_RATIO` is legal and produces a
+final master beat that is only partially populated. No error is raised.
+
+**Address alignment (upsize):** the master address is forced down to the master
+data-width boundary:
+```
+m_axi_araddr = {s_axi_araddr[AXI_ADDR_WIDTH-1:$clog2(M_STRB_WIDTH)],
+                {$clog2(M_STRB_WIDTH){1'b0}}}
+```
+A misaligned slave address is silently truncated. The module does not assert an
+error, stall, or split the transaction, so the caller is responsible for issuing
+addresses aligned to the wide side when the low-order bits are significant.
 
 See [axi4_dwidth_converter](axi4_dwidth_converter.md) for detailed examples.
 

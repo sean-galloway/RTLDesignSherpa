@@ -23,16 +23,24 @@
 
 # Carry Lookahead Adder
 
+> **Naming caveat -- read this before selecting this module.** This is **not** a
+> true Weinberger & Smith carry-lookahead adder. A real CLA uses recursive group
+> generate/propagate to reach **O(log N)** depth; this implementation is a
+> simplified P/G carry chain optimised for area and simplicity, with **O(N)**
+> depth. For genuine logarithmic-depth adders use `math_adder_brent_kung` or
+> `math_adder_han_carlson`.
+
+
 A parameterized carry lookahead adder supporting arbitrary bit widths with O(N) depth using generate and propagate logic to reduce carry propagation delay compared to ripple carry adders.
 
 ## Overview
 
-The `math_adder_carry_lookahead` module implements a carry lookahead adder (CLA) with parameterizable width. While not a true parallel-prefix lookahead (which would have O(log N) depth), this implementation uses propagate (P) and generate (G) signals to compute carries more efficiently than a simple ripple-carry adder. It provides a good balance between speed and area for small to medium width additions (4-16 bits).
+The `math_adder_pg_chain` module implements a carry lookahead adder (CLA) with parameterizable width. While not a true parallel-prefix lookahead (which would have O(log N) depth), this implementation uses propagate (P) and generate (G) signals to compute carries more efficiently than a simple ripple-carry adder. It provides a good balance between speed and area for small to medium width additions (4-16 bits).
 
 ## Module Declaration
 
 ```systemverilog
-module math_adder_carry_lookahead #(
+module math_adder_pg_chain #(
     parameter int N = 4      // Adder width in bits (any width ≥ 1)
 ) (
     input  logic [N-1:0] i_a,       // Operand A
@@ -56,7 +64,6 @@ module math_adder_carry_lookahead #(
 - **Minimum**: 1 bit (degenerates to half adder)
 - **Maximum**: 64 bits (practical synthesis limit, but consider parallel prefix for >16 bits)
 
-**Design Note:** For N > 16, consider using `math_adder_brent_kung` or `math_adder_kogge_stone` for better performance.
 
 ## Ports
 
@@ -169,7 +176,7 @@ i_a/i_b → P[0]/G[0] → C[1] → C[2] → ... → C[N-1] → C[N] → Sum[N-1]
 logic [7:0] a, b, sum;
 logic carry_out;
 
-math_adder_carry_lookahead #(
+math_adder_pg_chain #(
     .N(8)
 ) u_adder (
     .i_a      (a),
@@ -194,7 +201,7 @@ end
 ```systemverilog
 logic [3:0] count, count_plus_1;
 
-math_adder_carry_lookahead #(
+math_adder_pg_chain #(
     .N(4)
 ) u_incrementer (
     .i_a      (count),
@@ -254,7 +261,7 @@ module simple_alu (
     end
 
     // Adder
-    math_adder_carry_lookahead #(
+    math_adder_pg_chain #(
         .N(16)
     ) u_adder (
         .i_a      (a),
@@ -278,7 +285,7 @@ logic [15:0] sum_low, sum_high;
 logic carry_low, carry_high;
 
 // Low 16 bits
-math_adder_carry_lookahead #(.N(16)) u_add_low (
+math_adder_pg_chain #(.N(16)) u_add_low (
     .i_a      (a_low),
     .i_b      (b_low),
     .i_c      (1'b0),
@@ -287,7 +294,7 @@ math_adder_carry_lookahead #(.N(16)) u_add_low (
 );
 
 // High 16 bits (chain carry from low)
-math_adder_carry_lookahead #(.N(16)) u_add_high (
+math_adder_pg_chain #(.N(16)) u_add_high (
     .i_a      (a_high),
     .i_b      (b_high),
     .i_c      (carry_low),     // Carry from low adder
@@ -305,7 +312,7 @@ logic [31:0] sum_32 = {sum_high, sum_low};
 logic [7:0] loop_counter;
 logic loop_active, loop_done;
 
-math_adder_carry_lookahead #(.N(8)) u_loop_inc (
+math_adder_pg_chain #(.N(8)) u_loop_inc (
     .i_a      (loop_counter),
     .i_b      (8'b0),
     .i_c      (loop_active),   // Increment only when active
@@ -459,7 +466,7 @@ The module includes a Verilator pragma:
 
 ## Verification Strategy
 
-Test suite location: `val/common/test_math_adder_carry_lookahead.py`
+Test suite location: `val/common/test_math_adder_pg_chain.py`
 
 **Key Test Scenarios:**
 - Random stimulus (all widths)
@@ -471,7 +478,7 @@ Test suite location: `val/common/test_math_adder_carry_lookahead.py`
 
 **Test Command:**
 ```bash
-pytest val/common/test_math_adder_carry_lookahead.py -v
+pytest val/common/test_math_adder_pg_chain.py -v
 ```
 
 ## Common Pitfalls
@@ -480,7 +487,7 @@ pytest val/common/test_math_adder_carry_lookahead.py -v
 
 ```systemverilog
 // WRONG: 64-bit addition with CLA (poor performance)
-math_adder_carry_lookahead #(.N(64)) u_add (...);
+math_adder_pg_chain #(.N(64)) u_add (...);
 // Result: 66 logic levels, very slow!
 
 // RIGHT: Use parallel prefix adder
@@ -510,9 +517,9 @@ end
 logic [15:0] a, b, c, d, result;
 logic [15:0] ab_sum, abc_sum;
 
-math_adder_carry_lookahead #(.N(16)) u1 (.i_a(a), .i_b(b), .ow_sum(ab_sum), ...);
-math_adder_carry_lookahead #(.N(16)) u2 (.i_a(ab_sum), .i_b(c), .ow_sum(abc_sum), ...);
-math_adder_carry_lookahead #(.N(16)) u3 (.i_a(abc_sum), .i_b(d), .ow_sum(result), ...);
+math_adder_pg_chain #(.N(16)) u1 (.i_a(a), .i_b(b), .ow_sum(ab_sum), ...);
+math_adder_pg_chain #(.N(16)) u2 (.i_a(ab_sum), .i_b(c), .ow_sum(abc_sum), ...);
+math_adder_pg_chain #(.N(16)) u3 (.i_a(abc_sum), .i_b(d), .ow_sum(result), ...);
 
 // 3 × 18 levels = 54 logic levels!
 
@@ -536,7 +543,6 @@ end
 ## Related Modules
 
 - **math_adder_brent_kung_*.sv** - Faster parallel prefix adder (O(log N) depth)
-- **math_adder_kogge_stone_nbit.sv** - Fastest parallel prefix adder
 - **math_adder_ripple_carry.sv** - Minimal area adder (slower)
 - **math_adder_carry_save_nbit.sv** - For multi-operand addition (multipliers)
 - **math_subtractor_carry_lookahead.sv** - CLA-based subtractor variant

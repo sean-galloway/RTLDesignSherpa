@@ -271,31 +271,31 @@ Alongside perfmon, the wrapper forwards the `cfg_compl_enable`, `cfg_threshold_e
 
 ### Clock Gating with Write Burst and Monitoring
 
-<!-- TODO: Add wavedrom timing diagram -->
-```
-TODO: Wavedrom timing diagram showing:
-- ACLK (ungated)
-- GATED_ACLK (gated clock)
-- AW channel: AWVALID, AWREADY
-- W channel: WDATA, WLAST, WVALID, WREADY
-- B channel: BVALID, BREADY
-- Monitor packets generated
-- Idle period detection after B phase
-- cg_gating activation
-- Monitor quiescent before clock stops
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - ACLK (ungated)
+> - GATED_ACLK (gated clock)
+> - AW channel: AWVALID, AWREADY
+> - W channel: WDATA, WLAST, WVALID, WREADY
+> - B channel: BVALID, BREADY
+> - Monitor packets generated
+> - Idle period detection after B phase
+> - cg_gating activation
+> - Monitor quiescent before clock stops
+
 
 ### Atomic Operation with Monitor + Clock Gating
 
-<!-- TODO: Add wavedrom timing diagram -->
-```
-TODO: Wavedrom timing diagram showing:
-- AWATOP encoding
-- Atomic write sequence
-- Monitor packet for atomic operation
-- B response with BTAGMATCH
-- Clock gating after atomic completion
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - AWATOP encoding
+> - Atomic write sequence
+> - Monitor packet for atomic operation
+> - B response with BTAGMATCH
+> - Clock gating after atomic completion
+
 
 ---
 
@@ -548,8 +548,8 @@ $display("Write Perf: BW=%d GB/s, Efficiency=%d%%, Power saved=%d%%",
 
 ## Related Documentation
 
-- **[AXI5 Master Write](axi5_master_wr.md)** - Base module
-- **[AXI5 Master Write CG](axi5_master_wr_cg.md)** - Clock gating only
+- **[AXI5 Master Write](../axi5/axi5_master_wr.md)** - Base module
+- **[AXI5 Master Write CG](../axi5/axi5_master_wr_cg.md)** - Clock gating only
 - **[AXI5 Master Write Monitor](axi5_master_wr_mon.md)** - Monitor only
 - **[AXI5 Master Read Monitor CG](axi5_master_rd_mon_cg.md)** - Read variant
 - **[AXI Monitor Configuration Guide](../../../../AXI_Monitor_Configuration_Guide.md)** - Monitor setup

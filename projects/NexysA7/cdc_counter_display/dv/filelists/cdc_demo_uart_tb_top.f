@@ -19,10 +19,10 @@ $REPO_ROOT/rtl/common/fifo_control.sv
 $REPO_ROOT/rtl/common/fifo_async.sv
 
 # amba/shared CDC primitives (value-out path modes 1/3/4)
-$REPO_ROOT/rtl/amba/shared/cdc_synchronizer.sv
-$REPO_ROOT/rtl/amba/shared/cdc_open_loop.sv
-$REPO_ROOT/rtl/amba/shared/cdc_2_phase_handshake.sv
-$REPO_ROOT/rtl/amba/shared/cdc_4_phase_handshake.sv
+$REPO_ROOT/rtl/amba/cdc/cdc_synchronizer.sv
+$REPO_ROOT/rtl/amba/cdc/cdc_open_loop.sv
+$REPO_ROOT/rtl/amba/cdc/cdc_2_phase_handshake.sv
+$REPO_ROOT/rtl/amba/cdc/cdc_4_phase_handshake.sv
 
 # DUT: harness + counter domain + TB top
 $REPO_ROOT/projects/NexysA7/cdc_counter_display/rtl/cdc_demo_harness.sv

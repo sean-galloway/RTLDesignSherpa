@@ -106,10 +106,15 @@ margins:
   right: 0.75
 
 # List of Tables/Figures/Waveforms (inserted after TOC)
+# Substituted per book by generate_rtl_pdfs.sh (build_book). NOTE: for the
+# DOCX -> LibreOffice -> PDF route this pipeline uses, THIS block is what
+# enables the lists -- md_to_docx.py reads lists_config from the style only
+# (md_to_docx.py:1161,1567) and never merges the --lot/--lof/--low CLI flags,
+# which apply to the direct-LaTeX route instead.
 lists:
-  lot: false    # List of Tables
-  lof: false    # List of Figures
-  low: false   # List of Waveforms (this doc has no wavedrom)
+  lot: __LOT__    # List of Tables
+  lof: __LOF__    # List of Figures
+  low: __LOW__    # List of Waveforms
 
 # Title page configuration
 # Logo path is relative to this YAML's directory; we re-use STREAM's

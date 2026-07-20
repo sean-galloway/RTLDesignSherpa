@@ -164,7 +164,7 @@ The monitor exposes a `block_ready` signal that goes low when its internal FIFO 
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
 - **For axi5 slave variants** (only applies to axi5_slave_rd_mon): the monitor watches the FUB-side handshake, so there is a `SKID_DEPTH_AR` cycle lag between block_ready going low and new events ceasing. `MAX_TRANSACTIONS` should be sized to cover this margin.
 
-This replaces a previous bug where `block_ready` was left unconnected and a full monitor FIFO would silently lose events.
+`block_ready` must be connected: when the monitor FIFO fills, it backpressures the monitored channel rather than silently dropping events. Leaving it unconnected loses events with no indication.
 
 ---
 
@@ -204,11 +204,11 @@ The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-co
 
 ### FUB AXI5 Interface (Slave Side)
 
-Same as `axi5_master_rd` - see [AXI5 Master Read](axi5_master_rd.md) for complete port listing.
+Same as `axi5_master_rd` - see [AXI5 Master Read](../axi5/axi5_master_rd.md) for complete port listing.
 
 ### Master AXI5 Interface (Output Side)
 
-Same as `axi5_master_rd` - see [AXI5 Master Read](axi5_master_rd.md) for complete port listing.
+Same as `axi5_master_rd` - see [AXI5 Master Read](../axi5/axi5_master_rd.md) for complete port listing.
 
 ### Monitor Configuration
 
@@ -418,38 +418,38 @@ Recommended: Enable only ONE high-traffic packet type at a time.
 
 ### Monitored Read Transaction with Error
 
-<!-- TODO: Add wavedrom timing diagram -->
-```
-TODO: Wavedrom timing diagram showing:
-- ACLK
-- AR channel: ARID, ARADDR, ARVALID, ARREADY
-- R channel: RID, RDATA, RRESP (SLVERR), RVALID, RREADY
-- Monitor bus: monbus_valid, monbus_packet showing ERROR packet
-- Event sequence: AR → R error → ERROR packet generated
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - ACLK
+> - AR channel: ARID, ARADDR, ARVALID, ARREADY
+> - R channel: RID, RDATA, RRESP (SLVERR), RVALID, RREADY
+> - Monitor bus: monbus_valid, monbus_packet showing ERROR packet
+> - Event sequence: AR → R error → ERROR packet generated
+
 
 ### Timeout Detection
 
-<!-- TODO: Add wavedrom timing diagram -->
-```
-TODO: Wavedrom timing diagram showing:
-- ACLK
-- AR channel: ARVALID asserted, ARREADY stuck low
-- Timeout counter incrementing
-- cfg_timeout_cycles threshold
-- Monitor bus: monbus_valid, monbus_packet showing TIMEOUT packet
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - ACLK
+> - AR channel: ARVALID asserted, ARREADY stuck low
+> - Timeout counter incrementing
+> - cfg_timeout_cycles threshold
+> - Monitor bus: monbus_valid, monbus_packet showing TIMEOUT packet
+
 
 ### Performance Monitoring
 
-<!-- TODO: Add wavedrom timing diagram -->
-```
-TODO: Wavedrom timing diagram showing:
-- Multiple read transactions
-- Latency measurement (AR to RLAST)
-- Monitor bus: PERF packets with latency data
-- Threshold comparison with cfg_latency_threshold
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - Multiple read transactions
+> - Latency measurement (AR to RLAST)
+> - Monitor bus: PERF packets with latency data
+> - Threshold comparison with cfg_latency_threshold
+
 
 ---
 
@@ -600,8 +600,8 @@ The monitor respects `monbus_ready` backpressure:
 
 ## Related Documentation
 
-- **[AXI5 Master Read](axi5_master_rd.md)** - Base module without monitoring
-- **[AXI5 Master Read CG](axi5_master_rd_cg.md)** - With clock gating only
+- **[AXI5 Master Read](../axi5/axi5_master_rd.md)** - Base module without monitoring
+- **[AXI5 Master Read CG](../axi5/axi5_master_rd_cg.md)** - With clock gating only
 - **[AXI5 Master Read Monitor CG](axi5_master_rd_mon_cg.md)** - Monitor + clock gating
 - **[AXI Monitor Filtered](axi_monitor_filtered.md)** - Monitor core specification
 - **[Monitor Package Spec](../includes/monitor_package_spec.md)** - Packet format details

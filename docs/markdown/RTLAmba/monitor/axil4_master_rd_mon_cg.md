@@ -25,294 +25,154 @@
 
 **Module:** `axil4_master_rd_mon_cg.sv`
 **Base Module:** [axil4_master_rd_mon](./axil4_master_rd_mon.md)
-**Location:** `rtl/amba/axil4/`
-**Status:** ✅ Production Ready
+**Location:** `rtl/amba/monitor/`
+**Status:** ⚠️ Partial — see [Implementation Status](#implementation-status)
+
+---
+
+## Implementation Status
+
+**This wrapper does not currently gate any clock.** The RTL contains no
+`amba_clock_gate_ctrl` instance, no ICG cell, and no gated clock net; the base
+`axil4_master_rd_mon` inside it runs on the ungated `aclk`. What the wrapper
+actually does today is:
+
+1. **Gate the monitor functionally**, by ANDing the gating enable into the
+   monitor enable: `cfg_monitor_enable & cfg_cg_enable`. With
+   `cfg_cg_enable = 0` the monitor stops observing.
+2. **Count idle cycles** into `cg_cycles_saved`, incremented whenever
+   `cfg_cg_enable && !busy`. The RTL labels this block
+   "Clock Gating Statistics (Placeholder)". It is an *estimate of cycles
+   during which gating would have been possible*, not a measurement of cycles
+   actually saved.
+
+The `ENABLE_CLOCK_GATING` and `CG_IDLE_CYCLES` parameters and the
+`cfg_cg_idle_threshold` port are **declared but not referenced** anywhere in
+the module body. Setting them has no effect.
+
+**Consequence for integrators:** instantiating this wrapper instead of
+`axil4_master_rd_mon` will not reduce dynamic power. If you need real clock
+gating on an AXI4-Lite transport path today, use the plain
+[`_cg` transport modules](../axil4/axil4_clock_gating_guide.md)
+(`axil4_master_rd_cg` and friends), which do instantiate
+`amba_clock_gate_ctrl` and a real ICG cell.
 
 ---
 
 ## Overview
 
-The `axil4_master_rd_mon_cg` module is a clock-gated variant of [axil4_master_rd_mon](./axil4_master_rd_mon.md) that adds comprehensive power optimization capabilities through activity-based clock gating.
-
-### Key Differences from Base Module
-
-- ✅ **Activity-Based Clock Gating:** Automatically gates clocks when subsystems are idle
-- ✅ **Configurable Policies:** Fine-grained control over what gets gated and when
-- ✅ **Power Monitoring:** Built-in statistics for clock gating effectiveness
-- ✅ **Independent Gating Domains:** Separate control for different functional blocks
-- ✅ **Zero Functional Impact:** Maintains 100% functional equivalence with base module
-
-All other functionality is identical to the base module. See [axil4_master_rd_mon.md](./axil4_master_rd_mon.md) for complete functional specification.
+`axil4_master_rd_mon_cg` wraps [axil4_master_rd_mon](./axil4_master_rd_mon.md) and adds a
+power-management control and status interface. All monitoring, filtering,
+address-range checking, and performance-monitoring behavior is that of the base
+module; see [axil4_master_rd_mon.md](./axil4_master_rd_mon.md) for the complete
+functional specification.
 
 ---
 
-## When to Use Clock-Gated Variant
+## Additional Parameters
 
-**Use `axil4_master_rd_mon_cg` when:**
-- Power consumption is a critical concern
-- Design has periods of inactivity (burst traffic patterns)
-- FPGA/ASIC has integrated clock gating support
-- Meeting power budgets for battery-operated systems
-
-**Use base module (`axil4_master_rd_mon`) when:**
-- Maximum performance with no power constraints
-- Continuous high-activity traffic
-- Simpler design with fewer configuration parameters
-- Minimizing gate count is priority
-
----
-
-## Clock Gating Parameters
-
-In addition to all parameters from [axil4_master_rd_mon](./axil4_master_rd_mon.md) (including `USE_MONITOR` and `N_ADDR_RANGES`), this module adds:
+In addition to all [axil4_master_rd_mon](./axil4_master_rd_mon.md) parameters
+(including `USE_MONITOR` and `N_ADDR_RANGES`):
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `ENABLE_CLOCK_GATING` | bit | 1 | Master enable for clock gating (0=disable all gating) |
-| `CG_IDLE_CYCLES` | int | 8 | Number of idle cycles before asserting clock gate |
-| `CG_GATE_MONITOR` | bit | 1 | Enable clock gating for monitor logic |
-| `CG_GATE_REPORTER` | bit | 1 | Enable clock gating for packet reporter |
-| `CG_GATE_TIMERS` | bit | 1 | Enable clock gating for timeout timers |
+| `ENABLE_CLOCK_GATING` | bit | 1 | Declared but **unused** in the current RTL |
+| `CG_IDLE_CYCLES` | int | 4 | Declared but **unused** in the current RTL |
 
-All base-module ports are forwarded unchanged, including the `cam_clear` control input (Input, 1) - synchronous clear of the monitor transaction CAM (driven from the harness clear control bit, e.g. CTRL[4]).
+There are no `CG_GATE_MONITOR`, `CG_GATE_REPORTER`, or `CG_GATE_TIMERS`
+parameters, and no independent gating domains. Earlier revisions of this
+document described such a scheme; it was never implemented.
 
-### Parameter Relationships
+---
 
-- **`ENABLE_CLOCK_GATING = 0`**: Disables all clock gating, module behaves identically to base
-- **`CG_IDLE_CYCLES`**: Higher values = more power savings but slower wake-up from idle
-- **Individual `CG_GATE_*` signals**: Allow fine-grained control over which subsystems are gated
+## Additional Ports
+
+All base-module ports are forwarded unchanged, including the `cam_clear`
+control input (Input, 1) - synchronous clear of the monitor transaction CAM
+(driven from the harness clear control bit, e.g. CTRL[4]). The wrapper adds:
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `cfg_cg_enable` | Input | 1 | Gates the monitor functionally (ANDed into `cfg_monitor_enable`). 0 = monitor disabled. |
+| `cfg_cg_idle_threshold` | Input | 8 | Declared but **unused** in the current RTL |
+| `cg_cycles_saved` | Output | 32 | Count of cycles where `cfg_cg_enable && !busy`; an estimate, not a measurement |
+
+The base module's `busy` output remains available on this wrapper.
 
 ---
 
 ## Performance Monitoring
 
-The clock-gated wrapper forwards the base module's full performance-monitoring interface to `axi_monitor_base` **unchanged** — clock gating neither adds, removes, nor retimes any perfmon port. They behave exactly as documented for [axil4_master_rd_mon](./axil4_master_rd_mon.md#performance-monitoring):
+The wrapper forwards the base module's full performance-monitoring interface to
+`axi_monitor_base` **unchanged** — the power-management interface neither adds,
+removes, nor retimes any perfmon port. They behave exactly as documented for
+[axil4_master_rd_mon](./axil4_master_rd_mon.md#performance-monitoring):
 
 - **Config inputs:** `cfg_perf_enable`, `cfg_start_event_sel`, `cfg_end_event_sel`, `cfg_start_trigger`, `cfg_end_trigger`, `cfg_window_force_close`
 - **Status / counters:** `window_active`, `window_cycles`, `perf_prod_cycles`, `perf_bp_cycles`, `perf_starv_cycles`, `perf_idle_cycles`, `perf_beat_count`, `perf_byte_count`, `perf_burst_count`
 
 The completion/threshold/debug enables (`cfg_compl_enable`, `cfg_threshold_enable`, `cfg_debug_enable`) and the synthesis-cone parameters (`ENABLE_ERROR_LOGIC`, `ENABLE_TIMEOUT_LOGIC`, `ENABLE_COMPL_LOGIC`, `ENABLE_THRESHOLD_LOGIC`, `ENABLE_PERF_LOGIC`, `ENABLE_DEBUG_LOGIC`) are likewise forwarded unchanged. The utilization buckets watch the **R** (read-data) channel; for AXI4-Lite each transaction is a single data beat, so `perf_burst_count` counts AR handshakes = transactions.
 
----
-
-## Usage Examples
-
-### Example 1: Maximum Power Savings (Burst Traffic)
-
-```systemverilog
-axil4_master_rd_mon_cg #(
-    // Base parameters (see axil4_master_rd_mon.md)
-    .AXI_ID_WIDTH(8),
-    .AXI_ADDR_WIDTH(32),
-    .AXI_DATA_WIDTH(64),
-
-    // Clock gating - aggressive power savings
-    .ENABLE_CLOCK_GATING(1),
-    .CG_IDLE_CYCLES(4),      // Gate quickly after 4 idle cycles
-    .CG_GATE_MONITOR(1),     // Gate monitor logic
-    .CG_GATE_REPORTER(1),    // Gate reporter logic
-    .CG_GATE_TIMERS(1)       // Gate timers (if no timeouts enabled)
-) u_cg (
-    .aclk(clk),
-    .aresetn(rst_n),
-    // ... connect signals same as base module
-);
-```
-
-### Example 2: Balanced Performance and Power
-
-```systemverilog
-axil4_master_rd_mon_cg #(
-    // Base parameters
-    .AXI_ID_WIDTH(8),
-    .AXI_ADDR_WIDTH(32),
-    .AXI_DATA_WIDTH(64),
-
-    // Clock gating - balanced approach
-    .ENABLE_CLOCK_GATING(1),
-    .CG_IDLE_CYCLES(16),     // Wait longer before gating (faster wake-up)
-    .CG_GATE_MONITOR(1),     // Gate monitor logic
-    .CG_GATE_REPORTER(0),    // Don't gate reporter (always ready)
-    .CG_GATE_TIMERS(1)       // Gate timers when not needed
-) u_cg (
-    .aclk(clk),
-    .aresetn(rst_n),
-    // ... connect signals same as base module
-);
-```
-
-### Example 3: Clock Gating Disabled (Functional Verification)
-
-```systemverilog
-axil4_master_rd_mon_cg #(
-    // Base parameters
-    .AXI_ID_WIDTH(8),
-    .AXI_ADDR_WIDTH(32),
-    .AXI_DATA_WIDTH(64),
-
-    // Clock gating - DISABLED for verification
-    .ENABLE_CLOCK_GATING(0)  // Disable all gating
-) u_cg (
-    .aclk(clk),
-    .aresetn(rst_n),
-    // ... connect signals same as base module
-);
-```
-
-**Note:** With `ENABLE_CLOCK_GATING=0`, this module is functionally identical to the base module.
+> Note that `cfg_cg_enable = 0` disables the monitor, and therefore stops the
+> performance counters as well.
 
 ---
 
-## Clock Gating Architecture
+## Usage Example
 
-### Gating Domains
+```systemverilog
+axil4_master_rd_mon_cg #(
+    // Base module parameters (see axil4_master_rd_mon.md)
+    .AXIL_ADDR_WIDTH(32),
+    .AXIL_DATA_WIDTH(32),
+    .SKID_DEPTH_AR(2),
+    .SKID_DEPTH_R(4),
 
-The module implements independent clock gating for these functional blocks:
+    // Monitor parameters
+    .UNIT_ID(8'h01),
+    .AGENT_ID(16'h000A),
+    .MAX_TRANSACTIONS(8)
+) u_cg (
+    .aclk(clk),
+    .aresetn(rst_n),
 
-1. **Monitor Logic Domain**
-   - Transaction tracking and state machines
-   - Gated when: No active transactions for `CG_IDLE_CYCLES`
-   - Controlled by: `CG_GATE_MONITOR`
+    // Power-management interface
+    .cfg_cg_enable(1'b1),            // 0 would disable the monitor
+    .cfg_cg_idle_threshold(8'd4),    // currently unused by the RTL
+    .cg_cycles_saved(idle_cycle_est),
 
-2. **Reporter Domain**
-   - Monitor packet generation and formatting
-   - Gated when: No packets to report for `CG_IDLE_CYCLES`
-   - Controlled by: `CG_GATE_REPORTER`
-
-3. **Timer Domain**
-   - Timeout detection and performance counters
-   - Gated when: All timeout enables are 0
-   - Controlled by: `CG_GATE_TIMERS`
-
-### Gating State Machine
-
+    // ... all other ports same as axil4_master_rd_mon
+);
 ```
-ACTIVE ───────► IDLE_COUNT ───────► GATED
-  ▲                                    │
-  │                                    │
-  └────────────────────────────────────┘
-        (Activity Detected)
-
-States:
-- ACTIVE: Clocks enabled, monitoring activity
-- IDLE_COUNT: Counting CG_IDLE_CYCLES before gating
-- GATED: Clocks disabled, waiting for activity
-```
-
-### Wake-Up Latency
-
-| Configuration | Wake-Up Time | Use Case |
-|---------------|--------------|----------|
-| `CG_IDLE_CYCLES=4` | ~4 clock cycles | Low-latency, frequent bursts |
-| `CG_IDLE_CYCLES=8` | ~8 clock cycles | Balanced (default) |
-| `CG_IDLE_CYCLES=16` | ~16 clock cycles | Maximum power savings, infrequent traffic |
-
----
-
-## Power Savings Analysis
-
-### Typical Power Reduction
-
-Based on representative workloads:
-
-| Traffic Pattern | Clock Gating Enabled | Power Savings |
-|----------------|---------------------|---------------|
-| 10% Utilization | Aggressive (`CG_IDLE_CYCLES=4`) | 60-70% |
-| 25% Utilization | Balanced (`CG_IDLE_CYCLES=8`) | 45-55% |
-| 50% Utilization | Conservative (`CG_IDLE_CYCLES=16`) | 25-35% |
-| 90% Utilization | Any configuration | 5-10% |
-
-**Note:** Actual savings depend on FPGA/ASIC technology, tool implementation, and traffic patterns.
-
-### Power Monitoring Signals
-
-The module provides these status signals for power analysis:
-
-| Signal | Width | Description |
-|--------|-------|-------------|
-| `cg_monitor_gated` | 1 | Monitor domain clock is gated |
-| `cg_reporter_gated` | 1 | Reporter domain clock is gated |
-| `cg_timers_gated` | 1 | Timer domain clock is gated |
 
 ---
 
 ## Verification Considerations
 
-### Clock Gating in Simulation
-
-**Recommendation:** Disable clock gating during functional verification:
-
-```systemverilog
-// Testbench instantiation
-axil4_master_rd_mon_cg #(
-    .ENABLE_CLOCK_GATING(0)  // Disable for faster simulation
-) dut (
-    // ... connections
-);
-```
-
-**Rationale:**
-- Simpler waveforms (no clock gating events)
-- Faster simulation (no gating overhead)
-- Easier debug (no timing dependencies)
-
-### Power Analysis Verification
-
-For power-specific verification:
-
-1. **Enable clock gating** with realistic parameters
-2. **Monitor gating signals** (`cg_*_gated`) to verify expected behavior
-3. **Vary traffic patterns** to test gating effectiveness
-4. **Check wake-up timing** meets system requirements
-
----
-
-## Synthesis Considerations
-
-### FPGA Implementations
-
-**Xilinx:**
-- Use `ENABLE_CLOCK_GATING=1` with `BUFGCE` primitives
-- Tool will infer clock enables automatically
-- Verify with post-synthesis power analysis
-
-**Intel (Altera):**
-- Use `ENABLE_CLOCK_GATING=1` with `ALTCLKCTRL`
-- May need vendor-specific clock gating primitives
-- Check power reports for gating effectiveness
-
-**Lattice:**
-- Basic clock gating supported
-- May require manual instantiation of clock enables
-- Verify functionality in timing simulation
-
-### ASIC Implementations
-
-- Work with foundry to select appropriate clock gating cells
-- Integrated Clock Gating (ICG) cells provide best results
-- Consider hold-time implications of clock gating
-- Verify power intent with UPF (Unified Power Format)
+Because no clock is actually gated, simulation of this wrapper behaves exactly
+like the base module as long as `cfg_cg_enable = 1`. Drive `cfg_cg_enable = 1`
+for any test that expects monitor packets — with it low the monitor is off and
+no packets are emitted.
 
 ---
 
 ## Related Modules
 
-- **[axil4_master_rd_mon](./axil4_master_rd_mon.md)** - Base module (non-clock-gated)
+- **[axil4_master_rd_mon](./axil4_master_rd_mon.md)** - Base module (functional specification)
+- **[axil4_master_wr_mon_cg](./axil4_master_wr_mon_cg.md)** - Companion monitor wrapper
 - **[axi_monitor_base](axi_monitor_base.md)** - Core monitoring infrastructure
 - **[axi_monitor_filtered](axi_monitor_filtered.md)** - Filtering capabilities
+- **[AXIL4 Clock-Gated Variants Guide](../axil4/axil4_clock_gating_guide.md)** - The transport-level `_cg` modules, which do perform real clock gating
 
 ---
 
-## See Also
-
-- **Power Optimization Guide:** `docs/POWER_OPTIMIZATION_GUIDE.md`
-- **Clock Gating Best Practices:** `docs/CLOCK_GATING_GUIDE.md`
-- **AMBA Subsystem Overview:** `docs/markdown/RTLAmba/overview.md`
+**Last Updated:** 2026-07-19
 
 ---
 
 ## Navigation
 
 - **[← Back to Base Module](./axil4_master_rd_mon.md)**
+- **[← Back to AXIL4 Index](../axil4/README.md)**
 - **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

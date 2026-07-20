@@ -64,10 +64,10 @@ add_files -norecurse -fileset $src_fs [list \
     "$repo_root/rtl/common/counter_bin_load.sv" \
     "$repo_root/rtl/common/counter_bingray.sv" \
     "$repo_root/rtl/common/glitch_free_n_dff_arn.sv" \
-    "$repo_root/rtl/amba/shared/cdc_synchronizer.sv" \
-    "$repo_root/rtl/amba/shared/cdc_open_loop.sv" \
-    "$repo_root/rtl/amba/shared/cdc_2_phase_handshake.sv" \
-    "$repo_root/rtl/amba/shared/cdc_4_phase_handshake.sv" \
+    "$repo_root/rtl/amba/cdc/cdc_synchronizer.sv" \
+    "$repo_root/rtl/amba/cdc/cdc_open_loop.sv" \
+    "$repo_root/rtl/amba/cdc/cdc_2_phase_handshake.sv" \
+    "$repo_root/rtl/amba/cdc/cdc_4_phase_handshake.sv" \
 ]
 
 # UART AXIL bridge + AXIL master halves it depends on

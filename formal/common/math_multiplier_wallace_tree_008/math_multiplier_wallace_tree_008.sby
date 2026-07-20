@@ -15,6 +15,13 @@ cover: smtbmc z3
 [script]
 read -formal -sv math_adder_half.sv
 read -formal -sv math_adder_full.sv
+read -formal -sv math_adder_brent_kung_pg.sv
+read -formal -sv math_adder_brent_kung_black.sv
+read -formal -sv math_adder_brent_kung_gray.sv
+read -formal -sv math_adder_brent_kung_bitwisepg.sv
+read -formal -sv math_adder_brent_kung_sum.sv
+read -formal -sv math_adder_brent_kung_grouppg_016.sv
+read -formal -sv math_adder_brent_kung_016.sv
 read -formal -sv math_multiplier_wallace_tree_008.sv
 read -formal -sv formal_math_multiplier_wallace_tree_008.sv
 prep -top formal_math_multiplier_wallace_tree_008
@@ -22,5 +29,12 @@ prep -top formal_math_multiplier_wallace_tree_008
 [files]
 math_adder_half.sv ../../../rtl/common/math_adder_half.sv
 math_adder_full.sv ../../../rtl/common/math_adder_full.sv
+math_adder_brent_kung_pg.sv ../../../rtl/common/math_adder_brent_kung_pg.sv
+math_adder_brent_kung_black.sv ../../../rtl/common/math_adder_brent_kung_black.sv
+math_adder_brent_kung_gray.sv ../../../rtl/common/math_adder_brent_kung_gray.sv
+math_adder_brent_kung_bitwisepg.sv ../../../rtl/common/math_adder_brent_kung_bitwisepg.sv
+math_adder_brent_kung_sum.sv ../../../rtl/common/math_adder_brent_kung_sum.sv
+math_adder_brent_kung_grouppg_016.sv ../../../rtl/common/math_adder_brent_kung_grouppg_016.sv
+math_adder_brent_kung_016.sv ../../../rtl/common/math_adder_brent_kung_016.sv
 math_multiplier_wallace_tree_008.sv ../../../rtl/common/math_multiplier_wallace_tree_008.sv
 formal_math_multiplier_wallace_tree_008.sv

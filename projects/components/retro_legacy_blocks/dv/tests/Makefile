@@ -284,6 +284,11 @@ run-all:
 	@echo "Running all RLB tests (BASIC level)..."
 	TEST_LEVEL=gate $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
+# Default-level parallel variant (RLB's default level is gate) -- completes the
+# standard run-all-[parallel] interface used by projects/components/Makefile.
+.PHONY: run-all-parallel
+run-all-parallel: run-all-gate-parallel
+
 # ==============================================================================
 # HPET Targets (test_apb_hpet.py)
 # ==============================================================================

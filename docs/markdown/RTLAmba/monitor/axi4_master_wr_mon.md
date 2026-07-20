@@ -137,7 +137,7 @@ The monitor exposes a `block_ready` signal that goes low when its internal FIFO 
 - **Where the stall lands**: the upstream `fub_axi_awready` is forced low until the monitor drains.
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
 
-This replaces a previous bug where `block_ready` was left unconnected and a full monitor FIFO would silently lose events.
+`block_ready` must be connected: when the monitor FIFO fills, it backpressures the monitored channel rather than silently dropping events. Leaving it unconnected loses events with no indication.
 
 ---
 
@@ -197,7 +197,7 @@ The four buckets sum to `window_cycles`, so utilization = `perf_prod_cycles / wi
 | Output | Width | Meaning |
 |--------|:-----:|---------|
 | `perf_beat_count`  | 32 | W data beats transferred (= `perf_prod_cycles`, 1 beat/cycle) |
-| `perf_byte_count`  | 64 | bytes transferred = beats × (1 << AWSIZE), using the AWSIZE captured at the most recent AW address phase |
+| `perf_byte_count`  | 64 | bytes transferred = beats × (1 << AWSIZE), using the AWSIZE captured at the most recent AW address phase (upper bound: counts full-width beats and does not subtract bytes masked off by `WSTRB` on unaligned or partial beats) |
 | `perf_burst_count` | 32 | AW address-phase handshakes |
 
 The integrator computes average burst length as `perf_beat_count / perf_burst_count`.
@@ -488,7 +488,7 @@ axi4_master_wr_mon #(
 
 ### Buffer Depth Guidelines
 
-Same as [axi4_master_wr](axi4_master_wr.md):
+Same as [axi4_master_wr](../axi4/axi4_master_wr.md):
 - **SKID_DEPTH_AW:** 2 (default) - sufficient for most systems
 - **SKID_DEPTH_W:** 4 (default) - accommodates moderate bursts
 - **SKID_DEPTH_B:** 2 (default) - responses are single-beat
@@ -505,7 +505,7 @@ Increase depths for high-latency or high-throughput scenarios.
 - **axi4_slave_wr_mon** - AXI4 slave write with monitoring
 
 ### Base Modules
-- **[axi4_master_wr](axi4_master_wr.md)** - Functional AXI4 master write (without monitoring)
+- **[axi4_master_wr](../axi4/axi4_master_wr.md)** - Functional AXI4 master write (without monitoring)
 - **axi_monitor_filtered** - Monitoring engine with filtering (shared/)
 
 ### Used Components

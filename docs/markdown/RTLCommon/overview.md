@@ -348,7 +348,6 @@ module arithmetic_unit #(
     logic add_carry, sub_borrow;
 
     // High-speed addition using parallel prefix
-    math_adder_kogge_stone_nbit #(
         .N(DATA_WIDTH)
     ) u_adder (
         .a(operand_a), .b(operand_b), .cin(1'b0),

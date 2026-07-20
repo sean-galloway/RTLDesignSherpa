@@ -441,8 +441,8 @@ apb5_monitor #(
 
 ## Related Documentation
 
-- **[APB5 Master](apb5_master.md)** - APB5 master interface
-- **[APB5 Slave](apb5_slave.md)** - APB5 slave interface
+- **[APB5 Master](../apb5/apb5_master.md)** - APB5 master interface
+- **[APB5 Slave](../apb5/apb5_slave.md)** - APB5 slave interface
 - **[Monitor Packet Format](../includes/monitor_package_spec.md)** - Standard packet format
 
 ---

@@ -24,7 +24,7 @@
 # MonBus Group Core
 
 **Module:** `monbus_group_core.sv`
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Status:** Production Ready
 
 ---

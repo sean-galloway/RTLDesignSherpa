@@ -100,7 +100,6 @@ MODULE_DESCRIPTIONS = {
     # FIFOs
     "fifo_sync": "Synchronous FIFO with configurable depth",
     "fifo_async": "Asynchronous FIFO for clock domain crossing",
-    "fifo_async_div2": "Optimized async FIFO for 2:1 clock ratio",
     "fifo_control": "FIFO control logic (pointer management)",
 
     # Encoders/Decoders
@@ -112,7 +111,7 @@ MODULE_DESCRIPTIONS = {
     # Math - Basic
     "bin2gray": "Binary to Gray code converter",
     "gray2bin": "Gray to binary code converter",
-    "grayj2bin": "Johnson counter Gray code to binary",
+    "johnson2bin": "Johnson counter Gray code to binary",
     "count_leading_zeros": "Leading zero counter (CLZ)",
     "find_first_set": "Find first set bit position (FFS)",
     "find_last_set": "Find last set bit position (FLS)",

@@ -24,19 +24,19 @@
 # AXIL4 Master Read with Monitoring
 
 **Module:** `axil4_master_rd_mon.sv`
-**Location:** `rtl/amba/axil4/`
+**Location:** `rtl/amba/monitor/`
 **Status:** ✅ Production Ready
 
 ---
 
 ## Overview
 
-Combines **[axil4_master_rd](axil4_master_rd.md)** with the core **axi_monitor_filtered** for transaction monitoring. Simplified for AXI4-Lite (single-beat, no burst, fixed ID=0).
+Combines **[axil4_master_rd](../axil4/axil4_master_rd.md)** with the core **axi_monitor_filtered** for transaction monitoring. Simplified for AXI4-Lite (single-beat, no burst, fixed ID=0).
 
 ### Key Features
 
 - ✅ All features of base **axil4_master_rd** module
-- ✅ **Integrated Monitoring:** Uses shared axi_monitor_filtered (rtl/amba/shared/)
+- ✅ **Integrated Monitoring:** Uses shared axi_monitor_filtered (rtl/amba/monitor/)
 - ✅ **3-Level Filtering:** Packet type masks, error routing, event masking
 - ✅ **Error Detection:** Protocol violations, timeouts, orphans
 - ✅ **128-bit Monitor Bus:** Standardized packet format paired with 64-bit side-band timestamp
@@ -48,9 +48,9 @@ Combines **[axil4_master_rd](axil4_master_rd.md)** with the core **axi_monitor_f
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `UNIT_ID` | int | 1 | 4-bit unit identifier (masters typically=1) |
-| `AGENT_ID` | int | 10 | 8-bit agent identifier for this monitor |
-| `MAX_TRANSACTIONS` | int | 8 | Max outstanding transactions (reduced for AXIL) |
+| `UNIT_ID` | logic [7:0] | 8'h01 | 8-bit unit identifier emitted in the `unit_id` packet field |
+| `AGENT_ID` | logic [15:0] | 16'h000A | 16-bit agent identifier emitted in the `agent_id` packet field |
+| `MAX_TRANSACTIONS` | int | 8 | Max outstanding transactions. Reduced for AXI4-Lite; the AXI4 wrappers default to 16. |
 | `ENABLE_FILTERING` | bit | 1 | Enable 3-level packet filtering |
 | `ADD_PIPELINE_STAGE` | bit | 0 | Add register stage for timing closure |
 | `USE_MONITOR` | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
@@ -121,7 +121,7 @@ The monitor exposes a `block_ready` signal that goes low when its internal FIFO 
 - **Where the stall lands**: the upstream `fub_axil_arready` is forced low until the monitor drains.
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
 
-This replaces a previous bug where `block_ready` was left unconnected and a full monitor FIFO would silently lose events.
+`block_ready` must be connected: when the monitor FIFO fills, it backpressures the monitored channel rather than silently dropping events. Leaving it unconnected loses events with no indication.
 
 ---
 
@@ -189,24 +189,33 @@ The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-co
 
 > When perfmon is unused, the integrating block ties `cfg_start_event_sel`/`cfg_end_event_sel` to `3'b111` and the remaining `cfg_*` perfmon inputs to 0. When `USE_MONITOR = 0` all perfmon outputs are tied to 0.
 
-### Filtering Masks (7 masks total)
-| Port | Description |
-|------|-------------|
-| `cfg_axi_pkt_mask` | Drop mask for packet types |
-| `cfg_axi_err_select` | Error select mask |
-| `cfg_axi_timeout_mask` | Timeout event mask |
-| `cfg_axi_compl_mask` | Completion event mask |
-| `cfg_axi_perf_mask` | Performance event mask |
-| `cfg_axi_debug_mask` | Debug event mask |
-| `cfg_axi_full_mask` | Full event mask |
+### Filtering Masks (9 masks total)
+
+All nine are 16-bit inputs. `cfg_axi_pkt_mask` is indexed by the 4-bit
+`packet_type` field; the per-type event masks are indexed by the low nibble of
+`event_code`. In every case a **set bit drops** the matching packet.
+
+| Port | Width | Description |
+|------|-------|-------------|
+| `cfg_axi_pkt_mask` | 16 | Level 1: drop mask indexed by `packet_type` |
+| `cfg_axi_err_select` | 16 | Route selected packet types to the error path. Overlapping a bit with `cfg_axi_pkt_mask` raises `cfg_conflict_error`. |
+| `cfg_axi_error_mask` | 16 | Level 3: mask individual error events |
+| `cfg_axi_timeout_mask` | 16 | Level 3: mask individual timeout events |
+| `cfg_axi_compl_mask` | 16 | Level 3: mask individual completion events |
+| `cfg_axi_thresh_mask` | 16 | Level 3: mask individual threshold events |
+| `cfg_axi_perf_mask` | 16 | Level 3: mask individual performance events |
+| `cfg_axi_addr_mask` | 16 | Level 3: mask individual address-match events |
+| `cfg_axi_debug_mask` | 16 | Level 3: mask individual debug events |
+
+There is no `cfg_axi_full_mask` port.
 
 ### Monitor Bus Output
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `monbus_pkt_valid` | Output | 1 | Monitor packet valid |
-| `monbus_pkt_ready` | Input | 1 | Downstream ready |
-| `monbus_pkt_data` | Output | 128 | `monitor_packet_t` (128-bit format) |
-| `monbus_timestamp` | Output | 64 | `monbus_timestamp_t` paired atomically with `monbus_pkt_data` |
+| `monbus_valid` | Output | 1 | Monitor packet valid |
+| `monbus_ready` | Input | 1 | Downstream ready |
+| `monbus_packet` | Output | 128 | `monitor_packet_t` (128-bit format) |
+| `monbus_timestamp` | Output | 64 | `monbus_timestamp_t` paired atomically with `monbus_packet` |
 | `i_mon_time` | Input | 64 | Free-running counter from `monbus_axil_group`, sampled at packet emission |
 
 ### Status
@@ -215,6 +224,8 @@ The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-co
 | `busy` | Output | 1 | Interface active |
 | `active_transactions` | Output | 8 | Current outstanding count |
 | `error_count` | Output | 16 | Cumulative error count |
+| `transaction_count` | Output | 32 | Cumulative transaction count |
+| `cfg_conflict_error` | Output | 1 | Set when `cfg_axi_pkt_mask` and `cfg_axi_err_select` overlap |
 
 ---
 
@@ -249,16 +260,26 @@ axil4_master_rd_mon #(
     .cfg_timeout_cycles(16'd1000),
     .cfg_latency_threshold(32'd500),
 
-    // Filtering masks
-    .cfg_axi_pkt_mask(16'b1111_1111_0000_0011),
+    // Filtering masks - a SET bit DROPS that packet type
+    .cfg_axi_pkt_mask(16'b1111_1111_1111_0110),  // Keep Error (bit 0) + Timeout (bit 3)
     // ... other masks ...
 
     // Monitor bus
-    .monbus_pkt_valid(mon_valid),
-    .monbus_pkt_ready(mon_ready),
-    .monbus_pkt_data(mon_data)
+    .monbus_valid(mon_valid),
+    .monbus_ready(mon_ready),
+    .monbus_packet(mon_data),
+    .monbus_timestamp(mon_time)
 );
 ```
+
+**Mask polarity.** `cfg_axi_pkt_mask` is 16 bits because it is indexed by the
+4-bit `packet_type` field — one bit per packet type — not by the 128-bit packet
+width. `axi_monitor_filtered` computes
+`pkt_drop = cfg_axi_pkt_mask[pkt_type]`, so a set bit **drops** that type. To
+pass only `PktTypeError` (4'h0) and `PktTypeTimeout` (4'h3), clear bits 0 and 3
+and set the rest: `16'b1111_1111_1111_0110`. See the
+[Monitor Packet Specification](../includes/monitor_package_spec.md) for the
+full packet-type enum.
 
 ---
 
@@ -315,11 +336,11 @@ axil4_master_rd_mon #(
 ## Related Documentation
 
 ### Base Module
-- **[axil4_master_rd](axil4_master_rd.md)** - Functional module documentation
+- **[axil4_master_rd](../axil4/axil4_master_rd.md)** - Functional module documentation
 
 ### Monitor Infrastructure
 - **[AXI4 Master Read Mon](axi4_master_rd_mon.md)** - Full AXI4 monitoring (detailed reference)
-- **axi_monitor_filtered** - Core monitor engine (rtl/amba/shared/)
+- **[axi_monitor_filtered](axi_monitor_filtered.md)** - Core monitor engine (`rtl/amba/monitor/`)
 - **[Monitor Configuration Guide](axi_monitor_base.md)** - Configuration strategies
 
 ### Related Modules
@@ -328,11 +349,11 @@ axil4_master_rd_mon #(
 
 ---
 
-**Last Updated:** 2025-10-24
+**Last Updated:** 2026-07-19
 
 ---
 
 ## Navigation
 
-- **[← Back to AXIL4 Index](README.md)**
+- **[← Back to AXIL4 Index](../axil4/README.md)**
 - **[← Back to RTLAmba Index](../index.md)**

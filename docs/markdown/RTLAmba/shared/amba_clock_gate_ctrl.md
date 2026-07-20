@@ -41,7 +41,7 @@ The AMBA Clock Gate Controller provides dynamic clock gating capability tailored
 - Registered wakeup signal for metastability protection
 - Global enable/disable control
 - Idle status monitoring
-- Zero added latency when clock is ungated
+- Zero added latency while the clock is already ungated (wake-up from gated costs 1 register stage here; see Performance Considerations)
 
 ---
 
@@ -52,7 +52,7 @@ AMBA protocol interfaces often experience periods of inactivity during system op
 1. Monitoring transaction activity on both interfaces
 2. Detecting extended idle periods
 3. Automatically gating the clock to save power
-4. Instantly ungating when new activity arrives
+4. Ungating on new activity without waiting for the idle counter
 
 **Use Cases:**
 - Power-critical AMBA interface implementations
@@ -177,7 +177,7 @@ clock_gate_ctrl #(
 1. Monitors r_wakeup signal
 2. Increments idle counter when wakeup=0 (idle)
 3. Gates clock when counter >= cfg_cg_idle_count
-4. Ungates immediately when wakeup=1 (activity)
+4. Ungates when wakeup=1 (activity), without waiting for the idle counter
 
 ### Gating Threshold Behavior
 
@@ -185,7 +185,7 @@ clock_gate_ctrl #(
 
 | Value | Behavior |
 |-------|----------|
-| 0 | Aggressive: Gate clock immediately when idle detected (1 cycle delay) |
+| 0 | Aggressive: gate 1 clock after the internal wakeup deasserts (2 clocks after the last bus activity on single-stage families, 3 on two-stage families) |
 | 1 | Gate after 1 idle cycle |
 | 4 | Conservative: Gate after 4 consecutive idle cycles |
 | 15 | Maximum delay: Gate after 15 consecutive idle cycles |
@@ -208,11 +208,11 @@ clock_gate_ctrl #(
 **Ungating Sequence (Idle → Activity):**
 1. Clock currently gated (gating=1)
 2. Cycle M: user_valid=1 (new activity arrives)
-3. Cycle M+1: r_wakeup=1 (registered)
-4. Clock ungates immediately (gating=0)
+3. Cycle M+1: r_wakeup=1 (registered); gating=0 combinationally
+4. Cycle M+2: first usable gated-clock rising edge
 5. Normal operation resumes with no lost cycles
 
-**Critical Property:** Ungating is immediate (no counter delay) to ensure zero protocol impact.
+**Critical Property:** Ungating does not wait on the idle counter. It still costs 1 register stage here, so the first usable gated-clock edge arrives 2 clocks after activity asserts (3 on the two-stage APB, APB5, and AXI5-Stream wrappers).
 
 ---
 
@@ -331,7 +331,10 @@ amba_clock_gate_ctrl #(
 2. **Stable Input:** Clock gate controller receives glitch-free wakeup signal
 3. **Reset Safety:** Defaults to active (1'b1) ensuring clock availability during reset
 
-**Trade-off:** Adds 1 cycle latency to activity detection, but ensures robust operation.
+**Trade-off:** Adds 1 register stage to activity detection, so the first usable gated-clock
+edge arrives 2 clocks after activity asserts (3 on the two-stage APB, APB5, and AXI5-Stream
+wrappers, which register activity again before this module). Robust operation is worth the
+cost.
 
 ### Activity Signal Selection
 
@@ -416,9 +419,13 @@ Dynamic Power Saving ≈ Gating Efficiency × Clock Tree Power
 ### Performance Considerations
 
 **Latency Impact:**
-- No added latency when clock ungated (activity present)
-- 1 cycle wakeup registration latency
-- Ungating is immediate (no idle counter delay)
+- No added latency when the clock is already ungated (activity present)
+- Activity is registered once (AXI4, AXI5, AXI4-Lite, AXI4-Stream) or twice (APB, APB5,
+  AXI5-Stream) before reaching the ICG enable, which is combinational. This module
+  contributes the single `r_wakeup` stage; two-stage families add one more in the wrapper.
+- First usable gated-clock rising edge: 2 clocks (single-stage families) or 3 clocks
+  (two-stage families) after activity asserts
+- Ungating does not wait on the idle counter
 
 **Throughput Impact:**
 - Zero impact: Clock always available for valid transactions

@@ -42,7 +42,7 @@ $FRAMEWORK_ROOT/rtl/sram_chan_tracker_bind.sv
 
 # Board-level status outputs (LED bank + 7-segment display) and their
 # upstream dependencies in the shared rtl/ tree.
-$REPO_ROOT/rtl/amba/shared/cdc_2_phase_handshake.sv
+$REPO_ROOT/rtl/amba/cdc/cdc_2_phase_handshake.sv
 $REPO_ROOT/rtl/common/hex_to_7seg.sv
 $FRAMEWORK_ROOT/rtl/led_status_driver.sv
 $FRAMEWORK_ROOT/rtl/seven_seg_4digit.sv

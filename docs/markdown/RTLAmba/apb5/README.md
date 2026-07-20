@@ -39,14 +39,20 @@ APB5 extends APB4 with enhanced features for modern SoC designs while maintainin
 
 ## AMBA4 vs AMBA5 Comparison
 
-| Feature | APB4 | APB5 |
-|---------|------|------|
-| Basic Protocol | Two-phase handshake | Two-phase handshake |
-| Protection | PPROT[2:0] | PPROT[2:0] + PNSE |
-| Wake-up | Not supported | PWAKEUP signal |
-| User Signals | Not supported | PAUSER, PWUSER, PRUSER, PBUSER |
-| Atomic Operations | Not supported | PEXCL, PEXOKAY |
-| Error Response | PSLVERR | PSLVERR (enhanced semantics) |
+The table below compares the APB4 and APB5 protocol definitions, and states what
+this RTL release actually implements. Optional APB5 features that are not
+implemented are simply absent from the module port lists -- there are no tie-off
+ports to connect.
+
+| Feature | APB4 | APB5 | Implemented here |
+|---------|------|------|------------------|
+| Basic Protocol | Two-phase handshake | Two-phase handshake | Yes |
+| Protection | PPROT[2:0] | PPROT[2:0] + PNSE | PPROT only -- no PNSE port |
+| Wake-up | Not supported | PWAKEUP signal | Yes |
+| User Signals | Not supported | PAUSER, PWUSER, PRUSER, PBUSER | Yes |
+| Atomic Operations | Not supported | PEXCL, PEXOKAY | No -- not in this release |
+| Parity | Not supported | Optional signal parity | Yes (`ENABLE_PARITY`) |
+| Error Response | PSLVERR | PSLVERR (enhanced semantics) | Yes |
 
 ---
 
@@ -59,7 +65,7 @@ APB5 extends APB4 with enhanced features for modern SoC designs while maintainin
 | **apb5_master** | Full-featured APB5 master with command/response interface | [apb5_master.md](apb5_master.md) | Documented |
 | **apb5_slave** | Complete APB5 slave with buffered cmd/rsp interface | [apb5_slave.md](apb5_slave.md) | Documented |
 | **apb5_slave_cdc** | APB5 slave with clock domain crossing support | [apb5_slave_cdc.md](apb5_slave_cdc.md) | Documented |
-| **apb5_monitor** | Transaction monitoring with 128-bit monitor bus + 64-bit timestamp | [apb5_monitor.md](apb5_monitor.md) | Documented |
+| **apb5_monitor** | Transaction monitoring with 64-bit monitor bus packet | [apb5_monitor.md](../monitor/apb5_monitor.md) | Documented |
 
 ### Clock-Gated Variants
 
@@ -81,12 +87,15 @@ APB5 extends APB4 with enhanced features for modern SoC designs while maintainin
 ## Key Features
 
 ### APB5 Protocol Support
-- **Full APB5 Compliance:** Complete AMBA 5 APB protocol implementation
 - **PSTRB Support:** Byte-lane strobes for partial writes
 - **PPROT Support:** Protection attributes for security-aware systems
-- **PNSE Support:** Non-secure extension for TrustZone integration
 - **PWAKEUP Support:** Low-power wake-up signaling
 - **User Signals:** PAUSER, PWUSER, PRUSER, PBUSER for sideband data
+- **Optional Parity:** Per-byte data parity plus address and control parity (`ENABLE_PARITY`)
+
+**Not implemented in this release:** PNSE (Non-secure extension) and the
+PEXCL/PEXOKAY exclusive-access pair. No module in `rtl/amba/apb5/` declares
+these ports.
 
 ### Clock Domain Crossing
 - **Dual-Clock Operation:** APB (pclk) and backend (aclk) domains
@@ -100,7 +109,7 @@ APB5 extends APB4 with enhanced features for modern SoC designs while maintainin
 
 ### Monitoring and Debug
 - **Transaction Monitoring:** Real-time protocol monitoring
-- **64-bit Monitor Bus:** Standardized packet format
+- **64-bit Monitor Bus:** Standardized packet format (`monbus_packet[63:0]`, no side-band timestamp)
 - **Error Detection:** Protocol violations, timeout detection
 - **Performance Tracking:** Transaction counting, latency measurement
 
@@ -114,10 +123,11 @@ APB5 extends APB4 with enhanced features for modern SoC designs while maintainin
 apb5_master #(
     .ADDR_WIDTH(32),
     .DATA_WIDTH(32),
-    .DEPTH(2)
+    .CMD_DEPTH (6),      // command FIFO entries: one of {2, 4, 6, 8}
+    .RSP_DEPTH (6)       // response FIFO entries: one of {2, 4, 6, 8}
 ) u_apb5_master (
-    .aclk           (clk),
-    .aresetn        (resetn),
+    .pclk           (clk),
+    .presetn        (resetn),
 
     // Command interface
     .cmd_valid      (cmd_valid),
@@ -127,12 +137,17 @@ apb5_master #(
     .cmd_pwdata     (cmd_pwdata),
     .cmd_pstrb      (cmd_pstrb),
     .cmd_pprot      (cmd_pprot),
+    .cmd_pauser     (cmd_pauser),
+    .cmd_pwuser     (cmd_pwuser),
 
     // Response interface
     .rsp_valid      (rsp_valid),
     .rsp_ready      (rsp_ready),
     .rsp_prdata     (rsp_prdata),
     .rsp_pslverr    (rsp_pslverr),
+    .rsp_pwakeup    (rsp_pwakeup),
+    .rsp_pruser     (rsp_pruser),
+    .rsp_pbuser     (rsp_pbuser),
 
     // APB5 master interface
     .m_apb_PSEL     (psel),
@@ -143,9 +158,26 @@ apb5_master #(
     .m_apb_PWDATA   (pwdata),
     .m_apb_PSTRB    (pstrb),
     .m_apb_PPROT    (pprot),
+    .m_apb_PAUSER   (pauser),
+    .m_apb_PWUSER   (pwuser),
     .m_apb_PRDATA   (prdata),
     .m_apb_PSLVERR  (pslverr),
-    .m_apb_PWAKEUP  (pwakeup)
+    .m_apb_PWAKEUP  (pwakeup),      // input: driven by the slave
+    .m_apb_PRUSER   (pruser),
+    .m_apb_PBUSER   (pbuser),
+
+    // Parity (tie off / leave open when ENABLE_PARITY=0)
+    .m_apb_PWDATAPARITY  (),
+    .m_apb_PADDRPARITY   (),
+    .m_apb_PCTRLPARITY   (),
+    .m_apb_PRDATAPARITY  ('0),
+    .m_apb_PREADYPARITY  (1'b0),
+    .m_apb_PSLVERRPARITY (1'b0),
+    .parity_error_rdata  (),
+    .parity_error_ctrl   (),
+
+    // Status
+    .wakeup_pending (wakeup_pending)
 );
 ```
 
@@ -157,8 +189,8 @@ apb5_slave #(
     .DATA_WIDTH(32),
     .DEPTH(2)
 ) u_apb5_slave (
-    .aclk           (clk),
-    .aresetn        (resetn),
+    .pclk           (clk),
+    .presetn        (resetn),
 
     // APB5 slave interface
     .s_apb_PSEL     (psel),
@@ -169,9 +201,13 @@ apb5_slave #(
     .s_apb_PWDATA   (pwdata),
     .s_apb_PSTRB    (pstrb),
     .s_apb_PPROT    (pprot),
+    .s_apb_PAUSER   (pauser),
+    .s_apb_PWUSER   (pwuser),
     .s_apb_PRDATA   (prdata),
     .s_apb_PSLVERR  (pslverr),
-    .s_apb_PWAKEUP  (pwakeup),
+    .s_apb_PWAKEUP  (pwakeup),      // output: driven to the master
+    .s_apb_PRUSER   (pruser),
+    .s_apb_PBUSER   (pbuser),
 
     // Command interface
     .cmd_valid      (cmd_valid),
@@ -180,12 +216,30 @@ apb5_slave #(
     .cmd_paddr      (cmd_paddr),
     .cmd_pwdata     (cmd_pwdata),
     .cmd_pstrb      (cmd_pstrb),
+    .cmd_pprot      (cmd_pprot),
+    .cmd_pauser     (cmd_pauser),
+    .cmd_pwuser     (cmd_pwuser),
 
     // Response interface
     .rsp_valid      (rsp_valid),
     .rsp_ready      (rsp_ready),
     .rsp_prdata     (rsp_prdata),
-    .rsp_pslverr    (rsp_pslverr)
+    .rsp_pslverr    (rsp_pslverr),
+    .rsp_pruser     (rsp_pruser),
+    .rsp_pbuser     (rsp_pbuser),
+
+    // Wake-up request from the backend (drives s_apb_PWAKEUP)
+    .wakeup_request (wakeup_request),
+
+    // Parity (tie off / leave open when ENABLE_PARITY=0)
+    .s_apb_PWDATAPARITY  ('0),
+    .s_apb_PADDRPARITY   (1'b0),
+    .s_apb_PCTRLPARITY   (1'b0),
+    .s_apb_PRDATAPARITY  (),
+    .s_apb_PREADYPARITY  (),
+    .s_apb_PSLVERRPARITY (),
+    .parity_error_wdata  (),
+    .parity_error_ctrl   ()
 );
 ```
 
@@ -225,10 +279,14 @@ APB5 uses the same two-phase protocol as APB4:
 
 ### APB5 Signal Descriptions
 
+In this implementation the clock and reset ports are named `pclk` and `presetn`,
+and the bus signals are prefixed `m_apb_` on masters and `s_apb_` on slaves
+(for example `m_apb_PADDR`, `s_apb_PREADY`).
+
 | Signal | Direction | Description |
 |--------|-----------|-------------|
-| PCLK | Input | APB clock |
-| PRESETn | Input | Active-low reset |
+| pclk | Input | APB clock |
+| presetn | Input | Active-low reset |
 | PSEL | Master to Slave | Slave select |
 | PENABLE | Master to Slave | Enable (ACCESS phase indicator) |
 | PREADY | Slave to Master | Transfer complete |
@@ -237,14 +295,35 @@ APB5 uses the same two-phase protocol as APB4:
 | PWDATA | Master to Slave | Write data |
 | PSTRB | Master to Slave | Byte lane strobes |
 | PPROT | Master to Slave | Protection attributes |
-| PNSE | Master to Slave | Non-secure extension (APB5) |
-| PWAKEUP | Master to Slave | Wake-up signal (APB5) |
+| PWAKEUP | Slave to Master | Wake-up signal (APB5) -- see note below |
 | PAUSER | Master to Slave | Address phase user signal (APB5) |
 | PWUSER | Master to Slave | Write data user signal (APB5) |
 | PRDATA | Slave to Master | Read data |
 | PSLVERR | Slave to Master | Error response |
 | PRUSER | Slave to Master | Read data user signal (APB5) |
 | PBUSER | Slave to Master | Write response user signal (APB5) |
+
+**PWAKEUP direction note:** this suite implements PWAKEUP as a slave-to-master
+signal used by a peripheral to request that the master (and its power domain)
+stay awake. `apb5_slave` drives `s_apb_PWAKEUP` from its `wakeup_request` input
+and `apb5_master` consumes `m_apb_PWAKEUP` as an input, capturing it in the
+response packet (`rsp_pwakeup`) and in the `wakeup_pending` status output.
+
+**PNSE, PEXCL and PEXOKAY are not implemented** and do not appear on any module
+port list.
+
+### Optional Parity Signals
+
+Present on all masters and slaves; meaningful only when `ENABLE_PARITY=1`.
+
+| Signal | Width | Direction | Description |
+|--------|-------|-----------|-------------|
+| PWDATAPARITY | STRB_WIDTH | Master to Slave | One parity bit per write-data byte lane |
+| PADDRPARITY | 1 | Master to Slave | Single parity bit over the whole address |
+| PCTRLPARITY | 1 | Master to Slave | Single parity bit over {PWRITE, PSTRB, PPROT} |
+| PRDATAPARITY | STRB_WIDTH | Slave to Master | One parity bit per read-data byte lane |
+| PREADYPARITY | 1 | Slave to Master | Parity bit for PREADY |
+| PSLVERRPARITY | 1 | Slave to Master | Parity bit for PSLVERR |
 
 ---
 
@@ -261,19 +340,25 @@ All APB5 modules use a command/response interface pattern for backend integratio
 - `cmd_pwdata` - Write data
 - `cmd_pstrb` - Byte strobes
 - `cmd_pprot` - Protection attributes
+- `cmd_pauser`, `cmd_pwuser` - APB5 user attributes
 
 **Response Interface:**
 - `rsp_valid`, `rsp_ready` - Handshake signals
 - `rsp_prdata` - Read data
 - `rsp_pslverr` - Error flag
+- `rsp_pruser`, `rsp_pbuser` - APB5 user attributes
+- `rsp_pwakeup` - Captured PWAKEUP state (master only)
 
 ### Migration from APB4
 
 APB5 modules are backward compatible with APB4 systems:
 - Connect APB5 signals to APB4 equivalents
-- Tie unused APB5 signals (PNSE, PWAKEUP, user signals) to default values
-- PNSE typically tied to 0 for secure mode
-- PWAKEUP typically tied to 0 for always-awake operation
+- Tie unused APB5 inputs (PWAKEUP, user signals, parity) to default values and
+  leave the corresponding outputs unconnected
+- On a master, tie `m_apb_PWAKEUP` to 0 for always-awake operation
+- On a slave, tie `wakeup_request` to 0 so `s_apb_PWAKEUP` stays low
+- Leave `ENABLE_PARITY=0` (the default), which forces all generated parity
+  outputs and both `parity_error_*` flags to 0
 
 ---
 
@@ -299,7 +384,7 @@ APB5 modules are backward compatible with APB4 systems:
 
 ---
 
-**Last Updated:** 2025-12-26
+**Last Updated:** 2026-07-19
 
 ---
 

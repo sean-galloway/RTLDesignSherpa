@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-# Johnson-to-Binary Converter (`grayj2bin.sv`)
+# Johnson-to-Binary Converter (`johnson2bin.sv`)
 
 ## Purpose
 Converts Johnson counter codes to binary representation for use in asynchronous FIFOs with non-power-of-2 depths. Unlike standard Gray-to-binary conversion, this module handles the unique properties of Johnson counter sequences.
@@ -156,8 +156,8 @@ localparam int PAD_WIDTH = (WIDTH > N+1) ? WIDTH-N-1 : 0; // Padding if needed
 
 ### Context in FIFO Operation
 ```systemverilog
-// fifo_async_div2.sv usage:
-grayj2bin #(
+// fifo_async.sv (USE_JOHNSON=1) usage:
+johnson2bin #(
     .JCW(JCW),                    // = DEPTH
     .WIDTH(AW + 1),               // Address width + wrap bit
     .INSTANCE_NAME("rd_ptr_gray2bin_inst")
@@ -174,7 +174,7 @@ Unlike pure combinational Gray-to-binary conversion, Johnson-to-binary needs the
 
 ## Comparison with Standard Gray2Bin
 
-| Aspect | Standard Gray2Bin | Johnson2Bin (grayj2bin) |
+| Aspect | Standard Gray2Bin | Johnson2Bin (johnson2bin) |
 |--------|-------------------|--------------------------|
 | **Input type** | Traditional Gray code | Johnson counter sequence |
 | **Algorithm** | XOR reduction | Position detection |
@@ -263,7 +263,7 @@ Valid Johnson patterns have exactly one transition from 1s to 0s (or vice versa)
 ## Related Modules
 - **counter_johnson**: Generates Johnson counter sequences
 - **leading_one_trailing_one**: Position detection helper
-- **fifo_async_div2**: Primary user of this conversion
+- **fifo_async / gaxi_fifo_async (USE_JOHNSON=1)**: Primary users of this conversion
 - **gray2bin**: Standard Gray-to-binary for comparison
 - **fifo_control**: Uses converted binary values for status generation
 
@@ -273,7 +273,7 @@ Valid Johnson patterns have exactly one transition from 1s to 0s (or vice versa)
 For very large depths, consider hierarchical approach:
 ```systemverilog
 // Break large Johnson counter into smaller segments
-// Use multiple grayj2bin instances with higher-level arbitration
+// Use multiple johnson2bin instances with higher-level arbitration
 ```
 
 ### Alternative Position Detection

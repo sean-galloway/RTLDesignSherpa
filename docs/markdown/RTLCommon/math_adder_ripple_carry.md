@@ -503,7 +503,7 @@ math_adder_ripple_carry #(.N(8)) u3 (.i_a(sum2), .i_b(d), .ow_sum(sum3), ...);
 - **math_adder_full.sv** - Single-bit full adder building block
 - **math_adder_half.sv** - Single-bit half adder (no carry input)
 - **math_adder_full_nbit.sv** - Functionally equivalent to this module
-- **math_adder_carry_lookahead.sv** - Faster alternative (1.5× speed, +20% area)
+- **math_adder_pg_chain.sv** - Faster alternative (1.5× speed, +20% area)
 - **math_adder_brent_kung_*.sv** - Much faster (4× speed for 32-bit)
 
 ## References

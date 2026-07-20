@@ -88,10 +88,9 @@ These modules instantiate Level 0 primitives.
 ### Advanced Adders
 | Module | Uses | Test File |
 |--------|------|-----------|
-| math_adder_carry_lookahead.sv | math_adder_full | test_math_adder_carry_lookahead.py |
+| math_adder_pg_chain.sv | math_adder_full | test_math_adder_pg_chain.py |
 | math_adder_brent_kung_*.sv | BK primitives | test_math_adder_brent_kung.py |
 | math_adder_han_carlson_*.sv | HC primitives | test_math_adder_han_carlson.py |
-| math_adder_kogge_stone_nbit.sv | KS primitives | test_math_adder_kogge_stone_nbit.py |
 
 ### Multipliers
 | Module | Uses | Test File |

@@ -143,7 +143,7 @@ The monitor exposes a `block_ready` signal that goes low when its internal FIFO 
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
 - **For axi5 slave variants**: the monitor watches the FUB-side handshake, so there is a `SKID_DEPTH_AR` cycle lag between block_ready going low and new events ceasing. `MAX_TRANSACTIONS` should be sized to cover this margin.
 
-This replaces a previous bug where `block_ready` was left unconnected and a full monitor FIFO would silently lose events.
+`block_ready` must be connected: when the monitor FIFO fills, it backpressures the monitored channel rather than silently dropping events. Leaving it unconnected loses events with no indication.
 
 ---
 
@@ -183,11 +183,11 @@ The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-co
 
 ### Slave AXI5 Interface
 
-Same as `axi5_slave_rd` - see [AXI5 Slave Read](axi5_slave_rd.md) for complete port list.
+Same as `axi5_slave_rd` - see [AXI5 Slave Read](../axi5/axi5_slave_rd.md) for complete port list.
 
 ### FUB Interface
 
-Same as `axi5_slave_rd` - see [AXI5 Slave Read](axi5_slave_rd.md) for complete port list.
+Same as `axi5_slave_rd` - see [AXI5 Slave Read](../axi5/axi5_slave_rd.md) for complete port list.
 
 ### Monitor Configuration
 
@@ -485,7 +485,7 @@ gaxi_fifo_sync #(.DATA_WIDTH(64), .DEPTH(256)) u_mon_fifo (
 
 ## Related Documentation
 
-- **[AXI5 Slave Read](axi5_slave_rd.md)** - Non-monitored version
+- **[AXI5 Slave Read](../axi5/axi5_slave_rd.md)** - Non-monitored version
 - **[AXI5 Slave Read Monitor CG](axi5_slave_rd_mon_cg.md)** - Clock-gated variant
 - **[AXI5 Slave Write Monitor](axi5_slave_wr_mon.md)** - Write monitor
 - **[AXI Monitor Filtered](axi_monitor_filtered.md)** - Monitor core

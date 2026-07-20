@@ -13,10 +13,10 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read -formal -sv math_adder_carry_lookahead.sv
-read -formal -sv formal_math_adder_carry_lookahead.sv
-prep -top formal_math_adder_carry_lookahead
+read -formal -sv math_adder_pg_chain.sv
+read -formal -sv formal_math_adder_pg_chain.sv
+prep -top formal_math_adder_pg_chain
 
 [files]
-math_adder_carry_lookahead.sv ../../../rtl/common/math_adder_carry_lookahead.sv
-formal_math_adder_carry_lookahead.sv
+math_adder_pg_chain.sv ../../../rtl/common/math_adder_pg_chain.sv
+formal_math_adder_pg_chain.sv

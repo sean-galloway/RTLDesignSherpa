@@ -317,6 +317,19 @@ endmodule
 ```
 
 ### 5. Multi-Bit Synchronizer with Gray Code
+
+> **Prefer the library module.** The example below is written out in full to show
+> the mechanism, but production code should instantiate
+> `glitch_free_n_dff_arn` (rtl/common) or `cdc_synchronizer` (rtl/amba/cdc)
+> rather than hand-rolling the flop chain.
+>
+> Two conditions this example depends on, both easy to get wrong:
+> - `src_gray` must be **registered in the source domain** before it crosses.
+>   The single-bit-change guarantee belongs to a registered counter sequence,
+>   not to the encoding in the abstract; a Gray value straight out of
+>   combinational logic can present a transient that was never a real state.
+> - The source value must **increment by one**. A Gray value that jumps changes
+>   multiple bits and no encoding makes that safe.
 ```systemverilog
 module gray_code_synchronizer #(
     parameter int WIDTH = 8,

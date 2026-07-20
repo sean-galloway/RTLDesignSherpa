@@ -31,11 +31,13 @@
 
 ## Overview
 
-The AXI5 Master Read module implements a complete AMBA AXI5 master read interface with full AXI5 protocol support including all new AXI5 extensions. It provides SKID buffering for improved system performance and flow control.
+The AXI5 Master Read module is the master-side AR/R channel transport block. It carries a full AXI5 read signal set, including the AXI5 sideband extensions, between a FUB (Functional Unit Block) interface and an external AXI5 master interface, with a configurable SKID buffer on each channel for timing closure and flow control.
+
+**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking or `RTAGMATCH` generation, no chunk reassembly, no poison generation, and no outstanding-transaction tracking. Those behaviors belong to the endpoints on either side. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
 
 ### Key Features
 
-- Full AMBA AXI5 protocol compliance
+- Carries the full AXI5 signal set listed below, unmodified, across the SKID buffers
 - **ARNSAID:** Non-secure access identifier for security domains
 - **ARTRACE:** Trace signal for debug and performance monitoring
 - **ARMPAM:** Memory Partitioning and Monitoring (PartID + PMG)
@@ -49,7 +51,7 @@ The AXI5 Master Read module implements a complete AMBA AXI5 master read interfac
 - **RTAG/RTAGMATCH:** Memory tags and tag match response (MTE)
 - Configurable SKID buffer depths for AR and R channels
 - Busy signal for power management and clock gating
-- Removed ARREGION (deprecated in AXI5)
+- ARREGION not implemented (see *Design Notes*)
 
 ---
 
@@ -117,6 +119,20 @@ flowchart LR
 | ENABLE_CHUNKING | bit | 1 | Enable data chunking |
 | ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
 | ENABLE_POISON | bit | 1 | Enable poison indicator |
+
+### Derived Parameters
+
+These are computed inside the module from the parameters above. Do not override them.
+
+| Parameter | Expression | Description |
+|-----------|------------|-------------|
+| NUM_TAGS | max(AXI_DATA_WIDTH / 128, 1) | MTE tags carried per beat (one tag per 16 bytes) |
+| TW | AXI_TAG_WIDTH * NUM_TAGS | Total width of the `rtag` field |
+| CHUNK_STRB_WIDTH | max(AXI_DATA_WIDTH / 128, 1) | Width of `rchunkstrb`, one bit per 128-bit granule |
+| ARSize | Sum of the enabled AR fields | AR SKID buffer payload width |
+| RSize | Sum of the enabled R fields | R SKID buffer payload width |
+
+**Note on AXI_WSTRB_WIDTH:** this module declares `AXI_WSTRB_WIDTH` (default `AXI_DATA_WIDTH/8`) and its short alias `SW`, but neither is used. A read module has no W channel and therefore no write strobes. The parameter is retained only so the read and write module parameter lists line up; overriding it has no effect.
 
 ---
 
@@ -217,8 +233,8 @@ Same port list as FUB interface but with `m_axi_*` prefix and reversed direction
 - **RPOISON:** Flags corrupted or invalid data
 - **RCHUNKV/RCHUNKNUM/RCHUNKSTRB:** Controls chunked data transfers
 
-**Deprecated:**
-- **ARREGION:** Removed (not recommended for new designs)
+**Not implemented:**
+- **ARREGION:** No port on this module. AxREGION is not deprecated by AXI5; it remains a valid optional signal and is simply omitted here. Decode or route by address instead, or use `axi4_master_rd`
 
 ### Signal Packing Logic
 
@@ -250,37 +266,40 @@ Disabled signals default to 0.
 ### Basic Read Transaction
 
 <!-- TODO: Add wavedrom timing diagram for AXI5 read transaction -->
-```
-TODO: Wavedrom timing diagram showing:
-- ACLK
-- ARID, ARADDR, ARLEN, ARSIZE
-- ARVALID, ARREADY
-- ARNSAID, ARTRACE, ARMPAM (AXI5 extensions)
-- RID, RDATA, RRESP, RLAST
-- RVALID, RREADY
-- RTRACE, RPOISON (AXI5 extensions)
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - ACLK
+> - ARID, ARADDR, ARLEN, ARSIZE
+> - ARVALID, ARREADY
+> - ARNSAID, ARTRACE, ARMPAM (AXI5 extensions)
+> - RID, RDATA, RRESP, RLAST
+> - RVALID, RREADY
+> - RTRACE, RPOISON (AXI5 extensions)
+
 
 ### Chunked Read Transaction
 
 <!-- TODO: Add wavedrom timing diagram for chunked read -->
-```
-TODO: Wavedrom timing diagram showing:
-- ACLK
-- ARCHUNKEN assertion
-- RCHUNKV, RCHUNKNUM, RCHUNKSTRB
-- Partial data transfer pattern
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - ACLK
+> - ARCHUNKEN assertion
+> - RCHUNKV, RCHUNKNUM, RCHUNKSTRB
+> - Partial data transfer pattern
+
 
 ### Memory Tagging Extension (MTE)
 
 <!-- TODO: Add wavedrom timing diagram for MTE operation -->
-```
-TODO: Wavedrom timing diagram showing:
-- ARTAGOP encoding
-- RTAG delivery with data
-- RTAGMATCH response
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - ARTAGOP encoding
+> - RTAG delivery with data
+> - RTAGMATCH response
+
 
 ---
 
@@ -351,7 +370,8 @@ axi5_master_rd #(
     // Master interface (output side)
     .m_axi_arid         (m_axi_arid),
     .m_axi_araddr       (m_axi_araddr),
-    // ... (connect all master signals similarly)
+    // Every remaining m_axi_* port mirrors the fub_axi_* list above,
+    // same names and widths, opposite directions. All must be connected.
 
     // Status
     .busy               (master_rd_busy)
@@ -374,7 +394,7 @@ axi5_master_rd #(
 | Data chunking | None | CHUNKING |
 | Memory tagging | None | MTE (TAG/TAGOP) |
 | Poison indication | None | POISON |
-| Region field | ARREGION | Deprecated |
+| Region field | ARREGION (optional) | ARREGION retained by the spec; no port on this module |
 
 ### Memory Tagging Extension (MTE)
 
@@ -417,8 +437,8 @@ Disable unused features to reduce area:
 - **[AXI5 Master Write](axi5_master_wr.md)** - Master write interface
 - **[AXI5 Slave Read](axi5_slave_rd.md)** - Slave read interface
 - **[AXI5 Master Read CG](axi5_master_rd_cg.md)** - Clock-gated variant
-- **[AXI5 Master Read Monitor](axi5_master_rd_mon.md)** - With integrated monitoring
-- **[AXI4 Master Read](../axi/axi4_master_rd.md)** - AXI4 version for comparison
+- **[AXI5 Master Read Monitor](../monitor/axi5_master_rd_mon.md)** - With integrated monitoring
+- **[AXI4 Master Read](../axi4/axi4_master_rd.md)** - AXI4 version for comparison
 
 ---
 

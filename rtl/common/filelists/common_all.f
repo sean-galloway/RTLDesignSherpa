@@ -74,13 +74,12 @@ $REPO_ROOT/rtl/common/find_last_set.sv
 $REPO_ROOT/rtl/common/leading_one_trailing_one.sv
 
 # Math - Adders (Basic)
-$REPO_ROOT/rtl/common/math_adder_carry_lookahead.sv
+$REPO_ROOT/rtl/common/math_adder_pg_chain.sv
 $REPO_ROOT/rtl/common/math_adder_carry_save.sv
 $REPO_ROOT/rtl/common/math_adder_carry_save_nbit.sv
 $REPO_ROOT/rtl/common/math_adder_full.sv
 $REPO_ROOT/rtl/common/math_adder_full_nbit.sv
 $REPO_ROOT/rtl/common/math_adder_half.sv
-$REPO_ROOT/rtl/common/math_adder_kogge_stone_nbit.sv
 $REPO_ROOT/rtl/common/math_adder_ripple_carry.sv
 $REPO_ROOT/rtl/common/math_addsub_full_nbit.sv
 
@@ -88,12 +87,14 @@ $REPO_ROOT/rtl/common/math_addsub_full_nbit.sv
 $REPO_ROOT/rtl/common/math_adder_brent_kung_008.sv
 $REPO_ROOT/rtl/common/math_adder_brent_kung_016.sv
 $REPO_ROOT/rtl/common/math_adder_brent_kung_032.sv
+$REPO_ROOT/rtl/common/math_adder_brent_kung_064.sv
 $REPO_ROOT/rtl/common/math_adder_brent_kung_bitwisepg.sv
 $REPO_ROOT/rtl/common/math_adder_brent_kung_black.sv
 $REPO_ROOT/rtl/common/math_adder_brent_kung_gray.sv
 $REPO_ROOT/rtl/common/math_adder_brent_kung_grouppg_008.sv
 $REPO_ROOT/rtl/common/math_adder_brent_kung_grouppg_016.sv
 $REPO_ROOT/rtl/common/math_adder_brent_kung_grouppg_032.sv
+$REPO_ROOT/rtl/common/math_adder_brent_kung_grouppg_064.sv
 $REPO_ROOT/rtl/common/math_adder_brent_kung_pg.sv
 $REPO_ROOT/rtl/common/math_adder_brent_kung_sum.sv
 

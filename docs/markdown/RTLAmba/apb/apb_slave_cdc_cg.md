@@ -34,32 +34,64 @@
 
 This is the **clock-gated variant** of [apb_slave_cdc](./apb_slave_cdc.md).
 
-**For complete clock-gating documentation, usage examples, and configuration guidelines, see:**
+**For the clock-gating architecture and the underlying gate cell, see:**
 
-**→ [Clock-Gated Variants Guide](../shared/clock_gated_variants.md)**
+**→ [Clock-Gated Variants Guide](../shared/clock_gated_variants.md)** and
+**→ [amba_clock_gate_ctrl](../shared/amba_clock_gate_ctrl.md)**
+
+Both live in the Shared book, which is published as a separate PDF. Take the
+parameter and port names for this module from the tables below, not from the
+generic guide.
 
 ---
 
 ## Summary
 
-The `apb_slave_cdc_cg` module adds power optimization to `apb_slave_cdc` through activity-based clock gating:
+The `apb_slave_cdc_cg` module adds power optimization to `apb_slave_cdc` through
+activity-based clock gating. **Both clock domains are gated independently** -- the
+module instantiates two `amba_clock_gate_ctrl` blocks, one on `pclk` and one on
+`aclk`, sharing the same configuration inputs.
+
+Structurally it is a sibling of `apb_slave_cdc` rather than a wrapper around it:
+it re-instantiates the same `apb_slave` plus the same pair of `gaxi_fifo_async`
+CDC FIFOs, but drives them from the gated clocks. The CDC behaviour described in
+[apb_slave_cdc.md](./apb_slave_cdc.md) -- gray pointers, `N_FLOP_CROSS=2`,
+independent-reset safety, no maximum clock ratio -- applies unchanged.
+
+While a domain is gated, that domain's `ready` outputs are forced low so no
+handshake can complete against a stopped clock.
 
 - ✅ **Same Functionality:** 100% equivalent to base module
-- ✅ **Power Savings:** 25-70% depending on traffic utilization
-- ✅ **Configurable:** Idle threshold, gating domains, enable/disable
-- ✅ **Zero Overhead When Disabled:** `ENABLE_CLOCK_GATING=0` → identical to base
+- ✅ **Dual-Domain Gating:** Separate gate cell per clock domain
+- ✅ **Runtime Control:** Gating is enabled and tuned by input signals, not parameters
+- ✅ **Bypassable:** Tie `cfg_cg_enable = 0` for behaviour identical to the base module
 
 ---
 
-## Common Parameters
+## Additional Parameters
 
 In addition to all [apb_slave_cdc](./apb_slave_cdc.md) parameters:
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `ENABLE_CLOCK_GATING` | 1 | Master enable (0=disable, identical to base) |
-| `CG_IDLE_CYCLES` | 8 | Cycles before clock gating activates |
-| `CG_GATE_*` | 1 | Domain-specific gating enables |
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `CG_IDLE_COUNT_WIDTH` | int | 4 | Width of the idle countdown counter, shared by both domains |
+
+`USE_2_PHASE_CDC` is inherited from the base module and is likewise **deprecated
+and ignored**. There is no `ENABLE_CLOCK_GATING` parameter and no per-domain
+`CG_GATE_*` parameters.
+
+## Additional Ports
+
+In addition to all [apb_slave_cdc](./apb_slave_cdc.md) ports:
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `cfg_cg_enable` | 1 | Input | Global clock-gate enable for both domains. 0 = never gate |
+| `cfg_cg_idle_count` | CG_IDLE_COUNT_WIDTH | Input | Idle cycles to count down before gating |
+| `pclk_cg_gating` | 1 | Output | Asserted while the `pclk` domain is gated |
+| `pclk_cg_idle` | 1 | Output | Asserted while the `pclk` domain buffers are empty |
+| `aclk_cg_gating` | 1 | Output | Asserted while the `aclk` domain is gated |
+| `aclk_cg_idle` | 1 | Output | Asserted while the `aclk` domain buffers are empty |
 
 ---
 
@@ -68,19 +100,34 @@ In addition to all [apb_slave_cdc](./apb_slave_cdc.md) parameters:
 ```systemverilog
 apb_slave_cdc_cg #(
     // Base module parameters (see apb_slave_cdc.md)
-    .AXI_ID_WIDTH(8),
-    .AXI_ADDR_WIDTH(32),
-    .AXI_DATA_WIDTH(64),
+    .ADDR_WIDTH          (32),
+    .DATA_WIDTH          (32),
+    .DEPTH               (2),
 
-    // Clock gating (see CG guide for details)
-    .ENABLE_CLOCK_GATING(1),
-    .CG_IDLE_CYCLES(8)
+    // Clock gating
+    .CG_IDLE_COUNT_WIDTH (4)
 ) u_cg (
-    .aclk(clk),
-    .aresetn(rst_n),
+    .pclk              (apb_clk),
+    .presetn           (apb_resetn),
+    .aclk              (core_clk),
+    .aresetn           (core_resetn),
+
+    // Clock gating control (applies to both domains)
+    .cfg_cg_enable     (1'b1),
+    .cfg_cg_idle_count (4'd8),
+
+    // Per-domain gating status
+    .pclk_cg_gating    (pclk_gated),
+    .pclk_cg_idle      (pclk_idle),
+    .aclk_cg_gating    (aclk_gated),
+    .aclk_cg_idle      (aclk_idle),
+
     // ... all other ports same as apb_slave_cdc
 );
 ```
+
+**Simulation note:** set `cfg_cg_enable = 0` when debugging CDC waveforms. Two
+independently gated clocks make cross-domain timing very hard to read.
 
 ---
 

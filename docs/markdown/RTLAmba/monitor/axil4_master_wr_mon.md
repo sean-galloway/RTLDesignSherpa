@@ -24,14 +24,14 @@
 # AXIL4 Master Write with Monitoring
 
 **Module:** `axil4_master_wr_mon.sv`
-**Location:** `rtl/amba/axil4/`
+**Location:** `rtl/amba/monitor/`
 **Status:** ✅ Production Ready
 
 ---
 
 ## Overview
 
-Combines **[axil4_master_wr](axil4_master_wr.md)** with **axi_monitor_filtered** for write transaction monitoring.
+Combines **[axil4_master_wr](../axil4/axil4_master_wr.md)** with **axi_monitor_filtered** for write transaction monitoring.
 
 ### Key Features
 
@@ -104,7 +104,7 @@ The monitor exposes a `block_ready` signal that goes low when its internal FIFO 
 - **Where the stall lands**: the upstream `fub_axil_awready` is forced low until the monitor drains.
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
 
-This replaces a previous bug where `block_ready` was left unconnected and a full monitor FIFO would silently lose events.
+`block_ready` must be connected: when the monitor FIFO fills, it backpressures the monitored channel rather than silently dropping events. Leaving it unconnected loses events with no indication.
 
 ---
 
@@ -186,10 +186,10 @@ axil4_master_wr_mon #(
 
 ## Related Modules
 
-- **[axil4_master_wr](axil4_master_wr.md)** - Base functional module
+- **[axil4_master_wr](../axil4/axil4_master_wr.md)** - Base functional module
 - **[axil4_master_rd_mon](axil4_master_rd_mon.md)** - Read monitor counterpart
 - **[AXI4 Master Write Mon](axi4_master_wr_mon.md)** - Full AXI4 reference
 
 ---
 
-**Last Updated:** 2025-10-24
+**Last Updated:** 2026-07-19

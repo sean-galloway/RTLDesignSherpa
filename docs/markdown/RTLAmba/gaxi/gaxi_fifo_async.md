@@ -49,7 +49,8 @@ The GAXI asynchronous FIFO enables safe clock domain crossing (CDC) between inde
 module gaxi_fifo_async #(
     parameter int REGISTERED = 0,         // 0=mux mode, 1=flop mode
     parameter int DATA_WIDTH = 8,
-    parameter int DEPTH = 10,
+    parameter int DEPTH = 16,            // power of 2 unless USE_JOHNSON=1
+    parameter int USE_JOHNSON = 0,       // 0=Gray pointers, 1=Johnson pointers
     parameter int N_FLOP_CROSS = 2,      // CDC synchronizer stages
     parameter int ALMOST_WR_MARGIN = 1,
     parameter int ALMOST_RD_MARGIN = 1,
@@ -79,7 +80,8 @@ module gaxi_fifo_async #(
 |-----------|---------|-------------|
 | `REGISTERED` | 0 | 0=mux mode, 1=flop mode (read path) |
 | `DATA_WIDTH` | 8 | Data bus width |
-| `DEPTH` | 10 | FIFO depth (even values recommended) |
+| `DEPTH` | 16 | FIFO depth. Power of 2 with Gray pointers; any even value with `USE_JOHNSON=1` |
+| `USE_JOHNSON` | 0 | Pointer CDC encoding: 0 = Gray (`log2(DEPTH)+1` bits, power-of-2 depth only), 1 = Johnson (`DEPTH` bits, any even depth). An illegal combination fails at elaboration with an explicit `$error`. |
 | `N_FLOP_CROSS` | 2 | Synchronizer stages (3 recommended for safety) |
 | `ALMOST_WR_MARGIN` | 1 | Almost full threshold |
 | `ALMOST_RD_MARGIN` | 1 | Almost empty threshold |
@@ -143,9 +145,13 @@ This prevents glitches during synchronization across clock domains.
 ### Dependencies
 
 - `counter_bin.sv` - Binary counters
-- `counter_johnson.sv` - Gray code (Johnson) counters
+- `counter_johnson.sv` - Johnson (twisted-ring) counters, used when `USE_JOHNSON=1`.
+  Johnson code is NOT Gray code -- it is a distinct encoding that happens to share
+  the single-bit-change property needed for CDC. Both change exactly one bit per
+  increment, including the wrap.
 - `glitch_free_n_dff_arn.sv` - Multi-flop synchronizers
-- `grayj2bin.sv` - Gray-to-binary conversion
+- `johnson2bin.sv` - Johnson-to-binary conversion (registered), used when `USE_JOHNSON=1`
+- `counter_bingray.sv` / `gray2bin.sv` - Gray pointer path (combinational decode), used when `USE_JOHNSON=0`
 - `fifo_control.sv` - Full/empty flag generation
 
 ---

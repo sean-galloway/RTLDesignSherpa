@@ -63,7 +63,18 @@ class BrentKungAdder(Module):
 
     def group_pg_logic_outputs(self):
         ow_gg = {"port": "ow_gg", "connector": "ow_gg", "type":"[N:0]"}
-        return [ow_gg]
+        # ow_pp must be listed even though the adder does not use the group
+        # propagate: omitting it emits an instance with the pin absent, which
+        # Verilator flags as PINMISSING and -- because the multiplier tests build
+        # with warnings-as-errors -- fails elaboration outright.
+        #
+        # An empty connector renders as ".ow_pp()", an explicit no-connect. The
+        # checked-in 008/016/032 adders already carried that line, but it had been
+        # added by hand after generation rather than emitted here, so regenerating
+        # any width silently dropped it. This keeps every width reproducible from
+        # the generator.
+        ow_pp = {"port": "ow_pp", "connector": "", "type":"[N:0]"}
+        return [ow_gg, ow_pp]
 
     def sum_logic_inputs(self):
         i_p = {"port": "i_p", "connector": "ow_p", "type":"[N:0]"}
@@ -79,6 +90,12 @@ class BrentKungAdder(Module):
         prev_ports = [item['connector'] for item in prev_wires] # these are the names only for quick searches
         for w in new_wires:
             conname = w['connector']
+            # An empty connector is a deliberate no-connect (rendered ".port()").
+            # It names no signal, so it must not become a wire declaration --
+            # otherwise the module emits a nameless "logic [N:0] ;" and fails to
+            # parse. See group_pg_logic_outputs() for the ow_pp case.
+            if not conname:
+                continue
             if conname in top_ports or conname in prev_ports:
                 continue
             prev_wires.append(w)

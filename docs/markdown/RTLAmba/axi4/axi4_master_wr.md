@@ -260,8 +260,8 @@ flowchart LR
 
 The `busy` output indicates active transactions:
 ```systemverilog
-busy = (aw_count > 0) || (w_count > 0) || (b_count > 0) ||
-       fub_axi_awvalid || fub_axi_wvalid || m_axi_bvalid
+assign busy = (int_aw_count > 0) || (int_w_count > 0) || (int_b_count > 0) ||
+                fub_axi_awvalid || fub_axi_wvalid || m_axi_bvalid;
 ```
 
 Use cases:
@@ -274,6 +274,11 @@ Use cases:
 ## Configuration Guidelines
 
 ### Buffer Depth Selection
+
+`SKID_DEPTH_*` is an entry count, not a log2 exponent. The underlying
+`gaxi_skid_buffer` allocates one register slot per entry and tracks occupancy
+with a 4-bit counter, so legal values are 2, 4, 6, and 8. Values greater than 8
+overflow the occupancy counter and are not supported.
 
 **Write Address (SKID_DEPTH_AW):**
 - Default: 2 (sufficient for most cases)
@@ -311,7 +316,7 @@ axi4_master_wr #(
 ```systemverilog
 axi4_master_wr #(
     .SKID_DEPTH_AW(4),
-    .SKID_DEPTH_W(16),   // Deep for burst data
+    .SKID_DEPTH_W(8),    // Deep for burst data
     .SKID_DEPTH_B(4)
 ) u_master_wr ( ... );
 ```
@@ -320,7 +325,7 @@ axi4_master_wr #(
 ```systemverilog
 axi4_master_wr #(
     .SKID_DEPTH_AW(8),
-    .SKID_DEPTH_W(16),
+    .SKID_DEPTH_W(8),
     .SKID_DEPTH_B(8)
 ) u_master_wr ( ... );
 ```

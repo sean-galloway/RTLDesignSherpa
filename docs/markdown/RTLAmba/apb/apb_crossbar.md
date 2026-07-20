@@ -23,9 +23,10 @@
 
 # APB Crossbar Specification
 
-**Version:** 1.0
-**Last Updated:** 2025-10-14
+**Version:** 1.1
+**Last Updated:** 2026-07-19
 **Status:** Production Ready
+**Location:** `projects/components/apb_xbar/`
 
 ---
 
@@ -48,14 +49,31 @@
 
 The APB crossbar family provides scalable interconnect solutions for connecting multiple APB masters to multiple APB slaves. All crossbar variants are generated using the `apb_xbar_generator.py` tool and share a common architecture based on `apb_slave` and `apb_master` building blocks.
 
+**Where things live.** The crossbar RTL, generator, and testbenches are in the
+`apb_xbar` component area, not under `rtl/amba/apb/`:
+
+| Artifact | Path |
+|----------|------|
+| Generated RTL | `projects/components/apb_xbar/rtl/` |
+| Generator | `projects/components/apb_xbar/bin/apb_xbar_generator.py` |
+| Convenience script | `projects/components/apb_xbar/bin/generate_xbars.py` |
+| Testbenches | `projects/components/apb_xbar/dv/tests/` |
+| Formal | `formal/apb_xbar/` |
+
+The APB4 primitives they are built from (`apb_slave`, `apb_master`) do live in
+`rtl/amba/apb/`, which is why this specification is published in the APB4 book.
+
 ### Key Features
 
-- **Scalable**: Supports 1-16 masters and 1-16 slaves
-- **Standards Compliant**: Full APB5 protocol support
-- **Efficient**: Pipelined cmd/rsp architecture minimizes latency
-- **Fair**: Round-robin arbitration per slave
+- **Scalable**: Generator takes arbitrary `--masters` / `--slaves`; four
+  pre-generated variants are checked in and tested
+- **Standards Compliant**: AMBA 4 APB (APB4). These crossbars carry `PSTRB` and
+  `PPROT`; they do **not** carry APB5 signalling
+- **Efficient**: cmd/rsp architecture decouples the two APB sides
+- **Fair**: Round-robin arbitration per slave, with grant held until the
+  transaction completes
 - **Parameterizable**: Configurable address width, data width, and base address
-- **Tested**: Comprehensive CocoTB verification suite
+- **Tested**: CocoTB verification suite plus SymbiYosys formal proofs
 
 ### Design Philosophy
 
@@ -97,9 +115,8 @@ apb_xbar_MtoN
 │   ├── Command FIFO buffering
 │   └── Response routing
 ├── Address Decoder
-│   ├── Slave selection logic
-│   ├── Range checking
-│   └── Error generation (decode errors)
+│   ├── Slave selection logic (PADDR bit slice)
+│   └── Range checking (no decode-error slave -- see Known Limitations)
 ├── Arbitration Logic (N instances)
 │   ├── Round-robin priority per slave
 │   ├── Grant persistence during transaction
@@ -144,10 +161,15 @@ apb_xbar_MtoN
 
 | Module | Masters | Slaves | Primary Use Case | File |
 |--------|---------|--------|------------------|------|
-| `apb_xbar_1to1` | 1 | 1 | Basic passthrough, protocol conversion | `rtl/amba/apb/xbar/apb_xbar_1to1.sv` |
-| `apb_xbar_2to1` | 2 | 1 | Simple arbitration testing | `rtl/amba/apb/xbar/apb_xbar_2to1.sv` |
-| `apb_xbar_1to4` | 1 | 4 | Address decode testing, simple bus | `rtl/amba/apb/xbar/apb_xbar_1to4.sv` |
-| `apb_xbar_2to4` | 2 | 4 | Full crossbar with arbitration + decode | `rtl/amba/apb/xbar/apb_xbar_2to4.sv` |
+| `apb_xbar_1to1` | 1 | 1 | Basic passthrough, protocol conversion | `projects/components/apb_xbar/rtl/apb_xbar_1to1.sv` |
+| `apb_xbar_2to1` | 2 | 1 | Simple arbitration testing | `projects/components/apb_xbar/rtl/apb_xbar_2to1.sv` |
+| `apb_xbar_1to4` | 1 | 4 | Address decode testing, simple bus | `projects/components/apb_xbar/rtl/apb_xbar_1to4.sv` |
+| `apb_xbar_2to4` | 2 | 4 | Full crossbar with arbitration + decode | `projects/components/apb_xbar/rtl/apb_xbar_2to4.sv` |
+| `apb_xbar_thin` | M | S | Fully parameterized combinational crossbar (different architecture) | `projects/components/apb_xbar/rtl/apb_xbar_thin.sv` |
+
+`apb_xbar_thin` is **not** a generated variant and does not share this
+architecture -- it is a combinational passthrough with weighted round-robin and
+no cmd/rsp conversion. See [apb_xbar.md](apb_xbar.md).
 
 ### Feature Comparison
 
@@ -155,9 +177,34 @@ apb_xbar_MtoN
 |---------|------|------|------|------|
 | Address Decode | ✗ | ✗ | ✓ | ✓ |
 | Arbitration | ✗ | ✓ | ✗ | ✓ |
-| Resources (LUTs) | Minimal | Low | Medium | Medium-High |
-| Max Frequency | Highest | High | High | Medium-High |
-| Latency (cycles) | 2 | 2-3 | 2 | 2-4 |
+| Relative Resources | Minimal | Low | Medium | Medium-High |
+| Relative Max Frequency | Highest | High | High | Medium-High |
+
+**Resource and frequency columns are relative rankings only.** No synthesis has
+been run for these modules in this repository, so no LUT counts or MHz figures
+are published. Treat them as an ordering, not as data.
+
+### Latency
+
+Every variant, including 1to1, converts APB to cmd/rsp and back:
+`apb_slave` (master side) → decode/arbitration → `apb_master` (slave side). None
+of them is a wire.
+
+The dominant cost is that each APB transfer through the crossbar becomes **two**
+APB transfers -- one on the master side and one on the slave side -- and the
+`apb_slave` FSM alone inserts at least two wait states in its ACCESS phase (see
+[apb_slave.md](apb_slave.md)). The structural contributors are:
+
+| Stage | Cost |
+|-------|------|
+| `apb_slave` capture to `cmd_valid` | ≥1 cycle (registered FSM) |
+| Address decode | 0 cycles (combinational) |
+| Arbitration | 1 cycle when contended (`WAIT_GNT_ACK` grant handshake) |
+| `apb_master` SETUP + ACCESS on the downstream slave | ≥2 cycles, plus that slave's wait states |
+| Response return through `apb_slave` | ≥1 cycle |
+
+A single-figure "cycles of latency" number is therefore misleading and is not
+quoted here. Measure it for your slave's wait-state behaviour if it matters.
 
 ### Selecting a Crossbar
 
@@ -184,7 +231,7 @@ apb_xbar_MtoN
 **Need different configuration?**
 ```bash
 # Generate custom crossbar
-cd rtl/amba/apb/xbar
+cd projects/components/apb_xbar/bin
 python generate_xbars.py --masters 3 --slaves 8
 ```
 
@@ -326,12 +373,60 @@ Results in:
 - Slave 2: 0x4002_0000 - 0x4002_FFFF
 - Slave 3: 0x4003_0000 - 0x4003_FFFF
 
-### Decode Errors
+### Alignment Requirement
 
-Accesses outside valid slave ranges generate:
-- `PSLVERR = 1` (error response)
-- `PRDATA = 0xDEADBEEF` (debug pattern)
-- `PREADY = 1` (immediate response)
+The generated decoders do not compute the slave index arithmetically -- they slice
+it out of `PADDR` directly. For the 4-slave variants:
+
+```systemverilog
+addr_in_range = (cmd_paddr >= BASE_ADDR) &&
+                (cmd_paddr <  (BASE_ADDR + 32'h0004_0000));
+slave_sel     = cmd_paddr[17:16];
+```
+
+`BASE_ADDR` must therefore be aligned to the **total** decoded window
+(`num_slaves × 64 KB`; 256 KB for the 4-slave variants). An unaligned
+`BASE_ADDR` makes the range check and the index slice disagree, silently routing
+transfers to the wrong slave. The generator does not check this.
+
+### Decode Errors: Unmapped Addresses Stall
+
+**There is no decode-error response.** The generated crossbars do not implement a
+default slave, and the following statements -- which appeared in earlier revisions
+of this document -- are **not** true of the RTL:
+
+- ~~`PSLVERR = 1` on unmapped access~~
+- ~~`PRDATA = 0xDEADBEEF` debug pattern~~
+- ~~`PREADY = 1` immediate response~~
+
+The string `DEADBEEF` does not appear anywhere in the crossbar RTL.
+
+What actually happens: when `addr_in_range` is low, no `sN_cmd_valid` is asserted
+and `cmd_ready` back to the master's `apb_slave` stays low:
+
+```systemverilog
+always_comb begin
+    m0_cmd_ready = 1'b0;
+    if (m0_cmd_valid && m0_addr_in_range) begin
+        case (m0_slave_sel)
+            2'd0: m0_cmd_ready = s0_cmd_ready;
+            // ...
+        endcase
+    end
+end
+```
+
+The command is never accepted, no response is ever produced, and `PREADY` is
+never asserted. **The APB transfer hangs indefinitely.** There is no timeout.
+
+**Integration requirement:** do not expose an unmapped address range to a master
+through these crossbars. Either constrain the master's address map to the decoded
+window, or place an address filter with a default error slave upstream. If a
+master can be pointed at an arbitrary address (a CPU, a debugger), an errant
+access will wedge the bus until reset.
+
+This is tracked as a limitation, not a bug in the current tests: the CocoTB
+testbenches exercise the mapped ranges only.
 
 ---
 
@@ -379,11 +474,15 @@ Time 7: M0 requests S0 → M0 granted (priority rotated back)
 
 ### Arbitration Latency
 
-| Scenario | Latency | Description |
-|----------|---------|-------------|
-| No contention | 2 cycles | Direct passthrough |
-| Contention, slave idle | 2 cycles | Immediate grant |
-| Contention, slave busy | 2 + wait cycles | Wait for current transaction |
+This table describes only the **arbitration** contribution. It is additive to the
+protocol-conversion cost described under [Latency](#latency); it is not the
+end-to-end transfer latency.
+
+| Scenario | Arbitration cost | Description |
+|----------|------------------|-------------|
+| No contention (single master) | 0 cycles | No arbiter instantiated for 1-master variants |
+| Contention, slave idle | 1 cycle | Grant registered before the request propagates |
+| Contention, slave busy | 1 cycle + remaining transaction | `WAIT_GNT_ACK=1` holds the grant until the current transfer completes |
 
 ---
 
@@ -594,7 +693,7 @@ endmodule
 
 ```bash
 # Generate custom 3-master, 8-slave crossbar
-cd rtl/amba/apb/xbar
+cd projects/components/apb_xbar/bin
 python generate_xbars.py --masters 3 --slaves 8 --base-addr 0x80000000
 ```
 
@@ -614,7 +713,8 @@ apb_xbar_3to8 #(
 
 ## Test Results
 
-All crossbar modules have comprehensive CocoTB testbenches in `val/integ_amba/`.
+All crossbar modules have CocoTB testbenches in
+`projects/components/apb_xbar/dv/tests/`.
 
 ### Test Coverage
 
@@ -625,43 +725,57 @@ All crossbar modules have comprehensive CocoTB testbenches in `val/integ_amba/`.
 | `test_apb_xbar_1to4` | Address decode, multiple slaves | ✅ PASS |
 | `test_apb_xbar_2to4` | Full crossbar, arbitration + decode | ✅ PASS |
 
+Each test drives a `*_wrap` wrapper (`rtl/wrappers/apb_xbar_*_wrap.sv`) rather
+than the bare crossbar.
+
+### Formal Verification
+
+SymbiYosys proofs exist for all four generated variants plus `apb_xbar_thin`
+under `formal/apb_xbar/`, each with `prove` and `cover` tasks.
+
 ### Test Scenarios
 
 Each test includes:
 - ✅ Basic read/write transactions
 - ✅ Back-to-back transfers
 - ✅ Wait state handling
-- ✅ Error responses (PSLVERR)
-- ✅ Address decode verification
+- ✅ Error responses (`PSLVERR` propagated from a mapped slave)
+- ✅ Address decode verification (mapped ranges)
 - ✅ Arbitration fairness (multi-master)
 - ✅ Concurrent transactions (different slaves)
 - ✅ Reset behavior
-- ✅ Full address range coverage
+
+Not covered:
+
+- ✗ Unmapped-address access -- would hang; see [Decode Errors](#decode-errors-unmapped-addresses-stall)
+- ✗ Unaligned `BASE_ADDR`
 
 ### Running Tests
 
 ```bash
+source env_python
+
 # Run all APB crossbar tests
-pytest val/integ_amba/test_apb_xbar_*.py -v
+pytest projects/components/apb_xbar/dv/tests/ -v
 
 # Run specific variant
-pytest val/integ_amba/test_apb_xbar_2to4.py -v
-
-# Generate waveforms
-pytest val/integ_amba/test_apb_xbar_2to4.py -v --vcd=waves.vcd
-gtkwave waves.vcd
+pytest projects/components/apb_xbar/dv/tests/test_apb_xbar_2to4.py -v
 ```
+
+Build artifacts and logs are preserved under
+`projects/components/apb_xbar/dv/tests/local_sim_build/` and `.../logs/`.
 
 ### Test Results Summary
 
-```
-test_apb_xbar_1to1.py::test_apb_xbar_1to1   PASSED  (100+ transactions)
-test_apb_xbar_2to1.py::test_apb_xbar_2to1   PASSED  (200+ transactions)
-test_apb_xbar_1to4.py::test_apb_xbar_1to4   PASSED  (400+ transactions)
-test_apb_xbar_2to4.py::test_apb_xbar_2to4   PASSED  (800+ transactions)
+Measured 2026-07-19 with Verilator:
 
-All tests: 100% pass rate
-Total simulation time: ~180 seconds
+```
+test_apb_xbar_1to1.py::test_apb_xbar_1to1   PASSED
+test_apb_xbar_2to1.py::test_apb_xbar_2to1   PASSED
+test_apb_xbar_1to4.py::test_apb_xbar_1to4   PASSED
+test_apb_xbar_2to4.py::test_apb_xbar_2to4   PASSED  (350 transactions)
+
+4 passed in 10.14s
 ```
 
 ---
@@ -683,12 +797,21 @@ Total simulation time: ~180 seconds
 3. **No Sparse Addressing**
    - Slaves must be in contiguous 64KB blocks
    - Cannot have gaps in address map
+   - `BASE_ADDR` must be aligned to the total decoded window
    - **Workaround**: Leave unused slaves unconnected
 
 4. **Round-Robin Only**
    - Fixed round-robin arbitration
    - No priority levels or quality-of-service
-   - **Workaround**: Use external priority arbiter before crossbar
+   - **Workaround**: use `apb_xbar_thin`, which has weighted round-robin, or an
+     external priority arbiter ahead of the crossbar
+
+5. **Unmapped Addresses Hang the Bus**
+   - No default slave, no decode-error response, no timeout
+   - An access outside the decoded window never receives `PREADY`
+   - **Workaround**: constrain the master's address map, or place an address
+     filter with an error slave upstream
+   - See [Decode Errors](#decode-errors-unmapped-addresses-stall)
 
 ### Future Enhancements
 
@@ -700,7 +823,10 @@ Total simulation time: ~180 seconds
 
 ### Known Issues
 
-**None at this time.** All generated crossbars pass verification.
+All generated crossbars pass their CocoTB and formal verification. The
+unmapped-address stall described above is a documented architectural limitation
+rather than a test failure -- the testbenches only drive mapped ranges, so it is
+not caught by the current suite.
 
 ---
 
@@ -710,18 +836,19 @@ Total simulation time: ~180 seconds
 - `docs/markdown/GeneratorTutorial/apb_xbar_generator_tutorial.md` - How to use generator
 
 **APB Protocol:**
-- ARM IHI0024 - AMBA APB Protocol Specification
-- `docs/markdown/RTLAmba/apb/apb_protocol.md` - Protocol overview
+- ARM IHI 0024C -- AMBA APB Protocol Specification, Version 2.0 (APB4)
+- [APB module index](README.md) - Protocol overview and signal descriptions
 
 **Building Blocks:**
-- `rtl/amba/apb/apb_slave.sv` - APB → cmd/rsp conversion
-- `rtl/amba/apb/apb_master.sv` - cmd/rsp → APB conversion
-- `rtl/amba/gaxi/gaxi_fifo_sync.sv` - Command buffering
+- `rtl/amba/apb/apb_slave.sv` - APB → cmd/rsp conversion ([apb_slave.md](apb_slave.md))
+- `rtl/amba/apb/apb_master.sv` - cmd/rsp → APB conversion ([apb_master.md](apb_master.md))
+- `rtl/amba/gaxi/gaxi_skid_buffer.sv` - Command and response buffering
+- `rtl/common/arbiter_round_robin.sv` - Per-slave arbitration (`WAIT_GNT_ACK=1`)
 
 **Generator:**
-- `bin/rtl_generators/amba/apb_xbar_generator.py` - Crossbar generator
-- `rtl/amba/apb/xbar/generate_xbars.py` - Convenience script
-- `rtl/amba/apb/xbar/README.md` - Quick reference
+- `projects/components/apb_xbar/bin/apb_xbar_generator.py` - Crossbar generator
+- `projects/components/apb_xbar/bin/generate_xbars.py` - Convenience script
+- `projects/components/apb_xbar/README.md` - Quick reference
 
 ---
 
@@ -730,6 +857,7 @@ Total simulation time: ~180 seconds
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2025-10-14 | RTL Design Sherpa | Initial comprehensive specification |
+| 1.1 | 2026-07-19 | RTL Design Sherpa | Corrected module/test paths to the `apb_xbar` component area; APB5 claim reduced to APB4; removed unsubstantiated latency, LUT, MHz and transaction-count figures; documented that unmapped addresses stall rather than returning `PSLVERR`/`0xDEADBEEF`; added `BASE_ADDR` alignment requirement |
 
 ---
 

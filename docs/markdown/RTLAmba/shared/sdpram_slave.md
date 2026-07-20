@@ -145,12 +145,12 @@ Common to all wrappers (and the backend):
 ## Use in the Monitor System
 
 The `sdpram_slave_axil_axil` wrapper is the canonical SRAM-ring backend
-for the [`monbus_axil_axil_group`](monbus_group.md) master writer —
+for the [`monbus_axil_axil_group`](../monitor/monbus_group.md) master writer —
 both sides AXIL, so no AXI4-only fields anywhere on the harness wiring.
 For details on the slot stream landing in the ring, see
-[`monbus_compressor.md`](monbus_compressor.md) (the compressed case)
+[`monbus_compressor.md`](../monitor/monbus_compressor.md) (the compressed case)
 and the raw-record beat layout described in
-[`monbus_group.md`](monbus_group.md).
+[`monbus_group.md`](../monitor/monbus_group.md).
 
 ---
 
@@ -218,7 +218,7 @@ the port list shape and signal names differ.
 
 | Module | Role |
 |---|---|
-| [`monbus_axil_axil_group`](monbus_group.md) | Most common consumer (memory-dump ring) |
-| [`monbus_compressor`](monbus_compressor.md) | Source of the compressed slot stream landing in the ring |
+| [`monbus_axil_axil_group`](../monitor/monbus_group.md) | Most common consumer (memory-dump ring) |
+| [`monbus_compressor`](../monitor/monbus_compressor.md) | Source of the compressed slot stream landing in the ring |
 | `axi4_slave_wr` / `axi4_slave_rd` | AXI4-side skids instantiated by the backend |
 | `axil4_slave_wr` / `axil4_slave_rd` | AXIL-side skids instantiated by the backend |

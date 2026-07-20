@@ -31,25 +31,72 @@
 
 ## Overview
 
-The AXI5 subsystem provides a comprehensive implementation of the ARM AMBA 5 AXI (Advanced eXtensible Interface) protocol, including read/write masters and slaves, integrated monitors, clock-gated variants, and combined master+monitor modules for efficient system integration.
+The AXI5 subsystem provides read/write master and slave channel modules for the ARM AMBA 5 AXI (Advanced eXtensible Interface) protocol, plus clock-gated variants and combined module+monitor variants for efficient system integration. Read *Scope of This Implementation* below before treating these as a full AXI5 protocol stack.
 
-AXI5 extends AXI4 with significant enhancements for modern high-performance SoC designs, including atomic operations, quality of service improvements, memory tagging, and enhanced coherency support.
+AXI5 extends AXI4 with significant enhancements for modern high-performance SoC designs, including atomic transactions, memory tagging, memory partitioning, and data poisoning.
 
 ---
 
-## AMBA4 vs AMBA5 Comparison
+## Scope of This Implementation
+
+These modules are **channel-transport blocks**: they carry a full AXI5 signal set across configurable SKID buffers between a FUB (Functional Unit Block) interface and an external AXI5 interface. They are the AXI5 equivalents of the `axi4_master_*` / `axi4_slave_*` modules.
+
+**What the RTL does:**
+
+- Transports every implemented AXI5 sideband signal end-to-end without modification.
+- Packs and unpacks channel payloads conditionally, so disabled features cost zero area.
+- Provides a `busy` status output for clock gating and power management.
+
+**What the RTL does not do:**
+
+- It does not *execute* AXI5 semantics. `AWATOP` is transported, but no atomic read-modify-write is performed; `AxTAGOP`/`RTAG`/`WTAG` are transported, but no tag checking or `RTAGMATCH` generation is performed; chunk fields are transported, but no chunk reassembly is performed. Those behaviors belong to the endpoint (memory controller, interconnect, or FUB logic) on either side.
+- It does not track or limit outstanding transactions. Depth is bounded by the endpoints, not by these modules.
+
+Consult the per-module pages for the exact signal set each module carries.
+
+---
+
+## AXI5 Features Implemented
+
+| AXI5 feature | Signals | Status in `rtl/amba/axi5/` |
+|--------------|---------|----------------------------|
+| Non-secure access identifier | ARNSAID / AWNSAID | Transported (`ENABLE_NSAID`) |
+| Trace | ARTRACE / AWTRACE / RTRACE / BTRACE | Transported (`ENABLE_TRACE`) |
+| Memory partitioning and monitoring (MPAM) | ARMPAM / AWMPAM | Transported (`ENABLE_MPAM`) |
+| Memory encryption context | ARMECID / AWMECID | Transported (`ENABLE_MECID`) |
+| Unique access indicator | ARUNIQUE / AWUNIQUE | Transported (`ENABLE_UNIQUE`) |
+| Read data chunking | ARCHUNKEN / RCHUNKV / RCHUNKNUM / RCHUNKSTRB | Transported (`ENABLE_CHUNKING`, read path only) |
+| Memory Tagging Extension (MTE) | ARTAGOP / AWTAGOP / AWTAG / WTAG / WTAGUPDATE / RTAG / BTAG / RTAGMATCH / BTAGMATCH | Transported (`ENABLE_MTE`) |
+| Data poison | RPOISON / WPOISON | Transported (`ENABLE_POISON`) |
+| Atomic transactions | AWATOP | Signal transported (`ENABLE_ATOMIC`); atomic execution is the endpoint's responsibility |
+
+## AXI5 Features Not Implemented
+
+| AXI5 feature | Signals | Notes |
+|--------------|---------|-------|
+| Loopback signalling | ARLOOP / AWLOOP | No ports; not carried |
+| QoS acceptance | ARQOSACCEPT / AWQOSACCEPT | No ports; not carried |
+| Untranslated transactions (SMMU) | AxMMUSID / AxMMUSSID / AxMMUSSIDV / AxMMUATST / AxMMUFLOW | No ports; not carried |
+| Cache stash and CMO transactions | AWSTASHNID / AWSTASHLPID, CMO opcodes | Not implemented |
+| Region identifier | ARREGION / AWREGION | Not implemented. AxREGION is still a valid optional AXI5 signal; it is simply omitted here. Route or decode by address instead |
+
+---
+
+## AXI4 vs AXI5
 
 | Feature | AXI4 | AXI5 |
 |---------|------|------|
-| Outstanding Transactions | Up to 16 | Up to 256 |
-| Atomic Operations | Not supported | AtomicStore, AtomicLoad, AtomicSwap, AtomicCompare |
-| Memory Tagging | Not supported | AWMEMATTR, ARMEMATTR |
-| Cache Maintenance | Limited | Enhanced CMO support |
-| QoS | ARQOS/AWQOS | Enhanced QoS with ARQOSACCEPT/AWQOSACCEPT |
-| User Signals | ARUSER/AWUSER/etc. | Extended user signal widths |
-| Chunking | Not supported | AWCHUNKEN for large transfers |
-| Loop Support | Not supported | AWLOOP, ARLOOP for DMA |
-| Poison | Not supported | RPOISON, WPOISON for error propagation |
+| Outstanding transactions | No architectural limit; bounded by implementation | Unchanged; no architectural limit |
+| Atomic transactions | Not supported | AWATOP: AtomicStore, AtomicLoad, AtomicSwap, AtomicCompare |
+| Memory tagging | Not supported | MTE: AxTAGOP, AxTAG, WTAGUPDATE, RTAG/BTAG, xTAGMATCH |
+| Security identification | ARPROT/AWPROT[1] non-secure bit | AxPROT retained, plus AxNSAID for finer-grained security domains |
+| QoS | ARQOS/AWQOS | AxQOS retained, plus optional AxQOSACCEPT |
+| Memory partitioning | Not supported | MPAM (PartID + PMG) |
+| Encryption context | Not supported | MECID |
+| Trace | Not supported | AxTRACE / RTRACE / BTRACE |
+| Read data chunking | Not supported | ARCHUNKEN, RCHUNKV, RCHUNKNUM, RCHUNKSTRB |
+| Data poison | Not supported | RPOISON, WPOISON |
+| Region identifier | ARREGION/AWREGION (optional) | ARREGION/AWREGION retained (optional) |
 
 ---
 
@@ -77,32 +124,31 @@ AXI5 extends AXI4 with significant enhancements for modern high-performance SoC 
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **axi5_master_rd_mon** | AXI5 read master with integrated transaction monitor | [axi5_master_rd_mon.md](axi5_master_rd_mon.md) | Documented |
-| **axi5_master_rd_mon_cg** | Clock-gated read master with monitor | [axi5_master_rd_mon_cg.md](axi5_master_rd_mon_cg.md) | Documented |
-| **axi5_master_wr_mon** | AXI5 write master with integrated transaction monitor | [axi5_master_wr_mon.md](axi5_master_wr_mon.md) | Documented |
-| **axi5_master_wr_mon_cg** | Clock-gated write master with monitor | [axi5_master_wr_mon_cg.md](axi5_master_wr_mon_cg.md) | Documented |
-| **axi5_slave_rd_mon** | AXI5 read slave with integrated transaction monitor | [axi5_slave_rd_mon.md](axi5_slave_rd_mon.md) | Documented |
-| **axi5_slave_rd_mon_cg** | Clock-gated read slave with monitor | [axi5_slave_rd_mon_cg.md](axi5_slave_rd_mon_cg.md) | Documented |
-| **axi5_slave_wr_mon** | AXI5 write slave with integrated transaction monitor | [axi5_slave_wr_mon.md](axi5_slave_wr_mon.md) | Documented |
-| **axi5_slave_wr_mon_cg** | Clock-gated write slave with monitor | [axi5_slave_wr_mon_cg.md](axi5_slave_wr_mon_cg.md) | Documented |
+| **axi5_master_rd_mon** | AXI5 read master with integrated transaction monitor | [axi5_master_rd_mon.md](../monitor/axi5_master_rd_mon.md) | Documented |
+| **axi5_master_rd_mon_cg** | Clock-gated read master with monitor | [axi5_master_rd_mon_cg.md](../monitor/axi5_master_rd_mon_cg.md) | Documented |
+| **axi5_master_wr_mon** | AXI5 write master with integrated transaction monitor | [axi5_master_wr_mon.md](../monitor/axi5_master_wr_mon.md) | Documented |
+| **axi5_master_wr_mon_cg** | Clock-gated write master with monitor | [axi5_master_wr_mon_cg.md](../monitor/axi5_master_wr_mon_cg.md) | Documented |
+| **axi5_slave_rd_mon** | AXI5 read slave with integrated transaction monitor | [axi5_slave_rd_mon.md](../monitor/axi5_slave_rd_mon.md) | Documented |
+| **axi5_slave_rd_mon_cg** | Clock-gated read slave with monitor | [axi5_slave_rd_mon_cg.md](../monitor/axi5_slave_rd_mon_cg.md) | Documented |
+| **axi5_slave_wr_mon** | AXI5 write slave with integrated transaction monitor | [axi5_slave_wr_mon.md](../monitor/axi5_slave_wr_mon.md) | Documented |
+| **axi5_slave_wr_mon_cg** | Clock-gated write slave with monitor | [axi5_slave_wr_mon_cg.md](../monitor/axi5_slave_wr_mon_cg.md) | Documented |
 
 ---
 
 ## Key Features
 
-### AXI5 Protocol Support
-- **Full AXI5 Compliance:** Complete AMBA 5 AXI protocol implementation
-- **Burst Support:** INCR, FIXED, and WRAP burst types
-- **Outstanding Transactions:** Up to 256 concurrent transactions
-- **ID Reordering:** Full transaction ID support with reordering
-- **Atomic Operations:** AtomicStore, AtomicLoad, AtomicSwap, AtomicCompare
+### AXI5 Channel Support
+- **Full AXI5 signal set** for the features listed in *AXI5 Features Implemented* above
+- **Burst types:** INCR, FIXED, and WRAP transported unmodified
+- **ID transport:** Full `AXI_ID_WIDTH` transaction IDs; ordering and reordering are left to the endpoints
+- **Transaction depth:** Not limited by these modules; set by the endpoints
+- **Atomic transactions:** AWATOP transported for AtomicStore, AtomicLoad, AtomicSwap, and AtomicCompare
 
 ### Advanced Features
-- **Memory Tagging:** AWMEMATTR/ARMEMATTR for memory type attributes
-- **QoS Enhancement:** Extended quality of service signaling
-- **Poison Support:** RPOISON/WPOISON for error propagation
-- **Chunking:** AWCHUNKEN for efficient large transfers
-- **Loop Operations:** AWLOOP/ARLOOP for DMA acceleration
+- **Memory Tagging (MTE):** AxTAGOP, AxTAG, WTAGUPDATE, RTAG/BTAG, xTAGMATCH
+- **Memory partitioning:** MPAM (PartID + PMG) and MECID encryption context
+- **Poison support:** RPOISON/WPOISON for error propagation
+- **Chunking:** ARCHUNKEN and the RCHUNK* response fields on the read path
 
 ### Power Management
 - **Clock Gating:** Per-module clock gating for power reduction
@@ -118,6 +164,8 @@ AXI5 extends AXI4 with significant enhancements for modern high-performance SoC 
 ---
 
 ## Quick Start
+
+The examples below are abbreviated: `.m_axi_ar*` style wildcards stand in for the full port list, and the AXI5 sideband ports are omitted for brevity. All AXI5 sideband ports exist on the module unconditionally — the `ENABLE_*` parameters control whether a signal is packed through the SKID buffer, not whether the port is present — so a real instantiation must connect or explicitly tie off every one of them. See the per-module pages for complete, connect-every-port examples.
 
 ### Using AXI5 Read Master
 
@@ -143,7 +191,6 @@ axi5_master_rd #(
     .fub_axi_arcache    (fub_arcache),
     .fub_axi_arprot     (fub_arprot),
     .fub_axi_arqos      (fub_arqos),
-    .fub_axi_arregion   (fub_arregion),
     .fub_axi_aruser     (fub_aruser),
     .fub_axi_arvalid    (fub_arvalid),
     .fub_axi_arready    (fub_arready),
@@ -187,7 +234,6 @@ axi5_master_wr #(
     .fub_axi_awcache    (fub_awcache),
     .fub_axi_awprot     (fub_awprot),
     .fub_axi_awqos      (fub_awqos),
-    .fub_axi_awregion   (fub_awregion),
     .fub_axi_awuser     (fub_awuser),
     .fub_axi_awvalid    (fub_awvalid),
     .fub_axi_awready    (fub_awready),
@@ -270,20 +316,28 @@ AXI5 maintains the five-channel architecture from AXI4:
 | W (Write Data) | Master to Slave | Write data |
 | B (Write Response) | Slave to Master | Write response |
 
-### AXI5 Enhanced Signals
+### AXI5 Sideband Signals Carried by These Modules
 
 | Signal | Channel | Description |
 |--------|---------|-------------|
-| AWATOP | AW | Atomic operation type |
-| AWMEMATTR | AW | Memory attributes for tagging |
-| ARMEMATTR | AR | Memory attributes for tagging |
-| AWCHUNKEN | AW | Chunking enable for large transfers |
-| AWLOOP | AW | Loop iteration count |
-| ARLOOP | AR | Loop iteration count |
-| RPOISON | R | Data poisoned indicator |
+| AWATOP | AW | Atomic transaction type (see `axi5_master_wr.md` for the encoding) |
+| ARNSAID / AWNSAID | AR / AW | Non-secure access identifier |
+| ARTRACE / AWTRACE | AR / AW | Request trace marker |
+| ARMPAM / AWMPAM | AR / AW | Memory partitioning and monitoring (PartID + PMG) |
+| ARMECID / AWMECID | AR / AW | Memory encryption context identifier |
+| ARUNIQUE / AWUNIQUE | AR / AW | Unique access indicator |
+| ARCHUNKEN | AR | Read data chunking enable |
+| ARTAGOP / AWTAGOP | AR / AW | MTE tag operation |
+| AWTAG | AW | MTE address tags |
 | WPOISON | W | Write data poisoned indicator |
-| AWQOSACCEPT | B | QoS acceptance indicator |
-| ARQOSACCEPT | R | QoS acceptance indicator |
+| WTAG / WTAGUPDATE | W | MTE write data tags and update mask |
+| RPOISON | R | Read data poisoned indicator |
+| RTRACE / BTRACE | R / B | Response trace marker |
+| RCHUNKV / RCHUNKNUM / RCHUNKSTRB | R | Read chunk valid, number, and strobe |
+| RTAG / BTAG | R / B | MTE response tags |
+| RTAGMATCH / BTAGMATCH | R / B | MTE tag match result |
+
+Signals absent from this list (ARLOOP/AWLOOP, ARQOSACCEPT/AWQOSACCEPT, ARREGION/AWREGION, the SMMU `AxMMU*` group, and stash/CMO encodings) have no ports on these modules. See *AXI5 Features Not Implemented* above.
 
 ### Burst Types
 
@@ -307,12 +361,12 @@ All AXI5 modules use the FUB (Functional Unit Block) interface pattern:
 
 ### Migration from AXI4
 
-AXI5 modules are backward compatible with AXI4:
+These modules carry an AXI4-compatible core signal set, so an AXI4 agent can drive them:
 - Core protocol unchanged (5-channel architecture)
-- New signals can be tied to default values
-- AWATOP tied to 0 disables atomic operations
-- AWMEMATTR/ARMEMATTR can use default values
+- Every AXI5 sideband port can be tied off to its default value, and the matching `ENABLE_*` parameter set to 0 so the field costs no SKID buffer area
+- AWATOP tied to `6'b000000` (NonAtomic) makes every write a normal AXI4 write
 - User signal widths can match AXI4 configurations
+- **Exception:** AXI4's ARREGION/AWREGION have no port here. An AXI4 agent that relies on AxREGION must decode by address instead, or use the `axi4_master_*` / `axi4_slave_*` modules
 
 ### Monitor Integration
 
@@ -326,12 +380,15 @@ The `*_mon` variants combine master/slave with integrated monitor:
 
 ## Performance Characteristics
 
-| Metric | Typical Value |
-|--------|---------------|
-| Maximum Frequency | 500+ MHz |
-| Latency (simple transaction) | 1-2 clock cycles |
-| Throughput (128-bit, 500 MHz) | 64 GB/s per direction |
-| Outstanding Transactions | Up to 256 |
+These modules are SKID-buffer pipelines, so their cost is a small, fixed latency adder and their throughput ceiling is simply the bus bandwidth. No synthesis has been run against a specific ASIC node; the frequency figure below is an FPGA-oriented design target, not a signed-off characterization result.
+
+| Metric | Value |
+|--------|-------|
+| Maximum frequency | Design target; not characterized against a specific technology node |
+| Added latency (per channel) | 1 clock cycle per SKID stage |
+| Throughput | One beat per clock, sustained (`AXI_DATA_WIDTH` bits/cycle) |
+| Peak bandwidth, 128-bit bus at 500 MHz | 8 GB/s per direction |
+| Outstanding transactions | Not limited by these modules; bounded by the endpoints |
 
 ---
 
@@ -358,7 +415,7 @@ The `*_mon` variants combine master/slave with integrated monitor:
 
 ---
 
-**Last Updated:** 2025-12-26
+**Last Updated:** 2026-07-19
 
 ---
 

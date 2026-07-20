@@ -61,10 +61,9 @@ of its width/format instances.
 |-------------|---------|----------|--------|
 | Ripple-carry / full / half | `math_adder_full`, `math_adder_half`, `math_adder_full_nbit` | Classic ripple carry | [math_adder_full.md](math_adder_full.md), [math_adder_basic.md](math_adder_basic.md) |
 | Carry-save (CSA) | `math_adder_carry_save_nbit` | Redundant carry-save form (used in multiplier trees) | [math_adder_carry_save.md](math_adder_carry_save.md) |
-| Carry-lookahead | (see subtractor / adder-basic) | Weinberger & Smith, "A Logic for High-Speed Addition," NBS Circular 591 (1958) | [math_adder_carry_lookahead.md](math_adder_carry_lookahead.md) |
+| Carry-lookahead | (see subtractor / adder-basic) | Weinberger & Smith, "A Logic for High-Speed Addition," NBS Circular 591 (1958) | [math_adder_pg_chain.md](math_adder_pg_chain.md) |
 | **Brent-Kung** (parallel prefix) | `math_adder_brent_kung_{008,016,032}` + prefix cells (`_black`, `_gray`, `_pg`, `_bitwisepg`, `_grouppg_*`, `_sum`) | Brent, R.P. & Kung, H.T. (1982), "A Regular Layout for Parallel Adders," *IEEE Trans. Computers* C-31(3):260-264 | [math_adder_brent_kung.md](math_adder_brent_kung.md), [math_prefix_cell.md](math_prefix_cell.md) |
 | **Han-Carlson** (parallel prefix) | `math_adder_han_carlson_{016,022,032,044,048,072}` | Han, T. & Carlson, D.A. (1987), "Fast area-efficient VLSI adders," *Proc. 8th IEEE Symp. Computer Arithmetic (ARITH)*:49-56 | [math_adder_han_carlson.md](math_adder_han_carlson.md) |
-| **Kogge-Stone** (parallel prefix) | `math_adder_kogge_stone_nbit` | Kogge, P.M. & Stone, H.S. (1973), "A Parallel Algorithm for the Efficient Solution of a General Class of Recurrence Equations," *IEEE Trans. Computers* C-22(8):786-793 | [math_adder_kogge_stone.md](math_adder_kogge_stone.md) |
 | Add/subtract | `math_addsub_full_nbit` | Two's-complement add/sub select | [math_addsub.md](math_addsub.md) |
 
 **Parallel-prefix trade-off:** all three prefix adders compute the carry
@@ -230,7 +229,6 @@ partial regen creates silent interface mismatches. Do not hand-edit a
 
 ## Related Documentation
 
-- Integer adders: [brent_kung](math_adder_brent_kung.md) · [han_carlson](math_adder_han_carlson.md) · [kogge_stone](math_adder_kogge_stone.md) · [carry_save](math_adder_carry_save.md) · [carry_lookahead](math_adder_carry_lookahead.md) · [basic](math_adder_basic.md) · [full](math_adder_full.md) · [ripple_carry](math_adder_ripple_carry.md) · [addsub](math_addsub.md)
 - Prefix cells: [math_prefix_cell.md](math_prefix_cell.md) · [math_prefix_cell_gray.md](math_prefix_cell_gray.md)
 - Multipliers: [dadda_tree](math_multiplier_dadda_tree.md) · [dadda_4to2](math_multiplier_dadda_4to2.md) · [wallace_tree](math_multiplier_wallace_tree.md) · [basic](math_multiplier_basic.md) · [compressor_4to2](math_compressor_4to2.md)
 - Subtraction: [math_subtractor.md](math_subtractor.md)

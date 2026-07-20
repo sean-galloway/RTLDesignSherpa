@@ -24,7 +24,7 @@
 # Monitor Bus Group — AXIL Slave-Read / AXI4 Master-Write
 
 **Module:** `monbus_axil_axi4_group.sv`
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Status:** Production Ready
 
 ---

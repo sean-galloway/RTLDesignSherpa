@@ -589,8 +589,7 @@ end
 
 ## Related Modules
 
-- **math_adder_kogge_stone_nbit.sv** - Fastest parallel prefix adder (more area)
-- **math_adder_carry_lookahead.sv** - Medium-speed adder (less area)
+- **math_adder_pg_chain.sv** - Medium-speed adder (less area)
 - **math_adder_ripple_carry.sv** - Minimal area adder (slow)
 - **math_adder_carry_save_nbit.sv** - For multi-operand addition (multipliers)
 - **math_subtractor_*.sv** - Subtraction variants (uses two's complement)

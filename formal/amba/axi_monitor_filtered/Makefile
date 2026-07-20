@@ -1,7 +1,11 @@
 # SPDX-License-Identifier: MIT
 # Formal verification Makefile for axi_monitor_filtered
-# NOTE: This module wraps axi_monitor_base which is BLOCKED due to the
-# multi-driver issue in axi_monitor_trans_mgr. See KNOWN_LIMITATION.md.
+# Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog
+#
+# DEPS is the transitive module closure of axi_monitor_filtered (leaves first), regenerated
+# by tools/gen_formal_deps.py after the rtl/amba/monitor/ move, the reporter
+# split (axi_monitor_reporter_*), and the monitor_trans_cam extraction.  The
+# sv2v file list is derived from $(DEPS) so the two cannot drift.
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      := /mnt/data/tools/sv2v
@@ -12,15 +16,24 @@ PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/monitor_amba4_pkg.sv \
         monitor_pkg_stub.sv
 
-DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
-        $(REPO_ROOT)/rtl/common/counter_load_clear.sv \
-        $(REPO_ROOT)/rtl/common/counter_freq_invariant.sv \
+# RTL dependencies (transitive closure of axi_monitor_filtered, leaves first)
+DEPS := $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_addr_check.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_compl.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_debug.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_error.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_perf.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_threshold.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_timeout.sv \
+        $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/common/fifo_control.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timer.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_trans_mgr.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timeout.sv \
         $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timeout.sv \
+        $(REPO_ROOT)/rtl/common/counter_load_clear.sv \
+        $(REPO_ROOT)/rtl/common/counter_freq_invariant.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timer.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/monitor_trans_cam.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_trans_mgr.sv \
         $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_base.sv
 
 DUT := $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_filtered.sv
@@ -35,8 +48,9 @@ prove: axi_monitor_filtered_flat.v
 cover: axi_monitor_filtered_flat.v
 	sby -f axi_monitor_filtered.sby cover
 
-# Strip both 'import monitor_pkg::*;' and 'monitor_pkg::' prefix references,
-# then run sv2v with the minimal package stub.
+# Strip `import monitor_pkg::*;` and `monitor_pkg::` scope prefixes (monitor_pkg
+# re-exports sub-package types and trips sv2v "ambiguous identifier"), then
+# flatten DUT + closure into a single Verilog file.
 axi_monitor_filtered_flat.v: $(DUT) $(PKGS) $(DEPS)
 	@mkdir -p $(TMPDIR)
 	@for f in $(DEPS) $(DUT); do \
@@ -44,17 +58,7 @@ axi_monitor_filtered_flat.v: $(DUT) $(PKGS) $(DEPS)
 		    -e 's/monitor_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \
 	done
 	$(SV2V) $(INC) $(PKGS) \
-		$(TMPDIR)/counter_bin.sv \
-		$(TMPDIR)/counter_load_clear.sv \
-		$(TMPDIR)/counter_freq_invariant.sv \
-		$(TMPDIR)/fifo_control.sv \
-		$(TMPDIR)/gaxi_fifo_sync.sv \
-		$(TMPDIR)/axi_monitor_timer.sv \
-		$(TMPDIR)/axi_monitor_trans_mgr.sv \
-		$(TMPDIR)/axi_monitor_timeout.sv \
-		$(TMPDIR)/axi_monitor_reporter.sv \
-		$(TMPDIR)/axi_monitor_base.sv \
-		$(TMPDIR)/axi_monitor_filtered.sv > $@
+		$(addprefix $(TMPDIR)/,$(notdir $(DEPS) $(DUT))) > $@
 	@rm -rf $(TMPDIR)
 
 clean:

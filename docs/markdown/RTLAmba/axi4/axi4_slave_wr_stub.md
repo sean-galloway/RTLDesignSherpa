@@ -81,9 +81,9 @@ flowchart LR
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| SKID_DEPTH_AW | int | 2 | AW channel skid buffer depth (log2) |
-| SKID_DEPTH_W | int | 4 | W channel skid buffer depth (log2) |
-| SKID_DEPTH_B | int | 2 | B channel skid buffer depth (log2) |
+| SKID_DEPTH_AW | int | 2 | AW channel skid buffer depth in entries (2, 4, 6, or 8) |
+| SKID_DEPTH_W | int | 4 | W channel skid buffer depth in entries (2, 4, 6, or 8) |
+| SKID_DEPTH_B | int | 2 | B channel skid buffer depth in entries (2, 4, 6, or 8) |
 | AXI_ID_WIDTH | int | 8 | AXI transaction ID width |
 | AXI_ADDR_WIDTH | int | 32 | AXI address bus width |
 | AXI_DATA_WIDTH | int | 32 | AXI data bus width |
@@ -274,17 +274,18 @@ sequenceDiagram
 ### Timing
 
 <!-- TODO: Add wavedrom timing diagram for stub transactions -->
-```
-TODO: Wavedrom timing diagram showing:
-- aclk
-- AXI AW signals (s_axi_awvalid, s_axi_awaddr, s_axi_awlen, etc.)
-- fub_axi_awvalid, fub_axi_awready, fub_axi_aw_pkt
-- AXI W signals (s_axi_wvalid, s_axi_wdata, s_axi_wstrb, s_axi_wlast, etc.)
-- fub_axi_wvalid, fub_axi_wready, fub_axi_w_pkt
-- fub_axi_bvalid, fub_axi_bready, fub_axi_b_pkt
-- AXI B signals (s_axi_bvalid, s_axi_bid, s_axi_bresp, etc.)
-- Packet-to-AXI timing relationship with skid buffer operation
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - aclk
+> - AXI AW signals (s_axi_awvalid, s_axi_awaddr, s_axi_awlen, etc.)
+> - fub_axi_awvalid, fub_axi_awready, fub_axi_aw_pkt
+> - AXI W signals (s_axi_wvalid, s_axi_wdata, s_axi_wstrb, s_axi_wlast, etc.)
+> - fub_axi_wvalid, fub_axi_wready, fub_axi_w_pkt
+> - fub_axi_bvalid, fub_axi_bready, fub_axi_b_pkt
+> - AXI B signals (s_axi_bvalid, s_axi_bid, s_axi_bresp, etc.)
+> - Packet-to-AXI timing relationship with skid buffer operation
+
 
 ---
 

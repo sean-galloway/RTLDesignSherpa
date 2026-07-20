@@ -24,7 +24,7 @@
 # Weighted Round-Robin Arbiter with PWM and Monitor Bus
 
 **Module:** `arbiter_wrr_pwm_monbus.sv`
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Status:** Production Ready
 
 ---

@@ -17,7 +17,7 @@
 $REPO_ROOT/rtl/amba/apb/apb_master.sv
 
 # ---- Board status helpers: LED bank + 7-seg (+ their deps) ----
-$REPO_ROOT/rtl/amba/shared/cdc_2_phase_handshake.sv
+$REPO_ROOT/rtl/amba/cdc/cdc_2_phase_handshake.sv
 $REPO_ROOT/rtl/common/hex_to_7seg.sv
 $REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/led_status_driver.sv
 $REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/seven_seg_4digit.sv

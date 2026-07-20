@@ -171,7 +171,7 @@ The monitor exposes a `block_ready` signal that goes low when its internal FIFO 
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
 - **For axi5 slave variants** (only applies to axi5_slave_wr_mon): the monitor watches the FUB-side handshake, so there is a `SKID_DEPTH_AW` cycle lag between block_ready going low and new events ceasing. `MAX_TRANSACTIONS` should be sized to cover this margin.
 
-This replaces a previous bug where `block_ready` was left unconnected and a full monitor FIFO would silently lose events.
+`block_ready` must be connected: when the monitor FIFO fills, it backpressures the monitored channel rather than silently dropping events. Leaving it unconnected loses events with no indication.
 
 ---
 
@@ -211,11 +211,11 @@ The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-co
 
 ### FUB AXI5 Interface (Slave Side)
 
-Same as `axi5_master_wr` - see [AXI5 Master Write](axi5_master_wr.md) for complete port listing.
+Same as `axi5_master_wr` - see [AXI5 Master Write](../axi5/axi5_master_wr.md) for complete port listing.
 
 ### Master AXI5 Interface (Output Side)
 
-Same as `axi5_master_wr` - see [AXI5 Master Write](axi5_master_wr.md) for complete port listing.
+Same as `axi5_master_wr` - see [AXI5 Master Write](../axi5/axi5_master_wr.md) for complete port listing.
 
 ### Monitor Configuration
 
@@ -375,37 +375,37 @@ Same as read monitor - see [AXI5 Master Read Monitor](axi5_master_rd_mon.md).
 
 ### Monitored Write Burst with Error
 
-<!-- TODO: Add wavedrom timing diagram -->
-```
-TODO: Wavedrom timing diagram showing:
-- ACLK
-- AW channel: AWID, AWADDR, AWLEN, AWVALID, AWREADY
-- W channel: WDATA, WSTRB, WLAST, WVALID, WREADY
-- B channel: BID, BRESP (SLVERR), BVALID, BREADY
-- Monitor bus: monbus_valid, monbus_packet showing ERROR packet
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - ACLK
+> - AW channel: AWID, AWADDR, AWLEN, AWVALID, AWREADY
+> - W channel: WDATA, WSTRB, WLAST, WVALID, WREADY
+> - B channel: BID, BRESP (SLVERR), BVALID, BREADY
+> - Monitor bus: monbus_valid, monbus_packet showing ERROR packet
+
 
 ### Atomic Operation Monitoring
 
-<!-- TODO: Add wavedrom timing diagram -->
-```
-TODO: Wavedrom timing diagram showing:
-- AWATOP encoding (atomic type)
-- AW/W channels
-- B response with BTAG
-- Monitor packets for atomic sequence
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - AWATOP encoding (atomic type)
+> - AW/W channels
+> - B response with BTAG
+> - Monitor packets for atomic sequence
+
 
 ### Write Timeout Detection
 
-<!-- TODO: Add wavedrom timing diagram -->
-```
-TODO: Wavedrom timing diagram showing:
-- AW channel: AWVALID asserted, AWREADY stuck low
-- Timeout counter incrementing
-- cfg_timeout_cycles threshold
-- Monitor bus: TIMEOUT packet generated
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - AW channel: AWVALID asserted, AWREADY stuck low
+> - Timeout counter incrementing
+> - cfg_timeout_cycles threshold
+> - Monitor bus: TIMEOUT packet generated
+
 
 ---
 
@@ -606,8 +606,8 @@ Same as read monitor - see [AXI5 Master Read Monitor](axi5_master_rd_mon.md).
 
 ## Related Documentation
 
-- **[AXI5 Master Write](axi5_master_wr.md)** - Base module without monitoring
-- **[AXI5 Master Write CG](axi5_master_wr_cg.md)** - With clock gating only
+- **[AXI5 Master Write](../axi5/axi5_master_wr.md)** - Base module without monitoring
+- **[AXI5 Master Write CG](../axi5/axi5_master_wr_cg.md)** - With clock gating only
 - **[AXI5 Master Write Monitor CG](axi5_master_wr_mon_cg.md)** - Monitor + clock gating
 - **[AXI5 Master Read Monitor](axi5_master_rd_mon.md)** - Read variant
 - **[AXI Monitor Filtered](axi_monitor_filtered.md)** - Monitor core specification

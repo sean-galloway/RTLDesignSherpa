@@ -269,11 +269,7 @@ Path from in-flight monitor packets to host-visible memory + CPU IRQs.
 ### Clock and Reset Management
 
 - **[amba_clock_gate_ctrl](shared/amba_clock_gate_ctrl.md)** - AMBA-specific clock gating controller
-- **[CDC Primer](shared/cdc_primer.md)** - All CDC techniques categorized with decision guide
-- **[cdc_open_loop](shared/cdc_open_loop.md)** - Open-loop CDC (sync_pulse + data hold, no handshake)
-- **[cdc_2_phase_handshake](shared/cdc_2_phase_handshake.md)** - 2-phase toggle-based CDC handshake (faster)
-- **[cdc_4_phase_handshake](shared/cdc_4_phase_handshake.md)** - 4-phase level-based CDC handshake
-- **[cdc_synchronizer](shared/cdc_synchronizer.md)** - Multi-bit synchronizer for quasi-static signals
+- **[Clock Domain Crossing](cdc/cdc.md)** - Single reference for all CDC: decision guide, reset behavior, and every building block (`cdc_synchronizer`, `cdc_open_loop`, `cdc_2_phase_handshake`, `cdc_4_phase_handshake`, async FIFO pointers)
 
 ---
 

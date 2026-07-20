@@ -24,7 +24,7 @@
 # AXI Monitor Address-Range Checker
 
 **Module:** `axi_monitor_addr_check.sv`
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Category:** Core Infrastructure
 **Status:** ✅ Production Ready (Formally Verified)
 

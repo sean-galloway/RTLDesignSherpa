@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Formal wrapper for math_adder_carry_lookahead (N-bit CLA adder)
+// Formal wrapper for math_adder_pg_chain (N-bit CLA adder)
 // Proves: {carry, sum} == a + b + cin for WIDTH=8
 
-module formal_math_adder_carry_lookahead #(
+module formal_math_adder_pg_chain #(
     parameter int WIDTH = 8
 ) (
     input logic clk
@@ -17,7 +17,7 @@ module formal_math_adder_carry_lookahead #(
     logic [WIDTH-1:0] sum;
     logic             carry;
 
-    math_adder_carry_lookahead #(.N(WIDTH)) dut (
+    math_adder_pg_chain #(.N(WIDTH)) dut (
         .i_a     (a),
         .i_b     (b),
         .i_c     (cin),

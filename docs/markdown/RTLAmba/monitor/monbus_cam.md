@@ -24,7 +24,7 @@
 # Monitor Bus LRU CAM
 
 **Module:** `monbus_cam.sv`
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Category:** Bulk-Trace Compression Infrastructure
 **Status:** Reference design — superseded in-production by [`monbus_cam_pipe`](monbus_cam_pipe.md)
 

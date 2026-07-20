@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: math_adder_carry_lookahead
+// Module: math_adder_pg_chain
 // Purpose: Math Adder Carry Lookahead module
 //
 // Documentation: rtl/common/PRD.md
@@ -16,7 +16,16 @@
 `timescale 1ns / 1ps
 // Parameterized CLA with Verilator pragma to silence the warning
 /* verilator lint_off UNOPTFLAT */
-module math_adder_carry_lookahead #(
+// NAMING NOTE: this is a generate/propagate SERIAL carry chain, formerly (and
+// misleadingly) called math_adder_carry_lookahead. Expressing the carry
+// recurrence in P/G notation does NOT make it a lookahead adder: the dependency
+//     c[i] = g[i-1] | (p[i-1] & c[i-1])
+// is still serial, so depth is O(N) -- the same class as math_adder_ripple_carry,
+// just written differently. True carry-lookahead collapses that dependency with
+// RECURSIVE GROUP generate/propagate to reach O(log N).
+// For genuine logarithmic-depth adders in this library use the parallel-prefix
+// implementations: math_adder_brent_kung_* or math_adder_han_carlson_*.
+module math_adder_pg_chain #(
     parameter int N = 4
 ) (
     input logic [N-1:0] i_a,
@@ -57,5 +66,5 @@ module math_adder_carry_lookahead #(
     // Assign carry-out
     assign ow_carry = w_c[N];
 
-endmodule : math_adder_carry_lookahead
+endmodule : math_adder_pg_chain
 /* verilator lint_on UNOPTFLAT */

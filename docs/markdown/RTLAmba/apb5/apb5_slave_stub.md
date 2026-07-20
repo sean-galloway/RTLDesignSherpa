@@ -81,7 +81,7 @@ flowchart LR
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| DEPTH | int | 4 | Skid buffer depth |
+| DEPTH | int | 4 | Skid-buffer depth in entries; one of {2, 4, 6, 8} |
 | ADDR_WIDTH | int | 32 | APB address bus width |
 | DATA_WIDTH | int | 32 | APB data bus width |
 | PROT_WIDTH | int | 3 | Protection signal width |
@@ -93,6 +93,25 @@ flowchart LR
 | STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width |
 | CMD_PACKET_WIDTH | int | (calculated) | Total command packet width |
 | RESP_PACKET_WIDTH | int | (calculated) | Total response packet width |
+
+`CMD_PACKET_WIDTH` and `RESP_PACKET_WIDTH` are computed from the width
+parameters and must not be overridden:
+
+```
+CMD_PACKET_WIDTH  = ADDR_WIDTH + DATA_WIDTH + STRB_WIDTH + PROT_WIDTH
+                  + AUSER_WIDTH + WUSER_WIDTH + 1
+                    // the single bit is pwrite
+
+RESP_PACKET_WIDTH = DATA_WIDTH + RUSER_WIDTH + BUSER_WIDTH + 1
+                    // the single bit is pslverr
+```
+
+With all defaults this gives `CMD_PACKET_WIDTH = 80` and
+`RESP_PACKET_WIDTH = 41`.
+
+Unlike [apb5_master_stub](apb5_master_stub.md), the slave stub packets carry no
+`first`/`last` markers and no `pwakeup` bit, so the two stubs' packet widths are
+not interchangeable.
 
 ---
 
@@ -124,6 +143,20 @@ flowchart LR
 | s_apb_PWAKEUP | 1 | Output | Wake-up to master |
 | s_apb_PRUSER | RUSER_WIDTH | Output | User read attributes |
 | s_apb_PBUSER | BUSER_WIDTH | Output | User response attributes |
+
+### Parity Signals (Optional)
+
+Present unconditionally; meaningful only when `ENABLE_PARITY=1`. Semantics are
+identical to [apb5_slave](apb5_slave.md#parity-implementation).
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| s_apb_PWDATAPARITY | STRB_WIDTH | Input | Write data parity from master |
+| s_apb_PADDRPARITY | 1 | Input | Address parity from master |
+| s_apb_PCTRLPARITY | 1 | Input | Control signals parity from master |
+| s_apb_PRDATAPARITY | STRB_WIDTH | Output | Read data parity to master |
+| s_apb_PREADYPARITY | 1 | Output | PREADY parity to master |
+| s_apb_PSLVERRPARITY | 1 | Output | PSLVERR parity to master |
 
 ### Command Packet Interface
 
@@ -232,14 +265,15 @@ sequenceDiagram
 ### Timing
 
 <!-- TODO: Add wavedrom timing diagram for slave stub -->
-```
-TODO: Wavedrom timing diagram showing:
-- pclk
-- APB signals (PSEL, PENABLE, PADDR, PWRITE, PREADY, PRDATA)
-- cmd_valid, cmd_ready, cmd_data
-- rsp_valid, rsp_ready, rsp_data
-- State transitions IDLE -> XFER_DATA -> IDLE
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - pclk
+> - APB signals (PSEL, PENABLE, PADDR, PWRITE, PREADY, PRDATA)
+> - cmd_valid, cmd_ready, cmd_data
+> - rsp_valid, rsp_ready, rsp_data
+> - State transitions IDLE -> XFER_DATA -> IDLE
+
 
 ---
 
@@ -287,16 +321,32 @@ apb5_slave_stub #(
     .rsp_data       (be_rsp_data),
 
     // Wake-up control
-    .wakeup_request (be_wakeup)
+    .wakeup_request (be_wakeup),
+
+    // Parity interface (unused here because ENABLE_PARITY=0)
+    .s_apb_PWDATAPARITY  ('0),
+    .s_apb_PADDRPARITY   (1'b0),
+    .s_apb_PCTRLPARITY   (1'b0),
+    .s_apb_PRDATAPARITY  (),
+    .s_apb_PREADYPARITY  (),
+    .s_apb_PSLVERRPARITY (),
+    .parity_error_wdata  (),
+    .parity_error_ctrl   ()
 );
 
-// Simple backend: echo write data on reads
+// Simple backend: return stored_data with no error and zeroed user fields.
+// Build the response from the parameters, not from literal widths -- the user
+// fields are RUSER_WIDTH and BUSER_WIDTH wide, not a fixed 8 bits.
+localparam int RUW = 4;   // RUSER_WIDTH
+localparam int BUW = 4;   // BUSER_WIDTH
+
 always_ff @(posedge apb_clk) begin
     if (!apb_rst_n) begin
         be_rsp_valid <= 1'b0;
     end else if (be_cmd_valid && be_cmd_ready) begin
         be_rsp_valid <= 1'b1;
-        be_rsp_data <= {1'b0, stored_data, 8'h0};  // {pslverr, prdata, pruser, pbuser}
+        // {pslverr, prdata, pruser, pbuser}
+        be_rsp_data  <= {1'b0, stored_data, {RUW{1'b0}}, {BUW{1'b0}}};
     end else if (be_rsp_ready) begin
         be_rsp_valid <= 1'b0;
     end
@@ -316,8 +366,16 @@ The stub uses skid buffers on both command and response paths:
 ### Parity Implementation
 
 When `ENABLE_PARITY=1`:
-- **Checking:** Odd parity verified on incoming PWDATA, PADDR, control signals
-- **Generation:** Odd parity generated for outgoing PRDATA, PREADY, PSLVERR
+- **Checking:** parity verified on incoming PWDATA (one bit per byte lane),
+  PADDR (one bit for the whole address) and {PWRITE, PSTRB, PPROT} (one bit for
+  the whole control group)
+- **Generation:** parity generated for outgoing PRDATA (one bit per byte lane),
+  PREADY and PSLVERR
+- Each parity bit is the XOR reduction of the covered signals, an even-parity
+  encoding
+- `parity_error_wdata` and `parity_error_ctrl` are combinational and qualified
+  by `s_apb_PSEL && s_apb_PENABLE`; both are hard-tied to 0 when
+  `ENABLE_PARITY=0`
 
 ### Wake-up Handling
 
@@ -336,6 +394,6 @@ The `wakeup_request` input is registered before driving `s_apb_PWAKEUP`:
 
 ## Navigation
 
-- **[<- Back to APB5 Index](README.md)**
-- **[<- Back to RTLAmba Index](../index.md)**
-- **[<- Back to Main Documentation Index](../../index.md)**
+- **[← Back to APB5 Index](README.md)**
+- **[← Back to RTLAmba Index](../index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

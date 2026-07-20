@@ -32,8 +32,8 @@ clock_gate_ctrl.sv ../../../rtl/common/clock_gate_ctrl.sv
 amba_clock_gate_ctrl.sv ../../../rtl/amba/shared/amba_clock_gate_ctrl.sv
 gaxi_skid_buffer.sv ../../../rtl/amba/gaxi/gaxi_skid_buffer.sv
 glitch_free_n_dff_arn.sv ../../../rtl/common/glitch_free_n_dff_arn.sv
-cdc_synchronizer.sv ../../../rtl/amba/shared/cdc_synchronizer.sv
-cdc_handshake.sv ../../../rtl/amba/shared/cdc_handshake.sv
+cdc_synchronizer.sv ../../../rtl/amba/cdc/cdc_synchronizer.sv
+cdc_handshake.sv ../../../rtl/amba/cdc/cdc_handshake.sv
 apb5_slave.sv ../../../rtl/amba/apb5/apb5_slave.sv
 apb5_slave_cdc.sv ../../../rtl/amba/apb5/apb5_slave_cdc.sv
 apb5_slave_cdc_cg.sv ../../../rtl/amba/apb5/apb5_slave_cdc_cg.sv

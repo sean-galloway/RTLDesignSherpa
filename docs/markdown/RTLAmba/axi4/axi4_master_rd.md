@@ -112,8 +112,8 @@ module axi4_master_rd #(
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| SKID_DEPTH_AR | int | 2 | Address channel skid buffer depth (2^N entries) |
-| SKID_DEPTH_R | int | 4 | Read data channel skid buffer depth (2^N entries) |
+| SKID_DEPTH_AR | int | 2 | Address channel skid buffer depth in entries (2, 4, 6, or 8) |
+| SKID_DEPTH_R | int | 4 | Read data channel skid buffer depth in entries (2, 4, 6, or 8) |
 | AXI_ID_WIDTH | int | 8 | AXI transaction ID width |
 | AXI_ADDR_WIDTH | int | 32 | AXI address bus width |
 | AXI_DATA_WIDTH | int | 32 | AXI data bus width |
@@ -249,14 +249,17 @@ flowchart LR
 
 1. **Data Reception**: Read data from master interface buffered in R skid buffer
 2. **Data Forward**: Buffered data forwarded to FUB interface
-3. **Transaction Matching**: ID-based transaction correlation maintained
+3. **ID Pass-Through**: `RID` is carried through the R skid buffer as ordinary
+   payload bits. The module does not maintain a transaction table and performs
+   no ID matching, reordering, or outstanding-transaction tracking; ordering is
+   whatever the downstream slave produces.
 
 ### Busy Signal Generation
 
 The busy output indicates module activity:
 ```systemverilog
-busy = (ar_buffer_count > 0) || (r_buffer_count > 0) ||
-       fub_axi_arvalid || m_axi_rvalid;
+assign busy = (int_ar_count > 0) || (int_r_count > 0) ||
+                fub_axi_arvalid || m_axi_rvalid;
 ```
 
 ## Timing Characteristics
@@ -265,8 +268,8 @@ busy = (ar_buffer_count > 0) || (r_buffer_count > 0) ||
 
 | Buffer | Default Depth | Latency | Description |
 |--------|---------------|---------|-------------|
-| AR Channel | 4 entries (DEPTH=2) | 1 cycle | Address buffering |
-| R Channel | 16 entries (DEPTH=4) | 1 cycle | Data buffering |
+| AR Channel | 2 entries (SKID_DEPTH_AR=2) | 1 cycle | Address buffering |
+| R Channel | 4 entries (SKID_DEPTH_R=4) | 1 cycle | Data buffering |
 
 ### Performance Metrics
 
@@ -291,8 +294,8 @@ busy = (ar_buffer_count > 0) || (r_buffer_count > 0) ||
 
 ```systemverilog
 axi4_master_rd #(
-    .SKID_DEPTH_AR(2),        // 4-entry address buffer
-    .SKID_DEPTH_R(4),         // 16-entry data buffer
+    .SKID_DEPTH_AR(2),        // 2-entry address buffer
+    .SKID_DEPTH_R(4),         // 4-entry data buffer
     .AXI_ID_WIDTH(8),
     .AXI_ADDR_WIDTH(32),
     .AXI_DATA_WIDTH(64),
@@ -357,8 +360,8 @@ axi4_master_rd #(
 ```systemverilog
 // High-performance configuration for DDR interface
 axi4_master_rd #(
-    .SKID_DEPTH_AR(3),        // 8-entry address buffer
-    .SKID_DEPTH_R(5),         // 32-entry data buffer
+    .SKID_DEPTH_AR(4),        // 4-entry address buffer
+    .SKID_DEPTH_R(8),         // 8-entry data buffer
     .AXI_ID_WIDTH(4),         // Reduced ID width for efficiency
     .AXI_ADDR_WIDTH(32),
     .AXI_DATA_WIDTH(128),     // Wide data path
@@ -395,7 +398,7 @@ module axi_memory_system (
     // Read masters for independent buffering
     axi4_master_rd #(
         .SKID_DEPTH_AR(2),
-        .SKID_DEPTH_R(3),
+        .SKID_DEPTH_R(4),
         .AXI_ID_WIDTH(4),
         .AXI_DATA_WIDTH(64)
     ) u_cpu_rd_master (
@@ -407,8 +410,8 @@ module axi_memory_system (
     );
 
     axi4_master_rd #(
-        .SKID_DEPTH_AR(3),
-        .SKID_DEPTH_R(4),
+        .SKID_DEPTH_AR(4),
+        .SKID_DEPTH_R(6),
         .AXI_ID_WIDTH(4),
         .AXI_DATA_WIDTH(64)
     ) u_dma_rd_master (
@@ -467,12 +470,18 @@ end
 
 Choose buffer depths based on system characteristics:
 
-| System Type | AR Depth | R Depth | Rationale |
-|-------------|----------|---------|-----------|
-| Low Latency CPU | 2 (4 entries) | 3 (8 entries) | Minimize latency |
-| High Throughput DMA | 3 (8 entries) | 5 (32 entries) | Maximize bandwidth |
-| DDR4 Interface | 4 (16 entries) | 6 (64 entries) | Handle refresh cycles |
-| PCIe Interface | 3 (8 entries) | 4 (16 entries) | Variable latency tolerance |
+`SKID_DEPTH_*` is an entry count, not a log2 exponent. The underlying
+`gaxi_skid_buffer` stores one register slot per entry and tracks occupancy in a
+4-bit counter, so legal values are 2, 4, 6, and 8. Values above 8 overflow the
+occupancy counter and are not supported; for deeper elasticity use a
+`gaxi_fifo_sync` stage ahead of the module instead.
+
+| System Type | SKID_DEPTH_AR | SKID_DEPTH_R | Rationale |
+|-------------|---------------|--------------|-----------|
+| Low Latency CPU | 2 | 2 | Minimize latency |
+| High Throughput DMA | 4 | 8 | Maximize bandwidth |
+| DDR4 Interface | 4 | 8 | Handle refresh cycles |
+| PCIe Interface | 4 | 6 | Variable latency tolerance |
 
 ### Burst Optimization
 

@@ -24,7 +24,7 @@
 # AXI Monitor Timer
 
 **Module:** `axi_monitor_timer.sv`
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Status:** Production Ready
 
 ---

@@ -24,7 +24,7 @@
 # Monitor Bus Arbiter Common
 
 **Module:** `arbiter_monbus_common.sv`
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Category:** Core Infrastructure
 **Status:** ✅ Production Ready
 

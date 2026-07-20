@@ -1,0 +1,30 @@
+{
+  "signal": [
+    {"name": "clk_src",     "wave": "p................."},
+    {"name": "rst_src_n",   "wave": "1................."},
+    {"name": "src_valid",   "wave": "0.1.0............."},
+    {"name": "src_ready",   "wave": "1..0..........1..."},
+    {"name": "r_req_src",   "wave": "0..1.......0......", "node": "...a.......d......"},
+    {},
+    {"name": "clk_dst",     "wave": "p................."},
+    {"name": "rst_dst_n",   "wave": "1................."},
+    {"name": "w_req_sync",  "wave": "0.....1.......0...", "node": "......b..........."},
+    {"name": "dst_valid",   "wave": "0.....1..0........"},
+    {"name": "dst_ready",   "wave": "0........1.0......"},
+    {"name": "r_ack_dst",   "wave": "0........1.....0..", "node": ".........c........"},
+    {},
+    {"name": "w_ack_sync",  "wave": "0..........1......"}
+  ],
+  "edge": [
+    "a~>b req rise",
+    "c~>d ack rise clears req"
+  ],
+  "head": {
+    "text": "cdc_4_phase_handshake - normal transfer (levels, return-to-zero)",
+    "tick": 0
+  },
+  "foot": {
+    "text": "Four crossings: req rises, ack rises, req falls, ack falls. Both ends return to the 0 idle level, so state is positional rather than parity-encoded."
+  },
+  "config": {"hscale": 2}
+}

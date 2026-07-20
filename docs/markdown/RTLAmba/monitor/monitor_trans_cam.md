@@ -24,7 +24,7 @@
 # Monitor Transaction CAM
 
 **Module:** `monitor_trans_cam.sv`
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Category:** AXI Monitor Infrastructure
 **Status:** Production Ready
 

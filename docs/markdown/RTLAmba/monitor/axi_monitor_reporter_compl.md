@@ -24,7 +24,7 @@
 # AXI Monitor Reporter — Completion Cone
 
 **Module:** `axi_monitor_reporter_compl.sv`
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Status:** Production Ready
 
 ---

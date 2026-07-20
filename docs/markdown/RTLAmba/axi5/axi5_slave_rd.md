@@ -31,11 +31,13 @@
 
 ## Overview
 
-The AXI5 Slave Read module implements a complete AMBA AXI5 slave read interface with full AXI5 protocol support. It receives read requests from external masters and forwards them to backend memory/logic (FUB interface).
+The AXI5 Slave Read module is the slave-side AR/R channel transport block. It receives read requests from an external AXI5 master and forwards them, with the full AXI5 sideband signal set intact, to backend memory or logic on the FUB (Functional Unit Block) interface.
+
+**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking or `RTAGMATCH` generation, no chunk reassembly, no poison generation, and no outstanding-transaction tracking. Those behaviors belong to the endpoints on either side. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
 
 ### Key Features
 
-- Full AMBA AXI5 slave protocol compliance
+- Carries the full AXI5 signal set listed below, unmodified, across the SKID buffers
 - **ARNSAID:** Non-secure access identifier reception
 - **ARTRACE:** Trace signal support
 - **ARMPAM:** Memory Partitioning and Monitoring reception
@@ -102,6 +104,20 @@ flowchart LR
 | ENABLE_CHUNKING | bit | 1 | Enable data chunking |
 | ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
 | ENABLE_POISON | bit | 1 | Enable poison indicator |
+
+### Derived Parameters
+
+These are computed inside the module from the parameters above. Do not override them.
+
+| Parameter | Expression | Description |
+|-----------|------------|-------------|
+| NUM_TAGS | max(AXI_DATA_WIDTH / 128, 1) | MTE tags carried per beat (one tag per 16 bytes) |
+| TW | AXI_TAG_WIDTH * NUM_TAGS | Total width of the `rtag` field |
+| CHUNK_STRB_WIDTH | max(AXI_DATA_WIDTH / 128, 1) | Width of `rchunkstrb`, one bit per 128-bit granule |
+| ARSize | Sum of the enabled AR fields | AR SKID buffer payload width |
+| RSize | Sum of the enabled R fields | R SKID buffer payload width |
+
+**Note on AXI_WSTRB_WIDTH:** this module declares `AXI_WSTRB_WIDTH` (default `AXI_DATA_WIDTH/8`) and its short alias `SW`, but neither is used. A read module has no W channel and therefore no write strobes. The parameter is retained only so the read and write module parameter lists line up; overriding it has no effect.
 
 ---
 
@@ -189,11 +205,15 @@ This slave module acts as an adapter between:
 
 ### Basic Read Transaction
 
-<!-- TODO: Add wavedrom timing diagram -->
-```
-TODO: Wavedrom showing AR request from external master
-      flowing through to backend FUB interface
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - ACLK
+> - S_AXI_ARID, S_AXI_ARADDR, S_AXI_ARVALID, S_AXI_ARREADY
+> - FUB_AXI_ARVALID, FUB_AXI_ARREADY (request forwarded to the backend)
+> - FUB_AXI_RDATA, FUB_AXI_RVALID, FUB_AXI_RREADY
+> - S_AXI_RDATA, S_AXI_RLAST, S_AXI_RVALID, S_AXI_RREADY
+
 
 ---
 
@@ -222,14 +242,14 @@ axi5_slave_rd #(
     .s_axi_arid         (s_axi_arid),
     .s_axi_araddr       (s_axi_araddr),
     .s_axi_arlen        (s_axi_arlen),
-    // ... (connect all slave AR signals)
+    // Every remaining s_axi_ar* port mirrors the fub_axi_ar* list. All must be connected.
     .s_axi_arnsaid      (s_axi_arnsaid),
     .s_axi_artrace      (s_axi_artrace),
     // ... (connect AXI5 extensions)
 
     .s_axi_rid          (s_axi_rid),
     .s_axi_rdata        (s_axi_rdata),
-    // ... (connect all slave R signals)
+    // Every remaining s_axi_r* port mirrors the fub_axi_r* list. All must be connected.
 
     // FUB interface (to backend)
     .fub_axi_arid       (mem_arid),
@@ -256,7 +276,7 @@ axi5_slave_rd #(
 - **[AXI5 Slave Write](axi5_slave_wr.md)** - Slave write interface
 - **[AXI5 Master Read](axi5_master_rd.md)** - Master read interface
 - **[AXI5 Slave Read CG](axi5_slave_rd_cg.md)** - Clock-gated variant
-- **[AXI5 Slave Read Monitor](axi5_slave_rd_mon.md)** - With integrated monitoring
+- **[AXI5 Slave Read Monitor](../monitor/axi5_slave_rd_mon.md)** - With integrated monitoring
 
 ---
 

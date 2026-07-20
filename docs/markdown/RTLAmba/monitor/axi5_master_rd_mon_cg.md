@@ -264,30 +264,30 @@ Alongside perfmon, the wrapper forwards the `cfg_compl_enable`, `cfg_threshold_e
 
 ### Clock Gating with Monitor Activity
 
-<!-- TODO: Add wavedrom timing diagram -->
-```
-TODO: Wavedrom timing diagram showing:
-- ACLK (ungated)
-- GATED_ACLK (gated clock)
-- AXI transaction sequence
-- Monitor packet generation
-- Idle period detection
-- cg_gating activation
-- Monitor quiescent before clock stops
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - ACLK (ungated)
+> - GATED_ACLK (gated clock)
+> - AXI transaction sequence
+> - Monitor packet generation
+> - Idle period detection
+> - cg_gating activation
+> - Monitor quiescent before clock stops
+
 
 ### Wake-up with Immediate Monitoring
 
-<!-- TODO: Add wavedrom timing diagram -->
-```
-TODO: Wavedrom timing diagram showing:
-- ACLK (ungated)
-- GATED_ACLK resuming
-- ARVALID assertion (wake trigger)
-- cg_gating deactivation
-- AXI transaction proceeds
-- Monitor packets generated immediately
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - ACLK (ungated)
+> - GATED_ACLK resuming
+> - ARVALID assertion (wake trigger)
+> - cg_gating deactivation
+> - AXI transaction proceeds
+> - Monitor packets generated immediately
+
 
 ---
 
@@ -431,7 +431,7 @@ gaxi_fifo_sync #(
    - No events lost during gating transition
 
 2. **Wake latency includes monitor initialization:**
-   - 1-2 cycles for clock ungating
+   - 1 wake-up register stage; first usable gated-clock edge 2 cycles after activity
    - Monitor ready immediately (no reset needed)
    - First transaction monitored correctly
 
@@ -472,8 +472,8 @@ gaxi_fifo_sync #(
 
 ## Related Documentation
 
-- **[AXI5 Master Read](axi5_master_rd.md)** - Base module
-- **[AXI5 Master Read CG](axi5_master_rd_cg.md)** - Clock gating only
+- **[AXI5 Master Read](../axi5/axi5_master_rd.md)** - Base module
+- **[AXI5 Master Read CG](../axi5/axi5_master_rd_cg.md)** - Clock gating only
 - **[AXI5 Master Read Monitor](axi5_master_rd_mon.md)** - Monitor only
 - **[AXI5 Master Write Monitor CG](axi5_master_wr_mon_cg.md)** - Write variant
 - **[AXI Monitor Configuration Guide](../../../../AXI_Monitor_Configuration_Guide.md)** - Monitor setup

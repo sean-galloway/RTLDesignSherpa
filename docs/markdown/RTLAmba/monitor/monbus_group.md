@@ -30,7 +30,7 @@
 - `monbus_axi4_axil_group.sv` — wrapper: AXI4-burst slave-read + AXIL master-write
 - `monbus_axi4_axi4_group.sv` — wrapper: AXI4-burst slave-read + AXI4-burst master-write
 
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Category:** Monitor Bus → AXI / AXIL Aggregation
 **Status:** Production Ready
 
@@ -539,6 +539,6 @@ amortize address-channel overhead), switch the wrapper to
 | [`monbus_cam_pipe`](monbus_cam_pipe.md) | Pipelined LRU CAM backing the compressor (production) |
 | [`monbus_cam`](monbus_cam.md) | Unpipelined reference CAM (superseded by `monbus_cam_pipe`) |
 | [`monbus_arbiter`](monbus_arbiter.md) | Upstream multi-source merge (instantiate before this family if you have N>1 sources) |
-| [`sdpram_slave_axil_axil`](sdpram_slave_axil_axil.md) | Canonical memory-ring backend for the master-write port (AXIL/AXIL variant pairs with `sdpram_slave_axil_axil`) |
+| [`sdpram_slave_axil_axil`](../shared/sdpram_slave_axil_axil.md) | Canonical memory-ring backend for the master-write port (AXIL/AXIL variant pairs with `sdpram_slave_axil_axil`) |
 | [`axi_monitor_base`](axi_monitor_base.md) | Source of the monitor packets this family captures |
 | [`axi_monitor_reporter`](axi_monitor_reporter.md) | Per-protocol packet-emission frontend |

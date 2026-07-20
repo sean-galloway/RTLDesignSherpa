@@ -33,9 +33,11 @@
 
 The AXI5 Master Write with Clock Gating module wraps the standard `axi5_master_wr` core with intelligent clock gating for power optimization. It automatically gates the clock when no AXI write activity is detected for a configurable number of idle cycles.
 
+**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. `AWATOP` is carried through unmodified but no atomic read-modify-write is performed, no MTE tag checking or `BTAGMATCH` generation is performed, and no outstanding-transaction tracking is done. Those behaviors belong to the endpoints on either side. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
+
 ### Key Features
 
-- Full AMBA AXI5 protocol compliance (wraps `axi5_master_wr`)
+- Carries the same AXI5 signal set as `axi5_master_wr`, which it wraps
 - **AWATOP:** Atomic operation support (compare-and-swap, atomic operations)
 - **AWNSAID:** Non-secure access identifier for security domains
 - **AWTRACE:** Trace signal for debug and performance monitoring
@@ -139,6 +141,19 @@ flowchart LR
 | ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
 | ENABLE_POISON | bit | 1 | Enable poison indicator |
 | **CG_IDLE_COUNT_WIDTH** | int | 4 | Width of idle counter (max 2^N-1 cycles) |
+
+### Derived Parameters
+
+These are computed inside the module from the parameters above. Do not override them.
+
+| Parameter | Expression | Description |
+|-----------|------------|-------------|
+| SW | AXI_WSTRB_WIDTH | Write strobe width, one bit per data byte |
+| NUM_TAGS | max(AXI_DATA_WIDTH / 128, 1) | MTE tags carried per beat (one tag per 16 bytes) |
+| TW | AXI_TAG_WIDTH * NUM_TAGS | Total width of the `awtag` / `wtag` / `btag` fields |
+| AWSize | Sum of the enabled AW fields | AW SKID buffer payload width |
+| WSize | Sum of the enabled W fields | W SKID buffer payload width |
+| BSize | Sum of the enabled B fields | B SKID buffer payload width |
 
 ---
 
@@ -265,15 +280,34 @@ m_axi_bready = cg_gating ? 1'b0 : int_bready;
 
 All three write channels must be idle before clock gating activates, ensuring no partial writes.
 
+### Ready Deassertion and Wake Behavior
+
+While `cg_gating` is asserted, the ready outputs listed above are forced low.
+
+This is legal AXI. A READY output may be deasserted for any number of cycles, and neither side may assume READY asserts within a bounded time, so holding it low is ordinary backpressure rather than a protocol violation. It cannot deadlock either: the same VALID being held off also feeds the activity detector, so gating releases and READY returns to the core's value.
+
+Two consequences are worth designing around:
+
+- **Wake latency adds to first-transfer latency.** Activity is registered once (AXI4, AXI5, AXI4-Lite, AXI4-Stream) or twice (APB, APB5, AXI5-Stream) before reaching the ICG enable, which is combinational. The AXI5 `_cg` wrappers drive the activity terms combinationally, so there is 1 register stage and the first usable gated-clock edge arrives 2 cycles after activity asserts. Size `cfg_cg_idle_count` so that cost is amortized over the traffic burst that follows.
+- **READY is a combinational function of `cg_gating`.** The path from the idle counter to the `fub_axi_awready` and `fub_axi_wready` outputs may need attention during timing closure, particularly at high frequency.
+
+### Integration Caveat: `fub_axi_bready` in the Activity Term
+
+The activity detector treats `fub_axi_bready` as activity, not just the corresponding VALID. A FUB that ties `fub_axi_bready` high permanently, which is a common and otherwise entirely correct style, holds `user_valid` asserted forever. The idle counter then never expires and the clock never gates.
+
+If a clock-gated instance appears to save no power, check this first. To get gating with an always-ready consumer, either assert `fub_axi_bready` only while a response is genuinely expected, or instantiate the non-gated base module and gate at a level where real idleness is visible.
+
 ### AXI5 Write-Specific Features
 
-**Atomic Operations (AWATOP):**
-When `ENABLE_ATOMIC=1`, supports:
+**Atomic transactions (AWATOP):**
+When `ENABLE_ATOMIC=1`, `AWATOP` is packed into the AW SKID payload and carried through unmodified, so the following can be signalled end to end:
 - AtomicStore
 - AtomicLoad
 - AtomicSwap
 - AtomicCompare
-- Atomic arithmetic operations
+- The ADD/CLR/EOR/SET/SMAX/SMIN/UMAX/UMIN opcodes of AtomicStore and AtomicLoad
+
+The module does not execute the atomic operation. See [AXI5 Master Write](axi5_master_wr.md) for the full `AWATOP` encoding.
 
 **Memory Tagging on Write (MTE):**
 When `ENABLE_MTE=1`:
@@ -300,28 +334,28 @@ Same as read variant - see [AXI5 Master Read CG](axi5_master_rd_cg.md).
 
 ### Clock Gating with Write Burst
 
-<!-- TODO: Add wavedrom timing diagram -->
-```
-TODO: Wavedrom timing diagram showing:
-- ACLK (ungated)
-- GATED_ACLK (gated clock)
-- AW channel: AWVALID, AWREADY
-- W channel: WDATA, WLAST, WVALID, WREADY
-- B channel: BVALID, BREADY
-- Idle counter after BREADY
-- cg_gating activation after idle count
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - ACLK (ungated)
+> - GATED_ACLK (gated clock)
+> - AW channel: AWVALID, AWREADY
+> - W channel: WDATA, WLAST, WVALID, WREADY
+> - B channel: BVALID, BREADY
+> - Idle counter after BREADY
+> - cg_gating activation after idle count
+
 
 ### Atomic Operation with Clock Gating
 
-<!-- TODO: Add wavedrom timing diagram -->
-```
-TODO: Wavedrom timing diagram showing:
-- AWATOP encoding
-- Atomic write sequence
-- BTAG response
-- Clock gating after completion
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - AWATOP encoding
+> - Atomic write sequence
+> - BTAG response
+> - Clock gating after completion
+
 
 ---
 
@@ -407,7 +441,8 @@ axi5_master_wr_cg #(
     // Master interface (output side)
     .m_axi_awid         (m_axi_awid),
     .m_axi_awaddr       (m_axi_awaddr),
-    // ... (connect all master signals similarly)
+    // Every remaining m_axi_* port mirrors the fub_axi_* list above,
+    // same names and widths, opposite directions. All must be connected.
 
     // Clock gating status
     .cg_gating          (clock_gated),
@@ -441,7 +476,7 @@ end
 | Activity detection | 2 valids | 3 valids |
 | Idle condition | Both channels idle | All 3 channels idle |
 | Typical idle % | Higher (read-mostly traffic) | Lower (write completion delays) |
-| Power savings | 30-50% | 20-40% |
+| Relative gating opportunity | Higher | Lower |
 
 ### Write-Specific Gating Considerations
 
@@ -466,7 +501,7 @@ end
 
 - **[AXI5 Master Write](axi5_master_wr.md)** - Non-gated base module
 - **[AXI5 Master Read CG](axi5_master_rd_cg.md)** - Read with clock gating
-- **[AXI5 Master Write Monitor CG](axi5_master_wr_mon_cg.md)** - With monitoring + clock gating
+- **[AXI5 Master Write Monitor CG](../monitor/axi5_master_wr_mon_cg.md)** - With monitoring + clock gating
 - **[AMBA Clock Gate Controller](../shared/amba_clock_gate_ctrl.md)** - Clock gating controller spec
 
 ---

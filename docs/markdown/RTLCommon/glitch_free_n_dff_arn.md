@@ -118,14 +118,24 @@ end
 
 ### MTBF Calculation
 ```
-MTBF = (e^(t_res/τ)) / (f_clk × f_data × τ)
+MTBF = (e^(t_res/τ)) / (T₀ × f_clk × f_data)
 
 Where:
 - t_res = Resolution time available (clock period - setup - routing)
-- τ = Flip-flop metastability time constant (~200ps typical)
-- f_clk = Destination clock frequency  
+- τ     = Flip-flop metastability resolution time constant (~200ps typical)
+- T₀    = Metastability aperture / window constant (device-specific, ~1e-12 s)
+- f_clk = Destination clock frequency
 - f_data = Data transition frequency
 ```
+
+**τ appears ONLY in the exponent.** The denominator constant is `T₀`, not `τ` --
+they are different device parameters and are not interchangeable. Both are
+process/library specific: take them from the vendor's metastability
+characterization data, not from a datasheet timing table.
+
+The stage-count table below is a **rule of thumb** for relative improvement, not
+a result derived from this formula. Use the formula only with real `τ`/`T₀`
+values for your target device; otherwise rely on the table for sizing.
 
 ### Stage Count Impact
 | Stages | Relative MTBF | Typical MTBF |

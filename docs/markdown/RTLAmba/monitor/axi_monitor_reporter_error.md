@@ -24,7 +24,7 @@
 # AXI Monitor Reporter — Error Cone
 
 **Module:** `axi_monitor_reporter_error.sv`
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Status:** Production Ready
 
 ---

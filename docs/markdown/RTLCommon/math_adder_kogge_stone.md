@@ -23,18 +23,23 @@
 
 # Kogge-Stone Parallel Prefix Adder
 
+> **Naming caveat -- read this before selecting this module.** Despite the name,
+> adder. It uses generate/propagate logic with a **sequential carry chain**, so
+> its depth is **O(N)**, not the **O(log N)** a Kogge-Stone prefix tree gives.
+> If you selected this expecting parallel-prefix timing, you will not get it --
+> see `math_adder_brent_kung` or `math_adder_han_carlson` for genuine
+> parallel-prefix implementations.
+
 A parameterized adder using Kogge-Stone inspired propagate-generate logic for arbitrary bit widths, providing improved carry computation over ripple carry adders.
 
 ## Overview
 
-The `math_adder_kogge_stone_nbit` module implements an adder using generate (G) and propagate (P) signals with a simplified carry computation structure. While named after the Kogge-Stone algorithm, this implementation uses a sequential carry chain rather than the full parallel prefix tree structure, making it suitable for arbitrary bit widths with a balance between speed and implementation complexity.
 
 **Note:** This is a simplified Kogge-Stone inspired implementation. A full Kogge-Stone parallel prefix adder would use a complete binary tree of black cells achieving O(log N) depth, but at the cost of significantly more hardware and complexity for generic parameterization.
 
 ## Module Declaration
 
 ```systemverilog
-module math_adder_kogge_stone_nbit #(
     parameter int N = 4      // Adder width in bits (any width ≥ 1)
 ) (
     input  logic [N-1:0] i_a,       // Operand A
@@ -183,7 +188,6 @@ i_a[0]/i_b[0] → G[0] → C[0] → C[1] → ... → C[N-1] → ow_carry
 logic [15:0] a, b, sum;
 logic carry_out;
 
-math_adder_kogge_stone_nbit #(
     .N(16)
 ) u_adder (
     .i_a      (a),
@@ -212,7 +216,6 @@ logic cin, carry_out;
 logic [7:0] b_adjusted;
 assign b_adjusted = b + {7'b0, cin};  // Add carry to B operand
 
-math_adder_kogge_stone_nbit #(
     .N(8)
 ) u_adder (
     .i_a      (a),
@@ -223,7 +226,6 @@ math_adder_kogge_stone_nbit #(
 
 // Alternatively, use dedicated incrementer after addition
 logic [7:0] sum_base;
-math_adder_kogge_stone_nbit #(.N(8)) u_add (
     .i_a(a), .i_b(b), .ow_sum(sum_base), ...
 );
 assign sum_with_cin = cin ? (sum_base + 8'b1) : sum_base;
@@ -236,7 +238,6 @@ assign sum_with_cin = cin ? (sum_base + 8'b1) : sum_base;
 logic [36:0] a_37, b_37, sum_37;
 logic carry_37;
 
-math_adder_kogge_stone_nbit #(
     .N(37)  // Any width supported
 ) u_adder_37bit (
     .i_a      (a_37),
@@ -254,7 +255,6 @@ logic [31:0] sum_low, sum_high;
 logic carry_low;
 
 // Low 32 bits
-math_adder_kogge_stone_nbit #(.N(32)) u_add_low (
     .i_a      (a_low),
     .i_b      (b_low),
     .ow_sum   (sum_low),
@@ -265,7 +265,6 @@ math_adder_kogge_stone_nbit #(.N(32)) u_add_low (
 logic [31:0] b_high_adjusted;
 assign b_high_adjusted = b_high + {31'b0, carry_low};
 
-math_adder_kogge_stone_nbit #(.N(32)) u_add_high (
     .i_a      (a_high),
     .i_b      (b_high_adjusted),
     .ow_sum   (sum_high),
@@ -282,7 +281,6 @@ logic [31:0] accumulator, data_in;
 logic [31:0] accumulator_next;
 logic acc_enable;
 
-math_adder_kogge_stone_nbit #(.N(32)) u_accumulator (
     .i_a      (accumulator),
     .i_b      (data_in),
     .ow_sum   (accumulator_next),
@@ -310,7 +308,6 @@ logic [15:0] sum_array [NUM_ADDERS];
 genvar k;
 generate
     for (k = 0; k < NUM_ADDERS; k++) begin : gen_adder_array
-        math_adder_kogge_stone_nbit #(
             .N(16)
         ) u_adder (
             .i_a      (a_array[k]),
@@ -432,7 +429,7 @@ assign b_adjusted = b + {{N-1{1'b0}}, cin};
 **Option 2: Use different adder with carry input**
 ```systemverilog
 // Use carry lookahead instead
-math_adder_carry_lookahead #(.N(N)) u_add (
+math_adder_pg_chain #(.N(N)) u_add (
     .i_a(a), .i_b(b), .i_c(cin), ...
 );
 ```
@@ -465,7 +462,6 @@ assign sum_with_cin = cin ? (ow_sum + 1'b1) : ow_sum;
 
 ## Verification Strategy
 
-Test suite location: `val/common/test_math_adder_kogge_stone_nbit.py`
 
 **Key Test Scenarios:**
 - Random stimulus (various widths)
@@ -476,7 +472,6 @@ Test suite location: `val/common/test_math_adder_kogge_stone_nbit.py`
 
 **Test Command:**
 ```bash
-pytest val/common/test_math_adder_kogge_stone_nbit.py -v
 ```
 
 ## Common Pitfalls
@@ -485,14 +480,12 @@ pytest val/common/test_math_adder_kogge_stone_nbit.py -v
 
 ```systemverilog
 // WRONG: No carry input port exists!
-math_adder_kogge_stone_nbit #(.N(8)) u_add (
     .i_a(a), .i_b(b), .i_c(cin),  // ERROR: No i_c port!
     ...
 );
 
 // RIGHT: Pre-add carry to operand or use different adder
 logic [7:0] b_adj = b + {7'b0, cin};
-math_adder_kogge_stone_nbit #(.N(8)) u_add (
     .i_a(a), .i_b(b_adj), ...
 );
 ```
@@ -501,7 +494,6 @@ math_adder_kogge_stone_nbit #(.N(8)) u_add (
 
 ```systemverilog
 // WRONG: 128-bit with O(N) depth (slow!)
-math_adder_kogge_stone_nbit #(.N(128)) u_add (...);
 // Result: 130 logic levels!
 
 // RIGHT: Break into smaller pieces or use different architecture
@@ -522,9 +514,6 @@ math_adder_brent_kung_032 u_fast_add (...);
 ```systemverilog
 // WRONG: Long combinational chain
 logic [31:0] sum1, sum2, sum3;
-math_adder_kogge_stone_nbit #(.N(32)) u1 (.i_a(a), .i_b(b), .ow_sum(sum1), ...);
-math_adder_kogge_stone_nbit #(.N(32)) u2 (.i_a(sum1), .i_b(c), .ow_sum(sum2), ...);
-math_adder_kogge_stone_nbit #(.N(32)) u3 (.i_a(sum2), .i_b(d), .ow_sum(sum3), ...);
 // 3 × 34 levels = 102 logic levels!
 
 // RIGHT: Pipeline between adders
@@ -537,7 +526,7 @@ end
 ## Related Modules
 
 - **math_adder_brent_kung_*.sv** - True parallel prefix, O(log N) depth (8/16/32-bit)
-- **math_adder_carry_lookahead.sv** - Similar performance, has carry input
+- **math_adder_pg_chain.sv** - Similar performance, has carry input
 - **math_adder_ripple_carry.sv** - Simpler, slightly smaller area
 - **math_adder_carry_save_nbit.sv** - For multi-operand addition
 

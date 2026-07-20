@@ -24,7 +24,7 @@
 # AXI Monitor Reporter — Debug State-Change Emitter
 
 **Module:** `axi_monitor_reporter_debug.sv`
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Status:** Production Ready
 
 ---

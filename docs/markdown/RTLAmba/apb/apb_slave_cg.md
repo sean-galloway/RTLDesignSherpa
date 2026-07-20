@@ -36,11 +36,15 @@ The `apb_slave_cg` module is a clock-gated variant of [apb_slave](./apb_slave.md
 
 ### Key Differences from Base Module
 
-- ✅ **Activity-Based Clock Gating:** Automatically gates clocks when subsystems are idle
-- ✅ **Configurable Policies:** Fine-grained control over what gets gated and when
-- ✅ **Power Monitoring:** Built-in statistics for clock gating effectiveness
-- ✅ **Independent Gating Domains:** Separate control for different functional blocks
+- ✅ **Activity-Based Clock Gating:** Gates `pclk` when the interface has been idle
+- ✅ **Runtime Configuration:** Enable and idle threshold are input signals, not parameters
+- ✅ **Gating Status Output:** `apb_clock_gating` reports when the clock is gated
 - ✅ **Zero Functional Impact:** Maintains 100% functional equivalence with base module
+
+The module is a thin wrapper: one `amba_clock_gate_ctrl` instance produces
+`gated_pclk`, which feeds an otherwise unmodified `apb_slave`. There is a
+**single** gate cell -- there are no separate data-path and control-path gating
+domains.
 
 All other functionality is identical to the base module. See [apb_slave.md](./apb_slave.md) for complete functional specification.
 
@@ -68,102 +72,113 @@ In addition to all parameters from [apb_slave](./apb_slave.md), this module adds
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `ENABLE_CLOCK_GATING` | bit | 1 | Master enable for clock gating (0=disable all gating) |
-| `CG_IDLE_CYCLES` | int | 8 | Number of idle cycles before asserting clock gate |
-| `CG_GATE_DATAPATH` | bit | 1 | Enable clock gating for data path logic |
-| `CG_GATE_CONTROL` | bit | 1 | Enable clock gating for control path logic |
+| `CG_IDLE_COUNT_WIDTH` | int | 4 | Width of the idle countdown counter; bounds the maximum programmable idle threshold |
 
-### Parameter Relationships
+That is the only additional parameter. Gating is not parameterized on or off, and
+there are no per-domain gating parameters -- both are controlled at runtime.
 
-- **`ENABLE_CLOCK_GATING = 0`**: Disables all clock gating, module behaves identically to base
-- **`CG_IDLE_CYCLES`**: Higher values = more power savings but slower wake-up from idle
-- **Individual `CG_GATE_*` signals**: Allow fine-grained control over which subsystems are gated
+## Clock Gating Ports
+
+In addition to all ports from [apb_slave](./apb_slave.md):
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `cfg_cg_enable` | 1 | Input | Global clock-gate enable. 0 = never gate (identical to base module) |
+| `cfg_cg_idle_count` | CG_IDLE_COUNT_WIDTH | Input | Idle cycles to count down before gating the clock |
+| `apb_clock_gating` | 1 | Output | Asserted while the internal clock is gated |
 
 ---
 
 ## Usage Examples
 
-### Example 1: Maximum Power Savings (Burst Traffic)
+### Example 1: Aggressive Gating (Bursty Traffic)
 
 ```systemverilog
 apb_slave_cg #(
     // Base parameters (see apb_slave.md)
-    .AXI_ID_WIDTH(8),
-    .AXI_ADDR_WIDTH(32),
-    .AXI_DATA_WIDTH(64),
-
-    // Clock gating - aggressive power savings
-    .ENABLE_CLOCK_GATING(1),
-    .CG_IDLE_CYCLES(4),      // Gate quickly after 4 idle cycles
-    .CG_GATE_DATAPATH(1),    // Gate data path
-    .CG_GATE_CONTROL(1)      // Gate control path
+    .ADDR_WIDTH          (32),
+    .DATA_WIDTH          (32),
+    .DEPTH               (2),
+    .CG_IDLE_COUNT_WIDTH (4)
 ) u_cg (
-    .aclk(clk),
-    .aresetn(rst_n),
+    .pclk              (apb_clk),
+    .presetn           (apb_resetn),
+
+    .cfg_cg_enable     (1'b1),
+    .cfg_cg_idle_count (4'd4),   // gate quickly after 4 idle cycles
+    .apb_clock_gating  (cg_active),
     // ... connect signals same as base module
 );
 ```
 
-### Example 2: Balanced Performance and Power
+### Example 2: Conservative Gating
 
 ```systemverilog
 apb_slave_cg #(
-    // Base parameters
-    .AXI_ID_WIDTH(8),
-    .AXI_ADDR_WIDTH(32),
-    .AXI_DATA_WIDTH(64),
-
-    // Clock gating - balanced approach
-    .ENABLE_CLOCK_GATING(1),
-    .CG_IDLE_CYCLES(16),     // Wait longer before gating (faster wake-up)
-    .CG_GATE_DATAPATH(1),    // Gate data path
-    .CG_GATE_CONTROL(0)      // Keep control path active
+    .ADDR_WIDTH          (32),
+    .DATA_WIDTH          (32),
+    .CG_IDLE_COUNT_WIDTH (4)
 ) u_cg (
-    .aclk(clk),
-    .aresetn(rst_n),
+    .pclk              (apb_clk),
+    .presetn           (apb_resetn),
+
+    .cfg_cg_enable     (1'b1),
+    .cfg_cg_idle_count (4'd15),  // wait longer; fewer gate/ungate events
+    .apb_clock_gating  (cg_active),
     // ... connect signals same as base module
 );
 ```
+
+Note that `cfg_cg_idle_count` is bounded by `CG_IDLE_COUNT_WIDTH`. With the
+default width of 4, the largest usable threshold is 15 cycles; widen the
+parameter if a longer idle window is required.
 
 ### Example 3: Clock Gating Disabled (Functional Verification)
 
 ```systemverilog
 apb_slave_cg #(
-    // Base parameters
-    .AXI_ID_WIDTH(8),
-    .AXI_ADDR_WIDTH(32),
-    .AXI_DATA_WIDTH(64),
-
-    // Clock gating - DISABLED for verification
-    .ENABLE_CLOCK_GATING(0)  // Disable all gating
+    .ADDR_WIDTH          (32),
+    .DATA_WIDTH          (32)
 ) u_cg (
-    .aclk(clk),
-    .aresetn(rst_n),
+    .pclk              (apb_clk),
+    .presetn           (apb_resetn),
+
+    .cfg_cg_enable     (1'b0),   // never gate
+    .cfg_cg_idle_count (4'd0),
     // ... connect signals same as base module
 );
 ```
 
-**Note:** With `ENABLE_CLOCK_GATING=0`, this module is functionally identical to the base module.
+**Note:** With `cfg_cg_enable = 0`, this module is functionally identical to the base module.
 
 ---
 
 ## Clock Gating Architecture
 
-### Gating Domains
+### Single Gating Domain
 
-The module implements independent clock gating for these functional blocks:
+There is one `amba_clock_gate_ctrl` instance producing one gated clock, which
+feeds the entire wrapped `apb_slave`. There is no separate data-path/control-path
+split.
 
-1. **Data Path Domain**
-   - Data buffering and forwarding logic
-   - Gated when: No valid data for `CG_IDLE_CYCLES`
-   - Controlled by: `CG_GATE_DATAPATH`
+### Wake-Up Condition
 
-2. **Control Path Domain**
-   - Handshake and control signal logic
-   - Gated when: Interface idle for `CG_IDLE_CYCLES`
-   - Controlled by: `CG_GATE_CONTROL`
+The wrapper holds the clock ungated while any of the following is true, sampled
+one cycle earlier into an internal `r_wakeup` register:
+
+```
+s_apb_PSEL || s_apb_PENABLE || cmd_valid || rsp_valid
+```
+
+That is: an APB transfer selected or in its ACCESS phase, a command still
+presented to the backend, or a response still pending. Gating engages
+`cfg_cg_idle_count + 1` cycles after the internal wakeup deasserts, which is
+`cfg_cg_idle_count + 3` cycles after all four terms go low, because APB adds two
+register stages ahead of the ICG enable.
 
 ### Gating State Machine
+
+The gate cell follows the standard three-state sequence:
 
 ```
 ACTIVE ───────► IDLE_COUNT ───────► GATED
@@ -173,44 +188,48 @@ ACTIVE ───────► IDLE_COUNT ───────► GATED
         (Activity Detected)
 
 States:
-- ACTIVE: Clocks enabled, monitoring activity
-- IDLE_COUNT: Counting CG_IDLE_CYCLES before gating
-- GATED: Clocks disabled, waiting for activity
+- ACTIVE:     Clock enabled, monitoring activity
+- IDLE_COUNT: Counting cfg_cg_idle_count cycles before gating
+- GATED:      Clock disabled, waiting for activity
 ```
 
 ### Wake-Up Latency
 
-| Configuration | Wake-Up Time | Use Case |
-|---------------|--------------|----------|
-| `CG_IDLE_CYCLES=4` | ~4 clock cycles | Low-latency, frequent bursts |
-| `CG_IDLE_CYCLES=8` | ~8 clock cycles | Balanced (default) |
-| `CG_IDLE_CYCLES=16` | ~16 clock cycles | Maximum power savings, infrequent traffic |
+Activity is registered once (AXI4, AXI5, AXI4-Lite, AXI4-Stream) or twice (APB,
+APB5, AXI5-Stream) before reaching the ICG enable, which is combinational. This
+wrapper registers activity into its own `r_wakeup` flop and then hands it to
+`amba_clock_gate_ctrl`, which registers it again, so APB is a **two-stage**
+family. The first gated-clock rising edge available to the wrapped `apb_slave`
+therefore arrives **3 cycles** after activity asserts.
+
+`clock_gate_ctrl` itself adds no flop: `w_gate_enable` is combinational from
+`wakeup` into the ICG enable, so the third cycle is the released clock edge
+rather than a further register stage.
+
+`cfg_cg_idle_count` controls how long the clock stays running *after* traffic
+stops, not how long wake-up takes -- a larger value means fewer gate/ungate
+transitions, not slower wake-up.
 
 ---
 
-## Power Savings Analysis
+## Power Savings
 
-### Typical Power Reduction
+Clock gating removes the switching power of the wrapped `apb_slave` during the
+gated window. The achievable saving is therefore bounded by the fraction of time
+the interface is idle, and by whether the target technology maps the enable onto
+a real clock-gating cell (an ASIC ICG, a Xilinx `BUFGCE`, an Intel `ALTCLKCTRL`)
+rather than a data-path enable.
 
-Based on representative workloads:
+**No power measurements have been taken for this module in this repository.** Any
+specific percentage would be a guess. If a power number is needed, run
+vendor power analysis on the target device with a representative traffic
+switching activity file (SAIF/VCD) and compare against `apb_slave`.
 
-| Traffic Pattern | Clock Gating Enabled | Power Savings |
-|----------------|---------------------|---------------|
-| 10% Utilization | Aggressive (`CG_IDLE_CYCLES=4`) | 60-70% |
-| 25% Utilization | Balanced (`CG_IDLE_CYCLES=8`) | 45-55% |
-| 50% Utilization | Conservative (`CG_IDLE_CYCLES=16`) | 25-35% |
-| 90% Utilization | Any configuration | 5-10% |
-
-**Note:** Actual savings depend on FPGA/ASIC technology, tool implementation, and traffic patterns.
-
-### Power Monitoring Signals
-
-The module provides these status signals for power analysis:
+### Gating Status Signal
 
 | Signal | Width | Description |
 |--------|-------|-------------|
-| `cg_monitor_gated` | 1 | Monitor domain clock is gated |
-| `cg_reporter_gated` | 1 | Reporter domain clock is gated |
+| `apb_clock_gating` | 1 | Asserted while the internal clock is gated. Integrate over a window to measure the gated duty cycle |
 
 ---
 
@@ -222,24 +241,22 @@ The module provides these status signals for power analysis:
 
 ```systemverilog
 // Testbench instantiation
-apb_slave_cg #(
-    .ENABLE_CLOCK_GATING(0)  // Disable for faster simulation
-) dut (
+apb_slave_cg dut (
+    .cfg_cg_enable (1'b0),   // Disable gating for functional debug
     // ... connections
 );
 ```
 
 **Rationale:**
 - Simpler waveforms (no clock gating events)
-- Faster simulation (no gating overhead)
-- Easier debug (no timing dependencies)
+- Easier debug: a gated clock freezes internal state and reads like a hang
 
 ### Power Analysis Verification
 
 For power-specific verification:
 
-1. **Enable clock gating** with realistic parameters
-2. **Monitor gating signals** (`cg_*_gated`) to verify expected behavior
+1. **Enable gating** (`cfg_cg_enable = 1`) with a realistic `cfg_cg_idle_count`
+2. **Monitor `apb_clock_gating`** to verify the expected gated duty cycle
 3. **Vary traffic patterns** to test gating effectiveness
 4. **Check wake-up timing** meets system requirements
 
@@ -249,14 +266,16 @@ For power-specific verification:
 
 ### FPGA Implementations
 
+The gated clock is produced inside `amba_clock_gate_ctrl`. Whether it becomes a
+true gated clock or a fan-out of clock enables is a synthesis decision:
+
 **Xilinx:**
-- Use `ENABLE_CLOCK_GATING=1` with `BUFGCE` primitives
-- Tool will infer clock enables automatically
-- Verify with post-synthesis power analysis
+- Vivado typically converts the enable into `BUFGCE` or into per-flop clock enables
+- Confirm which happened in the post-synthesis netlist before claiming power savings
+- Verify with post-implementation power analysis
 
 **Intel (Altera):**
-- Use `ENABLE_CLOCK_GATING=1` with `ALTCLKCTRL`
-- May need vendor-specific clock gating primitives
+- Maps to `ALTCLKCTRL`; may need explicit vendor primitive instantiation
 - Check power reports for gating effectiveness
 
 **Lattice:**

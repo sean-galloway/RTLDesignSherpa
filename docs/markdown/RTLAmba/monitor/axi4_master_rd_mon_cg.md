@@ -88,7 +88,7 @@ All base-module ports are forwarded unchanged, including the `cam_clear` control
 ### Parameter Relationships
 
 - **`ENABLE_CLOCK_GATING = 0`**: Disables all clock gating, module behaves identically to base
-- **`CG_IDLE_CYCLES`**: Higher values = more power savings but slower wake-up from idle
+- **`CG_IDLE_CYCLES`**: Higher values keep the clock running longer after traffic stops, so the block is gated less often. It does not change wake-up latency, which is fixed at 1 register stage / 2 clocks to the first usable edge.
 - **Individual `CG_GATE_*` signals**: Allow fine-grained control over which subsystems are gated
 
 ---
@@ -128,7 +128,7 @@ axi4_master_rd_mon_cg #(
 
     // Clock gating - balanced approach
     .ENABLE_CLOCK_GATING(1),
-    .CG_IDLE_CYCLES(16),     // Wait longer before gating (faster wake-up)
+    .CG_IDLE_CYCLES(16),     // Wait longer before gating (gated less often)
     .CG_GATE_MONITOR(1),     // Gate monitor logic
     .CG_GATE_REPORTER(0),    // Don't gate reporter (always ready)
     .CG_GATE_TIMERS(1)       // Gate timers when not needed
@@ -210,13 +210,23 @@ States:
 - GATED: Clocks disabled, waiting for activity
 ```
 
-### Wake-Up Latency
+### Wake-Up and Gating Latency
 
-| Configuration | Wake-Up Time | Use Case |
-|---------------|--------------|----------|
-| `CG_IDLE_CYCLES=4` | ~4 clock cycles | Low-latency, frequent bursts |
-| `CG_IDLE_CYCLES=8` | ~8 clock cycles | Balanced (default) |
-| `CG_IDLE_CYCLES=16` | ~16 clock cycles | Maximum power savings, infrequent traffic |
+Wake-up latency does not depend on `CG_IDLE_CYCLES`. Activity is registered once
+(AXI4, AXI5, AXI4-Lite, AXI4-Stream) or twice (APB, APB5, AXI5-Stream) before
+reaching the ICG enable, which is combinational. This monitor wrapper drives the
+activity terms combinationally, so it has **1 register stage** and the first
+usable gated-clock edge arrives **2 clock cycles** after activity asserts.
+
+`CG_IDLE_CYCLES` sets the going-to-sleep delay only: gating engages
+`CG_IDLE_CYCLES + 1` clocks after the internal wakeup deasserts, which is
+`CG_IDLE_CYCLES + 2` clocks after the last bus activity.
+
+| Configuration | Clocks from last activity to gating | Use Case |
+|---------------|-------------------------------------|----------|
+| `CG_IDLE_CYCLES=4` | 6 clock cycles | Low-latency, frequent bursts |
+| `CG_IDLE_CYCLES=8` | 10 clock cycles | Balanced (default) |
+| `CG_IDLE_CYCLES=16` | 18 clock cycles | Maximum power savings, infrequent traffic |
 
 ---
 

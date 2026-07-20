@@ -220,7 +220,6 @@ This module is optimized with the following priorities:
 - **math_adder_han_carlson_016** - 16-bit Han-Carlson adder using this cell
 - **math_adder_han_carlson_048** - 48-bit Han-Carlson adder using this cell
 - **math_adder_brent_kung_black** - Brent-Kung black cell (equivalent)
-- **math_adder_kogge_stone_nbit** - Kogge-Stone adder using black cells
 
 ## Applications
 

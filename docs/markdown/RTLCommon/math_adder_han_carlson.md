@@ -204,9 +204,15 @@ Legend: o=pass through, |=pass through, *=prefix cell
 ### Depth Formula
 
 For N-bit Han-Carlson:
-- **Depth** = ceil(log2(N)) + 2 stages
-- **16-bit:** ceil(log2(16)) + 2 = 4 + 2 = 6 stages (5 prefix + 1 sum)
-- **48-bit:** ceil(log2(48)) + 2 = 6 + 2 = 8 stages (7 prefix + 1 sum)
+- **Prefix-tree depth** = ceil(log2(N)) + 1 stages
+- **Total depth** = prefix tree + 1 sum stage = ceil(log2(N)) + 2 stages
+- **16-bit:** prefix = 4 + 1 = 5, total = 6 stages (5 prefix + 1 sum)
+- **48-bit:** prefix = 6 + 1 = 7, total = 8 stages (7 prefix + 1 sum)
+
+The `+2` is **total** depth, not prefix depth -- the sparsity-2 Han-Carlson
+prefix network is `log2(N) + 1` deep, and the final sum stage adds one more.
+Quoting `+2` without saying which is being counted invites an off-by-one when
+comparing against the Harris taxonomy, which tabulates prefix depth.
 
 ## Usage Examples
 
@@ -358,7 +364,6 @@ end
 - **math_multiplier_dadda_4to2_008** - Uses 16-bit Han-Carlson for final CPA
 - **math_bf16_fma** - Uses 48-bit Han-Carlson for wide addition
 - **math_adder_brent_kung_nbit** - Alternative area-optimized adder
-- **math_adder_kogge_stone_nbit** - Maximum speed alternative
 
 ## References
 

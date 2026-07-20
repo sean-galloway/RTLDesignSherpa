@@ -423,7 +423,7 @@ assign signed_overflow = (i_a[N-1] == i_b[N-1]) &&
 
 - **math_adder_ripple_carry.sv** - Add-only (no XOR overhead)
 - **math_subtractor_ripple_carry.sv** - Subtract-only (rarely used)
-- **math_adder_carry_lookahead.sv** - Faster alternative for adder stage
+- **math_adder_pg_chain.sv** - Faster alternative for adder stage
 
 ## References
 

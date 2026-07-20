@@ -24,7 +24,7 @@
 # AXI Monitor Reporter — Threshold Packets
 
 **Module:** `axi_monitor_reporter_threshold.sv`
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Status:** Production Ready
 
 ---

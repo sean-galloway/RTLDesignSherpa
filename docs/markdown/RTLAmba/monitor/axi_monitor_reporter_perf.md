@@ -24,7 +24,7 @@
 # AXI Monitor Reporter — Performance Packets
 
 **Module:** `axi_monitor_reporter_perf.sv`
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Status:** Production Ready
 
 ---

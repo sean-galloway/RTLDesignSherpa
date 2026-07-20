@@ -43,11 +43,9 @@ This directory contains documentation for the common RTL modules library, provid
 - **[math_adder_basic](math_adder_basic.md)** - Single-bit adders (full and half adder)
   - Includes: `math_adder_full.sv`, `math_adder_half.sv`, `math_adder_full_nbit.sv`
 - **[math_adder_ripple_carry](math_adder_ripple_carry.md)** - Multi-bit ripple carry adder
-- **[math_adder_carry_lookahead](math_adder_carry_lookahead.md)** - Fast carry lookahead adder
+- **[math_adder_pg_chain](math_adder_pg_chain.md)** - Fast carry lookahead adder
 - **[math_adder_carry_save](math_adder_carry_save.md)** - Carry-save adder for multiple operands
   - Includes: `math_adder_carry_save.sv`, `math_adder_carry_save_nbit.sv`
-- **[math_adder_kogge_stone](math_adder_kogge_stone.md)** - High-speed Kogge-Stone parallel prefix adder
-  - Includes: `math_adder_kogge_stone_nbit.sv`
 
 #### Advanced Adders
 - **[math_adder_brent_kung](math_adder_brent_kung.md)** - Brent-Kung parallel prefix adder family (8/16/32-bit)
@@ -182,7 +180,7 @@ This directory contains documentation for the common RTL modules library, provid
 #### Binary Conversions
 - **[bin2gray](bin2gray.md)** - Binary to Gray code converter
 - **[gray2bin](gray2bin.md)** - Gray to binary code converter
-- **[grayj2bin](grayj2bin.md)** - Johnson Gray to binary converter
+- **[johnson2bin](johnson2bin.md)** - Johnson Gray to binary converter
 - **[bin_to_bcd](bin_to_bcd.md)** - Binary to BCD converter
 
 #### Display and Encoding
@@ -219,7 +217,6 @@ This directory contains documentation for the common RTL modules library, provid
 - **[fifo_sync_multi](fifo_sync_multi.md)** - Multi-field FIFO wrapper (packs addr/ctrl/data into one fifo_sync)
 - **[fifo_sync_multi_sigmap](fifo_sync_multi_sigmap.md)** - fifo_sync_multi with generic positional signal-map ports
 - **[fifo_async](fifo_async.md)** - Asynchronous FIFO for clock domain crossing
-- **[fifo_async_div2](fifo_async_div2.md)** - Asynchronous FIFO optimized for divide-by-2 clocks
 - **[fifo_control](fifo_control.md)** - FIFO control logic
 
 #### Content Addressable Memory

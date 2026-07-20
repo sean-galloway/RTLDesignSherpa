@@ -262,7 +262,6 @@ pytest val/common/test_fifo_sync_wavedrom.py -v
 **Comparison Tests:**
 
 - `test_fifo_async_wavedrom.py` - Gray code CDC (power-of-2 depths)
-- `test_fifo_async_div2_wavedrom.py` - Johnson counter CDC (flexible even depths)
 
 ## Related Modules
 - **fifo_async**: For clock domain crossing applications

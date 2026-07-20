@@ -122,7 +122,7 @@
 - `rtl/amba/adapters/peakrdl_to_cmdrsp.sv` - PeakRDL adapter
 
 **Clock Domain Crossing:**
-- `rtl/amba/shared/cdc_handshake.sv` - CDC handshake synchronizer
+- `rtl/amba/cdc/cdc_handshake.sv` - CDC handshake synchronizer
 - `rtl/common/sync_2ff.sv` - 2-stage synchronizer
 - `rtl/common/sync_pulse.sv` - Pulse synchronizer
 

@@ -35,10 +35,10 @@ The AXIS5 Master CG (Clock Gated) module implements an AXI5-Stream master interf
 
 ### Key Features
 
-- Full AXI5-Stream protocol compliance with AMBA5 extensions
+- Same AXI5-Stream data path as `axis5_master` (see its [signal coverage note](axis5_master.md#key-features); TKEEP and TPOISON are not implemented)
 - Automatic clock gating during idle periods for power savings
 - TWAKEUP: Wake-up signaling integration with clock gate control
-- TPARITY: Optional parity protection (1 bit per byte)
+- TPARITY: Optional parity protection, 1 bit per byte (proprietary extension)
 - Configurable idle count threshold for gating activation
 - Internal skid buffer for backpressure handling
 - Parity error detection and reporting
@@ -119,13 +119,24 @@ flowchart TB
 | ENABLE_WAKEUP | bit | 1 | Enable TWAKEUP signal (1=enabled) |
 | ENABLE_PARITY | bit | 0 | Enable TPARITY signal (1=enabled) |
 | CG_IDLE_COUNT_WIDTH | int | 4 | Clock gate idle counter width |
-| DW | int | AXIS_DATA_WIDTH | Data width short name (calculated) |
-| IW | int | AXIS_ID_WIDTH | ID width short name (calculated) |
-| DESTW | int | AXIS_DEST_WIDTH | DEST width short name (calculated) |
-| UW | int | AXIS_USER_WIDTH | USER width short name (calculated) |
-| SW | int | DW/8 | Strobe width in bytes (calculated) |
-| PW | int | SW | Parity width - 1 bit per byte (calculated) |
-| ICW | int | CG_IDLE_COUNT_WIDTH | Idle count width short name (calculated) |
+
+**Note on `ENABLE_WAKEUP`:** the default is 1, so TWAKEUP ports exist and are carried through the buffer unless you explicitly set `ENABLE_WAKEUP=0`. Set it to 0 for an AXI4-Stream-compatible port list with no wake-up sideband and slightly less area. `ENABLE_PARITY` defaults to 0 because TPARITY is a proprietary extension.
+
+### Derived Values (do not override)
+
+These are declared in the parameter list so they can be used in port widths, but they are derived from the parameters above. Overriding them directly produces an inconsistent module.
+
+| Name | Derivation | Meaning |
+|------|------------|---------|
+| DW | AXIS_DATA_WIDTH | Data width short name |
+| IW | AXIS_ID_WIDTH | ID width short name |
+| DESTW | AXIS_DEST_WIDTH | DEST width short name |
+| UW | AXIS_USER_WIDTH | USER width short name |
+| SW | DW/8 | Strobe width in bytes |
+| PW | SW | Parity width - 1 bit per byte |
+| ICW | CG_IDLE_COUNT_WIDTH | Idle count width short name |
+| IW_WIDTH / DESTW_WIDTH / UW_WIDTH | max(width, 1) | Zero-width avoidance for disabled sidebands |
+| PW_WIDTH | ENABLE_PARITY ? PW : 1 | TPARITY port width |
 
 ---
 
@@ -199,9 +210,30 @@ r_wakeup <= fub_axis5_tvalid ||  // Input has data
 
 The clock gate controller:
 1. Monitors `r_wakeup` for activity
-2. If idle (r_wakeup=0) for `i_cg_idle_count` cycles, gates clock
-3. On activity (r_wakeup=1), immediately ungates clock
-4. Respects `i_cg_enable` (forced on if disabled)
+2. If idle (r_wakeup=0) for `i_cg_idle_count` cycles, gates the clock
+3. On activity (r_wakeup=1), ungates the clock
+4. Respects `i_cg_enable` (clock forced on when 0)
+
+### Wake-up and Gating Latency
+
+Activity is registered once (AXI4, AXI5, AXI4-Lite, AXI4-Stream) or twice (APB, APB5, AXI5-Stream) before reaching the ICG enable, which is combinational. AXI5-Stream is a **two-stage** family: `r_wakeup` in this wrapper, then a second `r_wakeup` inside `amba_clock_gate_ctrl`. The first gated-clock rising edge available to the core therefore arrives 3 `aclk` cycles after activity asserts. Budget accordingly:
+
+| Event | Latency | Path |
+|-------|---------|------|
+| Activity to first usable gated-clock edge | 3 `aclk` cycles (2 register stages) | `fub_axis5_tvalid` to `r_wakeup` to controller `r_wakeup` to combinational ICG enable to next edge |
+| Last activity to clock gated | `i_cg_idle_count` + 3 `aclk` cycles | `i_cg_idle_count` + 1 after the internal wakeup deasserts, plus two wake-up register stages |
+
+The wake-up path is **not** zero-latency. Nothing is lost during those cycles: `fub_axis5_tready` is driven by the skid buffer on `gated_clk`, so it stays low while the clock is stopped and the producer simply holds TVALID until the clock resumes. Both registers and the idle counter run on the ungated `aclk`, so the wake-up path is live even while the core clock is stopped.
+
+### Reset Behavior
+
+Reset is safe with respect to gating; the clock is guaranteed to be running whenever reset is asserted:
+
+- `aresetn` is asynchronous and is passed **ungated** to both the clock gate controller and the core, so its assertion edge does not depend on the gated clock.
+- `r_wakeup` in this wrapper and `r_wakeup` inside `amba_clock_gate_ctrl` both reset to 1, which forces the ICG enable active. The clock therefore runs during reset and for at least the idle countdown after reset deassertion.
+- `clock_gate_ctrl` loads its idle counter with `i_cg_idle_count` on reset, so gating cannot re-engage until a full idle period has elapsed after release.
+
+Because reset removal is asynchronous, apply the usual practice of releasing `aresetn` synchronously to `aclk` at the system level.
 
 ### Power Saving Mechanism
 
@@ -217,7 +249,7 @@ The clock gate controller:
 
 **Benefits:**
 - Reduces dynamic power during idle periods
-- Zero latency wake-up on new transfers
+- Wake-up on new transfers costs 2 register stages; the first usable gated-clock edge arrives 3 `aclk` cycles after activity (see Wake-up and Gating Latency)
 - No protocol impact (transparent to upstream/downstream)
 
 ### Integration with AXIS5 Extensions
@@ -250,40 +282,43 @@ This ensures wake-up events are never missed due to clock gating.
 ### Clock Gating Activation
 
 <!-- TODO: Add wavedrom timing diagram for clock gating activation -->
-```
-TODO: Wavedrom timing diagram showing:
-- aclk (always running)
-- r_wakeup (activity detection)
-- i_cg_idle_count (threshold)
-- gated_clk (starts gating after threshold)
-- axis_clock_gating (status)
-- fub_axis5_tvalid (new transfer wakes up)
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - aclk (always running)
+> - r_wakeup (activity detection)
+> - i_cg_idle_count (threshold)
+> - gated_clk (starts gating after threshold)
+> - axis_clock_gating (status)
+> - fub_axis5_tvalid (new transfer wakes up)
+
 
 ### Wake-up Signal Preventing Gating
 
 <!-- TODO: Add wavedrom timing diagram for wake-up preventing gating -->
-```
-TODO: Wavedrom timing diagram showing:
-- aclk
-- fub_axis5_twakeup (asserted)
-- r_wakeup (stays high)
-- gated_clk (remains running)
-- axis_clock_gating (stays 0)
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - aclk
+> - fub_axis5_twakeup (asserted)
+> - r_wakeup (stays high)
+> - gated_clk (remains running)
+> - axis_clock_gating (stays 0)
+
 
 ### Transfer During Idle Period
 
 <!-- TODO: Add wavedrom timing diagram for transfer arrival during idle -->
-```
-TODO: Wavedrom timing diagram showing:
-- aclk
-- gated_clk (gated, then ungates on transfer)
-- fub_axis5_tvalid (new transfer)
-- r_wakeup (0 → 1 transition)
-- axis_clock_gating (1 → 0)
-- m_axis5_tvalid (output after ungate)
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - aclk
+> - gated_clk (gated, then ungates on transfer)
+> - fub_axis5_tvalid (new transfer)
+> - r_wakeup (0 → 1 transition)
+> - axis_clock_gating (1 → 0)
+> - m_axis5_tvalid (output after ungate)
+
 
 ---
 
@@ -418,8 +453,10 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 
 // Calculate power savings percentage
-assign power_savings_pct = (gated_cycles * 100) / total_cycles;
+assign gated_duty_pct = (gated_cycles * 100) / total_cycles;
 ```
+
+**Read this metric carefully.** `gated_duty_pct` is the fraction of time the clock was gated, not a power saving. Actual dynamic power saved depends on the switching activity that would have occurred during those cycles; leakage is unaffected by gating; and the gating logic and its clock-tree branch consume power themselves. Use the number as a gating-effectiveness indicator and get real figures from a power analysis tool with a VCD or SAIF from a representative workload.
 
 ---
 
@@ -432,7 +469,7 @@ assign power_savings_pct = (gated_cycles * 100) / total_cycles;
 | Area | Smaller | +5-10% (clock gate logic) |
 | Dynamic power | Higher | Lower (gating reduces) |
 | Static power | Same | Same |
-| Latency | Lower | Same (zero-cycle wake-up) |
+| Latency | Lower | Same in steady state; +3 `aclk` cycles when waking from a gated state (two register stages) |
 | Complexity | Lower | Higher (gating control) |
 | Use case | Always-on systems | Power-sensitive designs |
 
@@ -446,15 +483,15 @@ assign power_savings_pct = (gated_cycles * 100) / total_cycles;
 
 TWAKEUP integration with clock gating provides:
 1. **Event preservation:** Wake-up events prevent clock gating
-2. **Zero latency:** Immediate clock activation
+2. **Bounded restart:** Clock activation takes a fixed 2 `aclk` cycles, and no transfer is dropped while it happens
 3. **Protocol compliance:** Wake-up propagated correctly
 4. **Power efficiency:** Only wake when necessary
 
 ### Gate Transition Overhead
 
 Each clock gate transition has overhead:
-- **Gate activation:** 1-2 cycles to fully gate
-- **Ungate activation:** 0-1 cycles to restore clock
+- **Gate activation:** `i_cg_idle_count` + 1 cycles after the internal wakeup deasserts, which is `i_cg_idle_count` + 3 cycles after the last bus activity
+- **Ungate activation:** two wake-up register stages; first usable gated-clock edge 3 cycles after activity asserts
 - **Dynamic power:** Gate/ungate switching consumes power
 
 **Recommendation:** Set `i_cg_idle_count` high enough to amortize transition overhead.
@@ -466,7 +503,11 @@ Each clock gate transition has overhead:
 - **Output signals:** Driven by `gated_clk` domain
 - **Status outputs:** `axis_clock_gating` on `aclk` domain
 
-No explicit CDC (clock domain crossing) needed - gated_clk is derived from aclk.
+No CDC synchronizers are needed, because `gated_clk` is `aclk` passed through an ICG cell: same frequency, same phase, no independent clock source. There is still physical work to do:
+
+- **Clock tree synthesis:** `gated_clk` must be balanced against `aclk`. The wake-up registers and `axis_clock_gating` sit on `aclk` while the core sits on `gated_clk`, so uncontrolled skew between the two branches eats directly into the timing budget on every path that crosses between them.
+- **ICG placement:** place the ICG cell close to the root of the gated branch so the insertion delay it adds is common to the whole core.
+- **FPGA targets:** `clock_gate_ctrl` instantiates an ICG cell, which is an ASIC library primitive. On FPGAs use a clock-enable style implementation or a device buffer with an enable (for example `BUFGCE`) instead; a bare ICG will not map cleanly.
 
 ---
 

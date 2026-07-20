@@ -48,12 +48,23 @@ gen_index() {
   done
 }
 
-# build_book <title> <subtitle> <index_path> <out_name>  (PDF lands in docs/)
+# build_book <title> <subtitle> <index_path> <out_name> [extra md_to_docx flags...]
+#
+# Lists (LoF/LoT/LoW) are OPT-IN PER BOOK. The flags only insert the list
+# section -- entries come from caption encoding in the Markdown
+# ("### Figure C.N:", "#### Waveform C.N:", and a Pandoc ": Caption" line after
+# a table; see bin/DOC_GENERATION.md). A book whose sources lack that encoding
+# would render an EMPTY list, so only pass the flag where the captions exist.
 build_book() {
-  local title="$1" subtitle="$2" index="$3" name="$4"
+  local title="$1" subtitle="$2" index="$3" name="$4"; shift 4
+  # Remaining args are list names to ENABLE: lot / lof / low
+  local lot=false lof=false low=false a
+  for a in "$@"; do case "$a" in lot) lot=true;; lof) lof=true;; low) low=true;; esac; done
   local outbase="${OUTDIR}/${name}"
   local tmpstyle="${SCRIPT_DIR}/.book_styles.yaml"
-  sed -e "s|__TITLE__|${title}|" -e "s|__SUBTITLE__|${subtitle}|" "${STYLE_TMPL}" > "${tmpstyle}"
+  sed -e "s|__TITLE__|${title}|" -e "s|__SUBTITLE__|${subtitle}|" \
+      -e "s|__LOT__|${lot}|" -e "s|__LOF__|${lof}|" -e "s|__LOW__|${low}|" \
+      "${STYLE_TMPL}" > "${tmpstyle}"
   echo "------------------------------------------------------------"
   echo " Building: ${title}  (${subtitle})  ->  docs/${name}.pdf"
   echo "------------------------------------------------------------"
@@ -92,15 +103,11 @@ fi
 # ---- CDC (dedicated cross-cutting book: primer + primitives + gray + slaves) ----
 if want cdc; then
   CDC=(
-    RTLAmba/shared/cdc_primer.md
-    RTLAmba/shared/cdc_synchronizer.md
+    RTLAmba/cdc/cdc.md
     RTLCommon/glitch_free_n_dff_arn.md
-    RTLAmba/shared/cdc_open_loop.md
-    RTLAmba/shared/cdc_2_phase_handshake.md
-    RTLAmba/shared/cdc_4_phase_handshake.md
     RTLCommon/bin2gray.md
     RTLCommon/gray2bin.md
-    RTLCommon/grayj2bin.md
+    RTLCommon/johnson2bin.md
     RTLCommon/counter_bingray.md
     RTLCommon/clock_pulse.md
     RTLAmba/apb/apb_slave_cdc.md
@@ -109,7 +116,9 @@ if want cdc; then
     RTLAmba/apb5/apb5_slave_cdc_cg.md
   )
   gen_index _book_cdc_index.md "RTL Clock Domain Crossing" "${CDC[@]}"
-  build_book "RTL Clock Domain Crossing" "${SUB}" _book_cdc_index.md RTL_CDC
+  # cdc.md carries "#### Waveform C.N:" headings and ": Caption" table captions,
+  # so this book can populate a List of Waveforms and a List of Tables.
+  build_book "RTL Clock Domain Crossing" "${SUB}" _book_cdc_index.md RTL_CDC low lot
 fi
 
 # ---- Monitor subsystem (dedicated: all rtl/amba/monitor docs + monitor pkg docs) ----
@@ -124,7 +133,13 @@ amba_book() {  # <book-key> <Title> <out-name> <subdir...>
   local key="$1" title="$2" out="$3"; shift 3
   want "$key" || return 0
   local files=(); local d
-  for d in "$@"; do files+=( $(ls RTLAmba/"$d"/*.md 2>/dev/null | grep -vE '/(index|_book_)') ); done
+  # LC_ALL=C forces byte-order sorting. Without it `ls` uses locale collation,
+  # which ignores punctuation: "axis5_master_cg.md" collates as "axis5mastercg"
+  # and so sorted BEFORE "axis5_master.md", putting every clock-gated variant
+  # ahead of the base module it wraps. Locale collation is also case-insensitive,
+  # which sorted README.md last and buried each book's Overview at the end.
+  # Byte order fixes both: '.' (0x2E) < '_' (0x5F), and 'R' (0x52) < 'a' (0x61).
+  for d in "$@"; do files+=( $(LC_ALL=C ls RTLAmba/"$d"/*.md 2>/dev/null | grep -vE '/(index|_book_)') ); done
   [[ ${#files[@]} -eq 0 ]] && { echo "  (no docs for $key, skip)"; return 0; }
   gen_index "RTLAmba/_book_${key}_index.md" "${title}" "${files[@]}"
   build_book "${title}" "${SUB}" "RTLAmba/_book_${key}_index.md" "${out}"

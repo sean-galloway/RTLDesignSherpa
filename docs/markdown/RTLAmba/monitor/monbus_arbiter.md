@@ -24,7 +24,7 @@
 # Monitor Bus Round-Robin Arbiter
 
 **Module:** `monbus_arbiter.sv`
-**Location:** `rtl/amba/shared/`
+**Location:** `rtl/amba/monitor/`
 **Status:** Production Ready
 
 ---
