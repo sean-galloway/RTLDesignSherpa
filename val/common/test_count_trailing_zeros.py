@@ -33,7 +33,7 @@ PARAMETER COMBINATIONS:
 Environment Variables:
     TEST_LEVEL: Set test level in cocotb (gate/func/full)
     SEED: Set random seed for reproducibility
-    TEST_WIDTH: Data width for CLZ calculation
+    TEST_WIDTH: Data width for CTZ calculation
 """
 
 import os
@@ -91,23 +91,19 @@ class CountLeadingZerosTB(TBBase):
     def _setup_signals(self):
         """Setup signal mappings"""
         self.data = self.dut.data
-        self.count_leading_zeros = self.dut.clz
+        self.count_trailing_zeros = self.dut.ctz
 
-    def _calculate_expected_clz(self, data):
-        """Count leading zeros: scan from the MSB down to the first set bit."""
+    def _calculate_expected_ctz(self, data):
+        """Count trailing zeros: scan from the LSB up to the first set bit."""
         if data == 0:
             return self.WIDTH
 
-        # Previously this modelled TRAILING zeros, because the RTL scanned from
-        # bit 0 upward while being named count_leading_zeros. Both have been
-        # corrected: the RTL now scans MSB-down, and count_trailing_zeros exists
-        # as a separate module with its own test. Do not "fix" this back.
-        clz = 0
-        for i in range(self.WIDTH - 1, -1, -1):
+        ctz = 0
+        for i in range(self.WIDTH):
             if (data >> i) & 1:
                 break
-            clz += 1
-        return clz
+            ctz += 1
+        return ctz
 
     async def test_basic_patterns(self):
         """Test basic bit patterns"""
@@ -156,22 +152,22 @@ class CountLeadingZerosTB(TBBase):
         all_passed = True
 
         for data in test_patterns:
-            expected_clz = self._calculate_expected_clz(data)
+            expected_ctz = self._calculate_expected_ctz(data)
             
             # Drive input
             self.data.value = data
             await Timer(1, units='ns')  # Combinational delay
             
-            actual_clz = int(self.count_leading_zeros.value)
+            actual_ctz = int(self.count_trailing_zeros.value)
             
-            success = (actual_clz == expected_clz)
+            success = (actual_ctz == expected_ctz)
             
             if success:
-                self.log.debug(f"PASS: data=0x{data:0{(self.WIDTH+3)//4}x} ({data:0{self.WIDTH}b}) → clz={actual_clz}")
+                self.log.debug(f"PASS: data=0x{data:0{(self.WIDTH+3)//4}x} ({data:0{self.WIDTH}b}) → ctz={actual_ctz}")
             else:
                 self.log.error(f"FAIL: data=0x{data:0{(self.WIDTH+3)//4}x} ({data:0{self.WIDTH}b})")
-                self.log.error(f"      Expected CLZ: {expected_clz}, Actual CLZ: {actual_clz}")
-                await self._dump_clz_debug_info(data, expected_clz, actual_clz)
+                self.log.error(f"      Expected CTZ: {expected_ctz}, Actual CTZ: {actual_ctz}")
+                await self._dump_ctz_debug_info(data, expected_ctz, actual_ctz)
                 all_passed = False
                 if self.TEST_LEVEL == 'gate':
                     break
@@ -180,8 +176,8 @@ class CountLeadingZerosTB(TBBase):
             result = {
                 'test_type': 'basic_patterns',
                 'data': data,
-                'expected_clz': expected_clz,
-                'actual_clz': actual_clz,
+                'expected_ctz': expected_ctz,
+                'actual_ctz': actual_ctz,
                 'success': success
             }
             self.test_results.append(result)
@@ -208,22 +204,22 @@ class CountLeadingZerosTB(TBBase):
 
         for test_num in range(num_tests):
             data = random.randint(0, self.MAX_DATA)
-            expected_clz = self._calculate_expected_clz(data)
+            expected_ctz = self._calculate_expected_ctz(data)
             
             # Drive input
             self.data.value = data
             await Timer(1, units='ns')  # Combinational delay
             
-            actual_clz = int(self.count_leading_zeros.value)
+            actual_ctz = int(self.count_trailing_zeros.value)
             
-            success = (actual_clz == expected_clz)
+            success = (actual_ctz == expected_ctz)
             
             if success:
-                self.log.debug(f"Random {test_num}: PASS data=0x{data:0{(self.WIDTH+3)//4}x} → clz={actual_clz}")
+                self.log.debug(f"Random {test_num}: PASS data=0x{data:0{(self.WIDTH+3)//4}x} → ctz={actual_ctz}")
             else:
                 self.log.error(f"Random {test_num}: FAIL data=0x{data:0{(self.WIDTH+3)//4}x}")
-                self.log.error(f"      Expected CLZ: {expected_clz}, Actual CLZ: {actual_clz}")
-                await self._dump_clz_debug_info(data, expected_clz, actual_clz)
+                self.log.error(f"      Expected CTZ: {expected_ctz}, Actual CTZ: {actual_ctz}")
+                await self._dump_ctz_debug_info(data, expected_ctz, actual_ctz)
                 all_passed = False
                 if self.TEST_LEVEL == 'func':
                     break
@@ -233,8 +229,8 @@ class CountLeadingZerosTB(TBBase):
                 'test_type': 'random_patterns',
                 'test_num': test_num,
                 'data': data,
-                'expected_clz': expected_clz,
-                'actual_clz': actual_clz,
+                'expected_ctz': expected_ctz,
+                'actual_ctz': actual_ctz,
                 'success': success
             }
             self.test_results.append(result)
@@ -254,20 +250,20 @@ class CountLeadingZerosTB(TBBase):
         all_passed = True
 
         for data in range(2**self.WIDTH):
-            expected_clz = self._calculate_expected_clz(data)
+            expected_ctz = self._calculate_expected_ctz(data)
             
             # Drive input
             self.data.value = data
             await Timer(1, units='ns')  # Combinational delay
             
-            actual_clz = int(self.count_leading_zeros.value)
+            actual_ctz = int(self.count_trailing_zeros.value)
             
-            success = (actual_clz == expected_clz)
+            success = (actual_ctz == expected_ctz)
             
             if not success:
                 self.log.error(f"Exhaustive: FAIL data=0x{data:0{(self.WIDTH+3)//4}x} ({data:0{self.WIDTH}b})")
-                self.log.error(f"      Expected CLZ: {expected_clz}, Actual CLZ: {actual_clz}")
-                await self._dump_clz_debug_info(data, expected_clz, actual_clz)
+                self.log.error(f"      Expected CTZ: {expected_ctz}, Actual CTZ: {actual_ctz}")
+                await self._dump_ctz_debug_info(data, expected_ctz, actual_ctz)
                 all_passed = False
                 break
             else:
@@ -279,8 +275,8 @@ class CountLeadingZerosTB(TBBase):
                 result = {
                     'test_type': 'exhaustive',
                     'data': data,
-                    'expected_clz': expected_clz,
-                    'actual_clz': actual_clz,
+                    'expected_ctz': expected_ctz,
+                    'actual_ctz': actual_ctz,
                     'success': success
                 }
                 self.test_results.append(result)
@@ -312,31 +308,31 @@ class CountLeadingZerosTB(TBBase):
                 (self.MAX_DATA >> 2, 0),  # All except 2 MSBs
             ])
 
-        for data, expected_clz in boundary_cases:
+        for data, expected_ctz in boundary_cases:
             data = data & self.MAX_DATA
-            expected_clz = self._calculate_expected_clz(data)  # Recalculate to be sure
+            expected_ctz = self._calculate_expected_ctz(data)  # Recalculate to be sure
             
             # Drive input
             self.data.value = data
             await Timer(1, units='ns')  # Combinational delay
             
-            actual_clz = int(self.count_leading_zeros.value)
+            actual_ctz = int(self.count_trailing_zeros.value)
             
-            success = (actual_clz == expected_clz)
+            success = (actual_ctz == expected_ctz)
             
             if success:
-                self.log.debug(f"Boundary: PASS data=0x{data:0{(self.WIDTH+3)//4}x} → clz={actual_clz}")
+                self.log.debug(f"Boundary: PASS data=0x{data:0{(self.WIDTH+3)//4}x} → ctz={actual_ctz}")
             else:
                 self.log.error(f"Boundary: FAIL data=0x{data:0{(self.WIDTH+3)//4}x}")
-                self.log.error(f"      Expected CLZ: {expected_clz}, Actual CLZ: {actual_clz}")
+                self.log.error(f"      Expected CTZ: {expected_ctz}, Actual CTZ: {actual_ctz}")
                 all_passed = False
 
             # Store result
             result = {
                 'test_type': 'boundary_conditions',
                 'data': data,
-                'expected_clz': expected_clz,
-                'actual_clz': actual_clz,
+                'expected_ctz': expected_ctz,
+                'actual_ctz': actual_ctz,
                 'success': success
             }
             self.test_results.append(result)
@@ -345,15 +341,15 @@ class CountLeadingZerosTB(TBBase):
 
         return all_passed
 
-    async def _dump_clz_debug_info(self, data, expected_clz, actual_clz):
-        """Dump debug information for CLZ failures"""
+    async def _dump_ctz_debug_info(self, data, expected_ctz, actual_ctz):
+        """Dump debug information for CTZ failures"""
         self.log.error("="*80)
         self.log.error("COUNT LEADING ZEROS FAILURE ANALYSIS")
         self.log.error("="*80)
 
         self.log.error(f"Input data: 0x{data:0{(self.WIDTH+3)//4}x} ({data:0{self.WIDTH}b})")
-        self.log.error(f"Expected CLZ: {expected_clz}")
-        self.log.error(f"Actual CLZ: {actual_clz}")
+        self.log.error(f"Expected CTZ: {expected_ctz}")
+        self.log.error(f"Actual CTZ: {actual_ctz}")
 
         # Show bit-by-bit analysis
         self.log.error("Bit analysis (LSB to MSB):")
@@ -366,9 +362,9 @@ class CountLeadingZerosTB(TBBase):
             self.log.error(f"  Bit {i:2d}: {bit_val}{marker}")
 
         if first_one_pos is not None:
-            self.log.error(f"First '1' found at position {first_one_pos} (CLZ should be {first_one_pos})")
+            self.log.error(f"First '1' found at position {first_one_pos} (CTZ should be {first_one_pos})")
         else:
-            self.log.error(f"No '1' bits found (CLZ should be {self.WIDTH})")
+            self.log.error(f"No '1' bits found (CTZ should be {self.WIDTH})")
 
         self.log.error("="*80)
 
@@ -426,7 +422,7 @@ class CountLeadingZerosTB(TBBase):
         return all_passed
 
 @cocotb.test(timeout_time=15000, timeout_unit="us")
-async def count_leading_zeros_test(dut):
+async def count_trailing_zeros_test(dut):
     """Test for Count Leading Zeros module"""
     tb = CountLeadingZerosTB(dut)
 
@@ -467,7 +463,7 @@ def generate_params():
 params = generate_params()
 
 @pytest.mark.parametrize("width, test_level", params)
-def test_count_leading_zeros(request, width, test_level):
+def test_count_trailing_zeros(request, width, test_level):
     """
     Parameterized Count Leading Zeros test with configurable width and test level.
     """
@@ -475,11 +471,11 @@ def test_count_leading_zeros(request, width, test_level):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba_includes': 'rtl/amba/includes'})
 
     # DUT information
-    dut_name = "count_leading_zeros"
+    dut_name = "count_trailing_zeros"
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/count_leading_zeros.f'
+        filelist_path='rtl/common/filelists/count_trailing_zeros.f'
     )
     toplevel = dut_name
 
@@ -488,7 +484,7 @@ def test_count_leading_zeros(request, width, test_level):
     # Get REG_LEVEL before creating test name
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()  # GATE, FUNC, or FULL
 
-    test_name_plus_params = f"test_count_leading_zeros_w{w_str}_{test_level}_{reg_level}"
+    test_name_plus_params = f"test_count_trailing_zeros_w{w_str}_{test_level}_{reg_level}"
 
     # Add worker ID for pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')

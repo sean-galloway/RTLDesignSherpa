@@ -193,7 +193,8 @@ This directory contains documentation for the common RTL modules library, provid
 
 #### Bit Operations
 - **[leading_one_trailing_one](leading_one_trailing_one.md)** - Leading/trailing one detection
-- **[count_leading_zeros](count_leading_zeros.md)** - Count leading zeros
+- **[count_leading_zeros](count_leading_zeros.md)** - Count leading zeros (scan from MSB down)
+- **[count_trailing_zeros](count_trailing_zeros.md)** - Count trailing zeros (scan from LSB up)
 - **[find_first_set](find_first_set.md)** - Find first set bit
 - **[find_last_set](find_last_set.md)** - Find last set bit
 - **[reverse_vector](reverse_vector.md)** - Bit vector reversal
@@ -244,7 +245,7 @@ This directory contains documentation for the common RTL modules library, provid
 - **Clock/Reset Control**: 4 modules
 - **Counters**: 6 modules
 - **Converters/Encoders**: 8 modules
-- **Bit Manipulation**: 5 modules
+- **Bit Manipulation**: 6 modules
 - **Shifters/LFSRs**: 4 modules
 - **Memory/Storage**: 4 modules
 - **Utilities**: 2 modules

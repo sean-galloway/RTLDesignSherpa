@@ -135,11 +135,12 @@ The Common RTL Library provides 86 technology-agnostic, reusable building blocks
 
 ---
 
-### 2.4 Math Functions (6 modules)
+### 2.4 Math Functions (7 modules)
 
 | Module | Purpose | Key Parameters | Status |
 |--------|---------|----------------|--------|
-| `count_leading_zeros.sv` | Count leading zeros (CLZ) | WIDTH | ✅ Complete |
+| `count_leading_zeros.sv` | Count leading zeros (CLZ), scan from MSB down | WIDTH | ✅ Complete |
+| `count_trailing_zeros.sv` | Count trailing zeros (CTZ), scan from LSB up | WIDTH | ✅ Complete |
 | `bin2gray.sv` | Binary to Gray code | WIDTH | ✅ Complete |
 | `gray2bin.sv` | Gray to binary code | WIDTH | ✅ Complete |
 | `bin_to_bcd.sv` | Binary to BCD | WIDTH | ✅ Complete |

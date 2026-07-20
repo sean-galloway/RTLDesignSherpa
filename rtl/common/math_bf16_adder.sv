@@ -449,22 +449,12 @@ module math_bf16_adder #(
     // For subtraction: may need left shift, decrement exponent
 
     // Leading zero count for normalization (subtraction case)
-    // Reverse bits because count_leading_zeros scans from bit[0]
-    wire [11:0] w_mant_for_clz;
     wire [CLZ_WIDTH-1:0] w_lzc;
 
-    // Bit reversal for CLZ module
-    genvar gi;
-    generate
-        for (gi = 0; gi < 12; gi++) begin : gen_bit_reverse
-            assign w_mant_for_clz[gi] = r3_mant_sum[11-gi];
-        end
-    endgenerate
-
-    count_leading_zeros #(
+        count_leading_zeros #(
         .WIDTH(12)
     ) u_clz (
-        .data(w_mant_for_clz),
+        .data(r3_mant_sum),
         .clz (w_lzc)
     );
 

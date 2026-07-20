@@ -23,6 +23,7 @@
 - [Basic Counter Module](counter.md)
 - [Ring Counter Module](counter_ring.md)
 - [Count Leading Zeros Module](count_leading_zeros.md)
+- [Count Trailing Zeros Module](count_trailing_zeros.md)
 - [dataint_checksum Module Documentation](dataint_checksum.md)
 - [dataint_crc](dataint_crc.md)
 - [dataint_crc_xor_shift_cascade Module Documentation](dataint_crc_xor_shift_cascade.md)

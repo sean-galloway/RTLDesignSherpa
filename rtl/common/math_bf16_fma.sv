@@ -194,22 +194,13 @@ wire [47:0] w_sum_abs = w_sum_negative ? w_negated_sum :
 // Normalization
 
 // Count leading zeros for normalization
-// NOTE: count_leading_zeros module counts from bit[0] (trailing zeros)
 // To get actual leading zeros from MSB, we bit-reverse the input
 // For WIDTH=48, clz output is $clog2(48)+1 = 7 bits (0-48 range)
 
 // Bit-reverse function for 48-bit value
-wire [47:0] w_sum_abs_reversed;
-genvar i;
-generate
-    for (i = 0; i < 48; i = i + 1) begin : gen_bit_reverse
-        assign w_sum_abs_reversed[i] = w_sum_abs[47 - i];
-    end
-endgenerate
-
 wire [6:0] w_lz_count_raw;
 count_leading_zeros #(.WIDTH(48)) u_clz (
-    .data(w_sum_abs_reversed),
+    .data(w_sum_abs),
     .clz(w_lz_count_raw)
 );
 

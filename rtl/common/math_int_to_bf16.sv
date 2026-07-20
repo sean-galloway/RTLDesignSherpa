@@ -111,22 +111,12 @@ wire [INT_WIDTH-1:0] w_abs_value = w_sign ? (~i_int + 1'b1) : i_int;
 wire w_is_zero = (i_int == 0);
 
 // Count leading zeros to find MSB position
-// The count_leading_zeros module counts from bit[0] upward (CTZ-like behavior)
-// We need to bit-reverse the input to get true CLZ behavior
-// Bit-reverse: bit[i] -> bit[WIDTH-1-i]
-wire [INT_WIDTH-1:0] w_abs_reversed;
-generate
-    for (genvar i = 0; i < INT_WIDTH; i++) begin : gen_bit_reverse
-        assign w_abs_reversed[i] = w_abs_value[INT_WIDTH-1-i];
-    end
-endgenerate
-
 wire [CLZ_WIDTH-1:0] w_clz;
 
 count_leading_zeros #(
     .WIDTH(INT_WIDTH)
 ) u_clz (
-    .data(w_abs_reversed),
+    .data(w_abs_value),
     .clz(w_clz)
 );
 

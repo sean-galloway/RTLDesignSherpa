@@ -43,6 +43,7 @@ $REPO_ROOT/rtl/common/counter_johnson.sv
 $REPO_ROOT/rtl/common/counter_load_clear.sv
 $REPO_ROOT/rtl/common/counter_ring.sv
 $REPO_ROOT/rtl/common/count_leading_zeros.sv
+$REPO_ROOT/rtl/common/count_trailing_zeros.sv
 
 # Data Integrity (CRC, ECC, Parity)
 $REPO_ROOT/rtl/common/dataint_checksum.sv

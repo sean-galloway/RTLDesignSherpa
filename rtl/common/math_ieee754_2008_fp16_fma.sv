@@ -162,19 +162,10 @@ wire [44:0] w_sum_adjusted = w_add_overflow ? {1'b0, w_sum_abs[44:1]} : w_sum_ab
 
 // Normalization
 
-// Count leading zeros (bit-reverse for CLZ module)
 wire [43:0] w_sum_44 = w_sum_adjusted[43:0];
-wire [43:0] w_sum_reversed;
-genvar i;
-generate
-    for (i = 0; i < 44; i = i + 1) begin : gen_bit_reverse
-        assign w_sum_reversed[i] = w_sum_44[43 - i];
-    end
-endgenerate
-
 wire [6:0] w_lz_count_raw;
 count_leading_zeros #(.WIDTH(44)) u_clz (
-    .data(w_sum_reversed),
+    .data(w_sum_44),
     .clz(w_lz_count_raw)
 );
 

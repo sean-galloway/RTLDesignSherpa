@@ -2,6 +2,12 @@
 // SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
 // Formal wrapper for count_leading_zeros (yosys-compatible)
+//
+// NOTE: an earlier version of this wrapper asserted TRAILING-zero properties
+// (data[clz] set, all bits BELOW clz zero) because the module under test scanned
+// from bit 0 upward. Both have been corrected. The properties below describe a
+// true CLZ: scan from the MSB down. For the trailing-zero counterpart see
+// formal/common/count_trailing_zeros/.
 
 module formal_count_leading_zeros #(
     parameter int WIDTH = 8,
@@ -19,33 +25,50 @@ module formal_count_leading_zeros #(
         .clz (clz)
     );
 
+    // Index of the first set bit counted from the MSB. Only meaningful when
+    // data != 0, which every property using it is guarded on.
+    logic [N-1:0] w_first_set_idx;
+    assign w_first_set_idx = N'(WIDTH - 1) - clz;
+
+    // Number of leading bit positions that must be zero.
+    logic [N-1:0] w_shift;
+    assign w_shift = N'(WIDTH) - clz;
+
     // CLZ is in valid range [0, WIDTH]
     always @(posedge clk)
 assert (clz <= WIDTH);
 
-    // When data is all zeros, CLZ equals WIDTH
+    // All zeros -> CLZ == WIDTH
     always @(posedge clk)
         if (data == '0)
 assert (clz == N'(WIDTH));
 
-    // When data is nonzero, the first set bit from bit[0] is at position clz
-    // The CLZ module scans from bit[0] upward, counting zeros until first 1
-    // So data[clz] should be 1 (the first set bit found)
+    // Conversely, CLZ == WIDTH only for all zeros
+    always @(posedge clk)
+        if (clz == N'(WIDTH))
+assert (data == '0);
+
+    // For nonzero data the bit at (WIDTH-1-clz) is the first set bit from the top
     always @(posedge clk)
         if (data != '0)
-assert (data[clz]);
+assert (data[w_first_set_idx]);
 
-    // All bits below the first set bit must be zero
+    // Everything above that bit must be zero
     always @(posedge clk)
         if (data != '0 && clz > 0)
-assert ((data & ((WIDTH'(1) << clz) - 1)) == '0);
+assert ((data >> w_shift) == '0);
 
-    // When MSB (bit[0]) is set, CLZ is 0
+    // MSB set -> CLZ is 0
     always @(posedge clk)
-        if (data[0])
+        if (data[WIDTH-1])
 assert (clz == '0);
 
-    // Cover: CLZ == 0 (bit[0] set)
+    // Only the LSB set -> CLZ is WIDTH-1
+    always @(posedge clk)
+        if (data == WIDTH'(1))
+assert (clz == N'(WIDTH - 1));
+
+    // Cover: CLZ == 0 (MSB set)
     always @(posedge clk)
 cover (clz == '0 && data != '0);
 

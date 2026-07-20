@@ -140,7 +140,8 @@ cat val/common/test_counter_bin.py
 | "...synchronizer/CDC" | `sync_2ff.sv` or `sync_pulse.sv` | Safe CDC |
 | "...FIFO" | Point to `rtl/amba/gaxi/` | Production FIFOs |
 | "...priority encoder" | `priority_encoder.sv` | Exists |
-| "...leading zeros" | `count_leading_zeros.sv` | Exists |
+| "...leading zeros" | `count_leading_zeros.sv` | Exists (scans MSB down) |
+| "...trailing zeros / alignment" | `count_trailing_zeros.sv` | Exists (scans LSB up) - do NOT bit-reverse into CLZ |
 | "...Gray code" | `bin2gray.sv`, `gray2bin.sv` | Both directions |
 
 ### Counter Selection Matrix
