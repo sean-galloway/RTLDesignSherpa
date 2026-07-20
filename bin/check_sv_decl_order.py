@@ -41,6 +41,8 @@ class Issue:
     signal: str
     use_line: int
     decl_line: int
+    kind: str = 'signal'   # 'signal' or 'param'
+    detail: str = ''       # extra context for parameter issues
 
 
 def strip_comments(content: str) -> str:
@@ -209,6 +211,110 @@ def find_signal_uses(content: str, signals: Dict[str, SignalInfo], start_line: i
                 signals[name].first_use_line = i
 
 
+def _split_module_header(content: str, start_idx: int):
+    """
+    From 'module' at start_idx, return (param_text, port_text, header_end_idx).
+
+    Handles both `module M #(...) (...);` and `module M (...);`, tracking nested
+    parentheses so that things like `[$clog2(N)-1:0]` inside a port do not end
+    the list early.
+    """
+    i = content.find('(', start_idx)
+    if i == -1:
+        return None
+    hash_pos = content.find('#', start_idx)
+    has_params = hash_pos != -1 and hash_pos < i
+
+    def match(open_i):
+        depth = 0
+        for j in range(open_i, len(content)):
+            if content[j] == '(':
+                depth += 1
+            elif content[j] == ')':
+                depth -= 1
+                if depth == 0:
+                    return j
+        return -1
+
+    param_text = ''
+    if has_params:
+        close = match(i)
+        if close == -1:
+            return None
+        param_text = content[i + 1:close]
+        i = content.find('(', close + 1)
+        if i == -1:
+            return None
+    close = match(i)
+    if close == -1:
+        return None
+    return param_text, content[i + 1:close], close
+
+
+def check_port_list_params(filepath: str, content: str) -> List[Issue]:
+    """
+    Flag identifiers used in an ANSI port list that are declared as parameters or
+    localparams in the module BODY, i.e. after the port list itself.
+
+    This is legal-looking and Verilator accepts it, but it is a forward reference:
+    iverilog rejects it outright with
+
+        error: Unable to bind parameter `N'
+             : A symbol with that name was declared here. Check for declaration after use.
+
+    and other strict front ends behave similarly. Because the module still lints
+    clean under Verilator, nothing in the normal flow catches it -- which is why it
+    needs its own check rather than falling out of the signal pass.
+
+    The fix is to move the alias into the PARAMETER PORT LIST, where it is
+    elaborated in order and is legal:
+
+        module M #(parameter int W = 4, parameter int N = W) (input logic [N-1:0] x);
+    """
+    issues = []
+    for m in re.finditer(r'\bmodule\s+(\w+)', content):
+        parts = _split_module_header(content, m.start())
+        if not parts:
+            continue
+        param_text, port_text, header_end = parts
+
+        # names already legal to use in the port list
+        declared_in_param_list = set(re.findall(r'\b(?:parameter|localparam)\s+(?:\w+\s+)*?(\w+)\s*=', param_text))
+        declared_in_param_list |= set(re.findall(r'\b(\w+)\s*=', param_text))
+
+        body = content[header_end:]
+        # a body parameter/localparam ends the search at the next module
+        nxt = re.search(r'\bendmodule\b', body)
+        if nxt:
+            body = body[:nxt.end()]
+
+        body_params = {}
+        base_line = content[:header_end].count('\n') + 1
+        for pm in re.finditer(r'\b(localparam|parameter)\s+(?:\w+\s+)*?(\w+)\s*=', body):
+            name = pm.group(2)
+            if name in body_params:
+                continue
+            body_params[name] = (base_line + body[:pm.start()].count('\n'), pm.group(1))
+
+        port_base_line = content[:content.find(port_text, m.start())].count('\n') + 1
+        for name, (decl_line, kw) in body_params.items():
+            if name in declared_in_param_list:
+                continue
+            um = re.search(r'\b' + re.escape(name) + r'\b', port_text)
+            if not um:
+                continue
+            use_line = port_base_line + port_text[:um.start()].count('\n')
+            issues.append(Issue(
+                file=filepath,
+                signal=name,
+                use_line=use_line,
+                decl_line=decl_line,
+                kind='param',
+                detail=f"used in the port list of module '{m.group(1)}' but declared as a body {kw}",
+            ))
+    return issues
+
+
 def check_file(filepath: str) -> List[Issue]:
     """Check a single file for declaration order issues."""
     issues = []
@@ -222,6 +328,11 @@ def check_file(filepath: str) -> List[Issue]:
 
     # Strip comments and strings for parsing
     clean_content = strip_strings(strip_comments(content))
+
+    # Parameters/localparams referenced by the port list but declared in the body.
+    # Checked separately from signals: the signal pass only looks inside the module
+    # body, so a port-list forward reference is invisible to it.
+    issues.extend(check_port_list_params(filepath, clean_content))
 
     # Find module boundaries
     modules = get_module_boundaries(clean_content)
@@ -333,7 +444,13 @@ def main():
     if all_issues:
         if not args.quiet:
             print(f"\n{'='*70}")
-            print("DECLARATION ORDER ISSUES: Signal used before declaration")
+            n_param = sum(1 for i in all_issues if i.kind == 'param')
+            n_sig = len(all_issues) - n_param
+            print("DECLARATION ORDER ISSUES")
+            if n_sig:
+                print(f"  {n_sig} signal(s) used before declaration")
+            if n_param:
+                print(f"  {n_param} parameter(s) used in a port list but declared in the body")
             print(f"{'='*70}\n")
 
             # Group by file
@@ -346,8 +463,17 @@ def main():
             for filepath, issues in sorted(by_file.items()):
                 print(f"{filepath}:")
                 for issue in sorted(issues, key=lambda x: x.use_line):
-                    print(f"  Line {issue.use_line}: '{issue.signal}' used before "
-                          f"declaration at line {issue.decl_line}")
+                    if issue.kind == 'param':
+                        print(f"  Line {issue.use_line}: PARAMETER '{issue.signal}' "
+                              f"{issue.detail} at line {issue.decl_line}")
+                        print(f"      Verilator accepts this; iverilog and other strict front ends "
+                              f"reject it.")
+                        print(f"      Fix: move '{issue.signal}' into the parameter port list "
+                              f"(module M #(... , parameter int {issue.signal} = ...)),")
+                        print(f"      where it is elaborated in order, and drop the body declaration.")
+                    else:
+                        print(f"  Line {issue.use_line}: '{issue.signal}' used before "
+                              f"declaration at line {issue.decl_line}")
                 print()
 
         print(f"Found {len(all_issues)} declaration order issue(s) in "
