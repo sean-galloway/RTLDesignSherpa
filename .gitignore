@@ -264,6 +264,11 @@ vivado*
 *.lock
 
 # ---------------------------------------------------------------------------
+# PeakRDL html collateral
+# ---------------------------------------------------------------------------
+*.html
+
+# ---------------------------------------------------------------------------
 # Per-flow Vivado / FPGA build artifacts
 # ---------------------------------------------------------------------------
 # Each NexysA7 (or similar) project has flows-<something>/ subdirs that hold
@@ -308,3 +313,12 @@ vivado*
 **/reports/lint/verilator/
 **/reports/lint/verible/
 **/reports/lint/yosys/
+
+# Verilator scratch output from ad-hoc `verilator --cc` / `--lint-only` runs at
+# the repo root. Regenerated on demand; never a source of truth.
+obj_dir/
+
+# Coverage and fast-log output from the component regression runners.
+**/dv/tests/coverage_reports/
+**/.fast_logs/
+
