@@ -75,6 +75,7 @@ module axi5_master_rd_mon_cg
 (
     input  logic aclk,
     input  logic aresetn,
+    input  logic                       cam_clear,  // sync clear of the monitor trans CAM
 
     input  logic                           cfg_cg_enable,
     input  logic [CG_IDLE_COUNT_WIDTH-1:0] cfg_cg_idle_count,
@@ -210,28 +211,47 @@ module axi5_master_rd_mon_cg
 
 );
 
+    // -------------------------------------------------------------------------
+    // Clock gating
+    // -------------------------------------------------------------------------
+    // Activity is derived from VALID signals and outstanding work ONLY. A peer's
+    // READY must never appear in the activity term: a consumer that parks its
+    // response-ready high while idle is behaving correctly, and folding that in
+    // would pin this block permanently awake and defeat gating entirely.
+    //
+    // The request-side readys are masked to 0 while gated, so no transfer can be
+    // accepted while the clock is stopped.
+    //
+    // Port valids alone are sufficient to cover a beat held inside the block:
+    // the upstream valid covers it until the cycle it is accepted, and the
+    // downstream valid covers it from the cycle it is presented, which the skid
+    // buffer does on the very next cycle and holds for as long as the consumer
+    // back-pressures. There is therefore no window in which a beat is inside the
+    // block with every port valid low, so no beat can be stranded by the clock
+    // stopping. val/amba/test_mon_cg_gating.py phase 5 asserts this directly.
     logic gated_aclk;
     logic user_valid, axi_valid;
     logic int_arready, int_rready, int_busy;
 
-    assign user_valid = fub_axi_arvalid || fub_axi_rready || int_busy;
-    assign axi_valid = m_axi_arvalid || m_axi_rvalid;
+    assign user_valid = fub_axi_arvalid || fub_axi_rvalid || int_busy;
+    assign axi_valid  = m_axi_arvalid || m_axi_rvalid;
 
-    assign fub_axi_arready = cg_gating ? 1'b0 : int_arready;
+    assign fub_axi_arready  = cg_gating ? 1'b0 : int_arready;
     assign m_axi_rready = cg_gating ? 1'b0 : int_rready;
 
     amba_clock_gate_ctrl #(
-        .CG_IDLE_COUNT_WIDTH(CG_IDLE_COUNT_WIDTH)
+        .CG_IDLE_COUNT_WIDTH (CG_IDLE_COUNT_WIDTH)
     ) i_amba_clock_gate_ctrl (
-        .clk_in(aclk), .aresetn(aresetn),
-        .cfg_cg_enable(cfg_cg_enable), .cfg_cg_idle_count(cfg_cg_idle_count),
-        .user_valid(user_valid), .axi_valid(axi_valid),
-        .clk_out(gated_aclk), .gating(cg_gating), .idle(cg_idle)
+        .clk_in              (aclk),
+        .aresetn             (aresetn),
+        .cfg_cg_enable       (cfg_cg_enable),
+        .cfg_cg_idle_count   (cfg_cg_idle_count),
+        .user_valid          (user_valid),
+        .axi_valid           (axi_valid),
+        .clk_out             (gated_aclk),
+        .gating              (cg_gating),
+        .idle                (cg_idle)
     );
-
-    // Internal signals for connection
-    logic int_fub_axi_arready;
-    logic int_m_axi_rready;
 
     axi5_master_rd_mon #(
         .SKID_DEPTH_AR(SKID_DEPTH_AR), .SKID_DEPTH_R(SKID_DEPTH_R),
@@ -255,6 +275,7 @@ module axi5_master_rd_mon_cg
         .ENABLE_DEBUG_LOGIC(ENABLE_DEBUG_LOGIC),
         .N_ADDR_RANGES(N_ADDR_RANGES)
     ) i_axi5_master_rd_mon (
+        .cam_clear               (cam_clear),
         .aclk(gated_aclk), .aresetn(aresetn),
         .i_mon_time(i_mon_time),
         .fub_axi_arid(fub_axi_arid), .fub_axi_araddr(fub_axi_araddr),

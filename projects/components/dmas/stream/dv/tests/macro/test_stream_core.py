@@ -59,6 +59,17 @@ except ImportError:
         return {}
 
 
+# ---------------------------------------------------------------------------
+# Seed control. cocotb self-seeds RANDOM_SEED from the clock when unset, so two
+# runs of the same config draw different BFM timing and FAIL DIFFERENTLY -- the
+# monitor-wedge fix was measured at "3 failed" and "6 failed" on consecutive
+# multi_channel runs purely from seed drift. Pin a default so results are
+# comparable run-to-run; override with STREAM_SEED=<n> to reproduce or explore.
+# (Same pattern as val/amba/test_axi_monitor_trans_mgr.py.)
+# ---------------------------------------------------------------------------
+STREAM_TEST_SEED = os.environ.get('STREAM_SEED', '12345')
+
+
 def get_coverage_helper(test_name: str, log=None):
     """Get coverage helper if coverage is enabled."""
     if not COVERAGE_AVAILABLE:
@@ -742,6 +753,8 @@ def test_stream_core_single_channel(request, params):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
+        'RANDOM_SEED': STREAM_TEST_SEED,
+        'COCOTB_RANDOM_SEED': STREAM_TEST_SEED,
     }
 
     # Add burst size parameters if specified
@@ -864,6 +877,8 @@ def test_stream_core_multi_channel(request, params):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
+        'RANDOM_SEED': STREAM_TEST_SEED,
+        'COCOTB_RANDOM_SEED': STREAM_TEST_SEED,
     }
 
     # Add coverage environment variables if coverage is enabled
@@ -973,6 +988,8 @@ def test_stream_core_variable_sizes(request, params):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
+        'RANDOM_SEED': STREAM_TEST_SEED,
+        'COCOTB_RANDOM_SEED': STREAM_TEST_SEED,
     }
 
     # Add coverage environment variables if coverage is enabled

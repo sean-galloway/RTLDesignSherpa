@@ -45,17 +45,12 @@ async def axil4_master_rd_mon_cg_test(dut):
     # Initialize
     await tb.initialize()
 
-    # Configure clock gating (enable it with default settings)
-    if hasattr(dut, 'cfg_cg_enable'):
-        dut.cfg_cg_enable.value = 1
-    if hasattr(dut, 'cfg_cg_idle_threshold'):
-        dut.cfg_cg_idle_threshold.value = 4  # Lower threshold for AXIL (simpler protocol)
-    if hasattr(dut, 'cfg_cg_gate_monitor'):
-        dut.cfg_cg_gate_monitor.value = 1
-    if hasattr(dut, 'cfg_cg_gate_reporter'):
-        dut.cfg_cg_gate_reporter.value = 1
-    if hasattr(dut, 'cfg_cg_gate_timers'):
-        dut.cfg_cg_gate_timers.value = 1
+    # Configure clock gating (converged interface: enable + idle count).
+    # Gating behaviour itself is asserted by val/amba/test_mon_cg_gating.py;
+    # here it is simply left enabled so the functional traffic below runs
+    # with the clock actually being gated and ungated underneath it.
+    dut.cfg_cg_enable.value = 1
+    dut.cfg_cg_idle_count.value = 8
 
     # Run all integration tests (same as non-CG version)
     await tb.run_integration_tests(test_level=test_level)
@@ -140,9 +135,8 @@ def test_axil4_master_rd_mon_cg(test_level):
         'ENABLE_FILTERING': '1',
         'SKID_DEPTH_AR': '2',
         'SKID_DEPTH_R': '4',
-        # Clock gating parameters
-        'ENABLE_CLOCK_GATING': '1',
-        'CG_IDLE_CYCLES': '4',
+        # CG-specific parameters (fixed)
+        'CG_IDLE_COUNT_WIDTH': 4,
     }
 
     extra_env = {

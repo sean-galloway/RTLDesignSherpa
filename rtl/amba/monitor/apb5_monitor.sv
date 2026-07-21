@@ -8,14 +8,22 @@
 // Purpose: APB5 Monitor with AMBA5 extension monitoring
 //
 // APB5 Extensions Monitored:
-// - PWAKEUP: Wake-up signal events
-// - PAUSER/PWUSER: User request/write signal tracking
-// - PRUSER/PBUSER: User response signal tracking
-// - Parity error detection (when enabled)
+// - PWAKEUP: Wake-up signal events (rising/falling edge + wake-up timeout)
+// - Parity error detection (when ENABLE_PARITY_MON = 1)
+//
+// NOT monitored (ports accepted, no events generated):
+// - PAUSER/PWUSER/PRUSER/PBUSER. The user-signal ports and cfg_user_enable are
+//   accepted so the interface is stable for integrators, but no logic reads them
+//   and no APB5_USER_* event code is ever produced. Emitting a user-signal event
+//   per transaction would flood the monitor bus, so the feature is deliberately
+//   deferred rather than half-wired. Do not document it as implemented.
+//   Tracked by rtl/amba issue #41.
 //
 // This module extends the APB4 monitoring capabilities to include
-// APB5-specific events like wake-up sequences, user signal changes,
-// and parity error detection.
+// APB5-specific events like wake-up sequences and parity error detection.
+//
+// Packet format: 128-bit monitor_packet_t plus the 64-bit side-band
+// monbus_timestamp, matching apb_monitor and monitor_package_spec.md.
 //
 // Documentation: rtl/amba/PRD.md
 // Subsystem: amba
@@ -40,8 +48,8 @@ module apb5_monitor
     parameter int WUSER_WIDTH         = 4,
     parameter int RUSER_WIDTH         = 4,
     parameter int BUSER_WIDTH         = 4,
-    parameter int UNIT_ID             = 1,     // 4-bit Unit ID
-    parameter int AGENT_ID            = 10,    // 8-bit Agent ID
+    parameter logic [7:0]  UNIT_ID    = 8'h01,     // 8-bit Unit ID
+    parameter logic [15:0] AGENT_ID   = 16'h000A,  // 16-bit Agent ID
     parameter int MAX_TRANSACTIONS    = 4,     // APB is typically single outstanding
     parameter int MONITOR_FIFO_DEPTH  = 8,     // Monitor packet FIFO depth
     parameter bit ENABLE_PARITY_MON   = 0,     // Enable parity monitoring
@@ -114,10 +122,14 @@ module apb5_monitor
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0]        cfg_addr_range_low,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0]        cfg_addr_range_high,
 
-    // Monitor bus interface
-    output logic                     monbus_valid,
-    input  logic                     monbus_ready,
-    output logic [63:0]              monbus_packet,
+    // Free-running monitor-time broadcast from the monbus_group family
+    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+
+    // Consolidated 128-bit event packet interface (monitor bus)
+    output logic                                    monbus_valid,
+    input  logic                                    monbus_ready,
+    output monitor_common_pkg::monitor_packet_t     monbus_packet,      // 128-bit packet
+    output monitor_common_pkg::monbus_timestamp_t   monbus_timestamp,   // Side-band sampled time
 
     // Status outputs
     output logic [7:0]               active_count,
@@ -181,12 +193,32 @@ module apb5_monitor
     logic w_cmd_handshake;
     logic w_rsp_handshake;
 
-    // Error detection
+    // Error detection (level-sensitive conditions)
     logic w_cmd_timeout;
     logic w_rsp_timeout;
     logic w_protocol_violation;
     logic w_parity_error;
     logic w_latency_threshold_exceeded;
+
+    // Edge-detected versions of the level conditions above.
+    // A level condition that stays true for N cycles would otherwise emit N
+    // identical packets -- one stuck command produced 29 duplicate timeout
+    // packets over a 40-cycle stall. Every event source below is qualified to
+    // its rising edge so one occurrence produces exactly one packet.
+    // Covered by val/amba/test_apb5_monitor.py::test_apb5_monitor_timeout_edge.
+    logic r_cmd_timeout_d;
+    logic r_rsp_timeout_d;
+    logic r_wakeup_timeout_d;
+    logic r_protocol_violation_d;
+    logic r_parity_error_d;
+    logic r_latency_exceeded_d;
+
+    logic w_cmd_timeout_pulse;
+    logic w_rsp_timeout_pulse;
+    logic w_wakeup_timeout_pulse;
+    logic w_protocol_violation_pulse;
+    logic w_parity_error_pulse;
+    logic w_latency_exceeded_pulse;
 
     // Performance metrics
     logic [31:0] w_current_latency;
@@ -198,15 +230,16 @@ module apb5_monitor
     logic w_generate_wakeup_event;
     logic w_generate_parity_event;
     logic w_generate_completion_event;
-    logic [3:0] w_error_event_code;
-    logic [3:0] w_timeout_event_code;
-    logic [3:0] w_wakeup_event_code;
-    logic [3:0] w_parity_event_code;
+    apb_error_code_t   w_error_event_code;
+    apb_timeout_code_t w_timeout_event_code;
+    apb5_wakeup_code_t w_wakeup_event_code;
+    apb5_parity_code_t w_parity_event_code;
 
-    // Monitor packet FIFO
+    // Monitor packet FIFO — event_code is 8 bits to match the 128-bit packet
+    // layout in monitor_package_spec.md (and the APB*_ code enums).
     typedef struct packed {
         logic [3:0]  packet_type;
-        logic [3:0]  event_code;
+        logic [7:0]  event_code;
         logic [31:0] event_data;
         logic [7:0]  aux_data;
     } monitor_entry_t;
@@ -372,6 +405,7 @@ module apb5_monitor
                 r_trans_table[i] <= '0;
             end
             r_active_count <= '0;
+            r_error_count <= '0;      // was omitted: r_error_count had no reset
             r_transaction_count <= '0;
             r_cmd_start_time <= '0;
         end else begin
@@ -380,7 +414,10 @@ module apb5_monitor
             if (w_cmd_handshake && w_has_free_slot) begin
                 r_trans_table[w_free_idx].valid <= 1'b1;
                 r_trans_table[w_free_idx].state <= TRANS_DATA_PHASE;
-                r_trans_table[w_free_idx].addr <= {{(64-AW){1'b0}}, cmd_paddr};
+                // bus_transaction_t.addr is 32 bits; size-cast so any AW fits
+                // without a width warning (the old {{(64-AW){1'b0}}, ...} form
+                // built a 64-bit value for a 32-bit field).
+                r_trans_table[w_free_idx].addr <= 32'(cmd_paddr);
                 r_trans_table[w_free_idx].burst <= {{1'b0}, cmd_pwrite};
                 r_trans_table[w_free_idx].channel <= {cmd_pprot, cmd_pstrb[2:0]};
                 r_trans_table[w_free_idx].cmd_received <= 1'b1;
@@ -476,6 +513,37 @@ module apb5_monitor
     end
 
     // -------------------------------------------------------------------------
+    // Edge Detection for Level-Sensitive Event Conditions
+    // -------------------------------------------------------------------------
+    // Each condition below is a level that can hold for many cycles. Register a
+    // one-cycle-delayed copy and emit only on the rising edge, so a single
+    // occurrence yields a single packet instead of one per cycle.
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_cmd_timeout_d        <= 1'b0;
+            r_rsp_timeout_d        <= 1'b0;
+            r_wakeup_timeout_d     <= 1'b0;
+            r_protocol_violation_d <= 1'b0;
+            r_parity_error_d       <= 1'b0;
+            r_latency_exceeded_d   <= 1'b0;
+        end else begin
+            r_cmd_timeout_d        <= w_cmd_timeout;
+            r_rsp_timeout_d        <= w_rsp_timeout;
+            r_wakeup_timeout_d     <= w_wakeup_timeout;
+            r_protocol_violation_d <= w_protocol_violation;
+            r_parity_error_d       <= w_parity_error;
+            r_latency_exceeded_d   <= w_latency_threshold_exceeded;
+        end
+    )
+
+    assign w_cmd_timeout_pulse        = w_cmd_timeout        && !r_cmd_timeout_d;
+    assign w_rsp_timeout_pulse        = w_rsp_timeout        && !r_rsp_timeout_d;
+    assign w_wakeup_timeout_pulse     = w_wakeup_timeout     && !r_wakeup_timeout_d;
+    assign w_protocol_violation_pulse = w_protocol_violation && !r_protocol_violation_d;
+    assign w_parity_error_pulse       = w_parity_error       && !r_parity_error_d;
+    assign w_latency_exceeded_pulse   = w_latency_threshold_exceeded && !r_latency_exceeded_d;
+
+    // -------------------------------------------------------------------------
     // Performance Monitoring
     // -------------------------------------------------------------------------
     always_comb begin
@@ -506,7 +574,7 @@ module apb5_monitor
 
         // Error events
         if (cfg_error_enable) begin
-            if (w_protocol_violation) begin
+            if (w_protocol_violation_pulse) begin
                 w_generate_error_event = 1'b1;
                 w_error_event_code = APB_ERR_SETUP_VIOLATION;
             end else if (rsp_pslverr && w_rsp_handshake && cfg_slverr_enable) begin
@@ -517,13 +585,13 @@ module apb5_monitor
 
         // Timeout events
         if (cfg_timeout_enable) begin
-            if (w_cmd_timeout) begin
+            if (w_cmd_timeout_pulse) begin
                 w_generate_timeout_event = 1'b1;
                 w_timeout_event_code = APB_TIMEOUT_SETUP;
-            end else if (w_rsp_timeout) begin
+            end else if (w_rsp_timeout_pulse) begin
                 w_generate_timeout_event = 1'b1;
                 w_timeout_event_code = APB_TIMEOUT_ACCESS;
-            end else if (w_wakeup_timeout) begin
+            end else if (w_wakeup_timeout_pulse) begin
                 w_generate_timeout_event = 1'b1;
                 w_timeout_event_code = APB_TIMEOUT_ACCESS;  // Use generic timeout
             end
@@ -541,7 +609,7 @@ module apb5_monitor
         end
 
         // Parity error events (APB5)
-        if (cfg_parity_enable && w_parity_error) begin
+        if (cfg_parity_enable && w_parity_error_pulse) begin
             w_generate_parity_event = 1'b1;
             if (parity_error_wdata) begin
                 w_parity_event_code = APB5_PARITY_PWDATA_ERROR;
@@ -553,7 +621,7 @@ module apb5_monitor
         end
 
         // Performance events
-        if (cfg_perf_enable && w_latency_threshold_exceeded) begin
+        if (cfg_perf_enable && w_latency_exceeded_pulse) begin
             w_generate_perf_event = 1'b1;
         end
 
@@ -595,13 +663,13 @@ module apb5_monitor
             w_fifo_wr_valid = 1'b1;
             w_fifo_wr_data.packet_type = PktTypeError;
             w_fifo_wr_data.event_code = w_error_event_code;
-            w_fifo_wr_data.event_data = cmd_paddr;
+            w_fifo_wr_data.event_data = 32'(cmd_paddr);
             w_fifo_wr_data.aux_data = {4'h0, cmd_pprot, cmd_pwrite};
         end else if (w_generate_parity_event) begin
             w_fifo_wr_valid = 1'b1;
             w_fifo_wr_data.packet_type = PktTypeError;
             w_fifo_wr_data.event_code = w_parity_event_code;
-            w_fifo_wr_data.event_data = cmd_paddr;
+            w_fifo_wr_data.event_data = 32'(cmd_paddr);
             w_fifo_wr_data.aux_data = {5'h0,
                 parity_error_wdata, parity_error_rdata, parity_error_ctrl};
         end else if (w_generate_timeout_event) begin
@@ -609,7 +677,7 @@ module apb5_monitor
             w_fifo_wr_data.packet_type = PktTypeTimeout;
             w_fifo_wr_data.event_code = w_timeout_event_code;
             w_fifo_wr_data.event_data = w_has_active_trans ?
-                r_trans_table[w_active_idx].addr[31:0] : cmd_paddr;
+                r_trans_table[w_active_idx].addr[31:0] : 32'(cmd_paddr);
             w_fifo_wr_data.aux_data = r_cmd_timeout_timer[7:0];
         end else if (w_generate_wakeup_event) begin
             w_fifo_wr_valid = 1'b1;
@@ -627,7 +695,7 @@ module apb5_monitor
             w_fifo_wr_valid = 1'b1;
             w_fifo_wr_data.packet_type = PktTypeCompletion;
             w_fifo_wr_data.event_code = APB_COMPL_TRANS_COMPLETE;
-            w_fifo_wr_data.event_data = cmd_paddr;
+            w_fifo_wr_data.event_data = 32'(cmd_paddr);
             w_fifo_wr_data.aux_data = {4'h0, cmd_pprot, cmd_pwrite};
         end
     end
@@ -650,30 +718,33 @@ module apb5_monitor
     // -------------------------------------------------------------------------
     // Monitor Bus Packet Construction
     // -------------------------------------------------------------------------
-    logic                w_monbus_pkt_valid;
-    logic                w_monbus_pkt_ready;
-    logic [63:0]         w_monbus_pkt_data;
+    logic                                    w_monbus_pkt_valid;
+    logic                                    w_monbus_pkt_ready;
+    monitor_common_pkg::monitor_packet_t     w_monbus_pkt_data;
+    monitor_common_pkg::monbus_timestamp_t   w_monbus_pkt_ts;
 
-    // FIFO-side packet (reconstructed from monitor_entry_t)
-    logic [63:0]         w_fifo_pkt_data;
+    // FIFO-side packet (reconstructed from monitor_entry_t into the 128-bit layout)
+    monitor_common_pkg::monitor_packet_t     w_fifo_pkt_data;
 
-    // Construct 64-bit monitor packet
-    assign w_fifo_pkt_data[63:60] = w_fifo_rd_data.packet_type;
-    assign w_fifo_pkt_data[59:57] = PROTOCOL_APB;
-    assign w_fifo_pkt_data[56:53] = w_fifo_rd_data.event_code;
-    assign w_fifo_pkt_data[52:47] = 6'h0;                          // channel_id
-    assign w_fifo_pkt_data[46:43] = UNIT_ID[3:0];
-    assign w_fifo_pkt_data[42:35] = AGENT_ID[7:0];
-    assign w_fifo_pkt_data[34:3]  = w_fifo_rd_data.event_data;
-    assign w_fifo_pkt_data[2:0]   = w_fifo_rd_data.aux_data[2:0];
+    assign w_fifo_pkt_data = monitor_common_pkg::create_monitor_packet(
+        w_fifo_rd_data.packet_type,                                // 4-bit packet_type
+        monitor_common_pkg::PROTOCOL_APB,                          // 4-bit protocol
+        w_fifo_rd_data.event_code,                                 // 8-bit event_code
+        9'h0,                                                      // 9-bit channel_id (unused for APB)
+        UNIT_ID,                                                   // 8-bit unit_id
+        AGENT_ID,                                                  // 16-bit agent_id
+        {24'h0, w_fifo_rd_data.aux_data, w_fifo_rd_data.event_data} // 64-bit event_data
+    );
 
     // -------------------------------------------------------------------------
     // Address-range checker (optional, gated by N_ADDR_RANGES)
     // -------------------------------------------------------------------------
     // Priority: FIFO (regular events) > addr_check (range violations).
-    logic        w_addr_pkt_valid;
-    logic [63:0] w_addr_pkt_data;
-    logic        w_addr_pkt_ready;
+    // addr_check stalls until the FIFO drains, then drains itself.
+    logic                                    w_addr_pkt_valid;
+    monitor_common_pkg::monitor_packet_t     w_addr_pkt_data;
+    monitor_common_pkg::monbus_timestamp_t   w_addr_pkt_timestamp;
+    logic                                    w_addr_pkt_ready;
 
     if (N_ADDR_RANGES > 0) begin : gen_addr_check
         apb_monitor_addr_check #(
@@ -684,6 +755,7 @@ module apb5_monitor
         ) addr_check (
             .clk                   (aclk),
             .aresetn               (aresetn),
+            .i_mon_time            (i_mon_time),
             .cmd_paddr             (cmd_paddr),
             .cmd_pwrite            (cmd_pwrite),
             .cmd_valid             (cmd_valid),
@@ -694,52 +766,69 @@ module apb5_monitor
             .cfg_addr_range_high   (cfg_addr_range_high),
             .addr_pkt_valid        (w_addr_pkt_valid),
             .addr_pkt_ready        (w_addr_pkt_ready),
-            .addr_pkt_data         (w_addr_pkt_data)
+            .addr_pkt_data         (w_addr_pkt_data),
+            .addr_pkt_timestamp    (w_addr_pkt_timestamp)
         );
     end else begin : gen_no_addr_check
-        assign w_addr_pkt_valid = 1'b0;
-        assign w_addr_pkt_data  = 64'h0;
+        assign w_addr_pkt_valid     = 1'b0;
+        assign w_addr_pkt_data      = '0;
+        assign w_addr_pkt_timestamp = '0;
     end
 
-    // 2:1 priority merge — FIFO has priority over addr_check.
+    // 2:1 priority merge — FIFO has priority over the addr_check stream.
+    // FIFO events sample i_mon_time on emission; addr_check carries its own ts.
     always_comb begin
         if (w_fifo_rd_valid) begin
             w_monbus_pkt_valid = 1'b1;
             w_monbus_pkt_data  = w_fifo_pkt_data;
+            w_monbus_pkt_ts    = i_mon_time;
         end else if (w_addr_pkt_valid) begin
             w_monbus_pkt_valid = 1'b1;
             w_monbus_pkt_data  = w_addr_pkt_data;
+            w_monbus_pkt_ts    = w_addr_pkt_timestamp;
         end else begin
             w_monbus_pkt_valid = 1'b0;
-            w_monbus_pkt_data  = 64'h0;
+            w_monbus_pkt_data  = '0;
+            w_monbus_pkt_ts    = '0;
         end
     end
     assign w_fifo_rd_ready  = w_monbus_pkt_ready && w_fifo_rd_valid;
     assign w_addr_pkt_ready = w_monbus_pkt_ready && !w_fifo_rd_valid;
 
-    // Monitor bus output skid buffer
+    // Monitor bus output skid buffer — carries {packet[128], timestamp[64]}.
+    localparam int MONBUS_TOTAL_W =
+        monitor_common_pkg::MONBUS_PKT_WIDTH + monitor_common_pkg::MONBUS_TS_WIDTH;
+
+    logic [MONBUS_TOTAL_W-1:0] w_skid_wr_data;
+    logic [MONBUS_TOTAL_W-1:0] w_skid_rd_data;
+    assign w_skid_wr_data = {w_monbus_pkt_data, w_monbus_pkt_ts};
+
     gaxi_skid_buffer #(
-        .DATA_WIDTH    (64),
+        .DATA_WIDTH    (MONBUS_TOTAL_W),
         .DEPTH         (2)
     ) monbus_skid_buffer (
         .axi_aclk      (aclk),
         .axi_aresetn   (aresetn),
         .wr_valid      (w_monbus_pkt_valid),
         .wr_ready      (w_monbus_pkt_ready),
-        .wr_data       (w_monbus_pkt_data),
+        .wr_data       (w_skid_wr_data),
         .rd_valid      (monbus_valid),
         .rd_ready      (monbus_ready),
-        .rd_data       (monbus_packet),
+        .rd_data       (w_skid_rd_data),
         /* verilator lint_off PINCONNECTEMPTY */
         .count         (),
         .rd_count      ()
         /* verilator lint_on PINCONNECTEMPTY */
     );
 
+    assign monbus_packet    = w_skid_rd_data[MONBUS_TOTAL_W-1 -: monitor_common_pkg::MONBUS_PKT_WIDTH];
+    assign monbus_timestamp = w_skid_rd_data[monitor_common_pkg::MONBUS_TS_WIDTH-1 : 0];
+
     end else begin : gen_no_monitor
         // Monitor omitted: tie outputs to non-blocking defaults.
         assign monbus_valid      = 1'b0;
-        assign monbus_packet     = 64'h0;
+        assign monbus_packet     = '0;
+        assign monbus_timestamp  = '0;
         assign active_count      = 8'h0;
         assign error_count       = 16'h0;
         assign transaction_count = 32'h0;

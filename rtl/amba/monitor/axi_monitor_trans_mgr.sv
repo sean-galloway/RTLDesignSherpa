@@ -107,6 +107,15 @@ module axi_monitor_trans_mgr
     // Event reported feedback from reporter (FIX-001)
     input  logic [MAX_TRANSACTIONS-1:0] i_event_reported_flags,
 
+    // Timeout feedback from axi_monitor_timeout (issue #41).
+    // The timeout block detects the stall but owns only a private copy of
+    // the table, so it cannot move the entry to a terminal state. Without
+    // this input a timed-out slot stays in ADDR/DATA phase forever, is
+    // never cleanup-eligible, and leaks -- the documented
+    // transaction-table-exhaustion path. trans_mgr consumes it here and
+    // performs the state transition in the real table.
+    input  logic [MAX_TRANSACTIONS-1:0] i_timeout_detected,
+
     // Transaction table output
     output bus_transaction_t            trans_table[MAX_TRANSACTIONS],
     output logic [7:0]                  active_count,
@@ -117,6 +126,42 @@ module axi_monitor_trans_mgr
 
     localparam int N         = MAX_TRANSACTIONS;
     localparam int PAYLOAD_W = $bits(bus_transaction_t);
+
+    // ------------------------------------------------------------------------
+    // Parameter width limits (issue #41 "width truncation").
+    //
+    // bus_transaction_t (rtl/amba/includes/monitor_amba4_pkg.sv) stores the
+    // address in a 32-bit field and the ID in an 8-bit field. Neither width
+    // is derived from this module's parameters, so wide configurations lose
+    // bits. The two cases have very different severity and are handled
+    // differently on purpose:
+    //
+    //   ID_WIDTH > 8  -- FUNCTIONAL BREAKAGE, rejected at elaboration.
+    //     The 8-bit payload id and the ID_WIDTH-wide CAM key would hold
+    //     different values, so lookups would match the wrong entry and
+    //     transactions would be mis-attributed. There is no safe degraded
+    //     behaviour, so this is a hard error.
+    //
+    //   ADDR_WIDTH > 32 -- REPORTED-ADDRESS PRECISION LOSS, permitted.
+    //     Tracking still works: the CAM key is the ID, not the address, so
+    //     only the address carried in the outgoing packet is truncated.
+    //     ADDR_WIDTH=64 is an actively supported and tested configuration
+    //     (see val/amba/test_axi4_monitor.py, the 'addr64' configs), so
+    //     rejecting it would break working setups for a precision issue.
+    //
+    // KNOWN LIMITATION, deliberately not fixed here: axi_monitor_base
+    // computes ADDR_BITS = min(ADDR_BITS_IN_PKT=38, AW), i.e. the packet
+    // format intends to carry 38 address bits, but this table can only
+    // supply 32 -- so with AW > 32 the top 6 intended bits are lost. The
+    // real fix is widening bus_transaction_t.addr, which lives in
+    // monitor_amba4_pkg.sv and ripples into the reporter and timeout
+    // blocks; that is outside this module and is left as a follow-up rather
+    // than half-done here. The truncation is made explicit at the
+    // assignment site below instead of being silent.
+    // ------------------------------------------------------------------------
+    if (ID_WIDTH > 8) begin : gen_id_width_unsupported
+        $error("axi_monitor_trans_mgr: ID_WIDTH=%0d exceeds the 8-bit id field in bus_transaction_t; the table and the CAM key would disagree. Widen bus_transaction_t.id or reduce ID_WIDTH.", ID_WIDTH);
+    end
 
     // ------------------------------------------------------------------------
     // CAM signal nets
@@ -188,6 +233,64 @@ module axi_monitor_trans_mgr
     );
     /* verilator lint_on PINCONNECTEMPTY */
 
+    // ========================================================================
+    // Per-slot AGE (issue order)  -- issue #41 defect 1.
+    //
+    // AXI4 permits several outstanding transactions with the SAME ID, and
+    // requires their data/response phases to return in ISSUE order. The CAM
+    // slot index carries no ordering information (allocation always takes the
+    // lowest free index, so a recycled low slot can be YOUNGER than a live
+    // high slot), so an explicit age is needed to attribute an incoming beat
+    // to the correct one of several same-ID entries.
+    //
+    // Representation: r_age[i] is the RANK of slot i -- the number of live
+    // entries older than it -- so the oldest live entry always has rank 0.
+    // Ranks stay dense over [0, live_count), which keeps the field at
+    // $clog2(N) bits and makes "oldest" a compare against a small constant
+    // instead of a wide timestamp subtraction (and so has no wrap hazard).
+    // When an entry is freed, every surviving entry ranked above it
+    // decrements, keeping the sequence dense.
+    // ========================================================================
+    localparam int AGEW = (N > 1) ? $clog2(N) : 1;
+
+    logic [AGEW-1:0] r_age [N];
+
+    // Packed mirror of r_age for use as a FUNCTION ARGUMENT below.
+    //
+    // pick_oldest used to read module-scope r_age[] directly from inside its
+    // body. That is legal SV, but sv2v then has to name the whole unpacked
+    // array in the explicit sensitivity list it synthesizes for every
+    // always_comb that calls the function -- and yosys rejects a memory
+    // referenced without an index ("Insufficient number of array indices for
+    // r_age"), which broke the formal flat build. Passing the ages in as a
+    // packed argument keeps the function self-contained and the flat file
+    // legal Verilog. Same hardware either way.
+    logic [N*AGEW-1:0] w_age_flat;
+    always_comb begin
+        for (int i = 0; i < N; i++) begin
+            w_age_flat[i*AGEW +: AGEW] = r_age[i];
+        end
+    end
+
+    // Pick the OLDEST (lowest-rank) slot from a candidate set.
+    // Returns '0 when the candidate set is empty.
+    function automatic logic [N-1:0] pick_oldest(input logic [N-1:0] cand,
+                                                 input logic [N*AGEW-1:0] ages);
+        logic [N-1:0] res;
+        logic         found;
+        res   = '0;
+        found = 1'b0;
+        for (int r = 0; r < N; r++) begin
+            for (int i = 0; i < N; i++) begin
+                if (!found && cand[i] && (ages[i*AGEW +: AGEW] == AGEW'(r))) begin
+                    res[i] = 1'b1;
+                    found  = 1'b1;
+                end
+            end
+        end
+        return res;
+    endfunction
+
     // ------------------------------------------------------------------------
     // WID-less write data-channel match.
     //
@@ -211,48 +314,17 @@ module axi_monitor_trans_mgr
                                        cam_entry_payload[i].cmd_received &&
                                        !cam_entry_payload[i].data_completed;
         end
-        // Lowest-index first-match for the WID-less write path.
-        for (int i = 0; i < N; i++) begin
-            if (w_data_state_pred_oh[i] && (w_data_state_first_oh == '0)) begin
-                w_data_state_first_oh[i] = 1'b1;
-            end
-        end
+        // Oldest-first pick for the WID-less write path. AXI4 requires write
+        // data to be consumed in AW issue order, so "oldest" -- not
+        // "lowest slot index" -- is the correct tie-break (issue #41
+        // defect 1: index order does not track issue order once slots
+        // start being recycled).
+        w_data_state_first_oh = pick_oldest(w_data_state_pred_oh, w_age_flat);
     end
-
-    // ------------------------------------------------------------------------
-    // Hit indicators + wants_alloc.
-    // ------------------------------------------------------------------------
-    logic addr_hit_any, data_hit_any, resp_hit_any;
-
-    assign addr_hit_any = |addr_match_oh;
-    assign resp_hit_any = |resp_match_oh;
-    assign data_hit_any = IS_READ ? (|data_match_oh) : (|w_data_state_pred_oh);
-
-    assign addr_wants_alloc = cmd_valid && !addr_hit_any;
-    always_comb begin
-        if (IS_READ) begin
-            data_wants_alloc = data_valid && data_ready && !data_hit_any;
-        end else begin
-            data_wants_alloc = data_valid && data_ready && !IS_AXI && !data_hit_any;
-        end
-        resp_wants_alloc = (!IS_READ) && resp_valid && resp_ready && !resp_hit_any;
-    end
-
-    // ------------------------------------------------------------------------
-    // Effective update one-hot (same role as the production module).
-    // Reads use the CAM's id-based data match; writes use the local
-    // first-match state-predicate vector.
-    // ------------------------------------------------------------------------
-    logic [N-1:0] addr_update_oh;
-    logic [N-1:0] data_update_oh;
-    logic [N-1:0] resp_update_oh;
-
-    assign addr_update_oh = addr_match_oh;
-    assign data_update_oh = IS_READ ? data_match_oh : w_data_state_first_oh;
-    assign resp_update_oh = resp_match_oh;
 
     // ------------------------------------------------------------------------
     // Cleanup eligibility (same policy as the production module).
+    // Hoisted above the match/alloc logic because w_freeing_oh feeds it.
     // ------------------------------------------------------------------------
     logic [N-1:0] w_can_cleanup;
     always_comb begin
@@ -270,6 +342,208 @@ module axi_monitor_trans_mgr
         end
     end
 
+    // Slots that are live now but go away at this clock edge.
+    logic [N-1:0] w_freeing_oh;
+    always_comb begin
+        for (int i = 0; i < N; i++) begin
+            w_freeing_oh[i] = cam_entry_valid[i] && w_can_cleanup[i];
+        end
+    end
+
+    // ------------------------------------------------------------------------
+    // Hit indicators + wants_alloc.
+    //
+    // ISSUE #41 DEFECT 1/2 FIX -- address phase.
+    //
+    // The old code suppressed allocation on ANY same-ID match
+    // (`addr_wants_alloc = cmd_valid && !(|addr_match_oh)`) and merged the
+    // new command into the matching entry. That is wrong: multiple
+    // outstanding transactions with the same ID are legal AXI4, so a second
+    // AR/AW must get its OWN slot.
+    //
+    // The update path still has one legitimate job. Allocation triggers on
+    // cmd_valid (not on the handshake), so a command held across several
+    // cycles waiting for cmd_ready must not allocate a fresh slot every
+    // cycle. That in-flight entry is precisely the same-ID entry that has
+    // not yet recorded its command handshake, so suppression is now scoped
+    // to `!cmd_received` instead of "any id match".
+    //
+    // Entries being freed this cycle are excluded as well: on a cleanup
+    // cycle the slot is neither free (free_oh comes from registered r_valid)
+    // nor surviving, and the old code let it swallow the incoming command,
+    // which then lost its completion and fabricated an EVT_DATA_ORPHAN
+    // error on entirely legal traffic (defect 2).
+    // ------------------------------------------------------------------------
+    logic [N-1:0] w_addr_pend_oh;   // same-ID entry still awaiting its handshake
+    always_comb begin
+        for (int i = 0; i < N; i++) begin
+            w_addr_pend_oh[i] = addr_match_oh[i] &&
+                                !cam_entry_payload[i].cmd_received &&
+                                !w_freeing_oh[i];
+        end
+    end
+
+    logic addr_hit_any, data_hit_any, resp_hit_any;
+
+    assign addr_hit_any = |w_addr_pend_oh;
+    assign resp_hit_any = |resp_match_oh;
+    assign data_hit_any = IS_READ ? (|data_match_oh) : (|w_data_state_pred_oh);
+
+    // ------------------------------------------------------------------------
+    // COMMAND-ENTRY CAP (saturation-recovery fix).
+    //
+    // Command-originated entries may occupy at most N - CMD_ENTRY_RESERVE
+    // slots. This guarantees RECOVERY of block_ready: axi_monitor_base
+    // re-asserts block_ready when active_count < MAX - (CMD_ENTRY_RESERVE-1),
+    // which is STRICTLY ABOVE this cap. So even a table whose command
+    // entries are all permanently in flight (data never arrives, timeouts
+    // disabled) sits below the reopen threshold once the ungated data/resp
+    // (orphan) entries drain, and the command channel un-stalls. Without the
+    // strict inequality, saturation parks occupancy exactly AT the blocking
+    // threshold and block_ready can NEVER re-assert -- the stream_core
+    // multi-channel permanent wedge (val/amba/test_axi_monitor_trans_mgr.py
+    // phase_saturation_recovers).
+    //
+    // The cap counts COMMAND entries, deliberately NOT free slots. An
+    // earlier version of this fix gated command allocation on
+    // (free_count > RESERVE); under zero-delay oversubscription that
+    // inverted the allocation priority -- every freed slot was immediately
+    // taken by an ungated orphan allocation, free_count never climbed above
+    // the reserve, and command tracking starved permanently (completion
+    // rate collapsed from ~30% to ~13% in val/amba/test_axi4_monitor.py's
+    // id_space/combined stress). Counting command entries instead lets a
+    // command reclaim a freed slot the moment one of its own retires
+    // (the CAM's alloc priority order addr > data > resp breaks the tie in
+    // the command's favor), while orphans may still use every slot commands
+    // are not entitled to.
+    //
+    // A command seen while the cap is reached is simply not tracked
+    // (lossy-but-honest degrade); if it is still held valid when one of the
+    // command entries retires, it allocates then.
+    //
+    // A "command entry" is one that was allocated by (or has absorbed) an
+    // address-phase beat: cmd_received covers tracked handshakes and
+    // orphans that later received their command; state==TRANS_ADDR_PHASE
+    // covers commands seen valid but not yet accepted (cmd_received=0).
+    // Orphan entries (ORPHANED / promoted DATA_PHASE, cmd_received=0) are
+    // excluded -- they always drain via error reporting, so they cannot
+    // pin occupancy above the reopen threshold.
+    //
+    // Tables smaller than 16 get NO cap and keep fully legacy allocation:
+    // small tables cannot spare slots (>= 4 outstanding same-ID
+    // transactions must be trackable even at MAX_TRANSACTIONS=4, and even
+    // one reserved slot at MAX=8 measurably starves the id_space/addr64
+    // oversubscription stress in val/amba/test_axi4_monitor.py). They trade
+    // the saturation-recovery guarantee for full tracking capacity.
+    //
+    // The reserve value and the recovery contract live in
+    // monitor_common_pkg::cmd_entry_reserve -- axi_monitor_base derives its
+    // BLOCK_MARGIN from the same function, so the two cannot drift.
+    // ------------------------------------------------------------------------
+    localparam int CMD_ENTRY_RESERVE = cmd_entry_reserve(N);
+
+    logic [$clog2(N+1)-1:0] w_cmd_entry_count;
+    always_comb begin
+        w_cmd_entry_count = '0;
+        for (int i = 0; i < N; i++) begin
+            if (cam_entry_valid[i] &&
+                    (cam_entry_payload[i].cmd_received ||
+                     (cam_entry_payload[i].state == TRANS_ADDR_PHASE))) begin
+                w_cmd_entry_count += ($clog2(N+1))'(1);
+            end
+        end
+    end
+
+    logic w_cmd_headroom;
+    assign w_cmd_headroom = (CMD_ENTRY_RESERVE == 0) ||
+                            (w_cmd_entry_count <
+                             ($clog2(N+1))'(N - CMD_ENTRY_RESERVE));
+
+    assign addr_wants_alloc = cmd_valid && !addr_hit_any && w_cmd_headroom;
+    always_comb begin
+        if (IS_READ) begin
+            data_wants_alloc = data_valid && data_ready && !data_hit_any;
+        end else begin
+            data_wants_alloc = data_valid && data_ready && !IS_AXI && !data_hit_any;
+        end
+        resp_wants_alloc = (!IS_READ) && resp_valid && resp_ready && !resp_hit_any;
+    end
+
+    // ------------------------------------------------------------------------
+    // Effective update one-hot.
+    //
+    // ISSUE #41 DEFECT 1 FIX -- data/response phases.
+    //
+    // `data_update_oh = data_match_oh` updated EVERY entry sharing the id,
+    // so with two outstanding same-ID reads a single R beat was counted
+    // against both. AXI4 orders same-ID responses by issue order, so a beat
+    // belongs to the OLDEST matching entry that is still expecting data.
+    //
+    // Two tiers: prefer an entry that has not completed its data/response
+    // phase; if every match has already completed, fall back to the oldest
+    // match so a stray extra beat is absorbed exactly as before rather than
+    // being turned into a new orphan error.
+    // ------------------------------------------------------------------------
+    logic [N-1:0] addr_update_oh;
+    logic [N-1:0] data_update_oh;
+    logic [N-1:0] resp_update_oh;
+
+    logic [N-1:0] w_data_cand_open, w_data_cand_any;
+    logic [N-1:0] w_resp_cand_open, w_resp_cand_any;
+
+    always_comb begin
+        for (int i = 0; i < N; i++) begin
+            w_data_cand_any[i]  = data_match_oh[i] && !w_freeing_oh[i];
+            w_data_cand_open[i] = w_data_cand_any[i] &&
+                                  !cam_entry_payload[i].data_completed;
+            w_resp_cand_any[i]  = resp_match_oh[i] && !w_freeing_oh[i];
+            w_resp_cand_open[i] = w_resp_cand_any[i] &&
+                                  !cam_entry_payload[i].resp_received;
+        end
+    end
+
+    // At most one entry can be pending its command handshake, but resolve
+    // through the same oldest-first path for uniformity.
+    assign addr_update_oh = pick_oldest(w_addr_pend_oh, w_age_flat);
+
+    // STRAY NON-LAST BEAT ABSORPTION (saturation-recovery fix, part 2).
+    //
+    // When a beat matches ONLY entries that have already closed their data
+    // phase (the cand_any fallback), it is a stray from a transaction the
+    // table no longer represents (e.g. a command that went untracked while
+    // the reserve was exhausted, reusing a still-resident ID).
+    //
+    // A stray LAST beat keeps the legacy fallback: the update path re-runs
+    // the completion logic and leaves the entry in a TERMINAL state
+    // (TRANS_COMPLETE / TRANS_ERROR), which is harmless and, under heavy
+    // ID-space oversubscription, reconstructs untracked bursts into
+    // reportable completions (measured: dropping this halved the completion
+    // rate in val/amba/test_axi4_monitor.py combined/id_space stress).
+    //
+    // A stray NON-LAST beat is the poison and is absorbed with no update at
+    // all: the update path unconditionally promoted the entry's state to
+    // TRANS_DATA_PHASE (unless TRANS_ERROR), so it dragged a
+    // TRANS_COMPLETE/TRANS_ORPHANED entry back to TRANS_DATA_PHASE with
+    // data_completed already set -- a state no data_last will ever close
+    // (same-ID beats keep resolving to younger open entries) and that the
+    // timeout block's !data_completed term can never age out. The entry
+    // leaked permanently: one poisoned slot per stray, ratcheting the table
+    // to saturation (the stream_core multi-channel wedge mechanism).
+    //
+    // Absorption = an empty update one-hot. The stray still counts as a hit
+    // (data_hit_any uses the raw match vector), so it does not allocate an
+    // orphan either -- the original intent, minus the state clobber.
+    assign data_update_oh = IS_READ
+        ? ((|w_data_cand_open) ? pick_oldest(w_data_cand_open, w_age_flat)
+                               : (data_last ? pick_oldest(w_data_cand_any, w_age_flat) : '0))
+        : w_data_state_first_oh;
+
+    // Response fallback is unchanged: a stray B response updates fields of an
+    // already-closed entry but every reachable outcome (COMPLETE / ERROR) is
+    // terminal and cleanup-eligible, so it cannot leak a slot.
+    assign resp_update_oh = (|w_resp_cand_open) ? pick_oldest(w_resp_cand_open, w_age_flat)
+                                                : pick_oldest(w_resp_cand_any, w_age_flat);
+
     // Channel index from ID (used only by addr allocation -- kept for
     // source-compatibility with the production module).
     logic [5:0] w_addr_chan_idx;
@@ -281,6 +555,112 @@ module axi_monitor_trans_mgr
 
     logic cmd_handshake;
     assign cmd_handshake = cmd_valid && cmd_ready;
+
+    // ------------------------------------------------------------------------
+    // Stale event_reported mask (issue #41 defect 3).
+    //
+    // Set when a slot is freed, cleared once the reporter's flag for that
+    // slot finally drops. While set, the flag is understood to refer to the
+    // slot's PREVIOUS occupant and is not applied to whatever is in the slot
+    // now. The flag is guaranteed to drop: it is a function of a delayed
+    // snapshot of an entry that has already been invalidated.
+    // ------------------------------------------------------------------------
+    logic [N-1:0] r_rpt_stale_mask;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_rpt_stale_mask <= '0;
+        end else if (clear) begin
+            r_rpt_stale_mask <= '0;
+        end else begin
+            for (int i = 0; i < N; i++) begin
+                if (w_freeing_oh[i]) begin
+                    r_rpt_stale_mask[i] <= 1'b1;
+                end else if (!i_event_reported_flags[i]) begin
+                    r_rpt_stale_mask[i] <= 1'b0;
+                end
+            end
+        end
+    )
+
+    // ------------------------------------------------------------------------
+    // Age (rank) maintenance -- see the AGEW comment at the top.
+    //
+    // A newly allocated entry is the youngest, so it takes rank
+    // = number of entries surviving this cycle, offset by its position in
+    // the CAM's fixed (addr, data, resp) allocation order when more than one
+    // phase allocates at once. A surviving entry decrements its rank by the
+    // number of freed entries that were older than it, which keeps ranks
+    // dense over [0, live_count).
+    // ------------------------------------------------------------------------
+    logic w_addr_alloc_fire, w_data_alloc_fire, w_resp_alloc_fire;
+
+    assign w_addr_alloc_fire = |addr_alloc_oh;
+    assign w_data_alloc_fire = |data_alloc_oh;
+    assign w_resp_alloc_fire = |resp_alloc_oh;
+
+    // Rank assigned to a slot allocated by each phase this cycle.
+    logic [AGEW-1:0] w_age_addr_new, w_age_data_new, w_age_resp_new;
+
+    always_comb begin
+        int surv;
+        surv = 0;
+        for (int i = 0; i < N; i++) begin
+            if (cam_entry_valid[i] && !w_freeing_oh[i]) begin
+                surv++;
+            end
+        end
+        w_age_addr_new = AGEW'(surv);
+        w_age_data_new = AGEW'(surv + (w_addr_alloc_fire ? 1 : 0));
+        w_age_resp_new = AGEW'(surv + (w_addr_alloc_fire ? 1 : 0)
+                                    + (w_data_alloc_fire ? 1 : 0));
+    end
+
+    // Combinational next-rank per slot. Kept separate from the registers
+    // below for two reasons: Verilator rejects a delayed (NBA) assignment
+    // to an unpacked array from inside a for loop (BLKLOOPINIT), and the
+    // per-slot generate matches this module's stated synthesis intent of
+    // N independent small update cones rather than one fused cone.
+    logic [AGEW-1:0] w_age_next [N];
+
+    always_comb begin
+        for (int i = 0; i < N; i++) begin
+            int dec;
+            // Assign unconditionally: a variable written only inside a
+            // branch infers a latch under Verilator -Wall.
+            dec           = 0;
+            w_age_next[i] = r_age[i];
+            if (addr_alloc_oh[i]) begin
+                w_age_next[i] = w_age_addr_new;
+            end else if (data_alloc_oh[i]) begin
+                w_age_next[i] = w_age_data_new;
+            end else if (resp_alloc_oh[i]) begin
+                w_age_next[i] = w_age_resp_new;
+            end else if (cam_entry_valid[i] && !w_freeing_oh[i]) begin
+                // Close the gaps left by entries freed ahead of us.
+                for (int j = 0; j < N; j++) begin
+                    if (w_freeing_oh[j] && (r_age[j] < r_age[i])) begin
+                        dec++;
+                    end
+                end
+                w_age_next[i] = r_age[i] - AGEW'(dec);
+            end
+        end
+    end
+
+    generate
+        for (genvar ga = 0; ga < N; ga++) begin : g_age
+            `ALWAYS_FF_RST(aclk, aresetn,
+                if (`RST_ASSERTED(aresetn)) begin
+                    r_age[ga] <= '0;
+                end else if (clear) begin
+                    r_age[ga] <= '0;
+                end else begin
+                    r_age[ga] <= w_age_next[ga];
+                end
+            )
+        end
+    endgenerate
 
     // ------------------------------------------------------------------------
     // Per-slot next-state computation.
@@ -296,8 +676,12 @@ module axi_monitor_trans_mgr
     //     same slot (alloc is gated to free slots, update to valid).
     //   * Same for data_alloc/data_update and resp_alloc/resp_update.
     //   * Cleanup is applied last (overrides same-cycle valid set).
-    //   * event_reported feedback is last (a cleaned-up entry must not
-    //     get its event_reported re-set).
+    //   * event_reported feedback is last. Ordering alone is NOT enough
+    //     here: it stops a cleaned-up entry from having its flag re-set,
+    //     but the reporter's flag outlives the entry it describes by
+    //     ~2 cycles, so a slot REALLOCATED in that window would come up
+    //     pre-marked. r_rpt_stale_mask covers that case -- see the
+    //     feedback block below (issue #41 defect 3).
     // ------------------------------------------------------------------------
     generate
         for (genvar gi = 0; gi < N; gi++) begin : g_entry_next
@@ -326,6 +710,10 @@ module axi_monitor_trans_mgr
                     next.state                 = TRANS_ADDR_PHASE;
                     next.id                    = '0;
                     next.id[IW-1:0]            = cmd_id;
+                    // DELIBERATE TRUNCATION (issue #41): bus_transaction_t.addr
+                    // is 32 bits. With ADDR_WIDTH > 32 the upper bits are
+                    // dropped here and never reach the packet -- see the
+                    // "KNOWN LIMITATION" note in the parameter block above.
                     next.addr                  = 32'(cmd_addr);
                     next.len                   = cmd_len;
                     next.size                  = cmd_size;
@@ -393,10 +781,20 @@ module axi_monitor_trans_mgr
                         // Production touches: valid, state, id, channel,
                         // expected_beats, data_started, data_completed,
                         // data_beat_count, data_timestamp,
-                        // event_code.axi_error. All other fields are
-                        // preserved across the alloc (notably
-                        // event_reported, addr/len/size/burst, timers).
+                        // event_code.axi_error. Other fields
+                        // (addr/len/size/burst, timers) are preserved.
+                        //
+                        // ISSUE #41 DEFECT 3: cmd_received and
+                        // event_reported are explicitly CLEARED rather than
+                        // preserved. A free slot still holds the previous
+                        // occupant's payload, so inheriting those two bits
+                        // gave a brand-new orphan a stale "already reported"
+                        // (instantly cleanup-eligible, packet lost) and a
+                        // stale "command received" (which would let it
+                        // capture write-data beats it never asked for).
                         next.valid                 = 1'b1;
+                        next.cmd_received          = 1'b0;
+                        next.event_reported        = 1'b0;
                         next.state                 = TRANS_ORPHANED;
                         next.id                    = '0;
                         if (IS_AXI) begin
@@ -452,9 +850,13 @@ module axi_monitor_trans_mgr
                     end else if (resp_alloc_oh[gi]) begin
                         // Production touches: valid, state, id, channel,
                         // resp_received, resp_timestamp,
-                        // event_code.axi_error. All other fields are
-                        // preserved (notably event_reported).
+                        // event_code.axi_error. Other fields are preserved.
+                        // cmd_received / event_reported are cleared for the
+                        // same reason as the data-orphan path above
+                        // (issue #41 defect 3).
                         next.valid                 = 1'b1;
+                        next.cmd_received          = 1'b0;
+                        next.event_reported        = 1'b0;
                         next.state                 = TRANS_ORPHANED;
                         next.id                    = '0;
                         if (IS_AXI) begin
@@ -473,15 +875,71 @@ module axi_monitor_trans_mgr
                     end
                 end
 
+                // --- TIMEOUT -> TERMINAL STATE ---
+                //
+                // ISSUE #41 (cross-agent: axi_monitor_timeout owns detection,
+                // trans_mgr owns the table). A timed-out transaction must be
+                // moved to a terminal state so w_can_cleanup can eventually
+                // free the slot; otherwise it sits in ADDR/DATA phase for
+                // ever and the table leaks an entry per timeout.
+                //
+                // Which timeout code applies is derived from fields this
+                // module already holds, so no extra sideband is needed. The
+                // registered (pre-cycle) payload is read, matching the
+                // convention used by the resp-phase block above.
+                //
+                // Entries already in a terminal state are left alone so a
+                // real error/completion code is not overwritten by a
+                // late-arriving timeout.
+                if (i_timeout_detected[gi] && cam_entry_valid[gi] &&
+                        (cam_entry_payload[gi].state != TRANS_COMPLETE) &&
+                        (cam_entry_payload[gi].state != TRANS_ERROR) &&
+                        (cam_entry_payload[gi].state != TRANS_ORPHANED)) begin
+                    next.state = TRANS_ERROR;
+                    if (!cam_entry_payload[gi].cmd_received) begin
+                        // Command accepted into the table but never handshook.
+                        next.event_code.axi_timeout = EVT_CMD_TIMEOUT;
+                    end else if (cam_entry_payload[gi].data_completed &&
+                                 !cam_entry_payload[gi].resp_received) begin
+                        // Data done, waiting on B.
+                        next.event_code.axi_timeout = EVT_RESP_TIMEOUT;
+                    end else begin
+                        // Waiting on data (either none yet, or mid-burst).
+                        next.event_code.axi_timeout = EVT_DATA_TIMEOUT;
+                    end
+                    next_we = 1'b1;
+                end
+
                 // --- CLEANUP (last; overrides same-cycle valid set) ---
                 if (cam_entry_valid[gi] && w_can_cleanup[gi]) begin
                     next.valid = 1'b0;
                     next_we    = 1'b1;
                 end
 
-                // --- EVENT-REPORTED FEEDBACK (last; cleaned-up entry
-                // must not get event_reported re-set) ---
+                // --- EVENT-REPORTED FEEDBACK (last) ---
+                //
+                // ISSUE #41 DEFECT 3 FIX.
+                //
+                // The reporter derives its flag from a one-cycle-delayed
+                // snapshot of the table, so the flag stays asserted for
+                // ~2 cycles AFTER the slot it refers to has been freed. The
+                // old guard only tested the registered payload, which
+                // protects the OLD entry but says nothing about a NEW one:
+                // a slot reallocated inside that window came up already
+                // marked reported, so it became cleanup-eligible the moment
+                // it completed and the reporter's emission window collapsed
+                // from "hold until reported" to a single cycle.
+                //
+                // Three conditions now gate the feedback:
+                //   * the slot must be live (an alloc lands on an invalid
+                //     slot, so this covers the allocation cycle itself),
+                //   * it must not be going away at this edge, and
+                //   * r_rpt_stale_mask must not still be flagging the flag
+                //     as belonging to the previous occupant.
                 if (i_event_reported_flags[gi] &&
+                        !r_rpt_stale_mask[gi] &&
+                        cam_entry_valid[gi] &&
+                        !w_can_cleanup[gi] &&
                         !cam_entry_payload[gi].event_reported) begin
                     next.event_reported = 1'b1;
                     next_we             = 1'b1;
@@ -561,5 +1019,72 @@ module axi_monitor_trans_mgr
     )
 
     assign state_change = r_state_change;
+
+
+`ifdef FORMAL
+    // ========================================================================
+    // In-RTL formal properties (flattened into the formal build by sv2v, which
+    // defines FORMAL -- see tools/gen_formal_deps.py). Living here rather than
+    // in the harness gives them full visibility of internal state and means
+    // every proof that includes this module checks them.
+    //
+    // Motivation: the multi-channel saturation wedge shipped under PASSING
+    // formal because the old block_ready property restated the assign rather
+    // than encoding an invariant. These properties encode the two contracts
+    // the fix introduced, so they cannot silently regress.
+    // ========================================================================
+    logic f_past_ok;
+    initial f_past_ok = 1'b0;
+    always_ff @(posedge aclk) f_past_ok <= aresetn;
+
+    // F1: no entry is ever in DATA_PHASE with data_completed set.
+    //
+    // This is the unclosable configuration behind the production saturation
+    // wedge: a stray non-last data beat re-opened a terminal entry to
+    // DATA_PHASE while data_completed stayed 1 -- no future data_last can
+    // close it, no timeout term matched it, and in perf-only builds nothing
+    // could retire it, so each occurrence leaked a table slot until
+    // active_count pinned at MAX and block_ready wedged low permanently.
+    //
+    // Stated as a STATE INVARIANT rather than a transition property on
+    // purpose. Two earlier transition drafts ("terminal states never move to
+    // DATA_PHASE") were refuted by btormc with LEGAL traces: orphan adoption
+    // (late command attaching to a data-first entry) and orphan continuation
+    // (an ORPHANED entry receiving its next non-last beat) both legitimately
+    // enter DATA_PHASE -- with an open burst. Every legal path into
+    // DATA_PHASE has data_completed=0; only the poison sets it with the
+    // burst already closed. The invariant needs no exemptions and catches
+    // the wedge state however it might be reached.
+    // READ-ONLY by construction: writes have no RESP_PHASE state, so a write
+    // entry legitimately waits for B in DATA_PHASE with data_completed=1
+    // (btormc produced exactly that trace when this was unscoped -- the
+    // axi4_*_wr_mon proofs failed on legal write flows). The write data path
+    // is structurally immune to the reopen poison anyway: its WID-less
+    // predicate requires !data_completed, so a closed entry can never be
+    // selected by a stray W beat.
+    always_ff @(posedge aclk) begin
+        if (IS_READ && aresetn && f_past_ok) begin
+            for (int fi = 0; fi < N; fi++) begin
+                if (cam_entry_valid[fi]) begin
+                    ap_no_reopened_complete:
+                        assert (!(cam_entry_payload[fi].state == 3'(TRANS_DATA_PHASE) &&
+                                  cam_entry_payload[fi].data_completed));
+                end
+            end
+        end
+    end
+
+    // F2: the command-entry cap holds. Command-originated entries never
+    // exceed N - CMD_ENTRY_RESERVE, which is what guarantees occupancy can
+    // always drain below the block_ready reopen threshold
+    // (N - CMD_ENTRY_RESERVE + 1). Vacuous when CMD_ENTRY_RESERVE == 0
+    // (small tables run uncapped by design); real for any N >= 16 proof.
+    always_ff @(posedge aclk) begin
+        if (aresetn && f_past_ok && CMD_ENTRY_RESERVE > 0) begin
+            ap_cmd_entry_cap:
+                assert (w_cmd_entry_count <= ($clog2(N+1))'(N - CMD_ENTRY_RESERVE));
+        end
+    end
+`endif
 
 endmodule : axi_monitor_trans_mgr

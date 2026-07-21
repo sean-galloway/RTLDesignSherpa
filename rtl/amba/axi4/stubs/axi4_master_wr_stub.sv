@@ -99,6 +99,9 @@ module axi4_master_wr_stub
         .wr_data                (fub_axi_aw_pkt),
         .rd_valid               (m_axi_awvalid),
         .rd_ready               (m_axi_awready),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count                  (),
+        /* verilator lint_on PINCONNECTEMPTY */
         .rd_count               (fub_axi_aw_count),
         .rd_data                ({m_axi_awid,m_axi_awaddr,m_axi_awlen,m_axi_awsize,m_axi_awburst,
                                     m_axi_awlock,m_axi_awcache,m_axi_awprot,m_axi_awqos,
@@ -115,7 +118,11 @@ module axi4_master_wr_stub
         .wr_data                (fub_axi_w_pkt),
         .rd_valid               (m_axi_wvalid),
         .rd_ready               (m_axi_wready),
-        .rd_data                ({m_axi_wdata,m_axi_wstrb,m_axi_wlast,m_axi_wuser})
+        .rd_data                ({m_axi_wdata,m_axi_wstrb,m_axi_wlast,m_axi_wuser}),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count                  (),
+        .rd_count               ()
+        /* verilator lint_on PINCONNECTEMPTY */
     );
 
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -128,7 +135,11 @@ module axi4_master_wr_stub
         .wr_data                ({m_axi_bid,m_axi_bresp,m_axi_buser}),
         .rd_valid               (fub_axi_bvalid),
         .rd_ready               (fub_axi_bready),
-        .rd_data                (fub_axi_b_pkt)
+        .rd_data                (fub_axi_b_pkt),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count                  (),
+        .rd_count               ()
+        /* verilator lint_on PINCONNECTEMPTY */
     );
 
 endmodule : axi4_master_wr_stub

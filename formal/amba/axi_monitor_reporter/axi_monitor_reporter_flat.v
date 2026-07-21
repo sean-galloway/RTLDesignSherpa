@@ -306,7 +306,8 @@ module axi_monitor_reporter_perf (
 							r_completed_count <= r_completed_count + 1'b1;
 					end
 			end
-			r_state <= w_next_state;
+			if (!(pkt_valid && !pkt_taken))
+				r_state <= w_next_state;
 		end
 	localparam [3:0] monitor_common_pkg_PktTypePerf = 4'h4;
 	function automatic [63:0] sv2v_cast_64;
@@ -332,8 +333,6 @@ module axi_monitor_reporter_perf (
 			pkt_data = sv2v_cast_64(r_error_count);
 		end
 	end
-	wire unused_pkt_taken;
-	assign unused_pkt_taken = pkt_taken;
 	initial _sv2v_0 = 0;
 endmodule
 module axi_monitor_reporter_threshold (
@@ -433,7 +432,7 @@ module axi_monitor_reporter_threshold (
 						else
 							lat = trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 55-:32] - trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 119-:32];
 						r_latency[idx] <= lat;
-						r_latency_over_thresh[idx] <= ((trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3)) && (lat > latency_threshold)) && !r_latency_crossed;
+						r_latency_over_thresh[idx] <= (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3)) && (lat > latency_threshold);
 					end
 			end
 			if (((w_active_detect && pkt_taken) && (pkt_type == monitor_common_pkg_PktTypeThreshold)) && (pkt_event_code == 8'h00))
@@ -442,6 +441,8 @@ module axi_monitor_reporter_threshold (
 				r_active_crossed <= 1'b0;
 			if (((w_has_lat && pkt_taken) && (pkt_type == monitor_common_pkg_PktTypeThreshold)) && (pkt_event_code == 8'h01))
 				r_latency_crossed <= 1'b1;
+			else if (!w_has_lat)
+				r_latency_crossed <= 1'b0;
 		end
 	always @(*) begin
 		if (_sv2v_0)
@@ -457,7 +458,7 @@ module axi_monitor_reporter_threshold (
 			pkt_data = sv2v_cast_64(w_active_count);
 			pkt_channel = 1'sb0;
 		end
-		else if (w_has_lat && !output_busy) begin
+		else if ((w_has_lat && !r_latency_crossed) && !output_busy) begin
 			pkt_valid = 1'b1;
 			pkt_event_code = 8'h01;
 			pkt_data = pad_address(r_latency[w_lat_sel]);
@@ -1033,26 +1034,57 @@ module axi_monitor_reporter (
 			w_fifo_wr_data[63-:64] = compl_data;
 		end
 	end
-	assign w_fifo_rd_ready = monbus_ready && monbus_valid;
+	assign w_fifo_rd_ready = !monbus_valid;
 	reg [MAX_TRANSACTIONS - 1:0] w_events_to_mark;
 	reg [MAX_TRANSACTIONS - 1:0] w_error_events;
 	reg [MAX_TRANSACTIONS - 1:0] w_completion_events;
+	wire w_fifo_wr_accept;
+	reg [IDX_W - 1:0] w_mark_idx;
+	reg w_mark_is_error;
+	reg w_mark_is_compl;
+	assign w_fifo_wr_accept = w_fifo_wr_valid && w_fifo_wr_ready;
 	always @(*) begin
 		if (_sv2v_0)
 			;
 		w_events_to_mark = 1'sb0;
 		w_error_events = 1'sb0;
 		w_completion_events = 1'sb0;
+		w_mark_idx = 1'sb0;
+		w_mark_is_error = 1'b0;
+		w_mark_is_compl = 1'b0;
+		if (err_valid) begin
+			w_mark_idx = err_idx;
+			w_mark_is_error = 1'b1;
+		end
+		else if (to_valid) begin
+			w_mark_idx = to_idx;
+			w_mark_is_error = 1'b1;
+		end
+		else if (compl_valid) begin
+			w_mark_idx = compl_idx;
+			w_mark_is_compl = 1'b1;
+		end
+		if (w_fifo_wr_accept) begin
+			w_events_to_mark[w_mark_idx] = 1'b1;
+			w_error_events[w_mark_idx] = w_mark_is_error;
+			w_completion_events[w_mark_idx] = w_mark_is_compl;
+		end
+	end
+	reg [MAX_TRANSACTIONS - 1:0] w_auto_retire;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_auto_retire = 1'sb0;
 		begin : sv2v_autoblock_1
 			reg signed [31:0] idx;
 			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if ((((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && (((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h4) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h5)) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3))) && !r_event_reported[idx]) && w_fifo_wr_valid) && w_fifo_wr_ready) begin
-					w_events_to_mark[idx] = 1'b1;
-					if ((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h4) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h5))
-						w_error_events[idx] = 1'b1;
-					else if (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3)
-						w_completion_events[idx] = 1'b1;
-				end
+				if (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284])
+					case (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3])
+						3'h3: w_auto_retire[idx] = !ENABLE_COMPL_LOGIC;
+						3'h4, 3'h5: w_auto_retire[idx] = !ENABLE_ERROR_LOGIC && !ENABLE_TIMEOUT_LOGIC;
+						default:
+							;
+					endcase
 		end
 	end
 	wire thresh_valid;
@@ -1171,6 +1203,10 @@ module axi_monitor_reporter (
 	reg [8:0] r_event_channel;
 	localparam [7:0] monitor_amba4_pkg_EVT_NONE = 8'h00;
 	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
+	function automatic [15:0] sv2v_cast_16;
+		input reg [15:0] inp;
+		sv2v_cast_16 = inp;
+	endfunction
 	always @(posedge aclk)
 		if (!aresetn) begin
 			begin : sv2v_autoblock_2
@@ -1199,11 +1235,10 @@ module axi_monitor_reporter (
 				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
 					if (!r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284])
 						r_event_reported[idx] <= 1'b0;
-					else if (w_events_to_mark[idx]) begin
+					else if (w_events_to_mark[idx] || w_auto_retire[idx])
 						r_event_reported[idx] <= 1'b1;
-						r_event_count <= r_event_count + 1'b1;
-					end
 			end
+			r_event_count <= (r_event_count + sv2v_cast_16(w_fifo_wr_accept)) + sv2v_cast_16(thresh_taken);
 			if (!monbus_valid && w_fifo_rd_valid) begin
 				monbus_valid <= 1'b1;
 				r_packet_type <= w_fifo_rd_data[84-:4];
@@ -1217,7 +1252,6 @@ module axi_monitor_reporter (
 				r_event_code <= thresh_code;
 				r_event_data <= thresh_data;
 				r_event_channel <= thresh_chan;
-				r_event_count <= r_event_count + 1'b1;
 			end
 			else if ((perf_valid && !monbus_valid) && !w_fifo_rd_valid) begin
 				monbus_valid <= 1'b1;

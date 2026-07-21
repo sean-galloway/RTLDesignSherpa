@@ -703,7 +703,8 @@ module axi_monitor_reporter_perf (
 							r_completed_count <= r_completed_count + 1'b1;
 					end
 			end
-			r_state <= w_next_state;
+			if (!(pkt_valid && !pkt_taken))
+				r_state <= w_next_state;
 		end
 	localparam [3:0] monitor_common_pkg_PktTypePerf = 4'h4;
 	function automatic [63:0] sv2v_cast_64;
@@ -729,8 +730,6 @@ module axi_monitor_reporter_perf (
 			pkt_data = sv2v_cast_64(r_error_count);
 		end
 	end
-	wire unused_pkt_taken;
-	assign unused_pkt_taken = pkt_taken;
 	initial _sv2v_0 = 0;
 endmodule
 module axi_monitor_reporter_threshold (
@@ -830,7 +829,7 @@ module axi_monitor_reporter_threshold (
 						else
 							lat = trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 55-:32] - trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 119-:32];
 						r_latency[idx] <= lat;
-						r_latency_over_thresh[idx] <= ((trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3)) && (lat > latency_threshold)) && !r_latency_crossed;
+						r_latency_over_thresh[idx] <= (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3)) && (lat > latency_threshold);
 					end
 			end
 			if (((w_active_detect && pkt_taken) && (pkt_type == monitor_common_pkg_PktTypeThreshold)) && (pkt_event_code == 8'h00))
@@ -839,6 +838,8 @@ module axi_monitor_reporter_threshold (
 				r_active_crossed <= 1'b0;
 			if (((w_has_lat && pkt_taken) && (pkt_type == monitor_common_pkg_PktTypeThreshold)) && (pkt_event_code == 8'h01))
 				r_latency_crossed <= 1'b1;
+			else if (!w_has_lat)
+				r_latency_crossed <= 1'b0;
 		end
 	always @(*) begin
 		if (_sv2v_0)
@@ -854,7 +855,7 @@ module axi_monitor_reporter_threshold (
 			pkt_data = sv2v_cast_64(w_active_count);
 			pkt_channel = 1'sb0;
 		end
-		else if (w_has_lat && !output_busy) begin
+		else if ((w_has_lat && !r_latency_crossed) && !output_busy) begin
 			pkt_valid = 1'b1;
 			pkt_event_code = 8'h01;
 			pkt_data = pad_address(r_latency[w_lat_sel]);
@@ -1430,26 +1431,57 @@ module axi_monitor_reporter (
 			w_fifo_wr_data[63-:64] = compl_data;
 		end
 	end
-	assign w_fifo_rd_ready = monbus_ready && monbus_valid;
+	assign w_fifo_rd_ready = !monbus_valid;
 	reg [MAX_TRANSACTIONS - 1:0] w_events_to_mark;
 	reg [MAX_TRANSACTIONS - 1:0] w_error_events;
 	reg [MAX_TRANSACTIONS - 1:0] w_completion_events;
+	wire w_fifo_wr_accept;
+	reg [IDX_W - 1:0] w_mark_idx;
+	reg w_mark_is_error;
+	reg w_mark_is_compl;
+	assign w_fifo_wr_accept = w_fifo_wr_valid && w_fifo_wr_ready;
 	always @(*) begin
 		if (_sv2v_0)
 			;
 		w_events_to_mark = 1'sb0;
 		w_error_events = 1'sb0;
 		w_completion_events = 1'sb0;
+		w_mark_idx = 1'sb0;
+		w_mark_is_error = 1'b0;
+		w_mark_is_compl = 1'b0;
+		if (err_valid) begin
+			w_mark_idx = err_idx;
+			w_mark_is_error = 1'b1;
+		end
+		else if (to_valid) begin
+			w_mark_idx = to_idx;
+			w_mark_is_error = 1'b1;
+		end
+		else if (compl_valid) begin
+			w_mark_idx = compl_idx;
+			w_mark_is_compl = 1'b1;
+		end
+		if (w_fifo_wr_accept) begin
+			w_events_to_mark[w_mark_idx] = 1'b1;
+			w_error_events[w_mark_idx] = w_mark_is_error;
+			w_completion_events[w_mark_idx] = w_mark_is_compl;
+		end
+	end
+	reg [MAX_TRANSACTIONS - 1:0] w_auto_retire;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_auto_retire = 1'sb0;
 		begin : sv2v_autoblock_1
 			reg signed [31:0] idx;
 			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if ((((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && (((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h4) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h5)) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3))) && !r_event_reported[idx]) && w_fifo_wr_valid) && w_fifo_wr_ready) begin
-					w_events_to_mark[idx] = 1'b1;
-					if ((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h4) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h5))
-						w_error_events[idx] = 1'b1;
-					else if (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3)
-						w_completion_events[idx] = 1'b1;
-				end
+				if (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284])
+					case (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3])
+						3'h3: w_auto_retire[idx] = !ENABLE_COMPL_LOGIC;
+						3'h4, 3'h5: w_auto_retire[idx] = !ENABLE_ERROR_LOGIC && !ENABLE_TIMEOUT_LOGIC;
+						default:
+							;
+					endcase
 		end
 	end
 	wire thresh_valid;
@@ -1568,6 +1600,10 @@ module axi_monitor_reporter (
 	reg [8:0] r_event_channel;
 	localparam [7:0] monitor_amba4_pkg_EVT_NONE = 8'h00;
 	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
+	function automatic [15:0] sv2v_cast_16;
+		input reg [15:0] inp;
+		sv2v_cast_16 = inp;
+	endfunction
 	always @(posedge aclk)
 		if (!aresetn) begin
 			begin : sv2v_autoblock_2
@@ -1596,11 +1632,10 @@ module axi_monitor_reporter (
 				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
 					if (!r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284])
 						r_event_reported[idx] <= 1'b0;
-					else if (w_events_to_mark[idx]) begin
+					else if (w_events_to_mark[idx] || w_auto_retire[idx])
 						r_event_reported[idx] <= 1'b1;
-						r_event_count <= r_event_count + 1'b1;
-					end
 			end
+			r_event_count <= (r_event_count + sv2v_cast_16(w_fifo_wr_accept)) + sv2v_cast_16(thresh_taken);
 			if (!monbus_valid && w_fifo_rd_valid) begin
 				monbus_valid <= 1'b1;
 				r_packet_type <= w_fifo_rd_data[84-:4];
@@ -1614,7 +1649,6 @@ module axi_monitor_reporter (
 				r_event_code <= thresh_code;
 				r_event_data <= thresh_data;
 				r_event_channel <= thresh_chan;
-				r_event_count <= r_event_count + 1'b1;
 			end
 			else if ((perf_valid && !monbus_valid) && !w_fifo_rd_valid) begin
 				monbus_valid <= 1'b1;
@@ -1664,6 +1698,7 @@ module axi_monitor_timeout (
 	cfg_timeout_enable,
 	timeout_detected
 );
+	reg _sv2v_0;
 	parameter signed [31:0] MAX_TRANSACTIONS = 16;
 	parameter signed [31:0] ADDR_WIDTH = 32;
 	parameter [0:0] IS_READ = 1;
@@ -1676,62 +1711,90 @@ module axi_monitor_timeout (
 	input wire [3:0] cfg_resp_cnt;
 	input wire cfg_timeout_enable;
 	output wire [MAX_TRANSACTIONS - 1:0] timeout_detected;
-	reg [284:0] r_trans_table_local [0:MAX_TRANSACTIONS - 1];
+	localparam signed [31:0] TIMER_W = 8;
+	reg [7:0] r_addr_timer [0:MAX_TRANSACTIONS - 1];
+	reg [7:0] r_data_timer [0:MAX_TRANSACTIONS - 1];
+	reg [7:0] r_resp_timer [0:MAX_TRANSACTIONS - 1];
 	reg [MAX_TRANSACTIONS - 1:0] r_timeout_detected;
-	assign timeout_detected = r_timeout_detected;
-	localparam [7:0] monitor_amba4_pkg_EVT_CMD_TIMEOUT = 8'h00;
-	localparam [7:0] monitor_amba4_pkg_EVT_DATA_TIMEOUT = 8'h01;
-	localparam [7:0] monitor_amba4_pkg_EVT_RESP_TIMEOUT = 8'h02;
+	assign timeout_detected = (cfg_timeout_enable ? r_timeout_detected : {MAX_TRANSACTIONS {1'b0}});
+	reg [MAX_TRANSACTIONS - 1:0] w_addr_pending;
+	reg [MAX_TRANSACTIONS - 1:0] w_data_pending;
+	reg [MAX_TRANSACTIONS - 1:0] w_resp_pending;
+	reg [MAX_TRANSACTIONS - 1:0] w_slot_retired;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_1
+			reg signed [31:0] idx;
+			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+				begin
+					w_addr_pending[idx] = (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h1)) && !trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 283];
+					w_data_pending[idx] = ((trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && ((trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h1) || (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h2))) && trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 283]) && !trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 281];
+					w_resp_pending[idx] = (((!IS_READ && trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284]) && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h2)) && trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 281]) && !trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 280];
+					w_slot_retired[idx] = (!trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] || (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3)) || (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h0);
+				end
+		end
+	end
 	always @(posedge aclk)
 		if (!aresetn) begin
-			begin : sv2v_autoblock_1
-				reg signed [31:0] idx;
-				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					r_trans_table_local[idx] <= 1'sb0;
-			end
-			r_timeout_detected <= 1'sb0;
-		end
-		else begin
 			begin : sv2v_autoblock_2
 				reg signed [31:0] idx;
 				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
 					begin
-						r_trans_table_local[idx] <= trans_table[((MAX_TRANSACTIONS - 1) - idx) * 285+:285];
-						if (((trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3) || (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h4)) || (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h0))
-							r_timeout_detected[idx] <= 1'b0;
+						r_addr_timer[idx] <= 1'sb0;
+						r_data_timer[idx] <= 1'sb0;
+						r_resp_timer[idx] <= 1'sb0;
 					end
 			end
-			if (timer_tick) begin : sv2v_autoblock_3
+			r_timeout_detected <= 1'sb0;
+		end
+		else if (!cfg_timeout_enable) begin
+			r_timeout_detected <= 1'sb0;
+			begin : sv2v_autoblock_3
 				reg signed [31:0] idx;
 				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					if (r_trans_table_local[idx][284] && !r_timeout_detected[idx]) begin
-						if ((r_trans_table_local[idx][277-:3] == 3'h1) && !r_trans_table_local[idx][283]) begin
-							r_trans_table_local[idx][215-:32] <= r_trans_table_local[idx][215-:32] + 1'b1;
-							if (r_trans_table_local[idx][215-:32] >= {12'h000, cfg_addr_cnt}) begin
-								r_trans_table_local[idx][277-:3] <= 3'h4;
-								r_trans_table_local[idx][7-:8] <= monitor_amba4_pkg_EVT_CMD_TIMEOUT;
-								r_timeout_detected[idx] <= 1'b1;
-							end
-						end
-						if (((((r_trans_table_local[idx][277-:3] == 3'h1) || (r_trans_table_local[idx][277-:3] == 3'h2)) && r_trans_table_local[idx][283]) && r_trans_table_local[idx][282]) && !r_trans_table_local[idx][281]) begin
-							r_trans_table_local[idx][183-:32] <= r_trans_table_local[idx][183-:32] + 1'b1;
-							if (r_trans_table_local[idx][183-:32] >= {12'h000, cfg_data_cnt}) begin
-								r_trans_table_local[idx][277-:3] <= 3'h4;
-								r_trans_table_local[idx][7-:8] <= monitor_amba4_pkg_EVT_DATA_TIMEOUT;
-								r_timeout_detected[idx] <= 1'b1;
-							end
-						end
-						if (((!IS_READ && (r_trans_table_local[idx][277-:3] == 3'h2)) && r_trans_table_local[idx][281]) && !r_trans_table_local[idx][280]) begin
-							r_trans_table_local[idx][151-:32] <= r_trans_table_local[idx][151-:32] + 1'b1;
-							if (r_trans_table_local[idx][151-:32] >= {12'h000, cfg_resp_cnt}) begin
-								r_trans_table_local[idx][277-:3] <= 3'h4;
-								r_trans_table_local[idx][7-:8] <= monitor_amba4_pkg_EVT_RESP_TIMEOUT;
-								r_timeout_detected[idx] <= 1'b1;
-							end
-						end
+					begin
+						r_addr_timer[idx] <= 1'sb0;
+						r_data_timer[idx] <= 1'sb0;
+						r_resp_timer[idx] <= 1'sb0;
 					end
 			end
 		end
+		else begin : sv2v_autoblock_4
+			reg signed [31:0] idx;
+			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+				begin
+					if (w_slot_retired[idx])
+						r_timeout_detected[idx] <= 1'b0;
+					if (!w_addr_pending[idx])
+						r_addr_timer[idx] <= 1'sb0;
+					if (!w_data_pending[idx])
+						r_data_timer[idx] <= 1'sb0;
+					if (!w_resp_pending[idx])
+						r_resp_timer[idx] <= 1'sb0;
+					if ((cfg_timeout_enable && timer_tick) && !r_timeout_detected[idx]) begin
+						if (w_addr_pending[idx]) begin
+							if (r_addr_timer[idx] >= {4'h0, cfg_addr_cnt})
+								r_timeout_detected[idx] <= 1'b1;
+							else
+								r_addr_timer[idx] <= r_addr_timer[idx] + 1'b1;
+						end
+						if (w_data_pending[idx]) begin
+							if (r_data_timer[idx] >= {4'h0, cfg_data_cnt})
+								r_timeout_detected[idx] <= 1'b1;
+							else
+								r_data_timer[idx] <= r_data_timer[idx] + 1'b1;
+						end
+						if (w_resp_pending[idx]) begin
+							if (r_resp_timer[idx] >= {4'h0, cfg_resp_cnt})
+								r_timeout_detected[idx] <= 1'b1;
+							else
+								r_resp_timer[idx] <= r_resp_timer[idx] + 1'b1;
+						end
+					end
+				end
+		end
+	initial _sv2v_0 = 0;
 endmodule
 module counter_load_clear (
 	clk,
@@ -2149,6 +2212,7 @@ module axi_monitor_trans_mgr (
 	resp_code,
 	timestamp,
 	i_event_reported_flags,
+	i_timeout_detected,
 	trans_table,
 	active_count,
 	state_change
@@ -2183,11 +2247,17 @@ module axi_monitor_trans_mgr (
 	input wire [1:0] resp_code;
 	input wire [31:0] timestamp;
 	input wire [MAX_TRANSACTIONS - 1:0] i_event_reported_flags;
+	input wire [MAX_TRANSACTIONS - 1:0] i_timeout_detected;
 	output wire [(MAX_TRANSACTIONS * 285) - 1:0] trans_table;
 	output wire [7:0] active_count;
 	output wire [MAX_TRANSACTIONS - 1:0] state_change;
 	localparam signed [31:0] N = MAX_TRANSACTIONS;
 	localparam signed [31:0] PAYLOAD_W = 285;
+	generate
+		if (ID_WIDTH > 8) begin : gen_id_width_unsupported
+			initial $display("Error [elaboration] /tmp/formal_axi4_slave_rd_mon/axi_monitor_trans_mgr.sv:163:9 - axi_monitor_trans_mgr.gen_id_width_unsupported\n msg: ", "axi_monitor_trans_mgr: ID_WIDTH=%0d exceeds the 8-bit id field in bus_transaction_t; the table and the CAM key would disagree. Widen bus_transaction_t.id or reduce ID_WIDTH.", ID_WIDTH);
+		end
+	endgenerate
 	wire [N - 1:0] addr_match_oh;
 	wire [N - 1:0] data_match_oh;
 	wire [N - 1:0] resp_match_oh;
@@ -2235,51 +2305,63 @@ module axi_monitor_trans_mgr (
 		.entry_id(),
 		.entry_payload(cam_entry_payload)
 	);
+	localparam signed [31:0] AGEW = (N > 1 ? $clog2(N) : 1);
+	reg [AGEW - 1:0] r_age [0:N - 1];
+	reg [(N * AGEW) - 1:0] w_age_flat;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_1
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				w_age_flat[i * AGEW+:AGEW] = r_age[i];
+		end
+	end
+	function automatic signed [AGEW - 1:0] sv2v_cast_D1065_signed;
+		input reg signed [AGEW - 1:0] inp;
+		sv2v_cast_D1065_signed = inp;
+	endfunction
+	function automatic [N - 1:0] pick_oldest;
+		input reg [N - 1:0] cand;
+		input reg [(N * AGEW) - 1:0] ages;
+		reg [N - 1:0] res;
+		reg found;
+		begin
+			res = 1'sb0;
+			found = 1'b0;
+			begin : sv2v_autoblock_2
+				reg signed [31:0] r;
+				for (r = 0; r < N; r = r + 1)
+					begin : sv2v_autoblock_3
+						reg signed [31:0] i;
+						for (i = 0; i < N; i = i + 1)
+							if ((!found && cand[i]) && (ages[i * AGEW+:AGEW] == sv2v_cast_D1065_signed(r))) begin
+								res[i] = 1'b1;
+								found = 1'b1;
+							end
+					end
+			end
+			pick_oldest = res;
+		end
+	endfunction
 	(* keep = "true" *) reg [N - 1:0] w_data_state_pred_oh;
 	reg [N - 1:0] w_data_state_first_oh;
 	always @(*) begin
 		if (_sv2v_0)
 			;
 		w_data_state_first_oh = 1'sb0;
-		begin : sv2v_autoblock_1
+		begin : sv2v_autoblock_4
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
 				w_data_state_pred_oh[i] = ((cam_entry_valid[i] && ((cam_entry_payload[(((N - 1) - i) * 285) + 277-:3] == 3'h1) || (cam_entry_payload[(((N - 1) - i) * 285) + 277-:3] == 3'h2))) && cam_entry_payload[(((N - 1) - i) * 285) + 283]) && !cam_entry_payload[(((N - 1) - i) * 285) + 281];
 		end
-		begin : sv2v_autoblock_2
-			reg signed [31:0] i;
-			for (i = 0; i < N; i = i + 1)
-				if (w_data_state_pred_oh[i] && (w_data_state_first_oh == {N {1'sb0}}))
-					w_data_state_first_oh[i] = 1'b1;
-		end
+		w_data_state_first_oh = pick_oldest(w_data_state_pred_oh, w_age_flat);
 	end
-	wire addr_hit_any;
-	wire data_hit_any;
-	wire resp_hit_any;
-	assign addr_hit_any = |addr_match_oh;
-	assign resp_hit_any = |resp_match_oh;
-	assign data_hit_any = (IS_READ ? |data_match_oh : |w_data_state_pred_oh);
-	assign addr_wants_alloc = cmd_valid && !addr_hit_any;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		if (IS_READ)
-			data_wants_alloc = (data_valid && data_ready) && !data_hit_any;
-		else
-			data_wants_alloc = ((data_valid && data_ready) && !IS_AXI) && !data_hit_any;
-		resp_wants_alloc = ((!IS_READ && resp_valid) && resp_ready) && !resp_hit_any;
-	end
-	wire [N - 1:0] addr_update_oh;
-	wire [N - 1:0] data_update_oh;
-	wire [N - 1:0] resp_update_oh;
-	assign addr_update_oh = addr_match_oh;
-	assign data_update_oh = (IS_READ ? data_match_oh : w_data_state_first_oh);
-	assign resp_update_oh = resp_match_oh;
 	reg [N - 1:0] w_can_cleanup;
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_3
+		begin : sv2v_autoblock_5
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
 				if (cam_entry_valid[i])
@@ -2292,6 +2374,89 @@ module axi_monitor_trans_mgr (
 					w_can_cleanup[i] = 1'b0;
 		end
 	end
+	reg [N - 1:0] w_freeing_oh;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_6
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				w_freeing_oh[i] = cam_entry_valid[i] && w_can_cleanup[i];
+		end
+	end
+	reg [N - 1:0] w_addr_pend_oh;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_7
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				w_addr_pend_oh[i] = (addr_match_oh[i] && !cam_entry_payload[(((N - 1) - i) * 285) + 283]) && !w_freeing_oh[i];
+		end
+	end
+	wire addr_hit_any;
+	wire data_hit_any;
+	wire resp_hit_any;
+	assign addr_hit_any = |w_addr_pend_oh;
+	assign resp_hit_any = |resp_match_oh;
+	assign data_hit_any = (IS_READ ? |data_match_oh : |w_data_state_pred_oh);
+	function automatic signed [31:0] monitor_common_pkg_cmd_entry_reserve;
+		input reg signed [31:0] max_transactions;
+		monitor_common_pkg_cmd_entry_reserve = (max_transactions >= 16 ? 2 : 0);
+	endfunction
+	localparam signed [31:0] CMD_ENTRY_RESERVE = monitor_common_pkg_cmd_entry_reserve(N);
+	reg [$clog2(N + 1) - 1:0] w_cmd_entry_count;
+	function automatic signed [$clog2(N + 1) - 1:0] sv2v_cast_54CAC_signed;
+		input reg signed [$clog2(N + 1) - 1:0] inp;
+		sv2v_cast_54CAC_signed = inp;
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_cmd_entry_count = 1'sb0;
+		begin : sv2v_autoblock_8
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				if (cam_entry_valid[i] && (cam_entry_payload[(((N - 1) - i) * 285) + 283] || (cam_entry_payload[(((N - 1) - i) * 285) + 277-:3] == 3'h1)))
+					w_cmd_entry_count = w_cmd_entry_count + sv2v_cast_54CAC_signed(1);
+		end
+	end
+	wire w_cmd_headroom;
+	assign w_cmd_headroom = (CMD_ENTRY_RESERVE == 0) || (w_cmd_entry_count < sv2v_cast_54CAC_signed(N - CMD_ENTRY_RESERVE));
+	assign addr_wants_alloc = (cmd_valid && !addr_hit_any) && w_cmd_headroom;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (IS_READ)
+			data_wants_alloc = (data_valid && data_ready) && !data_hit_any;
+		else
+			data_wants_alloc = ((data_valid && data_ready) && !IS_AXI) && !data_hit_any;
+		resp_wants_alloc = ((!IS_READ && resp_valid) && resp_ready) && !resp_hit_any;
+	end
+	wire [N - 1:0] addr_update_oh;
+	wire [N - 1:0] data_update_oh;
+	wire [N - 1:0] resp_update_oh;
+	reg [N - 1:0] w_data_cand_open;
+	reg [N - 1:0] w_data_cand_any;
+	reg [N - 1:0] w_resp_cand_open;
+	reg [N - 1:0] w_resp_cand_any;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_9
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				begin
+					w_data_cand_any[i] = data_match_oh[i] && !w_freeing_oh[i];
+					w_data_cand_open[i] = w_data_cand_any[i] && !cam_entry_payload[(((N - 1) - i) * 285) + 281];
+					w_resp_cand_any[i] = resp_match_oh[i] && !w_freeing_oh[i];
+					w_resp_cand_open[i] = w_resp_cand_any[i] && !cam_entry_payload[(((N - 1) - i) * 285) + 280];
+				end
+		end
+	end
+	assign addr_update_oh = pick_oldest(w_addr_pend_oh, w_age_flat);
+	assign data_update_oh = (IS_READ ? (|w_data_cand_open ? pick_oldest(w_data_cand_open, w_age_flat) : (data_last ? pick_oldest(w_data_cand_any, w_age_flat) : {N {1'sb0}})) : w_data_state_first_oh);
+	assign resp_update_oh = (|w_resp_cand_open ? pick_oldest(w_resp_cand_open, w_age_flat) : pick_oldest(w_resp_cand_any, w_age_flat));
 	reg [5:0] w_addr_chan_idx;
 	always @(*) begin
 		if (_sv2v_0)
@@ -2300,12 +2465,95 @@ module axi_monitor_trans_mgr (
 	end
 	wire cmd_handshake;
 	assign cmd_handshake = cmd_valid && cmd_ready;
+	reg [N - 1:0] r_rpt_stale_mask;
+	always @(posedge aclk)
+		if (!aresetn)
+			r_rpt_stale_mask <= 1'sb0;
+		else if (clear)
+			r_rpt_stale_mask <= 1'sb0;
+		else begin : sv2v_autoblock_10
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				if (w_freeing_oh[i])
+					r_rpt_stale_mask[i] <= 1'b1;
+				else if (!i_event_reported_flags[i])
+					r_rpt_stale_mask[i] <= 1'b0;
+		end
+	wire w_addr_alloc_fire;
+	wire w_data_alloc_fire;
+	wire w_resp_alloc_fire;
+	assign w_addr_alloc_fire = |addr_alloc_oh;
+	assign w_data_alloc_fire = |data_alloc_oh;
+	assign w_resp_alloc_fire = |resp_alloc_oh;
+	reg [AGEW - 1:0] w_age_addr_new;
+	reg [AGEW - 1:0] w_age_data_new;
+	reg [AGEW - 1:0] w_age_resp_new;
+	always @(*) begin : sv2v_autoblock_11
+		reg signed [31:0] surv;
+		if (_sv2v_0)
+			;
+		surv = 0;
+		begin : sv2v_autoblock_12
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				if (cam_entry_valid[i] && !w_freeing_oh[i])
+					surv = surv + 1;
+		end
+		w_age_addr_new = sv2v_cast_D1065_signed(surv);
+		w_age_data_new = sv2v_cast_D1065_signed(surv + (w_addr_alloc_fire ? 1 : 0));
+		w_age_resp_new = sv2v_cast_D1065_signed((surv + (w_addr_alloc_fire ? 1 : 0)) + (w_data_alloc_fire ? 1 : 0));
+	end
+	reg [AGEW - 1:0] w_age_next [0:N - 1];
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_13
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				begin : sv2v_autoblock_14
+					reg signed [31:0] dec;
+					dec = 0;
+					w_age_next[i] = r_age[i];
+					if (addr_alloc_oh[i])
+						w_age_next[i] = w_age_addr_new;
+					else if (data_alloc_oh[i])
+						w_age_next[i] = w_age_data_new;
+					else if (resp_alloc_oh[i])
+						w_age_next[i] = w_age_resp_new;
+					else if (cam_entry_valid[i] && !w_freeing_oh[i]) begin
+						begin : sv2v_autoblock_15
+							reg signed [31:0] j;
+							for (j = 0; j < N; j = j + 1)
+								if (w_freeing_oh[j] && (r_age[j] < r_age[i]))
+									dec = dec + 1;
+						end
+						w_age_next[i] = r_age[i] - sv2v_cast_D1065_signed(dec);
+					end
+				end
+		end
+	end
+	genvar _gv_ga_1;
+	generate
+		for (_gv_ga_1 = 0; _gv_ga_1 < N; _gv_ga_1 = _gv_ga_1 + 1) begin : g_age
+			localparam ga = _gv_ga_1;
+			always @(posedge aclk)
+				if (!aresetn)
+					r_age[ga] <= 1'sb0;
+				else if (clear)
+					r_age[ga] <= 1'sb0;
+				else
+					r_age[ga] <= w_age_next[ga];
+		end
+	endgenerate
 	genvar _gv_gi_4;
+	localparam [7:0] monitor_amba4_pkg_EVT_CMD_TIMEOUT = 8'h00;
 	localparam [7:0] monitor_amba4_pkg_EVT_DATA_ORPHAN = 8'h02;
+	localparam [7:0] monitor_amba4_pkg_EVT_DATA_TIMEOUT = 8'h01;
 	localparam [7:0] monitor_amba4_pkg_EVT_PROTOCOL = 8'h04;
 	localparam [7:0] monitor_amba4_pkg_EVT_RESP_DECERR = 8'h01;
 	localparam [7:0] monitor_amba4_pkg_EVT_RESP_ORPHAN = 8'h03;
 	localparam [7:0] monitor_amba4_pkg_EVT_RESP_SLVERR = 8'h00;
+	localparam [7:0] monitor_amba4_pkg_EVT_RESP_TIMEOUT = 8'h02;
 	function automatic [31:0] sv2v_cast_32;
 		input reg [31:0] inp;
 		sv2v_cast_32 = inp;
@@ -2381,6 +2629,8 @@ module axi_monitor_trans_mgr (
 					end
 					else if (data_alloc_oh[gi]) begin
 						next[284] = 1'b1;
+						next[283] = 1'b0;
+						next[279] = 1'b0;
 						next[277-:3] = 3'h5;
 						next[242-:8] = 1'sb0;
 						if (IS_AXI) begin
@@ -2422,6 +2672,8 @@ module axi_monitor_trans_mgr (
 					end
 					else if (resp_alloc_oh[gi]) begin
 						next[284] = 1'b1;
+						next[283] = 1'b0;
+						next[279] = 1'b0;
 						next[277-:3] = 3'h5;
 						next[242-:8] = 1'sb0;
 						if (IS_AXI) begin
@@ -2437,11 +2689,21 @@ module axi_monitor_trans_mgr (
 						next_id = (IS_AXI ? resp_id : {IW {1'sb0}});
 					end
 				end
+				if ((((i_timeout_detected[gi] && cam_entry_valid[gi]) && (cam_entry_payload[(((N - 1) - gi) * 285) + 277-:3] != 3'h3)) && (cam_entry_payload[(((N - 1) - gi) * 285) + 277-:3] != 3'h4)) && (cam_entry_payload[(((N - 1) - gi) * 285) + 277-:3] != 3'h5)) begin
+					next[277-:3] = 3'h4;
+					if (!cam_entry_payload[(((N - 1) - gi) * 285) + 283])
+						next[7-:8] = monitor_amba4_pkg_EVT_CMD_TIMEOUT;
+					else if (cam_entry_payload[(((N - 1) - gi) * 285) + 281] && !cam_entry_payload[(((N - 1) - gi) * 285) + 280])
+						next[7-:8] = monitor_amba4_pkg_EVT_RESP_TIMEOUT;
+					else
+						next[7-:8] = monitor_amba4_pkg_EVT_DATA_TIMEOUT;
+					next_we = 1'b1;
+				end
 				if (cam_entry_valid[gi] && w_can_cleanup[gi]) begin
 					next[284] = 1'b0;
 					next_we = 1'b1;
 				end
-				if (i_event_reported_flags[gi] && !cam_entry_payload[(((N - 1) - gi) * 285) + 279]) begin
+				if ((((i_event_reported_flags[gi] && !r_rpt_stale_mask[gi]) && cam_entry_valid[gi]) && !w_can_cleanup[gi]) && !cam_entry_payload[(((N - 1) - gi) * 285) + 279]) begin
 					next[279] = 1'b1;
 					next_we = 1'b1;
 				end
@@ -2459,7 +2721,7 @@ module axi_monitor_trans_mgr (
 		if (_sv2v_0)
 			;
 		w_occupancy = 1'sb0;
-		begin : sv2v_autoblock_4
+		begin : sv2v_autoblock_16
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
 				w_occupancy = w_occupancy + {{$clog2(N + 1) - 1 {1'b0}}, cam_entry_valid[i]};
@@ -2477,7 +2739,7 @@ module axi_monitor_trans_mgr (
 	reg [N - 1:0] r_state_change;
 	always @(posedge aclk)
 		if (!aresetn) begin
-			begin : sv2v_autoblock_5
+			begin : sv2v_autoblock_17
 				reg signed [31:0] i;
 				for (i = 0; i < N; i = i + 1)
 					r_trans_table_prev[((N - 1) - i) * 285+:285] <= 1'sb0;
@@ -2486,13 +2748,28 @@ module axi_monitor_trans_mgr (
 		end
 		else begin
 			r_trans_table_prev <= cam_entry_payload;
-			begin : sv2v_autoblock_6
+			begin : sv2v_autoblock_18
 				reg signed [31:0] i;
 				for (i = 0; i < N; i = i + 1)
 					r_state_change[i] <= (cam_entry_payload[(((N - 1) - i) * 285) + 284] && r_trans_table_prev[(((N - 1) - i) * 285) + 284]) && (cam_entry_payload[(((N - 1) - i) * 285) + 277-:3] != r_trans_table_prev[(((N - 1) - i) * 285) + 277-:3]);
 			end
 		end
 	assign state_change = r_state_change;
+	reg f_past_ok;
+	initial f_past_ok = 1'b0;
+	always @(posedge aclk) f_past_ok <= aresetn;
+	always @(posedge aclk)
+		if (aresetn && f_past_ok) begin : sv2v_autoblock_19
+			reg signed [31:0] fi;
+			for (fi = 0; fi < N; fi = fi + 1)
+				if (cam_entry_valid[fi]) begin : ap_no_reopened_complete
+					assert (!((cam_entry_payload[(((N - 1) - fi) * 285) + 277-:3] == 3'h2) && cam_entry_payload[(((N - 1) - fi) * 285) + 281])) ;
+				end
+		end
+	always @(posedge aclk)
+		if ((aresetn && f_past_ok) && (CMD_ENTRY_RESERVE > 0)) begin : ap_cmd_entry_cap
+			assert (w_cmd_entry_count <= sv2v_cast_54CAC_signed(N - CMD_ENTRY_RESERVE)) ;
+		end
 	initial _sv2v_0 = 0;
 endmodule
 module axi_monitor_base (
@@ -2694,6 +2971,7 @@ module axi_monitor_base (
 		.resp_code(resp_code),
 		.timestamp(r_timestamp),
 		.i_event_reported_flags(w_event_reported_flags),
+		.i_timeout_detected(w_timeout_detected),
 		.trans_table(w_trans_table),
 		.active_count(w_active_count),
 		.state_change(w_state_change_detected)
@@ -2820,7 +3098,12 @@ module axi_monitor_base (
 		end
 	end
 	assign w_addr_pkt_ready = (monbus_ready && !w_reporter_monbus_valid) && !w_debug_monbus_valid;
-	localparam [31:0] BLOCK_MARGIN = 3;
+	function automatic signed [31:0] monitor_common_pkg_cmd_entry_reserve;
+		input reg signed [31:0] max_transactions;
+		monitor_common_pkg_cmd_entry_reserve = (max_transactions >= 16 ? 2 : 0);
+	endfunction
+	localparam [31:0] CMD_ENTRY_RESERVE = $unsigned(monitor_common_pkg_cmd_entry_reserve(MAX_TRANSACTIONS));
+	localparam [31:0] BLOCK_MARGIN = (CMD_ENTRY_RESERVE > 0 ? CMD_ENTRY_RESERVE - 1 : 3);
 	assign block_ready = (MAX_TRANSACTIONS > BLOCK_MARGIN ? {24'h000000, w_active_count} < (MAX_TRANSACTIONS - BLOCK_MARGIN) : 1'b1);
 	assign busy = w_active_count > 0;
 	assign active_count = w_active_count;
@@ -2864,8 +3147,8 @@ module axi_monitor_base (
 		case (cfg_end_event_sel)
 			3'b000: w_end_event = cfg_end_trigger;
 			3'b001: w_end_event = (IS_READ ? w_data_handshake && data_last : w_resp_handshake);
-			3'b010: w_end_event = w_window_saturate;
-			3'b011: w_end_event = w_perf_enable_falling;
+			3'b010: w_end_event = w_perf_enable_falling;
+			3'b011: w_end_event = w_window_saturate;
 			3'b100: w_end_event = cfg_end_trigger;
 			default: w_end_event = 1'b0;
 		endcase
@@ -2884,14 +3167,12 @@ module axi_monitor_base (
 						r_window_cycles <= 32'h00000001;
 					end
 				2'b01: begin
-					r_window_cycles <= r_window_cycles + 32'h00000001;
+					if (!w_window_saturate)
+						r_window_cycles <= r_window_cycles + 32'h00000001;
 					if (w_end_event || cfg_window_force_close)
 						r_win_state <= 2'b10;
 				end
-				2'b10: begin
-					r_win_state <= 2'b00;
-					r_window_cycles <= 32'h00000000;
-				end
+				2'b10: r_win_state <= 2'b00;
 				default: r_win_state <= 2'b00;
 			endcase
 	assign window_active = r_win_state == 2'b01;
@@ -2929,16 +3210,24 @@ module axi_monitor_base (
 		end
 		else if (r_win_state == 2'b01) begin
 			if (data_valid && data_ready) begin
-				r_prod_cycles <= r_prod_cycles + 32'h00000001;
-				r_byte_count <= r_byte_count + (64'h0000000000000001 << r_axsize_latched);
+				if (r_prod_cycles != 32'hffffffff)
+					r_prod_cycles <= r_prod_cycles + 32'h00000001;
+				if (r_byte_count < (64'hffffffffffffffff - (64'h0000000000000001 << r_axsize_latched)))
+					r_byte_count <= r_byte_count + (64'h0000000000000001 << r_axsize_latched);
+				else
+					r_byte_count <= 64'hffffffffffffffff;
 			end
-			else if (data_valid && !data_ready)
-				r_bp_cycles <= r_bp_cycles + 32'h00000001;
-			else if (!data_valid && data_ready)
-				r_starv_cycles <= r_starv_cycles + 32'h00000001;
-			else
+			else if (data_valid && !data_ready) begin
+				if (r_bp_cycles != 32'hffffffff)
+					r_bp_cycles <= r_bp_cycles + 32'h00000001;
+			end
+			else if (!data_valid && data_ready) begin
+				if (r_starv_cycles != 32'hffffffff)
+					r_starv_cycles <= r_starv_cycles + 32'h00000001;
+			end
+			else if (r_idle_cycles != 32'hffffffff)
 				r_idle_cycles <= r_idle_cycles + 32'h00000001;
-			if (w_cmd_handshake)
+			if (w_cmd_handshake && (r_burst_count != 32'hffffffff))
 				r_burst_count <= r_burst_count + 32'h00000001;
 		end
 	assign perf_prod_cycles = r_prod_cycles;

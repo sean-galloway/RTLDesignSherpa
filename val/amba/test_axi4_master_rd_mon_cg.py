@@ -122,17 +122,12 @@ async def axi4_master_rd_mon_cg_test(dut):
     # Initialize
     await tb.initialize()
 
-    # Configure clock gating (enable it with default settings)
-    if hasattr(dut, 'cfg_cg_enable'):
-        dut.cfg_cg_enable.value = 1
-    if hasattr(dut, 'cfg_cg_idle_threshold'):
-        dut.cfg_cg_idle_threshold.value = 8
-    if hasattr(dut, 'cfg_cg_gate_monitor'):
-        dut.cfg_cg_gate_monitor.value = 1
-    if hasattr(dut, 'cfg_cg_gate_reporter'):
-        dut.cfg_cg_gate_reporter.value = 1
-    if hasattr(dut, 'cfg_cg_gate_timers'):
-        dut.cfg_cg_gate_timers.value = 1
+    # Configure clock gating (converged interface: enable + idle count).
+    # Gating behaviour itself is asserted by val/amba/test_mon_cg_gating.py;
+    # here it is simply left enabled so the functional traffic below runs
+    # with the clock actually being gated and ungated underneath it.
+    dut.cfg_cg_enable.value = 1
+    dut.cfg_cg_idle_count.value = 8
 
     # Run all integration tests (same as non-CG version)
     await tb.run_integration_tests(test_level=test_level)
@@ -203,11 +198,7 @@ def test_axi4_master_rd_mon_cg(id_width, addr_width, data_width, user_width, max
         'SKID_DEPTH_AR': skid_ar,
         'SKID_DEPTH_R': skid_r,
         # CG-specific parameters (fixed)
-        'ENABLE_CLOCK_GATING': 1,
-        'CG_IDLE_CYCLES': 8,
-        'CG_GATE_MONITOR': 1,
-        'CG_GATE_REPORTER': 1,
-        'CG_GATE_TIMERS': 1,
+        'CG_IDLE_COUNT_WIDTH': 4,
     }
 
     # Validate address width meets AXI4 specification

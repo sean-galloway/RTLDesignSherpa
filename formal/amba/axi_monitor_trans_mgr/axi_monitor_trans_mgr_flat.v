@@ -181,6 +181,7 @@ module axi_monitor_trans_mgr (
 	resp_code,
 	timestamp,
 	i_event_reported_flags,
+	i_timeout_detected,
 	trans_table,
 	active_count,
 	state_change
@@ -215,11 +216,17 @@ module axi_monitor_trans_mgr (
 	input wire [1:0] resp_code;
 	input wire [31:0] timestamp;
 	input wire [MAX_TRANSACTIONS - 1:0] i_event_reported_flags;
+	input wire [MAX_TRANSACTIONS - 1:0] i_timeout_detected;
 	output wire [(MAX_TRANSACTIONS * 285) - 1:0] trans_table;
 	output wire [7:0] active_count;
 	output wire [MAX_TRANSACTIONS - 1:0] state_change;
 	localparam signed [31:0] N = MAX_TRANSACTIONS;
 	localparam signed [31:0] PAYLOAD_W = 285;
+	generate
+		if (ID_WIDTH > 8) begin : gen_id_width_unsupported
+			initial $display("Error [elaboration] /tmp/formal_axi_monitor_trans_mgr/axi_monitor_trans_mgr.sv:163:9 - axi_monitor_trans_mgr.gen_id_width_unsupported\n msg: ", "axi_monitor_trans_mgr: ID_WIDTH=%0d exceeds the 8-bit id field in bus_transaction_t; the table and the CAM key would disagree. Widen bus_transaction_t.id or reduce ID_WIDTH.", ID_WIDTH);
+		end
+	endgenerate
 	wire [N - 1:0] addr_match_oh;
 	wire [N - 1:0] data_match_oh;
 	wire [N - 1:0] resp_match_oh;
@@ -267,51 +274,63 @@ module axi_monitor_trans_mgr (
 		.entry_id(),
 		.entry_payload(cam_entry_payload)
 	);
+	localparam signed [31:0] AGEW = (N > 1 ? $clog2(N) : 1);
+	reg [AGEW - 1:0] r_age [0:N - 1];
+	reg [(N * AGEW) - 1:0] w_age_flat;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_1
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				w_age_flat[i * AGEW+:AGEW] = r_age[i];
+		end
+	end
+	function automatic signed [AGEW - 1:0] sv2v_cast_D1065_signed;
+		input reg signed [AGEW - 1:0] inp;
+		sv2v_cast_D1065_signed = inp;
+	endfunction
+	function automatic [N - 1:0] pick_oldest;
+		input reg [N - 1:0] cand;
+		input reg [(N * AGEW) - 1:0] ages;
+		reg [N - 1:0] res;
+		reg found;
+		begin
+			res = 1'sb0;
+			found = 1'b0;
+			begin : sv2v_autoblock_2
+				reg signed [31:0] r;
+				for (r = 0; r < N; r = r + 1)
+					begin : sv2v_autoblock_3
+						reg signed [31:0] i;
+						for (i = 0; i < N; i = i + 1)
+							if ((!found && cand[i]) && (ages[i * AGEW+:AGEW] == sv2v_cast_D1065_signed(r))) begin
+								res[i] = 1'b1;
+								found = 1'b1;
+							end
+					end
+			end
+			pick_oldest = res;
+		end
+	endfunction
 	(* keep = "true" *) reg [N - 1:0] w_data_state_pred_oh;
 	reg [N - 1:0] w_data_state_first_oh;
 	always @(*) begin
 		if (_sv2v_0)
 			;
 		w_data_state_first_oh = 1'sb0;
-		begin : sv2v_autoblock_1
+		begin : sv2v_autoblock_4
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
 				w_data_state_pred_oh[i] = ((cam_entry_valid[i] && ((cam_entry_payload[(((N - 1) - i) * 285) + 277-:3] == 3'h1) || (cam_entry_payload[(((N - 1) - i) * 285) + 277-:3] == 3'h2))) && cam_entry_payload[(((N - 1) - i) * 285) + 283]) && !cam_entry_payload[(((N - 1) - i) * 285) + 281];
 		end
-		begin : sv2v_autoblock_2
-			reg signed [31:0] i;
-			for (i = 0; i < N; i = i + 1)
-				if (w_data_state_pred_oh[i] && (w_data_state_first_oh == {N {1'sb0}}))
-					w_data_state_first_oh[i] = 1'b1;
-		end
+		w_data_state_first_oh = pick_oldest(w_data_state_pred_oh, w_age_flat);
 	end
-	wire addr_hit_any;
-	wire data_hit_any;
-	wire resp_hit_any;
-	assign addr_hit_any = |addr_match_oh;
-	assign resp_hit_any = |resp_match_oh;
-	assign data_hit_any = (IS_READ ? |data_match_oh : |w_data_state_pred_oh);
-	assign addr_wants_alloc = cmd_valid && !addr_hit_any;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		if (IS_READ)
-			data_wants_alloc = (data_valid && data_ready) && !data_hit_any;
-		else
-			data_wants_alloc = ((data_valid && data_ready) && !IS_AXI) && !data_hit_any;
-		resp_wants_alloc = ((!IS_READ && resp_valid) && resp_ready) && !resp_hit_any;
-	end
-	wire [N - 1:0] addr_update_oh;
-	wire [N - 1:0] data_update_oh;
-	wire [N - 1:0] resp_update_oh;
-	assign addr_update_oh = addr_match_oh;
-	assign data_update_oh = (IS_READ ? data_match_oh : w_data_state_first_oh);
-	assign resp_update_oh = resp_match_oh;
 	reg [N - 1:0] w_can_cleanup;
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_3
+		begin : sv2v_autoblock_5
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
 				if (cam_entry_valid[i])
@@ -324,6 +343,89 @@ module axi_monitor_trans_mgr (
 					w_can_cleanup[i] = 1'b0;
 		end
 	end
+	reg [N - 1:0] w_freeing_oh;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_6
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				w_freeing_oh[i] = cam_entry_valid[i] && w_can_cleanup[i];
+		end
+	end
+	reg [N - 1:0] w_addr_pend_oh;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_7
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				w_addr_pend_oh[i] = (addr_match_oh[i] && !cam_entry_payload[(((N - 1) - i) * 285) + 283]) && !w_freeing_oh[i];
+		end
+	end
+	wire addr_hit_any;
+	wire data_hit_any;
+	wire resp_hit_any;
+	assign addr_hit_any = |w_addr_pend_oh;
+	assign resp_hit_any = |resp_match_oh;
+	assign data_hit_any = (IS_READ ? |data_match_oh : |w_data_state_pred_oh);
+	function automatic signed [31:0] monitor_common_pkg_cmd_entry_reserve;
+		input reg signed [31:0] max_transactions;
+		monitor_common_pkg_cmd_entry_reserve = (max_transactions >= 16 ? 2 : 0);
+	endfunction
+	localparam signed [31:0] CMD_ENTRY_RESERVE = monitor_common_pkg_cmd_entry_reserve(N);
+	reg [$clog2(N + 1) - 1:0] w_cmd_entry_count;
+	function automatic signed [$clog2(N + 1) - 1:0] sv2v_cast_54CAC_signed;
+		input reg signed [$clog2(N + 1) - 1:0] inp;
+		sv2v_cast_54CAC_signed = inp;
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_cmd_entry_count = 1'sb0;
+		begin : sv2v_autoblock_8
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				if (cam_entry_valid[i] && (cam_entry_payload[(((N - 1) - i) * 285) + 283] || (cam_entry_payload[(((N - 1) - i) * 285) + 277-:3] == 3'h1)))
+					w_cmd_entry_count = w_cmd_entry_count + sv2v_cast_54CAC_signed(1);
+		end
+	end
+	wire w_cmd_headroom;
+	assign w_cmd_headroom = (CMD_ENTRY_RESERVE == 0) || (w_cmd_entry_count < sv2v_cast_54CAC_signed(N - CMD_ENTRY_RESERVE));
+	assign addr_wants_alloc = (cmd_valid && !addr_hit_any) && w_cmd_headroom;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (IS_READ)
+			data_wants_alloc = (data_valid && data_ready) && !data_hit_any;
+		else
+			data_wants_alloc = ((data_valid && data_ready) && !IS_AXI) && !data_hit_any;
+		resp_wants_alloc = ((!IS_READ && resp_valid) && resp_ready) && !resp_hit_any;
+	end
+	wire [N - 1:0] addr_update_oh;
+	wire [N - 1:0] data_update_oh;
+	wire [N - 1:0] resp_update_oh;
+	reg [N - 1:0] w_data_cand_open;
+	reg [N - 1:0] w_data_cand_any;
+	reg [N - 1:0] w_resp_cand_open;
+	reg [N - 1:0] w_resp_cand_any;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_9
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				begin
+					w_data_cand_any[i] = data_match_oh[i] && !w_freeing_oh[i];
+					w_data_cand_open[i] = w_data_cand_any[i] && !cam_entry_payload[(((N - 1) - i) * 285) + 281];
+					w_resp_cand_any[i] = resp_match_oh[i] && !w_freeing_oh[i];
+					w_resp_cand_open[i] = w_resp_cand_any[i] && !cam_entry_payload[(((N - 1) - i) * 285) + 280];
+				end
+		end
+	end
+	assign addr_update_oh = pick_oldest(w_addr_pend_oh, w_age_flat);
+	assign data_update_oh = (IS_READ ? (|w_data_cand_open ? pick_oldest(w_data_cand_open, w_age_flat) : (data_last ? pick_oldest(w_data_cand_any, w_age_flat) : {N {1'sb0}})) : w_data_state_first_oh);
+	assign resp_update_oh = (|w_resp_cand_open ? pick_oldest(w_resp_cand_open, w_age_flat) : pick_oldest(w_resp_cand_any, w_age_flat));
 	reg [5:0] w_addr_chan_idx;
 	always @(*) begin
 		if (_sv2v_0)
@@ -332,12 +434,95 @@ module axi_monitor_trans_mgr (
 	end
 	wire cmd_handshake;
 	assign cmd_handshake = cmd_valid && cmd_ready;
+	reg [N - 1:0] r_rpt_stale_mask;
+	always @(posedge aclk)
+		if (!aresetn)
+			r_rpt_stale_mask <= 1'sb0;
+		else if (clear)
+			r_rpt_stale_mask <= 1'sb0;
+		else begin : sv2v_autoblock_10
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				if (w_freeing_oh[i])
+					r_rpt_stale_mask[i] <= 1'b1;
+				else if (!i_event_reported_flags[i])
+					r_rpt_stale_mask[i] <= 1'b0;
+		end
+	wire w_addr_alloc_fire;
+	wire w_data_alloc_fire;
+	wire w_resp_alloc_fire;
+	assign w_addr_alloc_fire = |addr_alloc_oh;
+	assign w_data_alloc_fire = |data_alloc_oh;
+	assign w_resp_alloc_fire = |resp_alloc_oh;
+	reg [AGEW - 1:0] w_age_addr_new;
+	reg [AGEW - 1:0] w_age_data_new;
+	reg [AGEW - 1:0] w_age_resp_new;
+	always @(*) begin : sv2v_autoblock_11
+		reg signed [31:0] surv;
+		if (_sv2v_0)
+			;
+		surv = 0;
+		begin : sv2v_autoblock_12
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				if (cam_entry_valid[i] && !w_freeing_oh[i])
+					surv = surv + 1;
+		end
+		w_age_addr_new = sv2v_cast_D1065_signed(surv);
+		w_age_data_new = sv2v_cast_D1065_signed(surv + (w_addr_alloc_fire ? 1 : 0));
+		w_age_resp_new = sv2v_cast_D1065_signed((surv + (w_addr_alloc_fire ? 1 : 0)) + (w_data_alloc_fire ? 1 : 0));
+	end
+	reg [AGEW - 1:0] w_age_next [0:N - 1];
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_13
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				begin : sv2v_autoblock_14
+					reg signed [31:0] dec;
+					dec = 0;
+					w_age_next[i] = r_age[i];
+					if (addr_alloc_oh[i])
+						w_age_next[i] = w_age_addr_new;
+					else if (data_alloc_oh[i])
+						w_age_next[i] = w_age_data_new;
+					else if (resp_alloc_oh[i])
+						w_age_next[i] = w_age_resp_new;
+					else if (cam_entry_valid[i] && !w_freeing_oh[i]) begin
+						begin : sv2v_autoblock_15
+							reg signed [31:0] j;
+							for (j = 0; j < N; j = j + 1)
+								if (w_freeing_oh[j] && (r_age[j] < r_age[i]))
+									dec = dec + 1;
+						end
+						w_age_next[i] = r_age[i] - sv2v_cast_D1065_signed(dec);
+					end
+				end
+		end
+	end
+	genvar _gv_ga_1;
+	generate
+		for (_gv_ga_1 = 0; _gv_ga_1 < N; _gv_ga_1 = _gv_ga_1 + 1) begin : g_age
+			localparam ga = _gv_ga_1;
+			always @(posedge aclk)
+				if (!aresetn)
+					r_age[ga] <= 1'sb0;
+				else if (clear)
+					r_age[ga] <= 1'sb0;
+				else
+					r_age[ga] <= w_age_next[ga];
+		end
+	endgenerate
 	genvar _gv_gi_2;
+	localparam [7:0] monitor_amba4_pkg_EVT_CMD_TIMEOUT = 8'h00;
 	localparam [7:0] monitor_amba4_pkg_EVT_DATA_ORPHAN = 8'h02;
+	localparam [7:0] monitor_amba4_pkg_EVT_DATA_TIMEOUT = 8'h01;
 	localparam [7:0] monitor_amba4_pkg_EVT_PROTOCOL = 8'h04;
 	localparam [7:0] monitor_amba4_pkg_EVT_RESP_DECERR = 8'h01;
 	localparam [7:0] monitor_amba4_pkg_EVT_RESP_ORPHAN = 8'h03;
 	localparam [7:0] monitor_amba4_pkg_EVT_RESP_SLVERR = 8'h00;
+	localparam [7:0] monitor_amba4_pkg_EVT_RESP_TIMEOUT = 8'h02;
 	function automatic [31:0] sv2v_cast_32;
 		input reg [31:0] inp;
 		sv2v_cast_32 = inp;
@@ -413,6 +598,8 @@ module axi_monitor_trans_mgr (
 					end
 					else if (data_alloc_oh[gi]) begin
 						next[284] = 1'b1;
+						next[283] = 1'b0;
+						next[279] = 1'b0;
 						next[277-:3] = 3'h5;
 						next[242-:8] = 1'sb0;
 						if (IS_AXI) begin
@@ -454,6 +641,8 @@ module axi_monitor_trans_mgr (
 					end
 					else if (resp_alloc_oh[gi]) begin
 						next[284] = 1'b1;
+						next[283] = 1'b0;
+						next[279] = 1'b0;
 						next[277-:3] = 3'h5;
 						next[242-:8] = 1'sb0;
 						if (IS_AXI) begin
@@ -469,11 +658,21 @@ module axi_monitor_trans_mgr (
 						next_id = (IS_AXI ? resp_id : {IW {1'sb0}});
 					end
 				end
+				if ((((i_timeout_detected[gi] && cam_entry_valid[gi]) && (cam_entry_payload[(((N - 1) - gi) * 285) + 277-:3] != 3'h3)) && (cam_entry_payload[(((N - 1) - gi) * 285) + 277-:3] != 3'h4)) && (cam_entry_payload[(((N - 1) - gi) * 285) + 277-:3] != 3'h5)) begin
+					next[277-:3] = 3'h4;
+					if (!cam_entry_payload[(((N - 1) - gi) * 285) + 283])
+						next[7-:8] = monitor_amba4_pkg_EVT_CMD_TIMEOUT;
+					else if (cam_entry_payload[(((N - 1) - gi) * 285) + 281] && !cam_entry_payload[(((N - 1) - gi) * 285) + 280])
+						next[7-:8] = monitor_amba4_pkg_EVT_RESP_TIMEOUT;
+					else
+						next[7-:8] = monitor_amba4_pkg_EVT_DATA_TIMEOUT;
+					next_we = 1'b1;
+				end
 				if (cam_entry_valid[gi] && w_can_cleanup[gi]) begin
 					next[284] = 1'b0;
 					next_we = 1'b1;
 				end
-				if (i_event_reported_flags[gi] && !cam_entry_payload[(((N - 1) - gi) * 285) + 279]) begin
+				if ((((i_event_reported_flags[gi] && !r_rpt_stale_mask[gi]) && cam_entry_valid[gi]) && !w_can_cleanup[gi]) && !cam_entry_payload[(((N - 1) - gi) * 285) + 279]) begin
 					next[279] = 1'b1;
 					next_we = 1'b1;
 				end
@@ -491,7 +690,7 @@ module axi_monitor_trans_mgr (
 		if (_sv2v_0)
 			;
 		w_occupancy = 1'sb0;
-		begin : sv2v_autoblock_4
+		begin : sv2v_autoblock_16
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
 				w_occupancy = w_occupancy + {{$clog2(N + 1) - 1 {1'b0}}, cam_entry_valid[i]};
@@ -509,7 +708,7 @@ module axi_monitor_trans_mgr (
 	reg [N - 1:0] r_state_change;
 	always @(posedge aclk)
 		if (!aresetn) begin
-			begin : sv2v_autoblock_5
+			begin : sv2v_autoblock_17
 				reg signed [31:0] i;
 				for (i = 0; i < N; i = i + 1)
 					r_trans_table_prev[((N - 1) - i) * 285+:285] <= 1'sb0;
@@ -518,12 +717,27 @@ module axi_monitor_trans_mgr (
 		end
 		else begin
 			r_trans_table_prev <= cam_entry_payload;
-			begin : sv2v_autoblock_6
+			begin : sv2v_autoblock_18
 				reg signed [31:0] i;
 				for (i = 0; i < N; i = i + 1)
 					r_state_change[i] <= (cam_entry_payload[(((N - 1) - i) * 285) + 284] && r_trans_table_prev[(((N - 1) - i) * 285) + 284]) && (cam_entry_payload[(((N - 1) - i) * 285) + 277-:3] != r_trans_table_prev[(((N - 1) - i) * 285) + 277-:3]);
 			end
 		end
 	assign state_change = r_state_change;
+	reg f_past_ok;
+	initial f_past_ok = 1'b0;
+	always @(posedge aclk) f_past_ok <= aresetn;
+	always @(posedge aclk)
+		if ((IS_READ && aresetn) && f_past_ok) begin : sv2v_autoblock_19
+			reg signed [31:0] fi;
+			for (fi = 0; fi < N; fi = fi + 1)
+				if (cam_entry_valid[fi]) begin : ap_no_reopened_complete
+					assert (!((cam_entry_payload[(((N - 1) - fi) * 285) + 277-:3] == 3'h2) && cam_entry_payload[(((N - 1) - fi) * 285) + 281])) ;
+				end
+		end
+	always @(posedge aclk)
+		if ((aresetn && f_past_ok) && (CMD_ENTRY_RESERVE > 0)) begin : ap_cmd_entry_cap
+			assert (w_cmd_entry_count <= sv2v_cast_54CAC_signed(N - CMD_ENTRY_RESERVE)) ;
+		end
 	initial _sv2v_0 = 0;
 endmodule

@@ -250,40 +250,112 @@ module axi_monitor_reporter
         end
     end
 
-    assign w_fifo_rd_ready = monbus_ready && monbus_valid;
+    // FIFO pop must agree exactly with the output-register load condition at
+    // the bottom of this file (`!monbus_valid && w_fifo_rd_valid`). Popping on
+    // (monbus_ready && monbus_valid) instead discards the head whenever the
+    // output register is holding a bypass packet (threshold/perf/debug), which
+    // is precisely the congested case the FIFO exists to cover.
+    assign w_fifo_rd_ready = !monbus_valid;
 
     // -------------------------------------------------------------------------
     // Event marking + counter feedback masks.
-    //   - w_error_events / w_compl_events drive the perf sub-block counters
-    //     AND the r_event_reported flop.
-    //   - Marking is gated on FIFO accept (w_fifo_wr_valid & w_fifo_wr_ready)
-    //     to match legacy behavior: a successful FIFO write marks all matching
-    //     events as reported in that cycle.
+    //   - Exactly ONE slot is marked reported per accepted FIFO write: the slot
+    //     whose packet was actually written. The winner is re-derived here with
+    //     the same error > timeout > compl priority the write mux above uses,
+    //     using the sel_idx each sub-block's priority encoder produced.
+    //   - Each sub-block already gates its pkt_valid on its own cfg_*_enable,
+    //     so keying off {err,to,compl}_valid makes the marking config-correct
+    //     by construction: a disabled packet class can never be marked
+    //     reported (and therefore freed by trans_mgr) by another class's write.
+    //   - w_error_events / w_completion_events drive the perf sub-block
+    //     counters AND the r_event_reported flop.
     // -------------------------------------------------------------------------
     logic [MAX_TRANSACTIONS-1:0] w_events_to_mark;
     logic [MAX_TRANSACTIONS-1:0] w_error_events;
     logic [MAX_TRANSACTIONS-1:0] w_completion_events;
+    logic                        w_fifo_wr_accept;
+    logic [IDX_W-1:0]            w_mark_idx;
+    logic                        w_mark_is_error;
+    logic                        w_mark_is_compl;
+
+    assign w_fifo_wr_accept = w_fifo_wr_valid && w_fifo_wr_ready;
+
     always_comb begin
         w_events_to_mark    = '0;
         w_error_events      = '0;
         w_completion_events = '0;
-        for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
-            if (r_trans_table_local[idx].valid &&
-                (r_trans_table_local[idx].state == TRANS_ERROR ||
-                 r_trans_table_local[idx].state == TRANS_ORPHANED ||
-                 r_trans_table_local[idx].state == TRANS_COMPLETE) &&
-                !r_event_reported[idx] && w_fifo_wr_valid && w_fifo_wr_ready) begin
-                w_events_to_mark[idx] = 1'b1;
-                if (r_trans_table_local[idx].state == TRANS_ERROR ||
-                    r_trans_table_local[idx].state == TRANS_ORPHANED) begin
-                    w_error_events[idx] = 1'b1;
-                end else if (r_trans_table_local[idx].state == TRANS_COMPLETE) begin
-                    w_completion_events[idx] = 1'b1;
-                end
-            end
+        w_mark_idx          = '0;
+        w_mark_is_error     = 1'b0;
+        w_mark_is_compl     = 1'b0;
+
+        // Same priority as the FIFO write mux: error > timeout > compl.
+        // Timeout slots sit in TRANS_ERROR, so they roll up as error events
+        // for the perf counters (matches the legacy state-based split).
+        if (err_valid) begin
+            w_mark_idx      = err_idx;
+            w_mark_is_error = 1'b1;
+        end else if (to_valid) begin
+            w_mark_idx      = to_idx;
+            w_mark_is_error = 1'b1;
+        end else if (compl_valid) begin
+            w_mark_idx      = compl_idx;
+            w_mark_is_compl = 1'b1;
+        end
+
+        if (w_fifo_wr_accept) begin
+            w_events_to_mark[w_mark_idx]    = 1'b1;
+            w_error_events[w_mark_idx]      = w_mark_is_error;
+            w_completion_events[w_mark_idx] = w_mark_is_compl;
         end
     end
 
+    // -------------------------------------------------------------------------
+    // AUTO-RETIRE for packet classes that are COMPILED OUT.
+    //
+    // trans_mgr frees a terminal-state slot only once event_reported is set,
+    // and the sole producer of that flag is an accepted FIFO write above. So a
+    // terminal entry whose reporting sub-block does not exist is never marked,
+    // never freed, and permanently leaks a table slot: active_count climbs
+    // monotonically to MAX_TRANSACTIONS and axi_monitor_base holds block_ready
+    // low for ever, stalling the monitored datapath. A perf-only build
+    // (ENABLE_ERROR/TIMEOUT/COMPL all 0) writes the FIFO exactly never, so
+    // EVERY transaction leaks -- the table fills after MAX_TRANSACTIONS
+    // requests and the bus wedges.
+    //
+    // "Reported" means "nothing further is owed for this entry", so an entry
+    // that no enabled sub-block can ever emit is reported the moment it
+    // reaches a terminal state. This keeps the monitor passive, which is what
+    // a perf-only build is documented to be.
+    //
+    // This mask deliberately does NOT feed w_error_events / w_completion_events
+    // (the perf sub-block's error/completion counters) nor r_event_count:
+    // those must keep counting only packets actually emitted.
+    //
+    // All three terms are elaboration-time constants, so this whole block
+    // folds away to nothing in a fully-enabled build.
+    // -------------------------------------------------------------------------
+    logic [MAX_TRANSACTIONS-1:0] w_auto_retire;
+    always_comb begin
+        w_auto_retire = '0;
+        for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
+            if (r_trans_table_local[idx].valid) begin
+                case (r_trans_table_local[idx].state)
+                    // Emitted by axi_monitor_reporter_compl.
+                    TRANS_COMPLETE:
+                        w_auto_retire[idx] = !ENABLE_COMPL_LOGIC;
+                    // Emitted by axi_monitor_reporter_error, or by
+                    // axi_monitor_reporter_timeout (timed-out entries are
+                    // parked in TRANS_ERROR by trans_mgr), so this state is
+                    // only unreportable when BOTH are compiled out.
+                    TRANS_ERROR,
+                    TRANS_ORPHANED:
+                        w_auto_retire[idx] = !ENABLE_ERROR_LOGIC &&
+                                             !ENABLE_TIMEOUT_LOGIC;
+                    default: ;
+                endcase
+            end
+        end
+    end
     // -------------------------------------------------------------------------
     // Threshold sub-block (stateful — 16 latency flops + 2 edge flags + active
     // count detection). Drops entirely when ENABLE_THRESHOLD_LOGIC=0.
@@ -436,15 +508,22 @@ module axi_monitor_reporter
                 monbus_valid <= 1'b0;
             end
 
-            // Mark events as reported + bump count.
+            // Mark events as reported. The count is bumped once, outside the
+            // loop — a non-blocking increment inside a for loop collapses N
+            // marks into 1, and the threshold branch below used to assign the
+            // same register in the same cycle, losing one of the two counts.
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                 if (!r_trans_table_local[idx].valid) begin
                     r_event_reported[idx] <= 1'b0;        // FIX-001: reuse slot
-                end else if (w_events_to_mark[idx]) begin
+                end else if (w_events_to_mark[idx] || w_auto_retire[idx]) begin
                     r_event_reported[idx] <= 1'b1;
-                    r_event_count         <= r_event_count + 1'b1;
                 end
             end
+
+            // Single event-count adder: one marked event (at most one per
+            // cycle by construction) plus a threshold packet emitted directly
+            // into the output register.
+            r_event_count <= r_event_count + 16'(w_fifo_wr_accept) + 16'(thresh_taken);
 
             // Priority emit: FIFO -> threshold -> perf. Only one source per
             // cycle; threshold/perf gate on (!monbus_valid && !w_fifo_rd_valid)
@@ -461,7 +540,6 @@ module axi_monitor_reporter
                 r_event_code    <= thresh_code;
                 r_event_data    <= thresh_data;
                 r_event_channel <= thresh_chan;
-                r_event_count   <= r_event_count + 1'b1;
             end else if (perf_valid && !monbus_valid && !w_fifo_rd_valid) begin
                 monbus_valid    <= 1'b1;
                 r_packet_type   <= perf_type;

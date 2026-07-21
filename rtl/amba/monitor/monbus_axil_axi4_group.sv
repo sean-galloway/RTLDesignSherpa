@@ -235,41 +235,78 @@ module monbus_axil_axi4_group
         assign s_axil_rvalid  = drv_rvalid;
         assign drv_rready     = s_axil_rready;
     end else begin : g_drain_2to1
-        // 32-bit external: phase bit splits each 64-bit leaf beat into a low
-        // then high read; the leaf is handed one read per pair (AR forwarded
-        // only in the low phase). The low read streams+consumes the beat and
-        // latches its high half; the high read replays the latch and gates R on
-        // its own AR (r_hi_ar) to honour AXIL AR-before-R.
+        // 32-bit external: each 64-bit leaf beat is presented as a low then a
+        // high external read. Every PAIR of external reads costs exactly one
+        // 64-bit core read -- the LOW read of a pair is the one forwarded to
+        // the leaf (streaming the beat through and latching its high half),
+        // and the HIGH read is served locally from that latch.
+        //
+        // The AR router and the R server keep SEPARATE phase bits (r_ar_phase
+        // advances per accepted external AR, r_phase per completed external R
+        // beat). They must be separate because AXI4-Lite does not order
+        // AR(n+1) after R(n): a master may issue the high read's AR before the
+        // low read's R beat comes back. Routing AR off the R-side phase (as
+        // this block originally did) sent that early AR to the leaf as a
+        // spurious extra core read and then stalled forever waiting for an AR
+        // the master had already issued.
+        //
+        // The leaf still sees exactly one core read per pair, but a pipelining
+        // master may have several PAIRS in flight, so the leaf's AR skid can
+        // legitimately hold up to SKID_DEPTH_AR outstanding core reads.
+        // High-half ARs arriving before their beat is ready are banked in
+        // r_hi_ar (a credit counter, not a single flag) and spent when the
+        // matching high beat is consumed.
         localparam logic PH_LOW = 1'b0, PH_HIGH = 1'b1;
-        logic        r_phase;
-        logic [31:0] r_hi_half;
-        logic        r_hi_ar;
+        localparam int HI_AR_CREDITS = (SKID_DEPTH_AR < 2) ? 2 : SKID_DEPTH_AR;
+        localparam int HI_CNT_W      = $clog2(HI_AR_CREDITS + 1);
 
-        assign drv_arvalid    = (r_phase == PH_LOW) && s_axil_arvalid;
-        assign s_axil_arready = (r_phase == PH_LOW) ? drv_arready : !r_hi_ar;
+        logic                r_ar_phase;  // AR-side pair phase
+        logic                r_phase;     // R-side pair phase
+        logic [31:0]         r_hi_half;
+        logic [HI_CNT_W-1:0] r_hi_ar;     // banked high-half ARs awaiting their R
 
-        assign s_axil_rvalid  = (r_phase == PH_LOW) ? drv_rvalid : r_hi_ar;
+        logic w_hi_ar_room;
+        logic w_hi_ar_inc;
+        logic w_hi_ar_dec;
+
+        assign w_hi_ar_room = (r_hi_ar != HI_CNT_W'(HI_AR_CREDITS));
+
+        assign drv_arvalid    = (r_ar_phase == PH_LOW) && s_axil_arvalid;
+        assign s_axil_arready = (r_ar_phase == PH_LOW) ? drv_arready : w_hi_ar_room;
+
+        assign s_axil_rvalid  = (r_phase == PH_LOW) ? drv_rvalid : (r_hi_ar != '0);
         assign s_axil_rdata   = (r_phase == PH_LOW) ? drv_rdata[31:0] : r_hi_half;
         assign s_axil_rresp   = 2'b00;
         assign drv_rready     = (r_phase == PH_LOW) && s_axil_rready;
 
+        assign w_hi_ar_inc = s_axil_arvalid && s_axil_arready &&
+                             (r_ar_phase == PH_HIGH);
+        assign w_hi_ar_dec = s_axil_rvalid && s_axil_rready &&
+                             (r_phase == PH_HIGH);
+
         `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
             if (`RST_ASSERTED(axi_aresetn)) begin
-                r_phase   <= PH_LOW;
-                r_hi_half <= 32'd0;
-                r_hi_ar   <= 1'b0;
+                r_ar_phase <= PH_LOW;
+                r_phase    <= PH_LOW;
+                r_hi_half  <= 32'd0;
+                r_hi_ar    <= '0;
             end else begin
-                if (r_phase == PH_HIGH && s_axil_arvalid && s_axil_arready)
-                    r_hi_ar <= 1'b1;
+                if (s_axil_arvalid && s_axil_arready)
+                    r_ar_phase <= ~r_ar_phase;
+
                 if (s_axil_rvalid && s_axil_rready) begin
                     if (r_phase == PH_LOW) begin
                         r_hi_half <= drv_rdata[63:32];
                         r_phase   <= PH_HIGH;
                     end else begin
-                        r_phase <= PH_LOW;
-                        r_hi_ar <= 1'b0;
+                        r_phase   <= PH_LOW;
                     end
                 end
+
+                if (w_hi_ar_inc && !w_hi_ar_dec)
+                    r_hi_ar <= r_hi_ar + 1'b1;
+                else if (!w_hi_ar_inc && w_hi_ar_dec)
+                    r_hi_ar <= r_hi_ar - 1'b1;
             end
         )
     end

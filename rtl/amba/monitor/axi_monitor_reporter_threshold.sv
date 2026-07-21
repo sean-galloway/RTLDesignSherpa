@@ -124,11 +124,14 @@ module axi_monitor_reporter_threshold
                           trans_table[idx].addr_timestamp;
                 end
                 r_latency[idx] <= lat;
+                // NOTE: deliberately NOT qualified by r_latency_crossed —
+                // r_latency_over_thresh must keep reflecting the raw condition
+                // so the sticky flag below can tell when the condition lifts.
+                // Folding the flag in here made the condition self-clearing.
                 r_latency_over_thresh[idx] <=
                     trans_table[idx].valid &&
                     (trans_table[idx].state == TRANS_COMPLETE) &&
-                    (lat > latency_threshold) &&
-                    !r_latency_crossed;
+                    (lat > latency_threshold);
             end
 
             // Edge flags. Set when we fire; clear when condition lifts.
@@ -142,9 +145,15 @@ module axi_monitor_reporter_threshold
             end
             /* verilator lint_on WIDTHEXPAND */
 
+            // Same set/clear discipline as r_active_crossed above: set when we
+            // fire, clear when the condition lifts (no slot over threshold).
+            // Without the clear this flag latched for the life of the reset and
+            // exactly one latency packet was ever emitted.
             if (w_has_lat && pkt_taken && pkt_type == PktTypeThreshold &&
                 pkt_event_code == AXI_THRESH_LATENCY) begin
                 r_latency_crossed <= 1'b1;
+            end else if (!w_has_lat) begin
+                r_latency_crossed <= 1'b0;
             end
         end
     )
@@ -162,7 +171,7 @@ module axi_monitor_reporter_threshold
             pkt_event_code = AXI_THRESH_ACTIVE_COUNT;
             pkt_data       = 64'(w_active_count);  // zero-extend
             pkt_channel    = '0;
-        end else if (w_has_lat && !output_busy) begin
+        end else if (w_has_lat && !r_latency_crossed && !output_busy) begin
             pkt_valid      = 1'b1;
             pkt_event_code = AXI_THRESH_LATENCY;
             pkt_data       = pad_address(r_latency[w_lat_sel]);

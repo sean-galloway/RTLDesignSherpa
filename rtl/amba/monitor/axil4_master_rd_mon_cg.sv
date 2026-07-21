@@ -19,8 +19,8 @@
  * AXIL4 Master Read with Integrated Filtered Monitoring and Clock Gating
  *
  * This module extends axil4_master_rd_mon with comprehensive clock gating capabilities
- * for power optimization. This is a simple pass-through wrapper as the base monitor
- * already includes activity-based power management.
+ * for power optimization: an ICG stops the monitor clock after a configurable
+ * idle period and the request-side readys are masked while gated.
  *
  * Features:
  * - Instantiates axil4_master_rd_mon for core functionality with filtering
@@ -60,8 +60,7 @@ module axil4_master_rd_mon_cg
     parameter bit ENABLE_DEBUG_LOGIC     = 1'b0,
 
     // Clock gating parameters (for AXIL)
-    parameter bit ENABLE_CLOCK_GATING = 1,   // Enable clock gating
-    parameter int CG_IDLE_CYCLES    = 4,     // Cycles to wait before gating (lower for AXIL)
+    parameter int CG_IDLE_COUNT_WIDTH = 4,   // Width of the idle countdown
 
     // Short params
     parameter int AW       = AXIL_ADDR_WIDTH,
@@ -122,8 +121,8 @@ module axil4_master_rd_mon_cg
     input  logic [15:0]                cfg_axi_debug_mask,      // Individual debug event mask
 
     // Clock Gating Configuration
-    input  logic                       cfg_cg_enable,           // Enable clock gating
-    input  logic [7:0]                 cfg_cg_idle_threshold,   // Idle cycles before gating
+    input  logic                           cfg_cg_enable,       // Enable clock gating
+    input  logic [CG_IDLE_COUNT_WIDTH-1:0] cfg_cg_idle_count,   // Idle cycles before gating
 
     // Address-range checker configuration (active when N_ADDR_RANGES > 0)
     input  logic                                                       cfg_addr_check_enable,
@@ -147,7 +146,8 @@ module axil4_master_rd_mon_cg
     output logic [31:0]                transaction_count,       // Total transaction count
 
     // Clock gating status
-    output logic [31:0]                cg_cycles_saved,         // Estimated cycles saved by gating
+    output logic                       cg_gating,               // Gated clock is stopped
+    output logic                       cg_idle,                 // No activity observed
 
     // Configuration error flags
     output logic                       cfg_conflict_error,       // Configuration conflict detected
@@ -170,10 +170,50 @@ module axil4_master_rd_mon_cg
 );
 
     // -------------------------------------------------------------------------
-    // Instantiate AXIL4 Master Read Monitor
+    // Clock gating
     // -------------------------------------------------------------------------
-    // Note: Clock gating is implemented within axi_monitor_base via activity detection
-    // This wrapper primarily passes through configuration and provides CG observability
+    // Activity is derived from VALID signals and outstanding work ONLY. A peer's
+    // READY must never appear in the activity term: a consumer that parks its
+    // response-ready high while idle is behaving correctly, and folding that in
+    // would pin this block permanently awake and defeat gating entirely.
+    //
+    // The request-side readys are masked to 0 while gated, so no transfer can be
+    // accepted while the clock is stopped.
+    //
+    // Port valids alone are sufficient to cover a beat held inside the block:
+    // the upstream valid covers it until the cycle it is accepted, and the
+    // downstream valid covers it from the cycle it is presented, which the skid
+    // buffer does on the very next cycle and holds for as long as the consumer
+    // back-pressures. There is therefore no window in which a beat is inside the
+    // block with every port valid low, so no beat can be stranded by the clock
+    // stopping. val/amba/test_mon_cg_gating.py phase 5 asserts this directly.
+    logic gated_aclk;
+    logic user_valid, axi_valid;
+    logic int_arready, int_rready, int_busy;
+
+    assign user_valid = fub_axil_arvalid || fub_axil_rvalid || int_busy;
+    assign axi_valid  = m_axil_arvalid || m_axil_rvalid;
+
+    assign fub_axil_arready  = cg_gating ? 1'b0 : int_arready;
+    assign m_axil_rready = cg_gating ? 1'b0 : int_rready;
+
+    amba_clock_gate_ctrl #(
+        .CG_IDLE_COUNT_WIDTH (CG_IDLE_COUNT_WIDTH)
+    ) i_amba_clock_gate_ctrl (
+        .clk_in              (aclk),
+        .aresetn             (aresetn),
+        .cfg_cg_enable       (cfg_cg_enable),
+        .cfg_cg_idle_count   (cfg_cg_idle_count),
+        .user_valid          (user_valid),
+        .axi_valid           (axi_valid),
+        .clk_out             (gated_aclk),
+        .gating              (cg_gating),
+        .idle                (cg_idle)
+    );
+
+    // -------------------------------------------------------------------------
+    // Instantiate the monitor, clocked from the gated clock
+    // -------------------------------------------------------------------------
     axil4_master_rd_mon #(
         .SKID_DEPTH_AR           (SKID_DEPTH_AR),
         .SKID_DEPTH_R            (SKID_DEPTH_R),
@@ -193,7 +233,7 @@ module axil4_master_rd_mon_cg
         .ENABLE_DEBUG_LOGIC(ENABLE_DEBUG_LOGIC),
         .N_ADDR_RANGES           (N_ADDR_RANGES)
     ) axil4_master_rd_mon_inst (
-        .aclk                    (aclk),
+        .aclk                    (gated_aclk),
         .aresetn                 (aresetn),
         .cam_clear               (cam_clear),
         .i_mon_time              (i_mon_time),
@@ -202,7 +242,7 @@ module axil4_master_rd_mon_cg
         .fub_axil_araddr         (fub_axil_araddr),
         .fub_axil_arprot         (fub_axil_arprot),
         .fub_axil_arvalid        (fub_axil_arvalid),
-        .fub_axil_arready        (fub_axil_arready),
+        .fub_axil_arready        (int_arready),
 
         .fub_axil_rdata          (fub_axil_rdata),
         .fub_axil_rresp          (fub_axil_rresp),
@@ -218,10 +258,10 @@ module axil4_master_rd_mon_cg
         .m_axil_rdata            (m_axil_rdata),
         .m_axil_rresp            (m_axil_rresp),
         .m_axil_rvalid           (m_axil_rvalid),
-        .m_axil_rready           (m_axil_rready),
+        .m_axil_rready           (int_rready),
 
         // Monitor Configuration
-        .cfg_monitor_enable      (cfg_monitor_enable & cfg_cg_enable),
+        .cfg_monitor_enable      (cfg_monitor_enable),
         .cfg_error_enable        (cfg_error_enable),
         .cfg_timeout_enable      (cfg_timeout_enable),
         .cfg_perf_enable         (cfg_perf_enable),
@@ -255,7 +295,7 @@ module axil4_master_rd_mon_cg
         .monbus_timestamp        (monbus_timestamp),
 
         // Status
-        .busy                    (busy),
+        .busy                    (int_busy),
         .active_transactions     (active_transactions),
         .error_count             (error_count),
         .transaction_count       (transaction_count),
@@ -279,22 +319,7 @@ module axil4_master_rd_mon_cg
 
     );
 
-    // -------------------------------------------------------------------------
-    // Clock Gating Statistics (Placeholder)
-    // -------------------------------------------------------------------------
-    // In a full implementation, this would track clock gating cycles
-    // For now, provide estimated savings based on busy signal
-    logic [31:0] idle_cycles;
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            idle_cycles <= '0;
-        end else if (cfg_cg_enable && !busy) begin
-            idle_cycles <= idle_cycles + 1'b1;
-        end
-    )
-
-
-    assign cg_cycles_saved = idle_cycles;
+    assign busy = int_busy;
 
 endmodule : axil4_master_rd_mon_cg

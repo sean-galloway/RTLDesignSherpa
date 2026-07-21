@@ -290,6 +290,7 @@ module axi_monitor_base
         .resp_code          (resp_code),
         .timestamp          (r_timestamp),
         .i_event_reported_flags(w_event_reported_flags),  // FIX-001: Feedback from reporter
+        .i_timeout_detected (w_timeout_detected),         // ISSUE #41: timeout -> terminal state
         .trans_table        (w_trans_table),
         .active_count       (w_active_count),
         .state_change       (w_state_change_detected)
@@ -445,9 +446,35 @@ module axi_monitor_base
     // The bridge monitored-mode smoke test caught this; formal P6/P7
     // missed it because the assertion was tautological vs. the assign.
     // The trans CAM is ALWAYS pipelined (one extra cycle of active_count
-    // latency), so block_ready uses a MAX-3 margin -- the monitor still never
-    // accepts past MAX_TRANSACTIONS even with the pipeline delay.
-    localparam int unsigned BLOCK_MARGIN = 3;
+    // latency), so block_ready keeps a margin below MAX_TRANSACTIONS.
+    //
+    // SATURATION-RECOVERY CONTRACT (keep in sync with CMD_ENTRY_RESERVE in
+    // axi_monitor_trans_mgr.sv): the trans_mgr caps COMMAND-originated
+    // entries at MAX - CMD_ENTRY_RESERVE slots. This margin is
+    // CMD_ENTRY_RESERVE - 1, so block_ready re-asserts at
+    // active_count < MAX - (CMD_ENTRY_RESERVE - 1) -- STRICTLY ABOVE the
+    // command cap. Therefore even a table whose command entries are all
+    // permanently in flight recovers block_ready as soon as the ungated
+    // data/resp (orphan) entries drain -- orphans always drain via error
+    // reporting, so only command entries can be durable occupants. With the
+    // old flat MAX-3 margin equal to the effective command occupancy at
+    // saturation, the table parked exactly AT the threshold and block_ready
+    // never re-asserted: the monitor stalled the monitored command channel
+    // for ever (stream_core multi-channel wedge; reproduced by
+    // val/amba/test_axi_monitor_trans_mgr.py phase_saturation_recovers).
+    //
+    // Overshoot past MAX is impossible regardless of this margin: the CAM
+    // allocates from its exact combinational free vector, so the table can
+    // never hold more than MAX entries. Commands that handshake while the
+    // cap is reached (count register lag + skid drain) are simply not
+    // tracked -- lossy-but-honest degrade instead of a permanent stall.
+    // Tables without the cap (MAX < 16) keep the legacy flat margin of 3 --
+    // their behavior is exactly pre-fix, cap included (CMD_ENTRY_RESERVE=0
+    // in trans_mgr).
+    localparam int unsigned CMD_ENTRY_RESERVE =
+        unsigned'(cmd_entry_reserve(MAX_TRANSACTIONS));
+    localparam int unsigned BLOCK_MARGIN = (CMD_ENTRY_RESERVE > 0)
+                                         ? (CMD_ENTRY_RESERVE - 1) : 3;
     assign block_ready = (MAX_TRANSACTIONS > BLOCK_MARGIN)
                        ? ({24'h0, w_active_count} < (MAX_TRANSACTIONS - BLOCK_MARGIN))
                        : 1'b1;
@@ -527,13 +554,22 @@ module axi_monitor_base
 
     // End-event mux. For mode 3'b001 the "last data" semantic differs by
     // direction: reads end at RLAST handshake, writes end at B handshake.
+    //
+    // ISSUE #41: 3'b010 and 3'b011 used to be TRANSPOSED with respect to
+    // both the port-declaration header above and the start-event mux
+    // (which has always had 3'b010 = perf-enable edge, 3'b011 = the
+    // "productive" event). These selectors are software-programmed CSR
+    // fields, so an integrator following the documented encoding got the
+    // wrong window-close event. The header is authoritative -- it is the
+    // published contract and the start mux already agreed with it -- so
+    // the END mux is corrected to match rather than the other way round.
     always_comb begin
         case (cfg_end_event_sel)
             3'b000:  w_end_event = cfg_end_trigger;
             3'b001:  w_end_event = IS_READ ? (w_data_handshake && data_last)
                                            :  w_resp_handshake;
-            3'b010:  w_end_event = w_window_saturate;
-            3'b011:  w_end_event = w_perf_enable_falling;
+            3'b010:  w_end_event = w_perf_enable_falling;  // perf-enable edge
+            3'b011:  w_end_event = w_window_saturate;      // counter saturate
             3'b100:  w_end_event = cfg_end_trigger;
             default: w_end_event = 1'b0;
         endcase
@@ -554,7 +590,14 @@ module axi_monitor_base
                     end
                 end
                 WIN_ACTIVE_S: begin
-                    r_window_cycles <= r_window_cycles + 32'h1;
+                    // ISSUE #41: saturate UNCONDITIONALLY. w_window_saturate
+                    // used to be consumed only by cfg_end_event_sel==3'b010,
+                    // so under every other selector this counter incremented
+                    // regardless and wrapped through 0 at 2^32 -- silently
+                    // restarting the window measurement on any long window.
+                    if (!w_window_saturate) begin
+                        r_window_cycles <= r_window_cycles + 32'h1;
+                    end
                     if (w_end_event || cfg_window_force_close) begin
                         r_win_state <= WIN_CLOSING_S;
                     end
@@ -562,8 +605,14 @@ module axi_monitor_base
                 WIN_CLOSING_S: begin
                     // Stage A: immediate transition. Stage B will hold here
                     // until the reporter ACKs draining the window packets.
-                    r_win_state     <= WIN_IDLE_S;
-                    r_window_cycles <= 32'h0;
+                    //
+                    // ISSUE #41: r_window_cycles is NOT zeroed here. It used
+                    // to be, which left it readable for exactly the one
+                    // WIN_CLOSING cycle while the bucket counters held --
+                    // contradicting the "all counters hold into WIN_IDLE"
+                    // contract documented at the bucket block below. It is
+                    // re-initialised at the next window start instead.
+                    r_win_state <= WIN_IDLE_S;
                 end
                 default: begin
                     r_win_state <= WIN_IDLE_S;
@@ -633,28 +682,45 @@ module axi_monitor_base
             r_byte_count   <= 64'h0;
         end else if (r_win_state == WIN_ACTIVE_S) begin
             // Four mutually-exclusive cycle buckets on the data bus.
-            // Sum of the four equals window_cycles by construction.
+            //
+            // Sum of the four equals window_cycles by construction, UNTIL a
+            // counter saturates. ISSUE #41: none of these counters used to
+            // saturate at all, so on a long window they wrapped at 2^32
+            // independently of r_window_cycles and the invariant broke
+            // silently. They now stick at max; a reader seeing 32'hFFFF_FFFF
+            // (or a sum below window_cycles) knows the window overflowed
+            // rather than being handed a wrapped value that looks plausible.
             if (data_valid && data_ready) begin
-                r_prod_cycles <= r_prod_cycles + 32'h1;
+                if (r_prod_cycles != 32'hFFFF_FFFF)
+                    r_prod_cycles <= r_prod_cycles + 32'h1;
                 // Byte count: one beat moves (1<<axsize) bytes. Explicit
                 // parens — verilog + has higher precedence than <<.
-                r_byte_count  <= r_byte_count + (64'h1 << r_axsize_latched);
+                if (r_byte_count < (64'hFFFF_FFFF_FFFF_FFFF - (64'h1 << r_axsize_latched)))
+                    r_byte_count <= r_byte_count + (64'h1 << r_axsize_latched);
+                else
+                    r_byte_count <= 64'hFFFF_FFFF_FFFF_FFFF;
             end else if (data_valid && !data_ready) begin
-                r_bp_cycles    <= r_bp_cycles    + 32'h1;
+                if (r_bp_cycles != 32'hFFFF_FFFF)
+                    r_bp_cycles <= r_bp_cycles + 32'h1;
             end else if (!data_valid && data_ready) begin
-                r_starv_cycles <= r_starv_cycles + 32'h1;
+                if (r_starv_cycles != 32'hFFFF_FFFF)
+                    r_starv_cycles <= r_starv_cycles + 32'h1;
             end else begin
-                r_idle_cycles  <= r_idle_cycles  + 32'h1;
+                if (r_idle_cycles != 32'hFFFF_FFFF)
+                    r_idle_cycles <= r_idle_cycles + 32'h1;
             end
 
             // Burst count = address-phase handshakes inside the window.
-            if (w_cmd_handshake) begin
+            if (w_cmd_handshake && (r_burst_count != 32'hFFFF_FFFF)) begin
                 r_burst_count <= r_burst_count + 32'h1;
             end
         end
         // In WIN_CLOSING and WIN_IDLE the counters hold their values so
         // the integrating block can sample them after seeing
-        // window_active deassert.
+        // window_active deassert. As of the issue #41 fix this is true of
+        // r_window_cycles as well (it used to be zeroed in WIN_CLOSING,
+        // leaving it readable for a single cycle while these held), so the
+        // whole counter set stays coherent until the next window opens.
     end
 
     assign perf_prod_cycles  = r_prod_cycles;

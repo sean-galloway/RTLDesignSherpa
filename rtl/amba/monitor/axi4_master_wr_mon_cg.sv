@@ -64,11 +64,7 @@ module axi4_master_wr_mon_cg
     parameter bit ENABLE_DEBUG_LOGIC     = 1'b0,
 
     // Clock gating parameters
-    parameter bit ENABLE_CLOCK_GATING = 1,   // Enable clock gating
-    parameter int CG_IDLE_CYCLES    = 8,     // Cycles to wait before gating clocks
-    parameter bit CG_GATE_MONITOR   = 1,     // Gate monitor clocks when idle
-    parameter bit CG_GATE_REPORTER  = 1,     // Gate reporter clocks when no packets
-    parameter bit CG_GATE_TIMERS    = 1,     // Gate timer clocks when no timeouts enabled
+    parameter int CG_IDLE_COUNT_WIDTH = 4,   // Width of the idle countdown
 
     // Short and calculated params
     parameter int AW       = AXI_ADDR_WIDTH,
@@ -168,12 +164,8 @@ module axi4_master_wr_mon_cg
     input  logic [15:0]                cfg_axi_debug_mask,      // Individual debug event mask
 
     // Clock Gating Configuration
-    input  logic                       cfg_cg_enable,           // Enable clock gating
-    input  logic [7:0]                 cfg_cg_idle_threshold,   // Idle cycles before gating
-    input  logic                       cfg_cg_force_on,         // Force clocks on (debug mode)
-    input  logic                       cfg_cg_gate_monitor,     // Enable monitor clock gating
-    input  logic                       cfg_cg_gate_reporter,    // Enable reporter clock gating
-    input  logic                       cfg_cg_gate_timers,      // Enable timer clock gating
+    input  logic                           cfg_cg_enable,       // Enable clock gating
+    input  logic [CG_IDLE_COUNT_WIDTH-1:0] cfg_cg_idle_count,   // Idle cycles before gating
 
     // Address-range checker configuration (active when N_ADDR_RANGES > 0)
     input  logic                                                       cfg_addr_check_enable,
@@ -197,10 +189,8 @@ module axi4_master_wr_mon_cg
     output logic [31:0]                transaction_count,       // Total transaction count
 
     // Clock gating status
-    output logic                       cg_monitor_gated,        // Monitor clock is gated
-    output logic                       cg_reporter_gated,       // Reporter clock is gated
-    output logic                       cg_timers_gated,         // Timer clocks are gated
-    output logic [31:0]                cg_cycles_saved,         // Estimated cycles saved by gating
+    output logic                       cg_gating,               // Gated clock is stopped
+    output logic                       cg_idle,                 // No activity observed
 
     // Configuration error flags
     output logic                       cfg_conflict_error,       // Configuration conflict detected
@@ -222,162 +212,53 @@ module axi4_master_wr_mon_cg
     output logic [31:0]                perf_burst_count
 );
 
-    // =========================================================================
-    // Clock Gating Logic (identical to read version)
-    // =========================================================================
-
-    // Activity detection signals
-    logic                    axi_activity;
-    logic                    monitor_activity;
-    logic                    reporter_activity;
-    logic                    timer_activity;
-
-    // Gated clocks
-    logic                    aclk_monitor;
-    logic                    aclk_reporter;
-    logic                    aclk_timers;
-
-    // Clock gating control
-    logic                    cg_monitor_en;
-    logic                    cg_reporter_en;
-    logic                    cg_timers_en;
-
-    // Activity counters
-    logic [7:0]              monitor_idle_count;
-    logic [7:0]              reporter_idle_count;
-    logic [7:0]              timer_idle_count;
-
-    // Cycle counting for power savings estimation
-    logic [31:0]             total_cycles;
-    logic [31:0]             gated_cycles;
-
-    // Detect AXI activity (write channels)
-    assign axi_activity = (fub_axi_awvalid && fub_axi_awready) ||
-                         (fub_axi_wvalid && fub_axi_wready) ||
-                         (fub_axi_bvalid && fub_axi_bready) ||
-                         (m_axi_awvalid && m_axi_awready) ||
-                         (m_axi_wvalid && m_axi_wready) ||
-                         (m_axi_bvalid && m_axi_bready);
-
-    // Detect monitor activity
-    assign monitor_activity = cfg_monitor_enable && (axi_activity || (active_transactions > 0));
-
-    // Detect reporter activity
-    assign reporter_activity = monbus_valid || cfg_error_enable || cfg_perf_enable;
-
-    // Detect timer activity
-    assign timer_activity = cfg_timeout_enable || cfg_perf_enable;
-
-    // Clock gating enable decisions
-    assign cg_monitor_en = ENABLE_CLOCK_GATING && cfg_cg_enable && cfg_cg_gate_monitor &&
-                          !cfg_cg_force_on && (monitor_idle_count >= cfg_cg_idle_threshold);
-
-    assign cg_reporter_en = ENABLE_CLOCK_GATING && cfg_cg_enable && cfg_cg_gate_reporter &&
-                           !cfg_cg_force_on && (reporter_idle_count >= cfg_cg_idle_threshold);
-
-    assign cg_timers_en = ENABLE_CLOCK_GATING && cfg_cg_enable && cfg_cg_gate_timers &&
-                         !cfg_cg_force_on && (timer_idle_count >= cfg_cg_idle_threshold);
-
-    // Activity counters
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            monitor_idle_count <= '0;
-            reporter_idle_count <= '0;
-            timer_idle_count <= '0;
-        end else begin
-            // Monitor idle counter
-            if (monitor_activity) begin
-                monitor_idle_count <= '0;
-            end else if (monitor_idle_count < 8'hFF) begin
-                monitor_idle_count <= monitor_idle_count + 1'b1;
-            end
-
-            // Reporter idle counter
-            if (reporter_activity) begin
-                reporter_idle_count <= '0;
-            end else if (reporter_idle_count < 8'hFF) begin
-                reporter_idle_count <= reporter_idle_count + 1'b1;
-            end
-
-            // Timer idle counter
-            if (timer_activity) begin
-                timer_idle_count <= '0;
-            end else if (timer_idle_count < 8'hFF) begin
-                timer_idle_count <= timer_idle_count + 1'b1;
-            end
-        end
-    )
-
-
-    // Power savings tracking
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            total_cycles <= '0;
-            gated_cycles <= '0;
-        end else begin
-            total_cycles <= total_cycles + 1'b1;
-            if (cg_monitor_gated || cg_reporter_gated || cg_timers_gated) begin
-                gated_cycles <= gated_cycles + 1'b1;
-            end
-        end
-    )
-
-
-    // Clock gating cells (simplified model - in real design these would be ICG cells)
-    generate
-        if (ENABLE_CLOCK_GATING) begin : gen_clock_gating
-
-            // Monitor clock gating
-            always_comb begin
-                if (cg_monitor_en && !monitor_activity) begin
-                    aclk_monitor = 1'b0;
-                    cg_monitor_gated = 1'b1;
-                end else begin
-                    aclk_monitor = aclk;
-                    cg_monitor_gated = 1'b0;
-                end
-            end
-
-            // Reporter clock gating
-            always_comb begin
-                if (cg_reporter_en && !reporter_activity) begin
-                    aclk_reporter = 1'b0;
-                    cg_reporter_gated = 1'b1;
-                end else begin
-                    aclk_reporter = aclk;
-                    cg_reporter_gated = 1'b0;
-                end
-            end
-
-            // Timer clock gating
-            always_comb begin
-                if (cg_timers_en && !timer_activity) begin
-                    aclk_timers = 1'b0;
-                    cg_timers_gated = 1'b1;
-                end else begin
-                    aclk_timers = aclk;
-                    cg_timers_gated = 1'b0;
-                end
-            end
-
-        end else begin : gen_no_clock_gating
-
-            // No clock gating - pass through
-            assign aclk_monitor = aclk;
-            assign aclk_reporter = aclk;
-            assign aclk_timers = aclk;
-            assign cg_monitor_gated = 1'b0;
-            assign cg_reporter_gated = 1'b0;
-            assign cg_timers_gated = 1'b0;
-
-        end
-    endgenerate
-
-    assign cg_cycles_saved = gated_cycles;
 
     // =========================================================================
     // Instantiate AXI4 Master Write Monitor with Filtering
     // =========================================================================
+    // -------------------------------------------------------------------------
+    // Clock gating
+    // -------------------------------------------------------------------------
+    // Activity is derived from VALID signals and outstanding work ONLY. A peer's
+    // READY must never appear in the activity term: a consumer that parks its
+    // response-ready high while idle is behaving correctly, and folding that in
+    // would pin this block permanently awake and defeat gating entirely.
+    //
+    // The request-side readys are masked to 0 while gated, so no transfer can be
+    // accepted while the clock is stopped.
+    //
+    // Port valids alone are sufficient to cover a beat held inside the block:
+    // the upstream valid covers it until the cycle it is accepted, and the
+    // downstream valid covers it from the cycle it is presented, which the skid
+    // buffer does on the very next cycle and holds for as long as the consumer
+    // back-pressures. There is therefore no window in which a beat is inside the
+    // block with every port valid low, so no beat can be stranded by the clock
+    // stopping. val/amba/test_mon_cg_gating.py phase 5 asserts this directly.
+    logic gated_aclk;
+    logic user_valid, axi_valid;
+    logic int_awready, int_wready, int_bready, int_busy;
+
+    assign user_valid = fub_axi_awvalid || fub_axi_wvalid || fub_axi_bvalid || int_busy;
+    assign axi_valid  = m_axi_awvalid || m_axi_wvalid || m_axi_bvalid;
+
+    assign fub_axi_awready  = cg_gating ? 1'b0 : int_awready;
+    assign fub_axi_wready   = cg_gating ? 1'b0 : int_wready;
+    assign m_axi_bready = cg_gating ? 1'b0 : int_bready;
+
+    amba_clock_gate_ctrl #(
+        .CG_IDLE_COUNT_WIDTH (CG_IDLE_COUNT_WIDTH)
+    ) i_amba_clock_gate_ctrl (
+        .clk_in              (aclk),
+        .aresetn             (aresetn),
+        .cfg_cg_enable       (cfg_cg_enable),
+        .cfg_cg_idle_count   (cfg_cg_idle_count),
+        .user_valid          (user_valid),
+        .axi_valid           (axi_valid),
+        .clk_out             (gated_aclk),
+        .gating              (cg_gating),
+        .idle                (cg_idle)
+    );
+
     axi4_master_wr_mon #(
         .SKID_DEPTH_AW           (SKID_DEPTH_AW),
         .SKID_DEPTH_W            (SKID_DEPTH_W),
@@ -401,7 +282,7 @@ module axi4_master_wr_mon_cg
         .ENABLE_DEBUG_LOGIC(ENABLE_DEBUG_LOGIC),
         .N_ADDR_RANGES           (N_ADDR_RANGES)
     ) axi4_master_wr_mon_inst (
-        .aclk                    (aclk),  // TODO: Use aclk_monitor once ICG cells replace combinational gating
+        .aclk                    (gated_aclk),
         .aresetn                 (aresetn),
         .cam_clear               (cam_clear),
         .i_mon_time              (i_mon_time),
@@ -419,14 +300,14 @@ module axi4_master_wr_mon_cg
         .fub_axi_awregion        (fub_axi_awregion),
         .fub_axi_awuser          (fub_axi_awuser),
         .fub_axi_awvalid         (fub_axi_awvalid),
-        .fub_axi_awready         (fub_axi_awready),
+        .fub_axi_awready         (int_awready),
 
         .fub_axi_wdata           (fub_axi_wdata),
         .fub_axi_wstrb           (fub_axi_wstrb),
         .fub_axi_wlast           (fub_axi_wlast),
         .fub_axi_wuser           (fub_axi_wuser),
         .fub_axi_wvalid          (fub_axi_wvalid),
-        .fub_axi_wready          (fub_axi_wready),
+        .fub_axi_wready          (int_wready),
 
         .fub_axi_bid             (fub_axi_bid),
         .fub_axi_bresp           (fub_axi_bresp),
@@ -460,7 +341,7 @@ module axi4_master_wr_mon_cg
         .m_axi_bresp             (m_axi_bresp),
         .m_axi_buser             (m_axi_buser),
         .m_axi_bvalid            (m_axi_bvalid),
-        .m_axi_bready            (m_axi_bready),
+        .m_axi_bready            (int_bready),
 
         // Monitor Configuration
         .cfg_monitor_enable      (cfg_monitor_enable),
@@ -497,7 +378,7 @@ module axi4_master_wr_mon_cg
         .monbus_timestamp        (monbus_timestamp),
 
         // Status outputs
-        .busy                    (busy),
+        .busy                    (int_busy),
         .active_transactions     (active_transactions),
         .error_count             (error_count),
         .transaction_count       (transaction_count),
@@ -522,5 +403,7 @@ module axi4_master_wr_mon_cg
         .perf_burst_count        (perf_burst_count)
 
     );
+
+    assign busy = int_busy;
 
 endmodule : axi4_master_wr_mon_cg

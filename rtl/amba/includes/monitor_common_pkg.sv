@@ -90,6 +90,31 @@ package monitor_common_pkg;
     // the monbus_group family. Sampled by the wrapper at emission time.
     typedef logic [MONBUS_TS_WIDTH-1:0]  monbus_timestamp_t;
 
+    // ------------------------------------------------------------------------
+    // SATURATION-RECOVERY CONTRACT (single source of truth).
+    //
+    // The transaction table caps COMMAND-originated entries at
+    // MAX - cmd_entry_reserve(MAX), and axi_monitor_base re-asserts
+    // block_ready at active_count < MAX - (cmd_entry_reserve(MAX) - 1) --
+    // strictly ABOVE the cap, which is the entire recovery guarantee: a
+    // saturated table can always drain below the reopen threshold because
+    // command entries alone can never reach it.
+    //
+    // Both axi_monitor_trans_mgr and axi_monitor_base derive their constants
+    // from this function. It used to be two hand-synced localparams with a
+    // KEEP-IN-SYNC comment; a comment-encoded invariant on block_ready is how
+    // the saturation wedge shipped in the first place, so the sync is now
+    // structural.
+    //
+    // Tables smaller than 16 get reserve 0 (full legacy allocation): small
+    // tables cannot spare slots, and measurement showed even one reserved
+    // slot at MAX=8 starves oversubscribed same-ID tracking. They trade the
+    // recovery guarantee for capacity.
+    // ------------------------------------------------------------------------
+    function automatic int cmd_entry_reserve(input int max_transactions);
+        return (max_transactions >= 16) ? 2 : 0;
+    endfunction
+
     // Helper functions for monitor packet manipulation
     function automatic logic [3:0] get_packet_type(monitor_packet_t pkt);
         return pkt[127:124];

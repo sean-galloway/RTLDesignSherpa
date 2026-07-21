@@ -237,7 +237,10 @@ module monbus_compressor
     // the top-level present signal, muxed into in_ready below).
     logic [2:0]                r_credit;
     logic                      pop;            // skid read handshake
-    assign cam_en = in_valid && (r_credit < 3'(SKID_DEPTH));
+    // `clear` takes priority inside monbus_cam_pipe and discards whatever is
+    // in flight, so an access presented on a clear cycle would be dropped after
+    // in_ready had already reported it accepted. Hold the handshake off.
+    assign cam_en = in_valid && !clear && (r_credit < 3'(SKID_DEPTH));
 
     monbus_cam_pipe #(
         .KEY_WIDTH(KEY_WIDTH), .DATA_WIDTH(64),
@@ -275,6 +278,7 @@ module monbus_compressor
 
     // Skid input payload = the full stage-1 result.
     logic [P_W-1:0] skid_wr_data, skid_rd_data;
+    logic [3:0]     w_skid_count;   // skid occupancy, for credit recovery on clear
     logic           skid_rd_valid, skid_wr_ready;
     assign skid_wr_data = {pipe_res_hit, pipe_res_idx, pipe_res_old_data,
                            pipe_delta_ts, m_event_data, m_src_ts60, m_packet};
@@ -282,7 +286,7 @@ module monbus_compressor
     gaxi_skid_buffer #(.DATA_WIDTH(P_W), .DEPTH(SKID_DEPTH)) u_res_skid (
         .axi_aclk(clk), .axi_aresetn(rst_n),
         .wr_valid(pipe_res_valid), .wr_ready(skid_wr_ready),
-        .wr_data(skid_wr_data), .count(),
+        .wr_data(skid_wr_data), .count(w_skid_count),
         .rd_valid(skid_rd_valid), .rd_ready(pop),
         .rd_count(), .rd_data(skid_rd_data)
     );
@@ -294,9 +298,17 @@ module monbus_compressor
     assign pop        = enc_commit;
 
     // credit = in-flight (presented, result pending) + skid occupancy.
+    //
+    // On `clear`, monbus_cam_pipe discards every access in flight, but the skid
+    // keeps whatever already landed in it. Recomputing the credit from the skid
+    // occupancy is what recovers the in-flight portion. Without this the credit
+    // leaks one per in-flight record, and two leaks pin r_credit at SKID_DEPTH so
+    // cam_en/in_ready are stuck low for good -- a hang recoverable only by
+    // aresetn, which is the whole reason this branch exists. Do not remove it.
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) r_credit <= 3'd0;
-        else r_credit <= r_credit + 3'(cam_en) - 3'(pop && skid_rd_valid);
+        else if (clear)           r_credit <= 3'(w_skid_count) - 3'(pop && skid_rd_valid);
+        else                      r_credit <= r_credit + 3'(cam_en) - 3'(pop && skid_rd_valid);
     )
 
     // ------------------------------------------------------------------------

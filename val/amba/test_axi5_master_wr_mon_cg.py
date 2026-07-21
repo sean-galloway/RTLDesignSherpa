@@ -38,6 +38,14 @@ async def axi5_master_wr_mon_cg_test(dut):
 
     tb = AXI5MasterMonitorTB(dut, is_write=True, aclk=dut.aclk, aresetn=dut.aresetn)
     await tb.initialize()
+
+    # Configure clock gating (converged interface: enable + idle count).
+    # Gating behaviour itself is asserted by val/amba/test_mon_cg_gating.py;
+    # here it is simply left enabled so the functional traffic below runs
+    # with the clock actually being gated and ungated underneath it.
+    dut.cfg_cg_enable.value = 1
+    dut.cfg_cg_idle_count.value = 8
+
     await tb.run_integration_tests(test_level=test_level)
 
 
@@ -112,6 +120,7 @@ def test_axi5_master_wr_mon_cg(id_width, addr_width, data_width, user_width, max
         'ENABLE_FILTERING': '1',
         'SKID_DEPTH_AW': str(skid_aw),
         'SKID_DEPTH_W': str(skid_w),
+        'CG_IDLE_COUNT_WIDTH': '4',
         'SKID_DEPTH_B': str(skid_b),
     }
 

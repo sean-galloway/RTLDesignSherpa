@@ -171,11 +171,22 @@ module monbus_arbiter
         end
     end
 
-    // Grant ACK occurs when both grant is asserted AND client has valid data
-    // This implements the "stick on grant until both request and grant ack are high" requirement
+    // Grant ACK == the granted client's beat was actually CONSUMED, i.e. the
+    // exact condition under which int_monbus_ready_in[i] completes a transfer
+    // below: grant && valid && downstream ready.
+    //
+    // arbiter_round_robin runs here in ACK mode (WAIT_GNT_ACK=1) and retires
+    // the grant the moment it sees grant_ack for the pending client. Omitting
+    // the ready term (the original `grant[i] && int_monbus_valid_in[i]`) made
+    // the ack fire every cycle while the sink was backpressuring, so the grant
+    // rotated continuously with ZERO transfers taking place. That breaks the
+    // module's grant-hold contract, violates valid/data stability at the
+    // output port when OUTPUT_SKID_ENABLE=0 (the mux drives the port
+    // directly), and makes fairness under backpressure depend on the phase of
+    // monbus_ready. Regression: val/amba/test_monbus_arbiter_grant_hold.py
     always_comb begin
         for (int i = 0; i < CLIENTS; i++) begin
-            grant_ack[i] = grant[i] && int_monbus_valid_in[i];
+            grant_ack[i] = grant[i] && int_monbus_valid_in[i] && int_monbus_ready;
         end
     end
 

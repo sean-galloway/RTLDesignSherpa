@@ -48,7 +48,7 @@ axi_monitor_reporter_flat.v: $(DUT) $(PKGS) $(DEPS)
 		sed -e 's/import monitor_pkg::\*;//g' \
 		    -e 's/monitor_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \
 	done
-	$(SV2V) $(INC) $(PKGS) \
+	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) \
 		$(addprefix $(TMPDIR)/,$(notdir $(DEPS) $(DUT))) > $@
 	@rm -rf $(TMPDIR)
 

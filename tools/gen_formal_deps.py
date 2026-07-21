@@ -117,7 +117,7 @@ cover: {name}_flat.v
 \t\tsed -e 's/import monitor_pkg::\\*;//g' \\
 \t\t    -e 's/monitor_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \\
 \tdone
-\t$(SV2V) $(INC) $(PKGS) \\
+\t$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) \\
 \t\t$(addprefix $(TMPDIR)/,$(notdir $(DEPS) $(DUT))) > $@
 \t@rm -rf $(TMPDIR)
 

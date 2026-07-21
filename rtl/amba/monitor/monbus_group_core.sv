@@ -1055,6 +1055,30 @@ module monbus_group_core
                         r_unit_remaining    <= total_units;
                         r_wr_state <= WR_AW;
                     end else if (do_flush && geom_valid && !r_plan_ok
+                                 && (r_wr_addr == r_cfg_base_addr)) begin
+                        // Base itself cannot host a whole record: cfg_base_addr
+                        // sits closer to the next 4KB boundary than
+                        // BEATS_PER_UNIT beats. The rewind-snap below cannot
+                        // help, because its target IS cfg_base_addr -- so with
+                        // only that branch the writer sat in WR_IDLE forever,
+                        // silently, while the write FIFO filled and backed the
+                        // whole monbus up. The old guard tested
+                        // (r_wr_addr != r_cfg_base_addr), which is exactly the
+                        // case this hits.
+                        //
+                        // Step over the short stub to the next 4KB boundary. A
+                        // full 4KB region is 512 beats, so it always fits at
+                        // least one record for any supported BEATS_PER_UNIT.
+                        // Staying inside the window is guaranteed by the
+                        // in-window test that gates the plan: if the boundary
+                        // is past cfg_limit_addr the next plan rewinds to base
+                        // and we land back here, which is a genuine
+                        // misconfiguration (window shorter than one record)
+                        // rather than a hang -- err_fifo_full will assert as
+                        // the FIFO backs up, which is the visible symptom.
+                        r_wr_addr <= {r_cfg_base_addr[ADDR_WIDTH-1:12] + 1'b1,
+                                      12'd0};
+                    end else if (do_flush && geom_valid && !r_plan_ok
                                  && (r_wr_addr != r_cfg_base_addr)) begin
                         // Rewind-snap: the pipeline produced a plan but
                         // r_plan_ok=false because no whole record fits in

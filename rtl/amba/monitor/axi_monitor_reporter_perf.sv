@@ -97,7 +97,13 @@ module axi_monitor_reporter_perf
                 if (error_marked_mask[idx]) r_error_count     <= r_error_count     + 1'b1;
                 if (compl_marked_mask[idx]) r_completed_count <= r_completed_count + 1'b1;
             end
-            r_state <= w_next_state;
+            // Hold the state whenever we are presenting a packet that was not
+            // accepted (threshold beats perf in the top reporter's output mux).
+            // Advancing regardless silently dropped the packet: it was
+            // generated, never emitted, and the FSM moved past it.
+            if (!(pkt_valid && !pkt_taken)) begin
+                r_state <= w_next_state;
+            end
         end
     )
 
@@ -119,13 +125,5 @@ module axi_monitor_reporter_perf
             pkt_data       = 64'(r_error_count);
         end
     end
-
-    // pkt_taken is unused here today — counters update from masks regardless
-    // of whether the top emits. Kept on the port list for future hooks
-    // (e.g., back-pressure on packet bursts).
-    /* verilator lint_off UNUSED */
-    logic unused_pkt_taken;
-    assign unused_pkt_taken = pkt_taken;
-    /* verilator lint_on UNUSED */
 
 endmodule : axi_monitor_reporter_perf
