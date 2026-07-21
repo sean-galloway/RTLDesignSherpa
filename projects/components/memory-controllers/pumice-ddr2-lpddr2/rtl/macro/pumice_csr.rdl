@@ -260,9 +260,14 @@ addrmap pumice_csr {
 
     reg {
         name = "Mode Register 0";
-        desc = "MR0 value loaded during init (low 16 bits)";
+        desc = "MR0 base value loaded during the init MRS chain (low 16 bits).
+                Default 0x433 is DDR2 BL8/CL3/tWR3. The init FSM ORs in the DLL
+                reset bit for the first MR0 load. Runtime-writable so software can
+                retune the mode register AND sweep the value to defeat an
+                arbitrary board A-lane mapping on MRS commands: write MRx.VAL then
+                pulse CTRL.init_force_restart.";
 
-        field { sw = rw; hw = r; desc = "MR0 value"; } VAL[15:0] = 16'h0;
+        field { sw = rw; hw = r; reset = 16'h0433; desc = "MR0 value, DDR2 BL8/CL3/tWR3 default"; } VAL[15:0];
         field { sw = r;  hw = na; desc = "Reserved"; } RSVD[31:16] = 16'h0;
 
     } MR0 @ 0x020;

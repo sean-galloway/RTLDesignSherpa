@@ -12,11 +12,11 @@ $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/includes/pumice_pkg.sv
 
 # AMBA / common deps
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
-$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
-$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
-$REPO_ROOT/rtl/amba/axi4/axi4_slave_wr.sv
+-f $REPO_ROOT/rtl/common/filelists/counter_bin.f
+-f $REPO_ROOT/rtl/common/filelists/fifo_control.f
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr.f
 
 # Address decoder
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/addr_mapper.sv

@@ -15,31 +15,18 @@
 +incdir+$STREAM_ROOT/rtl/includes
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-# Header files with macros (MUST be compiled first)
-$REPO_ROOT/rtl/amba/includes/reset_defs.svh
-$REPO_ROOT/rtl/amba/includes/fifo_defs.svh
+# AMBA/common dependencies come in via each component's OWN filelist; this
+# file never hand-lists individual rtl/common or rtl/amba sources. A consumer
+# that hand-lists a component's files has to track that component's internal
+# dependencies, and it silently rots when they change (missing reporter
+# sub-blocks, missing monitor_trans_cam, missing clock-gate chain). Each
+# filelist below declares its own complete closure.
+-f $REPO_ROOT/rtl/amba/filelists/monbus_axil_axil_group.f
+-f $REPO_ROOT/rtl/common/filelists/fifo_control.f
 
 # Package files
-$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv
-$REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv
 $STREAM_ROOT/rtl/includes/stream_pkg.sv
-
-# Dependencies - Common utilities
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
-
-# Dependencies - GAXI FIFO (for error/interrupt and master write FIFOs)
-$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
-$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
-
-# Dependencies - GAXI FIFO (for error/interrupt and master write FIFOs)
-$REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv
-$REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv
 
 # Monbus group core family (cam + compressor + core + div-by-3 helper).
 # Shared canonical list so a new core dependency is added in ONE place.
 -f $REPO_ROOT/rtl/amba/filelists/monbus_group.f
-
-# AXIL/AXIL wrapper for this consumer (other family variants:
-# monbus_axil_axi4_group.sv, monbus_axi4_axil_group.sv, monbus_axi4_axi4_group.sv).
-$REPO_ROOT/rtl/amba/monitor/monbus_axil_axil_group.sv

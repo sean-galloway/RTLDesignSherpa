@@ -150,4 +150,34 @@ module stream_drain_ctrl #(
     assign rd_empty = r_rd_empty;
     assign rd_almost_empty = r_rd_almost_empty;
 
+    // ---------------------------------------------------------------------
+    // Over-drain check (simulation only)
+    // ---------------------------------------------------------------------
+    // The read pointer advances by the FULL rd_size, gated only on !rd_empty.
+    // If a caller ever reserves more beats than are actually present, rd_ptr
+    // overshoots wr_ptr and the wrap-corrected occupancy in fifo_control
+    // computes as ~DEPTH instead of a small number. Both pointers then advance
+    // in lockstep, so the corruption is PERMANENT: the channel reports a nearly
+    // full FIFO forever and the write engine issues bursts with no backing data,
+    // stalling the shared in-order W-phase FIFO and freezing every channel.
+    //
+    // That silent corruption is the failure mode this assertion exists to make
+    // loud -- it fires at the moment of the bad reservation rather than leaving
+    // a deadlock to be diagnosed hundreds of microseconds later.
+    // Written as a procedural check rather than an `assert property`: the
+    // simulator here (Verilator) silently ignores SVA unless built with
+    // --assert, which this flow does not pass -- a concurrent assertion would
+    // be dead code. A plain always_ff + $error always executes.
+    // synthesis translate_off
+    always_ff @(posedge axi_aclk) begin
+        // rd_size is 8-bit, data_available is (AW+1)-bit -- widen explicitly
+        // (same cast idiom as the rd_ptr advance above) so the comparison does
+        // not trip WIDTHEXPAND, which the FUB lint flow escalates to an error.
+        if (axi_aresetn && rd_valid && !r_rd_empty && ((AW+1)'(rd_size) > data_available)) begin
+            $error("stream_drain_ctrl: over-drain -- rd_size=%0d exceeds data_available=%0d; rd_ptr will overshoot wr_ptr and permanently corrupt the occupancy count",
+                   rd_size, data_available);
+        end
+    end
+    // synthesis translate_on
+
 endmodule : stream_drain_ctrl

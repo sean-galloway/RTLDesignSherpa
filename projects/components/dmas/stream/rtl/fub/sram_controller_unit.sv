@@ -279,10 +279,32 @@ module sram_controller_unit #(
 
     // Debug: Monitor data flow
 
-    // Total data available = drain controller data + latency bridge occupancy
-    // The drain controller tracks FIFO only; we must add bridge buffered data
-    // COMBINATIONAL - updates immediately when drain/bridge state changes
-    assign axi_wr_drain_data_avail = drain_data_available + SCW'(bridge_occupancy);
+    // Total data available = drain controller occupancy, and NOTHING else.
+    //
+    // Do NOT add bridge_occupancy here. drain_data_available is (wr_ptr -
+    // rd_ptr) where wr_ptr advances at the FIFO WRITE port (u_drain_ctrl
+    // .wr_valid = axi_rd_sram_valid && axi_rd_sram_ready) and rd_ptr advances
+    // only on a drain RESERVATION (.rd_valid = axi_wr_drain_req). Nothing in
+    // that accounting is tied to the FIFO read port, so a beat that has moved
+    // out of the FIFO into the latency bridge's skid is STILL counted in
+    // drain_data_available. Adding bridge_occupancy counted it a second time.
+    //
+    // The over-count was 0..SKID_DEPTH (4) beats and was largest exactly when
+    // the FIFO ran near-empty with the bridge holding its prefetch -- i.e. the
+    // slow_producer steady state. The write engine would then size a burst
+    // against beats that do not exist and issue a drain_req larger than the
+    // real occupancy. stream_drain_ctrl advances rd_ptr by the full requested
+    // size, so rd_ptr overshot wr_ptr and fifo_control's wrap-corrected count
+    // evaluated to ~DEPTH. Both pointers then advanced in lockstep, making the
+    // corruption permanent: the channel reported a nearly-full FIFO forever,
+    // the engine issued AWs with no backing data, and the resulting stall at
+    // the head of the shared in-order W-phase FIFO froze all 8 channels.
+    // (Deadlock seen in top multi_channel/stress at timing_profile=slow_producer.)
+    //
+    // Excluding reserved-but-not-yet-transmitted beats is conservative in the
+    // safe direction: it can only delay an AW, never over-issue one.
+    // COMBINATIONAL - updates immediately when drain state changes
+    assign axi_wr_drain_data_avail = drain_data_available;
 
     // Register axi_rd_alloc_space_free to break combinatorial paths to read engine
     `ALWAYS_FF_RST(clk, rst_n,

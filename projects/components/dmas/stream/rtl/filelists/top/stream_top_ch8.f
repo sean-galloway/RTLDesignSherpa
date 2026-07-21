@@ -11,13 +11,18 @@
 +incdir+$STREAM_ROOT/rtl/includes
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-# Header files with macros (MUST be compiled first)
-$REPO_ROOT/rtl/amba/includes/reset_defs.svh
-$REPO_ROOT/rtl/amba/includes/fifo_defs.svh
+# AMBA/common dependencies come in via each component's OWN filelist; this
+# file never hand-lists individual rtl/common or rtl/amba sources. A consumer
+# that hand-lists a component's files has to track that component's internal
+# dependencies, and it silently rots when they change (missing reporter
+# sub-blocks, missing monitor_trans_cam, missing clock-gate chain). Each
+# filelist below declares its own complete closure.
+-f $REPO_ROOT/rtl/amba/filelists/apb_slave_cdc.f
+-f $REPO_ROOT/rtl/amba/filelists/cdc_2_phase_handshake.f
+-f $REPO_ROOT/rtl/amba/filelists/cdc_4_phase_handshake.f
+-f $REPO_ROOT/rtl/amba/filelists/monbus_axil_axil_group.f
 
 # Package files
-$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv
-$REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv
 $STREAM_ROOT/rtl/includes/stream_pkg.sv
 
 # PeakRDL generated register package and module
@@ -35,24 +40,12 @@ $STREAM_ROOT/regs/generated/rtl/stream_regs.sv
 # APB kick-off router
 -f $STREAM_ROOT/rtl/filelists/fub/apbtodescr.f
 
-# GAXI modules for CDC
-$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
-$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
-$REPO_ROOT/rtl/amba/cdc/cdc_2_phase_handshake.sv
-$REPO_ROOT/rtl/amba/cdc/cdc_4_phase_handshake.sv
-
-# APB slave modules (conditional CDC based on CDC_ENABLE parameter)
-# - apb_slave_cdc: with CDC, used when pclk and aclk differ
-# - apb_slave:     without CDC, used when pclk and aclk are the same
-$REPO_ROOT/rtl/amba/apb/apb_slave_cdc.sv
-$REPO_ROOT/rtl/amba/apb/apb_slave.sv
-
 # CMD/RSP router (routes CMD/RSP from apb_slave_cdc to apbtodescr or peakrdl_to_cmdrsp)
 # Address map: 0x000-0x03F → apbtodescr, 0x100-0x3FF → peakrdl_to_cmdrsp
 $STREAM_ROOT/rtl/top/cmdrsp_router.sv
 
 # PeakRDL adapter (from converters component)
-$REPO_ROOT/projects/components/converters/rtl/peakrdl_to_cmdrsp.sv
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 
 # Configuration mapping block
 # $STREAM_ROOT/rtl/top/stream_config_block.sv
@@ -60,16 +53,8 @@ $REPO_ROOT/projects/components/converters/rtl/peakrdl_to_cmdrsp.sv
 # Include stream_core via its filelist
 # Note: stream_top_ch8 instantiates stream_core with USE_AXI_MONITORS=0
 -f $STREAM_ROOT/rtl/filelists/macro/stream_core.f
-
-# MonBus AXIL/AXIL group (used when USE_AXI_MONITORS=1) -- the
-# monbus_<p1>_<p2>_group family under rtl/amba/shared/, shared with
-# bridge and rapids (replaces the legacy monbus_axil_group.sv).
-# axil4_slave_rd.sv comes from stream_char_harness.f; gaxi_fifo_sync.sv
-# is already listed above.
-$REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv
 # Monbus group core family (cam/compressor/core + div-by-3 helper) -- shared.
 -f $REPO_ROOT/rtl/amba/filelists/monbus_group.f
-$REPO_ROOT/rtl/amba/monitor/monbus_axil_axil_group.sv
 
 # Top-level wrapper files (unique to this filelist)
 $STREAM_ROOT/rtl/top/stream_config_block.sv

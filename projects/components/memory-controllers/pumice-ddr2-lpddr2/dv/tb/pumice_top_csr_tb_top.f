@@ -8,7 +8,7 @@ $REPO_ROOT/rtl/common/counter_johnson.sv
 $REPO_ROOT/rtl/common/find_first_set.sv
 $REPO_ROOT/rtl/common/find_last_set.sv
 $REPO_ROOT/rtl/common/leading_one_trailing_one.sv
-$REPO_ROOT/rtl/common/grayj2bin.sv
+$REPO_ROOT/rtl/common/johnson2bin.sv
 $REPO_ROOT/rtl/common/glitch_free_n_dff_arn.sv
 $REPO_ROOT/rtl/common/fifo_control.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv

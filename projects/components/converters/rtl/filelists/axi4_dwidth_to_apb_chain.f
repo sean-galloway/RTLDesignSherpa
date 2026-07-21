@@ -8,46 +8,29 @@
 # Include directories
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-# Header files with macros (MUST be compiled first)
-$REPO_ROOT/rtl/amba/includes/reset_defs.svh
+# AMBA/common dependencies come in via each component's OWN filelist; this
+# file never hand-lists individual rtl/common or rtl/amba sources. A consumer
+# that hand-lists a component's files has to track that component's internal
+# dependencies, and it silently rots when they change (missing reporter
+# sub-blocks, missing monitor_trans_cam, missing clock-gate chain). Each
+# filelist below declares its own complete closure.
+-f $REPO_ROOT/rtl/amba/filelists/apb_master_stub.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_stub.f
+-f $REPO_ROOT/rtl/amba/filelists/axi_gen_addr.f
+-f $REPO_ROOT/rtl/amba/filelists/cdc_2_phase_handshake.f
+-f $REPO_ROOT/rtl/amba/filelists/cdc_4_phase_handshake.f
+-f $REPO_ROOT/rtl/common/filelists/counter_bin.f
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_async.f
 
-# Dependencies — CDC and synchronization (used by APB shim)
-$REPO_ROOT/rtl/amba/cdc/cdc_2_phase_handshake.sv
-$REPO_ROOT/rtl/amba/cdc/cdc_4_phase_handshake.sv
+# Both chain stages come in via the converters components' OWN filelists,
+# which carry their full closures (the shim's gaxi_fifo_async CDC queues,
+# the dwidth converter's axi_data_upsize/dnsize primitives). Hand-listing
+# the stage sources here is how this chain missed gaxi_fifo_async.
+# Stage 1: AXI4 read data width converter (wide -> narrow on R)
+-f $CONVERTERS_ROOT/rtl/filelists/axi4_dwidth_converter_rd.f
 
-# Dependencies — GAXI infrastructure
-$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
-$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
-
-# Dependencies — APB infrastructure
-$REPO_ROOT/rtl/amba/apb/apb_master.sv
-$REPO_ROOT/rtl/amba/apb/apb_master_stub.sv
-
-# Dependencies — Common modules
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
-
-# Dependencies — AXI address generation
-$REPO_ROOT/rtl/amba/shared/axi_gen_addr.sv
-
-# Dependencies — AXI4 slave stubs (used by APB shim)
-$REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_wr_stub.sv
-$REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_rd_stub.sv
-$REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_stub.sv
-
-# Dependencies — AXI4 → APB converter core
-$CONVERTERS_ROOT/rtl/axi4_to_apb_convert.sv
-
-# Dependencies — validated data-sizing primitives (rd uses both:
-# UPSIZE direction → axi_data_dnsize; DOWNSIZE direction → axi_data_upsize)
-$CONVERTERS_ROOT/rtl/axi_data_upsize.sv
-$CONVERTERS_ROOT/rtl/axi_data_dnsize.sv
-
-# Stage 1: AXI4 read data width converter (wide → narrow on R)
-$CONVERTERS_ROOT/rtl/axi4_dwidth_converter_rd.sv
-
-# Stage 2: AXI4 → APB shim
-$CONVERTERS_ROOT/rtl/axi4_to_apb_shim.sv
+# Stage 2: AXI4 -> APB shim
+-f $CONVERTERS_ROOT/rtl/filelists/axi4_to_apb_shim.f
 
 # Top: the chain wrapper
 $CONVERTERS_ROOT/rtl/axi4_dwidth_to_apb_chain.sv

@@ -6,10 +6,15 @@
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 # Header files with macros (MUST be compiled first)
-$REPO_ROOT/rtl/amba/includes/reset_defs.svh
+-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
 
-# Dependencies - Skid buffers for timing isolation
-$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
+# AMBA/common dependencies come in via each component's OWN filelist; this
+# file never hand-lists individual rtl/common or rtl/amba sources. A consumer
+# that hand-lists a component's files has to track that component's internal
+# dependencies, and it silently rots when they change (missing reporter
+# sub-blocks, missing monitor_trans_cam, missing clock-gate chain). Each
+# filelist below declares its own complete closure.
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f
 
 # Dependencies - Validated data-sizing primitives (rd uses both:
 # UPSIZE direction → axi_data_dnsize; DOWNSIZE direction → axi_data_upsize).

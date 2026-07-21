@@ -6,7 +6,7 @@
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 # Header files with macros (MUST be compiled first)
-$REPO_ROOT/rtl/amba/includes/reset_defs.svh
+-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
 
 # AXIL4 to AXI4 write converter
 $CONVERTERS_ROOT/rtl/axil4_to_axi4_wr.sv

@@ -62,6 +62,12 @@ module pumice_mem_cmd_scheduler
     input  logic [7:0]                t_mrd_wait_i,
     input  logic [7:0]                t_rp_wait_i,
     input  logic [7:0]                t_rfc_wait_i,
+    // DDR2 mode-register values (CSR-backed MR0..MR3.VAL) for the init MRS chain
+    input  logic [15:0]               mr0_i,
+    input  logic [15:0]               mr1_i,
+    input  logic [15:0]               mr2_i,
+    input  logic [15:0]               mr3_i,
+    input  logic                      init_restart_i,   // CTRL.init_force_restart
 
     // ---- DFI init handshake (to/from the PHY via the DFI layer) ----
     output logic                      dfi_init_start_o,
@@ -143,6 +149,8 @@ module pumice_mem_cmd_scheduler
         .memtype_i(memtype_i),
         .t_init_wait_i(t_init_wait_i), .t_dll_wait_i(t_dll_wait_i),
         .t_mrd_wait_i(t_mrd_wait_i), .t_rp_wait_i(t_rp_wait_i), .t_rfc_wait_i(t_rfc_wait_i),
+        .mr0_i(mr0_i), .mr1_i(mr1_i), .mr2_i(mr2_i), .mr3_i(mr3_i),
+        .init_restart_i(init_restart_i),
         .dfi_init_start_o(dfi_init_start_o), .dfi_init_complete_i(dfi_init_complete_i),
         .mr_seq_we_o(mr_seq_we), .mr_seq_index_o(mr_seq_index), .mr_seq_data_o(mr_seq_data),
         .init_cmd_valid_o(init_cmd_valid), .init_cmd_op_o(init_cmd_op),

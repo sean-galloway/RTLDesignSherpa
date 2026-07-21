@@ -15,7 +15,12 @@
 </dl>
 <h2>Description</h2>
 <div id="_Content.desc">
-<p>MR0 value loaded during init (low 16 bits)</p>
+<p>MR0 base value loaded during the init MRS chain (low 16 bits).
+Default 0x433 is DDR2 BL8/CL3/tWR3. The init FSM ORs in the DLL
+reset bit for the first MR0 load. Runtime-writable so software can
+retune the mode register AND sweep the value to defeat an
+arbitrary board A-lane mapping on MRS commands: write MRx.VAL then
+pulse CTRL.init_force_restart.</p>
 </div>
 
 <h2>Contents</h2>
@@ -54,7 +59,7 @@
         <td><a href="#VAL.desc">VAL</a></td>
         <td>
             <span title='Readable and Writable'>rw</span></td>
-        <td>0x0
+        <td>0x433
         </td>
         <td>
             <input id="_FieldValueTesterVAL" class="field-value-tester"
@@ -90,6 +95,6 @@
     <a class="headerlink" href="#VAL.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.VAL.desc">
-<p>MR0 value</p>
+<p>MR0 value, DDR2 BL8/CL3/tWR3 default</p>
 </div>
 </div>

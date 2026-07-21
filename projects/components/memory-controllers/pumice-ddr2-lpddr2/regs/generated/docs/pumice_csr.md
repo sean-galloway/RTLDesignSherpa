@@ -325,16 +325,21 @@ Don't override. Generated from: $root
 - Base Offset: 0x20
 - Size: 0x4
 
-<p>MR0 value loaded during init (low 16 bits)</p>
+<p>MR0 base value loaded during the init MRS chain (low 16 bits).
+Default 0x433 is DDR2 BL8/CL3/tWR3. The init FSM ORs in the DLL
+reset bit for the first MR0 load. Runtime-writable so software can
+retune the mode register AND sweep the value to defeat an
+arbitrary board A-lane mapping on MRS commands: write MRx.VAL then
+pulse CTRL.init_force_restart.</p>
 
 | Bits|Identifier|Access|Reset|Name|
 |-----|----------|------|-----|----|
-| 15:0|    VAL   |  rw  | 0x0 |  — |
+| 15:0|    VAL   |  rw  |0x433|  — |
 |31:16|   RSVD   |   r  | 0x0 |  — |
 
 #### VAL field
 
-<p>MR0 value</p>
+<p>MR0 value, DDR2 BL8/CL3/tWR3 default</p>
 
 #### RSVD field
 

@@ -1205,7 +1205,7 @@ module pumice_csr (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MR0.VAL.value <= 16'h0;
+            field_storage.MR0.VAL.value <= 16'h433;
         end else begin
             if(field_combo.MR0.VAL.load_next) begin
                 field_storage.MR0.VAL.value <= field_combo.MR0.VAL.next;

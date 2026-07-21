@@ -7,7 +7,7 @@
 +incdir+$REPO_ROOT/rtl/common
 
 # Header files with macros (MUST be compiled first)
-$REPO_ROOT/rtl/amba/includes/reset_defs.svh
+-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
 
 # AXI data downsizer module
 $CONVERTERS_ROOT/rtl/axi_data_dnsize.sv

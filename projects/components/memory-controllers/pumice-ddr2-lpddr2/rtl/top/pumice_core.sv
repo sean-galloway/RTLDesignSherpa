@@ -118,6 +118,8 @@ module pumice_core
     input  logic [3:0]                 refresh_burst_i,
     input  logic [15:0]                t_init_wait_i, t_dll_wait_i,
     input  logic [7:0]                 t_mrd_wait_i, t_rp_wait_i, t_rfc_wait_i,
+    input  logic [15:0]                mr0_i, mr1_i, mr2_i, mr3_i,  // CSR MR0..MR3.VAL
+    input  logic                       init_restart_i,              // CTRL.init_force_restart
     input  logic [PHW-1:0]             rd_phase_i, wr_phase_i,
     input  logic [7:0]                 t_phy_wrlat_i, t_rddata_en_i,
     input  logic [DESKEW_W-1:0]        deskew_lo_i, deskew_hi_i,  // read DESKEW
@@ -313,6 +315,8 @@ module pumice_core
         .t_refi_i(t_refi_i), .refresh_burst_i(refresh_burst_i),
         .t_init_wait_i(t_init_wait_i), .t_dll_wait_i(t_dll_wait_i),
         .t_mrd_wait_i(t_mrd_wait_i), .t_rp_wait_i(t_rp_wait_i), .t_rfc_wait_i(t_rfc_wait_i),
+        .mr0_i(mr0_i), .mr1_i(mr1_i), .mr2_i(mr2_i), .mr3_i(mr3_i),
+        .init_restart_i(init_restart_i),
         .dfi_init_start_o(w_init_start), .dfi_init_complete_i(w_init_complete),
         .init_done_o(init_done_o), .cl_o(cl_o), .cwl_o(cwl_o), .bl_o(bl_o),
         // wr CAM per-entry vectors + commit

@@ -65,6 +65,10 @@ MON_PKT_MASK_REGS = ('DAXMON_PKT_MASK', 'RDMON_PKT_MASK', 'WRMON_PKT_MASK')
 # with completions, which drives stream_irq (irq_out = !err_fifo_empty).
 MON_ERR_CFG_REGS = ('DAXMON_ERR_CFG', 'RDMON_ERR_CFG', 'WRMON_ERR_CFG')
 ERR_CFG_ROUTE_COMPL = 0xFF02   # ERR_SELECT=0x2 (compl->err FIFO), ERR_MASK=0xFF
+# Rounds of snapshot-and-drain allowed before the err FIFO must be empty. The
+# FIFO saturates during this test, so the backlog behind it needs more than one
+# pass to clear; a handful of rounds is ample for a finite backlog.
+MAX_DRAIN_ROUNDS = 8
 ERR_CFG_NONE        = 0xFF00   # ERR_SELECT=0 (nothing to err FIFO)
 
 # Monbus-group flush window (top-level cfg_mon_* inputs on stream_top_ch8).
@@ -224,7 +228,25 @@ async def cocotb_test_stream_top_monbus(dut):
 
     # Drain every record over the 32-bit port, then confirm the IRQ de-asserts
     # now that the err FIFO is empty.
-    drained = await mon.drain_records(records)
+    #
+    # The err FIFO is FIFO_DEPTH_ERR=64 records deep and this traffic produces
+    # ~59-64 completions (cf. Phase A), so the FIFO reaches full and packets
+    # queue up in the capture pipeline behind it. A single snapshot-and-drain
+    # of `records` therefore does NOT empty it: freeing space lets the backed-up
+    # records in flow. Drain in rounds until occupancy actually reaches zero.
+    # The bound is a safety net -- a FIFO that never drains is a real failure,
+    # not something to spin on.
+    drained = []
+    for _ in range(MAX_DRAIN_ROUNDS):
+        pending = err_fifo_records()
+        if not pending:
+            break
+        drained += await mon.drain_records(pending)
+        await ClockCycles(dut.aclk, 20)
+    remaining = err_fifo_records()
+    assert not remaining, (
+        f"err FIFO still holds {remaining} records after {MAX_DRAIN_ROUNDS} drain "
+        f"rounds ({len(drained)} drained) -- it is being refilled faster than drained")
     await ClockCycles(dut.aclk, 20)
     irq_after = int(dut.stream_irq.value)
     mon.stop_irq_watch()
