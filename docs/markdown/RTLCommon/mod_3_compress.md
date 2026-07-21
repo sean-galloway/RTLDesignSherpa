@@ -155,7 +155,7 @@ assign rounded_count = beat_count - {14'b0, beat_rem};
 ### Source Code
 
 - `rtl/common/mod_3_compress.sv`
-- `rtl/common/math_adder_carry_save.sv` (instantiated submodule)
+- `rtl/math/math_adder_carry_save.sv` (instantiated submodule)
 - `rtl/common/div_by_15_ceil_32compress.sv` (style reference)
 
 ### Documentation

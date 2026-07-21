@@ -41,11 +41,11 @@ These modules are the arithmetic substrate for ML accelerators: low-precision ar
 
 ### BF16 (`math_bf16_*`) — primary AI/ML format
 
-- **Core arithmetic:** [`math_bf16_adder.sv`](../../../rtl/common/math_bf16_adder.sv), [`math_bf16_multiplier.sv`](../../../rtl/common/math_bf16_multiplier.sv), [`math_bf16_fma.sv`](../../../rtl/common/math_bf16_fma.sv) (BF16×BF16 + FP32 → FP32), [`math_bf16_mantissa_mult.sv`](../../../rtl/common/math_bf16_mantissa_mult.sv), [`math_bf16_exponent_adder.sv`](../../../rtl/common/math_bf16_exponent_adder.sv)
-- **Division / reciprocal:** [`math_bf16_divider.sv`](../../../rtl/common/math_bf16_divider.sv), [`math_bf16_reciprocal.sv`](../../../rtl/common/math_bf16_reciprocal.sv), [`math_bf16_fast_reciprocal.sv`](../../../rtl/common/math_bf16_fast_reciprocal.sv), [`math_bf16_newton_raphson_recip.sv`](../../../rtl/common/math_bf16_newton_raphson_recip.sv), [`math_bf16_goldschmidt_div.sv`](../../../rtl/common/math_bf16_goldschmidt_div.sv)
-- **Compare / min / max:** [`math_bf16_comparator.sv`](../../../rtl/common/math_bf16_comparator.sv), `math_bf16_min.sv`, `math_bf16_max.sv`, `math_bf16_min_tree[_8].sv`, `math_bf16_max_tree[_8].sv`, [`math_bf16_clamp.sv`](../../../rtl/common/math_bf16_clamp.sv)
-- **Activations / transcendentals:** `math_bf16_relu.sv`, `math_bf16_leaky_relu.sv`, [`math_bf16_gelu.sv`](../../../rtl/common/math_bf16_gelu.sv), [`math_bf16_silu.sv`](../../../rtl/common/math_bf16_silu.sv), [`math_bf16_sigmoid.sv`](../../../rtl/common/math_bf16_sigmoid.sv), [`math_bf16_tanh.sv`](../../../rtl/common/math_bf16_tanh.sv), `math_bf16_softmax_8.sv`, [`math_bf16_exp2.sv`](../../../rtl/common/math_bf16_exp2.sv), [`math_bf16_log2.sv`](../../../rtl/common/math_bf16_log2.sv), `math_bf16_log2_scale.sv`
-- **Converters:** `math_bf16_to_fp16.sv`, `math_bf16_to_fp32.sv`, `math_bf16_to_fp8_e4m3.sv`, `math_bf16_to_fp8_e5m2.sv`, `math_bf16_to_int.sv`, `math_bf16_scale_to_int8.sv`, [`math_int_to_bf16.sv`](../../../rtl/common/math_int_to_bf16.sv)
+- **Core arithmetic:** [`math_bf16_adder.sv`](../../../rtl/math/math_bf16_adder.sv), [`math_bf16_multiplier.sv`](../../../rtl/math/math_bf16_multiplier.sv), [`math_bf16_fma.sv`](../../../rtl/math/math_bf16_fma.sv) (BF16×BF16 + FP32 → FP32), [`math_bf16_mantissa_mult.sv`](../../../rtl/math/math_bf16_mantissa_mult.sv), [`math_bf16_exponent_adder.sv`](../../../rtl/math/math_bf16_exponent_adder.sv)
+- **Division / reciprocal:** [`math_bf16_divider.sv`](../../../rtl/math/math_bf16_divider.sv), [`math_bf16_reciprocal.sv`](../../../rtl/math/math_bf16_reciprocal.sv), [`math_bf16_fast_reciprocal.sv`](../../../rtl/math/math_bf16_fast_reciprocal.sv), [`math_bf16_newton_raphson_recip.sv`](../../../rtl/math/math_bf16_newton_raphson_recip.sv), [`math_bf16_goldschmidt_div.sv`](../../../rtl/math/math_bf16_goldschmidt_div.sv)
+- **Compare / min / max:** [`math_bf16_comparator.sv`](../../../rtl/math/math_bf16_comparator.sv), `math_bf16_min.sv`, `math_bf16_max.sv`, `math_bf16_min_tree[_8].sv`, `math_bf16_max_tree[_8].sv`, [`math_bf16_clamp.sv`](../../../rtl/math/math_bf16_clamp.sv)
+- **Activations / transcendentals:** `math_bf16_relu.sv`, `math_bf16_leaky_relu.sv`, [`math_bf16_gelu.sv`](../../../rtl/math/math_bf16_gelu.sv), [`math_bf16_silu.sv`](../../../rtl/math/math_bf16_silu.sv), [`math_bf16_sigmoid.sv`](../../../rtl/math/math_bf16_sigmoid.sv), [`math_bf16_tanh.sv`](../../../rtl/math/math_bf16_tanh.sv), `math_bf16_softmax_8.sv`, [`math_bf16_exp2.sv`](../../../rtl/math/math_bf16_exp2.sv), [`math_bf16_log2.sv`](../../../rtl/math/math_bf16_log2.sv), `math_bf16_log2_scale.sv`
+- **Converters:** `math_bf16_to_fp16.sv`, `math_bf16_to_fp32.sv`, `math_bf16_to_fp8_e4m3.sv`, `math_bf16_to_fp8_e5m2.sv`, `math_bf16_to_int.sv`, `math_bf16_scale_to_int8.sv`, [`math_int_to_bf16.sv`](../../../rtl/math/math_int_to_bf16.sv)
 
 ### FP16 (`math_fp16_*`)
 
@@ -67,8 +67,8 @@ Identical surface to E4M3 with E5M2 format internally.
 
 | Module | Role |
 |---|---|
-| [`math_ieee754_2008_fp16_adder.sv`](../../../rtl/common/math_ieee754_2008_fp16_adder.sv) | IEEE-compliant FP16 add (proper subnormals) |
-| [`math_ieee754_2008_fp16_multiplier.sv`](../../../rtl/common/math_ieee754_2008_fp16_multiplier.sv) / [`_mantissa_mult.sv`](../../../rtl/common/math_ieee754_2008_fp16_mantissa_mult.sv) / [`_exponent_adder.sv`](../../../rtl/common/math_ieee754_2008_fp16_exponent_adder.sv) / [`_fma.sv`](../../../rtl/common/math_ieee754_2008_fp16_fma.sv) | FP16 multiply, mantissa/exponent paths, FMA |
+| [`math_ieee754_2008_fp16_adder.sv`](../../../rtl/math/math_ieee754_2008_fp16_adder.sv) | IEEE-compliant FP16 add (proper subnormals) |
+| [`math_ieee754_2008_fp16_multiplier.sv`](../../../rtl/math/math_ieee754_2008_fp16_multiplier.sv) / [`_mantissa_mult.sv`](../../../rtl/math/math_ieee754_2008_fp16_mantissa_mult.sv) / [`_exponent_adder.sv`](../../../rtl/math/math_ieee754_2008_fp16_exponent_adder.sv) / [`_fma.sv`](../../../rtl/math/math_ieee754_2008_fp16_fma.sv) | FP16 multiply, mantissa/exponent paths, FMA |
 | `math_ieee754_2008_fp32_*` | Same set for FP32 |
 
 ## Picking guide

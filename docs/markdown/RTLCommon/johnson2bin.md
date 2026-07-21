@@ -29,8 +29,8 @@ Converts Johnson counter codes to binary representation for use in asynchronous 
 ## Ports
 
 ### Input Ports
-- **`clk`** - Clock signal (required for leading/trailing one detection)
-- **`rst_n`** - Active-low reset
+- **`clk`** - Clock input. Declared but unused; the module is combinational.
+- **`rst_n`** - Active-low reset. Declared but unused; the module is combinational.
 - **`gray[JCW-1:0]`** - Johnson counter input (misleadingly named "gray")
 
 ### Output Ports
@@ -39,7 +39,6 @@ Converts Johnson counter codes to binary representation for use in asynchronous 
 ### Parameters
 - **`JCW`** - Johnson Counter Width (equals FIFO DEPTH)
 - **`WIDTH`** - Binary output width (typically `$clog2(DEPTH) + 1`)
-- **`INSTANCE_NAME`** - String identifier for debug
 
 ## Johnson Counter Sequence Review
 
@@ -49,19 +48,29 @@ Johnson counters are **shift registers with inverted feedback**:
 ```
 For JCW=6 (DEPTH=6):
 State 0:  000000  ← Initial state
-State 1:  100000  ← Shift left, insert 1
-State 2:  110000
-State 3:  111000  
-State 4:  111100
-State 5:  111110
-State 6:  111111  ← All 1s (special case)
-State 7:  011111  ← Shift left, insert ~MSB (0)
-State 8:  001111
-State 9:  000111
-State 10: 000011
-State 11: 000001
+State 1:  000001  ← Shift left, insert ~MSB (1)
+State 2:  000011
+State 3:  000111
+State 4:  001111
+State 5:  011111
+State 6:  111111  ← All 1s (fill complete)
+State 7:  111110  ← Shift left, insert ~MSB (0)
+State 8:  111100
+State 9:  111000
+State 10: 110000
+State 11: 100000
 State 0:  000000  ← Cycle complete (12 states total)
 ```
+
+> **Fill direction.** This library shifts in at the LSB. `counter_johnson.sv`
+> implements `counter_gray <= {counter_gray[WIDTH-2:0], ~counter_gray[WIDTH-1]}`,
+> so ones enter at bit 0 and march upward. An earlier revision of this page showed
+> the mirror image (ones entering at the MSB), which is also a valid Johnson
+> counter but is *not* the one this library builds -- and both worked conversion
+> examples inherited the error. Note that external references frequently use the
+> MSB-fill convention, so check against `counter_johnson.sv` rather than against
+> a textbook.
+
 
 ### Key Properties
 - **Single bit transitions**: Only one bit changes per state
@@ -90,8 +99,7 @@ end
 ### Position Detection Module
 ```systemverilog
 leading_one_trailing_one #(
-    .WIDTH(JCW),
-    .INSTANCE_NAME(INSTANCE_NAME)
+    .WIDTH(JCW)
 ) u_leading_one_trailing_one (
     .data(gray),
     .leadingone(w_leading_one),
@@ -159,8 +167,7 @@ localparam int PAD_WIDTH = (WIDTH > N+1) ? WIDTH-N-1 : 0; // Padding if needed
 // fifo_async.sv (USE_JOHNSON=1) usage:
 johnson2bin #(
     .JCW(JCW),                    // = DEPTH
-    .WIDTH(AW + 1),               // Address width + wrap bit
-    .INSTANCE_NAME("rd_ptr_gray2bin_inst")
+    .WIDTH(AW + 1)                // Address width + wrap bit
 ) rd_ptr_gray2bin_inst(
     .binary(w_wdom_rd_ptr_bin),   // Binary for arithmetic
     .gray(r_wdom_rd_ptr_gray),    // Johnson counter from CDC
@@ -169,8 +176,19 @@ johnson2bin #(
 );
 ```
 
-### Why Clock is Required
-Unlike pure combinational Gray-to-binary conversion, Johnson-to-binary needs the `leading_one_trailing_one` helper, which may use sequential logic for complex position detection.
+### The clock and reset ports are unused
+
+`johnson2bin` declares `clk` and `rst_n` but **never uses them**. The conversion
+is entirely combinational: a single `always_comb` block driven by
+`leading_one_trailing_one`, which is itself combinational (one `always_comb` plus
+continuous assignments, no `always_ff` anywhere).
+
+The ports are retained so the module can be dropped into a clocked context
+without an interface change, and so a future revision could register the output
+without breaking callers. Tie them off to whatever the surrounding domain uses;
+nothing in this module samples them. Do not expect a cycle of latency -- the
+output follows `gray` combinationally, and long conversion paths must be
+registered by the caller.
 
 ## Comparison with Standard Gray2Bin
 
@@ -179,7 +197,7 @@ Unlike pure combinational Gray-to-binary conversion, Johnson-to-binary needs the
 | **Input type** | Traditional Gray code | Johnson counter sequence |
 | **Algorithm** | XOR reduction | Position detection |
 | **Complexity** | Simple combinational | Complex position logic |
-| **Clock requirement** | None | Required for helper modules |
+| **Clock requirement** | None | None (clk/rst_n ports exist but are unused) |
 | **Width scaling** | Logarithmic | Linear with JCW |
 | **Use case** | Power-of-2 sequences | Any even sequences |
 

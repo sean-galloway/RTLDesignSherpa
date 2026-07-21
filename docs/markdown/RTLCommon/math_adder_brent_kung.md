@@ -29,7 +29,7 @@ A family of high-performance parallel prefix adders using the Brent-Kung algorit
 
 The `math_adder_brent_kung` module family implements the Brent-Kung parallel prefix addition algorithm, which achieves O(log N) critical path depth while minimizing hardware area compared to other parallel prefix adders like Kogge-Stone. The Brent-Kung algorithm uses an asymmetric tree structure: a forward tree to compute intermediate results, followed by a reverse tree using area-efficient "gray" cells that only propagate generate signals.
 
-Available widths: **8-bit**, **16-bit**, **32-bit**
+Available widths: **8-bit**, **16-bit**, **32-bit**, **64-bit**
 
 ## Module Hierarchy
 
@@ -39,13 +39,14 @@ The Brent-Kung adder family consists of:
 - `math_adder_brent_kung_008.sv` - 8-bit adder
 - `math_adder_brent_kung_016.sv` - 16-bit adder
 - `math_adder_brent_kung_032.sv` - 32-bit adder
+- `math_adder_brent_kung_064.sv` - 64-bit adder (used as the final CPA of the 32-bit Dadda and Wallace multipliers)
 
 **Internal Building Blocks:**
 - `math_adder_brent_kung_pg.sv` - Single-bit P/G generator
 - `math_adder_brent_kung_black.sv` - Black cell (outputs P and G)
 - `math_adder_brent_kung_gray.sv` - Gray cell (outputs only G, area-efficient)
 - `math_adder_brent_kung_bitwisepg.sv` - Bitwise P/G logic stage
-- `math_adder_brent_kung_grouppg_008/016/032.sv` - Width-specific prefix networks
+- `math_adder_brent_kung_grouppg_008/016/032/064.sv` - Width-specific prefix networks
 - `math_adder_brent_kung_sum.sv` - Final sum calculation
 
 ## Top-Level Module Declaration
@@ -62,7 +63,7 @@ module math_adder_brent_kung_032 #(
 );
 ```
 
-**Note:** Replace `_032` with `_008` or `_016` for 8-bit or 16-bit versions.
+**Note:** Replace `_032` with `_008`, `_016` or `_064` for the 8-, 16- or 64-bit version. All four share this port list; only `N` and the internal prefix network change.
 
 ## Parameters
 
@@ -70,12 +71,13 @@ module math_adder_brent_kung_032 #(
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| N | int | 32 | Adder width in bits (8, 16, or 32) |
+| N | int | 32 | Adder width in bits (8, 16, 32 or 64) |
 
 **Width Options:**
 - **8-bit**: Set N=8 in `math_adder_brent_kung_008`
 - **16-bit**: Set N=16 in `math_adder_brent_kung_016`
 - **32-bit**: Set N=32 in `math_adder_brent_kung_032`
+- **64-bit**: Set N=64 in `math_adder_brent_kung_064`
 
 **Why Fixed Widths?** The parallel prefix network structure is width-specific and optimized for each size during design. Generic parameterization would require runtime generation of the tree structure.
 
@@ -240,28 +242,50 @@ Depth 8 (Sum):      S0    S1    S2    S3    ...    S31         (XOR gates)
 ```
 
 **Key Features:**
-- **Forward tree depth**: log2(N) levels
-- **Reverse tree depth**: log2(N) - 1 levels
-- **Total depth**: 2×log2(N) + 1 levels (includes bitwise PG and sum stages)
-- **Black cells**: Used in forward tree (outputs both P and G)
-- **Gray cells**: Used in reverse tree (outputs only G, saves area)
+- **Forward tree**: log2(N) - 1 levels; these are the levels that contain black cells
+- **Reverse tree**: log2(N) - 1 further levels, gray cells only
+- **Prefix-network depth**: 2 x log2(N) - 2 cell levels
+- **Total depth**: 2 x log2(N) cell levels, adding the bitwise PG stage and the sum XOR stage
+- **Black cells**: Used in the forward tree (outputs both P and G)
+- **Gray cells**: Used throughout (outputs only G, saves area); the reverse tree is gray-only
+
+Measured from the generated prefix networks (`math_adder_brent_kung_grouppg_*.sv`):
+
+| Width | Prefix levels | Total levels | Black cells | Gray cells |
+|-------|---------------|--------------|-------------|------------|
+| 8-bit | 4 | 6 | 4 | 8 |
+| 16-bit | 6 | 8 | 11 | 16 |
+| 32-bit | 8 | 10 | 26 | 32 |
+| 64-bit | 10 | 12 | 57 | 64 |
+
+: Brent-Kung prefix network depth and cell counts, counted from the RTL
+
+Black cells follow `N - log2(N) - 1` and gray cells `N`. Count them yourself with
+`grep -c math_adder_brent_kung_black rtl/math/math_adder_brent_kung_grouppg_032.sv`.
 
 ## Timing Characteristics
 
 ### Combinational Delay Analysis
 
-| Width | Logic Levels | Typical Delay (ns) @ 1.0V | Max Frequency |
-|-------|--------------|---------------------------|---------------|
-| 8-bit | 9 | ~2.0 | ~500 MHz |
-| 16-bit | 11 | ~2.5 | ~400 MHz |
-| 32-bit | 13 | ~3.0 | ~333 MHz |
+Logic levels below are cell levels counted from the RTL. The delay and frequency
+columns are rough estimates only -- no synthesis run backs them, and they will
+move substantially with technology, constraints and effort level.
+
+| Width | Logic Levels | Est. Delay (ns) | Est. Max Frequency |
+|-------|--------------|-----------------|--------------------|
+| 8-bit | 6 | ~2.0 | ~500 MHz |
+| 16-bit | 8 | ~2.5 | ~400 MHz |
+| 32-bit | 10 | ~3.0 | ~333 MHz |
+| 64-bit | 12 | ~3.5 | ~285 MHz |
+
+: Brent-Kung timing, logic levels measured and delays estimated
 
 **Logic Level Breakdown (32-bit):**
 1. Bitwise PG: 1 level (AND/XOR)
-2. Forward tree: 5 levels (black cells)
-3. Reverse tree: 5 levels (gray cells)
+2. Forward tree: 4 levels (levels containing black cells)
+3. Reverse tree: 4 levels (gray cells only)
 4. Sum calculation: 1 level (XOR)
-5. **Total**: 12 levels
+5. **Total**: 10 levels
 
 **Comparison to Other Adders:**
 
@@ -274,8 +298,8 @@ Depth 8 (Sum):      S0    S1    S2    S3    ...    S31         (XOR gates)
 
 ### Critical Paths
 
-1. **Forward Tree Path**: i_a/i_b → PG → Black cells (levels 1-5) → Group G
-2. **Reverse Tree Path**: Group G → Gray cells (levels 6-10) → Final G
+1. **Forward Tree Path**: i_a/i_b -> PG -> black cells (prefix levels 1-4) -> Group G
+2. **Reverse Tree Path**: Group G -> gray cells (prefix levels 5-8) -> Final G
 3. **Sum Path**: Final G → XOR with P → ow_sum
 
 **Optimization Tip**: Pipeline between stages for >1 GHz operation:
@@ -425,23 +449,29 @@ end
 
 ### Resource Utilization
 
-| Width | LUTs (Est.) | FFs (Pipeline) | Description |
-|-------|-------------|----------------|-------------|
-| 8-bit | ~60 | 0 (combinational) | Minimal |
-| 16-bit | ~140 | 0 (combinational) | Small |
-| 32-bit | ~300 | 0 (combinational) | Medium |
+Cell counts below are exact (counted from the RTL); the LUT figures are estimates
+derived from them, not synthesis results.
+
+| Width | Black cells | Gray cells | LUTs (Est.) | FFs (Pipeline) |
+|-------|-------------|------------|-------------|----------------|
+| 8-bit | 4 | 8 | ~45 | 0 (combinational) |
+| 16-bit | 11 | 16 | ~100 | 0 (combinational) |
+| 32-bit | 26 | 32 | ~240 | 0 (combinational) |
+| 64-bit | 57 | 64 | ~510 | 0 (combinational) |
+
+: Brent-Kung area, cell counts measured and LUTs estimated
 
 **Area Breakdown (32-bit):**
-- Bitwise PG: 32 × 2 gates = 64 LUTs
-- Black cells (forward): ~50 cells × 3 gates = 150 LUTs
-- Gray cells (reverse): ~30 cells × 2 gates = 60 LUTs
-- Sum logic: 32 × 1 gate = 32 LUTs
-- **Total**: ~306 LUTs
+- Bitwise PG: 32 x 2 gates = 64 LUTs
+- Black cells: 26 cells x 3 gates = 78 LUTs
+- Gray cells: 32 cells x 2 gates = 64 LUTs
+- Sum logic: 32 x 1 gate = 32 LUTs
+- **Total**: ~238 LUTs
 
-**Comparison:**
-- **Ripple Carry**: 32 LUTs (32 full adders)
-- **Brent-Kung**: 300 LUTs (balanced)
-- **Kogge-Stone**: 450 LUTs (maximum speed, maximum area)
+**Comparison (32-bit, estimated):**
+- **Ripple Carry**: ~32 LUTs (32 full adders)
+- **Brent-Kung**: ~240 LUTs (balanced)
+- **Kogge-Stone**: ~450 LUTs (maximum speed, maximum area)
 
 ### Speed vs Area Trade-offs
 
@@ -470,6 +500,7 @@ end
 - **8-bit**: Suitable for byte operations, small arithmetic units
 - **16-bit**: Common for ALU slices, address arithmetic
 - **32-bit**: Standard integer width, general-purpose ALU
+- **64-bit**: Wide datapaths and product-width CPAs; this is the final adder inside the 32-bit Dadda and Wallace multipliers
 
 **For Non-Standard Widths:**
 - Extend inputs with zeros: `{24'b0, a[7:0]}` for 8-bit in 32-bit adder
@@ -499,7 +530,8 @@ end
 
 ### Verification Strategy
 
-Test suite location: `val/common/test_math_adder_brent_kung_*.py`
+Test suite location: `val/common/test_math_adder_brent_kung.py` -- one parameterized
+test covering every width, not one file per width.
 
 **Key Test Scenarios:**
 - Exhaustive testing (8-bit only)
@@ -511,11 +543,17 @@ Test suite location: `val/common/test_math_adder_brent_kung_*.py`
 
 **Test Command:**
 ```bash
-# Test all widths
-pytest val/common/test_math_adder_brent_kung_008.py -v
-pytest val/common/test_math_adder_brent_kung_016.py -v
-pytest val/common/test_math_adder_brent_kung_032.py -v
+# Test all widths the test sweeps (REG_LEVEL selects the width list)
+pytest val/common/test_math_adder_brent_kung.py -v
+
+# A single width
+pytest "val/common/test_math_adder_brent_kung.py::test_math_adder_brent_kung[32]" -v
 ```
+
+The width sweep is driven by `REG_LEVEL`: `FUNC` (the default) covers 8 and 16
+bits, `FULL` covers 8, 16 and 32. The 64-bit variant is exercised indirectly,
+as the final CPA of the 32-bit Dadda and Wallace multiplier tests, rather than
+by a direct adder test.
 
 ## Common Pitfalls
 

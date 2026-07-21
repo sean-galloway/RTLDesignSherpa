@@ -336,13 +336,13 @@ Both resets should be properly synchronized to their respective clock domains:
 // Proper reset synchronization
 reset_sync u_src_rst_sync (
     .clk        (i_src_clk),
-    .async_rst_n(global_rst_n),
+    .rst_n      (global_rst_n),
     .sync_rst_n (i_src_rst_n)
 );
 
 reset_sync u_dst_rst_sync (
     .clk        (i_dst_clk),
-    .async_rst_n(global_rst_n),
+    .rst_n      (global_rst_n),
     .sync_rst_n (i_dst_rst_n)
 );
 ```

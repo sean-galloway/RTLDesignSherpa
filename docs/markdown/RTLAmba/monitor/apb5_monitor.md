@@ -37,12 +37,21 @@ The APB5 Monitor provides comprehensive protocol monitoring for APB5 interfaces 
 
 - Full APB5 protocol monitoring
 - Wake-up event tracking (APB5 PWAKEUP)
-- User signal tracking (PAUSER, PWUSER, PRUSER, PBUSER)
-- Parity error detection (when enabled)
+- Parity error detection (when `ENABLE_PARITY_MON = 1`)
 - Transaction timeout detection
 - Performance latency measurement
 - Protocol violation detection
-- 64-bit monitor bus packet output (legacy format — no side-band timestamp)
+- 128-bit monitor bus packet output with side-band timestamp (same format as `apb_monitor`)
+
+### Not Implemented
+
+The `cmd_pauser` / `cmd_pwuser` / `rsp_pruser` / `rsp_pbuser` ports and the
+`cfg_user_enable` input are accepted so the interface is stable for integrators,
+but **no user-signal logic exists** and no `APB5_USER_*` event code is ever
+produced. Earlier revisions of this page and of the module header claimed
+PAUSER/PWUSER/PRUSER/PBUSER tracking; that claim was incorrect. Emitting a
+user-signal event per transaction would flood the monitor bus, so the feature is
+deferred rather than half-wired.
 
 ---
 
@@ -69,7 +78,7 @@ flowchart TB
     subgraph OUTPUT["Monitor Bus"]
         fifo["Monitor<br/>FIFO"]
         skid["Output<br/>Skid Buffer"]
-        monbus["64-bit<br/>Packet"]
+        monbus["128-bit<br/>Packet + TS"]
     end
 
     cmd --> trans_track
@@ -100,8 +109,8 @@ flowchart TB
 | WUSER_WIDTH | int | 4 | Write user signal width |
 | RUSER_WIDTH | int | 4 | Read user signal width |
 | BUSER_WIDTH | int | 4 | Response user signal width |
-| UNIT_ID | int | 1 | 4-bit unit identifier |
-| AGENT_ID | int | 10 | 8-bit agent identifier |
+| UNIT_ID | logic [7:0] | 8'h01 | 8-bit unit identifier |
+| AGENT_ID | logic [15:0] | 16'h000A | 16-bit agent identifier |
 | MAX_TRANSACTIONS | int | 4 | Maximum concurrent transactions |
 | MONITOR_FIFO_DEPTH | int | 8 | Monitor packet FIFO depth |
 | ENABLE_PARITY_MON | bit | 0 | Enable parity monitoring |
@@ -186,16 +195,19 @@ merged onto the monitor bus at lower priority than the event FIFO.
 
 ### Monitor Bus Output
 
-The APB5 monitor emits the **64-bit legacy monitor-bus format**. There is **no**
-`monbus_timestamp` output and **no** `i_mon_time` input — timing lives in the
-packet's own event-data field, populated from the internal free-running
-`r_timestamp` counter.
+The APB5 monitor emits the standard **128-bit `monitor_packet_t`** plus the 64-bit
+side-band `monbus_timestamp`, identical to `apb_monitor`. `i_mon_time` is the
+free-running monitor-time broadcast from the `monbus_group` family; FIFO events
+sample it at emission, and address-range packets carry the timestamp latched by
+`apb_monitor_addr_check`.
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
+| i_mon_time | 64 | Input | Free-running monitor-time broadcast |
 | monbus_valid | 1 | Output | Monitor packet valid |
 | monbus_ready | 1 | Input | Monitor bus ready |
-| monbus_packet | 64 | Output | 64-bit monitor packet (see format below) |
+| monbus_packet | 128 | Output | 128-bit monitor packet (see format below) |
+| monbus_timestamp | 64 | Output | Side-band time sampled at emission |
 
 ### Status Outputs
 
@@ -210,21 +222,37 @@ packet's own event-data field, populated from the internal free-running
 
 ## Monitor Packet Format
 
-### 64-bit Packet Structure
+### 128-bit Packet Structure
 
-The APB5 monitor drives a single 64-bit `monbus_packet` (no side-band timestamp).
-Fields are packed as follows (see `w_fifo_pkt_data` in the RTL):
+The APB5 monitor drives the standard 128-bit packet built by
+`monitor_common_pkg::create_monitor_packet`, paired with the 64-bit side-band
+`monbus_timestamp`. See
+[monitor_package_spec.md](../includes/monitor_package_spec.md) for the canonical
+definition.
 
 ```
-Bits [63:60] - Packet Type (4 bits, see table below)
-Bits [59:57] - Protocol (3 bits): fixed to PROTOCOL_APB (0x2)
-Bits [56:53] - Event Code (4 bits, APB-specific)
-Bits [52:47] - Channel ID (6 bits, always 0 for APB)
-Bits [46:43] - Unit ID (4 bits, from UNIT_ID[3:0])
-Bits [42:35] - Agent ID (8 bits, from AGENT_ID[7:0])
-Bits [34:3]  - Event Data (32 bits — address, latency, wakeup timer, etc.)
-Bits [2:0]   - Aux Data (3 bits — packet-specific side info)
+Bits [127:124] - Packet Type (4 bits, see table below)
+Bits [123:109] - Reserved (15 bits)
+Bits [108:105] - Protocol (4 bits): fixed to PROTOCOL_APB (0x2)
+Bits [104: 97] - Event Code (8 bits, APB/APB5-specific)
+Bits [ 96: 88] - Channel ID (9 bits, always 0 for APB)
+Bits [ 87: 72] - Agent ID (16 bits, from AGENT_ID)
+Bits [ 71: 64] - Unit ID (8 bits, from UNIT_ID)
+Bits [ 63:  0] - Event Data (64 bits)
 ```
+
+For FIFO-sourced events the event-data field is
+`{24'h0, aux_data[7:0], event_data[31:0]}`. For address-range violations from
+`apb_monitor_addr_check` it is `{range_index[3:0], is_read, addr[58:0]}`.
+
+> **History:** before the fix for issue #41 this module connected the 128-bit
+> `addr_pkt_data` output of `apb_monitor_addr_check` to a 64-bit net. Every
+> header field was discarded and `event_data` was re-decoded against the legacy
+> 64-bit layout, so a range-3 violation surfaced as `packet_type = 0x3`
+> (Timeout) with `protocol = AXI`, `event_code = 0x00`, and the address shifted
+> right by 3. The path was uncovered because every harness — including the
+> formal proof — left `N_ADDR_RANGES` at its default of 0, which elides the
+> checker entirely.
 
 ### Packet Types
 
@@ -238,12 +266,22 @@ marked below; other codes are defined for cross-protocol consistency.
 | 0x2 | Threshold | — | Threshold-crossed events (not generated here) |
 | 0x3 | Timeout | ✅ | Command / response / wake-up timeout |
 | 0x4 | Performance | ✅ | Latency-threshold-exceeded metric |
-| 0x8 | AddrMatch | — | Address-range violation (from `apb_monitor_addr_check` when `N_ADDR_RANGES > 0`) |
+| 0x8 | AddrMatch | — | Not generated. Address-range violations are emitted as **Error** (`0x0`) packets with event code `APB_ERR_ADDR_RANGE` (`0x08`) |
 | 0x9 | APB | ✅ | APB-specific events (wake-up request/acknowledge) |
 | 0xF | Debug | — | Debug/trace events (not generated here) |
 
 > **Note:** parity error events are emitted as **Error** packets (type `0x0`) with an
 > APB5 parity event code — not as a distinct packet type.
+
+### Event Edge Detection
+
+Timeout, protocol-violation, parity and latency-threshold conditions are all
+*levels* — once true they stay true until the underlying condition clears. Every
+one of them is edge-qualified before it can write the event FIFO, so a single
+occurrence produces exactly one packet. Without this, one stuck command emitted
+an identical timeout packet on every cycle the condition held (29 packets over a
+40-cycle stall in the regression test). Regression coverage:
+`val/amba/test_apb5_monitor.py::test_apb5_monitor_timeout_edge`.
 
 ### APB5-Specific Event Codes
 
@@ -385,10 +423,20 @@ apb5_monitor #(
     .cfg_latency_threshold(32'd100),
     .cfg_wakeup_timeout_cnt(16'd500),
 
-    // Monitor bus output
+    // Address-range checker (only when N_ADDR_RANGES > 0)
+    .cfg_addr_check_enable (1'b0),
+    .cfg_addr_range_enable ('0),
+    .cfg_addr_range_low    ('0),
+    .cfg_addr_range_high   ('0),
+
+    // Monitor time broadcast (from the monbus_group family)
+    .i_mon_time         (mon_time),
+
+    // Monitor bus output (128-bit packet + 64-bit side-band timestamp)
     .monbus_valid       (apb_mon_valid),
     .monbus_ready       (apb_mon_ready),
     .monbus_packet      (apb_mon_packet),
+    .monbus_timestamp   (apb_mon_timestamp),
 
     // Status
     .active_count       (apb_active_count),

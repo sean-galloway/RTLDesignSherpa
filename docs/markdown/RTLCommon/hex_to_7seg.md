@@ -69,7 +69,7 @@ None - fixed functionality for standard 7-segment displays.
 | 0x6 | **6** | 0000010 | afgdce | Almost all |
 | 0x7 | **7** | 1111000 | abc | Top + right |
 | 0x8 | **8** | 0000000 | all | All segments |
-| 0x9 | **9** | 0011000 | abgcdf | Top + middle + right |
+| 0x9 | **9** | 0011000 | abgcf | Top + middle + right, no tail |
 | 0xA | **A** | 0001000 | abcefg | Letter A |
 | 0xB | **b** | 0000011 | fgedc | Lowercase b |
 | 0xC | **C** | 1000110 | afed | Letter C |
@@ -109,7 +109,7 @@ always_comb begin
         4'h6: seg = 7'b0000010;  // 6: afgdce
         4'h7: seg = 7'b1111000;  // 7: abc
         4'h8: seg = 7'b0000000;  // 8: all segments
-        4'h9: seg = 7'b0011000;  // 9: abgcdf
+        4'h9: seg = 7'b0011000;  // 9: abgcf
         4'ha: seg = 7'b0001000;  // A: abcefg (not d)
         4'hb: seg = 7'b0000011;  // b: fgedc (not ab)
         4'hc: seg = 7'b1000110;  // C: afed (not bcg)

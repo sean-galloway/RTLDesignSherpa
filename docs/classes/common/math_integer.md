@@ -43,35 +43,35 @@ When you need an adder or multiplier, the question is never "can I build one?" �
 
 | Module | Role |
 |---|---|
-| [`math_adder_half.sv`](../../../rtl/common/math_adder_half.sv) / [`_full.sv`](../../../rtl/common/math_adder_full.sv) | Single-bit half / full adder |
-| [`math_subtractor_half.sv`](../../../rtl/common/math_subtractor_half.sv) / [`_full.sv`](../../../rtl/common/math_subtractor_full.sv) | Single-bit half / full subtractor |
-| [`math_prefix_cell.sv`](../../../rtl/common/math_prefix_cell.sv) | Parallel-prefix "black" cell (group G + P) |
-| [`math_prefix_cell_gray.sv`](../../../rtl/common/math_prefix_cell_gray.sv) | Reduced-area "gray" cell (group G only) |
-| [`math_compressor_4to2.sv`](../../../rtl/common/math_compressor_4to2.sv) | 4:2 compressor for Wallace/Dadda reduction trees |
+| [`math_adder_half.sv`](../../../rtl/math/math_adder_half.sv) / [`_full.sv`](../../../rtl/math/math_adder_full.sv) | Single-bit half / full adder |
+| [`math_subtractor_half.sv`](../../../rtl/math/math_subtractor_half.sv) / [`_full.sv`](../../../rtl/math/math_subtractor_full.sv) | Single-bit half / full subtractor |
+| [`math_prefix_cell.sv`](../../../rtl/math/math_prefix_cell.sv) | Parallel-prefix "black" cell (group G + P) |
+| [`math_prefix_cell_gray.sv`](../../../rtl/math/math_prefix_cell_gray.sv) | Reduced-area "gray" cell (group G only) |
+| [`math_compressor_4to2.sv`](../../../rtl/math/math_compressor_4to2.sv) | 4:2 compressor for Wallace/Dadda reduction trees |
 
 ### Adders (n-bit)
 
 | Module | Role | Pick when |
 |---|---|---|
-| [`math_adder_ripple_carry.sv`](../../../rtl/common/math_adder_ripple_carry.sv) | O(N) ripple carry | Area-critical, low frequency |
-| [`math_adder_pg_chain.sv`](../../../rtl/common/math_adder_pg_chain.sv) | CLA, P/G | 4–16 bits, balanced PPA |
-| [`math_adder_carry_save.sv`](../../../rtl/common/math_adder_carry_save.sv) / [`_nbit`](../../../rtl/common/math_adder_carry_save_nbit.sv) | 3:2 compressor, constant depth | Multi-operand sums, inside multipliers |
+| [`math_adder_ripple_carry.sv`](../../../rtl/math/math_adder_ripple_carry.sv) | O(N) ripple carry | Area-critical, low frequency |
+| [`math_adder_pg_chain.sv`](../../../rtl/math/math_adder_pg_chain.sv) | CLA, P/G | 4–16 bits, balanced PPA |
+| [`math_adder_carry_save.sv`](../../../rtl/math/math_adder_carry_save.sv) / [`_nbit`](../../../rtl/math/math_adder_carry_save_nbit.sv) | 3:2 compressor, constant depth | Multi-operand sums, inside multipliers |
 | [`math_adder_brent_kung_{008,016,032}.sv`](../../../rtl/common/) | Brent-Kung parallel-prefix | Log-depth adder, area-aware |
 | [`math_adder_han_carlson_{016,022,032,044,048,072}.sv`](../../../rtl/common/) | Han-Carlson sparsity-2 prefix | Log-depth adder, BF16 mantissa (48b) |
-| [`math_adder_full_nbit.sv`](../../../rtl/common/math_adder_full_nbit.sv) | N-bit chained full adder | Simplest n-bit wrapper |
-| [`math_addsub_full_nbit.sv`](../../../rtl/common/math_addsub_full_nbit.sv) | Shared add/sub via XOR + carry-in | Need both ops in one unit |
+| [`math_adder_full_nbit.sv`](../../../rtl/math/math_adder_full_nbit.sv) | N-bit chained full adder | Simplest n-bit wrapper |
+| [`math_addsub_full_nbit.sv`](../../../rtl/math/math_addsub_full_nbit.sv) | Shared add/sub via XOR + carry-in | Need both ops in one unit |
 
 ### Subtractors
 
 | Module | Role |
 |---|---|
-| [`math_subtractor_ripple_carry.sv`](../../../rtl/common/math_subtractor_ripple_carry.sv) / [`_full_nbit.sv`](../../../rtl/common/math_subtractor_full_nbit.sv) / [`_carry_lookahead.sv`](../../../rtl/common/math_subtractor_carry_lookahead.sv) | N-bit subtractors mirroring the adder family |
+| [`math_subtractor_ripple_carry.sv`](../../../rtl/math/math_subtractor_ripple_carry.sv) / [`_full_nbit.sv`](../../../rtl/math/math_subtractor_full_nbit.sv) / [`_carry_lookahead.sv`](../../../rtl/math/math_subtractor_carry_lookahead.sv) | N-bit subtractors mirroring the adder family |
 
 ### Multipliers (8/16/32-bit families)
 
 | Module | Role |
 |---|---|
-| [`math_multiplier_basic_cell.sv`](../../../rtl/common/math_multiplier_basic_cell.sv) / [`_carry_save.sv`](../../../rtl/common/math_multiplier_carry_save.sv) | Array-style baseline multiplier |
+| [`math_multiplier_basic_cell.sv`](../../../rtl/math/math_multiplier_basic_cell.sv) / [`_carry_save.sv`](../../../rtl/math/math_multiplier_carry_save.sv) | Array-style baseline multiplier |
 | [`math_multiplier_wallace_tree_{008,016,032}.sv`](../../../rtl/common/) (+`_csa_*`) | Wallace tree — maximal parallel reduction |
 | [`math_multiplier_dadda_tree_{008,016,032}.sv`](../../../rtl/common/) | Dadda tree — scheduled reduction, smaller |
 | [`math_multiplier_dadda_4to2_{008,011,024}.sv`](../../../rtl/common/) | Dadda variant using 4:2 compressors |

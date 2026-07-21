@@ -24,462 +24,374 @@
 # Frequency Invariant Counter Module
 
 ## Overview
-The `counter_freq_invariant` module is an advanced timing counter that maintains consistent time-based counting regardless of the input clock frequency. It uses a configurable prescaler to divide the input clock and provides a frequency-independent output counter, making it ideal for applications requiring consistent timing across different clock domains or frequencies.
+
+The `counter_freq_invariant` module divides an arbitrary input clock down to a
+1 MHz tick, so that a design can count real time without knowing its clock
+frequency at compile time. The division factor is selected at run time through
+`freq_sel`, which indexes a lookup table built at elaboration time from the
+`MIN_FREQ_MHZ`, `MAX_FREQ_MHZ`, `NUM_FREQ_ENTRIES` and `FREQ_STRATEGY`
+parameters.
+
+The key identity the module rests on is that **the division factor and the clock
+frequency in MHz are the same number**. A 100 MHz clock has 100 cycles per
+microsecond, so dividing by 100 yields a 1 MHz tick. The LUT therefore stores
+frequencies in MHz and uses them directly as divisors.
+
+An earlier revision of this module had a hardcoded 68-entry frequency table and
+a fixed 4-bit `freq_sel`. That table is gone; the LUT is now generated from
+parameters and `freq_sel` is sized to match `NUM_FREQ_ENTRIES`.
 
 ## Module Declaration
+
 ```systemverilog
 module counter_freq_invariant #(
-    parameter int COUNTER_WIDTH = 5,      // Width of the output counter
-    parameter int PRESCALER_MAX = 65536   // Maximum value of the pre-scaler
+    // User parameters
+    parameter int COUNTER_WIDTH    = 16,     // Width of output microsecond counter
+    parameter int MIN_FREQ_MHZ     = 5,      // Lowest supported clock (MHz)
+    parameter int MAX_FREQ_MHZ     = 220,    // Highest supported clock (MHz)
+    parameter int NUM_FREQ_ENTRIES = 16,     // Number of LUT entries
+    parameter int FREQ_STRATEGY    = 0,      // 0 = LINEAR, 1 = POW2
+    parameter bit DEBUG_LUT        = 1'b0,   // Print LUT at time 0
+
+    // Derived parameters (do not override)
+    parameter int SEL_WIDTH     = (NUM_FREQ_ENTRIES > 1) ? $clog2(NUM_FREQ_ENTRIES) : 1,
+    parameter int DIV_WIDTH     = $clog2(MAX_FREQ_MHZ + 1),
+    parameter int PRESCALER_MAX = 2 ** DIV_WIDTH
 ) (
-    input  logic                        clk,         // Input clock
-    input  logic                        rst_n,       // Active low reset
-    input  logic                        sync_reset_n,// Synchronous reset signal
-    input  logic [3:0]                  freq_sel,    // Frequency selection (configurable)
-    output logic [COUNTER_WIDTH-1:0]    counter,     // 5-bit output counter
-    output logic                        tick         // Pulse every time counter increments
+    input  logic                      clk,
+    input  logic                      rst_n,
+    input  logic                      sync_reset_n,
+    input  logic [SEL_WIDTH-1:0]      freq_sel,
+    output logic [COUNTER_WIDTH-1:0]  o_counter,
+    output logic                      tick
 );
 ```
 
 ## Parameters
 
-### COUNTER_WIDTH
-- **Type**: `int`
-- **Default**: `5`
-- **Description**: Bit width of the main output counter
-- **Range**: 1 to 32 (practical range)
-- **Impact**: Determines maximum count value (2^COUNTER_WIDTH - 1)
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| COUNTER_WIDTH | int | 16 | Width of the microsecond counter. Wraps at 2^COUNTER_WIDTH. |
+| MIN_FREQ_MHZ | int | 5 | Lowest clock frequency in the LUT, in MHz. Must be >= 1. |
+| MAX_FREQ_MHZ | int | 220 | Highest clock frequency in the LUT, in MHz. Must be >= MIN_FREQ_MHZ. |
+| NUM_FREQ_ENTRIES | int | 16 | Number of LUT entries. Must be >= 1. Sets `SEL_WIDTH`. |
+| FREQ_STRATEGY | int | 0 | LUT distribution: 0 = LINEAR, 1 = POW2. |
+| DEBUG_LUT | bit | 1'b0 | Print the generated LUT at simulation time 0. Simulation only. |
 
-### PRESCALER_MAX  
-- **Type**: `int`
-- **Default**: `65536` 
-- **Description**: Maximum division factor for the prescaler
-- **Range**: Must be ≥ largest division factor (10000)
-- **Usage**: Determines internal prescaler counter width
+: counter_freq_invariant user parameters
+
+**Derived parameters -- do not override.** `SEL_WIDTH`, `DIV_WIDTH` and
+`PRESCALER_MAX` appear in the parameter list only so they can size ports and
+internal counters. They are computed from the user parameters:
+
+| Derived | Expression | Value at defaults |
+|---------|------------|-------------------|
+| SEL_WIDTH | `$clog2(NUM_FREQ_ENTRIES)`, min 1 | 4 |
+| DIV_WIDTH | `$clog2(MAX_FREQ_MHZ + 1)` | 8 |
+| PRESCALER_MAX | `2 ** DIV_WIDTH` | 256 |
+
+: Derived parameters at the default configuration
+
+The three `$error` checks in the `param_check` initial block reject
+`MIN_FREQ_MHZ < 1`, `MAX_FREQ_MHZ < MIN_FREQ_MHZ`, and `NUM_FREQ_ENTRIES < 1` at
+elaboration.
 
 ## Ports
 
 ### Inputs
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `clk` | 1 | `logic` | Input clock signal (any frequency) |
-| `rst_n` | 1 | `logic` | Active-low asynchronous reset |
-| `sync_reset_n` | 1 | `logic` | Synchronous reset control |
-| `freq_sel` | 4 | `logic` | Frequency selection (0-15) |
+
+| Port | Width | Description |
+|------|-------|-------------|
+| `clk` | 1 | Input clock, any frequency covered by the LUT |
+| `rst_n` | 1 | Active-low asynchronous reset |
+| `sync_reset_n` | 1 | Synchronous run/reset. 0 holds the counter cleared; 1 runs. |
+| `freq_sel` | SEL_WIDTH | LUT index selecting the division factor |
 
 ### Outputs
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `counter` | COUNTER_WIDTH | `logic` | Main counter output |
-| `tick` | 1 | `logic` | Pulse when counter increments |
 
-## Frequency Selection Table
+| Port | Width | Description |
+|------|-------|-------------|
+| `o_counter` | COUNTER_WIDTH | Microsecond counter, wraps at 2^COUNTER_WIDTH |
+| `tick` | 1 | Single-cycle pulse, once per microsecond |
 
-The module provides 16 predefined frequency divisions based on a 1GHz reference:
+Note the output is named `o_counter`, not `counter`.
 
-| freq_sel | Division Factor | Target Frequency | Period | Use Case |
-|----------|-----------------|------------------|---------|----------|
-| 4'b0000 | 1 | 1000MHz (1GHz) | 1ns | High-speed processing |
-| 4'b0001 | 10 | 100MHz | 10ns | Standard FPGA operations |
-| 4'b0010 | 20 | 50MHz | 20ns | Memory interfaces |
-| 4'b0011 | 25 | 40MHz | 25ns | Display controllers |
-| 4'b0100 | 40 | 25MHz | 40ns | Audio sampling |
-| 4'b0101 | 50 | 20MHz | 50ns | Serial communications |
-| 4'b0110 | 80 | 12.5MHz | 80ns | Sensor interfaces |
-| 4'b0111 | 100 | 10MHz | 100ns | ADC/DAC timing |
-| 4'b1000 | 125 | 8MHz | 125ns | Microcontroller speeds |
-| 4'b1001 | 200 | 5MHz | 200ns | Slow peripherals |
-| 4'b1010 | 250 | 4MHz | 250ns | Power-optimized |
-| 4'b1011 | 500 | 2MHz | 500ns | Ultra-low power |
-| 4'b1100 | 1000 | 1MHz | 1μs | Timing references |
-| 4'b1101 | 2000 | 500kHz | 2μs | Human interface |
-| 4'b1110 | 5000 | 200kHz | 5μs | LED refresh rates |
-| 4'b1111 | 10000 | 100kHz | 10μs | Very slow timing |
+## LUT Generation Strategies
 
-## Architecture Overview
+The LUT is built at elaboration time by a generate loop that evaluates a pure
+integer function per index, so synthesis infers a mux or ROM rather than any
+runtime arithmetic.
 
-### Block Diagram
+**LINEAR (`FREQ_STRATEGY = 0`, default)**
+
 ```
-Input Clock → [Freq Change Detect] → [Prescaler Counter] → [Main Counter] → Output
-                      ↓                       ↓                    ↓
-                [Clear Pulse Gen]        [Division Config]     [Tick Gen]
+freq[i] = MIN_FREQ_MHZ + (MAX_FREQ_MHZ - MIN_FREQ_MHZ) * i / (NUM_FREQ_ENTRIES - 1)
 ```
 
-### Internal Signals
+Uniform steps across the range. Integer division truncates. Good for FPGA
+bring-up where predictable coverage of the operating range matters.
+
+**POW2 (`FREQ_STRATEGY = 1`)**
+
+```
+freq[i] = min(MIN_FREQ_MHZ * 2^i, MAX_FREQ_MHZ)
+```
+
+Doubling from the minimum, clamped at the maximum. Gives finer resolution at the
+low end and saturates once `MAX_FREQ_MHZ` is reached.
+
+### Default LUT (LINEAR, 5-220 MHz, 16 entries)
+
+| freq_sel | Clock (MHz) | Cycles per us | freq_sel | Clock (MHz) | Cycles per us |
+|----------|-------------|---------------|----------|-------------|---------------|
+| 0 | 5 | 5 | 8 | 119 | 119 |
+| 1 | 19 | 19 | 9 | 134 | 134 |
+| 2 | 33 | 33 | 10 | 148 | 148 |
+| 3 | 48 | 48 | 11 | 162 | 162 |
+| 4 | 62 | 62 | 12 | 177 | 177 |
+| 5 | 76 | 76 | 13 | 191 | 191 |
+| 6 | 91 | 91 | 14 | 205 | 205 |
+| 7 | 105 | 105 | 15 | 220 | 220 |
+
+: Default LINEAR LUT. Division factor equals the clock frequency in MHz.
+
+Set `DEBUG_LUT` to print the table your parameters actually produce at time 0
+rather than working it out by hand.
+
+### Same table under POW2
+
+With the same range and entry count, `FREQ_STRATEGY = 1` gives 5, 10, 20, 40,
+80, 160 MHz and then saturates at 220 MHz for indices 6 through 15. POW2 is only
+useful when `NUM_FREQ_ENTRIES` is close to `log2(MAX/MIN) + 1`; beyond that the
+remaining entries are duplicates.
+
+## Architecture
+
+```
+        freq_sel ---> [ LUT mux ] ---> division_factor
+                            |
+clk, rst_n ---> [ change detect ] ---> clear_pulse
+                            |
+                            v
+                   [ counter_load_clear ] ---> prescaler_done
+                            |
+                            v
+                   [ counter + tick reg ] ---> o_counter, tick
+```
+
+### Division factor lookup
+
 ```systemverilog
-// Configuration (combinational)
-logic [15:0] w_division_factor;     // Current division factor
+logic [DIV_WIDTH-1:0] w_div_table [NUM_FREQ_ENTRIES];
 
-// Change detection (flopped)
-logic [3:0] r_prev_freq_sel;        // Previous freq_sel value
-logic       r_clear_pulse;          // Frequency change indicator
+generate
+    for (genvar gi = 0; gi < NUM_FREQ_ENTRIES; gi++) begin : gen_div_entry
+        assign w_div_table[gi] = DIV_WIDTH'(freq_mhz_at_idx(gi));
+    end
+endgenerate
 
-// Prescaler interface
-logic w_prescaler_done;             // Prescaler terminal count
+logic [DIV_WIDTH-1:0] w_division_factor;
+assign w_division_factor = w_div_table[freq_sel];
 ```
 
-## Implementation Details
+### Change detection
 
-### Frequency Configuration Logic
-```systemverilog
-always_comb begin
-    case (freq_sel)
-        4'b0000: w_division_factor = 16'd1;      // 1000MHz
-        4'b0001: w_division_factor = 16'd10;     // 100MHz  
-        4'b0010: w_division_factor = 16'd20;     // 50MHz
-        4'b0011: w_division_factor = 16'd25;     // 40MHz
-        4'b0100: w_division_factor = 16'd40;     // 25MHz
-        4'b0101: w_division_factor = 16'd50;     // 20MHz
-        4'b0110: w_division_factor = 16'd80;     // 12.5MHz
-        4'b0111: w_division_factor = 16'd100;    // 10MHz
-        4'b1000: w_division_factor = 16'd125;    // 8MHz
-        4'b1001: w_division_factor = 16'd200;    // 5MHz
-        4'b1010: w_division_factor = 16'd250;    // 4MHz
-        4'b1011: w_division_factor = 16'd500;    // 2MHz
-        4'b1100: w_division_factor = 16'd1000;   // 1MHz
-        4'b1101: w_division_factor = 16'd2000;   // 500kHz
-        4'b1110: w_division_factor = 16'd5000;   // 200kHz
-        4'b1111: w_division_factor = 16'd10000;  // 100kHz
-        default: w_division_factor = 16'd1;      // Safe default
-    endcase
-end
-```
+A clear pulse is raised whenever `freq_sel` changes or `sync_reset_n` is low.
+Note that `r_clear_pulse` resets to 1, not 0, so the counter starts in the
+cleared state.
 
-### Change Detection Logic
 ```systemverilog
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-        r_prev_freq_sel <= 4'b0;
-        r_clear_pulse <= 1'b0;
+        r_prev_freq_sel <= '0;
+        r_clear_pulse   <= 1'b1;    // start in reset state
     end else begin
         r_prev_freq_sel <= freq_sel;
-        
-        // Generate clear pulse when freq_sel changes or sync reset
-        r_clear_pulse <= (freq_sel != r_prev_freq_sel) || !sync_reset_n;
+        r_clear_pulse   <= (freq_sel != r_prev_freq_sel) || !sync_reset_n;
     end
 end
 ```
 
-### Prescaler Implementation
-The prescaler uses the `counter_load_clear` module to implement configurable division:
+### Prescaler
 
 ```systemverilog
 counter_load_clear #(
     .MAX(PRESCALER_MAX)
-) prescaler_counter(
-    .clk(clk),
-    .rst_n(rst_n),
-    .clear(r_clear_pulse),           // Clear on frequency change
-    .increment(1'b1),                // Always increment
-    .load(1'b1),                     // Always load new value
-    .loadval(w_division_factor[$clog2(PRESCALER_MAX)-1:0] - 1'b1),
-    .done(w_prescaler_done),
-    .count()                         // Unused
+) prescaler_counter (
+    .clk       (clk),
+    .rst_n     (rst_n),
+    .clear     (r_clear_pulse),
+    .increment (1'b1),
+    .load      (1'b1),
+    .loadval   (w_division_factor - DIV_WIDTH'(1)),
+    .done      (w_prescaler_done),
+    .count     ()
 );
 ```
 
-### Main Counter and Tick Generation
+### Counter and tick
+
+`tick` pulses on **every** prescaler completion, once per microsecond. It is not
+gated on the counter reaching its maximum.
+
 ```systemverilog
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-        counter <= 'b0;
-        tick <= 'b0;
+        o_counter <= '0;
+        tick      <= 1'b0;
     end else begin
-        // Generate tick when prescaler completes and counter at max
-        if (w_prescaler_done && &counter)
-            tick <= 'b1;
-        else
-            tick <= 'b0;
-        
-        // Update main counter
-        if (r_clear_pulse)
-            counter <= 'b0;
-        else if (w_prescaler_done)
-            counter <= counter + 1'b1;  // Natural rollover
+        if (r_clear_pulse) begin
+            o_counter <= '0;
+            tick      <= 1'b0;
+        end else if (w_prescaler_done && sync_reset_n) begin
+            o_counter <= o_counter + 1'b1;
+            tick      <= 1'b1;
+        end else begin
+            tick <= 1'b0;
+        end
     end
 end
 ```
 
-## Timing Analysis
+## Timing
 
-### Prescaler Operation
-- **Load Value**: `division_factor - 1`
-- **Count Cycles**: `division_factor` clock cycles per prescaler tick
-- **Frequency**: `f_input / division_factor`
+| Property | Value |
+|----------|-------|
+| Tick period | `division_factor` input clock cycles = 1 us |
+| Counter wrap period | `2^COUNTER_WIDTH` microseconds |
+| Latency | 2 cycles (prescaler stage plus output register) |
+| Reconfiguration | Immediate: a `freq_sel` change clears and reloads |
 
-### Main Counter Operation
-- **Increment Rate**: Prescaler tick rate
-- **Roll-over**: At `2^COUNTER_WIDTH`
-- **Tick Generation**: One cycle when counter is all 1's and prescaler completes
+: counter_freq_invariant timing properties
 
-### Overall Timing
-- **Counter Period**: `division_factor × 2^COUNTER_WIDTH` input clock cycles
-- **Tick Period**: `division_factor` input clock cycles
-- **Frequency Independence**: Same tick rate regardless of input frequency
+At the default `COUNTER_WIDTH` of 16, the counter wraps every 65536 us, or about
+65.5 ms.
 
-## Design Examples
+## Usage Examples
 
-### 1. 1MHz Tick Generator (Any Input Clock)
+### 1. Microsecond timebase on an unknown FPGA clock
+
 ```systemverilog
-counter_freq_invariant #(
-    .COUNTER_WIDTH(8),      // 8-bit counter (0-255)
-    .PRESCALER_MAX(65536)   // Support up to 65536 division
-) tick_1mhz (
-    .clk(clk_any_freq),     // Could be 100MHz, 200MHz, etc.
-    .rst_n(rst_n),
-    .sync_reset_n(1'b1),
-    .freq_sel(4'b1100),     // Select 1MHz (1000 division)
-    .counter(timer_count),
-    .tick(tick_1mhz)
-);
-```
-
-### 2. Configurable Baud Rate Generator
-```systemverilog
-logic [3:0] baud_sel;
-logic baud_tick;
-
-// Baud rate selection mapping
-// 4'b0111 = 10MHz → 115200 baud (10MHz/87 ≈ 115200)
-// 4'b1001 = 5MHz → 57600 baud (5MHz/87 ≈ 57600)
-// 4'b1100 = 1MHz → 9600 baud (1MHz/104 ≈ 9600)
+logic [15:0] usec_count;
+logic        usec_tick;
 
 counter_freq_invariant #(
-    .COUNTER_WIDTH(4),
-    .PRESCALER_MAX(10000)
-) baud_gen (
-    .clk(sys_clk),
-    .rst_n(rst_n),
+    .COUNTER_WIDTH   (16),
+    .MIN_FREQ_MHZ    (5),
+    .MAX_FREQ_MHZ    (220),
+    .NUM_FREQ_ENTRIES(16),
+    .FREQ_STRATEGY   (0)
+) u_timebase (
+    .clk         (sys_clk),
+    .rst_n       (sys_rst_n),
     .sync_reset_n(1'b1),
-    .freq_sel(baud_sel),
-    .counter(),             // Unused
-    .tick(baud_tick)
+    .freq_sel    (cfg_freq_sel),   // 4 bits at these parameters
+    .o_counter   (usec_count),
+    .tick        (usec_tick)
 );
 ```
 
-### 3. Multi-Rate Timer System
+### 2. ASIC range, 100 MHz to 1 GHz
+
 ```systemverilog
-// Different timers for different purposes
-counter_freq_invariant #(.COUNTER_WIDTH(6)) fast_timer (
-    .freq_sel(4'b0001),     // 100MHz rate
-    .tick(fast_tick),       // Every 10ns
-    ...
-);
-
-counter_freq_invariant #(.COUNTER_WIDTH(8)) med_timer (
-    .freq_sel(4'b0111),     // 10MHz rate  
-    .tick(med_tick),        // Every 100ns
-    ...
-);
-
-counter_freq_invariant #(.COUNTER_WIDTH(10)) slow_timer (
-    .freq_sel(4'b1100),     // 1MHz rate
-    .tick(slow_tick),       // Every 1μs
-    ...
+counter_freq_invariant #(
+    .COUNTER_WIDTH   (16),
+    .MIN_FREQ_MHZ    (100),
+    .MAX_FREQ_MHZ    (1000),
+    .NUM_FREQ_ENTRIES(32),
+    .FREQ_STRATEGY   (0)
+) u_timer (
+    .clk         (core_clk),
+    .rst_n       (core_rst_n),
+    .sync_reset_n(1'b1),
+    .freq_sel    (cfg_freq_sel),   // 5 bits at NUM_FREQ_ENTRIES = 32
+    .o_counter   (usec_count),
+    .tick        (usec_tick)
 );
 ```
 
-## Advanced Features
+`DIV_WIDTH` becomes `$clog2(1001)` = 10 bits here, and `PRESCALER_MAX` 1024.
 
-### Dynamic Frequency Switching
+### 3. Millisecond timeout built on the tick
+
 ```systemverilog
-// Example: Switch between fast and slow modes
-logic power_save_mode;
-logic [3:0] dynamic_freq_sel;
+logic [9:0] r_msec;
 
-always_comb begin
-    if (power_save_mode)
-        dynamic_freq_sel = 4'b1111;  // 100kHz for power save
-    else
-        dynamic_freq_sel = 4'b0001;  // 100MHz for performance
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n)                 r_msec <= '0;
+    else if (usec_tick && usec_count[9:0] == 10'd0) r_msec <= r_msec + 1'b1;
 end
-
-counter_freq_invariant adaptive_timer (
-    .freq_sel(dynamic_freq_sel),
-    .sync_reset_n(!power_save_mode), // Reset when switching modes
-    ...
-);
 ```
 
-### Synchronous Reset Applications
-```systemverilog
-// Reset timer when entering specific system state
-logic enter_calibration_mode;
+A cheaper alternative is to watch a bit of `o_counter` directly: bit 9 toggles
+approximately every 512 us.
 
-counter_freq_invariant cal_timer (
+### 4. Gating the timer with sync_reset_n
+
+```systemverilog
+// Hold the timer cleared while calibration is running
+counter_freq_invariant #(
+    .COUNTER_WIDTH(16)
+) u_cal_timer (
+    .clk         (clk),
+    .rst_n       (rst_n),
     .sync_reset_n(!enter_calibration_mode),
-    .freq_sel(4'b1010),     // 4MHz for calibration
-    ...
+    .freq_sel    (cfg_freq_sel),
+    .o_counter   (cal_usec),
+    .tick        (cal_tick)
 );
 ```
 
-## Verification Strategy
+## Design Considerations
 
-### Test Scenarios
-1. **Frequency Selection**: Test all 16 freq_sel values
-2. **Dynamic Switching**: Change freq_sel during operation
-3. **Reset Behavior**: Test both async and sync reset
-4. **Tick Generation**: Verify tick timing at various frequencies
-5. **Counter Rollover**: Test main counter wrap-around
-6. **Prescaler Boundary**: Test prescaler terminal count
+### Choosing the LUT range
 
-### Testbench Example
-```systemverilog
-module tb_counter_freq_invariant;
-    logic clk, rst_n, sync_reset_n;
-    logic [3:0] freq_sel;
-    logic [4:0] counter;
-    logic tick;
-    
-    // Clock generation - 100MHz
-    initial clk = 0;
-    always #5ns clk = ~clk;
-    
-    // Test sequence
-    initial begin
-        rst_n = 0;
-        sync_reset_n = 1;
-        freq_sel = 4'b0000;
-        
-        #100ns rst_n = 1;
-        
-        // Test different frequencies
-        #1000ns freq_sel = 4'b0001; // 100MHz → 10MHz
-        #1000ns freq_sel = 4'b0111; // 10MHz
-        #1000ns freq_sel = 4'b1100; // 1MHz
-        
-        // Test synchronous reset
-        #1000ns sync_reset_n = 0;
-        #50ns sync_reset_n = 1;
-        
-        #10000ns $finish;
-    end
-    
-    // Monitor tick frequency
-    real tick_period, last_tick_time;
-    always @(posedge tick) begin
-        tick_period = $realtime - last_tick_time;
-        last_tick_time = $realtime;
-        $display("Tick period: %.2f ns (freq_sel=%b)", tick_period, freq_sel);
-    end
-endmodule
-```
+`MIN_FREQ_MHZ` and `MAX_FREQ_MHZ` should bracket the clock frequencies the
+design will actually see. Widening the range without raising
+`NUM_FREQ_ENTRIES` coarsens the LINEAR steps, and a clock that falls between two
+LUT entries produces a tick that is off by the rounding error. At the defaults
+the step is about 14 MHz, so a 70 MHz clock selecting index 5 (76 MHz) ticks
+roughly 8% slow.
 
-### Coverage Points
-```systemverilog
-covergroup freq_invariant_cg @(posedge clk);
-    cp_freq_sel: coverpoint freq_sel {
-        bins all_freqs[] = {[0:15]};
-    }
-    
-    cp_counter: coverpoint counter {
-        bins low = {[0:7]};
-        bins mid = {[8:23]};
-        bins high = {[24:31]};
-    }
-    
-    cp_freq_change: coverpoint (freq_sel != $past(freq_sel)) {
-        bins change = {1};
-        bins stable = {0};
-    }
-    
-    cp_sync_reset: coverpoint sync_reset_n {
-        bins active = {0};
-        bins inactive = {1};
-    }
-endgroup
-```
+If you need an exact tick at one known frequency, set `NUM_FREQ_ENTRIES` to 1
+and `MIN_FREQ_MHZ` equal to `MAX_FREQ_MHZ` equal to that frequency. `SEL_WIDTH`
+clamps to 1 in that case and `freq_sel` should be tied to 0.
 
-## Performance Characteristics
+### Resource use
 
-### Resource Utilization
-- **Prescaler Counter**: `$clog2(PRESCALER_MAX)` bits
-- **Main Counter**: `COUNTER_WIDTH` bits  
-- **Logic**: Division factor lookup table + change detection
-- **Total FFs**: ~20-25 flip-flops for typical configuration
+| Element | Size |
+|---------|------|
+| Prescaler counter | `$clog2(PRESCALER_MAX)` bits |
+| Microsecond counter | `COUNTER_WIDTH` bits |
+| Change detection | `SEL_WIDTH + 1` flops |
+| LUT | `NUM_FREQ_ENTRIES x DIV_WIDTH` bits of constant mux or ROM |
 
-### Timing Performance
-- **Maximum Frequency**: Limited by prescaler counter increment
-- **Typical**: 200-400 MHz in modern FPGAs
-- **Critical Path**: Prescaler increment + done detection
+: Resource use by element
 
-### Power Consumption
-- **Dynamic**: Proportional to clock frequency and toggle rate
-- **Optimization**: Higher division factors reduce overall power
-- **Clock Gating**: Consider gating prescaler when not needed
+### Critical path
 
-## Applications
+The critical path runs through the prescaler increment and its terminal-count
+comparison. Raising `MAX_FREQ_MHZ` widens `DIV_WIDTH` and lengthens that path.
 
-### Communication Systems
-```systemverilog
-// UART baud rate generation
-counter_freq_invariant uart_baud (
-    .freq_sel(baud_rate_sel),  // From configuration register
-    .tick(baud_x16_tick),      // 16x oversampling
-    ...
-);
-```
+## Verification
 
-### Display Controllers
-```systemverilog
-// Pixel clock generation for different video modes
-counter_freq_invariant pixel_clk (
-    .freq_sel(video_mode_sel), // Different pixel rates
-    .tick(pixel_enable),
-    ...
-);
-```
+Test: `val/common/test_counter_freq_invariant.py`
 
-### ADC/DAC Timing
-```systemverilog
-// Sample rate control independent of system clock
-counter_freq_invariant sample_rate (
-    .freq_sel(sample_rate_sel), // Audio sample rates
-    .tick(conversion_trigger),
-    ...
-);
-```
+Scenarios worth covering:
 
-### Power Management
-```systemverilog
-// Frequency scaling for power optimization
-counter_freq_invariant power_timer (
-    .freq_sel(power_mode_sel),  // Fast/medium/slow/sleep
-    .tick(power_event),
-    ...
-);
-```
+1. Every `freq_sel` index produces the expected tick period for its LUT entry
+2. Changing `freq_sel` mid-operation clears and restarts cleanly
+3. Asynchronous reset and `sync_reset_n` both clear `o_counter` and `tick`
+4. `o_counter` wraps correctly at 2^COUNTER_WIDTH
+5. Both `FREQ_STRATEGY` values generate the expected LUT
+6. `NUM_FREQ_ENTRIES = 1` degenerate case elaborates and runs
 
-## Design Guidelines
+## Related Modules
 
-### Parameter Selection
-1. **COUNTER_WIDTH**: Choose based on maximum count needed
-2. **PRESCALER_MAX**: Must be ≥ largest division factor (10000)
-3. **freq_sel Mapping**: Customize division table for your application
-
-### Reset Strategy
-1. **Asynchronous Reset**: For system-wide reset
-2. **Synchronous Reset**: For mode changes and state machine control
-3. **Clear Pulse**: Automatically generated on frequency changes
-
-### Frequency Planning
-1. **Input Clock**: Can be any stable frequency
-2. **Division Factors**: Choose based on target frequencies
-3. **Jitter**: Higher division factors may accumulate jitter
-
-## Troubleshooting
-
-### Common Issues
-1. **Incorrect Tick Rate**: Verify division factor calculation
-2. **Missing Ticks**: Check for proper reset sequencing  
-3. **Frequency Switching Glitches**: Ensure clean freq_sel transitions
-4. **Timing Violations**: Pipeline if prescaler counter is too wide
-
-### Debug Techniques
-1. **Simulation**: Use time-based measurements to verify tick rates
-2. **Logic Analyzer**: Capture actual tick timing in hardware
-3. **Frequency Counter**: Measure actual output frequency
-4. **Reset Analysis**: Check reset propagation and synchronization
+- **counter_bin** - basic binary counter
+- **counter_load_clear** - programmable counter, used here as the prescaler
+- **clock_divider** - integer clock division producing a divided clock, not a tick
+- **clock_pulse** - configurable pulse generator
 
 ## Navigation
 

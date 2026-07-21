@@ -155,7 +155,7 @@ Generated signals are named `w_sum_{column}_{layer}_{op}` /
 `w_carry_{column}_{layer}_{op}`, and instances are named
 `FA_{column}_{layer}_{op}` (or `CSA_...` in the `_csa_` variant) and
 `HA_{column}_{layer}_{op}`. Excerpts below are taken verbatim from
-`rtl/common/math_multiplier_wallace_tree_008.sv`.
+`rtl/math/math_multiplier_wallace_tree_008.sv`.
 
 ```systemverilog
 // Partial Products (64 AND gates for 8×8)
@@ -273,11 +273,28 @@ Measured layer counts and instance counts from the generated RTL:
 **For 8×8 multiplication:** 64 partial products across 15 columns are reduced
 to 2 rows in 4 layers, then summed by a single 16-bit Brent-Kung prefix CPA.
 
-**Number of layers:** the often-quoted `⌈log₁.₅(N)⌉` is wrong because reduction
-runs from N rows down to **2**, not down to 1 - the formula is missing a
-division by 2. The measured values are **4 layers for 8-bit, 6 for 16-bit, and
-8 for 32-bit**, which is what the generated RTL emits (`// Wallace reduction
-layer 1` through `layer 4` in the 8-bit file).
+**Number of layers:** measured, this is **4 layers for 8-bit, 6 for 16-bit, and
+8 for 32-bit** - count the `// Wallace reduction layer N` comments in the
+generated RTL.
+
+Do not trust a closed form here. The often-quoted `⌈log₁.₅(N)⌉` is wrong: it
+describes reduction from N rows down to 1, whereas this tree stops at 2.
+Correcting it to `⌈log₁.₅(N/2)⌉` fixes 8-bit and 16-bit but still under-predicts
+32-bit, giving 7 where the generator emits 8:
+
+| N | `⌈log₁.₅(N)⌉` | `⌈log₁.₅(N/2)⌉` | measured |
+|---|---------------|-----------------|----------|
+| 8 | 6 | 4 | **4** |
+| 16 | 7 | 6 | **6** |
+| 32 | 9 | 7 | **8** |
+
+: Layer-count formulas against the generated RTL
+
+Both formulas assume every column shrinks by a clean 3:2 every layer. It does
+not: a column whose height is not a multiple of 3 leaves a remainder that passes
+through untouched, and carries arriving from the column below can raise a column
+between layers. Those two effects cost an extra layer by the time N reaches 32.
+Take the layer count from the RTL, not from a formula.
 
 ## Usage Examples
 

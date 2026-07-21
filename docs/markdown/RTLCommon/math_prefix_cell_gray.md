@@ -140,18 +140,27 @@ endgenerate
 ### In Brent-Kung Reverse Tree
 
 ```systemverilog
-// Brent-Kung: Reverse tree uses gray cells to fill intermediate positions
-// After forward tree, only power-of-2 positions have complete carries
-// Reverse tree fills in the gaps using gray cells
+// Brent-Kung: the reverse tree uses gray cells to fill intermediate positions.
+// After the forward tree, the complete carries sit at positions 2^k - 1 --
+// with 0-based bit indexing that is 1, 3, 7, 15 for a 16-bit adder, NOT at
+// the powers of two. Positions 2, 4, 8 are exactly what the reverse tree
+// still has to fill.
 
-// Example: Position 5 gets carry from positions 5 and 4
+// Example: position 5 combines the span-2 group [5:4] with the complete
+// carry already available at position 3.
 math_prefix_cell_gray u_bk_gray_5 (
-    .i_g_hi(w_g[5]),    // G[5:5] (from forward tree)
-    .i_p_hi(w_p[5]),    // P[5:5] (original propagate)
-    .i_g_lo(w_g[4]),    // G[4:-1] (computed in forward tree)
-    .ow_g(w_g_5_final)  // G[5:-1] (carry into position 6)
+    .i_g_hi(w_g_2[5]),  // G[5:4] (span-2 group from forward tree level 1)
+    .i_p_hi(w_p_2[5]),  // P[5:4] (matching group propagate)
+    .i_g_lo(w_gg[3]),   // G[3:-1] (complete carry, already resolved)
+    .ow_g(w_gg[5])      // G[5:-1] (carry into position 6)
 );
 ```
+
+This mirrors `gray_block_5_3` in `math_adder_brent_kung_grouppg_008.sv`, which
+wires `G_5_4`/`P_5_4` against `ow_gg[3]`. A gray cell in the Brent-Kung reverse
+tree always pairs a *group* generate/propagate with an already-complete carry;
+it never takes a single-bit `G[i:i]` against `G[i-1:-1]`. That single-bit
+pattern is the Han-Carlson final fill-in stage shown above, not Brent-Kung.
 
 ### Computing Final Sum
 
@@ -197,13 +206,31 @@ assign cout = g_final[N-1];
 
 For an N-bit adder, the number of gray cells vs black cells affects total area:
 
-| Architecture | Black Cells | Gray Cells | Total Cells |
-|--------------|-------------|------------|-------------|
-| Kogge-Stone N=16 | 64 | 0 | 64 |
-| Brent-Kung N=16 | ~30 | ~30 | ~60 |
-| Han-Carlson N=16 | ~32 | 8 | ~40 |
+The two 16-bit rows below are counted from this library's own RTL, not estimated.
+Kogge-Stone is a textbook reference figure; there is no Kogge-Stone adder in this
+library.
 
-Han-Carlson uses gray cells only in the final stage (N/2 cells for N-bit adder).
+| Architecture | Black Cells | Gray Cells | Total Cells | Prefix Levels |
+|--------------|-------------|------------|-------------|---------------|
+| Kogge-Stone N=16 (textbook, not implemented here) | 49 | 0 | 49 | 4 |
+| Brent-Kung N=16 (`math_adder_brent_kung_grouppg_016.sv`) | 11 | 16 | 27 | 6 |
+| Han-Carlson N=16 (`math_adder_han_carlson_016.sv`) | 24 | 8 | 32 | 5 |
+
+: Prefix-cell counts at N=16, counted from the RTL
+
+How these were counted:
+
+- Brent-Kung: `grep -c math_adder_brent_kung_black rtl/math/math_adder_brent_kung_grouppg_016.sv`
+  gives 11, and the matching `_gray` count gives 16. Note that this library uses a
+  gray cell wherever the low operand is already a complete carry, even inside the
+  forward tree, so gray cells outnumber black ones.
+- Han-Carlson: elaborating the five generate stages of
+  `math_adder_han_carlson_016.sv` yields 7 + 7 + 6 + 4 = 24 `math_prefix_cell`
+  instances and 8 `math_prefix_cell_gray` instances.
+- Kogge-Stone: `N x log2(N) - N + 1 = 16 x 4 - 16 + 1 = 49` black cells.
+
+Han-Carlson uses gray cells only in the final fill-in stage: N/2 cells for an
+N-bit adder, which is the 8 above.
 
 ## Design Considerations
 

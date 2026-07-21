@@ -179,7 +179,7 @@ The longer sequences apply to the wider variants:
 Generated signals are named `w_sum_{column}_{op}` / `w_carry_{column}_{op}`, and
 instances are named `CSA_{column}_{op}` or `HA__{column}_{op}`, where `op` is the
 operation index within that column. Excerpts below are taken verbatim from
-`rtl/common/math_multiplier_dadda_tree_008.sv`.
+`rtl/math/math_multiplier_dadda_tree_008.sv`.
 
 ```systemverilog
 // Partial Products (64 AND gates for 8×8)

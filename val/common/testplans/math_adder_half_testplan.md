@@ -1,6 +1,6 @@
 # Test Plan: math_adder_half
 
-## Module: rtl/common/math_adder_half.sv
+## Module: rtl/math/math_adder_half.sv
 ## Test File: val/common/test_math_adder_half.py
 ## Current Coverage: ~50% (NEEDS WORK)
 

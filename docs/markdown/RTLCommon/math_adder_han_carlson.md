@@ -29,11 +29,24 @@ A hybrid parallel prefix adder that combines the low wiring complexity of Brent-
 
 The `math_adder_han_carlson` module family implements Han-Carlson parallel prefix adders. Han-Carlson is a "sparsity-2" architecture that computes prefix operations only on even bit positions in intermediate stages, then fills in odd positions in a final stage using area-efficient gray cells.
 
-**Available widths:** 16-bit, 48-bit (auto-generated for BF16 arithmetic)
+**Available widths:** 16, 22, 32, 44, 48 and 72 bits. All six are auto-generated
+by `bin/rtl_generators/ieee754/generate_all.py`; each width exists because a
+specific floating-point datapath needs it.
+
+| Width | Generated for |
+|-------|---------------|
+| 16 | FP16 exponent paths; final CPA of `math_multiplier_dadda_4to2_008` |
+| 22 | FP16 product CPA (11 x 11 = 22); final CPA of `math_multiplier_dadda_4to2_011` |
+| 32 | FP32 exponent paths (`math_ieee754_2008_fp32_adder`) |
+| 44 | FP16 FMA accumulator (`math_ieee754_2008_fp16_fma`) |
+| 48 | FP32 product CPA (24 x 24 = 48); BF16 FMA wide addition; final CPA of `math_multiplier_dadda_4to2_024` |
+| 72 | FP32 FMA accumulator (`math_ieee754_2008_fp32_fma`) |
+
+: Han-Carlson widths present in rtl/common and what uses each
 
 **Key Features:**
 - **O(log N + 1) depth** - Only one level more than Kogge-Stone
-- **~40% fewer cells** than Kogge-Stone for same width
+- **~35% fewer cells** than Kogge-Stone at 16 bits (32 vs 49)
 - **Constant fanout of 2** - Better for advanced process nodes
 - **Reduced wiring** - 4 tracks vs 8 for Kogge-Stone (16-bit)
 - **Optimal for** multiplier final CPA and FMA wide addition
@@ -41,8 +54,12 @@ The `math_adder_han_carlson` module family implements Han-Carlson parallel prefi
 ## Module Hierarchy
 
 **Top-Level Modules:**
-- `math_adder_han_carlson_016.sv` - 16-bit adder (for BF16 multiplier CPA)
-- `math_adder_han_carlson_048.sv` - 48-bit adder (for BF16 FMA wide addition)
+- `math_adder_han_carlson_016.sv` - 16-bit adder
+- `math_adder_han_carlson_022.sv` - 22-bit adder
+- `math_adder_han_carlson_032.sv` - 32-bit adder
+- `math_adder_han_carlson_044.sv` - 44-bit adder
+- `math_adder_han_carlson_048.sv` - 48-bit adder
+- `math_adder_han_carlson_072.sv` - 72-bit adder
 
 **Building Blocks:**
 - `math_prefix_cell.sv` - Black cell (outputs G and P)
@@ -82,9 +99,11 @@ module math_adder_han_carlson_048 #(
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| N | int | 16/48 | Adder width (fixed per variant) |
+| N | int | matches the variant | Adder width (fixed per variant) |
 
-**Note:** The N parameter is fixed per module variant. Use the appropriate variant for your width.
+**Note:** `N` defaults to the width in the module name (`_016` defaults to 16,
+`_072` to 72) and must not be overridden -- the prefix network is generated for
+that exact width. Pick the variant that matches your width instead.
 
 ## Ports
 
@@ -169,19 +188,29 @@ Legend: o=pass through, |=pass through, *=prefix cell
 
 ### Why Han-Carlson is Optimal
 
+The Brent-Kung and Han-Carlson columns are counted from this library's RTL; the
+Kogge-Stone column is a textbook reference, as no Kogge-Stone adder is
+implemented here.
+
 | Metric | Kogge-Stone | Brent-Kung | Han-Carlson |
 |--------|-------------|------------|-------------|
-| Logic Depth (16-bit) | 4 | 7 | 5 |
-| Prefix Cells (16-bit) | 64 | ~30 | ~39 |
+| Prefix Depth (16-bit) | 4 | 6 | 5 |
+| Prefix Cells (16-bit) | 49 | 27 | 32 |
 | Wiring Tracks | 8 | 2 | 4 |
 | Fanout | Varies | 2 | 2 |
 | Best For | Max speed | Min area | Balanced |
 
+: 16-bit prefix adder comparison
+
 **Han-Carlson achieves:**
 - 1 level slower than Kogge-Stone (5 vs 4)
-- 40% fewer cells than Kogge-Stone (39 vs 64)
+- ~35% fewer cells than Kogge-Stone (32 vs 49)
 - 2x fewer wiring tracks than Kogge-Stone (4 vs 8)
 - Constant fanout of 2 (important for advanced nodes)
+
+Note that Brent-Kung is both smaller *and*, in this library, only one level
+deeper than Han-Carlson at N=16. Han-Carlson's advantage is in wiring tracks and
+fanout regularity, and it widens as N grows -- not in cell count at this width.
 
 ## Timing Characteristics
 
@@ -189,16 +218,16 @@ Legend: o=pass through, |=pass through, *=prefix cell
 
 | Metric | Value |
 |--------|-------|
-| Logic Levels | 5 stages + sum XOR |
-| Prefix Cells | ~39 (black + gray) |
+| Logic Levels | 5 prefix stages + sum XOR |
+| Prefix Cells | 32 (24 black + 8 gray) |
 | Critical Path | cin -> Stage 1 -> Stage 5 -> sum[15] |
 
 ### 48-bit Adder
 
 | Metric | Value |
 |--------|-------|
-| Logic Levels | 7 stages + sum XOR |
-| Prefix Cells | ~120 (black + gray) |
+| Logic Levels | 7 prefix stages + sum XOR |
+| Prefix Cells | 136 (112 black + 24 gray) |
 | Critical Path | cin -> Stage 1 -> Stage 7 -> sum[47] |
 
 ### Depth Formula
@@ -289,19 +318,31 @@ math_adder_han_carlson_048 u_wide_add (
 
 ### Resource Utilization
 
-| Width | Black Cells | Gray Cells | Total Cells | LUTs (Est.) |
-|-------|-------------|------------|-------------|-------------|
-| 16-bit | ~31 | 8 | ~39 | ~80 |
-| 48-bit | ~96 | 24 | ~120 | ~250 |
+Cell counts are exact, obtained by elaborating the generate stages of each file.
+Gray cells always number N/2 (the final fill-in stage). LUT figures are estimates
+derived from the cell counts, not synthesis results.
+
+| Width | Prefix Stages | Black Cells | Gray Cells | Total Cells | LUTs (Est.) |
+|-------|---------------|-------------|------------|-------------|-------------|
+| 16-bit | 5 | 24 | 8 | 32 | ~90 |
+| 22-bit | 6 | 39 | 11 | 50 | ~140 |
+| 32-bit | 6 | 64 | 16 | 80 | ~225 |
+| 44-bit | 7 | 100 | 22 | 122 | ~345 |
+| 48-bit | 7 | 112 | 24 | 136 | ~385 |
+| 72-bit | 8 | 188 | 36 | 224 | ~630 |
+
+: Han-Carlson prefix-cell counts, elaborated from the generated RTL
 
 ### Comparison with Other Architectures
 
 | Architecture | 16-bit Depth | 16-bit Cells | Wiring Complexity |
 |--------------|--------------|--------------|-------------------|
 | Ripple Carry | 16 | 16 | Minimal |
-| Brent-Kung | 7 | ~30 | Low |
-| **Han-Carlson** | **5** | **~39** | **Medium** |
-| Kogge-Stone | 4 | 64 | High |
+| Brent-Kung | 6 | 27 | Low |
+| **Han-Carlson** | **5** | **32** | **Medium** |
+| Kogge-Stone (not implemented here) | 4 | 49 | High |
+
+: 16-bit architecture comparison, prefix depth and cell count
 
 ## Design Considerations
 
@@ -328,8 +369,13 @@ This module is optimized with the following priorities:
 ### Auto-Generated Code
 
 These modules are auto-generated by Python scripts:
-- **Generator:** `bin/rtl_generators/bf16/han_carlson_adder.py`
-- **Regenerate:** `PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/bf16/generate_all.py rtl/common`
+- **Generator:** `bin/rtl_generators/ieee754/han_carlson_adder.py`
+- **Regenerate:** `PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/common`
+
+This is the path recorded in the `// Generator:` banner of the generated files,
+and it is the one that emits all six widths. A second, older generator still
+exists at `bin/rtl_generators/bf16/`, but it emits only the 16- and 48-bit
+variants; running it will not reproduce the current file set.
 
 **Do not edit the generated .sv files manually.** Modify the generator script instead.
 
@@ -361,9 +407,10 @@ end
 
 - **math_prefix_cell** - Black cell building block
 - **math_prefix_cell_gray** - Gray cell building block
-- **math_multiplier_dadda_4to2_008** - Uses 16-bit Han-Carlson for final CPA
+- **math_multiplier_dadda_4to2_008/011/024** - Use the 16/22/48-bit Han-Carlson as final CPA
 - **math_bf16_fma** - Uses 48-bit Han-Carlson for wide addition
-- **math_adder_brent_kung_nbit** - Alternative area-optimized adder
+- **math_ieee754_2008_fp32_fma** - Uses 72-bit Han-Carlson for wide addition
+- **math_adder_brent_kung_008/016/032/064** - Alternative area-optimized prefix adders
 
 ## References
 

@@ -570,9 +570,11 @@ module apb5_monitor (
 	cfg_addr_range_enable,
 	cfg_addr_range_low,
 	cfg_addr_range_high,
+	i_mon_time,
 	monbus_valid,
 	monbus_ready,
 	monbus_packet,
+	monbus_timestamp,
 	active_count,
 	error_count,
 	transaction_count,
@@ -587,8 +589,8 @@ module apb5_monitor (
 	parameter signed [31:0] WUSER_WIDTH = 4;
 	parameter signed [31:0] RUSER_WIDTH = 4;
 	parameter signed [31:0] BUSER_WIDTH = 4;
-	parameter signed [31:0] UNIT_ID = 1;
-	parameter signed [31:0] AGENT_ID = 10;
+	parameter [7:0] UNIT_ID = 8'h01;
+	parameter [15:0] AGENT_ID = 16'h000a;
 	parameter signed [31:0] MAX_TRANSACTIONS = 4;
 	parameter signed [31:0] MONITOR_FIFO_DEPTH = 8;
 	parameter [0:0] ENABLE_PARITY_MON = 0;
@@ -637,9 +639,13 @@ module apb5_monitor (
 	input wire [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1) - 1:0] cfg_addr_range_enable;
 	input wire [((N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1) * AW) - 1:0] cfg_addr_range_low;
 	input wire [((N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1) * AW) - 1:0] cfg_addr_range_high;
+	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	input wire [63:0] i_mon_time;
 	output wire monbus_valid;
 	input wire monbus_ready;
-	output wire [63:0] monbus_packet;
+	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	output wire [127:0] monbus_packet;
+	output wire [63:0] monbus_timestamp;
 	output wire [7:0] active_count;
 	output wire [15:0] error_count;
 	output wire [31:0] transaction_count;
@@ -649,6 +655,20 @@ module apb5_monitor (
 	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
 	localparam [3:0] monitor_common_pkg_PktTypePerf = 4'h4;
 	localparam [3:0] monitor_common_pkg_PktTypeTimeout = 4'h3;
+	function automatic [127:0] monitor_common_pkg_create_monitor_packet;
+		input reg [3:0] packet_type;
+		input reg [3:0] protocol;
+		input reg [7:0] event_code;
+		input reg [8:0] channel_id;
+		input reg [7:0] unit_id;
+		input reg [15:0] agent_id;
+		input reg [63:0] event_data;
+		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
+	endfunction
+	function automatic [31:0] sv2v_cast_32;
+		input reg [31:0] inp;
+		sv2v_cast_32 = inp;
+	endfunction
 	generate
 		if (USE_MONITOR) begin : gen_monitor
 			reg [284:0] r_trans_table [0:MAX_TRANSACTIONS - 1];
@@ -682,6 +702,18 @@ module apb5_monitor (
 			reg w_protocol_violation;
 			reg w_parity_error;
 			reg w_latency_threshold_exceeded;
+			reg r_cmd_timeout_d;
+			reg r_rsp_timeout_d;
+			reg r_wakeup_timeout_d;
+			reg r_protocol_violation_d;
+			reg r_parity_error_d;
+			reg r_latency_exceeded_d;
+			wire w_cmd_timeout_pulse;
+			wire w_rsp_timeout_pulse;
+			wire w_wakeup_timeout_pulse;
+			wire w_protocol_violation_pulse;
+			wire w_parity_error_pulse;
+			wire w_latency_exceeded_pulse;
 			reg [31:0] w_current_latency;
 			reg w_generate_error_event;
 			reg w_generate_timeout_event;
@@ -689,16 +721,16 @@ module apb5_monitor (
 			reg w_generate_wakeup_event;
 			reg w_generate_parity_event;
 			reg w_generate_completion_event;
-			reg [3:0] w_error_event_code;
-			reg [3:0] w_timeout_event_code;
-			reg [3:0] w_wakeup_event_code;
-			reg [3:0] w_parity_event_code;
+			reg [7:0] w_error_event_code;
+			reg [7:0] w_timeout_event_code;
+			reg [7:0] w_wakeup_event_code;
+			reg [7:0] w_parity_event_code;
 			reg w_fifo_wr_valid;
 			wire w_fifo_wr_ready;
-			reg [47:0] w_fifo_wr_data;
+			reg [51:0] w_fifo_wr_data;
 			wire w_fifo_rd_valid;
 			wire w_fifo_rd_ready;
-			wire [47:0] w_fifo_rd_data;
+			wire [51:0] w_fifo_rd_data;
 			assign active_count = r_active_count;
 			assign error_count = r_error_count;
 			assign transaction_count = r_transaction_count;
@@ -804,6 +836,7 @@ module apb5_monitor (
 							r_trans_table[i] <= 1'sb0;
 					end
 					r_active_count <= 1'sb0;
+					r_error_count <= 1'sb0;
 					r_transaction_count <= 1'sb0;
 					r_cmd_start_time <= 1'sb0;
 				end
@@ -811,7 +844,7 @@ module apb5_monitor (
 					if (w_cmd_handshake && w_has_free_slot) begin
 						r_trans_table[w_free_idx][284] <= 1'b1;
 						r_trans_table[w_free_idx][277-:3] <= 3'h2;
-						r_trans_table[w_free_idx][274-:32] <= {{64 - AW {1'b0}}, cmd_paddr};
+						r_trans_table[w_free_idx][274-:32] <= sv2v_cast_32(cmd_paddr);
 						r_trans_table[w_free_idx][223-:2] <= {1'b0, cmd_pwrite};
 						r_trans_table[w_free_idx][221-:6] <= {cmd_pprot, cmd_pstrb[2:0]};
 						r_trans_table[w_free_idx][283] <= 1'b1;
@@ -880,6 +913,29 @@ module apb5_monitor (
 				if (cfg_parity_enable && ENABLE_PARITY_MON)
 					w_parity_error = (parity_error_wdata || parity_error_rdata) || parity_error_ctrl;
 			end
+			always @(posedge aclk)
+				if (!aresetn) begin
+					r_cmd_timeout_d <= 1'b0;
+					r_rsp_timeout_d <= 1'b0;
+					r_wakeup_timeout_d <= 1'b0;
+					r_protocol_violation_d <= 1'b0;
+					r_parity_error_d <= 1'b0;
+					r_latency_exceeded_d <= 1'b0;
+				end
+				else begin
+					r_cmd_timeout_d <= w_cmd_timeout;
+					r_rsp_timeout_d <= w_rsp_timeout;
+					r_wakeup_timeout_d <= w_wakeup_timeout;
+					r_protocol_violation_d <= w_protocol_violation;
+					r_parity_error_d <= w_parity_error;
+					r_latency_exceeded_d <= w_latency_threshold_exceeded;
+				end
+			assign w_cmd_timeout_pulse = w_cmd_timeout && !r_cmd_timeout_d;
+			assign w_rsp_timeout_pulse = w_rsp_timeout && !r_rsp_timeout_d;
+			assign w_wakeup_timeout_pulse = w_wakeup_timeout && !r_wakeup_timeout_d;
+			assign w_protocol_violation_pulse = w_protocol_violation && !r_protocol_violation_d;
+			assign w_parity_error_pulse = w_parity_error && !r_parity_error_d;
+			assign w_latency_exceeded_pulse = w_latency_threshold_exceeded && !r_latency_exceeded_d;
 			always @(*) begin
 				if (_sv2v_0)
 					;
@@ -904,7 +960,7 @@ module apb5_monitor (
 				w_wakeup_event_code = 8'h00;
 				w_parity_event_code = 8'h00;
 				if (cfg_error_enable) begin
-					if (w_protocol_violation) begin
+					if (w_protocol_violation_pulse) begin
 						w_generate_error_event = 1'b1;
 						w_error_event_code = 8'h01;
 					end
@@ -914,15 +970,15 @@ module apb5_monitor (
 					end
 				end
 				if (cfg_timeout_enable) begin
-					if (w_cmd_timeout) begin
+					if (w_cmd_timeout_pulse) begin
 						w_generate_timeout_event = 1'b1;
 						w_timeout_event_code = 8'h00;
 					end
-					else if (w_rsp_timeout) begin
+					else if (w_rsp_timeout_pulse) begin
 						w_generate_timeout_event = 1'b1;
 						w_timeout_event_code = 8'h01;
 					end
-					else if (w_wakeup_timeout) begin
+					else if (w_wakeup_timeout_pulse) begin
 						w_generate_timeout_event = 1'b1;
 						w_timeout_event_code = 8'h01;
 					end
@@ -937,7 +993,7 @@ module apb5_monitor (
 						w_wakeup_event_code = 8'h01;
 					end
 				end
-				if (cfg_parity_enable && w_parity_error) begin
+				if (cfg_parity_enable && w_parity_error_pulse) begin
 					w_generate_parity_event = 1'b1;
 					if (parity_error_wdata)
 						w_parity_event_code = 8'h00;
@@ -946,14 +1002,14 @@ module apb5_monitor (
 					else
 						w_parity_event_code = 8'h02;
 				end
-				if (cfg_perf_enable && w_latency_threshold_exceeded)
+				if (cfg_perf_enable && w_latency_exceeded_pulse)
 					w_generate_perf_event = 1'b1;
 				if (w_rsp_handshake && !rsp_pslverr)
 					w_generate_completion_event = 1'b1;
 			end
 			gaxi_fifo_sync #(
 				.REGISTERED(1),
-				.DATA_WIDTH(48),
+				.DATA_WIDTH(52),
 				.DEPTH(MONITOR_FIFO_DEPTH),
 				.ALMOST_WR_MARGIN(1),
 				.ALMOST_RD_MARGIN(1)
@@ -975,44 +1031,44 @@ module apb5_monitor (
 				w_fifo_wr_data = 1'sb0;
 				if (w_generate_error_event) begin
 					w_fifo_wr_valid = 1'b1;
-					w_fifo_wr_data[47-:4] = monitor_common_pkg_PktTypeError;
-					w_fifo_wr_data[43-:4] = w_error_event_code;
-					w_fifo_wr_data[39-:32] = cmd_paddr;
+					w_fifo_wr_data[51-:4] = monitor_common_pkg_PktTypeError;
+					w_fifo_wr_data[47-:8] = w_error_event_code;
+					w_fifo_wr_data[39-:32] = sv2v_cast_32(cmd_paddr);
 					w_fifo_wr_data[7-:8] = {4'h0, cmd_pprot, cmd_pwrite};
 				end
 				else if (w_generate_parity_event) begin
 					w_fifo_wr_valid = 1'b1;
-					w_fifo_wr_data[47-:4] = monitor_common_pkg_PktTypeError;
-					w_fifo_wr_data[43-:4] = w_parity_event_code;
-					w_fifo_wr_data[39-:32] = cmd_paddr;
+					w_fifo_wr_data[51-:4] = monitor_common_pkg_PktTypeError;
+					w_fifo_wr_data[47-:8] = w_parity_event_code;
+					w_fifo_wr_data[39-:32] = sv2v_cast_32(cmd_paddr);
 					w_fifo_wr_data[7-:8] = {5'h00, parity_error_wdata, parity_error_rdata, parity_error_ctrl};
 				end
 				else if (w_generate_timeout_event) begin
 					w_fifo_wr_valid = 1'b1;
-					w_fifo_wr_data[47-:4] = monitor_common_pkg_PktTypeTimeout;
-					w_fifo_wr_data[43-:4] = w_timeout_event_code;
-					w_fifo_wr_data[39-:32] = (w_has_active_trans ? r_trans_table[w_active_idx][274:243] : cmd_paddr);
+					w_fifo_wr_data[51-:4] = monitor_common_pkg_PktTypeTimeout;
+					w_fifo_wr_data[47-:8] = w_timeout_event_code;
+					w_fifo_wr_data[39-:32] = (w_has_active_trans ? r_trans_table[w_active_idx][274:243] : sv2v_cast_32(cmd_paddr));
 					w_fifo_wr_data[7-:8] = r_cmd_timeout_timer[7:0];
 				end
 				else if (w_generate_wakeup_event) begin
 					w_fifo_wr_valid = 1'b1;
-					w_fifo_wr_data[47-:4] = monitor_common_pkg_PktTypeAPB;
-					w_fifo_wr_data[43-:4] = w_wakeup_event_code;
+					w_fifo_wr_data[51-:4] = monitor_common_pkg_PktTypeAPB;
+					w_fifo_wr_data[47-:8] = w_wakeup_event_code;
 					w_fifo_wr_data[39-:32] = {16'h0000, r_wakeup_timer};
 					w_fifo_wr_data[7-:8] = {7'h00, r_wakeup_active};
 				end
 				else if (w_generate_perf_event) begin
 					w_fifo_wr_valid = 1'b1;
-					w_fifo_wr_data[47-:4] = monitor_common_pkg_PktTypePerf;
-					w_fifo_wr_data[43-:4] = (cmd_pwrite ? 8'h01 : 8'h00);
+					w_fifo_wr_data[51-:4] = monitor_common_pkg_PktTypePerf;
+					w_fifo_wr_data[47-:8] = (cmd_pwrite ? 8'h01 : 8'h00);
 					w_fifo_wr_data[39-:32] = w_current_latency;
 					w_fifo_wr_data[7-:8] = {4'h0, cmd_pprot, cmd_pwrite};
 				end
 				else if (w_generate_completion_event) begin
 					w_fifo_wr_valid = 1'b1;
-					w_fifo_wr_data[47-:4] = monitor_common_pkg_PktTypeCompletion;
-					w_fifo_wr_data[43-:4] = 8'h00;
-					w_fifo_wr_data[39-:32] = cmd_paddr;
+					w_fifo_wr_data[51-:4] = monitor_common_pkg_PktTypeCompletion;
+					w_fifo_wr_data[47-:8] = 8'h00;
+					w_fifo_wr_data[39-:32] = sv2v_cast_32(cmd_paddr);
 					w_fifo_wr_data[7-:8] = {4'h0, cmd_pprot, cmd_pwrite};
 				end
 			end
@@ -1027,18 +1083,13 @@ module apb5_monitor (
 				end
 			reg w_monbus_pkt_valid;
 			wire w_monbus_pkt_ready;
-			reg [63:0] w_monbus_pkt_data;
-			wire [63:0] w_fifo_pkt_data;
-			assign w_fifo_pkt_data[63:60] = w_fifo_rd_data[47-:4];
-			assign w_fifo_pkt_data[59:57] = 4'h2;
-			assign w_fifo_pkt_data[56:53] = w_fifo_rd_data[43-:4];
-			assign w_fifo_pkt_data[52:47] = 6'h00;
-			assign w_fifo_pkt_data[46:43] = UNIT_ID[3:0];
-			assign w_fifo_pkt_data[42:35] = AGENT_ID[7:0];
-			assign w_fifo_pkt_data[34:3] = w_fifo_rd_data[39-:32];
-			assign w_fifo_pkt_data[2:0] = w_fifo_rd_data[2:0];
+			reg [127:0] w_monbus_pkt_data;
+			reg [63:0] w_monbus_pkt_ts;
+			wire [127:0] w_fifo_pkt_data;
+			assign w_fifo_pkt_data = monitor_common_pkg_create_monitor_packet(w_fifo_rd_data[51-:4], 4'h2, w_fifo_rd_data[47-:8], 9'h000, UNIT_ID, AGENT_ID, {24'h000000, w_fifo_rd_data[7-:8], w_fifo_rd_data[39-:32]});
 			wire w_addr_pkt_valid;
-			wire [63:0] w_addr_pkt_data;
+			wire [127:0] w_addr_pkt_data;
+			wire [63:0] w_addr_pkt_timestamp;
 			wire w_addr_pkt_ready;
 			if (N_ADDR_RANGES > 0) begin : gen_addr_check
 				apb_monitor_addr_check #(
@@ -1049,6 +1100,7 @@ module apb5_monitor (
 				) addr_check(
 					.clk(aclk),
 					.aresetn(aresetn),
+					.i_mon_time(i_mon_time),
 					.cmd_paddr(cmd_paddr),
 					.cmd_pwrite(cmd_pwrite),
 					.cmd_valid(cmd_valid),
@@ -1059,12 +1111,14 @@ module apb5_monitor (
 					.cfg_addr_range_high(cfg_addr_range_high),
 					.addr_pkt_valid(w_addr_pkt_valid),
 					.addr_pkt_ready(w_addr_pkt_ready),
-					.addr_pkt_data(w_addr_pkt_data)
+					.addr_pkt_data(w_addr_pkt_data),
+					.addr_pkt_timestamp(w_addr_pkt_timestamp)
 				);
 			end
 			else begin : gen_no_addr_check
 				assign w_addr_pkt_valid = 1'b0;
-				assign w_addr_pkt_data = 64'h0000000000000000;
+				assign w_addr_pkt_data = 1'sb0;
+				assign w_addr_pkt_timestamp = 1'sb0;
 			end
 			always @(*) begin
 				if (_sv2v_0)
@@ -1072,37 +1126,47 @@ module apb5_monitor (
 				if (w_fifo_rd_valid) begin
 					w_monbus_pkt_valid = 1'b1;
 					w_monbus_pkt_data = w_fifo_pkt_data;
+					w_monbus_pkt_ts = i_mon_time;
 				end
 				else if (w_addr_pkt_valid) begin
 					w_monbus_pkt_valid = 1'b1;
 					w_monbus_pkt_data = w_addr_pkt_data;
+					w_monbus_pkt_ts = w_addr_pkt_timestamp;
 				end
 				else begin
 					w_monbus_pkt_valid = 1'b0;
-					w_monbus_pkt_data = 64'h0000000000000000;
+					w_monbus_pkt_data = 1'sb0;
+					w_monbus_pkt_ts = 1'sb0;
 				end
 			end
 			assign w_fifo_rd_ready = w_monbus_pkt_ready && w_fifo_rd_valid;
 			assign w_addr_pkt_ready = w_monbus_pkt_ready && !w_fifo_rd_valid;
+			localparam signed [31:0] MONBUS_TOTAL_W = monitor_common_pkg_MONBUS_PKT_WIDTH + monitor_common_pkg_MONBUS_TS_WIDTH;
+			wire [MONBUS_TOTAL_W - 1:0] w_skid_wr_data;
+			wire [MONBUS_TOTAL_W - 1:0] w_skid_rd_data;
+			assign w_skid_wr_data = {w_monbus_pkt_data, w_monbus_pkt_ts};
 			gaxi_skid_buffer #(
-				.DATA_WIDTH(64),
+				.DATA_WIDTH(MONBUS_TOTAL_W),
 				.DEPTH(2)
 			) monbus_skid_buffer(
 				.axi_aclk(aclk),
 				.axi_aresetn(aresetn),
 				.wr_valid(w_monbus_pkt_valid),
 				.wr_ready(w_monbus_pkt_ready),
-				.wr_data(w_monbus_pkt_data),
+				.wr_data(w_skid_wr_data),
 				.rd_valid(monbus_valid),
 				.rd_ready(monbus_ready),
-				.rd_data(monbus_packet),
+				.rd_data(w_skid_rd_data),
 				.count(),
 				.rd_count()
 			);
+			assign monbus_packet = w_skid_rd_data[MONBUS_TOTAL_W - 1-:monitor_common_pkg_MONBUS_PKT_WIDTH];
+			assign monbus_timestamp = w_skid_rd_data[63:0];
 		end
 		else begin : gen_no_monitor
 			assign monbus_valid = 1'b0;
-			assign monbus_packet = 64'h0000000000000000;
+			assign monbus_packet = 1'sb0;
+			assign monbus_timestamp = 1'sb0;
 			assign active_count = 8'h00;
 			assign error_count = 16'h0000;
 			assign transaction_count = 32'h00000000;
