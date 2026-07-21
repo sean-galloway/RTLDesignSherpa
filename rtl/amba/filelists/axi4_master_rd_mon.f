@@ -21,15 +21,15 @@ $REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
 
 # Dependencies - Common utilities (used by monitor infrastructure)
-$REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
-$REPO_ROOT/rtl/common/counter_load_clear.sv
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/arbiter_round_robin.sv
+-f $REPO_ROOT/rtl/common/filelists/arbiter_priority_encoder.f
+-f $REPO_ROOT/rtl/common/filelists/counter_load_clear.f
+-f $REPO_ROOT/rtl/common/filelists/counter_bin.f
+-f $REPO_ROOT/rtl/common/filelists/arbiter_round_robin.f
 
 # Dependencies - Monitor Infrastructure (order matters - base modules first)
 $REPO_ROOT/rtl/amba/monitor/monitor_trans_cam.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_trans_mgr.sv
-$REPO_ROOT/rtl/common/counter_freq_invariant.sv
+-f $REPO_ROOT/rtl/common/filelists/counter_freq_invariant.f
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_timer.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_timeout.sv
 # Reporter sub-blocks (must precede the reporter top wrapper)
@@ -39,7 +39,7 @@ $REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_compl.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_threshold.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_perf.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_debug.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
+-f $REPO_ROOT/rtl/common/filelists/fifo_control.f
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_addr_check.sv

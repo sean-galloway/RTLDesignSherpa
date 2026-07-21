@@ -11,16 +11,16 @@
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 $REPO_ROOT/rtl/amba/includes/fifo_defs.svh
 
-$REPO_ROOT/rtl/common/gray2bin.sv
-$REPO_ROOT/rtl/common/counter_bingray.sv
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/counter_johnson.sv
-$REPO_ROOT/rtl/common/glitch_free_n_dff_arn.sv
-$REPO_ROOT/rtl/common/find_first_set.sv
-$REPO_ROOT/rtl/common/find_last_set.sv
-$REPO_ROOT/rtl/common/leading_one_trailing_one.sv
-$REPO_ROOT/rtl/common/johnson2bin.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
+-f $REPO_ROOT/rtl/common/filelists/gray2bin.f
+-f $REPO_ROOT/rtl/common/filelists/counter_bingray.f
+-f $REPO_ROOT/rtl/common/filelists/counter_bin.f
+-f $REPO_ROOT/rtl/common/filelists/counter_johnson.f
+-f $REPO_ROOT/rtl/common/filelists/glitch_free_n_dff_arn.f
+-f $REPO_ROOT/rtl/common/filelists/find_first_set.f
+-f $REPO_ROOT/rtl/common/filelists/find_last_set.f
+-f $REPO_ROOT/rtl/common/filelists/leading_one_trailing_one.f
+-f $REPO_ROOT/rtl/common/filelists/johnson2bin.f
+-f $REPO_ROOT/rtl/common/filelists/fifo_control.f
 
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_async.sv

@@ -8,6 +8,6 @@
 
 $REPO_ROOT/rtl/amba/includes/fifo_defs.svh
 $REPO_ROOT/rtl/amba/gaxi/gaxi_drop_fifo_sync.sv
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/counter_bin_load.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
+-f $REPO_ROOT/rtl/common/filelists/counter_bin.f
+-f $REPO_ROOT/rtl/common/filelists/counter_bin_load.f
+-f $REPO_ROOT/rtl/common/filelists/fifo_control.f

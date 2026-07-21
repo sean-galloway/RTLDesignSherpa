@@ -11,12 +11,12 @@ $REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_amba4_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
-$REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
-$REPO_ROOT/rtl/common/arbiter_round_robin.sv
-$REPO_ROOT/rtl/common/arbiter_round_robin_weighted.sv
-$REPO_ROOT/rtl/common/pwm.sv
+-f $REPO_ROOT/rtl/common/filelists/counter_bin.f
+-f $REPO_ROOT/rtl/common/filelists/fifo_control.f
+-f $REPO_ROOT/rtl/common/filelists/arbiter_priority_encoder.f
+-f $REPO_ROOT/rtl/common/filelists/arbiter_round_robin.f
+-f $REPO_ROOT/rtl/common/filelists/arbiter_round_robin_weighted.f
+-f $REPO_ROOT/rtl/common/filelists/pwm.f
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 $REPO_ROOT/rtl/amba/monitor/arbiter_monbus_common.sv
 $REPO_ROOT/rtl/amba/monitor/arbiter_wrr_pwm_monbus.sv

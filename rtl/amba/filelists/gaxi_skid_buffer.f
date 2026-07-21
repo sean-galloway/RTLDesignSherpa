@@ -6,5 +6,5 @@
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-$REPO_ROOT/rtl/common/counter_bin.sv
+-f $REPO_ROOT/rtl/common/filelists/counter_bin.f
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv

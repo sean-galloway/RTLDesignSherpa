@@ -6,9 +6,9 @@
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/counter_load_clear.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
+-f $REPO_ROOT/rtl/common/filelists/counter_bin.f
+-f $REPO_ROOT/rtl/common/filelists/counter_load_clear.f
+-f $REPO_ROOT/rtl/common/filelists/fifo_control.f
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/apb/apb_master.sv

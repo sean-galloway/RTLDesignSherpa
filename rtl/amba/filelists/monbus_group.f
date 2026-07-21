@@ -18,8 +18,8 @@
 #   monbus_axi4_axil_group.sv / monbus_axi4_axi4_group.sv
 
 # Whole-record rounding helper: compressor-style mod-3 + its 3:2 compressor.
-$REPO_ROOT/rtl/common/math_adder_carry_save_nbit.sv
-$REPO_ROOT/rtl/common/mod_3_compress.sv
+-f $REPO_ROOT/rtl/math/filelists/math_adder_carry_save_nbit.f
+-f $REPO_ROOT/rtl/common/filelists/mod_3_compress.f
 
 # Compressor (optional; selected by USE_COMPRESSION=1 + cfg_compress_en).
 $REPO_ROOT/rtl/amba/monitor/monbus_cam.sv

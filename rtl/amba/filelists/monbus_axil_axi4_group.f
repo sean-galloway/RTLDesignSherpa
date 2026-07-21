@@ -8,16 +8,20 @@
 
 $REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
+-f $REPO_ROOT/rtl/common/filelists/counter_bin.f
+-f $REPO_ROOT/rtl/common/filelists/fifo_control.f
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_master_wr.sv
-$REPO_ROOT/rtl/common/math_adder_carry_save_nbit.sv
-$REPO_ROOT/rtl/common/mod_3_compress.sv
+-f $REPO_ROOT/rtl/math/filelists/math_adder_carry_save_nbit.f
+-f $REPO_ROOT/rtl/common/filelists/mod_3_compress.f
 $REPO_ROOT/rtl/amba/monitor/monbus_cam_pipe.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_cam.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_compressor.sv
+# Optional half-beat packer (HALF_BEAT_EN!=0) instantiated inside
+# monbus_group_core. Generate-gated, so a default-parameter elaboration
+# does not reach it -- it must still be in this component's closure.
+$REPO_ROOT/rtl/amba/monitor/monbus_halfbeat_packer.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_group_core.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_axil_axi4_group.sv

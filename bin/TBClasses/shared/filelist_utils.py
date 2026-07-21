@@ -85,14 +85,38 @@ def get_sources_from_filelist(repo_root, filelist_path):
     # Set REPO_ROOT environment variable for substitution
     os.environ['REPO_ROOT'] = repo_root
 
-    # Set component root environment variables (from env_python)
-    # These are used in filelists for referencing cross-component dependencies
+    # Set the root variables that filelists reference for cross-component
+    # dependencies. These mirror env_python; anything defined there and used in
+    # a .f must appear here too, or the filelist resolves under `make` (which
+    # sources env_python) but breaks for cocotb tests, which do not.
+    #
+    # This list previously drifted from env_python -- RAPIDS_ROOT and the
+    # NexysA7 characterization roots were exported by env_python and used by
+    # filelists but were missing here, so those filelists could not be consumed
+    # from a test. Existing environment values win, so a flow Makefile can still
+    # override any of these.
     components_root = os.path.join(repo_root, 'projects', 'components')
-    os.environ['APB_XBAR_ROOT'] = os.path.join(components_root, 'apb_xbar')
-    os.environ['BRIDGE_ROOT'] = os.path.join(components_root, 'bridge')
-    os.environ['CONVERTERS_ROOT'] = os.path.join(components_root, 'converters')
-    os.environ['RETRO_ROOT'] = os.path.join(components_root, 'retro_legacy_blocks')
-    os.environ['STREAM_ROOT'] = os.path.join(components_root, 'dmas', 'stream')
+    nexys_root = os.path.join(repo_root, 'projects', 'NexysA7')
+    stream_char = os.path.join(nexys_root, 'stream_characterization')
+    ddr2_char = os.path.join(nexys_root, 'ddr2-characterization')
+
+    defaults = {
+        'APB_XBAR_ROOT': os.path.join(components_root, 'apb_xbar'),
+        'BCH_ROOT': os.path.join(components_root, 'bch'),
+        'BRIDGE_ROOT': os.path.join(components_root, 'bridge'),
+        'CONVERTERS_ROOT': os.path.join(components_root, 'converters'),
+        'DELTA_ROOT': os.path.join(components_root, 'delta'),
+        'MISC_ROOT': os.path.join(components_root, 'misc'),
+        'RAPIDS_ROOT': os.path.join(components_root, 'dmas', 'rapids'),
+        'RETRO_ROOT': os.path.join(components_root, 'retro_legacy_blocks'),
+        'STREAM_ROOT': os.path.join(components_root, 'dmas', 'stream'),
+        'STREAM_CHAR_ROOT': os.path.join(stream_char, 'flows-stream-bridge'),
+        'STREAM_CHAR_FRAMEWORK_ROOT': os.path.join(stream_char, 'stream_char_framework'),
+        'DDR2_CHAR_FRAMEWORK_ROOT': os.path.join(ddr2_char, 'ddr2_char_framework'),
+        'TIMING_CHAR_ROOT': os.path.join(nexys_root, 'timing_characterization'),
+    }
+    for var, value in defaults.items():
+        os.environ.setdefault(var, value)
 
     # Construct absolute path to file list
     filelist_abs = os.path.join(repo_root, filelist_path)

@@ -13,7 +13,7 @@ $REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_cam.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_cam_pipe.sv
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
+-f $REPO_ROOT/rtl/common/filelists/counter_bin.f
+-f $REPO_ROOT/rtl/common/filelists/fifo_control.f
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_compressor.sv

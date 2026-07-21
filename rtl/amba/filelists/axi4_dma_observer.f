@@ -11,12 +11,12 @@ $REPO_ROOT/rtl/amba/includes/monitor_amba4_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/counter_load_clear.sv
-$REPO_ROOT/rtl/common/counter_freq_invariant.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
-$REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
-$REPO_ROOT/rtl/common/arbiter_round_robin.sv
+-f $REPO_ROOT/rtl/common/filelists/counter_bin.f
+-f $REPO_ROOT/rtl/common/filelists/counter_load_clear.f
+-f $REPO_ROOT/rtl/common/filelists/counter_freq_invariant.f
+-f $REPO_ROOT/rtl/common/filelists/fifo_control.f
+-f $REPO_ROOT/rtl/common/filelists/arbiter_priority_encoder.f
+-f $REPO_ROOT/rtl/common/filelists/arbiter_round_robin.f
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv
@@ -43,6 +43,6 @@ $REPO_ROOT/rtl/amba/monitor/monbus_axil_axi4_group.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_arbiter.sv
 $REPO_ROOT/rtl/amba/shared/axi_bus_meter.sv
 $REPO_ROOT/rtl/amba/shared/axi_perf_latency_hist.sv
-$REPO_ROOT/rtl/common/math_adder_carry_save_nbit.sv
-$REPO_ROOT/rtl/common/mod_3_compress.sv
+-f $REPO_ROOT/rtl/math/filelists/math_adder_carry_save_nbit.f
+-f $REPO_ROOT/rtl/common/filelists/mod_3_compress.f
 $REPO_ROOT/rtl/amba/shared/axi4_dma_observer.sv

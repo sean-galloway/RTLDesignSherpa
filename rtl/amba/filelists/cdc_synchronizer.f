@@ -6,5 +6,5 @@
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-$REPO_ROOT/rtl/common/glitch_free_n_dff_arn.sv
+-f $REPO_ROOT/rtl/common/filelists/glitch_free_n_dff_arn.f
 $REPO_ROOT/rtl/amba/cdc/cdc_synchronizer.sv

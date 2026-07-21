@@ -6,22 +6,22 @@
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-$REPO_ROOT/rtl/common/icg.sv
-$REPO_ROOT/rtl/common/gray2bin.sv
-$REPO_ROOT/rtl/common/counter_bingray.sv
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/counter_load_clear.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
-$REPO_ROOT/rtl/common/clock_gate_ctrl.sv
-$REPO_ROOT/rtl/common/glitch_free_n_dff_arn.sv
+-f $REPO_ROOT/rtl/common/filelists/icg.f
+-f $REPO_ROOT/rtl/common/filelists/gray2bin.f
+-f $REPO_ROOT/rtl/common/filelists/counter_bingray.f
+-f $REPO_ROOT/rtl/common/filelists/counter_bin.f
+-f $REPO_ROOT/rtl/common/filelists/counter_load_clear.f
+-f $REPO_ROOT/rtl/common/filelists/fifo_control.f
+-f $REPO_ROOT/rtl/common/filelists/clock_gate_ctrl.f
+-f $REPO_ROOT/rtl/common/filelists/glitch_free_n_dff_arn.f
 $REPO_ROOT/rtl/amba/cdc/cdc_synchronizer.sv
 $REPO_ROOT/rtl/amba/shared/amba_clock_gate_ctrl.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
-$REPO_ROOT/rtl/common/counter_johnson.sv
-$REPO_ROOT/rtl/common/find_first_set.sv
-$REPO_ROOT/rtl/common/find_last_set.sv
-$REPO_ROOT/rtl/common/leading_one_trailing_one.sv
-$REPO_ROOT/rtl/common/johnson2bin.sv
+-f $REPO_ROOT/rtl/common/filelists/counter_johnson.f
+-f $REPO_ROOT/rtl/common/filelists/find_first_set.f
+-f $REPO_ROOT/rtl/common/filelists/find_last_set.f
+-f $REPO_ROOT/rtl/common/filelists/leading_one_trailing_one.f
+-f $REPO_ROOT/rtl/common/filelists/johnson2bin.f
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_async.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/apb5/apb5_slave.sv

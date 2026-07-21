@@ -11,10 +11,13 @@ $REPO_ROOT/rtl/amba/includes/monitor_amba4_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/counter_load_clear.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
-$REPO_ROOT/rtl/common/counter_freq_invariant.sv
+-f $REPO_ROOT/rtl/common/filelists/counter_bin.f
+-f $REPO_ROOT/rtl/common/filelists/counter_load_clear.f
+-f $REPO_ROOT/rtl/common/filelists/fifo_control.f
+-f $REPO_ROOT/rtl/common/filelists/counter_freq_invariant.f
+-f $REPO_ROOT/rtl/common/filelists/icg.f
+-f $REPO_ROOT/rtl/common/filelists/clock_gate_ctrl.f
+$REPO_ROOT/rtl/amba/shared/amba_clock_gate_ctrl.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv

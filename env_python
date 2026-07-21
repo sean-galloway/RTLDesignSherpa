@@ -16,6 +16,20 @@ export RAPIDS_ROOT=$REPO_ROOT/projects/components/dmas/rapids
 export RETRO_ROOT=$REPO_ROOT/projects/components/retro_legacy_blocks
 export STREAM_ROOT=$REPO_ROOT/projects/components/dmas/stream
 
+# NexysA7 characterization roots. These are referenced by .f filelists, so they
+# must be defined here (not only by the per-flow Makefiles) or the filelists
+# resolve under `make` but break for any standalone consumer -- cocotb tests via
+# filelist_utils, bin/filelist_registry.py, or a bare verilator run.
+#
+# NOTE: the flow Makefiles also export a bare FRAMEWORK_ROOT, whose value
+# depends on which flow is driving (stream_char_framework vs ddr2_char_framework).
+# That name is deliberately NOT defined here: one global value would be silently
+# wrong for the other flow. Filelists should use the unambiguous names below.
+export STREAM_CHAR_ROOT=$REPO_ROOT/projects/NexysA7/stream_characterization/flows-stream-bridge
+export STREAM_CHAR_FRAMEWORK_ROOT=$REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework
+export DDR2_CHAR_FRAMEWORK_ROOT=$REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework
+export TIMING_CHAR_ROOT=$REPO_ROOT/projects/NexysA7/timing_characterization
+
 # Activate venv (use absolute path from REPO_ROOT)
 source $REPO_ROOT/venv/bin/activate
 
