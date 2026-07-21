@@ -2,11 +2,7 @@
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 # Monitor packages (must precede any module that references them)
-$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv
-$REPO_ROOT/rtl/amba/includes/monitor_amba4_pkg.sv
-$REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv
-$REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv
-$REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
+-f $REPO_ROOT/rtl/amba/filelists/monitor_pkgs.f
 
 # Bridge RTL files (generated)
 $REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil_mon/bridge_stream_char_axil_mon_pkg.sv
@@ -25,90 +21,66 @@ $REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/br
 $REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil_mon/stream_err_adapter.sv
 
 # AXI4 Wrapper modules (timing isolation)
+#
+# Pulled in via each component's OWN filelist rather than by hand-listing
+# individual rtl/amba or rtl/common sources. A consumer that hand-lists a
+# component's files has to track that component's internal dependencies,
+# and it silently rots when they change. Each filelist below declares its
+# own complete closure (packages + rtl/common deps + sub-blocks).
 # Master adapters use axi4_slave_* (act as AXI slave to external master)
-$REPO_ROOT/rtl/amba/axi4/axi4_slave_wr.sv
-$REPO_ROOT/rtl/amba/axi4/axi4_slave_rd.sv
+-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd.f
 # Slave adapters use axi4_master_* (act as AXI master to external slave)
-$REPO_ROOT/rtl/amba/axi4/axi4_master_wr.sv
-$REPO_ROOT/rtl/amba/axi4/axi4_master_rd.sv
+-f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd.f
 
 # GAXI skid buffers (used by wrappers and converters)
-$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f
 
 # Width converters (for data width adaptation).
 # axi_data_{upsize,dnsize} are validated primitives used by the
 # axi4_dwidth_converter_{rd,wr} wrappers for the W/R data path.
-$REPO_ROOT/projects/components/converters/rtl/axi_data_upsize.sv
-$REPO_ROOT/projects/components/converters/rtl/axi_data_dnsize.sv
-$REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_rd.sv
-$REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_wr.sv
-$REPO_ROOT/projects/components/converters/rtl/axil_to_axi4_wide_align_wr.sv
-$REPO_ROOT/projects/components/converters/rtl/axil_to_axi4_wide_align_rd.sv
+#
+# -f the converters component's own filelists rather than naming its
+# .sv files: a consumer that hand-lists another component's sources has
+# to track that component's internal dependencies, and rots silently
+# when they change.
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi_data_upsize.f
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi_data_dnsize.f
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_dwidth_converter_rd.f
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_dwidth_converter_wr.f
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/axil_to_axi4_wide_align_wr.f
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/axil_to_axi4_wide_align_rd.f
 
-# APB protocol converter dependencies (in dependency order)
-# Common dependencies first
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
+# APB protocol converter (AXI4 to APB).
+#
+# The converters component owns its own closure: the shim + convert
+# core, the CDC handshakes, the APB master/stub, the AXI4 slave stubs,
+# axi_gen_addr and both gaxi FIFOs. Hand-listing those here is how the
+# shim's newer gaxi_fifo_async CDC dependency went missing.
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_apb_shim.f
 
-# AMBA shared modules
-$REPO_ROOT/rtl/amba/shared/axi_gen_addr.sv
-$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
-
-# AXI4 stubs
-$REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_wr_stub.sv
-$REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_rd_stub.sv
-$REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_stub.sv
-
-# APB modules
-$REPO_ROOT/rtl/amba/apb/apb_master.sv
-$REPO_ROOT/rtl/amba/cdc/cdc_2_phase_handshake.sv
-$REPO_ROOT/rtl/amba/cdc/cdc_4_phase_handshake.sv
-$REPO_ROOT/projects/components/converters/rtl/axi4_to_apb_convert.sv
-$REPO_ROOT/rtl/amba/apb/apb_master_stub.sv
-
-# APB protocol converter (AXI4 to APB)
-$REPO_ROOT/projects/components/converters/rtl/axi4_to_apb_shim.sv
-
-# AXI4-Lite protocol converter dependencies
-$REPO_ROOT/projects/components/converters/rtl/axi4_to_axil4_rd.sv
-$REPO_ROOT/projects/components/converters/rtl/axi4_to_axil4_wr.sv
+# AXI4-Lite protocol converter dependencies.
+# -f the converters filelists; do not hand-list its sources.
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_axil4_rd.f
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_axil4_wr.f
 
 # Monitor-aggregation infrastructure (variant=mon)
-# Header files with macros (already compiled if AMBA pkg path included)
-$REPO_ROOT/rtl/amba/includes/reset_defs.svh
-$REPO_ROOT/rtl/amba/includes/fifo_defs.svh
-# Common arbitration primitives (used by axi_monitor_*)
-$REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
-$REPO_ROOT/rtl/common/arbiter_round_robin.sv
-# Common counters & FIFO control (used by gaxi_fifo_sync + axi_monitor_timer)
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/counter_load_clear.sv
-$REPO_ROOT/rtl/common/counter_freq_invariant.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
-# axi_monitor_* shared infrastructure (order matters)
-$REPO_ROOT/rtl/amba/monitor/monitor_trans_cam.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_trans_mgr.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_timer.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_timeout.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_error.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_timeout.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_compl.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_threshold.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_perf.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_debug.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_base.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_filtered.sv
+#
+# The four _mon wrapper filelists below each declare their OWN complete
+# closure: the monitor packages, the shared axi_monitor_* core (base,
+# filtered, trans_mgr, timer, timeout and all six reporter sub-blocks),
+# monitor_trans_cam, and the rtl/common counters, fifo_control and
+# arbiter primitives they depend on. Listing those internals here
+# instead would mean tracking another component's guts -- exactly the
+# coupling that let the reporter sub-blocks and monitor_trans_cam go
+# missing from consumer filelists in the first place.
 # _mon wrapper variants (instantiated by adapters when use_monitor=true)
-$REPO_ROOT/rtl/amba/monitor/axi4_slave_wr_mon.sv
-$REPO_ROOT/rtl/amba/monitor/axi4_slave_rd_mon.sv
-$REPO_ROOT/rtl/amba/monitor/axi4_master_wr_mon.sv
-$REPO_ROOT/rtl/amba/monitor/axi4_master_rd_mon.sv
+-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr_mon.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd_mon.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr_mon.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_mon.f
 # Monbus arbiter (always present in mon variant)
-$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
-$REPO_ROOT/rtl/amba/monitor/monbus_arbiter.sv
-# Monbus group (monbus_axil_axil_group) + its leaf skids + core
-$REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv
-$REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv
--f $REPO_ROOT/rtl/amba/filelists/monbus_group.f
-$REPO_ROOT/rtl/amba/monitor/monbus_axil_axil_group.sv
+-f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f
+# Monbus group (monbus_axil_axil_group)
+-f $REPO_ROOT/rtl/amba/filelists/monbus_axil_axil_group.f

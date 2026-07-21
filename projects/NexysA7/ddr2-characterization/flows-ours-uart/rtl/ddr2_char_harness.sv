@@ -70,6 +70,18 @@ module ddr2_char_harness
     parameter int DRAM_BEAT_WIDTH     = AXI_DATA_WIDTH,
     parameter int DRAM_DEVICE_WIDTH   = DRAM_BEAT_WIDTH,  // physical DRAM x-width (x16=>16)
     parameter int DFI_RATE            = 2,
+    // JEDEC burst length CEILING (device beats). The ACTIVE burst length is a
+    // CONFIG WRITE, not this parameter: DFI_PHASE.bl feeds pumice_core, which
+    // derives n_subcmd / sub_col_stride / sub_phase_stride at runtime and clamps
+    // them to the compile MAX (pumice_core.sv:206-215). MR0 is likewise a CSR.
+    // This parameter only sizes that ceiling, plus BURST_WORDS/BL_WORDS -- the
+    // DFI capture-window width -- which is the one piece of the burst geometry
+    // that is NOT yet runtime. At both geometries built so far (BL4/rate2 and
+    // BL8/rate4) BURST_WORDS elaborates to 1, so it has never actually bound;
+    // it would only bind if the host programmed a bl needing a wider window.
+    // Threaded from ddr2_char_top rather than inherited from the
+    // ddr2_char_macro default so the ceiling is at least visible at the top.
+    parameter int DRAM_BL             = 4,
     // Legal-AxLEN quantum forwarded to the engines (= AXI beats per DRAM burst).
     // 1 = unconstrained (default); ddr2_char_top sets the board value.
     parameter int BURST_LEN_MULTIPLE  = 1,
@@ -654,6 +666,7 @@ module ddr2_char_harness
         .DRAM_BEAT_WIDTH  (DRAM_BEAT_WIDTH),
         .DRAM_DEVICE_WIDTH(DRAM_DEVICE_WIDTH),
         .DFI_RATE         (DFI_RATE),
+        .DRAM_BL          (DRAM_BL),
         .BURST_LEN_MULTIPLE(BURST_LEN_MULTIPLE),
         .AXI_ID_WIDTH     (AXI_ID_WIDTH),
         .AXI_USER_WIDTH   (AXI_USER_WIDTH),

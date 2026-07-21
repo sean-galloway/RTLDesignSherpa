@@ -68,6 +68,21 @@ if {$trig eq "ref"} {
     set _pw [get_property WIDTH $p]
     set_property TRIGGER_COMPARE_VALUE "neq${_pw}'h0" $p
     puts "ILA armed (trigger: dfi_rddata_valid != 0). Waiting for a UART read ..."
+} elseif {$trig eq "lmr"} {
+    # Load Mode Register (MRS): ras_n AND cas_n AND we_n ALL asserted. Pumice
+    # issues commands on phase 0 only, so during an MRS phase 0 has all three low
+    # (bus != all-ones) while every other DDR2 command leaves >=1 of the three
+    # high -> unique to MRS. Global-AND of the three "neq all-ones" compares.
+    # Early trigger position so the full init MRS chain (EMRS*, MRS0+DLL, MRS0,
+    # OCD) is captured post-trigger. Fire it by re-running init (soft_reset).
+    foreach pn {*w_dfi_ras_n* *w_dfi_cas_n* *w_dfi_we_n*} {
+        set p [get_hw_probes -of_objects $ila $pn]
+        set w [get_property WIDTH $p]
+        set on [format %X [expr {(1 << $w) - 1}]]
+        set_property TRIGGER_COMPARE_VALUE "neq${w}'h${on}" $p
+    }
+    set_property CONTROL.TRIGGER_POSITION 256 $ila
+    puts "ILA armed (trigger: LMR = ras_n & cas_n & we_n all asserted = MRS). Waiting for init ..."
 } else {
     set p [get_hw_probes -of_objects $ila *w_dfi_wrdata_en*]
     set_property CONTROL.TRIGGER_POSITION 512 $ila

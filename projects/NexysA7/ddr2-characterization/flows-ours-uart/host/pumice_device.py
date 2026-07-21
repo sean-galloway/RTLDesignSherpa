@@ -145,6 +145,32 @@ class Pumice(Device):
         if kw:
             self.regs.write("PHY_TIMING", rmw=True, **kw)
 
+    # ----- mode registers (init MRS chain) ---------------------------------
+    _MR_REG = {0: "MR0", 1: "MR1", 2: "MR2", 3: "MR3"}
+
+    def set_mr(self, index: int, value: int) -> None:
+        """Write a DDR2 mode-register value (MR0..MR3.VAL[15:0]) used by the init
+        MRS chain. Takes effect on the NEXT init run (power-on or init_restart()).
+        Runtime-writable so software can retune the mode register OR sweep the
+        value to defeat an arbitrary board A-lane mapping on MRS commands (the
+        MRS address bits are the MR value, so scrambled A-pins scramble it)."""
+        if index not in self._MR_REG:
+            raise ValueError(f"MR index {index} out of range 0..3")
+        self.regs.write(self._MR_REG[index], VAL=value & 0xFFFF)
+
+    def set_mr0(self, value: int) -> None: self.set_mr(0, value)
+    def set_mr1(self, value: int) -> None: self.set_mr(1, value)
+    def set_mr2(self, value: int) -> None: self.set_mr(2, value)
+    def set_mr3(self, value: int) -> None: self.set_mr(3, value)
+
+    def init_restart(self) -> None:
+        """Pulse CTRL.init_force_restart: re-run the JEDEC MRS init WITHOUT a
+        controller reset, applying freshly-written MRx.VAL while the CSRs are
+        preserved (a soft_reset would wipe the CSRs before init could read them).
+        Rising-edge triggered in init_sequencer -> write 1 then 0 to re-arm."""
+        self.regs.write("CTRL", rmw=True, init_force_restart=1)
+        self.regs.write("CTRL", rmw=True, init_force_restart=0)
+
     # ----- address map / paging --------------------------------------------
     def set_addr_map(self, *, bank_lsb: Optional[int] = None,
                      hash_en: Optional[int] = None,

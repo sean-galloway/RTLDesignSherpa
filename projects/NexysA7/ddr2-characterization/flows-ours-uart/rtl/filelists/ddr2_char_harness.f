@@ -16,13 +16,13 @@
 -f $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/ddr2_char_macro.f
 
 # AXIL SRAM slave used for debug_sram + dfi_mon_ram
-$REPO_ROOT/rtl/amba/axil4/axil4_slave_wr.sv
-$REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv
-$REPO_ROOT/rtl/amba/shared/sdpram_core.sv
-$REPO_ROOT/rtl/amba/shared/sdpram_slave_axil_axil.sv
+-f $REPO_ROOT/rtl/amba/filelists/axil4_slave_wr.f
+-f $REPO_ROOT/rtl/amba/filelists/axil4_slave_rd.f
+-f $REPO_ROOT/rtl/amba/filelists/sdpram_core.f
+-f $REPO_ROOT/rtl/amba/filelists/sdpram_slave_axil_axil.f
 
 # 7-segment glyph decoder used by seven_seg_4digit
-$REPO_ROOT/rtl/common/hex_to_7seg.sv
+-f $REPO_ROOT/rtl/common/filelists/hex_to_7seg.f
 
 # Verilator-only Xilinx primitive stubs (BUFG). Wrapped in `ifdef VERILATOR
 # so Vivado doesn't see them.

@@ -63,11 +63,15 @@ CLKS_PER_BIT   = 16
 # num_lines only commits the pages the small workloads actually touch.
 ROW_W, COL_W   = 13, 10
 NUM_BANKS      = 8
-DRAM_BL        = int(os.environ.get("TEST_DRAM_BL", "8"))  # JEDEC MR0 BL — must
-# match the controller (ddr2_char_macro DRAM_BL). Board = BL8: at nphases=4/x16 a
-# BL8 read fills one full 128b DFI word in one 8-slot PHY event (BL4 filled only
-# half -> stale -> the on-silicon read-fail root cause). Override to 4 for the
-# legacy rate-2 sub-word regime.
+DRAM_BL        = int(os.environ.get("TEST_DRAM_BL", "4"))  # JEDEC MR0 BL — must
+# match the controller. Now passed to the tb_top as an SV param (DRAM_BL) AND to
+# the BFM as beats_per_burst, so DUT and oracle cannot diverge.
+#
+# Default 4 = the board build: DFI_RATE=2 / BL4, matching the a7ddrphy netlist
+# (1:2 — 1-bit rdphase CSR, ISERDES DATA_WIDTH=4 on sys2x) and LiteDRAM's proven
+# DDR2 config on this board. The earlier BL8 default came from the nphases=4
+# theory, which silicon disproved: the PHY's DFI exposes 4 phases but only 2 are
+# real, so p2/p3 carry the previous cycle's beats.
 # DFI rate / DRAM beat width. Default = rate-2 / 64b beat (GEAR=1, the known-
 # good macro config). Override via env to match the BOARD exactly: rate-4 /
 # 32b beat (GEAR=2) — TEST_DFI_RATE=4 TEST_DRAM_BEAT_BYTES=4. The tb_top SV
@@ -502,7 +506,13 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         toplevel=dut_name, module="test_ddr2_char_uart",
         testcase=testcase,
         # SV param override so the tb_top's DFI bus matches the BFM geometry.
+        # DRAM_BL is overridden explicitly rather than left to the
+        # ddr2_char_macro default: the DUT's burst framing and the BFM's
+        # beats_per_burst must come from ONE value. They previously agreed only
+        # by coincidence (both 8), and when they diverged the mismatch showed up
+        # as a phantom "BL8 write-path corruption" in the controller.
         parameters={"DFI_RATE": str(dfi_rate),
+                    "DRAM_BL": str(DRAM_BL),
                     "DRAM_BEAT_WIDTH": str(dram_beat_width),
                     "DRAM_DEVICE_WIDTH": str(dram_device_width)},
         sim_build=sim_build, simulator="verilator",

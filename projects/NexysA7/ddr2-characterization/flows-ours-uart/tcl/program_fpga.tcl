@@ -7,7 +7,13 @@
 
 set script_dir   [file dirname [file normalize [info script]]]
 set project_root [file normalize "$script_dir/.."]
+# Default to the plain bitstream; DDR2_CHAR_BIT selects another (e.g. the ILA
+# superset, which is the same design plus DFI-boundary probes — one bitstream
+# that both runs the host programs and captures the DFI boundary).
 set bit_file     "$project_root/bitstream/ddr2_char.bit"
+if {[info exists ::env(DDR2_CHAR_BIT)]} {
+    set bit_file $::env(DDR2_CHAR_BIT)
+}
 
 if {![file exists $bit_file]} {
     puts stderr "ERROR: $bit_file not found — run `make bitstream` first."

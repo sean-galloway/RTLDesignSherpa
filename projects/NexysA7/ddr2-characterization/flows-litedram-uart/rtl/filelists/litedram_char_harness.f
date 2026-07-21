@@ -14,7 +14,7 @@
 -f $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/ddr2_char_macro.f
 
 # 7-segment glyph decoder + framework blocks
-$REPO_ROOT/rtl/common/hex_to_7seg.sv
+-f $REPO_ROOT/rtl/common/filelists/hex_to_7seg.f
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/harness_csr.sv
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/led_status_driver.sv
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/seven_seg_4digit.sv

@@ -263,8 +263,45 @@ class DDR2CharDriver:
         latency-histogram bins."""
         self.regs.write("CTRL", clear_stats=1)
 
-    def soft_reset(self) -> None:
+    # ----- Build geometry --------------------------------------------------
+    # The bitstream is built for ONE DFI rate / burst geometry; the CSRs only
+    # tell the controller which one it is running. CTRL.soft_reset wipes the
+    # pumice CSRs back to their RTL resets -- which are the 1:4 / BL8 values,
+    # NOT this build's -- so every soft_reset silently reverts the geometry
+    # unless it is re-programmed. Nine host scripts each re-programmed it (or
+    # forgot to) at their own call sites; wide_rd_sweep.py forgot, ran the whole
+    # sweep at 1:4/BL8 on a 1:2/BL4 build, and reported the resulting
+    # never-completed reads as beats_mismatched=0 -- a clean sweep that measured
+    # nothing. So restoring geometry is the driver's job, not the caller's.
+    BOARD_GEAR_RATIO = int(os.environ.get("TEST_GEAR_RATIO", "1"))   # log2(1:2)
+    BOARD_DRAM_BL    = int(os.environ.get("TEST_DRAM_BL", "4"))      # JEDEC BL4
+    BOARD_MR0        = int(os.environ.get("TEST_MR0", "0x0432"), 0)  # BL4/CL3/tWR3
+
+    def program_geometry(self, rd_phase: int = 0, wr_phase: int = 0,
+                         restart_init: bool = True) -> None:
+        """Program the DFI/burst geometry this bitstream was built for.
+
+        restart_init pulses CTRL.init_force_restart so the MRS chain re-runs
+        with the MR0 just written -- without it the DRAM keeps the burst length
+        from the reset-value init that soft_reset already kicked off.
+        """
+        self.set_dfi_phase(rd_phase=rd_phase, wr_phase=wr_phase,
+                           gear_ratio=self.BOARD_GEAR_RATIO,
+                           bl=self.BOARD_DRAM_BL)
+        self.set_mr0(self.BOARD_MR0)
+        if restart_init:
+            self.init_restart()
+
+    def soft_reset(self, restore_geometry: bool = True,
+                   rd_phase: int = 0, wr_phase: int = 0) -> None:
+        """Pulse CTRL.soft_reset, then restore the build geometry.
+
+        Pass restore_geometry=False only to observe the raw reset state.
+        """
         self.regs.write("CTRL", soft_reset=1)
+        if restore_geometry:
+            time.sleep(0.005)
+            self.program_geometry(rd_phase=rd_phase, wr_phase=wr_phase)
 
     def freeze_trace(self, on: bool = True) -> None:
         """Latch or unlatch CTRL.freeze_trace.
@@ -295,6 +332,21 @@ class DDR2CharDriver:
         self.regs.write("CTRLR_CAP",
                         cap_lookahead_max=cap_lookahead_max & 0xF,
                         cap_synth_mask=cap_synth_mask & 0xF)
+
+    def set_mr(self, index: int, value: int) -> None:
+        """Program a DDR2 mode-register value (MR0..MR3) for the init MRS chain.
+        Applied on the next init run — call init_restart() after to re-run init."""
+        self.pumice.set_mr(index, value)
+
+    def set_mr0(self, value: int) -> None:
+        self.pumice.set_mr0(value)
+
+    def init_restart(self) -> None:
+        """Re-run the JEDEC MRS init WITHOUT a controller reset (CTRL.init_force_
+        restart), applying freshly-written MRx.VAL while CSRs are preserved. Use
+        to sweep MR0 against an arbitrary board A-lane mapping: set_mr0(v);
+        init_restart(); then check reads."""
+        self.pumice.init_restart()
 
     def set_deskew(self, deskew_lo: int = 0, deskew_hi: int = 0) -> None:
         """Per-64b-beat read DESKEW (PHY_TIMING.deskew_lo/hi). The a7ddrphy returns

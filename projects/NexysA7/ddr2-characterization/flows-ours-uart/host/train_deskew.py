@@ -57,7 +57,7 @@ def main():
 
     # Write the phase-distinct pattern ONCE (writes land regardless of deskew).
     d.clear_stats()
-    d.program_wr_engine(start_addr=0x0, burst_len=4, txn_count=8, stride_0=32,
+    d.program_wr_engine(start_addr=0x0, burst_len=8, txn_count=8, stride_0=32,
                         lfsr_seed=SEED, data_mode=True, hash_seed0=SEED)
     d.start_wr(); wait_engine(d, "wr")
 

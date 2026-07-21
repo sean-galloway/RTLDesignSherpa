@@ -225,10 +225,12 @@ set_property INTERNAL_VREF 0.900 [get_iobanks 35]
 ## whose r_fifo->r_stage CE path benefits most from compaction), leave the rest
 ## of the datapath to the placer. Placement-only (routing free), like
 ## stream_char's pblock_compressor.
-create_pblock pblock_rd_cl_aligner
-add_cells_to_pblock pblock_rd_cl_aligner \
-    [get_cells -quiet u_harness/u_dut/u_ctrl/u_core/u_data_path/u_rd_cl_aligner]
-resize_pblock pblock_rd_cl_aligner -add {CLOCKREGION_X0Y2:CLOCKREGION_X0Y3}
+## REMOVED (2026-07-18): this pblock targeted u_data_path/u_rd_cl_aligner — a cell
+## that does NOT exist in the rearchitected core (the read aligner is now
+## u_core/u_core/u_dfi/u_rd), so it was a NO-OP that only threw a critical
+## warning. Timing is now closed by the FREQ DROP (sys 75->66.67 MHz in
+## ddr2_char_top.sv, WNS -0.445 -> +0.131) rather than by floorplanning the
+## routing-dominated arbiter row-hit->r_bank cone, so no pblock is needed.
 
 ## NOTE: a pblock on u_sched+u_ifc (tried CLOCKREGION_X1Y1:X1Y3) made WNS WORSE
 ## (-30.5 -> -33.0): forcing u_ifc into one column pushed rd_intake and wr_cam

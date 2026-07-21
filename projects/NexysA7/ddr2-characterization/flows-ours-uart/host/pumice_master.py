@@ -44,16 +44,68 @@ from ddr2_char import DDR2CharDriver
 
 
 # =============================================================================
+# Build geometry -- what THIS bitstream was compiled for.
+#
+# The pumice burst framing (BURST_WORDS / BL_WORDS / N_SUBCMD) and the DFI phase
+# count are COMPILE-time parameters; the matching CSRs only tell the controller
+# which geometry it is running. If the two disagree the controller silently
+# mis-frames every burst, which is how a BL8 datapath once ran against an MR0
+# that said BL4.
+#
+# This board build is DFI_RATE=2 / BL4, matching the a7ddrphy netlist (1:2:
+# 1-bit rdphase CSR, ISERDES DATA_WIDTH=4 on sys2x) and LiteDRAM's proven
+# config on this board. The pumice RTL resets are NOT those values -- they are
+# gear_ratio=2 (1:4), bl=8, MR0=0x0433 (BL8) -- and CTRL.soft_reset wipes the
+# pumice CSRs back to them. soft_reset therefore silently reverts the geometry,
+# and A7Leveling calls it once per sweep iteration, so this must be re-applied
+# after EVERY soft_reset, not once at startup.
+#
+# Env overrides exist because the cocotb UART tests drive these same host
+# programs against other builds (TEST_GEAR_RATIO / TEST_DRAM_BL are set by
+# test_ddr2_char_uart.py from its own DFI_RATE).
+# =============================================================================
+# The geometry constants and the programming sequence live on the driver
+# (DDR2CharDriver.BOARD_*/program_geometry), which also restores them inside
+# soft_reset() so no call site can forget. These names are kept as thin
+# re-exports so existing callers keep working.
+BOARD_GEAR_RATIO = DDR2CharDriver.BOARD_GEAR_RATIO
+BOARD_DRAM_BL    = DDR2CharDriver.BOARD_DRAM_BL
+BOARD_MR0        = DDR2CharDriver.BOARD_MR0
+
+
+def program_geometry(drv: DDR2CharDriver, rd_phase: int = 0,
+                     wr_phase: int = 0, restart_init: bool = True) -> None:
+    """Program the DFI/burst geometry this bitstream was built for.
+
+    rd_phase stays 0: at nphases=2 LiteDRAM issues the READ command on
+    rdcmdphase = rdphase-1 = 0 (multiplexer.py:234) and takes the data at
+    rdphase=1, which the a7ddrphy applies internally.
+    """
+    drv.program_geometry(rd_phase=rd_phase, wr_phase=wr_phase,
+                         restart_init=restart_init)
+
+
+# =============================================================================
 # Shared helper -- wait on ONE engine (write-then-read is phased; the driver's
 # wait_done() needs BOTH engines done, which would hang after a write-only or
 # read-only phase).
 # =============================================================================
-def wait_engine(drv: DDR2CharDriver, which: str, timeout_s: float = 15.0) -> bool:
+def wait_engine(drv: DDR2CharDriver, which: str, timeout_s: float = 15.0,
+                ignore_error: bool = False) -> bool:
+    """Wait for one engine to finish. Returns False on error or timeout.
+
+    ignore_error=True waits purely for the done flag. Use it when a data
+    MISMATCH is the thing being measured: a mismatching read latches rd_error,
+    so the default (bail on any_error) reports a completed-but-wrong read as
+    "did not run" and the measurement is silently discarded. Callers that want
+    the mismatch COUNT must pass ignore_error=True and check `done` themselves;
+    only a read that never asserts done is a real non-measurement.
+    """
     assert which in ("wr", "rd")
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
         s = drv.status()
-        if s.any_error:
+        if s.any_error and not ignore_error:
             return False
         if (which == "wr" and s.wr_done) or (which == "rd" and s.rd_done):
             return True
@@ -100,25 +152,31 @@ class A7Leveling:
     MAX_RD_TAPS = 32     # IDELAYE2 5-bit tap
 
     def __init__(self, drv: DDR2CharDriver, base_addr: int = 0x0000_0000,
-                 burst_len: int = 4, txn_count: int = 2,
+                 burst_len: int = 8, txn_count: int = 2,
                  seed: int = 0x1EAF_F00D, t_phy_wrlat: int = 0,
                  t_rddata_en: int = 6, rddata_delay: int = 0,
-                 rd_phase: int = 0, lane_mask: int = 0b11, verbose: bool = True):
+                 rd_phase: int = 0, lane_mask: int = 0b11,
+                 deskew_lo: int = 0, deskew_hi: int = 0, verbose: bool = True):
         self.drv = drv
         self.base = base_addr
         self.blen = burst_len
         self.txn = txn_count
+        # Per-64b-beat read deskew held across the whole sweep. bitslip/tap align
+        # DQ *bits within a beat*; deskew aligns the two 64b *beats to each other*
+        # — independent layers. If deskew is wrong EVERY bitslip/tap fails, so the
+        # eye search must run with the trained deskew applied (level-with-deskew).
+        self.dsk_lo = deskew_lo
+        self.dsk_hi = deskew_hi
         self.seed = seed
         self.wrlat = t_phy_wrlat
         self.rden = t_rddata_en
         self.rddly = rddata_delay       # dfi_rddata->rddata_valid realign (ILA=8)
-        self.rdphase = rd_phase         # a7ddrphy rdphase=1 (RD cmd on phase 1)
-        # gear_ratio CSR (log2 active DFI rate). None => rmw-preserve the RTL
-        # reset (2 = 1:4, the board's fixed nphases=4). The sim exercises rate-2
-        # legacy builds too, where the reset (2) is wrong; those set TEST_GEAR_RATIO
-        # so set_dfi_phase does not leave gear masking off the read path.
-        _g = os.environ.get("TEST_GEAR_RATIO")
-        self.gear = int(_g) if _g is not None else None
+        # RD command sub-phase. 0 on this board: the a7ddrphy applies its own
+        # rdphase=1 internally (poking rdphase=1 here reads nothing back).
+        self.rdphase = rd_phase
+        # gear_ratio / bl / MR0 are programmed by program_geometry() in _reinit,
+        # from the BOARD_* constants -- they are build geometry, not per-sweep
+        # state, and must be re-applied after every soft_reset.
         self.lanes = lane_mask          # x16 -> both byte lanes together (0b11)
         self.verbose = verbose
 
@@ -141,8 +199,13 @@ class A7Leveling:
                                     t_phy_wrlat=self.wrlat,
                                     t_rddata_en=self.rden, rd_in_order=True)
         self.drv.set_dfi_rddata_delay(self.rddly)
-        self.drv.set_dfi_phase(rd_phase=self.rdphase, wr_phase=0,
-                               gear_ratio=self.gear)
+        # Geometry (gear_ratio / bl / MR0) must be re-programmed here: the
+        # soft_reset above reverted the pumice CSRs to their RTL resets, which
+        # are the 1:4 / BL8 values and do NOT match this DFI_RATE=2 / BL4 build.
+        program_geometry(self.drv, rd_phase=self.rdphase, wr_phase=0)
+        # Re-apply the trained per-beat deskew every reinit (robust even if a
+        # soft_reset clears PHY_TIMING). deskew 0/0 is a bit-identical no-op.
+        self.drv.set_deskew(deskew_lo=self.dsk_lo, deskew_hi=self.dsk_hi)
         # A prior failing read leaves a STICKY rd_error/any_error latch that
         # soft_reset does not clear (it lives in harness_csr) — clear_stats
         # does. Without this, wait_engine() would false-negative every write
@@ -303,18 +366,10 @@ class SimpleTest:
                              t_rddata_en=self.t_rddata_en,
                              rd_in_order=True)
         d.set_dfi_rddata_delay(self.rddata_delay)
-        # gear_ratio / bl: None => rmw-preserve the RTL reset (board = 2 = 1:4,
-        # bl = 4), which is correct on-silicon. The sim exercises non-rate-4
-        # legacy builds (e.g. rate-2) where the reset gear is wrong and would mask
-        # off the read path -> those set TEST_GEAR_RATIO / TEST_DRAM_BL so
-        # set_dfi_phase programs the build's actual gear (same pattern as
-        # A7Leveling/MasterTest). Absent env (board) => None => preserve.
-        import os as _os
-        _g = _os.environ.get("TEST_GEAR_RATIO")
-        _bl = _os.environ.get("TEST_DRAM_BL")
-        d.set_dfi_phase(rd_phase=self.rd_phase, wr_phase=0,
-                        gear_ratio=(int(_g) if _g is not None else None),
-                        bl=(int(_bl) if _bl is not None else None))
+        # Geometry after soft_reset -- see program_geometry(). The RTL resets
+        # (1:4 / BL8 / MR0=0x0433) do not match this DFI_RATE=2 / BL4 build, so
+        # they are always programmed explicitly rather than rmw-preserved.
+        program_geometry(d, rd_phase=self.rd_phase, wr_phase=0)
         if do_leveling:
             lv = A7Leveling(d, base_addr=self.base,
                             t_phy_wrlat=self.t_phy_wrlat,
