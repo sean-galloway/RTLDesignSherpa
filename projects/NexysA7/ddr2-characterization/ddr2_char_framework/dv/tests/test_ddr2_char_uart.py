@@ -302,6 +302,79 @@ async def cocotb_test_uart_pagehit(dut):
         f"(board fails here with mism == 2*txn == {2*NTXN})")
 
 
+@cocotb.test(timeout_time=400, timeout_unit="ms")
+async def cocotb_test_uart_concurrent(dut):
+    """#42 repro: CONCURRENT wr+rd — the board's dirty soak phase in sim.
+
+    1:1 methodology: BOTH regions initialized first with ONE seed (every
+    read's expectation unconditional under any interleaving), then the two
+    engines run SIMULTANEOUSLY (write A while reading B) for several rounds.
+    Exact accounting must hold every round: both engines done, mism == 0,
+    and NO rd_error — which now includes the engine's stray-beat latch, so a
+    late/duplicate R return fails THIS round loudly instead of desyncing the
+    next. Board baseline at this phase: 471/471 dirty pre-turnaround-fix,
+    ~ppm rd_error residual after (#42)."""
+    drv, chan, _dfi, _mem = await _bringup(dut)
+
+    NROUNDS = int(os.environ.get("TEST_CONC_ROUNDS", "4"))
+    SEED = 0x0DDB_A115
+    BLEN = 4
+    NTXN = int(os.environ.get("TEST_CONC_TXN", "32"))
+    STRIDE = BLEN * 8
+    A, B = 0x0, NTXN * STRIDE          # disjoint, back-to-back regions
+
+    def prog():
+        results = {"rounds": []}
+        drv.soft_reset()
+        drv.set_dfi_cmd_delay(int(os.environ.get("TEST_CMD_DELAY", "0")))
+        drv.set_controller_cfg(memtype=dc.MEMTYPE_DDR2,
+                               t_phy_wrlat=int(os.environ.get("TEST_T_PHY_WRLAT", "4")),
+                               t_rddata_en=int(os.environ.get("TEST_T_RDDATA_EN", "4")),
+                               rd_in_order=True)
+        drv.set_dfi_phase(rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
+                          wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
+                          gear_ratio=GEAR_RATIO, bl=DRAM_BL)
+        # initialize BOTH regions (1:1 rule: memory defined before concurrency)
+        for base in (A, B):
+            drv.clear_stats()
+            drv.program_wr_engine(start_addr=base, burst_len=BLEN,
+                                  txn_count=NTXN, stride_0=STRIDE,
+                                  lfsr_seed=SEED, data_mode=True,
+                                  hash_seed0=SEED, axi_size=dc.AXI_SIZE_8)
+            drv.start_wr()
+            if not pm.wait_engine(drv, "wr", timeout_s=60):
+                results["init_fail"] = hex(base)
+                return results
+        for i in range(NROUNDS):
+            drv.clear_stats()
+            drv.program_wr_engine(start_addr=A, burst_len=BLEN, txn_count=NTXN,
+                                  stride_0=STRIDE, lfsr_seed=SEED,
+                                  data_mode=True, hash_seed0=SEED,
+                                  axi_size=dc.AXI_SIZE_8)
+            drv.program_rd_engine(start_addr=B, burst_len=BLEN, txn_count=NTXN,
+                                  stride_0=STRIDE, lfsr_seed=SEED,
+                                  data_mode=True, hash_seed0=SEED,
+                                  axi_size=dc.AXI_SIZE_8)
+            drv.start_wr()
+            drv.start_rd()
+            wr_ok = pm.wait_engine(drv, "wr", timeout_s=60, ignore_error=True)
+            rd_ok = pm.wait_engine(drv, "rd", timeout_s=60, ignore_error=True)
+            st = drv.status()
+            results["rounds"].append(dict(
+                wr=wr_ok, rd=rd_ok, mism=drv.beats_mismatched(),
+                rd_error=int(st.rd_error), wr_error=int(st.wr_error)))
+        return results
+
+    r = await cocotb.external(prog)()
+    dut._log.info("CONCURRENT results: %s", r)
+    assert "init_fail" not in r, f"init write hang @ {r.get('init_fail')}"
+    for i, rd in enumerate(r["rounds"]):
+        assert rd["wr"] and rd["rd"], f"round {i} engine hang: {rd}"
+        assert rd["mism"] == 0 and not rd["rd_error"] and not rd["wr_error"], (
+            f"round {i} 1:1/integrity violation (stray beats latch into "
+            f"rd_error): {rd}")
+
+
 @cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_uart_multichunk(dut):
     """Multi-chunk write->read integrity. burst_len=4 at GEAR=2 splits into
@@ -631,6 +704,21 @@ def test_ddr2_char_uart_smoke_rate2_faithful(request):
     # faithful to the real PHY -> the board should read+write correctly.
     _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
          strict_write_timing=True, write_latency=0,
+         strict_read_timing=True, read_latency=8, t_phy_wrlat=0)
+
+
+def test_ddr2_char_uart_concurrent(request):
+    # #42 repro, ideal loopback: concurrent wr+rd rounds with 1:1 accounting
+    # (memory initialized first, one seed). Catches lifecycle defects the
+    # phase-separated flows structurally cannot.
+    _run("cocotb_test_uart_concurrent")
+
+
+def test_ddr2_char_uart_concurrent_rate2_x16(request):
+    # #42 repro at the BOARD-faithful rate-2 x16 strict-timing profile — the
+    # closest sim analogue of the failing silicon soak phase.
+    _run("cocotb_test_uart_concurrent", dfi_rate=2, dram_beat_width=32,
+         dram_device_width=16, strict_write_timing=True, write_latency=0,
          strict_read_timing=True, read_latency=8, t_phy_wrlat=0)
 
 

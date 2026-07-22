@@ -206,15 +206,25 @@ class Pumice(Device):
     _SCHEME_BANK_INTERLEAVE = 2
     _SCHEME_XOR_HASH = 3
 
-    def set_addr_map_scheme(self, scheme: int, col_width: int = 10) -> None:
+    def set_addr_map_scheme(self, scheme: int, col_width: int = 10,
+                            burst_cols: int = 2) -> None:
         """Compat: legacy scheme -> ADDR_MAP.bank_lsb / hash_en.
         ROW_MAJOR = bank above the full column (bank_lsb=col_width);
-        BANK_INTERLEAVE = bank at the LSB column boundary (bank_lsb=0);
+        BANK_INTERLEAVE = bank at the LOWEST LEGAL boundary
+        bank_lsb = log2(burst_cols), where burst_cols = one JEDEC DRAM burst
+        in pumice-beat column units (BL * DEVICE_WIDTH / BEAT_WIDTH). The
+        design note on ADDR_MAP is explicit: max interleave preserves burst
+        locality via col_lo — bank_lsb=0 with burst_cols>1 STRIPES one DRAM
+        burst across banks, violating the one-burst-one-bank contract (writes
+        stripe, the read command fetches one bank's columns -> deterministic
+        per-burst corruption; the bank_interleave 0/14 board + 42-beat sim
+        signature, issue #42);
         XOR_HASH = enable the row XOR fold. DEFAULT (0/None) leaves it as built."""
         if scheme == self._SCHEME_ROW_MAJOR:
             self.set_addr_map(bank_lsb=col_width, hash_en=0)
         elif scheme == self._SCHEME_BANK_INTERLEAVE:
-            self.set_addr_map(bank_lsb=0, hash_en=0)
+            lsb = max(0, (burst_cols - 1).bit_length())   # log2 (burst_cols pow2)
+            self.set_addr_map(bank_lsb=lsb, hash_en=0)
         elif scheme == self._SCHEME_XOR_HASH:
             self.set_addr_map(hash_en=1)
         # scheme 0 / DEFAULT: no write (keep build-time bank_lsb).

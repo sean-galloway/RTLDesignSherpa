@@ -276,6 +276,11 @@ class DDR2CharDriver:
     BOARD_GEAR_RATIO = int(os.environ.get("TEST_GEAR_RATIO", "1"))   # log2(1:2)
     BOARD_DRAM_BL    = int(os.environ.get("TEST_DRAM_BL", "4"))      # JEDEC BL4
     BOARD_MR0        = int(os.environ.get("TEST_MR0", "0x0432"), 0)  # BL4/CL3/tWR3
+    # One JEDEC DRAM burst in pumice-beat column units (BL*DEVICE/BEAT) — the
+    # lowest LEGAL bank-interleave boundary (burst locality via col_lo).
+    BOARD_BURST_COLS = (BOARD_DRAM_BL
+                        * int(os.environ.get("TEST_DRAM_DEVICE_BYTES", "2"))
+                        // int(os.environ.get("TEST_DRAM_BEAT_BYTES", "4")))
 
     def program_geometry(self, rd_phase: int = 0, wr_phase: int = 0,
                          restart_init: bool = True) -> None:
@@ -390,7 +395,8 @@ class DDR2CharDriver:
         return self.pumice.get_dfi_phase()
 
     def set_addr_map_scheme(self, scheme: int) -> None:
-        self.pumice.set_addr_map_scheme(scheme)
+        self.pumice.set_addr_map_scheme(scheme,
+                                        burst_cols=max(1, self.BOARD_BURST_COLS))
 
     def get_synth_scheme_mask(self) -> int:
         return self.pumice.get_synth_scheme_mask()
