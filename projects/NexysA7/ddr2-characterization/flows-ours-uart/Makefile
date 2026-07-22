@@ -42,7 +42,7 @@ UART ?= /dev/ttyUSB1
 BAUD ?= 115200
 
 .PHONY: help project synth bitstream program utilization timing smoke status \
-        level simple characterize host-test sim sim-smoke sim-simple sim-level wrapup \
+        level simple characterize host-test sim sim-smoke sim-simple sim-level wrapup longsoak \
         lint clean clean-all
 
 help:
@@ -229,3 +229,15 @@ wrapup:
 	    --char --char-configs matrix --char-level medium --char-scale 1000 \
 	    --level-cache level_cache.json --no-level --csv $(WRAPUP_CSV)
 	@echo "[wrapup] done: results in $(WRAPUP_CSV)"
+
+# ---- endurance tier: full-device memtest + long soak (LONGSOAK_MIN minutes) --
+LONGSOAK_MIN ?= 60
+LONGSOAK_CSV := $(SELF_DIR)/../char_results/longsoak_$(shell date +%Y-%m-%d).csv
+longsoak:
+	@echo "[longsoak] full-device memtest (128MB write-all/read-all)"
+	cd $(SELF_DIR)/host && python3 pumice_master.py --port auto --baud $(BAUD) \
+	    --memtest --level-cache level_cache.json --no-level
+	@echo "[longsoak] endurance soak $(LONGSOAK_MIN) min -> $(LONGSOAK_CSV)"
+	cd $(SELF_DIR)/host && python3 pumice_master.py --port auto --baud $(BAUD) \
+	    --soak --minutes $(LONGSOAK_MIN) --soak-csv $(LONGSOAK_CSV) \
+	    --level-cache level_cache.json --no-level

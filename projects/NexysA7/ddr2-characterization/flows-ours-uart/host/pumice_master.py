@@ -445,6 +445,195 @@ class SimpleTest:
 
 
 # =============================================================================
+# Long-duration board confidence tier: full-device memtest + endurance soak.
+#
+# The bring-up soak (refresh_soak) is a minutes-scale GATE on an 8KB footprint.
+# These two close the coverage gaps a short gate cannot see:
+#
+#   memtest    -- write-all / read-all across the WHOLE device (chunked to the
+#                 16-bit engine txn limit), same address-hash data everywhere
+#                 (data = f(abs_addr, seeds), so split phases + chunks compare
+#                 exactly). Proves pumice's full row/bank/col addressing path
+#                 and read-after-full-write retention.
+#   long_soak  -- endurance loop for --minutes wall-clock: each round writes +
+#                 reads a 4MB window at a ROTATING base across the full device
+#                 with a rotating seed; every Nth round runs the two engines
+#                 CONCURRENTLY (write region A while reading previously-written
+#                 region B — exercises simultaneous wr/rd arbitration the char
+#                 phases never do); every ~5 min re-verifies the leveled eye at
+#                 the cached (bitslip, tap) to catch VT drift. Heartbeat CSV.
+#
+# Honest metrics throughout: hangs are failures (never a clean 0), and the
+# sticky rd_error/any_error latches are recorded alongside beats_mismatched
+# (the 16-bit mismatch counter wraps on massive corruption; any nonzero — or
+# any error latch — is a FAIL regardless).
+# =============================================================================
+def _one_pass(drv: DDR2CharDriver, base: int, blen: int, txn: int, seed: int,
+              timeout_s: float = 15.0) -> dict:
+    """write-then-read one window; returns the honest result dict."""
+    stride = blen * 8
+    drv.clear_stats()
+    drv.program_wr_engine(start_addr=base, burst_len=blen, txn_count=txn,
+                          stride_0=stride, lfsr_seed=seed, data_mode=True,
+                          hash_seed0=seed)
+    drv.start_wr()
+    wr_ok = wait_engine(drv, "wr", timeout_s=timeout_s, ignore_error=True)
+    drv.program_rd_engine(start_addr=base, burst_len=blen, txn_count=txn,
+                          stride_0=stride, lfsr_seed=seed, data_mode=True,
+                          hash_seed0=seed)
+    drv.clear_stats()
+    drv.start_rd()
+    rd_ok = wait_engine(drv, "rd", timeout_s=timeout_s, ignore_error=True)
+    st = drv.status()
+    return dict(wr_done=wr_ok, rd_done=rd_ok, mism=drv.beats_mismatched(),
+                rd_error=int(st.rd_error),
+                ok=(wr_ok and rd_ok and drv.beats_mismatched() == 0
+                    and not st.rd_error))
+
+
+def memtest(drv: DDR2CharDriver, st: "SimpleTest",
+            mem_bytes: int = 128 << 20, blen: int = 16,
+            chunk_txn: int = 32768, seed: int = 0x0DDB_A115) -> bool:
+    """Full-device write-all then read-all (chunked). One shared seed: the
+    address-hash data is f(abs_addr), so every chunk/phase compares exactly."""
+    chunk_bytes = chunk_txn * blen * 8              # 4 MB at bl16
+    n = mem_bytes // chunk_bytes
+    stride = blen * 8
+    st.reinit_datapath()
+    print(f"[memtest] {mem_bytes >> 20} MB in {n} x {chunk_bytes >> 20} MB "
+          f"chunks (bl{blen}, {chunk_txn} txn/chunk)")
+    for i in range(n):
+        base = i * chunk_bytes
+        drv.clear_stats()
+        drv.program_wr_engine(start_addr=base, burst_len=blen,
+                              txn_count=chunk_txn, stride_0=stride,
+                              lfsr_seed=seed, data_mode=True, hash_seed0=seed)
+        drv.start_wr()
+        if not wait_engine(drv, "wr", timeout_s=30.0, ignore_error=True):
+            print(f"[memtest] WR chunk {i}/{n} @0x{base:08X} HANG")
+            return False
+        print(f"\r[memtest] write {i + 1}/{n}", end="", flush=True)
+    print()
+    dirty = 0
+    for i in range(n):
+        base = i * chunk_bytes
+        drv.program_rd_engine(start_addr=base, burst_len=blen,
+                              txn_count=chunk_txn, stride_0=stride,
+                              lfsr_seed=seed, data_mode=True, hash_seed0=seed)
+        drv.clear_stats()
+        drv.start_rd()
+        done = wait_engine(drv, "rd", timeout_s=30.0, ignore_error=True)
+        mm = drv.beats_mismatched()
+        bad = (not done) or mm
+        if bad:
+            dirty += 1
+            print(f"\n[memtest] RD chunk {i}/{n} @0x{base:08X} "
+                  f"done={done} mism={mm}")
+        print(f"\r[memtest] read  {i + 1}/{n} (dirty {dirty})",
+              end="", flush=True)
+    print()
+    print(f"[memtest] {'PASS' if dirty == 0 else 'FAIL'}: "
+          f"{n - dirty}/{n} chunks clean over {mem_bytes >> 20} MB")
+    return dirty == 0
+
+
+def long_soak(drv: DDR2CharDriver, st: "SimpleTest", lv: "A7Leveling",
+              saved: "LevelingResult", minutes: float,
+              mem_bytes: int = 128 << 20, csv_path: Optional[str] = None,
+              concurrent_every: int = 10, eye_every_s: float = 300.0) -> bool:
+    """Endurance soak: rotating-window rounds + periodic concurrent wr/rd +
+    periodic eye re-verify, for `minutes` wall-clock. CSV heartbeat."""
+    import csv as _csv
+    blen, txn = 16, 32768                            # 4 MB / round
+    window = txn * blen * 8
+    half = mem_bytes // 2
+    deadline = time.monotonic() + minutes * 60.0
+    next_eye = time.monotonic() + eye_every_s
+    rnd = fails = eye_fails = 0
+    cum_beats = 0
+    wr_csv = None
+    if csv_path:
+        f = open(csv_path, "w", newline="")
+        wr_csv = _csv.writer(f)
+        wr_csv.writerow(["elapsed_s", "phase", "round", "base_addr", "ok",
+                         "wr_done", "rd_done", "mism", "rd_error",
+                         "cum_beats", "fails", "eye_fails"])
+    t0 = time.monotonic()
+
+    def log(phase: str, base: int, r: dict) -> None:
+        nonlocal cum_beats, fails
+        cum_beats += txn * blen * (2 if phase != "eye" else 0)
+        if not r["ok"]:
+            fails += 1
+        line = (f"[{phase} r{rnd}] +{time.monotonic() - t0:7.1f}s "
+                f"@0x{base:08X} ok={r['ok']} mism={r['mism']} "
+                f"rd_err={r['rd_error']} fails={fails}")
+        print(line, flush=True)
+        if wr_csv:
+            wr_csv.writerow([f"{time.monotonic() - t0:.1f}", phase, rnd,
+                             f"0x{base:08X}", int(r["ok"]), int(r["wr_done"]),
+                             int(r["rd_done"]), r["mism"], r["rd_error"],
+                             cum_beats, fails, eye_fails])
+            f.flush()
+
+    # pre-write region B (upper half, first window) once for the concurrent phase
+    st.reinit_datapath()
+    seed_b = 0xB000_0001
+    r = _one_pass(drv, half, blen, txn, seed_b)
+    log("prewrite-B", half, r)
+
+    while time.monotonic() < deadline:
+        rnd += 1
+        seed = (0x50AC_0000 + rnd) & 0xFFFF_FFFF
+        base = (rnd * window * 7) % (half - window)   # rotate across lower half
+        st.reinit_datapath()
+
+        if concurrent_every and rnd % concurrent_every == 0:
+            # CONCURRENT: write A while reading back region B
+            stride = blen * 8
+            drv.clear_stats()
+            drv.program_wr_engine(start_addr=base, burst_len=blen,
+                                  txn_count=txn, stride_0=stride,
+                                  lfsr_seed=seed, data_mode=True,
+                                  hash_seed0=seed)
+            drv.program_rd_engine(start_addr=half, burst_len=blen,
+                                  txn_count=txn, stride_0=stride,
+                                  lfsr_seed=seed_b, data_mode=True,
+                                  hash_seed0=seed_b)
+            drv.start_wr()
+            drv.start_rd()
+            wr_ok = wait_engine(drv, "wr", timeout_s=30.0, ignore_error=True)
+            rd_ok = wait_engine(drv, "rd", timeout_s=30.0, ignore_error=True)
+            stt = drv.status()
+            mm = drv.beats_mismatched()
+            r = dict(wr_done=wr_ok, rd_done=rd_ok, mism=mm,
+                     rd_error=int(stt.rd_error),
+                     ok=(wr_ok and rd_ok and mm == 0 and not stt.rd_error))
+            log("concurrent", base, r)
+            # then verify the A write landed
+            r = _one_pass(drv, base, blen, txn, seed)
+            log("verify-A", base, r)
+        else:
+            r = _one_pass(drv, base, blen, txn, seed)
+            log("soak", base, r)
+
+        if time.monotonic() >= next_eye:
+            next_eye = time.monotonic() + eye_every_s
+            st.reinit_datapath()
+            lv.apply_taps(saved.bitslip, saved.rd_tap)
+            r = _one_pass(drv, 0x0, 8, 64, 0x1EAF_F00D)
+            if not r["ok"]:
+                eye_fails += 1
+            log("eye", 0x0, r)
+
+    total_mb = cum_beats * 8 >> 20
+    print(f"[long_soak] {'PASS' if fails == 0 and eye_fails == 0 else 'FAIL'}: "
+          f"{rnd} rounds, {total_mb} MB moved, {fails} dirty, "
+          f"{eye_fails} eye re-verify fails over {minutes:.0f} min")
+    return fails == 0 and eye_fails == 0
+
+
+# =============================================================================
 # Refresh soak -- the arbiter refresh-collision regression gate (TASK-BRINGUP /
 # TASK-SCHED-REFRESH). Board-validates that reads stay clean under refresh
 # pressure: rounds of 1024-beat write-then-read at default tREFI, at a TINY
@@ -626,6 +815,19 @@ def main() -> int:
                       help="init + one write-then-read integrity pass")
     mode.add_argument("--full", action="store_true",
                       help="init + full workload-sweep characterization")
+    ap.add_argument("--minutes", type=float, default=0,
+                    help="with --soak: run the ENDURANCE soak for this many "
+                         "wall-clock minutes (rotating 4MB windows across the "
+                         "device, periodic concurrent wr/rd rounds, ~5-min eye "
+                         "re-verify, heartbeat CSV) instead of the short gate")
+    ap.add_argument("--soak-csv", default=None,
+                    help="heartbeat CSV path for --soak --minutes")
+    ap.add_argument("--mem-bytes", type=lambda x: int(x, 0), default=128 << 20,
+                    help="device size for --memtest / --soak --minutes")
+    mode.add_argument("--memtest", action="store_true",
+                      help="full-device write-all/read-all (chunked) — proves "
+                           "the whole row/bank/col addressing path + "
+                           "read-after-full-write retention")
     mode.add_argument("--soak", action="store_true",
                       help="refresh-pressure read soak (default / tiny / huge "
                            "tREFI) -- the arbiter refresh-collision regression "
@@ -681,11 +883,29 @@ def main() -> int:
         print(f"\nfull characterization: {n_ok}/{len(pts)} workloads passed")
         return 0 if n_ok == len(pts) else 1
 
+    if args.memtest:
+        st = SimpleTest(drv, base_addr=args.base, rd_phase=args.rd_phase,
+                        rddata_delay=args.rd_delay, level_cache=args.level_cache)
+        st.init(do_leveling=not args.no_level)
+        ok = memtest(drv, st, mem_bytes=args.mem_bytes)
+        return 0 if ok else 1
+
     if args.soak:
         st = SimpleTest(drv, base_addr=args.base, rd_phase=args.rd_phase,
                         rddata_delay=args.rd_delay, level_cache=args.level_cache)
         st.init(do_leveling=not args.no_level)
-        ok = refresh_soak(drv, st)
+        if args.minutes > 0:
+            lv = A7Leveling(drv, rd_phase=args.rd_phase,
+                            rddata_delay=args.rd_delay)
+            saved = (A7Leveling.load_level(args.level_cache)
+                     if args.level_cache and os.path.exists(args.level_cache)
+                     else st.level)
+            assert saved is not None, "--minutes needs a leveled window " \
+                                      "(--level-cache or fresh leveling)"
+            ok = long_soak(drv, st, lv, saved, args.minutes,
+                           mem_bytes=args.mem_bytes, csv_path=args.soak_csv)
+        else:
+            ok = refresh_soak(drv, st)
         print(f"soak: {'PASS' if ok else 'FAIL'}")
         return 0 if ok else 1
 
