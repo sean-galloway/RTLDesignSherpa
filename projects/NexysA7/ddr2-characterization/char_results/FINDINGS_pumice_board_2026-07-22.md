@@ -66,3 +66,16 @@ TASK-TOPCSR: CSR-programmed config path) — the config axes were never
 board-validated post-rearch. Tools ready for the campaign: in-scheduler
 command-history checker (CMD_HISTORY_EN), dfi_rd_return_checker, ILA-capable
 bitstream flow, and this CSV as the failure map.
+
+## Addendum — endurance soak (60 min) + turnaround suspect
+
+Soak totals: 4712 rounds / 41.5 GB. Sequential 4241/4241 clean; eye 11/11
+stable; concurrent wr+rd 471/471 dirty AND their region-A write-verifies
+471/471 dirty (~0.3% beats, rd_error latched). Full-device memtest 32/32.
+=> digital with certainty (100% on direction-interleave, 0% otherwise).
+
+Prime suspect (K-map-guided): tWTR/tRTW staleness — global_timers flops its
+turnaround oks (drop ~fire+3) while w_inflight_col covers 1 cycle and the
+tCCD>=2 argument doesn't extend to the longer turnarounds -> a direction-
+crossing column can fire 2 cycles after its opposite, DQ bus turnaround
+contention. Fix plan + repro/guard additions tracked in issue #42.
