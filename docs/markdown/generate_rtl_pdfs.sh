@@ -21,7 +21,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"       # docs/markdown
 REPO_ROOT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel)"
 MD2DOCX="${REPO_ROOT}/bin/md_to_docx.py"
 STYLE_TMPL="${SCRIPT_DIR}/rtl_pdf_styles.yaml"
-OUTDIR="$(cd "${SCRIPT_DIR}/.." && pwd)"                          # docs/ — all book PDFs land here
+OUTDIR="$(cd "${SCRIPT_DIR}/.." && pwd)/pdfs"                     # docs/pdfs/ — all book PDFs land here
+mkdir -p "${OUTDIR}"
 
 ARGS=()
 while [[ $# -gt 0 ]]; do
@@ -66,7 +67,7 @@ build_book() {
       -e "s|__LOT__|${lot}|" -e "s|__LOF__|${lof}|" -e "s|__LOW__|${low}|" \
       "${STYLE_TMPL}" > "${tmpstyle}"
   echo "------------------------------------------------------------"
-  echo " Building: ${title}  (${subtitle})  ->  docs/${name}.pdf"
+  echo " Building: ${title}  (${subtitle})  ->  docs/pdfs/${name}.pdf"
   echo "------------------------------------------------------------"
   python3 "${MD2DOCX}" "${index}" "${outbase}.docx" \
     --style "${tmpstyle}" \
@@ -78,7 +79,7 @@ build_book() {
     --assets-dir "assets" --assets-dir "assets/RTLCommon" \
     --assets-dir "assets/RTLAmba" --assets-dir "assets/WAVES" \
     --quiet
-  rm -f "${tmpstyle}" "${outbase}.docx"      # keep only the PDF at docs/ level
+  rm -f "${tmpstyle}" "${outbase}.docx"      # keep only the PDF in docs/pdfs/
 }
 
 want() { [[ ${#ARGS[@]} -eq 0 ]] || printf '%s\n' "${ARGS[@]}" | grep -qx "$1"; }
