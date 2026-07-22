@@ -44,7 +44,7 @@ over UART, no CPU). pumice is separate IP under
 
 ## Workload families
 
-The characterization sweeps four access-pattern families (`host/pumice_char.py`):
+The characterization sweeps four access-pattern families (`flows-ours-uart/host/pumice_char.py`):
 
 | Family | Access | Purpose |
 |--------|--------|---------|

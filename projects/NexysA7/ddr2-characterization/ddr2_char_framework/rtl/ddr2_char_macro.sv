@@ -194,6 +194,7 @@ module ddr2_char_macro
     output logic                       o_actual_crc_valid,
     output logic                       o_data_error,
     output logic                       o_rresp_error,
+    output logic                       o_stray_beat_error,  // 1:1: extra R beats
     output logic [TXN_COUNT_WIDTH-1:0] o_beats_mismatched,
 
     //=========================================================================
@@ -422,6 +423,8 @@ module ddr2_char_macro
         .o_actual_crc_valid   (o_actual_crc_valid),
         .o_data_error         (o_data_error),
         .o_rresp_error        (o_rresp_error),
+        .o_stray_beat_error   (o_stray_beat_error),
+        .o_stray_beats        (),
         .o_beats_mismatched   (o_beats_mismatched),
         .m_axi_arid           (rd_arid),
         .m_axi_araddr         (rd_araddr),

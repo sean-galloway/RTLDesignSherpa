@@ -475,7 +475,10 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
     drv.freeze_trace(False)                 # leave running for the next scenario
 
     mism = drv.beats_mismatched()
-    ok = wr_ok and rd_ok and mism == 0
+    # 1:1 accounting: the histogram must see EXACTLY txn_count read
+    # transactions — too many (stray/duplicate returns) is as much an error
+    # as too few.
+    ok = wr_ok and rd_ok and mism == 0 and rd_total == sc.txn_count
     if not wr_ok:
         notes.append("write engine did not complete")
     if not rd_ok:
@@ -483,7 +486,8 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
     if mism:
         notes.append(f"{mism} beats mismatched")
     if rd_total != sc.txn_count:
-        notes.append(f"hist total {rd_total} != txn_count {sc.txn_count}")
+        notes.append(f"1:1 VIOLATION: hist total {rd_total} != txn_count "
+                     f"{sc.txn_count} ({'EXTRA' if rd_total > sc.txn_count else 'MISSING'} returns)")
 
     return CharRecord(
         scenario=sc, config=cfg.name, ok=ok, mismatched=mism,

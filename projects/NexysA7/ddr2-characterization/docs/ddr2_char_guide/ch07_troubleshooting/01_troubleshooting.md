@@ -52,6 +52,7 @@ only** (migen's CSR-name tracer breaks on 3.11/3.12):
 ```bash
 uv venv --python 3.10 /tmp/litex-venv310 && source /tmp/litex-venv310/bin/activate
 uv pip install migen "litex==2024.12" "litedram==2024.12" pyyaml
+cd projects/NexysA7/ddr2-characterization/flows-ours-uart
 python3 bin/elaborate_a7ddrphy.py --out rtl-vivado/a7ddrphy/a7ddrphy_generated.v
 python3 bin/elaborate_a7ddrphy.py --dump-csr-map      # CSR offsets for firmware
 ```

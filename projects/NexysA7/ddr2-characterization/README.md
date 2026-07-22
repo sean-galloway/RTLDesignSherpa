@@ -136,8 +136,8 @@ Multi-rank (`NUM_RANKS ∈ {1, 2, 4}`) is not exercised on this board — the on
 
 ## Cross-References
 
-- HAS: `projects/components/memory-controllers/pumice-ddr2-lpddr2/docs/PUMICE_HAS_v0.2.pdf`
-- MAS: `projects/components/memory-controllers/pumice-ddr2-lpddr2/docs/PUMICE_MAS_v0.1.pdf`
+- HAS: `projects/components/memory-controllers/pumice-ddr2-lpddr2/docs/DDR2_LPDDR2_HAS_v0.5.pdf`
+- MAS: `projects/components/memory-controllers/pumice-ddr2-lpddr2/docs/DDR2_LPDDR2_MAS_v0.5.pdf`
 - Controller RTL home: `projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/`
 - DFI BFM (DV side): `RTLDesignSherpa-DV/src/CocoTBFramework/components/dfi/` — released as `cocotb-framework==0.3.0`
 - Sibling characterization projects: `projects/NexysA7/stream_characterization/`, `projects/NexysA7/timing_characterization/`

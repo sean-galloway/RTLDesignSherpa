@@ -121,9 +121,14 @@ async def cocotb_test_pumice_mem_cmd_scheduler(dut):
                 issued += 1
                 break
         assert tb.rd_entry is None, f"read {i} never issued (starved by refresh?)"
+    await tb.wait_clocks('aclk', 8)   # drain the cmd FIFO before exact counts
     refs = len(tb.ops_of(OP_REF))
     acts = len(tb.ops_of(OP_ACT))
     assert refs >= 3, f"phase-5 expected recurring REFs, saw {refs}"
+    # exactly one RD column per injected entry (1:1); ACT/REF counts vary
+    # with refresh interleave so stay bounded-below.
+    assert len(tb.ops_of(OP_RD)) == 40, \
+        f"phase-5 expected exactly 40 RD columns, saw {len(tb.ops_of(OP_RD))}"
     assert acts >= 10, f"phase-5 expected recurring ACTs, saw {acts}"
     tb.log.info(f"phase 5: {issued} reads under refresh pressure "
                 f"({refs} REF, {acts} ACT) with the history checker armed")
@@ -153,7 +158,9 @@ async def cocotb_test_pumice_mem_cmd_scheduler(dut):
     await tb.wait_clocks('aclk', 8)   # drain the cmd FIFO before counting
     rds = len(tb.ops_of(OP_RD))
     wrs = len(tb.ops_of(OP_WR))
-    assert rds >= 30 and wrs >= 30, f"expected 30/30 mixed columns, {rds}/{wrs}"
+    # 1:1 accounting: each injected entry issues EXACTLY once — too many
+    # columns (re-issue/duplicate) is as much an error as too few.
+    assert rds == 30 and wrs == 30, f"expected exactly 30/30 mixed columns, {rds}/{wrs}"
     tb.log.info(f"phase 6: {mixed} concurrent wr+rd pairs "
                 f"({rds} RD, {wrs} WR) under the global tWTR/tRTW audit")
 

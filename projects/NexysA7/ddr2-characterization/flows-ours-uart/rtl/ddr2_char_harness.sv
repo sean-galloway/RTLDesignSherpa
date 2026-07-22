@@ -352,6 +352,7 @@ module ddr2_char_harness
     logic         w_clear_stats_pulse, w_freeze_trace, w_soft_reset_pulse;
     logic         w_wr_done, w_rd_done;
     logic         w_wr_error, w_rd_error;
+    logic         w_stray_beat_error;   // 1:1 accounting: extra R beats
     logic         w_init_done, w_init_fail;
     logic [31:0]  w_dbg_wr_ptr;
     logic         w_dbg_overflow, w_dbg_clear_busy;
@@ -730,6 +731,7 @@ module ddr2_char_harness
         .o_actual_crc_valid    (w_crc_act_valid),
         .o_data_error          (w_data_error),
         .o_rresp_error         (w_rresp_error),
+        .o_stray_beat_error    (w_stray_beat_error),
         .o_beats_mismatched    (w_beats_mismatched),
 
         // APB CSR (from bridge). ddr2_char_macro takes APB_ADDR_WIDTH bits;
@@ -854,7 +856,10 @@ module ddr2_char_harness
 
     assign w_rd_dbg_ready = 1'b1;   // always accept
     assign w_wr_error     = w_bresp_error;
-    assign w_rd_error     = w_rresp_error | w_data_error | w_rd_dbg_mismatch;
+    // 1:1 accounting: too few (data/rresp/mismatch) AND too many (stray /
+    // late / duplicate R beats, drained + latched by the engine) are errors.
+    assign w_rd_error     = w_rresp_error | w_data_error | w_rd_dbg_mismatch
+                          | w_stray_beat_error;
     // Placeholder: no in-harness init sequencer yet — surface CSR-side sticky.
     assign w_init_done    = 1'b1;
     assign w_init_fail    = 1'b0;

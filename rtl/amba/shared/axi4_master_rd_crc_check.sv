@@ -185,6 +185,13 @@ module axi4_master_rd_crc_check #(
     output logic                                o_data_error,        // sticky on R beat mismatch
     output logic                                o_rresp_error,       // sticky on non-OKAY R beat
     output logic [TXN_COUNT_WIDTH-1:0]          o_beats_mismatched,  // count of mismatching R beats
+    // 1:1 accounting: TOO MANY beats is as much an error as too few. A stray /
+    // late / duplicate R beat arriving while the engine is not consuming
+    // (IDLE / DONE / GAP, or RUN with no burst outstanding) is DRAINED here
+    // (so it cannot sit on the bus and poison the NEXT run's compare as its
+    // first beat) and latched as a sticky error + count.
+    output logic                                o_stray_beat_error,  // sticky
+    output logic [TXN_COUNT_WIDTH-1:0]          o_stray_beats,       // count
 
     // ==========================================================================
     // M-side AXI4 (out to fabric)
@@ -471,9 +478,19 @@ module axi4_master_rd_crc_check #(
 
     // Ready to absorb R beats only after the AR for this burst is on
     // the wire AND the R addr-gen has produced the base address.
-    assign fub_rready = (r_state == S_RUN)
-                     && (r_bursts_done < r_ar_issued)
-                     && w_r_addr_result_valid;
+    logic w_r_consuming, w_stray_beat;
+    assign w_r_consuming = (r_state == S_RUN)
+                        && (r_bursts_done < r_ar_issued)
+                        && w_r_addr_result_valid;
+    // A STRAY is an R beat with NO outstanding burst to own it (over-delivery
+    // or a late return from a previous run): DRAIN it (rready high) and flag
+    // it, instead of leaving it parked on the bus to desync the next run's
+    // compare. A beat for an OUTSTANDING burst that we are merely not ready
+    // to consume yet (S_GAP, addr-gen not ready) is NOT a stray — it waits on
+    // the bus exactly as before.
+    assign w_stray_beat  = m_axi_rvalid && !w_r_consuming
+                        && (r_bursts_done == r_ar_issued);
+    assign fub_rready    = w_r_consuming || w_stray_beat;
 
     //==========================================================================
     // Expected pattern data — two sources, muxed by r_data_mode:
@@ -612,7 +629,14 @@ module axi4_master_rd_crc_check #(
             o_data_error       <= 1'b0;
             o_rresp_error      <= 1'b0;
             o_beats_mismatched <= '0;
+            o_stray_beat_error <= 1'b0;
+            o_stray_beats      <= '0;
         end else begin
+            // stray-beat drain accounting (any state; cfg_start clears)
+            if (w_stray_beat && m_axi_rvalid && fub_rready) begin
+                o_stray_beat_error <= 1'b1;
+                o_stray_beats      <= o_stray_beats + 1'b1;
+            end
             unique case (r_state)
                 S_IDLE: begin
                     if (cfg_start) begin
@@ -644,6 +668,8 @@ module axi4_master_rd_crc_check #(
                         o_data_error       <= 1'b0;
                         o_rresp_error      <= 1'b0;
                         o_beats_mismatched <= '0;
+                        o_stray_beat_error <= 1'b0;
+                        o_stray_beats      <= '0;
                         r_state         <= (cfg_txn_count == '0) ? S_DONE : S_RUN;
                     end
                 end

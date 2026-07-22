@@ -318,6 +318,8 @@ module char_engine_harness #(
         .cfg_rd_gap(w_cfg_rd_gap), .cfg_start(w_start_rd_pulse), .cfg_done(w_rd_done),
         .o_actual_crc(w_crc_actual), .o_actual_crc_valid(w_crc_act_valid),
         .o_data_error(w_data_error), .o_rresp_error(w_rresp_error),
+        .o_stray_beat_error   (),
+        .o_stray_beats        (),
         .o_beats_mismatched(w_beats_mismatched),
         .m_axi_arid(m_axi_arid), .m_axi_araddr(m_axi_araddr), .m_axi_arlen(m_axi_arlen),
         .m_axi_arsize(m_axi_arsize), .m_axi_arburst(m_axi_arburst), .m_axi_arlock(),

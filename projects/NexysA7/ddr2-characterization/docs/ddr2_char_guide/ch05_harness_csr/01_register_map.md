@@ -3,7 +3,7 @@
 ## Bridge address map
 
 The UART bridge fans out to four AXI4-Lite slaves. Bases come from
-`bridge_ddr2_char_axil.toml` (mirrored in `host/ADDRESS_MAP.md` and as constants
+`bridge_ddr2_char_axil.toml` (mirrored in `flows-ours-uart/host/ADDRESS_MAP.md` and as constants
 in `ddr2_char.py`):
 
 | Constant | Slave | Base | Size | Protocol |
@@ -28,7 +28,7 @@ python3 bin/peakrdl_generate.py \
   --regmap-output projects/NexysA7/ddr2-characterization/ddr2_char_framework/dv/tbclasses/harness_csr_regmap.py
 ```
 
-A consistency test (`host/test_harness_regmap_consistency.py`) asserts the
+A consistency test (`flows-ours-uart/host/test_harness_regmap_consistency.py`) asserts the
 generated regmap matches the SV header table.
 
 ### Waveform 5.1: Engine Kick and Poll

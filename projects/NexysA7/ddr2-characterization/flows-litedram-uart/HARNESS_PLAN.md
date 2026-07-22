@@ -104,7 +104,7 @@ make -C flows-litedram-uart characterize UART=/dev/ttyUSBx   # perf sweep
 ## Lint strategy (before board)
 Lint the extracted `char_engine_harness` standalone with verilator (catches the
 engine/csr/perf wiring). The board top can't be verilated (real a7ddrphy
-primitives in `litedram_core.v`); the `build_sim/litedram_core_sim.v`
+primitives in `litedram_core.v`); the `build_sim/gateware/litedram_core_sim.v`
 (SDRAMPHYModel) has no `ddram_*` pads, so a small sim-only top variant can
 cocotb-drive the AXI user port if a pre-board smoke is wanted.
 
