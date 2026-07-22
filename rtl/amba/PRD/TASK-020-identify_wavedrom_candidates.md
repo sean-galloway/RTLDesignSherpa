@@ -30,7 +30,7 @@
 **🔴 Not Started**
 
 > Status (2026-07-22): the survey deliverable was produced and lives at
-> `docs/design/WAVEDROM_CANDIDATE_SURVEY.md`. Path references below updated after
+> `docs/design/WAVEDROM_CANDIDATE_SURVEY.md (removed 2026-07-22 in the docs cleanup; survey content superseded by the per-book WAVES assets)`. Path references below updated after
 > the repo reorg: RAPIDS tests moved to `projects/components/dmas/rapids/dv/tests/`
 > (rearchitected to the *beats* modules; the old `network_interfaces` FUB tests have
 > no direct successor), the AXI-to-APB shim test moved to
@@ -227,7 +227,7 @@ val/integ_amba/   # Integration tests
 
 ## Deliverable Format
 
-**File:** `docs/design/WAVEDROM_CANDIDATE_SURVEY.md`
+**File:** `docs/design/WAVEDROM_CANDIDATE_SURVEY.md (removed 2026-07-22 in the docs cleanup; survey content superseded by the per-book WAVES assets)`
 
 **Content:**
 ```markdown

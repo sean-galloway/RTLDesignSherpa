@@ -110,16 +110,16 @@ Reusable primitives, technology-agnostic. **~230 modules across [`rtl/common/`](
 
 | Class (overview) | ~Count | RTL | Examples |
 |---|---|---|---|
-| [Counters](docs/classes/common/counters.md) | 8 | [`rtl/common/`](rtl/common/) (`counter_*.sv`) | [`counter_bin`](rtl/common/counter_bin.sv), [`counter_bingray`](rtl/common/counter_bingray.sv), [`counter_load_clear`](rtl/common/counter_load_clear.sv), [`counter_johnson`](rtl/common/counter_johnson.sv), [`counter_ring`](rtl/common/counter_ring.sv), [`counter_freq_invariant`](rtl/common/counter_freq_invariant.sv) |
-| [Arbiters](docs/classes/common/arbiters.md) | 4 | [`rtl/common/`](rtl/common/) (`arbiter_*.sv`) | [`arbiter_round_robin`](rtl/common/arbiter_round_robin.sv), [`arbiter_round_robin_weighted`](rtl/common/arbiter_round_robin_weighted.sv), PWM variants |
-| [FIFOs](docs/classes/common/fifos.md) | 3 | [`rtl/common/`](rtl/common/) (`fifo_*.sv`) | [`fifo_sync`](rtl/common/fifo_sync.sv), [`fifo_async`](rtl/common/fifo_async.sv) |
-| [Shift / LFSR](docs/classes/common/shift_lfsr.md) | — | [`rtl/common/`](rtl/common/) (`shifter_*.sv`) | Fibonacci LFSR, Galois LFSR, universal shifters |
-| [Math — integer arithmetic](docs/classes/common/math_integer.md) | 40+ | [`rtl/math/`](rtl/math/) (`math_adder_*`, `math_mult_*`, `math_div_*`) | Han-Carlson prefix adders (16/22/32/44/48/72-bit), Dadda 4:2 compressor mults (8/11/24-bit), leading-zero count, parity |
-| [Math — floating point](docs/classes/common/math_float.md) | 120+ | [`rtl/math/`](rtl/math/) (`math_float_*`) | BF16, FP16, FP32, FP8 (E4M3/E5M2): adder, multiplier, FMA, recip, divide, sqrt; cross-format converters |
-| [Data integrity](docs/classes/common/data_integrity.md) | 7 | [`rtl/common/`](rtl/common/) (`dataint_*.sv`) | `dataint_crc` (300+ standards), `dataint_ecc_hamming` (SECDED), `dataint_parity` |
-| [Clock utilities](docs/classes/common/clock_utilities.md) | 3 | [`rtl/common/`](rtl/common/) (`clock_*.sv`) | [`clock_divider`](rtl/common/clock_divider.sv), [`clock_gate_ctrl`](rtl/common/clock_gate_ctrl.sv), [`clock_pulse`](rtl/common/clock_pulse.sv) |
-| [Encoders / decoders](docs/classes/common/encoders_decoders.md) | 3 | [`rtl/common/`](rtl/common/) (`{encoder,decoder}*.sv`) | priority encoder, address decoder |
-| [Reset](docs/classes/common/reset.md) | 1 | [`rtl/common/reset_sync.sv`](rtl/common/reset_sync.sv) | async-assert / sync-deassert reset bridge |
+| **Counters** | 8 | [`rtl/common/`](rtl/common/) (`counter_*.sv`) | [`counter_bin`](rtl/common/counter_bin.sv), [`counter_bingray`](rtl/common/counter_bingray.sv), [`counter_load_clear`](rtl/common/counter_load_clear.sv), [`counter_johnson`](rtl/common/counter_johnson.sv), [`counter_ring`](rtl/common/counter_ring.sv), [`counter_freq_invariant`](rtl/common/counter_freq_invariant.sv) |
+| **Arbiters** | 4 | [`rtl/common/`](rtl/common/) (`arbiter_*.sv`) | [`arbiter_round_robin`](rtl/common/arbiter_round_robin.sv), [`arbiter_round_robin_weighted`](rtl/common/arbiter_round_robin_weighted.sv), PWM variants |
+| **FIFOs** | 3 | [`rtl/common/`](rtl/common/) (`fifo_*.sv`) | [`fifo_sync`](rtl/common/fifo_sync.sv), [`fifo_async`](rtl/common/fifo_async.sv) |
+| **Shift / LFSR** | — | [`rtl/common/`](rtl/common/) (`shifter_*.sv`) | Fibonacci LFSR, Galois LFSR, universal shifters |
+| **Math — integer arithmetic** | 40+ | [`rtl/math/`](rtl/math/) (`math_adder_*`, `math_mult_*`, `math_div_*`) | Han-Carlson prefix adders (16/22/32/44/48/72-bit), Dadda 4:2 compressor mults (8/11/24-bit), leading-zero count, parity |
+| **Math — floating point** | 120+ | [`rtl/math/`](rtl/math/) (`math_float_*`) | BF16, FP16, FP32, FP8 (E4M3/E5M2): adder, multiplier, FMA, recip, divide, sqrt; cross-format converters |
+| **Data integrity** | 7 | [`rtl/common/`](rtl/common/) (`dataint_*.sv`) | `dataint_crc` (300+ standards), `dataint_ecc_hamming` (SECDED), `dataint_parity` |
+| **Clock utilities** | 3 | [`rtl/common/`](rtl/common/) (`clock_*.sv`) | [`clock_divider`](rtl/common/clock_divider.sv), [`clock_gate_ctrl`](rtl/common/clock_gate_ctrl.sv), [`clock_pulse`](rtl/common/clock_pulse.sv) |
+| **Encoders / decoders** | 3 | [`rtl/common/`](rtl/common/) (`{encoder,decoder}*.sv`) | priority encoder, address decoder |
+| **Reset** | 1 | [`rtl/common/reset_sync.sv`](rtl/common/reset_sync.sv) | async-assert / sync-deassert reset bridge |
 
 **Deep dive:** [docs/markdown/RTLCommon/index.md](docs/markdown/RTLCommon/index.md) (per-module specs) · [rtl/common/CLAUDE.md](rtl/common/CLAUDE.md)
 
@@ -142,9 +142,9 @@ Production-ready AXI/APB/AXIS infrastructure with built-in monitor + observation
 
 **Deep dive:** [rtl/amba/README.md](rtl/amba/README.md) (full shared/ inventory by role) · [rtl/amba/CLAUDE.md](rtl/amba/CLAUDE.md) · [docs/markdown/RTLAmba/index.md](docs/markdown/RTLAmba/index.md)
 
-### 3. [Clock Domain Crossing (CDC)](docs/classes/cdc.md) — Cross-cutting
+### 3. **Clock Domain Crossing (CDC)** — Cross-cutting
 
-📖 **[Read the CDC class overview →](docs/classes/cdc.md)** (picking guide, what NOT to do, on-board demo)
+📖 ****Read the CDC class overview →**** (picking guide, what NOT to do, on-board demo)
 
 CDC primitives live in multiple subsystems. Pulled together here so you don't have to hunt.
 
