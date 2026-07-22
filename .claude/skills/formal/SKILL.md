@@ -3,29 +3,11 @@ name: formal
 description: Formal verification flow - SymbiYosys via sv2v flatten, in-RTL ifdef FORMAL properties, mutation-checking every new assertion, harness vacuity traps. Use when writing properties, regenerating proofs, or after changing any module with a formal dir.
 ---
 
-# Formal (SymbiYosys + sv2v)
+# formal
 
-Trackers: formal/FORMAL_TODO.md (infrastructure), formal/FORMAL_PRIORITY.md
-(module priorities). Dep regeneration: tools/gen_formal_deps.py (regenerates
-each formal dir's Makefile DEPS closure; run it after moving/renaming RTL).
+READ FIRST: docs/handbook/dv/formal.md (the handbook is the repo's memory; this skill is the
+signpost). sv2v deletes assertions without --exclude=Assert; mutation-check every property; watch the vacuity traps; BMC-25 is not induction.
 
-Hard-won rules - each guards against a proof that PASSES while checking
-nothing:
-- sv2v silently DELETES immediate assertions unless the flatten step passes
-  --exclude=Assert (the template does; never remove it). Check the flat .v
-  actually contains your asserts.
-- Put properties IN THE RTL under `ifdef FORMAL (sv2v defines FORMAL), not
-  only in the harness - in-RTL properties see internal state and ride into
-  every proof that includes the module.
-- MUTATION-CHECK every new property: break the RTL, prove FAIL; restore,
-  prove PASS. A property that never failed has never been tested.
-- Harness vacuity traps (all real): a hierarchical reference to a
-  non-existent net elaborates as an implicit FREE WIRE (property checks
-  nothing - watch yosys warnings); an unconnected input models as constant-x;
-  a harness MAX_TRANSACTIONS below the threshold under test makes the gated
-  logic constant. Size the harness so the property can actually engage.
-- "prove" mode in these dirs is BMC (depth 25), not induction - state that
-  honestly in claims; deep-state bugs need bigger N or induction work.
-- Formal at small N is structurally blind to synthesis pathologies (the
-  242-level pick_oldest cone shipped under PASSing formal). Synthesis is a
-  separate gate; run it before calling monitor-class RTL done.
+The handbook root is docs/handbook/INDEX.md - design/, dv/, fpga/ areas,
+atomic notes, wikilinked. When you learn a durable lesson in this domain,
+ADD IT TO THE HANDBOOK NOTE, not to this skill.

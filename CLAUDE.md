@@ -6,6 +6,17 @@
 
 ---
 
+## The Handbook (repo memory) - READ THIS FIRST
+
+`docs/handbook/INDEX.md` is the repository's working memory: design rules
+(`design/`), DV practice (`dv/`), and FPGA process (`fpga/`) as atomic,
+wikilinked notes - each rule recorded WITH the failure that taught it.
+
+- Skills (`.claude/skills/`, auto-discovered) are signposts into the handbook.
+- /GLOBAL_REQUIREMENTS.md remains the enforcement authority and wins on conflict.
+- When you learn a durable lesson, add it to the relevant handbook note -
+  that is where future sessions will look.
+
 ## Repository Philosophy
 
 RTL Design Sherpa demonstrates industry-standard RTL design and verification flows using free/open-source tools, suitable for both FPGA and ASIC implementation.
