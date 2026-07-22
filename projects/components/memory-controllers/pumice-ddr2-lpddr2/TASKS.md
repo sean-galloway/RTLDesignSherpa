@@ -115,7 +115,7 @@ and the refresh/tRFC arbiter change.** Suspect the CSR-programmed config path
 The top tests were compile-broken (missing gaxi_fifo_async deps in the dv/tb
 filelists) for some window, so the regression that introduced this was masked.
 
-## TASK-CONFIGAXES: runtime-config axes corrupt data (board + sim) — OPEN
+## TASK-CONFIGAXES: runtime-config axes corrupt data (board + sim) — OPEN (issue #42)
 
 **Board (2026-07-22, first rearch config-axis run):** baseline/inorder 9/14
 (col_major family fails only at scale 1000); bank_interleave / open_page /
