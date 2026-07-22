@@ -100,9 +100,17 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     tb.set_bank_bits(dut.bank_rdwr_ready_i, {4: 1})
     tb.set_open_rows({4: 0x222})
     tb.set_entries('wr', {5: (4, 0x222, 0x1C, 30)})
-    await tb.settle()
-    p = tb.picked(); s = tb.strobes()
-    assert p['op'] == OP_WR and p['bank'] == 4 and p['col'] == 0x1C, f"write pick: {p}"
+    # A RD fired in phase 4: the direction-turnaround guard (issue #42) blocks
+    # cross-direction columns for 2 cycles after the fire — poll a bounded
+    # window instead of asserting the exact settle cycle.
+    got_wr = False
+    for _ in range(6):
+        await tb.settle()
+        p = tb.picked(); s = tb.strobes()
+        if p['op'] == OP_WR:
+            got_wr = True
+            break
+    assert got_wr and p['bank'] == 4 and p['col'] == 0x1C, f"write pick: {p}"
     assert s['wr'] == 1 and s['wr_commit'] == 1 and s['wr_commit_slot'] == 5, f"wr commit: {s}"
 
     # ===== 6. CLOSE policy -> auto-precharge (WRA/ap) =====

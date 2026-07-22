@@ -194,7 +194,9 @@ module pumice_core_tb_top
         // JEDEC same-bank windows (match the tb _cfg timings): catches a column
         // op issued too soon after ACT (tRCD) etc. — e.g. a refresh-disturbed
         // ACT->RDA spacing.
-        .T_RCD(3), .T_RP(3), .T_RAS(4), .T_RFC(8)
+        .T_RCD(3), .T_RP(3), .T_RAS(4), .T_RFC(8),
+        // global turnaround windows — must match the tb _cfg t_wtr/t_rtw
+        .T_WTR(2), .T_RTW(2)
     ) u_cmd_history (
         .clk        (aclk),
         .rst_n      (aresetn),

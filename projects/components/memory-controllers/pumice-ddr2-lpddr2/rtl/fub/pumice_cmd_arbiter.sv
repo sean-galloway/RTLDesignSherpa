@@ -180,6 +180,21 @@ module pumice_cmd_arbiter
                      | ((w_inflight_preact || w_inflight_col)
                         ? (NUM_BANKS'(1) << r_bank) : '0);
 
+    // ---- direction-turnaround guard (tWTR/tRTW staleness) ------------------
+    // The global turnaround oks are FLOPPED in global_timers (a fired column's
+    // ok drops at fire+2) and w_inflight_col covers only the in-flight cycle,
+    // so a DIRECTION-CROSSING column picked at fire+1 issues on a stale ok —
+    // firing 2 cycles after its opposite, inside that burst's DQ occupancy ->
+    // bus-turnaround contention (the 471/471 concurrent-soak corruption,
+    // issue #42; invisible to every phase-separated flow). Block CROSS-
+    // direction column picks for the 2 cycles after a fired column, until the
+    // flopped ok reflects the event. Same-direction pacing remains tCCD's job
+    // (>= 2, fully covered by w_inflight_col + the flop latency).
+    logic r_wrfire0, r_wrfire1, r_rdfire0, r_rdfire1;
+    logic w_rd_turn_block, w_wr_turn_block;
+    assign w_rd_turn_block = r_wrfire0 || r_wrfire1;  // WR fired < 2 cyc ago
+    assign w_wr_turn_block = r_rdfire0 || r_rdfire1;  // RD fired < 2 cyc ago
+
     // ---- REF recovery (tRFC) -----------------------------------------------
     // Loaded when a REF fires; while nonzero the DRAM is refreshing internally
     // and no ACT (or further REF) may issue to the rank. Previously enforced by
@@ -252,7 +267,8 @@ module pumice_cmd_arbiter
             // work while the FIFO is full (no bubble).
             if (rd_sch_valid_i[e]) begin
                 rd_col_m[e] = rhit && r_bank_rdwr_ready[RK0][rb] && tccd_ok_i && twtr_ok_i
-                              && rd_issue_ready_i && !w_inflight_col;
+                              && rd_issue_ready_i && !w_inflight_col
+                              && !w_rd_turn_block;
                 rd_act_m[e] = !r_bank_row_active[RK0][rb] && !w_guarded[rb]
                               && r_bank_act_ready[RK0][rb] && tfaw_ok_i[RK0] && trrd_ok_i[RK0]
                               && !w_rfc_busy;
@@ -265,7 +281,8 @@ module pumice_cmd_arbiter
             // DRAM) and the slot re-issues. ACT/PRE stay free.
             if (wr_sch_valid_i[e]) begin
                 wr_col_m[e] = whit && r_bank_rdwr_ready[RK0][wb] && tccd_ok_i && trtw_ok_i
-                              && wr_commit_ready_i && !w_inflight_col;
+                              && wr_commit_ready_i && !w_inflight_col
+                              && !w_wr_turn_block;
                 wr_act_m[e] = !r_bank_row_active[RK0][wb] && !w_guarded[wb]
                               && r_bank_act_ready[RK0][wb] && tfaw_ok_i[RK0] && trrd_ok_i[RK0]
                               && !w_rfc_busy;
@@ -473,11 +490,18 @@ module pumice_cmd_arbiter
         if (`RST_ASSERTED(aresetn)) begin
             r_guard0 <= '0;
             r_guard1 <= '0;
+            r_wrfire0 <= 1'b0; r_wrfire1 <= 1'b0;
+            r_rdfire0 <= 1'b0; r_rdfire1 <= 1'b0;
         end else begin
             r_guard1 <= r_guard0;
             r_guard0 <= '0;
             if (w_fire_out && (r_do_act || r_do_pre || r_do_rd || r_do_wr))
                 r_guard0 <= (NUM_BANKS'(1) << r_bank);
+            // direction-turnaround guard shift (see w_rd/wr_turn_block)
+            r_wrfire1 <= r_wrfire0;
+            r_wrfire0 <= w_fire_out && r_do_wr;
+            r_rdfire1 <= r_rdfire0;
+            r_rdfire0 <= w_fire_out && r_do_rd;
         end
     )
 

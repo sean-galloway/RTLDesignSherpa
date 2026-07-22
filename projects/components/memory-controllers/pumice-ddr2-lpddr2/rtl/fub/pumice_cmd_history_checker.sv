@@ -42,7 +42,14 @@ module pumice_cmd_history_checker
     parameter int T_RCD     = 0,   // ACT -> RD/WR
     parameter int T_RP      = 0,   // PRE -> ACT
     parameter int T_RAS     = 0,   // ACT -> PRE
-    parameter int T_RFC     = 0    // REF -> ACT (refresh recovery)
+    parameter int T_RFC     = 0,   // REF -> ACT (refresh recovery)
+    // GLOBAL (rank-wide, cross-bank) direction-turnaround windows. 0 disables.
+    // These catch the DQ bus-turnaround class: a RD issued < T_WTR after ANY
+    // WR (or WR < T_RTW after ANY RD) collides with the opposite burst's DQ
+    // occupancy — the flopped-ok staleness bug (issue #42) the per-bank
+    // history above cannot see.
+    parameter int T_WTR     = 0,   // WR -> RD (global)
+    parameter int T_RTW     = 0    // RD -> WR (global)
 ) (
     input  logic       clk,
     input  logic       rst_n,
@@ -95,6 +102,27 @@ module pumice_cmd_history_checker
                         r_hist[r][b][0] <= OP_NOP;
                 end
             end
+        end
+    end
+
+    // ---- GLOBAL column-direction history (all banks, one stream) ------------
+    // r_gdir[d]: 2'b01 = a RD-class column issued d+1 cycles ago, 2'b10 = WR-
+    // class, 2'b00 = neither. Feeds the cross-bank tWTR/tRTW checks.
+    function automatic logic is_rd_col (input dram_op_e op);
+        return (op == OP_RD) || (op == OP_RDA);
+    endfunction
+    function automatic logic is_wr_col (input dram_op_e op);
+        return (op == OP_WR) || (op == OP_WRA);
+    endfunction
+
+    logic [1:0] r_gdir [DEPTH];
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            for (int d = 0; d < DEPTH; d++) r_gdir[d] <= 2'b00;
+        end else begin
+            for (int d = DEPTH - 1; d > 0; d--) r_gdir[d] <= r_gdir[d-1];
+            r_gdir[0] <= (cmd_valid_i && is_rd_col(cmd_op_i)) ? 2'b01 :
+                         (cmd_valid_i && is_wr_col(cmd_op_i)) ? 2'b10 : 2'b00;
         end
     end
 
@@ -184,6 +212,22 @@ module pumice_cmd_history_checker
                     assert (r_hist[cmd_rank_i][cmd_bank_i][d] != OP_ACT)
                       else $fatal(1, "CMD_HISTORY @%0t: tRAS violation -- bank%0d PRE only %0d cyc after ACT (need %0d)",
                                   $time, cmd_bank_i, d + 1, T_RAS);
+            end
+            // (6) GLOBAL tWTR: a RD-class column must be >= T_WTR cycles
+            //     after ANY WR-class column (cross-bank DQ turnaround).
+            if (T_WTR > 0 && is_rd_col(cmd_op_i)) begin
+                for (int d = 0; d < T_WTR; d++)
+                    assert (r_gdir[d] != 2'b10)
+                      else $fatal(1, "CMD_HISTORY @%0t: GLOBAL tWTR violation -- RD only %0d cyc after a WR (need %0d) -- DQ bus turnaround contention",
+                                  $time, d + 1, T_WTR);
+            end
+            // (7) GLOBAL tRTW: a WR-class column must be >= T_RTW cycles
+            //     after ANY RD-class column.
+            if (T_RTW > 0 && is_wr_col(cmd_op_i)) begin
+                for (int d = 0; d < T_RTW; d++)
+                    assert (r_gdir[d] != 2'b01)
+                      else $fatal(1, "CMD_HISTORY @%0t: GLOBAL tRTW violation -- WR only %0d cyc after a RD (need %0d) -- DQ bus turnaround contention",
+                                  $time, d + 1, T_RTW);
             end
             // (5) tRFC: an ACT must be >= T_RFC cycles after a REFab (refresh
             //     recovery). REFab is recorded on every bank's history, so the

@@ -128,8 +128,38 @@ async def cocotb_test_pumice_mem_cmd_scheduler(dut):
     tb.log.info(f"phase 5: {issued} reads under refresh pressure "
                 f"({refs} REF, {acts} ACT) with the history checker armed")
 
+    # ===== 6. CONCURRENT mixed wr+rd traffic (the DQ-turnaround audit) =====
+    # Both entry mocks pending at once -> the arbiter alternates RD/WR columns
+    # at its minimum spacing. The bound checker's GLOBAL tWTR/tRTW windows
+    # (T_WTR/T_RTW = 2, matching t_wtr_i/t_rtw_i) $fatal on any direction-
+    # crossing column issued into the opposite burst's DQ occupancy — the
+    # flopped-ok staleness bug (issue #42: 471/471 dirty concurrent soak
+    # rounds on silicon; zero sim coverage before this phase because every
+    # flow was phase-separated).
+    tb.dut.t_refi_i.value = 0x0800          # calm refresh for this phase
+    tb.cmds.clear()
+    mixed = 0
+    for i in range(30):
+        tb.wr_entry = {'bank': (2 * i) % 8, 'row': 0x200 + i, 'col': 0x20,
+                       'id': i & 0xF, 'age': i, 'slot': i % 8}
+        tb.rd_entry = {'bank': (2 * i + 1) % 8, 'row': 0x300 + i, 'col': 0x30,
+                       'id': (i + 1) & 0xF, 'age': i, 'slot': (i + 3) % 8}
+        for _ in range(400):
+            await tb.wait_clocks('aclk', 1)
+            if tb.wr_entry is None and tb.rd_entry is None:
+                mixed += 1
+                break
+        assert tb.wr_entry is None and tb.rd_entry is None,             f"mixed pair {i} never fully issued"
+    await tb.wait_clocks('aclk', 8)   # drain the cmd FIFO before counting
+    rds = len(tb.ops_of(OP_RD))
+    wrs = len(tb.ops_of(OP_WR))
+    assert rds >= 30 and wrs >= 30, f"expected 30/30 mixed columns, {rds}/{wrs}"
+    tb.log.info(f"phase 6: {mixed} concurrent wr+rd pairs "
+                f"({rds} RD, {wrs} WR) under the global tWTR/tRTW audit")
+
     tb.log.info("PASS: init MRS stream, ACT->RD (real tRCD timers), open-page WR "
-                "commit (no re-ACT), refresh PRE->REF, refresh-pressure audit")
+                "commit (no re-ACT), refresh PRE->REF, refresh-pressure audit, "
+                "concurrent-turnaround audit")
 
 
 def test_pumice_mem_cmd_scheduler(request):
@@ -149,8 +179,9 @@ def test_pumice_mem_cmd_scheduler(request):
     params = {
         "NUM_RANKS": "1", "NUM_BANKS": "8", "ROW_WIDTH": "14", "COL_WIDTH": "10",
         "AXI_ID_WIDTH": "8", "NUM_ENTRIES": "8",
-        # enable the in-scheduler command-history scoreboard (audit-only)
-        "CMD_HISTORY_EN": "1",
+        # enable the in-scheduler command-history scoreboard (audit-only);
+        # global turnaround windows match the TB's t_wtr_i/t_rtw_i = 2
+        "CMD_HISTORY_EN": "1", "HIST_T_WTR": "2", "HIST_T_RTW": "2",
     }
     extra_env = {
         "DUT": dut_name, "LOG_PATH": log_path, "COCOTB_LOG_LEVEL": "INFO",

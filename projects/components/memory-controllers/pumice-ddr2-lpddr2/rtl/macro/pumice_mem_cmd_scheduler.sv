@@ -32,6 +32,8 @@ module pumice_mem_cmd_scheduler
     parameter int HIST_T_RP   = 0,
     parameter int HIST_T_RAS  = 0,
     parameter int HIST_T_RFC  = 8,
+    parameter int HIST_T_WTR  = 0,   // global WR->RD turnaround window
+    parameter int HIST_T_RTW  = 0,   // global RD->WR turnaround window
     parameter int NUM_BANKS   = 8,
     parameter int ROW_WIDTH   = 14,
     parameter int COL_WIDTH   = 10,
@@ -298,7 +300,8 @@ module pumice_mem_cmd_scheduler
         pumice_cmd_history_checker #(
             .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS), .DEPTH(32),
             .T_RCD(HIST_T_RCD), .T_RP(HIST_T_RP),
-            .T_RAS(HIST_T_RAS), .T_RFC(HIST_T_RFC)
+            .T_RAS(HIST_T_RAS), .T_RFC(HIST_T_RFC),
+            .T_WTR(HIST_T_WTR), .T_RTW(HIST_T_RTW)
         ) u_cmd_history (
             .clk        (aclk),
             .rst_n      (aresetn),

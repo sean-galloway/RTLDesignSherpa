@@ -188,26 +188,40 @@ def build_arbiter_sheet(wb):
 
     # 3. column masks (6 vars -> 4 pages)
     km.kmap(
-        "rd_col_m[e]  (given rd_sch_valid_i[e])",
-        "pumice_cmd_arbiter.sv (classify)",
+        "rd_col_m[e]  (given rd_sch_valid_i[e] && rd_issue_ready)",
+        "pumice_cmd_arbiter.sv (classify + direction guard)",
         "rd_col_m = rhit && bank_rdwr_ready && tccd_ok && twtr_ok && "
-        "rd_issue_ready && !w_inflight_col",
+        "rd_issue_ready && !w_inflight_col && !w_rd_turn_block   "
+        "[rd_issue_ready factored out as the enabling condition]",
         ["rhit", "rdwr_ready", "tccd_ok", "twtr_ok",
-         "rd_issue_ready", "inflight_col"],
-        lambda h, r, c, w, i, f: h and r and c and w and i and (not f),
-        "1s ONLY on the page [rd_issue_ready=1, inflight_col=0], and there "
-        "only the all-ones cell. A 1 on any other page = a column issued "
-        "with the issue-FIFO full (double-issue) or tCCD overrun.")
+         "inflight_col", "rd_turn_block"],
+        lambda h, r, c, w, f, t: h and r and c and w and (not f) and (not t),
+        "1s ONLY on the page [inflight_col=0, rd_turn_block=0], single "
+        "all-ones cell. ANY 1 on an rd_turn_block=1 page = a RD issued into "
+        "a write burst's DQ occupancy on the stale flopped twtr_ok — the "
+        "471/471 concurrent-soak corruption (issue #42).")
     km.kmap(
-        "wr_col_m[e]  (given wr_sch_valid_i[e])",
-        "pumice_cmd_arbiter.sv (classify)",
+        "wr_col_m[e]  (given wr_sch_valid_i[e] && wr_commit_ready)",
+        "pumice_cmd_arbiter.sv (classify + direction guard)",
         "wr_col_m = whit && bank_rdwr_ready && tccd_ok && trtw_ok && "
-        "wr_commit_ready && !w_inflight_col",
+        "wr_commit_ready && !w_inflight_col && !w_wr_turn_block   "
+        "[wr_commit_ready factored out as the enabling condition]",
         ["whit", "rdwr_ready", "tccd_ok", "trtw_ok",
-         "wr_commit_ready", "inflight_col"],
-        lambda h, r, c, t, k, f: h and r and c and t and k and (not f),
-        "Mirror of rd_col_m: single 1-cell on the [commit_ready=1, "
-        "inflight_col=0] page only.")
+         "inflight_col", "wr_turn_block"],
+        lambda h, r, c, t, f, b: h and r and c and t and (not f) and (not b),
+        "Mirror of rd_col_m: 1s only on [inflight_col=0, wr_turn_block=0].")
+    km.kmap(
+        "w_rd_turn_block / w_wr_turn_block",
+        "pumice_cmd_arbiter.sv (direction-turnaround guard)",
+        "w_rd_turn_block = r_wrfire0 || r_wrfire1 ; "
+        "w_wr_turn_block = r_rdfire0 || r_rdfire1   (fire-shift of the "
+        "OPPOSITE direction; covers the 2 cycles until the flopped "
+        "twtr/trtw ok reflects the fired column)",
+        ["oppfire0", "oppfire1"],
+        lambda f0, f1: f0 or f1,
+        "Zero ONLY at (0,0). The guard is direction-CROSSED: a fired WR "
+        "blocks RD picks and vice versa; same-direction pacing stays with "
+        "tCCD. If either 1-cell reads 0, the turnaround hole is back.")
 
     # 4. activate masks (6 vars)
     km.kmap(
