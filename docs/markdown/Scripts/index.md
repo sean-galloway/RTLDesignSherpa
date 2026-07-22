@@ -44,8 +44,6 @@ For common tasks, check out the [Cheat Sheet](./cheat_sheet.md) which covers the
 ### Code Quality and Formatting
 
 * **[Lint Wrapper](lint_wrap.md)** - Wrapper for Verible linting and formatting tools
-* **[Case Fix](casefix.md)** - Fix SystemVerilog case statement formatting
-* **[Search and Replace Directory](search_and_replace_directory.md)** - Batch text processing across project files
 
 ### RTL Generation and Math
 
@@ -56,7 +54,6 @@ For common tasks, check out the [Cheat Sheet](./cheat_sheet.md) which covers the
 
 * **[VCD to Wavedrom 2](vcd2wavedrom2.md)** - Convert VCD simulation data to Wavedrom diagrams
 * **[WaveDrom Troubleshooting](wavedrom_troubleshooting.md)** - Comprehensive troubleshooting guide for WaveDrom issues
-* **[Markdown Filename Massage](md_filename_massage.md)** - Batch process markdown file names and paths
 * **[Markdown to DOCX](md_to_docx.md)** - Convert markdown documentation to Word format
 * **[PyTree](pytree.md)** - Generate directory tree visualizations
 
@@ -127,20 +124,15 @@ Tools for waveform visualization:
 
 **Code Quality:**
 - lint_wrap.py
-- casefix.py
-- search_and_replace_directory.py
 
 **Documentation:**
 - vcd2wavedrom2.py
-- md_filename_massage.py
 - md_to_docx.py
 - pytree.py
 
 ### By Complexity
 
 **Simple Utilities:**
-- casefix.py
-- search_and_replace_directory.py
 - pytree.py
 
 **Intermediate Tools:**
@@ -207,7 +199,6 @@ These tools integrate with the broader RTL design and verification flow:
 
 1. **Design Phase**: math_generate.py, generate_uml.py
 2. **Analysis Phase**: find_instances_used.py, struct_test_script.py
-3. **Quality Check**: lint_wrap.py, casefix.py
 4. **Verification**: vcd2wavedrom2.py, update_fst_tracing.py
 5. **Tool Compatibility**: sv_interface_flattener.py, axi_split_calculator.py
 6. **Documentation**: md_to_docx.py, pytree.py
