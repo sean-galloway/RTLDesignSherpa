@@ -65,3 +65,17 @@ Open decisions:
     duplicates.
   - Verification: a CI-ish check that skill pointers (paths, script names)
     still resolve, so skills cannot silently rot the way docs did.
+
+## 3. Scripts book link rot (found 2026-07-22 during the assets move)
+
+docs/markdown/Scripts has 12 PRE-EXISTING broken image/file links, untouched
+by the images_scripts_uml -> Scripts/assets move (all moved links verified):
+  - wavedrom_troubleshooting.md -> assets/wavedrom/*.svg (dir never existed here)
+  - cheat_sheet.md -> ../rtl/_wavedrom_svg/*.svg (dir gone)
+  - generate_uml.md -> ../../puml_img/CocoTBFramework*.png (UML renders gone;
+    tool lives in RDS-DV now -- page may belong there entirely)
+  - md_to_docx.md -> diagram.json examples (illustrative snippets; possibly
+    fine as-is, mark as examples)
+Triage: repoint, regenerate, or prune when the Scripts book gets its pass.
+docs/DOCUMENTATION_INDEX.md also still catalogs the pre-cleanup docs/ layout
+-- refresh or retire it now that the handbook exists (owner flagged).

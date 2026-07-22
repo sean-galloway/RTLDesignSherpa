@@ -65,7 +65,7 @@ Detailed reference documentation (auto-generated and curated):
 - **[TestTutorial/](markdown/TestTutorial/)** - Getting started with testing
 
 ### 🖼️ Supporting Directories
-- **[images_scripts_uml/](images_scripts_uml/)** - Scripts and images for documentation
+- **[markdown/Scripts/assets/](markdown/Scripts/assets/)** - Scripts and images for documentation
 - **[logos/](logos/)** - Project logos and branding
 - **[UML/](UML/)** - UML diagrams for architecture
 
