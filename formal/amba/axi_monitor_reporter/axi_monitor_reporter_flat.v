@@ -1080,8 +1080,9 @@ module axi_monitor_reporter (
 			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
 				if (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284])
 					case (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3])
-						3'h3: w_auto_retire[idx] = !ENABLE_COMPL_LOGIC;
-						3'h4, 3'h5: w_auto_retire[idx] = !ENABLE_ERROR_LOGIC && !ENABLE_TIMEOUT_LOGIC;
+						3'h3: w_auto_retire[idx] = !ENABLE_COMPL_LOGIC || !cfg_compl_enable;
+						3'h4: w_auto_retire[idx] = (timeout_detected[idx] ? !ENABLE_TIMEOUT_LOGIC || !cfg_timeout_enable : !ENABLE_ERROR_LOGIC || !cfg_error_enable);
+						3'h5: w_auto_retire[idx] = !ENABLE_ERROR_LOGIC || !cfg_error_enable;
 						default:
 							;
 					endcase

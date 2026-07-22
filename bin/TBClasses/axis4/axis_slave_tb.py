@@ -498,11 +498,15 @@ class AXISSlaveTB(TBBase):
     def generate_final_report(self):
         """Generate final test report."""
         try:
+            # NOTE: identity check, not truthiness -- cocotb Monitor defines
+            # __len__ as queue depth, so a BFM with a drained _recvQ is FALSY
+            # and a truth-test guard silently returns {} (the slave_received=0
+            # failure after the RDS-DV pipeline cleanup drained the queue).
             # Get component statistics
-            axis_stats = self.axis_master.get_stats() if self.axis_master else {}
-            fub_stats = self.fub_slave.get_stats() if self.fub_slave else {}
-            axis_monitor_stats = self.axis_monitor.get_stats() if self.axis_monitor else {}
-            fub_monitor_stats = self.fub_monitor.get_stats() if self.fub_monitor else {}
+            axis_stats = self.axis_master.get_stats() if self.axis_master is not None else {}
+            fub_stats = self.fub_slave.get_stats() if self.fub_slave is not None else {}
+            axis_monitor_stats = self.axis_monitor.get_stats() if self.axis_monitor is not None else {}
+            fub_monitor_stats = self.fub_monitor.get_stats() if self.fub_monitor is not None else {}
 
             self.log.info("=== FINAL AXIS SLAVE TEST REPORT ===")
             self.log.info(f"AXIS Master Stats: {axis_stats}")

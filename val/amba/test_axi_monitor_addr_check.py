@@ -90,7 +90,13 @@ async def axi_monitor_addr_check_test(dut):
 
     # Standard monitor cfg — most off, so the only events we expect are
     # address-range hits (event_code=4'hD).
-    dut.cfg_monitor_enable.value     = 0
+    #
+    # cfg_monitor_enable MUST be 1: since the E5 wrapper rewiring it is the
+    # real master runtime gate (0 = monitor fully inert, including the
+    # address-range checker, whose cmd_valid feed is gated off). This test
+    # historically tied it 0 only because the port used to be connected to
+    # nothing.
+    dut.cfg_monitor_enable.value     = 1
     dut.cfg_error_enable.value       = 1   # enable the error path (addr_range rides here)
     dut.cfg_timeout_enable.value     = 0
     dut.cfg_perf_enable.value        = 0

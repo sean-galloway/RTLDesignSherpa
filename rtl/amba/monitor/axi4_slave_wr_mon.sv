@@ -51,6 +51,11 @@ module axi4_slave_wr_mon
     parameter logic [7:0]  UNIT_ID  = 8'h02,     // 8-bit Unit ID for monitor packets
     parameter logic [15:0] AGENT_ID = 16'h0015,    // 16-bit Agent ID for monitor packets
     parameter int MAX_TRANSACTIONS  = 16,    // Maximum outstanding transactions to monitor
+    // Active-transaction threshold packet trip point (used when
+    // cfg_threshold_enable=1). Previously hardwired, which either spammed
+    // threshold packets (table larger than the hardwire) or made the feature
+    // unreachable (table smaller). Scales with the table by default.
+    parameter int ACTIVE_TRANS_THRESHOLD = MAX_TRANSACTIONS / 2,
 
     // Filtering parameters
     parameter bit ENABLE_FILTERING  = 1,     // Enable packet filtering
@@ -295,6 +300,40 @@ module axi4_slave_wr_mon
     // -------------------------------------------------------------------------
     // Instantiate AXI Monitor with Filtering (Monitoring slave side - s_axi_* interface)
     // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // cfg_monitor_enable -- master runtime gate.
+    // When 0 the monitor is inert: command/data/response valids are gated off
+    // (no allocation, no perf windows), the transaction CAM is held cleared
+    // through the cam_clear path (so a re-enable starts from an empty table),
+    // and block_ready is forced high at the wrapper gate below so a disabled
+    // monitor can never stall the datapath. When 1: normal operation.
+    //
+    // cfg_timeout_cycles -- unified coarse timeout control.
+    // The base monitor's real knobs are 4-bit per-phase TICK counts
+    // (cfg_addr/data/resp_cnt) measured in cfg_freq_sel-scaled timer ticks,
+    // not raw cycles. Chosen encoding:
+    //     16'h0     -> 4'hF   (legacy full-scale default, so integrations
+    //                          that tie this port low keep old behavior)
+    //     1..15     -> that many timer ticks per phase
+    //     >15       -> saturates at 4'hF
+    // All three phases share the value. This wrapper has no per-phase cnt
+    // ports; if per-phase ports are ever added they take precedence over
+    // this coarse control.
+    // -------------------------------------------------------------------------
+    logic        w_mon_cmd_valid;
+    logic        w_mon_data_valid;
+    logic        w_mon_resp_valid;
+    logic [3:0]  w_timeout_cnt;
+    logic [15:0] w_perf_completed_count;
+    logic [15:0] w_perf_error_count;
+
+    assign w_mon_cmd_valid  = s_axi_awvalid & cfg_monitor_enable;
+    assign w_mon_data_valid = s_axi_wvalid & cfg_monitor_enable;
+    assign w_mon_resp_valid = s_axi_bvalid & cfg_monitor_enable;
+    assign w_timeout_cnt    = (cfg_timeout_cycles == 16'h0) ? 4'hF
+                            : (|cfg_timeout_cycles[15:4])   ? 4'hF
+                            : cfg_timeout_cycles[3:0];
+
     if (USE_MONITOR) begin : gen_monitor
         axi_monitor_filtered #(
             .UNIT_ID                 (UNIT_ID),
@@ -318,7 +357,7 @@ module axi4_slave_wr_mon
         ) axi_monitor_inst (
             .aclk                    (aclk),
             .aresetn                 (aresetn),
-            .clear                   (cam_clear),
+            .clear                   (cam_clear | ~cfg_monitor_enable),
             .i_mon_time              (i_mon_time),
 
             // Command interface (AW channel - monitoring slave side)
@@ -327,27 +366,27 @@ module axi4_slave_wr_mon
             .cmd_len                 (s_axi_awlen),
             .cmd_size                (s_axi_awsize),
             .cmd_burst               (s_axi_awburst),
-            .cmd_valid               (s_axi_awvalid),
+            .cmd_valid               (w_mon_cmd_valid),
             .cmd_ready               (s_axi_awready),
 
             // Data interface (W channel - monitoring slave side)
             .data_id                 (s_axi_awid),       // Use AW ID for write data
             .data_last               (s_axi_wlast),
             .data_resp               (2'b00),            // Write data doesn't have response
-            .data_valid              (s_axi_wvalid),
+            .data_valid              (w_mon_data_valid),
             .data_ready              (s_axi_wready),
 
             // Response interface (B channel - monitoring slave side)
             .resp_id                 (s_axi_bid),
             .resp_code               (s_axi_bresp),
-            .resp_valid              (s_axi_bvalid),
+            .resp_valid              (w_mon_resp_valid),
             .resp_ready              (s_axi_bready),
 
             // Configuration
             .cfg_freq_sel            (4'b0001),            // Use aclk frequency
-            .cfg_addr_cnt            (4'd15),              // Count 16 address events
-            .cfg_data_cnt            (4'd15),              // Count 16 data events
-            .cfg_resp_cnt            (4'd15),              // Count 16 response events
+            .cfg_addr_cnt            (w_timeout_cnt),
+            .cfg_data_cnt            (w_timeout_cnt),
+            .cfg_resp_cnt            (w_timeout_cnt),
             .cfg_error_enable        (cfg_error_enable),
             .cfg_compl_enable        (cfg_compl_enable),
             .cfg_threshold_enable    (cfg_threshold_enable),
@@ -356,7 +395,7 @@ module axi4_slave_wr_mon
             .cfg_debug_enable        (cfg_debug_enable),
             .cfg_debug_level         (4'h0),
             .cfg_debug_mask          (16'h0),
-            .cfg_active_trans_threshold(16'd8),           // Alert if >8 active transactions
+            .cfg_active_trans_threshold(16'(ACTIVE_TRANS_THRESHOLD)),
             .cfg_latency_threshold   (cfg_latency_threshold),
 
             // AXI Protocol Filtering Configuration
@@ -407,6 +446,8 @@ module axi4_slave_wr_mon
             .perf_beat_count         (perf_beat_count),
             .perf_byte_count         (perf_byte_count),
             .perf_burst_count        (perf_burst_count),
+            .perf_completed_count    (w_perf_completed_count),
+            .perf_error_count        (w_perf_error_count),
             .active_count            (active_transactions),
 
             // Configuration error flags
@@ -419,6 +460,8 @@ module axi4_slave_wr_mon
         assign active_transactions = 8'h0;
         assign cfg_conflict_error  = 1'b0;
         assign w_block_ready       = 1'b1;
+        assign w_perf_completed_count = 16'h0;
+        assign w_perf_error_count     = 16'h0;
         // Perfmon disabled when ENABLE_MONITOR=0.
         assign window_active       = 1'b0;
         assign window_cycles       = 32'h0;
@@ -432,12 +475,37 @@ module axi4_slave_wr_mon
     end
 
     // Gate the upstream AW handshake on monitor block_ready.
-    assign s_axi_awready = w_core_s_axi_awready & w_block_ready;
+    assign s_axi_awready = w_core_s_axi_awready &
+           (w_block_ready | ~cfg_monitor_enable);  // disabled monitor never stalls
 
-    // error_count / transaction_count: not exposed by axi_monitor_filtered;
-    // tied to 0 in both monitor-on and monitor-off cases.
-    assign error_count = 16'h0;
-    assign transaction_count = 32'h0;
+    // error_count / transaction_count: driven from the base monitor's
+    // lifetime reporter counters (axi_monitor_reporter_perf). They count
+    // packets actually EMITTED (marked into the reporter FIFO): error_count
+    // covers error+timeout packets, transaction_count covers completion
+    // packets. Zero when USE_MONITOR=0 or ENABLE_PERF_LOGIC=0.
+    assign error_count       = w_perf_error_count;
+    assign transaction_count = {16'h0, w_perf_completed_count};
+
+`ifdef FORMAL
+    // ------------------------------------------------------------------------
+    // Wrapper gating contract (in-RTL formal properties, flattened into the
+    // proof by sv2v --define=FORMAL). These live HERE and not in the sby
+    // harness because a plain-Verilog harness cannot form hierarchical
+    // references: `dut.w_block_ready` elaborated as an implicitly-declared
+    // FREE wire, which made the old harness-side P6/P7 gating properties
+    // vacuous (guard over a free variable). In-module, the real nets are
+    // visible and the contract is enforceable:
+    //   * enabled + blocked -> upstream ready is forced low
+    //   * disabled          -> the wrapper is transparent (a disabled
+    //                          monitor must never stall the datapath)
+    // ------------------------------------------------------------------------
+    always @(*) begin
+        if (aresetn && cfg_monitor_enable && !w_block_ready)
+            ap_block_ready_gating: assert (!s_axi_awready);
+        if (aresetn && !cfg_monitor_enable)
+            ap_disabled_never_stalls: assert (s_axi_awready == w_core_s_axi_awready);
+    end
+`endif
 
 endmodule : axi4_slave_wr_mon
 

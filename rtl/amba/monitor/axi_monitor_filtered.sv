@@ -166,6 +166,12 @@ module axi_monitor_filtered
     output logic [63:0]                 perf_byte_count,
     output logic [31:0]                 perf_burst_count,
 
+    // Lifetime reporter counters (pass-through from axi_monitor_base; see
+    // its port comment for semantics -- emitted-packet counts, 0 when
+    // ENABLE_PERF_LOGIC=0).
+    output logic [15:0]                 perf_completed_count,
+    output logic [15:0]                 perf_error_count,
+
     // Configuration error flags
     output logic                        cfg_conflict_error     // Configuration conflict detected
 );
@@ -304,7 +310,11 @@ module axi_monitor_filtered
         .perf_idle_cycles        (perf_idle_cycles),
         .perf_beat_count         (perf_beat_count),
         .perf_byte_count         (perf_byte_count),
-        .perf_burst_count        (perf_burst_count)
+        .perf_burst_count        (perf_burst_count),
+
+        // Lifetime reporter counters
+        .perf_completed_count    (perf_completed_count),
+        .perf_error_count        (perf_error_count)
     );
 
     // =========================================================================

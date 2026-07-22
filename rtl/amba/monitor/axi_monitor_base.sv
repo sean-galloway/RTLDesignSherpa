@@ -203,7 +203,16 @@ module axi_monitor_base
     output logic [31:0]              perf_idle_cycles,   // !data valid && !ready
     output logic [31:0]              perf_beat_count,    // = perf_prod_cycles (1 beat/cycle)
     output logic [63:0]              perf_byte_count,    // beats x (1<<axsize_latched)
-    output logic [31:0]              perf_burst_count    // AR/AW handshake count
+    output logic [31:0]              perf_burst_count,   // AR/AW handshake count
+
+    // Lifetime reporter counters (axi_monitor_reporter_perf). These count
+    // packets actually EMITTED (marked into the reporter FIFO): completions
+    // when compl packets are enabled, errors/timeouts when their classes
+    // are. Tied to 0 when ENABLE_PERF_LOGIC=0 (the counters live in the
+    // perf sub-block). Exposed so wrappers can drive their error_count /
+    // transaction_count status outputs from the truth instead of 0.
+    output logic [15:0]              perf_completed_count,
+    output logic [15:0]              perf_error_count
 );
 
     // Import standard monitor types and constants
@@ -251,10 +260,6 @@ module axi_monitor_base
         assign w_debug_monbus_valid  = 1'b0;
         assign w_debug_monbus_packet = '0;
     end
-
-    // Performance metrics registers (only used when ENABLE_PERF_PACKETS=1) (flopped)
-    logic [15:0] r_perf_completed_count;
-    logic [15:0] r_perf_error_count;
 
     // -------------------------------------------------------------------------
     // Module Instantiations
@@ -356,8 +361,8 @@ module axi_monitor_base
         .monbus_valid          (w_reporter_monbus_valid),
         .monbus_packet         (w_reporter_monbus_packet),
         .event_count           (w_event_count),
-        .perf_completed_count  (r_perf_completed_count),
-        .perf_error_count      (r_perf_error_count),
+        .perf_completed_count  (perf_completed_count),
+        .perf_error_count      (perf_error_count),
         .active_trans_threshold(cfg_active_trans_threshold),
         .latency_threshold     (cfg_latency_threshold),
         .event_reported_flags  (w_event_reported_flags)  // TASK-001: Feedback to trans_mgr

@@ -47,6 +47,11 @@ module axi5_slave_rd_mon
     parameter logic [7:0]  UNIT_ID  = 8'h01,
     parameter logic [15:0] AGENT_ID = 16'h000C,
     parameter int MAX_TRANSACTIONS  = 16,
+    // Active-transaction threshold packet trip point (used when
+    // cfg_threshold_enable=1). Previously hardwired, which either spammed
+    // threshold packets (table larger than the hardwire) or made the feature
+    // unreachable (table smaller). Scales with the table by default.
+    parameter int ACTIVE_TRANS_THRESHOLD = MAX_TRANSACTIONS / 2,
     parameter bit ENABLE_FILTERING  = 1,
     parameter bit ADD_PIPELINE_STAGE = 0,
 
@@ -250,6 +255,40 @@ module axi5_slave_rd_mon
         .busy(busy)
     );
 
+    // -------------------------------------------------------------------------
+    // cfg_monitor_enable -- master runtime gate.
+    // When 0 the monitor is inert: command/data/response valids are gated off
+    // (no allocation, no perf windows), the transaction CAM is held cleared
+    // through the cam_clear path (so a re-enable starts from an empty table),
+    // and block_ready is forced high at the wrapper gate below so a disabled
+    // monitor can never stall the datapath. When 1: normal operation.
+    //
+    // cfg_timeout_cycles -- unified coarse timeout control.
+    // The base monitor's real knobs are 4-bit per-phase TICK counts
+    // (cfg_addr/data/resp_cnt) measured in cfg_freq_sel-scaled timer ticks,
+    // not raw cycles. Chosen encoding:
+    //     16'h0     -> 4'hF   (legacy full-scale default, so integrations
+    //                          that tie this port low keep old behavior)
+    //     1..15     -> that many timer ticks per phase
+    //     >15       -> saturates at 4'hF
+    // All three phases share the value. This wrapper has no per-phase cnt
+    // ports; if per-phase ports are ever added they take precedence over
+    // this coarse control.
+    // -------------------------------------------------------------------------
+    logic        w_mon_cmd_valid;
+    logic        w_mon_data_valid;
+    logic        w_mon_resp_valid;
+    logic [3:0]  w_timeout_cnt;
+    logic [15:0] w_perf_completed_count;
+    logic [15:0] w_perf_error_count;
+
+    assign w_mon_cmd_valid  = fub_axi_arvalid & cfg_monitor_enable;
+    assign w_mon_data_valid = fub_axi_rvalid & cfg_monitor_enable;
+    assign w_mon_resp_valid = (fub_axi_rvalid && fub_axi_rlast) & cfg_monitor_enable;
+    assign w_timeout_cnt    = (cfg_timeout_cycles == 16'h0) ? 4'hF
+                            : (|cfg_timeout_cycles[15:4])   ? 4'hF
+                            : cfg_timeout_cycles[3:0];
+
     if (USE_MONITOR) begin : gen_monitor
         axi_monitor_filtered #(
             .UNIT_ID(UNIT_ID), .AGENT_ID(AGENT_ID), .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
@@ -265,21 +304,21 @@ module axi5_slave_rd_mon
             .N_ADDR_RANGES(N_ADDR_RANGES)
         ) axi_monitor_inst (
             .aclk(aclk), .aresetn(aresetn),
-            .clear(cam_clear),
+            .clear(cam_clear | ~cfg_monitor_enable),
             .i_mon_time(i_mon_time),
             .cmd_addr(fub_axi_araddr), .cmd_id(fub_axi_arid), .cmd_len(fub_axi_arlen),
             .cmd_size(fub_axi_arsize), .cmd_burst(fub_axi_arburst),
-            .cmd_valid(fub_axi_arvalid), .cmd_ready(fub_axi_arready),
+            .cmd_valid(w_mon_cmd_valid), .cmd_ready(fub_axi_arready),
             .data_id(fub_axi_rid), .data_last(fub_axi_rlast), .data_resp(fub_axi_rresp),
-            .data_valid(fub_axi_rvalid), .data_ready(fub_axi_rready),
+            .data_valid(w_mon_data_valid), .data_ready(fub_axi_rready),
             .resp_id(fub_axi_rid), .resp_code(fub_axi_rresp),
-            .resp_valid(fub_axi_rvalid && fub_axi_rlast), .resp_ready(fub_axi_rready),
-            .cfg_freq_sel(4'b0001), .cfg_addr_cnt(4'd15), .cfg_data_cnt(4'd15), .cfg_resp_cnt(4'd15),
+            .resp_valid(w_mon_resp_valid), .resp_ready(fub_axi_rready),
+            .cfg_freq_sel(4'b0001), .cfg_addr_cnt(w_timeout_cnt), .cfg_data_cnt(w_timeout_cnt), .cfg_resp_cnt(w_timeout_cnt),
             .cfg_error_enable(cfg_error_enable), .cfg_compl_enable        (cfg_compl_enable),
             .cfg_threshold_enable    (cfg_threshold_enable), .cfg_timeout_enable(cfg_timeout_enable),
             .cfg_perf_enable(cfg_perf_enable), .cfg_debug_enable        (cfg_debug_enable),
             .cfg_debug_level(4'h0), .cfg_debug_mask(16'h0),
-            .cfg_active_trans_threshold(16'd8), .cfg_latency_threshold(cfg_latency_threshold),
+            .cfg_active_trans_threshold(16'(ACTIVE_TRANS_THRESHOLD)), .cfg_latency_threshold(cfg_latency_threshold),
             .cfg_axi_pkt_mask(cfg_axi_pkt_mask), .cfg_axi_err_select(cfg_axi_err_select),
             .cfg_axi_error_mask(cfg_axi_error_mask), .cfg_axi_timeout_mask(cfg_axi_timeout_mask),
             .cfg_axi_compl_mask(cfg_axi_compl_mask), .cfg_axi_thresh_mask(cfg_axi_thresh_mask),
@@ -316,7 +355,9 @@ module axi5_slave_rd_mon
             .perf_idle_cycles    (perf_idle_cycles),
             .perf_beat_count     (perf_beat_count),
             .perf_byte_count     (perf_byte_count),
-            .perf_burst_count    (perf_burst_count)
+            .perf_burst_count    (perf_burst_count),
+            .perf_completed_count(w_perf_completed_count),
+            .perf_error_count    (w_perf_error_count)
 
         );
     end else begin : gen_no_monitor
@@ -326,6 +367,8 @@ module axi5_slave_rd_mon
         assign active_transactions = 8'h0;
         assign cfg_conflict_error  = 1'b0;
         assign w_block_ready       = 1'b1;
+        assign w_perf_completed_count = 16'h0;
+        assign w_perf_error_count     = 16'h0;
 
         // Stage A/B perfmon outputs — tied to 0 when monitor disabled.
         assign window_active       = 1'b0;
@@ -340,9 +383,15 @@ module axi5_slave_rd_mon
     end
 
     // Gate the upstream AR handshake on monitor block_ready.
-    assign s_axi_arready = w_core_s_axi_arready & w_block_ready;
+    assign s_axi_arready = w_core_s_axi_arready &
+           (w_block_ready | ~cfg_monitor_enable);  // disabled monitor never stalls
 
-    assign error_count = 16'h0;
-    assign transaction_count = 32'h0;
+    // error_count / transaction_count: driven from the base monitor's
+    // lifetime reporter counters (axi_monitor_reporter_perf). They count
+    // packets actually EMITTED (marked into the reporter FIFO): error_count
+    // covers error+timeout packets, transaction_count covers completion
+    // packets. Zero when USE_MONITOR=0 or ENABLE_PERF_LOGIC=0.
+    assign error_count       = w_perf_error_count;
+    assign transaction_count = {16'h0, w_perf_completed_count};
 
 endmodule : axi5_slave_rd_mon

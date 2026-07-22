@@ -171,10 +171,20 @@ class AXISMasterTB(TBBase):
         if not hasattr(self.axis_slave, 'reset_occurring'):
             self.axis_slave.reset_occurring = False
 
-        # Start monitoring tasks for slave and monitor components
+        # The AXISSlave/AXISMonitor own their receive pipelines (the GAXI
+        # delegation registers _axis_packet_callback on them at construction).
+        # Hand-spawning the private _monitor_recv here BYPASSED that pipeline,
+        # so the component's packets_received/frame stats stayed at zero while
+        # the raw handshakes still moved -- exactly the "slave_received=0,
+        # monitor sees traffic" failure after the RDS-DV pipeline-delegation
+        # cleanup. Only spawn it for components that do not self-start.
         import cocotb
-        cocotb.start_soon(self.axis_slave._monitor_recv())
-        cocotb.start_soon(self.axis_monitor._monitor_recv())
+        if not getattr(self.axis_slave, '_recv_pipeline_started', False) \
+                and not hasattr(self.axis_slave, '_axis_packet_callback'):
+            cocotb.start_soon(self.axis_slave._monitor_recv())
+        if not getattr(self.axis_monitor, '_recv_pipeline_started', False) \
+                and not hasattr(self.axis_monitor, '_axis_packet_callback'):
+            cocotb.start_soon(self.axis_monitor._monitor_recv())
 
         self.log.info("AXIS Master testbench components created successfully and monitoring started")
 
@@ -202,7 +212,10 @@ class AXISMasterTB(TBBase):
         self.log.info(f"Starting basic transfer test with {num_packets} packets")
 
         # Configure slave to be always ready (using GAXISlave method)
-        self.axis_slave._set_ready(1)
+        if hasattr(self.axis_slave, 'set_ready_always'):
+            self.axis_slave.set_ready_always()
+        else:
+            self.axis_slave._set_ready(1)
 
         # Debug: Check initial signal values
         await self.wait_clocks(self.aclk_name, 1)
@@ -253,7 +266,7 @@ class AXISMasterTB(TBBase):
 
         # Debug: Check observed_packets field
         slave_observed = slave_stats.get('observed_packets', 0)
-        monitor_observed = monitor_stats.get('observed_packets', 0)
+        monitor_observed = monitor_stats.get('packets_received', monitor_stats.get('observed_packets', monitor_stats.get('received_transactions', 0)))
 
         self.log.info(f"Slave observed_packets: {slave_observed}")
         self.log.info(f"Monitor observed_packets: {monitor_observed}")
@@ -342,7 +355,7 @@ class AXISMasterTB(TBBase):
 
         # Check slave received all packets
         slave_stats = self.axis_slave.get_stats()
-        received_packets = slave_stats.get('received_transactions', slave_stats.get('slave_stats', {}).get('received_transactions', 0))
+        received_packets = slave_stats.get('packets_received', slave_stats.get('received_transactions', slave_stats.get('slave_stats', {}).get('received_transactions', 0)))
         assert received_packets >= num_packets, f"Packets lost under backpressure: {received_packets}/{num_packets}"
 
         self.log.info("Backpressure test completed successfully")
@@ -419,7 +432,10 @@ class AXISMasterTB(TBBase):
                 self.log.warning("Could not read busy signal")
 
         # Remove backpressure
-        self.axis_slave._set_ready(1)
+        if hasattr(self.axis_slave, 'set_ready_always'):
+            self.axis_slave.set_ready_always()
+        else:
+            self.axis_slave._set_ready(1)
 
         # Wait and check busy deassertion
         for _ in range(50):
@@ -439,10 +455,14 @@ class AXISMasterTB(TBBase):
     def generate_final_report(self):
         """Generate final test report."""
         try:
+            # NOTE: identity check, not truthiness -- cocotb Monitor defines
+            # __len__ as queue depth, so a BFM with a drained _recvQ is FALSY
+            # and a truth-test guard silently returns {} (the slave_received=0
+            # failure after the RDS-DV pipeline cleanup drained the queue).
             # Get component statistics
-            fub_stats = self.fub_master.get_stats() if self.fub_master else {}
-            slave_stats = self.axis_slave.get_stats() if self.axis_slave else {}
-            monitor_stats = self.axis_monitor.get_stats() if self.axis_monitor else {}
+            fub_stats = self.fub_master.get_stats() if self.fub_master is not None else {}
+            slave_stats = self.axis_slave.get_stats() if self.axis_slave is not None else {}
+            monitor_stats = self.axis_monitor.get_stats() if self.axis_monitor is not None else {}
 
             self.log.info("=== FINAL AXIS MASTER TEST REPORT ===")
             self.log.info(f"FUB Master Stats: {fub_stats}")
@@ -453,8 +473,8 @@ class AXISMasterTB(TBBase):
 
             # Basic validation using actual stats keys
             master_sent = fub_stats.get('master_stats', {}).get('transactions_sent', 0)
-            slave_received = slave_stats.get('observed_packets', 0)
-            monitor_observed = monitor_stats.get('observed_packets', 0)
+            slave_received = slave_stats.get('packets_received', slave_stats.get('observed_packets', slave_stats.get('received_transactions', 0)))
+            monitor_observed = monitor_stats.get('packets_received', monitor_stats.get('observed_packets', monitor_stats.get('received_transactions', 0)))
 
             self.log.info(f"Validation: master_sent={master_sent}, slave_received={slave_received}, monitor_observed={monitor_observed}")
 

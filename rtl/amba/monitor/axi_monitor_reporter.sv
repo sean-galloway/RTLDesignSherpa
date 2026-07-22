@@ -310,7 +310,8 @@ module axi_monitor_reporter
     end
 
     // -------------------------------------------------------------------------
-    // AUTO-RETIRE for packet classes that are COMPILED OUT.
+    // AUTO-RETIRE for packet classes that cannot report: COMPILED OUT
+    // (!ENABLE_*_LOGIC) or RUNTIME-DISABLED (!cfg_*_enable).
     //
     // trans_mgr frees a terminal-state slot only once event_reported is set,
     // and the sole producer of that flag is an accepted FIFO write above. So a
@@ -322,6 +323,17 @@ module axi_monitor_reporter
     // EVERY transaction leaks -- the table fills after MAX_TRANSACTIONS
     // requests and the bus wedges.
     //
+    // The RUNTIME term exists because each sub-block gates its pkt_valid on
+    // its own cfg_*_enable: a class compiled IN but runtime-disabled (e.g.
+    // ENABLE_COMPL_LOGIC=1 && cfg_compl_enable=0 -- the documented
+    // "performance mode") leaked slots by exactly the same mechanism as a
+    // compiled-out class. The check is CONTINUOUS, not edge-triggered, on
+    // purpose: an entry that completed while its class was ENABLED but whose
+    // packet lost the FIFO-full race is still unmarked when the class is
+    // later disabled, and must retire then. Accepted, documented consequence:
+    // toggling an enable mid-flight may drop that one entry's packet -- it
+    // must never leak the slot.
+    //
     // "Reported" means "nothing further is owed for this entry", so an entry
     // that no enabled sub-block can ever emit is reported the moment it
     // reaches a terminal state. This keeps the monitor passive, which is what
@@ -331,8 +343,8 @@ module axi_monitor_reporter
     // (the perf sub-block's error/completion counters) nor r_event_count:
     // those must keep counting only packets actually emitted.
     //
-    // All three terms are elaboration-time constants, so this whole block
-    // folds away to nothing in a fully-enabled build.
+    // In a fully-enabled build with all cfg_*_enable tied high the whole
+    // block still folds away to nothing.
     // -------------------------------------------------------------------------
     logic [MAX_TRANSACTIONS-1:0] w_auto_retire;
     always_comb begin
@@ -342,15 +354,35 @@ module axi_monitor_reporter
                 case (r_trans_table_local[idx].state)
                     // Emitted by axi_monitor_reporter_compl.
                     TRANS_COMPLETE:
-                        w_auto_retire[idx] = !ENABLE_COMPL_LOGIC;
-                    // Emitted by axi_monitor_reporter_error, or by
-                    // axi_monitor_reporter_timeout (timed-out entries are
-                    // parked in TRANS_ERROR by trans_mgr), so this state is
-                    // only unreportable when BOTH are compiled out.
-                    TRANS_ERROR,
+                        w_auto_retire[idx] = !ENABLE_COMPL_LOGIC ||
+                                             !cfg_compl_enable;
+                    // TRANS_ERROR is split per-slot by timeout_detected,
+                    // MIRRORING the claim predicates of the two cones
+                    // exactly (reporter_error claims ERROR&&!detected plus
+                    // ORPHANED; reporter_timeout claims ERROR&&detected):
+                    //   * a timed-out slot is only reportable by the
+                    //     timeout cone, so it retires when THAT cone is
+                    //     unavailable;
+                    //   * a genuine-error (or orphaned) slot is only
+                    //     reportable by the error cone, so it retires when
+                    //     THAT cone is unavailable.
+                    // A plain AND of both cones' availability under-retires:
+                    // with errors runtime-disabled but timeouts enabled, a
+                    // genuine-error slot is claimable by NEITHER cone
+                    // (timeout only takes detected slots, and detection
+                    // never fires on an already-terminal entry) yet the AND
+                    // said "reportable" -- the slot leaked. The
+                    // classification is stable: timeout_detected is sticky
+                    // until the slot retires, and can never newly assert on
+                    // a terminal entry.
+                    TRANS_ERROR:
+                        w_auto_retire[idx] = timeout_detected[idx]
+                            ? (!ENABLE_TIMEOUT_LOGIC || !cfg_timeout_enable)
+                            : (!ENABLE_ERROR_LOGIC   || !cfg_error_enable);
+                    // Orphans are claimed only by the error cone.
                     TRANS_ORPHANED:
-                        w_auto_retire[idx] = !ENABLE_ERROR_LOGIC &&
-                                             !ENABLE_TIMEOUT_LOGIC;
+                        w_auto_retire[idx] = !ENABLE_ERROR_LOGIC ||
+                                             !cfg_error_enable;
                     default: ;
                 endcase
             end

@@ -383,11 +383,87 @@ module axi_monitor_trans_mgr
         end
     end
 
+    // ------------------------------------------------------------------------
+    // SAME-CYCLE AW+W BYPASS (write monitors only).
+    //
+    // The WID-less predicate above runs over REGISTERED entries and requires
+    // cmd_received, so a W beat arriving in the SAME cycle as its AW matched
+    // nothing -- and with IS_AXI=1 the write-data orphan path is compiled
+    // dead, so the beat was silently LOST. The entry then waited for data
+    // forever and the B response fabricated an EVT_PROTOCOL ("response
+    // before data") error on entirely legal traffic (single-beat writes from
+    // skid-buffered masters routinely present AW and W together).
+    //
+    // When no registered entry matches, the beat may target the entry the
+    // COMMAND path is touching THIS cycle:
+    //   * addr_alloc_oh  -- the slot being allocated for this AW, or
+    //   * addr_update_oh -- the pending same-ID entry (allocated on an
+    //     earlier stalled cycle, cmd_received still 0), qualified by
+    //     cmd_valid because addr_update_oh is a pure combinational match on
+    //     whatever value the cmd_id lines happen to hold, and by
+    //     state==TRANS_ADDR_PHASE: addr_update_oh also selects ORPHANED
+    //     entries being ADOPTED (a stray B allocates a resp-orphan, then a
+    //     same-ID AW attaches to it). Binding a W beat to an orphan before
+    //     the AW handshake promoted it out of ORPHANED, which destroyed its
+    //     error-drain guarantee (EVT_RESP_ORPHAN only reports from a
+    //     terminal state) and parked it outside every timeout cone -- the
+    //     btormc counterexample for ap_wr_data_phase_has_cmd. Orphan
+    //     adoption keeps its legacy behavior: pre-handshake beats are
+    //     strays and are dropped.
+    // The two terms are mutually exclusive by construction (alloc fires
+    // only when no pending entry exists). This keeps monitor state
+    // cycle-accurate -- cmd + first beat in one cycle records both, with no
+    // side buffer.
+    // ------------------------------------------------------------------------
+    // The bypass reads a LOCAL MIRROR of the CAM's addr-alloc pick instead of
+    // the CAM's addr_alloc_oh output. The CAM computes all three alloc
+    // one-hots in a single always_comb, so Verilator fuses them into one
+    // node; routing addr_alloc_oh into data_hit_any -> data_wants_alloc ->
+    // (back into that node) then looks like a combinational loop and fails
+    // the AXIL write build with UNOPTFLAT (warnings-as-errors), even though
+    // the true dependency is acyclic (addr's pick never depends on the data
+    // port). The mirror is exact by construction: the CAM allocates addr
+    // first from the free vector, i.e. lowest free index when
+    // addr_wants_alloc -- and is cross-checked against the CAM output by
+    // ap_bypass_alloc_mirror below.
+    logic [N-1:0] w_addr_alloc_mirror_oh;
+    always_comb begin
+        w_addr_alloc_mirror_oh = '0;
+        if (addr_wants_alloc) begin
+            for (int i = 0; i < N; i++) begin
+                if ((w_addr_alloc_mirror_oh == '0) && free_oh[i]) begin
+                    w_addr_alloc_mirror_oh[i] = 1'b1;
+                end
+            end
+        end
+    end
+
+    logic [N-1:0] addr_update_oh;
+    logic [N-1:0] data_update_oh;
+    logic [N-1:0] resp_update_oh;
+
+    logic [N-1:0] w_data_cmd_bypass_oh;
+    always_comb begin
+        w_data_cmd_bypass_oh = '0;
+        if (!IS_READ && data_valid && data_ready && !(|w_data_state_pred_oh)) begin
+            for (int i = 0; i < N; i++) begin
+                w_data_cmd_bypass_oh[i] =
+                    w_addr_alloc_mirror_oh[i] ||
+                    (cmd_valid && addr_update_oh[i] &&
+                     (cam_entry_payload[i].state == TRANS_ADDR_PHASE));
+            end
+        end
+    end
+
     logic addr_hit_any, data_hit_any, resp_hit_any;
 
     assign addr_hit_any = |w_addr_pend_oh;
     assign resp_hit_any = |resp_match_oh;
-    assign data_hit_any = IS_READ ? (|data_match_oh) : (|w_data_state_pred_oh);
+    // The bypass counts as a hit so the beat cannot ALSO allocate an orphan
+    // in the same cycle (live path for IS_AXI=0 write monitors).
+    assign data_hit_any = IS_READ ? (|data_match_oh)
+                                  : ((|w_data_state_pred_oh) ||
+                                     (|w_data_cmd_bypass_oh));
 
     // ------------------------------------------------------------------------
     // COMMAND-ENTRY CAP (saturation-recovery fix).
@@ -484,9 +560,8 @@ module axi_monitor_trans_mgr
     // match so a stray extra beat is absorbed exactly as before rather than
     // being turned into a new orphan error.
     // ------------------------------------------------------------------------
-    logic [N-1:0] addr_update_oh;
-    logic [N-1:0] data_update_oh;
-    logic [N-1:0] resp_update_oh;
+    // (declarations hoisted above the same-cycle write bypass, which reads
+    // addr_update_oh; assignments remain below.)
 
     logic [N-1:0] w_data_cand_open, w_data_cand_any;
     logic [N-1:0] w_resp_cand_open, w_resp_cand_any;
@@ -533,10 +608,13 @@ module axi_monitor_trans_mgr
     // Absorption = an empty update one-hot. The stray still counts as a hit
     // (data_hit_any uses the raw match vector), so it does not allocate an
     // orphan either -- the original intent, minus the state clobber.
+    // Write side ORs in the same-cycle AW+W bypass; it is nonzero only when
+    // w_data_state_first_oh is empty (the bypass requires no registered
+    // match), so the two never select different slots in the same cycle.
     assign data_update_oh = IS_READ
         ? ((|w_data_cand_open) ? pick_oldest(w_data_cand_open, w_age_flat)
                                : (data_last ? pick_oldest(w_data_cand_any, w_age_flat) : '0))
-        : w_data_state_first_oh;
+        : (w_data_state_first_oh | w_data_cmd_bypass_oh);
 
     // Response fallback is unchanged: a stray B response updates fields of an
     // already-closed entry but every reachable outcome (COMPLETE / ERROR) is
@@ -747,11 +825,36 @@ module axi_monitor_trans_mgr
                     if (data_update_oh[gi]) begin
                         // Capture beats-after-increment for the
                         // "is this the last expected beat" test.
+                        //
+                        // SAME-CYCLE AW+W BYPASS NOTE: this branch reads
+                        // beat count / expected_beats from `next`, NOT from
+                        // the registered payload. With no addr action this
+                        // cycle the two are identical (the addr blocks above
+                        // never touch these fields on an update), but when
+                        // addr_alloc fires on this slot in the SAME cycle,
+                        // `next` holds the freshly initialised entry
+                        // (beat_count 0, expected_beats from cmd_len) while
+                        // the registered payload still holds the PREVIOUS
+                        // occupant's fields -- counting against those
+                        // corrupted the brand-new transaction.
                         next.data_started    = 1'b1;
-                        next.data_beat_count = cam_entry_payload[gi].data_beat_count + 1'b1;
+                        next.data_beat_count = next.data_beat_count + 1'b1;
                         next.data_timer      = '0;
                         if (next.state != TRANS_ERROR) begin
-                            next.state = TRANS_DATA_PHASE;
+                            // Hold ADDR_PHASE for a bypass beat whose AW has
+                            // not handshaked yet (write-only case:
+                            // cmd_received=0 in ADDR_PHASE). Promoting it
+                            // would move the stalled AW out of the
+                            // address-phase timeout's coverage
+                            // (w_addr_pending requires ADDR_PHASE) and into
+                            // a data-phase term that requires cmd_received
+                            // -- i.e. no timeout coverage at all. Reads are
+                            // untouched: their update path never selects a
+                            // cmd_received=0 ADDR_PHASE entry.
+                            if (IS_READ || next.cmd_received ||
+                                (next.state != TRANS_ADDR_PHASE)) begin
+                                next.state = TRANS_DATA_PHASE;
+                            end
                         end
 
                         if (IS_READ) begin
@@ -771,7 +874,7 @@ module axi_monitor_trans_mgr
                             // post-increment beat count == expected.
                             if (data_last ||
                                 (next.data_beat_count ==
-                                 cam_entry_payload[gi].expected_beats)) begin
+                                 next.expected_beats)) begin
                                 next.data_completed = 1'b1;
                                 next.data_timestamp = timestamp;
                             end
@@ -1071,6 +1174,38 @@ module axi_monitor_trans_mgr
                                   cam_entry_payload[fi].data_completed));
                 end
             end
+        end
+    end
+
+    // F3: a WRITE entry in DATA_PHASE always has its command handshake
+    // recorded. The same-cycle AW+W bypass lets a W beat bind to an entry
+    // whose AW is still stalled (cmd_received=0); such an entry must be HELD
+    // in ADDR_PHASE, because the address-phase timeout term requires
+    // state==ADDR_PHASE and the data-phase term requires cmd_received -- a
+    // cmd_received=0 entry promoted to DATA_PHASE would sit in neither
+    // cone's coverage and leak its slot if the AW never completed (the
+    // timeout-coverage-hole class of bug). Reads are exempt: orphan
+    // continuation legitimately holds DATA_PHASE with cmd_received=0.
+    always_ff @(posedge aclk) begin
+        if (!IS_READ && aresetn && f_past_ok) begin
+            for (int fi = 0; fi < N; fi++) begin
+                if (cam_entry_valid[fi]) begin
+                    ap_wr_data_phase_has_cmd:
+                        assert (!(cam_entry_payload[fi].state == 3'(TRANS_DATA_PHASE) &&
+                                  !cam_entry_payload[fi].cmd_received));
+                end
+            end
+        end
+    end
+
+    // F4: the local addr-alloc mirror used by the same-cycle AW+W bypass
+    // always agrees with the CAM's own pick (it exists only to break a
+    // false UNOPTFLAT loop through the CAM's fused alloc always_comb; if
+    // the CAM's allocation policy ever changes, this is the tripwire).
+    always_ff @(posedge aclk) begin
+        if (aresetn && f_past_ok) begin
+            ap_bypass_alloc_mirror:
+                assert (w_addr_alloc_mirror_oh == addr_alloc_oh);
         end
     end
 

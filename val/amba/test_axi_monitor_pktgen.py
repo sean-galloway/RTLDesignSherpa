@@ -267,16 +267,26 @@ async def cocotb_test_single_mark_per_write(dut):
 # ============================================================================
 @cocotb.test(timeout_time=20, timeout_unit="ms")
 async def cocotb_test_disabled_class_not_marked(dut):
-    """A disabled packet class must never be marked reported by another
-    class's write.
+    """A runtime-disabled packet class emits nothing and never counts -- but
+    its terminal slots MUST still retire.
 
     Configuration: errors OFF, completions ON (the mirror of the
     "performance analysis" configuration recommended in rtl/amba/CLAUDE.md).
-    An ERROR slot must stay unreported and therefore un-freed -- it is not
-    reportable, so it must not be silently discarded either.
 
-    Pre-fix behaviour: the completion's FIFO write marked the error slot
-    reported; no error packet was ever generated and trans_mgr freed the slot.
+    CONTRACT CHANGE (E1, runtime-disable leak fix): this test originally
+    asserted that a disabled class's slot must stay UNREPORTED. That
+    guaranteed the slot was never freed, which is precisely the leak that
+    wedged the monitor after ~MAX_TRANSACTIONS runtime-disabled events
+    (table pins at MAX, block_ready low forever). The owner-decided contract
+    is now: auto-retire is CONTINUOUS over both compiled-out and
+    runtime-disabled classes -- the slot is marked reported (freed by
+    trans_mgr) with no packet emitted, and the emission counters must NOT
+    count these silent retires.
+
+    What is still forbidden, and still checked here:
+      * a disabled class must emit zero packets, and
+      * event_count must count only packets actually emitted (an
+        auto-retired slot bumps nothing).
     """
     tbl = await setup_dut(dut, error_en=0, compl_en=1)
     captured = []
@@ -289,17 +299,22 @@ async def cocotb_test_disabled_class_not_marked(dut):
 
     flags = int(dut.event_reported_flags.value)
     types = [p['packet_type'] for p in captured]
-    dut._log.info(f"packets={[hex(t) for t in types]} flags={flags:#06b}")
+    events = int(dut.event_count.value)
+    dut._log.info(f"packets={[hex(t) for t in types]} flags={flags:#06b} events={events}")
 
     assert PKT_ERROR not in types, (
         f"cfg_error_enable=0 must suppress error packets, saw {captured}")
     assert types.count(PKT_COMPLETION) == 1, (
         f"Expected exactly 1 completion packet, got {types.count(PKT_COMPLETION)}")
-    assert (flags & 0b0001) == 0, (
-        f"Slot 0 is an ERROR slot with cfg_error_enable=0. It was marked "
-        f"reported (flags={flags:#06b}) by the completion's FIFO write, so "
-        f"trans_mgr frees it and the error is lost with no packet emitted.")
+    assert (flags & 0b0001) != 0, (
+        f"Slot 0 is a terminal ERROR slot with cfg_error_enable=0 (and "
+        f"timeouts disabled). Auto-retire must mark it reported so trans_mgr "
+        f"can free it (flags={flags:#06b}); leaving it unmarked leaks the "
+        f"slot and wedges block_ready at saturation (E1).")
     assert (flags & 0b0010) != 0, "Slot 1's completion was emitted, so it must be marked"
+    assert events == 1, (
+        f"event_count={events}, expected 1: only the emitted completion may "
+        f"count -- the auto-retired error slot must not bump the counter")
 
     # --- mirror case: completions OFF, errors ON -------------------------
     dut.cfg_error_enable.value = 1
@@ -315,15 +330,20 @@ async def cocotb_test_disabled_class_not_marked(dut):
 
     flags = int(dut.event_reported_flags.value)
     types = [p['packet_type'] for p in captured]
-    dut._log.info(f"mirror: packets={[hex(t) for t in types]} flags={flags:#06b}")
+    events = int(dut.event_count.value)
+    dut._log.info(f"mirror: packets={[hex(t) for t in types]} flags={flags:#06b} events={events}")
 
     assert types.count(PKT_ERROR) == 1, (
         f"Expected exactly 1 error packet, got {types.count(PKT_ERROR)}: {captured}")
     assert PKT_COMPLETION not in types, (
         f"cfg_compl_enable=0 must suppress completion packets, saw {captured}")
-    assert (flags & 0b0010) == 0, (
-        f"Slot 1 is a COMPLETE slot with cfg_compl_enable=0; it must not be "
-        f"marked reported by the error's FIFO write (flags={flags:#06b})")
+    assert (flags & 0b0010) != 0, (
+        f"Slot 1 is a terminal COMPLETE slot with cfg_compl_enable=0; "
+        f"auto-retire must mark it reported (silently, no packet) so it "
+        f"cannot leak (flags={flags:#06b})")
+    assert events == 2, (
+        f"event_count={events}, expected 2 cumulative (1 compl + 1 error "
+        f"emitted): auto-retired slots must not bump the counter")
 
 
 # ============================================================================

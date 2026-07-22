@@ -192,7 +192,12 @@ class MonbusAxilAxilGroupTB(TBBase):
             prefix="monbus",
             clock=self.axi_aclk,
             field_config=monbus_config,
-            signal_map={'data': 'monbus_packet'},
+            # The framework's signal_map validation (RDS-DV 4d79359) now
+            # requires all three handshake keys explicitly -- the old
+            # data-only map relied on prefix inference for valid/ready.
+            signal_map={'valid': 'monbus_valid',
+                        'ready': 'monbus_ready',
+                        'data': 'monbus_packet'},
             log=self.log
         )
 

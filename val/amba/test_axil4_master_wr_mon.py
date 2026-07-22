@@ -134,6 +134,15 @@ def test_axil4_master_wr_mon(test_level):
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'TEST_LEVEL': test_level,
+        # Pin the cocotb seed. Unpinned, cocotb self-seeds from the clock and
+        # the AXIL4 monitor TBs' fixed 20-cycle packet wait intermittently
+        # races the MonbusSlave's randomized ready delay (which reaches 30
+        # cycles) -- the same ~12% zero-packet race the AXI4 monitor TB
+        # documents and fixed with a bounded poll. The real fix is porting
+        # that poll to bin/TBClasses/axil4/monitor/* (framework repo); until
+        # then the suite must at least be deterministic.
+        'RANDOM_SEED': '12345',
+        'COCOTB_RANDOM_SEED': '12345',
     }
 
     compile_args = ["--trace-fst",
