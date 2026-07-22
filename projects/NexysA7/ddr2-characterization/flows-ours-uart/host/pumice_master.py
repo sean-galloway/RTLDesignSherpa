@@ -542,8 +542,16 @@ def long_soak(drv: DDR2CharDriver, st: "SimpleTest", lv: "A7Leveling",
               mem_bytes: int = 128 << 20, csv_path: Optional[str] = None,
               concurrent_every: int = 10, eye_every_s: float = 300.0) -> bool:
     """Endurance soak: rotating-window rounds + periodic concurrent wr/rd +
-    periodic eye re-verify, for `minutes` wall-clock. CSV heartbeat."""
+    periodic eye re-verify, for `minutes` wall-clock. CSV heartbeat.
+
+    ONE GLOBAL SEED, WHOLE DEVICE INITIALIZED FIRST. With concurrent cycles
+    the memory must be initialized: every write (re)writes f(addr, SEED) and
+    every read expects f(addr, SEED), so the expectation is unconditional
+    under ANY interleaving / snarf / return path — a mismatch is then always
+    genuine data corruption, never test-structure noise from a stale or
+    different-seed region."""
     import csv as _csv
+    GLOBAL_SEED = 0x0DDB_A115                        # == memtest seed
     blen, txn = 16, 32768                            # 4 MB / round
     window = txn * blen * 8
     half = mem_bytes // 2
@@ -576,15 +584,31 @@ def long_soak(drv: DDR2CharDriver, st: "SimpleTest", lv: "A7Leveling",
                              cum_beats, fails, eye_fails])
             f.flush()
 
-    # pre-write region B (upper half, first window) once for the concurrent phase
+    # Initialize the WHOLE device to f(addr, GLOBAL_SEED) (chunked write-all,
+    # same as memtest) so every subsequent read — sequential, concurrent, or
+    # any controller-internal path — has a defined expectation.
     st.reinit_datapath()
-    seed_b = 0xB000_0001
-    r = _one_pass(drv, half, blen, txn, seed_b)
-    log("prewrite-B", half, r)
+    stride0 = blen * 8
+    n_chunks = mem_bytes // window
+    for ci in range(n_chunks):
+        drv.clear_stats()
+        drv.program_wr_engine(start_addr=ci * window, burst_len=blen,
+                              txn_count=txn, stride_0=stride0,
+                              lfsr_seed=GLOBAL_SEED, data_mode=True,
+                              hash_seed0=GLOBAL_SEED)
+        drv.start_wr()
+        if not wait_engine(drv, "wr", timeout_s=30.0, ignore_error=True):
+            print(f"[long_soak] init WR chunk {ci}/{n_chunks} HANG")
+            return False
+        print(f"\r[long_soak] init {ci + 1}/{n_chunks}", end="", flush=True)
+    print()
+    # verify region B once (read-only expectation check at the global seed)
+    r = _one_pass(drv, half, blen, txn, GLOBAL_SEED)
+    log("init-verify-B", half, r)
 
     while time.monotonic() < deadline:
         rnd += 1
-        seed = (0x50AC_0000 + rnd) & 0xFFFF_FFFF
+        seed = GLOBAL_SEED                            # unconditional expectation
         base = (rnd * window * 7) % (half - window)   # rotate across lower half
         st.reinit_datapath()
 
@@ -598,8 +622,8 @@ def long_soak(drv: DDR2CharDriver, st: "SimpleTest", lv: "A7Leveling",
                                   hash_seed0=seed)
             drv.program_rd_engine(start_addr=half, burst_len=blen,
                                   txn_count=txn, stride_0=stride,
-                                  lfsr_seed=seed_b, data_mode=True,
-                                  hash_seed0=seed_b)
+                                  lfsr_seed=GLOBAL_SEED, data_mode=True,
+                                  hash_seed0=GLOBAL_SEED)
             drv.start_wr()
             drv.start_rd()
             wr_ok = wait_engine(drv, "wr", timeout_s=30.0, ignore_error=True)
@@ -621,7 +645,7 @@ def long_soak(drv: DDR2CharDriver, st: "SimpleTest", lv: "A7Leveling",
             next_eye = time.monotonic() + eye_every_s
             st.reinit_datapath()
             lv.apply_taps(saved.bitslip, saved.rd_tap)
-            r = _one_pass(drv, 0x0, 8, 64, 0x1EAF_F00D)
+            r = _one_pass(drv, 0x0, 8, 64, GLOBAL_SEED)
             if not r["ok"]:
                 eye_fails += 1
             log("eye", 0x0, r)
