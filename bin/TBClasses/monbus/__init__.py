@@ -85,7 +85,58 @@ def parse(raw_packet):
     """
     if not isinstance(raw_packet, int):
         raise TypeError(f"parse() expects int, got {type(raw_packet).__name__}")
-    return MonitorPacket.from_raw(raw_packet & ((1 << MONBUS_PKT_WIDTH) - 1))
+    pkt = MonitorPacket.from_raw(raw_packet & ((1 << MONBUS_PKT_WIDTH) - 1))
+    _coverage_record(pkt)
+    return pkt
+
+
+# ---------------------------------------------------------------------------
+# Opt-in packet-type coverage recording (MONBUS_COVERAGE=1).
+#
+# parse() is the house-sanctioned decode chokepoint (all TBs must decode via
+# parse, never inline bit-twiddling), so instrumenting HERE covers every
+# consumer: MonbusSlave, the monbus_group harness drain, sniffers, and any
+# hand-rolled valid-poke loop that decodes properly. Tuples are flushed to
+# JSONL at exit; bin/monbus_coverage_report.py aggregates them against the
+# enum space. Zero cost when MONBUS_COVERAGE is unset.
+# ---------------------------------------------------------------------------
+import os as _os
+
+_COV_ENABLED = _os.environ.get('MONBUS_COVERAGE', '0') == '1'
+_COV_TUPLES = set()
+_COV_REGISTERED = False
+
+
+def _coverage_record(pkt):
+    global _COV_REGISTERED
+    if not _COV_ENABLED:
+        return
+    try:
+        _COV_TUPLES.add((int(pkt.protocol), int(pkt.packet_type),
+                         int(pkt.event_code)))
+    except Exception:
+        return
+    if not _COV_REGISTERED:
+        import atexit
+        atexit.register(_coverage_flush)
+        _COV_REGISTERED = True
+
+
+def _coverage_flush():
+    if not _COV_TUPLES:
+        return
+    import json
+    path = _os.environ.get('MONBUS_COVERAGE_FILE',
+                           '/tmp/monbus_coverage/coverage.jsonl')
+    _os.makedirs(_os.path.dirname(path), exist_ok=True)
+    rec = {
+        'test': _os.environ.get('PYTEST_CURRENT_TEST',
+                                _os.environ.get('DUT', 'unknown')),
+        'slave': 'monbus.parse',
+        'tuples': sorted(list(t) for t in _COV_TUPLES),
+    }
+    with open(path, 'a') as f:
+        f.write(json.dumps(rec) + '\n')
 
 
 def parse_stream(raw_words, stride_bytes: int = 24, ts_mode: int = 1):

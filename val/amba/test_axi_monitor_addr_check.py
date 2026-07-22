@@ -41,13 +41,18 @@ def decode_monbus(pkt):
     The is_read flag is no longer encoded in the AXI variant — it's
     implied by the IS_READ parameter on the monitor instance.
     """
+    # Header fields decode via the house chokepoint (TBClasses.monbus.parse):
+    # one field-layout source of truth + feeds MONBUS_COVERAGE. The
+    # event_data sub-field splits below are test-specific and stay local.
+    from TBClasses.monbus import parse as _monbus_parse
+    _mp = _monbus_parse(pkt)
     return {
-        'packet_type': (pkt >> 124) & 0xF,
-        'protocol':    (pkt >> 105) & 0xF,
-        'event_code':  (pkt >>  97) & 0xFF,
-        'channel_id':  (pkt >>  88) & 0x1FF,
-        'agent_id':    (pkt >>  72) & 0xFFFF,
-        'unit_id':     (pkt >>  64) & 0xFF,
+        'packet_type': int(_mp.packet_type),
+        'protocol': int(_mp.protocol),
+        'event_code': int(_mp.event_code),
+        'channel_id': int(_mp.channel_id),
+        'agent_id': int(_mp.agent_id),
+        'unit_id': int(_mp.unit_id),
         'range_index': (pkt >>  60) & 0xF,
         'addr':         pkt         & ((1 << 60) - 1),
         'raw':          pkt,

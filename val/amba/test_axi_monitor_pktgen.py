@@ -66,11 +66,18 @@ N_SLOTS = 4
 
 def decode_monbus(pkt):
     """Decode a 128-bit monbus packet (layout per monitor_common_pkg)."""
+    # Header fields decode via the house chokepoint (TBClasses.monbus.parse):
+    # one field-layout source of truth + feeds MONBUS_COVERAGE. The
+    # event_data sub-field splits below are test-specific and stay local.
+    from TBClasses.monbus import parse as _monbus_parse
+    _mp = _monbus_parse(pkt)
     return {
-        'packet_type': (pkt >> 124) & 0xF,
-        'protocol':    (pkt >> 105) & 0xF,
-        'event_code':  (pkt >>  97) & 0xFF,
-        'channel_id':  (pkt >>  88) & 0x1FF,
+        'packet_type': int(_mp.packet_type),
+        'protocol': int(_mp.protocol),
+        'event_code': int(_mp.event_code),
+        'channel_id': int(_mp.channel_id),
+        'agent_id': int(_mp.agent_id),
+        'unit_id': int(_mp.unit_id),
         'event_data':   pkt         & ((1 << 64) - 1),
         'addr':         pkt         & 0xFFFFFFFF,
     }

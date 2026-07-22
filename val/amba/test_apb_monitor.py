@@ -637,14 +637,18 @@ def decode_monbus_packet(pkt: int) -> dict:
     [104: 97] event_code   [ 96: 88] channel_id [ 87: 72] agent_id
     [ 71: 64] unit_id      [ 63:  0] event_data
     """
+    # Decode via the house chokepoint (TBClasses.monbus.parse): keeps the
+    # field layout in ONE place and feeds the MONBUS_COVERAGE recorder.
+    from TBClasses.monbus import parse as _monbus_parse
+    _mp = _monbus_parse(pkt)
     return {
-        'packet_type': (pkt >> 124) & 0xF,
-        'protocol':    (pkt >> 105) & 0xF,
-        'event_code':  (pkt >> 97) & 0xFF,
-        'channel_id':  (pkt >> 88) & 0x1FF,
-        'agent_id':    (pkt >> 72) & 0xFFFF,
-        'unit_id':     (pkt >> 64) & 0xFF,
-        'event_data':  pkt & ((1 << 64) - 1),
+        'packet_type': int(_mp.packet_type),
+        'protocol': int(_mp.protocol),
+        'event_code': int(_mp.event_code),
+        'channel_id': int(_mp.channel_id),
+        'agent_id': int(_mp.agent_id),
+        'unit_id': int(_mp.unit_id),
+        'event_data': int(_mp.event_data),
     }
 
 

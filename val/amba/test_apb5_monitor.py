@@ -70,15 +70,24 @@ class APB5MonitorTB(TBBase):
     # ------------------------------------------------------------------
     @staticmethod
     def decode_packet(pkt: int) -> dict:
-        """Decode a 128-bit monbus packet into its named fields."""
+        """Decode a 128-bit monbus packet into its named fields.
+
+        Delegates to TBClasses.monbus.parse -- the house-sanctioned decode
+        chokepoint. Inline bit-twiddling here previously (a) duplicated the
+        field layout so a packet-format change silently desynced this TB, and
+        (b) escaped the MONBUS_COVERAGE packet-type coverage recorder, which
+        instruments parse(). Same returned dict, same keys.
+        """
+        from TBClasses.monbus import parse
+        mp = parse(pkt)
         return {
-            'packet_type': (pkt >> 124) & 0xF,
-            'protocol':    (pkt >> 105) & 0xF,
-            'event_code':  (pkt >> 97) & 0xFF,
-            'channel_id':  (pkt >> 88) & 0x1FF,
-            'agent_id':    (pkt >> 72) & 0xFFFF,
-            'unit_id':     (pkt >> 64) & 0xFF,
-            'event_data':  pkt & ((1 << 64) - 1),
+            'packet_type': int(mp.packet_type),
+            'protocol':    int(mp.protocol),
+            'event_code':  int(mp.event_code),
+            'channel_id':  int(mp.channel_id),
+            'agent_id':    int(mp.agent_id),
+            'unit_id':     int(mp.unit_id),
+            'event_data':  int(mp.event_data),
         }
 
     async def drive_mon_time(self):
