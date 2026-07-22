@@ -66,8 +66,17 @@ When `refpb_mode_i` is set (LPDDR2 per-bank refresh), `r_bank_rotor` advances 0.
 `refresh_ctrl` only raises `refresh_req` / `refresh_drain`. The precharge-then-REF sequence is performed by `pumice_cmd_arbiter` at refresh priority (second only to init):
 
 1. While any bank on the target rank has an open row, precharge the active banks one per cycle (lowest ready bank first, honoring the ACT/PRE guard).
-2. Once no bank has an open row, issue `OP_REF` and assert `refresh_grant_o` to `refresh_ctrl`, decrementing the accumulator / drain quota.
-3. Repeat back-to-back while `refresh_drain_active` is high, until the accumulator is drained.
+2. Once no bank has an open row **and `w_ref_safe` holds** — nothing
+   row-affecting in flight or inside its 2-cycle guard window (the registered
+   bank view alone is 2-3 cycles stale, which once let a REFab collide with a
+   just-issued ACT), and the previous REF's tRFC recovery elapsed — issue
+   `OP_REF` and assert `refresh_grant_o` to `refresh_ctrl`, decrementing the
+   accumulator / drain quota. On each fired REF the arbiter loads a **tRFC
+   down-counter** from `TIMINGS_RFC_REFI.tRFC` (`t_rfc_i`); while non-zero,
+   ACT picks and further REFs are blocked (mission-mode refresh recovery —
+   init-time refreshes wait `INIT_TIMING1.t_rfc_wait` separately).
+3. Repeat back-to-back while `refresh_drain_active` is high (each REF spaced
+   by tRFC), until the accumulator is drained.
 
 This "wait until all banks are precharged" behavior is implicit in the arbiter's readiness gating rather than an explicit bank-grant handshake.
 

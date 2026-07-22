@@ -101,6 +101,7 @@ def _idle(dut):
                  ("t_wtr_i", 1), ("t_rtw_i", 1), ("t_ccd_i", 1)]:
         getattr(dut, t).value = v
     dut.t_refi_i.value = 0x7FFF
+    dut.t_rfc_i.value = 8
     dut.refresh_burst_i.value = 1
     for t in ("t_init_wait_i", "t_dll_wait_i"):
         getattr(dut, t).value = 0
@@ -216,4 +217,4 @@ def test_pumice_core(request):
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module, testcase="cocotb_test_pumice_core",
         sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
-        compile_args=["+define+USE_ASYNC_RESET"], waves=False, keep_files=True, timescale="1ns/1ps")
+        compile_args=["+define+USE_ASYNC_RESET", "--assert"], waves=False, keep_files=True, timescale="1ns/1ps")

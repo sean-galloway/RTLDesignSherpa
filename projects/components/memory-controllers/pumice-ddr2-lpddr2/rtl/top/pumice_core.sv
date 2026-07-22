@@ -44,7 +44,6 @@ module pumice_core
     parameter int BL             = 8,        // burst length, JEDEC device beats (MR0)
     parameter int NUM_ENTRIES    = 8,
     parameter int N_SRAM_SLOTS   = 8,
-    parameter int DESKEW_W       = 1,     // per-beat read-deskew field width
     parameter int AGE_WIDTH      = 16,
 
     // Narrow-device derivations: addr_mapper column stride is the physical
@@ -115,6 +114,7 @@ module pumice_core
     input  logic [7:0]                 t_rcd_i, t_rp_i, t_ras_i, t_rc_i, t_wr_i, t_rtp_i,
     input  logic [7:0]                 t_faw_i, t_rrd_i, t_wtr_i, t_rtw_i, t_ccd_i,
     input  logic [15:0]                t_refi_i,
+    input  logic [15:0]                t_rfc_i,
     input  logic [3:0]                 refresh_burst_i,
     input  logic [15:0]                t_init_wait_i, t_dll_wait_i,
     input  logic [7:0]                 t_mrd_wait_i, t_rp_wait_i, t_rfc_wait_i,
@@ -122,7 +122,6 @@ module pumice_core
     input  logic                       init_restart_i,              // CTRL.init_force_restart
     input  logic [PHW-1:0]             rd_phase_i, wr_phase_i,
     input  logic [7:0]                 t_phy_wrlat_i, t_rddata_en_i,
-    input  logic [DESKEW_W-1:0]        deskew_lo_i, deskew_hi_i,  // read DESKEW
     // Active DFI gear = log2(active DFI rate). DFI_RATE is the compile-time MAX
     // that sizes all buses; gear_i selects the active phase count at runtime.
     // gear_i = log2(DFI_RATE) (board/default) => active_rate == DFI_RATE => the
@@ -312,7 +311,7 @@ module pumice_core
         .t_rcd_i(t_rcd_i), .t_rp_i(t_rp_i), .t_ras_i(t_ras_i), .t_rc_i(t_rc_i),
         .t_wr_i(t_wr_i), .t_rtp_i(t_rtp_i), .t_faw_i(t_faw_i), .t_rrd_i(t_rrd_i),
         .t_wtr_i(t_wtr_i), .t_rtw_i(t_rtw_i), .t_ccd_i(t_ccd_i),
-        .t_refi_i(t_refi_i), .refresh_burst_i(refresh_burst_i),
+        .t_refi_i(t_refi_i), .t_rfc_i(t_rfc_i), .refresh_burst_i(refresh_burst_i),
         .t_init_wait_i(t_init_wait_i), .t_dll_wait_i(t_dll_wait_i),
         .t_mrd_wait_i(t_mrd_wait_i), .t_rp_wait_i(t_rp_wait_i), .t_rfc_wait_i(t_rfc_wait_i),
         .mr0_i(mr0_i), .mr1_i(mr1_i), .mr2_i(mr2_i), .mr3_i(mr3_i),
@@ -343,7 +342,7 @@ module pumice_core
         .COL_WIDTH(COL_WIDTH), .DFI_RATE(DFI_RATE), .DRAM_BEAT_WIDTH(DRAM_BEAT_WIDTH),
         .BL(BL_PUMICE), .N_SUBCMD(N_SUBCMD), .SUB_COL_STRIDE(SUB_COL_STRIDE),
         .SUB_PHASE_STRIDE(SUB_PHASE_STRIDE),
-        .SUBW_MAX(SUBW_MAX), .BURST_WORDS(BURST_WORDS), .DESKEW_W(DESKEW_W)
+        .SUBW_MAX(SUBW_MAX), .BURST_WORDS(BURST_WORDS)
     ) u_dfi (
         .ctl_clk(aclk), .ctl_rstn(aresetn),
         .cmd_valid_i(w_cmd_v), .cmd_ready_o(w_cmd_rdy), .cmd_data_i(w_cmd_data),
@@ -354,7 +353,6 @@ module pumice_core
         .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn), .memtype_i(memtype_i),
         .rd_phase_i(rd_phase_i), .wr_phase_i(wr_phase_i),
         .t_phy_wrlat_i(t_phy_wrlat_i), .t_rddata_en_i(t_rddata_en_i),
-        .deskew_lo_i(deskew_lo_i), .deskew_hi_i(deskew_hi_i),
         .gear_i(gear_i),
         .n_subcmd_i(w_n_subcmd), .sub_col_stride_i(w_sub_col_stride),
         .sub_phase_stride_i(w_sub_phase_stride),

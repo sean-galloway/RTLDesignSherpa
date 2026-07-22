@@ -299,6 +299,10 @@ class DDR2CharDriver:
         Pass restore_geometry=False only to observe the raw reset state.
         """
         self.regs.write("CTRL", soft_reset=1)
+        # The reset just reverted every pumice CSR to its RTL default — drop
+        # the write-through shadow so subsequent shadowed writes re-seed from
+        # the RDL resets instead of pre-reset values.
+        self.pumice.invalidate_shadow()
         if restore_geometry:
             time.sleep(0.005)
             self.program_geometry(rd_phase=rd_phase, wr_phase=wr_phase)
@@ -348,13 +352,6 @@ class DDR2CharDriver:
         init_restart(); then check reads."""
         self.pumice.init_restart()
 
-    def set_deskew(self, deskew_lo: int = 0, deskew_hi: int = 0) -> None:
-        """Per-64b-beat read DESKEW (PHY_TIMING.deskew_lo/hi). The a7ddrphy returns
-        the two 64b beats of a 128b DFI word at different capture latencies; these
-        independently delay the LOW/HIGH beat capture to realign them. Train at
-        bring-up (sweep for beats_mismatched==0); set while idle. rmw preserves the
-        other PHY_TIMING fields (t_phy_wrlat/t_rddata_en/memtype/refresh_burst)."""
-        self.pumice.set_deskew(deskew_lo=deskew_lo, deskew_hi=deskew_hi)
 
     def set_dfi_cmd_delay(self, cmd_delay: int) -> None:
         """Real-time DFI command->write-data alignment (a7ddrphy

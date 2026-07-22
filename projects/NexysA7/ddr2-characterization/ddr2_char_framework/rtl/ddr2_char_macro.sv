@@ -519,11 +519,6 @@ module ddr2_char_macro
         .BL              (DRAM_BL),
         .NUM_ENTRIES     (WR_CAM_DEPTH),
         .N_SRAM_SLOTS    (WR_CAM_DEPTH),
-        // Read-deskew field width. 2 => deskew_lo/hi reach 0..3 DFI cyc (was capped
-        // at 0..1). At the lower board rate the per-beat half-to-half read skew can
-        // exceed 1 DFI cycle; DESKEW_W=1 could not express it (48/64 floor invariant
-        // to deskew sweep). CSR fields are already 2-bit; reset 0/0 = bit-identical.
-        .DESKEW_W        (2),
         .CSR_ADDR_W      (APB_ADDR_WIDTH)
     ) u_ctrl (
         .aclk                  (mc_clk),

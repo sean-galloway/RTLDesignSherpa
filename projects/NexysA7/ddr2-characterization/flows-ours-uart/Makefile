@@ -42,7 +42,7 @@ UART ?= /dev/ttyUSB1
 BAUD ?= 115200
 
 .PHONY: help project synth bitstream program utilization timing smoke status \
-        level simple characterize host-test sim sim-smoke sim-simple sim-level \
+        level simple characterize host-test sim sim-smoke sim-simple sim-level wrapup \
         lint clean clean-all
 
 help:
@@ -113,31 +113,28 @@ program:
 # ---- Host-side smoke / status ---------------------------------------------
 smoke:
 	@echo "[smoke] running host/run_smoke.py against $(UART)"
-	@cd $(SELF_DIR)/host && python3 run_smoke.py --port $(UART) --baud $(BAUD)
+	@cd $(SELF_DIR)/host && python3 run_smoke.py --port auto --baud $(BAUD)
 
 status:
-	@cd $(SELF_DIR)/host && python3 ddr2_char.py --port $(UART) --baud $(BAUD)
+	@cd $(SELF_DIR)/host && python3 ddr2_char.py --port auto --baud $(BAUD)
 
 # ---- pumice_master.py orchestration (on-board; needs a programmed FPGA) ----
 level:
 	@echo "[level] a7ddrphy read/write leveling against $(UART)"
-	@cd $(SELF_DIR)/host && python3 pumice_master.py --port $(UART) --baud $(BAUD) --level-only
+	@cd $(SELF_DIR)/host && python3 pumice_master.py --port auto --baud $(BAUD) --level-only
 
 sweep-rddly:
 	@echo "[sweep-rddly] sweep DFI_TUNING.rddata_delay 0..15, report beats_mismatched"
-	@cd $(SELF_DIR)/host && python3 sweep_rddata_delay.py --port $(UART) --baud $(BAUD)
+	@cd $(SELF_DIR)/host && python3 sweep_rddata_delay.py --port auto --baud $(BAUD)
 
-train-deskew:
-	@echo "[train-deskew] sweep PHY_TIMING.deskew_lo x deskew_hi, find beats_mismatched==0"
-	@cd $(SELF_DIR)/host && python3 train_deskew.py --port $(UART) --baud $(BAUD)
 
 simple:
 	@echo "[simple] init (+leveling) + one write-then-read integrity pass"
-	@cd $(SELF_DIR)/host && python3 pumice_master.py --port $(UART) --baud $(BAUD) --simple
+	@cd $(SELF_DIR)/host && python3 pumice_master.py --port auto --baud $(BAUD) --simple
 
 characterize:
 	@echo "[characterize] init + full workload-sweep characterization"
-	@cd $(SELF_DIR)/host && python3 pumice_master.py --port $(UART) --baud $(BAUD) --full
+	@cd $(SELF_DIR)/host && python3 pumice_master.py --port auto --baud $(BAUD) --full
 
 # ---- board-less host-logic unit tests (mock UART; CI-safe, no FPGA) ----
 host-test:
@@ -210,3 +207,25 @@ clean-all: clean
 	find $(SELF_DIR) -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find $(SELF_DIR) -type f -name "*.pyc"    -delete 2>/dev/null || true
 	@echo "[clean-all] done."
+
+# ---- board wrap-up: program -> level -> soak gate -> perf characterization ----
+# The full "is the board solid" flow (mirrors the STREAM char pattern):
+#   1. flash the freshly built bitstream
+#   2. level (cached window; delete the cache after a bitstream change)
+#   3. refresh soak = the arbiter refresh-collision regression gate
+#   4. perf matrix at board scale -> CSV + summary (bus meters + latency hists)
+WRAPUP_CSV := $(SELF_DIR)/../char_results/char_$(shell date +%Y-%m-%d)_wrapup.csv
+wrapup:
+	@$(MAKE) --no-print-directory program
+	@echo "[wrapup] leveling (fresh cache — post-reprogram)"
+	@rm -f $(SELF_DIR)/host/level_cache.json
+	cd $(SELF_DIR)/host && python3 pumice_master.py --port auto --baud $(BAUD) \
+	    --level-only --level-cache level_cache.json
+	@echo "[wrapup] refresh soak (regression gate)"
+	cd $(SELF_DIR)/host && python3 pumice_master.py --port auto --baud $(BAUD) \
+	    --soak --level-cache level_cache.json --no-level
+	@echo "[wrapup] perf characterization matrix -> $(WRAPUP_CSV)"
+	cd $(SELF_DIR)/host && python3 pumice_master.py --port auto --baud $(BAUD) \
+	    --char --char-configs matrix --char-level medium --char-scale 1000 \
+	    --level-cache level_cache.json --no-level --csv $(WRAPUP_CSV)
+	@echo "[wrapup] done: results in $(WRAPUP_CSV)"

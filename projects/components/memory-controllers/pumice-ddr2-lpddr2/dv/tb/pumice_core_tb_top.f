@@ -1,49 +1,8 @@
-# Filelist for pumice_core (new 3-layer controller)
-+incdir+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/includes
-+incdir+$REPO_ROOT/rtl/amba/includes
-$REPO_ROOT/rtl/amba/includes/reset_defs.svh
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/includes/pumice_pkg.sv
-# common / gaxi / amba
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/counter_johnson.sv
-$REPO_ROOT/rtl/common/find_first_set.sv
-$REPO_ROOT/rtl/common/find_last_set.sv
-$REPO_ROOT/rtl/common/leading_one_trailing_one.sv
-$REPO_ROOT/rtl/common/johnson2bin.sv
-$REPO_ROOT/rtl/common/glitch_free_n_dff_arn.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
-$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
-$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
-$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_async.sv
-$REPO_ROOT/rtl/amba/axi4/axi4_slave_wr.sv
-$REPO_ROOT/rtl/amba/axi4/axi4_slave_rd.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_axi_burst_chopper.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_wr_splitter.sv
-# pumice fubs
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/addr_mapper.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_wr_intake.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_rd_intake.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_wr_data_cam.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_rd_cmd_cam.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_bank_timers.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/global_timers.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/refresh_ctrl.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/init_sequencer.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/mode_register.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/dfi_cmd_formatter.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_cdc.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_cmd_path.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_wr_serializer.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_rd_aligner.sv
-# macros
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_axi4_ifc.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_mem_cmd_scheduler.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_dfi_layer.sv
-# top
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/top/pumice_core.sv
+# Filelist for pumice_core_tb_top.
+# The DUT closure comes from the component's OWN filelist — never hand-list
+# rtl/common or rtl/amba sources here (they rot when a component's internal
+# deps change; see the STREAM fub filelists for the pattern).
+-f $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/filelists/top/pumice_core.f
 # dv checkers (standalone scoreboards, instantiated in the tb top)
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/dv/checkers/pumice_cmd_history_checker.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/dv/checkers/pumice_dfi_rd_return_checker.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/dv/tb/pumice_core_tb_top.sv

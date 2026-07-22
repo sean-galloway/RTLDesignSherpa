@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Wide coarse read-timing sweep: t_rddata_en x rddata_delay (deskew=0, fixed
+"""Wide coarse read-timing sweep: t_rddata_en x rddata_delay (fixed
 eye bitslip/tap). The board rate changed (266 MT/s), which shifts the a7ddrphy
 read-return window; the earlier sweep only covered rddata_delay 7..9. If any
 cell drops well below the 48/64 floor, the read window just moved with frequency
@@ -37,7 +37,7 @@ def main() -> int:
     d = DDR2CharDriver(port=args.port, baudrate=args.baud)
     print(f"BUILD_ID=0x{d.build_id():08X}", flush=True)
 
-    # Fix the analog eye + deskew off; we are only moving the coarse window.
+    # Fix the analog eye; we are only moving the coarse window.
     lv = A7Leveling(d, base_addr=args.base, burst_len=args.blen, verbose=False)
     lv.apply_taps(args.eye_bitslip, args.eye_tap)
 
@@ -47,7 +47,6 @@ def main() -> int:
                              t_rddata_en=rden, rd_in_order=True)
         d.set_dfi_phase(rd_phase=rdphase, wr_phase=0)
         d.set_dfi_rddata_delay(rddly)
-        d.set_deskew(deskew_lo=0, deskew_hi=0)
         d.clear_stats()
         d.program_wr_engine(start_addr=args.base, burst_len=args.blen,
                             txn_count=args.txn, stride_0=args.blen * 8,

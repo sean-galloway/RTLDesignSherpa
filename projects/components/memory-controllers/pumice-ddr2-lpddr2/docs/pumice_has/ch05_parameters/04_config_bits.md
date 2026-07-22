@@ -60,7 +60,7 @@ Register block at the same offset (0x040) in every controller. These bits govern
 | `age_max_runtime`     | 8     | all          | Anti-starvation age cap; runtime override of `AGE_MAX`.                     |
 | `txn_queue_high_water`| 8     | all          | Backpressure threshold; AXI `awready` deasserts when queue ≥ threshold.     |
 | `lookahead_max_obs`   | 4     | all (R only) | Echo of build-time `LOOKAHEAD_DEPTH_MAX`. Software discovery.               |
-| `qos_high_priority`   | 1     | all          | When 1, scheduler boosts requests with `awqos`/`arqos` ≥ 8.                 |
+| `qos_high_priority`   | 1     | all          | **PLANNED — not in the RDL yet** (roadmap Axis 1, QoS step): when 1, scheduler boosts requests with `awqos`/`arqos` ≥ 8. |
 | `bank_group_balance`  | 1     | DDR4+        | Round-robin across bank groups in scheduler tie-break (DDR4/LPDDR4 only); N/A elsewhere. |
 
 ## REFRESH_TUNING (Refresh Family Bits)

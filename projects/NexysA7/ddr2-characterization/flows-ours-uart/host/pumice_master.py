@@ -151,22 +151,25 @@ class A7Leveling:
     N_BITSLIPS  = 8      # a7ddrphy ISERDES bitslip range (mod-8)
     MAX_RD_TAPS = 32     # IDELAYE2 5-bit tap
 
+    # Board-validated bring-up tuple (2026-07-21, rate-2/BL4 build, BUILD_ID
+    # 0x44445232): the s7ddrphy asserts rddata_valid a FIXED read_latency (8)
+    # sys cycles after rddata_en while the DATA arrives at its own physical
+    # latency, so rddata_delay slides the DATA onto the valid window (coarse)
+    # and bitslip/tap cover the remainder. wrlat=1/rden=6/rddata_delay=7 gives
+    # a 17-tap-wide eye at bitslip 0 (centre tap 8); soaks clean at default
+    # tREFI (residual row-sized corruption under refresh pressure is the open
+    # TASK-SCHED-REFRESH arbiter bug, not the read path).
     def __init__(self, drv: DDR2CharDriver, base_addr: int = 0x0000_0000,
                  burst_len: int = 8, txn_count: int = 2,
-                 seed: int = 0x1EAF_F00D, t_phy_wrlat: int = 0,
-                 t_rddata_en: int = 6, rddata_delay: int = 0,
-                 rd_phase: int = 0, lane_mask: int = 0b11,
-                 deskew_lo: int = 0, deskew_hi: int = 0, verbose: bool = True):
+                 seed: int = 0x1EAF_F00D,
+                 t_phy_wrlat: int = int(os.environ.get("TEST_T_PHY_WRLAT", "1")),
+                 t_rddata_en: int = 6,
+                 rddata_delay: int = int(os.environ.get("TEST_RDDATA_DELAY", "7")),
+                 rd_phase: int = 0, lane_mask: int = 0b11, verbose: bool = True):
         self.drv = drv
         self.base = base_addr
         self.blen = burst_len
         self.txn = txn_count
-        # Per-64b-beat read deskew held across the whole sweep. bitslip/tap align
-        # DQ *bits within a beat*; deskew aligns the two 64b *beats to each other*
-        # — independent layers. If deskew is wrong EVERY bitslip/tap fails, so the
-        # eye search must run with the trained deskew applied (level-with-deskew).
-        self.dsk_lo = deskew_lo
-        self.dsk_hi = deskew_hi
         self.seed = seed
         self.wrlat = t_phy_wrlat
         self.rden = t_rddata_en
@@ -203,9 +206,6 @@ class A7Leveling:
         # soft_reset above reverted the pumice CSRs to their RTL resets, which
         # are the 1:4 / BL8 values and do NOT match this DFI_RATE=2 / BL4 build.
         program_geometry(self.drv, rd_phase=self.rdphase, wr_phase=0)
-        # Re-apply the trained per-beat deskew every reinit (robust even if a
-        # soft_reset clears PHY_TIMING). deskew 0/0 is a bit-identical no-op.
-        self.drv.set_deskew(deskew_lo=self.dsk_lo, deskew_hi=self.dsk_hi)
         # A prior failing read leaves a STICKY rd_error/any_error latch that
         # soft_reset does not clear (it lives in harness_csr) — clear_stats
         # does. Without this, wait_engine() would false-negative every write
@@ -228,7 +228,11 @@ class A7Leveling:
                                    hash_seed0=self.seed)
         self.drv.clear_stats()
         self.drv.start_rd()
-        wait_engine(self.drv, "rd")   # rd_error on mismatch is fine; check beats
+        # ignore_error: rd_error on mismatch is fine (we check beats), but the
+        # default bail also reads the counter EARLY. A read that never asserts
+        # done counted nothing — beats_mismatched=0 there is a FALSE PASS.
+        if not wait_engine(self.drv, "rd", ignore_error=True):
+            return False               # read hang: a fail, not a clean pass
         return self.drv.beats_mismatched() == 0
 
     def _reset_read_path(self) -> None:
@@ -341,9 +345,16 @@ class SimpleResult:
 
 
 class SimpleTest:
+    # Defaults = the board-validated bring-up tuple (TASK-BRINGUP 2026-07-21).
+    # Defaults = the board-validated bring-up tuple (TASK-BRINGUP 2026-07-21).
+    # PHY-specific: the cocotb DFI-loopback sim (zero-skew BFM) overrides via
+    # TEST_T_PHY_WRLAT=0 / TEST_RDDATA_DELAY=0 in the test env — same pattern
+    # as the TEST_DRAM_BL geometry overrides.
     def __init__(self, drv: DDR2CharDriver, base_addr: int = 0x0000_0000,
-                 t_phy_wrlat: int = 0, t_rddata_en: int = 6,
-                 rddata_delay: int = 0, rd_phase: int = 0,
+                 t_phy_wrlat: int = int(os.environ.get("TEST_T_PHY_WRLAT", "1")),
+                 t_rddata_en: int = 6,
+                 rddata_delay: int = int(os.environ.get("TEST_RDDATA_DELAY", "7")),
+                 rd_phase: int = 0,
                  level_cache: Optional[str] = None):
         self.drv = drv
         self.base = base_addr
@@ -356,6 +367,18 @@ class SimpleTest:
         # window fails verify, e.g. after a bitstream change).
         self.level_cache = level_cache
         self.level: Optional[LevelingResult] = None
+
+    def reinit_datapath(self) -> None:
+        """soft_reset + re-apply the controller cfg (PHY taps persist) --
+        per-round cleanup for soaks without re-leveling."""
+        d = self.drv
+        d.soft_reset()
+        time.sleep(0.005)
+        d.set_controller_cfg(memtype=dc.MEMTYPE_DDR2,
+                             t_phy_wrlat=self.t_phy_wrlat,
+                             t_rddata_en=self.t_rddata_en, rd_in_order=True)
+        d.set_dfi_rddata_delay(self.rddata_delay)
+        d.clear_stats()
 
     def init(self, do_leveling: bool = True) -> None:
         d = self.drv
@@ -419,6 +442,52 @@ class SimpleTest:
         crc_ok = match if valid else True
         ok = wr_ok and rd_ok and (mism == 0) and crc_ok
         return SimpleResult(ok=ok, expected=exp, actual=act, mismatched=mism)
+
+
+# =============================================================================
+# Refresh soak -- the arbiter refresh-collision regression gate (TASK-BRINGUP /
+# TASK-SCHED-REFRESH). Board-validates that reads stay clean under refresh
+# pressure: rounds of 1024-beat write-then-read at default tREFI, at a TINY
+# tREFI (worst-case pressure; the pre-fix arbiter corrupted a full row here),
+# and at a huge tREFI (control). Honest metrics: a hung read is a FAIL, never a
+# clean 0 (see wait_engine).
+# =============================================================================
+def refresh_soak(drv: DDR2CharDriver, st: "SimpleTest",
+                 rounds: int = 5, blen: int = 16, txn: int = 64) -> bool:
+    def one_soak(tag: str, trefi: Optional[int], n: int) -> int:
+        dirty = 0
+        for i in range(n):
+            st.reinit_datapath()
+            if trefi is not None:
+                drv.pumice.set_refresh_interval(trefi)
+            seed = 0xBEEF000 + i
+            drv.clear_stats()
+            drv.program_wr_engine(start_addr=st.base, burst_len=blen,
+                                  txn_count=txn, stride_0=blen * 8,
+                                  lfsr_seed=seed, data_mode=True, hash_seed0=seed)
+            drv.start_wr()
+            if not wait_engine(drv, "wr"):
+                dirty += 1
+                print(f"[soak {tag}] round {i}: WR HANG")
+                continue
+            drv.program_rd_engine(start_addr=st.base, burst_len=blen,
+                                  txn_count=txn, stride_0=blen * 8,
+                                  lfsr_seed=seed, data_mode=True, hash_seed0=seed)
+            drv.clear_stats()
+            drv.start_rd()
+            done = wait_engine(drv, "rd", ignore_error=True)
+            mm = drv.beats_mismatched()
+            if not done or mm:
+                dirty += 1
+            print(f"[soak {tag}] round {i}: done={done} mism={mm}")
+        print(f"[soak {tag}] {dirty}/{n} rounds dirty")
+        return dirty
+
+    total = 0
+    total += one_soak("tREFI default", None, rounds)
+    total += one_soak("tREFI tiny 0x40", 0x40, rounds)
+    total += one_soak("tREFI huge 0xFFFF", 0xFFFF, rounds)
+    return total == 0
 
 
 # =============================================================================
@@ -515,10 +584,12 @@ def main() -> int:
                          "internally, so 0 is correct here (on-silicon: rd_phase=1 "
                          "made reads WORSE, 16/16). Non-zero is for a PHY that "
                          "genuinely consumes a per-command rdphase off the DFI bus.")
-    ap.add_argument("--rd-delay", type=int, default=8,
-                    help="dfi_rddata_delay: sys-cycles to delay read data to "
-                         "meet the a7ddrphy's late rddata_valid (~read_latency=8; "
-                         "0=passthrough, for a PHY with no rddata/valid skew)")
+    ap.add_argument("--rd-delay", type=int,
+                    default=int(os.environ.get("TEST_RDDATA_DELAY", "7")),
+                    help="dfi_rddata_delay: sys-cycles to delay read DATA onto "
+                         "the a7ddrphy's fixed valid (= rddata_en + "
+                         "read_latency 8). Board-validated tuple: 7 (with "
+                         "t_rddata_en=6, t_phy_wrlat=1 — see TASK-BRINGUP)")
     ap.add_argument("--char-level", default="medium",
                     choices=["basic", "medium", "full"],
                     help="scenario depth for --char (basic/medium/full)")
@@ -545,8 +616,9 @@ def main() -> int:
                          "file exists it is RESTORED (apply + verify, no ~256-"
                          "iter sweep); a failed verify re-levels + re-saves. "
                          "Board+PHY specific; delete it after a bitstream change.")
-    ap.add_argument("--clk-mhz", type=float, default=100.0,
-                    help="controller clock for bandwidth (MB/s) derivation")
+    ap.add_argument("--clk-mhz", type=float, default=66.667,
+                    help="controller clock for bandwidth (MB/s) derivation "
+                         "(rate-2 board build sys clock = 66.67 MHz)")
     mode = ap.add_mutually_exclusive_group(required=True)
     mode.add_argument("--level-only", action="store_true",
                       help="run leveling and report the eye, nothing else")
@@ -554,6 +626,10 @@ def main() -> int:
                       help="init + one write-then-read integrity pass")
     mode.add_argument("--full", action="store_true",
                       help="init + full workload-sweep characterization")
+    mode.add_argument("--soak", action="store_true",
+                      help="refresh-pressure read soak (default / tiny / huge "
+                           "tREFI) -- the arbiter refresh-collision regression "
+                           "gate; nonzero exit on any dirty round")
     mode.add_argument("--char", action="store_true",
                       help="init + access-pattern characterization sweep "
                            "(incremental / row-major / col-major page attack)")
@@ -604,6 +680,14 @@ def main() -> int:
         n_ok = sum(1 for p in pts if p.ok)
         print(f"\nfull characterization: {n_ok}/{len(pts)} workloads passed")
         return 0 if n_ok == len(pts) else 1
+
+    if args.soak:
+        st = SimpleTest(drv, base_addr=args.base, rd_phase=args.rd_phase,
+                        rddata_delay=args.rd_delay, level_cache=args.level_cache)
+        st.init(do_leveling=not args.no_level)
+        ok = refresh_soak(drv, st)
+        print(f"soak: {'PASS' if ok else 'FAIL'}")
+        return 0 if ok else 1
 
     if args.char:
         # Lazy import keeps pumice_char's `from pumice_master import wait_engine`

@@ -38,7 +38,18 @@ Per controller cycle, emit ONE abstract command into the output FIFO:
 Priority:
 1. **init**: `!init_done` → forward `init_sequencer` command stream.
 2. **refresh**: `refresh_req` → PRE any active banks, then REF (grant);
-   hold through `refresh_drain_active`.
+   hold through `refresh_drain_active`. The REF itself fires only under
+   `w_ref_safe`: registered view shows all rows closed AND nothing
+   row-affecting in flight or inside its 2-cycle guard window (the stale-state
+   blind spot that let a REFab collide with a just-issued ACT — silicon-
+   confirmed as refresh-rate-correlated row corruption) AND the previous REF's
+   tRFC recovery has elapsed. Mission-mode tRFC (`TIMINGS_RFC_REFI.tRFC` →
+   `t_rfc_i`) is enforced by an arbiter-side down-counter loaded on each fired
+   REF; while nonzero, ACT picks and further REFs are blocked. The 2-cycle
+   fired-op guard also covers columns, so a drain-PRE cannot land inside the
+   bank timers' tRTP/tWR registration lag. Audited by
+   `dv/checkers/pumice_cmd_history_checker.sv` (bound in the macro TB,
+   `$fatal` on violation).
 3. **normal traffic** (reads + writes):
    - probe wr CAM & rd CAM `sched_lu[N]` with each bank's `bank_open_row`
      → per-bank row-hit candidates (+ `oldest` ports as fallback);

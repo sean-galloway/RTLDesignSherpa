@@ -32,11 +32,16 @@ def set_tap(drv, tap):
         strobe(drv, dc.PHY_RDLY_DQ_INC)
 
 
-def one_test(drv, wrlat, rden, base, blen, txn, seed):
+def one_test(drv, wrlat, rden, base, blen, txn, seed, rdly=0):
     drv.soft_reset()
     time.sleep(0.004)
     drv.set_controller_cfg(memtype=dc.MEMTYPE_DDR2, t_phy_wrlat=wrlat,
                            t_rddata_en=rden, rd_in_order=True)
+    # rddata_delay: the s7ddrphy asserts rddata_valid a FIXED read_latency (8)
+    # sys cycles after rddata_en, while the DATA lands at its physical latency
+    # (~CL + serdes) independent of rddata_en. rddata_delay slides the DATA in
+    # whole sys cycles to meet valid; bitslip/tap cover the sub-cycle remainder.
+    drv.set_dfi_rddata_delay(rdly)
     drv.clear_stats()
     drv.program_wr_engine(start_addr=base, burst_len=blen, txn_count=txn,
                           stride_0=blen * 8, lfsr_seed=seed, data_mode=True,
@@ -49,7 +54,12 @@ def one_test(drv, wrlat, rden, base, blen, txn, seed):
                           hash_seed0=seed)
     drv.clear_stats()
     drv.start_rd()
-    wait_engine(drv, "rd")
+    # ignore_error: a data mismatch latches rd_error, and the default bail
+    # reads beats_mismatched EARLY (partial count). A read that never asserts
+    # done counted nothing — beats_mismatched=0 is a FALSE PASS — so a hang
+    # must be reported as a hang, never as a count.
+    if not wait_engine(drv, "rd", timeout_s=2.0, ignore_error=True):
+        return -2                      # read hang: not a measurement
     return drv.beats_mismatched()
 
 
@@ -58,7 +68,10 @@ def main():
     ap.add_argument("--port", default="auto")
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--wrlat", default="0,1,2,3")
-    ap.add_argument("--rden", default="5,6,7,8,9")
+    ap.add_argument("--rden", type=int, default=6,
+                    help="fixed t_rddata_en (valid = rden + PHY read_latency 8)")
+    ap.add_argument("--rdly", default="0,1,2,3,4,5,6,7,8,9,10",
+                    help="rddata_delay sweep (slides DATA onto the valid window)")
     ap.add_argument("--tap", type=int, default=16)
     ap.add_argument("--blen", type=int, default=4)
     ap.add_argument("--txn", type=int, default=2)
@@ -66,32 +79,40 @@ def main():
     args = ap.parse_args()
 
     wrlats = [int(x) for x in args.wrlat.split(",")]
-    rdens = [int(x) for x in args.rden.split(",")]
+    rdlys = [int(x) for x in args.rdly.split(",")]
     total = args.blen * args.txn
 
     args.port = dc.autodetect_port(args.baud, want=args.port)
 
     drv = DDR2CharDriver(port=args.port, baudrate=args.baud)
     print(f"BUILD_ID=0x{drv.build_id():08X}  (full-mismatch = {total} beats)")
-    print(f"inner bitslip scan (0..7) at IDELAY tap={args.tap}; cell = min beats over bitslips (bitslip@min)\n")
+    print(f"t_rddata_en={args.rden} fixed; inner bitslip scan (0..7) at IDELAY "
+          f"tap={args.tap}; cell = min beats over bitslips (bitslip@min)\n")
 
-    header = "wrlat\\rden " + " ".join(f"{r:>7}" for r in rdens)
+    header = "wrlat\\rdly " + " ".join(f"{r:>7}" for r in rdlys)
     print(header)
     hits = []
     for wl in wrlats:
         cells = []
-        for rd in rdens:
+        for rd in rdlys:
             best_mm, best_bs = total + 1, -1
+            hangs = 0
             for bs in range(8):
                 set_tap(drv, args.tap)
                 for _ in range(bs):
                     strobe(drv, dc.PHY_RDLY_DQ_BITSLIP)
-                mm = one_test(drv, wl, rd, 0x0, args.blen, args.txn, args.seed)
+                mm = one_test(drv, wl, args.rden, 0x0, args.blen, args.txn,
+                              args.seed, rdly=rd)
+                if mm == -2:
+                    hangs += 1
                 if 0 <= mm < best_mm:
                     best_mm, best_bs = mm, bs
                 if mm == 0:
                     break
-            cells.append(f"{best_mm:>3}@b{best_bs}" if best_bs >= 0 else "  wr")
+            if best_bs >= 0:
+                cells.append(f"{best_mm:>3}@b{best_bs}" + ("H" if hangs else " "))
+            else:
+                cells.append("   hng " if hangs else "    wr ")
             if best_mm < total:
                 hits.append((wl, rd, best_bs, best_mm))
         print(f"{wl:>9} " + " ".join(cells))
@@ -101,9 +122,9 @@ def main():
         hits.sort(key=lambda h: h[3])
         print("PROMISING (below full mismatch):")
         for wl, rd, bs, mm in hits[:10]:
-            print(f"  wrlat={wl} rden={rd} bitslip={bs} -> {mm} beats mismatched")
+            print(f"  wrlat={wl} rddata_delay={rd} bitslip={bs} -> {mm} beats mismatched")
     else:
-        print("Every (wrlat,rden,bitslip) still full-mismatch at this tap. "
+        print("Every (wrlat,rddata_delay,bitslip) still full-mismatch at this tap. "
               "The data read back never partially matches -> writes likely not "
               "landing correctly in DRAM (analog write path), not a read-gate issue.")
 

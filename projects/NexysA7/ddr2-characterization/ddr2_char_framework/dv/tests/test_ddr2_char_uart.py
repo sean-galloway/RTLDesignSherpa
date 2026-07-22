@@ -151,10 +151,9 @@ def _make_dfi_slave(dut):
                                             read_en_gated=True)
     else:
         _timing = None
-    # Per-64b-beat READ SKEW (a7ddrphy: the two beats of a 128b DFI word return at
-    # different capture latencies). Non-zero reproduces the on-silicon HALF-DFI-WORD
-    # phase skew; the controller's PHY_TIMING.deskew_hi/lo must be trained to cancel
-    # it. 0 = off (bit-identical). Needs a timing profile (a7ddrphy_bl4).
+    # Per-64b-beat READ SKEW injection (DFISlavePHY model knob, default 0 = off).
+    # Kept as a fault-injection hook; the controller-side deskew CSR that once
+    # "cancelled" it was removed (disproven dead-end — see TASKS.md TASK-DESKEW).
     _hi_skew = int(os.environ.get("TEST_READ_HI_SKEW", "0"))
     _lo_skew = int(os.environ.get("TEST_READ_LO_SKEW", "0"))
     if _timing is not None and (_hi_skew or _lo_skew):
@@ -280,10 +279,6 @@ async def cocotb_test_uart_pagehit(dut):
         drv.set_dfi_phase(rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
                           wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
                           gear_ratio=GEAR_RATIO, bl=DRAM_BL)
-        # Per-beat read deskew (cancels the modelled a7ddrphy half-word skew when
-        # TEST_READ_HI_SKEW is set). 0/0 default = untouched.
-        drv.set_deskew(deskew_lo=int(os.environ.get("TEST_DESKEW_LO", "0")),
-                       deskew_hi=int(os.environ.get("TEST_DESKEW_HI", "0")))
         seed = 0xABCD1234
         stride = 4 * 8   # BL * bytes_per_beat -> consecutive columns, same row
         drv.program_wr_engine(start_addr=0x0, burst_len=4, txn_count=NTXN,
@@ -453,6 +448,10 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
     os.makedirs(log_dir, exist_ok=True)
 
     extra_env = {
+        # DFI-loopback sim: zero-skew BFM -> the host programs' board-tuple
+        # PHY-timing defaults (t_phy_wrlat=1 / rddata_delay=7) do not apply.
+        "TEST_T_PHY_WRLAT": os.environ.get("TEST_T_PHY_WRLAT", "0"),
+        "TEST_RDDATA_DELAY": os.environ.get("TEST_RDDATA_DELAY", "0"),
         "DUT": dut_name,
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{tag}.xml"),
@@ -468,12 +467,8 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         "TEST_DRAM_BL": str(DRAM_BL),
         "TEST_DRAM_BEAT_BYTES": str(dram_beat_width // 8),
         "TEST_DRAM_DEVICE_BYTES": str(dram_device_width // 8),
-        # per-beat read skew (model) + deskew (controller CSR) — forwarded so the
-        # deskew red->green wrappers reach the sim.
         "TEST_READ_HI_SKEW": os.environ.get("TEST_READ_HI_SKEW", "0"),
         "TEST_READ_LO_SKEW": os.environ.get("TEST_READ_LO_SKEW", "0"),
-        "TEST_DESKEW_HI": os.environ.get("TEST_DESKEW_HI", "0"),
-        "TEST_DESKEW_LO": os.environ.get("TEST_DESKEW_LO", "0"),
         # Faithful DFI write-timing: capture wrdata at command+write_latency
         # (like real DRAM) instead of lenient FIFO-on-wrdata_en. Reproduces the
         # on-silicon write-timing failure the lenient BFM hides.
@@ -598,26 +593,6 @@ def test_ddr2_char_uart_pagehit_rate4_x16(request):
          t_phy_wrlat=0)
 
 
-def test_ddr2_char_uart_pagehit_rate4_x16_deskew(request):
-    # Integration red->green for the per-beat DESKEW fix. Inject the a7ddrphy
-    # HALF-DFI-WORD skew into the FAITHFUL model (TEST_READ_HI_SKEW=1) -> the high
-    # 64b beat of each DFI word returns one cycle late, the on-silicon 2/4
-    # corruption (which the un-skewed model never reproduced -> why every prior
-    # integration test was green while the board failed). Program the trained
-    # deskew_hi=1 and the read stream completes CLEAN (pagehit asserts mism==0).
-    # Proves PHY_TIMING.deskew_hi cancels the board skew END-TO-END (model + CSR).
-    os.environ["TEST_READ_HI_SKEW"] = "1"
-    os.environ["TEST_DESKEW_HI"] = "1"
-    try:
-        _run("cocotb_test_uart_pagehit", dfi_rate=4, dram_beat_width=32,
-             dram_device_width=16, a7_read_bl4=True, read_latency=8, t_phy_wrlat=0)
-    finally:
-        os.environ.pop("TEST_READ_HI_SKEW", None)
-        os.environ.pop("TEST_DESKEW_HI", None)
-
-
-# ---- rate-2 / GEAR-2 (the NEW board config: match LiteDRAM's proven nphases=2,
-#      which serializes only DFI phases 0,1 at 4 beats/sys-cycle; AXI=64, beat=32) -
 def test_ddr2_char_uart_smoke_rate2_beat32(request):
     _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32)
 
@@ -712,29 +687,29 @@ def test_ddr2_char_uart_pagehit_rate2_x16_free(request):
          a7_read_free=True, a7_read_valid_lat=5)
 
 
+@pytest.mark.xfail(strict=True, reason="deliberate valid/data decoupling "
+                   "(valid_lat=6 vs data-anchored cadence) must be SEEN as "
+                   "mismatches. On the board this class is aligned by the "
+                   "t_rddata_en/rddata_delay tuple, not RTL — see TASK-BRINGUP.")
 def test_ddr2_char_uart_pagehit_rate2_x16_free_earlyen(request):
-    # *** THE BOARD BUG, REPRODUCED NATURALLY IN SIM (offset=0). ***
-    # Same free-running a7ddrphy model, but the rddata_en->valid strobe is
-    # DECOUPLED from the command-anchored DATA by one DFI cycle (tCCD): the
-    # valid samples the DQ bus one cycle after the correct data has been
-    # OVERWRITTEN by the next read's word -> read N's data appears in read N+1's
-    # slot and read 0's slot returns ZERO, giving beats_mismatched == 2*txn
-    # (mism=16 for NTXN=8) -- the EXACT on-silicon ILA signature, with NO
-    # artificial read_device_word_offset injection. EXPECTED TO FAIL until the
-    # aligner respects the per-command (tCCD) read cadence in RTL.
+    # NEGATIVE model (strict xfail): the rddata_en->valid strobe DECOUPLED from
+    # the command-anchored data by one DFI cycle -> read N's data lands in read
+    # N+1's slot (beats_mismatched == 2*txn, the historical ILA signature).
     _run("cocotb_test_uart_pagehit", dfi_rate=2, dram_beat_width=32,
          dram_device_width=16, strict_write_timing=True, write_latency=0,
          strict_read_timing=True, read_latency=8, t_phy_wrlat=0,
          a7_read_free=True, a7_read_valid_lat=6)
 
 
+@pytest.mark.xfail(strict=True, reason="deliberate fault injection: a "
+                   "device-word window offset must be SEEN as mismatches "
+                   "(negative model). The #143-era premise that the board had "
+                   "this offset was disproven — the board reads clean at "
+                   "offset 0 with the wrlat=1/rden=6/rddata_delay=7 tuple.")
 def test_ddr2_char_uart_smoke_rate2_x16_readshift(request):
-    # Reproduce the on-board read corruption (#143) in sim: model the a7ddrphy
-    # 4-phase read-window offset (RDS-DV #32). offset=2 makes the DFISlavePHY hand
-    # back device-word-SHIFTED read data (slots grabbed wrong), so the char engine
-    # sees mism != 0 exactly like the board. EXPECTED TO FAIL until the DFI read
-    # latency is fixed so the effective offset is 0. The companion _readshift0
-    # test (offset=0) must still PASS -> proves the model is the only variable.
+    # NEGATIVE model (strict xfail): inject a device-word read-window offset
+    # (RDS-DV #32 DFISlavePHY knob) and require the metric to flag it. The
+    # companion _readshift0 (offset=0) must PASS -> the knob is bit-exact off.
     _run("cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
          dram_device_width=16, strict_write_timing=True, write_latency=0,
          strict_read_timing=True, read_latency=8, t_phy_wrlat=0,

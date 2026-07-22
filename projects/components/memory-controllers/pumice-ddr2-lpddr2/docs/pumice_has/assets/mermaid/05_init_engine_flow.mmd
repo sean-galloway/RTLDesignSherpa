@@ -10,11 +10,11 @@ flowchart TD
     d_prea1 --> d_emr2["EMR2 = 0x0000"]
     d_emr2 --> d_emr3["EMR3 = 0x0000"]
     d_emr3 --> d_emr1["EMR1 = 0x0000"]
-    d_emr1 --> d_mr0dll["MR0 + DLL reset = 0x0532<br/>(wait tDLLK)"]
+    d_emr1 --> d_mr0dll["MR0 + DLL reset = MR0.VAL|0x100 (rst 0x0533)<br/>(wait tDLLK)"]
     d_mr0dll --> d_prea2["PREA (Precharge All)"]
     d_prea2 --> d_ref1["REF #1 (wait tRFC)"]
     d_ref1 --> d_ref2["REF #2 (wait tRFC)"]
-    d_ref2 --> d_mr0["MR0 = 0x0432<br/>(DLL-reset bit cleared)"]
+    d_ref2 --> d_mr0["MR0 = MR0.VAL (rst 0x0433)<br/>(DLL-reset bit cleared)"]
     d_mr0 --> d_ocddef["EMR1 + OCD default = 0x0380"]
     d_ocddef --> d_ocdexit["EMR1 + OCD exit = 0x0000"]
     d_ocdexit --> done

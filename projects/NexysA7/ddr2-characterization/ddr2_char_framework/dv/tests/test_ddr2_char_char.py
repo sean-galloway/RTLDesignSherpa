@@ -203,6 +203,10 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
     os.makedirs(log_dir, exist_ok=True)
 
     extra_env = {
+        # DFI-loopback sim: zero-skew BFM -> the host programs' board-tuple
+        # PHY-timing defaults (t_phy_wrlat=1 / rddata_delay=7) do not apply.
+        "TEST_T_PHY_WRLAT": os.environ.get("TEST_T_PHY_WRLAT", "0"),
+        "TEST_RDDATA_DELAY": os.environ.get("TEST_RDDATA_DELAY", "0"),
         "DUT": dut_name,
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{tag}.xml"),

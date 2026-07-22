@@ -105,7 +105,7 @@ Everything downstream keys off the decoded `bl_o` and the device/beat widths (se
 sequencers or the address decode. `BYTE_OFFSET_WIDTH` keys off **device width, not
 BL**, so the column granularity is already BL-agnostic.
 
-**BC4 / burst-chop (DDR3/DDR4): out of scope — always issue full BL8.** DDR3 and
+**BC4 / burst-chop (DDR3/DDR4): out of scope — always issue the full fixed BL (BL8 at the RTL reset; the Nexys A7 board runs BL4).** DDR3 and
 DDR4 allow BC4 and BL8-on-the-fly (A12). That is the *only* case where one instance
 would see two effective burst lengths per transaction, which would break the
 fixed-BL datapath invariant. The design decision is to **not** support BC4: always

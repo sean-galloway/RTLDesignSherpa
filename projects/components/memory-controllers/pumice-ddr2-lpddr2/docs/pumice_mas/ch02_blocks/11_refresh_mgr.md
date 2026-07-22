@@ -29,6 +29,12 @@
 **Parent macro:** `pumice_mem_cmd_scheduler`
 **Status:** Implemented — FSM-free tREFI/pending/drain accumulator with a REFab/REFpb selector and REFpb bank rotor.
 
+> Refresh **recovery** (tRFC) is not this block's job: the arbiter
+> (`pumice_cmd_arbiter`) loads a down-counter from `TIMINGS_RFC_REFI.tRFC` on
+> each fired REF and blocks ACT/REF picks until it expires — see
+> [ch02/07](07_scheduler.md). `refresh_ctrl` only meters *when* refreshes are
+> owed.
+
 > Scope note: this module is `refresh_ctrl`. It is a compact, FSM-free
 > accumulator design — three registered counter blocks plus a bank rotor,
 > all strict-flopped at the outputs. It tracks the tREFI interval, keeps a

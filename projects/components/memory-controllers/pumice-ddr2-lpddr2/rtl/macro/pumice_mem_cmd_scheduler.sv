@@ -24,6 +24,14 @@ module pumice_mem_cmd_scheduler
     import pumice_pkg::*;
 #(
     parameter int NUM_RANKS   = 1,
+    // Optional issued-command-history scoreboard (audit-only; see the generate
+    // at the end). HIST_* are the JEDEC same-bank windows in MC cycles (0 = a
+    // check disabled); HIST_T_RFC should match the t_rfc_i the TB programs.
+    parameter int CMD_HISTORY_EN = 0,   // int (not bit): -G overrides are 32-bit
+    parameter int HIST_T_RCD  = 0,
+    parameter int HIST_T_RP   = 0,
+    parameter int HIST_T_RAS  = 0,
+    parameter int HIST_T_RFC  = 8,
     parameter int NUM_BANKS   = 8,
     parameter int ROW_WIDTH   = 14,
     parameter int COL_WIDTH   = 10,
@@ -55,6 +63,7 @@ module pumice_mem_cmd_scheduler
     input  logic [7:0]                t_rtw_i,
     input  logic [7:0]                t_ccd_i,
     input  logic [15:0]               t_refi_i,
+    input  logic [15:0]               t_rfc_i,          // mission-mode REF recovery (arbiter)
     input  logic [3:0]                refresh_burst_i,
     // init timing
     input  logic [15:0]               t_init_wait_i,
@@ -233,6 +242,7 @@ module pumice_mem_cmd_scheduler
         .init_done_i(init_done), .init_cmd_valid_i(init_cmd_valid),
         .init_cmd_op_i(init_cmd_op), .init_cmd_bank_i(init_cmd_bank), .init_cmd_row_i(init_cmd_row),
         .refresh_req_i(refresh_req), .refresh_drain_i(refresh_drain), .refresh_grant_o(refresh_grant),
+        .t_rfc_i(t_rfc_i),
         .bank_act_ready_i(w_bank_act_ready), .bank_rdwr_ready_i(w_bank_rdwr_ready),
         .bank_pre_ready_i(w_bank_pre_ready), .bank_row_active_i(w_bank_row_active),
         .bank_open_row_i(w_bank_open_row),
@@ -275,5 +285,28 @@ module pumice_mem_cmd_scheduler
 
     assign busy_o = !init_done || refresh_req || w_cmd_rd_valid
                  || (|w_bank_row_active[0]);
+
+    // ---- optional command-history scoreboard (CMD_HISTORY_EN) ---------------
+    // Fine-grained per-(rank,bank) shift-register record of the ISSUED stream
+    // (valid && ready, i.e. DFI issue order), auditing the JEDEC same-bank
+    // sequencing the coarse registered readiness can miss (REFab-with-row-open,
+    // positional tRCD/tRP/tRAS/tRFC). Generate-gated, default OFF: zero cost in
+    // the release build, always COMPILED (no ifdef rot). DV enables it with
+    // -GCMD_HISTORY_EN=1; the assertions are simulation-only ($fatal), and the
+    // history regs are synthesizable if an ILA build ever wants the trace.
+    generate if (CMD_HISTORY_EN != 0) begin : g_cmd_history
+        pumice_cmd_history_checker #(
+            .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS), .DEPTH(32),
+            .T_RCD(HIST_T_RCD), .T_RP(HIST_T_RP),
+            .T_RAS(HIST_T_RAS), .T_RFC(HIST_T_RFC)
+        ) u_cmd_history (
+            .clk        (aclk),
+            .rst_n      (aresetn),
+            .cmd_valid_i(cmd_valid_o && cmd_ready_i),
+            .cmd_op_i   (cmd_op_o),
+            .cmd_rank_i (cmd_rank_o),
+            .cmd_bank_i (cmd_bank_o)
+        );
+    end endgenerate
 
 endmodule : pumice_mem_cmd_scheduler

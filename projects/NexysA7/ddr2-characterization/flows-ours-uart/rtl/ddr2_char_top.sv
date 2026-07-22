@@ -184,7 +184,7 @@ module ddr2_char_top #(
     // cycle's beats — so dfi_p2/p3 are stale by construction. Driving DFI_RATE=4
     // therefore reassembles every read from half-stale data (the on-silicon
     // p2==p0 / p3==p1 signature, beats_mismatched == 2*txn, invariant to every
-    // tap/bitslip/rddata_delay/deskew).
+    // tap/bitslip/rddata_delay).
     // We therefore drive DFI_RATE=2 and let the adapter's g_rd2 branch gather
     // only the two real phases {p1,p0} — matching LiteDRAM, whose 1:2 / BL4 /
     // sys2x_dqs build passes its 128MiB memtest on this exact board.

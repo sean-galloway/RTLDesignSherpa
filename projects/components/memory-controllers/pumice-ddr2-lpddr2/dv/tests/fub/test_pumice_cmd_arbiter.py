@@ -55,11 +55,18 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     p = tb.picked(); s = tb.strobes()
     assert p['op'] == OP_PRE and p['bank'] == 3, f"refresh should PRE active bank first: {p}"
     assert s['pre'] == 1 and s['grant'] == 0, f"expected PRE strobe, no grant yet: {s}"
-    # now no active banks -> REF + grant
+    # now no active banks -> REF + grant. Not immediate any more: the just-fired
+    # PRE holds its 2-cycle guard and w_ref_safe waits it out (which is also the
+    # PRE->REF tRP spacing) — poll a bounded window for the REF.
     tb.set_bank_bits(dut.bank_row_active_i, {})
-    await tb.settle()
-    p = tb.picked(); s = tb.strobes()
-    assert p['op'] == OP_REF and s['grant'] == 1, f"refresh should REF+grant when idle: {p} {s}"
+    got_ref = False
+    for _ in range(8):
+        await tb.settle()
+        p = tb.picked(); s = tb.strobes()
+        if p['op'] == OP_REF and s['grant'] == 1:
+            got_ref = True
+            break
+    assert got_ref, f"refresh never produced REF+grant after guard window: {p} {s}"
     dut.refresh_req_i.value = 0
 
     # ===== 3. READ-PRIORITY row-hit: RD wins over WR when both hit =====

@@ -108,7 +108,11 @@ filelist_dirs = ["projects/components/apb_xbar/rtl/filelists"]
 name = "pumice"
 kind = "component"
 rtl_roots = ["projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl"]
-filelist_dirs = ["projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/filelists"]
+filelist_dirs = [
+    "projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/filelists",
+    # DV tb_top assemblies (consumer-only: -f the component filelists + tb files)
+    "projects/components/memory-controllers/pumice-ddr2-lpddr2/dv/tb",
+]
 
 # ---------------------------------------------------------------------------
 # Board / characterization projects. These own little or no library RTL; they

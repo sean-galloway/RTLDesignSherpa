@@ -161,28 +161,28 @@ module pumice_cmd_history_checker
                 for (int r = 0; r < NUM_RANKS; r++)
                     for (int b = 0; b < NUM_BANKS; b++)
                         assert (!row_open_excl_self(r, b))
-                          else $error("CMD_HISTORY @%0t: REFab issued with rank%0d bank%0d ROW OPEN (ACT %0d cyc ago, no PRE) -- refresh collides with an open row",
+                          else $fatal(1, "CMD_HISTORY @%0t: REFab issued with rank%0d bank%0d ROW OPEN (ACT %0d cyc ago, no PRE) -- refresh collides with an open row",
                                       $time, r, b, last_pos(r, b, OP_ACT));
             end
             // (2) tRCD: a column op must be >= T_RCD cycles after its bank's ACT.
             if (T_RCD > 0 && is_column_op(cmd_op_i)) begin
                 for (int d = 0; d < T_RCD; d++)
                     assert (r_hist[cmd_rank_i][cmd_bank_i][d] != OP_ACT)
-                      else $error("CMD_HISTORY @%0t: tRCD violation -- bank%0d %s only %0d cyc after ACT (need %0d)",
+                      else $fatal(1, "CMD_HISTORY @%0t: tRCD violation -- bank%0d %s only %0d cyc after ACT (need %0d)",
                                   $time, cmd_bank_i, cmd_op_i.name(), d + 1, T_RCD);
             end
             // (3) tRP: an ACT must be >= T_RP cycles after its bank's PRE.
             if (T_RP > 0 && (cmd_op_i == OP_ACT)) begin
                 for (int d = 0; d < T_RP; d++)
                     assert (r_hist[cmd_rank_i][cmd_bank_i][d] != OP_PRE)
-                      else $error("CMD_HISTORY @%0t: tRP violation -- bank%0d ACT only %0d cyc after PRE (need %0d)",
+                      else $fatal(1, "CMD_HISTORY @%0t: tRP violation -- bank%0d ACT only %0d cyc after PRE (need %0d)",
                                   $time, cmd_bank_i, d + 1, T_RP);
             end
             // (4) tRAS: a PRE must be >= T_RAS cycles after its bank's ACT.
             if (T_RAS > 0 && (cmd_op_i == OP_PRE)) begin
                 for (int d = 0; d < T_RAS; d++)
                     assert (r_hist[cmd_rank_i][cmd_bank_i][d] != OP_ACT)
-                      else $error("CMD_HISTORY @%0t: tRAS violation -- bank%0d PRE only %0d cyc after ACT (need %0d)",
+                      else $fatal(1, "CMD_HISTORY @%0t: tRAS violation -- bank%0d PRE only %0d cyc after ACT (need %0d)",
                                   $time, cmd_bank_i, d + 1, T_RAS);
             end
             // (5) tRFC: an ACT must be >= T_RFC cycles after a REFab (refresh
@@ -192,7 +192,7 @@ module pumice_cmd_history_checker
             if (T_RFC > 0 && (cmd_op_i == OP_ACT)) begin
                 for (int d = 0; d < T_RFC; d++)
                     assert (r_hist[cmd_rank_i][cmd_bank_i][d] != OP_REF)
-                      else $error("CMD_HISTORY @%0t: tRFC violation -- bank%0d ACT only %0d cyc after REFab (need %0d) -- refresh recovery not enforced",
+                      else $fatal(1, "CMD_HISTORY @%0t: tRFC violation -- bank%0d ACT only %0d cyc after REFab (need %0d) -- refresh recovery not enforced",
                                   $time, cmd_bank_i, d + 1, T_RFC);
             end
         end

@@ -64,9 +64,9 @@ void handle_init_error(void) {
 A read that returns no data almost always means the DFI read window is misaligned for the attached PHY. The knobs are `DFI_PHASE.rd_phase`, `PHY_TIMING.t_rddata_en`, and `PHY_TIMING.t_phy_wrlat`:
 
 ```c
-// Nexys A7 a7ddrphy known-good: rd_phase=0, t_rddata_en=6, t_phy_wrlat=0
+// Nexys A7 a7ddrphy known-good: rd_phase=0, t_rddata_en=6, t_phy_wrlat=1 (+ harness rddata_delay=7)
 csr_write(DFI_PHASE,   RD_PHASE(0) | WR_PHASE(0));
-csr_write(PHY_TIMING,  MEMTYPE(DDR2) | T_RDDATA_EN(6) | T_PHY_WRLAT(0) | REFRESH_BURST(1));
+csr_write(PHY_TIMING,  MEMTYPE(DDR2) | T_RDDATA_EN(6) | T_PHY_WRLAT(1) | REFRESH_BURST(1));
 ```
 
 Set these during bring-up before triggering init; they take effect immediately (config-drive, no commit step).

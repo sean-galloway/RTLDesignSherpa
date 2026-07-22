@@ -67,6 +67,38 @@ class Pumice(Device):
     sugar and write/read/field helpers.
     """
 
+    # ----- shadowed writes ---------------------------------------------------
+    # On the board the bridge's pumice APB window returns a PRIOR transaction's
+    # data on reads (request/response misalignment; the harness window is fine),
+    # so a read-modify-write splices stale garbage into every field it meant to
+    # preserve — and the corruption depends on the preceding UART traffic, which
+    # made whole leveling sweeps silently run at reset timing. NO pumice write
+    # may ever rmw. Every setter goes through a host-side write-through shadow:
+    # seeded from the RDL reset default, fields spliced in, the FULL word
+    # written. invalidate_shadow() must be called after any event that reverts
+    # the CSRs to their resets (CTRL.soft_reset does; DDR2CharDriver.soft_reset
+    # calls it).
+    def invalidate_shadow(self) -> None:
+        self._shadow: Dict[str, int] = {}
+
+    def _reg_default(self, reg: str) -> int:
+        d = self.regs.registers[reg]["default"]
+        return int(d, 16) if isinstance(d, str) else int(d)
+
+    def _wr(self, reg: str, **fields: int) -> int:
+        if not hasattr(self, "_shadow"):
+            self._shadow = {}
+        word = self._shadow.get(reg)
+        if word is None:
+            word = self._reg_default(reg)
+        for name, val in fields.items():
+            lo, width = self.regs._field_lo_width(reg, name)
+            mask = ((1 << width) - 1) << lo
+            word = (word & ~mask) | ((int(val) << lo) & mask)
+        self._shadow[reg] = word
+        self.regs.write_word(reg, word)
+        return word
+
     # ----- DFI phase --------------------------------------------------------
     def set_dfi_phase(self, rd_phase: int, wr_phase: int = 0,
                       gear_ratio: Optional[int] = None,
@@ -88,24 +120,14 @@ class Pumice(Device):
         read fills one full 128b DFI word in one 8-slot PHY event; BL4 filled
         only half -> stale -> the on-silicon read-fail root cause), so the None
         defaults leave the board (and the rate-4 sim) correct as intended."""
-        if gear_ratio is None and bl is None:
-            # rmw: splice rd/wr phase in, leave gear_ratio/bl (+ any other bits)
-            # untouched so the geared DFI read path is not broken.
-            self.regs.write("DFI_PHASE", rmw=True, rd_phase=rd_phase & 0x7,
-                            wr_phase=wr_phase & 0x7)
-        elif gear_ratio is not None and bl is not None:
-            # full-word: set every named field explicitly (no rmw needed).
-            self.regs.write("DFI_PHASE", rd_phase=rd_phase & 0x7,
-                            wr_phase=wr_phase & 0x7,
-                            gear_ratio=gear_ratio & 0x3, bl=bl & 0xF)
-        else:
-            # only one of gear_ratio/bl given -> rmw to preserve the other field.
-            fields = dict(rd_phase=rd_phase & 0x7, wr_phase=wr_phase & 0x7)
-            if gear_ratio is not None:
-                fields["gear_ratio"] = gear_ratio & 0x3
-            if bl is not None:
-                fields["bl"] = bl & 0xF
-            self.regs.write("DFI_PHASE", rmw=True, **fields)
+        # Shadowed full-word write: omitted gear_ratio/bl keep their shadowed
+        # (or RDL-reset) values — no on-device rmw, whose readback lies.
+        fields = dict(rd_phase=rd_phase & 0x7, wr_phase=wr_phase & 0x7)
+        if gear_ratio is not None:
+            fields["gear_ratio"] = gear_ratio & 0x3
+        if bl is not None:
+            fields["bl"] = bl & 0xF
+        self._wr("DFI_PHASE", **fields)
 
     def get_dfi_phase(self) -> tuple:
         return (self.regs.field("DFI_PHASE", "rd_phase"),
@@ -130,20 +152,8 @@ class Pumice(Device):
         if refresh_burst is not None:
             kw["refresh_burst"] = refresh_burst & 0xF
         if kw:
-            self.regs.write("PHY_TIMING", rmw=True, **kw)
+            self._wr("PHY_TIMING", **kw)
 
-    def set_deskew(self, *, deskew_lo: Optional[int] = None,
-                   deskew_hi: Optional[int] = None) -> None:
-        """PHY_TIMING @ APB 0x064 deskew_lo[25:24]/deskew_hi[27:26]: per-64b-beat
-        read-capture DESKEW (realigns the two beats of a 128b DFI word the
-        a7ddrphy returns skewed). Trained at bring-up; set while idle. rmw."""
-        kw: Dict[str, int] = {}
-        if deskew_lo is not None:
-            kw["deskew_lo"] = deskew_lo & 0x3
-        if deskew_hi is not None:
-            kw["deskew_hi"] = deskew_hi & 0x3
-        if kw:
-            self.regs.write("PHY_TIMING", rmw=True, **kw)
 
     # ----- mode registers (init MRS chain) ---------------------------------
     _MR_REG = {0: "MR0", 1: "MR1", 2: "MR2", 3: "MR3"}
@@ -156,7 +166,7 @@ class Pumice(Device):
         MRS address bits are the MR value, so scrambled A-pins scramble it)."""
         if index not in self._MR_REG:
             raise ValueError(f"MR index {index} out of range 0..3")
-        self.regs.write(self._MR_REG[index], VAL=value & 0xFFFF)
+        self._wr(self._MR_REG[index], VAL=value & 0xFFFF)
 
     def set_mr0(self, value: int) -> None: self.set_mr(0, value)
     def set_mr1(self, value: int) -> None: self.set_mr(1, value)
@@ -168,8 +178,8 @@ class Pumice(Device):
         controller reset, applying freshly-written MRx.VAL while the CSRs are
         preserved (a soft_reset would wipe the CSRs before init could read them).
         Rising-edge triggered in init_sequencer -> write 1 then 0 to re-arm."""
-        self.regs.write("CTRL", rmw=True, init_force_restart=1)
-        self.regs.write("CTRL", rmw=True, init_force_restart=0)
+        self._wr("CTRL", init_force_restart=1)
+        self._wr("CTRL", init_force_restart=0)
 
     # ----- address map / paging --------------------------------------------
     def set_addr_map(self, *, bank_lsb: Optional[int] = None,
@@ -187,7 +197,7 @@ class Pumice(Device):
         if hash_seed is not None:
             kw["hash_seed"] = hash_seed & 0xFF
         if kw:
-            self.regs.write("ADDR_MAP", rmw=True, **kw)
+            self._wr("ADDR_MAP", **kw)
 
     # Legacy scheme API (compat): the retired scheme selector is now a single
     # bank_lsb knob. Map the old enum onto bank_lsb so scheme-sweep programs
@@ -218,7 +228,7 @@ class Pumice(Device):
     # ----- refresh ----------------------------------------------------------
     def set_page_policy(self, policy: int) -> None:
         """REFRESH_TUNING.page_policy_or (0=param default,1=OPEN,2=CLOSE,3=HYBRID)."""
-        self.regs.write("REFRESH_TUNING", rmw=True, page_policy_or=policy & 0x3)
+        self._wr("REFRESH_TUNING", page_policy_or=policy & 0x3)
 
     def set_refresh(self, *, refpb_policy: Optional[int] = None,
                     refresh_defer: Optional[int] = None,
@@ -232,11 +242,11 @@ class Pumice(Device):
         if zqcs_freq_hz is not None:
             kw["zqcs_freq_hz"] = zqcs_freq_hz & 0xFFFF
         if kw:
-            self.regs.write("REFRESH_TUNING", rmw=True, **kw)
+            self._wr("REFRESH_TUNING", **kw)
 
     def set_refresh_interval(self, t_refi: int) -> None:
         """tREFI in MC cycles (TIMINGS_RFC_REFI.tREFI); rmw preserves tRFC."""
-        self.regs.write("TIMINGS_RFC_REFI", rmw=True, tREFI=t_refi & 0xFFFF)
+        self._wr("TIMINGS_RFC_REFI", tREFI=t_refi & 0xFFFF)
 
     # ----- command scheduler ------------------------------------------------
     def set_scheduler(self, *, lookahead: Optional[int] = None,
@@ -257,7 +267,7 @@ class Pumice(Device):
         if txn_high_water is not None:
             kw["txn_queue_high_water"] = txn_high_water & 0xFF
         if kw:
-            self.regs.write("SCHED_TUNING", rmw=True, **kw)
+            self._wr("SCHED_TUNING", **kw)
 
     def get_lookahead_max(self) -> int:
         """Build-time max reorder-window depth (SCHED_TUNING.lookahead_max_obs)."""

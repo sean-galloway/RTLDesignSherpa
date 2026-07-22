@@ -101,8 +101,35 @@ async def cocotb_test_pumice_mem_cmd_scheduler(dut):
     assert saw_pre, "expected a PRE to close the open bank before refresh"
     assert saw_ref, "refresh never produced a REF command"
 
+    # ===== 5. Refresh-collision + tRFC audit under sustained traffic =====
+    # Heavy-but-liveable refresh pressure: at tREFI=0x40 a refresh cycle
+    # (drain-PRE + guard + REF + tRFC=8) costs ~14 of every 64 cycles, so reads
+    # keep flowing while REFs recur constantly. (0x10 would starve: refresh_req
+    # never deasserts and priority-2 rightly blocks all other traffic.) The
+    # BOUND pumice_cmd_history_checker $fatal-s on: a REFab issued with any row
+    # open (bug #2 — ACT then REF with no PRE) and an ACT within tRFC=8 of a
+    # REFab (mission-mode refresh recovery, previously enforced by nothing).
+    tb.dut.t_refi_i.value = 0x40
+    tb.cmds.clear()
+    issued = 0
+    for i in range(40):
+        tb.rd_entry = {'bank': i % 8, 'row': 0x100 + i, 'col': 0x10,
+                       'id': i & 0xF, 'age': i, 'slot': i % 8}
+        for _ in range(400):
+            await tb.wait_clocks('aclk', 1)
+            if tb.rd_entry is None:
+                issued += 1
+                break
+        assert tb.rd_entry is None, f"read {i} never issued (starved by refresh?)"
+    refs = len(tb.ops_of(OP_REF))
+    acts = len(tb.ops_of(OP_ACT))
+    assert refs >= 3, f"phase-5 expected recurring REFs, saw {refs}"
+    assert acts >= 10, f"phase-5 expected recurring ACTs, saw {acts}"
+    tb.log.info(f"phase 5: {issued} reads under refresh pressure "
+                f"({refs} REF, {acts} ACT) with the history checker armed")
+
     tb.log.info("PASS: init MRS stream, ACT->RD (real tRCD timers), open-page WR "
-                "commit (no re-ACT), refresh PRE->REF")
+                "commit (no re-ACT), refresh PRE->REF, refresh-pressure audit")
 
 
 def test_pumice_mem_cmd_scheduler(request):
@@ -122,13 +149,19 @@ def test_pumice_mem_cmd_scheduler(request):
     params = {
         "NUM_RANKS": "1", "NUM_BANKS": "8", "ROW_WIDTH": "14", "COL_WIDTH": "10",
         "AXI_ID_WIDTH": "8", "NUM_ENTRIES": "8",
+        # enable the in-scheduler command-history scoreboard (audit-only)
+        "CMD_HISTORY_EN": "1",
     }
     extra_env = {
         "DUT": dut_name, "LOG_PATH": log_path, "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE": results_path, "SEED": str(random.randint(0, 100000)),
     }
     extra_env.update(params)
-    compile_args = ["+define+USE_ASYNC_RESET"] + get_coverage_compile_args()
+    # Command-history scoreboard: generate-gated INSIDE the scheduler
+    # (CMD_HISTORY_EN) — fatal JEDEC same-bank sequencing audit
+    # (REF-with-row-open + tRFC=8, matching the TB's t_rfc_i). --assert arms it
+    # (verilator ignores asserts otherwise).
+    compile_args = ["+define+USE_ASYNC_RESET", "--assert"] + get_coverage_compile_args()
     extra_env.update(get_coverage_env(test_name, sim_build=sim_build))
 
     run(

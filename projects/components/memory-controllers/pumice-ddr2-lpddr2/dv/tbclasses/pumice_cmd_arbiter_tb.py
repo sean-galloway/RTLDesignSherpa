@@ -73,6 +73,7 @@ class PumiceCmdArbiterTB(TBBase):
         self.dut.init_cmd_row_i.value = 0
         self.dut.refresh_req_i.value = 0
         self.dut.refresh_drain_i.value = 0
+        self.dut.t_rfc_i.value = 8       # REF recovery (mission-mode tRFC)
         self.dut.bank_act_ready_i.value = 0
         self.dut.bank_rdwr_ready_i.value = 0
         self.dut.bank_pre_ready_i.value = 0

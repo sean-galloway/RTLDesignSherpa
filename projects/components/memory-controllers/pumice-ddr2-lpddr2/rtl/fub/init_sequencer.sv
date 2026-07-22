@@ -10,11 +10,12 @@
 //               its own DLL-lock / IO training). Then wait tINIT (CKE settle).
 //            2. Precharge All.
 //            3. Load EMR3=0, EMR2=0, EMR/MR1=0 (JEDEC order MR3, MR2, MR1).
-//            4. Load MR0 + DLL-reset (0x532: BL4/CL3/tWR3/DLL_RESET); wait for
+//            4. Load MR0 + DLL-reset (MR0.VAL CSR | 0x100; reset default
+//               0x433 = BL8/CL3/tWR3 -> 0x533 with DLL_RESET); wait for
 //               the DLL to lock (~200 DRAM clocks).
 //            5. Precharge All.
 //            6. Auto Refresh x2 (each followed by tRFC).
-//            7. Load MR0 WITHOUT DLL-reset (0x432) — clears the reset bit.
+//            7. Load MR0 WITHOUT DLL-reset (MR0.VAL, e.g. 0x433) — clears the bit.
 //            8. EMR/MR1 + OCD Default (0x380) -> EMR/MR1 + OCD Exit (0x000).
 //            9. init_done_o = 1.
 //

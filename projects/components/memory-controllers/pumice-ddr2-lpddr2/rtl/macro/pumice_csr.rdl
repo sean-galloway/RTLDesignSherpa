@@ -157,7 +157,10 @@ addrmap pumice_csr {
         name = "Timings: tRFC / tREFI";
         desc = "Refresh interval and recovery";
 
-        field { sw = rw; hw = r; desc = "tRFC (or tRFCab)"; } tRFC[15:0]  = 16'd200;
+        // Mission-mode REF->ACT/REF recovery, MC cycles (consumed by the
+        // arbiter's r_rfc_cnt; init-time refreshes use INIT_TIMING1.t_rfc_wait).
+        // 16 covers DDR2 127.5ns up to ~125MHz MC clock.
+        field { sw = rw; hw = r; desc = "tRFC (or tRFCab)"; } tRFC[15:0]  = 16'd16;
         field { sw = rw; hw = r; desc = "tREFI";            } tREFI[31:16] = 16'd1950;
 
     } TIMINGS_RFC_REFI @ 0x014;
@@ -243,14 +246,9 @@ addrmap pumice_csr {
         field { sw = rw; hw = r; desc = "0=DDR2, 1=LPDDR2";                    } memtype[16:16]     = 1'b0;
         field { sw = r;  hw = na; desc = "Reserved";                           } RSVD0[19:17]      = 3'h0;
         field { sw = rw; hw = r; desc = "REFs drained per request (1..8)";     } refresh_burst[23:20] = 4'd1;
-        // Per-beat DFI read DESKEW (class-B capture-alignment / leveling knobs).
-        // The a7ddrphy returns the two 64b beats of a 128b DFI word at DIFFERENT
-        // capture latencies; deskew_lo/hi independently delay the LOW/HIGH beat
-        // capture (0..3 DFI cycles) to realign them. Trained at bring-up (sweep
-        // for beats_mismatched==0). 0/0 = bit-identical. Change only when idle.
-        field { sw = rw; hw = r; desc = "read DESKEW: low 64b beat capture delay (DFI cyc)";  } deskew_lo[25:24] = 2'd0;
-        field { sw = rw; hw = r; desc = "read DESKEW: high 64b beat capture delay (DFI cyc)"; } deskew_hi[27:26] = 2'd0;
-        field { sw = r;  hw = na; desc = "Reserved";                           } RSVD1[31:28]      = 4'h0;
+        // (deskew_lo/hi [27:24] removed: the per-beat read-deskew experiment was
+        // a disproven dead-end — the board read fix was rddata_delay alignment.)
+        field { sw = r;  hw = na; desc = "Reserved";                           } RSVD1[31:24]      = 8'h0;
 
     } PHY_TIMING @ 0x064;
 

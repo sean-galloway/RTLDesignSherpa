@@ -79,7 +79,7 @@ periodic refresh does not start until init reports done.
 
 | Parameter    | Default | Effect                                                             |
 |--------------|---------|--------------------------------------------------------------------|
-| `ROW_WIDTH`  | 14      | Width of the `init_cmd_row_o` request field (carries MR data; must hold DDR2 MR0=0x532 which needs bit 10, so a narrower COL-based path would truncate). |
+| `ROW_WIDTH`  | 14      | Width of the `init_cmd_row_o` request field (carries MR data; must hold DDR2 MR0=0x533 which needs bit 10, so a narrower COL-based path would truncate). |
 | `NUM_BANKS`  | 8       | Number of DRAM banks.                                              |
 | `BKW`        | derived | `$clog2(NUM_BANKS)` — width of `init_cmd_bank_o` (bank / MR index). |
 
@@ -174,11 +174,11 @@ state).
 | `S_EMR3`     | 3     | DDR2: MRS EMR(3).                                           | `W_MRD` → `S_EMR1`       |
 | `S_EMR2`     | 4     | DDR2: MRS EMR(2).                                           | `W_MRD` → `S_EMR3`       |
 | `S_EMR1`     | 5     | DDR2: MRS EMR(1).                                           | `W_MRD` → `S_MR0_DLL`    |
-| `S_MR0_DLL`  | 6     | DDR2: MRS MR0 + DLL reset (0x532).                          | `W_DLL` → `S_PREA2`      |
+| `S_MR0_DLL`  | 6     | DDR2: MRS MR0 + DLL reset (MR0.VAL | 0x100; reset 0x533).                          | `W_DLL` → `S_PREA2`      |
 | `S_PREA2`    | 7     | DDR2: Precharge All (pre-refresh).                          | `W_RP` → `S_REF1`        |
 | `S_REF1`     | 8     | DDR2: Auto Refresh #1.                                      | `W_RFC` → `S_REF2`       |
 | `S_REF2`     | 9     | DDR2: Auto Refresh #2.                                      | `W_RFC` → `S_MR0`        |
-| `S_MR0`      | 10    | DDR2: MRS MR0, DLL-reset bit cleared (0x432).              | `W_MRD` → `S_OCD_DEF`    |
+| `S_MR0`      | 10    | DDR2: MRS MR0, DLL-reset bit cleared (MR0.VAL; reset 0x433).              | `W_MRD` → `S_OCD_DEF`    |
 | `S_OCD_DEF`  | 11    | DDR2: MRS EMR(1) + OCD default (0x380).                    | `W_MRD` → `S_OCD_EXIT`   |
 | `S_OCD_EXIT` | 12    | DDR2: MRS EMR(1) + OCD exit (0x000).                       | `W_MRD` → `S_DONE`       |
 | `S_WAIT`     | 13    | Inter-command countdown; `r_wait==0` → `r_next`.           | —                        |
@@ -210,17 +210,17 @@ reference proven on the Nexys A7:
    EMR(1)** — the state chain is `S_EMR2 → S_EMR3 → S_EMR1` — each followed by
    `W_MRD`. (Note the enum numbering: `S_EMR2` = 4, `S_EMR3` = 3, so the values
    are out of numeric order but the executed order is 2 → 3 → 1.)
-4. Load MR0 + DLL reset (`S_MR0_DLL`, 0x532: BL4 / CL3 / tWR3 / DLL_RESET);
+4. Load MR0 + DLL reset (`S_MR0_DLL`, MR0.VAL | 0x100; reset 0x533: BL8 / CL3 / tWR3, DLL_RESET);
    wait `W_DLL` for the DLL to lock (~200 DRAM clocks).
 5. Precharge All (`S_PREA2`), wait `W_RP`.
 6. Auto Refresh x2 (`S_REF1`, `S_REF2`), each followed by `W_RFC`.
-7. Load MR0 with the DLL-reset bit cleared (`S_MR0`, 0x432); wait `W_MRD`.
+7. Load MR0 with the DLL-reset bit cleared (`S_MR0`, MR0.VAL; reset 0x433); wait `W_MRD`.
 8. EMR(1) + OCD Default (`S_OCD_DEF`, 0x380) → EMR(1) + OCD Exit
    (`S_OCD_EXIT`, 0x000).
 9. `S_DONE`: `init_done_o = 1`.
 
 MR data is carried on `init_cmd_row_o` (ROW_WIDTH wide, MR index on
-`init_cmd_bank_o`), because MR0 = 0x532 sets bit 10 and a 10-bit column-based
+`init_cmd_bank_o`), because MR0 = 0x533 sets bit 10 and a 10-bit column-based
 path would truncate it.
 
 ### DDR2 MR values
@@ -229,15 +229,15 @@ Localparams, transcribed exactly:
 
 | Symbol          | Value    | State        | Meaning                                   | Shadowed? |
 |-----------------|----------|--------------|-------------------------------------------|-----------|
-| `DDR2_MR0_DLL`  | `0x0532` | `S_MR0_DLL`  | MR0: BL4 / CL3 / tWR3 / DLL_RESET.        | Yes (MR0) |
-| `DDR2_MR0`      | `0x0432` | `S_MR0`      | MR0 with DLL_RESET cleared.               | Yes (MR0) |
+| `DDR2_MR0_DLL`  | `MR0.VAL \| 0x100` (reset `0x0533`) | `S_MR0_DLL`  | MR0: BL8 / CL3 / tWR3, DLL_RESET ORed in. | Yes (MR0) |
+| `DDR2_MR0`      | `MR0.VAL` (reset `0x0433`) | `S_MR0`      | MR0 with DLL_RESET cleared.               | Yes (MR0) |
 | `DDR2_MR1`      | `0x0000` | `S_EMR1`, `S_OCD_EXIT` | EMR(1): Rtt disabled, ODS full. | Yes (MR1) |
 | `DDR2_MR1_OCD`  | `0x0380` | `S_OCD_DEF`  | EMR(1) + OCD calibration default.         | No — transient calibration; shadow left at final EMR value. |
 | `DDR2_MR2`      | `0x0000` | `S_EMR2`     | EMR(2).                                   | Yes (MR2) |
 | `DDR2_MR3`      | `0x0000` | `S_EMR3`     | EMR(3).                                   | Yes (MR3) |
 
 `DDR2_MR0_DLL` decomposes as `log2(BL=4)=2 | (CL=3<<4)=0x30 | (tWR=3<<9)=0x400 =
-0x432`, plus `reset_dll = 1<<8 = 0x100`, giving 0x532. OCD default = `EMR |
+0x433`, plus `reset_dll = 1<<8 = 0x100`, giving 0x533. OCD default = `EMR |
 (7<<7) = 0x380`; OCD exit = `EMR = 0`.
 
 ---
@@ -302,7 +302,7 @@ the scheduler and refresh controller take over normal operation.
 |------------------------------------------------------------------------------------|-------------------------------------------------------------|
 | DDR2 init from cold reset to `init_done_o`                                         | Full DDR2 state chain executes in order.                    |
 | Observe the DDR2 command stream: PREA, MRS×3 (EMR2/EMR3/EMR1), MRS MR0_DLL, PREA, REF×2, MRS MR0, MRS OCD_DEF, MRS OCD_EXIT | Exact JEDEC order + op/index/data on each `init_cmd_*` pulse. |
-| DDR2 MR values on `init_cmd_row_o` match 0x532 / 0x432 / 0x380 / 0x000            | Wide row path carries bit 10 without truncation.            |
+| DDR2 MR values on `init_cmd_row_o` match 0x533 / 0x433 / 0x380 / 0x000 (MR0.VAL resets) | Wide row path carries bit 10 without truncation.            |
 | LPDDR2 init from cold reset to `init_done_o`                                       | Full LPDDR2 MRW chain executes.                             |
 | LPDDR2 `mrw_row()` packing: MR63/MR10 reach the DRAM; only MR1/MR2/MR3 set `mr_seq_we_o` | Index/data packing + selective shadowing.             |
 | `dfi_init_complete_i` held low → FSM stalls in `S_DFI_INIT`, `init_busy_o` stays high | DFI handshake gating.                                   |

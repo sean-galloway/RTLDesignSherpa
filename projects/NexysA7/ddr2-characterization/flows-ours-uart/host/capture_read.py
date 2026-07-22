@@ -50,14 +50,6 @@ def drive_reads(port, baud):
     d.set_dfi_phase(rd_phase=_rdph, wr_phase=0)
     print(f"[uart] rd_phase={_rdph}", flush=True)
     d.set_dfi_rddata_delay(int(os.environ.get("CAP_RDDLY", "8")))
-    # Per-beat deskew under test. Capture once at 0/0 and once at the trained
-    # value (e.g. CAP_DESKEW_HI=1) and diff the aligner's w_dbg_rd_data probe:
-    # if the high 64b beat shifts, the deskew reaches the aligner and works
-    # (real skew != model); if identical, the CSR isn't reaching the aligner.
-    _dlo = int(os.environ.get("CAP_DESKEW_LO", "0"), 0)
-    _dhi = int(os.environ.get("CAP_DESKEW_HI", "0"), 0)
-    d.set_deskew(deskew_lo=_dlo, deskew_hi=_dhi)
-    print(f"[uart] deskew lo={_dlo} hi={_dhi}", flush=True)
     # Optional: stress refresh recovery (small tREFI) to expose a tRFC (REF->ACT)
     # violation on silicon — the sim scoreboard flagged ACT issued too soon after
     # REFab. CAP_TREFI=0 (default) leaves the board's programmed tREFI alone.

@@ -246,7 +246,7 @@ Don't override. Generated from: $root
 
 | Bits|Identifier|Access|Reset|Name|
 |-----|----------|------|-----|----|
-| 15:0|   tRFC   |  rw  | 0xC8|  — |
+| 15:0|   tRFC   |  rw  | 0x10|  — |
 |31:16|   tREFI  |  rw  |0x79E|  — |
 
 #### tRFC field
@@ -803,9 +803,7 @@ request. All hw-readable so they drive the controller core.</p>
 |  16 |   memtype   |  rw  | 0x0 |  — |
 |19:17|    RSVD0    |   r  | 0x0 |  — |
 |23:20|refresh_burst|  rw  | 0x1 |  — |
-|25:24|  deskew_lo  |  rw  | 0x0 |  — |
-|27:26|  deskew_hi  |  rw  | 0x0 |  — |
-|31:28|    RSVD1    |   r  | 0x0 |  — |
+|31:24|    RSVD1    |   r  | 0x0 |  — |
 
 #### t_phy_wrlat field
 
@@ -826,14 +824,6 @@ request. All hw-readable so they drive the controller core.</p>
 #### refresh_burst field
 
 <p>REFs drained per request (1..8)</p>
-
-#### deskew_lo field
-
-<p>read DESKEW: low 64b beat capture delay (DFI cyc)</p>
-
-#### deskew_hi field
-
-<p>read DESKEW: high 64b beat capture delay (DFI cyc)</p>
 
 #### RSVD1 field
 

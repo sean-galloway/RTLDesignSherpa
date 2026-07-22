@@ -65,7 +65,7 @@ Pick exactly one abstract DRAM command per cycle and push it into the scheduler-
 Evaluated combinationally each cycle (descending priority):
 
 1. **Init in progress** (`!init_done`) — forward the `init_sequencer` command verbatim; block all normal traffic.
-2. **Refresh** (`refresh_req` or drain active) — precharge active banks one per cycle, then issue `REF` and assert the refresh grant.
+2. **Refresh** (`refresh_req` or drain active) — precharge active banks one per cycle, then — only under `w_ref_safe` (all rows closed in the registered view, nothing row-affecting in flight or guarded, prior REF's tRFC recovery elapsed) — issue `REF` and assert the refresh grant. Each fired REF loads the arbiter's tRFC down-counter (`TIMINGS_RFC_REFI.tRFC`); while non-zero, ACTs and further REFs are blocked.
 3. **Column row-hit** — a `RD`/`WR` to an already-open row whose bank is column-ready (`bank_rdwr_ready`) and whose bus turnaround permits it (`tccd_ok` + `twtr_ok` for reads / `trtw_ok` for writes). **Reads have priority over writes**; within each, the **oldest** entry (max CAM relative age) wins the tie-break.
 4. **Fallback** — no ready row-hit: `ACT` the oldest pending op's row on an idle bank (subject to `tfaw_ok` / `trrd_ok` and the ACT/PRE guard), or `PRE` a bank that is open on the wrong row.
 
@@ -73,7 +73,7 @@ The fallback target is read-priority: the read CAM's `oldest` port is consulted 
 
 ### ACT/PRE Re-Issue Guard
 
-The bank timers register their readiness outputs (there is a two-cycle latency from an event to `act_ready` / `pre_ready` dropping). A stateless combinational arbiter would otherwise re-issue ACT/PRE to the same bank before the timers reflect it. The arbiter therefore keeps a two-cycle per-bank guard (`r_guard0` / `r_guard1`) that blocks a bank for two cycles after an accepted ACT or PRE to it. Column ops self-limit — both CAMs exclude a just-committed / just-issued slot from the next cycle's lookup — so no column guard is needed. The shared-DQ-bus burst-occupancy constraint (a BL burst owns the bus for `BL/DFI_RATE` DFI cycles) is enforced downstream in the DFI command path, not here; the CDC decouples `aclk` command issue from the `dfi_clk` DQ timing.
+The bank timers register their readiness outputs (there is a two-cycle latency from an event to `act_ready` / `pre_ready` dropping). A stateless combinational arbiter would otherwise re-issue ACT/PRE to the same bank before the timers reflect it. The arbiter therefore keeps a two-cycle per-bank guard (`r_guard0` / `r_guard1`) that blocks a bank for two cycles after an accepted ACT, PRE **or column** to it — columns are included because a just-fired column has not yet dropped the bank's registered `pre_ready` (tRTP/tWR load), so an unguarded PRE (normal or refresh-drain) could precharge on stale readiness. Columns still self-limit against each other (both CAMs exclude a just-committed / just-issued slot from the next cycle's lookup), so the guard never gates column-vs-column. The shared-DQ-bus burst-occupancy constraint (a BL burst owns the bus for `BL/DFI_RATE` DFI cycles) is enforced downstream in the DFI command path, not here; the CDC decouples `aclk` command issue from the `dfi_clk` DQ timing.
 
 ### Page Policy (Auto-Precharge)
 

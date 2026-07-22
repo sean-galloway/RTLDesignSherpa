@@ -59,6 +59,7 @@ def _cfg(dut, page_policy=0):
                  ("t_wtr_i", 2), ("t_rtw_i", 2), ("t_ccd_i", 1)]:
         getattr(dut, t).value = v
     dut.t_refi_i.value = 0x0400          # periodic refresh during the run
+    dut.t_rfc_i.value = 8
     dut.refresh_burst_i.value = 1
     for t in ("t_init_wait_i", "t_dll_wait_i"):
         getattr(dut, t).value = 0
@@ -276,6 +277,7 @@ async def cocotb_test_pumice_core_refresh_collide(dut):
     """
     memory = await _bring_up(dut, page_policy=1)     # CLOSE / auto-precharge
     dut.t_refi_i.value = 0x30                         # frequent refresh
+    dut.t_rfc_i.value = 8
     BANK, ROW, N = 3, 5, 64
 
     exp = []

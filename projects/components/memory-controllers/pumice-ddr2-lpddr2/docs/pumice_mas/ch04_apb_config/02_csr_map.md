@@ -119,7 +119,7 @@ All registers are 32-bit; unlisted bits are reserved (`RSVD`, `sw = r`). "Defaul
 
 | Bits  | Field   | Default (dec) | Notes            |
 |-------|---------|---------------|------------------|
-| 15:0  | `tRFC`  | 200           | or tRFCab        |
+| 15:0  | `tRFC`  | 16            | or tRFCab; mission-mode REF recovery (arbiter down-counter) |
 | 31:16 | `tREFI` | 1950          |                  |
 
 ### TIMINGS_RRD_FAW_WTR_CCD @ 0x018 (rw)
@@ -243,7 +243,7 @@ Sliced to `clog2(DFI_RATE)` bits downstream; upper bits ignored when `DFI_RATE` 
 
 | Bits  | Field           | Default (dec) | Notes                                    |
 |-------|-----------------|---------------|------------------------------------------|
-| 7:0   | `t_phy_wrlat`   | 0             | WR cmd -> dfi_wrdata_en (0 = a7ddrphy pre-pull) |
+| 7:0   | `t_phy_wrlat`   | 0             | WR cmd -> dfi_wrdata_en (Nexys A7 bring-up tuple programs 1) |
 | 15:8  | `t_rddata_en`   | 6             | RD cmd -> dfi_rddata_en window           |
 | 16    | `memtype`       | 0             | 0 = DDR2, 1 = LPDDR2                      |
 | 23:20 | `refresh_burst` | 1             | REFs drained per request (1..8)          |

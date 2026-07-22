@@ -409,14 +409,17 @@ def main():
             exporter = RegblockExporter()
             cpuif_cls = CPUIF_MAP[args.cpuif]
 
-            # Output filename based on top-level name
-            rtl_output = rtl_dir / f"{top_node.inst_name}.sv"
-
+            # peakrdl-regblock >= 1.x: export() takes the output DIRECTORY and
+            # writes <top>.sv + <top>_pkg.sv into it (passing a file path makes
+            # makedirs() fail against an existing file — the old silent-skip bug).
             exporter.export(
                 root,
-                str(rtl_output),
+                str(rtl_dir),
                 cpuif_cls=cpuif_cls
             )
+            rtl_output = rtl_dir / f"{top_node.inst_name}.sv"
+            if not rtl_output.exists():
+                raise FileNotFoundError(f"expected output missing: {rtl_output}")
             print(f"✓ Generated: {rtl_output}")
             print(f"  CPU Interface: {args.cpuif}")
 
@@ -427,6 +430,7 @@ def main():
             print(f"✗ RTL generation failed: {e}")
             import traceback
             traceback.print_exc()
+            sys.exit(1)
 
     # Generate HTML Documentation
     if not args.rtl_only and not args.no_html:

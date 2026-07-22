@@ -28,7 +28,7 @@ flowchart LR
 
     exp --> pend
     req --> burst
-    active --> arb["pumice_cmd_arbiter:<br/>precharge active banks, then REF + grant"]
+    active --> arb["pumice_cmd_arbiter:<br/>precharge active banks, then REF under w_ref_safe (guards + tRFC) + grant"]
     rotor --> arb
     arb -->|refresh_grant| pend
     arb -->|refresh_grant| burst

@@ -88,7 +88,7 @@ Packed timing parameters in MC (`aclk`) cycles. All fields are `sw = rw`,
 
 | Bits  | Field         | Reset | Description                       |
 |-------|---------------|-------|-----------------------------------|
-| 15:0  | `tRFC`        | 200   | tRFC (or tRFCab) in cycles        |
+| 15:0  | `tRFC`        | 16    | tRFC (or tRFCab) in MC cycles — mission-mode REF recovery, consumed by the arbiter |
 | 31:16 | `tREFI`       | 1950  | tREFI in cycles                   |
 
 ### `TIMINGS_RRD_FAW_WTR_CCD` (0x018, R/W)
@@ -245,7 +245,7 @@ drive the controller core.
 
 | Bits  | Field           | Reset | Description                                                    |
 |-------|-----------------|-------|----------------------------------------------------------------|
-| 7:0   | `t_phy_wrlat`   | 0     | WRITE command -> `dfi_wrdata_en` (0 for a7ddrphy pre-pull)     |
+| 7:0   | `t_phy_wrlat`   | 0     | WRITE command -> `dfi_wrdata_en` (Nexys A7 bring-up tuple programs 1) |
 | 15:8  | `t_rddata_en`   | 6     | RD command -> `dfi_rddata_en` window                          |
 | 16    | `memtype`       | 0     | 0 = DDR2, 1 = LPDDR2 (drives the whole core `memtype_e` path)  |
 | 23:20 | `refresh_burst` | 1     | REFs drained per request (1..8)                               |

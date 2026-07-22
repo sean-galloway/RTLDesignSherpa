@@ -69,6 +69,10 @@ module pumice_cmd_arbiter
     input  logic                      refresh_req_i,
     input  logic                      refresh_drain_i,
     output logic                      refresh_grant_o,
+    // REF -> next-command recovery (tRFC/tRFCab, MC cycles). Mission-mode REF
+    // recovery is enforced HERE (init_sequencer separately waits t_rfc_wait for
+    // its own init refreshes); no evt reaches the bank timers for REF.
+    input  logic [15:0]               t_rfc_i,
 
     // ---- per-bank readiness (from pumice_bank_timers) ----
     input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_act_ready_i,
@@ -166,9 +170,26 @@ module pumice_cmd_arbiter
     assign w_inflight_col    = r_pick_valid && (r_do_rd || r_do_wr);
     assign w_inflight_preact = r_pick_valid && (r_do_act || r_do_pre);
 
+    // The guard covers ALL bank-state-changing ops (ACT/PRE *and* columns):
+    // a column fired <2 cycles ago has not yet dropped this bank's registered
+    // pre_ready (tRTP/tWR load), so an unguarded PRE pick — normal or
+    // refresh-drain — could precharge on stale readiness. Columns never gate
+    // other columns through this (col masks use w_inflight_col + tCCD only).
     logic [NUM_BANKS-1:0] w_guarded;
     assign w_guarded = r_guard0 | r_guard1
-                     | (w_inflight_preact ? (NUM_BANKS'(1) << r_bank) : '0);
+                     | ((w_inflight_preact || w_inflight_col)
+                        ? (NUM_BANKS'(1) << r_bank) : '0);
+
+    // ---- REF recovery (tRFC) -----------------------------------------------
+    // Loaded when a REF fires; while nonzero the DRAM is refreshing internally
+    // and no ACT (or further REF) may issue to the rank. Previously enforced by
+    // NOTHING in mission mode: refresh_req dropped ~2 cycles after the grant
+    // and the arbiter re-ACTivated the just-precharged rows ~3 cycles after
+    // REF, against a ~127.5ns (tRFC) device requirement -> the refresh-rate-
+    // correlated row corruption seen on silicon.
+    logic [15:0] r_rfc_cnt;
+    logic        w_rfc_busy;
+    assign w_rfc_busy = (r_rfc_cnt != 16'd0);
 
     // ---- pipeline: register the bank-timer fan-in at the arbiter input ------
     // The worst w_sys_i path is bank_timer -> arbiter pick -> bank_timer (the
@@ -233,7 +254,8 @@ module pumice_cmd_arbiter
                 rd_col_m[e] = rhit && r_bank_rdwr_ready[RK0][rb] && tccd_ok_i && twtr_ok_i
                               && rd_issue_ready_i && !w_inflight_col;
                 rd_act_m[e] = !r_bank_row_active[RK0][rb] && !w_guarded[rb]
-                              && r_bank_act_ready[RK0][rb] && tfaw_ok_i[RK0] && trrd_ok_i[RK0];
+                              && r_bank_act_ready[RK0][rb] && tfaw_ok_i[RK0] && trrd_ok_i[RK0]
+                              && !w_rfc_busy;
                 rd_pre_m[e] = r_bank_row_active[RK0][rb] && !w_guarded[rb] && !rhit
                               && r_bank_pre_ready[RK0][rb];
             end
@@ -245,7 +267,8 @@ module pumice_cmd_arbiter
                 wr_col_m[e] = whit && r_bank_rdwr_ready[RK0][wb] && tccd_ok_i && trtw_ok_i
                               && wr_commit_ready_i && !w_inflight_col;
                 wr_act_m[e] = !r_bank_row_active[RK0][wb] && !w_guarded[wb]
-                              && r_bank_act_ready[RK0][wb] && tfaw_ok_i[RK0] && trrd_ok_i[RK0];
+                              && r_bank_act_ready[RK0][wb] && tfaw_ok_i[RK0] && trrd_ok_i[RK0]
+                              && !w_rfc_busy;
                 wr_pre_m[e] = r_bank_row_active[RK0][wb] && !w_guarded[wb] && !whit
                               && r_bank_pre_ready[RK0][wb];
             end
@@ -290,7 +313,7 @@ module pumice_cmd_arbiter
     end
 
     // ---- refresh: pick the lowest active bank that can precharge ------------
-    logic            w_any_active, w_rfsh_pre_found;
+    logic            w_any_active, w_rfsh_pre_found, w_ref_safe;
     logic [BKW-1:0]  w_rfsh_pre_bank;
     always_comb begin
         w_any_active     = |r_bank_row_active[RK0];
@@ -302,6 +325,17 @@ module pumice_cmd_arbiter
                 w_rfsh_pre_bank  = BKW'(j);
             end
     end
+    // REF may fire only when NO bank can possibly have a row open. The
+    // registered view (w_any_active) is 2-3 cycles stale, so it alone let a
+    // REFab collide with a just-picked ACT (bug #2: ACT -> REF, no PRE -> the
+    // following read of that row returns garbage). Also require: nothing
+    // row-affecting in flight or inside its guard window, and any prior REF's
+    // tRFC recovery elapsed (covers back-to-back drain REFs too). The guard
+    // check costs at most 2 idle cycles after the last drain-PRE — which also
+    // provides the PRE->REF tRP spacing.
+    assign w_ref_safe = !w_any_active && !w_inflight_preact
+                      && (r_guard0 == '0) && (r_guard1 == '0)
+                      && !w_rfc_busy;
 
     // ========================================================================
     // Priority pick (combinational). Produces the abstract command + the
@@ -331,12 +365,15 @@ module pumice_cmd_arbiter
             end
         end else if (refresh_req_i || refresh_drain_i) begin
             // 2. REFRESH — precharge active banks first, then REF + grant.
+            // The REF itself only fires under w_ref_safe (no possibly-open row,
+            // tRFC met); until then this branch idles rather than fall through
+            // to column/ACT picks (a fall-through would starve the refresh).
             if (w_any_active) begin
                 if (w_rfsh_pre_found) begin
                     w_valid = 1'b1; w_op = OP_PRE; w_bank = w_rfsh_pre_bank;
                     w_do_pre = 1'b1;
                 end
-            end else begin
+            end else if (w_ref_safe) begin
                 w_valid = 1'b1; w_op = OP_REF; w_grant = 1'b1;
             end
         end else if (rd_col_f) begin
@@ -439,8 +476,19 @@ module pumice_cmd_arbiter
         end else begin
             r_guard1 <= r_guard0;
             r_guard0 <= '0;
-            if (w_fire_out && (r_do_act || r_do_pre))
+            if (w_fire_out && (r_do_act || r_do_pre || r_do_rd || r_do_wr))
                 r_guard0 <= (NUM_BANKS'(1) << r_bank);
+        end
+    )
+
+    // ---- tRFC recovery counter: load on a FIRED REF, count down to 0 --------
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_rfc_cnt <= '0;
+        end else if (w_fire_out && r_grant) begin
+            r_rfc_cnt <= t_rfc_i;
+        end else if (w_rfc_busy) begin
+            r_rfc_cnt <= r_rfc_cnt - 16'd1;
         end
     )
 
