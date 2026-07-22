@@ -30,6 +30,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 class AXIS5SlaveBasicTB(TBBase):
@@ -179,14 +180,9 @@ def test_axis5_slave(request, skid_depth, data_width, id_width, dest_width, user
 
     toplevel = "axis5_slave"
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "counter_load_clear.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_axis5'], "axis5_slave.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axis5_slave.f")
 
     # Test identifier
     sd_str = TBBase.format_dec(skid_depth, 1)
@@ -202,7 +198,7 @@ def test_axis5_slave(request, skid_depth, data_width, id_width, dest_width, user
     os.makedirs(log_dir, exist_ok=True)
 
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-    includes = [rtl_dict['rtl_amba_includes']]
+    includes=includes
 
     # RTL parameters
     rtl_parameters = {

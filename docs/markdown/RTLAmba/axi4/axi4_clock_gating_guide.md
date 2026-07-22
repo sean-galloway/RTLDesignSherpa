@@ -40,19 +40,19 @@ All AXI4 modules in this subsystem have clock-gated (`_cg`) variants that add po
 | `axi4_master_wr_cg` | [axi4_master_wr](axi4_master_wr.md) | Clock-gated write master |
 | `axi4_slave_rd_cg` | [axi4_slave_rd](axi4_slave_rd.md) | Clock-gated read slave |
 | `axi4_slave_wr_cg` | [axi4_slave_wr](axi4_slave_wr.md) | Clock-gated write slave |
-| `axi4_master_rd_mon_cg` | [axi4_master_rd_mon](axi4_master_rd_mon.md) | Clock-gated read master with monitoring |
-| `axi4_master_wr_mon_cg` | [axi4_master_wr_mon](axi4_master_wr_mon.md) | Clock-gated write master with monitoring |
-| `axi4_slave_rd_mon_cg` | [axi4_slave_rd_mon](axi4_slave_rd_mon.md) | Clock-gated read slave with monitoring |
-| `axi4_slave_wr_mon_cg` | [axi4_slave_wr_mon](axi4_slave_wr_mon.md) | Clock-gated write slave with monitoring |
+| `axi4_master_rd_mon_cg` | [axi4_master_rd_mon](../monitor/axi4_master_rd_mon.md) | Clock-gated read master with monitoring |
+| `axi4_master_wr_mon_cg` | [axi4_master_wr_mon](../monitor/axi4_master_wr_mon.md) | Clock-gated write master with monitoring |
+| `axi4_slave_rd_mon_cg` | [axi4_slave_rd_mon](../monitor/axi4_slave_rd_mon.md) | Clock-gated read slave with monitoring |
+| `axi4_slave_wr_mon_cg` | [axi4_slave_wr_mon](../monitor/axi4_slave_wr_mon.md) | Clock-gated write slave with monitoring |
 
 ### Key Features
 
 - ✅ **Dynamic Clock Gating:** Automatic clock disable during idle periods
 - ✅ **Configurable Idle Threshold:** Programmable idle count before gating
 - ✅ **Full Functional Equivalence:** Identical functionality to base modules
-- ✅ **Status Monitoring:** Real-time gating status and cumulative clock count
+- ✅ **Status Monitoring:** Real-time gating and idle status outputs
 - ✅ **Test Mode Support:** Bypass capability for scan testing
-- ✅ **Zero Performance Impact:** Immediate ungating on activity
+- ✅ **Low Ungating Overhead:** One register stage on the wake-up path; the first usable gated-clock edge arrives 2 cycles after activity is seen
 
 ---
 
@@ -73,14 +73,17 @@ All AXI4 modules in this subsystem have clock-gated (`_cg`) variants that add po
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `cfg_cg_enable` | Input | 1 | Enable clock gating (0=disabled, 1=enabled) |
-| `cfg_cg_idle_count` | Input | CG_IDLE_COUNT_WIDTH | Idle cycles before gating (0=immediate gating) |
+| `cfg_cg_idle_count` | Input | CG_IDLE_COUNT_WIDTH | Idle cycles before gating; the clock gates `cfg_cg_idle_count` + 1 cycles after the internal wakeup deasserts, which is `cfg_cg_idle_count` + 2 cycles after the last bus activity on AXI4 (one extra for the `r_wakeup` flop) |
 
 ### Clock Gating Status Outputs
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `cg_gating` | Output | 1 | Clock currently gated (1=gated, 0=running) |
-| `cg_clk_count` | Output | 32 | Cumulative gated clock cycles (power metric) |
+| `cg_idle` | Output | 1 | All internal buffers empty (1=idle, 0=active) |
+
+The `_cg` wrappers expose gating state only. They do not implement a cumulative
+gated-cycle counter; accumulate `cg_gating` externally if a power metric is needed.
 
 **All other ports are identical to the base module.**
 
@@ -91,15 +94,19 @@ All AXI4 modules in this subsystem have clock-gated (`_cg`) variants that add po
 ### Gating Conditions (All Must Be True)
 
 1. **Interface Idle:** No valid/ready handshakes on any AXI channel
-2. **Idle Duration:** Idle for ≥ `cfg_cg_idle_count` consecutive cycles
+2. **Idle Duration:** Idle for `cfg_cg_idle_count` + 1 consecutive cycles measured from the internal wakeup deassertion, which is `cfg_cg_idle_count` + 2 cycles from the last bus activity
 3. **Gating Enabled:** `cfg_cg_enable = 1`
 
-### Ungating Conditions (Any Triggers Immediate Ungating)
+### Ungating Conditions (Any Triggers Ungating)
 
 1. Any `*valid` signal asserted on any channel
 2. Configuration change (`cfg_cg_enable` or `cfg_cg_idle_count`)
 
-**Ungating Latency:** 0 cycles (immediate)
+**Ungating Latency:** activity is registered once (AXI4, AXI5, AXI4-Lite, AXI4-Stream) or
+twice (APB, APB5, AXI5-Stream) before reaching the ICG enable, which is combinational. The
+AXI4 `_cg` wrappers drive `user_valid`/`axi_valid` combinationally, so there is exactly
+**1 register stage** — `r_wakeup` inside `amba_clock_gate_ctrl` — and the first gated-clock
+rising edge available to the block arrives **2 cycles** after activity asserts.
 
 ### State Machine
 
@@ -161,7 +168,7 @@ axi4_master_rd_cg #(
 
     // Clock gating status
     .cg_gating          (rd_clk_gated),
-    .cg_clk_count       (rd_gated_cycles)
+    .cg_idle            (rd_idle)
 );
 
 // Monitor power savings
@@ -197,7 +204,7 @@ axi4_master_wr_cg #(
     .cfg_cg_idle_count  (idle_threshold),
 
     .cg_gating          (wr_clk_gated),
-    .cg_clk_count       (wr_gated_cycles)
+    .cg_idle            (wr_idle)
 );
 ```
 
@@ -208,10 +215,12 @@ axi4_master_wr_cg #(
 wire master_rd_gated, master_wr_gated;
 wire slave_rd_gated, slave_wr_gated;
 
-wire [31:0] master_rd_gated_cycles;
-wire [31:0] master_wr_gated_cycles;
-wire [31:0] slave_rd_gated_cycles;
-wire [31:0] slave_wr_gated_cycles;
+// The _cg wrappers do not count gated cycles. Accumulate each cg_gating
+// output locally (see "Measuring Power Savings" below) to obtain these.
+logic [31:0] master_rd_gated_cycles;
+logic [31:0] master_wr_gated_cycles;
+logic [31:0] slave_rd_gated_cycles;
+logic [31:0] slave_wr_gated_cycles;
 
 // Total gated cycles (power savings metric)
 wire [31:0] total_gated_cycles = master_rd_gated_cycles +
@@ -351,8 +360,8 @@ For scan testing, disable clock gating:
 **Power Estimation:**
 ```systemverilog
 initial begin
-    $monitor("Time %0t: Gating=%b, GatedCycles=%0d",
-             $time, cg_gating, cg_clk_count);
+    $monitor("Time %0t: Gating=%b, Idle=%b",
+             $time, cg_gating, cg_idle);
 end
 ```
 
@@ -365,7 +374,7 @@ end
 
 **Timing:**
 - Clock gating logic adds minimal delay
-- Ungating path is critical (0-cycle requirement)
+- The ICG enable is combinational from `r_wakeup`, so the ungating path must close in a single cycle
 - Gating path is non-critical
 
 ---
@@ -374,17 +383,24 @@ end
 
 ### Latency Analysis
 
-**Ungating Latency:** 0 cycles (immediate)
+**Ungating Latency:** 1 register stage on the wake-up path; the first usable gated-clock
+edge arrives 2 cycles after activity asserts. `clock_gate_ctrl` adds no flop of its own —
+`w_gate_enable` is combinational from `wakeup` into the ICG enable, and its header comment
+"Wakeup: 1 clock from wakeup assertion to clock restoration" describes the resulting clock
+edge rather than a register stage.
+
 ```
-Cycle N:   Interface idle, clock gated
-Cycle N+1: ARVALID asserted → clock immediately ungated
-Cycle N+1: Transaction proceeds normally
+Cycle N:   Interface idle, clock gated. ARVALID asserted; user_valid = 1
+           combinationally, ARREADY forced low so no handshake occurs.
+Cycle N+1: r_wakeup = 1 -> ICG enable released combinationally, cg_gating = 0.
+Cycle N+2: First usable gated-clock edge; transaction proceeds normally.
 ```
 
-**No Performance Penalty:**
-- Clock ungates same cycle as activity
-- AXI handshake proceeds without delay
-- Functionally equivalent to non-gated module
+**Throughput Impact:**
+- Two cycles of added latency on the first transfer out of a gated period
+- No penalty on subsequent transfers while the interface stays active
+- Functionally equivalent to the non-gated module (AXI handshakes are not dropped,
+  only delayed by the wake-up cycles)
 
 ### Throughput
 
@@ -401,10 +417,10 @@ Cycle N+1: Transaction proceeds normally
 - **[axi4_master_wr](axi4_master_wr.md)** - Base write master
 - **[axi4_slave_rd](axi4_slave_rd.md)** - Base read slave
 - **[axi4_slave_wr](axi4_slave_wr.md)** - Base write slave
-- **[axi4_master_rd_mon](axi4_master_rd_mon.md)** - Base master read monitor
-- **[axi4_master_wr_mon](axi4_master_wr_mon.md)** - Base master write monitor
-- **[axi4_slave_rd_mon](axi4_slave_rd_mon.md)** - Base slave read monitor
-- **[axi4_slave_wr_mon](axi4_slave_wr_mon.md)** - Base slave write monitor
+- **[axi4_master_rd_mon](../monitor/axi4_master_rd_mon.md)** - Base master read monitor
+- **[axi4_master_wr_mon](../monitor/axi4_master_wr_mon.md)** - Base master write monitor
+- **[axi4_slave_rd_mon](../monitor/axi4_slave_rd_mon.md)** - Base slave read monitor
+- **[axi4_slave_wr_mon](../monitor/axi4_slave_wr_mon.md)** - Base slave write monitor
 
 ### Architecture
 - **[RTLAmba Overview](../overview.md)** - Complete AMBA subsystem

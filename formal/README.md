@@ -62,7 +62,7 @@ Per-block proofs are run from their directory, e.g. `cd formal/rapids/scheduler_
 
 - **yosys** (already installed)
 - **sby** (SymbiYosys): `pip install sby`
-- **boolector** (SMT solver): see docs/FORMAL_VERIFICATION_GUIDE.md
+- **boolector** (SMT solver): build from https://github.com/Boolector/boolector
 
 ## Adding New Proofs
 
@@ -72,4 +72,5 @@ Per-block proofs are run from their directory, e.g. `cd formal/rapids/scheduler_
 4. Add targets to `formal/common/Makefile`
 5. Run: `cd formal/common/{module_name} && sby -f {module_name}.sby`
 
-See `docs/FORMAL_VERIFICATION_GUIDE.md` for detailed guide.
+The old `docs/FORMAL_VERIFICATION_GUIDE.md` was removed; the per-testcase
+READMEs and `.sby` files under `formal/` are the working reference.

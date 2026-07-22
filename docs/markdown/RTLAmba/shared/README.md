@@ -56,16 +56,16 @@ integrator that only needs error packets pays no LUT/FF for the others.
 
 | Module | Purpose | Key Features | Documentation |
 |--------|---------|--------------|---------------|
-| **axi_monitor_base** | Core monitor logic | Transaction tracking, timeout detection, event generation | [axi_monitor_base.md](axi_monitor_base.md) |
-| **axi_monitor_filtered** | Monitor wrapper with filtering | 3-level packet filtering, configuration validation | [axi_monitor_filtered.md](axi_monitor_filtered.md) |
-| **axi_monitor_trans_mgr** | Transaction table management (CAM-backed) | Out-of-order tracking, ID management | [axi_monitor_trans_mgr.md](axi_monitor_trans_mgr.md) |
-| **monitor_trans_cam** | Multi-port ID CAM with payload | 3 lookup ports, 3-way alloc mutex, used by trans_mgr | [monitor_trans_cam.md](monitor_trans_cam.md) |
-| **axi_monitor_reporter** | Event packet dispatcher | Top-level mux over 6 detection sub-blocks (error / timeout / compl / threshold / perf / debug), each gated by `ENABLE_*_LOGIC` | [axi_monitor_reporter.md](axi_monitor_reporter.md) |
-| `axi_monitor_reporter_{error,timeout,compl,threshold,perf,debug}` | Per-packet-type detection sub-blocks | One MonBus packet type each, muxed by axi_monitor_reporter; each gated by `ENABLE_*_LOGIC` | [error](axi_monitor_reporter_error.md) · [timeout](axi_monitor_reporter_timeout.md) · [compl](axi_monitor_reporter_compl.md) · [threshold](axi_monitor_reporter_threshold.md) · [perf](axi_monitor_reporter_perf.md) · [debug](axi_monitor_reporter_debug.md) |
-| **axi_monitor_timeout** | Timeout detection | Configurable thresholds, multi-channel monitoring | [axi_monitor_timeout.md](axi_monitor_timeout.md) |
-| **axi_monitor_timer** | Frequency-invariant timer | Configurable tick generation | [axi_monitor_timer.md](axi_monitor_timer.md) |
-| **axi_monitor_addr_check** | Address-match watchpoints | Per-channel address compare and event emission | [axi_monitor_addr_check.md](axi_monitor_addr_check.md) |
-| **apb_monitor_addr_check** | APB address-range filter | N configurable ranges; emits APB address-range error packets | [apb_monitor_addr_check.md](apb_monitor_addr_check.md) |
+| **axi_monitor_base** | Core monitor logic | Transaction tracking, timeout detection, event generation | [axi_monitor_base.md](../monitor/axi_monitor_base.md) |
+| **axi_monitor_filtered** | Monitor wrapper with filtering | 3-level packet filtering, configuration validation | [axi_monitor_filtered.md](../monitor/axi_monitor_filtered.md) |
+| **axi_monitor_trans_mgr** | Transaction table management (CAM-backed) | Out-of-order tracking, ID management | [axi_monitor_trans_mgr.md](../monitor/axi_monitor_trans_mgr.md) |
+| **monitor_trans_cam** | Multi-port ID CAM with payload | 3 lookup ports, 3-way alloc mutex, used by trans_mgr | [monitor_trans_cam.md](../monitor/monitor_trans_cam.md) |
+| **axi_monitor_reporter** | Event packet dispatcher | Top-level mux over 6 detection sub-blocks (error / timeout / compl / threshold / perf / debug), each gated by `ENABLE_*_LOGIC` | [axi_monitor_reporter.md](../monitor/axi_monitor_reporter.md) |
+| `axi_monitor_reporter_{error,timeout,compl,threshold,perf,debug}` | Per-packet-type detection sub-blocks | One MonBus packet type each, muxed by axi_monitor_reporter; each gated by `ENABLE_*_LOGIC` | [error](../monitor/axi_monitor_reporter_error.md) · [timeout](../monitor/axi_monitor_reporter_timeout.md) · [compl](../monitor/axi_monitor_reporter_compl.md) · [threshold](../monitor/axi_monitor_reporter_threshold.md) · [perf](../monitor/axi_monitor_reporter_perf.md) · [debug](../monitor/axi_monitor_reporter_debug.md) |
+| **axi_monitor_timeout** | Timeout detection | Configurable thresholds, multi-channel monitoring | [axi_monitor_timeout.md](../monitor/axi_monitor_timeout.md) |
+| **axi_monitor_timer** | Frequency-invariant timer | Configurable tick generation | [axi_monitor_timer.md](../monitor/axi_monitor_timer.md) |
+| **axi_monitor_addr_check** | Address-match watchpoints | Per-channel address compare and event emission | [axi_monitor_addr_check.md](../monitor/axi_monitor_addr_check.md) |
+| **apb_monitor_addr_check** | APB address-range filter | N configurable ranges; emits APB address-range error packets | [apb_monitor_addr_check.md](../monitor/apb_monitor_addr_check.md) |
 | **amba_clock_gate_ctrl** | Clock gating control | Dynamic gating, idle detection | [amba_clock_gate_ctrl.md](amba_clock_gate_ctrl.md) |
 
 ### Monitor Bus Delivery + Bulk-Trace Compression
@@ -77,15 +77,15 @@ the matching fabric without spurious AXI4-only fields on AXIL sides.
 
 | Module | Purpose | Key Features | Documentation |
 |--------|---------|--------------|---------------|
-| **monbus_group_core** | Protocol-agnostic core | Per-protocol filter, err FIFO (record-granular), write FIFO (beat-granular), watermark+timeout burst writer, 4KB-boundary aware, optional bulk-trace compression | [monbus_group_core.md](monbus_group_core.md) (family: [monbus_group.md](monbus_group.md)) |
-| **monbus_axil_axil_group** | Wrapper — AXIL/AXIL | Slave-read + master-write both AXIL (single-beat). Replaces legacy monbus_axil_group. | [monbus_axil_axil_group.md](monbus_axil_axil_group.md) |
-| **monbus_axil_axi4_group** | Wrapper — AXIL/AXI4 | AXIL slave-read + AXI4 burst master-write (up to 256 beats/burst) | [monbus_axil_axi4_group.md](monbus_axil_axi4_group.md) |
-| **monbus_axi4_axil_group** | Wrapper — AXI4/AXIL | AXI4 burst slave-read + AXIL master-write | [monbus_axi4_axil_group.md](monbus_axi4_axil_group.md) |
-| **monbus_axi4_axi4_group** | Wrapper — AXI4/AXI4 | Burst on both sides | [monbus_axi4_axi4_group.md](monbus_axi4_axi4_group.md) |
-| **monbus_halfbeat_packer** | Half-beat packer | Packs MonBus records into half-beats to push past the compressor's ~66.7% ceiling; bit-exact to Python golden | [monbus_halfbeat_packer.md](monbus_halfbeat_packer.md) |
-| **monbus_compressor** | Bulk-trace encoder | 32-entry LRU CAM, 4-tag slot format, ~2.6× ratio, 2-stage pipeline, per-template `delta_ts`, optional half-beat packing, bit-exact to Python golden | [monbus_compressor.md](monbus_compressor.md) |
-| **monbus_cam_pipe** | Pipelined LRU CAM (production) | 2-cycle compare + commit, depth-1 forwarding, sync `clear`, self-derived TOUCH/INSTALL — used in `monbus_compressor` | [monbus_cam_pipe.md](monbus_cam_pipe.md) |
-| **monbus_cam** | LRU CAM (reference) | Single-cycle reference design — same LRU semantics, superseded by `monbus_cam_pipe` in production | [monbus_cam.md](monbus_cam.md) |
+| **monbus_group_core** | Protocol-agnostic core | Per-protocol filter, err FIFO (record-granular), write FIFO (beat-granular), watermark+timeout burst writer, 4KB-boundary aware, optional bulk-trace compression | [monbus_group_core.md](../monitor/monbus_group_core.md) (family: [monbus_group.md](../monitor/monbus_group.md)) |
+| **monbus_axil_axil_group** | Wrapper — AXIL/AXIL | Slave-read + master-write both AXIL (single-beat). Replaces legacy monbus_axil_group. | [monbus_axil_axil_group.md](../monitor/monbus_axil_axil_group.md) |
+| **monbus_axil_axi4_group** | Wrapper — AXIL/AXI4 | AXIL slave-read + AXI4 burst master-write (up to 256 beats/burst) | [monbus_axil_axi4_group.md](../monitor/monbus_axil_axi4_group.md) |
+| **monbus_axi4_axil_group** | Wrapper — AXI4/AXIL | AXI4 burst slave-read + AXIL master-write | [monbus_axi4_axil_group.md](../monitor/monbus_axi4_axil_group.md) |
+| **monbus_axi4_axi4_group** | Wrapper — AXI4/AXI4 | Burst on both sides | [monbus_axi4_axi4_group.md](../monitor/monbus_axi4_axi4_group.md) |
+| **monbus_halfbeat_packer** | Half-beat packer | Packs MonBus records into half-beats to push past the compressor's ~66.7% ceiling; bit-exact to Python golden | [monbus_halfbeat_packer.md](../monitor/monbus_halfbeat_packer.md) |
+| **monbus_compressor** | Bulk-trace encoder | 32-entry LRU CAM, 4-tag slot format, ~2.6× ratio, 2-stage pipeline, per-template `delta_ts`, optional half-beat packing, bit-exact to Python golden | [monbus_compressor.md](../monitor/monbus_compressor.md) |
+| **monbus_cam_pipe** | Pipelined LRU CAM (production) | 2-cycle compare + commit, depth-1 forwarding, sync `clear`, self-derived TOUCH/INSTALL — used in `monbus_compressor` | [monbus_cam_pipe.md](../monitor/monbus_cam_pipe.md) |
+| **monbus_cam** | LRU CAM (reference) | Single-cycle reference design — same LRU semantics, superseded by `monbus_cam_pipe` in production | [monbus_cam.md](../monitor/monbus_cam.md) |
 
 The group family uses a small carry-save-compressor helper
 (`rtl/common/mod_3_compress.sv`) for whole-record `X − (X mod 3)`
@@ -149,10 +149,10 @@ Monitor bus arbiters for aggregating packets from multiple monitors:
 
 | Module | Purpose | Algorithm | Documentation |
 |--------|---------|-----------|---------------|
-| **monbus_arbiter** | Basic monitor bus arbiter | Round-robin with priority | [monbus_arbiter.md](monbus_arbiter.md) |
-| **arbiter_monbus_common** | Common arbiter infrastructure | Shared logic for all arbiters | [arbiter_monbus_common.md](arbiter_monbus_common.md) |
-| **arbiter_rr_pwm_monbus** | Round-robin PWM arbiter | Equal priority rotation | [arbiter_rr_pwm_monbus.md](arbiter_rr_pwm_monbus.md) |
-| **arbiter_wrr_pwm_monbus** | Weighted round-robin arbiter | Configurable priority weights | [arbiter_wrr_pwm_monbus.md](arbiter_wrr_pwm_monbus.md) |
+| **monbus_arbiter** | Basic monitor bus arbiter | Round-robin with priority | [monbus_arbiter.md](../monitor/monbus_arbiter.md) |
+| **arbiter_monbus_common** | Common arbiter infrastructure | Shared logic for all arbiters | [arbiter_monbus_common.md](../monitor/arbiter_monbus_common.md) |
+| **arbiter_rr_pwm_monbus** | Round-robin PWM arbiter | Equal priority rotation | [arbiter_rr_pwm_monbus.md](../monitor/arbiter_rr_pwm_monbus.md) |
+| **arbiter_wrr_pwm_monbus** | Weighted round-robin arbiter | Configurable priority weights | [arbiter_wrr_pwm_monbus.md](../monitor/arbiter_wrr_pwm_monbus.md) |
 
 ### AXI Utilities (5 modules)
 
@@ -164,11 +164,11 @@ Utility modules for AXI protocol handling:
 | **axi_master_rd_splitter** | Read channel splitter | Split AXI read across boundaries | [axi_master_rd_splitter.md](axi_master_rd_splitter.md) |
 | **axi_master_wr_splitter** | Write channel splitter | Split AXI write with response consolidation | [axi_master_wr_splitter.md](axi_master_wr_splitter.md) |
 | **axi_split_combi** | Combined splitter | Bidirectional split (read + write) | [axi_split_combi.md](axi_split_combi.md) |
-| **CDC Primer** | Reference guide | All CDC techniques categorized with decision guide | [cdc_primer.md](cdc_primer.md) |
-| **cdc_open_loop** | Clock domain crossing | Open-loop CDC with sync_pulse (no handshake) | [cdc_open_loop.md](cdc_open_loop.md) |
-| **cdc_2_phase_handshake** | Clock domain crossing | 2-phase toggle-based valid/ready handshake (faster) | [cdc_2_phase_handshake.md](cdc_2_phase_handshake.md) |
-| **cdc_4_phase_handshake** | Clock domain crossing | 4-phase level-based valid/ready handshake | [cdc_4_phase_handshake.md](cdc_4_phase_handshake.md) |
-| **cdc_synchronizer** | Multi-bit synchronizer | N-stage synchronizer for quasi-static signals | [cdc_synchronizer.md](cdc_synchronizer.md) |
+
+> **Clock domain crossing modules have moved.** `cdc_2_phase_handshake`,
+> `cdc_4_phase_handshake`, `cdc_open_loop` and `cdc_synchronizer` now live in
+> `rtl/amba/cdc/`, documented under [RTLAmba/cdc](../cdc/README.md). Start with the
+> [CDC Primer](../cdc/cdc.md) for the decision guide.
 
 ---
 
@@ -408,7 +408,7 @@ Instantiated within axi_monitor_base. Provides time base for timeout detection.
 **Key Features:**
 - Idle detection with configurable threshold
 - Automatic gating after idle period
-- Fast ungating on activity (0 cycles)
+- Fast ungating on activity: 1 register stage, first usable gated-clock edge 2 cycles after activity (2 stages / 3 cycles on APB, APB5, AXI5-Stream)
 - Safe clock gating (glitch-free)
 - Clock cycle counting for power analysis
 
@@ -436,7 +436,9 @@ output logic [31:0] cg_clk_count  // Cumulative gated cycles
 Activity detection → Reset idle counter
 No activity → Increment idle counter
 Idle >= threshold && enable → Gate clock
-Activity detected → Ungate immediately
+Activity detected → Ungate without waiting for the idle counter
+                    (1 register stage; first usable gated edge 2 clocks later,
+                     2 stages / 3 clocks on APB, APB5, AXI5-Stream)
 ```
 
 **Usage:**
@@ -885,10 +887,12 @@ axi_monitor_base → Unfiltered packets
 - Total: ~550 LUTs, ~430 FFs per monitor
 
 **Packet Generation Rate:**
+- Reporter output ceiling: 1 packet per 2 cycles (registered output stage)
 - Completion packets: 1 per transaction
 - Error packets: As needed (protocol violations)
-- Timeout packets: Low frequency (cfg_freq_sel dependent)
-- Performance packets: 1 per N transactions (configurable)
+- Timeout packets: Low frequency (cfg_freq_sel-scaled phase timers)
+- Performance packets: periodic count rollups (completed/error counts),
+  emitted only when the error/timeout/completion path is idle
 
 ### CDC Latency
 

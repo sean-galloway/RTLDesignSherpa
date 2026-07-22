@@ -29,6 +29,10 @@
 **Date Fixed:** 2025-10-03
 **Affects:** `axi_monitor_base.sv` (specifically `axi_monitor_reporter.sv`)
 
+> Status (2026-07-22): the `val/amba/logs/test_axi_monitor_*.log` files cited below
+> were debug evidence from the 2025-10 investigation and have since rotated out of
+> `val/amba/logs/`; rerun the named test cases (now `test_axi4_monitor.py`) to reproduce.
+
 ---
 
 ## Summary
@@ -123,7 +127,7 @@ The orphan detection logic in `axi_monitor_trans_mgr.sv` or `axi_monitor_reporte
 
 ### Likely Location
 
-**File:** `rtl/amba/shared/axi_monitor_reporter.sv` or `rtl/amba/shared/axi_monitor_trans_mgr.sv`
+**File:** `rtl/amba/monitor/axi_monitor_reporter.sv` or `rtl/amba/monitor/axi_monitor_trans_mgr.sv`
 
 **Look for:**
 - Orphan detection logic (likely checks for data_valid without matching cmd)
@@ -259,7 +263,7 @@ def filter_orphan_duplicates(packet):
 
 ### Changes Made (2025-10-03)
 
-**File:** `rtl/amba/shared/axi_monitor_reporter.sv`
+**File:** `rtl/amba/monitor/axi_monitor_reporter.sv`
 **Lines:** 295-307
 
 **Root Cause Confirmed:**

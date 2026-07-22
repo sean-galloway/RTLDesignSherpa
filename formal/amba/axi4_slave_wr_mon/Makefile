@@ -1,6 +1,11 @@
 # SPDX-License-Identifier: MIT
 # Formal verification Makefile for axi4_slave_wr_mon
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog
+#
+# DEPS is the transitive module closure of axi4_slave_wr_mon (leaves first), regenerated
+# by tools/gen_formal_deps.py after the rtl/amba/monitor/ move, the reporter
+# split (axi_monitor_reporter_*), and the monitor_trans_cam extraction.  The
+# sv2v file list is derived from $(DEPS) so the two cannot drift.
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      := /mnt/data/tools/sv2v
@@ -11,26 +16,30 @@ PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/monitor_amba4_pkg.sv \
         monitor_pkg_stub.sv
 
-# Monitor infrastructure (same as axi_monitor_filtered)
-MON_DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
-            $(REPO_ROOT)/rtl/common/counter_load_clear.sv \
-            $(REPO_ROOT)/rtl/common/counter_freq_invariant.sv \
-            $(REPO_ROOT)/rtl/common/fifo_control.sv \
-            $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
-            $(REPO_ROOT)/rtl/amba/shared/axi_monitor_timer.sv \
-            $(REPO_ROOT)/rtl/amba/shared/axi_monitor_trans_mgr.sv \
-            $(REPO_ROOT)/rtl/amba/shared/axi_monitor_timeout.sv \
-            $(REPO_ROOT)/rtl/amba/shared/axi_monitor_reporter.sv \
-            $(REPO_ROOT)/rtl/amba/shared/axi_monitor_base.sv \
-            $(REPO_ROOT)/rtl/amba/shared/axi_monitor_filtered.sv
+# RTL dependencies (transitive closure of axi4_slave_wr_mon, leaves first)
+DEPS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
+        $(REPO_ROOT)/rtl/amba/axi4/axi4_slave_wr.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_addr_check.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_compl.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_debug.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_error.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_perf.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_threshold.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_timeout.sv \
+        $(REPO_ROOT)/rtl/common/counter_bin.sv \
+        $(REPO_ROOT)/rtl/common/fifo_control.sv \
+        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timeout.sv \
+        $(REPO_ROOT)/rtl/common/counter_load_clear.sv \
+        $(REPO_ROOT)/rtl/common/counter_freq_invariant.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timer.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/monitor_trans_cam.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_trans_mgr.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_base.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_filtered.sv
 
-# AXI slave write wrapper (skid buffers)
-AXI_DEPS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
-            $(REPO_ROOT)/rtl/amba/axi4/axi4_slave_wr.sv
-
-DUT := $(REPO_ROOT)/rtl/amba/axi4/axi4_slave_wr_mon.sv
-
-ALL_DEPS := $(MON_DEPS) $(AXI_DEPS)
+DUT := $(REPO_ROOT)/rtl/amba/monitor/axi4_slave_wr_mon.sv
 
 TMPDIR := /tmp/formal_axi4_slave_wr_mon
 
@@ -42,27 +51,17 @@ prove: axi4_slave_wr_mon_flat.v
 cover: axi4_slave_wr_mon_flat.v
 	sby -f axi4_slave_wr_mon.sby cover
 
-axi4_slave_wr_mon_flat.v: $(DUT) $(PKGS) $(ALL_DEPS)
+# Strip `import monitor_pkg::*;` and `monitor_pkg::` scope prefixes (monitor_pkg
+# re-exports sub-package types and trips sv2v "ambiguous identifier"), then
+# flatten DUT + closure into a single Verilog file.
+axi4_slave_wr_mon_flat.v: $(DUT) $(PKGS) $(DEPS)
 	@mkdir -p $(TMPDIR)
-	@for f in $(ALL_DEPS) $(DUT); do \
+	@for f in $(DEPS) $(DUT); do \
 		sed -e 's/import monitor_pkg::\*;//g' \
 		    -e 's/monitor_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \
 	done
-	$(SV2V) $(INC) $(PKGS) \
-		$(TMPDIR)/counter_bin.sv \
-		$(TMPDIR)/counter_load_clear.sv \
-		$(TMPDIR)/counter_freq_invariant.sv \
-		$(TMPDIR)/fifo_control.sv \
-		$(TMPDIR)/gaxi_fifo_sync.sv \
-		$(TMPDIR)/axi_monitor_timer.sv \
-		$(TMPDIR)/axi_monitor_trans_mgr.sv \
-		$(TMPDIR)/axi_monitor_timeout.sv \
-		$(TMPDIR)/axi_monitor_reporter.sv \
-		$(TMPDIR)/axi_monitor_base.sv \
-		$(TMPDIR)/axi_monitor_filtered.sv \
-		$(TMPDIR)/gaxi_skid_buffer.sv \
-		$(TMPDIR)/axi4_slave_wr.sv \
-		$(TMPDIR)/axi4_slave_wr_mon.sv > $@
+	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) \
+		$(addprefix $(TMPDIR)/,$(notdir $(DEPS) $(DUT))) > $@
 	@rm -rf $(TMPDIR)
 
 clean:

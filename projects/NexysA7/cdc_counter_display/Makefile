@@ -163,10 +163,10 @@ lint-demo:
 		$(REPO_ROOT)/rtl/common/counter_bin_load.sv \
 		$(REPO_ROOT)/rtl/common/counter_bingray.sv \
 		$(REPO_ROOT)/rtl/common/glitch_free_n_dff_arn.sv \
-		$(REPO_ROOT)/rtl/amba/shared/cdc_open_loop.sv \
-		$(REPO_ROOT)/rtl/amba/shared/cdc_2_phase_handshake.sv \
-		$(REPO_ROOT)/rtl/amba/shared/cdc_4_phase_handshake.sv \
-		$(REPO_ROOT)/rtl/amba/shared/cdc_synchronizer.sv \
+		$(REPO_ROOT)/rtl/amba/cdc/cdc_open_loop.sv \
+		$(REPO_ROOT)/rtl/amba/cdc/cdc_2_phase_handshake.sv \
+		$(REPO_ROOT)/rtl/amba/cdc/cdc_4_phase_handshake.sv \
+		$(REPO_ROOT)/rtl/amba/cdc/cdc_synchronizer.sv \
 		$(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
 		$(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
 		$(REPO_ROOT)/rtl/amba/axil4/axil4_master_rd.sv \

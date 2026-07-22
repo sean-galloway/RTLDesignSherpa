@@ -281,11 +281,10 @@ pytest val/common/test_fifo_async_wavedrom.py -v
 
 **Comparison Tests:**
 
-- `test_fifo_async_div2_wavedrom.py` - Johnson counter CDC (flexible even depths)
 - `test_fifo_sync_wavedrom.py` - Synchronous FIFO (single clock, no CDC)
 
 ## Related Modules
-- **fifo_async_div2**: For non-power-of-2 depths using Johnson counters
+- **USE_JOHNSON=1**: For non-power-of-2 depths, using Johnson counters (replaces the retired fifo_async_div2)
 - **fifo_sync**: For single clock domain applications
 - **counter_bingray**: Binary-Gray counter implementation
 - **glitch_free_n_dff_arn**: Multi-stage synchronizer

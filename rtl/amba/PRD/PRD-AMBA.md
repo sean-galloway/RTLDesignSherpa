@@ -165,7 +165,7 @@ All monitors output standardized 64-bit packets:
 - **Issue:** event_reported feedback missing between reporter and trans_mgr
 - **Solution:** Added feedback wire to enable transaction cleanup
 - **Verification:** Tests improved from 1/8 to 6/8 passing
-- **Documentation:** `rtl/amba/KNOWN_ISSUES/axi_monitor_reporter.md`
+- **Documentation:** `rtl/amba/KNOWN_ISSUES/` page retired after the fix; module doc at `docs/markdown/RTLAmba/monitor/axi_monitor_reporter.md`
 - **Task Specification:** `rtl/amba/PRD/TASK-001-axi_monitor_reporter.md`
 
 ### 5.2 Open Issues
@@ -235,7 +235,7 @@ All monitors output standardized 64-bit packets:
 
 ### 8.1 Internal Dependencies
 - `rtl/common/` - Counters, FIFOs, basic primitives
-- `rtl/gaxi/` - Synchronous FIFO (gaxi_fifo_sync)
+- `rtl/amba/gaxi/` - Synchronous FIFO (gaxi_fifo_sync)
 - `rtl/amba/includes/monitor_pkg.sv` - Protocol definitions
 
 ### 8.2 Tool Dependencies
@@ -248,9 +248,9 @@ All monitors output standardized 64-bit packets:
 ## 9. Documentation
 
 ### 9.1 Existing Documentation
-- ✅ Configuration Guide: `docs/AXI_Monitor_Configuration_Guide.md`
-- ✅ Known Issues: `rtl/amba/KNOWN_ISSUES/axi_monitor_reporter.md`
-- ✅ Task Specifications: `rtl/amba/PRD/FIX-001-event-reported-feedback.md`
+- ✅ Configuration Guide: `docs/guides/AXI_Monitor_Configuration_Guide.md`
+- ✅ Known Issues: `rtl/amba/KNOWN_ISSUES/` (the axi_monitor_reporter page was retired after the fix)
+- ✅ Task Specifications: `rtl/amba/PRD/TASK-001-axi_monitor_reporter.md` (FIX-001)
 - ⏳ API Reference: Partial (needs completion)
 - ⏳ Integration Guide: Not started
 
@@ -317,7 +317,7 @@ All monitors output standardized 64-bit packets:
 - **Task README:** `rtl/amba/PRD/README.md` (task structure and guidelines)
 - **Task List:** `rtl/amba/PRD/TASKS.md` (current work items)
 - **KNOWN_ISSUES:** `rtl/amba/KNOWN_ISSUES/` (detailed issue documentation)
-- **Configuration Guide:** `docs/AXI_Monitor_Configuration_Guide.md`
+- **Configuration Guide:** `docs/guides/AXI_Monitor_Configuration_Guide.md`
 
 ---
 

@@ -29,6 +29,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.axil4.monitor.axil4_master_monitor_tb import AXIL4MasterMonitorTB
 from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 @cocotb.test(timeout_time=30, timeout_unit="sec")
@@ -44,17 +45,12 @@ async def axil4_master_rd_mon_cg_test(dut):
     # Initialize
     await tb.initialize()
 
-    # Configure clock gating (enable it with default settings)
-    if hasattr(dut, 'cfg_cg_enable'):
-        dut.cfg_cg_enable.value = 1
-    if hasattr(dut, 'cfg_cg_idle_threshold'):
-        dut.cfg_cg_idle_threshold.value = 4  # Lower threshold for AXIL (simpler protocol)
-    if hasattr(dut, 'cfg_cg_gate_monitor'):
-        dut.cfg_cg_gate_monitor.value = 1
-    if hasattr(dut, 'cfg_cg_gate_reporter'):
-        dut.cfg_cg_gate_reporter.value = 1
-    if hasattr(dut, 'cfg_cg_gate_timers'):
-        dut.cfg_cg_gate_timers.value = 1
+    # Configure clock gating (converged interface: enable + idle count).
+    # Gating behaviour itself is asserted by val/amba/test_mon_cg_gating.py;
+    # here it is simply left enabled so the functional traffic below runs
+    # with the clock actually being gated and ungated underneath it.
+    dut.cfg_cg_enable.value = 1
+    dut.cfg_cg_idle_count.value = 8
 
     # Run all integration tests (same as non-CG version)
     await tb.run_integration_tests(test_level=test_level)
@@ -106,6 +102,7 @@ def test_axil4_master_rd_mon_cg(test_level):
         'rtl_includes': 'rtl/amba/includes',
         'rtl_common': 'rtl/common',
         'rtl_shared': 'rtl/amba/shared',
+        'rtl_monitor': 'rtl/amba/monitor',
      'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "axil4_master_rd_mon_cg"
@@ -119,36 +116,9 @@ def test_axil4_master_rd_mon_cg(test_level):
     os.makedirs(log_dir, exist_ok=True)
 
     # Verilog sources (includes axil4_master_rd_mon which the CG version instantiates)
-    verilog_sources = [
-        # Monitor packages (must be compiled in order)
-        os.path.join(rtl_dict['rtl_includes'], "monitor_common_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_amba4_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_amba5_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_arbiter_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_pkg.sv"),
-        os.path.join(rtl_dict['rtl_common'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_common'], "counter_load_clear.sv"),
-        os.path.join(rtl_dict['rtl_common'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_common'], "counter_freq_invariant.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_axil4'], "axil4_master_rd.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "monitor_trans_cam.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_trans_mgr.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_timer.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_timeout.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_error.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_timeout.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_compl.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_threshold.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_perf.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_debug.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_base.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_filtered.sv"),
-        os.path.join(rtl_dict['rtl_axil4'], "axil4_master_rd_mon.sv"),  # Base monitor (instantiated by CG)
-        os.path.join(rtl_dict['rtl_axil4'], f"{dut_name}.sv"),  # CG wrapper
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axil4_master_rd_mon_cg.f")
 
     # Check files exist
     for src in verilog_sources:
@@ -165,15 +135,23 @@ def test_axil4_master_rd_mon_cg(test_level):
         'ENABLE_FILTERING': '1',
         'SKID_DEPTH_AR': '2',
         'SKID_DEPTH_R': '4',
-        # Clock gating parameters
-        'ENABLE_CLOCK_GATING': '1',
-        'CG_IDLE_CYCLES': '4',
+        # CG-specific parameters (fixed)
+        'CG_IDLE_COUNT_WIDTH': 4,
     }
 
     extra_env = {
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'TEST_LEVEL': test_level,
+        # Pin the cocotb seed. Unpinned, cocotb self-seeds from the clock and
+        # the AXIL4 monitor TBs' fixed 20-cycle packet wait intermittently
+        # races the MonbusSlave's randomized ready delay (which reaches 30
+        # cycles) -- the same ~12% zero-packet race the AXI4 monitor TB
+        # documents and fixed with a bounded poll. The real fix is porting
+        # that poll to bin/TBClasses/axil4/monitor/* (framework repo); until
+        # then the suite must at least be deterministic.
+        'RANDOM_SEED': '12345',
+        'COCOTB_RANDOM_SEED': '12345',
     }
 
     compile_args = ["--trace-fst",
@@ -201,7 +179,7 @@ def test_axil4_master_rd_mon_cg(test_level):
         timescale='1ns/1ps',
         verilator_trace=False,
         compile_args=compile_args,
-        includes=[rtl_dict['rtl_amba_includes']]
+        includes=includes
     )
 
 

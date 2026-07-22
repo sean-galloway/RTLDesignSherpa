@@ -31,9 +31,26 @@
 
 ## Overview
 
-The APB subsystem provides a complete implementation of the ARM AMBA APB (Advanced Peripheral Bus) protocol, including masters, slaves, monitors, interconnect components, and testbench utilities.
+The APB subsystem provides a complete implementation of the ARM AMBA 4 APB (Advanced Peripheral Bus) protocol, including masters, slaves, monitors, interconnect components, and testbench utilities.
 
 APB is a simple, low-power peripheral bus designed for connecting low-bandwidth peripherals to a system bus. It uses a simple two-cycle handshake protocol with minimal control signals.
+
+### Protocol Scope: APB4, not APB5
+
+Every module in `rtl/amba/apb/` implements **AMBA 4 APB (APB4)**: `PSEL`, `PENABLE`,
+`PREADY`, `PADDR`, `PWRITE`, `PWDATA`, `PSTRB`, `PPROT`, `PRDATA`, `PSLVERR`.
+
+The APB5 additions -- `PWAKEUP`, `PAUSER`/`PWUSER`/`PRUSER`/`PBUSER`, and the
+optional parity signals -- are **not** present on these modules. They live in a
+separate module family:
+
+| Family | RTL | Documentation |
+|--------|-----|---------------|
+| APB4 (this book) | `rtl/amba/apb/` | `docs/markdown/RTLAmba/apb/` |
+| APB5 | `rtl/amba/apb5/` | [APB5 Modules](../apb5/README.md) |
+
+Use `apb5_slave` / `apb5_master` (and their `_cg` / `_cdc` variants) when APB5
+signalling is required. The two families are otherwise architecturally identical.
 
 ---
 
@@ -46,7 +63,11 @@ APB is a simple, low-power peripheral bus designed for connecting low-bandwidth 
 | **apb_master** | Full-featured APB master with command/response interface | [apb_master.md](apb_master.md) | ✅ Documented |
 | **apb_slave** | Complete APB slave with buffered cmd/rsp interface | [apb_slave.md](apb_slave.md) | ✅ Documented |
 | **apb_slave_cdc** | APB slave with clock domain crossing support | [apb_slave_cdc.md](apb_slave_cdc.md) | ✅ Documented |
-| **apb_monitor** | Transaction monitoring with 128-bit monitor bus + 64-bit timestamp | [apb_monitor.md](apb_monitor.md) | ✅ Documented |
+| **apb_monitor** | Transaction monitoring with 128-bit monitor bus + 64-bit timestamp | [apb_monitor.md](../monitor/apb_monitor.md) | ✅ Documented |
+
+**Note:** `apb_monitor.sv` lives in `rtl/amba/monitor/` (with the rest of the
+monitor family), not in `rtl/amba/apb/`. Its specification is part of the
+Monitor book.
 
 ### Testbench Utilities
 
@@ -59,35 +80,47 @@ APB is a simple, low-power peripheral bus designed for connecting low-bandwidth 
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **apb_crossbar** | Full APB crossbar interconnect (NxM topology) | [apb_crossbar.md](apb_crossbar.md) | ✅ Documented |
-| **apb_xbar** | APB crossbar with address decoding | [apb_xbar.md](apb_xbar.md) | ✅ Documented |
+| **apb_xbar_1to1** / **2to1** / **1to4** / **2to4** | Generated fixed-configuration crossbars built from `apb_slave` + `apb_master` | [apb_crossbar.md](apb_crossbar.md) | ✅ Documented |
+| **apb_xbar_thin** | Fully parameterized M×S combinational crossbar with weighted round-robin | [apb_xbar.md](apb_xbar.md) | ✅ Documented |
 
-### Coverage Variants
+**Note:** The crossbar RTL, generator, and testbenches live in the
+`apb_xbar` component area (`projects/components/apb_xbar/`), not under
+`rtl/amba/apb/`. They are documented here because they are built entirely from
+the APB4 primitives in this directory.
 
-| Module | Description | Documentation | Status |
+### Clock-Gated Variants
+
+Each of these wraps its base module in `amba_clock_gate_ctrl` and is functionally
+identical to it. They add `cfg_cg_enable` / `cfg_cg_idle_count` inputs and an
+`apb_clock_gating` status output.
+
+| Module | Base Module | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **apb_master_cg** | APB master with integrated coverage groups | - | ⏳ Pending |
-| **apb_slave_cg** | APB slave with integrated coverage groups | - | ⏳ Pending |
-| **apb_slave_cdc_cg** | APB slave CDC with integrated coverage groups | - | ⏳ Pending |
+| **apb_master_cg** | `apb_master` | [apb_master_cg.md](apb_master_cg.md) | ✅ Documented |
+| **apb_slave_cg** | `apb_slave` | [apb_slave_cg.md](apb_slave_cg.md) | ✅ Documented |
+| **apb_slave_cdc_cg** | `apb_slave_cdc` | [apb_slave_cdc_cg.md](apb_slave_cdc_cg.md) | ✅ Documented |
 
 ---
 
 ## Key Features
 
 ### APB Protocol Support
-- ✅ **Full APB4/APB5 Compliance:** Complete protocol implementation
+- ✅ **Full APB4 Compliance:** Complete AMBA 4 APB protocol implementation
 - ✅ **PSTRB Support:** Byte-lane strobes for partial writes
 - ✅ **PPROT Support:** Protection attributes for security-aware systems
 - ✅ **Error Handling:** PSLVERR support for error responses
+- ✅ **APB5 Available Separately:** See `rtl/amba/apb5/` for `PWAKEUP`, the
+  `P*USER` sidebands, and optional parity
 
 ### Clock Domain Crossing
 - ✅ **Dual-Clock Operation:** APB (pclk) and backend (aclk) domains
-- ✅ **Safe CDC:** Proper handshake-based clock domain crossing
+- ✅ **Safe CDC:** Gray-pointer asynchronous FIFOs (`gaxi_fifo_async`) in both directions
 - ✅ **Independent Frequencies:** Backend can run faster or slower than APB
+- ✅ **Independent Resets:** Each domain may be reset alone without desynchronizing the link
 
 ### Monitoring and Debug
 - ✅ **Transaction Monitoring:** Real-time protocol monitoring
-- ✅ **64-bit Monitor Bus:** Standardized packet format
+- ✅ **128-bit Monitor Bus:** Standardized packet format plus a 64-bit side-band timestamp
 - ✅ **Error Detection:** Protocol violations, timeout detection
 - ✅ **Performance Tracking:** Transaction counting, latency measurement
 
@@ -192,6 +225,12 @@ pytest val/amba/test_apb_slave.py -v
 pytest val/amba/test_apb_slave_cdc.py -v
 pytest val/amba/test_apb_monitor.py -v
 
+# Clock-gated CDC variant
+pytest val/amba/test_apb_slave_cdc_cg.py -v
+
+# Generated crossbars (component area)
+pytest projects/components/apb_xbar/dv/tests/ -v
+
 # Run with waveform generation
 env ENABLE_WAVEDROM=1 pytest val/amba/test_apb_slave_wavedrom.py -v
 ```
@@ -200,8 +239,22 @@ env ENABLE_WAVEDROM=1 pytest val/amba/test_apb_slave_wavedrom.py -v
 
 Several modules have dedicated WaveDrom tests that generate detailed timing diagrams:
 
-- `test_apb_slave_wavedrom.py` - APB slave protocol waveforms
+- `test_apb_slave_wavedrom.py::test_comprehensive_apb_slave` - APB slave protocol waveforms
 - `test_apb_slave_cdc.py::test_apb_slave_cdc_wavedrom` - CDC timing diagrams
+
+### Test Coverage Gaps
+
+The following APB4 modules have no dedicated test at `val/amba/`. They are
+exercised indirectly (stubs through the generated crossbars and the AXI4-to-APB
+bridge; the clock-gated wrappers through their base modules), and direct tests
+exist for the APB5 equivalents:
+
+| Module | Direct APB4 test | APB5 equivalent |
+|--------|------------------|-----------------|
+| `apb_master_stub` | None | `test_apb5_master_stub.py` |
+| `apb_slave_stub` | None | `test_apb5_slave_stub.py` |
+| `apb_master_cg` | None | `test_apb5_master_cg.py` |
+| `apb_slave_cg` | None | `test_apb5_slave_cg.py` |
 
 Generated waveforms are stored in:
 - JSON format: `_wavedrom/`
@@ -284,12 +337,13 @@ with a 64-bit side-band timestamp:
 [63:0]    - Event Data     (64 bits)
 ```
 
-See [apb_monitor.md](apb_monitor.md) for detailed packet format.
+See [apb_monitor.md](../monitor/apb_monitor.md) for detailed packet format.
 
 ---
 
 ## Related Documentation
 
+- **[APB5 Modules](../apb5/README.md)** - APB5 family (`PWAKEUP`, `P*USER`, parity)
 - **[AXI4 Modules](../axi4/README.md)** - Full AXI4 protocol components
 - **[AXIL4 Modules](../axil4/README.md)** - AXI4-Lite components
 - **[AXIS4 Modules](../axis4/README.md)** - AXI4-Stream components
@@ -300,8 +354,14 @@ See [apb_monitor.md](apb_monitor.md) for detailed packet format.
 ## References
 
 ### Specifications
-- ARM AMBA APB Protocol Specification v2.0
-- ARM AMBA 4 APB Protocol Specification
+- ARM IHI 0024C -- AMBA APB Protocol Specification, Version 2.0 (defines APB4:
+  adds `PSTRB` and `PPROT`). This is the specification these modules implement.
+- ARM IHI 0024E -- AMBA APB Protocol Specification, Issue E (APB5: `PWAKEUP`,
+  `P*USER` sidebands, parity). Applies to `rtl/amba/apb5/`, not to this family.
+
+**Naming caution:** ARM's *document* version 2.0 (IHI 0024C) is the APB4
+specification. The older APB3 protocol is IHI 0024B. Citing "APB Protocol
+Specification v2.0" without the IHI number is ambiguous.
 
 ### Source Code
 - RTL: `rtl/amba/apb/`
@@ -313,10 +373,11 @@ See [apb_monitor.md](apb_monitor.md) for detailed packet format.
 - APB Slave Tests: `val/amba/test_apb_slave.py`
 - APB CDC Tests: `val/amba/test_apb_slave_cdc.py`
 - APB Monitor Tests: `val/amba/test_apb_monitor.py`
+- APB Crossbar Tests: `projects/components/apb_xbar/dv/tests/`
 
 ---
 
-**Last Updated:** 2025-10-20
+**Last Updated:** 2026-07-19
 
 ---
 

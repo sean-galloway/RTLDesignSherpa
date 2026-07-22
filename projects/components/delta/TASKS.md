@@ -27,6 +27,16 @@
 **Last Updated:** 2025-10-19
 **Version:** 0.25
 
+> Status (2026-07-22): historical - the mesh-NoC implementation planned below
+> (rtl/delta/ router modules, val/delta/ tests, bin/TBClasses/delta/ TB classes,
+> spec chapters ch04_routing/ch05_flow_control) was never built. What exists today
+> is the flat AXIS crossbar generator: `bin/delta_generator.py` producing
+> `rtl/delta_axis_flat_*.sv` (test configs in `rtl_test/`), with the spec at
+> `docs/delta_spec/` (chapters ch01_overview..ch05_registers) rendered as
+> `docs/Delta_Specification_v1.0.pdf`. New TB classes would live in
+> `projects/components/delta/dv/tbclasses/` per current repo standards.
+> Kept for reference.
+
 ---
 
 ## Task Status Legend
@@ -373,10 +383,8 @@ TASK-010 (Block Diagrams) - Independent
 
 ### Run Specification to PDF
 ```bash
-python bin/md_to_docx.py \
-    projects/components/delta/docs/delta_spec/delta_index.md \
-    -o projects/components/delta/docs/Delta_Specification_v0.25.docx \
-    --toc --title-page --pdf
+# Use the provided script (outputs docs/Delta_Specification_v<rev>.docx/.pdf)
+cd projects/components/delta/docs && ./generate_pdf.sh --rev 1.0
 ```
 
 ### Run Router Tests (when available)

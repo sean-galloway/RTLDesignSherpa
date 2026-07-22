@@ -95,7 +95,7 @@ cp val/amba/local_sim_build/test_axi4_slave_rd_mon_full/single_beat_read*.json \
 
 - [AXI4 Master Read Monitor Waveforms](../axi4_master_rd_mon/) - Master perspective
 - [AXI4 Master Write Monitor Waveforms](../axi4_master_wr_mon/) - Master write examples
-- [RTL Source](../../../../../rtl/amba/axi4/axi4_slave_rd_mon.sv) - Monitor RTL implementation
+- [RTL Source](../../../../../rtl/amba/monitor/axi4_slave_rd_mon.sv) - Monitor RTL implementation
 - [Test Source](../../../../../val/amba/test_axi4_slave_rd_mon.py) - Complete test with wavedrom
 
 ---

@@ -56,6 +56,7 @@ from CocoTBFramework.components.wavedrom.constraint_solver import (
     TemporalRelation
 )
 from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 @cocotb.test(timeout_time=10, timeout_unit="sec")
@@ -403,13 +404,9 @@ def test_gaxi_drop_fifo_wavedrom():
     registered = 0  # Mux mode for simpler waveforms
 
     dut_name = "gaxi_drop_fifo_sync"
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba_includes'], "fifo_defs.svh"),
-        os.path.join(rtl_dict['rtl_amba'], 'gaxi/gaxi_drop_fifo_sync.sv'),
-        os.path.join(rtl_dict['rtl_cmn'], 'counter_bin.sv'),
-        os.path.join(rtl_dict['rtl_cmn'], 'counter_bin_load.sv'),
-        os.path.join(rtl_dict['rtl_cmn'], 'fifo_control.sv'),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/gaxi_drop_fifo_sync.f")
 
     test_name = f"test_{worker_id}_gaxi_drop_fifo_wavedrom_dw{data_width}_d{depth}"
     log_path = os.path.join(log_dir, f'{test_name}.log')
@@ -418,7 +415,7 @@ def test_gaxi_drop_fifo_wavedrom():
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
-    includes=[rtl_dict['rtl_amba_includes']]
+    includes=includes
 
     parameters = {
         'DATA_WIDTH': str(data_width),

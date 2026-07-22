@@ -44,9 +44,9 @@ This directory contains visual documentation for the APB Crossbar component, inc
 
 | Document | Description | Contents |
 |----------|-------------|----------|
-| [01_architecture.md](01_architecture.md) | Architecture Overview | Top-level block diagram, functional blocks, signal flow, parameters |
-| [02_address_and_arbitration.md](02_address_and_arbitration.md) | Address Decode & Arbitration | Address map structure, decode algorithm, round-robin timing |
-| [03_rtl_generator.md](03_rtl_generator.md) | RTL Generator Guide | Generator architecture, usage, customization, advanced topics |
+| [01_architecture.md](chapters/01_architecture.md) | Architecture Overview | Top-level block diagram, functional blocks, signal flow, parameters |
+| [02_address_and_arbitration.md](chapters/02_address_and_arbitration.md) | Address Decode & Arbitration | Address map structure, decode algorithm, round-robin timing |
+| [03_rtl_generator.md](chapters/03_rtl_generator.md) | RTL Generator Guide | Generator architecture, usage, customization, advanced topics |
 
 ### Supporting Documentation
 
@@ -87,17 +87,17 @@ This directory contains visual documentation for the APB Crossbar component, inc
 ### For New Users
 
 1. **Understand the Architecture**
-   - Read [01_architecture.md](01_architecture.md)
+   - Read [01_architecture.md](chapters/01_architecture.md)
    - Study the architecture diagram
    - Understand master-side/slave-side protocol conversion
 
 2. **Learn Address Decode & Arbitration**
-   - Read [02_address_and_arbitration.md](02_address_and_arbitration.md)
+   - Read [02_address_and_arbitration.md](chapters/02_address_and_arbitration.md)
    - Study address decode flow diagram
    - Study arbitration timing diagram
 
 3. **Generate Custom Crossbar (if needed)**
-   - Read [03_rtl_generator.md](03_rtl_generator.md)
+   - Read [03_rtl_generator.md](chapters/03_rtl_generator.md)
    - Use pre-generated variants (1to1, 2to1, 1to4, 2to4) if possible
    - Run generator for custom MxN configurations
 
@@ -113,22 +113,24 @@ This directory contains visual documentation for the APB Crossbar component, inc
 - M masters, N slaves → Generate with `generate_xbars.py`
 
 **Understanding Behavior?**
-- Address decode issues → See [02_address_and_arbitration.md](02_address_and_arbitration.md#address-decode)
-- Arbitration questions → See [02_address_and_arbitration.md](02_address_and_arbitration.md#arbitration)
+- Address decode issues → See [02_address_and_arbitration.md](chapters/02_address_and_arbitration.md#address-decode)
+- Arbitration questions → See [02_address_and_arbitration.md](chapters/02_address_and_arbitration.md#arbitration)
 
 **Modifying/Generating?**
-- Generator usage → See [03_rtl_generator.md](03_rtl_generator.md)
+- Generator usage → See [03_rtl_generator.md](chapters/03_rtl_generator.md)
 
 ---
 
 ## Directory Structure
 
 ```
-docs/apb_xbar_spec/
+docs/apb_xbar_mas/
 ├── README.md                              ← This file
-├── 01_architecture.md                     ← Architecture overview
-├── 02_address_and_arbitration.md          ← Decode & arbitration details
-├── 03_rtl_generator.md                    ← Generator documentation
+├── apb_xbar_mas_index.md                  ← Book index (PDF build)
+├── chapters/
+│   ├── 01_architecture.md                 ← Architecture overview
+│   ├── 02_address_and_arbitration.md      ← Decode & arbitration details
+│   └── 03_rtl_generator.md                ← Generator documentation
 └── assets/
     ├── graphviz/                          ← Source diagrams
     │   ├── apb_xbar_architecture.gv
@@ -139,9 +141,8 @@ docs/apb_xbar_spec/
     │   ├── apb_xbar_architecture.svg
     │   └── address_decode_flow.svg
     └── png/                               ← Rendered PNG (embedded)
-        ├── apb_xbar_architecture.svg
-        ├── address_decode_flow.svg
-        └── arbitration_round_robin.svg
+        ├── apb_xbar_architecture.png
+        └── address_decode_flow.png
 ```
 
 ---
@@ -176,7 +177,7 @@ offset = PADDR - BASE_ADDR
 slave_index = offset[19:16]  // Divide by 64KB
 ```
 
-**See:** [02_address_and_arbitration.md](02_address_and_arbitration.md#address-decode)
+**See:** [02_address_and_arbitration.md](chapters/02_address_and_arbitration.md#address-decode)
 
 ### 3. Arbitration
 
@@ -186,7 +187,7 @@ slave_index = offset[19:16]  // Divide by 64KB
 - Grant persists through transaction completion
 - No master starvation
 
-**See:** [02_address_and_arbitration.md](02_address_and_arbitration.md#arbitration)
+**See:** [02_address_and_arbitration.md](chapters/02_address_and_arbitration.md#arbitration)
 
 ### 4. RTL Generation
 
@@ -203,7 +204,7 @@ python generate_xbars.py
 python generate_xbars.py --masters 3 --slaves 6
 ```
 
-**See:** [03_rtl_generator.md](03_rtl_generator.md)
+**See:** [03_rtl_generator.md](chapters/03_rtl_generator.md)
 
 ---
 

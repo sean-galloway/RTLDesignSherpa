@@ -51,19 +51,23 @@ The AXIL4 Master Write module provides a buffered AXI4-Lite write interface for 
 |-----------|------|---------|-------------|
 | `AXIL_ADDR_WIDTH` | int | 32 | Address bus width (typically 32) |
 | `AXIL_DATA_WIDTH` | int | 32 | Data bus width (32 or 64) |
-| `SKID_DEPTH_AW` | int | 2 | AW channel buffer depth (2^N entries) |
-| `SKID_DEPTH_W` | int | 2 | W channel buffer depth (2^N entries) |
-| `SKID_DEPTH_B` | int | 2 | B channel buffer depth (2^N entries) |
+| `SKID_DEPTH_AW` | int | 2 | AW channel skid buffer depth, in entries |
+| `SKID_DEPTH_W` | int | 2 | W channel skid buffer depth, in entries |
+| `SKID_DEPTH_B` | int | 2 | B channel skid buffer depth, in entries |
 
 ### Derived Parameters
+
+Each channel's skid buffer stores the whole channel payload as one packed
+vector, so the derived `*Size` parameters are just the sum of the widths of the
+signals concatenated into that buffer.
 
 | Parameter | Calculation | Description |
 |-----------|-------------|-------------|
 | `AW` | AXIL_ADDR_WIDTH | Internal address width alias |
 | `DW` | AXIL_DATA_WIDTH | Internal data width alias |
-| `AWSize` | AW+3 | AW packet size (addr + prot) |
-| `WSize` | DW+(DW/8) | W packet size (data + strb) |
-| `BSize` | 2 | B packet size (resp only) |
+| `AWSize` | AW+3 | AW packet: `{awaddr[AW-1:0], awprot[2:0]}` — the 3 is `AWPROT` |
+| `WSize` | DW+(DW/8) | W packet: `{wdata[DW-1:0], wstrb[DW/8-1:0]}` — one strobe bit per byte lane |
+| `BSize` | 2 | B packet: `bresp[1:0]` only |
 
 ---
 
@@ -145,9 +149,9 @@ flowchart LR
     end
 
     subgraph BUF["AW/W/B Skid Buffers"]
-        aw["AW Channel<br/>gaxi_skid_buffer<br/>DEPTH=4"]
-        w["W Channel<br/>gaxi_skid_buffer<br/>DEPTH=4"]
-        b["B Channel<br/>gaxi_skid_buffer<br/>DEPTH=4"]
+        aw["AW Channel<br/>gaxi_skid_buffer<br/>DEPTH=2"]
+        w["W Channel<br/>gaxi_skid_buffer<br/>DEPTH=2"]
+        b["B Channel<br/>gaxi_skid_buffer<br/>DEPTH=2"]
     end
 
     subgraph BE["Backend<br/>(Memory/Periph)"]
@@ -199,9 +203,9 @@ Cycle 7:  B buffer forwards to frontend:
 axil4_master_wr #(
     .AXIL_ADDR_WIDTH(32),
     .AXIL_DATA_WIDTH(32),
-    .SKID_DEPTH_AW(2),      // 4 entries
-    .SKID_DEPTH_W(2),       // 4 entries
-    .SKID_DEPTH_B(2)        // 4 entries
+    .SKID_DEPTH_AW(2),      // 2 entries
+    .SKID_DEPTH_W(2),       // 2 entries
+    .SKID_DEPTH_B(2)        // 2 entries
 ) u_axil_master_wr (
     .aclk           (axi_clk),
     .aresetn        (axi_resetn),
@@ -241,7 +245,13 @@ axil4_master_wr #(
 );
 ```
 
-### Register Write Example
+### Register Write Example (Testbench Stimulus)
+
+The two snippets below are **testbench stimulus, not RTL**. They use an
+`initial` block and blocking assignments to drive the frontend ports and are not
+synthesizable. In a real design the frontend handshake is driven by an
+`always_ff` block or by the register-access state machine of the requesting
+logic.
 
 ```systemverilog
 // Write to control register at 0x2000
@@ -300,7 +310,12 @@ fub_wvalid  = 1'b1;
 **No Out-of-Order:**
 - No AWID/BID signals
 - Responses always in order
-- AW and W can arrive in any order (no dependency)
+- AW and W can arrive in any order as far as **this module** is concerned: the
+  AW and W skid buffers are fully independent and nothing here pairs an address
+  with its data. The protocol permits either order, but a downstream slave may
+  still require AW before W (or at least in the same cycle) to decode the
+  target before it can consume the data. Check the slave's requirements — this
+  module will not reorder for you.
 
 **Reduced Signals:**
 - No AWCACHE, AWQOS, AWREGION, AWLOCK, AWSIZE, AWLEN, AWBURST
@@ -308,16 +323,20 @@ fub_wvalid  = 1'b1;
 
 ### Buffer Depth Selection
 
+`SKID_DEPTH_AW`, `SKID_DEPTH_W`, and `SKID_DEPTH_B` are passed straight through
+to the `DEPTH` parameter of `gaxi_skid_buffer`. `DEPTH` is the **literal entry
+count**, not an exponent, and is constrained to one of `{2, 4, 6, 8}`.
+
 **AW Channel (Addresses):**
-- **SKID_DEPTH_AW = 2** (4 entries): Typical for control registers
+- **SKID_DEPTH_AW = 2** (2 entries): Typical for control registers
 - Increase if many back-to-back writes with slow slave
 
 **W Channel (Data):**
-- **SKID_DEPTH_W = 2** (4 entries): Matches AW depth
+- **SKID_DEPTH_W = 2** (2 entries): Matches AW depth
 - Should be >= SKID_DEPTH_AW to avoid W channel stalls
 
 **B Channel (Responses):**
-- **SKID_DEPTH_B = 2** (4 entries): Responses are single-beat
+- **SKID_DEPTH_B = 2** (2 entries): Responses are single-beat
 - Smaller depth acceptable if frontend can always accept
 
 ### Write Strobe (WSTRB) Usage
@@ -341,12 +360,22 @@ fub_wvalid  = 1'b1;
 
 ### Busy Signal
 
-**Asserted when:**
-- AW buffer has pending addresses (`int_aw_count > 0`)
-- W buffer has pending data (`int_w_count > 0`)
-- B buffer has pending responses (`int_b_count > 0`)
-- Frontend presenting new transaction (`fub_awvalid || fub_wvalid`)
-- Backend presenting response (`m_axil_bvalid`)
+`busy` is the OR of three persistent terms and two transient terms:
+
+| Term | Kind | Condition |
+|------|------|-----------|
+| AW buffer occupancy | Persistent | `int_aw_count > 0` |
+| W buffer occupancy | Persistent | `int_w_count > 0` |
+| B buffer occupancy | Persistent | `int_b_count > 0` |
+| Frontend presenting a new transaction | Transient | `fub_awvalid \|\| fub_wvalid` |
+| Backend presenting a response | Transient | `m_axil_bvalid` |
+
+The two transient terms can be high for a single cycle, so `busy` itself can
+pulse. This is intentional: the clock-gate controller does not gate on `busy`
+directly. `amba_clock_gate_ctrl` registers activity into a `wakeup` flop and
+then requires `cfg_cg_idle_count` consecutive idle cycles before gating, so a
+one-cycle handshake reloads the idle counter rather than causing the gate to
+oscillate.
 
 **Use for:**
 - Clock gating control (see `axil4_master_wr_cg`)
@@ -364,7 +393,13 @@ fub_wvalid  = 1'b1;
 | Frontend → Backend (AW) | 1 | Skid buffer overhead |
 | Frontend → Backend (W) | 1 | Skid buffer overhead |
 | Backend → Frontend (B) | 1 | Skid buffer overhead |
-| Total write latency | Slave latency + 3 | AW + W + Slave + B |
+| Total write latency | Slave latency + 3 | AW + W + Slave + B, best case |
+
+The `+3` best case assumes the slave asserts AWREADY and WREADY in the **same**
+cycle, so the AW and W buffer traversals overlap. If the slave accepts the
+address and the data in different cycles, the write completes off the later of
+the two handshakes, and the total is that skew plus the slave and B latency.
+Backpressure on B adds further cycles.
 
 ### Throughput
 
@@ -375,11 +410,16 @@ fub_wvalid  = 1'b1;
 
 ### Resource Usage
 
+These are **order-of-magnitude estimates**, not measured synthesis results — no
+target device, tool version, or optimization setting is attached to them. They
+scale with `AXIL_DATA_WIDTH` and the `SKID_DEPTH_*` settings. Synthesize for
+your own device before budgeting area.
+
 | Resource | Count | Notes |
 |----------|-------|-------|
-| LUTs | ~300 | Approximate (32-bit, 3 channels) |
+| LUTs | ~300 | Estimate, 32-bit data, 3 channels, default depths |
 | FFs | ~250 | Buffer state + control |
-| BRAM | 0 | Uses distributed RAM |
+| BRAM | 0 | Skid buffers are flop-based |
 
 ---
 
@@ -391,7 +431,7 @@ fub_wvalid  = 1'b1;
 - **[axil4_slave_wr](axil4_slave_wr.md)** - Slave write interface
 
 ### Monitor Modules
-- **[axil4_master_wr_mon](axil4_master_wr_mon.md)** - Master write with monitoring
+- **[axil4_master_wr_mon](../monitor/axil4_master_wr_mon.md)** - Master write with monitoring (`rtl/amba/monitor/`)
 
 ### Clock-Gated Variants
 - **[axil4_master_wr_cg](axil4_clock_gating_guide.md)** - Clock-gated version
@@ -418,7 +458,7 @@ fub_wvalid  = 1'b1;
 
 ---
 
-**Last Updated:** 2025-10-20
+**Last Updated:** 2026-07-19
 
 ---
 

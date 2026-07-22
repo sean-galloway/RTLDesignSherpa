@@ -50,9 +50,9 @@ The AXIL4 Slave Write module provides a buffered AXI4-Lite write interface for s
 |-----------|------|---------|-------------|
 | `AXIL_ADDR_WIDTH` | int | 32 | Address bus width |
 | `AXIL_DATA_WIDTH` | int | 32 | Data bus width (32 or 64) |
-| `SKID_DEPTH_AW` | int | 2 | AW channel buffer depth (2^N entries) |
-| `SKID_DEPTH_W` | int | 2 | W channel buffer depth (2^N entries) |
-| `SKID_DEPTH_B` | int | 2 | B channel buffer depth (2^N entries) |
+| `SKID_DEPTH_AW` | int | 2 | AW channel skid buffer depth, in entries |
+| `SKID_DEPTH_W` | int | 2 | W channel skid buffer depth, in entries |
+| `SKID_DEPTH_B` | int | 2 | B channel skid buffer depth, in entries |
 
 ---
 
@@ -179,12 +179,12 @@ axil4_slave_wr #(
 
 - **[axil4_slave_rd](axil4_slave_rd.md)** - Slave read counterpart
 - **[axil4_master_wr](axil4_master_wr.md)** - Master write interface
-- **[axil4_slave_wr_mon](axil4_slave_wr_mon.md)** - Slave write with monitoring
+- **[axil4_slave_wr_mon](../monitor/axil4_slave_wr_mon.md)** - Slave write with monitoring (`rtl/amba/monitor/`)
 - **[axil4_slave_wr_cg](axil4_clock_gating_guide.md)** - Clock-gated version
 
 ---
 
-**Last Updated:** 2025-10-20
+**Last Updated:** 2026-07-19
 
 ---
 

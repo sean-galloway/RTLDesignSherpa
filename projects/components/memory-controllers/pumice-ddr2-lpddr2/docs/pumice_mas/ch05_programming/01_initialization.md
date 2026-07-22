@@ -45,12 +45,12 @@ Because config is driven by name into the core (see §4.3), the values are alrea
 ```c
 void start_dram_init(void) {
     // Family + address map first (must be set before init)
-    csr_write(PHY_TIMING, MEMTYPE(DDR2) | T_RDDATA_EN(6) | T_PHY_WRLAT(0) | REFRESH_BURST(1));
+    csr_write(PHY_TIMING, MEMTYPE(DDR2) | T_RDDATA_EN(6) | T_PHY_WRLAT(1) | REFRESH_BURST(1));
     csr_write(ADDR_MAP,   BANK_LSB(COL_WIDTH));   // ROW_MAJOR; add HASH_EN|HASH_SEED if wanted
 
     // Load timings (example values for DDR2-800)
     csr_write(TIMINGS_RC_RCD_RP_RAS,   TIMING_PACK(60, 15, 15, 40)); // tRC, tRCD, tRP, tRAS
-    csr_write(TIMINGS_RFC_REFI,        REFI_PACK(200, 1950));        // tRFC, tREFI
+    csr_write(TIMINGS_RFC_REFI,        REFI_PACK(16, 1950));         // tRFC, tREFI
     csr_write(TIMINGS_RRD_FAW_WTR_CCD, RRD_PACK(6, 35, 4, 4));       // tRRD, tFAW, tWTR, tCCD
     csr_write(TIMINGS_CL_CWL_WR,       CL_PACK(6, 4, 15, 70));       // CL, CWL, tWR, tRFCpb
     csr_write(TIMINGS_RTP_RTW,         RTP_PACK(4, 6));              // tRTP, tRTW
@@ -60,7 +60,7 @@ void start_dram_init(void) {
     csr_write(INIT_TIMING1, INIT_T1_PACK(8, 8, 16));                 // tMRD, tRP, tRFC
 
     // MR values: for DDR2 the sequencer uses its own JEDEC-correct MR words
-    // (0x0532/0x0432/0x0380/0x0000); the MR0..MR3 CSRs are the software-visible
+    // (0x0533/0x0433/0x0380/0x0000 at the MR0.VAL reset default); the MR0..MR3 CSRs are the software-visible
     // shadow. For LPDDR2 the sequencer drives the MRW OP values internally.
     csr_write(MR0, mr0_value); csr_write(MR1, mr1_value);
     csr_write(MR2, mr2_value); csr_write(MR3, mr3_value);
@@ -97,10 +97,10 @@ The step-by-step JEDEC sequence is a hardware FSM in `init_sequencer.sv` (`r_sta
 1. Assert `dfi_init_start_o`; wait `dfi_init_complete_i` (PHY DLL-lock / IO training), then wait tINIT (`t_init_wait`, CKE settle)
 2. **Precharge All** (wait tRP)
 3. **EMRS(2)** = 0, **EMRS(3)** = 0, **EMRS(1)** = 0 — JEDEC MRS order EMR2 -> EMR3 -> EMR1, each followed by tMRD
-4. **MRS(0) + DLL reset** (0x0532: BL4/CL3/tWR3/DLL_RESET); wait tDLLK (DLL lock)
+4. **MRS(0) + DLL reset** (`MR0.VAL | 0x100`, reset default 0x0533: BL8/CL3/tWR3/DLL_RESET); wait tDLLK (DLL lock)
 5. **Precharge All** (wait tRP)
 6. **Auto Refresh x2** (each followed by tRFC)
-7. **MRS(0)** without DLL-reset (0x0432 — clears the reset bit); wait tMRD
+7. **MRS(0)** without DLL-reset (`MR0.VAL`, reset default 0x0433 — clears the reset bit); wait tMRD
 8. **EMRS(1) + OCD Default** (0x0380) -> **EMRS(1) + OCD Exit** (0x0000)
 9. `init_done_o = 1`
 

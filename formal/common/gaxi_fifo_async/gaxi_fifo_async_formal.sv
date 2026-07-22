@@ -141,7 +141,7 @@ module gaxi_fifo_async #(
         .rst_n (axi_wr_aresetn)
     );
 
-    grayj2bin #(
+    johnson2bin #(
         .JCW           (JCW),
         .WIDTH         (AW + 1)
     ) rd_ptr_gray2bin_inst(
@@ -161,7 +161,7 @@ module gaxi_fifo_async #(
         .rst_n (axi_rd_aresetn)
     );
 
-    grayj2bin #(
+    johnson2bin #(
         .JCW           (JCW),
         .WIDTH         (AW + 1)
     ) wr_ptr_gray2bin_inst(

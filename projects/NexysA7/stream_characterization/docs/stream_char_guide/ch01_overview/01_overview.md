@@ -31,7 +31,7 @@ shared instrumentation harness:
 : The flow matrix
 
 This guide focuses on the primary `flows-stream-bridge` flow; the others are
-inventoried in Chapter 6.
+inventoried in Chapter 7.
 
 ## Board and tools
 

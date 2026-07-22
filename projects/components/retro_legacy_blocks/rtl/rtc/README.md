@@ -75,7 +75,7 @@ Real-Time Clock with APB interface for system time-of-day tracking. Fully implem
 ### Test Infrastructure
 - `../../dv/tbclasses/rtc/rtc_tb.py` - Main testbench class
 - `../../dv/tbclasses/rtc/rtc_tests_basic.py` - Basic test suite
-- `../../dv/tests/rtc/test_apb_rtc.py` - pytest test runner
+- `../../dv/tests/test_apb_rtc.py` - pytest test runner
 
 ## Architecture
 
@@ -145,8 +145,8 @@ time = await tb.read_time()
 ## Running Tests
 
 ```bash
-# Navigate to test directory
-cd projects/components/retro_legacy_blocks/dv/tests/rtc
+# Navigate to test directory (test runners live flat in dv/tests/)
+cd projects/components/retro_legacy_blocks/dv/tests
 
 # Run basic tests
 pytest test_apb_rtc.py -v -s

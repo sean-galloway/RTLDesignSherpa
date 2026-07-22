@@ -94,14 +94,16 @@ class CountLeadingZerosTB(TBBase):
         self.count_leading_zeros = self.dut.clz
 
     def _calculate_expected_clz(self, data):
-        """Calculate expected count of leading zeros"""
+        """Count leading zeros: scan from the MSB down to the first set bit."""
         if data == 0:
             return self.WIDTH
-        
-        # Note: RTL counts from LSB, so we need to count trailing zeros from LSB perspective
-        # The function name in RTL is misleading - it's actually counting trailing zeros
+
+        # Previously this modelled TRAILING zeros, because the RTL scanned from
+        # bit 0 upward while being named count_leading_zeros. Both have been
+        # corrected: the RTL now scans MSB-down, and count_trailing_zeros exists
+        # as a separate module with its own test. Do not "fix" this back.
         clz = 0
-        for i in range(self.WIDTH):
+        for i in range(self.WIDTH - 1, -1, -1):
             if (data >> i) & 1:
                 break
             clz += 1

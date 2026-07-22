@@ -1,0 +1,25 @@
+flowchart TB
+    subgraph HOST["Host (per run)"]
+        direction TB
+        C1["1. configure DUT by name (APB)"]
+        C2["2. load descriptors into RAM"]
+        C3["3. stage kick params + write CSR_GO"]
+        C1 --> C2 --> C3
+    end
+    subgraph CHIP["On chip"]
+        direction TB
+        GO["CSR_GO: arm meters + start gen + fire kicks"]
+        RUN["SRC + SNK engines run at line rate"]
+        FRZ["freeze window at CSR_OBS_TARGET = channels x beats"]
+        GO --> RUN --> FRZ
+    end
+    subgraph READ["Readback"]
+        direction TB
+        CRC["per-channel CRC:<br/>WR_CRC vs GEN_EXP_CRC<br/>CHK_ACT_CRC vs RD_CRC"]
+        MET["bus meters +<br/>exact byte / packet counters"]
+    end
+    ORACLE(["golden model<br/>rapids_char_golden.py"])
+    C3 --> GO
+    FRZ --> CRC
+    FRZ --> MET
+    CRC --> ORACLE

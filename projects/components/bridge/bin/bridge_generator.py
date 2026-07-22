@@ -765,11 +765,7 @@ def _emit_bridge_variant(
     # the package symbol has to be visible at adapter parse time.
     if use_monitor:
         filelist_lines.append("# Monitor packages (must precede any module that references them)")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_amba4_pkg.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_pkg.sv")
+        filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/monitor_pkgs.f")
         filelist_lines.append("")
 
     filelist_lines.append("# Bridge RTL files (generated)")
@@ -816,68 +812,65 @@ def _emit_bridge_variant(
 
     filelist_lines.append("")
     filelist_lines.append("# AXI4 Wrapper modules (timing isolation)")
+    filelist_lines.append("#")
+    filelist_lines.append("# Pulled in via each component's OWN filelist rather than by hand-listing")
+    filelist_lines.append("# individual rtl/amba or rtl/common sources. A consumer that hand-lists a")
+    filelist_lines.append("# component's files has to track that component's internal dependencies,")
+    filelist_lines.append("# and it silently rots when they change. Each filelist below declares its")
+    filelist_lines.append("# own complete closure (packages + rtl/common deps + sub-blocks).")
     filelist_lines.append("# Master adapters use axi4_slave_* (act as AXI slave to external master)")
-    filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_slave_wr.sv")
-    filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_slave_rd.sv")
+    filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr.f")
+    filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd.f")
     filelist_lines.append("# Slave adapters use axi4_master_* (act as AXI master to external slave)")
-    filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_master_wr.sv")
-    filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_master_rd.sv")
+    filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr.f")
+    filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd.f")
 
     filelist_lines.append("")
     filelist_lines.append("# GAXI skid buffers (used by wrappers and converters)")
-    filelist_lines.append("$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv")
+    filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f")
 
     filelist_lines.append("")
     filelist_lines.append("# Width converters (for data width adaptation).")
     filelist_lines.append("# axi_data_{upsize,dnsize} are validated primitives used by the")
     filelist_lines.append("# axi4_dwidth_converter_{rd,wr} wrappers for the W/R data path.")
-    filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi_data_upsize.sv")
-    filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi_data_dnsize.sv")
-    filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_rd.sv")
-    filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_wr.sv")
+    filelist_lines.append("#")
+    filelist_lines.append("# -f the converters component's own filelists rather than naming its")
+    filelist_lines.append("# .sv files: a consumer that hand-lists another component's sources has")
+    filelist_lines.append("# to track that component's internal dependencies, and rots silently")
+    filelist_lines.append("# when they change.")
+    filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi_data_upsize.f")
+    filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi_data_dnsize.f")
+    filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_dwidth_converter_rd.f")
+    filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_dwidth_converter_wr.f")
     # AXIL-master alignment modules. Used by the adapter generator
     # in place of axi4_dwidth_converter_{wr,rd} when an AXIL master
     # upsizes into a wider slave (axi_data_upsize aggregates by beat
     # counter, which is wrong for single-beat narrow → wide writes —
     # see the modules' headers).
-    filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axil_to_axi4_wide_align_wr.sv")
-    filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axil_to_axi4_wide_align_rd.sv")
+    filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axil_to_axi4_wide_align_wr.f")
+    filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axil_to_axi4_wide_align_rd.f")
 
     # Check if any slaves use APB protocol
     has_apb = any(slave.protocol.lower() == 'apb' for slave in config.slaves)
     if has_apb:
         filelist_lines.append("")
-        filelist_lines.append("# APB protocol converter dependencies (in dependency order)")
-        filelist_lines.append("# Common dependencies first")
-        filelist_lines.append("$REPO_ROOT/rtl/common/counter_bin.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/common/fifo_control.sv")
-        filelist_lines.append("")
-        filelist_lines.append("# AMBA shared modules")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_gen_addr.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv")
-        filelist_lines.append("")
-        filelist_lines.append("# AXI4 stubs")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_wr_stub.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_rd_stub.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_stub.sv")
-        filelist_lines.append("")
-        filelist_lines.append("# APB modules")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/apb/apb_master.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/cdc_2_phase_handshake.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/cdc_4_phase_handshake.sv")
-        filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_to_apb_convert.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/apb/apb_master_stub.sv")
-        filelist_lines.append("")
-        filelist_lines.append("# APB protocol converter (AXI4 to APB)")
-        filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_to_apb_shim.sv")
+        filelist_lines.append("# APB protocol converter (AXI4 to APB).")
+        filelist_lines.append("#")
+        filelist_lines.append("# The converters component owns its own closure: the shim + convert")
+        filelist_lines.append("# core, the CDC handshakes, the APB master/stub, the AXI4 slave stubs,")
+        filelist_lines.append("# axi_gen_addr and both gaxi FIFOs. Hand-listing those here is how the")
+        filelist_lines.append("# shim's newer gaxi_fifo_async CDC dependency went missing.")
+        filelist_lines.append(
+            "-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_apb_shim.f")
 
     # Check if any slaves use AXI4-Lite protocol
     has_axil = any(slave.protocol.lower() == 'axil' for slave in config.slaves)
     if has_axil:
         filelist_lines.append("")
-        filelist_lines.append("# AXI4-Lite protocol converter dependencies")
-        filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_to_axil4_rd.sv")
-        filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_to_axil4_wr.sv")
+        filelist_lines.append("# AXI4-Lite protocol converter dependencies.")
+        filelist_lines.append("# -f the converters filelists; do not hand-list its sources.")
+        filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_axil4_rd.f")
+        filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_axil4_wr.f")
 
     # Monitor-aggregation dependencies. Only added for the "mon"
     # variant -- the "no" variant uses the non-_mon wrappers and has
@@ -887,82 +880,43 @@ def _emit_bridge_variant(
     if use_monitor:
         filelist_lines.append("")
         filelist_lines.append("# Monitor-aggregation infrastructure (variant=mon)")
-        filelist_lines.append("# Header files with macros (already compiled if AMBA pkg path included)")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/reset_defs.svh")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/fifo_defs.svh")
-        # Monitor packages already emitted near the top of the filelist
-        # (see "Monitor packages (must precede ...)" block above) — do
-        # not re-list them here or verilator will MODDUP-warn.
-        filelist_lines.append("# Common arbitration primitives (used by axi_monitor_*)")
-        filelist_lines.append("$REPO_ROOT/rtl/common/arbiter_priority_encoder.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/common/arbiter_round_robin.sv")
-        filelist_lines.append("# Common counters & FIFO control (used by gaxi_fifo_sync + axi_monitor_timer)")
-        filelist_lines.append("$REPO_ROOT/rtl/common/counter_bin.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/common/counter_load_clear.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/common/counter_freq_invariant.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/common/fifo_control.sv")
-        filelist_lines.append("# axi_monitor_* shared infrastructure (order matters)")
-        # monitor_trans_cam backs axi_monitor_trans_mgr's transaction
-        # table -- listed before trans_mgr so verilator finds the module
-        # at the point trans_mgr instantiates it.
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/monitor_trans_cam.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_trans_mgr.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_timer.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_timeout.sv")
-        # Reporter sub-blocks (must precede the reporter top wrapper).
-        # These are the 0.9-monitor refactor outputs (657e00b3).
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_error.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_timeout.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_compl.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_threshold.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_perf.sv")
-        # debug cone -- pulled in by axi_monitor_reporter when the
-        # adapter exposes cfg_debug_enable (task 114). Must precede
-        # the reporter top wrapper that instantiates it.
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_debug.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_base.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_filtered.sv")
+        filelist_lines.append("#")
+        filelist_lines.append("# The four _mon wrapper filelists below each declare their OWN complete")
+        filelist_lines.append("# closure: the monitor packages, the shared axi_monitor_* core (base,")
+        filelist_lines.append("# filtered, trans_mgr, timer, timeout and all six reporter sub-blocks),")
+        filelist_lines.append("# monitor_trans_cam, and the rtl/common counters, fifo_control and")
+        filelist_lines.append("# arbiter primitives they depend on. Listing those internals here")
+        filelist_lines.append("# instead would mean tracking another component's guts -- exactly the")
+        filelist_lines.append("# coupling that let the reporter sub-blocks and monitor_trans_cam go")
+        filelist_lines.append("# missing from consumer filelists in the first place.")
         filelist_lines.append("# _mon wrapper variants (instantiated by adapters when use_monitor=true)")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_slave_wr_mon.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_slave_rd_mon.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_master_wr_mon.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_master_rd_mon.sv")
+        filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr_mon.f")
+        filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd_mon.f")
+        filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr_mon.f")
+        filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_mon.f")
         # Monbus aggregator. The arbiter (+ its sync FIFO) is always
         # instantiated; the monbus_<p1>_<p2>_group family + its leaf skids
         # are only pulled in when the bridge owns an internal group
         # (internal_axil_group=True). Protocol of each group port comes
         # from [bridge.mon_group] (axil/axil legacy default).
         filelist_lines.append("# Monbus arbiter (always present in mon variant)")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/monbus_arbiter.sv")
+        filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f")
         if getattr(config, 'internal_axil_group', True):
             mg = getattr(config, 'mon_group', None)
-            slave_axi4 = bool(mg and mg.slave_protocol == 'axi4')
-            master_axi4 = bool(mg and mg.master_protocol == 'axi4')
             module_name = mg.module_name if mg else 'monbus_axil_axil_group'
-            slave_leaf = ('axi4/axi4_slave_rd' if slave_axi4
-                          else 'axil4/axil4_slave_rd')
-            master_leaf = ('axi4/axi4_master_wr' if master_axi4
-                           else 'axil4/axil4_master_wr')
-            filelist_lines.append(
-                f"# Monbus group ({module_name}) + its leaf skids + core")
-            # Leaf skids may already be in the filelist (the axi4 ones are
-            # also width-converter deps); dedup so we don't emit a
-            # duplicate module declaration (verilator MODDUP).
-            group_srcs = [
-                f"$REPO_ROOT/rtl/amba/{slave_leaf}.sv",
-                f"$REPO_ROOT/rtl/amba/{master_leaf}.sv",
-                # Monbus group core family (cam + compressor + core +
-                # div-by-3 helper) via the shared canonical filelist, so a
-                # new core dependency is added in ONE place. Then the
-                # selected protocol wrapper.
-                "-f $REPO_ROOT/rtl/amba/filelists/monbus_group.f",
-                f"$REPO_ROOT/rtl/amba/shared/{module_name}.sv",
-            ]
-            for src in group_srcs:
-                if src not in filelist_lines:
-                    filelist_lines.append(src)
+            filelist_lines.append(f"# Monbus group ({module_name})")
+            # The monbus_<p1>_<p2>_group filelist is the component's own
+            # complete closure: its leaf skids (axi4/axil4 slave_rd +
+            # master_wr), the monbus group core family (cam, cam_pipe,
+            # compressor, group_core, div-by-3 helper) and the selected
+            # protocol wrapper itself. Pulling the wrapper .sv in by hand
+            # here is how this filelist ended up pointing at the pre-move
+            # rtl/amba/shared/ path after the wrapper moved to
+            # rtl/amba/monitor/ -- the component filelist tracks its own
+            # files, so that class of drift cannot recur.
+            group_fl = f"-f $REPO_ROOT/rtl/amba/filelists/{module_name}.f"
+            if group_fl not in filelist_lines:
+                filelist_lines.append(group_fl)
 
     # Note: Width converters are included even if not used in this specific bridge
     # because they're needed when master/slave data widths differ.

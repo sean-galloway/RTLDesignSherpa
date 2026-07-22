@@ -54,6 +54,24 @@ module stream_core #(
     parameter int FIFO_DEPTH = 512,
     parameter int AR_MAX_OUTSTANDING = 8,
     parameter int AW_MAX_OUTSTANDING = 8,
+    // Monitor transaction-table depth. AR/AW_MAX_OUTSTANDING are PER-CHANNEL
+    // limits on a SHARED master, so the no-backpressure bound is
+    // NUM_CHANNELS * MAX_OUTSTANDING (the original hardwired 16 compared
+    // against the per-channel limit and stalled the datapath at >=2 channels).
+    // The default sizes for zero backpressure, per the design rule "monitors
+    // are sized so backpressure does not normally happen". Deliberately
+    // OVERRIDABLE downward: the saturation-recovery contract
+    // (monitor_common_pkg::cmd_entry_reserve) guarantees an undersized
+    // monitor throttles and RECOVERS rather than deadlocking, and the
+    // mon_small test config pins this small on purpose to keep that
+    // guarantee exercised end-to-end. +4 covers in-flight skid/handshake
+    // overlap beyond the engines' own counters.
+    // NOTE: Verilator 5.020's default --unroll-count is 64; monitor tables
+    // deeper than that (8ch default = 68) need --unroll-count raised in the
+    // sim build or the per-entry loops fail BLKLOOPINIT. The stream tests
+    // pass --unroll-count 256. Synthesis tools are unaffected.
+    parameter int RD_MON_MAX_TRANS = NUM_CHANNELS * AR_MAX_OUTSTANDING + 4,
+    parameter int WR_MON_MAX_TRANS = NUM_CHANNELS * AW_MAX_OUTSTANDING + 4,
 
     // Monitor Control
     parameter int USE_AXI_MONITORS = 1,      // 1 = Enable monitors, 0 = Disable monitors
@@ -1289,8 +1307,11 @@ module stream_core #(
     // plus an axi_monitor snooping the master-side R bus. Perf-only build
     // (ENABLE_PERF_LOGIC) so it accumulates the four cycle buckets + beat/byte/
     // burst counts read back through RDMON_PERF_* CSRs (no MonBus packets).
-    // MAX_TRANSACTIONS(16) > AR_MAX_OUTSTANDING(8) so the monitor's block_ready
-    // never deasserts: it stays as passive as the legacy axi_bus_meter snoop.
+    // Sized by RD_MON_MAX_TRANS (default NUM_CHANNELS*AR_MAX_OUTSTANDING+4)
+    // so block_ready stays deasserted in normal operation. The previous
+    // hardwired 16 compared against the PER-CHANNEL outstanding limit and
+    // claimed passivity it did not have: with >=2 channels the shared master
+    // exceeded the block threshold and the monitor throttled the datapath.
     // USE_MONITOR follows USE_AXI_MONITORS so the production (monitors-off)
     // build keeps a bare skid with zero monitor area.
     axi4_master_rd_mon #(
@@ -1303,7 +1324,7 @@ module stream_core #(
         .USE_MONITOR            (USE_AXI_MONITORS == 1),
         .UNIT_ID                (MON_UNIT_ID),
         .AGENT_ID               (RD_AXI_MON_AGENT_ID),
-        .MAX_TRANSACTIONS       (32'd16),
+        .MAX_TRANSACTIONS       (RD_MON_MAX_TRANS),
         .ENABLE_FILTERING       (1),
         .ENABLE_ERROR_LOGIC     (1'b0),
         .ENABLE_TIMEOUT_LOGIC   (1'b0),
@@ -1450,7 +1471,8 @@ module stream_core #(
 
     // Data write AXI skid buffer + integrated datapath perf monitor (RFC Stage E).
     // See the read-side comment above: axi4_master_wr upgraded to
-    // axi4_master_wr_mon, perf-only, passive (MAX_TRANSACTIONS > AW outstanding),
+    // axi4_master_wr_mon, perf-only. Sized by WR_MON_MAX_TRANS -- see the
+    // read-side comment: the bound is per-channel outstanding times channels,
     // read back through WRMON_PERF_* CSRs. W-channel cycle buckets match the
     // legacy write-side axi_bus_meter.
     axi4_master_wr_mon #(
@@ -1464,7 +1486,7 @@ module stream_core #(
         .USE_MONITOR            (USE_AXI_MONITORS == 1),
         .UNIT_ID                (MON_UNIT_ID),
         .AGENT_ID               (WR_AXI_MON_AGENT_ID),
-        .MAX_TRANSACTIONS       (32'd16),
+        .MAX_TRANSACTIONS       (WR_MON_MAX_TRANS),
         .ENABLE_FILTERING       (1),
         .ENABLE_ERROR_LOGIC     (1'b0),
         .ENABLE_TIMEOUT_LOGIC   (1'b0),

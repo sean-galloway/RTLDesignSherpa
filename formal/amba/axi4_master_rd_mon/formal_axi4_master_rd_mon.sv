@@ -31,7 +31,15 @@ module formal_axi4_master_rd_mon (
     localparam integer DW = 8;
     localparam integer UW = 1;
     localparam integer SW = DW / 8;
-    localparam integer MAX_TRANSACTIONS = 2;
+    // MAX_TRANSACTIONS must exceed the internal BLOCK_MARGIN (3 for tables
+    // < 16, so block_ready = active_count < MAX-3)... except that for
+    // MAX <= 3 axi_monitor_base ties block_ready to CONSTANT 1, which made
+    // every block_ready-gating property here structurally unfalsifiable at
+    // the old value of 2. At 4 the gate engages with a single outstanding
+    // transaction (active_count >= 1 -> block_ready=0), the cheapest
+    // configuration in which the in-RTL wrapper gating properties
+    // (ap_block_ready_gating / ap_disabled_never_stalls) actually bite.
+    localparam integer MAX_TRANSACTIONS = 4;
     localparam logic [7:0]  UNIT_ID  = 8'h01;
     localparam logic [15:0] AGENT_ID = 16'h000A;
 
@@ -62,6 +70,7 @@ module formal_axi4_master_rd_mon (
     (* anyseq *) reg           fub_axi_rready;
 
     // Free inputs -- monitor config
+    (* anyseq *) reg           cam_clear;
     (* anyseq *) reg           cfg_monitor_enable;
     (* anyseq *) reg           cfg_error_enable;
     (* anyseq *) reg           cfg_timeout_enable;
@@ -136,6 +145,11 @@ module formal_axi4_master_rd_mon (
     ) dut (
         .aclk                   (clk),
         .aresetn                (rst_n),
+        // cam_clear was previously left UNCONNECTED, which yosys models as
+        // a constant-x clear -- the transaction CAM could never hold an
+        // entry, so every occupancy-dependent property (active bound,
+        // block_ready gating) was structurally vacuous in this proof.
+        .cam_clear              (cam_clear),
         .i_mon_time             (i_mon_time),
         // Slave side (input)
         .fub_axi_arid           (fub_axi_arid),
@@ -295,10 +309,12 @@ module formal_axi4_master_rd_mon (
     //         fub_axi_arready = w_core_fub_axi_arready & w_block_ready;
     //     so !w_block_ready implies !fub_axi_arready.
     // =========================================================================
-    always @(*) begin
-        if (rst_n && !dut.w_block_ready)
-            ap_block_ready_gating: assert (fub_axi_arready == 1'b0);
-    end
+    // MOVED IN-RTL (E5): the gating properties now live inside the wrapper
+    // under `ifdef FORMAL (ap_block_ready_gating / ap_disabled_never_stalls).
+    // The old harness-side formulation referenced dut.w_block_ready, which
+    // yosys elaborates as an implicitly-declared FREE wire (see the base-step
+    // warning in the sby log), so the property was vacuous -- the guard could
+    // always be solved false. In-RTL the real nets are visible.
 
     // =========================================================================
     // Cover properties

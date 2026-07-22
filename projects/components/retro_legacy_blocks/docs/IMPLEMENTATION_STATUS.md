@@ -23,6 +23,11 @@
 
 # PeakRDL HPET Integration - Final Status
 
+> Status (2026-07-22): Historical results file from the standalone apb_hpet component,
+> which was absorbed into retro_legacy_blocks. Paths below have been updated to the new
+> locations (RTL: `rtl/hpet/`, TB classes: `dv/tbclasses/hpet/`, test runner:
+> `dv/tests/test_apb_hpet.py`).
+
 ## Milestone: COMPLETE ✅ (5/6 configs fully passing)
 
 ### Test Results Summary
@@ -100,24 +105,24 @@
 ## Files Modified
 
 ### RTL Changes:
-- `rtl/amba/components/hpet/hpet_core.sv` - Per-timer data buses
-- `rtl/amba/components/hpet/hpet_config_regs.sv` - Per-timer data routing
-- `rtl/amba/components/hpet/apb_hpet.sv` - Signal declarations
+- `rtl/hpet/hpet_core.sv` - Per-timer data buses
+- `rtl/hpet/hpet_config_regs.sv` - Per-timer data routing
+- `rtl/hpet/apb_hpet.sv` - Signal declarations
 
 ### Test Changes:
-- `bin/TBClasses/amba/apb_hpet/hpet_tests_medium.py`
+- `dv/tbclasses/hpet/hpet_tests_medium.py`
   - Added timer reset loop (lines 308-318)
   - Fixed periodic mode timeout (line 103)
   - Fixed mode switching timeout (line 453)
   - **NEW:** Added counter cleanup in 64-bit Counter test (lines 220-222)
   - **NEW:** Increased Multiple Timers timeout to 20µs (line 356)
 
-- `bin/TBClasses/amba/apb_hpet/hpet_tests_full.py`
+- `dv/tbclasses/hpet/hpet_tests_full.py`
   - Removed Interrupt Latency test (non-functional)
   - Removed Performance Benchmark test (non-functional)
 
 ### Documentation:
-- `rtl/amba/components/hpet/KNOWN_ISSUES.md` - Updated with actual root cause
+- `known_issues/README.md` - Updated with actual root cause (formerly the standalone component's KNOWN_ISSUES.md)
 - `status.txt` - This file
 
 ## Remaining Work (Minor)
@@ -150,7 +155,7 @@ The All Timers Stress test likely has a similar short timeout that prevents Time
 ## Test Execution Summary
 
 ```
-pytest val/integ_amba/test_apb_hpet.py -v
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
 
 test_hpet[2-32902-1-0-full-2-timer Intel-like]      PASSED ✅
 test_hpet[3-4130-2-0-full-3-timer AMD-like]         PASSED ✅

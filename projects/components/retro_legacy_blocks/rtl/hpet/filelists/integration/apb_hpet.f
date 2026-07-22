@@ -17,21 +17,21 @@ $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 $REPO_ROOT/rtl/amba/includes/fifo_defs.svh
 
 # Common modules
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
+-f $REPO_ROOT/rtl/common/filelists/counter_bin.f
+-f $REPO_ROOT/rtl/common/filelists/fifo_control.f
 
 # GAXI modules for CDC
-$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
-$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
-$REPO_ROOT/rtl/amba/shared/cdc_2_phase_handshake.sv
-$REPO_ROOT/rtl/amba/shared/cdc_4_phase_handshake.sv
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
+-f $REPO_ROOT/rtl/amba/filelists/cdc_2_phase_handshake.f
+-f $REPO_ROOT/rtl/amba/filelists/cdc_4_phase_handshake.f
 
 # APB modules
-$REPO_ROOT/rtl/amba/apb/apb_slave.sv
-$REPO_ROOT/rtl/amba/apb/apb_slave_cdc.sv
+-f $REPO_ROOT/rtl/amba/filelists/apb_slave.f
+-f $REPO_ROOT/rtl/amba/filelists/apb_slave_cdc.f
 
 # PeakRDL adapter (from converters component)
-$REPO_ROOT/projects/components/converters/rtl/peakrdl_to_cmdrsp.sv
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 
 # HPET modules (PeakRDL-based configuration registers)
 $RETRO_ROOT/rtl/hpet/hpet_regs_pkg.sv

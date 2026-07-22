@@ -36,8 +36,7 @@ AXI timeout detection is not implemented in the sink data path, with only a plac
 
 ### Location
 
-**File**: `projects/components/dmas/rapids/rtl/rapids_macro/sink_data_path.sv`
-**Line**: 283
+**File**: `projects/components/dmas/rapids/rtl/macro_beats/snk_data_path_beats.sv` (issue was filed against the retired pre-beats sink_data_path.sv line 283; re-verify against the beats module)
 
 ### Current Code (Incomplete)
 ```systemverilog

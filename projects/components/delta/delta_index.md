@@ -45,7 +45,10 @@ This specification contains the complete Delta project documentation including o
 
 [TREE_TOPOLOGY_TEST_RESULTS.md](TREE_TOPOLOGY_TEST_RESULTS.md)
 
-[docs/DELTA_VS_APB_GENERATOR.md](docs/DELTA_VS_APB_GENERATOR.md)
+[docs/delta_spec/delta_index.md](docs/delta_spec/delta_index.md)
+
+<!-- docs/DELTA_VS_APB_GENERATOR.md was removed (2026-07-22); the APB-generator
+     migration it described was completed in bin/delta_generator.py -->
 
 ---
 

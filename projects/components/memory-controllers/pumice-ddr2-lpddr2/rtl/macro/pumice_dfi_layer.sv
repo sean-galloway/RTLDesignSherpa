@@ -49,7 +49,6 @@ module pumice_dfi_layer
     parameter int WD_FIFO_DEPTH  = 16,
     parameter int RD_FIFO_DEPTH  = 16,
     parameter int N_FLOP_CROSS   = 2,
-    parameter int DESKEW_W       = 1,     // per-beat read-deskew field width
 
     // ---- derived DFI geometry ----
     parameter int DFI_DATA_WIDTH = DRAM_BEAT_WIDTH * DFI_RATE,
@@ -114,8 +113,6 @@ module pumice_dfi_layer
     input  logic [PHW-1:0]             wr_phase_i,
     input  logic [7:0]                 t_phy_wrlat_i,
     input  logic [7:0]                 t_rddata_en_i,
-    input  logic [DESKEW_W-1:0]        deskew_lo_i,     // read DESKEW: low beat capture delay
-    input  logic [DESKEW_W-1:0]        deskew_hi_i,     // read DESKEW: high beat capture delay
     // Active DFI gear = log2(active DFI rate). DFI_RATE is the compile-time MAX
     // rate that sizes every bus; gear_i selects how many of those phases are
     // active. active_rate = 1 << gear_i. At gear_i = log2(DFI_RATE) (board /
@@ -259,12 +256,9 @@ module pumice_dfi_layer
     pumice_dfi_rd_aligner #(
         .DFI_DATA_WIDTH(DFI_DATA_WIDTH), .DFI_RATE(DFI_RATE),
         .DFI_VALID_WIDTH(DFI_VALID_WIDTH), .BL_WORDS(BL_WORDS),
-        .EN_CYC(RD_EN_CYC), .MAX_OUTSTANDING(RD_MAX_OUTSTANDING),
-        .DESKEW_W(DESKEW_W)
+        .EN_CYC(RD_EN_CYC), .MAX_OUTSTANDING(RD_MAX_OUTSTANDING)
     ) u_rd (
         .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn), .t_rddata_en_i(t_rddata_en_i),
-        // per-beat read deskew (PHY_TIMING.deskew_lo/hi via pumice_core)
-        .deskew_lo_i(deskew_lo_i), .deskew_hi_i(deskew_hi_i),
         .op_valid_i(w_rd_fire), .op_ready_o(w_rd_op_ready),
         .dfi_rddata_en_o(w_dfi_rddata_en), .dfi_rddata_i(dfi_rddata_i),
         .dfi_rddata_valid_i(dfi_rddata_valid_i),

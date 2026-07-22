@@ -54,7 +54,7 @@ An attempt to optimize the `cdc_handshake.sv` module by removing the conservativ
 ### Production Recommendations
 
 ✅ **DO:**
-- Use `rtl/amba/shared/cdc_handshake.sv` (original, proven design)
+- Use `rtl/amba/cdc/cdc_handshake.sv` (original, proven design)
 - Accept the 10-15 cycle "penalty" of S_WAIT_ACK_CLR state
 - Focus on application-level optimizations (batching, reducing CDC crossings)
 

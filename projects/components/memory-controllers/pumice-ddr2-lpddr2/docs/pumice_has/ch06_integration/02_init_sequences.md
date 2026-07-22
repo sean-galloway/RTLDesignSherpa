@@ -46,11 +46,11 @@ index (`init_cmd_bank_o`).
 | 3    | `S_EMR2`     | MRS EMR(2)             | `0x0000` | `t_mrd_wait` (tMRD) |
 | 4    | `S_EMR3`     | MRS EMR(3)             | `0x0000` | `t_mrd_wait` |
 | 5    | `S_EMR1`     | MRS EMR(1)             | `0x0000` | `t_mrd_wait` |
-| 6    | `S_MR0_DLL`  | MRS MR0 + DLL reset    | `0x0532` (BL4 / CL3 / tWR3 / DLL_RESET) | `t_dll_wait` (tDLLK) |
+| 6    | `S_MR0_DLL`  | MRS MR0 + DLL reset    | `MR0.VAL \| 0x100` (reset default `0x0533` = BL8 / CL3 / tWR3 / DLL_RESET) | `t_dll_wait` (tDLLK) |
 | 7    | `S_PREA2`    | PRECHARGE all          | —        | `t_rp_wait` |
 | 8    | `S_REF1`     | AUTO REFRESH           | —        | `t_rfc_wait` (tRFC) |
 | 9    | `S_REF2`     | AUTO REFRESH           | —        | `t_rfc_wait` |
-| 10   | `S_MR0`      | MRS MR0 (DLL reset cleared) | `0x0432` | `t_mrd_wait` |
+| 10   | `S_MR0`      | MRS MR0 (DLL reset cleared) | `MR0.VAL` (reset default `0x0433`) | `t_mrd_wait` |
 | 11   | `S_OCD_DEF`  | MRS EMR(1) + OCD default | `0x0380` | `t_mrd_wait` |
 | 12   | `S_OCD_EXIT` | MRS EMR(1) + OCD exit  | `0x0000` | `t_mrd_wait` |
 | 13   | `S_DONE`     | assert `init_done`     | —        | —          |

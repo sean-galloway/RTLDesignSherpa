@@ -83,11 +83,15 @@ module axis_slave #(
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| SKID_DEPTH | int | 4 | Skid buffer depth (2^N entries) |
-| AXIS_DATA_WIDTH | int | 32 | AXI4-Stream data bus width (bytes) |
+| SKID_DEPTH | int | 4 | Skid buffer depth in **entries** (not a log2 exponent). Passed directly to `gaxi_skid_buffer.DEPTH`, which supports `{2, 4, 6, 8}` |
+| AXIS_DATA_WIDTH | int | 32 | AXI4-Stream data bus width in **bits** (must be a multiple of 8; `SW = AXIS_DATA_WIDTH/8`) |
 | AXIS_ID_WIDTH | int | 8 | Stream ID width (0 to disable) |
 | AXIS_DEST_WIDTH | int | 4 | Destination width (0 to disable) |
 | AXIS_USER_WIDTH | int | 1 | User signal width (0 to disable) |
+
+> **SKID_DEPTH is a literal entry count.** `SKID_DEPTH = 4` yields a 4-entry buffer, not 16.
+> The underlying `gaxi_skid_buffer` is a shift-register FIFO whose `count` port is 4 bits wide;
+> only the values `{2, 4, 6, 8}` are supported. Odd values such as 3 or 5 are not legal.
 
 ## Ports
 
@@ -130,11 +134,42 @@ module axis_slave #(
 - **Configurable Width:** Optional ID, DEST, USER signals (set width to 0 to disable)
 - **Activity Monitoring:** Busy signal for power management
 
+### TSTRB and TKEEP
+
+ARM IHI 0051A defines two byte qualifiers: `TKEEP` (byte is part of the data stream) and
+`TSTRB` (byte is a data byte rather than a position byte). This module implements **`TSTRB`
+only** — there is no `TKEEP` port. `s_axis_tstrb` is packed into the skid buffer entry and
+reproduced on `fub_axis_tstrb` unmodified, so it can equally carry a `TKEEP` mask if the
+surrounding design treats it that way. That is an integrator-side naming convention, not
+protocol-compliant `TKEEP` support.
+
+## Timing Characteristics
+
+| Characteristic | Value | Description |
+|----------------|-------|-------------|
+| Buffer Depth | 4 entries (default) | `SKID_DEPTH` entries, verbatim |
+| Buffering Latency | 1 clock cycle | `s_axis` to `fub_axis` delay |
+| Flow Control Latency | 1 clock cycle | `fub_axis_tready` to `s_axis_tready` propagation |
+| Sustained Throughput | 1 beat/cycle | Once the pipeline is primed |
+
+`gaxi_skid_buffer` registers both `rd_valid` and the storage array, so the 1-cycle latency
+applies on **every** transfer, including the unstalled case. There is no combinational path
+from `s_axis_tdata` to `fub_axis_tdata`.
+
+### Busy Signal Generation
+
+```systemverilog
+busy = (buffer_count > 0) || s_axis_tvalid;
+```
+
+`busy` is asserted while any beat is held in the skid buffer or a new beat is being offered
+on the slave interface. It is the wakeup term consumed by `axis_slave_cg`.
+
 ## Usage Example
 
 ```systemverilog
 axis_slave #(
-    .SKID_DEPTH(4),           // 16 entries
+    .SKID_DEPTH(4),           // 4 entries
     .AXIS_DATA_WIDTH(64),
     .AXIS_ID_WIDTH(8),
     .AXIS_DEST_WIDTH(4),
@@ -173,10 +208,22 @@ axis_slave #(
 - **Use Case:** Stream receivers, packet processors, video decoders
 - **Buffering:** Allows backend to consume at its own pace without stalling interconnect
 
+## Known Limitations
+
+| Limitation | Detail |
+|------------|--------|
+| No `TKEEP` | Only `TSTRB` is implemented. A protocol-compliant null-byte / position-byte distinction is not available |
+| No `TWAKEUP` | The AXI4-Stream `TWAKEUP` low-power signal is not implemented |
+| No native CDC | Both interfaces are on `aclk`. Crossing clock domains requires an external `gaxi_fifo_async` |
+| No routing or demultiplexing | `TID`/`TDEST` are carried through unmodified; they are not decoded |
+| No protocol checking | The module does not detect or report `TVALID` deassertion before `TREADY`, or `TLAST` framing errors |
+| `SKID_DEPTH` limited to `{2, 4, 6, 8}` | The buffer is a timing element, not a rate adapter. Use a `gaxi_fifo_sync` downstream for deep elastic storage |
+
 ## Related Modules
 
 - **[axis_master](axis_master.md)** - Stream master counterpart
-- **[axis_slave_cg](axis_clock_gating_guide.md)** - Clock-gated version
+- **[axis_slave_cg](axis_slave_cg.md)** - Clock-gated version
+- **[AXIS4 Clock-Gated Variants Guide](axis_clock_gating_guide.md)** - Clock gating configuration and behaviour
 
 ---
 

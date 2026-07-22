@@ -18,7 +18,7 @@
 """
 MonBus AXIL/AXIL Group testbench — covers the AXIL-slave-read +
 AXIL-master-write member of the monbus_<p1>_<p2>_group family
-(`rtl/amba/shared/monbus_axil_axil_group.sv`). The other family
+(`rtl/amba/monitor/monbus_axil_axil_group.sv`). The other family
 members (axil_axi4, axi4_axil, axi4_axi4) have separate TBs / tests
 because their port surfaces differ.
 
@@ -192,7 +192,12 @@ class MonbusAxilAxilGroupTB(TBBase):
             prefix="monbus",
             clock=self.axi_aclk,
             field_config=monbus_config,
-            signal_map={'data': 'monbus_packet'},
+            # The framework's signal_map validation (RDS-DV 4d79359) now
+            # requires all three handshake keys explicitly -- the old
+            # data-only map relied on prefix inference for valid/ready.
+            signal_map={'valid': 'monbus_valid',
+                        'ready': 'monbus_ready',
+                        'data': 'monbus_packet'},
             log=self.log
         )
 

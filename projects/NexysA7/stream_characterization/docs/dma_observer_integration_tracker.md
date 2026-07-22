@@ -46,7 +46,7 @@ the same data we already gather for STREAM — for our DMA or anyone else's.
 | `axi_perf_latency_hist` (AR->first-R / AR->RLAST, AW->B; 16 log2 bins) | `rtl/amba/shared/axi_perf_latency_hist.sv` | `[x]` | Per rd/wr port inside the observer (RFC Stage E.3); `ENABLE_LATENCY_HIST` gate; indexed readout `i_hist_metric`/`i_hist_bin` -> `{rd,wr}_hist_count`/`_total`; windowed in lockstep with the meters. Ported into the observer from the in-core STREAM path 2026-06-22 |
 | `axi4_master_rd_mon` / `axi4_master_wr_mon` (passive taps) | `rtl/amba/axi4/` | `[x]` | Per-txn completion/latency, errors, timeouts; CAMs always pipelined (the `TRANS_CAM_PIPELINE`/CAM-pipeline params were removed); `cam_clear` wired through every wrapper |
 | `monbus_arbiter` + `monbus_compressor` + `monbus_halfbeat_packer` | `rtl/amba/shared/` | `[x]` | Aggregation + optional compression chain |
-| `monbus_axil_axi4_group` (AXIL drain + AXI4 bulk-dump + IRQ) | `rtl/amba/shared/monbus_axil_axi4_group.sv` | `[x]` | Observer's output stage; test `val/amba/test_monbus_axil_axi4_group.py` |
+| `monbus_axil_axi4_group` (AXIL drain + AXI4 bulk-dump + IRQ) | `rtl/amba/monitor/monbus_axil_axi4_group.sv` | `[x]` | Observer's output stage; test `val/amba/test_monbus_axil_axi4_group.py` |
 | `axi4_dma_slaves` (LFSR read source + CRC write sink) | stream char harness | `[x]` | The endpoint for endpoint-mode characterization |
 | `harness_csr` meter input ports @ 0x100/0x180, timer, CRC regs | `stream_char_framework/rtl/harness_csr.sv` | `[x]` | Already shaped for the observer's meter outputs |
 | Host readers (`read_bus_meters.py`, timer/CRC/trace, JSON emit) | `flows-stream-bridge/host/` | `[x]` | CSR-based; reusable unchanged |
@@ -152,7 +152,7 @@ Only two things vary per DMA-under-test:
 
 - Observer: `rtl/amba/shared/axi4_dma_observer.sv`
 - Observer test: `val/amba/test_axi4_dma_observer.py`
-- Output stage: `rtl/amba/shared/monbus_axil_axi4_group.sv` (test `val/amba/test_monbus_axil_axi4_group.py`)
+- Output stage: `rtl/amba/monitor/monbus_axil_axi4_group.sv` (test `val/amba/test_monbus_axil_axi4_group.py`)
 - Meter: `rtl/amba/shared/axi_bus_meter.sv`
 - Filelist: `rtl/amba/filelists/monbus_group.f`
 - STREAM harness (reference flavor): `projects/NexysA7/stream_characterization/flows-stream-bridge/rtl/stream_char_harness.sv`

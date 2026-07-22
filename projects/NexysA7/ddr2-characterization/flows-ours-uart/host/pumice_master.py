@@ -44,16 +44,68 @@ from ddr2_char import DDR2CharDriver
 
 
 # =============================================================================
+# Build geometry -- what THIS bitstream was compiled for.
+#
+# The pumice burst framing (BURST_WORDS / BL_WORDS / N_SUBCMD) and the DFI phase
+# count are COMPILE-time parameters; the matching CSRs only tell the controller
+# which geometry it is running. If the two disagree the controller silently
+# mis-frames every burst, which is how a BL8 datapath once ran against an MR0
+# that said BL4.
+#
+# This board build is DFI_RATE=2 / BL4, matching the a7ddrphy netlist (1:2:
+# 1-bit rdphase CSR, ISERDES DATA_WIDTH=4 on sys2x) and LiteDRAM's proven
+# config on this board. The pumice RTL resets are NOT those values -- they are
+# gear_ratio=2 (1:4), bl=8, MR0=0x0433 (BL8) -- and CTRL.soft_reset wipes the
+# pumice CSRs back to them. soft_reset therefore silently reverts the geometry,
+# and A7Leveling calls it once per sweep iteration, so this must be re-applied
+# after EVERY soft_reset, not once at startup.
+#
+# Env overrides exist because the cocotb UART tests drive these same host
+# programs against other builds (TEST_GEAR_RATIO / TEST_DRAM_BL are set by
+# test_ddr2_char_uart.py from its own DFI_RATE).
+# =============================================================================
+# The geometry constants and the programming sequence live on the driver
+# (DDR2CharDriver.BOARD_*/program_geometry), which also restores them inside
+# soft_reset() so no call site can forget. These names are kept as thin
+# re-exports so existing callers keep working.
+BOARD_GEAR_RATIO = DDR2CharDriver.BOARD_GEAR_RATIO
+BOARD_DRAM_BL    = DDR2CharDriver.BOARD_DRAM_BL
+BOARD_MR0        = DDR2CharDriver.BOARD_MR0
+
+
+def program_geometry(drv: DDR2CharDriver, rd_phase: int = 0,
+                     wr_phase: int = 0, restart_init: bool = True) -> None:
+    """Program the DFI/burst geometry this bitstream was built for.
+
+    rd_phase stays 0: at nphases=2 LiteDRAM issues the READ command on
+    rdcmdphase = rdphase-1 = 0 (multiplexer.py:234) and takes the data at
+    rdphase=1, which the a7ddrphy applies internally.
+    """
+    drv.program_geometry(rd_phase=rd_phase, wr_phase=wr_phase,
+                         restart_init=restart_init)
+
+
+# =============================================================================
 # Shared helper -- wait on ONE engine (write-then-read is phased; the driver's
 # wait_done() needs BOTH engines done, which would hang after a write-only or
 # read-only phase).
 # =============================================================================
-def wait_engine(drv: DDR2CharDriver, which: str, timeout_s: float = 15.0) -> bool:
+def wait_engine(drv: DDR2CharDriver, which: str, timeout_s: float = 15.0,
+                ignore_error: bool = False) -> bool:
+    """Wait for one engine to finish. Returns False on error or timeout.
+
+    ignore_error=True waits purely for the done flag. Use it when a data
+    MISMATCH is the thing being measured: a mismatching read latches rd_error,
+    so the default (bail on any_error) reports a completed-but-wrong read as
+    "did not run" and the measurement is silently discarded. Callers that want
+    the mismatch COUNT must pass ignore_error=True and check `done` themselves;
+    only a read that never asserts done is a real non-measurement.
+    """
     assert which in ("wr", "rd")
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
         s = drv.status()
-        if s.any_error:
+        if s.any_error and not ignore_error:
             return False
         if (which == "wr" and s.wr_done) or (which == "rd" and s.rd_done):
             return True
@@ -99,10 +151,20 @@ class A7Leveling:
     N_BITSLIPS  = 8      # a7ddrphy ISERDES bitslip range (mod-8)
     MAX_RD_TAPS = 32     # IDELAYE2 5-bit tap
 
+    # Board-validated bring-up tuple (2026-07-21, rate-2/BL4 build, BUILD_ID
+    # 0x44445232): the s7ddrphy asserts rddata_valid a FIXED read_latency (8)
+    # sys cycles after rddata_en while the DATA arrives at its own physical
+    # latency, so rddata_delay slides the DATA onto the valid window (coarse)
+    # and bitslip/tap cover the remainder. wrlat=1/rden=6/rddata_delay=7 gives
+    # a 17-tap-wide eye at bitslip 0 (centre tap 8); soaks clean at default
+    # tREFI (residual row-sized corruption under refresh pressure is the open
+    # TASK-SCHED-REFRESH arbiter bug, not the read path).
     def __init__(self, drv: DDR2CharDriver, base_addr: int = 0x0000_0000,
-                 burst_len: int = 4, txn_count: int = 2,
-                 seed: int = 0x1EAF_F00D, t_phy_wrlat: int = 0,
-                 t_rddata_en: int = 6, rddata_delay: int = 0,
+                 burst_len: int = 8, txn_count: int = 2,
+                 seed: int = 0x1EAF_F00D,
+                 t_phy_wrlat: int = int(os.environ.get("TEST_T_PHY_WRLAT", "1")),
+                 t_rddata_en: int = 6,
+                 rddata_delay: int = int(os.environ.get("TEST_RDDATA_DELAY", "7")),
                  rd_phase: int = 0, lane_mask: int = 0b11, verbose: bool = True):
         self.drv = drv
         self.base = base_addr
@@ -112,13 +174,12 @@ class A7Leveling:
         self.wrlat = t_phy_wrlat
         self.rden = t_rddata_en
         self.rddly = rddata_delay       # dfi_rddata->rddata_valid realign (ILA=8)
-        self.rdphase = rd_phase         # a7ddrphy rdphase=1 (RD cmd on phase 1)
-        # gear_ratio CSR (log2 active DFI rate). None => rmw-preserve the RTL
-        # reset (2 = 1:4, the board's fixed nphases=4). The sim exercises rate-2
-        # legacy builds too, where the reset (2) is wrong; those set TEST_GEAR_RATIO
-        # so set_dfi_phase does not leave gear masking off the read path.
-        _g = os.environ.get("TEST_GEAR_RATIO")
-        self.gear = int(_g) if _g is not None else None
+        # RD command sub-phase. 0 on this board: the a7ddrphy applies its own
+        # rdphase=1 internally (poking rdphase=1 here reads nothing back).
+        self.rdphase = rd_phase
+        # gear_ratio / bl / MR0 are programmed by program_geometry() in _reinit,
+        # from the BOARD_* constants -- they are build geometry, not per-sweep
+        # state, and must be re-applied after every soft_reset.
         self.lanes = lane_mask          # x16 -> both byte lanes together (0b11)
         self.verbose = verbose
 
@@ -141,8 +202,10 @@ class A7Leveling:
                                     t_phy_wrlat=self.wrlat,
                                     t_rddata_en=self.rden, rd_in_order=True)
         self.drv.set_dfi_rddata_delay(self.rddly)
-        self.drv.set_dfi_phase(rd_phase=self.rdphase, wr_phase=0,
-                               gear_ratio=self.gear)
+        # Geometry (gear_ratio / bl / MR0) must be re-programmed here: the
+        # soft_reset above reverted the pumice CSRs to their RTL resets, which
+        # are the 1:4 / BL8 values and do NOT match this DFI_RATE=2 / BL4 build.
+        program_geometry(self.drv, rd_phase=self.rdphase, wr_phase=0)
         # A prior failing read leaves a STICKY rd_error/any_error latch that
         # soft_reset does not clear (it lives in harness_csr) — clear_stats
         # does. Without this, wait_engine() would false-negative every write
@@ -165,7 +228,11 @@ class A7Leveling:
                                    hash_seed0=self.seed)
         self.drv.clear_stats()
         self.drv.start_rd()
-        wait_engine(self.drv, "rd")   # rd_error on mismatch is fine; check beats
+        # ignore_error: rd_error on mismatch is fine (we check beats), but the
+        # default bail also reads the counter EARLY. A read that never asserts
+        # done counted nothing — beats_mismatched=0 there is a FALSE PASS.
+        if not wait_engine(self.drv, "rd", ignore_error=True):
+            return False               # read hang: a fail, not a clean pass
         return self.drv.beats_mismatched() == 0
 
     def _reset_read_path(self) -> None:
@@ -278,9 +345,16 @@ class SimpleResult:
 
 
 class SimpleTest:
+    # Defaults = the board-validated bring-up tuple (TASK-BRINGUP 2026-07-21).
+    # Defaults = the board-validated bring-up tuple (TASK-BRINGUP 2026-07-21).
+    # PHY-specific: the cocotb DFI-loopback sim (zero-skew BFM) overrides via
+    # TEST_T_PHY_WRLAT=0 / TEST_RDDATA_DELAY=0 in the test env — same pattern
+    # as the TEST_DRAM_BL geometry overrides.
     def __init__(self, drv: DDR2CharDriver, base_addr: int = 0x0000_0000,
-                 t_phy_wrlat: int = 0, t_rddata_en: int = 6,
-                 rddata_delay: int = 0, rd_phase: int = 0,
+                 t_phy_wrlat: int = int(os.environ.get("TEST_T_PHY_WRLAT", "1")),
+                 t_rddata_en: int = 6,
+                 rddata_delay: int = int(os.environ.get("TEST_RDDATA_DELAY", "7")),
+                 rd_phase: int = 0,
                  level_cache: Optional[str] = None):
         self.drv = drv
         self.base = base_addr
@@ -294,6 +368,18 @@ class SimpleTest:
         self.level_cache = level_cache
         self.level: Optional[LevelingResult] = None
 
+    def reinit_datapath(self) -> None:
+        """soft_reset + re-apply the controller cfg (PHY taps persist) --
+        per-round cleanup for soaks without re-leveling."""
+        d = self.drv
+        d.soft_reset()
+        time.sleep(0.005)
+        d.set_controller_cfg(memtype=dc.MEMTYPE_DDR2,
+                             t_phy_wrlat=self.t_phy_wrlat,
+                             t_rddata_en=self.t_rddata_en, rd_in_order=True)
+        d.set_dfi_rddata_delay(self.rddata_delay)
+        d.clear_stats()
+
     def init(self, do_leveling: bool = True) -> None:
         d = self.drv
         d.soft_reset()
@@ -303,18 +389,10 @@ class SimpleTest:
                              t_rddata_en=self.t_rddata_en,
                              rd_in_order=True)
         d.set_dfi_rddata_delay(self.rddata_delay)
-        # gear_ratio / bl: None => rmw-preserve the RTL reset (board = 2 = 1:4,
-        # bl = 4), which is correct on-silicon. The sim exercises non-rate-4
-        # legacy builds (e.g. rate-2) where the reset gear is wrong and would mask
-        # off the read path -> those set TEST_GEAR_RATIO / TEST_DRAM_BL so
-        # set_dfi_phase programs the build's actual gear (same pattern as
-        # A7Leveling/MasterTest). Absent env (board) => None => preserve.
-        import os as _os
-        _g = _os.environ.get("TEST_GEAR_RATIO")
-        _bl = _os.environ.get("TEST_DRAM_BL")
-        d.set_dfi_phase(rd_phase=self.rd_phase, wr_phase=0,
-                        gear_ratio=(int(_g) if _g is not None else None),
-                        bl=(int(_bl) if _bl is not None else None))
+        # Geometry after soft_reset -- see program_geometry(). The RTL resets
+        # (1:4 / BL8 / MR0=0x0433) do not match this DFI_RATE=2 / BL4 build, so
+        # they are always programmed explicitly rather than rmw-preserved.
+        program_geometry(d, rd_phase=self.rd_phase, wr_phase=0)
         if do_leveling:
             lv = A7Leveling(d, base_addr=self.base,
                             t_phy_wrlat=self.t_phy_wrlat,
@@ -364,6 +442,265 @@ class SimpleTest:
         crc_ok = match if valid else True
         ok = wr_ok and rd_ok and (mism == 0) and crc_ok
         return SimpleResult(ok=ok, expected=exp, actual=act, mismatched=mism)
+
+
+# =============================================================================
+# Long-duration board confidence tier: full-device memtest + endurance soak.
+#
+# The bring-up soak (refresh_soak) is a minutes-scale GATE on an 8KB footprint.
+# These two close the coverage gaps a short gate cannot see:
+#
+#   memtest    -- write-all / read-all across the WHOLE device (chunked to the
+#                 16-bit engine txn limit), same address-hash data everywhere
+#                 (data = f(abs_addr, seeds), so split phases + chunks compare
+#                 exactly). Proves pumice's full row/bank/col addressing path
+#                 and read-after-full-write retention.
+#   long_soak  -- endurance loop for --minutes wall-clock: each round writes +
+#                 reads a 4MB window at a ROTATING base across the full device
+#                 with a rotating seed; every Nth round runs the two engines
+#                 CONCURRENTLY (write region A while reading previously-written
+#                 region B — exercises simultaneous wr/rd arbitration the char
+#                 phases never do); every ~5 min re-verifies the leveled eye at
+#                 the cached (bitslip, tap) to catch VT drift. Heartbeat CSV.
+#
+# Honest metrics throughout: hangs are failures (never a clean 0), and the
+# sticky rd_error/any_error latches are recorded alongside beats_mismatched
+# (the 16-bit mismatch counter wraps on massive corruption; any nonzero — or
+# any error latch — is a FAIL regardless).
+# =============================================================================
+def _one_pass(drv: DDR2CharDriver, base: int, blen: int, txn: int, seed: int,
+              timeout_s: float = 15.0) -> dict:
+    """write-then-read one window; returns the honest result dict."""
+    stride = blen * 8
+    drv.clear_stats()
+    drv.program_wr_engine(start_addr=base, burst_len=blen, txn_count=txn,
+                          stride_0=stride, lfsr_seed=seed, data_mode=True,
+                          hash_seed0=seed)
+    drv.start_wr()
+    wr_ok = wait_engine(drv, "wr", timeout_s=timeout_s, ignore_error=True)
+    drv.program_rd_engine(start_addr=base, burst_len=blen, txn_count=txn,
+                          stride_0=stride, lfsr_seed=seed, data_mode=True,
+                          hash_seed0=seed)
+    drv.clear_stats()
+    drv.start_rd()
+    rd_ok = wait_engine(drv, "rd", timeout_s=timeout_s, ignore_error=True)
+    st = drv.status()
+    return dict(wr_done=wr_ok, rd_done=rd_ok, mism=drv.beats_mismatched(),
+                rd_error=int(st.rd_error),
+                ok=(wr_ok and rd_ok and drv.beats_mismatched() == 0
+                    and not st.rd_error))
+
+
+def memtest(drv: DDR2CharDriver, st: "SimpleTest",
+            mem_bytes: int = 128 << 20, blen: int = 16,
+            chunk_txn: int = 32768, seed: int = 0x0DDB_A115) -> bool:
+    """Full-device write-all then read-all (chunked). One shared seed: the
+    address-hash data is f(abs_addr), so every chunk/phase compares exactly."""
+    chunk_bytes = chunk_txn * blen * 8              # 4 MB at bl16
+    n = mem_bytes // chunk_bytes
+    stride = blen * 8
+    st.reinit_datapath()
+    print(f"[memtest] {mem_bytes >> 20} MB in {n} x {chunk_bytes >> 20} MB "
+          f"chunks (bl{blen}, {chunk_txn} txn/chunk)")
+    for i in range(n):
+        base = i * chunk_bytes
+        drv.clear_stats()
+        drv.program_wr_engine(start_addr=base, burst_len=blen,
+                              txn_count=chunk_txn, stride_0=stride,
+                              lfsr_seed=seed, data_mode=True, hash_seed0=seed)
+        drv.start_wr()
+        if not wait_engine(drv, "wr", timeout_s=30.0, ignore_error=True):
+            print(f"[memtest] WR chunk {i}/{n} @0x{base:08X} HANG")
+            return False
+        print(f"\r[memtest] write {i + 1}/{n}", end="", flush=True)
+    print()
+    dirty = 0
+    for i in range(n):
+        base = i * chunk_bytes
+        drv.program_rd_engine(start_addr=base, burst_len=blen,
+                              txn_count=chunk_txn, stride_0=stride,
+                              lfsr_seed=seed, data_mode=True, hash_seed0=seed)
+        drv.clear_stats()
+        drv.start_rd()
+        done = wait_engine(drv, "rd", timeout_s=30.0, ignore_error=True)
+        mm = drv.beats_mismatched()
+        bad = (not done) or mm
+        if bad:
+            dirty += 1
+            print(f"\n[memtest] RD chunk {i}/{n} @0x{base:08X} "
+                  f"done={done} mism={mm}")
+        print(f"\r[memtest] read  {i + 1}/{n} (dirty {dirty})",
+              end="", flush=True)
+    print()
+    print(f"[memtest] {'PASS' if dirty == 0 else 'FAIL'}: "
+          f"{n - dirty}/{n} chunks clean over {mem_bytes >> 20} MB")
+    return dirty == 0
+
+
+def long_soak(drv: DDR2CharDriver, st: "SimpleTest", lv: "A7Leveling",
+              saved: "LevelingResult", minutes: float,
+              mem_bytes: int = 128 << 20, csv_path: Optional[str] = None,
+              concurrent_every: int = 10, eye_every_s: float = 300.0) -> bool:
+    """Endurance soak: rotating-window rounds + periodic concurrent wr/rd +
+    periodic eye re-verify, for `minutes` wall-clock. CSV heartbeat.
+
+    ONE GLOBAL SEED, WHOLE DEVICE INITIALIZED FIRST. With concurrent cycles
+    the memory must be initialized: every write (re)writes f(addr, SEED) and
+    every read expects f(addr, SEED), so the expectation is unconditional
+    under ANY interleaving / snarf / return path — a mismatch is then always
+    genuine data corruption, never test-structure noise from a stale or
+    different-seed region."""
+    import csv as _csv
+    GLOBAL_SEED = 0x0DDB_A115                        # == memtest seed
+    blen, txn = 16, 32768                            # 4 MB / round
+    window = txn * blen * 8
+    half = mem_bytes // 2
+    deadline = time.monotonic() + minutes * 60.0
+    next_eye = time.monotonic() + eye_every_s
+    rnd = fails = eye_fails = 0
+    cum_beats = 0
+    wr_csv = None
+    if csv_path:
+        f = open(csv_path, "w", newline="")
+        wr_csv = _csv.writer(f)
+        wr_csv.writerow(["elapsed_s", "phase", "round", "base_addr", "ok",
+                         "wr_done", "rd_done", "mism", "rd_error",
+                         "cum_beats", "fails", "eye_fails"])
+    t0 = time.monotonic()
+
+    def log(phase: str, base: int, r: dict) -> None:
+        nonlocal cum_beats, fails
+        cum_beats += txn * blen * (2 if phase != "eye" else 0)
+        if not r["ok"]:
+            fails += 1
+        line = (f"[{phase} r{rnd}] +{time.monotonic() - t0:7.1f}s "
+                f"@0x{base:08X} ok={r['ok']} mism={r['mism']} "
+                f"rd_err={r['rd_error']} fails={fails}")
+        print(line, flush=True)
+        if wr_csv:
+            wr_csv.writerow([f"{time.monotonic() - t0:.1f}", phase, rnd,
+                             f"0x{base:08X}", int(r["ok"]), int(r["wr_done"]),
+                             int(r["rd_done"]), r["mism"], r["rd_error"],
+                             cum_beats, fails, eye_fails])
+            f.flush()
+
+    # Initialize the WHOLE device to f(addr, GLOBAL_SEED) (chunked write-all,
+    # same as memtest) so every subsequent read — sequential, concurrent, or
+    # any controller-internal path — has a defined expectation.
+    st.reinit_datapath()
+    stride0 = blen * 8
+    n_chunks = mem_bytes // window
+    for ci in range(n_chunks):
+        drv.clear_stats()
+        drv.program_wr_engine(start_addr=ci * window, burst_len=blen,
+                              txn_count=txn, stride_0=stride0,
+                              lfsr_seed=GLOBAL_SEED, data_mode=True,
+                              hash_seed0=GLOBAL_SEED)
+        drv.start_wr()
+        if not wait_engine(drv, "wr", timeout_s=30.0, ignore_error=True):
+            print(f"[long_soak] init WR chunk {ci}/{n_chunks} HANG")
+            return False
+        print(f"\r[long_soak] init {ci + 1}/{n_chunks}", end="", flush=True)
+    print()
+    # verify region B once (read-only expectation check at the global seed)
+    r = _one_pass(drv, half, blen, txn, GLOBAL_SEED)
+    log("init-verify-B", half, r)
+
+    while time.monotonic() < deadline:
+        rnd += 1
+        seed = GLOBAL_SEED                            # unconditional expectation
+        base = (rnd * window * 7) % (half - window)   # rotate across lower half
+        st.reinit_datapath()
+
+        if concurrent_every and rnd % concurrent_every == 0:
+            # CONCURRENT: write A while reading back region B
+            stride = blen * 8
+            drv.clear_stats()
+            drv.program_wr_engine(start_addr=base, burst_len=blen,
+                                  txn_count=txn, stride_0=stride,
+                                  lfsr_seed=seed, data_mode=True,
+                                  hash_seed0=seed)
+            drv.program_rd_engine(start_addr=half, burst_len=blen,
+                                  txn_count=txn, stride_0=stride,
+                                  lfsr_seed=GLOBAL_SEED, data_mode=True,
+                                  hash_seed0=GLOBAL_SEED)
+            drv.start_wr()
+            drv.start_rd()
+            wr_ok = wait_engine(drv, "wr", timeout_s=30.0, ignore_error=True)
+            rd_ok = wait_engine(drv, "rd", timeout_s=30.0, ignore_error=True)
+            stt = drv.status()
+            mm = drv.beats_mismatched()
+            r = dict(wr_done=wr_ok, rd_done=rd_ok, mism=mm,
+                     rd_error=int(stt.rd_error),
+                     ok=(wr_ok and rd_ok and mm == 0 and not stt.rd_error))
+            log("concurrent", base, r)
+            # then verify the A write landed
+            r = _one_pass(drv, base, blen, txn, seed)
+            log("verify-A", base, r)
+        else:
+            r = _one_pass(drv, base, blen, txn, seed)
+            log("soak", base, r)
+
+        if time.monotonic() >= next_eye:
+            next_eye = time.monotonic() + eye_every_s
+            st.reinit_datapath()
+            lv.apply_taps(saved.bitslip, saved.rd_tap)
+            r = _one_pass(drv, 0x0, 8, 64, GLOBAL_SEED)
+            if not r["ok"]:
+                eye_fails += 1
+            log("eye", 0x0, r)
+
+    total_mb = cum_beats * 8 >> 20
+    print(f"[long_soak] {'PASS' if fails == 0 and eye_fails == 0 else 'FAIL'}: "
+          f"{rnd} rounds, {total_mb} MB moved, {fails} dirty, "
+          f"{eye_fails} eye re-verify fails over {minutes:.0f} min")
+    return fails == 0 and eye_fails == 0
+
+
+# =============================================================================
+# Refresh soak -- the arbiter refresh-collision regression gate (TASK-BRINGUP /
+# TASK-SCHED-REFRESH). Board-validates that reads stay clean under refresh
+# pressure: rounds of 1024-beat write-then-read at default tREFI, at a TINY
+# tREFI (worst-case pressure; the pre-fix arbiter corrupted a full row here),
+# and at a huge tREFI (control). Honest metrics: a hung read is a FAIL, never a
+# clean 0 (see wait_engine).
+# =============================================================================
+def refresh_soak(drv: DDR2CharDriver, st: "SimpleTest",
+                 rounds: int = 5, blen: int = 16, txn: int = 64) -> bool:
+    def one_soak(tag: str, trefi: Optional[int], n: int) -> int:
+        dirty = 0
+        for i in range(n):
+            st.reinit_datapath()
+            if trefi is not None:
+                drv.pumice.set_refresh_interval(trefi)
+            seed = 0xBEEF000 + i
+            drv.clear_stats()
+            drv.program_wr_engine(start_addr=st.base, burst_len=blen,
+                                  txn_count=txn, stride_0=blen * 8,
+                                  lfsr_seed=seed, data_mode=True, hash_seed0=seed)
+            drv.start_wr()
+            if not wait_engine(drv, "wr"):
+                dirty += 1
+                print(f"[soak {tag}] round {i}: WR HANG")
+                continue
+            drv.program_rd_engine(start_addr=st.base, burst_len=blen,
+                                  txn_count=txn, stride_0=blen * 8,
+                                  lfsr_seed=seed, data_mode=True, hash_seed0=seed)
+            drv.clear_stats()
+            drv.start_rd()
+            done = wait_engine(drv, "rd", ignore_error=True)
+            mm = drv.beats_mismatched()
+            if not done or mm:
+                dirty += 1
+            print(f"[soak {tag}] round {i}: done={done} mism={mm}")
+        print(f"[soak {tag}] {dirty}/{n} rounds dirty")
+        return dirty
+
+    total = 0
+    total += one_soak("tREFI default", None, rounds)
+    total += one_soak("tREFI tiny 0x40", 0x40, rounds)
+    total += one_soak("tREFI huge 0xFFFF", 0xFFFF, rounds)
+    return total == 0
 
 
 # =============================================================================
@@ -460,10 +797,12 @@ def main() -> int:
                          "internally, so 0 is correct here (on-silicon: rd_phase=1 "
                          "made reads WORSE, 16/16). Non-zero is for a PHY that "
                          "genuinely consumes a per-command rdphase off the DFI bus.")
-    ap.add_argument("--rd-delay", type=int, default=8,
-                    help="dfi_rddata_delay: sys-cycles to delay read data to "
-                         "meet the a7ddrphy's late rddata_valid (~read_latency=8; "
-                         "0=passthrough, for a PHY with no rddata/valid skew)")
+    ap.add_argument("--rd-delay", type=int,
+                    default=int(os.environ.get("TEST_RDDATA_DELAY", "7")),
+                    help="dfi_rddata_delay: sys-cycles to delay read DATA onto "
+                         "the a7ddrphy's fixed valid (= rddata_en + "
+                         "read_latency 8). Board-validated tuple: 7 (with "
+                         "t_rddata_en=6, t_phy_wrlat=1 — see TASK-BRINGUP)")
     ap.add_argument("--char-level", default="medium",
                     choices=["basic", "medium", "full"],
                     help="scenario depth for --char (basic/medium/full)")
@@ -490,8 +829,9 @@ def main() -> int:
                          "file exists it is RESTORED (apply + verify, no ~256-"
                          "iter sweep); a failed verify re-levels + re-saves. "
                          "Board+PHY specific; delete it after a bitstream change.")
-    ap.add_argument("--clk-mhz", type=float, default=100.0,
-                    help="controller clock for bandwidth (MB/s) derivation")
+    ap.add_argument("--clk-mhz", type=float, default=66.667,
+                    help="controller clock for bandwidth (MB/s) derivation "
+                         "(rate-2 board build sys clock = 66.67 MHz)")
     mode = ap.add_mutually_exclusive_group(required=True)
     mode.add_argument("--level-only", action="store_true",
                       help="run leveling and report the eye, nothing else")
@@ -499,6 +839,23 @@ def main() -> int:
                       help="init + one write-then-read integrity pass")
     mode.add_argument("--full", action="store_true",
                       help="init + full workload-sweep characterization")
+    ap.add_argument("--minutes", type=float, default=0,
+                    help="with --soak: run the ENDURANCE soak for this many "
+                         "wall-clock minutes (rotating 4MB windows across the "
+                         "device, periodic concurrent wr/rd rounds, ~5-min eye "
+                         "re-verify, heartbeat CSV) instead of the short gate")
+    ap.add_argument("--soak-csv", default=None,
+                    help="heartbeat CSV path for --soak --minutes")
+    ap.add_argument("--mem-bytes", type=lambda x: int(x, 0), default=128 << 20,
+                    help="device size for --memtest / --soak --minutes")
+    mode.add_argument("--memtest", action="store_true",
+                      help="full-device write-all/read-all (chunked) — proves "
+                           "the whole row/bank/col addressing path + "
+                           "read-after-full-write retention")
+    mode.add_argument("--soak", action="store_true",
+                      help="refresh-pressure read soak (default / tiny / huge "
+                           "tREFI) -- the arbiter refresh-collision regression "
+                           "gate; nonzero exit on any dirty round")
     mode.add_argument("--char", action="store_true",
                       help="init + access-pattern characterization sweep "
                            "(incremental / row-major / col-major page attack)")
@@ -549,6 +906,32 @@ def main() -> int:
         n_ok = sum(1 for p in pts if p.ok)
         print(f"\nfull characterization: {n_ok}/{len(pts)} workloads passed")
         return 0 if n_ok == len(pts) else 1
+
+    if args.memtest:
+        st = SimpleTest(drv, base_addr=args.base, rd_phase=args.rd_phase,
+                        rddata_delay=args.rd_delay, level_cache=args.level_cache)
+        st.init(do_leveling=not args.no_level)
+        ok = memtest(drv, st, mem_bytes=args.mem_bytes)
+        return 0 if ok else 1
+
+    if args.soak:
+        st = SimpleTest(drv, base_addr=args.base, rd_phase=args.rd_phase,
+                        rddata_delay=args.rd_delay, level_cache=args.level_cache)
+        st.init(do_leveling=not args.no_level)
+        if args.minutes > 0:
+            lv = A7Leveling(drv, rd_phase=args.rd_phase,
+                            rddata_delay=args.rd_delay)
+            saved = (A7Leveling.load_level(args.level_cache)
+                     if args.level_cache and os.path.exists(args.level_cache)
+                     else st.level)
+            assert saved is not None, "--minutes needs a leveled window " \
+                                      "(--level-cache or fresh leveling)"
+            ok = long_soak(drv, st, lv, saved, args.minutes,
+                           mem_bytes=args.mem_bytes, csv_path=args.soak_csv)
+        else:
+            ok = refresh_soak(drv, st)
+        print(f"soak: {'PASS' if ok else 'FAIL'}")
+        return 0 if ok else 1
 
     if args.char:
         # Lazy import keeps pumice_char's `from pumice_master import wait_engine`

@@ -15,7 +15,10 @@ module formal_axi_monitor_base (
     // =========================================================================
     localparam logic [7:0]  UNIT_ID  = 8'h09;
     localparam logic [15:0] AGENT_ID = 16'h0063;
-    localparam int MAX_TRANSACTIONS = 2;
+    // Must exceed BLOCK_MARGIN (3) so the block_ready flow control actually
+    // engages -- at MAX<=BLOCK_MARGIN block_ready is a constant 1 (no
+    // backpressure) and the CAM can be pushed past MAX_TRANSACTIONS.
+    localparam int MAX_TRANSACTIONS = 4;
     localparam int ADDR_WIDTH       = 16;
     localparam int ID_WIDTH         = 4;
     localparam int ADDR_BITS_IN_PKT = 16;
@@ -176,6 +179,16 @@ module formal_axi_monitor_base (
         assume (cfg_timeout_enable == 1'b0);
     end
 
+    // Model the integration flow control: the wrapper gates the command handshake
+    // with block_ready (cmd_ready = w_core_cmd_ready & block_ready), so upstream
+    // cannot open a new transaction while block_ready is deasserted.  Without this
+    // the free cmd_ready overflows the trans CAM and active_count exceeds
+    // MAX_TRANSACTIONS -- exactly what block_ready exists to prevent.
+    always @(*) begin
+        if (!block_ready_o)
+            assume (!(cmd_valid && cmd_ready));
+    end
+
     // =========================================================================
     // Shadow model: track whether any AXI activity has occurred
     // =========================================================================
@@ -221,7 +234,12 @@ module formal_axi_monitor_base (
     end
 
     // =========================================================================
-    // P4: active_count bounded by MAX_TRANSACTIONS
+    // P4: active_count bounded by MAX_TRANSACTIONS.  active_count is now the
+    // registered pop-count of the trans_mgr CAM occupancy, structurally in
+    // [0, MAX_TRANSACTIONS].  It previously used an alloc-minus-cleanup
+    // accumulator that could underflow to 0xFF under legal AXI (caught by this
+    // proof and the trans_mgr unit proof); see
+    // rtl/amba/KNOWN_ISSUES/axi_monitor_active_count_underflow.md.
     // =========================================================================
     always @(posedge clk) begin
         if (rst_n)
@@ -247,13 +265,28 @@ module formal_axi_monitor_base (
     end
 
     // =========================================================================
-    // P7: block_ready behavior
-    //     With MAX_TRANSACTIONS=2, block_ready should always be 0
-    //     (the condition is MAX_TRANSACTIONS > 2 for block_ready to ever assert)
+    // P7: block_ready is a POSITIVE-enable flow-control (1 = upstream may
+    //     proceed).  The RTL fix (see axi_monitor_base block_ready comment)
+    //     flipped the old inverted polarity that stalled every handshake at
+    //     count=0 and deadlocked.  The old P7 asserted block_ready==0, encoding
+    //     that pre-fix polarity, so it is replaced with the corrected invariant:
+    //       block_ready = (MAX>BLOCK_MARGIN) ? (active_count < MAX-MARGIN) : 1
+    //     With MAX_TRANSACTIONS (2) <= BLOCK_MARGIN (3) it is a constant 1, and
+    //     more generally an empty monitor must NEVER stall upstream.
     // =========================================================================
+    localparam int unsigned BLOCK_MARGIN = 3;  // mirrors axi_monitor_base
+
     always @(posedge clk) begin
-        if (rst_n)
-            ap_block_ready_zero: assert (block_ready_o == 1'b0);
+        if (rst_n) begin
+            // Exact behavioral relation to active_count (matches the RTL assign).
+            ap_block_ready_relation: assert (block_ready_o ==
+                ((MAX_TRANSACTIONS > BLOCK_MARGIN)
+                    ? (active_count_o < 8'(MAX_TRANSACTIONS - BLOCK_MARGIN))
+                    : 1'b1));
+            // Anti-deadlock: an empty monitor always admits new transactions.
+            if (active_count_o == 8'h0)
+                ap_block_ready_when_empty: assert (block_ready_o == 1'b1);
+        end
     end
 
     // =========================================================================

@@ -44,7 +44,6 @@
 
 ---
 
-### [Wavedrom_AutoBind_Guide.md](Wavedrom_AutoBind_Guide.md) → [Link to markdown/](../markdown/CocoTBFramework/components/wavedrom/wavedrom_auto_binding.md)
 **What:** Using WaveDrom automatic signal binding for documentation
 **When to use:** Generating timing diagrams from simulations
 **Key topics:**

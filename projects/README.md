@@ -79,7 +79,7 @@ make program  # Program FPGA
 **On-chip characterization of the split RAPIDS "beats" DMA (two wholly-separate src/snk engines)**
 
 - **Component:** [rapids](components/dmas/rapids/) — docs: [PRD](components/dmas/rapids/PRD.md) · [spec](components/dmas/rapids/docs/)
-- **Report:** [characterization findings](NexysA7/rapids_characterization/docs/rapids_characterization_findings.md) (regenerate the PDF with `docs/generate_pdf.sh`) · host flow: [flows-rapids-beats](NexysA7/rapids_characterization/flows-rapids-beats/)
+- **Report:** [characterization findings](NexysA7/rapids_characterization/docs/rapids_characterization_findings.md) (regenerate the PDF with `NexysA7/rapids_characterization/docs/generate_pdf.sh`) · host flow: [flows-rapids-beats](NexysA7/rapids_characterization/flows-rapids-beats/)
 - **Board:** Nexys A7-100T · timing-closed @ 100 MHz; both data paths CRC-validated on silicon (`make smoke` / `make suite`)
 - **Status:** ✅ Characterized (split engines, golden-CRC suite 48/48 on hardware)
 

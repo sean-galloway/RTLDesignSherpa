@@ -145,9 +145,11 @@ This scenario shows writing 4 entries to an empty FIFO:
 - FIFO count increments with each successful write
 - Data values: 0xA0, 0xA1, 0xA2, 0xA3
 
-```
-[WaveDrom diagram: gaxi_drop_fifo_fill.json]
-```
+> *Timing diagram not yet captured.* The scenario is described above.
+> `test_gaxi_drop_fifo_wavedrom.py` is intended to emit
+> `gaxi_drop_fifo_fill.json` into `docs/markdown/assets/WAVES/`, but it does not
+> currently write the file; the diagram is a documentation gap, not a
+> missing feature of the module.
 
 ### Drop by Count
 
@@ -159,9 +161,11 @@ This scenario demonstrates dropping 2 oldest entries:
 - FIFO count decreases by 2
 - Normal I/O blocked during drop
 
-```
-[WaveDrom diagram: gaxi_drop_fifo_drop_by_count.json]
-```
+> *Timing diagram not yet captured.* The scenario is described above.
+> `test_gaxi_drop_fifo_wavedrom.py` is intended to emit
+> `gaxi_drop_fifo_drop_by_count.json` into `docs/markdown/assets/WAVES/`, but it does not
+> currently write the file; the diagram is a documentation gap, not a
+> missing feature of the module.
 
 ### Drop All
 
@@ -173,9 +177,11 @@ This scenario shows flushing the entire FIFO:
 - FIFO count becomes 0
 - All entries discarded
 
-```
-[WaveDrom diagram: gaxi_drop_fifo_drop_all.json]
-```
+> *Timing diagram not yet captured.* The scenario is described above.
+> `test_gaxi_drop_fifo_wavedrom.py` is intended to emit
+> `gaxi_drop_fifo_drop_all.json` into `docs/markdown/assets/WAVES/`, but it does not
+> currently write the file; the diagram is a documentation gap, not a
+> missing feature of the module.
 
 ### Comprehensive Scenario
 
@@ -186,9 +192,11 @@ This scenario demonstrates mixed operations:
 - Drop remaining entries with `drop_all=1`
 - Shows interaction between read and drop interfaces
 
-```
-[WaveDrom diagram: gaxi_drop_fifo_comprehensive.json]
-```
+> *Timing diagram not yet captured.* The scenario is described above.
+> `test_gaxi_drop_fifo_wavedrom.py` is intended to emit
+> `gaxi_drop_fifo_comprehensive.json` into `docs/markdown/assets/WAVES/`, but it does not
+> currently write the file; the diagram is a documentation gap, not a
+> missing feature of the module.
 
 ## Usage Examples
 

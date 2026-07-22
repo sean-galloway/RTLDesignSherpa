@@ -22,6 +22,6 @@ prep -top formal_axi_monitor_timer
 [files]
 counter_load_clear.sv ../../../rtl/common/counter_load_clear.sv
 counter_freq_invariant.sv ../../../rtl/common/counter_freq_invariant.sv
-axi_monitor_timer.sv ../../../rtl/amba/shared/axi_monitor_timer.sv
+axi_monitor_timer.sv ../../../rtl/amba/monitor/axi_monitor_timer.sv
 formal_axi_monitor_timer.sv
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

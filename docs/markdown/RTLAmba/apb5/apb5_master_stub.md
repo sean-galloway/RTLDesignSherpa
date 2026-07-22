@@ -78,8 +78,8 @@ flowchart LR
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| CMD_DEPTH | int | 6 | Command FIFO depth (log2) |
-| RSP_DEPTH | int | 6 | Response FIFO depth (log2) |
+| CMD_DEPTH | int | 6 | Command skid-buffer depth in entries; one of {2, 4, 6, 8} |
+| RSP_DEPTH | int | 6 | Response skid-buffer depth in entries; one of {2, 4, 6, 8} |
 | ADDR_WIDTH | int | 32 | APB address bus width |
 | DATA_WIDTH | int | 32 | APB data bus width |
 | PROT_WIDTH | int | 3 | Protection signal width |
@@ -91,6 +91,22 @@ flowchart LR
 | STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width |
 | CMD_PACKET_WIDTH | int | (calculated) | Total command packet width |
 | RESP_PACKET_WIDTH | int | (calculated) | Total response packet width |
+
+`CMD_PACKET_WIDTH` and `RESP_PACKET_WIDTH` are computed from the width
+parameters and must not be overridden:
+
+```
+CMD_PACKET_WIDTH  = ADDR_WIDTH + DATA_WIDTH + STRB_WIDTH + PROT_WIDTH
+                  + AUSER_WIDTH + WUSER_WIDTH + 1 + 1 + 1
+                    // the three single bits are pwrite, first, last
+
+RESP_PACKET_WIDTH = DATA_WIDTH + RUSER_WIDTH + BUSER_WIDTH + 1 + 1 + 1 + 1
+                    // the four single bits are pslverr, pwakeup, first, last
+```
+
+With all defaults (32-bit address and data, 4-bit strobe, 3-bit protection,
+4-bit user fields) this gives `CMD_PACKET_WIDTH = 82` and
+`RESP_PACKET_WIDTH = 44`.
 
 ---
 
@@ -122,6 +138,20 @@ flowchart LR
 | m_apb_PWAKEUP | 1 | Input | Wake-up from slave |
 | m_apb_PRUSER | RUSER_WIDTH | Input | User read attributes |
 | m_apb_PBUSER | BUSER_WIDTH | Input | User response attributes |
+
+### Parity Signals (Optional)
+
+Present unconditionally; meaningful only when `ENABLE_PARITY=1`. Semantics are
+identical to [apb5_master](apb5_master.md#parity-implementation).
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| m_apb_PWDATAPARITY | STRB_WIDTH | Output | Write data parity (per byte) |
+| m_apb_PADDRPARITY | 1 | Output | Address parity |
+| m_apb_PCTRLPARITY | 1 | Output | Control signals parity |
+| m_apb_PRDATAPARITY | STRB_WIDTH | Input | Read data parity from slave |
+| m_apb_PREADYPARITY | 1 | Input | PREADY parity from slave |
+| m_apb_PSLVERRPARITY | 1 | Input | PSLVERR parity from slave |
 
 ### Command Packet Interface
 
@@ -217,14 +247,15 @@ sequenceDiagram
 ### Timing
 
 <!-- TODO: Add wavedrom timing diagram for stub transactions -->
-```
-TODO: Wavedrom timing diagram showing:
-- pclk
-- cmd_valid, cmd_ready, cmd_data
-- APB signals (PSEL, PENABLE, PADDR, PWDATA, PREADY)
-- rsp_valid, rsp_ready, rsp_data
-- Packet-to-APB timing relationship
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - pclk
+> - cmd_valid, cmd_ready, cmd_data
+> - APB signals (PSEL, PENABLE, PADDR, PWDATA, PREADY)
+> - rsp_valid, rsp_ready, rsp_data
+> - Packet-to-APB timing relationship
+
 
 ---
 
@@ -273,20 +304,39 @@ apb5_master_stub #(
     .rsp_data       (tb_rsp_data),
 
     // Status
+    .parity_error_rdata (),
+    .parity_error_ctrl  (),
     .wakeup_pending (apb_wakeup)
 );
 
-// Build command packet
+// Build command packet.
+// Field widths follow the module parameters; the literals below assume the
+// defaults, giving CMD_PACKET_WIDTH = 82.
 assign tb_cmd_data = {
-    1'b1,           // last
-    1'b1,           // first
-    1'b1,           // pwrite (write transaction)
-    3'b000,         // pprot
-    4'hF,           // pstrb (all bytes)
-    32'h1000_0000,  // paddr
-    32'hDEAD_BEEF,  // pwdata
-    4'h0,           // pauser
-    4'h0            // pwuser
+    1'b1,           // last     (1 bit)
+    1'b1,           // first    (1 bit)
+    1'b1,           // pwrite   (1 bit, write transaction)
+    3'b000,         // pprot    (PROT_WIDTH  = 3)
+    4'hF,           // pstrb    (STRB_WIDTH  = 4, all bytes)
+    32'h1000_0000,  // paddr    (ADDR_WIDTH  = 32)
+    32'hDEAD_BEEF,  // pwdata   (DATA_WIDTH  = 32)
+    4'h0,           // pauser   (AUSER_WIDTH = 4)
+    4'h0            // pwuser   (WUSER_WIDTH = 4)
+};
+```
+
+For a parameterized testbench, build the packet from the parameters rather than
+from literals so it tracks any width change:
+
+```systemverilog
+assign tb_cmd_data = {
+    cmd_last, cmd_first, cmd_pwrite,
+    cmd_pprot[PROT_WIDTH-1:0],
+    cmd_pstrb[STRB_WIDTH-1:0],
+    cmd_paddr[ADDR_WIDTH-1:0],
+    cmd_pwdata[DATA_WIDTH-1:0],
+    cmd_pauser[AUSER_WIDTH-1:0],
+    cmd_pwuser[WUSER_WIDTH-1:0]
 };
 ```
 
@@ -319,6 +369,6 @@ The stub instantiates the full `apb5_master` internally:
 
 ## Navigation
 
-- **[<- Back to APB5 Index](README.md)**
-- **[<- Back to RTLAmba Index](../index.md)**
-- **[<- Back to Main Documentation Index](../../index.md)**
+- **[← Back to APB5 Index](README.md)**
+- **[← Back to RTLAmba Index](../index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

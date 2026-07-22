@@ -26,6 +26,14 @@
 **Date:** 2025-10-18
 **Status:** [PASS] Fully Functional with Tree Topology Support
 
+> Status (2026-07-22): historical - the tree-topology delta generation described here
+> (delta_split_*, delta_merge_*, delta_fanout_*, delta_fanin_* modules) was retired;
+> delta now generates flat AXIS crossbars only (`rtl/delta_axis_flat_4x16.sv`, plus
+> test configurations in `rtl_test/delta_axis_flat_*.sv`) via `bin/delta_generator.py`.
+> The `docs/DELTA_VS_APB_GENERATOR.md` guide referenced below was also removed; current
+> documentation is `docs/delta_spec/` and `docs/Delta_Specification_v1.0.pdf`.
+> Kept for reference.
+
 ---
 
 ## Direct Answer to Your Question
@@ -69,7 +77,7 @@
 ### Generate Node Primitives
 
 ```bash
-cd /mnt/data/github/rtldesignsherpa/projects/components/delta
+cd projects/components/delta
 
 # Generate 1:2 splitter
 python bin/delta_generator.py --topology flat --masters 2 --slaves 2 --nodes --output-dir rtl/

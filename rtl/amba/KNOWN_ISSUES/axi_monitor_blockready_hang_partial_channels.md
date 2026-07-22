@@ -23,15 +23,55 @@
 
 # Known Issue: cluster state-accumulation wedge (long-session DMA hang)
 
-**Status:** 🟠 OPEN — needs root-cause; **NOT reproducible from a clean board**
-**Severity:** MEDIUM — only manifests after a long session of many mixed
-runs; a full FPGA reprogram fully clears it. Hang, not data corruption.
+**Status:** ✅ ROOT-CAUSED AND FIXED — commits `cb29e226` (saturation-recovery
+contract) and `95c9490a` (runtime-disable auto-retire)
+**Severity:** MEDIUM — only manifested after a long session of many mixed
+runs; a full FPGA reprogram fully cleared it. Hang, not data corruption.
 **Date Reported:** 2026-06-16
-**Affects:** the STREAM characterization harness reset path
-(`stream_char_harness.sv` soft-reset + per-channel reset + `clear_stats`) —
-it does not fully clear all cluster state. Suspected, not confirmed:
-`axi_monitor_base.sv` `block_ready` / completion-feedback + the monbus /
-response-delay queues.
+**Date Fixed:** 2026-07-21
+**Affects:** `axi_monitor_trans_mgr.sv` / `axi_monitor_base.sv` /
+`axi_monitor_reporter.sv` (`block_ready` never re-asserting once the
+transaction table saturated).
+
+---
+
+## Resolution (2026-07-21)
+
+The "suspected mechanism" below was correct in outline: the wedge was the
+monitor's `block_ready` latching low permanently once the transaction table
+saturated. Two independent slot-leak mechanisms fed the saturation, both
+fixed:
+
+1. **Stray non-last data beat poison** (`cb29e226`): a stray beat matching
+   only already-closed entries dragged a terminal entry back to
+   `TRANS_DATA_PHASE` with `data_completed` set — a state nothing could
+   close and no timeout term matched. Each occurrence leaked a slot until
+   occupancy pinned at `MAX_TRANSACTIONS`, and the old flat `MAX-3`
+   `block_ready` margin placed the reopen threshold exactly AT the
+   saturation point, so `block_ready` could never re-assert. Fixed by the
+   saturation-recovery contract (`monitor_common_pkg::cmd_entry_reserve`):
+   command entries capped below the reopen threshold, stray non-last beats
+   absorbed without lifecycle updates, formal properties added
+   (`ap_no_reopened_complete`, `ap_cmd_entry_cap`, mutation-checked).
+2. **Runtime-disabled packet-class leak** (`95c9490a`): with a class
+   compiled in but cfg-disabled (e.g. `debug-compl`-style presets toggling
+   completion reporting), terminal entries were never marked reported and
+   leaked. The reporter now auto-retires terminal entries of any class
+   that is compiled out or runtime-disabled.
+
+This explains the observed signature: state accumulated across many mixed
+runs (each leak is permanent until reprogram), the `debug-compl` preset was
+implicated (enable toggling), and the per-run soft reset did not clear the
+monitor's transaction CAM. Regression: `val/amba/test_axi_monitor_trans_mgr.py`
+(`phase_saturation_recovers`), `val/amba/test_axi_monitor_runtime_disable.py`,
+and the 100-seed deliberately-undersized `test_stream_core_mon_backpressure`
+sweep.
+
+Note: a separate 8-channel STREAM **engine-side** wedge (params 7/9/11 of
+the multi-channel stress family) remains open and is NOT a monitor issue —
+tracked in the STREAM project area.
+
+The original write-up is retained below for history.
 
 ---
 

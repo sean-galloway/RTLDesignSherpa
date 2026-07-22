@@ -190,7 +190,7 @@ write_apb(ADDR_GLOBAL_CTRL, CHANNEL_0_RESET);  // Auto-clears after 1 cycle
 | scheduler | `aclk` | `aresetn` | 100-500 MHz | Single cycle FSM |
 | axi_read_engine | `aclk` | `aresetn` | 100-500 MHz | AXI master timing |
 | axi_write_engine | `aclk` | `aresetn` | 100-500 MHz | AXI master timing |
-| simple_sram | `aclk` | `aresetn` | 100-500 MHz | Synchronous SRAM |
+| sram_controller_unit | `aclk` | `aresetn` | 100-500 MHz | Synchronous SRAM buffering (wraps `gaxi_fifo_sync`) |
 
 : Functional Unit Blocks
 

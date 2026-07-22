@@ -66,7 +66,18 @@ all gated on the command sink accepting the push:
    (`init_cmd_op/bank/row`).
 2. **REFRESH** (`refresh_req_i || refresh_drain_i`) — if any bank is active,
    precharge the lowest active, precharge-ready, un-guarded bank (one/cycle); once
-   no bank is active, issue `OP_REF` and assert `refresh_grant_o`.
+   no bank is active, issue `OP_REF` and assert `refresh_grant_o`. The REF fires
+   only under **`w_ref_safe`**: the registered view shows every row closed AND no
+   row-affecting command is in flight or inside its 2-cycle guard window AND the
+   previous REF's tRFC recovery has elapsed. The registered bank view alone is
+   2-3 cycles stale, which let a REFab collide with a just-issued ACT (no PRE) —
+   silicon-confirmed as refresh-rate-correlated row corruption. **Mission-mode
+   tRFC** (`TIMINGS_RFC_REFI.tRFC` -> `t_rfc_i`) is enforced by an arbiter
+   down-counter loaded on each fired REF; while non-zero, ACT picks and further
+   REFs are blocked (init-time refreshes use `INIT_TIMING1.t_rfc_wait`
+   separately). The sequencing is audited by
+   `rtl/fub/pumice_cmd_history_checker.sv` (generate-gated by `CMD_HISTORY_EN`
+   inside the scheduler macro, `$fatal` on violation).
 3. **COLUMN row-hit** — an issuable RD/WR to an open row.
    **READ-PRIORITY**: a ready read wins over a ready write. Within each
    direction, **oldest** (max CAM relative age) wins the tie-break.
@@ -103,12 +114,16 @@ Because `pumice_bank_timers` register their readiness outputs (a 2-cycle latency
 from an `evt` to `act/pre_ready` dropping), a purely combinational arbiter would
 re-issue ACT/PRE to the same bank before the timers reflect it. The arbiter keeps
 a **2-cycle per-bank guard** (`r_guard0`, `r_guard1`; `w_guarded = guard0 |
-guard1`) set on any accepted ACT/PRE, and skips guarded banks in the refresh-PRE
-and fallback paths.
+guard1`) set on any accepted **ACT, PRE or column**, and skips guarded banks in
+the refresh-PRE and fallback paths. Columns are included because a column fired
+<2 cycles ago has not yet dropped the bank's registered `pre_ready` (tRTP/tWR
+load), so an unguarded PRE — normal or refresh-drain — could precharge on stale
+readiness.
 
-Column ops need **no** guard: both CAMs exclude a just-committed/issued slot from
-their lookup/oldest ports the next cycle (`r_sched` on the write side, `r_issued`
-on the read side), so the arbiter never re-issues the same slot. The shared-DQ-bus
+Column ops still need no guard **against each other**: both CAMs exclude a
+just-committed/issued slot from their lookup/oldest ports the next cycle
+(`r_sched` on the write side, `r_issued` on the read side), so the arbiter never
+re-issues the same slot. The shared-DQ-bus
 occupancy (a BL burst owns the DQ bus for `BL/DFI_RATE` dfi cycles) is a
 `dfi_clk`-domain constraint enforced **downstream** in `pumice_dfi_cmd_path`
 (`COL_BURST_CYC`), not here — the CDC decouples `aclk` command issue from

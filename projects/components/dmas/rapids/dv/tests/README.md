@@ -23,7 +23,15 @@
 
 # RAPIDS Validation Test Suite - v2.0
 
-This directory contains comprehensive validation tests for the RAPIDS (Memory Input/Output Processor) system, following the established CocoTB framework methodology and leveraging existing TB classes from `bin/TBClasses/rapids/`.
+> **Status (2026-07-22): superseded in part - pre-beats description.** The phase-1/2/3 layout
+> below (`fub_tests/`, `integration_tests/`, `system_tests/`) and the tests it names were
+> replaced by the beats test tree:
+> `fub/` (control engines), `fub_beats/`, `macro/` (monbus group), `macro_beats/`, `top_beats/`.
+> TB classes live in `projects/components/dmas/rapids/dv/tbclasses/` (NOT `bin/TBClasses/rapids/`,
+> which no longer exists). Run `pytest projects/components/dmas/rapids/dv/tests/<suite>/ -v`.
+> Historical descriptions are kept below for background.
+
+This directory contains comprehensive validation tests for the RAPIDS system, following the established CocoTB framework methodology and leveraging the RAPIDS TB classes in `../tbclasses/`.
 
 ## Overview
 
@@ -38,7 +46,7 @@ The RAPIDS is a high-performance 2.5 GHz data streaming engine with four main ma
 
 This test suite follows the user's guidance for proper TB organization:
 
-- **TB Classes**: Located in `bin/TBClasses/rapids/` with real GAXI/AXI4/Network/MonBus integration
+- **TB Classes**: Located in `projects/components/dmas/rapids/dv/tbclasses/` with real GAXI/AXI4/AXIS/MonBus integration
 - **Fixed 32-Channel Configuration**: All TBs use fixed 32-channel configuration for 32x scaling
 - **Superset Testing**: Integration tests leverage multiple TB classes for unit-level validation
 - **Organized FUB Tests**: Complex component tests organized in subdirectories to prevent clutter
@@ -119,20 +127,20 @@ Organized individual component validation in `fub_tests/`:
 ### TB Class Integration Tests (Primary)
 
 ```bash
-# Run integration tests using framework TB classes
-pytest projects/components/dmas/rapids/dv/tests/integration_tests/ -v
+# Run macro-level tests (multi-block scenarios; the old integration_tests/ are gone)
+pytest projects/components/dmas/rapids/dv/tests/macro_beats/ -v
 
-# Run specific TB integration test
-pytest projects/components/dmas/rapids/dv/tests/integration_tests/test_scheduler_group_integration.py -v
-pytest projects/components/dmas/rapids/dv/tests/integration_tests/test_source_datapath_integration.py -v
-pytest projects/components/dmas/rapids/dv/tests/integration_tests/test_sink_datapath_integration.py -v
-pytest projects/components/dmas/rapids/dv/tests/integration_tests/test_monbus_axil_integration.py -v
+# Run specific macro tests
+pytest projects/components/dmas/rapids/dv/tests/macro_beats/test_scheduler_group_beats.py -v
+pytest projects/components/dmas/rapids/dv/tests/macro_beats/test_src_data_path_axis_test_beats.py -v
+pytest projects/components/dmas/rapids/dv/tests/macro_beats/test_snk_data_path_axis_test_beats.py -v
+pytest projects/components/dmas/rapids/dv/tests/macro/test_monbus_axil_group.py -v
 
-# Run system tests (ultimate superset testing)
-pytest projects/components/dmas/rapids/dv/tests/system_tests/test_end_to_end_system.py -v
+# Run top-level tests (the old system_tests/ are gone)
+pytest projects/components/dmas/rapids/dv/tests/top_beats/ -v
 
 # Run with specific test level
-TEST_LEVEL=full pytest projects/components/dmas/rapids/dv/tests/test_scheduler_group.py -v
+TEST_LEVEL=full pytest projects/components/dmas/rapids/dv/tests/macro_beats/test_scheduler_group_beats.py -v
 ```
 
 ### Test Levels
@@ -248,7 +256,7 @@ The test suite requires:
 
 ## Logs and Artifacts
 
-Test artifacts are preserved in `projects/components/dmas/rapids/dv/tests/logs/`:
+Test artifacts are preserved per suite (e.g. `dv/tests/fub_beats/logs/`, `dv/tests/macro_beats/logs/`, with builds in each suite's `local_sim_build/`):
 - Pytest execution logs
 - Verilator simulation logs
 - Waveform files (if enabled)

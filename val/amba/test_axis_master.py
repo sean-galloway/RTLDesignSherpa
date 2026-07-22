@@ -33,6 +33,7 @@ import cocotb
 from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import the testbench
 from TBClasses.axis4.axis_master_tb import AXISMasterTB
@@ -157,10 +158,9 @@ def test_axis_master(request, skid_depth, data_width, id_width, dest_width, user
     toplevel = dut_name
 
     # Verilog sources for AXIS master
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba'], "gaxi", "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "axis4", f"{dut_name}.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axis_master.f")
 
     # Create a human readable test identifier
     sd_str = TBBase.format_dec(skid_depth, 1)
@@ -183,7 +183,7 @@ def test_axis_master(request, skid_depth, data_width, id_width, dest_width, user
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = [rtl_dict['rtl_amba_includes']]
+    includes=includes
     # RTL parameters for AXIS master
     parameters = {
         'SKID_DEPTH': skid_depth,
@@ -282,10 +282,9 @@ def test_axis_master(request, skid_depth, data_width, id_width, dest_width, user
     toplevel = dut_name
 
     # Verilog sources for AXIS master
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba'], "gaxi", "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "axis4", f"{dut_name}.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axis_master.f")
 
     # Create a human readable test identifier
     sd_str = TBBase.format_dec(skid_depth, 1)
@@ -308,7 +307,7 @@ def test_axis_master(request, skid_depth, data_width, id_width, dest_width, user
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = [rtl_dict['rtl_amba_includes']]
+    includes=includes
     # RTL parameters for AXIS master
     parameters = {
         'SKID_DEPTH': skid_depth,

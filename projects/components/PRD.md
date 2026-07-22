@@ -218,7 +218,7 @@ FPGA synthesis attributes:
 
 See reference implementations:
 - `rtl/common/fifo_sync.sv` - FIFO with auto memory inference
-- `projects/components/dmas/stream/rtl/stream_fub/simple_sram.sv` - SRAM with attributes
+- `rtl/amba/gaxi/gaxi_fifo_sync.sv` - FIFO memory with attributes (used by STREAM's SRAM controller; the old `simple_sram.sv` was removed)
 
 ---
 
@@ -352,8 +352,8 @@ SRAM modules without reset:
 #### 2.4.5 Examples
 
 Reference implementations:
-- `projects/components/dmas/stream/rtl/stream_fub/simple_sram.sv` - SRAM module
-- `projects/components/dmas/stream/rtl/stream_fub/sram_controller.sv` - Controller with reset
+- `rtl/amba/shared/sdpram_core.sv` - SRAM core (no-reset memory; replaced the old `simple_sram.sv`)
+- `projects/components/dmas/stream/rtl/fub/sram_controller.sv` - Controller with reset
 
 ---
 
@@ -819,7 +819,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 Each component has detailed documentation:
 - `projects/components/dmas/stream/CLAUDE.md` and `PRD.md`
 - `projects/components/dmas/rapids/CLAUDE.md` and `PRD.md`
-- `projects/components/apb_hpet/CLAUDE.md` and `PRD.md`
+- `projects/components/retro_legacy_blocks/CLAUDE.md` and `PRD.md` (includes the former apb_hpet)
 - `projects/components/bridge/CLAUDE.md` and `PRD.md`
 
 ---

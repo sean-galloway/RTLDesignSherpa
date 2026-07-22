@@ -13,26 +13,22 @@
 +incdir+$STREAM_ROOT/rtl/includes
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-# Header files with macros (MUST be compiled first)
-$REPO_ROOT/rtl/amba/includes/reset_defs.svh
-$REPO_ROOT/rtl/amba/includes/fifo_defs.svh
+# AMBA/common dependencies come in via each component's OWN filelist; this
+# file never hand-lists individual rtl/common or rtl/amba sources. A consumer
+# that hand-lists a component's files has to track that component's internal
+# dependencies, and it silently rots when they change (missing reporter
+# sub-blocks, missing monitor_trans_cam, missing clock-gate chain). Each
+# filelist below declares its own complete closure.
+-f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f
+-f $REPO_ROOT/rtl/common/filelists/arbiter_round_robin.f
+-f $REPO_ROOT/rtl/common/filelists/arbiter_single_client.f
 
 # Package files
-$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv
-$REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv
 $STREAM_ROOT/rtl/includes/stream_pkg.sv
-
-# Dependencies - Arbiters (for shared descriptor AXI master access)
-$REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
-$REPO_ROOT/rtl/common/arbiter_round_robin.sv
-$REPO_ROOT/rtl/common/arbiter_single_client.sv
 
 # Dependencies - AMBA Monitors (for descriptor AXI master monitoring)
 # Use -f to include complete monitor infrastructure
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_mon.f
-
-# Dependencies - MonBus Infrastructure (for aggregating 9 MonBus sources)
-$REPO_ROOT/rtl/amba/shared/monbus_arbiter.sv
 
 # Include macro-level component via -f (automatically pulls in FUB dependencies)
 -f $STREAM_ROOT/rtl/filelists/macro/scheduler_group.f

@@ -53,6 +53,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.gaxi.gaxi_buffer import GaxiBufferTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 @cocotb.test(timeout_time=3, timeout_unit="ms")
@@ -236,14 +237,12 @@ def test_gaxi_regslice(request, data_width, clk_period, test_level):
     log_path = os.path.join(log_dir, f'{test_id}.log')
 
     # RTL sources - single file for regslice
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_regslice.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/gaxi_regslice.f")
 
     # Include directories
-    includes = [
-        rtl_dict['rtl_amba_includes'],
-    ]
+    includes=includes
 
     # Test level message
     duration_msg = {

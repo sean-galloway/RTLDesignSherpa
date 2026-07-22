@@ -4,19 +4,18 @@
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 +incdir+$REPO_ROOT/rtl/amba/includes
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/includes/pumice_pkg.sv
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/counter_johnson.sv
-$REPO_ROOT/rtl/common/find_first_set.sv
-$REPO_ROOT/rtl/common/find_last_set.sv
-$REPO_ROOT/rtl/common/leading_one_trailing_one.sv
-$REPO_ROOT/rtl/common/grayj2bin.sv
-$REPO_ROOT/rtl/common/glitch_free_n_dff_arn.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
-$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
-$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
-$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_async.sv
-$REPO_ROOT/rtl/amba/axi4/axi4_slave_wr.sv
-$REPO_ROOT/rtl/amba/axi4/axi4_slave_rd.sv
+-f $REPO_ROOT/rtl/common/filelists/counter_bin.f
+-f $REPO_ROOT/rtl/common/filelists/counter_johnson.f
+-f $REPO_ROOT/rtl/common/filelists/find_first_set.f
+-f $REPO_ROOT/rtl/common/filelists/find_last_set.f
+-f $REPO_ROOT/rtl/common/filelists/leading_one_trailing_one.f
+-f $REPO_ROOT/rtl/common/filelists/glitch_free_n_dff_arn.f
+-f $REPO_ROOT/rtl/common/filelists/fifo_control.f
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_async.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd.f
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_axi_burst_chopper.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_wr_splitter.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/addr_mapper.sv
@@ -44,9 +43,9 @@ $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/genera
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated/rtl/pumice_csr.sv
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/top/pumice_top.sv
 # ---- AXI data-width converters (host <-> DW) ----
-$REPO_ROOT/projects/components/converters/rtl/axi_data_upsize.sv
-$REPO_ROOT/projects/components/converters/rtl/axi_data_dnsize.sv
-$REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_wr.sv
-$REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_rd.sv
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi_data_upsize.f
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi_data_dnsize.f
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_dwidth_converter_wr.f
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_dwidth_converter_rd.f
 # ---- geared wrapper ----
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/top/pumice_top_geared.sv

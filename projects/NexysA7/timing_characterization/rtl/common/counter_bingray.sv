@@ -307,7 +307,7 @@
 //   **Why Power-of-2 Depths Only:**
 //   - This module wraps at 2^WIDTH (no MAX_VALUE parameter)
 //   - Pointer comparison: (wr_ptr - rd_ptr) mod 2^WIDTH
-//   - For non-power-of-2 depths: Use counter_johnson + grayj2bin instead
+//   - For non-power-of-2 depths: Use counter_johnson + johnson2bin instead
 //     (see fifo_async_div2.sv)
 //
 //   **Verification on FPGA:**

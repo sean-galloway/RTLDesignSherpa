@@ -314,8 +314,8 @@ Results have been verified against:
 
 ## Related Tools
 
-- **[axi4_master_rd.md](../RTLAmba/axi/axi4_master_rd.md)**: AXI4 read master implementation
-- **[axi4_master_wr.md](../RTLAmba/axi/axi4_master_wr.md)**: AXI4 write master implementation
+- **[axi4_master_rd.md](../RTLAmba/axi4/axi4_master_rd.md)**: AXI4 read master implementation
+- **[axi4_master_wr.md](../RTLAmba/axi4/axi4_master_wr.md)**: AXI4 write master implementation
 - **[struct_test_script.md](struct_test_script.md)**: Structural testing framework
 - **[sv_interface_flattener.md](sv_interface_flattener.md)**: SystemVerilog interface utilities
 

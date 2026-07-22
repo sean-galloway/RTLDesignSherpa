@@ -8,8 +8,8 @@
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_crc_check.f
 
 # Perf: bus meters + latency histograms tapped on the internal AXI wires.
-$REPO_ROOT/rtl/amba/shared/axi_bus_meter.sv
-$REPO_ROOT/rtl/amba/shared/axi_perf_latency_hist.sv
+-f $REPO_ROOT/rtl/amba/filelists/axi_bus_meter.f
+-f $REPO_ROOT/rtl/amba/filelists/axi_perf_latency_hist.f
 
 # pumice controller top (geared) — pulls in axi4_ifc / scheduler / dfi_layer
 # / core / PeakRDL csr + the host<->core AXI dwidth converters.
@@ -17,12 +17,24 @@ $REPO_ROOT/rtl/amba/shared/axi_perf_latency_hist.sv
 
 # APB CSR window -> controller cpuif shim (apb_slave_cdc + peakrdl_to_cmdrsp).
 # counter_bin + fifo_control already come in via pumice_top_geared.f.
-$REPO_ROOT/rtl/amba/shared/cdc_synchronizer.sv
-$REPO_ROOT/rtl/amba/shared/cdc_2_phase_handshake.sv
-$REPO_ROOT/rtl/amba/shared/cdc_4_phase_handshake.sv
-$REPO_ROOT/rtl/amba/shared/cdc_open_loop.sv
-$REPO_ROOT/rtl/amba/apb/apb_slave.sv
-$REPO_ROOT/rtl/amba/apb/apb_slave_cdc.sv
+#
+# apb_slave_cdc's CDC is a gray-pointer async FIFO (gaxi_fifo_async), not a
+# toggle handshake: the APB side (presetn) and core side (aresetn) are separate
+# reset domains here — CTRL.soft_reset pulses only the core side — and a
+# toggle-parity handshake desynchronizes under that, permanently offsetting the
+# response stream by one transaction.
+-f $REPO_ROOT/rtl/common/filelists/counter_johnson.f
+-f $REPO_ROOT/rtl/common/filelists/find_first_set.f
+-f $REPO_ROOT/rtl/common/filelists/find_last_set.f
+-f $REPO_ROOT/rtl/common/filelists/leading_one_trailing_one.f
+-f $REPO_ROOT/rtl/common/filelists/johnson2bin.f
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_async.f
+-f $REPO_ROOT/rtl/amba/filelists/cdc_synchronizer.f
+-f $REPO_ROOT/rtl/amba/filelists/cdc_2_phase_handshake.f
+-f $REPO_ROOT/rtl/amba/filelists/cdc_4_phase_handshake.f
+-f $REPO_ROOT/rtl/amba/filelists/cdc_open_loop.f
+-f $REPO_ROOT/rtl/amba/filelists/apb_slave.f
+-f $REPO_ROOT/rtl/amba/filelists/apb_slave_cdc.f
 $REPO_ROOT/projects/components/converters/rtl/peakrdl_to_cmdrsp.sv
 $REPO_ROOT/projects/components/converters/rtl/apb_to_peakrdl.sv
 

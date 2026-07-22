@@ -24,7 +24,7 @@ flowchart TD
         direction TB
         anyact{any bank active?}
         anyact -->|yes| pre["Issue PRE to an active bank<br/>(one per cycle)"]
-        anyact -->|no| ref["Issue REF + pulse refresh_grant"]
+        anyact -->|no| ref["Issue REF (w_ref_safe: guards clear + tRFC met) + pulse refresh_grant"]
         pre --> anyact
     end
 

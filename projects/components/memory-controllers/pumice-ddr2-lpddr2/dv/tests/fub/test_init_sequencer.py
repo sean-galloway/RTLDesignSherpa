@@ -39,10 +39,13 @@ from tbclasses.trackers import InitSequencerTracker  # noqa: E402
 MEMTYPE_DDR2   = 0
 MEMTYPE_LPDDR2 = 1
 
-# DDR2 MR values emitted by init_sequencer (must match the RTL localparams
-# in rtl/fub/init_sequencer.sv — these are the board-tuned BL4/CL3/tWR3 set).
-DDR2_MR0_DLL     = 0x0532   # MR0 with DLL reset (A8=1) — first MRS(0)
-DDR2_MR0         = 0x0432   # MR0, DLL-reset cleared   — second MRS(0)
+# DDR2 MR values are now CSR-backed inputs (mr0_i..mr3_i, driven from MR0..MR3.
+# VAL). The TB drives the RDL default set (BL8/CL3/tWR3); the FSM ORs in the DLL
+# reset bit (A8) for the first MRS(0) load and leaves the rest verbatim.
+DDR2_MR0_BASE    = 0x0433   # MR0 base (BL8/CL3/tWR3) — the CSR default
+DDR2_DLL_RESET   = 0x0100   # A8 OR'd in by the FSM for the first MRS(0)
+DDR2_MR0_DLL     = DDR2_MR0_BASE | DDR2_DLL_RESET  # first MRS(0) = 0x0533
+DDR2_MR0         = DDR2_MR0_BASE                    # second MRS(0) = 0x0433
 DDR2_MR1_DEFAULT = 0x0000
 DDR2_MR2_DEFAULT = 0x0000
 DDR2_MR3_DEFAULT = 0x0000
@@ -65,10 +68,18 @@ DDR2_MR_SEQUENCE = [
 class InitTB(TBBase):
     CLK = 10
 
-    async def setup(self, memtype: int = MEMTYPE_DDR2):
+    async def setup(self, memtype: int = MEMTYPE_DDR2,
+                    mr0: int = DDR2_MR0_BASE, mr1: int = DDR2_MR1_DEFAULT,
+                    mr2: int = DDR2_MR2_DEFAULT, mr3: int = DDR2_MR3_DEFAULT):
         self.dut.memtype_i.value             = memtype
         self.dut.dfi_init_complete_i.value   = 0
         self.dut.zqcl_grant_i.value          = 0
+        # CSR-backed mode-register values (MR0..MR3.VAL) + init restart control.
+        self.dut.mr0_i.value          = mr0
+        self.dut.mr1_i.value          = mr1
+        self.dut.mr2_i.value          = mr2
+        self.dut.mr3_i.value          = mr3
+        self.dut.init_restart_i.value = 0
         # Zero the JEDEC timing waits so the FSM advances one state per S_WAIT
         # bounce — keeps the unit walk deterministic and fast (the real tINIT/
         # tRFC/tDLLK budgets are exercised at the macro/top level).
@@ -214,6 +225,41 @@ async def cocotb_test_init_sequencer(dut):
                     break
             assert tb.init_done() == 1, f"init not done with memtype={memtype}"
 
+    elif test_type == "mr_restart":
+        # CSR-backed MR values + CTRL.init_force_restart. Drives a CUSTOM MR0
+        # (as software would when sweeping to defeat an arbitrary board A-lane
+        # mapping) and verifies (a) the custom value is emitted on the MRS chain,
+        # and (b) init_force_restart re-runs the chain WITHOUT a reset, picking
+        # up a freshly-changed MR0 — the runtime re-init path the sweep needs.
+        CUSTOM_MR0 = 0x0451
+        await tb.setup(MEMTYPE_DDR2, mr0=CUSTOM_MR0)
+        await tb.wait_clocks('mc_clk', 1)
+        assert tb.init_start() == 1
+        tb.dut.dfi_init_complete_i.value = 1
+        seen = await tb.capture_mr_seq(max_cycles=40)
+        assert (0, CUSTOM_MR0 | DDR2_DLL_RESET) in seen, \
+            f"first MRS(0) not custom-with-DLL: got {seen}"
+        assert (0, CUSTOM_MR0) in seen, f"second MRS(0) not custom: got {seen}"
+        for _ in range(20):
+            await tb.wait_clocks('mc_clk', 1)
+            if tb.init_done():
+                break
+        assert tb.init_done() == 1, "custom-MR0 init never reached DONE"
+
+        # Change MR0 and pulse init_force_restart (NO mc_rst_n toggle): the FSM
+        # must re-enter init and re-emit the NEWEST MR0.
+        NEW_MR0 = 0x0466
+        tb.dut.mr0_i.value = NEW_MR0
+        tb.dut.init_restart_i.value = 1
+        await tb.wait_clocks('mc_clk', 2)
+        tb.dut.init_restart_i.value = 0
+        assert tb.init_busy() == 1, "init_force_restart did not re-enter init"
+        assert tb.init_done() == 0
+        seen2 = await tb.capture_mr_seq(max_cycles=40)
+        assert (0, NEW_MR0 | DDR2_DLL_RESET) in seen2, \
+            f"restart did not re-emit new MR0-with-DLL: got {seen2}"
+        assert (0, NEW_MR0) in seen2, f"restart did not re-emit new MR0: got {seen2}"
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -221,7 +267,8 @@ async def cocotb_test_init_sequencer(dut):
 
 
 _GATE = [("ddr2_init_walk",)]
-_FUNC = _GATE + [("wait_for_complete",), ("lpddr2_smoke",), ("random_soak",)]
+_FUNC = _GATE + [("wait_for_complete",), ("lpddr2_smoke",),
+                 ("mr_restart",), ("random_soak",)]
 _FULL = _FUNC
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()

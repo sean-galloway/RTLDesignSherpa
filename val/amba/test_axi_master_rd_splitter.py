@@ -37,6 +37,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.axi_splitter.axi_read_splitter_tb import AxiReadSplitterTB
 
 
@@ -130,15 +131,9 @@ def test_axi_read_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask, 
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     # Get verilog sources
-    verilog_sources = [
-        # Dependencies
-        os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_amba_shared'], f"axi_split_combi.sv"),
-        # Main DUT
-        os.path.join(rtl_dict['rtl_amba_shared'], f"{dut_name}.sv")
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axi_master_rd_splitter.f")
 
     # RTL parameters
     rtl_parameters = {
@@ -190,7 +185,7 @@ def test_axi_read_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask, 
     }
 
     # Simulation settings
-    includes = [rtl_dict['rtl_amba_includes']]
+    includes=includes
     # VCD waveform generation support via WAVES environment variable
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
@@ -284,15 +279,9 @@ def test_axi_read_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask, 
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     # Get verilog sources
-    verilog_sources = [
-        # Dependencies
-        os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_amba_shared'], f"axi_split_combi.sv"),
-        # Main DUT
-        os.path.join(rtl_dict['rtl_amba_shared'], f"{dut_name}.sv")
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axi_master_rd_splitter.f")
 
     # RTL parameters
     rtl_parameters = {
@@ -344,7 +333,7 @@ def test_axi_read_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask, 
     }
 
     # Simulation settings
-    includes = [rtl_dict['rtl_amba_includes']]
+    includes=includes
     # VCD waveform generation support via WAVES environment variable
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging

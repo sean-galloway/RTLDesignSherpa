@@ -1,0 +1,100 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Wed Jul 22 08:33:14 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_timing -setup -max_paths 5 -sort_by slack -input_pins -file diag2_worst_paths.txt
+| Design       : stream_char_genesys2_top
+| Device       : 7k325t-ffg900
+| Speed File   : -2  PRODUCTION 1.12 2017-02-17
+| Design State : Physopt postPlace
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Report
+
+Slack (VIOLATED) :        -115.354ns  (required time - arrival time)
+  Source:                 u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_age[1].r_age_reg[1][3]_rep_replica/C
+                            (rising edge-triggered cell FDRE clocked by clk_unbuf  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[17].r_payload_reg[17][16]/CE
+                            (rising edge-triggered cell FDRE clocked by clk_unbuf  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             clk_unbuf
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (clk_unbuf rise@10.000ns - clk_unbuf rise@0.000ns)
+  Data Path Delay:        124.941ns  (logic 10.629ns (8.507%)  route 114.312ns (91.493%))
+  Logic Levels:           242  (LUT3=1 LUT5=131 LUT6=110)
+  Clock Path Skew:        -0.171ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    -1.183ns = ( 8.817 - 10.000 ) 
+    Source Clock Delay      (SCD):    -1.707ns
+    Clock Pessimism Removal (CPR):    -0.696ns
+  Clock Uncertainty:      0.064ns  ((TSJ^2 + DJ^2)^1/2) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Discrete Jitter          (DJ):    0.106ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock clk_unbuf rise edge)
+                                                      0.000     0.000 r  
+    AD12                                              0.000     0.000 r  sysclk_p (IN)
+                         net (fo=0)                   0.000     0.000    sysclk_p
+    AD12                                                              r  u_ibufds/I
+    AD12                 IBUFDS (Prop_ibufds_I_O)     0.906     0.906 r  u_ibufds/O
+                         net (fo=1, estimated)        1.081     1.987    sysclk_ib
+    MMCME2_ADV_X1Y1                                                   r  u_mmcm/CLKIN1
+    MMCME2_ADV_X1Y1      MMCME2_ADV (Prop_mmcme2_adv_CLKIN1_CLKOUT0)
+                                                     -7.718    -5.731 r  u_mmcm/CLKOUT0
+                         net (fo=1, estimated)        2.130    -3.601    clk_unbuf
+    BUFGCTRL_X0Y0                                                     r  u_bufg_c0/I
+    BUFGCTRL_X0Y0        BUFG (Prop_bufg_I_O)         0.093    -3.508 r  u_bufg_c0/O
+                         net (fo=48752, estimated)    1.801    -1.707    u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/aclk
+    SLICE_X45Y42         FDRE                                         r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_age[1].r_age_reg[1][3]_rep_replica/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X45Y42         FDRE (Prop_fdre_C_Q)         0.223    -1.484 r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_age[1].r_age_reg[1][3]_rep_replica/Q
+                         net (fo=45, estimated)       0.524    -0.960    u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_age[1].r_age_reg[1][3]_rep_n_0_repN_alias
+    SLICE_X42Y41                                                      r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/i___73_i_115/I0
+    SLICE_X42Y41         LUT6 (Prop_lut6_I0_O)        0.043    -0.917 r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/i___73_i_115/O
+                         net (fo=10, estimated)       0.970     0.053    u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/i___73_i_115_n_0
+    SLICE_X59Y34                                                      r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[3].r_payload[3][15]_i_202/I1
+    SLICE_X59Y34         LUT6 (Prop_lut6_I1_O)        0.043     0.096 r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[3].r_payload[3][15]_i_202/O
+                         net (fo=3, estimated)        0.296     0.392    u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[3].r_payload[3][15]_i_202_n_0
+    SLICE_X62Y34                                                      r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[5].r_payload[5][281]_i_133/I4
+    SLICE_X62Y34         LUT5 (Prop_lut5_I4_O)        0.043     0.435 r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[5].r_payload[5][281]_i_133/O
+                         net (fo=3, estimated)        0.528     0.963    u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[5].r_payload[5][281]_i_133_n_0
+    SLICE_X79Y34                                                      r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[7].r_payload[7][281]_i_97/I4
+    SLICE_X79Y34         LUT5 (Prop_lut5_I4_O)        0.043     1.006 r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[7].r_payload[7][281]_i_97/O
+                         net (fo=3, estimated)        0.294     1.300    u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[7].r_payload[7][281]_i_97_n_0
+    SLICE_X83Y34                                                      r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[9].r_payload[9][281]_i_80/I4
+    SLICE_X83Y34         LUT5 (Prop_lut5_I4_O)        0.043     1.343 r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[9].r_payload[9][281]_i_80/O
+                         net (fo=3, estimated)        0.385     1.728    u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[9].r_payload[9][281]_i_80_n_0
+    SLICE_X91Y35                                                      r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[11].r_payload[11][275]_i_173/I4
+    SLICE_X91Y35         LUT5 (Prop_lut5_I4_O)        0.043     1.771 r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[11].r_payload[11][275]_i_173/O
+                         net (fo=3, estimated)        0.281     2.052    u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[11].r_payload[11][275]_i_173_n_0
+    SLICE_X91Y33                                                      r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[13].r_payload[13][281]_i_88/I4
+    SLICE_X91Y33         LUT5 (Prop_lut5_I4_O)        0.043     2.095 r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[13].r_payload[13][281]_i_88/O
+                         net (fo=3, estimated)        0.203     2.298    u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[13].r_payload[13][281]_i_88_n_0
+    SLICE_X90Y32                                                      r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[15].r_payload[15][275]_i_142/I4
+    SLICE_X90Y32         LUT5 (Prop_lut5_I4_O)        0.043     2.341 r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[15].r_payload[15][275]_i_142/O
+                         net (fo=3, estimated)        0.430     2.771    u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[15].r_payload[15][275]_i_142_n_0
+    SLICE_X87Y28                                                      r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[19].r_payload[19][277]_i_167/I4
+    SLICE_X87Y28         LUT5 (Prop_lut5_I4_O)        0.043     2.814 r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[19].r_payload[19][277]_i_167/O
+                         net (fo=3, estimated)        0.414     3.228    u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[19].r_payload[19][277]_i_167_n_0
+    SLICE_X80Y25                                                      r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[19].r_payload[19][277]_i_155/I4
+    SLICE_X80Y25         LUT5 (Prop_lut5_I4_O)        0.043     3.271 r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[19].r_payload[19][277]_i_155/O
+                         net (fo=3, estimated)        1.034     4.305    u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[19].r_payload[19][277]_i_155_n_0
+    SLICE_X45Y22                                                      r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[21].r_payload[21][15]_i_95/I4
+    SLICE_X45Y22         LUT5 (Prop_lut5_I4_O)        0.043     4.348 r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[21].r_payload[21][15]_i_95/O
+                         net (fo=3, estimated)        0.403     4.751    u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[21].r_payload[21][15]_i_95_n_0
+    SLICE_X33Y22                                                      r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[25].r_payload[25][281]_i_200/I4
+    SLICE_X33Y22         LUT5 (Prop_lut5_I4_O)        0.043     4.794 r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[25].r_payload[25][281]_i_200/O
+                         net (fo=3, estimated)        0.588     5.382    u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[25].r_payload[25][281]_i_200_n_0
+    SLICE_X19Y25                                                      r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[25].r_payload[25][281]_i_185/I4
+    SLICE_X19Y25         LUT5 (Prop_lut5_I4_O)        0.043     5.425 r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[25].r_payload[25][281]_i_185/O
+                         net (fo=3, estimated)        0.335     5.760    u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[25].r_payload[25][281]_i_185_n_0
+    SLICE_X19Y30                                                      r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[27].r_payload[27][281]_i_98/I4
+    SLICE_X19Y30         LUT5 (Prop_lut5_I4_O)        0.043     5.803 r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[27].r_payload[27][281]_i_98/O
+                         net (fo=3, estimated)        0.433     6.236    u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[27].r_payload[27][281]_i_98_n_0
+    SLICE_X15Y38                                                      r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[29].r_payload[29][281]_i_72/I4
+    SLICE_X15Y38         LUT5 (Prop_lut5_I4_O)        0.043     6.279 r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[29].r_payload[29][281]_i_72/O
+                         net (fo=3, estimated)        0.588     6.867    u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[29].r_payload[29][281]_i_72_n_0
+    SLICE_X18Y50                                                      r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[31].r_payload[31][281]_i_73/I4
+    SLICE_X18Y50         LUT5 (Prop_lut5_I4_O)        0.043     6.910 r  u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/u_cam/g_slot[31].r_payload[31][281]_i_73/O

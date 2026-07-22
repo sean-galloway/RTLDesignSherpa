@@ -37,16 +37,16 @@ AMBA := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
         $(REPO_ROOT)/rtl/amba/axi4/axi4_master_rd.sv \
         $(REPO_ROOT)/rtl/amba/axi4/axi4_master_wr.sv \
-        $(REPO_ROOT)/rtl/amba/shared/monbus_arbiter.sv
+        $(REPO_ROOT)/rtl/amba/monitor/monbus_arbiter.sv
 
 # Monitor files that need preprocessing (import monitor_pkg::*)
-MON_ORIG := $(REPO_ROOT)/rtl/amba/shared/axi_monitor_timer.sv \
-            $(REPO_ROOT)/rtl/amba/shared/axi_monitor_trans_mgr.sv \
-            $(REPO_ROOT)/rtl/amba/shared/axi_monitor_timeout.sv \
-            $(REPO_ROOT)/rtl/amba/shared/axi_monitor_reporter.sv \
-            $(REPO_ROOT)/rtl/amba/shared/axi_monitor_base.sv \
-            $(REPO_ROOT)/rtl/amba/shared/axi_monitor_filtered.sv \
-            $(REPO_ROOT)/rtl/amba/axi4/axi4_master_rd_mon.sv
+MON_ORIG := $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timer.sv \
+            $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_trans_mgr.sv \
+            $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timeout.sv \
+            $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter.sv \
+            $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_base.sv \
+            $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_filtered.sv \
+            $(REPO_ROOT)/rtl/amba/monitor/axi4_master_rd_mon.sv
 
 MON_PREP := $(patsubst %,$(TMPDIR)/%, $(notdir $(MON_ORIG)))
 
@@ -85,7 +85,7 @@ $(TMPDIR)/%.sv: $(REPO_ROOT)/rtl/amba/shared/%.sv | $(TMPDIR)
 	sed -e 's/import monitor_pkg::\*;/import monitor_common_pkg::*; import monitor_amba4_pkg::*; import monitor_amba5_pkg::*; import monitor_arbiter_pkg::*;/g' \
 	    -e 's/monitor_pkg::/monitor_common_pkg::/g' $< > $@
 
-$(TMPDIR)/axi4_master_rd_mon.sv: $(REPO_ROOT)/rtl/amba/axi4/axi4_master_rd_mon.sv | $(TMPDIR)
+$(TMPDIR)/axi4_master_rd_mon.sv: $(REPO_ROOT)/rtl/amba/monitor/axi4_master_rd_mon.sv | $(TMPDIR)
 	sed -e 's/import monitor_pkg::\*;/import monitor_common_pkg::*; import monitor_amba4_pkg::*; import monitor_amba5_pkg::*; import monitor_arbiter_pkg::*;/g' \
 	    -e 's/monitor_pkg::/monitor_common_pkg::/g' $< > $@
 

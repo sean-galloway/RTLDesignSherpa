@@ -145,11 +145,25 @@ The sequence has inherent symmetry:
 - **Second Half**: Filling with '0's (111→110→100→000...)
 - **Phase Shift**: Each bit represents a different phase
 
-### Gray Code Properties
-Johnson counter outputs have some Gray code characteristics:
-- **Adjacent Differences**: States differ by more than one bit
-- **Predictable Transitions**: Well-defined state progression
-- **Decode Simplicity**: Easy to decode specific states
+### Single-Bit Transition Properties
+
+Johnson counter outputs share the one-bit-change property that makes Gray code
+safe to synchronize, but they are **not Gray code**:
+
+- **Adjacent Differences**: consecutive states differ by exactly **one** bit,
+  including the wrap from the last state back to state 0
+- **Predictable Transitions**: well-defined state progression
+- **Decode Simplicity**: easy to decode specific states
+
+> **Johnson is not Gray code.** Johnson achieves single-bit transitions through
+> sequential shift-register operation; Gray code achieves them through a
+> mathematical encoding (`gray = bin ^ (bin >> 1)`). Consequences:
+> - Johnson yields `2N` states from N bits; Gray yields `2**N`.
+> - Johnson is safe only for a counter stepping through its own sequence. It
+>   cannot encode an arbitrary value, and there is no closed-form binary
+>   conversion -- decoding needs `johnson2bin`, which detects position.
+> - Do not substitute one for the other in general-purpose CDC. For an
+>   arbitrary binary value crossing domains, use Gray (`bin2gray`/`gray2bin`).
 
 ## Design Examples
 
@@ -424,7 +438,7 @@ Complete 2×WIDTH state cycle (8 states for WIDTH=4):
 
 Each transition changes only ONE bit:
 - CDC-safe like Gray codes
-- **Critical for fifo_async_div2 CDC mechanism**
+- **Critical for the fifo_async USE_JOHNSON=1 CDC mechanism**
 - Prevents metastability in clock domain crossing
 - Hamming distance = 1 between all adjacent states
 
@@ -470,19 +484,17 @@ The waveforms highlight the unique properties that make Johnson counters useful:
 - **Walking Pattern**: Natural "fill then empty" sequence useful for visual effects
 - **Self-Starting**: Recovers from invalid states automatically
 
-**Relationship to fifo_async_div2:**
+**Relationship to fifo_async (USE_JOHNSON=1):**
 
-Johnson counters are the foundation of the `fifo_async_div2` CDC mechanism:
-- **fifo_async_div2** uses Johnson counters for pointer synchronization
+Johnson counters are the foundation of the `fifo_async` `USE_JOHNSON=1` CDC mechanism:
+- **fifo_async with USE_JOHNSON=1** uses Johnson counters for pointer synchronization
 - Single-bit transitions enable safe clock domain crossing
 - Linear width scaling (DEPTH bits) allows flexible even depths
-- See `test_fifo_async_div2_wavedrom.py` for CDC application
 
 **Comparison with Other Counters:**
 
 - `test_counter_bingray_wavedrom.py` - Binary-Gray counter (power-of-2 depths, logarithmic width)
 - `test_fifo_async_wavedrom.py` - Gray code in action (async FIFO)
-- `test_fifo_async_div2_wavedrom.py` - Johnson counter in action (async FIFO, even depths)
 
 ## Related Modules
 - `counter_ring`: Different shift register pattern

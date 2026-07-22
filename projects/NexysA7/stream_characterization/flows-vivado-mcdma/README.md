@@ -37,7 +37,8 @@ What's still TODO (next pass):
 4. **IRQ aggregation.** OR the eight `*_chN_introut` signals into
    `harness_csr.i_irq` so the host can poll completion the same way as
    on the STREAM flow.
-5. **Host CSR map.** Adapt `host/characterize.py` to MCDMA's
+5. **Host CSR map.** Adapt the stream-bridge flow's
+   `flows-stream-bridge/host/characterize.py` to MCDMA's
    buffer-descriptor ring format (separate from STREAM's 256-bit
    descriptor format).
 6. **Cycle timer hooks.** Drive the harness's first-AR / first-R / last-B

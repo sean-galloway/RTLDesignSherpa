@@ -39,8 +39,12 @@ codes (with `_RESERVED_*` placeholders absorbing unused indices) and slot
 
 ## AXI4 Event Codes
 
-Seven categories cover the AXI4 / AXI4-Lite monitor surface: error, timeout,
-completion, threshold, performance, address-match, and debug. The
+Nine categories cover the AXI4 / AXI4-Lite monitor surface: error, timeout,
+completion, threshold, performance, address-match, debug, and the two
+windowed-performance categories perf-window (`axi_perfwin_code_t`,
+`packet_type = PktTypePerfWin` = 4'hD) and perf-histogram
+(`axi_perfhist_select_t`, `packet_type = PktTypePerfHist` = 4'hE); see the RTL
+package for the full perf-window / perf-histogram value tables. The
 `protocol` field for every code in this section is `PROTOCOL_AXI` (4'h0).
 
 ### `axi_error_code_t`

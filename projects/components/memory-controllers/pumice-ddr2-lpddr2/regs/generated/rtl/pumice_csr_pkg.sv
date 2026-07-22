@@ -559,20 +559,10 @@ package pumice_csr_pkg;
     } pumice_csr__PHY_TIMING__refresh_burst__out_t;
 
     typedef struct {
-        logic [1:0] value;
-    } pumice_csr__PHY_TIMING__deskew_lo__out_t;
-
-    typedef struct {
-        logic [1:0] value;
-    } pumice_csr__PHY_TIMING__deskew_hi__out_t;
-
-    typedef struct {
         pumice_csr__PHY_TIMING__t_phy_wrlat__out_t t_phy_wrlat;
         pumice_csr__PHY_TIMING__t_rddata_en__out_t t_rddata_en;
         pumice_csr__PHY_TIMING__memtype__out_t memtype;
         pumice_csr__PHY_TIMING__refresh_burst__out_t refresh_burst;
-        pumice_csr__PHY_TIMING__deskew_lo__out_t deskew_lo;
-        pumice_csr__PHY_TIMING__deskew_hi__out_t deskew_hi;
     } pumice_csr__PHY_TIMING__out_t;
 
     typedef struct {

@@ -79,7 +79,7 @@ Monitor infrastructure and common utilities.
 | shared/axi_master_wr_splitter.md | axi_master_wr_splitter | Medium | [x] Done |
 | shared/axi_split_combi.md | axi_split_combi | Medium | [x] Done |
 | shared/amba_clock_gate_ctrl.md | amba_clock_gate_ctrl | Low | [x] Done |
-| shared/cdc_handshake.md | cdc_handshake | Medium | [x] Done |
+| cdc/cdc_handshake.md | cdc_handshake | Medium | [x] Done |
 | shared/clock_gated_variants.md | (overview) | Low | [ ] Pending |
 | shared/README.md | (overview) | Low | [ ] Pending |
 

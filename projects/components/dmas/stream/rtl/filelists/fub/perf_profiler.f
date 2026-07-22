@@ -5,14 +5,14 @@
 +incdir+$STREAM_ROOT/rtl/includes
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-# Header files with macros (MUST be compiled first)
-$REPO_ROOT/rtl/amba/includes/reset_defs.svh
-$REPO_ROOT/rtl/amba/includes/fifo_defs.svh
-
-# GAXI FIFO dependencies (order matters - dependencies first)
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
-$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
+# AMBA/common dependencies come in via each component's OWN filelist; this
+# file never hand-lists individual rtl/common or rtl/amba sources. A consumer
+# that hand-lists a component's files has to track that component's internal
+# dependencies, and it silently rots when they change (missing reporter
+# sub-blocks, missing monitor_trans_cam, missing clock-gate chain). Each
+# filelist below declares its own complete closure.
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
+-f $REPO_ROOT/rtl/common/filelists/counter_bin.f
 
 # Performance profiler module
 $STREAM_ROOT/rtl/fub/perf_profiler.sv

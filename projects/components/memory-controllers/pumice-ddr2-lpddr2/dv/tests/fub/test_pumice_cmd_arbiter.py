@@ -55,11 +55,18 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     p = tb.picked(); s = tb.strobes()
     assert p['op'] == OP_PRE and p['bank'] == 3, f"refresh should PRE active bank first: {p}"
     assert s['pre'] == 1 and s['grant'] == 0, f"expected PRE strobe, no grant yet: {s}"
-    # now no active banks -> REF + grant
+    # now no active banks -> REF + grant. Not immediate any more: the just-fired
+    # PRE holds its 2-cycle guard and w_ref_safe waits it out (which is also the
+    # PRE->REF tRP spacing) — poll a bounded window for the REF.
     tb.set_bank_bits(dut.bank_row_active_i, {})
-    await tb.settle()
-    p = tb.picked(); s = tb.strobes()
-    assert p['op'] == OP_REF and s['grant'] == 1, f"refresh should REF+grant when idle: {p} {s}"
+    got_ref = False
+    for _ in range(8):
+        await tb.settle()
+        p = tb.picked(); s = tb.strobes()
+        if p['op'] == OP_REF and s['grant'] == 1:
+            got_ref = True
+            break
+    assert got_ref, f"refresh never produced REF+grant after guard window: {p} {s}"
     dut.refresh_req_i.value = 0
 
     # ===== 3. READ-PRIORITY row-hit: RD wins over WR when both hit =====
@@ -93,9 +100,17 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     tb.set_bank_bits(dut.bank_rdwr_ready_i, {4: 1})
     tb.set_open_rows({4: 0x222})
     tb.set_entries('wr', {5: (4, 0x222, 0x1C, 30)})
-    await tb.settle()
-    p = tb.picked(); s = tb.strobes()
-    assert p['op'] == OP_WR and p['bank'] == 4 and p['col'] == 0x1C, f"write pick: {p}"
+    # A RD fired in phase 4: the direction-turnaround guard (issue #42) blocks
+    # cross-direction columns for 2 cycles after the fire — poll a bounded
+    # window instead of asserting the exact settle cycle.
+    got_wr = False
+    for _ in range(6):
+        await tb.settle()
+        p = tb.picked(); s = tb.strobes()
+        if p['op'] == OP_WR:
+            got_wr = True
+            break
+    assert got_wr and p['bank'] == 4 and p['col'] == 0x1C, f"write pick: {p}"
     assert s['wr'] == 1 and s['wr_commit'] == 1 and s['wr_commit_slot'] == 5, f"wr commit: {s}"
 
     # ===== 6. CLOSE policy -> auto-precharge (WRA/ap) =====

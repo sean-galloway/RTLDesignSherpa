@@ -5,7 +5,7 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Module: test_cdc_open_loop
-# Purpose: Exercise rtl/amba/shared/cdc_open_loop.sv across:
+# Purpose: Exercise rtl/amba/cdc/cdc_open_loop.sv across:
 #          - Manual STRETCH_CYCLES (back-compat regression)
 #          - Auto-computed STRETCH (AUTO_STRETCH=1 with SRC_CLK_HZ/DST_CLK_HZ)
 #          - "Cliff" configs that intentionally under-stretch to verify the
@@ -22,6 +22,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.amba.cdc_open_loop import CDCOpenLoopTB
 from TBClasses.shared.utilities import create_view_cmd, get_paths
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 @cocotb.test(timeout_time=30, timeout_unit="ms")
@@ -175,20 +176,18 @@ def test_cdc_open_loop(request, params):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn':           'rtl/common',
         'rtl_amba_shared':   'rtl/amba/shared',
+        'rtl_amba_cdc': 'rtl/amba/cdc',
         'rtl_amba_includes': 'rtl/amba/includes',
     })
 
     dut_name = "cdc_open_loop"
     toplevel = dut_name
 
-    verilog_sources = [
-        # Synchronizer used by the DUT
-        os.path.join(rtl_dict['rtl_cmn'], "glitch_free_n_dff_arn.sv"),
-        # DUT
-        os.path.join(rtl_dict['rtl_amba_shared'], f"{dut_name}.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/cdc_open_loop.f")
 
-    includes = [rtl_dict['rtl_amba_includes']]
+    includes=includes
 
     mode         = params['mode']
     src_period   = params['src_period_ns']

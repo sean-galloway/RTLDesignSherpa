@@ -24,7 +24,7 @@ module apb_slave_cdc_cg #(
     // Clock gating parameters
     parameter int CG_IDLE_COUNT_WIDTH = 4,  // Width of idle counter
     // CDC handshake variant: 1 = 2-phase (toggle, faster), 0 = 4-phase (level, classic)
-    parameter bit USE_2_PHASE_CDC    = 1'b1,
+    parameter bit USE_2_PHASE_CDC    = 1'b1,   // deprecated, ignored
     // Short Parameters
     parameter int DW  = DATA_WIDTH,
     parameter int AW  = ADDR_WIDTH,
@@ -212,90 +212,64 @@ module apb_slave_cdc_cg #(
         .rsp_pslverr  (w_rsp_pslverr)
     );
 
-    // Use clock domain crossing handshake for command path
-    generate
-    if (USE_2_PHASE_CDC) begin : g_cmd_2phase
-        cdc_2_phase_handshake #(
-            .DATA_WIDTH      (APBCmdWidth)
-        ) u_cmd_cdc_handshake (
-            .clk_src         (gated_pclk),       // Use gated clock
-            .rst_src_n       (presetn),
-            .src_valid       (w_cmd_valid),
-            .src_ready       (int_cmd_ready),
-            .src_data        ({w_cmd_pwrite, w_cmd_paddr, w_cmd_pwdata, w_cmd_pstrb, w_cmd_pprot}),
-            /* verilator lint_off PINCONNECTEMPTY */
-            .src_timeout     (),
-            /* verilator lint_on PINCONNECTEMPTY */
+    // -------------------------------------------------------------------------
+    // CDC: gray-pointer async FIFOs (cmd pclk->aclk, rsp aclk->pclk).
+    //
+    // gaxi_fifo_async resets each domain's own pointer AND that domain's crossed
+    // copy of the remote pointer from the LOCAL reset, so a domain reset in
+    // isolation leaves that side's view self-consistent (both pointers 0 =>
+    // empty). Pointers are absolute positions, not toggle parity, so an
+    // independent reset of one side cannot fabricate or swallow a transfer the
+    // way the previous 2-phase handshake could. This matters here because the
+    // APB side (presetn) and the register/core side (aresetn) are separate reset
+    // domains -- e.g. the ddr2-char harness pulses only the core-side reset on
+    // CTRL.soft_reset while the APB side stays up.
+    //
+    // Both sides run on the GATED clocks, matching the handshake this replaces:
+    // the FIFO pointers advance only when the respective domain is clocked, so
+    // gating cannot reorder or drop a queued transfer.
+    //
+    // CDC_FIFO_DEPTH is the FIFO depth; >=2, power of 2 preferred for the gray/
+    // Johnson pointer encoding.
+    // -------------------------------------------------------------------------
+    localparam int CDC_FIFO_DEPTH = (DEPTH < 4) ? 4 : DEPTH;
 
-            .clk_dst         (gated_aclk),       // Use gated clock
-            .rst_dst_n       (aresetn),
-            .dst_valid       (cmd_valid),
-            .dst_ready       (cmd_ready),
-            .dst_data        ({cmd_pwrite, cmd_paddr, cmd_pwdata, cmd_pstrb, cmd_pprot})
-        );
-    end else begin : g_cmd_4phase
-        cdc_4_phase_handshake #(
-            .DATA_WIDTH      (APBCmdWidth)
-        ) u_cmd_cdc_handshake (
-            .clk_src         (gated_pclk),       // Use gated clock
-            .rst_src_n       (presetn),
-            .src_valid       (w_cmd_valid),
-            .src_ready       (int_cmd_ready),
-            .src_data        ({w_cmd_pwrite, w_cmd_paddr, w_cmd_pwdata, w_cmd_pstrb, w_cmd_pprot}),
-            /* verilator lint_off PINCONNECTEMPTY */
-            .src_timeout     (),
-            /* verilator lint_on PINCONNECTEMPTY */
+    gaxi_fifo_async #(
+        .DATA_WIDTH   (APBCmdWidth),
+        .DEPTH        (CDC_FIFO_DEPTH),
+        .N_FLOP_CROSS (2)
+    ) u_cmd_cdc_fifo (
+        .axi_wr_aclk    (gated_pclk),       // Use gated clock
+        .axi_wr_aresetn (presetn),
+        .axi_rd_aclk    (gated_aclk),       // Use gated clock
+        .axi_rd_aresetn (aresetn),
 
-            .clk_dst         (gated_aclk),       // Use gated clock
-            .rst_dst_n       (aresetn),
-            .dst_valid       (cmd_valid),
-            .dst_ready       (cmd_ready),
-            .dst_data        ({cmd_pwrite, cmd_paddr, cmd_pwdata, cmd_pstrb, cmd_pprot})
-        );
-    end
-    endgenerate
+        .wr_valid       (w_cmd_valid),
+        .wr_ready       (int_cmd_ready),
+        .wr_data        ({w_cmd_pwrite, w_cmd_paddr, w_cmd_pwdata, w_cmd_pstrb, w_cmd_pprot}),
 
-    // Use clock domain crossing handshake for response path
-    generate
-    if (USE_2_PHASE_CDC) begin : g_rsp_2phase
-        cdc_2_phase_handshake #(
-            .DATA_WIDTH      (APBRspWidth)
-        ) u_rsp_cdc_handshake (
-            .clk_src         (gated_aclk),       // Use gated clock
-            .rst_src_n       (aresetn),
-            .src_valid       (rsp_valid),
-            .src_ready       (int_rsp_ready_aclk),
-            .src_data        ({rsp_pslverr, rsp_prdata}),
-            /* verilator lint_off PINCONNECTEMPTY */
-            .src_timeout     (),
-            /* verilator lint_on PINCONNECTEMPTY */
+        .rd_ready       (cmd_ready),
+        .rd_valid       (cmd_valid),
+        .rd_data        ({cmd_pwrite, cmd_paddr, cmd_pwdata, cmd_pstrb, cmd_pprot})
+    );
 
-            .clk_dst         (gated_pclk),       // Use gated clock
-            .rst_dst_n       (presetn),
-            .dst_valid       (w_rsp_valid),
-            .dst_ready       (w_rsp_ready),
-            .dst_data        ({w_rsp_pslverr, w_rsp_prdata})
-        );
-    end else begin : g_rsp_4phase
-        cdc_4_phase_handshake #(
-            .DATA_WIDTH      (APBRspWidth)
-        ) u_rsp_cdc_handshake (
-            .clk_src         (gated_aclk),       // Use gated clock
-            .rst_src_n       (aresetn),
-            .src_valid       (rsp_valid),
-            .src_ready       (int_rsp_ready_aclk),
-            .src_data        ({rsp_pslverr, rsp_prdata}),
-            /* verilator lint_off PINCONNECTEMPTY */
-            .src_timeout     (),
-            /* verilator lint_on PINCONNECTEMPTY */
+    gaxi_fifo_async #(
+        .DATA_WIDTH   (APBRspWidth),
+        .DEPTH        (CDC_FIFO_DEPTH),
+        .N_FLOP_CROSS (2)
+    ) u_rsp_cdc_fifo (
+        .axi_wr_aclk    (gated_aclk),       // Use gated clock
+        .axi_wr_aresetn (aresetn),
+        .axi_rd_aclk    (gated_pclk),       // Use gated clock
+        .axi_rd_aresetn (presetn),
 
-            .clk_dst         (gated_pclk),       // Use gated clock
-            .rst_dst_n       (presetn),
-            .dst_valid       (w_rsp_valid),
-            .dst_ready       (w_rsp_ready),
-            .dst_data        ({w_rsp_pslverr, w_rsp_prdata})
-        );
-    end
-    endgenerate
+        .wr_valid       (rsp_valid),
+        .wr_ready       (int_rsp_ready_aclk),
+        .wr_data        ({rsp_pslverr, rsp_prdata}),
+
+        .rd_ready       (w_rsp_ready),
+        .rd_valid       (w_rsp_valid),
+        .rd_data        ({w_rsp_pslverr, w_rsp_prdata})
+    );
 
 endmodule : apb_slave_cdc_cg

@@ -28,9 +28,9 @@
 //
 // Features:
 //   - Dual independent clock domains (write and read)
-//   - Gray code pointer synchronization for CDC safety
+//   - Gray or Johnson pointer synchronization for CDC safety (USE_JOHNSON)
 //   - Configurable synchronizer depth (N_FLOP_CROSS)
-//   - Power-of-2 depth requirement (efficient addressing)
+//   - Power-of-2 depth with Gray pointers; ANY depth with Johnson pointers
 //   - Mux (combinational) or Flop (registered) output modes
 //   - Full/empty flag generation (domain-specific)
 //   - Almost-full/almost-empty thresholds for flow control
@@ -59,8 +59,24 @@
 //     Type: int
 //     Range: 4 to 65536
 //     Default: 16
-//     Constraints: **MUST be power of 2** (e.g., 4, 8, 16, 32, 64, 128...)
-//                  Non-power-of-2 depths will cause incorrect behavior
+//     Constraints: With USE_JOHNSON=0 (default, Gray): **MUST be power of 2**
+//                  (e.g., 4, 8, 16, 32, 64, 128...). An elaboration-time
+//                  $error rejects a non-power-of-2 depth in this mode.
+//                  With USE_JOHNSON=1 (Johnson): ANY depth is legal.
+//
+//   USE_JOHNSON:
+//     Description: Pointer CDC encoding
+//     Type: int
+//     Range: 0 or 1
+//     Default: 0
+//     Constraints: 0 = Gray code. Pointer is $clog2(DEPTH)+1 bits, converted
+//                      with gray2bin (combinational). Cheap; power-of-2 only.
+//                  1 = Johnson code. Pointer is DEPTH bits, converted with
+//                      johnson2bin (registered). Costs DEPTH flops per pointer
+//                      but supports arbitrary depths. This mode replaces the
+//                      retired standalone fifo_async_div2 module.
+//                  Both encodings change one bit per increment, so both are
+//                  equally safe for CDC; the choice is cost vs depth freedom.
 //
 //   N_FLOP_CROSS:
 //     Description: Synchronizer stages for pointer CDC
@@ -518,7 +534,7 @@
 //   **Common FPGA Mistakes:**
 //   1. ❌ **Using non-power-of-2 DEPTH**
 //      → Pointer wraparound logic breaks, data corruption guaranteed!
-//      → Use fifo_async_div2.sv for non-power-of-2 depths
+//      → Set USE_JOHNSON=1 for non-power-of-2 depths
 //
 //   2. ❌ **Not constraining Gray code CDC paths**
 //      → Timing violations → metastability → corrupted pointers → data loss
@@ -613,6 +629,16 @@ module fifo_async #(
     parameter int  REGISTERED      = 0,   // 0 = mux (combinational read), 1 = flop (registered read)
     parameter int  DATA_WIDTH      = 8,
     parameter int  DEPTH           = 16,
+    // Pointer CDC encoding (mirrors gaxi_fifo_async).
+    //   0 (default) = GRAY code. Pointer is AW+1 bits, converted with gray2bin.
+    //                 Cheap and standard, but REQUIRES a power-of-2 DEPTH.
+    //   1           = JOHNSON code. Pointer is DEPTH bits, converted with
+    //                 johnson2bin. Costs DEPTH flops per pointer instead of AW+1,
+    //                 but supports ARBITRARY (non-power-of-2, "divide by 2")
+    //                 depths. This replaces the standalone fifo_async_div2.
+    // Both encodings change one bit per increment, so both are safe to
+    // synchronize; this selects cost vs depth flexibility, not CDC safety.
+    parameter int  USE_JOHNSON     = 0,
     parameter int  N_FLOP_CROSS    = 2,
     parameter int  ALMOST_WR_MARGIN= 1,
     parameter int  ALMOST_RD_MARGIN= 1
@@ -644,9 +670,22 @@ module fifo_async #(
     localparam int AW = $clog2(DEPTH);
     localparam int N  = N_FLOP_CROSS;
 
+    localparam int JCW  = D;                                  // Johnson counter width
+    localparam int PTRW = (USE_JOHNSON != 0) ? JCW : (AW + 1); // CDC'd pointer width
+
+    // Gray mode needs a power-of-2 DEPTH; Johnson does not. ELABORATION-time
+    // check (generate-scope $error) so an illegal config fails the build. Do
+    // NOT move this into an `initial` block -- that is runtime and never fires
+    // during lint/elaboration.
+    generate
+    if ((USE_JOHNSON == 0) && ((DEPTH & (DEPTH - 1)) != 0)) begin : g_bad_depth
+        $error("fifo_async: USE_JOHNSON=0 (Gray) requires a power-of-2 DEPTH, got %0d. Set USE_JOHNSON=1 for arbitrary depths.", DEPTH);
+    end
+    endgenerate
+
     logic [AW-1:0] r_wr_addr, r_rd_addr;
-    logic [AW:0]   r_wr_ptr_gray, r_wdom_rd_ptr_gray;
-    logic [AW:0]   r_rd_ptr_gray, r_rdom_wr_ptr_gray;
+    logic [PTRW-1:0] r_wr_ptr_gray, r_wdom_rd_ptr_gray;
+    logic [PTRW-1:0] r_rd_ptr_gray, r_rdom_wr_ptr_gray;
     logic [AW:0]   r_wr_ptr_bin,  r_rd_ptr_bin;
     logic [AW:0]   w_wdom_rd_ptr_bin, w_rdom_wr_ptr_bin;
     logic [AW:0]   w_wr_ptr_bin_next, w_rd_ptr_bin_next;
@@ -657,34 +696,84 @@ module fifo_async #(
     // -----------------------------------------------------------------------
     // Write/read pointer generation (bin+gray)
     // -----------------------------------------------------------------------
-    counter_bingray #(
-        .WIDTH (AW + 1)
-    ) wr_ptr_counter_gray (
-        .clk           (wr_clk),
-        .rst_n         (wr_rst_n),
-        .enable        (write && !wr_full),
-        .counter_bin   (r_wr_ptr_bin),
-        .counter_bin_next (w_wr_ptr_bin_next),
-        .counter_gray  (r_wr_ptr_gray)
-    );
+    generate
+    if (USE_JOHNSON != 0) begin : g_ptr_johnson
+        // Binary pointer wraps at MAX=D with an inverted MSB, so arbitrary
+        // (non-power-of-2) depths work. Johnson pointer is DEPTH bits wide.
+        counter_bin #(
+            .MAX   (D),
+            .WIDTH (AW + 1)
+        ) wr_ptr_counter_bin (
+            .clk              (wr_clk),
+            .rst_n            (wr_rst_n),
+            .enable           (write && !wr_full),
+            .counter_bin_next (w_wr_ptr_bin_next),
+            .counter_bin_curr (r_wr_ptr_bin)
+        );
 
-    counter_bingray #(
-        .WIDTH (AW + 1)
-    ) rd_ptr_counter_gray (
-        .clk           (rd_clk),
-        .rst_n         (rd_rst_n),
-        .enable        (read && !rd_empty),
-        .counter_bin   (r_rd_ptr_bin),
-        .counter_bin_next (w_rd_ptr_bin_next),
-        .counter_gray  (r_rd_ptr_gray)
-    );
+        counter_bin #(
+            .MAX   (D),
+            .WIDTH (AW + 1)
+        ) rd_ptr_counter_bin (
+            .clk              (rd_clk),
+            .rst_n            (rd_rst_n),
+            .enable           (read && !rd_empty),
+            .counter_bin_next (w_rd_ptr_bin_next),
+            .counter_bin_curr (r_rd_ptr_bin)
+        );
+
+        counter_johnson #(
+            .WIDTH (JCW)
+        ) wr_ptr_counter_gray (
+            .clk          (wr_clk),
+            .rst_n        (wr_rst_n),
+            .enable       (write && !wr_full),
+            .counter_gray (r_wr_ptr_gray)
+        );
+
+        counter_johnson #(
+            .WIDTH (JCW)
+        ) rd_ptr_counter_gray (
+            .clk          (rd_clk),
+            .rst_n        (rd_rst_n),
+            .enable       (read && !rd_empty),
+            .counter_gray (r_rd_ptr_gray)
+        );
+    end else begin : g_ptr_gray
+        counter_bingray #(
+            .WIDTH (AW + 1)
+        ) wr_ptr_counter_gray (
+            .clk           (wr_clk),
+            .rst_n         (wr_rst_n),
+            .enable        (write && !wr_full),
+            .counter_bin   (r_wr_ptr_bin),
+            .counter_bin_next (w_wr_ptr_bin_next),
+            .counter_gray  (r_wr_ptr_gray)
+        );
+
+        counter_bingray #(
+            .WIDTH (AW + 1)
+        ) rd_ptr_counter_gray (
+            .clk           (rd_clk),
+            .rst_n         (rd_rst_n),
+            .enable        (read && !rd_empty),
+            .counter_bin   (r_rd_ptr_bin),
+            .counter_bin_next (w_rd_ptr_bin_next),
+            .counter_gray  (r_rd_ptr_gray)
+        );
+    end
+    endgenerate
 
     // -----------------------------------------------------------------------
     // CDC of gray pointers (wr<->rd domains) + gray->bin
     // -----------------------------------------------------------------------
+    // NOTE (reset robustness): each domain synchronizes the REMOTE pointer with
+    // its OWN clock and OWN reset, so resetting one domain alone clears both
+    // that side's pointer and its copy of the remote pointer together, leaving
+    // it self-consistent (both zero => empty) rather than desynchronized.
     glitch_free_n_dff_arn #(
         .FLOP_COUNT (N),
-        .WIDTH      (AW + 1)
+        .WIDTH      (PTRW)
     ) rd_ptr_gray_cross_inst (
         .q     (r_wdom_rd_ptr_gray),
         .d     (r_rd_ptr_gray),
@@ -692,16 +781,9 @@ module fifo_async #(
         .rst_n (wr_rst_n)
     );
 
-    gray2bin #(
-        .WIDTH (AW + 1)
-    ) rd_ptr_gray2bin_inst (
-        .binary (w_wdom_rd_ptr_bin),
-        .gray   (r_wdom_rd_ptr_gray)
-    );
-
     glitch_free_n_dff_arn #(
         .FLOP_COUNT (N),
-        .WIDTH      (AW + 1)
+        .WIDTH      (PTRW)
     ) wr_ptr_gray_cross_inst (
         .q     (r_rdom_wr_ptr_gray),
         .d     (r_wr_ptr_gray),
@@ -709,12 +791,45 @@ module fifo_async #(
         .rst_n (rd_rst_n)
     );
 
-    gray2bin #(
-        .WIDTH (AW + 1)
-    ) wr_ptr_gray2bin_inst (
-        .binary (w_rdom_wr_ptr_bin),
-        .gray   (r_rdom_wr_ptr_gray)
-    );
+    generate
+    if (USE_JOHNSON != 0) begin : g_cvt_johnson
+        // johnson2bin is registered (takes clk/rst_n).
+        johnson2bin #(
+            .JCW   (JCW),
+            .WIDTH (AW + 1)
+        ) rd_ptr_gray2bin_inst (
+            .binary (w_wdom_rd_ptr_bin),
+            .gray   (r_wdom_rd_ptr_gray),
+            .clk    (wr_clk),
+            .rst_n  (wr_rst_n)
+        );
+
+        johnson2bin #(
+            .JCW   (JCW),
+            .WIDTH (AW + 1)
+        ) wr_ptr_gray2bin_inst (
+            .binary (w_rdom_wr_ptr_bin),
+            .gray   (r_rdom_wr_ptr_gray),
+            .clk    (rd_clk),
+            .rst_n  (rd_rst_n)
+        );
+    end else begin : g_cvt_gray
+        // gray2bin is purely combinational (no clk/rst).
+        gray2bin #(
+            .WIDTH (AW + 1)
+        ) rd_ptr_gray2bin_inst (
+            .binary (w_wdom_rd_ptr_bin),
+            .gray   (r_wdom_rd_ptr_gray)
+        );
+
+        gray2bin #(
+            .WIDTH (AW + 1)
+        ) wr_ptr_gray2bin_inst (
+            .binary (w_rdom_wr_ptr_bin),
+            .gray   (r_rdom_wr_ptr_gray)
+        );
+    end
+    endgenerate
 
     // -----------------------------------------------------------------------
     // Address extraction (lower bits from binary pointers)

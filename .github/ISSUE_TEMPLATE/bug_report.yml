@@ -15,8 +15,8 @@ body:
     id: subsystem
     attributes:
       label: Subsystem / module
-      description: Which area is affected? (e.g., `rtl/amba/shared/monbus_group_core.sv`, `projects/components/bridge`, `val/common/test_counter_bin.py`)
-      placeholder: rtl/amba/shared/monbus_group_core.sv
+      description: Which area is affected? (e.g., `rtl/amba/monitor/monbus_group_core.sv`, `projects/components/bridge`, `val/common/test_counter_bin.py`)
+      placeholder: rtl/amba/monitor/monbus_group_core.sv
     validations:
       required: true
 

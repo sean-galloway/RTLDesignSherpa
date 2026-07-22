@@ -100,15 +100,23 @@ module ddr2_char_top #(
 
 `ifdef DDR2_CHAR_SYNTH
     wire w_sys_i, w_sys2x_i, w_sys2x_dqs_i, w_idelay_i, w_clkfb_i, w_clkfb;
+    // Frequency dropped 75 -> 66.67 MHz sys to close timing (the arbiter
+    // row-hit->r_bank cone is a routing-dominated 15-level path; historical best
+    // at 75 MHz was -0.214ns, never positive). sys2x = 2*sys (DRAM CK) is a hard
+    // PHY requirement (integer divides) and idelay must stay 200 MHz for
+    // IDELAYCTRL, so the clean landing is VCO 600->800: sys=66.67, sys2x=133.3
+    // (DDR2-266, within the MT47H64M16 125-333 MHz CK range), idelay=200 (/4).
+    // Gives ~+1.2ns slack for ~11% BW vs 300 MT/s. NOTE: FPGA_CLK_HZ (UART baud)
+    // + the host tREFI/timing-CSR cycle counts must track this freq.
     MMCME2_BASE #(
         .CLKIN1_PERIOD   (10.0),   // 100 MHz board clock
         .DIVCLK_DIVIDE   (1),
-        .CLKFBOUT_MULT_F (6.0),    // VCO = 600 MHz
-        .CLKOUT0_DIVIDE_F(8.0),    // sys        = 75  MHz
-        .CLKOUT1_DIVIDE  (4),      // sys2x      = 150 MHz  (= DRAM CK, 300 MT/s)
-        .CLKOUT2_DIVIDE  (4),      // sys2x_dqs  = 150 MHz
+        .CLKFBOUT_MULT_F (8.0),    // VCO = 800 MHz
+        .CLKOUT0_DIVIDE_F(12.0),   // sys        = 66.67 MHz
+        .CLKOUT1_DIVIDE  (6),      // sys2x      = 133.3 MHz (= DRAM CK, 266 MT/s)
+        .CLKOUT2_DIVIDE  (6),      // sys2x_dqs  = 133.3 MHz
         .CLKOUT2_PHASE   (90.0),   // DQS 90-deg
-        .CLKOUT3_DIVIDE  (3)       // idelay ref = 200 MHz
+        .CLKOUT3_DIVIDE  (4)       // idelay ref = 200 MHz
     ) u_mmcm (
         .CLKIN1   (CLK100MHZ),
         .CLKFBIN  (w_clkfb),
@@ -163,16 +171,27 @@ module ddr2_char_top #(
     // =========================================================================
     // Flat DFI wires (harness <-> adapter <-> a7ddrphy)
     //
-    // a7ddrphy config (Artix-7 x16 DDR2): 1:4 / nphases=4 — the a7ddrphy is
-    // FIXED at nphases=4, so it serializes ALL 4 DFI phases. The controller must
-    // therefore drive DFI_RATE=4 so the adapter (g_rd4 branch) gathers all four
-    // read phases {p3,p2,p1,p0}; a DFI_RATE=2 controller only fills phases 0,1
-    // and the adapter drops half the read data (on-board read corruption,
-    // beats_mismatched == 2*txn). DRAM beat = 2*DQ = 32b, so
-    // DFI_DATA_WIDTH = 32*4 = 128; GEAR = AXI/beat = 64/32 = 2 (host 64b <-> 128b
-    // DFI word, geared internally by pumice_core). The runtime gear_ratio CSR
-    // (DFI_PHASE.gear_ratio, reset 2 = 1:4) selects the active phase count and is
-    // left at its 1:4 default for this build.
+    // a7ddrphy config (Artix-7 x16 DDR2): 1:2 / nphases=2. VERIFIED IN THE
+    // GENERATED NETLIST (rtl-vivado/a7ddrphy/a7ddrphy_generated.v) — the earlier
+    // "FIXED at nphases=4" comment here was wrong and cost a long board debug:
+    //   - rdphase/wrphase CSR storage is ONE bit (:131,:133). LiteX sizes those
+    //     CSRStorage(log2(nphases)) (s7ddrphy.py:100) => nphases = 2.
+    //   - all 16 read ISERDESE2 are .DATA_WIDTH(4) on .CLK(sys2x_clk): four DDR
+    //     beats per DQ per sys cycle = 1:2. There is no sys4x in the file at all.
+    // Its DFI nevertheless EXPOSES four phases, de-interleaved from an 8-slot
+    // bitslip window (p0<=bitslip[0,1], p1<=[2,3], p2<=[4,5], p3<=[6,7]). Since
+    // only four slots are captured per sys cycle, slots [4..7] hold the PREVIOUS
+    // cycle's beats — so dfi_p2/p3 are stale by construction. Driving DFI_RATE=4
+    // therefore reassembles every read from half-stale data (the on-silicon
+    // p2==p0 / p3==p1 signature, beats_mismatched == 2*txn, invariant to every
+    // tap/bitslip/rddata_delay).
+    // We therefore drive DFI_RATE=2 and let the adapter's g_rd2 branch gather
+    // only the two real phases {p1,p0} — matching LiteDRAM, whose 1:2 / BL4 /
+    // sys2x_dqs build passes its 128MiB memtest on this exact board.
+    // DRAM beat = 2*DQ = 32b => DFI_DATA_WIDTH = 32*2 = 64; GEAR = AXI/beat =
+    // 64/32 = 2. The runtime gear_ratio CSR (DFI_PHASE.gear_ratio) must be
+    // programmed to 1 (= 1:2) for this build — its RTL reset is 2 (= 1:4), so
+    // the host sets it explicitly before init (see host/pumice_master.py).
     // =========================================================================
     localparam int AXI_DATA_WIDTH  = 64;
     localparam int DRAM_BEAT_WIDTH = 32;
@@ -180,16 +199,18 @@ module ddr2_char_top #(
     // DRAM beat = 2 physical x16 beats, so a JEDEC BL4 = 2 pumice beats = 1 DFI
     // cycle; pumice scales its burst-length accounting by 32/16=2 accordingly.
     localparam int DRAM_DEVICE_WIDTH = 16;
-    localparam int DFI_RATE        = 4;
-    localparam int DFI_DATA_WIDTH  = DFI_RATE * DRAM_BEAT_WIDTH;   // 128
-    localparam int DFI_STRB_WIDTH  = DFI_DATA_WIDTH / 8;           // 16
+    localparam int DFI_RATE        = 2;
+    localparam int DFI_DATA_WIDTH  = DFI_RATE * DRAM_BEAT_WIDTH;   // 64
+    localparam int DFI_STRB_WIDTH  = DFI_DATA_WIDTH / 8;           // 8
     // Legal-AxLEN quantum: AXI beats that make one DRAM burst. cfg_wr/rd_burst_len
-    // (host BLEN_TXN) MUST be a nonzero multiple of this. Board = BL8 x16 host-64:
-    // one BL8 burst = 8 device-words*16b = 128b = 2 host-64b beats -> quantum = 2.
-    localparam int DRAM_BL         = 8;   // matches ddr2_char_macro default (BL8)
+    // (host BLEN_TXN) MUST be a nonzero multiple of this. Board = BL4 x16 host-64:
+    // one BL4 burst = 4 device-words*16b = 64b = 1 host-64b beat -> quantum = 1.
+    // BL4 is LiteDRAM's proven DDR2 burst length on this board (litedram
+    // common.py:26); MR0 is programmed to match (0x0432) by the host.
+    localparam int DRAM_BL         = 4;
     localparam int BURST_LEN_MULTIPLE = (DRAM_BL * DRAM_DEVICE_WIDTH) / AXI_DATA_WIDTH;
-    localparam int DFI_ADDR_BUS_W  = ROW_WIDTH * DFI_RATE;         // 52
-    localparam int DFI_BANK_BUS_W  = 3 * DFI_RATE;                 // 12
+    localparam int DFI_ADDR_BUS_W  = ROW_WIDTH * DFI_RATE;         // 26
+    localparam int DFI_BANK_BUS_W  = 3 * DFI_RATE;                 // 6
 
     // (* mark_debug *) on the DFI-at-PHY-boundary nets: an ILA on aclk (sys)
     // captures exactly what pumice drives into the a7ddrphy (command + wrdata)
@@ -227,9 +248,10 @@ module ddr2_char_top #(
         .DRAM_BEAT_WIDTH (DRAM_BEAT_WIDTH),
         .DRAM_DEVICE_WIDTH (DRAM_DEVICE_WIDTH),
         .DFI_RATE        (DFI_RATE),
+        .DRAM_BL         (DRAM_BL),
         .BURST_LEN_MULTIPLE(BURST_LEN_MULTIPLE),
         .ROW_WIDTH       (ROW_WIDTH),
-        .FPGA_CLK_HZ     (75_000_000)   // sys is now 75 MHz -> UART baud divisor
+        .FPGA_CLK_HZ     (66_666_667)   // sys = 66.67 MHz -> UART baud divisor
         // DFI command->data alignment is now a runtime CSR (DFI_TUNING.cmd_delay,
         // default 5) — tune live over UART, no rebuild. CMD_MAX_DELAY defaults 8.
     ) u_harness (

@@ -33,7 +33,7 @@ module axi4_to_apb_shim #(
     parameter int AXI_WSTRB_WIDTH   = AXI_DATA_WIDTH / 8,
     parameter int APB_WSTRB_WIDTH   = APB_DATA_WIDTH / 8,
     // CDC handshake variant: 1 = 2-phase (toggle, faster), 0 = 4-phase (level, classic)
-    parameter bit USE_2_PHASE_CDC   = 1'b1,
+    parameter bit USE_2_PHASE_CDC   = 1'b1,   // deprecated, ignored
     // Declare parameters for short-hand notation
     parameter int AW                = AXI_ADDR_WIDTH,
     parameter int DW                = AXI_DATA_WIDTH,
@@ -291,89 +291,62 @@ module axi4_to_apb_shim #(
         .r_rsp_data           (r_rsp_data)
     );
 
-    generate
-    if (USE_2_PHASE_CDC) begin : g_cmd_2phase
-        cdc_2_phase_handshake #(
-            .DATA_WIDTH(APBCmdWidth)
-        ) u_cmd_cdc_handshake (
-            .clk_src         (aclk),
-            .rst_src_n       (aresetn),
-            .src_valid       (w_cmd_valid),
-            .src_ready       (r_cmd_ready),
-            .src_data        (r_cmd_data),
-            /* verilator lint_off PINCONNECTEMPTY */
-            .src_timeout     (),
-            /* verilator lint_on PINCONNECTEMPTY */
+    // -------------------------------------------------------------------------
+    // CDC: gray-pointer async FIFOs (cmd aclk->pclk, rsp pclk->aclk).
+    //
+    // gaxi_fifo_async resets each domain's own pointer AND that domain's crossed
+    // copy of the remote pointer from the LOCAL reset, so a domain reset in
+    // isolation leaves that side's view self-consistent (both pointers 0 =>
+    // empty). Pointers are absolute positions, not toggle parity, so an
+    // independent reset of one side cannot fabricate or swallow a transfer the
+    // way the previous 2-phase handshake could. That failure mode offsets the
+    // response stream permanently -- every read returns the previous read's
+    // data -- because the APB side (presetn) and the AXI side (aresetn) are
+    // separate reset domains.
+    //
+    // Depths follow the existing APB cmd/rsp queue depths; >=2, power of 2
+    // preferred for the gray/Johnson pointer encoding.
+    // -------------------------------------------------------------------------
+    localparam int CDC_CMD_DEPTH = (APB_CMD_DEPTH < 4) ? 4 : APB_CMD_DEPTH;
+    localparam int CDC_RSP_DEPTH = (APB_RSP_DEPTH < 4) ? 4 : APB_RSP_DEPTH;
 
-            .clk_dst         (pclk),
-            .rst_dst_n       (presetn),
-            .dst_valid       (w_cmd_valid_apb),
-            .dst_ready       (r_cmd_ready_apb),
-            .dst_data        (r_cmd_data_apb)
-        );
-    end else begin : g_cmd_4phase
-        cdc_4_phase_handshake #(
-            .DATA_WIDTH(APBCmdWidth)
-        ) u_cmd_cdc_handshake (
-            .clk_src         (aclk),
-            .rst_src_n       (aresetn),
-            .src_valid       (w_cmd_valid),
-            .src_ready       (r_cmd_ready),
-            .src_data        (r_cmd_data),
-            /* verilator lint_off PINCONNECTEMPTY */
-            .src_timeout     (),
-            /* verilator lint_on PINCONNECTEMPTY */
+    gaxi_fifo_async #(
+        .DATA_WIDTH   (APBCmdWidth),
+        .DEPTH        (CDC_CMD_DEPTH),
+        .N_FLOP_CROSS (2)
+    ) u_cmd_cdc_fifo (
+        .axi_wr_aclk    (aclk),
+        .axi_wr_aresetn (aresetn),
+        .axi_rd_aclk    (pclk),
+        .axi_rd_aresetn (presetn),
 
-            .clk_dst         (pclk),
-            .rst_dst_n       (presetn),
-            .dst_valid       (w_cmd_valid_apb),
-            .dst_ready       (r_cmd_ready_apb),
-            .dst_data        (r_cmd_data_apb)
-        );
-    end
-    endgenerate
+        .wr_valid       (w_cmd_valid),
+        .wr_ready       (r_cmd_ready),
+        .wr_data        (r_cmd_data),
 
-    generate
-    if (USE_2_PHASE_CDC) begin : g_rsp_2phase
-        cdc_2_phase_handshake #(
-            .DATA_WIDTH(APBRspWidth)
-        ) u_rsp_cdc_handshake (
-            .clk_src         (pclk),
-            .rst_src_n       (presetn),
-            .src_valid       (r_rsp_valid_apb),
-            .src_ready       (w_rsp_ready_apb),
-            .src_data        (r_rsp_data_apb),
-            /* verilator lint_off PINCONNECTEMPTY */
-            .src_timeout     (),
-            /* verilator lint_on PINCONNECTEMPTY */
+        .rd_ready       (r_cmd_ready_apb),
+        .rd_valid       (w_cmd_valid_apb),
+        .rd_data        (r_cmd_data_apb)
+    );
 
-            .clk_dst         (aclk),
-            .rst_dst_n       (aresetn),
-            .dst_valid       (r_rsp_valid),
-            .dst_ready       (w_rsp_ready),
-            .dst_data        (r_rsp_data)
-        );
-    end else begin : g_rsp_4phase
-        cdc_4_phase_handshake #(
-            .DATA_WIDTH(APBRspWidth)
-        ) u_rsp_cdc_handshake (
-            .clk_src         (pclk),
-            .rst_src_n       (presetn),
-            .src_valid       (r_rsp_valid_apb),
-            .src_ready       (w_rsp_ready_apb),
-            .src_data        (r_rsp_data_apb),
-            /* verilator lint_off PINCONNECTEMPTY */
-            .src_timeout     (),
-            /* verilator lint_on PINCONNECTEMPTY */
+    gaxi_fifo_async #(
+        .DATA_WIDTH   (APBRspWidth),
+        .DEPTH        (CDC_RSP_DEPTH),
+        .N_FLOP_CROSS (2)
+    ) u_rsp_cdc_fifo (
+        .axi_wr_aclk    (pclk),
+        .axi_wr_aresetn (presetn),
+        .axi_rd_aclk    (aclk),
+        .axi_rd_aresetn (aresetn),
 
-            .clk_dst         (aclk),
-            .rst_dst_n       (aresetn),
-            .dst_valid       (r_rsp_valid),
-            .dst_ready       (w_rsp_ready),
-            .dst_data        (r_rsp_data)
-        );
-    end
-    endgenerate
+        .wr_valid       (r_rsp_valid_apb),
+        .wr_ready       (w_rsp_ready_apb),
+        .wr_data        (r_rsp_data_apb),
+
+        .rd_ready       (w_rsp_ready),
+        .rd_valid       (r_rsp_valid),
+        .rd_data        (r_rsp_data)
+    );
 
 
     // Instantiate the APB Master interface

@@ -29,6 +29,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.axi4.monitor.axi4_master_monitor_tb import AXI4MasterMonitorTB
 from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 def validate_addr_width(addr_width):
@@ -121,17 +122,12 @@ async def axi4_master_wr_mon_cg_test(dut):
     # Initialize
     await tb.initialize()
 
-    # Configure clock gating (enable it with default settings)
-    if hasattr(dut, 'cfg_cg_enable'):
-        dut.cfg_cg_enable.value = 1
-    if hasattr(dut, 'cfg_cg_idle_threshold'):
-        dut.cfg_cg_idle_threshold.value = 8
-    if hasattr(dut, 'cfg_cg_gate_monitor'):
-        dut.cfg_cg_gate_monitor.value = 1
-    if hasattr(dut, 'cfg_cg_gate_reporter'):
-        dut.cfg_cg_gate_reporter.value = 1
-    if hasattr(dut, 'cfg_cg_gate_timers'):
-        dut.cfg_cg_gate_timers.value = 1
+    # Configure clock gating (converged interface: enable + idle count).
+    # Gating behaviour itself is asserted by val/amba/test_mon_cg_gating.py;
+    # here it is simply left enabled so the functional traffic below runs
+    # with the clock actually being gated and ungated underneath it.
+    dut.cfg_cg_enable.value = 1
+    dut.cfg_cg_idle_count.value = 8
 
     # Run all integration tests (same as non-CG version)
     await tb.run_integration_tests(test_level=test_level)
@@ -166,6 +162,7 @@ def test_axi4_master_wr_mon_cg(id_width, addr_width, data_width, user_width, wst
         'rtl_includes': 'rtl/amba/includes',
         'rtl_common': 'rtl/common',
         'rtl_shared': 'rtl/amba/shared',
+        'rtl_monitor': 'rtl/amba/monitor',
      'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "axi4_master_wr_mon_cg"
@@ -179,36 +176,9 @@ def test_axi4_master_wr_mon_cg(id_width, addr_width, data_width, user_width, wst
     os.makedirs(log_dir, exist_ok=True)
 
     # Verilog sources (includes axi4_master_wr_mon which the CG version instantiates)
-    verilog_sources = [
-        # Monitor packages (must be compiled in order)
-        os.path.join(rtl_dict['rtl_includes'], "monitor_common_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_amba4_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_amba5_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_arbiter_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_pkg.sv"),
-        os.path.join(rtl_dict['rtl_common'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_common'], "counter_load_clear.sv"),
-        os.path.join(rtl_dict['rtl_common'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_common'], "counter_freq_invariant.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_axi4'], "axi4_master_wr.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "monitor_trans_cam.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_trans_mgr.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_timer.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_timeout.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_error.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_timeout.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_compl.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_threshold.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_perf.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_debug.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_base.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_filtered.sv"),
-        os.path.join(rtl_dict['rtl_axi4'], "axi4_master_wr_mon.sv"),  # Base monitor (instantiated by CG)
-        os.path.join(rtl_dict['rtl_axi4'], f"{dut_name}.sv"),  # CG wrapper
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axi4_master_wr_mon_cg.f")
 
     # Check files exist
     for src in verilog_sources:
@@ -230,11 +200,7 @@ def test_axi4_master_wr_mon_cg(id_width, addr_width, data_width, user_width, wst
         'SKID_DEPTH_W': skid_w,
         'SKID_DEPTH_B': skid_b,
         # CG-specific parameters (fixed)
-        'ENABLE_CLOCK_GATING': 1,
-        'CG_IDLE_CYCLES': 8,
-        'CG_GATE_MONITOR': 1,
-        'CG_GATE_REPORTER': 1,
-        'CG_GATE_TIMERS': 1,
+        'CG_IDLE_COUNT_WIDTH': 4,
     }
 
     # Validate address width meets AXI4 specification
@@ -285,5 +251,5 @@ def test_axi4_master_wr_mon_cg(id_width, addr_width, data_width, user_width, wst
         extra_env=extra_env,
         waves=enable_waves,  # Disable waves for CG tests to avoid Verilator FST issues
         plus_args=(['--trace'] if enable_waves else []),
-        includes=[rtl_dict['rtl_amba_includes']]
+        includes=includes
     )

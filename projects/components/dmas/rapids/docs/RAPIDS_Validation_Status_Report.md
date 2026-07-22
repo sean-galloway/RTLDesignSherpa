@@ -24,6 +24,11 @@
 # RAPIDS Validation Status Report
 *Generated: 2025-09-28*
 
+> **Status (2026-07-22): superseded - pre-beats snapshot.** This report describes the
+> pre-beats RTL and tests (e.g. `rtl/rapids_fub/scheduler.sv`, network master interface),
+> all since replaced by the beats architecture (`rtl/fub_beats/scheduler_beats.sv`, AXIS
+> interfaces). Kept as history; for current results run the suites under `dv/tests/`.
+
 ## Executive Summary
 
 The RAPIDS (Modular I/O Pipeline) validation has been successfully restored and significantly improved. Key scheduler testbench infrastructure has been completely fixed and is now fully functional.

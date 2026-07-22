@@ -91,6 +91,8 @@ Observation counters (row-hit, queue depth max, etc.) are 32-bit. At high traffi
 
 The pre-rearchitecture modules still live under `rtl/fub/OLD/`, `rtl/macro/OLD/`, and `rtl/top/OLD/` (e.g. `scheduler.sv`, `wr_cmd_cam.sv`, `rd_cmd_cam.sv`, `xbank_timers.sv`, `axi_intake.sv`, the `*_macro.sv` blocks, `pumice_csr_slave.sv`). They are referenced only by retired sentinel tests in `dv/tests/` (`test_scheduler.py`, `test_wr_cmd_cam.py`, `test_xbank_timers.py`, `test_axi_intake.py`, and the `*_macro` tests). **Remove** the `OLD/` trees and their sentinel tests once the new architecture is fully signed off, so the live module set is the only thing that builds.
 
+> Status (2026-07-22): done — the `OLD/` trees and their sentinel tests have been removed; only the rearchitected module set remains under `rtl/`.
+
 ### 17. Open-Page Read-Fetches-Zero Under Gapped Reads
 
 A known scheduler/CAM interaction: under open-page policy with gapped read traffic, a read can be fetched before its data is valid (returns zero) in a narrow timing window (reproduces at `PUMICE_SEED=2`, the burst-pause / hit-miss-oscillation pattern). **Root-cause and fix** the read-fetch gating in the open-page path before promoting the HAS to formal status. The `r_fdone` fill-complete gating in the CAMs is the relevant mechanism.
@@ -104,3 +106,30 @@ A known scheduler/CAM interaction: under open-page policy with gapped read traff
 - Cross-reference each section to the corresponding pre-aspec.md bullet
 - Add quantitative area / power estimates per module (synthesis pass needed)
 - Add waveform examples for the canonical init sequences
+
+## Feature Roadmap — planned advanced modes (ordered)
+
+The full catalog of planned, config-bit-selectable advanced modes lives in
+`docs/design-requirements.md` ("Advanced modes — selectable scheduling /
+paging / refresh"); the family-level split (commodity-legal here vs
+model-only parked for DDR3/DDR4) is in
+`projects/components/memory-controllers/ADVANCED_MODES_ROADMAP.md`. Entry
+gate (TASKS.md TASK-FEATURES): board reads validated at the bring-up tuple,
+refresh-collision fix re-soaked on silicon.
+
+Serial pre-silicon implementation order (each step OFF-by-default with its own
+red-to-green model test):
+
+1. **Foundation** — `SCHED_POLICY` / `PAGE_POLICY_CFG` / `REFRESH_MODE`
+   mode-select CSRs + `*_STATS` telemetry + PHY capability straps (no behavior
+   change; defaults bit-identical).
+2. **Scheduling (Axis 1)** — `in_order` -> `fr_fcfs` (confirm current) ->
+   `age_threshold` -> `most/fewest_pending` -> `ACCESS_PREF` ->
+   write-batching -> **QoS** (AxQOS-aware pick, `QOS_EN`).
+3. **Paging (Axis 2)** — `static_open/close` (confirm) -> `fixed_open` ->
+   `adapt_time` -> `rbl_static` -> `rbl_dyn` -> `adapt_access`.
+4. **Refresh (Axis 3, commodity)** — JEDEC pull-in/postpone sweep ->
+   `refpb_rr`.
+
+None of the mode-select CSRs above exist in the RDL yet; open issue 13 (QoS)
+is subsumed by step 2 of this order.

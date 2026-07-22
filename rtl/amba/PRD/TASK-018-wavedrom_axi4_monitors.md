@@ -29,6 +29,16 @@
 ## Status
 **🔴 Not Started**
 
+> Status (2026-07-22): still open; path references below updated after the repo
+> reorg. The GAXI reference pattern is now `val/amba/test_gaxi_fifo_sync.py` /
+> `val/amba/test_gaxi_buffer_async.py` (the old `test_gaxi_buffer_sync.py` was renamed).
+> An APB WaveDrom example now exists at `val/amba/test_apb_slave_wavedrom.py`.
+> The old `docs/markdown/TestTutorial/wavedrom_gaxi_example.md` was removed; the integration
+> guide is `docs/markdown/TestTutorial/wavedrom_gaxi_example.md`. The WaveDrom
+> framework lives in the RTLDesignSherpa-DV repo (`CocoTBFramework.components.wavedrom`)
+> with in-repo helpers under `bin/TBClasses/wavedrom_user/`. `val/amba/WaveJSON/`
+> is a planned output directory (does not exist yet).
+
 ## Description
 
 Add minimal WaveDrom timing diagram generation to AXI4 monitor tests, following the established GAXI pattern. Generate clean waveforms showing key AXI4 protocol scenarios including burst transactions, out-of-order completion, and error responses.
@@ -36,7 +46,7 @@ Add minimal WaveDrom timing diagram generation to AXI4 monitor tests, following 
 ## Background
 
 **Successful Pattern:** GAXI buffer tests now have WaveDrom integration
-**Reference:** `val/amba/test_gaxi_buffer_sync.py`, `test_gaxi_buffer_async.py`
+**Reference:** `val/amba/test_gaxi_fifo_sync.py`, `test_gaxi_buffer_async.py`
 
 **Challenge:** AXI4 is more complex than GAXI due to:
 - Multiple channels (AR, R for reads; AW, W, B for writes)
@@ -198,11 +208,11 @@ val/amba/WaveJSON/
 
 ### 6. Documentation Updates
 
-**File:** `val/amba/WAVEDROM_INTEGRATION_SUMMARY.md` (update)
+**File:** `docs/markdown/TestTutorial/wavedrom_gaxi_example.md` (update)
 
 Add sections for AXI4 read and write monitor WaveDrom support.
 
-**File:** `docs/markdown/RTLAmba/axi/axi4_master_rd.md` (update existing)
+**File:** `docs/markdown/RTLAmba/axi4/axi4_master_rd.md` (update existing)
 
 Embed waveform images showing key scenarios:
 ```markdown
@@ -289,10 +299,10 @@ done
 
 ## References
 
-- **Pattern:** `val/amba/test_gaxi_buffer_sync.py`
-- **Framework:** `bin/TBClasses/components/wavedrom/`
+- **Pattern:** `val/amba/test_gaxi_fifo_sync.py`
+- **Framework:** `CocoTBFramework/components/wavedrom/ (RTLDesignSherpa-DV repo)`
 - **AXI4 Spec:** ARM IHI0022 (AMBA AXI Protocol Specification)
-- **Monitor RTL:** `rtl/amba/axi4/axi4_master_rd_mon.sv`
+- **Monitor RTL:** `rtl/amba/monitor/axi4_master_rd_mon.sv`
 
 ## Related Tasks
 

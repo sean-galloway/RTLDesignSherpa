@@ -374,7 +374,7 @@ pytest val/common/test_counter_bin.py -v --vcd=waves.vcd
 gtkwave waves.vcd
 
 # Or use saved waveform config
-gtkwave val/common/GTKW/counter_bin_debug.gtkw
+gtkwave val/common/GTKW/counter_bin.gtkw
 ```
 
 ---
@@ -526,13 +526,13 @@ clock_gate_ctrl u_gate (
 ### Examples
 
 - **Tests:** `val/common/test_*.py` - Working examples for every module
-- **Usage:** Search rtl/amba/ and rtl/rapids/ for integration examples
+- **Usage:** Search rtl/amba/ and projects/components/ for integration examples
 
 ### Commands
 
 ```bash
 # Find usage examples of a module
-grep -r "counter_bin" rtl/amba/ rtl/rapids/
+grep -r "counter_bin" rtl/amba/ projects/components/
 
 # See how tests use the module
 cat val/common/test_counter_bin.py
@@ -586,7 +586,7 @@ grep -r "module_name" rtl/
 ### Explore Other Subsystems
 
 - **`rtl/amba/`** - AMBA protocol infrastructure (AXI, APB, AXIS monitors)
-- **`rtl/rapids/`** - Rapid AXI Programmable In-band Descriptor System (example accelerator)
+- **`projects/components/dmas/rapids/`** - Rapid AXI Programmable In-band Descriptor System (example accelerator)
 - **`bin/TBClasses/`** - Verification infrastructure
 
 ### Create Your Own Modules

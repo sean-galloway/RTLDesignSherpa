@@ -93,6 +93,6 @@ Status byte format:
 
 ## References
 
-- **PIT RTL:** `rtl/pit/apb_pit_8254.sv`
-- **PIT Testbench:** `dv/tbclasses/pit/pit_tb.py`
-- **Constraint Class:** `bin/TBClasses/wavedrom_user/pit.py`
+- **PIT RTL:** `rtl/pit_8254/apb_pit_8254.sv`
+- **PIT Testbench:** `dv/tbclasses/pit_8254/pit_tb.py`
+- **Constraint Class:** none yet for the PIT (see `bin/TBClasses/wavedrom_user/hpet.py` and `apb.py` for examples)

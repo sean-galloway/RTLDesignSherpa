@@ -77,7 +77,7 @@
 
 ## Related Documentation
 
-- **[STREAM MAS](../stream_spec/stream_index.md)** - Micro-Architecture Specification (detailed block-level)
+- **[STREAM MAS](../stream_mas/stream_index.md)** - Micro-Architecture Specification (detailed block-level)
 - **[PRD.md](../../PRD.md)** - Product requirements and overview
 - **[CLAUDE.md](../../CLAUDE.md)** - AI development guide
 

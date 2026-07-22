@@ -87,6 +87,25 @@ class MonbusSlave(GAXISlave):
         self.received_packets: List[MonbusPacket] = []
         self.packet_history: deque = deque(maxlen=1000)  # Ring buffer for history
 
+        # ------------------------------------------------------------------
+        # Opt-in packet-type coverage recorder (MONBUS_COVERAGE=1).
+        #
+        # Feeds the pre-board packet-type coverage matrix (see
+        # projects/NexysA7/stream_characterization/MONITOR_BOARD_VALIDATION_PLAN.md):
+        # every decoded (protocol, pkt_type, event_code) tuple observed by this
+        # slave is appended as one JSONL line, tagged with the test name, at
+        # test end (atexit -- cocotb has no reliable per-test teardown here).
+        # bin/monbus_coverage_report.py aggregates the JSONLs and diffs them
+        # against the full enum space in TBClasses.monbus.monbus_types.
+        # Off by default: zero cost unless MONBUS_COVERAGE=1.
+        # ------------------------------------------------------------------
+        import os as _os
+        self._coverage_enabled = _os.environ.get('MONBUS_COVERAGE', '0') == '1'
+        self._coverage_tuples = set()
+        if self._coverage_enabled:
+            import atexit as _atexit
+            _atexit.register(self._dump_coverage)
+
         # Ready delay randomizer for GAXI slave compatibility
         self._ready_randomizer = None
         if 'randomizer' in kwargs and kwargs['randomizer'] is not None:
@@ -192,6 +211,10 @@ class MonbusSlave(GAXISlave):
 
             # Store packet
             self.received_packets.append(monbus_packet)
+            if self._coverage_enabled:
+                self._coverage_tuples.add((int(monbus_packet.protocol),
+                                           int(monbus_packet.pkt_type),
+                                           int(monbus_packet.event_code)))
             self.packet_history.append({
                 'packet': monbus_packet,
                 'timestamp': current_time,
@@ -251,6 +274,27 @@ class MonbusSlave(GAXISlave):
         except Exception as e:
             self._record_validation_error(f"Validation exception: {e}")
             return False
+
+    def _dump_coverage(self):
+        """Append observed (protocol, pkt_type, event_code) tuples as JSONL.
+
+        One line per slave instance per test process. Path override via
+        MONBUS_COVERAGE_FILE; default lands next to the aggregated report.
+        """
+        if not self._coverage_tuples:
+            return
+        import os, json
+        path = os.environ.get('MONBUS_COVERAGE_FILE',
+                              '/tmp/monbus_coverage/coverage.jsonl')
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        rec = {
+            'test': os.environ.get('PYTEST_CURRENT_TEST',
+                                   os.environ.get('DUT', 'unknown')),
+            'slave': getattr(self, 'title', 'monbus_slave'),
+            'tuples': sorted(list(t) for t in self._coverage_tuples),
+        }
+        with open(path, 'a') as f:
+            f.write(json.dumps(rec) + '\n')
 
     def _record_validation_error(self, error_msg: str):
         """Record validation error in statistics"""

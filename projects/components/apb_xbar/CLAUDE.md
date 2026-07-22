@@ -264,10 +264,11 @@ apb_xbar_2to4 #(
 
 ```bash
 cd projects/components/apb_xbar/bin/
-python generate_xbars.py --masters 3 --slaves 8 --output ../rtl/apb_xbar_3to8.sv
+python generate_xbars.py --masters 3 --slaves 8   # writes apb_xbar_3to8.sv next to the script
 
-# Check generated file
-ls -lh ../rtl/apb_xbar_3to8.sv
+# Check generated file, then move it into rtl/
+ls -lh apb_xbar_3to8.sv
+mv apb_xbar_3to8.sv ../rtl/
 ```
 
 Then instantiate like any other crossbar:

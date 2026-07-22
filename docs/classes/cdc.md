@@ -49,15 +49,15 @@ Pick the right one for the traffic shape. This page lists every CDC primitive in
 
 | Module | One-line role | When to pick |
 |---|---|---|
-| [`cdc_synchronizer.sv`](../../rtl/amba/shared/cdc_synchronizer.sv) | N-flop synchronizer for a stable level | Any single-bit level signal crossing domains. Default choice. |
-| [`cdc_open_loop.sv`](../../rtl/amba/shared/cdc_open_loop.sv) | Pulse stretcher + synchronizer (no handshake back) | One-shot pulses where the source can guarantee width > 2 destination clocks. Cheapest pulse CDC. |
+| [`cdc_synchronizer.sv`](../../rtl/amba/cdc/cdc_synchronizer.sv) | N-flop synchronizer for a stable level | Any single-bit level signal crossing domains. Default choice. |
+| [`cdc_open_loop.sv`](../../rtl/amba/cdc/cdc_open_loop.sv) | Pulse stretcher + synchronizer (no handshake back) | One-shot pulses where the source can guarantee width > 2 destination clocks. Cheapest pulse CDC. |
 
 ### Multi-bit data with handshake
 
 | Module | One-line role | When to pick |
 |---|---|---|
-| [`cdc_2_phase_handshake.sv`](../../rtl/amba/shared/cdc_2_phase_handshake.sv) | 2-phase req/ack (toggle protocol) | Default for low-rate multi-bit transfers. Lower latency than 4-phase. |
-| [`cdc_4_phase_handshake.sv`](../../rtl/amba/shared/cdc_4_phase_handshake.sv) | 4-phase req/ack (return-to-zero) | When you need explicit ack-deasserted state for downstream sequencing, or you're interfacing to an existing 4-phase protocol. |
+| [`cdc_2_phase_handshake.sv`](../../rtl/amba/cdc/cdc_2_phase_handshake.sv) | 2-phase req/ack (toggle protocol) | Default for low-rate multi-bit transfers. Lower latency than 4-phase. |
+| [`cdc_4_phase_handshake.sv`](../../rtl/amba/cdc/cdc_4_phase_handshake.sv) | 4-phase req/ack (return-to-zero) | When you need explicit ack-deasserted state for downstream sequencing, or you're interfacing to an existing 4-phase protocol. |
 
 ### Reset CDC
 
@@ -78,7 +78,7 @@ Pick the right one for the traffic shape. This page lists every CDC primitive in
 | Module | One-line role | When to pick |
 |---|---|---|
 | [`fifo_async.sv`](../../rtl/common/fifo_async.sv) | Generic async FIFO | High-rate word stream between two domains. Default. |
-| [`fifo_async_div2.sv`](../../rtl/common/fifo_async_div2.sv) | Async FIFO assuming write-clock = 2× read-clock (or vice versa) | When the clock ratio is exactly 2:1 and you want the smaller area / better timing of the simpler pointer logic. |
+| [`fifo_async.sv`](../../rtl/common/fifo_async.sv) `USE_JOHNSON=1` | Async FIFO with Johnson-counter pointers | When the depth must not be a power of 2. Costs DEPTH flops per pointer instead of log2(DEPTH)+1. |
 | [`gaxi_fifo_async.sv`](../../rtl/amba/gaxi/gaxi_fifo_async.sv) · [`gaxi_fifo_async_multi.sv`](../../rtl/amba/gaxi/gaxi_fifo_async_multi.sv) | AXI-style async FIFO with valid/ready handshake | Building an AXI/AXIS bridge across clock domains. Same payload, AMBA-shaped ports. |
 | [`gaxi_skid_buffer_async.sv`](../../rtl/amba/gaxi/gaxi_skid_buffer_async.sv) · [`gaxi_skid_buffer_async_multi.sv`](../../rtl/amba/gaxi/gaxi_skid_buffer_async_multi.sv) | Async skid buffer (depth-2 async FIFO) | Lowest-area / lowest-latency AMBA crossing when only one or two beats of slack are needed. |
 

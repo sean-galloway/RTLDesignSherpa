@@ -53,7 +53,7 @@ make suite        # full sweep: channels × beats × backpressure × seed (JSON 
 `CHANNELS` is kept in lockstep between the bitstream build generic and the host
 (`make suite CHANNELS=4`). The on-chip data comes from reusable AXIS/AXI4
 pattern generators + CRC checkers; both paths are validated against
-`host/rapids_char_golden.py` (independent golden model).
+`flows-rapids-beats/host/rapids_char_golden.py` (independent golden model).
 
 ## Status
 

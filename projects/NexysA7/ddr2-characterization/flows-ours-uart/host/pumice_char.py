@@ -60,6 +60,7 @@ the board CLI (pumice_master.py --char).
 from __future__ import annotations
 
 import csv as _csv
+import os
 import io
 import sys
 from dataclasses import dataclass
@@ -189,11 +190,13 @@ class ControllerConfig:
     happy_enable:  Optional[bool] = None    # HAPPY page predictor
     rd_in_order:   bool = True              # R-channel return ordering (harness cfg)
     t_refi:        Optional[int] = None      # refresh interval (MC cycles)
-    # Board (always-on pre-pull / a7ddrphy write_latency=0): t_phy_wrlat MUST be
-    # 0 so write data is presented concurrent with the WR command. The old
-    # default 4 clobbered the leveling-time value every scenario -> writes land
-    # wrong -> every read mismatches (0/N integrity). See pumice_master.py.
-    t_phy_wrlat:   int = 0
+    # PHY data timing: MUST match the board-validated bring-up tuple
+    # (TASK-BRINGUP: t_phy_wrlat=1 / t_rddata_en=6; sim loopback overrides via
+    # TEST_T_PHY_WRLAT=0). apply() re-programs these EVERY scenario, so a stale
+    # hardcode here silently clobbers the leveled value -> writes land shifted
+    # -> every read mismatches (0/N integrity). This bit us twice: first with a
+    # hardcoded 4, then with the pre-tuple 0.
+    t_phy_wrlat:   int = int(os.environ.get("TEST_T_PHY_WRLAT", "1"))
     t_rddata_en:   int = 6
 
     def apply(self, drv: DDR2CharDriver) -> None:
@@ -444,7 +447,9 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
     drv.timer_clear()
     drv.freeze_trace(False)                 # start counting
     drv.start_wr()
-    wr_ok = wait_engine(drv, "wr", timeout_s=timeout_s)
+    # ignore_error: a data mismatch latches rd_error and the default bail
+    # would misreport a completed-but-wrong phase as "did not complete".
+    wr_ok = wait_engine(drv, "wr", timeout_s=timeout_s, ignore_error=True)
     drv.freeze_trace(True)                  # stop meters BEFORE slow read-back
     # Window from the WRITE engine's own hardware stamps (w_last-w_first), NOT
     # timer.cycles: the harness timer only stops on wr_done AND rd_done, so in a
@@ -461,7 +466,7 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
     drv.timer_clear()
     drv.freeze_trace(False)
     drv.start_rd()
-    rd_ok = wait_engine(drv, "rd", timeout_s=timeout_s)
+    rd_ok = wait_engine(drv, "rd", timeout_s=timeout_s, ignore_error=True)
     drv.freeze_trace(True)
     _tr = drv.timer()                       # read window from r_last-r_first stamps
     rd_cycles = max(_tr.r_last - _tr.r_first, 0)
@@ -470,7 +475,10 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
     drv.freeze_trace(False)                 # leave running for the next scenario
 
     mism = drv.beats_mismatched()
-    ok = wr_ok and rd_ok and mism == 0
+    # 1:1 accounting: the histogram must see EXACTLY txn_count read
+    # transactions — too many (stray/duplicate returns) is as much an error
+    # as too few.
+    ok = wr_ok and rd_ok and mism == 0 and rd_total == sc.txn_count
     if not wr_ok:
         notes.append("write engine did not complete")
     if not rd_ok:
@@ -478,7 +486,8 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
     if mism:
         notes.append(f"{mism} beats mismatched")
     if rd_total != sc.txn_count:
-        notes.append(f"hist total {rd_total} != txn_count {sc.txn_count}")
+        notes.append(f"1:1 VIOLATION: hist total {rd_total} != txn_count "
+                     f"{sc.txn_count} ({'EXTRA' if rd_total > sc.txn_count else 'MISSING'} returns)")
 
     return CharRecord(
         scenario=sc, config=cfg.name, ok=ok, mismatched=mism,

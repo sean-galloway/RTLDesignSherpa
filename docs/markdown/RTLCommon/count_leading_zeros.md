@@ -26,11 +26,30 @@
 ## Overview
 The `count_leading_zeros` module implements a leading zero counter that determines how many consecutive zero bits appear at the beginning (MSB side) of a data word. This is a fundamental operation in computer arithmetic, used extensively in floating-point normalization, priority encoding, and bit manipulation algorithms.
 
+The scan starts at `data[WIDTH-1]` and proceeds downward, stopping at the first set bit:
+
+```
+data = 32'h8000_0000 -> clz =  0   (MSB is already set)
+data = 32'h0000_0001 -> clz = 31   (31 zeros above the LSB)
+data = 32'h0000_0000 -> clz = WIDTH
+```
+
+For the complementary count from the LSB upward, use
+**[count_trailing_zeros](count_trailing_zeros.md)**.
+
+> **History - do not reintroduce input reversal.** Earlier revisions of this module
+> scanned from bit 0 upward, which computes *trailing* zeros, not leading zeros,
+> despite the module name. Callers compensated by bit-reversing their input before
+> connecting it. Both the module and every caller have been corrected: the module now
+> performs a true MSB-down scan, and callers pass their operand straight in. Any
+> reversal generate block or `w_*_reversed` wire feeding this module is stale and must
+> not be re-added. If you actually want the LSB-up count, instantiate
+> `count_trailing_zeros` instead of reversing the input.
+
 ## Module Declaration
 ```systemverilog
 module count_leading_zeros #(
-    parameter int WIDTH         = 32,
-    parameter     INSTANCE_NAME = "CLZ"
+    parameter int WIDTH = 32
 ) (
     input  logic [      WIDTH-1:0] data,
     output logic [$clog2(WIDTH):0] clz
@@ -47,11 +66,7 @@ module count_leading_zeros #(
 - **Common Values**: 8, 16, 32, 64 for standard data widths
 - **Impact**: Determines output width and algorithm complexity
 
-### INSTANCE_NAME
-- **Type**: `string` (parameter without explicit storage type)
-- **Default**: `"CLZ"`
-- **Description**: Instance identifier for debugging and display
-- **Usage**: Appears in debug messages and simulation output
+`WIDTH` is the only parameter.
 
 ## Ports
 
@@ -81,7 +96,8 @@ function automatic [$clog2(WIDTH):0] clz_func;
     begin
         clz_func = 0;
         found = 1'b0;
-        for (int i = 0; i < WIDTH; i++) begin
+        // Scan from the MSB downward.
+        for (int i = WIDTH - 1; i >= 0; i--) begin
             if (!input_data[i] && !found) begin
                 clz_func += 1;
             end else begin
@@ -93,23 +109,32 @@ endfunction
 ```
 
 ### Bit Scanning Process
-The algorithm scans from LSB to MSB:
+The algorithm scans from MSB to LSB:
 1. **Initialize**: `clz_func = 0`, `found = 0`
-2. **Scan Loop**: For each bit position i from 0 to WIDTH-1:
+2. **Scan Loop**: For each bit position i from WIDTH-1 down to 0:
    - If `data[i] == 0` AND no '1' found yet: increment count
    - If `data[i] == 1`: set found flag, stop counting
-3. **Result**: Final count represents leading zeros
+3. **Result**: Final count is the number of zeros above the highest set bit
 
-### Why LSB-to-MSB Scanning?
-The implementation scans from LSB (bit 0) to MSB (bit WIDTH-1):
-- **Leading Zeros**: Count zeros from MSB side until first '1'
+### Why MSB-to-LSB Scanning?
+"Leading" refers to the bits that lead the word when it is written out, which is the
+MSB side. The loop therefore starts at `data[WIDTH-1]` and walks down:
 - **Bit Order**: `data[0]` is LSB, `data[WIDTH-1]` is MSB
-- **Count Logic**: Zeros from MSB down = WIDTH - position_of_first_one
+- **Termination**: The `found` flag latches at the highest set bit, so all zeros below
+  it are ignored - only the contiguous run above it is counted
+- **Count Logic**: `clz = (WIDTH-1) - position_of_highest_set_one`, and `clz = WIDTH`
+  when no bit is set
+
+Because the scan direction already matches the definition, the input must be fed in
+directly. Reversing `data` before connecting it turns this module back into a trailing
+zero counter - see the history note above.
 
 ## Examples and Truth Tables
 
 ### 8-bit Examples (WIDTH=8)
-| Input (data) | Binary | First '1' at | Leading Zeros | CLZ Output |
+The count is set by the **highest** set bit; bits below it never affect the result.
+
+| Input (data) | Binary | Highest set bit | Leading Zeros | CLZ Output |
 |--------------|---------|--------------|---------------|------------|
 | 8'b00000000 | 00000000 | None | 8 | 8 |
 | 8'b00000001 | 00000001 | Bit 0 | 7 | 7 |
@@ -120,8 +145,10 @@ The implementation scans from LSB (bit 0) to MSB (bit WIDTH-1):
 | 8'b00100000 | 00100000 | Bit 5 | 2 | 2 |
 | 8'b01000000 | 01000000 | Bit 6 | 1 | 1 |
 | 8'b10000000 | 10000000 | Bit 7 | 0 | 0 |
-| 8'b11111111 | 11111111 | Bit 0 | 0 | 0 |
-| 8'b10101010 | 10101010 | Bit 1 | 0 | 0 |
+| 8'b11111111 | 11111111 | Bit 7 | 0 | 0 |
+| 8'b10101010 | 10101010 | Bit 7 | 0 | 0 |
+| 8'b00010101 | 00010101 | Bit 4 | 3 | 3 |
+| 8'b00110000 | 00110000 | Bit 5 | 2 | 2 |
 
 ### 32-bit Examples
 | Input | Hex | Leading Zeros | CLZ |
@@ -160,7 +187,8 @@ assign adjusted_exponent = raw_exponent - shift_amount;
 ```systemverilog
 // Find highest priority request
 logic [15:0] request_vector;
-logic [4:0] highest_priority;
+logic [4:0]  leading_zeros;
+logic [3:0]  highest_priority;
 logic any_request;
 
 count_leading_zeros #(.WIDTH(16)) priority_enc (
@@ -169,11 +197,12 @@ count_leading_zeros #(.WIDTH(16)) priority_enc (
 );
 
 assign any_request = (leading_zeros != 16);
-assign highest_priority = any_request ? (15 - leading_zeros) : 5'b0;
+assign highest_priority = any_request ? (15 - leading_zeros) : 4'b0;
 
 // Example: request_vector = 16'b0000_0100_1000_0000
-// CLZ = 10 (ten leading zeros)
-// highest_priority = 15 - 10 = 5 (bit 5 is highest set)
+// Highest set bit is bit 10
+// CLZ = 5 (five leading zeros above bit 10)
+// highest_priority = 15 - 5 = 10
 ```
 
 ### 3. Bit Width Calculation
@@ -316,7 +345,8 @@ endmodule
 
 ### 3. LUT-Based Implementation (Small Widths)
 ```systemverilog
-// Optimized for small widths using case statement
+// Optimized for small widths using a wildcard case statement.
+// casez is required so that '?' is treated as a don't-care.
 module count_leading_zeros_lut #(
     parameter int WIDTH = 8
 ) (
@@ -325,7 +355,7 @@ module count_leading_zeros_lut #(
 );
 
 always_comb begin
-    case (data)
+    casez (data)
         8'b00000000: clz = 8;
         8'b00000001: clz = 7;
         8'b0000001?: clz = 6;
@@ -444,7 +474,9 @@ assert property (clz_correctness);
 7. **Cryptographic Units**: Bit manipulation operations
 
 ## Related Modules and Functions
-- Count trailing zeros (CTZ)
+- **[count_trailing_zeros](count_trailing_zeros.md)** - the LSB-up counterpart. Use CLZ
+  when you care about the magnitude of a value (normalization, log2, bit width); use
+  CTZ when you care about alignment or the lowest pending request.
 - Population count (number of '1' bits)
 - Find first set (FFS) / Find last set (FLS)
 - Priority encoders

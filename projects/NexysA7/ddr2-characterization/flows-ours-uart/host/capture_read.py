@@ -50,14 +50,6 @@ def drive_reads(port, baud):
     d.set_dfi_phase(rd_phase=_rdph, wr_phase=0)
     print(f"[uart] rd_phase={_rdph}", flush=True)
     d.set_dfi_rddata_delay(int(os.environ.get("CAP_RDDLY", "8")))
-    # Per-beat deskew under test. Capture once at 0/0 and once at the trained
-    # value (e.g. CAP_DESKEW_HI=1) and diff the aligner's w_dbg_rd_data probe:
-    # if the high 64b beat shifts, the deskew reaches the aligner and works
-    # (real skew != model); if identical, the CSR isn't reaching the aligner.
-    _dlo = int(os.environ.get("CAP_DESKEW_LO", "0"), 0)
-    _dhi = int(os.environ.get("CAP_DESKEW_HI", "0"), 0)
-    d.set_deskew(deskew_lo=_dlo, deskew_hi=_dhi)
-    print(f"[uart] deskew lo={_dlo} hi={_dhi}", flush=True)
     # Optional: stress refresh recovery (small tREFI) to expose a tRFC (REF->ACT)
     # violation on silicon — the sim scoreboard flagged ACT issued too soon after
     # REFab. CAP_TREFI=0 (default) leaves the board's programmed tREFI alone.
@@ -71,18 +63,57 @@ def drive_reads(port, baud):
     import os as _os
     BL  = int(_os.environ.get("CAP_BL", "16"))
     TXN = int(_os.environ.get("CAP_TXN", "4"))
+
+    # Data pattern. CAP_PHASE_SEED != 0 selects LFSR mode (data_mode=False) and
+    # seeds it, instead of the address-hash mode.
+    #
+    # WHY: the hash mode's output repeated 0xa5a0 in both halves of a 32-bit
+    # slice, so a one-device-word shift mapped the pattern onto itself and hid
+    # the misalignment for an entire debug session. a5c3/5ac3 do not alias under
+    # nibble swap, byte swap or bit reversal, so any rotation is visible.
+    #
+    # The LFSR loads cfg_lfsr_seed on cfg_start, so BEAT 0 is the seed
+    # replicated across DW: seed 0x5ac3a5c3 at DW=64 gives x16 device words
+    # a5c3, 5ac3, a5c3, 5ac3. That distinguishes even/odd device-word slots
+    # (enough to see a one-word shift) but repeats every 32 bits, so it cannot
+    # tell slot 0 from slot 2. Later beats advance the LFSR, which keeps beat
+    # boundaries visible. A fully distinct per-slot pattern would need a
+    # constant/walking data_mode added to axi4_master_wr_pattern_gen (:502-505
+    # documents the only two modes) and a rebuild.
+    PHASE_SEED = int(_os.environ.get("CAP_PHASE_SEED", "0"), 0)
+    if PHASE_SEED:
+        dm, seed = False, PHASE_SEED
+        print(f"[uart] phase-distinct LFSR pattern, seed=0x{seed:08x} "
+              f"(device words a5c3/5ac3)", flush=True)
+    else:
+        dm, seed = True, SEED
+
     d.clear_stats()
     d.program_wr_engine(start_addr=0x0, burst_len=BL, txn_count=TXN, stride_0=BL * 8,
-                        lfsr_seed=SEED, data_mode=True, hash_seed0=SEED)
-    d.start_wr(); wr_ok = wait_engine(d, "wr")
+                        lfsr_seed=seed, data_mode=dm, hash_seed0=SEED)
+    d.start_wr(); wr_ok = wait_engine(d, "wr", ignore_error=True)
     print(f"[uart] wr done={wr_ok} mism={d.beats_mismatched()}", flush=True)
     for _ in range(8):
         d.program_rd_engine(start_addr=0x0, burst_len=BL, txn_count=TXN, stride_0=BL * 8,
-                            lfsr_seed=SEED, data_mode=True, hash_seed0=SEED)
-        d.clear_stats(); d.start_rd(); wait_engine(d, "rd")
+                            lfsr_seed=seed, data_mode=dm, hash_seed0=SEED)
+        d.clear_stats(); d.start_rd(); wait_engine(d, "rd", ignore_error=True)
         time.sleep(0.05)
     print(f"[uart] drove BL={BL} TXN={TXN}; beats_mismatched={d.beats_mismatched()}",
           flush=True)
+
+
+def drive_init(port, baud):
+    """Re-run the JEDEC init MRS chain so the ILA (armed on the LMR command)
+    captures the mode-register writes. soft_reset re-asserts the controller
+    reset, which restarts init_sequencer -> full MRS chain (EMRS*, MRS0+DLL,
+    MRS0, OCD). Pulse it a couple times with a gap in case the first MRS lands
+    before the ILA settles."""
+    d = DDR2CharDriver(port=port, baudrate=baud)
+    print(f"[uart] BUILD_ID=0x{d.build_id():08X}", flush=True)
+    for i in range(3):
+        d.soft_reset()
+        print(f"[uart] soft_reset #{i} -> re-running init MRS chain", flush=True)
+        time.sleep(0.3)
 
 
 def main():
@@ -90,11 +121,14 @@ def main():
     ap.add_argument("--port", default="auto")
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--out", default=os.path.join(_SELF, "reports/ila_capture.csv"))
-    ap.add_argument("--trig", default="wr", choices=["wr", "rd", "ref"],
+    ap.add_argument("--trig", default="wr", choices=["wr", "rd", "ref", "lmr"],
                     help="ILA trigger: wr=wrdata_en (default), rd=rddata_valid, "
                          "ref=REF refresh command (ras_n & cas_n both asserted) — "
                          "use a large CAP_TXN so reads stream continuously and a "
-                         "refresh lands mid-read (the ACT->REF->RD collision)")
+                         "refresh lands mid-read (the ACT->REF->RD collision); "
+                         "lmr=MRS command (ras_n & cas_n & we_n all asserted) — "
+                         "captures the init mode-register writes, fired by a "
+                         "soft_reset that re-runs the JEDEC init MRS chain")
     args = ap.parse_args()
 
     tcl = os.path.join(_SELF, "tcl/capture_ila.tcl")
@@ -117,7 +151,10 @@ def main():
 
     time.sleep(1.0)  # let the arm settle
     args.port = dc.autodetect_port(args.baud, want=args.port)
-    drive_reads(args.port, args.baud)
+    if args.trig == "lmr":
+        drive_init(args.port, args.baud)
+    else:
+        drive_reads(args.port, args.baud)
 
     # Drain the rest of Vivado's output (upload + CSV write).
     for line in proc.stdout:

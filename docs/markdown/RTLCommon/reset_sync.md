@@ -37,7 +37,31 @@ The `reset_sync` module implements a parameterized reset synchronizer that provi
 ## Port Description
 
 ### Parameters
-- **N**: Number of synchronization stages (default: 3)
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| N | int | 3 | Number of synchronization stages. Must be >= 2; an elaboration `$error` rejects anything smaller. |
+| KEEP_ATTRS | bit | 1'b1 | Attach vendor CDC attributes (`ASYNC_REG`, `SHREG_EXTRACT`, `altera_attribute`, `syn_preserve`) to the chain so tools recognize it and do not extract it into an SRL. |
+| IN_ACTIVE_LOW | bit | 1'b1 | Polarity of the `rst_n` input. 1 = active-low (default), 0 = active-high. |
+| OUT_ACTIVE_LOW | bit | 1'b1 | Polarity of the `sync_rst_n` output. 1 = active-low (default), 0 = active-high. |
+| ASYNC_ASSERT | bit | 1'b1 | 1 = asynchronous assert with synchronous deassert (FPGA best practice). 0 = fully synchronous style, where assertion is also clocked. |
+
+: reset_sync parameters
+
+**Polarity without renaming ports.** `IN_ACTIVE_LOW` and `OUT_ACTIVE_LOW` let the
+module sit in an active-high reset domain while keeping the port names `rst_n`
+and `sync_rst_n`. The input is normalized to an internal active-high form on
+entry and the output polarity is applied on exit:
+
+```systemverilog
+wire rst_in_h = IN_ACTIVE_LOW ? ~rst_n : rst_n;
+...
+sync_rst_n = OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h;
+```
+
+The port names are kept for compatibility, so a `reset_sync` with
+`OUT_ACTIVE_LOW = 0` drives an active-**high** reset out of a port still called
+`sync_rst_n`. Check the parameter, not the name.
 
 ### Inputs
 | Port | Width | Description |
@@ -66,34 +90,59 @@ The ideal reset behavior is:
 ## Implementation Details
 
 ### Synchronization Register Chain
-```systemverilog
-logic [N-1:0] r_sync_reg = {N{1'b0}};
-```
-An N-stage shift register initialized to all zeros provides the synchronization delay.
 
-### Reset Logic (Corrected Implementation)
 ```systemverilog
-always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin                             // When rst_n is LOW (active reset)
-        r_sync_reg <= {N{1'b0}};                 // Clear register (reset asserted)
-    end else begin                                // When rst_n is HIGH (inactive)
-        r_sync_reg <= {r_sync_reg[N-2:0], 1'b1}; // Shift in 1's (releasing reset)
-    end
+logic [N-1:0] r_sync_reg = '0;
+```
+
+An N-stage shift register provides the synchronization delay. The chain carries
+the **active-high** internal form of the reset: a 1 in the chain means "reset
+asserted". This is the opposite of what the port names suggest, and is the single
+most common source of confusion when reading this module.
+
+### Reset Logic
+
+```systemverilog
+// ASYNC_ASSERT = 1 (default): async assert, sync deassert
+always_ff @(posedge clk or posedge rst_in_h) begin
+    if (rst_in_h) r_sync_reg <= '1;                 // hold asserted through chain
+    else          r_sync_reg <= {r_sync_reg[N-2:0], 1'b0};
 end
 ```
 
-**Critical Bug Fix (2025-10-14):**
-- **Original bug**: Logic was inverted (`if (rst_n)` instead of `if (!rst_n)`)
-- **Impact**: Module was completely non-functional - reset never worked correctly
-- **Discovered by**: Comprehensive test suite (val/common/test_reset_sync.py)
-- **Fix**: Corrected reset polarity check
-- **Verification**: All 4 test configurations passing (N=2, 3, 4, 5)
+While the reset is asserted, the chain is forced to all ones. When it releases,
+zeros shift in from the LSB, and after N clock edges the MSB has become 0 and the
+reset is considered released.
+
+With `ASYNC_ASSERT = 0` the sensitivity list drops `rst_in_h` and assertion is
+sampled on the clock edge like any other synchronous load:
+
+```systemverilog
+always_ff @(posedge clk) begin
+    if (rst_in_h) r_sync_reg <= '1;
+    else          r_sync_reg <= {r_sync_reg[N-2:0], 1'b0};
+end
+```
+
+This style cannot assert reset while the clock is stopped, which is why the
+asynchronous-assert variant is the default.
 
 ### Output Assignment
+
 ```systemverilog
-assign sync_rst_n = r_sync_reg[N-1];
+wire sync_rst_h = r_sync_reg[N-1];
+always_comb begin
+    sync_rst_n = OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h;
+end
 ```
-The synchronized reset output comes from the final stage of the shift register.
+
+The MSB of the chain is the active-high synchronized reset; the output stage
+applies the requested polarity.
+
+The RTL body is written out four times inside a `generate`, once per combination
+of `ASYNC_ASSERT` and `KEEP_ATTRS`, because the vendor attributes have to be
+attached at the declaration. All four variants are logically identical apart
+from the attributes and the sensitivity list.
 
 ## Timing Behavior
 
@@ -109,7 +158,7 @@ sync_rst_n: ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾╲__
 ```
 clk:        ____╱‾╲____╱‾╲____╱‾╲____╱‾╲____╱‾╲____╱‾╲____
 rst_n:      _________________╱‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-r_sync_reg: 000  000  000  001  011  111  111  111  111
+r_sync_reg: 111  111  111  110  100  000  000  000  000
 sync_rst_n: _________________________╱‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
                                     ^
                             Synchronized deassertion
@@ -117,21 +166,39 @@ sync_rst_n: _________________________╱‾‾‾‾‾‾‾‾‾‾‾‾‾�
 ```
 
 ### State Sequence for N=3
-| Clock | rst_n | r_sync_reg | sync_rst_n | Description |
-|-------|-------|------------|------------|-------------|
-| - | 0 | 000 | 0 | Reset active, output low |
-| 1 | 0 | 001 | 0 | First 1 shifted in |
-| 2 | 0 | 011 | 0 | Second 1 shifted in |
-| 3 | 0 | 111 | 1 | Third 1 reaches output |
-| 4+ | 0 | 111 | 1 | Reset deasserted, stable |
+
+Default polarities (`IN_ACTIVE_LOW = 1`, `OUT_ACTIVE_LOW = 1`), so `rst_n = 0`
+means reset asserted and `sync_rst_n = 0` means reset asserted downstream.
+Remember the chain holds the active-high form, so 111 is "asserted".
+
+| Clock | rst_n | rst_in_h | r_sync_reg | sync_rst_n | Description |
+|-------|-------|----------|------------|------------|-------------|
+| - | 0 | 1 | 111 | 0 | Reset asserted, chain forced to all ones |
+| 1 | 1 | 0 | 110 | 0 | Reset released; first 0 shifted in |
+| 2 | 1 | 0 | 100 | 0 | Second 0 shifted in |
+| 3 | 1 | 0 | 000 | 1 | MSB clears; reset released downstream |
+| 4+ | 1 | 0 | 000 | 1 | Stable, out of reset |
+
+: reset_sync state sequence for N=3 at default polarities
+
+The output releases on the third clock edge after `rst_n` goes high, which is
+the N clock cycles of metastability margin the chain exists to provide.
 
 ## Special Implementation Notes
 
-### 1. Inverted Logic Explanation
-The seemingly counterintuitive reset condition logic serves a specific purpose:
-- During reset: shift register accumulates 1's
-- After reset release: shift register is cleared, then accumulates 1's again
-- This ensures N clock cycles of delay before output goes high
+### 1. Why the chain looks inverted
+
+The chain stores the **active-high** form of the reset, while the ports are named
+for the active-low form. Reading it in the right order removes the confusion:
+
+- `rst_in_h` is the input normalized to active-high
+- while `rst_in_h` is 1, the chain is forced to all ones (reset asserted)
+- when `rst_in_h` falls, zeros shift in from the LSB
+- after N edges the MSB is 0, and the output stage inverts it back to the
+  requested polarity
+
+So during reset the register holds 1s and after release it drains to 0s, which is
+the opposite of what the port names alone would suggest.
 
 ### 2. Metastability Resolution
 The N-stage design provides multiple clock cycles for metastability resolution:
@@ -140,16 +207,32 @@ The N-stage design provides multiple clock cycles for metastability resolution:
 - N=2 typically sufficient, N=3 provides extra margin
 
 ### 3. Initialization
-```systemverilog
-logic [N-1:0] r_sync_reg = {N{1'b0}};
-```
-Explicit initialization ensures predictable power-on behavior.
 
-### 4. Parameterization Benefits
+```systemverilog
+logic [N-1:0] r_sync_reg = '0;
+```
+
+The declaration initializer gives FPGA configuration a defined starting value.
+Note it starts at 0, the *released* state, so on an FPGA the design comes out of
+configuration with reset already deasserted unless `rst_n` is asserted. On an
+ASIC the initializer is ignored and the first asynchronous assertion establishes
+the state.
+
+### 4. Vendor attributes
+
+With `KEEP_ATTRS = 1` (the default) the chain carries `ASYNC_REG = "TRUE"` and
+`SHREG_EXTRACT = "NO"` for Xilinx, `altera_attribute` forcing synchronizer
+identification for Intel, and `syn_preserve` for Synplify. These stop the tool
+from packing the chain into an SRL primitive, which would defeat the
+metastability margin, and let CDC reports recognize it as a synchronizer. Set
+`KEEP_ATTRS = 0` only if your flow objects to the attributes.
+
+### 5. Parameterization Benefits
+
 Configurable N allows optimization for different requirements:
-- **N=2**: Minimum recommended, fast reset release
+- **N=2**: Minimum permitted, fast reset release
 - **N=3**: Standard choice, good metastability margin
-- **N≥4**: Conservative, slower but very robust
+- **N>=4**: Conservative, slower but very robust
 
 ## Parameter Selection Guidelines
 

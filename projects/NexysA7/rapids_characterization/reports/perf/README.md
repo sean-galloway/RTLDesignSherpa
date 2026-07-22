@@ -220,7 +220,7 @@ return to idle on its own at end-of-descriptor so no host reset is needed — th
 |------|----------|
 | `perf/json/genesys_full_matrix.json` | channel × size matrix (this report) |
 | `perf/json/genesys_8ch_*.json` | earlier back-to-back runs (show the pre-fix wedge) |
-| `perf/plots/*.png` | figures above (`host/plot_char_reports.py`) |
+| `perf/plots/*.png` | figures above (`flows-rapids-beats/host/plot_char_reports.py`) |
 
 ```bash
 # full channel x size matrix in ONE programming (CHANNEL_RESET per run):

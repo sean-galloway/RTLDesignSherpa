@@ -363,7 +363,7 @@ this harness). This is the same BDP that bounds the per-transaction sweep in
 | `json/chan_x_delay_2026-06-23.json` | channels {1,2,4,8} × delay {0..512}, 1 desc |
 | `json/desc_x_delay_2026-06-23.json` | desc {1,2,4,8,16} × delay {0..512}, 1 ch |
 | `json/matrix_2026-06-23.csv` | flat CSV of the matrix (column dictionary below) |
-| `plots/*.png` | figures above (`host/plot_char_reports.py` + `burst_size_util.png`) |
+| `plots/*.png` | figures above (`flows-stream-bridge/host/plot_char_reports.py` + `burst_size_util.png`) |
 | `old/` | superseded datasets and prior report revisions |
 
 : Characterization datasets (2026-06-23, board 210292B7D46F)

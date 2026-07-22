@@ -41,9 +41,11 @@ Depths even (gaxi_fifo_async requires even depth).
   command on the correct DFI phase (rd/wr phase, ACT/PRE/REF/MRS on phase 0),
   NOP the rest. Multi-command-per-DFI-cycle packing is where BL8/1-cmd-per-ctl-
   clock maps to nphases; today's formatter is phase-0-only → rework.
-- **write serializer** (`wr_beat_sequencer` reworked, BL8): pop the wrdata FIFO,
+- **write serializer** (`pumice_dfi_wr_serializer`; supersedes the retired
+  `wr_beat_sequencer`): pop the wrdata FIFO,
   drive dfi_wrdata + dfi_wrdata_mask at tphy_wrlat, BL/2 per phase.
-- **read aligner** (`rd_cl_aligner` reworked): capture dfi_rddata on
+- **read aligner** (`pumice_dfi_rd_aligner`; supersedes the retired
+  `rd_cl_aligner`): capture dfi_rddata on
   dfi_rddata_valid, push {data,resp,last} into the rddata FIFO.
 - `dfi_signal_pack` + `dfi_v21_interface`: pack the multi-phase bus, DFI egress.
 
@@ -55,6 +57,10 @@ Depths even (gaxi_fifo_async requires even depth).
   caught.
 
 ## Bandwidth note
-1 cmd / controller-clock fills the DQ bus iff BL = 2·nphases. Target BL8 @
-nphases=4 → single-issue is full bandwidth; the DFI layer packs each command's
-BL8 across the 4 phases of one DFI cycle.
+1 cmd / controller-clock fills the DQ bus iff BL = 2·nphases. At BL8 @
+nphases=4 single-issue is full bandwidth: the DFI layer packs each command's
+BL8 across the 4 phases of one DFI cycle. BL and gear are RUNTIME CSRs
+(`DFI_PHASE.bl`/`.gear_ratio`, task #146) — the Nexys A7 board build runs
+BL4 @ DFI_RATE=2 (the a7ddrphy netlist is 1:2 / nphases=2; the "fixed
+nphases=4" reading of it was disproven on silicon), where a BL4 x16 burst is
+one 64b DFI word per command.

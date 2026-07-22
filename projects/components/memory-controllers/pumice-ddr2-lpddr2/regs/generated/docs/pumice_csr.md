@@ -246,7 +246,7 @@ Don't override. Generated from: $root
 
 | Bits|Identifier|Access|Reset|Name|
 |-----|----------|------|-----|----|
-| 15:0|   tRFC   |  rw  | 0xC8|  — |
+| 15:0|   tRFC   |  rw  | 0x10|  — |
 |31:16|   tREFI  |  rw  |0x79E|  — |
 
 #### tRFC field
@@ -325,16 +325,21 @@ Don't override. Generated from: $root
 - Base Offset: 0x20
 - Size: 0x4
 
-<p>MR0 value loaded during init (low 16 bits)</p>
+<p>MR0 base value loaded during the init MRS chain (low 16 bits).
+Default 0x433 is DDR2 BL8/CL3/tWR3. The init FSM ORs in the DLL
+reset bit for the first MR0 load. Runtime-writable so software can
+retune the mode register AND sweep the value to defeat an
+arbitrary board A-lane mapping on MRS commands: write MRx.VAL then
+pulse CTRL.init_force_restart.</p>
 
 | Bits|Identifier|Access|Reset|Name|
 |-----|----------|------|-----|----|
-| 15:0|    VAL   |  rw  | 0x0 |  — |
+| 15:0|    VAL   |  rw  |0x433|  — |
 |31:16|   RSVD   |   r  | 0x0 |  — |
 
 #### VAL field
 
-<p>MR0 value</p>
+<p>MR0 value, DDR2 BL8/CL3/tWR3 default</p>
 
 #### RSVD field
 
@@ -798,9 +803,7 @@ request. All hw-readable so they drive the controller core.</p>
 |  16 |   memtype   |  rw  | 0x0 |  — |
 |19:17|    RSVD0    |   r  | 0x0 |  — |
 |23:20|refresh_burst|  rw  | 0x1 |  — |
-|25:24|  deskew_lo  |  rw  | 0x0 |  — |
-|27:26|  deskew_hi  |  rw  | 0x0 |  — |
-|31:28|    RSVD1    |   r  | 0x0 |  — |
+|31:24|    RSVD1    |   r  | 0x0 |  — |
 
 #### t_phy_wrlat field
 
@@ -821,14 +824,6 @@ request. All hw-readable so they drive the controller core.</p>
 #### refresh_burst field
 
 <p>REFs drained per request (1..8)</p>
-
-#### deskew_lo field
-
-<p>read DESKEW: low 64b beat capture delay (DFI cyc)</p>
-
-#### deskew_hi field
-
-<p>read DESKEW: high 64b beat capture delay (DFI cyc)</p>
 
 #### RSVD1 field
 

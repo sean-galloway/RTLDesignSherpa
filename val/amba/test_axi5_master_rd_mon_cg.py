@@ -27,6 +27,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.axi5.monitor.axi5_master_monitor_tb import AXI5MasterMonitorTB
 from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 @cocotb.test(timeout_time=30, timeout_unit="sec")
@@ -37,6 +38,14 @@ async def axi5_master_rd_mon_cg_test(dut):
 
     tb = AXI5MasterMonitorTB(dut, is_write=False, aclk=dut.aclk, aresetn=dut.aresetn)
     await tb.initialize()
+
+    # Configure clock gating (converged interface: enable + idle count).
+    # Gating behaviour itself is asserted by val/amba/test_mon_cg_gating.py;
+    # here it is simply left enabled so the functional traffic below runs
+    # with the clock actually being gated and ungated underneath it.
+    dut.cfg_cg_enable.value = 1
+    dut.cfg_cg_idle_count.value = 8
+
     await tb.run_integration_tests(test_level=test_level)
 
 
@@ -79,6 +88,7 @@ def test_axi5_master_rd_mon_cg(id_width, addr_width, data_width, user_width, max
         'rtl_includes': 'rtl/amba/includes',
         'rtl_common': 'rtl/common',
         'rtl_shared': 'rtl/amba/shared',
+        'rtl_monitor': 'rtl/amba/monitor',
     })
 
     dut_name = "axi5_master_rd_mon_cg"
@@ -91,40 +101,9 @@ def test_axi5_master_rd_mon_cg(id_width, addr_width, data_width, user_width, max
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
-    verilog_sources = [
-        # Monitor packages (must be compiled in order)
-        os.path.join(rtl_dict['rtl_includes'], "monitor_common_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_amba4_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_amba5_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_arbiter_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_pkg.sv"),
-        os.path.join(rtl_dict['rtl_common'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_common'], "counter_load_clear.sv"),
-        os.path.join(rtl_dict['rtl_common'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_common'], "counter_freq_invariant.sv"),
-        os.path.join(rtl_dict['rtl_common'], "icg.sv"),
-        os.path.join(rtl_dict['rtl_common'], "clock_gate_ctrl.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "amba_clock_gate_ctrl.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_axi5'], "axi5_master_rd.sv"),
-        os.path.join(rtl_dict['rtl_axi5'], "axi5_master_rd_cg.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "monitor_trans_cam.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_trans_mgr.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_timer.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_timeout.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_error.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_timeout.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_compl.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_threshold.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_perf.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_debug.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_base.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_filtered.sv"),
-        os.path.join(rtl_dict['rtl_axi5'], "axi5_master_rd_mon.sv"),
-        os.path.join(rtl_dict['rtl_axi5'], f"{dut_name}.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axi5_master_rd_mon_cg.f")
 
     for src in verilog_sources:
         if not os.path.exists(src):
@@ -141,6 +120,7 @@ def test_axi5_master_rd_mon_cg(id_width, addr_width, data_width, user_width, max
         'ENABLE_FILTERING': '1',
         'SKID_DEPTH_AR': str(skid_ar),
         'SKID_DEPTH_R': str(skid_r),
+        'CG_IDLE_COUNT_WIDTH': '4',
     }
 
     extra_env = {
@@ -176,7 +156,7 @@ def test_axi5_master_rd_mon_cg(id_width, addr_width, data_width, user_width, max
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[rtl_dict['rtl_includes'], rtl_dict['rtl_common'], sim_build],
+            includes=includes + [rtl_dict['rtl_common'], sim_build],
             toplevel=dut_name,
             module="test_axi5_master_rd_mon_cg",
             parameters=rtl_parameters,

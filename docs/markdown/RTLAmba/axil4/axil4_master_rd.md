@@ -50,17 +50,21 @@ The AXIL4 Master Read module provides a buffered AXI4-Lite read interface for ma
 |-----------|------|---------|-------------|
 | `AXIL_ADDR_WIDTH` | int | 32 | Address bus width (typically 32) |
 | `AXIL_DATA_WIDTH` | int | 32 | Data bus width (32 or 64) |
-| `SKID_DEPTH_AR` | int | 2 | AR channel buffer depth (2^N entries) |
-| `SKID_DEPTH_R` | int | 4 | R channel buffer depth (2^N entries) |
+| `SKID_DEPTH_AR` | int | 2 | AR channel skid buffer depth, in entries |
+| `SKID_DEPTH_R` | int | 4 | R channel skid buffer depth, in entries |
 
 ### Derived Parameters
+
+Each channel's skid buffer stores the whole channel payload as one packed
+vector, so the derived `*Size` parameters are just the sum of the widths of the
+signals concatenated into that buffer.
 
 | Parameter | Calculation | Description |
 |-----------|-------------|-------------|
 | `AW` | AXIL_ADDR_WIDTH | Internal address width alias |
 | `DW` | AXIL_DATA_WIDTH | Internal data width alias |
-| `ARSize` | AW+3 | AR packet size (addr + prot) |
-| `RSize` | DW+2 | R packet size (data + resp) |
+| `ARSize` | AW+3 | AR packet size: `{araddr[AW-1:0], arprot[2:0]}` — the 3 is `ARPROT` |
+| `RSize` | DW+2 | R packet size: `{rdata[DW-1:0], rresp[1:0]}` — the 2 is `RRESP` |
 
 ---
 
@@ -127,8 +131,8 @@ flowchart LR
     end
 
     subgraph BUF["AR/R Skid Buffers"]
-        ar["AR Channel<br/>gaxi_skid_buffer<br/>DEPTH=4"]
-        r["R Channel<br/>gaxi_skid_buffer<br/>DEPTH=16"]
+        ar["AR Channel<br/>gaxi_skid_buffer<br/>DEPTH=2"]
+        r["R Channel<br/>gaxi_skid_buffer<br/>DEPTH=4"]
     end
 
     subgraph BE["Backend<br/>(Memory/Periph)"]
@@ -176,8 +180,8 @@ Cycle 7:  R buffer forwards to frontend:
 axil4_master_rd #(
     .AXIL_ADDR_WIDTH(32),
     .AXIL_DATA_WIDTH(32),
-    .SKID_DEPTH_AR(2),      // 4 entries
-    .SKID_DEPTH_R(4)        // 16 entries
+    .SKID_DEPTH_AR(2),      // 2 entries
+    .SKID_DEPTH_R(4)        // 4 entries
 ) u_axil_master_rd (
     .aclk           (axi_clk),
     .aresetn        (axi_resetn),
@@ -209,7 +213,12 @@ axil4_master_rd #(
 );
 ```
 
-### Register Read Example
+### Register Read Example (Testbench Stimulus)
+
+The snippet below is **testbench stimulus, not RTL**. It uses an `initial` block
+and blocking assignments to drive the frontend ports and is not synthesizable.
+In a real design the frontend handshake is driven by an `always_ff` block or by
+the register-access state machine of the requesting logic.
 
 ```systemverilog
 // Read from control register at 0x1000
@@ -254,21 +263,36 @@ end
 
 ### Buffer Depth Selection
 
+`SKID_DEPTH_AR` and `SKID_DEPTH_R` are passed straight through to the `DEPTH`
+parameter of `gaxi_skid_buffer`. `DEPTH` is the **literal entry count**, not an
+exponent, and is constrained to one of `{2, 4, 6, 8}`.
+
 **AR Channel (Addresses):**
-- **SKID_DEPTH_AR = 2** (4 entries): Typical for control registers
+- **SKID_DEPTH_AR = 2** (2 entries): Typical for control registers
 - Increase if many back-to-back reads with slow slave response
 
 **R Channel (Data):**
-- **SKID_DEPTH_R = 4** (16 entries): Accommodates pipeline latency
+- **SKID_DEPTH_R = 4** (4 entries): Accommodates pipeline latency
 - Increase for high-latency backends (DRAM, off-chip peripherals)
 
 ### Busy Signal
 
-**Asserted when:**
-- AR buffer has pending addresses (`int_ar_count > 0`)
-- R buffer has pending data (`int_r_count > 0`)
-- Frontend presenting new address (`fub_arvalid`)
-- Backend presenting new data (`m_axil_rvalid`)
+`busy` is the OR of two persistent terms and two transient terms:
+
+| Term | Kind | Condition |
+|------|------|-----------|
+| AR buffer occupancy | Persistent | `int_ar_count > 0` |
+| R buffer occupancy | Persistent | `int_r_count > 0` |
+| Frontend presenting a new address | Transient | `fub_arvalid` |
+| Backend presenting new data | Transient | `m_axil_rvalid` |
+
+The two transient terms can be high for a single cycle, so `busy` itself can
+pulse. This is intentional: the clock-gate controller does not gate on `busy`
+directly. `amba_clock_gate_ctrl` registers activity into a `wakeup` flop and
+then requires `cfg_cg_idle_count` consecutive idle cycles before gating, so a
+one-cycle handshake reloads the idle counter rather than causing the gate to
+oscillate. Consumers of `busy` outside the clock-gating path should qualify or
+stretch it themselves if they need a level signal.
 
 **Use for:**
 - Clock gating control (see `axil4_master_rd_cg`)
@@ -311,11 +335,16 @@ end
 
 ### Resource Usage
 
+These are **order-of-magnitude estimates**, not measured synthesis results — no
+target device, tool version, or optimization setting is attached to them. They
+scale with `AXIL_DATA_WIDTH` and the `SKID_DEPTH_*` settings. Synthesize for
+your own device before budgeting area.
+
 | Resource | Count | Notes |
 |----------|-------|-------|
-| LUTs | ~200 | Approximate (32-bit) |
+| LUTs | ~200 | Estimate, 32-bit data, default depths |
 | FFs | ~150 | Buffer state + control |
-| BRAM | 0 | Uses distributed RAM |
+| BRAM | 0 | Skid buffers are flop-based |
 
 ---
 
@@ -327,7 +356,7 @@ end
 - **[axil4_slave_wr](axil4_slave_wr.md)** - Slave write interface
 
 ### Monitor Modules
-- **[axil4_master_rd_mon](axil4_master_rd_mon.md)** - Master read with monitoring
+- **[axil4_master_rd_mon](../monitor/axil4_master_rd_mon.md)** - Master read with monitoring (`rtl/amba/monitor/`)
 
 ### Clock-Gated Variants
 - **[axil4_master_rd_cg](axil4_clock_gating_guide.md)** - Clock-gated version
@@ -354,7 +383,7 @@ end
 
 ---
 
-**Last Updated:** 2025-10-20
+**Last Updated:** 2026-07-19
 
 ---
 

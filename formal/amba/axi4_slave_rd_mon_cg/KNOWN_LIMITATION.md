@@ -2,6 +2,12 @@
 
 ## Status: BLOCKED -- Inherits multi-driver issue from axi_monitor_trans_mgr
 
+> Status (2026-07-22): superseded -- the trans-mgr multi-driver issue has been
+> resolved and its formal proof now runs (see formal/amba/axi_monitor_trans_mgr/;
+> the old KNOWN_LIMITATION.md page there was removed). The clock-gating bugs
+> below were also fixed: the wrapper now uses `amba_clock_gate_ctrl` and drives
+> the inner monitor from `gated_aclk`. Kept for history.
+
 The `axi4_slave_rd_mon_cg` module instantiates `axi4_slave_rd_mon`, which
 in turn instantiates `axi_monitor_base` -> `axi_monitor_trans_mgr`. That
 lowest module is known-BLOCKED in formal due to multiple `always_ff`

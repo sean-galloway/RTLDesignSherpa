@@ -88,10 +88,9 @@ These modules instantiate Level 0 primitives.
 ### Advanced Adders
 | Module | Uses | Test File |
 |--------|------|-----------|
-| math_adder_carry_lookahead.sv | math_adder_full | test_math_adder_carry_lookahead.py |
+| math_adder_pg_chain.sv | math_adder_full | test_math_adder_pg_chain.py |
 | math_adder_brent_kung_*.sv | BK primitives | test_math_adder_brent_kung.py |
 | math_adder_han_carlson_*.sv | HC primitives | test_math_adder_han_carlson.py |
-| math_adder_kogge_stone_nbit.sv | KS primitives | test_math_adder_kogge_stone_nbit.py |
 
 ### Multipliers
 | Module | Uses | Test File |
@@ -120,7 +119,6 @@ These modules instantiate Level 0 primitives.
 |--------|------|-----------|
 | fifo_sync.sv | fifo_control | test_fifo_buffer.py |
 | fifo_async.sv | fifo_control, counter_bingray, sync | test_fifo_buffer_async.py |
-| fifo_async_div2.sv | fifo_control, counter_johnson | test_fifo_buffer_async_div2.py |
 
 ### Arbiters
 | Module | Uses | Test File |

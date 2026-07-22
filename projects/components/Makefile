@@ -24,12 +24,40 @@ ifndef REPO_ROOT
 $(error REPO_ROOT is not set. Please run: source $$REPO_ROOT/env_python)
 endif
 
-# Component list - only components with working dv/tests/Makefile
-# To add a component: 1) create dv/tests/Makefile with run-all-* targets, 2) add to this list
-COMPONENTS = stream rapids bridge apb_xbar converters retro_legacy_blocks
+# Component list - only components with a dv/tests/Makefile exposing run-all-* targets.
+# Paths are relative to projects/components/ (some components live under a subdir,
+# e.g. dmas/ and memory-controllers/).  To add a component: 1) ensure its
+# dv/tests/Makefile exposes run-all-<gate|func|full>[-parallel], 2) add it here.
+COMPONENTS = apb_xbar \
+             bridge \
+             converters \
+             dmas/rapids \
+             dmas/stream \
+             memory-controllers/pumice-ddr2-lpddr2 \
+             misc \
+             retro_legacy_blocks
 
-# Components that exist but don't have test Makefiles yet (for reference):
-# - bch, delta, misc - have dv/tests dir but no Makefile
+# Components that exist but don't yet expose run-all-* test targets (for reference):
+# - bch, delta, hive                         - no dv/tests Makefile
+# - memory-controllers/ddr3-lpddr3, ddr4-lpddr4 - tests/ dir but no test Makefile
+
+# ------------------------------------------------------------------------------
+# Whole-repo "did anything break" sweep (run-all-<level>-fast)
+# ------------------------------------------------------------------------------
+# The -parallel targets parallelize only WITHIN a tier, so a full sweep is the
+# SUM of ~14 sequential pytest invocations, each gated by its slowest test while
+# the other workers idle.  The -fast targets instead run COMPONENTS concurrently
+# and scale the per-component worker count so the total stays near core count.
+#
+# Safe because each component has its own local_sim_build/ root, and cocotb_test
+# appends the xdist worker id (…_gw1) to each test's build dir -- no collisions.
+# This does NOT re-mix tiers into one pytest pool (the cross-tier interference
+# that motivated serial tiers); tiers stay serial inside each component.
+#
+# Override on the command line, e.g.:  make run-all-full-fast FAST_JOBS=6
+FAST_JOBS    ?= 4
+FAST_WORKERS ?= $(shell echo $$(( $$(nproc) / $(FAST_JOBS) )))
+FAST_LOGDIR  ?= $(CURDIR)/.fast_logs
 
 # Colors for output (if supported)
 BOLD := $(shell tput bold 2>/dev/null)
@@ -51,14 +79,18 @@ help:
 	@echo "Projects/Components Master Makefile"
 	@echo "================================================================================"
 	@echo ""
+	@echo "STANDARD REGRESSION (canonical - the whole point):"
+	@echo "  make clean-all && make run-all-full-parallel"
+	@echo "    Runs every component SERIALLY; within each, tiers (fub->macro->top)"
+	@echo "    run serially, parallel (48 workers) within each tier."
+	@echo ""
+	@echo "  make run-all[-<gate|func|full>][-parallel]   Standard names, all components"
+	@echo "  (run-all == test-all; the test-all-* names remain as aliases)"
+	@echo ""
 	@echo "TEST TARGETS (run tests on all components):"
 	@echo "  make test-all             Run tests for ALL components"
-	@echo "  make test-stream          Run STREAM tests"
-	@echo "  make test-rapids          Run RAPIDS tests"
-	@echo "  make test-bridge          Run Bridge tests"
-	@echo "  make test-apb_xbar        Run APB Crossbar tests"
-	@echo "  make test-converters      Run Converters tests"
-	@echo "  make test-retro_legacy_blocks  Run Retro Legacy Blocks tests"
+	@echo "  Per component: make -C <component>/dv/tests run-all-full-parallel"
+	@echo "    (component paths: $(COMPONENTS))"
 	@echo ""
 	@echo "REG_LEVEL TEST TARGETS (configurable test depth):"
 	@echo "  GATE = Quick smoke (~5 min/component), FUNC = Default (~30 min/component), FULL = Comprehensive (~4 hr/component)"
@@ -232,6 +264,119 @@ test-all-full-parallel:
 	done
 	@echo ""
 	@echo "$(BOLD)$(GREEN)✓ All component comprehensive tests complete$(RESET)"
+
+# ==============================================================================
+# Standardized run-all-* Targets (canonical names)
+# ==============================================================================
+# The project-wide convention is run-all-<gate|func|full>, with an optional
+# -parallel suffix.  These iterate the components SERIALLY (one component's full
+# regression finishes before the next starts); within each component the tiers
+# (fub -> macro -> top) also run serially -- see each component's dv/tests/Makefile.
+# The heavy lifting is the same component loop as the test-all-* targets, so these
+# are thin aliases.
+
+.PHONY: run-all run-all-parallel
+run-all:               test-all
+run-all-parallel:      test-all-parallel
+
+.PHONY: run-all-gate run-all-gate-parallel
+run-all-gate:          test-all-gate
+run-all-gate-parallel: test-all-gate-parallel
+
+.PHONY: run-all-func run-all-func-parallel
+run-all-func:          test-all-func
+run-all-func-parallel: test-all-func-parallel
+
+.PHONY: run-all-full run-all-full-parallel
+run-all-full:          test-all-full
+run-all-full-parallel: test-all-full-parallel
+
+# ==============================================================================
+# Fast Whole-Repo Sweep (run-all-<level>-fast)
+# ==============================================================================
+# Same coverage as run-all-<level>-parallel, but components run CONCURRENTLY
+# ($(FAST_JOBS) at a time, $(FAST_WORKERS) pytest workers each) instead of one
+# after another.  Bridge stays internally serial (by design); it simply overlaps
+# with other components now rather than blocking them.
+#
+# Does NOT fail-fast: every component runs even if an earlier one fails, so one
+# breakage can't hide the state of everything downstream.  Per-component logs
+# land in $(FAST_LOGDIR) and a pass/fail summary prints at the end.
+
+# One explicit target per (level, component).  NOTE: these are deliberately NOT
+# .PHONY -- GNU make does not apply pattern/implicit rules to phony targets, and
+# an earlier pattern-rule version silently matched nothing.  They are explicit
+# rules with recipes, so no file is ever created and no .PHONY is needed.
+#
+# $(1) = level (gate|func|full), $(2) = component path
+define FAST_COMPONENT_RULE
+.fast-$(1)-$(2):
+	@echo "$$(GREEN)  ==> start $(2) ($(1))$$(RESET)"
+	@$$(MAKE) -C $(2)/dv/tests run-all-$(1)-parallel \
+		PYTEST_XDIST="-n $$(FAST_WORKERS)" \
+		> $$(FAST_LOGDIR)/$(subst /,_,$(2)).log 2>&1; \
+	 rc=$$$$?; echo $$$$rc > $$(FAST_LOGDIR)/$(subst /,_,$(2)).rc; \
+	 if [ $$$$rc -eq 0 ]; then \
+		echo "$$(GREEN)  <== PASS  $(2)$$(RESET)"; \
+	 else \
+		echo "$$(RED)  <== FAIL  $(2) (rc=$$$$rc) -- $$(FAST_LOGDIR)/$(subst /,_,$(2)).log$$(RESET)"; \
+	 fi
+endef
+
+# $(1) = level
+define FAST_LEVEL_TARGETS
+.PHONY: run-all-$(1)-fast
+run-all-$(1)-fast:
+	@rm -rf $$(FAST_LOGDIR) && mkdir -p $$(FAST_LOGDIR)
+	@echo "$$(BOLD)================================================================================$$(RESET)"
+	@echo "$$(BOLD)Fast sweep: ALL components ($(1) level)$$(RESET)"
+	@echo "  $$(FAST_JOBS) components at a time x $$(FAST_WORKERS) workers each"
+	@echo "  logs: $$(FAST_LOGDIR)"
+	@echo "$$(BOLD)================================================================================$$(RESET)"
+	@$$(MAKE) --no-print-directory -j$$(FAST_JOBS) -k \
+		$$(addprefix .fast-$(1)-,$$(COMPONENTS)) || true
+	@$$(MAKE) --no-print-directory .fast-report FAST_EXPECTED="$$(words $$(COMPONENTS))"
+
+$$(foreach comp,$$(COMPONENTS),$$(eval $$(call FAST_COMPONENT_RULE,$(1),$$(comp))))
+endef
+
+$(foreach lvl,gate func full,$(eval $(call FAST_LEVEL_TARGETS,$(lvl))))
+
+.PHONY: .fast-report
+.fast-report:
+	@echo ""
+	@echo "$(BOLD)================================================================================$(RESET)"
+	@echo "$(BOLD)Fast sweep summary$(RESET)"
+	@echo "$(BOLD)================================================================================$(RESET)"
+	@fail=0; seen=0; \
+	for rc in $(FAST_LOGDIR)/*.rc; do \
+		[ -e "$$rc" ] || continue; \
+		seen=$$((seen+1)); \
+		comp=$$(basename $$rc .rc); \
+		if [ "$$(cat $$rc)" = "0" ]; then \
+			printf "  $(GREEN)PASS$(RESET)  %s\n" "$$comp"; \
+		else \
+			printf "  $(RED)FAIL$(RESET)  %s  (%s)\n" "$$comp" "$(FAST_LOGDIR)/$$comp.log"; \
+			fail=1; \
+		fi; \
+	done; \
+	echo ""; \
+	echo "  components reported: $$seen (expected $(FAST_EXPECTED))"; \
+	if [ "$$seen" = "0" ]; then \
+		echo "$(BOLD)$(RED)✗ NOTHING RAN -- no component reported a result.$(RESET)"; \
+		echo "$(RED)  Do NOT read this as a pass.$(RESET)"; \
+		exit 1; \
+	fi; \
+	if [ -n "$(FAST_EXPECTED)" ] && [ "$$seen" != "$(FAST_EXPECTED)" ]; then \
+		echo "$(BOLD)$(RED)✗ INCOMPLETE -- only $$seen of $(FAST_EXPECTED) components reported.$(RESET)"; \
+		exit 1; \
+	fi; \
+	if [ $$fail -eq 0 ]; then \
+		echo "$(BOLD)$(GREEN)✓ All $$seen components passed$(RESET)"; \
+	else \
+		echo "$(BOLD)$(RED)✗ One or more components FAILED (see logs above)$(RESET)"; \
+	fi; \
+	exit $$fail
 
 # ==============================================================================
 # Test Targets - Individual Components

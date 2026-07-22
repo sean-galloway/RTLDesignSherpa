@@ -1,0 +1,29 @@
+{
+  "signal": [
+    {"name": "clk_src",       "wave": "p......................."},
+    {"name": "rst_src_n",     "wave": "1.......................", "node": "........................"},
+    {"name": "src_valid",     "wave": "0.1.0..................."},
+    {"name": "r_req_tog",     "wave": "0..1....................", "node": "...a...................."},
+    {},
+    {"name": "clk_dst",       "wave": "p......................."},
+    {"name": "rst_dst_n",     "wave": "1.........0..1..........", "node": "..........r..s.........."},
+    {"name": "r_req_sync[2]", "wave": "0.....1...0..1..........", "node": ".............e.........."},
+    {"name": "r_req_sync_d",  "wave": "0......1..0...1........."},
+    {"name": "w_req_event",   "wave": "0.....10.....10.........", "node": ".............f.........."},
+    {"name": "dst_valid",     "wave": "0.....1..0...1..0......."},
+    {"name": "r_ack_tog",     "wave": "0........1.0............"}
+  ],
+  "edge": [
+    "a~>e src toggle still 1",
+    "r destination reset only",
+    "f PHANTOM transfer"
+  ],
+  "head": {
+    "text": "cdc_2_phase_handshake - HAZARD: destination reset alone fabricates a transfer",
+    "tick": 0
+  },
+  "foot": {
+    "text": "rst_dst_n clears r_req_sync/r_req_sync_d to 0 while r_req_tog stays 1 in the source. On release the sync chain refills with 1, so w_req_event = 1 ^ 0 fires and dst_valid asserts for a transfer the source never sent. Parity is now inverted for the rest of the session."
+  },
+  "config": {"hscale": 2}
+}

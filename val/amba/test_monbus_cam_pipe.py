@@ -17,6 +17,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 class CamPipeTB(TBBase):
@@ -108,6 +109,7 @@ async def monbus_cam_pipe_test(dut):
 def test_monbus_cam_pipe(request):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_shared':   'rtl/amba/shared',
+        'rtl_monitor': 'rtl/amba/monitor',
         'rtl_includes': 'rtl/amba/includes',
         'val_amba':     'val/amba',
     })
@@ -119,11 +121,9 @@ def test_monbus_cam_pipe(request):
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
     os.makedirs(sim_build, exist_ok=True); os.makedirs(log_dir, exist_ok=True)
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_shared'],   "monbus_cam.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "monbus_cam_pipe.sv"),
-        os.path.join(rtl_dict['val_amba'],     f"{dut_name}.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/monbus_cam_pipe_dut.f")
     for src in verilog_sources:
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")
@@ -140,7 +140,7 @@ def test_monbus_cam_pipe(request):
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name)
     try:
         run(python_search=[tests_dir], verilog_sources=verilog_sources,
-            includes=[rtl_dict['rtl_includes'], rtl_dict['rtl_shared'], sim_build],
+            includes=includes + [rtl_dict['rtl_shared'], sim_build],
             toplevel=dut_name, module=module, sim_build=sim_build,
             extra_env=extra_env, waves=bool(int(os.environ.get('WAVES', '0'))),
             keep_files=True, compile_args=compile_args)

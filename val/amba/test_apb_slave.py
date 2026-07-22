@@ -39,6 +39,7 @@ from TBClasses.amba.amba_random_configs import (
     AXI_RANDOMIZER_CONFIGS
 )
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 class APBGAXIDebugTB(TBBase):
@@ -1031,10 +1032,9 @@ def test_apb_gaxi_refactor_debug(request, addr_width, data_width, depth):
     dut_name = "apb_slave"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_amba'], f"apb/{dut_name}.sv")
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/apb_slave.f")
 
     aw_str = TBBase.format_dec(addr_width, 3)
     dw_str = TBBase.format_dec(data_width, 3)
@@ -1097,7 +1097,7 @@ def test_apb_gaxi_refactor_debug(request, addr_width, data_width, depth):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[rtl_dict['rtl_amba_includes']],
+            includes=includes,
             toplevel=toplevel,
             module=module,
             parameters=rtl_parameters,

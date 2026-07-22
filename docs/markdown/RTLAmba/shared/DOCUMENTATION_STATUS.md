@@ -39,10 +39,14 @@
    - Design notes included
    - Cross-references added
 
-11. **axi_monitor_trans_mgr.md** - COMPLETE (rewritten 2026-06-08)
+11. **axi_monitor_trans_mgr.md** - COMPLETE (rewritten 2026-06-08; updated
+    2026-07 for the cb29e226/95c9490a fixes)
     - Reflects CAM-backed revision (delegates to monitor_trans_cam)
     - Documents synthesis properties carried from the 2026-04-23 WNS fix
-    - Equivalence test + TRANS_MGR_VARIANT rollback knob covered
+    - Same-ID slot separation, oldest-first attribution, command-entry cap,
+      same-cycle AW+W bypass, in-RTL formal properties
+    - (The legacy variant, its equivalence test, and the TRANS_MGR_VARIANT
+      rollback knob were deleted in d246a72d)
 
 12. **monitor_trans_cam.md** - COMPLETE (new 2026-06-08)
     - Multi-port ID CAM with opaque payload

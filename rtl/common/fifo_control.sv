@@ -83,7 +83,7 @@
 //------------------------------------------------------------------------------
 // Related Modules:
 //------------------------------------------------------------------------------
-//   - fifo_async_div2.sv - Async FIFO using this control module
+//   - fifo_async.sv - Async FIFO using this control module (either encoding)
 //   - fifo_async.sv - General async FIFO
 //
 //------------------------------------------------------------------------------

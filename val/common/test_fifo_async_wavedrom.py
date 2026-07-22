@@ -24,7 +24,7 @@ KEY FEATURES TO SHOWCASE:
 2. Power-of-2 depth requirement
 3. Efficient resource usage (logarithmic pointer width)
 4. Cross-domain pointer transitions
-5. Comparison point for fifo_async_div2 (Johnson counter variant)
+5. Comparison point for the USE_JOHNSON=1 (Johnson counter) configuration
 
 WAVEDROM SCENARIOS (v1.2 Requirements):
 - Quality over quantity: 3-4 focused scenarios

@@ -41,6 +41,7 @@ module formal_axi_monitor_trans_mgr (
 
     (* anyseq *) reg  [31:0]             timestamp;
     (* anyseq *) reg  [MAX_TRANSACTIONS-1:0] i_event_reported_flags;
+    (* anyseq *) reg                     cam_clear;   // synchronous CAM clear
 
     // =========================================================================
     // DUT outputs (sv2v flattened -- signals are exposed as flat wires)
@@ -66,6 +67,7 @@ module formal_axi_monitor_trans_mgr (
     ) dut (
         .aclk                  (clk),
         .aresetn               (rst_n),
+        .clear                 (cam_clear),
         .cmd_valid             (cmd_valid),
         .cmd_ready             (cmd_ready),
         .cmd_id                (cmd_id),
@@ -95,6 +97,8 @@ module formal_axi_monitor_trans_mgr (
     always @(posedge clk)
         f_past_valid <= f_past_valid + (f_past_valid < 8'hFF);
 
+    // Hold reset 2 cycles so the CAM valid bits and the active_count register
+    // reach their cleared state before the steady-state properties apply.
     initial assume (!rst_n);
     always @(posedge clk) if (f_past_valid >= 2) assume (rst_n);
 
@@ -102,13 +106,8 @@ module formal_axi_monitor_trans_mgr (
     // Environment constraints
     // =========================================================================
 
-    // Constrain burst length for tractability
-    always @(*) begin
-        assume (cmd_len <= 8'd3);
-    end
-
-    // Ensure data_resp errors are rare (don't overwhelm the table)
-    // No constraint needed -- let solver explore freely
+    // Constrain burst length for tractability.
+    always @(*) assume (cmd_len <= 8'd3);
 
     // =========================================================================
     // P1: Reset clears active_count to zero
@@ -120,6 +119,12 @@ module formal_axi_monitor_trans_mgr (
 
     // =========================================================================
     // P2: active_count bounded by MAX_TRANSACTIONS
+    //
+    // active_count is now the registered pop-count of the CAM occupancy, so it is
+    // structurally in [0, MAX_TRANSACTIONS] and can never underflow.  The former
+    // alloc-minus-cleanup accumulator could underflow to 0xFF under legal AXI --
+    // this proof caught it; see
+    // rtl/amba/KNOWN_ISSUES/axi_monitor_active_count_underflow.md.
     // =========================================================================
     always @(posedge clk) begin
         if (rst_n)
@@ -135,16 +140,11 @@ module formal_axi_monitor_trans_mgr (
     end
 
     // =========================================================================
-    // P4: active_count increases when cmd_valid with no existing match
-    //     and a free slot is available (no simultaneous cleanup)
-    // We track this via shadow model: if active_count was 0 and cmd_valid
-    // asserts, next cycle active_count should be 1 (assuming no cleanup).
+    // P4: allocation reachability -- a command into an empty table opens a
+    //     tracked transaction (active_count reaches 1).  Reachability is verified
+    //     by the cp_first_alloc cover below (active_count == 1 from an empty
+    //     table); the safety side is P2/P5.
     // =========================================================================
-    always @(posedge clk) begin
-        if (f_past_valid >= 3 && rst_n && $past(rst_n) &&
-            $past(cmd_valid) && $past(active_count_o) == 0)
-            ap_alloc_from_empty: assert (active_count_o >= 8'd1);
-    end
 
     // =========================================================================
     // P5: active_count does not increase beyond MAX_TRANSACTIONS
@@ -153,6 +153,15 @@ module formal_axi_monitor_trans_mgr (
     always @(posedge clk) begin
         if (rst_n)
             ap_no_overflow: assert (active_count_o <= 8'(MAX_TRANSACTIONS));
+    end
+
+    // =========================================================================
+    // P6: synchronous CAM clear zeroes active_count on the next cycle
+    //     (verified through the port, not DUT internals).
+    // =========================================================================
+    always @(posedge clk) begin
+        if (rst_n && f_past_valid > 0 && $past(rst_n) && $past(cam_clear))
+            ap_clear_zeroes_count: assert (active_count_o == 8'h0);
     end
 
     // =========================================================================

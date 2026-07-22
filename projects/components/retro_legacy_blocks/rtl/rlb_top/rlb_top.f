@@ -17,22 +17,16 @@
 # Include directories for SystemVerilog header files
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-# ============================================================================
-# APB Infrastructure
-# ============================================================================
-
-# GAXI dependencies (FIFO and skid buffer for CDC)
-$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
-$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
-
-# APB slave and master modules (core crossbar building blocks)
-$REPO_ROOT/rtl/amba/apb/apb_slave.sv
-$REPO_ROOT/rtl/amba/apb/apb_master.sv
-
-# Common arbiter modules
-$REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
-$REPO_ROOT/rtl/common/arbiter_round_robin.sv
-$REPO_ROOT/rtl/common/encoder.sv
+# AMBA/common dependencies come in via each component's OWN filelist; this
+# file never hand-lists individual rtl/common or rtl/amba sources. A consumer
+# that hand-lists a component's files has to track that component's internal
+# dependencies, and it silently rots when they change (missing reporter
+# sub-blocks, missing monitor_trans_cam, missing clock-gate chain). Each
+# filelist below declares its own complete closure.
+-f $REPO_ROOT/rtl/amba/filelists/apb_master.f
+-f $REPO_ROOT/rtl/amba/filelists/apb_slave.f
+-f $REPO_ROOT/rtl/common/filelists/arbiter_round_robin.f
+-f $REPO_ROOT/rtl/common/filelists/encoder.f
 
 # ============================================================================
 # APB Crossbar (1-to-10 for RLB peripherals)

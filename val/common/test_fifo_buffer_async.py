@@ -202,31 +202,45 @@ def generate_params():
     widths = [8]
     wr_clk_periods = [10]
 
+    # Pointer CDC encoding (fifo_async USE_JOHNSON):
+    #   0 = Gray    -- power-of-2 depths ONLY (elaboration $error otherwise)
+    #   1 = Johnson -- any even depth. This mode replaces the retired
+    #                  standalone fifo_async_div2 module, so the non-power-of-2
+    #                  depths below are what used to be that module's coverage.
+    # Depths are therefore chosen PER ENCODING rather than as a flat product.
+    gray_depths_by_level    = {'GATE': [4],      'FUNC': [4, 8],     'FULL': [4, 8, 16]}
+    # Johnson depths carried over verbatim from the retired
+    # test_fifo_buffer_async_div2.py so no coverage is lost in the merge.
+    johnson_depths_by_level = {'GATE': [6],      'FUNC': [6, 10],    'FULL': [4, 6, 10, 14]}
+
     if reg_level == 'GATE':
-        # Quick smoke test
-        depths = [4]  # Power of 2
         rd_clk_periods = [8, 12]  # Different clocks to test async
         registered = [0, 1]
         test_levels = ['gate']
     elif reg_level == 'FUNC':
-        # Functional coverage (default)
-        depths = [4, 8]  # Power of 2 depths for Gray counters
         rd_clk_periods = [8, 12]
         registered = [0, 1]
         test_levels = ['gate', 'func']
     else:  # FULL
-        # Comprehensive validation
-        depths = [4, 8, 16]  # Power of 2 depths for standard async FIFOs
         rd_clk_periods = [8, 12]
         registered = [0, 1]
         test_levels = ['gate', 'func', 'full']
 
-    return list(product(widths, depths, wr_clk_periods, rd_clk_periods, registered, test_levels))
+    lvl = reg_level if reg_level in gray_depths_by_level else 'FUNC'
+
+    out = []
+    for use_johnson, depths in ((0, gray_depths_by_level[lvl]),
+                                (1, johnson_depths_by_level[lvl])):
+        out += [(w, d, wr, rd, reg, use_johnson, tl)
+                for w, d, wr, rd, reg, tl
+                in product(widths, depths, wr_clk_periods, rd_clk_periods,
+                           registered, test_levels)]
+    return out
 
 params = generate_params()
 
-@pytest.mark.parametrize("data_width, depth, wr_clk_period, rd_clk_period, registered, test_level", params)
-def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, registered, test_level):
+@pytest.mark.parametrize("data_width, depth, wr_clk_period, rd_clk_period, registered, use_johnson, test_level", params)
+def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, registered, use_johnson, test_level):
     """
     Parameterized asynchronous FIFO buffer test with configurable test levels.
 
@@ -264,7 +278,8 @@ def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, re
     rcl_str = TBBase.format_dec(rd_clk_period, 3)
     # Updated test name format: includes test level in the main name (matches sync version)
     reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
-    test_name_plus_params = f"test_fifo_async_w{w_str}_d{d_str}_wcl{wcl_str}_rcl{rcl_str}_{mode}_{test_level}_{reg_level}"
+    ptr_enc = 'johnson' if use_johnson else 'gray'
+    test_name_plus_params = f"test_fifo_async_w{w_str}_d{d_str}_wcl{wcl_str}_rcl{rcl_str}_{mode}_{ptr_enc}_{test_level}_{reg_level}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -287,7 +302,7 @@ def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, re
     rtl_parameters = {}
 
     # Add numeric parameters normally (ADDED registered parameter)
-    for param_name in ['registered', 'data_width', 'depth']:
+    for param_name in ['registered', 'data_width', 'depth', 'use_johnson']:
         if param_name in locals():
             rtl_parameters[param_name.upper()] = str(locals()[param_name])
 

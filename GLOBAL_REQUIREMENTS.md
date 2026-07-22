@@ -13,11 +13,12 @@ This document consolidates all **MANDATORY** requirements found across repositor
 **Sources Analyzed:**
 - Root `/CLAUDE.md`
 - `projects/components/CLAUDE.md`
-- `projects/components/dmas/rapids/CLAUDE.md`
-- `projects/components/dmas/stream/CLAUDE.md`
-- `bin/TBClasses/CLAUDE.md`
-- `rtl/amba/CLAUDE.md`
+- `projects/components/dmas/rapids/CLAUDE.md` (cited below as `rapids/CLAUDE.md`)
+- `projects/components/dmas/stream/CLAUDE.md` (cited below as `stream/CLAUDE.md`)
+- `rtl/amba/CLAUDE.md` (cited below as `amba/CLAUDE.md`)
 - `rtl/common/CLAUDE.md`
+- `CocoTBFramework/CLAUDE.md` - the DV framework guide, now maintained in the separate
+  RTLDesignSherpa-DV repo (the framework is editable-installed into the venv)
 
 ---
 
@@ -447,8 +448,8 @@ self.log.info(f"Beat {i} completed")
 # Search for existing RTL modules
 find rtl/{subsystem}/ -name "*.sv" | xargs grep -l "keyword"
 
-# Search for existing BFMs
-find bin/TBClasses/components/ -name "*.py" | xargs grep -l "class.*BFM"
+# Search for existing BFMs (CocoTBFramework, editable-installed from RTLDesignSherpa-DV)
+find "$(python3 -c 'import CocoTBFramework,os;print(os.path.dirname(CocoTBFramework.__file__))')/components" -name "*.py" | head
 
 # Search for existing TB classes
 find bin/TBClasses/ -name "*_tb.py"
@@ -470,10 +471,12 @@ find bin/TBClasses/ -name "*_tb.py"
 **Requirement:** MUST use framework BFMs for all protocol interfaces
 
 **BFM Selection:**
-- **Custom valid/ready:** GAXI Master/Slave (`bin/TBClasses/components/gaxi/`)
-- **AXI4:** AXI4 Master/Slave (`bin/TBClasses/components/axi4/`)
-- **APB:** APB drivers (`bin/TBClasses/components/apb/`)
-- **AXI-Stream:** AXIS drivers (`bin/TBClasses/components/axis4/`)
+- **Custom valid/ready:** GAXI Master/Slave (`CocoTBFramework/components/gaxi/`)
+- **AXI4:** AXI4 Master/Slave (`CocoTBFramework/components/axi4/`)
+- **APB:** APB drivers (`CocoTBFramework/components/apb/`)
+- **AXI-Stream:** AXIS drivers (`CocoTBFramework/components/axis4/`)
+
+(BFMs come from the RTLDesignSherpa-DV framework repo; shared TB classes in this repo are `bin/TBClasses/`)
 
 **NEVER:**
 - ❌ Manually drive valid/ready handshakes
@@ -659,7 +662,7 @@ Use this checklist when creating new RTL or testbenches:
 - `/CLAUDE.md` - Repository-wide guidance
 - `/PRD.md` - Master requirements
 - `projects/components/CLAUDE.md` - Project area standards
-- `bin/TBClasses/CLAUDE.md` - Framework patterns
+- `CLAUDE.md` in the RTLDesignSherpa-DV repo - DV framework patterns (shared TB classes: `bin/TBClasses/`)
 
 **Subsystem Documentation:**
 - `projects/components/dmas/rapids/CLAUDE.md` - RAPIDS guidance

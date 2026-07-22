@@ -669,7 +669,7 @@ void hpet_interrupt_handler(void) {
 - [Chapter 2: Blocks](../ch02_blocks/00_overview.md) - Block-level architecture
 - [Chapter 3: Interfaces](../ch03_interfaces/01_top_level.md) - Signal interfaces
 - [Chapter 4: Programming Model](../ch04_programming/01_initialization.md) - Software usage
-- [PeakRDL Specification](../../rtl/peakrdl/hpet_regs.rdl) - SystemRDL register definition
+- [PeakRDL Specification](../../../rtl/hpet/peakrdl/hpet_regs.rdl) - SystemRDL register definition
 
 ### Additional Diagrams
 

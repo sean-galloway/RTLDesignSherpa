@@ -38,7 +38,7 @@ Clock-gated variant of the APB5 Master module. Wraps the base `apb5_master` with
 - All APB5 Master features (see [apb5_master](apb5_master.md))
 - Automatic clock gating during idle periods
 - Configurable idle threshold before gating
-- Zero-latency wake-up on new transactions
+- Registered wake-up on new activity, through a glitch-free ICG cell
 - Power consumption reduction for low-duty-cycle applications
 
 ---
@@ -48,8 +48,9 @@ Clock-gated variant of the APB5 Master module. Wraps the base `apb5_master` with
 ```mermaid
 flowchart TB
     subgraph CG["Clock Gating Control"]
+        wake["Activity Flop<br/>r_wakeup"]
         idle["Idle<br/>Counter"]
-        gate["Clock<br/>Gate"]
+        gate["ICG<br/>Clock Gate"]
     end
 
     subgraph CORE["APB5 Master Core"]
@@ -57,17 +58,18 @@ flowchart TB
     end
 
     pclk["pclk"] --> gate
-    gate -->|gated_clk| master
+    gate -->|gated_pclk| master
     idle --> gate
+    wake --> gate
 
-    cmd_valid --> idle
+    cmd_valid --> wake
+    wake --> idle
     master --> m_apb
 
     cfg_cg_enable --> gate
     cfg_cg_idle_count --> idle
 
-    gate -->|cg_gating| status
-    gate -->|cg_clk_count| status
+    gate -->|apb_clock_gating| status
 ```
 
 ---
@@ -88,15 +90,22 @@ All other parameters inherited from [apb5_master](apb5_master.md).
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
-| cfg_cg_enable | 1 | Input | Enable clock gating (0=disabled) |
+| cfg_cg_enable | 1 | Input | Enable clock gating (0=disabled, clock always runs) |
 | cfg_cg_idle_count | CG_IDLE_COUNT_WIDTH | Input | Idle cycles before gating |
 
 ### Clock Gating Status
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
-| cg_gating | 1 | Output | Clock currently gated |
-| cg_clk_count | 32 | Output | Cumulative gated clock cycles |
+| apb_clock_gating | 1 | Output | High while the internal clock is gated off |
+
+There is no cumulative gated-cycle counter port on this module. If a gated-cycle
+total is needed, count `apb_clock_gating` in the integrating logic on the
+ungated `pclk`.
+
+All ports of [apb5_master](apb5_master.md) -- including the parity signals,
+`parity_error_rdata`, `parity_error_ctrl` and `wakeup_pending` -- are present
+unchanged and pass straight through to the wrapped core.
 
 ---
 
@@ -124,19 +133,48 @@ stateDiagram-v2
     }
 ```
 
+### Activity Detection and Wake-up Latency
+
+The wrapper keeps the clock running whenever any of the following is high:
+
+```
+cmd_valid || rsp_valid || m_apb_PSEL || m_apb_PENABLE || m_apb_PWAKEUP
+```
+
+That term is registered into `r_wakeup` on the ungated `pclk`, and
+`amba_clock_gate_ctrl` registers it once more before it reaches the gating
+condition. Activity is registered once (AXI4, AXI5, AXI4-Lite, AXI4-Stream) or
+twice (APB, APB5, AXI5-Stream) before reaching the ICG enable, which is
+combinational. APB5 is a **two-stage** family, so the first gated-clock rising
+edge available to the wrapped `apb5_master` arrives **3 ungated `pclk` cycles**
+after activity asserts. Nothing is lost during those cycles -- the core is simply
+held static, and the APB transfer stretches by that many wait states.
+
+The actual gating element is an ICG (integrated clock gating) cell instantiated
+by `clock_gate_ctrl`, not a bare AND gate, so enable changes are glitch-free.
+Note that ICG cells are an ASIC-library primitive; on FPGA targets a clock-enable
+approach should be used instead.
+
+Gating engages `cfg_cg_idle_count + 1` ungated `pclk` cycles after the internal
+wakeup deasserts, which is `cfg_cg_idle_count + 3` cycles after the last bus
+activity, because APB5 adds two register stages ahead of the ICG enable. With the
+default `CG_IDLE_COUNT_WIDTH=4` the maximum programmable idle threshold is 15
+cycles.
+
 ### Timing
 
 <!-- TODO: Add wavedrom timing diagram for clock gating -->
-```
-TODO: Wavedrom timing diagram showing:
-- pclk
-- gated_clk
-- cmd_valid
-- cfg_cg_idle_count
-- idle_counter
-- cg_gating
-- Transaction before/after gating
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - pclk
+> - gated_pclk
+> - cmd_valid
+> - cfg_cg_idle_count
+> - idle_counter
+> - apb_clock_gating
+> - Transaction before/after gating
+
 
 ---
 
@@ -158,8 +196,7 @@ apb5_master_cg #(
     .cfg_cg_idle_count  (4'd8),    // Gate after 8 idle cycles
 
     // Clock gating status
-    .cg_gating          (master_clk_gated),
-    .cg_clk_count       (master_gated_cycles),
+    .apb_clock_gating   (master_clk_gated),
 
     // APB5 and command/response interfaces
     // ... (same as apb5_master)
@@ -170,8 +207,13 @@ apb5_master_cg #(
 
 ## Power Savings
 
-| Traffic Pattern | Duty Cycle | Typical Savings |
-|-----------------|------------|-----------------|
+The figures below are first-order expectations derived from the fraction of
+cycles the clock is gated off; they are analytical estimates, not measured
+silicon or post-layout power numbers. Actual savings depend on the technology
+library, the ICG cell, and the clock-tree share of total dynamic power.
+
+| Traffic Pattern | Duty Cycle | Estimated Dynamic Savings |
+|-----------------|------------|---------------------------|
 | Burst | 30% | 35-40% |
 | Mixed | 50% | 20-25% |
 | Continuous | 90%+ | <5% |

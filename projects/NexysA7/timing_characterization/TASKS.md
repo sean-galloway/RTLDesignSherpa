@@ -139,6 +139,11 @@ Add new characterization FUBs to broaden logic family coverage.
 
 ### TASK-004: PDF Generation for Synthesis Guide
 **Status:** Planned
+
+> Status (2026-07-22): the project now has styled PDF generation via
+> `docs/generate_has_pdf.sh`, `docs/generate_mas_pdf.sh`, and
+> `docs/generate_wp_pdf.sh` (HAS/MAS/white-paper); a `docs/generate_pdf.sh`
+> for SYNTHESIS_GUIDE.md specifically has still not been created.
 **Priority:** P3 (Low)
 **Effort:** 0.5 day
 

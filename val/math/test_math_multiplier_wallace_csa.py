@@ -1,0 +1,191 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: test_math_multiplier_wallace_csa
+# Purpose: Test for the Wallace tree with carry-save adders multiplier module.
+#
+# Documentation: PRD.md
+# Subsystem: tests
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
+"""
+Test for the Wallace tree with carry-save adders multiplier module.
+"""
+import os
+import sys
+import random
+import subprocess
+import pytest
+import cocotb
+from cocotb_test.simulator import run
+
+# Add repo root to path for CocoTBFramework imports
+from TBClasses.shared.utilities import get_paths, create_view_cmd
+
+# Import the base MultiplierTB class
+from TBClasses.common.multiplier_testing import MultiplierTB
+
+def get_multiplier_params():
+    """Generate multiplier test parameters based on REG_LEVEL."""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    if reg_level == 'GATE':
+        return [
+            {'WIDTH': 8, 'test_level': 'func'},  # GATE: Minimal - just 8-bit basic
+        ]
+    elif reg_level == 'FUNC':
+        return [
+            {'WIDTH': 8, 'test_level': 'func'},  # FUNC: Small and medium widths
+            {'WIDTH': 16, 'test_level': 'func'},
+        ]
+    else:  # FULL
+        return [
+            # Basic tests with different widths
+            {'WIDTH': 8, 'test_level': 'gate'},
+            {'WIDTH': 8, 'test_level': 'func'},
+            # Different bit widths with basic testing
+            {'WIDTH': 16, 'test_level': 'func'},
+            {'WIDTH': 32, 'test_level': 'func'},
+            # More comprehensive testing
+            {'WIDTH': 8, 'test_level': 'func'},
+            {'WIDTH': 16, 'test_level': 'func'},
+            # Full test suite
+            {'WIDTH': 16, 'test_level': 'full'},
+        ]
+
+@cocotb.test(timeout_time=1, timeout_unit="ms")
+async def multiplier_test(dut):
+    """Test the Wallace tree with carry-save adders multiplier"""
+    tb = MultiplierTB(dut)
+
+    # Use the seed for reproducibility
+    seed = int(os.environ.get('SEED', '0'))
+    random.seed(seed)
+    msg = f'seed changed to {seed}'
+    tb.log.info(msg)
+
+    # Print testbench settings
+    tb.print_settings()
+
+    # Clear and initialize interface
+    tb.clear_interface()
+    await tb.wait_time(1, 'ns')
+
+    # Run the comprehensive test suite
+    await tb.run_comprehensive_tests()
+
+@pytest.mark.parametrize("params", get_multiplier_params())
+def test_math_multiplier_wallace_tree_csa(request, params):
+    """PyTest function to run the cocotb test."""
+    # Get all of the directory and module information
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_cmn': 'rtl/common',
+        'rtl_math': 'rtl/math'
+    })
+
+    # The module name is specific to the bit width for Wallace tree CSA
+    n = params['WIDTH']
+    dut_name = f"math_multiplier_wallace_tree_csa_{n:03d}"
+    toplevel = dut_name
+
+    verilog_sources = [
+        os.path.join(rtl_dict['rtl_math'], "math_adder_half.sv"),
+        os.path.join(rtl_dict['rtl_math'], "math_adder_carry_save.sv"),
+        # The reduction tree uses carry-save 3:2 compressors, but the final
+        # carry-propagate adder is built from full adders regardless of variant.
+        os.path.join(rtl_dict['rtl_math'], "math_adder_full.sv"),
+        # Final carry-propagate adder: the reduction tree hands two rows to a
+        # Brent-Kung CPA whose width is the PRODUCT width, i.e. 2*N.
+        os.path.join(rtl_dict['rtl_math'], "math_adder_brent_kung_pg.sv"),
+        os.path.join(rtl_dict['rtl_math'], "math_adder_brent_kung_black.sv"),
+        os.path.join(rtl_dict['rtl_math'], "math_adder_brent_kung_gray.sv"),
+        os.path.join(rtl_dict['rtl_math'], "math_adder_brent_kung_bitwisepg.sv"),
+        os.path.join(rtl_dict['rtl_math'], "math_adder_brent_kung_sum.sv"),
+        os.path.join(rtl_dict['rtl_math'], f"math_adder_brent_kung_grouppg_{2*n:03d}.sv"),
+        os.path.join(rtl_dict['rtl_math'], f"math_adder_brent_kung_{2*n:03d}.sv"),
+        os.path.join(rtl_dict['rtl_math'], f"{dut_name}.sv"),
+    ]
+
+    # Get REG_LEVEL before creating test name
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()  # GATE, FUNC, or FULL
+
+    # Create a human-readable test identifier
+    t_name = params['test_level']
+    test_name_plus_params = f"test_{dut_name}_{t_name}_{reg_level}"
+
+    # Add worker ID for pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+
+    # Define simulation build and log paths
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+    os.makedirs(sim_build, exist_ok=True)
+
+    # Define log path
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+
+    # Set up environment variables
+    seed = random.randint(0, 100000)
+
+    extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',  # Enable tracing
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': results_path,
+        'SEED': str(seed),
+        'TEST_LEVEL': params['test_level'],
+        'PARAM_N': str(params['WIDTH'])
+    }
+
+    # Create command file for viewing waveforms
+
+    # Add coverage compile args if COVERAGE=1
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
+    ]
+
+    sim_args = ['--trace'] if enable_waves else []
+
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    # Launch the simulation
+
+    try:
+        run(
+            python_search=[tests_dir],  # where to search for all the python test files
+            verilog_sources=verilog_sources,
+            includes=[],
+            toplevel=toplevel,
+            module=module,
+            parameters={'N': params['WIDTH']},
+            sim_build=sim_build,
+            extra_env=extra_env,
+            extra_args=extra_args,
+            plus_args=sim_args,
+
+            waves=enable_waves,
+        )
+    except Exception as e:
+        # If the test fails, make sure logs are preserved
+        print(f"Test failed: {str(e)}")
+        print(f"Logs preserved at: {log_path}")
+        print(f"To view the Waveforms run this command: {cmd_filename}")
+        raise  # Re-raise exception to indicate failure

@@ -317,6 +317,7 @@ async def monbus_axil_axil_group_compressed_test(dut):
 def test_monbus_axil_axil_group_compressed(request):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_shared':   'rtl/amba/shared',
+        'rtl_monitor': 'rtl/amba/monitor',
         'rtl_includes': 'rtl/amba/includes',
         'rtl_axil4':    'rtl/amba/axil4',
         'rtl_gaxi':     'rtl/amba/gaxi',
@@ -334,23 +335,9 @@ def test_monbus_axil_axil_group_compressed(request):
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_includes'], "monitor_common_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_amba4_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_amba5_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_arbiter_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_pkg.sv"),
-        os.path.join(rtl_dict['rtl_common'],   "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_common'],   "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'],     "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'],     "gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_axil4'],    "axil4_slave_rd.sv"),
-        os.path.join(rtl_dict['rtl_axil4'],    "axil4_master_wr.sv"),
-        # Monbus group core family (cam/compressor/core + div-by-3 helper)
-        # from the shared canonical filelist -- one place for new deps.
-        *get_sources_from_filelist(repo_root, 'rtl/amba/filelists/monbus_group.f')[0],
-        os.path.join(rtl_dict['rtl_shared'],   f"{dut_name}.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/monbus_axil_axil_group.f")
     for src in verilog_sources:
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")
@@ -382,7 +369,7 @@ def test_monbus_axil_axil_group_compressed(request):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[rtl_dict['rtl_includes'], rtl_dict['rtl_shared'], sim_build],
+            includes=includes + [rtl_dict['rtl_shared'], sim_build],
             toplevel=dut_name,
             module=module,
             sim_build=sim_build,

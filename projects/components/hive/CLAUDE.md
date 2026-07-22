@@ -66,7 +66,9 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 # Check complete specification
 ls projects/components/hive/docs/hive_spec/
 cat projects/components/hive/docs/hive_spec/hive_index.md
-cat projects/components/hive/docs/hive_spec/ch02_blocks/01_hive_c_controller.md
+cat projects/components/hive/docs/hive_spec/ch02_blocks/00_overview.md
+# Full single-file spec (block/interface/programming detail):
+cat projects/components/hive/docs/hive_specification.md
 ```
 
 **Your answer should:**
@@ -154,8 +156,8 @@ HIVE System Architecture
 **Key Point:** HIVE-C is the master controller, SERV monitors are lightweight per-tile agents.
 
 **📖 See:**
-- `docs/hive_spec/ch02_blocks/01_hive_c_controller.md`
-- `docs/hive_spec/ch02_blocks/02_serv_monitor.md`
+- `docs/hive_spec/ch02_blocks/00_overview.md`
+- `docs/hive_specification.md` sections 5-6 (the per-block chapter files 2.1-2.4 are not yet written)
 
 ### Q: "How does HIVE-C send descriptors to RAPIDS?"
 
@@ -180,7 +182,7 @@ HIVE System Architecture
 - No memory bus contention
 - Inband delivery through existing network
 
-**📖 See:** `docs/hive_spec/ch02_blocks/01_hive_c_controller.md`
+**📖 See:** `docs/hive_specification.md` section 6 (HIVE-C control software; chapter file 2.1 not yet written)
 
 ### Q: "How does network reconfiguration work?"
 
@@ -208,7 +210,7 @@ Switching Sequence:
 - Context 2: Tree Reduction (hierarchical aggregation)
 - Context 3: Custom/Debug (user-programmable)
 
-**📖 See:** `docs/hive_spec/ch02_blocks/04_config_manager.md`
+**📖 See:** `docs/hive_specification.md` section 4 (network reconfiguration; chapter file 2.4 not yet written)
 
 ### Q: "What do SERV monitors track?"
 
@@ -231,7 +233,7 @@ Switching Sequence:
 - Periodic status to HIVE-C (every 1000 cycles, configurable)
 - Immediate alerts on congestion/errors via PKT_STATUS packets
 
-**📖 See:** `docs/hive_spec/ch02_blocks/02_serv_monitor.md`
+**📖 See:** `docs/hive_specification.md` section 5 (SERV monitor functionality; chapter file 2.2 not yet written)
 
 ---
 
@@ -241,14 +243,13 @@ Switching Sequence:
 
 - `docs/hive_spec/hive_index.md` - Complete specification index
 - `docs/hive_spec/ch01_overview/` - Architecture overview
-- `docs/hive_spec/ch02_blocks/` - Block specifications
-- `docs/hive_spec/ch03_interfaces/` - Interface specifications
-- `docs/hive_spec/ch04_programming_models/` - Programming model
-- `docs/hive_spec/ch05_performance/` - Performance analysis
+- `docs/hive_spec/ch02_blocks/` - Block specifications (only 00_overview.md written so far)
+- `docs/hive_specification.md` - Full single-file specification (interfaces, programming
+  models, and performance content; the ch03-ch05 chapter files are not yet written)
 
 ### Related Component Specifications
 
-- `projects/components/dmas/rapids/docs/rapids_spec/` - RAPIDS DMA specification
+- `projects/components/dmas/rapids/docs/rapids_beats_has/` and `rapids_beats_mas/` - RAPIDS DMA specification (Beats architecture)
 - `projects/components/delta/docs/delta_spec/` - Delta Network specification
 
 ---
@@ -257,33 +258,22 @@ Switching Sequence:
 
 ### Generating PDF/DOCX from Specification
 
-**Tool:** `/mnt/data/github/rtldesignsherpa/bin/md_to_docx.py`
+**Tool:** `bin/md_to_docx.py` (repo root)
 
-Use this tool to convert the linked specification index into a single all-inclusive PDF or DOCX file.
+Use this tool to convert the linked specification index into a single all-inclusive PDF or DOCX file. The preferred entry point is the wrapper script `projects/components/hive/docs/generate_pdf.sh`. Note: no built HIVE_Specification docx/pdf is checked in - generate it on demand.
 
 **Basic Usage:**
 
 ```bash
-# Generate DOCX from hive_spec index
-python bin/md_to_docx.py \
-    projects/components/hive/docs/hive_spec/hive_index.md \
-    -o projects/components/hive/docs/HIVE_Specification_v0.25.docx \
-    --toc \
-    --title-page
+# Preferred: use the wrapper script (from the docs/ directory)
+cd projects/components/hive/docs
+./generate_pdf.sh --rev 0.25
+# Outputs: HIVE_Specification_v0.25.docx and HIVE_Specification_v0.25.pdf
 
-# Generate both DOCX and PDF
+# Direct md_to_docx.py invocation (from repo root)
 python bin/md_to_docx.py \
     projects/components/hive/docs/hive_spec/hive_index.md \
     -o projects/components/hive/docs/HIVE_Specification_v0.25.docx \
-    --toc \
-    --title-page \
-    --pdf
-
-# With custom template (optional)
-python bin/md_to_docx.py \
-    projects/components/hive/docs/hive_spec/hive_index.md \
-    -o projects/components/hive/docs/HIVE_Specification_v0.25.docx \
-    -t path/to/template.dotx \
     --toc \
     --title-page \
     --pdf
@@ -302,8 +292,7 @@ python bin/md_to_docx.py \
 
 ```bash
 # 1. Update version number in index file (hive_index.md)
-# 2. Generate documentation
-cd /mnt/data/github/rtldesignsherpa
+# 2. Generate documentation (from repo root)
 python bin/md_to_docx.py \
     projects/components/hive/docs/hive_spec/hive_index.md \
     -o projects/components/hive/docs/HIVE_Specification_v0.25.docx \
@@ -331,7 +320,7 @@ python bin/md_to_docx.py \
 - Pandoc installed and in PATH
 - For PDF generation: LaTeX (e.g., texlive) or use Pandoc's built-in PDF writer
 
-**📖 See:** `/mnt/data/github/rtldesignsherpa/bin/md_to_docx.py` for complete implementation details
+**📖 See:** `bin/md_to_docx.py` (repo root) for complete implementation details
 
 ---
 
@@ -339,12 +328,12 @@ python bin/md_to_docx.py \
 
 **IMPORTANT: PDF files should be generated in the docs directory:**
 ```
-/mnt/data/github/rtldesignsherpa/projects/components/hive/docs/
+projects/components/hive/docs/
 ```
 
 **Quick Command:** Use the provided shell script:
 ```bash
-cd /mnt/data/github/rtldesignsherpa/projects/components/hive/docs
+cd projects/components/hive/docs
 ./generate_pdf.sh
 ```
 

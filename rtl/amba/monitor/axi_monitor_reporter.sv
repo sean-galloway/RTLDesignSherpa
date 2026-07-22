@@ -1,0 +1,622 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: axi_monitor_reporter (0.9 refactor)
+// Purpose: Thin top reporter — multiplexes per-packet-type sub-blocks
+//          into the shared monbus FIFO + output register, marks events
+//          as reported back to trans_mgr, and constructs the final
+//          128-bit monitor_packet via the package helper.
+//
+// Per-packet-type detection lives in sub-blocks so integrators can drop
+// any combination via ENABLE_*_LOGIC parameters and pay zero LUT/FF cost:
+//   ENABLE_ERROR_LOGIC     : axi_monitor_reporter_error      (combinational)
+//   ENABLE_TIMEOUT_LOGIC   : axi_monitor_reporter_timeout    (combinational)
+//   ENABLE_COMPL_LOGIC     : axi_monitor_reporter_compl      (combinational)
+//   ENABLE_THRESHOLD_LOGIC : axi_monitor_reporter_threshold  (16 latency flops + edge flags)
+//   ENABLE_PERF_LOGIC      : axi_monitor_reporter_perf       (counters + 5-state FSM)
+//
+// Bridge case: set ERROR=1, all others 0 → ~70% of reporter LUT/FF drops.
+//
+// Documentation: rtl/amba/PRD/RFCs/RFC-perfmon-window-buckets.md
+// Author: sean galloway
+// Created: 2025-10-18 (original) / 2026-06-06 (sub-block refactor)
+
+`timescale 1ns / 1ps
+
+`include "reset_defs.svh"
+
+module axi_monitor_reporter
+    import monitor_common_pkg::*;
+    import monitor_amba4_pkg::*;
+    // NOTE: `import monitor_pkg::*;` intentionally omitted -- its helper
+    // functions (get_packet_type etc.) duplicate monitor_common_pkg's, and
+    // Vivado flags the duplicates as ambiguous under wildcard imports.
+#(
+    parameter int MAX_TRANSACTIONS    = 16,
+    parameter int ADDR_WIDTH          = 32,
+    parameter logic [7:0]  UNIT_ID    = 8'h09,
+    parameter logic [15:0] AGENT_ID   = 16'h0063,
+    parameter bit IS_READ             = 1'b1,
+    parameter bit ENABLE_PERF_PACKETS = 1'b0,    // legacy alias for ENABLE_PERF_LOGIC compat
+    parameter int INTR_FIFO_DEPTH     = 8,
+    // Sub-block enables — gate the LOGIC, not just packet emission. Default
+    // 1'b1 preserves legacy behavior; integrators (e.g. bridge) set 0 to
+    // synthesize away unused detection cones.
+    parameter bit ENABLE_ERROR_LOGIC     = 1'b1,
+    parameter bit ENABLE_TIMEOUT_LOGIC   = 1'b1,
+    parameter bit ENABLE_COMPL_LOGIC     = 1'b1,
+    parameter bit ENABLE_THRESHOLD_LOGIC = 1'b1,
+    parameter bit ENABLE_PERF_LOGIC      = ENABLE_PERF_PACKETS,
+    // 6th cone — per-transaction state-change debug packets. Default
+    // OFF: debug packets are noisy and most integrators don't want
+    // them unless they're studying the FSM directly (e.g. compression
+    // analysis on debug-class traffic). Reporter_debug holds a
+    // MAX_TRANSACTIONS × 3-bit prev_state flop set, so dropping it
+    // when off is real area savings (16 slots × 3 bits = 48 flops).
+    parameter bit ENABLE_DEBUG_LOGIC     = 1'b0
+)
+(
+    input  logic                     aclk,
+    input  logic                     aresetn,
+
+    input  bus_transaction_t         trans_table[MAX_TRANSACTIONS],
+    input  logic [MAX_TRANSACTIONS-1:0] timeout_detected,
+
+    input  logic                     cfg_error_enable,
+    input  logic                     cfg_compl_enable,
+    input  logic                     cfg_threshold_enable,
+    input  logic                     cfg_timeout_enable,
+    input  logic                     cfg_perf_enable,
+    input  logic                     cfg_debug_enable,    // reserved — debug emitter is future work
+
+    input  logic                              monbus_ready,
+    output logic                              monbus_valid,
+    output monitor_packet_t                   monbus_packet,
+
+    output logic [15:0]              event_count,
+    output logic [15:0]              perf_completed_count,
+    output logic [15:0]              perf_error_count,
+
+    input  logic [15:0]              active_trans_threshold,
+    input  logic [31:0]              latency_threshold,
+
+    output logic [MAX_TRANSACTIONS-1:0] event_reported_flags
+);
+
+    localparam int IDX_W = $clog2(MAX_TRANSACTIONS);
+
+    // -------------------------------------------------------------------------
+    // Shared state: registered trans_table, event_reported, event_count.
+    // -------------------------------------------------------------------------
+    bus_transaction_t            r_trans_table_local [MAX_TRANSACTIONS];
+    logic [MAX_TRANSACTIONS-1:0] r_event_reported;
+    logic [15:0]                 r_event_count;
+    assign event_reported_flags = r_event_reported;
+    assign event_count          = r_event_count;
+
+    // Reserved-for-future debug input.
+    /* verilator lint_off UNUSED */
+    logic unused_cfg_debug_enable;
+    assign unused_cfg_debug_enable = cfg_debug_enable;
+    /* verilator lint_on UNUSED */
+
+    // -------------------------------------------------------------------------
+    // FIFO entry type (local — sub-blocks export raw fields).
+    // -------------------------------------------------------------------------
+    typedef struct packed {
+        logic [3:0]  packet_type;
+        logic [7:0]  event_code;
+        logic [8:0]  channel;
+        logic [63:0] data;
+    } monbus_entry_t;
+
+    logic                             w_fifo_wr_valid;
+    logic                             w_fifo_wr_ready;
+    monbus_entry_t                    w_fifo_wr_data;
+    logic                             w_fifo_rd_valid;
+    logic                             w_fifo_rd_ready;
+    monbus_entry_t                    w_fifo_rd_data;
+    logic [$clog2(INTR_FIFO_DEPTH):0] w_fifo_count;
+
+    gaxi_fifo_sync #(
+        .REGISTERED      (1),
+        .DATA_WIDTH      ($bits(monbus_entry_t)),
+        .DEPTH           (INTR_FIFO_DEPTH),
+        .ALMOST_WR_MARGIN(1),
+        .ALMOST_RD_MARGIN(1)
+    ) intr_fifo (
+        .axi_aclk    (aclk),
+        .axi_aresetn (aresetn),
+        .wr_valid    (w_fifo_wr_valid),
+        .wr_ready    (w_fifo_wr_ready),
+        .wr_data     (w_fifo_wr_data),
+        .rd_ready    (w_fifo_rd_ready),
+        .count       (w_fifo_count),
+        .rd_valid    (w_fifo_rd_valid),
+        .rd_data     (w_fifo_rd_data)
+    );
+
+    // -------------------------------------------------------------------------
+    // Sub-block outputs (tied to 0 when disabled by ENABLE_*).
+    // -------------------------------------------------------------------------
+    logic              err_valid,  to_valid,  compl_valid;
+    logic [3:0]        err_type,   to_type,   compl_type;
+    logic [7:0]        err_code,   to_code,   compl_code;
+    logic [8:0]        err_chan,   to_chan,   compl_chan;
+    logic [63:0]       err_data,   to_data,   compl_data;
+    logic [IDX_W-1:0]  err_idx,    to_idx,    compl_idx;
+
+    if (ENABLE_ERROR_LOGIC) begin : g_err
+        axi_monitor_reporter_error #(
+            .MAX_TRANSACTIONS (MAX_TRANSACTIONS),
+            .IDX_W            (IDX_W)
+        ) u_err (
+            .trans_table     (r_trans_table_local),
+            .event_reported  (r_event_reported),
+            .timeout_detected(timeout_detected),
+            .cfg_error_enable(cfg_error_enable),
+            .pkt_valid       (err_valid),
+            .pkt_type        (err_type),
+            .pkt_event_code  (err_code),
+            .pkt_channel     (err_chan),
+            .pkt_data        (err_data),
+            .sel_idx         (err_idx)
+        );
+    end else begin : g_no_err
+        assign err_valid = 1'b0;
+        assign err_type  = '0;
+        assign err_code  = '0;
+        assign err_chan  = '0;
+        assign err_data  = '0;
+        assign err_idx   = '0;
+    end
+
+    if (ENABLE_TIMEOUT_LOGIC) begin : g_to
+        axi_monitor_reporter_timeout #(
+            .MAX_TRANSACTIONS  (MAX_TRANSACTIONS),
+            .IDX_W             (IDX_W)
+        ) u_to (
+            .trans_table       (r_trans_table_local),
+            .event_reported    (r_event_reported),
+            .timeout_detected  (timeout_detected),
+            .cfg_timeout_enable(cfg_timeout_enable),
+            .pkt_valid         (to_valid),
+            .pkt_type          (to_type),
+            .pkt_event_code    (to_code),
+            .pkt_channel       (to_chan),
+            .pkt_data          (to_data),
+            .sel_idx           (to_idx)
+        );
+    end else begin : g_no_to
+        assign to_valid = 1'b0;
+        assign to_type  = '0;
+        assign to_code  = '0;
+        assign to_chan  = '0;
+        assign to_data  = '0;
+        assign to_idx   = '0;
+    end
+
+    if (ENABLE_COMPL_LOGIC) begin : g_compl
+        axi_monitor_reporter_compl #(
+            .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
+            .IDX_W           (IDX_W)
+        ) u_compl (
+            .trans_table     (r_trans_table_local),
+            .event_reported  (r_event_reported),
+            .cfg_compl_enable(cfg_compl_enable),
+            .pkt_valid       (compl_valid),
+            .pkt_type        (compl_type),
+            .pkt_event_code  (compl_code),
+            .pkt_channel     (compl_chan),
+            .pkt_data        (compl_data),
+            .sel_idx         (compl_idx)
+        );
+    end else begin : g_no_compl
+        assign compl_valid = 1'b0;
+        assign compl_type  = '0;
+        assign compl_code  = '0;
+        assign compl_chan  = '0;
+        assign compl_data  = '0;
+        assign compl_idx   = '0;
+    end
+
+    // -------------------------------------------------------------------------
+    // FIFO write mux: priority error > timeout > compl (matches legacy).
+    // -------------------------------------------------------------------------
+    always_comb begin
+        w_fifo_wr_valid       = 1'b0;
+        w_fifo_wr_data        = '{default: '0};
+        if (err_valid) begin
+            w_fifo_wr_valid       = 1'b1;
+            w_fifo_wr_data.packet_type = err_type;
+            w_fifo_wr_data.event_code  = err_code;
+            w_fifo_wr_data.channel     = err_chan;
+            w_fifo_wr_data.data        = err_data;
+        end else if (to_valid) begin
+            w_fifo_wr_valid       = 1'b1;
+            w_fifo_wr_data.packet_type = to_type;
+            w_fifo_wr_data.event_code  = to_code;
+            w_fifo_wr_data.channel     = to_chan;
+            w_fifo_wr_data.data        = to_data;
+        end else if (compl_valid) begin
+            w_fifo_wr_valid       = 1'b1;
+            w_fifo_wr_data.packet_type = compl_type;
+            w_fifo_wr_data.event_code  = compl_code;
+            w_fifo_wr_data.channel     = compl_chan;
+            w_fifo_wr_data.data        = compl_data;
+        end
+    end
+
+    // FIFO pop must agree exactly with the output-register load condition at
+    // the bottom of this file (`!monbus_valid && w_fifo_rd_valid`). Popping on
+    // (monbus_ready && monbus_valid) instead discards the head whenever the
+    // output register is holding a bypass packet (threshold/perf/debug), which
+    // is precisely the congested case the FIFO exists to cover.
+    assign w_fifo_rd_ready = !monbus_valid;
+
+    // -------------------------------------------------------------------------
+    // Event marking + counter feedback masks.
+    //   - Exactly ONE slot is marked reported per accepted FIFO write: the slot
+    //     whose packet was actually written. The winner is re-derived here with
+    //     the same error > timeout > compl priority the write mux above uses,
+    //     using the sel_idx each sub-block's priority encoder produced.
+    //   - Each sub-block already gates its pkt_valid on its own cfg_*_enable,
+    //     so keying off {err,to,compl}_valid makes the marking config-correct
+    //     by construction: a disabled packet class can never be marked
+    //     reported (and therefore freed by trans_mgr) by another class's write.
+    //   - w_error_events / w_completion_events drive the perf sub-block
+    //     counters AND the r_event_reported flop.
+    // -------------------------------------------------------------------------
+    logic [MAX_TRANSACTIONS-1:0] w_events_to_mark;
+    logic [MAX_TRANSACTIONS-1:0] w_error_events;
+    logic [MAX_TRANSACTIONS-1:0] w_completion_events;
+    logic                        w_fifo_wr_accept;
+    logic [IDX_W-1:0]            w_mark_idx;
+    logic                        w_mark_is_error;
+    logic                        w_mark_is_compl;
+
+    assign w_fifo_wr_accept = w_fifo_wr_valid && w_fifo_wr_ready;
+
+    always_comb begin
+        w_events_to_mark    = '0;
+        w_error_events      = '0;
+        w_completion_events = '0;
+        w_mark_idx          = '0;
+        w_mark_is_error     = 1'b0;
+        w_mark_is_compl     = 1'b0;
+
+        // Same priority as the FIFO write mux: error > timeout > compl.
+        // Timeout slots sit in TRANS_ERROR, so they roll up as error events
+        // for the perf counters (matches the legacy state-based split).
+        if (err_valid) begin
+            w_mark_idx      = err_idx;
+            w_mark_is_error = 1'b1;
+        end else if (to_valid) begin
+            w_mark_idx      = to_idx;
+            w_mark_is_error = 1'b1;
+        end else if (compl_valid) begin
+            w_mark_idx      = compl_idx;
+            w_mark_is_compl = 1'b1;
+        end
+
+        if (w_fifo_wr_accept) begin
+            w_events_to_mark[w_mark_idx]    = 1'b1;
+            w_error_events[w_mark_idx]      = w_mark_is_error;
+            w_completion_events[w_mark_idx] = w_mark_is_compl;
+        end
+    end
+
+    // -------------------------------------------------------------------------
+    // AUTO-RETIRE for packet classes that cannot report: COMPILED OUT
+    // (!ENABLE_*_LOGIC) or RUNTIME-DISABLED (!cfg_*_enable).
+    //
+    // trans_mgr frees a terminal-state slot only once event_reported is set,
+    // and the sole producer of that flag is an accepted FIFO write above. So a
+    // terminal entry whose reporting sub-block does not exist is never marked,
+    // never freed, and permanently leaks a table slot: active_count climbs
+    // monotonically to MAX_TRANSACTIONS and axi_monitor_base holds block_ready
+    // low for ever, stalling the monitored datapath. A perf-only build
+    // (ENABLE_ERROR/TIMEOUT/COMPL all 0) writes the FIFO exactly never, so
+    // EVERY transaction leaks -- the table fills after MAX_TRANSACTIONS
+    // requests and the bus wedges.
+    //
+    // The RUNTIME term exists because each sub-block gates its pkt_valid on
+    // its own cfg_*_enable: a class compiled IN but runtime-disabled (e.g.
+    // ENABLE_COMPL_LOGIC=1 && cfg_compl_enable=0 -- the documented
+    // "performance mode") leaked slots by exactly the same mechanism as a
+    // compiled-out class. The check is CONTINUOUS, not edge-triggered, on
+    // purpose: an entry that completed while its class was ENABLED but whose
+    // packet lost the FIFO-full race is still unmarked when the class is
+    // later disabled, and must retire then. Accepted, documented consequence:
+    // toggling an enable mid-flight may drop that one entry's packet -- it
+    // must never leak the slot.
+    //
+    // "Reported" means "nothing further is owed for this entry", so an entry
+    // that no enabled sub-block can ever emit is reported the moment it
+    // reaches a terminal state. This keeps the monitor passive, which is what
+    // a perf-only build is documented to be.
+    //
+    // This mask deliberately does NOT feed w_error_events / w_completion_events
+    // (the perf sub-block's error/completion counters) nor r_event_count:
+    // those must keep counting only packets actually emitted.
+    //
+    // In a fully-enabled build with all cfg_*_enable tied high the whole
+    // block still folds away to nothing.
+    // -------------------------------------------------------------------------
+    logic [MAX_TRANSACTIONS-1:0] w_auto_retire;
+    always_comb begin
+        w_auto_retire = '0;
+        for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
+            if (r_trans_table_local[idx].valid) begin
+                case (r_trans_table_local[idx].state)
+                    // Emitted by axi_monitor_reporter_compl.
+                    TRANS_COMPLETE:
+                        w_auto_retire[idx] = !ENABLE_COMPL_LOGIC ||
+                                             !cfg_compl_enable;
+                    // TRANS_ERROR is split per-slot by timeout_detected,
+                    // MIRRORING the claim predicates of the two cones
+                    // exactly (reporter_error claims ERROR&&!detected plus
+                    // ORPHANED; reporter_timeout claims ERROR&&detected):
+                    //   * a timed-out slot is only reportable by the
+                    //     timeout cone, so it retires when THAT cone is
+                    //     unavailable;
+                    //   * a genuine-error (or orphaned) slot is only
+                    //     reportable by the error cone, so it retires when
+                    //     THAT cone is unavailable.
+                    // A plain AND of both cones' availability under-retires:
+                    // with errors runtime-disabled but timeouts enabled, a
+                    // genuine-error slot is claimable by NEITHER cone
+                    // (timeout only takes detected slots, and detection
+                    // never fires on an already-terminal entry) yet the AND
+                    // said "reportable" -- the slot leaked. The
+                    // classification is stable: timeout_detected is sticky
+                    // until the slot retires, and can never newly assert on
+                    // a terminal entry.
+                    TRANS_ERROR:
+                        w_auto_retire[idx] = timeout_detected[idx]
+                            ? (!ENABLE_TIMEOUT_LOGIC || !cfg_timeout_enable)
+                            : (!ENABLE_ERROR_LOGIC   || !cfg_error_enable);
+                    // Orphans are claimed only by the error cone.
+                    TRANS_ORPHANED:
+                        w_auto_retire[idx] = !ENABLE_ERROR_LOGIC ||
+                                             !cfg_error_enable;
+                    default: ;
+                endcase
+            end
+        end
+    end
+    // -------------------------------------------------------------------------
+    // Threshold sub-block (stateful — 16 latency flops + 2 edge flags + active
+    // count detection). Drops entirely when ENABLE_THRESHOLD_LOGIC=0.
+    // -------------------------------------------------------------------------
+    logic        thresh_valid, thresh_taken;
+    logic [3:0]  thresh_type;
+    logic [7:0]  thresh_code;
+    logic [8:0]  thresh_chan;
+    logic [63:0] thresh_data;
+    logic        w_output_busy;
+    assign w_output_busy = monbus_valid || w_fifo_rd_valid;
+
+    if (ENABLE_THRESHOLD_LOGIC) begin : g_thresh
+        axi_monitor_reporter_threshold #(
+            .MAX_TRANSACTIONS      (MAX_TRANSACTIONS),
+            .IS_READ               (IS_READ),
+            .IDX_W                 (IDX_W)
+        ) u_thresh (
+            .aclk                   (aclk),
+            .aresetn                (aresetn),
+            .trans_table            (r_trans_table_local),
+            .cfg_threshold_enable   (cfg_threshold_enable),
+            .active_trans_threshold (active_trans_threshold),
+            .latency_threshold      (latency_threshold),
+            .output_busy            (w_output_busy),
+            .pkt_taken              (thresh_taken),
+            .pkt_valid              (thresh_valid),
+            .pkt_type               (thresh_type),
+            .pkt_event_code         (thresh_code),
+            .pkt_channel            (thresh_chan),
+            .pkt_data               (thresh_data)
+        );
+    end else begin : g_no_thresh
+        assign thresh_valid = 1'b0;
+        assign thresh_type  = '0;
+        assign thresh_code  = '0;
+        assign thresh_chan  = '0;
+        assign thresh_data  = '0;
+    end
+
+    // -------------------------------------------------------------------------
+    // Perf sub-block (legacy completion/error count rollups). Drops entirely
+    // when ENABLE_PERF_LOGIC=0; Stage A/B window perfmon is independent.
+    // -------------------------------------------------------------------------
+    logic        perf_valid, perf_taken;
+    logic [3:0]  perf_type;
+    logic [7:0]  perf_code;
+    logic [8:0]  perf_chan;
+    logic [63:0] perf_data;
+    logic [15:0] perf_completed_count_w;
+    logic [15:0] perf_error_count_w;
+
+    if (ENABLE_PERF_LOGIC) begin : g_perf
+        axi_monitor_reporter_perf #(
+            .MAX_TRANSACTIONS(MAX_TRANSACTIONS)
+        ) u_perf (
+            .aclk                (aclk),
+            .aresetn             (aresetn),
+            .cfg_perf_enable     (cfg_perf_enable),
+            .output_busy         (w_output_busy),
+            .pkt_taken           (perf_taken),
+            .error_marked_mask   (w_error_events),
+            .compl_marked_mask   (w_completion_events),
+            .pkt_valid           (perf_valid),
+            .pkt_type            (perf_type),
+            .pkt_event_code      (perf_code),
+            .pkt_channel         (perf_chan),
+            .pkt_data            (perf_data),
+            .perf_completed_count(perf_completed_count_w),
+            .perf_error_count    (perf_error_count_w)
+        );
+    end else begin : g_no_perf
+        assign perf_valid             = 1'b0;
+        assign perf_type              = '0;
+        assign perf_code              = '0;
+        assign perf_chan              = '0;
+        assign perf_data              = '0;
+        assign perf_completed_count_w = '0;
+        assign perf_error_count_w     = '0;
+    end
+
+    assign perf_completed_count = perf_completed_count_w;
+    assign perf_error_count     = perf_error_count_w;
+
+    // -------------------------------------------------------------------------
+    // Debug sub-block (per-transaction state-change emitter). Drops entirely
+    // when ENABLE_DEBUG_LOGIC=0 — saves MAX_TRANSACTIONS × 3 flops of
+    // prev_state plus the change-detect cone. Default off because debug
+    // packets are noisy.
+    // -------------------------------------------------------------------------
+    logic        debug_valid, debug_taken;
+    logic [3:0]  debug_type;
+    logic [7:0]  debug_code;
+    logic [8:0]  debug_chan;
+    logic [63:0] debug_data;
+
+    if (ENABLE_DEBUG_LOGIC) begin : g_debug
+        axi_monitor_reporter_debug #(
+            .MAX_TRANSACTIONS (MAX_TRANSACTIONS),
+            .IDX_W            (IDX_W)
+        ) u_debug (
+            .aclk             (aclk),
+            .aresetn          (aresetn),
+            .trans_table      (r_trans_table_local),
+            .cfg_debug_enable (cfg_debug_enable),
+            .output_busy      (w_output_busy),
+            .pkt_taken        (debug_taken),
+            .pkt_valid        (debug_valid),
+            .pkt_type         (debug_type),
+            .pkt_event_code   (debug_code),
+            .pkt_channel      (debug_chan),
+            .pkt_data         (debug_data)
+        );
+    end else begin : g_no_debug
+        assign debug_valid = 1'b0;
+        assign debug_type  = '0;
+        assign debug_code  = '0;
+        assign debug_chan  = '0;
+        assign debug_data  = '0;
+    end
+
+    // -------------------------------------------------------------------------
+    // Output mux + register: FIFO read > threshold > perf > debug.
+    // -------------------------------------------------------------------------
+    logic [3:0]  r_packet_type;
+    logic [7:0]  r_event_code;
+    logic [63:0] r_event_data;
+    logic [8:0]  r_event_channel;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
+                r_trans_table_local[idx] <= '0;
+            end
+            monbus_valid     <= 1'b0;
+            r_event_count    <= '0;
+            r_event_reported <= '0;
+            r_packet_type    <= PktTypeError;
+            r_event_code     <= EVT_NONE;
+            r_event_data     <= '0;
+            r_event_channel  <= '0;
+        end else begin
+            // Snapshot trans_table.
+            for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
+                r_trans_table_local[idx] <= trans_table[idx];
+            end
+
+            // Dequeue current output once accepted.
+            if (monbus_valid && monbus_ready) begin
+                monbus_valid <= 1'b0;
+            end
+
+            // Mark events as reported. The count is bumped once, outside the
+            // loop — a non-blocking increment inside a for loop collapses N
+            // marks into 1, and the threshold branch below used to assign the
+            // same register in the same cycle, losing one of the two counts.
+            for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
+                if (!r_trans_table_local[idx].valid) begin
+                    r_event_reported[idx] <= 1'b0;        // FIX-001: reuse slot
+                end else if (w_events_to_mark[idx] || w_auto_retire[idx]) begin
+                    r_event_reported[idx] <= 1'b1;
+                end
+            end
+
+            // Single event-count adder: one marked event (at most one per
+            // cycle by construction) plus a threshold packet emitted directly
+            // into the output register.
+            r_event_count <= r_event_count + 16'(w_fifo_wr_accept) + 16'(thresh_taken);
+
+            // Priority emit: FIFO -> threshold -> perf. Only one source per
+            // cycle; threshold/perf gate on (!monbus_valid && !w_fifo_rd_valid)
+            // via output_busy inside the sub-blocks.
+            if (!monbus_valid && w_fifo_rd_valid) begin
+                monbus_valid    <= 1'b1;
+                r_packet_type   <= w_fifo_rd_data.packet_type;
+                r_event_code    <= w_fifo_rd_data.event_code;
+                r_event_data    <= w_fifo_rd_data.data;
+                r_event_channel <= w_fifo_rd_data.channel;
+            end else if (thresh_valid && !monbus_valid && !w_fifo_rd_valid) begin
+                monbus_valid    <= 1'b1;
+                r_packet_type   <= thresh_type;
+                r_event_code    <= thresh_code;
+                r_event_data    <= thresh_data;
+                r_event_channel <= thresh_chan;
+            end else if (perf_valid && !monbus_valid && !w_fifo_rd_valid) begin
+                monbus_valid    <= 1'b1;
+                r_packet_type   <= perf_type;
+                r_event_code    <= perf_code;
+                r_event_data    <= perf_data;
+                r_event_channel <= perf_chan;
+            end else if (debug_valid && !monbus_valid && !w_fifo_rd_valid) begin
+                monbus_valid    <= 1'b1;
+                r_packet_type   <= debug_type;
+                r_event_code    <= debug_code;
+                r_event_data    <= debug_data;
+                r_event_channel <= debug_chan;
+            end
+        end
+    )
+
+    // pkt_taken pulses to threshold/perf/debug when their packet was emitted.
+    // Threshold uses it to set edge-sticky crossed flags; perf + debug
+    // currently ignore it (kept on the port for future back-pressure).
+    assign thresh_taken = thresh_valid && !monbus_valid && !w_fifo_rd_valid;
+    assign perf_taken   = perf_valid   && !monbus_valid && !w_fifo_rd_valid &&
+                          !thresh_valid;
+    assign debug_taken  = debug_valid  && !monbus_valid && !w_fifo_rd_valid &&
+                          !thresh_valid && !perf_valid;
+
+    // -------------------------------------------------------------------------
+    // Construct the 128-bit monitor bus packet via package helper.
+    // -------------------------------------------------------------------------
+    always_comb begin
+        monbus_packet = create_monitor_packet(
+            r_packet_type,
+            PROTOCOL_AXI,
+            r_event_code,
+            r_event_channel,
+            UNIT_ID,
+            AGENT_ID,
+            r_event_data
+        );
+    end
+
+    // w_fifo_count is observed by the FIFO instance only — tie it
+    // through an unused-bit sink to keep the linter quiet.
+    /* verilator lint_off UNUSED */
+    logic unused_fifo_count;
+    assign unused_fifo_count = |w_fifo_count;
+    /* verilator lint_on UNUSED */
+
+endmodule : axi_monitor_reporter

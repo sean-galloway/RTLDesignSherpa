@@ -35,6 +35,7 @@ import cocotb
 from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import the testbench
 from TBClasses.axil4.axil4_slave_write_tb import AXIL4SlaveWriteTB
@@ -393,10 +394,9 @@ def test_axil4_slave_write(request, addr_width, data_width, aw_depth, w_depth, b
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     # Verilog sources - include dependencies
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),  # Dependency
-        os.path.join(rtl_dict['rtl_axil4'], f"{dut_name}.sv"),     # Main DUT
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axil4_slave_wr.f")
 
     # Check that files exist
     for src in verilog_sources:
@@ -446,7 +446,7 @@ def test_axil4_slave_write(request, addr_width, data_width, aw_depth, w_depth, b
     }
 
     # Simulation settings
-    includes = [rtl_dict['rtl_amba_includes']]
+    includes=includes
     # VCD waveform generation support via WAVES environment variable
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
@@ -535,10 +535,9 @@ if __name__ == "__main__":
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     # Verilog sources - include dependencies
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),  # Dependency
-        os.path.join(rtl_dict['rtl_axil4'], f"{dut_name}.sv"),     # Main DUT
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axil4_slave_wr.f")
 
     # Check that files exist
     for src in verilog_sources:
@@ -588,7 +587,7 @@ if __name__ == "__main__":
     }
 
     # Simulation settings
-    includes = [rtl_dict['rtl_amba_includes']]
+    includes=includes
     # VCD waveform generation support via WAVES environment variable
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging

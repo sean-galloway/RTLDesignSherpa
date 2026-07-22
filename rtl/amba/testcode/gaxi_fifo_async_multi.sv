@@ -48,25 +48,28 @@ module gaxi_fifo_async_multi #(
     output logic [AW-1:0]   rd_addr,
     output logic [CW-1:0]   rd_ctrl,
     output logic [DW-1:0]   rd_data0,
-    output logic [DW-1:0]   rd_data1,
-    output logic [AW-1:0]   rd_addr,
-    output logic [CW-1:0]   rd_ctrl,
-    output logic [DW-1:0]   rd_data0,
     output logic [DW-1:0]   rd_data1
     );
 
 
+    // Payload is the concatenation {wr_addr, wr_ctrl, wr_data1, wr_data0}.
+    //
+    // Set DATA_WIDTH -- NOT the derived DW alias. gaxi_fifo_async declares
+    // `DW = DATA_WIDTH` and sizes its PORTS from DW but its MEMORY from
+    // DATA_WIDTH, so overriding DW alone widens the ports while leaving the
+    // storage narrow: the FIFO would silently drop the upper bits of every
+    // entry. For the same reason D/AW/JCW/N are left derived rather than
+    // overridden -- they are aliases, not independent knobs.
+    //
+    // USE_JOHNSON=1 because DEPTH defaults to 10; Gray pointers require a
+    // power-of-2 depth, and this wrapper advertises "any even depth".
     gaxi_fifo_async #(
-        .DATA_WIDTH        (8),                // Data width
-        .DEPTH             (10),               // FIFO depth
-        .N_FLOP_CROSS      (2),                // Number of flop crossings
-        .ALMOST_WR_MARGIN  (1),                // Almost write margin
-        .ALMOST_RD_MARGIN  (1),                // Almost read margin
-        .DW                (AW+CW+DW+DW),       // Data width alias
-        .D                 (DEPTH),            // Depth alias
-        .AW                ($clog2(DEPTH)),    // Address width
-        .JCW               (D),                // Johnson Counter Width
-        .N                 (N_FLOP_CROSS)      // N flop cross alias
+        .DATA_WIDTH        (AW + CW + DW + DW),  // full concatenated payload
+        .DEPTH             (DEPTH),
+        .USE_JOHNSON       (1),
+        .N_FLOP_CROSS      (N_FLOP_CROSS),
+        .ALMOST_WR_MARGIN  (ALMOST_WR_MARGIN),
+        .ALMOST_RD_MARGIN  (ALMOST_RD_MARGIN)
     ) u_gaxi_fifo_async (
         // Clocks and resets
         .axi_wr_aclk     (axi_wr_aclk),    // Write clock
@@ -82,8 +85,7 @@ module gaxi_fifo_async_multi #(
         // Read interface
         .rd_ready        (rd_ready),       // Read ready signal
         .rd_valid        (rd_valid),       // Read valid (not empty)
-        .rd_data        ({rd_addr, rd_ctrl, rd_data1, rd_data0}),
-        .rd_data         ({rd_addr,   rd_ctrl,  rd_data1,  rd_data0})
+        .rd_data         ({rd_addr, rd_ctrl, rd_data1, rd_data0})
     );
 
 

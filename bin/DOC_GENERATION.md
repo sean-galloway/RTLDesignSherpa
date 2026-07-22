@@ -80,10 +80,18 @@ Chapter files start with a top-level `#` heading; sections use `##`, `###`.
 
 ## Lists (LoF / LoT / LoW) — THE thing people get wrong
 
-The `--lof/--lot/--low` flags only *insert the list section*. Entries come from
-**caption encoding in the Markdown**, which the DOCX post-processor
-(`add_lists_to_docx` in `md_to_docx.py`) scans for. Plain `![alt](img)` images
-and bare tables produce **empty lists**. The required encoding:
+Getting a populated list needs **two** independent things, and each has its own
+failure mode:
+
+1. **The list must be enabled** — and *how* depends on which PDF route you are on
+   (see [Enabling the lists](#enabling-the-lists-style-yaml-vs-cli-flags) below).
+   Get this wrong and the section does not appear at all.
+2. **Entries must be caption-encoded in the Markdown**, which the DOCX
+   post-processor (`add_lists_to_docx` in `md_to_docx.py`) scans for. Plain
+   `![alt](img)` images and bare tables produce an **empty list** — the section
+   renders with no entries under it.
+
+The required encoding:
 
 | List | Author it as | Mechanism |
 |------|--------------|-----------|
@@ -117,9 +125,53 @@ Notes:
   `####` to keep them out of the TOC. (STREAM uses `###` for figures, `####` for
   waveforms.)
 - Only enable a list you can populate: a doc with no timing diagrams should NOT
-  pass `--low` (or set `lists.low: false`) — an empty "List of Waveforms" is
-  noise. LoF/LoT/LoW enable per doc via the style YAML `lists:` block and/or the
-  script flags.
+  enable `low` — an empty "List of Waveforms" is noise.
+
+### Enabling the lists: style YAML vs CLI flags
+
+**These are two different mechanisms for two different PDF routes. They are NOT
+interchangeable, and the CLI flags are silently inert on the route this
+methodology actually uses.**
+
+| PDF route | Selected by | What enables the lists |
+|-----------|-------------|------------------------|
+| DOCX -> LibreOffice (**the standard route**) | passing `--style` | the style YAML `lists:` block (`lot` / `lof` / `low` booleans) |
+| pandoc -> LaTeX | omitting `--style` | the `--lot` / `--lof` / `--low` CLI flags |
+
+: How each PDF route enables LoF/LoT/LoW
+
+In `md_to_docx.py` the DOCX path reads
+`lists_config = config.get('lists', {})` (`md_to_docx.py:1161`, `:1567`) — it
+reads the **style only** and never merges `args`. The CLI flags are consumed
+elsewhere, emitting raw LaTeX `\listoftables` / `\listoffigures` /
+`\listofwaveforms` (`md_to_docx.py:1617-1625`), which never executes on the
+LibreOffice path.
+
+**Consequence:** if you pass `--style` (every doc in this methodology does), then
+`--lot/--lof/--low` on the command line do nothing. Set the booleans in the style
+YAML. Leaving the flags on the command line is harmless but misleading — several
+existing generate scripts still pass them, and their lists are in fact coming
+from their style YAML.
+
+**Sharing one style across several docs.** If a single style template serves
+multiple books (as `docs/markdown/rtl_pdf_styles.yaml` does for the RTL library),
+do not flip the booleans globally — a book whose sources lack caption encoding
+would render empty lists. Make them per-book placeholders and substitute at build
+time:
+
+```yaml
+lists:
+  lot: __LOT__
+  lof: __LOF__
+  low: __LOW__
+```
+
+```bash
+sed -e "s|__LOT__|${lot}|" -e "s|__LOF__|${lof}|" -e "s|__LOW__|${low}|" \
+    "${STYLE_TMPL}" > "${tmpstyle}"
+```
+
+See `docs/markdown/generate_rtl_pdfs.sh` (`build_book`) for a working example.
 
 ---
 
@@ -212,7 +264,7 @@ python3 "${REPO_ROOT}/bin/md_to_docx.py" \
   --title-page "${DOC}/title.md" \
   --expand-index --skip-index-content \
   --toc --number-sections \
-  --pdf --lof --lot --pagebreak --narrow-margins \
+  --pdf --pagebreak --narrow-margins \
   --pdf-engine=lualatex \
   --mainfont "Noto Serif" --monofont "Noto Sans Mono" \
   --sansfont "Noto Sans" --mathfont "Noto Serif" \
@@ -224,7 +276,14 @@ python3 "${REPO_ROOT}/bin/md_to_docx.py" \
 ```
 
 Resolve `REPO_ROOT` with `git rev-parse --show-toplevel` (move-proof). One
-`--assets-dir` per asset subdir. Add `--low` only if the doc has waveforms.
+`--assets-dir` per asset subdir.
+
+**LoF/LoT/LoW are not on this command line by design.** Because `--style` is
+passed, the lists come from the style YAML `lists:` block, not from
+`--lot/--lof/--low` — see
+[Enabling the lists](#enabling-the-lists-style-yaml-vs-cli-flags). Enable only
+the lists the doc can populate. (Older generate scripts still pass `--lof --lot`
+here; those flags are inert on this route and can be dropped.)
 
 ---
 
@@ -238,8 +297,9 @@ family (`Noto Serif`, `Noto Sans`, `Noto Sans Mono`).
   given, `md_to_docx.py` styles the DOCX and converts DOCX→PDF via `soffice`
   (`writer_pdf_Export`). Consequences: the `--pdf-engine`/`--mainfont` flags are
   **inert on that path** (LibreOffice substitutes the `fonts:` from the style
-  YAML), and LoF/LoT/LoW come from the **DOCX caption scanner** above (not LaTeX
-  `\listof*`). Without `--style`, the PDF is built by pandoc + the LaTeX engine
+  YAML), **`--lot/--lof/--low` are inert on that path** (the style YAML `lists:`
+  block enables them instead), and list entries come from the **DOCX caption
+  scanner** above, not LaTeX `\listof*`. Without `--style`, the PDF is built by pandoc + the LaTeX engine
   (needs Unicode-friendly fonts; the default `lmroman10` has broken metrics in
   some environments — pass Noto).
 - **`--skip-index-content`** means quick-reference tables in the index do NOT
@@ -255,10 +315,20 @@ family (`Noto Serif`, `Noto Sans`, `Noto Sans Mono`).
 
 ```bash
 pdfinfo <Name>.pdf | grep Pages                       # page count
-pdftotext <Name>.pdf - | sed -n '/List of Figures/,/List of Waveforms/p'  # lists populated?
+pdftotext <Name>.pdf - | grep -inE "list of (tables|figures|waveforms)"  # sections present?
+pdftotext <Name>.pdf - | grep -A 10 "List of Waveforms"                  # entries under them?
 unzip -l <Name>.docx | grep media                     # images embedded?
 ```
 
-If LoF/LoT/LoW are empty, the captions are missing or not Heading-styled — revisit
-the "Lists" section. If an image is missing, its `--assets-dir` is not on the
-resource path or the pre-render step didn't run.
+Check the two failure modes separately — they look similar in a PDF viewer but
+have different causes:
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| List section **missing entirely** | the list is not enabled | set the boolean in the **style YAML** `lists:` block (the CLI flag does nothing when `--style` is passed) |
+| List section present but **empty** | captions missing or not Heading-styled | revisit [Lists](#lists-lof-lot-low-the-thing-people-get-wrong) — `### Figure C.N:`, `#### Waveform C.N:`, `: Caption` |
+
+: Diagnosing an absent vs an empty list
+
+If an image is missing, its `--assets-dir` is not on the resource path or the
+pre-render step didn't run.

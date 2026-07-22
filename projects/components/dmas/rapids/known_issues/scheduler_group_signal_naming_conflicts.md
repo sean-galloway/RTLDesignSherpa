@@ -24,9 +24,14 @@
 # Scheduler Group AXI Signal Naming Conflicts
 
 **Status:** Known Issue - Workaround Available
-**Component:** `projects/components/dmas/rapids/rtl/rapids_macro/scheduler_group.sv`
+**Component:** `projects/components/dmas/rapids/rtl/macro_beats/scheduler_group_beats.sv` (documented against the retired pre-beats scheduler_group.sv)
 **Severity:** Medium
 **Date Identified:** 2025-10-15
+
+> **Status (2026-07-22):** Written against the pre-beats scheduler_group.sv, which was replaced
+> by `rtl/macro_beats/scheduler_group_beats.sv`. The named integration test and line numbers no
+> longer exist; the signal-naming-conflict pattern and the audit-tool workflow remain the
+> relevant guidance for the beats module (current tests: `dv/tests/macro_beats/test_scheduler_group_beats.py`).
 
 ---
 
@@ -66,11 +71,13 @@ When the factory searches for `desc_*valid`, it finds BOTH internal and external
 
 ### Option 1: Use Credit Encoding Test (✅ Recommended)
 
-The credit encoding validation test works correctly and validates the critical scheduler functionality:
+The credit encoding validation test worked correctly and validated the critical scheduler
+functionality (historical - this test was retired with the pre-beats RTL; the current
+equivalent suite is below):
 
 ```bash
 timeout 180 python -m pytest \
-  projects/components/dmas/rapids/dv/tests/integration_tests/test_scheduler_group_integration.py::test_credit_counter_exponential_encoding \
+  projects/components/dmas/rapids/dv/tests/macro_beats/test_scheduler_group_beats.py \
   -v
 ```
 
@@ -179,16 +186,17 @@ Test `scheduler_group` as part of larger integration (e.g., within `scheduler_gr
 
 ## Related Issues
 
-- `projects/components/dmas/rapids/known_issues/scheduler.md` - Credit counter exponential encoding (FIXED)
+- Credit counter exponential encoding (FIXED pre-beats; its known_issues/scheduler.md write-up
+  was retired with that RTL - see `known_issues/README.md`)
 - AXI factory pattern matching limitations (Framework enhancement)
 
 ---
 
 ## References
 
-- RTL: `projects/components/dmas/rapids/rtl/rapids_macro/scheduler_group.sv` (lines 81-189)
-- Testbench: `bin/TBClasses/rapids/scheduler_group_tb.py` (lines 238-271)
-- Tests: `projects/components/dmas/rapids/dv/tests/integration_tests/test_scheduler_group_integration.py`
+- RTL: `projects/components/dmas/rapids/rtl/macro_beats/scheduler_group_beats.sv` (pre-beats line numbers no longer apply)
+- Testbench: `projects/components/dmas/rapids/dv/tbclasses/scheduler_group_beats_tb.py`
+- Tests: `projects/components/dmas/rapids/dv/tests/macro_beats/test_scheduler_group_beats.py`
 
 ---
 

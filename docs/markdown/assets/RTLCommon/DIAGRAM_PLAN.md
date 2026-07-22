@@ -81,7 +81,7 @@ docs/markdown/
 | File | Module | Complexity | Priority |
 |------|--------|------------|----------|
 | gray2bin.md | gray2bin | Low | Low |
-| grayj2bin.md | grayj2bin | Low | Low |
+| johnson2bin.md | johnson2bin | Low | Low |
 
 ### Category 6: Clock/Reset Utilities (4 files)
 | File | Module | Complexity | Priority |
@@ -128,10 +128,9 @@ docs/markdown/
 |------|--------|------------|----------|
 | math_adder_basic.md | math_adder_full/half | Low | Medium |
 | math_adder_brent_kung.md | math_adder_brent_kung_* | High | High |
-| math_adder_carry_lookahead.md | math_adder_carry_lookahead | Medium | High |
+| math_adder_pg_chain.md | math_adder_pg_chain | Medium | High |
 | math_adder_carry_save.md | math_adder_carry_save | Medium | Medium |
 | math_adder_han_carlson.md | math_adder_han_carlson_* | High | High |
-| math_adder_kogge_stone.md | math_adder_kogge_stone | High | High |
 | math_adder_ripple_carry.md | math_adder_ripple_carry | Low | Medium |
 | math_subtractor.md | math_subtractor_* | Low | Medium |
 

@@ -52,6 +52,8 @@ The HPET module is a fully parameterized, scalable timer peripheral with APB int
 
 ![HPET Architecture](docs/assets/graphviz/hpet_architecture.png)
 
+*(Diagram source: `docs/assets/graphviz/hpet_architecture.gv`; render the PNG with the Makefile in that directory if it is not present.)*
+
 *Figure 1: HPET module architecture showing APB interface, PeakRDL-generated registers, and timer core with optional CDC.*
 
 ### Module Hierarchy
@@ -145,16 +147,16 @@ hpet_regs.rdl (SystemRDL)
 
 To modify the register map:
 
-1. Edit `rtl/amba/components/hpet/peakrdl/hpet_regs.rdl`
+1. Edit `projects/components/retro_legacy_blocks/rtl/hpet/peakrdl/hpet_regs.rdl`
 2. Regenerate:
    ```bash
-   cd rtl/amba/components/hpet/peakrdl
-   peakrdl regblock hpet_regs.rdl -o .. --cpuif passthrough
+   cd projects/components/retro_legacy_blocks/rtl/hpet/peakrdl
+   python ../../../../../../bin/peakrdl_generate.py hpet_regs.rdl --copy-rtl ..
    ```
 3. Generated files:
    - `../hpet_regs.sv` (register block)
    - `../hpet_regs_pkg.sv` (package)
-   - `generated/docs/hpet_regs.md` (documentation)
+   - `generated/docs/` (HTML/Markdown documentation, regenerated on demand)
 
 **Note**: `hpet_config_regs.sv` wrapper adapts PeakRDL hwif to HPET core interface.
 
@@ -454,13 +456,13 @@ The test suite validates all parameter combinations:
 
 ```bash
 # Run all HPET tests
-pytest val/integ_amba/test_apb_hpet.py -v
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
 
 # Run specific configuration
-pytest 'val/integ_amba/test_apb_hpet.py::test_hpet[2-32902-1-0-full-2-timer Intel-like]' -v
+pytest 'projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py::test_hpet[2-32902-1-0-full-2-timer Intel-like]' -v
 
 # Run CDC tests only
-pytest -k "CDC" val/integ_amba/test_apb_hpet.py -v
+pytest -k "CDC" projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
 ```
 
 ### Test Coverage
@@ -474,7 +476,7 @@ All configurations pass **4/4 basic tests**:
 ## File Structure
 
 ```
-rtl/amba/components/hpet/
+projects/components/retro_legacy_blocks/rtl/hpet/
 ├── README.md                          (This file)
 ├── apb_hpet.sv                        (Top-level module)
 ├── hpet_core.sv                       (Timer core logic)
@@ -543,7 +545,7 @@ Allows single PeakRDL generation (NUM_TIMERS=8) to correctly report timer count 
 - **PeakRDL**: https://github.com/SystemRDL/PeakRDL-regblock
 - **SystemRDL**: https://github.com/SystemRDL/systemrdl-compiler
 - **HPET Spec**: Intel IA-PC HPET Specification (for reference, not strictly compliant)
-- **Test Documentation**: `val/integ_amba/test_apb_hpet.py` docstrings
+- **Test Documentation**: `projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py` docstrings
 
 ## Contributing
 

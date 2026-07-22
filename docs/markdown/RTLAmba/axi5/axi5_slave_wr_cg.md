@@ -33,9 +33,11 @@
 
 The AXI5 Slave Write with Clock Gating module wraps the standard `axi5_slave_wr` module with integrated clock gating for power optimization. It automatically gates the internal clock when the module is idle.
 
+**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. `AWATOP` is carried through unmodified but no atomic read-modify-write is performed, no MTE tag checking or `BTAGMATCH` generation is performed, and no outstanding-transaction tracking is done. Those behaviors belong to the endpoints on either side. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
+
 ### Key Features
 
-- Full AMBA AXI5 slave write protocol compliance
+- Carries the full AXI5 write signal set listed below, unmodified, across the SKID buffers
 - **Integrated clock gating** for dynamic power reduction
 - Configurable idle count before gating
 - All AXI5 extensions supported (ATOMIC, NSAID, TRACE, MPAM, MECID, UNIQUE, MTE, POISON)
@@ -116,6 +118,19 @@ flowchart TB
 | ENABLE_POISON | bit | 1 | Enable poison indicator |
 | CG_IDLE_COUNT_WIDTH | int | 4 | Clock gating idle counter width |
 
+### Derived Parameters
+
+These are computed inside the module from the parameters above. Do not override them.
+
+| Parameter | Expression | Description |
+|-----------|------------|-------------|
+| SW | AXI_WSTRB_WIDTH | Write strobe width, one bit per data byte |
+| NUM_TAGS | max(AXI_DATA_WIDTH / 128, 1) | MTE tags carried per beat (one tag per 16 bytes) |
+| TW | AXI_TAG_WIDTH * NUM_TAGS | Total width of the `awtag` / `wtag` / `btag` fields |
+| AWSize | Sum of the enabled AW fields | AW SKID buffer payload width |
+| WSize | Sum of the enabled W fields | W SKID buffer payload width |
+| BSize | Sum of the enabled B fields | B SKID buffer payload width |
+
 ---
 
 ## Ports
@@ -187,6 +202,24 @@ stateDiagram-v2
 - Gating only occurs after configured idle period
 - Any activity immediately ungates the clock
 
+
+### Ready Deassertion and Wake Behavior
+
+While `cg_gating` is asserted, the ready outputs listed above are forced low.
+
+This is legal AXI. A READY output may be deasserted for any number of cycles, and neither side may assume READY asserts within a bounded time, so holding it low is ordinary backpressure rather than a protocol violation. It cannot deadlock either: the same VALID being held off also feeds the activity detector, so gating releases and READY returns to the core's value.
+
+Two consequences are worth designing around:
+
+- **Wake latency adds to first-transfer latency.** Activity is registered once (AXI4, AXI5, AXI4-Lite, AXI4-Stream) or twice (APB, APB5, AXI5-Stream) before reaching the ICG enable, which is combinational. The AXI5 `_cg` wrappers drive the activity terms combinationally, so there is 1 register stage and the first usable gated-clock edge arrives 2 cycles after activity asserts. Size `cfg_cg_idle_count` so that cost is amortized over the traffic burst that follows.
+- **READY is a combinational function of `cg_gating`.** The path from the idle counter to the `s_axi_awready` and `s_axi_wready` outputs may need attention during timing closure, particularly at high frequency.
+
+### Integration Caveat: `s_axi_bready` in the Activity Term
+
+The activity detector treats `s_axi_bready` as activity, not just the corresponding VALID. A master that ties `s_axi_bready` high permanently, which is a common and otherwise entirely correct style, holds `user_valid` asserted forever. The idle counter then never expires and the clock never gates.
+
+If a clock-gated instance appears to save no power, check this first. To get gating with an always-ready consumer, either assert `s_axi_bready` only while a response is genuinely expected, or instantiate the non-gated base module and gate at a level where real idleness is visible.
+
 ---
 
 ## Clock Gating Configuration
@@ -211,17 +244,16 @@ stateDiagram-v2
 
 ### Clock Gating During Write Burst
 
-<!-- TODO: Add wavedrom timing diagram -->
-```
-TODO: Wavedrom showing:
-- aclk (ungated)
-- gated_aclk
-- awvalid, wvalid, bvalid
-- user_valid, axi_valid
-- cg_idle, cg_gating
-- Burst write transaction
-- Gating after burst completion
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - ACLK (ungated)
+> - GATED_ACLK
+> - AWVALID, WVALID, BVALID across a burst write
+> - user_valid, axi_valid activity terms
+> - cg_idle, cg_gating
+> - Gating engaging after the burst and its B response complete
+
 
 ---
 
@@ -255,7 +287,8 @@ axi5_slave_wr_cg #(
     // Slave interface (from external master)
     .s_axi_awid         (s_axi_awid),
     .s_axi_awaddr       (s_axi_awaddr),
-    // ... (connect all slave AW/W/B signals)
+    // Every remaining s_axi_aw*/s_axi_w*/s_axi_b* port mirrors the fub_axi_* list,
+    // same names and widths, opposite directions. All must be connected.
 
     // FUB interface (to backend)
     .fub_axi_awid       (mem_awid),
@@ -284,10 +317,13 @@ assign system_low_power = slave_wr_gating &&
 
 ### Power Savings Estimation
 
-Assuming 60% module activity:
-- **Without gating:** 100% dynamic power
-- **With gating (idle_count=2):** ~50% dynamic power (40% gated, accounting for transitions)
-- **With gating (idle_count=0):** ~60% dynamic power (more aggressive but more transitions)
+Worked example, assuming the module is active 60% of the time:
+- **Without gating:** 100% of this module's dynamic power
+- **With gating (idle_count=2):** roughly 50%, allowing for wake/sleep transitions
+- **With gating (idle_count=0):** roughly 60%; more aggressive gating, but more transition overhead
+
+All power figures on this page are first-order estimates derived from duty cycle, not measured results. No power analysis (gate-level or otherwise) has been run against these modules. Actual savings depend on the gated logic's share of total design power, the technology library's clock-gate cell, and leakage, which clock gating does not reduce at all. Treat these numbers as a sizing aid and characterize your own instance before quoting a savings figure.
+
 
 ### Write-Specific Considerations
 
@@ -327,7 +363,7 @@ Assuming 60% module activity:
 
 - **[AXI5 Slave Write](axi5_slave_wr.md)** - Non-clock-gated version
 - **[AXI5 Slave Read CG](axi5_slave_rd_cg.md)** - Clock-gated read variant
-- **[AXI5 Slave Write Monitor CG](axi5_slave_wr_mon_cg.md)** - With monitoring
+- **[AXI5 Slave Write Monitor CG](../monitor/axi5_slave_wr_mon_cg.md)** - With monitoring
 - **[AMBA Clock Gate Control](../shared/amba_clock_gate_ctrl.md)** - Clock gating controller
 
 ---

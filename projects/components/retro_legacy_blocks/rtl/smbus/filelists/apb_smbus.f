@@ -15,25 +15,19 @@
 # Include directories
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-# Header files with macros (MUST be compiled first)
-$REPO_ROOT/rtl/amba/includes/reset_defs.svh
-
-# Common infrastructure
-$REPO_ROOT/rtl/common/fifo_sync.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
-$REPO_ROOT/rtl/common/counter_bin.sv
-
-# Low-level dependencies (for APB slave modules)
-$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
-$REPO_ROOT/rtl/amba/shared/cdc_2_phase_handshake.sv
-$REPO_ROOT/rtl/amba/shared/cdc_4_phase_handshake.sv
-
-# APB slave infrastructure
-$REPO_ROOT/rtl/amba/apb/apb_slave.sv
-$REPO_ROOT/rtl/amba/apb/apb_slave_cdc.sv
+# AMBA/common dependencies come in via each component's OWN filelist; this
+# file never hand-lists individual rtl/common or rtl/amba sources. A consumer
+# that hand-lists a component's files has to track that component's internal
+# dependencies, and it silently rots when they change (missing reporter
+# sub-blocks, missing monitor_trans_cam, missing clock-gate chain). Each
+# filelist below declares its own complete closure.
+-f $REPO_ROOT/rtl/amba/filelists/apb_slave_cdc.f
+-f $REPO_ROOT/rtl/amba/filelists/cdc_2_phase_handshake.f
+-f $REPO_ROOT/rtl/amba/filelists/cdc_4_phase_handshake.f
+-f $REPO_ROOT/rtl/common/filelists/fifo_sync.f
 
 # PeakRDL adapter (from converters)
-$REPO_ROOT/projects/components/converters/rtl/peakrdl_to_cmdrsp.sv
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 
 # PeakRDL-generated registers
 $RETRO_ROOT/rtl/smbus/smbus_regs_pkg.sv

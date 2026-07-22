@@ -1222,8 +1222,8 @@ m_axi_awlen <= (s_axi_awlen + 1) * WIDTH_RATIO - 1;
 
 - **`rtl/amba/PRD.md`:** AMBA subsystem overview
 - **`rtl/amba/CLAUDE.md`:** AI assistance guide for AMBA
-- **`rtl/amba/shims/axi4_to_apb_convert.sv`:** Reference implementation for protocol/width conversion
-- **`docs/markdown/RTLAmba/axi/`:** Detailed AXI module specifications
+- **`projects/components/converters/rtl/axi4_to_apb_convert.sv`:** Reference implementation for protocol/width conversion
+- **`docs/markdown/RTLAmba/axi4/`:** Detailed AXI module specifications
 
 ### External Resources
 
@@ -1252,25 +1252,29 @@ m_axi_awlen <= (s_axi_awlen + 1) * WIDTH_RATIO - 1;
 
 ### Key Implementation Details
 
-**Upsize Write Path (rtl/amba/axi4/axi4_dwidth_converter.sv:395-494):**
+> Note (2026-07-22): the implementation has since moved out of `rtl/amba/axi4/` --
+> the single `axi4_dwidth_converter.sv` was split into `axi4_dwidth_converter_wr.sv`
+> and `axi4_dwidth_converter_rd.sv` under `projects/components/converters/rtl/`.
+
+**Upsize Write Path (`projects/components/converters/rtl/axi4_dwidth_converter_wr.sv`):**
 - Accumulates WIDTH_RATIO narrow beats into single wide beat
 - Strobe merging across accumulated beats
 - WLAST detection from slave, generation to master
 - Overlap handling: Accept new beat while finishing previous
 
-**Downsize Write Path (rtl/amba/axi4/axi4_dwidth_converter.sv:498-599):**
+**Downsize Write Path (`projects/components/converters/rtl/axi4_dwidth_converter_wr.sv`):**
 - Splits wide beat into WIDTH_RATIO narrow beats
 - Beat pointer tracks position within split sequence
 - Proper WLAST generation (only on final narrow beat)
 - WSTRB extraction for each narrow segment
 
-**Upsize Read Path (rtl/amba/axi4/axi4_dwidth_converter.sv:607-706):**
+**Upsize Read Path (`projects/components/converters/rtl/axi4_dwidth_converter_rd.sv`):**
 - Splits wide read data into narrow beats
 - Distributes RDATA using beat pointer indexing
 - RLAST generation for final narrow beat
 - RRESP replication to all narrow beats
 
-**Downsize Read Path (rtl/amba/axi4/axi4_dwidth_converter.sv:709-802):**
+**Downsize Read Path (`projects/components/converters/rtl/axi4_dwidth_converter_rd.sv`):**
 - Accumulates WIDTH_RATIO narrow beats into wide beat
 - RRESP accumulation (OR logic - any error propagates)
 - RID tracking from first narrow beat

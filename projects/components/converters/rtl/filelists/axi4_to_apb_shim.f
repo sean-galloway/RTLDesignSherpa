@@ -5,35 +5,38 @@
 # Include directories
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-# Header files with macros (MUST be compiled first)
-$REPO_ROOT/rtl/amba/includes/reset_defs.svh
+# Dependencies come in via each component's OWN filelist, never by
+# hand-listing individual rtl/amba or rtl/common sources here. A consumer that
+# hand-lists a component's files has to track that component's internals, and
+# it silently rots when they change. This filelist previously hand-listed the
+# shim's dependencies and so never learned about gaxi_fifo_async, which
+# axi4_to_apb_shim started instantiating when its APB cmd/rsp CDC moved from a
+# 2-phase handshake to a pair of async FIFOs -- leaving every bridge with an
+# APB slave unable to elaborate.
 
-# Dependencies - CDC and synchronization
-$REPO_ROOT/rtl/amba/shared/cdc_2_phase_handshake.sv
-$REPO_ROOT/rtl/amba/shared/cdc_4_phase_handshake.sv
+# Reset macro header
+-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
 
-# Dependencies - GAXI infrastructure
-$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
-$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
+# CDC and synchronization
+-f $REPO_ROOT/rtl/amba/filelists/cdc_2_phase_handshake.f
+-f $REPO_ROOT/rtl/amba/filelists/cdc_4_phase_handshake.f
 
-# Dependencies - APB infrastructure
-$REPO_ROOT/rtl/amba/apb/apb_master.sv
-$REPO_ROOT/rtl/amba/apb/apb_master_stub.sv
+# GAXI infrastructure. gaxi_fifo_async backs the APB cmd/rsp CDC queues.
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_async.f
 
-# Dependencies - Common modules
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
+# APB infrastructure (apb_master_stub.f carries apb_master and its
+# counter_bin / fifo_control / gaxi dependencies)
+-f $REPO_ROOT/rtl/amba/filelists/apb_master_stub.f
 
-# Dependencies - AXI address generation
-$REPO_ROOT/rtl/amba/shared/axi_gen_addr.sv
+# AXI address generation
+-f $REPO_ROOT/rtl/amba/filelists/axi_gen_addr.f
+
+# AXI4 slave stubs (axi4_slave_stub.f carries the rd/wr stubs it wraps)
+-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_stub.f
 
 # Dependencies - AXI4 to APB converter core
 $CONVERTERS_ROOT/rtl/axi4_to_apb_convert.sv
-
-# Dependencies - AXI4 slave stubs
-$REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_wr_stub.sv
-$REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_rd_stub.sv
-$REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_stub.sv
 
 # Top-level AXI4 to APB shim
 $CONVERTERS_ROOT/rtl/axi4_to_apb_shim.sv

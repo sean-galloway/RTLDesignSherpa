@@ -18,7 +18,7 @@
 """
 MonBus AXIL/AXIL Group Integration Test
 
-Test suite for `rtl/amba/shared/monbus_axil_axil_group.sv` -- the
+Test suite for `rtl/amba/monitor/monbus_axil_axil_group.sv` -- the
 AXIL/AXIL member of the monbus_<p1>_<p2>_group family. Drives the
 single-input monitor bus, drains the error FIFO via the AXIL slave-read
 interface, and lets the master-write side flush into a synthetic sink
@@ -53,7 +53,7 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 # Import the shared TB from bin/TBClasses (colocated with the shared
-# rtl/amba/shared/monbus_axil_axil_group.sv module the test targets).
+# rtl/amba/monitor/monbus_axil_axil_group.sv module the test targets).
 from TBClasses.amba.monbus_axil_axil_group.monbus_axil_axil_group_tb import MonbusAxilAxilGroupTB
 
 # Coverage integration - optional import. Lives in the STREAM project
@@ -168,6 +168,7 @@ def test_monbus_axil_axil_group(request, test_type, fifo_depth_err, fifo_depth_w
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_includes': 'rtl/amba/includes',
         'rtl_shared':   'rtl/amba/shared',
+        'rtl_monitor': 'rtl/amba/monitor',
         'rtl_axil4':    'rtl/amba/axil4',
         'rtl_gaxi':     'rtl/amba/gaxi',
         'rtl_common':   'rtl/common',
@@ -179,20 +180,9 @@ def test_monbus_axil_axil_group(request, test_type, fifo_depth_err, fifo_depth_w
     # monbus_<p1>_<p2>_group family. Includes the optional compressor
     # so USE_COMPRESSION=1 builds also compile (raw-mode tests just
     # don't instantiate it).
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_includes'], "monitor_common_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_arbiter_pkg.sv"),
-        os.path.join(rtl_dict['rtl_common'],   "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_common'],   "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'],     "gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'],     "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_axil4'],    "axil4_slave_rd.sv"),
-        os.path.join(rtl_dict['rtl_axil4'],    "axil4_master_wr.sv"),
-        # Monbus group core family (cam/compressor/core + div-by-3 helper)
-        # from the shared canonical filelist -- one place for new deps.
-        *get_sources_from_filelist(repo_root, 'rtl/amba/filelists/monbus_group.f')[0],
-        os.path.join(rtl_dict['rtl_shared'],   f"{dut_name}.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/monbus_axil_axil_group.f")
     for src in verilog_sources:
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")
@@ -210,7 +200,7 @@ def test_monbus_axil_axil_group(request, test_type, fifo_depth_err, fifo_depth_w
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
-    includes = [rtl_dict['rtl_includes'], rtl_dict['rtl_common'], sim_build]
+    includes=includes + [rtl_dict['rtl_common'], sim_build]
 
     # Family port surface: no more S_AXIL_DATA_WIDTH / M_AXIL_DATA_WIDTH
     # (data width is locked at 64). FIFO_DEPTH_WRITE is in beats.

@@ -12,20 +12,18 @@
 # Include directories
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-# Header files with macros (MUST be compiled first)
-$REPO_ROOT/rtl/amba/includes/reset_defs.svh
-
-# Low-level dependencies (for APB slave modules)
-$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
-$REPO_ROOT/rtl/amba/shared/cdc_2_phase_handshake.sv
-$REPO_ROOT/rtl/amba/shared/cdc_4_phase_handshake.sv
-
-# Layer 1: APB Slave (APB -> CMD/RSP interface)
-$REPO_ROOT/rtl/amba/apb/apb_slave.sv
-$REPO_ROOT/rtl/amba/apb/apb_slave_cdc.sv
+# AMBA/common dependencies come in via each component's OWN filelist; this
+# file never hand-lists individual rtl/common or rtl/amba sources. A consumer
+# that hand-lists a component's files has to track that component's internal
+# dependencies, and it silently rots when they change (missing reporter
+# sub-blocks, missing monitor_trans_cam, missing clock-gate chain). Each
+# filelist below declares its own complete closure.
+-f $REPO_ROOT/rtl/amba/filelists/apb_slave_cdc.f
+-f $REPO_ROOT/rtl/amba/filelists/cdc_2_phase_handshake.f
+-f $REPO_ROOT/rtl/amba/filelists/cdc_4_phase_handshake.f
 
 # Layer 2: CMD/RSP to PeakRDL Adapter
-$REPO_ROOT/projects/components/converters/rtl/peakrdl_to_cmdrsp.sv
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 
 # Package (must come first)
 $RETRO_ROOT/rtl/uart_16550/uart_16550_regs_pkg.sv

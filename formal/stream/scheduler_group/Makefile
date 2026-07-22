@@ -25,7 +25,7 @@ DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/common/arbiter_priority_encoder.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
-        $(REPO_ROOT)/rtl/amba/shared/monbus_arbiter.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/monbus_arbiter.sv \
         $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/descriptor_engine.sv \
         $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/scheduler.sv
 

@@ -28,6 +28,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 class APB5MasterStubBasicTB(TBBase):
@@ -124,15 +125,9 @@ def test_apb5_master_stub(request, addr_width, data_width, auser_width, enable_p
 
     toplevel = "apb5_master_stub"
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "counter_load_clear.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_apb5'], "apb5_master.sv"),
-        os.path.join(rtl_dict['rtl_apb5'], "apb5_master_stub.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/apb5_master_stub.f")
 
     # Test identifier
     aw_str = TBBase.format_dec(addr_width, 2)
@@ -148,7 +143,7 @@ def test_apb5_master_stub(request, addr_width, data_width, auser_width, enable_p
     os.makedirs(log_dir, exist_ok=True)
 
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-    includes = [rtl_dict['rtl_amba_includes']]
+    includes=includes
 
     rtl_parameters = {
         'ADDR_WIDTH': str(addr_width),

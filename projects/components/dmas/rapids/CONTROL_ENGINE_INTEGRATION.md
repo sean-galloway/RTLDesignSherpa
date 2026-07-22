@@ -234,12 +234,14 @@ fetch + control masters + data path each), single shared APB (SRC@0x0000/SNK@0x1
 monitor egress. Directional scheduler makes each DATA descriptor single-purpose per half.
 
 STAGE G DV — step 1 (per-half regmap) DONE + VERIFIED:
-- [x] RDL refactored for reuse: extracted `regfile rapids_half_regs` into its own include
-      rtl/macro_beats/rapids_half_regs.rdl; rapids_regs.rdl now `include`s it + addrmap SRC/SNK;
-      new rtl/macro_beats/rapids_half_regmap.rdl instantiates the half ONCE (addrmap rapids_half_regmap,
-      `rapids_half_regs H @ 0x0`) purely to emit a per-half regmap.
+- [x] RDL refactored for reuse: extracted the per-half `regfile` into its own include
+      rtl/macro_beats/rapids_engine_regs.rdl (originally named rapids_half_regs.rdl, since renamed);
+      rapids_regs.rdl now `include`s it + addrmap SRC/SNK;
+      new rtl/macro_beats/rapids_regmap.rdl (originally rapids_half_regmap.rdl) instantiates the half
+      ONCE purely to emit a per-half regmap.
 - [x] Main split block regenerated from the refactored RDL -> unchanged (SRC/SNK, 103 regs, lint OK).
-- [x] Per-half regmap generated: regs/generated/rapids_half_regmap_regmap.py -> bare names, in-half
+- [x] Per-half regmap generated (the intermediate regs/generated/rapids_half_regmap_regmap.py no
+      longer exists post-rename) -> bare names, in-half
       offsets (GLOBAL_CTRL@0x100, AXI_XFER_CONFIG@0x2A0, MON regs@0x8xx), NO SRC/SNK collision.
       Installed as rtl/rapids_regmap.py (the DV-canonical per-half map).
 - [x] Verified: RegisterMap(f,32,13,start_address,log) applies base = start_address+reg_offset.
@@ -367,7 +369,7 @@ characterization harness (AXIS gen/checker already built + verified) on the spli
 
 ## Monbus hierarchy (user directive) — 3 levels
 Each half (rapids_src_beats / rapids_snk_beats) instantiates its OWN monbus_arbiter
-(rtl/amba/shared/monbus_arbiter.sv) aggregating that half's monitor source(s) -> single
+(rtl/amba/monitor/monbus_arbiter.sv) aggregating that half's monitor source(s) -> single
 per-half monitor_packet_t stream. rapids_core_beats instantiates ONE MORE monbus_arbiter
 merging src_mon + snk_mon -> a SINGLE mon output. The top then routes that single stream to
 the axil-mon module (monbus_axil_axil_group -> m_axil_mon). Half mon interface widened from

@@ -161,13 +161,13 @@ All diagrams referenced in the documentation are available in:
 
 ### Companion Specifications
 
-- **[Converters Spec](../converter_spec/converter_index.md)** - Feature specification (high-level)
+- **Converters Spec** - the old high-level `converter_spec/` tree was migrated into this MAS (see Version History)
 
 ### Project-Level
 
 - **RTL Source:** `projects/components/converters/rtl/`
 - **Test Suite:** `projects/components/converters/dv/tests/`
-- **Component PRD:** `projects/components/converters/PRD.md`
+- **Component Overview:** `projects/components/converters/README.md` (converters has no standalone PRD.md)
 
 ---
 

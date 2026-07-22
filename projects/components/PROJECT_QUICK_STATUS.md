@@ -158,7 +158,7 @@
 - `PRD.md` - Product requirements and architecture
 - `CLAUDE.md` - Implementation guidance
 - `README.md` - Quick start guide
-- `docs/stream_spec/` - Complete microarchitecture specification
+- `docs/stream_has/`, `docs/stream_mas/` - Complete HAS/MAS specification
 - Characterization report: [stream_characterization findings](../NexysA7/stream_characterization/docs/characterization_v1_findings.md) - on-silicon perf/area/compression
 
 **Use Cases:**
@@ -198,7 +198,7 @@
 **Documentation:**
 - `PRD.md` - Complete specification
 - `CLAUDE.md` - Implementation guidance and testbench architecture
-- `docs/bridge_spec/` - Detailed architecture documentation
+- `docs/bridge_has/`, `docs/bridge_mas/` - Detailed architecture documentation
 
 **Use Cases:**
 - Multi-core processor interconnects
@@ -229,7 +229,7 @@
 **Documentation:**
 - `PRD.md` - Complete product requirements
 - `CLAUDE.md` - Implementation guidance and known issues
-- `docs/rapids_spec/` - Detailed specification
+- `docs/rapids_beats_has/`, `docs/rapids_beats_mas/` - Detailed specification
 - Characterization report: [rapids_characterization findings](../NexysA7/rapids_characterization/docs/rapids_characterization_findings.md) - on-silicon (Nexys A7-100T) results
 
 **Use Cases:**
@@ -292,7 +292,7 @@
 - `PRD.md` - Complete requirements for all blocks
 - `CLAUDE.md` - AI development guidance
 - `BLOCK_STATUS.md` - Master tracking for all 13 blocks
-- `docs/hpet_spec/` - Complete HPET specification
+- `docs/hpet_mas/` - Complete HPET specification
 
 **Use Cases:**
 - Legacy platform compatibility

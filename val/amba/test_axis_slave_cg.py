@@ -32,6 +32,7 @@ from cocotb.triggers import RisingEdge, Timer
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import the clock gated testbench
 from TBClasses.axis4.axis_slave_cg_tb import AXISSlaveCGTB
@@ -293,14 +294,9 @@ def test_axis_slave_cg(skid_depth, data_width, id_width, dest_width, user_width,
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     # RTL files for clock gated AXIS slave
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "icg.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "clock_gate_ctrl.sv"),
-        os.path.join(rtl_dict['rtl_amba_shared'], "amba_clock_gate_ctrl.sv"),  # Clock gate controller
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_axis'], "axis_slave.sv"),  # Base module
-        os.path.join(rtl_dict['rtl_axis'], f"{dut_name}.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axis_slave_cg.f")
 
     # Check that files exist
     for src in verilog_sources:
@@ -345,7 +341,7 @@ def test_axis_slave_cg(skid_depth, data_width, id_width, dest_width, user_width,
     }
 
     # Simulation settings
-    includes = [rtl_dict['rtl_amba_includes']]
+    includes=includes
     # VCD waveform generation support via WAVES environment variable
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging

@@ -35,21 +35,23 @@ The AXIS5 Master module implements an AXI5-Stream master interface with AMBA5 ex
 
 ### Key Features
 
-- Full AXI5-Stream protocol compliance
+- AXI4-Stream data path (TDATA, TSTRB, TLAST, TID, TDEST, TUSER, TVALID/TREADY)
 - TWAKEUP: Wake-up signaling for power management
-- TPARITY: Optional parity protection (1 bit per byte)
+- TPARITY: Optional parity protection, 1 bit per byte (proprietary extension)
 - Internal skid buffer for backpressure handling
 - Configurable data, ID, destination, and user signal widths
 - Parity error detection and reporting
 - Busy status indication
 
+**Signal coverage:** this module does not implement TKEEP, TPOISON, or any chunking sideband. See [Implemented Signal Set](README.md#implemented-signal-set) for the full list of deviations from the ARM signal set.
+
 ### AXIS5 Extensions Over AXIS4
 
-| Feature | AXIS4 | AXIS5 |
-|---------|-------|-------|
-| Wake-up signal | None | TWAKEUP (configurable) |
-| Data parity | None | TPARITY (1 bit per byte, configurable) |
-| Parity error detection | None | Built-in error flag |
+| Feature | AXIS4 | AXIS5 | ARM standard signal? |
+|---------|-------|-------|----------------------|
+| Wake-up signal | None | TWAKEUP (configurable) | Yes, AXI5-Stream addition |
+| Data parity | None | TPARITY (1 bit per byte, configurable) | No - RTL Design Sherpa extension |
+| Parity error detection | None | Built-in sticky `parity_error` flag | No - implementation status output |
 
 ---
 
@@ -115,12 +117,24 @@ flowchart TB
 | AXIS_USER_WIDTH | int | 1 | AXIS TUSER signal width (0 to disable) |
 | ENABLE_WAKEUP | bit | 1 | Enable TWAKEUP signal (1=enabled) |
 | ENABLE_PARITY | bit | 0 | Enable TPARITY signal (1=enabled) |
-| DW | int | AXIS_DATA_WIDTH | Data width short name (calculated) |
-| IW | int | AXIS_ID_WIDTH | ID width short name (calculated) |
-| DESTW | int | AXIS_DEST_WIDTH | DEST width short name (calculated) |
-| UW | int | AXIS_USER_WIDTH | USER width short name (calculated) |
-| SW | int | DW/8 | Strobe width in bytes (calculated) |
-| PW | int | SW | Parity width - 1 bit per byte (calculated) |
+
+**Note on `ENABLE_WAKEUP`:** the default is 1, so TWAKEUP ports exist and are carried through the buffer unless you explicitly set `ENABLE_WAKEUP=0`. Set it to 0 for an AXI4-Stream-compatible port list with no wake-up sideband and slightly less area. `ENABLE_PARITY` defaults to 0 because TPARITY is a proprietary extension.
+
+### Derived Values (do not override)
+
+These are declared in the parameter list so they can be used in port widths, but they are derived from the parameters above. Overriding them directly produces an inconsistent module.
+
+| Name | Derivation | Meaning |
+|------|------------|---------|
+| DW | AXIS_DATA_WIDTH | Data width short name |
+| IW | AXIS_ID_WIDTH | ID width short name |
+| DESTW | AXIS_DEST_WIDTH | DEST width short name |
+| UW | AXIS_USER_WIDTH | USER width short name |
+| SW | DW/8 | Strobe width in bytes |
+| PW | SW | Parity width - 1 bit per byte |
+| IW_WIDTH / DESTW_WIDTH / UW_WIDTH | max(width, 1) | Zero-width avoidance for disabled sidebands |
+| PW_WIDTH | ENABLE_PARITY ? PW : 1 | TPARITY port width |
+| TSize | Sum of all enabled fields | Skid buffer payload width |
 
 ---
 
@@ -203,10 +217,14 @@ The module uses an internal `gaxi_skid_buffer` to:
 ### Parity Checking (Optional)
 
 When `ENABLE_PARITY=1`:
-1. Calculate odd parity for each data byte: `parity[i] = ^tdata[i*8 +: 8]`
-2. Compare calculated parity with received `m_axis_tparity`
-3. Set `parity_error` flag on mismatch (sticky, cleared by reset)
-4. Parity check occurs on valid output transfers
+1. Calculate **even** parity for each data byte: `parity[i] = ^m_axis_tdata[i*8 +: 8]`. The XOR reduction yields 1 for an odd number of set bits, so a correct byte plus its parity bit always has an even population count.
+2. Compare the calculated parity with `m_axis_tparity`
+3. Set `parity_error` flag on mismatch (sticky, cleared only by reset)
+4. The check is sampled on accepted output transfers (`m_axis_tvalid && m_axis_tready`)
+
+**This module does not generate parity.** TPARITY is supplied by the upstream FUB on `fub_axis_tparity`, carried through the skid buffer alongside TDATA, and presented on `m_axis_tparity`. The check on the output side therefore validates the data path *through this module* (packing, buffering, unpacking) against the parity the producer computed. It is not an end-to-end check of the downstream link - the receiving endpoint must run its own check, which is what `axis5_slave` does on its input side.
+
+If the upstream FUB does not compute parity, leave `ENABLE_PARITY=0`; tying `fub_axis_tparity` to a constant while parity is enabled will assert `parity_error` on the first non-matching beat.
 
 ### Busy Signal
 
@@ -221,43 +239,46 @@ The `busy` output indicates:
 ### Basic Transfer with Wake-up
 
 <!-- TODO: Add wavedrom timing diagram for AXIS5 transfer with wake-up -->
-```
-TODO: Wavedrom timing diagram showing:
-- aclk
-- fub_axis_tvalid/tready
-- fub_axis_tdata
-- fub_axis_tlast
-- fub_axis_twakeup (AXIS5 extension)
-- m_axis_tvalid/tready
-- m_axis_tdata
-- m_axis_twakeup
-- busy
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - aclk
+> - fub_axis_tvalid/tready
+> - fub_axis_tdata
+> - fub_axis_tlast
+> - fub_axis_twakeup (AXIS5 extension)
+> - m_axis_tvalid/tready
+> - m_axis_tdata
+> - m_axis_twakeup
+> - busy
+
 
 ### Transfer with Parity Error
 
 <!-- TODO: Add wavedrom timing diagram for parity error detection -->
-```
-TODO: Wavedrom timing diagram showing:
-- aclk
-- m_axis_tdata
-- m_axis_tparity (received)
-- calculated_parity
-- parity_mismatch
-- parity_error (sticky flag)
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - aclk
+> - m_axis_tdata
+> - m_axis_tparity (received)
+> - calculated_parity
+> - parity_mismatch
+> - parity_error (sticky flag)
+
 
 ### Skid Buffer Backpressure
 
 <!-- TODO: Add wavedrom timing diagram for skid buffer operation -->
-```
-TODO: Wavedrom timing diagram showing:
-- aclk
-- fub_axis_tvalid/tready
-- m_axis_tvalid/tready (downstream blocked)
-- int_t_count (buffer fill level)
-- busy
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - aclk
+> - fub_axis_tvalid/tready
+> - m_axis_tvalid/tready (downstream blocked)
+> - int_t_count (buffer fill level)
+> - busy
+
 
 ---
 
@@ -365,10 +386,11 @@ end
 
 | Feature | AXIS4 | AXIS5 |
 |---------|-------|-------|
-| Wake-up signal | Not supported | TWAKEUP (optional) |
-| Data parity | Not supported | TPARITY per byte (optional) |
+| Wake-up signal | Not present | TWAKEUP (optional) |
+| Data parity | Not present | TPARITY per byte (optional, proprietary) |
 | Power management | Limited | Enhanced via TWAKEUP |
 | Data integrity | CRC/checksum in TUSER | Built-in parity option |
+| TKEEP | Not present | Not present |
 
 ### Skid Buffer Sizing
 
@@ -385,9 +407,10 @@ end
 ### Parity Implementation
 
 When `ENABLE_PARITY=1`:
-- **Overhead:** 1 bit per data byte (12.5% for 8-bit bytes)
-- **Detection:** Single-bit errors only (odd parity)
+- **Overhead:** 1 bit per data byte, so 12.5% extra wires regardless of bus width (a 512-bit bus adds 64 parity bits)
+- **Detection:** Odd numbers of bit errors within a byte (even parity); two flipped bits in the same byte are undetected
 - **Correction:** None - error flag only
+- **Polarity:** Even parity only; there is no parameter to select odd parity
 - **Use case:** Low-cost error detection in reliable environments
 
 For stronger protection, use:
@@ -411,7 +434,7 @@ Internal logic uses `IW_WIDTH = (IW > 0) ? IW : 1` to avoid zero-width signals.
 - **[AXIS5 Slave](axis5_slave.md)** - AXIS5 slave interface
 - **[AXIS5 Master CG](axis5_master_cg.md)** - Clock-gated variant with power management
 - **[AXIS5 Slave CG](axis5_slave_cg.md)** - Clock-gated slave variant
-- **[AXIS4 Master](../fabric/axis_master.md)** - AXIS4 version for comparison
+- **[AXIS4 Master](../axis4/axis_master.md)** - AXIS4 version for comparison
 - **[AMBA5 Overview](../overview.md)** - AMBA5 specifications and extensions
 
 ---

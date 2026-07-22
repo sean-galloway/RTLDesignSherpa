@@ -23,6 +23,17 @@
 
 # pumice — Open Tasks
 
+## TASK-FEATURES: QoS + advanced scheduling (post-cleanup) — PLANNED
+
+Once pumice is CLEAN (board reads validated at the bring-up tuple, refresh
+collision fixed + re-soaked on silicon, deskew fully retired, HAS/MAS in sync),
+layer in the more sophisticated features planned for the controller: QoS
+(per-master/per-ID priority classes into the arbiter pick, ageing/starvation
+bounds) and the other advanced-mode work already cataloged in
+`projects/components/memory-controllers/ADVANCED_MODES_ROADMAP.md` and the
+design-requirements doc (FR-FCFS variants, paging/refresh policy modes).
+Entry gate: tiny-tREFI soak 0-dirty on the rebuilt bitstream.
+
 ## TASK-GEAR: Generic AXI data-width gearing — RESOLVED (external converter)
 
 Make host `AXI_DATA_WIDTH` a free parameter (32/64/128/256/512) decoupled from the
@@ -92,6 +103,44 @@ wrdata_en became "stray data beats" and the write was silently dropped. Fix: fol
 WRA→WR and RDA→RD in `_handle_command` (auto-precharge already carried in addr bit 10
 for both paths). All LPDDR2 traffic tests now pass; xfail removed.
 
+## TASK-TOPCSR: test_pumice_top_csr wr_rd roundtrip returns zero read beats — OPEN (pre-existing)
+
+`cocotb_test_pumice_top_csr` fails its AXI write-then-read phase: read 0 gets
+ZERO R beats in 800 cycles (`got=[]`), i.e. the read path never returns —
+while `test_pumice_top` (45 read-heavy tests), core, core_dfi, geared and the
+whole fub/macro suite pass. **Bisected 2026-07-21: fails identically at HEAD
+(95c9490a) with only the filelist fix applied — predates the deskew removal
+and the refresh/tRFC arbiter change.** Suspect the CSR-programmed config path
+(hwif-driven init) diverging from the TB-driven config the other tops use.
+The top tests were compile-broken (missing gaxi_fifo_async deps in the dv/tb
+filelists) for some window, so the regression that introduced this was masked.
+
+## TASK-CONFIGAXES: runtime-config axes corrupt data (board + sim) — OPEN (issue #42)
+
+**Board (2026-07-22, first rearch config-axis run):** baseline/inorder 9/14
+(col_major family fails only at scale 1000); bank_interleave / open_page /
+reorder 0/14. multiid shows 7 EXTRA read returns (hist 64007 != 64000) —
+suspect rd-CAM duplicate issue under reorder. Long col-major + refresh
+interplay implicated for the baseline-scale failures. Full map + signatures:
+`projects/NexysA7/ddr2-characterization/char_results/FINDINGS_pumice_board_2026-07-22.md`
+(+ char_2026-07-22_wrapup.csv). Correctness at the baseline config is SOLID
+(soak gate green); these are the runtime page-policy/scheme/reorder paths.
+Tools: CMD_HISTORY_EN checker, dfi_rd_return_checker, ILA flow.
+**Sim repro available** (re-confirmed post-fixes 2026-07-22):
+`test_ddr2_char_char_families` fails the bank_interleave family over the
+DFI loopback — the config-axis defect is digital and wave-debuggable in
+sim; start there, no board required.
+
+## TASK-CHARSIM: test_ddr2_char_char_families integrity fail (bank_interleave/incremental_bl8) — OPEN (pre-existing, same class as TASK-CONFIGAXES)
+
+`bank_interleave/incremental_bl8` fails integrity in the char-families sim
+("read engine did not complete", 42 beats mismatched). **Bisected 2026-07-22:
+fails identically at HEAD (95c9490a) — predates the deskew removal, the
+refresh/tRFC arbiter change, and the no-rmw shadow writes.** Same masked-
+regression window as TASK-TOPCSR (the top/char sims were compile-broken by the
+dv/tb filelist drift for a period). Suspect the config-switch path
+(ADDR_MAP bank_lsb=0 preset) interacting with the read engine.
+
 ## TASK-SCHED-REFRESH: refresh collides with an open row (arbiter registered-feedback hazard) — OPEN
 
 **Bug (#2, command-sequencing).** The arbiter (`pumice_cmd_arbiter`) can grant a
@@ -111,7 +160,7 @@ correctly sequenced (`RD→PRE→REF→ACT→RD`, no collision) — so this is N
 blocker (the board fails on the separate device-word / half-DFI-word phase skew),
 but it IS a real arbiter defect.
 
-**Instrument (built, needs wiring):** `dv/checkers/pumice_cmd_history_checker.sv` —
+**Instrument (now wired):** `rtl/fub/pumice_cmd_history_checker.sv` (generate-gated by `CMD_HISTORY_EN` inside `rtl/macro/pumice_mem_cmd_scheduler.sv`) —
 a FINE-GRAINED per-(rank,bank) command-history shift register (slot = cycles-since
 issue) that binds to the arbiter's `cmd_valid/op/rank/bank` and audits JEDEC
 same-bank sequencing the coarse gate misses. Ships the refresh-collision assertion
@@ -138,7 +187,41 @@ read blocker is the DFI-read device-word/phase skew (data-path) — see
 `[[project_pumice_pipeline_board_read_regression]]`; pair this with the
 DFI-read-boundary device-word DATA check for that class.
 
-## TASK-DESKEW: per-beat DFI read deskew (the board read fix) — IN PROGRESS
+## TASK-BRINGUP: board reads WORK — validated tuple + honest measurement (2026-07-21)
+
+The rate-2/BL4 board (BUILD_ID 0x44445232) reads CLEAN. The blocker was never
+the analog read path; it was three stacked measurement/config defects:
+
+1. **Sweep axis**: s7ddrphy asserts `rddata_valid` a FIXED `read_latency` (=
+   cl_sys+6 = 8) sys cycles after `rddata_en` (pure delay line; ISERDES capture
+   is continuous), so for reads `t_rddata_en` only places valid. The DATA
+   arrives at its own physical latency — `DFI_TUNING.rddata_delay` slides the
+   data onto the valid window. Every failed sweep held rddata_delay=0 where
+   alignment is unreachable. **Validated tuple: t_phy_wrlat=1, t_rddata_en=6,
+   rddata_delay=7, bitslip=0, IDELAY tap 8 (eye taps 0..16, width 17).**
+   Baked into A7Leveling ctor defaults.
+2. **False-pass metric**: `wait_engine` default bails when rd_error latches (a
+   mismatch latches it) -> `beats_mismatched` read EARLY; and a HUNG read
+   counts nothing -> reads back 0 = fake clean. Fixed in bringup_joint_probe /
+   A7Leveling._test / train_per_lane (ignore_error=True + require done; hang
+   reported distinctly).
+3. **RMW poison**: on pre-CDC-fix bitstreams the pumice APB window returns a
+   PRIOR transaction's data, so every `rmw=True` write spliced stale garbage
+   into preserved fields (set_deskew after set_controller_cfg silently
+   reverted wrlat/rden -> leveling swept at reset timing). pumice_device now
+   NEVER rmws: shadowed full-word writes seeded from RDL resets,
+   `invalidate_shadow()` on soft_reset. (RTL CDC fix already landed in
+   apb_slave_cdc; bitstreams in bitstream/ predate it — rebuild to retire the
+   hazard on-silicon.)
+
+Residual: intermittent row-sized (256-beat/2KB) read corruption, strongly
+refresh-correlated (soak A/B: tREFI default 0/8 dirty, tREFI=0x40 4/4 dirty at
+~32-44/1024 beats, tREFI=0xFFFF 0/8) -> this is TASK-SCHED-REFRESH (REFab
+granted after ACT with no PRE), now confirmed ON SILICON, not the read path.
+Next: fix the arbiter refresh sequencing (plan below), rebuild bitstream (also
+picks up the CDC fix), re-soak at tiny tREFI as the regression gate.
+
+## TASK-DESKEW: per-beat DFI read deskew — SUPERSEDED (was never the board fix)
 
 The board read blocker is a HALF-DFI-WORD PHASE SKEW: the a7ddrphy returns the two
 64b beats of a 128b DFI read word at DIFFERENT capture latencies (the two packed
@@ -179,6 +262,7 @@ DONE (integration red->green):
   `test_ddr2_char_uart_pagehit_rate4_x16_deskew` (skew=1 + deskew_hi=1) PASSES
   (mism==0); skew=1/deskew=0 fails (the 2/4). Skew-off rate4_x16 stays green.
 
-TODO:
-1. Board: rebuild bitstream, `make train-deskew`, confirm reads clean (the standing
-   silicon blocker). Expected ~deskew_lo=0/deskew_hi=1.
+SUPERSEDED: the board read fix was the TASK-BRINGUP tuple above (rddata_delay
+alignment + honest metrics + no-rmw writes), at deskew 0/0. The deskew RTL +
+`PHY_TIMING.deskew_lo/hi` CSR remain a removal candidate (area/timing recovery;
+see issue #39) — delete rather than train.

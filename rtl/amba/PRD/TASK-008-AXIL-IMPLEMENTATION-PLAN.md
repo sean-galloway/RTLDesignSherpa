@@ -308,8 +308,8 @@ bin/TBClasses/axil4/monitor/
 ## References
 
 **AXI4 Templates:**
-- `rtl/amba/axi4/axi4_master_rd_mon.sv` - Base monitor template
-- `rtl/amba/axi4/axi4_master_rd_mon_cg.sv` - CG wrapper template
+- `rtl/amba/monitor/axi4_master_rd_mon.sv` - Base monitor template
+- `rtl/amba/monitor/axi4_master_rd_mon_cg.sv` - CG wrapper template
 - `bin/TBClasses/axi4/monitor/axi4_master_monitor_tb.py` - Test TB template
 
 **Documentation:**

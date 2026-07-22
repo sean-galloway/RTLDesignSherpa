@@ -68,7 +68,7 @@ def main():
     # Hardcode path for now
     parser_path = "/usr/bin/verible-v0.0-3430-g060bde0f//bin/verible-verilog-syntax"
     # List of hardcoded Verilog files
-    files = ["/home/sean/github/RTLDesignSherpa/rtl/common/math_adder_half.sv"]
+    files = ["/home/sean/github/RTLDesignSherpa/rtl/math/math_adder_half.sv"]
     files = ['/home/sean/github/RTLDesignSherpa/rtl/common/arbiter_weighted_round_robin.sv']
     files = ['/home/sean/github/RTLDesignSherpa/rtl/common/counter_bin.sv']
     parser = verible_verilog_syntax.VeribleVerilogSyntax(executable=parser_path)

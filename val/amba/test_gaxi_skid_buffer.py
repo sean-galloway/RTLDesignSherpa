@@ -49,6 +49,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.gaxi.gaxi_buffer import GaxiBufferTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # WaveDrom support
 from TBClasses.wavedrom_user.gaxi import (
@@ -467,9 +468,9 @@ def test_gaxi_skid_buffer(request, data_width, depth, clk_period, test_level):
     dut_name = "gaxi_skid_buffer"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_gaxi'], f"{dut_name}.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/gaxi_skid_buffer.f")
 
     # Create human-readable test identifier
     w_str = TBBase.format_dec(data_width, 3)
@@ -486,7 +487,7 @@ def test_gaxi_skid_buffer(request, data_width, depth, clk_period, test_level):
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = [rtl_dict['rtl_amba_includes']]
+    includes=includes
 
     # RTL parameters
     rtl_parameters = {
@@ -589,7 +590,9 @@ def test_gaxi_skid_buffer_wavedrom(request, data_width, depth, clk_period):
     })
 
     dut_name = "gaxi_skid_buffer"
-    verilog_sources = [os.path.join(rtl_dict['rtl_gaxi'], f"{dut_name}.sv")]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/gaxi_skid_buffer.f")
 
     test_name_plus_params = "test_gaxi_skid_buffer_wavedrom"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
@@ -624,7 +627,7 @@ def test_gaxi_skid_buffer_wavedrom(request, data_width, depth, clk_period):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[rtl_dict['rtl_amba_includes']],
+            includes=includes,
             toplevel=dut_name,
             module=module,
             parameters=rtl_parameters,

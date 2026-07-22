@@ -38,7 +38,7 @@
 **📖 Complete Documentation:**
 - `projects/components/retro_legacy_blocks/PRD.md` ← Master requirements for all blocks
 - `projects/components/retro_legacy_blocks/README.md` ← Component overview and usage guide
-- `docs/hpet_spec/hpet_index.md` ← HPET complete specification
+- `docs/hpet_mas/hpet_mas_index.md` ← HPET complete specification
 
 **RLB Address Map:** Single APB entry point at `0x4000_0000`, 4KB windows for clean decode
 
@@ -144,9 +144,9 @@ projects/components/retro_legacy_blocks/dv/
 │   ├── {block}_tests_medium.py    # Medium test suite
 │   └── {block}_tests_full.py      # Full test suite
 │
-└── tests/{block}/                 # Test runners (import TB classes)
-    ├── test_apb_{block}.py        # Test runner only
-    └── conftest.py                # Pytest configuration
+└── tests/                         # Test runners, FLAT layout (import TB classes)
+    ├── test_apb_{block}.py        # Test runner only (one per block)
+    └── conftest.py                # Shared pytest configuration
 ```
 
 **Import Pattern (CORRECT):**
@@ -271,7 +271,7 @@ regfile gpio_regs {
 **Generation:**
 ```bash
 cd rtl/{block}/peakrdl
-peakrdl regblock {block}_regs.rdl --cpuif apb4 -o ../
+python $REPO_ROOT/bin/peakrdl_generate.py {block}_regs.rdl --copy-rtl ..
 ```
 
 **See:** HPET implementation (`rtl/hpet/peakrdl/`) for complete example
@@ -290,12 +290,11 @@ cd projects/components/retro_legacy_blocks
 mkdir -p rtl/{block}/peakrdl
 mkdir -p rtl/{block}/filelists
 
-# DV
+# DV (test runners live flat in dv/tests/, only tbclasses get a subdirectory)
 mkdir -p dv/tbclasses/{block}
-mkdir -p dv/tests/{block}
 
 # Docs
-mkdir -p docs/{block}_spec
+mkdir -p docs/{block}_mas
 ```
 
 **2. Create RTL Files:**
@@ -378,7 +377,7 @@ class {Block}BasicTests:
 
 **5. Create Test Runner:**
 ```python
-# dv/tests/{block}/test_apb_{block}.py
+# dv/tests/test_apb_{block}.py
 import os, sys
 
 # Import framework utilities (PYTHONPATH includes bin/)
@@ -405,9 +404,9 @@ def test_{block}(request, params):
     run(verilog_sources=..., module=module, ...)
 ```
 
-**6. Create conftest.py:**
+**6. Extend the shared conftest.py if needed:**
 ```python
-# dv/tests/{block}/conftest.py
+# dv/tests/conftest.py (shared across all blocks)
 import os
 import pytest
 import logging
@@ -426,7 +425,7 @@ def pytest_configure(config):
 
 **7. Update Documentation:**
 - Add block section to `PRD.md`
-- Create `docs/{block}_spec/{block}_index.md`
+- Create `docs/{block}_mas/{block}_mas_index.md`
 - Update `README.md` status table
 
 ---
@@ -437,7 +436,7 @@ def pytest_configure(config):
 
 **Status:** ✅ Production Ready (5/6 configurations 100% passing)
 **RTL Location:** `rtl/hpet/`
-**Test Location:** `dv/tests/hpet/`
+**Test Location:** `dv/tests/test_apb_hpet.py`
 
 ### Critical HPET Rules
 
@@ -517,7 +516,7 @@ Per-Timer Registers (i = 0 to NUM_TIMERS-1):
 - Most common cause: Missing test cleanup (counter not reset)
 - Solution: Add cleanup at end of EVERY test
 
-**See:** Complete HPET guidance in `docs/hpet_spec/hpet_index.md`
+**See:** Complete HPET guidance in `docs/hpet_mas/hpet_mas_index.md`
 
 ---
 
@@ -683,27 +682,27 @@ from projects.components.retro_legacy_blocks.dv.tbclasses.gpio.gpio_tb import GP
 
 ```bash
 # Run all HPET tests
-pytest projects/components/retro_legacy_blocks/dv/tests/hpet/ -v
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
 
-# Run specific block tests
-pytest projects/components/retro_legacy_blocks/dv/tests/{block}/ -v
+# Run specific block tests (test runners are flat under dv/tests/)
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_{block}.py -v
 
 # Run basic tests only
-pytest projects/components/retro_legacy_blocks/dv/tests/{block}/ -v -k "basic"
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_{block}.py -v -k "basic"
 
 # With waveforms
-WAVES=1 pytest projects/components/retro_legacy_blocks/dv/tests/{block}/ -v
+WAVES=1 pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_{block}.py -v
 
 # Lint block RTL
 verilator --lint-only projects/components/retro_legacy_blocks/rtl/{block}/apb_{block}.sv
 
 # Generate PeakRDL registers
 cd projects/components/retro_legacy_blocks/rtl/{block}/peakrdl
-peakrdl regblock {block}_regs.rdl --cpuif apb4 -o ../
+python ../../../../../../bin/peakrdl_generate.py {block}_regs.rdl --copy-rtl ..
 
 # View documentation
 cat projects/components/retro_legacy_blocks/PRD.md
-cat projects/components/retro_legacy_blocks/docs/{block}_spec/{block}_index.md
+cat projects/components/retro_legacy_blocks/docs/{block}_mas/{block}_mas_index.md
 ```
 
 ---
@@ -727,12 +726,12 @@ cat projects/components/retro_legacy_blocks/docs/{block}_spec/{block}_index.md
 
 **IMPORTANT: PDF files should be generated in the docs directory:**
 ```
-/mnt/data/github/rtldesignsherpa/projects/components/retro_legacy_blocks/docs/
+$REPO_ROOT/projects/components/retro_legacy_blocks/docs/
 ```
 
 **Quick Command:** Use the provided shell script:
 ```bash
-cd /mnt/data/github/rtldesignsherpa/projects/components/retro_legacy_blocks/docs
+cd $REPO_ROOT/projects/components/retro_legacy_blocks/docs
 ./generate_pdf.sh
 ```
 

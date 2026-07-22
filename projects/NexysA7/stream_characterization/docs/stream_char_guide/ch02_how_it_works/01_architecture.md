@@ -13,7 +13,7 @@ fans out to the DUT config, the harness CSR, and the trace/error memories:
 
 ## Bridge slaves and base addresses
 
-From `host/ADDRESS_MAP.md` and `PORT_MAP.md` (the current design; the older
+From `flows-stream-bridge/host/ADDRESS_MAP.md` and `PORT_MAP.md` (the current design; the older
 `flows-stream-bridge/README.md` describes a superseded 5-slave decoder — trust
 the address-map docs):
 
@@ -52,7 +52,7 @@ non-perturbing observability:
 - **`axi4_dma_slaves`** — an LFSR read-source pattern generator (feeds `m_axi_rd`)
   and a write-sink CRC checker (verifies `m_axi_wr`).
 - **`axi_response_delay` ×2** — a programmable memory-latency model on the read
-  and write paths (the `RESP_DELAY` CSR, Chapter 4).
+  and write paths (the `RESP_DELAY` CSR, Chapter 5).
 - **`axi4_dma_observer`** — non-perturbing valid/ready bus meters plus a burst
   histogram and the MonBus-compression observer, all read back through the
   harness CSR.

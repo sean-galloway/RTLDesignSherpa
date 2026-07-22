@@ -1,7 +1,7 @@
 # CDC Handshake Optimization - Status Update
 
 **Date:** 2025-10-17
-**Component:** `rtl/amba/shared/cdc_handshake_fast.sv`
+**Component:** `rtl/amba/cdc/cdc_handshake_fast.sv`
 **Status:** ⚠️ **IN PROGRESS** - Multiple implementation challenges discovered
 
 ---
@@ -186,7 +186,7 @@ This breaks the clean data/valid contract because:
 ## Current Status of Files
 
 ### Created Files
-- `rtl/amba/shared/cdc_handshake_fast.sv` - Broken optimization (3 failed attempts)
+- `rtl/amba/cdc/cdc_handshake_fast.sv` - Broken optimization (3 failed attempts)
 - `val/amba/test_cdc_handshake_fast.py` - Test that exposes the bugs
 - `docs/CDC_HANDSHAKE_OPTIMIZATION_ANALYSIS.md` - Original analysis (overly optimistic)
 - `docs/CDC_HANDSHAKE_FAST_BUG_ANALYSIS.md` - Bug #1 analysis

@@ -26,16 +26,21 @@
 # AXIL leaves + shared group core (monbus_group.f). The monitor_*_pkg packages,
 # gaxi_skid_buffer / gaxi_fifo_sync / fifo_control / counter_bin leaves and the
 # monbus_arbiter are already pulled in by the core filelist above.
-$REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv
-$REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv
+# AMBA/common dependencies come in via each component's OWN filelist; this
+# file never hand-lists individual rtl/common or rtl/amba sources. A consumer
+# that hand-lists a component's files has to track that component's internal
+# dependencies, and it silently rots when they change (missing reporter
+# sub-blocks, missing monitor_trans_cam, missing clock-gate chain). Each
+# filelist below declares its own complete closure.
+-f $REPO_ROOT/rtl/amba/filelists/apb_slave.f
+-f $REPO_ROOT/rtl/amba/filelists/monbus_axil_axil_group.f
+
 -f $REPO_ROOT/rtl/amba/filelists/monbus_group.f
-$REPO_ROOT/rtl/amba/shared/monbus_axil_axil_group.sv
 
 # ---- APB -> register chain ----
-$REPO_ROOT/projects/components/dmas/stream/rtl/includes/stream_pkg.sv
-$REPO_ROOT/rtl/amba/apb/apb_slave.sv
-$REPO_ROOT/projects/components/dmas/stream/rtl/fub/apbtodescr.sv
-$REPO_ROOT/projects/components/converters/rtl/peakrdl_to_cmdrsp.sv
+-f $REPO_ROOT/projects/components/dmas/stream/rtl/filelists/stream_pkg.f
+-f $REPO_ROOT/projects/components/dmas/stream/rtl/filelists/fub/apbtodescr.f
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 
 # ---- PeakRDL register file (split SRC/SNK) ----
 $REPO_ROOT/projects/components/dmas/rapids/regs/generated/rtl/rapids_regs_pkg.sv

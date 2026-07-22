@@ -1,0 +1,32 @@
+{
+  "signal": [
+    {"name": "clk_src",       "wave": "p................."},
+    {"name": "rst_src_n",     "wave": "1................."},
+    {"name": "src_valid",     "wave": "0.1.0............."},
+    {"name": "src_ready",     "wave": "1..0......1......."},
+    {"name": "r_req_tog",     "wave": "0..1..............", "node": "...a.............."},
+    {},
+    {"name": "clk_dst",       "wave": "p................."},
+    {"name": "rst_dst_n",     "wave": "1................."},
+    {"name": "r_req_sync[2]", "wave": "0.....1...........", "node": "......b..........."},
+    {"name": "r_req_sync_d",  "wave": "0......1.........."},
+    {"name": "w_req_event",   "wave": "0.....10..........", "node": "......c..........."},
+    {"name": "dst_valid",     "wave": "0.....1..0........"},
+    {"name": "dst_ready",     "wave": "0........1.0......"},
+    {"name": "r_ack_tog",     "wave": "0........1........"},
+    {},
+    {"name": "r_ack_sync[2]", "wave": "0.........1......."}
+  ],
+  "edge": [
+    "a~>b sync 3 stages",
+    "c one real transfer"
+  ],
+  "head": {
+    "text": "cdc_2_phase_handshake - normal transfer (parity tracks: one toggle = one transfer)",
+    "tick": 0
+  },
+  "foot": {
+    "text": "req_tog toggles 0->1. Destination XORs the synchronized toggle against its delayed copy; the single mismatch is the transfer event."
+  },
+  "config": {"hscale": 2}
+}

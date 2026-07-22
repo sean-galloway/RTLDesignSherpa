@@ -330,6 +330,131 @@ recomputes timing.
 
 ---
 
+## Advanced modes — selectable scheduling / paging / refresh (characterization)
+
+The mechanisms below extend the baseline so that **one bitstream characterizes every
+policy by flipping a CSR** (the "config not param" rule). Each is a paper-derived,
+**config-bit-selectable MODE**; the reset/default is always the baseline above
+(bit-identical), each mode is added **serially in pre-silicon** (faithful DRAM-model
+red test → RTL → green) behind its own enable, and each carries read-only telemetry so
+the host can sweep it and compare against the static baselines in-system.
+
+**Commodity-legal only.** Every mode below runs on the real Nexys A7 DDR2 part (and
+LPDDR2 where noted): all scheduling policies, all page policies, REFab / REFpb
+round-robin, and the JEDEC ±8 postpone/pull-in refresh scheduling. Model-only schemes
+that need DRAM-chip / JEDEC-command changes (out-of-order per-bank refresh, write-refresh
+parallelization, refresh pausing, subarray parallelism) are **out of scope for this
+DDR2/LPDDR2 project** and are tracked for the DDR3/DDR4 roadmap in
+[`../../ADVANCED_MODES_ROADMAP.md`](../../ADVANCED_MODES_ROADMAP.md).
+
+### Mode-select CSRs (the characterization surface)
+
+- **`SCHED_POLICY`** — `ORDER_MODE` (in_order / fr_fcfs / age_threshold), `PRIO_SUB`
+  (none / load_over_store / age_boost), `ROW_SEL`, `COL_SEL`, `ACCESS_PREF`,
+  `AGE_THRESH`, `AUTO_PRECHARGE_EN`, write-drain `WR_HIGH_WM`/`WR_LOW_WM`, `QOS_EN`.
+- **`PAGE_POLICY_CFG`** — `POLICY_MODE` (static_open / static_close / fixed_open /
+  adapt_time / adapt_access / rbl_static / rbl_dyn), `POLICY_SCOPE`, plus `TIMEOUT_CFG`
+  (`TR_INIT/MIN/MAX/STEP`), `ADAPT_CFG` (`MC_HIGH/LOW_THR`, `MC_INIT`, `CHECK_INTERVAL`),
+  `HYBRID_CFG` (`CTR_WIDTH`, `CTR_OPEN_MAX`, `CTR_INIT`), `RBL_CFG` (`MISS_THRESH`,
+  `RESET_INTERVAL`, `WAYS`/`SETS`, dyn hill-climb weights).
+- **`REFRESH_MODE` / `REF_CTRL`** — `MODE` (refab / refpb_rr), `POSTPONE_LIMIT` /
+  `PULLIN_LIMIT` (0..8), `TREFI` / `TREFI_PB` / `TRFC_AB` / `TRFC_PB`, capability strap
+  `PERBANK_SUPPORTED`.
+- **`SCHED_STATS` / `PAGE_STATS` / `REF_STATS`** — read-only: page hit/miss/empty counts,
+  per-bank `TR`, ACT/PRE/REF counts, refresh-defer histogram (for in-system sweeps).
+
+### Axis 1 — Arbitration / scheduling (Rixner, ISCA 2000)
+
+Model each scheduler unit (precharge / row / column / address arbiters) as an independent
+field so any policy combination is reachable. All commodity-legal.
+
+- **`in_order`** — issue only what the single oldest reference requires; no lookahead. The
+  strict baseline (`ORDER_MODE=in_order`). Cheapest.
+- **`fr_fcfs` (First-Ready, First-Come-First-Served)** — among *ready* references (DRAM
+  timing + resources free), pick **row-hit-ready** first, oldest as tie-break. The current
+  default; a ready-check + age compare (cheap, ~+25% BW in the paper).
+- **`age_threshold`** — references older than `AGE_THRESH` get a priority boost → bounds
+  starvation while still reordering.
+- **`ROW_SEL` / `COL_SEL` = `most_pending` / `fewest_pending`** — activate/serve the row
+  with the most (drain the hottest row) or fewest (let low-demand rows precharge sooner)
+  pending references. Needs per-row pending **population counters** — the only genuinely
+  expensive adders on this axis.
+- **`ACCESS_PREF` = `column_first` / `row_first` / `precharge_first`** — address-arbiter
+  class preference (latency-to-open-row vs bank parallelism). Static arbiter priority.
+- **`load_over_store` (`PRIO_SUB`)** — reads outrank writes (already the baseline); a
+  1-bit priority key protecting latency-critical reads.
+- **Write batching (exotic)** — drain writes back-to-back once the write buffer crosses
+  `WR_HIGH_WM`, stopping at `WR_LOW_WM`, to amortize tWTR/bus turnaround instead of
+  ping-ponging RD/WR. Watermark comparators.
+- **QoS-aware (exotic)** — factor `AxQOS` into the pick (highest-QoS ready first, age
+  tie-break) when `QOS_EN`.
+- **Presets** (apples-to-apples): `in_order`, `first_ready`, `{col,row}_{open,close}`,
+  `load_row_open`. Recommended default = `row_closed` + auto-precharge fusion +
+  load-over-store.
+
+### Axis 2 — Page policy / auto-precharge (Rixner open/closed + Happy 2015 + RBLA/Yoon 2012)
+
+The decision resolves to (a) the column command's auto-precharge bit and (b) a background
+per-bank precharge *request* that still respects tRAS/tRTP/tRP/tRC. All commodity-legal.
+
+- **`static_open`** — never auto-precharge; the `bank_timer` holds the row. Best on high
+  locality (~68% of workloads, up to +18% vs close). Reset default.
+- **`static_close`** — always auto-precharge (`RDA`/`WRA`); enables precharge fusion on
+  the last column op to a row. Best on random/low-locality (up to +18% vs open).
+- **`fixed_open`** — leave the row open, auto-precharge after an **idle timeout** of
+  `TR_INIT` clocks (paper used ≈ tRC). One per-bank timeout counter.
+- **`adapt_time` (Happy "Intel-adaptive", recommended adaptive)** — per **bank**: Timeout
+  Counter `TC`, Timeout Register `TR`, 4-bit Mistake Counter `MC`. Close the row when
+  `TC==TR`. `MC`↑ on a premature-close mistake (page-empty reopening the just-closed row),
+  `MC`↓ on held-too-long (a conflict that could have been an empty); every
+  `CHECK_INTERVAL`, `MC>HIGH ⇒ TR+=STEP`, `MC<LOW ⇒ TR-=STEP` (clamped `TR_MIN..TR_MAX`).
+  Best measured policy; ~16–32 small registers total + a last-closed-row latch/comparator
+  per bank.
+- **`adapt_access` (Happy "Hybrid")** — per **row** 2-bit saturating counter (init 0):
+  `+1` on conflict, `−1` on hit; decision = counter MSB (0/1 open, 2/3 close). Per-row
+  state (~16–32 KB/rank → BRAM + read-modify-write in the command path); heavier than
+  `adapt_time`, only if access-based prediction wins on the traffic.
+- **`rbl_static` / `rbl_dyn` (RBLA / Yoon)** — count row-buffer **misses only, not
+  accesses** (a hit carries no signal). A small per-bank set-associative table of
+  saturating **miss** counters (tag = row addr, LRU, epoch reset); miss-count
+  `> MISS_THRESH` ⇒ low-locality row → auto-precharge. `rbl_dyn` hill-climbs `MISS_THRESH`
+  on a cost/benefit estimate. Separates hot-but-friendly from hot-and-thrashing rows that
+  frequency-based schemes conflate. (Only the miss-predictor is kept; the paper's
+  DRAM-cache migration machinery is dropped.)
+
+### Axis 3 — Refresh (Chang DARP/DSARP 2014–16 + Nair pausing 2014 + JEDEC)
+
+The JEDEC **±8 postpone/pull-in credit** (`ref_credit`, signed 4-bit/bank) is the hard
+data-integrity budget every mode obeys.
+
+- **`refab` (DDR2 baseline, commodity)** — one command refreshes the whole rank
+  (`tRFCab`), interval `tREFI`. Current default. Postpone up to 8 + drain batching
+  (`refresh_burst`) already implemented.
+- **`refpb_rr` (LPDDR2, commodity)** — per-bank refresh via the DRAM's internal
+  **round-robin** counter, `tREFIpb = tREFI/8`, `tRFCpb < tRFCab`; other 7 banks stay
+  accessible.
+- **Refresh pull-in / postpone scheduling (commodity)** — defer a due refresh while its
+  bank has pending demand (`ref_credit[b]--`, ≥ −8); when no demand can issue, **pull in**
+  a refresh on an idle bank (`ref_credit[b]++`, ≤ +8). Steers refresh onto idle
+  banks/cycles. `POSTPONE_LIMIT`/`PULLIN_LIMIT` sweepable 0..8 (0 = strict baseline).
+- **Fallback caution:** on traffic that can't use other banks during a per-bank refresh
+  window, REFpb's serialized commands can total ≈3.5× tRFCab — keep `refab` as the safe
+  selectable fallback.
+
+### Serial pre-silicon implementation order
+
+Foundation first (the mode-select CSRs + faithful DRAM-model hooks), then one mechanism
+at a time, each with its own red→green model test and OFF-by-default:
+1. `SCHED_POLICY` / `PAGE_POLICY_CFG` / `REFRESH_MODE` CSRs + `*_STATS` telemetry + PHY
+   capability straps (no behavior change; defaults bit-identical).
+2. Scheduling: `in_order` → `fr_fcfs` (confirm current) → `age_threshold` → `most/fewest
+   pending` → `ACCESS_PREF` → write-batching → QoS.
+3. Paging: `static_open/close` (confirm) → `fixed_open` → `adapt_time` → `rbl_static` →
+   `rbl_dyn` → `adapt_access`.
+4. Refresh (commodity): pull-in/postpone sweep → `refpb_rr`.
+
+---
+
 ## Enforcement summary
 
 | Requirement                             | Enforced by                                                   |

@@ -36,12 +36,20 @@
 
 The Rapid AXI Programmable In-band Descriptor System (RAPIDS) is a custom hardware accelerator designed for efficient memory-to-memory data movement with network interface integration. It demonstrates complex FSM coordination, descriptor-based DMA operations, and comprehensive monitoring capabilities.
 
+> **Status (2026-07-22):** RAPIDS was rearchitected to the "beats" design. Current RTL is in
+> `rtl/fub_beats/`, `rtl/macro_beats/`, `rtl/top_beats/` (control engines in `rtl/fub/`);
+> current specs are `docs/rapids_beats_has/` and `docs/rapids_beats_mas/`. The old
+> `rapids_fub/`/`rapids_macro/` RTL, the `docs/rapids_spec/` tree, and the program engine /
+> network master / network slave blocks described in parts of this PRD were retired
+> (network interfaces are now AXIS; control is APB). Sections describing the pre-beats
+> design are kept as history and marked where practical.
+
 ### 1.1 Quick Stats
 
-- **Modules:** 17 SystemVerilog files
-- **Architecture:** 3 major blocks (Scheduler, Sink, Source)
-- **Interfaces:** AXI4 (memory), Network (network), AXIL4 (control), MonBus (monitoring)
-- **Test Coverage:** ~80% functional (basic scenarios validated)
+- **Modules:** ~20 SystemVerilog files (beats architecture)
+- **Architecture:** 3 major groups (Scheduler group, Sink path, Source path)
+- **Interfaces:** AXI4 (memory), AXIS (network), APB (control), MonBus (monitoring)
+- **Test Coverage:** see `dv/tests/` beats suites (fub_beats/macro_beats/top_beats)
 - **Status:** Active validation, known issues documented
 
 ### 1.2 Subsystem Goals
@@ -57,65 +65,54 @@ The Rapid AXI Programmable In-band Descriptor System (RAPIDS) is a custom hardwa
 This PRD provides a high-level overview. **Detailed specifications are maintained separately:**
 
 ### 📚 Complete RAPIDS Specification
-**Location:** `projects/components/dmas/rapids/docs/rapids_spec/`
 
-- **[Index](rapids_spec/rapids_index.md)** - Complete specification structure
+> **Status (2026-07-22):** The old `docs/rapids_spec/` tree was replaced by two beats spec trees.
 
-#### Chapter 1: Overview
-- [Overview](rapids_spec/ch01_overview/01_overview.md)
-- [Architecture Requirements](rapids_spec/ch01_overview/02_architectural_requirements.md)
-- [Clocking and Reset](rapids_spec/ch01_overview/03_clocks_and_reset.md)
-- [Acronyms](rapids_spec/ch01_overview/04_acronyms.md)
-- [References](rapids_spec/ch01_overview/05_references.md)
+**Architecture Spec (HAS):** `docs/rapids_beats_has/`
 
-#### Chapter 2: Block Specifications
-- [Blocks Overview](rapids_spec/ch02_blocks/00_overview.md)
+- **[HAS Index](docs/rapids_beats_has/rapids_beats_has_index.md)** - Complete HAS structure
+- [Product Overview](docs/rapids_beats_has/ch01_overview/01_product_overview.md)
+- [Block Diagram](docs/rapids_beats_has/ch02_architecture/01_block_diagram.md) / [Data Flow](docs/rapids_beats_has/ch02_architecture/02_data_flow.md) / [Channel Architecture](docs/rapids_beats_has/ch02_architecture/03_channel_architecture.md)
+- Interfaces: [Summary](docs/rapids_beats_has/ch03_interfaces/01_interface_summary.md), [AXI4](docs/rapids_beats_has/ch03_interfaces/02_axi4_interface.md), [AXIS](docs/rapids_beats_has/ch03_interfaces/03_axis_interface.md), [APB](docs/rapids_beats_has/ch03_interfaces/04_apb_interface.md), [MonBus](docs/rapids_beats_has/ch03_interfaces/05_monbus_interface.md)
+- Use cases: `docs/rapids_beats_has/ch04_use_cases/`
+- Programming: [Descriptor Format](docs/rapids_beats_has/ch05_programming/01_descriptor_format.md), [Register Map](docs/rapids_beats_has/ch05_programming/02_register_map.md), [Initialization](docs/rapids_beats_has/ch05_programming/03_initialization.md), [Error Handling](docs/rapids_beats_has/ch05_programming/04_error_handling.md)
+- Performance: `docs/rapids_beats_has/ch06_performance/`
 
-**Scheduler Group:**
-- [Scheduler Group](rapids_spec/ch02_blocks/01_00_scheduler_group.md)
-- [Scheduler](rapids_spec/ch02_blocks/01_01_scheduler.md) - Task management FSM
-- [Descriptor Engine](rapids_spec/ch02_blocks/01_02_descriptor_engine.md) - Descriptor parsing
-- [Program Engine](rapids_spec/ch02_blocks/01_03_program_engine.md) - Program sequencing
+**Micro-Architecture Spec (MAS):** `docs/rapids_beats_mas/`
 
-**Sink Data Path (Network → Memory):**
-- [Sink Data Path](rapids_spec/ch02_blocks/02_00_sink_data_path.md)
-- [Network Slave](rapids_spec/ch02_blocks/02_01_network_slave.md) - Network ingress
-- [Sink SRAM Control](rapids_spec/ch02_blocks/02_02_sink_sram_control.md) - Buffer management
-- [Sink AXI Write Engine](rapids_spec/ch02_blocks/02_03_sink_axi_write_engine.md) - Memory writes
+- **[MAS Index](docs/rapids_beats_mas/rapids_beats_mas_index.md)** - Complete MAS structure
+- Overview: [Architecture](docs/rapids_beats_mas/ch01_overview/01_architecture.md), [Port List](docs/rapids_beats_mas/ch01_overview/02_port_list.md), [Clocks and Reset](docs/rapids_beats_mas/ch01_overview/03_clocks_and_reset.md)
 
-**Source Data Path (Memory → Network):**
-- [Source Data Path](rapids_spec/ch02_blocks/03_00_source_data_path.md)
-- [Network Master](rapids_spec/ch02_blocks/03_01_network_master.md) - Network egress
-- [Source SRAM Control](rapids_spec/ch02_blocks/03_02_source_sram_control.md) - Buffer management
-- [Source AXI Read Engine](rapids_spec/ch02_blocks/03_03_source_axi_read_engine.md) - Memory reads
+**FUB blocks (`docs/rapids_beats_mas/ch02_fub_blocks/`):**
+- [Scheduler](docs/rapids_beats_mas/ch02_fub_blocks/01_scheduler.md) - Per-channel scheduler FSM
+- [Descriptor Engine](docs/rapids_beats_mas/ch02_fub_blocks/02_descriptor_engine.md) - Descriptor fetch/parsing
+- [AXI Read Engine](docs/rapids_beats_mas/ch02_fub_blocks/03_axi_read_engine.md) / [AXI Write Engine](docs/rapids_beats_mas/ch02_fub_blocks/04_axi_write_engine.md)
+- [Alloc Ctrl](docs/rapids_beats_mas/ch02_fub_blocks/05_beats_alloc_ctrl.md) / [Drain Ctrl](docs/rapids_beats_mas/ch02_fub_blocks/06_beats_drain_ctrl.md) / [Latency Bridge](docs/rapids_beats_mas/ch02_fub_blocks/07_beats_latency_bridge.md)
+- [CtrlRd Engine](docs/rapids_beats_mas/ch02_fub_blocks/08_ctrlrd_engine.md) / [CtrlWr Engine](docs/rapids_beats_mas/ch02_fub_blocks/09_ctrlwr_engine.md)
 
-**Monitoring:**
-- [MonBus AXIL Group](rapids_spec/ch02_blocks/04_monbus_axil_group.md) - Control/status
-- [FSM Summary](rapids_spec/ch02_blocks/05_fsm_summary_table.md) - State machine overview
+**Macro blocks (`docs/rapids_beats_mas/ch03_macro_blocks/`):**
+- [Scheduler Group](docs/rapids_beats_mas/ch03_macro_blocks/01_beats_scheduler_group.md) / [Scheduler Group Array](docs/rapids_beats_mas/ch03_macro_blocks/02_beats_scheduler_group_array.md)
+- [Sink Data Path](docs/rapids_beats_mas/ch03_macro_blocks/03_sink_data_path.md) + AXIS wrapper, SRAM controllers
+- [Source Data Path](docs/rapids_beats_mas/ch03_macro_blocks/07_source_data_path.md) + AXIS wrapper, SRAM controllers
+- [RAPIDS Core](docs/rapids_beats_mas/ch03_macro_blocks/11_rapids_core_beats.md) / [Registers](docs/rapids_beats_mas/ch03_macro_blocks/12_rapids_regs.md) / [Top](docs/rapids_beats_mas/ch03_macro_blocks/14_rapids_beats_top.md)
 
-#### Chapter 3: Interfaces
-- [Top-Level Ports](rapids_spec/ch03_interfaces/01_top_level.md)
-- [AXIL4 Interface](rapids_spec/ch03_interfaces/02_axil_interface_spec.md)
-- [AXI4 Interface](rapids_spec/ch03_interfaces/03_axi4_interface_spec.md)
-- [Network Interface](rapids_spec/ch03_interfaces/04_network_interface_spec.md)
-- [MonBus Interface](rapids_spec/ch03_interfaces/05_monbus_interface_spec.md)
-
-#### Chapter 4 & 5: Programming
-- [Programming Model](rapids_spec/ch04_programming_models/01_programming.md)
-- [Register Definitions](rapids_spec/ch05_registers/01_registers.md)
+**Interfaces (`docs/rapids_beats_mas/ch04_interfaces/`):**
+- [AXI4 Interface](docs/rapids_beats_mas/ch04_interfaces/01_axi4_interface_spec.md)
+- [AXIS Interface](docs/rapids_beats_mas/ch04_interfaces/02_axis_interface_spec.md)
+- [MonBus Interface](docs/rapids_beats_mas/ch04_interfaces/03_monbus_interface_spec.md)
 
 ### 🐛 Known Issues
 **Location:** `projects/components/dmas/rapids/known_issues/`
 
-- **[Scheduler](known_issues/scheduler.md)** - Credit counter initialization bug
-- **[Sink Data Path](known_issues/sink_data_path.md)** - Minor issues
-- **[Sink SRAM Control](known_issues/sink_sram_control.md)** - Edge cases
+- **[Index](known_issues/README.md)** - Issue tracking overview (the old scheduler.md credit-counter write-up was retired with the pre-beats RTL)
+- **[Sink Data Path](known_issues/active/sink_data_path.md)** - Minor issues
+- **[Sink SRAM Control](known_issues/active/sink_sram_control.md)** - Edge cases
+- Plus `known_issues/active/` for current beats issues
 
 ### 📖 Other Documentation
-- **[README](README.md)** - Quick start and integration guide
 - **[CLAUDE](CLAUDE.md)** - AI assistance guide for this subsystem
-- **[TASKS](TASKS.md)** - Current work items (to be created)
-- **[Validation Report](../../docs/RAPIDS_Validation_Status_Report.md)** - Test results
+- **[TASKS](TASKS.md)** - Work items (largely pre-beats history)
+- **[Validation Report](docs/RAPIDS_Validation_Status_Report.md)** - Test results (pre-beats snapshot)
 
 ---
 
@@ -134,42 +131,39 @@ This subsystem follows the repository-wide organizational standard (see `/PRD.md
 ```
 projects/components/dmas/rapids/
 ├── rtl/                          # RTL source code
-│   ├── includes/                 # RAPIDS packages (rapids_pkg.sv)
-│   ├── rapids_fub/               # Functional unit blocks
-│   └── rapids_macro/             # Top-level integration
+│   ├── includes/                 # RAPIDS packages
+│   ├── fub/                      # Control engines (ctrlrd/ctrlwr)
+│   ├── fub_beats/                # Beats functional unit blocks
+│   ├── macro_beats/              # Beats assemblies + registers
+│   ├── macro/                    # MonBus group
+│   └── top_beats/                # rapids_beats_top.sv
 │
 └── dv/                           # Design verification (all RAPIDS-specific)
     ├── tbclasses/                # ★ RAPIDS TB classes HERE (not framework!)
     │   ├── scheduler_tb.py       # Scheduler testbench class
     │   ├── descriptor_engine_tb.py
-    │   ├── program_engine_tb.py
-    │   └── rapids_integration_tb.py
+    │   └── rapids_core_beats_tb.py
     │
     ├── components/               # ★ RAPIDS-specific BFMs
-    │   └── (project-specific components if needed)
-    │
-    ├── scoreboards/              # ★ RAPIDS-specific scoreboards
-    │   └── (verification scoreboards)
+    │   └── data_mover_bfm.py
     │
     └── tests/                    # Test runners (import TB classes)
-        ├── fub_tests/            # Functional unit block tests
-        │   ├── scheduler/
-        │   │   └── test_scheduler.py
-        │   ├── descriptor_engine/
-        │   └── program_engine/
-        ├── integration_tests/    # Multi-block scenarios
-        └── system_tests/         # Full RAPIDS operation
+        ├── fub/                  # Control engine tests
+        ├── fub_beats/            # Beats FUB tests (test_scheduler_beats.py, ...)
+        ├── macro/                # MonBus group test
+        ├── macro_beats/          # Multi-block scenarios
+        └── top_beats/            # Full RAPIDS operation
 ```
 
 ### What Goes Where?
 
 | Code Type | ✅ CORRECT Location | ❌ WRONG Location |
 |-----------|---------------------|-------------------|
-| **RAPIDS TB Classes** | `projects/components/dmas/rapids/dv/tbclasses/` | `bin/TBClasses/rapids/` |
-| **RAPIDS-Specific BFMs** | `projects/components/dmas/rapids/dv/components/` | `bin/TBClasses/components/rapids/` |
-| **RAPIDS Scoreboards** | `projects/components/dmas/rapids/dv/scoreboards/` | `bin/TBClasses/scoreboards/rapids/` |
+| **RAPIDS TB Classes** | `projects/components/dmas/rapids/dv/tbclasses/` | `bin/TBClasses/` (framework area) |
+| **RAPIDS-Specific BFMs** | `projects/components/dmas/rapids/dv/components/` | `bin/TBClasses/` (framework area) |
+| **RAPIDS Scoreboards** | `projects/components/dmas/rapids/dv/` (project area) | `bin/TBClasses/scoreboards/` |
 | **Test Runners** | `projects/components/dmas/rapids/dv/tests/` | Anywhere else |
-| **Shared AXI4/APB BFMs** | `bin/TBClasses/components/{protocol}/` | Project area |
+| **Shared AXI4/APB BFMs** | `bin/TBClasses/{protocol}/` | Project area |
 
 ### Import Pattern for RAPIDS Tests
 
@@ -224,28 +218,28 @@ from TBClasses.rapids.scheduler_tb import SchedulerTB  # ❌ WRONG!
 ### 3.1 Top-Level Block Diagram
 
 ```
-RAPIDS (Rapid AXI Programmable In-band Descriptor System)
-├── Scheduler Group
-│   ├── Scheduler          (Task FSM, credit management)
-│   ├── Descriptor Engine  (Descriptor FIFO, parsing)
-│   └── Program Engine     (Program sequencing, alignment)
+RAPIDS Beats (Rapid AXI Programmable In-band Descriptor System)
+├── Scheduler Group (scheduler_group_beats / scheduler_group_array_beats)
+│   ├── Scheduler          (Per-channel FSM, scheduler_beats.sv)
+│   ├── Descriptor Engine  (Descriptor fetch/parsing, descriptor_engine_beats.sv)
+│   └── Control Engines    (ctrlrd_engine.sv / ctrlwr_engine.sv)
 │
-├── Sink Data Path (Network → SRAM → System Memory)
-│   ├── Network Slave        (Network ingress interface)
-│   ├── Sink SRAM Control (Buffering, flow control)
-│   └── Sink AXI Writer   (AXI4 write to system memory)
+├── Sink Data Path (AXIS Network → SRAM → System Memory)
+│   ├── AXIS Slave ingress   (snk_data_path_axis_beats.sv)
+│   ├── Sink SRAM Controller (snk_sram_controller_beats.sv + alloc/drain ctrl)
+│   └── AXI Write Engine     (axi_write_engine_beats.sv)
 │
-├── Source Data Path (System Memory → SRAM → Network)
-│   ├── Source AXI Reader (AXI4 read from system memory)
-│   ├── Source SRAM Control (Buffering, flow control)
-│   └── Network Master       (Network egress interface)
+├── Source Data Path (System Memory → SRAM → AXIS Network)
+│   ├── AXI Read Engine        (axi_read_engine_beats.sv)
+│   ├── Source SRAM Controller (src_sram_controller_beats.sv + alloc/drain ctrl)
+│   └── AXIS Master egress     (src_data_path_axis_beats.sv)
 │
-└── MonBus AXIL Group
-    ├── AXIL4 Slave       (Control/status registers)
-    └── MonBus Reporter   (Monitor packet generation)
+└── Control and Monitoring
+    ├── APB CSRs           (rapids_config_block.sv, PeakRDL rapids_regs.rdl)
+    └── MonBus Group       (macro/monbus_axil_group_2in.sv)
 ```
 
-**📖 See:** `rapids_spec/ch02_blocks/00_overview.md` for detailed architecture
+**📖 See:** `docs/rapids_beats_mas/ch01_overview/01_architecture.md` for detailed architecture
 
 ### 3.2 Data Flow
 
@@ -294,11 +288,11 @@ RAPIDS (Rapid AXI Programmable In-band Descriptor System)
 | Feature | Status | Description |
 |---------|--------|-------------|
 | Task FSM | ✅ | Multi-state coordination |
-| Credit management | ✅ | Exponential encoding (0→1, 1→2, 2→4, ..., 15→∞) |
+| Credit management | ⏳ | Pre-beats scheduler had exponential encoding (0→1, 1→2, ..., 15→∞); scheduler_beats.sv has no credit management yet (planned later phase) |
 | Program sequencing | ✅ | Coordinated operations |
 | Error detection | ✅ | Timeout, overflow detection |
 
-**Credit Management Details:**
+**Credit Management Details (pre-beats, historical):**
 - Uses **exponential credit encoding** for compact configuration
 - 4-bit `cfg_initial_credit` decodes to actual credit counts:
   - `0` → 1 credit (2^0), `4` → 16 credits (2^4), `8` → 256 credits (2^8)
@@ -306,7 +300,7 @@ RAPIDS (Rapid AXI Programmable In-band Descriptor System)
 - Encoding applied at initialization; runtime operations are linear (increment/decrement by 1)
 - Provides wide range (1 to 16384) with minimal configuration overhead
 
-**📖 See:** `rapids_spec/ch02_blocks/01_01_scheduler.md` for complete encoding table
+**📖 See:** `docs/rapids_beats_mas/ch02_fub_blocks/01_scheduler.md` for the current scheduler specification
 
 ### 4.4 Monitoring Integration
 
@@ -325,38 +319,36 @@ RAPIDS (Rapid AXI Programmable In-band Descriptor System)
 
 | Interface | Type | Width | Purpose |
 |-----------|------|-------|---------|
-| **AXIL4** | Slave | 32-bit | Control/status registers |
+| **APB** | Slave | 32-bit | Control/status registers |
 | **AXI4 (Sink)** | Master | Configurable | Write to system memory |
 | **AXI4 (Source)** | Master | Configurable | Read from system memory |
-| **Network (Sink)** | Slave | Configurable | Network ingress |
-| **Network (Source)** | Master | Configurable | Network egress |
+| **AXIS (Sink)** | Slave | Configurable | Network ingress (tid = channel) |
+| **AXIS (Source)** | Master | Configurable | Network egress (tid = channel) |
 | **MonBus** | Master | 64-bit | Monitor packet output |
 
-**📖 See:** `rapids_spec/ch03_interfaces/` for complete interface specs
+**📖 See:** `docs/rapids_beats_mas/ch04_interfaces/` and `docs/rapids_beats_has/ch03_interfaces/` for complete interface specs
 
 ### 5.2 Configuration Parameters
 
 ```systemverilog
-// Example RAPIDS instantiation parameters
-rapids_top #(
-    .AXI_ADDR_WIDTH(32),
-    .AXI_DATA_WIDTH(64),
-    .Network_DATA_WIDTH(64),
-    .SRAM_DEPTH(1024),
-    .MAX_DESCRIPTORS(16)
+// Example RAPIDS instantiation sketch (see rtl/top_beats/rapids_beats_top.sv for the
+// full parameter/port list)
+rapids_beats_top #(
+    .ADDR_WIDTH(64),
+    .DATA_WIDTH(512),
+    .NUM_CHANNELS(8)
 ) u_rapids (
-    .aclk               (clk),
-    .aresetn            (rst_n),
-    // AXIL4 control interface
-    .s_axil_*           (...),
-    // AXI4 memory interfaces
-    .m_axi_sink_*       (...),
-    .m_axi_source_*     (...),
-    // Network network interfaces
-    .s_network_*           (...),
-    .m_network_*           (...),
-    // MonBus output
-    .monbus_pkt_*       (...)
+    .clk                (clk),
+    .rst_n              (rst_n),
+    // APB control interface
+    .s_apb_*            (...),
+    // AXI4 memory interfaces (read + write masters)
+    .m_axi_*            (...),
+    // AXIS network interfaces (tid = channel)
+    .s_axis_*           (...),
+    .m_axis_*           (...),
+    // MonBus / monitor group egress
+    .mon_*              (...)
 );
 ```
 
@@ -401,7 +393,11 @@ rapids_top #(
 
 ### 7.1 Current Status
 
-**Overall:** ~85% functional coverage (basic scenarios validated, descriptor engine complete)
+> **Status (2026-07-22):** The numbers below are a pre-beats snapshot (they include the retired
+> program engine). Current beats regression: fub 232+ and macro 182 tests passing; run the
+> beats suites for live numbers.
+
+**Overall (pre-beats snapshot):** ~85% functional coverage (basic scenarios validated, descriptor engine complete)
 
 | Component | Test Coverage | Status |
 |-----------|--------------|--------|
@@ -413,7 +409,7 @@ rapids_top #(
 | SRAM Controllers | ~80% | Buffer management tested |
 | Integration | ~60% | More stress testing needed |
 
-**Test Location:** `projects/components/dmas/rapids/dv/tests/fub_tests/` and `projects/components/dmas/rapids/dv/tests/integration_tests/`
+**Test Location:** `projects/components/dmas/rapids/dv/tests/fub_beats/` and `projects/components/dmas/rapids/dv/tests/macro_beats/` (plus `fub/`, `macro/`, `top_beats/`)
 
 **Recent Achievements:**
 - ✅ **Descriptor Engine (2025-10-13):** Achieved 100% test pass rate using continuous background monitoring pattern
@@ -428,17 +424,17 @@ rapids_top #(
 
 **FUB (Functional Unit Block) Tests:**
 - Individual block testing
-- Located in `projects/components/dmas/rapids/dv/tests/fub_tests/`
+- Located in `projects/components/dmas/rapids/dv/tests/fub_beats/` (+ `fub/` for control engines)
 - Focus on module-level functionality
 
-**Integration Tests:**
+**Macro Tests:**
 - Multi-block scenarios
-- Located in `projects/components/dmas/rapids/dv/tests/integration_tests/`
+- Located in `projects/components/dmas/rapids/dv/tests/macro_beats/` (+ `macro/` for the monbus group)
 - End-to-end data flow validation
 
-**System Tests:**
+**Top Tests:**
 - Full RAPIDS operation
-- Located in `projects/components/dmas/rapids/dv/tests/system_tests/`
+- Located in `projects/components/dmas/rapids/dv/tests/top_beats/`
 - Realistic traffic patterns
 
 ---
@@ -447,12 +443,13 @@ rapids_top #(
 
 ### 8.1 Critical Issues
 
-**✅ Scheduler Credit Counter Initialization - FIXED (2025-10-11)**
-- **File:** `projects/components/dmas/rapids/rtl/rapids_fub/scheduler.sv:567-570`
+**✅ Scheduler Credit Counter Initialization - FIXED (2025-10-11, pre-beats)**
+- **File:** the retired pre-beats scheduler.sv (replaced by `rtl/fub_beats/scheduler_beats.sv`,
+  which currently has no credit management - planned for a later phase)
 - **Issue:** Credit counter was initializing to 0 instead of using exponential encoding
 - **Fix Applied:** Implemented exponential credit encoding
-- **Status:** Fixed, awaiting test verification
-- **Documentation:** `known_issues/scheduler.md`
+- **Status:** Fixed and verified pre-beats; the known_issues/scheduler.md write-up was retired
+  with that RTL (see `known_issues/README.md`)
 
 **Fix Details:**
 ```systemverilog
@@ -493,56 +490,51 @@ r_descriptor_credit_counter <= (cfg_initial_credit == 4'hF) ? 32'hFFFFFFFF :
 ### 9.1 Quick Start
 
 ```systemverilog
-rapids_top #(
-    .AXI_ADDR_WIDTH(32),
-    .AXI_DATA_WIDTH(64),
-    .Network_DATA_WIDTH(64)
+rapids_beats_top #(
+    .ADDR_WIDTH(64),
+    .DATA_WIDTH(512),
+    .NUM_CHANNELS(8)
 ) u_rapids (
     // Clocking & Reset
-    .aclk               (system_clk),
-    .aresetn            (system_rst_n),
+    .clk                (system_clk),
+    .rst_n              (system_rst_n),
 
-    // AXIL4 Control (connect to control fabric)
-    .s_axil_awaddr      (ctrl_awaddr),
-    .s_axil_awvalid     (ctrl_awvalid),
-    .s_axil_awready     (ctrl_awready),
-    // ... other AXIL signals
+    // APB Control (connect to control fabric)
+    .s_apb_paddr        (ctrl_paddr),
+    .s_apb_psel         (ctrl_psel),
+    .s_apb_penable      (ctrl_penable),
+    // ... other APB signals
 
     // AXI4 Memory (connect to memory controller)
-    .m_axi_sink_awaddr  (mem_awaddr),
-    .m_axi_sink_awvalid (mem_awvalid),
-    // ... AXI write channel for sink
-    // ... AXI read channel for source
+    // ... AXI write channels (sink), AXI read channels (source)
 
-    // Network Network (connect to network fabric)
-    .s_network_tdata       (net_rx_data),
-    .s_network_tvalid      (net_rx_valid),
-    // ... Network slave (receive)
-    // ... Network master (transmit)
+    // AXIS Network (connect to network fabric; tid = channel)
+    .s_axis_tdata       (net_rx_data),
+    .s_axis_tvalid      (net_rx_valid),
+    // ... AXIS slave (receive), AXIS master (transmit)
 
-    // MonBus Output (connect to monitor aggregator)
-    .monbus_pkt_valid   (rapids_mon_valid),
-    .monbus_pkt_ready   (rapids_mon_ready),
-    .monbus_pkt_data    (rapids_mon_data)
+    // Monitor group egress (AXI-Lite drain / IRQ)
+    // ... mon_* signals
 );
 ```
 
+See `rtl/top_beats/rapids_beats_top.sv` for the complete, authoritative port list.
+
 ### 9.2 Configuration Steps
 
-1. **Initialize via AXIL4:**
-   - Configure SRAM depths
+1. **Initialize via APB registers** (use the generated regmap, access registers by name):
+   - Configure channel enables and thresholds
    - Set timeout thresholds
-   - Enable credit management (or disable if using workaround)
 
 2. **Load Descriptors:**
    - Write descriptors to Descriptor Engine FIFO
    - Each descriptor specifies: address, length, control bits
 
 3. **Enable Operation:**
-   - Set enable bits via AXIL4 registers
+   - Set enable bits via APB registers
    - Monitor MonBus for completion/error packets
 
-**📖 See:** `rapids_spec/ch04_programming_models/01_programming.md` for register details
+**📖 See:** `docs/rapids_beats_has/ch05_programming/` for register and programming details
 
 ---
 
@@ -625,19 +617,18 @@ rapids_top #(
 **Structure:**
 ```
 projects/components/dmas/rapids/dv/tests/
-├── fub_tests/              # Functional Unit Block tests
-│   ├── scheduler/
-│   ├── descriptor_engine/
-│   ├── program_engine/
-│   ├── network_interfaces/
-│   └── simple_sram/
-├── integration_tests/      # Multi-block scenarios
-└── system_tests/           # Full RAPIDS operation
+├── fub/                    # Control engine tests (ctrlrd/ctrlwr)
+├── fub_beats/              # Beats FUB tests (scheduler, descriptor engine,
+│                           #   alloc/drain ctrl, latency bridge)
+├── macro/                  # MonBus group test
+├── macro_beats/            # Multi-block scenarios (scheduler group, data paths,
+│                           #   SRAM controllers)
+└── top_beats/              # Full RAPIDS operation
 ```
 
 ### 12.2 CocoTB Framework
 
-**Location:** `bin/TBClasses/rapids/`
+**Location:** `projects/components/dmas/rapids/dv/tbclasses/` (RAPIDS-specific) plus shared BFMs in `bin/TBClasses/`
 
 **Components:**
 - RAPIDS-specific drivers
@@ -645,7 +636,7 @@ projects/components/dmas/rapids/dv/tests/
 - Traffic patterns
 - Monitor checkers
 
-**📖 See:** `docs/markdown/TBClasses/` (once created)
+**📖 See:** `docs/markdown/TBClasses/` for shared framework docs
 
 ### 12.2.1 MANDATORY: BFM Usage for FUB Tests
 
@@ -657,13 +648,12 @@ projects/components/dmas/rapids/dv/tests/
 
 | Interface Type | Framework Location | BFM Component |
 |----------------|-------------------|---------------|
-| **Custom valid/ready** | `bin/TBClasses/components/gaxi/` | GAXI Master/Slave |
-| **AXI4** | `bin/TBClasses/components/axi4/` | AXI4 Master/Slave |
-| **AXI4-Lite (AXIL)** | `bin/TBClasses/components/axil4/` | AXIL Master/Slave |
-| **APB** | `bin/TBClasses/components/apb/` | APB Master/Slave |
-| **AXI-Stream (AXIS)** | `bin/TBClasses/components/axis4/` | AXIS Master/Slave |
-| **Network** | `bin/TBClasses/components/network/` | Network Master/Slave |
-| **MonBus** | `bin/TBClasses/components/monbus/` | MonBus drivers |
+| **Custom valid/ready** | `bin/TBClasses/gaxi/` | GAXI Master/Slave |
+| **AXI4** | `bin/TBClasses/axi4/` | AXI4 Master/Slave |
+| **AXI4-Lite (AXIL)** | `bin/TBClasses/axil4/` | AXIL Master/Slave |
+| **APB** | `bin/TBClasses/apb/` | APB Master/Slave |
+| **AXI-Stream (AXIS)** | `bin/TBClasses/axis4/` | AXIS Master/Slave (RAPIDS network interfaces are AXIS) |
+| **MonBus** | `bin/TBClasses/monbus/` | MonBus drivers |
 
 **Rationale:**
 1. **Consistency**: All tests use standardized handshake protocols
@@ -702,8 +692,8 @@ class ProgramEngineTB(TBBase):
 
 **📖 See:**
 - `projects/components/dmas/rapids/CLAUDE.md` - Rule #1 for complete BFM usage guidelines
-- `bin/TBClasses/components/gaxi/README.md` - GAXI BFM documentation
-- `bin/TBClasses/components/axi4/README.md` - AXI4 BFM documentation
+- `docs/markdown/TBClasses/gaxi/` - GAXI BFM documentation
+- `bin/TBClasses/axi4/` - AXI4 BFM sources (full framework docs in the RTLDesignSherpa-DV repo)
 
 ### 12.3 Test File Structure (Standard Pattern)
 
@@ -712,7 +702,7 @@ class ProgramEngineTB(TBBase):
 RAPIDS tests follow the same pattern as AMBA tests for consistency across the repository:
 
 ```python
-# Example: projects/components/dmas/rapids/dv/tests/fub_tests/scheduler/test_scheduler.py
+# Example: projects/components/dmas/rapids/dv/tests/fub_beats/test_scheduler_beats.py
 
 import os
 import pytest
@@ -720,7 +710,7 @@ import cocotb
 from cocotb_test.simulator import run
 
 # Import REUSABLE testbench class (NOT defined in this file!)
-from TBClasses.rapids.scheduler_tb import SchedulerTB
+from projects.components.dmas.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 from TBClasses.shared.tbbase import TBBase
 
@@ -769,19 +759,21 @@ def test_basic_flow(request, channel_id, num_channels, data_width, credit_width)
     """
     Scheduler basic flow test.
 
-    Run with: pytest projects/components/dmas/rapids/dv/tests/fub_tests/scheduler/test_scheduler.py::test_basic_flow -v
+    Run with: pytest projects/components/dmas/rapids/dv/tests/fub_beats/test_scheduler_beats.py::test_basic_flow -v
     """
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_rapids_fub': '../../rtl/rapids_fub'
+        'rtl_fub_beats': '../../rtl/fub_beats'
     })
 
-    dut_name = "scheduler"
+    dut_name = "scheduler_beats"
     toplevel = dut_name
 
     verilog_sources = [
         os.path.join(repo_root, 'rtl', 'amba', 'includes', 'monitor_pkg.sv'),
-        os.path.join(repo_root, 'rtl', 'rapids', 'includes', 'rapids_pkg.sv'),
-        os.path.join(rtl_dict['rtl_rapids_fub'], f'{dut_name}.sv'),
+        # RAPIDS package(s) from the project includes area
+        # (prefer get_sources_from_filelist() with rtl/filelists/ in real tests)
+        os.path.join(rtl_dict['rtl_fub_beats'], '..', 'includes', 'rapids_pkg.sv'),
+        os.path.join(rtl_dict['rtl_fub_beats'], f'{dut_name}.sv'),
     ]
 
     # Format parameters for unique test name
@@ -827,7 +819,7 @@ def test_basic_flow(request, channel_id, num_channels, data_width, credit_width)
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
             includes=[
-                os.path.join(repo_root, 'rtl', 'rapids', 'includes'),
+                os.path.join(repo_root, 'projects', 'components', 'dmas', 'rapids', 'rtl', 'includes'),
                 os.path.join(repo_root, 'rtl', 'amba', 'includes'),
             ],
             toplevel=toplevel,
@@ -855,7 +847,7 @@ def test_basic_flow(request, channel_id, num_channels, data_width, credit_width)
 **Key Structure Requirements:**
 
 1. **Testbench Class Location:**
-   - ALWAYS in `bin/TBClasses/rapids/`
+   - ALWAYS in `projects/components/dmas/rapids/dv/tbclasses/`
    - NEVER inline in test file
    - Reusable across multiple test files
 
@@ -895,30 +887,30 @@ def test_basic_flow(request, channel_id, num_channels, data_width, credit_width)
 | File | Purpose |
 |------|---------|
 | `projects/components/dmas/rapids/PRD.md` | This document (overview) |
-| `projects/components/dmas/rapids/README.md` | Quick start guide |
 | `projects/components/dmas/rapids/CLAUDE.md` | AI assistance guide |
-| `projects/components/dmas/rapids/TASKS.md` | Work items (to be created) |
-| `projects/components/dmas/rapids/docs/rapids_spec/` | **Complete specification** |
+| `projects/components/dmas/rapids/TASKS.md` | Work items (largely pre-beats history) |
+| `projects/components/dmas/rapids/docs/rapids_beats_has/` | **Architecture specification** |
+| `projects/components/dmas/rapids/docs/rapids_beats_mas/` | **Micro-architecture specification** |
 | `projects/components/dmas/rapids/known_issues/` | Bug tracking |
-| `docs/RAPIDS_Validation_Status_Report.md` | Test results |
+| `docs/RAPIDS_Validation_Status_Report.md` | Test results (pre-beats snapshot) |
 
 ### 13.2 Commands
 
 ```bash
 # Run RAPIDS tests
-pytest projects/components/dmas/rapids/dv/tests/fub_tests/ -v          # Individual blocks
-pytest projects/components/dmas/rapids/dv/tests/integration_tests/ -v   # Multi-block
-pytest projects/components/dmas/rapids/dv/tests/system_tests/ -v        # Full system
+pytest projects/components/dmas/rapids/dv/tests/fub_beats/ -v     # Individual blocks
+pytest projects/components/dmas/rapids/dv/tests/macro_beats/ -v   # Multi-block
+pytest projects/components/dmas/rapids/dv/tests/top_beats/ -v     # Full system
 
 # Run specific FUB test
-pytest projects/components/dmas/rapids/dv/tests/fub_tests/scheduler/ -v
+pytest projects/components/dmas/rapids/dv/tests/fub_beats/test_scheduler_beats.py -v
 
 # Lint RAPIDS RTL
-verilator --lint-only projects/components/dmas/rapids/rtl/rapids_fub/scheduler.sv
+verilator --lint-only projects/components/dmas/rapids/rtl/fub_beats/scheduler_beats.sv
 
 # View specifications
-cat projects/components/dmas/rapids/docs/rapids_spec/rapids_index.md
-cat projects/components/dmas/rapids/docs/rapids_spec/ch02_blocks/01_01_scheduler.md
+cat projects/components/dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md
+cat projects/components/dmas/rapids/docs/rapids_beats_mas/ch02_fub_blocks/01_scheduler.md
 ```
 
 ---
@@ -943,7 +935,7 @@ cat projects/components/dmas/rapids/docs/rapids_spec/ch02_blocks/01_01_scheduler
 
 ### 14.3 Documentation
 
-- ✅ Complete specification in rapids_spec/
+- ✅ Complete specification in docs/rapids_beats_has/ + docs/rapids_beats_mas/
 - ✅ Known issues documented
 - ⏳ Integration examples
 - ⏳ Performance characterization
@@ -994,33 +986,22 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 ### 16.1 Generating PDF/DOCX from Specification
 
-**Tool:** `/mnt/data/github/rtldesignsherpa/bin/md_to_docx.py`
+**Tool:** `bin/md_to_docx.py` (driven by the wrapper scripts in `docs/` - preferred)
 
-Use this tool to convert the linked specification index into a single all-inclusive PDF or DOCX file.
+Use the wrapper scripts to convert the linked HAS/MAS spec indexes into single all-inclusive PDF/DOCX files:
 
 **Basic Usage:**
 
 ```bash
-# Generate DOCX from rapids_spec index
-python bin/md_to_docx.py \
-    projects/components/dmas/rapids/docs/rapids_spec/rapids_index.md \
-    -o projects/components/dmas/rapids/docs/RAPIDS_Specification_v0.25.docx \
-    --toc \
-    --title-page
+# Preferred: wrapper scripts (they call md_to_docx.py with the house style)
+cd projects/components/dmas/rapids/docs
+./generate_has_pdf.sh --rev 0.8     # builds RAPIDS_Beats_HAS_v0.8.docx/.pdf
+./generate_mas_pdf.sh --rev 0.7     # builds RAPIDS_Beats_MAS_v0.7.docx/.pdf
 
-# Generate both DOCX and PDF
+# Direct tool invocation (from repo root), if you need custom options
 python bin/md_to_docx.py \
-    projects/components/dmas/rapids/docs/rapids_spec/rapids_index.md \
-    -o projects/components/dmas/rapids/docs/RAPIDS_Specification_v0.25.docx \
-    --toc \
-    --title-page \
-    --pdf
-
-# With custom template (optional)
-python bin/md_to_docx.py \
-    projects/components/dmas/rapids/docs/rapids_spec/rapids_index.md \
-    -o projects/components/dmas/rapids/docs/RAPIDS_Specification_v0.25.docx \
-    -t path/to/template.dotx \
+    projects/components/dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md \
+    -o projects/components/dmas/rapids/docs/RAPIDS_Beats_MAS_draft.docx \
     --toc \
     --title-page \
     --pdf
@@ -1038,17 +1019,14 @@ python bin/md_to_docx.py \
 **Common Workflow:**
 
 ```bash
-# 1. Update version number in index file (rapids_index.md)
-# 2. Generate documentation
-cd /mnt/data/github/rtldesignsherpa
-python bin/md_to_docx.py \
-    projects/components/dmas/rapids/docs/rapids_spec/rapids_index.md \
-    -o projects/components/dmas/rapids/docs/RAPIDS_Specification_v0.25.docx \
-    --toc --title-page --pdf
+# 1. Update spec content under rapids_beats_has/ or rapids_beats_mas/
+# 2. Generate documentation with a bumped revision
+cd projects/components/dmas/rapids/docs
+./generate_mas_pdf.sh --rev 0.8
 
-# 3. Output files created:
-#    - RAPIDS_Specification_v0.25.docx
-#    - RAPIDS_Specification_v0.25.pdf (if --pdf used)
+# 3. Output files created in docs/:
+#    - RAPIDS_Beats_MAS_v0.8.docx
+#    - RAPIDS_Beats_MAS_v0.8.pdf
 ```
 
 **Debug Mode:**
@@ -1056,7 +1034,7 @@ python bin/md_to_docx.py \
 ```bash
 # Generate debug markdown to see combined output
 python bin/md_to_docx.py \
-    projects/components/dmas/rapids/docs/rapids_spec/rapids_index.md \
+    projects/components/dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md \
     -o output.docx \
     --debug-md
 
@@ -1068,7 +1046,7 @@ python bin/md_to_docx.py \
 - Pandoc installed and in PATH
 - For PDF generation: LaTeX (e.g., texlive) or use Pandoc's built-in PDF writer
 
-**📖 See:** `/mnt/data/github/rtldesignsherpa/bin/md_to_docx.py` for complete implementation details
+**📖 See:** `bin/md_to_docx.py` for complete implementation details
 
 ---
 
@@ -1076,18 +1054,19 @@ python bin/md_to_docx.py \
 
 **IMPORTANT: PDF files should be generated in the docs directory:**
 ```
-/mnt/data/github/rtldesignsherpa/projects/components/dmas/rapids/docs/
+projects/components/dmas/rapids/docs/
 ```
 
-**Quick Command:** Use the provided shell script:
+**Quick Command:** Use the provided shell scripts:
 ```bash
-cd /mnt/data/github/rtldesignsherpa/projects/components/dmas/rapids/docs
-./generate_pdf.sh
+cd projects/components/dmas/rapids/docs
+./generate_has_pdf.sh    # Architecture spec (HAS)
+./generate_mas_pdf.sh    # Micro-architecture spec (MAS)
 ```
 
-The shell script will automatically:
+The shell scripts will automatically:
 1. Use the md_to_docx.py tool from bin/
-2. Process the rapids_spec index file
+2. Process the rapids_beats_has / rapids_beats_mas index files
 3. Generate both DOCX and PDF files in the docs/ directory
 4. Create table of contents and title page
 
@@ -1099,16 +1078,16 @@ The shell script will automatically:
 
 ### 16.1 Internal Documentation
 
-- **Complete Spec:** `rapids_spec/` ← **Primary technical reference**
-- **Validation:** `docs/RAPIDS_Validation_Status_Report.md`
+- **Complete Spec:** `docs/rapids_beats_has/` + `docs/rapids_beats_mas/` ← **Primary technical reference**
+- **Validation:** `docs/RAPIDS_Validation_Status_Report.md` (pre-beats snapshot)
 - **Master PRD:** `/PRD.md`
 - **Repository Guide:** `/CLAUDE.md`
 
 ### 16.2 Related Subsystems
 
-- **AMBA:** `rtl/amba/` - Monitor infrastructure used in RAPIDS
+- **AMBA:** `rtl/amba/` - Monitor infrastructure used in RAPIDS (monitors in `rtl/amba/monitor/`)
 - **Common:** `rtl/common/` - Building blocks (counters, FIFOs, etc.)
-- **CocoTB Framework:** `bin/TBClasses/rapids/`
+- **CocoTB Framework:** `bin/TBClasses/` (shared) + `projects/components/dmas/rapids/dv/tbclasses/` (RAPIDS)
 
 ### 16.3 External References
 
@@ -1129,8 +1108,7 @@ The shell script will automatically:
 ## Navigation
 
 - **← Back to Root:** `/PRD.md`
-- **Complete Specification:** `rapids_spec/rapids_index.md`
-- **Quick Start:** `README.md`
+- **Complete Specification:** `docs/rapids_beats_has/rapids_beats_has_index.md` + `docs/rapids_beats_mas/rapids_beats_mas_index.md`
 - **AI Guidance:** `CLAUDE.md`
-- **Tasks:** `TASKS.md` (to be created)
+- **Tasks:** `TASKS.md`
 - **Issues:** `known_issues/`

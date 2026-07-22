@@ -176,6 +176,12 @@ class AXIRomTB(TBBase):
 
 ## Component Development Workflow
 
+> Note (2026-07-22): the `axi_rom_wrapper` / `axi_rom_tb.py` / `test_axi_rom.py` /
+> `docs/axi_rom_spec.md` files used throughout this walkthrough are a TEMPLATE example,
+> not existing files. The ROM actually implemented in misc/ is `rtl/axi4_slave_rom.sv`
+> (+ `rtl/rom.sv`); it does not yet have a dedicated test. Real misc tests live in
+> `dv/tests/fub/` with TB classes in `dv/tbclasses/`.
+
 ### Step 1: Validate Component Suitability
 
 **Before adding to misc/, verify:**

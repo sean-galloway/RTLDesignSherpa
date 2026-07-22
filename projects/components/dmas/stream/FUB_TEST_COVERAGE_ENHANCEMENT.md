@@ -23,6 +23,11 @@
 
 # FUB Test Coverage Enhancement
 
+> Status (2026-07-22): historical tracker. The gaps described here were addressed;
+> current FUB tests live in `dv/tests/fub/`. `simple_sram.sv` no longer exists - SRAM
+> buffering is `sram_controller.sv`/`sram_controller_unit.sv` (tested by
+> `test_sram_controller.py` and `test_sram_controller_alloc.py`).
+
 **Date:** 2025-11-12
 **Purpose:** Address critical gaps in FUB-level testing that allowed bugs to escape to macro testing
 **Severity:** HIGH - Completion signal bug escaped because AXI engines had NO FUB tests

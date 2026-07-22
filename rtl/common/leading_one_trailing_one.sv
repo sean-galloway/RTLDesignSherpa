@@ -55,7 +55,7 @@
 //------------------------------------------------------------------------------
 //   - find_first_set.sv - Used internally for trailing one detection
 //   - find_last_set.sv - Used internally for leading one detection
-//   - grayj2bin.sv - Primary user of this module
+//   - johnson2bin.sv - Primary user of this module
 //
 //------------------------------------------------------------------------------
 // Test:

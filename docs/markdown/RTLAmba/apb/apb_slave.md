@@ -23,7 +23,11 @@
 
 # apb_slave
 
-An Advanced Peripheral Bus (APB) slave module that provides a complete APB4/APB5 compliant interface with buffered command/response processing for high-performance peripheral integration.
+An Advanced Peripheral Bus (APB) slave module that provides a complete AMBA 4 APB (APB4) compliant interface with buffered command/response processing for high-performance peripheral integration.
+
+**Protocol scope:** APB4 only. For `PWAKEUP`, the `P*USER` sidebands, or optional
+parity, use `apb5_slave` from `rtl/amba/apb5/` -- see the
+[APB5 book](../apb5/apb5_slave.md).
 
 ## Overview
 
@@ -87,7 +91,13 @@ module apb_slave #(
 | DATA_WIDTH | int | 32 | APB data bus width |
 | STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |
 | PROT_WIDTH | int | 3 | APB protection signal width |
-| DEPTH | int | 2 | Skid buffer depth (2^DEPTH entries) |
+| DEPTH | int | 2 | Skid buffer depth in **entries** (not a log2 exponent) |
+
+**DEPTH is a literal entry count.** `gaxi_skid_buffer` stores its payload in an
+unpacked array of `DEPTH` slots, so `DEPTH=2` gives two entries, not four.
+Supported values are `{2, 4, 6, 8}`; the shift-register storage is optimal at 2
+and remains cheaper than a packed-vector implementation through 8. Odd values and
+values above 8 are not supported.
 
 ## Ports
 
@@ -138,11 +148,30 @@ module apb_slave #(
 
 ### APB Protocol Implementation
 
-The module implements the complete APB slave protocol with a three-state finite state machine:
+The module implements the complete APB slave protocol with a three-state finite
+state machine.
 
-1. **IDLE**: Waiting for APB transaction (PSEL && PENABLE)
-2. **BUSY**: Processing transaction, waiting for backend response
-3. **WAIT**: Completing transaction, returning to IDLE
+**These are internal slave states, not APB bus phases.** The APB SETUP and ACCESS
+phases are driven by the *master* (`PSEL` / `PENABLE`); a slave only observes
+them. `IDLE`, `BUSY`, and `WAIT` describe where this slave is in servicing the
+observed transfer:
+
+1. **IDLE**: No transfer in flight. Waits for the SETUP-to-ACCESS edge (the cycle
+   in which `PENABLE` first goes high while `PSEL` is high). Also drops any
+   orphan response -- see below.
+2. **BUSY**: Command has been pushed to the backend; the bus is in its ACCESS
+   phase with `PREADY` low (wait states). Waits for the backend response.
+3. **WAIT**: `PREADY`, `PRDATA` and `PSLVERR` are driven for exactly one cycle,
+   completing the ACCESS phase. Returns to IDLE unconditionally.
+
+Mapping to the bus phases:
+
+| APB bus phase | Slave state | `PREADY` |
+|---------------|-------------|----------|
+| IDLE (`PSEL=0`) | IDLE | 0 |
+| SETUP (`PSEL=1`, `PENABLE=0`) | IDLE | 0 |
+| ACCESS (`PSEL=1`, `PENABLE=1`), wait states | BUSY | 0 |
+| ACCESS, final cycle | WAIT | 1 |
 
 ### Command/Response Flow
 
@@ -161,53 +190,94 @@ The module uses two GAXI skid buffers for decoupling:
 
 ### Key Features
 
-- **APB4/APB5 Compliance**: Full protocol support including PSTRB and PPROT
+- **APB4 Compliance**: Full protocol support including PSTRB and PPROT
 - **Buffered Operation**: Command and response skid buffers prevent blocking
 - **Flow Control**: Proper ready/valid handshaking on all interfaces
 - **Error Handling**: PSLVERR propagation from backend to APB
-- **Zero Wait State**: Can achieve single-cycle response when buffers are primed
+- **Orphan-Response Guard**: Discards responses that arrive with no command outstanding
 
 ## State Machine Operation
 
 ### State Transitions
 
 ```
-IDLE → BUSY: s_apb_PSEL && s_apb_PENABLE && r_cmd_ready
+IDLE → BUSY: s_apb_PSEL && s_apb_PENABLE && !r_penable_prev && r_cmd_ready
 BUSY → WAIT: r_rsp_valid (response available)
 WAIT → IDLE: Automatic (1 cycle completion)
 ```
+
+The `!r_penable_prev` term is a **rising-edge detect on `PENABLE`**. The command
+is captured on the SETUP-to-ACCESS transition only, so a multi-cycle ACCESS phase
+(the normal case, since this slave always inserts wait states) cannot re-issue
+the same command.
+
+### Orphan-Response Guard
+
+APB is strictly one-outstanding: a command is issued on the IDLE-to-BUSY edge and
+its response is consumed in BUSY. A response sitting in the response skid buffer
+while the FSM is in IDLE therefore cannot belong to any command. In IDLE the FSM
+pops and discards it (asserting `r_rsp_ready` without accepting the data) and
+emits a simulation-only `$display` warning.
+
+This matters because BUSY pairs commands with responses **by position, not by
+tag**. Without the guard, one stale entry permanently offsets the response
+stream: every subsequent read returns the previous read's data. Two ways this can
+happen in practice:
+
+- A backend that emits a duplicate response for a single command.
+- An `apb_slave_cdc` whose two clock domains were reset independently. The
+  current CDC uses gray-pointer FIFOs specifically so it cannot fabricate a
+  transfer this way -- see [apb_slave_cdc.md](apb_slave_cdc.md).
 
 ### APB Transaction Timing
 
 | State | APB Signals | Internal Operation |
 |-------|-------------|--------------------|
-| IDLE | PREADY=0 | Wait for PSEL && PENABLE |
-| BUSY | PREADY=0 | Issue command, wait for response |
+| IDLE | PREADY=0 | Wait for rising edge of PENABLE; drop orphan responses |
+| BUSY | PREADY=0 | Command issued, wait for backend response |
 | WAIT | PREADY=1, PRDATA/PSLVERR valid | Complete transaction |
 
 ## Timing Characteristics
 
 ### Transaction Latency
 
+This slave is **not** a zero-wait-state slave. `PREADY` is registered and is
+asserted no earlier than two `pclk` cycles after the edge on which `PENABLE` is
+first sampled high (one cycle IDLE-to-BUSY, one cycle BUSY-to-WAIT). The ACCESS
+phase therefore always contains at least two wait states, and a complete APB
+transfer takes at least four `pclk` cycles end to end. Backend response latency
+adds to this directly.
+
 | Characteristic | Value | Description |
 |----------------|-------|-------------|
-| Minimum Latency | 2 clock cycles | Command → Response (buffered) |
-| Buffer Latency | 1 clock cycle | Command/Response buffering |
-| APB Setup | 1 clock cycle | PSEL to PENABLE |
-| Response Processing | 1+ clock cycles | Backend processing time |
+| PENABLE rise to PREADY | ≥2 clock cycles | Registered FSM path, best case |
+| Minimum ACCESS wait states | 2 | Inherent to the three-state FSM |
+| Minimum full transfer | ≥4 clock cycles | SETUP + ACCESS with wait states |
+| Response Processing | 1+ clock cycles | Backend processing time, additive |
 
 ### Performance Metrics
 
 | Metric | Value | Conditions |
 |--------|-------|------------|
-| Maximum Frequency | 200-400 MHz | Technology dependent |
-| Peak Throughput | 1.6-3.2 GB/s | 32-bit data, continuous access |
-| Buffer Depth | 4 entries | With default DEPTH=2 |
-| Concurrent Transactions | Up to buffer depth | Limited by backend capacity |
+| Maximum Frequency | 200-400 MHz | Technology dependent, not characterized in this repository |
+| Buffer Depth | 2 entries | With default DEPTH=2 |
+| Outstanding Transactions | 1 | APB is non-pipelined; buffers absorb backend latency, they do not add concurrency |
+
+**On throughput:** APB is a non-pipelined protocol. The skid buffers decouple the
+APB FSM from backend latency; they do not allow a second APB transfer to start
+before the first completes. Peak throughput is therefore
+`DATA_WIDTH / (minimum transfer cycles × pclk period)`, not one transfer per
+cycle.
 
 ## Waveforms
 
-The following timing diagrams show the comprehensive APB slave behavior across 7 scenarios:
+The following timing diagrams show the comprehensive APB slave behavior across 7 scenarios.
+
+**Known diagram defect:** the WaveDrom generator stamps a fixed header string,
+`APB READ Transaction`, onto every scenario image regardless of direction. The
+signal traces themselves are correct -- read `PWRITE` in the trace, not the
+header, to determine transaction direction. This affects the images under
+`docs/markdown/assets/WAVES/apb_slave/` and `.../apb_master/`.
 
 ### Scenario 1: Basic Write Transaction
 
@@ -296,6 +366,10 @@ apb_slave #(
 ```
 
 ### Register Block Backend Implementation
+
+`PADDR` is a **byte** address. The example below holds 32-bit registers, so it
+drops the two low byte-lane bits and indexes with `cmd_addr[5:2]` to address 16
+words. Adjust the slice if `DATA_WIDTH` is not 32.
 
 ```systemverilog
 // Simple register block backend
@@ -532,14 +606,17 @@ endmodule
 
 ### Buffer Depth Selection
 
-Choose buffer depths based on backend characteristics:
+`DEPTH` is an entry count and must be one of `{2, 4, 6, 8}`. Because APB allows
+only one outstanding transfer, extra depth does **not** buy concurrency -- it only
+absorbs jitter in a backend that returns responses unevenly. `DEPTH=2` is
+correct for almost every backend.
 
 | Backend Type | Recommended DEPTH | Rationale |
 |--------------|------------------|-----------|
-| Register Block | 2 (4 entries) | Single-cycle response |
-| SRAM Controller | 3 (8 entries) | Multi-cycle memory latency |
-| External Memory | 4 (16 entries) | High latency, variable timing |
-| DMA Controller | 4-5 (16-32 entries) | Burst operations |
+| Register Block | 2 | Single-cycle response; deeper buffers are pure area |
+| SRAM Controller | 2 | Latency is absorbed by wait states, not by buffering |
+| External Memory | 4 | Variable response timing; small margin against stalls |
+| Shared/arbitrated backend | 4 | Response return can be bursty under contention |
 
 ### Clock Domain Optimization
 
@@ -551,17 +628,20 @@ apb_slave_cdc #(
     .DATA_WIDTH(32)
 ) u_cdc_slave (
     // APB clock domain
-    .s_pclk(apb_clk),
-    .s_presetn(apb_resetn),
+    .pclk(apb_clk),
+    .presetn(apb_resetn),
     .s_apb_*(apb_*),
 
     // Backend clock domain
-    .m_pclk(backend_clk),
-    .m_presetn(backend_resetn),
+    .aclk(backend_clk),
+    .aresetn(backend_resetn),
     .cmd_*(backend_cmd_*),
     .rsp_*(backend_rsp_*)
 );
 ```
+
+The CDC clock/reset ports are `pclk`/`presetn` (APB side) and `aclk`/`aresetn`
+(backend side) -- there is no `s_`/`m_` prefix on them.
 
 ## Synthesis Considerations
 
@@ -602,8 +682,9 @@ apb_slave_cdc #(
 - **apb_slave_cg**: Clock-gated version for power optimization
 - **apb_slave_cdc**: Clock domain crossing variant
 - **apb_master**: Complementary APB master implementation
+- **apb5_slave**: APB5 equivalent with `PWAKEUP`, `P*USER` and optional parity
 - **gaxi_skid_buffer**: Underlying buffering infrastructure
-- **apb_xbar**: APB crossbar for multi-slave systems
+- **apb_xbar_1to4 / apb_xbar_2to4**: Generated APB crossbars for multi-slave systems
 
 The `apb_slave` module provides a complete, high-performance solution for APB slave functionality with advanced buffering, full protocol compliance, and flexible backend integration capabilities.
 

@@ -56,7 +56,7 @@
 ### Running All Bridge Tests
 
 ```bash
-cd /mnt/data/github/rtldesignsherpa/projects/components/bridge/dv/tests
+cd projects/components/bridge/dv/tests
 
 # ✅ CORRECT: Sequential execution (safe, won't crash)
 pytest -v
@@ -156,7 +156,7 @@ This is expected and normal. Verilator compilation is compute-intensive.
 **Fix:**
 ```bash
 # Clean old builds
-cd /mnt/data/github/rtldesignsherpa/projects/components/bridge/dv/tests/logs
+cd projects/components/bridge/dv/tests/logs
 rm -rf sim_build_*
 
 # Or use pytest's built-in cleanup (preserves logs, removes build artifacts)
@@ -230,7 +230,7 @@ For continuous integration systems:
 - `conftest.py` - Pytest configuration with parallel-disable logic
 - `../../rtl/generated/` - Generated bridge RTL files being tested
 - `../../bin/bridge_generator.py` - Bridge RTL generator
-- `../../docs/BRIDGE_ARCHITECTURE.md` - Bridge design documentation
+- `../../GENERATOR_ARCHITECTURE.md` and `../../docs/bridge_mas/` - Bridge design documentation (the older docs/BRIDGE_ARCHITECTURE.md was superseded)
 
 ---
 

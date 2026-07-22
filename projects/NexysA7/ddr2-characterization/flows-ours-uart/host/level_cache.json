@@ -1,0 +1,9 @@
+{
+  "ok": true,
+  "bitslip": 0,
+  "rd_tap": 8,
+  "rd_window": [
+    0,
+    16
+  ]
+}

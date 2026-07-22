@@ -32,14 +32,19 @@ This directory tracks all known RTL issues in the RAPIDS subsystem, organized by
 ```
 known_issues/
 ├── README.md           ← This file
-├── resolved/           ← Fixed bugs and completed investigations
-│   ├── scheduler.md
-│   ├── program_engine_bugs_found.md
-│   └── descriptor_engine_apb_rda_sequential.md
+├── scheduler_group_signal_naming_conflicts.md
 └── active/             ← Unresolved issues and pending enhancements
+    ├── drain_size_gt1_source_beat_drop.md
     ├── sink_data_path.md
-    └── sink_sram_control.md
+    ├── sink_sram_control.md
+    └── snk_scheduler_write_commit_stall.md
 ```
+
+> **Status (2026-07-22):** The `resolved/` directory (scheduler.md,
+> program_engine_bugs_found.md, descriptor_engine_apb_rda_sequential.md) was retired with the
+> pre-beats RTL those write-ups describe; the resolution summaries below preserve the outcome.
+> The lifecycle process in this file still refers to `resolved/` - recreate it if a new issue
+> is resolved and worth archiving.
 
 ---
 
@@ -155,12 +160,8 @@ Even resolved issues remain in `resolved/` permanently for reference.
 # List all active issues
 ls projects/components/dmas/rapids/known_issues/active/
 
-# List all resolved issues
-ls projects/components/dmas/rapids/known_issues/resolved/
-
 # View specific issue
 cat projects/components/dmas/rapids/known_issues/active/sink_data_path.md
-cat projects/components/dmas/rapids/known_issues/resolved/scheduler.md
 ```
 
 ### Search Issues
@@ -224,15 +225,15 @@ grep -r "Severity.*High" projects/components/dmas/rapids/known_issues/active/
 ## References
 
 **RAPIDS Documentation:**
-- `projects/components/dmas/rapids/docs/rapids_spec/` - Complete RAPIDS specification
+- `projects/components/dmas/rapids/docs/rapids_beats_has/` + `docs/rapids_beats_mas/` - Complete RAPIDS specification
 - `projects/components/dmas/rapids/PRD.md` - Product requirements document
 - `projects/components/dmas/rapids/CLAUDE.md` - AI assistant guide
-- `projects/components/dmas/rapids/TASKS.md` - Current work items
+- `projects/components/dmas/rapids/TASKS.md` - Work items (largely pre-beats history)
 
 **Test Infrastructure:**
-- `projects/components/dmas/rapids/dv/tests/fub_tests/` - Individual FUB tests
-- `projects/components/dmas/rapids/dv/tests/integration_tests/` - Multi-block integration tests
-- `bin/TBClasses/rapids/` - Reusable testbench classes
+- `projects/components/dmas/rapids/dv/tests/fub_beats/` (+ `fub/`) - Individual FUB tests
+- `projects/components/dmas/rapids/dv/tests/macro_beats/` (+ `top_beats/`) - Multi-block/system tests
+- `projects/components/dmas/rapids/dv/tbclasses/` - Reusable testbench classes
 
 ---
 

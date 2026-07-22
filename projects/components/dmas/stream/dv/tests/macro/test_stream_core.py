@@ -59,6 +59,39 @@ except ImportError:
         return {}
 
 
+# ---------------------------------------------------------------------------
+# Seed control. cocotb self-seeds RANDOM_SEED from the clock when unset, so two
+# runs of the same config draw different BFM timing and FAIL DIFFERENTLY -- the
+# monitor-wedge fix was measured at "3 failed" and "6 failed" on consecutive
+# multi_channel runs purely from seed drift. Pin a default so results are
+# comparable run-to-run; override with STREAM_SEED=<n> to reproduce or explore.
+# (Same pattern as val/amba/test_axi_monitor_trans_mgr.py.)
+# ---------------------------------------------------------------------------
+STREAM_TEST_SEED = os.environ.get('STREAM_SEED', '12345')
+
+
+def expand_seeds(params_list, default_count=1):
+    """Expand each param set into N copies with distinct, DERIVED seeds.
+
+    STREAM_SEED_COUNT=<n> controls how many seeds each config runs with
+    (default per call site). Seeds derive deterministically from the base
+    STREAM_SEED as base+i, so the whole sweep is reproducible and any failing
+    case can be re-run alone with STREAM_SEED=<that seed> STREAM_SEED_COUNT=1.
+    The seed is carried in params['seed'] and surfaces in the pytest ID, so a
+    failure names its seed -- a sweep that discards the failing seed is worth
+    nothing (learned the hard way on the monitor suite).
+    """
+    count = int(os.environ.get('STREAM_SEED_COUNT', str(default_count)))
+    base = int(STREAM_TEST_SEED)
+    out = []
+    for prm in params_list:
+        for i in range(max(1, count)):
+            q = dict(prm)
+            q['seed'] = base + i
+            out.append(q)
+    return out
+
+
 def get_coverage_helper(test_name: str, log=None):
     """Get coverage helper if coverage is enabled."""
     if not COVERAGE_AVAILABLE:
@@ -742,6 +775,8 @@ def test_stream_core_single_channel(request, params):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
+        'RANDOM_SEED': STREAM_TEST_SEED,
+        'COCOTB_RANDOM_SEED': STREAM_TEST_SEED,
     }
 
     # Add burst size parameters if specified
@@ -758,10 +793,10 @@ def test_stream_core_single_channel(request, params):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     if enable_waves:
         extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
-        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "--timescale", "1ns/1ps"]
+        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "--timescale", "1ns/1ps", "--unroll-count", "256"]
         sim_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
     else:
-        compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps"]
+        compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps", "--unroll-count", "256"]
         sim_args = []
 
     # Add coverage compile args if COVERAGE=1
@@ -864,6 +899,8 @@ def test_stream_core_multi_channel(request, params):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
+        'RANDOM_SEED': STREAM_TEST_SEED,
+        'COCOTB_RANDOM_SEED': STREAM_TEST_SEED,
     }
 
     # Add coverage environment variables if coverage is enabled
@@ -874,10 +911,10 @@ def test_stream_core_multi_channel(request, params):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     if enable_waves:
         extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
-        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "--timescale", "1ns/1ps"]
+        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "--timescale", "1ns/1ps", "--unroll-count", "256"]
         sim_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
     else:
-        compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps"]
+        compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps", "--unroll-count", "256"]
         sim_args = []
 
     # Add coverage compile args if COVERAGE=1
@@ -973,6 +1010,8 @@ def test_stream_core_variable_sizes(request, params):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
+        'RANDOM_SEED': STREAM_TEST_SEED,
+        'COCOTB_RANDOM_SEED': STREAM_TEST_SEED,
     }
 
     # Add coverage environment variables if coverage is enabled
@@ -983,10 +1022,10 @@ def test_stream_core_variable_sizes(request, params):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     if enable_waves:
         extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
-        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "--timescale", "1ns/1ps"]
+        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "--timescale", "1ns/1ps", "--unroll-count", "256"]
         sim_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
     else:
-        compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps"]
+        compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps", "--unroll-count", "256"]
         sim_args = []
 
     # Add coverage compile args if COVERAGE=1
@@ -1026,3 +1065,146 @@ def test_stream_core_variable_sizes(request, params):
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+# ==============================================================================
+# Monitor backpressure / saturation-recovery test
+# ==============================================================================
+
+def generate_mon_backpressure_params():
+    """Configs that DELIBERATELY undersize the monitor transaction table.
+
+    Production sizing (RD/WR_MON_MAX_TRANS default) guarantees the monitor
+    never backpressures the datapath. This test pins the table to the OLD
+    hardwired size of 16 -- provably too small for 4 channels x 8 outstanding
+    (demand 32 vs command cap 14) -- so the monitor's block_ready engages under
+    sustained load. Before the saturation-recovery fix (cb29e226) this exact
+    geometry deadlocked: stray beats re-opened terminal entries, occupancy
+    pinned at MAX, and block_ready latched low forever. With the fix the
+    monitor must THROTTLE AND RECOVER: the test passes iff every transfer
+    completes. This keeps the recovery contract exercised end-to-end at the
+    stream level, not just in the monitor-level saturation phase
+    (val/amba/test_axi_monitor_trans_mgr.py phase_saturation_recovers).
+    """
+    return [{
+        'num_channels': 4,
+        'data_width': 512,
+        'fifo_depth': 128,
+        'axi_id_width': 8,
+        'desc_count': 4,
+        'test_channels': [0, 1, 2, 3],
+        'transfer_sizes': [16, 32, 64],
+        'timing_profile': 'mixed',
+        'scenario': 'mon_small16',
+        'mon_max_trans': 16,
+    }]
+
+
+# 100+ seeds by default (owner requirement): the undersized-table config is the
+# one place monitor backpressure is exercised end-to-end, and blocking/recovery
+# interleavings are timing-sensitive -- a single seed proves one interleaving,
+# a hundred prove the contract. Runs parallelize under pytest -n; builds are
+# shared per worker (sim_build is keyed by config+worker, not seed).
+@pytest.mark.parametrize("params", expand_seeds(generate_mon_backpressure_params(),
+                                                default_count=100))
+def test_stream_core_mon_backpressure(request, params):
+    """Undersized monitor table: block_ready must throttle, never deadlock."""
+
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_stream_macro': '../../../../rtl/stream_macro',
+        'rtl_stream_fub': '../../../../rtl/stream_fub',
+        'rtl_amba': '../../../../../rtl/amba',
+    })
+
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/dmas/stream/rtl/filelists/macro/stream_core.f'
+    )
+
+    rtl_parameters = {
+        'NUM_CHANNELS': params['num_channels'],
+        'DATA_WIDTH': params['data_width'],
+        'FIFO_DEPTH': params['fifo_depth'],
+        'AXI_ID_WIDTH': params['axi_id_width'],
+        'ADDR_WIDTH': 64,
+        # The point of the test: monitor table far below the no-backpressure
+        # bound (NUM_CHANNELS * AR_MAX_OUTSTANDING + 4 = 36 for this config).
+        'RD_MON_MAX_TRANS': params['mon_max_trans'],
+        'WR_MON_MAX_TRANS': params['mon_max_trans'],
+    }
+
+    dut_name = "stream_core"
+    seed = params.get('seed', int(STREAM_TEST_SEED))
+    cfg_name = (
+        f"test_{dut_name}_monbp_nc{params['num_channels']:02d}"
+        f"_dw{params['data_width']:04d}_mt{params['mon_max_trans']:02d}"
+        f"_{params.get('timing_profile', 'fast')}")
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        cfg_name = f"{cfg_name}_{worker_id}"
+    # Logs carry the seed; the BUILD does not -- the RTL is identical across
+    # seeds, so all of a worker's seeds share one Verilator build instead of
+    # rebuilding 100 times.
+    test_name_plus_params = f"{cfg_name}_seed{seed}"
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+    sim_build = os.path.join(tests_dir, 'local_sim_build', cfg_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        'NUM_CHANNELS': str(params['num_channels']),
+        'DATA_WIDTH': str(params['data_width']),
+        'FIFO_DEPTH': str(params['fifo_depth']),
+        'AXI_ID_WIDTH': str(params['axi_id_width']),
+        'DESC_COUNT': str(params['desc_count']),
+        'TEST_CHANNELS': ','.join(map(str, params['test_channels'])),
+        'TIMING_PROFILE': params.get('timing_profile', 'fast'),
+        'TEST_SCENARIO': params.get('scenario', 'standard'),
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': results_path,
+        'RANDOM_SEED': str(seed),
+        'COCOTB_RANDOM_SEED': str(seed),
+    }
+
+    coverage_env = get_coverage_env(test_name_plus_params, sim_build=sim_build)
+    extra_env.update(coverage_env)
+
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
+        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "--timescale", "1ns/1ps", "--unroll-count", "256"]
+        sim_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
+    else:
+        compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps", "--unroll-count", "256"]
+        sim_args = []
+    compile_args.extend(get_coverage_compile_args())
+
+    from TBClasses.shared.utilities import create_view_cmd
+    create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    from cocotb_test.simulator import run
+
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=includes,
+            toplevel=dut_name,
+            module=module,
+            testcase="cocotb_test_multi_channel_concurrent",
+            parameters=rtl_parameters,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            extra_env=extra_env,
+            sim_build=sim_build,
+            waves=enable_waves,
+            keep_files=True,
+            simulator='verilator',
+            plus_args=['--trace'] if enable_waves else [],
+        )
+        print(f"✓ Monitor backpressure test completed (throttled, recovered)! Logs: {log_path}")
+    except Exception as e:
+        print(f"❌ Monitor backpressure test failed: {str(e)}")
+        print(f"Logs: {log_path}")
+        raise

@@ -30,14 +30,14 @@ PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
 
 # All RTL dependencies requiring monitor_pkg stripping
 # (axi4_master_rd_mon and its monitor infrastructure)
-MON_DEPS := $(REPO_ROOT)/rtl/amba/shared/axi_monitor_timer.sv \
-            $(REPO_ROOT)/rtl/amba/shared/axi_monitor_trans_mgr.sv \
-            $(REPO_ROOT)/rtl/amba/shared/axi_monitor_timeout.sv \
-            $(REPO_ROOT)/rtl/amba/shared/axi_monitor_reporter.sv \
-            $(REPO_ROOT)/rtl/amba/shared/axi_monitor_base.sv \
-            $(REPO_ROOT)/rtl/amba/shared/axi_monitor_filtered.sv \
+MON_DEPS := $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timer.sv \
+            $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_trans_mgr.sv \
+            $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timeout.sv \
+            $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter.sv \
+            $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_base.sv \
+            $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_filtered.sv \
             $(REPO_ROOT)/rtl/amba/axi4/axi4_master_rd.sv \
-            $(REPO_ROOT)/rtl/amba/axi4/axi4_master_rd_mon.sv
+            $(REPO_ROOT)/rtl/amba/monitor/axi4_master_rd_mon.sv
 
 # RTL dependencies that do NOT import monitor_pkg
 CLEAN_DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
@@ -48,7 +48,7 @@ CLEAN_DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
               $(REPO_ROOT)/rtl/common/arbiter_priority_encoder.sv \
               $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
               $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
-              $(REPO_ROOT)/rtl/amba/shared/monbus_arbiter.sv \
+              $(REPO_ROOT)/rtl/amba/monitor/monbus_arbiter.sv \
               $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/descriptor_engine.sv \
               $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/scheduler.sv \
               $(REPO_ROOT)/projects/components/dmas/stream/rtl/macro/scheduler_group.sv

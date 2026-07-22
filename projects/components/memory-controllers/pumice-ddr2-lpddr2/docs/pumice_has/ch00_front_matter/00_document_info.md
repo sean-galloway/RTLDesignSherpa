@@ -73,7 +73,7 @@ This HAS describes a single parameterized memory controller covering DDR2 and LP
 
 It does not define:
 
-- Bit-level pin assignments (the SystemVerilog port list in `regs/pumice_ctrl_ports.svh` is the canonical wire-level source)
+- Bit-level pin assignments (the SystemVerilog port list in `rtl/top/pumice_top.sv` is the canonical wire-level source)
 - Detailed timing diagrams (deferred to v0.3)
 - Verilog package skeletons or RTL stubs
 - Floorplan or layout guidance

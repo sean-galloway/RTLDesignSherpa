@@ -124,10 +124,10 @@ val/common/testplans/
 ## Usage
 
 ```bash
-# Generate testplan from module coverage data
-python bin/cov_utils/generate_testplan.py \
-    --module hex_to_7seg \
-    --coverage val/common/local_sim_build/test_hex_to_7seg_*/coverage.dat
+# Generate testplan skeletons from coverage data (batch tool)
+python bin/cov_utils/generate_testplan_batch.py \
+    --coverage-dir val/common/local_sim_build \
+    --output-dir val/common/testplans
 
 # Calculate implied coverage
 python bin/cov_utils/functional_coverage_tracker.py \

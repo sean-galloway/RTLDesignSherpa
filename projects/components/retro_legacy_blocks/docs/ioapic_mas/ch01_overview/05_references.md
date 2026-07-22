@@ -58,7 +58,7 @@
 - `../../CLAUDE.md` - AI integration guide
 
 **Reference RLB Modules:**
-- `../hpet_spec/hpet_index.md` - HPET specification (architectural reference)
+- `../../hpet_mas/hpet_mas_index.md` - HPET specification (architectural reference)
 - `../../rtl/pic_8259/README.md` - Legacy PIC implementation
 - `../../rtl/pm_acpi/README.md` - Power management and ACPI
 

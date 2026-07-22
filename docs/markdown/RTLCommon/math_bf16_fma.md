@@ -136,7 +136,7 @@ Special values:
                     |                       v                                  |
                     |   +-------------------------------------------+          |
                     |   |    Count Leading Zeros (Normalization)    |          |
-                    |   |         (Bit-reversed CLZ)                |          |
+                    |   |          (MSB-down CLZ scan)              |          |
                     |   +-------------------------------------------+          |
                     |                       |                                  |
                     |                       v                                  |
@@ -223,16 +223,10 @@ math_adder_han_carlson_048 u_wide_adder (
 ### Normalization with CLZ
 
 ```systemverilog
-// Bit-reverse for leading zeros (CLZ module counts trailing zeros)
-wire [47:0] w_sum_abs_reversed;
-generate
-    for (i = 0; i < 48; i = i + 1) begin : gen_bit_reverse
-        assign w_sum_abs_reversed[i] = w_sum_abs[47 - i];
-    end
-endgenerate
-
+// count_leading_zeros scans from the MSB down, which is exactly what normalization
+// needs, so w_sum_abs is connected directly - no bit reversal.
 count_leading_zeros #(.WIDTH(48)) u_clz (
-    .data(w_sum_abs_reversed),
+    .data(w_sum_abs),
     .clz(w_lz_count_raw)
 );
 

@@ -201,14 +201,14 @@ def run_monbus_axil_test(testcase_name, fifo_depth_err, fifo_depth_write, addr_w
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
-    # The monbus_axil_group module split DATA_WIDTH into S_AXIL_DATA_WIDTH
-    # (slave / IRQ-status side) and M_AXIL_DATA_WIDTH (defaults to 64 for
-    # the widened 128-bit packet).
+    # monbus_axil_group_2in fixes the slave-side data width at 64 bits, so it
+    # exposes no S_AXIL_DATA_WIDTH parameter. Passing one made Verilator abort
+    # with "Parameters from the command line were not found in the design",
+    # which failed every test in this file before a single cycle ran.
     rtl_parameters = {
         'FIFO_DEPTH_ERR': fifo_depth_err,
         'FIFO_DEPTH_WRITE': fifo_depth_write,
         'ADDR_WIDTH': addr_width,
-        'S_AXIL_DATA_WIDTH': data_width,
         'NUM_PROTOCOLS': num_protocols,
     }
 

@@ -262,6 +262,7 @@ end
 
 logic [7:0] a, b, diff;
 logic borrow;
+logic carry_out;
 
 math_adder_ripple_carry #(.N(8)) u_add (
     .i_a(a),
@@ -370,6 +371,7 @@ module simple_alu (
 
     logic [7:0] b_mux;
     logic cin_mux;
+    logic carry_out;
 
     // Two's complement: A - B = A + (~B) + 1
     assign b_mux = sub ? ~b : b;

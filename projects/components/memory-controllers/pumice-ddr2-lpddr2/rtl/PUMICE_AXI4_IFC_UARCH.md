@@ -83,7 +83,7 @@ Ports:
   all miss it schedules this always-available oldest entry — no sequential search,
   guaranteed forward progress.
 - **evict/commit**: free a slot by index once its write has committed to DFI
-  (`wr_beat_sequencer` reads `wr-data-SRAM[slot]` for the BL beats first).
+  (`pumice_dfi_wr_serializer` reads `wr-data-SRAM[slot]` for the BL beats first).
 
 **Scheduler lookup ports** — `N_SCHED_LU` generic parallel query ports (param, not
 tied 1:1 to banks). Each: in `{valid, bank, row}` → out `{hit, slot, col, id, age}`
@@ -110,8 +110,8 @@ host AXI4 → [wr/rd splitter] → pumice_wr_intake ─┐
 
 external ports:  host AXI4 (pre-split);
                  command stream → scheduler (writes + reads);
-                 wdata commit pop → wr_beat_sequencer;
-                 DFI read-return in ← rd datapath / rd_cl_aligner
+                 wdata commit pop → pumice_dfi_wr_serializer;
+                 DFI read-return in ← rd datapath / pumice_dfi_rd_aligner
 ```
 
 ## Test plan (Pattern B, projects/ area)

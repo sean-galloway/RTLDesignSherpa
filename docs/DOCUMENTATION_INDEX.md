@@ -28,7 +28,7 @@ Practical guides for using the framework and tools:
 - **[AXI_Monitor_Configuration_Guide.md](guides/AXI_Monitor_Configuration_Guide.md)** - Configure AXI monitors correctly
 - **[VERIFICATION_ARCHITECTURE_GUIDE.md](guides/VERIFICATION_ARCHITECTURE_GUIDE.md)** - Verification methodology and best practices
 - **[descriptor_engine_waveform_guide.md](guides/descriptor_engine_waveform_guide.md)** - Debug descriptor engines with waveforms
-- **[Wavedrom_AutoBind_Guide.md](guides/Wavedrom_AutoBind_Guide.md)** - WaveDrom automatic signal binding
+- **[GAXI_WAVEDROM_GUIDE.md](../bin/TBClasses/wavedrom_user/GAXI_WAVEDROM_GUIDE.md)** - WaveDrom capture and signal binding
 
 ### 📐 [design/](design/) - Design Specifications and Analysis
 Architecture and design documents:
@@ -89,7 +89,7 @@ Detailed reference documentation (auto-generated and curated):
 | Learn about Retro Legacy Blocks | [../projects/components/retro_legacy_blocks/README.md](../projects/components/retro_legacy_blocks/README.md) |
 | Learn about HPET Timer | [../projects/components/retro_legacy_blocks/docs/hpet_spec/hpet_index.md](../projects/components/retro_legacy_blocks/docs/hpet_spec/hpet_index.md) |
 | Browse RTL modules | [markdown/RTLAmba/](markdown/RTLAmba/) or [markdown/RTLCommon/](markdown/RTLCommon/) |
-| Use WaveDrom | [guides/Wavedrom_AutoBind_Guide.md](guides/Wavedrom_AutoBind_Guide.md) |
+| Use WaveDrom | [bin/TBClasses/wavedrom_user/GAXI_WAVEDROM_GUIDE.md](../bin/TBClasses/wavedrom_user/GAXI_WAVEDROM_GUIDE.md) |
 | Understand CDC optimization failure | [investigations/README.md](investigations/README.md) |
 
 **Want to contribute?** See main [/CLAUDE.md](../CLAUDE.md) for repository structure and conventions
@@ -168,7 +168,7 @@ Deploy: Full SoC designs with verification
 
 **If you're debugging:**
 1. Check [guides/descriptor_engine_waveform_guide.md](guides/descriptor_engine_waveform_guide.md)
-2. Use [guides/Wavedrom_AutoBind_Guide.md](guides/Wavedrom_AutoBind_Guide.md) for timing diagrams
+2. Use [bin/TBClasses/wavedrom_user/GAXI_WAVEDROM_GUIDE.md](../bin/TBClasses/wavedrom_user/GAXI_WAVEDROM_GUIDE.md) for timing diagrams
 3. Review [investigations/](investigations/) for known issues and lessons learned
 
 **If you're contributing:**

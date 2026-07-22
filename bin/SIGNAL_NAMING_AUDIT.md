@@ -54,16 +54,16 @@ chmod +x bin/audit_signal_naming_conflicts.py
 
 ```bash
 # Scan a single file
-./bin/audit_signal_naming_conflicts.py rtl/rapids/rapids_macro/scheduler_group.sv
+./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/macro_beats/scheduler_group_beats.sv
 
 # Scan entire directory
-./bin/audit_signal_naming_conflicts.py rtl/rapids/
+./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/
 
 # Generate markdown report
-./bin/audit_signal_naming_conflicts.py rtl/rapids/ --markdown rtl/rapids/signal_conflicts.md
+./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/ --markdown projects/components/dmas/rapids/rtl/signal_conflicts.md
 
 # Verbose output with code context
-./bin/audit_signal_naming_conflicts.py rtl/rapids/ -v
+./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/ -v
 ```
 
 ---
@@ -99,16 +99,16 @@ Conflict #1: Prefix 'desc' [HIGH]
 --------------------------------------------------------------------------------
 
 Internal Signals (4):
-  - desc_valid                     [scheduler_group.sv:175]
-  - desc_ready                     [scheduler_group.sv:176]
-  - desc_mon_valid                 [scheduler_group.sv:198]
-  - desc_mon_ready                 [scheduler_group.sv:199]
+  - desc_valid                     [scheduler_group_beats.sv:175]
+  - desc_ready                     [scheduler_group_beats.sv:176]
+  - desc_mon_valid                 [scheduler_group_beats.sv:198]
+  - desc_mon_ready                 [scheduler_group_beats.sv:199]
 
 External Signals (4):
-  + desc_ar_valid                  [scheduler_group.sv:81] (output)
-  + desc_ar_ready                  [scheduler_group.sv:82] (input)
-  + desc_r_valid                   [scheduler_group.sv:95] (input)
-  + desc_r_ready                   [scheduler_group.sv:96] (output)
+  + desc_ar_valid                  [scheduler_group_beats.sv:81] (output)
+  + desc_ar_ready                  [scheduler_group_beats.sv:82] (input)
+  + desc_r_valid                   [scheduler_group_beats.sv:95] (input)
+  + desc_r_ready                   [scheduler_group_beats.sv:96] (output)
 
 📋 Impact:
    When using AXI factory with prefix='desc_', the factory will find
@@ -130,7 +130,7 @@ The `--markdown` option generates a structured report suitable for documentation
 - Impact analysis
 - Recommended solutions
 
-**Example:** See `rtl/rapids/signal_conflicts_report.md` for a complete example.
+**Example:** See `projects/components/dmas/rapids/rtl/signal_conflicts_report.md` for a complete example.
 
 ---
 
@@ -244,10 +244,10 @@ desc_axi = create_axi4_slave_rd(
 **Test at a level where internal signals are hidden:**
 
 ```
-scheduler_group.sv (has conflicts)
+scheduler_group_beats.sv (has conflicts)
     └── Internal signals NOT visible at top level
 
-rapids_top.sv (no conflicts)
+top_beats/rapids_beats_top.sv (no conflicts)
     └── Only external AXI ports visible
 ```
 
@@ -269,7 +269,7 @@ Add to your CI/CD pipeline:
 
 ```bash
 # In .git/hooks/pre-commit or CI script
-./bin/audit_signal_naming_conflicts.py rtl/rapids/ || exit 1
+./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/ || exit 1
 ```
 
 The script returns exit code 1 if conflicts are found.
@@ -289,7 +289,7 @@ Generate reports for design reviews:
 
 ```bash
 # Scan all RTL subsystems
-./bin/audit_signal_naming_conflicts.py rtl/rapids/ --markdown docs/rapids_signal_conflicts.md
+./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/ --markdown docs/rapids_signal_conflicts.md
 ./bin/audit_signal_naming_conflicts.py rtl/amba/ --markdown docs/amba_signal_conflicts.md
 ./bin/audit_signal_naming_conflicts.py rtl/common/ --markdown docs/common_signal_conflicts.md
 ```
@@ -301,9 +301,9 @@ Generate reports for design reviews:
 ### Example 1: Scan Single File
 
 ```bash
-$ ./bin/audit_signal_naming_conflicts.py rtl/rapids/rapids_macro/scheduler_group.sv
+$ ./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/macro_beats/scheduler_group_beats.sv
 
-Scanned scheduler_group.sv: 115 signals
+Scanned scheduler_group_beats.sv: 115 signals
 
 ⚠️  Found 2 potential signal naming conflicts:
 ...
@@ -312,13 +312,13 @@ Scanned scheduler_group.sv: 115 signals
 ### Example 2: Scan Directory with Verbose Output
 
 ```bash
-$ ./bin/audit_signal_naming_conflicts.py rtl/rapids/ -v
+$ ./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/ -v
 
-Scanning 18 SystemVerilog files in rtl/rapids...
-  scheduler.sv: 45 signals
-  descriptor_engine.sv: 38 signals
-  program_engine.sv: 32 signals
-  scheduler_group.sv: 115 signals
+Scanning 18 SystemVerilog files in projects/components/dmas/rapids/rtl...
+  scheduler_beats.sv: 45 signals
+  descriptor_engine_beats.sv: 38 signals
+  axi_read_engine_beats.sv: 32 signals
+  scheduler_group_beats.sv: 115 signals
   ...
 
 ⚠️  Found 2 potential signal naming conflicts:
@@ -326,7 +326,7 @@ Scanning 18 SystemVerilog files in rtl/rapids...
 Conflict #1: Prefix 'desc' [HIGH]
 ...
 Internal Signals (4):
-  - desc_valid                     [scheduler_group.sv:175]
+  - desc_valid                     [scheduler_group_beats.sv:175]
     logic                        desc_valid;
   ...
 ```
@@ -334,14 +334,14 @@ Internal Signals (4):
 ### Example 3: Generate Markdown Report
 
 ```bash
-$ ./bin/audit_signal_naming_conflicts.py rtl/rapids/ --markdown rtl/rapids/signal_conflicts_report.md
+$ ./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/ --markdown projects/components/dmas/rapids/rtl/signal_conflicts_report.md
 
-Scanning 18 SystemVerilog files in rtl/rapids...
+Scanning 18 SystemVerilog files in projects/components/dmas/rapids/rtl...
 
 ⚠️  Found 2 potential signal naming conflicts:
 ...
 
-📄 Markdown report written to: rtl/rapids/signal_conflicts_report.md
+📄 Markdown report written to: projects/components/dmas/rapids/rtl/signal_conflicts_report.md
 ```
 
 ### Example 4: No Conflicts Found
@@ -415,10 +415,10 @@ chmod +x bin/audit_signal_naming_conflicts.py
 
 ## Related Documentation
 
-- **Signal Helper Implementation:** `bin/TBClasses/components/shared/signal_mapping_helper.py`
-- **AXI Factory Functions:** `bin/TBClasses/components/axi4/axi4_factories.py`
-- **Known Issues:** `rtl/rapids/known_issues/scheduler_group_signal_naming_conflicts.md`
-- **Example Report:** `rtl/rapids/signal_conflicts_report.md`
+- **Signal Helper Implementation:** `src/CocoTBFramework/components/shared/signal_mapping_helper.py` (RTLDesignSherpa-DV repo)
+- **AXI Factory Functions:** `src/CocoTBFramework/components/axi4/axi4_factories.py` (RTLDesignSherpa-DV repo)
+- **Known Issues:** `projects/components/dmas/rapids/known_issues/scheduler_group_signal_naming_conflicts.md`
+- **Example Report:** `projects/components/dmas/rapids/rtl/signal_conflicts_report.md`
 
 ---
 

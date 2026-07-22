@@ -355,18 +355,24 @@ class MonbusAxilGroupTB(TBBase):
     async def check_error_fifo_status(self) -> Dict[str, Any]:
         """Check error FIFO status signals.
 
-        After the monbus_axil_group unification, the DUT (when this TB
-        runs) is monbus_axil_group_2in -- a thin wrapper around the
-        shared single-input monbus_axil_group at instance u_group.
-        err_fifo_full / err_fifo_count remain on the wrapper port
-        list; err_fifo_empty / err_fifo_rd_valid are internal to the
-        shared group and live one level deeper at dut.u_group.*."""
+        Derived entirely from the DUT's own port list -- no hierarchical
+        reach-through. err_fifo_empty / err_fifo_rd_valid are internal
+        signals of monbus_group_core (dut -> u_group -> u_core), and
+        being plain continuous assigns they are not guaranteed to survive
+        Verilator's optimizer, so probing them by path is both fragile
+        against hierarchy changes and simulator-dependent.
+
+        monbus_group_core defines:
+            err_fifo_empty = !err_fifo_rd_valid
+            irq_out        = !err_fifo_empty
+        so irq_out is an exact, port-visible mirror of FIFO occupancy."""
+        irq_out = int(self.dut.irq_out.value)
         status = {
-            'empty': int(self.dut.u_group.err_fifo_empty.value),
+            'empty': 0 if irq_out else 1,
             'full': int(self.dut.err_fifo_full.value),
             'count': int(self.dut.err_fifo_count.value),
-            'rd_valid': int(self.dut.u_group.err_fifo_rd_valid.value),
-            'irq_out': int(self.dut.irq_out.value)
+            'rd_valid': irq_out,
+            'irq_out': irq_out
         }
         return status
 
@@ -559,10 +565,18 @@ class MonbusAxilGroupTB(TBBase):
             self.log.error("ERROR: FIFO is empty after sending packets - filtering may not be working!")
             # Debug: Check internal filtering signals. arb_monbus_valid
             # lives on the wrapper (post-arbiter); pkt_to_err_fifo and
-            # err_fifo_wr_valid are filter-stage signals inside u_group.
+            # err_fifo_wr_valid are filter-stage signals inside
+            # monbus_group_core, i.e. dut -> u_group -> u_core. These are
+            # best-effort only: as internal continuous assigns they may be
+            # optimized away by the simulator, so never let a missing probe
+            # mask the actual failure being reported here.
             self.log.error(f"Debug - arb_monbus_valid: {int(self.dut.arb_monbus_valid.value)}")
-            self.log.error(f"Debug - pkt_to_err_fifo: {int(self.dut.u_group.pkt_to_err_fifo.value)}")
-            self.log.error(f"Debug - err_fifo_wr_valid: {int(self.dut.u_group.err_fifo_wr_valid.value)}")
+            for sig in ('pkt_to_err_fifo', 'err_fifo_wr_valid'):
+                try:
+                    val = int(getattr(self.dut.u_group.u_core, sig).value)
+                    self.log.error(f"Debug - {sig}: {val}")
+                except Exception as e:  # probe not present in this build
+                    self.log.error(f"Debug - {sig}: unavailable ({e})")
 
         # Wait for interrupt to assert if FIFO has data
         if not status['empty'] and status['irq_out']:

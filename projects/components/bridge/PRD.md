@@ -146,18 +146,15 @@ Master (512b) → Conv(512→64) → Slave (64b)         [1 conversion]
 # Other files (wrappers, integrators) now mismatched!
 
 # ✅ CORRECT - Full regeneration
-rm ../rtl/bridge_*.sv                    # Delete ALL generated bridges
-rm ../rtl/bridge_wrapper_*.sv            # Delete ALL generated wrappers
-./regenerate_all_bridges.sh              # Regenerate everything together
+cd bin
+make clean                               # Delete ALL generated bridges (rtl/generated/)
+make all                                 # Regenerate everything from bridge_batch.csv
 ```
 
 **Generator Files That Trigger Full Regeneration:**
-- `bridge_generator.py` - Main bridge generator
-- `bridge_csv_generator.py` - CSV-based generator
-- `bridge_address_arbiter.py` - Address decode logic
-- `bridge_channel_router.py` - Channel routing logic
-- `bridge_response_router.py` - Response routing logic
-- `bridge_amba_integrator.py` - AMBA component integration
+- `bin/bridge_generator.py` - Main bridge generator (CSV/TOML driven)
+- Any Python file in `bin/bridge_pkg/` (components/, generators/, config, csv_parser, ...)
+- Any Jinja template in `bin/bridge_pkg/jinja_templates/`
 - `bridge_wrapper_generator.py` - Wrapper generation
 - **Any** Python file in `projects/components/bridge/bin/`
 
@@ -202,7 +199,7 @@ Bridge provides automated generation of AXI4 crossbar infrastructure with:
 
 **Functional:**
 - [x] Generates working AXI4 crossbar RTL (bridge_generator.py)
-- [x] Generates CSV-configured bridges (bridge_csv_generator.py)
+- [x] Generates CSV/TOML-configured bridges (bridge_generator.py + bridge_pkg/; the earlier separate bridge_csv_generator.py was merged in)
 - [x] Passes Verilator lint
 - [x] Supports 1-32 masters, 1-256 slaves
 - [x] Handles out-of-order completion via IDs (bridge_cam.sv)
@@ -221,7 +218,7 @@ Bridge provides automated generation of AXI4 crossbar infrastructure with:
 - [x] Performance models validate requirements (bridge_model.py)
 - [x] All generated RTL Verilator verified
 - [x] Integration examples provided (CSV examples)
-- [x] Comprehensive documentation (BRIDGE_CURRENT_STATE.md, BRIDGE_ARCHITECTURE_DIAGRAMS.md)
+- [x] Comprehensive documentation (GENERATOR_ARCHITECTURE.md, docs/bridge_has/, docs/bridge_mas/)
 
 ### 1.4 Implementation Status and Phases
 
@@ -242,7 +239,7 @@ The bridge generator now supports both TOML/CSV configuration and legacy array-i
 2. **Legacy CSV Mode (Backwards Compatible)**
    - Separate `ports.csv` and `connectivity.csv` files
    - Migration path to TOML format
-   - See `test_configs/README.md` for conversion guide
+   - See `bin/test_configs/README.md` for conversion guide
 
 **Phase Status:**
 
@@ -271,10 +268,11 @@ The bridge generator now supports both TOML/CSV configuration and legacy array-i
 - Status: Placeholders in generated code with detailed TODO comments
 
 **Additional Resources:**
-- `bridge_model.py` - Performance modeling (V1 Flat implemented)
-- `bridge_cam.sv` - Transaction ID tracking for OOO support
-- See `BRIDGE_CURRENT_STATE.md` for detailed review
-- See `docs/BRIDGE_ARCHITECTURE_DIAGRAMS.md` for visual architecture
+- `models/bridge_model/bridge_model.py` - Performance modeling (V1 Flat implemented)
+- `rtl/bridge_cam.sv` - Transaction ID tracking for OOO support
+- See `GENERATOR_ARCHITECTURE.md` for the generator/build architecture
+- See `docs/bridge_has/` and `docs/bridge_mas/` for architecture diagrams and specs
+  (the older BRIDGE_CURRENT_STATE.md / BRIDGE_ARCHITECTURE_DIAGRAMS.md were superseded)
 
 ---
 
@@ -927,11 +925,11 @@ Configuration:
 
 ### 11.2 Performance Analysis (Before Implementation)
 
-- [ ] **bin/bridge_performance_model.py** - Analytical model
+- [x] **models/bridge_model/bridge_model.py** - Analytical model (V1 Flat implemented)
   - Latency calculations (single-beat, burst)
   - Throughput estimates (concurrent paths)
   - Resource estimates (LUT/FF scaling)
-- [ ] **bin/bridge_simulator.py** - Discrete event simulation (optional)
+- [ ] **bridge simulator** - Discrete event simulation (optional, not implemented)
   - Cycle-accurate modeling
   - Traffic pattern support
   - Validation against RTL
@@ -1006,18 +1004,19 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 **IMPORTANT: PDF files should be generated in the docs directory:**
 ```
-/mnt/data/github/rtldesignsherpa/projects/components/bridge/docs/
+projects/components/bridge/docs/
 ```
 
-**Quick Command:** Use the provided shell script:
+**Quick Commands:** Use the provided shell scripts:
 ```bash
-cd /mnt/data/github/rtldesignsherpa/projects/components/bridge/docs
-./generate_pdf.sh
+cd projects/components/bridge/docs
+./generate_has_pdf.sh   # Bridge_HAS_v<rev>.docx/.pdf
+./generate_mas_pdf.sh   # Bridge_MAS_v<rev>.docx/.pdf
 ```
 
-The shell script will automatically:
+The shell scripts will automatically:
 1. Use the md_to_docx.py tool from bin/
-2. Process the bridge_spec index file
+2. Process the bridge_has/bridge_mas index files
 3. Generate both DOCX and PDF files in the docs/ directory
 4. Create table of contents and title page
 
@@ -1083,7 +1082,7 @@ The shell script will automatically:
 **Related Projects:**
 - **APB Crossbar** - Simple register bus crossbar (existing)
 - **Delta (AXIS Crossbar)** - Streaming data crossbar (projects/components/delta/)
-- **RAPIDS** - DMA engine with AXI4 masters (rtl/rapids/)
+- **RAPIDS** - DMA engine with AXI4 masters (projects/components/dmas/rapids/)
 
 **Tools:**
 - Verilator - RTL linting and simulation

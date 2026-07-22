@@ -80,8 +80,8 @@ module apb_master_stub #(
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| CMD_DEPTH | int | 6 | Command FIFO depth (log2) |
-| RSP_DEPTH | int | 6 | Response FIFO depth (log2) |
+| CMD_DEPTH | int | 6 | Command buffer depth in **entries** (not a log2 exponent) |
+| RSP_DEPTH | int | 6 | Response buffer depth in **entries** (not a log2 exponent) |
 | DATA_WIDTH | int | 32 | APB data bus width |
 | ADDR_WIDTH | int | 32 | APB address bus width |
 | STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |
@@ -149,12 +149,39 @@ The stub uses packed interfaces to simplify testbench integration:
 - `pslverr` (1 bit): Slave error
 - `prdata` (DW bits): Read data
 
+### First/Last Framing
+
+`first` and `last` exist so that AXI4 burst framing survives the trip through an
+APB bridge. `apb_master` does not carry them through its own command-to-response
+pipeline, so the stub keeps a small side FIFO (`gaxi_fifo_sync`, depth
+`CMD_DEPTH`): `{last, first}` is enqueued on every command-side handshake and
+dequeued on every response-side handshake.
+
+This pairing is essential when the upstream pipelines commands ahead of
+responses. Tapping `first`/`last` combinationally from the live `cmd_data` input
+instead -- as an earlier revision did -- pairs command N's response with command
+N+1's framing bits as soon as the internal command FIFO accepts N+1. In the
+AXI4-to-APB bridge that manifested as `axi4_to_apb_convert` never seeing
+`first=1` again in `RSP_IDLE`, hanging the FSM and surfacing as a timeout on the
+master AXI4 R channel.
+
+Because the side FIFO mirrors the depth of the `apb_master` command buffer, it
+never backpressures the command path more than that buffer already does.
+
+### Packet Format Is Not Symmetric With `apb_slave_stub`
+
+`apb_slave_stub` omits `first` and `last` in both directions and is therefore
+two bits narrower per packet. The two stubs face each other across the APB bus,
+never packed-side to packed-side, so this asymmetry is intentional and causes no
+integration problem -- but the packed buses must not be wired together directly.
+See [apb_slave_stub.md](apb_slave_stub.md) for the side-by-side comparison.
+
 ### Operation
 
 1. Test driver presents packed command on `cmd_data` with `cmd_valid=1`
 2. Stub accepts when `cmd_ready=1`
-3. Stub unpacks command and drives APB protocol
-4. On APB completion, stub packs response and asserts `rsp_valid=1`
+3. Stub unpacks command, enqueues `{last, first}`, and drives APB protocol
+4. On APB completion, stub packs the response with the dequeued `{last, first}` and asserts `rsp_valid=1`
 5. Test driver reads response when `rsp_ready=1`
 
 ## Usage Example
@@ -220,14 +247,15 @@ For production use, consider the full-featured `apb_master` module.
 
 ## References
 
-- **APB Protocol**: AMBA APB Protocol Specification v2.0
+- **APB Protocol**: ARM IHI 0024C -- AMBA APB Protocol Specification, Version 2.0 (APB4)
 - **Full APB Master**: [apb_master.md](apb_master.md)
 - **APB Slave Stub**: [apb_slave_stub.md](apb_slave_stub.md)
+- **APB5 Equivalent**: [apb5_master_stub.md](../apb5/apb5_master_stub.md)
 
 ---
 
 ## Navigation
 
-- **[← Back to APB Index](README.md)** (if exists, otherwise remove this line)
+- **[← Back to APB Index](README.md)**
 - **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

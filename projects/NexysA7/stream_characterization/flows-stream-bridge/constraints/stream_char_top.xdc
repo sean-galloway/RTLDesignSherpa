@@ -116,7 +116,7 @@ set_false_path -from [get_pins -hier -filter {NAME =~ r_rst_sync_reg/C}]
 
 ## If CDC_ENABLE is ever turned on, add per-handshake set_max_delay here —
 ## one block per cdc_2_phase_handshake / cdc_4_phase_handshake instance.
-## See rtl/amba/shared/cdc_2_phase_handshake.sv header for the template.
+## See rtl/amba/cdc/cdc_2_phase_handshake.sv header for the template.
 
 ##==============================================================================
 ## LED status driver — slow clock domain + CDC handshake

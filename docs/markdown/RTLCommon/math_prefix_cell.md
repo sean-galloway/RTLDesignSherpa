@@ -110,7 +110,7 @@ After Stage 2 (prefix cells combining pairs of pairs):
 | Metric | Value | Description |
 |--------|-------|-------------|
 | Logic Depth | 2 gates | 1 AND + 1 OR (for G), 1 AND (for P) |
-| Critical Path | AND-OR | i_g_hi/i_p_hi -> ow_g |
+| Critical Path | AND-OR | i_p_hi/i_g_lo -> ow_g |
 | Gate Count | 3 | 2 AND gates + 1 OR gate |
 
 ## Usage Examples
@@ -220,7 +220,6 @@ This module is optimized with the following priorities:
 - **math_adder_han_carlson_016** - 16-bit Han-Carlson adder using this cell
 - **math_adder_han_carlson_048** - 48-bit Han-Carlson adder using this cell
 - **math_adder_brent_kung_black** - Brent-Kung black cell (equivalent)
-- **math_adder_kogge_stone_nbit** - Kogge-Stone adder using black cells
 
 ## Applications
 

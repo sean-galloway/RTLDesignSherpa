@@ -75,7 +75,7 @@ For debug only, `state_o` is derived combinationally from the timers into a `ban
 
 ### Refresh Interaction
 
-There is no per-bank refresh handshake. The arbiter serializes refresh: on a refresh request it precharges active banks one per cycle (using `safe_pre` / `bank_row_active`), then issues `REF` once no bank has an open row. The `bank_timer` participates only through its standard row-open and `safe_pre` outputs.
+There is no per-bank refresh handshake. The arbiter serializes refresh: on a refresh request it precharges active banks one per cycle (using `safe_pre` / `bank_row_active`), then issues `REF` once no bank has an open row AND `w_ref_safe` holds (no in-flight/guarded row op; prior tRFC recovery elapsed — see the scheduler chapter). REF recovery (tRFC) is an arbiter-side down-counter; the `bank_timer` never sees REF events. The `bank_timer` participates only through its standard row-open and `safe_pre` outputs.
 
 ---
 

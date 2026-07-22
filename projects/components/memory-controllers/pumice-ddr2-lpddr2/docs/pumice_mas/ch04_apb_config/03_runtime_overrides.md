@@ -61,7 +61,7 @@ The controller does not enforce a quiet point, so **software** is responsible fo
 
 - **Timings, page policy, scheduler knobs, refresh interval**: safe to change during light traffic; the new value is picked up at the next event boundary. For a clean swap, quiesce AXI traffic first (stop issuing, let outstanding responses drain) then write.
 - **`memtype`, address-map (`bank_lsb`/`hash_*`)**: these define how addresses decode and how commands are encoded. Change them **only before init** (or with the datapath fully idle). Changing address mapping under traffic re-decodes in-flight addresses inconsistently.
-- **DFI phase / PHY data timing**: board bring-up knobs; set once during bring-up and leave fixed. `rd_phase`/`t_rddata_en`/`t_phy_wrlat` are matched to the attached PHY (e.g., the Nexys A7 a7ddrphy uses `rd_phase=0`, `t_rddata_en=6`, `t_phy_wrlat=0`).
+- **DFI phase / PHY data timing**: board bring-up knobs; set once during bring-up and leave fixed. `rd_phase`/`t_rddata_en`/`t_phy_wrlat` are matched to the attached PHY (the Nexys A7 a7ddrphy bring-up tuple, board-validated 2026-07-21: `rd_phase=0`, `t_rddata_en=6`, `t_phy_wrlat=1`, plus harness `DFI_TUNING.rddata_delay=7`).
 
 ## Recommended Programming Order
 

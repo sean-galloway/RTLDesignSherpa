@@ -25,8 +25,8 @@ prep -top formal_apb5_slave_cdc
 [files]
 gaxi_skid_buffer.sv ../../../rtl/amba/gaxi/gaxi_skid_buffer.sv
 apb5_slave.sv ../../../rtl/amba/apb5/apb5_slave.sv
-cdc_handshake.sv ../../../rtl/amba/shared/cdc_handshake.sv
-cdc_synchronizer.sv ../../../rtl/amba/shared/cdc_synchronizer.sv
+cdc_handshake.sv ../../../rtl/amba/cdc/cdc_handshake.sv
+cdc_synchronizer.sv ../../../rtl/amba/cdc/cdc_synchronizer.sv
 glitch_free_n_dff_arn.sv ../../../rtl/common/glitch_free_n_dff_arn.sv
 apb5_slave_cdc.sv ../../../rtl/amba/apb5/apb5_slave_cdc.sv
 formal_apb5_slave_cdc.sv

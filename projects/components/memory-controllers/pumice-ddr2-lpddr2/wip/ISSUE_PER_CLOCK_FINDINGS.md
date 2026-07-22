@@ -1,5 +1,12 @@
 # Issue-per-clock (bank-parallel) scheduler — findings + blocker
 
+> Status (2026-07-22): superseded. The bank-parallel issue-per-clock scheduler
+> subsequently LANDED (the ordering blocker below was resolved with
+> ordering-aware write-buffer backpressure), and the FSM `scheduler.sv` it
+> compares against was then retired entirely by the rearchitecture. The
+> current command-issue path is `rtl/macro/pumice_mem_cmd_scheduler.sv`
+> (see `rtl/PUMICE_MEM_CMD_SCHEDULER_UARCH.md`). Kept as design history.
+
 Status: **WIP, not instantiated.** `wip/scheduler_bankparallel_wip.sv` is a
 complete per-bank-machine + arbiter rewrite of `rtl/fub/scheduler.sv`. It is
 correct in isolation but is blocked by a data-path ordering contract. The

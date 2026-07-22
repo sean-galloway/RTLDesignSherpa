@@ -26,6 +26,13 @@
 **Created:** 2025-10-18
 **Status:** [PASS] Complete and Ready to Use
 
+> Status (2026-07-22): updated - the tree-topology generation originally described here
+> was retired; delta now generates flat AXIS crossbars only. Current flow:
+> `bin/delta_generator.py --topology flat ...` -> `rtl/delta_axis_flat_4x16.sv`
+> (test configurations in `rtl_test/`), linted via `rtl/Makefile` (`make verilator`).
+> The `docs/DELTA_VS_APB_GENERATOR.md` migration guide was removed; current
+> documentation is `docs/delta_spec/` and `docs/Delta_Specification_v1.0.pdf`.
+
 ---
 
 ## What You Have
@@ -47,7 +54,8 @@
 ### [PASS] Complete Specifications
 - `PRD.md` (525 lines) - Product requirements document
 - `README.md` (502 lines) - User guide
-- `docs/DELTA_VS_APB_GENERATOR.md` (615 lines) - APB migration guide
+- `docs/delta_spec/` - Chaptered specification (see `docs/delta_spec/delta_index.md`);
+  rendered as `docs/Delta_Specification_v1.0.pdf`
 
 ### [PASS] Generated RTL Example
 - `rtl/delta_axis_flat_4x16.sv` - Working 4x16 crossbar
@@ -71,11 +79,10 @@
 
 ### Detailed Comparison
 
-See `docs/DELTA_VS_APB_GENERATOR.md` for:
-- Side-by-side code comparison
-- Line-by-line diff showing changes
-- Migration checklist (7 steps)
-- Effort estimation (~75 minutes total)
+The original `docs/DELTA_VS_APB_GENERATOR.md` migration guide (side-by-side code
+comparison, migration checklist, effort estimation) was removed after the migration
+was completed - `bin/delta_generator.py` is the adapted, framework-based generator.
+The comparison summary above captures the key differences.
 
 ### Why AXIS is Actually Simpler Than APB
 
@@ -101,7 +108,7 @@ if (s_axis_tvalid[m])
 ### 1. Generate Your First Crossbar (30 seconds)
 
 ```bash
-cd /mnt/data/github/rtldesignsherpa/projects/components/delta
+cd projects/components/delta
 
 # Generate flat 4x16 for RISC cores + DSP arrays
 python bin/delta_generator.py \
@@ -138,38 +145,22 @@ head -80 rtl/delta_axis_flat_4x16.sv
 verilator --lint-only rtl/delta_axis_flat_4x16.sv
 ```
 
-### 4. Generate Tree Topologies (Fan-Out/Fan-In)
-
-**NEW: Tree structures for RAPIDS DMA integration!**
+### 4. Generate Test Configurations
 
 ```bash
-# Generate node primitives (1:2 splitter, 2:1 merger)
-python bin/delta_generator.py --topology flat --masters 2 --slaves 2 --nodes --output-dir rtl/
-python bin/complete_tree_generator.py --type merger --output rtl/
+# Generate additional flat crossbar sizes into rtl_test/
+python bin/delta_generator.py --topology flat --masters 2 --slaves 4  --data-width 32 --output-dir rtl_test/
+python bin/delta_generator.py --topology flat --masters 2 --slaves 16 --data-width 64 --output-dir rtl_test/
+python bin/delta_generator.py --topology flat --masters 3 --slaves 8  --data-width 64 --output-dir rtl_test/
 
-# OK Output: rtl/delta_split_1to2.sv (splitter)
-# OK Output: rtl/delta_merge_2to1.sv (merger)
-
-# Generate 1->16 fan-out tree (RAPIDS DMA -> 16 compute nodes)
-python bin/complete_tree_generator.py --type fanout --size 16 --output rtl/
-
-# OK Output: rtl/delta_fanout_1to16.sv
-# OK Latency: 4 cycles (4 stages of 1:2 splitters)
-
-# Generate 16->1 fan-in tree (16 compute nodes -> RAPIDS DMA)
-python bin/complete_tree_generator.py --type fanin --size 16 --output rtl/
-
-# OK Output: rtl/delta_fanin_16to1.sv
-# OK Latency: 4 cycles (4 stages of 2:1 mergers)
-
-# Verify all generated RTL
-verilator --lint-only rtl/delta_split_1to2.sv
-verilator --lint-only rtl/delta_merge_2to1.sv
-verilator --lint-only rtl/delta_split_1to2.sv rtl/delta_fanout_1to16.sv
-verilator --lint-only rtl/delta_merge_2to1.sv rtl/delta_fanin_16to1.sv --top-module delta_fanin_16to1
+# Lint everything under rtl/ via the Makefile
+cd rtl && make verilator
 ```
 
-**See `TREE_TOPOLOGY_TEST_RESULTS.md` for complete test results and RAPIDS DMA integration examples.**
+**Note (2026-07-22):** the tree-topology flow (1:2 splitters, 2:1 mergers,
+fan-out/fan-in trees via `bin/complete_tree_generator.py`) was retired; only flat
+crossbars are generated and kept in the tree now. See
+`TREE_TOPOLOGY_TEST_RESULTS.md` (historical) for what the retired flow produced.
 
 ---
 
@@ -178,19 +169,24 @@ verilator --lint-only rtl/delta_merge_2to1.sv rtl/delta_fanin_16to1.sv --top-mod
 ```
 projects/components/delta/
 +-- bin/                              # Automation
-|   +-- delta_generator.py            # RTL generator (697 lines)
-|   +-- delta_performance_model.py    # Performance models (487 lines)
+|   +-- delta_generator.py            # RTL generator (framework version)
+|   +-- delta_generator_v1_backup.py  # Previous generator (backup)
+|   +-- complete_tree_generator.py    # Retired tree-topology generator (historical)
+|   +-- delta_performance_model.py    # Performance models
 |
 +-- docs/                             # Documentation
-|   +-- DELTA_VS_APB_GENERATOR.md     # APB migration guide (615 lines)
+|   +-- delta_spec/                   # Chaptered specification (delta_index.md)
+|   +-- Delta_Specification_v1.0.pdf  # Rendered specification
 |
 +-- rtl/                              # Generated RTL
-|   +-- delta_axis_flat_4x16.sv       # Example 4x16 crossbar
+|   +-- delta_axis_flat_4x16.sv       # Production 4x16 crossbar
+|   +-- Makefile                      # Lint/synthesis checks (make verilator)
 |
-+-- dv/tests/                         # Verification (TODO: CocoTB tests)
++-- rtl_test/                         # Generated test configurations
+|   +-- delta_axis_flat_{2x4,2x16,3x8,4x16}.sv
 |
-+-- PRD.md                            # Requirements (525 lines)
-+-- README.md                         # User guide (502 lines)
++-- PRD.md                            # Requirements
++-- README.md                         # User guide
 +-- QUICK_START.md                    # This file
 ```
 
@@ -218,24 +214,10 @@ verilator --lint-only rtl/delta_axis_flat_4x16.sv
 
 ### Option B: Adapt Your APB Generator
 
-```bash
-# 1. Review migration guide
-cat docs/DELTA_VS_APB_GENERATOR.md
-
-# 2. Copy your APB generator
-cp /path/to/your/apb_gen.py bin/delta_generator_v2.py
-
-# 3. Apply changes (see migration guide):
-#    - Rename signals (search/replace)
-#    - Simplify address decode
-#    - Add packet atomicity (~10 lines)
-#    - Add new signals (TLAST, TID, TUSER)
-
-# 4. Test
-python bin/delta_generator_v2.py --masters 2 --slaves 2 --data-width 32 --output-dir test/
-```
-
-**Timeline:** ~75 minutes adaptation, 1-2 days verification
+**Done (historical):** this adaptation was completed - `bin/delta_generator.py` is
+the framework-based generator that resulted from adapting the APB crossbar
+generator (signal renames, simplified TDEST decode, packet atomicity, TLAST/TID/TUSER
+support). The previous version is kept as `bin/delta_generator_v1_backup.py`.
 
 ### Option C: Review Specs First (Your Preferred Approach)
 
@@ -243,7 +225,7 @@ python bin/delta_generator_v2.py --masters 2 --slaves 2 --data-width 32 --output
 # 1. Read complete specifications
 cat PRD.md
 cat README.md
-cat docs/DELTA_VS_APB_GENERATOR.md
+cat docs/delta_spec/delta_index.md
 
 # 2. Review performance models
 python bin/delta_performance_model.py --topology compare
@@ -433,18 +415,14 @@ Perfect for GitHub instruction repository!
 - Specifications (PRD, README, migration guide)
 - Example generated RTL (4x16 crossbar)
 - Command-line interface with full options
-- **NEW:** 2:1 merger node primitive (complete_tree_generator.py)
-- **NEW:** 1->N fan-out tree generation (tested 1->2, 1->4, 1->16)
-- **NEW:** N->1 fan-in tree generation (tested 2->1, 4->1, 16->1)
-- **NEW:** All tree structures verified with Verilator lint
+- Tree-topology generation (splitters/mergers/fan-out/fan-in) - since retired
+  in favor of flat crossbars (see status note at top)
 
 ### [ ] TODO (Future Work)
 
-- CocoTB testbench framework (dv/tests/)
-- Complete tree topology recursive wiring (full N>4 support)
+- CocoTB testbench framework
 - RISC + DSP integration example
 - Weighted round-robin arbiter variant
-- Integration of tree generation into main delta_generator.py
 
 ---
 
@@ -462,9 +440,9 @@ python bin/delta_performance_model.py --topology compare
 
 **Read Specs:**
 ```bash
-cat PRD.md                          # Requirements
-cat README.md                       # User guide
-cat docs/DELTA_VS_APB_GENERATOR.md  # APB migration
+cat PRD.md                            # Requirements
+cat README.md                         # User guide
+cat docs/delta_spec/delta_index.md    # Specification index
 ```
 
 **View Generated RTL:**

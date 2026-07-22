@@ -27,6 +27,13 @@
 **Status:** Stable Baseline - Low Activity
 **Subsystem:** rtl/common/
 
+> Status (2026-07-22): historical task log. The `reports/` output tree referenced by
+> completed tasks below (coverage, documentation, and parameterization audits) has since
+> been removed from the repo; the audit tools remain (`bin/generate_coverage_report.py`,
+> `bin/audit_module_documentation.py`, `bin/audit_module_parameterization.py`) and can
+> regenerate those reports. Math primitives have also moved from `rtl/common/` to
+> `rtl/math/` (tests in `val/math/`).
+
 ---
 
 ## Task Priority Legend
@@ -293,7 +300,7 @@ Create standalone integration examples showing common usage patterns combining m
 - [ ] **Example 4:** CDC data transfer (sync + handshake + FIFO)
 - [ ] **Example 5:** Simple PWM generator (counter + comparator)
 
-**Location:** `rtl/integ_common/examples/`
+**Location:** `rtl/integ_amba/examples/`
 
 **Deliverables:**
 - [ ] 5 standalone example designs
@@ -516,8 +523,9 @@ Audit all modules for parameter consistency and best practices.
    - Convert CHUNKS to localparam (derived from DATA_WIDTH)
    - Document CW, DW abbreviations
 
-3. **fifo_async_div2** (54/100)
+3. **fifo_async** (54/100)
    - Document 6 undocumented parameters
+   - (fifo_async_div2 retired; Johnson mode is now fifo_async USE_JOHNSON=1)
 
 **Category Scores:**
 - Counters: 95.6/100 ✅

@@ -263,16 +263,16 @@ assets/wavedrom/
 
 | Figure | File | Status | Test Coverage |
 |--------|------|--------|---------------|
-| 1.1.4 | ch01/01_architecture.md | TODO | test_sink_data_path.py |
-| 1.3.1 | ch01/03_clocks_and_reset.md | TODO | test_scheduler.py |
-| 2.1.3 | ch02/01_scheduler.md | TODO | test_scheduler.py |
-| 2.2.3 | ch02/02_descriptor_engine.md | TODO | test_descriptor_engine.py |
-| 2.3.2 | ch02/03_axi_read_engine.md | TODO | test_axi_read_engine.py |
-| 2.4.2 | ch02/04_axi_write_engine.md | TODO | test_axi_write_engine.py |
-| 2.5.2 | ch02/05_beats_alloc_ctrl.md | TODO | test_beats_alloc_ctrl.py |
-| 2.6.2 | ch02/06_beats_drain_ctrl.md | TODO | test_beats_drain_ctrl.py |
-| 2.7.2 | ch02/07_beats_latency_bridge.md | TODO | test_beats_latency_bridge.py |
-| 3.3.3 | ch03/03_sink_data_path.md | TODO | test_sink_data_path.py |
+| 1.1.4 | ch01_overview/01_architecture.md | TODO | test_sink_data_path.py |
+| 1.3.1 | ch01_overview/03_clocks_and_reset.md | TODO | test_scheduler.py |
+| 2.1.3 | ch02_fub_blocks/01_scheduler.md | TODO | test_scheduler.py |
+| 2.2.3 | ch02_fub_blocks/02_descriptor_engine.md | TODO | test_descriptor_engine.py |
+| 2.3.2 | ch02_fub_blocks/03_axi_read_engine.md | TODO | test_axi_read_engine.py |
+| 2.4.2 | ch02_fub_blocks/04_axi_write_engine.md | TODO | test_axi_write_engine.py |
+| 2.5.2 | ch02_fub_blocks/05_beats_alloc_ctrl.md | TODO | test_beats_alloc_ctrl.py |
+| 2.6.2 | ch02_fub_blocks/06_beats_drain_ctrl.md | TODO | test_beats_drain_ctrl.py |
+| 2.7.2 | ch02_fub_blocks/07_beats_latency_bridge.md | TODO | test_beats_latency_bridge.py |
+| 3.3.3 | ch03_macro_blocks/03_sink_data_path.md | TODO | test_sink_data_path.py |
 
 : Waveform Progress Tracking
 

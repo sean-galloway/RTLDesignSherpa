@@ -109,8 +109,14 @@ foreach {inst cnt} $sorted {
 close $fh
 
 # ---- Copy bitstream into bitstream/ for easy access (committed location) ----
-set bit_src "$project_root/build/vivado_project/stream_char.runs/impl_1/stream_char_top.bit"
+# Board-aware: the top module (and hence the .bit name in the run dir) and the
+# published bitstream name both follow the BOARD env var (default nexys).
+set top_name [get_property top [get_filesets sources_1]]
+set bit_src "$project_root/build/vivado_project/stream_char.runs/impl_1/${top_name}.bit"
 set bit_dst "$project_root/bitstream/stream_char.bit"
+if {[info exists ::env(BOARD)] && $::env(BOARD) eq "genesys2"} {
+    set bit_dst "$project_root/bitstream/stream_char_genesys2.bit"
+}
 file mkdir "$project_root/bitstream"
 if {[file exists $bit_src]} {
     file copy -force $bit_src $bit_dst

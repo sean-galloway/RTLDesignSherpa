@@ -56,14 +56,14 @@ Mirrors LiteDRAM's DDR2 PHY init (the reference proven on the Nexys A7 board):
 1. Assert `dfi_init_start_o`; wait `dfi_init_complete_i` (the PHY runs its own DLL-lock / IO training), then wait tINIT.
 2. Precharge All.
 3. EMRS in JEDEC order EMRS(2) then EMRS(3) then EMRS(1) — all defaults 0.
-4. MRS(0) + DLL reset (`0x532` = BL4/CL3/tWR3/DLL_RESET); wait tDLLK.
+4. MRS(0) + DLL reset (`MR0.VAL | 0x100`; reset default `0x533` = BL8/CL3/tWR3/DLL_RESET); wait tDLLK.
 5. Precharge All.
 6. Auto Refresh x2 (each followed by tRFC).
-7. MRS(0) without DLL reset (`0x432`) — clears the reset bit.
+7. MRS(0) without DLL reset (`MR0.VAL`, reset default `0x433`) — clears the reset bit.
 8. EMRS(1) + OCD default (`0x380`) then EMRS(1) + OCD exit (`0x000`).
 9. `init_done_o = 1`.
 
-The DDR2 MR values are `localparam` constants (MR0 `0x432`/`0x532`, MR1 `0x0000`, OCD default `0x380`, MR2/MR3 `0x0000`).
+The DDR2 MR values are CSR-backed (`MR0..MR3.VAL`; MR0 reset `0x433`, MR1 `0x0000`, MR2/MR3 `0x0000`) with the OCD default (`0x380`) ORed in by the sequencer; software may retune them before an `init_restart`.
 
 ### LPDDR2 Sequence (fully functional)
 

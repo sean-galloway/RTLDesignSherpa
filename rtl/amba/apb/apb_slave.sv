@@ -154,6 +154,29 @@ module apb_slave #(
             casez (r_apb_state)
 
                 IDLE: begin
+                    // ---- ORPHAN-RESPONSE GUARD -------------------------------
+                    // APB is strictly one-outstanding: a command is issued on the
+                    // IDLE->BUSY edge and its response is consumed in BUSY. So a
+                    // response sitting here, with nothing outstanding, cannot
+                    // belong to any command -- it is spurious (a duplicate from
+                    // the backend, or a phantom transfer fabricated by a CDC
+                    // whose two domains were reset independently).
+                    //
+                    // Discard it. Without this, the stale entry stays queued and
+                    // the NEXT command pops it instead of its own response --
+                    // which permanently offsets every subsequent transaction,
+                    // because BUSY below pairs by position, not by tag. That is
+                    // exactly the failure seen on the Nexys A7 DDR2 board, where
+                    // every register read returned the previous register's value
+                    // until the device was reprogrammed.
+                    if (r_rsp_valid) begin
+                        r_rsp_ready <= 1'b1;   // pop and drop
+                        // synthesis translate_off
+                        $display("%t %m WARNING: orphan APB response discarded (prdata=0x%0h pslverr=%0b) -- no command outstanding. Check for duplicate backend responses or an independently-reset CDC.",
+                                 $time, r_rsp_prdata, r_rsp_pslverr);
+                        // synthesis translate_on
+                    end
+
                     // Only capture on rising edge of PENABLE (SETUP->ACCESS transition)
                     if (s_apb_PSEL && s_apb_PENABLE && !r_penable_prev && r_cmd_ready) begin
                         r_cmd_valid <= 1'b1;

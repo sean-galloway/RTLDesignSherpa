@@ -139,8 +139,8 @@ assign rounded_count = beat_count - {14'b0, beat_rem};
 
 ### Used By
 
-- [monbus_compressor](../RTLAmba/shared/monbus_compressor.md) - Rounds a beat count down to whole 3-beat records when packing monitor packets
-- [monbus_group_core](../RTLAmba/shared/monbus_group_core.md) - Shared filter/FIFO core of the monbus group wrappers
+- [monbus_compressor](../RTLAmba/monitor/monbus_compressor.md) - Rounds a beat count down to whole 3-beat records when packing monitor packets
+- [monbus_group_core](../RTLAmba/monitor/monbus_group_core.md) - Shared filter/FIFO core of the monbus group wrappers
 
 ### Uses
 
@@ -155,7 +155,7 @@ assign rounded_count = beat_count - {14'b0, beat_rem};
 ### Source Code
 
 - `rtl/common/mod_3_compress.sv`
-- `rtl/common/math_adder_carry_save.sv` (instantiated submodule)
+- `rtl/math/math_adder_carry_save.sv` (instantiated submodule)
 - `rtl/common/div_by_15_ceil_32compress.sv` (style reference)
 
 ### Documentation

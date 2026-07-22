@@ -32,14 +32,14 @@
 ## Quick Context
 
 **What:** High-performance RTL components for custom accelerators and systems
-**Status:** Active development - STREAM, RAPIDS, Bridge, APB HPET production blocks
+**Status:** Active development - STREAM, RAPIDS, Bridge, Retro Legacy Blocks production blocks
 **Your Role:** Help users develop new components following repository standards
 
 **Key Projects:**
-- **STREAM** - Streaming datapath engine with AXI and SRAM control
-- **RAPIDS** - Rapid AXI Programmable In-band Descriptor System
+- **STREAM** - Streaming datapath engine with AXI and SRAM control (`dmas/stream/`)
+- **RAPIDS** - Rapid AXI Programmable In-band Descriptor System (`dmas/rapids/`)
 - **Bridge** - Protocol bridges and converters
-- **APB HPET** - APB High Precision Event Timer
+- **Retro Legacy Blocks** - Legacy PC peripherals (HPET, PIT 8254, PIC 8259, RTC, ...) in `retro_legacy_blocks/` (absorbed the old apb_hpet component)
 
 **Complete Documentation:** See individual project CLAUDE.md and PRD.md files in each component directory
 
@@ -56,7 +56,7 @@ This file contains project-area-specific standards. For the complete list of man
 
 This CLAUDE.md focuses on projects/components/ specifics. Also review:
 - Root `/CLAUDE.md` - Repository-wide guidance
-- `bin/TBClasses/CLAUDE.md` - Framework patterns
+- `bin/TBClasses/` - Shared TB framework (full CocoTBFramework lives in the separate RTLDesignSherpa-DV repo, editable-installed)
 - `projects/components/{name}/CLAUDE.md` - Component-specific guidance
 
 ---
@@ -86,18 +86,18 @@ This area is the PRIMARY enforcement zone for reset macro usage. Unlike rtl/comm
 
 **Conversion Tool for Bulk Updates:**
 ```bash
-# Convert existing files (writes to UPDATED/ directory)
+# Convert existing files (writes to UPDATED/, mirroring paths relative to the source root)
 python3 bin/update_resets.py projects/components/{component}/rtl/
 
-# Review differences
-diff -u original.sv UPDATED/original.sv
+# Review differences (UPDATED/ mirrors the tree under the source root)
+diff -u projects/components/{component}/rtl/fub/module.sv UPDATED/fub/module.sv
 
 # Copy back after review
-cp UPDATED/*.sv projects/components/{component}/rtl/
+cp UPDATED/fub/*.sv projects/components/{component}/rtl/fub/
 ```
 
 **Historical Context:**
-- APB HPET: Converted after initial development
+- HPET (now in retro_legacy_blocks): Converted after initial development
 - STREAM/RAPIDS: Converting as features are added
 - New components: MUST use macros from day one
 
@@ -136,8 +136,11 @@ logic [31:0] scaled_data = coefficient * input_data;
 ```
 
 **See Examples In:**
-- `projects/components/dmas/stream/rtl/stream_fub/simple_sram.sv` - SRAM with attributes
-- `projects/components/dmas/rapids/rtl/rapids_fub/descriptor_engine.sv` - FIFO with attributes
+- `rtl/amba/gaxi/gaxi_fifo_sync.sv` - FIFO memory with ram_style attributes (instantiated by STREAM's `sram_controller_unit.sv`)
+- `rtl/common/fifo_sync.sv` - Common FIFO with attributes
+- `rtl/amba/shared/sdpram_core.sv` - SRAM core with attributes
+
+(The old `simple_sram.sv` example was removed; STREAM/RAPIDS buffers now use these shared FIFO/SRAM primitives.)
 
 ---
 
@@ -192,7 +195,7 @@ module simple_sram #(
 endmodule
 ```
 
-**See:** `projects/components/dmas/stream/rtl/stream_fub/simple_sram.sv`
+**See:** `rtl/amba/shared/sdpram_core.sv` and `rtl/amba/gaxi/gaxi_fifo_sync.sv` (the repo's shared SRAM/FIFO primitives; the old `simple_sram.sv` was removed in favor of these)
 
 ---
 
@@ -215,8 +218,8 @@ sys.path.insert(0, repo_root)
 # Import from PROJECT AREA (not framework!)
 from projects.components.dmas.stream.dv.tbclasses.scheduler_tb import SchedulerTB
 
-# Shared framework components
-from CocoTBFramework.components.axi4.axi4_master import AXI4Master
+# Shared framework components (CocoTBFramework is editable-installed from RTLDesignSherpa-DV)
+from CocoTBFramework.components.axi4.axi4_factories import create_axi4_slave_rd
 ```
 
 **Examples:**
@@ -290,8 +293,8 @@ endmodule : streaming_engine
 ```
 
 **See also:**
-- `projects/components/dmas/stream/rtl/stream_fub/axi_read_engine.sv`
-- `projects/components/dmas/stream/rtl/stream_fub/axi_write_engine.sv`
+- `projects/components/dmas/stream/rtl/fub/axi_read_engine.sv`
+- `projects/components/dmas/stream/rtl/fub/axi_write_engine.sv`
 
 ---
 
@@ -393,8 +396,8 @@ endmodule : descriptor_engine
 ```
 
 **See also:**
-- `projects/components/dmas/stream/rtl/stream_fub/descriptor_engine.sv`
-- `projects/components/dmas/rapids/rtl/rapids_fub/descriptor_engine.sv`
+- `projects/components/dmas/stream/rtl/fub/descriptor_engine.sv`
+- `projects/components/dmas/rapids/rtl/fub_beats/descriptor_engine_beats.sv`
 
 ---
 
@@ -509,8 +512,8 @@ endmodule : sram_buffer
 ```
 
 **See also:**
-- `projects/components/dmas/stream/rtl/stream_fub/sram_controller.sv`
-- `projects/components/dmas/stream/rtl/stream_fub/simple_sram.sv`
+- `projects/components/dmas/stream/rtl/fub/sram_controller.sv`
+- `projects/components/dmas/stream/rtl/fub/sram_controller_unit.sv` (per-channel unit; wraps `gaxi_fifo_sync` - the old `simple_sram.sv` was removed)
 
 ---
 
@@ -599,11 +602,11 @@ python3 bin/update_resets.py projects/components/dmas/stream/rtl/ --dry-run
 # Convert files (writes to UPDATED/ directory)
 python3 bin/update_resets.py projects/components/dmas/stream/rtl/
 
-# Review changes
-diff -u projects/components/dmas/stream/rtl/scheduler.sv UPDATED/scheduler.sv
+# Review changes (UPDATED/ mirrors the tree relative to the source root)
+diff -u projects/components/dmas/stream/rtl/fub/scheduler.sv UPDATED/fub/scheduler.sv
 
 # Copy corrected files back
-cp UPDATED/*.sv projects/components/dmas/stream/rtl/
+cp UPDATED/fub/*.sv projects/components/dmas/stream/rtl/fub/
 ```
 
 **What it does:**
@@ -660,11 +663,11 @@ Each component has its own CLAUDE.md and PRD.md files with detailed guidance:
 - **PRD.md:** `projects/components/dmas/rapids/PRD.md`
 - **Focus:** Descriptor-driven accelerators, scheduler groups
 
-### APB HPET Component
-- **Location:** `projects/components/apb_hpet/`
-- **CLAUDE.md:** `projects/components/apb_hpet/CLAUDE.md`
-- **PRD.md:** `projects/components/apb_hpet/PRD.md`
-- **Focus:** APB peripherals, timers, register management
+### Retro Legacy Blocks Component (includes the former APB HPET)
+- **Location:** `projects/components/retro_legacy_blocks/`
+- **CLAUDE.md:** `projects/components/retro_legacy_blocks/CLAUDE.md`
+- **PRD.md:** `projects/components/retro_legacy_blocks/PRD.md`
+- **Focus:** Legacy PC peripherals (HPET in `rtl/hpet/`, PIT 8254, PIC 8259, RTC, ...), APB register management
 
 ### Bridge Component
 - **Location:** `projects/components/bridge/`

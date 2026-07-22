@@ -50,6 +50,7 @@ module pumice_core_tb_top
     input  logic [7:0]       t_rcd_i, t_rp_i, t_ras_i, t_rc_i, t_wr_i, t_rtp_i,
     input  logic [7:0]       t_faw_i, t_rrd_i, t_wtr_i, t_rtw_i, t_ccd_i,
     input  logic [15:0]      t_refi_i,
+    input  logic [15:0]      t_rfc_i,
     input  logic [3:0]       refresh_burst_i,
     input  logic [15:0]      t_init_wait_i, t_dll_wait_i,
     input  logic [7:0]       t_mrd_wait_i, t_rp_wait_i, t_rfc_wait_i,
@@ -134,11 +135,15 @@ module pumice_core_tb_top
     ) u_core (
         .aclk(aclk), .aresetn(aresetn), .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn),
         .memtype_i(memtype_i), .page_policy_i(page_policy_i),
+        // CSR-backed MR values at their RDL resets (MR0 0x0433 = BL8/CL3/tWR3);
+        // no runtime MR retune in this TB, init_restart tied off.
+        .mr0_i(16'h0433), .mr1_i(16'h0000), .mr2_i(16'h0000), .mr3_i(16'h0000),
+        .init_restart_i(1'b0),
         .bank_lsb_i(bank_lsb_i), .hash_en_i(hash_en_i), .hash_seed_i(hash_seed_i),
         .t_rcd_i(t_rcd_i), .t_rp_i(t_rp_i), .t_ras_i(t_ras_i), .t_rc_i(t_rc_i),
         .t_wr_i(t_wr_i), .t_rtp_i(t_rtp_i), .t_faw_i(t_faw_i), .t_rrd_i(t_rrd_i),
         .t_wtr_i(t_wtr_i), .t_rtw_i(t_rtw_i), .t_ccd_i(t_ccd_i),
-        .t_refi_i(t_refi_i), .refresh_burst_i(refresh_burst_i),
+        .t_refi_i(t_refi_i), .t_rfc_i(t_rfc_i), .refresh_burst_i(refresh_burst_i),
         .t_init_wait_i(t_init_wait_i), .t_dll_wait_i(t_dll_wait_i),
         .t_mrd_wait_i(t_mrd_wait_i), .t_rp_wait_i(t_rp_wait_i), .t_rfc_wait_i(t_rfc_wait_i),
         .rd_phase_i(rd_phase_i), .wr_phase_i(wr_phase_i),
@@ -189,7 +194,9 @@ module pumice_core_tb_top
         // JEDEC same-bank windows (match the tb _cfg timings): catches a column
         // op issued too soon after ACT (tRCD) etc. — e.g. a refresh-disturbed
         // ACT->RDA spacing.
-        .T_RCD(3), .T_RP(3), .T_RAS(4), .T_RFC(8)
+        .T_RCD(3), .T_RP(3), .T_RAS(4), .T_RFC(8),
+        // global turnaround windows — must match the tb _cfg t_wtr/t_rtw
+        .T_WTR(2), .T_RTW(2)
     ) u_cmd_history (
         .clk        (aclk),
         .rst_n      (aresetn),

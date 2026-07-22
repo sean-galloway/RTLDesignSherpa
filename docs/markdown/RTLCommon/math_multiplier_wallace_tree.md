@@ -23,23 +23,30 @@
 
 # Wallace Tree Multipliers
 
-Fast parallel multipliers using tree-based partial product reduction with carry-save adders. These modules provide highly optimized unsigned integer multiplication for 8×8, 16×16, and 32×32 operations with O(log N) logic depth.
+Fast parallel multipliers using tree-based partial product reduction with carry-save adders. These modules provide unsigned integer multiplication for 8×8, 16×16, and 32×32 operations. The reduction tree has logarithmic depth; the final carry-propagate adder is a Brent-Kung parallel-prefix adder, which is also logarithmic depth, so end-to-end delay is O(log N).
 
 ## Overview
 
-The Wallace tree multiplier family implements high-speed multiplication using a tree of 3:2 compressors (carry-save adders) to reduce partial products in parallel. The reduction tree is built using maximal parallelism - reducing partial products at every opportunity rather than following a scheduled approach.
+The Wallace tree multiplier family implements high-speed multiplication using a tree of 3:2 compressors (carry-save adders) to reduce partial products in parallel. The reduction is built using maximal parallelism - compressing everything it can as early as it can, rather than following a scheduled approach.
 
 **Key Features:**
-- **O(log N) depth** reduction tree (faster than array multipliers)
-- **Maximal parallelism** - reduces whenever 3+ partial products available
+- **Logarithmic reduction depth** - 4 layers for 8-bit, 6 for 16-bit, 8 for 32-bit
+- **Maximal parallelism** - every group of 3 in a column compresses in the same layer
 - **Structural implementation** - explicit full adder and half adder instantiation
-- **Fixed-width variants** - Optimized for 8, 16, and 32-bit operands
-- **Purely combinational** - single-cycle multiplication (plus final adder delay)
+- **Fixed-width variants** - generated for 8, 16, and 32-bit operands
+- **Purely combinational** - single-cycle multiplication
+- **Self-contained** - includes its own final adder; no external adder required
 
 **Architecture:**
-1. **Partial Product Generation** - AND gates create N×N matrix
-2. **Wallace Reduction Tree** - Iterative CSA stages reduce to 2 rows
-3. **Final Addition** - Output assignment (typically drives external adder)
+1. **Partial Product Generation** - AND gates create the N×N matrix
+2. **Wallace Reduction Layers** - parallel CSA layers reduce every column to height 2
+3. **Final Addition** - an on-chip Brent-Kung parallel-prefix carry-propagate adder sums the two surviving rows into `ow_product`
+
+**Note on the final adder:** these modules are complete multipliers. The reduction tree stops at column height 2, the two remaining rows are packed into the 2N-bit vectors `w_cpa_row0` / `w_cpa_row1`, and those are summed internally by a single `math_adder_brent_kung_{2N}` instance named `u_final_cpa`. Earlier revisions of this module used a ripple carry-propagate adder in that position, and revisions before that collapsed every column to height 1 with no final adder at all; neither is the case now, and no external adder is needed.
+
+The CPA width is the **product** width, not the operand width: the 8-bit multiplier instantiates `math_adder_brent_kung_016`, the 16-bit one `math_adder_brent_kung_032`, and the 32-bit one `math_adder_brent_kung_064`. Carry-in is tied to `1'b0`, and the adder's carry-out is left unread on `w_cpa_carry_unused` - an N x N product is strictly less than 2**(2N), so the top column can never carry out.
+
+**Two variants are generated.** `math_multiplier_wallace_tree_NNN` builds the reduction tree from `math_adder_full`; `math_multiplier_wallace_tree_csa_NNN` builds it from `math_adder_carry_save`. Both are 3:2 compressors, so the two trees are structurally identical and produce identical instance counts and topology. The final CPA is the same `math_adder_brent_kung_{2N}` instance in **both** variants. Both are standalone top-level multipliers with the same port list - pick either.
 
 ## Module Declarations
 
@@ -112,26 +119,43 @@ For N×N multiplication:
 - Arrange in diagonal columns (like manual multiplication)
 ```
 
-**Stage 2: Wallace Reduction Tree**
+**Stage 2: Wallace Reduction Layers**
+
+Reduction proceeds in **layers**. Within a single layer, every column is
+partitioned into groups of 3, and all groups across all columns compress
+**simultaneously**. Layers repeat until every column is at height 2.
+
 ```
-While more than 2 rows remain:
-    For each column with 3+ partial products:
-        - Use Full Adder (3→2 reduction)
-    For each column with exactly 2 partial products:
-        - Use Half Adder (2→2 compression)
-    For each column with 1 partial product:
-        - Pass through unchanged
+While any column has height > 2:            // one iteration = one layer
+    For each column, partition its bits into groups of 3:
+        - group of 3 bits -> 3:2 compressor (sum stays, carry goes left)
+        - group of 2 bits -> half adder     (sum stays, carry goes left)
+        - group of 1 bit  -> passes through to the next layer untouched
 ```
+
+Because the partitioning is done per layer rather than per opportunity, a
+column of height 8 becomes ceil(8/3) = 3 sums plus carries arriving from the
+column to its right, and so on down the layers.
 
 **Stage 3: Final Addition**
 ```
-Assign reduced sum and carry vectors to output
-(External adder typically needed for final product)
+Every column is now at height 2. Pack the two surviving rows into two
+2N-bit vectors and sum them with a Brent-Kung parallel-prefix
+carry-propagate adder to produce the 2N-bit product.
 ```
 
-**Key Characteristic:** Wallace trees reduce **immediately** whenever 3 or more values are available in a column, creating irregular but highly parallel structure.
+**Key Characteristic:** Wallace compresses **everything it can as early as it
+can**. This is the entire distinction from Dadda, which defers compression
+using per-stage target heights. Both reach height 2 in the same number of
+layers; Wallace simply spends more compressors doing it.
 
 ### 8-bit Example Structure
+
+Generated signals are named `w_sum_{column}_{layer}_{op}` /
+`w_carry_{column}_{layer}_{op}`, and instances are named
+`FA_{column}_{layer}_{op}` (or `CSA_...` in the `_csa_` variant) and
+`HA_{column}_{layer}_{op}`. Excerpts below are taken verbatim from
+`rtl/math/math_multiplier_wallace_tree_008.sv`.
 
 ```systemverilog
 // Partial Products (64 AND gates for 8×8)
@@ -140,53 +164,137 @@ wire w_pp_0_1 = i_multiplier[0] & i_multiplicand[1];
 // ... 64 total partial products
 wire w_pp_7_7 = i_multiplier[7] & i_multiplicand[7];
 
-// Wallace Reduction Stages
-// Stage 1: Reduce columns with 3+ partial products
-math_adder_full FA_02_4 (
-    .i_a(w_pp_0_2),      // Column 2: 3 partial products
-    .i_b(w_pp_1_1),
-    .i_c(w_pp_2_0),
-    .ow_sum(w_sum_02_4),
-    .ow_carry(w_carry_02_4)  // Carry goes to next column
-);
-
-// Columns with 2 partial products use half adders
-math_adder_half HA_01_2 (
+// Wallace reduction layer 1
+// Column 1 holds only 2 bits, so it gets a half adder.
+wire w_sum_01_1_01, w_carry_01_1_01;
+math_adder_half HA_01_1_01 (
     .i_a(w_pp_0_1),
     .i_b(w_pp_1_0),
-    .ow_sum(w_sum_01_2),
-    .ow_carry(w_carry_01_2)
+    .ow_sum(w_sum_01_1_01),
+    .ow_carry(w_carry_01_1_01)
 );
 
-// Stage 2: Reduce intermediate sums and carries
-math_adder_full FA_03_6 (
+// Column 2 holds 3 bits: one full group, one 3:2 compressor.
+wire w_sum_02_1_01, w_carry_02_1_01;
+math_adder_full FA_02_1_01 (
+    .i_a(w_pp_0_2),
+    .i_b(w_pp_1_1),
+    .i_c(w_pp_2_0),
+    .ow_sum(w_sum_02_1_01),
+    .ow_carry(w_carry_02_1_01)
+);
+
+// Column 3 likewise; every one of these fires in the same layer.
+wire w_sum_03_1_01, w_carry_03_1_01;
+math_adder_full FA_03_1_01 (
     .i_a(w_pp_0_3),
     .i_b(w_pp_1_2),
     .i_c(w_pp_2_1),
-    .ow_sum(w_sum_03_6),
-    .ow_carry(w_carry_03_6)
+    .ow_sum(w_sum_03_1_01),
+    .ow_carry(w_carry_03_1_01)
 );
 
-// ... many more stages until reduced to 2 rows
-
-// Final assignment (sum and carry vectors)
-assign ow_product[0] = w_sum_00;
-assign ow_product[1] = w_sum_01;
-// ... through ow_product[15]
+// ... layers 2, 3, 4 repeat the same grouping on the surviving rows
 ```
+
+In the `_csa_` variant the identical structure is emitted with
+`math_adder_carry_save` in place of `math_adder_full`:
+
+```systemverilog
+// math_multiplier_wallace_tree_csa_008.sv, same position in layer 1
+wire w_sum_02_1_01, w_carry_02_1_01;
+math_adder_carry_save CSA_02_1_01 (
+    .i_a(w_pp_0_2),
+    .i_b(w_pp_1_1),
+    .i_c(w_pp_2_0),
+    .ow_sum(w_sum_02_1_01),
+    .ow_carry(w_carry_02_1_01)
+);
+```
+
+Once every column is at height 2, the two surviving rows are packed into a pair
+of 16-bit vectors and handed to one Brent-Kung prefix adder. There are no
+`math_adder_full` or `math_adder_half` instances in this stage at all - every
+half and full adder in the file belongs to the reduction tree:
+
+```systemverilog
+    // Final addition stage: two reduced rows into a Brent-Kung CPA
+    wire [15:0] w_cpa_row0 = {
+        w_carry_14_4_01,
+        w_carry_13_4_01,
+        // ... one bit per column, taken from the surviving row
+        w_sum_02_2_01,
+        w_sum_01_1_01,
+        w_pp_0_0
+    };
+    wire [15:0] w_cpa_row1 = {
+        w_sum_15_4_01,
+        w_sum_14_4_01,
+        // ... one bit per column, taken from the other surviving row
+        w_sum_05_4_01,
+        1'b0,
+        1'b0,
+        1'b0,
+        1'b0,
+        1'b0
+    };
+
+    /* verilator lint_off UNUSEDSIGNAL */
+    wire w_cpa_carry_unused;
+    /* verilator lint_on UNUSEDSIGNAL */
+    math_adder_brent_kung_016 #(
+        .N(16)
+    ) u_final_cpa (
+        .i_a(w_cpa_row0),
+        .i_b(w_cpa_row1),
+        .i_c(1'b0),
+        .ow_sum(ow_product),
+        .ow_carry(w_cpa_carry_unused)
+    );
+```
+
+Wallace's eager compression has already flattened columns 0-4 to height 1, and
+that shows up as the five `1'b0` entries at the bottom of `w_cpa_row1`. Note
+that this no longer buys any delay: the prefix adder still spans all 16
+columns, and its depth is logarithmic in that width whether or not the
+low-order inputs are constant zero. The prefix adder drives `ow_product`
+directly, so there is no per-bit `assign ow_product[i]` fan-out stage either.
 
 ### Reduction Pattern
 
-**For 8×8 multiplication:**
-- **Initial:** 64 partial products in 15 columns
-- **After Stage 1:** ~43 values in 15 columns
-- **After Stage 2:** ~29 values in 15 columns
-- **After Stage 3:** ~19 values in 15 columns
-- **After Stage 4:** ~13 values in 15 columns
-- **After Stage 5:** ~9 values in 15 columns
-- **Final:** 2 vectors (sum and carry), requires final 16-bit adder
+Measured layer counts and instance counts from the generated RTL:
 
-**Number of stages = ⌈log₁.₅(N)⌉ ≈ 6-7 stages for 8-bit**
+| Width | Layers | Reduction 3:2 compressors | Reduction half adders | Final CPA |
+|-------|--------|---------------------------|-----------------------|-----------|
+| 8-bit | 4 | 36 | 25 | `math_adder_brent_kung_016` |
+| 16-bit | 6 | 196 | 78 | `math_adder_brent_kung_032` |
+| 32-bit | 8 | 900 | 216 | `math_adder_brent_kung_064` |
+
+**For 8×8 multiplication:** 64 partial products across 15 columns are reduced
+to 2 rows in 4 layers, then summed by a single 16-bit Brent-Kung prefix CPA.
+
+**Number of layers:** measured, this is **4 layers for 8-bit, 6 for 16-bit, and
+8 for 32-bit** - count the `// Wallace reduction layer N` comments in the
+generated RTL.
+
+Do not trust a closed form here. The often-quoted `⌈log₁.₅(N)⌉` is wrong: it
+describes reduction from N rows down to 1, whereas this tree stops at 2.
+Correcting it to `⌈log₁.₅(N/2)⌉` fixes 8-bit and 16-bit but still under-predicts
+32-bit, giving 7 where the generator emits 8:
+
+| N | `⌈log₁.₅(N)⌉` | `⌈log₁.₅(N/2)⌉` | measured |
+|---|---------------|-----------------|----------|
+| 8 | 6 | 4 | **4** |
+| 16 | 7 | 6 | **6** |
+| 32 | 9 | 7 | **8** |
+
+: Layer-count formulas against the generated RTL
+
+Both formulas assume every column shrinks by a clean 3:2 every layer. It does
+not: a column whose height is not a multiple of 3 leaves a remainder that passes
+through untouched, and carries arriving from the column below can raise a column
+between layers. Those two effects cost an extra layer by the time N reaches 32.
+Take the layer count from the RTL, not from a formula.
 
 ## Usage Examples
 
@@ -315,14 +423,21 @@ endmodule
 
 **Logic Depth Breakdown:**
 - Partial product generation: 1 level (AND gates)
-- Wallace reduction tree: O(log₁.₅ N) levels
-- Final addition: Typically uses external fast adder
+- Wallace reduction layers: logarithmic - 4 / 6 / 8 layers for 8 / 16 / 32-bit
+- Final addition: on-chip **Brent-Kung** parallel-prefix carry-propagate adder, O(log N) levels
 
 **Critical Path:**
 ```
-i_multiplier[N-1] → PP generation → Tree stage 1 → Tree stage 2 → ...
-→ Tree stage K → Final sum/carry → ow_product[2N-1]
+i_multiplier[N-1] → PP generation → Layer 1 → Layer 2 → ... → Layer K
+→ Brent-Kung prefix network (~2·log2(2N) levels) → ow_product[2N-1]
 ```
+
+**Important:** both halves of the datapath are logarithmic. The reduction tree
+is log-depth, and the final adder is a Brent-Kung parallel-prefix adder, which
+is also log-depth, so the **end-to-end delay of these modules is O(log N)**.
+There is no serial carry chain anywhere in the design. The 32-bit variant, for
+example, follows an 8-layer tree with a 64-bit prefix network rather than the
+54-deep ripple it used to carry.
 
 **Note:** Actual timing depends heavily on synthesis optimization and target technology.
 
@@ -330,32 +445,69 @@ i_multiplier[N-1] → PP generation → Tree stage 1 → Tree stage 2 → ...
 
 ### Resource Utilization
 
-| Width | Full Adders | Half Adders | AND Gates | Estimated LUTs |
-|-------|-------------|-------------|-----------|----------------|
-| 8-bit | ~40 | ~15 | 64 | ~120 |
-| 16-bit | ~180 | ~60 | 256 | ~520 |
-| 32-bit | ~750 | ~250 | 1024 | ~2100 |
+Instance counts below are exact, taken from the generated RTL. "3:2 cells"
+counts the reduction-tree compressors (`math_adder_full` in the plain variant,
+`math_adder_carry_save` in the `_csa_` variant). Every discrete adder cell in
+these files is in the reduction tree; the final CPA is a single prefix-adder
+instance and contributes none.
+
+| Width | 3:2 cells (tree) | Half adders (tree) | Final CPA | AND Gates | Total adder cells |
+|-------|------------------|--------------------|-----------|-----------|-------------------|
+| 8-bit | 36 | 25 | 1 × `math_adder_brent_kung_016` | 64 | 61 |
+| 16-bit | 196 | 78 | 1 × `math_adder_brent_kung_032` | 256 | 274 |
+| 32-bit | 900 | 216 | 1 × `math_adder_brent_kung_064` | 1024 | 1116 |
 
 **Comparison to Other Multiplier Architectures:**
 
 | Architecture | Area (relative) | Speed (relative) | Best Use Case |
 |--------------|-----------------|------------------|---------------|
-| **Wallace Tree** | **1.1×** | **1.0×** | **High-speed, one-time cost** |
-| Dadda Tree | 1.0× | 1.05× | Area-optimized, similar speed |
+| **Wallace Tree** | **1.2×** | **1.0×** | **High-speed, clearest teaching structure** |
+| Dadda Tree | 1.0× | ~1.0× | Same depth, fewer compressors |
 | Array Multiplier | 0.8× | 2.5× | Low-speed, minimal area |
 | Booth (radix-4) | 0.9× | 1.5× | Signed, reduced partial products |
 
-**Wallace vs Dadda:**
-- Wallace: Reduces immediately (maximal parallelism)
-- Dadda: Scheduled reduction (fewer logic stages for same depth)
-- **Result:** Dadda typically saves ~10% area with similar or better speed
+**Wallace vs Dadda - the headline comparison:**
+
+For 8×8, both reach column height 2 in **4 layers/stages - the same depth**.
+They differ only in what that depth costs:
+
+| | Wallace | Dadda |
+|---|---------|-------|
+| Layers / stages to height 2 | 4 | 4 |
+| Reduction compressors | 36 | 35 |
+| Reduction half adders | 25 | 7 |
+| **Total reduction cells** | **61** | **42** |
+| Final CPA | `math_adder_brent_kung_016` | `math_adder_brent_kung_016` |
+
+Wallace compresses everything it can as early as it can. Dadda defers, using
+per-stage target heights to spend the fewest compressors for the same depth.
+**That is the entire distinction between the two.**
+
+Wallace used to get something back for its extra 19 cells. When both
+multipliers ended in a ripple CPA, eager compression flattened the low-order
+columns early, so Wallace's final ripple spanned only 11 columns against
+Dadda's 14 - a shorter serial carry chain that partly offset the larger tree.
+**That offset is gone.** Both now feed a full-width Brent-Kung prefix adder
+over all 2N columns, and a prefix adder's depth is logarithmic in its width
+regardless of how many low-order inputs are constant zero. The final adder is
+now *identical* in the two families, in both cell count and delay, so the extra
+19 cells buy nothing.
+
+**Measured totals across widths** (adder cells in the reduction tree; the
+shared Brent-Kung CPA is identical in both and excluded):
+
+| Width | Wallace total cells | Dadda total cells |
+|-------|---------------------|-------------------|
+| 8-bit | 61 | 42 |
+| 16-bit | 274 | 210 |
+| 32-bit | 1116 | 930 |
 
 ### Area-Speed Tradeoffs
 
 **For High-Speed Requirements:**
-- ✅ Use Wallace tree (fastest critical path)
+- ✅ Either tree works - they have the same reduction depth and the same final adder
 - ✅ Consider pipelining for even higher frequency
-- ✅ Accept larger area overhead
+- ✅ If you pick Wallace, accept the larger area overhead for no speed gain
 
 **For Area-Constrained Designs:**
 - Use Dadda tree instead (see `math_multiplier_dadda_tree.md`)
@@ -366,7 +518,7 @@ i_multiplier[N-1] → PP generation → Tree stage 1 → Tree stage 2 → ...
 
 ### Advantages
 
-✅ **Fastest combinational multiplier** - O(log N) depth vs O(N) for array
+✅ **Log-depth end to end** - the tree collapses N rows to 2 in O(log N) layers, versus O(N) for an array multiplier, and the Brent-Kung prefix CPA that follows is O(log N) as well
 ✅ **Highly parallel** - Exploits 3:2 compression at all levels
 ✅ **No sequential logic** - Pure combinational (easy to pipeline)
 ✅ **Unsigned friendly** - Natural fit for unsigned operands
@@ -374,7 +526,7 @@ i_multiplier[N-1] → PP generation → Tree stage 1 → Tree stage 2 → ...
 
 ### Limitations
 
-⚠️ **Large area** - More gates than Dadda tree (~10% overhead)
+⚠️ **Large area** - More adder cells than Dadda tree at the same depth (61 versus 42 at 8×8, 1116 versus 930 at 32×32), with no offsetting delay advantage
 ⚠️ **Irregular structure** - Complex synthesis, harder to hand-layout
 ⚠️ **Unsigned only** - Requires additional logic for signed multiplication
 ⚠️ **Fixed width** - Not parameterizable (must instantiate specific variant)
@@ -389,7 +541,7 @@ i_multiplier[N-1] → PP generation → Tree stage 1 → Tree stage 2 → ...
 - Unsigned integer multiplication
 
 **Consider Alternatives When:**
-- Area is critical → Use Dadda tree (10% smaller)
+- Area is critical → Use Dadda tree (17-31% fewer adder cells at the same depth)
 - Operands are signed → Use Booth multiplier
 - Low frequency → Use array multiplier (much smaller)
 - Variable width needed → Use parameterized array/Booth
@@ -494,16 +646,21 @@ math_multiplier_wallace_tree_008 u_mult (
 // (See "Signed Multiplication" section above)
 ```
 
-❌ **Anti-Pattern 3: Forgetting final adder**
+❌ **Anti-Pattern 3: Adding a redundant external adder**
 
 ```systemverilog
-// NOTE: Wallace tree typically outputs sum and carry vectors
-// that need final addition. Check specific implementation!
+// WRONG: ow_product is already the final summed product.
+// Bolting on another adder both wastes area and computes garbage.
+math_multiplier_wallace_tree_008 u_mult (..., .ow_product(p));
+assign product = p + {carry[14:0], 1'b0};  // No!
 
-// If module outputs separate sum/carry (some variants):
-logic [15:0] sum, carry;
-assign product = sum + {carry[14:0], 1'b0};  // Final addition
+// RIGHT: use ow_product directly.
+math_multiplier_wallace_tree_008 u_mult (..., .ow_product(product));
 ```
+
+These modules contain their own final carry-propagate adder. They do not expose
+separate sum and carry vectors. This is unambiguous - there is definitively a
+final CPA inside every generated variant.
 
 ❌ **Anti-Pattern 4: Not pipelining for high frequency**
 
@@ -520,21 +677,43 @@ always_ff @(posedge clk) begin
 end
 ```
 
-## Internal Building Blocks
+## The `_csa_` Variant
 
-The Wallace tree multipliers use these sub-components:
+**math_multiplier_wallace_tree_csa_008/016/032.sv** are **standalone top-level
+multipliers**, not internal sub-components. Each declares the same module
+interface as the plain variant:
 
-**math_multiplier_wallace_tree_csa_008/016/032.sv:**
-- Carry-save adder variants optimized for Wallace tree stages
-- Not intended for direct instantiation
-- Internal use only within Wallace tree modules
+```systemverilog
+module math_multiplier_wallace_tree_csa_008 #(
+    parameter int N = 8
+) (
+    input  logic [  N-1:0] i_multiplier,
+    input  logic [  N-1:0] i_multiplicand,
+    output logic [2*N-1:0] ow_product
+);
+```
+
+The only difference is the cell used to build the reduction tree:
+
+| | Plain variant | `_csa_` variant |
+|---|---------------|-----------------|
+| Reduction tree cell | `math_adder_full` | `math_adder_carry_save` |
+| Final CPA cell | `math_adder_full` | `math_adder_full` |
+| Tree topology | identical | identical |
+| Instance counts | identical | identical |
+
+Both cells are 3:2 compressors, so the trees are structurally identical. The
+plain variant is **not** built out of the `_csa_` variant - they are two
+independent generated modules and neither instantiates the other. Instantiate
+whichever one you prefer.
 
 ## Related Modules
 
-- **math_multiplier_dadda_tree_*.sv** - Area-optimized alternative (10% smaller)
-- **math_adder_carry_save.sv** - 3:2 compressor building block
-- **math_adder_full.sv** - Full adder primitive
-- **math_adder_half.sv** - Half adder primitive
+- **math_multiplier_dadda_tree_*.sv** - same reduction depth, 17-31% fewer adder cells, identical final CPA
+- **math_adder_brent_kung_016/032/064.sv** - logarithmic-depth parallel-prefix adder used as the final CPA here (8/16/32-bit multipliers use the 016/032/064 widths respectively)
+- **math_adder_carry_save.sv** - 3:2 compressor, used in the `_csa_` variant's reduction tree
+- **math_adder_full.sv** - Full adder primitive, used in the plain variant's reduction tree
+- **math_adder_half.sv** - Half adder primitive, used in the reduction tree of both variants
 
 ## Wallace Tree vs Dadda Tree
 
@@ -542,13 +721,20 @@ Both use CSA trees but differ in reduction strategy:
 
 | Aspect | Wallace Tree | Dadda Tree |
 |--------|--------------|------------|
-| **Strategy** | Reduce immediately | Scheduled reduction |
-| **Stages** | More reduction stages | Fewer, larger stages |
-| **Area** | ~10% larger | Smaller (optimized) |
-| **Speed** | Fastest | Similar or faster |
-| **Design** | Simpler (greedy) | More complex (scheduled) |
+| **Strategy** | Compress everything as early as possible | Defer; compress only down to a per-stage target height |
+| **Layers / stages to height 2** | 4 / 6 / 8 (8/16/32-bit) | 4 / 6 / 8 - **the same** |
+| **Reduction cells (8×8)** | 61 | 42 |
+| **Final CPA (8×8)** | `math_adder_brent_kung_016` | `math_adder_brent_kung_016` - **the same** |
+| **Total adder cells (8×8)** | 61 | 42 |
+| **Design** | Simpler (greedy grouping) | More complex (scheduled targets) |
 
-**Recommendation:** Use Dadda tree for production designs (better area-speed balance).
+Dadda uses **fewer compressors for the same depth** - not fewer stages. The
+stage counts are identical.
+
+**Recommendation:** Use Dadda tree for production designs (fewer cells at equal
+depth). Wallace remains the clearer teaching example, but with both families
+now ending in the same Brent-Kung prefix adder it no longer has a delay
+advantage to trade against its larger tree.
 
 ## References
 

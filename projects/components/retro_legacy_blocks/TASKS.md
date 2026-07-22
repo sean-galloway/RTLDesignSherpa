@@ -28,6 +28,12 @@
 **Status:** Production Ready (5/6 configurations at 100%)
 **Owner:** RTL Design Sherpa Project
 
+> Status (2026-07-22): The standalone `projects/components/apb_hpet/` component was absorbed
+> into `projects/components/retro_legacy_blocks/`. RTL now lives in `rtl/hpet/`, tests in
+> `dv/tests/test_apb_hpet.py`, and TB classes in `dv/tbclasses/hpet/` (the old
+> `bin/TBClasses/amba/apb_hpet/` framework location is gone). Paths below have been updated
+> to the new locations; task history is otherwise preserved as written.
+
 ---
 
 ## Task Status Legend
@@ -62,7 +68,7 @@ Fixed Timer 2 and higher-numbered timers not firing in multi-timer configuration
 The 64-bit Counter test (hpet_tests_medium.py:176-230) writes test values to counter (0xDEADBEEF, 0xFFFFFFF0) but didn't reset counter to 0 at end of test. Subsequent Multiple Timers test started with counter at 0xFFFFFFF0DEADBEEF instead of 0, causing Timer 2 (period=700) to never reach its fire condition.
 
 **Location:**
-- File: `bin/TBClasses/amba/apb_hpet/hpet_tests_medium.py`
+- File: `dv/tbclasses/hpet/hpet_tests_medium.py`
 - Lines: 220-222 (counter cleanup added)
 - Lines: 356 (timeout increased)
 
@@ -87,9 +93,9 @@ timeout = 20000  # 20us timeout - Timer 2 needs 7000ns, allow extra margin
 - ✅ Test passes reliably with 20µs timeout
 
 **Related Files:**
-- ✅ Fixed: `bin/TBClasses/amba/apb_hpet/hpet_tests_medium.py`
-- ✅ Updated: `projects/components/apb_hpet/docs/IMPLEMENTATION_STATUS.md`
-- ✅ Documented: `projects/components/apb_hpet/CLAUDE.md` (Rule #1: Timer Cleanup is MANDATORY)
+- ✅ Fixed: `dv/tbclasses/hpet/hpet_tests_medium.py`
+- ✅ Updated: `projects/components/retro_legacy_blocks/docs/IMPLEMENTATION_STATUS.md`
+- ✅ Documented: `projects/components/retro_legacy_blocks/CLAUDE.md` (Rule #1: Timer Cleanup is MANDATORY)
 
 **Dependencies:** None
 
@@ -117,7 +123,7 @@ timeout = 20000  # 20us timeout - Timer 2 needs 7000ns, allow extra margin
 Fix minor timeout issue in 8-timer non-CDC "All Timers Stress" test. Timer 6 and Timer 7 need more time to fire due to later periods. Same issue pattern as TASK-001, same solution.
 
 **Location:**
-- File: `bin/TBClasses/amba/apb_hpet/hpet_tests_full.py`
+- File: `dv/tbclasses/hpet/hpet_tests_full.py`
 - Test: `test_all_timers_stress`
 - Issue: Timeout insufficient for Timer 6 and Timer 7
 
@@ -142,13 +148,13 @@ timeout = 100000  # 100us timeout - allow time for all 8 timers
 
 **Verification Steps:**
 1. Increase timeout in hpet_tests_full.py
-2. Run: `pytest "projects/components/apb_hpet/dv/tests/test_apb_hpet.py::test_hpet[8-43981-16-0-full-8-timer custom]" -v`
+2. Run: `pytest "projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py::test_hpet[8-43981-16-0-full-8-timer custom]" -v`
 3. Verify: 12/12 tests pass (100%)
 4. Update: IMPLEMENTATION_STATUS.md with new results
 
 **Related Files:**
-- Update: `bin/TBClasses/amba/apb_hpet/hpet_tests_full.py`
-- Update: `projects/components/apb_hpet/docs/IMPLEMENTATION_STATUS.md`
+- Update: `dv/tbclasses/hpet/hpet_tests_full.py`
+- Update: `projects/components/retro_legacy_blocks/docs/IMPLEMENTATION_STATUS.md`
 
 **Dependencies:** None
 
@@ -208,9 +214,9 @@ field comparator_lo {
 5. Test: Both one-shot and periodic modes
 
 **Related Files:**
-- Modify: `rtl/peakrdl/hpet_regs.rdl`
-- Regenerate: `rtl/hpet_regs.sv`, `rtl/hpet_regs_pkg.sv`
-- Update: `bin/TBClasses/amba/apb_hpet/hpet_tests_basic.py`
+- Modify: `rtl/hpet/peakrdl/hpet_regs.rdl`
+- Regenerate: `rtl/hpet/hpet_regs.sv`, `rtl/hpet/hpet_regs_pkg.sv`
+- Update: `dv/tbclasses/hpet/hpet_tests_basic.py`
 
 **Dependencies:** None
 
@@ -271,9 +277,9 @@ assign legacy_irq8 = cfg_legacy_mapping ? timer_irq[1] : 1'b0;
 5. Test: 1ms tick generation
 
 **Related Files:**
-- Modify: `rtl/hpet_core.sv`
-- Update: `rtl/peakrdl/hpet_regs.rdl`
-- Create: `bin/TBClasses/amba/apb_hpet/hpet_tests_legacy.py`
+- Modify: `rtl/hpet/hpet_core.sv`
+- Update: `rtl/hpet/peakrdl/hpet_regs.rdl`
+- Create: `dv/tbclasses/hpet/hpet_tests_legacy.py`
 
 **Dependencies:** None
 
@@ -347,8 +353,8 @@ assign hwif.hpet_counter_hi.value = r_counter_latched ?
 5. Test: Rapid counter increments during read
 
 **Related Files:**
-- Modify: `rtl/hpet_config_regs.sv`
-- Create: Test in `bin/TBClasses/amba/apb_hpet/hpet_tests_medium.py`
+- Modify: `rtl/hpet/hpet_config_regs.sv`
+- Create: Test in `dv/tbclasses/hpet/hpet_tests_medium.py`
 
 **Dependencies:** None
 
@@ -404,7 +410,7 @@ Create comprehensive integration examples showing how to use APB HPET in differe
 
 **File Structure:**
 ```
-projects/components/apb_hpet/examples/
+projects/components/retro_legacy_blocks/examples/
 ├── basic_integration/
 │   ├── system_top.sv
 │   ├── testbench.sv
@@ -431,8 +437,8 @@ projects/components/apb_hpet/examples/
 5. Review: Completeness and clarity
 
 **Related Files:**
-- Create: `projects/components/apb_hpet/examples/` directory and contents
-- Update: `projects/components/apb_hpet/PRD.md` with links to examples
+- Create: `projects/components/retro_legacy_blocks/examples/` directory and contents
+- Update: `projects/components/retro_legacy_blocks/PRD.md` with links to examples
 
 **Dependencies:** None
 
@@ -516,7 +522,7 @@ TASK-001 (Fix Timer 2+ Firing) ────────────┐
 1. **Task Order:** TASK-001 complete, TASK-002 optional, documentation next priority
 2. **Test-Driven:** All fixes verified with 100% test pass rate
 3. **Documentation:** Update docs immediately after task completion
-4. **Verification:** Run full regression: `pytest projects/components/apb_hpet/dv/tests/ -v`
+4. **Verification:** Run full regression: `pytest projects/components/retro_legacy_blocks/dv/tests/ -v`
 5. **Production Ready:** Component ready for production use after TASK-001
 
 ---
@@ -525,21 +531,21 @@ TASK-001 (Fix Timer 2+ Firing) ────────────┐
 
 ```bash
 # Run full test suite
-pytest projects/components/apb_hpet/dv/tests/ -v
+pytest projects/components/retro_legacy_blocks/dv/tests/ -v
 
 # Run specific configuration
-pytest "projects/components/apb_hpet/dv/tests/test_apb_hpet.py::test_hpet[3-4130-2-0-full-3-timer AMD-like]" -v
+pytest "projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py::test_hpet[3-4130-2-0-full-3-timer AMD-like]" -v
 
 # Run 8-timer stress test (TASK-002)
-pytest "projects/components/apb_hpet/dv/tests/test_apb_hpet.py::test_hpet[8-43981-16-0-full-8-timer custom]" -v
+pytest "projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py::test_hpet[8-43981-16-0-full-8-timer custom]" -v
 
 # Lint RTL
-verilator --lint-only projects/components/apb_hpet/rtl/apb_hpet.sv
+verilator --lint-only projects/components/retro_legacy_blocks/rtl/hpet/apb_hpet.sv
 
 # View documentation
-cat projects/components/apb_hpet/PRD.md
-cat projects/components/apb_hpet/CLAUDE.md
-cat projects/components/apb_hpet/docs/IMPLEMENTATION_STATUS.md
+cat projects/components/retro_legacy_blocks/PRD.md
+cat projects/components/retro_legacy_blocks/CLAUDE.md
+cat projects/components/retro_legacy_blocks/docs/IMPLEMENTATION_STATUS.md
 ```
 
 ---

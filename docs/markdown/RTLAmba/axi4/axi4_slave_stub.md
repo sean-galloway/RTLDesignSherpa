@@ -91,11 +91,11 @@ flowchart LR
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| SKID_DEPTH_AW | int | 2 | AW channel skid buffer depth (log2) |
-| SKID_DEPTH_W | int | 4 | W channel skid buffer depth (log2) |
-| SKID_DEPTH_B | int | 2 | B channel skid buffer depth (log2) |
-| SKID_DEPTH_AR | int | 2 | AR channel skid buffer depth (log2) |
-| SKID_DEPTH_R | int | 4 | R channel skid buffer depth (log2) |
+| SKID_DEPTH_AW | int | 2 | AW channel skid buffer depth in entries (2, 4, 6, or 8) |
+| SKID_DEPTH_W | int | 4 | W channel skid buffer depth in entries (2, 4, 6, or 8) |
+| SKID_DEPTH_B | int | 2 | B channel skid buffer depth in entries (2, 4, 6, or 8) |
+| SKID_DEPTH_AR | int | 2 | AR channel skid buffer depth in entries (2, 4, 6, or 8) |
+| SKID_DEPTH_R | int | 4 | R channel skid buffer depth in entries (2, 4, 6, or 8) |
 | AXI_ID_WIDTH | int | 8 | AXI transaction ID width |
 | AXI_ADDR_WIDTH | int | 32 | AXI address bus width |
 | AXI_DATA_WIDTH | int | 32 | AXI data bus width |
@@ -280,15 +280,16 @@ sequenceDiagram
 ### Timing
 
 <!-- TODO: Add wavedrom timing diagram for combined stub -->
-```
-TODO: Wavedrom timing diagram showing:
-- aclk
-- AXI write channels (s_axi_aw*, s_axi_w*, s_axi_b*)
-- Write packet interfaces (fub_axi_aw*, fub_axi_w*, fub_axi_b*)
-- AXI read channels (s_axi_ar*, s_axi_r*)
-- Read packet interfaces (fub_axi_ar*, fub_axi_r*)
-- Overlapping read/write operations
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - aclk
+> - AXI write channels (s_axi_aw*, s_axi_w*, s_axi_b*)
+> - Write packet interfaces (fub_axi_aw*, fub_axi_w*, fub_axi_b*)
+> - AXI read channels (s_axi_ar*, s_axi_r*)
+> - Read packet interfaces (fub_axi_ar*, fub_axi_r*)
+> - Overlapping read/write operations
+
 
 ---
 

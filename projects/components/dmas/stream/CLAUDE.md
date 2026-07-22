@@ -32,7 +32,7 @@
 ## Quick Context
 
 **What:** STREAM - Scatter-gather Transfer Rapid Engine for AXI Memory
-**Status:** 🟡 Initial design - tutorial-focused DMA engine
+**Status:** ✅ Complete - tutorial-focused DMA engine (fub/macro/top all passing; on-board characterization flows exist)
 **Your Role:** Help users build a beginner-friendly descriptor-based DMA engine
 
 **📖 Complete Specification:** `projects/components/dmas/stream/PRD.md` ← **Always reference this for technical details**
@@ -51,7 +51,7 @@ All mandatory requirements are consolidated in the global requirements document:
 This CLAUDE.md provides STREAM-specific guidance. Also review:
 - Root `/CLAUDE.md` - Repository-wide patterns
 - `projects/components/CLAUDE.md` - Project area standards (reset macros, FPGA attributes)
-- `bin/TBClasses/CLAUDE.md` - Framework usage patterns
+- `bin/TBClasses/` - Shared TB framework (full CocoTBFramework in the RTLDesignSherpa-DV repo)
 
 ---
 
@@ -99,14 +99,20 @@ projects/components/dmas/stream/dv/
 ├── tbclasses/                    # ★ STREAM TB classes (project area!)
 │   ├── scheduler_tb.py           # Scheduler testbench
 │   ├── descriptor_engine_tb.py   # Descriptor engine testbench
-│   └── axi_engine_tb.py          # AXI engine testbenches
-└── tests/fub_tests/              # Test runners import from tbclasses/
+│   ├── sram_controller_tb.py     # SRAM controller testbench
+│   ├── stream_core_tb.py         # Macro-level core testbench
+│   └── stream_top_tb.py          # Top-level testbench
+└── tests/                        # Test runners import from tbclasses/
+    ├── fub/                      # Per-block tests
+    ├── macro/                    # Integration tests
+    ├── top/                      # Top-level tests
+    └── performance_tests/        # Performance regression tests
 ```
 
 **STREAM Import Pattern:**
 ```python
 # Import STREAM TB from project area
-from projects.components.dmas.stream.dv.tbclasses.scheduler_tb import StreamSchedulerTB
+from projects.components.dmas.stream.dv.tbclasses.scheduler_tb import SchedulerTB
 
 # Shared utilities from framework
 from TBClasses.shared.tbbase import TBBase
@@ -124,7 +130,7 @@ STREAM has simpler config requirements than RAPIDS - most config can be set afte
 
 **Standard STREAM Pattern:**
 ```python
-class StreamSchedulerTB(TBBase):
+class SchedulerTB(TBBase):
     async def setup_clocks_and_reset(self):
         """Standard STREAM initialization"""
         await self.start_clock('clk', freq=10, units='ns')
@@ -146,7 +152,7 @@ class StreamSchedulerTB(TBBase):
 
 **Direct Reuse (No Modification):**
 - ✅ `descriptor_engine.sv` - Works with STREAM descriptors
-- ✅ `simple_sram.sv` - Standard dual-port SRAM
+- ✅ Shared FIFO/SRAM primitives (`gaxi_fifo_sync`, used inside `sram_controller_unit.sv`; the old `simple_sram.sv` was removed)
 - ✅ Descriptor engine tests - Adapt imports only
 
 **Adapt from RAPIDS:**
@@ -194,41 +200,33 @@ class StreamSchedulerTB(TBBase):
 ### Block Organization
 
 ```
-STREAM Architecture (Estimated: 8-10 modules)
-├── APB Config
-│   └── apb_config_slave.sv        (To be created)
+STREAM Architecture (as implemented)
+├── rtl/fub/                        # Functional unit blocks
+│   ├── apbtodescr.sv               # APB kick-off to descriptor request
+│   ├── descriptor_engine.sv        # Descriptor fetch/parse (derived from RAPIDS)
+│   ├── scheduler.sv                # Simplified per-channel scheduler
+│   ├── axi_read_engine.sv          # Data read engine
+│   ├── axi_write_engine.sv         # Data write engine
+│   ├── sram_controller.sv          # SRAM buffering (+ sram_controller_unit.sv per channel)
+│   ├── stream_alloc_ctrl.sv        # Space allocation tracking
+│   ├── stream_drain_ctrl.sv        # Drain control
+│   ├── stream_latency_bridge.sv    # Latency decoupling
+│   ├── stream_run_addr_gen.sv      # Address generation
+│   └── perf_profiler.sv            # Performance profiling
 │
-├── Scheduler Group
-│   ├── descriptor_engine.sv       (FROM RAPIDS - adapt imports)
-│   ├── scheduler.sv               (Simplified from RAPIDS)
-│   └── channel_arbiter.sv         (To be created)
+├── rtl/macro/                      # Integration blocks
+│   ├── scheduler_group.sv          # Per-channel scheduler group
+│   ├── scheduler_group_array.sv    # 8-channel array
+│   ├── stream_core.sv              # Core integration
+│   └── stream_regs.rdl             # PeakRDL register source
 │
-├── Data Path
-│   ├── axi_read_engine_v1.sv     (Version 1: Basic)
-│   ├── axi_read_engine_v2.sv     (Version 2: Pipelined)
-│   ├── axi_write_engine_v1.sv    (Version 1: Basic)
-│   ├── axi_write_engine_v2.sv    (Version 2: Pipelined)
-│   └── simple_sram.sv             (FROM RAPIDS - no changes)
-│
-└── MonBus Reporter
-    └── monbus_reporter.sv         (To be created)
+└── rtl/top/                        # Top level
+    ├── stream_top_ch8.sv           # 8-channel top-level wrapper
+    ├── stream_config_block.sv      # Configuration block
+    └── cmdrsp_router.sv            # Command/response routing
 ```
 
-### Module Status
-
-| Module | Source | Status | Notes |
-|--------|--------|--------|-------|
-| `descriptor_engine.sv` | RAPIDS (copy) | ✅ Copied | Adapt `#include` only |
-| `simple_sram.sv` | RAPIDS (copy) | ✅ Copied | No changes needed |
-| `stream_pkg.sv` | New | ✅ Created | Descriptor format defined |
-| `stream_imports.svh` | New | ✅ Created | Package imports |
-| `scheduler.sv` | RAPIDS (simplify) | ⏳ Pending | Remove credit mgmt, control engines |
-| `apb_config_slave.sv` | New | ⏳ Pending | 8 channel registers |
-| `axi_read_engine_v1.sv` | New | ⏳ Pending | Basic version |
-| `axi_write_engine_v1.sv` | New | ⏳ Pending | Basic version |
-| `channel_arbiter.sv` | New | ⏳ Pending | Priority-based round-robin |
-| `monbus_reporter.sv` | New | ⏳ Pending | STREAM event codes |
-| `stream_top.sv` | New | ⏳ Pending | Top-level integration |
+Monitoring uses the shared monbus group modules from `rtl/amba/monitor/` (e.g. `monbus_axil_axil_group.sv`) rather than a STREAM-local reporter.
 
 ---
 
@@ -352,21 +350,21 @@ Total transfer = 16 × 64 = 1024 bytes
 
 ```bash
 # 1. FUB (Functional Unit Block) Tests - Individual blocks
-pytest projects/components/dmas/stream/dv/tests/fub_tests/scheduler/ -v
-pytest projects/components/dmas/stream/dv/tests/fub_tests/descriptor_engine/ -v
-pytest projects/components/dmas/stream/dv/tests/fub_tests/ -v  # All FUB tests
+pytest projects/components/dmas/stream/dv/tests/fub/test_scheduler.py -v
+pytest projects/components/dmas/stream/dv/tests/fub/test_descriptor_engine.py -v
+pytest projects/components/dmas/stream/dv/tests/fub/ -v  # All FUB tests
 
-# 2. Integration Tests - Multi-block scenarios
-pytest projects/components/dmas/stream/dv/tests/integration_tests/ -v
+# 2. Macro / Top Tests - Multi-block scenarios
+pytest projects/components/dmas/stream/dv/tests/macro/ -v
+pytest projects/components/dmas/stream/dv/tests/top/ -v
 
 # Run with waveforms for debugging
-pytest projects/components/dmas/stream/dv/tests/fub_tests/scheduler/ --vcd=debug.vcd
-gtkwave debug.vcd
+WAVES=1 pytest projects/components/dmas/stream/dv/tests/fub/test_scheduler.py -v
 ```
 
 **Test Organization:**
-- **FUB tests:** Focus on individual block functionality
-- **Integration tests:** Verify block-to-block interfaces and complete data flows
+- **FUB tests:** Focus on individual block functionality (`dv/tests/fub/`)
+- **Macro/top tests:** Verify block-to-block interfaces and complete data flows (`dv/tests/macro/`, `dv/tests/top/`)
 
 ---
 
@@ -547,9 +545,9 @@ channel_arbiter u_arbiter (
 
 **Debug commands:**
 ```bash
-pytest projects/components/dmas/stream/dv/tests/fub_tests/scheduler/ -v -s  # Verbose test
-pytest projects/components/dmas/stream/dv/tests/fub_tests/scheduler/ --vcd=debug.vcd
-gtkwave debug.vcd  # Inspect FSM state transitions
+pytest projects/components/dmas/stream/dv/tests/fub/test_scheduler.py -v -s  # Verbose test
+WAVES=1 pytest projects/components/dmas/stream/dv/tests/fub/test_scheduler.py -v
+gtkwave <logs dir>/*.fst  # Inspect FSM state transitions
 ```
 
 ### Issue: Data Transfer Stalls
@@ -584,17 +582,16 @@ gtkwave debug.vcd  # Inspect FSM state transitions
 
 ```
 projects/components/dmas/stream/dv/tests/
-├── fub_tests/                  # Individual block tests
-│   ├── descriptor_engine/      # Adapt from RAPIDS tests
-│   ├── scheduler/              # Simplified scheduler tests
-│   ├── axi_engines/            # Read/write engine tests
-│   └── sram/                   # SRAM tests (from RAPIDS)
-│
-└── integration_tests/          # Multi-block scenarios
-    ├── single_channel/         # Single channel transfers
-    ├── multi_channel/          # 8-channel concurrent
-    ├── chained_descriptors/    # Descriptor chain tests
-    └── error_handling/         # Error recovery tests
+├── fub/                        # Individual block tests
+│   ├── test_descriptor_engine.py
+│   ├── test_scheduler.py
+│   ├── test_sram_controller.py (+ test_sram_controller_alloc.py)
+│   ├── test_apbtodescr.py
+│   ├── test_perf_profiler.py
+│   └── test_stream_latency_bridge.py
+├── macro/                      # Multi-block scenarios (stream_core, scheduler_group, datapaths)
+├── top/                        # Top-level (stream_top_ch8) tests
+└── performance_tests/          # Performance regression tests
 ```
 
 ### Test Levels
@@ -623,8 +620,9 @@ projects/components/dmas/stream/dv/tests/
 
 **This Subsystem:**
 - `projects/components/dmas/stream/PRD.md` - **Complete specification**
-- `projects/components/dmas/stream/README.md` - Quick start guide (to be created)
+- `projects/components/dmas/stream/README.md` - Quick start guide
 - `projects/components/dmas/stream/known_issues/` - Bug tracking
+- `projects/components/dmas/stream/docs/stream_has/`, `docs/stream_mas/` - HAS/MAS spec trees
 
 **Related:**
 - `projects/components/dmas/rapids/PRD.md` - Parent architecture (for comparison)
@@ -643,12 +641,13 @@ cat projects/components/dmas/stream/PRD.md
 # Check package definition
 cat projects/components/dmas/stream/rtl/includes/stream_pkg.sv
 
-# Run tests (once created)
-pytest projects/components/dmas/stream/dv/tests/fub_tests/ -v
-pytest projects/components/dmas/stream/dv/tests/integration_tests/ -v
+# Run tests
+pytest projects/components/dmas/stream/dv/tests/fub/ -v
+pytest projects/components/dmas/stream/dv/tests/macro/ -v
+pytest projects/components/dmas/stream/dv/tests/top/ -v
 
-# Lint (once RTL created)
-verilator --lint-only projects/components/dmas/stream/rtl/stream_fub/scheduler.sv
+# Lint
+verilator --lint-only projects/components/dmas/stream/rtl/fub/scheduler.sv
 
 # Search for modules
 find projects/components/dmas/stream/rtl/ -name "*.sv" -exec grep -H "^module" {} \;
@@ -665,7 +664,7 @@ find projects/components/dmas/stream/rtl/ -name "*.sv" -exec grep -H "^module" {
 5. ⛓️ **Chained descriptors** - No circular buffers
 6. 🎯 **8 channels** - Shared resources, arbitration required
 7. 🔍 **MonBus standard** - Same format as AMBA/RAPIDS
-8. 🏗️ **Testbench reuse** - Always create TB classes in `bin/TBClasses/stream/`
+8. 🏗️ **Testbench reuse** - Always create TB classes in `projects/components/dmas/stream/dv/tbclasses/` (project area, not the framework)
 
 ---
 
@@ -676,15 +675,16 @@ find projects/components/dmas/stream/rtl/ -name "*.sv" -exec grep -H "^module" {
 /mnt/data/github/rtldesignsherpa/projects/components/dmas/stream/docs/
 ```
 
-**Quick Command:** Use the provided shell script:
+**Quick Command:** Use the provided shell scripts:
 ```bash
-cd /mnt/data/github/rtldesignsherpa/projects/components/dmas/stream/docs
-./generate_pdf.sh
+cd projects/components/dmas/stream/docs
+./generate_has_pdf.sh   # STREAM HAS
+./generate_mas_pdf.sh   # STREAM MAS
 ```
 
-The shell script will automatically:
+The shell scripts will automatically:
 1. Use the md_to_docx.py tool from bin/
-2. Process the stream_spec index file
+2. Process the stream_has/ and stream_mas/ index files
 3. Generate both DOCX and PDF files in the docs/ directory
 4. Create table of contents and title page
 

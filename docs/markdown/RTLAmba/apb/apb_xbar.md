@@ -21,22 +21,61 @@
 
 <!-- End Header -->
 
-# apb_xbar
+# apb_xbar_thin
 
-An Advanced Peripheral Bus (APB) crossbar switch that provides full connectivity between multiple APB masters and slaves with weighted round-robin arbitration, programmable address decoding, and high-performance transaction routing.
+A fully parameterized M×S APB crossbar switch providing full connectivity between
+multiple APB masters and slaves with weighted round-robin arbitration and
+runtime-programmable address decoding.
 
-## Overview
+**Module:** `apb_xbar_thin.sv`
+**Location:** `projects/components/apb_xbar/rtl/`
+**Status:** ✅ Production Ready
 
-The `apb_xbar` module implements a complete APB crossbar interconnect supporting multiple masters accessing multiple slaves through intelligent arbitration and address-based routing. It features configurable address decoding, weighted round-robin arbitration for fairness control, and comprehensive buffering to optimize system throughput in complex multi-master, multi-slave APB environments.
+---
+
+## Naming Note
+
+Earlier revisions of this document described a module named `apb_xbar` with
+separate `MST_THRESHOLDS` and `SLV_THRESHOLDS` inputs, an internal `DEPTH`
+parameter, `apb_slave`/`apb_master` stub conversion, side queues, and a 3-cycle
+minimum latency.
+
+**No such module exists.** The parameterized crossbar in this repository is
+`apb_xbar_thin`, and it has a materially different architecture -- it is
+combinational and does no protocol conversion at all. This document has been
+rewritten against the actual RTL.
+
+The other family, the fixed-configuration generated crossbars (`apb_xbar_1to1`,
+`apb_xbar_2to1`, `apb_xbar_1to4`, `apb_xbar_2to4`), *does* use `apb_slave` +
+`apb_master` conversion and is specified separately in
+[apb_crossbar.md](apb_crossbar.md).
+
+### Choosing Between the Two Families
+
+| | `apb_xbar_thin` | Generated crossbars |
+|---|---|---|
+| Topology | Any M×S, set by parameter | Fixed per generated file |
+| Address map | Runtime inputs, per-slave base/limit/enable | Compile-time, uniform 64 KB regions |
+| Arbitration | Weighted round-robin | Plain round-robin |
+| Protocol conversion | None -- combinational passthrough | APB → cmd/rsp → APB |
+| Buffering | None | Skid buffers on both sides |
+| Added latency | Zero cycles | Multiple cycles (see [apb_crossbar.md](apb_crossbar.md)) |
+| Combinational path | Master APB to slave APB, and `PREADY`/`PRDATA` back | Broken by registers |
+| Best for | Sparse or reprogrammable maps, latency-critical paths | Timing closure at higher frequency |
+
+The word "thin" is the operative one: this module adds no pipeline stages, which
+makes it the lowest-latency choice and the hardest one to close timing on.
+
+---
 
 ## Module Declaration
 
 ```systemverilog
-module apb_xbar #(
+module apb_xbar_thin #(
     // Number of APB masters (from the master)
-    parameter int M = 3,
+    parameter int M = 2,
     // Number of APB slaves (to the dest)
-    parameter int S = 6,
+    parameter int S = 4,
     // Address width
     parameter int ADDR_WIDTH = 32,
     // Data width
@@ -44,20 +83,12 @@ module apb_xbar #(
     // Strobe width
     parameter int STRB_WIDTH = DATA_WIDTH/8,
     parameter int MAX_THRESH = 16,
-    parameter int DEPTH = 4,
-    // Local abbreviations
-    parameter int DW     = DATA_WIDTH,
-    parameter int AW     = ADDR_WIDTH,
-    parameter int SW     = STRB_WIDTH,
-    parameter int MID    = $clog2(M),
-    parameter int SID    = $clog2(S),
-    parameter int MTW    = $clog2(MAX_THRESH),
-    parameter int MXMTW  = M * MTW,
-    parameter int SXMTW  = S * MTW,
-    parameter int SLVCPW = AW + DW + SW + 4,
-    parameter int SLVRPW = DW + 1,
-    parameter int MSTCPW = AW + DW + SW + 6,
-    parameter int MSTRPW = DW + 3
+    // local abbreviations
+    parameter int DW    = DATA_WIDTH,
+    parameter int AW    = ADDR_WIDTH,
+    parameter int SW    = STRB_WIDTH,
+    parameter int MTW   = $clog2(MAX_THRESH),
+    parameter int MXMTW = M * MTW
 ) (
     input  logic                         pclk,
     input  logic                         presetn,
@@ -68,9 +99,8 @@ module apb_xbar #(
     input  logic [S-1:0][ADDR_WIDTH-1:0] SLAVE_ADDR_BASE,
     // Slave address limit
     input  logic [S-1:0][ADDR_WIDTH-1:0] SLAVE_ADDR_LIMIT,
-    // Thresholds for the Weighted Round Robin Arbiters
-    input  logic [MXMTW-1:0]             MST_THRESHOLDS,
-    input  logic [SXMTW-1:0]             SLV_THRESHOLDS,
+    // Thresholds for the Weighted Round Robin Arbiter
+    input  logic [MXMTW-1:0]             THRESHOLDS,
 
     // Master interfaces - These are from the APB master
     input  logic [M-1:0]                 m_apb_psel,
@@ -98,17 +128,27 @@ module apb_xbar #(
 );
 ```
 
+Note the port naming convention: lowercase (`m_apb_psel`, not `m_apb_PSEL`),
+unlike `apb_slave` / `apb_master` and the generated crossbars.
+
 ## Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| M | int | 3 | Number of APB masters (input side) |
-| S | int | 6 | Number of APB slaves (output side) |
+| M | int | 2 | Number of APB masters (input side) |
+| S | int | 4 | Number of APB slaves (output side) |
 | ADDR_WIDTH | int | 32 | APB address bus width |
 | DATA_WIDTH | int | 32 | APB data bus width |
-| STRB_WIDTH | int | DATA_WIDTH/8 | APB write strobe width |
-| MAX_THRESH | int | 16 | Maximum arbitration threshold |
-| DEPTH | int | 4 | Internal buffer depth (2^DEPTH entries) |
+| STRB_WIDTH | int | DATA_WIDTH/8 | APB write strobe width (derived) |
+| MAX_THRESH | int | 16 | Sizes the per-master threshold field: `MTW = $clog2(MAX_THRESH)` |
+
+**There is no `DEPTH` parameter.** The module contains no buffers.
+
+**`MAX_THRESH` only sizes the field.** The arbiter is instantiated with
+`MAX_LEVELS(16)` hardcoded, so changing `MAX_THRESH` changes the width of
+`THRESHOLDS` without changing the arbiter's internal credit range. Leave it at
+the default of 16 unless you have also reviewed
+`rtl/common/arbiter_round_robin_weighted.sv`.
 
 ## Ports
 
@@ -121,15 +161,25 @@ module apb_xbar #(
 
 ### Configuration Interface
 
+All configuration is by **input signal**, not parameter, so the address map can
+be reprogrammed at runtime.
+
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
-| SLAVE_ENABLE | S | Input | Per-slave enable bits |
-| SLAVE_ADDR_BASE | S × ADDR_WIDTH | Input | Base address for each slave |
-| SLAVE_ADDR_LIMIT | S × ADDR_WIDTH | Input | Limit address for each slave |
-| MST_THRESHOLDS | M × MTW | Input | Master arbitration thresholds |
-| SLV_THRESHOLDS | S × MTW | Input | Slave arbitration thresholds |
+| SLAVE_ENABLE | S | Input | Per-slave enable bit; a disabled slave never matches |
+| SLAVE_ADDR_BASE | S × ADDR_WIDTH | Input | Inclusive base address for each slave |
+| SLAVE_ADDR_LIMIT | S × ADDR_WIDTH | Input | Inclusive limit address for each slave |
+| THRESHOLDS | M × MTW | Input | Per-**master** arbitration weights |
+
+**`THRESHOLDS` is a single per-master vector shared by every slave arbiter.**
+There is no separate `MST_THRESHOLDS`/`SLV_THRESHOLDS` pair and no way to weight
+masters differently on different slaves -- the same vector is wired to all `S`
+arbiter instances.
 
 ### Master Interfaces (Input Side)
+
+These are the crossbar's upstream ports; the crossbar behaves as an APB *slave*
+on them. They are named `m_apb_*` because they connect to external APB masters.
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
@@ -140,11 +190,15 @@ module apb_xbar #(
 | m_apb_paddr | M × ADDR_WIDTH | Input | Master addresses |
 | m_apb_pwdata | M × DATA_WIDTH | Input | Master write data |
 | m_apb_pstrb | M × STRB_WIDTH | Input | Master write strobes |
-| m_apb_pready | M | Output | Master ready signals |
-| m_apb_prdata | M × DATA_WIDTH | Output | Master read data |
-| m_apb_pslverr | M | Output | Master error signals |
+| m_apb_pready | M | Output | Ready returned to each master |
+| m_apb_prdata | M × DATA_WIDTH | Output | Read data returned to each master |
+| m_apb_pslverr | M | Output | Error returned to each master |
 
 ### Slave Interfaces (Output Side)
+
+These are the crossbar's downstream ports; the crossbar behaves as an APB
+*master* on them. They are named `s_apb_*` because they connect to external APB
+slaves.
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
@@ -155,9 +209,24 @@ module apb_xbar #(
 | s_apb_paddr | S × ADDR_WIDTH | Output | Slave addresses |
 | s_apb_pwdata | S × DATA_WIDTH | Output | Slave write data |
 | s_apb_pstrb | S × STRB_WIDTH | Output | Slave write strobes |
-| s_apb_pready | S | Input | Slave ready signals |
-| s_apb_prdata | S × DATA_WIDTH | Input | Slave read data |
-| s_apb_pslverr | S | Input | Slave error signals |
+| s_apb_pready | S | Input | Ready from each slave |
+| s_apb_prdata | S × DATA_WIDTH | Input | Read data from each slave |
+| s_apb_pslverr | S | Input | Error from each slave |
+
+### A Note on the `m_`/`s_` Prefixes
+
+This convention is the opposite of the AMBA interconnect convention, in which an
+interconnect's *slave* port faces an upstream master and its *master* port faces
+a downstream slave. Here the prefix names **what is attached**, not what the
+crossbar acts as:
+
+- `m_apb_*` = the ports that external **m**asters attach to (crossbar acts as slave)
+- `s_apb_*` = the ports that external **s**laves attach to (crossbar acts as master)
+
+The port directions in the tables above are unambiguous; use them, not the
+prefix, when wiring.
+
+---
 
 ## Architecture
 
@@ -175,450 +244,332 @@ Master 2 ──┘    Switch    ├── Slave 1
 
 ### Key Components
 
-1. **APB Slave Stubs**: Convert APB protocol to command/response interface (master side)
-2. **APB Master Stubs**: Convert command/response interface to APB protocol (slave side)
-3. **Address Decoders**: Route transactions based on configurable address ranges
-4. **Round-Robin Arbiters**: Uses proven `arbiter_round_robin` module with ACK-based transaction locking
-5. **Side Queues**: Buffer master IDs for response routing
-6. **Multiplexers/Demultiplexers**: Route commands and responses
+1. **Address Decoders** (S instances): combinational per-slave, per-master range match
+2. **Weighted Round-Robin Arbiters** (S instances): one `arbiter_round_robin_weighted` per slave
+3. **Grant-ACK Registers** (S × M flops): the only sequential logic in the datapath
+4. **Slave-side Multiplexers** (S instances): select the granted master's APB signals
+5. **Master-side Demultiplexers** (M instances): return `PREADY`/`PRDATA`/`PSLVERR` from the granted slave
 
-**Note:** Generated crossbars (1to1, 2to1, 1to4, 2to4) use the proven `arbiter_round_robin` module from `rtl/common/` with WAIT_GNT_ACK=1 mode for reliable arbitration.
+There are no stubs, no command queues, no side queues, and no response FIFOs.
 
 ### Data Flow
 
 ```
-APB Masters → Slave Stubs → Command Queues → Address Decode → Arbitration →
-Master Stubs → APB Slaves
+APB Masters → Address Decode → Per-Slave Arbitration → Slave Mux → APB Slaves
 
-APB Slaves → Master Stubs → Response Queues → ID Matching → Arbitration →
-Slave Stubs → APB Masters
+APB Slaves → Master Demux (by grant) → APB Masters
 ```
+
+Both directions are combinational. The only registers are the per-slave,
+per-master grant-ACK flops.
+
+---
 
 ## Functionality
 
 ### Address Decoding
 
 Each slave is assigned an address range defined by:
-- **SLAVE_ADDR_BASE[i]**: Starting address for slave i
-- **SLAVE_ADDR_LIMIT[i]**: Ending address for slave i
-- **SLAVE_ENABLE[i]**: Enable bit for slave i
 
-Address matching logic:
+- **SLAVE_ADDR_BASE[s]**: inclusive starting address for slave s
+- **SLAVE_ADDR_LIMIT[s]**: inclusive ending address for slave s
+- **SLAVE_ENABLE[s]**: enable bit for slave s
+
+Address matching is fully combinational and evaluated for every (slave, master)
+pair:
+
 ```systemverilog
-if (SLAVE_ENABLE[s] &&
-    (addr >= SLAVE_ADDR_BASE[s]) &&
-    (addr <= SLAVE_ADDR_LIMIT[s])) begin
-    // Route to slave s
-end
+master_sel[s][m] = m_apb_psel[m] && SLAVE_ENABLE[s] &&
+                   (m_apb_paddr[m] >= SLAVE_ADDR_BASE[s]) &&
+                   (m_apb_paddr[m] <= SLAVE_ADDR_LIMIT[s]);
 ```
 
-### Round-Robin Arbitration with ACK Mode
+Because base and limit are independent runtime inputs, sparse and non-uniform
+maps are supported -- unlike the generated crossbars, which use fixed uniform
+64 KB regions.
 
-Generated crossbars use the `arbiter_round_robin` module from `rtl/common/`:
-- **WAIT_GNT_ACK=1**: Grant locks until transaction completes
-- **Grant ACK**: `grant && rsp_valid && rsp_ready` signals transaction completion
-- **Request Vector**: Built from `cmd_valid` and address match (for multi-slave)
-- **Fair Rotation**: Priority rotates after each transaction
+**Overlapping ranges are not detected.** If two enabled slaves both match an
+address, both arbiters will see a request and both slaves will be selected. The
+master-side demultiplexer then returns whichever match it encounters last in its
+loop. Ensure the programmed ranges are disjoint.
 
-**Note:** The full `apb_xbar` module with weighted thresholds is separate from the generated crossbars. Generated crossbars (1to1, 2to1, 1to4, 2to4) use standard round-robin for simplicity and reliability.
+### Weighted Round-Robin Arbitration with ACK Mode
 
-### Transaction Buffering
+Each slave has an independent arbiter:
 
-Internal queues provide:
-1. **Command Buffering**: Stores pending transactions
-2. **Response Buffering**: Stores completed transactions
-3. **ID Tracking**: Maintains master-slave associations
+```systemverilog
+arbiter_round_robin_weighted #(
+    .MAX_LEVELS  (16),
+    .CLIENTS     (M),
+    .WAIT_GNT_ACK(1)
+) arbiter_inst (
+    .max_thresh  (THRESHOLDS),
+    .request     (master_sel[s]),
+    .grant_valid (arb_gnt_valid[s]),
+    .grant       (arb_gnt[s]),
+    .grant_id    (arb_gnt_id[s]),
+    .grant_ack   (arb_gnt_ack[s])
+);
+```
+
+- **`WAIT_GNT_ACK=1`**: the grant is held until acknowledged, so it persists for
+  the whole APB transfer and the transaction is atomic.
+- **Grant ACK** is registered and asserted the cycle after the transfer
+  completes on that slave:
+
+  ```systemverilog
+  arb_gnt_ack[s][m] <= arb_gnt[s][m] && s_apb_pready[s] &&
+                       s_apb_psel[s]  && s_apb_penable[s];
+  ```
+
+- **Weighting**: `THRESHOLDS` gives each master a credit allowance, so a
+  higher-weighted master wins more often across a rotation while still being
+  starvation-free.
+
+---
 
 ## Timing Characteristics
 
-### Latency Components
+### Latency
 
-| Component | Latency | Description |
-|-----------|---------|-------------|
-| Stub Conversion | 1 cycle | APB to command/response |
-| Address Decode | 0 cycles | Combinatorial logic |
-| Arbitration | 1 cycle | Grant generation |
-| Buffer Transit | 1 cycle | Queue traversal |
-| **Total Minimum** | **3 cycles** | Best case path |
+`apb_xbar_thin` adds **zero cycles** of latency. The master's `PSEL`, `PENABLE`,
+`PADDR`, `PWDATA`, `PSTRB` and `PPROT` reach the selected slave combinationally,
+and `PREADY`, `PRDATA` and `PSLVERR` return combinationally. An uncontended
+transfer completes in exactly the downstream slave's own transfer time.
 
-### Throughput Metrics
+The cost is timing, not cycles:
+
+| Path | Description |
+|------|-------------|
+| Master `PADDR` → decode → arbiter request → grant → slave mux → `s_apb_paddr` | Forward combinational path |
+| `s_apb_pready` → master demux (indexed by grant) → `m_apb_pready` | Return combinational path |
+
+Both paths scale with M and S. On FPGA targets this is normally the critical path
+of any design instantiating a large `apb_xbar_thin`. If timing does not close,
+use a generated crossbar from [apb_crossbar.md](apb_crossbar.md), which breaks
+these paths with registers, or register the crossbar's boundaries externally.
+
+### Arbitration Turnaround
+
+Because `grant_ack` is registered, the arbiter releases a grant one cycle after
+the transfer completes. Back-to-back transfers from *different* masters to the
+same slave therefore see one dead cycle between them. Transfers to *different*
+slaves proceed fully in parallel.
+
+### Throughput
 
 | Metric | Value | Conditions |
 |--------|-------|------------|
-| Maximum Frequency | 200-400 MHz | Technology dependent |
-| Peak Throughput | 1 transaction/cycle/path | No conflicts |
-| Sustained Throughput | 85-95% of peak | With typical arbitration |
-| Concurrent Transactions | Up to M×S | All paths active |
+| Added latency | 0 cycles | Any configuration |
+| Concurrent transfers | Up to min(M, S) | Distinct slaves, no address conflict |
+| Same-slave turnaround | 1 dead cycle | Master change; registered grant ACK |
 
-## Usage Examples
+No synthesis frequency or area figures are published for this module -- none have
+been measured in this repository.
 
-### Basic Multi-Core System
+---
 
-```systemverilog
-apb_xbar #(
-    .M(4),                    // 4 CPU cores
-    .S(8),                    // 8 peripheral slaves
-    .ADDR_WIDTH(32),
-    .DATA_WIDTH(32),
-    .DEPTH(3)                 // 8-entry buffers
-) u_system_xbar (
-    .pclk            (apb_clk),
-    .presetn         (apb_resetn),
+## Usage Example
 
-    // Address map configuration
-    .SLAVE_ENABLE    (slave_enable),
-    .SLAVE_ADDR_BASE ({
-        32'h4000_7000,  // Slave 7: High-speed UART
-        32'h4000_6000,  // Slave 6: SPI controller
-        32'h4000_5000,  // Slave 5: I2C controller
-        32'h4000_4000,  // Slave 4: GPIO controller
-        32'h4000_3000,  // Slave 3: Timer 3
-        32'h4000_2000,  // Slave 2: Timer 2
-        32'h4000_1000,  // Slave 1: Timer 1
-        32'h4000_0000   // Slave 0: System controller
-    }),
-    .SLAVE_ADDR_LIMIT ({
-        32'h4000_7FFF,  // Slave 7: 4KB space
-        32'h4000_6FFF,  // Slave 6: 4KB space
-        32'h4000_5FFF,  // Slave 5: 4KB space
-        32'h4000_4FFF,  // Slave 4: 4KB space
-        32'h4000_3FFF,  // Slave 3: 4KB space
-        32'h4000_2FFF,  // Slave 2: 4KB space
-        32'h4000_1FFF,  // Slave 1: 4KB space
-        32'h4000_0FFF   // Slave 0: 4KB space
-    }),
-
-    // Equal priority arbitration
-    .MST_THRESHOLDS  ({4{4'h4}}),  // Equal priority for all masters
-    .SLV_THRESHOLDS  ({8{4'h4}}),  // Equal priority for all slaves
-
-    // Master interfaces (from CPUs)
-    .m_apb_psel      (cpu_apb_psel),
-    .m_apb_penable   (cpu_apb_penable),
-    .m_apb_pwrite    (cpu_apb_pwrite),
-    .m_apb_pprot     (cpu_apb_pprot),
-    .m_apb_paddr     (cpu_apb_paddr),
-    .m_apb_pwdata    (cpu_apb_pwdata),
-    .m_apb_pstrb     (cpu_apb_pstrb),
-    .m_apb_pready    (cpu_apb_pready),
-    .m_apb_prdata    (cpu_apb_prdata),
-    .m_apb_pslverr   (cpu_apb_pslverr),
-
-    // Slave interfaces (to peripherals)
-    .s_apb_psel      (periph_apb_psel),
-    .s_apb_penable   (periph_apb_penable),
-    .s_apb_pwrite    (periph_apb_pwrite),
-    .s_apb_pprot     (periph_apb_pprot),
-    .s_apb_paddr     (periph_apb_paddr),
-    .s_apb_pwdata    (periph_apb_pwdata),
-    .s_apb_pstrb     (periph_apb_pstrb),
-    .s_apb_pready    (periph_apb_pready),
-    .s_apb_prdata    (periph_apb_prdata),
-    .s_apb_pslverr   (periph_apb_pslverr)
-);
-```
-
-### High-Performance Computing System
+### 3 Masters, 4 Slaves with a Sparse Address Map
 
 ```systemverilog
-// HPC system with priority-based arbitration
-apb_xbar #(
-    .M(6),                    // Multiple masters with different priorities
-    .S(12),                   // Large number of slaves
-    .ADDR_WIDTH(32),
-    .DATA_WIDTH(64),          // Wide data path
-    .DEPTH(4),                // Large buffers for latency tolerance
-    .MAX_THRESH(32)           // High threshold range
-) u_hpc_xbar (
-    .pclk            (hpc_clk),
-    .presetn         (hpc_resetn),
+localparam int M = 3;
+localparam int S = 4;
 
-    // Hierarchical address map
-    .SLAVE_ENABLE    (12'h00F),       // Enable first 12 slaves
-    .SLAVE_ADDR_BASE ({
-        32'h5000_B000,  // Slave 11: Debug interface
-        32'h5000_A000,  // Slave 10: Performance counters
-        32'h5000_9000,  // Slave 9:  DMA controller 3
-        32'h5000_8000,  // Slave 8:  DMA controller 2
-        32'h5000_7000,  // Slave 7:  DMA controller 1
-        32'h5000_6000,  // Slave 6:  Memory controller
-        32'h5000_5000,  // Slave 5:  Network interface
-        32'h5000_4000,  // Slave 4:  Accelerator 3
-        32'h5000_3000,  // Slave 3:  Accelerator 2
-        32'h5000_2000,  // Slave 2:  Accelerator 1
-        32'h5000_1000,  // Slave 1:  Cache controller
-        32'h5000_0000   // Slave 0:  System control
-    }),
-    .SLAVE_ADDR_LIMIT ({
-        32'h5000_BFFF,  // 4KB each
-        32'h5000_AFFF,
-        32'h5000_9FFF,
-        32'h5000_8FFF,
-        32'h5000_7FFF,
-        32'h5000_6FFF,
-        32'h5000_5FFF,
-        32'h5000_4FFF,
-        32'h5000_3FFF,
-        32'h5000_2FFF,
-        32'h5000_1FFF,
-        32'h5000_0FFF
-    }),
-
-    // Priority-based arbitration
-    .MST_THRESHOLDS  ({
-        4'hF,  // Master 5: Highest priority (system)
-        4'hC,  // Master 4: High priority (real-time)
-        4'h8,  // Master 3: Medium priority (compute)
-        4'h8,  // Master 2: Medium priority (compute)
-        4'h4,  // Master 1: Low priority (background)
-        4'h2   // Master 0: Lowest priority (debug)
-    }),
-    .SLV_THRESHOLDS  ({12{4'h8}}),   // Equal slave priority
-
-    // Connect interfaces
-    .m_apb_*(master_apb_*),
-    .s_apb_*(slave_apb_*)
-);
-```
-
-### Mixed Latency System
-
-```systemverilog
-// System with mix of low-latency and high-throughput requirements
-module mixed_latency_system (
-    input logic apb_clk,
-    input logic apb_resetn,
-
-    // Real-time masters (low latency)
-    axi_apb_if.slave  rt_masters [2],
-    // Bulk transfer masters (high throughput)
-    axi_apb_if.slave  bulk_masters [2],
-
-    // Critical slaves (low latency)
-    axi_apb_if.master critical_slaves [4],
-    // Memory slaves (high throughput)
-    axi_apb_if.master memory_slaves [4]
-);
-
-    apb_xbar #(
-        .M(4),          // 2 RT + 2 bulk
-        .S(8),          // 4 critical + 4 memory
-        .DEPTH(2)       // Small buffers for low latency
-    ) u_mixed_xbar (
-        .pclk(apb_clk),
-        .presetn(apb_resetn),
-
-        // Time-sensitive address ranges
-        .SLAVE_ADDR_BASE ({
-            32'h6000_7000,  // Memory 3
-            32'h6000_6000,  // Memory 2
-            32'h6000_5000,  // Memory 1
-            32'h6000_4000,  // Memory 0
-            32'h6000_3000,  // Critical 3: Interrupt controller
-            32'h6000_2000,  // Critical 2: Timer
-            32'h6000_1000,  // Critical 1: Real-time IO
-            32'h6000_0000   // Critical 0: System control
-        }),
-
-        // Latency-optimized arbitration
-        .MST_THRESHOLDS ({
-            4'h2,   // Master 3: Bulk (low priority)
-            4'h2,   // Master 2: Bulk (low priority)
-            4'hF,   // Master 1: RT (highest priority)
-            4'hF    // Master 0: RT (highest priority)
-        }),
-        .SLV_THRESHOLDS ({
-            4'h4, 4'h4, 4'h4, 4'h4,  // Memory slaves: medium
-            4'hF, 4'hF, 4'hF, 4'hF   // Critical slaves: highest
-        }),
-
-        // Interface connections
-        .m_apb_*(concat({rt_masters, bulk_masters})),
-        .s_apb_*(concat({critical_slaves, memory_slaves}))
-    );
-
-endmodule
-```
-
-## Advanced Configuration
-
-### Dynamic Address Mapping
-
-```systemverilog
-// Reconfigurable address decoder
-logic [7:0][31:0] dynamic_addr_base;
-logic [7:0][31:0] dynamic_addr_limit;
-logic [7:0]       dynamic_enable;
-
-always_ff @(posedge apb_clk) begin
-    if (config_write && config_addr[15:12] == 4'h1) begin
-        case (config_addr[11:0])
-            12'h000: dynamic_addr_base[0]  <= config_wdata;
-            12'h004: dynamic_addr_limit[0] <= config_wdata;
-            12'h008: dynamic_enable[0]     <= config_wdata[0];
-            // ... additional configuration registers
-        endcase
-    end
-end
-
-apb_xbar #(.M(3), .S(8))
-u_dynamic_xbar (
-    // ...
-    .SLAVE_ADDR_BASE (dynamic_addr_base),
-    .SLAVE_ADDR_LIMIT(dynamic_addr_limit),
-    .SLAVE_ENABLE    (dynamic_enable),
-    // ...
-);
-```
-
-### Performance Monitoring
-
-```systemverilog
-// Transaction performance monitoring
-logic [31:0] transaction_counts [M][S];
-logic [31:0] arbitration_cycles [M];
-logic [31:0] total_transactions;
-
-always_ff @(posedge apb_clk) begin
-    for (int m = 0; m < M; m++) begin
-        for (int s = 0; s < S; s++) begin
-            if (transaction_complete[m][s]) begin
-                transaction_counts[m][s] <= transaction_counts[m][s] + 1;
-                total_transactions <= total_transactions + 1;
-            end
-        end
-
-        if (arbitration_active[m] && !arbitration_grant[m]) begin
-            arbitration_cycles[m] <= arbitration_cycles[m] + 1;
-        end
-    end
-end
-
-// Performance metrics
-assign avg_arbitration_delay = arbitration_cycles / total_transactions;
-assign master_utilization = transaction_counts / total_cycles;
-```
-
-### Quality of Service (QoS)
-
-```systemverilog
-// QoS-aware threshold management
-logic [3:0] qos_thresholds [M];
-logic [3:0] dynamic_mst_thresh [M];
+logic [S-1:0]             slave_enable;
+logic [S-1:0][31:0]       slave_base;
+logic [S-1:0][31:0]       slave_limit;
+logic [M-1:0][3:0]        thresholds;
 
 always_comb begin
-    for (int m = 0; m < M; m++) begin
-        case (master_qos[m])
-            2'b11: dynamic_mst_thresh[m] = 4'hF;  // Critical
-            2'b10: dynamic_mst_thresh[m] = 4'hC;  // High
-            2'b01: dynamic_mst_thresh[m] = 4'h8;  // Medium
-            2'b00: dynamic_mst_thresh[m] = 4'h4;  // Low
-        endcase
-    end
+    // Sparse, non-uniform map -- ranges need not be contiguous or equal-sized
+    slave_enable = 4'b1111;
+
+    slave_base[0]  = 32'h4000_0000;  slave_limit[0] = 32'h4000_0FFF;  //  4 KB
+    slave_base[1]  = 32'h4001_0000;  slave_limit[1] = 32'h4001_FFFF;  // 64 KB
+    slave_base[2]  = 32'h5000_0000;  slave_limit[2] = 32'h500F_FFFF;  //  1 MB
+    slave_base[3]  = 32'h6000_0000;  slave_limit[3] = 32'h6000_00FF;  // 256 B
+
+    // Per-master weights: master 0 gets the largest share
+    thresholds[0] = 4'hC;
+    thresholds[1] = 4'h4;
+    thresholds[2] = 4'h4;
 end
 
-apb_xbar u_qos_xbar (
-    // ...
-    .MST_THRESHOLDS({dynamic_mst_thresh[3], dynamic_mst_thresh[2],
-                     dynamic_mst_thresh[1], dynamic_mst_thresh[0]}),
-    // ...
+apb_xbar_thin #(
+    .M          (M),
+    .S          (S),
+    .ADDR_WIDTH (32),
+    .DATA_WIDTH (32),
+    .MAX_THRESH (16)
+) u_xbar (
+    .pclk             (apb_clk),
+    .presetn          (apb_resetn),
+
+    .SLAVE_ENABLE     (slave_enable),
+    .SLAVE_ADDR_BASE  (slave_base),
+    .SLAVE_ADDR_LIMIT (slave_limit),
+    .THRESHOLDS       (thresholds),
+
+    // Upstream: external APB masters
+    .m_apb_psel       (mst_psel),
+    .m_apb_penable    (mst_penable),
+    .m_apb_pwrite     (mst_pwrite),
+    .m_apb_pprot      (mst_pprot),
+    .m_apb_paddr      (mst_paddr),
+    .m_apb_pwdata     (mst_pwdata),
+    .m_apb_pstrb      (mst_pstrb),
+    .m_apb_pready     (mst_pready),
+    .m_apb_prdata     (mst_prdata),
+    .m_apb_pslverr    (mst_pslverr),
+
+    // Downstream: external APB slaves
+    .s_apb_psel       (slv_psel),
+    .s_apb_penable    (slv_penable),
+    .s_apb_pwrite     (slv_pwrite),
+    .s_apb_pprot      (slv_pprot),
+    .s_apb_paddr      (slv_paddr),
+    .s_apb_pwdata     (slv_pwdata),
+    .s_apb_pstrb      (slv_pstrb),
+    .s_apb_pready     (slv_pready),
+    .s_apb_prdata     (slv_prdata),
+    .s_apb_pslverr    (slv_pslverr)
 );
 ```
 
-## Performance Optimization
+### Runtime Address Map Reprogramming
 
-### Buffer Sizing Guidelines
-
-| System Type | Recommended DEPTH | Buffer Size | Benefit |
-|-------------|-------------------|-------------|---------|
-| Low Latency | 2 | 4 entries | Minimal delay |
-| Balanced | 3-4 | 8-16 entries | Good throughput/latency |
-| High Throughput | 4-5 | 16-32 entries | Maximum bandwidth |
-| Variable Latency | 5-6 | 32-64 entries | Latency tolerance |
-
-### Arbitration Tuning
+Because `SLAVE_ADDR_BASE`, `SLAVE_ADDR_LIMIT` and `SLAVE_ENABLE` are inputs, a
+control register block can rewrite the map at runtime:
 
 ```systemverilog
-// Example threshold configurations
-localparam [3:0] CRITICAL_THRESH = 4'hF;  // 15/16 cycles
-localparam [3:0] HIGH_THRESH     = 4'hC;  // 12/16 cycles
-localparam [3:0] NORMAL_THRESH   = 4'h8;  // 8/16 cycles
-localparam [3:0] LOW_THRESH      = 4'h4;  // 4/16 cycles
-localparam [3:0] BACKGROUND_THRESH = 4'h2;  // 2/16 cycles
+always_ff @(posedge apb_clk or negedge apb_resetn) begin
+    if (!apb_resetn) begin
+        slave_enable <= '0;                 // decode nothing until programmed
+    end else if (cfg_write) begin
+        case (cfg_addr)
+            12'h000: slave_base[0]  <= cfg_wdata;
+            12'h004: slave_limit[0] <= cfg_wdata;
+            12'h008: slave_enable   <= cfg_wdata[S-1:0];
+            // ... one base/limit pair per slave
+            default: ;                      // no change
+        endcase
+    end
+end
 ```
 
-### Address Map Optimization
+**Reprogram only while idle.** The decode is combinational with no shadowing, so
+changing a base or limit mid-transfer can re-decode a transaction that has
+already been granted, moving `PSEL` to a different slave partway through and
+breaking the transfer. Quiesce all masters, or hold `SLAVE_ENABLE` low, before
+rewriting the map.
 
-```systemverilog
-// Optimize for cache line alignment
-localparam [31:0] SLAVE_BASES [8] = '{
-    32'h4000_0000,  // Align to 64KB boundaries
-    32'h4001_0000,  // for optimal cache behavior
-    32'h4002_0000,
-    32'h4003_0000,
-    32'h4004_0000,
-    32'h4005_0000,
-    32'h4006_0000,
-    32'h4007_0000
-};
-```
+---
+
+## Known Limitations
+
+### Unmapped Addresses Stall the Bus
+
+There is no default slave and no decode-error response. If no enabled slave
+matches, `master_sel[s][m]` is low for every `s`, no arbiter raises a grant, and
+the master-side demultiplexer leaves `m_apb_pready[m]` at its default of `1'b0`.
+`PREADY` is never asserted and **the transfer hangs indefinitely.** There is no
+timeout.
+
+This is the same limitation as the generated crossbars -- see
+[apb_crossbar.md](apb_crossbar.md).
+
+**Mitigation:** hold `SLAVE_ENABLE` such that the programmed ranges cover every
+address a master can emit, or place an address filter with an error slave
+upstream of the crossbar.
+
+### Other Limitations
+
+| Limitation | Detail |
+|------------|--------|
+| Overlapping ranges | Not detected; multiple slaves may be selected simultaneously |
+| `MAX_THRESH` | Sizes `THRESHOLDS` only; the arbiter's `MAX_LEVELS` is hardcoded to 16 |
+| Shared weights | One `THRESHOLDS` vector drives all `S` arbiters; per-slave weighting is not possible |
+| Combinational paths | Forward and return paths both scale with M and S; usually the design's critical path |
+| No monitoring | No `monbus` instrumentation, transaction counters, or timeout detection |
+
+---
 
 ## Synthesis Considerations
 
-### Area Optimization
-- Reduce M and S parameters to minimum required
-- Use smaller DEPTH values for area-constrained designs
-- Share arbiters when timing allows
+### Area
 
-### Timing Optimization
-- Register all crossbar outputs
-- Use pipeline stages for critical paths
-- Balance buffer depths with frequency requirements
+Area is dominated by the address comparators and the multiplexers:
 
-### Power Optimization
-- Use clock gating on unused master/slave ports
-- Implement threshold-based power scaling
-- Gate clocks during idle periods
+| Structure | Scaling |
+|-----------|---------|
+| Address comparators | O(M × S × ADDR_WIDTH) -- two comparators per pair |
+| Arbiters | O(S) instances, each O(M) |
+| Grant-ACK registers | O(M × S) flops |
+| Slave-side muxes | O(S × M × (ADDR_WIDTH + DATA_WIDTH + STRB_WIDTH + 6)) |
+| Master-side demuxes | O(M × S × (DATA_WIDTH + 2)) |
 
-## Verification Notes
+The `M × S` terms dominate quickly. A large configuration (say M=6, S=12 at
+DATA_WIDTH=64) is substantially more logic than the numbers of masters and slaves
+suggest; budget for it before committing to a topology.
 
-### Connectivity Verification
-- Verify all M×S path combinations
-- Check address decoding for all ranges
-- Validate arbitration fairness
+### Timing
 
-### Protocol Compliance
-- Check APB protocol adherence on all ports
-- Verify proper PREADY handling
-- Validate error propagation
+- Register the crossbar's boundaries externally if the combinational paths do not close
+- Reduce M and S to the minimum required -- both forward and return paths scale with them
+- Consider a hierarchy of small crossbars instead of one large one
+- If timing still fails, switch to a generated crossbar, which is registered by construction
 
-### Performance Verification
-- Measure throughput under various loads
-- Check arbitration latency and fairness
-- Verify buffer efficiency
+---
+
+## Verification
+
+### Formal
+
+SymbiYosys proofs are checked in at `formal/apb_xbar/apb_xbar_thin/`, with
+`prove` and `cover` tasks.
+
+### Simulation
+
+`apb_xbar_thin` has no dedicated CocoTB testbench. The four generated variants in
+`projects/components/apb_xbar/dv/tests/` do, but they exercise the *other*
+architecture and provide no coverage of this module. Weigh that when selecting
+between the two families.
+
+### Suggested Coverage
+
+- All M×S path combinations
+- Address decoding at every range boundary (base, base-1, limit, limit+1)
+- `SLAVE_ENABLE` masking
+- Arbitration fairness and weighting under sustained contention
+- Grant persistence across a slave's wait states
+- Reset behaviour with a transfer in flight
+
+---
 
 ## Related Modules
 
-- **apb_xbar_thin**: Lightweight crossbar for simple configurations
-- **apb_master**: APB master for crossbar output side (cmd/rsp to APB)
-- **apb_slave**: APB slave for crossbar input side (APB to cmd/rsp)
-- **arbiter_round_robin**: Proven round-robin arbiter used in generated crossbars
-- **arbiter_priority_encoder**: Dependency of arbiter_round_robin
-- **encoder**: Used for address decoding in multi-slave crossbars
-- **apb_monitor**: APB protocol monitoring and debugging
+- **apb_xbar_1to1 / 2to1 / 1to4 / 2to4**: fixed-configuration generated crossbars ([apb_crossbar.md](apb_crossbar.md))
+- **apb_master**: APB master, used by the generated crossbars ([apb_master.md](apb_master.md))
+- **apb_slave**: APB slave, used by the generated crossbars ([apb_slave.md](apb_slave.md))
+- **arbiter_round_robin_weighted**: the per-slave arbiter instantiated here
+- **arbiter_round_robin**: plain round-robin used by the generated crossbars
+- **apb_monitor**: APB protocol monitoring ([apb_monitor.md](../monitor/apb_monitor.md))
 
-**Generated Crossbar Dependencies:**
-- `rtl/amba/gaxi/gaxi_fifo_sync.sv` (used by apb_slave/apb_master)
-- `rtl/amba/gaxi/gaxi_skid_buffer.sv` (used by apb_slave/apb_master)
-- `rtl/common/arbiter_round_robin.sv` (arbitration)
+**Dependencies:**
+
+- `rtl/common/arbiter_round_robin_weighted.sv`
 - `rtl/common/arbiter_priority_encoder.sv` (arbiter dependency)
-- `rtl/common/encoder.sv` (multi-slave address decode)
 
-The `apb_xbar` module provides a complete, high-performance solution for multi-master, multi-slave APB systems with advanced arbitration, flexible address decoding, and comprehensive system integration capabilities.
+---
+
+**Last Updated:** 2026-07-19
 
 ---
 
 ## Navigation
 
+- **[← Back to APB Index](README.md)**
 - **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

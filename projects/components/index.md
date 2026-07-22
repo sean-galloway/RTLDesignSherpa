@@ -39,10 +39,10 @@ This directory contains production-ready and in-development component projects f
 
 | Component | Status | Location | Documentation |
 |-----------|--------|----------|---------------|
-| **APB HPET** | ✅ Production | [apb_hpet/](apb_hpet/) | [Specification](apb_hpet/docs/hpet_spec/hpet_index.md) |
-| **APB Crossbar** | ✅ Production | [apb_xbar/](apb_xbar/) | [Specification](apb_xbar/docs/apb_xbar_spec/apb_xbar_index.md) |
-| **STREAM** | ✅ Production | [stream/](dmas/stream/) | [Specification](stream/docs/stream_spec/stream_index.md) |
-| **RAPIDS** | 🟢 Functional | [rapids/](dmas/rapids/) | [Specification](rapids/docs/rapids_spec/rapids_index.md) |
+| **Retro Legacy Blocks (HPET, PIT, ...)** | ✅ Production | [retro_legacy_blocks/](retro_legacy_blocks/) | [HPET Specification](retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md) |
+| **APB Crossbar** | ✅ Production | [apb_xbar/](apb_xbar/) | [Specification](apb_xbar/docs/apb_xbar_mas/apb_xbar_mas_index.md) |
+| **STREAM** | ✅ Production | [stream/](dmas/stream/) | [Specification](dmas/stream/docs/stream_mas/stream_index.md) |
+| **RAPIDS** | 🟢 Functional | [rapids/](dmas/rapids/) | [Specification](dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md) |
 | **Bridge** | 🟡 Development | [bridge/](bridge/) | See [bridge/docs/](bridge/docs/) |
 | **Converters** | 🟡 Development | [converters/](converters/) | See [converters/docs/](converters/docs/) |
 | **Delta** | 🟡 Development | [delta/](delta/) | [Specification](delta/docs/delta_spec/delta_index.md) |
@@ -55,7 +55,7 @@ This directory contains production-ready and in-development component projects f
 ### By Category
 
 **Timing and Control:**
-- [APB HPET](apb_hpet/) - High Precision Event Timer
+- [Retro Legacy Blocks](retro_legacy_blocks/) - HPET, 8254 PIT, and other legacy timers/peripherals (absorbed the old apb_hpet)
 
 **Interconnect:**
 - [APB Crossbar](apb_xbar/) - MxN APB interconnect

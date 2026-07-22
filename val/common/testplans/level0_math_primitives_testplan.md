@@ -30,7 +30,7 @@
 
 ### Test Commands
 ```bash
-COVERAGE=1 pytest val/common/test_math_adder_half.py -v
+COVERAGE=1 pytest val/math/test_math_adder_half.py -v
 ```
 
 ---
@@ -58,7 +58,7 @@ COVERAGE=1 pytest val/common/test_math_adder_half.py -v
 
 ### Test Commands
 ```bash
-COVERAGE=1 pytest val/common/test_math_adder_full.py -v
+COVERAGE=1 pytest val/math/test_math_adder_full.py -v
 ```
 
 ---
@@ -82,7 +82,7 @@ COVERAGE=1 pytest val/common/test_math_adder_full.py -v
 
 ### Test Commands
 ```bash
-COVERAGE=1 pytest val/common/test_math_subtractor_half.py -v
+COVERAGE=1 pytest val/math/test_math_subtractor_half.py -v
 ```
 
 ---
@@ -110,8 +110,7 @@ COVERAGE=1 pytest val/common/test_math_subtractor_half.py -v
 
 ### Test Commands
 ```bash
-COVERAGE=1 pytest val/common/test_math_subtractor_full.py -v
-# Note: May be in test_math_subtractor_full_nbit.py
+COVERAGE=1 pytest val/math/test_math_subtractor_full_nbit.py -v
 ```
 
 ---
@@ -130,7 +129,7 @@ COVERAGE=1 pytest val/common/test_math_subtractor_full.py -v
 
 ### Test Commands
 ```bash
-COVERAGE=1 pytest val/common/test_math_adder_carry_save.py -v
+COVERAGE=1 pytest val/math/test_math_adder_carry_save.py -v
 ```
 
 ---
@@ -139,7 +138,7 @@ COVERAGE=1 pytest val/common/test_math_adder_carry_save.py -v
 
 ```bash
 # Run all Level 0 math primitive tests
-cd /mnt/data/github/rtldesignsherpa/val/common
+cd /mnt/data/github/rtldesignsherpa/val/math
 PYTHONPATH=/mnt/data/github/rtldesignsherpa/bin:$PYTHONPATH \
 COVERAGE=1 REG_LEVEL=FUNC SIM=verilator WAVES=0 \
 pytest test_math_adder_half.py test_math_adder_full.py \

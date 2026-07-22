@@ -23,6 +23,12 @@ module gaxi_skid_buffer_async #(
     parameter int REGISTERED = 0,  // 0 = mux mode, 1 = flop mode
     parameter int DATA_WIDTH    = 32,
     parameter int DEPTH         = 2,
+    // Pointer CDC encoding, forwarded to the internal gaxi_fifo_async.
+    //   0 = Gray (default)  -- requires a power-of-2 DEPTH
+    //   1 = Johnson         -- any even DEPTH
+    // Must be exposed here: a wrapper that hides it cannot be built at a
+    // non-power-of-2 depth, because the inner FIFO rejects that under Gray.
+    parameter int USE_JOHNSON   = 0,
     parameter int N_FLOP_CROSS  = 2,
     parameter int DW = DATA_WIDTH
 ) (
@@ -68,6 +74,7 @@ module gaxi_skid_buffer_async #(
         .MEM_STYLE       (MEM_STYLE),
         .DATA_WIDTH      (DW),
         .DEPTH           (DEPTH),
+        .USE_JOHNSON     (USE_JOHNSON),
         .N_FLOP_CROSS    (N_FLOP_CROSS),
         .ALMOST_WR_MARGIN(1),
         .ALMOST_RD_MARGIN(1),

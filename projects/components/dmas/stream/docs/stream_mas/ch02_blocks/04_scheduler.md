@@ -893,7 +893,7 @@ Cycle  State        Descriptor  sched_wr_beats  Notes
 
 ## Testing
 
-**Test Location:** `projects/components/dmas/stream/dv/tests/fub_tests/scheduler/`
+**Test Location:** `projects/components/dmas/stream/dv/tests/fub/test_scheduler.py`
 
 **Key Test Scenarios:**
 

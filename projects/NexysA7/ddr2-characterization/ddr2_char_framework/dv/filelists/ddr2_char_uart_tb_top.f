@@ -12,11 +12,11 @@
 -f $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/bridges/filelists/bridge_ddr2_char_axil.f
 -f $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/ddr2_char_macro.f
 
-$REPO_ROOT/rtl/amba/axil4/axil4_slave_wr.sv
-$REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv
-$REPO_ROOT/rtl/amba/shared/sdpram_core.sv
-$REPO_ROOT/rtl/amba/shared/sdpram_slave_axil_axil.sv
-$REPO_ROOT/rtl/common/hex_to_7seg.sv
+-f $REPO_ROOT/rtl/amba/filelists/axil4_slave_wr.f
+-f $REPO_ROOT/rtl/amba/filelists/axil4_slave_rd.f
+-f $REPO_ROOT/rtl/amba/filelists/sdpram_core.f
+-f $REPO_ROOT/rtl/amba/filelists/sdpram_slave_axil_axil.f
+-f $REPO_ROOT/rtl/common/filelists/hex_to_7seg.f
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/verilator_xilinx_stubs.sv
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/dfi_cmd_delay.sv
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/dfi_rddata_delay.sv

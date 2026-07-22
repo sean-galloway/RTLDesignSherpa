@@ -122,9 +122,12 @@ flowchart LR
 | WUSER_WIDTH | int | 4 | Write data user signal width |
 | RUSER_WIDTH | int | 4 | Read data user signal width |
 | BUSER_WIDTH | int | 4 | Response user signal width |
-| DEPTH | int | 2 | Internal buffer depth |
-| ENABLE_PARITY | bit | 0 | Enable parity signals |
+| DEPTH | int | 2 | Skid-buffer depth in entries; must be one of {2, 4, 6, 8} |
+| ENABLE_PARITY | bit | 0 | Enable parity generation and checking |
 | STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |
+
+`DEPTH` sets both the command and the response `gaxi_skid_buffer` depth. It is a
+literal entry count, not a log2 exponent.
 
 ---
 
@@ -197,7 +200,14 @@ flowchart LR
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
-| wakeup_req | 1 | Input | Wake-up request from backend |
+| wakeup_request | 1 | Input | Wake-up request from backend; registered onto `s_apb_PWAKEUP` |
+
+### Status Outputs
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| parity_error_wdata | 1 | Output | Write-data parity mismatch (tied to 0 when ENABLE_PARITY=0) |
+| parity_error_ctrl | 1 | Output | Address or control parity mismatch (tied to 0 when ENABLE_PARITY=0) |
 
 ---
 
@@ -234,46 +244,49 @@ sequenceDiagram
 ### Write Transaction with Wait States
 
 <!-- TODO: Add wavedrom timing diagram for APB5 slave write with wait states -->
-```
-TODO: Wavedrom timing diagram showing:
-- PCLK
-- PSEL
-- PENABLE
-- PADDR
-- PWRITE (high)
-- PWDATA
-- PAUSER, PWUSER
-- PREADY (with wait states)
-- PSLVERR
-- PBUSER
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - PCLK
+> - PSEL
+> - PENABLE
+> - PADDR
+> - PWRITE (high)
+> - PWDATA
+> - PAUSER, PWUSER
+> - PREADY (with wait states)
+> - PSLVERR
+> - PBUSER
+
 
 ### Read Transaction
 
 <!-- TODO: Add wavedrom timing diagram for APB5 slave read -->
-```
-TODO: Wavedrom timing diagram showing:
-- PCLK
-- PSEL
-- PENABLE
-- PADDR
-- PWRITE (low)
-- PAUSER
-- PREADY
-- PRDATA
-- PRUSER, PBUSER
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - PCLK
+> - PSEL
+> - PENABLE
+> - PADDR
+> - PWRITE (low)
+> - PAUSER
+> - PREADY
+> - PRDATA
+> - PRUSER, PBUSER
+
 
 ### Wake-up Signaling
 
 <!-- TODO: Add wavedrom timing diagram for wake-up -->
-```
-TODO: Wavedrom timing diagram showing:
-- PCLK
-- wakeup_req (from backend)
-- PWAKEUP (to master)
-- Timing relationship
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - PCLK
+> - wakeup_request (from backend)
+> - PWAKEUP (to master)
+> - Timing relationship
+
 
 ---
 
@@ -330,7 +343,17 @@ apb5_slave #(
     .rsp_pbuser     (backend_rsp_buser),
 
     // Wake-up
-    .wakeup_req     (backend_wakeup)
+    .wakeup_request (backend_wakeup),
+
+    // Parity interface (unused here because ENABLE_PARITY=0)
+    .s_apb_PWDATAPARITY  ('0),
+    .s_apb_PADDRPARITY   (1'b0),
+    .s_apb_PCTRLPARITY   (1'b0),
+    .s_apb_PRDATAPARITY  (),
+    .s_apb_PREADYPARITY  (),
+    .s_apb_PSLVERRPARITY (),
+    .parity_error_wdata  (),
+    .parity_error_ctrl   ()
 );
 ```
 
@@ -347,6 +370,36 @@ apb5_slave #(
 
 - PAUSER/PWUSER captured during SETUP phase, forwarded to backend
 - PRUSER/PBUSER from backend driven during ACCESS phase response
+
+### Wake-up Generation
+
+`wakeup_request` is registered once before it drives `s_apb_PWAKEUP`, giving a
+single-cycle delay from request to assertion. The slave does not qualify
+PWAKEUP with bus state -- it simply mirrors the (registered) backend request.
+
+### Parity Implementation
+
+When `ENABLE_PARITY=1` the slave checks the parity the master supplies and
+generates parity for its own outputs:
+
+| Parity signal | Direction | Covers | Granularity |
+|---------------|-----------|--------|-------------|
+| s_apb_PWDATAPARITY[i] | Checked | PWDATA byte lane `i` | One bit per byte (STRB_WIDTH bits total) |
+| s_apb_PADDRPARITY | Checked | Whole PADDR | One bit for the entire address |
+| s_apb_PCTRLPARITY | Checked | {PWRITE, PSTRB, PPROT} concatenated | One bit for the whole control group |
+| s_apb_PRDATAPARITY[i] | Generated | PRDATA byte lane `i` | One bit per byte |
+| s_apb_PREADYPARITY | Generated | PREADY | One bit |
+| s_apb_PSLVERRPARITY | Generated | PSLVERR | One bit |
+
+Each parity bit is the XOR reduction of the covered signals, so it is 1 when the
+covered field contains an odd number of ones (an even-parity encoding). Per-byte
+data parity detects one bit error in each byte independently; the single address
+and control bits detect only an odd number of errors across the whole group.
+
+`parity_error_wdata` and `parity_error_ctrl` are combinational and qualified by
+`s_apb_PSEL && s_apb_PENABLE`; they read 0 outside the ACCESS phase and are
+hard-tied to 0 when `ENABLE_PARITY=0`. The slave reports mismatches but does not
+itself convert them into PSLVERR -- that policy is left to the integrator.
 
 ---
 

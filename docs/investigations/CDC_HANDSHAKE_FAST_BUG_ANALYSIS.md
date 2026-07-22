@@ -1,7 +1,7 @@
 # CDC Handshake FAST - Bug Analysis and Fix
 
 **Date:** 2025-10-17
-**Component:** `rtl/amba/shared/cdc_handshake_fast.sv`
+**Component:** `rtl/amba/cdc/cdc_handshake_fast.sv`
 **Status:** ❌ **FAILED** - Critical bug found during testing
 
 ---
@@ -325,6 +325,6 @@ The **corrected optimization** still delivers ~50% performance improvement while
 **Author:** Claude Code
 **Review Status:** Awaiting user feedback
 **Related Files:**
-- `rtl/amba/shared/cdc_handshake_fast.sv` (broken version)
+- `rtl/amba/cdc/cdc_handshake_fast.sv` (broken version)
 - `val/amba/test_cdc_handshake_fast.py` (test that caught the bug)
 - `docs/CDC_HANDSHAKE_OPTIMIZATION_ANALYSIS.md` (original analysis)

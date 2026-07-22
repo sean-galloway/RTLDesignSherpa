@@ -105,7 +105,7 @@ The RDL is authoritative; notable runtime-config registers include:
 | Register     | Offset | Notable fields                                                     |
 |--------------|--------|--------------------------------------------------------------------|
 | `DFI_PHASE`  | 0x060  | `rd_phase[2:0]`, `wr_phase[6:4]` — DFI sub-phase placement (default 0/0) |
-| `PHY_TIMING` | 0x064  | `t_phy_wrlat[7:0]` (default 0), `t_rddata_en[15:8]` (default 6), `memtype[16]` (0=DDR2, 1=LPDDR2), `refresh_burst[23:20]` (1..8) |
+| `PHY_TIMING` | 0x064  | `t_phy_wrlat[7:0]` (reset 0; Nexys A7 tuple programs 1), `t_rddata_en[15:8]` (reset 6), `memtype[16]` (0=DDR2, 1=LPDDR2), `refresh_burst[23:20]` (1..8) |
 | `ADDR_MAP`   | 0x04C  | `bank_lsb`, `hash_en`, `hash_seed` (above)                          |
 | `INIT_TUNING` | 0x050 | `zq_retries[3:0]`, `init_timeout_ms[15:8]`                         |
 | `INIT_TIMING0` | 0x054 area | `t_init_wait` / `t_dll_wait` (JEDEC init waits, formerly hardcoded) |

@@ -50,7 +50,7 @@ export REPO_ROOT=/path/to/rtldesignsherpa
 
 # Compile complete APB HPET
 verilator -cc \
-  -f $REPO_ROOT/rtl/amba/components/hpet/filelists/integration/apb_hpet.f \
+  -f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/hpet/filelists/integration/apb_hpet.f \
   --top-module apb_hpet \
   -GNUM_TIMERS=8 \
   -GVENDOR_ID=0x8086 \
@@ -69,7 +69,7 @@ repo_root = os.environ.get('REPO_ROOT', os.path.abspath('../../../'))
 run(
     verilog_sources=[
         '-f',
-        os.path.join(repo_root, 'rtl/amba/components/hpet/filelists/integration/apb_hpet.f')
+        os.path.join(repo_root, 'projects/components/retro_legacy_blocks/rtl/hpet/filelists/integration/apb_hpet.f')
     ],
     toplevel='apb_hpet',
     parameters={
@@ -86,7 +86,7 @@ run(
 ```bash
 # View all files in dependency order
 export REPO_ROOT=/path/to/rtldesignsherpa
-verilator -E -f rtl/amba/components/hpet/filelists/integration/apb_hpet.f
+verilator -E -f projects/components/retro_legacy_blocks/rtl/hpet/filelists/integration/apb_hpet.f
 ```
 
 ## File List Hierarchy
@@ -222,15 +222,14 @@ module apb_hpet #(
 ### Register Generation
 
 ```bash
-cd rtl/amba/components/hpet/peakrdl
-peakrdl regblock hpet_regs.rdl -o generated/
-cp generated/rtl/hpet_regs.sv/*.sv ../
+cd projects/components/retro_legacy_blocks/rtl/hpet/peakrdl
+python ../../../../../../bin/peakrdl_generate.py hpet_regs.rdl --copy-rtl ..
 ```
 
 ### Generated Files
 - `hpet_regs_pkg.sv` - SystemVerilog package with hwif types
 - `hpet_regs.sv` - Register block implementation
-- `generated/docs/hpet_regs.md` - Register documentation
+- `generated/docs/` - Register documentation (HTML/Markdown, regenerated on demand)
 
 ### Key Features
 - **Hardware interface (hwif):** Input/output structs for register access
@@ -267,12 +266,12 @@ export REPO_ROOT=/path/to/rtldesignsherpa
 
 # Test component-level file list
 verilator --lint-only \
-  -f $REPO_ROOT/rtl/amba/components/hpet/filelists/component/hpet_core.f \
+  -f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/hpet/filelists/component/hpet_core.f \
   --top-module hpet_core
 
 # Test integration-level file list
 verilator --lint-only \
-  -f $REPO_ROOT/rtl/amba/components/hpet/filelists/integration/apb_hpet.f \
+  -f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/hpet/filelists/integration/apb_hpet.f \
   --top-module apb_hpet \
   -GNUM_TIMERS=8
 ```
@@ -280,9 +279,9 @@ verilator --lint-only \
 ## Related Documentation
 
 - **PeakRDL Specification:** `../peakrdl/hpet_regs.rdl`
-- **Integration Status:** `../PEAKRDL_INTEGRATION_COMPLETE.md`
-- **Test Examples:** `val/integ_amba/test_apb_hpet.py`
-- **RAPIDS File Lists:** `rtl/rapids/filelists/` (reference methodology)
+- **Integration Status:** `../../../docs/IMPLEMENTATION_STATUS.md` (PeakRDL HPET integration final status)
+- **Test Examples:** `projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py`
+- **RAPIDS File Lists:** `projects/components/dmas/rapids/rtl/filelists/` (reference methodology)
 
 ---
 

@@ -10,11 +10,12 @@
 //               its own DLL-lock / IO training). Then wait tINIT (CKE settle).
 //            2. Precharge All.
 //            3. Load EMR3=0, EMR2=0, EMR/MR1=0 (JEDEC order MR3, MR2, MR1).
-//            4. Load MR0 + DLL-reset (0x532: BL4/CL3/tWR3/DLL_RESET); wait for
+//            4. Load MR0 + DLL-reset (MR0.VAL CSR | 0x100; reset default
+//               0x433 = BL8/CL3/tWR3 -> 0x533 with DLL_RESET); wait for
 //               the DLL to lock (~200 DRAM clocks).
 //            5. Precharge All.
 //            6. Auto Refresh x2 (each followed by tRFC).
-//            7. Load MR0 WITHOUT DLL-reset (0x432) — clears the reset bit.
+//            7. Load MR0 WITHOUT DLL-reset (MR0.VAL, e.g. 0x433) — clears the bit.
 //            8. EMR/MR1 + OCD Default (0x380) -> EMR/MR1 + OCD Exit (0x000).
 //            9. init_done_o = 1.
 //
@@ -72,6 +73,25 @@ module init_sequencer
     input  logic [7:0]  t_rp_wait_i,     // post precharge (tRP)
     input  logic [7:0]  t_rfc_wait_i,    // post auto-refresh (tRFC)
 
+    // ----- DDR2 mode-register values (CSR-backed: MR0..MR3.VAL) -----
+    // The init FSM loads these onto the DRAM address bus for the JEDEC MRS
+    // sequence. Runtime-programmable so software can (a) retune CL/BL/tWR and
+    // (b) DEFEAT AN ARBITRARY A-LANE MAPPING on a board where MRS address bits
+    // land on scrambled DRAM pins — sweep MRx.VAL + re-run init until reads are
+    // clean. Reset defaults (RDL) reproduce the JEDEC values, so the default
+    // init is bit-identical to the old hardcoded localparams. The DLL-reset
+    // MR0 write ORs in bit 8 (DLL_RESET); OCD-default ORs A[9:7]=111 into MR1.
+    input  logic [15:0] mr0_i,           // MR0 base (BL/CL/tWR)
+    input  logic [15:0] mr1_i,           // MR1 / EMR (ODT, ODS, DLL-en)
+    input  logic [15:0] mr2_i,           // MR2 / EMR2
+    input  logic [15:0] mr3_i,           // MR3 / EMR3
+
+    // Re-run the JEDEC MRS chain WITHOUT a controller reset (CTRL.init_force_
+    // restart). A rising edge restarts the FSM at S_RESET, re-loading the (CSR)
+    // MR values — the only way to apply a freshly-written MRx.VAL, since a
+    // soft_reset would wipe the CSRs before init could read them.
+    input  logic        init_restart_i,
+
     // ----- DFI status -----
     output logic        dfi_init_start_o,
     input  logic        dfi_init_complete_i,
@@ -107,12 +127,11 @@ module init_sequencer
     // half; the on-silicon read-fail root cause). log2(BL) encoding: 2=BL4,
     // 3=BL8.
     //=========================================================================
-    localparam logic [15:0] DDR2_MR0_DLL  = 16'h0533;  // BL8/CL3/tWR3/DLL_RESET
-    localparam logic [15:0] DDR2_MR0       = 16'h0433;  // same, DLL_RESET cleared
-    localparam logic [15:0] DDR2_MR1       = 16'h0000;
-    localparam logic [15:0] DDR2_MR1_OCD   = 16'h0380;  // OCD calibration default
-    localparam logic [15:0] DDR2_MR2       = 16'h0000;
-    localparam logic [15:0] DDR2_MR3       = 16'h0000;
+    // MR values are now CSR-backed (mr0_i..mr3_i, defaults set in the RDL to the
+    // JEDEC values documented above). Only the transient bit-masks the init FSM
+    // applies on top of the base MR values remain as constants here:
+    localparam logic [15:0] DDR2_DLL_RESET = 16'h0100;  // MR0 A8: DLL reset (first MR0 load)
+    localparam logic [15:0] DDR2_OCD_DEF   = 16'h0380;  // MR1 A[9:7]=111: OCD calibration default
 
     // LPDDR2 mode-register OP (data) values — JEDEC JESD209-2F §3.5. 8-bit OP;
     // the index (MA) is a separate field packed with OP into the row request.
@@ -178,6 +197,14 @@ module init_sequencer
     logic               w_is_ddr2;
     assign w_is_ddr2 = (memtype_i == MEMTYPE_DDR2);
 
+    // Rising-edge detect on the CTRL.init_force_restart level -> single restart.
+    logic r_restart_d, w_restart_pulse;
+    assign w_restart_pulse = init_restart_i & ~r_restart_d;
+    `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
+        if (`RST_ASSERTED(mc_rst_n)) r_restart_d <= 1'b0;
+        else                         r_restart_d <= init_restart_i;
+    end)
+
     //=========================================================================
     // Next-state + wait scheduling. Each command state is occupied for exactly
     // ONE cycle (unconditional -> S_WAIT), so init_cmd_valid_o (decoded below)
@@ -185,6 +212,13 @@ module init_sequencer
     //=========================================================================
     `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
         if (`RST_ASSERTED(mc_rst_n)) begin
+            r_state <= S_RESET;
+            r_next  <= S_RESET;
+            r_wait  <= 16'd0;
+        end else if (w_restart_pulse) begin
+            // Force re-init (CTRL.init_force_restart): replay the MRS chain with
+            // the current CSR MR values. S_DFI_INIT re-checks dfi_init_complete
+            // (held high post-PHY-init), then the JEDEC sequence re-runs.
             r_state <= S_RESET;
             r_next  <= S_RESET;
             r_wait  <= 16'd0;
@@ -254,37 +288,37 @@ module init_sequencer
                 init_cmd_valid_o = 1'b1;
                 init_cmd_op_o    = OP_MRS;
                 init_cmd_bank_o  = BKW'(3);
-                init_cmd_row_o   = ROW_WIDTH'(DDR2_MR3);
+                init_cmd_row_o   = ROW_WIDTH'(mr3_i);
                 mr_seq_we_o      = 1'b1;
                 mr_seq_index_o   = 5'd3;
-                mr_seq_data_o    = DDR2_MR3;
+                mr_seq_data_o    = mr3_i;
             end
             S_EMR2: begin
                 init_cmd_valid_o = 1'b1;
                 init_cmd_op_o    = OP_MRS;
                 init_cmd_bank_o  = BKW'(2);
-                init_cmd_row_o   = ROW_WIDTH'(DDR2_MR2);
+                init_cmd_row_o   = ROW_WIDTH'(mr2_i);
                 mr_seq_we_o      = 1'b1;
                 mr_seq_index_o   = 5'd2;
-                mr_seq_data_o    = DDR2_MR2;
+                mr_seq_data_o    = mr2_i;
             end
             S_EMR1: begin
                 init_cmd_valid_o = 1'b1;
                 init_cmd_op_o    = OP_MRS;
                 init_cmd_bank_o  = BKW'(1);
-                init_cmd_row_o   = ROW_WIDTH'(DDR2_MR1);
+                init_cmd_row_o   = ROW_WIDTH'(mr1_i);
                 mr_seq_we_o      = 1'b1;
                 mr_seq_index_o   = 5'd1;
-                mr_seq_data_o    = DDR2_MR1;
+                mr_seq_data_o    = mr1_i;
             end
             S_MR0_DLL: begin
                 init_cmd_valid_o = 1'b1;
                 init_cmd_op_o    = OP_MRS;
                 init_cmd_bank_o  = BKW'(0);
-                init_cmd_row_o   = ROW_WIDTH'(DDR2_MR0_DLL);
+                init_cmd_row_o   = ROW_WIDTH'(mr0_i | DDR2_DLL_RESET);
                 mr_seq_we_o      = 1'b1;
                 mr_seq_index_o   = 5'd0;
-                mr_seq_data_o    = DDR2_MR0_DLL;
+                mr_seq_data_o    = mr0_i | DDR2_DLL_RESET;
             end
             // ----- LPDDR2 MRW chain -----
             S_L_RESET: begin  // MRW(MR63) Reset — issued, not shadowed
@@ -325,16 +359,16 @@ module init_sequencer
                 init_cmd_valid_o = 1'b1;
                 init_cmd_op_o    = OP_MRS;
                 init_cmd_bank_o  = BKW'(0);
-                init_cmd_row_o   = ROW_WIDTH'(DDR2_MR0);
+                init_cmd_row_o   = ROW_WIDTH'(mr0_i);
                 mr_seq_we_o      = 1'b1;
                 mr_seq_index_o   = 5'd0;
-                mr_seq_data_o    = DDR2_MR0;
+                mr_seq_data_o    = mr0_i;
             end
             S_OCD_DEF: begin
                 init_cmd_valid_o = 1'b1;
                 init_cmd_op_o    = OP_MRS;
                 init_cmd_bank_o  = BKW'(1);
-                init_cmd_row_o   = ROW_WIDTH'(DDR2_MR1_OCD);
+                init_cmd_row_o   = ROW_WIDTH'(mr1_i | DDR2_OCD_DEF);
                 // OCD is a transient calibration mode; leave the shadow at the
                 // final EMR value (updated by S_OCD_EXIT) so decode is stable.
             end
@@ -342,10 +376,10 @@ module init_sequencer
                 init_cmd_valid_o = 1'b1;
                 init_cmd_op_o    = OP_MRS;
                 init_cmd_bank_o  = BKW'(1);
-                init_cmd_row_o   = ROW_WIDTH'(DDR2_MR1);
+                init_cmd_row_o   = ROW_WIDTH'(mr1_i);
                 mr_seq_we_o      = 1'b1;
                 mr_seq_index_o   = 5'd1;
-                mr_seq_data_o    = DDR2_MR1;
+                mr_seq_data_o    = mr1_i;
             end
             default: ;
         endcase

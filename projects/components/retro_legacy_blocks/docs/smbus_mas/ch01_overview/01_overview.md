@@ -39,6 +39,15 @@ The APB SMBus controller provides System Management Bus communication with APB i
 - Interrupt-driven operation
 - Timeout detection
 
+> **Implementation status:** Several protocol features described in this chapter are not
+> fully realized in the current RTL. Timeout detection, PEC generation/verification,
+> multi-master arbitration, clock stretching, and slave mode are present in the register
+> interface but not functional in `smbus_core` today. The timing diagrams below
+> (Waveforms 1.3-1.5 in particular) illustrate SMBus protocol intent, not current hardware
+> behavior. See the Implementation Limitations section of
+> [Chapter 5: Register Map](../ch05_registers/01_register_map.md) and
+> `rtl/smbus/IMPLEMENTATION_STATUS.md` for the tracked status.
+
 ## Applications
 
 - Temperature monitoring
@@ -98,18 +107,26 @@ PEC is calculated over address, command, and data bytes using CRC-8. The PEC byt
 
 ## Register Summary
 
-| Offset | Name | Description |
-|--------|------|-------------|
-| 0x00 | SMBUS_STATUS | Status register |
-| 0x04 | SMBUS_CONTROL | Control register |
-| 0x08 | SMBUS_COMMAND | Command type |
-| 0x0C | SMBUS_ADDRESS | Target address |
-| 0x10 | SMBUS_DATA0 | Data byte 0 |
-| 0x14 | SMBUS_DATA1 | Data byte 1 |
-| 0x18 | SMBUS_BLOCK | Block data count |
-| 0x1C | SMBUS_PEC | PEC value |
-| 0x20 | SMBUS_AUXCTL | Auxiliary control |
-| 0x80-0x9F | SMBUS_BLOCKDATA | Block data buffer |
+| Offset | Name | Access | Description |
+|--------|------|--------|-------------|
+| 0x00 | SMBUS_CONTROL | RW | Global control (enable, mode, PEC, resets) |
+| 0x04 | SMBUS_STATUS | RO | Status flags and FSM state |
+| 0x08 | SMBUS_COMMAND | RW | Transaction type, command byte, start/stop |
+| 0x0C | SMBUS_SLAVE_ADDR | RW | Target slave address |
+| 0x10 | SMBUS_DATA | RW | Single data byte |
+| 0x14 | SMBUS_TX_FIFO | WO | Transmit FIFO write port |
+| 0x18 | SMBUS_RX_FIFO | RO | Receive FIFO read port |
+| 0x1C | SMBUS_FIFO_STATUS | RO | TX/RX FIFO levels and flags |
+| 0x20 | SMBUS_CLK_DIV | RW | SCL clock divider |
+| 0x24 | SMBUS_TIMEOUT | RW | Timeout threshold |
+| 0x28 | SMBUS_OWN_ADDR | RW | Own slave address (slave mode) |
+| 0x2C | SMBUS_INT_ENABLE | RW | Interrupt enable mask |
+| 0x30 | SMBUS_INT_STATUS | W1C | Interrupt status |
+| 0x34 | SMBUS_PEC | RW | PEC value (CRC-8) |
+| 0x38 | SMBUS_BLOCK_COUNT | RW | Block transfer byte count |
+
+See [Chapter 5: Register Map](../ch05_registers/01_register_map.md) for full field
+definitions, reset values, and implementation limitations.
 
 ---
 

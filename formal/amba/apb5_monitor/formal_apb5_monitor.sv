@@ -10,6 +10,13 @@
 //   P1: Reset clears monbus_valid
 //   P2: monbus_packet protocol field is APB when valid
 //   P3: monbus_valid handshake -- valid held until ready
+//   P4: address-range violation packets carry the correct header
+//
+// N_ADDR_RANGES is deliberately NON-ZERO here. With the default of 0 the
+// gen_addr_check generate block is never elaborated, so the entire
+// address-range path -- and the 128-bit packet truncation that lived on it
+// (issue #41) -- was outside the cone of everything this proof examined.
+// A proof that does not elaborate the block proves nothing about the block.
 
 module formal_apb5_monitor (
     input logic clk,
@@ -28,6 +35,7 @@ module formal_apb5_monitor (
     localparam int BUW = 1;
     localparam int MAX_TRANS = 2;
     localparam int FIFO_DEPTH = 4;
+    localparam int N_RANGES  = 2;   // MUST be > 0: see header note
     localparam logic [7:0]  UNIT_ID  = 8'h01;
     localparam logic [15:0] AGENT_ID = 16'h000A;
 
@@ -72,6 +80,12 @@ module formal_apb5_monitor (
 
     (* anyseq *) reg              monbus_ready;
 
+    // Address-range checker configuration
+    (* anyseq *) reg                    cfg_addr_check_enable;
+    (* anyseq *) reg [N_RANGES-1:0]     cfg_addr_range_enable;
+    (* anyseq *) reg [N_RANGES-1:0][AW-1:0] cfg_addr_range_low;
+    (* anyseq *) reg [N_RANGES-1:0][AW-1:0] cfg_addr_range_high;
+
     // Broadcast monitor time
     (* anyseq *) reg [63:0]       i_mon_time;
 
@@ -79,6 +93,11 @@ module formal_apb5_monitor (
     // DUT outputs
     // =========================================================================
     wire              monbus_valid;
+    // apb5_monitor emits the standard 128-bit monitor_packet_t, same as
+    // apb_monitor.  Field map (monitor_package_spec.md):
+    //   [127:124] packet_type  [123:109] reserved   [108:105] protocol
+    //   [104: 97] event_code   [ 96: 88] channel_id [ 87: 72] agent_id
+    //   [ 71: 64] unit_id      [ 63:  0] event_data
     wire [127:0]      monbus_packet;
     wire [63:0]       monbus_timestamp;
     wire [7:0]        active_count;
@@ -90,6 +109,7 @@ module formal_apb5_monitor (
     // DUT instantiation
     // =========================================================================
     apb5_monitor #(
+        .N_ADDR_RANGES      (N_RANGES),
         .ADDR_WIDTH         (AW),
         .DATA_WIDTH         (DW),
         .AUSER_WIDTH        (AUW),
@@ -137,6 +157,10 @@ module formal_apb5_monitor (
         .cfg_rsp_timeout_cnt    (cfg_rsp_timeout_cnt),
         .cfg_latency_threshold  (cfg_latency_threshold),
         .cfg_wakeup_timeout_cnt (cfg_wakeup_timeout_cnt),
+        .cfg_addr_check_enable  (cfg_addr_check_enable),
+        .cfg_addr_range_enable  (cfg_addr_range_enable),
+        .cfg_addr_range_low     (cfg_addr_range_low),
+        .cfg_addr_range_high    (cfg_addr_range_high),
         .monbus_valid           (monbus_valid),
         .monbus_ready           (monbus_ready),
         .monbus_packet          (monbus_packet),
@@ -165,7 +189,8 @@ module formal_apb5_monitor (
             ap_reset_monbus_valid: assert (!monbus_valid);
     end
 
-    // P2: monbus_packet protocol field is APB when valid
+    // P2: monbus_packet protocol field is APB when valid.  In the 128-bit packet
+    // the protocol occupies [108:105] and PROTOCOL_APB is 4'h2.
     always @(posedge clk) begin
         if (rst_n && monbus_valid)
             ap_protocol_apb: assert (monbus_packet[108:105] == 4'h2);
@@ -178,6 +203,19 @@ module formal_apb5_monitor (
                 ap_valid_held: assert (monbus_valid);
     end
 
+    // P4: an address-range violation (event_code 8'h08) must be an Error packet
+    // (packet_type 4'h0) on the APB protocol.  This is the property the 64-bit
+    // truncation broke: the header was discarded entirely, so packet_type ended
+    // up carrying the range index and protocol read as AXI.
+    always @(posedge clk) begin
+        if (rst_n && monbus_valid && monbus_packet[104:97] == 8'h08) begin
+            ap_addr_range_is_error: assert (monbus_packet[127:124] == 4'h0);
+            ap_addr_range_is_apb:   assert (monbus_packet[108:105] == 4'h2);
+            ap_addr_range_unit:     assert (monbus_packet[71:64]  == UNIT_ID);
+            ap_addr_range_agent:    assert (monbus_packet[87:72]  == AGENT_ID);
+        end
+    end
+
     // =========================================================================
     // Cover points
     // =========================================================================
@@ -188,6 +226,9 @@ module formal_apb5_monitor (
             cp_rsp_handshake:  cover (rsp_valid && rsp_ready);
             cp_wakeup_rising:  cover (apb5_pwakeup && wakeup_active);
             cp_error_event:    cover (monbus_valid && monbus_packet[127:124] == 4'h0);
+            // Reaching this cover point is the proof that gen_addr_check is
+            // actually elaborated and reachable.
+            cp_addr_range:     cover (monbus_valid && monbus_packet[104:97] == 8'h08);
         end
     end
 

@@ -62,7 +62,7 @@ Combinational truth table per JESD79-2 Table 49:
 | REF  | sel  | 0     | 0     | 1    | -    | -              |
 | MRS  | sel  | 0     | 0     | 0    | MR   | MR data        |
 
-The auto-precharge / all-bank bit is A10. MRS data rides `cmd_row_i` (ROW_WIDTH), not `cmd_col_i` — MR0 = `0x532` needs bit 10, which a 10-bit column field would truncate.
+The auto-precharge / all-bank bit is A10. MRS data rides `cmd_row_i` (ROW_WIDTH), not `cmd_col_i` — MR0 = `0x533` needs bit 10, which a 10-bit column field would truncate.
 
 ### LPDDR2 Encoding (bit-exact CA bus)
 

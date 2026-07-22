@@ -85,7 +85,7 @@ rtldesignsherpa/
 New or improved SystemVerilog modules for `rtl/common/` or `rtl/amba/`.
 
 **Requirements:**
-- Synthesizable RTL (no vendor-specific primitives except in `rtl/xilinx/`)
+- Synthesizable RTL (no vendor-specific primitives; vendor code belongs only in board project areas under `projects/`)
 - Comprehensive CocoTB test
 - Documentation in `docs/markdown/`
 

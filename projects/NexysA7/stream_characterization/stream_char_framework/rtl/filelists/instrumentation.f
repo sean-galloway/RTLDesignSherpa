@@ -7,15 +7,15 @@
 #   FRAMEWORK_ROOT - this framework's root (projects/NexysA7/stream_characterization/stream_char_framework)
 
 # Pipelined memory-controller delay queue (timestamp FIFO).
-$FRAMEWORK_ROOT/rtl/axi_response_delay.sv
+$STREAM_CHAR_FRAMEWORK_ROOT/rtl/axi_response_delay.sv
 
 # AXIL fabric: generator-driven 1->6 AXIL bridge with APB auto-conversion
 # on the STREAM config slot and an AXIL bridge port (S5 = dma_axil) for the
 # Vivado MCDMA / future Vivado bridge flows.
--f $FRAMEWORK_ROOT/rtl/bridges/filelists/bridge_stream_char_axil.f
+-f $STREAM_CHAR_FRAMEWORK_ROOT/rtl/bridges/filelists/bridge_stream_char_axil.f
 
 # Harness CSRs (kick-burst, response-delay programming, cycle timer, status).
-$FRAMEWORK_ROOT/rtl/harness_csr.sv
+$STREAM_CHAR_FRAMEWORK_ROOT/rtl/harness_csr.sv
 
 # (axi_bus_meter.sv retired from the harness in RFC Stage E.4 -- the per-cycle
 #  valid/ready bucket counters are now in-core in stream_core, pulled in via
@@ -29,20 +29,20 @@ $FRAMEWORK_ROOT/rtl/harness_csr.sv
 # Requires axi_gen_addr (combinational per-beat address generator) and
 # the standard axi4_slave_rd/wr + axil4_slave_rd/wr protocol skids
 # (already pulled in via the bridge filelist).
-$REPO_ROOT/rtl/amba/shared/axi_gen_addr.sv
-$REPO_ROOT/rtl/amba/shared/sdpram_core.sv
-$REPO_ROOT/rtl/amba/shared/sdpram_slave_axi4_axi4.sv
-$REPO_ROOT/rtl/amba/shared/sdpram_slave_axil_axil.sv
+-f $REPO_ROOT/rtl/amba/filelists/axi_gen_addr.f
+-f $REPO_ROOT/rtl/amba/filelists/sdpram_core.f
+-f $REPO_ROOT/rtl/amba/filelists/sdpram_slave_axi4_axi4.f
+-f $REPO_ROOT/rtl/amba/filelists/sdpram_slave_axil_axil.f
 
 # Sim-only scoreboard bound into stream_core's u_sram_controller. Catches
 # per-channel data swaps between the RD-engine deposit and WR-engine drain
 # sides. Pure `ifndef SYNTHESIS so FPGA build sees a zero-port module.
-$FRAMEWORK_ROOT/rtl/sram_chan_tracker.sv
-$FRAMEWORK_ROOT/rtl/sram_chan_tracker_bind.sv
+$STREAM_CHAR_FRAMEWORK_ROOT/rtl/sram_chan_tracker.sv
+$STREAM_CHAR_FRAMEWORK_ROOT/rtl/sram_chan_tracker_bind.sv
 
 # Board-level status outputs (LED bank + 7-segment display) and their
 # upstream dependencies in the shared rtl/ tree.
-$REPO_ROOT/rtl/amba/shared/cdc_2_phase_handshake.sv
-$REPO_ROOT/rtl/common/hex_to_7seg.sv
-$FRAMEWORK_ROOT/rtl/led_status_driver.sv
-$FRAMEWORK_ROOT/rtl/seven_seg_4digit.sv
+-f $REPO_ROOT/rtl/amba/filelists/cdc_2_phase_handshake.f
+-f $REPO_ROOT/rtl/common/filelists/hex_to_7seg.f
+$STREAM_CHAR_FRAMEWORK_ROOT/rtl/led_status_driver.sv
+$STREAM_CHAR_FRAMEWORK_ROOT/rtl/seven_seg_4digit.sv

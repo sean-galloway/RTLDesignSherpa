@@ -35,11 +35,15 @@ The APB Slave CDC (Clock Domain Crossing) module provides a complete APB slave i
 
 ### Key Features
 
-- ✅ **Safe CDC:** Proper clock domain crossing with handshake protocol
+- ✅ **Safe CDC:** Gray-pointer asynchronous FIFOs, one per direction
 - ✅ **Dual Clock Domains:** APB (pclk) and AXI (aclk) operate independently
-- ✅ **Full APB4/APB5 Support:** Complete protocol compliance
+- ✅ **Independent Resets:** Either domain may be reset alone without corrupting the link
+- ✅ **Full APB4 Support:** Complete AMBA 4 APB protocol compliance
 - ✅ **Command/Response Interface:** Clean GAXI-style backend interface
 - ✅ **Buffered Operation:** Integrated skid buffers for elastic storage
+
+**Protocol scope:** APB4 only. For APB5 signalling use `apb5_slave_cdc` from
+`rtl/amba/apb5/` -- see the [APB5 book](../apb5/apb5_slave_cdc.md).
 
 ---
 
@@ -51,7 +55,10 @@ module apb_slave_cdc #(
     parameter int DATA_WIDTH  = 32,
     parameter int STRB_WIDTH  = DATA_WIDTH / 8,
     parameter int PROT_WIDTH  = 3,
-    parameter int DEPTH       = 2
+    parameter int DEPTH       = 2,
+    // DEPRECATED / NO EFFECT -- retained only so existing instantiations
+    // still elaborate. See "CDC Implementation" below.
+    parameter bit USE_2_PHASE_CDC = 1'b1
 ) (
     // Clock and Reset
     input  logic              aclk,
@@ -90,6 +97,19 @@ module apb_slave_cdc #(
 
 ---
 
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| ADDR_WIDTH | int | 32 | APB address bus width |
+| DATA_WIDTH | int | 32 | APB data bus width |
+| STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |
+| PROT_WIDTH | int | 3 | APB protection signal width |
+| DEPTH | int | 2 | Skid-buffer depth **in entries** inside the wrapped `apb_slave`; also the floor for the CDC FIFO depth |
+| USE_2_PHASE_CDC | bit | 1 | **Deprecated and ignored.** Has no effect on the generated logic |
+
+---
+
 ## Clock Domains
 
 ### APB Domain (pclk)
@@ -102,7 +122,84 @@ module apb_slave_cdc #(
 - Can be faster or slower than pclk
 - Used by backend processing logic
 
-**Note:** The module handles the clock domain crossing safely using handshake-based CDC techniques.
+---
+
+## CDC Implementation
+
+### Structure
+
+The module is an `apb_slave` in the `pclk` domain plus two independent
+asynchronous FIFOs:
+
+| FIFO | Direction | Write domain | Read domain | Payload width |
+|------|-----------|--------------|-------------|---------------|
+| `u_cmd_cdc_fifo` | Command | `pclk` / `presetn` | `aclk` / `aresetn` | `CPW = AW + DW + SW + PW + 1` |
+| `u_rsp_cdc_fifo` | Response | `aclk` / `aresetn` | `pclk` / `presetn` | `RPW = DW + 1` |
+
+Both are `gaxi_fifo_async` instances with:
+
+- **Pointer encoding:** gray-coded absolute read/write pointers
+- **Synchronizer depth:** `N_FLOP_CROSS = 2` (two-flop synchronizer per crossed pointer)
+- **FIFO depth:** `CDC_FIFO_DEPTH = (DEPTH < 4) ? 4 : DEPTH` -- a floor of 4 entries
+  regardless of the `DEPTH` used for the internal skid buffers. Powers of two are
+  preferred for the gray-pointer encoding.
+
+There is no separate metastability-hardening option; two-flop synchronization is
+fixed at instantiation.
+
+### Maximum Clock Ratio
+
+There is no maximum ratio between `pclk` and `aclk`. Gray-pointer FIFOs impose no
+relationship between the two clocks -- either may be arbitrarily faster, slower,
+or phase-unrelated, and either may be stopped indefinitely. Stopping `aclk`
+simply stalls the command FIFO's read side; the APB side backpressures via
+`PREADY` held low and no data is lost.
+
+Throughput, not correctness, is what the ratio affects: each transfer costs the
+usual two-flop synchronizer latency in each direction (roughly 2-3 destination
+clock edges per crossing), so a very slow `aclk` directly lengthens APB wait
+states.
+
+### Reset Behavior
+
+`gaxi_fifo_async` resets each domain's own pointer **and** that domain's crossed
+copy of the remote pointer from that domain's local reset. Resetting one side in
+isolation therefore leaves that side's view self-consistent (both pointers zero,
+i.e. empty), and because the pointers are absolute positions rather than parity
+state, an independent reset cannot fabricate or swallow a transfer.
+
+This is load-bearing: `presetn` and `aresetn` are genuinely separate reset
+domains in real integrations. For example, the `ddr2-char` harness pulses only
+the core-side reset on `CTRL.soft_reset` while the APB side stays up.
+
+### Why Not the Previous 2-Phase Handshake
+
+`USE_2_PHASE_CDC` selected a toggle-based handshake in an earlier revision. It is
+now deprecated and ignored, and the parameter is retained only for
+source-compatibility with existing instantiations.
+
+A 2-phase handshake encodes each transfer as a **toggle**. If the two domains are
+reset independently, the toggle parity desynchronizes and the link fabricates or
+drops exactly one transfer -- permanently, because nothing ever re-syncs it.
+Paired with the `apb_slave` FSM, which pairs commands and responses by position
+rather than by tag, a single phantom transfer offsets the response stream by one
+forever: every read returns the previous read's data.
+
+This was observed on the Nexys A7 `ddr2-char` board on 2026-07-19. Reading a
+single CSR eight times returned the previous register's value about three times
+before settling, while the non-CDC harness window was stable. The two mitigations
+now in place are the gray-pointer FIFOs described above and the orphan-response
+guard in `apb_slave` -- see [apb_slave.md](apb_slave.md).
+
+### Timing Constraints
+
+The crossed signals are the gray-coded pointers and the FIFO memory read path.
+Standard practice applies:
+
+- Declare `pclk` and `aclk` asynchronous to each other
+  (`set_clock_groups -asynchronous`).
+- Do not over-constrain the pointer synchronizer paths; the gray encoding
+  tolerates a one-bit-at-a-time skew by construction.
 
 ---
 
@@ -223,13 +320,16 @@ apb_slave_cdc #(
 ## References
 
 - **APB Slave:** [apb_slave.md](apb_slave.md)
+- **Clock-Gated Variant:** [apb_slave_cdc_cg.md](apb_slave_cdc_cg.md)
+- **APB5 Equivalent:** [apb5_slave_cdc.md](../apb5/apb5_slave_cdc.md)
+- **CDC FIFO:** `rtl/amba/gaxi/gaxi_fifo_async.sv`
 - **Source:** `rtl/amba/apb/apb_slave_cdc.sv`
 - **Tests:** `val/amba/test_apb_slave_cdc.py`
 - **WaveDrom Test:** `val/amba/test_apb_slave_cdc.py::test_apb_slave_cdc_wavedrom`
 
 ---
 
-**Last Updated:** 2025-10-09
+**Last Updated:** 2026-07-19
 
 ---
 

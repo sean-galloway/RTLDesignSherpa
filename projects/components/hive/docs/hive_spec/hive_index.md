@@ -31,6 +31,11 @@ Version 0.3 - Early Proof of Concept
 
 This specification is organized into five chapters covering HIVE's architecture, components, interfaces, programming models, and performance characteristics.
 
+> Status (2026-07-22): only Chapter 1 (all sections) and Chapter 2.0 have been
+> written as chapter files. The remaining sections (2.1-2.4, Chapters 3-5) are
+> planned; their content currently lives in the single-file specification
+> [../hive_specification.md](../hive_specification.md).
+
 ---
 
 ## Chapter 1: Overview
@@ -50,10 +55,10 @@ Provides high-level system architecture and design goals.
 Detailed specifications for each HIVE component.
 
 - **[2.0 Block Overview](ch02_blocks/00_overview.md)** - Component organization and resource budget
-- **[2.1 HIVE-C Master Controller](ch02_blocks/01_hive_c_controller.md)** - VexRiscv master controller specification
-- **[2.2 SERV Monitor](ch02_blocks/02_serv_monitor.md)** - Per-tile traffic monitoring and control
-- **[2.3 Control Network](ch02_blocks/03_control_network.md)** - HIVE-C to SERV communication infrastructure
-- **[2.4 Configuration Manager](ch02_blocks/04_config_manager.md)** - Network reconfiguration and context switching
+- **2.1 HIVE-C Master Controller** *(planned - see [hive_specification.md](../hive_specification.md) section 6)* - VexRiscv master controller specification
+- **2.2 SERV Monitor** *(planned - see [hive_specification.md](../hive_specification.md) section 5)* - Per-tile traffic monitoring and control
+- **2.3 Control Network** *(planned - see [hive_specification.md](../hive_specification.md) section 2)* - HIVE-C to SERV communication infrastructure
+- **2.4 Configuration Manager** *(planned - see [hive_specification.md](../hive_specification.md) section 4)* - Network reconfiguration and context switching
 
 ---
 
@@ -61,9 +66,11 @@ Detailed specifications for each HIVE component.
 
 Protocol specifications for HIVE interfaces.
 
-- **[3.1 Top-Level Interfaces](ch03_interfaces/01_top_level.md)** - System-level connections and signal definitions
-- **[3.2 AXIS Packet Classification](ch03_interfaces/02_axis_packet_spec.md)** - PKT_DATA, CDA, PKT_CONFIG, PKT_STATUS encoding
-- **[3.3 Control Network Protocol](ch03_interfaces/03_control_network_spec.md)** - HIVE-C to SERV communication
+*(Chapter 3 files are planned; interface content currently lives in [hive_specification.md](../hive_specification.md) sections 2-3.)*
+
+- **3.1 Top-Level Interfaces** *(planned)* - System-level connections and signal definitions
+- **3.2 AXIS Packet Classification** *(planned)* - PKT_DATA, CDA, PKT_CONFIG, PKT_STATUS encoding
+- **3.3 Control Network Protocol** *(planned)* - HIVE-C to SERV communication
 
 ---
 
@@ -71,10 +78,12 @@ Protocol specifications for HIVE interfaces.
 
 Software architecture and firmware development.
 
-- **[4.1 HIVE-C Firmware Architecture](ch04_programming_models/01_hive_c_firmware.md)** - VexRiscv firmware structure and APIs
-- **[4.2 SERV Programming](ch04_programming_models/02_serv_programming.md)** - Monitor firmware and assembly programming
-- **[4.3 Descriptor Scheduling](ch04_programming_models/03_descriptor_scheduling.md)** - RAPIDS DMA descriptor management
-- **[4.4 Network Reconfiguration](ch04_programming_models/04_network_reconfiguration.md)** - Context switching and topology management
+*(Chapter 4 files are planned; programming-model content currently lives in [hive_specification.md](../hive_specification.md) sections 4-6.)*
+
+- **4.1 HIVE-C Firmware Architecture** *(planned)* - VexRiscv firmware structure and APIs
+- **4.2 SERV Programming** *(planned)* - Monitor firmware and assembly programming
+- **4.3 Descriptor Scheduling** *(planned)* - RAPIDS DMA descriptor management
+- **4.4 Network Reconfiguration** *(planned)* - Context switching and topology management
 
 ---
 
@@ -82,10 +91,12 @@ Software architecture and firmware development.
 
 Performance modeling, tradeoffs, and verification strategy.
 
-- **[5.1 SimPy Performance Models](ch05_performance/01_simpy_models.md)** - Analytical models for educational exploration
-- **[5.2 Performance Tradeoffs](ch05_performance/02_performance_tradeoffs.md)** - Design decision analysis and quantified tradeoffs
-- **[5.3 Verification Strategy](ch05_performance/03_verification_strategy.md)** - Unit tests, integration tests, formal verification
-- **[5.4 Implementation Roadmap](ch05_performance/04_implementation_roadmap.md)** - Development phases and milestones
+*(Chapter 5 files are planned; performance/verification content currently lives in [hive_specification.md](../hive_specification.md) sections 7 and 10-11.)*
+
+- **5.1 SimPy Performance Models** *(planned)* - Analytical models for educational exploration
+- **5.2 Performance Tradeoffs** *(planned)* - Design decision analysis and quantified tradeoffs
+- **5.3 Verification Strategy** *(planned)* - Unit tests, integration tests, formal verification
+- **5.4 Implementation Roadmap** *(planned)* - Development phases and milestones
 
 ---
 
@@ -94,21 +105,21 @@ Performance modeling, tradeoffs, and verification strategy.
 ### For First-Time Readers
 1. Start with [Chapter 1.1 Overview](ch01_overview/01_overview.md)
 2. Review [Chapter 2.0 Block Overview](ch02_blocks/00_overview.md)
-3. Understand [Chapter 3.2 AXIS Packet Classification](ch03_interfaces/02_axis_packet_spec.md)
+3. Understand AXIS packet classification ([hive_specification.md](../hive_specification.md) section 3)
 
 ### For Firmware Developers
-1. [Chapter 4.1 HIVE-C Firmware](ch04_programming_models/01_hive_c_firmware.md)
-2. [Chapter 4.3 Descriptor Scheduling](ch04_programming_models/03_descriptor_scheduling.md)
-3. [Chapter 3.2 AXIS Packet Spec](ch03_interfaces/02_axis_packet_spec.md)
+1. HIVE-C control software ([hive_specification.md](../hive_specification.md) section 6)
+2. Descriptor scheduling ([hive_specification.md](../hive_specification.md) section 6)
+3. AXIS packet encoding ([hive_specification.md](../hive_specification.md) section 3)
 
 ### For Hardware Engineers
 1. [Chapter 2: Block Specifications](ch02_blocks/00_overview.md)
-2. [Chapter 3: Interface Specifications](ch03_interfaces/01_top_level.md) (AXIS-based control only)
+2. System architecture and interfaces ([hive_specification.md](../hive_specification.md) section 2)
 3. [Chapter 1.3 Clocks and Reset](ch01_overview/03_clocks_and_reset.md)
 
 ### For Performance Analysis
-1. [Chapter 5.1 SimPy Models](ch05_performance/01_simpy_models.md)
-2. [Chapter 5.2 Performance Tradeoffs](ch05_performance/02_performance_tradeoffs.md)
+1. Performance modeling ([hive_specification.md](../hive_specification.md) section 7)
+2. Performance tradeoffs ([hive_specification.md](../hive_specification.md) section 7.2)
 3. [Chapter 2.0 Resource Budget](ch02_blocks/00_overview.md)
 
 ---
@@ -124,10 +135,10 @@ Performance modeling, tradeoffs, and verification strategy.
 
 ## Related Specifications
 
-- **[RAPIDS Specification](../../rapids/docs/rapids_spec/rapids_index.md)** - DMA engine controlled by HIVE-C
-- **[Delta Network Specification](../../delta/docs/delta_spec/delta_index.md)** - 4×4 mesh NoC for compute fabric
+- **[RAPIDS Beats HAS](../../../dmas/rapids/docs/rapids_beats_has/rapids_beats_has_index.md)** - DMA engine controlled by HIVE-C
+- **[Delta Network Specification](../../../delta/docs/delta_spec/delta_index.md)** - 4×4 mesh NoC for compute fabric
 - **[STREAM Specification](../../../dmas/stream/PRD.md)** - Simplified DMA tutorial project
 
 ---
 
-**Back to:** [HIVE Component Root](../../README.md)
+**Back to:** [HIVE Component Root](../../PRD.md)

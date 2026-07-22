@@ -27,6 +27,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.amba_cg_ctrl import AxiClockGateCtrl
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 class AmbaClockGateCtrlConfig:
@@ -800,11 +801,9 @@ def test_amba_clock_gate_ctrl(request, params):
     dut_name = "amba_clock_gate_ctrl"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "icg.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "clock_gate_ctrl.sv"),
-        os.path.join(rtl_dict['rtl_amba_shared'], f"{dut_name}.sv")
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/amba_clock_gate_ctrl.f")
 
     # Create a human-readable test identifier
     t_clk = params['clk_period_ns']
@@ -824,7 +823,7 @@ def test_amba_clock_gate_ctrl(request, params):
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = [rtl_dict['rtl_amba_includes']]
+    includes=includes
     # RTL parameters
     rtl_parameters = {k.upper(): str(v) for k, v in locals().items() if k in ["CG_IDLE_COUNT_WIDTH"]}
 

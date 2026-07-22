@@ -49,6 +49,7 @@ module monbus_axil_group_2in
     // Clock and Reset
     input  logic                          axi_aclk,
     input  logic                          axi_aresetn,
+    input  logic                       cam_clear,   // sync clear of the monbus CAM
 
     // Source Monitor Bus Input
     input  logic                          source_monbus_valid,
@@ -197,6 +198,7 @@ module monbus_axil_group_2in
     ) u_group (
         .axi_aclk               (axi_aclk),
         .axi_aresetn            (axi_aresetn),
+        .cam_clear              (cam_clear),
 
         .monbus_valid           (arb_monbus_valid),
         .monbus_ready           (arb_monbus_ready),

@@ -65,11 +65,11 @@ build understanding from the ground up.
 
 Guided progression from primitives to systems. Each level links to the corresponding section in [Browse by Class](#browse-by-class) below — every entry is a real link (works on mobile and desktop alike).
 
-- **Level 1 — [Common Building Blocks](rtl/common/)** · ~224 modules · counters, FIFOs, arbiters, integer + floating-point math, data integrity, clock utilities
-- **Level 2 — [AMBA Protocol Infrastructure](rtl/amba/)** · 155 modules · [AXI4](rtl/amba/axi4/) · [AXI5](rtl/amba/axi5/) · [AXI4-Lite](rtl/amba/axil4/) · [APB](rtl/amba/apb/) · [APB5](rtl/amba/apb5/) · [AXIS4](rtl/amba/axis4/) · [AXIS5](rtl/amba/axis5/) · [Shared (monitor/observation/monbus)](rtl/amba/shared/)
+- **Level 1 — [Common Building Blocks](rtl/common/)** + **[Math Library](rtl/math/)** · ~230 modules · counters, FIFOs, arbiters, data integrity, clock utilities (common) + integer and floating-point math (math)
+- **Level 2 — [AMBA Protocol Infrastructure](rtl/amba/)** · 155 modules · [AXI4](rtl/amba/axi4/) · [AXI5](rtl/amba/axi5/) · [AXI4-Lite](rtl/amba/axil4/) · [APB](rtl/amba/apb/) · [APB5](rtl/amba/apb5/) · [AXIS4](rtl/amba/axis4/) · [AXIS5](rtl/amba/axis5/) · [Monitors + MonBus](rtl/amba/monitor/) · [Shared observation](rtl/amba/shared/)
 - **Level 3 — [Integration Examples](rtl/integ_amba/)** · APB crossbar, bridges, multi-protocol stitching
 - **Level 4 — [Production Components](projects/components/)** · [STREAM](projects/components/dmas/stream/) · [RAPIDS](projects/components/dmas/rapids/) · [Bridge](projects/components/bridge/) · [Converters](projects/components/converters/) · [APB xbar](projects/components/apb_xbar/) · [Retro legacy](projects/components/retro_legacy_blocks/) · [Memory controllers](projects/components/memory-controllers/)
-- **Level 5 — [FPGA Projects on Nexys A7](projects/NexysA7/)** · [stream_characterization](projects/NexysA7/stream_characterization/) · [timing_characterization](projects/NexysA7/timing_characterization/) · [cdc_counter_display](projects/NexysA7/cdc_counter_display/) · [pumice-memory-controller](projects/NexysA7/pumice-memory-controller/)
+- **Level 5 — [FPGA Projects on Nexys A7](projects/NexysA7/)** · [stream_characterization](projects/NexysA7/stream_characterization/) · [timing_characterization](projects/NexysA7/timing_characterization/) · [cdc_counter_display](projects/NexysA7/cdc_counter_display/) · [ddr2-characterization](projects/NexysA7/ddr2-characterization/) · [rapids_characterization](projects/NexysA7/rapids_characterization/)
 
 <details>
 <summary>Visual diagram (Mermaid — desktop browsers only)</summary>
@@ -85,7 +85,7 @@ graph TD
     L2 -.- L2D[AXI4, AXI5, AXI4-Lite, APB, APB5<br/>AXIS4, AXIS5, Shared monitor/observation]
     L3 -.- L3D[APB Crossbar, Bridges, multi-protocol stitching]
     L4 -.- L4D[STREAM, RAPIDS, Bridge, Converters<br/>Retro Legacy Blocks, Memory controllers]
-    L5 -.- L5D[stream_characterization, timing_characterization<br/>cdc_counter_display, pumice-memory-controller]
+    L5 -.- L5D[stream_characterization, timing_characterization<br/>cdc_counter_display, ddr2-characterization]
 
     click L1 "rtl/common/" "Common Building Blocks"
     click L2 "rtl/amba/" "AMBA Protocol Infrastructure"
@@ -106,16 +106,16 @@ Fast lookup. Each row is a class of things; the deep-dive link goes to its index
 
 ### 1. Common Building Blocks — [`rtl/common/`](rtl/common/)
 
-Reusable primitives, technology-agnostic. **~224 modules.** Click any class name for its overview (when to use, picking guide, members table); click *RTL* for source.
+Reusable primitives, technology-agnostic. **~230 modules across [`rtl/common/`](rtl/common/) and [`rtl/math/`](rtl/math/)** (math modules were split out of common into their own library). Click any class name for its overview (when to use, picking guide, members table); click *RTL* for source.
 
 | Class (overview) | ~Count | RTL | Examples |
 |---|---|---|---|
 | [Counters](docs/classes/common/counters.md) | 8 | [`rtl/common/`](rtl/common/) (`counter_*.sv`) | [`counter_bin`](rtl/common/counter_bin.sv), [`counter_bingray`](rtl/common/counter_bingray.sv), [`counter_load_clear`](rtl/common/counter_load_clear.sv), [`counter_johnson`](rtl/common/counter_johnson.sv), [`counter_ring`](rtl/common/counter_ring.sv), [`counter_freq_invariant`](rtl/common/counter_freq_invariant.sv) |
 | [Arbiters](docs/classes/common/arbiters.md) | 4 | [`rtl/common/`](rtl/common/) (`arbiter_*.sv`) | [`arbiter_round_robin`](rtl/common/arbiter_round_robin.sv), [`arbiter_round_robin_weighted`](rtl/common/arbiter_round_robin_weighted.sv), PWM variants |
-| [FIFOs](docs/classes/common/fifos.md) | 4 | [`rtl/common/`](rtl/common/) (`fifo_*.sv`) | [`fifo_sync`](rtl/common/fifo_sync.sv), [`fifo_async`](rtl/common/fifo_async.sv), [`fifo_async_div2`](rtl/common/fifo_async_div2.sv) |
+| [FIFOs](docs/classes/common/fifos.md) | 3 | [`rtl/common/`](rtl/common/) (`fifo_*.sv`) | [`fifo_sync`](rtl/common/fifo_sync.sv), [`fifo_async`](rtl/common/fifo_async.sv) |
 | [Shift / LFSR](docs/classes/common/shift_lfsr.md) | — | [`rtl/common/`](rtl/common/) (`shifter_*.sv`) | Fibonacci LFSR, Galois LFSR, universal shifters |
-| [Math — integer arithmetic](docs/classes/common/math_integer.md) | 40+ | [`rtl/common/`](rtl/common/) (`math_adder_*`, `math_mult_*`, `math_div_*`) | Han-Carlson prefix adders (16/22/32/44/48/72-bit), Dadda 4:2 compressor mults (8/11/24-bit), leading-zero count, parity |
-| [Math — floating point](docs/classes/common/math_float.md) | 120+ | [`rtl/common/`](rtl/common/) (`math_float_*`) | BF16, FP16, FP32, FP8 (E4M3/E5M2): adder, multiplier, FMA, recip, divide, sqrt; cross-format converters |
+| [Math — integer arithmetic](docs/classes/common/math_integer.md) | 40+ | [`rtl/math/`](rtl/math/) (`math_adder_*`, `math_mult_*`, `math_div_*`) | Han-Carlson prefix adders (16/22/32/44/48/72-bit), Dadda 4:2 compressor mults (8/11/24-bit), leading-zero count, parity |
+| [Math — floating point](docs/classes/common/math_float.md) | 120+ | [`rtl/math/`](rtl/math/) (`math_float_*`) | BF16, FP16, FP32, FP8 (E4M3/E5M2): adder, multiplier, FMA, recip, divide, sqrt; cross-format converters |
 | [Data integrity](docs/classes/common/data_integrity.md) | 7 | [`rtl/common/`](rtl/common/) (`dataint_*.sv`) | `dataint_crc` (300+ standards), `dataint_ecc_hamming` (SECDED), `dataint_parity` |
 | [Clock utilities](docs/classes/common/clock_utilities.md) | 3 | [`rtl/common/`](rtl/common/) (`clock_*.sv`) | [`clock_divider`](rtl/common/clock_divider.sv), [`clock_gate_ctrl`](rtl/common/clock_gate_ctrl.sv), [`clock_pulse`](rtl/common/clock_pulse.sv) |
 | [Encoders / decoders](docs/classes/common/encoders_decoders.md) | 3 | [`rtl/common/`](rtl/common/) (`{encoder,decoder}*.sv`) | priority encoder, address decoder |
@@ -150,14 +150,14 @@ CDC primitives live in multiple subsystems. Pulled together here so you don't ha
 
 | Module | Where | Use |
 |---|---|---|
-| [`cdc_synchronizer.sv`](rtl/amba/shared/cdc_synchronizer.sv) | [`rtl/amba/shared/`](rtl/amba/shared/) | Plain N-flop bit synchronizer |
-| [`cdc_2_phase_handshake.sv`](rtl/amba/shared/cdc_2_phase_handshake.sv) | [`rtl/amba/shared/`](rtl/amba/shared/) | 2-phase req/ack data CDC |
-| [`cdc_4_phase_handshake.sv`](rtl/amba/shared/cdc_4_phase_handshake.sv) | [`rtl/amba/shared/`](rtl/amba/shared/) | 4-phase req/ack data CDC |
-| [`cdc_open_loop.sv`](rtl/amba/shared/cdc_open_loop.sv) | [`rtl/amba/shared/`](rtl/amba/shared/) | Fire-and-forget pulse CDC |
+| [`cdc_synchronizer.sv`](rtl/amba/cdc/cdc_synchronizer.sv) | [`rtl/amba/shared/`](rtl/amba/shared/) | Plain N-flop bit synchronizer |
+| [`cdc_2_phase_handshake.sv`](rtl/amba/cdc/cdc_2_phase_handshake.sv) | [`rtl/amba/shared/`](rtl/amba/shared/) | 2-phase req/ack data CDC |
+| [`cdc_4_phase_handshake.sv`](rtl/amba/cdc/cdc_4_phase_handshake.sv) | [`rtl/amba/shared/`](rtl/amba/shared/) | 4-phase req/ack data CDC |
+| [`cdc_open_loop.sv`](rtl/amba/cdc/cdc_open_loop.sv) | [`rtl/amba/shared/`](rtl/amba/shared/) | Fire-and-forget pulse CDC |
 | [`reset_sync.sv`](rtl/common/reset_sync.sv) | [`rtl/common/`](rtl/common/) | Async-assert / sync-deassert reset CDC |
 | [`bin2gray.sv`](rtl/common/bin2gray.sv) / [`gray2bin.sv`](rtl/common/gray2bin.sv) | [`rtl/common/`](rtl/common/) | Gray-code conversion for pointer CDC |
 | [`counter_bingray.sv`](rtl/common/counter_bingray.sv) | [`rtl/common/`](rtl/common/) | Binary/Gray dual counter for FIFO pointers |
-| [`fifo_async.sv`](rtl/common/fifo_async.sv) / [`fifo_async_div2.sv`](rtl/common/fifo_async_div2.sv) | [`rtl/common/`](rtl/common/) | Async FIFOs for word-width CDC |
+| [`fifo_async.sv`](rtl/common/fifo_async.sv) | [`rtl/common/`](rtl/common/) | Async FIFOs for word-width CDC |
 | `gaxi_fifo_async*.sv`, `gaxi_skid_buffer_async*.sv` | [`rtl/amba/gaxi/`](rtl/amba/gaxi/) | AXI-shaped async FIFO + skid |
 | `apb_slave_cdc.sv` (and `apb5_slave_cdc.sv`) | [`rtl/amba/apb/`](rtl/amba/apb/) / [`rtl/amba/apb5/`](rtl/amba/apb5/) | APB slave with CDC built in |
 
@@ -190,7 +190,7 @@ Things that actually run on hardware. Each project ships its own README and Viva
 | stream_characterization | DMA performance characterization on FPGA + host-side analysis (UART control, on-chip PMU) | [`projects/NexysA7/stream_characterization/`](projects/NexysA7/stream_characterization/) |
 | timing_characterization | FUB delay characterization. STA-only `bitstream-sweep` is the headline path; on-board MMCM sweep is an optional gut-check (see [`README_FPGA.md`](projects/NexysA7/timing_characterization/README_FPGA.md) §5) | [`projects/NexysA7/timing_characterization/`](projects/NexysA7/timing_characterization/) |
 | cdc_counter_display | Live demo of multi-clock counter CDC on the board | [`projects/NexysA7/cdc_counter_display/`](projects/NexysA7/cdc_counter_display/) |
-| pumice-memory-controller | DDR2 / LPDDR2 memory controller bring-up on Nexys A7 | [`projects/NexysA7/pumice-memory-controller/`](projects/NexysA7/pumice-memory-controller/) |
+| ddr2-characterization | DDR2 / LPDDR2 memory controller (pumice) bring-up and characterization on Nexys A7 | [`projects/NexysA7/ddr2-characterization/`](projects/NexysA7/ddr2-characterization/) (RTL: [`projects/components/memory-controllers/pumice-ddr2-lpddr2/`](projects/components/memory-controllers/pumice-ddr2-lpddr2/)) |
 | boards | Board files / pinouts / constraints | [`projects/NexysA7/boards/`](projects/NexysA7/boards/) |
 
 ### 6. Verification
@@ -311,17 +311,17 @@ apb_slave #(
 #### AXI4-Lite (Simplified Register Interface)
 - **[AXI4-Lite Masters](rtl/amba/axil4/)** - Register-optimized masters
 - **[AXI4-Lite Slaves](rtl/amba/axil4/)** - Configuration registers
-- **[Protocol Bridges](rtl/amba/adapters/)** - APB ↔ AXI-Lite conversion
+- **[Converters](projects/components/converters/)** - Protocol and width conversion (APB, AXI-Lite, AXI4)
 
 #### AXI4-Stream (High-Throughput Data)
-- **[Stream Masters/Slaves](rtl/amba/axis/)** - Streaming interfaces
-- **[Flow Control](rtl/amba/axis/)** - Backpressure, buffering
-- **[Sideband Support](rtl/amba/axis/)** - TID, TDEST, TUSER, TSTRB
+- **[Stream Masters/Slaves](rtl/amba/axis4/)** - Streaming interfaces
+- **[Flow Control](rtl/amba/axis4/)** - Backpressure, buffering
+- **[Sideband Support](rtl/amba/axis4/)** - TID, TDEST, TUSER, TSTRB
 
 #### Shared Infrastructure
 - **[GAXI Buffers](rtl/amba/gaxi/)** - Generic skid buffers, FIFOs, CDC
-- **[Monitors](rtl/amba/shared/)** - Transaction monitoring, performance analysis
-- **[Arbiters](rtl/amba/shared/)** - Advanced arbitration for monitor buses
+- **[Monitors](rtl/amba/monitor/)** - Transaction monitoring, performance analysis
+- **[Arbiters](rtl/amba/monitor/)** - Advanced arbitration for monitor buses
 
 **Tests:** [`val/amba/`](val/amba/) - Protocol compliance and integration tests
 
@@ -329,7 +329,7 @@ apb_slave #(
 
 ### Level 3: Integration Examples
 
-**Locations:** [`rtl/integ_common/`](rtl/integ_common/) | [`rtl/integ_amba/`](rtl/integ_amba/)
+**Locations:** [`rtl/integ_amba/`](rtl/integ_amba/) (tests: [`val/integ_common/`](val/integ_common/) | [`val/integ_amba/`](val/integ_amba/))
 
 Practice integrating multiple modules into working systems:
 
@@ -474,8 +474,8 @@ pytest val/amba/ -v -m basic      # Basic tests only
 pytest val/amba/ -v -m medium     # Medium tests only
 pytest val/amba/ -v -m full       # Full tests only
 
-# Run component tests (example: Retro Legacy Blocks)
-pytest projects/components/retro_legacy_blocks/dv/tests/hpet/ -v
+# Run component tests (example: Retro Legacy Blocks HPET)
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
 ```
 
 ---
@@ -531,29 +531,33 @@ pytest projects/components/retro_legacy_blocks/dv/tests/hpet/ -v
 
 ```
 rtldesignsherpa/
-├── rtl/                          # RTL source code (350+ modules)
-│   ├── common/                   # 224 building blocks (counters, math, FP, etc.)
-│   ├── amba/                     # 124 AMBA protocol modules
+├── rtl/                          # RTL source code (~390 modules)
+│   ├── common/                   # ~57 building blocks (counters, FIFOs, arbiters, etc.)
+│   ├── math/                     # ~170 arithmetic modules (integer + FP; split out of common)
+│   ├── amba/                     # ~160 AMBA protocol modules
 │   │   ├── apb/                 # APB protocol
 │   │   ├── axi4/                # AXI4 full protocol
 │   │   ├── axil4/               # AXI4-Lite
-│   │   ├── axis/                # AXI4-Stream
+│   │   ├── axis4/               # AXI4-Stream
 │   │   ├── axi5/                # AMBA5 components
 │   │   ├── apb5/                # APB5 protocol
+│   │   ├── axis5/               # AXIS5 protocol
 │   │   ├── gaxi/                # Generic AXI infrastructure
-│   │   └── shared/              # Shared utilities (CDC, monitors)
-│   ├── integ_common/            # Common integration examples
+│   │   ├── cdc/                 # Clock domain crossing
+│   │   ├── monitor/             # Transaction monitors + MonBus groups
+│   │   └── shared/              # Shared observation utilities
 │   └── integ_amba/              # AMBA integration examples
 │
 ├── projects/                     # Component projects (10+)
 │   ├── components/
-│   │   ├── stream/              # STREAM DMA engine
-│   │   ├── rapids/              # RAPIDS DMA engine
+│   │   ├── dmas/stream/         # STREAM DMA engine
+│   │   ├── dmas/rapids/         # RAPIDS DMA engine
 │   │   ├── bridge/              # Protocol bridges
-│   │   ├── converters/          # UART-to-AXI4-Lite, etc.
+│   │   ├── converters/          # Width/protocol converters
 │   │   ├── apb_xbar/            # APB crossbar
-│   │   ├── retro_legacy_blocks/ # 9 legacy peripherals
-│   │   ├── delta/               # Network-on-Chip (planned)
+│   │   ├── memory-controllers/  # pumice DDR2/LPDDR2 controller
+│   │   ├── retro_legacy_blocks/ # Legacy peripherals (HPET, RTC, PIT, ...)
+│   │   ├── delta/               # AXIS crossbar generator
 │   │   ├── hive/                # RISC-V control (planned)
 │   │   └── bch/                 # BCH ECC (planned)
 │   └── NexysA7/                 # FPGA projects
@@ -634,19 +638,16 @@ pytest val/amba/test_apb_slave.py -v
 pytest val/amba/test_apb_slave.py -v -m basic
 ```
 
-#### Level 3: Test APB Crossbar Integration
+#### Level 3: Test APB Crossbar
 ```bash
 # Run 2-to-4 crossbar test
-pytest val/integ_amba/test_apb_xbar.py -v -k "2to4"
+pytest projects/components/apb_xbar/dv/tests/test_apb_xbar_2to4.py -v
 ```
 
 #### Level 4: Test Retro Legacy Block Component
 ```bash
 # Run HPET tests from Retro Legacy Blocks collection
-pytest projects/components/retro_legacy_blocks/dv/tests/hpet/ -v
-
-# Run specific test
-pytest projects/components/retro_legacy_blocks/dv/tests/hpet/test_apb_hpet.py -v
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
 ```
 
 ---
@@ -673,7 +674,7 @@ pytest projects/components/retro_legacy_blocks/dv/tests/hpet/test_apb_hpet.py -v
 - [Component Index](docs/markdown/projects/index.md) - All components
 - [Component Overview](docs/markdown/projects/overview.md) - Design patterns
 - [Retro Legacy Blocks](projects/components/retro_legacy_blocks/README.md) - Legacy peripheral collection
-- [HPET Specification](projects/components/retro_legacy_blocks/docs/hpet_spec/hpet_index.md) - Complete HPET guide
+- [HPET Specification](projects/components/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md) - Complete HPET guide
 
 ### External References
 

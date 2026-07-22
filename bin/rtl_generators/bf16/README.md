@@ -207,7 +207,7 @@ Generates BF16 Fused Multiply-Add with FP32 accumulator - the standard approach 
 - **48-bit internal precision**: Captures all significant bits from both operands
 - **Structural adder**: Uses Han-Carlson adder instead of behavioral `+` for timing predictability
 - **Two's complement subtraction**: Invert + carry-in for effective subtraction
-- **Bit reversal for CLZ**: The `count_leading_zeros` module counts trailing zeros, so input is bit-reversed
+- **Direct CLZ connection**: The `count_leading_zeros` module scans from the MSB down, which is what normalization needs, so the sum is connected straight in. (Earlier revisions of that module counted trailing zeros and callers bit-reversed their input to compensate; both have been corrected and the reversal must not be reintroduced. For an LSB-up count, use `count_trailing_zeros`.)
 
 **Special Case Priority (fixed in FMA):**
 1. NaN/Invalid (highest priority)

@@ -27,8 +27,8 @@
 
 ### RTL Source Files
 - `rtl/gpio/apb_gpio.sv` - Main GPIO module
-- `rtl/gpio/apb_gpio_regs.sv` - PeakRDL-generated register file
-- `rtl/gpio/apb_gpio.rdl` - Register description source
+- `rtl/gpio/gpio_regs.sv` - PeakRDL-generated register file
+- `rtl/gpio/peakrdl/gpio_regs.rdl` - Register description source
 
 ### Related Specifications
 - APB Protocol Specification (AMBA 3)

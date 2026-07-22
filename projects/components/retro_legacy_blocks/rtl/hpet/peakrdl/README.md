@@ -30,11 +30,12 @@ This directory contains the PeakRDL register definition and documentation genera
 ```
 peakrdl/
 ├── hpet_regs.rdl           # SystemRDL register definition (source of truth)
-├── generate.py             # Documentation generation script
-├── generated/              # Auto-generated outputs
-│   └── docs/              # Generated documentation (HTML/Markdown)
-└── README.md              # This file
+└── README.md               # This file
 ```
+
+Generation is done with the shared `bin/peakrdl_generate.py` tool (outputs land in a
+local `generated/` directory, which is not checked in; the generated RTL is copied to
+`../hpet_regs.sv` and `../hpet_regs_pkg.sv`).
 
 ## SystemRDL File
 
@@ -69,23 +70,21 @@ The existing RTL implementation (`../hpet_config_regs.sv`) already implements th
 ### 1. Generate RTL and Documentation
 
 ```bash
-cd rtl/amba/components/hpet/peakrdl
-python generate.py
+cd projects/components/retro_legacy_blocks/rtl/hpet/peakrdl
+python ../../../../../../bin/peakrdl_generate.py hpet_regs.rdl --copy-rtl ..
 ```
 
 This creates:
-- **`generated/rtl/hpet_regs.sv/`** - SystemVerilog register block
-  - `hpet_regs.sv` - Main register block module
-  - `hpet_regs_pkg.sv` - Hardware interface package
-- **`generated/docs/hpet_regs.html`** - Interactive HTML documentation
-- **`generated/docs/hpet_regs.md`** - Markdown reference
+- **`../hpet_regs.sv`** - Main register block module (copied next to the other HPET RTL)
+- **`../hpet_regs_pkg.sv`** - Hardware interface package
+- **`generated/docs/`** - HTML/Markdown register documentation (regenerated on demand, not checked in)
 
 ### 2. Use the Wrapper
 
-The `hpet_regs_wrapper.sv` module wraps the PeakRDL-generated register block and provides the cmd/rsp valid/ready interface:
+The `../hpet_config_regs.sv` module wraps the PeakRDL-generated register block and provides the cmd/rsp valid/ready interface:
 
 ```systemverilog
-hpet_regs_wrapper #(
+hpet_config_regs #(
     .VENDOR_ID(1),
     .REVISION_ID(1),
     .NUM_TIMERS(2)

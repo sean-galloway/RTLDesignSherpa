@@ -6,7 +6,7 @@
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 # Header files with macros (MUST be compiled first)
-$REPO_ROOT/rtl/amba/includes/reset_defs.svh
+-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
 
 # PeakRDL to CMD/RSP adapter
 $CONVERTERS_ROOT/rtl/peakrdl_to_cmdrsp.sv

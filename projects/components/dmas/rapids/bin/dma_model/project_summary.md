@@ -582,8 +582,8 @@ pip install matplotlib seaborn
 ## For More Information
 
 - **Design Details:** See `docs/design_specification.md`
-- **Analytical Model:** See `pyperf/performance.py`
-- **SimPy Model:** See `simpy_model/current_design.py`
+- **Analytical Model:** See `bin/pyperf/performance.py`
+- **SimPy Model:** See `bin/simpy_model/current_design.py`
 - **Quick Reference:** See `README.md`
 
 ---

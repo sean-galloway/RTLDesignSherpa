@@ -26,6 +26,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 class AxiGenAddrConfig:
@@ -613,9 +614,9 @@ def test_axi_gen_addr(request, params):
     dut_name = "axi_gen_addr"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba_shared'], f"{dut_name}.sv")
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axi_gen_addr.f")
 
     # Create a human-readable test identifier
     t_aw = params['AW']
@@ -638,7 +639,7 @@ def test_axi_gen_addr(request, params):
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
+    includes=includes
 
     # RTL parameters
     parameters = {}

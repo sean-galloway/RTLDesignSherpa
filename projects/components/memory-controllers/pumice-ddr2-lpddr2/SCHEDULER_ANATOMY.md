@@ -1,7 +1,15 @@
 # pumice scheduler + per-bank safe-timer anatomy
 
+> Status (2026-07-22): historical. The FSM scheduler and `xbank_timers` this
+> anatomy describes were retired by the rearchitecture; the redesign it was
+> written for landed as `rtl/macro/pumice_mem_cmd_scheduler.sv` (arbiter +
+> `rtl/fub/pumice_bank_timers.sv` open-page bank timers) — see
+> `rtl/PUMICE_MEM_CMD_SCHEDULER_UARCH.md` for the current design. Kept as
+> background on the timer/CAM contracts.
+
 Reference for redesigning the command-issue path (issue-per-clock). Everything
-below is the *current* RTL (`rtl/fub/scheduler.sv`, `rtl/fub/xbank_timers.sv`),
+below is the RTL *as it stood at the time* (the since-removed
+`rtl/fub/scheduler.sv`, `rtl/fub/xbank_timers.sv`),
 with the disconnects called out at the end.
 
 ---

@@ -88,6 +88,7 @@ class PumiceMemCmdSchedulerTB(TBBase):
         self.dut.t_rtw_i.value = 2
         self.dut.t_ccd_i.value = 2
         self.dut.t_refi_i.value = 0x0800
+        self.dut.t_rfc_i.value = 8       # mission-mode REF recovery (arbiter)
         self.dut.refresh_burst_i.value = 1
         self.dut.t_init_wait_i.value = 0
         self.dut.t_dll_wait_i.value = 0

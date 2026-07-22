@@ -113,7 +113,7 @@ observer adds **no new combinational depth** in the AXI path.
 | `axi4_master_rd_mon` × `NUM_RD_PORTS` | Read-side tap: pass-through skid + transaction monitor that emits a monbus packet on each event |
 | `axi4_master_wr_mon` × `NUM_WR_PORTS` | Write-side tap (same pattern) |
 | `monbus_arbiter` (CLIENTS = NUM_RD + NUM_WR) | Merges the per-port monbus streams into one |
-| `monbus_axil_axi4_group` | Central filter + err FIFO (AXIL slave-read) + bulk-trace dump (AXI4 burst master-write) — see [`monbus_group.md`](monbus_group.md) |
+| `monbus_axil_axi4_group` | Central filter + err FIFO (AXIL slave-read) + bulk-trace dump (AXI4 burst master-write) — see [`monbus_group.md`](../monitor/monbus_group.md) |
 | `axi_bus_meter` × `NUM_RD_PORTS + NUM_WR_PORTS` | Per-cycle valid/ready bucket counters (productive / backpressure / starvation / idle) — gated by `ENABLE_BUS_METER` |
 | `axi_perf_latency_hist` × `NUM_RD_PORTS + NUM_WR_PORTS` | Per-transaction latency histograms (read: AR→first-R + AR→RLAST; write: AW→B) into `HIST_NUM_BINS` log2 bins — gated by `ENABLE_LATENCY_HIST` (RFC Stage E.3) |
 
@@ -163,7 +163,7 @@ The observer's port list splits into four groups:
 3. **Observer outputs** (`s_axil_*` for the IRQ-drain port, `m_axi_*`
    for the bulk-dump port, `irq_out`).
 4. **Configuration** (address window, flush watermark, per-protocol
-   filter masks — see [`monbus_group.md`](monbus_group.md) for the full
+   filter masks — see [`monbus_group.md`](../monitor/monbus_group.md) for the full
    filter description).
 5. **Bus-meter controls and outputs** (clear/freeze inputs, rid →
    channel map, per-port bucket counter outputs).
@@ -285,9 +285,9 @@ Multi-port and protocol-variant coverage is future work.
 
 | Module | Role |
 |---|---|
-| [`axi_monitor_base`](axi_monitor_base.md) | Per-transaction monitor used inside each `axi4_master_*_mon` tap |
-| [`axi_monitor_reporter`](axi_monitor_reporter.md) | The dispatcher + 6 packet-type sub-blocks that emit monbus packets |
-| [`monbus_arbiter`](monbus_arbiter.md) | Merges per-tap monbus streams |
-| [`monbus_group` family](monbus_group.md) | Central filter + dump writer (this observer uses the AXIL/AXI4 variant) |
-| [`monbus_compressor`](monbus_compressor.md) | Bulk-trace encoder (instantiated when `USE_COMPRESSION=1`) |
+| [`axi_monitor_base`](../monitor/axi_monitor_base.md) | Per-transaction monitor used inside each `axi4_master_*_mon` tap |
+| [`axi_monitor_reporter`](../monitor/axi_monitor_reporter.md) | The dispatcher + 6 packet-type sub-blocks that emit monbus packets |
+| [`monbus_arbiter`](../monitor/monbus_arbiter.md) | Merges per-tap monbus streams |
+| [`monbus_group` family](../monitor/monbus_group.md) | Central filter + dump writer (this observer uses the AXIL/AXI4 variant) |
+| [`monbus_compressor`](../monitor/monbus_compressor.md) | Bulk-trace encoder (instantiated when `USE_COMPRESSION=1`) |
 | `axi4_master_rd_mon` / `axi4_master_wr_mon` | The per-port skid + monitor wrappers the observer instantiates |

@@ -22,25 +22,25 @@
 -f $REPO_ROOT/projects/components/dmas/rapids/rtl/filelists/top_beats/rapids_beats_top.f
 
 # ---- CRC + LFSR leaves (not pulled by the DUT filelist) ----
-$REPO_ROOT/rtl/common/dataint_crc_xor_shift.sv
-$REPO_ROOT/rtl/common/dataint_crc_xor_shift_cascade.sv
-$REPO_ROOT/rtl/common/dataint_crc.sv
-$REPO_ROOT/rtl/common/shifter_lfsr_fibonacci.sv
+-f $REPO_ROOT/rtl/common/filelists/dataint_crc_xor_shift.f
+-f $REPO_ROOT/rtl/common/filelists/dataint_crc_xor_shift_cascade.f
+-f $REPO_ROOT/rtl/common/filelists/dataint_crc.f
+-f $REPO_ROOT/rtl/common/filelists/shifter_lfsr_fibonacci.f
 
 # ---- AXI4 skid leaves + SDPRAM/addr-gen core (deps of the memory/pattern blocks) ----
-$REPO_ROOT/rtl/amba/axi4/axi4_slave_rd.sv
-$REPO_ROOT/rtl/amba/axi4/axi4_slave_wr.sv
-$REPO_ROOT/rtl/amba/shared/axi_gen_addr.sv
-$REPO_ROOT/rtl/amba/shared/sdpram_core.sv
+-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr.f
+-f $REPO_ROOT/rtl/amba/filelists/axi_gen_addr.f
+-f $REPO_ROOT/rtl/amba/filelists/sdpram_core.f
 
 # ---- On-chip pattern generators / checkers + memories ----
-$REPO_ROOT/rtl/amba/shared/axi4_slave_rd_pattern_gen.sv
-$REPO_ROOT/rtl/amba/shared/axi4_slave_wr_crc_check.sv
-$REPO_ROOT/rtl/amba/shared/axi_bus_meter.sv
-$REPO_ROOT/rtl/amba/shared/axis_bus_meter.sv
-$REPO_ROOT/rtl/amba/shared/axis4_master_pattern_gen.sv
-$REPO_ROOT/rtl/amba/shared/axis4_slave_pattern_check.sv
-$REPO_ROOT/rtl/amba/shared/sdpram_slave_axi4_axi4.sv
+-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd_pattern_gen.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr_crc_check.f
+-f $REPO_ROOT/rtl/amba/filelists/axi_bus_meter.f
+-f $REPO_ROOT/rtl/amba/filelists/axis_bus_meter.f
+-f $REPO_ROOT/rtl/amba/filelists/axis4_master_pattern_gen.f
+-f $REPO_ROOT/rtl/amba/filelists/axis4_slave_pattern_check.f
+-f $REPO_ROOT/rtl/amba/filelists/sdpram_slave_axi4_axi4.f
 
 # ---- Harness top ----
 $REPO_ROOT/projects/NexysA7/rapids_characterization/flows-rapids-beats/rtl/rapids_char_harness.sv

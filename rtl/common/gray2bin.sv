@@ -370,7 +370,7 @@
 //
 //   **Advanced: Asymmetric Gray Codes:**
 //   - Standard Gray code (used here) is symmetric
-//   - Johnson codes (see grayj2bin.sv) are asymmetric variants
+//   - Johnson codes (see johnson2bin.sv) are asymmetric variants
 //   - For most CDC: Use standard Gray code (this module)
 //   - For rotary encoders: Johnson code may be better
 //

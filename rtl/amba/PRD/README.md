@@ -77,7 +77,7 @@ Each task file should follow this template:
 ### 1. **ALWAYS Prefer Local Code Reuse**
 
 Before creating any new RTL:
-1. ✅ Search `rtl/common/`, `rtl/amba/`, `rtl/gaxi/` for existing implementations
+1. ✅ Search `rtl/common/`, `rtl/amba/`, `rtl/amba/gaxi/` for existing implementations
 2. ✅ Check if similar functionality exists in related modules
 3. ✅ Adapt/extend existing code rather than creating from scratch
 4. ✅ Document which modules were considered and why chosen approach was selected
@@ -113,6 +113,11 @@ Before creating any new RTL:
 - Update KNOWN_ISSUES if new limitations discovered
 
 ## Current Task Priorities
+
+> Status (2026-07-22): superseded -- the `TASKS/` subdirectory referenced below was
+> never populated. Task tracking lives in `rtl/amba/PRD/TASKS.md` and the `TASK-0xx-*.md`
+> files in this directory. FIX-001 (event_reported feedback) was fixed 2025-09-30.
+> The list below is kept for history.
 
 ### P0 (Critical) - Immediate Action Required
 
@@ -240,13 +245,13 @@ grep -r "MAX_TRANSACTIONS" rtl/amba/
 ### Verify Compilation
 ```bash
 # Run specific test
-python val/amba/test_module.py
+pytest val/amba/test_axi4_monitor.py -v
 
 # Run test suite
 pytest val/amba/
 
 # Check Verilator compilation
-verilator --lint-only rtl/amba/module.sv
+verilator --lint-only rtl/amba/monitor/axi_monitor_base.sv
 ```
 
 ### Documentation Checks
@@ -267,6 +272,5 @@ For task-specific questions or clarifications, document them in the task file un
 
 ## Task History
 
-Completed tasks are moved to `TASKS/COMPLETED/` with completion date in filename for future reference.
-
-Example: `COMPLETED/2025-09-30_FIX-001-event-reported-feedback.md`
+Completed tasks are recorded in `rtl/amba/PRD/TASKS.md` with their completion dates.
+(The originally planned `TASKS/COMPLETED/` directory convention was never adopted.)

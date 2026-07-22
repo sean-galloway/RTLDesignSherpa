@@ -106,8 +106,8 @@ The FIFO payloads pack the command (`CMD_DW`), `{last,strb,data}` for writes
 | `memtype_i`     | enum  | DDR2 / LPDDR2 selector for the command path              |
 | `rd_phase_i`    | PHW   | DFI sub-phase carrying the READ command (see §2.14)      |
 | `wr_phase_i`    | PHW   | DFI sub-phase carrying the WRITE command                 |
-| `t_phy_wrlat_i` | 8     | PHY write latency — when the serializer launches wrdata  |
-| `t_rddata_en_i` | 8     | When the aligner strobes `dfi_rddata_en` / captures data |
+| `t_phy_wrlat_i` | [7:0] | PHY write latency — when the serializer launches wrdata (CSR reset 0; Nexys A7 tuple programs 1) |
+| `t_rddata_en_i` | [7:0] | When the aligner strobes `dfi_rddata_en` (valid = en + PHY read_latency); board tuple 6 |
 
 These are the PHY-integration knobs surfaced through the CSR (`DFI_PHASE`,
 `DFI_TIMING`); they carry the PHY-specific latencies rather than baking them into

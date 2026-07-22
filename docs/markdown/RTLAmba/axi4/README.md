@@ -37,7 +37,7 @@ The AXI4 subsystem provides a complete implementation of the ARM AMBA AXI4 proto
 
 - ✅ **Full AXI4 Protocol Support:** Complete implementation of read and write channels
 - ✅ **Burst Transactions:** Support for fixed, incrementing, and wrapping bursts
-- ✅ **Out-of-Order Support:** ID-based transaction tracking and completion
+- ✅ **Out-of-Order Transparent:** `AxID`/`RID`/`BID` are carried end-to-end, so out-of-order slaves are supported; the buffer modules themselves are ID-agnostic pass-throughs and do not reorder or track transactions
 - ✅ **Quality of Service (QoS):** Priority-based arbitration support
 - ✅ **Monitoring Infrastructure:** Comprehensive verification and debug capabilities
 - ✅ **Data Width Conversion:** Automatic upsizing and downsizing
@@ -60,18 +60,20 @@ The AXI4 subsystem provides a complete implementation of the ARM AMBA AXI4 proto
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **axi4_master_rd_mon** | Read master with integrated monitoring | [axi4_master_rd_mon.md](axi4_master_rd_mon.md) | ✅ Documented |
-| **axi4_master_wr_mon** | Write master with integrated monitoring | [axi4_master_wr_mon.md](axi4_master_wr_mon.md) | ✅ Documented |
-| **axi4_slave_rd_mon** | Read slave with integrated monitoring | [axi4_slave_rd_mon.md](axi4_slave_rd_mon.md) | ✅ Documented |
-| **axi4_slave_wr_mon** | Write slave with integrated monitoring | [axi4_slave_wr_mon.md](axi4_slave_wr_mon.md) | ✅ Documented |
+| **axi4_master_rd_mon** | Read master with integrated monitoring | [axi4_master_rd_mon.md](../monitor/axi4_master_rd_mon.md) | ✅ Documented |
+| **axi4_master_wr_mon** | Write master with integrated monitoring | [axi4_master_wr_mon.md](../monitor/axi4_master_wr_mon.md) | ✅ Documented |
+| **axi4_slave_rd_mon** | Read slave with integrated monitoring | [axi4_slave_rd_mon.md](../monitor/axi4_slave_rd_mon.md) | ✅ Documented |
+| **axi4_slave_wr_mon** | Write slave with integrated monitoring | [axi4_slave_wr_mon.md](../monitor/axi4_slave_wr_mon.md) | ✅ Documented |
 
 ### Data Width Converters
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **axi4_dwidth_converter** | Bidirectional data width conversion | [axi4_dwidth_converter.md](axi4_dwidth_converter.md) | ✅ Documented |
+| **axi4_dwidth_converter** | Bidirectional data width conversion | [axi4_dwidth_converter.md](axi4_dwidth_converter.md) | Planned - no RTL |
 | **axi4_dwidth_converter_rd** | Read-only data width conversion | [axi4_dwidth_converter_rd.md](axi4_dwidth_converter_rd.md) | ✅ Documented |
 | **axi4_dwidth_converter_wr** | Write-only data width conversion | [axi4_dwidth_converter_wr.md](axi4_dwidth_converter_wr.md) | ✅ Documented |
+
+The converters live in `projects/components/converters/rtl/`, not `rtl/amba/axi4/`.
 
 ### Clock-Gated Variants
 
@@ -83,10 +85,10 @@ The AXI4 subsystem provides a complete implementation of the ARM AMBA AXI4 proto
 | **axi4_master_wr_cg** | [axi4_master_wr](axi4_master_wr.md) | ✅ Documented |
 | **axi4_slave_rd_cg** | [axi4_slave_rd](axi4_slave_rd.md) | ✅ Documented |
 | **axi4_slave_wr_cg** | [axi4_slave_wr](axi4_slave_wr.md) | ✅ Documented |
-| **axi4_master_rd_mon_cg** | [axi4_master_rd_mon](axi4_master_rd_mon.md) | ✅ Documented |
-| **axi4_master_wr_mon_cg** | [axi4_master_wr_mon](axi4_master_wr_mon.md) | ✅ Documented |
-| **axi4_slave_rd_mon_cg** | [axi4_slave_rd_mon](axi4_slave_rd_mon.md) | ✅ Documented |
-| **axi4_slave_wr_mon_cg** | [axi4_slave_wr_mon](axi4_slave_wr_mon.md) | ✅ Documented |
+| **axi4_master_rd_mon_cg** | [axi4_master_rd_mon](../monitor/axi4_master_rd_mon.md) | ✅ Documented |
+| **axi4_master_wr_mon_cg** | [axi4_master_wr_mon](../monitor/axi4_master_wr_mon.md) | ✅ Documented |
+| **axi4_slave_rd_mon_cg** | [axi4_slave_rd_mon](../monitor/axi4_slave_rd_mon.md) | ✅ Documented |
+| **axi4_slave_wr_mon_cg** | [axi4_slave_wr_mon](../monitor/axi4_slave_wr_mon.md) | ✅ Documented |
 
 ---
 
@@ -118,11 +120,20 @@ AXI4 uses five independent channels for read and write transactions:
 - `ARQOS/AWQOS` - Quality of Service
 
 **Data Channels (R/W):**
-- `RID/WID` - Transaction ID (RID only in AXI4)
+- `RID` - Read data transaction ID
 - `RDATA/WDATA` - Transfer data
 - `RRESP/BRESP` - Response (OKAY, EXOKAY, SLVERR, DECERR)
 - `RLAST/WLAST` - Last transfer in burst
 - `WSTRB` - Write strobes (byte lane enables)
+
+**AXI4 vs AXI3 note:** AXI4 removed `WID`. Write data beats are matched to their
+address by ordering alone, so write bursts from a single master cannot be
+interleaved. None of the modules here implement or expect `WID`.
+
+**Exclusive access:** `EXOKAY` appears in the `RRESP`/`BRESP` encodings because it
+is part of the AXI4 protocol, but no module in this subsystem implements an
+exclusive monitor. `AxLOCK` and any `EXOKAY` response are carried through
+untouched; exclusive-access semantics must be provided by the endpoint slave.
 
 ---
 
@@ -269,6 +280,8 @@ Monitor modules combine functional core with verification:
 - Non-invasive monitoring (tap signals)
 - 3-level filtering hierarchy
 - 128-bit standardized monitor bus + 64-bit side-band timestamp
+  (`monitor_common_pkg::monitor_packet_t` / `monbus_timestamp_t`; field layout is
+  documented in the [monitor bus group reference](../monitor/monbus_group.md))
 - Real-time error detection
 
 ### Pattern 3: Clock Gating
@@ -322,7 +335,7 @@ Clock-gated variants (`*_cg`) add power management:
 - **[GAXI Modules](../gaxi/README.md)** - Generic AXI utilities (buffers, FIFOs)
 
 ### Configuration and Integration
-- **[AXI Monitor Configuration Guide](../shared/axi_monitor_base.md)** - Monitor setup strategies
+- **[AXI Monitor Configuration Guide](../monitor/axi_monitor_base.md)** - Monitor setup strategies
 - **[Monitor Packet Specification](../includes/monitor_package_spec.md)** - 64-bit packet format
 
 ### Source Code
@@ -344,17 +357,24 @@ Choose ID width based on system requirements:
 
 ### Buffer Depth Guidelines
 
+`SKID_DEPTH_*` is an entry count, not a log2 exponent: `SKID_DEPTH_AR = 2`
+gives a 2-entry buffer, not 4. The underlying `gaxi_skid_buffer` allocates one
+register slot per entry and tracks occupancy with a 4-bit counter, so legal
+values are 2, 4, 6, and 8. Values greater than 8 overflow the occupancy counter
+and are not supported; place a `gaxi_fifo_sync` stage ahead of the module when
+deeper elasticity is required.
+
 **Address Channels (AR/AW):**
-- Default: 2 (4 entries) - sufficient for most cases
+- Default: 2 entries - sufficient for most cases
 - Increase for high-latency address decode or frequent backpressure
 
 **Data Channels (R/W):**
-- Default: 4 (16 entries) - accommodates moderate bursts
+- Default: 4 entries - accommodates moderate bursts
 - Increase for large bursts (AWLEN/ARLEN > 8)
-- Deep buffers for variable latency backends
+- Use 8 entries for variable latency backends
 
 **Response Channel (B):**
-- Default: 2 (4 entries) - responses are single-beat
+- Default: 2 entries - responses are single-beat
 - Increase for many concurrent outstanding writes
 
 ### Burst Optimization

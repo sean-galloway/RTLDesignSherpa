@@ -36,8 +36,7 @@ The SRAM control module is implemented with a simplified architecture that only 
 
 ### Location
 
-**File**: `projects/components/dmas/rapids/rtl/rapids_fub/sink_sram_control.sv`
-**Line**: 685
+**File**: `projects/components/dmas/rapids/rtl/macro_beats/snk_sram_controller_beats.sv` (issue was filed against the retired pre-beats sink_sram_control.sv line 685; re-verify against the beats controller)
 
 ### Current Code (Limitation)
 ```systemverilog

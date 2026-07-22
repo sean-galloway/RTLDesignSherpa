@@ -28,6 +28,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.axil4.monitor.axil4_master_monitor_tb import AXIL4MasterMonitorTB
 from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 @cocotb.test(timeout_time=30, timeout_unit="sec")
@@ -93,6 +94,7 @@ def test_axil4_master_wr_mon(test_level):
         'rtl_includes': 'rtl/amba/includes',
         'rtl_common': 'rtl/common',
         'rtl_shared': 'rtl/amba/shared',
+        'rtl_monitor': 'rtl/amba/monitor',
      'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "axil4_master_wr_mon"
@@ -106,35 +108,9 @@ def test_axil4_master_wr_mon(test_level):
     os.makedirs(log_dir, exist_ok=True)
 
     # Verilog sources
-    verilog_sources = [
-        # Monitor packages (must be compiled in order)
-        os.path.join(rtl_dict['rtl_includes'], "monitor_common_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_amba4_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_amba5_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_arbiter_pkg.sv"),
-        os.path.join(rtl_dict['rtl_includes'], "monitor_pkg.sv"),
-        os.path.join(rtl_dict['rtl_common'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_common'], "counter_load_clear.sv"),
-        os.path.join(rtl_dict['rtl_common'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_common'], "counter_freq_invariant.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_axil4'], "axil4_master_wr.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "monitor_trans_cam.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_trans_mgr.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_timer.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_timeout.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_error.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_timeout.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_compl.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_threshold.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_perf.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_debug.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_base.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_filtered.sv"),
-        os.path.join(rtl_dict['rtl_axil4'], f"{dut_name}.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axil4_master_wr_mon.f")
 
     # Check files exist
     for src in verilog_sources:
@@ -158,6 +134,15 @@ def test_axil4_master_wr_mon(test_level):
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'TEST_LEVEL': test_level,
+        # Pin the cocotb seed. Unpinned, cocotb self-seeds from the clock and
+        # the AXIL4 monitor TBs' fixed 20-cycle packet wait intermittently
+        # races the MonbusSlave's randomized ready delay (which reaches 30
+        # cycles) -- the same ~12% zero-packet race the AXI4 monitor TB
+        # documents and fixed with a bounded poll. The real fix is porting
+        # that poll to bin/TBClasses/axil4/monitor/* (framework repo); until
+        # then the suite must at least be deterministic.
+        'RANDOM_SEED': '12345',
+        'COCOTB_RANDOM_SEED': '12345',
     }
 
     compile_args = ["--trace-fst",
@@ -185,7 +170,7 @@ def test_axil4_master_wr_mon(test_level):
         timescale='1ns/1ps',
         verilator_trace=False,
         compile_args=compile_args,
-        includes=[rtl_dict['rtl_amba_includes']]
+        includes=includes
     )
 
 

@@ -26,6 +26,12 @@
 **Date:** 2025-10-18
 **Status:** [PASS] All Tests Pass
 
+> Status (2026-07-22): historical - the tree-topology delta generation described here
+> (delta_split_*, delta_merge_*, delta_fanout_*, delta_fanin_* modules) was retired;
+> delta now generates flat AXIS crossbars only (`rtl/delta_axis_flat_4x16.sv`, plus
+> test configurations in `rtl_test/delta_axis_flat_*.sv`) via `bin/delta_generator.py`.
+> The rtl/ paths below no longer exist. Kept for reference.
+
 ---
 
 ## Answer to Your Question

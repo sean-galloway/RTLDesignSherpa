@@ -24,8 +24,24 @@
 # AXI4 Data Width Converter (Bidirectional)
 
 **Module:** `axi4_dwidth_converter.sv`
-**Location:** `rtl/amba/axi4/`
-**Status:** ✅ Production Ready
+**Location:** Not implemented
+**Status:** Planned - no RTL in this repository
+
+---
+
+> **Implementation status:** There is no `axi4_dwidth_converter.sv` in the
+> repository. This page describes a planned bidirectional converter and its
+> intended parameterization (`AW_FIFO_DEPTH`, `W_FIFO_DEPTH`, `B_FIFO_DEPTH`,
+> `AR_FIFO_DEPTH`, `R_FIFO_DEPTH`); none of those parameters exist in RTL today.
+> The shipping converters are the read-only and write-only variants in
+> `projects/components/converters/rtl/`, which use `SKID_DEPTH_*` skid buffers
+> rather than channel FIFOs:
+>
+> - [axi4_dwidth_converter_rd](axi4_dwidth_converter_rd.md)
+> - [axi4_dwidth_converter_wr](axi4_dwidth_converter_wr.md)
+>
+> Instantiate a `_rd` and a `_wr` converter side by side to obtain
+> full-duplex width conversion.
 
 ---
 

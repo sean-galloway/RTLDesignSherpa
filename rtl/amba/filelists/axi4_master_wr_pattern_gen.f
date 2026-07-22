@@ -5,12 +5,12 @@
 
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
-$REPO_ROOT/rtl/common/dataint_crc_xor_shift.sv
-$REPO_ROOT/rtl/common/dataint_crc_xor_shift_cascade.sv
-$REPO_ROOT/rtl/common/dataint_crc.sv
-$REPO_ROOT/rtl/common/shifter_lfsr_fibonacci.sv
+-f $REPO_ROOT/rtl/common/filelists/counter_bin.f
+-f $REPO_ROOT/rtl/common/filelists/fifo_control.f
+-f $REPO_ROOT/rtl/common/filelists/dataint_crc_xor_shift.f
+-f $REPO_ROOT/rtl/common/filelists/dataint_crc_xor_shift_cascade.f
+-f $REPO_ROOT/rtl/common/filelists/dataint_crc.f
+-f $REPO_ROOT/rtl/common/filelists/shifter_lfsr_fibonacci.f
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_master_wr.sv

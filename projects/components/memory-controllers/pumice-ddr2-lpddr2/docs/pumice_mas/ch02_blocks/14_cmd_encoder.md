@@ -146,7 +146,7 @@ all-deselected NOP. The A10 auto-precharge bit is set by OR-ing `1 << 10` into
 the address for RDA/WRA, and doubles as the all-bank flag for PREA.
 
 **MRS carries data on the ROW field, not the column.** The RTL comment is
-explicit: MR0 = 0x532 needs bit 10 (tWR[1]), which a `COL_WIDTH` (10-bit) field
+explicit: MR0 = 0x533 needs bit 10 (tWR[1]), which a `COL_WIDTH` (10-bit) field
 would truncate — so the formatter reads MR data from `cmd_row_i` (ROW_WIDTH) and
 the MR index from `cmd_bank_i`. This matches `init_sequencer`, which drives MR
 data on `init_cmd_row_o`.
@@ -275,7 +275,7 @@ formatter is not the controller's critical path; that is the arbiter upstream.
 | DDR2 ACT bank 3 row 0x1234 → `{ras,cas,we}={0,1,1}`, address=0x1234, bank=3       | DDR2 ACT truth-table row                |
 | DDR2 RDA bank 3 col 0x40 → `{ras,cas,we}={1,0,1}`, address bit 10 set             | DDR2 auto-precharge via A10             |
 | DDR2 PREA → `{ras,cas,we}={0,1,0}`, address bit 10 set                            | DDR2 all-bank precharge via A10         |
-| DDR2 MRS MR0=0x532 → MR data on address (bit 10 present, not truncated)           | MRS data on ROW field                   |
+| DDR2 MRS MR0=0x533 → MR data on address (bit 10 present, not truncated)           | MRS data on ROW field                   |
 | LPDDR2 ACT bank 3 row 0x1234 → `w_lpddr2_ca` bit-exact vs `lpddr_ca.py` decode    | LPDDR2 ACT CA packing                   |
 | LPDDR2 WRA bank 3 col 0x40 → AP bit (CA0f) set                                     | LPDDR2 auto-precharge via CA            |
 | LPDDR2 REFpb (CA2r=1, CA3r=0) vs REFab (CA2r=1, CA3r=1)                            | LPDDR2 refresh CA decode                |

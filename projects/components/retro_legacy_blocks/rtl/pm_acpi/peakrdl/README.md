@@ -31,7 +31,7 @@ To generate the SystemVerilog register files from the RDL specification:
 
 ```bash
 cd projects/components/retro_legacy_blocks/rtl/pm_acpi/peakrdl
-python ../../../../../../../bin/peakrdl_generate.py pm_acpi_regs.rdl
+python ../../../../../../bin/peakrdl_generate.py pm_acpi_regs.rdl
 ```
 
 This will generate:

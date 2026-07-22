@@ -31,11 +31,13 @@
 
 ## Overview
 
-The AXI5 Master Write module implements a complete AMBA AXI5 master write interface with full AXI5 protocol support including atomic operations and all new AXI5 extensions. It provides SKID buffering for AW, W, and B channels for improved system performance.
+The AXI5 Master Write module is the master-side AW/W/B channel transport block. It carries a full AXI5 write signal set, including `AWATOP` and the other AXI5 sideband extensions, between a FUB (Functional Unit Block) interface and an external AXI5 master interface, with a configurable SKID buffer on each of the AW, W, and B channels.
+
+**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. `AWATOP` is carried through unmodified but no atomic read-modify-write is performed, no MTE tag checking or `BTAGMATCH` generation is performed, and no outstanding-transaction tracking is done. Those behaviors belong to the endpoints on either side. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
 
 ### Key Features
 
-- Full AMBA AXI5 protocol compliance
+- Carries the full AXI5 signal set listed below, unmodified, across the SKID buffers
 - **AWATOP:** Atomic transaction operation type (Compare/Swap, Fetch/Add, etc.)
 - **AWNSAID:** Non-secure access identifier for security domains
 - **AWTRACE:** Trace signal for debug and performance monitoring
@@ -51,7 +53,7 @@ The AXI5 Master Write module implements a complete AMBA AXI5 master write interf
 - **BTAG/BTAGMATCH:** Response memory tags and tag match
 - Configurable SKID buffer depths for AW, W, and B channels
 - Busy signal for power management and clock gating
-- Removed AWREGION (deprecated in AXI5)
+- AWREGION not implemented (see *Design Notes*)
 
 ---
 
@@ -128,6 +130,19 @@ flowchart LR
 | ENABLE_UNIQUE | bit | 1 | Enable unique ID indicator |
 | ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
 | ENABLE_POISON | bit | 1 | Enable poison indicator |
+
+### Derived Parameters
+
+These are computed inside the module from the parameters above. Do not override them.
+
+| Parameter | Expression | Description |
+|-----------|------------|-------------|
+| SW | AXI_WSTRB_WIDTH | Write strobe width, one bit per data byte |
+| NUM_TAGS | max(AXI_DATA_WIDTH / 128, 1) | MTE tags carried per beat (one tag per 16 bytes) |
+| TW | AXI_TAG_WIDTH * NUM_TAGS | Total width of the `awtag` / `wtag` / `btag` fields |
+| AWSize | Sum of the enabled AW fields | AW SKID buffer payload width |
+| WSize | Sum of the enabled W fields | W SKID buffer payload width |
+| BSize | Sum of the enabled B fields | B SKID buffer payload width |
 
 ---
 
@@ -246,29 +261,51 @@ Same port list as FUB interface but with `m_axi_*` prefix and reversed direction
 - **WPOISON:** Indicates corrupted or test data
 - **BTRACE/BTAG/BTAGMATCH:** Response with trace and tag information
 
-**Deprecated:**
-- **AWREGION:** Removed (not recommended for new designs)
+**Not implemented:**
+- **AWREGION:** No port on this module. AxREGION is not deprecated by AXI5; it remains a valid optional signal and is simply omitted here. Decode or route by address instead, or use `axi4_master_wr`
 
-### Atomic Operations
+### Atomic Transactions
 
-AWATOP encoding (6 bits):
-```
-[5:4] - Atomic type:
-  00 = None
-  01 = Swap
-  10 = Compare
-  11 = Fetch-op
+`AWATOP` is 6 bits wide (`AXI_ATOP_WIDTH = 6`). The module transports it unmodified; it does not perform the atomic operation. Executing the read-modify-write and returning the original data on the R channel is the downstream endpoint's responsibility.
 
-[3:0] - Operation (when Fetch-op):
-  0000 = ADD
-  0001 = CLR (AND-NOT)
-  0010 = EOR (XOR)
-  0011 = SET (OR)
-  0100 = SMAX
-  0101 = SMIN
-  0110 = UMAX
-  0111 = UMIN
-```
+**AWATOP[5:4] - transaction class:**
+
+| AWATOP[5:4] | Class | Description |
+|-------------|-------|-------------|
+| 2'b00 | NonAtomic | Ordinary write; AWATOP[3:0] must be zero |
+| 2'b01 | AtomicStore | Operation applied at the endpoint; no read data returned |
+| 2'b10 | AtomicLoad | Operation applied at the endpoint; original data returned on R |
+| 2'b11 | AtomicSwap / AtomicCompare | Selected by AWATOP[3:0] (see below) |
+
+**AWATOP[3] - endianness (AtomicStore and AtomicLoad only):**
+
+| AWATOP[3] | Meaning |
+|-----------|---------|
+| 1'b0 | Little-endian operand |
+| 1'b1 | Big-endian operand |
+
+**AWATOP[2:0] - arithmetic/logical opcode (AtomicStore and AtomicLoad only):**
+
+| AWATOP[2:0] | Operation |
+|-------------|-----------|
+| 3'b000 | ADD |
+| 3'b001 | CLR (AND NOT) |
+| 3'b010 | EOR (XOR) |
+| 3'b011 | SET (OR) |
+| 3'b100 | SMAX (signed maximum) |
+| 3'b101 | SMIN (signed minimum) |
+| 3'b110 | UMAX (unsigned maximum) |
+| 3'b111 | UMIN (unsigned minimum) |
+
+**Full-field encodings when AWATOP[5:4] is 2'b11:**
+
+| AWATOP | Transaction |
+|--------|-------------|
+| 6'b110000 | AtomicSwap |
+| 6'b110001 | AtomicCompare |
+| All other 2'b11 values | Reserved |
+
+Set `ENABLE_ATOMIC = 0` to drop `AWATOP` from the AW SKID payload when atomics are not used.
 
 ---
 
@@ -277,41 +314,44 @@ AWATOP encoding (6 bits):
 ### Basic Write Transaction
 
 <!-- TODO: Add wavedrom timing diagram for AXI5 write transaction -->
-```
-TODO: Wavedrom timing diagram showing:
-- ACLK
-- AWID, AWADDR, AWLEN, AWSIZE
-- AWVALID, AWREADY
-- AWATOP, AWNSAID, AWTRACE (AXI5 extensions)
-- WDATA, WSTRB, WLAST
-- WVALID, WREADY
-- WPOISON, WTAG (AXI5 extensions)
-- BID, BRESP
-- BVALID, BREADY
-- BTRACE, BTAG (AXI5 extensions)
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - ACLK
+> - AWID, AWADDR, AWLEN, AWSIZE
+> - AWVALID, AWREADY
+> - AWATOP, AWNSAID, AWTRACE (AXI5 extensions)
+> - WDATA, WSTRB, WLAST
+> - WVALID, WREADY
+> - WPOISON, WTAG (AXI5 extensions)
+> - BID, BRESP
+> - BVALID, BREADY
+> - BTRACE, BTAG (AXI5 extensions)
+
 
 ### Atomic Operation
 
 <!-- TODO: Add wavedrom timing diagram for atomic operation -->
-```
-TODO: Wavedrom timing diagram showing:
-- AWATOP encoding for atomic operation
-- Write data for atomic operand
-- Response with atomic result
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - AWATOP encoding for atomic operation
+> - Write data for atomic operand
+> - Response with atomic result
+
 
 ### Memory Tagging Extension (MTE)
 
 <!-- TODO: Add wavedrom timing diagram for MTE write -->
-```
-TODO: Wavedrom timing diagram showing:
-- AWTAGOP encoding
-- AWTAG delivery with address
-- WTAG delivery with data
-- WTAGUPDATE mask
-- BTAGMATCH response
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - AWTAGOP encoding
+> - AWTAG delivery with address
+> - WTAG delivery with data
+> - WTAGUPDATE mask
+> - BTAGMATCH response
+
 
 ---
 
@@ -391,7 +431,8 @@ axi5_master_wr #(
     // Master interface (output side)
     .m_axi_awid         (m_axi_awid),
     .m_axi_awaddr       (m_axi_awaddr),
-    // ... (connect all master signals similarly)
+    // Every remaining m_axi_* port mirrors the fub_axi_* list above,
+    // same names and widths, opposite directions. All must be connected.
 
     // Status
     .busy               (master_wr_busy)
@@ -451,8 +492,8 @@ Disable unused features to reduce area:
 - **[AXI5 Master Read](axi5_master_rd.md)** - Master read interface
 - **[AXI5 Slave Write](axi5_slave_wr.md)** - Slave write interface
 - **[AXI5 Master Write CG](axi5_master_wr_cg.md)** - Clock-gated variant
-- **[AXI5 Master Write Monitor](axi5_master_wr_mon.md)** - With integrated monitoring
-- **[AXI4 Master Write](../axi/axi4_master_wr.md)** - AXI4 version for comparison
+- **[AXI5 Master Write Monitor](../monitor/axi5_master_wr_mon.md)** - With integrated monitoring
+- **[AXI4 Master Write](../axi4/axi4_master_wr.md)** - AXI4 version for comparison
 
 ---
 

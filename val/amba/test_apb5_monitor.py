@@ -32,6 +32,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 class APB5MonitorTB(TBBase):
@@ -60,6 +61,43 @@ class APB5MonitorTB(TBBase):
 
         # Track monitor packets
         self.monitor_packets = []
+
+    # ------------------------------------------------------------------
+    # 128-bit monitor packet decode (monitor_package_spec.md)
+    #   [127:124] packet_type   [123:109] reserved   [108:105] protocol
+    #   [104: 97] event_code    [ 96: 88] channel_id [ 87: 72] agent_id
+    #   [ 71: 64] unit_id       [ 63:  0] event_data
+    # ------------------------------------------------------------------
+    @staticmethod
+    def decode_packet(pkt: int) -> dict:
+        """Decode a 128-bit monbus packet into its named fields.
+
+        Delegates to TBClasses.monbus.parse -- the house-sanctioned decode
+        chokepoint. Inline bit-twiddling here previously (a) duplicated the
+        field layout so a packet-format change silently desynced this TB, and
+        (b) escaped the MONBUS_COVERAGE packet-type coverage recorder, which
+        instruments parse(). Same returned dict, same keys.
+        """
+        from TBClasses.monbus import parse
+        mp = parse(pkt)
+        return {
+            'packet_type': int(mp.packet_type),
+            'protocol':    int(mp.protocol),
+            'event_code':  int(mp.event_code),
+            'channel_id':  int(mp.channel_id),
+            'agent_id':    int(mp.agent_id),
+            'unit_id':     int(mp.unit_id),
+            'event_data':  int(mp.event_data),
+        }
+
+    async def drive_mon_time(self):
+        """Free-running monitor-time broadcast (normally from monbus_group)."""
+        self.dut.i_mon_time.value = 0
+        count = 0
+        while True:
+            await RisingEdge(self.dut.aclk)
+            count = (count + 1) & ((1 << 64) - 1)
+            self.dut.i_mon_time.value = count
 
     async def assert_reset(self):
         """Assert reset."""
@@ -162,8 +200,12 @@ async def cocotb_test_apb5_monitor_basic(dut):
     """Basic APB5 monitor test - verifies transaction capture and event detection."""
     tb = APB5MonitorTB(dut)
 
+    # Broadcast monitor time must be driven before reset releases
+    dut.i_mon_time.value = 0
+
     # Setup
     await tb.setup_clocks_and_reset()
+    cocotb.start_soon(tb.drive_mon_time())
 
     # Initialize command interface signals
     dut.cmd_valid.value = 0
@@ -316,6 +358,201 @@ async def cocotb_test_apb5_monitor_basic(dut):
     tb.log.info("=== APB5 Monitor Basic Test PASSED ===")
 
 
+@cocotb.test(timeout_time=100, timeout_unit="us")
+async def cocotb_test_apb5_monitor_addr_range(dut):
+    """Address-range violation packets must carry correct 128-bit header fields.
+
+    Regression for issue #41: apb5_monitor connected the 128-bit addr_pkt_data
+    output of apb_monitor_addr_check to a 64-bit net, discarding every header
+    field. A hit on range 3 decoded as packet_type=3 (PktTypeTimeout) with
+    protocol=AXI, event_code=0x00 and the address shifted right by 3.
+
+    Requires N_ADDR_RANGES > 0 -- the default of 0 elides the checker entirely,
+    which is why this path was previously uncovered.
+    """
+    tb = APB5MonitorTB(dut)
+
+    dut.i_mon_time.value = 0
+    await tb.setup_clocks_and_reset()
+    cocotb.start_soon(tb.drive_mon_time())
+
+    # Quiesce every other event source so only range violations reach the bus
+    for sig in ('cmd_valid', 'cmd_ready', 'cmd_pwrite', 'cmd_paddr', 'cmd_pwdata',
+                'cmd_pstrb', 'cmd_pprot', 'cmd_pauser', 'cmd_pwuser',
+                'rsp_valid', 'rsp_ready', 'rsp_prdata', 'rsp_pslverr',
+                'rsp_pruser', 'rsp_pbuser', 'apb5_pwakeup',
+                'parity_error_wdata', 'parity_error_rdata', 'parity_error_ctrl',
+                'cfg_error_enable', 'cfg_timeout_enable', 'cfg_protocol_enable',
+                'cfg_slverr_enable', 'cfg_parity_enable', 'cfg_wakeup_enable',
+                'cfg_user_enable', 'cfg_perf_enable', 'cfg_latency_enable',
+                'cfg_cmd_timeout_cnt', 'cfg_rsp_timeout_cnt',
+                'cfg_latency_threshold', 'cfg_wakeup_timeout_cnt'):
+        getattr(dut, sig).value = 0
+
+    dut.monbus_ready.value = 1
+
+    # Exercise every configured range. Range index 3 is the case that
+    # previously aliased onto the packet_type field.
+    n_ranges = int(os.environ.get('TEST_N_ADDR_RANGES', '4'))
+    aw = tb.ADDR_WIDTH
+    ranges = [(0x100 * (i + 1), 0x100 * (i + 1) + 0xFF) for i in range(n_ranges)]
+
+    def pack(values):
+        """Pack a list into a SystemVerilog packed array (index 0 = LSBs)."""
+        word = 0
+        for i, v in enumerate(values):
+            word |= (v & ((1 << aw) - 1)) << (i * aw)
+        return word
+
+    dut.cfg_addr_check_enable.value = 1
+    dut.cfg_addr_range_enable.value = (1 << n_ranges) - 1
+    dut.cfg_addr_range_low.value = pack([lo for lo, _ in ranges])
+    dut.cfg_addr_range_high.value = pack([hi for _, hi in ranges])
+
+    await tb.wait_clocks('aclk', 5)
+
+    async def issue_cmd(addr, is_write):
+        """Drive one accepted command and collect any emitted packet."""
+        dut.cmd_paddr.value = addr
+        dut.cmd_pwrite.value = 1 if is_write else 0
+        dut.cmd_valid.value = 1
+        dut.cmd_ready.value = 1
+        await RisingEdge(dut.aclk)
+        dut.cmd_valid.value = 0
+        dut.cmd_ready.value = 0
+
+        captured = []
+        for _ in range(12):
+            await RisingEdge(dut.aclk)
+            if dut.monbus_valid.value:
+                captured.append((int(dut.monbus_packet.value),
+                                 int(dut.monbus_timestamp.value)))
+        return captured
+
+    # --- every configured range, both directions ---
+    for idx, (lo, hi) in enumerate(ranges):
+        for is_write in (True, False):
+            addr = lo + 0x23
+            pkts = await issue_cmd(addr, is_write)
+
+            assert len(pkts) == 1, \
+                f"range {idx} addr 0x{addr:X}: expected 1 packet, got {len(pkts)}"
+
+            raw, ts = pkts[0]
+            f = tb.decode_packet(raw)
+            tb.log.info(f"range {idx} {'WR' if is_write else 'RD'} "
+                        f"addr=0x{addr:X} raw=0x{raw:032X} ts={ts} -> {f}")
+
+            # The three fields the truncation destroyed
+            assert f['packet_type'] == 0x0, \
+                f"packet_type: got 0x{f['packet_type']:X}, expected 0x0 (PktTypeError)"
+            assert f['protocol'] == 0x2, \
+                f"protocol: got 0x{f['protocol']:X}, expected 0x2 (PROTOCOL_APB)"
+            assert f['event_code'] == 0x08, \
+                f"event_code: got 0x{f['event_code']:02X}, expected 0x08 (APB_ERR_ADDR_RANGE)"
+
+            # Identity fields, also lost with the header
+            assert f['unit_id'] == 0x01, f"unit_id: got 0x{f['unit_id']:X}"
+            assert f['agent_id'] == 0x000A, f"agent_id: got 0x{f['agent_id']:X}"
+            assert f['channel_id'] == 0, f"channel_id: got 0x{f['channel_id']:X}"
+
+            # event_data[63:60]=range_index, [59]=is_read, [58:0]=address
+            ev = f['event_data']
+            assert (ev >> 60) & 0xF == idx, \
+                f"range index: got {(ev >> 60) & 0xF}, expected {idx}"
+            assert (ev >> 59) & 0x1 == (0 if is_write else 1), "is_read bit wrong"
+            assert ev & ((1 << 59) - 1) == addr, \
+                f"address: got 0x{ev & ((1 << 59) - 1):X}, expected 0x{addr:X}"
+
+            # i_mon_time is plumbed through to the side-band timestamp
+            assert ts != 0, "monbus_timestamp is zero - i_mon_time not connected"
+
+    # --- address outside every range emits nothing ---
+    outside = await issue_cmd(ranges[-1][1] + 0x100, True)
+    assert not outside, f"out-of-range address emitted {len(outside)} packet(s)"
+
+    # --- checker disabled emits nothing ---
+    dut.cfg_addr_check_enable.value = 0
+    await tb.wait_clocks('aclk', 2)
+    disabled = await issue_cmd(ranges[0][0] + 0x23, True)
+    assert not disabled, f"disabled checker emitted {len(disabled)} packet(s)"
+
+    tb.log.info("=== APB5 Monitor Address-Range Test PASSED ===")
+
+
+@cocotb.test(timeout_time=100, timeout_unit="us")
+async def cocotb_test_apb5_monitor_timeout_edge(dut):
+    """A stuck command must produce ONE timeout packet, not one per cycle.
+
+    Regression for issue #41: the timeout/protocol/parity/latency event
+    conditions are levels, and were fed straight into the FIFO write. A single
+    stuck command held the condition true for many cycles and emitted an
+    identical packet every cycle (the audit observed 21). Every level condition
+    is now edge-qualified.
+    """
+    tb = APB5MonitorTB(dut)
+
+    dut.i_mon_time.value = 0
+    await tb.setup_clocks_and_reset()
+    cocotb.start_soon(tb.drive_mon_time())
+
+    for sig in ('cmd_valid', 'cmd_ready', 'cmd_pwrite', 'cmd_paddr', 'cmd_pwdata',
+                'cmd_pstrb', 'cmd_pprot', 'cmd_pauser', 'cmd_pwuser',
+                'rsp_valid', 'rsp_ready', 'rsp_prdata', 'rsp_pslverr',
+                'rsp_pruser', 'rsp_pbuser', 'apb5_pwakeup',
+                'parity_error_wdata', 'parity_error_rdata', 'parity_error_ctrl',
+                'cfg_error_enable', 'cfg_protocol_enable', 'cfg_slverr_enable',
+                'cfg_parity_enable', 'cfg_wakeup_enable', 'cfg_user_enable',
+                'cfg_perf_enable', 'cfg_latency_enable', 'cfg_latency_threshold',
+                'cfg_wakeup_timeout_cnt', 'cfg_addr_check_enable',
+                'cfg_addr_range_enable', 'cfg_addr_range_low',
+                'cfg_addr_range_high'):
+        getattr(dut, sig).value = 0
+
+    dut.monbus_ready.value = 1
+
+    # Short timeout so the stuck condition trips quickly, then holds
+    timeout_cycles = 8
+    dut.cfg_timeout_enable.value = 1
+    dut.cfg_cmd_timeout_cnt.value = timeout_cycles
+    dut.cfg_rsp_timeout_cnt.value = timeout_cycles
+    await tb.wait_clocks('aclk', 5)
+
+    # Stick a command: cmd_valid high, cmd_ready never asserted.
+    # The command-timeout condition goes true and STAYS true.
+    dut.cmd_paddr.value = 0x40
+    dut.cmd_pwrite.value = 1
+    dut.cmd_valid.value = 1
+    dut.cmd_ready.value = 0
+
+    packets = []
+    hold_cycles = 40  # far longer than the timeout threshold
+    for _ in range(hold_cycles):
+        await RisingEdge(dut.aclk)
+        if dut.monbus_valid.value:
+            packets.append(int(dut.monbus_packet.value))
+
+    dut.cmd_valid.value = 0
+
+    for pkt in packets:
+        f = tb.decode_packet(pkt)
+        tb.log.info(f"timeout packet: {f}")
+
+    timeouts = [p for p in packets if tb.decode_packet(p)['packet_type'] == 0x3]
+
+    tb.log.info(f"stuck for {hold_cycles} cycles (threshold {timeout_cycles}): "
+                f"{len(timeouts)} timeout packet(s)")
+
+    assert len(timeouts) == 1, (
+        f"expected exactly 1 timeout packet from one stuck command, got "
+        f"{len(timeouts)} - level-sensitive condition is not edge-qualified")
+
+    f = tb.decode_packet(timeouts[0])
+    assert f['protocol'] == 0x2, f"protocol 0x{f['protocol']:X} != 0x2 (APB)"
+
+    tb.log.info("=== APB5 Monitor Timeout Edge-Detect Test PASSED ===")
+
+
 def generate_apb5_monitor_params():
     """Generate test parameters for APB5 monitor."""
     return [
@@ -336,6 +573,7 @@ def test_apb5_monitor(request, addr_width, data_width, auser_width, wuser_width,
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_apb5': 'rtl/amba/apb5',
+        'rtl_monitor': 'rtl/amba/monitor',
         'rtl_gaxi': 'rtl/amba/gaxi',
         'rtl_cmn': 'rtl/common',
         'rtl_amba_includes': 'rtl/amba/includes'
@@ -343,21 +581,9 @@ def test_apb5_monitor(request, addr_width, data_width, auser_width, wuser_width,
 
     toplevel = "apb5_monitor"
 
-    verilog_sources = [
-        # Monitor packages (must be compiled in order)
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_common_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba4_pkg.sv"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba5_pkg.sv"),
-        # Common dependencies
-        os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "counter_load_clear.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-        # GAXI dependencies (for FIFO and skid buffer)
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
-        # APB5 monitor
-        os.path.join(rtl_dict['rtl_apb5'], "apb5_monitor.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/apb5_monitor.f")
 
     # Test identifier
     aw_str = TBBase.format_dec(addr_width, 2)
@@ -372,7 +598,7 @@ def test_apb5_monitor(request, addr_width, data_width, auser_width, wuser_width,
     os.makedirs(log_dir, exist_ok=True)
 
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-    includes = [rtl_dict['rtl_amba_includes']]
+    includes=includes
 
     # RTL parameters
     rtl_parameters = {
@@ -429,6 +655,172 @@ def test_apb5_monitor(request, addr_width, data_width, auser_width, wuser_width,
             keep_files=True,
             compile_args=compile_args,
             testcase="cocotb_test_apb5_monitor_basic",
+            simulator="verilator",
+        )
+    except Exception as e:
+        print(f"Test failed: {str(e)}")
+        print(f"Logs preserved at: {log_path}")
+        print(f"To view waveforms: {cmd_filename}")
+        raise
+
+
+def test_apb5_monitor_timeout_edge(request):
+    """APB5 monitor timeout edge-detection test runner (issue #41 regression)."""
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_apb5': 'rtl/amba/apb5',
+        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_gaxi': 'rtl/amba/gaxi',
+        'rtl_cmn': 'rtl/common',
+        'rtl_amba_includes': 'rtl/amba/includes'
+    })
+
+    toplevel = "apb5_monitor"
+
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/apb5_monitor.f")
+
+    test_name_plus_params = f"test_{worker_id}_apb5_monitor_timeout_edge"
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+
+    rtl_parameters = {
+        'ADDR_WIDTH': '12',
+        'DATA_WIDTH': '32',
+        'N_ADDR_RANGES': '1',
+    }
+
+    extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',
+        'DUT': toplevel,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': results_path,
+        'SEED': str(random.randint(0, 100000)),
+        'TEST_ADDR_WIDTH': '12',
+        'TEST_DATA_WIDTH': '32',
+    }
+
+    compile_args = [
+        "--trace-fst",
+        "--trace-structs",
+        "-Wno-TIMESCALEMOD",
+    ]
+
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=includes,
+            toplevel=toplevel,
+            module=module,
+            parameters=rtl_parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=enable_waves,
+            plus_args=(['--trace'] if enable_waves else []),
+            keep_files=True,
+            compile_args=compile_args,
+            testcase="cocotb_test_apb5_monitor_timeout_edge",
+            simulator="verilator",
+        )
+    except Exception as e:
+        print(f"Test failed: {str(e)}")
+        print(f"Logs preserved at: {log_path}")
+        print(f"To view waveforms: {cmd_filename}")
+        raise
+
+
+@pytest.mark.parametrize("addr_width, n_addr_ranges", [(12, 4), (16, 8)])
+def test_apb5_monitor_addr_range(request, addr_width, n_addr_ranges):
+    """APB5 monitor address-range violation test runner (issue #41 regression).
+
+    N_ADDR_RANGES must be > 0 or the checker is elided by its generate guard,
+    which is how the 128-bit packet truncation escaped every existing harness.
+    """
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_apb5': 'rtl/amba/apb5',
+        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_gaxi': 'rtl/amba/gaxi',
+        'rtl_cmn': 'rtl/common',
+        'rtl_amba_includes': 'rtl/amba/includes'
+    })
+
+    toplevel = "apb5_monitor"
+
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/apb5_monitor.f")
+
+    aw_str = TBBase.format_dec(addr_width, 2)
+    nr_str = TBBase.format_dec(n_addr_ranges, 2)
+    test_name_plus_params = f"test_{worker_id}_apb5_monitor_addr_range_aw{aw_str}_nr{nr_str}"
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+
+    rtl_parameters = {
+        'ADDR_WIDTH': str(addr_width),
+        'DATA_WIDTH': '32',
+        'N_ADDR_RANGES': str(n_addr_ranges),
+    }
+
+    extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',
+        'DUT': toplevel,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': results_path,
+        'SEED': str(random.randint(0, 100000)),
+        'TEST_ADDR_WIDTH': str(addr_width),
+        'TEST_DATA_WIDTH': '32',
+        'TEST_N_ADDR_RANGES': str(n_addr_ranges),
+    }
+
+    # NOTE: no -Wno-WIDTHEXPAND / -Wno-WIDTHTRUNC here. Those suppressions are
+    # what let the 128-bit-into-64-bit port truncation compile silently.
+    compile_args = [
+        "--trace-fst",
+        "--trace-structs",
+        "-Wno-TIMESCALEMOD",
+    ]
+
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=includes,
+            toplevel=toplevel,
+            module=module,
+            parameters=rtl_parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=enable_waves,
+            plus_args=(['--trace'] if enable_waves else []),
+            keep_files=True,
+            compile_args=compile_args,
+            testcase="cocotb_test_apb5_monitor_addr_range",
             simulator="verilator",
         )
     except Exception as e:

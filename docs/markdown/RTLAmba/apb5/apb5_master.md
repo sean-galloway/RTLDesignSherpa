@@ -131,10 +131,22 @@ flowchart LR
 | WUSER_WIDTH | int | 4 | Write data user signal width |
 | RUSER_WIDTH | int | 4 | Read data user signal width |
 | BUSER_WIDTH | int | 4 | Response user signal width |
-| CMD_DEPTH | int | 6 | Command FIFO depth (2^N entries) |
-| RSP_DEPTH | int | 6 | Response FIFO depth (2^N entries) |
-| ENABLE_PARITY | bit | 0 | Enable parity signals |
+| CMD_DEPTH | int | 6 | Command skid-buffer depth in entries; must be one of {2, 4, 6, 8} |
+| RSP_DEPTH | int | 6 | Response skid-buffer depth in entries; must be one of {2, 4, 6, 8} |
+| ENABLE_PARITY | bit | 0 | Enable parity generation and checking |
 | STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |
+
+`CMD_DEPTH` and `RSP_DEPTH` are passed straight through to `gaxi_skid_buffer`,
+whose `DEPTH` is a literal entry count -- not a log2 exponent. The default of 6
+means six buffered entries.
+
+Two further computed parameters are exposed for reference and should not be
+overridden:
+
+| Parameter | Formula | Default value |
+|-----------|---------|---------------|
+| CPW | ADDR_WIDTH + DATA_WIDTH + STRB_WIDTH + PROT_WIDTH + AUSER_WIDTH + WUSER_WIDTH + 1 | 80 |
+| RPW | DATA_WIDTH + RUSER_WIDTH + BUSER_WIDTH + 2 | 42 |
 
 ---
 
@@ -204,6 +216,14 @@ flowchart LR
 | rsp_pruser | RUSER_WIDTH | Output | Response read user attributes |
 | rsp_pbuser | BUSER_WIDTH | Output | Response user attributes |
 
+### Status Outputs
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| parity_error_rdata | 1 | Output | Read-data parity mismatch (tied to 0 when ENABLE_PARITY=0) |
+| parity_error_ctrl | 1 | Output | PREADY/PSLVERR parity mismatch (tied to 0 when ENABLE_PARITY=0) |
+| wakeup_pending | 1 | Output | Sticky flag: PWAKEUP was seen and no transaction has started since |
+
 ---
 
 ## Functionality
@@ -240,11 +260,16 @@ stateDiagram-v2
 
 **Wake-up Support:**
 - **PWAKEUP**: Slave can assert to indicate wake-up events
-- Captured in response packet for software handling
+- Captured in response packet (`rsp_pwakeup`) for software handling
+- Also latched into `wakeup_pending`, which sets on any PWAKEUP pulse and
+  clears once the FSM leaves IDLE to start a transaction
 
 **Parity Protection:**
-- Optional odd parity on data, address, and control signals
+- Optional parity on data, address, and control signals
 - Enables detection of single-bit transmission errors
+
+See [Parity Implementation](#parity-implementation) for the exact coverage of
+each parity bit.
 
 ---
 
@@ -253,48 +278,51 @@ stateDiagram-v2
 ### Basic Write Transaction
 
 <!-- TODO: Add wavedrom timing diagram for APB5 write transaction -->
-```
-TODO: Wavedrom timing diagram showing:
-- PCLK
-- PSEL
-- PENABLE
-- PADDR
-- PWRITE (high)
-- PWDATA
-- PSTRB
-- PAUSER
-- PWUSER
-- PREADY
-- PSLVERR
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - PCLK
+> - PSEL
+> - PENABLE
+> - PADDR
+> - PWRITE (high)
+> - PWDATA
+> - PSTRB
+> - PAUSER
+> - PWUSER
+> - PREADY
+> - PSLVERR
+
 
 ### Basic Read Transaction
 
 <!-- TODO: Add wavedrom timing diagram for APB5 read transaction -->
-```
-TODO: Wavedrom timing diagram showing:
-- PCLK
-- PSEL
-- PENABLE
-- PADDR
-- PWRITE (low)
-- PAUSER
-- PREADY
-- PRDATA
-- PRUSER
-- PSLVERR
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - PCLK
+> - PSEL
+> - PENABLE
+> - PADDR
+> - PWRITE (low)
+> - PAUSER
+> - PREADY
+> - PRDATA
+> - PRUSER
+> - PSLVERR
+
 
 ### Wake-up Signal Handling
 
 <!-- TODO: Add wavedrom timing diagram for wake-up scenario -->
-```
-TODO: Wavedrom timing diagram showing:
-- PCLK
-- Transaction signals
-- PWAKEUP assertion
-- Response capture
-```
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - PCLK
+> - Transaction signals
+> - PWAKEUP assertion
+> - Response capture
+
 
 ---
 
@@ -350,7 +378,20 @@ apb5_master #(
     .rsp_pslverr    (rsp_error),
     .rsp_pwakeup    (rsp_wakeup),
     .rsp_pruser     (rsp_ruser),
-    .rsp_pbuser     (rsp_buser)
+    .rsp_pbuser     (rsp_buser),
+
+    // Parity interface (unused here because ENABLE_PARITY=0)
+    .m_apb_PWDATAPARITY  (),
+    .m_apb_PADDRPARITY   (),
+    .m_apb_PCTRLPARITY   (),
+    .m_apb_PRDATAPARITY  ('0),
+    .m_apb_PREADYPARITY  (1'b0),
+    .m_apb_PSLVERRPARITY (1'b0),
+    .parity_error_rdata  (),
+    .parity_error_ctrl   (),
+
+    // Status
+    .wakeup_pending (apb_wakeup_pending)
 );
 ```
 
@@ -360,24 +401,48 @@ apb5_master #(
 
 ### APB5 vs APB4 Differences
 
-| Feature | APB4 | APB5 |
-|---------|------|------|
-| User signals | None | PAUSER, PWUSER, PRUSER, PBUSER |
-| Wake-up | None | PWAKEUP |
-| Parity | None | Optional on all signals |
+| Feature | APB4 | APB5 | Implemented here |
+|---------|------|------|------------------|
+| User signals | None | PAUSER, PWUSER, PRUSER, PBUSER | Yes |
+| Wake-up | None | PWAKEUP | Yes (slave to master) |
+| Parity | None | Optional signal parity | Yes (`ENABLE_PARITY`) |
+| Non-secure extension | None | PNSE | No -- no port |
+| Exclusive access | None | PEXCL, PEXOKAY | No -- no ports |
 
 ### FIFO Sizing
 
-- Command FIFO depth should match expected command burst length
-- Response FIFO depth should match to prevent backpressure
-- Typical values: 4-16 entries (depth parameter is log2)
+- Command depth should match the expected command burst length
+- Response depth should match to prevent backpressure
+- `CMD_DEPTH` / `RSP_DEPTH` are entry counts, restricted to {2, 4, 6, 8} by the
+  underlying `gaxi_skid_buffer`
 
 ### Parity Implementation
 
-When `ENABLE_PARITY=1`:
-- Odd parity computed on outgoing signals
-- Incoming parity checked (error handling is system-specific)
-- Adds latency for parity computation
+When `ENABLE_PARITY=1` the master generates parity on its outgoing signals and
+checks parity on the signals returned by the slave. Coverage differs per signal
+group, which determines what a single parity bit can detect:
+
+| Parity signal | Covers | Granularity |
+|---------------|--------|-------------|
+| m_apb_PWDATAPARITY[i] | PWDATA byte lane `i` | One bit per byte (STRB_WIDTH bits total) |
+| m_apb_PADDRPARITY | Whole PADDR | One bit for the entire address |
+| m_apb_PCTRLPARITY | {PWRITE, PSTRB, PPROT} concatenated | One bit for the whole control group |
+| m_apb_PRDATAPARITY[i] | PRDATA byte lane `i` (checked) | One bit per byte |
+| m_apb_PREADYPARITY | PREADY (checked) | One bit |
+| m_apb_PSLVERRPARITY | PSLVERR (checked) | One bit |
+
+Each parity bit is the XOR reduction of the covered signals, so it is 1 when the
+covered field contains an odd number of ones (an even-parity encoding: field plus
+parity bit always has an even number of ones). Per-byte data parity detects one
+bit error in each byte independently; the single address and control bits detect
+only an odd number of errors across the whole group.
+
+Checking is purely combinational and qualified by the bus state:
+`parity_error_rdata` and `parity_error_ctrl` are only asserted while
+`m_apb_PREADY && m_apb_PSEL && m_apb_PENABLE`, and read 0 otherwise. Downstream
+error handling is system-specific -- the master does not itself abort or retry a
+transfer on a parity mismatch. Parity adds combinational logic but no pipeline
+stages, so it costs no additional latency.
 
 ---
 
@@ -385,7 +450,7 @@ When `ENABLE_PARITY=1`:
 
 - **[APB5 Slave](apb5_slave.md)** - APB5 slave interface
 - **[APB5 Master CG](apb5_master_cg.md)** - Clock-gated variant
-- **[APB5 Monitor](apb5_monitor.md)** - Protocol monitor
+- **[APB5 Monitor](../monitor/apb5_monitor.md)** - Protocol monitor
 - **[APB4 Master](../apb/apb_master.md)** - APB4 version for comparison
 
 ---

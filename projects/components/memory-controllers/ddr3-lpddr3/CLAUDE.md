@@ -23,4 +23,4 @@
 
 # ddr3-lpddr3 — Claude Agent Notes
 
-*Stub. See parent CLAUDE.md and stream/CLAUDE.md as references.*
+*Stub. See the parent `projects/components/CLAUDE.md` and `projects/components/dmas/stream/CLAUDE.md` as references.*

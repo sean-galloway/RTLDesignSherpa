@@ -10,7 +10,7 @@
     <dt>Base Offset:</dt><dd class="address">0x64</dd>
     <dt>Size:</dt><dd class="address">0x4</dd>
     
-    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/dmas-reorg-and-stream-perf/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl#L234" target="_blank">pumice_csr.rdl</a></dd>
+    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/dmas-reorg-and-stream-perf/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl#L237" target="_blank">pumice_csr.rdl</a></dd>
     
 </dl>
 <h2>Description</h2>
@@ -33,7 +33,7 @@ request. All hw-readable so they drive the controller core.</p>
         <th></th>
     </tr>
     <tr id="RSVD1">
-        <td>[31:28]</td>
+        <td>[31:24]</td>
         <td><a href="#RSVD1.desc">RSVD1</a></td>
         <td>
             <span title='Read-only'>r</span></td>
@@ -50,46 +50,6 @@ request. All hw-readable so they drive the controller core.</p>
                 title="Switch radix" aria-label="Switch radix"
                 data-name="RSVD1" onclick="onRadixSwitch(this)">H</button>
             <a class="headerlink" href="#RSVD1" title="Permalink to this row"></a>
-        </td>
-    </tr>
-    <tr id="deskew_hi">
-        <td>[27:26]</td>
-        <td><a href="#deskew_hi.desc">deskew_hi</a></td>
-        <td>
-            <span title='Readable and Writable'>rw</span></td>
-        <td>0x0
-        </td>
-        <td>
-            <input id="_FieldValueTesterdeskew_hi" class="field-value-tester"
-                type="text" autocomplete="off"
-                data-name="deskew_hi" oninput="onDecodedFieldInput(this)"/>
-        </td>
-        <td>-</td>
-        <td>
-            <button type="button" id="_RadixButtondeskew_hi" class="radix-button"
-                title="Switch radix" aria-label="Switch radix"
-                data-name="deskew_hi" onclick="onRadixSwitch(this)">H</button>
-            <a class="headerlink" href="#deskew_hi" title="Permalink to this row"></a>
-        </td>
-    </tr>
-    <tr id="deskew_lo">
-        <td>[25:24]</td>
-        <td><a href="#deskew_lo.desc">deskew_lo</a></td>
-        <td>
-            <span title='Readable and Writable'>rw</span></td>
-        <td>0x0
-        </td>
-        <td>
-            <input id="_FieldValueTesterdeskew_lo" class="field-value-tester"
-                type="text" autocomplete="off"
-                data-name="deskew_lo" oninput="onDecodedFieldInput(this)"/>
-        </td>
-        <td>-</td>
-        <td>
-            <button type="button" id="_RadixButtondeskew_lo" class="radix-button"
-                title="Switch radix" aria-label="Switch radix"
-                data-name="deskew_lo" onclick="onRadixSwitch(this)">H</button>
-            <a class="headerlink" href="#deskew_lo" title="Permalink to this row"></a>
         </td>
     </tr>
     <tr id="refresh_burst">
@@ -207,20 +167,6 @@ request. All hw-readable so they drive the controller core.</p>
 </h3>
 <div id="_Content.RSVD1.desc">
 <p>Reserved</p>
-</div>
-
-<h3 id="deskew_hi.desc">deskew_hi
-    <a class="headerlink" href="#deskew_hi.desc" title="Permalink to this headline"></a>
-</h3>
-<div id="_Content.deskew_hi.desc">
-<p>read DESKEW: high 64b beat capture delay (DFI cyc)</p>
-</div>
-
-<h3 id="deskew_lo.desc">deskew_lo
-    <a class="headerlink" href="#deskew_lo.desc" title="Permalink to this headline"></a>
-</h3>
-<div id="_Content.deskew_lo.desc">
-<p>read DESKEW: low 64b beat capture delay (DFI cyc)</p>
 </div>
 
 <h3 id="refresh_burst.desc">refresh_burst

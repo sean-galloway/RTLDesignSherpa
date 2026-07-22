@@ -45,7 +45,7 @@
 #### Related RTL Design Sherpa Documentation
 
 **APB HPET Specification**
-- **Location**: `projects/components/retro_legacy_blocks/docs/hpet_spec/`
+- **Location**: `projects/components/retro_legacy_blocks/docs/hpet_mas/`
 - **Relevance**: Similar APB timer peripheral, shares architectural patterns and testbench infrastructure
 - **See**: HPET specification for examples of APB timer implementation
 
@@ -108,11 +108,11 @@
 - **Description**: Six basic tests covering register access, enable/disable, Mode 0, status
 
 **Test Runner**
-- **File**: `dv/tests/pit_8254/test_apb_pit_8254.py`
+- **File**: `dv/tests/test_apb_pit_8254.py`
 - **Description**: Pytest test runner invoking CocoTB tests with parameterization
 
 **Configuration**
-- **File**: `dv/tests/pit_8254/conftest.py`
+- **File**: `dv/tests/conftest.py`
 - **Description**: Pytest configuration, logging setup, markers
 
 #### Tools and Frameworks
@@ -139,7 +139,7 @@
 - **Framework**: Python testing framework
 - **Purpose**: Test discovery, parameterization, and reporting
 - **Documentation**: https://pytest.org/
-- **Usage**: `pytest dv/tests/pit_8254/ -v`
+- **Usage**: `pytest dv/tests/test_apb_pit_8254.py -v`
 
 **cocotb-test**
 - **Framework**: pytest integration for CocoTB
@@ -194,7 +194,7 @@ This specification is version-controlled with the RTL implementation. See git hi
 ```bash
 # View PIT 8254 commit history
 git log --follow -- projects/components/retro_legacy_blocks/rtl/pit_8254/
-git log --follow -- projects/components/retro_legacy_blocks/docs/pit_8254_spec/
+git log --follow -- projects/components/retro_legacy_blocks/docs/pit_8254_mas/
 ```
 
 #### Related Components

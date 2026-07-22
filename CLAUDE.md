@@ -1,10 +1,21 @@
 # Claude Code Guide for RTL Design Sherpa
 
-**Version:** 1.0
-**Last Updated:** 2025-09-30
+**Version:** 1.1
+**Last Updated:** 2026-07-22
 **Purpose:** Help Claude Code work efficiently with this repository
 
 ---
+
+## The Handbook (repo memory) - READ THIS FIRST
+
+`docs/handbook/INDEX.md` is the repository's working memory: design rules
+(`design/`), DV practice (`dv/`), and FPGA process (`fpga/`) as atomic,
+wikilinked notes - each rule recorded WITH the failure that taught it.
+
+- Skills (`.claude/skills/`, auto-discovered) are signposts into the handbook.
+- /GLOBAL_REQUIREMENTS.md remains the enforcement authority and wins on conflict.
+- When you learn a durable lesson, add it to the relevant handbook note -
+  that is where future sessions will look.
 
 ## Repository Philosophy
 
@@ -13,7 +24,7 @@ RTL Design Sherpa demonstrates industry-standard RTL design and verification flo
 ### Core Principles
 
 1. **Reuse First** - Search existing modules before creating new ones
-2. **Synthesizable Only** - Standard SystemVerilog, no vendor-specific primitives (except rtl/xilinx/)
+2. **Synthesizable Only** - Standard SystemVerilog, no vendor-specific primitives (vendor code lives only in board project areas under projects/)
 3. **Test Everything** - Comprehensive CocoTB verification for all RTL
 4. **Document Everything** - Inline comments + standalone documentation
 5. **Industry Standards** - Follow real-world design practices and flows
@@ -31,9 +42,9 @@ Before working in this repository, review the global requirements document:
 
 This CLAUDE.md provides repository-wide guidance and examples. For subsystem-specific details, see:
 - `projects/components/CLAUDE.md` - Project area standards
-- `bin/TBClasses/CLAUDE.md` - Framework patterns
 - `projects/components/{name}/CLAUDE.md` - Component-specific guidance
 - `rtl/{subsystem}/CLAUDE.md` - Subsystem-specific guidance
+- DV framework patterns: shared TB classes live in `bin/TBClasses/`; the full CocoTB framework (BFMs, monitors) is the separate RTLDesignSherpa-DV repo (editable-installed into the venv)
 
 ---
 
@@ -42,20 +53,20 @@ This CLAUDE.md provides repository-wide guidance and examples. For subsystem-spe
 ```
 rtldesignsherpa/
 ├── rtl/                    # RTL source code
-│   ├── common/            # 86 reusable building blocks (counters, arbiters, FIFOs, etc.)
-│   ├── amba/              # 72 AMBA protocol modules (AXI4, APB, AXIS monitors)
-│   ├── rapids/              # 17 Rapid AXI Programmable In-band Descriptor System modules (custom accelerator)
-│   ├── integ_*/           # Integration examples
-│   └── xilinx/            # Vendor-specific primitives
+│   ├── common/            # ~55 reusable building blocks (counters, arbiters, FIFOs, CDC, etc.)
+│   ├── math/              # ~170 arithmetic modules (adders, multipliers, dividers) - split out of rtl/common
+│   ├── amba/              # ~150 AMBA protocol modules (AXI4/AXI5, APB, AXIS; monitors in amba/monitor/)
+│   └── integ_amba/        # Integration examples
 ├── val/                    # Validation tests (pytest + CocoTB)
 │   ├── common/            # Tests for rtl/common/
+│   ├── math/              # Tests for rtl/math/
 │   ├── amba/              # Tests for rtl/amba/
-│   ├── rapids/              # Tests for rtl/rapids/
 │   └── integ_*/           # Integration tests
-├── bin/TBClasses/   # Reusable testbench infrastructure (196 files)
-│   ├── components/        # BFMs for AXI, APB, AXIS, etc.
-│   ├── tbclasses/         # Testbench classes and drivers
-│   └── scoreboards/       # Verification scoreboards
+├── projects/
+│   ├── components/        # Component projects (bridge, dmas/{stream,rapids}, memory-controllers, retro_legacy_blocks, ...)
+│   └── NexysA7/           # FPGA board characterization flows
+├── bin/TBClasses/          # Shared testbench infrastructure (~156 files, flat per-protocol dirs)
+│                           # (full CocoTB framework lives in the RTLDesignSherpa-DV repo)
 ├── docs/                   # Design guides and reports
 └── tools/                  # Automation scripts
 ```
@@ -152,12 +163,12 @@ When you update a generator, you **delete all generated outputs and regenerate a
 
 ```bash
 # ✅ CORRECT - Generated files in subdirectories
-projects/components/bridge/rtl/bridge_4x4_rw/bridge_4x4_rw.sv
-projects/components/bridge/rtl/bridge_4x4_rw/bridge_axi4_flat_4x4.sv
+projects/components/bridge/rtl/generated/bridge_4x4_rw/bridge_4x4_rw.sv
+projects/components/bridge/rtl/generated/bridge_4x4_rw/bridge_4x4_rw_xbar.sv
 
 # ❌ WRONG - Generated files at top level
-projects/components/bridge/rtl/bridge_4x4_rw.sv          # WRONG!
-projects/components/bridge/rtl/bridge_axi4_flat_4x4.sv   # WRONG!
+projects/components/bridge/rtl/bridge_4x4_rw.sv       # WRONG!
+projects/components/bridge/rtl/bridge_4x4_rw_xbar.sv  # WRONG!
 ```
 
 ### Why This Matters
@@ -177,8 +188,8 @@ projects/components/bridge/rtl/Makefile               # Build script
 
 **Generated files (subdirectories):**
 ```bash
-projects/components/bridge/rtl/bridge_4x4_rw/         # All 4x4 generated files
-projects/components/bridge/rtl/bridge_5x3_channels/   # All 5x3 generated files
+projects/components/bridge/rtl/generated/bridge_4x4_rw/   # All 4x4 generated files
+projects/components/bridge/rtl/generated/bridge_2x2_rw/   # All 2x2 generated files
 ```
 
 ### Enforcement
@@ -221,21 +232,24 @@ from TBClasses.shared.tbbase import TBBase
 ## Key Subsystems
 
 ### rtl/common/ - Reusable Building Blocks
-**Modules:** 86 SystemVerilog files
+**Modules:** ~55 SystemVerilog files
 **Purpose:** Technology-agnostic primitives
 
 **Key Categories:**
 - **Counters:** `counter_bin.sv`, `counter_load_clear.sv`, `counter_freq_invariant.sv`
-- **Arbiters:** `arbiter_round_robin*.sv` (simple, weighted, PWM variants)
-- **FIFOs:** See `rtl/amba/gaxi/` for FIFO implementations
-- **Math:** `count_leading_zeros.sv`, `bin2gray.sv`, etc.
+- **Arbiters:** `arbiter_round_robin*.sv` (simple, weighted variants)
+- **FIFOs:** `fifo_sync.sv`, `fifo_async.sv` (GAXI FIFOs live in `rtl/amba/gaxi/`)
+- **Bit Utilities:** `count_leading_zeros.sv`, `bin2gray.sv`, etc.
 - **Data Integrity:** `dataint_crc.sv`, `dataint_ecc_*.sv`, `dataint_parity.sv`
 - **Clock Utilities:** `clock_divider.sv`, `clock_gate_ctrl.sv`, `clock_pulse.sv`
+
+**Note:** Arithmetic modules (`math_*.sv`) were split out of rtl/common into `rtl/math/`
+(tests moved from `val/common/test_math_*.py` to `val/math/`).
 
 **Documentation:** `rtl/common/PRD.md`, `rtl/common/CLAUDE.md`
 
 ### rtl/amba/ - AMBA Protocol Infrastructure
-**Modules:** 72 SystemVerilog files
+**Modules:** ~150 SystemVerilog files
 **Purpose:** AXI4, AXI4-Lite, APB, AXI-Stream monitors and infrastructure
 
 **Key Features:**
@@ -245,35 +259,37 @@ from TBClasses.shared.tbbase import TBBase
 - Support for burst transactions, ID reordering, backpressure
 
 **Critical Files:**
-- `shared/axi_monitor_base.sv` - Core monitor infrastructure
-- `axi4/*_mon*.sv` - AXI4 master/slave read/write monitors
-- `apb/apb_monitor.sv` - APB protocol monitor
-- `axis/axis_master.sv`, `axis_slave.sv` - AXI-Stream interfaces
+- `monitor/axi_monitor_base.sv` - Core monitor infrastructure
+- `monitor/axi4_*_mon.sv` - AXI4 master/slave read/write monitors
+- `monitor/apb_monitor.sv` - APB protocol monitor
+- `axis4/axis_master.sv`, `axis4/axis_slave.sv` - AXI-Stream interfaces
 
 **Documentation:** `rtl/amba/PRD.md`, `rtl/amba/CLAUDE.md`, `rtl/amba/KNOWN_ISSUES/`
 
-### rtl/rapids/ - Rapid AXI Programmable In-band Descriptor System
-**Modules:** 17 SystemVerilog files
+### RAPIDS - Rapid AXI Programmable In-band Descriptor System
+**Location:** `projects/components/dmas/rapids/` (moved out of rtl/; rearchitected as the "beats" design)
 **Purpose:** Custom accelerator for memory operations
 
 **Architecture:**
-- Scheduler group (task scheduling, descriptor management)
-- Sink data path (receive from network, write to memory)
-- Source data path (read from memory, send to network)
+- Scheduler group (`rtl/macro_beats/scheduler_group_beats.sv`, `rtl/fub_beats/scheduler_beats.sv`)
+- Sink data path (`rtl/macro_beats/snk_data_path_beats.sv` - receive from network, write to memory)
+- Source data path (`rtl/macro_beats/src_data_path_beats.sv` - read from memory, send to network)
 - MonBus integration for monitoring
 
-**Documentation:** `rtl/rapids/PRD.md`, `rtl/rapids/CLAUDE.md`, `rtl/rapids/known_issues/`
+**Documentation:** `projects/components/dmas/rapids/PRD.md`, `.../CLAUDE.md`, `.../known_issues/`
 
 ### bin/TBClasses/ - Verification Infrastructure
-**Files:** 196 Python files
-**Purpose:** Reusable testbench components for CocoTB
+**Files:** ~156 Python files
+**Purpose:** Shared testbench classes for CocoTB (import as `from TBClasses. ...`)
 
 **Key Components:**
-- `components/` - Protocol-specific drivers/monitors (AXI, APB, AXIS, etc.)
-- `tbclasses/` - Testbench classes for each subsystem
-- `scoreboards/` - Transaction checking and coverage
+- Flat per-protocol dirs: `axi4/`, `axi5/`, `axil4/`, `apb/`, `apb5/`, `axis4/`, `gaxi/`, `monbus/`, `axi_monitor/`, ...
+- `shared/` - `tbbase.py`, `utilities.py` (get_paths), filelist helpers
+- `scoreboards/` - Transaction checking and coverage (incl. `monbus_group/` harness)
 
-**Documentation:** `bin/TBClasses/README.md`, `bin/TBClasses/CLAUDE.md`
+**Note:** Protocol BFMs (drivers/monitors) come from the separate RTLDesignSherpa-DV
+framework repo, editable-installed into the venv. Project-specific TB classes live in each
+project's `dv/tbclasses/` (never here).
 
 ---
 
@@ -331,13 +347,13 @@ When using AXI factory functions with pattern matching, internal signals can con
 
 ```bash
 # Audit single file before writing testbench
-./bin/audit_signal_naming_conflicts.py rtl/rapids/rapids_macro/scheduler_group.sv
+./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/macro_beats/scheduler_group_beats.sv
 
 # Audit entire directory
-./bin/audit_signal_naming_conflicts.py rtl/rapids/
+./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/
 
 # Generate markdown report for documentation
-./bin/audit_signal_naming_conflicts.py rtl/rapids/ --markdown rtl/rapids/signal_conflicts.md
+./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/ --markdown projects/components/dmas/rapids/rtl/signal_conflicts.md
 ```
 
 **Why This Matters:**
@@ -395,9 +411,9 @@ pytest val/{subsystem}/ --cov=rtl/{subsystem}/
 
 **Test File Location:**
 - `val/common/test_{module}.py` for rtl/common/
+- `val/math/test_{module}.py` for rtl/math/
 - `val/amba/test_{module}.py` for rtl/amba/
-- `val/rapids/test_{module}.py` for rtl/rapids/
-- `projects/components/{name}/dv/tests/` for project-specific tests
+- `projects/components/{name}/dv/tests/` for project-specific tests (RAPIDS, STREAM, bridge, ...)
 
 **🚨 CRITICAL: Test Structure Pattern 🚨**
 
@@ -456,12 +472,12 @@ async def cocotb_test_stress(dut):  # ← "cocotb_test_*" prefix!
 def test_basic(request, addr_width, data_width):
     """Pytest wrapper - calls cocotb_test_basic"""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_stream_fub': '../../../../rtl/stream_fub',
+        'rtl_stream_fub': '../../../../rtl/fub',
     })
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/dmas/stream/rtl/filelists/fub/simple_sram.f'
+        filelist_path='projects/components/dmas/stream/rtl/filelists/fub/sram_controller.f'
     )
 
     run(
@@ -518,7 +534,7 @@ def test_stress(request, addr_width, data_width):
 
 **Complete Working Example (Pattern B):**
 
-See `projects/components/dmas/stream/dv/tests/fub_tests/simple_sram/test_simple_sram.py` for reference implementation.
+See `projects/components/dmas/stream/dv/tests/fub/test_sram_controller.py` for reference implementation.
 
 **🚨 MANDATORY: Pytest Function Naming Convention 🚨**
 
@@ -708,7 +724,7 @@ async def test_descriptor_operation(dut):
 
 ```bash
 # Run single test with verbose output
-pytest val/amba/test_axi_monitor.py::test_axi_monitor -v -s
+pytest val/amba/test_axi4_monitor.py -v -s
 
 # Run all tests in directory
 pytest val/common/ -v
@@ -724,7 +740,7 @@ gtkwave waves.vcd
 
 ```bash
 # Lint single file
-verilator --lint-only rtl/amba/shared/axi_monitor_base.sv
+verilator --lint-only rtl/amba/monitor/axi_monitor_base.sv
 
 # Check synthesis
 verilator --cc rtl/common/counter_bin.sv --top-module counter_bin
@@ -770,21 +786,23 @@ cat rtl/*/TASKS.md
 
 ⚠️ **AXI Monitor Packet Congestion**
 - **Issue:** Enabling all packet types simultaneously overwhelms monitor bus
-- **Solution:** Use separate test configurations (see `docs/AXI_Monitor_Configuration_Guide.md`)
+- **Solution:** Use separate test configurations (see `docs/guides/AXI_Monitor_Configuration_Guide.md`)
 - **Rule:** Never enable `cfg_compl_enable` and `cfg_perf_enable` together
 
 ⚠️ **Event Reported Feedback**
-- **Status:** Fixed in recent commit
+- **Status:** Fixed (historical)
 - **History:** Transaction table exhaustion due to missing feedback
-- **Verification:** Check `rtl/amba/KNOWN_ISSUES/axi_monitor_reporter.md`
+- **Verification:** Current monitor issues are tracked in `rtl/amba/KNOWN_ISSUES/`
+  (the old axi_monitor_reporter issue page was retired; the reporter module doc is
+  `docs/markdown/RTLAmba/monitor/axi_monitor_reporter.md`)
 
 ### RAPIDS Subsystem
 
-⚠️ **Scheduler Credit Counter Bug**
-- **Issue:** Credit counter initializes to 0 instead of `cfg_initial_credit`
-- **Impact:** Credit-based flow control non-functional
-- **Workaround:** Set `cfg_use_credit = 0` in tests
-- **Details:** `rtl/rapids/known_issues/scheduler.md`
+⚠️ **Scheduler Credit Counter Bug (historical, pre-beats scheduler)**
+- **Issue:** Credit counter initialized to 0 instead of `cfg_initial_credit`
+- **Status:** Obsolete - the rearchitected beats scheduler
+  (`projects/components/dmas/rapids/rtl/fub_beats/scheduler_beats.sv`) has no credit
+  management yet; current issues are tracked in `projects/components/dmas/rapids/known_issues/`
 
 ### General RTL
 
@@ -832,10 +850,10 @@ cat rtl/*/TASKS.md
 
 | Directory | Purpose | Key Files |
 |-----------|---------|-----------|
-| `components/axi4/` | AXI4 BFMs | Master/slave drivers, monitors |
-| `components/apb/` | APB BFMs | APB drivers, monitors |
-| `components/axis4/` | AXIS BFMs | Stream interface drivers |
-| `tbclasses/amba/` | AMBA testbenches | Arbiter tests, monitor tests |
+| `axi4/` | AXI4 TB classes | Master/slave test wrappers |
+| `apb/` | APB TB classes | APB test wrappers, register maps |
+| `axis4/` | AXIS TB classes | Stream interface wrappers |
+| `amba/`, `monbus/` | AMBA testbenches | Arbiter tests, monbus decode |
 | `scoreboards/` | Verification | Transaction checking |
 
 ---
@@ -997,6 +1015,8 @@ else          r_reg <= w_next_value;
 
 **Version History:**
 - v1.0 (2025-09-30): Initial creation
+- v1.1 (2026-07-22): Path refresh - dmas relocation (projects/components/dmas/), RAPIDS beats
+  rearchitecture, monitor move to rtl/amba/monitor/, math split to rtl/math/, TBClasses layout
 
 **Maintained By:** RTL Design Sherpa Project
-**Last Review:** 2025-09-30
+**Last Review:** 2026-07-22

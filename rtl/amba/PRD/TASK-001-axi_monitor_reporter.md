@@ -29,6 +29,12 @@
 ## Status
 **✅ COMPLETE** (2025-10-04)
 
+> Status (2026-07-22): historical record; paths below have since changed --
+> `rtl/amba/KNOWN_ISSUES/axi_monitor_reporter.md` was removed after the fix
+> (the module doc lives at `docs/markdown/RTLAmba/monitor/axi_monitor_reporter.md`),
+> `val/amba/test_axi_monitor.py` is now `val/amba/test_axi4_monitor.py`, and the
+> configuration guide moved to `docs/guides/AXI_Monitor_Configuration_Guide.md`.
+
 ## COMPLETED WORK
 
 **Implementation Date:** 2025-10-04 (commit c9a60f6)
@@ -36,9 +42,9 @@
 **Result:** Transaction cleanup now works correctly, enabling proper ID reuse
 
 **RTL Files Modified:**
-- ✅ `rtl/amba/shared/axi_monitor_reporter.sv` - Added output port `event_reported_flags`
-- ✅ `rtl/amba/shared/axi_monitor_trans_mgr.sv` - Added input port `i_event_reported_flags`
-- ✅ `rtl/amba/shared/axi_monitor_base.sv` - Connected feedback wire between modules
+- ✅ `rtl/amba/monitor/axi_monitor_reporter.sv` - Added output port `event_reported_flags`
+- ✅ `rtl/amba/monitor/axi_monitor_trans_mgr.sv` - Added input port `i_event_reported_flags`
+- ✅ `rtl/amba/monitor/axi_monitor_base.sv` - Connected feedback wire between modules
 
 **Integration Verified:**
 - ✅ All AXI4 master/slave read/write monitors working
@@ -81,17 +87,17 @@ See detailed analysis in `rtl/amba/KNOWN_ISSUES/axi_monitor_reporter.md`
 **CRITICAL: Review existing signaling patterns before implementation**
 
 ### Modules to Review
-- [x] `rtl/amba/shared/axi_monitor_trans_mgr.sv` - Consumer of event_reported
+- [x] `rtl/amba/monitor/axi_monitor_trans_mgr.sv` - Consumer of event_reported
   - Line 178: Checks `r_trans_table[idx].event_reported` for cleanup
   - Line 259: Initializes `event_reported` to 0 on new transaction
   - Uses: `bus_transaction_t` struct with `.event_reported` field
 
-- [x] `rtl/amba/shared/axi_monitor_reporter.sv` - Producer of event_reported
+- [x] `rtl/amba/monitor/axi_monitor_reporter.sv` - Producer of event_reported
   - Line 59: Internal flag `r_event_reported[MAX_TRANSACTIONS-1:0]`
   - Line 450: Sets flag when packet sent
   - Missing: Output port to communicate this back
 
-- [x] `rtl/amba/shared/axi_monitor_base.sv` - Top-level integration
+- [x] `rtl/amba/monitor/axi_monitor_base.sv` - Top-level integration
   - Connects trans_mgr and reporter
   - Will need new wire for event_reported feedback
 
@@ -147,13 +153,13 @@ Alternative approaches considered:
 
 ### 1. RTL Changes
 
-**File: `rtl/amba/shared/axi_monitor_reporter.sv`**
+**File: `rtl/amba/monitor/axi_monitor_reporter.sv`**
 - [ ] Add output port: `output logic [MAX_TRANSACTIONS-1:0] event_reported_flags`
 - [ ] Connect to internal register: `assign event_reported_flags = r_event_reported;`
 - [ ] Add reset behavior documentation in comments
 - [ ] Verify no timing impact (combinational output from register)
 
-**File: `rtl/amba/shared/axi_monitor_trans_mgr.sv`**
+**File: `rtl/amba/monitor/axi_monitor_trans_mgr.sv`**
 - [ ] Add input port: `input logic [MAX_TRANSACTIONS-1:0] i_event_reported_flags`
 - [ ] Add logic to update transaction table event_reported field:
   ```systemverilog
@@ -167,7 +173,7 @@ Alternative approaches considered:
 - [ ] Add comments explaining synchronization mechanism
 - [ ] Verify cleanup logic (line 178) now works correctly
 
-**File: `rtl/amba/shared/axi_monitor_base.sv`**
+**File: `rtl/amba/monitor/axi_monitor_base.sv`**
 - [ ] Add wire declaration: `logic [MAX_TRANSACTIONS-1:0] w_event_reported_flags;`
 - [ ] Connect reporter output to trans_mgr input:
   ```systemverilog

@@ -1,0 +1,199 @@
+# Central registry of every RTL filelist area in the repository.
+#
+# WHY THIS EXISTS
+#   Filelists are the compile-closure contract: a consumer `-f` includes a
+#   component's filelist and never hand-lists that component's sources. Before
+#   this registry there was no way to answer "which modules lack a filelist?"
+#   or "where do the lists live?" without hand-rolling a parser -- and every
+#   hand-rolled parser got the path/env-var conventions subtly wrong.
+#
+#   Read this with bin/filelist_registry.py, which resolves `-f` includes and
+#   the $*_ROOT variables exactly the way the cocotb consumer does
+#   (bin/TBClasses/shared/filelist_utils.get_sources_from_filelist).
+#
+# GENERATED AREAS
+#   Areas with `generated = true` have BOTH their RTL and their .f files emitted
+#   by a generator. Never hand-edit them -- edit the config and re-run `regen`.
+#   Hand edits are destroyed on the next regeneration, and a hand-edited .f for
+#   a deleted generated dir is worse than useless: it looks maintained.
+#
+# ADDING AN AREA
+#   Add an [[area]] block. `rtl_roots` are the trees the area owns (used for
+#   coverage: every module declared there should be reachable from some .f).
+#   Leave `rtl_roots` empty for consumer-only areas (boards, testbenches) that
+#   own no library modules and only assemble other areas' filelists.
+
+[registry]
+version = 1
+checker = "bin/filelist_registry.py"
+
+# ---------------------------------------------------------------------------
+# Shared RTL libraries -- these own modules and must have full coverage.
+# ---------------------------------------------------------------------------
+
+[[area]]
+name = "common"
+kind = "library"
+rtl_roots = ["rtl/common"]
+filelist_dirs = ["rtl/common/filelists"]
+
+[[area]]
+name = "math"
+kind = "library"
+# Split out of rtl/common: the math_* modules are a self-contained arithmetic
+# library (adders, multipliers, bf16/fp16/fp32/fp8 formats) that rtl/common does
+# not depend on except through explicit -f includes. Modules that merely USE
+# arithmetic -- count_leading_zeros, find_first_set, bin2gray/gray2bin,
+# mod_3_compress -- deliberately stayed in common: they serve FIFOs, CDC and
+# compressors, not math.
+rtl_roots = ["rtl/math"]
+filelist_dirs = ["rtl/math/filelists"]
+
+[[area]]
+name = "amba"
+kind = "library"
+rtl_roots = ["rtl/amba"]
+filelist_dirs = ["rtl/amba/filelists"]
+
+# ---------------------------------------------------------------------------
+# Components.
+# ---------------------------------------------------------------------------
+
+[[area]]
+name = "bridge"
+kind = "component"
+generated = true
+regen = "cd projects/components/bridge/bin && make regen"
+rtl_roots = ["projects/components/bridge/rtl"]
+# filelists/        -- emitted by bridge_generator.py; never hand-edit.
+# filelists_static/ -- hand-written lists for the hand-written bridge RTL
+#                      (bridge_cam), kept in a separate directory so a clean or
+#                      regen of the generated half cannot delete them.
+filelist_dirs = [
+    "projects/components/bridge/rtl/filelists",
+    "projects/components/bridge/rtl/filelists_static",
+]
+
+[[area]]
+name = "converters"
+kind = "component"
+rtl_roots = ["projects/components/converters/rtl"]
+filelist_dirs = ["projects/components/converters/rtl/filelists"]
+
+[[area]]
+name = "stream"
+kind = "component"
+rtl_roots = ["projects/components/dmas/stream/rtl"]
+filelist_dirs = ["projects/components/dmas/stream/rtl/filelists"]
+
+[[area]]
+name = "rapids"
+kind = "component"
+rtl_roots = ["projects/components/dmas/rapids/rtl"]
+filelist_dirs = ["projects/components/dmas/rapids/rtl/filelists"]
+
+[[area]]
+name = "retro_legacy_blocks"
+kind = "component"
+rtl_roots = ["projects/components/retro_legacy_blocks/rtl"]
+filelist_dirs = ["projects/components/retro_legacy_blocks/rtl"]
+
+[[area]]
+name = "apb_xbar"
+kind = "component"
+rtl_roots = ["projects/components/apb_xbar/rtl"]
+filelist_dirs = ["projects/components/apb_xbar/rtl/filelists"]
+
+[[area]]
+name = "pumice"
+kind = "component"
+rtl_roots = ["projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl"]
+filelist_dirs = [
+    "projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/filelists",
+    # DV tb_top assemblies (consumer-only: -f the component filelists + tb files)
+    "projects/components/memory-controllers/pumice-ddr2-lpddr2/dv/tb",
+]
+
+# ---------------------------------------------------------------------------
+# Board / characterization projects. These own little or no library RTL; they
+# assemble the areas above. Coverage is not enforced, but the no-hand-listing
+# rule still is.
+# ---------------------------------------------------------------------------
+
+[[area]]
+name = "nexys_stream_char_bridges"
+kind = "board"
+generated = true
+regen = "projects/NexysA7/stream_characterization/stream_char_framework/bin/regen_bridges.sh"
+rtl_roots = []
+filelist_dirs = ["projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/filelists"]
+
+[[area]]
+name = "nexys_ddr2_char_bridges"
+kind = "board"
+generated = true
+regen = "projects/NexysA7/ddr2-characterization/ddr2_char_framework/bin/regen_bridges.sh"
+rtl_roots = []
+filelist_dirs = ["projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/bridges/filelists"]
+
+[[area]]
+name = "nexys_stream_char"
+kind = "board"
+rtl_roots = []
+filelist_dirs = [
+    "projects/NexysA7/stream_characterization/stream_char_framework/rtl/filelists",
+    "projects/NexysA7/stream_characterization/flows-stream-bridge/rtl/filelists",
+    "projects/NexysA7/stream_characterization/flows-vivado-mcdma/rtl/filelists",
+    "projects/NexysA7/stream_characterization/flows-idma-bridge/flists",
+]
+
+[[area]]
+name = "nexys_ddr2_char"
+kind = "board"
+rtl_roots = []
+filelist_dirs = [
+    "projects/NexysA7/ddr2-characterization/ddr2_char_framework/dv/filelists",
+    "projects/NexysA7/ddr2-characterization/flows-ours-uart/rtl/filelists",
+    "projects/NexysA7/ddr2-characterization/flows-litedram-uart/rtl/filelists",
+]
+
+[[area]]
+name = "nexys_rapids_char"
+kind = "board"
+rtl_roots = []
+filelist_dirs = ["projects/NexysA7/rapids_characterization/flows-rapids-beats/flists"]
+
+[[area]]
+name = "nexys_cdc_display"
+kind = "board"
+rtl_roots = []
+filelist_dirs = ["projects/NexysA7/cdc_counter_display/dv/filelists"]
+
+[[area]]
+name = "nexys_timing_char"
+kind = "board"
+rtl_roots = []
+filelist_dirs = [
+    "projects/NexysA7/timing_characterization/rtl/filelists",
+    "projects/NexysA7/timing_characterization/rtl/asic_only/filelists",
+]
+
+[[area]]
+name = "val"
+kind = "testbench"
+rtl_roots = []
+filelist_dirs = ["val/amba/filelists"]
+
+# ---------------------------------------------------------------------------
+# Coverage exemptions: modules that intentionally have no filelist reaching
+# them. Every entry needs a reason -- an unexplained exemption is a silent gap.
+# ---------------------------------------------------------------------------
+
+[exempt]
+gaxi_fifo_async_multi        = "multi-instance wrapper; no consumer yet"
+gaxi_fifo_sync_multi         = "multi-instance wrapper; no consumer yet"
+gaxi_skid_buffer_async_multi = "multi-instance wrapper; no consumer yet"
+gaxi_skid_buffer_multi       = "multi-instance wrapper; no consumer yet"
+gaxi_skid_buffer_multi_sigmap = "multi-instance wrapper; no consumer yet"
+fifo_sync_multi              = "multi-instance wrapper; no consumer yet"
+fifo_sync_multi_sigmap       = "multi-instance wrapper; no consumer yet"

@@ -39,8 +39,20 @@ VIVADO_BATCH = $(VIVADO) -mode batch -notrace
 
 TCL      := $(SELF_DIR)/tcl
 
+# ---- Board target ----------------------------------------------------------
+# BOARD selects the FPGA target: nexys (Artix-7 100T, default) or genesys2
+# (Kintex-7 325T-2). Passed to the tcl scripts via the environment; the
+# genesys2 build uses stream_char_genesys2_top (MMCM 200 MHz LVDS -> harness
+# clock, 4 channels, USE_AXI_MONITORS=1 — the monitor board-validation build).
+BOARD ?= nexys
+export BOARD
+
 PROJECT  := $(SELF_DIR)/build/vivado_project/stream_char.xpr
+ifeq ($(BOARD),genesys2)
+BITSTREAM:= $(SELF_DIR)/bitstream/stream_char_genesys2.bit
+else
 BITSTREAM:= $(SELF_DIR)/bitstream/stream_char.bit
+endif
 REPORTS  := $(SELF_DIR)/reports
 
 .PHONY: help project synth area bitstream program utilization timing sim clean clean-all cleanall regen-bridges regen-regs-nomon verify-sim

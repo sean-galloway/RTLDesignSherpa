@@ -44,6 +44,10 @@ module ddr2_char_uart_tb_top
     // pumice's burst-length scaling / the x16 over-read fix).
     parameter int DRAM_DEVICE_WIDTH = DRAM_BEAT_WIDTH,
     parameter int DFI_RATE        = 2,
+    // JEDEC burst length. Overridden per-test alongside the BFM's
+    // beats_per_burst so the DUT framing and the oracle come from ONE value --
+    // inheriting the ddr2_char_macro default here let the two silently diverge.
+    parameter int DRAM_BL         = 4,
     parameter int DFI_ADDR_BUS_W  = ROW_WIDTH * DFI_RATE,
     parameter int DFI_BANK_BUS_W  = 3 * DFI_RATE,
     parameter int DFI_CTRL_BUS_W  = DFI_RATE,
@@ -117,6 +121,7 @@ module ddr2_char_uart_tb_top
         .DRAM_BEAT_WIDTH (DRAM_BEAT_WIDTH),
         .DRAM_DEVICE_WIDTH (DRAM_DEVICE_WIDTH),
         .DFI_RATE        (DFI_RATE),
+        .DRAM_BL         (DRAM_BL),
         .CMD_MAX_DELAY   (CMD_MAX_DELAY)
     ) u_dut (
         .aclk        (aclk),

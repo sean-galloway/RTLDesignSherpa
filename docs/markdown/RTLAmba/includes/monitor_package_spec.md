@@ -127,7 +127,9 @@ The 16 codes are defined as localparams in `monitor_common_pkg`:
 | 4'h7  | `PktTypeStream`    | Stream event (AXIS — start/end/abort) |
 | 4'h8  | `PktTypeAddrMatch` | Address-match watchpoint (AXI) |
 | 4'h9  | `PktTypeAPB`       | APB-specific event |
-| 4'hA–4'hE | (reserved)     | Forward-compat slack |
+| 4'hA–4'hC | (reserved)     | Forward-compat slack |
+| 4'hD  | `PktTypePerfWin`   | Windowed-performance event (AXI perf window close) |
+| 4'hE  | `PktTypePerfHist`  | Latency-histogram bucket event (AXI) |
 | 4'hF  | `PktTypeDebug`     | Debug / trace event |
 
 ```systemverilog
@@ -141,6 +143,8 @@ localparam logic [3:0] PktTypeChannel    = 4'h6;
 localparam logic [3:0] PktTypeStream     = 4'h7;
 localparam logic [3:0] PktTypeAddrMatch  = 4'h8;
 localparam logic [3:0] PktTypeAPB        = 4'h9;
+localparam logic [3:0] PktTypePerfWin    = 4'hD;
+localparam logic [3:0] PktTypePerfHist   = 4'hE;
 localparam logic [3:0] PktTypeDebug      = 4'hF;
 ```
 
@@ -298,10 +302,10 @@ explicit at the file level.
 ## Related Documentation
 
 - **[`monitor_system_whitepaper.md`](../monitor_system_whitepaper.md)** — Design-surface view: identity allocation, timestamp policy, drain paths, aggregation topology.
-- **[`shared/axi_monitor_base.md`](../shared/axi_monitor_base.md)** — Core monitor that emits packets.
-- **[`shared/axi_monitor_reporter.md`](../shared/axi_monitor_reporter.md)** — Packet formatting logic (where `create_monitor_packet` is invoked).
-- **[`shared/axi_monitor_addr_check.md`](../shared/axi_monitor_addr_check.md)** — Address-range checker, canonical example of structured `event_data`.
-- **[`shared/monbus_arbiter.md`](../shared/monbus_arbiter.md)** — 192-bit atomic packet+timestamp arbitration.
+- **[`../monitor/axi_monitor_base.md`](../monitor/axi_monitor_base.md)** — Core monitor that emits packets.
+- **[`../monitor/axi_monitor_reporter.md`](../monitor/axi_monitor_reporter.md)** — Packet formatting logic (where `create_monitor_packet` is invoked).
+- **[`../monitor/axi_monitor_addr_check.md`](../monitor/axi_monitor_addr_check.md)** — Address-range checker, canonical example of structured `event_data`.
+- **[`../monitor/monbus_arbiter.md`](../monitor/monbus_arbiter.md)** — 192-bit atomic packet+timestamp arbitration.
 
 ---
 

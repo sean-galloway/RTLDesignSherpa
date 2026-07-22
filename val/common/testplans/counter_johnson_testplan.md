@@ -9,6 +9,13 @@
 Johnson counter (twisted ring counter) - shifts counter_gray with feedback from inverted MSB.
 Creates a 2*WIDTH state sequence where only one bit changes per clock.
 
+**CDC application coverage lives elsewhere.** This plan covers the counter in
+isolation. Its use as an async-FIFO pointer (the reason the one-bit-change
+property matters) is covered by
+[fifo_async_testplan.md](fifo_async_testplan.md) scenarios FA-J1..FA-J5, under
+`fifo_async` with `USE_JOHNSON=1`. That path was previously the standalone
+`fifo_async_div2` module, now retired.
+
 ## Scenarios
 
 | ID | Scenario | Description | Tested | Coverage Gap |

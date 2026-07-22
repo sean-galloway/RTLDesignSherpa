@@ -82,6 +82,6 @@ Shows diagnostic loopback mode (MCR[4]=1). TX shift output internally routes to 
 
 ## References
 
-- **UART RTL:** `rtl/uart/apb_uart_16550.sv`
-- **UART Testbench:** `dv/tbclasses/uart/uart_tb.py`
-- **Constraint Class:** `bin/TBClasses/wavedrom_user/uart.py`
+- **UART RTL:** `rtl/uart_16550/apb_uart_16550.sv`
+- **UART Testbench:** `dv/tbclasses/uart_16550/uart_16550_tb.py`
+- **Constraint Class:** none yet for the UART (see `bin/TBClasses/wavedrom_user/hpet.py` and `apb.py` for examples)

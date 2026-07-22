@@ -57,7 +57,7 @@ Slave Side:      apb_master modules convert cmd/rsp → APB interface
 
 Generate all standard variants:
 ```bash
-cd rtl/amba/apb/xbar/
+cd projects/components/apb_xbar/bin/
 python generate_xbars.py
 ```
 
@@ -71,8 +71,8 @@ python generate_xbars.py --masters 4 --slaves 8 --base-addr 0x80000000
 
 Use the main generator for more control:
 ```bash
-cd bin/rtl_generators/amba/
-python apb_xbar_generator.py --masters 2 --slaves 4 --output ../../../rtl/amba/apb/xbar/apb_xbar_2to4.sv
+cd projects/components/apb_xbar/bin/
+python apb_xbar_generator.py --masters 2 --slaves 4 --output ../rtl/apb_xbar_2to4.sv
 ```
 
 ## Address Map
@@ -135,7 +135,7 @@ apb_xbar_2to4 #(
 
 ## Testing
 
-All generated crossbars have corresponding test files in `val/integ_amba/`:
+All generated crossbars have corresponding test files in `dv/tests/`:
 
 - `test_apb_xbar_1to1.py` - 100+ transactions, variable delay profiles
 - `test_apb_xbar_2to1.py` - 130+ transactions, arbitration stress tests
@@ -144,8 +144,8 @@ All generated crossbars have corresponding test files in `val/integ_amba/`:
 
 Run tests:
 ```bash
-pytest val/integ_amba/test_apb_xbar_2to4.py -v
-pytest val/integ_amba/test_apb_xbar_*.py -v  # All variants
+pytest projects/components/apb_xbar/dv/tests/test_apb_xbar_2to4.py -v
+pytest projects/components/apb_xbar/dv/tests/ -v  # All variants
 ```
 
 ## Design Notes
@@ -200,7 +200,7 @@ if M < 1 or M > 16:  # Change 16 to desired max
 - APB Specification: ARM IHI 0024C (AMBA APB Protocol v2.0)
 - Generator: `projects/components/apb_xbar/bin/apb_xbar_generator.py`
 - Base modules: `rtl/amba/apb/apb_slave.sv`, `rtl/amba/apb/apb_master.sv`
-- Tests: `val/integ_amba/test_apb_xbar_*.py`
+- Tests: `dv/tests/test_apb_xbar_*.py`
 
 ---
 

@@ -69,9 +69,6 @@
     "tick": 0,
     "every": 2
   },
-  "foot": {
-    "text": "Modular: 3 events, sequence, 14 cycles | CP-SAT Solved"
-  },
   "config": {
     "hscale": 2
   }

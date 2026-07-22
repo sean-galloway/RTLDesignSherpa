@@ -26,7 +26,7 @@ MODULES = \
 	counter_load_clear \
 	bin2gray \
 	gray2bin \
-	grayj2bin \
+	johnson2bin \
 	glitch_free_n_dff_arn \
 	fifo_control \
 	fifo_sync \
@@ -72,7 +72,7 @@ help:
 	@echo "  Arbiters:    arbiter-simple, arbiter-rr, arbiter-rrw, arbiter-pe"
 	@echo "  Counters:    counter, counter-load, counter-gray, counter-freq,"
 	@echo "               counter-johnson, counter-lc"
-	@echo "  Gray code:   bin2gray, gray2bin, grayj2bin"
+	@echo "  Gray code:   bin2gray, gray2bin, johnson2bin"
 	@echo "  CDC:         glitch-free"
 	@echo "  FIFOs:       fifo-ctrl, fifo, fifo-multi, fifo-async, gaxi-skid,"
 	@echo "               gaxi-drop-fifo, gaxi-fifo-async, gaxi-fifo-sync,"
@@ -112,7 +112,7 @@ $(eval $(call MODULE_TARGETS,counter_johnson,counter-johnson,counter_johnson.sby
 $(eval $(call MODULE_TARGETS,counter_load_clear,counter-lc,counter_load_clear.sby))
 $(eval $(call MODULE_TARGETS,bin2gray,bin2gray,bin2gray.sby))
 $(eval $(call MODULE_TARGETS,gray2bin,gray2bin,gray2bin.sby))
-$(eval $(call MODULE_TARGETS,grayj2bin,grayj2bin,grayj2bin.sby))
+$(eval $(call MODULE_TARGETS,johnson2bin,johnson2bin,johnson2bin.sby))
 $(eval $(call MODULE_TARGETS,glitch_free_n_dff_arn,glitch-free,glitch_free_n_dff_arn.sby))
 $(eval $(call MODULE_TARGETS,fifo_control,fifo-ctrl,fifo_control.sby))
 $(eval $(call MODULE_TARGETS,fifo_sync,fifo,fifo_sync.sby))
@@ -152,7 +152,7 @@ cover-arbiter: cover-arbiter-simple
 PROVE_ALL = prove-arbiter-simple prove-arbiter-rr prove-arbiter-rrw prove-arbiter-pe \
             prove-counter prove-counter-load prove-counter-gray prove-counter-freq \
             prove-counter-johnson prove-counter-lc \
-            prove-bin2gray prove-gray2bin prove-grayj2bin \
+            prove-bin2gray prove-gray2bin prove-johnson2bin \
             prove-glitch-free \
             prove-fifo-ctrl prove-fifo prove-fifo-multi prove-fifo-async prove-gaxi-skid \
             prove-axi-gen-addr \
@@ -170,7 +170,7 @@ PROVE_ALL = prove-arbiter-simple prove-arbiter-rr prove-arbiter-rrw prove-arbite
 COVER_ALL = cover-arbiter-simple cover-arbiter-rr cover-arbiter-rrw cover-arbiter-pe \
             cover-counter cover-counter-load cover-counter-gray cover-counter-freq \
             cover-counter-johnson cover-counter-lc \
-            cover-bin2gray cover-gray2bin cover-grayj2bin \
+            cover-bin2gray cover-gray2bin cover-johnson2bin \
             cover-glitch-free \
             cover-fifo-ctrl cover-fifo cover-fifo-multi cover-fifo-async cover-gaxi-skid \
             cover-axi-gen-addr \

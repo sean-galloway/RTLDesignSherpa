@@ -1,1 +1,0 @@
-markdown/CocoTBFramework/components/wavedrom/wavedrom_auto_binding.md

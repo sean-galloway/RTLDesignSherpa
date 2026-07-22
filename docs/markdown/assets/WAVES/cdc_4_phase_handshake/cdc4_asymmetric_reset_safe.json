@@ -1,0 +1,29 @@
+{
+  "signal": [
+    {"name": "clk_src",    "wave": "p......................."},
+    {"name": "rst_src_n",  "wave": "1......................."},
+    {"name": "src_valid",  "wave": "0.1.0..................."},
+    {"name": "src_ready",  "wave": "1..0.........1.........."},
+    {"name": "r_req_src",  "wave": "0..1.........0..........", "node": "...a.........d.........."},
+    {},
+    {"name": "clk_dst",    "wave": "p......................."},
+    {"name": "rst_dst_n",  "wave": "1.......0..1............", "node": "........r..s............"},
+    {"name": "w_req_sync", "wave": "0.....1.0....1......0...", "node": ".............e.........."},
+    {"name": "dst_valid",  "wave": "0.....1.0....1...0......"},
+    {"name": "dst_ready",  "wave": "0................1.0...."},
+    {"name": "r_ack_dst",  "wave": "0.......0........1..0..."}
+  ],
+  "edge": [
+    "r destination reset only",
+    "a~>e req level still high: transfer simply re-presented",
+    "d no phantom, no lost parity"
+  ],
+  "head": {
+    "text": "cdc_4_phase_handshake - one-sided reset is safe (level-encoded, self-recovering)",
+    "tick": 0
+  },
+  "foot": {
+    "text": "rst_dst_n clears the destination FSM to D_IDLE and ack to 0. Because req is a LEVEL that the source still holds, the destination simply re-observes it and redoes the transfer. Nothing is fabricated; at worst the in-flight transfer is repeated or abandoned."
+  },
+  "config": {"hscale": 2}
+}

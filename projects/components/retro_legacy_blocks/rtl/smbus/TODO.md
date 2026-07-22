@@ -26,6 +26,11 @@
 **Current Status:** 85% Complete  
 **Last Updated:** 2025-11-16
 
+> Status (2026-07-22): Partially superseded. The test infrastructure planned below now
+> exists: `dv/tbclasses/smbus/` (smbus_tb.py, smbus_tests_basic.py) and the flat test
+> runner `dv/tests/test_apb_smbus.py` (tests are NOT in a per-block `dv/tests/smbus/`
+> subdirectory - the dv/tests/ area is flat). Paths below have been updated accordingly.
+
 ---
 
 ## ✅ What's Complete (85%)
@@ -111,7 +116,7 @@ peakrdl regblock smbus_regs.rdl --cpuif apb4-flat -o ../smbus_regs_generated.sv
 #### Step 1: Create Directory Structure
 ```bash
 mkdir -p projects/components/retro_legacy_blocks/dv/tbclasses/smbus
-mkdir -p projects/components/retro_legacy_blocks/dv/tests/smbus
+# Test runners live flat in projects/components/retro_legacy_blocks/dv/tests/
 ```
 
 #### Step 2: Basic Testbench (smbus_tb.py)
@@ -156,7 +161,7 @@ async def test_read_byte(tb):
 
 #### Step 4: Test Runner (test_apb_smbus.py)
 ```python
-# projects/components/retro_legacy_blocks/dv/tests/smbus/test_apb_smbus.py
+# projects/components/retro_legacy_blocks/dv/tests/test_apb_smbus.py
 
 import cocotb
 from cocotb.clock import Clock
@@ -175,7 +180,7 @@ async def run_all_tests(dut):
 - `dv/tbclasses/smbus/__init__.py`
 - `dv/tbclasses/smbus/smbus_tb.py` (~300 lines)
 - `dv/tbclasses/smbus/smbus_tests_basic.py` (~200 lines)
-- `dv/tests/smbus/test_apb_smbus.py` (~100 lines)
+- `dv/tests/test_apb_smbus.py` (~100 lines)
 
 ---
 
@@ -281,8 +286,8 @@ async def smoke_test(dut):
 
 **Run:**
 ```bash
-cd projects/components/retro_legacy_blocks/dv/tests/smbus/
-pytest test_smbus_smoke.py -v
+cd projects/components/retro_legacy_blocks/dv/tests/
+pytest test_apb_smbus.py -v
 ```
 
 **Estimated:** 2-4 hours to setup + run
@@ -380,9 +385,9 @@ OVERALL:                 █████████████████░�
 
 ### Test Infrastructure (100% remaining)
 **Need to create:**
-- `d v/tbclasses/smbus/smbus_tb.py` (~300 lines)
+- `dv/tbclasses/smbus/smbus_tb.py` (~300 lines)
 - `dv/tbclasses/smbus/smbus_tests_basic.py` (~200 lines)
-- `dv/tests/smbus/test_apb_smbus.py` (~100 lines)
+- `dv/tests/test_apb_smbus.py` (~100 lines)
 
 **Estimated:** 600 lines total across 3 files
 
@@ -438,7 +443,7 @@ OVERALL:                 █████████████████░�
 **To Create:**
 - `dv/tbclasses/smbus/smbus_tb.py`
 - `dv/tbclasses/smbus/smbus_tests_basic.py`
-- `dv/tests/smbus/test_apb_smbus.py`
+- `dv/tests/test_apb_smbus.py`
 
 **To Complete:**
 - `smbus_config_regs.sv` (50% → 100%)

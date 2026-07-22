@@ -26,6 +26,11 @@
 **Date:** 2025-11-29
 **Purpose:** Track completion status and remaining work for all RLB modules
 
+> Status (2026-07-22): Snapshot from 2025-11-29; test coverage has advanced since.
+> Test runners now live flat under `dv/tests/` (no per-block subdirectories), and
+> runners exist for every block: `test_apb_{hpet,pic_8259,pit_8254,rtc,smbus,pm_acpi,ioapic,gpio,uart_16550}.py`.
+> "No tests in dv/tests/{block}/" claims below reflect the 2025-11-29 state.
+
 ---
 
 ## Module Implementation Status
@@ -104,15 +109,15 @@ The Stream DMA provides:
 ### Test Infrastructure Existing
 
 **HPET:**
-- ✅ `dv/tests/hpet/test_apb_hpet.py` - Cocotb tests exist
+- ✅ `dv/tests/test_apb_hpet.py` - Cocotb tests exist
 - Status: Has comprehensive validation
 
 **PIT_8254:**
-- ✅ `dv/tests/pit_8254/test_apb_pit_8254.py` - Cocotb tests exist
+- ✅ `dv/tests/test_apb_pit_8254.py` - Cocotb tests exist
 - Status: Has comprehensive validation
 
 **RTC:**
-- ✅ `dv/tests/rtc/test_apb_rtc.py` - Cocotb test runner
+- ✅ `dv/tests/test_apb_rtc.py` - Cocotb test runner
 - ✅ `dv/tbclasses/rtc/rtc_tb.py` - Testbench class
 - ✅ `dv/tbclasses/rtc/rtc_tests_basic.py` - Basic tests
 - Status: Has comprehensive validation infrastructure

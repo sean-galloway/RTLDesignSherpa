@@ -28,6 +28,18 @@
 **Version:** 2.2
 **Current Status:** 🟢 Major Milestones Complete - Wrapper Integration + Intelligent Routing (All Phases)
 
+> Status (2026-07-22): partially historical. The generator was consolidated: the
+> separate bridge_csv_generator.py / bridge_channel_router.py / bridge_address_arbiter.py
+> scripts named below were merged into `bin/bridge_generator.py` + `bin/bridge_pkg/`
+> (CSV/TOML driven; bulk via `bin/Makefile`). Generated RTL now lives in
+> `rtl/generated/<bridge_name>/`; tests are flat per-config files in `dv/tests/`.
+> The companion status docs (BRIDGE_CURRENT_STATE.md, IMPLEMENTATION_STATUS.md,
+> TESTING.md, CSV_BRIDGE_STATUS.md) and docs/bridge_spec/ were superseded by
+> `GENERATOR_ARCHITECTURE.md` and the HAS/MAS specs (`docs/bridge_has/`,
+> `docs/bridge_mas/`, rendered as Bridge_HAS_v1.1.pdf / Bridge_MAS_v1.1.pdf).
+> "(to be created)" file references in planned tasks were never built unless noted.
+> Historical entries below are kept as written.
+
 ---
 
 ## Quick Status
@@ -50,10 +62,9 @@
   - Per-slave arbitration with burst locking
   - 60% zero-latency connections in mixed-width configs
 
-**📖 See also:**
-- `BRIDGE_CURRENT_STATE.md` - Detailed current state review
-- `IMPLEMENTATION_STATUS.md` - Phase status summary
-- `TESTING.md` - Test compliance documentation
+**📖 See also (current docs - the older status files were superseded):**
+- `GENERATOR_ARCHITECTURE.md` - Generator architecture reference
+- `docs/bridge_has/` / `docs/bridge_mas/` - HAS/MAS specifications (Bridge_HAS_v1.1.pdf, Bridge_MAS_v1.1.pdf)
 
 ---
 
@@ -194,7 +205,7 @@ axi4_slave_rd #(...) u_sram_slave_rd (...);
 - `rtl/amba/axi4/axi4_master_rd.sv` - Read interface wrapper
 - `rtl/amba/axi4/axi4_master_wr.sv` - Write interface wrapper
 - `rtl/amba/CLAUDE.md` - AMBA interface patterns
-- `docs/AXI_Monitor_Configuration_Guide.md` - Monitoring setup
+- `docs/guides/AXI_Monitor_Configuration_Guide.md` (repo root) - Monitoring setup
 
 ---
 
@@ -424,7 +435,7 @@ Fix three critical bugs introduced by earlier optimizations that caused transact
 
 **Future Work:**
 - Real AXI4-Lite protocol conversion (single-beat enforcement) deferred
-- Migrate remaining area conftests to `cov_utils/conftest_base.py` pattern
+- Migrate remaining area conftests to `bin/cov_utils/conftest_base.py` (repo root) pattern
 - Enhanced monitoring integration for debug/performance analysis
 
 ---
@@ -458,7 +469,7 @@ Implement AXI4-to-APB converter module to complete Phase 3 of CSV bridge generat
 - `dv/tbclasses/apb_converter_tb.py` (to be created)
 
 **See also:**
-- `docs/AXI4_AXIL4_CONVERTER_ANALYSIS.md` - Similar converter analysis
+- `docs/bridge_mas/ch05_converters/` - Converter analysis (the old AXI4_AXIL4_CONVERTER_ANALYSIS.md was folded into the MAS)
 
 ---
 
@@ -569,7 +580,7 @@ Characterize and document crossbar performance (latency, throughput, resource us
 
 **Related Files:**
 - `docs/BRIDGE_PERFORMANCE_ANALYSIS.md` (to be created)
-- `bin/bridge_model.py` (existing)
+- `models/bridge_model/bridge_model.py` (existing; moved from bin/)
 
 ---
 
@@ -1000,7 +1011,7 @@ ergonomic prefixes (`host_awvalid`, `dma_axil_awvalid`,
 - **Testing:** End-to-end testing with mixed topologies (2-3 weeks)
 
 **See also:**
-- `docs/AXI4_AXIL4_CONVERTER_ANALYSIS.md` - Complete analysis and effort estimates
+- `docs/bridge_mas/ch05_converters/` - Converter analysis (the old AXI4_AXIL4_CONVERTER_ANALYSIS.md was folded into the MAS)
 
 ### TASK-016: Async Clock Domain Crossing
 **Priority:** P3
@@ -1218,10 +1229,10 @@ arbiter_rr_monbus #(.N(NUM_MONITORS)) u_mon_arbiter (
 - Default: OFF (production configs)
 - Enable: For development, debug, performance analysis builds
 **See Also:**
-- `rtl/amba/axi4/*_mon*.sv` - AXI4 monitor modules
-- `rtl/amba/apb/apb_monitor.sv` - APB monitor
-- `docs/AXI_Monitor_Configuration_Guide.md` - Monitor configuration best practices
-- `rtl/amba/shared/arbiter_rr_monbus.sv` - Monitor bus arbiter
+- `rtl/amba/monitor/axi4_*_mon.sv` - AXI4 monitor modules
+- `rtl/amba/monitor/apb_monitor.sv` - APB monitor
+- `docs/guides/AXI_Monitor_Configuration_Guide.md` (repo root) - Monitor configuration best practices
+- `rtl/amba/monitor/arbiter_rr_pwm_monbus.sv` - Monitor bus arbiter (rr/wrr PWM variants)
 
 ---
 
@@ -1301,47 +1312,38 @@ TASK-010 (Burst Analysis) - Independent
 
 ## Quick Commands
 
-### Run Specification to PDF (when spec exists)
+> Note (2026-07-22): this section originally described a small APB<->AXI bridge
+> project (val/bridge/, rtl/bridge/, docs/bridge_spec/, scripts/synth_bridge.tcl)
+> that no longer exists. Updated to the current crossbar-generator flow.
+
+### Build Specification PDFs
 ```bash
-python bin/md_to_docx.py \
-    projects/components/bridge/docs/bridge_spec/bridge_index.md \
-    -o projects/components/bridge/docs/Bridge_Specification_v1.0.docx \
-    --toc --title-page --pdf
+cd projects/components/bridge/docs
+./generate_has_pdf.sh   # Bridge_HAS_v<rev>.docx/.pdf
+./generate_mas_pdf.sh   # Bridge_MAS_v<rev>.docx/.pdf
 ```
 
 ### Run Bridge Tests
 ```bash
 # Run all bridge tests
-pytest val/bridge/ -v
+pytest projects/components/bridge/dv/tests/ -v
 
-# Run APB-to-AXI tests
-pytest val/bridge/test_apb_to_axi_bridge.py -v
+# Run a single configuration
+pytest projects/components/bridge/dv/tests/test_bridge_2x2_rw.py -v
 
-# Run AXI-to-APB tests
-pytest val/bridge/test_axi_to_apb_bridge.py -v
+# Monitor stress tests
+pytest projects/components/bridge/dv/tests/test_bridge_mix_a_mon_monitor.py -v
+```
+
+### Regenerate Bridges
+```bash
+cd projects/components/bridge/bin
+make clean && make all   # Bulk regeneration from bridge_batch.csv
 ```
 
 ### Lint Bridge RTL
 ```bash
-verilator --lint-only rtl/bridge/apb_to_axi_bridge.sv
-verilator --lint-only rtl/bridge/axi_to_apb_bridge.sv
-```
-
-### Generate Wavedrom SVG
-```bash
-wavedrom-cli -i docs/bridge_spec/assets/waves/apb_to_axi_read.json \
-             -s docs/bridge_spec/assets/waves/apb_to_axi_read.svg
-```
-
-### Generate PlantUML PNG
-```bash
-plantuml docs/bridge_spec/assets/puml/apb_to_axi_bridge_fsm.puml
-```
-
-### Measure Resource Usage (Vivado)
-```bash
-# Synthesize with Vivado and report utilization
-vivado -mode batch -source scripts/synth_bridge.tcl
+verilator --lint-only projects/components/bridge/rtl/generated/bridge_2x2_rw/bridge_2x2_rw.sv
 ```
 
 ---
