@@ -248,7 +248,7 @@ All monitors output standardized 64-bit packets:
 ## 9. Documentation
 
 ### 9.1 Existing Documentation
-- ✅ Configuration Guide: `docs/guides/AXI_Monitor_Configuration_Guide.md`
+- ✅ Configuration Guide: `docs/user-guides/AXI_Monitor_Configuration_Guide.md`
 - ✅ Known Issues: `rtl/amba/KNOWN_ISSUES/` (the axi_monitor_reporter page was retired after the fix)
 - ✅ Task Specifications: `rtl/amba/PRD/TASK-001-axi_monitor_reporter.md` (FIX-001)
 - ⏳ API Reference: Partial (needs completion)
@@ -317,7 +317,7 @@ All monitors output standardized 64-bit packets:
 - **Task README:** `rtl/amba/PRD/README.md` (task structure and guidelines)
 - **Task List:** `rtl/amba/PRD/TASKS.md` (current work items)
 - **KNOWN_ISSUES:** `rtl/amba/KNOWN_ISSUES/` (detailed issue documentation)
-- **Configuration Guide:** `docs/guides/AXI_Monitor_Configuration_Guide.md`
+- **Configuration Guide:** `docs/user-guides/AXI_Monitor_Configuration_Guide.md`
 
 ---
 

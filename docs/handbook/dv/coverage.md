@@ -7,7 +7,7 @@ summary: Verilator code coverage, functional bar, monbus packet-type matrix.
 
 - Code coverage: Verilator --coverage via component flows (COVERAGE=1);
   measure the RTL under test, not the TB. Rollout tracker: val/COVERAGE_TODO.md.
-  Long-form methodology: docs/guides/rtl_coverage_guidelines.md.
+  Long-form methodology: docs/user-guides/rtl_coverage_guidelines.md.
 - Functional: >95 percent of the block contract, 100 percent pass rate.
 - Packet-type matrix (monitor board gate): MONBUS_COVERAGE=1 during val/amba
   records every decoded (protocol, pkt_type, event_code) tuple;

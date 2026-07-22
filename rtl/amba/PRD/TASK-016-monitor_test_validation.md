@@ -33,7 +33,7 @@
 > `rtl/amba/KNOWN_ISSUES/axi_monitor_reporter.md` was removed after the fix
 > (the module doc lives at `docs/markdown/RTLAmba/monitor/axi_monitor_reporter.md`),
 > `val/amba/test_axi_monitor.py` is now `val/amba/test_axi4_monitor.py`, and the
-> configuration guide moved to `docs/guides/AXI_Monitor_Configuration_Guide.md`.
+> configuration guide moved to `docs/user-guides/AXI_Monitor_Configuration_Guide.md`.
 
 ## VERIFICATION COMPLETE
 

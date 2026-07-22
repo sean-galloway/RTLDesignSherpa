@@ -27,7 +27,7 @@
 
 `V2WConvert` is a class designed to facilitate converting time units and calculating sampling points for VCD (Value Change Dump) file analysis. It utilizes the Pint library for unit conversion.
 
-![VCD to Wavedrom 2, Convert](../../images_scripts_uml/V2WConvert.svg)
+![VCD to Wavedrom 2, Convert](assets/V2WConvert.svg)
 
 ## Properties
 

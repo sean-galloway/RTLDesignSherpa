@@ -25,7 +25,7 @@
 
 This Python module defines a `MultiplierMixin` class, which contains methods for generating Verilog code for multipliers, including Dadda, Wallace, and Booth radix-4 multipliers. The class is used as a mixin (hence the name), providing standard functionality for more specific multiplier classes that would inherit from this.
 
-![MultiplierMixin UML](../../images_scripts_uml/MultiplierMixin.svg)
+![MultiplierMixin UML](assets/MultiplierMixin.svg)
 
 ## Partial Products Generator for Dadda/Wallace Multiplier
 

@@ -1063,7 +1063,7 @@ Survey the entire test suite to identify additional tests that would significant
 - ✅ Implementation guidelines and code examples provided
 - ✅ Prioritized roadmap for follow-up tasks
 
-**Deliverable Location:** `docs/design/WAVEDROM_CANDIDATE_SURVEY.md`
+**Deliverable Location:** `docs/design/WAVEDROM_CANDIDATE_SURVEY.md (removed 2026-07-22 in the docs cleanup; survey content superseded by the per-book WAVES assets)`
 
 ---
 

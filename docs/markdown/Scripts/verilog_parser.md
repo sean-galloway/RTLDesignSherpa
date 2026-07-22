@@ -25,7 +25,7 @@
 
 The `verilog_parser` module, located at `rtl_generators/verilog/verilog_parser.py`, provides classes and methods for parsing Verilog code, specifically module declarations, including parameters and port lists. It defines two main classes: `ParserHelper` and `Parser`.
 
-![Verilog Parser Helper UML](../../images_scripts_uml/verilog_ParserHelperTop.svg)
+![Verilog Parser Helper UML](assets/verilog_ParserHelperTop.svg)
 
 ## ParserHelper
 
