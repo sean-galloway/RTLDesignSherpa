@@ -8,7 +8,8 @@
 // to end this lets the TB confirm:
 //
 //   - `o_expected_crc` (writer) == `o_actual_crc` (reader)
-//   - `o_data_error == 0` and `o_beats_mismatched == 0` on a clean run
+//   - `o_data_error == 0`, `o_beats_mismatched == 0`, and
+//     `o_stray_beat_error == 0` on a clean run
 //
 // Both DUTs are programmed with the same workload (start_addr, strides,
 // burst_len, txn_count, lfsr_seed) so the reader walks the same address
@@ -65,7 +66,9 @@ module tb_axi4_master_pat_crc_pair #(
     output logic                       o_actual_crc_valid,
     output logic                       o_data_error,
     output logic                       o_rresp_error,
-    output logic [15:0]                o_beats_mismatched
+    output logic [15:0]                o_beats_mismatched,
+    output logic                       o_stray_beat_error,
+    output logic [15:0]                o_stray_beats
 );
 
     //==========================================================================
@@ -196,6 +199,8 @@ module tb_axi4_master_pat_crc_pair #(
         .o_data_error         (o_data_error),
         .o_rresp_error        (o_rresp_error),
         .o_beats_mismatched   (o_beats_mismatched),
+        .o_stray_beat_error   (o_stray_beat_error),
+        .o_stray_beats        (o_stray_beats),
         .m_axi_arid           (rd_arid),
         .m_axi_araddr         (rd_araddr),
         .m_axi_arlen          (rd_arlen),

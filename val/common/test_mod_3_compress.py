@@ -27,10 +27,11 @@ async def mod_3_compress_test(dut):
 def test_mod_3_compress(request):
     module, repo_root_l, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_common': 'rtl/common',
+        'rtl_math': 'rtl/math',
     })
     dut_name = "mod_3_compress"
     verilog_sources = [
-        os.path.join(rtl_dict['rtl_common'], "math_adder_carry_save_nbit.sv"),
+        os.path.join(rtl_dict['rtl_math'], "math_adder_carry_save_nbit.sv"),
         os.path.join(rtl_dict['rtl_common'], "mod_3_compress.sv"),
     ]
     run(
