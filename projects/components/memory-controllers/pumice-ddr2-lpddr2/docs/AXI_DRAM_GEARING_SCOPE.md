@@ -47,9 +47,9 @@ the DFI word is the atomic memory-side transfer, so one AXI beat must be a
 *whole* power-of-two number of DFI words (or vice versa). Any other ratio yields
 partial words, fractional `CHUNK_BEATS`, and ragged bursts. LiteDRAM enforces
 the identical rule: its AXI frontend is 1:1 with its native port
-(`frontend/axi.py`: `assert axi.data_width == port.data_width`) and **all** width
+(upstream `litedram/frontend/axi.py`: `assert axi.data_width == port.data_width`) and **all** width
 change goes through a dedicated stride converter requiring exact divisibility +
-`log2_int(ratio)` (`frontend/adapter.py`: `LiteDRAMNativePortUp/DownConverter`).
+`log2_int(ratio)` (upstream `litedram/frontend/adapter.py`: `LiteDRAMNativePortUp/DownConverter`).
 
 Nexys A7 (beat=32, DFI_RATE=4 → DW=128): host 128→G1 (1:1, converter bypassed),
 256→2:1, 512→4:1; a narrower host (64) attaches 1:2 through the converter.

@@ -76,7 +76,7 @@ Read-only memory (ROM) with AXI4 read interface. Combines `axi4_slave_rd` protoc
 AXI4 read slave that generates pseudo-random patterns using 32-bit LFSR and computes CRC-32 for DMA validation. Used with companion write CRC checker to verify data integrity across DMA transfers.
 
 **Files:**
-- `rtl/axi4_slave_rd_pattern_gen.sv` - Read pattern generator with CRC
+- `rtl/amba/shared/axi4_slave_rd_pattern_gen.sv` (repo-shared AMBA module; misc carries its tests in `dv/tests/fub/test_axi4_slave_rd_pattern_gen.py`)
 
 **Key Features:**
 - 32-bit LFSR pattern generator (maximal length sequence)
@@ -116,7 +116,7 @@ LFSR (32-bit) → Replicate → AXI R data
 AXI4 write slave that computes CRC-32 on received data for DMA validation. Companion to read pattern generator - receives DMA writes and computes CRC for comparison.
 
 **Files:**
-- `rtl/axi4_slave_wr_crc_check.sv` - Write CRC checker
+- `rtl/amba/shared/axi4_slave_wr_crc_check.sv` (repo-shared AMBA module; misc carries its tests in `dv/tests/fub/test_axi4_slave_wr_crc_check.py`)
 
 **Key Features:**
 - Extracts 32-bit slice from AXI write data
@@ -173,11 +173,11 @@ else:
 **Description:**
 UART command-line interface to AXI4-Lite memory-mapped peripherals. Parses ASCII commands received via UART and executes corresponding AXI4-Lite transactions.
 
-**Files:**
-- `rtl/uart_to_axil4/uart_axil_bridge.sv` - Main bridge (parser + AXI4-Lite master)
-- `rtl/uart_to_axil4/uart_rx.sv` - UART receiver (8N1)
-- `rtl/uart_to_axil4/uart_tx.sv` - UART transmitter (8N1)
-- `rtl/uart_to_axil4/README.md` - Complete documentation
+**Files (moved to the converters component):**
+- `projects/components/converters/rtl/uart_to_axil4/uart_axil_bridge.sv` - Main bridge (parser + AXI4-Lite master)
+- `projects/components/converters/rtl/uart_to_axil4/uart_rx.sv` - UART receiver (8N1)
+- `projects/components/converters/rtl/uart_to_axil4/uart_tx.sv` - UART transmitter (8N1)
+- `projects/components/converters/rtl/uart_to_axil4/README.md` - Complete documentation
 
 **Key Features:**
 - Simple ASCII command protocol (human-readable)
@@ -238,7 +238,7 @@ crc = uart.readline()  # e.g., "0x12345678"
 - Breaks timing paths between slow UART and fast AXI bus
 - Configurable depths for high-frequency designs
 
-**See:** `rtl/uart_to_axil4/README.md` for complete documentation
+**See:** `projects/components/converters/rtl/uart_to_axil4/README.md` for complete documentation (this block now lives in the converters component)
 
 ---
 
@@ -456,12 +456,15 @@ Each component must have:
 pytest projects/components/misc/dv/tests/ -v
 
 # Run specific component tests
-pytest projects/components/misc/dv/tests/test_axi_rom.py -v
+pytest projects/components/misc/dv/tests/fub/test_dma_address_gen.py -v
+pytest projects/components/misc/dv/tests/fub/test_axi4_slave_rd_pattern_gen.py -v
+pytest projects/components/misc/dv/tests/fub/test_axi4_slave_wr_crc_check.py -v
 
 # Run with waveforms
-WAVES=1 pytest projects/components/misc/dv/tests/test_axi_rom.py -v
-gtkwave logs/test_axi_rom.vcd
+WAVES=1 pytest projects/components/misc/dv/tests/fub/test_dma_address_gen.py -v
 ```
+
+Note: `axi4_slave_rom.sv` does not yet have a dedicated test.
 
 ---
 

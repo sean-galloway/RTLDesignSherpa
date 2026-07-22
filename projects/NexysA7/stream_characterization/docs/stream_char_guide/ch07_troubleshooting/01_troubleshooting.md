@@ -42,4 +42,4 @@ closes at +0.031 ns WNS after trimming monitors to perf-only.
 The dated `flows-stream-bridge/README.md` ("Phase 1", 2026-04) describes an
 earlier 5-slave `axil_decode_5s` / `axil2apb` decoder. The **current** design uses
 the generated `bridge_stream_char_axil`; trust `PORT_MAP.md` and
-`host/ADDRESS_MAP.md` (July 2026), and the regmap generator, over that README.
+`flows-stream-bridge/host/ADDRESS_MAP.md` (July 2026), and the regmap generator, over that README.

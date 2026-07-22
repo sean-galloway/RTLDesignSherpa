@@ -571,8 +571,8 @@ python3 comprehensive_analysis.py  # No --plots flag
 ## References
 
 **STREAM Specification:**
-- `projects/components/dmas/stream/docs/stream_spec/stream_index.md` - Complete architecture
-- `projects/components/dmas/stream/docs/stream_spec/ch02_blocks/` - Block specifications
+- `projects/components/dmas/stream/docs/stream_mas/stream_index.md` - Complete architecture
+- `projects/components/dmas/stream/docs/stream_mas/ch02_blocks/` - Block specifications
 
 **Related:**
 - `projects/components/dmas/rapids/bin/dma_model/` - RAPIDS performance model (reference)

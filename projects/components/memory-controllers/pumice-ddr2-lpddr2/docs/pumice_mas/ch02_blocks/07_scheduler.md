@@ -76,8 +76,8 @@ all gated on the command sink accepting the push:
    down-counter loaded on each fired REF; while non-zero, ACT picks and further
    REFs are blocked (init-time refreshes use `INIT_TIMING1.t_rfc_wait`
    separately). The sequencing is audited by
-   `dv/checkers/pumice_cmd_history_checker.sv` (bound in the macro TB, `$fatal`
-   on violation).
+   `rtl/fub/pumice_cmd_history_checker.sv` (generate-gated by `CMD_HISTORY_EN`
+   inside the scheduler macro, `$fatal` on violation).
 3. **COLUMN row-hit** — an issuable RD/WR to an open row.
    **READ-PRIORITY**: a ready read wins over a ready write. Within each
    direction, **oldest** (max CAM relative age) wins the tie-break.

@@ -29,8 +29,11 @@ difference is isolated to a swappable encoder module.
 
 ## Status
 
-**Pre-architecture spec** — published Hardware Architecture Specification
-(see `docs/PUMICE_HAS_v0.3.pdf`). RTL implementation has not started.
+**Implemented and characterized** — the full controller RTL is in `rtl/`
+(`fub/`, `macro/`, `top/`) with cocotb suites under `dv/tests/{fub,macro,top}`.
+The design has been brought up on silicon on the Nexys A7 DDR2 board via the
+`projects/NexysA7/ddr2-characterization/` UART harness. Published specs:
+`docs/DDR2_LPDDR2_HAS_v0.5.pdf` and `docs/DDR2_LPDDR2_MAS_v0.5.pdf`.
 
 ## Layout
 
@@ -43,13 +46,14 @@ difference is isolated to a swappable encoder module.
 | `dv/` | Verification environment (cocotb tests, scoreboards, testbench classes) |
 | `regs/` | Register-map sources and generated headers |
 | `reports/` | Performance / characterization reports |
-| `rtl/` | SystemVerilog implementation (`top/`, `fub/`, `includes/`) |
+| `rtl/` | SystemVerilog implementation (`top/`, `macro/`, `fub/`, `includes/`, `filelists/`) |
 
 ## Documents
 
-- `docs/PUMICE_HAS_v0.3.pdf` — current HAS (103 pages, fully styled)
-- `docs/pumice_has/` — Markdown source for the HAS
-- `docs/generate_has_pdf.sh` — build script for the HAS
+- `docs/DDR2_LPDDR2_HAS_v0.5.pdf` — current HAS (fully styled)
+- `docs/DDR2_LPDDR2_MAS_v0.5.pdf` — current MAS (fully styled)
+- `docs/pumice_has/` / `docs/pumice_mas/` — Markdown sources
+- `docs/generate_has_pdf.sh` / `docs/generate_mas_pdf.sh` — build scripts
 
 ### Build Requirements
 

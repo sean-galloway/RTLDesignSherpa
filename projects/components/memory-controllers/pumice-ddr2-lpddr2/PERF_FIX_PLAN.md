@@ -1,5 +1,19 @@
 # pumice perf fix + regression gates — implementation spec
 
+> Status (2026-07-22): LANDED, then superseded. The runtime page-policy fix
+> shipped and was validated on silicon (OPEN page policy: 12.7 -> 112 MB/s
+> streaming), and the issue-per-clock bank-parallel scheduler (Task 1 below)
+> landed as well. The FSM-based design this plan patches was subsequently
+> retired by the full rearchitecture: the scheduler is now
+> `rtl/macro/pumice_mem_cmd_scheduler.sv`, the AXI front end (including the
+> read CAM, successor to `rd_cmd_cam.sv`) is `rtl/macro/pumice_axi4_ifc.sv` +
+> `rtl/fub/pumice_rd_cmd_cam.sv`, the config block is the PeakRDL-generated
+> CSR (`rtl/macro/pumice_csr.rdl`), and the tops are `rtl/top/pumice_core.sv` /
+> `rtl/top/pumice_top.sv`. Current tests: `dv/tests/macro/`
+> (`test_pumice_mem_cmd_scheduler.py`, `test_pumice_axi4_ifc.py`,
+> `test_pumice_dfi_layer.py`) and `dv/tests/top/`. File/line references below
+> are to the retired design and are kept as history.
+
 From the on-board characterization (2026-07-08): ~12.7 MB/s FLAT across access
 pattern, page policy, and burst length (bl=1..64) — ~2% of DDR2 peak. Root cause
 + fix surface below, confirmed by RTL + DV exploration. Direction (user):

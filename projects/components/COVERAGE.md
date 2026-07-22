@@ -153,11 +153,11 @@ These are **SHARED** across all components and should **NOT** be modified for co
 | Script/Module | Location | Purpose |
 |---------------|----------|---------|
 | `TBBase` | `bin/TBClasses/shared/tbbase.py` | Base testbench class |
-| `FlexConfigBase` | `bin/TBClasses/flex_config_base.py` | Configuration utilities |
-| GAXI BFMs | `bin/TBClasses/components/gaxi/` | Generic AXI bus functional models |
-| AXI4 Factories | `bin/TBClasses/axi4_factories.py` | AXI4 interface creation |
-| `get_paths()` | `bin/TBClasses/common/pytest_cocotb_utils.py` | Path utilities |
-| `get_sources_from_filelist()` | `bin/TBClasses/common/pytest_cocotb_utils.py` | Filelist parsing |
+| `FlexRandomizer` | `CocoTBFramework.components.shared.flex_randomizer` (RTLDesignSherpa-DV repo) | Randomized timing configuration |
+| GAXI BFMs | `bin/TBClasses/gaxi/` | Generic AXI bus functional models |
+| AXI4 Factories | `CocoTBFramework.components.axi4.axi4_factories` (RTLDesignSherpa-DV repo) | AXI4 interface creation |
+| `get_paths()` | `bin/TBClasses/shared/utilities.py` | Path utilities |
+| `get_sources_from_filelist()` | `bin/TBClasses/shared/filelist_utils.py` | Filelist parsing |
 
 ### Local Scripts (Component-Specific)
 
@@ -1217,7 +1217,7 @@ Check:
 See STREAM component for complete reference:
 
 - **Coverage package:** `projects/components/dmas/stream/dv/stream_coverage/`
-- **Legal config:** `projects/components/dmas/stream/dv/stream_coverage/legal_coverage_config.py`
+- **Legal config:** `projects/components/dmas/stream/dv/stream_coverage/stream_legal_coverage.yaml` (loaded via `coverage_config.py`)
 - **FUB tests:** `projects/components/dmas/stream/dv/tests/fub/test_scheduler.py`
 - **Macro tests:** `projects/components/dmas/stream/dv/tests/macro/test_stream_core.py`
 - **Top tests:** `projects/components/dmas/stream/dv/tests/top/test_stream_top.py`

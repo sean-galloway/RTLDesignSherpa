@@ -539,13 +539,13 @@ Before considering a module "complete":
 # Run audit script
 python bin/audit_module_documentation.py
 
-# View reports
+# View reports (written by the audit script; not checked in)
 cat reports/documentation/module_documentation_audit.md
 ```
 
-### Template Generator (Future Work)
+### Template Generator
 
-Create `bin/generate_module_docs.py` to:
+`bin/generate_module_headers.py` (originally planned as `generate_module_docs.py`) exists to:
 - Parse existing modules
 - Extract parameters/ports automatically
 - Generate template header

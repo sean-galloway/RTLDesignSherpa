@@ -107,4 +107,4 @@ Master ← Demux ← ID Extract ← Response ← Converter ← Slave
 
 - **Bridge HAS** - High-level architecture and integration
 - **PRD.md** - Product requirements
-- **Generator source** - `bin/bridge_csv_generator.py`
+- **Generator source** - `bin/bridge_generator.py` (with `bin/bridge_pkg/`)

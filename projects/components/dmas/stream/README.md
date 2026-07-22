@@ -172,20 +172,25 @@ write_apb(ADDR_CH2_CTRL, desc2_address);  // Channel 2 (APB addr selects)
 ```
 projects/components/dmas/stream/
 ├── rtl/
-│   ├── stream_fub/         # Functional unit blocks
-│   ├── stream_macro/       # Top-level integration
+│   ├── fub/                # Functional unit blocks
+│   ├── macro/              # Integration blocks (+ stream_regs.rdl)
+│   ├── top/                # 8-channel top-level wrapper
+│   ├── filelists/          # Compile filelists
 │   └── includes/           # Packages and imports
-├── regs/                   # PeakRDL register definitions (future)
-│   ├── README.md           # Register generation guide (similar to apb_hpet)
-│   └── generated/          # PeakRDL-generated RTL (future)
+├── regs/                   # PeakRDL register collateral
+│   ├── README.md           # Register generation guide
+│   └── generated/          # PeakRDL-generated outputs
 ├── dv/
+│   ├── tbclasses/          # STREAM testbench classes
 │   └── tests/
-│       ├── fub_tests/      # Individual block tests
-│       └── integration_tests/  # Multi-block tests
+│       ├── fub/            # Individual block tests
+│       ├── macro/          # Multi-block tests
+│       ├── top/            # Top-level tests
+│       └── performance_tests/  # Performance regressions
+├── bin/                    # DMA model + coverage/report tooling
 ├── docs/
-│   ├── PRD.md              # Complete specification (symlink)
-│   ├── ARCHITECTURAL_NOTES.md  # Critical architecture details
-│   └── stream_spec/        # Detailed specifications (future)
+│   ├── stream_has/         # HAS spec tree (+ built PDFs)
+│   └── stream_mas/         # MAS spec tree (+ built PDFs)
 ├── known_issues/           # Bug tracking
 ├── PRD.md                  # Product requirements (main spec)
 ├── CLAUDE.md               # AI assistance guide
@@ -206,14 +211,14 @@ projects/components/dmas/stream/
 
 ```bash
 # Run FUB tests (individual blocks)
-pytest projects/components/dmas/stream/dv/tests/fub_tests/ -v
+pytest projects/components/dmas/stream/dv/tests/fub/ -v
 
-# Run integration tests (multi-block)
-pytest projects/components/dmas/stream/dv/tests/integration_tests/ -v
+# Run macro / top tests (multi-block)
+pytest projects/components/dmas/stream/dv/tests/macro/ -v
+pytest projects/components/dmas/stream/dv/tests/top/ -v
 
 # Run with waveforms
-pytest projects/components/dmas/stream/dv/tests/fub_tests/scheduler/ --vcd=waves.vcd
-gtkwave waves.vcd
+WAVES=1 pytest projects/components/dmas/stream/dv/tests/fub/test_scheduler.py -v
 ```
 
 ---

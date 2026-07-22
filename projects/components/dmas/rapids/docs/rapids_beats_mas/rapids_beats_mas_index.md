@@ -207,7 +207,7 @@ The "beats" architecture is a Phase 1 implementation of RAPIDS that shares conce
 
 - **[PRD.md](../../PRD.md)** - Product requirements and overview
 - **[CLAUDE.md](../../CLAUDE.md)** - AI development guide
-- **[RAPIDS Spec](../rapids_spec/)** - Original RAPIDS specification
+- **[RAPIDS Beats HAS](../rapids_beats_has/rapids_beats_has_index.md)** - Architecture specification (the original pre-beats rapids_spec/ tree was retired)
 
 ---
 

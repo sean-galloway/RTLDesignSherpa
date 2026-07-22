@@ -84,8 +84,8 @@ Some tests (especially integration tests) use `TEST_LEVEL` instead of `REG_LEVEL
 
 **Usage:**
 ```bash
-TEST_LEVEL=basic pytest projects/components/dmas/stream/dv/tests/integration/ -v
-TEST_LEVEL=full pytest projects/components/dmas/stream/dv/tests/integration/ -v
+TEST_LEVEL=basic pytest projects/components/dmas/stream/dv/tests/macro/ -v
+TEST_LEVEL=full pytest projects/components/dmas/stream/dv/tests/macro/ -v
 ```
 
 ### Combining Environment Variables
@@ -282,10 +282,10 @@ pytest val/amba/ -v
 pytest val/common/ -v
 
 # STREAM project
-pytest projects/components/dmas/stream/dv/tests/fub_tests/ -v
+pytest projects/components/dmas/stream/dv/tests/fub/ -v
 
 # RAPIDS project
-pytest projects/components/dmas/rapids/dv/tests/fub_tests/ -v
+pytest projects/components/dmas/rapids/dv/tests/fub_beats/ -v
 ```
 
 ### Regression Suites
@@ -299,8 +299,8 @@ make run-amba-gate-parallel    # Quick smoke test
 make run-amba-func-parallel    # Standard functional (default)
 make run-amba-full-parallel    # Comprehensive validation
 
-# HPET regressions
-cd projects/components/apb_hpet/dv/tests
+# Retro legacy blocks regressions (HPET etc.)
+cd projects/components/retro_legacy_blocks/dv/tests
 make run-all-basic             # Quick validation
 make run-all-full              # Comprehensive validation
 ```
@@ -344,20 +344,20 @@ rtldesignsherpa/
 │   └── ...
 │
 ├── projects/components/        # Project tests
-│   ├── stream/dv/tests/
-│   │   ├── fub_tests/          # Functional Unit Block tests
+│   ├── dmas/stream/dv/tests/
+│   │   ├── fub/                # Functional Unit Block tests
 │   │   │   ├── test_scheduler.py
 │   │   │   ├── test_descriptor_engine.py
 │   │   │   └── ...
-│   │   └── integration_tests/  # Multi-block integration
-│   │       └── test_stream_integration.py
-│   ├── rapids/dv/tests/
-│   │   └── fub_tests/
+│   │   ├── macro/              # Multi-block integration
+│   │   └── top/                # Top-level tests
+│   ├── dmas/rapids/dv/tests/
+│   │   └── fub_beats/, macro_beats/, top_beats/
 │   └── ...
 │
-└── bin/TBClasses/        # Shared testbench infrastructure
-    ├── components/             # Protocol drivers (AXI, APB, etc.)
-    ├── tbclasses/              # Reusable testbench classes
+└── bin/TBClasses/              # Shared testbench infrastructure
+    ├── axi4/, apb/, gaxi/, ... # Per-protocol TB classes
+    ├── shared/                 # tbbase, utilities
     └── scoreboards/            # Transaction checkers
 ```
 

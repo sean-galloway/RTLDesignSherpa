@@ -221,16 +221,16 @@ This document summarizes RTL code coverage results for the bridge component test
 
 ## Files Updated
 
-1. `/mnt/data/github/rtldesignsherpa/projects/components/bridge/dv/testplans/bridge_1x2_testplan.yaml`
+1. `<repo-root>/projects/components/bridge/dv/testplans/bridge_1x2_testplan.yaml`
    - Added `rtl_coverage` section with detailed module breakdown
    - Included key signal hit counts and analysis notes
 
-2. `/mnt/data/github/rtldesignsherpa/projects/components/bridge/dv/testplans/bridge_cam_testplan.yaml`
+2. `<repo-root>/projects/components/bridge/dv/testplans/bridge_cam_testplan.yaml`
    - Added `rtl_coverage` section with integration evidence
    - Documented CAM exercise through bridge tests
    - Listed integration hit counts with source references
 
-3. `/mnt/data/github/rtldesignsherpa/projects/components/bridge/dv/testplans/bridge_2x2_rw_testplan.yaml`
+3. `<repo-root>/projects/components/bridge/dv/testplans/bridge_2x2_rw_testplan.yaml`
    - Added `rtl_coverage` section with BLOCKED status
    - Documented RTL compilation errors in detail
    - Provided resolution steps and expected results
@@ -245,7 +245,7 @@ This document summarizes RTL code coverage results for the bridge component test
 ## Coverage Data Location
 
 **Verilator Coverage Files:**
-- Raw: `/mnt/data/github/rtldesignsherpa/projects/components/bridge/dv/tests/logs/coverage.dat`
+- Raw: `<repo-root>/projects/components/bridge/dv/tests/logs/coverage.dat`
 - Annotated: `/tmp/bridge_cov/1x2_rd/*.sv`
 
 **Extraction Script:**
@@ -272,4 +272,4 @@ The bridge_2x2_rw configuration is blocked by RTL generation issues and requires
 
 **Generated:** 2026-01-18
 **Tool:** Verilator 5.028 with coverage annotation
-**Python Environment:** `/mnt/data/github/rtldesignsherpa/venv`
+**Python Environment:** `<repo-root>/venv`

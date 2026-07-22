@@ -128,7 +128,7 @@
 
 2. **Document Known Coverage Artifacts**
    - Priority: MEDIUM
-   - Add to `val/common/COVERAGE_NOTES.md`:
+   - Add to `val/common/COVERAGE_NOTES.md` (file not yet created):
      - Parameterized casez coverage requires FUNC/FULL levels
      - Port declaration %00 annotations are false positives
      - Error injection paths tested at FUNC level only

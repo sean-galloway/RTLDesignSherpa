@@ -111,7 +111,7 @@ that drives `i_kick_burst_*`; they are not part of STREAM's APB map. The NexysA7
 characterization harness is the reference implementation: it exposes eight
 per-channel `CH_KICK_ADDR` shadow registers and a single `KICK_GO` bitmask CSR,
 and its host driver programs the addresses then writes `KICK_GO` (see
-`host/harness_kick.py::batch_kick`). Unlike the APB `CHn_CTRL` path there is no
+`projects/NexysA7/stream_characterization/flows-stream-bridge/host/harness_kick.py::batch_kick`). Unlike the APB `CHn_CTRL` path there is no
 separate HIGH word — the address register is `ADDR_WIDTH` wide.
 
 Use this path whenever start latency or multi-channel start alignment matters;

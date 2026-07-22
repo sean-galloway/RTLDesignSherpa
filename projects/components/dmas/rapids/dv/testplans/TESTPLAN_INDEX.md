@@ -25,6 +25,9 @@
 
 Quick reference mapping RTL modules to testplans and test files.
 
+Testplan paths are relative to this directory (`dv/testplans/`); test-file paths are
+relative to `../tests/` (i.e. `fub/test_ctrlrd_engine.py` = `dv/tests/fub/test_ctrlrd_engine.py`).
+
 ---
 
 ## FUB Legacy (6 modules)

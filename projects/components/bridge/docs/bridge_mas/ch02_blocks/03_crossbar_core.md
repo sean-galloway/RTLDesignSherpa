@@ -322,7 +322,7 @@ The `monbus_axil_group` instance:
 - Exposes `stream_irq` (asserted when error FIFO has records)
 - Includes an internal 64-bit free-running timestamp counter sampled at each packet arrival
 
-**Reference**: See `docs/markdown/RTLAmba/monitor_system_whitepaper.md` for complete monitor design-surface documentation and `docs/markdown/RTLAmba/includes/monitor_package_spec.md` for 128-bit packet layout.
+**Reference**: See `docs/markdown/RTLAmba/_book_monitor_index.md` (monitor documentation book, with per-module pages under `docs/markdown/RTLAmba/monitor/`) for complete monitor design-surface documentation and `docs/markdown/RTLAmba/includes/monitor_package_spec.md` for the packet layout.
 
 ## 2.3.8 Resource Utilization
 

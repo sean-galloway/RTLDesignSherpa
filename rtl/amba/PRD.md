@@ -93,7 +93,7 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 
 ### 3.1 AXI4 Full Protocol
 **Status:** ✅ Complete
-**Modules:** `axi4_master_rd/wr_mon.sv`, `axi4_slave_rd/wr_mon.sv`
+**Modules:** `monitor/axi4_master_rd_mon.sv`, `monitor/axi4_master_wr_mon.sv`, `monitor/axi4_slave_rd_mon.sv`, `monitor/axi4_slave_wr_mon.sv`
 
 **Features:**
 - Burst transactions (1-256 beats)
@@ -369,8 +369,8 @@ val/amba/
 
 The same testbench will be used in:
 - Unit tests (`val/amba/`)
-- Integration tests (`val/system/`)
-- System tests (`val/soc/`)
+- Integration tests (`val/integ_amba/`)
+- Project/system tests (`projects/components/*/dv/tests/`)
 - User project imports (external reuse)
 - CI/CD regression suites
 
@@ -643,7 +643,7 @@ runtime disable.
 **Location:** `val/amba/`
 
 **Key Test Files:**
-- `test_axi_monitor.py` - Comprehensive AXI monitor validation (8 scenarios)
+- `test_axi4_monitor.py` - Comprehensive AXI monitor validation (8 scenarios)
 - `test_apb_monitor.py` - APB protocol monitoring
 - `test_axis_master.py` - AXIS master interface
 - `test_axis_slave.py` - AXIS slave interface
@@ -685,7 +685,7 @@ runtime disable.
 pytest val/amba/ -v
 
 # Run specific monitor test
-pytest val/amba/test_axi_monitor.py -v
+pytest val/amba/test_axi4_monitor.py -v
 
 # Lint monitor RTL
 verilator --lint-only rtl/amba/monitor/axi_monitor_base.sv
@@ -728,7 +728,7 @@ cat docs/markdown/RTLAmba/index.md
 - **Detailed RTL Specs:** `docs/markdown/RTLAmba/` ← **Primary technical reference**
 - **Test Framework:** `docs/markdown/TBClasses/amba/`
 - **Configuration:** `docs/guides/AXI_Monitor_Configuration_Guide.md`
-- **Validation Report:** `docs/RAPIDS_Validation_Status_Report.md`
+- **Validation Report:** `projects/components/dmas/rapids/docs/RAPIDS_Validation_Status_Report.md`
 - **Master PRD:** `/PRD.md`
 - **Repository Guide:** `/CLAUDE.md`
 

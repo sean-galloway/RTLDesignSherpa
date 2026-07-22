@@ -29,19 +29,19 @@
 
 ---
 
-## 🚨 CRITICAL: Read Architecture Document First
+## 🚨 CRITICAL: Read Architecture Documents First
 
 **Before making ANY changes to bridge generator or understanding signal flow:**
 
-📖 **READ:** `projects/components/bridge/docs/BRIDGE_ARCHITECTURE.md`
+📖 **READ:** `projects/components/bridge/GENERATOR_ARCHITECTURE.md` (generator structure) and `projects/components/bridge/docs/bridge_mas/` (micro-architecture spec; rendered as `docs/Bridge_MAS_v1.1.pdf`)
 
-This document contains the **definitive bridge architecture** including:
+These documents contain the **definitive bridge architecture** including:
 - Correct signal flow (wrappers → decoder → converters → crossbar → slaves)
 - Component purposes and placement
 - Common misconceptions that previous agents made
 - Why there's NO fixed crossbar width
 
-**If you skip this document, you WILL make incorrect assumptions.**
+**If you skip these documents, you WILL make incorrect assumptions.**
 
 ---
 
@@ -52,12 +52,13 @@ This document contains the **definitive bridge architecture** including:
 **Your Role:** Help users configure CSV files, generate bridges, understand architecture, and create tests
 
 **📖 Complete Documentation (Read in This Order):**
-1. `projects/components/bridge/docs/BRIDGE_ARCHITECTURE.md` ← **START HERE** (architecture reference)
+1. `projects/components/bridge/GENERATOR_ARCHITECTURE.md` ← **START HERE** (generator architecture reference)
 2. `projects/components/bridge/PRD.md` ← Product requirements
-3. `projects/components/bridge/BRIDGE_CURRENT_STATE.md` ← Current implementation review
-4. `projects/components/bridge/docs/BRIDGE_ARCHITECTURE_DIAGRAMS.md` ← Visual architecture diagrams
-5. `projects/components/bridge/CSV_BRIDGE_STATUS.md` ← CSV generator status (Phase 1 & 2)
-6. `projects/components/bridge/docs/bridge_spec/bridge_index.md` ← Detailed specification
+3. `projects/components/bridge/TASKS.md` ← Task history and current status
+4. `projects/components/bridge/docs/bridge_has/bridge_has_index.md` ← Hardware Architecture Spec (rendered: `docs/Bridge_HAS_v1.1.pdf`)
+5. `projects/components/bridge/docs/bridge_mas/bridge_mas_index.md` ← Micro-Architecture Spec (rendered: `docs/Bridge_MAS_v1.1.pdf`)
+
+(The older BRIDGE_ARCHITECTURE.md, BRIDGE_CURRENT_STATE.md, BRIDGE_ARCHITECTURE_DIAGRAMS.md, CSV_BRIDGE_STATUS.md, and docs/bridge_spec/ documents were superseded by the HAS/MAS above.)
 
 ---
 
@@ -150,28 +151,24 @@ end
 ### Why This Is Non-Negotiable
 
 Generated RTL files have interdependencies:
-- `bridge_axi4_flat_*.sv` may be instantiated by `bridge_ooo_with_arbiter.sv`
-- `bridge_wrapper_*.sv` may wrap `bridge_axi4_flat_*.sv`
+- Each `rtl/generated/<bridge_name>/` directory holds a matched set (top module, crossbar, adapters, package)
 - Generator changes affect signal names, port widths, interface structure
 - **Partial regeneration creates version mismatches that cause silent failures**
 
-### Real Example (This Session)
+### Real Example (Historical Session)
 
 ```bash
 # ❌ WHAT WENT WRONG:
-1. Updated bridge_address_arbiter.py (address decode logic)
-2. Regenerated ONLY bridge_axi4_flat_5x3.sv
-3. Did NOT regenerate bridge_ooo_with_arbiter.sv (wrapper)
+1. Updated the address decode logic in the generator
+2. Regenerated ONLY one bridge configuration
+3. Did NOT regenerate the wrapper that instantiated it
 4. Result: All tests that were passing now FAIL
 5. Cause: Version mismatch between wrapper and core bridge
 
 # ✅ WHAT SHOULD HAVE BEEN DONE:
-1. Updated bridge_address_arbiter.py
-2. Delete ALL generated files:
-   rm rtl/bridge_axi4_flat_*.sv
-   rm rtl/bridge_ooo_*.sv
-   rm rtl/bridge_wrapper_*.sv
-3. Regenerate ALL bridges from scratch
+1. Update the generator
+2. Delete ALL generated bridge directories (rtl/generated/bridge_*/)
+3. Regenerate ALL bridges from scratch (make all in bin/)
 4. Run ALL tests to verify
 ```
 
@@ -179,33 +176,22 @@ Generated RTL files have interdependencies:
 
 Any change to these files requires regenerating ALL bridges:
 
-- ✅ `bridge_generator.py` - Core bridge generator
-- ✅ `bridge_csv_generator.py` - CSV-based generator
-- ✅ `bridge_address_arbiter.py` - Address decode logic
-- ✅ `bridge_channel_router.py` - Channel routing
-- ✅ `bridge_response_router.py` - Response routing
-- ✅ `bridge_amba_integrator.py` - AMBA integration
-- ✅ `bridge_wrapper_generator.py` - Wrapper generation
-- ✅ **ANY** Python file in `projects/components/bridge/bin/`
+- ✅ `bin/bridge_generator.py` - Core bridge generator (CSV/TOML driven)
+- ✅ **ANY** Python file in `bin/bridge_pkg/` (components/, generators/, config, csv_parser, signal_naming, ...)
+- ✅ Any Jinja template in `bin/bridge_pkg/jinja_templates/`
 
 ### The Regeneration Workflow
 
 ```bash
 # Step 1: Make generator code changes
-vim bridge_address_arbiter.py
+vim bin/bridge_pkg/generators/crossbar_generator.py
 
 # Step 2: Delete ALL generated RTL (be aggressive!)
-cd projects/components/bridge/rtl
-rm bridge_axi4_flat_*.sv
-rm bridge_ooo*.sv
-rm bridge_wrapper_*.sv
-# Verify deletion
-ls *.sv  # Should only show manually-written files like bridge_cam.sv
+cd projects/components/bridge/bin
+make clean   # Removes rtl/generated/ output
 
-# Step 3: Regenerate everything
-cd ../bin
-./regenerate_all_bridges.sh  # If script exists
-# OR manually regenerate each topology needed
+# Step 3: Regenerate everything from bridge_batch.csv
+make all     # Runs bridge_generator.py --bulk bridge_batch.csv
 
 # Step 4: Run ALL tests
 cd ../dv/tests
@@ -323,43 +309,44 @@ assign r_slave_select = ar_trk_fifo_out;
 ```
 projects/components/bridge/
 ├── bin/                           # Bridge-specific tools (generators, scripts)
-│   └── bridge_generator.py       # AXI4 crossbar generator
-├── docs/                          # Design documentation
+│   ├── bridge_generator.py       # AXI4 crossbar generator (CSV/TOML driven)
+│   ├── bridge_pkg/                # Generator implementation package
+│   ├── test_configs/              # TOML port configs + CSV connectivity
+│   └── Makefile                   # make all / make single / make clean
+├── docs/                          # Design documentation (bridge_has/, bridge_mas/, PDFs)
 ├── dv/                            # Design Verification (MANDATORY structure)
 │   ├── tbclasses/                 # Testbench classes (MANDATORY - TB classes here!)
 │   │   ├── __init__.py
-│   │   └── bridge_axi4_flat_tb.py  # Reusable TB class
+│   │   └── bridge2x2_rw_tb.py     # Per-config generated TB classes
 │   ├── components/                # Bridge-specific BFMs (if needed)
-│   │   └── __init__.py
 │   ├── scoreboards/               # Bridge-specific scoreboards (if needed)
-│   │   └── __init__.py
-│   └── tests/                     # All test files (test runners only)
+│   ├── testplans/                 # Test plans
+│   └── tests/                     # All test files (test runners only, flat)
 │       ├── conftest.py            # Pytest configuration (MANDATORY)
-│       ├── fub_tests/             # Functional unit block tests
-│       │   └── basic/             # Basic bridge tests
-│       ├── integration_tests/     # Multi-bridge integration
-│       └── system_tests/          # Full system tests
+│       └── test_bridge_*.py       # Per-config tests (test_bridge_2x2_rw.py, ...)
 ├── rtl/                           # RTL source files
-│   └── generated/                 # Generated bridge crossbars
+│   ├── bridge_cam.sv              # Hand-written CAM
+│   ├── filelists/                 # Generated filelists
+│   └── generated/                 # Generated bridges (one subdir per config)
 ├── CLAUDE.md                      # This file
 ├── PRD.md                         # Product requirements
-└── IMPLEMENTATION_STATUS.md       # Development status
+└── TASKS.md                       # Task history and status
 ```
 
 ### Testbench Class Location (MANDATORY)
 
 **❌ WRONG:** Testbench class in test file
 ```python
-# projects/components/bridge/dv/tests/test_bridge_axi4_2x2.py
-class BridgeAXI4FlatTB:  # ❌ WRONG LOCATION!
+# projects/components/bridge/dv/tests/test_bridge_2x2_rw.py
+class Bridge2x2RwTB:  # ❌ WRONG LOCATION!
     """Embedded TB - NOT REUSABLE"""
 ```
 
 **✅ CORRECT:** Testbench class in PROJECT AREA dv/tbclasses/
 ```python
-# projects/components/bridge/dv/tbclasses/bridge_axi4_flat_tb.py
-class BridgeAXI4FlatTB(TBBase):  # ✅ CORRECT LOCATION!
-    """Reusable TB class - used across all bridge tests"""
+# projects/components/bridge/dv/tbclasses/bridge2x2_rw_tb.py
+class Bridge2x2RwTB(TBBase):  # ✅ CORRECT LOCATION!
+    """Reusable TB class - imported by the matching test runner"""
 ```
 
 **CRITICAL:** TB classes are PROJECT-SPECIFIC and MUST be in the project area (`projects/components/{name}/dv/tbclasses/`), NOT in the framework (`bin/TBClasses/`).
@@ -369,7 +356,7 @@ class BridgeAXI4FlatTB(TBBase):  # ✅ CORRECT LOCATION!
 Test files MUST follow this structure:
 
 ```python
-# projects/components/bridge/dv/tests/fub_tests/basic/test_bridge_axi4_2x2.py
+# projects/components/bridge/dv/tests/test_bridge_2x2_rw.py
 
 import os
 import pytest
@@ -378,10 +365,11 @@ from cocotb_test.simulator import run
 
 # ✅ IMPORT testbench class from PROJECT AREA
 import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../..'))
-from projects.components.bridge.dv.tbclasses.bridge_axi4_flat_tb import BridgeAXI4FlatTB
-from TBClasses.shared.utilities import get_paths, create_view_cmd
-from TBClasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_repo_root
+sys.path.insert(0, get_repo_root())
+from projects.components.bridge.dv.tbclasses.bridge2x2_rw_tb import Bridge2x2RwTB
+from TBClasses.shared.utilities import get_paths, get_wave_config
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # ===========================================================================
 # COCOTB TEST FUNCTIONS - Prefix with "cocotb_" to prevent pytest collection
@@ -390,7 +378,7 @@ from TBClasses.shared.tbbase import TBBase
 @cocotb.test(timeout_time=100, timeout_unit='us')
 async def cocotb_test_basic_routing(dut):
     """Test basic address routing"""
-    tb = BridgeAXI4FlatTB(dut, num_masters=2, num_slaves=2)  # ✅ Import TB
+    tb = Bridge2x2RwTB(dut)  # ✅ Imported TB
     await tb.setup_clocks_and_reset()
     result = await tb.test_basic_routing()
     assert result, "Basic routing test failed"
@@ -398,37 +386,21 @@ async def cocotb_test_basic_routing(dut):
 # More cocotb test functions...
 
 # ===========================================================================
-# PARAMETER GENERATION - At bottom of file
-# ===========================================================================
-
-def generate_bridge_test_params():
-    """Generate test parameters for bridge tests"""
-    return [
-        # (num_masters, num_slaves, data_width, addr_width, id_width)
-        (2, 2, 32, 32, 4),
-        (4, 4, 32, 32, 4),
-    ]
-
-bridge_params = generate_bridge_test_params()
-
-# ===========================================================================
 # PYTEST WRAPPER FUNCTIONS - At bottom of file
 # ===========================================================================
 
 @pytest.mark.bridge
-@pytest.mark.routing
-@pytest.mark.parametrize("num_masters, num_slaves, data_width, addr_width, id_width", bridge_params)
-def test_basic_routing(request, num_masters, num_slaves, data_width, addr_width, id_width):
-    """Pytest wrapper for basic routing test"""
+def test_bridge_2x2_rw(request):
+    """Pytest wrapper for the generated 2x2 rw bridge"""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_bridge': '../../rtl'
     })
 
-    # ... setup verilog_sources, parameters, etc ...
+    # ... verilog_sources from the bridge's filelist, parameters, etc ...
 
     run(
         verilog_sources=verilog_sources,
-        toplevel=f"bridge_axi4_flat_{num_masters}x{num_slaves}",
+        toplevel="bridge_2x2_rw",
         module=module,
         testcase="cocotb_test_basic_routing",  # ← cocotb function name
         parameters=rtl_parameters,
@@ -436,6 +408,9 @@ def test_basic_routing(request, num_masters, num_slaves, data_width, addr_width,
         # ...
     )
 ```
+
+See `dv/tests/test_bridge_2x2_rw.py` for the real, complete pattern (tests and TB
+classes are generated per bridge configuration alongside the RTL).
 
 ---
 
@@ -472,28 +447,23 @@ projects/components/bridge/
 ├── dv/
 │   ├── tbclasses/                   # TB classes HERE (not in framework!)
 │   │   ├── __init__.py
-│   │   └── bridge_axi4_flat_tb.py  ← REUSABLE TB CLASS
+│   │   ├── bridge2x2_rw_tb.py       ← REUSABLE TB CLASS (per config)
+│   │   └── bridge5x3_channels_tb.py
 │   ├── components/                  # Bridge-specific BFMs (if needed)
 │   │   └── __init__.py
 │   ├── scoreboards/                 # Bridge-specific scoreboards
 │   │   └── __init__.py
-│   └── tests/                       # Test runners
+│   └── tests/                       # Test runners (flat, one per config)
 │       ├── conftest.py              ← MANDATORY pytest config
-│       ├── fub_tests/
-│       │   └── basic/
-│       │       └── test_bridge_axi4_2x2.py  ← TEST RUNNER ONLY (imports TB)
-│       ├── integration_tests/
-│       │   └── test_bridge_multiport.py     ← TEST RUNNER ONLY
-│       └── system_tests/
-│           └── test_bridge_system.py         ← TEST RUNNER ONLY
+│       ├── test_bridge_2x2_rw.py    ← TEST RUNNER ONLY (imports TB)
+│       └── test_bridge_5x3_channels.py
 ```
 
 **Why This Matters:**
 
 1. **Reusability**: Same TB class used in:
-   - Unit tests (`fub_tests/`)
-   - Integration tests (`integration_tests/`)
-   - System-level tests (`system_tests/`)
+   - Per-config functional tests
+   - Monitor stress tests (`test_bridge_*_mon_monitor.py`)
    - User projects (external imports)
 
 2. **Maintainability**: Fix bug once in TB class, all tests benefit
@@ -708,7 +678,7 @@ master1,0,1,1
 **Legacy CSV Format:**
 
 For backwards compatibility, the generator still supports CSV port files:
-- See `test_configs/README.md` for migration guide from CSV to TOML
+- See `bin/test_configs/README.md` for migration guide from CSV to TOML
 - TOML is now preferred for new bridges (better structure, interface config support)
 
 ### Channel-Specific Masters (Phase 2 Feature)
@@ -912,12 +882,12 @@ cpu,1,1,1              # Connects to all three
 
 **For Pure AXI4 Bridges (Working Now):**
 ```bash
-# Generate bridge
-python3 bridge_csv_generator.py --ports ports.csv --connectivity conn.csv --name my_bridge --output ../rtl/
+# Generate bridge (outputs to rtl/generated/<bridge_name>/)
+python3 bridge_generator.py --ports test_configs/bridge_2x2_rw.toml
 
-# Create testbench (use BridgeAXI4FlatTB from dv/tbclasses/)
-cd ../dv/tests/fub_tests/basic
-pytest test_my_bridge.py -v
+# Run its test (per-config TB classes live in dv/tbclasses/, e.g. bridge2x2_rw_tb.py)
+cd ../dv/tests
+pytest test_bridge_2x2_rw.py -v
 ```
 
 **For Mixed AXI4/APB (Requires Phase 3):**
@@ -929,8 +899,10 @@ APB converter placeholders need implementation before end-to-end testing.
 
 ### Generated Bridge Crossbar Structure
 
+Illustrative shape (see `rtl/generated/bridge_2x2_rw/bridge_2x2_rw.sv` for a real example):
+
 ```systemverilog
-module bridge_axi4_flat_2x2 #(
+module bridge_2x2_rw #(
     parameter NUM_MASTERS = 2,
     parameter NUM_SLAVES = 2,
     parameter DATA_WIDTH = 32,
@@ -971,35 +943,26 @@ Default address map (configurable):
 
 ```
 projects/components/bridge/dv/tests/
-├── conftest.py              # Pytest configuration with fixtures
-├── fub_tests/               # Functional unit block tests
-│   └── basic/
-│       ├── test_bridge_axi4_2x2.py       # Basic 2x2 tests
-│       ├── test_bridge_axi4_4x4.py       # Full 4x4 tests
-│       └── test_bridge_axi4_routing.py   # Routing tests
-├── integration_tests/       # Multi-bridge scenarios
-│   └── test_bridge_cascade.py
-└── system_tests/            # Full system tests
-    └── test_bridge_dma.py
+├── conftest.py                        # Pytest configuration with fixtures
+├── test_bridge_1x2_rd.py              # Per-config functional tests
+├── test_bridge_2x2_rw.py
+├── test_bridge_4x4_rw.py
+├── test_bridge_5x3_channels.py
+├── test_bridge_mix_a_mon_monitor.py   # Monitor stress tests (mon configs)
+└── monitor_stress_common.py           # Shared monitor-stress helpers
 ```
 
 ### Test Levels
 
-**Basic (FUB) Tests:**
+**Per-Config Functional Tests:**
 - Individual bridge functionality
 - Address routing
 - ID tracking
 - Arbitration
 
-**Integration Tests:**
-- Multi-bridge cascades
-- Complex topologies
-- Cross-bridge transactions
-
-**System Tests:**
-- Full DMA transfers
-- Realistic traffic patterns
-- Performance validation
+**Monitor Stress Tests (`*_mon_monitor.py`):**
+- Bridges generated with monitor interfaces
+- Monitor packet generation under traffic
 
 ---
 
@@ -1033,11 +996,13 @@ The Bridge AXI4 crossbar connects multiple AXI4 masters to multiple slaves:
 
 ```bash
 cd projects/components/bridge/bin
-python bridge_generator.py --masters 2 --slaves 4 --data-width 32 --addr-width 32 --id-width 4 --output ../rtl/bridge_axi4_flat_2x4.sv
+python3 bridge_generator.py --ports test_configs/bridge_2x2_rw.toml
+# Auto-finds test_configs/bridge_2x2_rw_connectivity.csv
+# Or regenerate everything: make all  (bulk from bridge_batch.csv)
 ```
 
 **Generated files:**
-- RTL: `projects/components/bridge/rtl/bridge_axi4_flat_<config>.sv`
+- RTL: `projects/components/bridge/rtl/generated/<bridge_name>/` (top module, crossbar, adapters, package)
 - Contains complete 5-channel crossbar with ID tracking
 
 ### Q: "How do I test a Bridge?"
@@ -1047,12 +1012,13 @@ python bridge_generator.py --masters 2 --slaves 4 --data-width 32 --addr-width 3
 ```python
 # Import from project area
 import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../..'))
-from projects.components.bridge.dv.tbclasses.bridge_axi4_flat_tb import BridgeAXI4FlatTB
+from TBClasses.shared.utilities import get_repo_root
+sys.path.insert(0, get_repo_root())
+from projects.components.bridge.dv.tbclasses.bridge2x2_rw_tb import Bridge2x2RwTB
 
 @cocotb.test()
-async def test_basic(dut):
-    tb = BridgeAXI4FlatTB(dut, num_masters=2, num_slaves=2)
+async def cocotb_test_basic(dut):
+    tb = Bridge2x2RwTB(dut)
     await tb.setup_clocks_and_reset()
 
     # Send write to slave 0
@@ -1064,8 +1030,8 @@ async def test_basic(dut):
 
 **Run tests:**
 ```bash
-cd projects/components/bridge/dv/tests/fub_tests/basic
-pytest test_bridge_axi4_2x2.py -v
+cd projects/components/bridge/dv/tests
+pytest test_bridge_2x2_rw.py -v
 ```
 
 ---
@@ -1081,8 +1047,9 @@ class BridgeTB:
 
 ✅ CORRECT: Import from project area
 import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../..'))
-from projects.components.bridge.dv.tbclasses.bridge_axi4_flat_tb import BridgeAXI4FlatTB
+from TBClasses.shared.utilities import get_repo_root
+sys.path.insert(0, get_repo_root())
+from projects.components.bridge.dv.tbclasses.bridge2x2_rw_tb import Bridge2x2RwTB
 ```
 
 ### ❌ Anti-Pattern 2: Manual AXI4 Handshaking
@@ -1117,27 +1084,28 @@ assert aw_pkt.addr == expected_addr
 ### Finding Existing Components
 
 ```bash
-# Bridge TB class (in PROJECT AREA, not framework!)
-cat projects/components/bridge/dv/tbclasses/bridge_axi4_flat_tb.py
+# Bridge TB classes (in PROJECT AREA, not framework!)
+ls projects/components/bridge/dv/tbclasses/
 
 # Bridge generator
 cat projects/components/bridge/bin/bridge_generator.py
 
 # Test examples
-ls projects/components/bridge/dv/tests/fub_tests/basic/
+ls projects/components/bridge/dv/tests/
 ```
 
 ### Common Commands
 
 ```bash
-# Generate 2x2 bridge
-python projects/components/bridge/bin/bridge_generator.py --masters 2 --slaves 2 --output projects/components/bridge/rtl/bridge_axi4_flat_2x2.sv
+# Generate 2x2 bridge (from bin/, outputs to rtl/generated/bridge_2x2_rw/)
+cd projects/components/bridge/bin
+python3 bridge_generator.py --ports test_configs/bridge_2x2_rw.toml
 
 # Run tests
-pytest projects/components/bridge/dv/tests/fub_tests/basic/ -v
+pytest projects/components/bridge/dv/tests/test_bridge_2x2_rw.py -v
 
 # Lint generated RTL
-verilator --lint-only projects/components/bridge/rtl/bridge_axi4_flat_2x2.sv
+verilator --lint-only projects/components/bridge/rtl/generated/bridge_2x2_rw/bridge_2x2_rw.sv
 ```
 
 ---
@@ -1161,18 +1129,19 @@ verilator --lint-only projects/components/bridge/rtl/bridge_axi4_flat_2x2.sv
 
 **IMPORTANT: PDF files should be generated in the docs directory:**
 ```
-/mnt/data/github/rtldesignsherpa/projects/components/bridge/docs/
+projects/components/bridge/docs/
 ```
 
-**Quick Command:** Use the provided shell script:
+**Quick Commands:** Use the provided shell scripts:
 ```bash
-cd /mnt/data/github/rtldesignsherpa/projects/components/bridge/docs
-./generate_pdf.sh
+cd projects/components/bridge/docs
+./generate_has_pdf.sh   # Builds Bridge_HAS_v<rev> from bridge_has/
+./generate_mas_pdf.sh   # Builds Bridge_MAS_v<rev> from bridge_mas/
 ```
 
-The shell script will automatically:
+The shell scripts will automatically:
 1. Use the md_to_docx.py tool from bin/
-2. Process the bridge_spec index file
+2. Process the bridge_has/bridge_mas index files
 3. Generate both DOCX and PDF files in the docs/ directory
 4. Create table of contents and title page
 

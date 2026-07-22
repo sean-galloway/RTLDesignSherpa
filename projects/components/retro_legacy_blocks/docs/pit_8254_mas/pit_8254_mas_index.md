@@ -34,6 +34,11 @@
 
 This specification is organized into five chapters covering all aspects of the APB PIT 8254 component:
 
+> Status (2026-07-22): Chapter 1, the Chapter 2 overview, the Chapter 3 top-level signal
+> list, the Chapter 4 initialization and use-case sections, and the Chapter 5 register map
+> exist in this tree today. The remaining sections listed below are planned but not yet
+> written; they are shown without links.
+
 ### Chapter 1: Overview
 **Location:** `ch01_overview/`
 
@@ -47,27 +52,26 @@ This specification is organized into five chapters covering all aspects of the A
 **Location:** `ch02_blocks/`
 
 - [00_overview.md](ch02_blocks/00_overview.md) - Block hierarchy overview
-- [01_pit_core.md](ch02_blocks/01_pit_core.md) - Core counter logic (3 independent counters)
-- [02_pit_counter.md](ch02_blocks/02_pit_counter.md) - Single counter implementation (Mode 0)
-- [03_pit_config_regs.md](ch02_blocks/03_pit_config_regs.md) - Configuration register wrapper
-- [04_pit_regs.md](ch02_blocks/04_pit_regs.md) - PeakRDL generated register file
-- [05_apb_pit_top.md](ch02_blocks/05_apb_pit_top.md) - Top-level integration
+- 01_pit_core.md - Core counter logic (3 independent counters) *(planned, not yet written)*
+- 02_pit_counter.md - Single counter implementation (Mode 0) *(planned, not yet written)*
+- 03_pit_config_regs.md - Configuration register wrapper *(planned, not yet written)*
+- 04_pit_regs.md - PeakRDL generated register file *(planned, not yet written)*
+- 05_apb_pit_top.md - Top-level integration *(planned, not yet written)*
 
 ### Chapter 3: Interfaces
 **Location:** `ch03_interfaces/`
 
 - [01_top_level.md](ch03_interfaces/01_top_level.md) - Top-level signal list
-- [02_apb_interface_spec.md](ch03_interfaces/02_apb_interface_spec.md) - APB protocol specification
-- [03_pit_clock_interface.md](ch03_interfaces/03_pit_clock_interface.md) - PIT clock domain interface
-- [04_gate_out_interface.md](ch03_interfaces/04_gate_out_interface.md) - GATE inputs and OUT outputs
+- 02_apb_interface_spec.md - APB protocol specification *(planned, not yet written)*
+- 03_pit_clock_interface.md - PIT clock domain interface *(planned, not yet written)*
+- 04_gate_out_interface.md - GATE inputs and OUT outputs *(planned, not yet written)*
 
 ### Chapter 4: Programming Model
 **Location:** `ch04_programming/`
 
 - [01_initialization.md](ch04_programming/01_initialization.md) - Software initialization sequence
-- [02_counter_configuration.md](ch04_programming/02_counter_configuration.md) - Configuring counters (Mode 0)
-- [03_control_word.md](ch04_programming/03_control_word.md) - Control word format and programming
-- [04_use_cases.md](ch04_programming/04_use_cases.md) - Common use case examples
+- [02_use_cases.md](ch04_programming/02_use_cases.md) - Common use case examples
+- Counter-configuration and control-word sections *(planned, not yet written)*
 
 ### Chapter 5: Registers
 **Location:** `ch05_registers/`
@@ -92,7 +96,7 @@ This specification is organized into five chapters covering all aspects of the A
 
 ### For System Architects
 - Start with [Architecture Overview](ch01_overview/02_architecture.md)
-- Reference [Use Cases](ch04_programming/04_use_cases.md)
+- Reference [Use Cases](ch04_programming/02_use_cases.md)
 
 ---
 
@@ -161,7 +165,7 @@ This specification is organized into five chapters covering all aspects of the A
 
 - **RTL Implementation:** `../../rtl/pit_8254/`
 - **Implementation Summary:** `../../rtl/pit_8254/IMPLEMENTATION_SUMMARY.md`
-- **Test Suite:** `../../dv/tests/pit_8254/`
+- **Test Suite:** `../../dv/tests/test_apb_pit_8254.py`
 - **Testbench Classes:** `../../dv/tbclasses/pit_8254/`
 
 ---

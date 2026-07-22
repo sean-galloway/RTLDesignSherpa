@@ -427,7 +427,7 @@ The dual-buffer implementation successfully provides an **optional high-throughp
 - `projects/components/converters/rtl/axi_data_dnsize.sv` - RTL implementation
 - `projects/components/converters/dv/tests/test_axi_data_dnsize.py` - Test suite
 - `projects/components/converters/dv/tbclasses/axi_data_dnsize_tb.py` - Testbench class
-- `projects/components/converters/USAGE.md` - Usage documentation
+- `projects/components/converters/README.md` - Component overview and usage (the former USAGE.md was removed)
 - `projects/components/converters/ANALYSIS_APB_CONVERTER.md` - APB converter analysis
 
 **Author:** RTL Design Sherpa

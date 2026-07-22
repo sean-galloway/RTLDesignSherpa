@@ -69,8 +69,8 @@ Comprehensive validation of the base AXI monitor infrastructure including transa
 - ⚠️ Orphan detection test (test configuration issue, not RTL)
 
 **Verification:**
-- Test file: `val/amba/test_axi_monitor.py`
-- Log: `val/amba/logs/test_axi_monitor_completion.log`
+- Test file: `val/amba/test_axi4_monitor.py` (was `test_axi_monitor.py`)
+- Log: `val/amba/logs/test_axi_monitor_completion.log` (historical; log since rotated out)
 
 ---
 
@@ -733,8 +733,8 @@ Complete comprehensive markdown documentation for all AMBA modules with integrat
    - **Approach:** Explain stub purpose, testing usage
 
 4. **Shared Infrastructure (Priority 1):**
-   - ✅ shared/README.md exists (comprehensive)
-   - [ ] Add individual module pages for:
+   - ✅ docs/markdown/RTLAmba/shared/README.md exists (comprehensive)
+   - [x] Individual module pages now exist under docs/markdown/RTLAmba/monitor/:
      - axi_monitor_base.md
      - axi_monitor_filtered.md
      - axi_monitor_trans_mgr.md
@@ -742,10 +742,10 @@ Complete comprehensive markdown documentation for all AMBA modules with integrat
      - axi_monitor_timeout.md
      - arbiter_monbus_common.md
      - monbus_arbiter.md
-     - cdc_handshake.md
+     - cdc_handshake (covered in docs/markdown/RTLAmba/cdc/cdc.md)
 
 5. **Adapters/Shims (Priority 2):**
-   - ✅ shims/README.md exists
+   - ✅ docs/markdown/RTLAmba/shims/README.md exists
    - ✅ Individual shim docs exist (axi4_to_apb_convert, axi4_to_apb_shim, peakrdl_to_cmdrsp)
    - [ ] Update shims documentation with usage examples
 
@@ -1063,7 +1063,7 @@ Survey the entire test suite to identify additional tests that would significant
 - ✅ Implementation guidelines and code examples provided
 - ✅ Prioritized roadmap for follow-up tasks
 
-**Deliverable Location:** `docs/WAVEDROM_CANDIDATE_SURVEY.md`
+**Deliverable Location:** `docs/design/WAVEDROM_CANDIDATE_SURVEY.md`
 
 ---
 
@@ -1191,6 +1191,7 @@ Add minimal WaveDrom timing diagram generation to APB monitor tests, following t
 **Status:** 🔴 Not Started (stub created 2026-05-29)
 **Owner:** Sean (author) / Claude (assist)
 **Deliverable:** `docs/markdown/RTLAmba/monitor_system_whitepaper.md`
+> Note (2026-07-22): the 2026-05-29 stub is not present in the current tree; recreate it when this task starts.
 
 **Description:**
 2-3 page whitepaper that frames the monitor system as a *design surface*
@@ -1222,8 +1223,8 @@ spine, here are the axes, here are the tweaks."
    skewed traffic, protocol-partitioned groups.
 
 **Out of scope** for the whitepaper (covered elsewhere):
-- Packet bit-layout (in `includes/monitor_package_spec.md`)
-- Per-module port lists / timing (in `shared/{module}.md`)
+- Packet bit-layout (in `docs/markdown/RTLAmba/includes/monitor_package_spec.md`)
+- Per-module port lists / timing (in `docs/markdown/RTLAmba/monitor/{module}.md`)
 - Specific test recipes (in the relevant test source).
 
 **Completion checklist** (already mirrored at the bottom of the stub):

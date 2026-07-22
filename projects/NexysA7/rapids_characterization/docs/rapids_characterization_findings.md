@@ -258,7 +258,7 @@ CRC keeps correctness meaningful under multi-channel `tid` interleave.
 ## 7. CRC validation on both paths against a golden model
 
 Both directions are checked against a **deterministic software golden model**,
-`host/rapids_char_golden.py`, which computes the **reflected CRC-32** over the
+`flows-rapids-beats/host/rapids_char_golden.py`, which computes the **reflected CRC-32** over the
 per-channel LFSR stream. The model is the single source of truth: the same
 expected value is asserted on the write side (sink), the read side (source), and
 the on-chip checker.
@@ -350,7 +350,7 @@ two engines share operator muscle memory and result tooling:
 - **`make smoke` / `make suite`** drive the board over UART and emit
   timestamped JSON (`reports/rapids_char_suite_*.json`) with per-configuration,
   per-channel golden/measured CRCs and pass flags.
-- **`host/rapids_char_golden.py`** is the standalone golden model, usable
+- **`flows-rapids-beats/host/rapids_char_golden.py`** is the standalone golden model, usable
   independently of the board for offline expected-value generation.
 - The **DOCX/PDF report pipeline** (this document) uses the same house
   `md_to_docx.py` recipe and corporate style sheet STREAM uses, so both

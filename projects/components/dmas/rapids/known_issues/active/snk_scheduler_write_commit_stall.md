@@ -76,7 +76,7 @@ stuck state is in the **scheduler/descriptor completion path**.
 ## 3. ILA evidence
 
 Two on-silicon ILA passes (Genesys 2; `tcl/build_ila.tcl` + `tcl/capture_ila.tcl`,
-wedge reproduced by `host/run_sink_once.py` with `CHANNEL_RESET` disabled).
+wedge reproduced by `projects/NexysA7/rapids_characterization/flows-rapids-beats/host/run_sink_once.py` with `CHANNEL_RESET` disabled).
 
 **The wedge is INTERMITTENT** — a single fresh run often completes; back-to-back
 runs (no reset) trip it within 1-2 runs. Intermittency = a timing race, not a
@@ -187,8 +187,8 @@ RAPIDS beats was resynced from STREAM, so the two were compared directly.
 
 ### 6a. Write engine — IDENTICAL (shared risk)
 
-`projects/components/stream/rtl/fub/axi_write_engine.sv` and
-`projects/components/rapids/rtl/fub_beats/axi_write_engine_beats.sv` are **both
+`projects/components/dmas/stream/rtl/fub/axi_write_engine.sv` and
+`projects/components/dmas/rapids/rtl/fub_beats/axi_write_engine_beats.sv` are **both
 1076 lines and byte-identical except the include** (`stream_imports.svh` vs
 `rapids_imports.svh`) and the SPDX/module-name header — **12 diff lines, zero
 logic differences.** The commit reporting, the `b_phase_txn_fifo`, the WLAST/drain
@@ -275,12 +275,12 @@ this becomes a shared rapids+stream RTL fix. Separately correct the
 
 - ILA build:   `BOARD=genesys2 vivado -mode batch -source tcl/build_ila.tcl`
 - ILA capture: `RAPIDS_CHAR_JTAG_SERIAL=200300B818A0 vivado -mode batch -source tcl/capture_ila.tcl`
-- Wedge repro (no reset): `host/run_sink_once.py /dev/ttyUSB1`
+- Wedge repro (no reset): `projects/NexysA7/rapids_characterization/flows-rapids-beats/host/run_sink_once.py /dev/ttyUSB1`
 - Capture evidence: `reports/ila_sched_state.csv`
 
 ## 9. Current workaround
 
-`host/run_characterization.py` `reset_channels()` pulses `CHANNEL_RESET` on both
+`projects/NexysA7/rapids_characterization/flows-rapids-beats/host/run_characterization.py` `reset_channels()` pulses `CHANNEL_RESET` on both
 halves before every run. It makes the full 24-config char matrix run in one
 programming and unblocks `active<8`, but it does **not** fix the RTL — the sink
 must self-return to `CH_IDLE`.

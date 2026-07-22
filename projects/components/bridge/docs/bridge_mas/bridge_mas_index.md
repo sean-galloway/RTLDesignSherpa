@@ -175,7 +175,7 @@ All diagrams referenced in the documentation are available in:
 
 ### Generator
 
-- **Generator:** `../../bin/bridge_csv_generator.py` - CSV-based generator script
+- **Generator:** `../../bin/bridge_generator.py` - CSV/TOML-based generator script (with `../../bin/bridge_pkg/`)
 - **Test Configs:** `../../bin/test_configs/` - Example TOML/CSV configurations
 
 ---

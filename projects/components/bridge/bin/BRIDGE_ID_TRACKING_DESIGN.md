@@ -370,7 +370,7 @@ If tests fail:
 
 ### Documentation
 
-**Complete Specification:** `docs/bridge_spec/ch03_generated_rtl/07_bridge_id_tracking.md`
+**Complete Specification:** `docs/bridge_mas/ch04_id_management/02_id_tracking.md` (the older docs/bridge_spec/ tree was superseded by the Bridge MAS)
 - Full architectural description
 - CAM vs FIFO implementation details
 - Signal flow examples

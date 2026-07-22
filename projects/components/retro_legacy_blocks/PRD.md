@@ -69,7 +69,7 @@ The Retro Legacy Blocks (RLB) component provides production-quality implementati
 
 **Status:** ✅ Production Ready (5/6 configurations 100% passing)
 **RTL Location:** `rtl/hpet/`
-**Documentation:** `docs/hpet_spec/`
+**Documentation:** `docs/hpet_mas/`
 
 **Key Features:**
 - Configurable timer count: 2, 3, or 8 independent timers
@@ -119,7 +119,7 @@ The Retro Legacy Blocks (RLB) component provides production-quality implementati
 - W1C status register for interrupt clearing
 - Optional asynchronous clock domains with handshake CDC
 
-**See:** `docs/hpet_spec/hpet_index.md` for complete HPET specification
+**See:** `docs/hpet_mas/hpet_mas_index.md` for complete HPET specification
 
 ---
 
@@ -614,7 +614,7 @@ logic [DATA_WIDTH-1:0] mem [DEPTH];
 Each block must have:
 - RTL comments (inline)
 - Register map specification
-- Block-level specification in `docs/{block}_spec/`
+- Block-level specification in `docs/{block}_mas/`
 - Integration guide
 - Test plan and results
 
@@ -731,7 +731,7 @@ A block is considered "Production Ready" when:
 ### 8.3 Block-Specific Documentation
 
 **HPET:**
-- `docs/hpet_spec/hpet_index.md` - HPET specification
+- `docs/hpet_mas/hpet_mas_index.md` - HPET specification
 - `docs/IMPLEMENTATION_STATUS.md` - HPET test results
 - `known_issues/` - HPET issue tracking
 

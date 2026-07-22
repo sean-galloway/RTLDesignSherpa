@@ -27,6 +27,14 @@
 **Last Updated:** 2025-10-19
 **Version:** 0.25
 
+> Status (2026-07-22): historical - the implementation planned below (rtl/hive/
+> modules, val/hive/ tests, bin/TBClasses/hive/ TB classes, spec chapters beyond
+> ch02_blocks/00_overview.md) was never built. HIVE remains specification-only:
+> `docs/hive_spec/` (ch01_overview complete, ch02_blocks/00_overview.md) plus the
+> full single-file spec `docs/hive_specification.md`. New TB classes would live in
+> `projects/components/hive/dv/tbclasses/` per current repo standards.
+> Kept for reference.
+
 ---
 
 ## Task Status Legend
@@ -589,10 +597,8 @@ TASK-018 (Block Diagrams) - Independent
 
 ### Run Specification to PDF
 ```bash
-python bin/md_to_docx.py \
-    projects/components/hive/docs/hive_spec/hive_index.md \
-    -o projects/components/hive/docs/HIVE_Specification_v0.25.docx \
-    --toc --title-page --pdf
+# Use the provided script (outputs docs/HIVE_Specification_v<rev>.docx/.pdf)
+cd projects/components/hive/docs && ./generate_pdf.sh --rev 0.25
 ```
 
 ### Run SERV Tests (when available)

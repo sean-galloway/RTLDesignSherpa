@@ -206,7 +206,7 @@ Create FUB-level tests for:
 ## References
 
 ### Documentation
-- RAPIDS Specification: `projects/components/dmas/rapids/docs/rapids_spec/rapids_index.md`
+- RAPIDS Specification: `projects/components/dmas/rapids/docs/rapids_beats_has/rapids_beats_has_index.md` + `docs/rapids_beats_mas/rapids_beats_mas_index.md`
 - RAPIDS PRD: `projects/components/dmas/rapids/PRD.md`
 - RAPIDS CLAUDE.md: `projects/components/dmas/rapids/CLAUDE.md`
 

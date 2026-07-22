@@ -48,8 +48,8 @@ Priority:
    REF; while nonzero, ACT picks and further REFs are blocked. The 2-cycle
    fired-op guard also covers columns, so a drain-PRE cannot land inside the
    bank timers' tRTP/tWR registration lag. Audited by
-   `dv/checkers/pumice_cmd_history_checker.sv` (bound in the macro TB,
-   `$fatal` on violation).
+   `rtl/fub/pumice_cmd_history_checker.sv` (generate-gated by
+   `CMD_HISTORY_EN` inside the scheduler macro, `$fatal` on violation).
 3. **normal traffic** (reads + writes):
    - probe wr CAM & rd CAM `sched_lu[N]` with each bank's `bank_open_row`
      → per-bank row-hit candidates (+ `oldest` ports as fallback);

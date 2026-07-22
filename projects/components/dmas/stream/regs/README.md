@@ -25,6 +25,12 @@
 
 **Purpose:** PeakRDL register files and generated RTL for STREAM configuration
 
+> Status (2026-07-22): the "Future" phases below are DONE. The register source lives at
+> `../rtl/macro/stream_regs.rdl` (+ `stream_mon_regs.rdl`), generated outputs are in
+> `generated/`, and the config block is `../rtl/top/stream_config_block.sv`.
+> Regenerate only via `bin/peakrdl_generate.py`. The HPET reference now lives in
+> `projects/components/retro_legacy_blocks/`.
+
 ---
 
 ## Directory Structure
@@ -51,7 +57,7 @@ Create `stream_regs.rdl` following the same pattern as `apb_hpet`.
 
 ### Phase 2: PeakRDL-Generated Registers (Future)
 
-Following the same pattern as `projects/components/apb_hpet/`:
+Following the same pattern as the HPET block in `projects/components/retro_legacy_blocks/`:
 
 1. **Define Register Map** (`stream_regs.rdl`)
    ```systemverilog
@@ -79,7 +85,7 @@ Following the same pattern as `projects/components/apb_hpet/`:
 2. **Generate RTL**
    ```bash
    cd projects/components/dmas/stream/regs
-   ../../bin/peakrdl_generate.py stream_regs.rdl --copy-rtl ../rtl/stream_macro
+   ../../bin/peakrdl_generate.py stream_regs.rdl --copy-rtl ../rtl/macro
    ```
 
 3. **Create APB Config Wrapper**
@@ -123,7 +129,7 @@ Each channel (0-7) has a 16-byte register block starting at `0x10 + (channel_id 
 ### PeakRDL-Generated Implementation (Future):
 
 ```systemverilog
-// rtl/stream_macro/apb_config.sv
+// Actual implementation: rtl/top/stream_config_block.sv
 module apb_config (
     // APB interface
     input  logic [ADDR_WIDTH-1:0] paddr,
@@ -153,10 +159,10 @@ endmodule
 
 ## Reference Examples
 
-**HPET PeakRDL Implementation:**
-- `projects/components/apb_hpet/peakrdl/hpet_regs.rdl` - Register definition
-- `projects/components/apb_hpet/peakrdl/generated/` - Generated outputs
-- `projects/components/apb_hpet/rtl/apb_hpet.sv` - Wrapper with CDC
+**HPET PeakRDL Implementation (now in retro_legacy_blocks):**
+- `projects/components/retro_legacy_blocks/rtl/hpet/peakrdl/hpet_regs.rdl` - Register definition
+- `projects/components/retro_legacy_blocks/rtl/hpet/` - Generated register RTL (`hpet_regs.sv`, `hpet_regs_pkg.sv`)
+- `projects/components/retro_legacy_blocks/rtl/hpet/apb_hpet.sv` - Wrapper with CDC
 
 **HPET Generation Command:**
 ```bash
@@ -176,8 +182,8 @@ endmodule
 
 ---
 
-**Last Updated:** 2025-10-17
+**Last Updated:** 2026-07-22
 **Related Documentation:**
-- `../docs/ARCHITECTURAL_NOTES.md` Section 6 - APB Configuration (Deferred)
+- `../docs/stream_mas/` - STREAM MAS (register chapter supersedes the old ARCHITECTURAL_NOTES.md)
 - `../PRD.md` Section 3.1 - APB Configuration Interface
-- `../../apb_hpet/peakrdl/README.md` - HPET PeakRDL example
+- `../../../retro_legacy_blocks/rtl/hpet/peakrdl/README.md` - HPET PeakRDL example

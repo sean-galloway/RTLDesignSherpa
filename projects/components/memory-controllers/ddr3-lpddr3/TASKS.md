@@ -57,5 +57,6 @@ Seed candidates to evaluate (confirm DDR3/LPDDR3 applicability + commodity legal
 - **ZQ calibration scheduling** (DDR3 ZQCS/ZQCL) — periodic maintenance interleaved with demand traffic; a scheduling knob.
 
 Deliverable: a `docs/design-requirements.md` "Advanced modes" section for `ddr3-lpddr3`
-mirroring the pumice-ddr2-lpddr2 one, listing each confirmed mechanism with bullet detail +
+mirroring the pumice-ddr2-lpddr2 one (`../pumice-ddr2-lpddr2/docs/design-requirements.md`),
+listing each confirmed mechanism with bullet detail +
 its CSR mode/knobs + commodity-vs-model-only.

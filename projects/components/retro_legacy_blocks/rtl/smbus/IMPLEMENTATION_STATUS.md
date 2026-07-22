@@ -227,9 +227,9 @@ dv/
 - ✅ `reset_defs.svh` - Reset macros
 - ✅ `fifo_defs.svh` - FIFO type definitions
 
-### From `rtl/amba/`
-- ✅ `apb/apb_slave.sv` - APB4 to CMD/RSP converter
-- 📋 `apb/peakrdl_to_cmdrsp.sv` - Will be used after PeakRDL generation
+### From `rtl/amba/` and shared converters
+- ✅ `rtl/amba/apb/apb_slave.sv` - APB4 to CMD/RSP converter
+- 📋 `projects/components/converters/rtl/peakrdl_to_cmdrsp.sv` - Will be used after PeakRDL generation
 
 ### Design Patterns
 - ✅ 3-layer architecture (APB → Registers → Core) - matches RTC

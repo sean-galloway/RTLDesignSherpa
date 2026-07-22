@@ -45,7 +45,7 @@ projects/components/{component}/
 |-----------|-------------|--------------|--------|
 | **stream** | ✅ REG_LEVEL + Parallel | ✅ Lint | Complete |
 | **rapids** | ✅ REG_LEVEL + Parallel | ✅ Lint | Complete |
-| **apb_hpet** | ✅ REG_LEVEL + Parallel | ✅ Lint | Complete |
+| **retro_legacy_blocks** (formerly apb_hpet) | ✅ REG_LEVEL + Parallel | ✅ Lint | Complete |
 | **apb_xbar** | ✅ REG_LEVEL + Parallel | ✅ Lint | Complete |
 | **bridge** | ✅ REG_LEVEL + Parallel | ✅ Lint | Complete |
 
@@ -220,7 +220,7 @@ make report
 
 ```bash
 # 1. Modify RTL
-vim projects/components/dmas/stream/rtl/stream_fub/scheduler.sv
+vim projects/components/dmas/stream/rtl/fub/scheduler.sv
 
 # 2. Lint the RTL
 cd projects/components/dmas/stream/rtl
@@ -283,7 +283,7 @@ make test-projects        # Run all project tests
 make test-stream          # Run STREAM tests
 make test-rapids          # Run RAPIDS tests
 make test-bridge          # Run Bridge tests
-make test-apb_hpet        # Run APB HPET tests
+make test-retro_legacy_blocks  # Run Retro Legacy Blocks (HPET, PIT, ...) tests
 make test-apb_xbar        # Run APB Crossbar tests
 
 make lint-all             # Lint all RTL (root + projects)
@@ -292,6 +292,8 @@ make lint-stream          # Lint STREAM RTL
 make lint-rapids          # Lint RAPIDS RTL
 # ... etc
 ```
+
+(The `projects/components/Makefile` uses path-shaped names instead, e.g. `make test-dmas/stream`, `make test-retro_legacy_blocks`.)
 
 ---
 
@@ -400,7 +402,7 @@ All component Makefiles support parallel test execution using pytest-xdist:
 ```bash
 make run-all-func-parallel
 # Equivalent to:
-# pytest -v --tb=short -n 48 --reruns 3 --reruns-delay 1 fub_tests/test_*.py macro_tests/test_*.py
+# pytest -v --tb=short -n 48 --reruns 3 --reruns-delay 1 fub/test_*.py macro/test_*.py
 ```
 
 **Benefits:**

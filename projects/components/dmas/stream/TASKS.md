@@ -61,7 +61,7 @@
 - ✅ PRD.md - Product requirements complete
 - ✅ README.md - Quick start guide
 - ✅ CLAUDE.md - AI assistance guide
-- ✅ docs/stream_spec/ - Complete architecture documentation
+- ✅ docs/stream_has/ + docs/stream_mas/ - Complete architecture documentation
 
 ---
 
@@ -292,6 +292,6 @@ compile-time `USE_ROW_COL_MAJOR_ADDRESSING`.
 
 **Architecture Stability:** All core blocks, the APB configuration interface, and the top-level wrapper are complete and tested. v1.0 is done; only the optional post-v1.0 enhancement (TASK-101) remains.
 
-**Documentation:** Complete microarchitecture documentation available in `docs/stream_spec/`.
+**Documentation:** Complete microarchitecture documentation available in `docs/stream_has/` and `docs/stream_mas/`.
 
 **Verification:** Comprehensive test suite with FUB-level and integration tests passing.

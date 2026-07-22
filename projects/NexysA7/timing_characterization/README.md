@@ -177,15 +177,15 @@ you wrote are the gates that land in the netlist.
 
 | FUB | File | Key parameters | Critical path | What it measures |
 |---|---|---|---|---|
-| `nand_chain` | `fub/nand_chain.sv` | `LEVELS`, `NUM_FLOPS` | LEVELS NAND-gate delays | Raw 2-input NAND propagation through the target technology |
-| `inverter_chain` | `fub/inverter_chain.sv` | `INVERTER_COUNT` | Linear inverter chain | Best-case per-gate delay (no fan-in overhead) |
-| `xor_tree` | `fub/xor_tree.sv` | `LEVELS`, `NUM_FLOPS` | LEVELS XOR delays | XOR cell vs.\ NAND cell / LUT packing |
-| `carry_chain` | `fub/carry_chain.sv` | `WIDTH` | WIDTH carry-propagation delays | Dedicated carry-chain (CARRY4 / CARRY8 / ALM-carry / stdcell ripple) |
-| `multiplier_tree` | `fub/multiplier_tree.sv` | `WIDTH`, `MULT_TYPE` | Reduction-tree depth | Inferred `*` (DSP) vs.\ structural Dadda / Wallace / CSA |
-| `mux_tree` | `fub/mux_tree.sv` | `LEVELS`, `NUM_FLOPS` | LEVELS 2:1-mux delays | Mux-cell delay vs.\ logic-cell delay |
-| `queue_depth` | `fub/queue_depth.sv` | `DATA_WIDTH`, `DEPTH` | FIFO read path + output flop | Memory inference thresholds (LUTRAM / BRAM / URAM / SRAM compiler) |
-| `clock_divider_chain` | `fub/clock_divider_chain.sv` | `STAGES`, `CW`, `PICKOFF` | Counter increment + pickoff mux | Counter-based clock generation |
-| `gray_counter_chain` | `fub/gray_counter_chain.sv` | `WIDTH` | Binary carry + XOR tree | Binary-to-Gray conversion delay |
+| `nand_chain` | `rtl/fub/nand_chain.sv` | `LEVELS`, `NUM_FLOPS` | LEVELS NAND-gate delays | Raw 2-input NAND propagation through the target technology |
+| `inverter_chain` | `rtl/fub/inverter_chain.sv` | `INVERTER_COUNT` | Linear inverter chain | Best-case per-gate delay (no fan-in overhead) |
+| `xor_tree` | `rtl/fub/xor_tree.sv` | `LEVELS`, `NUM_FLOPS` | LEVELS XOR delays | XOR cell vs.\ NAND cell / LUT packing |
+| `carry_chain` | `rtl/fub/carry_chain.sv` | `WIDTH` | WIDTH carry-propagation delays | Dedicated carry-chain (CARRY4 / CARRY8 / ALM-carry / stdcell ripple) |
+| `multiplier_tree` | `rtl/fub/multiplier_tree.sv` | `WIDTH`, `MULT_TYPE` | Reduction-tree depth | Inferred `*` (DSP) vs.\ structural Dadda / Wallace / CSA |
+| `mux_tree` | `rtl/fub/mux_tree.sv` | `LEVELS`, `NUM_FLOPS` | LEVELS 2:1-mux delays | Mux-cell delay vs.\ logic-cell delay |
+| `queue_depth` | `rtl/fub/queue_depth.sv` | `DATA_WIDTH`, `DEPTH` | FIFO read path + output flop | Memory inference thresholds (LUTRAM / BRAM / URAM / SRAM compiler) |
+| `clock_divider_chain` | `rtl/fub/clock_divider_chain.sv` | `STAGES`, `CW`, `PICKOFF` | Counter increment + pickoff mux | Counter-based clock generation |
+| `gray_counter_chain` | `rtl/fub/gray_counter_chain.sv` | `WIDTH` | Binary carry + XOR tree | Binary-to-Gray conversion delay |
 
 Per-FUB rationale, recommended sweep ranges, and result interpretation
 live in [`rtl/syn/SYNTHESIS_GUIDE.md`](rtl/syn/SYNTHESIS_GUIDE.md).

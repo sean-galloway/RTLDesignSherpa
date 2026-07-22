@@ -9,12 +9,12 @@ The bridge fans out to the slaves in Chapter 2. This chapter covers the
 (`stream_char_framework/rtl/`) is authoritative; a mirror table in
 `stream_char_framework/bin/gen_harness_regmap.py` generates
 `stream_char_framework/rtl/harness_csr_regmap.py`. The host accesses it **by
-name** — `host/harness_addrs.py` `H("NAME")` resolves `HARNESS_CSR_BASE + offset`
+name** — `flows-stream-bridge/host/harness_addrs.py` `H("NAME")` resolves `HARNESS_CSR_BASE + offset`
 via `RegisterMap`; never hardcode offsets.
 
 The **STREAM DUT's** APB config, by contrast, *is* PeakRDL-generated
 (`stream_regmap.py` from `stream_regs.rdl`), accessed by name via
-`host/stream_addrs.py` `A("NAME")` — see the monitor-window note below.
+`flows-stream-bridge/host/stream_addrs.py` `A("NAME")` — see the monitor-window note below.
 
 ### Waveform 5.1: Descriptor Load and Kick
 
@@ -86,7 +86,7 @@ STREAM's PeakRDL regmap places the **AXI monitor register block at APB offset
 (`RDMON_PERF_*`, `WRMON_PERF_*`, `DAXMON_PERF_*`) live there and are read **by
 name** via `stream_addrs.A()` — hardcoding this window broke a path once, so the
 by-name access is mandatory. Monitor presets (`perf-mon`, `debug-basic`,
-`debug-compl`, `debug-all`, `debug-core`) are built by `host/mon_configs.py`.
+`debug-compl`, `debug-all`, `debug-core`) are built by `flows-stream-bridge/host/mon_configs.py`.
 
 ## Descriptor format (desc_ram @ 0x0002_0000)
 
@@ -94,4 +94,4 @@ by-name access is mandatory. Monitor presets (`perf-mon`, `debug-basic`,
 `dst_addr` lo/hi (w2/3), `length` in beats (w4), `next_ptr` (w5, 0 = end),
 `ctrl` (w6: `valid[0]`, `interrupt[1]`, `last[2]`, `error[3]`, `channel_id[7:4]`,
 `priority[15:8]`, `stamp[31:16]`), reserved (w7). Built by
-`host/descriptor_builder.py`.
+`flows-stream-bridge/host/descriptor_builder.py`.

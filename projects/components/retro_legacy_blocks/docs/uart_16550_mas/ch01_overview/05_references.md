@@ -29,7 +29,7 @@
 - `rtl/uart_16550/apb_uart_16550.sv` - Main UART module
 - `rtl/uart_16550/uart_16550_config_regs.sv` - Register wrapper
 - `rtl/uart_16550/uart_16550_regs.sv` - PeakRDL-generated registers
-- `rtl/uart_16550/uart_16550.rdl` - Register description source
+- `rtl/uart_16550/peakrdl/uart_16550_regs.rdl` - Register description source
 
 ### Related Specifications
 - APB Protocol Specification (AMBA 3)

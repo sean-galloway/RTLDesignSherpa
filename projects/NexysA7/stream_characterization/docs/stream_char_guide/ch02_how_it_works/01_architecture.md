@@ -13,7 +13,7 @@ fans out to the DUT config, the harness CSR, and the trace/error memories:
 
 ## Bridge slaves and base addresses
 
-From `host/ADDRESS_MAP.md` and `PORT_MAP.md` (the current design; the older
+From `flows-stream-bridge/host/ADDRESS_MAP.md` and `PORT_MAP.md` (the current design; the older
 `flows-stream-bridge/README.md` describes a superseded 5-slave decoder — trust
 the address-map docs):
 

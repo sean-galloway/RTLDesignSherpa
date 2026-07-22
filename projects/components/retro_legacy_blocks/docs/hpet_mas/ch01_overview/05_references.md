@@ -75,26 +75,26 @@
   - Root cause analysis
 
 **RTL Source Files:**
-- `rtl/apb_hpet.sv` - Top-level wrapper module
-- `rtl/hpet_core.sv` - Core timer logic
-- `rtl/hpet_config_regs.sv` - Register wrapper
-- `rtl/hpet_regs.sv` - PeakRDL generated register file (from hpet_regs.rdl)
-- `rtl/hpet_regs_pkg.sv` - PeakRDL generated package
+- `rtl/hpet/apb_hpet.sv` - Top-level wrapper module
+- `rtl/hpet/hpet_core.sv` - Core timer logic
+- `rtl/hpet/hpet_config_regs.sv` - Register wrapper
+- `rtl/hpet/hpet_regs.sv` - PeakRDL generated register file (from hpet_regs.rdl)
+- `rtl/hpet/hpet_regs_pkg.sv` - PeakRDL generated package
 
 **SystemRDL Specification:**
-- `rtl/peakrdl/hpet_regs.rdl` - Register description
-- `rtl/peakrdl/README.md` - PeakRDL generation instructions
+- `rtl/hpet/peakrdl/hpet_regs.rdl` - Register description
+- `rtl/hpet/peakrdl/README.md` - PeakRDL generation instructions
 
 **Testbench Files:**
-- `dv/tbclasses/hpet_tb.py` - Main testbench class
-- `dv/tbclasses/hpet_tests_basic.py` - Basic test suite
-- `dv/tbclasses/hpet_tests_medium.py` - Medium test suite
-- `dv/tbclasses/hpet_tests_full.py` - Full test suite
+- `dv/tbclasses/hpet/hpet_tb.py` - Main testbench class
+- `dv/tbclasses/hpet/hpet_tests_basic.py` - Basic test suite
+- `dv/tbclasses/hpet/hpet_tests_medium.py` - Medium test suite
+- `dv/tbclasses/hpet/hpet_tests_full.py` - Full test suite
 - `dv/tests/test_apb_hpet.py` - Test runner with pytest integration
 
 **Known Issues Documentation:**
 - `known_issues/README.md` - Issue tracking overview
-- `known_issues/resolved/timer_cleanup_issue.md` - Timer corruption fix details
+- Timer counter-cleanup fix details: see TASK-001 in [TASKS.md](../../../TASKS.md) (the old standalone `known_issues/resolved/timer_cleanup_issue.md` page was not carried over into retro_legacy_blocks)
 
 #### Repository-Wide Documentation
 
@@ -104,12 +104,11 @@
 - `/CLAUDE.md` - Repository-wide AI guidance
 
 **Framework Documentation:**
-- `bin/TBClasses/README.md` - Testbench framework overview
-- `bin/TBClasses/CLAUDE.md` - Framework usage guide
-- `bin/TBClasses/components/apb/README.md` - APB BFM documentation
+- `bin/TBClasses/` - In-repo shared testbench utilities (import as `from TBClasses. ...`; APB helpers under `bin/TBClasses/apb/`)
+- RTLDesignSherpa-DV repository - Full CocoTBFramework (components, BFMs, tbclasses), editable-installed into the venv
 
 **Verification Architecture:**
-- `docs/VERIFICATION_ARCHITECTURE_GUIDE.md` - Complete verification patterns
+- `docs/guides/VERIFICATION_ARCHITECTURE_GUIDE.md` - Complete verification patterns
   - Three-layer architecture (TB + Scoreboard + Test)
   - Queue-based vs memory model verification
   - Mandatory testbench methods
@@ -119,15 +118,15 @@
 **APB Infrastructure:**
 - `rtl/amba/apb/apb_slave.sv` - Standard APB slave
 - `rtl/amba/apb/apb_slave_cdc.sv` - APB slave with clock domain crossing
-- `rtl/amba/adapters/peakrdl_to_cmdrsp.sv` - PeakRDL adapter
+- `projects/components/converters/rtl/peakrdl_to_cmdrsp.sv` - PeakRDL adapter
 
 **Clock Domain Crossing:**
-- `rtl/amba/cdc/cdc_handshake.sv` - CDC handshake synchronizer
-- `rtl/common/sync_2ff.sv` - 2-stage synchronizer
+- `rtl/amba/cdc/cdc_4_phase_handshake.sv` - CDC handshake synchronizer (renamed from `cdc_handshake.sv`)
+- `rtl/amba/cdc/cdc_synchronizer.sv` - Multi-stage bit synchronizer (replaces the old `sync_2ff.sv`)
 - `rtl/common/sync_pulse.sv` - Pulse synchronizer
 
 **Common Utilities:**
-- `rtl/common/edge_detect.sv` - Edge detection logic (used for write strobes)
+- Edge detection for write strobes is implemented inline in `rtl/hpet/hpet_config_regs.sv` (the old standalone `rtl/common/edge_detect.sv` module no longer exists)
 - `rtl/common/counter_bin.sv` - Binary counter (similar to HPET main counter)
 
 #### Design Tools

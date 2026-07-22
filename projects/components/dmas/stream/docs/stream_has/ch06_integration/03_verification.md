@@ -150,8 +150,9 @@ STREAM verification follows a hierarchical approach:
 pytest projects/components/dmas/stream/dv/tests/ -v
 
 # Run specific test category
-pytest projects/components/dmas/stream/dv/tests/fub_tests/ -v
-pytest projects/components/dmas/stream/dv/tests/integration_tests/ -v
+pytest projects/components/dmas/stream/dv/tests/fub/ -v
+pytest projects/components/dmas/stream/dv/tests/macro/ -v
+pytest projects/components/dmas/stream/dv/tests/top/ -v
 
 # Generate coverage report
 pytest projects/components/dmas/stream/dv/tests/ --cov-report=html

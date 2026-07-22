@@ -82,11 +82,10 @@ dv/tbclasses/pit_8254/
 ├── pit_tb.py                    ✅ Main testbench (250 lines)
 └── pit_tests_basic.py           ✅ Basic test suite (200 lines)
 
-dv/tests/pit_8254/
-├── __init__.py                  ✅ Package init
-├── conftest.py                  ✅ Pytest configuration
+dv/tests/                        (flat layout, shared across blocks)
+├── conftest.py                  ✅ Pytest configuration (shared)
 ├── test_apb_pit_8254.py         ✅ Test runner
-└── Makefile                     ✅ Test execution targets
+└── Makefile                     ✅ Test execution targets (run-pit)
 ```
 
 ### Architecture Layers
@@ -161,17 +160,14 @@ dv/tests/pit_8254/
 ### How to Run Tests
 
 ```bash
-# Navigate to test directory
-cd projects/components/retro_legacy_blocks/dv/tests/pit_8254
+# Navigate to test directory (test runners live flat in dv/tests/)
+cd projects/components/retro_legacy_blocks/dv/tests
 
-# Run basic tests
-make basic
+# Run PIT tests (basic level)
+make run-pit
 
-# Run with waveforms
-make basic-waves
-
-# View waveforms
-make view
+# Run with waveforms (pytest directly)
+WAVES=1 pytest test_apb_pit_8254.py -v -s
 
 # Clean artifacts
 make clean

@@ -25,13 +25,13 @@
 
 #### Overview
 
-The `hpet_regs` module is auto-generated from the SystemRDL specification (`rtl/peakrdl/hpet_regs.rdl`) using the PeakRDL toolchain. It implements the complete HPET register file with proper field access semantics (RO, RW, W1C), hardware interface integration, and CPU interface protocol handling.
+The `hpet_regs` module is auto-generated from the SystemRDL specification (`rtl/hpet/peakrdl/hpet_regs.rdl`) using the PeakRDL toolchain. It implements the complete HPET register file with proper field access semantics (RO, RW, W1C), hardware interface integration, and CPU interface protocol handling.
 
 **Single Source of Truth:** All register definitions, addresses, field widths, and access properties are specified in the SystemRDL file. The generated RTL is deterministic and regeneratable.
 
 **Generation Command:**
 ```bash
-cd projects/components/apb_hpet/rtl/peakrdl
+cd projects/components/retro_legacy_blocks/rtl/hpet/peakrdl
 peakrdl regblock hpet_regs.rdl --cpuif passthrough -o ../
 ```
 
@@ -438,7 +438,7 @@ assign cpuif_rd_err = readback_err;
 
 #### SystemRDL Specification
 
-**Source File:** `rtl/peakrdl/hpet_regs.rdl`
+**Source File:** `rtl/hpet/peakrdl/hpet_regs.rdl`
 
 **Key RDL Properties Used:**
 
@@ -533,7 +533,7 @@ addrmap hpet_regs {
 
 **Steps:**
 ```bash
-cd projects/components/apb_hpet/rtl/peakrdl
+cd projects/components/retro_legacy_blocks/rtl/hpet/peakrdl
 
 # 1. Edit SystemRDL specification
 vim hpet_regs.rdl
@@ -548,7 +548,7 @@ ls -l ../hpet_regs.sv ../hpet_regs_pkg.sv
 git diff ../hpet_regs.sv ../hpet_regs_pkg.sv
 
 # 5. Run tests to verify
-pytest projects/components/apb_hpet/dv/tests/ -v
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
 ```
 
 **⚠️ Important:** Do not manually edit generated files! All changes must be made in `hpet_regs.rdl` and regenerated.

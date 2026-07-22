@@ -29,7 +29,7 @@ You're absolutely right that a complete analysis should include **BOTH read AND 
 
 ## New Files Created
 
-### 1. `analytical/write_analysis.py` ✅
+### 1. `bin/analytical/write_analysis.py` ✅
 **Analytical model for write path**
 
 Key functions:
@@ -38,7 +38,7 @@ Key functions:
 - `compare_write_payloads()` - Different write burst sizes
 - `analyze_combined_performance()` - **Read + Write together**
 
-### 2. `simpy_model/write_design.py` ✅
+### 2. `bin/simpy_model/write_model.py` (renamed from write_design.py) ✅
 **SimPy simulation for write path**
 
 Key classes:

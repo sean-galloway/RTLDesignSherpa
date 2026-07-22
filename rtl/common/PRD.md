@@ -34,7 +34,7 @@
 
 ## 1. Executive Summary
 
-The Common RTL Library provides 86 technology-agnostic, reusable building blocks for FPGA and ASIC designs. These modules implement fundamental digital design primitives including counters, arbiters, FIFOs, data integrity functions, math operations, and clock utilities.
+The Common RTL Library provides technology-agnostic, reusable building blocks for FPGA and ASIC designs. These modules implement fundamental digital design primitives including counters, arbiters, FIFOs, data integrity functions, and clock utilities. (Math/arithmetic primitives were split out into `rtl/math/`.)
 
 ### 1.1 Subsystem Goals
 
@@ -144,8 +144,8 @@ The Common RTL Library provides 86 technology-agnostic, reusable building blocks
 | `bin2gray.sv` | Binary to Gray code | WIDTH | ✅ Complete |
 | `gray2bin.sv` | Gray to binary code | WIDTH | ✅ Complete |
 | `bin_to_bcd.sv` | Binary to BCD | WIDTH | ✅ Complete |
-| `math_adder_*.sv` | Various adder topologies | WIDTH | ✅ Complete |
-| `math_multiplier_*.sv` | Multiplier topologies | WIDTH | ✅ Complete |
+| `rtl/math/math_adder_*.sv` | Various adder topologies (now in `rtl/math/`) | WIDTH | ✅ Complete |
+| `rtl/math/math_multiplier_*.sv` | Multiplier topologies (now in `rtl/math/`) | WIDTH | ✅ Complete |
 
 **Use Cases:**
 - Normalization (CLZ for floating point)
@@ -291,7 +291,7 @@ module counter_bin #(
 - ✅ Pure synthesizable SystemVerilog
 - ✅ Infers optimal implementation
 
-**Exception:** `rtl/xilinx/` contains vendor-specific modules for specialized cases.
+**Exception:** vendor-specific modules (Xilinx primitives, etc.) live in board project areas under `projects/` (the old `rtl/xilinx/` directory was removed).
 
 ### 3.3 Reset Convention
 
@@ -633,7 +633,7 @@ All modules are stable and production-ready. No blocking bugs identified.
 ### 9.3 Related Subsystems
 
 - `rtl/amba/` - Uses common modules for infrastructure
-- `rtl/rapids/` - Uses common modules for scheduling
+- `projects/components/dmas/rapids/` - Uses common modules for scheduling
 - `bin/rtl_generators/` - Python generators for complex arithmetic
 
 ---

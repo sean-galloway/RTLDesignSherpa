@@ -15,7 +15,7 @@ sim: the testbench drives the *same* `uart_axil_bridge` RTL over the *same* ASCI
 - **Backend model:** the real harness RTL, elaborated in Verilator —
   `axi4_dma_slaves` (LFSR pattern-gen source + CRC-check sink),
   `axi_response_delay`, `axi4_dma_observer`. Descriptors are built by the shared
-  `host/descriptor_builder.py`.
+  `flows-stream-bridge/host/descriptor_builder.py`.
 - **Running the actual host program in sim:** the ext-addressing tests execute
   `stream_ext_suite.run_suite` / `stream_ext_char` under
   `await cocotb.external(program)()`, with a `_Bridge` shim wrapping
@@ -25,7 +25,7 @@ sim: the testbench drives the *same* `uart_axil_bridge` RTL over the *same* ASCI
 
 ## Test levels
 
-`dv/tests/test_stream_char.py` runs by `TEST_LEVEL`:
+`flows-stream-bridge/dv/tests/test_stream_char.py` runs by `TEST_LEVEL`:
 
 | Level | Cocotb tests |
 |-------|-------------|
@@ -37,7 +37,7 @@ sim: the testbench drives the *same* `uart_axil_bridge` RTL over the *same* ASCI
 
 Plus `test_stream_char_ext_suite` / `test_stream_char_ext_char` (the
 run-the-host-program tests) and host-side unit tests
-(`host/test_harness_regmap.py`, `test_stream_device.py`, `test_mon_configs.py`, …).
+(`flows-stream-bridge/host/test_harness_regmap.py`, `test_stream_device.py`, `test_mon_configs.py`, …).
 Sim params (`BASE_RTL_PARAMS`): `NUM_CHANNELS = 4` (down from 8 for Artix BRAM),
 `DATA_WIDTH = 128`, `DESC_RAM_ENTRIES = 128`, `DEBUG_SRAM_WORDS = 4096`,
 `USE_MON_COMPRESSION = 1`. `make bitstream` runs a `verify-sim` gate

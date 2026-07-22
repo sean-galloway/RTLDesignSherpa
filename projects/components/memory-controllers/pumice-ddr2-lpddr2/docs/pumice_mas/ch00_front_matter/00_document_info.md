@@ -68,9 +68,9 @@ This document covers:
 This document does **not** cover:
 
 - Higher-level architectural rationale (see HAS)
-- Verification plans or coverage models (see `dv/README.md`)
+- Verification plans or coverage models (see the YAML testplans in `dv/testplans/`)
 - Floorplan or layout guidance (project-specific)
-- Bit-level CSR YAML — that lives in `regs/` and is the source of truth for CSR generation
+- Bit-level CSR definitions — the PeakRDL source `rtl/macro/pumice_csr.rdl` is the source of truth for CSR generation (generated collateral in `regs/generated/`)
 
 ---
 

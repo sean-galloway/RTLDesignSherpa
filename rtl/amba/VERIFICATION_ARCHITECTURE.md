@@ -108,8 +108,8 @@ class AXI4MasterReadTB(TBBase):
 
     Can be imported by:
     - Unit tests (val/amba/)
-    - Integration tests (val/system/)
-    - System tests (val/soc/)
+    - Integration tests (val/integ_amba/)
+    - System/project tests (projects/components/*/dv/tests/)
     - External user projects
     """
 
@@ -260,13 +260,13 @@ async def axi4_monitor_test(dut):
    tb = AXI4MasterReadTB(dut)
    ```
 
-2. **Integration Testing** (`val/system/test_interconnect.py`)
+2. **Integration Testing** (`val/integ_amba/test_*.py`)
    ```python
    from TBClasses.axi4.axi4_master_read_tb import AXI4MasterReadTB
    master_tb = AXI4MasterReadTB(dut.master0)
    ```
 
-3. **System Testing** (`val/soc/test_full_soc.py`)
+3. **System Testing** (project areas, e.g. `projects/components/*/dv/tests/`)
    ```python
    from TBClasses.axi4.axi4_master_read_tb import AXI4MasterReadTB
    cpu_master = AXI4MasterReadTB(dut.soc.cpu.m_axi)

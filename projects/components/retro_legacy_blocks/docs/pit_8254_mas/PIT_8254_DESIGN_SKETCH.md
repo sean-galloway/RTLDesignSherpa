@@ -655,9 +655,9 @@ dv/tbclasses/pit_8254/
 ├── pit_8254_tests_medium.py # Medium test suite
 └── pit_8254_tests_full.py   # Full test suite
 
-dv/tests/pit_8254/
+dv/tests/                    (flat layout, shared across blocks)
 ├── test_apb_pit_8254.py     # Test runner
-└── conftest.py              # Pytest configuration
+└── conftest.py              # Pytest configuration (shared)
 ```
 
 ### 6.2 Test Levels
@@ -935,8 +935,8 @@ class PIT8254TB(TBBase):
    ```bash
    mkdir -p rtl/pit_8254/{peakrdl,filelists}
    mkdir -p dv/tbclasses/pit_8254
-   mkdir -p dv/tests/pit_8254
-   mkdir -p docs/pit_8254_spec
+   # test runners live flat in dv/tests/
+   mkdir -p docs/pit_8254_mas
    ```
 
 2. Create initial SystemRDL specification (pit_regs.rdl)

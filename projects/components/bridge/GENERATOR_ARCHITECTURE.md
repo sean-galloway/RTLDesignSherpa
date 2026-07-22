@@ -27,6 +27,11 @@
 **Status:** Documentation created after generator modifications broke compilation
 **Purpose:** Explain build system and generator architecture for debugging/restoration
 
+> Status (2026-07-22): the "Current Broken State" section below is historical -
+> the signal-naming breakage described there was subsequently fixed and all
+> bridges regenerate cleanly (`bin/Makefile` / `dv/tests/Makefile rebuild-all`).
+> The build-flow and architecture description remains accurate.
+
 ---
 
 ## Table of Contents
@@ -758,7 +763,7 @@ endmodule
 
 ### What I Changed
 
-**File 1: `bridge_pkg/components/bridge_module_generator.py`**
+**File 1: `bin/bridge_pkg/components/bridge_module_generator.py`**
 
 **Lines 621-639: Adapter Instantiation**
 - **Before:** Used `SignalNaming.get_all_axi4_signals(port_name=master.name, ...)`
@@ -768,7 +773,7 @@ endmodule
 - **Before:** Used `SignalNaming.get_all_axi4_signals(port_name=slave.name, ...)`
 - **After:** Loop through `AXI4_MASTER_SIGNALS` using `slave.prefix` directly
 
-**File 2: `bridge_pkg/generators/crossbar_generator.py`**
+**File 2: `bin/bridge_pkg/generators/crossbar_generator.py`**
 
 **Line 20: Import**
 - **Before:** Only imported `AXI4_SLAVE_SIGNALS`
@@ -850,7 +855,7 @@ If the intermediate signal naming is confusing, consider:
 
 **Read original commits** (before my changes):
 ```bash
-cd /mnt/data/github/rtldesignsherpa
+cd "$REPO_ROOT"  # repo root
 git log --oneline projects/components/bridge/bin/bridge_pkg/ | head -10
 # Find commit hash before my changes
 git show <hash>:projects/components/bridge/bin/bridge_pkg/components/bridge_module_generator.py

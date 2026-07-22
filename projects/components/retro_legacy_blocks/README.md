@@ -89,7 +89,7 @@ retro_legacy_blocks/
 │   └── scoreboards/        # Shared scoreboards (if needed)
 │
 ├── docs/                    # Documentation
-│   └── hpet_spec/          # HPET specification
+│   └── hpet_mas/           # HPET specification
 │
 ├── bin/                     # Tools and generators (block-specific)
 │
@@ -148,7 +148,7 @@ This naming reflects that these are production-ready implementations of time-tes
 - Optional clock domain crossing (CDC)
 - PeakRDL-generated register file
 
-**See:** `docs/hpet_spec/` for complete specification
+**See:** `docs/hpet_mas/` for the complete specification
 
 ---
 
@@ -174,14 +174,14 @@ When adding a new legacy block (e.g., GPIO):
 
 3. **Create tests:**
    ```bash
-   mkdir -p dv/tests/gpio
-   cd dv/tests/gpio
-   # Add: test_apb_gpio.py, conftest.py
+   # Test runners live flat in dv/tests/ (shared conftest.py)
+   cd dv/tests
+   # Add: test_apb_gpio.py
    ```
 
 4. **Update documentation:**
    - Add block section to PRD.md
-   - Create block-specific docs in docs/gpio_spec/
+   - Create block-specific docs in docs/gpio_mas/
    - Update this README.md
 
 ### Naming Conventions
@@ -241,14 +241,14 @@ apb_hpet #(
 ### Testing a Block
 
 ```bash
-# Run all tests for a block
-pytest projects/components/retro_legacy_blocks/dv/tests/hpet/ -v
+# Run all tests for a block (test runners are flat under dv/tests/)
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
 
 # Run specific test level
-pytest projects/components/retro_legacy_blocks/dv/tests/hpet/ -v -k "basic"
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v -k "basic"
 
 # With waveforms
-WAVES=1 pytest projects/components/retro_legacy_blocks/dv/tests/hpet/ -v
+WAVES=1 pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
 ```
 
 ---
@@ -278,7 +278,7 @@ WAVES=1 pytest projects/components/retro_legacy_blocks/dv/tests/hpet/ -v
 
 ```bash
 # Run all HPET tests
-pytest projects/components/retro_legacy_blocks/dv/tests/hpet/ -v
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
 
 # Lint HPET RTL
 verilator --lint-only projects/components/retro_legacy_blocks/rtl/hpet/apb_hpet.sv

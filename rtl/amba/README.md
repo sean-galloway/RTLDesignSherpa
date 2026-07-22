@@ -57,7 +57,7 @@ The AMBA subsystem provides production-ready monitoring, observation, and bus-in
 - **[Known Issues](KNOWN_ISSUES/)** - Bug tracking
 
 ### 📖 Guides
-- **[Configuration Guide](../../docs/AXI_Monitor_Configuration_Guide.md)** ← **Start here for monitor setup!**
+- **[Configuration Guide](../../docs/guides/AXI_Monitor_Configuration_Guide.md)** ← **Start here for monitor setup!**
 
 ---
 
@@ -224,7 +224,7 @@ axi4_master_rd_mon #(
 .cfg_debug_enable   (1'b0)
 ```
 
-**📖 See:** `docs/AXI_Monitor_Configuration_Guide.md` for detailed strategies
+**📖 See:** `docs/guides/AXI_Monitor_Configuration_Guide.md` for detailed strategies
 
 ### 3. Monitor Bus Packet Format
 
@@ -312,7 +312,7 @@ axis_master #(
 );
 ```
 
-**📖 See:** `docs/markdown/RTLAmba/fabric/`
+**📖 See:** `docs/markdown/RTLAmba/axis4/`
 
 ---
 
@@ -390,7 +390,7 @@ axi4_master_rd_mon_cg #(
 
 ```bash
 # Run comprehensive AXI monitor test
-pytest val/amba/test_axi_monitor.py -v
+pytest val/amba/test_axi4_monitor.py -v
 
 # Run all AMBA tests
 pytest val/amba/ -v
@@ -400,7 +400,7 @@ pytest val/amba/test_apb_monitor.py -v
 pytest val/amba/test_axis_master.py -v
 
 # With waveform dump
-pytest val/amba/test_axi_monitor.py -v --vcd=waves.vcd
+pytest val/amba/test_axi4_monitor.py -v --vcd=waves.vcd
 gtkwave waves.vcd
 ```
 
@@ -434,7 +434,7 @@ gtkwave waves.vcd
 **Solution:**
 - Use separate configurations for different test phases
 - Never enable completions + performance together
-- See `docs/AXI_Monitor_Configuration_Guide.md`
+- See `docs/guides/AXI_Monitor_Configuration_Guide.md`
 
 ### ❌ Gotcha 2: Insufficient MAX_TRANSACTIONS
 
@@ -505,10 +505,10 @@ assign monbus_pkt_ready = 1'b1;  // ❌ Always ready, packets may drop!
 **Debug:**
 ```bash
 # Run test with verbose logging
-pytest val/amba/test_axi_monitor.py -v -s
+pytest val/amba/test_axi4_monitor.py -v -s
 
 # Check waveforms
-pytest val/amba/test_axi_monitor.py --vcd=debug.vcd
+pytest val/amba/test_axi4_monitor.py --vcd=debug.vcd
 gtkwave debug.vcd
 ```
 
@@ -582,13 +582,13 @@ typedef enum logic [3:0] {
 📁 **`docs/markdown/RTLAmba/`** ← **Main technical reference**
 - [Index](../../docs/markdown/RTLAmba/index.md) - Complete module list
 - [Overview](../../docs/markdown/RTLAmba/overview.md) - Architecture
-- [AXI Modules](../../docs/markdown/RTLAmba/axi/)
+- [AXI Modules](../../docs/markdown/RTLAmba/axi4/)
 - [APB Modules](../../docs/markdown/RTLAmba/apb/)
-- [AXIS Modules](../../docs/markdown/RTLAmba/fabric/)
+- [AXIS Modules](../../docs/markdown/RTLAmba/axis4/)
 - [Monitor Package](../../docs/markdown/RTLAmba/includes/monitor_package_spec.md)
 
 ### Guides
-- **[Configuration Guide](../../docs/AXI_Monitor_Configuration_Guide.md)** ← **Essential reading!**
+- **[Configuration Guide](../../docs/guides/AXI_Monitor_Configuration_Guide.md)** ← **Essential reading!**
 
 ### Root Documentation
 - [Master PRD](../../PRD.md) - Repository overview
@@ -601,7 +601,7 @@ typedef enum logic [3:0] {
 
 ```bash
 # Run tests
-pytest val/amba/test_axi_monitor.py -v          # AXI monitor
+pytest val/amba/test_axi4_monitor.py -v          # AXI monitor
 pytest val/amba/test_apb_monitor.py -v          # APB monitor
 pytest val/amba/ -v                             # All AMBA tests
 
@@ -611,7 +611,7 @@ verilator --lint-only rtl/amba/monitor/axi4_master_rd_mon.sv
 
 # View documentation
 cat docs/markdown/RTLAmba/index.md
-cat docs/AXI_Monitor_Configuration_Guide.md
+cat docs/guides/AXI_Monitor_Configuration_Guide.md
 
 # Check tasks and issues
 cat rtl/amba/PRD/TASKS.md
@@ -622,7 +622,7 @@ ls rtl/amba/KNOWN_ISSUES/
 
 ## Getting Help
 
-1. **Configuration issues?** → Read `docs/AXI_Monitor_Configuration_Guide.md`
+1. **Configuration issues?** → Read `docs/guides/AXI_Monitor_Configuration_Guide.md`
 2. **Integration questions?** → Check `docs/markdown/RTLAmba/overview.md`
 3. **Module details?** → See `docs/markdown/RTLAmba/{protocol}/`
 4. **Known bugs?** → Check `KNOWN_ISSUES/`

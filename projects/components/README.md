@@ -53,10 +53,10 @@ The `projects/components/` directory contains demonstration components showcasin
 | **[delta](#delta)** | Generator | 🔧 In Progress | AXI-Stream crossbar generator | Medium |
 | **[hive](#hive)** | Control Plane | 🟡 Early Spec | Distributed control subsystem | Very High |
 | **[misc](#misc)** | Utilities | ✅ Active | Reusable utility components (ROM/RAM wrappers) | Low-Medium |
-| **[rapids](#rapids)** | Accelerator | 🔧 In Progress | DMA with network integration | Very High |
+| **[rapids](#rapids)** (`dmas/rapids/`) | Accelerator | 🔧 In Progress | DMA with network integration | Very High |
 | **[retro_legacy_blocks](#retro_legacy_blocks)** | Peripherals | 🟢 Active Dev | Intel ILB-compatible legacy peripherals | Medium |
-| **[shims](#shims)** | Adapter | ✅ Complete | Protocol conversion adapters | Low-Medium |
-| **[stream](#stream)** | DMA Engine | ✅ Complete | Tutorial-focused scatter-gather DMA | Medium-High |
+| **[shims](#shims)** | Adapter | ✅ Merged into converters/ | Protocol conversion adapters | Low-Medium |
+| **[stream](#stream)** (`dmas/stream/`) | DMA Engine | ✅ Complete | Tutorial-focused scatter-gather DMA | Medium-High |
 
 ---
 
@@ -106,7 +106,7 @@ Python-based code generator producing parameterized APB crossbar RTL for connect
 **Generation Example:**
 ```bash
 cd apb_xbar/bin/
-python generate_xbars.py --masters 3 --slaves 6 --output ../rtl/apb_xbar_3to6.sv
+python generate_xbars.py --masters 3 --slaves 6   # writes apb_xbar_3to6.sv next to the script
 ```
 
 **📖 See:** [`apb_xbar/PRD.md`](apb_xbar/PRD.md) for complete specification
@@ -141,9 +141,9 @@ Python-based code generator producing parameterized AXI4 full crossbar RTL for c
 - High-performance memory-mapped fabrics
 
 **Resources:**
-- Generator: `bin/bridge_generator.py` (planned)
-- Performance Model: `bin/bridge_performance_model.py` (planned)
-- Documentation: `PRD.md`
+- Generator: `bin/bridge_generator.py` (+ `bin/bridge_pkg/` package)
+- Performance Models: `models/`
+- Documentation: `PRD.md`, `docs/bridge_has/`, `docs/bridge_mas/` (built PDFs: `Bridge_HAS_v1.1.pdf`, `Bridge_MAS_v1.1.pdf`)
 
 **📖 See:** [`bridge/PRD.md`](bridge/PRD.md) for complete specification
 
@@ -223,9 +223,9 @@ Python-based AXI-Stream crossbar generator supporting both flat (low-latency) an
 - Educational topology comparisons
 
 **Resources:**
-- Generator: `bin/delta_generator.py` (planned)
-- Performance Model: `bin/delta_performance_model.py` (planned)
-- Documentation: `PRD.md`
+- Generator: `bin/delta_generator.py`
+- Performance Model: `bin/delta_performance_model.py`
+- Documentation: `PRD.md`, `docs/delta_spec/` (built PDF: `Delta_Specification_v1.0.pdf`)
 
 **📖 See:** [`delta/PRD.md`](delta/PRD.md) for complete specification
 
@@ -257,13 +257,13 @@ Complex hardware accelerator demonstrating descriptor-based DMA operations with 
 **Test Coverage:** ~85% functional (basic scenarios validated, descriptor engine 100%)
 
 **Resources:**
-- RTL: `rtl/rapids_fub/*.sv`, `rtl/rapids_macro/*.sv`
-- Tests: `dv/tests/fub_tests/`, `dv/tests/integration_tests/`
-- Documentation: `PRD.md`, `CLAUDE.md`, `docs/rapids_spec/` (complete specification)
+- RTL: `rtl/fub_beats/*.sv`, `rtl/macro_beats/*.sv`, `rtl/top_beats/rapids_beats_top.sv` (beats rearchitecture)
+- Tests: `dv/tests/fub_beats/`, `dv/tests/macro_beats/`, `dv/tests/top_beats/`
+- Documentation: `PRD.md`, `CLAUDE.md`, `docs/rapids_beats_has/`, `docs/rapids_beats_mas/` (built PDFs: `RAPIDS_Beats_HAS_v0.8.pdf`, `RAPIDS_Beats_MAS_v0.7.pdf`)
 
 **📖 See:**
 - [`dmas/rapids/PRD.md`](dmas/rapids/PRD.md) - Requirements overview
-- [`dmas/rapids/docs/rapids_spec/rapids_index.md`](dmas/rapids/docs/rapids_spec/rapids_index.md) - Complete specification
+- [`dmas/rapids/docs/rapids_beats_has/`](dmas/rapids/docs/rapids_beats_has/) and [`dmas/rapids/docs/rapids_beats_mas/`](dmas/rapids/docs/rapids_beats_mas/) - Complete specification (the old `docs/rapids_spec/` tree was replaced by these HAS/MAS trees)
 
 ---
 
@@ -271,7 +271,7 @@ Complex hardware accelerator demonstrating descriptor-based DMA operations with 
 
 **Protocol Conversion and Glue Logic Adapters**
 
-**Status:** ✅ Complete (all tests passing)
+**Status:** ✅ Complete - absorbed into `converters/` (there is no separate `shims/` directory anymore)
 
 **Description:**
 Collection of protocol conversion adapters and glue logic modules for interfacing between different register file standards and custom protocols.
@@ -298,8 +298,8 @@ Collection of protocol conversion adapters and glue logic modules for interfacin
 - Register file adaptation
 
 **Resources:**
-- RTL: `rtl/peakrdl_to_cmdrsp.sv`
-- Tests: `dv/tests/test_peakrdl_to_cmdrsp.py`
+- RTL: `converters/rtl/peakrdl_to_cmdrsp.sv`
+- Tests: `converters/dv/tests/test_peakrdl_to_cmdrsp.py`
 - Documentation: Inline RTL comments
 
 **📖 See:** Component tests for usage examples
@@ -346,9 +346,9 @@ Simplified DMA engine designed as a beginner-friendly tutorial demonstrating des
 3. **RAPIDS** - Full complexity with network + credits
 
 **Resources:**
-- RTL: `rtl/fub/*.sv` (complete), `rtl/macro/*.sv` (complete)
-- Tests: `dv/tests/fub/` (passing), `dv/tests/macro/` (passing)
-- Documentation: `PRD.md`, `CLAUDE.md`, `docs/stream_spec/` (complete microarchitecture)
+- RTL: `rtl/fub/*.sv` (complete), `rtl/macro/*.sv` (complete), `rtl/top/*.sv` (8-channel top)
+- Tests: `dv/tests/fub/` (passing), `dv/tests/macro/` (passing), `dv/tests/top/`, `dv/tests/performance_tests/`
+- Documentation: `PRD.md`, `CLAUDE.md`, `docs/stream_has/`, `docs/stream_mas/` (built PDFs: `STREAM_HAS_v0.95.pdf`, `STREAM_MAS_v0.96.pdf`)
 - Performance Model: `bin/dma_model/` (comprehensive analytical + SimPy models)
 
 **📖 See:** [`dmas/stream/PRD.md`](dmas/stream/PRD.md) for complete specification
@@ -416,15 +416,15 @@ Single APB slave at `0x4000_0000` with internal 4KB window decode routing to all
 - PC architecture compatibility layers
 
 **Resources:**
-- RTL: `rtl/hpet/`, `rtl/pit_8254/` (completed), `rtl/{block}/` (planned)
-- Tests: `dv/tests/hpet/`, `dv/tests/pit_8254/` (completed), `dv/tests/{block}/` (planned)
-- Documentation: `PRD.md`, `CLAUDE.md`, `docs/hpet_spec/` (complete)
+- RTL: `rtl/hpet/`, `rtl/pit_8254/`, `rtl/pic_8259/`, `rtl/rtc/`, `rtl/gpio/`, `rtl/ioapic/`, `rtl/smbus/`, `rtl/pm_acpi/`, `rtl/uart_16550/`, `rtl/rlb_top/`
+- Tests: `dv/tests/test_apb_hpet.py`, `dv/tests/test_apb_pit_8254.py`, `dv/tests/test_apb_*.py` (flat per-block test files)
+- Documentation: `PRD.md`, `CLAUDE.md`, per-block MAS trees in `docs/` (`hpet_mas/`, `pit_8254_mas/`, ... with built PDFs such as `HPET_MAS_v1.0.pdf`)
 - Status Tracking: `BLOCK_STATUS.md` - Master tracking for all 13 blocks
 
 **📖 See:**
 - [`retro_legacy_blocks/PRD.md`](retro_legacy_blocks/PRD.md) - Complete requirements for all blocks
 - [`retro_legacy_blocks/BLOCK_STATUS.md`](retro_legacy_blocks/BLOCK_STATUS.md) - Development status tracking
-- [`retro_legacy_blocks/docs/hpet_spec/hpet_index.md`](retro_legacy_blocks/docs/hpet_spec/hpet_index.md) - HPET complete specification
+- [`retro_legacy_blocks/docs/hpet_mas/`](retro_legacy_blocks/docs/hpet_mas/) - HPET complete specification (the old `docs/hpet_spec/` tree)
 
 ---
 
@@ -540,8 +540,9 @@ Collection of utility components and adapters that solve common integration prob
 - Calibration data
 
 **Resources:**
+- RTL (current): `rtl/axi4_slave_rom.sv` + `rtl/rom.sv` (AXI4 ROM), `rtl/dma_address_gen.sv` (2-D/transpose address generator)
+- Tests: `dv/tests/fub/` (`test_dma_address_gen.py`, `test_axi4_slave_rd_pattern_gen.py`, `test_axi4_slave_wr_crc_check.py`)
 - Documentation: `README.md`, `CLAUDE.md`
-- Future: `rtl/axi_rom_wrapper.sv`, `dv/tests/test_axi_rom.py`
 
 **📖 See:** [`misc/README.md`](misc/README.md) for complete overview and component guidelines
 
@@ -615,12 +616,12 @@ projects/components/
 │   └── README.md
 │
 ├── bridge/                      # AXI4 Crossbar Generator
-│   ├── bin/                     # Python generator
+│   ├── bin/                     # Python generator (bridge_generator.py + bridge_pkg/)
 │   ├── rtl/                     # Generated RTL
 │   ├── dv/tests/                # CocoTB verification
-│   ├── docs/bridge_spec/        # Specifications
+│   ├── docs/bridge_has/, docs/bridge_mas/  # Specifications
 │   ├── PRD.md, CLAUDE.md        # Documentation
-│   └── README.md
+│   └── TASKS.md
 │
 ├── converters/                  # AXI4 Data Width Converters
 │   ├── rtl/                     # SystemVerilog RTL
@@ -628,7 +629,7 @@ projects/components/
 │   └── README.md
 │
 ├── delta/                       # AXI-Stream Crossbar Generator
-│   ├── bin/                     # Python generator (planned)
+│   ├── bin/                     # Python generator + performance model
 │   ├── docs/delta_spec/         # Specifications
 │   ├── PRD.md, CLAUDE.md        # Documentation
 │   └── README.md
@@ -648,17 +649,35 @@ projects/components/
 │   ├── README.md                # Overview and guidelines
 │   └── CLAUDE.md                # AI assistance guide
 │
-├── rapids/                      # Rapid AXI Programmable In-band Descriptor System
-│   ├── rtl/
-│   │   ├── rapids_fub/          # Functional unit blocks
-│   │   └── rapids_macro/        # Integration blocks
-│   ├── dv/
-│   │   ├── tbclasses/           # Testbench classes
-│   │   └── tests/               # Unit, integration, and system tests
-│   ├── docs/rapids_spec/        # Complete specification (5 chapters)
-│   ├── known_issues/            # Bug tracking
-│   ├── PRD.md, CLAUDE.md        # Documentation
-│   └── README.md                # Quick start
+├── dmas/                        # DMA engines
+│   ├── rapids/                  # Rapid AXI Programmable In-band Descriptor System
+│   │   ├── rtl/
+│   │   │   ├── fub/             # ctrlrd/ctrlwr engines
+│   │   │   ├── fub_beats/       # Functional unit blocks (beats rearchitecture)
+│   │   │   ├── macro_beats/     # Integration blocks
+│   │   │   └── top_beats/       # rapids_beats_top.sv
+│   │   ├── dv/
+│   │   │   ├── tbclasses/       # Testbench classes
+│   │   │   └── tests/           # fub/fub_beats/macro/macro_beats/top_beats tests
+│   │   ├── docs/rapids_beats_has/, docs/rapids_beats_mas/  # Complete specification
+│   │   ├── known_issues/        # Bug tracking
+│   │   ├── PRD.md, CLAUDE.md    # Documentation
+│   │   └── README.md            # Quick start
+│   └── stream/                  # Scatter-gather Transfer Rapid Engine for AXI Memory
+│       ├── rtl/
+│       │   ├── fub/             # Functional unit blocks (complete)
+│       │   ├── macro/           # Integration blocks (complete)
+│       │   └── top/             # 8-channel top-level wrapper
+│       ├── dv/
+│       │   ├── tbclasses/       # Testbench classes
+│       │   └── tests/           # fub/, macro/, top/, performance_tests/
+│       ├── bin/dma_model/       # Performance models (analytical + SimPy)
+│       ├── docs/stream_has/, docs/stream_mas/  # Complete specification
+│       ├── regs/                # PeakRDL-generated register collateral
+│       ├── PRD.md, CLAUDE.md    # Documentation
+│       └── README.md            # Quick start
+│
+├── memory-controllers/          # DDR memory controllers (pumice-ddr2-lpddr2, ...)
 │
 ├── retro_legacy_blocks/         # Intel ILB-Compatible Peripherals
 │   ├── rtl/
@@ -671,31 +690,16 @@ projects/components/
 │   │   └── ioapic/              # 📋 I/O APIC (Planned)
 │   ├── dv/
 │   │   ├── tbclasses/           # Block-specific testbench classes
-│   │   └── tests/               # Per-block test suites
+│   │   └── tests/               # Flat per-block test files (test_apb_hpet.py, ...)
 │   ├── docs/
-│   │   ├── hpet_spec/           # ✅ HPET complete specification
-│   │   └── {block}_spec/        # 📋 Other block specs (planned)
+│   │   ├── hpet_mas/            # ✅ HPET complete specification (+ HPET_MAS_v1.0.pdf)
+│   │   └── {block}_mas/         # Per-block MAS trees (pit_8254_mas, pic_8259_mas, ...)
 │   ├── BLOCK_STATUS.md          # Master status tracking (13 blocks)
 │   ├── PRD.md, CLAUDE.md        # Documentation
 │   └── README.md                # Quick start
-│
-├── shims/                       # Protocol Conversion Adapters
-│   ├── rtl/                     # SystemVerilog RTL
-│   ├── dv/tests/                # CocoTB verification
-│   └── README.md
-│
-└── stream/                      # Scatter-gather Transfer Rapid Engine for AXI Memory
-    ├── rtl/
-    │   ├── fub/                 # Functional unit blocks (complete)
-    │   └── macro/               # Integration blocks (complete)
-    ├── dv/
-    │   ├── tbclasses/           # Testbench classes
-    │   └── tests/               # FUB and macro tests
-    ├── bin/dma_model/           # Performance models (analytical + SimPy)
-    ├── docs/stream_spec/        # Complete microarchitecture specification
-    ├── PRD.md, CLAUDE.md        # Documentation
-    └── README.md                # Quick start
 ```
+
+Note: the former `shims/` component (peakrdl_to_cmdrsp adapter) was absorbed into `converters/`.
 
 ---
 
@@ -710,7 +714,7 @@ projects/components/
 - pytest (test runner)
 
 **Optional:**
-- PeakRDL (for apb_hpet register generation)
+- PeakRDL (register generation, e.g. retro_legacy_blocks HPET, stream/rapids regs)
 - GTKWave (waveform viewing)
 - Xilinx Vivado or open-source synthesis tools
 
@@ -748,26 +752,22 @@ make help
 # Using make targets (RECOMMENDED)
 cd projects/components/retro_legacy_blocks/dv/tests/
 
-# Run all HPET tests
-cd hpet/
-make run-all-func-parallel        # FUNC level, 48 workers
-make run-hpet-gate                # Quick smoke test
+# Run all HPET tests (test files are flat in dv/tests/)
+make run-hpet                     # All HPET tests
+make run-hpet-basic               # Quick smoke test
 make run-hpet-full                # Comprehensive test
 
 # Run all 8254 PIT tests
-cd ../pit_8254/
+make run-pit
 pytest test_apb_pit_8254.py -v
 
 # Direct pytest invocation (from retro_legacy_blocks/dv/tests/)
-pytest hpet/ -v                   # All HPET tests
-pytest pit_8254/ -v               # All PIT tests
-
-# Run specific HPET configuration
-pytest "hpet/test_apb_hpet.py::test_hpet[2-32902-1-0-basic-2-timer Intel-like]" -v
+pytest test_apb_hpet.py -v        # All HPET tests
+pytest test_apb_pit_8254.py -v    # All PIT tests
 
 # Run with waveforms
-WAVES=1 pytest hpet/ -v
-gtkwave hpet/logs/{test_name}.vcd
+WAVES=1 pytest test_apb_hpet.py -v
+gtkwave logs/{test_name}.vcd
 ```
 
 #### Running RAPIDS Tests
@@ -775,15 +775,14 @@ gtkwave hpet/logs/{test_name}.vcd
 ```bash
 # Using make targets (RECOMMENDED)
 cd projects/components/dmas/rapids/dv/tests/
-make run-fub-func-parallel          # FUB tests, 48 workers
-make run-macro-func-parallel        # Macro tests, 48 workers
-make run-system-func-parallel       # System tests, 48 workers
+make run-fub-beats-func-parallel    # FUB (beats) tests, 48 workers
+make run-macro-beats-func-parallel  # Macro (beats) tests, 48 workers
 make run-all-gate-parallel          # Quick smoke test
 
 # Direct pytest invocation
-pytest projects/components/dmas/rapids/dv/tests/fub_tests/scheduler/ -v
-pytest projects/components/dmas/rapids/dv/tests/fub_tests/descriptor_engine/ -v
-pytest projects/components/dmas/rapids/dv/tests/integration_tests/ -v
+pytest projects/components/dmas/rapids/dv/tests/fub_beats/ -v
+pytest projects/components/dmas/rapids/dv/tests/macro_beats/ -v
+pytest projects/components/dmas/rapids/dv/tests/top_beats/ -v
 pytest projects/components/dmas/rapids/dv/tests/ -v
 ```
 
@@ -799,7 +798,7 @@ python3 comprehensive_analysis.py --include-perfect --plots --report
 python3 comprehensive_analysis.py --mode HIGH --report
 
 # Generate performance plots
-python3 generate_optimization_plots.py
+python3 comprehensive_analysis.py --plots
 ```
 
 ---

@@ -291,7 +291,7 @@ python3 per_source_capture.py \
 | `bin/TBClasses/monbus/monbus_compressor.py` | The locked format spec + Python encoder/decoder/reporter |
 | `bin/TBClasses/monbus/sniffer.py` | Live cocotb sniffer + `load_capture()` for these JSON files |
 | `bin/TBClasses/monbus/tests/test_monbus_compressor.py` | 24 model tests — extend for RTL bit-exact harness |
-| `rtl/amba/shared/monbus_axil_group.sv` | The tag/ts scaffolding (commit `4e00aafb`) — wire-side beat-order swap, compressor will replace `tag=0x0` hardwire |
+| `rtl/amba/monitor/monbus_axil_axil_group.sv` | The tag/ts scaffolding (commit `4e00aafb`; module since renamed from `shared/monbus_axil_group.sv`) — wire-side beat-order swap; the compressor (`rtl/amba/monitor/monbus_halfbeat_packer.sv`) has since replaced the `tag=0x0` hardwire |
 | `projects/NexysA7/stream_characterization/flows-stream-bridge/host/per_source_capture.py` | The orchestrator that produced this dataset |
 | `projects/NexysA7/stream_characterization/flows-stream-bridge/host/dump_monbus_sram.py` | UART-side SRAM drain + JSON serializer |
 | `projects/NexysA7/stream_characterization/flows-stream-bridge/host/PER_SOURCE_CAPTURE.md` | Local capture procedure quickstart |

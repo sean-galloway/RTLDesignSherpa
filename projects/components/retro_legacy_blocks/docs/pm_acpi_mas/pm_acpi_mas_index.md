@@ -32,18 +32,22 @@
 
 ## Document Organization
 
+> Status (2026-07-22): Only the Chapter 1 overview and the Chapter 5 register map exist
+> in this tree today. The remaining chapters listed below are planned but not yet
+> written; they are shown without links.
+
 ### Chapter 1: Overview
 - [01_overview.md](ch01_overview/01_overview.md) - Component overview
-- [02_architecture.md](ch01_overview/02_architecture.md) - Architecture
+- 02_architecture.md - Architecture *(planned, not yet written)*
 
 ### Chapter 2: Blocks
-- [00_overview.md](ch02_blocks/00_overview.md) - Block hierarchy
+- 00_overview.md - Block hierarchy *(planned, not yet written)*
 
 ### Chapter 3: Interfaces
-- [00_overview.md](ch03_interfaces/00_overview.md) - Interface summary
+- 00_overview.md - Interface summary *(planned, not yet written)*
 
 ### Chapter 4: Programming Model
-- [00_overview.md](ch04_programming/00_overview.md) - Programming overview
+- 00_overview.md - Programming overview *(planned, not yet written)*
 
 ### Chapter 5: Registers
 - [01_register_map.md](ch05_registers/01_register_map.md) - Register map

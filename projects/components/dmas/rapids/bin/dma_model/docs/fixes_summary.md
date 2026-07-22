@@ -39,7 +39,7 @@ This document summarizes all fixes applied to address the three identified issue
 The original write bandwidth calculation only computed single-burst bandwidth (1.255 GB/s) without properly accounting for the pipelining enabled by outstanding bursts. With 32 outstanding bursts system-wide, multiple writes can be in flight simultaneously, dramatically improving throughput.
 
 ### Solution
-Created new `calculate_write_bandwidth()` function in `analytical/write_analysis.py` that:
+Created new `calculate_write_bandwidth()` function in `bin/analytical/write_analysis.py` that:
 
 - **Recognizes outstanding bursts enable pipelining**
 - With outstanding_per_channel ≥ 2, can pipeline writes
@@ -109,7 +109,7 @@ Updated all plotting code to:
 
 ### Files Updated
 
-#### `simpy_model/compare.py`
+#### `bin/simpy_model/compare.py`
 ```python
 # Before:
 plt.savefig('comparison_baseline.png', ...)
@@ -124,7 +124,7 @@ plt.savefig(os.path.join(assets_dir, 'comparison_baseline.png'), ...)
 - `assets/comparison_baseline.png`
 - `assets/comparison_optimized.png`
 
-#### `analytical/sram_visualizations.py`
+#### `bin/analytical/sram_visualizations.py`
 ```python
 # Default output directory changed from '.' to 'assets'
 def plot_all_sram_analysis(df, output_dir='assets'):
@@ -161,16 +161,16 @@ Updated to use `assets/` directory and inform user where plots are saved.
 
 Replace these files with the corrected versions:
 
-1. **`analytical/write_analysis.py`** ← Complete rewrite
+1. **`bin/analytical/write_analysis.py`** ← Complete rewrite
    - Fixed write BW calculation
    - Removed combined analysis
    - Added proper pipelining accounting
 
-2. **`simpy_model/compare.py`** ← PNG path fix
+2. **`bin/simpy_model/compare.py`** ← PNG path fix
    - All plots save to `assets/`
    - Creates directory if needed
 
-3. **`analytical/sram_visualizations.py`** ← PNG path fix
+3. **`bin/analytical/sram_visualizations.py`** ← PNG path fix
    - Default output to `assets/`
    - All functions updated
 
@@ -190,7 +190,7 @@ After updating files, verify:
 
 ### Write BW Calculation
 ```bash
-python analytical/write_analysis.py
+python bin/analytical/write_analysis.py
 ```
 **Expected output:**
 - Baseline (32 outstanding): ~25-30 GB/s for 16 channels ✅
@@ -200,7 +200,7 @@ python analytical/write_analysis.py
 ### Separate Analysis
 ```bash
 # Write analysis should NOT show combined read+write
-python analytical/write_analysis.py
+python bin/analytical/write_analysis.py
 ```
 **Expected:** Only write path results, no combined metrics ✅
 

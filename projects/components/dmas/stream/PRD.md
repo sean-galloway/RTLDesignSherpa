@@ -408,9 +408,9 @@ datawr_burst_len[0] = 8'd16;  // Write: 16 beats
 // Engine handles asymmetry via SRAM buffering
 ```
 
-### 5.5 Simple SRAM
+### 5.5 SRAM Buffering
 
-**Source:** Direct copy from RAPIDS `simple_sram.sv`
+**Source:** Originally a direct copy of RAPIDS `simple_sram.sv`; now implemented by `rtl/fub/sram_controller.sv` + `sram_controller_unit.sv` (wrapping the shared `gaxi_fifo_sync` primitive)
 
 **Purpose:**
 - Dual-port SRAM buffer
@@ -582,17 +582,16 @@ Uses standard 64-bit MonBus packet format:
 
 ```
 projects/components/dmas/stream/dv/tests/
-├── fub_tests/                  # Functional Unit Block tests
-│   ├── descriptor_engine/      # Copy from RAPIDS (adapt imports)
-│   ├── scheduler/              # Simplified scheduler tests
-│   ├── axi_engines/            # Read/write engine tests
-│   └── sram/                   # SRAM tests
-│
-└── integration_tests/          # Multi-block scenarios
-    ├── single_channel/         # Single channel transfers
-    ├── multi_channel/          # 8-channel concurrent
-    ├── chained_descriptors/    # Descriptor chain tests
-    └── error_handling/         # Error recovery tests
+├── fub/                        # Functional Unit Block tests
+│   ├── test_descriptor_engine.py
+│   ├── test_scheduler.py
+│   ├── test_sram_controller.py (+ test_sram_controller_alloc.py)
+│   ├── test_apbtodescr.py
+│   ├── test_perf_profiler.py
+│   └── test_stream_latency_bridge.py
+├── macro/                      # Multi-block scenarios (stream_core, datapaths)
+├── top/                        # Top-level (stream_top_ch8) tests
+└── performance_tests/          # Performance regression tests
 ```
 
 ### 11.2 Test Levels
@@ -867,15 +866,16 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 /mnt/data/github/rtldesignsherpa/projects/components/dmas/stream/docs/
 ```
 
-**Quick Command:** Use the provided shell script:
+**Quick Command:** Use the provided shell scripts:
 ```bash
-cd /mnt/data/github/rtldesignsherpa/projects/components/dmas/stream/docs
-./generate_pdf.sh
+cd projects/components/dmas/stream/docs
+./generate_has_pdf.sh   # STREAM HAS
+./generate_mas_pdf.sh   # STREAM MAS
 ```
 
-The shell script will automatically:
+The shell scripts will automatically:
 1. Use the md_to_docx.py tool from bin/
-2. Process the stream_spec index file
+2. Process the stream_has/ and stream_mas/ index files
 3. Generate both DOCX and PDF files in the docs/ directory
 4. Create table of contents and title page
 
@@ -888,8 +888,8 @@ The shell script will automatically:
 ### 17.1 Internal Documentation
 
 - **RAPIDS PRD:** `projects/components/dmas/rapids/PRD.md` - Parent architecture
-- **RAPIDS Descriptor Engine:** `projects/components/dmas/rapids/rtl/rapids_fub/descriptor_engine.sv`
-- **RAPIDS Simple SRAM:** `projects/components/dmas/rapids/rtl/rapids_fub/simple_sram.sv`
+- **RAPIDS Descriptor Engine:** `projects/components/dmas/rapids/rtl/fub_beats/descriptor_engine_beats.sv` (beats rearchitecture of the original)
+- **Shared SRAM/FIFO primitives:** `rtl/amba/gaxi/gaxi_fifo_sync.sv`, `rtl/amba/shared/sdpram_core.sv` (the old `simple_sram.sv` was removed)
 - **AMBA PRD:** `rtl/amba/PRD.md` - MonBus integration
 - **Repository Guide:** `/CLAUDE.md` - Design patterns and conventions
 

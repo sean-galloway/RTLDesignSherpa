@@ -29,6 +29,10 @@
 **Date Fixed:** 2025-10-03
 **Affects:** `axi_monitor_base.sv` (specifically `axi_monitor_reporter.sv`)
 
+> Status (2026-07-22): the `val/amba/logs/test_axi_monitor_*.log` files cited below
+> were debug evidence from the 2025-10 investigation and have since rotated out of
+> `val/amba/logs/`; rerun the named test cases (now `test_axi4_monitor.py`) to reproduce.
+
 ---
 
 ## Summary

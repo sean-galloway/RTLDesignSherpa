@@ -26,12 +26,18 @@
 **Created:** 2025-10-28
 **Purpose:** Document workflow for collecting V1 baseline metrics and creating DMA performance model
 
+> Status (2026-07-22): partially superseded. The baseline tests live at
+> `dv/tests/performance_tests/` (read + write) and the DMA model at `bin/dma_model/`.
+> The proposed `bin/validate_dma_model.py` was never created; model-vs-empirical
+> comparison happens through `bin/dma_model/bin/comprehensive_analysis.py` and
+> `bin/update_performance_reports.py`.
+
 ---
 
 ## Current Status
 
 ✅ **Performance Report Templates Created** (6 files in `reports/`)
-✅ **V1 Baseline Test Created** (`performance_tests/test_v1_baseline_read.py`)
+✅ **V1 Baseline Test Created** (`dv/tests/performance_tests/test_v1_baseline_read.py`)
 ⏳ **Test needs refinement** to properly use testbench API
 ⏳ **V1 baseline data collection** (18 configurations)
 ⏳ **DMA model creation/update** in `bin/`
@@ -187,7 +193,7 @@ def v2_bandwidth_model(latency, burst_len, queue_depth):
 
 ### Step 5: Validate Model Against Empirical Data
 
-**Script:** `bin/validate_dma_model.py`
+**Script:** `bin/validate_dma_model.py` (proposed - never created; see status note at top)
 
 ```python
 #!/usr/bin/env python3

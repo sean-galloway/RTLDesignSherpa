@@ -111,7 +111,7 @@ make test-stream-gate-parallel     # STREAM GATE parallel
 make test-stream-func-parallel     # STREAM FUNC parallel
 make test-stream-full-parallel     # STREAM FULL parallel
 
-# Same pattern for: rapids, bridge, delta, apb_hpet, apb_xbar
+# Same pattern for: rapids, bridge, delta, retro_legacy_blocks, apb_xbar
 
 # Lint all components
 make lint-all
@@ -321,7 +321,7 @@ make test-all
 #    └─> ... (all components)
 #
 # 3. Component Makefile: make run-all
-#    └─> Runs: pytest -v fub_tests/test_*.py macro_tests/test_*.py
+#    └─> Runs: pytest -v fub/test_*.py macro/test_*.py
 ```
 
 ### Example 2: "Lint All Components"
@@ -365,7 +365,7 @@ make run-all-gate-parallel
 #    └─> Calls: cd stream/dv/tests && make run-all-gate-parallel
 #
 # 2. Component DV Makefile: make run-all-gate-parallel
-#    └─> Runs: REG_LEVEL=GATE pytest -v -n 48 fub_tests/test_*.py macro_tests/test_*.py
+#    └─> Runs: REG_LEVEL=GATE pytest -v -n 48 fub/test_*.py macro/test_*.py
 ```
 
 ---

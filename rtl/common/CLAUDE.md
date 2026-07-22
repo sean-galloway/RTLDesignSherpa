@@ -31,7 +31,7 @@
 
 ## Quick Context
 
-**What:** 86 reusable technology-agnostic building blocks (counters, arbiters, math, CRC, etc.)
+**What:** Reusable technology-agnostic building blocks (counters, arbiters, CRC, CDC, etc.); math primitives now live in `rtl/math/`
 **Status:** ✅ Stable, mature baseline - production ready
 **Your Role:** Help users integrate existing modules, rarely create new ones
 
@@ -63,9 +63,9 @@ This CLAUDE.md provides common RTL library guidance. Also review:
 2. **Scoreboard:** `bin/TBClasses/scoreboards/common/{module}_scoreboard.py`
 3. **Test:** `val/common/test_{module}.py`
 
-**Common RTL typically uses queue access** - counters, arbiters, and math blocks are simple control paths.
+**Common RTL typically uses queue access** - counters, arbiters, and similar blocks are simple control paths.
 
-**📖 Complete Guide:** `docs/VERIFICATION_ARCHITECTURE_GUIDE.md`
+**📖 Complete Guide:** `docs/guides/VERIFICATION_ARCHITECTURE_GUIDE.md`
 
 ---
 
@@ -110,7 +110,7 @@ Always check how existing designs use a module:
 
 ```bash
 # See usage examples
-grep -r "counter_bin\|arbiter_round_robin" rtl/amba/ rtl/rapids/
+grep -r "counter_bin\|arbiter_round_robin" rtl/amba/ projects/components/
 
 # Check test for API
 cat val/common/test_counter_bin.py
@@ -137,9 +137,9 @@ cat val/common/test_counter_bin.py
 | "...error correction" | `dataint_ecc_hamming_*.sv` | SECDED ECC |
 | "...parity" | `dataint_parity.sv` | Even/odd parity |
 | "...clock divider" | `clock_divider.sv` | But warn: prefer PLL |
-| "...synchronizer/CDC" | `sync_2ff.sv` or `sync_pulse.sv` | Safe CDC |
+| "...synchronizer/CDC" | `glitch_free_n_dff_arn.sv` or `sync_pulse.sv` | Safe CDC |
 | "...FIFO" | Point to `rtl/amba/gaxi/` | Production FIFOs |
-| "...priority encoder" | `priority_encoder.sv` | Exists |
+| "...priority encoder" | `arbiter_priority_encoder.sv` | Exists |
 | "...leading zeros" | `count_leading_zeros.sv` | Exists (scans MSB down) |
 | "...trailing zeros / alignment" | `count_trailing_zeros.sv` | Exists (scans LSB up) - do NOT bit-reverse into CLZ |
 | "...Gray code" | `bin2gray.sv`, `gray2bin.sv` | Both directions |
@@ -261,13 +261,14 @@ dataint_crc #(
 
 ```systemverilog
 // For multi-bit data (slow changing)
-sync_2ff #(
+glitch_free_n_dff_arn #(
+    .FLOP_COUNT(3),
     .WIDTH(8)
 ) u_sync_data (
-    .i_clk   (dst_clk),
-    .i_rst_n (dst_rst_n),
-    .i_data  (src_data),     // From source clock domain
-    .o_data  (sync_data)     // Synchronized to dst_clk
+    .clk   (dst_clk),
+    .rst_n (dst_rst_n),
+    .d     (src_data),   // From source clock domain
+    .q     (sync_data)   // Synchronized to dst_clk
 );
 
 // For single-cycle pulses
@@ -329,8 +330,8 @@ always_ff @(posedge clk_b)
 
 ✅ CORRECTED:
 "This crosses clock domains unsafely. Use synchronizer:
-sync_2ff #(.WIDTH(WIDTH)) u_sync (
-    .i_clk(clk_b), .i_data(signal_from_clk_a), .o_data(r_data)
+glitch_free_n_dff_arn #(.FLOP_COUNT(3), .WIDTH(WIDTH)) u_sync (
+    .clk(clk_b), .rst_n(rst_b_n), .d(signal_from_clk_a), .q(r_data)
 );
 "
 ```
@@ -389,7 +390,7 @@ ls rtl/common/{category}*.sv
 find rtl/common/ -name "*.sv" | xargs grep -i "keyword"
 
 # Check usage examples
-grep -r "module_name" rtl/amba/ rtl/rapids/
+grep -r "module_name" rtl/amba/ projects/components/
 ```
 
 **Document your search in response:**
@@ -493,8 +494,8 @@ rtl/common/ has basic FIFO examples for learning, but gaxi FIFOs are better test
 **A:** Emphasize safety first:
 ```systemverilog
 // For data (quasi-static):
-sync_2ff #(.WIDTH(8)) u_sync (
-    .i_clk(dst_clk), .i_data(src_data), .o_data(dst_data)
+glitch_free_n_dff_arn #(.FLOP_COUNT(3), .WIDTH(8)) u_sync (
+    .clk(dst_clk), .rst_n(dst_rst_n), .d(src_data), .q(dst_data)
 );
 
 // For pulses:
@@ -662,7 +663,7 @@ find rtl/common/ -name "*.sv" | xargs grep -i "keyword"
 grep "module\|parameter\|input\|output" rtl/common/module.sv
 
 # Find usage examples
-grep -r "module_name" rtl/amba/ rtl/rapids/
+grep -r "module_name" rtl/amba/ projects/components/
 
 # View test
 cat val/common/test_module.py
@@ -688,9 +689,9 @@ verilator --lint-only rtl/common/module.sv
 
 ## Remember
 
-1. 🔍 **Search first** - 86 modules already exist
+1. 🔍 **Search first** - dozens of modules already exist (plus `rtl/math/` for arithmetic)
 2. ✅ **Verify in tests** - Check val/common/test_*.py for API
-3. 🔄 **Reuse patterns** - Look at rtl/amba/ and rtl/rapids/ usage
+3. 🔄 **Reuse patterns** - Look at rtl/amba/ and projects/components/ usage
 4. 📝 **Document decisions** - Why existing modules don't fit
 5. ⚠️ **Safety critical** - CDC, reset polarity, parameter widths
 

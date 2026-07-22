@@ -28,6 +28,27 @@
 **Status:** Active Development - Validation in Progress
 **Owner:** RTL Design Sherpa Project
 
+> **Status (2026-07-22): superseded - pre-beats work history.** The tasks below were written
+> against the pre-beats RTL and test tree, which have since been rearchitected. Kept as
+> history; do not treat the paths as current. Old → new mapping:
+> - `rtl/rapids_fub/scheduler.sv` → `rtl/fub_beats/scheduler_beats.sv` (no credit management yet)
+> - `rtl/rapids_fub/descriptor_engine.sv` → `rtl/fub_beats/descriptor_engine_beats.sv`
+> - `rtl/rapids_fub/program_engine.sv`, `sink_axi_write_engine.sv`, `sink_sram_control.sv`,
+>   `rapids_perf_monitor.sv` → retired (nearest beats equivalents: axi_write_engine_beats.sv,
+>   snk_sram_controller_beats.sv; no beats program engine or perf monitor)
+> - `rtl/rapids_macro/scheduler_group.sv` → `rtl/macro_beats/scheduler_group_beats.sv`
+> - `rtl/rapids_macro/sink_data_path.sv` → `rtl/macro_beats/snk_data_path_beats.sv`
+> - `rtl/rapids_macro/rapids_top.sv` → `rtl/top_beats/rapids_beats_top.sv`
+> - `dv/tests/fub_tests/` → `dv/tests/fub_beats/` (e.g. test_scheduler.py → test_scheduler_beats.py)
+> - `dv/tests/integration_tests/`, `system_tests/`, `performance_tests/` → `dv/tests/macro_beats/`
+>   and `dv/tests/top_beats/` (the named legacy tests were retired, not ported 1:1)
+> - `bin/TBClasses/rapids/` → `projects/components/dmas/rapids/dv/tbclasses/`
+> - `docs/rapids_spec/` → `docs/rapids_beats_has/` + `docs/rapids_beats_mas/`
+> - `known_issues/scheduler.md`, `known_issues/sink_*.md` → `known_issues/README.md` +
+>   `known_issues/active/`
+> - There is no `projects/components/dmas/rapids/README.md` (TASK-006 was never landed in
+>   that form; CLAUDE.md and PRD.md serve that role)
+
 ---
 
 ## Task Status Legend
@@ -820,10 +841,10 @@ TASK-002 (AXI Timeout) ─────────────────┘
 ## Quick Commands
 
 ```bash
-# Run specific task validation
-pytest projects/components/dmas/rapids/dv/tests/fub_tests/scheduler/ -v -k credit  # TASK-001
-pytest projects/components/dmas/rapids/dv/tests/integration_tests/ -v              # TASK-004
-pytest projects/components/dmas/rapids/dv/tests/system_tests/ -v                   # TASK-005
+# Run current beats suites (task-specific legacy dirs are gone)
+pytest projects/components/dmas/rapids/dv/tests/fub_beats/ -v
+pytest projects/components/dmas/rapids/dv/tests/macro_beats/ -v
+pytest projects/components/dmas/rapids/dv/tests/top_beats/ -v
 
 # Full regression
 pytest projects/components/dmas/rapids/dv/tests/ -v
@@ -832,12 +853,12 @@ pytest projects/components/dmas/rapids/dv/tests/ -v
 pytest projects/components/dmas/rapids/dv/tests/ --cov=projects/components/dmas/rapids/rtl/ --cov-report=html
 
 # Lint RTL
-verilator --lint-only projects/components/dmas/rapids/rtl/rapids_fub/scheduler.sv
+verilator --lint-only projects/components/dmas/rapids/rtl/fub_beats/scheduler_beats.sv
 
 # View documentation
 cat projects/components/dmas/rapids/PRD.md
 cat projects/components/dmas/rapids/CLAUDE.md
-cat projects/components/dmas/rapids/docs/rapids_spec/rapids_index.md
+cat projects/components/dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md
 ```
 
 ---
@@ -938,7 +959,7 @@ assign channel_idle = scheduler_idle && descriptor_engine_idle;
 - [ ] Documentation updated
 
 **Notes:**
-- STREAM implementation (projects/components/dmas/stream/rtl/stream_fub/descriptor_engine.sv) serves as reference
+- STREAM implementation (projects/components/dmas/stream/rtl/fub/descriptor_engine.sv) serves as reference
 - This enables chained descriptor sequences without software intervention
 - Improves throughput by eliminating per-descriptor software latency
 

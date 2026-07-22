@@ -25,6 +25,13 @@
 
 **Last Updated:** 2025-11-16
 
+> Status (2026-07-22): This file is a snapshot from 2025-11-16 and several blocks have
+> advanced since. Notably: GPIO (`rtl/gpio/`) and UART 16550 (`rtl/uart_16550/`) are
+> implemented with tests, the RLB top wrapper exists at `rtl/rlb_top/` (`rlb_top.sv`),
+> tests live flat under `dv/tests/test_apb_{block}.py` (no per-block subdirectories),
+> and block specifications live under `docs/{block}_mas/` (the old `docs/{block}_spec/`
+> naming was never populated). See `rtl/RLB_STATUS_AND_ROADMAP.md` for current status.
+
 ---
 
 ## Block Status Overview
@@ -53,8 +60,8 @@
 ```
 ✅ rtl/hpet/                    - Complete RTL implementation
 ✅ dv/tbclasses/hpet/           - Complete testbench classes
-✅ dv/tests/hpet/               - Complete test suite
-✅ docs/hpet_spec/              - Complete specification
+✅ dv/tests/test_apb_hpet.py               - Complete test suite
+✅ docs/hpet_mas/              - Complete specification
 ```
 
 ### 8259 PIC (📋 Structure Created)
@@ -63,8 +70,8 @@
   ├── peakrdl/                 - Empty (SystemRDL to be added)
   └── filelists/               - Empty (filelists to be added)
 📋 dv/tbclasses/pic_8259/       - Directory created, README added
-📋 dv/tests/pic_8259/           - Directory created, README added
-📋 docs/pic_8259_spec/          - Directory created, README added
+📋 dv/tests/test_apb_pic_8259.py           - Test runner (flat dv/tests/ layout)
+📋 docs/pic_8259_mas/          - Directory created, README added
 ```
 
 ### 8254 PIT (📋 Structure Created)
@@ -73,8 +80,8 @@
   ├── peakrdl/                 - Empty (SystemRDL to be added)
   └── filelists/               - Empty (filelists to be added)
 📋 dv/tbclasses/pit_8254/       - Directory created, README added
-📋 dv/tests/pit_8254/           - Directory created, README added
-📋 docs/pit_8254_spec/          - Directory created, README added
+📋 dv/tests/test_apb_pit_8254.py           - Test runner (flat dv/tests/ layout)
+📋 docs/pit_8254_mas/          - Directory created, README added
 ```
 
 ### RTC (📋 Structure Created)
@@ -83,8 +90,8 @@
   ├── peakrdl/                 - Empty (SystemRDL to be added)
   └── filelists/               - Empty (filelists to be added)
 📋 dv/tbclasses/rtc/            - Directory created, README added
-📋 dv/tests/rtc/                - Directory created, README added
-📋 docs/rtc_spec/               - Directory created, README added
+📋 dv/tests/test_apb_rtc.py                - Test runner (flat dv/tests/ layout)
+📋 docs/rtc_mas/               - Directory created, README added
 ```
 
 ### SMBus (📋 Structure Created)
@@ -93,8 +100,8 @@
   ├── peakrdl/                 - Empty (SystemRDL to be added)
   └── filelists/               - Empty (filelists to be added)
 📋 dv/tbclasses/smbus/          - Directory created, README added
-📋 dv/tests/smbus/              - Directory created, README added
-📋 docs/smbus_spec/             - Directory created, README added
+📋 dv/tests/test_apb_smbus.py              - Test runner (flat dv/tests/ layout)
+📋 docs/smbus_mas/             - Directory created, README added
 ```
 
 ### PM/ACPI (📋 Structure Created)
@@ -103,8 +110,8 @@
   ├── peakrdl/                 - Empty (SystemRDL to be added)
   └── filelists/               - Empty (filelists to be added)
 📋 dv/tbclasses/pm_acpi/        - Directory created, README added
-📋 dv/tests/pm_acpi/            - Directory created, README added
-📋 docs/pm_acpi_spec/           - Directory created, README added
+📋 dv/tests/test_apb_pm_acpi.py            - Test runner (flat dv/tests/ layout)
+📋 docs/pm_acpi_mas/           - Directory created, README added
 ```
 
 ### IOAPIC (📋 Structure Created)
@@ -113,8 +120,8 @@
   ├── peakrdl/                 - Empty (SystemRDL to be added)
   └── filelists/               - Empty (filelists to be added)
 📋 dv/tbclasses/ioapic/         - Directory created, README added
-📋 dv/tests/ioapic/             - Directory created, README added
-📋 docs/ioapic_spec/            - Directory created, README added
+📋 dv/tests/test_apb_ioapic.py             - Test runner (flat dv/tests/ layout)
+📋 docs/ioapic_mas/            - Directory created, README added
 ```
 
 ---
@@ -183,7 +190,7 @@ For each block to reach production-ready status:
 
 When all blocks are complete:
 
-- [ ] Create `rtl/rlb_wrapper/` directory
+- [x] Create the RLB top wrapper directory (`rtl/rlb_top/`, contains `rlb_top.sv`)
 - [ ] Implement APB decoder (4KB window decode)
 - [ ] Instantiate all block modules
 - [ ] Create error slave for unmapped addresses

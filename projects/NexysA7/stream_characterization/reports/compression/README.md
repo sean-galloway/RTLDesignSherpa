@@ -96,7 +96,7 @@ NOP (lone pad):     sub=0
 `event_data < 2^13`, HALF-C a signed `ed_delta` `|·| < 2^12` for
 counters/sequential addresses. Tier-1 records that fit neither stay a full
 64-bit beat; a lone trailing half rounds up to a full beat. Widths locked in
-`host/monbus_halfbeat_model.py` (lines 50–62), mirrored bit-exact by
+`flows-stream-bridge/host/monbus_halfbeat_model.py` (lines 50–62), mirrored bit-exact by
 `rtl/amba/monitor/monbus_halfbeat_packer.sv`.
 
 ---
@@ -202,7 +202,7 @@ unaffected.
 | File | Contents |
 |---|---|
 | `json/desc_axi_16desc_8ch_1MB.json` | real 682-record on-board capture (locked dataset) |
-| `plots/*.png` | figures above (`host/plot_compression_report.py`) |
+| `plots/*.png` | figures above (`flows-stream-bridge/host/plot_compression_report.py`) |
 | `plots/summary.json` | numeric summary (records, h, tier split, beats, reductions) |
 
 ```bash

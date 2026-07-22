@@ -23,7 +23,7 @@
 
 # MonBus AXI-Lite Group
 
-**Module:** `monbus_axil_group.sv`
+**Module:** `monbus_axil_axil_group.sv` (documented here under its historical STREAM name `monbus_axil_group`)
 **Location:** `projects/components/dmas/stream/rtl/macro/`
 **Category:** MACRO (Integration)
 **Parent:** `stream_top.sv`
@@ -34,7 +34,7 @@
 
 ## Overview
 
-The `monbus_axil_group` module is the canonical shared monitor bus processing block (RTL source: `rtl/amba/shared/monbus_axil_group.sv`) instantiated by STREAM for packet filtering and routing. It receives 128-bit monitor bus packets paired with 64-bit timestamps (192-bit atomic group through AXI-Lite skid), filters them per protocol/packet type, and routes to either error/interrupt FIFO or external memory.
+The `monbus_axil_group` module is the canonical shared monitor bus processing block (RTL source: `rtl/amba/monitor/monbus_axil_axil_group.sv`; formerly `rtl/amba/shared/monbus_axil_group.sv`) instantiated by STREAM for packet filtering and routing. It receives 128-bit monitor bus packets paired with 64-bit timestamps (192-bit atomic group through AXI-Lite skid), filters them per protocol/packet type, and routes to either error/interrupt FIFO or external memory.
 
 ### Key Features
 
@@ -44,7 +44,7 @@ The `monbus_axil_group` module is the canonical shared monitor bus processing bl
   - Error/Interrupt FIFO (64 entries) - generates interrupt when not empty
   - Master Write FIFO (32 entries) - writes packets to configurable memory range
 - **Fixed AXI-Lite Record Format:** 3 beats per record (no configurable `cfg_ts_append_*` settings)
-- **Shared Building Block:** Source of truth at `rtl/amba/shared/monbus_axil_group.sv`; STREAM instantiates this with zero modifications (drift area 1, commit 13706d10)
+- **Shared Building Block:** Source of truth at `rtl/amba/monitor/monbus_axil_axil_group.sv` (module renamed `monbus_axil_axil_group` in the monitor-path move); STREAM instantiates this with zero modifications (drift area 1, commit 13706d10)
 
 ### Simplified from RAPIDS
 

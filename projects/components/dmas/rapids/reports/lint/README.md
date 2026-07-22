@@ -120,7 +120,7 @@ cat projects/components/dmas/rapids/reports/lint/verilator/scheduler.txt
 cat projects/components/dmas/rapids/reports/lint/verible/scheduler.txt
 
 # Yosys (synthesis issues)
-cat projects/components/dmas/rapids/reports/lint/yosys/simple_sram.txt
+cat projects/components/dmas/rapids/reports/lint/yosys/scheduler.txt
 ```
 
 ### Find All Modules with Errors

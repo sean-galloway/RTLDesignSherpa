@@ -557,33 +557,22 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 ### 16.1 Generating PDF/DOCX from Specification
 
-**Tool:** `/mnt/data/github/rtldesignsherpa/bin/md_to_docx.py`
+**Tool:** `bin/md_to_docx.py` (repo root)
 
-Use this tool to convert the linked specification index into a single all-inclusive PDF or DOCX file.
+Use this tool to convert the linked specification index into a single all-inclusive PDF or DOCX file. The preferred entry point is the wrapper script `projects/components/delta/docs/generate_pdf.sh`.
 
 **Basic Usage:**
 
 ```bash
-# Generate DOCX from delta_spec index
-python bin/md_to_docx.py \
-    projects/components/delta/docs/delta_spec/delta_index.md \
-    -o projects/components/delta/docs/Delta_Specification_v0.25.docx \
-    --toc \
-    --title-page
+# Preferred: use the wrapper script (from the docs/ directory)
+cd projects/components/delta/docs
+./generate_pdf.sh --rev 1.0
+# Outputs: Delta_Specification_v1.0.docx and Delta_Specification_v1.0.pdf
 
-# Generate both DOCX and PDF
+# Direct md_to_docx.py invocation (from repo root)
 python bin/md_to_docx.py \
     projects/components/delta/docs/delta_spec/delta_index.md \
-    -o projects/components/delta/docs/Delta_Specification_v0.25.docx \
-    --toc \
-    --title-page \
-    --pdf
-
-# With custom template (optional)
-python bin/md_to_docx.py \
-    projects/components/delta/docs/delta_spec/delta_index.md \
-    -o projects/components/delta/docs/Delta_Specification_v0.25.docx \
-    -t path/to/template.dotx \
+    -o projects/components/delta/docs/Delta_Specification_v1.0.docx \
     --toc \
     --title-page \
     --pdf
@@ -602,16 +591,15 @@ python bin/md_to_docx.py \
 
 ```bash
 # 1. Update version number in index file (delta_index.md)
-# 2. Generate documentation
-cd /mnt/data/github/rtldesignsherpa
+# 2. Generate documentation (from repo root)
 python bin/md_to_docx.py \
     projects/components/delta/docs/delta_spec/delta_index.md \
-    -o projects/components/delta/docs/Delta_Specification_v0.25.docx \
+    -o projects/components/delta/docs/Delta_Specification_v1.0.docx \
     --toc --title-page --pdf
 
 # 3. Output files created:
-#    - Delta_Specification_v0.25.docx
-#    - Delta_Specification_v0.25.pdf (if --pdf used)
+#    - Delta_Specification_v1.0.docx
+#    - Delta_Specification_v1.0.pdf (if --pdf used)
 ```
 
 **Debug Mode:**
@@ -631,7 +619,7 @@ python bin/md_to_docx.py \
 - Pandoc installed and in PATH
 - For PDF generation: LaTeX (e.g., texlive) or use Pandoc's built-in PDF writer
 
-**📖 See:** `/mnt/data/github/rtldesignsherpa/bin/md_to_docx.py` for complete implementation details
+**📖 See:** `bin/md_to_docx.py` for complete implementation details
 
 ---
 
@@ -639,12 +627,12 @@ python bin/md_to_docx.py \
 
 **IMPORTANT: PDF files should be generated in the docs directory:**
 ```
-/mnt/data/github/rtldesignsherpa/projects/components/delta/docs/
+projects/components/delta/docs/
 ```
 
 **Quick Command:** Use the provided shell script:
 ```bash
-cd /mnt/data/github/rtldesignsherpa/projects/components/delta/docs
+cd projects/components/delta/docs
 ./generate_pdf.sh
 ```
 

@@ -73,22 +73,23 @@ python bin/delta_performance_model.py --topology compare
 # Recommendation: Flat for production, Tree for education
 ```
 
-### Generate Both Topologies
+### Generate Test Configurations
+
+> Note (2026-07-22): the tree topology (`--topology tree/both`, `--nodes`) was
+> retired; only flat crossbars are generated and kept in the tree now
+> (`rtl/delta_axis_flat_4x16.sv` plus `rtl_test/delta_axis_flat_*.sv`).
 
 ```bash
-# Generate both flat and tree with node primitives
+# Generate additional flat crossbar sizes into rtl_test/
 python bin/delta_generator.py \
-    --topology both \
-    --masters 4 \
+    --topology flat \
+    --masters 2 \
     --slaves 16 \
     --data-width 64 \
-    --output-dir rtl/ \
-    --nodes
+    --output-dir rtl_test/
 
 # Creates:
-# - rtl/delta_axis_flat_4x16.sv
-# - rtl/delta_axis_tree_4x16.sv
-# - rtl/delta_split_1to2.sv
+# - rtl_test/delta_axis_flat_2x16.sv
 ```
 
 ---
@@ -380,20 +381,18 @@ Side-by-side topology comparison:
 ### Generator Tests (Python)
 
 ```bash
-# Run generator unit tests
-python -m pytest bin/test_delta_generator.py -v
-
-# Lint generated RTL
+# No generator unit tests exist yet; validate output by linting generated RTL
 verilator --lint-only rtl/delta_axis_flat_4x16.sv
+
+# Or lint everything under rtl/ via the Makefile
+cd rtl && make verilator
 ```
 
 ### RTL Tests (CocoTB)
 
 ```bash
-# Create testbench (following AMBA patterns)
-# Location: dv/tests/test_delta_axis_flat_4x16.py
-
-# Run verification
+# TODO: no CocoTB testbench exists yet. When created (following AMBA patterns)
+# it would live at dv/tests/test_delta_axis_flat_4x16.py and run as:
 pytest dv/tests/test_delta_axis_flat_4x16.py -v
 
 # Test coverage:
@@ -482,8 +481,8 @@ Delta demonstrates best practices in:
 - `bin/delta_performance_model.py` - Performance analysis
 
 **Generated RTL:**
-- `rtl/delta_axis_flat_4x16.sv` - Example flat crossbar
-- `rtl/delta_axis_tree_4x16.sv` - Example tree topology
+- `rtl/delta_axis_flat_4x16.sv` - Production flat crossbar
+- `rtl_test/delta_axis_flat_*.sv` - Test configurations (2x4, 2x16, 3x8, 4x16)
 
 ---
 

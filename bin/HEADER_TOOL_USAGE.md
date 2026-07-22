@@ -88,7 +88,7 @@ This means you can safely run the script multiple times - it will only add heade
 // Module: scheduler
 // Purpose: RAPIDS task scheduler with credit-based flow control
 //
-// Documentation: projects/components/dmas/rapids/docs/rapids_spec/ch02_blocks/01_01_scheduler.md
+// Documentation: projects/components/dmas/rapids/docs/rapids_beats_mas/ch02_fub_blocks/01_scheduler.md
 // Subsystem: rapids
 //
 // Author: sean galloway
@@ -122,7 +122,7 @@ This means you can safely run the script multiple times - it will only add heade
 //
 // Module: scheduler
 // Purpose: RAPIDS task scheduler with credit-based flow control
-// Documentation: projects/components/dmas/rapids/docs/rapids_spec/ch02_blocks/01_01_scheduler.md
+// Documentation: projects/components/dmas/rapids/docs/rapids_beats_mas/ch02_fub_blocks/01_scheduler.md
 ```
 
 **Python:**
@@ -247,7 +247,7 @@ Found 247 files to process
 ✓ rtl/amba/monitor/axi_monitor_base.sv: Header added
 ✓ rtl/common/counter_bin.sv: Header added
 - rtl/common/fifo_sync.sv: Already has header
-✓ projects/components/dmas/rapids/rtl/rapids_fub/scheduler.sv: Header added
+✓ projects/components/dmas/rapids/rtl/fub_beats/scheduler_beats.sv: Header added
 ✗ projects/components/dmas/rapids/rtl/bad_file.sv: Error reading: Permission denied
 
 ======================================================================

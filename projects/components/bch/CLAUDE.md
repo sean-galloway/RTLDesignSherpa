@@ -32,7 +32,7 @@
 ## Quick Context
 
 **What:** Configurable BCH (Bose-Chaudhuri-Hocquenghem) error correction encoder/decoder
-**Status:** 📋 Future Project - Structure Created
+**Status:** 📋 Future Project - documentation only so far (no `rtl/`, `dv/`, or `bin/` directories exist yet; paths like `rtl/encoder/` and `bin/bch_model.py` below are to-be-created)
 **Your Role:** Help users develop BCH RTL, verification, and reference models
 
 **📖 Complete Documentation:**

@@ -29,14 +29,14 @@ This document shows how to integrate the new write path analysis with existing r
 
 ## Files Created
 
-### 1. `analytical/write_analysis.py`
+### 1. `bin/analytical/write_analysis.py`
 Analytical model for write path with functions:
 - `get_write_performance()` - Baseline write (256B bursts, 32 outstanding)
 - `get_optimized_write_performance()` - Optimized write (64 outstanding)  
 - `compare_write_payloads()` - Compare different write burst sizes
 - `analyze_combined_performance()` - Combined read+write analysis
 
-### 2. `simpy_model/write_design.py`
+### 2. `bin/simpy_model/write_model.py` (renamed from write_design.py)
 SimPy simulation for write path with:
 - `WriteChannel` class
 - `AXI4WriteSystem` class
@@ -127,7 +127,7 @@ optimized = analyze_combined_performance(
 
 ```python
 from simpy_model.current_design import run_baseline_simulation as run_read_sim
-from simpy_model.write_design import run_write_simulation
+from simpy_model.write_model import run_write_simulation
 
 # Run both simulations
 read_results = run_read_sim(num_channels=16, simulation_time=100000, verbose=False)
@@ -278,8 +278,8 @@ print(f"  Write: [Implement similar validation for write path]")
 To fully integrate read + write analysis:
 
 ### ✅ Completed
-- [x] Created `analytical/write_analysis.py`
-- [x] Created `simpy_model/write_design.py`
+- [x] Created `bin/analytical/write_analysis.py`
+- [x] Created `bin/simpy_model/write_model.py` (renamed from write_design.py)
 - [x] Functions for baseline and optimized write
 - [x] Combined read+write analysis function
 

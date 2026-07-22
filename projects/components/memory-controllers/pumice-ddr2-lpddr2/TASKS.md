@@ -160,7 +160,7 @@ correctly sequenced (`RD→PRE→REF→ACT→RD`, no collision) — so this is N
 blocker (the board fails on the separate device-word / half-DFI-word phase skew),
 but it IS a real arbiter defect.
 
-**Instrument (built, needs wiring):** `dv/checkers/pumice_cmd_history_checker.sv` —
+**Instrument (now wired):** `rtl/fub/pumice_cmd_history_checker.sv` (generate-gated by `CMD_HISTORY_EN` inside `rtl/macro/pumice_mem_cmd_scheduler.sv`) —
 a FINE-GRAINED per-(rank,bank) command-history shift register (slot = cycles-since
 issue) that binds to the arbiter's `cmd_valid/op/rank/bank` and audits JEDEC
 same-bank sequencing the coarse gate misses. Ships the refresh-collision assertion

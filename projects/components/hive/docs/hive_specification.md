@@ -544,9 +544,12 @@ void execute_matmul_layer(uint8_t num_tiles) {
 
 ## 7. Performance Modeling and Simulation
 
-### 7.1 SimPy Models Provided
+### 7.1 SimPy Models (Planned)
 
-HIVE includes comprehensive SimPy performance models for educational exploration:
+> Status (2026-07-22): the SimPy models listed below are planned deliverables -
+> none of the `models/*.py` files have been implemented yet.
+
+HIVE plans comprehensive SimPy performance models for educational exploration:
 
 **Model 1: NoC Latency and Bandwidth**
 - File: `models/noc_performance.py`

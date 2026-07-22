@@ -27,6 +27,14 @@
 **Status:** Planning
 **Goal:** Refactor RAPIDS to use proven STREAM patterns with AXIS interfaces
 
+> **Status (2026-07-22): superseded - plan executed.** This refactor landed as the "beats"
+> architecture: the target directory here (`rtl/rapids_fub/`) became `rtl/fub_beats/` (modules
+> carry a `_beats` suffix), assemblies live in `rtl/macro_beats/`, and the top is
+> `rtl/top_beats/rapids_beats_top.sv`. The STREAM source paths below also drifted:
+> `rtl/stream_fub/` is now `rtl/fub/`, and `simple_sram.sv` no longer exists anywhere -
+> STREAM owns `sram_controller.sv`/`sram_controller_unit.sv`, and RAPIDS uses its own
+> `snk_/src_sram_controller_beats.sv`. Kept as history; do not run the copy commands.
+
 ---
 
 ## Executive Summary

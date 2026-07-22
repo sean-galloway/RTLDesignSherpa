@@ -319,9 +319,9 @@ The GAXI buffer WaveDrom integration (completed 2025-10-06) provides a proven pa
 - Field configuration (proper formatting)
 
 **Reference Files:**
-- `val/amba/test_gaxi_buffer_sync.py` (lines 163-682)
+- `val/amba/test_gaxi_fifo_sync.py`
 - `val/amba/test_gaxi_buffer_async.py` (lines 200-572)
-- `val/amba/WAVEDROM_INTEGRATION_SUMMARY.md`
+- `docs/markdown/TestTutorial/wavedrom_gaxi_example.md`
 
 **All new WaveDrom tasks (TASK-017, TASK-018) should follow this pattern.**
 

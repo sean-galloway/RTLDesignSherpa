@@ -924,9 +924,11 @@ for (int ch = 0; ch < 8; ch++) {
 To generate SystemVerilog from the register definition:
 
 ```bash
-cd projects/components/dmas/stream/rtl/stream_macro/
-peakrdl regblock stream_regs.rdl -o generated/
+cd projects/components/dmas/stream/rtl/macro/
+../../../../../../bin/peakrdl_generate.py stream_regs.rdl
 ```
+
+(Always regenerate via `bin/peakrdl_generate.py` - it emits RTL, docs, and the Python regmap in lockstep; raw `peakrdl regblock` desyncs the regmap.)
 
 This generates:
 - `stream_regs_pkg.sv` - Register definitions package

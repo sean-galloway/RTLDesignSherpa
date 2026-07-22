@@ -206,7 +206,7 @@ The DUT is `stream_top_ch8`. Everything else around it is harness — not part o
 
 The harness wraps `stream_top_ch8` with everything needed to drive it from a host PC and observe what happens, while keeping the DUT itself unchanged. From left to right:
 
-- **Host PC over UART.** A Python script (`host/characterize.py`) drives the whole sweep over a single serial port. The harness exposes a UART → AXIL bridge that fans out to five address regions (CSRs, descriptor RAM, debug SRAM, STREAM APB, etc).
+- **Host PC over UART.** A Python script (`flows-stream-bridge/host/characterize.py`) drives the whole sweep over a single serial port. The harness exposes a UART → AXIL bridge that fans out to five address regions (CSRs, descriptor RAM, debug SRAM, STREAM APB, etc).
 - **`harness_csr` — the instrumentation hub.** Holds the kick-burst path, the response-delay programming registers, the cycle-stamp timer, status outputs, and the LED/7-seg drivers. Not part of the engine; this is the harness's nervous system.
 - **`stream_top_ch8` — the DUT.** Three AXI4 masters: descriptor fetch, data read, data write. Each master is 8-deep outstanding (per channel) with 16-beat bursts.
 - **Harness slaves.** Each AXI master is wrapped by a slave that produces or checks data with deterministic patterns:

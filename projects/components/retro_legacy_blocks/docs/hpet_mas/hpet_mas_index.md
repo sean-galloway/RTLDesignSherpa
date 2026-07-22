@@ -50,16 +50,18 @@ This MAS is organized into five chapters covering the micro-architecture of the 
 - [05_fsm_summary.md](ch02_blocks/05_fsm_summary.md) - FSM state summary table
 
 ### Chapter 3: Interfaces
-- [01_top_level.md](ch03_interfaces/01_top_level.md) - Top-level signal list
-- [02_apb_interface_spec.md](ch03_interfaces/02_apb_interface_spec.md) - APB protocol specification
-- [03_hpet_clock_interface.md](ch03_interfaces/03_hpet_clock_interface.md) - HPET clock domain interface
-- [04_interrupt_interface.md](ch03_interfaces/04_interrupt_interface.md) - Timer interrupt outputs
+*(planned, not yet written - see `../../rtl/hpet/apb_hpet.sv` for the current port list)*
+- 01_top_level.md - Top-level signal list
+- 02_apb_interface_spec.md - APB protocol specification
+- 03_hpet_clock_interface.md - HPET clock domain interface
+- 04_interrupt_interface.md - Timer interrupt outputs
 
 ### Chapter 4: Programming Model
-- [01_initialization.md](ch04_programming/01_initialization.md) - Software initialization sequence
-- [02_timer_configuration.md](ch04_programming/02_timer_configuration.md) - Configuring timers (one-shot, periodic)
-- [03_interrupt_handling.md](ch04_programming/03_interrupt_handling.md) - Interrupt service routines
-- [04_use_cases.md](ch04_programming/04_use_cases.md) - Common use case examples
+*(planned, not yet written - see the HPET section of [../../CLAUDE.md](../../CLAUDE.md) for programming notes)*
+- 01_initialization.md - Software initialization sequence
+- 02_timer_configuration.md - Configuring timers (one-shot, periodic)
+- 03_interrupt_handling.md - Interrupt service routines
+- 04_use_cases.md - Common use case examples
 
 ### Chapter 5: Registers
 - [01_register_map.md](ch05_registers/01_register_map.md) - Complete register address map and field descriptions

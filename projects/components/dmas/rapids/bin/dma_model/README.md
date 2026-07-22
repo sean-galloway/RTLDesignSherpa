@@ -36,32 +36,36 @@ Comprehensive performance analysis of AXI4 memory interfaces using both analytic
 ## Project Structure
 
 ```
-project/
+dma_model/
 ├── docs/
 │   ├── design_specification.md      # Detailed design specs for read/write paths
 │   └── sram_insights.md             # SRAM sizing guide (NEW!)
 │
-├── pyperf/                           # Shared analytical performance library
-│   ├── __init__.py
-│   ├── performance.py                # Core analytical models
-│   └── visualization.py              # Plotting utilities
+├── bin/                              # All Python scripts and packages
+│   ├── pyperf/                       # Shared analytical performance library
+│   │   ├── __init__.py
+│   │   ├── performance.py            # Core analytical models
+│   │   └── visualization.py          # Plotting utilities
+│   │
+│   ├── analytical/                   # Analytical performance analysis
+│   │   ├── current_design.py         # Script version of notebook
+│   │   ├── sram_analysis.py          # SRAM sizing analysis (NEW!)
+│   │   ├── sram_visualizations.py    # SRAM plots (NEW!)
+│   │   └── __init__.py
+│   │
+│   ├── simpy_model/                  # Discrete-event simulation
+│   │   ├── __init__.py
+│   │   ├── current_design.py         # Baseline SimPy model
+│   │   ├── optimizations.py          # Incremental optimizations
+│   │   ├── validate.py               # Validation vs analytical
+│   │   └── compare.py                # Comparison & visualization
+│   │
+│   ├── run_complete_analysis.py      # Complete analysis runner (UPDATED!)
+│   ├── quick_start.py                # Quick examples (UPDATED!)
+│   └── config_explorer.py            # Interactive configuration tool
 │
-├── analytical/                       # Analytical performance analysis
-│   ├── current_design.py             # Script version of notebook
-│   ├── sram_analysis.py              # SRAM sizing analysis (NEW!)
-│   ├── sram_visualization.py         # SRAM plots (NEW!)
-│   └── __init__.py
-│
-├── simpy_model/                      # Discrete-event simulation
-│   ├── __init__.py
-│   ├── current_design.py             # Baseline SimPy model
-│   ├── optimizations.py              # Incremental optimizations
-│   ├── validate.py                   # Validation vs analytical
-│   └── compare.py                    # Comparison & visualization
-│
-├── run_complete_analysis.py          # Complete analysis runner (UPDATED!)
-├── quick_start.py                    # Quick examples (UPDATED!)
-├── config_explorer.py                # Interactive configuration tool
+├── csv/                              # Generated CSV data files
+├── run_analysis.sh                   # Master run script
 └── README.md                         # This file
 ```
 
@@ -71,16 +75,16 @@ project/
 
 ```bash
 # Full analysis including SRAM sizing (~60 seconds)
-python run_complete_analysis.py
+python bin/run_complete_analysis.py
 
 # Quick mode (~15 seconds)
-python run_complete_analysis.py --quick
+python bin/run_complete_analysis.py --quick
 
 # Skip SRAM analysis if not needed
-python run_complete_analysis.py --no-sram
+python bin/run_complete_analysis.py --no-sram
 
 # Fastest (skip plots and SRAM)
-python run_complete_analysis.py --quick --no-plots --no-sram
+python bin/run_complete_analysis.py --quick --no-plots --no-sram
 ```
 
 This runs:
@@ -94,23 +98,23 @@ This runs:
 
 ```bash
 # Run all examples (including SRAM)
-python quick_start.py all
+python bin/quick_start.py all
 
 # Or run specific examples
-python quick_start.py 1  # Analytical baseline
-python quick_start.py 2  # SimPy baseline
-python quick_start.py 3  # Compare baseline vs optimized
-python quick_start.py 4  # Optimization sequence
-python quick_start.py 5  # Validate models
-python quick_start.py 6  # Generate plots
-python quick_start.py 7  # SRAM analysis (NEW!)
+python bin/quick_start.py 1  # Analytical baseline
+python bin/quick_start.py 2  # SimPy baseline
+python bin/quick_start.py 3  # Compare baseline vs optimized
+python bin/quick_start.py 4  # Optimization sequence
+python bin/quick_start.py 5  # Validate models
+python bin/quick_start.py 6  # Generate plots
+python bin/quick_start.py 7  # SRAM analysis (NEW!)
 ```
 
 ### 3. SRAM Analysis (NEW!)
 
 ```bash
 # Run standalone SRAM analysis
-python analytical/sram_analysis.py
+python bin/analytical/sram_analysis.py
 ```
 
 Or use programmatically:
@@ -152,10 +156,10 @@ df = analyze_payload_vs_sram(
 
 ```bash
 # Interactive mode
-python config_explorer.py
+python bin/config_explorer.py
 
 # Or command-line mode
-python config_explorer.py --channels 16 --payload 2048 --pipeline 4 --streaming
+python bin/config_explorer.py --channels 16 --payload 2048 --pipeline 4 --streaming
 ```
 
 ## Current Design (Baseline)
@@ -381,7 +385,7 @@ Achieved: ~57-64 GB/s ✓
 **For variable or small payloads:**
 - **Monolithic is mandatory** - 4-8× better performance
 
-See `analytical/sram_analysis.py` for detailed sizing recommendations.
+See `bin/analytical/sram_analysis.py` for detailed sizing recommendations.
 
 ## Output Files
 
@@ -398,9 +402,9 @@ See [OUTPUT_ORGANIZATION.md](OUTPUT_ORGANIZATION.md) for details.
 |------|---------|--------------|
 | `analysis_read_path.csv` | READ path analysis | `comprehensive_analysis.py` |
 | `analysis_write_path.csv` | WRITE path analysis | `comprehensive_analysis.py` |
-| `optimization_results.csv` | Optimization sequence data | `simpy_model/optimizations.py` |
-| `validation_report.csv` | Validation comparison | `simpy_model/validate.py` |
-| `model_comparison.csv` | Analytical vs SimPy | `simpy_model/compare.py` |
+| `optimization_results.csv` | Optimization sequence data | `bin/simpy_model/optimizations.py` |
+| `validation_report.csv` | Validation comparison | `bin/simpy_model/validate.py` |
+| `model_comparison.csv` | Analytical vs SimPy | `bin/simpy_model/compare.py` |
 | `payload_sweep_analytical.csv` | Payload sweep results | `run_payload_sweep.py` |
 | `payload_sweep_simpy.csv` | SimPy payload sweep | `run_payload_sweep.py` |
 
@@ -413,8 +417,8 @@ See [OUTPUT_ORGANIZATION.md](OUTPUT_ORGANIZATION.md) for details.
 | `sram_vs_performance.png` | SRAM cost-benefit | `generate_optimization_plots.py` |
 | `write_path_analysis.png` | WRITE path analysis | `generate_optimization_plots.py` |
 | `payload_sweep_separate.png` | READ and WRITE separate | `comprehensive_analysis.py` |
-| `comparison_baseline.png` | Baseline comparison | `simpy_model/compare.py` |
-| `comparison_optimized.png` | Optimized comparison | `simpy_model/compare.py` |
+| `comparison_baseline.png` | Baseline comparison | `bin/simpy_model/compare.py` |
+| `comparison_optimized.png` | Optimized comparison | `bin/simpy_model/compare.py` |
 
 ## Running Examples
 
@@ -496,9 +500,9 @@ pip install numpy pandas simpy matplotlib seaborn
 
 - **Design Details**: See `docs/design_specification.md`
 - **SRAM Insights**: See `docs/sram_insights.md` (NEW!)
-- **Analytical Model**: See `pyperf/performance.py`
-- **SimPy Model**: See `simpy_model/current_design.py`
-- **SRAM Analysis**: See `analytical/sram_analysis.py` (NEW!)
+- **Analytical Model**: See `bin/pyperf/performance.py`
+- **SimPy Model**: See `bin/simpy_model/current_design.py`
+- **SRAM Analysis**: See `bin/analytical/sram_analysis.py` (NEW!)
 
 ## Summary
 
@@ -526,12 +530,12 @@ This project provides **complete performance modeling tools** for AXI4 interface
 
 | Task | Command |
 |------|---------|
-| Full analysis | `python run_complete_analysis.py` |
-| Quick analysis | `python run_complete_analysis.py --quick` |
-| Specific example | `python quick_start.py <1-7>` |
-| SRAM analysis only | `python analytical/sram_analysis.py` |
-| Interactive config | `python config_explorer.py` |
-| All examples | `python quick_start.py all` |
+| Full analysis | `python bin/run_complete_analysis.py` |
+| Quick analysis | `python bin/run_complete_analysis.py --quick` |
+| Specific example | `python bin/quick_start.py <1-7>` |
+| SRAM analysis only | `python bin/analytical/sram_analysis.py` |
+| Interactive config | `python bin/config_explorer.py` |
+| All examples | `python bin/quick_start.py all` |
 
 ---
 

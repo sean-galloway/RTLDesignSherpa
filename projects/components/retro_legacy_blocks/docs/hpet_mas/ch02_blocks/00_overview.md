@@ -129,7 +129,7 @@ The diagram shows the latency introduced by CDC synchronization. Configuration c
 #### Module Responsibilities
 
 ##### 1. apb_hpet (Top Level Integration)
-**File:** `rtl/apb_hpet.sv`
+**File:** `rtl/hpet/apb_hpet.sv`
 **Purpose:** System integration and CDC selection
 
 **Responsibilities:**
@@ -145,7 +145,7 @@ The diagram shows the latency introduced by CDC synchronization. Configuration c
 - Single-point configuration
 
 ##### 2. hpet_config_regs (Register Wrapper)
-**File:** `rtl/hpet_config_regs.sv`
+**File:** `rtl/hpet/hpet_config_regs.sv`
 **Purpose:** Bridge between PeakRDL registers and HPET core
 
 **Responsibilities:**
@@ -162,7 +162,7 @@ The diagram shows the latency introduced by CDC synchronization. Configuration c
 - W1C interrupt clearing support
 
 ##### 3. hpet_regs (PeakRDL Generated)
-**File:** `rtl/hpet_regs.sv`
+**File:** `rtl/hpet/hpet_regs.sv`
 **Purpose:** Auto-generated register file from SystemRDL specification
 
 **Responsibilities:**
@@ -178,7 +178,7 @@ The diagram shows the latency introduced by CDC synchronization. Configuration c
 - Standard passthrough CPU interface
 
 ##### 4. hpet_core (Timer Logic)
-**File:** `rtl/hpet_core.sv`
+**File:** `rtl/hpet/hpet_core.sv`
 **Purpose:** Core timer functionality and comparison logic
 
 **Responsibilities:**

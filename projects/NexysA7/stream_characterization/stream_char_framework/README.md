@@ -1,7 +1,7 @@
 # stream_char_framework
 
 Shared instrumentation library for the FPGA characterization flows under
-`projects/NexysA7/flows-*`. Each flow is a complete, self-contained build
+`projects/NexysA7/stream_characterization/flows-*`. Each flow is a complete, self-contained build
 (its own Makefile, RTL top, sweep CSVs, plots, doc); each one pulls the
 hooks below in via `$FRAMEWORK_ROOT`.
 
@@ -41,8 +41,8 @@ need to override goes in the per-flow directory, not here.
 
 - `projects/NexysA7/stream_characterization/flows-stream-bridge/`           in-house STREAM + in-house bridge
 - `projects/NexysA7/stream_characterization/flows-vivado-mcdma/`            Vivado MCDMA + in-house bridge (pending)
-- `projects/NexysA7/stream_characterization/flows-stream-vivado-bridge/`    in-house STREAM + Vivado bridge (future)
-- `projects/NexysA7/stream_characterization/flows-vivado-mcdma-vivado-bridge/`  Vivado × Vivado (future)
+- `projects/NexysA7/stream_characterization/flows-stream-vivado-bridge/`    in-house STREAM + Vivado bridge (future — directory not yet created)
+- `projects/NexysA7/stream_characterization/flows-vivado-mcdma-vivado-bridge/`  Vivado × Vivado (future — directory not yet created)
 
 Each flow's Makefile exports `FRAMEWORK_ROOT` so RTL filelists and host
 scripts can resolve shared modules with one path.

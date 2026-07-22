@@ -200,7 +200,7 @@ software-triggered re-run in the RTL. A fresh init requires `mc_rst_n`.
 
 ## DDR2 Sequence
 
-Mirrors LiteDRAM's `get_ddr2_phy_init_sequence` (`litedram/init.py`), the
+Mirrors LiteDRAM's `get_ddr2_phy_init_sequence` (upstream `litedram/init.py`), the
 reference proven on the Nexys A7:
 
 1. Assert `dfi_init_start_o`; wait `dfi_init_complete_i` (PHY runs its own

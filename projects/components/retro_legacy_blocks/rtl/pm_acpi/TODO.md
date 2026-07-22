@@ -72,8 +72,7 @@
   - Create dv/tbclasses/pm_acpi/ directory
   - pm_acpi_tb.py - Base testbench class
   - pm_acpi_tests_basic.py - Basic functionality tests
-  - Create dv/tests/pm_acpi/ directory
-  - test_apb_pm_acpi.py - Cocotb test runner
+  - test_apb_pm_acpi.py - Cocotb test runner (flat in dv/tests/)
 
 #### Documentation
 - [ ] **Update Main README.md**

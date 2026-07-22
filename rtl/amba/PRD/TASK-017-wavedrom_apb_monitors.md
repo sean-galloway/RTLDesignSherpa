@@ -29,6 +29,16 @@
 ## Status
 **🔴 Not Started**
 
+> Status (2026-07-22): still open; path references below updated after the repo
+> reorg. The GAXI reference pattern is now `val/amba/test_gaxi_fifo_sync.py` /
+> `val/amba/test_gaxi_buffer_async.py` (the old `test_gaxi_buffer_sync.py` was renamed).
+> An APB WaveDrom example now exists at `val/amba/test_apb_slave_wavedrom.py`.
+> The old `docs/markdown/TestTutorial/wavedrom_gaxi_example.md` was removed; the integration
+> guide is `docs/markdown/TestTutorial/wavedrom_gaxi_example.md`. The WaveDrom
+> framework lives in the RTLDesignSherpa-DV repo (`CocoTBFramework.components.wavedrom`)
+> with in-repo helpers under `bin/TBClasses/wavedrom_user/`. `val/amba/WaveJSON/`
+> is a planned output directory (does not exist yet).
+
 ## Description
 
 Add minimal WaveDrom timing diagram generation to APB monitor tests, following the pattern established in GAXI buffer tests. Generate clean, focused waveforms showing key APB protocol scenarios.
@@ -42,9 +52,9 @@ Add minimal WaveDrom timing diagram generation to APB monitor tests, following t
 - Generates WaveJSON → PNG/SVG via wavedrom-cli
 
 **Reference Implementation:**
-- `val/amba/test_gaxi_buffer_sync.py` (lines 163-682)
+- `val/amba/test_gaxi_fifo_sync.py`
 - `val/amba/test_gaxi_buffer_async.py` (lines 200-572)
-- `val/amba/WAVEDROM_INTEGRATION_SUMMARY.md`
+- `docs/markdown/TestTutorial/wavedrom_gaxi_example.md`
 
 **Goal:** Apply same pattern to APB monitors for protocol visualization and documentation.
 
@@ -171,7 +181,7 @@ val/amba/WaveJSON/
 
 ### 4. Documentation Updates
 
-**File:** `val/amba/WAVEDROM_INTEGRATION_SUMMARY.md` (update existing)
+**File:** `docs/markdown/TestTutorial/wavedrom_gaxi_example.md` (update existing)
 
 Add section:
 ```markdown
@@ -246,9 +256,9 @@ done
 
 ## References
 
-- **Pattern:** `val/amba/test_gaxi_buffer_sync.py` (reference implementation)
-- **Framework:** `bin/TBClasses/components/wavedrom/`
-- **Summary:** `val/amba/WAVEDROM_INTEGRATION_SUMMARY.md`
+- **Pattern:** `val/amba/test_gaxi_fifo_sync.py` (reference implementation)
+- **Framework:** `CocoTBFramework/components/wavedrom/ (RTLDesignSherpa-DV repo)`
+- **Summary:** `docs/markdown/TestTutorial/wavedrom_gaxi_example.md`
 - **APB Spec:** ARM IHI0024 (APB Protocol Specification)
 
 ## Related Tasks

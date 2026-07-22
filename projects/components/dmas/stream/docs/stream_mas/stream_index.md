@@ -101,22 +101,22 @@
 
 | Module | File | Purpose | Lines | Status |
 |--------|------|---------|-------|--------|
-| descriptor_engine | `stream_fub/descriptor_engine.sv` | Descriptor fetch/parse (256-bit) | ~300 | [Done] |
-| scheduler | `stream_fub/scheduler.sv` | Transfer coordinator | ~400 | [Done] Created (corrected) |
-| axi_read_engine | `stream_fub/axi_read_engine.sv` | AXI read master | ~350 | [Done] Created (no FSM - streaming pipeline) |
-| axi_write_engine | `stream_fub/axi_write_engine.sv` | AXI write master | ~400 | [Done] Created (no FSM - streaming pipeline) |
-| sram_controller | `stream_fub/sram_controller.sv` | Per-channel buffer management | ~350 | [Done] Created (no FSM - pointer arithmetic + pre-allocation) |
-| simple_sram | `stream_fub/simple_sram.sv` | Dual-port SRAM primitive | ~150 | [Done] |
-| perf_profiler | `stream_fub/perf_profiler.sv` | Channel performance profiling | ~400 | [Done] Dual-mode timestamp/elapsed tracking |
+| descriptor_engine | `rtl/fub/descriptor_engine.sv` | Descriptor fetch/parse (256-bit) | ~300 | [Done] |
+| scheduler | `rtl/fub/scheduler.sv` | Transfer coordinator | ~400 | [Done] Created (corrected) |
+| axi_read_engine | `rtl/fub/axi_read_engine.sv` | AXI read master | ~350 | [Done] Created (no FSM - streaming pipeline) |
+| axi_write_engine | `rtl/fub/axi_write_engine.sv` | AXI write master | ~400 | [Done] Created (no FSM - streaming pipeline) |
+| sram_controller | `rtl/fub/sram_controller.sv` | Per-channel buffer management | ~350 | [Done] Created (no FSM - pointer arithmetic + pre-allocation) |
+| sram_controller_unit | `rtl/fub/sram_controller_unit.sv` | Per-channel buffer unit (wraps `gaxi_fifo_sync`; replaced the old `simple_sram.sv`) | ~300 | [Done] |
+| perf_profiler | `rtl/fub/perf_profiler.sv` | Channel performance profiling | ~400 | [Done] Dual-mode timestamp/elapsed tracking |
 
 ### Integration Blocks (MAC)
 
 | Module | File | Purpose | Lines | Status |
 |--------|------|---------|-------|--------|
-| channel_arbiter | `stream_macro/channel_arbiter.sv` | Priority arbitration | ~200 | [Pending] To be created |
-| apb_config | `regs/stream_regs.rdl` + wrapper | Config registers | ~350 | [Future] PeakRDL-based |
-| monbus_axil_group | `stream_macro/monbus_axil_group.sv` | MonBus + AXIL | ~800 | [Done] |
-| stream_top | `stream_macro/stream_top.sv` | Top-level | ~500 | [Pending] To be created |
+| scheduler_group_array | `rtl/macro/scheduler_group_array.sv` | 8-channel array + round-robin channel arbitration (no separate channel_arbiter module) | ~500 | [Done] |
+| apb_config | `rtl/macro/stream_regs.rdl` + generated wrapper (`regs/generated/`) | Config registers | ~350 | [Done] PeakRDL-based |
+| monbus_axil_group | `rtl/amba/monitor/monbus_axil_axil_group.sv` (shared AMBA monitor block) | MonBus + AXIL | ~800 | [Done] |
+| stream_top | `rtl/top/stream_top_ch8.sv` | Top-level (8-channel) | ~500 | [Done] |
 
 ---
 

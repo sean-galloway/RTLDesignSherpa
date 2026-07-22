@@ -25,6 +25,14 @@
 
 **Last Updated:** 2025-10-17
 
+> Status (2026-07-22): The standalone `projects/components/apb_hpet/` component was absorbed
+> into `projects/components/retro_legacy_blocks/`; this directory is now
+> `projects/components/retro_legacy_blocks/known_issues/`. The old `resolved/` and `active/`
+> subdirectories (including `resolved/timer_cleanup_issue.md`) were not carried over -
+> the timer-cleanup fix is documented as TASK-001 in [../TASKS.md](../TASKS.md).
+> Subdirectories are recreated on demand when new issues are filed. Paths below have been
+> updated to the new location.
+
 ## Directory Structure
 
 This directory tracks all known issues in the APB HPET component, organized by resolution status:
@@ -32,10 +40,9 @@ This directory tracks all known issues in the APB HPET component, organized by r
 ```
 known_issues/
 ├── README.md           ← This file
-├── resolved/           ← Fixed bugs and completed investigations
-│   └── timer_cleanup_issue.md
-└── active/             ← Unresolved issues and pending enhancements
-    └── (none - all issues resolved)
+├── resolved/           ← Fixed bugs and completed investigations (created when needed;
+│                          the old timer_cleanup_issue.md write-up now lives as TASK-001 in ../TASKS.md)
+└── active/             ← Unresolved issues and pending enhancements (none - all issues resolved)
 ```
 
 ---
@@ -89,7 +96,7 @@ Create a new markdown file in `active/` when:
 Clear description of the issue...
 
 ## Location
-**File**: `projects/components/apb_hpet/path/to/file.sv`
+**File**: `projects/components/retro_legacy_blocks/path/to/file.sv`
 **Lines**: Line numbers
 
 ## Current Code (Problematic/Incomplete)
@@ -145,27 +152,27 @@ Even resolved issues remain in `resolved/` permanently for reference.
 ### Check Current Status
 
 ```bash
-# List all active issues
-ls projects/components/apb_hpet/known_issues/active/
+# List all active issues (directory created when the first issue is filed)
+ls projects/components/retro_legacy_blocks/known_issues/active/
 
-# List all resolved issues
-ls projects/components/apb_hpet/known_issues/resolved/
+# List all resolved issues (directory created when the first issue is resolved)
+ls projects/components/retro_legacy_blocks/known_issues/resolved/
 
-# View specific issue
-cat projects/components/apb_hpet/known_issues/resolved/timer_cleanup_issue.md
+# View the timer-cleanup fix write-up (TASK-001)
+grep -A 40 "TASK-001" projects/components/retro_legacy_blocks/TASKS.md
 ```
 
 ### Search Issues
 
 ```bash
 # Search for specific component
-grep -r "Timer" projects/components/apb_hpet/known_issues/
+grep -r "Timer" projects/components/retro_legacy_blocks/known_issues/
 
 # Search for specific bug type
-grep -r "timeout" projects/components/apb_hpet/known_issues/
+grep -r "timeout" projects/components/retro_legacy_blocks/known_issues/
 
 # Find all high-severity issues
-grep -r "Severity.*High" projects/components/apb_hpet/known_issues/active/
+grep -r "Severity.*High" projects/components/retro_legacy_blocks/known_issues/active/
 ```
 
 ---
@@ -235,21 +242,21 @@ grep -r "Severity.*High" projects/components/apb_hpet/known_issues/active/
 
 **Impact:** 3-timer configuration went from 92% to 100% passing
 
-**See:** `projects/components/apb_hpet/known_issues/resolved/timer_cleanup_issue.md`
+**See:** TASK-001 in `projects/components/retro_legacy_blocks/TASKS.md` (the old `resolved/timer_cleanup_issue.md` page was not carried over)
 
 ---
 
 ## References
 
 **APB HPET Documentation:**
-- `projects/components/apb_hpet/PRD.md` - Complete specification
-- `projects/components/apb_hpet/CLAUDE.md` - AI assistant guide
-- `projects/components/apb_hpet/TASKS.md` - Current work items
-- `projects/components/apb_hpet/docs/IMPLEMENTATION_STATUS.md` - Test results
+- `projects/components/retro_legacy_blocks/PRD.md` - Complete specification
+- `projects/components/retro_legacy_blocks/CLAUDE.md` - AI assistant guide
+- `projects/components/retro_legacy_blocks/TASKS.md` - Current work items
+- `projects/components/retro_legacy_blocks/docs/IMPLEMENTATION_STATUS.md` - Test results
 
 **Test Infrastructure:**
-- `projects/components/apb_hpet/dv/tests/` - Test files
-- `bin/TBClasses/amba/apb_hpet/` - Reusable testbench classes
+- `projects/components/retro_legacy_blocks/dv/tests/` - Test files (`test_apb_hpet.py`)
+- `projects/components/retro_legacy_blocks/dv/tbclasses/hpet/` - Reusable testbench classes
 
 ---
 

@@ -2,6 +2,12 @@
 
 **Parent:** `projects/NexysA7/cdc_counter_display/`
 **Status:** Planning
+
+> Status (2026-07-22): the multi-variant demo plan below was not built as
+> written. The project instead became a single UART-harness characterization
+> flow (`rtl/cdc_demo_harness.sv` + `sim/test_cdc_counter_display.py`) with the
+> operator guide in `docs/cdc_demo_guide/`; the cross-variant deliverables
+> (`docs/COMPARISON.md`, `sim/run_all_variants.sh`) were never created.
 **Purpose:** Turn this demo into a teaching vehicle that shows (1) when to use each of the four CDC primitives in this repo, (2) what goes wrong without CDC, and (3) the "it works in simulation / sometimes in silicon" cases that trap beginners.
 
 ---

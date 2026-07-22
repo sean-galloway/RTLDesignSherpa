@@ -50,8 +50,8 @@ All mandatory requirements are consolidated in the global requirements document:
 
 This CLAUDE.md provides AMBA-specific guidance. Also review:
 - Root `/CLAUDE.md` - Repository-wide patterns
-- `bin/TBClasses/CLAUDE.md` - Framework usage patterns
-- `docs/VERIFICATION_ARCHITECTURE_GUIDE.md` - Complete verification patterns
+- `docs/markdown/TBClasses/tbclasses_index.md` - Framework usage patterns (full framework lives in the RTLDesignSherpa-DV repo)
+- `docs/guides/VERIFICATION_ARCHITECTURE_GUIDE.md` - Complete verification patterns
 
 ---
 
@@ -64,10 +64,11 @@ This CLAUDE.md provides AMBA-specific guidance. Also review:
 **AMBA-Specific Structure:**
 
 ```
-bin/TBClasses/amba/
+bin/TBClasses/
 ├── axi4/
-│   ├── axi4_master_read_tb.py      # AXI4 master read TB
-│   └── monitor/axi_monitor_tb.py   # AXI monitor TB
+│   └── axi4_master_read_tb.py      # AXI4 master read TB
+├── axi_monitor/
+│   └── axi_monitor_tb.py           # AXI monitor TB
 ├── apb_monitor/
 │   └── apb_monitor_core_tb.py      # APB monitor TB
 └── [protocol]/[module]_tb.py
@@ -79,7 +80,7 @@ val/amba/
 **AMBA Import Pattern:**
 ```python
 # val/amba/test_axi4_master_rd.py
-from TBClasses.amba.axi4.axi4_master_read_tb import AXI4MasterReadTB
+from TBClasses.axi4.axi4_master_read_tb import AXI4MasterReadTB
 
 @cocotb.test()
 async def axi4_test(dut):
@@ -89,15 +90,15 @@ async def axi4_test(dut):
 ```
 
 **AMBA Three-Layer Pattern:**
-1. **TB Class:** `bin/TBClasses/amba/` - Infrastructure + BFMs
-2. **Scoreboard:** `bin/TBClasses/scoreboards/amba/` - Verification logic
+1. **TB Class:** `bin/TBClasses/{protocol}/` - Infrastructure + BFMs
+2. **Scoreboard:** `bin/TBClasses/scoreboards/` - Verification logic
 3. **Test Runner:** `val/amba/` - Test intelligence
 
 **Verification Method Selection for AMBA:**
 - ✅ **Queue Access:** APB monitors, simple control paths, in-order transactions
 - ✅ **Memory Models:** Multi-master AXI, out-of-order scenarios, data integrity
 
-**📖 Complete Guide:** `docs/VERIFICATION_ARCHITECTURE_GUIDE.md` with AMBA examples
+**📖 Complete Guide:** `docs/guides/VERIFICATION_ARCHITECTURE_GUIDE.md` with AMBA examples
 
 ---
 
@@ -452,7 +453,7 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(1024)) u_agg_fifo (
 
 ```bash
 # View test results
-pytest val/amba/test_axi_monitor.py -v
+pytest val/amba/test_axi4_monitor.py -v
 ```
 
 **Current Known Issues:**
@@ -652,8 +653,8 @@ axi4_master_rd_mon u_mon (
 
 **Debug commands:**
 ```bash
-pytest val/amba/test_axi_monitor.py -v -s  # Verbose test
-pytest val/amba/test_axi_monitor.py --vcd=debug.vcd
+pytest val/amba/test_axi4_monitor.py -v -s  # Verbose test
+pytest val/amba/test_axi4_monitor.py --vcd=debug.vcd
 gtkwave debug.vcd
 ```
 
@@ -690,7 +691,7 @@ cat rtl/amba/KNOWN_ISSUES/README.md
 
 ```bash
 # Single test
-pytest val/amba/test_axi_monitor.py -v
+pytest val/amba/test_axi4_monitor.py -v
 
 # All AMBA tests
 pytest val/amba/ -v
@@ -699,7 +700,7 @@ pytest val/amba/ -v
 pytest val/amba/test_apb_monitor.py -v
 
 # With waveforms
-pytest val/amba/test_axi_monitor.py --vcd=waves.vcd
+pytest val/amba/test_axi4_monitor.py --vcd=waves.vcd
 gtkwave waves.vcd
 ```
 
@@ -753,7 +754,7 @@ cat docs/markdown/RTLAmba/monitor/axi4_master_rd_mon.md
 cat docs/guides/AXI_Monitor_Configuration_Guide.md
 
 # Run tests
-pytest val/amba/test_axi_monitor.py -v
+pytest val/amba/test_axi4_monitor.py -v
 
 # Check known issues
 ls rtl/amba/KNOWN_ISSUES/

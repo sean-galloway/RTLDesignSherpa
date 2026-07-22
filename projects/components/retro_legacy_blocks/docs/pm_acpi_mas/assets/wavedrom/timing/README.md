@@ -119,7 +119,7 @@ Shows General Purpose Event handling:
 
 ## References
 
-- **PM RTL:** `rtl/pm/apb_pm_acpi.sv`
-- **PM Testbench:** `dv/tbclasses/pm/pm_tb.py`
-- **Constraint Class:** `bin/TBClasses/wavedrom_user/pm.py`
+- **PM RTL:** `rtl/pm_acpi/apb_pm_acpi.sv`
+- **PM Testbench:** `dv/tbclasses/pm_acpi/pm_acpi_tb.py`
+- **Constraint Class:** none yet for PM/ACPI (see `bin/TBClasses/wavedrom_user/hpet.py` and `apb.py` for examples)
 - **ACPI Spec:** Advanced Configuration and Power Interface Specification

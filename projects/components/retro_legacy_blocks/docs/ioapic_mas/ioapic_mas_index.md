@@ -34,6 +34,10 @@
 
 This specification is organized into five chapters covering all aspects of the APB IOAPIC component:
 
+> Status (2026-07-22): Only Chapter 1 (all sections), the Chapter 2 overview and FSM
+> summary, and the Chapter 5 register map exist in this tree today. The remaining
+> sections listed below are planned but not yet written; they are shown without links.
+
 ### Chapter 1: Overview
 **Location:** `ch01_overview/`
 
@@ -47,60 +51,56 @@ This specification is organized into five chapters covering all aspects of the A
 **Location:** `ch02_blocks/`
 
 - [00_overview.md](ch02_blocks/00_overview.md) - Block hierarchy overview
-- [01_ioapic_core.md](ch02_blocks/01_ioapic_core.md) - Core interrupt routing logic
-- [02_ioapic_config_regs.md](ch02_blocks/02_ioapic_config_regs.md) - Configuration register wrapper with indirect access
-- [03_ioapic_regs.md](ch02_blocks/03_ioapic_regs.md) - PeakRDL generated register file
-- [04_apb_ioapic_top.md](ch02_blocks/04_apb_ioapic_top.md) - Top-level integration
+- 01_ioapic_core.md - Core interrupt routing logic *(planned, not yet written)*
+- 02_ioapic_config_regs.md - Configuration register wrapper with indirect access *(planned, not yet written)*
+- 03_ioapic_regs.md - PeakRDL generated register file *(planned, not yet written)*
+- 04_apb_ioapic_top.md - Top-level integration *(planned, not yet written)*
 - [05_fsm_summary.md](ch02_blocks/05_fsm_summary.md) - FSM state summary table
 
 ### Chapter 3: Interfaces
-**Location:** `ch03_interfaces/`
+**Location:** `ch03_interfaces/` *(planned, not yet written)*
 
-- [01_top_level.md](ch03_interfaces/01_top_level.md) - Top-level signal list
-- [02_apb_interface_spec.md](ch03_interfaces/02_apb_interface_spec.md) - APB protocol specification
-- [03_indirect_access.md](ch03_interfaces/03_indirect_access.md) - IOREGSEL/IOWIN indirect register access
-- [04_irq_interface.md](ch03_interfaces/04_irq_interface.md) - IRQ input and output interfaces
-- [05_eoi_interface.md](ch03_interfaces/05_eoi_interface.md) - End-of-Interrupt handling
+- 01_top_level.md - Top-level signal list
+- 02_apb_interface_spec.md - APB protocol specification
+- 03_indirect_access.md - IOREGSEL/IOWIN indirect register access
+- 04_irq_interface.md - IRQ input and output interfaces
+- 05_eoi_interface.md - End-of-Interrupt handling
 
 ### Chapter 4: Programming Model
-**Location:** `ch04_programming/`
+**Location:** `ch04_programming/` *(planned, not yet written)*
 
-- [01_initialization.md](ch04_programming/01_initialization.md) - Software initialization sequence
-- [02_redirection_table.md](ch04_programming/02_redirection_table.md) - Configuring redirection table entries
-- [03_edge_triggered_irq.md](ch04_programming/03_edge_triggered_irq.md) - Edge-triggered interrupt handling
-- [04_level_triggered_irq.md](ch04_programming/04_level_triggered_irq.md) - Level-triggered interrupt handling with EOI
-- [05_use_cases.md](ch04_programming/05_use_cases.md) - Common use case examples
+- 01_initialization.md - Software initialization sequence
+- 02_redirection_table.md - Configuring redirection table entries
+- 03_edge_triggered_irq.md - Edge-triggered interrupt handling
+- 04_level_triggered_irq.md - Level-triggered interrupt handling with EOI
+- 05_use_cases.md - Common use case examples
 
 ### Chapter 5: Registers
 **Location:** `ch05_registers/`
 
 - [01_register_map.md](ch05_registers/01_register_map.md) - Complete register address map
-- [02_indirect_access.md](ch05_registers/02_indirect_access.md) - IOREGSEL/IOWIN access method
-- [03_redirection_table.md](ch05_registers/03_redirection_table.md) - Redirection table field descriptions
+- 02_indirect_access.md - IOREGSEL/IOWIN access method *(planned, not yet written)*
+- 03_redirection_table.md - Redirection table field descriptions *(planned, not yet written)*
 
 ---
 
 ## Quick Navigation
 
 ### For Software Developers
-- Start with [Chapter 4: Programming Model](ch04_programming/01_initialization.md)
 - Reference [Chapter 5: Registers](ch05_registers/01_register_map.md)
-- **Critical:** Understand [Indirect Access](ch05_registers/02_indirect_access.md)
+- **Critical:** Understand the IOREGSEL/IOWIN indirect access method (see the register map; a dedicated indirect-access section is planned)
 
 ### For Hardware Integrators
 - Start with [Chapter 1: Overview](ch01_overview/01_overview.md)
-- Reference [Chapter 3: Interfaces](ch03_interfaces/01_top_level.md)
-- Note: IOAPIC uses special [Indirect Access Method](ch03_interfaces/03_indirect_access.md)
+- Chapter 3 (interfaces/signal list) is planned but not yet written; see `../../rtl/ioapic/apb_ioapic.sv` for the current port list
 
 ### For Verification Engineers
 - Start with [Chapter 2: Blocks](ch02_blocks/00_overview.md)
 - Reference [FSM Summary](ch02_blocks/05_fsm_summary.md)
-- Test scenarios in [Chapter 4](ch04_programming/)
 
 ### For System Architects
 - Start with [Architecture Overview](ch01_overview/02_architecture.md)
-- Reference [Use Cases](ch04_programming/05_use_cases.md)
-- Understand [IRQ Routing](ch04_programming/02_redirection_table.md)
+- Programming-model chapters (initialization, redirection table, use cases) are planned but not yet written
 
 ---
 
@@ -169,7 +169,7 @@ This specification is organized into five chapters covering all aspects of the A
 - [RLB_MODULE_AUDIT.md](../../rtl/RLB_MODULE_AUDIT.md) - Architecture compliance audit
 
 **Reference Specifications:**
-- [HPET Specification](../hpet_spec/hpet_index.md) - Reference RLB module spec
+- [HPET Specification](../hpet_mas/hpet_mas_index.md) - Reference RLB module spec
 - Intel 82093AA I/O Advanced Programmable Interrupt Controller Datasheet
 
 ---
@@ -179,10 +179,10 @@ This specification is organized into five chapters covering all aspects of the A
 | Chapter | Status | Completion |
 |---------|--------|------------|
 | Chapter 1: Overview | ✅ Complete | 100% |
-| Chapter 2: Blocks | ✅ Complete | 100% |
-| Chapter 3: Interfaces | ✅ Complete | 100% |
-| Chapter 4: Programming | ✅ Complete | 100% |
-| Chapter 5: Registers | ✅ Complete | 100% |
+| Chapter 2: Blocks | 🟡 Partial (overview + FSM summary only) | 33% |
+| Chapter 3: Interfaces | 📋 Planned | 0% |
+| Chapter 4: Programming | 📋 Planned | 0% |
+| Chapter 5: Registers | 🟡 Partial (register map only) | 33% |
 
 **Specification Status:** Production Ready - MVP Implementation Complete
 

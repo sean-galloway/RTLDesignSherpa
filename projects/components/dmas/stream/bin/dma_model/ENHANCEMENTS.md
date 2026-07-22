@@ -324,7 +324,7 @@ python3 comprehensive_analysis.py --include-perfect --plots --report
 
 ### New Files
 
-**`pyperf/reporting.py`** (480 lines)
+**`bin/pyperf/reporting.py`** (480 lines)
 - `PerformanceReporter` class
 - `generate_bottleneck_report()`
 - `generate_latency_sensitivity_report()`
@@ -333,13 +333,13 @@ python3 comprehensive_analysis.py --include-perfect --plots --report
 
 ### Modified Files
 
-**`pyperf/performance.py`**
+**`bin/pyperf/performance.py`**
 - Added `PerformanceMode.PERFECT`
 - Added `PERFECT_PERF_CONFIG`
 - Updated `create_mode_configs()` to handle custom SRAM
 - Updated `show_defaults()` to include PERFECT mode
 
-**`pyperf/__init__.py`**
+**`bin/pyperf/__init__.py`**
 - Exported `PERFECT_PERF_CONFIG`
 - Exported all reporting functions
 

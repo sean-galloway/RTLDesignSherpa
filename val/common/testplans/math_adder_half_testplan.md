@@ -1,7 +1,7 @@
 # Test Plan: math_adder_half
 
 ## Module: rtl/math/math_adder_half.sv
-## Test File: val/common/test_math_adder_half.py
+## Test File: val/math/test_math_adder_half.py
 ## Current Coverage: ~50% (NEEDS WORK)
 
 ## Module Overview
@@ -98,7 +98,7 @@ async def test_random_patterns(dut):
 
 ```bash
 # Run with coverage
-COVERAGE=1 REG_LEVEL=FUNC pytest val/common/test_math_adder_half.py -v
+COVERAGE=1 REG_LEVEL=FUNC pytest val/math/test_math_adder_half.py -v
 ```
 
 ## Priority

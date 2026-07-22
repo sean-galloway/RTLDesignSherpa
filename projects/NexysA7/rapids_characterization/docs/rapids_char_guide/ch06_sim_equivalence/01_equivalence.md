@@ -20,14 +20,14 @@ simulated UART.** The UART bridge and CSR router live only in the board top
 
 The equivalence is by **shared logic**, not a shared transport: the same by-name
 DUT config (`rapids_regmap.py`), the same descriptor bytes (the TB's
-`create_descriptor()` mirrors `host/descriptor_builder.py`), and the same golden
+`create_descriptor()` mirrors `flows-rapids-beats/host/descriptor_builder.py`), and the same golden
 CRC-32 asserted in both places.
 
 ## The cocotb testbench
 
 - **DUT top:** `rapids_char_harness` (Verilator). Runner
-  `dv/test_rapids_char_harness.py`; TB class `RapidsCharHarnessTB`
-  (`dv/rapids_char_harness_tb.py`).
+  `flows-rapids-beats/dv/test_rapids_char_harness.py`; TB class `RapidsCharHarnessTB`
+  (`flows-rapids-beats/dv/rapids_char_harness_tb.py`).
 - **Two self-checks:**
   - `cocotb_test_sink_selfcheck` — `s_axis → sink → m_axi_wr`; asserts
     `wr_crc[ch] == gen_expected_crc[ch]` for each active channel.

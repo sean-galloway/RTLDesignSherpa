@@ -27,6 +27,12 @@
 **Analysis:** SRAM storage format after AXIS migration
 **Status:** ✅ Already Optimized
 
+> **Status (2026-07-22):** Historical analysis of the pre-beats SRAM controllers. The files it
+> cites (`rtl/rapids_fub/sink_sram_control.sv`, `source_sram_control.sv`) were retired in the
+> beats rearchitecture; the current controllers are
+> `rtl/macro_beats/snk_sram_controller_beats.sv` and `src_sram_controller_beats.sv`
+> (cited line numbers no longer apply).
+
 ---
 
 ## Executive Summary

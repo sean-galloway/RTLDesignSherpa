@@ -358,7 +358,7 @@ end
 
 **Generated Code Check:**
 ```bash
-# bridge_1x5_rd/apb_periph_adapter.sv - Read channel
+# rtl/generated/bridge_1x5_rd/apb_periph_adapter.sv - Read channel
 // Pop on R response (converter_rvalid && converter_rready && converter_rlast)
 always_ff @(posedge aclk or negedge aresetn) begin
     if (!aresetn) begin

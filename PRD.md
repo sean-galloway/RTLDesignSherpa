@@ -28,9 +28,9 @@
 
 | Metric | Count | Status |
 |--------|-------|--------|
-| **RTL Modules** | 204 | 86 common + 72 AMBA + 17 RAPIDS + 29 integration |
-| **Test Files** | 136 | pytest-based validation using CocoTB |
-| **Test Framework** | 196 files | Reusable BFMs, drivers, monitors, scoreboards |
+| **RTL Modules** | ~390 | ~57 common + ~170 math + ~160 AMBA + integration (project RTL lives under projects/) |
+| **Test Files** | ~300 | pytest-based validation using CocoTB (val/ areas) |
+| **Test Framework** | ~156 files | Shared TB classes in bin/TBClasses/ (BFMs from the RTLDesignSherpa-DV framework repo) |
 | **Documentation** | Complete | PRDs, guides, specs, KNOWN_ISSUES tracking |
 | **Tool Chain** | Free | Verilator, Verible, CocoTB, pytest, GTKWave |
 
@@ -42,27 +42,28 @@
 
 ```
 rtldesignsherpa/
-├── rtl/                        # RTL source code (204 .sv files)
-│   ├── common/                 # 86 reusable building blocks
-│   ├── amba/                   # 72 AMBA protocol modules
-│   ├── rapids/                   # 17 Rapid AXI Programmable In-band Descriptor System modules
-│   ├── integ_*/                # Integration examples
-│   └── xilinx/                 # Vendor-specific primitives
+├── rtl/                        # RTL source code (~390 .sv files)
+│   ├── common/                 # ~57 reusable building blocks
+│   ├── math/                   # ~170 arithmetic modules (split out of rtl/common)
+│   ├── amba/                   # ~160 AMBA protocol modules (monitors in amba/monitor/)
+│   └── integ_amba/             # Integration examples
 │
-├── val/                        # Validation tests (136 tests)
+├── val/                        # Validation tests (~300 tests)
 │   ├── common/                 # Tests for rtl/common/
+│   ├── math/                   # Tests for rtl/math/
 │   ├── amba/                   # Tests for rtl/amba/
-│   ├── rapids/                   # Tests for rtl/rapids/
 │   └── integ_*/                # Integration tests
 │
-├── bin/TBClasses/        # Verification infrastructure (196 files)
-│   ├── components/             # Protocol BFMs (AXI, APB, AXIS, etc.)
-│   ├── tbclasses/              # Testbench classes and drivers
-│   └── scoreboards/            # Verification scoreboards
+├── projects/
+│   ├── components/             # Component projects (bridge, dmas/{stream,rapids},
+│   │                           #   memory-controllers, retro_legacy_blocks, ...)
+│   └── NexysA7/                # FPGA board characterization flows
+│
+├── bin/TBClasses/              # Shared TB classes (~156 files, flat per-protocol dirs;
+│                               #   protocol BFMs come from the RTLDesignSherpa-DV repo)
 │
 ├── docs/                       # Documentation
-│   ├── AXI_Monitor_Configuration_Guide.md
-│   ├── RAPIDS_Validation_Status_Report.md
+│   ├── guides/                 # e.g. AXI_Monitor_Configuration_Guide.md
 │   └── markdown/               # Component documentation
 │
 ├── PRD.md                      # This document (master PRD)
@@ -76,8 +77,8 @@ Each major subsystem has its own detailed PRD:
 
 - **`rtl/common/PRD.md`** - Reusable Building Blocks Library
 - **`rtl/amba/PRD.md`** - AMBA Protocol Infrastructure
-- **`rtl/rapids/PRD.md`** - Rapid AXI Programmable In-band Descriptor System Specification
-- **`bin/TBClasses/README.md`** - Verification Framework Guide
+- **`projects/components/dmas/rapids/PRD.md`** - Rapid AXI Programmable In-band Descriptor System Specification
+- **RTLDesignSherpa-DV repo** - Verification Framework Guide (shared TB classes: `bin/TBClasses/`)
 
 ### 2.3 Organizational Standards - MANDATORY PROJECT STRUCTURE
 
@@ -243,15 +244,15 @@ If project-specific code is found in the framework area, it MUST be moved:
 ### 3.2 AMBA Infrastructure (`rtl/amba/`)
 
 **Purpose:** AMBA protocol monitoring and interface components
-**Modules:** 72 SystemVerilog files
+**Modules:** ~160 SystemVerilog files
 **Status:** 🟡 Active development, production-ready monitors
-**Documentation:** `rtl/amba/PRD.md`, `docs/AXI_Monitor_Configuration_Guide.md`
+**Documentation:** `rtl/amba/PRD.md`, `docs/guides/AXI_Monitor_Configuration_Guide.md`
 
 **Protocols Supported:**
 
 | Protocol | Features | Modules | Status |
 |----------|----------|---------|--------|
-| **AXI4** | Burst, out-of-order, outstanding | `axi4_master/slave_rd/wr_mon.sv` | ✅ Complete |
+| **AXI4** | Burst, out-of-order, outstanding | `monitor/axi4_{master,slave}_{rd,wr}_mon.sv` | ✅ Complete |
 | **AXI4-Lite** | Single-beat simplified | Same base with params | ✅ Complete |
 | **APB** | Peripheral bus | `apb_monitor.sv` | ✅ Complete |
 | **AXI-Stream** | Streaming data | `axis_master.sv`, `axis_slave.sv` | ✅ Complete |
@@ -273,12 +274,11 @@ If project-specific code is found in the framework area, it MUST be moved:
 
 ---
 
-### 3.3 Rapid AXI Programmable In-band Descriptor System (`rtl/rapids/`)
+### 3.3 Rapid AXI Programmable In-band Descriptor System (`projects/components/dmas/rapids/`)
 
 **Purpose:** Custom accelerator for memory-to-memory operations
-**Modules:** 17 SystemVerilog files
-**Status:** 🟡 Active development, validation in progress
-**Documentation:** `rtl/rapids/PRD.md`, `rtl/rapids/rapids_spec/`
+**Status:** 🟡 Active development ("beats" rearchitecture), validation in progress
+**Documentation:** `projects/components/dmas/rapids/PRD.md`, `.../docs/rapids_beats_has/`, `.../docs/rapids_beats_mas/`
 
 **Architecture Blocks:**
 
@@ -308,30 +308,31 @@ RAPIDS Architecture
 - Custom data path acceleration
 - Example of complex FSM coordination
 
-**Test Coverage:** ~80% functional coverage (basic scenarios validated)
-**Verification:** `val/rapids/fub_tests/`, `val/rapids/integration_tests/`
+**Test Coverage:** fub_beats/macro_beats/top_beats regressions passing
+**Verification:** `projects/components/dmas/rapids/dv/tests/{fub,fub_beats,macro_beats,top_beats}/`
 
 **Known Issues:**
-- ⚠️ Scheduler credit counter initialization bug (workaround: disable credits)
-- ⚠️ Descriptor engine edge cases under stress
-- See `rtl/rapids/known_issues/` for details
+- See `projects/components/dmas/rapids/known_issues/` for the current list
+  (the historical scheduler credit-counter bug applied to the retired pre-beats scheduler)
 
 ---
 
 ### 3.4 Verification Infrastructure (`bin/TBClasses/`)
 
-**Purpose:** Reusable CocoTB-based verification components
-**Files:** 196 Python files
+**Purpose:** Shared CocoTB testbench classes (protocol BFMs come from the separate
+RTLDesignSherpa-DV framework repo, editable-installed into the venv)
+**Files:** ~156 Python files
 **Status:** ✅ Mature, actively maintained
-**Documentation:** `bin/TBClasses/README.md`, `bin/TBClasses/CLAUDE.md`
+**Documentation:** RTLDesignSherpa-DV repo (framework); this repo's shared classes are self-documenting
 
 **Component Categories:**
 
 | Directory | Purpose | Key Components |
 |-----------|---------|----------------|
-| `components/` | Protocol BFMs | AXI4, APB, AXIS, GAXI, Network drivers/monitors |
-| `tbclasses/` | Testbench classes | Subsystem-specific test infrastructure |
-| `scoreboards/` | Transaction checking | Reference models, coverage collectors |
+| `axi4/`, `apb/`, `axis4/`, `gaxi/`, ... | Per-protocol TB classes | Test wrappers per protocol |
+| `shared/` | Base infrastructure | `tbbase.py`, `utilities.py` (get_paths) |
+| `monbus/` | Monitor bus | Packet decode, validators |
+| `scoreboards/` | Transaction checking | Reference models, monbus_group harness |
 
 **Key Features:**
 - Randomized transaction generation
@@ -341,8 +342,8 @@ RAPIDS Architecture
 - Reusable across all subsystems
 
 **Usage Examples:**
-- See `val/amba/test_axi_monitor.py` for comprehensive AXI monitor testing
-- See `val/rapids/fub_tests/` for RAPIDS validation patterns
+- See `val/amba/test_axi4_monitor.py` for comprehensive AXI monitor testing
+- See `projects/components/dmas/rapids/dv/tests/fub_beats/` for RAPIDS validation patterns
 
 ---
 
@@ -357,7 +358,7 @@ RAPIDS Architecture
 
 2. **Synthesizable Only**
    - Standard IEEE 1800-2017 SystemVerilog
-   - No vendor-specific primitives (except `rtl/xilinx/`)
+   - No vendor-specific primitives (vendor code lives only in board project areas under `projects/`)
    - FPGA and ASIC portable
 
 3. **Test Everything**
@@ -436,18 +437,18 @@ endmodule
 # Pattern: test_<module_name> where <module_name> EXACTLY matches the RTL module
 
 ✅ CORRECT:
-# File: val/amba/test_axi4_dwidth_converter_wr.py
+# File: projects/components/converters/dv/tests/test_axi4_dwidth_converter_wr.py
 def test_axi4_dwidth_converter_wr(request, params):  # ← Matches axi4_dwidth_converter_wr.sv
     """Test for write data width converter"""
     ...
 
-# File: val/amba/test_axi4_write_master.py
-def test_axi4_write_master(stub, id_width, data_width):  # ← Matches module
-    """Test for AXI4 write master"""
+# File: val/amba/test_apb_slave.py
+def test_apb_slave(request, params):  # ← Matches module
+    """Test for APB slave"""
     ...
 
 ❌ WRONG - Generic names cause pytest collection conflicts:
-# File: val/amba/test_axi4_dwidth_converter_wr.py
+# File: projects/components/converters/dv/tests/test_axi4_dwidth_converter_wr.py
 def test_axi4_dwidth_converter(request, params):  # ← Conflicts with _rd test!
     ...
 
@@ -457,7 +458,7 @@ def test_converter(request, params):  # ← Too generic!
 
 **Rationale:**
 - Related modules (e.g., `axi4_dwidth_converter_wr.sv`, `axi4_dwidth_converter_rd.sv`) share
-  the same directory (`val/amba/`)
+  the same test directory (`projects/components/converters/dv/tests/`)
 - Pytest collects ALL test functions across files in a directory
 - Generic function names like `test_axi4_dwidth_converter()` create collection conflicts
 - Function names appear in logs, reports, CI - must be descriptive and unique
@@ -488,7 +489,7 @@ All verification follows a strict three-layer architecture for reusability and m
 
 **Example:**
 ```python
-# bin/TBClasses/rapids/scheduler_tb.py
+# projects/components/dmas/rapids/dv/tbclasses/scheduler_tb.py
 from TBClasses.shared.tbbase import TBBase
 
 class SchedulerTB(TBBase):
@@ -522,8 +523,8 @@ class SchedulerTB(TBBase):
 
 **Example:**
 ```python
-# val/rapids/fub_tests/scheduler/test_scheduler.py
-from TBClasses.rapids.scheduler_tb import SchedulerTB
+# projects/components/dmas/rapids/dv/tests/fub_beats/test_scheduler_beats.py
+from projects.components.dmas.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
 
 @cocotb.test()
 async def cocotb_test_basic_flow(dut):
@@ -552,7 +553,7 @@ def test_basic_flow(num_ops, ...):
 
 **Example:**
 ```python
-# bin/TBClasses/scoreboards/rapids/program_engine_scoreboard.py
+# Example scoreboard (project-local, e.g. projects/components/dmas/rapids/dv/components/)
 class ProgramEngineScoreboard:
     """Scoreboard for program engine verification"""
 
@@ -648,14 +649,14 @@ class ProgramEngineScoreboard:
 
 ❌ **Wrong:** Testbench class defined inside test file
 ```python
-# val/rapids/test_scheduler.py - WRONG!
-class SchedulerTB:  # ❌ Should be in tbclasses/
+# projects/components/dmas/rapids/dv/tests/fub_beats/test_scheduler_beats.py - WRONG!
+class SchedulerTB:  # ❌ Should be in dv/tbclasses/
     """This makes TB completely unreusable!"""
 ```
 
 ❌ **Wrong:** BFM code in test file
 ```python
-# val/rapids/test_scheduler.py - WRONG!
+# projects/components/dmas/rapids/dv/tests/fub_beats/test_scheduler_beats.py - WRONG!
 async def send_apb_transaction():  # ❌ Should be in TB class
     """BFM logic embedded in test - not reusable!"""
 ```
@@ -683,9 +684,9 @@ w_pkt = self.w_monitor._recvQ.popleft()
 - **Simplicity:** Queue-based verification without memory model overhead
 
 **📖 See:**
-- **`docs/VERIFICATION_ARCHITECTURE_GUIDE.md`** - Complete guide with examples for all subsystems
-- `bin/TBClasses/CLAUDE.md` - Framework-specific patterns
-- `rtl/rapids/CLAUDE.md` Section "Rule #0" - Detailed testbench architecture
+- **`docs/guides/VERIFICATION_ARCHITECTURE_GUIDE.md`** - Complete guide with examples for all subsystems
+- RTLDesignSherpa-DV repo CLAUDE.md - Framework-specific patterns
+- `projects/components/dmas/rapids/CLAUDE.md` - Detailed testbench architecture
 - `val/amba/test_apb_slave.py` - Reference example following this pattern
 
 ---
@@ -719,7 +720,7 @@ w_pkt = self.w_monitor._recvQ.popleft()
 ### 5.5 Researcher/Prototyper (Tertiary)
 **Background:** Rapid prototyping of custom accelerators
 **Needs:** Reusable components, quick integration
-**Uses:** `rtl/common/` + `rtl/amba/`, `rtl/rapids/` as example
+**Uses:** `rtl/common/` + `rtl/amba/`, RAPIDS (`projects/components/dmas/rapids/`) as example
 **Skill Level:** Variable, functional focus
 
 ---
@@ -829,7 +830,7 @@ verilator --lint-only rtl/{subsystem}/{module}.sv
 
 ```bash
 # Single test
-pytest val/amba/test_axi_monitor.py -v
+pytest val/amba/test_axi4_monitor.py -v
 
 # Single test with specific parameters
 pytest "val/amba/test_axi4_master_rd_mon.py::test_function[params]" -v
@@ -854,7 +855,7 @@ pytest val/amba/ --cov=rtl/amba/ --cov-report=html
 |-----------|--------|---------------|--------------|
 | rtl/common/ | ✅ Stable | ~90% | None blocking |
 | rtl/amba/ | 🟡 Active | 6/8 (75%) | 1 test config issue |
-| rtl/rapids/ | 🟡 Active | ~80% | 1 RTL bug (workaround) |
+| RAPIDS (projects/components/dmas/rapids/) | 🟡 Active | ~80% | see known_issues/ |
 | CocoTBFramework | ✅ Stable | N/A (library) | None |
 
 ### 8.2 Quality Metrics
@@ -890,8 +891,9 @@ pytest val/amba/ --cov=rtl/amba/ --cov-report=html
 - Document integration examples
 - Performance characterization
 
-**rtl/rapids/ Priorities:**
-- Fix scheduler credit counter bug
+**RAPIDS Priorities** (as of 2026-07-22: RAPIDS moved to `projects/components/dmas/rapids/`
+and was rearchitected as the beats design; the credit-counter bug applied to the retired
+pre-beats scheduler):
 - Complete descriptor engine stress testing
 - Integration tests with realistic traffic
 - Performance benchmarking
@@ -925,10 +927,9 @@ pytest val/amba/ --cov=rtl/amba/ --cov-report=html
    - Workaround: RTL works, tests need adjustment
    - Priority: P1 (high)
 
-2. **RAPIDS: Scheduler Credit Counter Init** (`rtl/rapids/known_issues/scheduler.md`)
-   - Impact: Credit-based flow control non-functional
-   - Workaround: Disable credits in tests
-   - Priority: P1 (high)
+2. **RAPIDS: Scheduler Credit Counter Init** (historical)
+   - Applied to the retired pre-beats scheduler; the beats scheduler has no credit management yet
+   - Current RAPIDS issues: `projects/components/dmas/rapids/known_issues/`
 
 ### 10.3 Documentation
 
@@ -989,14 +990,14 @@ See `CLAUDE.md` for comprehensive guide on:
 
 - `rtl/common/PRD.md` - Common Library detailed spec
 - `rtl/amba/PRD.md` - AMBA Infrastructure detailed spec
-- `rtl/rapids/PRD.md` - RAPIDS detailed spec
-- `bin/TBClasses/README.md` - Verification framework guide
+- `projects/components/dmas/rapids/PRD.md` - RAPIDS detailed spec
+- RTLDesignSherpa-DV repo - Verification framework guide
 
 ### 12.2 Design Guides
 
-- `docs/AXI_Monitor_Configuration_Guide.md` - Monitor setup best practices
-- `docs/RAPIDS_Validation_Status_Report.md` - RAPIDS test status
-- `rtl/rapids/rapids_spec/` - Complete RAPIDS architecture specification
+- `docs/guides/AXI_Monitor_Configuration_Guide.md` - Monitor setup best practices
+- `projects/components/dmas/rapids/docs/RAPIDS_Validation_Status_Report.md` - RAPIDS test status
+- `projects/components/dmas/rapids/docs/rapids_beats_has/`, `.../rapids_beats_mas/` - RAPIDS architecture specification
 
 ### 12.3 External Resources
 

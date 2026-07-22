@@ -27,7 +27,7 @@ Example:
 
 2. **Regenerate PNG:**
    ```bash
-   cd /mnt/data/github/rtldesignsherpa/projects/components/dmas/stream/docs/stream_spec/assets/mermaid
+   cd /mnt/data/github/rtldesignsherpa/projects/components/dmas/stream/docs/stream_mas/assets/mermaid
    mmdc -i 08_axi_read_engine_block.mmd -o 08_axi_read_engine_L034.png -w 1200 -b white --quiet
    ```
 
@@ -42,7 +42,7 @@ Example:
 To regenerate ALL diagrams:
 
 ```bash
-cd /mnt/data/github/rtldesignsherpa/projects/components/dmas/stream/docs/stream_spec/assets/mermaid
+cd /mnt/data/github/rtldesignsherpa/projects/components/dmas/stream/docs/stream_mas/assets/mermaid
 
 for mmd in *.mmd; do
     base="${mmd%.mmd}"

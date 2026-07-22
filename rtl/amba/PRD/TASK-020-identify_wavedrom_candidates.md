@@ -29,6 +29,14 @@
 ## Status
 **🔴 Not Started**
 
+> Status (2026-07-22): the survey deliverable was produced and lives at
+> `docs/design/WAVEDROM_CANDIDATE_SURVEY.md`. Path references below updated after
+> the repo reorg: RAPIDS tests moved to `projects/components/dmas/rapids/dv/tests/`
+> (rearchitected to the *beats* modules; the old `network_interfaces` FUB tests have
+> no direct successor), the AXI-to-APB shim test moved to
+> `projects/components/converters/dv/tests/test_axi2apb_shim.py`, and the WaveDrom
+> framework lives in the RTLDesignSherpa-DV repo (`CocoTBFramework.components.wavedrom`).
+
 ## Description
 
 Survey the entire test suite to identify additional tests that would significantly benefit from WaveDrom timing diagram generation for documentation, debugging, or protocol visualization purposes.
@@ -56,7 +64,7 @@ Survey the entire test suite to identify additional tests that would significant
 ```bash
 val/common/       # Common building blocks
 val/amba/         # AMBA protocols
-val/rapids/         # RAPIDS subsystem
+projects/components/dmas/rapids/dv/tests/   # RAPIDS subsystem
 val/integ_amba/   # Integration tests
 ```
 
@@ -180,7 +188,7 @@ val/integ_amba/   # Integration tests
 ### Category 4: Protocol Converters (High Value)
 
 **Candidates:**
-- `val/integ_amba/test_axi2apb_shim.py` - AXI to APB bridge
+- `projects/components/converters/dv/tests/test_axi2apb_shim.py` - AXI to APB bridge
 
 **Why:** Shows protocol translation, interesting timing
 
@@ -207,9 +215,8 @@ val/integ_amba/   # Integration tests
 ### Category 7: RAPIDS Subsystem (Medium-High Value)
 
 **Candidates:**
-- `val/rapids/fub_tests/descriptor_engine/`
-- `val/rapids/fub_tests/scheduler/`
-- `val/rapids/fub_tests/network_interfaces/`
+- `projects/components/dmas/rapids/dv/tests/fub_beats/` (descriptor engine, scheduler)
+- (the old `network_interfaces` FUB tests were retired in the beats rearchitecture)
 
 **Why:** Complex subsystem, waveforms aid understanding
 
@@ -220,7 +227,7 @@ val/integ_amba/   # Integration tests
 
 ## Deliverable Format
 
-**File:** `rtl/amba/PRD/WAVEDROM_CANDIDATE_SURVEY.md`
+**File:** `docs/design/WAVEDROM_CANDIDATE_SURVEY.md`
 
 **Content:**
 ```markdown
@@ -284,18 +291,18 @@ val/integ_amba/   # Integration tests
 ## References
 
 **Existing WaveDrom Integration:**
-- `val/amba/test_gaxi_buffer_sync.py` (reference pattern)
+- `val/amba/test_gaxi_fifo_sync.py` (reference pattern)
 - `val/amba/test_gaxi_buffer_async.py` (reference pattern)
-- `val/amba/WAVEDROM_INTEGRATION_SUMMARY.md` (integration guide)
+- `docs/markdown/TestTutorial/wavedrom_gaxi_example.md` (integration guide)
 
 **Test Directories:**
 - `val/common/` - Common building blocks
 - `val/amba/` - AMBA protocols
-- `val/rapids/` - RAPIDS subsystem
+- `projects/components/dmas/rapids/dv/tests/` - RAPIDS subsystem
 - `val/integ_amba/` - Integration tests
 
 **Framework:**
-- `bin/TBClasses/components/wavedrom/`
+- `CocoTBFramework/components/wavedrom/` (RTLDesignSherpa-DV repo)
 - `bin/TBClasses/wavedrom_user/`
 
 ## Related Tasks

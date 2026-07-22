@@ -670,7 +670,7 @@ Notes:
 
 ## Testing
 
-**Test Location:** `projects/components/dmas/stream/dv/tests/fub_tests/sram_controller/`
+**Test Location:** `projects/components/dmas/stream/dv/tests/fub/test_sram_controller.py` (+ `test_sram_controller_alloc.py`)
 
 **Key Test Scenarios:**
 
