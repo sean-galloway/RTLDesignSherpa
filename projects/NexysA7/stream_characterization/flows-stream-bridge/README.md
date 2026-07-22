@@ -127,8 +127,35 @@ projects/NexysA7/stream_characterization/flows-stream-bridge/
 cd projects/NexysA7/stream_characterization/flows-stream-bridge
 make synth        # Vivado synthesis
 make program      # Program FPGA via USB
-python3 host/run_test.py --port /dev/ttyUSB1
+python3 host/characterize.py --port /dev/ttyUSB1
 ```
+
+---
+
+## Genesys 2 target (monitor board-validation build)
+
+`BOARD=genesys2` builds `stream_char_genesys2_top` for the Digilent Genesys 2
+(Kintex-7 XC7K325T-2FFG900C) — the coverage/rate-matching bitstream from
+`../MONITOR_BOARD_VALIDATION_PLAN.md`:
+
+- 4 STREAM channels (HARD boundary at <= 4 until the 8-channel engine wedge
+  is root-caused), `USE_AXI_MONITORS=1` so the rd/wr AXI monitors are on
+  silicon with their CAMs at stream_core's parametric default
+  (`RD/WR_MON_MAX_TRANS = NUM_CHANNELS * AR/AW_MAX_OUTSTANDING + 4` = 36).
+- Board clocking: 200 MHz LVDS sysclk -> MMCM -> harness clock
+  (`CLKOUT0_DIVIDE` generic: 12 -> 100 MHz, 15 -> 80 MHz, 20 -> 60 MHz;
+  keep the XDC `led_slow_clk -divide_by` in lockstep).
+- Files: `rtl/stream_char_genesys2_top.sv`,
+  `rtl/filelists/stream_char_genesys2_top.f`,
+  `constraints/stream_char_genesys2_top.xdc`.
+
+```bash
+make bitstream BOARD=genesys2     # -> bitstream/stream_char_genesys2.bit
+make program   BOARD=genesys2     # JTAG serial 200300B818A0 (Genesys 2)
+```
+
+Board handling: the Genesys 2 UART is a separate FT232R (AU05X8RM) from the
+JTAG FT2232; do NOT power-cycle after programming (Adept kills the ttyUSB).
 
 ---
 
@@ -136,8 +163,8 @@ python3 host/run_test.py --port /dev/ttyUSB1
 
 - `projects/components/converters/rtl/uart_to_axil4/` -- UART AXIL bridge
 - `projects/components/dmas/stream/rtl/top/stream_top_ch8.sv` -- STREAM DMA core
-- `projects/components/misc/rtl/axi4_slave_rd_pattern_gen.sv` -- source
-- `projects/components/misc/rtl/axi4_slave_wr_crc_check.sv` -- sink
+- `rtl/amba/shared/axi4_slave_rd_pattern_gen.sv` -- source
+- `rtl/amba/shared/axi4_slave_wr_crc_check.sv` -- sink
 - `rtl/amba/includes/reset_defs.svh` -- reset macros
 
 ---

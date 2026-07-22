@@ -216,7 +216,7 @@ def test_sram_controller(request, test_type, num_channels, fifo_depth, data_widt
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for SRAM controller tests - handles all test types."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_stream_fub': '../../../../rtl/stream_fub',
+        'rtl_stream_fub': '../../../../rtl/fub',
     })
 
     dut_name = "sram_controller"

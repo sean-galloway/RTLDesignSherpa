@@ -286,28 +286,24 @@ module axi_monitor_trans_mgr (
 				w_age_flat[i * AGEW+:AGEW] = r_age[i];
 		end
 	end
-	function automatic signed [AGEW - 1:0] sv2v_cast_D1065_signed;
-		input reg signed [AGEW - 1:0] inp;
-		sv2v_cast_D1065_signed = inp;
-	endfunction
 	function automatic [N - 1:0] pick_oldest;
 		input reg [N - 1:0] cand;
 		input reg [(N * AGEW) - 1:0] ages;
 		reg [N - 1:0] res;
-		reg found;
+		reg lose;
 		begin
-			res = 1'sb0;
-			found = 1'b0;
 			begin : sv2v_autoblock_2
-				reg signed [31:0] r;
-				for (r = 0; r < N; r = r + 1)
-					begin : sv2v_autoblock_3
-						reg signed [31:0] i;
-						for (i = 0; i < N; i = i + 1)
-							if ((!found && cand[i]) && (ages[i * AGEW+:AGEW] == sv2v_cast_D1065_signed(r))) begin
-								res[i] = 1'b1;
-								found = 1'b1;
-							end
+				reg signed [31:0] i;
+				for (i = 0; i < N; i = i + 1)
+					begin
+						lose = 1'b0;
+						begin : sv2v_autoblock_3
+							reg signed [31:0] j;
+							for (j = 0; j < N; j = j + 1)
+								if (((j != i) && cand[j]) && ((ages[j * AGEW+:AGEW] < ages[i * AGEW+:AGEW]) || ((ages[j * AGEW+:AGEW] == ages[i * AGEW+:AGEW]) && (j < i))))
+									lose = 1'b1;
+						end
+						res[i] = cand[i] && !lose;
 					end
 			end
 			pick_oldest = res;
@@ -375,8 +371,10 @@ module axi_monitor_trans_mgr (
 					w_addr_alloc_mirror_oh[i] = 1'b1;
 		end
 	end
-	reg [N - 1:0] w_data_cmd_bypass_oh;
 	wire [N - 1:0] addr_update_oh;
+	wire [N - 1:0] data_update_oh;
+	wire [N - 1:0] resp_update_oh;
+	reg [N - 1:0] w_data_cmd_bypass_oh;
 	always @(*) begin
 		if (_sv2v_0)
 			;
@@ -426,8 +424,6 @@ module axi_monitor_trans_mgr (
 			data_wants_alloc = ((data_valid && data_ready) && !IS_AXI) && !data_hit_any;
 		resp_wants_alloc = ((!IS_READ && resp_valid) && resp_ready) && !resp_hit_any;
 	end
-	wire [N - 1:0] data_update_oh;
-	wire [N - 1:0] resp_update_oh;
 	reg [N - 1:0] w_data_cand_open;
 	reg [N - 1:0] w_data_cand_any;
 	reg [N - 1:0] w_resp_cand_open;
@@ -480,6 +476,10 @@ module axi_monitor_trans_mgr (
 	reg [AGEW - 1:0] w_age_addr_new;
 	reg [AGEW - 1:0] w_age_data_new;
 	reg [AGEW - 1:0] w_age_resp_new;
+	function automatic signed [AGEW - 1:0] sv2v_cast_D1065_signed;
+		input reg signed [AGEW - 1:0] inp;
+		sv2v_cast_D1065_signed = inp;
+	endfunction
 	always @(*) begin : sv2v_autoblock_13
 		reg signed [31:0] surv;
 		if (_sv2v_0)

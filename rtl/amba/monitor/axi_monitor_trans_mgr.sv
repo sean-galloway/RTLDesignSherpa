@@ -274,19 +274,33 @@ module axi_monitor_trans_mgr
 
     // Pick the OLDEST (lowest-rank) slot from a candidate set.
     // Returns '0 when the candidate set is empty.
+    //
+    // PARALLEL min-rank select: slot i wins iff it is a candidate and no other
+    // candidate has a strictly lower age (index breaks the -- normally
+    // impossible, ranks are dense-unique among live entries -- tie, keeping
+    // the old scan order's lowest-index behavior bit-exact).
+    //
+    // The previous implementation scanned r x i with a `found` flag, which
+    // SERIALIZED N^2 iterations into one priority chain: at the board sizing
+    // (N=36) that synthesized to a 242-level, ~125 ns cone through r_age ->
+    // CAM CE -- unroutable at any target clock. Sim and formal (BMC at small
+    // N) were structurally blind to it; the first Genesys 2 synthesis caught
+    // it. Each res[i] below is an independent OR-reduce of pairwise
+    // comparators: O(N^2) area, O(log N) depth. Functionally identical.
     function automatic logic [N-1:0] pick_oldest(input logic [N-1:0] cand,
                                                  input logic [N*AGEW-1:0] ages);
         logic [N-1:0] res;
-        logic         found;
-        res   = '0;
-        found = 1'b0;
-        for (int r = 0; r < N; r++) begin
-            for (int i = 0; i < N; i++) begin
-                if (!found && cand[i] && (ages[i*AGEW +: AGEW] == AGEW'(r))) begin
-                    res[i] = 1'b1;
-                    found  = 1'b1;
+        logic         lose;
+        for (int i = 0; i < N; i++) begin
+            lose = 1'b0;
+            for (int j = 0; j < N; j++) begin
+                if (j != i && cand[j] &&
+                    ((ages[j*AGEW +: AGEW] <  ages[i*AGEW +: AGEW]) ||
+                     ((ages[j*AGEW +: AGEW] == ages[i*AGEW +: AGEW]) && (j < i)))) begin
+                    lose = 1'b1;
                 end
             end
+            res[i] = cand[i] && !lose;
         end
         return res;
     endfunction
