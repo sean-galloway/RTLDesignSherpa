@@ -427,7 +427,7 @@ module cdc_counter_display_top #(
 ### Related rtldesignsherpa Examples
 
 - `rtl/common/CLAUDE.md` - Common library guide
-- `docs/RTL_CDC.pdf` - CDC library reference book (rendered from `docs/markdown/`)
+- `docs/pdfs/RTL_CDC.pdf` - CDC library reference book (rendered from `docs/markdown/`)
 - `rtl/common/sync_pulse.sv` + `formal/common/sync_pulse/` - pulse synchronizer and its formal proofs
 
 ---

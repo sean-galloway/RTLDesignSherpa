@@ -66,9 +66,9 @@ Per-subsystem reference books; each renders to a PDF in this directory via
 
 | Book source | Rendered PDF |
 |---|---|
-| [markdown/RTLCommon/](markdown/RTLCommon/) | RTL_Common_Library.pdf, RTL_Math_Library.pdf |
-| [markdown/RTLAmba/](markdown/RTLAmba/) | RTL_AMBA_APB4/APB5/AXI4/AXI4_Lite/AXI4_Stream/AXI5/AXI5_Stream/Monitor/Shared .pdf |
-| [markdown/RTLAmba/cdc/](markdown/RTLAmba/cdc/) | RTL_CDC.pdf |
+| [markdown/RTLCommon/](markdown/RTLCommon/) | [RTL_Common_Library.pdf](pdfs/RTL_Common_Library.pdf), [RTL_Math_Library.pdf](pdfs/RTL_Math_Library.pdf) |
+| [markdown/RTLAmba/](markdown/RTLAmba/) | [RTL_AMBA_*.pdf](pdfs/) (APB4/APB5, AXI4, AXI4-Lite, AXI4/AXI5-Stream, AXI5, Monitor, Shared) |
+| [markdown/RTLAmba/cdc/](markdown/RTLAmba/cdc/) | [RTL_CDC.pdf](pdfs/RTL_CDC.pdf) |
 | [markdown/Scripts/](markdown/Scripts/) | tooling reference (assets in [Scripts/assets/](markdown/Scripts/assets/)) |
 | [markdown/TestTutorial/](markdown/TestTutorial/) | getting started with testing |
 
