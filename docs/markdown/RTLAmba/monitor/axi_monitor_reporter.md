@@ -104,10 +104,57 @@ The reporter dispatcher provides:
    downstream arbiter and the host can route packets back to their
    source.
 4. **Queuing** — buffers up to `INTR_FIFO_DEPTH` packets when the
-   downstream monbus is back-pressured.
+   downstream monbus is back-pressured. Note that this FIFO's fill level
+   has **no** path to the monitor's `block_ready` flow control — that is
+   driven purely by transaction-table occupancy.
 5. **Event acknowledge** — drives `event_reported_*` back to
    `axi_monitor_trans_mgr` so the transaction table can release its
    entry once the packet is in the FIFO.
+6. **Auto-retire** — releases terminal entries whose packet class cannot
+   report (see below), so disabled classes never leak table slots.
+
+---
+
+## Auto-Retire: Disabled Classes Never Leak Slots
+
+The transaction manager frees a terminal-state slot only once its
+`event_reported` flag is set, and the normal producer of that flag is an
+accepted FIFO write. A terminal entry whose reporting sub-block is
+**compiled out** (`ENABLE_*_LOGIC = 0`) or **runtime-disabled**
+(`cfg_*_enable = 0`) would therefore never be marked, never freed, and would
+permanently leak a table slot — before commit `95c9490a`, the documented
+"performance mode" (`ENABLE_COMPL_LOGIC=1` + `cfg_compl_enable=0`) leaked
+every completed entry until the table pinned and `block_ready` wedged the
+monitored bus after roughly `MAX_TRANSACTIONS` transactions.
+
+The reporter now **auto-retires** such entries. The semantics:
+
+- An entry in a terminal state (`TRANS_COMPLETE` / `TRANS_ERROR` /
+  `TRANS_ORPHANED`) whose claiming packet class is unavailable — compiled
+  out **or** runtime-disabled — is marked reported immediately, **without
+  emitting a packet and without bumping `event_count` or the perf
+  completion/error counters** (those count only packets actually emitted).
+- The class-to-entry mapping mirrors the reporter cones' claim predicates
+  exactly: `TRANS_COMPLETE` retires when the completion cone is
+  unavailable; `TRANS_ERROR` retires on the **timeout** cone's availability
+  when `timeout_detected` is set for that slot, else on the **error**
+  cone's; `TRANS_ORPHANED` retires on the error cone's. (A naive "both
+  cones unavailable" formula under-retires: with errors disabled but
+  timeouts enabled, a genuine-error slot is claimable by neither cone.)
+- The check is **continuous**, not edge-triggered: an entry that completed
+  while its class was enabled but whose packet lost the FIFO-full race is
+  still unmarked when the class is later disabled, and retires then.
+  Accepted, documented consequence: **toggling an enable mid-flight may
+  drop that one entry's packet — it can never leak the slot.**
+
+Runtime-disabling a packet class is therefore safe and makes the monitor
+passive for that class. If you want to keep marking and counting while
+suppressing emission, use the packet-type drop mask
+(`cfg_axi_pkt_mask` in [axi_monitor_filtered](./axi_monitor_filtered.md))
+downstream of the reporter instead.
+
+Directed tests: `val/amba/test_axi_monitor_runtime_disable.py` (fails on
+pre-`95c9490a` RTL) and `val/amba/test_axi_monitor_pktgen.py`.
 
 ---
 
@@ -200,7 +247,7 @@ Configuration is typically handled at the top-level monitor instantiation.
 | Metric | Value | Notes |
 |--------|-------|-------|
 | Latency | 1-2 cycles | Typical processing delay |
-| Throughput | 1 operation/cycle | Maximum rate |
+| Throughput | 1 packet per 2 cycles | The registered output stage cannot reload on the same cycle its packet is accepted, so sustained output is at most one packet every other cycle even with the FIFO full |
 | Resource Usage | Varies | Depends on configuration |
 
 ---
@@ -214,7 +261,8 @@ Configuration is typically handled at the top-level monitor instantiation.
 - Error handling and recovery
 - Interface protocol compliance
 
-**See:** `val/amba/test_axi_monitor_reporter.py` for verification tests
+**See:** `val/amba/test_axi_monitor_pktgen.py` and
+`val/amba/test_axi_monitor_runtime_disable.py` for verification tests
 
 ---
 
@@ -235,6 +283,6 @@ Configuration is typically handled at the top-level monitor instantiation.
 
 ## Navigation
 
-- **[← Back to Shared Infrastructure Index](./README.md)**
+- **[← Back to Shared Infrastructure Index](../_book_monitor_index.md)**
 - **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

@@ -199,5 +199,5 @@ Correct single-reporting depends on the top reporter driving `event_reported` an
 
 ## Navigation
 
-- [Back to Shared Infrastructure Index](README.md)
+- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
 - [Back to RTLAmba Index](../index.md)

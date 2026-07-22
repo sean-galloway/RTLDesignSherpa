@@ -203,7 +203,7 @@ The 3-bit state codes follow `transaction_state_t` (`TRANS_IDLE=0`, `ADDR_PHASE=
 ### Documentation
 - Packet format: `docs/markdown/RTLAmba/includes/monitor_package_spec.md`
 - Monitor base: `docs/markdown/RTLAmba/axi_monitor_base.md`
-- Configuration: `docs/AXI_Monitor_Configuration_Guide.md`
+- Configuration: `docs/guides/AXI_Monitor_Configuration_Guide.md`
 
 ---
 
@@ -213,5 +213,5 @@ The 3-bit state codes follow `transaction_state_t` (`TRANS_IDLE=0`, `ADDR_PHASE=
 
 ## Navigation
 
-- [Back to Shared Infrastructure Index](README.md)
+- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
 - [Back to RTLAmba Index](../index.md)

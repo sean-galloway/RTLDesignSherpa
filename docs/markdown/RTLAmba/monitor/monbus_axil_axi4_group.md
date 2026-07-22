@@ -333,5 +333,5 @@ The filter, FIFOs, burst writer, and drain live once in `monbus_group_core`; the
 
 ## Navigation
 
-- [Back to Shared Infrastructure Index](README.md)
+- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
 - [Back to RTLAmba Index](../index.md)

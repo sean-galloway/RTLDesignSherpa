@@ -24,7 +24,7 @@
 # AXI5 Slave Read Monitor with Clock Gating
 
 **Module:** `axi5_slave_rd_mon_cg.sv`
-**Location:** `rtl/amba/axi5/`
+**Location:** `rtl/amba/monitor/`
 **Status:** Production Ready
 
 ---
@@ -284,9 +284,9 @@ axi5_slave_rd_mon_cg #(
     .cfg_error_enable   (1'b1),
     .cfg_timeout_enable (1'b1),
     .cfg_perf_enable    (1'b0),
-    .cfg_timeout_cycles (16'd1000),
+    .cfg_timeout_cycles (16'd10),   // 10 timer ticks per phase (>15 saturates)
     .cfg_latency_threshold (32'd500),
-    .cfg_axi_pkt_mask   (16'h0007),
+    .cfg_axi_pkt_mask   (16'hFFF4),  // set bit = DROP; pass ERROR|COMPL|TIMEOUT
 
     // Monitor bus
     .monbus_valid       (mon_valid),
@@ -310,15 +310,15 @@ assign system_power_save = slave_rd_gating &&
                           slave_wr_gating;
 
 // Monitor packet handling
-gaxi_fifo_sync #(.DATA_WIDTH(64), .DEPTH(256)) u_mon_fifo (
-    .i_clk      (axi_clk),
-    .i_rst_n    (axi_rst_n),
-    .i_valid    (mon_valid),
-    .i_data     (mon_packet),
-    .o_ready    (mon_ready),
-    .o_valid    (fifo_valid),
-    .o_data     (fifo_data),
-    .i_ready    (consumer_ready)
+gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_mon_fifo (
+    .axi_aclk      (axi_clk),
+    .axi_aresetn    (axi_rst_n),
+    .wr_valid    (mon_valid),
+    .wr_data     (mon_packet),
+    .wr_ready    (mon_ready),
+    .rd_valid    (fifo_valid),
+    .rd_data     (fifo_data),
+    .rd_ready    (consumer_ready)
 );
 ```
 
@@ -354,7 +354,7 @@ gaxi_fifo_sync #(.DATA_WIDTH(64), .DEPTH(256)) u_mon_fifo (
 ```systemverilog
 .cfg_cg_enable      (1'b1),
 .cfg_cg_idle_count  (4'd4),   // Conservative gating
-.cfg_monitor_enable (1'b0),   // Disable completions
+.cfg_monitor_enable (1'b1),   // Master gate MUST stay 1 (0 disables ALL monitoring); disable completions via cfg_compl_enable
 .cfg_perf_enable    (1'b1)    // Enable performance metrics
 ```
 
@@ -378,6 +378,6 @@ gaxi_fifo_sync #(.DATA_WIDTH(64), .DEPTH(256)) u_mon_fifo (
 
 ## Navigation
 
-- **[← Back to AXI5 Index](README.md)**
+- **[← Back to AXI5 Index](../_book_monitor_index.md)**
 - **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

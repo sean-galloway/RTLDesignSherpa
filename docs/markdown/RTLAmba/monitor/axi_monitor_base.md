@@ -102,8 +102,11 @@ Each detection cone can be compiled out to save area. These gate the **logic**, 
 
 > **Removed:** the former `CAM_PIPELINE` / `TRANS_CAM_PIPELINE` parameters no longer
 > exist. The transaction CAM is now **always pipelined** (one extra cycle of
-> `active_count` latency), and `block_ready` carries a `MAX-3` margin so the
-> monitor never accepts past `MAX_TRANSACTIONS` despite the pipeline delay.
+> `active_count` latency). The `block_ready` margin is derived from
+> `monitor_common_pkg::cmd_entry_reserve()` — see
+> [Flow Control and the Saturation-Recovery Contract](#flow-control-and-the-saturation-recovery-contract).
+> Overshoot past `MAX_TRANSACTIONS` is structurally impossible regardless of the
+> margin: the CAM allocates from its exact combinational free vector.
 
 ---
 
@@ -187,9 +190,9 @@ are the lowest-priority source on the monitor bus (reporter > debug > addr_check
 | `monbus_ready` | Input | 1 | Monitor packet ready (from downstream) |
 | `monbus_packet` | Output | 128 | Standardized `monitor_packet_t` |
 | `monbus_timestamp` | Output | 64 | `monbus_timestamp_t` paired atomically with `monbus_packet` |
-| `block_ready` | Output | 1 | Flow control signal |
-| `busy` | Output | 1 | Monitor is busy indicator |
-| `active_count` | Output | 8 | Number of active transactions |
+| `block_ready` | Output | 1 | Flow control: 1 = upstream may proceed, 0 = transaction-table occupancy is at the blocking threshold. Derived from `active_count` vs `MAX_TRANSACTIONS`; the reporter's `INTR_FIFO_DEPTH` has **no** path to it. See [Flow Control and the Saturation-Recovery Contract](#flow-control-and-the-saturation-recovery-contract) |
+| `busy` | Output | 1 | Monitor is busy indicator (`active_count > 0`) |
+| `active_count` | Output | 8 | Number of live transaction-table entries (registered pop-count of CAM occupancy; lags true occupancy by 1 cycle) |
 
 The base module multiplexes three internal sources onto the monbus output —
 reporter packets (highest priority), debug packets, and addr_check error
@@ -253,6 +256,77 @@ The module coordinates four sub-components:
 2. **Timeout Monitor:** Detects stuck transactions
 3. **Performance Tracker:** Optional latency/throughput metrics
 4. **Reporter:** Generates standardized packets
+
+---
+
+## Flow Control and the Saturation-Recovery Contract
+
+This is the canonical statement of the monitor's flow-control behavior. The
+wrapper pages (`axi4_*_mon`, `axi5_*_mon`, `axil4_*_mon`) link here.
+
+`block_ready` is a positive-enable flow-control output: 1 = the upstream
+handshake may proceed, 0 = stall. It is driven **solely by transaction-table
+occupancy** (`active_count` vs `MAX_TRANSACTIONS`); the reporter's packet FIFO
+(`INTR_FIFO_DEPTH`) has no path to it. In the `*_mon` wrappers, `block_ready`
+is an internal net ANDed into the upstream-facing ready signal — it is **not**
+a port on the wrappers.
+
+The contract (single source of truth:
+`monitor_common_pkg::cmd_entry_reserve()` in
+`rtl/amba/includes/monitor_common_pkg.sv`):
+
+- **Command-entry cap.** The transaction manager caps command-originated
+  entries (allocated by AW/AR activity) at
+  `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)`. The reserve is 2
+  for `MAX_TRANSACTIONS >= 16` and 0 below. Orphan entries (data/response
+  beats with no matching command) may still use every slot commands are not
+  entitled to; orphans always drain via error reporting, so they cannot pin
+  occupancy.
+- **Reopen threshold strictly above the cap.** `block_ready` re-asserts at
+  `active_count < MAX_TRANSACTIONS - (cmd_entry_reserve - 1)`. Because this
+  threshold sits **strictly above** the command cap, a saturated table always
+  drains back below the reopen point: even if every command entry is
+  permanently in flight, occupancy cannot reach the threshold once the orphan
+  entries drain. Blocking therefore **throttles, never deadlocks**.
+- **Overshoot is impossible.** The CAM allocates from its exact combinational
+  free vector, so the table can never hold more than `MAX_TRANSACTIONS`
+  entries. A command that handshakes while the cap is reached is simply not
+  tracked (lossy-but-honest degrade), never stalled forever.
+- **Small tables trade recovery for capacity.** Tables with
+  `MAX_TRANSACTIONS < 16` get `cmd_entry_reserve = 0` and keep the full legacy
+  allocation (with the legacy flat margin of 3 on `block_ready`). Small tables
+  cannot spare slots — even one reserved slot at `MAX=8` measurably starves
+  oversubscribed same-ID tracking — so they give up the recovery guarantee in
+  exchange for full tracking capacity.
+
+Both `axi_monitor_trans_mgr` (the cap) and this module (the `block_ready`
+margin) derive their constants from the same package function, so the two
+cannot drift. The contract is enforced by in-RTL formal properties in
+`axi_monitor_trans_mgr.sv` (`ap_cmd_entry_cap`, `ap_no_reopened_complete`,
+mutation-checked) and by a 100-seed deliberately-undersized-table stream sweep
+(`test_stream_core_mon_backpressure` in the STREAM project area, plus
+`val/amba/test_axi_monitor_trans_mgr.py::phase_saturation_recovers`).
+
+History: before commit `cb29e226`, a stray non-last data beat could poison a
+terminal entry into an unclosable state, occupancy ratcheted to `MAX`, and the
+old flat `MAX-3` margin placed the reopen threshold exactly AT the saturation
+point — `block_ready` latched low forever and the monitored datapath wedged
+(the stream_core multi-channel hang). Commit `95c9490a` extended the fix to
+runtime-disabled packet classes (see the auto-retire notes in
+[axi_monitor_reporter](./axi_monitor_reporter.md)).
+
+**Sizing rule for shared masters:** a monitor watching a bus shared by
+multiple channels/requesters must size `MAX_TRANSACTIONS` to cover the SUM of
+outstanding transactions — `NUM_CHANNELS x per-channel outstanding`, plus
+margin (the orphan reserve and the 1-cycle `active_count` lag). Sizing to the
+per-channel limit alone makes the monitor throttle the shared master from two
+channels up; this exact mistake shipped in stream_core (fixed in `95c9490a`
+by making the monitor table parametric on channel count).
+
+**Verilator note:** transaction tables deeper than 64 require raising
+`--unroll-count` (default 64) in simulation builds, or the per-slot generate
+loops fail with BLKLOOPINIT errors. The stream sim builds use
+`--unroll-count 256`.
 
 ---
 
@@ -367,6 +441,12 @@ axi4_master_rd_mon #(...) u_mon (...);
 | AXI4 Slave (Burst) | 16-32 | Handle out-of-order responses |
 | AXI4-Lite Master | 4-8 | Single-beat, limited concurrency |
 | AXI4-Lite Slave | 4-8 | Simple protocol, fewer outstanding |
+| Shared master (multi-channel) | NUM_CHANNELS x per-channel outstanding + margin | Per-channel limit alone throttles the shared bus — see the sizing rule in [Flow Control and the Saturation-Recovery Contract](#flow-control-and-the-saturation-recovery-contract) |
+
+Tables of 16 or more slots reserve `cmd_entry_reserve(MAX) = 2` slots for
+orphan drain (the saturation-recovery guarantee); tables below 16 keep full
+legacy allocation. Tables deeper than 64 need `--unroll-count` raised above
+Verilator's default of 64 in sim builds.
 
 ### Timeout Configuration
 
@@ -386,7 +466,7 @@ axi4_master_rd_mon #(...) u_mon (...);
 | Metric | Value | Notes |
 |--------|-------|-------|
 | Latency | 2-3 cycles | Event detection to packet output |
-| Throughput | 1 packet/cycle | Maximum packet generation rate |
+| Throughput | 1 packet per 2 cycles | The reporter's registered output stage cannot load a new packet on the same cycle the previous one is accepted, so sustained rate is at most one packet every other cycle |
 | Table Lookup | 1 cycle | ID-based transaction lookup |
 | Resource Usage | ~500 LUTs | Depends on MAX_TRANSACTIONS |
 
@@ -437,6 +517,6 @@ axi4_master_rd_mon #(...) u_mon (...);
 
 ## Navigation
 
-- **[← Back to Shared Infrastructure Index](./README.md)**
+- **[← Back to Shared Infrastructure Index](../_book_monitor_index.md)**
 - **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

@@ -184,6 +184,6 @@ Configuration is typically handled at the top-level monitor instantiation.
 
 ## Navigation
 
-- **[← Back to Shared Infrastructure Index](./README.md)**
+- **[← Back to Shared Infrastructure Index](../_book_monitor_index.md)**
 - **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

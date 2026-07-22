@@ -370,15 +370,15 @@ gaxi_fifo_sync #(
     .DATA_WIDTH(64),
     .DEPTH(128)
 ) u_mon_fifo (
-    .i_clk(pclk),
-    .i_rst_n(presetn),
-    .i_valid(mon_valid),
-    .i_data(mon_packet),
-    .o_ready(mon_ready),
+    .axi_aclk(pclk),
+    .axi_aresetn(presetn),
+    .wr_valid(mon_valid),
+    .wr_data(mon_packet),
+    .wr_ready(mon_ready),
     // Connect to system monitor consumer
-    .o_valid(sys_mon_valid),
-    .o_data(sys_mon_data),
-    .i_ready(sys_mon_ready)
+    .rd_valid(sys_mon_valid),
+    .rd_data(sys_mon_data),
+    .rd_ready(sys_mon_ready)
 );
 ```
 
@@ -419,6 +419,6 @@ gaxi_fifo_sync #(
 
 ## Navigation
 
-- **[← Back to APB Index](README.md)** (if exists, otherwise remove this line)
+- **[← Back to APB Index](../_book_monitor_index.md)** (if exists, otherwise remove this line)
 - **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

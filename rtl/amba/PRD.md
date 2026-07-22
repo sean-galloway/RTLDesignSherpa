@@ -42,7 +42,7 @@ The AMBA subsystem provides comprehensive protocol infrastructure for AXI4, AXI4
 - **Protocols:** AXI4, AXI4-Lite, APB, AXI-Stream
 - **Test Coverage:** ~95% functional
 - **Status:** Active development, production-ready monitors
-- **Known Issues:** 1 test configuration issue (non-RTL)
+- **Known Issues:** see Section 7.2 (two open items: STREAM 8ch engine wedge, non-monitor; axil4 TB drain race, framework)
 
 ### 1.2 Subsystem Goals
 
@@ -61,12 +61,12 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 
 - **[Overview](../../docs/markdown/RTLAmba/overview.md)** - AMBA subsystem architecture
 - **[Index](../../docs/markdown/RTLAmba/index.md)** - Complete module listing
-- **AXI4 Modules:** `docs/markdown/RTLAmba/axi/`
-  - [AXI4 Master Read](../../docs/markdown/RTLAmba/axi/axi4_master_rd.md)
+- **AXI4 Modules:** `docs/markdown/RTLAmba/axi4/` (monitor wrappers in `docs/markdown/RTLAmba/monitor/`)
+  - [AXI4 Master Read](../../docs/markdown/RTLAmba/axi4/axi4_master_rd.md)
   - Additional AXI4 module docs
 - **APB Modules:** `docs/markdown/RTLAmba/apb/`
-- **AXIS Modules:** `docs/markdown/RTLAmba/fabric/`
-  - [AXIS Master](../../docs/markdown/RTLAmba/fabric/axis_master.md)
+- **AXIS Modules:** `docs/markdown/RTLAmba/axis4/` and `axis5/`
+  - [AXIS Master](../../docs/markdown/RTLAmba/axis4/axis_master.md)
 - **Monitor Package:** `docs/markdown/RTLAmba/includes/`
   - [Monitor Package Spec](../../docs/markdown/RTLAmba/includes/monitor_package_spec.md)
 
@@ -79,11 +79,11 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 ### 🐛 Known Issues
 **Location:** `rtl/amba/KNOWN_ISSUES/`
 
-- **[AXI Monitor Reporter](KNOWN_ISSUES/axi_monitor_reporter.md)** - Transaction table bug (FIXED)
+- **[Known Issues Index](KNOWN_ISSUES/README.md)** - includes the FIXED transaction-table, saturation-wedge, and runtime-disable-leak issues
 - Additional issue documentation as discovered
 
 ### 📖 Guides and References
-- **[Configuration Guide](../../docs/AXI_Monitor_Configuration_Guide.md)** - Monitor setup best practices
+- **[Configuration Guide](../../docs/guides/AXI_Monitor_Configuration_Guide.md)** - Monitor setup best practices
 - **[README](README.md)** - Quick start and integration guide
 - **[CLAUDE](CLAUDE.md)** - AI assistance guide for this subsystem
 
@@ -102,11 +102,12 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 - ID-based transaction tracking
 - Error detection (SLVERR, DECERR, timeouts, orphans)
 
-**Documentation:** See `docs/markdown/RTLAmba/axi/`
+**Documentation:** See `docs/markdown/RTLAmba/axi4/` and `docs/markdown/RTLAmba/monitor/`
 
 ### 3.2 AXI4-Lite Protocol
 **Status:** ✅ Complete
-**Modules:** Same base with `IS_AXI=0` parameter
+**Modules:** Dedicated `axil4_*_mon.sv` wrappers (share `axi_monitor_base`,
+instantiated with `IS_AXI=0`; not the AXI4 wrappers re-parameterized)
 
 **Features:**
 - Single-beat transactions only
@@ -136,7 +137,7 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 - TKEEP/TSTRB support
 - TLAST boundary detection
 
-**Documentation:** See `docs/markdown/RTLAmba/fabric/`
+**Documentation:** See `docs/markdown/RTLAmba/axis4/`
 
 ---
 
@@ -146,7 +147,9 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 
 ```
 AMBA Monitor Subsystem
-├── Shared protocol-agnostic core  (rtl/amba/shared/, 48 modules)
+├── Monitor + monbus core  (rtl/amba/monitor/, 54 modules --
+│   │                       monitor core, monbus infrastructure, monbus
+│   │                       arbiters, and ALL protocol *_mon wrappers)
 │   │
 │   ├── Monitor core (13)
 │   │   ├── axi_monitor_base.sv             (Top-level scaffold)
@@ -165,7 +168,7 @@ AMBA Monitor Subsystem
 │   │   ├── axi_monitor_reporter_timeout.sv    (Timeout)
 │   │   └── monitor_trans_cam.sv            (CAM lookup for trans_mgr)
 │   │
-│   ├── Observation / performance (3)
+│   ├── Observation / performance (3)  [in rtl/amba/shared/]
 │   │   ├── axi4_dma_observer.sv            (DMA observability wrapper;
 │   │   │                                    AW->W AWID order tracker;
 │   │   │                                    per-port latency histograms)
@@ -191,20 +194,21 @@ AMBA Monitor Subsystem
 │   │   ├── arbiter_rr_pwm_monbus.sv
 │   │   └── arbiter_wrr_pwm_monbus.sv
 │   │
-│   ├── CDC (4)
+│   ├── CDC (4)  [in rtl/amba/cdc/]
 │   │   ├── cdc_2_phase_handshake.sv
 │   │   ├── cdc_4_phase_handshake.sv
 │   │   ├── cdc_open_loop.sv
 │   │   └── cdc_synchronizer.sv
 │   │
-│   ├── Storage helpers (5)  [not on the monitor path; for harnesses]
+│   ├── Storage helpers (5)  [in rtl/amba/shared/; not on the monitor path]
 │   │   ├── sdpram_core.sv                  (Shared FUB-shaped core)
 │   │   ├── sdpram_slave_axi4_axi4.sv
 │   │   ├── sdpram_slave_axi4_axil.sv
 │   │   ├── sdpram_slave_axil_axi4.sv
 │   │   └── sdpram_slave_axil_axil.sv
 │   │
-│   └── Test / utility helpers
+│   └── Test / utility helpers  [in rtl/amba/shared/, except
+│       │                        apb_monitor_addr_check.sv in monitor/]
 │       ├── axi4_dma_slaves.sv              (Bundled slave wrapper for DMA TB)
 │       ├── axi4_slave_rd_pattern_gen.sv    (Pattern source)
 │       ├── axi4_slave_wr_crc_check.sv      (CRC sink)
@@ -215,20 +219,23 @@ AMBA Monitor Subsystem
 │       ├── amba_clock_gate_ctrl.sv
 │       └── apb_monitor_addr_check.sv
 │
-├── AXI4 Monitors (rtl/amba/axi4/, 16 files)
+├── AXI4 Monitors (rtl/amba/monitor/, 8 files)
 │   ├── axi4_master_rd_mon.sv  / _cg.sv     (Master read + clock-gated)
 │   ├── axi4_master_wr_mon.sv  / _cg.sv
 │   ├── axi4_slave_rd_mon.sv   / _cg.sv
-│   ├── axi4_slave_wr_mon.sv   / _cg.sv
-│   └── axi4_{master,slave}_{rd,wr}.sv      (non-monitor base wrappers)
+│   └── axi4_slave_wr_mon.sv   / _cg.sv
+│       (the non-monitor axi4_{master,slave}_{rd,wr}.sv base wrappers
+│        stay in rtl/amba/axi4/)
 │
-├── AXI4-Lite Monitors (rtl/amba/axil4/, 16 files)
+├── AXI4-Lite Monitors (rtl/amba/monitor/, 8 files)
 │   └── axil4_*_mon.sv (+ _cg)              Dedicated wrappers --
 │                                           NOT axi4_*_mon with IS_AXI=0.
 │                                           Share axi_monitor_base + packet
 │                                           format with AXI4 monitors.
+│                                           (bases in rtl/amba/axil4/)
 │
-├── AXI5 / APB / APB5 / AXI-Stream (rtl/amba/axi5/, apb/, apb5/, axis*/)
+├── AXI5 / APB / APB5 monitors (rtl/amba/monitor/) over bases in
+│   rtl/amba/axi5/, apb/, apb5/; AXI-Stream in rtl/amba/axis*/
 │
 └── (Removed/superseded)
     ├── mon_temp/ legacy trans_mgr           Deleted in d246a72d
@@ -248,20 +255,31 @@ AMBA Monitor Subsystem
 | `665057f9` | Runtime `cfg_compress_en` on monbus groups |
 | `2554219b` | Synchronous CAM-clear config bit (`CTRL[4]`) |
 | `d246a72d` | Deleted legacy `mon_temp/` `trans_mgr` + equivalence test |
+| `cb29e226` | Saturation-recovery contract: command-entry cap + strict `block_ready` reopen margin (`monitor_common_pkg::cmd_entry_reserve`), stray non-last-beat absorption, timeout coverage holes closed; formal made discriminating |
+| `95c9490a` | Runtime-disable auto-retire (reporter), same-cycle AW+W bypass (trans_mgr), wrapper API wired live (`cfg_monitor_enable` master gate, `cfg_timeout_cycles`, `ACTIVE_TRANS_THRESHOLD`, `error_count`/`transaction_count`), AXI5 W-channel wiring fixed |
 | `b514d8cd` / `1c016603` / `fd2d4f29` | Monbus group sources via shared `monbus_group.f` filelist (stream / rapids / bridge) |
 
 **See:** `docs/markdown/RTLAmba/overview.md` for detailed architecture, and `rtl/amba/PRD/RFCs/RFC-perfmon-window-buckets.md` for the windowed-perfmon design.
 
 ### 4.2 Monitor Bus Protocol
 
-All monitors output standardized 64-bit packets:
-- **[63:60]** Packet type (error, completion, timeout, performance, debug)
-- **[59:57]** Protocol identifier (AXI/APB/AXIS)
-- **[56:53]** Event code
-- **[52:47]** Channel ID
-- **[46:43]** Unit ID
-- **[42:35]** Agent ID
-- **[34:0]** Event-specific data
+All monitors output the standardized 128-bit `monitor_packet_t`
+(`monitor_common_pkg.sv`), paired with a 64-bit side-band timestamp
+(`monbus_timestamp_t`) sampled at emission time:
+
+- **[127:124]** Packet type (error, completion, threshold, timeout, perf,
+  perfwin, perfhist, debug, ...)
+- **[123:109]** Reserved (15 bits, forward-compat slack)
+- **[108:105]** Protocol identifier (AXI/AXIS/APB/ARB/CORE)
+- **[104:97]** Event code (8 bits, protocol-specific)
+- **[96:88]** Channel ID (9 bits; AXI ID or channel index)
+- **[87:72]** Agent ID (16 bits)
+- **[71:64]** Unit ID (8 bits)
+- **[63:0]** Event-specific data (64 bits; full 64-bit address, latency,
+  counter value, etc.)
+
+Neither width is a per-module parameter: `MONBUS_PKT_WIDTH = 128` and
+`MONBUS_TS_WIDTH = 64` are locked in `monitor_common_pkg`.
 
 **See:** `docs/markdown/RTLAmba/includes/monitor_package_spec.md`
 
@@ -411,18 +429,23 @@ Before submitting any test:
 
 ### 7.1 Current Status
 
-**AXI Monitor Comprehensive Tests:** 6/8 passing (75%)
+**val/amba regression (as of `95c9490a`):** 679 passed / 0 failed.
+Monitor formal: 10/10 proof directories PASS (in-RTL properties,
+mutation-checked).
 
 | Test Scenario | Status | Notes |
 |---------------|--------|-------|
-| Basic Transactions | ✅ PASS | 5/5 completions |
-| Burst Transactions | ✅ PASS | 6/6 completions |
-| Outstanding Transactions | ✅ PASS | 7/7 concurrent |
-| ID Reordering | ✅ PASS | 4/4 out-of-order |
+| Basic Transactions | ✅ PASS | Completions tracked |
+| Burst Transactions | ✅ PASS | Beat counting |
+| Outstanding Transactions | ✅ PASS | Concurrent + same-ID slots |
+| ID Reordering | ✅ PASS | Oldest-first attribution |
 | Backpressure | ✅ PASS | Handshake stalls |
-| Timeout Detection | ✅ PASS | 3 timeouts detected |
-| Error Responses | ⚠️ FAIL | Test config issue (non-RTL) |
-| Orphan Detection | ⚠️ FAIL | Test config issue (non-RTL) |
+| Timeout Detection | ✅ PASS | Incl. cmd-accepted / first-beat-missing |
+| Error Responses | ✅ PASS | |
+| Orphan Detection | ✅ PASS | |
+| Saturation recovery | ✅ PASS | `test_axi_monitor_trans_mgr.py` + 100-seed undersized stream sweep |
+| Runtime-disable / auto-retire | ✅ PASS | `test_axi_monitor_runtime_disable.py` |
+| Same-cycle AW+W | ✅ PASS | `test_axi_monitor_wr_same_cycle.py` |
 
 **Verification Location:** `val/amba/`
 
@@ -442,15 +465,41 @@ Before submitting any test:
 - **Description:** Missing event_reported feedback between reporter and trans_mgr
 - **Impact:** Transactions never cleaned up, monitor stopped after MAX_TRANSACTIONS
 - **Fix:** Added feedback wire, verified in TASK-001
-- **Documentation:** `KNOWN_ISSUES/axi_monitor_reporter.md`
+- **Documentation:** `KNOWN_ISSUES/README.md` (Issue #0, event_reported feedback)
+
+**✅ Multi-channel saturation wedge (FIXED, `cb29e226`)**
+- Stray non-last data beats poisoned terminal entries into an unclosable
+  state; occupancy pinned at MAX and the flat `block_ready` margin placed
+  the reopen threshold exactly at the fill point — permanent stall of the
+  monitored datapath. Fixed by the saturation-recovery contract
+  (`monitor_common_pkg::cmd_entry_reserve`).
+- **Documentation:** `KNOWN_ISSUES/axi_monitor_blockready_hang_partial_channels.md`
+
+**✅ Runtime-disable slot leak / dead wrapper API / same-cycle AW+W /
+AXI5 W wiring (FIXED, `95c9490a`)**
+- Runtime-disabled packet classes now auto-retire terminal entries;
+  `cfg_monitor_enable`, `cfg_timeout_cycles`, `ACTIVE_TRANS_THRESHOLD`,
+  `error_count`/`transaction_count` are live on all 12 wrappers; write
+  monitors capture AW+W presented in the same cycle; AXI5 write monitors
+  use the AWID/2'b00 W-channel convention.
+
+**✅ active_count underflow (FIXED)**
+- The alloc-minus-cleanup accumulator could underflow to 0xFF under legal
+  AXI (found by SymbiYosys); replaced with a registered pop-count of CAM
+  occupancy. See `KNOWN_ISSUES/axi_monitor_active_count_underflow.md`.
 
 ### 7.2 Open Issues
 
-**⚠️ Test Configuration Issues (Non-RTL)**
-- **Description:** Error response and orphan tests expect different packet types
-- **Impact:** 2/8 tests failing, but RTL functionality correct
-- **Priority:** P2 (test adjustment needed)
-- **Workaround:** RTL works correctly, tests need configuration fix
+**⚠️ 8-channel STREAM engine wedge (non-monitor)**
+- A residual hang in the 8-channel stream-engine stress family
+  (params 7/9/11 of the multi-channel sweep) persists after the monitor
+  fixes — the mechanism is in the DMA engine side, not the monitor path.
+  Tracked in the STREAM project area.
+
+**⚠️ axil4 monitor TB drain-window race (framework, non-RTL)**
+- The 8 axil4 monitor suites shared a drain-window race with the trans_mgr
+  suite; seeds are pinned as an interim workaround (`95c9490a`). The
+  proper settle-poll fix belongs in the RDS-DV (CocoTBFramework) repo.
 
 **See:** `KNOWN_ISSUES/` for detailed issue tracking
 
@@ -484,12 +533,14 @@ axi4_master_rd_mon #(
     .axi_rready         (m_axi_rready),
     .axi_rlast          (m_axi_rlast),
 
-    // Monitor Bus Output
-    .monbus_pkt_valid   (mon_pkt_valid),
-    .monbus_pkt_ready   (mon_pkt_ready),
-    .monbus_pkt_data    (mon_pkt_data),
+    // Monitor Bus Output (128-bit packet + 64-bit side-band timestamp)
+    .monbus_valid       (mon_valid),
+    .monbus_ready       (mon_ready),
+    .monbus_packet      (mon_packet),
+    .monbus_timestamp   (mon_timestamp),
 
     // Configuration
+    .cfg_monitor_enable (1'b1),   // master gate: 0 = monitor inert
     .cfg_error_enable   (1'b1),
     .cfg_compl_enable   (1'b1),
     .cfg_timeout_enable (1'b1)
@@ -500,7 +551,8 @@ axi4_master_rd_mon #(
 
 ### 8.2 Configuration Best Practices
 
-**⚠️ IMPORTANT:** Do not enable all packet types simultaneously!
+**⚠️ IMPORTANT:** Avoid enabling all packet types simultaneously — the
+monitor bus sustains at most one packet per two cycles and will congest.
 
 **Mode 1: Functional Debug (Recommended)**
 ```systemverilog
@@ -513,12 +565,20 @@ cfg_perf_enable     = 0  // Disable to avoid congestion
 **Mode 2: Performance Analysis**
 ```systemverilog
 cfg_error_enable    = 1
-cfg_compl_enable    = 0  // Disable to reduce traffic
+cfg_compl_enable    = 0  // Runtime-disable: safe since 95c9490a
 cfg_timeout_enable  = 0
 cfg_perf_enable     = 1
 ```
 
-**See:** `docs/AXI_Monitor_Configuration_Guide.md` for detailed configuration strategies
+Runtime-disabling a class is safe: since `95c9490a` the reporter
+auto-retires terminal entries of disabled classes (no packet, no counter
+bump), so the table cannot leak and `block_ready` cannot wedge. Before
+that commit Mode 2 wedged the monitored bus after ~MAX_TRANSACTIONS
+transactions. To keep counting while suppressing emission, use
+`cfg_axi_pkt_mask` (drop mask in `axi_monitor_filtered`) instead of the
+runtime disable.
+
+**See:** `docs/guides/AXI_Monitor_Configuration_Guide.md` for detailed configuration strategies
 
 ---
 
@@ -539,15 +599,16 @@ cfg_perf_enable     = 1
 
 ### 9.2 Roadmap
 
-**Near-Term (Q4 2025):**
-- Fix test configuration issues (2 failing tests)
-- Complete performance characterization
-- Integration examples and guides
+**Completed since the original roadmap:**
+- Test configuration issues fixed (val/amba fully green)
+- Address filtering (`N_ADDR_RANGES` range checker) and AXI5 wrappers landed
+- Formal property checking landed (in-RTL properties, mutation-checked,
+  10/10 proof directories)
 
-**Long-Term (2026+):**
-- Address/ID filtering features
-- AXI5 protocol extensions
-- Formal property checking
+**Remaining:**
+- Complete performance characterization (perfmon RFC Stages C/D/F)
+- Integration examples and guides
+- Root-cause the non-monitor 8-channel STREAM engine wedge (see 7.2)
 
 ---
 
@@ -615,7 +676,7 @@ cfg_perf_enable     = 1
 | `rtl/amba/PRD/TASKS.md` | Current work items |
 | `rtl/amba/KNOWN_ISSUES/` | Bug tracking |
 | `docs/markdown/RTLAmba/` | **Detailed RTL documentation** |
-| `docs/AXI_Monitor_Configuration_Guide.md` | Configuration best practices |
+| `docs/guides/AXI_Monitor_Configuration_Guide.md` | Configuration best practices |
 
 ### 12.2 Commands
 
@@ -666,7 +727,7 @@ cat docs/markdown/RTLAmba/index.md
 
 - **Detailed RTL Specs:** `docs/markdown/RTLAmba/` ← **Primary technical reference**
 - **Test Framework:** `docs/markdown/TBClasses/amba/`
-- **Configuration:** `docs/AXI_Monitor_Configuration_Guide.md`
+- **Configuration:** `docs/guides/AXI_Monitor_Configuration_Guide.md`
 - **Validation Report:** `docs/RAPIDS_Validation_Status_Report.md`
 - **Master PRD:** `/PRD.md`
 - **Repository Guide:** `/CLAUDE.md`

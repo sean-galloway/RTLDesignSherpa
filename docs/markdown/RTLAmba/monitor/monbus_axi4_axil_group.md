@@ -271,5 +271,5 @@ The error-drain path is byte-for-byte the same as the AXI4/AXI4 group — the re
 
 ## Navigation
 
-- [Back to Shared Infrastructure Index](README.md)
+- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
 - [Back to RTLAmba Index](../index.md)

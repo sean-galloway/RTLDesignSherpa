@@ -195,5 +195,5 @@ Because `pkt_event_code` comes from the slot's `event_code.raw_code`, this cone 
 
 ## Navigation
 
-- [Back to Shared Infrastructure Index](README.md)
+- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
 - [Back to RTLAmba Index](../index.md)

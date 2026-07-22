@@ -317,6 +317,6 @@ streams. A standalone FIFO on the addr_check output is normally not needed.
 
 ## Navigation
 
-- **[← Back to Shared Infrastructure Index](./README.md)**
+- **[← Back to Shared Infrastructure Index](../_book_monitor_index.md)**
 - **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

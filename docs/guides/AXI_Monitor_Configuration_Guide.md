@@ -56,12 +56,24 @@ cfg_debug_enable      = 0  // Disable unless doing deep debug
 **Configuration:**
 ```systemverilog
 cfg_error_enable      = 1  // Still track errors
-cfg_compl_enable      = 0  // ⚠️ DISABLE to reduce congestion
+cfg_compl_enable      = 0  // DISABLE to reduce congestion (safe: see note)
 cfg_timeout_enable    = 0  // Disable unless needed
 cfg_threshold_enable  = 1  // Monitor latency thresholds
 cfg_perf_enable       = 1  // Enable performance packets
 cfg_debug_enable      = 0  // Disable unless needed
 ```
+
+**Runtime-disable note (important history):** this mode runtime-disables
+completions while the completion cone is compiled in
+(`ENABLE_COMPL_LOGIC=1`). Since commit `95c9490a` this is safe: terminal
+transaction-table entries of a disabled class **auto-retire** — released
+without emitting a packet or bumping counters — so the table cannot leak.
+Before that commit this exact configuration leaked every completed entry
+and wedged `block_ready` (and with it the monitored bus) after roughly
+`MAX_TRANSACTIONS` transactions. If you need the lifetime completion
+counters (`transaction_count`) to keep advancing while suppressing the
+packets, use the `cfg_axi_pkt_mask` drop mask in `axi_monitor_filtered`
+instead of `cfg_compl_enable=0`.
 
 **Use Cases:**
 - Performance benchmarking
@@ -69,9 +81,9 @@ cfg_debug_enable      = 0  // Disable unless needed
 - Throughput analysis
 - System optimization
 
-**Expected Packet Rate:** High (multiple packets per transaction)
-
-**⚠️ Warning:** Performance packets can generate 5-10x more traffic than completion packets!
+**Expected Packet Rate:** Low (periodic count rollups; the perf sub-block
+emits a completed-count and an error-count packet paced by output-path
+idleness, not per transaction)
 
 ---
 
@@ -104,29 +116,42 @@ cfg_debug_mask        = 0xFF  // All events
 
 ## Monitor Bus Congestion: Why It Happens
 
-### Problem: Performance Packets Overwhelm Completions
+### The Reporter's Priority Order and Bandwidth Limit
 
-The monitor uses a **priority-based packet arbiter**:
+The reporter (`axi_monitor_reporter`) emits packets with a fixed priority:
 
 ```
 Priority Order (highest to lowest):
-1. Error packets
-2. Timeout packets
-3. Completion packets    ← Can be starved!
-4. Threshold packets
-5. Performance packets   ← Generated continuously
+1. Error packets       ─┐
+2. Timeout packets      ├─ via the reporter FIFO
+3. Completion packets  ─┘
+4. Threshold packets   ─┐
+5. Performance packets  ├─ bypass sources; emit only when the
+6. Debug packets       ─┘  FIFO path is idle
 ```
 
-**Performance packets** are generated:
-- Every N cycles (based on `cfg_freq_sel`)
-- For each active transaction
-- On latency threshold crossings
+Two consequences:
 
-With 8 concurrent transactions and `cfg_freq_sel=1` (every 50 cycles):
-- **Performance mode:** 8 packets / 50 cycles = **160 packets/1000 cycles**
-- **Completion mode:** 8 packets total = **8 packets/1000 cycles**
+- **The bus sustains at most 1 packet per 2 cycles** (the registered
+  output stage cannot reload on the same cycle its packet is accepted).
+  A completion per transaction plus errors already approaches this under
+  back-to-back single-beat traffic — anything more congests.
+- **Completions cannot be starved by perf packets** — it is the other way
+  around: threshold/perf/debug packets emit only when the FIFO path
+  (error/timeout/completion) is idle, so under continuous completion
+  traffic the perf rollups may be delayed indefinitely. Disabling
+  completions in performance mode exists to give the perf/threshold
+  bypass sources bus access, and to cut total packet volume.
 
-**Result:** Performance packets can generate **20x more traffic**, starving completion packets!
+**Performance packets** are periodic count rollups (a completed-count
+packet and an error-count packet from `axi_monitor_reporter_perf`), paced
+by a small FSM that only advances while the output path is idle — they are
+not per-transaction.
+
+Congestion does not leak transaction-table slots: an entry whose packet
+loses the FIFO race is retried until it reports (or auto-retires if its
+class is disabled). The failure mode is delayed/dropped telemetry, not a
+stalled bus.
 
 ---
 
@@ -188,11 +213,9 @@ axi_slave_monitor.cfg_error_enable = 1;
 cfg_latency_threshold = 1000;
 cfg_threshold_enable = 1;
 
-// Only report SLVERR and DECERR (not orphans or protocol errors)
-cfg_error_mask = 2'b11;  // Mask specific error types
-
-// Reduce performance packet rate
-cfg_freq_sel = 4;  // Report every 200 cycles instead of 50
+// Drop selected error event codes (16-bit drop mask indexed by
+// event_code[3:0]; a set bit DROPS that event)
+cfg_axi_error_mask = 16'h000C;  // drop orphans (codes 2,3), keep SLVERR/DECERR (0,1)
 ```
 
 **Benefits:**
@@ -202,21 +225,16 @@ cfg_freq_sel = 4;  // Report every 200 cycles instead of 50
 
 ---
 
-### Strategy 4: Frequency Reduction
+### Strategy 4: Timer Scaling (`cfg_freq_sel`)
 
-**Reduce performance packet generation frequency:**
-
-```systemverilog
-cfg_freq_sel value | Packet period | Packets/sec (100 MHz)
--------------------|---------------|---------------------
-       0           |   10 cycles   |  10M packets/sec
-       1           |   50 cycles   |   2M packets/sec
-       2           |  100 cycles   |   1M packets/sec
-       3           |  200 cycles   | 500K packets/sec
-       4           |  500 cycles   | 200K packets/sec
-```
-
-**Rule of thumb:** Set `cfg_freq_sel` so performance packets are generated **slower than transaction completion rate**.
+`cfg_freq_sel` selects the tick period of the frequency-invariant timer
+(`axi_monitor_timer` / `counter_freq_invariant`, 16 entries spanning the
+configured 5-220 MHz range by default). It scales the **timeout phase
+counters** (`cfg_addr/data/resp_cnt`, and the wrappers' unified
+`cfg_timeout_cycles`) so timeout thresholds stay consistent across clock
+frequencies. It does **not** pace performance-packet emission — the perf
+rollup FSM paces itself off output-path idleness. The wrappers tie
+`cfg_freq_sel = 4'b0001` internally.
 
 ---
 
@@ -287,24 +305,31 @@ cfg_debug_enable = 1;
 ### ❌ Mistake 2: Ignore Packet Priority
 
 ```systemverilog
-// Expecting completion packets with perf enabled
+// Expecting timely perf rollups with completions enabled
 cfg_compl_enable = 1;
-cfg_perf_enable = 1;  // This will starve completions!
+cfg_perf_enable = 1;  // Perf is a bypass source — completions starve IT
 ```
 
-**Problem:** Completion packets never arrive, tests fail incorrectly
+**Problem:** The FIFO path (error/timeout/completion) always outranks the
+threshold/perf/debug bypass sources, so under continuous completion
+traffic the perf rollup packets may be delayed indefinitely — and total
+volume presses against the 1-packet-per-2-cycles ceiling.
 
 ---
 
-### ❌ Mistake 3: Wrong Frequency Selection
+### ❌ Mistake 3: Undersizing MAX_TRANSACTIONS on a Shared Master
 
 ```systemverilog
-// Generating performance packets too fast
-cfg_perf_enable = 1;
-cfg_freq_sel = 0;  // Every 10 cycles - TOO FAST!
+// Monitor on a bus shared by 8 channels, sized to ONE channel's limit
+MAX_TRANSACTIONS = 16  // per-channel outstanding, x8 channels in flight!
 ```
 
-**Problem:** 100K+ packets per transaction, simulation slowdown
+**Problem:** The monitor's `block_ready` throttles the shared master from
+two channels up. Size `MAX_TRANSACTIONS` to `NUM_CHANNELS x per-channel
+outstanding + margin` (this exact mistake shipped in stream_core; fixed in
+`95c9490a`). Note tables of 16+ reserve 2 slots for the
+saturation-recovery guarantee, and tables deeper than 64 need Verilator's
+`--unroll-count` raised in sim builds.
 
 ---
 
@@ -316,7 +341,11 @@ cfg_freq_sel = 0;  // Every 10 cycles - TOO FAST!
 | **Performance** | ✅ | ❌ | ❌ | ✅ | ✅ | Optimization |
 | **Production** | ✅ | ❌ | ✅ | ⚠️ | ❌ | Chip operation |
 
-**Key Takeaway:** Never enable completions and performance simultaneously in production tests!
+**Key Takeaway:** Avoid enabling completions and performance
+simultaneously under heavy traffic — the bus sustains at most one packet
+per two cycles, and the completion stream starves the perf rollups.
+(Runtime-disabling either class is safe since `95c9490a`: disabled classes
+auto-retire their table entries and cannot wedge the bus.)
 
 ---
 

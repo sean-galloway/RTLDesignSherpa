@@ -223,5 +223,5 @@ The 16 × 32-bit latency registers plus 16 threshold flags are the reason disabl
 
 ## Navigation
 
-- [Back to Shared Infrastructure Index](README.md)
+- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
 - [Back to RTLAmba Index](../index.md)

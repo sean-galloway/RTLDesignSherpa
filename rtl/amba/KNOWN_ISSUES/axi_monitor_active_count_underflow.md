@@ -51,7 +51,9 @@ end
 ```
 
 It is structurally bounded to `[0, N]`, cannot underflow, and lags occupancy by a
-single cycle (which `block_ready`'s `BLOCK_MARGIN=3` absorbs).  An intermediate
+single cycle (absorbed by `block_ready`'s margin — since `cb29e226` derived from
+`monitor_common_pkg::cmd_entry_reserve()`: reserve-1 = 1 for tables of 16+, legacy
+flat 3 below).  An intermediate
 saturate-at-0 attempt made `ap_count_bounded` pass but a formal accuracy probe
 showed the count still drifted (under-reported), so the pop-count derivation was
 adopted.  Verified: all 12 monitor formal proofs pass, and the

@@ -887,10 +887,12 @@ axi_monitor_base → Unfiltered packets
 - Total: ~550 LUTs, ~430 FFs per monitor
 
 **Packet Generation Rate:**
+- Reporter output ceiling: 1 packet per 2 cycles (registered output stage)
 - Completion packets: 1 per transaction
 - Error packets: As needed (protocol violations)
-- Timeout packets: Low frequency (cfg_freq_sel dependent)
-- Performance packets: 1 per N transactions (configurable)
+- Timeout packets: Low frequency (cfg_freq_sel-scaled phase timers)
+- Performance packets: periodic count rollups (completed/error counts),
+  emitted only when the error/timeout/completion path is idle
 
 ### CDC Latency
 

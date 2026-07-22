@@ -319,5 +319,5 @@ The `g_drain_2to1` path exists for 32-bit host crossbars. It is a careful 2:1 se
 
 ## Navigation
 
-- [Back to Shared Infrastructure Index](README.md)
+- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
 - [Back to RTLAmba Index](../index.md)

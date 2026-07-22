@@ -491,5 +491,5 @@ Use shared timer unless monitors operate at different frequencies or in differen
 
 - [Back to axi_monitor_base](axi_monitor_base.md)
 - [Previous: axi_monitor_timeout](axi_monitor_timeout.md)
-- [Back to Shared Infrastructure Index](README.md)
+- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
 - [Back to RTLAmba Index](../index.md)

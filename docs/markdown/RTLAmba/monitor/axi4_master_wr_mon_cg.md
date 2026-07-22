@@ -25,7 +25,7 @@
 
 **Module:** `axi4_master_wr_mon_cg.sv`
 **Base Module:** [axi4_master_wr_mon](./axi4_master_wr_mon.md)
-**Location:** `rtl/amba/axi4/`
+**Location:** `rtl/amba/monitor/`
 **Status:** ✅ Production Ready
 
 ---
@@ -114,6 +114,6 @@ axi4_master_wr_mon_cg #(
 
 ## Navigation
 
-- **[← Back to AXI4 Index](./README.md)**
+- **[← Back to AXI4 Index](../_book_monitor_index.md)**
 - **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

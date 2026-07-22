@@ -24,7 +24,7 @@
 # AXI5 Slave Read Monitor
 
 **Module:** `axi5_slave_rd_mon.sv`
-**Location:** `rtl/amba/axi5/`
+**Location:** `rtl/amba/monitor/`
 **Status:** Production Ready
 
 ---
@@ -120,6 +120,7 @@ flowchart TB
 | UNIT_ID | int | 1 | Monitoring unit identifier |
 | AGENT_ID | int | 12 | Agent identifier |
 | MAX_TRANSACTIONS | int | 16 | Transaction table size |
+| ACTIVE_TRANS_THRESHOLD | int | MAX_TRANSACTIONS/2 | Active-transaction count that trips a threshold packet when cfg_threshold_enable=1. Replaces the former hardwired 8/4; threshold packets now scale with the table sizing |
 | ENABLE_FILTERING | bit | 1 | Enable packet filtering |
 | ADD_PIPELINE_STAGE | bit | 0 | Add pipeline stage for timing |
 | USE_MONITOR | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
@@ -137,13 +138,16 @@ flowchart TB
 
 ## Monitor Backpressure (block_ready)
 
-The monitor exposes a `block_ready` signal that goes low when its internal FIFO is saturated and cannot accept a new in-flight transaction. The wrapper ANDs `block_ready` into the upstream-facing `s_axi_arready` so a saturated monitor stalls new transactions on the wire instead of dropping events.
+`block_ready` is an internal flow-control net inside the wrapper -- it is not a port. It goes low when the monitor's transaction-table occupancy reaches its blocking threshold (a function of `MAX_TRANSACTIONS`; the reporter FIFO depth `INTR_FIFO_DEPTH` has no path to it). The wrapper ANDs it into the upstream-facing `s_axi_arready` so a saturated monitor throttles new transactions at the handshake instead of dropping events.
 
 - **Where the stall lands**: the upstream `s_axi_arready` is forced low until the monitor drains.
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
+- **When `cfg_monitor_enable=0`**: the wrapper gate forces the upstream ready open, so a runtime-disabled monitor can never stall the datapath (in-RTL formal property `ap_disabled_never_stalls`).
 - **For axi5 slave variants**: the monitor watches the FUB-side handshake, so there is a `SKID_DEPTH_AR` cycle lag between block_ready going low and new events ceasing. `MAX_TRANSACTIONS` should be sized to cover this margin.
 
-`block_ready` must be connected: when the monitor FIFO fills, it backpressures the monitored channel rather than silently dropping events. Leaving it unconnected loses events with no indication.
+Recovery is guaranteed by the **saturation-recovery contract**: command-originated table entries are capped at `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)` (reserve = 2 for tables of 16 or more, 0 below; the function lives in `monitor_common_pkg`), and `block_ready` re-asserts at occupancy `< MAX_TRANSACTIONS - (reserve - 1)` -- a threshold strictly ABOVE the command cap -- so a saturated table always drains back below the reopen point. Blocking throttles; it never deadlocks. Tables smaller than 16 keep full legacy allocation (small tables cannot spare slots) and trade the recovery guarantee for tracking capacity. The contract is verified by in-RTL formal properties (mutation-checked) and a 100-seed deliberately-undersized-table stream sweep; see [axi_monitor_base](axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) for the canonical description.
+
+Sizing note: a monitor on a bus shared by several channels/requesters must size `MAX_TRANSACTIONS` to cover `NUM_CHANNELS x per-channel outstanding` plus margin -- the per-channel limit alone makes the monitor throttle the shared master. Tables deeper than 64 also need Verilator's `--unroll-count` raised (default 64) in sim builds.
 
 ---
 
@@ -193,7 +197,7 @@ Same as `axi5_slave_rd` - see [AXI5 Slave Read](../axi5/axi5_slave_rd.md) for co
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
-| cfg_monitor_enable | 1 | Input | Enable completion packets |
+| cfg_monitor_enable | 1 | Input | Master runtime gate. 0 = monitor inert: no allocation, transaction CAM held clear, and the upstream ready is never stalled (a disabled monitor cannot block the datapath). 1 = normal operation |
 | cam_clear | 1 | Input | Synchronous clear of the monitor transaction CAM (driven from the harness clear control bit, e.g. CTRL[4]) |
 | cfg_error_enable | 1 | Input | Enable error packets |
 | cfg_timeout_enable | 1 | Input | Enable timeout packets |
@@ -201,7 +205,7 @@ Same as `axi5_slave_rd` - see [AXI5 Slave Read](../axi5/axi5_slave_rd.md) for co
 | cfg_compl_enable | 1 | Input | Enable transaction-completion packets |
 | cfg_threshold_enable | 1 | Input | Enable threshold-crossed packets |
 | cfg_debug_enable | 1 | Input | Enable debug/trace packets (gates the debug cone — the 6th reporter sub-block) |
-| cfg_timeout_cycles | 16 | Input | Timeout threshold (cycles) |
+| cfg_timeout_cycles | 16 | Input | Unified coarse timeout control: 0 = legacy full-scale (15 ticks), 1-15 = that many timer ticks per phase, >15 saturates at 15. One value drives all three phase counts (addr/data/resp), measured in `cfg_freq_sel`-scaled timer ticks, not raw clock cycles |
 | cfg_latency_threshold | 32 | Input | High latency threshold (cycles) |
 | cfg_axi_pkt_mask | 16 | Input | Packet type filter mask |
 | cfg_axi_err_select | 16 | Input | Error selection mask |
@@ -213,7 +217,7 @@ Same as `axi5_slave_rd` - see [AXI5 Slave Read](../axi5/axi5_slave_rd.md) for co
 | cfg_axi_addr_mask | 16 | Input | Address event filter |
 | cfg_axi_debug_mask | 16 | Input | Debug event filter |
 
-> **Detection-cone enables:** `cfg_compl_enable`, `cfg_threshold_enable`, and `cfg_debug_enable` turn on the completion, threshold, and debug reporter sub-blocks respectively. `cfg_debug_enable` gates the **debug cone** — the 6th reporter sub-block (`axi_monitor_reporter_debug`). In this wrapper the debug module's `cfg_debug_level` (4), `cfg_debug_mask` (16), and `cfg_active_trans_threshold` (16) inputs are tied to their defaults (`4'h0` / `16'h0` / `16'd8`) and are not exposed as wrapper ports.
+> **Detection-cone enables:** `cfg_compl_enable`, `cfg_threshold_enable`, and `cfg_debug_enable` turn on the completion, threshold, and debug reporter sub-blocks respectively. `cfg_debug_enable` gates the **debug cone** — the 6th reporter sub-block (`axi_monitor_reporter_debug`). In this wrapper the debug module's `cfg_debug_level` (4) and `cfg_debug_mask` (16) inputs are tied to `4'h0` / `16'h0`; `cfg_active_trans_threshold` is driven from the `ACTIVE_TRANS_THRESHOLD` parameter (default `MAX_TRANSACTIONS/2`). None are wrapper ports.
 
 ### Monitor Bus Output
 
@@ -231,8 +235,8 @@ Same as `axi5_slave_rd` - see [AXI5 Slave Read](../axi5/axi5_slave_rd.md) for co
 |------|-------|-----------|-------------|
 | busy | 1 | Output | Module busy indicator |
 | active_transactions | 8 | Output | Current outstanding transactions |
-| error_count | 16 | Output | Total errors detected |
-| transaction_count | 32 | Output | Total transactions completed |
+| error_count | 16 | Output | Lifetime count of error+timeout packets actually emitted (reporter perf counter; reads 0 when `ENABLE_PERF_LOGIC=0` or `USE_MONITOR=0`) |
+| transaction_count | 32 | Output | Lifetime count of completion packets actually emitted (zero-extended 16-bit reporter perf counter; reads 0 when `ENABLE_PERF_LOGIC=0` or `USE_MONITOR=0`) |
 | cfg_conflict_error | 1 | Output | Configuration conflict detected |
 
 ---
@@ -362,18 +366,20 @@ Bits [63:0]    - Event Data (64 bits — full address, latency, etc.)
 
 #### Functional Verification Mode
 ```systemverilog
-.cfg_monitor_enable     (1'b1),  // Track completions
+.cfg_monitor_enable     (1'b1),  // Master gate: monitor active
 .cfg_error_enable       (1'b1),  // Catch errors
+.cfg_compl_enable       (1'b1),  // Track completions
 .cfg_timeout_enable     (1'b1),  // Detect stalls
 .cfg_perf_enable        (1'b0),  // Disable (reduces traffic)
-.cfg_timeout_cycles     (16'd1000),
+.cfg_timeout_cycles     (16'd10),   // 10 timer ticks per phase (>15 saturates)
 .cfg_latency_threshold  (32'd500)
 ```
 
 #### Performance Analysis Mode
 ```systemverilog
-.cfg_monitor_enable     (1'b0),  // Disable completions
+.cfg_monitor_enable     (1'b1),  // Master gate MUST stay 1 (0 disables ALL monitoring, perf included)
 .cfg_error_enable       (1'b1),  // Still catch errors
+.cfg_compl_enable       (1'b0),  // Runtime-disable completions (safe: terminal entries auto-retire)
 .cfg_timeout_enable     (1'b0),  // Disable
 .cfg_perf_enable        (1'b1),  // Enable performance metrics
 .cfg_latency_threshold  (32'd100)
@@ -381,24 +387,25 @@ Bits [63:0]    - Event Data (64 bits — full address, latency, etc.)
 
 #### Debug Mode
 ```systemverilog
-.cfg_monitor_enable     (1'b1),  // Track all transactions
+.cfg_monitor_enable     (1'b1),  // Master gate: monitor active
 .cfg_error_enable       (1'b1),  // All errors
 .cfg_timeout_enable     (1'b1),  // All timeouts
 .cfg_perf_enable        (1'b0),  // Disable perf (too much data)
-.cfg_axi_pkt_mask       (16'hFFFF)  // All packet types
+.cfg_axi_pkt_mask       (16'h0000)  // Drop nothing (a set bit DROPS that type)
 ```
 
 ### Filter Masks
 
-**cfg_axi_pkt_mask bits:**
+**cfg_axi_pkt_mask bits (a set bit DROPS that packet type):**
 - [0]: Error packets
 - [1]: Completion packets
-- [2]: Timeout packets
-- [3]: Threshold packets
+- [2]: Threshold packets
+- [3]: Timeout packets
 - [4]: Performance packets
-- [15:5]: Reserved
+- [8]: Address-match packets
+- [15]: Debug packets
 
-**Example:** `cfg_axi_pkt_mask = 16'h0007` enables error, completion, and timeout packets only.
+**Example:** `cfg_axi_pkt_mask = 16'hFFF4` passes error, completion, and timeout packets only (all other types dropped).
 
 ---
 
@@ -440,9 +447,9 @@ axi5_slave_rd_mon #(
     .cfg_error_enable   (1'b1),
     .cfg_timeout_enable (1'b1),
     .cfg_perf_enable    (1'b0),
-    .cfg_timeout_cycles (16'd1000),
+    .cfg_timeout_cycles (16'd10),   // 10 timer ticks/phase
     .cfg_latency_threshold (32'd500),
-    .cfg_axi_pkt_mask   (16'h0007),
+    .cfg_axi_pkt_mask   (16'hFFF4),  // set bit = DROP; pass ERROR|COMPL|TIMEOUT
 
     // Monitor bus (connect to FIFO or consumer)
     .monbus_valid       (mon_valid),
@@ -458,15 +465,15 @@ axi5_slave_rd_mon #(
 );
 
 // Downstream packet handling
-gaxi_fifo_sync #(.DATA_WIDTH(64), .DEPTH(256)) u_mon_fifo (
-    .i_clk      (axi_clk),
-    .i_rst_n    (axi_rst_n),
-    .i_valid    (mon_valid),
-    .i_data     (mon_packet),
-    .o_ready    (mon_ready),
-    .o_valid    (fifo_valid),
-    .o_data     (fifo_data),
-    .i_ready    (consumer_ready)
+gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_mon_fifo (
+    .axi_aclk      (axi_clk),
+    .axi_aresetn    (axi_rst_n),
+    .wr_valid    (mon_valid),
+    .wr_data     (mon_packet),
+    .wr_ready    (mon_ready),
+    .rd_valid    (fifo_valid),
+    .rd_data     (fifo_data),
+    .rd_ready    (consumer_ready)
 );
 ```
 
@@ -495,6 +502,6 @@ gaxi_fifo_sync #(.DATA_WIDTH(64), .DEPTH(256)) u_mon_fifo (
 
 ## Navigation
 
-- **[← Back to AXI5 Index](README.md)**
+- **[← Back to AXI5 Index](../_book_monitor_index.md)**
 - **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

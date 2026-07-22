@@ -25,7 +25,7 @@
 
 **Module:** `axi4_master_rd_mon_cg.sv`
 **Base Module:** [axi4_master_rd_mon](./axi4_master_rd_mon.md)
-**Location:** `rtl/amba/axi4/`
+**Location:** `rtl/amba/monitor/`
 **Status:** ✅ Production Ready
 
 ---

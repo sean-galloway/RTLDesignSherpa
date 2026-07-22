@@ -186,5 +186,5 @@ The strict first-match encoder emits at most one completion per cycle. Simultane
 
 ## Navigation
 
-- [Back to Shared Infrastructure Index](README.md)
+- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
 - [Back to RTLAmba Index](../index.md)

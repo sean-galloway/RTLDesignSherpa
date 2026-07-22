@@ -95,7 +95,49 @@ flowchart TB
     cmp --> evt["Timeout Event"]
 ```
 
-Each transaction has 3 independent timeout counters for different phases.
+Each transaction has 3 independent timeout counters for different phases. The
+timers are dedicated per-slot state owned by this module (`r_addr_timer` /
+`r_data_timer` / `r_resp_timer`, 8-bit each); the rest of the transaction
+record is read live off `trans_table`. Timers count `timer_tick` events (from
+the frequency-invariant timer, scaled by `cfg_freq_sel`) while their phase is
+pending, and fire at `timer >= cfg_addr_cnt / cfg_data_cnt / cfg_resp_cnt`.
+
+---
+
+## Detection Semantics
+
+The per-phase "still waiting" conditions, read straight off the live table:
+
+| Phase | Condition |
+|---|---|
+| Address | `valid && state == TRANS_ADDR_PHASE && !cmd_received` (command issued, not yet accepted) |
+| Data | `valid && state in {TRANS_ADDR_PHASE, TRANS_DATA_PHASE} && cmd_received && !data_completed` |
+| Response | write monitors only: `valid && state == TRANS_DATA_PHASE && data_completed && !resp_received` |
+
+Notable, deliberate properties:
+
+- **"Command accepted, first beat never arrives" is detectable.** The data
+  condition intentionally does NOT require `data_started`. With that term (the
+  pre-`cb29e226` behavior) this stall class could never fire: the entry sat in
+  `TRANS_ADDR_PHASE` forever, pinned its table slot, and enough of them held
+  `block_ready` low permanently. A transaction whose command just handshook
+  gets the full `cfg_data_cnt` window for its first beat, same as every later
+  beat.
+- **Runtime disable flushes state.** When `cfg_timeout_enable` is 0, all
+  timers and detection flags are cleared, not merely masked. A stale
+  detection computed against old timer state can therefore never resurface
+  the instant the enable comes back (enforced by the `ap_no_set_without_tick`
+  formal property). Disable means inert.
+- **Detection is sticky until the slot retires** — the flag is held through
+  `TRANS_ERROR` on purpose (that is the state a detected timeout puts the
+  transaction into, and the reporter uses this vector to split timeout
+  packets from genuine-error packets); it clears when the slot empties or
+  reaches `TRANS_COMPLETE`.
+- **This module cannot modify the table.** It exports `timeout_detected` per
+  slot; `axi_monitor_trans_mgr` consumes that vector (its
+  `i_timeout_detected` input) and moves the entry to `TRANS_ERROR` with
+  `EVT_CMD_TIMEOUT` / `EVT_DATA_TIMEOUT` / `EVT_RESP_TIMEOUT` so it becomes
+  cleanup-eligible.
 
 ---
 
@@ -138,7 +180,8 @@ Configuration is typically handled at the top-level monitor instantiation.
 - Error handling and recovery
 - Interface protocol compliance
 
-**See:** `val/amba/test_axi_monitor_timeout.py` for verification tests
+**See:** `val/amba/test_axi_monitor_trans_mgr.py` (timeout-to-terminal
+transitions) and the `*_mon` wrapper suites for verification tests
 
 ---
 
@@ -158,6 +201,6 @@ Configuration is typically handled at the top-level monitor instantiation.
 
 ## Navigation
 
-- **[← Back to Shared Infrastructure Index](./README.md)**
+- **[← Back to Shared Infrastructure Index](../_book_monitor_index.md)**
 - **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

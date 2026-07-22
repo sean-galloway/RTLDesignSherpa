@@ -361,5 +361,5 @@ The burst is always sized so its last byte stays at or below `cfg_limit_addr` an
 
 ## Navigation
 
-- [Back to Shared Infrastructure Index](README.md)
+- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
 - [Back to RTLAmba Index](../index.md)

@@ -238,5 +238,5 @@ Program `cfg_addr_range_low[i] == cfg_addr_range_high[i]` to turn a range into a
 
 ## Navigation
 
-- [Back to Shared Infrastructure Index](README.md)
+- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
 - [Back to RTLAmba Index](../index.md)

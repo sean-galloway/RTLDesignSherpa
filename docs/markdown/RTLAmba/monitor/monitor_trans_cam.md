@@ -57,7 +57,9 @@ The module is intentionally distinct from [`monbus_cam`](monbus_cam.md):
 
 - 3 independent ID lookup ports per cycle (`addr` / `data` / `resp`)
 - One-hot match vectors (`*_match_oh`) plus a lowest-index "first" variant
-  for AXI4-write WID-less matching
+  (`data_match_first_oh`; provided by the CAM but left unconnected by the
+  current `axi_monitor_trans_mgr`, which resolves multi-match cases itself,
+  oldest-first)
 - Free-slot vector (`free_oh`) and priority-encoded **3-way mutex alloc**
   (`addr_alloc_oh` / `data_alloc_oh` / `resp_alloc_oh`)
 - Per-slot write port (one-hot enable, separate next-state inputs per slot)
@@ -205,16 +207,21 @@ small cone.
 ## The "First-Match" Variant
 
 For **AXI4 writes**, the data channel has no WID. The trans_mgr matches an
-arriving W beat to the first outstanding write transaction by state predicate
+arriving W beat to an outstanding write transaction by state predicate
 (`valid && state ∈ {ADDR_PHASE, DATA_PHASE} && cmd_received && !data_completed`),
 NOT by id. That state predicate is computed *outside* the CAM (it requires
-fields the CAM doesn't see, like `state` and `cmd_received`).
+fields the CAM doesn't see, like `state` and `cmd_received`), and — because
+several entries can satisfy it — is resolved to the **oldest** candidate via
+the trans_mgr's rank-based `pick_oldest()` selector, matching AXI4's
+write-data ordering rule.
 
-The CAM still helps by providing `data_match_first_oh`, which is the
-lowest-index bit of `data_match_oh` (the id-based match). For AXI4 reads
-(WID present, id match works), the trans_mgr uses `data_match_oh` directly;
-for AXI4 writes, the trans_mgr computes its own first-match-by-state vector
-locally and ignores the CAM's. The two paths share the rest of the CAM
+The CAM also provides `data_match_first_oh`, the lowest-index bit of
+`data_match_oh` (the id-based match). The current `axi_monitor_trans_mgr`
+leaves this output **unconnected**: lowest-index is not issue order once
+slots are recycled, so for reads the trans_mgr feeds the raw `data_match_oh`
+candidates through `pick_oldest()` instead, and for writes it uses its own
+state-predicate vector as above. The port remains for callers that need a
+deterministic lowest-index pick. The two paths share the rest of the CAM
 machinery (free, alloc, write port) so the cost is minimal.
 
 ---
@@ -247,9 +254,9 @@ if resp_wants_alloc:
 
 The three outputs are guaranteed to be disjoint (mutex assertion enforces
 this in simulation). If `wants_alloc` is asserted with no free slot, the
-corresponding `*_alloc_oh` is `'0` — the caller's wants_alloc signals are
-typically gated by free-slot availability anyway, but the CAM doesn't
-require that.
+corresponding `*_alloc_oh` is `'0` — the caller need not gate its
+wants_alloc requests on free-slot availability (the trans_mgr gates them on
+match suppression and its command-entry cap instead).
 
 Priority order is `addr → data → resp`. AXI4 writes can have all three
 firing in the same cycle on a tight pipeline, and the order matches the

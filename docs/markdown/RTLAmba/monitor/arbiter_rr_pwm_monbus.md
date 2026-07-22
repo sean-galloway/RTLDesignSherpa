@@ -323,5 +323,5 @@ See arbiter_monbus_common.md for complete monitoring details. Key points:
 
 ## Navigation
 
-- [Back to Shared Infrastructure Index](README.md)
+- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
 - [Back to RTLAmba Index](../index.md)

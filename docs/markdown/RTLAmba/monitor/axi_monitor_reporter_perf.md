@@ -111,7 +111,9 @@ Performance analysis of an AXI interface needs a periodic summary of how many tr
 
 ### Lifetime Counters
 
-Two 16-bit registers, `r_completed_count` and `r_error_count`, accumulate over the life of the monitor. On every clock, the block scans the `error_marked_mask` and `compl_marked_mask` inputs across all `MAX_TRANSACTIONS` slots and increments the relevant counter for each asserted bit. Because the counters advance directly from the mark masks (not from `pkt_taken`), they track every event the top reporter accepted regardless of whether a rollup packet is emitted. Both counters are exposed on the port list for status read-back.
+Two 16-bit registers, `r_completed_count` and `r_error_count`, accumulate over the life of the monitor. On every clock, the block scans the `error_marked_mask` and `compl_marked_mask` inputs across all `MAX_TRANSACTIONS` slots and increments the relevant counter for each asserted bit. Because the counters advance directly from the mark masks (not from `pkt_taken`), they track every event the top reporter accepted into its FIFO regardless of whether a rollup packet is emitted. Entries **auto-retired** because their packet class is disabled do NOT feed the mark masks, so these counters count packets actually emitted, not transactions observed. Timeout packets roll up into `r_error_count` (timeout slots sit in `TRANS_ERROR`).
+
+Both counters are exposed on the port list for status read-back, and — since commit `95c9490a` — are plumbed through `axi_monitor_base` and `axi_monitor_filtered` to drive every `*_mon` wrapper's `error_count` / `transaction_count` status outputs (which read 0 when `ENABLE_PERF_LOGIC=0` or `USE_MONITOR=0`).
 
 ### Cycle FSM
 
@@ -169,9 +171,14 @@ axi_monitor_reporter_perf #(
 
 ## Design Notes
 
-### Never Enable Completion + Performance Packets Together
+### Completion + Performance Packets: Bandwidth, and the Two Ways to Suppress
 
-This is the single most important integration caveat for the monitor family. Enabling both completion packets (`cfg_compl_enable`) and performance packets (`cfg_perf_enable`) simultaneously overwhelms the monitor bus and causes packet congestion. Use separate monitor configurations: a functional-debug config (error + completion + timeout) and a performance config (error + perf, with completions disabled). See `docs/AXI_Monitor_Configuration_Guide.md`.
+Enabling both completion packets (`cfg_compl_enable`) and performance packets (`cfg_perf_enable`) simultaneously can congest the monitor bus under heavy traffic (the reporter sustains at most one packet per two cycles). The usual split is a functional-debug config (error + completion + timeout) and a performance config (error + perf, completions suppressed). There are two suppression mechanisms with different semantics:
+
+- **Runtime disable** (`cfg_compl_enable = 0` with `ENABLE_COMPL_LOGIC = 1`): the monitor is passive for that class. Since commit `95c9490a` this is **safe** — terminal entries of a disabled class auto-retire (are marked reported without emitting a packet and without bumping this block's counters), so the transaction table never leaks and `block_ready` never wedges. Before that commit this exact configuration leaked every completed entry and stalled the monitored bus after roughly `MAX_TRANSACTIONS` transactions. See the auto-retire section in [axi_monitor_reporter](axi_monitor_reporter.md).
+- **Packet-type drop mask** (`cfg_axi_pkt_mask` in [axi_monitor_filtered](axi_monitor_filtered.md)): completions are still detected, marked, and **counted** (this block's `perf_completed_count` keeps advancing, and the wrapper's `transaction_count` output stays live); only the emission is dropped downstream of the reporter. Use this when you want the lifetime counters while suppressing the packet stream.
+
+See `docs/guides/AXI_Monitor_Configuration_Guide.md`.
 
 ### `pkt_taken` Is Currently Observational
 
@@ -214,7 +221,7 @@ Both counters are 16-bit and wrap on overflow. For very long runs the host shoul
 ### Documentation
 - Architecture: `docs/markdown/RTLAmba/shared/README.md`
 - Monitor Base: `docs/markdown/RTLAmba/axi_monitor_base.md`
-- Configuration: `docs/AXI_Monitor_Configuration_Guide.md`
+- Configuration: `docs/guides/AXI_Monitor_Configuration_Guide.md`
 - Packet Format: `docs/markdown/RTLAmba/includes/monitor_package_spec.md`
 
 ---
@@ -225,5 +232,5 @@ Both counters are 16-bit and wrap on overflow. For very long runs the host shoul
 
 ## Navigation
 
-- [Back to Shared Infrastructure Index](README.md)
+- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
 - [Back to RTLAmba Index](../index.md)

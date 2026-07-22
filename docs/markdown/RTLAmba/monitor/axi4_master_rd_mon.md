@@ -24,7 +24,7 @@
 # AXI4 Master Read Monitor
 
 **Module:** `axi4_master_rd_mon.sv`
-**Location:** `rtl/amba/axi4/`
+**Location:** `rtl/amba/monitor/`
 **Status:** ✅ Production Ready
 
 ---
@@ -100,9 +100,10 @@ The module instantiates two sub-modules:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `UNIT_ID` | int | 1 | 4-bit unit identifier in monitor packets |
-| `AGENT_ID` | int | 10 | 8-bit agent identifier in monitor packets |
+| `UNIT_ID` | logic [7:0] | 8'h01 | 8-bit unit identifier in monitor packets |
+| `AGENT_ID` | logic [15:0] | 16'h000A | 16-bit agent identifier in monitor packets |
 | `MAX_TRANSACTIONS` | int | 16 | Maximum concurrent outstanding transactions |
+| `ACTIVE_TRANS_THRESHOLD` | int | MAX_TRANSACTIONS/2 | Active-transaction count that trips a threshold packet when `cfg_threshold_enable=1`. Replaces the former hardwired 8/4; threshold packets now scale with the table sizing |
 | `ENABLE_FILTERING` | bit | 1 | Enable packet filtering (0=pass all packets) |
 | `ADD_PIPELINE_STAGE` | bit | 0 | Add register stage for timing closure |
 | `USE_MONITOR` | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
@@ -129,12 +130,15 @@ The transaction CAM is always pipelined.
 
 ## Monitor Backpressure (block_ready)
 
-The monitor exposes a `block_ready` signal that goes low when its internal FIFO is saturated and cannot accept a new in-flight transaction. The wrapper ANDs `block_ready` into the upstream-facing `fub_axi_arready` so a saturated monitor stalls new transactions on the wire instead of dropping events.
+`block_ready` is an internal flow-control net inside the wrapper -- it is not a port. It goes low when the monitor's transaction-table occupancy reaches its blocking threshold (a function of `MAX_TRANSACTIONS`; the reporter FIFO depth `INTR_FIFO_DEPTH` has no path to it). The wrapper ANDs it into the upstream-facing `fub_axi_arready` so a saturated monitor throttles new transactions at the handshake instead of dropping events.
 
 - **Where the stall lands**: the upstream `fub_axi_arready` is forced low until the monitor drains.
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
+- **When `cfg_monitor_enable=0`**: the wrapper gate forces the upstream ready open, so a runtime-disabled monitor can never stall the datapath (in-RTL formal property `ap_disabled_never_stalls`).
 
-`block_ready` must be connected: when the monitor FIFO fills, it backpressures the monitored channel rather than silently dropping events. Leaving it unconnected loses events with no indication.
+Recovery is guaranteed by the **saturation-recovery contract**: command-originated table entries are capped at `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)` (reserve = 2 for tables of 16 or more, 0 below; the function lives in `monitor_common_pkg`), and `block_ready` re-asserts at occupancy `< MAX_TRANSACTIONS - (reserve - 1)` -- a threshold strictly ABOVE the command cap -- so a saturated table always drains back below the reopen point. Blocking throttles; it never deadlocks. Tables smaller than 16 keep full legacy allocation (small tables cannot spare slots) and trade the recovery guarantee for tracking capacity. The contract is verified by in-RTL formal properties (mutation-checked) and a 100-seed deliberately-undersized-table stream sweep; see [axi_monitor_base](axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) for the canonical description.
+
+Sizing note: a monitor on a bus shared by several channels/requesters must size `MAX_TRANSACTIONS` to cover `NUM_CHANNELS x per-channel outstanding` plus margin -- the per-channel limit alone makes the monitor throttle the shared master. Tables deeper than 64 also need Verilator's `--unroll-count` raised (default 64) in sim builds.
 
 ---
 
@@ -245,7 +249,7 @@ When `USE_MONITOR = 0`, every perfmon output is tied to 0 and the window never o
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `cfg_monitor_enable` | Input | 1 | Master enable for all monitoring |
+| `cfg_monitor_enable` | Input | 1 | Master runtime gate. 0 = monitor inert: no allocation, transaction CAM held clear, and the upstream ready is never stalled (a disabled monitor cannot block the datapath). 1 = normal operation |
 | `cam_clear` | Input | 1 | Synchronous clear of the monitor transaction CAM (driven from the harness clear control bit, e.g. CTRL[4]) |
 | `cfg_error_enable` | Input | 1 | Enable error packet generation |
 | `cfg_timeout_enable` | Input | 1 | Enable timeout detection |
@@ -253,10 +257,10 @@ When `USE_MONITOR = 0`, every perfmon output is tied to 0 and the window never o
 | `cfg_compl_enable` | Input | 1 | Enable transaction-completion packets |
 | `cfg_threshold_enable` | Input | 1 | Enable threshold-crossed packets |
 | `cfg_debug_enable` | Input | 1 | Enable debug/trace packets (gates the debug cone — the 6th reporter sub-block) |
-| `cfg_timeout_cycles` | Input | 16 | Timeout threshold in clock cycles |
+| `cfg_timeout_cycles` | Input | 16 | Unified coarse timeout control: 0 = legacy full-scale (15 ticks), 1-15 = that many timer ticks per phase, >15 saturates at 15. One value drives all three phase counts (addr/data/resp), measured in `cfg_freq_sel`-scaled timer ticks, not raw clock cycles |
 | `cfg_latency_threshold` | Input | 32 | Latency threshold for alerts |
 
-> The inner monitor's `cfg_debug_level` (tied to 0), `cfg_debug_mask` (0) and `cfg_active_trans_threshold` (8) are fixed inside the wrapper and are **not** top-level ports on this module. `cfg_debug_enable` is the only debug-cone control exposed here.
+> The inner monitor's `cfg_debug_level` (tied to 0) and `cfg_debug_mask` (0) are fixed inside the wrapper; `cfg_active_trans_threshold` is driven from the `ACTIVE_TRANS_THRESHOLD` parameter (default `MAX_TRANSACTIONS/2`). `cfg_debug_enable` is the only debug-cone control exposed here.
 
 **Filtering Configuration (3 Levels):**
 
@@ -295,8 +299,8 @@ When `USE_MONITOR = 0`, every perfmon output is tied to 0 and the window never o
 |------|-----------|-------|-------------|
 | `busy` | Output | 1 | Indicates active transactions (for clock gating) |
 | `active_transactions` | Output | 8 | Current number of outstanding transactions |
-| `error_count` | Output | 16 | Cumulative error count |
-| `transaction_count` | Output | 32 | Total transaction count |
+| `error_count` | Output | 16 | Lifetime count of error+timeout packets actually emitted (reporter perf counter; reads 0 when `ENABLE_PERF_LOGIC=0` or `USE_MONITOR=0`) |
+| `transaction_count` | Output | 32 | Lifetime count of completion packets actually emitted (zero-extended 16-bit reporter perf counter; reads 0 when `ENABLE_PERF_LOGIC=0` or `USE_MONITOR=0`) |
 | `cfg_conflict_error` | Output | 1 | Configuration conflict detected |
 
 ---
@@ -396,7 +400,7 @@ Monitor bus output packet format and timing:
 
 **Key Observations:**
 - Monitor bus valid/ready handshake
-- 64-bit packet format
+- 128-bit packet format (plus 64-bit side-band timestamp)
 - Packet type encoding
 - Event data payload
 
@@ -442,7 +446,7 @@ Variant single-beat read with different timing:
 .cfg_perf_enable        (1'b0),      // Disable (reduces traffic)
 
 // Filtering - pass error and timeout, drop others
-.cfg_axi_pkt_mask       (16'b1111_1111_0000_0011),  // Pass ERROR, TIMEOUT only
+.cfg_axi_pkt_mask       (16'hFFF6),  // Drop all but ERROR, TIMEOUT (set bit = drop)
 .cfg_axi_err_select     (16'h0000),
 .cfg_axi_error_mask     (16'h0000),  // Pass all errors
 .cfg_axi_timeout_mask   (16'h0000),  // Pass all timeouts
@@ -451,13 +455,21 @@ Variant single-beat read with different timing:
 .cfg_axi_debug_mask     (16'hFFFF),  // Drop debug
 
 // Timeouts
-.cfg_timeout_cycles     (16'd1000),
+.cfg_timeout_cycles     (16'd10),    // 10 timer ticks per phase (>15 saturates)
 .cfg_latency_threshold  (32'd500)
 ```
 
 ### Strategy 2: Performance Analysis
 
 **Goal:** Collect performance metrics, suppress completions
+
+Two suppression options exist. Runtime-disabling completions
+(`cfg_compl_enable=0`) is safe — terminal entries auto-retire without
+emitting packets or bumping counters (see
+[axi_monitor_reporter](axi_monitor_reporter.md)) — but the `transaction_count`
+output stops advancing. The mask approach below (`cfg_axi_compl_mask`)
+keeps marking and counting while dropping the packets downstream in
+`axi_monitor_filtered`.
 
 ```systemverilog
 // Enable configuration
@@ -467,7 +479,7 @@ Variant single-beat read with different timing:
 .cfg_perf_enable        (1'b1),      // Enable performance
 
 // Filtering - pass error and performance only
-.cfg_axi_pkt_mask       (16'b1111_1110_0000_0001),  // Pass ERROR, PERF only
+.cfg_axi_pkt_mask       (16'hFFEE),  // Drop all but ERROR, PERF (set bit = drop)
 .cfg_axi_err_select     (16'h0000),
 .cfg_axi_error_mask     (16'h0000),  // Pass all errors
 .cfg_axi_perf_mask      (16'h0000),  // Pass all performance
@@ -499,7 +511,7 @@ Variant single-beat read with different timing:
 .cfg_axi_debug_mask     (16'h0000)
 ```
 
-**⚠️ WARNING:** Never enable all packet types in high-throughput scenarios - monitor bus will saturate!
+**WARNING:** Avoid enabling all packet types in high-throughput scenarios — the monitor bus sustains at most one packet per two cycles and will congest. (Since the auto-retire fix in `95c9490a`, congestion or runtime-disabling classes can drop packets but can no longer leak table slots or wedge the bus.)
 
 ---
 
@@ -575,10 +587,10 @@ axi4_master_rd_mon #(
     .cfg_error_enable       (1'b1),
     .cfg_timeout_enable     (1'b1),
     .cfg_perf_enable        (1'b0),
-    .cfg_timeout_cycles     (16'd1000),
+    .cfg_timeout_cycles     (16'd10),    // 10 timer ticks per phase (>15 saturates)
     .cfg_latency_threshold  (32'd500),
 
-    .cfg_axi_pkt_mask       (16'b1111_1111_0000_0011),
+    .cfg_axi_pkt_mask       (16'hFFF6),  // Drop all but ERROR, TIMEOUT
     .cfg_axi_err_select     (16'h0000),
     .cfg_axi_error_mask     (16'h0000),
     .cfg_axi_timeout_mask   (16'h0000),
@@ -603,17 +615,17 @@ axi4_master_rd_mon #(
 
 // Downstream FIFO for monitor packets
 gaxi_fifo_sync #(
-    .DATA_WIDTH(64),
+    .DATA_WIDTH(128),
     .DEPTH(256)
 ) u_mon_fifo (
-    .i_clk      (axi_aclk),
-    .i_rst_n    (axi_aresetn),
-    .i_valid    (mon_valid),
-    .i_data     (mon_packet),
-    .o_ready    (mon_ready),
-    .o_valid    (fifo_valid),
-    .o_data     (fifo_data),
-    .i_ready    (consumer_ready)
+    .axi_aclk      (axi_aclk),
+    .axi_aresetn    (axi_aresetn),
+    .wr_valid    (mon_valid),
+    .wr_data     (mon_packet),
+    .wr_ready    (mon_ready),
+    .rd_valid    (fifo_valid),
+    .rd_data     (fifo_data),
+    .rd_ready    (consumer_ready)
 );
 ```
 
@@ -638,25 +650,27 @@ The 3-level filtering provides flexible packet control:
 
 ### Configuration Conflicts
 
-The module detects conflicting configurations:
-- Monitoring disabled but packet types enabled
-- Timeout enabled with zero timeout_cycles
-- Filter masks incompatible with enable signals
+`cfg_conflict_error` asserts when a packet type dropped by
+`cfg_axi_pkt_mask` is simultaneously selected for error routing by
+`cfg_axi_err_select`:
 
-When detected, `cfg_conflict_error` asserts.
+```systemverilog
+assign cfg_conflict_error = |(cfg_axi_pkt_mask & cfg_axi_err_select);
+```
 
 ### Performance Considerations
 
 **Monitor Bus Bandwidth:**
-- Each transaction can generate multiple packets
+- The reporter sustains at most 1 packet per 2 cycles
 - Completion packets: 1 per transaction
-- Performance packets: 1 per transaction
+- Performance packets: periodic count rollups (completed-count and
+  error-count), not per-transaction
 - Error packets: Variable (0-N per transaction)
 
 **Recommended Packet Budget:**
-- Functional mode: 2-3 packets per transaction (ERROR + TIMEOUT)
-- Performance mode: 2 packets per transaction (ERROR + PERF)
-- Debug mode: 5-10 packets per transaction (all types)
+- Functional mode: 1-2 packets per transaction (COMPL + occasional ERROR/TIMEOUT)
+- Performance mode: ERROR packets plus periodic PERF rollups
+- Debug mode: several packets per transaction (all types)
 
 ### Transaction Table
 
@@ -676,12 +690,12 @@ Monitors up to `MAX_TRANSACTIONS` concurrent transactions:
 
 ### Base Modules
 - **[axi4_master_rd](../axi4/axi4_master_rd.md)** - Functional AXI4 master read (without monitoring)
-- **axi_monitor_filtered** - Monitoring engine with filtering (shared/)
+- **axi_monitor_filtered** - Monitoring engine with filtering (monitor/)
 
 ### Used Components
 - **[gaxi_skid_buffer](../gaxi/gaxi_skid_buffer.md)** - Elastic buffering
-- **axi_monitor_base** - Core monitoring logic (shared/)
-- **axi_monitor_trans_mgr** - Transaction tracking (shared/)
+- **axi_monitor_base** - Core monitoring logic (monitor/)
+- **axi_monitor_trans_mgr** - Transaction tracking (monitor/)
 
 ---
 
@@ -699,7 +713,7 @@ Monitors up to `MAX_TRANSACTIONS` concurrent transactions:
 ### Documentation
 - Configuration Guide: [AXI Monitor Base](axi_monitor_base.md)
 - Architecture: [RTLAmba Overview](../overview.md)
-- AXI4 Index: [axi4/README.md](README.md)
+- AXI4 Index: [axi4/README.md](../_book_monitor_index.md)
 
 ---
 
@@ -709,6 +723,6 @@ Monitors up to `MAX_TRANSACTIONS` concurrent transactions:
 
 ## Navigation
 
-- **[← Back to AXI4 Index](README.md)**
+- **[← Back to AXI4 Index](../_book_monitor_index.md)**
 - **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

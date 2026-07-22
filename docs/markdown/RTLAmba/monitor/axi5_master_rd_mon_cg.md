@@ -24,7 +24,7 @@
 # AXI5 Master Read with Monitor and Clock Gating
 
 **Module:** `axi5_master_rd_mon_cg.sv`
-**Location:** `rtl/amba/axi5/`
+**Location:** `rtl/amba/monitor/`
 **Status:** Production Ready
 
 ---
@@ -335,15 +335,15 @@ axi5_master_rd_mon_cg #(
     .cfg_error_enable   (1'b1),        // Errors
     .cfg_timeout_enable (1'b1),        // Timeouts
     .cfg_perf_enable    (1'b0),        // DISABLED
-    .cfg_timeout_cycles (16'd1000),
+    .cfg_timeout_cycles (16'd10),   // 10 timer ticks per phase (>15 saturates)
     .cfg_latency_threshold (32'd500),
 
     // Filtering configuration
-    .cfg_axi_pkt_mask   (16'h0007),    // ERROR|COMPL|TIMEOUT
-    .cfg_axi_err_select (16'h0001),
-    .cfg_axi_error_mask (16'hFFFF),
-    .cfg_axi_timeout_mask (16'hFFFF),
-    .cfg_axi_compl_mask (16'hFFFF),
+    .cfg_axi_pkt_mask   (16'hFFF4),    // Drop all but ERROR|COMPL|TIMEOUT (set bit = drop)
+    .cfg_axi_err_select (16'h0000),  // No error re-routing
+    .cfg_axi_error_mask (16'h0000),    // set bit = drop
+    .cfg_axi_timeout_mask (16'h0000),
+    .cfg_axi_compl_mask (16'h0000),
 
     // Monitor bus
     .monbus_valid       (mon_valid),
@@ -381,17 +381,17 @@ assert property (@(posedge axi_clk) disable iff (!axi_rst_n)
 
 // Downstream FIFO for monitor packets
 gaxi_fifo_sync #(
-    .DATA_WIDTH (64),
+    .DATA_WIDTH (128),
     .DEPTH      (256)
 ) u_mon_fifo (
-    .i_clk      (axi_clk),
-    .i_rst_n    (axi_rst_n),
-    .i_valid    (mon_valid),
-    .i_data     (mon_pkt),
-    .o_ready    (mon_ready),
-    .o_valid    (fifo_valid),
-    .o_data     (fifo_pkt),
-    .i_ready    (consumer_ready)
+    .axi_aclk      (axi_clk),
+    .axi_aresetn    (axi_rst_n),
+    .wr_valid    (mon_valid),
+    .wr_data     (mon_pkt),
+    .wr_ready    (mon_ready),
+    .rd_valid    (fifo_valid),
+    .rd_data     (fifo_pkt),
+    .rd_ready    (consumer_ready)
 );
 ```
 
@@ -476,13 +476,13 @@ gaxi_fifo_sync #(
 - **[AXI5 Master Read CG](../axi5/axi5_master_rd_cg.md)** - Clock gating only
 - **[AXI5 Master Read Monitor](axi5_master_rd_mon.md)** - Monitor only
 - **[AXI5 Master Write Monitor CG](axi5_master_wr_mon_cg.md)** - Write variant
-- **[AXI Monitor Configuration Guide](../../../../AXI_Monitor_Configuration_Guide.md)** - Monitor setup
+- **[AXI Monitor Configuration Guide](../../../guides/AXI_Monitor_Configuration_Guide.md)** - Monitor setup
 - **[AMBA Clock Gate Controller](../shared/amba_clock_gate_ctrl.md)** - Clock gating details
 
 ---
 
 ## Navigation
 
-- **[← Back to AXI5 Index](README.md)**
+- **[← Back to AXI5 Index](../_book_monitor_index.md)**
 - **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

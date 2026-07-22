@@ -24,7 +24,7 @@
 # APB5 Monitor
 
 **Module:** `apb5_monitor.sv`
-**Location:** `rtl/amba/apb5/`
+**Location:** `rtl/amba/monitor/`
 **Status:** Production Ready
 
 ---
@@ -497,6 +497,6 @@ apb5_monitor #(
 
 ## Navigation
 
-- **[<- Back to APB5 Index](README.md)**
+- **[<- Back to APB5 Index](../_book_monitor_index.md)**
 - **[<- Back to RTLAmba Index](../index.md)**
 - **[<- Back to Main Documentation Index](../../index.md)**
