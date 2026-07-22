@@ -119,7 +119,7 @@ async def cocotb_test_char_families(dut):
     # board uses ~1000). "smoke" crosses baseline/bank_interleave/reorder with
     # the incremental + col_major families -- enough to exercise the
     # config-apply CSR path (scheme switch + scheduler) and the perf read-back.
-    profile = "smoke"
+    profile = os.environ.get("TEST_CHAR_PROFILE", "smoke")
 
     def prog():
         drv.soft_reset()
@@ -205,6 +205,7 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
     extra_env = {
         # DFI-loopback sim: zero-skew BFM -> the host programs' board-tuple
         # PHY-timing defaults (t_phy_wrlat=1 / rddata_delay=7) do not apply.
+        "TEST_CHAR_PROFILE": os.environ.get("TEST_CHAR_PROFILE", "smoke"),
         "TEST_T_PHY_WRLAT": os.environ.get("TEST_T_PHY_WRLAT", "0"),
         "TEST_RDDATA_DELAY": os.environ.get("TEST_RDDATA_DELAY", "0"),
         "DUT": dut_name,
@@ -230,6 +231,7 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
                     "DRAM_DEVICE_WIDTH": str(dram_device_width)},
         sim_build=sim_build, simulator="verilator",
         extra_env=extra_env, compile_args=compile_args,
+        waves=bool(int(os.environ.get("WAVES", "0"))),
         keep_files=True, timescale="1ns/1ps")
 
 

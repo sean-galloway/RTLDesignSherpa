@@ -256,6 +256,18 @@ CONFIGS: Dict[str, ControllerConfig] = {
     "slow_refresh": ControllerConfig(
         "slow_refresh", scheme=dc.SCHEME_ROW_MAJOR,
         page_policy=dc.PAGE_POLICY_CLOSE, t_refi=0x7FFF, rd_in_order=True),
+    # ---- #42 lever-isolation configs (each = baseline + ONE reorder lever) --
+    "lever_open": ControllerConfig(
+        "lever_open", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_OPEN,
+        lookahead=0, force_inorder=False, rd_in_order=True),
+    "lever_lookahead": ControllerConfig(
+        "lever_lookahead", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_CLOSE, lookahead=LOOKAHEAD_MAX,
+        force_inorder=False, rd_in_order=True),
+    "lever_rdooo": ControllerConfig(
+        "lever_rdooo", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_CLOSE, lookahead=0, force_inorder=False,
+        rd_in_order=False),
 }
 BASELINE = CONFIGS["baseline"]
 # The default matrix isolates the main levers (scheme, page policy, reorder).
@@ -621,6 +633,15 @@ RUN_PROFILES: Dict[str, dict] = {
                   level="basic", families=(FAM_INCREMENTAL, FAM_COL_MAJOR)),
     # The isolating config matrix over the full family/burst grid.
     "matrix": dict(configs=DEFAULT_MATRIX, level="medium", families=None),
+    # Minimal #42 repro: the reorder config x col_major only (the deterministic
+    # two-burst-swap sim failure) — tight wave-debug iteration.
+    "reorder_min": dict(configs=["reorder"], level="basic",
+                        families=(FAM_COL_MAJOR,)),
+    "baseline_min": dict(configs=["baseline"], level="basic",
+                         families=(FAM_COL_MAJOR,)),
+    # one lever at a time vs the reorder failure
+    "levers": dict(configs=["lever_lookahead", "lever_rdooo", "lever_open"],
+                   level="basic", families=(FAM_COL_MAJOR,)),
     # Everything: every preset (incl. refresh + happy) x the full grid.
     "full": dict(configs="all", level="full", families=None),
 }
