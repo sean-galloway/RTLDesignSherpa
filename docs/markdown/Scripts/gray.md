@@ -25,7 +25,7 @@
 
 The `Gray` class is a Python class intended for generating a SystemVerilog module for a portion of a Brent-Kung adder, specifically a Gray cell, which performs fast binary addition. The class inherits from a Module-based class, part of a more extensive library of RTL generator tools.
 
-![Gray UML](../../images_scripts_uml/Adder_Gray.svg)
+![Gray UML](assets/Adder_Gray.svg)
 
 ## Inputs / Outputs
 

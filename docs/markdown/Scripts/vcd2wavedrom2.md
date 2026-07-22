@@ -27,7 +27,7 @@
 
 `VCD2Wavedrom2` is a class designed for converting Value Change Dump (VCD) data into WaveDrom format. It provides methods for processing and generating WaveDrom JSON based on VCD data, handling configuration and command-line arguments.
 
-![VCD to Wavedrom 2](../../images_scripts_uml/VCD2Wavedrom2.svg)
+![VCD to Wavedrom 2](assets/VCD2Wavedrom2.svg)
 
 ## Methods
 

@@ -29,7 +29,7 @@ The `BrentKungAdder` class is a Verilog module generator derived from a base `Mo
 
 The class contains methods to define input and output signals, instantiate other required modules (e.g., `BitwisePGLogic`, `GroupPGLogic`, `SumLogic`), interconnect them, and generate the complete Verilog code with the appropriate module instances and connections.
 
-![Brent Kung UML](../../images_scripts_uml/Adder_Brent_Kung_Diagram.svg)
+![Brent Kung UML](assets/Adder_Brent_Kung_Diagram.svg)
 
 ### Inputs
 

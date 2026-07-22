@@ -25,7 +25,7 @@
 
 The `group_pg_logic` is a Python module used for generating Verilog code that represents a group propagate-generate logic block, which is a fundamental part of the Brent-Kung adder, a parallel prefix form of carry-lookahead adder used for high-speed arithmetic operations. This code block creates a matrix computation structure to compute carry propagation and generation terms effectively.
 
-![Group PG UML](../../images_scripts_uml/Adder_GroupPGLogic.svg)
+![Group PG UML](assets/Adder_GroupPGLogic.svg)
 
 ```python
 
