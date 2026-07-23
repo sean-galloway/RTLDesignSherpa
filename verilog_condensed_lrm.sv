@@ -444,7 +444,19 @@ module rr_arbiter #(
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) mask <= '1;
-        else if (|gnt) mask <= {gnt[N-2:0], gnt[N-1]}; // rotate left past last grant
+        // Thermometer mask: EVERY agent above the last grant, not just the next one.
+        //
+        // This was `{gnt[N-2:0], gnt[N-1]}` -- a rotate of the one-hot grant, which
+        // makes `mask` one-hot too. Only agent last+1 then has priority, and if it
+        // is not requesting the masked term is empty and the arbiter falls back to
+        // gnt_unmasked, i.e. plain lowest-index-wins. With N=4 and req=1010 that
+        // grants agent 1 forever and starves agent 3. The all-requesting case still
+        // cycles 0,1,2,3 perfectly, which is what hides it.
+        //
+        // `~((gnt << 1) - 1)` sets every bit strictly above the last grant. When the
+        // top agent was granted, gnt<<1 truncates to 0 and the mask becomes 0, so the
+        // fallback path performs the wrap -- which is exactly what it is there for.
+        else if (|gnt) mask <= ~((gnt << 1) - 1'b1);
     end
 
 endmodule : rr_arbiter

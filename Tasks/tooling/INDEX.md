@@ -7,7 +7,7 @@ Repo tooling, scripts, and process work.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 1 | in progress right now |
-| [open.md](open.md) | 5 | accepted, not started |
+| [open.md](open.md) | 6 | accepted, not started |
 | [closed.md](closed.md) | 0 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing |
 
@@ -28,6 +28,8 @@ Repo tooling, scripts, and process work.
 - **TOOL-006** — triage the 18 Dependabot vulnerabilities on `main`.
 - **TOOL-005** — `env_python` hardcodes `/mnt/data/tools`; make the prefix a
   variable so the PATH ordering is not the user's problem.
+- **TOOL-007** — two RDS-DV arbiter-BFM gaps: a stubbed round-robin compliance
+  check and no saturating profile. Together they let a starving arbiter pass.
 
 ## Note
 

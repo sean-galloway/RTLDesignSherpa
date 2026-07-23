@@ -20,8 +20,27 @@ BFM = add it to RDS-DV, never inline.
 | MonBus groups | MonbusGroupHarness (scoreboards.monbus_group) |
 | Registers | [[registers-by-name]] |
 
+| Arbiters | ArbiterMaster + RoundRobinArbiterMonitor (components.shared) |
+
 Decision line: standard protocol -> factory; custom valid/ready -> GAXI;
 <50-line test-local helper may stay embedded; anything reusable -> RDS-DV.
+
+Factory entry points, per family (count = callables in that file):
+`gaxi_factories` 8, `axi4_factories` 17, `axil4_factories` 18,
+`apb_factories` 7, `axis_factories` 11, `fifo_factories` 14. DFI, UART and
+SMBus have no factory module - construct their components directly
+(`dfi_master_mc.py`, `uart_components.py`, `smbus_components.py`).
+
+This note covers the BFM axis ONLY. What traffic to send (sequences) and what
+timing shape to send it at (randomization) are INDEPENDENT choices - see
+[[rds-dv-axes]] for the three-axis framing, and [[randomization]] for the
+profile catalogue. Using the right BFM says nothing about whether the test
+stresses anything.
+
+Authoritative per-family API docs live in RDS-DV itself
+(`docs/components/<family>/`, published at
+sean-galloway.github.io/RTLDesignSherpa-DV) - read those rather than
+reverse-engineering from source.
 
 Traps (each cost real debug time):
 - cocotb Monitor.__len__ = queue depth: empty-queue BFM is FALSY, so

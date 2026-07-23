@@ -263,19 +263,105 @@ class ArbiterRoundRobinSimpleTB(TBBase):
 
         self.log.info(f"Fairness test: {total_grants} grants, fairness index: {fairness_index:.3f}{self.get_time_ns_str()}")
 
-        # Reasonable thresholds for simple arbiter
+        # Reasonable thresholds for simple arbiter.
+        #
+        # min_fairness_threshold used to be 0.3, which is far too loose to mean
+        # anything: Jain's index for k of n clients served equally is k/n, so on a
+        # 4-client arbiter a 0.3 bar passes with TWO clients completely starved
+        # (index 0.5). That is exactly what happened -- the RTL rotated the priority
+        # pointer in the wrong direction, granted 0,3,0,3,... forever, and this test
+        # reported "fairness: 0.500" and PASSED.
+        #
+        # The index alone is a weak proxy, so the starvation check below is the real
+        # assertion: every client that was enabled must have been granted at least
+        # once. That is unambiguous and independent of the request profile.
         min_grants_threshold = 50
-        min_fairness_threshold = 0.3
+        min_fairness_threshold = 0.7
 
         assert total_grants > min_grants_threshold, (
             f"Insufficient activity for fairness test: {total_grants} grants < {min_grants_threshold}"
         )
 
-        assert fairness_index > min_fairness_threshold, (
-            f"Poor fairness: {fairness_index:.3f} < {min_fairness_threshold}"
+        grants_per_client = self.monitor.arbiter_stats.get('grants_per_client', [])
+        starved = [c for c in range(self.CLIENTS)
+                   if c < len(grants_per_client) and grants_per_client[c] == 0]
+        assert not starved, (
+            f"STARVATION: client(s) {starved} received zero grants out of "
+            f"{total_grants} over {test_cycles} cycles while enabled. "
+            f"Per-client grants: {list(grants_per_client[:self.CLIENTS])}"
         )
 
-        self.log.info(f"✓ Fairness test passed: {total_grants} grants, fairness: {fairness_index:.3f}")
+        assert fairness_index > min_fairness_threshold, (
+            f"Poor fairness: {fairness_index:.3f} < {min_fairness_threshold} "
+            f"(per-client grants: {list(grants_per_client[:self.CLIENTS])})"
+        )
+
+        self.log.info(f"✓ Fairness test passed: {total_grants} grants, "
+                      f"fairness: {fairness_index:.3f}")
+
+        await self.test_saturated_fairness()
+
+    async def test_saturated_fairness(self):
+        """Every client requesting EVERY cycle -- the case that exposes pointer bugs.
+
+        None of the ArbiterMaster profiles saturate: even 'fast' leaves a 1-3 cycle
+        inter_request_delay, so all N clients are rarely asserted at once and the
+        arbiter is never forced to walk its full rotation under contention. A
+        priority pointer that advances incorrectly still looks fair under sparse
+        random traffic, because the request pattern -- not the arbiter -- decides
+        who gets served.
+
+        That gap is why a real starvation bug shipped: the RTL rotated its priority
+        pointer the wrong way (a reflection, not a rotation), granted 0,3,0,3,...
+        forever with all four clients up, and the randomized fairness phase above
+        still reported a passing fairness index.
+
+        So drive the request lines directly, with the master stopped.
+        """
+        self.log.info(f"Starting saturated fairness test{self.get_time_ns_str()}")
+
+        # Saturate via the BFM's own manual-control path -- force_client_request()
+        # puts each client in MANUAL_CONTROL and holds its request asserted. Do NOT
+        # poke dut.request directly: the master owns that signal and would fight it.
+        for c in range(self.CLIENTS):
+            self.master.force_client_request(c, enable=True)
+        await self.wait_clocks('clk', 10)
+
+        before = list(self.monitor.arbiter_stats['grants_per_client'])
+        await self.wait_clocks('clk', self.CLIENTS * 20)
+        after = list(self.monitor.arbiter_stats['grants_per_client'])
+        seen = [a - b for a, b in zip(after, before)]
+
+        for c in range(self.CLIENTS):
+            self.master.force_client_request(c, enable=False)
+        await self.wait_clocks('clk', 10)
+
+        self.log.info(f"Saturated fairness: grants per client = {seen}"
+                      f"{self.get_time_ns_str()}")
+
+        # The monitor's own starvation checker, rather than a hand-rolled scan.
+        starvation = self.monitor.check_starvation()
+        self.log.info(f"Monitor starvation report: {starvation}")
+
+        starved = [c for c in range(self.CLIENTS) if seen[c] == 0]
+        assert not starved, (
+            f"STARVATION under saturation: client(s) {starved} received ZERO grants "
+            f"while ALL {self.CLIENTS} clients requested continuously. "
+            f"Per-client grants this phase: {seen}. Monitor: {starvation}. "
+            f"A round-robin arbiter must serve every requester -- this means the "
+            f"priority pointer is not advancing correctly."
+        )
+
+        # Under full saturation the distribution should be near-even.
+        expected = sum(seen) / self.CLIENTS
+        if expected >= 2:
+            for c, n in enumerate(seen):
+                assert abs(n - expected) <= max(1.0, expected * 0.34), (
+                    f"Uneven service under saturation: client {c} got {n} grants, "
+                    f"expected ~{expected:.1f}. Per-client grants: {seen}"
+                )
+
+        self.log.info(f"✓ Saturated fairness test passed: {seen}")
 
     async def test_single_client_saturation(self):
         """Test single client saturation"""

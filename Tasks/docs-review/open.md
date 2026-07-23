@@ -4,8 +4,15 @@
 
 ---
 
-## DOCREV-001 — Integrate the 271 outstanding Kimi accuracy findings
-**Status:** open 2026-07-23 — nothing integrated yet
+## DOCREV-001 — Integrate the outstanding Kimi accuracy findings
+**Status:** open 2026-07-23 — **1 of 271 integrated**; 270 remain
+
+**Integrated so far:**
+- round_2 `common_part_01` "RTL rotates the wrong direction:
+  arbiter_round_robin_simple does not implement round-robin and starves agents"
+  — CONFIRMED as a real RTL defect, fixed 2026-07-23. See COMMON-012 for what
+  the fix taught. This one is a worked example of the triage rule below: it
+  reads like a doc/RTL ordering mismatch and is actually a starvation bug.
 
 round_2 (196 findings, 167 CONFIRMED) and round_3 (75 findings, 70 CONFIRMED)
 are un-integrated. Verified by measurement, not by reading commit history:

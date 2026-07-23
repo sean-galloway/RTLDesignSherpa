@@ -6,7 +6,9 @@ summary: Verification practice - frameworks, determinism, coverage, formal.
 # DV
 
 - [[running-regressions]] - ALWAYS clean-all first; the Makefile targets, the levels
-- [[bfm-usage]] - use RDS-DV BFMs, never re-roll; the trap list
+- [[rds-dv-axes]] - BFM / sequence / randomization are ORTHOGONAL; where the RDS-DV docs live
+- [[bfm-usage]] - use RDS-DV BFMs, never re-roll; the factory map + trap list
+- [[randomization]] - the 19 FlexConfigGen profiles; random traffic does NOT prove fairness
 - [[registers-by-name]] - PeakRDL regmaps; offsets are forbidden
 - [[seeds-and-determinism]] - pin seeds; corpus + exploration pattern
 - [[tb-structure]] - Pattern A/B, TB location, the three mandatory methods
