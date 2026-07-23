@@ -7,17 +7,17 @@ monitor subsystem, monbus). Migrated 2026-07-22 from `rtl/amba/PRD/TASKS.md`.
 
 | Page | Count | What |
 |---|---|---|
-| [active.md](active.md) | 3 | in progress right now |
+| [active.md](active.md) | 1 | in progress right now |
 | [open.md](open.md) | 4 | accepted, not started |
-| [closed.md](closed.md) | 18 | done (kept for history) |
+| [closed.md](closed.md) | 20 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing (won't do / superseded) |
 
 ## Active
 
-- **TASK-023** — Complete RTLAmba documentation + waveform integration (P0)
-- **TASK-013** — Integration examples (~90%)
-- **TASK-025** — Update formal proofs for the monitor logic (12/12 infra green;
-  perfmon / cam_clear / cone-drop properties still pending)
+- **TASK-025** — Update formal proofs for the monitor logic. 12/12 proofs pass
+  and the real bug they surfaced (active_count underflow) is fixed; still open:
+  the val/amba monitor-path sweep, perfmon-window / cam_clear properties, and
+  the `ENABLE_*_LOGIC=0` cone-drop configs.
 
 ## Open
 

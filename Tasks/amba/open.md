@@ -1,4 +1,4 @@
-<!-- Managed by the `tasks` convention: see /Tasks/INDEX.md. Move a task between open/active/closed by cutting its block, do not copy. -->
+<!-- Managed by the `tasks` convention: see /Tasks/INDEX.md. Move a task between pages by cutting its block, do not copy. -->
 
 # AMBA tasks — open (not started)
 
