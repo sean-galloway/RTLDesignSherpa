@@ -71,8 +71,16 @@ say "Installing into $PREFIX"
 say "Verilator (pinned $WANT_VERILATOR)"
 if ! need verilator; then
     if need apt-get; then
-        sudo apt-get update -qq
-        sudo apt-get install -y -qq verilator build-essential ccache perl python3-venv
+        # apt-get update exits non-zero if ANY configured source fails -- and a
+        # sandbox often carries third-party PPAs (deadsnakes, ondrej/php, ...)
+        # that the egress proxy 403s. Those are irrelevant to Verilator, which
+        # lives in the main Ubuntu archive; the good sources still refresh, so a
+        # partial-update failure must NOT abort us under `set -e`. The install
+        # below is the real success gate.
+        sudo apt-get update -qq \
+            || warn "apt-get update had partial failures (unreachable third-party repos); continuing"
+        sudo apt-get install -y -qq verilator build-essential ccache perl python3-venv \
+            || die "apt-get install verilator failed (main Ubuntu archive unreachable?)"
     else
         die "no apt-get and no verilator; build $WANT_VERILATOR from source"
     fi
@@ -96,22 +104,35 @@ ok "pinned-Verilator shim at $PREFIX/verilator-$WANT_VERILATOR/bin"
 # ------------------------------------------------------------ oss-cad-suite --
 if [ "$DO_FORMAL" = 1 ]; then
     say "oss-cad-suite (yosys, sby, iverilog, gtkwave)"
-    FRESH_OSS=0
+    FRESH_OSS=0   # did WE just install it (and therefore own its layout)?
+    HAVE_OSS=0    # is a usable suite present at the end, ours or pre-existing?
     if [ -x "$PREFIX/oss-cad-suite/bin/yosys" ]; then
+        HAVE_OSS=1
         ok "already present: $("$PREFIX/oss-cad-suite/bin/yosys" -V | head -1)"
     else
-        FRESH_OSS=1
         # Resolve the newest release rather than pinning a date that rots.
         TAG="$(curl -fsSL https://api.github.com/repos/YosysHQ/oss-cad-suite-build/releases/latest \
                | grep -m1 '"tag_name"' | cut -d'"' -f4 || true)"
-        [ -n "$TAG" ] || die "could not resolve oss-cad-suite release (no network?)"
-        STAMP="${TAG//-/}"
-        URL="https://github.com/YosysHQ/oss-cad-suite-build/releases/download/$TAG/oss-cad-suite-linux-x64-$STAMP.tgz"
-        echo "  downloading $TAG (~2 GB, this takes a while)..."
-        curl -fL --progress-bar "$URL" -o "$PREFIX/oss-cad-suite.tgz"
-        tar -xzf "$PREFIX/oss-cad-suite.tgz" -C "$PREFIX"
-        rm -f "$PREFIX/oss-cad-suite.tgz"
-        ok "installed $("$PREFIX/oss-cad-suite/bin/yosys" -V | head -1)"
+        # Formal is optional and this suite is ~2 GB, so a filtered-egress
+        # sandbox (GitHub release downloads 403 behind the proxy, exactly as the
+        # sv2v/Verible fetches below) must warn-and-skip, never abort the whole
+        # toolchain -- simulation needs none of this.
+        if [ -z "$TAG" ]; then
+            warn "could not resolve oss-cad-suite release (proxy/no network?); skipping -- formal will not run"
+        else
+            STAMP="${TAG//-/}"
+            URL="https://github.com/YosysHQ/oss-cad-suite-build/releases/download/$TAG/oss-cad-suite-linux-x64-$STAMP.tgz"
+            echo "  downloading $TAG (~2 GB, this takes a while)..."
+            if curl -fL --progress-bar "$URL" -o "$PREFIX/oss-cad-suite.tgz" \
+               && tar -xzf "$PREFIX/oss-cad-suite.tgz" -C "$PREFIX"; then
+                FRESH_OSS=1
+                HAVE_OSS=1
+                ok "installed $("$PREFIX/oss-cad-suite/bin/yosys" -V | head -1)"
+            else
+                warn "oss-cad-suite download/extract failed (proxy/no network?); skipping -- formal will not run"
+            fi
+            rm -f "$PREFIX/oss-cad-suite.tgz"
+        fi
     fi
     # Belt and braces on a suite WE installed: do not leave a second verilator
     # to be found by anything that bypasses env_python's PATH ordering. Only
@@ -123,7 +144,7 @@ if [ "$DO_FORMAL" = 1 ]; then
                 mv -f "$PREFIX/oss-cad-suite/bin/$b" "$PREFIX/oss-cad-suite/bin/$b.unused" || true
         done
         ok "neutralised the bundled Verilator 5.045 in the suite we installed"
-    else
+    elif [ "$HAVE_OSS" = 1 ]; then
         warn "pre-existing oss-cad-suite left untouched; it bundles Verilator 5.045"
         warn "-> the $PREFIX/verilator-$WANT_VERILATOR/bin shim is what keeps the pin winning"
     fi
@@ -132,17 +153,27 @@ else
 fi
 
 # --------------------------------------------------------------------- sv2v --
-say "sv2v $SV2V_VER (formal preprocessing)"
-if [ -x "$PREFIX/sv2v" ]; then
-    ok "already present: $("$PREFIX/sv2v" --version 2>&1 | head -1)"
-elif need unzip; then
-    curl -fsSL "https://github.com/zachjs/sv2v/releases/download/$SV2V_VER/sv2v-Linux.zip" \
-        -o /tmp/sv2v.zip && unzip -qo /tmp/sv2v.zip -d /tmp/sv2v-x
-    found="$(find /tmp/sv2v-x -name sv2v -type f | head -1)"
-    [ -n "$found" ] && install -m755 "$found" "$PREFIX/sv2v" && ok "installed $("$PREFIX/sv2v" --version 2>&1 | head -1)"
-    rm -rf /tmp/sv2v.zip /tmp/sv2v-x
+# sv2v is formal-preprocessing tooling, so it follows --no-formal like the
+# oss-cad-suite above. Its GitHub release download can also 403 behind an
+# egress proxy; that must warn-and-skip, never abort -- simulation needs none
+# of this. (The old `curl && unzip` chain left /tmp/sv2v-x absent on a failed
+# fetch, and the following `find` then aborted the whole script under `set -e`.)
+if [ "$DO_FORMAL" = 1 ]; then
+    say "sv2v $SV2V_VER (formal preprocessing)"
+    if [ -x "$PREFIX/sv2v" ]; then
+        ok "already present: $("$PREFIX/sv2v" --version 2>&1 | head -1)"
+    elif ! need unzip; then
+        warn "unzip missing; skipped sv2v"
+    elif curl -fsSL "https://github.com/zachjs/sv2v/releases/download/$SV2V_VER/sv2v-Linux.zip" -o /tmp/sv2v.zip 2>/dev/null; then
+        unzip -qo /tmp/sv2v.zip -d /tmp/sv2v-x
+        found="$(find /tmp/sv2v-x -name sv2v -type f | head -1)"
+        [ -n "$found" ] && install -m755 "$found" "$PREFIX/sv2v" && ok "installed $("$PREFIX/sv2v" --version 2>&1 | head -1)"
+        rm -rf /tmp/sv2v.zip /tmp/sv2v-x
+    else
+        warn "could not fetch sv2v $SV2V_VER; formal preprocessing unavailable (optional)"
+    fi
 else
-    warn "unzip missing; skipped sv2v"
+    warn "skipping sv2v (--no-formal): formal preprocessing will not run"
 fi
 
 # ------------------------------------------------------------------ Verible --

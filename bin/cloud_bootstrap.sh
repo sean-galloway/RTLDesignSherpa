@@ -15,7 +15,9 @@
 # `if [ -d ]` or are harmless PATH prepends of directories that do not exist,
 # so it falls through to whatever this script installed. The one hard
 # requirement it has is that $REPO_ROOT/venv exists -- which is the main thing
-# we create here.
+# we create here. It is written for an interactive shell, though, so it is NOT
+# nounset-clean (it prepends $PYTHONPATH with no default); anywhere this script
+# sources it, it does so with `set +u` -- see the smoke test.
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
@@ -64,12 +66,18 @@ PY
 say "Smoke test"
 # One real cocotb+Verilator run. If this passes, the simulation path is good;
 # if it fails, nothing downstream is worth debugging yet.
-set +e
+#
+# nounset MUST be off across the source: env_python prepends $PYTHONPATH
+# (`PYTHONPATH="$REPO_ROOT:$PYTHONPATH"`) with no default, so under `set -u`
+# sourcing it dies on `PYTHONPATH: unbound variable` BEFORE pytest ever runs --
+# which silently turns every smoke test into a false failure. `set +e` alone
+# does not cover this; it disables errexit but leaves nounset armed.
+set +eu
 ( source env_python >/dev/null 2>&1
   cd val/common
   REG_LEVEL=GATE python3 -m pytest test_counter_bin.py -x -q --no-header 2>&1 | tail -5 )
 SMOKE=$?
-set -e
+set -eu
 [ $SMOKE -eq 0 ] && ok "simulation works" || warn "smoke test failed (exit $SMOKE) -- see output above"
 
 say "Not available in this sandbox"
