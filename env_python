@@ -86,6 +86,23 @@ fi
 unset VERILATOR_ROOT 2>/dev/null
 export PATH="/mnt/data/tools/verilator-5.020/bin:$PATH"
 
+# Do NOT let ccache cache Verilator's precompiled header.
+#
+# verilated.mk sets `CCACHE_SLOPPINESS ?= pch_defines,time_macros`. The
+# pch_defines part tells ccache to ignore predefined-macro differences when
+# hashing, which makes the PCH *generation* step cacheable -- so ccache can
+# hand back a Vtop__pch.h.fast.gch that was built under a different macro set.
+# gcc then rejects it ("not used because `__cpp_templ' not defined") and, since
+# there is no plain header to fall back on, the build dies with
+#   fatal error: Vtop__pch.h.fast: No such file or directory
+# It fails deterministically for every test sharing that cache entry, and looks
+# exactly like an RTL/testbench break in a regression log.
+#
+# `?=` means this export wins. Dropping pch_defines makes the PCH compile
+# uncacheable (always built by the real compiler, always valid); the ordinary
+# .cpp -> .o compiles stay cached, so the speedup is retained.
+export CCACHE_SLOPPINESS=time_macros
+
 # Set default simulation tool
 export SIM=verilator
 

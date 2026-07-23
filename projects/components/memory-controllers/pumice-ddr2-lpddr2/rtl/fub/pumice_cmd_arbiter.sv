@@ -174,7 +174,9 @@ module pumice_cmd_arbiter
     // a column fired <2 cycles ago has not yet dropped this bank's registered
     // pre_ready (tRTP/tWR load), so an unguarded PRE pick — normal or
     // refresh-drain — could precharge on stale readiness. Columns never gate
-    // other columns through this (col masks use w_inflight_col + tCCD only).
+    // other columns through this (col masks use w_inflight_col + tCCD only);
+    // the ONE exception is an auto-precharge column, which does close its bank
+    // — see w_ap_col_guard below.
     logic [NUM_BANKS-1:0] w_guarded;
     assign w_guarded = r_guard0 | r_guard1
                      | ((w_inflight_preact || w_inflight_col)
@@ -194,6 +196,23 @@ module pumice_cmd_arbiter
     logic w_rd_turn_block, w_wr_turn_block;
     assign w_rd_turn_block = r_wrfire0 || r_wrfire1;  // WR fired < 2 cyc ago
     assign w_wr_turn_block = r_rdfire0 || r_rdfire1;  // RD fired < 2 cyc ago
+
+    // ---- auto-precharge column guard (CLOSE-policy staleness) --------------
+    // Under CLOSE (w_ap) a COLUMN also changes bank state: the xDA precharges
+    // the bank as part of the access. The generic w_guarded above deliberately
+    // does NOT gate columns against columns, and r_bank_row_active is a cycle
+    // stale, so the NEXT entry targeting that same bank+row still saw "row
+    // active" and issued a second column into a bank the xDA had already
+    // committed to precharge. On the DRAM that column has no open row; the
+    // access lands wherever the device last had one (issue #42: batch-2 row-1
+    // writes landed on row 0, clobbering batch 1 -- 64 beats / 48 unique).
+    // Guard the bank for the 2 cycles after a fired AP column, exactly as
+    // r_guard0/1 do for ACT/PRE, so the next access must re-ACTivate.
+    // No-op when w_ap is low (OPEN / HAPPY_HYBRID): those columns leave the
+    // row open and legitimately stream at tCCD.
+    logic [NUM_BANKS-1:0] r_apguard0, r_apguard1;
+    logic [NUM_BANKS-1:0] w_ap_col_guard;
+    assign w_ap_col_guard = r_apguard0 | r_apguard1;
 
     // ---- REF recovery (tRFC) -----------------------------------------------
     // Loaded when a REF fires; while nonzero the DRAM is refreshing internally
@@ -268,7 +287,7 @@ module pumice_cmd_arbiter
             if (rd_sch_valid_i[e]) begin
                 rd_col_m[e] = rhit && r_bank_rdwr_ready[RK0][rb] && tccd_ok_i && twtr_ok_i
                               && rd_issue_ready_i && !w_inflight_col
-                              && !w_rd_turn_block;
+                              && !w_rd_turn_block && !w_ap_col_guard[rb];
                 rd_act_m[e] = !r_bank_row_active[RK0][rb] && !w_guarded[rb]
                               && r_bank_act_ready[RK0][rb] && tfaw_ok_i[RK0] && trrd_ok_i[RK0]
                               && !w_rfc_busy;
@@ -282,7 +301,7 @@ module pumice_cmd_arbiter
             if (wr_sch_valid_i[e]) begin
                 wr_col_m[e] = whit && r_bank_rdwr_ready[RK0][wb] && tccd_ok_i && trtw_ok_i
                               && wr_commit_ready_i && !w_inflight_col
-                              && !w_wr_turn_block;
+                              && !w_wr_turn_block && !w_ap_col_guard[wb];
                 wr_act_m[e] = !r_bank_row_active[RK0][wb] && !w_guarded[wb]
                               && r_bank_act_ready[RK0][wb] && tfaw_ok_i[RK0] && trrd_ok_i[RK0]
                               && !w_rfc_busy;
@@ -492,6 +511,7 @@ module pumice_cmd_arbiter
             r_guard1 <= '0;
             r_wrfire0 <= 1'b0; r_wrfire1 <= 1'b0;
             r_rdfire0 <= 1'b0; r_rdfire1 <= 1'b0;
+            r_apguard0 <= '0;  r_apguard1 <= '0;
         end else begin
             r_guard1 <= r_guard0;
             r_guard0 <= '0;
@@ -502,6 +522,11 @@ module pumice_cmd_arbiter
             r_wrfire0 <= w_fire_out && r_do_wr;
             r_rdfire1 <= r_rdfire0;
             r_rdfire0 <= w_fire_out && r_do_rd;
+            // AP-column guard shift (see w_ap_col_guard)
+            r_apguard1 <= r_apguard0;
+            r_apguard0 <= '0;
+            if (w_fire_out && (r_do_rd || r_do_wr) && r_ap_out)
+                r_apguard0 <= (NUM_BANKS'(1) << r_bank);
         end
     )
 

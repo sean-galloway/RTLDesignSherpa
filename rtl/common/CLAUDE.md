@@ -65,7 +65,7 @@ This CLAUDE.md provides common RTL library guidance. Also review:
 
 **Common RTL typically uses queue access** - counters, arbiters, and similar blocks are simple control paths.
 
-**📖 Complete Guide:** `docs/guides/VERIFICATION_ARCHITECTURE_GUIDE.md`
+**📖 Complete Guide:** `docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md`
 
 ---
 

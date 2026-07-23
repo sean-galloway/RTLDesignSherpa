@@ -283,7 +283,7 @@ Every monitor has 4 configuration inputs:
 
 **Use for:** Production systems, minimal overhead
 
-**Full guide:** See `docs/guides/AXI_Monitor_Configuration_Guide.md`
+**Full guide:** See `docs/user-guides/AXI_Monitor_Configuration_Guide.md`
 
 ---
 
@@ -669,7 +669,7 @@ Typical resource usage per monitor (Xilinx 7-series, MAX_TRANSACTIONS=16):
 
 ### Documentation
 - **Monitor Specs:** `docs/markdown/RTLAmba/` (detailed module documentation)
-- **Configuration Guide:** `docs/guides/AXI_Monitor_Configuration_Guide.md` (**essential!**)
+- **Configuration Guide:** `docs/user-guides/AXI_Monitor_Configuration_Guide.md` (**essential!**)
 - **Packet Format:** `docs/markdown/RTLAmba/includes/monitor_package_spec.md`
 - **PRD:** `rtl/amba/PRD.md` (requirements and architecture)
 
@@ -686,7 +686,7 @@ Typical resource usage per monitor (Xilinx 7-series, MAX_TRANSACTIONS=16):
 
 ## Questions or Issues?
 
-1. Check configuration guide: `docs/guides/AXI_Monitor_Configuration_Guide.md`
+1. Check configuration guide: `docs/user-guides/AXI_Monitor_Configuration_Guide.md`
 2. Review module specs: `docs/markdown/RTLAmba/`
 3. Look at test examples: `val/amba/test_*.py`
 4. Check known issues: `rtl/amba/KNOWN_ISSUES/`

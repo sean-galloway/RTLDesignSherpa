@@ -175,7 +175,7 @@ class ProgramEngineTB(TBBase):
 - ❌ Program engine (in-order) - Use queue access
 - ✅ Integration tests with multiple masters - Memory model tracks state
 
-**📖 Complete Patterns:** `docs/guides/VERIFICATION_ARCHITECTURE_GUIDE.md` (repo root docs/)
+**📖 Complete Patterns:** `docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md` (repo root docs/)
 
 ---
 
