@@ -57,7 +57,7 @@ module sync_pulse #(
 
 **SYNC_STAGES Guidelines:**
 - **2 stages**: Minimum CDC-safe, basic reliability
-- **3 stages**: Recommended for most applications (>10^12 hours MTBF)
+- **3 stages**: Recommended for most applications (highest MTBF of the listed options)
 - **4 stages**: Ultra-high reliability (aerospace, medical)
 
 ## Ports
@@ -91,9 +91,14 @@ The module uses a four-stage process to safely transfer pulses:
 
 ### Timing Characteristics
 
-- **Latency**: `(SYNC_STAGES + 2)` destination clock cycles
+- **Latency**: ~`SYNC_STAGES` destination clock cycles to the pulse edge (the
+  combinational edge detector adds no stage; the RTL header's `SYNC_STAGES + 2`
+  is a conservative bound — see Latency Breakdown)
 - **Minimum Pulse Spacing**: `3 × T_dst + 2 × T_src` clock periods
-- **MTBF**: >10^12 hours @ SYNC_STAGES=3, 100MHz
+- **MTBF**: increases with SYNC_STAGES, but is **technology- and rate-dependent**
+  (a function of the flop's metastability τ/T₀, the destination clock, and the
+  event rate) — no fixed hours figure applies without those parameters. Compute
+  it for your target device rather than quoting a constant.
 
 Where:
 - `T_dst` = Destination clock period
@@ -178,7 +183,8 @@ r_sync[2]:     ____________|‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾�
 r_sync_prev:   _______________|‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 o_pulse:       ____________|‾|__|__|__|__|__|__|__|__
 
-Latency: 5 destination clocks (SYNC_STAGES=3 + 2)
+Latency: o_pulse rises with r_sync[2] (~SYNC_STAGES=3 destination clocks after
+the toggle flip); the +2 in the header formula is a conservative over-count.
 ```
 
 ### Multiple Pulse Transfer
@@ -434,12 +440,16 @@ end
 ### Latency Breakdown
 
 For SYNC_STAGES=3:
-1. Source toggle register: 1 source clock
-2. Synchronizer stages: 3 destination clocks
-3. Edge detection: 1 destination clock
-4. Output pulse generation: 1 destination clock
+1. Source toggle register: up to 1 source clock
+2. Synchronizer stages: 3 destination clocks (r_sync[0..2])
 
-**Total**: 5 destination clocks + 1 source clock
+`o_pulse = r_sync[SYNC_STAGES-1] ^ r_sync_prev` is **combinational**, so the
+pulse *starts* the same destination cycle `r_sync[SYNC_STAGES-1]` updates — edge
+detection is **not** an extra pipeline stage. The pulse therefore rises ~2-3
+destination clocks after the toggle flip (plus up to 1 source clock to capture
+`i_pulse`), i.e. roughly `SYNC_STAGES` destination clocks — not `SYNC_STAGES+2`.
+The `+2` in the formula (and RTL header) is a conservative over-count; the timing
+diagram above shows `o_pulse` aligned with `r_sync[2]`, consistent with this.
 
 ### Resource Utilization
 
