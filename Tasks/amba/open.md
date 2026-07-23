@@ -2,6 +2,52 @@
 
 # AMBA tasks — open (not started)
 
+### TASK-026: Every module MUST have a filelist and a registry entry
+**Priority:** P2
+**Status:** 🔴 Not Started
+**Owner:** TBD
+
+**The rule** (authority: `docs/handbook/design/filelists.md`): every module in
+`rtl/amba/` has a filelist in `rtl/amba/filelists/`, and the area is registered
+in `bin/filelists.toml`. A new module lands with its `.f` **in the same commit**
+— not "before the test lands". A module with no filelist has no consumers and is
+indistinguishable from dead code the next time someone audits.
+
+**Current state is good but unenforced.** `bin/filelist_registry.py --check`
+reports amba at 152 modules / 147 covered / 0 uncovered. The 5-module gap is the
+`[exempt]` ledger, not a hole:
+
+- `gaxi_fifo_async_multi` — multi-instance wrapper; no consumer yet
+- `gaxi_fifo_sync_multi` — multi-instance wrapper; no consumer yet
+- `gaxi_skid_buffer_async_multi` — multi-instance wrapper; no consumer yet
+- `gaxi_skid_buffer_multi` — multi-instance wrapper; no consumer yet
+- `gaxi_skid_buffer_multi_sigmap` — multi-instance wrapper; no consumer yet
+
+**Work:**
+- [ ] Resolve the five exemptions: give each a filelist and a consumer, or drop
+      the module. "No consumer yet" is a debt entry, not a permanent state.
+- [ ] Wire `--check` into a gate. **Nothing runs it today** — not the
+      pre-commit hook, not CI (the only workflow is `track-clones.yml`), not a
+      Makefile target. A MUST that nothing enforces is a wish. Shared with
+      COMMON-010; do the gate once for both areas.
+- [ ] Also wire `--audit` (consumers hand-listing `rtl/common` / `rtl/amba`
+      sources). amba is the area most likely to be hand-listed by a consumer,
+      so the audit matters more here than anywhere else.
+
+**Why this is worth a gate — both failure modes are silent:**
+- `//` is a comment, so a doubled slash in a path silently drops that source.
+- Generate-gated submodules (`addr_check`, `monbus_compressor`) are invisible
+  to default-parameter elaboration; they compile fine until someone flips the
+  parameter.
+
+A stray extra `-I` masks both, which is why "the build passes" is not evidence.
+
+**Reading `--check`:** it prints `PASS` when `declared - covered - exempt` is
+empty, so "147 covered" alongside "0 uncovered" on a 152-module area is
+expected. Read all three numbers, not the `PASS`.
+
+---
+
 ### TASK-014: Performance Characterization
 **Priority:** P2
 **Status:** 🔴 Not Started

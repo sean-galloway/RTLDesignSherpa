@@ -51,7 +51,7 @@ override requirements. Design/DV/FPGA *practice* lives in the
 | Area | Status | Covers | Source (pre-migration) |
 |---|---|---|---|
 | [amba](amba/INDEX.md) | **migrated** | AXI/APB/AXIS, monitors, monbus | — |
-| common | pending | rtl/common building blocks | [rtl/common/TASKS.md](../rtl/common/TASKS.md) |
+| [common](common/INDEX.md) | **migrated** | rtl/common building blocks | — |
 | stream | pending | dmas/stream DMA | [TASKS.md](../projects/components/dmas/stream/TASKS.md), TODO_RFC_StageE |
 | rapids | pending | dmas/rapids DMA (beats) | [TASKS.md](../projects/components/dmas/rapids/TASKS.md), rapids_beats_mas/TODO |
 | bridge | pending | bridge crossbar generator | [TASKS.md](../projects/components/bridge/TASKS.md) |

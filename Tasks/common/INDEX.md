@@ -1,0 +1,29 @@
+# common — task rollup
+
+Canonical tracker for `rtl/common/` (~57 reusable building blocks).
+Migrated 2026-07-23 from `rtl/common/TASKS.md`.
+
+| Page | Count | What |
+|---|---|---|
+| [active.md](active.md) | 0 | in progress right now |
+| [open.md](open.md) | 7 | accepted, not started |
+| [closed.md](closed.md) | 4 | done (kept for history) |
+| [dropped.md](dropped.md) | 0 | ended without completing |
+
+The library is a stable, mature baseline: all modules production-ready, 100%
+module test coverage, no blocking issues. Activity is maintenance, coverage and
+integration support.
+
+## Open shortlist
+
+- **COMMON-010** — every module MUST have a filelist + registry entry. Coverage
+  is already good; the gap is that **nothing enforces it**. Shared gate with
+  AMBA TASK-026.
+- **COMMON-011** — `counter.sv` tick not gated during reset. Low severity, but
+  the edge-case test is disabled with `if False:` — a silent test.
+- **COMMON-003** — integration examples (P2).
+- **COMMON-006/007/008/009** — deferred enhancements (P3). COMMON-009 may be
+  superseded by `projects/components/bch/`; check before starting.
+
+Practice and rationale live in the [handbook](../../docs/handbook/INDEX.md);
+this directory tracks *work* only. `/GLOBAL_REQUIREMENTS.md` wins on conflict.

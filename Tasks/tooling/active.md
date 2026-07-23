@@ -13,7 +13,7 @@ retire the scattered files. Use the `tasks` skill's "Migrating an area"
 procedure for each so they all come out identical.
 
 **Areas still pending** (tracked at their old files until moved):
-- [ ] common — rtl/common/TASKS.md
+- [x] common — rtl/common/TASKS.md (DONE 2026-07-23 -> Tasks/common/)
 - [ ] stream — dmas/stream/TASKS.md + TODO_RFC_StageE_datapath_perfmon.md
 - [ ] rapids — dmas/rapids/TASKS.md + docs/rapids_beats_mas/TODO.md
 - [ ] bridge — bridge/TASKS.md

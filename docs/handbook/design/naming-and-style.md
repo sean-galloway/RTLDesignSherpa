@@ -14,7 +14,7 @@ summary: Module/signal conventions, headers, and where files live.
 - Generated code lives in named SUBDIRECTORIES, never beside hand-written
   files; hand-written files in a generator-owned dir get their own
   *_static/ dir (bridge_cam precedent).
-- Filelists: every component owns its closure; consumers -f include
-  (skill: filelists; tool: bin/filelist_registry.py).
+- Filelists: see [[filelists]] - every module MUST have one and MUST be
+  registered in bin/filelists.toml.
 - Before TB work, run bin/audit_signal_naming_conflicts.py - factory
   prefix collisions (desc_valid vs desc_ar_valid) break BFM discovery.
