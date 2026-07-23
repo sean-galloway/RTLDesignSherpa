@@ -43,7 +43,7 @@ The RTLCommon library is built on the following core principles:
 
 - **Lint Clean**: All modules pass rigorous RTL linting checks
 - **Simulation Verified**: Comprehensive testbenches validate functionality
-- **Synthesis Proven**: Validated across multiple technology nodes and vendors
+- **Synthesizable**: Written in standard SystemVerilog with no vendor primitives
 - **Documentation Complete**: Detailed documentation with usage examples
 
 ## Architecture Overview
@@ -169,7 +169,8 @@ Power and timing management for robust digital system design.
 - **Debouncing**: Input signal stabilization
 
 **Power Management Benefits:**
-- Up to 40% dynamic power reduction with clock gating
+- Clock gating (ICG) removes switching on idle functional blocks; the actual
+  dynamic-power saving depends on activity factor and is design-specific
 - Proper reset sequencing for reliable startup
 - Signal integrity maintenance
 
@@ -348,6 +349,7 @@ module arithmetic_unit #(
     logic add_carry, sub_borrow;
 
     // High-speed addition using parallel prefix
+    math_adder_full_nbit #(
         .N(DATA_WIDTH)
     ) u_adder (
         .a(operand_a), .b(operand_b), .cin(1'b0),

@@ -309,22 +309,30 @@ end
 ### Conversion Latency
 The total conversion time depends on the input width and number of digits:
 
-**Formula**: `Latency = WIDTH + (WIDTH-1) × DIGITS` clock cycles
+**Formula**: `Latency ≈ (WIDTH-1) × (2×DIGITS + 2) + 3` clock cycles
+(measured from the cycle `start` is accepted to the cycle `done` asserts).
+
+The per-bit cost is dominated by the add-3 phase: each shift is followed by a
+full `ADD → CK_D_IDX` pass over **every** digit, so each bit position costs
+`2×DIGITS` cycles there in addition to its `SHIFT` and `CK_S_IDX` cycles. The
+`CK_S_IDX` and `CK_D_IDX` states are distinct clock cycles, not free.
 
 ### Latency Breakdown
-- **SHIFT operations**: WIDTH cycles (one per input bit)
-- **ADD operations**: (WIDTH-1) × DIGITS cycles (check each digit after each shift except the last)
-- **State transitions**: CK_S_IDX and CK_D_IDX states (included in above counts)
-- **Completion**: 1 cycle for BCD_DONE state
+- **SHIFT + CK_S_IDX**: 2 cycles per input bit → `2 × WIDTH` cycles.
+- **ADD + CK_D_IDX**: `2 × DIGITS` cycles after each shift **except the last**
+  (the final bit skips the add phase and goes straight to `BCD_DONE`) →
+  `(WIDTH-1) × 2 × DIGITS` cycles.
+- **Completion**: 1 cycle for BCD_DONE state.
+- **Total**: `(WIDTH-1) × (2×DIGITS + 2) + 3` cycles.
 
 ### Latency Examples
 | WIDTH | DIGITS | Total Cycles | @ 100MHz | @ 50MHz |
 |-------|--------|--------------|----------|---------|
-| 4 | 2 | 4 + 3×2 = 10 | 100ns | 200ns |
-| 8 | 3 | 8 + 7×3 = 29 | 290ns | 580ns |
-| 12 | 4 | 12 + 11×4 = 56 | 560ns | 1.12μs |
-| 16 | 5 | 16 + 15×5 = 91 | 910ns | 1.82μs |
-| 20 | 7 | 20 + 19×7 = 153 | 1.53μs | 3.06μs |
+| 4 | 2 | 3×6 + 3 = 21 | 210ns | 420ns |
+| 8 | 3 | 7×8 + 3 = 59 | 590ns | 1.18μs |
+| 12 | 4 | 11×10 + 3 = 113 | 1.13μs | 2.26μs |
+| 16 | 5 | 15×12 + 3 = 183 | 1.83μs | 3.66μs |
+| 20 | 7 | 19×16 + 3 = 307 | 3.07μs | 6.14μs |
 
 ### Pipeline Considerations
 The conversion is inherently sequential, making pipelining challenging:
@@ -385,68 +393,59 @@ assign ascii_hundreds = 8'h30 + hundreds;
 ### Example 1: Converting 8-bit Binary 156 (WIDTH=8, DIGITS=3)
 
 **Initial State**:
-- Binary: 8'b10011100 (156 decimal)
-- BCD: 12'b000000000000
+- Binary: 8'b10011100 (156 decimal), shifted MSB-first: 1,0,0,1,1,1,0,0
+- BCD: 12'b000000000000 (hundreds, tens, ones)
 - Loop count: 0
 
-**Iteration 1**:
-1. SHIFT: BCD = 000000000001, Binary = 00111000, Loop = 0
-2. CK_S_IDX: More bits to process
-3. ADD: Check digits [000, 000, 001] - none ≥ 5
-4. CK_D_IDX: Check next digit
-5. ADD: Check digits [000, 000, 001] - none ≥ 5  
-6. CK_D_IDX: Check next digit
-7. ADD: Check digits [000, 000, 001] - none ≥ 5
-8. CK_D_IDX: All digits checked, go to SHIFT
+Each iteration shifts one binary bit into the BCD LSB, then the ADD phase adds
+3 to any digit that is ≥ 5. The final (8th) iteration skips the ADD phase, per
+the FSM (`CK_S_IDX` jumps straight to `BCD_DONE` when `loop_count == WIDTH-1`).
 
-**Iteration 2**:
-1. SHIFT: BCD = 000000000010, Binary = 01110000, Loop = 1
-2. ADD phase: No digits ≥ 5
+| Iter | Bit in | After SHIFT (H,T,O) | ADD phase | After ADD (H,T,O) |
+|------|--------|---------------------|-----------|-------------------|
+| 1 | 1 | 0000 0000 0001 (0,0,1) | none ≥ 5 | 0000 0000 0001 (0,0,1) |
+| 2 | 0 | 0000 0000 0010 (0,0,2) | none ≥ 5 | 0000 0000 0010 (0,0,2) |
+| 3 | 0 | 0000 0000 0100 (0,0,4) | none ≥ 5 | 0000 0000 0100 (0,0,4) |
+| 4 | 1 | 0000 0000 1001 (0,0,9) | ones 9≥5 +3 | 0000 0000 1100 (0,0,C) |
+| 5 | 1 | 0000 0001 1001 (0,1,9) | ones 9≥5 +3 | 0000 0001 1100 (0,1,C) |
+| 6 | 1 | 0000 0011 1001 (0,3,9) | ones 9≥5 +3 | 0000 0011 1100 (0,3,C) |
+| 7 | 0 | 0000 0111 1000 (0,7,8) | tens 7≥5 +3, ones 8≥5 +3 | 0000 1010 1011 (0,A,B) |
+| 8 | 0 | 0001 0101 0110 (1,5,6) | *(skipped — last bit)* | 0001 0101 0110 (1,5,6) |
 
-**Iteration 3**:
-1. SHIFT: BCD = 000000000101, Binary = 11100000, Loop = 2  
-2. ADD phase: Ones digit = 5 ≥ 5, add 3 → BCD = 000000001000
+**Final Result**: BCD = 0001_0101_0110 = 4'h1, 4'h5, 4'h6 = 156 decimal ✓
 
-**Iteration 4**:
-1. SHIFT: BCD = 000000010001, Binary = 11000000, Loop = 3
-2. ADD phase: No digits ≥ 5
-
-**Iteration 5**:
-1. SHIFT: BCD = 000000100011, Binary = 10000000, Loop = 4
-2. ADD phase: No digits ≥ 5
-
-**Iteration 6**:
-1. SHIFT: BCD = 000001000111, Binary = 00000000, Loop = 5
-2. ADD phase: Ones = 7 ≥ 5, add 3 → BCD = 000001001010 (ones = 10, invalid!)
-   Actually: 7 + 3 = 10 = 1010₂, but this represents BCD "10" which will be handled in next shift
-
-**Iteration 7**:
-1. SHIFT: BCD = 000010010100, Loop = 6
-2. ADD phase: Tens = 9, Ones = 4 - none ≥ 5
-
-**Iteration 8**:
-1. SHIFT: BCD = 000100101000, Loop = 7
-2. CK_S_IDX: Loop count = 7 = WIDTH-1, conversion done
-
-**Final Result**: BCD = 000100101000 = 4'h1, 4'h5, 4'h6 = 156 decimal ✓
+Note how the intermediate `(0,A,B)` = (0,10,11) at iteration 7 is exactly what
+the double-dabble algorithm relies on: the final shift carries those values up
+into legal digits, yielding 1_5_6 without a further add-3.
 
 ### Example 2: Converting 4-bit Binary 9 (WIDTH=4, DIGITS=2)
 
-**Step-by-step conversion of binary 1001₂ (9₁₀)**:
+**Step-by-step conversion of binary 1001₂ (9₁₀)**, cycle-accurate against the
+FSM. Every shift is followed by `CK_S_IDX`, and the ADD phase visits **both**
+digits (`ADD → CK_D_IDX` per digit) before the next shift. The final bit
+(loop_count == WIDTH-1) skips the ADD phase and goes to `BCD_DONE`:
 
-| Cycle | State | Action | BCD | Binary | Notes |
-|-------|-------|--------|-----|--------|-------|
-| 0 | IDLE | Start | 00000000 | 1001 | Initialize |
-| 1 | SHIFT | Shift bit | 00000001 | 0010 | MSB→BCD LSB |
-| 2 | ADD | Check digits | 00000001 | 0010 | Ones=1 <5, no add |
-| 3 | SHIFT | Shift bit | 00000010 | 0100 | Next bit |
-| 4 | ADD | Check digits | 00000010 | 0100 | Ones=2 <5, no add |
-| 5 | SHIFT | Shift bit | 00000100 | 1000 | Next bit |
-| 6 | ADD | Check digits | 00000100 | 1000 | Ones=4 <5, no add |
-| 7 | SHIFT | Shift bit | 00001001 | 0000 | Final bit |
-| 8 | DONE | Complete | 00001001 | 0000 | Result: BCD=09 |
+| Cycle | State | BCD (T,O) | Binary | Notes |
+|-------|-------|-----------|--------|-------|
+| 0 | IDLE | 00000000 | 1001 | start latched |
+| 1 | SHIFT | 00000001 | 0010 | bit 1 → BCD LSB |
+| 2 | CK_S_IDX | 00000001 | 0010 | loop 0 ≠ 3 → ADD |
+| 3 | ADD | 00000001 | 0010 | ones=1 <5 (digit 0) |
+| 4 | CK_D_IDX | 00000001 | 0010 | digit 0 → 1 → ADD |
+| 5 | ADD | 00000001 | 0010 | tens=0 <5 (digit 1) |
+| 6 | CK_D_IDX | 00000001 | 0010 | last digit → SHIFT |
+| 7 | SHIFT | 00000010 | 0100 | bit 0 |
+| 8 | CK_S_IDX | 00000010 | 0100 | loop 1 ≠ 3 → ADD |
+| 9–12 | ADD/CK_D_IDX | 00000010 | 0100 | ones=2, tens=0, no add |
+| 13 | SHIFT | 00000100 | 1000 | bit 0 |
+| 14 | CK_S_IDX | 00000100 | 1000 | loop 2 ≠ 3 → ADD |
+| 15–18 | ADD/CK_D_IDX | 00000100 | 1000 | ones=4, tens=0, no add |
+| 19 | SHIFT | 00001001 | 0000 | final bit 1 → ones=9 |
+| 20 | CK_S_IDX | 00001001 | 0000 | loop 3 = WIDTH-1 → BCD_DONE |
+| 21 | BCD_DONE | 00001001 | 0000 | done asserted, result 09 |
 
-**Result**: BCD = 8'b00001001 = 09₁₆ = 9₁₀ ✓
+**Result**: BCD = 8'b00001001 = 09₁₆ = 9₁₀ ✓ (21 cycles, matching
+`(WIDTH-1)×(2×DIGITS+2)+3 = 3×6+3 = 21`).
 
 ## Design Examples and Applications
 

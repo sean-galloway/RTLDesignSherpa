@@ -62,7 +62,7 @@ module arbiter_round_robin_weighted #(
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| MAX_LEVELS | int | 16 | Maximum weight value per client (range: 1-256) |
+| MAX_LEVELS | int | 16 | Sizes the weight/credit fields at `$clog2(MAX_LEVELS)` bits. **The largest usable weight is `MAX_LEVELS-1`** (15 for the default 16), *not* MAX_LEVELS: a weight of `MAX_LEVELS` truncates to 0 in the field and silently **disables** that client (`w_valid_clients[j] = client_weight[j] > 0`). Usable weight range per client: `1 .. MAX_LEVELS-1` (0 = disabled). |
 | CLIENTS | int | 4 | Number of requesting clients (range: 2-32) |
 | WAIT_GNT_ACK | int | 0 | Enable ACK protocol (0=No-ACK, 1=ACK required) |
 
@@ -119,13 +119,23 @@ The arbiter uses a credit-based system for weighted bandwidth allocation:
 
 ### Weight Ratio Example
 
-For weights [4, 2, 1, 1]:
-- **Client 0**: 4 credits → gets 4 consecutive grants
-- **Client 1**: 2 credits → gets 2 consecutive grants
-- **Client 2**: 1 credit → gets 1 grant
-- **Client 3**: 1 credit → gets 1 grant
-- **Pattern**: C0, C0, C0, C0, C1, C1, C2, C3, [replenish], repeat...
-- **Bandwidth**: C0=50%, C1=25%, C2=12.5%, C3=12.5%
+For weights [4, 2, 1, 1] with all clients requesting continuously:
+- **Client 0**: 4 credits per round
+- **Client 1**: 2 credits per round
+- **Client 2**: 1 credit per round
+- **Client 3**: 1 credit per round
+- **Pattern**: grants are **interleaved, not bursty**. The masking logic
+  excludes the just-granted client whenever more than one client is still
+  eligible (`w_mask_multi_req[j] = w_requesting_eligible[j] && !grant[j]`), so
+  client 0 does **not** receive 4 back-to-back grants while others are eligible.
+  A representative sequence is `C0, C1, C2, C3, C0, C1, C0, (bubble), C0,
+  [replenish], repeat` — client 0 still gets 4 grants per round, but spread out.
+- **Bandwidth** (the quantity that actually holds): C0=50%, C1=25%, C2=12.5%,
+  C3=12.5% per round.
+
+Consecutive per-client grants only occur once a client is the **sole** eligible
+requester (e.g., others have exhausted their credits), at which point the
+`w_mask_last_client` term lets it keep the resource.
 
 ## Dynamic Weight Changes
 
@@ -195,11 +205,21 @@ assign w_requesting_eligible[i] = request[i] &&
                                    ((w_has_crd[i]) ||
                                     (w_global_replenish && client_weight[i] > 0));
 
-// Apply masking for fairness among multiple eligible clients
-assign w_mask_req[i] = (multiple_eligible) ?
-                       (w_requesting_eligible[i] && !grant[i]) :
-                       (w_requesting_eligible[i] && r_credit_counter[i] > 1);
+// Apply masking for fairness among multiple eligible clients.
+// The two terms are OR'd, NOT selected by a ternary: the "eligible && !grant"
+// term is ALWAYS active, so a lone eligible client can never be masked to 0.
+assign w_mask_multi_req[i]   = w_requesting_eligible[i] && !grant[i];
+assign w_mask_last_client[i] = !multiple_eligible &&
+                               w_requesting_eligible[i] &&
+                               (r_credit_counter[i] > 1);
+assign w_mask_req[i] = w_mask_multi_req[i] || w_mask_last_client[i];
 ```
+
+> **Do not re-implement this as a ternary** (`multiple_eligible ? ... : ...`).
+> Dropping the unconditional `eligible && !grant` term would leave a lone
+> eligible client on its last credit (`r_credit_counter == 1`) with
+> `w_mask_req = 0` forever: no grant, so no decrement, so no replenish — a
+> deadlock. The OR form grants it every other cycle.
 
 ### Sub-Module: arbiter_round_robin
 
@@ -329,7 +349,7 @@ arbiter_round_robin_weighted #(
     .clk        (clk),
     .rst_n      (rst_n),
     .block_arb  (bus_busy),
-    .max_thresh ({4'd3, 4'd5}),  // Weights [5, 3]
+    .max_thresh ({3'd3, 3'd5}),  // client1=3, client0=5; fields are $clog2(8)=3 bits each
     .request    (m_req),
     .grant_ack  (m_done),        // Master completion signal
     .grant_valid(m_grant_vld),
