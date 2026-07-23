@@ -19,11 +19,14 @@ This directory contains WaveDrom timing diagrams for PIC 8259 (Programmable Inte
 - `s_apb_PWRITE`, `s_apb_PADDR`, `s_apb_PWDATA`, `s_apb_PRDATA` - Data signals
 
 ### PIC Pins (External)
-- `ir[7:0]` - Interrupt request inputs (directly or edge triggered)
-- `int` - Interrupt output to CPU
-- `inta_n` - Interrupt acknowledge from CPU (active low)
-- `cas[2:0]` - Cascade lines (master output, slave input)
-- `sp_n/en_n` - Slave program / enable buffer
+- `irq_in[7:0]` - Interrupt request inputs (edge or level triggered)
+- `int_out` - Interrupt output to CPU
+
+> Note: the diagrams below also show classic-8259A signals that the current RTL
+> does **not** implement - there are no `inta_n`, `cas[2:0]`, or `sp_n/en_n`
+> pins. The INTA handshake, cascade, and IRR->ISR/EOI flows they depict are
+> classic-8259A context only; in this RTL ISR is never set. See the Chapter 5
+> register map implementation notes.
 
 ### PIC Core (Internal)
 - **IRR (Interrupt Request Register):** `r_irr[7:0]` - Pending interrupts
@@ -67,20 +70,28 @@ Shows automatic priority rotation (OCW2 = 0xA0). After EOI, serviced IR becomes 
 
 ## Register Reference
 
+This block uses a fully-decoded 32-bit APB register file, not the legacy A0
+two-port model. Offsets below are the actual RTL decode; see
+[Chapter 5: Register Map](../../../ch05_registers/01_register_map.md) for full
+field definitions.
+
 ### Initialization Command Words (ICW)
-| ICW | A0 | Description |
-|-----|----|----|
-| ICW1 | 0 | Edge/level, single/cascade, ICW4 needed |
-| ICW2 | 1 | Vector base address (upper 5 bits) |
-| ICW3 | 1 | Cascade configuration (master/slave) |
-| ICW4 | 1 | 8086 mode, auto EOI, buffered, nested |
+| ICW | Offset | Description |
+|-----|--------|-------------|
+| ICW1 | 0x04 | Edge/level, single/cascade, ICW4 needed |
+| ICW2 | 0x08 | Vector base address |
+| ICW3 | 0x0C | Cascade configuration (master/slave; stored but inert) |
+| ICW4 | 0x10 | 8086 mode, auto EOI, buffered, nested |
 
 ### Operation Command Words (OCW)
-| OCW | A0 | Description |
-|-----|----|----|
-| OCW1 | 1 | IMR - Interrupt Mask Register |
-| OCW2 | 0 | EOI commands, rotation |
-| OCW3 | 0 | Read IRR/ISR, special mask mode |
+| OCW | Offset | Description |
+|-----|--------|-------------|
+| OCW1 | 0x14 | IMR - Interrupt Mask Register |
+| OCW2 | 0x18 | EOI commands, rotation |
+| OCW3 | 0x1C | Read IRR/ISR, special mask mode |
+
+Global control (PIC_CONFIG) is at 0x00 and gates all operation via `pic_enable`;
+IRR/ISR/STATUS are dedicated read-only registers at 0x20/0x24/0x28.
 
 ### OCW2 Commands
 | Value | Command |
