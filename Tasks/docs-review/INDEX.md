@@ -6,7 +6,7 @@ Process and rationale: [kimi-review-rounds](../../docs/handbook/authoring/kimi-r
 | State | Count |
 |---|---|
 | [active](active.md) | 0 |
-| [open](open.md) | 4 |
+| [open](open.md) | 5 |
 | [closed](closed.md) | 0 |
 | [dropped](dropped.md) | 0 |
 
@@ -19,3 +19,5 @@ Process and rationale: [kimi-review-rounds](../../docs/handbook/authoring/kimi-r
 - **DOCREV-003** — final MD-only humanize round. Blocked on DOCREV-002 and -001.
 - **DOCREV-004** — back up or retire the off-repo collateral at
   `/mnt/data/github/rtl-doc-review/`.
+- **DOCREV-005** — cloud enablement: key as a secret + egress allowlist. Gates
+  new rounds only; the 339-finding backlog needs no API call.
