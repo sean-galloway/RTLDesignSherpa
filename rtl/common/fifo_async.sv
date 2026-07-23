@@ -34,7 +34,9 @@
 //   - Mux (combinational) or Flop (registered) output modes
 //   - Full/empty flag generation (domain-specific)
 //   - Almost-full/almost-empty thresholds for flow control
-//   - Built-in overflow/underflow detection (simulation)
+//   - Write-when-full silently ignored via !wr_full guard (no $display/assertion
+//     telemetry here; the only elaboration check is $error for non-pow2 DEPTH
+//     when USE_JOHNSON=0)
 //
 //------------------------------------------------------------------------------
 // Parameters:
@@ -287,8 +289,8 @@
 //   - **Never bypass gray code** - Direct binary sync WILL corrupt pointers
 //   - Mux mode: Lower read latency, but memory→output critical path
 //   - Flop mode: Higher read latency, but improved timing closure
-//   - Write when full: Ignored in synthesis, warning in simulation
-//   - Read when empty: Returns stale data, warning in simulation
+//   - Write when full: silently ignored (guarded by !wr_full; no sim warning)
+//   - Read when empty: returns stale data (no sim warning)
 //   - **Independent resets:** wr_rst_n and rd_rst_n can assert independently
 //   - Reset synchronization not built-in (use reset_sync externally if needed)
 //   - Memory implementation: Inferred RAM (BRAM for large, LUT for small)

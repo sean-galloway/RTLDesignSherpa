@@ -206,11 +206,10 @@ end
 - **Detection Rate**: 100% for single and double errors
 
 ### Debug Support
-When `DEBUG != 0`:
-- Displays parity calculations
-- Shows syndrome values
-- Reports error detection details
-- Useful for verification and debugging
+The `DEBUG` parameter exists but is currently a **no-op**: the RTL's only
+`DEBUG` reference is an empty `initial begin if (DEBUG != 0) begin ... end end`
+placeholder with no `$display` statements. Enabling `DEBUG` produces no output
+in the current implementation.
 
 ## Error Handling Details
 

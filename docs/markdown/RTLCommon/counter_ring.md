@@ -68,15 +68,17 @@ module counter_ring #(
 A ring counter is a circular shift register where:
 - **Initialization**: Single '1' bit in LSB position
 - **Operation**: The '1' bit rotates right each clock cycle
-- **Feedback**: MSB connects back to LSB (no inversion)
+- **Feedback**: LSB connects back to MSB (no inversion)
 - **States**: WIDTH unique one-hot states
 
 ### Mathematical Representation
-For each clock cycle when enabled:
+For each clock cycle when enabled (`ring_out <= {ring_out[0], ring_out[WIDTH-1:1]}`):
 ```
-ring_out[i] = ring_out[i-1]  for i = 1 to WIDTH-1
-ring_out[0] = ring_out[WIDTH-1]
+ring_out[i] = ring_out[i+1]  for i = 0 to WIDTH-2
+ring_out[WIDTH-1] = ring_out[0]
 ```
+From reset `0001` this gives `0001 -> 1000 -> 0100 -> 0010 -> 0001`, matching
+the state tables below.
 
 ## Implementation Details
 
@@ -95,8 +97,8 @@ end
 ### Operation Breakdown
 1. **Reset State**: `ring_out = 'b1` (only LSB set)
 2. **Rotation**: `{ring_out[0], ring_out[WIDTH-1:1]}`
-   - MSB becomes new LSB
-   - All other bits shift right
+   - LSB becomes new MSB
+   - All other bits shift right (toward the LSB)
 3. **Enable Control**: Only advances when `enable` is high
 4. **Circular**: After WIDTH cycles, returns to initial state
 

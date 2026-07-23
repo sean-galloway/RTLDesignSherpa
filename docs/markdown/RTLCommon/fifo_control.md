@@ -103,7 +103,7 @@ rd_ptr  = 0_010  (address 2, not wrapped)
 ### Occupancy Calculation
 ```systemverilog
 assign w_almost_full_count = (w_wdom_ptr_xor) ?
-    (AW'(D) - wdom_rd_ptr_bin[AW-1:0] + wr_ptr_bin[AW-1:0]) :
+    ((AW+1)'(D) - wdom_rd_ptr_bin[AW-1:0] + wr_ptr_bin[AW-1:0]) :
     (wr_ptr_bin[AW-1:0] - wdom_rd_ptr_bin[AW-1:0]);
 ```
 
@@ -118,7 +118,7 @@ assign w_almost_full_count = (w_wdom_ptr_xor) ?
 
 ### Almost Full Threshold
 ```systemverilog
-assign w_wr_almost_full_d = w_almost_full_count >= AW'(AFT);
+assign w_wr_almost_full_d = w_almost_full_count >= (AW+1)'(AFT);
 // Where AFT = DEPTH - ALMOST_WR_MARGIN
 ```
 
@@ -176,10 +176,10 @@ Almost empty calculation uses standard timing regardless of FIFO mode:
 
 ```systemverilog
 assign w_almost_empty_count = (w_rdom_ptr_xor) ?
-    (AW'(D) - rd_ptr_bin[AW-1:0] + rdom_wr_ptr_bin[AW-1:0]) :
+    ((AW+1)'(D) - rd_ptr_bin[AW-1:0] + rdom_wr_ptr_bin[AW-1:0]) :
     (rdom_wr_ptr_bin[AW-1:0] - rd_ptr_bin[AW-1:0]);
 
-assign w_rd_almost_empty_d = w_almost_empty_count <= AW'(AET);
+assign w_rd_almost_empty_d = w_almost_empty_count <= (AW+1)'(AET);
 // Where AET = ALMOST_RD_MARGIN
 ```
 
@@ -187,9 +187,15 @@ assign w_rd_almost_empty_d = w_almost_empty_count <= AW'(AET);
 
 ### Occupancy Count Logic
 ```systemverilog
-assign count = (w_rdom_ptr_xor) ?
-    (rdom_wr_ptr_bin[AW-1:0] - rd_ptr_bin[AW-1:0] + AW'(D)) :
+// Combinational occupancy...
+logic [AW:0] w_count, r_count;
+assign w_count = (w_rdom_ptr_xor) ?
+    (rdom_wr_ptr_bin[AW-1:0] - rd_ptr_bin[AW-1:0] + (AW+1)'(D)) :
     (rdom_wr_ptr_bin[AW-1:0] - rd_ptr_bin[AW-1:0]);
+
+// ...but the exported count is REGISTERED in flop mode (r_count is w_count
+// delayed one rd_clk); mux mode exports the combinational value directly.
+assign count = (REGISTERED == 1) ? r_count : w_count;
 ```
 
 ### Count Interpretation
@@ -235,13 +241,21 @@ end
 
 ### Type Width Matching
 ```systemverilog
-// Fixed: Cast D to AW-bit width to match other operands
+// The occupancy count needs AW+1 bits, and D (= DEPTH) must be cast to AW+1
+// bits -- NOT AW bits. AW'(D) TRUNCATES: for depth=16, AW=4, AW'(16) = 4'b0000
+// (wrong!), whereas (AW+1)'(16) = 5'b10000 (correct). The count register is
+// widened to [AW:0] to hold the full range 0..DEPTH.
+logic [AW:0] w_almost_full_count;
+
 assign w_almost_full_count = (w_wdom_ptr_xor) ?
-    (AW'(D) - wdom_rd_ptr_bin[AW-1:0] + wr_ptr_bin[AW-1:0]) :
+    ((AW+1)'(D) - wdom_rd_ptr_bin[AW-1:0] + wr_ptr_bin[AW-1:0]) :
     (wr_ptr_bin[AW-1:0] - wdom_rd_ptr_bin[AW-1:0]);
 ```
 
-The `AW'(D)` casting ensures all operands have matching bit widths, preventing synthesis warnings.
+The `(AW+1)'(D)` cast (with the widened `[AW:0]` count) is what prevents the
+wraparound occupancy from truncating. Casting to `AW'(D)` reintroduces the
+truncation bug: e.g. DEPTH=16 with wr=2, rd=14 should give occupancy
+16-14+2 = 4, but `AW'(16)` = 0 yields 0-14+2 (garbage).
 
 ## Key Design Insights
 

@@ -45,9 +45,16 @@ Implements an asynchronous FIFO for safe clock domain crossing between different
 - **`rd_almost_empty`** - Read domain almost empty flag
 
 ### Parameters
+- **`MEM_STYLE`** - Memory implementation (`FIFO_AUTO`/SRL/BRAM). The BRAM
+  branch registers the read path (registered read even when `REGISTERED=0`).
 - **`REGISTERED`** - 0=mux mode, 1=flop mode for read output
 - **`DATA_WIDTH`** - Width of data (default: 8)
-- **`DEPTH`** - FIFO depth - **must be power of 2** (default: 16)
+- **`DEPTH`** - FIFO depth. Power-of-2 with the default binary Gray pointers;
+  set **`USE_JOHNSON=1`** for **non-power-of-2** depths (Johnson-coded pointers
+  via `counter_johnson`/`johnson2bin`). (default: 16)
+- **`USE_JOHNSON`** - 0=binary Gray pointers (power-of-2 depth), 1=Johnson
+  pointers (arbitrary depth). This is the supported route to non-power-of-2
+  depth (the old `fifo_async_div2` module was retired).
 - **`N_FLOP_CROSS`** - Number of synchronizer stages (default: 2)
 - **`ALMOST_WR_MARGIN`** - Almost full threshold (default: 1)
 - **`ALMOST_RD_MARGIN`** - Almost empty threshold (default: 1)
@@ -129,12 +136,12 @@ glitch_free_n_dff_arn #(
 
 #### Dual-Port Memory
 ```systemverilog
-logic [DW-1:0] r_mem[0:((1<<AW)-1)];  // Memory array
+logic [DW-1:0] mem[0:((1<<AW)-1)];  // Memory array
 
 // Write port (write domain)
 always_ff @(posedge wr_clk) begin
-    if (write) begin
-        r_mem[r_wr_addr] <= wr_data;
+    if (write && !wr_full) begin  // !wr_full guard REQUIRED (prevents overwrite)
+        mem[r_wr_addr] <= wr_data;
     end
 end
 
@@ -208,7 +215,8 @@ assign rd_empty = (!w_rdom_ptr_xor_for_empty &&
 ### When to Use vs. Alternatives
 - **Use async FIFO when**: Clock domains are truly independent
 - **Use sync FIFO when**: Single clock domain sufficient
-- **Use async_div2 when**: Need non-power-of-2 depth
+- **For non-power-of-2 depth**: use `fifo_async #(.USE_JOHNSON(1))` — the
+  standalone `fifo_async_div2` module was retired
 
 ## Design Guidelines
 
@@ -236,14 +244,12 @@ parameter int MIN_DEPTH = 16;  // Typical minimum for async FIFOs
 - **Efficiency**: ~100% utilization possible
 
 ## Error Detection Features
-```systemverilog
-// Simulation-only error checking
-always_ff @(posedge wr_clk) begin
-    if (!wr_rst_n && (write && wr_full) == 1'b1) begin
-        $display("Error: %s write while fifo full, %t", INSTANCE_NAME, $time);
-    end
-end
-```
+**Note:** the current RTL has **no** runtime `$display` overflow/underflow
+checks and **no** `INSTANCE_NAME` parameter. The `!wr_full` write guard is the
+only overflow protection. The one elaboration-time check that does exist is an
+`$error` for a non-power-of-2 `DEPTH` when Gray pointers are selected
+(`USE_JOHNSON=0`). Add assertions in your testbench if you need overflow
+telemetry.
 
 ## WaveDrom Visualization
 

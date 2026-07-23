@@ -33,7 +33,8 @@
 //   - Full/empty flag generation
 //   - Almost-full/almost-empty thresholds (programmable margins)
 //   - Write-through operation (no bubble cycles)
-//   - Built-in overflow/underflow detection (simulation only)
+//   - Write-when-full / read-when-empty are silently ignored via the !wr_full /
+//     !rd_empty guards (no $display/assertion telemetry in this module)
 //   - Efficient counter_bin implementation for pointers
 //
 //------------------------------------------------------------------------------
@@ -257,8 +258,8 @@
 //   - Simultaneous read/write supported (count constant)
 //   - **Mux mode (REGISTERED=0):** Lower latency, but memory-to-output critical path
 //   - **Flop mode (REGISTERED=1):** Higher latency, but breaks timing path
-//   - Write when full is IGNORED (not an error in synthesis, warning in sim)
-//   - Read when empty is IGNORED (returns stale data, warning in sim)
+//   - Write when full is silently IGNORED (guarded by !wr_full; no sim warning)
+//   - Read when empty returns stale data (no sim warning)
 //   - Almost flags are combinational (update same cycle as pointer change)
 //   - **DEPTH does not need to be power-of-2** - Arbitrary depths supported
 //   - Address wrapping handled by counter_bin module (MSB inversion)
