@@ -160,3 +160,113 @@ here; file them there and reference this task.
 Why this matters beyond tidiness: the combination of these two is what let a
 round-robin arbiter that starved half its clients pass its own testbench. See
 [[randomization]].
+
+---
+
+### TOOL-008: Redo the Makefiles from scratch
+**Priority:** P1
+**Status:** 🔴 Not Started — spec re-captured from Sean 2026-07-23 (see below)
+**Owner:** Sean (spec) / TBD (implementation)
+
+**History.** Sean wrote an extensive design for this. That document was never
+committed here and did not survive the workstation loss on 2026-07-23 — not in
+the tree, not in any local or remote branch, not in reflog/stash/dangling
+objects, not in any surviving session transcript. A prior session promised to
+file this task and did not. The requirements below were **re-dictated by Sean on
+2026-07-23** after the loss; they are his words paraphrased, not reconstructed by
+inference. If the original doc resurfaces, reconcile against it — it was longer
+than this.
+
+---
+
+#### R1 — Every Makefile figures out its own thread count. No hardcoded numbers.
+
+**This is the requirement that killed a machine.** The hardcoded worker counts
+assume a big host; on a smaller one they oversubscribe until it dies. Sean had
+to hard-kill the workstation on 2026-07-23 because of this.
+
+Measured 2026-07-23 (host `nproc` = **8**):
+- **`-n 48` is hardcoded in 28 files.** `test_targets.mk` alone has **70**
+  occurrences; `env_python` has 2; each of `val/{amba,common,integ_amba,
+  integ_common}/Makefile` and ~20 `projects/**/dv/tests/**/Makefile` have 1-2.
+  On this 8-core box that is a **6x oversubscription** by default.
+- Other files pick different numbers with no rationale: `-n 24`, `-n 2`,
+  `PYTEST_WORKERS := 8` (stream `performance_tests/Makefile`).
+- Exactly **one** place does it right and nothing else copies it:
+  `projects/components/Makefile:58-59` —
+  `FAST_JOBS ?= 4` / `FAST_WORKERS ?= $(shell echo $$(( $$(nproc) / $(FAST_JOBS) )))`.
+- The number is also baked into non-Makefile files that must be swept with them:
+  `bin/aggregate_test_results.py`, and the docs
+  `docs/handbook/dv/test-runner.md` (2), `projects/components/MAKEFILE_GUIDE.md`,
+  `projects/components/MAKEFILE_HIERARCHY.md`.
+
+Derive from `nproc` in ONE place, overridable by env var. Remember these are
+Verilator sims — each worker is a compile+sim process, so the right divisor is
+not necessarily 1-per-core; whatever the rule is, it lives in the master
+Makefile and nowhere else.
+
+#### R2 — One consistent target grammar, everywhere.
+
+```
+make run-<all|testroot>-<gate|func|full>-<serial|parallel>
+```
+
+- **testroot** is the test file with `test_` and `.py` stripped:
+  `test_grey2bin.py` → `make run-grey2bin-func-parallel`.
+- `all` means every test in scope for the Makefile you are standing in.
+- Today the targets are hand-written and combinatorial instead —
+  `val/amba/Makefile` is **2074 lines / 229 targets**, `val/common/Makefile`
+  **1245 / 131**, root `Makefile` **976 / 83**, `projects/components/Makefile`
+  **613 / 35**. Adding a module means hand-editing several targets across
+  several files and nothing checks that you did.
+
+**Open question for Sean:** the dictated grammar ended
+`-<serial|parallel>-<serial|parallel>` — the same axis twice. Assumed a typo and
+recorded once. If it was intentional (e.g. an outer dir-level axis and an inner
+pytest-level axis, which the existing `PARALLEL_DIRS` in the stream/rapids
+Makefiles hints at), say so and this gets corrected before implementation.
+
+#### R3 — Discover tests by globbing. Do not enumerate them.
+
+Targets are generated from globbing `test_*.py`, so a new test is runnable the
+moment it lands. This is what makes R2 maintainable and kills the combinatorial
+hand-written target lists.
+
+#### R4 — One master Makefile; every other Makefile is ~4 lines.
+
+All logic lives in the master (include/`.mk`). A leaf `Makefile` in
+`val/common/`, `projects/**/dv/tests/fub/`, `macro/`, `top/` etc. sets its few
+locals and includes the master. Today those leaf Makefiles are "completely
+different" from each other across `common/`, `amba/`, and the `projects/` areas
+— same job, divergent implementations, which is how the thread handling drifted
+in the first place.
+
+---
+
+**Measured state of the problem (2026-07-23), as the starting evidence:**
+- **124 Makefiles** in the repo (excluding `venv/`): 36 under
+  `projects/components/`, 18 under `projects/NexysA7/`, 60 under `formal/`,
+  5 under `val/`, plus the 3-tier roots.
+- The regression Makefiles are **enormous and hand-maintained** — line/target
+  counts under R2 above.
+- The hand-written target set is combinatorial — every protocol crossed with
+  `-parallel`, `-gate`, `-func`, `-full`, plus per-module variants
+  (`run-apb5-master`, `run-apb5-slave`, `run-apb5-monitor`, `run-apb5-cg`,
+  `run-apb5-cdc`, `run-apb5-stub`, ...). This is exactly what R2+R3 replace.
+- The `fub/` / `macro/` / `top/` split repeats across `dmas/stream`,
+  `dmas/rapids`, `pumice`, `misc`, `timing_characterization` — each with its own
+  divergent Makefile doing the same job. These are the R4 four-liners.
+- The existing three-tier description lives in
+  `projects/components/MAKEFILE_HIERARCHY.md` and `MAKEFILE_GUIDE.md`
+  (both dated 2025-10-24, pre-dmas-reorg). Per the handbook rule these are
+  methodology living next to code and should end up as handbook notes —
+  coordinate with TOOL-002.
+
+**Related work already tracked, do not duplicate:**
+- TOOL-003 wants a gate running `filelist_registry --check/--audit`; a Makefile
+  rewrite is the natural home for it, since the filelists are what a
+  regenerated target set would key off.
+- [[test-runner]] and [[running-regressions]] document the current
+  Makefile → pytest → cocotb_test.run → Verilator stack and the
+  `REG_LEVEL` vs `TEST_LEVEL` distinction. Any rewrite must keep those
+  semantics or update both notes in the same change.

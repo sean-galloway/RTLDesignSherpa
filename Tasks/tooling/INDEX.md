@@ -7,7 +7,7 @@ Repo tooling, scripts, and process work.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 1 | in progress right now |
-| [open.md](open.md) | 6 | accepted, not started |
+| [open.md](open.md) | 7 | accepted, not started |
 | [closed.md](closed.md) | 0 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing |
 
@@ -19,6 +19,10 @@ Repo tooling, scripts, and process work.
 
 ## Open
 
+- **TOOL-008** (P1) — redo the Makefiles from scratch: auto-derive worker count
+  (`-n 48` is hardcoded in 28 files on an 8-core box — this killed a machine),
+  one target grammar `run-<all|testroot>-<gate|func|full>-<serial|parallel>`,
+  glob-discovered tests, one master Makefile with four-line leaves.
 - **TOOL-003** — one gate that actually runs `filelist_registry --check`.
   Shared deliverable for COMMON-010 / AMBA TASK-026; today nothing runs it.
 - **TOOL-002** — migrate the 7 remaining method docs out of `bin/` into the
