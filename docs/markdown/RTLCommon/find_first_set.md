@@ -35,8 +35,7 @@ Finds the index of the least significant bit (LSB) that is set to '1' in the inp
 - **`index[$clog2(WIDTH)-1:0]`** - Index of the first (lowest) set bit
 
 ### Parameters
-- **`WIDTH`** - Width of input data vector (default: 32)
-- **`INSTANCE_NAME`** - String identifier for debug (default: "FFS")
+- **`WIDTH`** - Width of input data vector (default: 32) — the module's only parameter
 
 ## Implementation Details
 

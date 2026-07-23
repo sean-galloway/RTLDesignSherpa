@@ -80,7 +80,9 @@ flowchart LR
 ### Stage-by-Stage Analysis
 1. **Stage 1 (FF1)**: Captures source data, may go metastable
 2. **Stage 2 (FF2)**: Allows metastability to resolve, low probability of propagation
-3. **Stage 3+ (FFN)**: Further reduces MTBF (Mean Time Between Failures)
+3. **Stage 3+ (FFN)**: Further **increases** MTBF (Mean Time Between Failures) —
+   each added stage gives metastability more time to resolve (see the ~1000×-per-
+   stage table below)
 
 ## Implementation Details
 
@@ -110,7 +112,9 @@ end
 ```
 
 ### Reset Behavior
-- **Synchronous reset**: Uses destination domain reset
+- **Asynchronous reset** (active-low `rst_n`): the RTL uses
+  `always_ff @(posedge clk or negedge rst_n)` (the "arn" suffix = async reset,
+  active-low), driven by the destination-domain reset
 - **Complete reset**: All stages reset to zero
 - **Nested replication**: `{FC{{DW{1'b0}}}}` creates FC copies of DW zeros
 

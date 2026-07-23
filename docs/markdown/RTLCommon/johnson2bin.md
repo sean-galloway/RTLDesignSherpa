@@ -75,8 +75,10 @@ State 0:  000000  ← Cycle complete (12 states total)
 ### Key Properties
 - **Single bit transitions**: Only one bit changes per state
 - **Two phases**: 
-  - **First half** (0 to DEPTH-1): Filling with 1s from left
-  - **Second half** (DEPTH to 2×DEPTH-1): Emptying 1s from left
+  - **First half** (0 to DEPTH-1): Filling with 1s from the **right** (ones
+    enter at bit 0 and march upward: 000000 → 000001 → 000011 → ...)
+  - **Second half** (DEPTH to 2×DEPTH-1): Emptying 1s from the **right**
+    (111111 → 111110 → 111100 → ...)
 - **Wrap indicator**: MSB indicates which half of cycle
 
 ## Conversion Algorithm
@@ -114,22 +116,25 @@ leading_one_trailing_one #(
 
 ### First Half Conversion (MSB = 0)
 ```
-Johnson: 001111 (w_leading_one = 5, w_trailing_one = 2)
-Logic: First half, so position = w_leading_one + 1 = 5 + 1 = 6
-Binary: 000110 (with MSB=0 indicating first half)
+Johnson: 001111 (set bits {0,1,2,3}: w_leading_one = 3, w_trailing_one = 0)
+Logic: gray[5]=0 → first half, position = w_leading_one + 1 = 3 + 1 = 4
+Binary: 000100 (MSB=0 indicating first half) = state 4
 ```
 
 ### Second Half Conversion (MSB = 1)  
 ```
-Johnson: 111000 (w_leading_one = 0, w_trailing_one = 2)
-Logic: Second half, so position = w_trailing_one = 2
-Binary: 100010 (with MSB=1 indicating second half)
+Johnson: 111000 (set bits {3,4,5}: w_leading_one = 5, w_trailing_one = 3)
+Logic: gray[5]=1 → second half, position = w_trailing_one = 3
+Binary: 100011 (MSB=1 indicating second half) = state 9 (6 + 3)
 ```
 
 ### Special Cases
 ```
 Johnson: 000000 → Binary: 000000 (all zeros case)
-Johnson: 111111 → Binary: 000000 (all ones case - same as zeros)
+Johnson: 111111 → Binary: 100000 (all ones: lower bits forced to 0, but the RTL
+         unconditionally sets binary[WIDTH-1] = gray[JCW-1] = 1, so the wrap
+         bit is SET -- this is {wrap=1, addr=0}, NOT the same as all-zeros.
+         FIFO full detection depends on this.)
 ```
 
 ## Implementation Deep Dive
