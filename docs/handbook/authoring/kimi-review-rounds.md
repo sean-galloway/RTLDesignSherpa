@@ -28,7 +28,7 @@ for one call are pre-split into `parts/part_NN`. Results land in
 `<results>/<mode>-<model>/round_N/` as `<unit>.md` + `<unit>.meta.json`,
 with the inputs snapshotted into `_bundle_snapshot/`.
 
-## The five rules
+## The seven rules
 
 Each one is here because ignoring it cost real work.
 
@@ -54,6 +54,41 @@ Each one is here because ignoring it cost real work.
    wrong things confidently when a unit was mis-packaged. *Case: the
    `math_subtractor` "five nonexistent modules" finding was our packaging bug,
    not the reviewer's error.*
+
+   The converse also holds: a finding that *looks* like a doc nit can be a real
+   RTL defect. Read the whole finding, not the headline. *Case: "RTL rotates
+   the wrong direction" in `arbiter_round_robin_simple` reads like a doc-vs-RTL
+   ordering mismatch - and grant order genuinely is a free choice - but the
+   same finding also claimed starvation, which was true: two of four agents
+   were never served. Triage doc-fix vs RTL-fix per finding before batching.*
+6. **Integration status is MEASURED, never inferred from commit history.**
+   Before claiming a round is integrated, check the findings against the tree.
+   Cheap first pass: for every file a round implicates, has it been committed
+   since the round date? Then spot-check two or three findings against the RTL
+   directly, because a touched file is not a fixed finding.
+
+   *Case: a `docs(amba/monitor): reconcile all monitor documentation with the
+   RTL` commit reads exactly like an integration pass. round_3 was sent SIX
+   HOURS LATER, reviewed the post-reconcile docs, and still returned 70
+   confirmed defects. Measured: round_2 had 1 of 102 implicated files touched
+   since review, round_3 had 0 of 31 - nothing was integrated.* A
+   reconcile-shaped commit message is not evidence.
+7. **Verify a fix with a clean rebuild, and mutation-check the test.** "It
+   passes now" is worth nothing on its own; two silent-pass modes make a green
+   run look like proof when it is not.
+
+   - **Stale build.** Verilator reuses an existing `sim_build`, so a test can
+     "pass" against a binary built from the OLD RTL. *Case: a pumice test
+     passed in 0.41 s - impossible for a build plus sim. Clean rebuild took
+     6.07 s and genuinely passed, but a reverted-RTL experiment run on that
+     stale binary would have proved the exact opposite of the truth.* Always
+     `rm -rf` the build dir before a before/after comparison ([[running-regressions]]).
+   - **Stimulus that cannot expose the bug.** *Case: the first regression test
+     written for the arbiter starvation fix passed against the BROKEN RTL,
+     because no profile saturated all requesters, so the arbiter was never
+     cornered.* Revert the fix, confirm the test goes RED, restore. An
+     assertion that never fails on the bug it was written for is decoration.
+     See [[randomization]] and [[formal]].
 
 ## Endpoint
 
