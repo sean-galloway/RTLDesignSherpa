@@ -10,5 +10,7 @@ summary: Verification practice - frameworks, determinism, coverage, formal.
 - [[registers-by-name]] - PeakRDL regmaps; offsets are forbidden
 - [[seeds-and-determinism]] - pin seeds; corpus + exploration pattern
 - [[tb-structure]] - Pattern A/B, TB location, the three mandatory methods
+- [[test-runner]] - the Makefile/pytest/run() stack; REG_LEVEL vs TEST_LEVEL, build-dir uniqueness
 - [[coverage]] - Verilator, functional bar, the monbus packet-type matrix
 - [[formal]] - sv2v/SBY flow, mutation rule, vacuity traps
+- [[cloud-sandbox]] - running sims off the workstation; the Verilator pin, the PyPI pin

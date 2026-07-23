@@ -1,3 +1,8 @@
+---
+title: Running regressions
+summary: Always clean-all first; the Makefile targets, the levels, and how to read the result.
+---
+
 # Running regressions
 
 **Always `make clean-all` first. Agents skip it and get lied to by stale build

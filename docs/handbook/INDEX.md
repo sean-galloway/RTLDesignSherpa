@@ -15,9 +15,11 @@ and rationale) > code comments. On conflict, the requirement wins.
 
 - [design/](design/INDEX.md) - RTL design rules and the lessons behind them
 - [dv/](dv/INDEX.md) - verification practice: BFMs, registers, seeds,
-  coverage, formal
+  coverage, formal, sandboxes
 - [fpga/](fpga/INDEX.md) - board process: builds, timing triage, harness,
   board handling
+- [authoring/](authoring/INDEX.md) - documentation practice: review rounds,
+  voice, generation pipeline
 
 ## House rules for the handbook itself
 
