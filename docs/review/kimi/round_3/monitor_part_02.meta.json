@@ -1,0 +1,16 @@
+{
+  "unit": "monitor_part_02",
+  "model": "kimi-k2",
+  "finish_reason": "stop",
+  "max_tokens": 32768,
+  "usage": {
+    "completion_tokens": 31653,
+    "prompt_tokens": 160605,
+    "total_tokens": 192258,
+    "completion_tokens_details": {
+      "reasoning_tokens": 28194
+    }
+  },
+  "elapsed_s": 847.7,
+  "content_chars": 14749
+}

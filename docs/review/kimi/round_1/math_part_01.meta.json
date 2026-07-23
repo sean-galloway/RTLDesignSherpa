@@ -1,0 +1,20 @@
+{
+  "unit": "math_part_01",
+  "model": "kimi-k2",
+  "finish_reason": "stop",
+  "max_tokens": 65536,
+  "usage": {
+    "completion_tokens": 43590,
+    "prompt_tokens": 92683,
+    "total_tokens": 136273,
+    "completion_tokens_details": {
+      "reasoning_tokens": 39213
+    },
+    "prompt_tokens_details": {
+      "cached_tokens": 92672
+    },
+    "cached_tokens": 92672
+  },
+  "elapsed_s": 1073.8,
+  "content_chars": 16273
+}

@@ -1,0 +1,16 @@
+{
+  "unit": "common_part_05",
+  "model": "kimi-k2",
+  "finish_reason": "stop",
+  "max_tokens": 32768,
+  "usage": {
+    "completion_tokens": 15610,
+    "prompt_tokens": 12516,
+    "total_tokens": 28126,
+    "completion_tokens_details": {
+      "reasoning_tokens": 13441
+    }
+  },
+  "elapsed_s": 382.3,
+  "content_chars": 8730
+}

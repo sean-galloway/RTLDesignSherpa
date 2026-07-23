@@ -1,0 +1,16 @@
+{
+  "unit": "apb",
+  "model": "kimi-k2",
+  "finish_reason": "stop",
+  "max_tokens": 32768,
+  "usage": {
+    "completion_tokens": 27893,
+    "prompt_tokens": 116144,
+    "total_tokens": 144037,
+    "completion_tokens_details": {
+      "reasoning_tokens": 24292
+    }
+  },
+  "elapsed_s": 728.0,
+  "content_chars": 13459
+}

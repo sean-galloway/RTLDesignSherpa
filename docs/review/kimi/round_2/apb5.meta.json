@@ -1,0 +1,16 @@
+{
+  "unit": "apb5",
+  "model": "kimi-k2",
+  "finish_reason": "stop",
+  "max_tokens": 32768,
+  "usage": {
+    "completion_tokens": 22836,
+    "prompt_tokens": 80006,
+    "total_tokens": 102842,
+    "completion_tokens_details": {
+      "reasoning_tokens": 20193
+    }
+  },
+  "elapsed_s": 580.6,
+  "content_chars": 10449
+}

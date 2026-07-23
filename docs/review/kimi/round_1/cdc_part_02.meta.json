@@ -1,0 +1,16 @@
+{
+  "unit": "cdc_part_02",
+  "model": "kimi-k2",
+  "finish_reason": "stop",
+  "max_tokens": 32768,
+  "usage": {
+    "completion_tokens": 16177,
+    "prompt_tokens": 46752,
+    "total_tokens": 62929,
+    "completion_tokens_details": {
+      "reasoning_tokens": 13904
+    }
+  },
+  "elapsed_s": 444.0,
+  "content_chars": 8897
+}
