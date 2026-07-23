@@ -89,7 +89,7 @@ The interrupt sequence:
 
 | Signal | LSR Bit | Condition |
 |--------|---------|-----------|
-| THRE | 5 | FIFO has space (not full) |
+| THRE | 5 | TX FIFO empty (`sts_tx_holding_empty = tx_fifo_empty`) |
 | TEMT | 6 | FIFO empty AND shift register empty |
 
 ## RX FIFO
@@ -125,22 +125,22 @@ The interrupt sequence:
 | PE | 2 | Parity Error (per character) |
 | FE | 3 | Framing Error (per character) |
 | BI | 4 | Break Indicator (per character) |
-| FIFOERR | 7 | Error in FIFO (PE, FE, or BI) |
+| FIFOERR | 7 | Error in the RX FIFO **head** entry (PE, FE, or BI) - not "any entry" |
 
 ## FIFO vs Non-FIFO Mode
 
-### FCR.FE = 0 (8250 Compatibility)
+### FCR.FE = 0
 
-- FIFOs disabled
-- Single-character buffering
-- THR/RBR act as single registers
-- IIR[7:6] = 00
+- Both FIFOs remain physically 16 deep in this RTL (there is no true single-byte
+  8250 mode); THR writes still queue up to 16 bytes
+- FCR.FE=0 only changes IIR[7:6] to 00 and makes the RX-data interrupt condition
+  DR-based rather than trigger-level based
 
 ### FCR.FE = 1 (16550 Mode)
 
-- 16-byte FIFOs enabled
-- Trigger level interrupts
-- Character timeout interrupt
+- 16-byte FIFOs, trigger-level RX interrupt
+- IIR[7:6] = 11
+- (Character-timeout interrupt is not implemented in this RTL)
 - IIR[7:6] = 11
 
 ## Error Handling
@@ -164,15 +164,15 @@ OE set immediately when:
 
 1. Write FCR with TFR=1
 2. TX FIFO cleared immediately
-3. Current transmission continues
+3. The TX state machine is forced to IDLE - the character in progress is aborted
 4. THRE and TEMT updated
 
 ### RX FIFO Reset (FCR.RFR)
 
 1. Write FCR with RFR=1
 2. RX FIFO cleared immediately
-3. Current reception continues
-4. DR cleared, errors cleared
+3. The RX state machine is forced to IDLE - the character in progress is aborted
+4. DR cleared
 
 ### Full Reset
 

@@ -35,35 +35,34 @@ The register file implements the standard 16550 register set with PeakRDL genera
 
 ## Register Organization
 
-### Address 0x00 (RBR/THR/DLL)
+All registers occupy unique offsets; the DLAB bit does not remap any address.
 
-| DLAB | Read | Write |
-|------|------|-------|
-| 0 | RBR - Receiver Buffer | THR - Transmitter Holding |
-| 1 | DLL - Divisor LSB | DLL - Divisor LSB |
-
-### Address 0x04 (IER/DLM)
-
-| DLAB | Read/Write |
-|------|------------|
-| 0 | IER - Interrupt Enable |
-| 1 | DLM - Divisor MSB |
-
-### Address 0x08 (IIR/FCR)
+### Address 0x00 (RBR/THR)
 
 | Access | Register |
 |--------|----------|
-| Read | IIR - Interrupt Identification |
-| Write | FCR - FIFO Control |
+| Read | RBR - Receiver Buffer (received byte in bits [15:8]) |
+| Write | THR - Transmitter Holding |
 
-### Addresses 0x0C-0x1C
+### Address 0x04 (IER)
+
+Read/Write - Interrupt Enable (stored; enables are unimplemented in the core).
+
+### Address 0x08 (IIR)
+
+Read-only - Interrupt Identification. Reading IIR has no side effect.
+
+### Addresses 0x0C-0x28
 
 Fixed registers, not affected by DLAB:
-- 0x0C: LCR - Line Control
-- 0x10: MCR - Modem Control
-- 0x14: LSR - Line Status (RO)
-- 0x18: MSR - Modem Status (RO)
-- 0x1C: SCR - Scratch
+- 0x0C: FCR - FIFO Control (R/W, readable)
+- 0x10: LCR - Line Control
+- 0x14: MCR - Modem Control
+- 0x18: LSR - Line Status (RO / W1C error bits)
+- 0x1C: MSR - Modem Status (RO / W1C delta bits)
+- 0x20: SCR - Scratch
+- 0x24: DLL - Divisor Latch LSB
+- 0x28: DLM - Divisor Latch MSB
 
 ## Hardware Interface (HWIF)
 
@@ -94,16 +93,16 @@ Fixed registers, not affected by DLAB:
 | Type | Description |
 |------|-------------|
 | RO | Read-only, hardware updates |
-| WO | Write-only, not readable |
+| WO | Write-only |
 | RW | Read-write |
-| RC | Read to clear (some IIR bits) |
+| W1C | Write 1 to clear (LSR error bits, MSR delta bits) |
 
 ## Implementation Notes
 
-- DLAB bit controls address 0x00/0x04 mapping
+- DLAB is a stored bit only; it does not remap any address
 - THR write pushes to TX FIFO
-- RBR read pops from RX FIFO
-- IIR read can clear interrupt condition
+- RBR read pops from RX FIFO (received byte returned in bits [15:8])
+- IIR read has no side effect; it does not clear any interrupt
 
 ---
 

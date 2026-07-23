@@ -23,6 +23,12 @@
 
 # APB UART 16550 - Interrupt Handling
 
+> Implementation note: In this RTL the IER enables are **unimplemented** -
+> writing IER is stored/read back but does not mask interrupts. Pending sources
+> drive the `irq` pin regardless of IER, and `irq` is gated by MCR.OUT2 (set
+> OUT2 = 1 to enable the pin). The character-timeout interrupt is not
+> implemented. LSR/MSR sticky bits are W1C, not clear-on-read.
+
 ## Interrupt Enable Register (IER)
 
 ```c
@@ -52,11 +58,12 @@ void uart_disable_tx_interrupt(void) {
 | Value | Priority | Interrupt Source | Clear Method |
 |-------|----------|------------------|--------------|
 | 0x01 | - | No interrupt | - |
-| 0x06 | 1 | Line status error | Read LSR |
-| 0x04 | 2 | RX data available | Read RBR |
-| 0x0C | 2 | Character timeout | Read RBR |
-| 0x02 | 3 | THR empty | Read IIR or write THR |
-| 0x00 | 4 | Modem status | Read MSR |
+| 0x06 | 1 | Line status error | Clear LSR error bits (W1C) |
+| 0x04 | 2 | RX data available | Read RBR until DR clears |
+| 0x02 | 3 | THR empty | Write THR (fills TX FIFO) |
+| 0x00 | 4 | Modem status | Clear MSR delta bits (W1C) |
+
+Note: Character timeout (IIR = 0x0C) is **not implemented** and never occurs. Reading IIR has no side effect (it does not clear the THR-empty condition).
 
 ## Complete ISR Example
 
@@ -97,7 +104,7 @@ void uart_isr(void) {
 
 ```c
 void uart_handle_line_status(void) {
-    uint8_t lsr = LSR;  // Read clears errors
+    uint8_t lsr = LSR;  // Read status; then W1C the error bits below
 
     if (lsr & 0x02) {
         // Overrun Error - FIFO overflow
@@ -115,6 +122,11 @@ void uart_handle_line_status(void) {
         // Break Indicator
         handle_break();
     }
+
+    // W1C: write back the bits just read to clear them (LSR error bits [4:1]).
+    // (Known RTL issue: the core currently never asserts the clear strobes,
+    //  so these bits persist until reset.)
+    LSR = lsr & 0x1E;
 }
 ```
 
@@ -140,6 +152,8 @@ void uart_handle_rx_data(void) {
 ### Character Timeout Handler
 
 ```c
+// NOTE: Character timeout is NOT implemented in this RTL; this handler is
+// never invoked (IIR never reads 0x0C). Retained for reference only.
 void uart_handle_timeout(void) {
     // Same as RX data - flush remaining FIFO data
     uart_handle_rx_data();
@@ -174,7 +188,7 @@ void uart_handle_tx_empty(void) {
 
 ```c
 void uart_handle_modem_status(void) {
-    uint8_t msr = MSR;  // Read clears delta bits
+    uint8_t msr = MSR;  // Read status; delta bits are W1C (see note below)
 
     if (msr & 0x01) {   // Delta CTS
         // CTS changed - update flow control
@@ -188,6 +202,10 @@ void uart_handle_modem_status(void) {
     if (msr & 0x08) {   // Delta DCD
         // Carrier changed - connection status
     }
+
+    // W1C: write back the delta bits to clear them (MSR[3:0]).
+    // (Known RTL issue: clear strobes are not asserted, so bits persist.)
+    MSR = msr & 0x0F;
 }
 ```
 
@@ -206,21 +224,23 @@ void uart_handle_modem_status(void) {
 
 ### Character Timeout
 
-- Triggers after 4 character times of inactivity
-- Ensures partial data is delivered
-- Critical for variable-length packets
+- **Not implemented in this RTL** (`int_timeout` is tied to 0). IIR never reads 0x0C.
+- For variable-length packets, poll LSR.DR and apply a software inactivity timeout instead.
 
 ## Disabling/Enabling Interrupts
 
+IER masking is unimplemented, so `IER = 0x00` does **not** actually disable
+interrupts in this RTL. To mask the irq pin, clear MCR.OUT2 (the pin gate):
+
 ```c
-// Save and disable
-uint8_t saved_ier = IER;
-IER = 0x00;
+// Mask the irq pin via the OUT2 gate
+uint8_t saved_mcr = MCR;
+MCR = saved_mcr & ~0x08;   // OUT2 = 0 -> irq pin held deasserted
 
 // ... critical section ...
 
 // Restore
-IER = saved_ier;
+MCR = saved_mcr;
 ```
 
 ---

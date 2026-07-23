@@ -61,7 +61,7 @@ Handles APB protocol conversion and register access.
 **See:** [01_apb_interface.md](01_apb_interface.md)
 
 ### 2. Register File
-16550-compatible registers with DLAB addressing.
+16550-compatible register set with a flat, DLAB-independent address map (each register has a unique offset; DLAB does not remap addresses).
 
 **See:** [02_register_file.md](02_register_file.md)
 

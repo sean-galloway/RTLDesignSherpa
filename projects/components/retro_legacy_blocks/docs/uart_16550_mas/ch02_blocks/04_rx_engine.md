@@ -83,17 +83,18 @@ The reception sequence:
 4. If still 0, valid start bit
 5. If 1, false start, return to idle
 
-### Glitch Rejection
+### Start-Bit Validation
 
-Short pulses (< 4 clocks) rejected as noise.
+The start bit is revalidated at the mid-bit sample (clock 8 of 16); if it is no
+longer 0, the start is treated as false and the receiver returns to idle. There
+is no dedicated "reject pulses < 4 clocks" glitch filter.
 
 ## RX Deserializer
 
 ### Sampling
 
 - Sample each bit at mid-point (clock 8 of 16)
-- 16x oversampling provides noise immunity
-- Majority voting optional for higher reliability
+- Single mid-bit sample per bit (no majority voting is implemented)
 
 ### Frame Reception
 
@@ -143,7 +144,8 @@ flowchart LR
 ### Parity Error (PE)
 
 - Calculated parity vs received parity
-- Set in LSR when error character read from FIFO
+- Set in LSR when the errored character is **received** (written into the RX
+  FIFO), not when it is later read out
 
 ### Framing Error (FE)
 
@@ -164,13 +166,11 @@ flowchart LR
 
 ## Timeout Detection
 
-### Character Timeout
+### Character Timeout - not implemented
 
-When FCR.FE=1 (FIFOs enabled):
-- Timer starts when FIFO not empty
-- Resets on each new character or RBR read
-- Timeout = 4 character times
-- Generates interrupt to flush partial data
+This RTL does **not** implement the character-timeout timer (`int_timeout` is
+tied to 0). There is no 4-character-time timeout and IIR never reads 0x0C. Use a
+software inactivity timeout on LSR.DR instead.
 
 ---
 

@@ -23,6 +23,12 @@
 
 # APB UART 16550 - Data Transfer
 
+> Implementation notes for this RTL: reading offset 0x00 (RBR) returns the
+> received byte in bits **[15:8]** (read as 16-bit, then `>> 8`); LSR/MSR
+> sticky bits are **W1C**, not clear-on-read; and IER enables are unimplemented
+> (interrupt-driven examples below rely on the level-based sources and require
+> MCR.OUT2 = 1 to route irq to the pin). See Chapter 5 for detail.
+
 ## Transmitting Data
 
 ### Polling Mode
@@ -149,7 +155,7 @@ uint8_t uart_check_errors(void) {
 
 ```c
 void uart_rx_error_isr(void) {
-    uint8_t lsr = LSR;  // Reading clears errors
+    uint8_t lsr = LSR;  // Read status (does NOT clear; error bits are W1C)
 
     if (lsr & 0x02) {
         // Overrun - data lost

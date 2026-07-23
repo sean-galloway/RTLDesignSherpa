@@ -30,27 +30,31 @@
 ```c
 #define UART_BASE   0xFEC08000
 
-#define RBR  (*(volatile uint8_t *)(UART_BASE + 0x00))
-#define THR  (*(volatile uint8_t *)(UART_BASE + 0x00))
-#define IER  (*(volatile uint8_t *)(UART_BASE + 0x04))
-#define IIR  (*(volatile uint8_t *)(UART_BASE + 0x08))
-#define FCR  (*(volatile uint8_t *)(UART_BASE + 0x08))
-#define LCR  (*(volatile uint8_t *)(UART_BASE + 0x0C))
-#define MCR  (*(volatile uint8_t *)(UART_BASE + 0x10))
-#define LSR  (*(volatile uint8_t *)(UART_BASE + 0x14))
-#define MSR  (*(volatile uint8_t *)(UART_BASE + 0x18))
-#define SCR  (*(volatile uint8_t *)(UART_BASE + 0x1C))
-#define DLL  (*(volatile uint8_t *)(UART_BASE + 0x00))
-#define DLM  (*(volatile uint8_t *)(UART_BASE + 0x04))
+// Flat, DLAB-independent map: each register has its own offset.
+// RBR read returns the received byte in bits [15:8], so read RBR as 16-bit.
+#define RBR  (*(volatile uint16_t *)(UART_BASE + 0x00))
+#define THR  (*(volatile uint8_t  *)(UART_BASE + 0x00))
+#define IER  (*(volatile uint8_t  *)(UART_BASE + 0x04))
+#define IIR  (*(volatile uint8_t  *)(UART_BASE + 0x08))
+#define FCR  (*(volatile uint8_t  *)(UART_BASE + 0x0C))
+#define LCR  (*(volatile uint8_t  *)(UART_BASE + 0x10))
+#define MCR  (*(volatile uint8_t  *)(UART_BASE + 0x14))
+#define LSR  (*(volatile uint8_t  *)(UART_BASE + 0x18))
+#define MSR  (*(volatile uint8_t  *)(UART_BASE + 0x1C))
+#define SCR  (*(volatile uint8_t  *)(UART_BASE + 0x20))
+#define DLL  (*(volatile uint8_t  *)(UART_BASE + 0x24))
+#define DLM  (*(volatile uint8_t  *)(UART_BASE + 0x28))
+
+// Received byte lives in RBR bits [15:8] in this implementation.
+#define RBR_BYTE()  ((uint8_t)(RBR >> 8))
 
 void debug_uart_init(void) {
-    // 115200 baud, 8N1
-    LCR = 0x80;           // DLAB = 1
+    // 115200 baud, 8N1. No DLAB toggle - DLL/DLM have their own offsets.
     DLL = 26;             // 48MHz / (16 * 115200)
     DLM = 0;
-    LCR = 0x03;           // 8N1, DLAB = 0
+    LCR = 0x03;           // 8N1
     FCR = 0x07;           // Enable FIFOs, reset
-    IER = 0x00;           // Polling mode
+    // IER is not used: interrupt enables are unimplemented; poll LSR instead.
 }
 
 void debug_putchar(char c) {
@@ -68,7 +72,7 @@ void debug_puts(const char *s) {
 
 int debug_getchar(void) {
     if (LSR & 0x01)
-        return RBR;
+        return RBR_BYTE();   // received byte is in RBR bits [15:8]
     return -1;
 }
 ```
@@ -93,15 +97,14 @@ void uart_isr(void) {
 
     while (((iir = IIR) & 0x01) == 0) {
         switch (iir & 0x0E) {
-            case 0x04:  // RX data
-            case 0x0C:  // Timeout
+            case 0x04:  // RX data (character-timeout IIR=0x0C is not implemented)
                 while (LSR & 0x01) {
                     uint16_t next = (rx_buf.head + 1) % RX_BUF_SIZE;
                     if (next != rx_buf.tail) {
-                        rx_buf.buffer[rx_buf.head] = RBR;
+                        rx_buf.buffer[rx_buf.head] = RBR_BYTE();
                         rx_buf.head = next;
                     } else {
-                        (void)RBR;  // Discard if full
+                        (void)RBR;  // Discard if full (still pops the FIFO)
                     }
                 }
                 break;
@@ -231,7 +234,7 @@ bool uart_loopback_test(void) {
             return false;  // No data received
         }
 
-        uint8_t received = RBR;
+        uint8_t received = RBR_BYTE();   // received byte is in RBR bits [15:8]
         if (received != test_data[i]) {
             MCR &= ~0x10;
             return false;  // Data mismatch
@@ -245,25 +248,22 @@ bool uart_loopback_test(void) {
 }
 ```
 
-## Hardware Flow Control
+## Flow Control (manual)
 
 ```c
-void uart_init_with_flow_control(void) {
-    // Standard init
-    LCR = 0x80; DLL = 26; DLM = 0; LCR = 0x03;
+void uart_init_flow_control(void) {
+    // Standard init - no DLAB toggle; DLL/DLM have their own offsets.
+    DLL = 26; DLM = 0; LCR = 0x03;
     FCR = 0xC7;  // Enable FIFOs, trigger=14
 
-    // Enable auto flow control
-    MCR = 0x22;  // RTS + AFE
-
-    // Enable RX interrupt
-    IER = 0x01;
+    // Assert RTS (bit 1) and set OUT2 (bit 3) so the irq pin is ungated.
+    MCR = 0x0A;
 }
 
-// With AFE enabled:
-// - RTS automatically deasserts when RX FIFO nearly full
-// - TX automatically pauses when CTS deasserts
-// No software intervention needed for flow control
+// NOTE: Auto Flow Control (AFE, MCR[5]) is NOT implemented in this RTL.
+// - RTS is not auto-driven by RX FIFO level; software must manage MCR.RTS.
+// - CTS does not gate the transmitter.
+// Monitor MSR.CTS in software and drive MCR.RTS manually for flow control.
 ```
 
 ---

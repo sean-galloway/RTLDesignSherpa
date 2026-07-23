@@ -23,11 +23,20 @@
 
 # APB UART 16550 - Interrupt Interface
 
+> Implementation notes for this RTL:
+> - **IER enables are unimplemented.** IER is stored/read back but does not mask
+>   any interrupt. IIR reflects pending sources and drives `irq` regardless of IER.
+> - **The `irq` pin is gated by MCR.OUT2** (`irq = pending & MCR.OUT2`). With the
+>   reset MCR = 0x00 the pin is masked; software must set OUT2 to route interrupts.
+> - **Character timeout is not implemented** (IIR never reads 0x0C).
+> - **Reading IIR has no side effect** and does not clear the THR-empty condition.
+> - LSR/MSR sticky bits are cleared by **W1C**, not by reading.
+
 ## Signal Description
 
 | Signal | Width | Dir | Description |
 |--------|-------|-----|-------------|
-| irq | 1 | O | Interrupt request (active high) |
+| irq | 1 | O | Interrupt request (active high, gated by MCR.OUT2) |
 
 ## Interrupt Sources
 
@@ -35,11 +44,12 @@
 
 | Priority | IIR[3:0] | Source | Clear Method |
 |----------|----------|--------|--------------|
-| 1 | 0110 | Receiver Line Status | Read LSR |
-| 2 | 0100 | Received Data Available | Read RBR |
-| 2 | 1100 | Character Timeout | Read RBR |
-| 3 | 0010 | THR Empty | Write THR or read IIR |
-| 4 | 0000 | Modem Status | Read MSR |
+| 1 | 0110 | Receiver Line Status | W1C LSR error bits |
+| 2 | 0100 | Received Data Available | Read RBR until DR clears |
+| 3 | 0010 | THR Empty | Write THR (fill TX FIFO) |
+| 4 | 0000 | Modem Status | W1C MSR delta bits |
+
+Character Timeout (IIR = 1100 / 0x0C) is not implemented and is omitted.
 
 ### IIR Encoding
 
@@ -50,9 +60,12 @@
 
 ## Interrupt Enable Register (IER)
 
-| Bit | Name | Interrupt Source |
-|-----|------|------------------|
-| 0 | ERBFI | Received data available / timeout |
+These bits are stored and read back but are **not connected** to the interrupt
+logic in this RTL - they do not enable or mask any interrupt.
+
+| Bit | Name | Nominal Source (not enforced) |
+|-----|------|-------------------------------|
+| 0 | ERBFI | Received data available |
 | 1 | ETBEI | THR empty |
 | 2 | ELSI | Receiver line status |
 | 3 | EDSSI | Modem status |
@@ -78,44 +91,35 @@ Triggered by:
 - Framing Error (FE)
 - Break Indicator (BI)
 
-Cleared by reading LSR.
+Cleared by writing 1 to the LSR error bits (W1C). (Known RTL issue: the clear
+strobes are not asserted, so these bits/interrupt persist until reset.)
 
 ### Received Data Available (Priority 2)
 
-**FIFO Mode (FCR.FE=1):**
-- Triggered when RX FIFO >= trigger level
-- Cleared when FIFO below trigger level
+- FCR.FE=1: triggered when RX FIFO >= trigger level
+- FCR.FE=0: triggered when data present (DR=1)
+- Cleared by reading RBR until the level falls below the trigger / DR clears
 
-**Non-FIFO Mode:**
-- Triggered when data in RBR
-- Cleared by reading RBR
+### Character Timeout - not implemented
 
-### Character Timeout (Priority 2)
-
-FIFO mode only:
-- Triggered when no new data for 4 character times
-- And RX FIFO not empty
-- Cleared by reading RBR
+`int_timeout` is tied to 0 in this RTL; the timeout interrupt never occurs and
+IIR never reads 0x0C.
 
 ### THR Empty (Priority 3)
 
-Triggered when:
-- THR (or TX FIFO) becomes empty
-- After data transmitted
+Triggered when the TX FIFO is empty (this is a level, THRE = TX FIFO empty).
 
-Cleared by:
-- Writing to THR
-- Reading IIR (if THRE was source)
+Cleared by writing THR to refill the TX FIFO. Reading IIR does **not** clear it.
 
 ### Modem Status (Priority 4)
 
-Triggered by:
+Triggered by any MSR delta bit:
 - DCTS (Delta CTS)
 - DDSR (Delta DSR)
 - TERI (Trailing Edge RI)
 - DDCD (Delta DCD)
 
-Cleared by reading MSR.
+Cleared by writing 1 to the MSR delta bits (W1C), not by reading MSR.
 
 ## Interrupt Timing
 
