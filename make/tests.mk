@@ -130,9 +130,44 @@ $(call _rds_gen,all)
 $(foreach r,$(ROOTS),$(call _rds_gen,$(r)))
 
 # ------------------------------------------------------------------------------
+# Back-compat: the contract the parent Makefiles already invoke
+# ------------------------------------------------------------------------------
+# `val/Makefile` and the repo-root `Makefile` drive areas with
+# `$(MAKE) -C <area> <target>`. Extracted from both, the full set they call is:
+#
+#   val/Makefile   clean-all clean-build clean-logs clean-vcd collect-all
+#                  list-all run-all run-all-parallel status
+#   root Makefile  run-all-{gate,func,full}[-parallel]
+#
+# The generated grammar already covers the level-qualified ones. These are the
+# rest. Keep them until those callers are migrated - dropping one silently
+# turns a regression into a no-op, which is the failure mode this whole task
+# exists to stop.
+
+DEFAULT_LEVEL ?= func
+
+.PHONY: run-all run-all-parallel run-all-serial
+run-all:          run-all-$(DEFAULT_LEVEL)
+run-all-parallel: run-all-$(DEFAULT_LEVEL)-parallel
+run-all-serial:   run-all-$(DEFAULT_LEVEL)-serial
+
+.PHONY: collect-all list-all status
+collect-all:
+	@$(PYTEST) --collect-only -q $(TESTS)
+
+list-all: list
+
+status:
+	@echo "area           : $(AREA)"
+	@echo "test roots     : $(words $(ROOTS))"
+	@echo "workers (JOBS) : $(JOBS)  (nproc=$(NPROC), mem=$(MEM_GB)GB)"
+	@echo "default level  : $(DEFAULT_LEVEL)"
+	@echo "artifacts      : $(if $(wildcard local_sim_build),local_sim_build/ PRESENT - run clean-all,clean)"
+
+# ------------------------------------------------------------------------------
 # Housekeeping - identical in every area, so it lives here too
 # ------------------------------------------------------------------------------
-.PHONY: clean-logs clean-pycache clean-build clean-waves clean-all clean
+.PHONY: clean-logs clean-pycache clean-build clean-waves clean-vcd clean-all clean
 
 clean-logs:
 	@rm -rf logs/
@@ -152,6 +187,8 @@ clean-build:
 clean-waves:
 	@find . -type f \( -name '*.vcd' -o -name '*.fst' \) -delete
 	@echo "cleaned: waveforms"
+
+clean-vcd: clean-waves          # name val/Makefile calls
 
 clean-all: clean-logs clean-pycache clean-build clean-waves
 	@echo "$(AREA): all test artifacts cleaned"
