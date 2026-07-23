@@ -25,11 +25,18 @@ module clock_pulse #(
     output logic pulse   // Output pulse signal
 );
 
-    logic [WIDTH-1:0] r_counter;
-    logic [WIDTH-1:0] w_width_minus_one;
+    // WIDTH is the pulse PERIOD, so the counter only needs to hold 0..WIDTH-1,
+    // i.e. $clog2(WIDTH) bits -- NOT WIDTH bits. Sizing it at WIDTH bits made
+    // the counter as wide as the period (e.g. a 1 Hz heartbeat off a 100 MHz
+    // clock, WIDTH=100_000_000, would infer ~100 M flip-flops and be
+    // unsynthesizable). Guard WIDTH<2 so $clog2 never yields a zero-width reg.
+    localparam int CW = (WIDTH < 2) ? 1 : $clog2(WIDTH);
 
-    // Create a properly sized constant
-    assign w_width_minus_one = WIDTH[WIDTH-1:0] - 1'b1;
+    logic [CW-1:0] r_counter;
+    logic [CW-1:0] w_width_minus_one;
+
+    // Properly sized period-1 constant (WIDTH-1 always fits in CW bits).
+    assign w_width_minus_one = CW'(WIDTH - 1);
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin

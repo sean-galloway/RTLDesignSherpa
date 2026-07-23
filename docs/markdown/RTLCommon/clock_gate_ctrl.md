@@ -29,20 +29,20 @@ The `clock_gate_ctrl` module implements an intelligent clock gating controller t
 ## Module Declaration
 ```systemverilog
 module clock_gate_ctrl #(
-    parameter int IDLE_CNTR_WIDTH = 4,
-    parameter int N = IDLE_CNTR_WIDTH
+    parameter int IDLE_CNTR_WIDTH = 4   // the ONLY overridable parameter
 ) (
     // Inputs
-    input logic          clk_in,
-    input logic          aresetn,
-    input logic          cfg_cg_enable,     // Global clock gate enable
-    input logic  [N-1:0] cfg_cg_idle_count, // Idle countdown value
-    input logic          wakeup,            // Signal to wake up the block
+    input logic                        clk_in,
+    input logic                        aresetn,
+    input logic                        cfg_cg_enable,     // Global clock gate enable
+    input logic [IDLE_CNTR_WIDTH-1:0]  cfg_cg_idle_count, // Idle countdown value
+    input logic                        wakeup,            // Signal to wake up the block
 
     // Outputs
     output logic         clk_out,
     output logic         gating            // clock gating indicator
 );
+    localparam int N = IDLE_CNTR_WIDTH;   // derived alias, NOT a parameter
 ```
 
 ## Parameters
@@ -55,11 +55,12 @@ module clock_gate_ctrl #(
 - **Impact**: Determines maximum idle timeout (2^IDLE_CNTR_WIDTH - 1 cycles)
 - **Power Trade-off**: Larger counters allow longer timeouts but consume more power
 
-### N
-- **Type**: `int`
-- **Default**: `IDLE_CNTR_WIDTH`
-- **Description**: Alias for counter width (convenience parameter)
-- **Usage**: Internal consistency check and code readability
+### N (derived — do NOT override)
+- **Type**: `localparam int` (declared in the module body, **not** a parameter)
+- **Value**: `IDLE_CNTR_WIDTH`
+- **Description**: Internal alias for the counter width, used in port/signal widths
+- **Usage**: Set only `IDLE_CNTR_WIDTH` when instantiating. `N` cannot be
+  overridden — `#(.N(8))` is an elaboration error.
 
 ## Ports
 

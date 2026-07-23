@@ -65,11 +65,15 @@ module clock_pulse #(
 
 ### Internal Counter
 ```systemverilog
-logic [WIDTH-1:0] r_counter;
-logic [WIDTH-1:0] w_width_minus_one;
+// WIDTH is the PERIOD; the counter only needs to hold 0..WIDTH-1, i.e.
+// $clog2(WIDTH) bits (NOT WIDTH bits).
+localparam int CW = (WIDTH < 2) ? 1 : $clog2(WIDTH);
 
-// Create a properly sized constant
-assign w_width_minus_one = WIDTH[WIDTH-1:0] - 1'b1;
+logic [CW-1:0] r_counter;
+logic [CW-1:0] w_width_minus_one;
+
+// Properly sized period-1 constant
+assign w_width_minus_one = CW'(WIDTH - 1);
 ```
 
 ### Core Logic
@@ -91,7 +95,9 @@ end
 
 ### Operation Principles
 1. **Counter**: Free-running counter from 0 to WIDTH-1
-2. **Pulse Generation**: Pulse asserted when counter reaches WIDTH-1
+2. **Pulse Generation**: `pulse` is **registered** — `pulse <= (r_counter ==
+   WIDTH-1)` — so it asserts on the cycle **after** the counter reaches WIDTH-1,
+   i.e. during the cycle when the counter has wrapped back to 0.
 3. **Auto-Reset**: Counter wraps to 0 after reaching maximum
 4. **Synchronous**: All operations synchronized to input clock
 5. **Single Cycle**: Pulse duration is exactly one clock cycle
@@ -101,16 +107,21 @@ end
 - **Frequency**: f_clk / WIDTH
 - **Pulse Width**: 1 clock cycle
 - **Duty Cycle**: 1/WIDTH
-- **Phase**: Pulse occurs on last count (WIDTH-1)
+- **Phase**: Because the comparison is registered, `pulse` is high one cycle
+  **after** `r_counter == WIDTH-1` — that is, during the `r_counter == 0` cycle
+  of each period, not on the WIDTH-1 count itself.
 
 ## Timing Diagrams
 
 ### Basic Operation (WIDTH=4)
+`pulse` is high during the `< 0 >` cell that immediately follows `< 3 >` (one
+cycle after the counter hit WIDTH-1), because the comparison is registered:
 ```
 Clock:    _|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_
 Counter:  < 0 >< 1 >< 2 >< 3 >< 0 >< 1 >< 2 >< 3 >< 0 >
-Pulse:    ______________________|‾‾‾|______________|‾‾‾|_
+Pulse:    ____________________|‾‾‾|______________|‾‾‾|
 ```
+(The first `< 0 >` is the post-reset state, where `pulse` is still low.)
 
 ### Reset Behavior
 ```
@@ -858,16 +869,18 @@ module clock_pulse_properties;
     // Bind to DUT
     bind clock_pulse clock_pulse_properties props_inst (.*);
     
-    // Property: Pulse occurs at correct count
-    property pulse_at_max_count;
+    // Property: reaching max count produces a pulse on the NEXT cycle.
+    // The comparison is registered (pulse <= r_counter == WIDTH-1), so the
+    // implication is |=> (next cycle), NOT |-> (same cycle).
+    property pulse_after_max_count;
         @(posedge clk) disable iff (!rst_n)
-        (dut.r_counter == WIDTH-1) |-> pulse;
+        (dut.r_counter == WIDTH-1) |=> pulse;
     endproperty
     
-    // Property: Pulse only occurs at max count
-    property pulse_only_at_max;
+    // Property: a pulse implies the PREVIOUS count was max
+    property pulse_implies_prev_max;
         @(posedge clk) disable iff (!rst_n)
-        pulse |-> (dut.r_counter == WIDTH-1);
+        pulse |-> $past(dut.r_counter == WIDTH-1);
     endproperty
     
     // Property: Counter wraps correctly
@@ -890,8 +903,8 @@ module clock_pulse_properties;
     endproperty
     
     // Assertions
-    assert property (pulse_at_max_count);
-    assert property (pulse_only_at_max);
+    assert property (pulse_after_max_count);
+    assert property (pulse_implies_prev_max);
     assert property (counter_wrap);
     assert property (counter_increment);
     assert property (reset_behavior);
@@ -911,7 +924,12 @@ endmodule
 
 ### Timing Optimization
 ```systemverilog
-// For high-frequency applications, pipeline the comparison
+// For high-frequency applications, pipeline the comparison (WIDTH >= 2).
+// IMPORTANT: because the registered compare_result ALSO gates the counter
+// wrap, it must be produced from the WIDTH-2 threshold, not WIDTH-1. Comparing
+// against WIDTH-1 here makes the counter sequence 0..WIDTH,0 and yields a
+// period of WIDTH+1, not WIDTH. With WIDTH-2 the period is exactly WIDTH and
+// the pulse still lands on the r_counter==0 cycle, matching the base module.
 module clock_pulse_pipelined #(
     parameter int WIDTH = 1000
 ) (
@@ -920,32 +938,24 @@ module clock_pulse_pipelined #(
     output logic pulse
 );
 
-    logic [WIDTH-1:0] r_counter;
-    logic [WIDTH-1:0] w_width_minus_one;
-    logic compare_result;
-    
-    assign w_width_minus_one = WIDTH[WIDTH-1:0] - 1'b1;
-    
-    // Pipeline the comparison
+    localparam int CW = (WIDTH < 2) ? 1 : $clog2(WIDTH);
+    logic [CW-1:0] r_counter;
+    logic          compare_result;
+
+    // Register the comparison one count early so the pipelined wrap keeps a
+    // WIDTH-cycle period.
     always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            compare_result <= 1'b0;
-        end else begin
-            compare_result <= (r_counter == w_width_minus_one);
-        end
+        if (!rst_n) compare_result <= 1'b0;
+        else        compare_result <= (r_counter == CW'(WIDTH - 2));
     end
-    
+
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             r_counter <= 'b0;
-            pulse <= 1'b0;
+            pulse     <= 1'b0;
         end else begin
-            if (compare_result)
-                r_counter <= 'b0;
-            else
-                r_counter <= r_counter + 1;
-                
-            pulse <= compare_result;
+            r_counter <= compare_result ? '0 : r_counter + 1'b1;
+            pulse     <= compare_result;
         end
     end
 

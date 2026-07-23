@@ -239,7 +239,7 @@ module clock_gate_ctrl #(
     input logic          clk_in,
     input logic          aresetn,
     input logic          cfg_cg_enable,     // Global clock gate enable
-    input logic  [N-1:0] cfg_cg_idle_count, // Idle countdown value
+    input logic  [IDLE_CNTR_WIDTH-1:0] cfg_cg_idle_count, // Idle countdown value (N == IDLE_CNTR_WIDTH)
     input logic          wakeup,            // Signal to wake up the block
 
     // Outputs
