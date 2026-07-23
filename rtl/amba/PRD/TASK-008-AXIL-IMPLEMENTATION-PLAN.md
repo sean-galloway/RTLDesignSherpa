@@ -313,7 +313,7 @@ bin/TBClasses/axil4/monitor/
 - `bin/TBClasses/axi4/monitor/axi4_master_monitor_tb.py` - Test TB template
 
 **Documentation:**
-- `rtl/amba/PRD/TASKS.md` - Task tracking
+- `/Tasks/amba/` - Task tracking
 - `rtl/amba/PRD/TASK-008-AXIL-IMPLEMENTATION-PLAN.md` - This file
 - `rtl/amba/CLAUDE.md` - Subsystem AI guidance
 

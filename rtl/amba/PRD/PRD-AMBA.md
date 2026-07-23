@@ -315,7 +315,7 @@ All monitors output standardized 64-bit packets:
 
 - **Project PRD:** `/PRD.md` (root level - covers entire RTL Design Sherpa)
 - **Task README:** `rtl/amba/PRD/README.md` (task structure and guidelines)
-- **Task List:** `rtl/amba/PRD/TASKS.md` (current work items)
+- **Task List:** `/Tasks/amba/` (current work items)
 - **KNOWN_ISSUES:** `rtl/amba/KNOWN_ISSUES/` (detailed issue documentation)
 - **Configuration Guide:** `docs/user-guides/AXI_Monitor_Configuration_Guide.md`
 

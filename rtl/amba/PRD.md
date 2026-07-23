@@ -73,7 +73,7 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 ### 📋 Task Tracking
 **Location:** `rtl/amba/PRD/`
 
-- **[Tasks](PRD/TASKS.md)** - Current work items and priorities
+- **[Tasks](../../Tasks/amba/INDEX.md)** - Current work items and priorities
 - **[Task Specifications](PRD/)** - Individual task details (TASK-001, etc.)
 
 ### 🐛 Known Issues
@@ -83,7 +83,7 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 - Additional issue documentation as discovered
 
 ### 📖 Guides and References
-- **[Configuration Guide](../../docs/guides/AXI_Monitor_Configuration_Guide.md)** - Monitor setup best practices
+- **[Configuration Guide](../../docs/user-guides/AXI_Monitor_Configuration_Guide.md)** - Monitor setup best practices
 - **[README](README.md)** - Quick start and integration guide
 - **[CLAUDE](CLAUDE.md)** - AI assistance guide for this subsystem
 
@@ -578,7 +578,7 @@ transactions. To keep counting while suppressing emission, use
 `cfg_axi_pkt_mask` (drop mask in `axi_monitor_filtered`) instead of the
 runtime disable.
 
-**See:** `docs/guides/AXI_Monitor_Configuration_Guide.md` for detailed configuration strategies
+**See:** `docs/user-guides/AXI_Monitor_Configuration_Guide.md` for detailed configuration strategies
 
 ---
 
@@ -595,7 +595,7 @@ runtime disable.
 - ⏳ Test configuration refinement
 - ⏳ Performance characterization
 
-**See:** `PRD/TASKS.md` for detailed task breakdown
+**See:** `/Tasks/amba/` for detailed task breakdown
 
 ### 9.2 Roadmap
 
@@ -673,10 +673,10 @@ runtime disable.
 | `rtl/amba/PRD.md` | This document (high-level overview) |
 | `rtl/amba/README.md` | Quick start and integration guide |
 | `rtl/amba/CLAUDE.md` | AI assistance guide |
-| `rtl/amba/PRD/TASKS.md` | Current work items |
+| `/Tasks/amba/` | Current work items |
 | `rtl/amba/KNOWN_ISSUES/` | Bug tracking |
 | `docs/markdown/RTLAmba/` | **Detailed RTL documentation** |
-| `docs/guides/AXI_Monitor_Configuration_Guide.md` | Configuration best practices |
+| `docs/user-guides/AXI_Monitor_Configuration_Guide.md` | Configuration best practices |
 
 ### 12.2 Commands
 
@@ -727,7 +727,7 @@ cat docs/markdown/RTLAmba/index.md
 
 - **Detailed RTL Specs:** `docs/markdown/RTLAmba/` ← **Primary technical reference**
 - **Test Framework:** `docs/markdown/TBClasses/amba/`
-- **Configuration:** `docs/guides/AXI_Monitor_Configuration_Guide.md`
+- **Configuration:** `docs/user-guides/AXI_Monitor_Configuration_Guide.md`
 - **Validation Report:** `projects/components/dmas/rapids/docs/RAPIDS_Validation_Status_Report.md`
 - **Master PRD:** `/PRD.md`
 - **Repository Guide:** `/CLAUDE.md`
@@ -758,5 +758,5 @@ cat docs/markdown/RTLAmba/index.md
 - **Detailed RTL Docs:** `docs/markdown/RTLAmba/`
 - **Quick Start:** `README.md`
 - **AI Guidance:** `CLAUDE.md`
-- **Tasks:** `PRD/TASKS.md`
+- **Tasks:** `/Tasks/amba/`
 - **Issues:** `KNOWN_ISSUES/`

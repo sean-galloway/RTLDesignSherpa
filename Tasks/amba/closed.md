@@ -1,48 +1,6 @@
-<!-- RTL Design Sherpa Documentation Header -->
-<table>
-<tr>
-<td width="80">
-  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
-    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
-  </a>
-</td>
-<td>
-  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
-  <sub>
-    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
-    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
-    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
-  </sub>
-</td>
-</tr>
-</table>
+<!-- Managed by the `tasks` convention: see /Tasks/INDEX.md. Move a task between open/active/closed by cutting its block, do not copy. -->
 
----
-
-<!-- End Header -->
-
-# AMBA Subsystem Task List
-
-**Last Updated:** 2025-10-11
-**Status:** Active Development - Phase 4 (AXIL) Complete
-
----
-
-## Task Priority Legend
-- **P0:** Critical - Blocks other work
-- **P1:** High - Required for production
-- **P2:** Medium - Important but not blocking
-- **P3:** Low - Nice to have
-
-## Task Status
-- 🔴 Not Started
-- 🟡 In Progress
-- 🟢 Complete
-- ⏸️ Blocked
-
----
-
-## Phase 1: AXI Monitor Core Validation
+# AMBA tasks — closed (complete)
 
 ### TASK-001: Validate axi_monitor Base Functionality
 **Priority:** P0
@@ -73,8 +31,6 @@ Comprehensive validation of the base AXI monitor infrastructure including transa
 - Log: `val/amba/logs/test_axi_monitor_completion.log` (historical; log since rotated out)
 
 ---
-
-## Phase 2: AXI4 Monitor Integration
 
 ### TASK-002: Integrate axi_monitor in AXI4 Master Read
 **Priority:** P1
@@ -151,8 +107,6 @@ Integrate the validated axi_monitor_base into the AXI4 slave write monitor wrapp
 - ✅ Monitoring from slave perspective verified
 
 ---
-
-## Phase 3: AXI4 Comprehensive Validation
 
 ### TASK-006: Validate All AXI4 Monitors (Without Clock Gating)
 **Priority:** P1
@@ -264,8 +218,6 @@ Validate all AXI4 monitor variants that include clock gating support, ensuring m
 **Note:** CG modules provide power optimization while maintaining full functional equivalence with base monitors. The wrapper architecture ensures any base monitor bug fixes automatically apply to CG variants.
 
 ---
-
-## Phase 4: AXI4-Lite Monitor Development
 
 ### TASK-008: Create AXIL Monitor (Adapt from AXI4)
 **Priority:** P1
@@ -493,8 +445,6 @@ Validate clock-gated variants of all AXIL monitors following the proven AXI4 CG 
 
 ---
 
-## Phase 5: Additional Enhancements
-
 ### TASK-012: Fix Error Response and Orphan Detection Tests
 **Priority:** P2
 **Status:** 🟢 Complete (2025-10-12) - No Action Required
@@ -534,343 +484,6 @@ Test 6: Zero-Delay Stress - PASSED (40-66% completion rate)
 
 ---
 
-### TASK-013: Create Integration Examples
-**Priority:** P2
-**Status:** 🟢 Near Complete (2025-10-12)
-**Owner:** Claude AI
-**Effort:** Medium (3-4 days)
-**Completion:** ~90% (2 examples complete, 1 planned)
-
-**Description:**
-Create example designs showing how to integrate monitors in real SoC environments. Focus on working APB-based examples.
-
-**Work Completed:**
-
-1. **Comprehensive Integration Guide** ✅
-   - rtl/integ_amba/examples/README.md (600+ lines)
-   - Monitor packet format specification (64-bit structure)
-   - Arbiter selection guide (round-robin, weighted, priority)
-   - Downstream handling patterns (direct, FIFO, hierarchical)
-   - Configuration strategies (functional, performance, production)
-   - Agent ID assignment scheme
-   - Integration checklist
-   - Common pitfalls and solutions
-   - Resource utilization estimates
-
-2. **Example 1: APB Crossbar with Monitors** ✅
-   - File: rtl/integ_amba/examples/apb_xbar_monitored.sv (400+ lines)
-   - 3 masters × 4 slaves = 7 monitors total
-   - Based on tested apb_xbar_thin variant (PASSED)
-   - Complete monitor coverage (every interface)
-   - Round-robin arbiter for aggregation
-   - Parameterized agent ID assignment
-   - Full documentation with usage examples
-   - Architecture diagrams and monitor table
-
-3. **Example 2: Simple APB Peripheral Subsystem** ✅
-   - File: rtl/integ_amba/examples/apb_peripheral_subsystem.sv (350+ lines)
-   - Educational example for beginners
-   - 3 peripherals: Register File (functional), Timer (stub), GPIO (stub)
-   - 3 monitors with simple round-robin arbiter
-   - Address decoding demonstration
-   - Full documentation with extension guide
-   - Minimal complexity, easy to understand
-
-**Examples Planned:**
-- [ ] Example 3: AXI4-to-APB Bridge with dual monitors (protocol conversion)
-  - Demonstrates monitoring across protocol boundaries
-  - AXI4 master monitor + APB slave monitor
-  - Two separate monitor buses (one per clock domain)
-
-**Examples Deferred to Future:**
-- AXI4 crossbar with monitors (needs crossbar RTL completion - see TASK-022)
-- AXI4-Lite register file with monitor
-- Mixed protocol system (AXI4 + APB + AXIS)
-- Created FUTURE_axi4_crossbar_monitored.sv as reference for when AXI4 crossbar is functional
-
-**Documentation Deliverables:**
-- ✅ Comprehensive README.md with integration patterns (600+ lines)
-- ✅ Example 1 detailed documentation (architecture, usage, testing)
-- ✅ Example 2 detailed documentation (learning guide, extension patterns)
-- ✅ Arbiter usage and selection guide
-- ✅ Monitor bus aggregation strategies
-- ✅ Best practices for packet type configuration
-- ✅ Resource utilization estimates
-- ✅ Integration checklist
-- ✅ Common pitfalls with solutions
-
----
-
-### TASK-022: Make APB Crossbar Variants Functional
-**Priority:** P2
-**Status:** 🔴 Not Started
-**Owner:** TBD
-**Effort:** Medium (2-3 days)
-**Dependencies:** None (APB thin crossbar already works)
-
-**Objective:** Get all APB crossbar variants working and tested
-
-**Background:**
-- APB thin crossbar (apb_xbar_thin_wrap) is functional and tested
-- Buffered/full variants may have issues
-- Need comprehensive testing of all variants
-
-**Requirements:**
-
-1. **Verify Thin Variant (Complete)**
-   - ✅ test_apb_xbar thin variant PASSED
-   - Works as baseline reference
-
-2. **Fix/Verify Buffered Variants**
-   - Test apb_xbar with buffering enabled
-   - Identify and fix any issues
-   - Verify backpressure handling
-
-3. **Full Feature Testing**
-   - Multiple masters × multiple slaves
-   - Concurrent transactions
-   - Address decoding
-   - Error responses
-
-4. **Documentation**
-   - Document working variants
-   - Configuration guidelines
-   - Performance characteristics
-
-**Deliverables:**
-- [ ] All APB crossbar variants functional
-- [ ] Comprehensive test coverage
-- [ ] Configuration guide for variant selection
-- [ ] Integration examples updated
-
-**Success Criteria:**
-- All APB crossbar tests passing
-- Documented working configurations
-- Clear guidance on variant selection
-
----
-
-### TASK-014: Performance Characterization
-**Priority:** P2
-**Status:** 🔴 Not Started
-**Owner:** TBD
-
-**Description:**
-Characterize resource utilization and performance impact of monitors.
-
-**Metrics to Collect:**
-- [ ] Area (LUT, FF, BRAM) per monitor type
-- [ ] Timing impact (critical path analysis)
-- [ ] Power consumption (if measurable)
-- [ ] Comparison: AXI4 vs AXIL vs APB vs AXIS
-- [ ] Comparison: With vs without clock gating
-
-**Deliverable:**
-- [ ] Performance characterization report
-- [ ] Recommendations for resource-constrained designs
-- [ ] Optimization opportunities identified
-
----
-
-### TASK-015: Add Address Range and ID Filtering
-**Priority:** P3
-**Status:** 🔴 Not Started
-**Owner:** TBD
-
-**Description:**
-Add optional filtering capabilities to reduce monitor packet traffic.
-
-**Features:**
-- [ ] Address range filtering (monitor only specific regions)
-- [ ] Transaction ID filtering (monitor only specific masters)
-- [ ] Configurable filter enable/disable
-- [ ] Runtime filter updates
-
-**Use Case:**
-- Reduce packet congestion in high-traffic systems
-- Focus monitoring on specific subsystems
-- Debug-specific master/slave combinations
-
----
-
-### TASK-023: Complete RTLAmba Documentation and Waveform Integration
-**Priority:** P0
-**Status:** 🟡 In Progress (2025-10-23)
-**Owner:** Claude AI
-**Effort:** High (2-3 weeks)
-**Task File:** `TASK-023-complete_rtlamba_documentation.md`
-
-**Description:**
-Complete comprehensive markdown documentation for all AMBA modules with integrated WaveDrom timing diagrams. Fill gaps in docs/markdown/RTLAmba/ structure.
-
-**Current Status Assessment:**
-- ✅ **Main Modules Documented:** 41 markdown files (axi4, axil4, apb, axis4, gaxi, shared)
-- ⚠️ **Documentation Gaps:** 56 modules lack individual docs (97 total - 41 documented)
-- ⚠️ **Waveforms Exist:** 14 modules have waveforms in docs/markdown/assets/WAVES/
-- ⚠️ **Waveform Integration:** Only 5/41 docs reference waveforms (12% integration)
-- ❌ **Empty Directories:** adapters/, components/, testcode/ have no documentation
-
-**Documentation Gaps by Category:**
-
-1. **Clock-Gated Variants (Priority 1):**
-   - [ ] axi4_master_rd_mon_cg.md
-   - [ ] axi4_master_wr_mon_cg.md
-   - [ ] axi4_slave_rd_mon_cg.md
-   - [ ] axi4_slave_wr_mon_cg.md
-   - [ ] axil4_*_mon_cg.md (4 modules)
-   - [ ] apb_master_cg.md, apb_slave_cg.md, apb_slave_cdc_cg.md
-   - **Approach:** Reference base module, document CG-specific parameters
-
-2. **Monitor Variants (Priority 1):**
-   - [ ] axi4_master_rd_hp_mon.md (high-performance variant)
-   - [ ] axi4_master_rd_lp_mon.md (low-power variant)
-   - [ ] Document variant differences and use cases
-
-3. **Stub Modules (Priority 2):**
-   - [ ] axi4_master_stub.md, axi4_master_rd_stub.md, axi4_master_wr_stub.md
-   - [ ] axi4_slave_rd_stub.md, axi4_slave_wr_stub.md
-   - [ ] apb_master_stub.md, apb_slave_stub.md
-   - **Approach:** Explain stub purpose, testing usage
-
-4. **Shared Infrastructure (Priority 1):**
-   - ✅ docs/markdown/RTLAmba/shared/README.md exists (comprehensive)
-   - [x] Individual module pages now exist under docs/markdown/RTLAmba/monitor/:
-     - axi_monitor_base.md
-     - axi_monitor_filtered.md
-     - axi_monitor_trans_mgr.md
-     - axi_monitor_reporter.md
-     - axi_monitor_timeout.md
-     - arbiter_monbus_common.md
-     - monbus_arbiter.md
-     - cdc_handshake (covered in docs/markdown/RTLAmba/cdc/cdc.md)
-
-5. **Adapters/Shims (Priority 2):**
-   - ✅ docs/markdown/RTLAmba/shims/README.md exists
-   - ✅ Individual shim docs exist (axi4_to_apb_convert, axi4_to_apb_shim, peakrdl_to_cmdrsp)
-   - [ ] Update shims documentation with usage examples
-
-**Waveform Integration Tasks:**
-
-1. **Generate Missing Waveforms (Priority 1):**
-   - [ ] AXIL monitors (8 modules) - Similar to AXI4 but simpler
-   - [ ] APB crossbar - Address decode and routing
-   - [ ] Arbiters (monbus, round-robin, weighted) - QoS visualization
-   - [ ] Shims (axi4_to_apb) - Protocol conversion timing
-
-2. **Integrate Existing Waveforms (Priority 1):**
-   - ✅ apb_slave.md already includes waveforms (reference pattern)
-   - [ ] apb_slave_cdc.md - Add waveform references
-   - [ ] apb_master.md - Add waveform references
-   - [ ] axi4_master_rd_mon.md - Add waveform references
-   - [ ] axi4_master_wr_mon.md - Add waveform references
-   - [ ] axi4_slave_rd_mon.md - Add waveform references
-   - [ ] axi4_slave_wr_mon.md - Add waveform references
-   - [ ] gaxi_skid_buffer.md - Add waveform references
-
-3. **Waveform Generation Infrastructure:**
-   - ✅ WaveDrom test pattern exists (val/amba/test_*_wavedrom.py)
-   - [ ] Create wavedrom tests for missing modules
-   - [ ] Follow pattern: pytest test generates .json → Include in markdown
-
-**Integration Pattern (from apb_slave.md):**
-```markdown
-## Waveforms
-
-![APB Write](../../assets/WAVES/apb_slave/apb_write_sequence_001.png)
-**WaveJSON:** [apb_write_sequence_001.json](../../assets/WAVES/apb_slave/apb_write_sequence_001.json)
-```
-
-**Implementation Phases:**
-
-**Phase 1: Quick Wins (Week 1)**
-- [ ] Integrate existing waveforms into docs (7 modules)
-- [ ] Document clock-gated variants (reference base + CG params)
-- [ ] Update shared infrastructure individual pages
-
-**Phase 2: High-Impact Waveforms (Week 2)**
-- [ ] Generate AXIL monitor waveforms (8 modules)
-- [ ] Generate APB crossbar waveforms
-- [ ] Generate arbiter waveforms (visualization of scheduling)
-- [ ] Generate shim waveforms (protocol conversion)
-
-**Phase 3: Complete Coverage (Week 3)**
-- [ ] Document all stub modules
-- [ ] Document monitor variants (HP/LP)
-- [ ] Generate remaining waveforms (utilities, helpers)
-- [ ] Final review and consistency check
-
-**Success Criteria:**
-- [ ] All 97 RTL modules have markdown documentation
-- [ ] All key modules (monitors, crossbars, arbiters, shims) have waveforms
-- [ ] Waveforms integrated into markdown (PNG + JSON links)
-- [ ] Empty directories (adapters, components, testcode) have content or READMEs
-- [ ] Documentation follows consistent structure:
-  - Module overview
-  - Parameters and ports
-  - Timing diagrams (waveforms)
-  - Usage examples
-  - Integration notes
-  - Related modules
-
-**Deliverables:**
-- [ ] ~56 new markdown files for missing modules
-- [ ] ~36 waveform integrations for existing docs
-- [ ] ~30 new WaveDrom test files
-- [ ] ~30 new waveform .json/.png pairs
-- [ ] Updated README files for all subdirectories
-
-**Documentation Template:**
-```markdown
-# {module_name}
-
-Brief description.
-
-## Overview
-Detailed functionality.
-
-## Module Declaration
-```systemverilog
-module ...
-```
-
-## Parameters
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-
-## Ports
-| Port | Direction | Description |
-
-## Timing Diagrams
-![Waveform](../../assets/WAVES/{module}/scenario_001.png)
-**WaveJSON:** [scenario_001.json](...)
-
-## Usage Example
-```systemverilog
-// Instantiation example
-```
-
-## Integration Notes
-- Clock domain considerations
-- Backpressure handling
-- Configuration recommendations
-
-## Related Modules
-- Link to related docs
-```
-
-**Resources:**
-- **Waveform Pattern:** docs/markdown/RTLAmba/apb/apb_slave.md (reference)
-- **Test Pattern:** val/amba/test_apb_slave_wavedrom.py
-- **Constraint Pattern:** bin/TBClasses/wavedrom_user/apb.py
-- **Existing Waveforms:** docs/markdown/assets/WAVES/
-
-**Priority Justification:**
-P0 because user expected this completed weeks ago and sees directories as "mostly empty". High visibility gap.
-
----
-
-## Phase 6: WaveDrom Integration and Documentation
-
 ### TASK-016: AXI Monitor Test Validation and Refinement
 **Priority:** P1
 **Status:** 🟢 Complete (2025-10-06)
@@ -892,6 +505,37 @@ Complete final validation of AXI monitor tests following the event_reported feed
 - ✅ All AXI4 monitor variant tests pass
 - ✅ event_reported feedback mechanism working
 - ✅ Integration complete in all AXI4 modules
+
+---
+
+### TASK-017: Add WaveDrom Support to APB Monitor Tests
+**Priority:** P2
+**Status:** 🟢 Complete (2025-10-06)
+**Owner:** Claude AI
+**Task File:** `TASK-017-wavedrom_apb_monitors.md`
+**Depends On:** TASK-021 (APB monitor must be functional first) ✅
+
+**Description:**
+Add minimal WaveDrom timing diagram generation to APB monitor tests, following the GAXI pattern. Generate clean waveforms showing key APB protocol scenarios.
+
+**Completed Work:**
+- ✅ Created APB constraints file (bin/TBClasses/wavedrom_user/apb.py) with comprehensive protocol support
+- ✅ Added WaveDrom test functions to test_apb_master.py, test_apb_slave.py, test_apb_slave_cdc.py
+- ✅ Generated 17 WaveJSON files across 3 APB test types
+- ✅ Created documentation (docs/markdown/assets/WAVES/*/README.md)
+- ✅ All tests passing with WaveDrom generation enabled
+
+**Deliverables:**
+- ✅ APB Master: 3 waveforms (basic write, read, back-to-back)
+- ✅ APB Slave: 7 waveforms (write, read, back-to-back writes/reads, write-to-read, read-to-write, error)
+- ✅ APB Slave CDC: 7 waveforms (dual clock domain showing APB + GAXI interfaces)
+- ✅ Documentation: README.md files in docs/markdown/assets/WAVES/{apb_master,apb_slave,apb_slave_cdc}/
+
+**Success Criteria:**
+- ✅ 17 clean WaveJSON files generated (exceeded 3 minimum)
+- ✅ APB protocol timing clearly shown (PSEL/PENABLE/PREADY)
+- ✅ Original functional tests still pass
+- ✅ APB slave WaveDrom test: PASSED (7 scenarios, 1690ns)
 
 ---
 
@@ -1067,8 +711,6 @@ Survey the entire test suite to identify additional tests that would significant
 
 ---
 
-## Phase 7: APB Monitor Development
-
 ### TASK-021: Fix APB Monitor Core Functionality
 **Priority:** P1
 **Status:** 🟢 Complete (2025-10-11) - No fixes needed
@@ -1112,213 +754,3 @@ APB monitor is **fully functional** and ready for WaveDrom integration (TASK-017
 
 ---
 
-### TASK-017: Add WaveDrom Support to APB Monitor Tests
-**Priority:** P2
-**Status:** 🟢 Complete (2025-10-06)
-**Owner:** Claude AI
-**Task File:** `TASK-017-wavedrom_apb_monitors.md`
-**Depends On:** TASK-021 (APB monitor must be functional first) ✅
-
-**Description:**
-Add minimal WaveDrom timing diagram generation to APB monitor tests, following the GAXI pattern. Generate clean waveforms showing key APB protocol scenarios.
-
-**Completed Work:**
-- ✅ Created APB constraints file (bin/TBClasses/wavedrom_user/apb.py) with comprehensive protocol support
-- ✅ Added WaveDrom test functions to test_apb_master.py, test_apb_slave.py, test_apb_slave_cdc.py
-- ✅ Generated 17 WaveJSON files across 3 APB test types
-- ✅ Created documentation (docs/markdown/assets/WAVES/*/README.md)
-- ✅ All tests passing with WaveDrom generation enabled
-
-**Deliverables:**
-- ✅ APB Master: 3 waveforms (basic write, read, back-to-back)
-- ✅ APB Slave: 7 waveforms (write, read, back-to-back writes/reads, write-to-read, read-to-write, error)
-- ✅ APB Slave CDC: 7 waveforms (dual clock domain showing APB + GAXI interfaces)
-- ✅ Documentation: README.md files in docs/markdown/assets/WAVES/{apb_master,apb_slave,apb_slave_cdc}/
-
-**Success Criteria:**
-- ✅ 17 clean WaveJSON files generated (exceeded 3 minimum)
-- ✅ APB protocol timing clearly shown (PSEL/PENABLE/PREADY)
-- ✅ Original functional tests still pass
-- ✅ APB slave WaveDrom test: PASSED (7 scenarios, 1690ns)
-
----
-
-## Task Summary
-
-| Phase | Tasks | Complete | In Progress | Not Started |
-|-------|-------|----------|-------------|-------------|
-| 1: AXI Monitor Core | 1 | 1 | 0 | 0 |
-| 2: AXI4 Integration | 4 | 4 | 0 | 0 |
-| 3: AXI4 Validation | 2 | 2 | 0 | 0 |
-| 4: AXIL Development | 4 | 4 | 0 | 0 |
-| 5: Enhancements | 6 | 1 | 2 | 3 |
-| 6: WaveDrom & Docs | 4 | 4 | 0 | 0 |
-| 7: APB Monitor Dev | 2 | 2 | 0 | 0 |
-| **TOTAL** | **23** | **18** | **2** | **3** |
-
-**Completion:** 78% (18/23 tasks complete)
-**In Progress:**
-- TASK-013 (Integration Examples) - ~90% complete
-- TASK-023 (Complete RTLAmba Documentation and Waveform Integration) - **HIGH PRIORITY P0**
-
-**Recent Additions:**
-- TASK-022: Make APB Crossbar Variants Functional (P2, Not Started)
-- **TASK-023: Complete RTLAmba Documentation and Waveform Integration (P0, In Progress)** ← NEW HIGH PRIORITY
-
-**Phase 3 (AXI4 Validation): COMPLETE ✅**
-- All AXI4 monitors comprehensively validated
-- Clock-gated variants tested and verified
-- Production-ready for deployment
-
-**Phase 4 (AXIL Development): COMPLETE ✅ (2025-10-11)**
-- ✅ TASK-008: All 8 AXIL monitor modules created (4 base + 4 CG)
-- ✅ TASK-009: Monitor integration complete (merged with TASK-008)
-- ✅ TASK-010: Validation complete (all 4 base monitors PASSED)
-- ✅ TASK-011: CG validation complete (all 4 CG monitors PASSED)
-
-**Phase 7 (APB Monitor Development): COMPLETE ✅ (2025-10-11)**
-- ✅ TASK-021: APB monitor verification complete (all tests PASSED)
-- ✅ TASK-017: APB WaveDrom integration complete (17 waveforms generated)
-- APB master, slave, and slave CDC monitors fully validated
-- Comprehensive WaveDrom documentation with examples
-
----
-
-## Phase 8: Documentation
-
-### TASK-024: Write Monitor System Whitepaper
-**Priority:** P3
-**Status:** 🔴 Not Started (stub created 2026-05-29)
-**Owner:** Sean (author) / Claude (assist)
-**Deliverable:** `docs/markdown/RTLAmba/monitor_system_whitepaper.md`
-> Note (2026-07-22): the 2026-05-29 stub is not present in the current tree; recreate it when this task starts.
-
-**Description:**
-2-3 page whitepaper that frames the monitor system as a *design surface*
-for SoC integrators -- not a status snapshot of what is in place, but a
-guide to which knobs the integrator owns and how to spend them. Different
-from `docs/markdown/RTLAmba/overview.md` (which describes the as-built
-implementation) and from the per-module specs under `shared/` (which
-describe specific blocks). This paper sits one level up: "here is the
-spine, here are the axes, here are the tweaks."
-
-**Section outline** (stub already in place):
-
-1. **Identity space allocation** -- UNIT_ID / AGENT_ID / CHANNEL_ID as
-   designer-owned. Includes the worked example of allocating UNIT_ID one
-   level down so each unit gets up to 16 internal sub-busses to track.
-2. **Where to insert monitoring** -- per-port (current default), mid-fabric
-   (for localizing fabric-internal violations), root-of-tree (aggregate
-   only, trades resolution for area).
-3. **Timestamp policy** -- current locked to the monbus_group family's local
-   counter. Future direction: hybrid `{global_us[47:0], local_cyc[15:0]}`
-   so cross-subsystem correlation and per-wrapper resolution share the
-   same 64-bit field. Also a note on PTP / external time-source variant.
-4. **Drain path selection** -- err FIFO (IRQ) vs. write FIFO (bulk
-   trace), per-packet-type routing via `cfg_*_err_select`.
-5. **Packet-type filtering** -- masking strategy, the
-   completion+performance congestion pitfall, runtime-reconfigurable
-   masks via control APB.
-6. **Aggregation topology** -- tree-of-arbiters default, WRR variant for
-   skewed traffic, protocol-partitioned groups.
-
-**Out of scope** for the whitepaper (covered elsewhere):
-- Packet bit-layout (in `docs/markdown/RTLAmba/includes/monitor_package_spec.md`)
-- Per-module port lists / timing (in `docs/markdown/RTLAmba/monitor/{module}.md`)
-- Specific test recipes (in the relevant test source).
-
-**Completion checklist** (already mirrored at the bottom of the stub):
-- [ ] Pull representative deployment numbers from stream_char on
-      Nexys A7 (perf-section figures).
-- [ ] One block diagram per section showing as-built vs. tweaked
-      configurations side-by-side.
-- [ ] Cross-link each section to its per-module spec under `shared/`.
-- [ ] Expand the timestamp section into an appendix once the
-      hybrid-global scheme is prototyped.
-- [ ] Add a verification section pointing at the slave-BFM error-
-      injection pattern (`test_bridge_1x2_rd_monitor_error_inject.py`)
-      as the template for validating tweaks in simulation.
-
----
-
-### TASK-025: Update formal proofs for the monitor logic
-
-**Priority:** Medium
-**Status:** [~] In progress (2026-07-18) — infrastructure fixed, **all 12 pass**;
-the real RTL bug the proofs surfaced (active_count underflow) is FIXED and
-functionally re-validated; some extensions + a val/amba path sweep still pending.
-
-**Context:** The monitor modules moved from `rtl/amba/shared/` (and the per-protocol
-dirs) to **`rtl/amba/monitor/`**, and the monitor RTL gained new logic since the
-formal proofs were last exercised (perfmon window/counters, `cam_clear`, the
-`cfg_compl/threshold/debug` enables, `ENABLE_*_LOGIC` synthesis cones, always-on
-CAM pipelining). The `formal/amba/*` Makefiles + `.sby` files were path-updated to
-`monitor/` and verified to resolve, but the **SymbiYosys proofs were not re-run**.
-
-**Checklist:**
-- [x] Run `make` in each `formal/amba/{...}` and confirm they pass after the move.
-      **10/12 pass.** The stale DEPS lists (the reporter split into six
-      `axi_monitor_reporter_*` sub-modules + the `monitor_trans_cam` extraction +
-      `apb_monitor_addr_check`) broke yosys elaboration everywhere; fixed by a new
-      `tools/gen_formal_deps.py` that regenerates each Makefile's DEPS from the
-      transitive module closure and derives the sv2v file list from `$(DEPS)` so the
-      two can't drift again. Also fixed: `axi_monitor_base` `block_ready` polarity
-      assertion (RTL fix flipped it to positive-enable; old assert encoded the
-      pre-fix inverted polarity), `axi_monitor_trans_mgr` pipeline-latency staleness
-      of `ap_alloc_from_empty` (always-pipelined CAM), and `apb5_monitor`'s stale
-      128-bit-packet protocol assertion (apb5 emits the compact 64-bit monbus word;
-      protocol is at `[59:57]`, not `[108:105]`).
-- [x] **Real RTL bug found AND FIXED.** `axi_monitor_trans_mgr` + `axi_monitor_base`
-      failed `ap_count_bounded`/`ap_no_overflow`: `active_count` (the alloc-minus-
-      cleanup accumulator) **underflowed to 0xFF** ~8 cycles after reset under a
-      broadly-legal AXI sequence, corrupting `busy`/`block_ready`. Fix: derive
-      `active_count` as the registered pop-count of `cam_entry_valid` (structurally
-      `[0, N]`, cannot underflow); a saturate-at-0 attempt passed the bound but a
-      formal accuracy probe showed it still under-reported, so the pop-count form
-      was adopted. All 12 monitor proofs now pass; `axi4_master_rd_mon` cocotb test
-      passes at MAX_TRANSACTIONS=16. Added a port-only `ap_clear_zeroes_count`
-      (cam_clear) property to trans_mgr. See
-      `rtl/amba/KNOWN_ISSUES/axi_monitor_active_count_underflow.md`.
-- [ ] **val/amba monitor-test path sweep (NEW, pending).** The monitor move left
-      ~75 val/amba tests building monitor source paths via
-      `os.path.join(rtl_dict['rtl_shared'], "...")` where `rtl_shared='rtl/amba/shared'`
-      — the earlier string-based sweep missed these because the path is assembled at
-      runtime. `test_axi4_master_rd_mon.py` fixed (repointed to `rtl/amba/monitor`);
-      the rest still need the same repoint.
-- [ ] Extend the proofs to cover the new perfmon window state machine + the four
-      utilization / beat-byte-burst counters (`axi_monitor_base`). *(pending)*
-- [ ] Add a `cam_clear` synchronous-clear property to the trans-CAM proofs. *(pending)*
-- [ ] Confirm the `ENABLE_*_LOGIC=0` cone-drop configurations still prove (or are
-      excluded intentionally). *(pending)*
-- [ ] `axi_monitor_timer` has a `formal/amba/` dir but **no Makefile/harness** — it
-      was never set up. Decide whether to author one (net-new proof) or drop it from
-      the list.
-- [x] Update any formal filelist/`.sby` that still assumes the old `shared/` layout —
-      all Makefiles regenerated against `rtl/amba/monitor/`; all 12 flatten cleanly.
-
----
-
-## Notes
-
-### Code Reuse Principle
-**CRITICAL:** Before implementing any new monitor modules, always:
-1. Search existing codebase for similar functionality
-2. Adapt/reuse existing monitors with parameters
-3. Document reuse decisions
-4. Only create new code if truly necessary
-
-### Test-Driven Development
-- Write comprehensive tests **before** declaring a module complete
-- Aim for >95% functional coverage
-- Document test results in task completion
-
-### Documentation Requirements
-- Update PRD-AMBA.md when tasks complete
-- Update KNOWN_ISSUES if new issues discovered
-- Add inline comments for complex logic
-- Update integration guide with examples
-
----
-
-**Maintained By:** AMBA Subsystem Team
-**Review Frequency:** Weekly during active development

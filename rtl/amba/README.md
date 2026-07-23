@@ -53,11 +53,11 @@ The AMBA subsystem provides production-ready monitoring, observation, and bus-in
 ### 📋 This Subsystem
 - **[PRD](PRD.md)** - Product requirements (this subsystem)
 - **[CLAUDE](CLAUDE.md)** - AI assistance guide
-- **[Tasks](PRD/TASKS.md)** - Current work items
+- **[Tasks](../../Tasks/amba/INDEX.md)** - Current work items
 - **[Known Issues](KNOWN_ISSUES/)** - Bug tracking
 
 ### 📖 Guides
-- **[Configuration Guide](../../docs/guides/AXI_Monitor_Configuration_Guide.md)** ← **Start here for monitor setup!**
+- **[Configuration Guide](../../docs/user-guides/AXI_Monitor_Configuration_Guide.md)** ← **Start here for monitor setup!**
 
 ---
 
@@ -224,7 +224,7 @@ axi4_master_rd_mon #(
 .cfg_debug_enable   (1'b0)
 ```
 
-**📖 See:** `docs/guides/AXI_Monitor_Configuration_Guide.md` for detailed strategies
+**📖 See:** `docs/user-guides/AXI_Monitor_Configuration_Guide.md` for detailed strategies
 
 ### 3. Monitor Bus Packet Format
 
@@ -434,7 +434,7 @@ gtkwave waves.vcd
 **Solution:**
 - Use separate configurations for different test phases
 - Never enable completions + performance together
-- See `docs/guides/AXI_Monitor_Configuration_Guide.md`
+- See `docs/user-guides/AXI_Monitor_Configuration_Guide.md`
 
 ### ❌ Gotcha 2: Insufficient MAX_TRANSACTIONS
 
@@ -575,7 +575,7 @@ typedef enum logic [3:0] {
 ### This Subsystem
 - **[PRD.md](PRD.md)** - Product requirements overview
 - **[CLAUDE.md](CLAUDE.md)** - AI assistance guide
-- **[PRD/TASKS.md](PRD/TASKS.md)** - Current work items
+- **[Tasks](../../Tasks/amba/INDEX.md)** - Current work items
 - **[KNOWN_ISSUES/](KNOWN_ISSUES/)** - Bug tracking
 
 ### Detailed RTL Documentation
@@ -588,7 +588,7 @@ typedef enum logic [3:0] {
 - [Monitor Package](../../docs/markdown/RTLAmba/includes/monitor_package_spec.md)
 
 ### Guides
-- **[Configuration Guide](../../docs/guides/AXI_Monitor_Configuration_Guide.md)** ← **Essential reading!**
+- **[Configuration Guide](../../docs/user-guides/AXI_Monitor_Configuration_Guide.md)** ← **Essential reading!**
 
 ### Root Documentation
 - [Master PRD](../../PRD.md) - Repository overview
@@ -611,10 +611,10 @@ verilator --lint-only rtl/amba/monitor/axi4_master_rd_mon.sv
 
 # View documentation
 cat docs/markdown/RTLAmba/index.md
-cat docs/guides/AXI_Monitor_Configuration_Guide.md
+cat docs/user-guides/AXI_Monitor_Configuration_Guide.md
 
 # Check tasks and issues
-cat rtl/amba/PRD/TASKS.md
+cat Tasks/amba/active.md   # + open.md / closed.md
 ls rtl/amba/KNOWN_ISSUES/
 ```
 
@@ -622,7 +622,7 @@ ls rtl/amba/KNOWN_ISSUES/
 
 ## Getting Help
 
-1. **Configuration issues?** → Read `docs/guides/AXI_Monitor_Configuration_Guide.md`
+1. **Configuration issues?** → Read `docs/user-guides/AXI_Monitor_Configuration_Guide.md`
 2. **Integration questions?** → Check `docs/markdown/RTLAmba/overview.md`
 3. **Module details?** → See `docs/markdown/RTLAmba/{protocol}/`
 4. **Known bugs?** → Check `KNOWN_ISSUES/`
