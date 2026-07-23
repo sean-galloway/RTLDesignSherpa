@@ -51,7 +51,7 @@ All mandatory requirements are consolidated in the global requirements document:
 This CLAUDE.md provides AMBA-specific guidance. Also review:
 - Root `/CLAUDE.md` - Repository-wide patterns
 - `docs/markdown/TBClasses/tbclasses_index.md` - Framework usage patterns (full framework lives in the RTLDesignSherpa-DV repo)
-- `docs/guides/VERIFICATION_ARCHITECTURE_GUIDE.md` - Complete verification patterns
+- `docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md` - Complete verification patterns
 
 ---
 
@@ -98,7 +98,7 @@ async def axi4_test(dut):
 - ✅ **Queue Access:** APB monitors, simple control paths, in-order transactions
 - ✅ **Memory Models:** Multi-master AXI, out-of-order scenarios, data integrity
 
-**📖 Complete Guide:** `docs/guides/VERIFICATION_ARCHITECTURE_GUIDE.md` with AMBA examples
+**📖 Complete Guide:** `docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md` with AMBA examples
 
 ---
 
@@ -151,7 +151,7 @@ never leak the slot. If you want to keep marking/counting while
 suppressing emission, use `cfg_axi_pkt_mask` (drop mask, 1 = drop, in
 `axi_monitor_filtered`) instead of the runtime disable.
 
-**Always link:** "See `docs/guides/AXI_Monitor_Configuration_Guide.md` for configuration strategies"
+**Always link:** "See `docs/user-guides/AXI_Monitor_Configuration_Guide.md` for configuration strategies"
 
 ### Rule #3: Know the Known Issues
 
@@ -334,7 +334,7 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 
 **Then link:**
 - **Integration:** See `rtl/amba/README.md` for complete examples
-- **Configuration:** See `docs/guides/AXI_Monitor_Configuration_Guide.md`
+- **Configuration:** See `docs/user-guides/AXI_Monitor_Configuration_Guide.md`
 - **Module spec:** See `docs/markdown/RTLAmba/monitor/axi4_master_rd_mon.md`
 
 ### Q: "What packet types should I enable?"
@@ -361,7 +361,7 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 
 **⚠️ CRITICAL:** "Never enable completions + performance together!"
 
-**📖 See:** `docs/guides/AXI_Monitor_Configuration_Guide.md` (comprehensive guide)
+**📖 See:** `docs/user-guides/AXI_Monitor_Configuration_Guide.md` (comprehensive guide)
 
 ### Q: "Monitor packets format?"
 
@@ -589,7 +589,7 @@ axi4_master_rd_mon_cg #(
 "Never enable all packet types! Use separate test configurations:
 - Functional debug: error + compl + timeout
 - Performance: error + perf (disable compl!)
-See docs/guides/AXI_Monitor_Configuration_Guide.md"
+See docs/user-guides/AXI_Monitor_Configuration_Guide.md"
 ```
 
 ### ❌ Anti-Pattern 2: No Downstream Handling
@@ -729,12 +729,12 @@ gtkwave waves.vcd
 - `docs/markdown/RTLAmba/includes/monitor_package_spec.md` - Packet format
 
 **Configuration:**
-- `docs/guides/AXI_Monitor_Configuration_Guide.md` ← **Essential for correct setup**
+- `docs/user-guides/AXI_Monitor_Configuration_Guide.md` ← **Essential for correct setup**
 
 **This Subsystem:**
 - `rtl/amba/PRD.md` - Requirements overview
 - `rtl/amba/README.md` - Quick start guide
-- `rtl/amba/PRD/TASKS.md` - Current work
+- `/Tasks/amba/` - Current work
 - `rtl/amba/KNOWN_ISSUES/` - Bug tracking
 
 **Root:**
@@ -751,7 +751,7 @@ cat docs/markdown/RTLAmba/overview.md
 cat docs/markdown/RTLAmba/monitor/axi4_master_rd_mon.md
 
 # Check configuration guide
-cat docs/guides/AXI_Monitor_Configuration_Guide.md
+cat docs/user-guides/AXI_Monitor_Configuration_Guide.md
 
 # Run tests
 pytest val/amba/test_axi4_monitor.py -v

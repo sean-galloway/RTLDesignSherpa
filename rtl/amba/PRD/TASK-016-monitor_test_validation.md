@@ -154,7 +154,7 @@ pytest val/amba/test_axi_monitor.py -v -s
 
 **Update Files:**
 
-**File:** `rtl/amba/PRD/TASKS.md`
+**File:** `/Tasks/amba/`
 - [ ] Update TASK-001 status to ✅ Complete
 - [ ] Mark TASK-016 as complete when done
 - [ ] Update task summary table

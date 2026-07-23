@@ -25,31 +25,26 @@
 
 ## Introduction
 
-The APB RTC is a Real-Time Clock controller with an APB slave interface. It maintains time and date with battery backup support and provides alarm and periodic interrupt capabilities.
+The APB RTC is a Real-Time Clock controller with an APB slave interface. It maintains time and date and provides alarm and 1 Hz tick interrupt capabilities.
 
 ## Key Features
 
 ### Time Keeping
 - Seconds, minutes, hours (12/24-hour mode)
-- Day of week, date, month, year
-- Century support (2000-2099)
-- Leap year calculation
-- BCD format storage
+- Day of month (1-31), month, year (0-99, base year 2000 is hardcoded)
+- Leap year calculation (base 2000, valid through 2099); the year field wraps 99 to 00 with no century carry
+- Binary format by default, optional BCD format
 
 ### Alarm Function
-- Configurable alarm time
-- Second, minute, hour, date match
-- Daily or specific date alarm
+- Single programmable alarm
+- Seconds, minutes, hours match with per-field match enables
 
 ### Interrupt Support
 - Alarm match interrupt
-- Periodic interrupt (1 Hz)
-- Update-ended interrupt
+- Second-tick interrupt (fixed 1 Hz)
 
 ### Power Management
 - Low-power 32.768 kHz oscillator
-- Battery backup domain support
-- RAM retention (optional)
 
 ## Applications
 
@@ -89,46 +84,33 @@ When the current time matches the alarm setting, an interrupt is generated.
 
 All configured alarm fields (seconds, minutes, hours) must match simultaneously for the alarm to trigger.
 
-### Waveform 1.4: Periodic Interrupt
+### Waveform 1.4: Second-Tick Interrupt
 
-The RTC can generate periodic interrupts at a configurable rate.
+The RTC generates a fixed 1 Hz tick interrupt when enabled by `second_int_enable`.
 
 ![RTC Periodic Interrupt](../assets/wavedrom/timing/rtc_periodic_interrupt.svg)
 
-The rate selector determines the interrupt frequency from the 32.768kHz oscillator.
-
-### Waveform 1.5: Update-In-Progress (UIP)
-
-Software should check UIP before reading time to avoid inconsistent values.
-
-![RTC Update In Progress](../assets/wavedrom/timing/rtc_update_in_progress.svg)
-
-The UIP flag asserts before the time update cycle begins. Software polls until UIP clears, then reads time registers for consistent values.
+The 1 Hz tick is derived from the 32.768 kHz oscillator by a fixed divide-by-32768; there is no programmable rate selector. Each tick sets the `second_tick` status flag and, when enabled, asserts the second-tick interrupt.
 
 ## Register Summary
 
 | Offset | Name | Access | Description |
 |--------|------|--------|-------------|
-| 0x00 | RTC_SECONDS | RW | Seconds (0-59) |
-| 0x04 | RTC_MINUTES | RW | Minutes (0-59) |
-| 0x08 | RTC_HOURS | RW | Hours (0-23 or 1-12) |
-| 0x0C | RTC_DAY | RW | Day of week (1-7) |
-| 0x10 | RTC_DATE | RW | Day of month (1-31) |
-| 0x14 | RTC_MONTH | RW | Month (1-12) |
-| 0x18 | RTC_YEAR | RW | Year (0-99) |
-| 0x1C | RTC_CENTURY | RW | Century (20-29) |
-| 0x20 | RTC_ALARM_SEC | RW | Alarm seconds |
-| 0x24 | RTC_ALARM_MIN | RW | Alarm minutes |
-| 0x28 | RTC_ALARM_HOUR | RW | Alarm hours |
-| 0x2C | RTC_ALARM_DATE | RW | Alarm date |
-| 0x30 | RTC_CONTROL | RW | Control register |
-| 0x34 | RTC_STATUS | RO/W1C | Status register |
+| 0x00 | RTC_CONFIG | RW | Global configuration (enable, hour/BCD/clock mode, time-set) |
+| 0x04 | RTC_CONTROL | RW | Alarm and interrupt enables |
+| 0x08 | RTC_STATUS | RO/W1C | Status flags and indicators |
+| 0x0C | RTC_SECONDS | RW | Seconds (0-59) |
+| 0x10 | RTC_MINUTES | RW | Minutes (0-59) |
+| 0x14 | RTC_HOURS | RW | Hours (0-23 or 1-12) |
+| 0x18 | RTC_DAY | RW | Day of month (1-31) |
+| 0x1C | RTC_MONTH | RW | Month (1-12) |
+| 0x20 | RTC_YEAR | RW | Year (0-99, base 2000) |
+| 0x24 | RTC_ALARM_SEC | RW | Alarm seconds |
+| 0x28 | RTC_ALARM_MIN | RW | Alarm minutes |
+| 0x2C | RTC_ALARM_HOUR | RW | Alarm hours |
+| 0x30 | RTC_ALARM_MASK | RW | Alarm field match enables |
 
-## Parameters
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| CDC_ENABLE | 0 | Clock domain crossing |
+See [ch05 Register Map](../ch05_registers/01_register_map.md) for full bit-level definitions and the time-set protocol.
 
 ---
 

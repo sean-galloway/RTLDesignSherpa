@@ -38,7 +38,7 @@ apb_rtc (Top Level)
 |   +-- rtc_regs (PeakRDL Generated)
 |
 +-- rtc_core
-    +-- Time Counter (seconds to century)
+    +-- Time Counter (seconds to year)
     +-- Alarm Comparator
     +-- Interrupt Generator
     +-- BCD Logic
