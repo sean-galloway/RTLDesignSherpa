@@ -21,7 +21,7 @@ procedure for each so they all come out identical.
 - [ ] delta — delta/TASKS.md
 - [ ] hive — hive/TASKS.md
 - [ ] retro-legacy — retro_legacy_blocks/TASKS.md + rtl/{ioapic,pm_acpi,smbus}/TODO.md
-- [ ] memory-controllers — pumice / ddr3-lpddr3 / ddr4-lpddr4 TASKS.md
+- [ ] memory-controllers — ddr3-lpddr3 / ddr4-lpddr4 TASKS.md (pumice DONE 2026-07-23 -> Tasks/pumice/)
 - [ ] nexysa7 — timing_characterization/TASKS.md + cdc_counter_display CDC_DEMO_TODO.md
 - [ ] formal — formal/FORMAL_TODO.md
 - [ ] coverage — val/COVERAGE_TODO.md

@@ -59,7 +59,9 @@ override requirements. Design/DV/FPGA *practice* lives in the
 | delta | pending | delta component | [TASKS.md](../projects/components/delta/TASKS.md) |
 | hive | pending | hive component | [TASKS.md](../projects/components/hive/TASKS.md) |
 | retro-legacy | pending | retro legacy blocks (ioapic, pm_acpi, smbus, pit, hpet) | [TASKS.md](../projects/components/retro_legacy_blocks/TASKS.md) + rtl/*/TODO |
-| memory-controllers | pending | pumice / ddr3 / ddr4 | pumice, ddr3-lpddr3, ddr4-lpddr4 TASKS.md |
+| [pumice](pumice/INDEX.md) | **migrated** | pumice DDR2/LPDDR2 controller | — |
+| [docs-review](docs-review/INDEX.md) | **migrated** | Kimi doc review + humanization | rtl-doc-review/REVIEW_TODOS.md (off-repo) |
+| memory-controllers | pending | ddr3 / ddr4 (pumice migrated above) | ddr3-lpddr3, ddr4-lpddr4 TASKS.md |
 | nexysa7 | pending | board campaigns | timing_characterization/TASKS.md, cdc_counter_display CDC_DEMO_TODO |
 | formal | pending | formal proof backlog | [formal/FORMAL_TODO.md](../formal/FORMAL_TODO.md) |
 | coverage | pending | coverage backlog | [val/COVERAGE_TODO.md](../val/COVERAGE_TODO.md) |

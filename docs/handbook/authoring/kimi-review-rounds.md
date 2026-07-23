@@ -72,6 +72,19 @@ sending it to `api.moonshot.ai` returns 404. `run_batch.py` preflights this and
 refuses to start, because the alternative is discovering it deep into a serial
 round. See [[cloud-sandbox]] for running a batch off the workstation.
 
+Proxy launch, if it is down:
+
+    source /mnt/data/github/seans-cli-ai-local/config/frontier-keys.env
+    ~/vllm-env/bin/litellm --config \
+        /mnt/data/github/seans-cli-ai-local/config/litellm-config.yaml
+    # health check:
+    curl -s http://localhost:4000/v1/models -H "Authorization: Bearer sk-x"
+
+The key chain is: `MOONSHOT_API_KEY` in `frontier-keys.env` (untracked, one
+disk) -> sourced into the proxy's environment -> referenced by
+`litellm-config.yaml` as `os.environ/MOONSHOT_API_KEY`. The key is never in a
+script and must never be committed.
+
 Do not `pkill -f litellm` to restart the proxy - target the PID. A broad pkill
 once killed the working shell.
 

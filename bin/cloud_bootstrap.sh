@@ -31,29 +31,11 @@ say()  { printf '\n\033[1m== %s\033[0m\n' "$*"; }
 warn() { printf '\033[33mWARN\033[0m %s\n' "$*"; }
 ok()   { printf '\033[32mok\033[0m   %s\n' "$*"; }
 
-say "System packages"
-if command -v verilator >/dev/null 2>&1; then
-    ok "verilator already present: $(verilator --version)"
-else
-    if ! command -v apt-get >/dev/null 2>&1; then
-        warn "no apt-get; install Verilator $WANT_VERILATOR manually"
-    else
-        sudo apt-get update -qq
-        # git/perl/ccache are Verilator runtime deps; gtkwave is for wave dumps.
-        sudo apt-get install -y -qq verilator build-essential ccache perl python3-venv
-        ok "installed $(verilator --version)"
-    fi
-fi
-
-if command -v verilator >/dev/null 2>&1; then
-    HAVE="$(verilator --version | awk '{print $2}')"
-    if [ "$HAVE" != "$WANT_VERILATOR" ]; then
-        warn "Verilator $HAVE != pinned $WANT_VERILATOR."
-        warn "Waves may be silently corrupt. Build 5.020 from source if tests misbehave."
-    else
-        ok "Verilator $HAVE matches the pin"
-    fi
-fi
+say "RTL toolchain"
+# Delegated so the toolchain can also be installed on its own, and so the
+# Verilator-vs-oss-cad-suite PATH trap is handled in exactly one place.
+# Pass --no-formal through if the caller does not want the ~2 GB suite.
+bash "$REPO_ROOT/bin/install_tools.sh" "$@"
 
 say "Python venv"
 if [ ! -d venv ]; then
