@@ -19,10 +19,28 @@ Move a task by CUTTING its block between pages (never copy - one state only),
 and keep its `**Status:**` line dated. `closed` = done; `dropped` = decided not
 to do it - keep them apart so history stays honest.
 
-Migration is in progress: `amba` is migrated; other areas' rows in
-/Tasks/INDEX.md are marked `pending` and still point at their old file until
-moved. If you touch a pending area's tasks, prefer migrating it into
-/Tasks/<area>/ over editing the old file in place.
+Migration is in progress (tracked as TOOL-001 in Tasks/tooling/active.md):
+`amba` is migrated; other areas' rows in /Tasks/INDEX.md are marked `pending`
+and still point at their old file until moved.
+
+## Migrating an area (do every area identically)
+
+1. **Fence-aware split** the source file into task blocks. Only treat a line
+   starting with `##`/`###` as a header when NOT inside a ``` code fence — task
+   bodies embed markdown/code examples whose lines start with `##`, and a naive
+   split silently drops the tail of those tasks.
+2. **Classify by REAL repo state, not the stale `**Status:**` marker.** Verify
+   each task against the tree (does the file/feature exist, did the work land?).
+   The amba pilot's "active" bucket was mostly already done. closed = done,
+   dropped = decided-against.
+3. Write `INDEX.md` + `open/active/closed/dropped.md` (see Tasks/amba/ for the
+   shape). Keep each task block intact; drop only scaffolding (legends, phase
+   headers, stale summary tables).
+4. **Repoint every inbound reference** to /Tasks/<area>/ and delete the
+   original file (owner's chosen policy).
+5. **Verify**: task-block count and content match the original; all links
+   resolve. The counts looking clean is not proof — the first amba pass looked
+   clean and had dropped a task's tail.
 
 Enforcement authority remains /GLOBAL_REQUIREMENTS.md. Design/DV/FPGA practice
 lives in the handbook (docs/handbook/INDEX.md), not here - this tracks WORK.

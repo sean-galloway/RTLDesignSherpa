@@ -63,7 +63,7 @@ override requirements. Design/DV/FPGA *practice* lives in the
 | nexysa7 | pending | board campaigns | timing_characterization/TASKS.md, cdc_counter_display CDC_DEMO_TODO |
 | formal | pending | formal proof backlog | [formal/FORMAL_TODO.md](../formal/FORMAL_TODO.md) |
 | coverage | pending | coverage backlog | [val/COVERAGE_TODO.md](../val/COVERAGE_TODO.md) |
-| tooling | pending | repo tooling/scripts | [TOOLING_TODO.md](../TOOLING_TODO.md) |
+| [tooling](tooling/INDEX.md) | **partial** | repo tooling/scripts/process | [TOOLING_TODO.md](../TOOLING_TODO.md) (backlog still there; area holds TOOL-001, the migration task) |
 
 `pending` rows still track work at the linked source file; they will migrate
 into `Tasks/<area>/` area by area. `amba` is the migrated reference shape.
