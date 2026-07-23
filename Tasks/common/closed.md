@@ -4,6 +4,40 @@
 
 ---
 
+## COMMON-013 — RTL fixes surfaced by Kimi round_2 common review
+**Status:** closed 2026-07-23 — three behavioral/robustness RTL fixes + stale
+comment corrections, each verified with a clean-rebuild test. P2.
+
+Doc review of `rtl/common/` (round_2 common_part_02/04/05) surfaced RTL defects,
+not just doc drift. Triaged and fixed the RTL side:
+
+1. **clock_pulse.sv** — `r_counter` was declared `[WIDTH-1:0]`, but WIDTH is the
+   pulse PERIOD, so the counter was as wide as the period. The doc's own 1 Hz
+   heartbeat example (WIDTH=100_000_000) would infer ~100 M flip-flops and not
+   synthesize. Re-sized to `$clog2(WIDTH)` (guarded for WIDTH<2). Behaviour
+   unchanged; `test_clock_pulse` passes on a clean build. Fixing the RTL also
+   made the doc's resource table (written for the $clog2 sizing) correct.
+2. **clock_gate_ctrl.sv** — the ANSI port list used `[N-1:0]` while `N` is a
+   body localparam declared after the port list (forward reference; strict-LRM
+   tools reject it). Changed to `[IDLE_CNTR_WIDTH-1:0]` (identical width).
+   `test_clock_gate_ctrl` passes on a clean build.
+3. **pwm.sv** — `w_all_repeats_done` compared `r_repeat_value` against
+   `local_repeat` while that register increments in the same period-boundary
+   cycle, so `repeat_count = N` emitted N+1 periods (and repeat=1 "single pulse"
+   gave two). This disagreed with the docs AND pwm's own header waveform.
+   Compare against `local_repeat - 1`; the existing `local_repeat==0` (infinite)
+   branch guards the subtraction. `test_pwm` 9/9 on a clean build. NOTE: the
+   existing test waits for `done` but does not count exact periods, so it did
+   not catch this — a period-count assertion would be a good follow-up.
+
+Also corrected stale/incorrect RTL header comments (comment-only, all still
+lint clean): `sort.sv` said "ascending (smallest at LSB)" but the compare-swap
+sorts DESCENDING with the largest at the LSB; `sync_pulse.sv` advertised a
+phantom "toggle synchronized back to source for ready" feedback path that has no
+port or logic, and gave two inconsistent min-spacing figures; `fifo_sync.sv` /
+`fifo_async.sv` advertised sim-only overflow/underflow detection the bodies
+never contained.
+
 ## COMMON-001 — Improve test coverage to 95%
 **Status:** closed — 100% module coverage, exceeded the 95% target. P2.
 

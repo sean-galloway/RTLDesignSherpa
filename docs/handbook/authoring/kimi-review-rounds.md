@@ -137,13 +137,15 @@ files, and a checkbox per finding.
 | round_2 | 22 | 196 | 167 | **no** - 1 of 102 implicated files touched since |
 | round_3 | 6 (monitor) | 75 | 70 | **no** - 0 of 31 touched since |
 
-**As of 2026-07-23 none of the accuracy findings have been integrated.** Two
-spot checks confirm it against the RTL rather than against commit dates:
+**As of 2026-07-23 the five round_2 `common_part_*` units are fully integrated**
+(all doc fixes plus the RTL defects they surfaced — arbiter_round_robin_simple
+starvation, clock_pulse sizing, clock_gate_ctrl port ref, pwm repeat off-by-one;
+see Tasks/docs-review DOCREV-001 and Tasks/common COMMON-012/COMMON-013). The
+round_2 AMBA/monitor, math, shared and protocol units, and all of round_3, are
+still un-integrated. Spot check against the RTL rather than commit dates:
 `axi4_master_rd_mon_cg.md` still documents five clock-gating parameters that do
 not exist (the RTL has only `CG_IDLE_COUNT_WIDTH`, gated at runtime by
-`cfg_cg_enable`/`cfg_cg_idle_count`), and `arbiter_round_robin_simple.sv` still
-carries the rotate-direction defect round_2 flagged, unchanged since the initial
-commit.
+`cfg_cg_enable`/`cfg_cg_idle_count`).
 
 Beware the false positive that makes this look done: `92fbd051 docs(amba/monitor):
 reconcile all monitor documentation with the RTL` landed 06:55 on 2026-07-22 and

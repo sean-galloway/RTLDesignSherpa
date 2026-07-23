@@ -5,22 +5,48 @@
 ---
 
 ## DOCREV-001 — Integrate the outstanding Kimi accuracy findings
-**Status:** open 2026-07-23 — **1 of 271 integrated**; 270 remain
+**Status:** open 2026-07-23 — **all 5 round_2 `common_part_*` units integrated**;
+the AMBA/monitor and math units of round_2, plus round_3 (monitor), remain.
 
-**Integrated so far:**
-- round_2 `common_part_01` "RTL rotates the wrong direction:
-  arbiter_round_robin_simple does not implement round-robin and starves agents"
-  — CONFIRMED as a real RTL defect, fixed 2026-07-23. See COMMON-012 for what
-  the fix taught. This one is a worked example of the triage rule below: it
-  reads like a doc/RTL ordering mismatch and is actually a starvation bug.
+**Integrated so far — round_2 common (all five parts), 2026-07-23:**
+- `common_part_01` (14 confirmed + 2 suspected): the
+  `arbiter_round_robin_simple` starvation bug (RTL, see COMMON-012) plus doc
+  fixes to bin_to_bcd (latency formula + two worked examples), arbiter_round_robin
+  (rotation direction, dead-logic LUT), arbiter_round_robin_weighted (consecutive-
+  grant myth, deadlock-prone masking snippet, MAX_LEVELS range), cam_tag
+  (lowest-not-highest alloc, phantom debug block), clock_divider (constraint,
+  baud example), overview (broken adder example, unsourced power claims).
+- `common_part_02` (8 confirmed) + **RTL**: clock_pulse counter re-sized to
+  $clog2(WIDTH) (was WIDTH bits -> unsynthesizable heartbeat), clock_gate_ctrl
+  port de-referenced the body localparam N; doc fixes to counter_johnson
+  (NOT self-starting), clock_pulse (registered-pulse phase, formal props,
+  pipelined variant), clock_gate_ctrl (N is derived), counter_bin (MAX range),
+  counter_load_clear (load-during-count diagram, count_bounds caveat).
+- `common_part_03` (14 confirmed; F15 was a FALSE POSITIVE — file exists at the
+  documented path): dataint_crc (phantom ALGO_NAME, broken basic example,
+  CRC-64/ECMA recipe), fifo_control (truncating cast), fifo_sync/fifo_async
+  (phantom INSTANCE_NAME + sim checks, MEM_STYLE/USE_JOHNSON, write guard),
+  counter_ring, debounce, decoder, ECC DEBUG no-ops; plus stale fifo RTL header
+  comments.
+- `common_part_04` (11 confirmed + 1 suspected) + **RTL**: pwm repeat-count
+  off-by-one (emitted N+1 periods); doc fixes to johnson2bin (two decode
+  examples + all-ones case + fill direction), pwm sync_rst_n, three phantom
+  INSTANCE_NAME params, shifter_lfsr + shifter_lfsr_galois worked sequences,
+  glitch_free_n_dff_arn (async reset, MTBF direction), leading_one_trailing_one
+  (deterministic-0 indices), icg (unsourced power %).
+- `common_part_05` (4 confirmed + 2 suspected): sort (reset polarity ×2,
+  NUM_VALS range, gate-delay claim, O(1)->O(n^2) hardware area), sync_pulse
+  (latency over-count, MTBF constant); plus sort.sv/sync_pulse.sv RTL header
+  comments (wrong sort direction; phantom ready-feedback path).
 
-round_2 (196 findings, 167 CONFIRMED) and round_3 (75 findings, 70 CONFIRMED)
-are un-integrated. Verified by measurement, not by reading commit history:
-round_2 has 1 of 102 implicated files touched since the review, round_3 has 0
-of 31, and two findings were re-checked against the RTL directly —
-`axi4_master_rd_mon_cg.md` still documents five clock-gating parameters that do
-not exist, and `arbiter_round_robin_simple.sv` still carries the
-rotate-direction defect (unchanged since the initial commit).
+The RTL-side fixes above were verified with clean-rebuild tests
+(test_clock_pulse, test_clock_gate_ctrl, test_pwm all green) and lint; see
+Tasks/common/closed.md (COMMON-013).
+
+The remaining round_2 units (AMBA/monitor, math, shared, apb/axi*, cdc) and
+round_3 (75 findings, 70 CONFIRMED, monitor) are un-integrated. Verified by
+measurement, not commit history: `axi4_master_rd_mon_cg.md` still documents five
+clock-gating parameters that do not exist.
 
 Critiques and a checkbox index: `docs/review/kimi/` (`FINDINGS.md` leads with a
 most-implicated-files table, which is the work-planning view).
