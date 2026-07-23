@@ -111,23 +111,61 @@ _sfx = $(if $(filter NONE,$(1)),,-$(1))
 # ------------------------------------------------------------------------------
 # R2: generate the grammar
 # ------------------------------------------------------------------------------
-# $(1) selector (all|testroot)  $(2) level  $(3) mode  $(4) mode-suffix token
-# $(5) waves token
-define _rds_rule
-.PHONY: run-$(1)-$(2)$(call _sfx,$(4))$(call _sfx,$(5))
-run-$(1)-$(2)$(call _sfx,$(4))$(call _sfx,$(5)):
+# The selector is a SHELL GLOB, not just a name. `%` in the pattern rule carries
+# it through untouched, so the stem can contain `*`:
+#
+#     make run-axi4-gate            one file   -> test_axi4.py
+#     make 'run-axi4*-gate'         a family   -> test_axi4*.py
+#     make 'run-*mon*-func'         any monitor test, anywhere in the name
+#     make run-all-gate             everything
+#
+# QUOTE the target when it contains `*`. Unquoted, bash tries to glob it against
+# the CWD first; it happens to pass through untouched today because nothing
+# matches, but a file named `run-axi4x-gate` would silently change what runs.
+#
+# This is why there is no GROUPS list: protocol families like the old run-apb /
+# run-axi4 targets fall out of the glob for free, and a new family needs no
+# edit anywhere.
+#
+# $(1)=REG_LEVEL  $(2)=xdist flags  $(3)=WAVES prefix  $(4)=glob stem
+# `ls` is what expands the stem, so the empty case is caught and named rather
+# than handed to pytest as zero files (which exits 5 and reads like a pass).
+_run_glob = files=$$(ls test_$(4).py 2>/dev/null); \
+	if [ -z "$$files" ]; then \
+	  echo "!! $(AREA): no test files match 'test_$(4).py'" >&2; \
+	  echo "   run 'make list' to see the $(words $(ROOTS)) available roots" >&2; \
+	  exit 1; \
+	fi; \
+	n=$$(echo $$files | wc -w); \
+	echo "=============================================================================="; \
+	echo "$(AREA): test_$(4).py -> $$n file(s)  REG_LEVEL=$(1)$(if $(2),  workers=$(JOBS),  serial)$(if $(3),  waves=on)"; \
+	echo "=============================================================================="; \
+	REG_LEVEL=$(1) $(3)$(PYTEST) $(PYTEST_OPTS) $(2) $$files
+
+# --- 'all' is explicit: an explicit rule always beats a pattern rule, so
+# --- run-all-* can never be captured by run-%-* (stem 'all' would glob nothing)
+# $(1) level  $(2) mode  $(3) mode-suffix token  $(4) waves token
+define _rds_all_rule
+.PHONY: run-all-$(1)$(call _sfx,$(3))$(call _sfx,$(4))
+run-all-$(1)$(call _sfx,$(3))$(call _sfx,$(4)):
 	@echo "=============================================================================="
-	@echo "$(AREA): $(1)  level=$(2) ($(_reg_$(2)))  mode=$(3)$(if $(filter parallel,$(3)), workers=$$(JOBS))$(if $(filter waves,$(5)),  waves=on)"
+	@echo "$(AREA): all ($(words $(ROOTS)) tests)  REG_LEVEL=$(_reg_$(1))$(if $(filter parallel,$(2)),  workers=$$(JOBS),  serial)$(if $(filter waves,$(4)),  waves=on)"
 	@echo "=============================================================================="
-	REG_LEVEL=$(_reg_$(2)) $(if $(filter waves,$(5)),WAVES=1 )$$(PYTEST) $$(PYTEST_OPTS) $$(_xdist_$(3)) $$(if $$(filter all,$(1)),$$(TESTS),test_$(1).py)
+	REG_LEVEL=$(_reg_$(1)) $(if $(filter waves,$(4)),WAVES=1 )$$(PYTEST) $$(PYTEST_OPTS) $$(_xdist_$(2)) $$(TESTS)
 endef
 
-# selector x level x mode x mode-alias x waves
-_rds_gen = $(foreach l,$(LEVELS),$(foreach m,$(MODEKINDS),$(foreach a,$(_modes_$(m)),\
-             $(foreach w,$(WAVEKINDS),$(eval $(call _rds_rule,$(1),$(l),$(m),$(a),$(w)))))))
+# --- everything else is ONE pattern rule per variant: 18 rules total, covering
+# --- every test root and every glob over them
+define _rds_pat_rule
+run-%-$(1)$(call _sfx,$(3))$(call _sfx,$(4)):
+	@$$(call _run_glob,$(_reg_$(1)),$$(_xdist_$(2)),$(if $(filter waves,$(4)),WAVES=1 ,),$$*)
+endef
 
-$(call _rds_gen,all)
-$(foreach r,$(ROOTS),$(call _rds_gen,$(r)))
+_rds_gen = $(foreach l,$(LEVELS),$(foreach m,$(MODEKINDS),$(foreach a,$(_modes_$(m)),\
+             $(foreach w,$(WAVEKINDS),$(eval $(call $(1),$(l),$(m),$(a),$(w)))))))
+
+$(call _rds_gen,_rds_all_rule)
+$(call _rds_gen,_rds_pat_rule)
 
 # ------------------------------------------------------------------------------
 # Back-compat: the contract the parent Makefiles already invoke
@@ -216,17 +254,19 @@ help:
 	@echo "$(AREA) tests - $(words $(ROOTS)) test roots, $(JOBS) parallel workers"
 	@echo "=============================================================================="
 	@echo ""
-	@echo "  make run-<all|testroot>-<gate|func|full>[-serial|-parallel][-waves]"
+	@echo "  make run-<all|testglob>-<gate|func|full>[-serial|-parallel][-waves]"
 	@echo ""
-	@echo "    testroot = test file minus 'test_' and '.py'"
-	@echo "    e.g.  test_apb5_master.py  ->  make run-apb5_master-func"
+	@echo "    testglob = test file minus 'test_' and '.py', and it may glob."
+	@echo "    -serial/-parallel and -waves are OPTIONAL; bare = parallel, no waves."
 	@echo ""
-	@echo "    -serial / -parallel and -waves are OPTIONAL."
-	@echo "    Bare run-<x>-<level> is parallel without waves."
+	@echo "  make run-apb5_master-func        one test"
+	@echo "  make 'run-axi4*-gate'            every test_axi4*.py  (QUOTE the *)"
+	@echo "  make 'run-*mon*-func'            every monitor test"
+	@echo "  make run-all-gate                quick smoke over the whole area"
+	@echo "  make run-all-full                sign-off regression"
+	@echo "  make run-all-gate-serial         same, one worker at a time"
 	@echo ""
-	@echo "  make run-all-gate              quick smoke over the whole area"
-	@echo "  make run-all-full              sign-off regression"
-	@echo "  make run-all-gate-serial       same, one worker at a time"
+	@echo "  Quote any target containing '*' so bash does not expand it first."
 	@echo ""
 	@echo "  make clean-all                 ALWAYS do this first - see [[running-regressions]]"
 	@echo "  make list                      show every discovered test root"
