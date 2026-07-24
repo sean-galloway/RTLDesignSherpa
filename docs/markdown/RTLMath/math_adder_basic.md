@@ -243,11 +243,11 @@ logic [7:0] data;
 logic parity;
 
 // Generate even parity bit
+logic [7:0] parity_chain;
+assign parity_chain[0] = data[0];
 genvar i;
 generate
-    if (i == 0) begin
-        assign parity_chain[0] = data[0];
-    end else begin
+    for (i = 1; i < 8; i++) begin : gen_parity
         math_adder_half u_parity (
             .i_a(data[i]),
             .i_b(parity_chain[i-1]),

@@ -128,7 +128,7 @@ For each bit i:
 
 #### Stage 2: Parallel Prefix Network (Forward + Reverse Trees)
 ```
-Forward Tree (log2(N) levels):
+Forward Tree (log2(N) - 1 levels, black cells):
   Build binary tree upward using black cells
   Compute group P/G for increasing spans: [1:0], [3:2], [7:4], etc.
 

@@ -42,7 +42,7 @@ used — rather than as a flat list of 170 files.
 This document is the organizing map: each operation lists its methodologies, the
 research each is based on, the module name pattern, and a link to the detailed
 per-methodology doc. The floating-point cores are themselves built from the
-integer methodologies below (Han-Carlson prefix adders for exponents, Dadda
+integer methodologies below (Dadda
 trees for mantissa multiplies), so the two halves of the library share a
 foundation.
 
@@ -62,7 +62,7 @@ of its width/format instances.
 | Ripple-carry / full / half | `math_adder_full`, `math_adder_half`, `math_adder_full_nbit` | Classic ripple carry | [math_adder_full.md](math_adder_full.md), [math_adder_basic.md](math_adder_basic.md) |
 | Carry-save (CSA) | `math_adder_carry_save_nbit` | Redundant carry-save form (used in multiplier trees) | [math_adder_carry_save.md](math_adder_carry_save.md) |
 | Carry-lookahead | (see subtractor / adder-basic) | Weinberger & Smith, "A Logic for High-Speed Addition," NBS Circular 591 (1958) | [math_adder_pg_chain.md](math_adder_pg_chain.md) |
-| **Brent-Kung** (parallel prefix) | `math_adder_brent_kung_{008,016,032}` + prefix cells (`_black`, `_gray`, `_pg`, `_bitwisepg`, `_grouppg_*`, `_sum`) | Brent, R.P. & Kung, H.T. (1982), "A Regular Layout for Parallel Adders," *IEEE Trans. Computers* C-31(3):260-264 | [math_adder_brent_kung.md](math_adder_brent_kung.md), [math_prefix_cell.md](math_prefix_cell.md) |
+| **Brent-Kung** (parallel prefix) | `math_adder_brent_kung_{008,016,032,064}` + prefix cells (`_black`, `_gray`, `_pg`, `_bitwisepg`, `_grouppg_*`, `_sum`) | Brent, R.P. & Kung, H.T. (1982), "A Regular Layout for Parallel Adders," *IEEE Trans. Computers* C-31(3):260-264 | [math_adder_brent_kung.md](math_adder_brent_kung.md), [math_prefix_cell.md](math_prefix_cell.md) |
 | **Han-Carlson** (parallel prefix) | `math_adder_han_carlson_{016,022,032,044,048,072}` | Han, T. & Carlson, D.A. (1987), "Fast area-efficient VLSI adders," *Proc. 8th IEEE Symp. Computer Arithmetic (ARITH)*:49-56 | [math_adder_han_carlson.md](math_adder_han_carlson.md) |
 | Add/subtract | `math_addsub_full_nbit` | Two's-complement add/sub select | [math_addsub.md](math_addsub.md) |
 
@@ -103,7 +103,8 @@ and are the building block the floating-point mantissa multipliers reuse.
 IEEE-754-2008 single (fp32) and half (fp16) plus the ML-oriented narrow formats
 bfloat16 (bf16) and 8-bit (fp8 `e4m3` / `e5m2`). Each format's core operators are
 assembled from the integer methodologies above: the **exponent path** uses a
-Han-Carlson prefix adder and the **mantissa multiply** uses a Dadda 4:2 tree.
+a behavioral 10-bit adder (not a prefix-adder instance) and the **mantissa
+multiply** uses a Dadda 4:2 tree.
 
 ### Formats
 
@@ -119,7 +120,7 @@ Han-Carlson prefix adder and the **mantissa multiply** uses a Dadda 4:2 tree.
 
 | Operation | Modules | Method | Detail |
 |-----------|---------|--------|--------|
-| Exponent add | `math_*_exponent_adder` | Han-Carlson prefix adder | [math_bf16_exponent_adder.md](math_bf16_exponent_adder.md) |
+| Exponent add | `math_*_exponent_adder` | Behavioral 10-bit add (`assign`, no prefix instance) | [math_bf16_exponent_adder.md](math_bf16_exponent_adder.md) |
 | Mantissa multiply | `math_*_mantissa_mult` | Dadda 4:2 tree | [math_bf16_mantissa_mult.md](math_bf16_mantissa_mult.md) |
 | Add | `math_*_adder` | Align → add → normalize → round (IEEE-754 §5) | [math_bf16_adder.md](math_bf16_adder.md) |
 | Multiply | `math_*_multiplier` | Exponent add + mantissa mult + normalize/round | [math_bf16_multiplier.md](math_bf16_multiplier.md) |

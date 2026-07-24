@@ -102,7 +102,7 @@ No parameters (fixed single-bit operation).
 | i_b | Input | N | Operand B |
 | i_c | Input | N | Operand C |
 | ow_sum | Output | N | Sum vector (parallel) |
-| ow_carry | Output | N | Carry vector (parallel, NOT shifted!) |
+| ow_carry | Output | N | Carry vector. Weight 2^(i+1): shift left 1 in the final reduction |
 
 **Important:** The N-bit CSA outputs TWO N-bit vectors. To get the final result, you must add them using a conventional adder (ripple carry, CLA, or parallel prefix).
 
@@ -172,7 +172,7 @@ endgenerate
 
 ### Final Addition Step
 
-To get the actual sum, add the two output vectors (carry is in same weight position):
+To get the actual sum, add sum to carry shifted left by one -- the carry from bit i has weight 2^(i+1) (`Key Property` above: Sum + 2xCarry = A + B + C):
 
 ```systemverilog
 // CSA produces two vectors
@@ -182,13 +182,12 @@ math_adder_carry_save_nbit #(.N(N)) u_csa (
     .ow_carry(carry_vec)
 );
 
-// Add the two vectors to get final result
-// IMPORTANT: Carry vector is NOT shifted!
+// Add sum to (carry << 1) -- carry has weight 2^(i+1)
 logic [N:0] final_result;
-assign final_result = {1'b0, sum_vec} + {1'b0, carry_vec};
+assign final_result = {1'b0, sum_vec} + {carry_vec, 1'b0};
 ```
 
-**Common Misconception:** The carry vector does NOT need left-shifting. The CSA already accounts for weight alignment internally.
+**Common mistake:** adding the vectors without shifting the carry. `Sum + 2xCarry = A + B + C` (the `Key Property` above) -- the factor of two IS a left shift by one. `sum_vec + carry_vec` is wrong; `sum_vec + (carry_vec << 1)` is correct.
 
 ## Timing Characteristics
 
@@ -233,10 +232,11 @@ math_adder_carry_save_nbit #(.N(8)) u_csa (
     .ow_carry(carry_vec)
 );
 
-// Stage 2: Conventional adder produces final result
-assign final_result = {1'b0, sum_vec} + {1'b0, carry_vec};
+// Stage 2: conventional adder, carry shifted left 1
+assign final_result = {1'b0, sum_vec} + {carry_vec, 1'b0};
 
 // Example: 10 + 20 + 30 = 60
+// CSA gives sum_vec = 0, carry_vec = 30; 0 + (30 << 1) = 60
 initial begin
     a = 8'd10;
     b = 8'd20;
@@ -417,14 +417,14 @@ After CSA tree reduction, choose final adder wisely:
 
 ## Common Pitfalls
 
-❌ **Anti-Pattern 1**: Shifting carry output
+❌ **Anti-Pattern 1**: Reducing without shifting the carry
 
 ```systemverilog
-// WRONG: Don't shift carry vector!
-assign final_result = sum_vec + {carry_vec, 1'b0};  // INCORRECT!
+// WRONG: carry has weight 2^(i+1), so this drops a factor of two
+assign final_result = sum_vec + carry_vec;  // INCORRECT!
 
-// RIGHT: Add without shift (CSA handles alignment)
-assign final_result = sum_vec + carry_vec;
+// RIGHT: shift carry left by one
+assign final_result = sum_vec + {carry_vec, 1'b0};
 ```
 
 ❌ **Anti-Pattern 2**: Using CSA for two-operand addition
@@ -451,8 +451,8 @@ math_adder_carry_save_nbit u_csa (
     .ow_carry(ignored)      // Missing carry!
 );
 
-// RIGHT: Add sum and carry vectors
-assign final_result = ow_sum + ow_carry;
+// RIGHT: add sum and carry, carry shifted left one
+assign final_result = ow_sum + {ow_carry, 1'b0};
 ```
 
 ❌ **Anti-Pattern 4**: Incorrect width for final addition

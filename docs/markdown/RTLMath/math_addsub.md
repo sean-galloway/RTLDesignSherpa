@@ -304,7 +304,7 @@ endmodule
 
 | Metric | Value |
 |--------|-------|
-| **Logic Depth** | 2N + 2 levels (XOR + ripple carry chain) |
+| **Logic Depth** | 2N + 1 levels (1 XOR + N full adders x 2) |
 | **Typical Delay (8-bit)** | ~3.2 ns @ 1.0V |
 | **Max Frequency (8-bit)** | ~300 MHz |
 

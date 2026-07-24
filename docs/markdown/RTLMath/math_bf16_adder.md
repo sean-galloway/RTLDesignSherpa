@@ -242,8 +242,17 @@ always_comb begin
     end else if (r4_any_inf) begin
         // 2. Infinity: inf input (not inf-inf case)
         ow_result = {inf_sign, 8'hFF, 7'h00};
+    end else if (r4_a_eff_zero && r4_b_eff_zero) begin
+        // 3. Both inputs zero: -0 + -0 = -0, otherwise +0
+        ow_result = {r4_sign_a & r4_sign_b, 8'h00, 7'h00};
+    end else if (r4_a_eff_zero) begin
+        // 4. A zero: result is B
+        ow_result = {r4_sign_b, r4_exp_adjusted, w_mant_out};
+    end else if (r4_b_eff_zero) begin
+        // 5. B zero: result is A
+        ow_result = {r4_sign_a, r4_exp_adjusted, w_mant_out};
     end else if (r4_sum_is_zero) begin
-        // 3. Exact zero from subtraction
+        // 6. Exact zero from subtraction
         ow_result = {1'b0, 8'h00, 7'h00};  // +0 per IEEE 754 RNE
     end else if (w_final_overflow) begin
         // 4. Overflow to infinity

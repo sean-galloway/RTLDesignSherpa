@@ -61,7 +61,7 @@ module math_adder_pg_chain #(
 
 **Width Guidelines:**
 - **Typical**: 4, 8, 16 bits (good speed/area balance)
-- **Minimum**: 1 bit (degenerates to half adder)
+- **Minimum**: 1 bit (degenerates to a single full adder -- it has a carry input, which a half adder lacks)
 - **Maximum**: 64 bits (practical synthesis limit, but consider parallel prefix for >16 bits)
 
 
