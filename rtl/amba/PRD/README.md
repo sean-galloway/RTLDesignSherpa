@@ -115,7 +115,7 @@ Before creating any new RTL:
 ## Current Task Priorities
 
 > Status (2026-07-22): superseded -- the `TASKS/` subdirectory referenced below was
-> never populated. Task tracking lives in `/Tasks/amba/` and the `TASK-0xx-*.md`
+> never populated. Task tracking lives in `/vault/Tasks/amba/` and the `TASK-0xx-*.md`
 > files in this directory. FIX-001 (event_reported feedback) was fixed 2025-09-30.
 > The list below is kept for history.
 
@@ -272,5 +272,5 @@ For task-specific questions or clarifications, document them in the task file un
 
 ## Task History
 
-Completed tasks are recorded in `/Tasks/amba/` with their completion dates.
+Completed tasks are recorded in `/vault/Tasks/amba/` with their completion dates.
 (The originally planned `TASKS/COMPLETED/` directory convention was never adopted.)

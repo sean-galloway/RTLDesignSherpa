@@ -5,8 +5,8 @@ description: External doc-review rounds (Kimi) - bundle building, serial dispatc
 
 # review-rounds
 
-READ FIRST: docs/handbook/INDEX.md (the handbook is the repo's memory; this skill is the
-signpost). Canonical: docs/handbook/authoring/kimi-review-rounds.md - the seven rules,
+READ FIRST: vault/handbook/INDEX.md (the handbook is the repo's memory; this skill is the
+signpost). Canonical: vault/handbook/authoring/kimi-review-rounds.md - the seven rules,
 both round modes, and the endpoint config.
 
 Three that bite hardest when triaging findings:
@@ -26,6 +26,6 @@ Voice pass: [[humanization-voice]]. Off-workstation runs: [[cloud-sandbox]].
 Scripts: bin/build_review_bundle.py (rebuild ALL units, always) then
 bin/review/run_batch.py {qc|humanize} (serial, never overwrites a round).
 
-The handbook root is docs/handbook/INDEX.md - design/, dv/, fpga/, authoring/ areas,
+The handbook root is vault/handbook/INDEX.md - design/, dv/, fpga/, authoring/ areas,
 atomic notes, wikilinked. When you learn a durable lesson in this domain,
 ADD IT TO THE HANDBOOK NOTE, not to this skill.

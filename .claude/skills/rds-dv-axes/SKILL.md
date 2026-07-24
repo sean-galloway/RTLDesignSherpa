@@ -5,8 +5,8 @@ description: RDS-DV testbenches compose THREE ORTHOGONAL choices - BFM (who driv
 
 # rds-dv-axes
 
-READ FIRST: docs/handbook/INDEX.md (the handbook is the repo's memory; this skill is the
-signpost). Canonical: docs/handbook/dv/rds-dv-axes.md.
+READ FIRST: vault/handbook/INDEX.md (the handbook is the repo's memory; this skill is the
+signpost). Canonical: vault/handbook/dv/rds-dv-axes.md.
 
 Three INDEPENDENT axes. Changing one does not imply changing another:
 
@@ -35,6 +35,6 @@ Published: https://sean-galloway.github.io/RTLDesignSherpa-DV/
 Coverage is uneven - `axi4` is the most complete family and the best model when
 a page is missing elsewhere; `shared/` holds the cross-protocol machinery.
 
-The handbook root is docs/handbook/INDEX.md - design/, dv/, fpga/, authoring/ areas,
+The handbook root is vault/handbook/INDEX.md - design/, dv/, fpga/, authoring/ areas,
 atomic notes, wikilinked. When you learn a durable lesson in this domain,
 ADD IT TO THE HANDBOOK NOTE, not to this skill.

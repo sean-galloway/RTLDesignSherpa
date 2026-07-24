@@ -5,8 +5,8 @@ description: Filelist rules - EVERY module MUST have a .f and MUST be registered
 
 # filelists
 
-READ FIRST: docs/handbook/INDEX.md (the handbook is the repo's memory; this skill is the
-signpost). Canonical: docs/handbook/design/filelists.md.
+READ FIRST: vault/handbook/INDEX.md (the handbook is the repo's memory; this skill is the
+signpost). Canonical: vault/handbook/design/filelists.md.
 
 **A new module lands with its filelist IN THE SAME COMMIT**, and its area must
 appear in bin/filelists.toml. A module with no .f has no consumers and is
@@ -19,6 +19,6 @@ prints PASS when `declared - covered - exempt` is empty - read all three
 numbers, not the PASS. `[exempt]` in the registry is a debt ledger with a
 stated reason, not a way to land a module without a filelist.
 
-The handbook root is docs/handbook/INDEX.md - design/, dv/, fpga/, authoring/ areas,
+The handbook root is vault/handbook/INDEX.md - design/, dv/, fpga/, authoring/ areas,
 atomic notes, wikilinked. When you learn a durable lesson in this domain,
 ADD IT TO THE HANDBOOK NOTE, not to this skill.

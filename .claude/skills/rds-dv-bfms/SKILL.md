@@ -5,7 +5,7 @@ description: Use the RDS-DV framework BFMs (GAXI/AXI4/AXIL/APB/AXIS/MonBus) inst
 
 # rds-dv-bfms
 
-READ FIRST: docs/handbook/dv/bfm-usage.md (the handbook is the repo's memory; this skill is the
+READ FIRST: vault/handbook/dv/bfm-usage.md (the handbook is the repo's memory; this skill is the
 signpost). Never hand-roll a driver/monitor/decoder; the note has the factory map and the trap list (falsy-BFM, signal_map keys, ready-delay windows).
 
 Factories per family: gaxi_factories, axi4_factories, axil4_factories,
@@ -23,6 +23,6 @@ Authoritative per-family API docs ship in RDS-DV:
 (published at sean-galloway.github.io/RTLDesignSherpa-DV). Read those rather
 than reverse-engineering from source.
 
-The handbook root is docs/handbook/INDEX.md - design/, dv/, fpga/, authoring/ areas,
+The handbook root is vault/handbook/INDEX.md - design/, dv/, fpga/, authoring/ areas,
 atomic notes, wikilinked. When you learn a durable lesson in this domain,
 ADD IT TO THE HANDBOOK NOTE, not to this skill.

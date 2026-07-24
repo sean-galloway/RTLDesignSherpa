@@ -8,7 +8,7 @@
 
 ## The Handbook (repo memory) - READ THIS FIRST
 
-**`docs/handbook/INDEX.md` is the SINGLE SOURCE OF TRUTH for every skill and
+**`vault/handbook/INDEX.md` is the SINGLE SOURCE OF TRUTH for every skill and
 method in this repository.** It is the repo's working memory: design rules
 (`design/`), DV practice (`dv/`), FPGA process (`fpga/`), and documentation
 practice (`authoring/`) as atomic, wikilinked notes - each rule recorded WITH

@@ -5,8 +5,8 @@ description: Delay/traffic randomization in RDS-DV - the 19 named FlexConfigGen 
 
 # rds-dv-randomization
 
-READ FIRST: docs/handbook/INDEX.md (the handbook is the repo's memory; this skill is the
-signpost). Canonical: docs/handbook/dv/randomization.md.
+READ FIRST: vault/handbook/INDEX.md (the handbook is the repo's memory; this skill is the
+signpost). Canonical: vault/handbook/dv/randomization.md.
 
 ONE OF THREE ORTHOGONAL AXES (see rds-dv-axes): BFM = who drives
 (rds-dv-bfms); SEQUENCE = what traffic (rds-dv-axes); RANDOMIZATION = what
@@ -36,6 +36,6 @@ profiles with no saturating option (use `force_client_request`), and
 `ArbiterCompliance.analyze_round_robin_compliance()` is a stub returning
 `rr_efficiency: 1.0` unconditionally.
 
-The handbook root is docs/handbook/INDEX.md - design/, dv/, fpga/, authoring/ areas,
+The handbook root is vault/handbook/INDEX.md - design/, dv/, fpga/, authoring/ areas,
 atomic notes, wikilinked. When you learn a durable lesson in this domain,
 ADD IT TO THE HANDBOOK NOTE, not to this skill.

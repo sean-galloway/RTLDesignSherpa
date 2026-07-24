@@ -23,18 +23,18 @@ production-ready FPGA systems, with comprehensive verification at every step.
 
 ## Start Here
 
-### The Handbook - [handbook/](handbook/INDEX.md)
+### The Handbook - [handbook/](../vault/handbook/INDEX.md)
 
 The repository's working memory: atomic, cross-linked notes on design rules,
 DV practice, and FPGA process - each rule recorded with the failure that
 taught it.
 
-- **[handbook/design/](handbook/design/INDEX.md)** - reset and clocking, CDC,
+- **[handbook/design/](../vault/handbook/design/INDEX.md)** - reset and clocking, CDC,
   valid/ready contracts, streaming vs minimal FSMs, SRAM rules, sizing
   invariants, priority-logic depth, signal contracts and K-maps
-- **[handbook/dv/](handbook/dv/INDEX.md)** - BFM usage, registers-by-name,
+- **[handbook/dv/](../vault/handbook/dv/INDEX.md)** - BFM usage, registers-by-name,
   seeds and determinism, TB structure, coverage, formal
-- **[handbook/fpga/](handbook/fpga/INDEX.md)** - build flows, timing-closure
+- **[handbook/fpga/](../vault/handbook/fpga/INDEX.md)** - build flows, timing-closure
   triage, the UART harness, board handling
 
 Authority hierarchy: [/GLOBAL_REQUIREMENTS.md](../GLOBAL_REQUIREMENTS.md)
