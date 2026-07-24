@@ -2,6 +2,17 @@
 
 # docs-review — Active (in progress)
 
+
+### IN-FLIGHT: common qc trial round interrupted by shutdown (2026-07-24)
+
+The `qc` trial round on common was RUNNING when the box shut down (was on unit
+1/6, kimi-k3). It dies on shutdown. **Resume:** it wrote to
+`~/rtl-doc-review/results/qc-kimi-k3/round_1/`; re-run the same command with
+`--resume 1` (see [[kimi-review-rounds]] runbook) — it re-enters round_1 and
+sends only the units with no result file yet (all 6, since none completed). The
+bundle is at `~/rtl-doc-review/bundle/books/`. Key loads inline from the
+out-of-repo secrets store; model `kimi-k3`.
+
 ## DOCREV-001 — Integrate the outstanding Kimi accuracy findings
 
 ### Progress by area
