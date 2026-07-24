@@ -21,7 +21,7 @@ flexparser==0.4
 fonttools==4.60.2
 git-me-the-url==2.1.0
 gitdb==4.0.12
-GitPython==3.1.50
+GitPython==3.1.52
 immutabledict==4.2.2
 iniconfig==2.3.0
 Jinja2==3.1.6
@@ -46,7 +46,7 @@ peakrdl-regblock==1.1.1
 peakrdl-systemrdl==1.0.0
 peakrdl-uvm==2.3.0
 peakrdl_markdown==1.0.3
-pillow==12.2.0
+pillow==12.3.0
 Pint==0.25;   python_version >= "3.11"
 Pint==0.24.4; python_version <  "3.11"
 platformdirs==4.5.0
@@ -72,7 +72,7 @@ pytz==2025.2
 PyYAML==6.0.3
 rich==14.2.0
 seaborn==0.13.2
-setuptools==78.1.1
+setuptools==83.0.0
 simpy==4.1.1
 six==1.17.0
 smmap==5.0.2
