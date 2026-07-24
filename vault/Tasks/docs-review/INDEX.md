@@ -6,7 +6,7 @@ Process and rationale: [kimi-review-rounds](../../handbook/authoring/kimi-review
 | State | Count |
 |---|---|
 | [active](active.md) | 1 |
-| [open](open.md) | 5 |
+| [open](open.md) | 6 |
 | [closed](closed.md) | 1 |
 | [dropped](dropped.md) | 0 |
 

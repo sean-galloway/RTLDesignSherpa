@@ -148,3 +148,33 @@ mass `sed`.
 **Sequence with the doc reviews.** Converting a README that a pending Kimi unit
 cites would move the target mid-review; do the area's DOCREV-001 findings first,
 then its README, the same order used for the RTLMath move.
+
+---
+
+## DOCREV-008 — Final full-repo Kimi correctness round after all integration
+**Status:** open 2026-07-24 — deferred until DOCREV-001 is fully integrated
+**Priority:** P2
+**Owner:** TBD
+
+Once every area's findings are integrated (DOCREV-001) and the doc reorg is
+settled (RTLMath split, README rollout), send **all of `rtl/*` and all of
+`docs/markdown/RTL*`** to Kimi one more time as a clean correctness pass. The
+earlier rounds were bundled pre-split against `rtl/common/math_*` paths; a fresh
+round confirms the post-integration, post-move tree actually holds together.
+
+- [ ] Rebuild every unit from the current tree (`bin/build_review_bundle.py`),
+      so the bundle reflects `rtl/math/`, `rtl/amba/`, and the moved
+      `docs/markdown/RTLMath/` / `RTLCommon/` books — not the pre-split layout.
+- [ ] Send `qc` across the full set, serial, large `max_tokens`
+      ([[kimi-review-rounds]] rules 1-4). This is round_4+.
+- [ ] Measure the result against the tree; anything CONFIRMED becomes new
+      DOCREV work. A near-empty round is the goal — it is the evidence that the
+      backlog is actually closed, not just committed.
+- [ ] Only after the correctness round is clean, run the `humanize` pass over
+      the settled docs (ties into DOCREV-003 and the README humanization in
+      DOCREV-007).
+
+**Gate:** do not start until common ✅, cdc ✅, math, shared, apb/axi*, and
+monitor (round_3, 70 CONFIRMED) are all integrated. A re-review of a
+half-integrated tree just reproduces the known backlog and wastes the tokens.
+Needs Kimi enablement (DOCREV-005) if run off the workstation.
