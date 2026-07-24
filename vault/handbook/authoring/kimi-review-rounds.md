@@ -155,14 +155,13 @@ step-by-step that works, so it does not get re-derived each time.
 **Model: always `kimi-k3`.** Not `kimi-k2` (that is a proxy alias and 404s
 against `api.moonshot.ai`), not `kimi-k2.6/.7`. `KIMI_MODEL=kimi-k3`, always.
 
-**Key: loaded inline, NEVER written into the repo.** The Moonshot key lives in
-the user's out-of-repo secrets store (`<out-of-repo secrets store>`, under the label
-`KIMI-LABEL` -- the value is on the line after the label). Load it as an
-env var *at command time*; do not echo it, do not put it in `env_python`, a
-`.env`, a script, or any tracked file. The path to the key file is fine to
-record; the key itself must never touch the repo.
+**Key: loaded inline, NEVER written into the repo -- not even its location.**
+The Moonshot key lives in the operator's private out-of-repo secrets store (ask
+Sean where; it is deliberately not recorded here). Load it into `KEY` at command
+time from wherever that is; do not echo it, and do not put it -- or the path to
+it -- in `env_python`, a `.env`, a script, or any tracked file.
 
-    KEY=$(grep -A1 'KIMI-LABEL' <out-of-repo secrets store> | tail -1 | tr -d '[:space:]')
+    KEY=<load the Moonshot key from your out-of-repo secrets store>
     # sanity: `curl -s -o /dev/null -w '%{http_code}' https://api.moonshot.ai/v1/models
     #          -H "Authorization: Bearer $KEY"` should print 200
 
@@ -177,7 +176,7 @@ The three commands, serial, correctness before voice:
     python3 bin/build_review_bundle.py ~/rtl-doc-review   # writes ~/rtl-doc-review/books/
 
     # 2. correctness pass for one area (dry-run first to see the units)
-    KEY=$(grep -A1 'KIMI-LABEL' <out-of-repo secrets store> | tail -1 | tr -d '[:space:]')
+    KEY=<load the Moonshot key from your out-of-repo secrets store>
     KIMI_API_KEY=$KEY KIMI_BASE_URL=https://api.moonshot.ai/v1 KIMI_MODEL=kimi-k3         python3 bin/review/run_batch.py qc         --books ~/rtl-doc-review/bundle --results ~/rtl-doc-review/results         --only common --dry-run
     # drop --dry-run to send. Serial; a 20-unit round takes well over an hour.
     # --resume N re-enters round_N and sends only its missing units.
