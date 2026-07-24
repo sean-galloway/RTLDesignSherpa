@@ -219,11 +219,10 @@ clock-domain-crossing modules there, out of `rtl/amba/` and `rtl/common/`.
       `val/common` (fifo_async) and `val/amba` (cdc_*, gaxi async) into it.
 - [ ] `docs/markdown/RTLCdc/` book — the moved modules' doc pages leave
       RTLCommon/RTLAmba; add `_book_cdc_index.md`, `index.md`, `overview.md`.
-- [ ] **Filelists move INTO the rtl dir** (Sean, directive D): each `.f` lives
-      in the directory with its RTL (`rtl/cdc/filelists/` or beside the .sv),
-      not a central location. This is a convention change from today's
-      `bin/filelists.toml`-registered layout -- reconcile with [[filelists]]
-      and update the registry/consumers.
+- [ ] **Filelists live with the RTL:** `rtl/cdc/filelists/` (the existing
+      convention -- the owning area's `filelists/` dir; `bin/filelists.toml` is
+      the REGISTRY/index, not the storage location). Add the cdc area to the
+      toml. See [[filelists]] and the AMBA-FILELIST-CONSISTENCY task.
 - [ ] Repoint every consumer: `apb5_slave_cdc` instantiates `gaxi_fifo_async`
       and `cdc_synchronizer`; formal harnesses; includes; `-f` includes across
       amba/common/stream.
@@ -275,3 +274,36 @@ After this, `rtl/amba` should hold only `.sv`, `CLAUDE.md`, and
 `known_issues/` bug records -- the same clean shape `rtl/common` now has.
 Verify with `find rtl/amba -name '*.md' | grep -v CLAUDE | grep -v known_issues`
 returning nothing.
+
+---
+
+## AMBA-FILELIST-CONSISTENCY — normalize where .f lists live
+**Status:** open 2026-07-24
+**Priority:** P2
+
+The convention (see [[filelists]]) is: a module's `.f` lives in the owning
+area's **`filelists/` dir**, and `bin/filelists.toml` REGISTERS it (the toml is
+an index, not storage). Most of the 366 `.f` follow this
+(`rtl/amba/filelists/` 118, `rtl/common/filelists/` 56, `rtl/math/filelists/`
+38). Sean, 2026-07-24: right now placement is inconsistent. The stragglers:
+
+**Naming -- not called `filelists/`:**
+- [ ] `projects/NexysA7/rapids_characterization/flows-rapids-beats/flists/`
+      (3 files) -> `filelists/`
+- [ ] `projects/components/bridge/rtl/filelists_static/` -> fold into
+      `filelists/` (or justify why "static" is a distinct dir)
+
+**Loose `.f` directly beside RTL, no `filelists/` subdir:**
+- [ ] `projects/components/retro_legacy_blocks/rtl/rlb_top/rlb_top.f`
+- [ ] `projects/components/retro_legacy_blocks/rtl/apb_xbar/apb_xbar_rlb_1to10.f`
+- [ ] `projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/ddr2_char_macro.f`
+
+**TB/harness `.f` -- decide the rule:** several `*_tb_top.f` live under
+`dv/tb/` or `dv/filelists/` (pumice x3, cdc_counter_display, ddr2_char x2,
+val/amba x1). These are TEST-harness compile closures, not RTL module lists, so
+"lives with the RTL" may not apply -- a harness list arguably belongs with its
+testbench. Decide: do harness filelists also standardize on a `filelists/` dir
+next to the TB, and is that in scope here or a DV concern?
+
+After normalizing, re-run `python3 bin/filelist_registry.py --check` (read all
+three counts, not just PASS) and confirm the toml still resolves every area.

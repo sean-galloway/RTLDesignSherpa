@@ -20,6 +20,12 @@ closure contract, and the two failure modes it prevents are both silent.
    invisible to `--check`, so its modules are exempt from coverage without
    anyone deciding they should be.
 
+`bin/filelists.toml` is a REGISTRY/index of where the lists live -- it does not
+store them. Every `.f` lives in the owning area's **`filelists/` dir** (the
+canonical location); the toml just records the area so the checker can find it.
+Placement is currently inconsistent in a few spots -- see
+AMBA-FILELIST-CONSISTENCY.
+
 New module -> new (or extended) `.f` in the owning area's `filelists/` dir, in
 the same commit. Not "before the test lands" - in the same commit, because a
 module with no filelist has no consumers and is indistinguishable from dead
