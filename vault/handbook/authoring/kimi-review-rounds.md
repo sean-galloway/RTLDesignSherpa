@@ -174,7 +174,7 @@ not committed; only the curated critiques land in `docs/review/kimi/round_N/`.
 The three commands, serial, correctness before voice:
 
     # 1. rebuild the WHOLE bundle from the current tree (rule 1: send a subset, build all)
-    python3 bin/build_review_bundle.py ~/rtl-doc-review/bundle
+    python3 bin/build_review_bundle.py ~/rtl-doc-review   # writes ~/rtl-doc-review/books/
 
     # 2. correctness pass for one area (dry-run first to see the units)
     KEY=$(grep -A1 'KIMI-LABEL' <out-of-repo secrets store> | tail -1 | tr -d '[:space:]')
@@ -183,13 +183,13 @@ The three commands, serial, correctness before voice:
     # --resume N re-enters round_N and sends only its missing units.
 
     # 3. humanize -- ONLY after correctness is integrated (never voice-pass a wrong doc)
-    KIMI_API_KEY=$KEY KIMI_BASE_URL=https://api.moonshot.ai/v1 KIMI_MODEL=kimi-k3         python3 bin/review/run_batch.py humanize         --books ~/rtl-doc-review/bundle --results ~/rtl-doc-review/results --only common
+    KIMI_API_KEY=$KEY KIMI_BASE_URL=https://api.moonshot.ai/v1 KIMI_MODEL=kimi-k3         python3 bin/review/run_batch.py humanize         --books ~/rtl-doc-review/books --results ~/rtl-doc-review/results --only common
 
 **Coverage gap -- the meta-docs.** `build_review_bundle.py` builds a unit per
 `docs/markdown/**/_book_*_index.md` and includes only the docs that index
 *links* -- which is `overview.md` + the module pages, NOT `index.md`,
 `quickstart.md`, or a section `README`. For a "send ALL md" pass (DOCREV-009),
-add the missing meta-docs as their own unit under `bundle/books/<area>_meta/`
+add the missing meta-docs as their own unit under `<OUT>/books/<area>_meta/`
 (a `DOCS.md` of the meta-doc text + an `RTL.sv` listing the area's module names
 as ground truth for count/existence claims). `--only <area>` then covers both
 `<area>` and `<area>_meta` by prefix.
