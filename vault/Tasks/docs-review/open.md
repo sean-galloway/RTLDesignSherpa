@@ -151,30 +151,40 @@ then its README, the same order used for the RTLMath move.
 
 ---
 
-## DOCREV-008 — Final full-repo Kimi correctness round after all integration
-**Status:** open 2026-07-24 — deferred until DOCREV-001 is fully integrated
+## DOCREV-009 — Final per-section correctness + humanization pass (whole repo)
+**Status:** open 2026-07-24 — the closing gate for the doc effort
 **Priority:** P2
 **Owner:** TBD
 
-Once every area's findings are integrated (DOCREV-001) and the doc reorg is
-settled (RTLMath split, README rollout), send **all of `rtl/*` and all of
-`docs/markdown/RTL*`** to Kimi one more time as a clean correctness pass. The
-earlier rounds were bundled pre-split against `rtl/common/math_*` paths; a fresh
-round confirms the post-integration, post-move tree actually holds together.
+Supersedes and absorbs the earlier "final Kimi round" (DOCREV-008). After every
+area's findings are integrated and the reorg has settled, do ONE comprehensive
+closing pass, **section by section**, across the entire repo — `rtl/*`,
+`docs/markdown/RTL*`, **and** `projects/*` when we get there.
 
-- [ ] Rebuild every unit from the current tree (`bin/build_review_bundle.py`),
-      so the bundle reflects `rtl/math/`, `rtl/amba/`, and the moved
-      `docs/markdown/RTLMath/` / `RTLCommon/` books — not the pre-split layout.
-- [ ] Send `qc` across the full set, serial, large `max_tokens`
-      ([[kimi-review-rounds]] rules 1-4). This is round_4+.
-- [ ] Measure the result against the tree; anything CONFIRMED becomes new
-      DOCREV work. A near-empty round is the goal — it is the evidence that the
-      backlog is actually closed, not just committed.
-- [ ] Only after the correctness round is clean, run the `humanize` pass over
-      the settled docs (ties into DOCREV-003 and the README humanization in
-      DOCREV-007).
+**Per section, send EVERYTHING — not just module pages:**
+- [ ] Every `.md` in the section: `index.md`, `README.md`, `overview.md`,
+      `quickstart.md`, the per-module pages — plus the section's RTL. The
+      earlier rounds bundled module-page + RTL only; the meta-docs (index/
+      readme/overview) were never reviewed and are exactly where count/structure
+      drift hides (see the rtl/common 86-vs-55 case, [[doc-placement]] rule 3).
+- [ ] **Correctness check** (`qc`): bundle from the CURRENT tree so paths are
+      post-split (RTLMath, moved READMEs), serial, large max_tokens
+      ([[kimi-review-rounds]] rules 1-4). Measure results against the tree;
+      anything CONFIRMED becomes new DOCREV work. A near-empty round is the goal
+      — that is the evidence the backlog is actually closed.
+- [ ] **Humanization** (`humanize`) of ALL md files in the section — index,
+      readme, overview, module pages — not only the prose docs. This is the
+      bulk README humanization from DOCREV-007 folded in: every md, every
+      section. Tooling gap to close first: `run_batch.py humanize` only globs
+      `books/**/DOCS.md`, so index/readme/overview and scattered READMEs need
+      bundling or a humanizer that targets them directly.
 
-**Gate:** do not start until common ✅, cdc ✅, math, shared, apb/axi*, and
-monitor (round_3, 70 CONFIRMED) are all integrated. A re-review of a
-half-integrated tree just reproduces the known backlog and wastes the tokens.
-Needs Kimi enablement (DOCREV-005) if run off the workstation.
+**Order:** correctness first, humanization second — never humanize an
+un-corrected doc (the voice pass is prose-only and must not be handed known-wrong
+content to "improve"). Run it section by section so a bad section is contained,
+not smeared across one giant round.
+
+**Gate:** do not start until common ✅, cdc ✅, math ✅, shared, apb/axi*, and
+monitor (round_3, 70 CONFIRMED) are all integrated, AND the README rollout
+(DOCREV-007) is done so the md set is stable. Needs Kimi enablement (DOCREV-005)
+off-workstation.

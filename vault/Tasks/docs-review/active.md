@@ -9,7 +9,7 @@
 | Area | Units | State |
 |---|---|---|
 | **common** | `common_part_01..05` (r1+r2) + the `rtl/common` findings inside `cdc_part_01` | ✅ **DONE 2026-07-23** — measured, not assumed |
-| math | `math_part_01/02/03` (r2) | 🟡 **2 of 23 done** — see the math section below |
+| **math** | `math_part_01/02/03` (r2) | ✅ **DONE 2026-07-24** — 16 CONFIRMED fixed, 5 SUSPECTED all bundle-scope false positives; docs live in RTLMath now |
 | shared | `shared_part_01..04` (r2) | ⬜ not started — 13 CONFIRMED in part_02 alone |
 | monitor | `monitor_part_01..06` (r3) | ⬜ not started — 70 CONFIRMED, largest block |
 | apb / apb5 | `apb`, `apb5` (r2) | ⬜ not started — 6 CONFIRMED cite `rtl/*.sv` |
@@ -192,7 +192,7 @@ elaborates clean under `verilator --lint-only -Wall`. The one remaining warning
 the master characterization blocks) and merely cite `rtl/common` modules as
 evidence — they are shared-pass work, not common.
 
-### math — in progress (2 of 23), resume here
+### math — DONE (2026-07-24)
 
 **Where the files are.** The RTL moved to `rtl/math/` (171) and tests to
 `val/math/` (119) before this review; the docs moved to
@@ -240,3 +240,15 @@ false readings here (it called 20 of 23 "likely integrated" when none were).
 Read each finding and check it against `rtl/math/` directly. Several SUSPECTED
 ones are "not in the RTL bundle" claims — the reviewer could not see the
 filesystem, so check whether the module exists in `rtl/math/` before acting.
+
+**Math follow-ups surfaced during integration (both potential RTL, not doc):**
+- **carry_save reduction, multi-level tree examples.** The single-stage doc
+  taught the reduction backwards (carry NOT shifted); fixed. The multi-level
+  CSA-tree examples on the same page chain carries unshifted too, which is also
+  wrong, but correcting the tree wiring needs sim-verified width/shift
+  bookkeeping. Flagged in the doc; needs a verified rewrite.
+- **BF16 multiplier rounding.** Documented as RNE, but the implemented boolean
+  is `R & (G|S|LSB)` (mantissa_mult folds guard into sticky), not textbook RNE
+  `G & (R|S|LSB)`. Documented the actual boolean; whether this is an RTL
+  rounding defect or intended needs an owner decision — triage before the final
+  round.
