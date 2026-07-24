@@ -5,7 +5,9 @@
 ---
 
 ## DOCREV-001 — Integrate the outstanding Kimi accuracy findings
-**Status:** open 2026-07-23 — **all 5 round_2 `common_part_*` units integrated**;
+**Status:** open 2026-07-23 — **`common` is DONE and verified across ALL rounds**
+(see "Common: measured complete" below); AMBA/monitor, math, shared, apb/axi*,
+cdc remain. Previously read: all 5 round_2 `common_part_*` units integrated;
 the AMBA/monitor and math units of round_2, plus round_3 (monitor), remain.
 
 **Integrated so far — round_2 common (all five parts), 2026-07-23:**
@@ -67,6 +69,48 @@ RTL before acting. Reviewers report wrong things confidently when a unit was
 mis-packaged.
 
 round_1 (68 findings) is pre-reorg and superseded by round_2 — do not work it.
+**This was verified 2026-07-23, not assumed** — see below.
+
+### Common: measured complete (2026-07-23)
+
+Measured against the tree per [[kimi-review-rounds]] rule 2, not inferred from
+commit history. Every finding in every `common_part_*` unit in **all three
+rounds** was parsed and its disputed claim checked against the live docs:
+
+| Round | Units | Findings | Disputed text still present |
+|---|---|---|---|
+| round_1 | common_part_01/02/03/05 | 38 | 0 (4 flagged, all false positives) |
+| round_2 | common_part_01..05 | 54 (48 CONFIRMED, 6 SUSPECTED) | 0 (4 flagged, all false positives) |
+| round_3 | — | no common units | — |
+
+The false positives all share one shape worth remembering: the flagged token
+appears in the **correction**, not the error. `fifo_sync.md` and `fifo_async.md`
+both contain the string `INSTANCE_NAME` — inside the sentence "there is no
+`INSTANCE_NAME` parameter". A naive presence check calls that unintegrated.
+Confirm by reading the surrounding text before reopening a finding.
+
+Also re-verified independently rather than trusting the closure note:
+`arbiter_round_robin_simple` (COMMON-012) is genuinely fixed AND its test
+genuinely catches the bug — mutating the rotation back to the pre-fix form
+makes the suite go RED (1 failed), restoring makes it GREEN (5 passed).
+
+**Common-area findings that do NOT live in a `common_part_*` unit.** The review
+bundles were assembled BY TOPIC, not by directory, so ~19 CONFIRMED findings
+landing on `rtl/common` sit under other unit names — which is exactly why they
+were missed:
+
+- `cdc_part_01` (6 CONFIRMED, 3 SUSPECTED) cites `rtl/common/`
+  **clock_pulse, fifo_async, glitch_free_n_dff_arn, johnson2bin** plus
+  `bin2gray` / `counter_bingray` docs. Note `rtl/amba/cdc/` also exists
+  (the 2-/4-phase handshakes, open-loop, synchronizer) — the unit spans both
+  areas.
+- `shared_part_02` (13 CONFIRMED) cites `rtl/common/`
+  **clock_gate_ctrl, dataint_crc**.
+- `cdc_part_02` (3 CONFIRMED, 1 SUSPECTED) touches no `rtl/common`.
+
+These are deliberately NOT counted as common work — they will be integrated
+with their own units in the cdc / shared passes. Recorded here so the overlap
+is not rediscovered from scratch.
 
 ## DOCREV-002 — Humanizer structural-preservation preamble + tag-survival test
 **Status:** open 2026-07-23 — partially implemented; gates DOCREV-003
