@@ -133,11 +133,19 @@ end
 
 ## Unique Properties
 
-### Self-Starting
-Johnson counters are self-starting from most invalid states:
+### NOT Self-Starting (requires reset)
+This RTL is a bare twisted-ring shift register
+(`counter_gray <= {counter_gray[WIDTH-2:0], ~counter_gray[WIDTH-1]}`) with **no
+state-correction logic**, so it is **not** self-starting:
 - **Valid States**: 2×WIDTH states in the normal sequence
 - **Invalid States**: (2^WIDTH - 2×WIDTH) states not in sequence
-- **Recovery**: Most invalid states naturally converge to valid sequence
+- **Recovery**: **None.** The invalid states form their own closed cycle and
+  never converge to the valid sequence. For WIDTH=4 the 8 invalid states cycle
+  `0010→0101→1011→0110→1101→1010→0100→1001→0010` forever; for WIDTH=3 the pair
+  `010↔101` is a parasitic 2-cycle. **You must guarantee a clean reset** — after
+  a glitch or SEU the counter can lock permanently into the parasitic cycle. If
+  self-correction is required, add explicit decode/recovery logic (not present
+  here).
 
 ### Symmetrical Patterns
 The sequence has inherent symmetry:
@@ -250,9 +258,9 @@ assign quad_b = quad_state[1] ^ quad_state[2];
 - **Self-Clocking**: No complex timing requirements
 
 ### 2. Reliability
-- **Self-Starting**: Recovers from most error states
-- **No Invalid States**: All reachable states are functional
-- **Glitch-Free**: Clean transitions between states
+- **Requires clean reset**: NOT self-starting — invalid states do not recover
+  on their own (see "NOT Self-Starting" above)
+- **Glitch-Free**: Only one bit changes per transition within the valid sequence
 
 ### 3. Performance
 - **High Speed**: Simple logic allows high clock frequencies
@@ -329,7 +337,9 @@ assign test_data = test_pattern;
 1. **Sequence Verification**: Check complete 2×WIDTH state cycle
 2. **Reset Behavior**: Verify initialization to all zeros
 3. **Enable Control**: Test hold behavior when disabled
-4. **Self-Starting**: Verify recovery from invalid states
+4. **Invalid-State Containment**: Confirm that forcing an invalid state stays
+   trapped in the parasitic cycle (this counter does NOT auto-recover), so the
+   design's reset strategy is the only guarantee of a valid state
 
 ### Coverage Points
 ```systemverilog
@@ -482,7 +492,7 @@ The waveforms highlight the unique properties that make Johnson counters useful:
 - **Single-Bit Transitions**: Only one bit changes per state, making them CDC-safe
 - **2×WIDTH States**: More efficient than one-hot (N states with N/2 flip-flops)
 - **Walking Pattern**: Natural "fill then empty" sequence useful for visual effects
-- **Self-Starting**: Recovers from invalid states automatically
+- **Reset-dependent**: NOT self-starting — a valid state is only guaranteed by reset
 
 **Relationship to fifo_async (USE_JOHNSON=1):**
 

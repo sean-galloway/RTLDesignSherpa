@@ -113,18 +113,18 @@ This specification is organized into five chapters covering all aspects of the A
 - `irq` - Interrupt output
 
 ### Register Notation
-- `RBR` - Receiver Buffer Register (RO, DLAB=0)
-- `THR` - Transmitter Holding Register (WO, DLAB=0)
-- `IER` - Interrupt Enable Register (RW, DLAB=0)
-- `IIR` - Interrupt Identification Register (RO)
-- `FCR` - FIFO Control Register (WO)
-- `LCR` - Line Control Register (RW)
-- `MCR` - Modem Control Register (RW)
-- `LSR` - Line Status Register (RO)
-- `MSR` - Modem Status Register (RO)
-- `SCR` - Scratch Register (RW)
-- `DLL` - Divisor Latch LSB (RW, DLAB=1)
-- `DLM` - Divisor Latch MSB (RW, DLAB=1)
+- `RBR` - Receiver Buffer Register, 0x00 (R)
+- `THR` - Transmitter Holding Register, 0x00 (W)
+- `IER` - Interrupt Enable Register, 0x04 (RW)
+- `IIR` - Interrupt Identification Register, 0x08 (RO)
+- `FCR` - FIFO Control Register, 0x0C (RW)
+- `LCR` - Line Control Register, 0x10 (RW)
+- `MCR` - Modem Control Register, 0x14 (RW)
+- `LSR` - Line Status Register, 0x18 (RO/W1C)
+- `MSR` - Modem Status Register, 0x1C (RO/W1C)
+- `SCR` - Scratch Register, 0x20 (RW)
+- `DLL` - Divisor Latch LSB, 0x24 (RW; no DLAB toggle)
+- `DLM` - Divisor Latch MSB, 0x28 (RW; no DLAB toggle)
 
 ---
 

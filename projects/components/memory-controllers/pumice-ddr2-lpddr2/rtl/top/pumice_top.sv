@@ -126,7 +126,20 @@ module pumice_top
     memtype_e         w_memtype;
     page_policy_e     w_page_policy;
     assign w_memtype     = memtype_e'(hwif_out.PHY_TIMING.memtype.value);
-    assign w_page_policy = page_policy_e'(hwif_out.REFRESH_TUNING.page_policy_or.value);
+    // REFRESH_TUNING.page_policy_or uses the SOFTWARE encoding (0=use build
+    // default, 1=OPEN, 2=CLOSE, 3=HYBRID) while page_policy_e is OPEN=0/
+    // CLOSE=1/HYBRID=2. The old raw cast made software-OPEN run CLOSE and
+    // software-CLOSE run HYBRID — the entire open_page/reorder config-axis
+    // corruption keyed off this (issue #42).
+    localparam page_policy_e PAGE_POLICY_BUILD_DEFAULT = PAGE_POLICY_OPEN;
+    always_comb begin
+        unique case (hwif_out.REFRESH_TUNING.page_policy_or.value)
+            2'd1:    w_page_policy = PAGE_POLICY_OPEN;
+            2'd2:    w_page_policy = PAGE_POLICY_CLOSE;
+            2'd3:    w_page_policy = PAGE_POLICY_HAPPY_HYBRID;
+            default: w_page_policy = PAGE_POLICY_BUILD_DEFAULT;  // 0 = build default
+        endcase
+    end
 
     pumice_core #(
         .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(AW), .NUM_RANKS(NUM_RANKS),

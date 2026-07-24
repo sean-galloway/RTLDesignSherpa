@@ -734,7 +734,7 @@ gtkwave waves.vcd
 **This Subsystem:**
 - `rtl/amba/PRD.md` - Requirements overview
 - `rtl/amba/README.md` - Quick start guide
-- `/Tasks/amba/` - Current work
+- `/vault/Tasks/amba/` - Current work
 - `rtl/amba/KNOWN_ISSUES/` - Bug tracking
 
 **Root:**

@@ -11,7 +11,7 @@ Projects are organized by FPGA development board:
 ```
 projects/
 ├── components/        # Reusable RTL components / IP (see components/README.md)
-│   ├── apb_xbar/  bch/  bridge/  converters/  delta/  hive/
+│   ├── apb_xbar/  bridge/  converters/  delta/  hive/
 │   ├── memory-controllers/  misc/  rapids/  retro_legacy_blocks/  stream/
 │   └── ...
 ├── NexysA7/           # Digilent Nexys A7-100T projects
@@ -235,7 +235,6 @@ When adding new projects:
 | [memory-controllers](components/memory-controllers/) | Active | [README](components/memory-controllers/README.md) · char: [ddr2](NexysA7/ddr2-characterization/) |
 | [hive](components/hive/) | Spec | [PRD](components/hive/PRD.md) · [spec](components/hive/docs/hive_spec/) |
 | [delta](components/delta/) | Spec | [PRD](components/delta/PRD.md) · [spec](components/delta/docs/delta_spec/) |
-| [bch](components/bch/) | Spec | [PRD](components/bch/PRD.md) |
 | [retro_legacy_blocks](components/retro_legacy_blocks/) | Active | [PRD](components/retro_legacy_blocks/PRD.md) |
 | [misc](components/misc/) | — | [README](components/misc/README.md) |
 

@@ -317,9 +317,14 @@ module pwm #(
             // Period completion detection
             assign w_period_complete = (r_count == local_period - 1) && (r_state == RUNNING);
 
-            // All repeats done detection
+            // All repeats done detection. Compare against local_repeat-1: the
+            // check fires in the same cycle r_repeat_value increments at a
+            // period boundary, so ">= local_repeat" emitted local_repeat+1
+            // periods (off-by-one vs the docs and this module's own header
+            // waveform). The local_repeat==0 branch keeps the -1 from
+            // underflowing (0 = infinite/continuous).
             assign w_all_repeats_done = (local_repeat == 0) ? 1'b0 :  // 0 means infinite/continuous
-                                        (r_repeat_value >= local_repeat);
+                                        (r_repeat_value >= local_repeat - 1'b1);
 
             // State machine
             `ALWAYS_FF_RST(clk, rst_n,

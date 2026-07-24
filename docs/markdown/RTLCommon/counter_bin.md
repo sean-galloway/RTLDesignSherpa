@@ -53,8 +53,13 @@ module counter_bin #(
 - **Type**: `int` 
 - **Default**: `10`
 - **Description**: Maximum count value before special wrap behavior
-- **Range**: Should be < `2^(WIDTH-1)` for proper operation
-- **Constraint**: Must fit within the lower `WIDTH-1` bits
+- **Range**: `2` to `2^(WIDTH-1)` **inclusive**. The RTL computes
+  `w_max_val = (MAX-1)` in `WIDTH-1` bits, and `MAX-1 = 2^(WIDTH-1)-1` fits
+  exactly, so `MAX = 2^(WIDTH-1)` is legal (the doc's own validation asserts
+  `MAX <= 2**(WIDTH-1)`, and both examples use it: `#(.WIDTH(4), .MAX(8))` and
+  `#(.WIDTH(11), .MAX(1024))`). This matters because power-of-2 FIFO depths sit
+  exactly at `MAX = 2^(WIDTH-1)`.
+- **Constraint**: `MAX-1` must fit within the lower `WIDTH-1` bits
 
 ## Ports
 

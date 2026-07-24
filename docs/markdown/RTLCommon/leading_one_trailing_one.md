@@ -36,8 +36,7 @@ The `leading_one_trailing_one` module identifies the positions of the most signi
 ## Port Description
 
 ### Parameters
-- **WIDTH**: Width of input data vector (default: 8)
-- **INSTANCE_NAME**: String identifier for debugging (default: "")
+- **WIDTH**: Width of input data vector (default: 8) — the module's only parameter
 
 ### Inputs
 | Port | Width | Description |
@@ -100,8 +99,10 @@ end
 
 3. **Zero Input Handling**: When input is all zeros:
    - One-hot vectors remain all zeros
-   - Index values are undefined but bounded
-   - `valid` flag indicates invalid state
+   - Index values are deterministically **0** — `find_first_set`/`find_last_set`
+     initialize `index = '0` and never reassign it when no bit is set (the RTL
+     header documents "0 if all zeros"). They are not X/undefined.
+   - `valid` flag indicates invalid state (use it to qualify the indices)
 
 4. **Type Casting**: Uses `int'()` casting for index comparisons to ensure proper integer arithmetic
 
@@ -122,9 +123,9 @@ Output: leadingone = 3'd5
 ### Edge Cases
 ```
 Input:  data = 8'b00000000
-Output: leadingone = undefined
+Output: leadingone = 3'd0   (deterministic, not X; qualify with valid)
         leadingone_vector = 8'b00000000
-        trailingone = undefined
+        trailingone = 3'd0   (deterministic, not X; qualify with valid)
         trailingone_vector = 8'b00000000
         all_zeroes = 1'b1
         all_ones = 1'b0

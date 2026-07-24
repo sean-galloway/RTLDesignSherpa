@@ -56,15 +56,15 @@
 |----------|-------------|-------|
 | RBR | Undefined | Read-only, FIFO content |
 | THR | N/A | Write-only |
-| IER | 0x00 | All interrupts disabled |
-| IIR | 0x01 | No interrupt pending |
-| FCR | 0x00 | FIFOs disabled |
-| LCR | 0x00 | 5 data bits, 1 stop, no parity |
-| MCR | 0x00 | All outputs deasserted |
+| IER | 0x00 | Enable bits stored but unimplemented (no interrupt masking) |
+| IIR | 0x02 | THR-empty pending at reset (TX FIFO empty, not IER-masked) |
+| FCR | 0x00 | FIFOs enabled interface bit clear |
+| LCR | 0x03 | 8 data bits, 1 stop, no parity (8N1) |
+| MCR | 0x00 | All outputs deasserted (irq masked - OUT2=0) |
 | LSR | 0x60 | THRE=1, TEMT=1 (TX empty) |
 | MSR | 0x00 | No delta, inputs low |
 | SCR | 0x00 | Scratch cleared |
-| DLL | 0x00 | Divisor LSB = 0 |
+| DLL | 0x01 | Divisor LSB = 1 |
 | DLM | 0x00 | Divisor MSB = 0 |
 
 ### Serial Line State During Reset

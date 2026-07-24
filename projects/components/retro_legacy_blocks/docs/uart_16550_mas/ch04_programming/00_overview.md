@@ -25,16 +25,21 @@
 
 ## Register Summary
 
-| Offset | DLAB=0 | DLAB=1 | Access | Description |
-|--------|--------|--------|--------|-------------|
-| 0x00 | RBR/THR | DLL | RO/WO/RW | Data / Divisor LSB |
-| 0x04 | IER | DLM | RW | Interrupt Enable / Divisor MSB |
-| 0x08 | IIR/FCR | IIR/FCR | RO/WO | Interrupt ID / FIFO Control |
-| 0x0C | LCR | LCR | RW | Line Control |
-| 0x10 | MCR | MCR | RW | Modem Control |
-| 0x14 | LSR | LSR | RO | Line Status |
-| 0x18 | MSR | MSR | RO | Modem Status |
-| 0x1C | SCR | SCR | RW | Scratch |
+Flat, DLAB-independent map - each register has a unique offset (DLAB does not remap).
+
+| Offset | Register | Access | Description |
+|--------|----------|--------|-------------|
+| 0x00 | RBR / THR | R / W | Receive Buffer (read) / Transmit Holding (write) |
+| 0x04 | IER | RW | Interrupt Enable (stored; unimplemented) |
+| 0x08 | IIR | RO | Interrupt Identification |
+| 0x0C | FCR | RW | FIFO Control |
+| 0x10 | LCR | RW | Line Control |
+| 0x14 | MCR | RW | Modem Control |
+| 0x18 | LSR | RO/W1C | Line Status |
+| 0x1C | MSR | RO/W1C | Modem Status |
+| 0x20 | SCR | RW | Scratch |
+| 0x24 | DLL | RW | Divisor Latch LSB |
+| 0x28 | DLM | RW | Divisor Latch MSB |
 
 ## Chapter Contents
 
@@ -67,21 +72,19 @@ Complete programming examples.
 #define DIVISOR 26  // 48MHz / (16 * 115200) = 26
 
 void uart_init(void) {
-    // Set DLAB to access divisor
-    LCR = 0x80;
-
-    // Set baud rate divisor
+    // Set baud rate divisor directly - no DLAB toggle (DLL=0x24, DLM=0x28)
     DLL = DIVISOR & 0xFF;
     DLM = DIVISOR >> 8;
 
-    // 8N1, clear DLAB
+    // 8N1
     LCR = 0x03;
 
     // Enable FIFOs, reset, trigger=14
     FCR = 0xC7;
 
-    // Enable interrupts
-    IER = 0x01;  // RX data available
+    // Set MCR.OUT2 to ungate the irq pin (IER enables are unimplemented;
+    // poll LSR/IIR rather than relying on IER masking).
+    MCR = 0x08;
 }
 ```
 

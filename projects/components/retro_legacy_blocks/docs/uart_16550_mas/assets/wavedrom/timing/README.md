@@ -69,19 +69,20 @@ Shows diagnostic loopback mode (MCR[4]=1). TX shift output internally routes to 
 
 | Register | Offset | Description |
 |----------|--------|-------------|
-| RBR/THR | 0x00 | Receive Buffer / Transmit Holding (DLAB=0) |
-| IER | 0x04 | Interrupt Enable Register (DLAB=0) |
-| IIR/FCR | 0x08 | Interrupt ID / FIFO Control |
-| LCR | 0x0C | Line Control Register |
-| MCR | 0x10 | Modem Control Register |
-| LSR | 0x14 | Line Status Register |
-| MSR | 0x18 | Modem Status Register |
-| SCR | 0x1C | Scratch Register |
-| DLL | 0x00 | Divisor Latch Low (DLAB=1) |
-| DLM | 0x04 | Divisor Latch High (DLAB=1) |
+| RBR/THR | 0x00 | Receive Buffer (read) / Transmit Holding (write) |
+| IER | 0x04 | Interrupt Enable Register |
+| IIR | 0x08 | Interrupt Identification Register |
+| FCR | 0x0C | FIFO Control Register |
+| LCR | 0x10 | Line Control Register |
+| MCR | 0x14 | Modem Control Register |
+| LSR | 0x18 | Line Status Register |
+| MSR | 0x1C | Modem Status Register |
+| SCR | 0x20 | Scratch Register |
+| DLL | 0x24 | Divisor Latch Low |
+| DLM | 0x28 | Divisor Latch High |
 
 ## References
 
-- **UART RTL:** `rtl/uart_16550/apb_uart_16550.sv`
+- **UART RTL:** `projects/components/retro_legacy_blocks/rtl/uart_16550/apb_uart_16550.sv`
 - **UART Testbench:** `dv/tbclasses/uart_16550/uart_16550_tb.py`
 - **Constraint Class:** none yet for the UART (see `bin/TBClasses/wavedrom_user/hpet.py` and `apb.py` for examples)

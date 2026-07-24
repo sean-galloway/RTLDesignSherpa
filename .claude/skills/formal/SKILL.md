@@ -5,9 +5,9 @@ description: Formal verification flow - SymbiYosys via sv2v flatten, in-RTL ifde
 
 # formal
 
-READ FIRST: docs/handbook/dv/formal.md (the handbook is the repo's memory; this skill is the
+READ FIRST: vault/handbook/dv/formal.md (the handbook is the repo's memory; this skill is the
 signpost). sv2v deletes assertions without --exclude=Assert; mutation-check every property; watch the vacuity traps; BMC-25 is not induction.
 
-The handbook root is docs/handbook/INDEX.md - design/, dv/, fpga/ areas,
+The handbook root is vault/handbook/INDEX.md - design/, dv/, fpga/ areas,
 atomic notes, wikilinked. When you learn a durable lesson in this domain,
 ADD IT TO THE HANDBOOK NOTE, not to this skill.

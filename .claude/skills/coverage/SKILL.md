@@ -5,9 +5,9 @@ description: Coverage methodology - Verilator line/toggle coverage per component
 
 # coverage
 
-READ FIRST: docs/handbook/dv/coverage.md (the handbook is the repo's memory; this skill is the
+READ FIRST: vault/handbook/dv/coverage.md (the handbook is the repo's memory; this skill is the
 signpost). Code + functional + the monbus packet-type matrix (board sign-off artifact). Long-form: docs/user-guides/rtl_coverage_guidelines.md.
 
-The handbook root is docs/handbook/INDEX.md - design/, dv/, fpga/ areas,
+The handbook root is vault/handbook/INDEX.md - design/, dv/, fpga/ areas,
 atomic notes, wikilinked. When you learn a durable lesson in this domain,
 ADD IT TO THE HANDBOOK NOTE, not to this skill.

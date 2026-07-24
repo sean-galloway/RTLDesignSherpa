@@ -56,7 +56,7 @@ flowchart LR
 
 ### Status Signals
 
-- **THRE (THR Empty)**: TX FIFO has space
+- **THRE (THR Empty)**: TX FIFO **empty** (`sts_tx_holding_empty = tx_fifo_empty`), not merely "has space"
 - **TEMT (Transmitter Empty)**: TX FIFO and shift register both empty
 
 ## TX Serializer
@@ -77,7 +77,7 @@ TXD  |0| D0 D1 D2 D3 D4 [D5 D6 D7] [P] |1|1|
 | LCR Bits | Setting |
 |----------|---------|
 | [1:0] | Data bits: 00=5, 01=6, 10=7, 11=8 |
-| [2] | Stop bits: 0=1, 1=1.5/2 |
+| [2] | Stop bits: 0=1, 1=2 (6/7/8-bit words); 1.5 stop bits not implemented |
 | [3] | Parity enable |
 | [4] | Parity type: 0=odd, 1=even |
 | [5] | Stick parity |
@@ -150,14 +150,13 @@ Each bit takes 16 clocks of 16x baud clock:
 
 ### Hardware (CTS)
 
-When MCR.AFE=1:
-- CTS_N low: Transmission allowed
-- CTS_N high: Pause after current character
+Auto flow control (AFE) is **not implemented** - CTS does not gate the
+transmitter. Monitor MSR.CTS in software and withhold THR writes to pause TX.
 
 ### Software (THRE interrupt)
 
-- THRE interrupt when TX FIFO not full
-- Software writes more data
+- THRE = TX FIFO **empty** (not merely "not full")
+- Software writes more data when THRE is set
 
 ## Break Generation
 

@@ -174,7 +174,6 @@ Production-shaped reusable IP. Each has its own README + dv/ + dv/tbclasses/.
 | Bridge | ✅ Ready | AXI protocol bridges + RDL-generated cfg | [`projects/components/bridge/`](projects/components/bridge/) |
 | Converters | ✅ Ready | UART↔AXIL, protocol conversion | [`projects/components/converters/`](projects/components/converters/) |
 | APB Crossbar | ✅ Ready | M×N APB interconnect | [`projects/components/apb_xbar/`](projects/components/apb_xbar/) |
-| BCH | — | BCH error-correction codec | [`projects/components/bch/`](projects/components/bch/) |
 | Memory controllers | 🟡 In progress | DDR2 / LPDDR2 controller | [`projects/components/memory-controllers/`](projects/components/memory-controllers/) |
 | Retro legacy blocks | ✅ Ready | HPET, PIC, PIT, RTC, UART, GPIO | [`projects/components/retro_legacy_blocks/`](projects/components/retro_legacy_blocks/) |
 | Delta | 📋 Planned | Network-on-Chip mesh | [`projects/components/delta/`](projects/components/delta/) |
@@ -402,7 +401,6 @@ Collection of 9 legacy/retro peripherals with full APB interfaces:
 |-----------|--------|-------------|
 | **[Delta](projects/components/delta/)** | 📋 Planned | 4×4 Network-on-Chip mesh with virtual channels |
 | **[HIVE](projects/components/hive/)** | 📋 Planned | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
-| **[BCH](projects/components/bch/)** | 📋 Planned | BCH error correction encoder/decoder |
 
 ---
 
@@ -559,7 +557,6 @@ rtldesignsherpa/
 │   │   ├── retro_legacy_blocks/ # Legacy peripherals (HPET, RTC, PIT, ...)
 │   │   ├── delta/               # AXIS crossbar generator
 │   │   ├── hive/                # RISC-V control (planned)
-│   │   └── bch/                 # BCH ECC (planned)
 │   └── NexysA7/                 # FPGA projects
 │
 ├── val/                          # Validation/Test suites
@@ -844,7 +841,6 @@ We welcome contributions at all levels:
 ### Near-Term
 - Delta Network-on-Chip mesh implementation
 - HIVE distributed RISC-V control
-- BCH error correction codec
 - NexysA7 FPGA integration examples
 
 ### Long-Term

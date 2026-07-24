@@ -29,7 +29,6 @@ The root Makefile has unified coverage targets:
 | **apb_xbar** | - | - | TODO |
 | **retro_legacy_blocks** | - | - | TODO |
 | **delta** | - | - | TODO (no tests yet) |
-| **bch** | - | - | TODO (no tests yet) |
 | **hive** | - | - | TODO (no tests yet) |
 | **timing_characterization** | - | - | TODO |
 
@@ -131,7 +130,7 @@ def _aggregate_coverage():
 5. **val/amba** - Large test suite, needs Makefile targets
 6. **val/integ_common** - Integration tests
 7. **val/integ_amba** - Integration tests
-8. **delta, bch, hive** - Need tests first
+8. **delta, hive** - Need tests first
 
 ---
 

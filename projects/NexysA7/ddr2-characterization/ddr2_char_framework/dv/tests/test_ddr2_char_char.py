@@ -232,6 +232,11 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         sim_build=sim_build, simulator="verilator",
         extra_env=extra_env, compile_args=compile_args,
         waves=bool(int(os.environ.get("WAVES", "0"))),
+        # cocotb's verilator main only dumps when the RUNTIME --trace arg is
+        # present; cocotb_test's waves=True adds only the compile-time flags,
+        # and its Verilator runner forwards plus_args (not sim_args) to the
+        # binary.
+        plus_args=(["--trace"] if int(os.environ.get("WAVES", "0")) else []),
         keep_files=True, timescale="1ns/1ps")
 
 

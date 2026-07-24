@@ -226,11 +226,14 @@ module cross_domain_counter #(
     // Synchronize Gray code to destination domain
     logic [WIDTH-1:0] dst_gray_sync;
     
-    synchronizer #(.WIDTH(WIDTH)) gray_sync (
-        .clk(dst_clk),
+    glitch_free_n_dff_arn #(
+        .FLOP_COUNT(2),
+        .WIDTH(WIDTH)
+    ) gray_sync (
+        .clk  (dst_clk),
         .rst_n(dst_rst_n),
-        .data_in(src_gray),
-        .data_out(dst_gray_sync)
+        .d    (src_gray),
+        .q    (dst_gray_sync)
     );
     
     // Convert back to binary in destination domain

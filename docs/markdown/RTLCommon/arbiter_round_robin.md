@@ -60,8 +60,13 @@ The `arbiter_round_robin` module implements a fair round-robin arbitration schem
 The arbiter uses a pre-computed mask lookup table approach:
 
 1. **Mask Lookup Tables**: Pre-computed at elaboration time (no logic cost)
-   - `w_mask_decode[i]`: Mask for clients 0 through i (give priority after i)
-   - `w_win_mask_decode[i]`: Mask to give priority to clients above i+1
+   - `w_win_mask_decode[i] = ~((1 << (i+1)) - 1)`: selects clients **i+1 and
+     above** (all higher indices). After client `i` wins, this is the mask that
+     gives priority to the next-higher clients. This is the only LUT the
+     arbiter actually reads (via `w_curr_mask_decode`).
+   - `w_mask_decode[i] = (1 << i) - 1`: covers clients **0 through i-1**. Note:
+     this table is generated but **never read** in the current RTL — it is dead
+     logic left from an earlier scheme, not part of the active datapath.
 
 2. **Fast Request Preprocessing**: Single LUT level for request gating
    - Block arbitration immediately gates all requests
@@ -105,13 +110,18 @@ When `block_arb` is asserted, all requests are masked to zero, effectively disab
 When `WAIT_GNT_ACK = 1`, the arbiter waits for the granted client to acknowledge receipt before updating internal state and moving to the next client.
 
 ### Fair Round-Robin Operation
+The rotation order is `0 → 1 → 2 → ... → (CLIENTS-1) → 0` (see the RTL header).
 The algorithm ensures fairness by:
-1. Serving lower-indexed clients first within each round
-2. After serving a client, giving priority to all lower-indexed clients
-3. When no lower-indexed clients are requesting, wrapping around to serve from the top
+1. After serving client `i`, giving priority to the **higher-indexed** clients
+   (`i+1 .. CLIENTS-1`) via `w_win_mask_decode[i]`
+2. Checking those masked (higher-index) requests first
+3. When no higher-indexed clients are requesting, wrapping around to the
+   **lowest** indices (client 0 upward)
 
 ## Usage Notes
-- The arbiter prioritizes lower-indexed clients when multiple requests arrive simultaneously
+- On the first grant after reset (no last winner), the mask defaults to client 0,
+  so the lowest-indexed requester wins ties initially; thereafter priority
+  rotates upward from the last winner
 - The round-robin nature ensures long-term fairness across all clients
 - Grant acknowledgment feature is useful in systems where the granted client needs time to process the grant
 

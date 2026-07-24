@@ -50,7 +50,7 @@ module sort #(
 | Port | Width | Type | Description |
 |------|-------|------|-------------|
 | `clk` | 1 | Clock | System clock signal. All operations are synchronous to the rising edge. |
-| `rst_n` | 1 | Reset | Active-low asynchronous reset. Clears all pipeline stages when deasserted. |
+| `rst_n` | 1 | Reset | Active-low asynchronous reset. Clears all pipeline stages while **asserted (low)**; normal operation is rst_n high. |
 | `data` | `NUM_VALS*SIZE` | Data | Packed input array. Elements are packed as `data[i*SIZE +: SIZE]` for element `i`. |
 | `valid_in` | 1 | Control | When asserted (high) for one cycle, starts the sorting process for the current `data` input. |
 
@@ -65,7 +65,7 @@ module sort #(
 
 | Parameter | Default | Range | Description |
 |-----------|---------|-------|-------------|
-| `NUM_VALS` | 5 | 2-32 | Number of values in the array to be sorted. Determines pipeline depth. |
+| `NUM_VALS` | 5 | 2-16 | Number of values in the array to be sorted. Determines pipeline depth. (RTL header documents the supported range as 2 to 16.) |
 | `SIZE` | 16 | 1-64 | Bit width of each individual value. All values must be unsigned integers. |
 
 ## Data Format
@@ -130,13 +130,19 @@ Final:        [9, 8, 5, 3, 1] ✓ Sorted!
 
 ### Algorithm Comparison
 
-| Algorithm | Time Complexity | Space Complexity | Hardware Efficiency | Pipeline Stages | Best Use Case |
-|-----------|----------------|------------------|-------------------|----------------|---------------|
-| **Odd-Even Sort** | O(n²) | O(1) | ⭐⭐⭐⭐⭐ Excellent | n | Small arrays, predictable timing |
-| Bubble Sort | O(n²) | O(1) | ⭐⭐ Poor | Variable | Sequential processors only |
-| Bitonic Sort | O(n log²n) | O(1) | ⭐⭐⭐⭐ Very Good | log²n | Power-of-2 sizes, larger arrays |
-| Merge Sort | O(n log n) | O(n) | ⭐⭐⭐ Good | log n | Large arrays, general purpose |
-| Insertion Sort | O(n²) | O(1) | ⭐⭐⭐ Good | Variable | Nearly sorted data |
+The "Space (SW)" column is the classical **in-place software** space bound;
+"HW Area" is the cost of a fully-pipelined hardware network of that algorithm.
+For **this** module the network is O(n²): ~n/2 compare-swaps per stage × n
+flopped stages (the RTL header: "O(NUM_VALS²) comparators, O(NUM_VALS²·SIZE)
+registers"). Do not read O(1) as the hardware area.
+
+| Algorithm | Time Complexity | Space (SW) | HW Area (this style) | Hardware Efficiency | Pipeline Stages | Best Use Case |
+|-----------|----------------|------------|----------------------|-------------------|----------------|---------------|
+| **Odd-Even Sort** | O(n²) | O(1) | **O(n²)** | ⭐⭐⭐⭐⭐ Excellent | n | Small arrays, predictable timing |
+| Bubble Sort | O(n²) | O(1) | O(n²) | ⭐⭐ Poor | Variable | Sequential processors only |
+| Bitonic Sort | O(n log²n) | O(1) | O(n log²n) | ⭐⭐⭐⭐ Very Good | log²n | Power-of-2 sizes, larger arrays |
+| Merge Sort | O(n log n) | O(n) | O(n log n) | ⭐⭐⭐ Good | log n | Large arrays, general purpose |
+| Insertion Sort | O(n²) | O(1) | O(n²) | ⭐⭐⭐ Good | Variable | Nearly sorted data |
 
 **Why Odd-Even Sort for Hardware?**
 
@@ -227,7 +233,7 @@ end
 
 ### Reset Behavior
 
-- **Asynchronous Reset**: All pipeline stages are cleared when `rst_n` is deasserted
+- **Asynchronous Reset**: All pipeline stages are cleared while `rst_n` is **asserted (low)**
 - **Data Reset**: All `r_stage_data` registers are cleared to zero
 - **Valid Reset**: All `r_stage_valid` registers are cleared to zero
 - **Output**: Both `sorted` and `done` outputs go to zero during reset
@@ -236,7 +242,9 @@ end
 
 - **Latency**: `NUM_VALS` clock cycles from `valid_in` assertion to `done` assertion
 - **Throughput**: 1 array per clock cycle (once pipeline is full)
-- **Critical Path**: One compare-swap operation (typically 1-2 gate delays)
+- **Critical Path**: One compare-swap operation — a `SIZE`-bit magnitude
+  comparator feeding a 2:1 mux, i.e. several logic levels (consistent with the
+  ~1.5-2.0 ns figures in the synthesis table below, not "1-2 gate delays")
 - **Pipeline Depth**: `NUM_VALS` stages
 
 ## State Machines
@@ -275,7 +283,7 @@ done:     0      0      0      0      0      1
 
 ### 1. Parameterizable Design
 
-- **Flexible Array Size**: `NUM_VALS` can be any reasonable value (tested 3-32)
+- **Flexible Array Size**: `NUM_VALS` supported range is 2 to 16 (per the RTL header)
 - **Configurable Data Width**: `SIZE` supports 1-64 bits per element
 - **Automatic Pipeline Scaling**: Pipeline depth automatically adjusts to `NUM_VALS`
 

@@ -33,7 +33,6 @@ The `dataint_crc` module implements a comprehensive CRC calculation engine suita
 
 ```systemverilog
 module dataint_crc #(
-    parameter string ALGO_NAME = "DEADF1F0",  // Algorithm identifier
     parameter int DATA_WIDTH = 64,            // Input data width
     parameter int CRC_WIDTH = 64,             // CRC polynomial width
     parameter int REFIN = 1,                  // Reflect input data
@@ -63,7 +62,6 @@ module dataint_crc #(
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| ALGO_NAME | string | "DEADF1F0" | Algorithm identifier for documentation |
 | DATA_WIDTH | int | 64 | Input data width in bits (must be multiple of 8) |
 | CRC_WIDTH | int | 64 | CRC polynomial width in bits (8, 16, 32, or 64) |
 | REFIN | int | 1 | Reflect input data bytes (1=reflect, 0=direct) |
@@ -182,7 +180,6 @@ end
 #### CRC-32 (IEEE 802.3)
 ```systemverilog
 dataint_crc #(
-    .ALGO_NAME("CRC32_IEEE"),
     .DATA_WIDTH(32),
     .CRC_WIDTH(32),
     .REFIN(1),
@@ -198,7 +195,6 @@ dataint_crc #(
 #### CRC-16 (CCITT)
 ```systemverilog
 dataint_crc #(
-    .ALGO_NAME("CRC16_CCITT"),
     .DATA_WIDTH(16),
     .CRC_WIDTH(16),
     .REFIN(0),
@@ -214,15 +210,14 @@ dataint_crc #(
 #### CRC-64 (ECMA-182)
 ```systemverilog
 dataint_crc #(
-    .ALGO_NAME("CRC64_ECMA"),
     .DATA_WIDTH(64),
     .CRC_WIDTH(64),
-    .REFIN(1),
-    .REFOUT(1)
+    .REFIN(0),                       // ECMA-182 is NOT reflected
+    .REFOUT(0)
 ) u_crc64 (
     .POLY(64'h42F0E1EBA9EA3693),
-    .POLY_INIT(64'h0000000000000000),
-    .XOROUT(64'hFFFFFFFFFFFFFFFF),
+    .POLY_INIT(64'h0000000000000000), // init 0
+    .XOROUT(64'h0000000000000000),    // xorout 0
     // ... other connections
 );
 ```
@@ -247,13 +242,24 @@ dataint_crc #(
     .XOROUT(32'hFFFFFFFF),
     .clk(clk),
     .rst_n(rst_n),
-    .load_crc_start(data_valid),
-    .load_from_cascade(1'b0),
-    .cascade_sel(8'hFF),  // Use all chunks
+    .load_crc_start(data_valid),      // pulse: seed accumulator with POLY_INIT
+    .load_from_cascade(capture_crc),  // pulse: capture the cascade result
+    .cascade_sel(8'h80),              // ONE-HOT: select the 8-byte (full) stage
     .data(input_data),
     .crc(crc_result)
 );
 ```
+
+> **The accumulator is only updated through the cascade path.** Data reaches
+> `crc` *only* via `load_from_cascade`; tying `load_from_cascade` to 0 (and
+> using `cascade_sel = 8'hFF`) makes the engine reload `POLY_INIT` on every
+> `load_crc_start` and emit a constant (`reflect(POLY_INIT) ^ XOROUT`), never a
+> CRC of `input_data`. A single-shot calculation must: (1) pulse
+> `load_crc_start` to seed, (2) present `data`, then (3) pulse
+> `load_from_cascade` with a **one-hot** `cascade_sel` selecting the stage for
+> the number of valid bytes (`8'h80` for all 8). `cascade_sel` is one-hot, not a
+> mask — `8'hFF` only works by highest-set-bit priority. See the streaming
+> example below for the general pattern.
 
 ### Streaming CRC with Cascade
 
@@ -298,8 +304,7 @@ generate
     for (stage = 0; stage < 4; stage++) begin : gen_crc_pipeline
         dataint_crc #(
             .DATA_WIDTH(64),
-            .CRC_WIDTH(32),
-            .ALGO_NAME($sformatf("STAGE_%0d", stage))
+            .CRC_WIDTH(32)
         ) u_pipeline_crc (
             .clk(clk),
             .rst_n(rst_n),

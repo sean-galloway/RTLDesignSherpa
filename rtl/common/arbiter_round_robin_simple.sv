@@ -51,21 +51,32 @@ module arbiter_round_robin_simple #(
     logic [W-1:0] w_shift_amount;       // 0..N-1
     assign w_shift_amount = (r_last_grant == (W)'(N-1)) ? '0 : (r_last_grant + 1);
 
-    // Rotate-left request by w_shift_amount, with a guard for 0 to avoid shifting by N
+    // Rotate the request window so that agent (last_grant+1) lands at bit 0, then
+    // take the lowest set bit, then rotate back.
+    //
+    // The direction matters and used to be backwards. Rotating the request LEFT by
+    // s maps rotated bit j to original agent (j - s) mod N, so the scan started at
+    // agent (N - s) = (N - last - 1) instead of (last + 1). That is a REFLECTION of
+    // the priority pointer, not a rotation, and a reflection composed with itself is
+    // the identity -- so the pointer oscillated between two positions forever.
+    // With N=4 and all four agents requesting it granted 0,3,0,3,... and agents 1
+    // and 2 were NEVER served. Rotating RIGHT first maps rotated bit j to agent
+    // (j + s) mod N, so the scan starts at (last + 1) and advances, which is what
+    // round-robin means.
     always_comb begin
         if (w_shift_amount == '0) begin
             w_rot_req = request;
         end else begin
-            w_rot_req = (request << w_shift_amount) | (request >> ((W)'(N) - w_shift_amount));
+            w_rot_req = (request >> w_shift_amount) | (request << ((W)'(N) - w_shift_amount));
         end
         // Isolate lowest set bit (one-hot). Works for zero too (yields zero).
         w_rot_sel = w_rot_req & ((~w_rot_req) + {{(N-1){1'b0}}, 1'b1});
 
-        // Rotate-right by the same amount to restore original bit positions
+        // Rotate back by the same amount to restore original bit positions
         if (w_shift_amount == '0) begin
             w_nxt_grant = w_rot_sel;
         end else begin
-            w_nxt_grant = (w_rot_sel >> w_shift_amount) | (w_rot_sel << ((W)'(N) - w_shift_amount));
+            w_nxt_grant = (w_rot_sel << w_shift_amount) | (w_rot_sel >> ((W)'(N) - w_shift_amount));
         end
     end
 

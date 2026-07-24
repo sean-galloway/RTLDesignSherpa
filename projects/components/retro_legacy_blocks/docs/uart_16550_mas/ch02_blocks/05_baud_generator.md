@@ -95,34 +95,32 @@ Divisor = (Input_Clock + 8 * Baud_Rate) / (16 * Baud_Rate)
 
 ### DLL (Divisor Latch LSB)
 
-| Address | 0x00 (DLAB=1) |
-|---------|---------------|
+| Address | 0x24 |
+|---------|------|
 | Bits | [7:0] |
 | Access | RW |
-| Reset | 0x00 |
+| Reset | 0x01 |
 
 ### DLM (Divisor Latch MSB)
 
-| Address | 0x04 (DLAB=1) |
-|---------|---------------|
+| Address | 0x28 |
+|---------|------|
 | Bits | [7:0] |
 | Access | RW |
 | Reset | 0x00 |
 
 ## Programming Sequence
 
-1. Set LCR.DLAB = 1 (access divisor latches)
-2. Write DLL (divisor low byte)
-3. Write DLM (divisor high byte)
-4. Clear LCR.DLAB = 0 (normal operation)
+DLL/DLM have dedicated offsets (0x24/0x28); the DLAB bit does not remap any
+address, so no DLAB toggle is required.
+
+1. Write DLL at 0x24 (divisor low byte)
+2. Write DLM at 0x28 (divisor high byte)
 
 ```c
 void set_baud_rate(uint16_t divisor) {
-    uint8_t lcr = LCR;        // Save LCR
-    LCR = lcr | 0x80;         // Set DLAB
-    DLL = divisor & 0xFF;     // Low byte
-    DLM = divisor >> 8;       // High byte
-    LCR = lcr;                // Restore LCR (clear DLAB)
+    DLL = divisor & 0xFF;     // Low byte  (0x24)
+    DLM = divisor >> 8;       // High byte (0x28)
 }
 ```
 
@@ -130,9 +128,11 @@ void set_baud_rate(uint16_t divisor) {
 
 ### Divisor = 0
 
-- Invalid configuration
-- Behavior undefined
-- Should be avoided
+- Invalid configuration; should be avoided
+- In this RTL there is no divisor=0 guard: the baud tick asserts every clock
+  (as if dividing by 1), so bit timing runs at the input clock rate
+
+Note: DLL resets to 0x01, so the power-on divisor is 1 (not 0).
 
 ### Divisor = 1
 
@@ -142,9 +142,9 @@ void set_baud_rate(uint16_t divisor) {
 
 ## Clock Enable
 
-Baud clock generation enabled when:
-- Divisor != 0
-- TX or RX engine active
+The baud counter free-runs; there is no divisor!=0 or TX/RX-active gating in
+this RTL. The generated baud tick is used by the TX/RX engines when they are
+active.
 
 ---
 

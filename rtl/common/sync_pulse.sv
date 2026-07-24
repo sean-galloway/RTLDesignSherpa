@@ -59,9 +59,14 @@
 //------------------------------------------------------------------------------
 // Timing:
 //------------------------------------------------------------------------------
-//   Latency:         (SYNC_STAGES + 2) destination clock cycles
-//   Min Pulse Gap:   3 destination clock cycles (to avoid loss)
-//   MTBF:            >10^12 hours @ SYNC_STAGES=3
+//   Latency:         ~SYNC_STAGES destination clocks to the pulse edge; the
+//                    edge detector is combinational (o_pulse = r_sync[N-1] ^
+//                    r_sync_prev), so it adds no stage. (SYNC_STAGES + 2) is a
+//                    conservative bound, not the true edge latency.
+//   Min Pulse Gap:   3*T_dst + 2*T_src (see spacing requirement below)
+//   MTBF:            increases with SYNC_STAGES; a real figure needs the flop's
+//                    metastability tau/T0, the dst clock, and the event rate --
+//                    it is not a fixed hours constant.
 //
 //------------------------------------------------------------------------------
 // Protocol:
@@ -69,7 +74,8 @@
 //   1. Source pulse toggles r_src_toggle register
 //   2. Toggle is synchronized to destination clock domain
 //   3. Edge detector generates single-cycle pulse in destination domain
-//   4. Destination toggle is synchronized back to source for ready
+//   (NOTE: this module is one-way -- there is no reverse synchronizer, no
+//    ready/o_ready port, and no destination-to-source feedback path.)
 //
 //   Source pulse spacing requirement:
 //     - Minimum spacing = 3*T_dst + 2*T_src (clock periods)

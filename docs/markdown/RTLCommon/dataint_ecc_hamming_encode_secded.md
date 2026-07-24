@@ -156,10 +156,9 @@ w_data_with_parity[TotalWidth-1] = ^w_data_with_parity[TotalWidth-2:0];
 - **Efficient Layout**: Optimal bit positioning for Hamming code
 
 ### Debug Support
-When `DEBUG != 0`:
-- Function calls display bit position calculations
-- Covered bits masks are displayed
-- Useful for verification and understanding
+The `DEBUG` parameter is currently a **no-op** in this module: the RTL never
+references `DEBUG` outside its parameter declaration, so there is no debug
+output. The parameter is reserved for future use.
 
 ## Example Configurations
 

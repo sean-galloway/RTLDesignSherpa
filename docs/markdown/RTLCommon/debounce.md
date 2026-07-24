@@ -104,9 +104,14 @@ end
 - **Minimum stable time**: Button must remain stable for full delay period
 
 ### Response Time
-- **Press detection**: `DEBOUNCE_DELAY` ticks after button stabilizes
-- **Release detection**: `DEBOUNCE_DELAY` ticks after button releases
-- **Asymmetric**: Same delay for both press and release
+- **Press detection**: `DEBOUNCE_DELAY` ticks after the button stabilizes high
+  (the output is `&r_shift_regs[i]`, so it needs `DEBOUNCE_DELAY` consecutive
+  high samples to assert)
+- **Release detection**: ~1 tick (+1 clk). The output is an AND-reduce, so the
+  first `0` shifted in on release immediately clears it — release is **not**
+  debounced beyond a single sample.
+- **Asymmetric**: press is fully debounced; release propagates ~`DEBOUNCE_DELAY`×
+  faster. Do NOT rely on symmetric debounce timing.
 
 ## Use Cases
 - Mechanical pushbuttons and switches

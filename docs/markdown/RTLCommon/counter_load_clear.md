@@ -191,15 +191,23 @@ Done      : ___________________________|‾‾‾|_______
 ```
 
 ### Load During Count
+Load only writes `r_match_val`; it does **not** stall the count. With
+`increment` held high, `count` advances every cycle (including the load cycle).
+Here `load` asserts while `count == 2`, so `r_match_val` becomes 5 starting the
+next cycle — before `count` reaches the old match value 3 — so the counter never
+wraps at 3 and instead runs to the new match 5:
 ```
 Clock     : __|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__
-Load      : ______________|‾‾‾|_______________
-LoadVal   : ─────────────< 5 >───────────────
+Load      : ___________|‾‾‾|___________________
+LoadVal   : ──────────< 5 >────────────────────
 Increment : |‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾|
-Count     : < 0 >< 1 >< 2 >< 2 >< 3 >< 4 >< 5 >< 0 >
-r_match   : ──────< 3 >───< 5 >─────────────────
-Done      : _____________________________|‾‾‾|___
+Count     : < 0 >< 1 >< 2 >< 3 >< 4 >< 5 >< 0 >
+r_match   : < 3 >< 3 >< 3 >< 5 >< 5 >< 5 >< 5 >
+Done      : ________________________|‾‾‾|______
 ```
+(If `load` had instead arrived after `count` already reached 3, the counter
+would have wrapped at 3 first — the outcome depends on load timing relative to
+the old match value.)
 
 ## Advanced Usage Examples
 
@@ -377,8 +385,14 @@ endgroup
 
 ### Assertions
 ```systemverilog
-// Count should never exceed match value
-property count_bounds;
+// Count stays within the match value ONLY for the load-then-count pattern.
+// This property does NOT hold in general: if a smaller match is loaded while
+// count is already above it (load 5, count up to 5, then load 2), then
+// count (5) > r_match_val (2) and the counter free-runs modulo 2^WIDTH until it
+// happens to equal the new match again -- there is no terminal-count clamp,
+// only the equality wrap. Do not copy this assertion into a testbench that
+// dynamically REDUCES the terminal count; it will fail on correct RTL.
+property count_bounds;   // holds only when match is never reduced below count
     @(posedge clk) disable iff (!rst_n)
     count <= r_match_val;
 endproperty

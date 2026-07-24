@@ -29,17 +29,9 @@
 
 ```c
 void uart_set_baud(uint16_t divisor) {
-    uint8_t lcr_save = LCR;
-
-    // Enable DLAB to access divisor latches
-    LCR = lcr_save | 0x80;
-
-    // Write divisor
+    // DLL (0x24) and DLM (0x28) have dedicated offsets - no DLAB toggle needed.
     DLL = divisor & 0xFF;
     DLM = (divisor >> 8) & 0xFF;
-
-    // Restore LCR (clears DLAB)
-    LCR = lcr_save;
 }
 ```
 
@@ -52,7 +44,8 @@ void uart_set_format(uint8_t data_bits, uint8_t parity, uint8_t stop_bits) {
     // Data bits: 5=0, 6=1, 7=2, 8=3
     lcr |= (data_bits - 5) & 0x03;
 
-    // Stop bits: 1=0, 2=1 (1.5 for 5-bit)
+    // Stop bits: 1=0, 2=1. STB=1 gives 2 stop bits for 6/7/8-bit words.
+    // 1.5 stop bits (5-bit word) is NOT implemented - it produces 1 stop bit.
     if (stop_bits == 2) lcr |= 0x04;
 
     // Parity: 0=none, 1=odd, 2=even, 3=mark, 4=space
@@ -88,6 +81,9 @@ void uart_configure_fifo(uint8_t trigger_level) {
 ```c
 void uart_enable_interrupts(uint8_t mask) {
     // Bits: 0=RX, 1=TX, 2=Line, 3=Modem
+    // NOTE: In this RTL the IER enables are unimplemented - this write is
+    // stored and read back but does not mask interrupts. Pending sources
+    // drive the irq pin (gated by MCR.OUT2) regardless of IER.
     IER = mask & 0x0F;
 }
 ```
@@ -103,31 +99,27 @@ void uart_enable_interrupts(uint8_t mask) {
 #define BAUD_115200  26
 
 void uart_init_115200_8n1(void) {
-    // 1. Disable interrupts during setup
-    IER = 0x00;
-
-    // 2. Set baud rate
-    LCR = 0x80;              // DLAB = 1
+    // 1. Set baud rate (DLL=0x24, DLM=0x28 - no DLAB toggle)
     DLL = BAUD_115200;       // Low byte
     DLM = 0x00;              // High byte
-    LCR = 0x03;              // 8 data bits, clear DLAB
 
-    // 3. No parity, 1 stop bit already set by LCR = 0x03
+    // 2. Line format: 8 data bits, no parity, 1 stop bit
+    LCR = 0x03;
 
-    // 4. Enable and reset FIFOs, trigger at 14 bytes
+    // 3. Enable and reset FIFOs, trigger at 14 bytes
     FCR = 0xC7;              // 11000111b
 
-    // 5. Initialize modem control
-    MCR = 0x00;              // All outputs deasserted
+    // 4. Modem control: set OUT2 (bit 3) to ungate the irq pin
+    MCR = 0x08;
 
-    // 6. Clear any pending data/errors
-    (void)LSR;               // Clear line status
-    (void)MSR;               // Clear modem status
-    while (LSR & 0x01)       // Clear RX FIFO
+    // 5. Drain any pending RX data (received byte is in RBR bits [15:8])
+    while (LSR & 0x01)
         (void)RBR;
 
-    // 7. Enable desired interrupts
-    IER = 0x05;              // RX data + line status
+    // NOTE: IER (interrupt enables) is unimplemented in this RTL - writing it
+    // has no effect. Poll LSR/IIR, or note that pending sources drive irq
+    // (gated by MCR.OUT2) regardless of IER. LSR/MSR sticky bits are W1C,
+    // not clear-on-read.
 }
 ```
 
@@ -156,13 +148,15 @@ uint16_t uart_calculate_divisor(uint32_t clock_hz, uint32_t baud) {
 | 50 MHz | 326 | 163 | 81 | 54 | 27 |
 | 100 MHz | 651 | 326 | 163 | 109 | 54 |
 
-## Hardware Flow Control Setup
+## Flow Control Setup (manual)
+
+Auto Flow Control (AFE, MCR[5]) is NOT implemented in this RTL. Assert RTS in
+software and monitor MSR.CTS to gate transmission manually.
 
 ```c
-void uart_enable_hw_flow_control(void) {
-    // Enable auto flow control
+void uart_assert_rts(void) {
     uint8_t mcr = MCR;
-    mcr |= 0x22;             // RTS + AFE
+    mcr |= 0x02;             // RTS (bit 1) only - MCR[5]/AFE does not exist
     MCR = mcr;
 }
 ```

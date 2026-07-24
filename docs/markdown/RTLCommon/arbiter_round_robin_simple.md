@@ -178,10 +178,14 @@ For N=4 with requests [3:0]:
 | Cycle | Last Grant | Requests | Rotated | Selected | Grant | Grant ID |
 |-------|------------|----------|---------|----------|--------|----------|
 | 0 | 3 (init) | 1111 | 1111 | 0001 | 0001 | 0 |
-| 1 | 0 | 1110 | 1101 | 0001 | 0010 | 1 |
+| 1 | 0 | 1110 | 0111 | 0001 | 0010 | 1 |
 | 2 | 1 | 1101 | 0111 | 0001 | 0100 | 2 |
-| 3 | 2 | 1011 | 1101 | 0001 | 1000 | 3 |
+| 3 | 2 | 1011 | 0111 | 0001 | 1000 | 3 |
 | 4 | 3 | 1111 | 1111 | 0001 | 0001 | 0 |
+
+`Rotated` is the request vector rotated RIGHT by `last_grant + 1`, which places
+the next agent in priority order at bit 0. `Selected` isolates that vector's
+lowest set bit, and `Grant` rotates it back to the original bit positions.
 
 ## Design Considerations
 

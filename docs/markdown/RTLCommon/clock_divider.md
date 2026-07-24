@@ -73,7 +73,9 @@ module clock_divider #(
 - **Trade-off**: Larger counters enable slower frequencies but consume more resources
 
 ### Parameter Relationships
-- **Addressing Constraint**: `PO_WIDTH ≥ $clog2(COUNTER_WIDTH)`
+- **Addressing Constraint**: `PO_WIDTH > $clog2(COUNTER_WIDTH)` (strictly
+  greater — the RTL `$fatal`s at elaboration if `PO_WIDTH <= $clog2(COUNTER_WIDTH)`).
+  E.g. `COUNTER_WIDTH=16` needs `PO_WIDTH ≥ 5`.
 - **Division Range**: Each output can divide by 2^1 to 2^COUNTER_WIDTH
 - **Configuration Width**: Total configuration bits = `N × PO_WIDTH`
 
@@ -192,9 +194,13 @@ clock_divider #(
 ```systemverilog
 // For 9600 baud from 100MHz:
 // Ideal: 100MHz / 9600 ≈ 10417 (not power-of-2)
-// Closest: 2^13 = 8192 → 100MHz/8192 = 12.2kHz (≈9600 baud)
+// Closest power-of-2: 2^13 = 8192 → 100MHz/8192 = 12.2kHz
+// WARNING: 12.2kHz vs 9.6kHz is a ~27% error -- FAR beyond the ~2-3% a UART
+// can tolerate, and it is NOT a 16x-oversampling clock for 9600 baud either.
+// A power-of-2 divider CANNOT hit standard baud rates. For a real UART use
+// counter_load_clear (arbitrary modulus), not this divider.
 
-logic [7:0] baud_pickoff = 8'd12;  // 2^13 = 8192 division
+logic [7:0] baud_pickoff = 8'd12;  // 2^13 = 8192 division (illustrative only)
 
 clock_divider #(
     .N(1),

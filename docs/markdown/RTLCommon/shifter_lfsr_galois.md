@@ -163,14 +163,16 @@ The basic operation is a right shift, but with XOR gates inserted at tap positio
 - Seed: 4'b1001
 
 ### Sequence Generation
+Galois right-shift: shift right by 1; if the shifted-out LSB was 1, XOR the tap
+mask `4'b1100` (bits 3 and 2 — positions 4,3, 1-indexed) into the shifted value.
 ```
-Cycle | LFSR | LSB | Shift | XOR@pos4 | XOR@pos3 | Next LFSR
-------|------|-----|-------|----------|----------|----------
-0     | 1001 | 1   | 0100  | 0100^1   | 0000^1   | 1110
-1     | 1110 | 0   | 0111  | no XOR   | no XOR   | 0111
-2     | 0111 | 1   | 0011  | 0011^1   | 0001^1   | 1010
-3     | 1010 | 0   | 0101  | no XOR   | no XOR   | 0101
-4     | 0101 | 1   | 0010  | 0010^1   | 0000^1   | 1011
+Cycle | LFSR | LSB | after >>1 | XOR 1100? | Next LFSR
+------|------|-----|-----------|-----------|----------
+0     | 1001 | 1   | 0100      | yes       | 1000
+1     | 1000 | 0   | 0100      | no        | 0100
+2     | 0100 | 0   | 0010      | no        | 0010
+3     | 0010 | 0   | 0001      | no        | 0001
+4     | 0001 | 1   | 0000      | yes       | 1100
 ...
 ```
 

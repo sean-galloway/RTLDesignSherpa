@@ -1,0 +1,16 @@
+{
+  "unit": "axi4_part_02",
+  "model": "kimi-k2",
+  "finish_reason": "stop",
+  "max_tokens": 32768,
+  "usage": {
+    "completion_tokens": 18456,
+    "prompt_tokens": 48611,
+    "total_tokens": 67067,
+    "completion_tokens_details": {
+      "reasoning_tokens": 15465
+    }
+  },
+  "elapsed_s": 458.9,
+  "content_chars": 11801
+}

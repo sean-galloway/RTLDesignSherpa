@@ -52,19 +52,18 @@
 | 0 | DTR | dtr_n | MCR[0] = 1 |
 | 1 | RTS | rts_n | MCR[1] = 1 |
 | 2 | OUT1 | out1_n | MCR[2] = 1 |
-| 3 | OUT2 | out2_n | MCR[3] = 1 |
+| 3 | OUT2 | out2_n | MCR[3] = 1 (also gates the irq pin) |
 | 4 | LOOP | - | Loopback mode |
-| 5 | AFE | - | Auto flow control |
 
-### Auto Flow Control (AFE)
+MCR is only 5 bits wide in this RTL (bit 5/AFE does not exist). OUT2 additionally
+gates the `irq` output: the pin can assert only when MCR.OUT2 = 1.
 
-When MCR.AFE = 1:
-- **RTS** automatically controlled by RX FIFO level
-  - RTS asserted when FIFO has space
-  - RTS deasserted when FIFO near full
-- **CTS** controls TX operation
-  - TX pauses when CTS deasserted
-  - TX resumes when CTS asserted
+### Auto Flow Control (AFE) - not implemented
+
+Auto Flow Control is **not implemented** in this RTL. MCR[5] does not exist
+(writes are dropped), RTS is not auto-driven by RX FIFO level, and CTS does not
+gate the transmitter. Use manual flow control (drive MCR.RTS and monitor
+MSR.CTS in software).
 
 ## Modem Status Register (MSR)
 
@@ -77,14 +76,18 @@ When MCR.AFE = 1:
 | 6 | RI | ri_n | Current RI state |
 | 7 | DCD | dcd_n | Current DCD state |
 
-### Delta Bits (Clear on Read)
+### Delta Bits (Write-1-to-Clear)
+
+These bits are W1C (write 1 to clear), not clear-on-read. Note: the current RTL
+does not assert the internal clear strobes, so once set a delta bit persists
+until full reset (known RTL issue).
 
 | Bit | Name | Meaning |
 |-----|------|---------|
-| 0 | DCTS | CTS changed since last read |
-| 1 | DDSR | DSR changed since last read |
+| 0 | DCTS | CTS changed since last cleared |
+| 1 | DDSR | DSR changed since last cleared |
 | 2 | TERI | RI changed from low to high |
-| 3 | DDCD | DCD changed since last read |
+| 3 | DDCD | DCD changed since last cleared |
 
 ## Hardware Flow Control
 
@@ -102,14 +105,14 @@ TX Device                    RX Device
     |<------- RXD --------------|
 ```
 
-When AFE enabled:
-1. Receiver asserts RTS when ready
-2. Transmitter checks CTS before sending
-3. If CTS deasserted, TX pauses after current byte
+RTS/CTS flow control must be handled in software (AFE is not implemented):
+1. Software asserts MCR.RTS when ready to receive
+2. Software checks MSR.CTS before sending
+3. Hardware does not auto-pause TX on CTS
 
 ### Manual Flow Control
 
-Without AFE, software controls RTS:
+Software controls RTS directly:
 ```c
 // Ready to receive
 MCR |= 0x02;   // Assert RTS
@@ -158,10 +161,11 @@ The detection sequence:
 
 ## Interrupt Generation
 
-MSR delta bits can generate interrupt:
-- IER[3] enables modem status interrupt
-- Any delta bit set generates interrupt
-- Reading MSR clears delta bits
+MSR delta bits can generate the modem-status interrupt:
+- Any delta bit set generates the interrupt (IER[3] is stored but unimplemented,
+  so it does not actually mask this interrupt)
+- The `irq` pin is gated by MCR.OUT2
+- Delta bits are cleared by W1C (not by reading MSR)
 
 ---
 

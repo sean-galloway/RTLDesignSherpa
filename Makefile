@@ -138,7 +138,7 @@ RTL_DIR = rtl
 PROJECTS_DIR = projects/components
 
 # Project list
-PROJECTS = stream rapids bridge delta apb_xbar converters shims retro_legacy_blocks bch hive
+PROJECTS = stream rapids bridge delta apb_xbar converters shims retro_legacy_blocks hive
 
 # Include generated test targets from test_environments.toml
 # Regenerate: python3 bin/generate_test_targets.py
@@ -167,7 +167,6 @@ help:
 	@echo "  make test-delta              Run Delta project tests"
 	@echo "  make test-apb_xbar           Run APB Crossbar project tests"
 	@echo "  make test-retro_legacy_blocks Run Retro Legacy Blocks project tests"
-	@echo "  make test-bch                Run BCH project tests"
 	@echo "  make test-hive               Run HIVE project tests"
 	@echo ""
 	@echo "UNIFIED REG_LEVEL TARGETS (ALL environments - val/ + projects/):"
@@ -217,7 +216,6 @@ help:
 	@echo "  make lint-converters         Run Converters RTL lint"
 	@echo "  make lint-shims              Run Shims RTL lint"
 	@echo "  make lint-retro_legacy_blocks Run Retro Legacy Blocks RTL lint"
-	@echo "  make lint-bch                Run BCH RTL lint"
 	@echo "  make lint-hive               Run HIVE RTL lint"
 	@echo ""
 	@echo "COMBINED TARGETS (tests + lint at each level):"
@@ -289,14 +287,6 @@ test-apb_xbar: test-apb-xbar
 .PHONY: test-retro_legacy_blocks
 test-retro_legacy_blocks: test-retro-legacy
 
-.PHONY: test-bch
-test-bch:
-	@echo "=== BCH Project Tests ==="
-	@if [ -f $(PROJECTS_DIR)/bch/dv/tests/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/bch/dv/tests run-all || true; \
-	else \
-		echo "BCH test Makefile not found (may not have tests yet)"; \
-	fi
 
 .PHONY: test-hive
 test-hive:
@@ -308,7 +298,7 @@ test-hive:
 	fi
 
 .PHONY: test-projects
-test-projects: test-stream test-rapids test-bridge test-delta test-apb_xbar test-retro_legacy_blocks test-bch test-hive
+test-projects: test-stream test-rapids test-bridge test-delta test-apb_xbar test-retro_legacy_blocks test-hive
 	@echo "================================================================================"
 	@echo "✓ All project tests completed"
 	@echo "================================================================================"
@@ -686,14 +676,6 @@ lint-retro_legacy_blocks:
 		echo "⚠ Retro Legacy Blocks RTL Makefile not found"; \
 	fi
 
-.PHONY: lint-bch
-lint-bch:
-	@echo "=== BCH RTL Lint ==="
-	@if [ -f $(PROJECTS_DIR)/bch/rtl/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/bch/rtl lint-all || true; \
-	else \
-		echo "⚠ BCH RTL Makefile not found (may not have RTL yet)"; \
-	fi
 
 .PHONY: lint-hive
 lint-hive:
@@ -705,7 +687,7 @@ lint-hive:
 	fi
 
 .PHONY: lint-projects
-lint-projects: lint-stream lint-rapids lint-bridge lint-delta lint-apb_xbar lint-converters lint-shims lint-retro_legacy_blocks lint-bch lint-hive
+lint-projects: lint-stream lint-rapids lint-bridge lint-delta lint-apb_xbar lint-converters lint-shims lint-retro_legacy_blocks lint-hive
 	@echo "================================================================================"
 	@echo "✓ All project RTL lint completed"
 	@echo "================================================================================"

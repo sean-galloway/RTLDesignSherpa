@@ -45,6 +45,7 @@ The PWM module generates multiple independent pulse width modulation signals wit
 |------|-------|-------------|
 | `clk` | 1 | System clock |
 | `rst_n` | 1 | Active-low asynchronous reset |
+| `sync_rst_n` | 1 | Active-low **synchronous** reset (functional — all state/counter/edge-detect blocks reset on `!sync_rst_n`). Must be driven; leaving it unconnected gives X in sim / spurious resets in hardware. |
 | `start` | CHANNELS | Start trigger for each channel (edge-triggered) |
 | `duty` | CHANNELS*WIDTH | Concatenated duty cycle values for all channels |
 | `period` | CHANNELS*WIDTH | Concatenated period values for all channels |
@@ -177,6 +178,8 @@ assign w_all_repeats_done = (local_repeat == 0) ? 1'b0 :  // 0 means infinite
 - Scalable to any number of channels via parameters
 
 ### 5. Reset Behavior
+- Two resets: `rst_n` (asynchronous) and `sync_rst_n` (synchronous). Either one
+  returns the channel FSM to IDLE and clears counters.
 - Asynchronous reset immediately stops all PWM outputs
 - All internal counters and state machines reset to IDLE
 - Clean startup guaranteed after reset deassertion

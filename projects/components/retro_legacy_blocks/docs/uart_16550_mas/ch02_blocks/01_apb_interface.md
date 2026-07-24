@@ -53,22 +53,25 @@ The APB interface provides the connection between the system APB bus and the UAR
 
 ### UART Register Addresses
 
-| Address | DLAB=0 Read | DLAB=0 Write | DLAB=1 |
-|---------|-------------|--------------|--------|
-| 0x00 | RBR | THR | DLL |
-| 0x04 | IER | IER | DLM |
-| 0x08 | IIR | FCR | IIR/FCR |
-| 0x0C | LCR | LCR | LCR |
-| 0x10 | MCR | MCR | MCR |
-| 0x14 | LSR | - | LSR |
-| 0x18 | MSR | - | MSR |
-| 0x1C | SCR | SCR | SCR |
+Flat, DLAB-independent decode - each register has a unique offset. Only `paddr[5:0]` is decoded.
+
+| Offset | Read | Write |
+|--------|------|-------|
+| 0x00 | RBR | THR |
+| 0x04 | IER | IER |
+| 0x08 | IIR | - |
+| 0x0C | FCR | FCR |
+| 0x10 | LCR | LCR |
+| 0x14 | MCR | MCR |
+| 0x18 | LSR | LSR (W1C) |
+| 0x1C | MSR | MSR (W1C) |
+| 0x20 | SCR | SCR |
+| 0x24 | DLL | DLL |
+| 0x28 | DLM | DLM |
 
 ### DLAB (Divisor Latch Access Bit)
 
-LCR[7] controls access to divisor latches:
-- DLAB=0: Normal register access
-- DLAB=1: DLL/DLM accessible at addresses 0x00/0x04
+LCR[7] is a stored bit only. It plays **no** role in address decoding - DLL and DLM are always accessible at their own offsets 0x24 and 0x28. The classic 16550 DLAB remapping of addresses 0x00/0x04 is **not** implemented.
 
 ## Operation
 
@@ -82,14 +85,14 @@ LCR[7] controls access to divisor latches:
 1. Master asserts `psel`, `paddr`, `pwdata`, `pwrite`
 2. Master asserts `penable` on next cycle
 3. Slave samples data with `pready`
-4. Write-only registers (THR, FCR) processed
+4. THR write pushes the TX FIFO; FCR writes take effect (FCR is also readable)
 
 ## Implementation Notes
 
 - Zero wait-state operation for all registers
 - 32-bit data width with 8-bit register access
 - Byte strobes select which byte to access
-- Read-only registers ignore writes
+- LSR/MSR are read-mostly: writes perform write-1-to-clear on the error/delta bits (not ignored)
 
 ---
 

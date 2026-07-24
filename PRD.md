@@ -246,7 +246,7 @@ If project-specific code is found in the framework area, it MUST be moved:
 **Purpose:** AMBA protocol monitoring and interface components
 **Modules:** ~160 SystemVerilog files
 **Status:** 🟡 Active development, production-ready monitors
-**Documentation:** `rtl/amba/PRD.md`, `docs/guides/AXI_Monitor_Configuration_Guide.md`
+**Documentation:** `rtl/amba/PRD.md`, `docs/user-guides/AXI_Monitor_Configuration_Guide.md`
 
 **Protocols Supported:**
 
@@ -684,7 +684,7 @@ w_pkt = self.w_monitor._recvQ.popleft()
 - **Simplicity:** Queue-based verification without memory model overhead
 
 **📖 See:**
-- **`docs/guides/VERIFICATION_ARCHITECTURE_GUIDE.md`** - Complete guide with examples for all subsystems
+- **`docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md`** - Complete guide with examples for all subsystems
 - RTLDesignSherpa-DV repo CLAUDE.md - Framework-specific patterns
 - `projects/components/dmas/rapids/CLAUDE.md` - Detailed testbench architecture
 - `val/amba/test_apb_slave.py` - Reference example following this pattern
@@ -995,7 +995,7 @@ See `CLAUDE.md` for comprehensive guide on:
 
 ### 12.2 Design Guides
 
-- `docs/guides/AXI_Monitor_Configuration_Guide.md` - Monitor setup best practices
+- `docs/user-guides/AXI_Monitor_Configuration_Guide.md` - Monitor setup best practices
 - `projects/components/dmas/rapids/docs/RAPIDS_Validation_Status_Report.md` - RAPIDS test status
 - `projects/components/dmas/rapids/docs/rapids_beats_has/`, `.../rapids_beats_mas/` - RAPIDS architecture specification
 

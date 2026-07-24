@@ -205,7 +205,7 @@ axi4_slave_rd #(...) u_sram_slave_rd (...);
 - `rtl/amba/axi4/axi4_master_rd.sv` - Read interface wrapper
 - `rtl/amba/axi4/axi4_master_wr.sv` - Write interface wrapper
 - `rtl/amba/CLAUDE.md` - AMBA interface patterns
-- `docs/guides/AXI_Monitor_Configuration_Guide.md` (repo root) - Monitoring setup
+- `docs/user-guides/AXI_Monitor_Configuration_Guide.md` (repo root) - Monitoring setup
 
 ---
 
@@ -1231,7 +1231,7 @@ arbiter_rr_monbus #(.N(NUM_MONITORS)) u_mon_arbiter (
 **See Also:**
 - `rtl/amba/monitor/axi4_*_mon.sv` - AXI4 monitor modules
 - `rtl/amba/monitor/apb_monitor.sv` - APB monitor
-- `docs/guides/AXI_Monitor_Configuration_Guide.md` (repo root) - Monitor configuration best practices
+- `docs/user-guides/AXI_Monitor_Configuration_Guide.md` (repo root) - Monitor configuration best practices
 - `rtl/amba/monitor/arbiter_rr_pwm_monbus.sv` - Monitor bus arbiter (rr/wrr PWM variants)
 
 ---

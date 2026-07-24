@@ -20,8 +20,10 @@
 //==============================================================================
 // Description:
 //   Pipelined sorting network for multiple values using odd-even transposition
-//   sort algorithm. Sorts NUM_VALS values in ascending order over NUM_VALS
-//   pipeline stages. Each stage performs parallel comparisons and swaps.
+//   sort algorithm. Sorts NUM_VALS values in DESCENDING order (largest at the
+//   LSB) over NUM_VALS pipeline stages -- the compare-swap swaps when
+//   w_values[i] < w_values[i+1], moving the larger value to the lower index.
+//   Each stage performs parallel comparisons and swaps.
 //   Fully pipelined for high throughput with deterministic latency.
 //
 //------------------------------------------------------------------------------
@@ -42,7 +44,7 @@
 //------------------------------------------------------------------------------
 //   - Pipelined operation: NUM_VALS clock cycles latency
 //   - Input: Concatenated values [NUM_VALS*SIZE-1:0] (value 0 at LSB)
-//   - Output: Sorted ascending order (smallest at LSB)
+//   - Output: Sorted DESCENDING order (largest at LSB)
 //   - Throughput: One sort result per clock cycle (fully pipelined)
 //   - Algorithm: Odd-even transposition sort (compare-swap network)
 //   - Resource usage: O(NUM_VALS^2) comparators, O(NUM_VALS^2 * SIZE) registers

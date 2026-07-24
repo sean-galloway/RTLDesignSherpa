@@ -8,14 +8,24 @@
 
 ## The Handbook (repo memory) - READ THIS FIRST
 
-`docs/handbook/INDEX.md` is the repository's working memory: design rules
-(`design/`), DV practice (`dv/`), and FPGA process (`fpga/`) as atomic,
-wikilinked notes - each rule recorded WITH the failure that taught it.
+**`vault/handbook/INDEX.md` is the SINGLE SOURCE OF TRUTH for every skill and
+method in this repository.** It is the repo's working memory: design rules
+(`design/`), DV practice (`dv/`), FPGA process (`fpga/`), and documentation
+practice (`authoring/`) as atomic, wikilinked notes - each rule recorded WITH
+the failure that taught it.
 
-- Skills (`.claude/skills/`, auto-discovered) are signposts into the handbook.
+- **Skills (`.claude/skills/`, auto-discovered) are signposts only.** A skill
+  names its canonical handbook note and stops. Method detail does not live in
+  a skill file.
+- **Methodology does not live next to the code.** No `README.md` beside a tool
+  restating how to use it, no how-to in a docstring beyond what a reader of
+  that one file needs, and no canonical process document outside the repo. A
+  second copy is how documentation rots - the copy nobody edits is the one the
+  next session reads. Point at the handbook note instead.
 - /GLOBAL_REQUIREMENTS.md remains the enforcement authority and wins on conflict.
 - When you learn a durable lesson, add it to the relevant handbook note -
-  that is where future sessions will look.
+  that is where future sessions will look. If no note fits, create one and
+  index it; do not park the lesson in a CLAUDE.md or a skill.
 
 ## Repository Philosophy
 
@@ -786,7 +796,7 @@ cat rtl/*/TASKS.md
 
 ⚠️ **AXI Monitor Packet Congestion**
 - **Issue:** Enabling all packet types simultaneously overwhelms monitor bus
-- **Solution:** Use separate test configurations (see `docs/guides/AXI_Monitor_Configuration_Guide.md`)
+- **Solution:** Use separate test configurations (see `docs/user-guides/AXI_Monitor_Configuration_Guide.md`)
 - **Rule:** Never enable `cfg_compl_enable` and `cfg_perf_enable` together
 
 ⚠️ **Event Reported Feedback**

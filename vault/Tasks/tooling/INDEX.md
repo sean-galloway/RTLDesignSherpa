@@ -1,0 +1,42 @@
+<!-- Managed by the `tasks` convention: see /vault/Tasks/INDEX.md. -->
+
+# Tooling tasks
+
+Repo tooling, scripts, and process work.
+
+| Page | Count | What |
+|---|---|---|
+| [active.md](active.md) | 1 | in progress right now |
+| [open.md](open.md) | 6 | accepted, not started |
+| [closed.md](closed.md) | 1 | done (kept for history) |
+| [dropped.md](dropped.md) | 0 | ended without completing |
+
+## Active
+
+- **TOOL-008** (P1) — redo the Makefiles from scratch. Live in `val/amba`
+  (`make/tests.mk` + four-line `val/amba/Makefile`): worker count derived
+  from cores and RAM (was a hardcoded 48 on an 8-core box — this killed a
+  machine), glob-discovered tests, 2160 targets from ~180 lines. **Blocked on
+  Sean's full validation run** — nothing swapped in or pushed until then.
+- **TOOL-001** — Migrate the remaining areas into /vault/Tasks/<area>/ (amba pilot,
+  pumice, common and docs-review done; awaiting Sean's sign-off on lifecycle
+  split + area granularity for the batch).
+
+## Open
+
+- **TOOL-003** — one gate that actually runs `filelist_registry --check`.
+  Shared deliverable for COMMON-010 / AMBA TASK-026; today nothing runs it.
+- **TOOL-002** — migrate the 7 remaining method docs out of `bin/` into the
+  handbook, per the single-source-of-truth rule in CLAUDE.md.
+- **TOOL-004** — finish validating the cloud bootstrap: the oss-cad-suite
+  download path and a clean-box run have never executed.
+- **TOOL-006** — triage the 18 Dependabot vulnerabilities on `main`.
+- **TOOL-005** — `env_python` hardcodes `/mnt/data/tools`; make the prefix a
+  variable so the PATH ordering is not the user's problem.
+- **TOOL-007** — two RDS-DV arbiter-BFM gaps: a stubbed round-robin compliance
+  check and no saturating profile. Together they let a starving arbiter pass.
+
+## Note
+
+This area's own historical backlog still lives in
+[/TOOLING_TODO.md](../../../TOOLING_TODO.md) and migrates here as part of TOOL-001.

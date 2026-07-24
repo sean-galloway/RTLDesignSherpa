@@ -119,12 +119,14 @@ The ICG module reduces dynamic power consumption by:
 - **Register Power**: Prevents unnecessary flip-flop transitions when data is not changing
 - **Combinational Power**: Reduces spurious switching in logic fed by gated registers
 
-### Power Savings Calculation
+### Power Savings
 
-Typical power savings achievable:
-- **Clock Network**: 20-40% reduction in clock tree power
-- **Sequential Logic**: 30-60% reduction in flip-flop power
-- **Overall Dynamic Power**: 10-30% depending on gating efficiency
+Clock gating removes switching on the gated clock branch while a block is idle.
+The actual saving is **design- and technology-specific** — it depends on the
+activity factor, gating ratio, process node, and clock-tree structure — so no
+fixed percentage applies here. Quantify it from synthesis/power analysis of your
+own design rather than a generic figure. (Earlier revisions of this page quoted
+20-40% / 30-60% / 10-30% numbers that had no source or stated conditions.)
 
 ## Design Considerations
 

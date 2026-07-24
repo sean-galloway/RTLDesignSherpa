@@ -228,6 +228,11 @@ merged_coverage*/
 coverage_report/
 
 .obsidian
+
+# Any virtualenv at the repo root, however it is named. A bare `venv` entry
+# missed `venv-py3.11` (an old interpreter's venv kept aside) and 41 of its
+# files were committed by a `git add -A`.
+venv*/
 status.txt
 
 # Allow documentation files for Claude Code

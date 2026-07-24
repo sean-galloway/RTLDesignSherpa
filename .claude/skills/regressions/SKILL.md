@@ -5,7 +5,7 @@ description: How to run a regression correctly - always "make clean-all && make 
 
 # regressions
 
-READ FIRST: docs/handbook/dv/running-regressions.md (the handbook is the repo's memory; this
+READ FIRST: vault/handbook/dv/running-regressions.md (the handbook is the repo's memory; this
 skill is the signpost).
 
 The one rule agents break: **`clean-all` is not optional.** Stale
@@ -21,6 +21,6 @@ cd val/amba && make clean-all && make run-all-full-parallel
 Never substitute a bare `pytest <dir>` - that silently drops the level,
 parallelism, and reruns the target supplies. Report pass COUNTS, not just rc=0.
 
-The handbook root is docs/handbook/INDEX.md - design/, dv/, fpga/ areas,
+The handbook root is vault/handbook/INDEX.md - design/, dv/, fpga/ areas,
 atomic notes, wikilinked. When you learn a durable lesson in this domain,
 ADD IT TO THE HANDBOOK NOTE, not to this skill.

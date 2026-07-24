@@ -35,8 +35,7 @@ Finds the index of the most significant bit (MSB) that is set to '1' in the inpu
 - **`index[$clog2(WIDTH)-1:0]`** - Index of the last (highest) set bit
 
 ### Parameters
-- **`WIDTH`** - Width of input data vector (default: 32)
-- **`INSTANCE_NAME`** - String identifier for debug (default: "FLS")
+- **`WIDTH`** - Width of input data vector (default: 32) — the module's only parameter
 
 ## Implementation Details
 

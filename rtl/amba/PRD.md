@@ -73,7 +73,7 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 ### 📋 Task Tracking
 **Location:** `rtl/amba/PRD/`
 
-- **[Tasks](../../Tasks/amba/INDEX.md)** - Current work items and priorities
+- **[Tasks](../../vault/Tasks/amba/INDEX.md)** - Current work items and priorities
 - **[Task Specifications](PRD/)** - Individual task details (TASK-001, etc.)
 
 ### 🐛 Known Issues
@@ -595,7 +595,7 @@ runtime disable.
 - ⏳ Test configuration refinement
 - ⏳ Performance characterization
 
-**See:** `/Tasks/amba/` for detailed task breakdown
+**See:** `/vault/Tasks/amba/` for detailed task breakdown
 
 ### 9.2 Roadmap
 
@@ -673,7 +673,7 @@ runtime disable.
 | `rtl/amba/PRD.md` | This document (high-level overview) |
 | `rtl/amba/README.md` | Quick start and integration guide |
 | `rtl/amba/CLAUDE.md` | AI assistance guide |
-| `/Tasks/amba/` | Current work items |
+| `/vault/Tasks/amba/` | Current work items |
 | `rtl/amba/KNOWN_ISSUES/` | Bug tracking |
 | `docs/markdown/RTLAmba/` | **Detailed RTL documentation** |
 | `docs/user-guides/AXI_Monitor_Configuration_Guide.md` | Configuration best practices |
@@ -758,5 +758,5 @@ cat docs/markdown/RTLAmba/index.md
 - **Detailed RTL Docs:** `docs/markdown/RTLAmba/`
 - **Quick Start:** `README.md`
 - **AI Guidance:** `CLAUDE.md`
-- **Tasks:** `/Tasks/amba/`
+- **Tasks:** `/vault/Tasks/amba/`
 - **Issues:** `KNOWN_ISSUES/`

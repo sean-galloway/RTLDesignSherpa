@@ -53,7 +53,7 @@ The AMBA subsystem provides production-ready monitoring, observation, and bus-in
 ### 📋 This Subsystem
 - **[PRD](PRD.md)** - Product requirements (this subsystem)
 - **[CLAUDE](CLAUDE.md)** - AI assistance guide
-- **[Tasks](../../Tasks/amba/INDEX.md)** - Current work items
+- **[Tasks](../../vault/Tasks/amba/INDEX.md)** - Current work items
 - **[Known Issues](KNOWN_ISSUES/)** - Bug tracking
 
 ### 📖 Guides
@@ -575,7 +575,7 @@ typedef enum logic [3:0] {
 ### This Subsystem
 - **[PRD.md](PRD.md)** - Product requirements overview
 - **[CLAUDE.md](CLAUDE.md)** - AI assistance guide
-- **[Tasks](../../Tasks/amba/INDEX.md)** - Current work items
+- **[Tasks](../../vault/Tasks/amba/INDEX.md)** - Current work items
 - **[KNOWN_ISSUES/](KNOWN_ISSUES/)** - Bug tracking
 
 ### Detailed RTL Documentation
@@ -614,7 +614,7 @@ cat docs/markdown/RTLAmba/index.md
 cat docs/user-guides/AXI_Monitor_Configuration_Guide.md
 
 # Check tasks and issues
-cat Tasks/amba/active.md   # + open.md / closed.md
+cat vault/Tasks/amba/active.md   # + open.md / closed.md
 ls rtl/amba/KNOWN_ISSUES/
 ```
 

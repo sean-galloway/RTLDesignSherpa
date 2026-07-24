@@ -43,12 +43,14 @@ Implements a synchronous First-In-First-Out buffer for single clock domain appli
 - **`rd_almost_empty`** - Read domain almost empty flag
 
 ### Parameters
+- **`MEM_STYLE`** - Memory implementation (`FIFO_AUTO`/SRL/BRAM). The BRAM
+  branch registers the read path, so it behaves as registered even when
+  `REGISTERED=0`.
 - **`REGISTERED`** - Output mode: 0=mux mode (combinational), 1=flop mode (registered)
 - **`DATA_WIDTH`** - Width of data bus (default: 4)
 - **`DEPTH`** - FIFO depth in words (default: 4)
 - **`ALMOST_WR_MARGIN`** - Almost full threshold (default: 1)
 - **`ALMOST_RD_MARGIN`** - Almost empty threshold (default: 1)
-- **`INSTANCE_NAME`** - Debug identifier (default: "DEADF1F0")
 
 ## Architecture Overview
 
@@ -90,8 +92,8 @@ counter_bin #(.WIDTH(AW + 1), .MAX(D)) write_pointer_inst (
 #### Write Operation
 ```systemverilog
 always_ff @(posedge clk) begin
-    if (write) begin
-        r_mem[r_wr_addr] <= wr_data;
+    if (write && !wr_full) begin   // the !wr_full guard is REQUIRED: it stops a
+        mem[r_wr_addr] <= wr_data;  // write-while-full from clobbering unread data
     end
 end
 ```
@@ -204,14 +206,10 @@ rd_data ===========[ D0 ]=====  (1 cycle delay)
 - **Data width**: Should match datapath requirements
 
 ### Error Detection
-Built-in simulation checks:
-```systemverilog
-always_ff @(posedge clk) begin
-    if ((write && wr_full) == 1'b1) begin
-        $display("Error: %s write while fifo full, %t", INSTANCE_NAME, $time);
-    end
-end
-```
+**Note:** the current RTL does **not** contain any runtime `$display`
+overflow/underflow checks (and there is no `INSTANCE_NAME` parameter). The
+`!wr_full` write guard is the only overflow protection. If you need write-while-
+full / read-while-empty telemetry, add assertions in your own testbench.
 
 ## Performance Characteristics
 - **Throughput**: 1 operation per clock cycle (when not full/empty)

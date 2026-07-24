@@ -44,8 +44,6 @@ Converts an M-bit binary encoded input to a one-hot N-bit output where N = 2^M. 
 The decoder uses a generate loop to create comparison logic for each output bit:
 
 ```systemverilog
-assign data = 0;  // Initialize all outputs to 0
-
 genvar i;
 generate
     for (i = 0; i < N; i++) begin : gen_DECODER_LOOP
@@ -124,7 +122,9 @@ decoder #(.M(3), .N(8)) state_decoder (
 
 ## Design Notes
 - No error checking for invalid inputs (though all combinations are valid)
-- Output initialization ensures clean power-up behavior
+- Purely combinational: the generate loop drives every `data[i]` exactly once,
+  so all outputs are defined at all times (no separate initialization needed —
+  and none exists in the RTL)
 - Generate loop structure scales efficiently to any required size
 
 ## Navigation

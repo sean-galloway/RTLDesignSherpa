@@ -108,7 +108,7 @@
 - RTLDesignSherpa-DV repository - Full CocoTBFramework (components, BFMs, tbclasses), editable-installed into the venv
 
 **Verification Architecture:**
-- `docs/guides/VERIFICATION_ARCHITECTURE_GUIDE.md` - Complete verification patterns
+- `docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md` - Complete verification patterns
   - Three-layer architecture (TB + Scoreboard + Test)
   - Queue-based vs memory model verification
   - Mandatory testbench methods

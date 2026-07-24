@@ -67,8 +67,9 @@ always_comb begin
             w_next_valid_loc = i;
 end
 ```
-- Searches from highest to lowest index
-- Returns the highest-indexed free location
+- Iterates from the highest index down to 0, overwriting `w_next_valid_loc` on
+  every free slot — so the **last** assignment (index 0, if free) wins
+- Returns the **lowest-indexed** free location (e.g., all slots free → slot 0)
 - Returns -1 if no free locations available
 
 #### 2. Valid Tag Match Search
@@ -149,22 +150,11 @@ When `ENABLE = 0`:
 - Useful for disabling CAM without losing existing data
 
 ### Allocation Strategy
-- **First Available**: Uses highest-indexed free location
+- **First Available**: Uses the **lowest-indexed** free location (see the search
+  above). Functional behavior is correct either way; only the index order matters
+  when matching allocations to waveforms.
 - **Replacement**: No automatic replacement policy (must manually invalidate)
 - **Overflow Protection**: Prevents insertion when full
-
-### Debug Support
-The module includes simulation-only logic for waveform viewing:
-```systemverilog
-// synopsys translate_off
-logic [(N*DEPTH)-1:0] flat_r_tag_array;
-generate
-    for (j = 0; j < DEPTH; j++) begin : gen_flatten_memory
-        assign flat_r_tag_array[j*N+:N] = r_tag_array[j];
-    end
-endgenerate
-// synopsys translate_on
-```
 
 ## Usage Considerations
 - **Timing**: All lookups are combinational (single cycle)

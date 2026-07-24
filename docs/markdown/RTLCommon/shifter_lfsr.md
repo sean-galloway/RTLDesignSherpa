@@ -165,15 +165,19 @@ lfsr_done: ________       __________________╱‾‾‾╲_
 ```
 
 ### Sequence Example (3-bit LFSR, taps=[3,2])
+Feedback is `~^(lfsr & taps)` (XNOR reduction) with `taps = 3'b110`, and the
+next state is `{lfsr[1:0], feedback}`. Full period is 7 (all states except the
+all-ones lockout):
 ```
-Step | LFSR | Feedback | Next
------|------|----------|------
-0    | 001  | ~(1^0)=1 | 011
-1    | 011  | ~(1^1)=0 | 110  
-2    | 110  | ~(0^1)=1 | 101
-3    | 101  | ~(1^0)=1 | 011
-4    | 011  | ~(1^1)=0 | 110
-...  | ...  | ...      | ...
+Step | LFSR | lfsr & 110 | Feedback | Next
+-----|------|------------|----------|------
+0    | 001  | 000        | 1        | 011
+1    | 011  | 010        | 0        | 110
+2    | 110  | 110        | 1        | 101
+3    | 101  | 100        | 0        | 010
+4    | 010  | 010        | 0        | 100
+5    | 100  | 100        | 0        | 000
+6    | 000  | 000        | 1        | 001  (wraps to start; period 7)
 ```
 
 ## Applications

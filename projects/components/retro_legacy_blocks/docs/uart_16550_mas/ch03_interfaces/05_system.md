@@ -58,16 +58,16 @@ Baud Rate = pclk / (16 * Divisor)
 |----------|-------|-------|
 | RBR | Undefined | FIFO content |
 | THR | N/A | Write-only |
-| IER | 0x00 | Interrupts disabled |
-| IIR | 0x01 | No pending interrupt |
-| FCR | 0x00 | FIFOs disabled |
-| LCR | 0x00 | 5N1 format |
-| MCR | 0x00 | Outputs deasserted |
+| IER | 0x00 | Enable bits stored but unimplemented |
+| IIR | 0x02 | THR-empty pending at reset |
+| FCR | 0x00 | FIFO-enable interface bit clear |
+| LCR | 0x03 | 8N1 format |
+| MCR | 0x00 | Outputs deasserted (irq masked - OUT2=0) |
 | LSR | 0x60 | TX empty |
 | MSR | 0x00 | Inputs low |
 | SCR | 0x00 | Cleared |
-| DLL | 0x00 | Divisor = 0 |
-| DLM | 0x00 | Divisor = 0 |
+| DLL | 0x01 | Divisor LSB = 1 |
+| DLM | 0x00 | Divisor MSB = 0 |
 
 ### Signal States During Reset
 
@@ -82,11 +82,11 @@ Baud Rate = pclk / (16 * Divisor)
 
 ### Post-Reset Initialization
 
-1. Set baud rate (DLL, DLM via DLAB)
-2. Configure line format (LCR)
-3. Enable FIFOs if desired (FCR)
-4. Enable interrupts (IER)
-5. Configure modem control (MCR)
+1. Set baud rate (write DLL at 0x24, DLM at 0x28 directly - no DLAB toggle)
+2. Configure line format (LCR at 0x10)
+3. Enable FIFOs if desired (FCR at 0x0C)
+4. Configure modem control (MCR at 0x14); set OUT2 to enable the irq pin
+5. (IER at 0x04 is stored but does not enable/mask interrupts in this implementation)
 
 ## Reset Sequence
 
@@ -119,9 +119,10 @@ When idle (no TX/RX activity):
 
 ### Low Power Hints
 
-- Disable unused interrupts (IER = 0)
 - Use FIFO mode to reduce interrupt rate
-- Use auto flow control (AFE) to prevent overflow
+- Set a higher RX trigger level to reduce interrupt frequency
+
+(Note: IER masking and auto flow control are not implemented in this RTL.)
 
 ## External Connections
 
