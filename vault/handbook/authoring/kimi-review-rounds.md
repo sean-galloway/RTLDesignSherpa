@@ -28,7 +28,7 @@ for one call are pre-split into `parts/part_NN`. Results land in
 `<results>/<mode>-<model>/round_N/` as `<unit>.md` + `<unit>.meta.json`,
 with the inputs snapshotted into `_bundle_snapshot/`.
 
-## The seven rules
+## The eight rules
 
 Each one is here because ignoring it cost real work.
 
@@ -89,6 +89,29 @@ Each one is here because ignoring it cost real work.
      cornered.* Revert the fix, confirm the test goes RED, restore. An
      assertion that never fails on the bug it was written for is decoration.
      See [[randomization]] and [[formal]].
+8. **Sweep the area's meta-docs, not just its module pages.** A Kimi bundle is
+   module docs plus RTL, so it never sees the area's `README.md` / `PRD.md` /
+   `overview.md` - and those rot hardest, because a structural change updates
+   the RTL and leaves the summary behind. When reviewing an area, audit them by
+   hand against [[doc-placement]]:
+
+   - **Count and category drift.** *Case: `rtl/common/README.md` claimed "86
+     modules across 9 categories" after the arithmetic split left 55; the
+     matching `docs/markdown/RTLCommon/overview.md` still listed "Arithmetic &
+     Math (25+ modules)" as a live category. Both copies rotted because the
+     split doubled the update burden - the exact failure the one-source rule
+     predicts.* Recompute counts from `ls rtl/<area>/*.sv`.
+   - **Methodology in the RTL tree.** A style guide, a how-to, or a standalone
+     guide beside the code is misplaced - it belongs in `vault/handbook/` (method)
+     or `docs/markdown/` (a reader-facing guide). *Case: a 17 KB
+     `DOCUMENTATION_STYLE_GUIDE.md` sat in `rtl/common/`; moved to
+     [[module-doc-template]].*
+   - **A README beside code should be a link, not a second copy.** *Case:
+     `rtl/common/README.md` was a 14 KB standalone quick-start; the guide moved
+     to `docs/markdown/RTLCommon/quickstart.md` and the RTL file became a
+     pointer.*
+
+   The authority on where each kind of doc lives is [[doc-placement]].
 
 ## Endpoint
 

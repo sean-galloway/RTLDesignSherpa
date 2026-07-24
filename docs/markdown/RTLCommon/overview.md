@@ -52,10 +52,7 @@ The RTLCommon library is built on the following core principles:
 
 ```
 RTLCommon Library
-├── Arithmetic & Math (25+ modules)
-│   ├── Basic Operations (add, subtract, multiply)
-│   ├── Advanced Adders (Brent-Kung, Kogge-Stone)
-│   └── Specialized Math Functions
+├── (Arithmetic & Math moved to rtl/math/ — see RTLMath book)
 ├── Data Integrity (6 modules)
 │   ├── Error Detection (CRC, Checksum, Parity)
 │   └── Error Correction (Hamming ECC)
@@ -89,29 +86,10 @@ RTLCommon Library
 
 ### 1. Arithmetic and Mathematical Operations
 
-The arithmetic category provides the foundation for digital signal processing and general computation.
-
-#### Basic Arithmetic Building Blocks
-- **Full Adders**: Single-bit and multi-bit addition with carry propagation
-- **Half Adders**: Simplified 2-input addition without carry-in
-- **Subtractors**: Complement-based subtraction with borrow handling
-- **Add/Subtract Units**: Combined addition/subtraction functionality
-
-#### High-Performance Parallel Adders
-- **Kogge-Stone Adders**: Minimal depth parallel prefix adders for maximum speed
-- **Brent-Kung Adders**: Area-efficient parallel prefix adders with reasonable speed
-- **Carry-Lookahead**: Fast carry generation for moderate bit widths
-- **Carry-Save**: Multiple operand addition with reduced carry propagation
-
-#### Multiplication Architectures
-- **Wallace Tree**: Fast parallel multiplier using carry-save addition
-- **Dadda Tree**: Optimized multiplier with reduced partial product stages
-- **Basic Cell**: Fundamental multiplication building blocks
-
-**Design Considerations:**
-- Speed vs Area trade-offs clearly documented
-- Power consumption characteristics provided
-- Technology-specific optimization guidance included
+**Moved.** The `math_*` arithmetic library (adders, subtractors, multipliers,
+compressors, prefix cells, and the BF16 / FP8 / FP16 / FP32 / IEEE-754
+floating-point modules) is now its own subsystem and its own book:
+**[RTLMath](../RTLMath/index.md)** — RTL in `rtl/math/`, tests in `val/math/`.
 
 ### 2. Data Integrity and Error Management
 

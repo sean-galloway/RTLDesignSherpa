@@ -1,27 +1,16 @@
-<!-- RTL Design Sherpa Documentation Header -->
-<table>
-<tr>
-<td width="80">
-  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
-    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
-  </a>
-</td>
-<td>
-  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
-  <sub>
-    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
-    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
-    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
-  </sub>
-</td>
-</tr>
-</table>
-
+---
+title: Module documentation template
+summary: The standard section structure for a docs/markdown/*.md module page - header, parameters, ports, timing, wavedrom, usage, related, test ref.
 ---
 
-<!-- End Header -->
+> This is the canonical structure for a per-module documentation page under
+> `docs/markdown/` (RTLCommon, RTLMath, RTLAmba). It moved here from
+> `rtl/common/DOCUMENTATION_STYLE_GUIDE.md` on 2026-07-24 - a style guide is
+> methodology and must not live in the RTL tree. Related: [[doc-pipeline]] (how
+> the pages become PDF books), [[kimi-review-rounds]] (how they are QC'd),
+> [[humanization-voice]] (the voice pass).
 
-# Common RTL Library - Documentation Style Guide
+# Module documentation template
 
 **Version:** 1.0
 **Last Updated:** 2025-10-15

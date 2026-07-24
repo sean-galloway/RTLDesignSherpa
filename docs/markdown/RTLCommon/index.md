@@ -28,6 +28,7 @@ This directory contains documentation for the common RTL modules library, provid
 ## Overview
 
 - **[Overview](overview.md)** - Complete overview of the RTLCommon library architecture and design philosophy
+- **[Quick Start Guide](quickstart.md)** - Browse, integrate, common use cases, pitfalls, and commands
 
 ## Module Categories
 

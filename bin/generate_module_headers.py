@@ -18,7 +18,8 @@
 Module Header Generator
 
 Automatically generates comprehensive header documentation for SystemVerilog
-modules based on the DOCUMENTATION_STYLE_GUIDE.md standard.
+modules based on the module-doc template
+(vault/handbook/authoring/module-doc-template.md).
 
 Features:
 - Parses module parameters and ports

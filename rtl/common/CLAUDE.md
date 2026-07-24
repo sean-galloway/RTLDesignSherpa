@@ -680,7 +680,7 @@ verilator --lint-only rtl/common/module.sv
 ## Key Files for Reference
 
 - **rtl/common/PRD.md** - Detailed module specifications
-- **rtl/common/README.md** - Quick start guide
+- **docs/markdown/RTLCommon/quickstart.md** - Quick start guide (rtl/common/README.md links here)
 - **val/common/test_*.py** - Test examples
 - **/CLAUDE.md** - Repository-wide AI guidance
 - **/PRD.md** - Master project requirements
