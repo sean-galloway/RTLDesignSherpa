@@ -33,10 +33,23 @@ does not. The doc was right and `fifo_async.sv`'s header was stale; fixed the
 RTL comment. Reviewers state the direction confidently and can have it
 backwards — check the tree, not the two texts against each other.
 
-`cdc_part_02` (all four on the apb5 CDC pages): DEPTH=6 is documented legal but
-cannot elaborate (the wrapper derives `CDC_FIFO_DEPTH = max(DEPTH,4)` and feeds
-Gray-mode `gaxi_fifo_async`, which `$error`s on non-power-of-2, and
-`USE_JOHNSON` is not exposed); the one-sided-reset section claimed safety that
+`cdc_part_02` (all four on the apb5 CDC pages). The DEPTH=6 one turned into an
+**RTL fix, not a doc fix** — and the first attempt at it was wrong in an
+instructive way. The finding said "DEPTH=6 is documented legal but fails
+elaboration", so the obvious move was to narrow the documented range to
+{2,4,8}. That makes the doc agree with the RTL by promoting a limitation to a
+specification. Sean's call: DEPTH=6 should *work*. The constraint was never
+DEPTH — it was `apb5_slave_cdc` hardcoding an encoding. It derives
+`CDC_FIFO_DEPTH = max(DEPTH,4)` into two Gray-mode `gaxi_fifo_async` instances,
+and Gray only closes on a power of 2; `gaxi_fifo_async`'s own `$error` even
+says "Set USE_JOHNSON=1 for arbitrary depths". The wrapper never plumbed the
+parameter. Now exposed (`0` Gray / `1` Johnson / `-1` auto, default auto) on
+both the cmd and rsp FIFOs, so power-of-2 builds keep Gray unchanged and 6
+auto-selects Johnson. `USE_JOHNSON=0` with `DEPTH=6` remains an elaboration
+error by design — the default resolves an unexpressed choice, it never
+overrides an expressed one. See commit `bfa905db`.
+
+Also in `cdc_part_02`: the one-sided-reset section claimed safety that
 does not exist (the crossed pointer copy is a LIVE synchronizer, so a one-sided
 reset re-presents commands and can fabricate responses rather than discarding
 cleanly); `parity_error_wdata/ctrl` were grouped with the aclk backend but are
