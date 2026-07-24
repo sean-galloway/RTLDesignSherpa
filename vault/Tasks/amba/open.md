@@ -278,8 +278,8 @@ returning nothing.
 ---
 
 ## AMBA-FILELIST-CONSISTENCY — normalize where .f lists live
-**Status:** open 2026-07-24
-**Priority:** P2
+**Status:** open 2026-07-24 — **the RTL-area filelists are already consistent; the actual stragglers are all under projects/ and moved to TOOL-010.** This entry is kept only to record that rtl/amba, rtl/common, rtl/math are clean.
+**Priority:** P3
 
 The convention (see [[filelists]]) is: a module's `.f` lives in the owning
 area's **`filelists/` dir**, and `bin/filelists.toml` REGISTERS it (the toml is
