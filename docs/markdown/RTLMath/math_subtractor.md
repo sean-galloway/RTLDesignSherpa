@@ -67,11 +67,11 @@ module math_subtractor_full (
 module math_subtractor_ripple_carry #(
     parameter int N = 4
 ) (
-    input  logic [N-1:0] i_a,       // Minuend
-    input  logic [N-1:0] i_b,       // Subtrahend
-    input  logic         i_b_in,    // Borrow input
-    output logic [N-1:0] ow_d,      // Difference
-    output logic         ow_b       // Borrow output
+    input  logic [N-1:0] i_a,            // Minuend
+    input  logic [N-1:0] i_b,            // Subtrahend
+    input  logic         i_borrow_in,    // Borrow input
+    output logic [N-1:0] ow_difference,  // Difference
+    output logic         ow_carry_out    // Borrow out (carry out)
 );
 ```
 
@@ -81,11 +81,13 @@ module math_subtractor_ripple_carry #(
 module math_subtractor_carry_lookahead #(
     parameter int N = 4
 ) (
-    input  logic [N-1:0] i_a,       // Minuend
-    input  logic [N-1:0] i_b,       // Subtrahend
-    input  logic         i_b_in,    // Borrow input
-    output logic [N-1:0] ow_d,      // Difference
-    output logic         ow_b       // Borrow output
+    input  logic [N-1:0] i_a,            // Minuend
+    input  logic [N-1:0] i_b,            // Subtrahend
+    input  logic         i_borrow_in,    // Borrow input
+    output logic [N-1:0] ow_difference,  // Difference
+    output logic [N-1:0] ow_d,           // Alias of ow_difference
+    output logic         ow_borrow_out,  // Borrow output
+    output logic         ow_b            // Alias of ow_borrow_out
 );
 ```
 
@@ -124,13 +126,31 @@ No parameters (fixed single-bit operation).
 
 ### N-bit Subtractor Ports
 
+The two N-bit subtractors do **not** share a port list -- check which one you
+are instantiating.
+
+`math_subtractor_ripple_carry`:
+
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | i_a | Input | N | Minuend vector |
 | i_b | Input | N | Subtrahend vector |
-| i_b_in | Input | 1 | Initial borrow input |
-| ow_d | Output | N | Difference vector (A - B - Bin) |
-| ow_b | Output | 1 | Final borrow output |
+| i_borrow_in | Input | 1 | Initial borrow input |
+| ow_difference | Output | N | Difference vector (A - B - Bin) |
+| ow_carry_out | Output | 1 | Final borrow out (carry out) |
+
+`math_subtractor_carry_lookahead` -- same inputs, but every output is exposed
+twice under two names (`assign ow_d = ow_difference; assign ow_b = ow_borrow_out;`):
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| i_a | Input | N | Minuend vector |
+| i_b | Input | N | Subtrahend vector |
+| i_borrow_in | Input | 1 | Initial borrow input |
+| ow_difference | Output | N | Difference vector |
+| ow_d | Output | N | Alias of `ow_difference` |
+| ow_borrow_out | Output | 1 | Final borrow output |
+| ow_b | Output | 1 | Alias of `ow_borrow_out` |
 
 ## Functionality
 
@@ -217,9 +237,9 @@ logic borrow;
 math_subtractor_ripple_carry #(.N(8)) u_sub (
     .i_a(a),
     .i_b(b),
-    .i_b_in(1'b0),      // No initial borrow
-    .ow_d(diff),
-    .ow_b(borrow)       // Borrow indicates A < B
+    .i_borrow_in(1'b0),      // No initial borrow
+    .ow_difference(diff),
+    .ow_carry_out(borrow)    // Borrow indicates A < B
 );
 
 // Example: 100 - 50 = 50
@@ -239,8 +259,8 @@ logic [7:0] a, b, diff;
 logic underflow;
 
 math_subtractor_ripple_carry #(.N(8)) u_sub (
-    .i_a(a), .i_b(b), .i_b_in(1'b0),
-    .ow_d(diff), .ow_b(underflow)
+    .i_a(a), .i_b(b), .i_borrow_in(1'b0),
+    .ow_difference(diff), .ow_carry_out(underflow)
 );
 
 // Borrow output indicates underflow (A < B)
@@ -293,18 +313,18 @@ logic borrow_low, borrow_high;
 math_subtractor_ripple_carry #(.N(8)) u_sub_low (
     .i_a(a_low),
     .i_b(b_low),
-    .i_b_in(1'b0),
-    .ow_d(diff_low),
-    .ow_b(borrow_low)
+    .i_borrow_in(1'b0),
+    .ow_difference(diff_low),
+    .ow_carry_out(borrow_low)
 );
 
 // High byte (chain borrow from low)
 math_subtractor_ripple_carry #(.N(8)) u_sub_high (
     .i_a(a_high),
     .i_b(b_high),
-    .i_b_in(borrow_low),
-    .ow_d(diff_high),
-    .ow_b(borrow_high)
+    .i_borrow_in(borrow_low),
+    .ow_difference(diff_high),
+    .ow_carry_out(borrow_high)
 );
 
 logic [15:0] diff_16 = {diff_high, diff_low};
@@ -414,17 +434,17 @@ math_adder_ripple_carry u_alu (
 ```systemverilog
 // WRONG: Ignoring borrow output
 math_subtractor_ripple_carry u_sub (
-    .i_a(a), .i_b(b), .i_b_in(1'b0),
-    .ow_d(diff),
-    .ow_b()  // IGNORED - miss underflow detection!
+    .i_a(a), .i_b(b), .i_borrow_in(1'b0),
+    .ow_difference(diff),
+    .ow_carry_out()  // IGNORED - miss underflow detection!
 );
 
 // RIGHT: Check borrow for underflow
 logic underflow;
 math_subtractor_ripple_carry u_sub (
-    .i_a(a), .i_b(b), .i_b_in(1'b0),
-    .ow_d(diff),
-    .ow_b(underflow)  // Indicates A < B
+    .i_a(a), .i_b(b), .i_borrow_in(1'b0),
+    .ow_difference(diff),
+    .ow_carry_out(underflow)  // Indicates A < B
 );
 ```
 

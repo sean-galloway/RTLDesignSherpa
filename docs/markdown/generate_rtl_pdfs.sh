@@ -96,9 +96,9 @@ fi
 
 # ---- Math (the math_* family + its overview) ----
 if want math; then
-  mapfile -t MATH < <(ls RTLCommon/math_*.md 2>/dev/null)
-  gen_index RTLCommon/_book_math_index.md "RTL Math Library" RTLCommon/math_library.md "${MATH[@]}"
-  build_book "RTL Math Library" "${SUB}" RTLCommon/_book_math_index.md RTL_Math_Library
+  mapfile -t MATH < <(ls RTLMath/math_*.md 2>/dev/null)
+  gen_index RTLMath/_book_math_index.md "RTL Math Library" RTLMath/math_library.md "${MATH[@]}"
+  build_book "RTL Math Library" "${SUB}" RTLMath/_book_math_index.md RTL_Math_Library
 fi
 
 # ---- CDC (dedicated cross-cutting book: primer + primitives + gray + slaves) ----

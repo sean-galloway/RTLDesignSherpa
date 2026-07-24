@@ -7,7 +7,7 @@ Process and rationale: [kimi-review-rounds](../../handbook/authoring/kimi-review
 |---|---|
 | [active](active.md) | 1 |
 | [open](open.md) | 4 |
-| [closed](closed.md) | 0 |
+| [closed](closed.md) | 1 |
 | [dropped](dropped.md) | 0 |
 
 ## Active
@@ -20,6 +20,12 @@ Process and rationale: [kimi-review-rounds](../../handbook/authoring/kimi-review
   the largest block), apb/apb5, axi*, axis*, and the AMBA half of cdc. Per-area
   checklist is at the top of the task. Some findings are RTL defects, not doc
   bugs — triage each.
+
+## Recently closed
+
+- **DOCREV-006** — math docs moved to `docs/markdown/RTLMath/` (2026-07-23),
+  matching `rtl/math/` and `val/math/`. Kimi critiques deliberately left citing
+  the old paths; they are evidence, not documentation.
 
 ## Open shortlist
 
