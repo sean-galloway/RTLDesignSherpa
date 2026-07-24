@@ -1,6 +1,6 @@
 ---
 title: Kimi review rounds
-summary: External doc review and humanization via Kimi - bundle, dispatch, rounds, and the five rules each failure taught.
+summary: External doc review and humanization via Kimi - bundle, dispatch, rounds, the eight rules each failure taught, and the direct-mode runbook (model kimi-k3, key off-repo).
 ---
 
 # Kimi review rounds
@@ -123,7 +123,7 @@ scripts read the endpoint from the environment instead:
 | | `KIMI_BASE_URL` | `KIMI_API_KEY` | `KIMI_MODEL` |
 |---|---|---|---|
 | local | `http://localhost:4000/v1` (default) | `sk-x` (default) | `kimi-k2` (default) |
-| direct | `https://api.moonshot.ai/v1` | real `MOONSHOT_API_KEY` | real Moonshot model id |
+| direct | `https://api.moonshot.ai/v1` | real Moonshot key (see runbook) | **`kimi-k3`** (required) |
 
 `kimi-k2` is a **proxy alias** routed to the frontier model, not a model name;
 sending it to `api.moonshot.ai` returns 404. `run_batch.py` preflights this and
@@ -145,6 +145,58 @@ script and must never be committed.
 
 Do not `pkill -f litellm` to restart the proxy - target the PID. A broad pkill
 once killed the working shell.
+
+## Running it -- the direct-mode runbook
+
+The proxy above is for the workstation that had litellm on `localhost:4000`. On
+any other box there is no proxy: run **direct** against Moonshot. This is the
+step-by-step that works, so it does not get re-derived each time.
+
+**Model: always `kimi-k3`.** Not `kimi-k2` (that is a proxy alias and 404s
+against `api.moonshot.ai`), not `kimi-k2.6/.7`. `KIMI_MODEL=kimi-k3`, always.
+
+**Key: loaded inline, NEVER written into the repo.** The Moonshot key lives in
+the user's out-of-repo secrets store (`<out-of-repo secrets store>`, under the label
+`KIMI-LABEL` -- the value is on the line after the label). Load it as an
+env var *at command time*; do not echo it, do not put it in `env_python`, a
+`.env`, a script, or any tracked file. The path to the key file is fine to
+record; the key itself must never touch the repo.
+
+    KEY=$(grep -A1 'KIMI-LABEL' <out-of-repo secrets store> | tail -1 | tr -d '[:space:]')
+    # sanity: `curl -s -o /dev/null -w '%{http_code}' https://api.moonshot.ai/v1/models
+    #          -H "Authorization: Bearer $KEY"` should print 200
+
+**Everything off-repo.** The bundle and the raw results live OUTSIDE the working
+tree (e.g. `~/rtl-doc-review/{bundle,results}`) -- confirm with
+`git ls-files --error-unmatch` before pointing anything there. The raw run is
+not committed; only the curated critiques land in `docs/review/kimi/round_N/`.
+
+The three commands, serial, correctness before voice:
+
+    # 1. rebuild the WHOLE bundle from the current tree (rule 1: send a subset, build all)
+    python3 bin/build_review_bundle.py ~/rtl-doc-review/bundle
+
+    # 2. correctness pass for one area (dry-run first to see the units)
+    KEY=$(grep -A1 'KIMI-LABEL' <out-of-repo secrets store> | tail -1 | tr -d '[:space:]')
+    KIMI_API_KEY=$KEY KIMI_BASE_URL=https://api.moonshot.ai/v1 KIMI_MODEL=kimi-k3         python3 bin/review/run_batch.py qc         --books ~/rtl-doc-review/bundle --results ~/rtl-doc-review/results         --only common --dry-run
+    # drop --dry-run to send. Serial; a 20-unit round takes well over an hour.
+    # --resume N re-enters round_N and sends only its missing units.
+
+    # 3. humanize -- ONLY after correctness is integrated (never voice-pass a wrong doc)
+    KIMI_API_KEY=$KEY KIMI_BASE_URL=https://api.moonshot.ai/v1 KIMI_MODEL=kimi-k3         python3 bin/review/run_batch.py humanize         --books ~/rtl-doc-review/bundle --results ~/rtl-doc-review/results --only common
+
+**Coverage gap -- the meta-docs.** `build_review_bundle.py` builds a unit per
+`docs/markdown/**/_book_*_index.md` and includes only the docs that index
+*links* -- which is `overview.md` + the module pages, NOT `index.md`,
+`quickstart.md`, or a section `README`. For a "send ALL md" pass (DOCREV-009),
+add the missing meta-docs as their own unit under `bundle/books/<area>_meta/`
+(a `DOCS.md` of the meta-doc text + an `RTL.sv` listing the area's module names
+as ground truth for count/existence claims). `--only <area>` then covers both
+`<area>` and `<area>_meta` by prefix.
+
+**Wait for the whole round before acting on it.** Nothing gets fixed while
+multitasking -- one area's correctness round runs to completion, gets integrated
+and verified, and only then does the next area or the humanize pass start.
 
 ## State
 

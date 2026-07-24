@@ -26,6 +26,12 @@ Voice pass: [[humanization-voice]]. Off-workstation runs: [[cloud-sandbox]].
 Scripts: bin/build_review_bundle.py (rebuild ALL units, always) then
 bin/review/run_batch.py {qc|humanize} (serial, never overwrites a round).
 
+Direct-mode runbook (off the litellm proxy) is in the handbook note: model is
+ALWAYS kimi-k3; the Moonshot key loads inline from the out-of-repo secrets store and
+NEVER enters the repo; bundle + results live outside the working tree. The
+bundle misses index/readme/overview (only what _book_*_index links) -- add an
+<area>_meta unit for a send-ALL-md pass.
+
 The handbook root is vault/handbook/INDEX.md - design/, dv/, fpga/, authoring/ areas,
 atomic notes, wikilinked. When you learn a durable lesson in this domain,
 ADD IT TO THE HANDBOOK NOTE, not to this skill.
