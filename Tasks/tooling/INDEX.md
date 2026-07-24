@@ -6,15 +6,15 @@ Repo tooling, scripts, and process work.
 
 | Page | Count | What |
 |---|---|---|
-| [active.md](active.md) | 2 | in progress right now |
+| [active.md](active.md) | 1 | in progress right now |
 | [open.md](open.md) | 6 | accepted, not started |
-| [closed.md](closed.md) | 0 | done (kept for history) |
+| [closed.md](closed.md) | 1 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing |
 
 ## Active
 
-- **TOOL-008** (P1) — redo the Makefiles from scratch. PoC built
-  (`make/tests.mk` + four-line `val/amba/Makefile.poc`): worker count derived
+- **TOOL-008** (P1) — redo the Makefiles from scratch. Live in `val/amba`
+  (`make/tests.mk` + four-line `val/amba/Makefile`): worker count derived
   from cores and RAM (was a hardcoded 48 on an 8-core box — this killed a
   machine), glob-discovered tests, 2160 targets from ~180 lines. **Blocked on
   Sean's full validation run** — nothing swapped in or pushed until then.
