@@ -7,7 +7,7 @@
 // Module: math_compressor_4to2
 // Purpose: 2x Math Adder Full module
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

@@ -7,7 +7,7 @@
 // Module: axi5_master_stub
 // Purpose: AXI5 Master Stub module (combined read and write)
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

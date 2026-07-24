@@ -7,7 +7,7 @@
 // Module: axi4_master_rd_cg
 // Purpose: Axi4 Master Rd Cg module
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

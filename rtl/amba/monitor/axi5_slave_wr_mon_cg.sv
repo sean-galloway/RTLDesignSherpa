@@ -9,7 +9,7 @@
 //
 // This module wraps axi5_slave_wr_mon with clock gating support.
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

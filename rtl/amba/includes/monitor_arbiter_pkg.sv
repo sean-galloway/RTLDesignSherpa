@@ -7,7 +7,7 @@
 // Module: monitor_arbiter_pkg
 // Purpose: Arbiter and Core protocol event codes
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

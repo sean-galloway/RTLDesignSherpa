@@ -7,7 +7,7 @@
 # Module: ParserHelper
 # Purpose: Takes two arrays and returns the Max left and Min right component.
 #
-# Documentation: rtl/common/PRD.md
+# Documentation: docs/markdown/RTLCommon/index.md
 # Subsystem: common
 #
 # Author: sean galloway

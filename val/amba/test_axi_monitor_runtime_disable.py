@@ -7,7 +7,7 @@
 # Module: test_axi_monitor_runtime_disable
 # Purpose: runtime-disable slot-leak regression (reporter auto-retire)
 #
-# Documentation: rtl/amba/PRD.md
+# Documentation: docs/markdown/RTLAmba/index.md
 # Subsystem: tests
 #
 # Author: sean galloway

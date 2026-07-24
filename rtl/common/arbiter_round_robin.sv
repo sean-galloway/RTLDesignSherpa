@@ -7,7 +7,7 @@
 // Module: arbiter_round_robin
 // Purpose: //   Parameterizable round-robin arbiter with optional ACK protocol support.
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

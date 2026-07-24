@@ -7,7 +7,7 @@
 // Module: math_multiplier_carry_save
 // Purpose: Math Multiplier Carry Save module
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

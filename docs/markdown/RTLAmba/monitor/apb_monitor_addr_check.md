@@ -228,7 +228,7 @@ Program `cfg_addr_range_low[i] == cfg_addr_range_high[i]` to turn a range into a
 ### Documentation
 - Packet format: `docs/markdown/RTLAmba/includes/monitor_package_spec.md`
 - Architecture: `docs/markdown/RTLAmba/shared/README.md`
-- Design Guide: `rtl/amba/PRD.md`
+- Design Guide: `docs/markdown/RTLAmba/index.md`
 
 ---
 

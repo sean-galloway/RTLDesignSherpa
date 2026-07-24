@@ -7,7 +7,7 @@
 // Module: axi4_slave_rd_stub
 // Purpose: Axi4 Slave Rd Stub module
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

@@ -8,7 +8,7 @@
 # Module: lint_wrap
 # Purpose: Lint Wrap implementation
 #
-# Documentation: rtl/common/PRD.md
+# Documentation: docs/markdown/RTLCommon/index.md
 # Subsystem: common
 #
 # Author: sean galloway

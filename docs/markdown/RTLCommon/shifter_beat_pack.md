@@ -220,7 +220,7 @@ shifter_beat_pack #(
 
 ### Documentation
 
-- `rtl/common/PRD.md`
+- `docs/markdown/RTLCommon/index.md`
 
 **Last Updated:** 2026-07-15
 

@@ -626,7 +626,7 @@ projects/components/dmas/stream/dv/tests/
 
 **Related:**
 - `projects/components/dmas/rapids/PRD.md` - Parent architecture (for comparison)
-- `rtl/amba/PRD.md` - MonBus integration
+- `docs/markdown/RTLAmba/index.md` - MonBus integration
 - `/PRD.md` - Master requirements
 - `/CLAUDE.md` - Repository guide
 

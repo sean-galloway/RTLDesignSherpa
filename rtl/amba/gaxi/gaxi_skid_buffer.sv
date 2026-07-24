@@ -9,7 +9,7 @@
 //          interfaces on both sides. Used everywhere in the AMBA hierarchy
 //          to register AXI/AXIL/APB channel handshakes.
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

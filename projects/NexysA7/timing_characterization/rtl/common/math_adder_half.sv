@@ -7,7 +7,7 @@
 // Module: math_adder_half
 // Purpose: Math Adder Half module
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

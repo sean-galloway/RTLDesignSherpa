@@ -7,7 +7,7 @@
 // Module: math_subtractor_half
 // Purpose: Math Subtractor Half module
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

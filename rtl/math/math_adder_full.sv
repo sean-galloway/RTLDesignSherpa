@@ -7,7 +7,7 @@
 // Module: math_adder_full
 // Purpose: Math Adder Full module
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

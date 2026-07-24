@@ -1220,7 +1220,7 @@ m_axi_awlen <= (s_axi_awlen + 1) * WIDTH_RATIO - 1;
 
 ### Related Documentation
 
-- **`rtl/amba/PRD.md`:** AMBA subsystem overview
+- **`docs/markdown/RTLAmba/index.md`:** AMBA subsystem overview
 - **`rtl/amba/CLAUDE.md`:** AI assistance guide for AMBA
 - **`projects/components/converters/rtl/axi4_to_apb_convert.sv`:** Reference implementation for protocol/width conversion
 - **`docs/markdown/RTLAmba/axi4/`:** Detailed AXI module specifications

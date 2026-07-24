@@ -215,7 +215,7 @@ gaxi_skid_buffer_dbldrn #(
 
 ### Documentation
 
-- `rtl/amba/PRD.md`
+- `docs/markdown/RTLAmba/index.md`
 
 ---
 

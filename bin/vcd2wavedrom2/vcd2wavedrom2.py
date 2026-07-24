@@ -7,7 +7,7 @@
 # Module: VCD2Wavedrom2
 # Purpose: Finds the maximum time value in the VCD file.
 #
-# Documentation: rtl/common/PRD.md
+# Documentation: docs/markdown/RTLCommon/index.md
 # Subsystem: common
 #
 # Author: sean galloway

@@ -7,7 +7,7 @@
 // Module: math_adder_brent_kung_016
 // Purpose: Math Adder Brent Kung 016 module
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

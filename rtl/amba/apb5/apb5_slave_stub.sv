@@ -15,7 +15,7 @@
 // - PWAKEUP: Wake-up signal (to master)
 // - Optional parity support for data integrity
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

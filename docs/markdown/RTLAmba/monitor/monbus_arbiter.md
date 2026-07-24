@@ -301,7 +301,7 @@ The module includes comprehensive assertions:
 ## References
 
 ### Specifications
-- Internal: rtl/amba/PRD.md (AMBA subsystem requirements)
+- Internal: docs/markdown/RTLAmba/index.md (AMBA subsystem requirements)
 - Internal: docs/markdown/RTLAmba/includes/monitor_package_spec.md (monitor bus protocol)
 
 ### Source Code

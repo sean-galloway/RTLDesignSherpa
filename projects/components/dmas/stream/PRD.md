@@ -890,7 +890,7 @@ The shell scripts will automatically:
 - **RAPIDS PRD:** `projects/components/dmas/rapids/PRD.md` - Parent architecture
 - **RAPIDS Descriptor Engine:** `projects/components/dmas/rapids/rtl/fub_beats/descriptor_engine_beats.sv` (beats rearchitecture of the original)
 - **Shared SRAM/FIFO primitives:** `rtl/amba/gaxi/gaxi_fifo_sync.sv`, `rtl/amba/shared/sdpram_core.sv` (the old `simple_sram.sv` was removed)
-- **AMBA PRD:** `rtl/amba/PRD.md` - MonBus integration
+- **AMBA PRD:** `docs/markdown/RTLAmba/index.md` - MonBus integration
 - **Repository Guide:** `/CLAUDE.md` - Design patterns and conventions
 
 ### 17.2 External References

@@ -7,7 +7,7 @@
 // Module: axi4_master_wr_mon
 // Purpose: Axi4 Master Wr Mon module
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

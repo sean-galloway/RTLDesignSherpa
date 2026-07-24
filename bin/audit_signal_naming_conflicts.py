@@ -8,7 +8,7 @@
 # Module: SignalInfo
 # Purpose: Signal Naming Conflict Auditor
 #
-# Documentation: rtl/common/PRD.md
+# Documentation: docs/markdown/RTLCommon/index.md
 # Subsystem: common
 #
 # Author: sean galloway

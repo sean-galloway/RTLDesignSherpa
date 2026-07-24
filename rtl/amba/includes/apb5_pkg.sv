@@ -15,7 +15,7 @@
 // - PBUSER: User-defined response attributes (slave to master)
 // - Parity signals for data integrity (optional)
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

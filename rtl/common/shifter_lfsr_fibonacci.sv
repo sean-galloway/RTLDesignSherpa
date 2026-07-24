@@ -7,7 +7,7 @@
 // Module: shifter_lfsr_fibonacci
 // Purpose: //   Fibonacci-configuration Linear Feedback Shift Register (LFSR) with configurable
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

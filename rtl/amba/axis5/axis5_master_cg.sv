@@ -7,7 +7,7 @@
 // Module: axis5_master_cg
 // Purpose: AXI5-Stream Master module with clock gating and AMBA5 extensions
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // AXIS5 Extensions:

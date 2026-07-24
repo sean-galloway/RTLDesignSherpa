@@ -7,7 +7,7 @@
 // Module: encoder
 // Purpose: //   Binary encoder that converts one-hot or thermometer-coded input to binary
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

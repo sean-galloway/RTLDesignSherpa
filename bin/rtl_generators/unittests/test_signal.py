@@ -7,7 +7,7 @@
 # Module: SignalTest
 # Purpose: Test suite for Signal
 #
-# Documentation: rtl/common/PRD.md
+# Documentation: docs/markdown/RTLCommon/index.md
 # Subsystem: common
 #
 # Author: sean galloway

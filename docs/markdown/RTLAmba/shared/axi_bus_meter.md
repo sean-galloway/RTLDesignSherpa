@@ -238,7 +238,7 @@ For correct in-window math, drive `i_clear` and `i_freeze` from the same window 
 ### Documentation
 - Methodology: `docs/.../DMA_UTILIZATION_MEASUREMENT.md` (window semantics, four-bucket definition)
 - Architecture: `docs/markdown/RTLAmba/shared/README.md`
-- Design Guide: `rtl/amba/PRD.md`
+- Design Guide: `docs/markdown/RTLAmba/index.md`
 
 ---
 

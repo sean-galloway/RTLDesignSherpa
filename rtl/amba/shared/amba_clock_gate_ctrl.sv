@@ -7,7 +7,7 @@
 // Module: amba_clock_gate_ctrl
 // Purpose: Amba Clock Gate Ctrl module
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

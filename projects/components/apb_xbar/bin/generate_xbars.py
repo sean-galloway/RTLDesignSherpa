@@ -8,7 +8,7 @@
 # Module: generate_xbars
 # Purpose: Convenience script to generate all APB crossbar variants.
 #
-# Documentation: rtl/amba/PRD.md
+# Documentation: docs/markdown/RTLAmba/index.md
 # Subsystem: amba
 #
 # Author: sean galloway

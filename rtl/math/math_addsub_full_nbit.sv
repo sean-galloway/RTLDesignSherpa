@@ -7,7 +7,7 @@
 // Module: math_addsub_full_nbit
 // Purpose: Math Addsub Full Nbit module
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

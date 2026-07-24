@@ -333,7 +333,7 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 ```
 
 **Then link:**
-- **Integration:** See `rtl/amba/README.md` for complete examples
+- **Integration:** See `docs/markdown/RTLAmba/index.md` for complete examples
 - **Configuration:** See `docs/user-guides/AXI_Monitor_Configuration_Guide.md`
 - **Module spec:** See `docs/markdown/RTLAmba/monitor/axi4_master_rd_mon.md`
 
@@ -732,8 +732,8 @@ gtkwave waves.vcd
 - `docs/user-guides/AXI_Monitor_Configuration_Guide.md` ← **Essential for correct setup**
 
 **This Subsystem:**
-- `rtl/amba/PRD.md` - Requirements overview
-- `rtl/amba/README.md` - Quick start guide
+- `docs/markdown/RTLAmba/index.md` - Requirements overview
+- `docs/markdown/RTLAmba/index.md` - Quick start guide
 - `/vault/Tasks/amba/` - Current work
 - `rtl/amba/KNOWN_ISSUES/` - Bug tracking
 

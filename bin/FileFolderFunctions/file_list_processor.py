@@ -7,7 +7,7 @@
 # Module: FileListProcessor
 # Purpose: Processes existing file lists to create a single one
 #
-# Documentation: rtl/common/PRD.md
+# Documentation: docs/markdown/RTLCommon/index.md
 # Subsystem: common
 #
 # Author: sean galloway

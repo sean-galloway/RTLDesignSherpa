@@ -11,7 +11,7 @@
 // the glitch_free_n_dff_arn module for consistent naming across the
 // AMBA infrastructure.
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

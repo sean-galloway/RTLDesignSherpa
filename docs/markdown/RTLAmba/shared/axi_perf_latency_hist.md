@@ -261,9 +261,9 @@ Because increments land up to three cycles after the completing beat, always rea
 - RTL: `rtl/amba/shared/axi_perf_latency_hist.sv`
 
 ### Documentation
-- RFC: `rtl/amba/PRD/RFCs/RFC-perfmon-window-buckets.md`
+- RFC: `docs/markdown/RTLAmba/index.md`
 - Architecture: `docs/markdown/RTLAmba/shared/README.md`
-- Design Guide: `rtl/amba/PRD.md`
+- Design Guide: `docs/markdown/RTLAmba/index.md`
 
 ---
 

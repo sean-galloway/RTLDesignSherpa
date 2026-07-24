@@ -160,7 +160,7 @@ assign rounded_count = beat_count - {14'b0, beat_rem};
 
 ### Documentation
 
-- `rtl/common/PRD.md`
+- `docs/markdown/RTLCommon/index.md`
 
 **Last Updated:** 2026-07-15
 

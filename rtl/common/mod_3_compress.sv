@@ -19,7 +19,7 @@
 //          final fold + conditional subtract collapses the group sum to 0..2.
 //          No '*' / '/' operator -> no inferred DSP or iterative divider.
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

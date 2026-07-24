@@ -18,7 +18,7 @@
 //          at the cost of slightly trickier reasoning because the "event"
 //          is a TRANSITION of the signal, not a level.
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

@@ -8,7 +8,7 @@
 # Module: struct_test_script
 # Purpose: Struct Utilities Test Script
 #
-# Documentation: rtl/common/PRD.md
+# Documentation: docs/markdown/RTLCommon/index.md
 # Subsystem: common
 #
 # Author: sean galloway

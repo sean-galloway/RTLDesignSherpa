@@ -11,7 +11,7 @@
 //          CDC with data latched in the source domain and sampled in the
 //          destination domain.
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

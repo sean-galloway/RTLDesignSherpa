@@ -7,7 +7,7 @@
 // Module: gray2bin
 // Purpose: //   Gray code to binary converter. Converts reflected binary code (Gray code)
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

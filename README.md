@@ -140,7 +140,7 @@ Production-ready AXI/APB/AXIS infrastructure with built-in monitor + observation
 | [GAXI generic](docs/markdown/RTLAmba/gaxi/README.md) | 8 | [`rtl/amba/gaxi/`](rtl/amba/gaxi/) | sync/async FIFOs and skid buffers |
 | [Packages](docs/markdown/RTLAmba/includes/README.md) | 8 | [`rtl/amba/includes/`](rtl/amba/includes/) | shared `.svh`/types |
 
-**Deep dive:** [rtl/amba/README.md](rtl/amba/README.md) (full shared/ inventory by role) · [rtl/amba/CLAUDE.md](rtl/amba/CLAUDE.md) · [docs/markdown/RTLAmba/index.md](docs/markdown/RTLAmba/index.md)
+**Deep dive:** [docs/markdown/RTLAmba/index.md](docs/markdown/RTLAmba/index.md) (full shared/ inventory by role) · [rtl/amba/CLAUDE.md](rtl/amba/CLAUDE.md) · [docs/markdown/RTLAmba/index.md](docs/markdown/RTLAmba/index.md)
 
 ### 3. **Clock Domain Crossing (CDC)** — Cross-cutting
 
@@ -654,12 +654,12 @@ pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
 ### Documentation by Level
 
 **Level 1 - Common Modules:**
-- [Common Library PRD](rtl/common/PRD.md) - Requirements and specifications
+- [Common Library PRD](docs/markdown/RTLCommon/index.md) - Requirements and specifications
 - [Common CLAUDE Guide](rtl/common/CLAUDE.md) - AI-assisted development
 - [Common Tests](val/common/) - Example test patterns
 
 **Level 2 - AMBA Protocols:**
-- [AMBA Infrastructure PRD](rtl/amba/PRD.md) - Protocol specifications
+- [AMBA Infrastructure PRD](docs/markdown/RTLAmba/index.md) - Protocol specifications
 - [AMBA CLAUDE Guide](rtl/amba/CLAUDE.md) - Implementation patterns
 - [AMBA Tests](val/amba/) - Protocol compliance tests
 

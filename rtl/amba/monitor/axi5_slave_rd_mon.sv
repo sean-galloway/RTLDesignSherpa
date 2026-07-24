@@ -7,7 +7,7 @@
 // Module: axi5_slave_rd_mon
 // Purpose: AXI5 Slave Read with Integrated Filtered Monitoring
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

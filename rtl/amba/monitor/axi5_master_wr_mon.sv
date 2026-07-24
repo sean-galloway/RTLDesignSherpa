@@ -7,7 +7,7 @@
 // Module: axi5_master_wr_mon
 // Purpose: AXI5 Master Write with Integrated Filtered Monitoring
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

@@ -7,7 +7,7 @@
 // Module: axis_slave_cg
 // Purpose: Axis Slave Cg module
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

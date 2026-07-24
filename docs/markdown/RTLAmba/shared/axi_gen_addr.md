@@ -174,7 +174,7 @@ This module is purely combinational for zero latency:
 
 ### Specifications
 - ARM IHI 0022E: AMBA AXI4 Protocol Specification (Section A3.4 - Address Structure)
-- Internal: rtl/amba/PRD.md
+- Internal: docs/markdown/RTLAmba/index.md
 
 ### Source Code
 - RTL: `rtl/amba/shared/axi_gen_addr.sv`

@@ -7,7 +7,7 @@
 // Module: dataint_ecc_hamming_encode_secded
 // Purpose: //   Hamming SECDED (Single Error Correction, Double Error Detection) encoder.
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

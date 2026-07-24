@@ -7,7 +7,7 @@
 // Module: dataint_crc_xor_shift
 // Purpose: Dataint Crc Xor Shift module
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

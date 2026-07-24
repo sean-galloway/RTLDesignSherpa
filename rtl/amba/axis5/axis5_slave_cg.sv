@@ -7,7 +7,7 @@
 // Module: axis5_slave_cg
 // Purpose: AXI5-Stream Slave module with clock gating and AMBA5 extensions
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // AXIS5 Extensions:

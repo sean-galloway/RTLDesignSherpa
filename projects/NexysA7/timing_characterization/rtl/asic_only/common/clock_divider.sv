@@ -7,7 +7,7 @@
 // Module: clock_divider
 // Purpose: //   Multi-output programmable clock divider that generates up to N divided clock
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

@@ -7,7 +7,7 @@
 // Module: monitor_amba4_pkg
 // Purpose: AMBA4 protocol event codes (AXI4, APB4, AXIS4)
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

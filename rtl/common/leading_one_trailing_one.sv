@@ -7,7 +7,7 @@
 // Module: leading_one_trailing_one
 // Purpose: //   Combined leading and trailing '1' bit position detector. Finds both the
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

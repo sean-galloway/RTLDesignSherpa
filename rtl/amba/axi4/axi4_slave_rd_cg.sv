@@ -7,7 +7,7 @@
 // Module: axi4_slave_rd_cg
 // Purpose: Axi4 Slave Rd Cg module
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

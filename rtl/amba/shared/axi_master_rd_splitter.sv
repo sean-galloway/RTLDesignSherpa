@@ -7,7 +7,7 @@
 // Module: axi_master_rd_splitter
 // Purpose: Axi Master Rd Splitter module
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

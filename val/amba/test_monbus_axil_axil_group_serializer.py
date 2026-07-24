@@ -9,7 +9,7 @@
 #          against differently-shaped but equally legal AXI4-Lite read
 #          masters (GitHub issue #41, defect 1).
 #
-# Documentation: rtl/amba/PRD.md
+# Documentation: docs/markdown/RTLAmba/index.md
 # Subsystem: amba (shared)
 #
 # Author: sean galloway

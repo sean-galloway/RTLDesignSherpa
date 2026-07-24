@@ -7,7 +7,7 @@
 # Module: pytree
 # Purpose: Recursively prints directory structure like the UNIX `tree` command.
 #
-# Documentation: rtl/common/PRD.md
+# Documentation: docs/markdown/RTLCommon/index.md
 # Subsystem: common
 #
 # Author: sean galloway

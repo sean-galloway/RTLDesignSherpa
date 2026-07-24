@@ -7,7 +7,7 @@
 // Module: math_adder_carry_save_nbit
 // Purpose: Math Adder Carry Save Nbit module
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

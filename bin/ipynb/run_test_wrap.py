@@ -8,7 +8,7 @@
 # Module: run_test_wrap
 # Purpose: Test suite for Run Wrap
 #
-# Documentation: rtl/common/PRD.md
+# Documentation: docs/markdown/RTLCommon/index.md
 # Subsystem: common
 #
 # Author: sean galloway

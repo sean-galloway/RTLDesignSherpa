@@ -7,7 +7,7 @@
 // Module: clock_gate_ctrl
 // Purpose: //   Clock gating controller with idle timeout mechanism for power optimization.
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

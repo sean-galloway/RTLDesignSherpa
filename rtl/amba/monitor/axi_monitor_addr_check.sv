@@ -7,7 +7,7 @@
 // Module: axi_monitor_addr_check
 // Purpose: Configurable N-range address-violation checker for AXI monitors
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 
 `timescale 1ns / 1ps

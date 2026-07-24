@@ -8,7 +8,7 @@
 # Purpose: Regression coverage for the monbus_arbiter grant-hold contract
 #          under downstream backpressure (GitHub issue #41, defect 2).
 #
-# Documentation: rtl/amba/PRD.md
+# Documentation: docs/markdown/RTLAmba/index.md
 # Subsystem: amba (shared)
 #
 # Author: sean galloway

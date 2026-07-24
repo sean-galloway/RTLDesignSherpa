@@ -7,7 +7,7 @@
 // Module: bin2gray
 // Purpose: //   Binary to Gray code converter. Converts standard binary encoding to Gray code
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

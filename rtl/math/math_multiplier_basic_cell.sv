@@ -7,7 +7,7 @@
 // Module: math_multiplier_basic_cell
 // Purpose: Math Multiplier Basic Cell module
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

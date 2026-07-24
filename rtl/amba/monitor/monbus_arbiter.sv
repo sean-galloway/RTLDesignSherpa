@@ -7,7 +7,7 @@
 // Module: monbus_arbiter
 // Purpose: Monbus Arbiter module
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

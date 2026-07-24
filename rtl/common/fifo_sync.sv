@@ -7,7 +7,7 @@
 // Module: fifo_sync
 // Purpose: //   Parameterized synchronous FIFO (First-In-First-Out) buffer for single clock
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

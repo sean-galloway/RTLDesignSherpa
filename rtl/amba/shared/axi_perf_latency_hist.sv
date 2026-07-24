@@ -4,7 +4,7 @@
 // Module: axi_perf_latency_hist
 // Purpose: Per-transaction AXI latency histogram (RFC perfmon Stage D).
 //
-// Documentation: rtl/amba/PRD/RFCs/RFC-perfmon-window-buckets.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Captures per-transaction latency on an AXI master bus and bins it into a

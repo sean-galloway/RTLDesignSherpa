@@ -8,7 +8,7 @@
 # Module: generate_uml
 # Purpose: UML Diagram Generation Tool using py2puml.
 #
-# Documentation: rtl/common/PRD.md
+# Documentation: docs/markdown/RTLCommon/index.md
 # Subsystem: common
 #
 # Author: sean galloway

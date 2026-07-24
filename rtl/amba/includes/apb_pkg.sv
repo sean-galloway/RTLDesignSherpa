@@ -7,7 +7,7 @@
 // Module: apb_pkg
 // Purpose: Apb Pkg module
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

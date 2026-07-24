@@ -7,7 +7,7 @@
 // Module: gaxi_skid_buffer_async_multi
 // Purpose: Gaxi Skid Buffer Async Multi module
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

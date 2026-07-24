@@ -544,12 +544,12 @@ pytest projects/components/retro_legacy_blocks/dv/tests/hpet/test_apb_hpet.py -v
 ### Documentation by Level
 
 **Level 1 - Common Modules:**
-- [Common Library PRD](rtl/common/PRD.md) - Requirements and specifications
+- [Common Library PRD](docs/markdown/RTLCommon/index.md) - Requirements and specifications
 - [Common CLAUDE Guide](rtl/common/CLAUDE.md) - AI-assisted development
 - [Common Tests](val/common/) - Example test patterns
 
 **Level 2 - AMBA Protocols:**
-- [AMBA Infrastructure PRD](rtl/amba/PRD.md) - Protocol specifications
+- [AMBA Infrastructure PRD](docs/markdown/RTLAmba/index.md) - Protocol specifications
 - [AMBA CLAUDE Guide](rtl/amba/CLAUDE.md) - Implementation patterns
 - [AMBA Tests](val/amba/) - Protocol compliance tests
 

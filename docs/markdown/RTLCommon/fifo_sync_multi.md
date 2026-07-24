@@ -189,7 +189,7 @@ fifo_sync_multi #(
 
 ### Documentation
 
-- `rtl/common/PRD.md`
+- `docs/markdown/RTLCommon/index.md`
 
 **Last Updated:** 2026-07-15
 

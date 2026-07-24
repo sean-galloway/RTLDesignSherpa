@@ -370,7 +370,7 @@ When WAIT_GNT_ACK=1, the arbiter waits for grant_ack before issuing next grant. 
 ## References
 
 ### Specifications
-- Internal: rtl/amba/PRD.md (AMBA subsystem requirements)
+- Internal: docs/markdown/RTLAmba/index.md (AMBA subsystem requirements)
 - Internal: docs/markdown/RTLAmba/arbiter_monbus_common.md (monitoring details)
 
 ### Source Code

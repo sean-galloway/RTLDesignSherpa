@@ -479,7 +479,7 @@ Use shared timer unless monitors operate at different frequencies or in differen
 
 ### Configuration Guides
 - [Monitor Base Configuration](./axi_monitor_base.md) - Timeout configuration
-- `rtl/amba/PRD.md` - Subsystem requirements
+- `docs/markdown/RTLAmba/index.md` - Subsystem requirements
 
 ---
 

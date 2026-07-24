@@ -7,7 +7,7 @@
 // Module: gaxi_fifo_sync_multi
 // Purpose: Gaxi Fifo Sync Multi module
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

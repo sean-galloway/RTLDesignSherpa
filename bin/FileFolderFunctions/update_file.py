@@ -7,7 +7,7 @@
 # Module: UpdateFile
 # Purpose: Updates selected text in files
 #
-# Documentation: rtl/common/PRD.md
+# Documentation: docs/markdown/RTLCommon/index.md
 # Subsystem: common
 #
 # Author: sean galloway

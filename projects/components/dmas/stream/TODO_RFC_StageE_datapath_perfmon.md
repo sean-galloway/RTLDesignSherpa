@@ -262,7 +262,7 @@ Bitstream only at the very end.
 | Host desc-perf reader (template) | `…/flows-stream-bridge/host/read_desc_perf.py` |
 | Characterization driver | `…/flows-stream-bridge/host/run_characterization.py` |
 | Cosim TB + test (templates) | `…/flows-stream-bridge/dv/tbclasses/stream_char_tb.py`, `…/dv/tests/test_stream_char.py` |
-| RFC | `rtl/amba/PRD/RFCs/RFC-perfmon-window-buckets.md` |
+| RFC | `docs/markdown/RTLAmba/index.md` |
 | Methodology | `DMA_UTILIZATION_MEASUREMENT.md` (Section 3 = four-bucket model) |
 
 ---

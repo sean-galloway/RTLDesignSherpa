@@ -7,7 +7,7 @@
 // Module: decoder
 // Purpose: //   Binary to one-hot decoder. Converts M-bit binary input to 2^M one-hot output
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

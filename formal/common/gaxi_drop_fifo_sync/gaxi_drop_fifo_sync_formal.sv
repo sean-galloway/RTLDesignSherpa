@@ -7,7 +7,7 @@
 // Module: gaxi_drop_fifo_sync
 // Purpose: Synchronous FIFO with dynamic drop capability (formal-friendly copy)
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

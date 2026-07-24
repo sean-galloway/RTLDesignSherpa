@@ -7,7 +7,7 @@
 // Module: counter_bin_load
 // Purpose: //   Binary counter with FIFO-optimized wraparound, variable increment, and load
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

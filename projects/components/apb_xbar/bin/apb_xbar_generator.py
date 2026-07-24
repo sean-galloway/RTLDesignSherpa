@@ -8,7 +8,7 @@
 # Module: apb_xbar_generator
 # Purpose: APB Crossbar Generator
 #
-# Documentation: rtl/common/PRD.md
+# Documentation: docs/markdown/RTLCommon/index.md
 # Subsystem: common
 #
 # Author: sean galloway

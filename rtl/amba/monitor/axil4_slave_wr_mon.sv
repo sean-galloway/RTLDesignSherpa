@@ -7,7 +7,7 @@
 // Module: axil4_slave_wr_mon
 // Purpose: Axil4 Slave Wr Mon module
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

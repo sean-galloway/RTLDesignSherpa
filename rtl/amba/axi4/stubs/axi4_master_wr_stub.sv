@@ -7,7 +7,7 @@
 // Module: axi4_master_wr_stub
 // Purpose: Axi4 Master Wr Stub module
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

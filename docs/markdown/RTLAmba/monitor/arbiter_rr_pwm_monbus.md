@@ -308,7 +308,7 @@ See arbiter_monbus_common.md for complete monitoring details. Key points:
 ## References
 
 ### Specifications
-- Internal: rtl/amba/PRD.md (AMBA subsystem requirements)
+- Internal: docs/markdown/RTLAmba/index.md (AMBA subsystem requirements)
 - Internal: docs/markdown/RTLAmba/arbiter_monbus_common.md (monitoring details)
 
 ### Source Code

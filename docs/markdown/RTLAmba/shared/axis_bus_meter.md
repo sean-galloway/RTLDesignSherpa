@@ -254,7 +254,7 @@ Cycle buckets are 32-bit (aggregate) / 16-bit (per-channel) matching `axi_bus_me
 ### Documentation
 - Methodology: `docs/.../DMA_UTILIZATION_MEASUREMENT.md` (four-bucket definition, window semantics)
 - Architecture: `docs/markdown/RTLAmba/shared/README.md`
-- Design Guide: `rtl/amba/PRD.md`
+- Design Guide: `docs/markdown/RTLAmba/index.md`
 
 ---
 

@@ -7,7 +7,7 @@
 // Module: apb_xbar_2to1
 // Purpose: Apb Xbar 2To1 module
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

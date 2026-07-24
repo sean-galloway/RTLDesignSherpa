@@ -305,7 +305,7 @@ sync_pulse u_pulse_sync (
 | CRC-8 | `dataint_crc.sv` | POLYNOMIAL=8'h07 |
 | Custom | `dataint_crc_xor_shift.sv` | Build custom |
 
-**📄 See `rtl/common/PRD.md` for ~300 validated CRC polynomials**
+**📄 See `docs/markdown/RTLCommon/index.md` for ~300 validated CRC polynomials**
 
 ### "I need a FIFO..."
 
@@ -525,7 +525,7 @@ clock_gate_ctrl u_gate (
 ### Documentation
 
 - **This file** - Quick start and common use cases
-- `rtl/common/PRD.md` - Detailed specifications and module catalog
+- `docs/markdown/RTLCommon/index.md` - Detailed specifications and module catalog
 - `rtl/common/CLAUDE.md` - AI assistance guide for this subsystem
 - `/CLAUDE.md` - Repository-wide guidance
 - `/PRD.md` - Master project requirements
@@ -613,7 +613,7 @@ grep -r "module_name" rtl/
 
 ---
 
-**Questions?** Check `rtl/common/PRD.md` for detailed specifications or `rtl/common/CLAUDE.md` for AI assistance guidance.
+**Questions?** Check `docs/markdown/RTLCommon/index.md` for detailed specifications or `rtl/common/CLAUDE.md` for AI assistance guidance.
 
 **Version:** 1.0
 **Last Updated:** 2025-09-30

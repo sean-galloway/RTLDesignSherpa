@@ -7,7 +7,7 @@
 // Module: axi5_master_rd_cg
 // Purpose: AXI5 Master Read with Clock Gating support
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

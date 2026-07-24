@@ -26,7 +26,7 @@
 // Removed from AXI4:
 // - ARREGION: Deprecated (not recommended for new designs)
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

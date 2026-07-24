@@ -7,7 +7,7 @@
 // Module: axi_pkg
 // Purpose: Axi Pkg module
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

@@ -7,7 +7,7 @@
 # Module: test_cdc_counter_display
 # Purpose: CocoTB Testbench for CDC Counter Display
 #
-# Documentation: rtl/common/PRD.md
+# Documentation: docs/markdown/RTLCommon/index.md
 # Subsystem: common
 #
 # Author: sean galloway

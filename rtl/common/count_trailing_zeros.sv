@@ -7,7 +7,7 @@
 // Module: count_trailing_zeros
 // Purpose: Counts consecutive zero bits from the LSB up to the first set bit
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

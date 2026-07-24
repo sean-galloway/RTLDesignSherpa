@@ -7,7 +7,7 @@
 # Module: V2WConfig
 # Purpose: Groups and sorts the signals based on the provided hierarchy list.
 #
-# Documentation: rtl/common/PRD.md
+# Documentation: docs/markdown/RTLCommon/index.md
 # Subsystem: common
 #
 # Author: sean galloway

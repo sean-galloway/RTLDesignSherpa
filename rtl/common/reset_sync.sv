@@ -7,7 +7,7 @@
 // Module: reset_sync
 // Purpose: //   Multi-stage asynchronous reset synchronizer for safe clock domain crossing.
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

@@ -7,7 +7,7 @@
 // Module: fifo_control
 // Purpose: //   FIFO control logic for asynchronous FIFOs. Generates full/empty and almost-
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

@@ -7,7 +7,7 @@
 // Module: math_prefix_cell
 // Purpose: Prefix Cell for the Han-Carlson structure
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

@@ -7,7 +7,7 @@
 // Module: gaxi_skid_buffer_struct
 // Purpose: Gaxi Skid Buffer Struct module
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

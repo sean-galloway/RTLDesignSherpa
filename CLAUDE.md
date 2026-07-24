@@ -256,7 +256,7 @@ from TBClasses.shared.tbbase import TBBase
 **Note:** Arithmetic modules (`math_*.sv`) were split out of rtl/common into `rtl/math/`
 (tests moved from `val/common/test_math_*.py` to `val/math/`).
 
-**Documentation:** `rtl/common/PRD.md`, `rtl/common/CLAUDE.md`
+**Documentation:** `docs/markdown/RTLCommon/index.md`, `rtl/common/CLAUDE.md`
 
 ### rtl/amba/ - AMBA Protocol Infrastructure
 **Modules:** ~150 SystemVerilog files
@@ -274,7 +274,7 @@ from TBClasses.shared.tbbase import TBBase
 - `monitor/apb_monitor.sv` - APB protocol monitor
 - `axis4/axis_master.sv`, `axis4/axis_slave.sv` - AXI-Stream interfaces
 
-**Documentation:** `rtl/amba/PRD.md`, `rtl/amba/CLAUDE.md`, `rtl/amba/KNOWN_ISSUES/`
+**Documentation:** `docs/markdown/RTLAmba/index.md`, `rtl/amba/CLAUDE.md`, `rtl/amba/KNOWN_ISSUES/`
 
 ### RAPIDS - Rapid AXI Programmable In-band Descriptor System
 **Location:** `projects/components/dmas/rapids/` (moved out of rtl/; rearchitected as the "beats" design)

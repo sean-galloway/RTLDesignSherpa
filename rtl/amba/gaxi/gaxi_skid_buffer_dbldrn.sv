@@ -9,7 +9,7 @@
 //          When rd_ready2 is asserted (only legal when rd_count >= 2),
 //          two items are drained simultaneously via rd_data and rd_data2.
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

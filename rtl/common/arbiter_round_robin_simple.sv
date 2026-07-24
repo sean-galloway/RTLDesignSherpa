@@ -7,7 +7,7 @@
 // Module: arbiter_round_robin_simple
 // Purpose: Arbiter Round Robin Simple module
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

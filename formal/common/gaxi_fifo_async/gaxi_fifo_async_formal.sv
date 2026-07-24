@@ -7,7 +7,7 @@
 // Module: gaxi_fifo_async
 // Purpose: Gaxi Fifo Async module
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

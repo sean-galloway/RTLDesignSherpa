@@ -7,7 +7,7 @@
 // Module: axi4_to_apb_shim
 // Purpose: Axi4 To Apb Shim module
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

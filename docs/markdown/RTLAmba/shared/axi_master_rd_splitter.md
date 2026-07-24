@@ -533,7 +533,7 @@ The module enforces several critical assumptions for correct operation:
 ### Documentation
 - Architecture: `docs/markdown/RTLAmba/shared/README.md`
 - AXI Specification: AMBA AXI4 Protocol Specification (ARM IHI 0022E)
-- Design Guide: `rtl/amba/PRD.md`
+- Design Guide: `docs/markdown/RTLAmba/index.md`
 
 ---
 

@@ -7,7 +7,7 @@
 // Module: monitor_common_pkg
 // Purpose: Common monitor bus types and functions shared across all protocols
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway
@@ -62,7 +62,7 @@ package monitor_common_pkg;
     localparam logic [3:0] PktTypeReservedC  = 4'hC;  // Reserved
     // PerfWin: window-aggregate performance — cycle buckets, byte/beat
     //   counters. One packet per metric, emitted on window close. See
-    //   rtl/amba/PRD/RFCs/RFC-perfmon-window-buckets.md for event_code
+    //   docs/markdown/RTLAmba/index.md for event_code
     //   assignments per protocol package (e.g. AXI_PERFWIN_* enum).
     localparam logic [3:0] PktTypePerfWin    = 4'hD;
     // PerfHist: histogram bucket counts. event_code[7:4]=histogram select,

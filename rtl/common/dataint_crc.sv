@@ -7,7 +7,7 @@
 // Module: dataint_crc
 // Purpose: //   Parameterized CRC (Cyclic Redundancy Check) calculator supporting ~300 standard
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

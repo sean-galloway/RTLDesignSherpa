@@ -466,7 +466,7 @@ Dynamic Power Saving ≈ Gating Efficiency × Clock Tree Power
 ### Documentation
 - Architecture: `docs/markdown/RTLAmba/shared/README.md`
 - Common Module: `docs/markdown/RTLCommon/clock_gate_ctrl.md`
-- Design Guide: `rtl/amba/PRD.md`
+- Design Guide: `docs/markdown/RTLAmba/index.md`
 
 ### Industry Standards
 - IEEE 1801 (UPF) - Unified Power Format for power-aware design

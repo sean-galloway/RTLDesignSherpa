@@ -7,7 +7,7 @@
 // Module: sort
 // Purpose: //   Pipelined sorting network for multiple values using odd-even transposition
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

@@ -7,7 +7,7 @@
 // Module: arbiter_rr_pwm_monbus
 // Purpose: Arbiter Rr Pwm Monbus module
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

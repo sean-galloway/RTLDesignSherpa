@@ -7,7 +7,7 @@
 // Module: math_multiplier_wallace_tree_008
 // Purpose: Math Multiplier Wallace Tree 008 module
 //
-// Documentation: rtl/common/PRD.md
+// Documentation: docs/markdown/RTLCommon/index.md
 // Subsystem: common
 //
 // Author: sean galloway

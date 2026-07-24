@@ -7,7 +7,7 @@
 // Module: axi4_slave_rd_mon
 // Purpose: Axi4 Slave Rd Mon module
 //
-// Documentation: rtl/amba/PRD.md
+// Documentation: docs/markdown/RTLAmba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway
