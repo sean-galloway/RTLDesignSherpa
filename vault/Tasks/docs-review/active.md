@@ -9,7 +9,7 @@
 | Area | Units | State |
 |---|---|---|
 | **common** | `common_part_01..05` (r1+r2) + the `rtl/common` findings inside `cdc_part_01` | ✅ **DONE 2026-07-23** — measured, not assumed |
-| math | `math_part_01/02/03` (r2) | ⬜ not started — 13 CONFIRMED cite `rtl/*.sv` |
+| math | `math_part_01/02/03` (r2) | 🟡 **2 of 23 done** — see the math section below |
 | shared | `shared_part_01..04` (r2) | ⬜ not started — 13 CONFIRMED in part_02 alone |
 | monitor | `monitor_part_01..06` (r3) | ⬜ not started — 70 CONFIRMED, largest block |
 | apb / apb5 | `apb`, `apb5` (r2) | ⬜ not started — 6 CONFIRMED cite `rtl/*.sv` |
@@ -191,3 +191,52 @@ elaborates clean under `verilator --lint-only -Wall`. The one remaining warning
 `shared_part_02`'s findings all target **RTLAmba** docs (`amba_clock_gate_ctrl`,
 the master characterization blocks) and merely cite `rtl/common` modules as
 evidence — they are shared-pass work, not common.
+
+### math — in progress (2 of 23), resume here
+
+**Where the files are.** The RTL moved to `rtl/math/` (171) and tests to
+`val/math/` (119) before this review; the docs moved to
+`docs/markdown/RTLMath/` on 2026-07-23 (DOCREV-006, closed). **The findings
+still cite the pre-split paths** — `rtl/common/math_*.sv` and
+`docs/markdown/RTLCommon/math_*.md` — and that is deliberate: they are reviewer
+evidence and must not be rewritten. Both are 1:1 renames, so translate as you
+read: `RTLCommon/math_X.md` -> `RTLMath/math_X.md`.
+
+**Counts:** 23 findings — `math_part_01` 9 (8 CONFIRMED), `math_part_02` 8
+(6 CONFIRMED), `math_part_03` 6 (4 CONFIRMED). 16 docs implicated, all present.
+
+**DONE (2):** both `math_part_03` subtractor findings. `math_subtractor.md`
+documented `i_b_in`/`ow_d`/`ow_b` for `math_subtractor_ripple_carry`, whose RTL
+declares `i_borrow_in`/`ow_difference`/`ow_carry_out` — all six instantiations
+on the page were uncompilable. `math_subtractor_carry_lookahead` shares the
+wrong input name and exposes each output twice (`ow_d`/`ow_b` are aliases of
+`ow_difference`/`ow_borrow_out`), which the page documented nowhere. Fixed,
+split into two port tables, and verified by compiling both corrected port lists
+under `verilator --lint-only`. `math_subtractor_half`/`_full` were checked and
+are correct — not "fixed" to match the others.
+
+**REMAINING (21), by doc:**
+
+| Doc | Findings |
+|---|---|
+| `math_bf16_multiplier.md` | 3 CONFIRMED — special-case priority order contradicts RTL; "RNE rounding" claimed but logic does not do it; NaN prose says sign=0 while RTL and the page's own code block preserve it |
+| `math_library.md` | 2 CONFIRMED — overgeneralised integer-core reuse claim; incomplete Brent-Kung module list |
+| `math_adder_basic.md` | 1 CONFIRMED (half-adder "Parity Generator" example is structurally illegal SV) + 1 SUSPECTED (modules documented with full tables that may be absent) |
+| `math_multiplier_wallace_tree.md` | 1 CONFIRMED (csa variant: final CPA cell is not `math_adder_full`) + 1 SUSPECTED (speed column) |
+| `math_prefix_cell_gray.md` | 1 CONFIRMED (Brent-Kung reverse-tree gray cells "never" claim) + 1 SUSPECTED (cites `math_adder_brent_kung_grouppg_008.sv`) |
+| `math_adder_carry_save.md` | 1 CONFIRMED — says CSA carry must NOT be shifted |
+| `math_adder_brent_kung.md` | 1 CONFIRMED — three different forward/reverse depth formulas |
+| `math_addsub.md` | 1 CONFIRMED — "2N+2 levels" vs its own 17-level total for N=8 |
+| `math_adder_pg_chain.md` | 1 CONFIRMED — width guideline wrong at the minimum |
+| `math_bf16_adder.md` | 1 CONFIRMED — special-case priority code is an incomplete quote |
+| `math_bf16_fma.md` | 1 CONFIRMED — pseudocode omits RTL branches, yields -0 |
+| `math_fp8_modules.md` | 1 CONFIRMED — E5M2 "~6e-8" unattainable in the format |
+| `math_multiplier_dadda_4to2.md` | 1 CONFIRMED — component counts, stage-savings, worked example |
+| `math_bf16_extended.md` | 1 SUSPECTED — five catalog pages document ~117 modules vs the bundle |
+| `math_multiplier_basic.md` | 1 SUSPECTED — `math_multiplier_carry_save` documented, no RTL in bundle |
+
+**Method reminder:** the token-presence heuristic that worked for common gives
+false readings here (it called 20 of 23 "likely integrated" when none were).
+Read each finding and check it against `rtl/math/` directly. Several SUSPECTED
+ones are "not in the RTL bundle" claims — the reviewer could not see the
+filesystem, so check whether the module exists in `rtl/math/` before acting.
