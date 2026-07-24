@@ -210,6 +210,9 @@ clock-domain-crossing modules there, out of `rtl/amba/` and `rtl/common/`.
   `cdc_open_loop`, `cdc_synchronizer`
 - from `rtl/common/`: `fifo_async` (the async FIFO)
 - from `rtl/amba/gaxi/`: `gaxi_fifo_async`, `gaxi_skid_buffer_async`
+- from `rtl/common/` -- the gray/johnson code-conversion modules, so all the
+  CDC-adjacent encoding lives in one place for reference (Sean, 2026-07-24):
+  `bin2gray`, `gray2bin`, `johnson2bin`, `counter_bingray`, `counter_johnson`
 
 **Everything that must follow the RTL move:**
 - [ ] `val/cdc/` must exist (Sean) — move the corresponding tests out of
@@ -228,11 +231,16 @@ clock-domain-crossing modules there, out of `rtl/amba/` and `rtl/common/`.
       (directive A) -- see the open question below on how, given rtl READMEs
       were just deleted.
 
+**Resolved (Sean, 2026-07-24):**
+- **Shared FIFO code stays in common.** Anything used by BOTH the sync and
+  async FIFOs / gaxi-fifos -- `fifo_control.sv` and friends -- remains in
+  `rtl/common`; `rtl/cdc` depends on `rtl/common` for it. Do not split or
+  duplicate it. Only the async-specific modules move.
+- **Sequencing confirmed:** do the move AFTER the common Kimi review comes back
+  and is integrated. Not before.
+
 **Open design questions -- resolve before moving:**
-1. **`fifo_control.sv`** is shared: `fifo_sync` (stays in common) AND
-   `fifo_async` (moves to cdc) both use it. It cannot simply move. Keep it in
-   `rtl/common` and have `rtl/cdc/fifo_async` depend on common, or split it?
-2. **"Overview linked in the rtl areas" vs "no README in rtl".** We just
+1. **"Overview linked in the rtl areas" vs "no README in rtl".** We just
    deleted all rtl READMEs. If each section's Kimi `overview.md` must be linked
    FROM the rtl area, what carries the link -- the area `CLAUDE.md`, or a
    single one-line pointer file that is explicitly not a README? Confirm.
@@ -244,3 +252,26 @@ clock-domain-crossing modules there, out of `rtl/amba/` and `rtl/common/`.
 the result. This is the exact multitask trap Sean flagged. Order: finish the
 common review + integrate it, THEN do this reorg as one focused operation,
 THEN re-review the new cdc section (DOCREV-009).
+
+---
+
+## AMBA-CLEANUP — move the last misplaced docs out of rtl/amba
+**Status:** open 2026-07-24
+**Priority:** P2
+
+After the README/PRD purge (commit f7ca848a), two non-`CLAUDE.md`,
+non-`known_issues` markdown files remain in the amba RTL tree -- both are
+reader-facing/methodology docs that [[doc-placement]] says do not belong there:
+
+- [ ] `rtl/amba/axi4/AXI4_DATA_WIDTH_CONVERTER_SPEC.md` -- a module spec.
+      Reader-facing product doc -> `docs/markdown/RTLAmba/` (fold into the
+      converter's page or add as its own). Repoint any code-header/doc refs.
+- [ ] `rtl/amba/VERIFICATION_ARCHITECTURE.md` -- verification architecture /
+      methodology. Method -> `vault/handbook/dv/` if it is practice, or
+      `docs/markdown/RTLAmba/` if it is a reader-facing architecture overview.
+      Decide which by reading it; repoint refs.
+
+After this, `rtl/amba` should hold only `.sv`, `CLAUDE.md`, and
+`known_issues/` bug records -- the same clean shape `rtl/common` now has.
+Verify with `find rtl/amba -name '*.md' | grep -v CLAUDE | grep -v known_issues`
+returning nothing.
