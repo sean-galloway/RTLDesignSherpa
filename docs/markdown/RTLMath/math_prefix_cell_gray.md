@@ -157,10 +157,13 @@ math_prefix_cell_gray u_bk_gray_5 (
 ```
 
 This mirrors `gray_block_5_3` in `math_adder_brent_kung_grouppg_008.sv`, which
-wires `G_5_4`/`P_5_4` against `ow_gg[3]`. A gray cell in the Brent-Kung reverse
-tree always pairs a *group* generate/propagate with an already-complete carry;
-it never takes a single-bit `G[i:i]` against `G[i-1:-1]`. That single-bit
-pattern is the Han-Carlson final fill-in stage shown above, not Brent-Kung.
+wires `G_5_4`/`P_5_4` against `ow_gg[3]`. Many gray cells in the Brent-Kung
+reverse tree pair a *group* generate/propagate with an already-complete carry --
+but the library's Brent-Kung fill level also uses single-bit gray cells:
+`math_adder_brent_kung_grouppg_016.sv` contains `gray_block_1_0`,
+`gray_block_2_1`, `gray_block_4_3`, ... which take a single-bit `G[i:i]` against
+the completed carry below. So the single-bit pattern is not exclusive to
+Han-Carlson; Brent-Kung uses it in its fill-in stage too.
 
 ### Computing Final Sum
 

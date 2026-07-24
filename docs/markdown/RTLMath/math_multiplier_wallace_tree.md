@@ -459,7 +459,7 @@ instance and contributes none.
 
 **Comparison to Other Multiplier Architectures:**
 
-| Architecture | Area (relative) | Speed (relative) | Best Use Case |
+| Architecture | Area (relative) | Delay (relative, lower = faster) | Best Use Case |
 |--------------|-----------------|------------------|---------------|
 | **Wallace Tree** | **1.2×** | **1.0×** | **High-speed, clearest teaching structure** |
 | Dadda Tree | 1.0× | ~1.0× | Same depth, fewer compressors |
@@ -698,7 +698,7 @@ The only difference is the cell used to build the reduction tree:
 | | Plain variant | `_csa_` variant |
 |---|---------------|-----------------|
 | Reduction tree cell | `math_adder_full` | `math_adder_carry_save` |
-| Final CPA cell | `math_adder_full` | `math_adder_full` |
+| Final CPA cell | `math_adder_brent_kung_{16,32,64}` | `math_adder_brent_kung_{16,32,64}` |
 | Tree topology | identical | identical |
 | Instance counts | identical | identical |
 
