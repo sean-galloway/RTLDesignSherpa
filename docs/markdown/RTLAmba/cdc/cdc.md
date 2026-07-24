@@ -427,7 +427,7 @@ Edge detection
 | Direction | Consequence |
 |-----------|-------------|
 | 4-phase -> 2-phase | Gains throughput. **Silently forfeits independent-reset tolerance.** Only safe when both domains share one reset. |
-| 2-phase -> 4-phase | Costs ~2 destination clocks of latency. Always safe. |
+| 2-phase -> 4-phase | Costs roughly two extra synchronizer crossings (~2 x `SYNC_STAGES` clocks, so ~6 at the default of 3), split between the two domains. Always safe. |
 
 : Consequences of swapping handshake variants
 
@@ -467,7 +467,11 @@ Destination FSM
 ACK completion, so it is stable for the entire crossing regardless of clock
 ratio.
 
-**Latency:** ~7-8 destination clocks per transfer (vs ~5-6 for 2-phase).
+**Latency:** four synchronizer crossings per transfer against two for 2-phase.
+At the default `SYNC_STAGES=3` that is roughly 12 clocks of round trip against
+6 -- counted in the clock domain each crossing lands in, so the wall-clock cost
+depends on the src:dst frequency ratio. Treat these as order-of-magnitude, not
+budgetable: measure your own configuration.
 
 ---
 
@@ -495,7 +499,7 @@ encoding with a `USE_JOHNSON` parameter:
 | `USE_JOHNSON` | Encoding | Pointer width | Converter | Legal DEPTH |
 |---------------|----------|---------------|-----------|-------------|
 | 0 (default) | Gray | `log2(DEPTH)+1` | `gray2bin` (combinational) | power of 2 only |
-| 1 | Johnson | `DEPTH` | `johnson2bin` (registered) | any even depth |
+| 1 | Johnson | `DEPTH` | `johnson2bin` (combinational) | any even depth |
 
 : Async FIFO pointer encodings
 
@@ -675,13 +679,13 @@ stage. With `N_FLOP_CROSS=2`:
 | Pointer width | 6 b | 20 b |
 | Per domain: own binary + encoded pointer | 6 + 6 = 12 | 6 + 20 = 26 |
 | Per domain: synchronized remote pointer | 2 x 6 = 12 | 2 x 20 = 40 |
-| Per domain: gray->bin converter | 0 (combinational) | 6 (registered) |
-| **Both domains** | **~48 flops** | **~144 flops** |
+| Per domain: gray->bin converter | 0 (combinational) | 0 (combinational) |
+| **Both domains** | **~48 flops** | **~132 flops** |
 
 : 512-bit walkthrough: pointer flop cost
 
-So Johnson costs roughly **+96 flops** to save **6 144 memory bits**. If the
-memory is flops, that is a ~64:1 win. If it is not, the trade can invert
+So Johnson costs roughly **+84 flops** to save **6 144 memory bits**. If the
+memory is flops, that is a ~73:1 win. If it is not, the trade can invert
 completely.
 
 **Step 5 -- the part that decides it: memory granularity.** `MEM_STYLE`
@@ -690,8 +694,8 @@ costs 12 fewer entries of area:
 
 | MEM_STYLE | Granularity | Depth 32 vs 20 | Verdict |
 |-----------|-------------|----------------|---------|
-| Flop array | 1 entry | 16 384 vs 10 240 flops | **Johnson wins big** -- saving is exactly proportional, and dwarfs the +96 pointer flops |
-| `FIFO_SRL` | 32 deep per LUT (SRL32) | Both <= 32, so 512 LUTs either way | **No saving.** Johnson costs +96 flops for nothing |
+| Flop array | 1 entry | 16 384 vs 10 240 flops | **Johnson wins big** -- saving is exactly proportional, and dwarfs the +84 pointer flops |
+| `FIFO_SRL` | 32 deep per LUT (SRL32) | Both <= 32, so 512 LUTs either way | **No saving.** Johnson costs +84 flops for nothing |
 | `FIFO_BRAM` | 512 deep x 72 b per BRAM | 512-bit width needs ceil(512/72) = 8 BRAMs, and both depths are far under 512 | **No saving.** Same 8 BRAMs either way |
 
 : 512-bit walkthrough: whether the saving is real, by memory style
@@ -746,13 +750,13 @@ accounting as Step 4:
 | Pointer width | 7 b | 36 b |
 | Per domain: own binary + encoded pointer | 7 + 7 = 14 | 7 + 36 = 43 |
 | Per domain: synchronized remote pointer | 2 x 7 = 14 | 2 x 36 = 72 |
-| Per domain: bin converter | 0 (combinational) | 7 (registered) |
-| **Both domains** | **~56 flops** | **~244 flops** |
+| Per domain: bin converter | 0 (combinational) | 0 (combinational) |
+| **Both domains** | **~56 flops** | **~230 flops** |
 
 : Depth-36 case: pointer flop cost
 
-Johnson costs about **+188 flops** to save **14 336 memory bits** -- roughly a
-76:1 return, better than the depth-20 case because the rounding gap is wider.
+Johnson costs about **+174 flops** to save **14 336 memory bits** -- roughly an
+82:1 return, better than the depth-20 case because the rounding gap is wider.
 
 **Which ASIC memory style.** At depth 36 both are available, and the choice is
 about aspect ratio rather than about the encoding:
@@ -778,8 +782,9 @@ boundary -- or there is no step, as with flops, register files, and compiled
 SRAM -- does `USE_JOHNSON=1` buy you anything. On an ASIC that condition is
 usually met, so Johnson is worth pricing whenever the required depth is not
 already a power of two. On an FPGA it usually is not met, and Gray is the
-default: narrower pointers, a combinational `gray2bin` instead of a registered
-`johnson2bin`, and one less thing to reason about.
+default: narrower pointers, and one less thing to reason about. (Both
+converters are combinational -- `gray2bin` and `johnson2bin` alike -- so the
+difference is pointer width, not a pipeline stage.)
 
 ---
 

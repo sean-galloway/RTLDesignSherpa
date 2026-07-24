@@ -309,8 +309,8 @@
 //------------------------------------------------------------------------------
 // Test:
 //------------------------------------------------------------------------------
-//   Location: val/common/test_fifo_async.py
-//   Run: pytest val/common/test_fifo_async.py -v
+//   Location: val/common/test_fifo_buffer_async.py
+//   Run: pytest val/common/test_fifo_buffer_async.py -v
 //   Coverage: 93%
 //   Key Test Scenarios:
 //     - Write/read with different clock frequencies

@@ -15,7 +15,34 @@
 | apb / apb5 | `apb`, `apb5` (r2) | ⬜ not started — 6 CONFIRMED cite `rtl/*.sv` |
 | axi4 / axi5 / axil4 | (r2) | ⬜ not started |
 | axis4 / axis5 | (r2) | ⬜ not started |
-| cdc | `cdc_part_01/02` (r2) | 🟡 partial — its `rtl/common` findings are done; the AMBA CDC ones are not |
+| **cdc** | `cdc_part_01/02` (r2) | ✅ **DONE 2026-07-23** — all 13 findings |
+
+**cdc, 2026-07-23.** All 13 findings across both units worked. `cdc_part_01`:
+six `RTLCommon` findings (five already covered, the phantom `synchronizer`
+fixed) plus three on `RTLAmba/cdc/cdc.md` — `johnson2bin` was documented as
+"registered" when it is purely combinational (the three `always_ff` in its
+source are all inside comments), which made both flop-cost walkthroughs wrong:
+512-bit 144 -> **132** flops (+96 -> **+84**), depth-36 244 -> **230** (+188 ->
+**+174**), and the ratios 64:1 -> 73:1 and 76:1 -> 82:1. The 4-phase latency
+figures were tied to `SYNC_STAGES` instead of asserting fixed clock counts.
+
+One finding was **inverted** — it claimed the doc's `test_fifo_buffer_async.py`
+pointer was wrong because the RTL headers say `test_fifo_async.py`. The
+filesystem settles it: `test_fifo_buffer_async.py` exists, `test_fifo_async.py`
+does not. The doc was right and `fifo_async.sv`'s header was stale; fixed the
+RTL comment. Reviewers state the direction confidently and can have it
+backwards — check the tree, not the two texts against each other.
+
+`cdc_part_02` (all four on the apb5 CDC pages): DEPTH=6 is documented legal but
+cannot elaborate (the wrapper derives `CDC_FIFO_DEPTH = max(DEPTH,4)` and feeds
+Gray-mode `gaxi_fifo_async`, which `$error`s on non-power-of-2, and
+`USE_JOHNSON` is not exposed); the one-sided-reset section claimed safety that
+does not exist (the crossed pointer copy is a LIVE synchronizer, so a one-sided
+reset re-presents commands and can fabricate responses rather than discarding
+cleanly); `parity_error_wdata/ctrl` were grouped with the aclk backend but are
+combinational pclk-domain pulses (stale RTL port comment corrected too); and
+`CG idle=16` is unreachable at the default `CG_IDLE_COUNT_WIDTH=4`, where 16
+truncates to 0.
 
 An area is DONE only when its findings have been checked against the tree, not
 when a commit says so. See the common entry below for what that involved.

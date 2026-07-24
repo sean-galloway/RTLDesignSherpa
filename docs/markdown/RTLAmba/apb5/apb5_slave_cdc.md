@@ -89,7 +89,7 @@ flowchart LR
 | WUSER_WIDTH | int | 4 | Write user signal width |
 | RUSER_WIDTH | int | 4 | Read user signal width |
 | BUSER_WIDTH | int | 4 | Response user signal width |
-| DEPTH | int | 2 | Skid-buffer depth of the wrapped `apb5_slave`; one of {2, 4, 6, 8} |
+| DEPTH | int | 2 | Skid-buffer depth of the wrapped `apb5_slave`. **{2, 4, 8} through this wrapper** -- see below. |
 | ENABLE_PARITY | bit | 0 | Enable parity generation and checking |
 | USE_2_PHASE_CDC | bit | 1 | Deprecated and ignored -- retained for source compatibility |
 
@@ -127,11 +127,25 @@ the AMBA library. There are no `bclk`/`bresetn` ports.
 Same as [apb5_slave](apb5_slave.md) - operates in `pclk` domain, including the
 optional parity signals.
 
+> **DEPTH=6 does not elaborate through the CDC wrapper.** `{2, 4, 6, 8}` is
+> the bare `apb5_slave` skid-buffer constraint. This wrapper derives
+> `CDC_FIFO_DEPTH = (DEPTH < 4) ? 4 : DEPTH` and feeds it to `gaxi_fifo_async`
+> with `USE_JOHNSON = 0` (Gray), which has an elaboration-time `$error` for a
+> non-power-of-2 depth -- a Gray sequence only closes on a power of 2. So
+> DEPTH=2 and 4 both give a depth-4 FIFO, 8 gives 8, but 6 gives 6 and fails.
+> `USE_JOHNSON` is not exposed on `apb5_slave_cdc`, so there is no override.
+
 ### Backend Interface
 
 Same command/response interface as [apb5_slave](apb5_slave.md) - operates in the
-`aclk` domain. `wakeup_request`, `parity_error_wdata` and `parity_error_ctrl`
-are also present.
+`aclk` domain. `wakeup_request` is also an `aclk`-domain input.
+
+`parity_error_wdata` and `parity_error_ctrl` are **not** `aclk`-domain signals,
+despite sitting next to these ports. `apb5_slave` drives them combinationally
+from the APB inputs (`s_apb_PSEL && s_apb_PENABLE ? ... : 1'b0`), so they are
+`pclk`-domain (gated-`pclk` in the CG variant) pulses valid only during the APB
+access phase. They cross no synchronizer. Sample them in `pclk`, or synchronize
+them yourself before using them in `aclk`.
 
 ---
 
@@ -238,17 +252,27 @@ means `wakeup_request` must be held asserted long enough to be sampled in the
 ### Reset Synchronization
 
 `presetn` and `aresetn` are independent reset domains and either may be asserted
-alone. `gaxi_fifo_async` resets each domain's own pointer *and* that domain's
-crossed copy of the remote pointer from the local reset, so a one-sided reset
-leaves that side self-consistent (both pointers zero, meaning empty) instead of
-fabricating or swallowing a transfer. Pointers are absolute positions rather
-than toggle parity, which is what makes the one-sided case safe.
+alone. **A one-sided reset is not safe. Quiesce the bus first.**
 
-The practical consequence: resetting only the backend (`aresetn`) discards
-in-flight commands from that side's point of view while the APB side stays up.
-A transfer already accepted on the APB side but not yet read out will not be
-delivered, so the APB master may see a transaction time out. Integrators who
-pulse only one reset should quiesce the bus first.
+The local reset clears that domain's own pointer, but the crossed copy of the
+*remote* pointer is a live synchronizer (`glitch_free_n_dff_arn`, N=2) that
+keeps sampling the non-reset domain the moment reset deasserts -- it does not
+hold at zero. The reset side therefore comes back with its own pointer at zero
+and the remote pointer at whatever the other side had reached, which is not an
+empty FIFO. It is a mismatched one.
+
+Two concrete consequences, neither of which is a clean discard:
+
+- **Commands are re-presented, not dropped.** Pulsing `aresetn` with an unread
+  command in the cmd FIFO rewinds the read pointer behind the write pointer, so
+  the backend sees that command again after reset. It does not time out -- it
+  re-executes.
+- **The response FIFO can fabricate responses.** The same rewind on the
+  response path presents entries the APB side never queued, so the APB master
+  can complete a transfer that the backend did not answer.
+
+Pointers being absolute positions rather than toggle parity is what makes the
+*steady-state* crossing robust; it does not make a one-sided reset safe.
 
 Neither reset is internally synchronized to the other domain's clock; each is
 expected to be already synchronized (or asynchronously asserted and

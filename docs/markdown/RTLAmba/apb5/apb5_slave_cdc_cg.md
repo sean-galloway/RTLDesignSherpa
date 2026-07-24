@@ -258,7 +258,7 @@ aclk-domain trigger (`cmd_valid`, `rsp_valid`, `wakeup_request`) first crosses a
 |---------------|---------------|---------------------------|
 | CG disabled | None | 0 cycles (clock always running) |
 | CG idle=4 | Moderate | 2 register stages; first usable edge 3 ungated pclk cycles |
-| CG idle=16 | Good | 2 register stages; first usable edge 3 ungated pclk cycles |
+| CG idle=16 [^cgw] | Good | 2 register stages; first usable edge 3 ungated pclk cycles |
 
 The wake-up latency does not depend on `cfg_cg_idle_count`; the idle count only
 controls how long the block waits before gating. Latency is absorbed as APB wait
@@ -311,3 +311,7 @@ flowchart TB
 - **[← Back to APB5 Index](README.md)**
 - **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**
+
+[^cgw]: `idle=16` requires `CG_IDLE_COUNT_WIDTH >= 5`. At the default of 4 the
+    counter holds 0-15, so writing 16 truncates to 0 and gates after the first
+    idle cycle -- the opposite of the intent. Raise the parameter for this row.

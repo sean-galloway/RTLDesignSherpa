@@ -104,7 +104,9 @@ module apb5_slave_cdc #(
     // Wake-up control (aclk domain)
     input  logic              wakeup_request,
 
-    // Parity error flags (aclk domain, active when ENABLE_PARITY=1)
+    // Parity error flags (pclk domain -- NOT aclk. apb5_slave drives these
+    // combinationally from PSEL/PENABLE, so they are valid only during the APB
+    // access phase and cross no synchronizer. Active when ENABLE_PARITY=1.)
     output logic              parity_error_wdata,
     output logic              parity_error_ctrl
 );
