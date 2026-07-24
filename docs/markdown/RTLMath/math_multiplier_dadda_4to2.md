@@ -23,7 +23,7 @@
 
 # Dadda Multiplier with 4:2 Compressors
 
-An area-optimized 8x8 unsigned multiplier using Dadda reduction with 4:2 compressors, providing fast parallel multiplication with ~25% fewer reduction stages than traditional 3:2 CSA-based Dadda trees.
+An area-optimized 8x8 unsigned multiplier using Dadda reduction with 4:2 compressors, providing fast parallel multiplication. Reduction runs in four 4:2-compressor stages (39 compressors + 2 full adders in math_multiplier_dadda_4to2_008); counts are from the RTL, not estimated.
 
 ## Overview
 
@@ -262,9 +262,9 @@ end
 | Component | Count |
 |-----------|-------|
 | AND gates (partial products) | 64 |
-| 4:2 Compressors | ~12-15 |
-| Full Adders (3:2) | ~8-12 |
-| Half Adders | ~4-6 |
+| 4:2 Compressors | 39 |
+| Full Adders (3:2) | 2 |
+| Half Adders | 0 |
 | Han-Carlson 16-bit CPA | 1 |
 | **Total LUTs (est.)** | ~120-140 |
 
@@ -273,7 +273,7 @@ end
 | Metric | 3:2 CSA Dadda | 4:2 Compressor Dadda |
 |--------|---------------|----------------------|
 | Reduction stages | 4-5 | 3-4 |
-| Total adders/compressors | ~50 | ~35 |
+| Total adders/compressors | ~50 (est.) | 41 (measured: 39 c4:2 + 2 FA) |
 | Logic depth | ~17-20 | ~13-15 |
 | Area (LUTs) | ~130 | ~130 |
 

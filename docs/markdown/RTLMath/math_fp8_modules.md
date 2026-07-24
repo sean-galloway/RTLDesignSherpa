@@ -48,7 +48,8 @@ Max normal: exp=15, mant=110 = 448
 [6:2] = Exponent (5 bits, bias = 15)
 [1:0] = Mantissa (2 bits)
 
-Range: ~6e-8 to 57344 (has infinity)
+Range: ~6.1e-5 (2^-14, min normal) to 57344 (has infinity). The smallest
+subnormal is 2^-16 ~ 1.5e-5; ~6e-8 is the FP16 subnormal minimum, not E5M2's.
 Special: exp=31, mant=0 is Inf; mant!=0 is NaN
 ```
 

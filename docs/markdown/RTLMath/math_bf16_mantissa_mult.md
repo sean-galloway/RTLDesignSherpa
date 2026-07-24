@@ -267,11 +267,12 @@ This wrapper is separate from the raw multiplier because:
 
 ### Round-to-Nearest-Even
 
-The rounding bits support IEEE 754 RNE:
-```
-Round up if: Guard AND (Round OR Sticky OR LSB)
-```
-This ensures ties (exactly halfway) round to even.
+This module emits `ow_round_bit` and `ow_sticky_bit`, with the guard bit folded
+into sticky (`ow_sticky_bit = guard | sticky`). The consumer
+(`math_bf16_multiplier`) then rounds up on `round_bit & (sticky_bit | lsb)` =
+`R & (G | S | LSB)`. Note this is NOT the textbook RNE decision `G & (R | S |
+LSB)`; see the rounding note in [math_bf16_multiplier.md](math_bf16_multiplier.md).
+Whether the divergence is intended is open (DOCREV-001).
 
 ## Auto-Generated Code
 

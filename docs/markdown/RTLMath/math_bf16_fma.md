@@ -250,18 +250,32 @@ always_comb begin
     end else if (w_c_is_inf) begin
         // 3. Addend infinity
         ow_result = {w_sign_c, 8'hFF, 23'h0};
+    end else if (w_prod_is_zero & w_c_eff_zero) begin
+        // 4. 0 * 0 + 0 = 0 (sign from IEEE rules: & of the two signs)
+        ow_result = {w_prod_sign & w_sign_c, 8'h00, 23'h0};
     end else if (w_prod_is_zero) begin
-        // 4. Zero product: pass-through addend
+        // 5. Zero product: pass-through addend
         ow_result = i_c;
     end else if (w_c_eff_zero) begin
-        // 5. Zero addend: product only
-        ow_result = {w_prod_sign, w_prod_exp[7:0], w_prod_mant_ext[22:0]};
+        // 6. Zero addend: product only. Product over/underflow MUST be checked
+        //    here -- the general checks below act on the addition result, not
+        //    the raw product exponent.
+        if (w_prod_exp > 10'd254) begin
+            ow_result = {w_prod_sign, 8'hFF, 23'h0};  ow_overflow = 1'b1;
+        end else if (w_prod_underflow) begin
+            ow_result = {w_prod_sign, 8'h00, 23'h0};  ow_underflow = 1'b1;
+        end else begin
+            ow_result = {w_prod_sign, w_prod_exp[7:0], w_prod_mant_ext[22:0]};
+        end
+    end else if (w_sum_abs == 48'h0) begin
+        // 7. Exact zero result -> +0 (RNE)
+        ow_result = 32'h0;
     end else if (w_overflow_cond) begin
-        // 6. Overflow to infinity
+        // 8. Overflow to infinity
         ow_result = {w_result_sign, 8'hFF, 23'h0};
         ow_overflow = 1'b1;
     end else if (w_underflow_cond) begin
-        // 7. Underflow to zero
+        // 9. Underflow to zero
         ow_result = {w_result_sign, 8'h00, 23'h0};
         ow_underflow = 1'b1;
     end

@@ -170,6 +170,15 @@ wire w_a_is_normal = ~w_a_eff_zero & ~w_a_is_inf & ~w_a_is_nan;
 
 ### Round-to-Nearest-Even
 
+> **Rounding boolean, as implemented:** `w_round_up = w_round_bit &
+> (w_sticky_bit | w_lsb)`, where `math_bf16_mantissa_mult` folds the guard bit
+> into sticky (`ow_sticky_bit = guard | sticky`). That is `R & (G | S | LSB)`.
+> Textbook RNE is `G & (R | S | LSB)` -- a different decision bit. The two agree
+> on most inputs but diverge at exact-half cases; whether this is intended or an
+> RTL rounding defect is open (tracked in DOCREV-001). Do not treat "RNE" here
+> as a proof of tie-to-even.
+
+
 ```systemverilog
 // RNE: Round up if round_bit=1 AND (sticky_bit=1 OR lsb=1)
 wire w_lsb = w_mant_mult_out[0];
@@ -201,14 +210,19 @@ always_comb begin
         // 1. NaN: any NaN input, or 0 * inf
         ow_result = {w_sign_result, 8'hFF, 7'h40};  // Canonical qNaN
         ow_invalid = w_invalid_op;
+    end else if (w_result_zero) begin
+        // 2. Zero: checked BEFORE overflow. A zero input makes the exponent
+        //    adder emit a garbage value (e.g. 0xFF) that would otherwise
+        //    falsely trigger the overflow path.
+        ow_result = {w_sign_result, 8'h00, 7'h00};
     end else if (w_result_inf | w_final_overflow) begin
-        // 2. Infinity: inf input or overflow
+        // 3. Infinity: inf input or overflow
         ow_result = {w_sign_result, 8'hFF, 7'h00};
         ow_overflow = w_final_overflow & ~w_result_inf;
-    end else if (w_result_zero | w_exp_underflow) begin
-        // 3. Zero: zero input or underflow
+    end else if (w_exp_underflow) begin
+        // 4. Underflow to zero
         ow_result = {w_sign_result, 8'h00, 7'h00};
-        ow_underflow = w_exp_underflow & ~w_result_zero;
+        ow_underflow = w_exp_underflow;
     end
 end
 ```
@@ -325,7 +339,7 @@ This simplifies hardware and matches AI accelerator conventions.
 
 - **Input NaN** - Propagated to output as canonical quiet NaN
 - **0 * Infinity** - Produces NaN with invalid flag set
-- **Canonical qNaN** - 0x7FC0 (sign=0, exp=FF, mant=0x40)
+- **Canonical qNaN** - exp=FF, mant=0x40. The sign is the product sign (`w_sign_result`, the XOR of the input signs), NOT forced to 0 -- a negative-product NaN is 0xFFC0, not 0x7FC0.
 
 ### Sign of Zero
 
