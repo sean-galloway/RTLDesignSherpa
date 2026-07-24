@@ -145,23 +145,24 @@ the three agree.
 ## Quick Reference
 
 ### Module Count by Category
-- **Integer Arithmetic**: 44+ modules (25 adders, 5 subtractors, 14 multipliers)
-- **Floating-Point Arithmetic**: 120+ modules
-  - BF16 Core: 5 modules (adder, multiplier, FMA, mantissa_mult, exponent_adder)
-  - BF16 Extended: 29 modules (activations, math ops, conversions)
-  - FP16: 17 modules (activations, comparisons, conversions)
-  - FP32: 17 modules (activations, comparisons, conversions)
-  - FP8 E4M3: 22 modules (full arithmetic, activations, conversions)
-  - FP8 E5M2: 22 modules (full arithmetic, activations, conversions)
-  - IEEE 754-2008: 10 modules (FP16/FP32 compliant arithmetic)
-- **Data Integrity**: 6 modules
-- **Clock/Reset Control**: 4 modules
-- **Counters**: 6 modules
-- **Converters/Encoders**: 8 modules
-- **Bit Manipulation**: 6 modules
-- **Shifters/LFSRs**: 4 modules
-- **Memory/Storage**: 4 modules
-- **Utilities**: 2 modules
+
+**55 modules** in `rtl/common/`. Arithmetic (`math_*`) split out to `rtl/math/`
+— counted in the [RTLMath](../RTLMath/index.md) book, not here.
+
+| Category | Count |
+|---|---|
+| Clock/Reset/CDC | 8 |
+| Counters | 8 |
+| Data Integrity | 7 |
+| Conversion & Encoding | 6 |
+| Bit Ops & Search | 6 |
+| Shifters & LFSRs | 6 |
+| Arbiters | 5 |
+| FIFOs | 3 |
+| CAM | 1 |
+| Miscellaneous | 5 |
+
+Counts are from `ls rtl/common/*.sv`; regenerate rather than hand-editing.
 
 ### Usage Guidelines
 

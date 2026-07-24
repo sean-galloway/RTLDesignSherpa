@@ -37,7 +37,7 @@ The RTLCommon library is built on the following core principles:
 **Parameterizability**: Configurable width and functionality parameters for maximum reusability
 **Synthesis Friendly**: Optimized for modern synthesis tools with predictable area/timing results
 **Technology Independence**: Clean RTL that works across ASIC and FPGA technologies
-**Comprehensive Coverage**: From basic gates to complex arithmetic and control structures
+**Broad Coverage**: counters, FIFOs, arbiters, CDC, data integrity, and clock/reset control (arithmetic is its own library — [RTLMath](../RTLMath/index.md))
 
 ### Quality Standards
 
@@ -50,34 +50,37 @@ The RTLCommon library is built on the following core principles:
 
 ### Module Hierarchy
 
+Per-category counts live in one place — the [count table in index.md](index.md#module-count-by-category) — so this tree lists categories only and cannot drift from it.
+
+
 ```
 RTLCommon Library
 ├── (Arithmetic & Math moved to rtl/math/ — see RTLMath book)
-├── Data Integrity (6 modules)
+├── Data Integrity
 │   ├── Error Detection (CRC, Checksum, Parity)
 │   └── Error Correction (Hamming ECC)
-├── Control & Arbitration (4 modules)
+├── Control & Arbitration
 │   ├── Round-Robin Arbiters
 │   └── Priority Arbiters
-├── Clock & Reset (4 modules)
+├── Clock & Reset
 │   ├── Clock Management (ICG, Dividers)
 │   └── Reset Synchronization
-├── Counters & Sequences (6 modules)
+├── Counters & Sequences
 │   ├── Binary & Gray Code Counters
 │   └── Specialized Counting
-├── Data Conversion (8 modules)
+├── Data Conversion
 │   ├── Code Converters (Binary/Gray/BCD)
 │   └── Display Decoders
-├── Bit Operations (5 modules)
+├── Bit Operations
 │   ├── Bit Searching & Counting
 │   └── Vector Manipulation
-├── Shift & LFSR (4 modules)
+├── Shift & LFSR
 │   ├── Barrel Shifters
 │   └── Pseudorandom Generation
-├── Memory & Storage (4 modules)
+├── Memory & Storage
 │   ├── FIFO Implementations
 │   └── Content Addressable Memory
-└── Utilities (2 modules)
+└── Utilities
     ├── PWM Generation
     └── Sorting Algorithms
 ```
@@ -308,8 +311,11 @@ Specialized functions for specific application domains.
 4. **Verify Integration**: Ensure proper interfacing and timing
 
 ### Integration Best Practices
+> The example below instantiates `math_adder_full_nbit`, which now lives in
+> [`rtl/math/`](../RTLMath/index.md) — modules compose across the two libraries.
+
 ```systemverilog
-// Example: Building a complete arithmetic unit
+// Example: Building a complete arithmetic unit (math_* modules are in rtl/math/)
 module arithmetic_unit #(
     parameter int DATA_WIDTH = 32
 ) (
@@ -358,7 +364,6 @@ endmodule
 
 ### Planned Additions
 - **DSP Functions**: FFT, filtering, and signal processing primitives
-- **Advanced Arithmetic**: Division, square root, and trigonometric functions
 - **Security Primitives**: Hardware security modules and cryptographic functions
 - **AI/ML Accelerators**: Matrix operations and neural network primitives
 

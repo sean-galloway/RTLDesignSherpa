@@ -44,21 +44,24 @@ The Common RTL Library provides **55 reusable building blocks** for FPGA and ASI
 
 ## Module Categories
 
-| Category | Count | Examples |
-|----------|-------|----------|
-| **Clock/Reset/CDC** | 8 | clock_divider, clock_gate_ctrl, clock_pulse, glitch_free_n_dff_arn, sync |
-| **Counters** | 8 | counter_bin, counter_bingray, counter_johnson, counter_ring |
-| **Data Integrity** | 7 | dataint_crc, dataint_ecc_hamming, dataint_parity, dataint_checksum |
-| **Conversion & Encoding** | 6 | bin2gray, gray2bin, johnson2bin, decoder, encoder, hex_to_7seg |
-| **Bit Ops & Search** | 6 | count_leading_zeros, find_first_set, find_last_set, leading_one_trailing_one |
-| **Shifters & LFSRs** | 6 | shifter_barrel, shifter_lfsr, shifter_lfsr_fibonacci, shifter_lfsr_galois |
-| **Arbiters** | 5 | arbiter_round_robin, arbiter_round_robin_weighted, arbiter_priority_encoder |
-| **FIFOs** | 3 | fifo_sync, fifo_async, fifo_control |
-| **CAM** | 1 | cam_tag |
-| **Miscellaneous** | 5 | pwm, sort, bin_to_bcd, reverse_vector, mod_3_compress |
+Counts live in one place — the [count table in index.md](index.md#module-count-by-category).
+A browse-oriented view of what's in each category:
 
-**Total: 55 modules.** Arithmetic (`math_*`) split out into
-[`rtl/math/`](../RTLMath/index.md); its docs are the [RTLMath](../RTLMath/index.md) book.
+| Category | Examples |
+|----------|----------|
+| Clock/Reset/CDC | clock_divider, clock_gate_ctrl, clock_pulse, glitch_free_n_dff_arn |
+| Counters | counter_bin, counter_bingray, counter_johnson, counter_ring |
+| Data Integrity | dataint_crc, dataint_ecc_hamming, dataint_parity, dataint_checksum |
+| Conversion & Encoding | bin2gray, gray2bin, johnson2bin, decoder, encoder, hex_to_7seg |
+| Bit Ops & Search | count_leading_zeros, find_first_set, find_last_set, leading_one_trailing_one |
+| Shifters & LFSRs | shifter_barrel, shifter_lfsr, shifter_lfsr_fibonacci, shifter_lfsr_galois |
+| Arbiters | arbiter_round_robin, arbiter_round_robin_weighted, arbiter_priority_encoder |
+| FIFOs | fifo_sync, fifo_async, fifo_control |
+| CAM | cam_tag |
+| Miscellaneous | pwm, sort, bin_to_bcd, reverse_vector, mod_3_compress |
+
+Arithmetic (`math_*`) split out into [`rtl/math/`](../RTLMath/index.md); its
+docs are the [RTLMath](../RTLMath/index.md) book.
 
 **Full per-module docs:** [docs/markdown/RTLCommon/](index.md)
 
