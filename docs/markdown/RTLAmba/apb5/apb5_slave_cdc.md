@@ -89,7 +89,8 @@ flowchart LR
 | WUSER_WIDTH | int | 4 | Write user signal width |
 | RUSER_WIDTH | int | 4 | Read user signal width |
 | BUSER_WIDTH | int | 4 | Response user signal width |
-| DEPTH | int | 2 | Skid-buffer depth of the wrapped `apb5_slave`. **{2, 4, 8} through this wrapper** -- see below. |
+| DEPTH | int | 2 | Skid-buffer depth of the wrapped `apb5_slave`; one of {2, 4, 6, 8} |
+| USE_JOHNSON | int | -1 (auto) | CDC-FIFO pointer encoding: `0` Gray, `1` Johnson, `-1` auto-select. See below. |
 | ENABLE_PARITY | bit | 0 | Enable parity generation and checking |
 | USE_2_PHASE_CDC | bit | 1 | Deprecated and ignored -- retained for source compatibility |
 
@@ -127,13 +128,31 @@ the AMBA library. There are no `bclk`/`bresetn` ports.
 Same as [apb5_slave](apb5_slave.md) - operates in `pclk` domain, including the
 optional parity signals.
 
-> **DEPTH=6 does not elaborate through the CDC wrapper.** `{2, 4, 6, 8}` is
-> the bare `apb5_slave` skid-buffer constraint. This wrapper derives
-> `CDC_FIFO_DEPTH = (DEPTH < 4) ? 4 : DEPTH` and feeds it to `gaxi_fifo_async`
-> with `USE_JOHNSON = 0` (Gray), which has an elaboration-time `$error` for a
-> non-power-of-2 depth -- a Gray sequence only closes on a power of 2. So
-> DEPTH=2 and 4 both give a depth-4 FIFO, 8 gives 8, but 6 gives 6 and fails.
-> `USE_JOHNSON` is not exposed on `apb5_slave_cdc`, so there is no override.
+### CDC FIFO pointer encoding
+
+The wrapper derives `CDC_FIFO_DEPTH = (DEPTH < 4) ? 4 : DEPTH` and hands that to
+two `gaxi_fifo_async` instances (command and response). Gray pointers only close
+on a power-of-2 depth, so a FIFO depth of 6 cannot use Gray -- `gaxi_fifo_async`
+carries an elaboration-time `$error` for exactly that case.
+
+`USE_JOHNSON` selects the encoding, and the default resolves it per depth:
+
+| `USE_JOHNSON` | Encoding | Pointer width | Depth constraint |
+|---|---|---|---|
+| `0` | Gray | `$clog2(DEPTH)+1` | power of 2 only |
+| `1` | Johnson | `DEPTH` bits | any depth |
+| `-1` (default) | auto | per depth | none -- Gray when the derived FIFO depth is a power of 2, Johnson otherwise |
+
+All of {2, 4, 6, 8} therefore elaborate. DEPTH 2 and 4 both derive a depth-4
+FIFO and 8 derives 8, so those stay on Gray with their pointer cost unchanged.
+DEPTH=6 derives a depth-6 FIFO and auto-selects Johnson, which costs 6-bit
+pointers per domain instead of Gray's 4 -- the price of a non-power-of-2 depth,
+and the only encoding that is correct there.
+
+**`USE_JOHNSON=0` with `DEPTH=6` is still an elaboration error, deliberately.**
+Asking for Gray at a non-power-of-2 depth is a real configuration mistake and
+should fail the build. The default routes around the constraint; it never
+overrides a preference you expressed.
 
 ### Backend Interface
 

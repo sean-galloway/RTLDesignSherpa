@@ -37,6 +37,16 @@ module apb5_slave_cdc #(
     parameter bit ENABLE_PARITY   = 0,
     // CDC handshake variant: 1 = 2-phase (toggle, faster), 0 = 4-phase (level, classic)
     parameter bit USE_2_PHASE_CDC = 1'b1,   // deprecated, ignored
+    // Pointer encoding for the two CDC FIFOs:
+    //    0 = Gray    - cheapest pointers ($clog2(DEPTH)+1 bits), but Gray only
+    //                  closes on a power-of-2 depth
+    //    1 = Johnson - any depth, at DEPTH-bit pointers (more flops)
+    //   -1 = AUTO (default) - Gray when the derived FIFO depth is a power of
+    //                  two, Johnson otherwise. Existing power-of-2 builds keep
+    //                  Gray and their flop cost unchanged; DEPTH=6 now
+    //                  elaborates instead of tripping gaxi_fifo_async's
+    //                  power-of-2 $error.
+    parameter int USE_JOHNSON     = -1,
     // Short Parameters
     parameter int DW  = DATA_WIDTH,
     parameter int AW  = ADDR_WIDTH,
@@ -229,9 +239,17 @@ module apb5_slave_cdc #(
     // -------------------------------------------------------------------------
     localparam int CDC_FIFO_DEPTH = (DEPTH < 4) ? 4 : DEPTH;
 
+    // Gray needs a power-of-2 depth; Johnson does not. AUTO picks per depth so
+    // a non-power-of-2 DEPTH is legal here rather than an elaboration error one
+    // level down.
+    localparam bit CDC_DEPTH_POW2   = ((CDC_FIFO_DEPTH & (CDC_FIFO_DEPTH - 1)) == 0);
+    localparam int CDC_USE_JOHNSON  = (USE_JOHNSON >= 0) ? USE_JOHNSON
+                                                         : (CDC_DEPTH_POW2 ? 0 : 1);
+
     gaxi_fifo_async #(
         .DATA_WIDTH   (CPW),
         .DEPTH        (CDC_FIFO_DEPTH),
+        .USE_JOHNSON  (CDC_USE_JOHNSON),
         .N_FLOP_CROSS (2)
     ) u_cmd_cdc_fifo (
         .axi_wr_aclk    (pclk),
@@ -253,6 +271,7 @@ module apb5_slave_cdc #(
     gaxi_fifo_async #(
         .DATA_WIDTH   (RPW),
         .DEPTH        (CDC_FIFO_DEPTH),
+        .USE_JOHNSON  (CDC_USE_JOHNSON),
         .N_FLOP_CROSS (2)
     ) u_rsp_cdc_fifo (
         .axi_wr_aclk    (aclk),
