@@ -195,3 +195,52 @@ spine, here are the axes, here are the tweaks."
 
 ---
 
+
+---
+
+## AMBA-CDC-REORG — pull CDC out of amba into a top-level rtl/cdc area
+**Status:** open 2026-07-24 — planned, BLOCKED on the running common Kimi review
+**Priority:** P1 (Sean)
+
+Sean, 2026-07-24. Create a first-class `rtl/cdc/` area and consolidate the
+clock-domain-crossing modules there, out of `rtl/amba/` and `rtl/common/`.
+
+**Modules to move into `rtl/cdc/`:**
+- from `rtl/amba/cdc/`: `cdc_2_phase_handshake`, `cdc_4_phase_handshake`,
+  `cdc_open_loop`, `cdc_synchronizer`
+- from `rtl/common/`: `fifo_async` (the async FIFO)
+- from `rtl/amba/gaxi/`: `gaxi_fifo_async`, `gaxi_skid_buffer_async`
+
+**Everything that must follow the RTL move:**
+- [ ] `val/cdc/` must exist (Sean) — move the corresponding tests out of
+      `val/common` (fifo_async) and `val/amba` (cdc_*, gaxi async) into it.
+- [ ] `docs/markdown/RTLCdc/` book — the moved modules' doc pages leave
+      RTLCommon/RTLAmba; add `_book_cdc_index.md`, `index.md`, `overview.md`.
+- [ ] **Filelists move INTO the rtl dir** (Sean, directive D): each `.f` lives
+      in the directory with its RTL (`rtl/cdc/filelists/` or beside the .sv),
+      not a central location. This is a convention change from today's
+      `bin/filelists.toml`-registered layout -- reconcile with [[filelists]]
+      and update the registry/consumers.
+- [ ] Repoint every consumer: `apb5_slave_cdc` instantiates `gaxi_fifo_async`
+      and `cdc_synchronizer`; formal harnesses; includes; `-f` includes across
+      amba/common/stream.
+- [ ] Kimi generates a per-section `overview.md` and the rtl area LINKS to it
+      (directive A) -- see the open question below on how, given rtl READMEs
+      were just deleted.
+
+**Open design questions -- resolve before moving:**
+1. **`fifo_control.sv`** is shared: `fifo_sync` (stays in common) AND
+   `fifo_async` (moves to cdc) both use it. It cannot simply move. Keep it in
+   `rtl/common` and have `rtl/cdc/fifo_async` depend on common, or split it?
+2. **"Overview linked in the rtl areas" vs "no README in rtl".** We just
+   deleted all rtl READMEs. If each section's Kimi `overview.md` must be linked
+   FROM the rtl area, what carries the link -- the area `CLAUDE.md`, or a
+   single one-line pointer file that is explicitly not a README? Confirm.
+3. Does `gaxi_skid_buffer_async` belong in cdc (it is a skid buffer, async
+   variant) or stay in gaxi? Confirm the exact gaxi split.
+
+**SEQUENCING (hard):** do NOT start while the common Kimi review runs --
+`fifo_async` is in that bundle (part_02) and moving it mid-review invalidates
+the result. This is the exact multitask trap Sean flagged. Order: finish the
+common review + integrate it, THEN do this reorg as one focused operation,
+THEN re-review the new cdc section (DOCREV-009).
