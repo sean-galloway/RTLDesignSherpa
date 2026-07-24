@@ -36,3 +36,13 @@ accepting the round.
 They break the LaTeX path in PDF generation and read as unprofessional in
 formal documentation. The banlist covers this; it is repeated here because it
 is the rule most often violated by a generative rewrite.
+
+## Beside-code READMEs are in scope
+
+The voice guide binds authored beside-code READMEs, not only the Kimi-bundled
+module pages. A README stub is *written* in voice from the template in [[doc-placement]] so
+it starts human, and it is ALSO subject to the eventual bulk humanization pass
+over all READMEs (DOCREV-007) - writing-in-voice is the floor, not an exemption.
+The no-emoji / no-LLM-ism / plain-declarative rules bind a README identically to
+a module page. Guide content that moves from a bloated README into
+`docs/markdown/` becomes bundle-able and picks up the normal pass too.

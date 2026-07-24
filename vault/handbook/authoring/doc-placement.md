@@ -56,6 +56,52 @@ the next session reads. This note is the authority on where each kind goes.
    expects them even though they look like docs. Check whether something is
    *read by code* before "tidying" it.
 
+## The beside-code README template
+
+A beside-code `README.md` is a link, and it is short. This is the shape - fill
+the bracketed parts, drop lines that do not apply, and **write it in voice**
+([[humanization-voice]]): plain sentences, a reason where a reason helps, no
+emoji, no "comprehensive/robust/seamless" filler.
+
+```markdown
+# <Area name>
+
+<One or two plain sentences: what lives in this directory and who it is for.>
+
+This is a pointer, by design: a standalone guide does not live in the <RTL/
+project> tree, so it cannot rot out of sync with a second copy.
+
+- **Per-module docs:** [docs/markdown/<Book>/](<relpath>/index.md)
+- **Guide** (<what it covers>): [.../quickstart.md](<relpath>/quickstart.md)
+- **Agent guidance for this subsystem:** [`CLAUDE.md`](CLAUDE.md)
+- **Requirements/practice:** the [vault](<relpath to vault>/INDEX.md)
+```
+
+`rtl/common/README.md` is the worked reference. Every link is checked; the count
+in the first line, if any, is derived (`ls <dir>/*.sv | wc -l`), never typed.
+
+## Humanizing READMEs
+
+Two passes, not one.
+
+**Write in voice now.** A stub is authored from the template above in voice
+([[humanization-voice]]) so it starts human - a 16-line pointer does not need an
+API round to become readable. This is the floor, not the finish.
+
+**Humanize them all eventually.** Every README gets a humanization pass at some
+point (Sean, 2026-07-24) - the stubs included, not only the guide prose they
+shed. Writing-in-voice is what keeps them acceptable in the meantime; it does
+not exempt them from the bulk pass. Tracked as DOCREV-007.
+
+That bulk pass is a tooling gap today: `run_batch.py humanize` globs
+`books/**/DOCS.md`, so it only sees bundled units, not `README.md` files
+scattered across the tree. Closing DOCREV-007 means either bundling the READMEs
+or teaching the humanizer to target them directly.
+
+Separately, when a bloated beside-code README is a real standalone guide, its
+prose moves into `docs/markdown/` and becomes a bundle-able `DOCS.md` unit -
+which picks up the normal voice pass with every other page as a side effect.
+
 ## What legitimately stays beside code
 
 Not everything beside code is misplaced - the test is whether it is *method* (a

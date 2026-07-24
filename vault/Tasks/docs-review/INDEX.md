@@ -6,7 +6,7 @@ Process and rationale: [kimi-review-rounds](../../handbook/authoring/kimi-review
 | State | Count |
 |---|---|
 | [active](active.md) | 1 |
-| [open](open.md) | 4 |
+| [open](open.md) | 5 |
 | [closed](closed.md) | 1 |
 | [dropped](dropped.md) | 0 |
 
@@ -34,5 +34,9 @@ Process and rationale: [kimi-review-rounds](../../handbook/authoring/kimi-review
 - **DOCREV-003** — final MD-only humanize round. Blocked on DOCREV-002 and -001.
 - **DOCREV-004** — back up or retire the off-repo collateral at
   `/mnt/data/github/rtl-doc-review/`.
+- **DOCREV-007** — README rollout: 105 beside-code READMEs, many 500-1000 line
+  standalone guides, to link stubs (guide prose -> docs/markdown, stub written
+  in voice). Pattern worked on rtl/common; 104 to go. Per-file judgement, not a
+  mass sed.
 - **DOCREV-005** — cloud enablement: key as a secret + egress allowlist. Gates
   new rounds only; the 339-finding backlog needs no API call.
