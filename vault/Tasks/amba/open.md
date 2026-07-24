@@ -298,12 +298,15 @@ an index, not storage). Most of the 366 `.f` follow this
 - [ ] `projects/components/retro_legacy_blocks/rtl/apb_xbar/apb_xbar_rlb_1to10.f`
 - [ ] `projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/ddr2_char_macro.f`
 
-**TB/harness `.f` -- decide the rule:** several `*_tb_top.f` live under
-`dv/tb/` or `dv/filelists/` (pumice x3, cdc_counter_display, ddr2_char x2,
-val/amba x1). These are TEST-harness compile closures, not RTL module lists, so
-"lives with the RTL" may not apply -- a harness list arguably belongs with its
-testbench. Decide: do harness filelists also standardize on a `filelists/` dir
-next to the TB, and is that in scope here or a DV concern?
+**TB/harness `.f` -- RESOLVED (Sean, 2026-07-24):** a testbench with its own
+harness gets its own filelist, co-located WITH the TB (its `filelists/` dir),
+not with the RTL. So `*_tb_top.f` under `dv/` are correctly placed in principle;
+they just need the same `filelists/`-dir naming. `val/amba/filelists/
+monbus_arbiter_grant_hold_dut.f` is a TB list and stays with its TB.
 
-After normalizing, re-run `python3 bin/filelist_registry.py --check` (read all
-three counts, not just PASS) and confirm the toml still resolves every area.
+**SCOPE / SEQUENCING (Sean, 2026-07-24):** the RTL-area filelists are ALREADY
+consistent -- `rtl/amba/`, `rtl/common/`, `rtl/math/` all use `filelists/`. Every
+straggler above is under `projects/` (or a project's `val/`). **Projects are
+deferred until the RTL area is complete.** So this task does not start now; it
+waits behind the RTL-area work (cdc reorg, amba cleanup). Re-check with
+`bin/filelist_registry.py --check` when it runs.

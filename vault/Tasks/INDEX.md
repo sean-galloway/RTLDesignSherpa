@@ -46,6 +46,14 @@ authority and wins on any conflict. This directory tracks *work*; it does not
 override requirements. Design/DV/FPGA *practice* lives in the
 [handbook](../handbook/INDEX.md).
 
+## Sequencing (Sean, 2026-07-24)
+
+**RTL area first, projects second.** The current structural cleanup -- doc
+placement, the CDC reorg, filelist consistency -- is finished across `rtl/`
+before any of it touches `projects/`. Tasks scoped to `projects/` wait behind
+the RTL-area work. And within a running Kimi review, nothing that changes the
+reviewed tree starts until the review is back and integrated.
+
 ## Areas
 
 | Area | Status | Covers | Source (pre-migration) |
