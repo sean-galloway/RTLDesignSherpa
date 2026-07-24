@@ -30,7 +30,6 @@ note — it belongs to that block and nowhere else.
 ## projects/components/
 
 - [apb_xbar](projects/components/apb_xbar/INDEX.md)
-- [bch](projects/components/bch/INDEX.md)
 - [bridge](projects/components/bridge/INDEX.md) — generated crossbar
 - [converters](projects/components/converters/INDEX.md)
 - [delta](projects/components/delta/INDEX.md)

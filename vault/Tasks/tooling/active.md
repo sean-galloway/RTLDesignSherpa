@@ -17,7 +17,6 @@ procedure for each so they all come out identical.
 - [ ] stream — dmas/stream/TASKS.md + TODO_RFC_StageE_datapath_perfmon.md
 - [ ] rapids — dmas/rapids/TASKS.md + docs/rapids_beats_mas/TODO.md
 - [ ] bridge — bridge/TASKS.md
-- [ ] bch — bch/TASKS.md
 - [ ] delta — delta/TASKS.md
 - [ ] hive — hive/TASKS.md
 - [ ] retro-legacy — retro_legacy_blocks/TASKS.md + rtl/{ioapic,pm_acpi,smbus}/TODO.md

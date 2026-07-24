@@ -50,7 +50,6 @@
 | **retro_legacy_blocks** | Active Development | 16 | 5 | High | 15% (2/13 blocks) |
 | **delta** | Active Development | 1 | 0 | Medium | 10% |
 | **hive** | Early Specification | 0 | 0 | Low | 5% |
-| **bch** | Placeholder | 0 | 0 | Low | 0% |
 
 ---
 
@@ -478,7 +477,6 @@ Bridge (Memory Interconnect)
 | **retro_legacy_blocks** | ~1500 | 0 | 0 | HPET + 8254 PIT currently, 11 more blocks planned |
 | **delta** | ~15000 | TBD | 0 | 4x4 mesh estimate |
 | **hive** | ~9000 | 24 | 0 | HIVE-C + 16 SERV monitors |
-| **bch** | ~35K | 2-4 | 0 | Encoder + Decoder estimates |
 
 ---
 

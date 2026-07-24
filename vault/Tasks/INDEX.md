@@ -55,7 +55,6 @@ override requirements. Design/DV/FPGA *practice* lives in the
 | stream | pending | dmas/stream DMA | [TASKS.md](../../projects/components/dmas/stream/TASKS.md), TODO_RFC_StageE |
 | rapids | pending | dmas/rapids DMA (beats) | [TASKS.md](../../projects/components/dmas/rapids/TASKS.md), rapids_beats_mas/TODO |
 | bridge | pending | bridge crossbar generator | [TASKS.md](../../projects/components/bridge/TASKS.md) |
-| bch | pending | BCH ECC | [TASKS.md](../../projects/components/bch/TASKS.md) |
 | delta | pending | delta component | [TASKS.md](../../projects/components/delta/TASKS.md) |
 | hive | pending | hive component | [TASKS.md](../../projects/components/hive/TASKS.md) |
 | retro-legacy | pending | retro legacy blocks (ioapic, pm_acpi, smbus, pit, hpet) | [TASKS.md](../../projects/components/retro_legacy_blocks/TASKS.md) + rtl/*/TODO |

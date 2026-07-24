@@ -97,6 +97,7 @@ would serve high-throughput consumers, at an area cost.
 **Status:** open — deferred, P3. **Re-check before starting.**
 
 Library ECC is Hamming SECDED only; BCH and Reed-Solomon were deferred as niche
-(NAND flash, deep-space comms). Note that a `projects/components/bch/` component
-now exists, so this may be partly or wholly superseded — confirm before treating
-it as open work.
+(NAND flash, deep-space comms). A `projects/components/bch/` component once
+existed as a docs-only placeholder (PRD/README/TASKS, no RTL and no tests) and
+was **deleted 2026-07-23**, so this task is NOT superseded — it is the only
+place BCH is tracked.

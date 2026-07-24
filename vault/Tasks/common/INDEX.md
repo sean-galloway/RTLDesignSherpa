@@ -22,8 +22,9 @@ integration support.
 - **COMMON-011** — `counter.sv` tick not gated during reset. Low severity, but
   the edge-case test is disabled with `if False:` — a silent test.
 - **COMMON-003** — integration examples (P2).
-- **COMMON-006/007/008/009** — deferred enhancements (P3). COMMON-009 may be
-  superseded by `projects/components/bch/`; check before starting.
+- **COMMON-006/007/008/009** — deferred enhancements (P3). COMMON-009 (BCH) is
+  the only place BCH is tracked; the docs-only `components/bch/` placeholder was
+  deleted 2026-07-23.
 
 Practice and rationale live in the [handbook](../../handbook/INDEX.md);
 this directory tracks *work* only. `/GLOBAL_REQUIREMENTS.md` wins on conflict.
