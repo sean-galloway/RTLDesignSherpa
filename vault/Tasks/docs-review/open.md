@@ -108,9 +108,34 @@ were missed:
   **clock_gate_ctrl, dataint_crc**.
 - `cdc_part_02` (3 CONFIRMED, 1 SUSPECTED) touches no `rtl/common`.
 
-These are deliberately NOT counted as common work — they will be integrated
-with their own units in the cdc / shared passes. Recorded here so the overlap
-is not rediscovered from scratch.
+**Their common-touching findings were then worked and are DONE (2026-07-23).**
+Checked each of `cdc_part_01`'s six `RTLCommon` findings against the tree; five
+were already covered by the `common_part_*` integration and needed nothing:
+
+- glitch_free_n_dff_arn "synchronous" reset -> already reads **Asynchronous**
+- glitch_free_n_dff_arn "further reduces MTBF" -> already reads **increases**
+- clock_pulse resource table -> already `$clog2(WIDTH)`, with an explicit
+  "NOT WIDTH bits" note (the RTL fix in COMMON-013 made the doc correct)
+- clock_pulse formal properties -> already `|=>` with a comment explaining the
+  registered pulse, and `$past()` on the converse property
+- johnson2bin worked examples -> already corrected
+
+One was real and is now fixed: the **phantom `synchronizer` module**. No module
+of that name exists in `rtl/` — the library has `cdc_synchronizer`
+(`async_in`/`sync_out`, in `rtl/amba/cdc/`) and `glitch_free_n_dff_arn`
+(`d`/`q`, in `rtl/common/`). Four instantiations across `bin2gray.md` and
+`counter_bingray.md` used the phantom name with invented `data_in`/`data_out`
+ports, so none of those examples compiled. Repointed all four at
+`glitch_free_n_dff_arn` (kept in `rtl/common` so a common-library example does
+not reach into amba) with correct ports and `FLOP_COUNT(2)`.
+
+Verified by lint, not by inspection: a wrapper instantiating the corrected form
+elaborates clean under `verilator --lint-only -Wall`. The one remaining warning
+(`flat_r_q` unused) is pre-existing inside `glitch_free_n_dff_arn.sv` itself.
+
+`shared_part_02`'s findings all target **RTLAmba** docs (`amba_clock_gate_ctrl`,
+the master characterization blocks) and merely cite `rtl/common` modules as
+evidence — they are shared-pass work, not common.
 
 ## DOCREV-002 — Humanizer structural-preservation preamble + tag-survival test
 **Status:** open 2026-07-23 — partially implemented; gates DOCREV-003

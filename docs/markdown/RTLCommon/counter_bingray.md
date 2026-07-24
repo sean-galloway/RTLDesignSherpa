@@ -177,19 +177,25 @@ counter_bingray #(.WIDTH(ADDR_WIDTH+1)) rd_counter (
 logic [ADDR_WIDTH:0] wr_gray_sync, rd_gray_sync;
 
 // Write domain: synchronize read Gray pointer
-synchronizer #(.WIDTH(ADDR_WIDTH+1)) rd_sync (
-    .clk(wr_clk),
+glitch_free_n_dff_arn #(
+    .FLOP_COUNT(2),
+    .WIDTH(ADDR_WIDTH+1)
+) rd_sync (
+    .clk  (wr_clk),
     .rst_n(wr_rst_n),
-    .data_in(rd_gray),
-    .data_out(rd_gray_sync)
+    .d    (rd_gray),
+    .q    (rd_gray_sync)
 );
 
 // Read domain: synchronize write Gray pointer
-synchronizer #(.WIDTH(ADDR_WIDTH+1)) wr_sync (
-    .clk(rd_clk),
-    .rst_n(rd_rst_n), 
-    .data_in(wr_gray),
-    .data_out(wr_gray_sync)
+glitch_free_n_dff_arn #(
+    .FLOP_COUNT(2),
+    .WIDTH(ADDR_WIDTH+1)
+) wr_sync (
+    .clk  (rd_clk),
+    .rst_n(rd_rst_n),
+    .d    (wr_gray),
+    .q    (wr_gray_sync)
 );
 ```
 
@@ -267,11 +273,14 @@ counter_bingray #(.WIDTH(8)) src_counter (
 
 // Destination domain receives synchronized Gray value
 logic [7:0] dest_gray_sync;
-synchronizer #(.WIDTH(8)) sync_inst (
-    .clk(dest_clk),
+glitch_free_n_dff_arn #(
+    .FLOP_COUNT(2),
+    .WIDTH(8)
+) sync_inst (
+    .clk  (dest_clk),
     .rst_n(dest_rst_n),
-    .data_in(src_gray),
-    .data_out(dest_gray_sync)
+    .d    (src_gray),
+    .q    (dest_gray_sync)
 );
 ```
 
