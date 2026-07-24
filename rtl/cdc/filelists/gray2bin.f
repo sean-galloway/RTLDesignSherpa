@@ -1,5 +1,5 @@
 # Filelist for gray2bin module
-# Location: rtl/common/filelists/gray2bin.f
+# Location: rtl/cdc/filelists/gray2bin.f
 
 # Include directories
 +incdir+$REPO_ROOT/rtl/amba/includes
@@ -8,4 +8,4 @@
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 
 # gray2bin module
-$REPO_ROOT/rtl/common/gray2bin.sv
+$REPO_ROOT/rtl/cdc/gray2bin.sv

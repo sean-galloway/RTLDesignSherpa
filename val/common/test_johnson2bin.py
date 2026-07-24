@@ -618,7 +618,7 @@ def test_johnson2bin(request, jcw, width, test_level):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/johnson2bin.f'
+        filelist_path='rtl/cdc/filelists/johnson2bin.f'
     )
     toplevel = dut_name
 

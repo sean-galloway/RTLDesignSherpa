@@ -9,20 +9,20 @@
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/uart_axil_bridge.f
 
 # common building blocks used by cdc_counter_domain (and its subdeps)
--f $REPO_ROOT/rtl/common/filelists/bin2gray.f
--f $REPO_ROOT/rtl/common/filelists/gray2bin.f
+-f $REPO_ROOT/rtl/cdc/filelists/bin2gray.f
+-f $REPO_ROOT/rtl/cdc/filelists/gray2bin.f
 -f $REPO_ROOT/rtl/common/filelists/sync_pulse.f
 -f $REPO_ROOT/rtl/common/filelists/glitch_free_n_dff_arn.f
 -f $REPO_ROOT/rtl/common/filelists/counter_bin.f
--f $REPO_ROOT/rtl/common/filelists/counter_bingray.f
+-f $REPO_ROOT/rtl/cdc/filelists/counter_bingray.f
 -f $REPO_ROOT/rtl/common/filelists/fifo_control.f
--f $REPO_ROOT/rtl/common/filelists/fifo_async.f
+-f $REPO_ROOT/rtl/cdc/filelists/fifo_async.f
 
 # amba/shared CDC primitives (value-out path modes 1/3/4)
--f $REPO_ROOT/rtl/amba/filelists/cdc_synchronizer.f
--f $REPO_ROOT/rtl/amba/filelists/cdc_open_loop.f
--f $REPO_ROOT/rtl/amba/filelists/cdc_2_phase_handshake.f
--f $REPO_ROOT/rtl/amba/filelists/cdc_4_phase_handshake.f
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_synchronizer.f
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_open_loop.f
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_2_phase_handshake.f
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_4_phase_handshake.f
 
 # DUT: harness + counter domain + TB top
 $REPO_ROOT/projects/NexysA7/cdc_counter_display/rtl/cdc_demo_harness.sv

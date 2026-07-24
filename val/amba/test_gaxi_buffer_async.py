@@ -504,7 +504,7 @@ def test_gaxi_buffer_async_wavedrom(request, data_width, depth, wr_clk_period, r
     # Get verilog sources based on mode for async versions
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/gaxi_fifo_async.f")
+        filelist_path="rtl/cdc/filelists/gaxi_fifo_async.f")
 
     if mode == 'skid':
         verilog_sources.append(os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"))
@@ -713,7 +713,7 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
     #
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/gaxi_fifo_async.f")
+        filelist_path="rtl/cdc/filelists/gaxi_fifo_async.f")
 
     if mode == 'skid':
         verilog_sources.append(os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"))

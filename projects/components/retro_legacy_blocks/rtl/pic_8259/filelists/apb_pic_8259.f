@@ -22,8 +22,8 @@
 # sub-blocks, missing monitor_trans_cam, missing clock-gate chain). Each
 # filelist below declares its own complete closure.
 -f $REPO_ROOT/rtl/amba/filelists/apb_slave.f
--f $REPO_ROOT/rtl/amba/filelists/cdc_2_phase_handshake.f
--f $REPO_ROOT/rtl/amba/filelists/cdc_4_phase_handshake.f
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_2_phase_handshake.f
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_4_phase_handshake.f
 
 # Layer 2: CMD/RSP to PeakRDL Adapter
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f

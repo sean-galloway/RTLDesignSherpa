@@ -712,7 +712,7 @@ def test_counter_johnson(request, width, test_level):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/counter_johnson.f'
+        filelist_path='rtl/cdc/filelists/counter_johnson.f'
     )
     toplevel = dut_name
 

@@ -17,10 +17,10 @@
 -f $REPO_ROOT/rtl/amba/filelists/apb_master_stub.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_stub.f
 -f $REPO_ROOT/rtl/amba/filelists/axi_gen_addr.f
--f $REPO_ROOT/rtl/amba/filelists/cdc_2_phase_handshake.f
--f $REPO_ROOT/rtl/amba/filelists/cdc_4_phase_handshake.f
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_2_phase_handshake.f
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_4_phase_handshake.f
 -f $REPO_ROOT/rtl/common/filelists/counter_bin.f
--f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_async.f
+-f $REPO_ROOT/rtl/cdc/filelists/gaxi_fifo_async.f
 
 # Both chain stages come in via the converters components' OWN filelists,
 # which carry their full closures (the shim's gaxi_fifo_async CDC queues,

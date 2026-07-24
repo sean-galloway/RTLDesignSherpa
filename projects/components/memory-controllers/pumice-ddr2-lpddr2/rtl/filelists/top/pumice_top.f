@@ -4,7 +4,7 @@ $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 +incdir+$REPO_ROOT/rtl/amba/includes
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/includes/pumice_pkg.sv
 -f $REPO_ROOT/rtl/common/filelists/counter_bin.f
--f $REPO_ROOT/rtl/common/filelists/counter_johnson.f
+-f $REPO_ROOT/rtl/cdc/filelists/counter_johnson.f
 -f $REPO_ROOT/rtl/common/filelists/find_first_set.f
 -f $REPO_ROOT/rtl/common/filelists/find_last_set.f
 -f $REPO_ROOT/rtl/common/filelists/leading_one_trailing_one.f
@@ -12,7 +12,7 @@ $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/include
 -f $REPO_ROOT/rtl/common/filelists/fifo_control.f
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
--f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_async.f
+-f $REPO_ROOT/rtl/cdc/filelists/gaxi_fifo_async.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd.f
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_axi_burst_chopper.sv

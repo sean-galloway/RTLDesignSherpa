@@ -1,9 +1,10 @@
-# Filelist for cdc_4_phase_handshake
-# Location: rtl/amba/filelists/cdc_4_phase_handshake.f
+# Filelist for cdc_open_loop
+# Location: rtl/cdc/filelists/cdc_open_loop.f
 #
 # Generated from the inline verilog_sources lists in val/amba.
 # Compile order is significant and preserved from the original tests.
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-$REPO_ROOT/rtl/amba/cdc/cdc_4_phase_handshake.sv
+-f $REPO_ROOT/rtl/common/filelists/glitch_free_n_dff_arn.f
+$REPO_ROOT/rtl/cdc/cdc_open_loop.sv

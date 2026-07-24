@@ -199,7 +199,49 @@ spine, here are the axes, here are the tweaks."
 ---
 
 ## AMBA-CDC-REORG — pull CDC out of amba into a top-level rtl/cdc area
-**Status:** open 2026-07-24 — planned, BLOCKED on the running common Kimi review
+**Status:** 🟡 IN PROGRESS 2026-07-24 — RTL moved, NOT YET VERIFIED. Resume below.
+
+### RESUME HERE (interrupted by power shutdown 2026-07-24)
+**Done in the working tree (committed as WIP):**
+- `rtl/cdc/` created; 12 `.sv` git-moved in (cdc_2/4_phase_handshake,
+  cdc_open_loop, cdc_synchronizer, fifo_async, gaxi_fifo_async,
+  gaxi_skid_buffer_async, bin2gray, gray2bin, johnson2bin, counter_bingray,
+  counter_johnson).
+- 11 `.f` git-moved to `rtl/cdc/filelists/` (gaxi_skid_buffer_async had none).
+- `$REPO_ROOT` paths rewritten for the moved modules across 365 filelists + 10
+  test files; `filelist_path=` strings updated. Verified: no stale refs to the
+  moved modules' old paths (only gaxi_fifo_**sync** remains, which correctly
+  stays in amba).
+
+**STILL TO DO (in order) — the move is NOT verified yet:**
+- [ ] **bin/filelists.toml: add the `cdc` area** (`rtl_roots = ["rtl/cdc"]`).
+      Without it, `filelist_registry --check` will report the 12 modules as
+      unreachable. This is the first thing to do on resume.
+- [ ] Create a `.f` for `gaxi_skid_buffer_async` (it had none) — per
+      gaxi_fifo_async.f's note it layers 2 files on the async base.
+- [ ] `bin/filelist_registry.py --check` must pass (read all three counts).
+- [ ] Run moved-module tests to prove sources still resolve: test_bin2gray,
+      test_cdc_2_phase_handshake, test_fifo_buffer_async, test_gaxi_buffer_async.
+      A pass here is the whole point — the hardcoded paths were the risk.
+- [ ] `val/cdc/` — move the cdc tests out of val/common + val/amba (Sean: val/cdc
+      must exist). Update conftest/paths.
+- [ ] `docs/markdown/RTLCdc/` — move the moved modules' doc pages out of
+      RTLCommon/RTLAmba; add `_book_cdc_index.md`, `index.md`, `overview.md`;
+      update the source book indexes.
+- [ ] `formal/common/gaxi_skid_buffer_async/` harness paths.
+- [ ] gray/johnson doc pages currently in the RUNNING common Kimi bundle — when
+      the review returns, its fifo_async/gray/johnson findings reference the OLD
+      rtl/common paths; translate to rtl/cdc when integrating.
+
+**NOTE:** `fifo_control`, `counter_bin`, `glitch_free_n_dff_arn` and other shared
+deps deliberately STAY in rtl/common; the moved fifo_async.f still points at them
+there. Do not move them.
+
+---
+(original plan follows)
+
+## AMBA-CDC-REORG — pull CDC out of amba into a top-level rtl/cdc area (plan)
+**Status:** superseded by the RESUME block above
 **Priority:** P1 (Sean)
 
 Sean, 2026-07-24. Create a first-class `rtl/cdc/` area and consolidate the

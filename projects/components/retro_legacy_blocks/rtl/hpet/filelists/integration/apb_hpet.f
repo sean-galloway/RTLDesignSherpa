@@ -23,8 +23,8 @@ $REPO_ROOT/rtl/amba/includes/fifo_defs.svh
 # GAXI modules for CDC
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
--f $REPO_ROOT/rtl/amba/filelists/cdc_2_phase_handshake.f
--f $REPO_ROOT/rtl/amba/filelists/cdc_4_phase_handshake.f
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_2_phase_handshake.f
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_4_phase_handshake.f
 
 # APB modules
 -f $REPO_ROOT/rtl/amba/filelists/apb_slave.f

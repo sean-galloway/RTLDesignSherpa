@@ -23,16 +23,16 @@
 # reset domains here — CTRL.soft_reset pulses only the core side — and a
 # toggle-parity handshake desynchronizes under that, permanently offsetting the
 # response stream by one transaction.
--f $REPO_ROOT/rtl/common/filelists/counter_johnson.f
+-f $REPO_ROOT/rtl/cdc/filelists/counter_johnson.f
 -f $REPO_ROOT/rtl/common/filelists/find_first_set.f
 -f $REPO_ROOT/rtl/common/filelists/find_last_set.f
 -f $REPO_ROOT/rtl/common/filelists/leading_one_trailing_one.f
--f $REPO_ROOT/rtl/common/filelists/johnson2bin.f
--f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_async.f
--f $REPO_ROOT/rtl/amba/filelists/cdc_synchronizer.f
--f $REPO_ROOT/rtl/amba/filelists/cdc_2_phase_handshake.f
--f $REPO_ROOT/rtl/amba/filelists/cdc_4_phase_handshake.f
--f $REPO_ROOT/rtl/amba/filelists/cdc_open_loop.f
+-f $REPO_ROOT/rtl/cdc/filelists/johnson2bin.f
+-f $REPO_ROOT/rtl/cdc/filelists/gaxi_fifo_async.f
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_synchronizer.f
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_2_phase_handshake.f
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_4_phase_handshake.f
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_open_loop.f
 -f $REPO_ROOT/rtl/amba/filelists/apb_slave.f
 -f $REPO_ROOT/rtl/amba/filelists/apb_slave_cdc.f
 $REPO_ROOT/projects/components/converters/rtl/peakrdl_to_cmdrsp.sv

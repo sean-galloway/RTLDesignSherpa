@@ -1,5 +1,5 @@
 # Filelist for johnson2bin module
-# Location: rtl/common/filelists/johnson2bin.f
+# Location: rtl/cdc/filelists/johnson2bin.f
 
 # Include directories
 +incdir+$REPO_ROOT/rtl/amba/includes
@@ -13,4 +13,4 @@ $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 $REPO_ROOT/rtl/common/find_first_set.sv
 $REPO_ROOT/rtl/common/find_last_set.sv
 $REPO_ROOT/rtl/common/leading_one_trailing_one.sv
-$REPO_ROOT/rtl/common/johnson2bin.sv
+$REPO_ROOT/rtl/cdc/johnson2bin.sv

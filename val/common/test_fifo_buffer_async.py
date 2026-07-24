@@ -268,7 +268,7 @@ def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, re
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/fifo_async.f'
+        filelist_path='rtl/cdc/filelists/fifo_async.f'
     )
 
     # create a human readable test identifier with test level (matches sync version exactly)

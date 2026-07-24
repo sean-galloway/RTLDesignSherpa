@@ -1,5 +1,5 @@
 # Filelist for counter_bingray module
-# Location: rtl/common/filelists/counter_bingray.f
+# Location: rtl/cdc/filelists/counter_bingray.f
 
 # Include directories
 +incdir+$REPO_ROOT/rtl/amba/includes
@@ -8,4 +8,4 @@
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 
 # counter_bingray module
-$REPO_ROOT/rtl/common/counter_bingray.sv
+$REPO_ROOT/rtl/cdc/counter_bingray.sv

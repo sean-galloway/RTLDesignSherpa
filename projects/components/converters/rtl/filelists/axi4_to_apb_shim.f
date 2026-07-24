@@ -18,12 +18,12 @@
 -f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
 
 # CDC and synchronization
--f $REPO_ROOT/rtl/amba/filelists/cdc_2_phase_handshake.f
--f $REPO_ROOT/rtl/amba/filelists/cdc_4_phase_handshake.f
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_2_phase_handshake.f
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_4_phase_handshake.f
 
 # GAXI infrastructure. gaxi_fifo_async backs the APB cmd/rsp CDC queues.
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
--f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_async.f
+-f $REPO_ROOT/rtl/cdc/filelists/gaxi_fifo_async.f
 
 # APB infrastructure (apb_master_stub.f carries apb_master and its
 # counter_bin / fifo_control / gaxi dependencies)

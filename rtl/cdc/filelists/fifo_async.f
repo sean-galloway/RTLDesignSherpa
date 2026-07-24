@@ -1,5 +1,5 @@
 # Filelist for fifo_async module
-# Location: rtl/common/filelists/fifo_async.f
+# Location: rtl/cdc/filelists/fifo_async.f
 #
 # fifo_async supports BOTH pointer encodings via USE_JOHNSON, and the choice is
 # a parameter rather than a separate module, so this filelist must carry the
@@ -24,13 +24,13 @@ $REPO_ROOT/rtl/common/leading_one_trailing_one.sv
 $REPO_ROOT/rtl/common/fifo_control.sv
 
 # Gray pointer path (USE_JOHNSON=0)
-$REPO_ROOT/rtl/common/bin2gray.sv
-$REPO_ROOT/rtl/common/gray2bin.sv
-$REPO_ROOT/rtl/common/counter_bingray.sv
+$REPO_ROOT/rtl/cdc/bin2gray.sv
+$REPO_ROOT/rtl/cdc/gray2bin.sv
+$REPO_ROOT/rtl/cdc/counter_bingray.sv
 
 # Johnson pointer path (USE_JOHNSON=1)
-$REPO_ROOT/rtl/common/counter_johnson.sv
-$REPO_ROOT/rtl/common/johnson2bin.sv
+$REPO_ROOT/rtl/cdc/counter_johnson.sv
+$REPO_ROOT/rtl/cdc/johnson2bin.sv
 
 # fifo_async module
-$REPO_ROOT/rtl/common/fifo_async.sv
+$REPO_ROOT/rtl/cdc/fifo_async.sv

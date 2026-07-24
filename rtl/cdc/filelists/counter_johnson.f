@@ -1,5 +1,5 @@
 # Filelist for counter_johnson module
-# Location: rtl/common/filelists/counter_johnson.f
+# Location: rtl/cdc/filelists/counter_johnson.f
 
 # Include directories
 +incdir+$REPO_ROOT/rtl/amba/includes
@@ -8,4 +8,4 @@
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 
 # counter_johnson module
-$REPO_ROOT/rtl/common/counter_johnson.sv
+$REPO_ROOT/rtl/cdc/counter_johnson.sv

@@ -5,7 +5,7 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Module: test_cdc_open_loop
-# Purpose: Exercise rtl/amba/cdc/cdc_open_loop.sv across:
+# Purpose: Exercise rtl/cdc/cdc_open_loop.sv across:
 #          - Manual STRETCH_CYCLES (back-compat regression)
 #          - Auto-computed STRETCH (AUTO_STRETCH=1 with SRC_CLK_HZ/DST_CLK_HZ)
 #          - "Cliff" configs that intentionally under-stretch to verify the
@@ -185,7 +185,7 @@ def test_cdc_open_loop(request, params):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/cdc_open_loop.f")
+        filelist_path="rtl/cdc/filelists/cdc_open_loop.f")
 
     includes=includes
 
