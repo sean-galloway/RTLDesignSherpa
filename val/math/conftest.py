@@ -1,13 +1,13 @@
 """
-Validation Test Configuration for pytest - val/common
+Validation Test Configuration for pytest - val/math
 
-Configures the test environment for RTL common module tests.
+Configures the test environment for RTL math module tests.
 Supports Verilator line coverage collection.
 
 Coverage Features:
 - Set COVERAGE=1 to enable Verilator line coverage collection
 - Coverage reports are aggregated at session end
-- Use `python bin/cov_utils/generate_coverage_report.py --dir val/common` for reports
+- Use `python bin/cov_utils/generate_coverage_report.py --dir val/math` for reports
 
 Environment Variables:
 - COVERAGE=1: Enable coverage collection
@@ -61,7 +61,7 @@ def pytest_sessionfinish(session, exitstatus):
     Called after whole test run finished, right before returning the exit status.
     Aggregates coverage data if coverage was enabled.
     """
-    logging.info("val/common test session finished. Preserving all logs and build artifacts.")
+    logging.info("val/math test session finished. Preserving all logs and build artifacts.")
 
     # Aggregate coverage if enabled
     if os.environ.get('COVERAGE', '0') == '1':
