@@ -316,7 +316,8 @@ def dump_csv(
 
 
 def main(argv=None) -> int:
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[3])
+    p = argparse.ArgumentParser(
+        description="UART-side reader for the monbus capture SRAM ring.")
     p.add_argument("--port", required=True,
                    help="UART device path, e.g. /dev/ttyUSB1")
     p.add_argument("--baud", type=int, default=115200)

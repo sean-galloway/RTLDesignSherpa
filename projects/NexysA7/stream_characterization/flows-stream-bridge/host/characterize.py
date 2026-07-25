@@ -98,7 +98,7 @@ def run_one(runner, bridge, cfg, timeout_s: float, verbose: bool) -> dict:
     # Existing per-test setup: load descriptors, configure STREAM.
     runner.clear_stats()
     runner.load_descriptors(test["descriptor_writes"])
-    runner.configure_stream(num_channels=cfg.num_channels)
+    runner.configure_stream(list(range(cfg.num_channels)))
 
     # Kick — this is what causes the scheduler to issue its first AR on the
     # descriptor RAM bus, which is the timer's start trigger.
