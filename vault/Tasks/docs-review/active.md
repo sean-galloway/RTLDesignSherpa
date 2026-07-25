@@ -3,29 +3,46 @@
 # docs-review — Active (in progress)
 
 
-### IN-FLIGHT: common qc round_2, full 6-unit re-send (2026-07-24 evening)
+### DONE 2026-07-25: common qc round_2 sent AND integrated
 
 `round_1` was the shutdown-interrupted trial. It completed **two** units before
-dying (`common_part_01` 8 CONFIRMED, `common_part_02` 5 CONFIRMED + 1 SUSPECTED)
-— not zero as the earlier note assumed. Rather than resume it, the round was
-**abandoned in place** and all 6 units re-sent as `round_2`, because the CDC move
-(`c0daf18a`, 12:52) changed `rtl/common` *after* the round_1 bundle was built at
-09:57 — resuming would have mixed pre- and post-move ground truth inside one
-round. round_1's two critiques are kept, superseded.
+dying — not zero as the earlier note assumed. Rather than resume it, the round
+was **abandoned in place** and all 6 units re-sent as `round_2`, because the CDC
+move (`c0daf18a`) changed `rtl/common` *after* the round_1 bundle was built —
+resuming would have mixed pre- and post-move ground truth inside one round.
+round_1's two critiques are kept, superseded.
 
-**Running:** `qc`, kimi-k3 direct, 6 units → `~/rtl-doc-review/results/qc-kimi-k3/round_2/`,
-from a bundle rebuilt at 23:20 (`--books ~/rtl-doc-review/books`, with a
-hand-regenerated `common_meta` reflecting the 49/12 common-vs-cdc split). Roughly
-13 min/unit serial. If it dies again, `--resume 2` fills the gaps — that is safe
-now because the bundle no longer moves under it.
+**round_2:** 6 units, 95 min, kimi-k3 direct, from a bundle rebuilt against the
+post-CDC-move tree with a hand-regenerated `common_meta`. Results in
+`~/rtl-doc-review/results/qc-kimi-k3/round_2/`. **32 findings** (27 CONFIRMED +
+7 SUSPECTED, after the part_04 re-send).
 
-**Note the tree state being reviewed:** `c0daf18a` is a WIP, NOT-VERIFIED CDC
-move. Findings that say a common doc points at a module now in `rtl/cdc` are
-describing that move, not a doc that was ever wrong.
+**One unit came back truncated and was nearly missed.** `common_part_04` returned
+2,586 chars against 10-12k for its siblings, cut off mid-expression, with
+`finish_reason=length` and `budget_escalations: 0` — the ladder only escalated on
+an *empty* body, so a truncated one was filed as success. Fixed in
+`bin/review/kimi_client.py` (escalate on `finish=length` regardless of content,
+mutation-checked); part_04 re-sent and returned 9,129 chars with **5** findings
+instead of 2. See [[kimi-review-rounds]] rule 4.
 
-**Then, not before:** integrate the round_2 findings, verify, and only afterwards
-run the `humanize` pass on common (rule: never voice-pass a doc that is still
-wrong).
+**Integration measured, not assumed** (rule 6): of the 22 doc files round_2
+implicates, 21 have been touched since the round was sent. The one untouched
+(`dataint_crc.md`) is the single finding **rejected as a false positive** — the
+reviewer claimed CRC-64/ECMA-182 needs init/xorout = FF..; computed, the doc's
+init=0/xorout=0 yields 0x6C40DF5F0B497347, which IS the published ECMA-182 check
+value (0x62EC59E3F1A4F00A is CRC-64/WE). Commits: `2a9b4524`, `61d291da`,
+`c1ee2240`, `12a4a1fa`.
+
+**The one that mattered most.** `shifter_lfsr_fibonacci.md`'s entire polynomial
+table was wrong — tap sets copied from the XNOR/left-shift table in
+`shifter_lfsr.sv`, which encodes the same polynomials differently for this
+module's XOR/right-shift structure. Every row drove the register to zero, where
+the `|r_lfsr` guard freezes it. Measured: WIDTH=4 taps [4,3] locks in ONE step.
+Both LFSR modules now carry their own 168-width table in the RTL header, so
+neither invites a copy from the other. No follow-up outstanding.
+
+**Next:** the `humanize` pass on common is now unblocked (correctness integrated
+first, per the rule). Not started.
 
 ## DOCREV-001 — Integrate the outstanding Kimi accuracy findings
 
@@ -33,7 +50,7 @@ wrong).
 
 | Area | Units | State |
 |---|---|---|
-| **common** | `common_part_01..05` (r1+r2) + the `rtl/common` findings inside `cdc_part_01` | ✅ **DONE 2026-07-23** — measured, not assumed |
+| **common** | `common_part_01..05` + `common_meta` (re-reviewed 2026-07-25 after the CDC move) | ✅ **DONE 2026-07-25** — 21/22 implicated files touched; the 22nd is a rejected false positive |
 | **math** | `math_part_01/02/03` (r2) | ✅ **DONE 2026-07-24** — 16 CONFIRMED fixed, 5 SUSPECTED all bundle-scope false positives; docs live in RTLMath now |
 | shared | `shared_part_01..04` (r2) | ⬜ not started — 13 CONFIRMED in part_02 alone |
 | monitor | `monitor_part_01..06` (r3) | ⬜ not started — 70 CONFIRMED, largest block |

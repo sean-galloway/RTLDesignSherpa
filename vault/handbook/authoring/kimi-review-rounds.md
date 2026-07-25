@@ -68,6 +68,17 @@ Each one is here because ignoring it cost real work.
    `math_subtractor` "five nonexistent modules" finding was our packaging bug,
    not the reviewer's error.*
 
+   Reviewers are also wrong about the *outside world*, not just this repo, and
+   those errors are the most persuasive because they arrive with a citation.
+   *Case: k3 round_2 called `dataint_crc.md`'s CRC-64/ECMA-182 config wrong and
+   cited check value `0x62EC59E3F1A4F00A` for init/xorout = FF. Computing the
+   documented config gives `0x6C40DF5F0B497347`, which IS the published
+   ECMA-182 check value; the reviewer had quoted CRC-64/WE. The doc was right.*
+   When a finding rests on an external standard, **recompute it** - a twenty-line
+   reference implementation settles it, and validating that implementation
+   against a second published vector (CRC-64/XZ here) proves the tool before you
+   trust its verdict.
+
    The converse also holds: a finding that *looks* like a doc nit can be a real
    RTL defect. Read the whole finding, not the headline. *Case: "RTL rotates
    the wrong direction" in `arbiter_round_robin_simple` reads like a doc-vs-RTL
@@ -237,11 +248,27 @@ the reviewed commit. `bin/review/index_findings.py` flattens every critique
 into `docs/review/kimi/FINDINGS.md`: per-round counts, the most-implicated
 files, and a checkbox per finding.
 
+**Round numbers are per-results-directory, and there are now TWO.** The original
+proxy corpus (`kimi-k2` via litellm) is vendored in `docs/review/kimi/round_N/`.
+The direct-mode `kimi-k3` runs start their own numbering under
+`<results>/qc-kimi-k3/round_N/`. So "round_2" is ambiguous unless you say which
+- they are different corpora over different areas at different commits. Always
+qualify: *proxy round_2* vs *k3 round_2*.
+
+Proxy corpus (`docs/review/kimi/`):
+
 | Round | Units | Findings | CONFIRMED | Integrated? |
 |---|---|---|---|---|
 | round_1 | 8 | 68 | 58 | pre-reorg, superseded by round_2 |
 | round_2 | 22 | 196 | 167 | **no** - 1 of 102 implicated files touched since |
 | round_3 | 6 (monitor) | 75 | 70 | **no** - 0 of 31 touched since |
+
+Direct kimi-k3 corpus (`<results>/qc-kimi-k3/`):
+
+| Round | Units | Findings | CONFIRMED | Integrated? |
+|---|---|---|---|---|
+| round_1 | 2 of 6 (shutdown) | 14 | 13 | abandoned - bundle moved under it, superseded |
+| round_2 | 6 (common) | 32 | 27 | **yes**, 2026-07-25 - 21 of 22 implicated files touched; the 22nd is a rejected false positive |
 
 **As of 2026-07-23 the five round_2 `common_part_*` units are fully integrated**
 (all doc fixes plus the RTL defects they surfaced — arbiter_round_robin_simple
