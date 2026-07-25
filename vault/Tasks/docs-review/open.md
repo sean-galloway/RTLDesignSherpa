@@ -4,6 +4,50 @@
 
 ---
 
+## DOCREV-010 — every docs/markdown book needs index.md + overview.md
+**Status:** open 2026-07-25 (Sean)
+**Priority:** P2
+
+**The rule** (recorded in [[doc-placement]]): every directory under
+`docs/markdown/` carries BOTH `index.md` (the catalogue) and `overview.md` (the
+orientation), and the overview links to the index. `assets/` is exempt -- it is
+shared header fragments and image dirs, not a book.
+
+**Gaps as of 2026-07-25:**
+
+| Book | index.md | overview.md |
+|---|---|---|
+| RTLAmba, RTLCommon, projects | yes | yes |
+| RTLMath | yes | **write it** |
+| Scripts | yes | **write it** |
+| TestTutorial | yes | **write it** |
+| RTLcdc | **write it** | **write it** |
+
+`docs/markdown/RTLcdc/` exists but is EMPTY, and its casing disagrees with the
+`docs/markdown/RTLCdc/` that AMBA-CDC-REORG specifies. Settle on one name when
+that book is populated -- do not end up with both. That book is blocked on the
+CDC reorg anyway, since its pages have to move out of RTLCommon/RTLAmba first.
+
+**Also: the link back from the RTL tree.** Each area's RTL should point at its
+book's `overview.md`. It cannot be a `README.md` (banned under `rtl/`, commit
+`f7ca848a`), so use the two allowed anchors:
+- the `// Documentation:` module header line -- already in 225 of 232 modules
+  under `rtl/{common,cdc,math}`, but most point at `index.md`; repoint to
+  `overview.md`, and note 113 math modules point at `IEEE754_ARCHITECTURE.md`
+  and 12 at `BF16_ARCHITECTURE.md`, which want checking separately;
+- the area `CLAUDE.md` -- exists only for `rtl/amba` and `rtl/common`;
+  `rtl/cdc`, `rtl/math` and `rtl/integ_amba` have none.
+
+**Why it matters beyond tidiness:** `build_review_bundle.py` builds a unit per
+`_book_*_index.md` and includes `overview.md` plus the pages that index links.
+A book with no overview reviews less than it appears to, and `index.md` /
+`quickstart.md` are outside the bundle entirely -- which is how RTLCommon's meta
+docs kept a wrong module count, six relocated modules and a phantom `sync_2ff`
+through three review rounds. Pair this with the `<area>_meta` unit from
+DOCREV-009.
+
+---
+
 ## DOCREV-002 — Humanizer structural-preservation preamble + tag-survival test
 **Status:** open 2026-07-23 — partially implemented; gates DOCREV-003
 

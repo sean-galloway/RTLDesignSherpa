@@ -27,13 +27,15 @@ the next session reads. This note is the authority on where each kind goes.
    *Case (2026-07-24): a 17 KB `DOCUMENTATION_STYLE_GUIDE.md` sat in
    `rtl/common/`; moved to [[module-doc-template]].*
 
-2. **A beside-code README is a link, not a standalone guide.** If a directory
-   warrants a quick-start, the guide lives in `docs/markdown/` and the
-   directory's `README.md` points at it in a few lines. A full guide beside the
-   code is a second copy by definition. *Case: `rtl/common/README.md` was a
-   14 KB quick-start that drifted (claimed 86 modules when 55 remained); the
-   guide moved to `docs/markdown/RTLCommon/quickstart.md` and the RTL README
-   became a pointer.*
+2. **No README or PRD anywhere under `rtl/` at all** (Sean, 2026-07-24, commit
+   `f7ca848a`). This supersedes the older "a beside-code README is a link, not a
+   standalone guide" rule, which the RTL tree no longer has any README to apply
+   to. The history that got us here still matters: `rtl/common/README.md` was a
+   14 KB quick-start that drifted (claimed 86 modules when 55 remained), so the
+   guide moved to `docs/markdown/RTLCommon/quickstart.md` and the README shrank
+   to a pointer -- and then the pointers went too. Outside `rtl/`, in project
+   areas, a README is still allowed and still must be a link rather than a
+   second copy; the template below is for those.
 
 3. **One source per fact.** The same count, spec, or port list must not be
    stated in two files. A structural change updates one and forgets the other -
@@ -55,6 +57,61 @@ the next session reads. This note is the authority on where each kind goes.
    evidence and are regenerated, never hand-edited. These stay where the code
    expects them even though they look like docs. Check whether something is
    *read by code* before "tidying" it.
+
+## Every book directory has an index and an overview
+
+**Rule (Sean, 2026-07-25): every directory under `docs/markdown/` carries both
+`index.md` and `overview.md`, and the overview links to the index.** No
+exceptions among book directories. `assets/` is not a book -- it holds shared
+header fragments and per-book image dirs -- so it is out of scope; anything that
+holds reader-facing pages is in scope.
+
+The two files are not redundant, and the split is what keeps them from rotting
+into each other:
+
+- **`index.md` is the catalogue.** Every module page, linked, grouped by
+  category. Counts in it are derived (`ls rtl/<area>/*.sv | wc -l`), never typed
+  -- see rule 3.
+- **`overview.md` is the orientation.** What this area is for, how the pieces
+  relate, which module to reach for. It links to `index.md` for the catalogue
+  rather than restating it.
+
+There is a tooling reason too, not just a tidiness one: `build_review_bundle.py`
+builds a review unit per `_book_*_index.md` and pulls in `overview.md` plus the
+pages that index links. A book with no `overview.md` silently reviews less than
+you think, and `index.md`/`quickstart.md` are outside the bundle entirely --
+which is exactly how `RTLCommon`'s meta docs drifted six modules and a phantom
+`sync_2ff` past three review rounds. See [[kimi-review-rounds]] rule 8.
+
+### The link back from the RTL tree
+
+Each area's RTL should point at its book's `overview.md`. It **cannot** be a
+`README.md` -- rule 2 forbids those under `rtl/` -- so it goes in one of the two
+places that are allowed:
+
+- **The module header line.** `// Documentation: docs/markdown/<Book>/...` is
+  already the convention and already present in 225 of the 232 modules under
+  `rtl/{common,cdc,math}`. Point it at the area's `overview.md` (or a specific
+  page where one exists); today most point at `index.md`.
+- **The area `CLAUDE.md`.** Legitimately beside-code, and the natural home for
+  one "the reader-facing docs for this area live here" line. Only `rtl/amba` and
+  `rtl/common` have one; `rtl/cdc`, `rtl/math` and `rtl/integ_amba` do not.
+
+### Current state (2026-07-25)
+
+| Book | index.md | overview.md |
+|---|---|---|
+| RTLAmba | yes | yes |
+| RTLCommon | yes | yes |
+| projects | yes | yes |
+| RTLMath | yes | **missing** |
+| Scripts | yes | **missing** |
+| TestTutorial | yes | **missing** |
+| RTLcdc | **missing** | **missing** (directory exists but is empty) |
+
+`docs/markdown/RTLcdc/` is an empty directory with casing that disagrees with
+the `RTLCdc` the CDC reorg task specifies -- settle the name when that book is
+populated, and do not leave both. Tracked as DOCREV-010.
 
 ## The beside-code README template
 
