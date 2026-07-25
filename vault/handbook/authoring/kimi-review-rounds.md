@@ -177,9 +177,18 @@ The three commands, serial, correctness before voice:
 
     # 2. correctness pass for one area (dry-run first to see the units)
     KEY=<load the Moonshot key from your out-of-repo secrets store>
-    KIMI_API_KEY=$KEY KIMI_BASE_URL=https://api.moonshot.ai/v1 KIMI_MODEL=kimi-k3         python3 bin/review/run_batch.py qc         --books ~/rtl-doc-review/bundle --results ~/rtl-doc-review/results         --only common --dry-run
+    KIMI_API_KEY=$KEY KIMI_BASE_URL=https://api.moonshot.ai/v1 KIMI_MODEL=kimi-k3         python3 bin/review/run_batch.py qc         --books ~/rtl-doc-review/books --results ~/rtl-doc-review/results         --only common --dry-run
     # drop --dry-run to send. Serial; a 20-unit round takes well over an hour.
     # --resume N re-enters round_N and sends only its missing units.
+
+**`--books` takes `<OUT>/books`, not `<OUT>`.** The bundler is given the parent
+and creates `books/` underneath it; pointing `--books` at the parent matches no
+units and the run exits with a bare `no units matched` -- which reads like an
+empty bundle, not a wrong path. *Case: a `--books ~/rtl-doc-review/bundle`
+invocation logged exactly that and was mistaken for a bundler failure; it also
+left a second stale bundle tree at `<OUT>/bundle/books` that a later round was
+nearly sent from.* Keep ONE bundle root and always dry-run first -- the dry run
+prints the unit list, so a path mistake is visible before any tokens are spent.
 
     # 3. humanize -- ONLY after correctness is integrated (never voice-pass a wrong doc)
     KIMI_API_KEY=$KEY KIMI_BASE_URL=https://api.moonshot.ai/v1 KIMI_MODEL=kimi-k3         python3 bin/review/run_batch.py humanize         --books ~/rtl-doc-review/books --results ~/rtl-doc-review/results --only common
@@ -192,6 +201,16 @@ add the missing meta-docs as their own unit under `<OUT>/books/<area>_meta/`
 (a `DOCS.md` of the meta-doc text + an `RTL.sv` listing the area's module names
 as ground truth for count/existence claims). `--only <area>` then covers both
 `<area>` and `<area>_meta` by prefix.
+
+A `_meta` unit is HAND-BUILT and the bundler neither regenerates nor deletes it,
+so it survives a rebuild while silently going stale -- the one failure mode the
+rebuild-everything rule exists to prevent. **Regenerate every `_meta` unit by
+hand whenever the bundle is rebuilt.** *Case: after the CDC modules moved out of
+`rtl/common`, the surviving `common_meta/RTL.sv` still listed 56 modules against
+an actual 49 -- ground truth that was itself wrong, which would have produced
+count findings the reviewer could not get right either way.* When an area's
+modules have moved, say so in the `RTL.sv` header (list the new location's
+inventory too) so "doc claims X lives here" is separable from "X does not exist".
 
 **Wait for the whole round before acting on it.** Nothing gets fixed while
 multitasking -- one area's correctness round runs to completion, gets integrated

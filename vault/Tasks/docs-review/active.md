@@ -3,15 +3,29 @@
 # docs-review — Active (in progress)
 
 
-### IN-FLIGHT: common qc trial round interrupted by shutdown (2026-07-24)
+### IN-FLIGHT: common qc round_2, full 6-unit re-send (2026-07-24 evening)
 
-The `qc` trial round on common was RUNNING when the box shut down (was on unit
-1/6, kimi-k3). It dies on shutdown. **Resume:** it wrote to
-`~/rtl-doc-review/results/qc-kimi-k3/round_1/`; re-run the same command with
-`--resume 1` (see [[kimi-review-rounds]] runbook) — it re-enters round_1 and
-sends only the units with no result file yet (all 6, since none completed). The
-bundle is at `~/rtl-doc-review/bundle/books/`. Key loads inline from the
-out-of-repo secrets store; model `kimi-k3`.
+`round_1` was the shutdown-interrupted trial. It completed **two** units before
+dying (`common_part_01` 8 CONFIRMED, `common_part_02` 5 CONFIRMED + 1 SUSPECTED)
+— not zero as the earlier note assumed. Rather than resume it, the round was
+**abandoned in place** and all 6 units re-sent as `round_2`, because the CDC move
+(`c0daf18a`, 12:52) changed `rtl/common` *after* the round_1 bundle was built at
+09:57 — resuming would have mixed pre- and post-move ground truth inside one
+round. round_1's two critiques are kept, superseded.
+
+**Running:** `qc`, kimi-k3 direct, 6 units → `~/rtl-doc-review/results/qc-kimi-k3/round_2/`,
+from a bundle rebuilt at 23:20 (`--books ~/rtl-doc-review/books`, with a
+hand-regenerated `common_meta` reflecting the 49/12 common-vs-cdc split). Roughly
+13 min/unit serial. If it dies again, `--resume 2` fills the gaps — that is safe
+now because the bundle no longer moves under it.
+
+**Note the tree state being reviewed:** `c0daf18a` is a WIP, NOT-VERIFIED CDC
+move. Findings that say a common doc points at a module now in `rtl/cdc` are
+describing that move, not a doc that was ever wrong.
+
+**Then, not before:** integrate the round_2 findings, verify, and only afterwards
+run the `humanize` pass on common (rule: never voice-pass a doc that is still
+wrong).
 
 ## DOCREV-001 — Integrate the outstanding Kimi accuracy findings
 
