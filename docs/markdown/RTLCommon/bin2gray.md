@@ -618,55 +618,65 @@ endmodule
 
 ### Property-Based Verification
 ```systemverilog
+// bin2gray is purely combinational -- it has no clock, so there is no clocking
+// event to write concurrent assertions against. Use IMMEDIATE assertions in an
+// always_comb block: they re-evaluate whenever an input settles, need no clock,
+// and work under both simulation and formal.
+//
+// The checker declares PORTS. A checker with no ports bound with `(.*)` would
+// connect nothing, and every assertion would silently evaluate on X.
+
 module bin2gray_properties #(
     parameter int WIDTH = 4
+) (
+    input logic [WIDTH-1:0] binary,
+    input logic [WIDTH-1:0] gray
 );
 
-    logic [WIDTH-1:0] binary, gray;
-    
-    // Bind to DUT
-    bind bin2gray bin2gray_properties #(WIDTH) props_inst (.*);
-    
-    // Property: MSB preservation
-    property msb_unchanged;
-        gray[WIDTH-1] == binary[WIDTH-1];
-    endproperty
-    
-    // Property: Single bit change between consecutive values
-    property single_bit_change;
-        logic [WIDTH-1:0] bin_plus_one = binary + 1;
-        logic [WIDTH-1:0] gray_plus_one;
-        
-        // Compute Gray code for binary+1
-        assign gray_plus_one[WIDTH-1] = bin_plus_one[WIDTH-1];
-        for (genvar i = 0; i < WIDTH-1; i++) begin
-            assign gray_plus_one[i] = bin_plus_one[i] ^ bin_plus_one[i+1];
+    // Reference encode/decode as functions -- a property body cannot contain
+    // variable declarations, continuous assigns, or genvar loops.
+    function automatic logic [WIDTH-1:0] gray_encode(input logic [WIDTH-1:0] bin);
+        gray_encode = bin ^ (bin >> 1);
+    endfunction
+
+    function automatic logic [WIDTH-1:0] gray_decode(input logic [WIDTH-1:0] gry);
+        gray_decode[WIDTH-1] = gry[WIDTH-1];
+        for (int i = WIDTH-2; i >= 0; i--) begin
+            gray_decode[i] = gray_decode[i+1] ^ gry[i];
         end
-        
-        // Check single bit difference
-        (binary < (2**WIDTH - 1)) |-> ($countones(gray ^ gray_plus_one) == 1);
-    endproperty
-    
-    // Property: Round-trip conversion
-    property round_trip_conversion;
-        logic [WIDTH-1:0] recovered_binary;
-        
-        // Convert back to binary
-        assign recovered_binary[WIDTH-1] = gray[WIDTH-1];
-        for (genvar i = WIDTH-2; i >= 0; i--) begin
-            assign recovered_binary[i] = recovered_binary[i+1] ^ gray[i];
+    endfunction
+
+    always_comb begin
+        // MSB is passed through unchanged
+        a_msb_unchanged: assert (gray[WIDTH-1] == binary[WIDTH-1]);
+
+        // Output matches the reference encoding
+        a_matches_reference: assert (gray == gray_encode(binary));
+
+        // Adjacent codes differ in exactly one bit (skip the wrap at the top,
+        // which is also single-bit but is worth asserting separately)
+        if (binary < WIDTH'((2**WIDTH) - 1)) begin
+            a_single_bit_change: assert (
+                $countones(gray ^ gray_encode(binary + WIDTH'(1))) == 1
+            );
         end
-        
-        recovered_binary == binary;
-    endproperty
-    
-    // Assertions
-    assert property (msb_unchanged);
-    assert property (single_bit_change);
-    assert property (round_trip_conversion);
+
+        // Decoding the output recovers the input
+        a_round_trip: assert (gray_decode(gray) == binary);
+    end
 
 endmodule
+
+// Bind at the point of use, OUTSIDE the checker -- a module cannot bind itself
+// into another module from within its own body. Ports connect by name via (.*)
+// because the checker's port names match the DUT's.
+bind bin2gray bin2gray_properties #(.WIDTH(WIDTH)) props_inst (.*);
 ```
+
+The `bind` line belongs in a file compiled alongside the DUT (typically the
+testbench), not inside the checker module. Under Verilator these compile with
+`--assert`; under SymbiYosys the same immediate assertions are proven
+exhaustively rather than sampled.
 
 ### Coverage Model
 ```systemverilog

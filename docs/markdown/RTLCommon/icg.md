@@ -60,7 +60,7 @@ module icg(
 
 The ICG module implements a safe clock gating scheme that:
 
-1. **Latches Enable Signal**: Uses a negative-edge triggered latch to capture the enable signal
+1. **Latches Enable Signal**: Uses a level-sensitive latch, transparent while `clk` is low, to capture the enable signal
 2. **Prevents Glitches**: Ensures the enable signal is stable during clock high periods
 3. **Generates Gated Clock**: ANDs the latched enable with the input clock
 

@@ -90,7 +90,12 @@
 //------------------------------------------------------------------------------
 // Timing:
 //------------------------------------------------------------------------------
-//   Latency:        2 cycles (credit calculation + round-robin arbitration)
+//   Latency:        1 cycle steady-state. Credit calc, eligibility masking and
+//                   the RR decision are combinational; the only register stage
+//                   is the base arbiter's grant. Measured: request at edge N ->
+//                   grant_valid at edge N+1. First grant after reset waits for
+//                   the weight FSM to init (~7 cycles for 4 clients); a global
+//                   replenish costs a 1-cycle bubble.
 //   Throughput:     1 grant per cycle (max)
 //   Grant Hold:     No-ACK: 1 cycle, ACK: Until grant_ack asserted
 //   Weight Update:  3-15 cycles (FSM: BLOCK → DRAIN → UPDATE → STABILIZE)

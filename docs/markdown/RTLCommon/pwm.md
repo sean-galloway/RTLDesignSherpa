@@ -152,8 +152,16 @@ assign w_period_complete = (r_count == local_period - 1) && (r_state == RUNNING)
 #### All Repeats Done Detection  
 ```systemverilog
 assign w_all_repeats_done = (local_repeat == 0) ? 1'b0 :  // 0 means infinite
-                            (r_repeat_value >= local_repeat);
+                            (r_repeat_value >= local_repeat - 1'b1);
 ```
+
+The `- 1'b1` is load-bearing. The check fires in the same cycle that
+`r_repeat_value` increments at a period boundary, so a bare
+`>= local_repeat` emits `local_repeat + 1` periods -- one too many. With
+`local_repeat = 1`: the corrected form is done at the first boundary
+(`0 >= 0`), while the bare form needs a second (`0 >= 1` false, then
+`1 >= 1`). The `local_repeat == 0` branch also keeps the `- 1` from
+underflowing, since 0 means infinite.
 
 ## Special Implementation Notes
 

@@ -149,8 +149,15 @@ The implementation uses left-shift with feedback to LSB, which is equivalent to 
 
 ### 5. Zero State Handling
 - Reset initializes LFSR to all zeros
-- Seed loading required for proper operation
-- All-zero state is typically avoided in LFSR operation
+- All-zeros is a **normal** state for this module, not a lockout. Feedback is
+  XNOR (`~^(r_lfsr & w_taps)`), so an all-zeros register produces `~^0 = 1` and
+  advances on its own -- the 3-bit example in this page shows exactly that
+  (`000` follows `100`, then wraps to `001`)
+- The lockout state for XNOR feedback is **all-ones**, as stated elsewhere on
+  this page. The all-zeros-avoidance rule belongs to XOR LFSRs such as
+  `shifter_lfsr_fibonacci`, which carries an explicit `|r_lfsr` guard
+- Seed loading is therefore optional: it selects where in the sequence you
+  start, but the reset state runs correctly without it
 
 ## Timing Diagrams
 

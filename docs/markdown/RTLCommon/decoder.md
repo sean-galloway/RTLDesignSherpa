@@ -71,7 +71,7 @@ endgenerate
 - **Combinational logic**: No clock dependency, immediate response
 - **One-hot output**: Exactly one bit high for valid inputs
 - **Complete decoding**: All possible input combinations decoded
-- **Default initialization**: All outputs start at 0
+- **No default initialization**: because `N = 2^M` covers every input value, exactly one output is high at all times -- the outputs are never all-zero, and the RTL contains no default assignment
 
 ## Design Features
 

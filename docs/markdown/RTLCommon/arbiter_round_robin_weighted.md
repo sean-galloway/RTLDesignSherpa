@@ -362,7 +362,14 @@ arbiter_round_robin_weighted #(
 
 ### Latency and Throughput
 
-- **Latency**: 2 cycles (credit calculation + round-robin arbitration)
+- **Latency**: 1 cycle in steady state. Credit calculation, eligibility masking
+  and the round-robin decision are all combinational (`request` ->
+  `w_req_post` -> `w_requesting_eligible` -> `w_mask_req`); the only register
+  stage is the base arbiter's `grant <= w_next_grant`. Measured on this RTL: a
+  request sampled at edge N produces `grant_valid` at edge N+1. Two exceptions
+  add cycles -- the first grant after reset waits for the weight FSM to
+  initialise (measured at 7 cycles for a 4-client, all-weights-4 configuration),
+  and a global replenish inserts a one-cycle bubble.
 - **Throughput**: 1 grant per cycle (maximum)
 - **Grant Hold**: No-ACK=1 cycle, ACK=Until grant_ack asserted
 - **Weight Update**: 5-15 cycles (FSM: BLOCK→DRAIN→UPDATE→STABILIZE)

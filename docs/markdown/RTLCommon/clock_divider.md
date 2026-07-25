@@ -264,19 +264,58 @@ clock_divider #(
 // 4. Deassert rst_n
 // 5. Outputs start with new division ratios
 
-always_ff @(posedge cfg_clk) begin
-    if (cfg_write) begin
-        rst_n <= 1'b0;                        // Assert reset
-        new_pickoff <= cfg_data;
+// The sequence spans three clocks, so it is a small FSM in the logic that owns
+// the configuration registers. It cannot be written as one always_ff with
+// embedded `@(posedge cfg_clk)` statements: IEEE 1800 allows exactly one event
+// control on an always_ff and none inside its body, so that form does not
+// compile.
 
-        @(posedge cfg_clk);
-        pickoff_points <= new_pickoff;        // Update configuration
+typedef enum logic [1:0] {CFG_IDLE, CFG_LOAD, CFG_RELEASE} cfg_state_t;
 
-        @(posedge cfg_clk);
-        rst_n <= 1'b1;                        // Release reset
+cfg_state_t                r_cfg_state;
+logic [(N*PO_WIDTH)-1:0]   r_pickoff;
+logic                      r_div_rst_n;
+
+always_ff @(posedge cfg_clk or negedge cfg_rst_n) begin
+    if (!cfg_rst_n) begin
+        r_cfg_state <= CFG_IDLE;
+        r_div_rst_n <= 1'b1;
+        r_pickoff   <= DEFAULT_PICKOFF_POINTS;
+    end else begin
+        case (r_cfg_state)
+            CFG_IDLE: if (cfg_write) begin
+                r_div_rst_n <= 1'b0;         // 1. hold the divider in reset
+                r_cfg_state <= CFG_LOAD;
+            end
+            CFG_LOAD: begin
+                r_pickoff   <= cfg_data;     // 2. safe now: outputs are held low
+                r_cfg_state <= CFG_RELEASE;
+            end
+            CFG_RELEASE: begin
+                r_div_rst_n <= 1'b1;         // 3. restart on the new ratios
+                r_cfg_state <= CFG_IDLE;
+            end
+            default: r_cfg_state <= CFG_IDLE;
+        endcase
     end
 end
+
+clock_divider #(
+    .N            (N),
+    .PO_WIDTH     (PO_WIDTH),
+    .COUNTER_WIDTH(COUNTER_WIDTH)
+) u_div (
+    .clk           (cfg_clk),
+    .rst_n         (r_div_rst_n),   // divider reset is driven by the FSM above
+    .pickoff_points(r_pickoff),
+    .divided_clk   (divided_clk)
+);
 ```
+
+Note that `divided_clk` is held low for the two cycles the FSM spends in reset;
+downstream logic must tolerate the gap rather than assume a continuous clock.
+Treat these outputs as enables into a synchronous fabric, not as clocks driving
+a separate domain -- see the warning under Synthesis Considerations.
 
 ## Synthesis Considerations
 

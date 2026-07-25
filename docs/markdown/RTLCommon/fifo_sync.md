@@ -43,9 +43,15 @@ Implements a synchronous First-In-First-Out buffer for single clock domain appli
 - **`rd_almost_empty`** - Read domain almost empty flag
 
 ### Parameters
-- **`MEM_STYLE`** - Memory implementation (`FIFO_AUTO`/SRL/BRAM). The BRAM
-  branch registers the read path, so it behaves as registered even when
-  `REGISTERED=0`.
+- **`MEM_STYLE`** - Memory implementation (`FIFO_AUTO`/SRL/BRAM). In this module
+  every branch honours `REGISTERED`: with `REGISTERED=0` the BRAM branch gives a
+  *combinational* read (`always_comb w_rd_data = mem[r_rd_addr]`), not a
+  registered one. Note that `fifo_async` differs here -- its BRAM branch is
+  unconditionally registered -- so do not carry that assumption across.
+  **Caveat:** `MEM_STYLE=FIFO_BRAM` with `REGISTERED=0` asks for an
+  asynchronous read from a block RAM, which real BRAM cannot do; synthesis will
+  ignore the `ram_style`/`ramstyle` attribute and map to LUTRAM instead. Use
+  `REGISTERED=1` when you actually want block RAM.
 - **`REGISTERED`** - Output mode: 0=mux mode (combinational), 1=flop mode (registered)
 - **`DATA_WIDTH`** - Width of data bus (default: 4)
 - **`DEPTH`** - FIFO depth in words (default: 4)

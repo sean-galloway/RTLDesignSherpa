@@ -52,13 +52,16 @@ module arbiter_priority_encoder #(
 |-----------|------|---------|-------------|
 | CLIENTS | int | 4 | Number of requesting clients (range: 2-1024) |
 
-### Derived Localparam (Computed Internally)
+### Derived Parameter (Defaulted from CLIENTS)
 
-| Localparam | Computation | Description |
-|------------|-------------|-------------|
+| Parameter | Default | Description |
+|-----------|---------|-------------|
 | N | $clog2(CLIENTS) | Winner ID width in bits |
 
-**Note:** N is computed automatically and cannot be overridden by users.
+**Note:** `N` defaults to `$clog2(CLIENTS)` and should be left alone -- but it is
+an ordinary `parameter`, not a `localparam`, so it *can* be overridden at
+instantiation. It is declared that way so it can size the `winner` port;
+`arbiter_round_robin` relies on this and passes `.N(N)` explicitly.
 
 ## Ports
 

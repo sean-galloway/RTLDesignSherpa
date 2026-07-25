@@ -282,7 +282,11 @@ pytest val/common/test_fifo_async_wavedrom.py -v
 **Key Differences from Johnson Counter Variant:**
 
 - **Pointer Width**: Logarithmic (`$clog2(DEPTH) + 1`) vs. linear (`DEPTH`) for Johnson
-- **Depth Restriction**: Power-of-2 only vs. any even number for Johnson
+- **Depth Restriction**: Power-of-2 only vs. **any** depth for Johnson -- odd
+  depths included. The elaboration check only fires for `USE_JOHNSON == 0`
+  (`if ((USE_JOHNSON == 0) && ((DEPTH & (DEPTH - 1)) != 0)) $error(...)`), so
+  Johnson mode has no restriction at all. ("Even only" is stale language from
+  the retired `fifo_async_div2`.)
 - **Resource Efficiency**: Better for large depths (>32) vs. Johnson's flexibility for small depths
 
 **Comparison Tests:**

@@ -193,7 +193,8 @@
 //   - **Not recommended:** M > 8 (exponential area/power growth)
 //   - Alternative for large M: Use binary address directly with comparators at leaf
 //   - Output width N = 2^M must be consistent (parameter validation helpful)
-//   - Line 11 initializes all outputs to 0 (overridden by generate block)
+//   - No default assignment exists or is needed: N = 2^M covers every input
+//     value, so the generate loop drives exactly one output high at all times
 //
 //------------------------------------------------------------------------------
 // Related Modules:

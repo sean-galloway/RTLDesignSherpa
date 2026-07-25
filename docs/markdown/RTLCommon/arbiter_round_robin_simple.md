@@ -33,14 +33,15 @@ The `arbiter_round_robin_simple` module implements a round-robin arbitration sch
 
 ```systemverilog
 module arbiter_round_robin_simple #(
-    parameter int unsigned N = 4
+    parameter int unsigned N = 4,
+    parameter int unsigned W = $clog2(N)
 ) (
-    input  logic                  clk,
-    input  logic                  rst_n,         // active-low reset
-    input  logic [N-1:0]          request,       // request bits [N-1:0]
-    output logic                  grant_valid,   // any grant
-    output logic [N-1:0]          grant,         // one-hot grant
-    output logic [$clog2(N)-1:0]  grant_id       // encoded grant (undef if grant_valid==0)
+    input  logic          clk,
+    input  logic          rst_n,         // active-low reset
+    input  logic [N-1:0]  request,       // request bits [N-1:0]
+    output logic          grant_valid,   // any grant
+    output logic [N-1:0]  grant,         // one-hot grant
+    output logic [W-1:0]  grant_id       // encoded grant (undef if grant_valid==0)
 );
 ```
 
@@ -49,6 +50,7 @@ module arbiter_round_robin_simple #(
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | N | int unsigned | 4 | Number of requesting agents (N >= 1) |
+| W | int unsigned | `$clog2(N)` | Width of `grant_id`. Derived from N -- leave it at the default; it is a parameter rather than a localparam only so it can be referenced in the port list. |
 
 ## Ports
 
@@ -95,13 +97,23 @@ The arbiter implements a rotating priority scheme using the following approach:
 logic [$clog2(N)-1:0] w_shift_amount;
 assign w_shift_amount = (r_last_grant == ($clog2(N))'(N-1)) ? '0 : (r_last_grant + 1);
 
-// Rotate-left request by w_shift_amount
+// Rotate the request vector RIGHT by w_shift_amount, so that agent
+// (last_grant + 1) lands at bit 0 and the lowest-set-bit scan starts there.
 if (w_shift_amount == '0) begin
     w_rot_req = request;
 end else begin
-    w_rot_req = (request << w_shift_amount) | (request >> (($clog2(N))'(N) - w_shift_amount));
+    w_rot_req = (request >> w_shift_amount) | (request << ((W)'(N) - w_shift_amount));
 end
 ```
+
+The direction is not a free choice. Rotating LEFT by `s` maps rotated bit `j`
+back to agent `(j - s) mod N`, so the scan starts at agent `(N - last - 1)`
+instead of `(last + 1)` -- a reflection of the priority pointer rather than a
+rotation. A reflection composed with itself is the identity, so the pointer
+oscillates between two positions forever: with `N=4` and all four agents
+requesting, the arbiter granted 0, 3, 0, 3, ... and agents 1 and 2 were never
+served. Rotating RIGHT maps rotated bit `j` to agent `(j + s) mod N`, so the
+scan starts at `(last + 1)` and advances, which is what round-robin means.
 
 ### Priority Selection
 

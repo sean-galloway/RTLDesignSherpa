@@ -24,7 +24,7 @@
 # FIFO Control Logic (`fifo_control.sv`)
 
 ## Purpose
-Centralized control logic module that generates full/empty status flags for all FIFO variants (sync, async, async_div2). Handles the complex pointer arithmetic and mode-aware timing considerations.
+Centralized control logic module that generates full/empty status flags for both FIFO variants (sync and async, the latter with either pointer encoding). Handles the complex pointer arithmetic and mode-aware timing considerations.
 
 ## Ports
 
@@ -275,7 +275,7 @@ truncation bug: e.g. DEPTH=16 with wr=2, rd=14 should give occupancy
 - **Synchronizer latency**: Built into safety margins
 
 ## Use Cases
-- **All FIFO variants**: Shared by sync, async, and async_div2
+- **All FIFO variants**: Shared by `fifo_sync` and `fifo_async` (binary or Johnson pointers). The former `fifo_async_div2` is retired -- `fifo_async` with `USE_JOHNSON=1` replaces it.
 - **Status monitoring**: Provides comprehensive FIFO state
 - **Flow control**: Enables back-pressure and rate matching
 - **Debug/verification**: Count output aids in debugging

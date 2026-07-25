@@ -125,11 +125,21 @@ Pulse:    ____________________|‾‾‾|______________|‾‾‾|
 
 ### Reset Behavior
 ```
-Clock:    _|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_
-Reset_n:  ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾|___|‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-Counter:  < 0 >< 1 >< 2 >< 3 >< 0 >< 0 >< 1 >< 2 >< 3 >
-Pulse:    ______________________|‾‾‾|______|‾‾‾|_____
+Clock:    |‾‾__|‾‾__|‾‾__|‾‾__|‾‾__|‾‾__|‾‾__|‾‾__|‾‾__|‾‾__
+Reset_n:  ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾|___|‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+Counter:  < 0 >< 1 >< 2 >< 3 >< 0 >< 0 >< 1 >< 2 >< 3 >< 0 >
+Pulse:    _____________________________________________|‾‾‾|
 ```
+
+Two things this shows, both consequences of the pulse being registered
+(`pulse <= (r_counter == w_width_minus_one)`):
+
+- **The pulse that reset swallows.** The counter reaches 3 in the fourth cell,
+  so a pulse would normally appear in the fifth -- but reset is asserted exactly
+  there, and reset forces `pulse <= 0`. That pulse never happens.
+- **Recovery costs a full period.** After reset releases, the counter restarts
+  from 0 and the first pulse appears in the cell *after* it next reaches 3 --
+  the final cell above, not the one where the counter reads 3.
 
 ### Different WIDTH Values
 | WIDTH | Period | Duty Cycle | Use Case |
@@ -299,9 +309,9 @@ endmodule
 ### 4. Memory Refresh Controller
 ```systemverilog
 module dram_refresh_controller #(
-    parameter int REFRESH_PERIOD_US = 64,     // 64μs refresh period
-    parameter int CLOCK_FREQ_MHZ = 100,       // 100MHz system clock
-    parameter int REFRESH_ROWS = 8192         // Number of rows to refresh
+    parameter int REFRESH_PERIOD_US = 64_000,  // 64 ms for the WHOLE array
+    parameter int CLOCK_FREQ_MHZ = 100,        // 100MHz system clock
+    parameter int REFRESH_ROWS = 8192          // Number of rows to refresh
 ) (
     input  logic        clk,
     input  logic        rst_n,
@@ -312,7 +322,16 @@ module dram_refresh_controller #(
     output logic        refresh_active
 );
 
+    // Cycles between per-row refresh ticks:
+    //   64 ms / 8192 rows = 7.8125 us per row = 781 cycles at 100 MHz.
+    // Note REFRESH_PERIOD_US is the array-wide interval (64 ms), not per row.
+    // Using 64 here instead of 64_000 makes this integer division evaluate to
+    // ZERO, which silently instantiates clock_pulse with WIDTH=0 -- outside the
+    // documented range, and it pulses every 2 cycles instead of every 7.8 us.
     localparam int REFRESH_WIDTH = (REFRESH_PERIOD_US * CLOCK_FREQ_MHZ) / REFRESH_ROWS;
+
+    if (REFRESH_WIDTH < 2)
+        $fatal(1, "REFRESH_WIDTH=%0d is below clock_pulse's minimum of 2", REFRESH_WIDTH);
     
     logic refresh_pulse;
     logic [12:0] row_counter;

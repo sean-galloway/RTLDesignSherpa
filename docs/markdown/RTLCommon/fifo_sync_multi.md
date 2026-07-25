@@ -24,8 +24,14 @@
 # Multi-Field Synchronous FIFO
 
 **Module:** `fifo_sync_multi.sv`
-**Location:** `rtl/common/`
-**Status:** Production Ready
+**Location:** `rtl/common/testcode/`
+**Status:** Testcode -- NOT a production library module
+
+> This module lives under `rtl/common/testcode/`, not in the library proper.
+> It is retained as a worked example and is exercised by its formal harness
+> under `formal/common/fifo_sync_multi/`, but it is not part of the supported
+> `rtl/common` set and should not be instantiated in a design without
+> promoting it first.
 
 ## Overview
 
