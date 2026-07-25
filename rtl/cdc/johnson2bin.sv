@@ -328,10 +328,12 @@ module johnson2bin #(
         if (w_all_zeroes || w_all_ones) begin
             w_binary = {WIDTH{1'b0}};
         end else if (gray[JCW-1]) begin
-            // Second half: use leading one position directly
+            // Second half (MSB set, e.g. 111000): the filled region runs down
+            // from the MSB, so the TRAILING one marks the position. 111000 -> 3.
             w_binary = {{(WIDTH-N){1'b0}}, w_trailing_one};
         end else begin
-            // First half: use trailing one + 1
+            // First half (MSB clear, e.g. 001111): the filled region runs up
+            // from the LSB, so it is the LEADING one plus one. 001111 -> 4.
             w_binary = {{(WIDTH-N){1'b0}}, (w_leading_one + 1'b1)};
         end
     end

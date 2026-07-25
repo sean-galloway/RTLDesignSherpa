@@ -189,7 +189,8 @@
 //   - KEEP_ATTRS=1 enables dedicated synchronizer cell inference
 //   - In ASIC mode, KEEP_ATTRS=0 for cleaner netlist
 //   - Internal SVA (`RESET_SYNC_SVA`) checks deassert timing
-//   - Initial value of sync_rst_n = 0 (asserted)
+//   - The sync chain initializes to '0, so with the default OUT_ACTIVE_LOW=1
+//     the output powers up as sync_rst_n = ~0 = 1, i.e. DEASSERTED (released)
 //   - Safe for any frequency ratio between reset source and clk
 //   - Typical reset latency: N × Tclk
 //   - Compatible with Verilator, VCS, Questa, and Xcelium

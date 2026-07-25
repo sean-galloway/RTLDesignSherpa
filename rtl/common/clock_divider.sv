@@ -165,8 +165,11 @@
 //   // Baud rate generator for UART (115200 baud from 100MHz)
 //   // Target: 115200 Hz → division = 100MHz / 115200 ≈ 868
 //   // Use counter_load_clear instead (not power-of-2)
-//   // But for 9600 baud: 100MHz / 9600 ≈ 10417 ≈ 2^13.3 → use pickoff=13
-//   logic [7:0] baud_pickoff = 8'd13;  // Approx 12207 Hz (close enough for 9600)
+//   // 9600 baud would need 100MHz / 9600 = 10417 = 2^13.35 -- NOT a power of
+//   // two, so this module cannot hit it. The neighbours are pickoff=12
+//   // (100MHz / 2^13 = 12207 Hz, 27% fast) and pickoff=13 (100MHz / 2^14 =
+//   // 6104 Hz, 36% slow). Both are unusable for a UART; use a proper
+//   // fractional baud generator instead.
 //
 //   clock_divider #(
 //       .N(1),

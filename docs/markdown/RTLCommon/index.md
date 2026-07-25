@@ -174,8 +174,12 @@ sum to 49 and every module in the tree falls into exactly one row.
 
 ### Usage Guidelines
 
-1. **Performance Critical**: Use parallel prefix adders (Brent-Kung, Kogge-Stone) for high-speed arithmetic
-2. **Area Constrained**: Use ripple carry implementations for low area requirements
+1. **Arithmetic**: adders, multipliers and dividers are no longer in this
+   library -- they moved to `rtl/math/`. For the speed/area trade-off between
+   parallel-prefix (Brent-Kung, Kogge-Stone) and ripple-carry implementations,
+   see the [RTLMath](../RTLMath/index.md) book.
+2. **Area Constrained**: prefer the simpler variant where one exists (for
+   example `arbiter_round_robin_simple` over the weighted arbiter)
 3. **Power Sensitive**: Utilize clock gating (ICG) and frequency-invariant designs
 4. **Data Integrity**: Apply ECC and CRC modules for reliable data storage/transmission
 

@@ -321,8 +321,12 @@ a separate domain -- see the warning under Synthesis Considerations.
 
 ### Resource Utilization
 - **Flip-Flops**: COUNTER_WIDTH (counter) + N (output registers)
-- **LUTs**: N muxes (pickoff selection) + clamping logic
-- **Example (N=4, COUNTER_WIDTH=16)**: ~20 FFs, ~8 LUTs
+- **LUTs**: one COUNTER_WIDTH-to-1 mux per output (pickoff selection), plus a
+  clamp comparator per output. On a 6-input LUT architecture a CW-to-1 bit mux
+  costs about `ceil((CW-1)/5)` LUTs, so the mux cost scales with COUNTER_WIDTH
+  -- it is not a fixed overhead.
+- **Example (N=4, COUNTER_WIDTH=16)**: ~20 FFs, ~12 LUTs for the muxes plus
+  clamp logic. These are analytic estimates, not synthesis results.
 
 ### Timing Optimization
 - **Critical Path**: Counter increment → mux → output register
@@ -416,12 +420,18 @@ endgroup
   - COUNTER_WIDTH=64: ~300 MHz
 
 ### Resource Scaling
-| COUNTER_WIDTH | N Outputs | FFs | LUTs | fmax (Est.) |
-|---------------|-----------|-----|------|-------------|
-| 16 | 4 | 20 | 8 | 500 MHz |
-| 32 | 4 | 36 | 10 | 400 MHz |
-| 64 | 4 | 68 | 12 | 300 MHz |
-| 16 | 8 | 24 | 16 | 500 MHz |
+| COUNTER_WIDTH | N Outputs | FFs | LUTs (mux, est.) | fmax (Est.) |
+|---------------|-----------|-----|------------------|-------------|
+| 16 | 4 | 20 | ~12 | 500 MHz |
+| 32 | 4 | 36 | ~28 | 400 MHz |
+| 64 | 4 | 68 | ~52 | 300 MHz |
+| 16 | 8 | 24 | ~24 | 500 MHz |
+
+FF counts are exact (COUNTER_WIDTH counter bits + N output registers). The LUT
+column is `N * ceil((COUNTER_WIDTH-1)/5)` for the pickoff muxes on a 6-LUT
+architecture, excluding the clamp comparators; earlier revisions of this table
+listed 8/10/12, which did not scale with the mux width and understated the
+wide-counter cases by several times. fmax figures remain unsourced estimates.
 
 ## Related Modules
 - `counter_bin.sv` - Simple binary counter (used internally)

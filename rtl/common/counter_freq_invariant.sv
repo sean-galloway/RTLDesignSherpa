@@ -60,8 +60,8 @@
 //           at the low end. Saturates once MAX is reached.
 //
 // Example (defaults: 5-220 MHz, 16 entries, LINEAR):
-//   idx  0: 5 MHz    idx  4: 62 MHz   idx  8: 119 MHz  idx 12: 176 MHz
-//   idx  1: 19 MHz   idx  5: 76 MHz   idx  9: 133 MHz  idx 13: 191 MHz
+//   idx  0: 5 MHz    idx  4: 62 MHz   idx  8: 119 MHz  idx 12: 177 MHz
+//   idx  1: 19 MHz   idx  5: 76 MHz   idx  9: 134 MHz  idx 13: 191 MHz
 //   idx  2: 33 MHz   idx  6: 91 MHz   idx 10: 148 MHz  idx 14: 205 MHz
 //   idx  3: 48 MHz   idx  7: 105 MHz  idx 11: 162 MHz  idx 15: 220 MHz
 //

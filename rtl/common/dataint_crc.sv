@@ -160,9 +160,12 @@
 //       .XOROUT    (32'hFFFFFFFF),
 //       .clk       (clk),
 //       .rst_n     (rst_n),
-//       .load_crc_start  (pkt_start),
-//       .load_from_cascade(1'b0),
-//       .cascade_sel     (byte_count_onehot),
+//       .load_crc_start  (pkt_start),      // pulse once to seed with POLY_INIT
+//       .load_from_cascade(pkt_valid),     // MUST be high on every data beat --
+//                                          // this is the ONLY path that advances
+//                                          // the accumulator. Tying it low leaves
+//                                          // crc stuck at reflect(POLY_INIT)^XOROUT.
+//       .cascade_sel     (byte_count_onehot),  // one-hot: which chunk is last
 //       .data      (pkt_data),
 //       .crc       (pkt_crc)
 //   );
@@ -180,8 +183,10 @@
 //       .clk       (clk),
 //       .rst_n     (rst_n),
 //       .load_crc_start(frame_start),
-//       .load_from_cascade(1'b0),
-//       .cascade_sel(4'b1111),  // All 4 bytes valid
+//       .load_from_cascade(frame_valid),   // see note above -- required per beat
+//       .cascade_sel(4'b1000),  // ONE-HOT: selects the 4th (last) chunk.
+//                               // 4'b1111 happens to work only because the
+//                               // selection loop takes the highest set bit.
 //       .data      (frame_data),
 //       .crc       (frame_crc)
 //   );
@@ -190,7 +195,8 @@
 // Notes:
 //------------------------------------------------------------------------------
 //   - **DATA_WIDTH must be multiple of 8** (byte-aligned processing)
-//   - Supports ~300 CRC standards via parameter configuration
+//   - 250 CRC standards are exercised by the test suite; the parameter table is
+//     crc_parameters in bin/TBClasses/common/crc_testing.py
 //   - REFIN/REFOUT implement bit-reversal for protocol compatibility
 //   - Cascade architecture allows high throughput (multiple bytes/cycle)
 //   - load_crc_start: Pulse at start of packet/frame

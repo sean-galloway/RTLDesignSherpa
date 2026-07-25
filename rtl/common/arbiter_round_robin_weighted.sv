@@ -119,11 +119,15 @@
 //   4. **Credit Update:** Winner's credit decremented on completion
 //
 //   Weight Ratio Example (weights [4, 2, 1, 1]):
-//   - Client 0: 4 credits → gets 4 consecutive grants
-//   - Client 1: 2 credits → gets 2 consecutive grants
-//   - Client 2: 1 credit  → gets 1 grant
-//   - Client 3: 1 credit  → gets 1 grant
-//   - Pattern: 0,0,0,0, 1,1, 2, 3, [replenish], repeat
+//   - Client 0: 4 credits → 4 grants per round
+//   - Client 1: 2 credits → 2 grants per round
+//   - Client 2: 1 credit  → 1 grant per round
+//   - Client 3: 1 credit  → 1 grant per round
+//     (credits are a per-round budget, NOT a burst length -- see the pattern
+//      below: the arbiter spends them interleaved, not back to back)
+//   - Pattern: grants INTERLEAVE, they do not burst per client. With weights
+//     [4,2,1,1] the masking logic yields 0,1,2,3, 0,1, 0, (bubble), 0,
+//     [replenish] -- each client still gets its weight's share per round.
 //   - Bandwidth: Client 0 gets 50%, Client 1 gets 25%, Clients 2&3 get 12.5% each
 //
 //   Global Replenishment:
