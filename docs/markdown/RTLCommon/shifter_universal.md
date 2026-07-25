@@ -63,8 +63,8 @@ The 2-bit `select` signal controls the shifter operation:
 | select | Operation | Description |
 |--------|-----------|-------------|
 | 2'b00 | Hold | Maintain current state |
-| 2'b01 | Right Shift | Shift data right, input from left |
-| 2'b10 | Left Shift | Shift data left, input from right |
+| 2'b01 | Right Shift | Shift data right; new bit enters from `i_sdata_rt` |
+| 2'b10 | Left Shift | Shift data left; new bit enters from `i_sdata_lt` |
 | 2'b11 | Parallel Load | Load parallel input data |
 
 ## Implementation Details
@@ -173,13 +173,21 @@ This approach improves timing predictability and synthesis results.
 ## Timing Diagrams
 
 ### Right Shift Operation Example (WIDTH=4)
+
+The first column is the reset state, before any edge; every later column is the
+value *after* that cycle's edge. `o_sdata_rt` is registered, so the bit it shows
+in a column is the LSB that the *previous* column's `o_pdata` ejected.
+
 ```
-Clock:     ___╱‾╲___╱‾╲___╱‾╲___╱‾╲___╱‾╲___
-select:    01   01   01   01   01
-i_sdata_rt:  1    0    1    1    0
-o_pdata:   0000 1000 0100 1010 1101
-o_sdata_rt:  0    0    0    0    1
+Clock:      _╱‾╲__╱‾╲__╱‾╲__╱‾╲__╱‾╲__╱‾╲_
+select:     ---- 01   01   01   01   01
+i_sdata_rt: ---- 1    0    1    1    0
+o_pdata:    0000 1000 0100 1010 1101 0110
+o_sdata_rt: --   0    0    0    0    1
 ```
+
+The single `1` on `o_sdata_rt` is the LSB of `1101`, ejected by the fifth shift
+and visible in the column that shift produces -- not alongside `1101` itself.
 
 ### Parallel Load followed by Left Shift
 ```
@@ -232,9 +240,17 @@ select = 2'b11;
 i_pdata = initial_pattern;
 
 // 2. Circulate pattern
-select = 2'b01;  // Right shift
-i_sdata_rt = o_sdata_rt;  // Feedback for circulation
+select = 2'b01;         // Right shift
+i_sdata_rt = o_pdata[0];  // Combinational tap -- NOT o_sdata_rt
 ```
+
+Feed back `o_pdata[0]`, not `o_sdata_rt`. The serial outputs are registered
+(`o_sdata_rt <= w_sdata_rt`), so routing `o_sdata_rt` back returns the ejected
+bit one shift too late and the pattern does not rotate -- it runs a
+`WIDTH+1`-long cycle. With `WIDTH=4` loaded to `1011`, the registered feedback
+gives `1011 -> 0101 -> 1010 -> 1101 -> 0110 -> 1011` (period 5, and `1110`
+and `0111` never appear), whereas the combinational tap gives the true rotation
+`1011 -> 1101 -> 1110 -> 0111 -> 1011`.
 
 ### Scan Chain for Testing
 ```systemverilog

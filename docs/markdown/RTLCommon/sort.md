@@ -66,7 +66,7 @@ module sort #(
 | Parameter | Default | Range | Description |
 |-----------|---------|-------|-------------|
 | `NUM_VALS` | 5 | 2-16 | Number of values in the array to be sorted. Determines pipeline depth. (RTL header documents the supported range as 2 to 16.) |
-| `SIZE` | 16 | 1-64 | Bit width of each individual value. All values must be unsigned integers. |
+| `SIZE` | 16 | >= 1 (no upper bound enforced) | Bit width of each individual value. All values must be unsigned integers. |
 
 ## Data Format
 
@@ -284,7 +284,7 @@ done:     0      0      0      0      0      1
 ### 1. Parameterizable Design
 
 - **Flexible Array Size**: `NUM_VALS` supported range is 2 to 16 (per the RTL header)
-- **Configurable Data Width**: `SIZE` supports 1-64 bits per element
+- **Configurable Data Width**: `SIZE` sets the bits per element. The RTL applies no validation to it -- any `SIZE >= 1` elaborates; wide values simply cost a wider comparator on the critical path
 - **Automatic Pipeline Scaling**: Pipeline depth automatically adjusts to `NUM_VALS`
 
 ### 2. High Throughput Pipeline

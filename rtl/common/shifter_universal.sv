@@ -18,6 +18,9 @@
 `include "reset_defs.svh"
 
 module shifter_universal #(
+    // WIDTH must be >= 2. At WIDTH=1 the shift expressions become illegal
+    // part-selects (o_pdata[WIDTH-1:1] -> [0:1], o_pdata[WIDTH-2:0] -> [-1:0])
+    // and the module does not elaborate.
     parameter int WIDTH = 4
 ) (
     input                    clk,

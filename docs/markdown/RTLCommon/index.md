@@ -79,22 +79,21 @@ the three agree.
 #### Basic Counters
 - **[counter](counter.md)** - Basic parameterizable counter
 - **[counter_bin](counter_bin.md)** - Binary counter with enable/reset
-- **[counter_johnson](counter_johnson.md)** - Johnson counter (twisted ring)
 - **[counter_ring](counter_ring.md)** - Ring counter implementation
 - **[counter_freq_invariant](counter_freq_invariant.md)** - Frequency-invariant counter
 
 #### Specialized Counters
-- **[counter_bingray](counter_bingray.md)** - Binary to Gray counter
 - **[counter_bin_load](counter_bin_load.md)** - Binary counter with load capability
 - **[counter_load_clear](counter_load_clear.md)** - Counter with load and clear
 
 ### Data Conversion and Encoding
 
 #### Binary Conversions
-- **[bin2gray](bin2gray.md)** - Binary to Gray code converter
-- **[gray2bin](gray2bin.md)** - Gray to binary code converter
-- **[johnson2bin](johnson2bin.md)** - Johnson Gray to binary converter
 - **[bin_to_bcd](bin_to_bcd.md)** - Binary to BCD converter
+
+> Gray/Johnson conversion (`bin2gray`, `gray2bin`, `johnson2bin`) and the
+> Gray/Johnson counters (`counter_bingray`, `counter_johnson`) moved to
+> `rtl/cdc/` with the rest of the clock-crossing set.
 
 #### Display and Encoding
 - **[hex_to_7seg](hex_to_7seg.md)** - Hexadecimal to 7-segment display decoder
@@ -128,9 +127,11 @@ the three agree.
 
 #### FIFO Implementations
 - **[fifo_sync](fifo_sync.md)** - Synchronous FIFO with configurable depth
-- **[fifo_sync_multi](fifo_sync_multi.md)** - Multi-field FIFO wrapper (packs addr/ctrl/data into one fifo_sync)
-- **[fifo_sync_multi_sigmap](fifo_sync_multi_sigmap.md)** - fifo_sync_multi with generic positional signal-map ports
-- **[fifo_async](fifo_async.md)** - Asynchronous FIFO for clock domain crossing
+
+`fifo_async` moved to `rtl/cdc/`. Two further wrappers are documented but live
+under `rtl/common/testcode/`, not in the library proper:
+[fifo_sync_multi](fifo_sync_multi.md) and
+[fifo_sync_multi_sigmap](fifo_sync_multi_sigmap.md).
 - **[fifo_control](fifo_control.md)** - FIFO control logic
 
 #### Content Addressable Memory
@@ -141,28 +142,35 @@ the three agree.
 #### Signal Processing
 - **[pwm](pwm.md)** - Pulse Width Modulation generator
 - **[sort](sort.md)** - Hardware sorting implementation
+- **[mod_3_compress](mod_3_compress.md)** - Modulo-3 compressor
 
 ## Quick Reference
 
 ### Module Count by Category
 
-**55 modules** in `rtl/common/`. Arithmetic (`math_*`) split out to `rtl/math/`
-— counted in the [RTLMath](../RTLMath/index.md) book, not here.
+**49 modules** in `rtl/common/`. Two sets have moved out and are counted in
+their own books, not here:
+
+- Arithmetic (`math_*`) split out to `rtl/math/` — see [RTLMath](../RTLMath/index.md).
+- Clock-domain-crossing modules moved to `rtl/cdc/` — `bin2gray`, `gray2bin`,
+  `johnson2bin`, `counter_bingray`, `counter_johnson` and `fifo_async` now live
+  there, alongside `cdc_synchronizer` and the handshake modules.
 
 | Category | Count |
 |---|---|
-| Clock/Reset/CDC | 8 |
-| Counters | 8 |
+| Clock, Reset & CDC | 8 |
 | Data Integrity | 7 |
-| Conversion & Encoding | 6 |
+| Counters | 6 |
 | Bit Ops & Search | 6 |
 | Shifters & LFSRs | 6 |
 | Arbiters | 5 |
-| FIFOs | 3 |
+| Conversion & Encoding | 5 |
+| Miscellaneous | 3 |
+| FIFOs | 2 |
 | CAM | 1 |
-| Miscellaneous | 5 |
 
-Counts are from `ls rtl/common/*.sv`; regenerate rather than hand-editing.
+Counts are from `ls rtl/common/*.sv`; regenerate rather than hand-editing. They
+sum to 49 and every module in the tree falls into exactly one row.
 
 ### Usage Guidelines
 
@@ -193,16 +201,31 @@ math_subtractor_full_nbit #(.N(32)) u_sub (.a(op_a), .b(op_b), .bin(1'b0), .diff
 ### Clock Domain Crossing
 ```systemverilog
 // Combine async FIFO with reset synchronization
-fifo_async #(.DATA_WIDTH(32), .ADDR_WIDTH(4)) u_fifo (.wr_clk(clk_a), .rd_clk(clk_b), ...);
+// fifo_async now lives in rtl/cdc/ -- see the RTLCdc book
+fifo_async #(.DATA_WIDTH(32), .DEPTH(16)) u_fifo (.wr_clk(clk_a), .rd_clk(clk_b), ...);
 reset_sync u_sync_a (.clk(clk_a), .rst_n_in(global_rst_n), .rst_n_out(rst_sync_a));
 reset_sync u_sync_b (.clk(clk_b), .rst_n_in(global_rst_n), .rst_n_out(rst_sync_b));
 ```
 
 ### Data Protection
 ```systemverilog
-// Add ECC protection to memory interface
-dataint_ecc_hamming_encode_secded #(.DATA_WIDTH(64)) u_encode (.data_in(mem_data), .ecc_out(mem_ecc));
-dataint_ecc_hamming_decode_secded #(.DATA_WIDTH(64)) u_decode (.data_in(mem_data), .ecc_in(mem_ecc), .data_out(corrected_data), .error_detected(ecc_error));
+// Add ECC protection to memory interface.
+// The parameter is WIDTH (not DATA_WIDTH), the encoder emits a single combined
+// codeword (data + parity) on encoded_data, and the decoder is CLOCKED.
+dataint_ecc_hamming_encode_secded #(.WIDTH(64)) u_encode (
+    .data         (mem_data),
+    .encoded_data (mem_codeword)      // WIDTH + ParityBits + 1 bits
+);
+
+dataint_ecc_hamming_decode_secded #(.WIDTH(64)) u_decode (
+    .clk                   (clk),
+    .rst_n                 (rst_n),
+    .enable                (1'b1),
+    .hamming_data          (mem_codeword),
+    .data                  (corrected_data),
+    .error_detected        (ecc_single_error),
+    .double_error_detected (ecc_double_error)
+);
 ```
 
 ## Navigation

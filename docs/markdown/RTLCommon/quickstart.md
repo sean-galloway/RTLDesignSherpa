@@ -31,14 +31,13 @@
 
 ## Overview
 
-The Common RTL Library provides **55 reusable building blocks** for FPGA and ASIC designs. All modules are technology-agnostic, fully parameterizable, and verified with comprehensive CocoTB test suites.
+The Common RTL Library provides **49 reusable building blocks** for FPGA and ASIC designs. All modules are technology-agnostic, fully parameterizable, and verified with comprehensive CocoTB test suites.
 
 **Quick Stats:**
-- **55 modules** across 10 categories (arithmetic split out to `rtl/math/`)
-- ✅ **~90% test coverage** (functional)
+- **49 modules** across 10 categories (arithmetic split out to `rtl/math/`, clock-crossing to `rtl/cdc/`)
 - 🔧 **Technology agnostic** (FPGA/ASIC portable)
 - 📖 **Well documented** (inline + external docs)
-- 🧪 **Fully verified** (CocoTB + pytest)
+- 🧪 **Every module has a CocoTB test** under `val/common/`
 
 ---
 
@@ -50,13 +49,13 @@ A browse-oriented view of what's in each category:
 | Category | Examples |
 |----------|----------|
 | Clock/Reset/CDC | clock_divider, clock_gate_ctrl, clock_pulse, glitch_free_n_dff_arn |
-| Counters | counter_bin, counter_bingray, counter_johnson, counter_ring |
+| Counters | counter, counter_bin, counter_bin_load, counter_freq_invariant, counter_load_clear, counter_ring |
 | Data Integrity | dataint_crc, dataint_ecc_hamming, dataint_parity, dataint_checksum |
-| Conversion & Encoding | bin2gray, gray2bin, johnson2bin, decoder, encoder, hex_to_7seg |
+| Conversion & Encoding | bin_to_bcd, decoder, encoder, encoder_priority_enable, hex_to_7seg |
 | Bit Ops & Search | count_leading_zeros, find_first_set, find_last_set, leading_one_trailing_one |
 | Shifters & LFSRs | shifter_barrel, shifter_lfsr, shifter_lfsr_fibonacci, shifter_lfsr_galois |
 | Arbiters | arbiter_round_robin, arbiter_round_robin_weighted, arbiter_priority_encoder |
-| FIFOs | fifo_sync, fifo_async, fifo_control |
+| FIFOs | fifo_sync, fifo_control  (`fifo_async` moved to `rtl/cdc/`) |
 | CAM | cam_tag |
 | Miscellaneous | pwm, sort, bin_to_bcd, reverse_vector, mod_3_compress |
 
@@ -209,7 +208,7 @@ dataint_crc #(
     .o_valid    (crc_valid)
 );
 
-// Supports ~300 CRC standards via parameter configuration!
+// 250 CRC standards are exercised by the test suite via parameter configuration
 ```
 
 ---
@@ -221,23 +220,25 @@ dataint_crc #(
 **Modules:** `dataint_ecc_hamming_encode_secded.sv` + `dataint_ecc_hamming_decode_secded.sv`
 
 ```systemverilog
-// Encoder (write path)
+// Encoder (write path) -- purely combinational
 dataint_ecc_hamming_encode_secded #(
-    .DATA_WIDTH(64)       // 64-bit data
+    .WIDTH(64)            // parameter is WIDTH, not DATA_WIDTH
 ) u_ecc_encoder (
-    .i_data      (mem_write_data),
-    .o_encoded   (mem_data_with_ecc),    // Data + parity bits
-    .o_parity    (ecc_parity_bits)
+    .data         (mem_write_data),
+    .encoded_data (mem_data_with_ecc)   // one codeword: data + parity + SECDED bit
 );
 
-// Decoder (read path)
+// Decoder (read path) -- CLOCKED, unlike the encoder
 dataint_ecc_hamming_decode_secded #(
-    .DATA_WIDTH(64)
+    .WIDTH(64)
 ) u_ecc_decoder (
-    .i_encoded       (mem_read_data_with_ecc),
-    .o_data          (corrected_data),
-    .o_error_single  (single_bit_error),      // Correctable
-    .o_error_double  (double_bit_error)       // Detectable only
+    .clk                   (clk),
+    .rst_n                 (rst_n),
+    .enable                (1'b1),
+    .hamming_data          (mem_read_data_with_ecc),
+    .data                  (corrected_data),
+    .error_detected        (single_bit_error),   // Correctable
+    .double_error_detected (double_bit_error)    // Detectable only
 );
 ```
 
@@ -247,17 +248,24 @@ dataint_ecc_hamming_decode_secded #(
 
 **Need:** Safely cross signal from one clock domain to another
 
-**Module:** `sync_2ff.sv` (for data) or `sync_pulse.sv` (for pulses)
+**Module:** `cdc_synchronizer.sv` in `rtl/cdc/` (for data) or `sync_pulse.sv`
+in `rtl/common/` (for pulses). There is no `sync_2ff` module -- earlier revisions
+of this guide named one that has never existed in the tree.
 
 ```systemverilog
-// Option 1: Synchronize multi-bit data
-sync_2ff #(
-    .WIDTH(8)
+// Option 1: Synchronize multi-bit data (rtl/cdc/cdc_synchronizer.sv)
+// NOTE: a plain multi-flop synchronizer is only safe for signals whose bits
+// can be sampled independently -- a single-bit flag, or a quasi-static value
+// held stable across the crossing. For a multi-bit value that changes as a
+// unit, use Gray coding (counter_bingray) or a handshake/async FIFO instead.
+cdc_synchronizer #(
+    .WIDTH(8),
+    .FLOP_COUNT(3)
 ) u_data_sync (
-    .i_clk      (dst_clk),
-    .i_rst_n    (dst_rst_n),
-    .i_data     (src_data),     // From source clock domain
-    .o_data     (dst_data)      // In destination clock domain
+    .clk        (dst_clk),
+    .rst_n      (dst_rst_n),
+    .async_in   (src_data),     // From source clock domain
+    .sync_out   (dst_data)      // In destination clock domain
 );
 
 // Option 2: Synchronize single pulse
@@ -282,9 +290,9 @@ sync_pulse u_pulse_sync (
 | Simple up counter | `counter_bin.sv` | Most common choice |
 | With load/clear | `counter_load_clear.sv` | Explicit control |
 | Time-based timeout | `counter_freq_invariant.sv` | Frequency-independent |
-| Gray code | `counter_bingray.sv` | For CDC |
+| Gray code | `counter_bingray.sv` (in `rtl/cdc/`) | For CDC |
 | Ring counter | `counter_ring.sv` | Circular/sequential |
-| Johnson counter | `counter_johnson.sv` | 2N states with N FFs |
+| Johnson counter | `counter_johnson.sv` (in `rtl/cdc/`) | 2N states with N FFs |
 
 ### "I need an arbiter..."
 
@@ -305,7 +313,7 @@ sync_pulse u_pulse_sync (
 | CRC-8 | `dataint_crc.sv` | POLYNOMIAL=8'h07 |
 | Custom | `dataint_crc_xor_shift.sv` | Build custom |
 
-**📄 See `docs/markdown/RTLCommon/index.md` for ~300 validated CRC polynomials**
+**📄 The validated CRC configurations (250 standards) are the `crc_parameters` table in `bin/TBClasses/common/crc_testing.py`, which drives `val/common/test_dataint_crc.py`.**
 
 ### "I need a FIFO..."
 
@@ -441,12 +449,12 @@ always_ff @(posedge clk_b)
 
 **Right:**
 ```systemverilog
-// Use proper synchronizer
-sync_2ff #(.WIDTH(8)) u_sync (
-    .i_clk   (clk_b),
-    .i_rst_n (rst_n_b),
-    .i_data  (signal_from_clk_a),
-    .o_data  (signal_in_clk_b)
+// Use proper synchronizer (rtl/cdc/cdc_synchronizer.sv)
+cdc_synchronizer #(.WIDTH(8), .FLOP_COUNT(3)) u_sync (
+    .clk      (clk_b),
+    .rst_n    (rst_n_b),
+    .async_in (signal_from_clk_a),
+    .sync_out (signal_in_clk_b)
 );
 ```
 

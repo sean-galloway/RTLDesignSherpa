@@ -57,7 +57,7 @@ module sync_pulse #(
 
 **SYNC_STAGES Guidelines:**
 - **2 stages**: Minimum CDC-safe, basic reliability
-- **3 stages**: Recommended for most applications (highest MTBF of the listed options)
+- **3 stages**: Recommended default -- enough metastability margin for most designs at one extra cycle of latency
 - **4 stages**: Ultra-high reliability (aerospace, medical)
 
 ## Ports
@@ -394,9 +394,11 @@ set_instance_assignment -name SYNCHRONIZER_IDENTIFICATION "FORCED IF ASYNCHRONOU
 
 ## Verification and Assertions
 
-### Formal Assertions (Built-in)
+### Formal Assertions (guarded by `` `ifdef FORMAL ``)
 
-The module includes formal assertions for verification:
+The module carries these assertions, but both sit inside an `` `ifdef FORMAL ``
+block, so they do **not** compile into an ordinary simulation build. Define
+`FORMAL` (as the SymbiYosys flow does) if you want them to fire:
 
 ```systemverilog
 // Assert: Input pulse is single-cycle

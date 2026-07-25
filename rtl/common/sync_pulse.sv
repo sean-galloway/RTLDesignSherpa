@@ -41,7 +41,9 @@
 //     Range: 2 to 4
 //     Default: 3
 //     Constraints: SYNC_STAGES=2 (minimum), SYNC_STAGES=3 (recommended)
-//                  Higher stages reduce MTBF but increase latency
+//                  Higher stages INCREASE MTBF (more settling time per stage)
+//                  at the cost of one extra destination clock of latency each.
+//                  See the Timing section below, which has this right.
 //
 //------------------------------------------------------------------------------
 // Ports:

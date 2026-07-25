@@ -36,6 +36,14 @@
 //     Default: 5
 //     Constraints: Determines pipeline depth (NUM_VALS stages)
 //
+//   SIZE:
+//     Description: Bit width of each individual value (unsigned)
+//     Type: int
+//     Range: >= 1; no upper bound is enforced by the RTL
+//     Default: 16
+//     Constraints: None validated. SIZE sets the comparator width, so it lands
+//                  directly on the critical path (one SIZE-bit compare + mux).
+//
 //   Derived Parameters (localparam - computed automatically):
 //     STAGES: Number of pipeline stages (equal to NUM_VALS)
 //
