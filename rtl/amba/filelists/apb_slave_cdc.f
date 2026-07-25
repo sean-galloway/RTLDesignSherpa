@@ -23,7 +23,7 @@ $REPO_ROOT/rtl/amba/includes/fifo_defs.svh
 -f $REPO_ROOT/rtl/common/filelists/fifo_control.f
 
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
-$REPO_ROOT/rtl/cdc/gaxi_fifo_async.sv
+-f $REPO_ROOT/rtl/cdc/filelists/gaxi_fifo_async.f
 
 $REPO_ROOT/rtl/amba/apb/apb_slave.sv
 

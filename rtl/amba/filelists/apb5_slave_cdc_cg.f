@@ -14,7 +14,7 @@
 -f $REPO_ROOT/rtl/common/filelists/fifo_control.f
 -f $REPO_ROOT/rtl/common/filelists/clock_gate_ctrl.f
 -f $REPO_ROOT/rtl/common/filelists/glitch_free_n_dff_arn.f
-$REPO_ROOT/rtl/cdc/cdc_synchronizer.sv
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_synchronizer.f
 $REPO_ROOT/rtl/amba/shared/amba_clock_gate_ctrl.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 -f $REPO_ROOT/rtl/cdc/filelists/counter_johnson.f
@@ -22,7 +22,7 @@ $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 -f $REPO_ROOT/rtl/common/filelists/find_last_set.f
 -f $REPO_ROOT/rtl/common/filelists/leading_one_trailing_one.f
 -f $REPO_ROOT/rtl/cdc/filelists/johnson2bin.f
-$REPO_ROOT/rtl/cdc/gaxi_fifo_async.sv
+-f $REPO_ROOT/rtl/cdc/filelists/gaxi_fifo_async.f
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/apb5/apb5_slave.sv
 $REPO_ROOT/rtl/amba/apb5/apb5_slave_cdc.sv

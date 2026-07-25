@@ -43,9 +43,10 @@ kind = "library"
 # Split out of rtl/common: the math_* modules are a self-contained arithmetic
 # library (adders, multipliers, bf16/fp16/fp32/fp8 formats) that rtl/common does
 # not depend on except through explicit -f includes. Modules that merely USE
-# arithmetic -- count_leading_zeros, find_first_set, bin2gray/gray2bin,
-# mod_3_compress -- deliberately stayed in common: they serve FIFOs, CDC and
-# compressors, not math.
+# arithmetic -- count_leading_zeros, find_first_set, mod_3_compress --
+# deliberately stayed in common: they serve FIFOs and compressors, not math.
+# (bin2gray/gray2bin were in that list until AMBA-CDC-REORG moved them to
+# rtl/cdc, where the crossings that use them live.)
 rtl_roots = ["rtl/math"]
 filelist_dirs = ["rtl/math/filelists"]
 
@@ -54,6 +55,18 @@ name = "amba"
 kind = "library"
 rtl_roots = ["rtl/amba"]
 filelist_dirs = ["rtl/amba/filelists"]
+
+[[area]]
+name = "cdc"
+kind = "library"
+# Pulled out of rtl/common and rtl/amba (AMBA-CDC-REORG): everything whose job
+# is crossing a clock boundary lives here -- the handshakes, the synchronizer,
+# the async FIFOs, and the Gray/Johnson coders that exist to make those
+# crossings safe. Shared deps they merely USE (fifo_control, counter_bin,
+# glitch_free_n_dff_arn) deliberately stay in rtl/common and are reached by
+# -f include.
+rtl_roots = ["rtl/cdc"]
+filelist_dirs = ["rtl/cdc/filelists"]
 
 # ---------------------------------------------------------------------------
 # Components.

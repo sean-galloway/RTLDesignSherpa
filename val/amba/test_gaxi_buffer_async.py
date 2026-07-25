@@ -501,14 +501,11 @@ def test_gaxi_buffer_async_wavedrom(request, data_width, depth, wr_clk_period, r
         dut_name = "gaxi_fifo_async"
     toplevel = dut_name
 
-    # Get verilog sources based on mode for async versions
+    # Each mode owns its compile closure -- take the filelist, never append to it.
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/cdc/filelists/gaxi_fifo_async.f")
-
-    if mode == 'skid':
-        verilog_sources.append(os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"))
-        verilog_sources.append(os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer_async.sv"))
+        filelist_path=("rtl/cdc/filelists/gaxi_skid_buffer_async.f" if mode == 'skid'
+                       else "rtl/cdc/filelists/gaxi_fifo_async.f"))
 
     # create a human readable test identifier with clock information
     w_str = TBBase.format_dec(data_width, 3)
@@ -709,15 +706,11 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
         dut_name = "gaxi_fifo_async"
     toplevel = dut_name
 
-    # Get verilog sources based on mode for async versions
-    #
+    # Each mode owns its compile closure -- take the filelist, never append to it.
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/cdc/filelists/gaxi_fifo_async.f")
-
-    if mode == 'skid':
-        verilog_sources.append(os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"))
-        verilog_sources.append(os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer_async.sv"))
+        filelist_path=("rtl/cdc/filelists/gaxi_skid_buffer_async.f" if mode == 'skid'
+                       else "rtl/cdc/filelists/gaxi_fifo_async.f"))
 
     # create a human readable test identifier with clock information
     w_str = TBBase.format_dec(data_width, 3)

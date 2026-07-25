@@ -19,11 +19,9 @@ $REPO_ROOT/rtl/common/arbiter_round_robin_simple.sv
 $REPO_ROOT/rtl/common/arbiter_round_robin_weighted.sv
 $REPO_ROOT/rtl/common/arbiter_single_client.sv
 
-# Binary/Gray Code Converters
-$REPO_ROOT/rtl/cdc/bin2gray.sv
+# Binary/BCD Converter
+# (the Gray/Johnson coders moved to rtl/cdc -- see rtl/cdc/filelists/cdc_all.f)
 $REPO_ROOT/rtl/common/bin_to_bcd.sv
-$REPO_ROOT/rtl/cdc/gray2bin.sv
-$REPO_ROOT/rtl/cdc/johnson2bin.sv
 
 # CAM
 $REPO_ROOT/rtl/common/cam_tag.sv
@@ -38,9 +36,7 @@ $REPO_ROOT/rtl/common/icg.sv
 $REPO_ROOT/rtl/common/counter.sv
 $REPO_ROOT/rtl/common/counter_bin.sv
 $REPO_ROOT/rtl/common/counter_bin_load.sv
-$REPO_ROOT/rtl/cdc/counter_bingray.sv
 $REPO_ROOT/rtl/common/counter_freq_invariant.sv
-$REPO_ROOT/rtl/cdc/counter_johnson.sv
 $REPO_ROOT/rtl/common/counter_load_clear.sv
 $REPO_ROOT/rtl/common/counter_ring.sv
 $REPO_ROOT/rtl/common/count_leading_zeros.sv
@@ -66,7 +62,6 @@ $REPO_ROOT/rtl/common/encoder_priority_enable.sv
 $REPO_ROOT/rtl/common/hex_to_7seg.sv
 
 # FIFOs
-$REPO_ROOT/rtl/cdc/fifo_async.sv
 $REPO_ROOT/rtl/common/fifo_control.sv
 $REPO_ROOT/rtl/common/fifo_sync.sv
 

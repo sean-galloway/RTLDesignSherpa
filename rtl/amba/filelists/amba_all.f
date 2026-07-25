@@ -67,8 +67,6 @@ $REPO_ROOT/rtl/amba/monitor/axi_monitor_timeout.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_timer.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_trans_mgr.sv
 $REPO_ROOT/rtl/amba/shared/axi_split_combi.sv
-$REPO_ROOT/rtl/cdc/cdc_2_phase_handshake.sv
-$REPO_ROOT/rtl/cdc/cdc_4_phase_handshake.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_arbiter.sv
 
 # =============================================================================
@@ -77,11 +75,11 @@ $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer_dbldrn.sv
 
 # =============================================================================
 $REPO_ROOT/rtl/amba/gaxi/gaxi_drop_fifo_sync.sv
-$REPO_ROOT/rtl/cdc/gaxi_fifo_async.sv
+-f $REPO_ROOT/rtl/cdc/filelists/gaxi_fifo_async.f
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_regslice.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
-$REPO_ROOT/rtl/cdc/gaxi_skid_buffer_async.sv
+-f $REPO_ROOT/rtl/cdc/filelists/gaxi_skid_buffer_async.f
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer_struct.sv
 
 # =============================================================================
@@ -209,8 +207,10 @@ $REPO_ROOT/rtl/amba/axis5/axis5_slave_cg.sv
 # =============================================================================
 # CDC - Clock Domain Crossing primitives
 # =============================================================================
-$REPO_ROOT/rtl/cdc/cdc_open_loop.sv
-$REPO_ROOT/rtl/cdc/cdc_synchronizer.sv
+# The CDC area owns these now (AMBA-CDC-REORG). amba modules that DEPEND on one
+# -f include it; the standalone crossings (2/4-phase handshake, open_loop) are
+# linted by rtl/cdc/filelists/cdc_all.f, not from here.
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_synchronizer.f
 
 # =============================================================================
 # MONITOR SUBSYSTEM (protocol monitors, monbus, CAM)
