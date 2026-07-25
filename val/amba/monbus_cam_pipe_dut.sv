@@ -57,7 +57,11 @@ module monbus_cam_pipe_dut #(
         .access_key(key), .access_hit(ref_hit), .access_idx(ref_idx),
         .access_old_data(ref_old_data), .access_old_ts(ref_old_ts),
         .access_action(action), .access_new_data(new_data), .access_new_ts(new_ts),
-        .cam_full(), .cam_count(), .evicted()
+        .cam_full(), .cam_count(), .evicted(),
+        // Counting-consumer ports (unused by the compressor reference model).
+        .evict_key(), .evict_data(),
+        .dump_idx({IDX_WIDTH{1'b0}}), .dump_valid(), .dump_key(), .dump_data(),
+        .soft_clear(1'b0)
     );
 
     monbus_cam_pipe #(

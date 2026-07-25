@@ -60,4 +60,5 @@
 - [MonBus Group Core](monitor/monbus_group_core.md)
 - [Monitor Bus Group Family](monitor/monbus_group.md)
 - [MonBus Half-Beat Packer](monitor/monbus_halfbeat_packer.md)
+- [Monitor Bus Packet Tally](monitor/monbus_pkt_tally.md)
 - [Monitor Transaction CAM](monitor/monitor_trans_cam.md)

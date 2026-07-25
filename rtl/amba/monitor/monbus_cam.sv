@@ -120,7 +120,31 @@ module monbus_cam #(
     output logic [CNT_WIDTH-1:0]    cam_count,
 
     // === Eviction pulse (combinational; high on full-CAM INSTALL) ===
-    output logic                    evicted
+    output logic                    evicted,
+
+    // === Eviction victim readout (combinational; valid the cycle `evicted`
+    //     is high). The LRU victim is always position DEPTH-1. Used by
+    //     counting consumers (e.g. monbus_pkt_tally) that must fold an
+    //     evicted entry's payload back into backing store before it is lost.
+    //     Unconnected for the compressor, which never reads the victim. ===
+    output logic [KEY_WIDTH-1:0]    evict_key,
+    output logic [DATA_WIDTH-1:0]   evict_data,
+
+    // === Entry dump port (combinational read of position `dump_idx`).
+    //     Lets a consumer walk all live entries (e.g. to drain partial
+    //     counts to SRAM on a freeze/flush) without disturbing state.
+    //     Purely observational; leave `dump_idx` tied low if unused. ===
+    input  logic [IDX_WIDTH-1:0]    dump_idx,
+    output logic                    dump_valid,
+    output logic [KEY_WIDTH-1:0]    dump_key,
+    output logic [DATA_WIDTH-1:0]   dump_data,
+
+    // === Soft clear (synchronous invalidate-all; cam_count -> 0). Same
+    //     effect as reset on the entry array but without an async reset
+    //     pulse; lets a consumer re-arm the cache between capture windows.
+    //     Takes priority over any concurrent access_action. Tie low for
+    //     the compressor (reset-only usage). ===
+    input  logic                    soft_clear
 );
 
     // ------------------------------------------------------------------------
@@ -177,6 +201,15 @@ module monbus_cam #(
     assign cam_count = r_count;
     assign cam_full  = (r_count == CNT_WIDTH'(DEPTH));
     assign evicted   = (access_action == ACTION_INSTALL) && cam_full;
+
+    // Eviction victim = LRU entry (position DEPTH-1). Valid when `evicted`.
+    assign evict_key  = r_key[DEPTH-1];
+    assign evict_data = r_data[DEPTH-1];
+
+    // Observational dump of an arbitrary position.
+    assign dump_valid = r_valid[dump_idx];
+    assign dump_key   = r_key[dump_idx];
+    assign dump_data  = r_data[dump_idx];
 
     // ------------------------------------------------------------------------
     // Per-slot next-state shift logic.
@@ -242,6 +275,14 @@ module monbus_cam #(
                 r_key[i]   <= '0;
                 r_data[i]  <= '0;
                 r_ts[i]    <= '0;
+            end
+            r_count <= '0;
+        end else if (soft_clear) begin
+            // Synchronous invalidate-all. Keys/data need not be wiped; the
+            // valid bits and count fully define occupancy (a stale key never
+            // matches while its r_valid is 0). Wipe valid + count only.
+            for (int i = 0; i < DEPTH; i++) begin
+                r_valid[i] <= 1'b0;
             end
             r_count <= '0;
         end else if (do_shift) begin

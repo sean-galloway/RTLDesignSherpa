@@ -158,9 +158,35 @@ module monbus_cam #(
     // Status
     output logic                  cam_full,
     output logic [CNT_WIDTH-1:0]  cam_count,
-    output logic                  evicted           // pulses on full-CAM INSTALL
+    output logic                  evicted,          // pulses on full-CAM INSTALL
+
+    // Counting-consumer ports (additive; the compressor ties/ignores these)
+    output logic [KEY_WIDTH-1:0]  evict_key,        // victim key,  valid when evicted
+    output logic [DATA_WIDTH-1:0] evict_data,       // victim data, valid when evicted
+    input  logic [IDX_WIDTH-1:0]  dump_idx,         // position to observe
+    output logic                  dump_valid,       // entry at dump_idx is occupied
+    output logic [KEY_WIDTH-1:0]  dump_key,
+    output logic [DATA_WIDTH-1:0] dump_data,
+    input  logic                  soft_clear        // synchronous invalidate-all
 );
 ```
+
+### Counting-consumer ports
+
+The compressor uses only the access port + `evicted`. A second class of
+consumer — a **counting** cache such as [`monbus_pkt_tally`](monbus_pkt_tally.md),
+where the payload is a partial count that must survive eviction — needs to see
+the victim and to walk live entries. These ports were added **additively** for
+that use; they do not change the LRU behaviour the compressor golden depends on,
+and the compressor instantiation ties `dump_idx`/`soft_clear` low and leaves the
+new outputs open.
+
+| Port | Dir | Meaning |
+|------|-----|---------|
+| `evict_key` / `evict_data` | out | The LRU victim (position `DEPTH-1`), combinational, valid the cycle `evicted` is high. A counting consumer folds `evict_data` back into its backing store before the entry is lost. |
+| `dump_idx` | in | Position to observe (for a freeze/flush walk over all entries). |
+| `dump_valid` / `dump_key` / `dump_data` | out | Occupancy + contents of `dump_idx`, purely observational (no state change). |
+| `soft_clear` | in | Synchronous invalidate-all (`cam_count → 0`) without an async reset pulse; re-arms the cache between capture windows. Takes priority over any concurrent `access_action`. |
 
 ---
 

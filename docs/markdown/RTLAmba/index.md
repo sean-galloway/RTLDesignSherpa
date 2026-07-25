@@ -254,6 +254,7 @@ Path from in-flight monitor packets to host-visible memory + CPU IRQs.
   - `monbus_axi4_axi4_group` (burst on both sides)
 - **[monbus_compressor](monitor/monbus_compressor.md)** - Bulk-trace encoder, 2-stage pipeline, per-template `delta_ts`, bit-exact to Python golden (~2.6× ratio)
 - **[monbus_cam](monitor/monbus_cam.md)** - 32-entry LRU CAM with per-entry 24b `last_ts` (backs the compressor)
+- **[monbus_pkt_tally](monitor/monbus_pkt_tally.md)** - on-chip packet-type coverage histogram: SRAM count matrix keyed by `{protocol, pkt_type, event_code}`, 32-entry LRU write-combining cache in front (reuses `monbus_cam`), saturating counts, freeze/flush snapshot + first-event latch
 
 ### Memory / BRAM Slave (sdpram_slave family)
 
