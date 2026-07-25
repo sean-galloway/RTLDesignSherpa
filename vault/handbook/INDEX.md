@@ -21,6 +21,11 @@ and rationale) > code comments. On conflict, the requirement wins.
 - [authoring/](authoring/INDEX.md) - documentation practice: review rounds,
   voice, generation pipeline
 
+## Skills
+
+- [[skills]] - the reverse index: every `.claude/skills/` signpost and the
+  handbook note it points at. Skills are signposts only; method lives in the note.
+
 ## House rules for the handbook itself
 
 - One topic per note; link, never duplicate (duplication is how docs rot).
