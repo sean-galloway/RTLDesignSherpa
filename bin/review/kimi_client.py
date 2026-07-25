@@ -124,14 +124,23 @@ def call(brief, user, max_tokens, timeout=3600, net_retries=3):
 
 
 def call_with_ladder(brief, user, ladder=DEFAULT_LADDER, timeout=3600, log=print):
-    """Escalate the completion budget until we get a non-empty body.
+    """Escalate the completion budget until we get a COMPLETE body.
+
+    Two distinct under-budget failures, and only one of them is obvious:
+
+      empty  + finish=length   reasoning consumed the whole budget, nothing emitted
+      partial + finish=length  the critique was cut off mid-sentence
+
+    The second is the dangerous one -- it looks like a successful unit and gets
+    filed as one, so findings that were never emitted read as findings that do
+    not exist. Escalate on finish=length regardless of how much came back.
 
     Returns (text, meta_dict). meta records which budget actually worked so a
-    later round can start there instead of re-paying for the empty attempts.
+    later round can start there instead of re-paying for the failed attempts.
     """
     for i, budget in enumerate(ladder):
         txt, finish, usage, elapsed = call(brief, user, budget, timeout=timeout)
-        if txt.strip():
+        if txt.strip() and finish != "length":
             return txt, {
                 "finish_reason": finish,
                 "max_tokens": budget,
@@ -141,6 +150,7 @@ def call_with_ladder(brief, user, ladder=DEFAULT_LADDER, timeout=3600, log=print
                 "budget_escalations": i,
             }
         if i < len(ladder) - 1:
-            log(f"      empty at {budget} (finish={finish}) -> retry at {ladder[i + 1]}")
-    raise RuntimeError(f"empty content at every budget up to {ladder[-1]}; "
+            why = "empty" if not txt.strip() else f"truncated ({len(txt)} chars)"
+            log(f"      {why} at {budget} (finish={finish}) -> retry at {ladder[i + 1]}")
+    raise RuntimeError(f"still truncated at every budget up to {ladder[-1]}; "
                        "split this unit in the bundler instead of raising the ceiling")

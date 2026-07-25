@@ -50,6 +50,19 @@ Each one is here because ignoring it cost real work.
    32768 -> 65536 -> 131072. If a unit still truncates at 131072, **split it in
    the bundler**; do not raise the ceiling. *Case: cdc_part_01, math_part_02
    and shared_part_02 all needed 131072 in round_2.*
+
+   The budget runs out in **two** ways and only one of them is loud. Empty +
+   `finish=length` is obvious. *Partial* + `finish=length` - a critique cut off
+   mid-sentence - is filed as a successful unit, so findings that were never
+   emitted read as findings that do not exist, and the unit's low finding count
+   looks like a clean area. **Escalate on `finish_reason == "length"` whatever
+   came back**, never on emptiness alone. *Case: `common_part_04` in the
+   2026-07-24 common round returned 2,586 chars (against 10k-12k for its
+   siblings), cut off mid-expression inside its second finding, with
+   `budget_escalations: 0` - the ladder never fired because the body was
+   non-empty. Two visible findings; unknown how many lost.* Check every round
+   for `finish_reason: length` in the `.meta.json` before triaging, and treat a
+   unit whose output is a fraction of its siblings' as suspect.
 5. **Verify every finding against the RTL before acting.** Reviewers report
    wrong things confidently when a unit was mis-packaged. *Case: the
    `math_subtractor` "five nonexistent modules" finding was our packaging bug,
