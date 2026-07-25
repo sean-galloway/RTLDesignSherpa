@@ -197,17 +197,30 @@ Previous bit → XOR gate → Current bit flip-flop
 
 ### Tap Position Mapping
 For a polynomial P(x) = x^n + x^a + x^b + ... + 1:
-- Galois LFSR taps: [n, a, b, ...]
-- Same polynomial works for both Fibonacci and Galois
+- Galois LFSR taps: [n, a, b, ...] -- the exponents, used directly
+- The same polynomial is maximal for both Fibonacci and Galois, but **the tap
+  numbers you pass in are not interchangeable**. This module XORs the mask into
+  the post-shift value, so taps are the exponents; `shifter_lfsr_fibonacci.sv`
+  XORs the tapped bits into the MSB, which shifts the encoding to `[a+1, b+1, 1]`.
+  Passing Galois taps to the Fibonacci module drives it to zero, where it locks.
 - Different sequences produced but same mathematical properties
 
 ### Example Polynomials
+
 | Width | Polynomial | Galois Taps | Max Period |
 |-------|------------|-------------|------------|
+| 3 | x³+x²+1 | [3,2] | 7 |
 | 4 | x⁴+x³+1 | [4,3] | 15 |
+| 5 | x⁵+x³+1 | [5,3] | 31 |
 | 8 | x⁸+x⁶+x⁵+x⁴+1 | [8,6,5,4] | 255 |
+| 12 | x¹²+x⁶+x⁴+x+1 | [12,6,4,1] | 4095 |
 | 16 | x¹⁶+x¹⁵+x¹³+x⁴+1 | [16,15,13,4] | 65535 |
+| 24 | x²⁴+x²³+x²²+x¹⁷+1 | [24,23,22,17] | 16777215 |
 | 32 | x³²+x²²+x²+x+1 | [32,22,2,1] | 2³²-1 |
+
+Widths 3 through 16 were confirmed by simulation against this RTL; each yields
+period 2^n - 1. The full 168-width table is in the module's RTL header
+(`rtl/common/shifter_lfsr_galois.sv`).
 
 ## Design Trade-offs
 

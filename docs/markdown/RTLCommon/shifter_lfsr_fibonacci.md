@@ -211,17 +211,56 @@ After seed reload with 4'b1001:
 
 ## Polynomial Examples for Fibonacci LFSR
 
+> **The tap numbers below are specific to this module's shift direction.** The
+> tap column published for Galois LFSRs -- and the table in the
+> `shifter_lfsr.sv` header, which is XNOR feedback with a *left* shift -- uses a
+> different encoding for the same polynomials. Getting it wrong does not merely
+> shorten the sequence: the register is driven to zero, where the `|r_lfsr`
+> guard freezes it permanently. Measured on this RTL under Verilator: `WIDTH=4`
+> with taps `[4,3]` locks at zero after **one** step, while `[4,1]` runs the
+> full period of 15.
+
 ### Common Primitive Polynomials
+
 | Width | Polynomial | Tap Positions | Period |
 |-------|------------|---------------|---------|
-| 3 | x³+x²+1 | [3,2] | 7 |
-| 4 | x⁴+x³+1 | [4,3] | 15 |
-| 5 | x⁵+x³+1 | [5,3] | 31 |
-| 8 | x⁸+x⁶+x⁵+x⁴+1 | [8,6,5,4] | 255 |
-| 16 | x¹⁶+x¹⁵+x¹³+x⁴+1 | [16,15,13,4] | 65535 |
+| 3 | x³+x²+1 | [3,1] | 7 |
+| 4 | x⁴+x³+1 | [4,1] | 15 |
+| 5 | x⁵+x³+1 | [4,1] | 31 |
+| 8 | x⁸+x⁶+x⁵+x⁴+1 | [7,6,5,1] | 255 |
+| 16 | x¹⁶+x¹⁵+x¹³+x⁴+1 | [16,14,5,1] | 65535 |
+| 24 | x²⁴+x²³+x²²+x¹⁷+1 | [24,23,18,1] | 16777215 |
+| 32 | x³²+x²²+x²+x+1 | [23,3,2,1] | 4294967295 |
+
+The polynomials are the standard primitive set; only the tap *encoding* differs
+from the published one. The full 168-width table in this module's RTL header
+(`rtl/common/shifter_lfsr_fibonacci.sv`) is already converted -- use it directly.
+
+### Why the Encoding Differs
+
+This module computes `fb = ^(lfsr & taps)` and shifts it into the MSB, so a tap
+at position `t` contributes `x^(t-1)` and the characteristic polynomial is:
+
+```
+x^WIDTH + SUM over taps of x^(tap-1)
+```
+
+For a published polynomial `x^n + x^a + x^b + 1`, the taps here are
+`[a+1, b+1, 1]`. Two consequences worth remembering:
+
+- **Tap 1 is always present** -- it supplies the constant term. A tap set
+  without it cannot be maximal, and typically locks at zero.
+- **`n` itself is not a tap** -- the register width supplies the leading term.
+
+To convert any row of the standard table: drop the leading `n`, add 1 to every
+remaining number, then append `1`.
 
 ### Usage Note
-The same polynomial can be used for both Fibonacci and Galois LFSRs, but they will produce different (but equivalent) pseudo-random sequences.
+
+The same polynomial can be used for both Fibonacci and Galois LFSRs, and both
+produce maximal-length sequences of the same period -- but the *tap numbers you
+pass in* differ, and the state orderings differ. `shifter_lfsr_galois.sv` takes
+the exponents directly (`[n, a, b]`); this module takes `[a+1, b+1, 1]`.
 
 ## Navigation
 
