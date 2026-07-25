@@ -52,6 +52,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.fifo.fifo_buffer import FifoBufferTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.components.fifo.fifo_packet import FIFOPacket
 
 # Import WaveDrom components
@@ -414,6 +415,7 @@ async def fifo_async_wavedrom_test(dut):
 def test_fifo_async_wavedrom(request, data_width, depth, wr_clk_period, rd_clk_period):
     """Pytest wrapper for fifo_async WaveDrom generation."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_cdc': 'rtl/cdc',
         'rtl_cmn': 'rtl/common',
         'rtl_amba_includes': 'rtl/amba/includes',
     })
@@ -421,16 +423,11 @@ def test_fifo_async_wavedrom(request, data_width, depth, wr_clk_period, rd_clk_p
     dut_name = "fifo_async"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba_includes'], "fifo_defs.svh"),
-        os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "counter_bingray.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "bin2gray.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "gray2bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "glitch_free_n_dff_arn.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv"),
-    ]
+    # Take the filelist; never hand-list. This test hand-listed rtl/common paths
+    # and broke silently when the CDC modules moved to rtl/cdc.
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/cdc/filelists/fifo_async.f")
 
     w_str = TBBase.format_dec(data_width, 3)
     d_str = TBBase.format_dec(depth, 3)
@@ -492,7 +489,7 @@ def test_fifo_async_wavedrom(request, data_width, depth, wr_clk_period, rd_clk_p
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[rtl_dict['rtl_amba_includes']],
+            includes=includes,
             toplevel=toplevel,
             module=module,
             parameters=rtl_parameters,
