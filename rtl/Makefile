@@ -1,226 +1,120 @@
 # ==============================================================================
-# RTL Master Makefile - Lint & Synthesis for All RTL
+# RTL Master Makefile - run one target across every RTL area, in series
 # ==============================================================================
 #
-# PREREQUISITES:
-#   Must be run with sourced environment:
-#     source $REPO_ROOT/env_python  # Sets $REPO_ROOT and activates venv
-#     cd $REPO_ROOT/rtl
-#     make <target>
+#   source $REPO_ROOT/env_python
+#   cd $REPO_ROOT/rtl
+#   make <target>            # <target> is forwarded to every area below
+#   make <target> AREAS=cdc  # ...or to just the ones you name
 #
-# Quick start:
-#   make help           - Show all available targets
-#   make lint-all       - Run lint tools on all RTL areas
-#   make verilator-all  - Run Verilator on all areas
-#   make status         - Show RTL status summary
-#   make clean-all      - Clean all lint artifacts
+# Any target you give is dispatched to each area's own Makefile with
+# `$(MAKE) -C <area> <target>`. There is no per-target wiring here, so an area
+# that grows a new target is reachable from this level the moment it lands --
+# the previous version of this file enumerated lint-common/lint-amba/... by
+# hand and therefore covered only two of the six areas.
 #
+# Areas run IN SERIES and every one runs even if an earlier one fails, so a
+# sweep tells you about all six rather than stopping at the first. The exit
+# status is nonzero if any area failed, and the summary names which.
+#
+# Two kinds of area Makefile, deliberately:
+#   common, amba              hand-written; carry per-category targets
+#                             (verilator-counters, verilator-axi4, ...) that
+#                             come from knowing the area's structure
+#   cdc, math, integ_common   four-liners including rtl/make/area.mk
+# Both expose the same target names, which is what makes this dispatch work.
+#
+# Common targets: lint-all  verilator  verible  yosys  status  clean-all
 # ==============================================================================
 
-# Force bash shell
 SHELL := /bin/bash
 
-# Check if REPO_ROOT is set (from env_python)
-ifndef REPO_ROOT
-$(error REPO_ROOT is not set. Please run: source $$REPO_ROOT/env_python)
-endif
+RDS_ROOT ?= $(shell git rev-parse --show-toplevel)
+export REPO_ROOT ?= $(RDS_ROOT)
 
-# RTL area directories
-COMMON_DIR = common
-AMBA_DIR = amba
+# Every directory under rtl/ that owns modules. Override on the command line to
+# narrow a sweep: make lint-all AREAS="cdc common"
+AREAS ?= common cdc math amba integ_common integ_amba
 
-# Default target - show help
+GREEN  := \033[0;32m
+RED    := \033[0;31m
+YELLOW := \033[0;33m
+RESET  := \033[0m
+
 .DEFAULT_GOAL := help
 
-# ==============================================================================
-# Help Target
-# ==============================================================================
+# ------------------------------------------------------------------------------
+# The dispatcher. Anything not matched by an explicit target below lands here.
+# ------------------------------------------------------------------------------
+.PHONY: _dispatch
+_dispatch:
+	@echo "================================================================================"
+	@echo "rtl: '$(TARGET)' across: $(AREAS)"
+	@echo "================================================================================"
+	@failed=""; skipped=""; \
+	for area in $(AREAS); do \
+	    if [ ! -f "$$area/Makefile" ]; then \
+	        echo -e "$(YELLOW)SKIP $$area: no Makefile$(RESET)"; \
+	        skipped="$$skipped $$area"; continue; \
+	    fi; \
+	    echo ""; \
+	    echo "---- $$area ----"; \
+	    if $(MAKE) --no-print-directory -C "$$area" $(TARGET); then :; else \
+	        failed="$$failed $$area"; \
+	    fi; \
+	done; \
+	echo ""; \
+	echo "================================================================================"; \
+	if [ -n "$$skipped" ]; then echo -e "$(YELLOW)skipped:$$skipped$(RESET)"; fi; \
+	if [ -n "$$failed" ]; then \
+	    echo -e "$(RED)FAILED:$$failed$(RESET)"; \
+	    echo "================================================================================"; \
+	    exit 1; \
+	fi; \
+	echo -e "$(GREEN)OK: '$(TARGET)' passed in every area$(RESET)"; \
+	echo "================================================================================"
 
+# ------------------------------------------------------------------------------
+# Targets that belong to this level rather than to an area
+# ------------------------------------------------------------------------------
 .PHONY: help
 help:
 	@echo "================================================================================"
-	@echo "RTL Master Makefile - Lint & Synthesis"
+	@echo "RTL Master Makefile - one target, every area, in series"
 	@echo "================================================================================"
 	@echo ""
-	@echo "LINT TARGETS (all areas):"
-	@echo "  make lint-all             Run all lint tools on all RTL areas"
-	@echo "  make verilator-all        Run Verilator on all areas"
-	@echo "  make verible-all          Run Verible on all areas"
-	@echo "  make yosys-all            Run Yosys on all areas"
+	@echo "  make <target>               forward <target> to every area"
+	@echo "  make <target> AREAS=\"a b\"   ...or only to the areas you name"
 	@echo ""
-	@echo "AREA-SPECIFIC TARGETS:"
-	@echo "  make lint-common          Run lint on rtl/common/"
-	@echo "  make lint-amba            Run lint on rtl/amba/"
-	@echo "  make verilator-common     Run Verilator on common modules"
-	@echo "  make verilator-amba       Run Verilator on AMBA modules"
+	@echo "Targets every area understands:"
+	@echo "  lint-all       every lint tool available for the area"
+	@echo "  verilator      Verilator lint over the area's master filelist"
+	@echo "  verible        Verible style lint"
+	@echo "  status         module and filelist counts"
+	@echo "  clean-all      remove lint artifacts"
 	@echo ""
-	@echo "REPORT TARGETS:"
-	@echo "  make report               Generate combined lint report"
-	@echo "  make status               Show status of all RTL areas"
+	@echo "This level only:"
+	@echo "  make help      this text"
+	@echo "  make areas     list the areas and which kind of Makefile each has"
 	@echo ""
-	@echo "CLEAN TARGETS:"
-	@echo "  make clean-all            Clean all lint artifacts"
-	@echo "  make clean-common         Clean common lint artifacts"
-	@echo "  make clean-amba           Clean AMBA lint artifacts"
-	@echo ""
-	@echo "================================================================================"
-	@echo "Prerequisites: source $(REPO_ROOT)/env_python"
-	@echo "Current REPO_ROOT: $(REPO_ROOT)"
+	@echo "AREAS = $(AREAS)"
 	@echo "================================================================================"
 
-# ==============================================================================
-# Combined Lint Targets
-# ==============================================================================
+.PHONY: areas
+areas:
+	@printf "%-14s %-22s %s\n" AREA MAKEFILE MODULES
+	@printf -- "-------------- ---------------------- -------\n"
+	@for area in $(AREAS); do \
+	    if [ ! -f "$$area/Makefile" ]; then kind="(none)"; \
+	    elif grep -q 'rtl/make/area.mk' "$$area/Makefile" 2>/dev/null; then kind="generic (area.mk)"; \
+	    else kind="hand-written"; fi; \
+	    n=$$(ls $$area/*.sv $$area/*/*.sv 2>/dev/null | wc -l); \
+	    printf "%-14s %-22s %s\n" "$$area" "$$kind" "$$n"; \
+	done
 
-.PHONY: lint-all
-lint-all: lint-common lint-amba
-	@echo "================================================================================"
-	@echo "✓ All RTL areas linted"
-	@echo "================================================================================"
-
-.PHONY: verilator-all
-verilator-all: verilator-common verilator-amba
-	@echo "================================================================================"
-	@echo "✓ Verilator completed on all RTL areas"
-	@echo "================================================================================"
-
-.PHONY: verible-all
-verible-all: verible-common verible-amba
-	@echo "================================================================================"
-	@echo "✓ Verible completed on all RTL areas"
-	@echo "================================================================================"
-
-.PHONY: yosys-all
-yosys-all: yosys-common yosys-amba
-	@echo "================================================================================"
-	@echo "✓ Yosys completed on all RTL areas"
-	@echo "================================================================================"
-
-# ==============================================================================
-# Common Targets
-# ==============================================================================
-
-.PHONY: lint-common
-lint-common:
-	@echo "=== RTL Common Area ==="
-	@$(MAKE) -C $(COMMON_DIR) lint-all
-
-.PHONY: verilator-common
-verilator-common:
-	@echo "=== RTL Common Area (Verilator) ==="
-	@$(MAKE) -C $(COMMON_DIR) verilator
-
-.PHONY: verible-common
-verible-common:
-	@echo "=== RTL Common Area (Verible) ==="
-	@$(MAKE) -C $(COMMON_DIR) verible
-
-.PHONY: yosys-common
-yosys-common:
-	@echo "=== RTL Common Area (Yosys) ==="
-	@$(MAKE) -C $(COMMON_DIR) yosys
-
-# ==============================================================================
-# AMBA Targets
-# ==============================================================================
-
-.PHONY: lint-amba
-lint-amba:
-	@echo "=== RTL AMBA Area ==="
-	@$(MAKE) -C $(AMBA_DIR) lint-all
-
-.PHONY: verilator-amba
-verilator-amba:
-	@echo "=== RTL AMBA Area (Verilator) ==="
-	@$(MAKE) -C $(AMBA_DIR) verilator
-
-.PHONY: verible-amba
-verible-amba:
-	@echo "=== RTL AMBA Area (Verible) ==="
-	@$(MAKE) -C $(AMBA_DIR) verible
-
-.PHONY: yosys-amba
-yosys-amba:
-	@echo "=== RTL AMBA Area (Yosys) ==="
-	@$(MAKE) -C $(AMBA_DIR) yosys
-
-# ==============================================================================
-# Report Targets
-# ==============================================================================
-
-.PHONY: report
-report:
-	@echo "================================================================================"
-	@echo "RTL Master Lint Report"
-	@echo "================================================================================"
-	@echo ""
-	@echo "=== RTL Common ==="
-	@$(MAKE) -C $(COMMON_DIR) status 2>/dev/null | grep -A 10 "SystemVerilog files:"
-	@echo ""
-	@echo "=== RTL AMBA ==="
-	@$(MAKE) -C $(AMBA_DIR) status 2>/dev/null | grep -A 10 "SystemVerilog files:"
-	@echo ""
-	@echo "================================================================================"
-
-.PHONY: status
-status:
-	@echo "================================================================================"
-	@echo "RTL Master Status"
-	@echo "================================================================================"
-	@echo "Location: $(REPO_ROOT)/rtl/"
-	@echo ""
-	@echo "RTL areas:"
-	@echo "  Common modules:  $$(find $(COMMON_DIR) -name '*.sv' 2>/dev/null | wc -l) files"
-	@echo "  AMBA protocols:  $$(find $(AMBA_DIR) -name '*.sv' 2>/dev/null | wc -l) files"
-	@echo "  Total:           $$(find $(COMMON_DIR) $(AMBA_DIR) -name '*.sv' 2>/dev/null | wc -l) files"
-	@echo ""
-	@echo "Sub-makefiles:"
-	@echo "  rtl/common/Makefile: ✓"
-	@echo "  rtl/amba/Makefile:   ✓"
-	@echo ""
-	@echo "Environment:"
-	@echo "  REPO_ROOT: $(REPO_ROOT)"
-	@echo "================================================================================"
-
-# ==============================================================================
-# Clean Targets
-# ==============================================================================
-
-.PHONY: clean-common
-clean-common:
-	@echo "Cleaning common lint artifacts..."
-	@$(MAKE) -C $(COMMON_DIR) clean-all
-
-.PHONY: clean-amba
-clean-amba:
-	@echo "Cleaning AMBA lint artifacts..."
-	@$(MAKE) -C $(AMBA_DIR) clean-all
-
-.PHONY: clean-all
-clean-all: clean-common clean-amba
-	@echo "================================================================================"
-	@echo "✓ All RTL lint artifacts cleaned"
-	@echo "================================================================================"
-
-# ==============================================================================
-# Quick Aliases
-# ==============================================================================
-
-.PHONY: lint
-lint: lint-all
-
-.PHONY: verilator
-verilator: verilator-all
-
-.PHONY: verible
-verible: verible-all
-
-.PHONY: yosys
-yosys: yosys-all
-
-.PHONY: clean
-clean: clean-all
-
-# ==============================================================================
-# End of Makefile
-# ==============================================================================
+# Forward any goal not defined above. `make lint-all` becomes
+# `make _dispatch TARGET=lint-all`, which is what keeps this file
+# target-agnostic. Must stay LAST: a match-anything rule shadows anything
+# defined after it.
+%:
+	@$(MAKE) --no-print-directory _dispatch TARGET=$@
