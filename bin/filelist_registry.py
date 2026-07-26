@@ -17,6 +17,8 @@ questions that previously required hand-rolling a parser:
     --check             every module in a library area is reachable from some .f
     --find MODULE       which filelist(s) provide a module
     --audit             consumers that hand-list rtl/common or rtl/amba sources
+    --blindspots        what the above CANNOT see: unregistered filelists,
+                        tests building their own source array, .sby dead paths
     --resolve FILELIST  the fully expanded source list for one .f
 
 Path/variable handling matches the cocotb consumer
@@ -34,6 +36,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -422,6 +425,87 @@ def cmd_unrolled(reg: dict, min_sources: int = 2) -> int:
     return 0
 
 
+def cmd_blindspots(reg: dict) -> int:
+    """Find the things --check and --audit structurally CANNOT see.
+
+    Both of those walk the filelist graph, so anything outside it is invisible:
+    a filelist nobody registered, a test that builds its own source array, a
+    formal harness that hand-lists. Each of those hid a real defect in the week
+    of 2026-07-25:
+
+      * rtl/cdc and flows-stream-monitor were unregistered, so their modules
+        were exempt from coverage without anyone deciding they should be
+      * three wavedrom tests hand-listed rtl/common paths and stayed broken for
+        a day behind a green --check
+      * four apb*_slave_cdc .sby harnesses were missing gaxi_fifo_async and its
+        whole dependency tree
+
+    This is the check for that class. Exit 1 if anything is found.
+    """
+    findings = 0
+
+    # 1. Filelists that no registered area covers.
+    registered: set[Path] = set()
+    for area in reg.get("area", []):
+        registered.update(area_filelists(area))
+    # Tracked files only. rglob("*.f") also finds Fortran under venv/, which is
+    # noise: if git does not track it, it is not ours to register.
+    tracked = subprocess.run(["git", "ls-files", "*.f"], cwd=REPO_ROOT,
+                             capture_output=True, text=True).stdout.split()
+    on_disk = {REPO_ROOT / t for t in tracked}
+    orphans = sorted(on_disk - registered)
+    if orphans:
+        findings += len(orphans)
+        print(f"UNREGISTERED FILELISTS ({len(orphans)}) -- invisible to --check/--find:")
+        for o in orphans:
+            print(f"    {rel(o)}")
+        print("    fix: add the containing dir to an area's filelist_dirs in filelists.toml")
+        print()
+
+    # 2. Tests that build their own source array instead of taking a filelist.
+    hand: list[tuple[str, str]] = []
+    for t in sorted(REPO_ROOT.glob("val/*/test_*.py")) + sorted(REPO_ROOT.glob("projects/**/dv/tests/test_*.py")):
+        body = t.read_text(errors="ignore")
+        if re.search(r"^\s*verilog_sources\s*=\s*\[", body, re.M):
+            hand.append((rel(t), "hand-listed verilog_sources"))
+        elif "verilog_sources.append" in body:
+            hand.append((rel(t), "appends to a filelist's sources"))
+    if hand:
+        findings += len(hand)
+        print(f"TESTS NOT TAKING A FILELIST ({len(hand)}) -- a stale path here passes --check:")
+        for f, why in hand:
+            print(f"    {f}  ({why})")
+        print("    fix: get_sources_from_filelist(repo_root=..., filelist_path=...)")
+        print()
+
+    # 3. Formal harnesses whose [files] entries do not resolve.
+    dangling: list[tuple[str, str]] = []
+    for sby in sorted(REPO_ROOT.rglob("*.sby")):
+        base = sby.parent
+        for raw in sby.read_text(errors="ignore").splitlines():
+            for tok in re.findall(r"(\.\./[\w./-]+\.svh?)", raw):
+                if not (base / tok).resolve().exists():
+                    dangling.append((rel(sby), tok))
+    if dangling:
+        findings += len(dangling)
+        by_file: dict[str, int] = {}
+        for f, _ in dangling:
+            by_file[f] = by_file.get(f, 0) + 1
+        print(f"FORMAL HARNESSES WITH DEAD SOURCE PATHS ({len(dangling)} refs in {len(by_file)} files):")
+        for f, n in sorted(by_file.items(), key=lambda kv: -kv[1])[:12]:
+            print(f"    {n:4d}  {f}")
+        if len(by_file) > 12:
+            print(f"    ... and {len(by_file) - 12} more")
+        print("    fix: generate [script]/[files] from the area's filelist")
+        print()
+
+    if findings:
+        print(f"FAIL: {findings} blind-spot finding(s)")
+        return 1
+    print("PASS: no unregistered filelists, hand-listed tests, or dead harness paths")
+    return 0
+
+
 def cmd_resolve(path: str) -> int:
     fl = Path(path)
     if not fl.is_absolute():
@@ -443,6 +527,9 @@ def main() -> int:
     g.add_argument("--audit", action="store_true", help="find consumers hand-listing another area's sources")
     g.add_argument("--unrolled", action="store_true",
                    help="find filelists that inline another filelist's body instead of -f'ing it")
+    g.add_argument("--blindspots", action="store_true",
+                   help="find what --check/--audit cannot see: unregistered filelists, "
+                        "hand-listed tests, dead formal-harness paths")
     g.add_argument("--find", metavar="MODULE", help="show which filelist provides a module")
     g.add_argument("--resolve", metavar="FILELIST", help="expand a filelist to its source list")
     args = ap.parse_args()
@@ -459,6 +546,8 @@ def main() -> int:
         return cmd_audit(reg)
     if args.unrolled:
         return cmd_unrolled(reg)
+    if args.blindspots:
+        return cmd_blindspots(reg)
     if args.find:
         return cmd_find(reg, args.find)
     return 0
