@@ -31,7 +31,7 @@
 
 ## Overview
 
-The GAXI asynchronous FIFO enables safe clock domain crossing (CDC) between independent clock domains. It uses Gray code pointers and multi-flop synchronizers to prevent metastability and ensure data integrity.
+The GAXI asynchronous FIFO moves data safely between independent clock domains. Gray code pointers and multi-flop synchronizers keep metastability out of the datapath and get your data across intact.
 
 ### Key Features
 

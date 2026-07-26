@@ -24,7 +24,7 @@
 # Glitch-Free N-DFF Synchronizer (`glitch_free_n_dff_arn.sv`)
 
 ## Purpose
-A parameterized multi-stage synchronizer for safe clock domain crossing (CDC). Configurable flip-flop stages knock down metastability risk while your data makes the jump between asynchronous clock domains intact.
+A parameterized multi-stage synchronizer for safe clock domain crossing (CDC). The configurable flip-flop stages knock down metastability risk while your data makes the jump between asynchronous clock domains intact.
 
 ## Ports
 

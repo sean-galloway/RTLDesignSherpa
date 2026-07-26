@@ -31,7 +31,7 @@
 
 ## Overview
 
-The APB Slave CDC (Clock Domain Crossing) module provides a complete APB slave interface with integrated clock domain crossing between the APB (pclk) domain and an AXI/GAXI (aclk) domain. This enables safe integration of APB peripherals running at different clock frequencies.
+The APB Slave CDC (Clock Domain Crossing) module is a complete APB slave interface with the crossing built in: full APB on the `pclk` side, an AXI/GAXI-style backend on the `aclk` side. It's what lets you integrate APB peripherals running at different clock frequencies without metastability becoming your problem.
 
 ### Key Features
 
@@ -144,18 +144,18 @@ Both are `gaxi_fifo_async` instances with:
   regardless of the `DEPTH` used for the internal skid buffers. Powers of two are
   preferred for the gray-pointer encoding.
 
-There is no separate metastability-hardening option; two-flop synchronization is
+There is no separate metastability-hardening option — two-flop synchronization is
 fixed at instantiation.
 
 ### Maximum Clock Ratio
 
 There is no maximum ratio between `pclk` and `aclk`. Gray-pointer FIFOs impose no
-relationship between the two clocks -- either may be arbitrarily faster, slower,
+relationship between the two clocks — either may be arbitrarily faster, slower,
 or phase-unrelated, and either may be stopped indefinitely. Stopping `aclk`
 simply stalls the command FIFO's read side; the APB side backpressures via
 `PREADY` held low and no data is lost.
 
-Throughput, not correctness, is what the ratio affects: each transfer costs the
+What the ratio affects is throughput, not correctness. Each transfer pays the
 usual two-flop synchronizer latency in each direction (roughly 2-3 destination
 clock edges per crossing), so a very slow `aclk` directly lengthens APB wait
 states.
@@ -175,15 +175,16 @@ the core-side reset on `CTRL.soft_reset` while the APB side stays up.
 ### Why Not the Previous 2-Phase Handshake
 
 `USE_2_PHASE_CDC` selected a toggle-based handshake in an earlier revision. It is
-now deprecated and ignored, and the parameter is retained only for
-source-compatibility with existing instantiations.
+now deprecated and ignored; the parameter survives only for source-compatibility
+with existing instantiations.
 
-A 2-phase handshake encodes each transfer as a **toggle**. If the two domains are
-reset independently, the toggle parity desynchronizes and the link fabricates or
-drops exactly one transfer -- permanently, because nothing ever re-syncs it.
-Paired with the `apb_slave` FSM, which pairs commands and responses by position
-rather than by tag, a single phantom transfer offsets the response stream by one
-forever: every read returns the previous read's data.
+The failure mode is worth understanding, because it's the kind that ships. A
+2-phase handshake encodes each transfer as a **toggle**. Reset the two domains
+independently and the toggle parity desynchronizes — the link fabricates or
+drops exactly one transfer. Permanently, because nothing ever re-syncs it. Pair
+that with the `apb_slave` FSM, which pairs commands and responses by position
+rather than by tag, and a single phantom transfer offsets the response stream by
+one forever: every read returns the previous read's data.
 
 This was observed on the Nexys A7 `ddr2-char` board on 2026-07-19. Reading a
 single CSR eight times returned the previous register's value about three times

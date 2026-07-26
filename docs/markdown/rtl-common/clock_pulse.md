@@ -24,7 +24,7 @@
 # Clock Pulse Generator - Comprehensive Documentation
 
 ## Overview
-The `clock_pulse` module is a periodic pulse generator with a configurable period. It emits a single-cycle pulse every WIDTH clock cycles — the module you reach for whenever something in the system needs to happen on a schedule: timing generation, heartbeat signals, sampling triggers, periodic events of any kind.
+The `clock_pulse` module is a periodic pulse generator with a configurable period. It emits a single-cycle pulse every WIDTH clock cycles — the part you reach for whenever something in the system needs to happen on a schedule: timing generation, heartbeat signals, sampling triggers, periodic events of any kind.
 
 ## Module Declaration
 ```systemverilog

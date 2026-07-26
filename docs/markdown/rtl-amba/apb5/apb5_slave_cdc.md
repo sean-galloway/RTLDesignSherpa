@@ -31,7 +31,7 @@
 
 ## Overview
 
-The APB5 Slave CDC module provides clock domain crossing capability between an APB5 bus clock domain and a backend clock domain. It safely transfers APB5 transactions across asynchronous clock boundaries.
+The APB5 Slave CDC module provides clock domain crossing between an APB5 bus clock domain and a backend clock domain, carrying transactions safely across an asynchronous boundary.
 
 ### Key Features
 
@@ -103,9 +103,9 @@ localparam int CDC_FIFO_DEPTH = (DEPTH < 4) ? 4 : DEPTH;
 
 so the CDC FIFOs are never shallower than 4 entries regardless of `DEPTH`. The
 synchronizer depth is fixed at 2 flops (`N_FLOP_CROSS(2)` on both
-`gaxi_fifo_async` instances) and is not exposed as a parameter. A design needing
-3-flop synchronization for an extreme clock ratio must change the instantiation
-in the RTL.
+`gaxi_fifo_async` instances) and is not exposed as a parameter. If your design
+needs 3-flop synchronization for an extreme clock ratio, you're editing the
+instantiation in the RTL.
 
 ---
 
@@ -291,7 +291,7 @@ Two concrete consequences, neither of which is a clean discard:
   can complete a transfer that the backend did not answer.
 
 Pointers being absolute positions rather than toggle parity is what makes the
-*steady-state* crossing robust; it does not make a one-sided reset safe.
+*steady-state* crossing reliable; it does not make a one-sided reset safe.
 
 Neither reset is internally synchronized to the other domain's clock; each is
 expected to be already synchronized (or asynchronously asserted and

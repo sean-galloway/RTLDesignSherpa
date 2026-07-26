@@ -24,7 +24,7 @@
 # Johnson Counter Module
 
 ## Overview
-The `counter_johnson` module implements a Johnson counter (also known as a twisted-ring counter or switch-tail counter). This is a special type of shift register where the inverted output of the last stage is fed back to the first stage, creating a sequence with 2×WIDTH unique states. Johnson counters are widely used for generating multi-phase clock signals, state machine control, and sequential timing applications.
+The `counter_johnson` module implements a Johnson counter — also called a twisted-ring counter or a switch-tail counter. It's a shift register with a twist: the inverted output of the last stage feeds back into the first, which gives you a sequence with 2×WIDTH unique states. You'll see these generating multi-phase clock signals, driving state machine control, and running sequential timing applications.
 
 ## Module Declaration
 ```systemverilog
@@ -425,9 +425,9 @@ end
 
 ## WaveDrom Visualization
 
-**High-quality waveforms showcasing Johnson counter operation are available!**
+**WaveDrom timing diagrams for the Johnson counter are available.**
 
-The following timing diagrams demonstrate the unique properties of Johnson counters across 4 key scenarios:
+Four scenarios demonstrate the unique properties of Johnson counters:
 
 ### Scenario 1: Walking Ones and Walking Zeros Pattern
 

@@ -24,7 +24,7 @@
 # Gray-to-Binary Converter (`gray2bin.sv`)
 
 ## Purpose
-Converts Gray code (reflected binary code) to standard binary representation using XOR reduction. Essential component for asynchronous FIFO pointer comparison and other CDC applications.
+Converts Gray code (reflected binary code) back to standard binary using XOR reduction. When a Gray pointer crosses into a domain that needs to do arithmetic on it, this is the module that turns it back into a number — asynchronous FIFO pointer comparison is the classic case, and it shows up in plenty of other CDC paths too.
 
 ## Ports
 
@@ -184,7 +184,7 @@ gray2bin #(.WIDTH(8)) position_decoder (
 | 32    | 5          | 3 LUT delays  |
 
 ### Synthesis Optimization
-Modern synthesis tools:
+Modern synthesis tools need no help here:
 - **Recognize pattern**: Optimize XOR reduction automatically
 - **Balance trees**: Create balanced XOR structures
 - **Resource sharing**: Reuse XOR gates where possible
@@ -210,7 +210,7 @@ end
 ```
 
 ### Pipeline Considerations
-For very high-speed applications:
+If you're closing timing at very high speed, a pipeline stage is cheap insurance:
 ```systemverilog
 // Optional pipeline stage for timing closure
 always_ff @(posedge clk) begin

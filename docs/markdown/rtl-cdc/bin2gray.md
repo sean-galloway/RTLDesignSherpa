@@ -24,7 +24,7 @@
 # Binary to Gray Code Converter
 
 ## Overview
-The `bin2gray` module implements a purely combinational binary-to-Gray code converter. Gray code (also known as reflected binary code or unit distance code) is a binary numeral system where two successive values differ in only one bit. This property makes Gray code essential for reducing glitches and metastability in digital systems, particularly in asynchronous designs and clock domain crossings.
+The `bin2gray` module is a purely combinational binary-to-Gray converter. Gray code — reflected binary code, unit distance code, same thing — is a binary numeral system where two successive values differ in only one bit. That one-bit property is what reduces glitches and metastability in digital systems, which is why Gray code turns up everywhere in asynchronous design and clock domain crossings.
 
 ## Module Declaration
 ```systemverilog
@@ -61,12 +61,12 @@ module bin2gray #(
 ## Gray Code Theory
 
 ### Mathematical Definition
-Gray code conversion follows a simple mathematical relationship:
+The conversion follows one simple relationship:
 - **MSB**: `gray[WIDTH-1] = binary[WIDTH-1]` (MSB unchanged)
 - **Other bits**: `gray[i] = binary[i] ⊕ binary[i+1]` for i = 0 to WIDTH-2
 
 ### Why Gray Code?
-Gray code solves several problems in digital systems:
+That one-bit property buys you four things:
 
 1. **Single Bit Transitions**: Adjacent values differ by exactly one bit
 2. **Glitch Reduction**: Eliminates intermediate states during transitions
@@ -122,7 +122,7 @@ assign gray[WIDTH-1] = binary[WIDTH-1];
 ```
 
 ### Logic Structure
-The implementation creates a chain of XOR gates:
+What the RTL builds is a bank of XOR gates:
 - **Lower bits**: Each gray bit is XOR of current and next binary bits
 - **MSB**: Directly assigned from binary MSB
 - **Propagation**: Single level of logic (all XORs in parallel)
@@ -710,7 +710,7 @@ endcovergroup
 ## Synthesis Optimization
 
 ### Resource Utilization
-For different widths, typical FPGA resource usage:
+Typical FPGA resource usage, by width:
 
 | WIDTH | LUTs | Delay (ns) | Max Freq (MHz) |
 |-------|------|------------|----------------|
@@ -801,7 +801,7 @@ endmodule
 ### 4. **Plan for Back-Conversion**: Usually need Gray-to-Binary converter too
 ### 5. **Check Width Requirements**: Ensure sufficient bits for application range
 
-The Binary-to-Gray converter is a fundamental building block in digital design, providing robust solutions for asynchronous interfaces and glitch-free operations. Its simplicity and reliability make it indispensable for safe digital system design.
+The binary-to-Gray converter is one of those fundamental building blocks — simple, combinational, dependable. For asynchronous interfaces and glitch-free operation it's close to indispensable. Respect the two rules from the multi-bit synchronizer example above — register the Gray value in the source domain, and make sure it only ever increments by one — and this module will never be the source of your bug.
 
 ## Navigation
 

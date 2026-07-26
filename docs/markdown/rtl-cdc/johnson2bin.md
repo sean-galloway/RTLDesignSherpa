@@ -24,7 +24,7 @@
 # Johnson-to-Binary Converter (`johnson2bin.sv`)
 
 ## Purpose
-Converts Johnson counter codes to binary representation for use in asynchronous FIFOs with non-power-of-2 depths. Unlike standard Gray-to-binary conversion, this module handles the unique properties of Johnson counter sequences.
+Converts Johnson counter codes to binary — the piece that makes asynchronous FIFOs with non-power-of-2 depths possible. Standard Gray-to-binary conversion won't do the job here; the Johnson sequence has its own structure, and decoding it takes position detection rather than XOR reduction.
 
 ## Ports
 
@@ -84,7 +84,7 @@ State 0:  000000  ← Cycle complete (12 states total)
 ## Conversion Algorithm
 
 ### Strategy Overview
-The conversion uses **position detection** of the transition between 1s and 0s:
+The conversion works by **position detection** of the transition between 1s and 0s:
 
 ```systemverilog
 if (w_all_zeroes || w_all_ones) begin
@@ -293,14 +293,14 @@ Valid Johnson patterns have exactly one transition from 1s to 0s (or vice versa)
 ## Advanced Topics
 
 ### Hierarchical Johnson Counters
-For very large depths, consider hierarchical approach:
+For very large depths, a hierarchical approach is worth considering:
 ```systemverilog
 // Break large Johnson counter into smaller segments
 // Use multiple johnson2bin instances with higher-level arbitration
 ```
 
 ### Alternative Position Detection
-Some implementations use different position detection algorithms:
+Other implementations detect position differently:
 - **Priority encoders**: Find first/last set bit
 - **Thermometer decoders**: Convert 1-hot positions
 - **LUT-based**: For small, fixed widths

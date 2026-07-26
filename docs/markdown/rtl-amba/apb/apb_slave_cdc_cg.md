@@ -52,13 +52,13 @@ activity-based clock gating. **Both clock domains are gated independently** -- t
 module instantiates two `amba_clock_gate_ctrl` blocks, one on `pclk` and one on
 `aclk`, sharing the same configuration inputs.
 
-Structurally it is a sibling of `apb_slave_cdc` rather than a wrapper around it:
-it re-instantiates the same `apb_slave` plus the same pair of `gaxi_fifo_async`
+Structurally it's a sibling of `apb_slave_cdc`, not a wrapper around it: it
+re-instantiates the same `apb_slave` plus the same pair of `gaxi_fifo_async`
 CDC FIFOs, but drives them from the gated clocks. The CDC behaviour described in
 [apb_slave_cdc.md](./apb_slave_cdc.md) -- gray pointers, `N_FLOP_CROSS=2`,
 independent-reset safety, no maximum clock ratio -- applies unchanged.
 
-While a domain is gated, that domain's `ready` outputs are forced low so no
+While a domain is gated, that domain's `ready` outputs are forced low, so no
 handshake can complete against a stopped clock.
 
 - ✅ **Same Functionality:** 100% equivalent to base module
