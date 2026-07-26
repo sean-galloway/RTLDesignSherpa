@@ -15,7 +15,9 @@
 
 `timescale 1ns / 1ps
 
-module apb_xbar_monitored #(
+module apb_xbar_monitored
+    import monitor_common_pkg::*;   // monitor_packet_t, monbus_timestamp_t
+#(
     parameter int NUM_MASTERS = 3,
     parameter int NUM_SLAVES = 4,
     parameter int ADDR_WIDTH = 32,
@@ -135,7 +137,7 @@ module apb_xbar_monitored #(
     // =============================================================================
     output logic        monbus_valid,
     input  logic        monbus_ready,
-    output logic [63:0] monbus_data,
+    output monitor_common_pkg::monitor_packet_t monbus_packet,
 
     // =============================================================================
     // Configuration Inputs
@@ -249,9 +251,25 @@ module apb_xbar_monitored #(
     // =============================================================================
     localparam int NUM_MONITORS = NUM_MASTERS + NUM_SLAVES;  // 3 + 4 = 7
 
-    logic [NUM_MONITORS-1:0]        mon_valid;
-    logic [NUM_MONITORS-1:0]        mon_ready;
-    logic [NUM_MONITORS-1:0][63:0]  mon_data;
+    logic [NUM_MONITORS-1:0]              mon_valid;
+    logic [NUM_MONITORS-1:0]              mon_ready;
+    monitor_common_pkg::monitor_packet_t  mon_packet [NUM_MONITORS];
+
+    // Free-running time broadcast for the monitors' side-band timestamp. A real
+    // system drives this from the monbus_group time source.
+    monitor_common_pkg::monbus_timestamp_t mon_time;
+    always_ff @(posedge pclk or negedge presetn) begin
+        if (!presetn) mon_time <= '0;
+        else          mon_time <= mon_time + 1'b1;
+    end
+
+    // APB -> cmd/rsp tap. apb_monitor watches the translated side of a bridge,
+    // never the wire; APB completes in the ACCESS phase with one outstanding
+    // transaction, so command and response are accepted together on
+    // psel && penable && pready. Pure observation -- nothing registered.
+    logic [NUM_MASTERS-1:0] m_xfer;
+    logic [NUM_SLAVES-1:0]  s_xfer;
+    localparam logic ALWAYS_READY = 1'b1;
 
     // =============================================================================
     // Master Monitors (3 monitors: M0, M1, M2)
@@ -261,35 +279,58 @@ module apb_xbar_monitored #(
     generate
         for (m = 0; m < NUM_MASTERS; m++) begin : gen_master_monitors
             apb_monitor #(
-                .ADDR_WIDTH(ADDR_WIDTH),
-                .DATA_WIDTH(DATA_WIDTH),
-                .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
-                .UNIT_ID(UNIT_ID),
-                .AGENT_ID(AGENT_ID_M0 + m)  // Sequential agent IDs: 0x10, 0x11, 0x12
+                .ADDR_WIDTH       (ADDR_WIDTH),
+                .DATA_WIDTH       (DATA_WIDTH),
+                .MAX_TRANSACTIONS (MAX_TRANSACTIONS),
+                .UNIT_ID          (UNIT_ID[7:0]),
+                .AGENT_ID         (16'(AGENT_ID_M0 + m))
             ) u_master_mon (
-                .pclk              (pclk),
-                .presetn           (presetn),
+                .aclk                     (pclk),
+                .aresetn                  (presetn),
 
-                // APB signals from external master interface
-                .psel              (xbar_m_psel[m]),
-                .penable           (xbar_m_penable[m]),
-                .pwrite            (xbar_m_pwrite[m]),
-                .paddr             (xbar_m_paddr[m]),
-                .pwdata            (xbar_m_pwdata[m]),
-                .pready            (xbar_m_pready[m]),
-                .prdata            (xbar_m_prdata[m]),
-                .pslverr           (xbar_m_pslverr[m]),
+                .cmd_valid                (m_xfer[m]),
+                .cmd_ready                (ALWAYS_READY),
+                .cmd_pwrite               (xbar_m_pwrite[m]),
+                .cmd_paddr                (xbar_m_paddr[m]),
+                .cmd_pwdata               (xbar_m_pwdata[m]),
+                .cmd_pstrb                (xbar_m_pstrb[m]),
+                .cmd_pprot                (xbar_m_pprot[m]),
 
-                // Monitor bus output
-                .monbus_pkt_valid  (mon_valid[m]),
-                .monbus_pkt_ready  (mon_ready[m]),
-                .monbus_pkt_data   (mon_data[m]),
+                .rsp_valid                (m_xfer[m]),
+                .rsp_ready                (ALWAYS_READY),
+                .rsp_prdata               (xbar_m_prdata[m]),
+                .rsp_pslverr              (xbar_m_pslverr[m]),
 
-                // Configuration
-                .cfg_error_enable   (cfg_error_enable),
-                .cfg_compl_enable   (cfg_compl_enable),
-                .cfg_timeout_enable (cfg_timeout_enable),
-                .cfg_perf_enable    (cfg_perf_enable)
+                .cfg_error_enable         (cfg_error_enable),
+                .cfg_timeout_enable       (cfg_timeout_enable),
+                .cfg_protocol_enable      (1'b0),
+                .cfg_slverr_enable        (cfg_error_enable),
+                .cfg_perf_enable          (cfg_perf_enable),
+                .cfg_latency_enable       (1'b0),
+                .cfg_throughput_enable    (1'b0),
+                .cfg_debug_enable         (1'b0),
+                .cfg_trans_debug_enable   (1'b0),
+                .cfg_debug_level          (4'd0),
+                .cfg_cmd_timeout_cnt      (16'd0),
+                .cfg_rsp_timeout_cnt      (16'd0),
+                .cfg_latency_threshold    (32'd0),
+                .cfg_throughput_threshold (16'd0),
+
+                .cfg_addr_check_enable    (1'b0),
+                .cfg_addr_range_enable    ('0),
+                .cfg_addr_range_low       ('0),
+                .cfg_addr_range_high      ('0),
+
+                .i_mon_time               (mon_time),
+
+                .monbus_valid             (mon_valid[m]),
+                .monbus_ready             (mon_ready[m]),
+                .monbus_packet            (mon_packet[m]),
+                .monbus_timestamp         (),
+
+                .active_count             (),
+                .error_count              (),
+                .transaction_count        ()
             );
         end
     endgenerate
@@ -302,35 +343,58 @@ module apb_xbar_monitored #(
     generate
         for (s = 0; s < NUM_SLAVES; s++) begin : gen_slave_monitors
             apb_monitor #(
-                .ADDR_WIDTH(ADDR_WIDTH),
-                .DATA_WIDTH(DATA_WIDTH),
-                .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
-                .UNIT_ID(UNIT_ID),
-                .AGENT_ID(AGENT_ID_S0 + s)  // Sequential agent IDs: 0x40, 0x41, 0x42, 0x43
+                .ADDR_WIDTH       (ADDR_WIDTH),
+                .DATA_WIDTH       (DATA_WIDTH),
+                .MAX_TRANSACTIONS (MAX_TRANSACTIONS),
+                .UNIT_ID          (UNIT_ID[7:0]),
+                .AGENT_ID         (16'(AGENT_ID_S0 + s))
             ) u_slave_mon (
-                .pclk              (pclk),
-                .presetn           (presetn),
+                .aclk                     (pclk),
+                .aresetn                  (presetn),
 
-                // APB signals to external slave interface
-                .psel              (xbar_s_psel[s]),
-                .penable           (xbar_s_penable[s]),
-                .pwrite            (xbar_s_pwrite[s]),
-                .paddr             (xbar_s_paddr[s]),
-                .pwdata            (xbar_s_pwdata[s]),
-                .pready            (xbar_s_pready[s]),
-                .prdata            (xbar_s_prdata[s]),
-                .pslverr           (xbar_s_pslverr[s]),
+                .cmd_valid                (s_xfer[s]),
+                .cmd_ready                (ALWAYS_READY),
+                .cmd_pwrite               (xbar_s_pwrite[s]),
+                .cmd_paddr                (xbar_s_paddr[s]),
+                .cmd_pwdata               (xbar_s_pwdata[s]),
+                .cmd_pstrb                (xbar_s_pstrb[s]),
+                .cmd_pprot                (xbar_s_pprot[s]),
 
-                // Monitor bus output
-                .monbus_pkt_valid  (mon_valid[NUM_MASTERS + s]),
-                .monbus_pkt_ready  (mon_ready[NUM_MASTERS + s]),
-                .monbus_pkt_data   (mon_data[NUM_MASTERS + s]),
+                .rsp_valid                (s_xfer[s]),
+                .rsp_ready                (ALWAYS_READY),
+                .rsp_prdata               (xbar_s_prdata[s]),
+                .rsp_pslverr              (xbar_s_pslverr[s]),
 
-                // Configuration
-                .cfg_error_enable   (cfg_error_enable),
-                .cfg_compl_enable   (cfg_compl_enable),
-                .cfg_timeout_enable (cfg_timeout_enable),
-                .cfg_perf_enable    (cfg_perf_enable)
+                .cfg_error_enable         (cfg_error_enable),
+                .cfg_timeout_enable       (cfg_timeout_enable),
+                .cfg_protocol_enable      (1'b0),
+                .cfg_slverr_enable        (cfg_error_enable),
+                .cfg_perf_enable          (cfg_perf_enable),
+                .cfg_latency_enable       (1'b0),
+                .cfg_throughput_enable    (1'b0),
+                .cfg_debug_enable         (1'b0),
+                .cfg_trans_debug_enable   (1'b0),
+                .cfg_debug_level          (4'd0),
+                .cfg_cmd_timeout_cnt      (16'd0),
+                .cfg_rsp_timeout_cnt      (16'd0),
+                .cfg_latency_threshold    (32'd0),
+                .cfg_throughput_threshold (16'd0),
+
+                .cfg_addr_check_enable    (1'b0),
+                .cfg_addr_range_enable    ('0),
+                .cfg_addr_range_low       ('0),
+                .cfg_addr_range_high      ('0),
+
+                .i_mon_time               (mon_time),
+
+                .monbus_valid             (mon_valid[NUM_MASTERS + s]),
+                .monbus_ready             (mon_ready[NUM_MASTERS + s]),
+                .monbus_packet            (mon_packet[NUM_MASTERS + s]),
+                .monbus_timestamp         (),
+
+                .active_count             (),
+                .error_count              (),
+                .transaction_count        ()
             );
         end
     endgenerate
@@ -340,25 +404,45 @@ module apb_xbar_monitored #(
     // =============================================================================
     // Aggregates 7 monitor packet streams into single output
 
+    // Tap strobes, one per monitored port
+    generate
+        for (genvar mi = 0; mi < NUM_MASTERS; mi++) begin : gen_m_xfer
+            assign m_xfer[mi] = xbar_m_psel[mi] && xbar_m_penable[mi] && xbar_m_pready[mi];
+        end
+        for (genvar si = 0; si < NUM_SLAVES; si++) begin : gen_s_xfer
+            assign s_xfer[si] = xbar_s_psel[si] && xbar_s_penable[si] && xbar_s_pready[si];
+        end
+    endgenerate
+
+    // =============================================================================
+    // Monitor bus aggregation
+    // =============================================================================
+    // Round-robin, not priority: a master that errors continuously must not lock
+    // the other ports out of the bus, or you lose the evidence explaining it.
+
+    logic [NUM_MONITORS-1:0]         mon_grant;
+    logic [$clog2(NUM_MONITORS)-1:0] mon_grant_id;
+
     arbiter_round_robin #(
-        .N(NUM_MONITORS),
-        .REG_OUTPUT(1)           // Register output for timing
+        .CLIENTS      (NUM_MONITORS),
+        .WAIT_GNT_ACK (0)
     ) u_mon_arbiter (
-        .i_clk      (pclk),
-        .i_rst_n    (presetn),
-        .i_request  (mon_valid),
-        .o_grant    (mon_ready),
-        .o_valid    (monbus_valid)
+        .clk         (pclk),
+        .rst_n       (presetn),
+        .block_arb   (~monbus_ready),
+        .request     (mon_valid),
+        .grant_ack   ('0),
+        .grant_valid (monbus_valid),
+        .grant       (mon_grant),
+        .grant_id    (mon_grant_id),
+        .last_grant  ()
     );
 
-    // Data muxing based on grant
-    logic [$clog2(NUM_MONITORS)-1:0] grant_id;
     always_comb begin
-        grant_id = '0;
-        for (int i = 0; i < NUM_MONITORS; i++) begin
-            if (mon_ready[i]) grant_id = i[$clog2(NUM_MONITORS)-1:0];
-        end
+        mon_ready = '0;
+        mon_ready[mon_grant_id] = monbus_valid && monbus_ready;
     end
-    assign monbus_data = mon_data[grant_id];
+
+    assign monbus_packet = mon_packet[mon_grant_id];
 
 endmodule : apb_xbar_monitored

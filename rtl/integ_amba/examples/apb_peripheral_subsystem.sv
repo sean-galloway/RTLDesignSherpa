@@ -15,7 +15,9 @@
 
 `timescale 1ns / 1ps
 
-module apb_peripheral_subsystem #(
+module apb_peripheral_subsystem
+    import monitor_common_pkg::*;   // monitor_packet_t, monbus_timestamp_t
+#(
     parameter int ADDR_WIDTH = 16,   // 64KB address space
     parameter int DATA_WIDTH = 32,
     parameter int STRB_WIDTH = 4,
@@ -49,9 +51,9 @@ module apb_peripheral_subsystem #(
     // =============================================================================
     // Aggregated Monitor Output
     // =============================================================================
-    output logic        monbus_valid,
-    input  logic        monbus_ready,
-    output logic [63:0] monbus_data,
+    output logic                                  monbus_valid,
+    input  logic                                  monbus_ready,
+    output monitor_common_pkg::monitor_packet_t   monbus_packet,
 
     // =============================================================================
     // Configuration
@@ -59,6 +61,10 @@ module apb_peripheral_subsystem #(
     input logic cfg_error_enable,
     input logic cfg_compl_enable
 );
+
+    // =============================================================================
+    // APB -> cmd/rsp tap (see below, after the peripheral signals are declared)
+    // =============================================================================
 
     // =============================================================================
     // Address Decoding
@@ -213,43 +219,110 @@ module apb_peripheral_subsystem #(
     assign gpio_pslverr = 1'b0;
 
     // =============================================================================
+    // APB -> cmd/rsp tap
+    // =============================================================================
+    // apb_monitor observes the TRANSLATED side of a bridge, never the wire: it
+    // takes a cmd_valid/cmd_ready + rsp_valid/rsp_ready handshake. That is what
+    // lets one monitor serve both APB4 and APB5 -- each bridge presents the same
+    // shape regardless of the protocol on its pins.
+    //
+    // This subsystem has raw APB in hand, so it derives the handshake from the
+    // bus phases. APB carries one outstanding transaction and completes in the
+    // ACCESS phase, so the command and its response are accepted in the same
+    // cycle: psel && penable && pready. The tap is pure observation -- nothing
+    // is registered and no cycle is added to the peripheral path.
+
+    logic regfile_xfer, timer_xfer, gpio_xfer;
+    assign regfile_xfer = regfile_psel && regfile_penable && regfile_pready;
+    assign timer_xfer   = timer_psel   && timer_penable   && timer_pready;
+    assign gpio_xfer    = gpio_psel    && gpio_penable    && gpio_pready;
+
+    // These peripherals never stall (pready is tied high), so cmd_ready and
+    // rsp_ready are constant. A peripheral that can stall would drive them from
+    // its own backpressure.
+    localparam logic ALWAYS_READY = 1'b1;
+
+    // =============================================================================
     // Monitor Bus Signals (3 monitors: one per peripheral)
     // =============================================================================
 
     localparam int NUM_MONITORS = 3;
 
-    logic [NUM_MONITORS-1:0]        mon_valid;
-    logic [NUM_MONITORS-1:0]        mon_ready;
-    logic [NUM_MONITORS-1:0][63:0]  mon_data;
+    logic [NUM_MONITORS-1:0]                    mon_valid;
+    logic [NUM_MONITORS-1:0]                    mon_ready;
+    monitor_common_pkg::monitor_packet_t        mon_packet [NUM_MONITORS];
+
+    // The monitors take a free-running time broadcast for their side-band
+    // timestamp. A real system drives this from the monbus_group time source;
+    // an example counts locally so the field is at least monotonic.
+    monitor_common_pkg::monbus_timestamp_t mon_time;
+    always_ff @(posedge pclk or negedge presetn) begin
+        if (!presetn) mon_time <= '0;
+        else          mon_time <= mon_time + 1'b1;
+    end
 
     // =============================================================================
     // Monitor 0: Register File
     // =============================================================================
 
     apb_monitor #(
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .DATA_WIDTH(DATA_WIDTH),
-        .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
-        .UNIT_ID(UNIT_ID),
-        .AGENT_ID(AGENT_ID_REGFILE)
+        .ADDR_WIDTH       (ADDR_WIDTH),
+        .DATA_WIDTH       (DATA_WIDTH),
+        .MAX_TRANSACTIONS (MAX_TRANSACTIONS),
+        .UNIT_ID          (UNIT_ID[7:0]),
+        .AGENT_ID         (16'(AGENT_ID_REGFILE))
     ) u_regfile_mon (
-        .pclk              (pclk),
-        .presetn           (presetn),
-        .psel              (regfile_psel),
-        .penable           (regfile_penable),
-        .pwrite            (regfile_pwrite),
-        .paddr             (regfile_paddr),
-        .pwdata            (regfile_pwdata),
-        .pready            (regfile_pready),
-        .prdata            (regfile_prdata),
-        .pslverr           (regfile_pslverr),
-        .monbus_pkt_valid  (mon_valid[0]),
-        .monbus_pkt_ready  (mon_ready[0]),
-        .monbus_pkt_data   (mon_data[0]),
-        .cfg_error_enable  (cfg_error_enable),
-        .cfg_compl_enable  (cfg_compl_enable),
-        .cfg_timeout_enable(1'b0),  // Simple peripheral, no timeouts
-        .cfg_perf_enable   (1'b0)
+        .aclk                     (pclk),
+        .aresetn                  (presetn),
+
+        // Command side of the tap
+        .cmd_valid                (regfile_xfer),
+        .cmd_ready                (ALWAYS_READY),
+        .cmd_pwrite               (regfile_pwrite),
+        .cmd_paddr                (regfile_paddr),
+        .cmd_pwdata               (regfile_pwdata),
+        .cmd_pstrb                (regfile_pstrb),
+        .cmd_pprot                (apb_pprot),
+
+        // Response side of the tap
+        .rsp_valid                (regfile_xfer),
+        .rsp_ready                (ALWAYS_READY),
+        .rsp_prdata               (regfile_prdata),
+        .rsp_pslverr              (regfile_pslverr),
+
+        // Only error and completion reporting are exposed at this level;
+        // everything else is off so the example stays readable.
+        .cfg_error_enable         (cfg_error_enable),
+        .cfg_timeout_enable       (1'b0),
+        .cfg_protocol_enable      (1'b0),
+        .cfg_slverr_enable        (cfg_error_enable),
+        .cfg_perf_enable          (cfg_compl_enable),
+        .cfg_latency_enable       (1'b0),
+        .cfg_throughput_enable    (1'b0),
+        .cfg_debug_enable         (1'b0),
+        .cfg_trans_debug_enable   (1'b0),
+        .cfg_debug_level          (4'd0),
+        .cfg_cmd_timeout_cnt      (16'd0),
+        .cfg_rsp_timeout_cnt      (16'd0),
+        .cfg_latency_threshold    (32'd0),
+        .cfg_throughput_threshold (16'd0),
+
+        // Address-range checking is off (N_ADDR_RANGES defaults to 0)
+        .cfg_addr_check_enable    (1'b0),
+        .cfg_addr_range_enable    ('0),
+        .cfg_addr_range_low       ('0),
+        .cfg_addr_range_high      ('0),
+
+        .i_mon_time               (mon_time),
+
+        .monbus_valid             (mon_valid[0]),
+        .monbus_ready             (mon_ready[0]),
+        .monbus_packet            (mon_packet[0]),
+        .monbus_timestamp         (),
+
+        .active_count             (),
+        .error_count              (),
+        .transaction_count        ()
     );
 
     // =============================================================================
@@ -257,29 +330,63 @@ module apb_peripheral_subsystem #(
     // =============================================================================
 
     apb_monitor #(
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .DATA_WIDTH(DATA_WIDTH),
-        .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
-        .UNIT_ID(UNIT_ID),
-        .AGENT_ID(AGENT_ID_TIMER)
+        .ADDR_WIDTH       (ADDR_WIDTH),
+        .DATA_WIDTH       (DATA_WIDTH),
+        .MAX_TRANSACTIONS (MAX_TRANSACTIONS),
+        .UNIT_ID          (UNIT_ID[7:0]),
+        .AGENT_ID         (16'(AGENT_ID_TIMER))
     ) u_timer_mon (
-        .pclk              (pclk),
-        .presetn           (presetn),
-        .psel              (timer_psel),
-        .penable           (timer_penable),
-        .pwrite            (timer_pwrite),
-        .paddr             (timer_paddr),
-        .pwdata            (timer_pwdata),
-        .pready            (timer_pready),
-        .prdata            (timer_prdata),
-        .pslverr           (timer_pslverr),
-        .monbus_pkt_valid  (mon_valid[1]),
-        .monbus_pkt_ready  (mon_ready[1]),
-        .monbus_pkt_data   (mon_data[1]),
-        .cfg_error_enable  (cfg_error_enable),
-        .cfg_compl_enable  (cfg_compl_enable),
-        .cfg_timeout_enable(1'b0),
-        .cfg_perf_enable   (1'b0)
+        .aclk                     (pclk),
+        .aresetn                  (presetn),
+
+        // Command side of the tap
+        .cmd_valid                (timer_xfer),
+        .cmd_ready                (ALWAYS_READY),
+        .cmd_pwrite               (timer_pwrite),
+        .cmd_paddr                (timer_paddr),
+        .cmd_pwdata               (timer_pwdata),
+        .cmd_pstrb                (timer_pstrb),
+        .cmd_pprot                (apb_pprot),
+
+        // Response side of the tap
+        .rsp_valid                (timer_xfer),
+        .rsp_ready                (ALWAYS_READY),
+        .rsp_prdata               (timer_prdata),
+        .rsp_pslverr              (timer_pslverr),
+
+        // Only error and completion reporting are exposed at this level;
+        // everything else is off so the example stays readable.
+        .cfg_error_enable         (cfg_error_enable),
+        .cfg_timeout_enable       (1'b0),
+        .cfg_protocol_enable      (1'b0),
+        .cfg_slverr_enable        (cfg_error_enable),
+        .cfg_perf_enable          (cfg_compl_enable),
+        .cfg_latency_enable       (1'b0),
+        .cfg_throughput_enable    (1'b0),
+        .cfg_debug_enable         (1'b0),
+        .cfg_trans_debug_enable   (1'b0),
+        .cfg_debug_level          (4'd0),
+        .cfg_cmd_timeout_cnt      (16'd0),
+        .cfg_rsp_timeout_cnt      (16'd0),
+        .cfg_latency_threshold    (32'd0),
+        .cfg_throughput_threshold (16'd0),
+
+        // Address-range checking is off (N_ADDR_RANGES defaults to 0)
+        .cfg_addr_check_enable    (1'b0),
+        .cfg_addr_range_enable    ('0),
+        .cfg_addr_range_low       ('0),
+        .cfg_addr_range_high      ('0),
+
+        .i_mon_time               (mon_time),
+
+        .monbus_valid             (mon_valid[1]),
+        .monbus_ready             (mon_ready[1]),
+        .monbus_packet            (mon_packet[1]),
+        .monbus_timestamp         (),
+
+        .active_count             (),
+        .error_count              (),
+        .transaction_count        ()
     );
 
     // =============================================================================
@@ -287,54 +394,101 @@ module apb_peripheral_subsystem #(
     // =============================================================================
 
     apb_monitor #(
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .DATA_WIDTH(DATA_WIDTH),
-        .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
-        .UNIT_ID(UNIT_ID),
-        .AGENT_ID(AGENT_ID_GPIO)
+        .ADDR_WIDTH       (ADDR_WIDTH),
+        .DATA_WIDTH       (DATA_WIDTH),
+        .MAX_TRANSACTIONS (MAX_TRANSACTIONS),
+        .UNIT_ID          (UNIT_ID[7:0]),
+        .AGENT_ID         (16'(AGENT_ID_GPIO))
     ) u_gpio_mon (
-        .pclk              (pclk),
-        .presetn           (presetn),
-        .psel              (gpio_psel),
-        .penable           (gpio_penable),
-        .pwrite            (gpio_pwrite),
-        .paddr             (gpio_paddr),
-        .pwdata            (gpio_pwdata),
-        .pready            (gpio_pready),
-        .prdata            (gpio_prdata),
-        .pslverr           (gpio_pslverr),
-        .monbus_pkt_valid  (mon_valid[2]),
-        .monbus_pkt_ready  (mon_ready[2]),
-        .monbus_pkt_data   (mon_data[2]),
-        .cfg_error_enable  (cfg_error_enable),
-        .cfg_compl_enable  (cfg_compl_enable),
-        .cfg_timeout_enable(1'b0),
-        .cfg_perf_enable   (1'b0)
+        .aclk                     (pclk),
+        .aresetn                  (presetn),
+
+        // Command side of the tap
+        .cmd_valid                (gpio_xfer),
+        .cmd_ready                (ALWAYS_READY),
+        .cmd_pwrite               (gpio_pwrite),
+        .cmd_paddr                (gpio_paddr),
+        .cmd_pwdata               (gpio_pwdata),
+        .cmd_pstrb                (gpio_pstrb),
+        .cmd_pprot                (apb_pprot),
+
+        // Response side of the tap
+        .rsp_valid                (gpio_xfer),
+        .rsp_ready                (ALWAYS_READY),
+        .rsp_prdata               (gpio_prdata),
+        .rsp_pslverr              (gpio_pslverr),
+
+        // Only error and completion reporting are exposed at this level;
+        // everything else is off so the example stays readable.
+        .cfg_error_enable         (cfg_error_enable),
+        .cfg_timeout_enable       (1'b0),
+        .cfg_protocol_enable      (1'b0),
+        .cfg_slverr_enable        (cfg_error_enable),
+        .cfg_perf_enable          (cfg_compl_enable),
+        .cfg_latency_enable       (1'b0),
+        .cfg_throughput_enable    (1'b0),
+        .cfg_debug_enable         (1'b0),
+        .cfg_trans_debug_enable   (1'b0),
+        .cfg_debug_level          (4'd0),
+        .cfg_cmd_timeout_cnt      (16'd0),
+        .cfg_rsp_timeout_cnt      (16'd0),
+        .cfg_latency_threshold    (32'd0),
+        .cfg_throughput_threshold (16'd0),
+
+        // Address-range checking is off (N_ADDR_RANGES defaults to 0)
+        .cfg_addr_check_enable    (1'b0),
+        .cfg_addr_range_enable    ('0),
+        .cfg_addr_range_low       ('0),
+        .cfg_addr_range_high      ('0),
+
+        .i_mon_time               (mon_time),
+
+        .monbus_valid             (mon_valid[2]),
+        .monbus_ready             (mon_ready[2]),
+        .monbus_packet            (mon_packet[2]),
+        .monbus_timestamp         (),
+
+        .active_count             (),
+        .error_count              (),
+        .transaction_count        ()
     );
 
     // =============================================================================
     // Monitor Bus Arbiter (Simple Round-Robin)
     // =============================================================================
 
+    // =============================================================================
+    // Monitor bus aggregation
+    // =============================================================================
+    // Round-robin, not priority: a peripheral that errors continuously must not
+    // lock the others out of the bus, or you lose the evidence that would
+    // explain it.
+
+    logic [NUM_MONITORS-1:0] mon_grant;
+    logic [$clog2(NUM_MONITORS)-1:0] mon_grant_id;
+
     arbiter_round_robin #(
-        .N(NUM_MONITORS),
-        .REG_OUTPUT(1)
+        .CLIENTS      (NUM_MONITORS),
+        .WAIT_GNT_ACK (0)
     ) u_mon_arbiter (
-        .i_clk     (pclk),
-        .i_rst_n   (presetn),
-        .i_request (mon_valid),
-        .o_grant   (mon_ready),
-        .o_valid   (monbus_valid)
+        .clk         (pclk),
+        .rst_n       (presetn),
+        .block_arb   (~monbus_ready),      // hold the grant while the sink is busy
+        .request     (mon_valid),
+        .grant_ack   ('0),
+        .grant_valid (monbus_valid),
+        .grant       (mon_grant),
+        .grant_id    (mon_grant_id),
+        .last_grant  ()
     );
 
-    // Data muxing
-    logic [1:0] grant_id;
+    // The granted monitor is the one that gets its packet forwarded and its
+    // ready asserted; the others stall until their turn.
     always_comb begin
-        grant_id = '0;
-        for (int i = 0; i < NUM_MONITORS; i++) begin
-            if (mon_ready[i]) grant_id = i[1:0];
-        end
+        mon_ready = '0;
+        mon_ready[mon_grant_id] = monbus_valid && monbus_ready;
     end
-    assign monbus_data = mon_data[grant_id];
+
+    assign monbus_packet = mon_packet[mon_grant_id];
 
 endmodule : apb_peripheral_subsystem

@@ -12,6 +12,11 @@
 
 -f $REPO_ROOT/rtl/amba/filelists/apb_monitor.f
 -f $REPO_ROOT/rtl/common/filelists/arbiter_round_robin.f
+# apb_xbar_thin instantiates arbiter_round_robin_weighted but its own filelist
+# does not carry it, so it cannot be compiled from that list alone. Declared
+# here so this example builds; the real fix belongs in apb_xbar_thin.f, which
+# is in the projects tree and out of scope for this change.
+-f $REPO_ROOT/rtl/common/filelists/arbiter_round_robin_weighted.f
 -f $REPO_ROOT/projects/components/apb_xbar/rtl/filelists/core/apb_xbar_thin.f
 
 $REPO_ROOT/rtl/integ_amba/examples/apb_xbar_monitored.sv
