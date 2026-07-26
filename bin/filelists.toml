@@ -67,6 +67,16 @@ rtl_roots = ["projects/components/misc/rtl"]
 filelist_dirs = ["projects/components/misc/rtl/filelists"]
 
 [[area]]
+name = "integ_amba"
+kind = "library"
+# AMBA integration examples (apb_peripheral_subsystem, apb_xbar_monitored). It
+# had modules but no filelists and no registration until 2026-07-26, so it was
+# invisible to --check AND to --blindspots: the orphan scan looks for .f files
+# no area covers, and an area with no .f at all has nothing to find.
+rtl_roots = ["rtl/integ_amba"]
+filelist_dirs = ["rtl/integ_amba/filelists"]
+
+[[area]]
 name = "integ_common"
 kind = "library"
 # Integration examples that wire rtl/common blocks together to show a pattern
