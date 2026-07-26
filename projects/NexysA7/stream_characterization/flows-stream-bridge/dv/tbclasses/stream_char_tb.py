@@ -264,6 +264,13 @@ class StreamCharTB(TBBase):
         self.clk_name = 'aclk'
         self.rst_n = dut.aresetn
 
+        # Hierarchy path (relative to dut) to the axi4_dma_slaves instance that
+        # holds the LFSR pattern-gen and CRC-check beat counters we probe by
+        # backdoor. Default matches the perf harness (slaves instantiated
+        # directly as u_dma_slaves). The monitor harness wraps the slaves in
+        # dma_slave_monitors, so it overrides this to reach one level deeper.
+        self.dma_slaves_path = ('u_dma_slaves',)
+
         self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
 
@@ -841,6 +848,15 @@ class StreamCharTB(TBBase):
                       f"perf_nonzero={perf_ok} -> {out_path}")
         return ok and perf_ok
 
+    def _dma_slaves(self):
+        """Handle to the axi4_dma_slaves instance (LFSR pattern-gen + CRC-check
+        beat counters). Walks self.dma_slaves_path so the monitor harness, which
+        wraps the slaves one level deeper, can still be probed."""
+        h = self.dut
+        for part in self.dma_slaves_path:
+            h = getattr(h, part)
+        return h
+
     async def run_dma_test(self, num_channels: int,
                            descriptors_per_channel: int,
                            transfer_bytes: int,
@@ -1092,8 +1108,8 @@ class StreamCharTB(TBBase):
             ts = await self.uart_read(CSR_TIMER_STATUS) or 0
             st = await self.read_status() or {}
             try:
-                wr_beats = int(self.dut.u_dma_slaves.u_wr_crc_check.write_beat_count_total.value)
-                rd_beats = int(self.dut.u_dma_slaves.u_rd_pattern_gen.read_beat_count_total.value)
+                wr_beats = int(self._dma_slaves().u_wr_crc_check.write_beat_count_total.value)
+                rd_beats = int(self._dma_slaves().u_rd_pattern_gen.read_beat_count_total.value)
             except Exception:
                 wr_beats = -1
                 rd_beats = -1
@@ -1358,8 +1374,8 @@ class StreamCharTB(TBBase):
         max_extra_clocks = max(timeout_clocks, expected_total * 4)
         elapsed = 0
         while elapsed < max_extra_clocks:
-            rd_beats = int(self.dut.u_dma_slaves.u_rd_pattern_gen.read_beat_count_total.value)
-            wr_beats = int(self.dut.u_dma_slaves.u_wr_crc_check.write_beat_count_total.value)
+            rd_beats = int(self._dma_slaves().u_rd_pattern_gen.read_beat_count_total.value)
+            wr_beats = int(self._dma_slaves().u_wr_crc_check.write_beat_count_total.value)
             if wr_beats >= expected_total and rd_beats >= expected_total:
                 self.log.info(f"  Beats reached expected ({expected_total}) after {elapsed} extra clocks")
                 break
@@ -1444,8 +1460,8 @@ class StreamCharTB(TBBase):
         # are now per-channel packed arrays — read the aggregate `_total`
         # outputs instead of treating the array as a scalar.
         try:
-            rd_beats = int(self.dut.u_dma_slaves.u_rd_pattern_gen.read_beat_count_total.value)
-            wr_beats = int(self.dut.u_dma_slaves.u_wr_crc_check.write_beat_count_total.value)
+            rd_beats = int(self._dma_slaves().u_rd_pattern_gen.read_beat_count_total.value)
+            wr_beats = int(self._dma_slaves().u_wr_crc_check.write_beat_count_total.value)
             expected_beats = transfer_bytes // 16  # DATA_WIDTH=128 → 16 B/beat
             self.log.info(
                 f"  Beat counts: read={rd_beats} write={wr_beats} "

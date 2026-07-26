@@ -5,17 +5,22 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Module: test_axi_monitor_addr_check
-# Purpose: Cocotb smoke test for the new address-range checker, exercised
+# Purpose: Cocotb smoke test for the address-range ALLOWLIST checker, exercised
 #          through axi4_master_rd_mon (the wrapper carries the new params
 #          and config inputs through to the addr_check module).
+#
+# Allowlist semantics: the N configured ranges are the EXPECTED addresses.
+#   - MATCH (addr in >=1 range), gated by cfg_debug_enable:
+#         PktTypeAddrMatch (4'h8) + AXI_ADDR_RANGE_MATCH (8'h01), range_index set
+#   - MISS  (addr in NO range), gated by cfg_error_enable:
+#         PktTypeError     (4'h0) + AXI_ERR_ADDR_RANGE   (8'h0D), range_index=0xF
 #
 # The standalone addr_check module is formally verified (see
 # formal/amba/axi_monitor_addr_check/). This test verifies wrapper
 # integration: that with N_ADDR_RANGES=2 the parameters and config inputs
-# reach the comparator, and an AR address that lands in a configured
-# range produces a PktTypeError + AXI_ERR_ADDR_RANGE (8'h0D) packet on
-# monbus with the correct range_index and address fields. (is_read was
-# dropped from the AXI variant — implied by the IS_READ build param.)
+# reach the comparator, and that hitting/missing the configured ranges
+# produces the right packet class on monbus. (is_read was dropped from the
+# AXI variant — implied by the IS_READ build param.)
 
 import os
 import random
@@ -102,7 +107,8 @@ async def axi_monitor_addr_check_test(dut):
     # historically tied it 0 only because the port used to be connected to
     # nothing.
     dut.cfg_monitor_enable.value     = 1
-    dut.cfg_error_enable.value       = 1   # enable the error path (addr_range rides here)
+    dut.cfg_error_enable.value       = 1   # MISS path: no-range-match -> PktTypeError/0x0D
+    dut.cfg_debug_enable.value       = 1   # MATCH path: range hit -> PktTypeAddrMatch(8)/0x01
     dut.cfg_timeout_enable.value     = 0
     dut.cfg_perf_enable.value        = 0
     dut.cfg_timeout_cycles.value     = 0xFFFF
@@ -192,11 +198,11 @@ async def axi_monitor_addr_check_test(dut):
     cocotb.start_soon(respond_r())
 
     # --- Drive test vectors ------------------------------------------------
-    # Sequence:
-    #   1) addr=0x500  → no range hit, no monbus packet expected
-    #   2) addr=0x1200 → hits range 0, expect packet (range_index=0, addr=0x1200)
-    #   3) addr=0x8000 → hits range 1 (exact), expect packet (range_index=1)
-    #   4) addr=0x8001 → just outside range 1, no packet
+    # Allowlist = {range0 [0x1000,0x1FFF], range1 [0x8000,0x8000]}. Sequence:
+    #   1) addr=0x500  → no range → MISS  → Error(0)/0x0D
+    #   2) addr=0x1200 → hits range 0 → MATCH → AddrMatch(8)/0x01, range_index=0, addr=0x1200
+    #   3) addr=0x8000 → hits range 1 → MATCH → AddrMatch(8)/0x01, range_index=1, addr=0x8000
+    #   4) addr=0x8001 → no range → MISS  → Error(0)/0x0D
     await drive_ar(0x00000500, arid=1)
     await drive_ar(0x00001200, arid=2)
     await drive_ar(0x00008000, arid=3)
@@ -206,37 +212,51 @@ async def axi_monitor_addr_check_test(dut):
     for _ in range(20):
         await RisingEdge(dut.aclk)
 
-    # --- Verify ------------------------------------------------------------
-    # Filter to addr-range packets only (event_code is now 8 bits: 0x0D)
-    range_pkts = [
-        (cyc, p) for (cyc, p) in captured
-        if p['packet_type'] == 0 and p['event_code'] == 0x0D
-    ]
-
     dut._log.info(f"Captured {len(captured)} monbus packets total")
     for cyc, p in captured:
         dut._log.info(f"  cyc={cyc} pkt_type={p['packet_type']:#x} "
                       f"evcode={p['event_code']:#04x} range={p['range_index']} "
                       f"addr={p['addr']:#010x}")
 
-    assert len(range_pkts) == 2, (
-        f"Expected exactly 2 ADDR_RANGE packets, got {len(range_pkts)}. "
+    # MATCH packets: PktTypeAddrMatch (8) + AXI_ADDR_RANGE_MATCH (0x01)
+    match_pkts = [
+        (cyc, p) for (cyc, p) in captured
+        if p['packet_type'] == 0x8 and p['event_code'] == 0x01
+    ]
+    # MISS packets: PktTypeError (0) + AXI_ERR_ADDR_RANGE (0x0D)
+    miss_pkts = [
+        (cyc, p) for (cyc, p) in captured
+        if p['packet_type'] == 0x0 and p['event_code'] == 0x0D
+    ]
+
+    assert len(match_pkts) == 2, (
+        f"Expected exactly 2 ADDR_MATCH packets, got {len(match_pkts)}. "
+        f"All packets: {captured}"
+    )
+    assert len(miss_pkts) == 2, (
+        f"Expected exactly 2 ADDR_RANGE (miss) error packets, got {len(miss_pkts)}. "
         f"All packets: {captured}"
     )
 
-    # First range hit: address 0x1200, range 0
-    cyc0, pkt0 = range_pkts[0]
-    assert pkt0['protocol']    == 0,         f"protocol expected AXI(0), got {pkt0['protocol']}"
-    assert pkt0['event_code']  == 0x0D,      f"event_code expected ADDR_RANGE(0x0D), got {pkt0['event_code']:#04x}"
-    assert pkt0['range_index'] == 0,         f"range_index expected 0, got {pkt0['range_index']}"
-    assert pkt0['addr']        == 0x1200,    f"addr expected 0x1200, got {pkt0['addr']:#x}"
+    # First match: address 0x1200, range 0
+    _, m0 = match_pkts[0]
+    assert m0['protocol']    == 0,      f"protocol expected AXI(0), got {m0['protocol']}"
+    assert m0['range_index'] == 0,      f"range_index expected 0, got {m0['range_index']}"
+    assert m0['addr']        == 0x1200, f"addr expected 0x1200, got {m0['addr']:#x}"
 
-    # Second range hit: address 0x8000, range 1
-    cyc1, pkt1 = range_pkts[1]
-    assert pkt1['range_index'] == 1,         f"range_index expected 1, got {pkt1['range_index']}"
-    assert pkt1['addr']        == 0x8000,    f"addr expected 0x8000, got {pkt1['addr']:#x}"
+    # Second match: address 0x8000, range 1
+    _, m1 = match_pkts[1]
+    assert m1['range_index'] == 1,      f"range_index expected 1, got {m1['range_index']}"
+    assert m1['addr']        == 0x8000, f"addr expected 0x8000, got {m1['addr']:#x}"
 
-    dut._log.info(f"PASS: 2 ADDR_RANGE packets at cycles {cyc0} and {cyc1}")
+    # Misses carry the no-range sentinel 0xF and the offending address.
+    _, ms0 = miss_pkts[0]
+    assert ms0['range_index'] == 0xF,   f"miss range_index expected 0xF sentinel, got {ms0['range_index']:#x}"
+    assert ms0['addr']        == 0x500, f"first miss addr expected 0x500, got {ms0['addr']:#x}"
+
+    dut._log.info(f"PASS: 2 ADDR_MATCH + 2 MISS-error packets "
+                  f"(match cycles {match_pkts[0][0]},{match_pkts[1][0]}; "
+                  f"miss cycles {miss_pkts[0][0]},{miss_pkts[1][0]})")
 
 
 # ============================================================================

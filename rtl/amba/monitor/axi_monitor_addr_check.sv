@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: axi_monitor_addr_check
-// Purpose: Configurable N-range address-violation checker for AXI monitors
+// Purpose: Configurable N-range address ALLOWLIST checker for AXI monitors
 //
 // Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
@@ -15,41 +15,49 @@
 `include "reset_defs.svh"
 
 /**
- * AXI Monitor — Address-Range Violation Checker
+ * AXI Monitor — Address-Range Allowlist Checker
  *
  * Watches the cmd_addr / cmd_valid / cmd_ready handshake already snooped by
- * axi_monitor_base and emits a PktTypeError packet with event code
- * AXI_ERR_ADDR_RANGE (8'h0D) whenever an accepted command's address falls
- * inside one of N user-configured [low, high] inclusive ranges.
+ * axi_monitor_base. The N user-configured [low, high] inclusive ranges are
+ * treated as an ALLOWLIST of expected addresses, and each accepted command
+ * produces at most one packet on the shared addr_pkt_* stream:
  *
- * Encoding (128-bit packet, 64-bit event_data):
- *   - packet_type = PktTypeError (4'h0)
- *   - protocol    = PROTOCOL_AXI (4'h0)
- *   - event_code  = AXI_ERR_ADDR_RANGE (8'h0D)
- *   - event_data[63:60] = range_index (4 bits low) — see below
- *   - event_data[59: 0] = full cmd_addr (zero-padded if narrower than 60 bits)
+ *   - MATCH  (address lands in >=1 enabled range), gated by cfg_debug_enable:
+ *         packet_type = PktTypeAddrMatch   (4'h8)
+ *         event_code  = AXI_ADDR_RANGE_MATCH (8'h01)
+ *         event_data[63:60] = range_index (lowest matching range)
  *
+ *   - MISS   (address in NO enabled range), gated by cfg_error_enable:
+ *         packet_type = PktTypeError       (4'h0)
+ *         event_code  = AXI_ERR_ADDR_RANGE (8'h0D)
+ *         event_data[63:60] = 4'hF (no-range sentinel)
+ *
+ * In both cases:
+ *         protocol          = PROTOCOL_AXI (4'h0)
+ *         event_data[59: 0] = full cmd_addr (zero-padded if narrower)
+ *
+ * A command either hits or misses (mutually exclusive), so the two report
+ * paths never fire for the same command; the single output stream suffices.
  * The is_read flag is dropped from the encoding — read vs. write is recovered
  * from the IS_READ build parameter and the (unit_id, agent_id) of the
- * emitting monitor. Range index is allocated 4 bits in the high nibble of
- * event_data (up to 16 ranges), and the address occupies the low 60 bits.
- * If N_ADDR_RANGES grows beyond 16, widen the index field by chopping
- * address bits.
+ * emitting monitor. Range index occupies 4 bits (up to 16 ranges); if
+ * N_ADDR_RANGES grows beyond 16, widen the index field by chopping address
+ * bits.
  *
- * Per-range coalescing:
- *   When a command hits range i, the address is latched into per-range state
- *   and a pending bit is set. If new commands hit range i before its event
- *   has been emitted, the latched address is overwritten (the latest hit
- *   wins). One emission per cycle drains the pending mask via a lowest-
- *   index priority encoder.
+ * Coalescing (lossy-but-honest, matching the monitor's trans_mgr philosophy):
+ *   MATCH events coalesce per range (one pending slot + latched address each,
+ *   latest hit per range wins). MISS events coalesce into a single pending
+ *   slot (latest miss wins). One packet drains per cycle; MISS (error) has
+ *   priority over MATCH, then lowest-index range. Events produced while a slot
+ *   is already pending and the bus is stalled overwrite the latched address.
  *
  * Side-band timestamp:
- *   The free-running `i_mon_time` arrives from the monbus_group family via the
- *   shared mon_time_w net. It is sampled on the same cycle as `addr_pkt_valid`
- *   asserts and driven out on `addr_pkt_timestamp` alongside the packet.
+ *   The free-running `i_mon_time` is sampled combinationally and driven out on
+ *   `addr_pkt_timestamp` alongside the packet.
  *
  * When cfg_addr_check_enable is 0 the module is fully quiescent
- * (addr_pkt_valid stays low, no flops update).
+ * (addr_pkt_valid stays low, no flops update). cfg_debug_enable /
+ * cfg_error_enable independently gate the MATCH / MISS report paths.
  */
 module axi_monitor_addr_check
     import monitor_common_pkg::*;
@@ -81,6 +89,8 @@ module axi_monitor_addr_check
 
     // Range configuration
     input  logic                                       cfg_addr_check_enable,           // master on/off
+    input  logic                                       cfg_debug_enable,                // enable MATCH (AddrMatch) path
+    input  logic                                       cfg_error_enable,                // enable MISS  (Error) path
     input  logic [N_ADDR_RANGES-1:0]                   cfg_addr_range_enable,           // per-range enable
     input  logic [N_ADDR_RANGES-1:0][M-1:0]            cfg_addr_range_low,              // inclusive low
     input  logic [N_ADDR_RANGES-1:0][M-1:0]            cfg_addr_range_high,             // inclusive high
@@ -93,88 +103,118 @@ module axi_monitor_addr_check
 );
 
     // -------------------------------------------------------------------------
-    // Combinational range hits
+    // Combinational range hits + allowlist decision
     // -------------------------------------------------------------------------
     logic                       cmd_fire;
-    logic [N_ADDR_RANGES-1:0]   hit_oh;
+    logic [N_ADDR_RANGES-1:0]   raw_hit;      // pure address-in-enabled-range (no fire qualifier)
+    logic                       any_hit;
 
     assign cmd_fire = cmd_valid && cmd_ready && cfg_addr_check_enable;
 
     always_comb begin
         for (int i = 0; i < N_ADDR_RANGES; i++) begin
-            hit_oh[i] = cfg_addr_range_enable[i] && cmd_fire &&
-                        (cmd_addr >= cfg_addr_range_low[i]) &&
-                        (cmd_addr <= cfg_addr_range_high[i]);
+            raw_hit[i] = cfg_addr_range_enable[i] &&
+                         (cmd_addr >= cfg_addr_range_low[i]) &&
+                         (cmd_addr <= cfg_addr_range_high[i]);
         end
     end
+    assign any_hit = |raw_hit;
 
-    // -------------------------------------------------------------------------
-    // Per-range pending mask + latched (address, id) snapshot
-    // -------------------------------------------------------------------------
-    // When a range hits, latch its address + id and set its pending bit.
-    // Emission drains the lowest-index pending bit each cycle.
-    logic [N_ADDR_RANGES-1:0]               r_pending;
-    logic [N_ADDR_RANGES-1:0][M-1:0]        r_lat_addr;
-    logic [N_ADDR_RANGES-1:0][IW-1:0]       r_lat_id;
-
-    // Lowest-index pending: priority encoder picks the next range to emit
-    logic [N_ADDR_RANGES-1:0] emit_oh;
-    logic                     emit_any;
-    logic [3:0]               emit_idx;       // 4-bit range_index, supports up to 16 ranges
-    assign emit_any = |r_pending;
+    // Per-command events (mutually exclusive):
+    //   match_set[i] : this command hit range i and the MATCH path is enabled
+    //   miss_set     : this command hit NO range and the MISS path is enabled
+    logic [N_ADDR_RANGES-1:0]   match_set;
+    logic                       miss_set;
     always_comb begin
-        emit_oh  = '0;
-        emit_idx = 4'h0;
+        for (int i = 0; i < N_ADDR_RANGES; i++)
+            match_set[i] = cmd_fire && cfg_debug_enable && raw_hit[i];
+    end
+    assign miss_set = cmd_fire && cfg_error_enable && !any_hit;
+
+    // -------------------------------------------------------------------------
+    // Pending state: per-range MATCH slots + a single MISS slot
+    // -------------------------------------------------------------------------
+    logic [N_ADDR_RANGES-1:0]               r_match_pending;
+    logic [N_ADDR_RANGES-1:0][M-1:0]        r_match_addr;
+    logic [N_ADDR_RANGES-1:0][IW-1:0]       r_match_id;
+
+    logic                                   r_miss_pending;
+    logic [M-1:0]                           r_miss_addr;
+    logic [IW-1:0]                          r_miss_id;
+
+    // Emission arbitration: MISS (error) first, then lowest-index MATCH range.
+    logic [N_ADDR_RANGES-1:0] match_emit_oh;
+    logic                     match_emit_any;
+    logic [3:0]               match_emit_idx;
+    assign match_emit_any = |r_match_pending;
+    always_comb begin
+        match_emit_oh  = '0;
+        match_emit_idx = 4'h0;
         for (int i = 0; i < N_ADDR_RANGES; i++) begin
-            if (r_pending[i] && emit_oh == '0) begin
-                emit_oh[i] = 1'b1;
-                emit_idx   = 4'(i);
+            if (r_match_pending[i] && match_emit_oh == '0) begin
+                match_emit_oh[i] = 1'b1;
+                match_emit_idx   = 4'(i);
             end
         end
     end
 
-    // Handshake: addr_pkt_valid asserts whenever something is pending and the
-    // module is enabled. Pop on consumer ready.
-    assign addr_pkt_valid = emit_any && cfg_addr_check_enable;
+    logic emit_is_miss;                       // 1 = emit the MISS/error slot this cycle
+    assign emit_is_miss = r_miss_pending;
+
+    assign addr_pkt_valid = (r_miss_pending || match_emit_any) && cfg_addr_check_enable;
     logic accept;
     assign accept = addr_pkt_valid && addr_pkt_ready;
 
     `ALWAYS_FF_RST(clk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_pending  <= '0;
-            r_lat_addr <= '0;
-            r_lat_id   <= '0;
+            r_match_pending <= '0;
+            r_match_addr    <= '0;
+            r_match_id      <= '0;
+            r_miss_pending  <= 1'b0;
+            r_miss_addr     <= '0;
+            r_miss_id       <= '0;
         end else begin
-            // 1) Latch new hits this cycle. If a new hit collides with the
-            //    same-range pending event being emitted right now, the latch
-            //    wins (so the consumer never misses a fresh address).
+            // 1) Latch new MATCH hits (per range). A fresh hit overwrites the
+            //    latched address even if that range is being emitted this cycle
+            //    (so the consumer never misses the newest address).
             for (int i = 0; i < N_ADDR_RANGES; i++) begin
-                if (hit_oh[i]) begin
-                    r_lat_addr[i] <= cmd_addr;
-                    r_lat_id  [i] <= cmd_id;
+                if (match_set[i]) begin
+                    r_match_addr[i] <= cmd_addr;
+                    r_match_id  [i] <= cmd_id;
                 end
             end
-
-            // 2) Update per-range pending bits: set on hit, clear on accept.
-            //    Set wins on collision (don't lose the new event).
+            // 2) MATCH pending bits: set on hit, clear on accept of that range.
+            //    Set wins on collision.
             for (int i = 0; i < N_ADDR_RANGES; i++) begin
-                if (hit_oh[i])
-                    r_pending[i] <= 1'b1;
-                else if (accept && emit_oh[i])
-                    r_pending[i] <= 1'b0;
+                if (match_set[i])
+                    r_match_pending[i] <= 1'b1;
+                else if (accept && !emit_is_miss && match_emit_oh[i])
+                    r_match_pending[i] <= 1'b0;
             end
+
+            // 3) MISS slot: latch address on new miss; set/clear pending
+            //    (set wins on collision with an emit of the miss slot).
+            if (miss_set) begin
+                r_miss_addr <= cmd_addr;
+                r_miss_id   <= cmd_id;
+            end
+            if (miss_set)
+                r_miss_pending <= 1'b1;
+            else if (accept && emit_is_miss)
+                r_miss_pending <= 1'b0;
         end
     )
 
     // -------------------------------------------------------------------------
     // Pack the emitted packet (128-bit format, 64-bit event_data)
     // -------------------------------------------------------------------------
-    // event_data[63:60] = range_index (4 bits, 16 ranges)
+    // event_data[63:60] = range_index (MATCH: matching range; MISS: 4'hF)
     // event_data[59: 0] = cmd_addr (full address, zero-padded if narrower)
-    localparam logic [3:0] PKT_TYPE_FIELD = PktTypeError;
-    localparam logic [3:0] PROTOCOL_FIELD = PROTOCOL_AXI;            // 4'h0
-    localparam logic [7:0] EVENT_CODE     = AXI_ERR_ADDR_RANGE;     // 8'h0D
+    localparam logic [3:0] MISS_RANGE_SENTINEL = 4'hF;
 
+    logic [3:0]     pkt_type_field;
+    logic [7:0]     event_code_field;
+    logic [3:0]     emit_idx;
     logic [M-1:0]   emit_addr;
     logic [IW-1:0]  emit_id;
     logic [8:0]     channel_id_field;
@@ -182,12 +222,23 @@ module axi_monitor_addr_check
     logic [59:0]    addr_payload;
 
     always_comb begin
-        emit_addr = '0;
-        emit_id   = '0;
-        for (int i = 0; i < N_ADDR_RANGES; i++) begin
-            if (emit_oh[i]) begin
-                emit_addr = r_lat_addr[i];
-                emit_id   = r_lat_id[i];
+        if (emit_is_miss) begin
+            pkt_type_field   = PktTypeError;
+            event_code_field = AXI_ERR_ADDR_RANGE;      // 8'h0D
+            emit_idx         = MISS_RANGE_SENTINEL;
+            emit_addr        = r_miss_addr;
+            emit_id          = r_miss_id;
+        end else begin
+            pkt_type_field   = PktTypeAddrMatch;
+            event_code_field = AXI_ADDR_RANGE_MATCH;    // 8'h01
+            emit_idx         = match_emit_idx;
+            emit_addr        = '0;
+            emit_id          = '0;
+            for (int i = 0; i < N_ADDR_RANGES; i++) begin
+                if (match_emit_oh[i]) begin
+                    emit_addr = r_match_addr[i];
+                    emit_id   = r_match_id[i];
+                end
             end
         end
     end
@@ -212,9 +263,9 @@ module axi_monitor_addr_check
     assign event_data_field = {emit_idx[3:0], addr_payload};
 
     assign addr_pkt_data = create_monitor_packet(
-        PKT_TYPE_FIELD,                  // [127:124] packet_type
-        protocol_type_t'(PROTOCOL_FIELD),// [108:105] protocol
-        EVENT_CODE,                      // [104: 97] event_code
+        pkt_type_field,                  // [127:124] packet_type
+        protocol_type_t'(PROTOCOL_AXI),  // [108:105] protocol
+        event_code_field,                // [104: 97] event_code
         channel_id_field,                // [ 96: 88] channel_id
         UNIT_ID,                         // [ 71: 64] unit_id
         AGENT_ID,                        // [ 87: 72] agent_id

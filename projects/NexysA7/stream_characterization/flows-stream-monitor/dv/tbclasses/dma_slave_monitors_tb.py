@@ -62,10 +62,14 @@ class DmaSlaveMonitorsTB(TBBase):
         await self.start_clock('aclk', 10, 'ns')
         self.dut.read_lfsr_reset.value = 0
         self.dut.write_crc_reset.value = 0
+        # ALL monitor packet classes enabled (monitor-validation env).
         self.dut.cfg_monitor_enable.value = 1
         self.dut.cfg_error_enable.value = 1
         self.dut.cfg_compl_enable.value = 1
         self.dut.cfg_timeout_enable.value = 1
+        self.dut.cfg_perf_enable.value = 1
+        self.dut.cfg_threshold_enable.value = 1
+        self.dut.cfg_debug_enable.value = 1
         self.dut.cfg_timeout_cycles.value = 0xFFFF
         self.dut.tally_freeze.value = 0
         self.dut.tally_flush.value = 0

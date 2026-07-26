@@ -311,3 +311,71 @@ straggler above is under `projects/` (or a project's `val/`). **Projects are
 deferred until the RTL area is complete.** So this task does not start now; it
 waits behind the RTL-area work (cdc reorg, amba cleanup). Re-check with
 `bin/filelist_registry.py --check` when it runs.
+
+---
+
+### TASK-027: Split the address-range checker into independent DEBUG and ERROR range sets
+**Priority:** P3
+**Status:** 🔴 Not Started
+**Owner:** TBD
+
+**Context — what shipped first.** `axi_monitor_addr_check` was reworked from a
+single-polarity violation checker into an ALLOWLIST checker with two report
+paths off **one shared** range set (`cfg_addr_range_low/high/enable`,
+`N_ADDR_RANGES`):
+- MATCH (addr in a range), gated by `cfg_debug_enable` → `PktTypeAddrMatch (8)` /
+  `AXI_ADDR_RANGE_MATCH (0x01)`.
+- MISS  (addr in NO range), gated by `cfg_error_enable` → `PktTypeError (0)` /
+  `AXI_ERR_ADDR_RANGE (0x0D)`.
+
+Landed + verified: cocotb `test_axi_monitor_addr_check.py` and formal
+`formal/amba/axi_monitor_addr_check/` (prove + cover PASS). Wired
+`cfg_debug_enable`/`cfg_error_enable` into the `addr_check` instance in
+`axi_monitor_base`. **Still tied off** in `dma_slave_monitors.sv` and the STREAM
+in-core monitors (`stream_core.sv`, `scheduler_group_array.sv`) — see the
+`cfg_addr_*` `1'b0` ties there.
+
+**The evolution requested.** One shared range set couples the two paths (debug
+watches exactly the addresses whose *absence* raises an error). Decouple them
+into **two independent range sets** so the debug allowlist and the error
+allowlist can differ:
+- **Debug/match ranges** — their own params + cfg ports; a hit in a DEBUG range
+  emits the `AddrMatch` packet.
+- **Error ranges** — their own params + cfg ports; an address matching NONE of
+  the ERROR ranges emits the `Error`/`ADDR_RANGE` packet.
+
+**Where the params live (per the request): at the monitor core AND the AXI\*
+wrapper module level** — threaded the same way `N_ADDR_RANGES` already is, so a
+top consumer sets them on `axi4_slave_rd_mon` / `axi4_slave_wr_mon` /
+`axi4_master_*_mon` and they flow down through `axi_monitor_filtered` →
+`axi_monitor_base` → `axi_monitor_addr_check`.
+
+**Work:**
+- [ ] `axi_monitor_addr_check.sv`: replace the single range set with
+      `N_DEBUG_ADDR_RANGES` / `N_ERROR_ADDR_RANGES` params + separate
+      `cfg_debug_addr_range_{low,high,enable}` and
+      `cfg_error_addr_range_{low,high,enable}`. MATCH decision uses the debug
+      set; MISS decision uses the error set. Keep the master
+      `cfg_addr_check_enable` and the `cfg_debug_enable`/`cfg_error_enable`
+      path gates.
+- [ ] Thread the two param groups + cfg ports through `axi_monitor_base` →
+      `axi_monitor_filtered` → the `axi4_*_mon` wrappers (module-level params
+      with sane defaults, e.g. debug set = match-all, error set = match-all so
+      the default emits no error).
+- [ ] Add **default range values as module params** at the AXI\* wrapper level
+      so a consumer can set the allowlists purely by param.
+- [ ] Update `val/amba/test_axi_monitor_addr_check.py` for the two range sets
+      (drive debug vs error ranges independently; assert a debug-only hit, an
+      error-only miss, and an address that is in the debug set but also a valid
+      error address).
+- [ ] Update `formal/amba/axi_monitor_addr_check/` (anyconst two range sets;
+      MATCH membership vs the debug set, MISS non-membership vs the error set).
+- [ ] Integration: expose the two range param groups on `dma_slave_monitors.sv`
+      and enable them in the STREAM monitor-validation harness; retire the
+      `cfg_addr_*` `1'b0` ties in `dma_slave_monitors.sv` /
+      `stream_core.sv` / `scheduler_group_array.sv`.
+
+**Related:** TASK-015 (address-range + ID *filtering* to cut traffic) — different
+goal (drop mask) but same comparator neighborhood; fold in if done together.
+
+---

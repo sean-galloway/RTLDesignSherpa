@@ -390,6 +390,8 @@ module axi_monitor_base
             .cmd_valid             (cmd_valid),
             .cmd_ready             (cmd_ready),
             .cfg_addr_check_enable (cfg_addr_check_enable),
+            .cfg_debug_enable      (cfg_debug_enable),
+            .cfg_error_enable      (cfg_error_enable),
             .cfg_addr_range_enable (cfg_addr_range_enable),
             .cfg_addr_range_low    (cfg_addr_range_low),
             .cfg_addr_range_high   (cfg_addr_range_high),

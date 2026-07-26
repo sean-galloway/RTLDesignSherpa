@@ -3,15 +3,16 @@
 //
 // Formal proof for axi_monitor_addr_check
 //
-// Properties verified (128-bit packet layout):
+// Properties verified (128-bit packet layout) — ALLOWLIST semantics:
 //   P1: Reset deasserts addr_pkt_valid.
 //   P2: When cfg_addr_check_enable=0, addr_pkt_valid stays low.
-//   P3: An emitted packet's event_code is exactly AXI_ERR_ADDR_RANGE (8'h0D)
-//       and packet_type is PktTypeError (4'h0).
-//   P4: The range_index extracted from event_data[63:60] points to a range
-//       that was enabled at the time of the hit.
-//   P5: The latched address in event_data[59:0] (low ADDR_WIDTH bits)
-//       falls within the [low, high] bounds of the claimed range.
+//   P3: An emitted packet is protocol AXI and is either
+//         MATCH: packet_type PktTypeAddrMatch (4'h8), event_code 8'h01, or
+//         MISS : packet_type PktTypeError     (4'h0), event_code 8'h0D.
+//   P4: MATCH packet — range_index (event_data[63:60]) points to an enabled
+//       range and the latched address falls within its [low, high] bounds.
+//   P5: MISS packet — range_index is the 4'hF sentinel and the latched
+//       address falls within NO enabled range.
 //   P6: addr_pkt_valid is sticky — once asserted it stays asserted until
 //       accepted.
 
@@ -35,6 +36,8 @@ module formal_axi_monitor_addr_check (
     // the whole trace). This matches the real-world usage pattern: ranges
     // are programmed at boot and held fixed during monitoring.
     (* anyconst *) reg             cfg_addr_check_enable;
+    (* anyconst *) reg             cfg_debug_enable;   // MATCH path enable
+    (* anyconst *) reg             cfg_error_enable;   // MISS path enable
     (* anyconst *) reg [N-1:0]     cfg_addr_range_enable;
     (* anyconst *) reg [N*M-1:0]   cfg_addr_range_low_flat;
     (* anyconst *) reg [N*M-1:0]   cfg_addr_range_high_flat;
@@ -75,6 +78,8 @@ module formal_axi_monitor_addr_check (
         .cmd_valid             (cmd_valid),
         .cmd_ready             (cmd_ready),
         .cfg_addr_check_enable (cfg_addr_check_enable),
+        .cfg_debug_enable      (cfg_debug_enable),
+        .cfg_error_enable      (cfg_error_enable),
         .cfg_addr_range_enable (cfg_addr_range_enable),
         .cfg_addr_range_low    (cfg_low_packed),
         .cfg_addr_range_high   (cfg_high_packed),
@@ -118,34 +123,55 @@ module formal_axi_monitor_addr_check (
             ap_disable_holds_quiet: assert (addr_pkt_valid == 1'b0);
     end
 
+    // A MATCH packet is type 8; a MISS packet is type 0.
+    wire pkt_is_match = (pkt_type == 4'h8);   // PktTypeAddrMatch
+    wire pkt_is_miss  = (pkt_type == 4'h0);   // PktTypeError
+
+    // "addr in no enabled range" — used by the MISS property.
+    wire [N-1:0] f_addr_in_range;
+    generate
+        for (gi = 0; gi < N; gi = gi + 1) begin : g_membership
+            assign f_addr_in_range[gi] = cfg_addr_range_enable[gi] &&
+                                         (pkt_addr_lo >= cfg_low_packed [gi]) &&
+                                         (pkt_addr_lo <= cfg_high_packed[gi]);
+        end
+    endgenerate
+
     // =========================================================================
-    // P3: Emitted packet carries the right packet_type / event_code
+    // P3: Emitted packet is protocol AXI and is either a MATCH (AddrMatch/0x01)
+    //     or a MISS (Error/0x0D) — nothing else.
     // =========================================================================
     always @(*) begin
         if (rst_n && addr_pkt_valid) begin
-            ap_pkt_type_is_error:    assert (pkt_type   == 4'h0);    // PktTypeError
-            ap_protocol_is_axi:      assert (pkt_protocol == 4'h0);  // PROTOCOL_AXI
-            ap_evcode_is_addr_range: assert (pkt_evcode == 8'h0D);   // AXI_ERR_ADDR_RANGE
+            ap_protocol_is_axi: assert (pkt_protocol == 4'h0);           // PROTOCOL_AXI
+            ap_type_match_or_miss: assert (pkt_is_match || pkt_is_miss);
+            if (pkt_is_match)
+                ap_match_evcode: assert (pkt_evcode == 8'h01);          // AXI_ADDR_RANGE_MATCH
+            if (pkt_is_miss)
+                ap_miss_evcode:  assert (pkt_evcode == 8'h0D);          // AXI_ERR_ADDR_RANGE
         end
     end
 
     // =========================================================================
-    // P4: range_index points to an enabled range
+    // P4: MATCH packet — range_index points to an enabled range and the
+    //     latched address falls within that range's [low, high] bounds.
     // =========================================================================
     always @(*) begin
-        if (rst_n && addr_pkt_valid)
-            ap_range_idx_enabled: assert (cfg_addr_range_enable[pkt_range_ix[$clog2(N)-1:0]]);
+        if (rst_n && addr_pkt_valid && pkt_is_match) begin
+            ap_match_range_enabled: assert (cfg_addr_range_enable[pkt_range_ix[$clog2(N)-1:0]]);
+            ap_match_addr_low:  assert (pkt_addr_lo >= cfg_low_packed [pkt_range_ix[$clog2(N)-1:0]]);
+            ap_match_addr_high: assert (pkt_addr_lo <= cfg_high_packed[pkt_range_ix[$clog2(N)-1:0]]);
+        end
     end
 
     // =========================================================================
-    // P5: The latched address falls within the claimed range's bounds.
-    //     event_data[59:0] holds the full cmd_addr; with M<=60 it's the
-    //     full address.
+    // P5: MISS packet — range_index is the 4'hF sentinel and the latched
+    //     address is inside NO enabled range.
     // =========================================================================
     always @(*) begin
-        if (rst_n && addr_pkt_valid) begin
-            ap_addr_in_range_low:  assert (pkt_addr_lo >= cfg_low_packed [pkt_range_ix[$clog2(N)-1:0]]);
-            ap_addr_in_range_high: assert (pkt_addr_lo <= cfg_high_packed[pkt_range_ix[$clog2(N)-1:0]]);
+        if (rst_n && addr_pkt_valid && pkt_is_miss) begin
+            ap_miss_sentinel:  assert (pkt_range_ix == 4'hF);
+            ap_miss_no_range:  assert (f_addr_in_range == '0);
         end
     end
 

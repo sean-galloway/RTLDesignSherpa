@@ -8,7 +8,7 @@ monitor subsystem, monbus). Migrated 2026-07-22 from `rtl/amba/PRD/TASKS.md`.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 1 | in progress right now |
-| [open.md](open.md) | 5 | accepted, not started |
+| [open.md](open.md) | 6 | accepted, not started |
 | [closed.md](closed.md) | 20 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing (won't do / superseded) |
 
@@ -26,6 +26,8 @@ monitor subsystem, monbus). Migrated 2026-07-22 from `rtl/amba/PRD/TASKS.md`.
   COMMON-010.
 - **TASK-014** — Performance characterization
 - **TASK-015** — Address range + ID filtering
+- **TASK-027** — Split the address-range checker into independent DEBUG and
+  ERROR range sets, with params at the monitor + AXI\* wrapper module level
 - **TASK-022** — Make APB crossbar variants functional
 - **TASK-024** — Monitor system whitepaper (P3)
 

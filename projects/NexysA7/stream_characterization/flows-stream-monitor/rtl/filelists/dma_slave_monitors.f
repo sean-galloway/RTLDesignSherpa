@@ -5,5 +5,5 @@
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd_mon.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr_mon.f
 -f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f
--f $REPO_ROOT/rtl/amba/filelists/monbus_pkt_tally.f
+-f $REPO_ROOT/rtl/amba/filelists/monbus_axil_axil_group.f
 $REPO_ROOT/projects/NexysA7/stream_characterization/flows-stream-monitor/rtl/dma_slave_monitors.sv

@@ -3,20 +3,20 @@
 //
 // Module: dma_slave_monitors
 // Purpose: Monitored DMA-slave wrapper for the STREAM monitor-validation
-//          harness. Holds the DMA read/write slaves (axi4_dma_slaves) AND the
-//          monitor group that observes them, so the whole slave-side monitor
-//          subsystem is one drop-in block. Presents the SAME AXI slave
-//          interface + LFSR/CRC observation outputs as axi4_dma_slaves, plus
-//          the tally readback port.
+//          harness. Mirrors how stream_top_ch8 exposes its in-core monitors:
+//          the slave-side monitors feed a monbus_axil_axil_group, which drives
+//          an AXIL master (bulk-trace writes -> a tally SRAM that lives on the
+//          bridge as its OWN slave) plus an AXIL slave-read err/IRQ port.
 //
-//   s_axi ─▶ [axi4_slave_rd_mon] ─▶ ┐
-//   (from     [axi4_slave_wr_mon] ─▶ ├─▶ axi4_dma_slaves (LFSR rd / CRC wr)
-//    STREAM)         │ monbus         ┘
-//                    └─▶ monbus_arbiter(2) ─▶ monbus_pkt_tally ─▶ rd port
+//   s_axi ─▶ axi4_slave_rd_mon ─▶ fub ─▶ ┐
+//   (STREAM) axi4_slave_wr_mon ─▶ fub ─▶ ├─▶ axi4_dma_slaves (LFSR rd / CRC wr)
+//                  │ monbus              ┘
+//                  └─▶ monbus_arbiter(2) ─▶ monbus_axil_axil_group ─▶ m_axil_* (to bridge)
+//                                                                  └─▶ s_axil_* (err read)
 //
-// The monitors are passthrough snoopers (fub↔m_axi transparent), so the DMA
-// slaves' pattern-gen/CRC behaviour is unchanged; they just also emit monbus,
-// which the tally counts by {protocol, pkt_type, event_code}.
+// NO tally is instantiated here — the tally SRAM is a separate bridge slave,
+// written by m_axil_* (exactly like STREAM's debug_sram capture). The read and
+// write monitors have INDEPENDENT cfg controls (cfg_rd_* / cfg_wr_*).
 //
 // Subsystem: NexysA7/stream_characterization (monitor flow)
 // Author: sean galloway
@@ -33,18 +33,17 @@ module dma_slave_monitors
     parameter int AXI_DATA_WIDTH = 512,
     parameter int AXI_USER_WIDTH = 1,
     parameter int MAX_TRANSACTIONS = 16,
-    // Tally (SRAM count matrix + 32-entry cache)
-    parameter int TALLY_COUNT_WIDTH = 32,
-    parameter int TALLY_CACHE_DEPTH = 32,
-    parameter int TALLY_ADDR_BITS   = 16,
-    parameter int TALLY_NUM_LATCH   = 4,
+    // monbus group
+    parameter int FIFO_DEPTH_ERR    = 64,
+    parameter int FIFO_DEPTH_WRITE  = 96,
+    parameter int S_AXIL_DATA_WIDTH = 32,
+    parameter int USE_COMPRESSION   = 0,
     // Derived
-    parameter int SW      = AXI_DATA_WIDTH / 8,
-    parameter int LSEL_W  = (TALLY_NUM_LATCH > 1) ? $clog2(TALLY_NUM_LATCH) : 1,
-    parameter int LFILL_W = $clog2(TALLY_NUM_LATCH + 1)
+    parameter int SW = AXI_DATA_WIDTH / 8
 ) (
     input  logic                          aclk,
     input  logic                          aresetn,
+    input  logic                          cam_clear,
 
     // ---- DMA-slave observation (passthrough from axi4_dma_slaves) ----------
     input  logic                          read_lfsr_reset,
@@ -107,44 +106,64 @@ module dma_slave_monitors
     output logic                          s_axi_bvalid,
     input  logic                          s_axi_bready,
 
-    // ---- Monitor config (a few knobs; rest tied to safe defaults) ----------
-    input  logic                          cfg_monitor_enable,
-    input  logic                          cfg_error_enable,
-    input  logic                          cfg_compl_enable,
-    input  logic                          cfg_timeout_enable,
-    input  logic [15:0]                   cfg_timeout_cycles,
+    // ---- READ monitor config (independent) ---------------------------------
+    input  logic                          cfg_rd_monitor_enable,
+    input  logic                          cfg_rd_error_enable,
+    input  logic                          cfg_rd_compl_enable,
+    input  logic                          cfg_rd_timeout_enable,
+    input  logic                          cfg_rd_perf_enable,
+    input  logic                          cfg_rd_threshold_enable,
+    input  logic                          cfg_rd_debug_enable,
+    input  logic [15:0]                   cfg_rd_timeout_cycles,
 
-    // ---- Tally control + readback (rd port for the fabric) -----------------
-    input  logic                          tally_freeze,
-    input  logic                          tally_flush,
-    output logic                          tally_flush_busy,
-    input  logic                          tally_clear,
-    input  logic [TALLY_ADDR_BITS-1:0]    tally_rd_addr,
-    output logic [TALLY_COUNT_WIDTH-1:0]  tally_rd_count,
-    input  logic                          tally_watch_arm,
-    input  logic [15:0]                   tally_watch_pkttype_mask,
-    input  logic [LSEL_W-1:0]             tally_latch_sel,
-    output logic                          tally_latch_valid,
-    output logic [127:0]                  tally_latch_packet,
-    output logic [63:0]                   tally_latch_ts,
-    output logic [LFILL_W-1:0]            tally_latch_fill
+    // ---- WRITE monitor config (independent) --------------------------------
+    input  logic                          cfg_wr_monitor_enable,
+    input  logic                          cfg_wr_error_enable,
+    input  logic                          cfg_wr_compl_enable,
+    input  logic                          cfg_wr_timeout_enable,
+    input  logic                          cfg_wr_perf_enable,
+    input  logic                          cfg_wr_threshold_enable,
+    input  logic                          cfg_wr_debug_enable,
+    input  logic [15:0]                   cfg_wr_timeout_cycles,
+
+    // ---- monbus group: err/IRQ AXIL slave-read (to a bridge slave) ---------
+    input  logic                          s_axil_arvalid,
+    output logic                          s_axil_arready,
+    input  logic [AXI_ADDR_WIDTH-1:0]     s_axil_araddr,
+    input  logic [2:0]                    s_axil_arprot,
+    output logic                          s_axil_rvalid,
+    input  logic                          s_axil_rready,
+    output logic [S_AXIL_DATA_WIDTH-1:0]  s_axil_rdata,
+    output logic [1:0]                    s_axil_rresp,
+
+    // ---- monbus group: bulk-trace AXIL master-write (to the tally slave) ---
+    output logic                          m_axil_awvalid,
+    input  logic                          m_axil_awready,
+    output logic [AXI_ADDR_WIDTH-1:0]     m_axil_awaddr,
+    output logic [2:0]                    m_axil_awprot,
+    output logic                          m_axil_wvalid,
+    input  logic                          m_axil_wready,
+    output logic [63:0]                   m_axil_wdata,
+    output logic [7:0]                    m_axil_wstrb,
+    input  logic                          m_axil_bvalid,
+    output logic                          m_axil_bready,
+    input  logic [1:0]                    m_axil_bresp,
+
+    output logic                          irq_out,
+    input  logic [AXI_ADDR_WIDTH-1:0]     cfg_base_addr,
+    input  logic [AXI_ADDR_WIDTH-1:0]     cfg_limit_addr
 );
 
-    // Free-running monitor timestamp broadcast to both monitors.
-    monbus_timestamp_t r_mon_time;
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) r_mon_time <= '0;
-        else                        r_mon_time <= r_mon_time + 1'b1;
-    )
+    // Free-running monitor timestamp comes from the group; broadcast to both mons.
+    monbus_timestamp_t w_mon_time;
 
-    // Two monbus streams into the arbiter (client 0 = read, 1 = write).
+    // Two monbus streams -> arbiter (client 0 = read, 1 = write).
     logic              mb_valid [2];
     logic              mb_ready [2];
     monitor_packet_t   mb_packet [2];
     monbus_timestamp_t mb_ts    [2];
 
-    // Internal AXI wires: monitor m_axi side -> axi4_dma_slaves s_axi side.
-    // Read channel
+    // Internal AXI wires: monitor fub side -> axi4_dma_slaves s_axi side.
     logic [AXI_ID_WIDTH-1:0]   i_arid;   logic [AXI_ADDR_WIDTH-1:0] i_araddr;
     logic [7:0]                i_arlen;  logic [2:0]                i_arsize;
     logic [1:0]                i_arburst; logic                     i_arlock;
@@ -154,7 +173,6 @@ module dma_slave_monitors
     logic [AXI_ID_WIDTH-1:0]   i_rid;    logic [AXI_DATA_WIDTH-1:0] i_rdata;
     logic [1:0]                i_rresp;  logic                      i_rlast;
     logic [AXI_USER_WIDTH-1:0] i_ruser;  logic                      i_rvalid, i_rready;
-    // Write channel
     logic [AXI_ID_WIDTH-1:0]   i_awid;   logic [AXI_ADDR_WIDTH-1:0] i_awaddr;
     logic [7:0]                i_awlen;  logic [2:0]                i_awsize;
     logic [1:0]                i_awburst; logic                     i_awlock;
@@ -167,13 +185,13 @@ module dma_slave_monitors
     logic [AXI_ID_WIDTH-1:0]   i_bid;    logic [1:0]               i_bresp;
     logic [AXI_USER_WIDTH-1:0] i_buser;  logic                     i_bvalid, i_bready;
 
-    // ---- Read-side passthrough snoop monitor (s_axi -> internal) -----------
+    // ---- Read-side slave monitor (independent cfg_rd_*) --------------------
     axi4_slave_rd_mon #(
         .AXI_ID_WIDTH(AXI_ID_WIDTH), .AXI_ADDR_WIDTH(AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH(AXI_DATA_WIDTH), .AXI_USER_WIDTH(AXI_USER_WIDTH),
         .MAX_TRANSACTIONS(MAX_TRANSACTIONS), .UNIT_ID(8'h10), .AGENT_ID(16'h0001)
     ) u_rd_mon (
-        .aclk(aclk), .aresetn(aresetn), .cam_clear(1'b0),
+        .aclk(aclk), .aresetn(aresetn), .cam_clear(cam_clear),
         .s_axi_arid(s_axi_arid), .s_axi_araddr(s_axi_araddr),
         .s_axi_arlen(s_axi_arlen), .s_axi_arsize(s_axi_arsize),
         .s_axi_arburst(s_axi_arburst), .s_axi_arlock(s_axi_arlock),
@@ -196,10 +214,10 @@ module dma_slave_monitors
         .fub_axi_rresp(i_rresp), .fub_axi_rlast(i_rlast),
         .fub_axi_ruser(i_ruser), .fub_axi_rvalid(i_rvalid),
         .fub_axi_rready(i_rready),
-        .cfg_monitor_enable(cfg_monitor_enable), .cfg_error_enable(cfg_error_enable),
-        .cfg_timeout_enable(cfg_timeout_enable), .cfg_perf_enable(1'b0),
-        .cfg_compl_enable(cfg_compl_enable), .cfg_threshold_enable(1'b0),
-        .cfg_debug_enable(1'b0), .cfg_timeout_cycles(cfg_timeout_cycles),
+        .cfg_monitor_enable(cfg_rd_monitor_enable), .cfg_error_enable(cfg_rd_error_enable),
+        .cfg_timeout_enable(cfg_rd_timeout_enable), .cfg_perf_enable(cfg_rd_perf_enable),
+        .cfg_compl_enable(cfg_rd_compl_enable), .cfg_threshold_enable(cfg_rd_threshold_enable),
+        .cfg_debug_enable(cfg_rd_debug_enable), .cfg_timeout_cycles(cfg_rd_timeout_cycles),
         .cfg_latency_threshold(32'hFFFFFFFF),
         .cfg_axi_pkt_mask(16'h0), .cfg_axi_err_select(16'h0),
         .cfg_axi_error_mask(16'h0), .cfg_axi_timeout_mask(16'h0),
@@ -210,7 +228,7 @@ module dma_slave_monitors
         .cfg_addr_range_low('0), .cfg_addr_range_high('0),
         .cfg_start_event_sel(3'h0), .cfg_end_event_sel(3'h0),
         .cfg_start_trigger(1'b0), .cfg_end_trigger(1'b0),
-        .cfg_window_force_close(1'b0), .i_mon_time(r_mon_time),
+        .cfg_window_force_close(1'b0), .i_mon_time(w_mon_time),
         .monbus_valid(mb_valid[0]), .monbus_ready(mb_ready[0]),
         .monbus_packet(mb_packet[0]), .monbus_timestamp(mb_ts[0]),
         .busy(), .active_transactions(), .error_count(), .transaction_count(),
@@ -220,13 +238,13 @@ module dma_slave_monitors
         .perf_burst_count(), .cfg_conflict_error()
     );
 
-    // ---- Write-side passthrough snoop monitor (s_axi -> internal) ----------
+    // ---- Write-side slave monitor (independent cfg_wr_*) -------------------
     axi4_slave_wr_mon #(
         .AXI_ID_WIDTH(AXI_ID_WIDTH), .AXI_ADDR_WIDTH(AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH(AXI_DATA_WIDTH), .AXI_USER_WIDTH(AXI_USER_WIDTH),
         .MAX_TRANSACTIONS(MAX_TRANSACTIONS), .UNIT_ID(8'h11), .AGENT_ID(16'h0002)
     ) u_wr_mon (
-        .aclk(aclk), .aresetn(aresetn), .cam_clear(1'b0),
+        .aclk(aclk), .aresetn(aresetn), .cam_clear(cam_clear),
         .s_axi_awid(s_axi_awid), .s_axi_awaddr(s_axi_awaddr),
         .s_axi_awlen(s_axi_awlen), .s_axi_awsize(s_axi_awsize),
         .s_axi_awburst(s_axi_awburst), .s_axi_awlock(s_axi_awlock),
@@ -253,10 +271,10 @@ module dma_slave_monitors
         .fub_axi_bid(i_bid), .fub_axi_bresp(i_bresp),
         .fub_axi_buser(i_buser), .fub_axi_bvalid(i_bvalid),
         .fub_axi_bready(i_bready),
-        .cfg_monitor_enable(cfg_monitor_enable), .cfg_error_enable(cfg_error_enable),
-        .cfg_timeout_enable(cfg_timeout_enable), .cfg_perf_enable(1'b0),
-        .cfg_compl_enable(cfg_compl_enable), .cfg_threshold_enable(1'b0),
-        .cfg_debug_enable(1'b0), .cfg_timeout_cycles(cfg_timeout_cycles),
+        .cfg_monitor_enable(cfg_wr_monitor_enable), .cfg_error_enable(cfg_wr_error_enable),
+        .cfg_timeout_enable(cfg_wr_timeout_enable), .cfg_perf_enable(cfg_wr_perf_enable),
+        .cfg_compl_enable(cfg_wr_compl_enable), .cfg_threshold_enable(cfg_wr_threshold_enable),
+        .cfg_debug_enable(cfg_wr_debug_enable), .cfg_timeout_cycles(cfg_wr_timeout_cycles),
         .cfg_latency_threshold(32'hFFFFFFFF),
         .cfg_axi_pkt_mask(16'h0), .cfg_axi_err_select(16'h0),
         .cfg_axi_error_mask(16'h0), .cfg_axi_timeout_mask(16'h0),
@@ -267,7 +285,7 @@ module dma_slave_monitors
         .cfg_addr_range_low('0), .cfg_addr_range_high('0),
         .cfg_start_event_sel(3'h0), .cfg_end_event_sel(3'h0),
         .cfg_start_trigger(1'b0), .cfg_end_trigger(1'b0),
-        .cfg_window_force_close(1'b0), .i_mon_time(r_mon_time),
+        .cfg_window_force_close(1'b0), .i_mon_time(w_mon_time),
         .monbus_valid(mb_valid[1]), .monbus_ready(mb_ready[1]),
         .monbus_packet(mb_packet[1]), .monbus_timestamp(mb_ts[1]),
         .busy(), .active_transactions(), .error_count(), .transaction_count(),
@@ -310,8 +328,7 @@ module dma_slave_monitors
     );
 
     // ---- Aggregate the two monbus streams -> one ---------------------------
-    logic              arb_valid;
-    logic              arb_ready;
+    logic              arb_valid, arb_ready;
     monitor_packet_t   arb_packet;
     monbus_timestamp_t arb_ts;
 
@@ -324,23 +341,43 @@ module dma_slave_monitors
         .grant_valid(), .grant(), .grant_id(), .last_grant()
     );
 
-    // ---- Tabulate into the SRAM count matrix + cache -----------------------
-    monbus_pkt_tally #(
-        .PKT_WIDTH(128), .TS_WIDTH(64),
-        .COUNT_WIDTH(TALLY_COUNT_WIDTH), .CACHE_DEPTH(TALLY_CACHE_DEPTH),
-        .NUM_LATCH(TALLY_NUM_LATCH), .ADDR_BITS(TALLY_ADDR_BITS)
-    ) u_tally (
-        .clk(aclk), .rst_n(aresetn),
-        .in_valid(arb_valid), .in_ready(arb_ready),
-        .in_packet(arb_packet), .in_ts(arb_ts),
-        .i_freeze(tally_freeze), .i_flush(tally_flush),
-        .o_flush_busy(tally_flush_busy), .i_clear(tally_clear),
-        .rd_addr(tally_rd_addr), .rd_count(tally_rd_count),
-        .i_watch_arm(tally_watch_arm),
-        .i_watch_pkttype_mask(tally_watch_pkttype_mask),
-        .latch_sel(tally_latch_sel), .latch_valid(tally_latch_valid),
-        .latch_packet(tally_latch_packet), .latch_ts(tally_latch_ts),
-        .latch_fill(tally_latch_fill)
+    // ---- monbus group: AXIL master-write (to tally slave) + err read + IRQ -
+    monbus_axil_axil_group #(
+        .FIFO_DEPTH_ERR(FIFO_DEPTH_ERR), .FIFO_DEPTH_WRITE(FIFO_DEPTH_WRITE),
+        .ADDR_WIDTH(AXI_ADDR_WIDTH), .S_AXIL_DATA_WIDTH(S_AXIL_DATA_WIDTH),
+        .NUM_PROTOCOLS(3), .USE_COMPRESSION(USE_COMPRESSION)
+    ) u_monbus_group (
+        .axi_aclk(aclk), .axi_aresetn(aresetn), .cam_clear(cam_clear),
+        .monbus_valid(arb_valid), .monbus_ready(arb_ready),
+        .monbus_packet(arb_packet), .monbus_timestamp(arb_ts),
+        .mon_time_out(w_mon_time),
+        .s_axil_arvalid(s_axil_arvalid), .s_axil_arready(s_axil_arready),
+        .s_axil_araddr(s_axil_araddr), .s_axil_arprot(s_axil_arprot),
+        .s_axil_rvalid(s_axil_rvalid), .s_axil_rready(s_axil_rready),
+        .s_axil_rdata(s_axil_rdata), .s_axil_rresp(s_axil_rresp),
+        .m_axil_awvalid(m_axil_awvalid), .m_axil_awready(m_axil_awready),
+        .m_axil_awaddr(m_axil_awaddr), .m_axil_awprot(m_axil_awprot),
+        .m_axil_wvalid(m_axil_wvalid), .m_axil_wready(m_axil_wready),
+        .m_axil_wdata(m_axil_wdata), .m_axil_wstrb(m_axil_wstrb),
+        .m_axil_bvalid(m_axil_bvalid), .m_axil_bready(m_axil_bready),
+        .m_axil_bresp(m_axil_bresp),
+        .irq_out(irq_out),
+        .cfg_base_addr(cfg_base_addr), .cfg_limit_addr(cfg_limit_addr),
+        // Filter masks: pass everything (0 = no drop); no compression for initial tests.
+        .cfg_flush_watermark(16'd16), .cfg_compress_en(USE_COMPRESSION[0]),
+        .cfg_axi_pkt_mask(16'h0),  .cfg_axi_err_select(16'h0),
+        .cfg_axi_error_mask(16'h0), .cfg_axi_timeout_mask(16'h0),
+        .cfg_axi_compl_mask(16'h0), .cfg_axi_thresh_mask(16'h0),
+        .cfg_axi_perf_mask(16'h0),  .cfg_axi_addr_mask(16'h0),
+        .cfg_axi_debug_mask(16'h0),
+        .cfg_axis_pkt_mask(16'h0),  .cfg_axis_err_select(16'h0),
+        .cfg_axis_error_mask(16'h0), .cfg_axis_timeout_mask(16'h0),
+        .cfg_axis_compl_mask(16'h0), .cfg_axis_credit_mask(16'h0),
+        .cfg_axis_channel_mask(16'h0), .cfg_axis_stream_mask(16'h0),
+        .cfg_core_pkt_mask(16'h0),  .cfg_core_err_select(16'h0),
+        .cfg_core_error_mask(16'h0), .cfg_core_timeout_mask(16'h0),
+        .cfg_core_compl_mask(16'h0), .cfg_core_thresh_mask(16'h0),
+        .cfg_core_perf_mask(16'h0), .cfg_core_debug_mask(16'h0)
     );
 
 endmodule : dma_slave_monitors
