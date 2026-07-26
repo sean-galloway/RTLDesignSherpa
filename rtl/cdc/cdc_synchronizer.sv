@@ -11,8 +11,8 @@
 // the glitch_free_n_dff_arn module for consistent naming across the
 // AMBA infrastructure.
 //
-// Documentation: docs/markdown/RTLAmba/index.md
-// Subsystem: amba
+// Documentation: docs/markdown/RTLCdc/cdc.md#cdc_synchronizer
+// Subsystem: cdc
 //
 // Author: sean galloway
 // Created: 2025-12-23

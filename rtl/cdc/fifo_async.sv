@@ -7,8 +7,8 @@
 // Module: fifo_async
 // Purpose: //   Asynchronous FIFO for safe clock domain crossing (CDC) between independent
 //
-// Documentation: docs/markdown/RTLCommon/index.md
-// Subsystem: common
+// Documentation: docs/markdown/RTLCdc/fifo_async.md
+// Subsystem: cdc
 //
 // Author: sean galloway
 // Created: 2025-10-18

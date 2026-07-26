@@ -18,8 +18,8 @@
 //          at the cost of slightly trickier reasoning because the "event"
 //          is a TRANSITION of the signal, not a level.
 //
-// Documentation: docs/markdown/RTLAmba/index.md
-// Subsystem: amba
+// Documentation: docs/markdown/RTLCdc/cdc.md#cdc_2_phase_handshake
+// Subsystem: cdc
 //
 // Author: sean galloway
 // Created: 2026-04-18

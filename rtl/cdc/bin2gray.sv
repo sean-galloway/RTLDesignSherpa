@@ -7,8 +7,8 @@
 // Module: bin2gray
 // Purpose: //   Binary to Gray code converter. Converts standard binary encoding to Gray code
 //
-// Documentation: docs/markdown/RTLCommon/index.md
-// Subsystem: common
+// Documentation: docs/markdown/RTLCdc/bin2gray.md
+// Subsystem: cdc
 //
 // Author: sean galloway
 // Created: 2025-10-18

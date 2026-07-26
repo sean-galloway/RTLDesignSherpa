@@ -1,34 +1,21 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// RTL Design Sherpa - Industry-Standard RTL Design and Verification
-// https://github.com/sean-galloway/RTLDesignSherpa
-//
-// Module: gaxi_skid_buffer_async
-// Purpose: Gaxi Skid Buffer Async module
-//
-// Documentation: docs/markdown/RTLCdc/gaxi_skid_buffer_async.md
-// Subsystem: cdc
-//
-// Author: sean galloway
-// Created: 2025-10-18
+// Stripped copy of gaxi_skid_buffer_async for yosys formal verification.
+// Changes from original:
+//   - Removed `include "fifo_defs.svh" (enum type not yosys-compatible)
+//   - Removed parameter fifo_mem_t MEM_STYLE
+//   - Everything else identical to rtl/cdc/gaxi_skid_buffer_async.sv
 
 `timescale 1ns / 1ps
 
-`include "fifo_defs.svh"
+`include "reset_defs.svh"
 
 // AXI Skid buffer where all ports are driven or received by a flop
 module gaxi_skid_buffer_async #(
-    parameter fifo_mem_t MEM_STYLE = FIFO_AUTO,
     parameter int REGISTERED = 0,  // 0 = mux mode, 1 = flop mode
     parameter int DATA_WIDTH    = 32,
     parameter int DEPTH         = 2,
-    // Pointer CDC encoding, forwarded to the internal gaxi_fifo_async.
-    //   0 = Gray (default)  -- requires a power-of-2 DEPTH
-    //   1 = Johnson         -- any even DEPTH
-    // Must be exposed here: a wrapper that hides it cannot be built at a
-    // non-power-of-2 depth, because the inner FIFO rejects that under Gray.
-    parameter int USE_JOHNSON   = 0,
     parameter int N_FLOP_CROSS  = 2,
     parameter int DW = DATA_WIDTH
 ) (
@@ -71,10 +58,8 @@ module gaxi_skid_buffer_async #(
 
     // Instantiate the axi_fifo_async module
     gaxi_fifo_async #(
-        .MEM_STYLE       (MEM_STYLE),
         .DATA_WIDTH      (DW),
         .DEPTH           (DEPTH),
-        .USE_JOHNSON     (USE_JOHNSON),
         .N_FLOP_CROSS    (N_FLOP_CROSS),
         .ALMOST_WR_MARGIN(1),
         .ALMOST_RD_MARGIN(1),

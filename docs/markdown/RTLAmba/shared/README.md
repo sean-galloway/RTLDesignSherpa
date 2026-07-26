@@ -168,7 +168,7 @@ Utility modules for AXI protocol handling:
 > **Clock domain crossing modules have moved.** `cdc_2_phase_handshake`,
 > `cdc_4_phase_handshake`, `cdc_open_loop` and `cdc_synchronizer` now live in
 > `rtl/amba/cdc/`, documented under [RTLAmba/cdc](../cdc/README.md). Start with the
-> [CDC Primer](../cdc/cdc.md) for the decision guide.
+> [CDC Primer](../../RTLCdc/cdc.md) for the decision guide.
 
 ---
 

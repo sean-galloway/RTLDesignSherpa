@@ -51,8 +51,8 @@ GAXI (Generic AXI) is a simplified valid/ready handshake protocol used for strea
 |--------|---------|---------------|--------------|
 | [gaxi_skid_buffer.sv](gaxi_skid_buffer.md) | Elastic buffer with zero-latency bypass | Single | Depth 2-8, combinatorial read |
 | [gaxi_fifo_sync.sv](gaxi_fifo_sync.md) | Synchronous FIFO | Single | Any depth, mux/flop modes |
-| [gaxi_fifo_async.sv](gaxi_fifo_async.md) | Asynchronous FIFO | Dual (wr/rd) | Gray code pointers, CDC-safe |
-| [gaxi_skid_buffer_async.sv](gaxi_skid_buffer_async.md) | Async elastic buffer | Dual (wr/rd) | Combines skid + async FIFO |
+| [gaxi_fifo_async.sv](../../RTLCdc/gaxi_fifo_async.md) | Asynchronous FIFO | Dual (wr/rd) | Gray code pointers, CDC-safe |
+| [gaxi_skid_buffer_async.sv](../../RTLCdc/gaxi_skid_buffer_async.md) | Async elastic buffer | Dual (wr/rd) | Combines skid + async FIFO |
 
 ---
 

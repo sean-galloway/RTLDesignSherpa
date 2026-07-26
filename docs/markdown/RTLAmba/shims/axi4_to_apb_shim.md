@@ -493,7 +493,7 @@ set_max_delay -from [get_pins */cdc_handshake/src_*] \
 - **[axi4_to_apb_convert](axi4_to_apb_convert.md)** - Core conversion logic (instantiated internally)
 - **[axi4_slave_stub](../axi4/axi4_slave_stub.md)** - AXI slave interface wrapper
 - **[apb_master_stub](../apb/apb_master_stub.md)** - APB master interface wrapper
-- **[cdc_handshake](../cdc/cdc.md#cdc_4_phase_handshake)** - Clock domain crossing handshake
+- **[cdc_handshake](../../RTLCdc/cdc.md#cdc_4_phase_handshake)** - Clock domain crossing handshake
 
 ---
 

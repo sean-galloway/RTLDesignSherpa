@@ -4,11 +4,11 @@
 
 - [GAXI (Generic AXI) Modules](gaxi/README.md)
 - [GAXI Drop FIFO Sync](gaxi/gaxi_drop_fifo_sync.md)
-- [GAXI Asynchronous FIFO](gaxi/gaxi_fifo_async.md)
+- [GAXI Asynchronous FIFO](../RTLCdc/gaxi_fifo_async.md)
 - [GAXI Synchronous FIFO](gaxi/gaxi_fifo_sync.md)
 - [GAXI Register Slice](gaxi/gaxi_regslice.md)
 - [GAXI Skid Buffer](gaxi/gaxi_skid_buffer.md)
-- [GAXI Asynchronous Skid Buffer](gaxi/gaxi_skid_buffer_async.md)
+- [GAXI Asynchronous Skid Buffer](../RTLCdc/gaxi_skid_buffer_async.md)
 - [GAXI Skid Buffer (Double-Drain)](gaxi/gaxi_skid_buffer_dbldrn.md)
 - [gaxi_skid_buffer_struct](gaxi/gaxi_skid_buffer_struct.md)
 - [Shared Infrastructure Documentation Status](shared/DOCUMENTATION_STATUS.md)

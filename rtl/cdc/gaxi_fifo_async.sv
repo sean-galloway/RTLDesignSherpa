@@ -7,8 +7,8 @@
 // Module: gaxi_fifo_async
 // Purpose: Gaxi Fifo Async module
 //
-// Documentation: docs/markdown/RTLAmba/index.md
-// Subsystem: amba
+// Documentation: docs/markdown/RTLCdc/gaxi_fifo_async.md
+// Subsystem: cdc
 //
 // Author: sean galloway
 // Created: 2025-10-18

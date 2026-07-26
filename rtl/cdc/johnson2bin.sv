@@ -7,8 +7,8 @@
 // Module: johnson2bin
 // Purpose: //   Converts Johnson counter Gray code to binary representation. Johnson counters
 //
-// Documentation: docs/markdown/RTLCommon/index.md
-// Subsystem: common
+// Documentation: docs/markdown/RTLCdc/johnson2bin.md
+// Subsystem: cdc
 //
 // Author: sean galloway
 // Created: 2025-10-18

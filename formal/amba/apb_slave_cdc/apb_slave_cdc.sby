@@ -15,7 +15,6 @@ cover: smtbmc z3
 [script]
 read -formal -sv -Iincludes gaxi_skid_buffer.sv
 read -formal -sv -Iincludes apb_slave.sv
-read -formal -sv -Iincludes cdc_handshake.sv
 read -formal -sv -Iincludes apb_slave_cdc.sv
 read -formal -sv -Iincludes formal_apb_slave_cdc.sv
 prep -top formal_apb_slave_cdc
@@ -23,7 +22,6 @@ prep -top formal_apb_slave_cdc
 [files]
 gaxi_skid_buffer.sv ../../../rtl/amba/gaxi/gaxi_skid_buffer.sv
 apb_slave.sv ../../../rtl/amba/apb/apb_slave.sv
-cdc_handshake.sv ../../../rtl/amba/cdc/cdc_handshake.sv
 apb_slave_cdc.sv ../../../rtl/amba/apb/apb_slave_cdc.sv
 formal_apb_slave_cdc.sv
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

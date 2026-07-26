@@ -51,13 +51,30 @@ The framework emphasizes **practical industry workflows**, **comprehensive verif
 
 #### **[RTL Common Modules](RTLCommon/index.md)**
 Fundamental building blocks for digital design:
-- **Arithmetic**: Advanced adders (Brent-Kung, ripple), multipliers (Wallace, Dadda), dividers
 - **Data Structures**: FIFOs, shift registers, counters, timers with comprehensive parameterization
 - **Control Logic**: Arbiters, encoders, decoders, state machines
 - **Signal Processing**: CRC engines, LFSR generators, data integrity checkers
-- **Clock/Reset**: ICG modules, reset synchronizers, clock domain crossing utilities
+- **Clock/Reset**: ICG modules, clock dividers, reset synchronizers
 
-*86+ modules with comprehensive documentation and test coverage*
+*49 modules. Arithmetic split out to RTLMath and clock-crossing to
+RTLCdc -- see below.*
+
+#### **[RTL Math Library](RTLMath/index.md)**
+Arithmetic, split out of RTLCommon:
+- **Adders**: Brent-Kung, Han-Carlson, Kogge-Stone, ripple-carry, carry-save
+- **Multipliers**: Wallace tree, Dadda tree, booth
+- **Floating point**: bf16, fp8 (e4m3/e5m2), fp16, fp32 -- arithmetic, conversion, activations
+
+*171 modules*
+
+#### **[RTL Clock Domain Crossing](RTLCdc/index.md)**
+Everything whose job is crossing a clock boundary:
+- **Synchronizer and handshakes**: `cdc_synchronizer`, 2-phase and 4-phase, open-loop
+- **Gray/Johnson coders**: the encodings that make a multi-bit crossing safe
+- **Asynchronous FIFOs**: `fifo_async` plus the GAXI variants
+
+*12 modules. Start at the [decision guide](RTLCdc/overview.md) -- picking
+the wrong technique here fails silently in silicon.*
 
 #### **[RTL AMBA Protocol Suite](RTLAmba/index.md)**
 Complete implementation of ARM AMBA protocols:
@@ -228,6 +245,8 @@ RTL Design Sherpa is built on solid technical foundations inspired by industry-l
 
 ### 📚 **RTL IP Documentation**
 - **[RTL Common Modules](RTLCommon/index.md)** - Fundamental digital design building blocks
+- **[RTL Math Library](RTLMath/index.md)** - Adders, multipliers, floating-point formats
+- **[RTL Clock Domain Crossing](RTLCdc/index.md)** - Synchronizers, handshakes, async FIFOs
 - **[RTL AMBA Protocols](RTLAmba/index.md)** - Complete AMBA protocol implementation
 
 ### 🧪 **Verification and Testing**

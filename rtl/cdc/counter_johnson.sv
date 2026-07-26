@@ -7,8 +7,8 @@
 // Module: counter_johnson
 // Purpose: Counter Johnson module
 //
-// Documentation: docs/markdown/RTLCommon/index.md
-// Subsystem: common
+// Documentation: docs/markdown/RTLCdc/counter_johnson.md
+// Subsystem: cdc
 //
 // Author: sean galloway
 // Created: 2025-10-18

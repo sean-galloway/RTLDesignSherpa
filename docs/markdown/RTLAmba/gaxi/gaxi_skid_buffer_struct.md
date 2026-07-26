@@ -387,7 +387,7 @@ Same as **gaxi_skid_buffer** with equivalent DATA_WIDTH:
 
 - **[gaxi_skid_buffer](gaxi_skid_buffer.md)** - Base implementation (DATA_WIDTH parameter)
 - **[gaxi_fifo_sync](gaxi_fifo_sync.md)** - Synchronous FIFO alternative
-- **[gaxi_skid_buffer_async](gaxi_skid_buffer_async.md)** - Clock domain crossing variant
+- **[gaxi_skid_buffer_async](../../RTLCdc/gaxi_skid_buffer_async.md)** - Clock domain crossing variant
 
 ---
 

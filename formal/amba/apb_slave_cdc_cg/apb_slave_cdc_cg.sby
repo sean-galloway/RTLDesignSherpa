@@ -18,7 +18,6 @@ read -formal -sv -Iincludes clock_gate_ctrl.sv
 read -formal -sv -Iincludes amba_clock_gate_ctrl.sv
 read -formal -sv -Iincludes gaxi_skid_buffer.sv
 read -formal -sv -Iincludes apb_slave.sv
-read -formal -sv -Iincludes cdc_handshake.sv
 read -formal -sv -Iincludes apb_slave_cdc_cg.sv
 read -formal -sv -Iincludes formal_apb_slave_cdc_cg.sv
 prep -top formal_apb_slave_cdc_cg
@@ -29,7 +28,6 @@ clock_gate_ctrl.sv ../../../rtl/common/clock_gate_ctrl.sv
 amba_clock_gate_ctrl.sv ../../../rtl/amba/shared/amba_clock_gate_ctrl.sv
 gaxi_skid_buffer.sv ../../../rtl/amba/gaxi/gaxi_skid_buffer.sv
 apb_slave.sv ../../../rtl/amba/apb/apb_slave.sv
-cdc_handshake.sv ../../../rtl/amba/cdc/cdc_handshake.sv
 apb_slave_cdc_cg.sv ../../../rtl/amba/apb/apb_slave_cdc_cg.sv
 formal_apb_slave_cdc_cg.sv
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

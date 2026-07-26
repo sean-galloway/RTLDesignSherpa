@@ -184,7 +184,7 @@ fifo_sync_multi #(
 
 - [fifo_sync_multi_sigmap](fifo_sync_multi_sigmap.md) - Same structure with a generic signal-map naming style (`siga`..`sigh`)
 - [fifo_control](fifo_control.md) - Shared full/empty flag generation used by `fifo_sync`
-- [fifo_async](fifo_async.md) - Clock-domain-crossing FIFO variant
+- [fifo_async](../RTLCdc/fifo_async.md) - Clock-domain-crossing FIFO variant
 
 ## References
 

@@ -312,8 +312,8 @@ synchronously deasserted) in its own domain by the integrator.
 
 - **[APB5 Slave](apb5_slave.md)** - Base slave without CDC
 - **[APB5 Slave CDC CG](apb5_slave_cdc_cg.md)** - CDC with clock gating
-- **[GAXI Async FIFO](../gaxi/gaxi_fifo_async.md)** - The async FIFO used for both crossings
-- **[Clock Domain Crossing](../cdc/cdc.md)** - CDC design patterns and reset behavior
+- **[GAXI Async FIFO](../../RTLCdc/gaxi_fifo_async.md)** - The async FIFO used for both crossings
+- **[Clock Domain Crossing](../../RTLCdc/cdc.md)** - CDC design patterns and reset behavior
 
 ---
 

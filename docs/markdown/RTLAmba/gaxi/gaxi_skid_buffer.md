@@ -518,8 +518,8 @@ end
 ## Related Modules
 
 - [gaxi_fifo_sync](gaxi_fifo_sync.md) - Larger depth, optional registered output
-- [gaxi_fifo_async](gaxi_fifo_async.md) - Clock domain crossing
-- [gaxi_skid_buffer_async](gaxi_skid_buffer_async.md) - Async version
+- [gaxi_fifo_async](../../RTLCdc/gaxi_fifo_async.md) - Clock domain crossing
+- [gaxi_skid_buffer_async](../../RTLCdc/gaxi_skid_buffer_async.md) - Async version
 
 ---
 

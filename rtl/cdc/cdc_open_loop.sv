@@ -41,8 +41,8 @@
 // For unknown/variable clock ratios, use cdc_2_phase_handshake (closed-loop).
 // For streaming data, use fifo_async or gaxi_fifo_async.
 //
-// Documentation: docs/markdown/RTLAmba/cdc/cdc.md#cdc_open_loop
-// Subsystem: amba
+// Documentation: docs/markdown/RTLCdc/cdc.md#cdc_open_loop
+// Subsystem: cdc
 //
 // Author: sean galloway
 // Created: 2026-04-21

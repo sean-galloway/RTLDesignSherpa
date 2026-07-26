@@ -220,9 +220,9 @@ Infrastructure components used across all AMBA protocols.
 **[GAXI Module Documentation](gaxi/README.md)**
 
 - **[gaxi_fifo_sync](gaxi/gaxi_fifo_sync.md)** - Synchronous FIFO for GAXI interfaces
-- **[gaxi_fifo_async](gaxi/gaxi_fifo_async.md)** - Asynchronous FIFO for clock domain crossing
+- **[gaxi_fifo_async](../RTLCdc/gaxi_fifo_async.md)** - Asynchronous FIFO for clock domain crossing
 - **[gaxi_skid_buffer](gaxi/gaxi_skid_buffer.md)** - Skid buffer for pipeline optimization
-- **[gaxi_skid_buffer_async](gaxi/gaxi_skid_buffer_async.md)** - Asynchronous skid buffer
+- **[gaxi_skid_buffer_async](../RTLCdc/gaxi_skid_buffer_async.md)** - Asynchronous skid buffer
 - **[gaxi_skid_buffer_struct](gaxi/gaxi_skid_buffer_struct.md)** - Structured skid buffer implementation
 
 ### Arbitration and Control
@@ -270,7 +270,7 @@ Path from in-flight monitor packets to host-visible memory + CPU IRQs.
 ### Clock and Reset Management
 
 - **[amba_clock_gate_ctrl](shared/amba_clock_gate_ctrl.md)** - AMBA-specific clock gating controller
-- **[Clock Domain Crossing](cdc/cdc.md)** - Single reference for all CDC: decision guide, reset behavior, and every building block (`cdc_synchronizer`, `cdc_open_loop`, `cdc_2_phase_handshake`, `cdc_4_phase_handshake`, async FIFO pointers)
+- **[Clock Domain Crossing](../RTLCdc/cdc.md)** - Single reference for all CDC: decision guide, reset behavior, and every building block (`cdc_synchronizer`, `cdc_open_loop`, `cdc_2_phase_handshake`, `cdc_4_phase_handshake`, async FIFO pointers)
 
 ---
 

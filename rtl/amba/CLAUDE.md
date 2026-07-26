@@ -249,7 +249,7 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 
 ### Supporting Infrastructure — `rtl/amba/monitor/` + `rtl/amba/shared/`
 
-All protocol-agnostic. The monitor core, monbus infrastructure, monbus arbiters, and ALL `*_mon` wrappers live in `rtl/amba/monitor/`; observation/storage/test helpers live in `rtl/amba/shared/`; CDC helpers in `rtl/amba/cdc/`. The wrappers instantiate the monitor-core pieces below.
+All protocol-agnostic. The monitor core, monbus infrastructure, monbus arbiters, and ALL `*_mon` wrappers live in `rtl/amba/monitor/`; observation/storage/test helpers live in `rtl/amba/shared/`; CDC helpers moved OUT to the top-level `rtl/cdc/` area (AMBA-CDC-REORG) -- see `rtl/cdc/CLAUDE.md`. The wrappers instantiate the monitor-core pieces below.
 
 **Monitor core (13):**
 
@@ -289,7 +289,7 @@ All protocol-agnostic. The monitor core, monbus infrastructure, monbus arbiters,
 
 **Arbiters with monbus instrumentation (3):** `arbiter_monbus_common.sv`, `arbiter_rr_pwm_monbus.sv`, `arbiter_wrr_pwm_monbus.sv`
 
-**CDC (4):** `cdc_2_phase_handshake.sv`, `cdc_4_phase_handshake.sv`, `cdc_open_loop.sv`, `cdc_synchronizer.sv`
+**CDC (moved):** `cdc_2_phase_handshake.sv`, `cdc_4_phase_handshake.sv`, `cdc_open_loop.sv` and `cdc_synchronizer.sv` now live in `rtl/cdc/`, along with `gaxi_fifo_async.sv` and `gaxi_skid_buffer_async.sv` that used to sit under `rtl/amba/gaxi/`. Docs: `docs/markdown/RTLCdc/`.
 
 **Storage helpers (5)** — used by harnesses, not the monitor path itself: `sdpram_core.sv` (shared core) + `sdpram_slave_{axi4,axil}_{axi4,axil}.sv` (4 protocol-pair wrappers). Replaces the deleted unified `sdpram_slave.sv`.
 
