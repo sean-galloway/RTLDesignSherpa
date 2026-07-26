@@ -24,7 +24,10 @@
 # LFSR (Linear Feedback Shift Register) Module
 
 ## Purpose
-The `shifter_lfsr` module implements a generic Linear Feedback Shift Register (LFSR) with configurable tap positions for pseudo-random number generation. It supports various LFSR polynomials and provides cycle completion detection for deterministic sequence generation.
+The `shifter_lfsr` module is the generic Linear Feedback Shift Register:
+configurable tap positions for pseudo-random number generation, support for
+various LFSR polynomials, and cycle completion detection so you know exactly
+when the deterministic sequence has wrapped.
 
 ## Key Features
 - Configurable tap positions for different polynomial implementations
@@ -60,7 +63,8 @@ The `shifter_lfsr` module implements a generic Linear Feedback Shift Register (L
 ## LFSR Theory and Implementation
 
 ### Feedback Polynomial
-The LFSR implements a linear feedback shift register based on a primitive polynomial. The feedback is calculated by XORing bits at specified tap positions.
+The LFSR implements a linear feedback shift register based on a primitive
+polynomial. The feedback is calculated by XORing bits at specified tap positions.
 
 ### Tap Position Processing
 ```systemverilog
@@ -145,7 +149,8 @@ assign lfsr_done = (lfsr_out == seed_data) ? 1'b1 : 1'b0;
 Detects when LFSR returns to its initial seed value, indicating completion of full pseudo-random sequence.
 
 ### 4. Left-Shift Architecture
-The implementation uses left-shift with feedback to LSB, which is equivalent to traditional right-shift LFSRs but with different bit ordering.
+The implementation uses left-shift with feedback to LSB, which is equivalent to
+traditional right-shift LFSRs but with different bit ordering.
 
 ### 5. Zero State Handling
 - Reset initializes LFSR to all zeros

@@ -24,7 +24,7 @@
 # Count Trailing Zeros Module
 
 ## Overview
-The `count_trailing_zeros` module implements a trailing zero counter that determines how many consecutive zero bits appear at the end (LSB side) of a data word. It is the mirror image of `count_leading_zeros` and is the natural primitive for alignment checks, lowest-set-bit extraction, and picking the least significant pending request out of a vector.
+The `count_trailing_zeros` module counts how many consecutive zero bits sit at the end (LSB side) of a data word. It's the mirror image of `count_leading_zeros`, and it's the natural primitive for alignment checks, lowest-set-bit extraction, and picking the least significant pending request out of a vector.
 
 The scan starts at `data[0]` and proceeds upward, stopping at the first set bit:
 
@@ -169,7 +169,8 @@ ctz + clz = WIDTH - 1
 
 That identity holds **only** for one-hot inputs. For general data the two counts are
 independent, because CLZ is decided by the highest set bit and CTZ by the lowest. For
-example `8'b00110000` gives `clz = 2` and `ctz = 4`, which sum to 6, not 7.
+example `8'b00110000` gives `clz = 2` and `ctz = 4`, which sum to 6, not 7. Worth
+remembering before you write a check that assumes the identity holds for arbitrary data.
 
 ## Applications
 

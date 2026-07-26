@@ -24,7 +24,7 @@
 # Binary to BCD Converter - Comprehensive Documentation
 
 ## Overview
-The `bin_to_bcd` module implements the Double-Dabble algorithm (also known as the Add-3-Then-Shift algorithm) to convert binary numbers to Binary Coded Decimal (BCD) format. This is a fundamental operation in digital systems for displaying numeric values on seven-segment displays, LCD panels, and other decimal-based output devices.
+The `bin_to_bcd` module converts binary numbers to Binary Coded Decimal (BCD) format using the Double-Dabble algorithm (also known as the Add-3-Then-Shift algorithm). It's a fundamental operation in digital systems for displaying numeric values on seven-segment displays, LCD panels, and other decimal-based output devices.
 
 ## Module Declaration
 ```systemverilog
@@ -98,7 +98,7 @@ The Double-Dabble algorithm converts binary to BCD through iterative shifting an
 5. **Result**: BCD accumulator contains the decimal equivalent
 
 ### Why Add 3?
-The "add 3" operation prevents BCD overflow during shifting:
+The "add 3" step exists to prevent BCD overflow during shifting:
 - **BCD Range**: Each digit must stay within 0-9 (4 bits)
 - **Problem**: Shifting a BCD digit ≥ 5 creates values > 9
 - **Solution**: Adding 3 before shifting ensures proper BCD after shift
@@ -1150,7 +1150,7 @@ end
 // (Shown in optimization section)
 ```
 
-This comprehensive documentation provides everything needed to understand, implement, verify, and optimize the Binary to BCD converter module. The Double-Dabble algorithm, while sequential in nature, provides reliable and predictable conversion suitable for a wide range of digital display applications.
+That covers the Binary to BCD converter end to end — algorithm, implementation, verification, and optimization. Double-Dabble is sequential by nature, but it gives you reliable, predictable conversion for a wide range of digital display applications.
 
 ## Navigation
 

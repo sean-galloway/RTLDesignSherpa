@@ -24,7 +24,7 @@
 # dataint_crc_xor_shift Module Documentation
 
 ## Purpose
-The `dataint_crc_xor_shift` module performs CRC calculation for a single bit of input data. It implements the fundamental CRC operation: shifting the current CRC state and XORing with the polynomial when the feedback bit is set.
+The `dataint_crc_xor_shift` module computes CRC for exactly one bit of input data at a time. It's the fundamental CRC step: shift the current CRC state, and XOR in the polynomial when the feedback bit says to.
 
 ## Module Declaration
 ```systemverilog
@@ -54,10 +54,10 @@ module dataint_crc_xor_shift #(
 ## Functionality
 
 ### Core CRC Operation
-The module implements the basic CRC shift-and-XOR operation:
-1. **Feedback Calculation**: XOR the new input bit with the MSB of current CRC
-2. **Shift Operation**: Shift CRC register left by one position
-3. **Polynomial XOR**: If feedback bit is 1, XOR with polynomial
+This is the classic CRC shift-and-XOR, broken into three moves:
+1. **Feedback Calculation**: XOR the new input bit with the MSB of the current CRC
+2. **Shift Operation**: Shift the CRC register left by one position
+3. **Polynomial XOR**: If the feedback bit is 1, XOR with the polynomial
 
 ### Mathematical Foundation
 The CRC operation follows this algorithm:
@@ -70,13 +70,13 @@ CRC_new[MSB:1] = CRC[MSB-1:0] ⊕ (polynomial[MSB:1] & {WIDTH-1{feedback}})
 ## Implementation Details
 
 ### Key Features
-- **Single Bit Processing**: Processes exactly one bit per operation
+- **Single Bit Processing**: One bit per operation, no more
 - **Combinational Logic**: Pure combinational implementation (no clock)
-- **Parameterizable Width**: Supports any CRC width
-- **Optimized Design**: Breaks circular dependency with intermediate signal
+- **Parameterizable Width**: Any CRC width you need
+- **Optimized Design**: Breaks the circular dependency with an intermediate signal
 
 ### Circular Dependency Solution
-The original implementation could have a circular dependency. This is solved by:
+A naive write-up of this has a circular dependency—you'd be computing the output from itself. The fix is to compute the feedback bit first, on its own, then reuse it:
 ```systemverilog
 logic feedback_bit;
 
@@ -91,31 +91,31 @@ assign stage_output[CRC_WIDTH-1:1] = stage_input[CRC_WIDTH-2:0] ^
 
 ### Bit-wise Operations
 - **LSB Assignment**: Always gets the feedback bit
-- **MSBs Assignment**: Shifted previous bits XORed with polynomial when feedback is active
-- **Conditional XOR**: Uses bit replication to create conditional XOR mask
+- **MSBs Assignment**: Shifted previous bits XORed with the polynomial when feedback is active
+- **Conditional XOR**: Bit replication builds the conditional XOR mask
 
 ## Special Implementation Features
 
 ### Feedback Bit Logic
-The feedback bit is critical for CRC operation:
-- Determines whether polynomial is applied
-- Calculated as XOR of input bit and current MSB
-- Used to gate polynomial application
+The feedback bit runs the whole show:
+- It decides whether the polynomial gets applied
+- It's the XOR of the input bit and the current MSB
+- It gates the polynomial application
 
 ### Polynomial Application
-The polynomial is applied conditionally:
-- Only bits [MSB:1] of polynomial are used (bit 0 is implicit)
-- Applied via AND mask created by replicating feedback bit
-- XORed with shifted CRC bits
+The polynomial goes in conditionally:
+- Only bits [MSB:1] of the polynomial are used (bit 0 is implicit)
+- Applied through an AND mask built by replicating the feedback bit
+- XORed with the shifted CRC bits
 
 ### No State Elements
 This module is purely combinational:
-- No clock or reset signals needed
+- No clock, no reset
 - Instantaneous response to input changes
 - Can be cascaded for multi-bit processing
 
 ## Usage in CRC Chain
-This module is typically used as a building block:
+You rarely instantiate this block alone—it's a building block:
 
 ### Single Bit Processing
 ```systemverilog
@@ -128,7 +128,7 @@ dataint_crc_xor_shift #(.CRC_WIDTH(16)) crc_stage (
 ```
 
 ### Cascaded for Multiple Bits
-Multiple instances can be chained to process multiple bits:
+Chain as many instances as you have bits to process:
 ```systemverilog
 // Process 8 bits
 wire [CRC_WIDTH-1:0] stage[0:7];
@@ -151,10 +151,10 @@ assign final_crc = stage[7];
 
 ## Mathematical Verification
 For a polynomial P(x) and data bit d:
-- If feedback = 0: Simple left shift
-- If feedback = 1: Left shift XOR polynomial
+- Feedback = 0: it's a plain left shift
+- Feedback = 1: left shift, then XOR the polynomial
 
-This implements the mathematical CRC division in hardware.
+That's CRC polynomial division, done in gates.
 
 ## Applications
 - Building block for CRC calculation engines
@@ -165,9 +165,9 @@ This implements the mathematical CRC division in hardware.
 
 ## Performance Characteristics
 - **Latency**: Combinational (zero clock cycles)
-- **Throughput**: One bit per clock when used in sequential system
-- **Area**: Minimal - few XOR gates and multiplexers
-- **Power**: Low - simple combinational logic
+- **Throughput**: One bit per clock when wrapped in a sequential system
+- **Area**: Minimal — a few XOR gates and multiplexers
+- **Power**: Low — just simple combinational logic
 
 ## Navigation
 

@@ -35,7 +35,7 @@
 
 ## Overview
 
-`fifo_sync_multi_sigmap` is a variant of [`fifo_sync_multi`](fifo_sync_multi.md) that carries the same four-field payload through one [`fifo_sync`](../rtl-common/fifo_sync.md) instance, but exposes the fields under **generic, position-oriented signal names** (`siga`, `sigb`, `sigc`, `sigd` in, `sige`, `sigf`, `sigg`, `sigh` out) instead of role-specific names like `addr` / `ctrl` / `data`. This makes it a convenient building block when the fields do not have fixed semantic roles, or when a generator maps an array of arbitrary signals onto FIFO slots by position.
+`fifo_sync_multi_sigmap` is a variant of [`fifo_sync_multi`](fifo_sync_multi.md) that carries the same four-field payload through one [`fifo_sync`](../rtl-common/fifo_sync.md) instance, but exposes the fields under **generic, position-oriented signal names** (`siga`, `sigb`, `sigc`, `sigd` in, `sige`, `sigf`, `sigg`, `sigh` out) instead of role-specific names like `addr` / `ctrl` / `data`. That's the convenient choice when the fields don't have fixed semantic roles, or when a generator maps an array of arbitrary signals onto FIFO slots by position.
 
 As with the base wrapper, all storage, pointers, and status-flag generation come from the single underlying `fifo_sync`; this module only supplies the field-packing wiring.
 
@@ -49,7 +49,7 @@ As with the base wrapper, all storage, pointers, and status-flag generation come
 
 ## Module Purpose
 
-This module serves the same buffering role as `fifo_sync_multi`, but its port names are deliberately semantic-free so it can be dropped in wherever a bundle of same-shaped fields is mapped by position rather than by meaning. It is especially handy for generated or templated instantiations that assign an ordered list of signals to FIFO slots.
+This module does the same buffering job as `fifo_sync_multi`, but its port names are deliberately semantic-free, so it drops in anywhere a bundle of same-shaped fields is mapped by position rather than by meaning. It's especially handy for generated or templated instantiations that assign an ordered list of signals to FIFO slots.
 
 **Use Cases:**
 
@@ -112,7 +112,7 @@ This module serves the same buffering role as `fifo_sync_multi`, but its port na
 
 ### Field Packing
 
-The four write fields are concatenated into the single `fifo_sync` payload with `wr_siga` in the most significant bits, then `wr_sigb`, then `wr_sigd`, then `wr_sigc` in the least significant bits:
+The four write fields get concatenated into the single `fifo_sync` payload with `wr_siga` in the most significant bits, then `wr_sigb`, then `wr_sigd`, and `wr_sigc` in the least significant bits:
 
 ```systemverilog
 .wr_data ({wr_siga, wr_sigb, wr_sigd, wr_sigc})

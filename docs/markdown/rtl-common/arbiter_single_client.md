@@ -90,13 +90,13 @@ The module provides a drop-in single-client arbiter so that a design parameteriz
 
 ### Request Qualification
 
-The incoming request is first masked by `block_arb`:
+The incoming request is masked by `block_arb` first:
 
 ```systemverilog
 assign w_req = request && !block_arb;
 ```
 
-A blocked arbiter therefore behaves as if the client were not requesting.
+A blocked arbiter behaves as if the client were not requesting at all.
 
 ### Grant-Eligibility Logic (ACK mode)
 

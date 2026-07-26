@@ -26,20 +26,20 @@
 ## Overview
 
 The `counter_freq_invariant` module divides an arbitrary input clock down to a
-1 MHz tick, so that a design can count real time without knowing its clock
-frequency at compile time. The division factor is selected at run time through
+1 MHz tick, so your design can count real time without knowing its clock
+frequency at compile time. You pick the division factor at run time through
 `freq_sel`, which indexes a lookup table built at elaboration time from the
 `MIN_FREQ_MHZ`, `MAX_FREQ_MHZ`, `NUM_FREQ_ENTRIES` and `FREQ_STRATEGY`
 parameters.
 
-The key identity the module rests on is that **the division factor and the clock
-frequency in MHz are the same number**. A 100 MHz clock has 100 cycles per
-microsecond, so dividing by 100 yields a 1 MHz tick. The LUT therefore stores
-frequencies in MHz and uses them directly as divisors.
+The whole module rests on one convenient identity: **the division factor and the
+clock frequency in MHz are the same number**. A 100 MHz clock has 100 cycles per
+microsecond, so dividing by 100 yields a 1 MHz tick. The LUT just stores
+frequencies in MHz and uses them directly as divisors. Elegant, once you see it.
 
-An earlier revision of this module had a hardcoded 68-entry frequency table and
-a fixed 4-bit `freq_sel`. That table is gone; the LUT is now generated from
-parameters and `freq_sel` is sized to match `NUM_FREQ_ENTRIES`.
+One bit of history: an earlier revision of this module had a hardcoded 68-entry
+frequency table and a fixed 4-bit `freq_sel`. That table is gone; the LUT is now
+generated from parameters and `freq_sel` is sized to match `NUM_FREQ_ENTRIES`.
 
 ## Module Declaration
 
@@ -82,7 +82,7 @@ module counter_freq_invariant #(
 
 **Derived parameters -- do not override.** `SEL_WIDTH`, `DIV_WIDTH` and
 `PRESCALER_MAX` appear in the parameter list only so they can size ports and
-internal counters. They are computed from the user parameters:
+internal counters. They're computed from the user parameters:
 
 | Derived | Expression | Value at defaults |
 |---------|------------|-------------------|
@@ -92,9 +92,9 @@ internal counters. They are computed from the user parameters:
 
 : Derived parameters at the default configuration
 
-The three `$error` checks in the `param_check` initial block reject
-`MIN_FREQ_MHZ < 1`, `MAX_FREQ_MHZ < MIN_FREQ_MHZ`, and `NUM_FREQ_ENTRIES < 1` at
-elaboration.
+Bad combinations get caught early: the three `$error` checks in the
+`param_check` initial block reject `MIN_FREQ_MHZ < 1`,
+`MAX_FREQ_MHZ < MIN_FREQ_MHZ`, and `NUM_FREQ_ENTRIES < 1` at elaboration.
 
 ## Ports
 
@@ -114,13 +114,14 @@ elaboration.
 | `o_counter` | COUNTER_WIDTH | Microsecond counter, wraps at 2^COUNTER_WIDTH |
 | `tick` | 1 | Single-cycle pulse, once per microsecond |
 
-Note the output is named `o_counter`, not `counter`.
+One naming gotcha: the output is `o_counter`, not `counter`.
 
 ## LUT Generation Strategies
 
 The LUT is built at elaboration time by a generate loop that evaluates a pure
 integer function per index, so synthesis infers a mux or ROM rather than any
-runtime arithmetic.
+runtime arithmetic. That's what you want — no multiplier hiding in your timing
+report.
 
 **LINEAR (`FREQ_STRATEGY = 0`, default)**
 
@@ -155,15 +156,15 @@ low end and saturates once `MAX_FREQ_MHZ` is reached.
 
 : Default LINEAR LUT. Division factor equals the clock frequency in MHz.
 
-Set `DEBUG_LUT` to print the table your parameters actually produce at time 0
-rather than working it out by hand.
+Set `DEBUG_LUT` and the table your parameters actually produce prints at time 0 —
+much better than working it out by hand and being wrong.
 
 ### Same table under POW2
 
-With the same range and entry count, `FREQ_STRATEGY = 1` gives 5, 10, 20, 40,
-80, 160 MHz and then saturates at 220 MHz for indices 6 through 15. POW2 is only
-useful when `NUM_FREQ_ENTRIES` is close to `log2(MAX/MIN) + 1`; beyond that the
-remaining entries are duplicates.
+Same range, same entry count, `FREQ_STRATEGY = 1`: you get 5, 10, 20, 40,
+80, 160 MHz and then saturation at 220 MHz for indices 6 through 15. POW2 only
+earns its keep when `NUM_FREQ_ENTRIES` is close to `log2(MAX/MIN) + 1`; beyond
+that the remaining entries are duplicates.
 
 ## Architecture
 
@@ -196,9 +197,9 @@ assign w_division_factor = w_div_table[freq_sel];
 
 ### Change detection
 
-A clear pulse is raised whenever `freq_sel` changes or `sync_reset_n` is low.
-Note that `r_clear_pulse` resets to 1, not 0, so the counter starts in the
-cleared state.
+A clear pulse fires whenever `freq_sel` changes or `sync_reset_n` is low. One
+subtlety worth noticing: `r_clear_pulse` resets to 1, not 0, so the counter
+starts life in the cleared state.
 
 ```systemverilog
 always_ff @(posedge clk or negedge rst_n) begin
@@ -232,7 +233,8 @@ counter_load_clear #(
 ### Counter and tick
 
 `tick` pulses on **every** prescaler completion, once per microsecond. It is not
-gated on the counter reaching its maximum.
+gated on the counter reaching its maximum — people assume otherwise, and it
+leads to off-by-2^N bugs in timeout logic. Don't.
 
 ```systemverilog
 always_ff @(posedge clk or negedge rst_n) begin
@@ -265,7 +267,7 @@ end
 : counter_freq_invariant timing properties
 
 At the default `COUNTER_WIDTH` of 16, the counter wraps every 65536 us, or about
-65.5 ms.
+65.5 ms. Size your timeout logic accordingly.
 
 ## Usage Examples
 
@@ -351,11 +353,12 @@ design will actually see. Widening the range without raising
 `NUM_FREQ_ENTRIES` coarsens the LINEAR steps, and a clock that falls between two
 LUT entries produces a tick that is off by the rounding error. At the defaults
 the step is about 14 MHz, so a 70 MHz clock selecting index 5 (76 MHz) ticks
-roughly 8% slow.
+roughly 8% slow. That's not an error term you can wave away in a watchdog.
 
-If you need an exact tick at one known frequency, set `NUM_FREQ_ENTRIES` to 1
-and `MIN_FREQ_MHZ` equal to `MAX_FREQ_MHZ` equal to that frequency. `SEL_WIDTH`
-clamps to 1 in that case and `freq_sel` should be tied to 0.
+If you need an exact tick at one known frequency, there's a cleaner path: set
+`NUM_FREQ_ENTRIES` to 1 and `MIN_FREQ_MHZ` equal to `MAX_FREQ_MHZ` equal to that
+frequency. `SEL_WIDTH` clamps to 1 in that case and `freq_sel` should be tied
+to 0.
 
 ### Resource use
 
@@ -371,7 +374,8 @@ clamps to 1 in that case and `freq_sel` should be tied to 0.
 ### Critical path
 
 The critical path runs through the prescaler increment and its terminal-count
-comparison. Raising `MAX_FREQ_MHZ` widens `DIV_WIDTH` and lengthens that path.
+comparison. Raising `MAX_FREQ_MHZ` widens `DIV_WIDTH` and lengthens that path —
+something to watch if you're pushing frequency.
 
 ## Verification
 

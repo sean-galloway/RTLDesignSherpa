@@ -25,15 +25,15 @@
 
 # rtl-common Library Overview
 
-The rtl-common library provides a comprehensive collection of fundamental digital design building blocks, offering high-quality, parameterizable, and synthesis-friendly RTL modules for use across a wide range of digital systems.
+The rtl-common library is a collection of fundamental digital design building blocks — parameterizable, synthesis-friendly RTL modules built to a consistent quality bar, ready to drop into a wide range of digital systems.
 
 ## Library Philosophy
 
 ### Design Principles
 
-The rtl-common library is built on the following core principles:
+The library is built on a handful of core principles:
 
-**Modularity**: Each module focuses on a specific function and can be easily composed with others
+**Modularity**: Each module does one specific function and composes easily with the others
 **Parameterizability**: Configurable width and functionality parameters for maximum reusability
 **Synthesis Friendly**: Optimized for modern synthesis tools with predictable area/timing results
 **Technology Independence**: Clean RTL that works across ASIC and FPGA technologies
@@ -96,7 +96,7 @@ floating-point modules) is now its own subsystem and its own book:
 
 ### 2. Data Integrity and Error Management
 
-Critical for reliable data storage and transmission in modern digital systems.
+These blocks are critical for reliable data storage and transmission in modern digital systems.
 
 #### Cyclic Redundancy Check (CRC)
 - **Generic CRC Engine**: Configurable polynomial, width, and initialization
@@ -119,7 +119,7 @@ Critical for reliable data storage and transmission in modern digital systems.
 
 ### 3. Control Logic and Arbitration
 
-Essential components for managing shared resources and system coordination.
+Shared resources need a referee. These are the essential components for managing them and coordinating the system.
 
 #### Round-Robin Arbitration
 - **Simple Round-Robin**: Basic fair arbitration with minimal overhead
@@ -137,7 +137,7 @@ Essential components for managing shared resources and system coordination.
 
 ### 4. Clock and Reset Management
 
-Power and timing management for robust digital system design.
+Power and timing management — the unglamorous foundation of a dependable digital system design.
 
 #### Clock Control
 - **Integrated Clock Gating (ICG)**: Power optimization through controlled clock disabling
@@ -280,14 +280,14 @@ Specialized functions for specific application domains.
 ### Technology-Specific Considerations
 
 #### ASIC Implementation
-- Leverage dedicated adder and multiplier cells
+- Use dedicated adder and multiplier cells
 - Use technology-specific clock gating cells
 - Optimize for specific voltage and temperature ranges
 
 #### FPGA Implementation
-- Utilize DSP blocks for arithmetic operations
+- Use DSP blocks for arithmetic operations
 - Use BRAM for deep FIFOs
-- Leverage dedicated clock management resources
+- Use the dedicated clock management resources
 
 ## Verification and Validation
 
@@ -372,4 +372,4 @@ endmodule
 - **Tool Integration**: Enhanced synthesis and verification tool compatibility
 - **Standards Compliance**: Updates for evolving industry standards
 
-The rtl-common library represents a comprehensive foundation for digital design, providing the building blocks necessary for implementing complex digital systems with confidence in their correctness, performance, and manufacturability.
+Taken together, the rtl-common library is a foundation for digital design: the building blocks you need to implement complex digital systems with confidence in their correctness, performance, and manufacturability.

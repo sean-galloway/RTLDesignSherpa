@@ -24,7 +24,7 @@
 # FIFO Control Logic (`fifo_control.sv`)
 
 ## Purpose
-Centralized control logic module that generates full/empty status flags for both FIFO variants (sync and async, the latter with either pointer encoding). Handles the complex pointer arithmetic and mode-aware timing considerations.
+This is the shared brain that generates full/empty status flags for both FIFO variants (sync and async, the latter with either pointer encoding). All the tricky pointer arithmetic and mode-aware timing lives here.
 
 ## Ports
 
@@ -57,12 +57,12 @@ Centralized control logic module that generates full/empty status flags for both
 ## Architecture Overview
 
 ### Dual-Domain Design
-The module operates across two clock domains:
+The module straddles two clock domains:
 - **Write domain**: Generates full and almost_full flags
 - **Read domain**: Generates empty and almost_empty flags
 
 ### Pointer Arithmetic Foundation
-All status generation relies on **pointer comparison with wraparound detection**:
+All the status generation boils down to **pointer comparison with wraparound detection**:
 
 ```systemverilog
 // XOR the MSBs to detect wraparound condition
@@ -79,9 +79,9 @@ assign w_wr_full_d = (w_wdom_ptr_xor &&
 ```
 
 ### Full Detection Algorithm
-- **Condition 1**: MSBs must differ (`w_wdom_ptr_xor = 1`)
-- **Condition 2**: LSBs must be equal
-- **Meaning**: Write pointer has "lapped" the read pointer
+- **Condition 1**: The MSBs must differ (`w_wdom_ptr_xor = 1`)
+- **Condition 2**: The LSBs must be equal
+- **Meaning**: The write pointer has "lapped" the read pointer
 
 ### Visual Example (DEPTH=8, ADDR_WIDTH=3)
 ```
@@ -110,11 +110,11 @@ assign w_almost_full_count = (w_wdom_ptr_xor) ?
 ### Two Cases Handled
 1. **No wraparound** (`w_wdom_ptr_xor = 0`):
    - Count = `wr_ptr - rd_ptr`
-   - Simple subtraction
+   - Just a simple subtraction
 
 2. **Wraparound** (`w_wdom_ptr_xor = 1`):
    - Count = `DEPTH - rd_ptr + wr_ptr`
-   - Accounts for circular buffer wraparound
+   - Accounts for the circular buffer wrapping around
 
 ### Almost Full Threshold
 ```systemverilog
@@ -151,13 +151,13 @@ endgenerate
 
 #### MUX Mode (REGISTERED = 0)
 - **Data availability**: Immediate (combinational read)
-- **Write pointer**: Use current value
-- **Reasoning**: Data is immediately available when written
+- **Write pointer**: Use the current value
+- **Reasoning**: Data is available the moment it's written
 
 #### FLOP Mode (REGISTERED = 1)  
 - **Data availability**: Delayed by 1 cycle (registered read)
-- **Write pointer**: Use delayed value
-- **Reasoning**: Data isn't available until next clock cycle
+- **Write pointer**: Use the delayed value
+- **Reasoning**: Data isn't available until the next clock cycle
 
 ### Empty Detection Algorithm
 ```systemverilog
@@ -165,14 +165,14 @@ assign w_rd_empty_d = (!w_rdom_ptr_xor_for_empty &&
                       (rd_ptr_bin[AW:0] == w_wr_ptr_for_empty[AW:0]));
 ```
 
-- **Condition 1**: MSBs must be same (no wrap difference)
+- **Condition 1**: The MSBs must be the same (no wrap difference)
 - **Condition 2**: All bits must be equal
-- **Meaning**: Read pointer has caught up to write pointer
+- **Meaning**: The read pointer has caught up to the write pointer
 
 ## Almost Empty Logic
 
 ### Standard Timing (Mode-Independent)
-Almost empty calculation uses standard timing regardless of FIFO mode:
+Almost empty uses standard timing regardless of FIFO mode:
 
 ```systemverilog
 assign w_almost_empty_count = (w_rdom_ptr_xor) ?
@@ -252,33 +252,33 @@ assign w_almost_full_count = (w_wdom_ptr_xor) ?
     (wr_ptr_bin[AW-1:0] - wdom_rd_ptr_bin[AW-1:0]);
 ```
 
-The `(AW+1)'(D)` cast (with the widened `[AW:0]` count) is what prevents the
-wraparound occupancy from truncating. Casting to `AW'(D)` reintroduces the
-truncation bug: e.g. DEPTH=16 with wr=2, rd=14 should give occupancy
-16-14+2 = 4, but `AW'(16)` = 0 yields 0-14+2 (garbage).
+That `(AW+1)'(D)` cast (with the widened `[AW:0]` count) is the only thing
+standing between you and a truncated wraparound occupancy. Cast to `AW'(D)`
+instead and you reintroduce the truncation bug: e.g. DEPTH=16 with wr=2, rd=14
+should give occupancy 16-14+2 = 4, but `AW'(16)` = 0 yields 0-14+2 (garbage).
 
 ## Key Design Insights
 
 ### Wraparound Handling
-- **MSB significance**: Extra bit detects wraparound events
+- **MSB significance**: The extra bit is your wraparound detector
 - **Circular arithmetic**: Proper modulo DEPTH calculations
 - **Comparison logic**: XOR-based wraparound detection
 
 ### Timing Considerations
-- **Synchronizer delay**: Accounted for in conservative design
+- **Synchronizer delay**: Accounted for in the conservative design
 - **Mode awareness**: Different timing for different output modes
 - **Flag updates**: Registered for clean transitions
 
 ### Conservative Design
 - **Over-reporting**: Flags may assert slightly early
 - **Safety margin**: Prevents overflow/underflow
-- **Synchronizer latency**: Built into safety margins
+- **Synchronizer latency**: Built into the safety margins
 
 ## Use Cases
 - **All FIFO variants**: Shared by `fifo_sync` and `fifo_async` (binary or Johnson pointers). The former `fifo_async_div2` is retired -- `fifo_async` with `USE_JOHNSON=1` replaces it.
 - **Status monitoring**: Provides comprehensive FIFO state
 - **Flow control**: Enables back-pressure and rate matching
-- **Debug/verification**: Count output aids in debugging
+- **Debug/verification**: The count output earns its keep during debug
 
 ## Performance Impact
 - **Minimal overhead**: Efficient pointer arithmetic

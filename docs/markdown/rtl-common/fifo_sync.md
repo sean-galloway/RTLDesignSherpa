@@ -24,7 +24,7 @@
 # Synchronous FIFO (`fifo_sync.sv`)
 
 ## Purpose
-Implements a synchronous First-In-First-Out buffer for single clock domain applications. Provides configurable depth, data width, and output modes with comprehensive status signaling.
+A synchronous First-In-First-Out buffer for when everything lives in a single clock domain. Depth, data width, and output modes are all configurable, and you get the full set of status signals.
 
 ## Ports
 
@@ -61,10 +61,10 @@ Implements a synchronous First-In-First-Out buffer for single clock domain appli
 ## Architecture Overview
 
 ### Core Components
-1. **Binary counters** for read/write pointers
+1. **Binary counters** for the read/write pointers
 2. **Memory array** for data storage
 3. **FIFO control logic** for status generation
-4. **Output multiplexing** based on REGISTERED parameter
+4. **Output multiplexing** based on the REGISTERED parameter
 
 ### Memory Organization
 ```systemverilog
@@ -76,7 +76,7 @@ assign r_rd_addr = r_rd_ptr_bin[AW-1:0];  // Read address
 ## Implementation Details
 
 ### Pointer Management
-Uses binary counters for both read and write pointers:
+Binary counters drive both the read and write pointers:
 
 ```systemverilog
 counter_bin #(.WIDTH(AW + 1), .MAX(D)) write_pointer_inst (
@@ -89,8 +89,8 @@ counter_bin #(.WIDTH(AW + 1), .MAX(D)) write_pointer_inst (
 ```
 
 #### Pointer Characteristics
-- **Width**: `$clog2(DEPTH) + 1` bits (extra bit for wrap detection)
-- **Increment**: Only when operation is valid (write && !full, read && !empty)
+- **Width**: `$clog2(DEPTH) + 1` bits (the extra bit catches wraps)
+- **Increment**: Only when the operation is valid (write && !full, read && !empty)
 - **Wraparound**: Automatic modulo DEPTH counting
 
 ### Memory Operations
@@ -123,7 +123,7 @@ endgenerate
 ```
 
 ### Status Flag Generation
-Utilizes shared `fifo_control` module:
+Status comes out of the shared `fifo_control` module:
 - **Full detection**: Based on pointer comparison with wraparound handling
 - **Almost full**: When remaining space ≤ `ALMOST_WR_MARGIN`
 - **Empty detection**: When read pointer equals write pointer
@@ -135,33 +135,33 @@ Utilizes shared `fifo_control` module:
 - **Read latency**: 0 cycles (combinational output)
 - **Data availability**: Immediate after write
 - **Use case**: Low-latency applications
-- **Timing**: Read data changes combinationally with address
+- **Timing**: Read data changes combinationally with the address
 
 ### Flop Mode (REGISTERED = 1)  
 - **Read latency**: 1 cycle (registered output)
 - **Data availability**: 1 cycle after read enable
 - **Use case**: High-speed designs, timing closure
-- **Timing**: Read data stable for full clock cycle
+- **Timing**: Read data stable for the full clock cycle
 
 ## Functional Behavior
 
 ### Write Operations
 - **Condition**: `write && !wr_full`
-- **Action**: Store data at write pointer, increment pointer
-- **Blocking**: Writes ignored when FIFO is full
-- **Status**: Full flags update based on new occupancy
+- **Action**: Store data at the write pointer, bump the pointer
+- **Blocking**: Writes ignored when the FIFO is full
+- **Status**: Full flags track the new occupancy
 
 ### Read Operations
 - **Condition**: `read && !rd_empty`  
-- **Action**: Advance read pointer (data handling depends on mode)
-- **Blocking**: Reads ignored when FIFO is empty
-- **Status**: Empty flags update based on new occupancy
+- **Action**: Advance the read pointer (data handling depends on mode)
+- **Blocking**: Reads ignored when the FIFO is empty
+- **Status**: Empty flags track the new occupancy
 
 ### Reset Behavior
 - **Pointers**: Reset to 0
 - **Flags**: Full flags → 0, Empty flags → 1
 - **Data**: Read data cleared in flop mode
-- **Memory**: Contents undefined but not critical
+- **Memory**: Contents undefined, but that doesn't matter
 
 ## Timing Diagrams
 
@@ -204,7 +204,7 @@ rd_data ===========[ D0 ]=====  (1 cycle delay)
 ### Mode Selection Guidelines
 - **Choose Mux Mode when**: Latency is critical, moderate clock speeds
 - **Choose Flop Mode when**: High clock speeds, timing closure issues
-- **Performance impact**: Flop mode adds 1 cycle latency but improves fmax
+- **Performance impact**: Flop mode costs you 1 cycle of latency but buys fmax
 
 ### Sizing Considerations
 - **Depth**: Must accommodate worst-case burst sizes

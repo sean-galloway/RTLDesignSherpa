@@ -24,7 +24,7 @@
 # Glitch-Free N-DFF Synchronizer (`glitch_free_n_dff_arn.sv`)
 
 ## Purpose
-Provides a parameterized multi-stage synchronizer for safe clock domain crossing (CDC). Reduces metastability risk through configurable stages of flip-flops while maintaining data integrity across asynchronous clock domains.
+A parameterized multi-stage synchronizer for safe clock domain crossing (CDC). Configurable flip-flop stages knock down metastability risk while your data makes the jump between asynchronous clock domains intact.
 
 ## Ports
 
@@ -52,10 +52,10 @@ Setup Violation?      ↑ Potential metastability
 ```
 
 ### Metastability Effects
-- **Undefined output**: Neither 0 nor 1, but intermediate voltage
-- **Extended resolution**: Takes longer than normal clock period
+- **Undefined output**: Neither 0 nor 1, but an intermediate voltage
+- **Extended resolution**: Takes longer than a normal clock period to settle
 - **Propagation**: Can corrupt downstream logic
-- **System failure**: Can cause entire design malfunction
+- **System failure**: Can take the entire design down
 
 ## Multi-Stage Synchronizer Solution
 
@@ -78,8 +78,8 @@ flowchart LR
 ```
 
 ### Stage-by-Stage Analysis
-1. **Stage 1 (FF1)**: Captures source data, may go metastable
-2. **Stage 2 (FF2)**: Allows metastability to resolve, low probability of propagation
+1. **Stage 1 (FF1)**: Captures the source data—this is the one that may go metastable
+2. **Stage 2 (FF2)**: Gives metastability time to resolve, low probability of propagation
 3. **Stage 3+ (FFN)**: Further **increases** MTBF (Mean Time Between Failures) —
    each added stage gives metastability more time to resolve (see the ~1000×-per-
    stage table below)

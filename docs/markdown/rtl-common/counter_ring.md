@@ -24,7 +24,7 @@
 # Ring Counter Module
 
 ## Overview
-The `counter_ring` module implements a classic ring counter where a single '1' bit circulates through a shift register. This creates a one-hot encoded sequence that's ideal for generating sequential enable signals, creating walking LED patterns, or controlling multi-phase operations where only one stage should be active at a time.
+The `counter_ring` module is the classic ring counter: a single '1' bit circulating through a shift register. The result is a one-hot encoded sequence — exactly what you want for sequential enable signals, walking LED patterns, or multi-phase operations where precisely one stage may be active at a time.
 
 ## Module Declaration
 ```systemverilog
@@ -65,7 +65,7 @@ module counter_ring #(
 ## Theory of Operation
 
 ### Ring Counter Principle
-A ring counter is a circular shift register where:
+A ring counter is just a circular shift register:
 - **Initialization**: Single '1' bit in LSB position
 - **Operation**: The '1' bit rotates right each clock cycle
 - **Feedback**: LSB connects back to MSB (no inversion)
@@ -289,17 +289,19 @@ end
 ## Properties and Characteristics
 
 ### One-Hot Encoding
-Ring counters naturally provide one-hot encoding:
+Ring counters hand you one-hot encoding for free:
 - **Exactly One Bit Set**: Always exactly one bit is '1'
 - **Unique States**: Each state is distinctly different
 - **Easy Decode**: No additional decoding logic needed
 - **Glitch-Free**: Clean transitions between states
 
 ### Self-Correcting Behavior
-Ring counters have some self-correcting properties:
+An honest word about self-correction — ring counters mostly don't:
 - **All Zeros**: Will remain stuck (not self-correcting)
 - **Multiple Ones**: Will maintain multiple bits indefinitely
 - **Single One**: Will operate correctly
+
+If an upset can land you in an illegal state, see the self-correcting variant under Advanced Usage below.
 
 ### Comparison with Other Counters
 

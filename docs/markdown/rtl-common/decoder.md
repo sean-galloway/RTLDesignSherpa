@@ -24,7 +24,7 @@
 # Decoder Module (`decoder.sv`)
 
 ## Purpose
-Converts an M-bit binary encoded input to a one-hot N-bit output where N = 2^M. This is a standard binary-to-one-hot decoder implementation.
+Converts an M-bit binary encoded input to a one-hot N-bit output where N = 2^M. Standard binary-to-one-hot decoding—nothing exotic.
 
 ## Ports
 
@@ -41,7 +41,7 @@ Converts an M-bit binary encoded input to a one-hot N-bit output where N = 2^M. 
 ## Implementation Details
 
 ### Core Logic
-The decoder uses a generate loop to create comparison logic for each output bit:
+A generate loop spins up one comparator per output bit:
 
 ```systemverilog
 genvar i;
@@ -53,9 +53,9 @@ endgenerate
 ```
 
 ### Operation Principle
-- Each output bit corresponds to one possible input value
-- Only one output bit is high at any time (one-hot encoding)
-- Output bit `i` is high when `encoded` input equals `i`
+- Each output bit maps to one possible input value
+- Only one output bit is high at any time (that's the one-hot part)
+- Output bit `i` is high when the `encoded` input equals `i`
 
 ## Functional Behavior
 
@@ -76,14 +76,14 @@ endgenerate
 ## Design Features
 
 ### Parameterization
-- **Scalable width**: M parameter controls input width
-- **Automatic sizing**: N automatically calculated as 2^M
-- **Generate loops**: Synthesizes efficiently for any size
+- **Scalable width**: M sets the input width
+- **Automatic sizing**: N falls out as 2^M
+- **Generate loops**: Synthesizes cleanly for any size
 
 ### Synthesis Considerations
-- **Resource usage**: Typically implements as LUT-based logic
+- **Resource usage**: Typically lands in LUT-based logic
 - **Propagation delay**: Single LUT delay in most FPGA architectures  
-- **Fan-out**: Each input bit fans out to multiple output comparisons
+- **Fan-out**: Each input bit feeds multiple output comparisons
 
 ## Use Cases
 - **Address decoding**: Memory or register select signals
@@ -113,7 +113,7 @@ decoder #(.M(3), .N(8)) state_decoder (
 ## Timing Characteristics
 - **Propagation delay**: Typically 1 LUT delay
 - **Setup/hold**: None (purely combinational)
-- **Output changes**: Immediately follow input changes
+- **Output changes**: Follow the inputs immediately
 
 ## Related Modules
 - **Encoder**: Performs inverse operation (one-hot to binary)
@@ -125,7 +125,7 @@ decoder #(.M(3), .N(8)) state_decoder (
 - Purely combinational: the generate loop drives every `data[i]` exactly once,
   so all outputs are defined at all times (no separate initialization needed —
   and none exists in the RTL)
-- Generate loop structure scales efficiently to any required size
+- The generate loop structure scales efficiently to any required size
 
 ## Navigation
 

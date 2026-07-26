@@ -24,7 +24,7 @@
 # Counter Load Clear Module
 
 ## Overview
-The `counter_load_clear` module is a versatile counter with loadable terminal count and clear functionality. It provides precise control over counting behavior with configurable match values, making it ideal for timing applications, protocol implementations, and configurable delay generation.
+The `counter_load_clear` module is a counter with a loadable terminal count and a clear — the workhorse you reach for when a plain counter isn't quite enough. You get precise control over counting behavior through configurable match values, which makes it a natural fit for timing applications, protocol implementations, and configurable delay generation.
 
 ## Module Declaration
 ```systemverilog
@@ -79,7 +79,7 @@ logic [$clog2(MAX)-1:0] r_match_val;  // Terminal count register
 ```
 
 ### Priority Logic
-The module implements a priority-based control scheme:
+Control is priority-based, and the order matters:
 
 1. **Asynchronous Reset** (Highest Priority)
    - Resets both `count` and `r_match_val` to 0
@@ -474,4 +474,4 @@ end
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**
-- **[← Back to Main Documentation Index](../index.md)**
+- **[← Back to Main Documentation Index](../index.md]**

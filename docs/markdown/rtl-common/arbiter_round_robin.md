@@ -24,7 +24,7 @@
 # Round Robin Arbiter
 
 ## Purpose
-The `arbiter_round_robin` module implements a fair round-robin arbitration scheme for multiple clients. It ensures that all requesting clients receive equal access to a shared resource by cycling through them in order, preventing starvation of any client.
+The `arbiter_round_robin` module implements fair round-robin arbitration for multiple clients. Every requesting client gets equal access to the shared resource — the arbiter cycles through them in order, so no client starves.
 
 ## Parameters
 - `CLIENTS`: Number of clients (default: 4)
@@ -57,7 +57,7 @@ The `arbiter_round_robin` module implements a fair round-robin arbitration schem
 ## Implementation Details
 
 ### Priority Mechanism
-The arbiter uses a pre-computed mask lookup table approach:
+The arbiter is built around a pre-computed mask lookup table:
 
 1. **Mask Lookup Tables**: Pre-computed at elaboration time (no logic cost)
    - `w_win_mask_decode[i] = ~((1 << (i+1)) - 1)`: selects clients **i+1 and
@@ -77,7 +77,7 @@ The arbiter uses a pre-computed mask lookup table approach:
    - `r_last_valid`: Indicates if mask should be applied
 
 ### Priority Encoder
-Uses `arbiter_priority_encoder` submodule for winner selection:
+Winner selection is delegated to the `arbiter_priority_encoder` submodule:
 - Takes both masked and unmasked request vectors
 - Returns binary-encoded winner ID
 - Outputs validity signal
@@ -104,7 +104,7 @@ assign w_should_grant = w_winner_valid && w_any_requests && w_can_grant;
 ## Special Features
 
 ### Block Arbitration
-When `block_arb` is asserted, all requests are masked to zero, effectively disabling arbitration.
+Assert `block_arb` and all requests are masked to zero — arbitration is effectively disabled.
 
 ### Grant Acknowledgment Support
 When `WAIT_GNT_ACK = 1`, the arbiter waits for the granted client to acknowledge receipt before updating internal state and moving to the next client.

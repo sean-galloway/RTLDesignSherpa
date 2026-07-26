@@ -24,7 +24,7 @@
 # dataint_ecc_hamming_encode_secded Module Documentation
 
 ## Purpose
-The `dataint_ecc_hamming_encode_secded` module implements a Hamming encoder with Single Error Correction, Double Error Detection (SECDED) capability. It generates error correction codes that can detect up to 2-bit errors and correct single-bit errors in data.
+The `dataint_ecc_hamming_encode_secded` module is the encoder half of a SECDED Hamming scheme (Single Error Correction, Double Error Detection). It generates the check bits that let the far end detect up to 2-bit errors and correct single-bit errors in the data.
 
 ## Module Declaration
 ```systemverilog
@@ -58,10 +58,10 @@ module dataint_ecc_hamming_encode_secded #(
 ## Functionality
 
 ### Hamming Code Structure
-The encoded data contains:
-1. **Data Bits**: Original data placed at specific positions
-2. **Parity Bits**: Hamming parity bits at power-of-2 positions (1, 2, 4, 8, ...)
-3. **SECDED Bit**: Additional parity bit for double error detection
+The encoded word carries three things:
+1. **Data Bits**: Your original data, parked at specific positions
+2. **Parity Bits**: Hamming parity bits at the power-of-2 positions (1, 2, 4, 8, ...)
+3. **SECDED Bit**: One extra overall parity bit for double error detection
 
 ### Bit Position Layout
 ```
@@ -76,7 +76,7 @@ Where: P = Parity bit, D = Data bit
 ### Key Functions
 
 #### `bit_position(k)` Function
-Calculates where data bit `k` should be placed in the encoded stream:
+Works out where data bit `k` belongs in the encoded stream:
 ```systemverilog
 function automatic integer bit_position(input integer k);
     integer j, pos;
@@ -91,7 +91,7 @@ endfunction
 ```
 
 #### `get_covered_bits(parity_bit)` Function
-Returns a bitmask of positions covered by a specific parity bit:
+Returns a bitmask of every position a specific parity bit covers:
 ```systemverilog
 function automatic [TotalWidth-1:0] get_covered_bits(input integer parity_bit);
     integer j;
@@ -147,18 +147,16 @@ w_data_with_parity[TotalWidth-1] = ^w_data_with_parity[TotalWidth-2:0];
 
 ### Combinational Design
 - **No Clock Required**: Purely combinational logic
-- **Immediate Output**: Encoded data available immediately after input change
-- **Stateless Operation**: No internal state or memory
+- **Immediate Output**: Encoded data shows up as soon as the input settles
+- **Stateless Operation**: No internal state, nothing to reset
 
 ### Scalable Architecture
-- **Parameterizable Width**: Supports any data width
-- **Automatic Sizing**: Parity bits calculated automatically
-- **Efficient Layout**: Optimal bit positioning for Hamming code
+- **Parameterizable Width**: Any data width you like
+- **Automatic Sizing**: The parity bit count is worked out for you
+- **Efficient Layout**: Optimal bit positioning for the Hamming code
 
 ### Debug Support
-The `DEBUG` parameter is currently a **no-op** in this module: the RTL never
-references `DEBUG` outside its parameter declaration, so there is no debug
-output. The parameter is reserved for future use.
+Note that `DEBUG` is a **no-op** in this module: the RTL never references it outside its parameter declaration, so there's no debug output to be had. The parameter is reserved for future use.
 
 ## Example Configurations
 
@@ -210,13 +208,13 @@ dataint_ecc_hamming_encode_secded #(
 
 ### Single Error Correction
 - Can correct any single-bit error in the encoded data
-- Uses Hamming parity bits to identify error position
-- Decoder can flip the erroneous bit
+- Uses the Hamming parity bits to locate the error
+- The decoder flips the bad bit
 
 ### Double Error Detection
-- SECDED bit enables detection of double-bit errors
-- Cannot correct double errors, but can flag them
-- Prevents silent data corruption
+- The SECDED bit is what spots double-bit errors
+- Can't fix them, but it flags them
+- No silent data corruption
 
 ### Error Detection Matrix
 | Error Type | Detection | Correction |

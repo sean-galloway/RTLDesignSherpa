@@ -23,11 +23,11 @@
 
 # arbiter_round_robin_simple
 
-A generic rotating-priority arbiter with masking/rotation that provides fair arbitration among multiple requesting agents without using if/case ladders in the priority path.
+A generic rotating-priority arbiter that gives you fair arbitration among multiple requesting agents using masking/rotation — no if/case ladders in the priority path.
 
 ## Overview
 
-The `arbiter_round_robin_simple` module implements a round-robin arbitration scheme that ensures fair access to a shared resource among N requesting agents. It maintains fairness by remembering the last granted agent and starting the next arbitration from the next agent in sequence.
+The `arbiter_round_robin_simple` module implements round-robin arbitration with fair access to a shared resource among N requesting agents. Fairness comes from remembering the last granted agent and starting the next arbitration from the next agent in sequence.
 
 ## Module Declaration
 
@@ -234,7 +234,7 @@ lowest set bit, and `Grant` rotates it back to the original bit positions.
 - `arbiter_priority_encoder`: Fixed priority arbiter implementation
 - `encoder_priority_enable`: Priority encoding utility module
 
-The `arbiter_round_robin_simple` module provides an efficient and fair arbitration solution suitable for most round-robin arbitration needs in digital systems.
+For most round-robin arbitration needs in digital systems, `arbiter_round_robin_simple` is the efficient, fair answer.
 
 ## Navigation
 

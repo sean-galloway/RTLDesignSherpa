@@ -23,7 +23,7 @@
 
 # rtl-common Modules Index
 
-This directory contains documentation for the common RTL modules library, providing fundamental building blocks for digital design including arithmetic operations, data integrity functions, control logic, and specialized utilities.
+This directory holds the documentation for the common RTL modules library — the fundamental building blocks for digital design, covering arithmetic operations, data integrity functions, control logic, and specialized utilities.
 
 ## Overview
 
@@ -34,8 +34,8 @@ This directory contains documentation for the common RTL modules library, provid
 
 ### Arithmetic and Math Operations
 
-The `math_*` library now lives in its own book: **[rtl-math](../rtl-math/index.md)**.
-Its RTL moved to `rtl/math/` and its tests to `val/math/`; the docs followed so
+The `math_*` library has its own book now: **[rtl-math](../rtl-math/index.md)**.
+The RTL moved to `rtl/math/` and the tests to `val/math/`; the docs followed, so
 the three agree.
 
 ### Data Integrity and Error Correction
@@ -128,9 +128,10 @@ the three agree.
 #### FIFO Implementations
 - **[fifo_sync](fifo_sync.md)** - Synchronous FIFO with configurable depth
 
-`fifo_async` moved to `rtl/cdc/`. Two multi-field wrappers built on `fifo_sync`
-moved to `rtl/integ_common/` and are documented in their own book:
-[rtl-integ-common](../rtl-integ-common/index.md).
+`fifo_async` moved to `rtl/cdc/`. Two more wrappers are documented here but
+live in `rtl/integ_common/` — they're integration examples, not library
+modules: [fifo_sync_multi](../rtl-integ-common/fifo_sync_multi.md) and
+[fifo_sync_multi_sigmap](../rtl-integ-common/fifo_sync_multi_sigmap.md).
 - **[fifo_control](fifo_control.md)** - FIFO control logic
 
 #### Content Addressable Memory
@@ -147,13 +148,13 @@ moved to `rtl/integ_common/` and are documented in their own book:
 
 ### Module Count by Category
 
-**49 modules** in `rtl/common/`. Two sets have moved out and are counted in
+**49 modules** in `rtl/common/`. Two sets have moved out, and they're counted in
 their own books, not here:
 
 - Arithmetic (`math_*`) split out to `rtl/math/` — see [rtl-math](../rtl-math/index.md).
 - Clock-domain-crossing modules moved to `rtl/cdc/` — `bin2gray`, `gray2bin`,
-  `johnson2bin`, `counter_bingray`, `counter_johnson` and `fifo_async` now live
-  there, alongside `cdc_synchronizer` and the handshake modules.
+  `johnson2bin`, `counter_bingray`, `counter_johnson` and `fifo_async` live
+  there now, alongside `cdc_synchronizer` and the handshake modules.
 
 | Category | Count |
 |---|---|
@@ -168,19 +169,20 @@ their own books, not here:
 | FIFOs | 2 |
 | CAM | 1 |
 
-Counts are from `ls rtl/common/*.sv`; regenerate rather than hand-editing. They
-sum to 49 and every module in the tree falls into exactly one row.
+The counts come from `ls rtl/common/*.sv` — regenerate them rather than
+hand-editing. They sum to 49, and every module in the tree falls into exactly
+one row.
 
 ### Usage Guidelines
 
-1. **Arithmetic**: adders, multipliers and dividers are no longer in this
-   library -- they moved to `rtl/math/`. For the speed/area trade-off between
+1. **Arithmetic**: adders, multipliers and dividers aren't in this library
+   anymore — they moved to `rtl/math/`. For the speed/area trade-off between
    parallel-prefix (Brent-Kung, Kogge-Stone) and ripple-carry implementations,
    see the [rtl-math](../rtl-math/index.md) book.
 2. **Area Constrained**: prefer the simpler variant where one exists (for
    example `arbiter_round_robin_simple` over the weighted arbiter)
-3. **Power Sensitive**: Utilize clock gating (ICG) and frequency-invariant designs
-4. **Data Integrity**: Apply ECC and CRC modules for reliable data storage/transmission
+3. **Power Sensitive**: use clock gating (ICG) and frequency-invariant designs
+4. **Data Integrity**: apply the ECC and CRC modules for reliable data storage/transmission
 
 ### Module Naming Convention
 

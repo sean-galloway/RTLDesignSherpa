@@ -31,7 +31,7 @@
 
 `shifter_beat_pack` is a bit-granular packing/aligning shifter. It accepts fixed-width `CHUNK_BITS` entries on a push handshake, accumulates them in a multi-chunk staging register, and drains **configurable-width "beats"** out the low end on a pop handshake. The beat width is a runtime input (bytes minus one), so the same instance can emit different beat sizes across bursts.
 
-All of the shift/load/mux logic lives inside this one module so that callers, such as an aligner that needs to repack DFI cycles into DRAM beats, do not have to invent their own shift-and-compensate scheme. Push and pop can occur in the same cycle; the next-state logic applies the pop first and the push second, and a single non-blocking assignment commits the result so no internal last-assignment race is possible.
+All of the shift/load/mux logic lives inside this one module so that callers — an aligner that needs to repack DFI cycles into DRAM beats, say — don't have to invent their own shift-and-compensate scheme. Push and pop can occur in the same cycle; the next-state logic applies the pop first and the push second, and a single non-blocking assignment commits the result, so no internal last-assignment race is possible.
 
 ### Key Features
 
@@ -44,7 +44,7 @@ All of the shift/load/mux logic lives inside this one module so that callers, su
 
 ## Module Purpose
 
-The module solves the recurring problem of repacking a stream of one fixed width into beats of another (often runtime-selected) width. Data arrives one whole chunk at a time and leaves as beats whose width is chosen at run time; the module holds the partial-beat residue between cycles and shifts it down as beats drain, so the caller sees clean valid/ready handshakes on both sides.
+This module exists for a problem that shows up constantly: repacking a stream of one fixed width into beats of another (often runtime-selected) width. Data arrives one whole chunk at a time and leaves as beats whose width is chosen at run time; the module holds the partial-beat residue between cycles and shifts it down as beats drain, so the caller sees clean valid/ready handshakes on both sides.
 
 **Use Cases:**
 
@@ -109,7 +109,7 @@ The module solves the recurring problem of repacking a stream of one fixed width
 
 ### Runtime Beat Width
 
-The runtime beat width in bits is derived from the byte-minus-one config field, widened by 4 bits so the counter math can represent the largest beat any `CFG_BITS`-wide value can encode:
+The runtime beat width in bits comes from the byte-minus-one config field, widened by 4 bits so the counter math can represent the largest beat any `CFG_BITS`-wide value can encode:
 
 ```systemverilog
 localparam int BEAT_BITS_W = CFG_BITS + 4;
@@ -127,7 +127,7 @@ The combinational handshakes are driven directly from the bit-occupancy counter 
 - `pop_valid` = the register holds at least one whole beat, i.e. `r_count >= w_beat_bits` and non-zero
 - `pop_data` = the low `MAX_BEAT_BITS` of `r_data` (a plain slice, well-defined because a beat is always strictly narrower than the staging window)
 
-When the configured beat is narrower than `MAX_BEAT_BITS`, the upper bits of `pop_data` are stale bytes belonging to the next beat; the consumer already knows the width from `cfg` and reads only the low valid bits.
+When the configured beat is narrower than `MAX_BEAT_BITS`, the upper bits of `pop_data` are stale bytes belonging to the next beat. That's fine — the consumer already knows the width from `cfg` and reads only the low valid bits.
 
 ### Next-State: Pop First, Push Second
 
@@ -147,7 +147,7 @@ if (push_valid && push_ready) begin
 end
 ```
 
-A single non-blocking assignment then writes `r_data` / `r_count` from `v_data` / `v_count`, so same-cycle push + pop has no internal last-assignment race.
+One non-blocking assignment then writes `r_data` / `r_count` from `v_data` / `v_count`, so same-cycle push + pop has no internal last-assignment race.
 
 ### Elaboration-Time Contract
 

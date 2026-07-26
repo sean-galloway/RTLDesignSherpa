@@ -24,7 +24,7 @@
 # PWM (Pulse Width Modulation) Module
 
 ## Purpose
-The PWM module generates multiple independent pulse width modulation signals with configurable duty cycles, periods, and repeat counts. Each channel operates as an independent state machine with precise timing control and completion detection.
+The PWM module generates multiple independent pulse width modulation signals with configurable duty cycles, periods, and repeat counts. Each channel runs as its own state machine with precise timing control and completion detection.
 
 ## Key Features
 - Multiple independent PWM channels (parameterizable)
@@ -59,7 +59,7 @@ The PWM module generates multiple independent pulse width modulation signals wit
 
 ## State Machine
 
-Each PWM channel implements a 3-state finite state machine:
+Each PWM channel runs a 3-state finite state machine:
 
 ### States
 ```systemverilog

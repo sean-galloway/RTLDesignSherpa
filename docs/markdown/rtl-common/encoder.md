@@ -24,7 +24,7 @@
 # Encoder Module (`encoder.sv`)
 
 ## Purpose
-Converts a one-hot N-bit input to a binary encoded output. Performs the inverse operation of a decoder, encoding the position of the asserted bit into binary format.
+Converts a one-hot N-bit input back into its binary index—the inverse of a decoder. Feed it a one-hot vector, get out the position of the asserted bit in binary.
 
 ## Ports
 
@@ -40,7 +40,7 @@ Converts a one-hot N-bit input to a binary encoded output. Performs the inverse 
 ## Implementation Details
 
 ### Core Algorithm
-The encoder uses a combinational always block with a priority search:
+A combinational always block runs the priority search:
 
 ```systemverilog
 always_comb begin
@@ -52,9 +52,9 @@ end
 ```
 
 ### Operation Principle
-- Searches through input vector from LSB to MSB
+- Scans the input vector from LSB to MSB
 - Outputs the binary representation of the highest indexed set bit
-- Acts as a **priority encoder** when multiple bits are set (higher index wins)
+- Which makes it a **priority encoder** when multiple bits are set (higher index wins)
 
 ## Functional Behavior
 
@@ -76,20 +76,20 @@ end
 - **Priority encoding**: Higher-indexed bits take precedence
 - **Zero default**: Outputs 0 when no input bits are set
 - **Combinational**: Immediate response to input changes
-- **Self-sizing**: Output width automatically calculated using `$clog2(N)`
+- **Self-sizing**: Output width comes from `$clog2(N)`
 
 ## Design Features
 
 ### Automatic Width Calculation
 - **Output width**: `$clog2(N)` bits
 - **Example**: N=8 → 3-bit output, N=16 → 4-bit output
-- **Optimal sizing**: No wasted bits in output
+- **Optimal sizing**: No wasted bits in the output
 
 ### Priority Behavior
-The for-loop structure creates implicit priority:
+The for-loop gives you priority for free:
 - Later iterations overwrite earlier results
-- Highest-indexed set bit determines final output
-- Behaves as priority encoder for invalid one-hot inputs
+- So the highest-indexed set bit decides the final output
+- For invalid one-hot inputs, it quietly behaves as a priority encoder
 
 ## Use Cases
 
@@ -106,7 +106,7 @@ The for-loop structure creates implicit priority:
 
 ## Timing Characteristics
 - **Propagation delay**: Depends on input width and synthesis
-- **Critical path**: Through the for-loop comparisons
+- **Critical path**: Runs through the for-loop comparisons
 - **Setup/hold**: None (purely combinational)
 
 ## Design Considerations
@@ -114,12 +114,12 @@ The for-loop structure creates implicit priority:
 ### Input Validation
 - **Assumes one-hot input** for standard encoder behavior
 - **Handles multiple bits** gracefully (acts as priority encoder)
-- **Zero input** produces zero output (may or may not be desired)
+- **Zero input** produces zero output (whether that's what you want is up to you)
 
 ### Synthesis Implications
 - **Resource usage**: Typically synthesizes to multiplexer logic
-- **Optimization**: Modern synthesizers optimize the for-loop efficiently
-- **Scalability**: Performance degrades gradually with increasing N
+- **Optimization**: Modern synthesizers chew through the for-loop just fine
+- **Scalability**: Performance degrades gradually as N grows
 
 ## Common Usage Patterns
 

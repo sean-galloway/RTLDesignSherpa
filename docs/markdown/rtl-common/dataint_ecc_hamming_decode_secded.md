@@ -24,7 +24,7 @@
 # dataint_ecc_hamming_decode_secded Module Documentation
 
 ## Purpose
-The `dataint_ecc_hamming_decode_secded` module implements a Hamming decoder with Single Error Correction, Double Error Detection (SECDED) capability. It decodes Hamming-encoded data, detects and corrects single-bit errors, and flags double-bit errors.
+The `dataint_ecc_hamming_decode_secded` module is a Hamming decoder with SECDED—Single Error Correction, Double Error Detection. It decodes Hamming-encoded data, detects and fixes single-bit errors, and raises a flag when two bits have gone bad (which it can see but not repair).
 
 ## Module Declaration
 ```systemverilog
@@ -68,11 +68,11 @@ module dataint_ecc_hamming_decode_secded #(
 ## Functionality
 
 ### Decoding Process
-1. **Syndrome Generation**: Calculate parity check syndrome
-2. **Overall Parity Check**: Verify SECDED bit
-3. **Error Classification**: Determine error type and location
+1. **Syndrome Generation**: Calculate the parity check syndrome
+2. **Overall Parity Check**: Verify the SECDED bit
+3. **Error Classification**: Work out the error type and location
 4. **Error Correction**: Fix single-bit errors
-5. **Data Extraction**: Extract corrected original data
+5. **Data Extraction**: Pull the corrected original data back out
 
 ### Error Detection Logic
 | Overall Parity | Syndrome | Error Type | Action |
@@ -87,7 +87,7 @@ module dataint_ecc_hamming_decode_secded #(
 ### Key Functions
 
 #### `bit_position(k)` Function
-Calculates the position of data bit `k` in the encoded stream:
+Tells you where data bit `k` ended up in the encoded stream:
 ```systemverilog
 function automatic integer bit_position(input integer k);
     integer j, pos;
@@ -102,7 +102,7 @@ endfunction
 ```
 
 #### `get_covered_bits(parity_bit)` Function
-Returns bitmask of positions covered by a specific parity bit:
+Hands back a bitmask of every position a given parity bit covers:
 ```systemverilog
 function automatic [TotalWidth-1:0] get_covered_bits(input integer parity_bit);
     integer j;
@@ -155,7 +155,7 @@ end
 ## State Machine Operation
 
 ### Control States
-The module operates under enable control with these logical states:
+There's no fancy FSM here—just `enable` gating two logical states:
 
 1. **IDLE**: `enable = 0` - No processing
 2. **DECODE**: `enable = 1` - Active decoding and error correction
@@ -196,9 +196,9 @@ end
 
 ### Error Correction Capabilities
 - **Single Error Correction**: Automatically fixes single-bit errors
-- **Double Error Detection**: Flags but cannot correct double-bit errors
-- **Error Location**: Syndrome points to exact error location
-- **SECDED Protection**: Additional parity bit improves error detection
+- **Double Error Detection**: Flags double-bit errors but can't correct them
+- **Error Location**: The syndrome points right at the bad bit
+- **SECDED Protection**: The extra parity bit buys you double-error detection
 
 ### Performance Characteristics
 - **Latency**: One clock cycle for error correction
@@ -206,29 +206,26 @@ end
 - **Detection Rate**: 100% for single and double errors
 
 ### Debug Support
-The `DEBUG` parameter exists but is currently a **no-op**: the RTL's only
-`DEBUG` reference is an empty `initial begin if (DEBUG != 0) begin ... end end`
-placeholder with no `$display` statements. Enabling `DEBUG` produces no output
-in the current implementation.
+Fair warning: the `DEBUG` parameter is a **no-op** today. The RTL's only nod to it is an empty `initial begin if (DEBUG != 0) begin ... end end` placeholder with no `$display` statements. Turn it on and you'll get exactly no output in the current implementation.
 
 ## Error Handling Details
 
 ### Syndrome Interpretation
-- **Syndrome = 0**: No error in Hamming bits
-- **Syndrome ≠ 0**: Points to error bit position (1-based)
+- **Syndrome = 0**: No error in the Hamming bits
+- **Syndrome ≠ 0**: Points to the error bit position (1-based)
 - **Zero-based Syndrome**: `w_syndrome_0_based = w_syndrome - 1`
 
 ### SECDED Bit Function
-The SECDED bit enables distinguishing between:
+The SECDED bit is what lets you tell apart:
 - Single-bit errors (correctable)
-- Double-bit errors (detectable but uncorrectable)
+- Double-bit errors (detectable, but you're out of luck on correction)
 - No errors
 
 ### Error Correction Process
-1. Calculate syndrome from received parity bits
-2. Check overall parity (SECDED bit)
-3. If single error detected, flip bit at syndrome position
-4. If double error detected, flag but don't correct
+1. Calculate the syndrome from the received parity bits
+2. Check overall parity (the SECDED bit)
+3. Single error detected? Flip the bit at the syndrome position
+4. Double error detected? Flag it, but leave the data alone
 
 ## Usage Examples
 
@@ -278,7 +275,7 @@ generate
 endgenerate
 ```
 
-This extracts only the original data bits from the corrected encoded word.
+That peels just the original data bits out of the corrected encoded word.
 
 ## Applications
 - ECC memory systems
@@ -294,9 +291,9 @@ This extracts only the original data bits from the corrected encoded word.
 
 ## Performance Considerations
 - **Critical Path**: Syndrome calculation and error correction
-- **Pipeline Stages**: Consider pipelining for high-frequency operation
+- **Pipeline Stages**: Consider pipelining if you're pushing frequency
 - **Area**: Scales with data width and parity requirements
-- **Power**: Moderate due to combinational parity calculations
+- **Power**: Moderate—the combinational parity math costs you
 
 ## Navigation
 

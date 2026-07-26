@@ -24,7 +24,7 @@
 # CAM Tag Module
 
 ## Purpose
-The `cam_tag` module implements a Content Addressable Memory (CAM) for tag storage and lookup. It provides fast associative lookup capabilities where data can be found based on content rather than address, commonly used in cache implementations, translation lookaside buffers (TLBs), and routing tables.
+The `cam_tag` module implements a Content Addressable Memory (CAM) for tag storage and lookup. Lookups are associative — you find data by content, not by address — which is exactly what cache implementations, translation lookaside buffers (TLBs), and routing tables need.
 
 ## Parameters
 - `ENABLE`: Enable/disable CAM functionality (default: 1)
@@ -56,7 +56,7 @@ logic [DEPTH-1:0] r_valid;                  // Valid bit for each entry
 ```
 
 ### Search Logic
-Three parallel search operations are implemented:
+Three parallel search operations run side by side:
 
 #### 1. Next Available Location Search
 ```systemverilog

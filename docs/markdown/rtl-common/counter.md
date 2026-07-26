@@ -24,7 +24,7 @@
 # Basic Counter Module
 
 ## Overview
-The `counter` module is a simple, configurable up-counter that generates a tick pulse when reaching its maximum value. It's designed for basic timing applications where a periodic signal is needed.
+The `counter` module is as simple as it gets: a configurable up-counter that raises a tick pulse when it reaches its maximum value. Use it for basic timing jobs where all you need is a periodic signal.
 
 ## Module Declaration
 ```systemverilog
@@ -70,7 +70,7 @@ logic [$clog2(MAX+1)-1:0] r_count;
 - **Operation**: Increments every clock cycle until reaching MAX
 
 ### State Machine Behavior
-The counter operates as a simple state machine:
+Behaviorally, it's a tiny state machine:
 
 1. **Reset State**: `r_count = 0`, `tick = 0`
 2. **Counting State**: `r_count` increments each cycle
@@ -216,6 +216,8 @@ end
 3. **Fixed Increment**: Always increments by 1
 4. **No Load Capability**: Cannot load arbitrary values
 5. **Single Output**: Only provides tick signal, not count value
+
+Know these going in. If you need any of them, you want `counter_load_clear` — don't bolt an enable onto this one and call it done.
 
 ## Related Modules
 - `counter_load_clear`: Adds load and clear functionality

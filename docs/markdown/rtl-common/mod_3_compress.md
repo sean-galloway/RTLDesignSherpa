@@ -29,9 +29,9 @@
 
 ## Overview
 
-`mod_3_compress` is a purely combinational block that computes `d_in mod 3` for a 16-bit operand, returning the 2-bit remainder (0..2). It is built in the same carry-save-compressor style as `div_by_15_ceil_32compress.sv`, a 3:2 compressor tree feeding a final carry-propagate add and a small fold, but it emits only the remainder, which is exactly what the monbus burst-writer needs to round a beat count **down** to a whole number of 3-beat records: `rounded = X - (X mod 3)`.
+`mod_3_compress` is a purely combinational block that computes `d_in mod 3` for a 16-bit operand, returning the 2-bit remainder (0..2). It's built in the same carry-save-compressor style as `div_by_15_ceil_32compress.sv`—a 3:2 compressor tree feeding a final carry-propagate add and a small fold—but it emits only the remainder, which is exactly what the monbus burst-writer needs to round a beat count **down** to a whole number of 3-beat records: `rounded = X - (X mod 3)`.
 
-It uses no `*` or `/` operator, so it infers no DSP block and no iterative divider, just a shallow tree of carry-save adders and a couple of small adds.
+There's no `*` or `/` operator anywhere, so it infers no DSP block and no iterative divider—just a shallow tree of carry-save adders and a couple of small adds.
 
 ### Key Features
 
@@ -43,7 +43,7 @@ It uses no `*` or `/` operator, so it infers no DSP block and no iterative divid
 
 ## Module Purpose
 
-The monbus compressor packs monitor packets into fixed 3-beat records. To decide how many whole records a beat count covers, it needs `X - (X mod 3)`, which requires the remainder `X mod 3`. This module computes that remainder combinationally without a divider, so the burst-writer can round the count down in a single cycle of logic.
+The monbus compressor packs monitor packets into fixed 3-beat records. Working out how many whole records a beat count covers means computing `X - (X mod 3)`, which means you need the remainder `X mod 3`. This module produces that remainder combinationally without a divider, so the burst-writer can round the count down in a single cycle of logic.
 
 **Use Cases:**
 
@@ -72,7 +72,7 @@ This module has no parameters. The operand width is fixed at 16 bits and the res
 
 ### Base-4 Digit-Sum Method
 
-The core identity is that `4^k ≡ 1 (mod 3)`. If `d_in` is split into 2-bit groups, each group is a base-4 digit with weight `4^k`, and since every weight is `1 (mod 3)`, the **sum of the eight digits is congruent to `d_in (mod 3)`**. The problem therefore reduces to summing eight small digits and taking that sum mod 3.
+The trick rests on one identity: `4^k ≡ 1 (mod 3)`. Split `d_in` into 2-bit groups and each group is a base-4 digit with weight `4^k`; since every weight is `1 (mod 3)`, the **sum of the eight digits is congruent to `d_in (mod 3)`**. The problem therefore collapses to summing eight small digits and taking that sum mod 3.
 
 The eight 2-bit groups are zero-extended to the 6-bit carry-save width:
 
@@ -100,7 +100,7 @@ assign w_grp_sum = w_sumG4 + {w_carryG4[BITS-2:0], 1'b0};
 
 ### Final Fold and Conditional Subtract
 
-The digit sum `w_grp_sum` is at most 24, so it is folded once more onto its own base-4 digits (same residue mod 3), giving a value in 0..7, and then a conditional subtract brings it into the final 0..2 range:
+The digit sum `w_grp_sum` tops out at 24, so it is folded once more onto its own base-4 digits (same residue mod 3), giving a value in 0..7, and then a conditional subtract brings it into the final 0..2 range:
 
 ```systemverilog
 assign w_fold = {2'b0, w_grp_sum[1:0]} + {2'b0, w_grp_sum[3:2]} + {3'b0, w_grp_sum[4]};
@@ -144,7 +144,7 @@ assign rounded_count = beat_count - {14'b0, beat_rem};
 
 ### Uses
 
-- [math_adder_carry_save](math_adder_carry_save.md) - The N-bit carry-save (3:2) compressor instantiated throughout the tree
+- [math_adder_carry_save](../rtl-math/math_adder_carry_save.md) - The N-bit carry-save (3:2) compressor instantiated throughout the tree
 
 ### See Also
 

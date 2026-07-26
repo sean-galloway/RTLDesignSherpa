@@ -24,7 +24,10 @@
 # Reverse Vector Module
 
 ## Purpose
-The `reverse_vector` module performs bit-order reversal on an input vector, swapping the most significant bit with the least significant bit, second MSB with second LSB, and so on. This is a purely combinational operation that reverses the bit ordering of the input data.
+The `reverse_vector` module flips the bit order of an input vector end for end:
+MSB swaps with LSB, second MSB with second LSB, and so on down the line. It's a
+purely combinational operation — no clock, no state, just wires with an opinion
+about ordering.
 
 ## Key Features
 - Combinational bit reversal operation
@@ -59,7 +62,7 @@ always_comb begin
 end
 ```
 
-The implementation uses a simple for-loop to map each bit from the input to its corresponding reversed position in the output:
+A simple for-loop maps each input bit to its mirrored output position:
 - Input bit 0 → Output bit (WIDTH-1)
 - Input bit 1 → Output bit (WIDTH-2)
 - Input bit i → Output bit (WIDTH-1-i)
@@ -110,13 +113,14 @@ The module works with any vector width specified by the WIDTH parameter:
 - No hardcoded bit indices
 
 ### 3. For-Loop Synthesis
-The for-loop is completely unrolled during synthesis, creating individual wire assignments for each bit position. This results in:
+Synthesis unrolls the for-loop completely, leaving one wire assignment per bit
+position. What you get:
 - Parallel bit assignments (no sequential operation)
 - Optimal timing characteristics
 - Efficient hardware implementation
 
 ### 4. Bidirectional Property
-Applying the reverse operation twice returns the original vector:
+Reverse twice and you're back where you started:
 ```systemverilog
 original_vector == reverse(reverse(original_vector))
 ```
@@ -124,7 +128,7 @@ original_vector == reverse(reverse(original_vector))
 ## Synthesis Considerations
 
 ### Hardware Implementation
-The synthesized hardware consists of:
+What synthesis actually builds:
 - Direct wire connections from input bits to output bits
 - No logic gates required (just routing)
 - Minimal area overhead
@@ -263,14 +267,15 @@ assert(reverse_vector_inst2.vector_rev == vector_in);
 ## Related Modules and Alternatives
 
 ### Byte Reversal
-For byte-level endianness conversion, a separate module might be more appropriate:
+If what you actually need is byte-level endianness conversion, a separate module
+is the better tool:
 ```systemverilog
 // Reverse byte order instead of bit order
 assign byte_reversed = {data[7:0], data[15:8], data[23:16], data[31:24]};
 ```
 
 ### Configurable Reversal
-An enhanced version could include enable control:
+An enhanced version could add an enable:
 ```systemverilog
 assign vector_out = enable ? vector_rev : vector_in;
 ```

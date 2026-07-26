@@ -24,7 +24,7 @@
 # Leading One Trailing One Module
 
 ## Purpose
-The `leading_one_trailing_one` module identifies the positions of the most significant bit (leading one) and least significant bit (trailing one) in an input data vector. It provides both index outputs and one-hot vector representations of these positions, along with status flags for edge cases.
+The `leading_one_trailing_one` module finds both ends of your set bits at once: the position of the most significant bit (leading one) and the least significant bit (trailing one) in an input data vector. You get index outputs, one-hot vector representations of both positions, and status flags for the edge cases.
 
 ## Key Features
 - Finds the highest set bit position (leading one)
@@ -57,7 +57,7 @@ The `leading_one_trailing_one` module identifies the positions of the most signi
 ## Implementation Details
 
 ### Submodules
-The module instantiates two specialized finder modules:
+Internally it's two specialized finder modules working opposite ends:
 
 1. **find_last_set**: Locates the position of the most significant set bit
    - Connected to `leadingone` output

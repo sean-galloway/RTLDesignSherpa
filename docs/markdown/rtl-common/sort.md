@@ -25,7 +25,10 @@
 
 ## Purpose
 
-The Sort module is a pipelined hardware sorting engine that implements the odd-even sort algorithm to sort arrays of configurable size in descending order. The module is designed for high-throughput applications where new data can be accepted every clock cycle, with predictable latency equal to the number of elements being sorted.
+The Sort module is a pipelined hardware sorting engine built on the odd-even
+sort algorithm, sorting arrays of configurable size in descending order. It's
+aimed at high-throughput work: new data accepted every clock cycle, with
+predictable latency equal to the number of elements being sorted.
 
 ## Module Overview
 
@@ -81,7 +84,8 @@ module sort #(
 
 ### Overview
 
-The module implements the **Odd-Even Sort** (also known as **Brick Sort**) algorithm, which is particularly well-suited for pipelined hardware implementation.
+The module implements the **Odd-Even Sort** (also known as **Brick Sort**)
+algorithm — a particularly good fit for pipelined hardware, as you'll see below.
 
 ### Algorithm Description
 
@@ -183,7 +187,7 @@ flowchart LR
 
 ### Naming Conventions
 
-The module follows strict naming conventions for signal clarity:
+Naming is strict, and it pays off when you're reading waveforms:
 
 - **Wire signals** (combinational): Prefixed with `w_`
   - `w_values[stage][element]`: Unpacked arrays for easy manipulation
@@ -249,7 +253,8 @@ end
 
 ## State Machines
 
-The Sort module does **not** use explicit Finite State Machines (FSMs). Instead, it uses a **pipeline-based control scheme**:
+The Sort module does **not** use explicit Finite State Machines (FSMs). Control
+is just the pipeline itself — a **pipeline-based control scheme**:
 
 ### Control Flow
 

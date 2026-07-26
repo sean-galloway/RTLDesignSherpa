@@ -31,7 +31,7 @@
 
 ## Overview
 
-The Common RTL Library provides **49 reusable building blocks** for FPGA and ASIC designs. All modules are technology-agnostic, fully parameterizable, and verified with comprehensive CocoTB test suites.
+The Common RTL Library is **49 reusable building blocks** for FPGA and ASIC designs. Every module is technology-agnostic, fully parameterizable, and verified with comprehensive CocoTB test suites.
 
 **Quick Stats:**
 - **49 modules** across 10 categories (arithmetic split out to `rtl/math/`, clock-crossing to `rtl/cdc/`)
@@ -44,7 +44,7 @@ The Common RTL Library provides **49 reusable building blocks** for FPGA and ASI
 ## Module Categories
 
 Counts live in one place — the [count table in index.md](index.md#module-count-by-category).
-A browse-oriented view of what's in each category:
+Here's the browse-oriented view of what's in each category:
 
 | Category | Examples |
 |----------|----------|
@@ -146,7 +146,7 @@ counter_bin #(
 
 ### Use Case 2: Timeout Timer
 
-**Need:** Detect when operation takes too long
+**Need:** Detect when an operation takes too long
 
 **Module:** `counter_freq_invariant.sv`
 
@@ -246,11 +246,11 @@ dataint_ecc_hamming_decode_secded #(
 
 ### Use Case 6: Clock Domain Crossing (CDC)
 
-**Need:** Safely cross signal from one clock domain to another
+**Need:** Safely cross a signal from one clock domain to another
 
 **Module:** `cdc_synchronizer.sv` in `rtl/cdc/` (for data) or `sync_pulse.sv`
-in `rtl/common/` (for pulses). There is no `sync_2ff` module -- earlier revisions
-of this guide named one that has never existed in the tree.
+in `rtl/common/` (for pulses). There is no `sync_2ff` module — earlier revisions
+of this guide named one, but it has never existed in the tree.
 
 ```systemverilog
 // Option 1: Synchronize multi-bit data (rtl/cdc/cdc_synchronizer.sv)
@@ -318,7 +318,7 @@ sync_pulse u_pulse_sync (
 ### "I need a FIFO..."
 
 **For production designs:**
-→ Use `rtl/amba/gaxi/gaxi_fifo_sync.sv` (robust, well-tested)
+→ Use `rtl/amba/gaxi/gaxi_fifo_sync.sv` (solid, well-tested)
 
 **For learning/simple cases:**
 → Check `rtl/common/` for basic FIFO examples
@@ -327,7 +327,7 @@ sync_pulse u_pulse_sync (
 
 ## Integration Checklist
 
-When integrating a common module into your design:
+When you integrate one of these modules into your design:
 
 - [ ] **Search first** - Verify no better alternative exists
 - [ ] **Read module header** - Understand parameters and constraints
@@ -395,6 +395,8 @@ gtkwave val/common/GTKW/counter_bin.gtkw
 ---
 
 ## Common Pitfalls and How to Avoid Them
+
+These four show up in design reviews again and again. All of them are cheap to avoid once you know what to look for.
 
 ### ❌ Pitfall 1: Wrong Reset Polarity
 
@@ -606,11 +608,11 @@ grep -r "module_name" rtl/
 
 ### Create Your Own Modules
 
-1. Follow patterns in existing modules
+1. Follow the patterns in the existing modules
 2. Use consistent naming (`category_function.sv`)
 3. Add comprehensive header comments
-4. Create test in `val/common/`
-5. Update this README if adding new category
+4. Create a test in `val/common/`
+5. Update this README if you're adding a new category
 
 ### Contribute
 

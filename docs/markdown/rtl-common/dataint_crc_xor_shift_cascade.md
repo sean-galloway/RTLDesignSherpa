@@ -24,7 +24,7 @@
 # dataint_crc_xor_shift_cascade Module Documentation
 
 ## Purpose
-The `dataint_crc_xor_shift_cascade` module processes 8 bits of data through a cascade of CRC calculation stages. It chains together 8 instances of `dataint_crc_xor_shift` to efficiently process a full byte of data in a single combinational operation.
+The `dataint_crc_xor_shift_cascade` module pushes 8 bits of data through a cascade of CRC calculation stages. It chains together 8 instances of `dataint_crc_xor_shift` to chew through a full byte of data in a single combinational operation.
 
 ## Module Declaration
 ```systemverilog
@@ -54,7 +54,7 @@ module dataint_crc_xor_shift_cascade #(
 ## Functionality
 
 ### Cascade Operation
-The module creates a pipeline of 8 CRC calculation stages:
+Eight CRC calculation stages, chained into a pipeline:
 1. **Stage 0**: Processes MSB of data byte with initial CRC state
 2. **Stages 1-6**: Each processes next data bit with previous stage output
 3. **Stage 7**: Processes LSB and produces final result
@@ -74,7 +74,7 @@ block_input → [Stage 0] → [Stage 1] → ... → [Stage 7] → block_output
 ```
 
 ### Generate Block Structure
-The module uses a parameterized generate block to create the cascade:
+The cascade is built from a parameterized generate block:
 
 ```systemverilog
 generate
@@ -129,6 +129,8 @@ Total delay is the sum of 8 CRC stage delays:
 - Each stage: ~2-3 gate delays
 - Total cascade: ~16-24 gate delays
 - May require pipelining for very high frequencies
+
+Do that math against your clock period before you promise timing closure — 24 gate levels is not free at 400 MHz.
 
 ### Critical Path
 The critical path runs through all 8 stages:

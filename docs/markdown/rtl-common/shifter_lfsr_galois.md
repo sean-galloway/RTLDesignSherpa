@@ -24,7 +24,11 @@
 # Galois LFSR Module
 
 ## Purpose
-The `shifter_lfsr_galois` module implements a Galois Linear Feedback Shift Register, which features distributed XOR gates at tap positions rather than a single feedback point. This architecture offers better timing characteristics and higher operating frequencies compared to Fibonacci LFSRs.
+The `shifter_lfsr_galois` module is a Galois Linear Feedback Shift Register:
+instead of one feedback XOR at the end of the chain, the XOR gates are
+distributed across the tap positions inside the register. That buys you better
+timing and higher operating frequencies than the Fibonacci form — which is
+usually why you're reaching for it.
 
 ## Key Features
 - Galois (internal XOR) LFSR architecture
@@ -93,7 +97,7 @@ end
 ```systemverilog
 assign w_feedback = r_lfsr[0];
 ```
-The feedback signal comes directly from the LSB (bit 0) of the current LFSR state.
+The feedback is just the LSB (bit 0) of the current LFSR state. That's it.
 
 ### Galois Next State Calculation
 ```systemverilog
@@ -134,17 +138,21 @@ end
 ```systemverilog
 r_lfsr <= {WIDTH{1'b1}};  // initialization to all 1's
 ```
-Unlike the Fibonacci version, this module resets to all ones, which is a valid non-zero state for immediate operation.
+Where the Fibonacci version resets to all zeros, this one resets to all ones —
+a valid non-zero state, so it can run immediately.
 
 ### 2. Combinational Next State Logic
-The next LFSR state is calculated combinationally in the `always_comb` block, then registered in the `always_ff` block. This separates timing concerns from logic complexity.
+The next LFSR state is calculated combinationally in the `always_comb` block,
+then registered in the `always_ff` block. Clean separation: timing concerns stay
+out of the logic, and the logic stays easy to read.
 
 ### 3. Conditional XOR Application
 ```systemverilog
 if (w_feedback) begin
     // Only apply tap XORs when LSB is 1
 ```
-XOR operations at tap positions only occur when the LSB feedback bit is 1, implementing the proper Galois LFSR behavior.
+The tap XORs fire only when the LSB feedback bit is 1 — that conditional
+inversion *is* the Galois behavior.
 
 ### 4. Bounds Checking
 ```systemverilog
@@ -153,7 +161,8 @@ if (w_tap_positions[j] > 0 && w_tap_positions[j] <= WIDTH) begin
 Explicit bounds checking prevents out-of-range array access and handles unused tap positions (value 0).
 
 ### 5. Right-Shift with Distributed Feedback
-The basic operation is a right shift, but with XOR gates inserted at tap positions that conditionally invert bits based on the LSB feedback.
+The basic operation is a right shift, but with XOR gates inserted at tap
+positions that conditionally invert bits based on the LSB feedback.
 
 ## Timing Example (4-bit Galois LFSR)
 

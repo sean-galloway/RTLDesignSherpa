@@ -24,7 +24,7 @@
 # Binary Counter for FIFOs
 
 ## Overview
-The `counter_bin` module is a specialized binary counter designed specifically for FIFO (First-In-First-Out) buffer applications. Unlike traditional counters, it implements a unique wrap-around behavior where the MSB is inverted and lower bits are cleared when reaching the maximum value, creating a pattern suitable for circular buffer management.
+The `counter_bin` module is a binary counter with one job: FIFO (First-In-First-Out) buffer addressing. Instead of a plain wrap, it inverts the MSB and clears the lower bits when it reaches the maximum value. That folded counting pattern is exactly what circular buffer management wants — the MSB becomes your lap marker.
 
 ## Module Declaration
 ```systemverilog
@@ -85,7 +85,7 @@ assign w_max_val = (WIDTH-1)'(MAX - 1);
 ```
 
 ### Special Wrap Logic
-The counter implements a unique wrap-around behavior:
+Here's the wrap behavior that makes this a FIFO counter rather than a generic one:
 
 ```systemverilog
 always_comb begin
@@ -103,7 +103,7 @@ end
 ## Operation Principles
 
 ### Normal Counting
-When `counter_bin_curr[WIDTH-2:0] < MAX-1`:
+When `counter_bin_curr[WIDTH-2:0] < MAX-1`, nothing exotic happens:
 - Counter increments normally by 1
 - MSB remains unchanged
 - Standard binary counting behavior
@@ -145,7 +145,7 @@ Wrap:    0000  <- MSB inverted (1→0), lower bits cleared
 ## FIFO Application Context
 
 ### Address Generation
-This counter pattern is ideal for FIFO addressing because:
+This pattern earns its keep in FIFO addressing because:
 1. **Circular Addressing**: Lower bits provide circular buffer addresses
 2. **Overflow Detection**: MSB toggles indicate buffer wrap-around
 3. **Full/Empty Logic**: Comparing MSBs between read/write pointers

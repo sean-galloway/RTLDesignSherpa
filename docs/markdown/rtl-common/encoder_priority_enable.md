@@ -24,7 +24,7 @@
 # Priority Encoder with Enable (`encoder_priority_enable.sv`)
 
 ## Purpose
-Encodes the highest priority (highest index) asserted bit in the input vector, with an enable control signal. Unlike the basic encoder, this module explicitly searches from MSB to LSB for true priority encoding.
+Encodes the highest priority (highest index) asserted bit in the input vector, with an enable control signal. Where the basic encoder gets its priority behavior as a side effect, this one searches MSB to LSB on purpose.
 
 ## Ports
 
@@ -63,8 +63,8 @@ end
 
 ### Operation Principle
 - **True priority encoding**: Searches from MSB (highest priority) to LSB
-- **Enable control**: Only operates when enable is asserted
-- **Found flag**: Prevents multiple assignments, ensuring highest priority wins
+- **Enable control**: Only runs when enable is asserted
+- **Found flag**: Blocks multiple assignments, so the highest priority wins
 - **Clean disable**: Outputs zero when disabled
 
 ## Functional Behavior
@@ -91,8 +91,8 @@ end
 
 ### True Priority Encoding
 - **MSB-first search**: `for (int i = WIDTH-1; i >= 0; i--)`
-- **Single assignment**: Found flag prevents multiple writes
-- **Highest wins**: First match (highest index) determines output
+- **Single assignment**: The found flag stops any overwrites
+- **Highest wins**: The first match (highest index) sets the output
 
 ### Enable Control
 - **Conditional operation**: Only active when `enable = 1`
@@ -105,8 +105,8 @@ end
 encode = '0;
 found = 1'b0;
 ```
-- Ensures all signal paths have defined values
-- Prevents synthesis warnings about incomplete assignments
+- Gives every signal path a defined value
+- Keeps the synthesizer from warning about incomplete assignments
 
 ## Use Cases
 
@@ -148,7 +148,7 @@ encoder_priority_enable #(.WIDTH(4)) error_encoder (
 ### Priority Assignment
 - **Bit assignment**: Higher index = higher priority
 - **Planning**: Assign critical functions to higher-indexed bits
-- **Documentation**: Clear priority hierarchy essential
+- **Documentation**: Write the priority hierarchy down—you'll thank yourself
 
 ### Performance Scaling
 - **Linear complexity**: Search time increases with WIDTH

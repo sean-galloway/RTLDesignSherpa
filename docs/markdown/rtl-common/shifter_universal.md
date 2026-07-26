@@ -24,7 +24,10 @@
 # Universal Shifter Module
 
 ## Purpose
-The `shifter_universal` module implements a versatile shift register that can perform multiple operations including left shift, right shift, parallel load, and hold operations. It supports both serial and parallel data input/output, making it suitable for a wide range of digital system applications.
+The `shifter_universal` module is the general-purpose shift register: left shift,
+right shift, parallel load, and hold, with both serial and parallel data in and
+out. If your design needs bits moved sideways in any direction, this is the part
+you reach for.
 
 ## Key Features
 - Four distinct operations: hold, right shift, left shift, parallel load
@@ -155,10 +158,11 @@ The module provides separate serial inputs and outputs for both directions:
 - **Left side**: `i_sdata_lt` (input), `o_sdata_lt` (output)
 - **Right side**: `i_sdata_rt` (input), `o_sdata_rt` (output)
 
-This allows chaining multiple shifters or connecting to bidirectional serial systems.
+That's what lets you chain multiple shifters or hook into bidirectional serial systems.
 
 ### 2. Clean Serial Output Management
-Serial outputs are explicitly set to zero when not actively shifting in that direction, preventing glitches and providing well-defined states.
+Serial outputs are explicitly driven to zero when not actively shifting in that
+direction — no glitches, no ambiguous states.
 
 ### 3. Asynchronous Reset
 Reset immediately clears all outputs to zero, providing deterministic startup conditions.
@@ -168,7 +172,7 @@ The design cleanly separates:
 - **Combinational logic**: Calculates next state
 - **Sequential logic**: Registers the state on clock edge
 
-This approach improves timing predictability and synthesis results.
+That split improves timing predictability and synthesis results.
 
 ## Timing Diagrams
 
@@ -244,13 +248,13 @@ select = 2'b01;         // Right shift
 i_sdata_rt = o_pdata[0];  // Combinational tap -- NOT o_sdata_rt
 ```
 
-Feed back `o_pdata[0]`, not `o_sdata_rt`. The serial outputs are registered
-(`o_sdata_rt <= w_sdata_rt`), so routing `o_sdata_rt` back returns the ejected
-bit one shift too late and the pattern does not rotate -- it runs a
-`WIDTH+1`-long cycle. With `WIDTH=4` loaded to `1011`, the registered feedback
-gives `1011 -> 0101 -> 1010 -> 1101 -> 0110 -> 1011` (period 5, and `1110`
-and `0111` never appear), whereas the combinational tap gives the true rotation
-`1011 -> 1101 -> 1110 -> 0111 -> 1011`.
+Feed back `o_pdata[0]`, not `o_sdata_rt`. Here's the trap: the serial outputs
+are registered (`o_sdata_rt <= w_sdata_rt`), so routing `o_sdata_rt` back
+returns the ejected bit one shift too late and the pattern does not rotate --
+it runs a `WIDTH+1`-long cycle. With `WIDTH=4` loaded to `1011`, the registered
+feedback gives `1011 -> 0101 -> 1010 -> 1101 -> 0110 -> 1011` (period 5, and
+`1110` and `0111` never appear), whereas the combinational tap gives the true
+rotation `1011 -> 1101 -> 1110 -> 0111 -> 1011`.
 
 ### Scan Chain for Testing
 ```systemverilog

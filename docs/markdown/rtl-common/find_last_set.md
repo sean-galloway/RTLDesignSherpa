@@ -24,7 +24,7 @@
 # Find Last Set (`find_last_set.sv`)
 
 ## Purpose
-Finds the index of the most significant bit (MSB) that is set to '1' in the input vector. Implements a priority encoder that favors higher-indexed bits.
+Finds the index of the most significant bit (MSB) that's set to '1' in the input vector—the mirror image of find_first_set, favoring the higher-indexed bits.
 
 ## Ports
 
@@ -60,7 +60,7 @@ end
 ### Search Strategy
 - **Direction**: MSB to LSB (right to left, descending index)
 - **Priority**: Higher indices have higher priority
-- **First match**: Stops at first '1' bit encountered from MSB
+- **First match**: Stops at the first '1' bit encountered from the MSB
 - **Found flag**: Prevents multiple assignments
 
 ## Functional Behavior
@@ -82,7 +82,7 @@ end
 | 11111111  | 111        | All bits set - bit 7 wins |
 
 ### Key Characteristics
-- **MSB priority**: Always returns highest index when multiple bits set
+- **MSB priority**: Multiple bits set? You get the highest index
 - **Zero default**: Returns 0 when no bits are set (same as find_first_set)
 - **Deterministic**: Same input always produces same output
 - **Combinational**: Immediate response to input changes
@@ -93,9 +93,9 @@ end
 ```systemverilog
 for (int i = WIDTH - 1; i >= 0; i--) begin
 ```
-- **MSB-first**: Starts from highest bit index
-- **Decrementing**: Moves toward LSB
-- **Early termination**: Stops at first match found
+- **MSB-first**: Starts from the highest bit index
+- **Decrementing**: Walks toward the LSB
+- **Early termination**: Stops at the first match found
 
 ### Width Parameterization
 Same auto-sizing as `find_first_set`:
@@ -169,7 +169,7 @@ find_last_set #(.WIDTH(16)) cache_priority (
 ```
 MSB check → MSB-1 check → ... → LSB check → Output
 ```
-- **Path length**: Linear with WIDTH in worst case
+- **Path length**: Linear with WIDTH in the worst case
 - **Typical case**: Shorter path when higher bits are set
 - **Optimization**: Synthesis tools create efficient implementations
 

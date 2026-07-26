@@ -23,11 +23,11 @@
 
 # Binary Counter with Load and Variable Increment
 
-A FIFO-optimized binary counter supporting standard increment, variable increment, and direct load operations with configurable wraparound behavior for efficient FIFO pointer management.
+A FIFO-optimized binary counter with three tricks — standard increment, variable increment, and direct load — plus configurable wraparound behavior built for efficient FIFO pointer management.
 
 ## Overview
 
-The `counter_bin_load` module extends basic binary counting with three distinct operating modes: standard +1 increment, variable-amount increment, and direct load operations. It is specifically optimized for FIFO pointer management where drop/flush operations require jumping the read pointer by arbitrary amounts. The module implements FIFO-style wraparound at 2×MAX with MSB toggle for full/empty detection.
+The `counter_bin_load` module takes basic binary counting and adds three distinct operating modes: standard +1 increment, variable-amount increment, and direct load. It's built specifically for FIFO pointer management, where drop/flush operations need to jump the read pointer by arbitrary amounts. The wraparound is FIFO-style — at 2×MAX, with an MSB toggle for full/empty detection. If you've ever had to discard a burst of FIFO entries mid-stream, this is the counter that makes it painless.
 
 ## Module Declaration
 
@@ -162,7 +162,7 @@ assign empty = (wr_ptr[WIDTH-2:0] == rd_ptr[WIDTH-2:0]) &&
 **Why This Works:**
 - Normal operation: wr_ptr advances, MSBs eventually differ → full
 - After wraparound: rd_ptr catches up, MSBs match again → empty
-- MSB acts as "lap counter" for circular buffer
+- The MSB does lap-counter duty for the circular buffer — it's how you tell "wrapped, so full" apart from "caught up, so empty."
 
 ## Implementation Details
 
@@ -213,7 +213,7 @@ end
 
 ### Combinational Next-Value Preview
 
-The `counter_bin_next` output provides a one-cycle lookahead of the counter value, useful for:
+The `counter_bin_next` output gives you a one-cycle lookahead of the counter value. Handy for:
 - FIFO full/empty prediction
 - Pre-computing next address
 - Pipelined operations
@@ -441,7 +441,7 @@ localparam int PTR_WIDTH = $clog2(FIFO_DEPTH) + 1;  // +1 for MSB
 3. **Load Operation**: Direct assignment
    - Shortest path: Mux select
 
-**Optimization Tip:** If add operation is critical path, consider pipelining:
+**Optimization Tip:** If the add operation is your critical path, pipeline it:
 ```systemverilog
 // Pipeline add operation
 logic [WIDTH-1:0] r_add_result;
@@ -536,6 +536,8 @@ assign mem_addr = wr_ptr;  // Includes MSB!
 // RIGHT: Use only lower bits
 assign mem_addr = wr_ptr[WIDTH-2:0];  // Exclude MSB
 ```
+
+Every one of these has bitten someone on a real project. Anti-Pattern 1 is the most common — the missing MSB doesn't show up until you try to distinguish full from empty, which is to say, at the worst possible moment.
 
 ## Related Modules
 

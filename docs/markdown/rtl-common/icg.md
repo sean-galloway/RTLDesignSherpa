@@ -27,7 +27,7 @@ An Integrated Clock Gating (ICG) module that provides controlled clock gating fo
 
 ## Overview
 
-The `icg` module implements a latch-based clock gating cell that allows selective disabling of clock signals to reduce dynamic power consumption. This is a fundamental power management technique used extensively in modern ASIC and FPGA designs.
+The `icg` module is a latch-based clock gating cell that lets you selectively kill clock signals to cut dynamic power consumption. It's one of the fundamental power management moves in modern ASIC and FPGA designs, and for good reason.
 
 ## Module Declaration
 
@@ -58,7 +58,7 @@ module icg(
 
 ### Clock Gating Operation
 
-The ICG module implements a safe clock gating scheme that:
+The ICG does clock gating the safe way:
 
 1. **Latches Enable Signal**: Uses a level-sensitive latch, transparent while `clk` is low, to capture the enable signal
 2. **Prevents Glitches**: Ensures the enable signal is stable during clock high periods
@@ -113,7 +113,7 @@ gclk     ____   |     | ___ | ___ | ___ |  ___
 
 ### Dynamic Power Reduction
 
-The ICG module reduces dynamic power consumption by:
+The ICG cuts dynamic power on three fronts:
 
 - **Clock Tree Power**: Eliminates switching activity in downstream clock networks
 - **Register Power**: Prevents unnecessary flip-flop transitions when data is not changing
@@ -295,7 +295,7 @@ set_clock_gating_check -hold 0.1 [get_pins u_icg/gclk]
 
 ### Clock Tree Integration
 
-The ICG should be placed strategically in the clock tree:
+Where you put the ICG in the clock tree matters:
 
 ```
 Main Clock → ICG → Local Clock Tree → Registers
@@ -315,7 +315,7 @@ Main Clock → ICG → Local Clock Tree → Registers
 - `clock_divider`: Clock frequency division functionality
 - `reset_sync`: Reset synchronization for gated clock domains
 
-The `icg` module provides a fundamental building block for power-efficient digital design, enabling significant power savings through controlled clock gating while maintaining design safety and functionality.
+The `icg` module is a fundamental building block of power-efficient digital design: significant power savings through controlled clock gating, without giving up design safety or functionality.
 
 ## Navigation
 

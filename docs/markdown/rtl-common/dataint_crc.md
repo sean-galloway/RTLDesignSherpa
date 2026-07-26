@@ -23,11 +23,11 @@
 
 # dataint_crc
 
-A generic Cyclic Redundancy Check (CRC) computation engine that provides flexible, high-performance CRC calculation with configurable polynomials, data widths, and processing options.
+A generic Cyclic Redundancy Check (CRC) computation engine — configurable polynomials, data widths, and processing options, built for flexible, high-performance CRC calculation.
 
 ## Overview
 
-The `dataint_crc` module implements a comprehensive CRC calculation engine suitable for data integrity applications, communication protocols, and storage systems. It supports configurable polynomial widths, data widths, input/output reflection, and cascade processing for high-throughput applications.
+The `dataint_crc` module is a full CRC calculation engine for data integrity applications, communication protocols, and storage systems. It supports configurable polynomial widths, data widths, input/output reflection, and cascade processing for high-throughput applications.
 
 ## Module Declaration
 
@@ -103,7 +103,7 @@ module dataint_crc #(
 
 ### CRC Algorithm Implementation
 
-The module implements a parallel CRC calculation using the following stages:
+The CRC calculation is parallel and runs through the following stages:
 
 1. **Input Data Conditioning**: Optional bit reflection per REFIN parameter
 2. **Cascade Processing**: Parallel processing through multiple XOR-shift stages
@@ -254,7 +254,8 @@ dataint_crc #(
 > `crc` *only* via `load_from_cascade`; tying `load_from_cascade` to 0 (and
 > using `cascade_sel = 8'hFF`) makes the engine reload `POLY_INIT` on every
 > `load_crc_start` and emit a constant (`reflect(POLY_INIT) ^ XOROUT`), never a
-> CRC of `input_data`. A single-shot calculation must: (1) pulse
+> CRC of `input_data`. This is the mistake everyone makes with this module
+> exactly once. A single-shot calculation must: (1) pulse
 > `load_crc_start` to seed, (2) present `data`, then (3) pulse
 > `load_from_cascade` with a **one-hot** `cascade_sel` selecting the stage for
 > the number of valid bytes (`8'h80` for all 8). `cascade_sel` is one-hot, not a
@@ -381,7 +382,7 @@ cascade_timing: assert property (
 - **dataint_checksum**: Alternative integrity checking method
 - **dataint_parity**: Simpler parity-based error detection
 
-The `dataint_crc` module provides a comprehensive, high-performance solution for CRC-based data integrity checking with the flexibility to support a wide range of CRC standards and applications.
+Between the configurable polynomial, the reflection options, and the cascade architecture, `dataint_crc` covers most of the CRC standards you'll meet in practice — set it up once per protocol and let it run.
 
 ## Navigation
 

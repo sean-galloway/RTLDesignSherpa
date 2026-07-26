@@ -35,9 +35,9 @@
 
 ## Overview
 
-`fifo_sync_multi` is a thin convenience wrapper around [`fifo_sync`](../rtl-common/fifo_sync.md) that lets a caller push and pop several **named fields** through one synchronous FIFO without hand-packing them into a single wide bus. It concatenates an address field, a control field, and two data words into one `fifo_sync` payload on the write side, and splits the payload back out into the same named fields on the read side.
+`fifo_sync_multi` is a thin convenience wrapper around [`fifo_sync`](../rtl-common/fifo_sync.md) for callers who'd rather push and pop several **named fields** through one synchronous FIFO than hand-pack them into a single wide bus. On the write side it concatenates an address field, a control field, and two data words into one `fifo_sync` payload; on the read side it splits that payload back out into the same named fields.
 
-The storage, pointer management, and full/empty/almost flag generation are entirely provided by the underlying `fifo_sync` instance. This wrapper adds only the field-packing wiring.
+All the real work—storage, pointer management, full/empty/almost flag generation—comes from the underlying `fifo_sync` instance. This wrapper contributes only the field-packing wiring.
 
 ### Key Features
 
@@ -49,7 +49,7 @@ The storage, pointer management, and full/empty/almost flag generation are entir
 
 ## Module Purpose
 
-Datapaths frequently move a small bundle of related fields together (for example an address plus a control tag plus a pair of data beats). Rather than making every caller concatenate and slice those fields by hand around a plain `fifo_sync`, this wrapper exposes the fields as individual ports and does the packing internally, keeping call sites readable and consistent.
+Datapaths move little bundles of related fields around all the time (an address plus a control tag plus a pair of data beats, for example). You *could* make every caller concatenate and slice those fields by hand around a plain `fifo_sync`, but why would you? This wrapper exposes the fields as individual ports and does the packing internally, so call sites stay readable and consistent.
 
 **Use Cases:**
 
@@ -112,17 +112,17 @@ Datapaths frequently move a small bundle of related fields together (for example
 
 ### Field Packing
 
-On the write side the four fields are concatenated into the single `fifo_sync` payload. The concatenation order places `wr_addr` in the most significant bits, then `wr_ctrl`, then `wr_data1`, then `wr_data0` in the least significant bits:
+On the write side, the four fields get concatenated into the single `fifo_sync` payload. Order matters: `wr_addr` takes the most significant bits, then `wr_ctrl`, then `wr_data1`, with `wr_data0` in the least significant bits:
 
 ```systemverilog
 .wr_data ({wr_addr, wr_ctrl, wr_data1, wr_data0})
 ```
 
-The `fifo_sync` payload width is therefore `AW + CW + DW + DW`.
+So the `fifo_sync` payload width works out to `AW + CW + DW + DW`.
 
 ### Field Unpacking
 
-On the read side the same concatenation order is used to split the payload back into named outputs, so each field re-emerges on its own port:
+The read side uses that same concatenation order to split the payload back into named outputs, so each field pops back out on its own port:
 
 ```systemverilog
 .rd_data ({rd_addr, rd_ctrl, rd_data1, rd_data0})
@@ -130,7 +130,7 @@ On the read side the same concatenation order is used to split the payload back 
 
 ### Storage and Flow Control
 
-Everything else, binary read/write pointers, the memory array, and full/almost-full/empty/almost-empty flag generation, is delegated to the single `fifo_sync` instance. See [`fifo_sync`](../rtl-common/fifo_sync.md) for the pointer, memory, and flag details, including the mux-vs-flop read timing controlled by `REGISTERED`.
+Everything else—binary read/write pointers, the memory array, and full/almost-full/empty/almost-empty flag generation—is delegated to the single `fifo_sync` instance. See [`fifo_sync`](../rtl-common/fifo_sync.md) for the pointer, memory, and flag details, including the mux-vs-flop read timing controlled by `REGISTERED`.
 
 ## Usage Example
 

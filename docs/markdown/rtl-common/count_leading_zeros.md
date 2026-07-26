@@ -24,7 +24,7 @@
 # Count Leading Zeros Module
 
 ## Overview
-The `count_leading_zeros` module implements a leading zero counter that determines how many consecutive zero bits appear at the beginning (MSB side) of a data word. This is a fundamental operation in computer arithmetic, used extensively in floating-point normalization, priority encoding, and bit manipulation algorithms.
+The `count_leading_zeros` module counts how many consecutive zero bits sit at the beginning (MSB side) of a data word. This is fundamental computer arithmetic — you'll find it inside floating-point normalization, priority encoders, and half the bit-manipulation tricks in the book.
 
 The scan starts at `data[WIDTH-1]` and proceeds downward, stopping at the first set bit:
 

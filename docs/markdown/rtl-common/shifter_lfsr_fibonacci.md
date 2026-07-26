@@ -24,7 +24,7 @@
 # Fibonacci LFSR Module
 
 ## Purpose
-The `shifter_lfsr_fibonacci` module implements a Fibonacci Linear Feedback Shift Register, which is a specific type of LFSR where the feedback is applied only to the most significant bit position. This design is complementary to Galois LFSRs and offers different implementation trade-offs.
+The `shifter_lfsr_fibonacci` module is a Fibonacci Linear Feedback Shift Register — the textbook form, where all the feedback funnels into a single point at the most significant bit. It's the complement to the Galois LFSR, and the two come with genuinely different implementation trade-offs.
 
 ## Key Features
 - Fibonacci (external XOR) LFSR architecture
@@ -110,7 +110,7 @@ end
 ```systemverilog
 assign w_feedback = ^(r_lfsr & w_taps);
 ```
-**Key Difference**: Uses XOR (`^`) instead of XNOR (`~^`) compared to the standard LFSR module.
+**Key Difference**: XOR (`^`) here, not the XNOR (`~^`) the standard LFSR module uses.
 
 ### Right-Shift with MSB Feedback
 ```systemverilog
@@ -141,7 +141,8 @@ end
 ```systemverilog
 end else if (|r_lfsr) begin // Only shift if we have non-zero value
 ```
-Prevents shifting when LFSR contains all zeros, which would lock the sequence in the zero state permanently.
+This guard stops the LFSR from shifting when it's sitting at all zeros — a state
+it could never leave on its own. The sequence would lock at zero permanently.
 
 ### 3. Right-Shift Architecture
 ```systemverilog
@@ -152,13 +153,15 @@ r_lfsr <= {w_feedback, r_lfsr[WIDTH-1:1]};
 - LSB data is discarded each cycle
 
 ### 4. Polynomial Compatibility
-The tap positions should correspond to primitive polynomials appropriate for Fibonacci LFSR implementation. The polynomial form is:
+Your tap positions need to correspond to a primitive polynomial appropriate for
+Fibonacci LFSR implementation. The polynomial form is:
 ```
 P(x) = x^n + x^(tap1) + x^(tap2) + ... + x^(tapk) + 1
 ```
 
 ### 5. Reset to All Zeros
-Unlike some LFSR implementations that reset to all ones, this module resets to all zeros and relies on seed loading for proper initialization.
+Unlike some LFSR implementations that reset to all ones, this module resets to
+all zeros and relies on seed loading for proper initialization.
 
 ## Timing Example (4-bit Fibonacci LFSR)
 
@@ -213,12 +216,12 @@ After seed reload with 4'b1001:
 
 > **The tap numbers below are specific to this module's shift direction.** The
 > tap column published for Galois LFSRs -- and the table in the
-> `shifter_lfsr.sv` header, which is XNOR feedback with a *left* shift -- uses a
-> different encoding for the same polynomials. Getting it wrong does not merely
-> shorten the sequence: the register is driven to zero, where the `|r_lfsr`
-> guard freezes it permanently. Measured on this RTL under Verilator: `WIDTH=4`
-> with taps `[4,3]` locks at zero after **one** step, while `[4,1]` runs the
-> full period of 15.
+> `shifter_lfsr.sv` header, which is XNOR feedback with a *left* shift -- encodes
+> the same polynomials differently. Get it wrong and you don't merely shorten the
+> sequence: the register walks itself to zero, where the `|r_lfsr` guard freezes
+> it permanently. Measured on this RTL under Verilator: `WIDTH=4` with taps
+> `[4,3]` locks at zero after **one** step, while `[4,1]` runs the full period
+> of 15.
 
 ### Common Primitive Polynomials
 
@@ -232,9 +235,10 @@ After seed reload with 4'b1001:
 | 24 | x²⁴+x²³+x²²+x¹⁷+1 | [24,23,18,1] | 16777215 |
 | 32 | x³²+x²²+x²+x+1 | [23,3,2,1] | 4294967295 |
 
-The polynomials are the standard primitive set; only the tap *encoding* differs
-from the published one. The full 168-width table in this module's RTL header
-(`rtl/common/shifter_lfsr_fibonacci.sv`) is already converted -- use it directly.
+The polynomials themselves are the standard primitive set; only the tap
+*encoding* differs from the published one. The full 168-width table in this
+module's RTL header (`rtl/common/shifter_lfsr_fibonacci.sv`) is already
+converted -- use it directly.
 
 ### Why the Encoding Differs
 
@@ -257,10 +261,10 @@ remaining number, then append `1`.
 
 ### Usage Note
 
-The same polynomial can be used for both Fibonacci and Galois LFSRs, and both
-produce maximal-length sequences of the same period -- but the *tap numbers you
-pass in* differ, and the state orderings differ. `shifter_lfsr_galois.sv` takes
-the exponents directly (`[n, a, b]`); this module takes `[a+1, b+1, 1]`.
+The same polynomial works for both Fibonacci and Galois LFSRs, and both produce
+maximal-length sequences of the same period -- but the *tap numbers you pass in*
+differ, and the state orderings differ. `shifter_lfsr_galois.sv` takes the
+exponents directly (`[n, a, b]`); this module takes `[a+1, b+1, 1]`.
 
 ## Navigation
 

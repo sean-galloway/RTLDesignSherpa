@@ -23,11 +23,11 @@
 
 # Priority Encoder Arbiter
 
-A high-speed combinational priority encoder optimized for arbitration applications, implementing fixed-priority arbitration where lower-indexed clients always have higher priority.
+A high-speed combinational priority encoder built for arbitration. Priority is fixed: lower-indexed clients always have higher priority.
 
 ## Overview
 
-The `arbiter_priority_encoder` module provides single-cycle priority encoding with optimized implementations for common client counts (4, 8, 16, 32) using fully unrolled casez logic. For other client counts, it uses a synthesizable loop-based approach. The module supports dual request inputs (masked and unmasked) for use in sophisticated arbitration schemes.
+The `arbiter_priority_encoder` module gives you single-cycle priority encoding, with optimized implementations for the common client counts (4, 8, 16, 32) built on fully unrolled casez logic. For other client counts, it falls back to a synthesizable loop-based approach. The module supports dual request inputs (masked and unmasked) for use in sophisticated arbitration schemes.
 
 ## Module Declaration
 
@@ -109,7 +109,7 @@ The module evaluates requests in priority order:
 
 ### Optimized Implementations
 
-The module uses different implementations based on client count:
+The module picks its implementation based on client count:
 
 **Power-of-2 Counts (4, 8, 16, 32):**
 ```systemverilog
@@ -377,7 +377,7 @@ any_masked_requests = 0
 
 ## Verification Notes
 
-From comprehensive test suite (`val/common/test_arbiter_priority_encoder.py`):
+From the comprehensive test suite (`val/common/test_arbiter_priority_encoder.py`):
 
 - **Coverage**: 95%
 - **Key Test Scenarios**:

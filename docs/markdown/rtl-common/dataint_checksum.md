@@ -24,7 +24,7 @@
 # dataint_checksum Module Documentation
 
 ## Purpose
-The `dataint_checksum` module implements a simple accumulating checksum calculator. It continuously adds incoming data values to maintain a running checksum that can be used for basic data integrity verification.
+The `dataint_checksum` module is a simple accumulating checksum calculator. It keeps adding incoming data values into a running checksum you can use for basic data integrity verification. Nothing fancy — that's the point.
 
 ## Module Declaration
 ```systemverilog
@@ -58,13 +58,13 @@ module dataint_checksum #(
 ## Functionality
 
 ### Operation
-The module maintains an internal counter (`r_count`) that accumulates incoming data:
+The module keeps an internal counter (`r_count`) that accumulates incoming data:
 - On reset (either asynchronous `rst_n` or synchronous `reset`), the counter is cleared to zero
 - When `valid` is asserted, the input `data` is added to the current counter value
 - The checksum output is simply the current counter value
 
 ### Reset Behavior
-The module supports dual reset mechanisms:
+Two reset mechanisms, and you should know which one wins:
 1. **Asynchronous Reset**: `rst_n` (active-low) immediately clears the counter
 2. **Synchronous Reset**: `reset` (active-high) clears the counter on the next clock edge
 
@@ -77,12 +77,12 @@ The module supports dual reset mechanisms:
 - **Enable Control**: Data accumulation only occurs when `valid` is asserted
 
 ### Special Considerations
-- **Overflow Handling**: The checksum will wrap around when the accumulated value exceeds the maximum value representable in `WIDTH` bits
+- **Overflow Handling**: The checksum will wrap around when the accumulated value exceeds the maximum value representable in `WIDTH` bits — expected behavior for a checksum, not a bug
 - **Continuous Output**: The checksum output is always valid and reflects the current accumulated value
 - **Reset Priority**: Asynchronous reset (`rst_n`) takes precedence over synchronous reset (`reset`)
 
 ## State Machine
-This module does not implement a formal FSM but operates as a simple accumulator with the following states:
+No formal FSM here — it operates as a simple accumulator with the following states:
 - **RESET**: Counter is zero
 - **ACCUMULATING**: Counter adds valid data inputs
 

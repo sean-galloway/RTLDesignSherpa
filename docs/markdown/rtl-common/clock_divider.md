@@ -24,7 +24,7 @@
 # Clock Divider Module - Comprehensive Documentation
 
 ## Overview
-The `clock_divider` module generates multiple divided clock signals from a single input clock using configurable pick-off points from a shared master counter. This approach provides synchronized, phase-aligned divided clocks that are essential for multi-rate digital signal processing, communication systems, and power management applications.
+The `clock_divider` module generates multiple divided clock signals from a single input clock using configurable pick-off points from a shared master counter. Because every output taps the same counter, the divided clocks come out synchronized and phase-aligned — the behavior you need for multi-rate digital signal processing, communication systems, and power management applications.
 
 **⚠️ WARNING:** NOT recommended for functional clocks! Use PLL/MMCM/clock manager primitives instead. This module is intended for testbenches, debug outputs, and non-critical timing applications.
 
@@ -443,4 +443,4 @@ wide-counter cases by several times. fmax figures remain unsourced estimates.
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**
-- **[← Back to Main Documentation Index](../index.md)**
+- **[← Back to Main Documentation Index](../index.md]**

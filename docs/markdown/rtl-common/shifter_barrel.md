@@ -24,7 +24,10 @@
 # Barrel Shifter Module
 
 ## Purpose
-The `shifter_barrel` module implements a combinational barrel shifter that can perform multiple types of shift operations in a single clock cycle. It supports logical left/right shifts with and without wrap-around, arithmetic right shifts, and no-shift operations, all controlled by a 3-bit control signal.
+The `shifter_barrel` module is a combinational barrel shifter: any shift amount,
+any supported mode, done in a single clock cycle. It covers logical left/right
+shifts with and without wrap-around, arithmetic right shifts, and a no-shift
+pass-through, all selected by a 3-bit control signal.
 
 ## Key Features
 - Single-cycle shift operations for any shift amount
@@ -89,11 +92,12 @@ endgenerate
 ```
 
 ### Pre-computed Rotation Arrays
-The module uses two lookup arrays for efficient rotation:
+Two lookup arrays do the heavy lifting for rotation:
 - **w_array_rs[WIDTH]**: Pre-computed right rotation results for all possible shift amounts
 - **w_array_ls[WIDTH]**: Pre-computed left rotation results for all possible shift amounts
 
-This approach eliminates the need for complex barrel shifting logic and provides constant-time access to any rotation amount.
+Pre-computing means there's no barrel-shifting network to evaluate at runtime —
+any rotation amount is a constant-time array lookup.
 
 ### Main Shift Logic
 ```systemverilog
@@ -131,16 +135,21 @@ end
 - Suitable for high-frequency operations
 
 ### 2. Arithmetic Right Shift
-Uses SystemVerilog's `>>>` operator with `$signed()` casting to properly handle sign extension for two's complement numbers.
+The arithmetic shift uses SystemVerilog's `>>>` operator with a `$signed()` cast,
+so sign extension behaves correctly for two's complement numbers.
 
 ### 3. Zero Shift Optimization
-Explicit checks for `shift_amount_mod == 0` optimize the common case of no shifting, avoiding unnecessary computation.
+The explicit `shift_amount_mod == 0` checks short-circuit the most common case —
+no shift at all — and skip the unnecessary computation.
 
 ### 4. Double-Width Concatenation
-The `{data, data}` concatenation creates a seamless circular buffer for rotation operations, enabling simple slice extraction for any rotation amount.
+The `{data, data}` concatenation is the oldest trick in the book: paste the data
+next to itself and a rotation becomes a plain slice out of a 2×-wide window. Any
+rotation amount, same cost.
 
 ### 5. Generate Block Optimization
-Pre-computing all possible rotation results at compile time eliminates runtime computation, trading minimal area for maximum speed.
+The generate block pre-computes every possible rotation at compile time, so
+runtime is just a lookup. You spend a little area, you get back maximum speed.
 
 ## Timing Examples
 
@@ -199,4 +208,4 @@ Output: 8'b10110110  (bits wrap around)
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**
-- **[← Back to Main Documentation Index](../index.md)**
+- **[← Back to Main Documentation Index](../index.md]**

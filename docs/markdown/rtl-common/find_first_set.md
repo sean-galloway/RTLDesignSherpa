@@ -24,7 +24,7 @@
 # Find First Set (`find_first_set.sv`)
 
 ## Purpose
-Finds the index of the least significant bit (LSB) that is set to '1' in the input vector. Implements a priority encoder that favors lower-indexed bits.
+Finds the index of the least significant bit (LSB) that's set to '1' in the input vector—a priority encoder that plays favorites with the low bits.
 
 ## Ports
 
@@ -60,7 +60,7 @@ end
 ### Search Strategy
 - **Direction**: LSB to MSB (left to right, ascending index)
 - **Priority**: Lower indices have higher priority
-- **First match**: Stops at first '1' bit encountered
+- **First match**: Stops at the first '1' bit encountered
 - **Found flag**: Prevents multiple assignments
 
 ## Functional Behavior
@@ -82,7 +82,7 @@ end
 | 11111111  | 000        | All bits set - bit 0 wins |
 
 ### Key Characteristics
-- **LSB priority**: Always returns lowest index when multiple bits set
+- **LSB priority**: Multiple bits set? You get the lowest index
 - **Zero default**: Returns 0 when no bits are set
 - **Deterministic**: Same input always produces same output
 - **Combinational**: Immediate response to input changes
@@ -103,7 +103,7 @@ if (data[i] && !w_found) begin
     w_found = 1'b1;
 end
 ```
-- **Purpose**: Prevents overwriting the first found result
+- **Purpose**: Keeps the first found result from being overwritten
 - **Mechanism**: Once `w_found` is set, no further assignments occur
 - **Result**: Only the lowest index is captured
 
@@ -111,7 +111,7 @@ end
 ```systemverilog
 index = i[N-1:0]; // Ensure correct bit width
 ```
-- **Type safety**: Explicit width matching prevents synthesis warnings
+- **Type safety**: Explicit width matching keeps synthesis warnings away
 - **Truncation**: Safely handles loop variable width vs. output width
 
 ## Use Cases

@@ -24,7 +24,7 @@
 # Clock Pulse Generator - Comprehensive Documentation
 
 ## Overview
-The `clock_pulse` module generates periodic pulse signals with configurable width (period). It creates a single-cycle pulse every WIDTH clock cycles, making it ideal for timing generation, heartbeat signals, sampling triggers, and periodic event generation in digital systems.
+The `clock_pulse` module is a periodic pulse generator with a configurable period. It emits a single-cycle pulse every WIDTH clock cycles — the module you reach for whenever something in the system needs to happen on a schedule: timing generation, heartbeat signals, sampling triggers, periodic events of any kind.
 
 ## Module Declaration
 ```systemverilog
@@ -102,6 +102,8 @@ end
 4. **Synchronous**: All operations synchronized to input clock
 5. **Single Cycle**: Pulse duration is exactly one clock cycle
 
+That second point is the one people get wrong, so let's be blunt about it: the registered comparison means `pulse` never coincides with the terminal count. It lands one cycle later, on the wrapped-to-zero count. Every timing diagram below follows from that.
+
 ### Timing Characteristics
 - **Period**: WIDTH clock cycles
 - **Frequency**: f_clk / WIDTH
@@ -114,8 +116,7 @@ end
 ## Timing Diagrams
 
 ### Basic Operation (WIDTH=4)
-`pulse` is high during the `< 0 >` cell that immediately follows `< 3 >` (one
-cycle after the counter hit WIDTH-1), because the comparison is registered:
+Watch where `pulse` actually lands — high during the `< 0 >` cell that immediately follows `< 3 >`, one cycle after the counter hit WIDTH-1. That's the registered comparison at work:
 ```
 Clock:    _|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_
 Counter:  < 0 >< 1 >< 2 >< 3 >< 0 >< 1 >< 2 >< 3 >< 0 >
@@ -131,7 +132,7 @@ Counter:  < 0 >< 1 >< 2 >< 3 >< 0 >< 0 >< 1 >< 2 >< 3 >< 0 >
 Pulse:    _____________________________________________|‾‾‾|
 ```
 
-Two things this shows, both consequences of the pulse being registered
+Two things worth seeing here, both consequences of the pulse being registered
 (`pulse <= (r_counter == w_width_minus_one)`):
 
 - **The pulse that reset swallows.** The counter reaches 3 in the fourth cell,
@@ -1001,7 +1002,7 @@ endmodule
 6. **Use Enables**: Add enable signals for conditional operation
 7. **Document Timing**: Clearly specify pulse rates and relationships
 
-The clock pulse generator provides a simple, reliable solution for periodic timing generation, essential for many digital system functions requiring precise, regular timing events.
+That's the whole module. It's a small thing, but precise periodic timing shows up in nearly every design you'll ever ship — get this one right once, parameterize it well, and reuse it forever.
 
 ## Navigation
 

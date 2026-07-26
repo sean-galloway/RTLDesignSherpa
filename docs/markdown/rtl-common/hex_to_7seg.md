@@ -24,7 +24,7 @@
 # Hex to 7-Segment Display (`hex_to_7seg.sv`)
 
 ## Purpose
-Converts 4-bit hexadecimal values (0-F) to 7-segment display patterns for common anode displays. Provides human-readable display of digital values for debugging, user interfaces, and embedded systems.
+Converts 4-bit hexadecimal values (0-F) to 7-segment display patterns for common anode displays—the thing you reach for when you want human-readable output for debugging, user interfaces, and embedded systems.
 
 ## Ports
 
@@ -145,7 +145,7 @@ flowchart TB
 ```
 
 ### Common Cathode Alternative
-For common cathode displays, invert all outputs:
+Running common cathode instead? Invert all outputs:
 ```systemverilog
 // For common cathode displays:
 assign seg_common_cathode = ~seg;

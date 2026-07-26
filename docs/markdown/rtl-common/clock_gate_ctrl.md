@@ -24,7 +24,7 @@
 # Clock Gate Controller - Comprehensive Documentation
 
 ## Overview
-The `clock_gate_ctrl` module implements an intelligent clock gating controller that automatically stops the clock when a circuit block becomes idle, significantly reducing dynamic power consumption. It features configurable idle timeout, immediate wake-up capability, and safe clock gating using integrated clock gate (ICG) cells.
+The `clock_gate_ctrl` module is a clock gating controller that stops the clock automatically when a circuit block goes idle, significantly reducing dynamic power consumption. You get a configurable idle timeout, immediate wake-up capability, and safe clock gating through integrated clock gate (ICG) cells.
 
 ## Module Declaration
 ```systemverilog
@@ -82,7 +82,7 @@ module clock_gate_ctrl #(
 ## Clock Gating Theory
 
 ### Why Clock Gating?
-Clock gating is one of the most effective power reduction techniques:
+Clock gating is one of the most effective power reduction techniques we have:
 - **Dynamic Power**: P = C × V² × f × α (α = switching activity)
 - **Clock Networks**: Typically consume 20-40% of total chip power
 - **Gating Benefits**: Can reduce power by 50-90% in idle blocks
@@ -1136,7 +1136,7 @@ System Level (Longest timeout)
 4. **Logic Analyzer**: Capture real-time gating behavior in hardware
 5. **Power Profiling**: Measure current consumption with/without gating
 
-The clock gate controller provides an essential power management capability, enabling significant dynamic power reduction with minimal area overhead and design complexity. Proper implementation requires careful attention to timing, safety, and verification to ensure reliable operation while maximizing power savings.
+Done right, the clock gate controller is essential power management: significant dynamic power reduction for minimal area overhead and design complexity. Getting it right means careful attention to timing, safety, and verification — that's what buys you reliable operation and the full power savings.
 
 ## Navigation
 

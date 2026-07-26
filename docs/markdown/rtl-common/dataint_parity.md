@@ -24,7 +24,7 @@
 # dataint_parity Module Documentation
 
 ## Purpose
-The `dataint_parity` module implements a generic parity generator and checker. It can generate parity bits for data chunks and verify existing parity bits, supporting both even and odd parity schemes across multiple data segments.
+The `dataint_parity` module is a generic parity generator and checker in one. It computes parity bits over data chunks and verifies incoming parity against them, supporting both even and odd schemes across as many data segments as you carve your bus into.
 
 ## Module Declaration
 ```systemverilog
@@ -64,18 +64,18 @@ module dataint_parity #(
 ## Functionality
 
 ### Dual Operation Modes
-The module simultaneously:
+The module does both jobs at once:
 1. **Generates Parity**: Calculates parity for each data chunk
-2. **Checks Parity**: Compares calculated parity with input parity
+2. **Checks Parity**: Compares that calculated parity with the input parity
 
 ### Parity Types
-- **Even Parity** (`parity_type = 1`): Parity bit makes total 1s even
-- **Odd Parity** (`parity_type = 0`): Parity bit makes total 1s odd
+- **Even Parity** (`parity_type = 1`): The parity bit makes the total 1s even
+- **Odd Parity** (`parity_type = 0`): The parity bit makes the total 1s odd
 
 ### Data Chunking
-Data is divided into chunks with special handling for non-even divisions:
+Data gets divided into chunks, with a small wrinkle for widths that don't divide evenly:
 - Most chunks: `ChunkSize` bits each
-- Last chunk: May include extra bits if `WIDTH % CHUNKS ≠ 0`
+- The last chunk picks up any extra bits when `WIDTH % CHUNKS ≠ 0`
 
 ## Implementation Details
 
@@ -101,19 +101,19 @@ endgenerate
 ```
 
 ### Chunk Boundary Calculation
-Each chunk's boundaries are calculated statically:
-- **Regular Chunks** (i < CHUNKS-1): Fixed size chunks
-- **Last Chunk** (i = CHUNKS-1): Includes any remaining bits
+Each chunk's bounds are worked out statically:
+- **Regular Chunks** (i < CHUNKS-1): Fixed-size chunks
+- **Last Chunk** (i = CHUNKS-1): Mops up any remainder bits
 
 ### Parity Calculation Logic
 For each chunk:
 1. **XOR Reduction**: `^data_in[UpperBound:LowerBound]`
 2. **Parity Type Application**:
-   - Even parity: Use XOR result directly
-   - Odd parity: Invert XOR result
+   - Even parity: take the XOR result as-is
+   - Odd parity: invert it
 
 ### Error Detection
-Error detection compares calculated vs. expected parity:
+Error checking is just a compare—calculated against expected:
 ```systemverilog
 assign parity_err[i] = (calculated_parity != parity_in[i]);
 ```
@@ -121,19 +121,19 @@ assign parity_err[i] = (calculated_parity != parity_in[i]);
 ## Key Features
 
 ### Scalable Architecture
-- **Parameterizable Chunks**: Any number of data segments
-- **Flexible Data Width**: Supports any total data width
-- **Automatic Sizing**: Handles non-even chunk divisions
+- **Parameterizable Chunks**: As many segments as you need
+- **Flexible Data Width**: Any total data width
+- **Automatic Sizing**: Uneven chunk divisions handled for you
 
 ### Simultaneous Operation
-- **Generation and Checking**: Both operations happen concurrently
-- **Independent Chunks**: Each chunk operates independently
-- **Parallel Processing**: All chunks processed simultaneously
+- **Generation and Checking**: Both run concurrently
+- **Independent Chunks**: Each chunk minds its own business
+- **Parallel Processing**: All chunks evaluate at the same time
 
 ### Parity Flexibility
-- **Runtime Configurable**: Parity type can change during operation
-- **Per-Module Setting**: All chunks use same parity type
-- **Standard Support**: Supports both common parity schemes
+- **Runtime Configurable**: You can flip the parity type during operation
+- **Per-Module Setting**: All chunks share the same parity type
+- **Standard Support**: Both common parity schemes covered
 
 ## Example Configurations
 
@@ -219,13 +219,13 @@ end
 - **Propagation Delay**: Minimal for typical chunk sizes
 
 ### Area
-- **Linear Scaling**: Area increases with CHUNKS and WIDTH
-- **Efficient Implementation**: Simple XOR trees
-- **Low Overhead**: Minimal logic per chunk
+- **Linear Scaling**: Area grows with CHUNKS and WIDTH
+- **Efficient Implementation**: Just XOR trees
+- **Low Overhead**: Very little logic per chunk
 
 ### Power
 - **Low Power**: Simple combinational logic
-- **Activity Dependent**: Power scales with data switching
+- **Activity Dependent**: Power tracks the data switching
 
 ## Applications
 
@@ -250,19 +250,19 @@ end
 ## Design Considerations
 
 ### Chunk Size Selection
-- **Power of 2**: Often preferred for alignment
-- **Protocol Requirements**: Match system requirements
-- **Error Granularity**: Smaller chunks = finer error localization
+- **Power of 2**: Usually the friendliest for alignment
+- **Protocol Requirements**: Match whatever your system demands
+- **Error Granularity**: Smaller chunks pin errors down tighter
 
 ### Parity Type Selection
-- **Even Parity**: More common in digital systems
-- **Odd Parity**: Provides all-zeros detection
-- **System Compatibility**: Match existing standards
+- **Even Parity**: The more common choice in digital systems
+- **Odd Parity**: Gives you all-zeros detection
+- **System Compatibility**: Match the existing standard
 
 ### Width Considerations
-- **Alignment**: Consider data bus alignment
-- **Extra Bits**: Handle remainder bits appropriately
-- **Performance**: Balance chunk count vs. granularity
+- **Alignment**: Think about data bus alignment
+- **Extra Bits**: Handle remainder bits sensibly
+- **Performance**: Balance chunk count against granularity
 
 ## Related Applications
 - **ECC Systems**: Building block for Hamming codes

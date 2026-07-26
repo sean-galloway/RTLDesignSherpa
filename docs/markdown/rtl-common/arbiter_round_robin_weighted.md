@@ -23,11 +23,11 @@
 
 # Weighted Round Robin Arbiter
 
-A credit-based weighted round-robin arbiter with Quality of Service (QoS) support, providing proportional bandwidth allocation to multiple clients while maintaining starvation-free operation.
+A credit-based weighted round-robin arbiter with Quality of Service (QoS) support. Clients get bandwidth proportional to their weights, and no client can starve.
 
 ## Overview
 
-The `arbiter_round_robin_weighted` module combines fair round-robin arbitration with configurable per-client weights to provide proportional bandwidth allocation. Each client receives grants proportional to its assigned weight while preventing starvation. The module supports optional acknowledgment protocol and dynamic weight changes with atomic update semantics.
+The `arbiter_round_robin_weighted` module layers configurable per-client weights on top of fair round-robin arbitration, giving you proportional bandwidth allocation. Each client receives grants proportional to its assigned weight while starvation is prevented. The module supports an optional acknowledgment protocol and dynamic weight changes with atomic update semantics.
 
 ## Module Declaration
 
@@ -103,7 +103,7 @@ module arbiter_round_robin_weighted #(
 
 ### Credit-Based Weighting
 
-The arbiter uses a credit-based system for weighted bandwidth allocation:
+Weighted bandwidth allocation here runs on a credit system:
 
 1. **Credit Initialization**: Each client's credit counter is initialized to its weight value
 2. **Grant Completion**: When a grant completes, the client's credit counter decrements
@@ -141,7 +141,7 @@ requester (e.g., others have exhausted their credits), at which point the
 
 ### Weight Management FSM
 
-The module includes a finite state machine for atomic weight updates:
+A finite state machine handles atomic weight updates:
 
 | State | Description |
 |-------|-------------|
@@ -223,7 +223,7 @@ assign w_mask_req[i] = w_mask_multi_req[i] || w_mask_last_client[i];
 
 ### Sub-Module: arbiter_round_robin
 
-Uses base `arbiter_round_robin` module internally for fair selection among eligible clients:
+The base `arbiter_round_robin` module handles fair selection among eligible clients:
 
 ```systemverilog
 arbiter_round_robin #(
