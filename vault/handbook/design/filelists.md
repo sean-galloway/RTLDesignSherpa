@@ -118,10 +118,20 @@ blind spot: they list sources by hand, which is why the `apb*_slave_cdc` ones
 were missing `gaxi_fifo_async` and its whole tree. Generate a harness's
 `[files]` from the area's filelist instead.
 
-Grep for the pattern when auditing an area:
+There is a check for this now - use it rather than the greps:
 
-    grep -l 'verilog_sources = \[' val/*/test_*.py    # hand-listed
-    grep -l 'verilog_sources.append' val/*/test_*.py  # filelist, then appended to
+    python3 bin/filelist_registry.py --blindspots
+
+It reports the three things the filelist graph cannot see: tracked `.f` files no
+registered area covers, tests building their own `verilog_sources` array (or
+appending to one), and `.sby` harnesses whose source paths do not resolve.
+Mutation-checked: unregistering `rtl/cdc` in the toml makes it name all 14 of
+that area's filelists.
+
+As of 2026-07-26 it reports 516 findings, so it is NOT wired into a gate yet -
+gating on a check that already fails just teaches people to skip it. Burn-down
+and gating are TOOL-012. Run it by hand after any move, split or new area, which
+is exactly when this class of breakage appears.
 
 Related: [[naming-and-style]] (module/file naming), [[test-runner]] (tests
 consume filelists via `get_sources_from_filelist`, never a hand-listed array).
