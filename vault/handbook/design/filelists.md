@@ -72,9 +72,13 @@ relying on "the build passes".
 
     python3 bin/filelist_registry.py --check       every module reachable from some .f
     python3 bin/filelist_registry.py --audit       consumers hand-listing common/amba
+    python3 bin/filelist_registry.py --blindspots  what --check/--audit cannot see
     python3 bin/filelist_registry.py --find MOD    which filelist provides a module
     python3 bin/filelist_registry.py --resolve F   fully expanded source list
     python3 bin/filelist_registry.py --list        where the filelists live
+
+The first three run in CI on every PR (`--blindspots` ratcheted); the rest are
+for humans.
 
 `--check` resolves `-f` includes and `$*_ROOT` substitution exactly the way the
 cocotb consumer does
@@ -138,10 +142,10 @@ appending to one), and `.sby` harnesses whose source paths do not resolve.
 Mutation-checked: unregistering `rtl/cdc` in the toml makes it name all 14 of
 that area's filelists.
 
-As of 2026-07-26 it reports 516 findings, so it is NOT wired into a gate yet -
-gating on a check that already fails just teaches people to skip it. Burn-down
-and gating are TOOL-012. Run it by hand after any move, split or new area, which
-is exactly when this class of breakage appears.
+It reported 516 findings when it was written, which is why CI ratchets it rather
+than demanding zero (see above). Burn-down is TOOL-012. Run it by hand after any
+move, split or new area -- exactly when this class of breakage appears, and
+sooner than the PR that would catch it.
 
 Related: [[naming-and-style]] (module/file naming), [[test-runner]] (tests
 consume filelists via `get_sources_from_filelist`, never a hand-listed array).
