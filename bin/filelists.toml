@@ -158,6 +158,7 @@ filelist_dirs = [
     "projects/NexysA7/stream_characterization/flows-stream-bridge/rtl/filelists",
     "projects/NexysA7/stream_characterization/flows-vivado-mcdma/rtl/filelists",
     "projects/NexysA7/stream_characterization/flows-idma-bridge/flists",
+    "projects/NexysA7/stream_characterization/flows-stream-monitor/rtl/filelists",
 ]
 
 [[area]]
