@@ -4,6 +4,81 @@
 
 ---
 
+## DOCREV-011 — fix ALL broken links, whenever they were introduced
+**Status:** open 2026-07-26 (Sean)
+**Priority:** P2
+
+Not a rename cleanup. **Every** broken link in the repo, no matter which move,
+split or deletion caused it. Measured 2026-07-26, at commit `d65be489`.
+
+### The inventory
+
+**495 broken markdown links across 160 tracked `.md` files.** By failure mode,
+because the fix differs per class:
+
+| n | class | how to fix |
+|---|---|---|
+| 274 | target does not exist anywhere | judgement call each: write the page, repoint, or delete the link |
+| 148 | target moved (same filename exists elsewhere) | mechanical -- repoint to the new location |
+| 73 | repo-root-relative (resolves from the repo root, not from the file) | mechanical -- make it relative to the file |
+
+Worst offenders:
+
+| n | file |
+|---|---|
+| 76 | `docs/markdown/overview.md` |
+| 24 | `bin/markdown_to_word_instructions.md` |
+| 15 | `projects/components/retro_legacy_blocks/docs/hpet_mas/ch05_registers/01_register_map.md` |
+| 11 | `README.md` |
+| 10 | `bin/TBClasses/wavedrom_user/GAXI_WAVEDROM_GUIDE.md` |
+| 10 | `docs/markdown/TestTutorial/wavedrom_gaxi_example.md` |
+| 10 | `docs/markdown/rtl-cdc/cdc.md` |
+| 10 | `projects/components/retro_legacy_blocks/docs/ioapic_mas/ch02_blocks/00_overview.md` |
+
+By area: `projects/components` 253, `docs/markdown` 161, `bin/` 42,
+`README.md` 11, `projects/NexysA7` 9, `docs/` 7, `vault/Tasks` 5,
+`docs/review` 4, `vault/handbook` 3.
+
+**Plus a second, separate class: 126 `rtl/**/*.sv` `// Documentation:` headers
+point at a file that does not exist** -- 113 at `IEEE754_ARCHITECTURE.md`, 12 at
+`BF16_ARCHITECTURE.md`, 1 at `docs/bf16-research.md`. These are bare filenames,
+not paths, so they never resolved from anywhere; they want a real
+`docs/markdown/rtl-math/...` target (see DOCREV-010, which wants the same
+headers pointed at each area's `overview.md`).
+
+### Regenerate the list
+
+    python3 - <<'EOF'
+    import os, re, subprocess
+    files=[f for f in subprocess.check_output(['git','ls-files','*.md'],text=True).split()
+           if os.path.isfile(f)]
+    lr=re.compile(r'\[[^\]]*\]\(([^)\s]+?)(?:#[^)\s]*)?\)')
+    for f in files:
+        root=os.path.dirname(f) or '.'
+        for m in lr.finditer(open(f,encoding='utf-8',errors='ignore').read()):
+            t=m.group(1)
+            if t.startswith(('http://','https://','mailto:','#')): continue
+            if not os.path.exists(os.path.normpath(os.path.join(root,t))):
+                print(f"{f} -> {t}")
+    EOF
+
+### Notes before starting
+
+- **Do NOT rewrite `docs/review/kimi/**`.** Its 4 broken links are inside
+  critique artifacts, which are evidence of what a reviewer saw at a commit and
+  are regenerated, never hand-edited ([[doc-placement]] rule 5).
+- **Dangling `[[wikilinks]]` in `vault/` are not broken links.** The handbook
+  convention is that a `[[name]]` with no note yet marks something worth
+  writing. 36 distinct ones exist; leave them.
+- Do the two mechanical classes (221 of 495) first and re-measure. That leaves
+  the 274 judgement calls, which is where the real work is -- and some of those
+  will be "the page should exist", which turns into writing, not linking.
+- **Wire the checker into a gate afterwards, or this returns.** Nothing runs it
+  today, which is exactly how 495 accumulated. Same gap as
+  `filelist_registry.py --check` (see [[filelists]]).
+
+---
+
 ## DOCREV-010 — every docs/markdown book needs index.md + overview.md
 **Status:** open 2026-07-25 (Sean)
 **Priority:** P2
