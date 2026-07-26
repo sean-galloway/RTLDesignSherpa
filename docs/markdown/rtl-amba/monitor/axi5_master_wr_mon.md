@@ -152,7 +152,7 @@ flowchart TB
 | **ENABLE_FILTERING** | bit | 1 | Enable 3-level packet filtering |
 | **ADD_PIPELINE_STAGE** | bit | 0 | Add pipeline stage in monitor |
 | **USE_MONITOR** | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
-| **N_ADDR_RANGES** | int | 0 | Number of address-range comparators. 0 = checker omitted (zero area). >0 = N independent [low, high] ranges; hits emit PktTypeError + AXI_ERR_ADDR_RANGE on monbus. |
+| **N_ADDR_RANGES** | int | 0 | Number of address-range comparators. 0 = checker omitted (zero area). >0 = N independent [low, high] ranges; feeds the shared allowlist checker: a debug-range hit -> AddrMatch, an error-allowlist miss -> Error/ADDR_RANGE (see axi_monitor_addr_check.md). |
 | **ENABLE_ERROR_LOGIC** | bit | 1 | Compile-in the error-detection cone (0 drops it for area). |
 | **ENABLE_TIMEOUT_LOGIC** | bit | 1 | Compile-in the timeout cone and the `axi_monitor_timeout` instance. |
 | **ENABLE_COMPL_LOGIC** | bit | 1 | Compile-in the completion cone. |
@@ -181,26 +181,27 @@ Sizing note: a monitor on a bus shared by several channels/requesters must size 
 
 ## Address-Range Checker
 
-The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-comparator address-range checker that watches every accepted AW handshake and emits a `PktTypeError` monbus packet (event code `AXI_ERR_ADDR_RANGE = 8'h0D`) when an address falls inside any of the configured `[low, high]` inclusive ranges.
+With `N_ADDR_RANGES > 0` the wrapper instantiates the shared allowlist checker
+([`axi_monitor_addr_check`](axi_monitor_addr_check.md)). Each range carries a
+DEBUG/ERROR flavor:
+
+- **DEBUG range** — a hit emits a `PktTypeAddrMatch` (`4'h8`) packet with event
+  code `AXI_ADDR_RANGE_MATCH` (`8'h01`), gated by `cfg_debug_enable`.
+- **ERROR range** — the enabled ERROR ranges form an allowlist; an address in
+  NONE of them emits a `PktTypeError` (`4'h0`) packet with event code
+  `AXI_ERR_ADDR_RANGE` (`8'h0D`), gated by `cfg_error_enable`.
+
+This wrapper does not expose `ADDR_RANGE_IS_ERROR`; all ranges default to the DEBUG (match) flavor.
 
 **Config inputs (active only when `N_ADDR_RANGES > 0`):**
 - `cfg_addr_check_enable` — master on/off for the checker.
 - `cfg_addr_range_enable[N-1:0]` — per-range enable bit.
-- `cfg_addr_range_low[N-1:0][AXI_ADDR_WIDTH-1:0]` — inclusive low bound for each range.
-- `cfg_addr_range_high[N-1:0][AXI_ADDR_WIDTH-1:0]` — inclusive high bound for each range.
+- `cfg_addr_range_low/high[N-1:0][AXI_ADDR_WIDTH-1:0]` — inclusive bounds.
 
-**Event encoding** (within the standard 128-bit `monitor_packet_t`, event_data field):
-- `packet_type` = `PktTypeError` (4'h0)
-- `protocol`    = AXI (3'b000)
-- `event_code`  = `AXI_ERR_ADDR_RANGE` (8'h0D)
-- `event_data[63:60]` = `range_index` (4 bits; supports up to 16 ranges)
-- `event_data[59:0]`  = full matched address (up to 60 bits, zero-padded if narrower)
-
-**Exact match:** set `cfg_addr_range_low[i] == cfg_addr_range_high[i]`.
-
-**Filtering:** the existing `cfg_axi_error_mask[13]` bit masks this event code; set it high to suppress range packets without disabling other errors. No new mask wiring needed.
-
-**Per-range coalescing:** if a range hits again before its packet has been emitted, the latched address is overwritten (latest hit wins). One packet per cycle drains the pending mask via a lowest-index priority encoder. Distinct ranges never lose events; under sustained per-range bursts, only the latest address per range is reported per emission cycle.
+**Event encoding:** `event_data[63:60]` = `range_index` (matching DEBUG range, or
+`4'hF` sentinel on an ERROR miss); `event_data[59:0]` = full address. **Filtering:**
+AddrMatch is dropped by `cfg_axi_addr_mask[1]`, the ADDR_RANGE error by
+`cfg_axi_error_mask[13]`. See the checker page for coalescing + formal properties.
 
 ---
 

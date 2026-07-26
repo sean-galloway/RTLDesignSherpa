@@ -125,7 +125,7 @@ The 16 codes are defined as localparams in `monitor_common_pkg`:
 | 4'h5  | `PktTypeCredit`    | Credit status (AXIS) |
 | 4'h6  | `PktTypeChannel`   | Channel status (AXIS) |
 | 4'h7  | `PktTypeStream`    | Stream event (AXIS — start/end/abort) |
-| 4'h8  | `PktTypeAddrMatch` | Address-match watchpoint (AXI) |
+| 4'h8  | `PktTypeAddrMatch` | Address-match watchpoint (AXI). Produced by `axi_monitor_addr_check` on a DEBUG-flavored range hit (event code `AXI_ADDR_RANGE_MATCH` 8'h01), gated by `cfg_debug_enable`. |
 | 4'h9  | `PktTypeAPB`       | APB-specific event |
 | 4'hA–4'hC | (reserved)     | Forward-compat slack |
 | 4'hD  | `PktTypePerfWin`   | Windowed-performance event (AXI perf window close) |
