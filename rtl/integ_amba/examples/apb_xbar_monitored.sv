@@ -28,14 +28,13 @@ module apb_xbar_monitored
     parameter int MAX_TRANSACTIONS = 8,  // APB is simple, 8 is sufficient
     parameter int UNIT_ID = 0,           // Crossbar unit ID
 
-    // Agent IDs for each monitor
-    parameter logic [7:0] AGENT_ID_M0 = 8'h10,  // Master 0
-    parameter logic [7:0] AGENT_ID_M1 = 8'h11,  // Master 1
-    parameter logic [7:0] AGENT_ID_M2 = 8'h12,  // Master 2
-    parameter logic [7:0] AGENT_ID_S0 = 8'h40,  // Slave 0
-    parameter logic [7:0] AGENT_ID_S1 = 8'h41,  // Slave 1
-    parameter logic [7:0] AGENT_ID_S2 = 8'h42,  // Slave 2
-    parameter logic [7:0] AGENT_ID_S3 = 8'h43   // Slave 3
+    // Agent IDs are assigned BASE + port index. Only the two bases are
+    // parameters: the generate loops always computed BASE + index, so the
+    // former per-port parameters (AGENT_ID_M1/M2, AGENT_ID_S1/S2/S3) could be
+    // overridden with no effect at all. A parameter that cannot change
+    // behaviour is worse than none, because it reads as configurable.
+    parameter logic [7:0] AGENT_ID_M_BASE = 8'h10,  // masters: 0x10, 0x11, 0x12
+    parameter logic [7:0] AGENT_ID_S_BASE = 8'h40   // slaves:  0x40..0x43
 ) (
     input  logic pclk,
     input  logic presetn,
@@ -142,8 +141,10 @@ module apb_xbar_monitored
     // =============================================================================
     // Configuration Inputs
     // =============================================================================
+    // cfg_compl_enable used to sit here. It was declared and never wired to
+    // anything, and apb_monitor has no completion-packet control -- the
+    // closest thing is cfg_perf_enable, which this module already exposes.
     input logic cfg_error_enable,    // Enable error packet reporting
-    input logic cfg_compl_enable,    // Enable completion packet reporting
     input logic cfg_timeout_enable,  // Enable timeout detection
     input logic cfg_perf_enable      // Enable performance metrics
 );
@@ -283,7 +284,7 @@ module apb_xbar_monitored
                 .DATA_WIDTH       (DATA_WIDTH),
                 .MAX_TRANSACTIONS (MAX_TRANSACTIONS),
                 .UNIT_ID          (UNIT_ID[7:0]),
-                .AGENT_ID         (16'(AGENT_ID_M0 + m))
+                .AGENT_ID         (16'(AGENT_ID_M_BASE + m))
             ) u_master_mon (
                 .aclk                     (pclk),
                 .aresetn                  (presetn),
@@ -347,7 +348,7 @@ module apb_xbar_monitored
                 .DATA_WIDTH       (DATA_WIDTH),
                 .MAX_TRANSACTIONS (MAX_TRANSACTIONS),
                 .UNIT_ID          (UNIT_ID[7:0]),
-                .AGENT_ID         (16'(AGENT_ID_S0 + s))
+                .AGENT_ID         (16'(AGENT_ID_S_BASE + s))
             ) u_slave_mon (
                 .aclk                     (pclk),
                 .aresetn                  (presetn),

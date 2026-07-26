@@ -26,21 +26,14 @@
 
 **RTL:** `rtl/integ_amba/examples/` (2 modules)
 **Filelists:** `rtl/integ_amba/filelists/` -- lint the area with `integ_amba_all.f`
-**Tests:** none yet
+**Tests:** none yet (lint is the only gate; see AMBA-INTEG-EXAMPLES)
 
-Integration examples on the AMBA side: how you attach monitoring to an APB
-fabric. Neither is a library module -- each wires existing blocks together to
-show a pattern.
+Integration examples on the AMBA side: how monitoring attaches to an APB fabric.
+Neither is a library module -- each wires existing blocks together to show a
+pattern. Both elaborate cleanly; `make verilator` in `rtl/integ_amba` is the
+check.
 
 **Full catalogue:** [index.md](index.md)
-
-> **Both examples currently fail to elaborate -- 51 Verilator errors.** They
-> instantiate `apb_monitor` with the interface it had at the initial commit
-> (2025-11-01) and it has since been redesigned under them. They are its only
-> consumers anywhere in the tree, they have no test, and nothing caught it for
-> nine months because this area had no filelist, no registration and no
-> Makefile. Tracked as AMBA-INTEG-EXAMPLES, which decides whether to rewrite or
-> retire them. Read the pattern below; do not copy the RTL as it stands.
 
 ## The pattern these are meant to show
 
@@ -65,8 +58,8 @@ raw APB ──> apb_slave ──cmd/rsp──> fabric
                  └── tap cmd_*/rsp_* ──> apb_monitor ──> monbus
 ```
 
-Feeding raw APB pins straight into a monitor is exactly the mistake both
-examples currently make.
+Feeding raw APB pins straight into a monitor does not work, and was the defect
+in both examples until 2026-07-26.
 
 ## Navigation
 
