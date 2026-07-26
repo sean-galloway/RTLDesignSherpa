@@ -31,6 +31,29 @@ the same commit. Not "before the test lands" - in the same commit, because a
 module with no filelist has no consumers and is indistinguishable from dead
 code the next time someone audits.
 
+## A shared block set gets its own `.f`
+
+When several lists in an area need the same group of building blocks, factor
+them into one `<area>_<thing>_bb.f` and `-f` include that, rather than repeating
+the group. *Case (2026-07-25): the async-FIFO pointer/control set was copied
+across `fifo_async.f`, `gaxi_fifo_async.f` and four `apb*_slave_cdc*.f` --
+`glitch_free_n_dff_arn` in 8 lists, five more blocks in 7 each. The four apb
+lists were the worst: each already `-f` included `gaxi_fifo_async.f` AND
+separately repeated all ten blocks that list pulls in. One `cdc_fifo_bb.f`
+removed 67 lines of `-f`.* Underscores in the name, like every other `.f`.
+
+**Prove the refactor changed nothing.** Resolve every affected consumer BEFORE,
+re-resolve AFTER, and diff the sorted sets -- `--check` passing does not tell
+you a consumer kept its sources, only that modules are reachable from some list.
+Order within the leaf blocks will shift, which is fine (module definitions have
+no ordering requirement among themselves; headers must still come first), so
+compare sets, then run the tests.
+
+That diff is also how you find dead weight: the same pass showed `fifo_async.f`
+had been dragging in `bin2gray`, which nothing instantiates -- `counter_bingray`
+does the conversion inline specifically to avoid it. A module that is in a
+closure but never instantiated still compiles, so nothing complains.
+
 ## Why: both failure modes are silent
 
 - **`//` is a comment.** A doubled slash in a path silently drops that source.
@@ -81,6 +104,24 @@ gap is entirely the exempt list (multi-instance wrappers with no consumer yet).
 **Nothing runs `--check` automatically.** It is not in the pre-commit hook and
 not in CI, so today the rule is enforced by whoever remembers. Wiring it into a
 gate is tracked in the common and amba task areas.
+
+## `--check` and `--audit` cannot see a hand-listed test
+
+Both tools follow filelists. A test that builds its own `verilog_sources = [...]`
+array is outside that graph entirely, so it can reference a path that no longer
+exists while both tools report PASS. *Case: the CDC move rewrote every test that
+named a cdc FILELIST and missed three that named a PATH --
+`test_fifo_async_wavedrom`, `test_counter_bingray_wavedrom` and
+`test_counter_johnson_wavedrom` were broken for a day with a green `--check`,
+and were only found by running the suite.* Formal `.sby` harnesses have the same
+blind spot: they list sources by hand, which is why the `apb*_slave_cdc` ones
+were missing `gaxi_fifo_async` and its whole tree. Generate a harness's
+`[files]` from the area's filelist instead.
+
+Grep for the pattern when auditing an area:
+
+    grep -l 'verilog_sources = \[' val/*/test_*.py    # hand-listed
+    grep -l 'verilog_sources.append' val/*/test_*.py  # filelist, then appended to
 
 Related: [[naming-and-style]] (module/file naming), [[test-runner]] (tests
 consume filelists via `get_sources_from_filelist`, never a hand-listed array).
