@@ -24,14 +24,14 @@
 # Multi-Field Synchronous FIFO
 
 **Module:** `fifo_sync_multi.sv`
-**Location:** `rtl/common/testcode/`
-**Status:** Testcode -- NOT a production library module
+**Location:** `rtl/integ_common/`
+**Status:** Integration example -- not a rtl/common library module
 
-> This module lives under `rtl/common/testcode/`, not in the library proper.
-> It is retained as a worked example and is exercised by its formal harness
-> under `formal/common/fifo_sync_multi/`, but it is not part of the supported
-> `rtl/common` set and should not be instantiated in a design without
-> promoting it first.
+> This module lives in `rtl/integ_common/`, alongside `rtl/integ_amba`'s
+> examples. It wires rtl/common blocks together to demonstrate a pattern
+> rather than being a library primitive itself. It has a filelist
+> (`rtl/integ_common/filelists/fifo_sync_multi.f`), tests in `val/integ_common/`, and a
+> formal harness under `formal/integ_common/fifo_sync_multi/`.
 
 ## Overview
 
@@ -190,7 +190,7 @@ fifo_sync_multi #(
 
 ### Source Code
 
-- `rtl/common/testcode/fifo_sync_multi.sv`
+- `rtl/integ_common/fifo_sync_multi.sv`
 - `rtl/common/fifo_sync.sv` (instantiated submodule)
 
 ### Documentation

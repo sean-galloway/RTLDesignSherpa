@@ -46,6 +46,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.fifo.fifo_buffer_multi_sigmap import FifoMultiSigMapBufferTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 @cocotb.test(timeout_time=5, timeout_unit="ms")  # Increased timeout for multi-signal testing
@@ -232,7 +233,6 @@ def test_fifo_buffer_multi_sigmap(request, addr_width, ctrl_width, data_width, d
     # get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn':      'rtl/common',
-        'rtl_cmn_test': 'rtl/common/testcode',
         'rtl_amba_includes': 'rtl/amba/includes',
     })
     mode_list = ['fifo_mux', 'fifo_flop']
@@ -242,12 +242,10 @@ def test_fifo_buffer_multi_sigmap(request, addr_width, ctrl_width, data_width, d
     dut_name = "fifo_sync_multi_sigmap"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_cmn_test'], f"{dut_name}.sv"),
-    ]
+    # Take the filelist; never hand-list.
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/integ_common/filelists/fifo_sync_multi_sigmap.f")
 
     # create a human readable test identifier with test level
     aw_str = TBBase.format_dec(addr_width, 3)

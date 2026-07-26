@@ -57,6 +57,26 @@ rtl_roots = ["rtl/amba"]
 filelist_dirs = ["rtl/amba/filelists"]
 
 [[area]]
+name = "misc"
+kind = "component"
+# Small shared oddments (dma_address_gen, simple_rom, axi4_slave_rom). It had no
+# filelists and was unregistered until 2026-07-26, which is why --audit could not
+# see that two rtl/amba/shared filelists were hand-listing dma_address_gen.sv:
+# ownership comes from rtl_roots, and an unregistered area owns nothing.
+rtl_roots = ["projects/components/misc/rtl"]
+filelist_dirs = ["projects/components/misc/rtl/filelists"]
+
+[[area]]
+name = "integ_common"
+kind = "library"
+# Integration examples that wire rtl/common blocks together to show a pattern
+# (fifo_sync_multi and its sigmap variant). They were under rtl/common/testcode
+# until 2026-07-26; pulled out to the RTL level so they sit beside
+# rtl/integ_amba's examples instead of hiding inside the library they consume.
+rtl_roots = ["rtl/integ_common"]
+filelist_dirs = ["rtl/integ_common/filelists"]
+
+[[area]]
 name = "cdc"
 kind = "library"
 # Pulled out of rtl/common and rtl/amba (AMBA-CDC-REORG): everything whose job
@@ -209,5 +229,3 @@ gaxi_fifo_sync_multi         = "multi-instance wrapper; no consumer yet"
 gaxi_skid_buffer_async_multi = "multi-instance wrapper; no consumer yet"
 gaxi_skid_buffer_multi       = "multi-instance wrapper; no consumer yet"
 gaxi_skid_buffer_multi_sigmap = "multi-instance wrapper; no consumer yet"
-fifo_sync_multi              = "multi-instance wrapper; no consumer yet"
-fifo_sync_multi_sigmap       = "multi-instance wrapper; no consumer yet"

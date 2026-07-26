@@ -128,9 +128,9 @@ the three agree.
 #### FIFO Implementations
 - **[fifo_sync](fifo_sync.md)** - Synchronous FIFO with configurable depth
 
-`fifo_async` moved to `rtl/cdc/`. Two further wrappers are documented but live
-under `rtl/common/testcode/`, not in the library proper:
-[fifo_sync_multi](fifo_sync_multi.md) and
+`fifo_async` moved to `rtl/cdc/`. Two further wrappers are documented here but
+live in `rtl/integ_common/` as integration examples rather than library
+modules: [fifo_sync_multi](fifo_sync_multi.md) and
 [fifo_sync_multi_sigmap](fifo_sync_multi_sigmap.md).
 - **[fifo_control](fifo_control.md)** - FIFO control logic
 

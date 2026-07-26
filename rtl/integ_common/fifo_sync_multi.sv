@@ -4,11 +4,11 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: fifo_sync_multi_sigmap
-// Purpose: Fifo Sync Multi Sigmap module
+// Module: fifo_sync_multi
+// Purpose: Fifo Sync Multi module
 //
-// Documentation: docs/markdown/rtl-common/index.md
-// Subsystem: common
+// Documentation: docs/markdown/rtl-common/fifo_sync_multi.md
+// Subsystem: integ_common
 //
 // Author: sean galloway
 // Created: 2025-10-18
@@ -16,7 +16,7 @@
 `timescale 1ns / 1ps
 
 // Parameterized Synchronous FIFO -- This works with any depth
-module fifo_sync_multi_sigmap #(
+module fifo_sync_multi #(
     parameter int REGISTERED = 0,  // 0 = mux mode, 1 = flop mode
     parameter int ADDR_WIDTH = 4,
     parameter int CTRL_WIDTH = 4,
@@ -32,18 +32,18 @@ module fifo_sync_multi_sigmap #(
     input  logic                    clk,
                                     rst_n,
     input  logic                    write,
-    input  logic [AW-1:0]           wr_siga,
-    input  logic [CW-1:0]           wr_sigb,
-    input  logic [DW-1:0]           wr_sigc,
-    input  logic [DW-1:0]           wr_sigd,
+    input  logic [AW-1:0]           wr_addr,
+    input  logic [CW-1:0]           wr_ctrl,
+    input  logic [DW-1:0]           wr_data0,
+    input  logic [DW-1:0]           wr_data1,
 
     output logic                    wr_full,
     output logic                    wr_almost_full,
     input  logic                    read,
-    output logic [AW-1:0]           rd_sige,
-    output logic [CW-1:0]           rd_sigf,
-    output logic [DW-1:0]           rd_sigg,
-    output logic [DW-1:0]           rd_sigh,
+    output logic [AW-1:0]           rd_addr,
+    output logic [CW-1:0]           rd_ctrl,
+    output logic [DW-1:0]           rd_data0,
+    output logic [DW-1:0]           rd_data1,
     output logic                    rd_empty,
     output logic                    rd_almost_empty
 );
@@ -61,15 +61,15 @@ module fifo_sync_multi_sigmap #(
 
         // Write side
         .write            (write),
-        .wr_data          ({wr_siga, wr_sigb, wr_sigd, wr_sigc}),
+        .wr_data          ({wr_addr, wr_ctrl, wr_data1, wr_data0}),
         .wr_full          (wr_full),
         .wr_almost_full   (wr_almost_full),
 
         // Read side
         .read             (read),
-        .rd_data          ({rd_sige,  rd_sigf,  rd_sigh,  rd_sigg}),
+        .rd_data          ({rd_addr,  rd_ctrl,  rd_data1,  rd_data0}),
         .rd_empty         (rd_empty),
         .rd_almost_empty  (rd_almost_empty)
     );
 
-endmodule : fifo_sync_multi_sigmap
+endmodule : fifo_sync_multi
