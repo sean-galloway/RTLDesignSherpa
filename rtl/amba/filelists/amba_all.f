@@ -8,8 +8,11 @@
 # Notes:
 #   - Package files MUST be listed first (monitor_pkg, axi_pkg, apb_pkg)
 #   - Modules that import packages depend on packages being compiled first
-#   - Include paths added via command line: -Iincludes -I$REPO_ROOT/rtl/common
 #   - Files organized by protocol for maintainability
+#   - Self-contained: the rtl/common, rtl/math and rtl/cdc blocks these modules
+#     instantiate arrive by -f include at the bottom. This list used to rely on
+#     the Makefile passing -I$REPO_ROOT/rtl/common as a module SEARCH path,
+#     which silently stopped resolving when math_* and the CDC set split out.
 #
 # ==============================================================================
 
@@ -242,3 +245,10 @@ $REPO_ROOT/rtl/amba/monitor/monitor_trans_cam.sv
 
 # End of filelist
 # ==============================================================================
+
+# =============================================================================
+# CROSS-AREA DEPENDENCIES (-f, never hand-listed -- see [[filelists]])
+# =============================================================================
+# common_all.f carries math_all.f itself, so this reaches rtl/math too.
+-f $REPO_ROOT/rtl/common/filelists/common_all.f
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_all.f
