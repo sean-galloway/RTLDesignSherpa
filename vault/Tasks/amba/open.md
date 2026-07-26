@@ -199,100 +199,50 @@ spine, here are the axes, here are the tweaks."
 ---
 
 ## AMBA-CDC-REORG — pull CDC out of amba into a top-level rtl/cdc area
-**Status:** 🟡 IN PROGRESS 2026-07-24 — RTL moved, NOT YET VERIFIED. Resume below.
+**Status:** ✅ DONE 2026-07-25 — every checklist item worked and verified.
+Move this block to closed.md.
 
-### RESUME HERE (interrupted by power shutdown 2026-07-24)
-**Done in the working tree (committed as WIP):**
-- `rtl/cdc/` created; 12 `.sv` git-moved in (cdc_2/4_phase_handshake,
-  cdc_open_loop, cdc_synchronizer, fifo_async, gaxi_fifo_async,
-  gaxi_skid_buffer_async, bin2gray, gray2bin, johnson2bin, counter_bingray,
-  counter_johnson).
-- 11 `.f` git-moved to `rtl/cdc/filelists/` (gaxi_skid_buffer_async had none).
-- `$REPO_ROOT` paths rewritten for the moved modules across 365 filelists + 10
-  test files; `filelist_path=` strings updated. Verified: no stale refs to the
-  moved modules' old paths (only gaxi_fifo_**sync** remains, which correctly
-  stays in amba).
+**Completed 2026-07-25** (commits `dc922a54`, `cd2a2dc3`, `8b2de284`):
 
-**STILL TO DO (in order) — the move is NOT verified yet:**
-- [ ] **bin/filelists.toml: add the `cdc` area** (`rtl_roots = ["rtl/cdc"]`).
-      Without it, `filelist_registry --check` will report the 12 modules as
-      unreachable. This is the first thing to do on resume.
-- [ ] Create a `.f` for `gaxi_skid_buffer_async` (it had none) — per
-      gaxi_fifo_async.f's note it layers 2 files on the async base.
-- [ ] `bin/filelist_registry.py --check` must pass (read all three counts).
-- [ ] Run moved-module tests to prove sources still resolve: test_bin2gray,
-      test_cdc_2_phase_handshake, test_fifo_buffer_async, test_gaxi_buffer_async.
-      A pass here is the whole point — the hardcoded paths were the risk.
-- [ ] `val/cdc/` — move the cdc tests out of val/common + val/amba (Sean: val/cdc
-      must exist). Update conftest/paths.
-- [ ] `docs/markdown/RTLCdc/` — move the moved modules' doc pages out of
-      RTLCommon/RTLAmba; add `_book_cdc_index.md`, `index.md`, `overview.md`;
-      update the source book indexes.
-- [ ] `formal/common/gaxi_skid_buffer_async/` harness paths.
-- [ ] gray/johnson doc pages currently in the RUNNING common Kimi bundle — when
-      the review returns, its fifo_async/gray/johnson findings reference the OLD
-      rtl/common paths; translate to rtl/cdc when integrating.
+- [x] `bin/filelists.toml`: `cdc` area registered. `--check` reports cdc 12
+      modules / 12 covered / 0 uncovered, no exemptions needed.
+- [x] `.f` for `gaxi_skid_buffer_async` created (it was the one module of twelve
+      without one).
+- [x] `bin/filelist_registry.py --check` PASS **and `--audit` PASS**. Registering
+      the area exposed 27 cross-area hand-listed sources — all pre-existing but
+      invisible, since they were intra-area before the move. All 27 converted to
+      `-f` includes. Verified behaviour-preserving: `fifo_async.f` resolves to
+      the same 14 sources in the same order.
+- [x] Moved-module tests run: `val/cdc` 62 passed after `clean-all`;
+      `val/amba/test_apb5_slave_cdc` 3 passed; `test_gaxi_buffer_async` 12 passed.
+- [x] `val/cdc/` exists — 11 tests git-moved from val/common (7) and val/amba (4),
+      plus a four-line Makefile and a conftest that DERIVES its area name rather
+      than typing it.
+- [x] `docs/markdown/RTLCdc/` — 8 module pages + cdc.md moved in, with `index.md`,
+      `overview.md` and `_book_cdc_index.md`. Casing settled on **RTLCdc**; the
+      empty lowercase `RTLcdc/` is gone. 14 referring pages repathed, 0 broken
+      links to any moved page.
+- [x] `formal/` — 10 harnesses moved to `formal/cdc/`, 13 files repathed.
+- [x] Kimi findings referencing old paths: handled during the round_2 integration
+      (the bundle was rebuilt post-move, so `common_meta` flagged the relocation
+      itself rather than producing stale-path findings).
 
-**NOTE:** `fifo_control`, `counter_bin`, `glitch_free_n_dff_arn` and other shared
-deps deliberately STAY in rtl/common; the moved fifo_async.f still points at them
-there. Do not move them.
+**Two things this surfaced that were NOT part of the move:**
 
----
-(original plan follows)
+1. `test_fifo_async_wavedrom` hand-listed eight `rtl/common` source paths instead
+   of taking a filelist, so it had been broken since `c0daf18a` — the one test
+   the original path rewrite missed, unnoticed because val/common's suite had not
+   been run since. Now takes `rtl/cdc/filelists/fifo_async.f`.
+2. The four `apb*_slave_cdc` formal harnesses referenced `cdc_handshake.sv`,
+   which exists nowhere in the tree and which neither slave instantiates. Dead
+   lines removed. **Still open:** those harnesses do not list `gaxi_fifo_async`,
+   which the slaves DO instantiate, so they look incomplete — worth a look when
+   someone next runs them. `sby`/`yosys` are not installed on this box, so no
+   proof was run to confirm.
 
-## AMBA-CDC-REORG — pull CDC out of amba into a top-level rtl/cdc area (plan)
-**Status:** superseded by the RESUME block above
-**Priority:** P1 (Sean)
-
-Sean, 2026-07-24. Create a first-class `rtl/cdc/` area and consolidate the
-clock-domain-crossing modules there, out of `rtl/amba/` and `rtl/common/`.
-
-**Modules to move into `rtl/cdc/`:**
-- from `rtl/amba/cdc/`: `cdc_2_phase_handshake`, `cdc_4_phase_handshake`,
-  `cdc_open_loop`, `cdc_synchronizer`
-- from `rtl/common/`: `fifo_async` (the async FIFO)
-- from `rtl/amba/gaxi/`: `gaxi_fifo_async`, `gaxi_skid_buffer_async`
-- from `rtl/common/` -- the gray/johnson code-conversion modules, so all the
-  CDC-adjacent encoding lives in one place for reference (Sean, 2026-07-24):
-  `bin2gray`, `gray2bin`, `johnson2bin`, `counter_bingray`, `counter_johnson`
-
-**Everything that must follow the RTL move:**
-- [ ] `val/cdc/` must exist (Sean) — move the corresponding tests out of
-      `val/common` (fifo_async) and `val/amba` (cdc_*, gaxi async) into it.
-- [ ] `docs/markdown/RTLCdc/` book — the moved modules' doc pages leave
-      RTLCommon/RTLAmba; add `_book_cdc_index.md`, `index.md`, `overview.md`.
-- [ ] **Filelists live with the RTL:** `rtl/cdc/filelists/` (the existing
-      convention -- the owning area's `filelists/` dir; `bin/filelists.toml` is
-      the REGISTRY/index, not the storage location). Add the cdc area to the
-      toml. See [[filelists]] and the AMBA-FILELIST-CONSISTENCY task.
-- [ ] Repoint every consumer: `apb5_slave_cdc` instantiates `gaxi_fifo_async`
-      and `cdc_synchronizer`; formal harnesses; includes; `-f` includes across
-      amba/common/stream.
-- [ ] Kimi generates a per-section `overview.md` and the rtl area LINKS to it
-      (directive A) -- see the open question below on how, given rtl READMEs
-      were just deleted.
-
-**Resolved (Sean, 2026-07-24):**
-- **Shared FIFO code stays in common.** Anything used by BOTH the sync and
-  async FIFOs / gaxi-fifos -- `fifo_control.sv` and friends -- remains in
-  `rtl/common`; `rtl/cdc` depends on `rtl/common` for it. Do not split or
-  duplicate it. Only the async-specific modules move.
-- **Sequencing confirmed:** do the move AFTER the common Kimi review comes back
-  and is integrated. Not before.
-
-**Open design questions -- resolve before moving:**
-1. **"Overview linked in the rtl areas" vs "no README in rtl".** We just
-   deleted all rtl READMEs. If each section's Kimi `overview.md` must be linked
-   FROM the rtl area, what carries the link -- the area `CLAUDE.md`, or a
-   single one-line pointer file that is explicitly not a README? Confirm.
-3. Does `gaxi_skid_buffer_async` belong in cdc (it is a skid buffer, async
-   variant) or stay in gaxi? Confirm the exact gaxi split.
-
-**SEQUENCING (hard):** do NOT start while the common Kimi review runs --
-`fifo_async` is in that bundle (part_02) and moving it mid-review invalidates
-the result. This is the exact multitask trap Sean flagged. Order: finish the
-common review + integrate it, THEN do this reorg as one focused operation,
-THEN re-review the new cdc section (DOCREV-009).
+**Not blocking, noted:** 387 unresolvable source refs remain in `formal/common/`
+`.sby` files, all `math_*` fallout from the earlier arithmetic split. Untouched
+here; they want their own task.
 
 ---
 
