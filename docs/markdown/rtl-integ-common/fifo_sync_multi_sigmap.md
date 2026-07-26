@@ -35,7 +35,7 @@
 
 ## Overview
 
-`fifo_sync_multi_sigmap` is a variant of [`fifo_sync_multi`](fifo_sync_multi.md) that carries the same four-field payload through one [`fifo_sync`](fifo_sync.md) instance, but exposes the fields under **generic, position-oriented signal names** (`siga`, `sigb`, `sigc`, `sigd` in, `sige`, `sigf`, `sigg`, `sigh` out) instead of role-specific names like `addr` / `ctrl` / `data`. This makes it a convenient building block when the fields do not have fixed semantic roles, or when a generator maps an array of arbitrary signals onto FIFO slots by position.
+`fifo_sync_multi_sigmap` is a variant of [`fifo_sync_multi`](fifo_sync_multi.md) that carries the same four-field payload through one [`fifo_sync`](../rtl-common/fifo_sync.md) instance, but exposes the fields under **generic, position-oriented signal names** (`siga`, `sigb`, `sigc`, `sigd` in, `sige`, `sigf`, `sigg`, `sigh` out) instead of role-specific names like `addr` / `ctrl` / `data`. This makes it a convenient building block when the fields do not have fixed semantic roles, or when a generator maps an array of arbitrary signals onto FIFO slots by position.
 
 As with the base wrapper, all storage, pointers, and status-flag generation come from the single underlying `fifo_sync`; this module only supplies the field-packing wiring.
 
@@ -132,7 +132,7 @@ The packing order pairs the two data-sized fields identically on both sides (`si
 
 ### Storage and Flow Control
 
-As with `fifo_sync_multi`, all pointer management, memory, and full/almost-full/empty/almost-empty flag generation is provided by the single `fifo_sync` instance. See [`fifo_sync`](fifo_sync.md) for the underlying storage and the mux-vs-flop read-timing behavior selected by `REGISTERED`.
+As with `fifo_sync_multi`, all pointer management, memory, and full/almost-full/empty/almost-empty flag generation is provided by the single `fifo_sync` instance. See [`fifo_sync`](../rtl-common/fifo_sync.md) for the underlying storage and the mux-vs-flop read-timing behavior selected by `REGISTERED`.
 
 ## Usage Example
 
@@ -179,12 +179,12 @@ fifo_sync_multi_sigmap #(
 
 ### Uses
 
-- [fifo_sync](fifo_sync.md) - The underlying single-payload synchronous FIFO providing storage and flow control
+- [fifo_sync](../rtl-common/fifo_sync.md) - The underlying single-payload synchronous FIFO providing storage and flow control
 
 ### See Also
 
 - [fifo_sync_multi](fifo_sync_multi.md) - The role-named (`addr` / `ctrl` / `data0` / `data1`) equivalent
-- [fifo_control](fifo_control.md) - Shared full/empty flag generation used by `fifo_sync`
+- [fifo_control](../rtl-common/fifo_control.md) - Shared full/empty flag generation used by `fifo_sync`
 - [fifo_async](../rtl-cdc/fifo_async.md) - Clock-domain-crossing FIFO variant
 
 ## References

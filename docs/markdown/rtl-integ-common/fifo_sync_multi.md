@@ -35,7 +35,7 @@
 
 ## Overview
 
-`fifo_sync_multi` is a thin convenience wrapper around [`fifo_sync`](fifo_sync.md) that lets a caller push and pop several **named fields** through one synchronous FIFO without hand-packing them into a single wide bus. It concatenates an address field, a control field, and two data words into one `fifo_sync` payload on the write side, and splits the payload back out into the same named fields on the read side.
+`fifo_sync_multi` is a thin convenience wrapper around [`fifo_sync`](../rtl-common/fifo_sync.md) that lets a caller push and pop several **named fields** through one synchronous FIFO without hand-packing them into a single wide bus. It concatenates an address field, a control field, and two data words into one `fifo_sync` payload on the write side, and splits the payload back out into the same named fields on the read side.
 
 The storage, pointer management, and full/empty/almost flag generation are entirely provided by the underlying `fifo_sync` instance. This wrapper adds only the field-packing wiring.
 
@@ -130,7 +130,7 @@ On the read side the same concatenation order is used to split the payload back 
 
 ### Storage and Flow Control
 
-Everything else, binary read/write pointers, the memory array, and full/almost-full/empty/almost-empty flag generation, is delegated to the single `fifo_sync` instance. See [`fifo_sync`](fifo_sync.md) for the pointer, memory, and flag details, including the mux-vs-flop read timing controlled by `REGISTERED`.
+Everything else, binary read/write pointers, the memory array, and full/almost-full/empty/almost-empty flag generation, is delegated to the single `fifo_sync` instance. See [`fifo_sync`](../rtl-common/fifo_sync.md) for the pointer, memory, and flag details, including the mux-vs-flop read timing controlled by `REGISTERED`.
 
 ## Usage Example
 
@@ -178,12 +178,12 @@ fifo_sync_multi #(
 
 ### Uses
 
-- [fifo_sync](fifo_sync.md) - The underlying single-payload synchronous FIFO providing storage and flow control
+- [fifo_sync](../rtl-common/fifo_sync.md) - The underlying single-payload synchronous FIFO providing storage and flow control
 
 ### See Also
 
 - [fifo_sync_multi_sigmap](fifo_sync_multi_sigmap.md) - Same structure with a generic signal-map naming style (`siga`..`sigh`)
-- [fifo_control](fifo_control.md) - Shared full/empty flag generation used by `fifo_sync`
+- [fifo_control](../rtl-common/fifo_control.md) - Shared full/empty flag generation used by `fifo_sync`
 - [fifo_async](../rtl-cdc/fifo_async.md) - Clock-domain-crossing FIFO variant
 
 ## References

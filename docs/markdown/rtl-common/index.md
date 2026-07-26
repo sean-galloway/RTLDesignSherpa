@@ -128,10 +128,9 @@ the three agree.
 #### FIFO Implementations
 - **[fifo_sync](fifo_sync.md)** - Synchronous FIFO with configurable depth
 
-`fifo_async` moved to `rtl/cdc/`. Two further wrappers are documented here but
-live in `rtl/integ_common/` as integration examples rather than library
-modules: [fifo_sync_multi](fifo_sync_multi.md) and
-[fifo_sync_multi_sigmap](fifo_sync_multi_sigmap.md).
+`fifo_async` moved to `rtl/cdc/`. Two multi-field wrappers built on `fifo_sync`
+moved to `rtl/integ_common/` and are documented in their own book:
+[rtl-integ-common](../rtl-integ-common/index.md).
 - **[fifo_control](fifo_control.md)** - FIFO control logic
 
 #### Content Addressable Memory
