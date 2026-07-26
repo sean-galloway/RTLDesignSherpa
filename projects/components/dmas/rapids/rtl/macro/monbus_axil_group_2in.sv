@@ -7,7 +7,7 @@
 //          wrapper merges source + sink monbus streams via monbus_arbiter
 //          before feeding the AXIL/AXIL shared group).
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: rapids_macro
 
 `timescale 1ns / 1ps

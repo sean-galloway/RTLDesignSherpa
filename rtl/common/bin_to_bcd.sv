@@ -7,7 +7,7 @@
 // Module: bin_to_bcd
 // Purpose: //   Binary to Binary Coded Decimal (BCD) converter using shift-and-add-3
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

@@ -7,7 +7,7 @@
 # Module: CounterLoadClearWaveDromTB
 # Purpose: Counter Load Clear WaveDrom Test - Showcases load, clear, and done functionality
 #
-# Documentation: docs/markdown/RTLCommon/counter_load_clear.md
+# Documentation: docs/markdown/rtl-common/counter_load_clear.md
 # Subsystem: tests
 #
 # Author: RTL Design Sherpa AI

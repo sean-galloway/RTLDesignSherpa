@@ -7,7 +7,7 @@
 // Module: fifo_sync_multi_sigmap
 // Purpose: Fifo Sync Multi Sigmap module
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

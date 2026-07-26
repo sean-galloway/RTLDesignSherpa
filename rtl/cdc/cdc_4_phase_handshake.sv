@@ -11,7 +11,7 @@
 //          CDC with data latched in the source domain and sampled in the
 //          destination domain.
 //
-// Documentation: docs/markdown/RTLCdc/cdc.md#cdc_4_phase_handshake
+// Documentation: docs/markdown/rtl-cdc/cdc.md#cdc_4_phase_handshake
 // Subsystem: cdc
 //
 // Author: sean galloway

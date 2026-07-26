@@ -121,7 +121,7 @@ Each one is here because ignoring it cost real work.
 
    - **Count and category drift.** *Case: `rtl/common/README.md` claimed "86
      modules across 9 categories" after the arithmetic split left 55; the
-     matching `docs/markdown/RTLCommon/overview.md` still listed "Arithmetic &
+     matching `docs/markdown/rtl-common/overview.md` still listed "Arithmetic &
      Math (25+ modules)" as a live category. Both copies rotted because the
      split doubled the update burden - the exact failure the one-source rule
      predicts.* Recompute counts from `ls rtl/<area>/*.sv`.
@@ -132,7 +132,7 @@ Each one is here because ignoring it cost real work.
      [[module-doc-template]].*
    - **A README beside code should be a link, not a second copy.** *Case:
      `rtl/common/README.md` was a 14 KB standalone quick-start; the guide moved
-     to `docs/markdown/RTLCommon/quickstart.md` and the RTL file became a
+     to `docs/markdown/rtl-common/quickstart.md` and the RTL file became a
      pointer.*
 
    The authority on where each kind of doc lives is [[doc-placement]].

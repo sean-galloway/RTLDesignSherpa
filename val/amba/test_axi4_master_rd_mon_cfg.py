@@ -8,7 +8,7 @@
 # Purpose: wrapper config-port regression (E5) -- cfg_monitor_enable /
 #          cfg_timeout_cycles / ACTIVE_TRANS_THRESHOLD / count outputs
 #
-# Documentation: docs/markdown/RTLAmba/index.md
+# Documentation: docs/markdown/rtl-amba/index.md
 # Subsystem: tests
 #
 # Author: sean galloway

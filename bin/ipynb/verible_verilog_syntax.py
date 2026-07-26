@@ -7,7 +7,7 @@
 # Module: _TreeIteratorBase
 # Purpose: Wrapper for ``verible-verilog-syntax --export_json``
 #
-# Documentation: docs/markdown/RTLCommon/index.md
+# Documentation: docs/markdown/rtl-common/index.md
 # Subsystem: common
 #
 # Author: sean galloway

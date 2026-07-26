@@ -7,7 +7,7 @@
 # Module: CounterBinGrayWaveDromTB
 # Purpose: Binary-Gray Counter WaveDrom Test - Showcases dual-output Gray code counter
 #
-# Documentation: docs/markdown/RTLCommon/counter_bingray.md
+# Documentation: docs/markdown/rtl-common/counter_bingray.md
 # Subsystem: tests
 #
 # Author: RTL Design Sherpa AI

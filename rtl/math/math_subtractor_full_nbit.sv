@@ -7,7 +7,7 @@
 // Module: math_subtractor_full_nbit
 // Purpose: Math Subtractor Full Nbit module
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

@@ -18,7 +18,7 @@
 //          at the cost of slightly trickier reasoning because the "event"
 //          is a TRANSITION of the signal, not a level.
 //
-// Documentation: docs/markdown/RTLCdc/cdc.md#cdc_2_phase_handshake
+// Documentation: docs/markdown/rtl-cdc/cdc.md#cdc_2_phase_handshake
 // Subsystem: cdc
 //
 // Author: sean galloway

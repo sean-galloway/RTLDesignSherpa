@@ -14,7 +14,7 @@
 // - Optional parity support for data integrity
 // - Clock gating for power reduction during idle
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

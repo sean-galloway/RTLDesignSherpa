@@ -7,7 +7,7 @@
 // Module: axi_monitor_timeout
 // Purpose: Axi Monitor Timeout module
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

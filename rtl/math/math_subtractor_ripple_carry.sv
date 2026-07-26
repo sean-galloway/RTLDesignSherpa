@@ -7,7 +7,7 @@
 // Module: math_subtractor_ripple_carry
 // Purpose: Math Subtractor Ripple Carry module
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

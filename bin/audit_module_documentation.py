@@ -8,7 +8,7 @@
 # Module: DocStatus
 # Purpose: Module Documentation Audit Script
 #
-# Documentation: docs/markdown/RTLCommon/index.md
+# Documentation: docs/markdown/rtl-common/index.md
 # Subsystem: common
 #
 # Author: sean galloway

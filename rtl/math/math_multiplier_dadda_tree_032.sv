@@ -7,7 +7,7 @@
 // Module: math_multiplier_dadda_tree_032
 // Purpose: Math Multiplier Dadda Tree 032 module
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

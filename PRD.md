@@ -75,8 +75,8 @@ rtldesignsherpa/
 
 Each major subsystem has its own detailed PRD:
 
-- **`docs/markdown/RTLCommon/index.md`** - Reusable Building Blocks Library
-- **`docs/markdown/RTLAmba/index.md`** - AMBA Protocol Infrastructure
+- **`docs/markdown/rtl-common/index.md`** - Reusable Building Blocks Library
+- **`docs/markdown/rtl-amba/index.md`** - AMBA Protocol Infrastructure
 - **`projects/components/dmas/rapids/PRD.md`** - Rapid AXI Programmable In-band Descriptor System Specification
 - **RTLDesignSherpa-DV repo** - Verification Framework Guide (shared TB classes: `bin/TBClasses/`)
 
@@ -222,7 +222,7 @@ If project-specific code is found in the framework area, it MUST be moved:
 **Purpose:** Technology-agnostic reusable primitives
 **Modules:** 86 SystemVerilog files
 **Status:** ✅ Mature, stable baseline
-**Documentation:** `docs/markdown/RTLCommon/index.md`, `rtl/common/CLAUDE.md`
+**Documentation:** `docs/markdown/rtl-common/index.md`, `rtl/common/CLAUDE.md`
 
 **Module Categories:**
 
@@ -246,7 +246,7 @@ If project-specific code is found in the framework area, it MUST be moved:
 **Purpose:** AMBA protocol monitoring and interface components
 **Modules:** ~160 SystemVerilog files
 **Status:** 🟡 Active development, production-ready monitors
-**Documentation:** `docs/markdown/RTLAmba/index.md`, `docs/user-guides/AXI_Monitor_Configuration_Guide.md`
+**Documentation:** `docs/markdown/rtl-amba/index.md`, `docs/user-guides/AXI_Monitor_Configuration_Guide.md`
 
 **Protocols Supported:**
 
@@ -988,8 +988,8 @@ See `CLAUDE.md` for comprehensive guide on:
 
 ### 12.1 Subsystem Documentation
 
-- `docs/markdown/RTLCommon/index.md` - Common Library detailed spec
-- `docs/markdown/RTLAmba/index.md` - AMBA Infrastructure detailed spec
+- `docs/markdown/rtl-common/index.md` - Common Library detailed spec
+- `docs/markdown/rtl-amba/index.md` - AMBA Infrastructure detailed spec
 - `projects/components/dmas/rapids/PRD.md` - RAPIDS detailed spec
 - RTLDesignSherpa-DV repo - Verification framework guide
 

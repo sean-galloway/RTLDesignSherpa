@@ -144,14 +144,14 @@ Add optional filtering capabilities to reduce monitor packet traffic.
 **Priority:** P3
 **Status:** 🔴 Not Started (stub created 2026-05-29)
 **Owner:** Sean (author) / Claude (assist)
-**Deliverable:** `docs/markdown/RTLAmba/monitor_system_whitepaper.md`
+**Deliverable:** `docs/markdown/rtl-amba/monitor_system_whitepaper.md`
 > Note (2026-07-22): the 2026-05-29 stub is not present in the current tree; recreate it when this task starts.
 
 **Description:**
 2-3 page whitepaper that frames the monitor system as a *design surface*
 for SoC integrators -- not a status snapshot of what is in place, but a
 guide to which knobs the integrator owns and how to spend them. Different
-from `docs/markdown/RTLAmba/overview.md` (which describes the as-built
+from `docs/markdown/rtl-amba/overview.md` (which describes the as-built
 implementation) and from the per-module specs under `shared/` (which
 describe specific blocks). This paper sits one level up: "here is the
 spine, here are the axes, here are the tweaks."
@@ -177,8 +177,8 @@ spine, here are the axes, here are the tweaks."
    skewed traffic, protocol-partitioned groups.
 
 **Out of scope** for the whitepaper (covered elsewhere):
-- Packet bit-layout (in `docs/markdown/RTLAmba/includes/monitor_package_spec.md`)
-- Per-module port lists / timing (in `docs/markdown/RTLAmba/monitor/{module}.md`)
+- Packet bit-layout (in `docs/markdown/rtl-amba/includes/monitor_package_spec.md`)
+- Per-module port lists / timing (in `docs/markdown/rtl-amba/monitor/{module}.md`)
 - Specific test recipes (in the relevant test source).
 
 **Completion checklist** (already mirrored at the bottom of the stub):
@@ -218,8 +218,8 @@ Move this block to closed.md.
 - [x] `val/cdc/` exists — 11 tests git-moved from val/common (7) and val/amba (4),
       plus a four-line Makefile and a conftest that DERIVES its area name rather
       than typing it.
-- [x] `docs/markdown/RTLCdc/` — 8 module pages + cdc.md moved in, with `index.md`,
-      `overview.md` and `_book_cdc_index.md`. Casing settled on **RTLCdc**; the
+- [x] `docs/markdown/rtl-cdc/` — 8 module pages + cdc.md moved in, with `index.md`,
+      `overview.md` and `_book_cdc_index.md`. Casing settled on **rtl-cdc**; the
       empty lowercase `RTLcdc/` is gone. 14 referring pages repathed, 0 broken
       links to any moved page.
 - [x] `formal/` — 10 harnesses moved to `formal/cdc/`, 13 files repathed.
@@ -264,11 +264,11 @@ non-`known_issues` markdown files remain in the amba RTL tree -- both are
 reader-facing/methodology docs that [[doc-placement]] says do not belong there:
 
 - [ ] `rtl/amba/axi4/AXI4_DATA_WIDTH_CONVERTER_SPEC.md` -- a module spec.
-      Reader-facing product doc -> `docs/markdown/RTLAmba/` (fold into the
+      Reader-facing product doc -> `docs/markdown/rtl-amba/` (fold into the
       converter's page or add as its own). Repoint any code-header/doc refs.
 - [ ] `rtl/amba/VERIFICATION_ARCHITECTURE.md` -- verification architecture /
       methodology. Method -> `vault/handbook/dv/` if it is practice, or
-      `docs/markdown/RTLAmba/` if it is a reader-facing architecture overview.
+      `docs/markdown/rtl-amba/` if it is a reader-facing architecture overview.
       Decide which by reading it; repoint refs.
 
 After this, `rtl/amba` should hold only `.sv`, `CLAUDE.md`, and

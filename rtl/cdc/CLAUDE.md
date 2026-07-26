@@ -9,9 +9,9 @@
 **What:** Everything whose job is getting data across a clock boundary --
 synchronizer, handshakes, asynchronous FIFOs, and the Gray/Johnson coders that
 make those crossings safe.
-**Where the docs are:** [`docs/markdown/RTLCdc/overview.md`](../../docs/markdown/RTLCdc/overview.md)
+**Where the docs are:** [`docs/markdown/rtl-cdc/overview.md`](../../docs/markdown/rtl-cdc/overview.md)
 -- start there for the decision guide; the catalogue is
-[`index.md`](../../docs/markdown/RTLCdc/index.md).
+[`index.md`](../../docs/markdown/rtl-cdc/index.md).
 **Tests:** `val/cdc/` · **Filelists:** `rtl/cdc/filelists/` (lint the area with
 `cdc_all.f`) · **Formal:** `formal/cdc/`
 
@@ -44,7 +44,7 @@ For those, pick by what the receiver needs:
 reset independently -- a soft reset, a per-block reset, separate power domains
 -- `cdc_2_phase_handshake` will fabricate a transfer out of an idle link. This
 is documented with waveforms in
-[`RTLCdc/cdc.md`](../../docs/markdown/RTLCdc/cdc.md#reset-considerations).
+[`rtl-cdc/cdc.md`](../../docs/markdown/rtl-cdc/cdc.md#reset-considerations).
 
 ---
 

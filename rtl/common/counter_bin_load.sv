@@ -7,7 +7,7 @@
 // Module: counter_bin_load
 // Purpose: //   Binary counter with FIFO-optimized wraparound, variable increment, and load
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

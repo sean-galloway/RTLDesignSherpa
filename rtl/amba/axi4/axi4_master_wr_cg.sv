@@ -7,7 +7,7 @@
 // Module: axi4_master_wr_cg
 // Purpose: Axi4 Master Wr Cg module
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

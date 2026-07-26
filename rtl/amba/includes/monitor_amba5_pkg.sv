@@ -7,7 +7,7 @@
 // Module: monitor_amba5_pkg
 // Purpose: AMBA5 protocol extensions (AXI5, APB5, AXIS5)
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

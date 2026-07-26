@@ -7,7 +7,7 @@
 // Module: apb_slave_cg
 // Purpose: Apb Slave Cg module
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

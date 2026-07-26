@@ -7,7 +7,7 @@
 // Module: monbus_cam
 // Purpose: True-LRU caching CAM for the monbus bulk-trace compressor.
 //
-// Documentation: docs/markdown/RTLAmba/monitor/monbus_cam.md  (TBD)
+// Documentation: docs/markdown/rtl-amba/monitor/monbus_cam.md  (TBD)
 // Subsystem: amba
 //
 // Author: sean galloway

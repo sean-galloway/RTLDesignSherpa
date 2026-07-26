@@ -7,7 +7,7 @@
 // Module: axi_monitor_filtered
 // Purpose: Axi Monitor Filtered module
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

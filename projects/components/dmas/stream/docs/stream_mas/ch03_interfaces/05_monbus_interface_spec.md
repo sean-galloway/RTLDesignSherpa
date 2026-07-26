@@ -39,7 +39,7 @@ All STREAM events use Unit ID = 1 and follow the standard 64-bit packet format d
 
 The Monitor Bus architecture provides a unified, scalable framework for monitoring and error reporting across multiple bus protocols in complex SoC designs. This system supports AXI, APB, MNOC (Mesh Network on Chip), ARB (Arbiter), CORE, and custom protocols through a standardized **128-bit packet format** paired with **64-bit side-band timestamps**, both carried atomically through a single handshake interface.
 
-**STREAM Integration:** STREAM uses this unified MonBus for all event reporting (descriptor fetch, scheduler state, AXI transaction monitoring). See `docs/markdown/RTLAmba/includes/monitor_package_spec.md` for the canonical 128-bit packet layout.
+**STREAM Integration:** STREAM uses this unified MonBus for all event reporting (descriptor fetch, scheduler state, AXI transaction monitoring). See `docs/markdown/rtl-amba/includes/monitor_package_spec.md` for the canonical 128-bit packet layout.
 
 ## Interface Summary
 
@@ -166,7 +166,7 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 
 ### 128-bit Monitor Bus Packet Structure
 
-The 128-bit packet is the standard across all AMBA/STREAM monitoring. Full field definitions are in `docs/markdown/RTLAmba/includes/monitor_package_spec.md` and the SystemVerilog typedef `monitor_packet_t` in `rtl/amba/includes/monitor_common_pkg.sv`.
+The 128-bit packet is the standard across all AMBA/STREAM monitoring. Full field definitions are in `docs/markdown/rtl-amba/includes/monitor_package_spec.md` and the SystemVerilog typedef `monitor_packet_t` in `rtl/amba/includes/monitor_common_pkg.sv`.
 
 **Quick Reference:**
 

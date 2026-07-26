@@ -7,7 +7,7 @@
 # Module: AxiMonitorTransMgrTB
 # Purpose: axi_monitor_trans_mgr transaction-tracking regression tests
 #
-# Documentation: docs/markdown/RTLAmba/index.md
+# Documentation: docs/markdown/rtl-amba/index.md
 # Subsystem: tests
 #
 # Author: sean galloway

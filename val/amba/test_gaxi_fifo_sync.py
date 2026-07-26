@@ -7,7 +7,7 @@
 # Module: test_gaxi_fifo_sync
 # Purpose: GAXI Synchronous FIFO Test with Parameterized Test Levels
 #
-# Documentation: PRD.md, docs/markdown/RTLAmba/gaxi/gaxi_fifo_sync.md
+# Documentation: PRD.md, docs/markdown/rtl-amba/gaxi/gaxi_fifo_sync.md
 # Subsystem: tests
 #
 # Author: sean galloway

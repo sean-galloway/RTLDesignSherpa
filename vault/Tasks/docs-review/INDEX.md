@@ -23,7 +23,7 @@ Process and rationale: [kimi-review-rounds](../../handbook/authoring/kimi-review
 
 ## Recently closed
 
-- **DOCREV-006** — math docs moved to `docs/markdown/RTLMath/` (2026-07-23),
+- **DOCREV-006** — math docs moved to `docs/markdown/rtl-math/` (2026-07-23),
   matching `rtl/math/` and `val/math/`. Kimi critiques deliberately left citing
   the old paths; they are evidence, not documentation.
 

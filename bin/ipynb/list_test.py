@@ -7,7 +7,7 @@
 # Module: TestList
 # Purpose: Generates a list of commands for running tests based on a given test name substr
 #
-# Documentation: docs/markdown/RTLCommon/index.md
+# Documentation: docs/markdown/rtl-common/index.md
 # Subsystem: common
 #
 # Author: sean galloway

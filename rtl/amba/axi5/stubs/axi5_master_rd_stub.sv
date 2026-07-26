@@ -7,7 +7,7 @@
 // Module: axi5_master_rd_stub
 // Purpose: AXI5 Master Read Stub module
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

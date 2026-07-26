@@ -7,7 +7,7 @@
 // Module: debounce
 // Purpose: //   Multi-channel button/signal debouncer using shift register sampling. Samples
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

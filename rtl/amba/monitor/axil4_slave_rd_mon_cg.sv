@@ -7,7 +7,7 @@
 // Module: axil4_slave_rd_mon_cg
 // Purpose: Axil4 Slave Rd Mon Cg module
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

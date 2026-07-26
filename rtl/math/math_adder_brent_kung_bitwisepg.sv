@@ -7,7 +7,7 @@
 // Module: math_adder_brent_kung_bitwisepg
 // Purpose: Math Adder Brent Kung Bitwisepg module
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

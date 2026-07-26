@@ -8,7 +8,7 @@
 # Module: Signal
 # Purpose: SystemVerilog Interface Flattener - Converts interfaces to logic signals for Ver
 #
-# Documentation: docs/markdown/RTLCommon/index.md
+# Documentation: docs/markdown/rtl-common/index.md
 # Subsystem: common
 #
 # Author: sean galloway

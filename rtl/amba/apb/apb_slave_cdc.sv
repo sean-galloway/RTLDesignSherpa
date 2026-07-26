@@ -7,7 +7,7 @@
 // Module: apb_slave_cdc
 // Purpose: Apb Slave Cdc module
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

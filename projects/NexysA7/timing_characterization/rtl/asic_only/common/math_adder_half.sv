@@ -7,7 +7,7 @@
 // Module: math_adder_half
 // Purpose: Math Adder Half module
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

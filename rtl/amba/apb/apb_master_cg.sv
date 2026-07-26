@@ -7,7 +7,7 @@
 // Module: apb_master_cg
 // Purpose: Apb Master Cg module
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

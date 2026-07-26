@@ -7,7 +7,7 @@
 // Module: gray2bin
 // Purpose: //   Gray code to binary converter. Converts reflected binary code (Gray code)
 //
-// Documentation: docs/markdown/RTLCdc/gray2bin.md
+// Documentation: docs/markdown/rtl-cdc/gray2bin.md
 // Subsystem: cdc
 //
 // Author: sean galloway

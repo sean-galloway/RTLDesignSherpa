@@ -7,7 +7,7 @@
 // Module: shifter_lfsr
 // Purpose: //   Generic XOR-Shift Linear Feedback Shift Register (LFSR) with XNOR feedback.
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

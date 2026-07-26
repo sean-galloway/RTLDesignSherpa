@@ -25,7 +25,7 @@
 // Packet format: 128-bit monitor_packet_t plus the 64-bit side-band
 // monbus_timestamp, matching apb_monitor and monitor_package_spec.md.
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

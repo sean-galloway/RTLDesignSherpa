@@ -42,7 +42,7 @@ STREAM provides a unified Monitor Bus (MonBus) interface for debug and performan
 
 ## Packet Format
 
-The 128-bit MonBus packet and 64-bit timestamp are paired atomically and transmitted as a 192-bit group through AXI-Lite skid buffering. See the canonical packet specification at `docs/markdown/RTLAmba/includes/monitor_package_spec.md` for complete field definitions.
+The 128-bit MonBus packet and 64-bit timestamp are paired atomically and transmitted as a 192-bit group through AXI-Lite skid buffering. See the canonical packet specification at `docs/markdown/rtl-amba/includes/monitor_package_spec.md` for complete field definitions.
 
 | Bits | Field | Description |
 |------|-------|-------------|
@@ -76,7 +76,7 @@ All internal monitors are gated by:
 
 ## Event Types
 
-STREAM uses the unified MonBus event categorization defined in `docs/markdown/RTLAmba/includes/monitor_package_spec.md`:
+STREAM uses the unified MonBus event categorization defined in `docs/markdown/rtl-amba/includes/monitor_package_spec.md`:
 - **Error events (Type 0x0):** Protocol violations, timeouts, invalid descriptors
 - **Completion events (Type 0x1):** Successful transfer completion, descriptor processed
 - **Performance events (Type 0x4):** Latency metrics, throughput data

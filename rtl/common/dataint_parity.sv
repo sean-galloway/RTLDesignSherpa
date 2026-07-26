@@ -7,7 +7,7 @@
 // Module: dataint_parity
 // Purpose: //   Generic multi-chunk parity generator and checker. Divides input data into
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

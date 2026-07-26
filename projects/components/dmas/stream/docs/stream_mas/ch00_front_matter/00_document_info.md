@@ -94,7 +94,7 @@ Macro. An integration-level block that instantiates and connects multiple FUBs.
 
 **MonBus**
 
-Monitor Bus. A 128-bit packet stream paired with a 64-bit side-band timestamp wire, used for performance monitoring and debug event reporting. Packet field layout is the canonical spec at `docs/markdown/RTLAmba/includes/monitor_package_spec.md`; the stream `monbus_axil_group` wraps the shared building block at `rtl/amba/monitor/monbus_axil_axil_group.sv` (formerly `rtl/amba/shared/monbus_axil_group.sv`) and emits 3-beat AXI-Lite records (`pkt[63:0]`, `pkt[127:64]`, `ts[63:0]`).
+Monitor Bus. A 128-bit packet stream paired with a 64-bit side-band timestamp wire, used for performance monitoring and debug event reporting. Packet field layout is the canonical spec at `docs/markdown/rtl-amba/includes/monitor_package_spec.md`; the stream `monbus_axil_group` wraps the shared building block at `rtl/amba/monitor/monbus_axil_axil_group.sv` (formerly `rtl/amba/shared/monbus_axil_group.sv`) and emits 3-beat AXI-Lite records (`pkt[63:0]`, `pkt[127:64]`, `ts[63:0]`).
 
 **Outstanding Transaction**
 

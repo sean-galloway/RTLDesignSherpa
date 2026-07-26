@@ -7,7 +7,7 @@
 // Module: monitor_pkg
 // Purpose: Unified monitor package - backward compatibility wrapper
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

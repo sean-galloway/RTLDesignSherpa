@@ -7,7 +7,7 @@
 # Module: test_gaxi_skid_buffer_dbldrn
 # Purpose: GAXI Skid Buffer Double-Drain Test with Parameterized Test Levels
 #
-# Documentation: PRD.md, docs/markdown/RTLAmba/gaxi/gaxi_skid_buffer_dbldrn.md
+# Documentation: PRD.md, docs/markdown/rtl-amba/gaxi/gaxi_skid_buffer_dbldrn.md
 # Subsystem: tests
 #
 # Author: sean galloway

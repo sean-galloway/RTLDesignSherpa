@@ -8,7 +8,7 @@
 # Purpose: MonBus AXIL/AXIL Group integration test (AXIL slave-read +
 #          AXIL master-write member of the monbus_<p1>_<p2>_group family).
 #
-# Documentation: docs/markdown/RTLAmba/index.md
+# Documentation: docs/markdown/rtl-amba/index.md
 # Subsystem: amba (shared)
 #
 # Author: sean galloway

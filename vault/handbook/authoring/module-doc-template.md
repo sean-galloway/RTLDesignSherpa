@@ -4,7 +4,7 @@ summary: The standard section structure for a docs/markdown/*.md module page - h
 ---
 
 > This is the canonical structure for a per-module documentation page under
-> `docs/markdown/` (RTLCommon, RTLMath, RTLAmba). It moved here from
+> `docs/markdown/` (rtl-common, rtl-math, rtl-amba). It moved here from
 > `rtl/common/DOCUMENTATION_STYLE_GUIDE.md` on 2026-07-24 - a style guide is
 > methodology and must not live in the RTL tree. Related: [[doc-pipeline]] (how
 > the pages become PDF books), [[kimi-review-rounds]] (how they are QC'd),

@@ -7,7 +7,7 @@
 // Module: gaxi_skid_buffer_async
 // Purpose: Gaxi Skid Buffer Async module
 //
-// Documentation: docs/markdown/RTLCdc/gaxi_skid_buffer_async.md
+// Documentation: docs/markdown/rtl-cdc/gaxi_skid_buffer_async.md
 // Subsystem: cdc
 //
 // Author: sean galloway

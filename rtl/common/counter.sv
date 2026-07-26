@@ -7,7 +7,7 @@
 // Module: counter
 // Purpose: Counter module
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

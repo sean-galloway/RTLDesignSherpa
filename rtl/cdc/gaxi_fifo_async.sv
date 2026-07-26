@@ -7,7 +7,7 @@
 // Module: gaxi_fifo_async
 // Purpose: Gaxi Fifo Async module
 //
-// Documentation: docs/markdown/RTLCdc/gaxi_fifo_async.md
+// Documentation: docs/markdown/rtl-cdc/gaxi_fifo_async.md
 // Subsystem: cdc
 //
 // Author: sean galloway

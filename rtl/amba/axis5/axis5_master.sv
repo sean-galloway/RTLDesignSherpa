@@ -7,7 +7,7 @@
 // Module: axis5_master
 // Purpose: AXI5-Stream Master module with AMBA5 extensions
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // AXIS5 Extensions:

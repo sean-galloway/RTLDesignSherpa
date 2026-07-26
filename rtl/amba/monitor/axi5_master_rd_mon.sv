@@ -20,7 +20,7 @@
 // - Performance metrics collection
 // - Configuration validation with error flagging
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

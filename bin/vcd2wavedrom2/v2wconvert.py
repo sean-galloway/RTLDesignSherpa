@@ -7,7 +7,7 @@
 # Module: V2WConvert
 # Purpose: Converts a value from one timescale to another.
 #
-# Documentation: docs/markdown/RTLCommon/index.md
+# Documentation: docs/markdown/rtl-common/index.md
 # Subsystem: common
 #
 # Author: sean galloway

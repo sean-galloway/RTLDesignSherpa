@@ -8,7 +8,7 @@
 # Module: Parameter
 # Purpose: Parameter Audit Tool for RTL Design Sherpa
 #
-# Documentation: docs/markdown/RTLCommon/index.md
+# Documentation: docs/markdown/rtl-common/index.md
 # Subsystem: common
 #
 # Author: sean galloway

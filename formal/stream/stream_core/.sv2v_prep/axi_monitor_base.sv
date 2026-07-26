@@ -7,7 +7,7 @@
 // Module: axi_monitor_base
 // Purpose: Axi Monitor Base module
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

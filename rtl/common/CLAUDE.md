@@ -679,8 +679,8 @@ verilator --lint-only rtl/common/module.sv
 
 ## Key Files for Reference
 
-- **docs/markdown/RTLCommon/index.md** - Detailed module specifications
-- **docs/markdown/RTLCommon/quickstart.md** - Quick start guide (docs/markdown/RTLCommon/index.md links here)
+- **docs/markdown/rtl-common/index.md** - Detailed module specifications
+- **docs/markdown/rtl-common/quickstart.md** - Quick start guide (docs/markdown/rtl-common/index.md links here)
 - **val/common/test_*.py** - Test examples
 - **/CLAUDE.md** - Repository-wide AI guidance
 - **/PRD.md** - Master project requirements

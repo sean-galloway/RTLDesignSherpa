@@ -7,7 +7,7 @@
 // Module: math_adder_ripple_carry
 // Purpose: Math Adder Ripple Carry module
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

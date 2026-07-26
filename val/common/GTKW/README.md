@@ -391,7 +391,7 @@ Or use GTKWave's `File → Read Waveform` first, then `File → Read Save File`.
 
 ## Related Documentation
 
-- **docs/markdown/RTLCommon/index.md** - Module specifications
+- **docs/markdown/rtl-common/index.md** - Module specifications
 - **rtl/common/CLAUDE.md** - AI assistance guide
 - **val/common/test_*.py** - Test files
 - **bin/generate_gtkw_files.py** - Save file generator

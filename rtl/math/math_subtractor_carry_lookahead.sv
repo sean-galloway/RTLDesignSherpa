@@ -7,7 +7,7 @@
 // Module: math_subtractor_carry_lookahead
 // Purpose: Math Subtractor Carry Lookahead module
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

@@ -7,7 +7,7 @@
 // Module: axi5_slave_wr_stub
 // Purpose: AXI5 Slave Write Stub module
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

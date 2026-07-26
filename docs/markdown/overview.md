@@ -86,9 +86,9 @@ graph TD
 - **[Documentation Index](docs/DOCUMENTATION_INDEX.md)** - Complete documentation guide
 
 ### 🏗️ RTL Building Blocks
-- **[Common Library](rtl/common/)** (224 modules) - [Documentation](docs/markdown/RTLCommon/index.md) - [AI Guide](rtl/common/CLAUDE.md)
+- **[Common Library](rtl/common/)** (224 modules) - [Documentation](docs/markdown/rtl-common/index.md) - [AI Guide](rtl/common/CLAUDE.md)
   - Counters, FIFOs, arbiters, integer math, floating-point (BF16/FP16/FP32/FP8), data integrity
-- **[AMBA Infrastructure](rtl/amba/)** (124 modules) - [Documentation](docs/markdown/RTLAmba/index.md) - [AI Guide](rtl/amba/CLAUDE.md)
+- **[AMBA Infrastructure](rtl/amba/)** (124 modules) - [Documentation](docs/markdown/rtl-amba/index.md) - [AI Guide](rtl/amba/CLAUDE.md)
   - APB, AXI4, AXI4-Lite, AXI-Stream, AMBA5 protocols
 
 ### 🎯 Component Projects
@@ -118,7 +118,7 @@ graph TD
 
 ### Level 1: Common Building Blocks (Foundation)
 
-**Location:** [`rtl/common/`](rtl/common/) | **Documentation:** [Full Index](docs/markdown/RTLCommon/index.md) | [AI Guide](rtl/common/CLAUDE.md)
+**Location:** [`rtl/common/`](rtl/common/) | **Documentation:** [Full Index](docs/markdown/rtl-common/index.md) | [AI Guide](rtl/common/CLAUDE.md)
 
 Learn fundamental RTL design patterns through **224 reusable modules**:
 
@@ -169,7 +169,7 @@ module counter_bin #(
 
 ### Level 2: AMBA Protocol Infrastructure
 
-**Location:** [`rtl/amba/`](rtl/amba/) | **Documentation:** [Full Index](docs/markdown/RTLAmba/index.md) | [AI Guide](rtl/amba/CLAUDE.md)
+**Location:** [`rtl/amba/`](rtl/amba/) | **Documentation:** [Full Index](docs/markdown/rtl-amba/index.md) | [AI Guide](rtl/amba/CLAUDE.md)
 
 Apply common building blocks to implement industry-standard protocols (**124 modules**):
 
@@ -461,8 +461,8 @@ rtldesignsherpa/
 │
 ├── docs/                         # Documentation
 │   ├── markdown/                # Technical documentation
-│   │   ├── RTLCommon/           # Common library docs
-│   │   ├── RTLAmba/             # AMBA library docs
+│   │   ├── rtl-common/           # Common library docs
+│   │   ├── rtl-amba/             # AMBA library docs
 │   │   ├── CocoTBFramework/     # Framework docs
 │   │   └── projects/            # Component docs
 │   └── DOCUMENTATION_INDEX.md   # Master doc index
@@ -544,12 +544,12 @@ pytest projects/components/retro_legacy_blocks/dv/tests/hpet/test_apb_hpet.py -v
 ### Documentation by Level
 
 **Level 1 - Common Modules:**
-- [Common Library PRD](docs/markdown/RTLCommon/index.md) - Requirements and specifications
+- [Common Library PRD](docs/markdown/rtl-common/index.md) - Requirements and specifications
 - [Common CLAUDE Guide](rtl/common/CLAUDE.md) - AI-assisted development
 - [Common Tests](val/common/) - Example test patterns
 
 **Level 2 - AMBA Protocols:**
-- [AMBA Infrastructure PRD](docs/markdown/RTLAmba/index.md) - Protocol specifications
+- [AMBA Infrastructure PRD](docs/markdown/rtl-amba/index.md) - Protocol specifications
 - [AMBA CLAUDE Guide](rtl/amba/CLAUDE.md) - Implementation patterns
 - [AMBA Tests](val/amba/) - Protocol compliance tests
 

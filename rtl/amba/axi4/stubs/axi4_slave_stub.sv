@@ -7,7 +7,7 @@
 // Module: axi4_slave_stub
 // Purpose: Axi4 Slave Stub module
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

@@ -20,7 +20,7 @@
 //
 // Bridge case: set ERROR=1, all others 0 → ~70% of reporter LUT/FF drops.
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Author: sean galloway
 // Created: 2025-10-18 (original) / 2026-06-06 (sub-block refactor)
 

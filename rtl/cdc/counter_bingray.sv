@@ -7,7 +7,7 @@
 // Module: counter_bingray
 // Purpose: Counter Bingray module
 //
-// Documentation: docs/markdown/RTLCdc/counter_bingray.md
+// Documentation: docs/markdown/rtl-cdc/counter_bingray.md
 // Subsystem: cdc
 //
 // Author: sean galloway

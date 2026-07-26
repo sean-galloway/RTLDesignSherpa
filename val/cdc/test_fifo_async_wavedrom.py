@@ -7,7 +7,7 @@
 # Module: test_fifo_async_wavedrom
 # Purpose: WaveDrom waveform generation for fifo_async showcasing Gray code CDC
 #
-# Documentation: docs/markdown/RTLCommon/fifo_async.md
+# Documentation: docs/markdown/rtl-common/fifo_async.md
 # Subsystem: tests
 #
 # Author: Claude Code (sean galloway)

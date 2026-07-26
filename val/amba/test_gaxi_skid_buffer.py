@@ -7,7 +7,7 @@
 # Module: test_gaxi_skid_buffer
 # Purpose: GAXI Skid Buffer Test with Parameterized Test Levels
 #
-# Documentation: PRD.md, docs/markdown/RTLAmba/gaxi/gaxi_skid_buffer.md
+# Documentation: PRD.md, docs/markdown/rtl-amba/gaxi/gaxi_skid_buffer.md
 # Subsystem: tests
 #
 # Author: sean galloway

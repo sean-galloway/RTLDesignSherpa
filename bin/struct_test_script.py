@@ -8,7 +8,7 @@
 # Module: struct_test_script
 # Purpose: Struct Utilities Test Script
 #
-# Documentation: docs/markdown/RTLCommon/index.md
+# Documentation: docs/markdown/rtl-common/index.md
 # Subsystem: common
 #
 # Author: sean galloway

@@ -7,7 +7,7 @@
 # Module: FileFindMove
 # Purpose: Initializes the FileFindMove class.
 #
-# Documentation: docs/markdown/RTLCommon/index.md
+# Documentation: docs/markdown/rtl-common/index.md
 # Subsystem: common
 #
 # Author: sean galloway

@@ -7,7 +7,7 @@
 // Module: verilog_operators
 // Purpose: Verilog Condensed LRM / Common Coding Patterns Reference
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

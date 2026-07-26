@@ -7,7 +7,7 @@
 // Module: find_first_set
 // Purpose: //   Finds the position (index) of the least significant '1' bit in the input
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

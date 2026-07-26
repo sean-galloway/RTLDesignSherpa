@@ -113,14 +113,14 @@ test_reset_sync.py::test_reset_sync[5-max]      PASSED
 3. ✅ All 4 test configurations passing
 4. ✅ Verified synchronizer chain progresses correctly
 5. ✅ Verified proper glitch filtering (N clock cycles)
-6. ✅ Updated documentation in `docs/markdown/RTLCommon/reset_sync.md`
+6. ✅ Updated documentation in `docs/markdown/rtl-common/reset_sync.md`
 
 ### Related Files
 
 - ✅ `rtl/common/reset_sync.sv` (fix applied line 16)
 - ✅ `val/common/test_reset_sync.py` (new test file created)
 - ✅ `bin/TBClasses/reset_sync_tb.py` (new testbench class)
-- ✅ `docs/markdown/RTLCommon/reset_sync.md` (updated)
+- ✅ `docs/markdown/rtl-common/reset_sync.md` (updated)
 - ✅ `rtl/common/TASKS.md` (task completed, progress tracked)
 
 ### Lessons Learned

@@ -7,7 +7,7 @@
 // Module: dataint_crc_xor_shift_cascade
 // Purpose: Dataint Crc Xor Shift Cascade module
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

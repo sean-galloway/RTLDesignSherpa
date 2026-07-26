@@ -7,7 +7,7 @@
 # Module: test_axi_monitor_wr_same_cycle
 # Purpose: same-cycle AW+W first-beat regression for the write monitor
 #
-# Documentation: docs/markdown/RTLAmba/index.md
+# Documentation: docs/markdown/rtl-amba/index.md
 # Subsystem: tests
 #
 # Author: sean galloway

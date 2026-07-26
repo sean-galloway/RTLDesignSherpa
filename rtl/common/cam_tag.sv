@@ -7,7 +7,7 @@
 // Module: cam_tag
 // Purpose: //   Content Addressable Memory (CAM) for tag tracking and management. Provides
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

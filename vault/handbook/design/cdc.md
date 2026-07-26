@@ -13,7 +13,7 @@ summary: Sync every crossing; gray-code pointers; handshakes for events.
   `gray2bin`. This is why bin2gray/gray2bin live in rtl/common (they serve
   CDC, not math - deliberate decision when rtl/math split out).
 - Async FIFO depths are powers of 2 (gray wrap correctness), and EVEN depths
-  matter for the ASIC variant - see docs/markdown/RTLAmba/cdc/cdc.md for the
+  matter for the ASIC variant - see docs/markdown/rtl-amba/cdc/cdc.md for the
   depth-36 case study.
 - In XDC: async clock groups for unrelated clocks. But see
   [[timing-closure]] - a giant negative WNS is usually NOT a missing clock

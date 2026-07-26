@@ -12,7 +12,7 @@
 #
 # Each error-FIFO record drains as three 64-bit beats per the
 # monbus_axil_axil_group slice-counter read path (and the monitor package
-# spec, docs/markdown/RTLAmba/includes/monitor_package_spec.md) -- TS, HI, LO:
+# spec, docs/markdown/rtl-amba/includes/monitor_package_spec.md) -- TS, HI, LO:
 #
 #     beat 0:  {tag[3:0], source_ts[59:0]}   (timestamp slice, tag=0 raw)
 #     beat 1:  packet[127:64]                (high half of the monbus packet)

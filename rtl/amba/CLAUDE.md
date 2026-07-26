@@ -35,7 +35,7 @@
 **Status:** 🟡 Active development - production-ready monitors, test refinement ongoing
 **Your Role:** Help users integrate monitors, configure correctly, debug issues
 
-**📖 Detailed Specs:** `docs/markdown/RTLAmba/` ← **Always reference this for technical details**
+**📖 Detailed Specs:** `docs/markdown/rtl-amba/` ← **Always reference this for technical details**
 
 ---
 
@@ -104,19 +104,19 @@ async def axi4_test(dut):
 
 ### Rule #1: Always Reference Detailed Documentation
 
-**This subsystem has extensive documentation in** `docs/markdown/RTLAmba/`
+**This subsystem has extensive documentation in** `docs/markdown/rtl-amba/`
 
 **Before answering technical questions:**
 ```bash
 # Check detailed docs first
-ls docs/markdown/RTLAmba/
-cat docs/markdown/RTLAmba/overview.md
-cat docs/markdown/RTLAmba/monitor/axi4_master_rd_mon.md
+ls docs/markdown/rtl-amba/
+cat docs/markdown/rtl-amba/overview.md
+cat docs/markdown/rtl-amba/monitor/axi4_master_rd_mon.md
 ```
 
 **Your answer should:**
 1. Provide direct answer/code
-2. **Then link to detailed docs:** "See `docs/markdown/RTLAmba/{file}.md` for complete specification"
+2. **Then link to detailed docs:** "See `docs/markdown/rtl-amba/{file}.md` for complete specification"
 
 ### Rule #2: Avoid Enabling All Monitor Packet Types
 
@@ -216,24 +216,24 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 
 | Module | Purpose | Key Params | Documentation |
 |--------|---------|------------|---------------|
-| `axi4_master_rd_mon.sv` | Master read monitoring | ID_WIDTH, ADDR_WIDTH, DATA_WIDTH, MAX_TRANSACTIONS | `docs/markdown/RTLAmba/monitor/axi4_master_rd_mon.md` |
-| `axi4_master_wr_mon.sv` | Master write monitoring | Same | `docs/markdown/RTLAmba/monitor/` |
-| `axi4_slave_rd_mon.sv` | Slave read monitoring | Same | `docs/markdown/RTLAmba/monitor/` |
-| `axi4_slave_wr_mon.sv` | Slave write monitoring | Same | `docs/markdown/RTLAmba/monitor/` |
+| `axi4_master_rd_mon.sv` | Master read monitoring | ID_WIDTH, ADDR_WIDTH, DATA_WIDTH, MAX_TRANSACTIONS | `docs/markdown/rtl-amba/monitor/axi4_master_rd_mon.md` |
+| `axi4_master_wr_mon.sv` | Master write monitoring | Same | `docs/markdown/rtl-amba/monitor/` |
+| `axi4_slave_rd_mon.sv` | Slave read monitoring | Same | `docs/markdown/rtl-amba/monitor/` |
+| `axi4_slave_wr_mon.sv` | Slave write monitoring | Same | `docs/markdown/rtl-amba/monitor/` |
 | `*_cg.sv` variants | Clock-gated versions | Same + CG_ENABLE | Power optimization |
 
 ### APB Monitors
 
 | Module | Purpose | Key Params | Documentation |
 |--------|---------|------------|---------------|
-| `apb_monitor.sv` | APB transaction monitoring | ADDR_WIDTH, DATA_WIDTH, MAX_TRANSACTIONS | `docs/markdown/RTLAmba/apb/` |
+| `apb_monitor.sv` | APB transaction monitoring | ADDR_WIDTH, DATA_WIDTH, MAX_TRANSACTIONS | `docs/markdown/rtl-amba/apb/` |
 
 ### AXIS Monitors
 
 | Module | Purpose | Key Params | Documentation |
 |--------|---------|------------|---------------|
-| `axis_master.sv` | AXIS transmit monitoring | DATA_WIDTH, ID_WIDTH, DEST_WIDTH | `docs/markdown/RTLAmba/axis4/axis_master.md` |
-| `axis_slave.sv` | AXIS receive monitoring | Same | `docs/markdown/RTLAmba/axis4/` |
+| `axis_master.sv` | AXIS transmit monitoring | DATA_WIDTH, ID_WIDTH, DEST_WIDTH | `docs/markdown/rtl-amba/axis4/axis_master.md` |
+| `axis_slave.sv` | AXIS receive monitoring | Same | `docs/markdown/rtl-amba/axis4/` |
 
 ### AXI4-Lite Monitors
 
@@ -289,7 +289,7 @@ All protocol-agnostic. The monitor core, monbus infrastructure, monbus arbiters,
 
 **Arbiters with monbus instrumentation (3):** `arbiter_monbus_common.sv`, `arbiter_rr_pwm_monbus.sv`, `arbiter_wrr_pwm_monbus.sv`
 
-**CDC (moved):** `cdc_2_phase_handshake.sv`, `cdc_4_phase_handshake.sv`, `cdc_open_loop.sv` and `cdc_synchronizer.sv` now live in `rtl/cdc/`, along with `gaxi_fifo_async.sv` and `gaxi_skid_buffer_async.sv` that used to sit under `rtl/amba/gaxi/`. Docs: `docs/markdown/RTLCdc/`.
+**CDC (moved):** `cdc_2_phase_handshake.sv`, `cdc_4_phase_handshake.sv`, `cdc_open_loop.sv` and `cdc_synchronizer.sv` now live in `rtl/cdc/`, along with `gaxi_fifo_async.sv` and `gaxi_skid_buffer_async.sv` that used to sit under `rtl/amba/gaxi/`. Docs: `docs/markdown/rtl-cdc/`.
 
 **Storage helpers (5)** — used by harnesses, not the monitor path itself: `sdpram_core.sv` (shared core) + `sdpram_slave_{axi4,axil}_{axi4,axil}.sv` (4 protocol-pair wrappers). Replaces the deleted unified `sdpram_slave.sv`.
 
@@ -333,9 +333,9 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 ```
 
 **Then link:**
-- **Integration:** See `docs/markdown/RTLAmba/index.md` for complete examples
+- **Integration:** See `docs/markdown/rtl-amba/index.md` for complete examples
 - **Configuration:** See `docs/user-guides/AXI_Monitor_Configuration_Guide.md`
-- **Module spec:** See `docs/markdown/RTLAmba/monitor/axi4_master_rd_mon.md`
+- **Module spec:** See `docs/markdown/rtl-amba/monitor/axi4_master_rd_mon.md`
 
 ### Q: "What packet types should I enable?"
 
@@ -388,7 +388,7 @@ logic [63:0] event_data = monbus_packet[63:0];
 // or use monitor_common_pkg::get_packet_type() etc.
 ```
 
-**📖 See:** `docs/markdown/RTLAmba/includes/monitor_package_spec.md` (complete spec)
+**📖 See:** `docs/markdown/rtl-amba/includes/monitor_package_spec.md` (complete spec)
 
 ### Q: "How to handle multiple monitors?"
 
@@ -721,19 +721,19 @@ gtkwave waves.vcd
 ### Always Reference These
 
 **Primary Technical Docs:**
-- `docs/markdown/RTLAmba/index.md` - Module index
-- `docs/markdown/RTLAmba/overview.md` - Architecture
-- `docs/markdown/RTLAmba/axi4/` + `docs/markdown/RTLAmba/monitor/` - AXI module and monitor specs
-- `docs/markdown/RTLAmba/apb/` - APB module specs
-- `docs/markdown/RTLAmba/axis4/` - AXIS module specs
-- `docs/markdown/RTLAmba/includes/monitor_package_spec.md` - Packet format
+- `docs/markdown/rtl-amba/index.md` - Module index
+- `docs/markdown/rtl-amba/overview.md` - Architecture
+- `docs/markdown/rtl-amba/axi4/` + `docs/markdown/rtl-amba/monitor/` - AXI module and monitor specs
+- `docs/markdown/rtl-amba/apb/` - APB module specs
+- `docs/markdown/rtl-amba/axis4/` - AXIS module specs
+- `docs/markdown/rtl-amba/includes/monitor_package_spec.md` - Packet format
 
 **Configuration:**
 - `docs/user-guides/AXI_Monitor_Configuration_Guide.md` ← **Essential for correct setup**
 
 **This Subsystem:**
-- `docs/markdown/RTLAmba/index.md` - Requirements overview
-- `docs/markdown/RTLAmba/index.md` - Quick start guide
+- `docs/markdown/rtl-amba/index.md` - Requirements overview
+- `docs/markdown/rtl-amba/index.md` - Quick start guide
 - `/vault/Tasks/amba/` - Current work
 - `rtl/amba/KNOWN_ISSUES/` - Bug tracking
 
@@ -747,8 +747,8 @@ gtkwave waves.vcd
 
 ```bash
 # View detailed docs
-cat docs/markdown/RTLAmba/overview.md
-cat docs/markdown/RTLAmba/monitor/axi4_master_rd_mon.md
+cat docs/markdown/rtl-amba/overview.md
+cat docs/markdown/rtl-amba/monitor/axi4_master_rd_mon.md
 
 # Check configuration guide
 cat docs/user-guides/AXI_Monitor_Configuration_Guide.md
@@ -768,7 +768,7 @@ verilator --lint-only rtl/amba/monitor/axi_monitor_base.sv
 
 ## Remember
 
-1. 📖 **Link to detailed docs** - `docs/markdown/RTLAmba/` has complete specs
+1. 📖 **Link to detailed docs** - `docs/markdown/rtl-amba/` has complete specs
 2. ⚠️ **Configuration critical** - Never all packet types together
 3. 🐛 **Check known issues** - Before diagnosing bugs
 4. 🔗 **Complete integration** - Monitor + config + downstream handling

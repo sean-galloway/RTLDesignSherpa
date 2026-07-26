@@ -17,16 +17,16 @@ shared header fragments and image dirs, not a book.
 
 | Book | index.md | overview.md |
 |---|---|---|
-| RTLAmba, RTLCommon, projects | yes | yes |
-| RTLMath | yes | **write it** |
+| rtl-amba, rtl-common, projects | yes | yes |
+| rtl-math | yes | **write it** |
 | Scripts | yes | **write it** |
 | TestTutorial | yes | **write it** |
 | RTLcdc | **write it** | **write it** |
 
 `docs/markdown/RTLcdc/` exists but is EMPTY, and its casing disagrees with the
-`docs/markdown/RTLCdc/` that AMBA-CDC-REORG specifies. Settle on one name when
+`docs/markdown/rtl-cdc/` that AMBA-CDC-REORG specifies. Settle on one name when
 that book is populated -- do not end up with both. That book is blocked on the
-CDC reorg anyway, since its pages have to move out of RTLCommon/RTLAmba first.
+CDC reorg anyway, since its pages have to move out of rtl-common/rtl-amba first.
 
 **Also: the link back from the RTL tree.** Each area's RTL should point at its
 book's `overview.md`. It cannot be a `README.md` (banned under `rtl/`, commit
@@ -41,7 +41,7 @@ book's `overview.md`. It cannot be a `README.md` (banned under `rtl/`, commit
 **Why it matters beyond tidiness:** `build_review_bundle.py` builds a unit per
 `_book_*_index.md` and includes `overview.md` plus the pages that index links.
 A book with no overview reviews less than it appears to, and `index.md` /
-`quickstart.md` are outside the bundle entirely -- which is how RTLCommon's meta
+`quickstart.md` are outside the bundle entirely -- which is how rtl-common's meta
 docs kept a wrong module count, six relocated modules and a phantom `sync_2ff`
 through three review rounds. Pair this with the `<area>_meta` unit from
 DOCREV-009.
@@ -79,7 +79,7 @@ Diff before/after and confirm all of these survive:
 
 **Suggested bundle:** one small page with heavy markup beats a large plain one.
 A page with a figure + table + waveform + code block + cross-links exercises
-every tag class at once. `docs/markdown/RTLAmba/cdc/cdc.md` and the math pages
+every tag class at once. `docs/markdown/rtl-amba/cdc/cdc.md` and the math pages
 with rendered tables are good candidates.
 
 **Acceptance:** regenerate the affected book to PDF after the test rewrite and
@@ -191,7 +191,7 @@ mass `sed`.
 
 **Sequence with the doc reviews.** Converting a README that a pending Kimi unit
 cites would move the target mid-review; do the area's DOCREV-001 findings first,
-then its README, the same order used for the RTLMath move.
+then its README, the same order used for the rtl-math move.
 
 ---
 
@@ -212,7 +212,7 @@ closing pass, **section by section**, across the entire repo — `rtl/*`,
       readme/overview) were never reviewed and are exactly where count/structure
       drift hides (see the rtl/common 86-vs-55 case, [[doc-placement]] rule 3).
 - [ ] **Correctness check** (`qc`): bundle from the CURRENT tree so paths are
-      post-split (RTLMath, moved READMEs), serial, large max_tokens
+      post-split (rtl-math, moved READMEs), serial, large max_tokens
       ([[kimi-review-rounds]] rules 1-4). Measure results against the tree;
       anything CONFIRMED becomes new DOCREV work. A near-empty round is the goal
       — that is the evidence the backlog is actually closed.

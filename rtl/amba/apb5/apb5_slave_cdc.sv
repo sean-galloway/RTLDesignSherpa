@@ -16,7 +16,7 @@
 // - Optional parity support for data integrity
 // - CDC handshake for crossing clock domains
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

@@ -49,34 +49,34 @@ The framework emphasizes **practical industry workflows**, **comprehensive verif
 
 ### 📦 RTL IP Libraries
 
-#### **[RTL Common Modules](RTLCommon/index.md)**
+#### **[RTL Common Modules](rtl-common/index.md)**
 Fundamental building blocks for digital design:
 - **Data Structures**: FIFOs, shift registers, counters, timers with comprehensive parameterization
 - **Control Logic**: Arbiters, encoders, decoders, state machines
 - **Signal Processing**: CRC engines, LFSR generators, data integrity checkers
 - **Clock/Reset**: ICG modules, clock dividers, reset synchronizers
 
-*49 modules. Arithmetic split out to RTLMath and clock-crossing to
-RTLCdc -- see below.*
+*49 modules. Arithmetic split out to rtl-math and clock-crossing to
+rtl-cdc -- see below.*
 
-#### **[RTL Math Library](RTLMath/index.md)**
-Arithmetic, split out of RTLCommon:
+#### **[RTL Math Library](rtl-math/index.md)**
+Arithmetic, split out of rtl-common:
 - **Adders**: Brent-Kung, Han-Carlson, Kogge-Stone, ripple-carry, carry-save
 - **Multipliers**: Wallace tree, Dadda tree, booth
 - **Floating point**: bf16, fp8 (e4m3/e5m2), fp16, fp32 -- arithmetic, conversion, activations
 
 *171 modules*
 
-#### **[RTL Clock Domain Crossing](RTLCdc/index.md)**
+#### **[RTL Clock Domain Crossing](rtl-cdc/index.md)**
 Everything whose job is crossing a clock boundary:
 - **Synchronizer and handshakes**: `cdc_synchronizer`, 2-phase and 4-phase, open-loop
 - **Gray/Johnson coders**: the encodings that make a multi-bit crossing safe
 - **Asynchronous FIFOs**: `fifo_async` plus the GAXI variants
 
-*12 modules. Start at the [decision guide](RTLCdc/overview.md) -- picking
+*12 modules. Start at the [decision guide](rtl-cdc/overview.md) -- picking
 the wrong technique here fails silently in silicon.*
 
-#### **[RTL AMBA Protocol Suite](RTLAmba/index.md)**
+#### **[RTL AMBA Protocol Suite](rtl-amba/index.md)**
 Complete implementation of ARM AMBA protocols:
 - **APB (Advanced Peripheral Bus)**: Masters, slaves, crossbars with full APB4/APB5 compliance
 - **AXI4 (Full)**: High-performance memory-mapped interfaces with burst support
@@ -244,10 +244,10 @@ RTL Design Sherpa is built on solid technical foundations inspired by industry-l
 ## Navigation
 
 ### 📚 **RTL IP Documentation**
-- **[RTL Common Modules](RTLCommon/index.md)** - Fundamental digital design building blocks
-- **[RTL Math Library](RTLMath/index.md)** - Adders, multipliers, floating-point formats
-- **[RTL Clock Domain Crossing](RTLCdc/index.md)** - Synchronizers, handshakes, async FIFOs
-- **[RTL AMBA Protocols](RTLAmba/index.md)** - Complete AMBA protocol implementation
+- **[RTL Common Modules](rtl-common/index.md)** - Fundamental digital design building blocks
+- **[RTL Math Library](rtl-math/index.md)** - Adders, multipliers, floating-point formats
+- **[RTL Clock Domain Crossing](rtl-cdc/index.md)** - Synchronizers, handshakes, async FIFOs
+- **[RTL AMBA Protocols](rtl-amba/index.md)** - Complete AMBA protocol implementation
 
 ### 🧪 **Verification and Testing**
 - **[TBClasses](TBClasses/tbclasses_index.md)** - Project-specific testbench classes

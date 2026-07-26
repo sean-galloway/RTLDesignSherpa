@@ -7,7 +7,7 @@
 // Module: axi_monitor_base
 // Purpose: Axi Monitor Base module
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway
@@ -137,7 +137,7 @@ module axi_monitor_base
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_high,
 
     // Performance window control (Stage A of perfmon RFC).
-    //   See docs/markdown/RTLAmba/index.md for the full
+    //   See docs/markdown/rtl-amba/index.md for the full
     //   start/end-event encoding. Stage B will wire the four cycle bucket
     //   counters to gate on window_active; Stage D wires the latency
     //   histograms. Stage A only manages the lifecycle.

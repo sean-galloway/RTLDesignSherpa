@@ -821,15 +821,15 @@ APB monitor is **fully functional** and ready for WaveDrom integration (TASK-017
 
 ---
 
-### TASK-023: Complete RTLAmba Documentation and Waveform Integration
+### TASK-023: Complete rtl-amba Documentation and Waveform Integration
 **Priority:** P0
-**Status:** 🟢 Complete (2026-07-22) — RTLAmba doc set rebuilt from 41 to 182 markdown files; the CG-variant, stub, and monitor-module pages this task listed as gaps now exist and render into the RTL library PDFs. Original marker: In Progress (2025-10-23).
+**Status:** 🟢 Complete (2026-07-22) — rtl-amba doc set rebuilt from 41 to 182 markdown files; the CG-variant, stub, and monitor-module pages this task listed as gaps now exist and render into the RTL library PDFs. Original marker: In Progress (2025-10-23).
 **Owner:** Claude AI
 **Effort:** High (2-3 weeks)
 **Task File:** `TASK-023-complete_rtlamba_documentation.md`
 
 **Description:**
-Complete comprehensive markdown documentation for all AMBA modules with integrated WaveDrom timing diagrams. Fill gaps in docs/markdown/RTLAmba/ structure.
+Complete comprehensive markdown documentation for all AMBA modules with integrated WaveDrom timing diagrams. Fill gaps in docs/markdown/rtl-amba/ structure.
 
 **Current Status Assessment:**
 - ✅ **Main Modules Documented:** 41 markdown files (axi4, axil4, apb, axis4, gaxi, shared)
@@ -861,8 +861,8 @@ Complete comprehensive markdown documentation for all AMBA modules with integrat
    - **Approach:** Explain stub purpose, testing usage
 
 4. **Shared Infrastructure (Priority 1):**
-   - ✅ docs/markdown/RTLAmba/shared/README.md exists (comprehensive)
-   - [x] Individual module pages now exist under docs/markdown/RTLAmba/monitor/:
+   - ✅ docs/markdown/rtl-amba/shared/README.md exists (comprehensive)
+   - [x] Individual module pages now exist under docs/markdown/rtl-amba/monitor/:
      - axi_monitor_base.md
      - axi_monitor_filtered.md
      - axi_monitor_trans_mgr.md
@@ -870,10 +870,10 @@ Complete comprehensive markdown documentation for all AMBA modules with integrat
      - axi_monitor_timeout.md
      - arbiter_monbus_common.md
      - monbus_arbiter.md
-     - cdc_handshake (covered in docs/markdown/RTLAmba/cdc/cdc.md)
+     - cdc_handshake (covered in docs/markdown/rtl-amba/cdc/cdc.md)
 
 5. **Adapters/Shims (Priority 2):**
-   - ✅ docs/markdown/RTLAmba/shims/README.md exists
+   - ✅ docs/markdown/rtl-amba/shims/README.md exists
    - ✅ Individual shim docs exist (axi4_to_apb_convert, axi4_to_apb_shim, peakrdl_to_cmdrsp)
    - [ ] Update shims documentation with usage examples
 
@@ -987,7 +987,7 @@ module ...
 ```
 
 **Resources:**
-- **Waveform Pattern:** docs/markdown/RTLAmba/apb/apb_slave.md (reference)
+- **Waveform Pattern:** docs/markdown/rtl-amba/apb/apb_slave.md (reference)
 - **Test Pattern:** val/amba/test_apb_slave_wavedrom.py
 - **Constraint Pattern:** bin/TBClasses/wavedrom_user/apb.py
 - **Existing Waveforms:** docs/markdown/assets/WAVES/

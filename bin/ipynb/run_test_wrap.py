@@ -8,7 +8,7 @@
 # Module: run_test_wrap
 # Purpose: Test suite for Run Wrap
 #
-# Documentation: docs/markdown/RTLCommon/index.md
+# Documentation: docs/markdown/rtl-common/index.md
 # Subsystem: common
 #
 # Author: sean galloway

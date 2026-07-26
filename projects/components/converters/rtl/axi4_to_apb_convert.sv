@@ -7,7 +7,7 @@
 // Module: axi4_to_apb_convert
 // Purpose: Axi4 To Apb Convert module
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

@@ -9,7 +9,7 @@
 //   Frequency-invariant time-based counter that generates consistent
 //   microsecond ticks regardless of input clock frequency.
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

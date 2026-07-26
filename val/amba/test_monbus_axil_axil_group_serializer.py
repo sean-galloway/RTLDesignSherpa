@@ -9,7 +9,7 @@
 #          against differently-shaped but equally legal AXI4-Lite read
 #          masters (GitHub issue #41, defect 1).
 #
-# Documentation: docs/markdown/RTLAmba/index.md
+# Documentation: docs/markdown/rtl-amba/index.md
 # Subsystem: amba (shared)
 #
 # Author: sean galloway
@@ -314,7 +314,7 @@ async def cocotb_test_monbus_axil_axil_group_serializer(dut):
     await tb.initialize()
 
     # Build `nrecords` distinguishable ERROR packets. Packet layout per
-    # docs/markdown/RTLAmba/includes/monitor_package_spec.md; the exact field
+    # docs/markdown/rtl-amba/includes/monitor_package_spec.md; the exact field
     # split does not matter here -- what matters is that every record is
     # unique so a desynchronized drain is detectable.
     records = []

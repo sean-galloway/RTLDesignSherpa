@@ -7,7 +7,7 @@
 // Module: hex_to_7seg
 // Purpose: Hex To 7Seg module
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

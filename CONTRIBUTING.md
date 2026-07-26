@@ -276,7 +276,7 @@ git commit -m "Add counter_bin module with overflow detection
 
 - Implement parameterized binary counter
 - Add comprehensive CocoTB test suite
-- Document in RTLCommon/counters/"
+- Document in rtl-common/counters/"
 ```
 
 ### 5. Create Pull Request

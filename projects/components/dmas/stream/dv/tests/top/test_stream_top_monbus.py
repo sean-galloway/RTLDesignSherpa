@@ -149,7 +149,7 @@ async def cocotb_test_stream_top_monbus(dut):
         drain_data_width=32,
         group_node=group_node,
         irq_sig=dut.stream_irq,
-        # Per docs/markdown/RTLAmba/includes/monitor_package_spec.md the group
+        # Per docs/markdown/rtl-amba/includes/monitor_package_spec.md the group
         # emits BOTH the bulk-trace (m_mon_axil) AND the single-record drain
         # (s_mon_axil) as: beat0={tag,source_ts[59:0]}, beat1=packet[127:64],
         # beat2=packet[63:0] -- i.e. TS_HI_LO on both ports.

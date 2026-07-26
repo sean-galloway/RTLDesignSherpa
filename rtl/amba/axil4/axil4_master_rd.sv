@@ -7,7 +7,7 @@
 // Module: axil4_master_rd
 // Purpose: Axil4 Master Rd module
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

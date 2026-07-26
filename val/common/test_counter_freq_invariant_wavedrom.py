@@ -7,7 +7,7 @@
 # Module: CounterFreqInvariantWaveDromTB
 # Purpose: Counter Freq Invariant WaveDrom Test - Showcases frequency-agnostic microsecond timing
 #
-# Documentation: docs/markdown/RTLCommon/counter_freq_invariant.md
+# Documentation: docs/markdown/rtl-common/counter_freq_invariant.md
 # Subsystem: tests
 #
 # Author: RTL Design Sherpa AI

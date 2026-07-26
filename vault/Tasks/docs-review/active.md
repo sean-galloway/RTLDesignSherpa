@@ -51,7 +51,7 @@ first, per the rule). Not started.
 | Area | Units | State |
 |---|---|---|
 | **common** | `common_part_01..05` + `common_meta` (re-reviewed 2026-07-25 after the CDC move) | ✅ **DONE 2026-07-25** — 21/22 implicated files touched; the 22nd is a rejected false positive |
-| **math** | `math_part_01/02/03` (r2) | ✅ **DONE 2026-07-24** — 16 CONFIRMED fixed, 5 SUSPECTED all bundle-scope false positives; docs live in RTLMath now |
+| **math** | `math_part_01/02/03` (r2) | ✅ **DONE 2026-07-24** — 16 CONFIRMED fixed, 5 SUSPECTED all bundle-scope false positives; docs live in rtl-math now |
 | shared | `shared_part_01..04` (r2) | ⬜ not started — 13 CONFIRMED in part_02 alone |
 | monitor | `monitor_part_01..06` (r3) | ⬜ not started — 70 CONFIRMED, largest block |
 | apb / apb5 | `apb`, `apb5` (r2) | ⬜ not started — 6 CONFIRMED cite `rtl/*.sv` |
@@ -60,8 +60,8 @@ first, per the rule). Not started.
 | **cdc** | `cdc_part_01/02` (r2) | ✅ **DONE 2026-07-23** — all 13 findings |
 
 **cdc, 2026-07-23.** All 13 findings across both units worked. `cdc_part_01`:
-six `RTLCommon` findings (five already covered, the phantom `synchronizer`
-fixed) plus three on `RTLAmba/cdc/cdc.md` — `johnson2bin` was documented as
+six `rtl-common` findings (five already covered, the phantom `synchronizer`
+fixed) plus three on `rtl-amba/cdc/cdc.md` — `johnson2bin` was documented as
 "registered" when it is purely combinational (the three `always_ff` in its
 source are all inside comments), which made both flop-cost walkthroughs wrong:
 512-bit 144 -> **132** flops (+96 -> **+84**), depth-36 244 -> **230** (+188 ->
@@ -206,7 +206,7 @@ were missed:
 - `cdc_part_02` (3 CONFIRMED, 1 SUSPECTED) touches no `rtl/common`.
 
 **Their common-touching findings were then worked and are DONE (2026-07-23).**
-Checked each of `cdc_part_01`'s six `RTLCommon` findings against the tree; five
+Checked each of `cdc_part_01`'s six `rtl-common` findings against the tree; five
 were already covered by the `common_part_*` integration and needed nothing:
 
 - glitch_free_n_dff_arn "synchronous" reset -> already reads **Asynchronous**
@@ -230,7 +230,7 @@ Verified by lint, not by inspection: a wrapper instantiating the corrected form
 elaborates clean under `verilator --lint-only -Wall`. The one remaining warning
 (`flat_r_q` unused) is pre-existing inside `glitch_free_n_dff_arn.sv` itself.
 
-`shared_part_02`'s findings all target **RTLAmba** docs (`amba_clock_gate_ctrl`,
+`shared_part_02`'s findings all target **rtl-amba** docs (`amba_clock_gate_ctrl`,
 the master characterization blocks) and merely cite `rtl/common` modules as
 evidence — they are shared-pass work, not common.
 
@@ -238,11 +238,11 @@ evidence — they are shared-pass work, not common.
 
 **Where the files are.** The RTL moved to `rtl/math/` (171) and tests to
 `val/math/` (119) before this review; the docs moved to
-`docs/markdown/RTLMath/` on 2026-07-23 (DOCREV-006, closed). **The findings
+`docs/markdown/rtl-math/` on 2026-07-23 (DOCREV-006, closed). **The findings
 still cite the pre-split paths** — `rtl/common/math_*.sv` and
-`docs/markdown/RTLCommon/math_*.md` — and that is deliberate: they are reviewer
+`docs/markdown/rtl-common/math_*.md` — and that is deliberate: they are reviewer
 evidence and must not be rewritten. Both are 1:1 renames, so translate as you
-read: `RTLCommon/math_X.md` -> `RTLMath/math_X.md`.
+read: `rtl-common/math_X.md` -> `rtl-math/math_X.md`.
 
 **Counts:** 23 findings — `math_part_01` 9 (8 CONFIRMED), `math_part_02` 8
 (6 CONFIRMED), `math_part_03` 6 (4 CONFIRMED). 16 docs implicated, all present.

@@ -7,7 +7,7 @@
 // Module: counter_bin
 // Purpose: //   Binary counter with configurable maximum value and special FIFO-optimized
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

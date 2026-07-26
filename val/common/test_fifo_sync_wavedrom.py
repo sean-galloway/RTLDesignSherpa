@@ -7,7 +7,7 @@
 # Module: test_fifo_sync_wavedrom
 # Purpose: WaveDrom waveform generation for fifo_sync (synchronous FIFO)
 #
-# Documentation: docs/markdown/RTLCommon/fifo_sync.md
+# Documentation: docs/markdown/rtl-common/fifo_sync.md
 # Subsystem: tests
 #
 # Author: Claude Code (sean galloway)

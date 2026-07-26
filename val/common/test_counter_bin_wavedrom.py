@@ -7,7 +7,7 @@
 # Module: CounterBinWaveDromTB
 # Purpose: Binary Counter WaveDrom Test - Showcases FIFO-optimized MSB inversion behavior
 #
-# Documentation: docs/markdown/RTLCommon/counter_bin.md
+# Documentation: docs/markdown/rtl-common/counter_bin.md
 # Subsystem: tests
 #
 # Author: RTL Design Sherpa AI

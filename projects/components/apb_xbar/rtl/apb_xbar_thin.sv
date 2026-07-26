@@ -7,7 +7,7 @@
 // Module: apb_xbar_thin
 // Purpose: Apb Xbar Thin module
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

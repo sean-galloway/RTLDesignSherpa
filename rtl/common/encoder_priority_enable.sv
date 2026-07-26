@@ -7,7 +7,7 @@
 // Module: encoder_priority_enable
 // Purpose: Encoder Priority Enable module
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

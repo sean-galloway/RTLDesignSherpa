@@ -7,7 +7,7 @@
 // Module: pwm
 // Purpose: //   Multi-channel Pulse Width Modulation (PWM) generator with independent control
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

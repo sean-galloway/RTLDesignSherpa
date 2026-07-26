@@ -256,7 +256,7 @@ from TBClasses.shared.tbbase import TBBase
 **Note:** Arithmetic modules (`math_*.sv`) were split out of rtl/common into `rtl/math/`
 (tests moved from `val/common/test_math_*.py` to `val/math/`).
 
-**Documentation:** `docs/markdown/RTLCommon/index.md`, `rtl/common/CLAUDE.md`
+**Documentation:** `docs/markdown/rtl-common/index.md`, `rtl/common/CLAUDE.md`
 
 ### rtl/amba/ - AMBA Protocol Infrastructure
 **Modules:** ~150 SystemVerilog files
@@ -274,7 +274,7 @@ from TBClasses.shared.tbbase import TBBase
 - `monitor/apb_monitor.sv` - APB protocol monitor
 - `axis4/axis_master.sv`, `axis4/axis_slave.sv` - AXI-Stream interfaces
 
-**Documentation:** `docs/markdown/RTLAmba/index.md`, `rtl/amba/CLAUDE.md`, `rtl/amba/KNOWN_ISSUES/`
+**Documentation:** `docs/markdown/rtl-amba/index.md`, `rtl/amba/CLAUDE.md`, `rtl/amba/KNOWN_ISSUES/`
 
 ### RAPIDS - Rapid AXI Programmable In-band Descriptor System
 **Location:** `projects/components/dmas/rapids/` (moved out of rtl/; rearchitected as the "beats" design)
@@ -804,7 +804,7 @@ cat rtl/*/TASKS.md
 - **History:** Transaction table exhaustion due to missing feedback
 - **Verification:** Current monitor issues are tracked in `rtl/amba/KNOWN_ISSUES/`
   (the old axi_monitor_reporter issue page was retired; the reporter module doc is
-  `docs/markdown/RTLAmba/monitor/axi_monitor_reporter.md`)
+  `docs/markdown/rtl-amba/monitor/axi_monitor_reporter.md`)
 
 ### RAPIDS Subsystem
 

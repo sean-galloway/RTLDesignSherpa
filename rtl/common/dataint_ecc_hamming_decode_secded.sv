@@ -7,7 +7,7 @@
 // Module: dataint_ecc_hamming_decode_secded
 // Purpose: //   Hamming SECDED (Single Error Correction, Double Error Detection) decoder.
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

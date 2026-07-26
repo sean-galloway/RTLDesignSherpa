@@ -121,7 +121,7 @@ Reusable primitives, technology-agnostic. **~230 modules across [`rtl/common/`](
 | **Encoders / decoders** | 3 | [`rtl/common/`](rtl/common/) (`{encoder,decoder}*.sv`) | priority encoder, address decoder |
 | **Reset** | 1 | [`rtl/common/reset_sync.sv`](rtl/common/reset_sync.sv) | async-assert / sync-deassert reset bridge |
 
-**Deep dive:** [docs/markdown/RTLCommon/index.md](docs/markdown/RTLCommon/index.md) (per-module specs) · [rtl/common/CLAUDE.md](rtl/common/CLAUDE.md)
+**Deep dive:** [docs/markdown/rtl-common/index.md](docs/markdown/rtl-common/index.md) (per-module specs) · [rtl/common/CLAUDE.md](rtl/common/CLAUDE.md)
 
 ### 2. AMBA Protocols — [`rtl/amba/`](rtl/amba/)
 
@@ -129,18 +129,18 @@ Production-ready AXI/APB/AXIS infrastructure with built-in monitor + observation
 
 | Protocol (overview) | Modules | RTL | Notes |
 |---|---|---|---|
-| [AXI4](docs/markdown/RTLAmba/axi4/README.md) | 16 | [`rtl/amba/axi4/`](rtl/amba/axi4/) | masters/slaves, RD/WR, `_mon` + `_cg` variants |
-| [AXI5](docs/markdown/RTLAmba/axi5/README.md) | 16 | [`rtl/amba/axi5/`](rtl/amba/axi5/) | AXI5 extensions |
-| [AXI4-Lite](docs/markdown/RTLAmba/axil4/README.md) | 16 | [`rtl/amba/axil4/`](rtl/amba/axil4/) | **Dedicated** `axil4_*_mon.sv` (not the legacy `IS_AXI=0`) |
-| [APB](docs/markdown/RTLAmba/apb/README.md) | 9 | [`rtl/amba/apb/`](rtl/amba/apb/) | masters, slaves, slave_cdc + `_cg` |
-| [APB5](docs/markdown/RTLAmba/apb5/README.md) | 9 | [`rtl/amba/apb5/`](rtl/amba/apb5/) | APB5 extensions |
-| [AXI-Stream (AXIS4)](docs/markdown/RTLAmba/axis4/README.md) | 4 | [`rtl/amba/axis4/`](rtl/amba/axis4/) | master / slave |
-| [AXI-Stream (AXIS5)](docs/markdown/RTLAmba/axis5/README.md) | 4 | [`rtl/amba/axis5/`](rtl/amba/axis5/) | AXIS5 extensions |
-| [Shared infrastructure](docs/markdown/RTLAmba/shared/README.md) | 48 | [`rtl/amba/shared/`](rtl/amba/shared/) | monitor core, monbus, observation, sdpram, CDC, arbiters |
-| [GAXI generic](docs/markdown/RTLAmba/gaxi/README.md) | 8 | [`rtl/amba/gaxi/`](rtl/amba/gaxi/) | sync/async FIFOs and skid buffers |
-| [Packages](docs/markdown/RTLAmba/includes/README.md) | 8 | [`rtl/amba/includes/`](rtl/amba/includes/) | shared `.svh`/types |
+| [AXI4](docs/markdown/rtl-amba/axi4/README.md) | 16 | [`rtl/amba/axi4/`](rtl/amba/axi4/) | masters/slaves, RD/WR, `_mon` + `_cg` variants |
+| [AXI5](docs/markdown/rtl-amba/axi5/README.md) | 16 | [`rtl/amba/axi5/`](rtl/amba/axi5/) | AXI5 extensions |
+| [AXI4-Lite](docs/markdown/rtl-amba/axil4/README.md) | 16 | [`rtl/amba/axil4/`](rtl/amba/axil4/) | **Dedicated** `axil4_*_mon.sv` (not the legacy `IS_AXI=0`) |
+| [APB](docs/markdown/rtl-amba/apb/README.md) | 9 | [`rtl/amba/apb/`](rtl/amba/apb/) | masters, slaves, slave_cdc + `_cg` |
+| [APB5](docs/markdown/rtl-amba/apb5/README.md) | 9 | [`rtl/amba/apb5/`](rtl/amba/apb5/) | APB5 extensions |
+| [AXI-Stream (AXIS4)](docs/markdown/rtl-amba/axis4/README.md) | 4 | [`rtl/amba/axis4/`](rtl/amba/axis4/) | master / slave |
+| [AXI-Stream (AXIS5)](docs/markdown/rtl-amba/axis5/README.md) | 4 | [`rtl/amba/axis5/`](rtl/amba/axis5/) | AXIS5 extensions |
+| [Shared infrastructure](docs/markdown/rtl-amba/shared/README.md) | 48 | [`rtl/amba/shared/`](rtl/amba/shared/) | monitor core, monbus, observation, sdpram, CDC, arbiters |
+| [GAXI generic](docs/markdown/rtl-amba/gaxi/README.md) | 8 | [`rtl/amba/gaxi/`](rtl/amba/gaxi/) | sync/async FIFOs and skid buffers |
+| [Packages](docs/markdown/rtl-amba/includes/README.md) | 8 | [`rtl/amba/includes/`](rtl/amba/includes/) | shared `.svh`/types |
 
-**Deep dive:** [docs/markdown/RTLAmba/index.md](docs/markdown/RTLAmba/index.md) (full shared/ inventory by role) · [rtl/amba/CLAUDE.md](rtl/amba/CLAUDE.md) · [docs/markdown/RTLAmba/index.md](docs/markdown/RTLAmba/index.md)
+**Deep dive:** [docs/markdown/rtl-amba/index.md](docs/markdown/rtl-amba/index.md) (full shared/ inventory by role) · [rtl/amba/CLAUDE.md](rtl/amba/CLAUDE.md) · [docs/markdown/rtl-amba/index.md](docs/markdown/rtl-amba/index.md)
 
 ### 3. **Clock Domain Crossing (CDC)** — Cross-cutting
 
@@ -217,8 +217,8 @@ Things that actually run on hardware. Each project ships its own README and Viva
 ### 8. Documentation hub
 
 - [`docs/DOCUMENTATION_INDEX.md`](docs/DOCUMENTATION_INDEX.md) — full doc index
-- [`docs/markdown/RTLCommon/index.md`](docs/markdown/RTLCommon/index.md) — per-module specs (common library)
-- [`docs/markdown/RTLAmba/index.md`](docs/markdown/RTLAmba/index.md) — per-module specs (AMBA)
+- [`docs/markdown/rtl-common/index.md`](docs/markdown/rtl-common/index.md) — per-module specs (common library)
+- [`docs/markdown/rtl-amba/index.md`](docs/markdown/rtl-amba/index.md) — per-module specs (AMBA)
 - [`docs/markdown/projects/index.md`](docs/markdown/projects/index.md) — project documentation index
 - [`GLOBAL_REQUIREMENTS.md`](GLOBAL_REQUIREMENTS.md) — mandatory requirements across the whole repo
 - [`CLAUDE.md`](CLAUDE.md) — guidance for AI assistants working in this repo
@@ -229,7 +229,7 @@ Things that actually run on hardware. Each project ships its own README and Viva
 
 ### Level 1: Common Building Blocks (Foundation)
 
-**Location:** [`rtl/common/`](rtl/common/) | **Documentation:** [Full Index](docs/markdown/RTLCommon/index.md) | [AI Guide](rtl/common/CLAUDE.md)
+**Location:** [`rtl/common/`](rtl/common/) | **Documentation:** [Full Index](docs/markdown/rtl-common/index.md) | [AI Guide](rtl/common/CLAUDE.md)
 
 Learn fundamental RTL design patterns through **224 reusable modules**:
 
@@ -280,7 +280,7 @@ module counter_bin #(
 
 ### Level 2: AMBA Protocol Infrastructure
 
-**Location:** [`rtl/amba/`](rtl/amba/) | **Documentation:** [Full Index](docs/markdown/RTLAmba/index.md) | [AI Guide](rtl/amba/CLAUDE.md)
+**Location:** [`rtl/amba/`](rtl/amba/) | **Documentation:** [Full Index](docs/markdown/rtl-amba/index.md) | [AI Guide](rtl/amba/CLAUDE.md)
 
 Apply common building blocks to implement industry-standard protocols (**124 modules**):
 
@@ -574,8 +574,8 @@ rtldesignsherpa/
 │
 ├── docs/                         # Documentation
 │   ├── markdown/                # Technical documentation
-│   │   ├── RTLCommon/           # Common library docs
-│   │   ├── RTLAmba/             # AMBA library docs
+│   │   ├── rtl-common/           # Common library docs
+│   │   ├── rtl-amba/             # AMBA library docs
 │   │   ├── CocoTBFramework/     # Framework docs
 │   │   └── projects/            # Component docs
 │   └── DOCUMENTATION_INDEX.md   # Master doc index
@@ -654,12 +654,12 @@ pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
 ### Documentation by Level
 
 **Level 1 - Common Modules:**
-- [Common Library PRD](docs/markdown/RTLCommon/index.md) - Requirements and specifications
+- [Common Library PRD](docs/markdown/rtl-common/index.md) - Requirements and specifications
 - [Common CLAUDE Guide](rtl/common/CLAUDE.md) - AI-assisted development
 - [Common Tests](val/common/) - Example test patterns
 
 **Level 2 - AMBA Protocols:**
-- [AMBA Infrastructure PRD](docs/markdown/RTLAmba/index.md) - Protocol specifications
+- [AMBA Infrastructure PRD](docs/markdown/rtl-amba/index.md) - Protocol specifications
 - [AMBA CLAUDE Guide](rtl/amba/CLAUDE.md) - Implementation patterns
 - [AMBA Tests](val/amba/) - Protocol compliance tests
 

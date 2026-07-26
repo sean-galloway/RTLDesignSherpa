@@ -8,7 +8,7 @@
 # Module: print_tree
 # Purpose: Pretty-print Verilog Concrete Syntax Tree
 #
-# Documentation: docs/markdown/RTLCommon/index.md
+# Documentation: docs/markdown/rtl-common/index.md
 # Subsystem: common
 #
 # Author: sean galloway

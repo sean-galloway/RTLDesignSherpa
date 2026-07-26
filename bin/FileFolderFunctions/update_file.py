@@ -7,7 +7,7 @@
 # Module: UpdateFile
 # Purpose: Updates selected text in files
 #
-# Documentation: docs/markdown/RTLCommon/index.md
+# Documentation: docs/markdown/rtl-common/index.md
 # Subsystem: common
 #
 # Author: sean galloway

@@ -4,7 +4,7 @@
 # Module: AxiPerfLatencyHistTB
 # Purpose: Unit test for axi_perf_latency_hist (RFC perfmon Stage D).
 #
-# Documentation: docs/markdown/RTLAmba/index.md
+# Documentation: docs/markdown/rtl-amba/index.md
 # Subsystem: tests
 #
 # Drives the AXI command/data/response snoop interface with transactions of

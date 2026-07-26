@@ -7,7 +7,7 @@
 # Module: RunTest
 # Purpose: Represents a test runner that runs a test and reports the regression test result
 #
-# Documentation: docs/markdown/RTLCommon/index.md
+# Documentation: docs/markdown/rtl-common/index.md
 # Subsystem: common
 #
 # Author: sean galloway

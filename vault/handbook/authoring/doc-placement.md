@@ -14,7 +14,7 @@ the next session reads. This note is the authority on where each kind goes.
 | Kind of writing | Home | Example |
 |---|---|---|
 | **Method / practice / rationale** - how we do X here, and the failure that taught it | `vault/handbook/` | reset conventions, the review rules, a doc style guide |
-| **Reader-facing product docs** - per-module pages, guides, HAS/MAS, operator manuals | `docs/markdown/` | `RTLCommon/fifo_sync.md`, `RTLCommon/quickstart.md` |
+| **Reader-facing product docs** - per-module pages, guides, HAS/MAS, operator manuals | `docs/markdown/` | `rtl-common/fifo_sync.md`, `rtl-common/quickstart.md` |
 | **Work items** - anything with a beginning and an end | `vault/Tasks/<area>/` | "integrate the math findings", "fix DEPTH=6" |
 | **Beside-code, agent-facing** - subsystem instructions and specs a reader of *that directory* needs | the RTL/project dir | `rtl/common/CLAUDE.md`, an area `PRD.md` |
 
@@ -32,7 +32,7 @@ the next session reads. This note is the authority on where each kind goes.
    standalone guide" rule, which the RTL tree no longer has any README to apply
    to. The history that got us here still matters: `rtl/common/README.md` was a
    14 KB quick-start that drifted (claimed 86 modules when 55 remained), so the
-   guide moved to `docs/markdown/RTLCommon/quickstart.md` and the README shrank
+   guide moved to `docs/markdown/rtl-common/quickstart.md` and the README shrank
    to a pointer -- and then the pointers went too. Outside `rtl/`, in project
    areas, a README is still allowed and still must be a link rather than a
    second copy; the template below is for those.
@@ -40,7 +40,7 @@ the next session reads. This note is the authority on where each kind goes.
 3. **One source per fact.** The same count, spec, or port list must not be
    stated in two files. A structural change updates one and forgets the other -
    *case: after the arithmetic split, `rtl/common/README.md` said 86 modules
-   and `docs/markdown/RTLCommon/overview.md` still listed a live "Arithmetic &
+   and `docs/markdown/rtl-common/overview.md` still listed a live "Arithmetic &
    Math" category; both were wrong, in different ways.* If a number must appear,
    derive it (`ls rtl/<area>/*.sv | wc -l`) or state it in exactly one place and
    link.
@@ -80,7 +80,7 @@ There is a tooling reason too, not just a tidiness one: `build_review_bundle.py`
 builds a review unit per `_book_*_index.md` and pulls in `overview.md` plus the
 pages that index links. A book with no `overview.md` silently reviews less than
 you think, and `index.md`/`quickstart.md` are outside the bundle entirely --
-which is exactly how `RTLCommon`'s meta docs drifted six modules and a phantom
+which is exactly how `rtl-common`'s meta docs drifted six modules and a phantom
 `sync_2ff` past three review rounds. See [[kimi-review-rounds]] rule 8.
 
 ### The link back from the RTL tree
@@ -101,16 +101,16 @@ places that are allowed:
 
 | Book | index.md | overview.md |
 |---|---|---|
-| RTLAmba | yes | yes |
-| RTLCommon | yes | yes |
+| rtl-amba | yes | yes |
+| rtl-common | yes | yes |
 | projects | yes | yes |
-| RTLMath | yes | **missing** |
+| rtl-math | yes | **missing** |
 | Scripts | yes | **missing** |
 | TestTutorial | yes | **missing** |
 | RTLcdc | **missing** | **missing** (directory exists but is empty) |
 
 `docs/markdown/RTLcdc/` is an empty directory with casing that disagrees with
-the `RTLCdc` the CDC reorg task specifies -- settle the name when that book is
+the `rtl-cdc` the CDC reorg task specifies -- settle the name when that book is
 populated, and do not leave both. Tracked as DOCREV-010.
 
 ## The beside-code README template
@@ -177,7 +177,7 @@ Move it, do not copy it. `git mv` so history follows. Repoint referrers - grep
 for the old path across `*.md`, `*.py`, `*.sh` (code headers reference these:
 `# Documentation: rtl/<area>/PRD.md` appears in ~50 generated files). Leave a
 link where the reader will land. Then link-check the moved tree. This is the
-same procedure the vault consolidation and the `RTLMath` split used.
+same procedure the vault consolidation and the `rtl-math` split used.
 
 Related: [[module-doc-template]] (the shape of a docs/markdown page),
 [[doc-pipeline]] (how those pages build), [[kimi-review-rounds]] rule 8 (the

@@ -28,7 +28,7 @@ body:
     id: subsystem
     attributes:
       label: Subsystem / target location
-      description: Where would this live? (e.g., `rtl/common/`, `projects/components/<new>`, `docs/markdown/RTLAmba/`)
+      description: Where would this live? (e.g., `rtl/common/`, `projects/components/<new>`, `docs/markdown/rtl-amba/`)
       placeholder: rtl/amba/shared/
     validations:
       required: true

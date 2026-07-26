@@ -7,7 +7,7 @@
 // Module: apb_monitor_addr_check
 // Purpose: Configurable N-range address-violation checker for APB monitors
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 
 `timescale 1ns / 1ps

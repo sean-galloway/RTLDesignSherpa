@@ -7,7 +7,7 @@
 // Module: arbiter_round_robin_weighted
 // Purpose: //   Weighted round-robin arbiter with credit-based QoS (Quality of Service) support.
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

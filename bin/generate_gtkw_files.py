@@ -8,7 +8,7 @@
 # Module: SVModuleParser
 # Purpose: Generate GTKWave Save Files for RTL Common Library
 #
-# Documentation: docs/markdown/RTLCommon/index.md
+# Documentation: docs/markdown/rtl-common/index.md
 # Subsystem: common
 #
 # Author: sean galloway

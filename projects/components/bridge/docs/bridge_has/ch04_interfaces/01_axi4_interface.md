@@ -139,7 +139,7 @@ When monitor collection is enabled (via the bridge TOML `variants` list includin
 
 The monitor system combines per-port collection from `axi4_master_{rd,wr}_mon` and `axi4_slave_{rd,wr}_mon` wrappers through a tree of `monbus_arbiter` instances and terminates in a single `monbus_axil_group` at the bridge top. The group provides a 64-bit free-running timestamp counter sampled at each packet arrival and exposes both a slave interface (for CPU read access) and a master interface (for bulk DMA writes to system memory).
 
-**Packet Format**: The canonical 128-bit packet layout and field definitions are documented in `docs/markdown/RTLAmba/includes/monitor_package_spec.md`. See that reference for complete bit-field descriptions, protocol-type enumerations, and packet-type codes.
+**Packet Format**: The canonical 128-bit packet layout and field definitions are documented in `docs/markdown/rtl-amba/includes/monitor_package_spec.md`. See that reference for complete bit-field descriptions, protocol-type enumerations, and packet-type codes.
 
 ## Handshake Protocol
 

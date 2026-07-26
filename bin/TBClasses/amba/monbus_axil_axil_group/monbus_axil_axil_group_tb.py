@@ -8,7 +8,7 @@
 # Purpose: MonBus AXIL/AXIL Group testbench. Drives the AXIL-slave-read +
 #          AXIL-master-write member of the monbus_<p1>_<p2>_group family.
 #
-# Documentation: docs/markdown/RTLAmba/index.md
+# Documentation: docs/markdown/rtl-amba/index.md
 # Subsystem: amba (shared)
 #
 # Author: sean galloway
@@ -134,7 +134,7 @@ class MonbusAxilAxilGroupTB(TBBase):
             drain_data_width=self.TEST_S_AXIL_DATA_WIDTH,
             group_node=self.dut, irq_sig=self.dut.irq_out, log=self.log,
             # Drain + trace both emit {tag,ts}, packet[127:64], packet[63:0]
-            # per docs/markdown/RTLAmba/includes/monitor_package_spec.md.
+            # per docs/markdown/rtl-amba/includes/monitor_package_spec.md.
             layout_drain=BeatLayout(order=BeatOrder.TS_HI_LO),
             layout_trace=BeatLayout(order=BeatOrder.TS_HI_LO),
         )

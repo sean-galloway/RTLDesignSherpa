@@ -8,7 +8,7 @@
 # Module: peakrdl_generate
 # Purpose: PeakRDL Register Generation Script
 #
-# Documentation: docs/markdown/RTLCommon/index.md
+# Documentation: docs/markdown/rtl-common/index.md
 # Subsystem: common
 #
 # Author: sean galloway

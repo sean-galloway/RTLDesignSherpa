@@ -7,7 +7,7 @@
 // Module: arbiter_priority_encoder
 // Purpose: //   High-speed priority encoder optimized for common client counts used in
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

@@ -7,7 +7,7 @@
 // Module: find_last_set
 // Purpose: //   Finds the position (index) of the most significant '1' bit in the input
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

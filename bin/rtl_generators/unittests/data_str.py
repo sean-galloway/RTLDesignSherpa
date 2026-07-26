@@ -7,7 +7,7 @@
 # Module: data_str
 # Purpose: parameter add_extra_instr  = 1,  //use extra instructions 
 #
-# Documentation: docs/markdown/RTLCommon/index.md
+# Documentation: docs/markdown/rtl-common/index.md
 # Subsystem: common
 #
 # Author: sean galloway

@@ -7,7 +7,7 @@
 # Module: CounterJohnsonWaveDromTB
 # Purpose: Johnson Counter WaveDrom Test - Showcases unique shift register with inverted feedback
 #
-# Documentation: docs/markdown/RTLCommon/counter_johnson.md
+# Documentation: docs/markdown/rtl-common/counter_johnson.md
 # Subsystem: tests
 #
 # Author: RTL Design Sherpa AI

@@ -7,7 +7,7 @@
 // Module: axi_monitor_trans_mgr
 // Purpose: AXI Monitor Transaction Manager (CAM-backed).
 //
-// Documentation: docs/markdown/RTLAmba/index.md
+// Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
 // Author: sean galloway

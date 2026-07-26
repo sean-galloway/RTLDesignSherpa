@@ -7,7 +7,7 @@
 // Module: count_leading_zeros
 // Purpose: Counts consecutive zero bits from the MSB down to the first set bit
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

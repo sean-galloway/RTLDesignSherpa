@@ -76,8 +76,8 @@ build_book() {
     --pdf-engine=lualatex \
     --mainfont "Noto Serif" --monofont "Noto Sans Mono" \
     --sansfont "Noto Sans" --mathfont "Noto Serif" \
-    --assets-dir "assets" --assets-dir "assets/RTLCommon" \
-    --assets-dir "assets/RTLAmba" --assets-dir "assets/WAVES" \
+    --assets-dir "assets" --assets-dir "assets/rtl-common" \
+    --assets-dir "assets/rtl-amba" --assets-dir "assets/WAVES" \
     --quiet
   rm -f "${tmpstyle}" "${outbase}.docx"      # keep only the PDF in docs/pdfs/
 }
@@ -86,47 +86,55 @@ want() { [[ ${#ARGS[@]} -eq 0 ]] || printf '%s\n' "${ARGS[@]}" | grep -qx "$1"; 
 
 SUB="Module Reference — Rev ${REV}"
 
-# ---- Common (RTLCommon minus the math_* family) ----
+# ---- Common (rtl-common minus the math_* family) ----
 if want common; then
-  mapfile -t COMMON < <(ls RTLCommon/*.md | grep -vE '/(index|overview|math_|_book_)' )
+  mapfile -t COMMON < <(ls rtl-common/*.md | grep -vE '/(index|overview|math_|_book_)' )
   # keep overview as the lead doc for the Common book
-  gen_index RTLCommon/_book_common_index.md "RTL Common Library" RTLCommon/overview.md "${COMMON[@]}"
-  build_book "RTL Common Library" "${SUB}" RTLCommon/_book_common_index.md RTL_Common_Library
+  gen_index rtl-common/_book_common_index.md "RTL Common Library" rtl-common/overview.md "${COMMON[@]}"
+  build_book "RTL Common Library" "${SUB}" rtl-common/_book_common_index.md RTL_Common_Library
 fi
 
 # ---- Math (the math_* family + its overview) ----
 if want math; then
-  mapfile -t MATH < <(ls RTLMath/math_*.md 2>/dev/null)
-  gen_index RTLMath/_book_math_index.md "RTL Math Library" RTLMath/math_library.md "${MATH[@]}"
-  build_book "RTL Math Library" "${SUB}" RTLMath/_book_math_index.md RTL_Math_Library
+  mapfile -t MATH < <(ls rtl-math/math_*.md 2>/dev/null)
+  gen_index rtl-math/_book_math_index.md "RTL Math Library" rtl-math/math_library.md "${MATH[@]}"
+  build_book "RTL Math Library" "${SUB}" rtl-math/_book_math_index.md RTL_Math_Library
 fi
 
 # ---- CDC (dedicated cross-cutting book: primer + primitives + gray + slaves) ----
 if want cdc; then
+  # The CDC modules now live in rtl/cdc with their own book (AMBA-CDC-REORG),
+  # so the pages come from rtl-cdc/. glitch_free_n_dff_arn and clock_pulse stay
+  # in rtl-common (they are not CDC-owned) and the apb slaves stay with their
+  # protocol, so this book remains cross-cutting.
   CDC=(
-    RTLAmba/cdc/cdc.md
-    RTLCommon/glitch_free_n_dff_arn.md
-    RTLCommon/bin2gray.md
-    RTLCommon/gray2bin.md
-    RTLCommon/johnson2bin.md
-    RTLCommon/counter_bingray.md
-    RTLCommon/clock_pulse.md
-    RTLAmba/apb/apb_slave_cdc.md
-    RTLAmba/apb/apb_slave_cdc_cg.md
-    RTLAmba/apb5/apb5_slave_cdc.md
-    RTLAmba/apb5/apb5_slave_cdc_cg.md
+    rtl-cdc/cdc.md
+    rtl-cdc/bin2gray.md
+    rtl-cdc/gray2bin.md
+    rtl-cdc/johnson2bin.md
+    rtl-cdc/counter_bingray.md
+    rtl-cdc/counter_johnson.md
+    rtl-cdc/fifo_async.md
+    rtl-cdc/gaxi_fifo_async.md
+    rtl-cdc/gaxi_skid_buffer_async.md
+    rtl-common/glitch_free_n_dff_arn.md
+    rtl-common/clock_pulse.md
+    rtl-amba/apb/apb_slave_cdc.md
+    rtl-amba/apb/apb_slave_cdc_cg.md
+    rtl-amba/apb5/apb5_slave_cdc.md
+    rtl-amba/apb5/apb5_slave_cdc_cg.md
   )
-  gen_index _book_cdc_index.md "RTL Clock Domain Crossing" "${CDC[@]}"
+  gen_index rtl-cdc/_book_cdc_index.md "RTL Clock Domain Crossing" "${CDC[@]}"
   # cdc.md carries "#### Waveform C.N:" headings and ": Caption" table captions,
   # so this book can populate a List of Waveforms and a List of Tables.
-  build_book "RTL Clock Domain Crossing" "${SUB}" _book_cdc_index.md RTL_CDC low lot
+  build_book "RTL Clock Domain Crossing" "${SUB}" rtl-cdc/_book_cdc_index.md RTL_CDC low lot
 fi
 
 # ---- Monitor subsystem (dedicated: all rtl/amba/monitor docs + monitor pkg docs) ----
 if want monitor; then
-  mapfile -t MON < <(ls RTLAmba/monitor/*.md RTLAmba/includes/monitor_*.md 2>/dev/null | grep -vE '_book_')
-  gen_index RTLAmba/_book_monitor_index.md "RTL AMBA Monitor Subsystem" "${MON[@]}"
-  build_book "RTL AMBA Monitor Subsystem" "${SUB}" RTLAmba/_book_monitor_index.md RTL_AMBA_Monitor
+  mapfile -t MON < <(ls rtl-amba/monitor/*.md rtl-amba/includes/monitor_*.md 2>/dev/null | grep -vE '_book_')
+  gen_index rtl-amba/_book_monitor_index.md "RTL AMBA Monitor Subsystem" "${MON[@]}"
+  build_book "RTL AMBA Monitor Subsystem" "${SUB}" rtl-amba/_book_monitor_index.md RTL_AMBA_Monitor
 fi
 
 # ---- AMBA, split by protocol ----
@@ -140,10 +148,10 @@ amba_book() {  # <book-key> <Title> <out-name> <subdir...>
   # ahead of the base module it wraps. Locale collation is also case-insensitive,
   # which sorted README.md last and buried each book's Overview at the end.
   # Byte order fixes both: '.' (0x2E) < '_' (0x5F), and 'R' (0x52) < 'a' (0x61).
-  for d in "$@"; do files+=( $(LC_ALL=C ls RTLAmba/"$d"/*.md 2>/dev/null | grep -vE '/(index|_book_)') ); done
+  for d in "$@"; do files+=( $(LC_ALL=C ls rtl-amba/"$d"/*.md 2>/dev/null | grep -vE '/(index|_book_)') ); done
   [[ ${#files[@]} -eq 0 ]] && { echo "  (no docs for $key, skip)"; return 0; }
-  gen_index "RTLAmba/_book_${key}_index.md" "${title}" "${files[@]}"
-  build_book "${title}" "${SUB}" "RTLAmba/_book_${key}_index.md" "${out}"
+  gen_index "rtl-amba/_book_${key}_index.md" "${title}" "${files[@]}"
+  build_book "${title}" "${SUB}" "rtl-amba/_book_${key}_index.md" "${out}"
 }
 
 amba_book apb    "RTL AMBA APB4"          RTL_AMBA_APB4          apb

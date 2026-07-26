@@ -7,7 +7,7 @@
 // Module: counter_load_clear
 // Purpose: //   Parameterizable up counter with load and clear functionality. Counts from
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

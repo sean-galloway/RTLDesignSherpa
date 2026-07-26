@@ -5,7 +5,7 @@ compressor.
 This is a pre-RTL modeling tool. It encodes a stream of
 `(packet[127:0], timestamp[63:0])` records into 64-bit AXIL slots
 using the tagged-timestamp beat format defined in
-`docs/markdown/RTLAmba/includes/monitor_package_spec.md`, and decodes
+`docs/markdown/rtl-amba/includes/monitor_package_spec.md`, and decodes
 the resulting slot stream back to the original records.
 
 The encoder and decoder are bit-exact mirrors of each other — they

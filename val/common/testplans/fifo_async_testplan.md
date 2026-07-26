@@ -70,7 +70,7 @@ synchronized copy of the remote pointer from the local reset, so a one-sided
 reset should leave that side self-consistent (both pointers zero, reads empty)
 rather than desynchronized. This is a deliberate design property and the reason
 an async FIFO is preferred over a toggle handshake where domains reset
-independently -- see `docs/markdown/RTLAmba/cdc/cdc.md#cdc_2_phase_handshake`
+independently -- see `docs/markdown/rtl-amba/cdc/cdc.md#cdc_2_phase_handshake`
 (Reset Considerations). It is currently **argued from the RTL, not verified**.
 
 ## Coverage

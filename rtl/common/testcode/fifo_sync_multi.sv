@@ -7,7 +7,7 @@
 // Module: fifo_sync_multi
 // Purpose: Fifo Sync Multi module
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway

@@ -7,7 +7,7 @@
 # Module: ParamTest
 # Purpose: Test suite for Param
 #
-# Documentation: docs/markdown/RTLCommon/index.md
+# Documentation: docs/markdown/rtl-common/index.md
 # Subsystem: common
 #
 # Author: sean galloway

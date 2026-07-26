@@ -7,7 +7,7 @@
 # Module: Lint
 # Purpose: A class for performing linting and formatting operations on RTL code.
 #
-# Documentation: docs/markdown/RTLCommon/index.md
+# Documentation: docs/markdown/rtl-common/index.md
 # Subsystem: common
 #
 # Author: sean galloway

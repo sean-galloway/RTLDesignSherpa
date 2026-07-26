@@ -7,7 +7,7 @@
 // Module: math_multiplier_wallace_tree_016
 // Purpose: Math Multiplier Wallace Tree 016 module
 //
-// Documentation: docs/markdown/RTLCommon/index.md
+// Documentation: docs/markdown/rtl-common/index.md
 // Subsystem: common
 //
 // Author: sean galloway
