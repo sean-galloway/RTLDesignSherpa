@@ -101,9 +101,19 @@ uncovered - the difference is the exempt set. Read all three numbers, not the
 As of 2026-07-23: common 57 modules / 55 covered, amba 152 / 147 - the 7-module
 gap is entirely the exempt list (multi-instance wrappers with no consumer yet).
 
-**Nothing runs `--check` automatically.** It is not in the pre-commit hook and
-not in CI, so today the rule is enforced by whoever remembers. Wiring it into a
-gate is tracked in the common and amba task areas.
+**The checks are gated now** (2026-07-26). `.github/workflows/filelist-checks.yml`
+runs on push to main and every PR: `--check` and `--audit` as hard gates,
+`--blindspots --ratchet` against `bin/blindspots_baseline.json`.
+`bin/hooks/pre-commit` is an optional local mirror, installed per clone with
+`ln -sf ../../bin/hooks/pre-commit .git/hooks/pre-commit`.
+
+**The ratchet is the reason a gate could land at all.** `--blindspots` had 516
+findings; requiring zero would have meant no gate for months, and gating on a
+failing check just teaches people to `--no-verify`. Instead the baseline records
+each count and CI fails only when one GROWS. Burn-down lowers it
+(`--blindspots --update-baseline`); nothing lets it silently regrow. Raising the
+baseline to make a build pass defeats the entire mechanism -- the fix is to use
+a filelist.
 
 ## `--check` and `--audit` cannot see a hand-listed test
 

@@ -26,10 +26,17 @@ whole dependency tree.
 not merely uncovered ones. The 387 harness paths are one mechanical pass over
 `formal/common/math_*` once someone confirms where the math sources moved.
 
-**Then gate it.** Nothing runs `--check`, `--audit` or `--blindspots` today, in
-a hook or in CI, which is the root cause of all of the above. Wire all three in
-together once `--blindspots` reaches zero; gating on a check that already fails
-teaches people to skip it. See [[filelists]].
+**The gate is already in** (`9d0a0c60`), so this task is now burn-down only.
+`.github/workflows/filelist-checks.yml` runs on push to main and every PR:
+`--check` and `--audit` as hard gates, `--blindspots --ratchet` against
+`bin/blindspots_baseline.json`. A NEW violation fails the build today; the
+backlog below blocks nobody. `bin/hooks/pre-commit` is the optional local mirror
+(`ln -sf ../../bin/hooks/pre-commit .git/hooks/pre-commit`).
+
+**Lower the baseline as you burn down** --
+`python3 bin/filelist_registry.py --blindspots --update-baseline` -- so the
+count can never silently regrow. Do not raise it; the fix is to use a filelist.
+See [[filelists]].
 
 ---
 
