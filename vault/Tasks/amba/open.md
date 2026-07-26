@@ -198,6 +198,71 @@ spine, here are the axes, here are the tweaks."
 
 ---
 
+## AMBA-INTEG-EXAMPLES — the two rtl/integ_amba examples are nine months dead
+**Status:** open 2026-07-26
+**Priority:** P2 (nothing depends on them, but `make verilator` at rtl/ is RED)
+
+`rtl/integ_amba/examples/apb_peripheral_subsystem.sv` (340 lines) and
+`apb_xbar_monitored.sv` (364) do not elaborate: **51 Verilator errors**, all
+PINNOTFOUND. They instantiate `apb_monitor` with an interface it no longer has.
+
+| the examples pass | `apb_monitor` actually takes |
+|---|---|
+| `pclk`, `presetn` | `aclk`, `aresetn` |
+| `psel`, `penable`, `pwrite`, `paddr`, `pwdata`, `pready`, `prdata`, `pslverr` | `cmd_valid`/`cmd_ready` + `cmd_pwrite`/`cmd_paddr`/`cmd_pwdata`/`cmd_pstrb`/`cmd_pprot`, and `rsp_valid`/`rsp_ready` + `rsp_prdata`/`rsp_pslverr` |
+
+Both files are **unchanged since the initial commit (2025-11-01)**; `apb_monitor`
+was redesigned underneath them. They are its ONLY consumers anywhere in the tree
+— no test, no project, no doc references either file.
+
+### Why nobody noticed for nine months
+
+`rtl/integ_amba` had modules but no filelists, no registration and no Makefile,
+so it was invisible to `--check` (unregistered) **and** to `--blindspots` (the
+orphan scan looks for `.f` files no area covers, and an area with no `.f` at all
+has nothing to find). A module can hide by having too little, not just by being
+wrong. Registering it (`0c822bd5`) is what surfaced this.
+
+### The shape of the fix
+
+The APB family splits cleanly, and the examples are on the wrong side of it:
+
+- **Bridges** — `apb_master{,_cg,_stub}`, `apb_slave{,_cg,_cdc,_cdc_cg,_stub}`
+  and the 8 `apb5_*` equivalents — carry BOTH raw APB (`s_apb_PSEL`, ARM
+  uppercase) and `cmd_*`/`rsp_*`.
+- **Observers** — `apb_monitor`, `apb5_monitor`, `apb_monitor_addr_check` —
+  are cmd/rsp only. That is deliberate: it makes a monitor
+  protocol-version-agnostic, since APB4 and APB5 bridges hand it the same shape.
+- The monitor is a **sibling, not a submodule**: no bridge instantiates it. You
+  tap the bridge's handshake.
+
+So the correct structure is to insert a bridge and tap it:
+
+    raw APB ──> apb_slave ──cmd/rsp──> fabric
+                     └── tap cmd_*/rsp_* ──> apb_monitor ──> monbus
+
+`apb_xbar_thin` is raw-APB on both sides (lowercase `s_apb_psel`/`m_apb_psel`),
+which is why `apb_xbar_monitored` has raw APB in hand and feeds it straight to a
+monitor that stopped accepting it.
+
+### Decide first, then do
+
+1. **Retire** — delete both and the area. They demonstrate an API that is gone
+   and nothing uses them. Cheapest and honest.
+2. **Rewrite** against the bridge-tap structure above. Worth it only if a worked
+   `apb_monitor` integration example is wanted — there is none anywhere else in
+   the repo today, which is arguably the entire point of `rtl/integ_amba`.
+
+If rewriting: lint-clean is the floor, and add a smoke test under
+`val/integ_amba/` taking its sources from
+`rtl/integ_amba/filelists/<module>.f`. Without a test they rot again exactly as
+they did — nine months, undetected, because nothing ever compiled them.
+
+**Do not just delete the area registration to make the sweep green.** The
+registration is what found this; reverting it re-hides the problem.
+
+---
+
 ## AMBA-CDC-REORG — pull CDC out of amba into a top-level rtl/cdc area
 **Status:** ✅ DONE 2026-07-25 — every checklist item worked and verified.
 Move this block to closed.md.
