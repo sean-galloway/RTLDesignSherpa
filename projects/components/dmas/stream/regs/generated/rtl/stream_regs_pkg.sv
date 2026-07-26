@@ -5,7 +5,7 @@ package stream_regs_pkg;
 
     localparam STREAM_REGS_DATA_WIDTH = 32;
     localparam STREAM_REGS_MIN_ADDR_WIDTH = 13;
-    localparam STREAM_REGS_SIZE = 'h11f8;
+    localparam STREAM_REGS_SIZE = 'h1254;
 
     typedef struct {
         logic next;
@@ -1035,6 +1035,180 @@ package stream_regs_pkg;
     } stream_mon_regs__WRMON_PERF_CTRL__out_t;
 
     typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__RDMON_ADDR_RANGE0_LOW__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_ADDR_RANGE0_LOW__VALUE__out_t VALUE;
+    } stream_mon_regs__RDMON_ADDR_RANGE0_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__RDMON_ADDR_RANGE0_HIGH__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_ADDR_RANGE0_HIGH__VALUE__out_t VALUE;
+    } stream_mon_regs__RDMON_ADDR_RANGE0_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__RDMON_ADDR_RANGE1_LOW__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_ADDR_RANGE1_LOW__VALUE__out_t VALUE;
+    } stream_mon_regs__RDMON_ADDR_RANGE1_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__RDMON_ADDR_RANGE1_HIGH__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_ADDR_RANGE1_HIGH__VALUE__out_t VALUE;
+    } stream_mon_regs__RDMON_ADDR_RANGE1_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__RDMON_ADDR_RANGE2_LOW__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_ADDR_RANGE2_LOW__VALUE__out_t VALUE;
+    } stream_mon_regs__RDMON_ADDR_RANGE2_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__RDMON_ADDR_RANGE2_HIGH__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_ADDR_RANGE2_HIGH__VALUE__out_t VALUE;
+    } stream_mon_regs__RDMON_ADDR_RANGE2_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__RDMON_ADDR_RANGE3_LOW__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_ADDR_RANGE3_LOW__VALUE__out_t VALUE;
+    } stream_mon_regs__RDMON_ADDR_RANGE3_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__RDMON_ADDR_RANGE3_HIGH__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_ADDR_RANGE3_HIGH__VALUE__out_t VALUE;
+    } stream_mon_regs__RDMON_ADDR_RANGE3_HIGH__out_t;
+
+    typedef struct {
+        logic [3:0] value;
+    } stream_mon_regs__RDMON_ADDR_RANGE_CTRL__RANGE_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__RDMON_ADDR_RANGE_CTRL__CHECK_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__RDMON_ADDR_RANGE_CTRL__MATCH_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__RDMON_ADDR_RANGE_CTRL__MISS_EN__out_t;
+
+    typedef struct {
+        stream_mon_regs__RDMON_ADDR_RANGE_CTRL__RANGE_EN__out_t RANGE_EN;
+        stream_mon_regs__RDMON_ADDR_RANGE_CTRL__CHECK_EN__out_t CHECK_EN;
+        stream_mon_regs__RDMON_ADDR_RANGE_CTRL__MATCH_EN__out_t MATCH_EN;
+        stream_mon_regs__RDMON_ADDR_RANGE_CTRL__MISS_EN__out_t MISS_EN;
+    } stream_mon_regs__RDMON_ADDR_RANGE_CTRL__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__WRMON_ADDR_RANGE0_LOW__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_ADDR_RANGE0_LOW__VALUE__out_t VALUE;
+    } stream_mon_regs__WRMON_ADDR_RANGE0_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__WRMON_ADDR_RANGE0_HIGH__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_ADDR_RANGE0_HIGH__VALUE__out_t VALUE;
+    } stream_mon_regs__WRMON_ADDR_RANGE0_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__WRMON_ADDR_RANGE1_LOW__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_ADDR_RANGE1_LOW__VALUE__out_t VALUE;
+    } stream_mon_regs__WRMON_ADDR_RANGE1_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__WRMON_ADDR_RANGE1_HIGH__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_ADDR_RANGE1_HIGH__VALUE__out_t VALUE;
+    } stream_mon_regs__WRMON_ADDR_RANGE1_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__WRMON_ADDR_RANGE2_LOW__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_ADDR_RANGE2_LOW__VALUE__out_t VALUE;
+    } stream_mon_regs__WRMON_ADDR_RANGE2_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__WRMON_ADDR_RANGE2_HIGH__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_ADDR_RANGE2_HIGH__VALUE__out_t VALUE;
+    } stream_mon_regs__WRMON_ADDR_RANGE2_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__WRMON_ADDR_RANGE3_LOW__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_ADDR_RANGE3_LOW__VALUE__out_t VALUE;
+    } stream_mon_regs__WRMON_ADDR_RANGE3_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__WRMON_ADDR_RANGE3_HIGH__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_ADDR_RANGE3_HIGH__VALUE__out_t VALUE;
+    } stream_mon_regs__WRMON_ADDR_RANGE3_HIGH__out_t;
+
+    typedef struct {
+        logic [3:0] value;
+    } stream_mon_regs__WRMON_ADDR_RANGE_CTRL__RANGE_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__WRMON_ADDR_RANGE_CTRL__CHECK_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__WRMON_ADDR_RANGE_CTRL__MATCH_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_mon_regs__WRMON_ADDR_RANGE_CTRL__MISS_EN__out_t;
+
+    typedef struct {
+        stream_mon_regs__WRMON_ADDR_RANGE_CTRL__RANGE_EN__out_t RANGE_EN;
+        stream_mon_regs__WRMON_ADDR_RANGE_CTRL__CHECK_EN__out_t CHECK_EN;
+        stream_mon_regs__WRMON_ADDR_RANGE_CTRL__MATCH_EN__out_t MATCH_EN;
+        stream_mon_regs__WRMON_ADDR_RANGE_CTRL__MISS_EN__out_t MISS_EN;
+    } stream_mon_regs__WRMON_ADDR_RANGE_CTRL__out_t;
+
+    typedef struct {
         stream_mon_regs__DAXMON_ENABLE__out_t DAXMON_ENABLE;
         stream_mon_regs__DAXMON_TIMEOUT__out_t DAXMON_TIMEOUT;
         stream_mon_regs__DAXMON_LATENCY_THRESH__out_t DAXMON_LATENCY_THRESH;
@@ -1062,6 +1236,24 @@ package stream_regs_pkg;
         stream_mon_regs__DAXMON_PERF_CTRL__out_t DAXMON_PERF_CTRL;
         stream_mon_regs__RDMON_PERF_CTRL__out_t RDMON_PERF_CTRL;
         stream_mon_regs__WRMON_PERF_CTRL__out_t WRMON_PERF_CTRL;
+        stream_mon_regs__RDMON_ADDR_RANGE0_LOW__out_t RDMON_ADDR_RANGE0_LOW;
+        stream_mon_regs__RDMON_ADDR_RANGE0_HIGH__out_t RDMON_ADDR_RANGE0_HIGH;
+        stream_mon_regs__RDMON_ADDR_RANGE1_LOW__out_t RDMON_ADDR_RANGE1_LOW;
+        stream_mon_regs__RDMON_ADDR_RANGE1_HIGH__out_t RDMON_ADDR_RANGE1_HIGH;
+        stream_mon_regs__RDMON_ADDR_RANGE2_LOW__out_t RDMON_ADDR_RANGE2_LOW;
+        stream_mon_regs__RDMON_ADDR_RANGE2_HIGH__out_t RDMON_ADDR_RANGE2_HIGH;
+        stream_mon_regs__RDMON_ADDR_RANGE3_LOW__out_t RDMON_ADDR_RANGE3_LOW;
+        stream_mon_regs__RDMON_ADDR_RANGE3_HIGH__out_t RDMON_ADDR_RANGE3_HIGH;
+        stream_mon_regs__RDMON_ADDR_RANGE_CTRL__out_t RDMON_ADDR_RANGE_CTRL;
+        stream_mon_regs__WRMON_ADDR_RANGE0_LOW__out_t WRMON_ADDR_RANGE0_LOW;
+        stream_mon_regs__WRMON_ADDR_RANGE0_HIGH__out_t WRMON_ADDR_RANGE0_HIGH;
+        stream_mon_regs__WRMON_ADDR_RANGE1_LOW__out_t WRMON_ADDR_RANGE1_LOW;
+        stream_mon_regs__WRMON_ADDR_RANGE1_HIGH__out_t WRMON_ADDR_RANGE1_HIGH;
+        stream_mon_regs__WRMON_ADDR_RANGE2_LOW__out_t WRMON_ADDR_RANGE2_LOW;
+        stream_mon_regs__WRMON_ADDR_RANGE2_HIGH__out_t WRMON_ADDR_RANGE2_HIGH;
+        stream_mon_regs__WRMON_ADDR_RANGE3_LOW__out_t WRMON_ADDR_RANGE3_LOW;
+        stream_mon_regs__WRMON_ADDR_RANGE3_HIGH__out_t WRMON_ADDR_RANGE3_HIGH;
+        stream_mon_regs__WRMON_ADDR_RANGE_CTRL__out_t WRMON_ADDR_RANGE_CTRL;
     } stream_mon_regs__out_t;
 
     typedef struct {

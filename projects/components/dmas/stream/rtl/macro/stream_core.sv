@@ -112,6 +112,15 @@ module stream_core #(
     parameter bit DESC_MON_ENABLE_PERF_LOGIC      = 1'b1,
     parameter bit DESC_MON_ENABLE_DEBUG_LOGIC     = 1'b0,
 
+    // Address-range (allowlist) checker on the in-core rd/wr datapath monitors.
+    // N_ADDR_RANGES=0 (default) leaves the checker un-synthesised -> OFF on the
+    // perf harness. The monitor-validation harness sets it to 4. The per-range
+    // DEBUG/ERROR flavor is a build param (default all-0; the harness sets e.g.
+    // 4'b1100 = ranges 2,3 error / 0,1 debug). Range VALUES + enables come at
+    // runtime from the RDMON_/WRMON_ADDR_RANGE* CSRs.
+    parameter int N_ADDR_RANGES = 0,
+    parameter logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0] MON_ADDR_RANGE_IS_ERROR = '0,
+
     // Short aliases
     parameter int NC = NUM_CHANNELS,
     parameter int AW = ADDR_WIDTH,
@@ -218,6 +227,22 @@ module stream_core #(
     // counters. See RDMON_PERF_CTRL @ 0x300 / WRMON_PERF_CTRL @ 0x330.
     input  logic                                cfg_rdeng_mon_perf_run,
     input  logic                                cfg_wreng_mon_perf_run,
+
+    // Address-range checker CSR inputs (RDMON_/WRMON_ADDR_RANGE*). Bounds are
+    // 32-bit, zero-extended to the AW-bit compare inside. Consumed only when
+    // N_ADDR_RANGES > 0 (otherwise the in-core checker is not synthesised).
+    input  logic [3:0][31:0]                    cfg_rdeng_mon_addr_range_low,
+    input  logic [3:0][31:0]                    cfg_rdeng_mon_addr_range_high,
+    input  logic [3:0]                          cfg_rdeng_mon_addr_range_en,
+    input  logic                                cfg_rdeng_mon_addr_check_en,
+    input  logic                                cfg_rdeng_mon_addr_match_en,
+    input  logic                                cfg_rdeng_mon_addr_miss_en,
+    input  logic [3:0][31:0]                    cfg_wreng_mon_addr_range_low,
+    input  logic [3:0][31:0]                    cfg_wreng_mon_addr_range_high,
+    input  logic [3:0]                          cfg_wreng_mon_addr_range_en,
+    input  logic                                cfg_wreng_mon_addr_check_en,
+    input  logic                                cfg_wreng_mon_addr_match_en,
+    input  logic                                cfg_wreng_mon_addr_miss_en,
 
     // RFC Stage E option 2 / RFC Stage C: per-channel perf-bucket readout
     // select. Picks which channel's 4 buckets appear on the rdmon/wrmon_ch_*
@@ -1314,6 +1339,22 @@ module stream_core #(
     // exceeded the block threshold and the monitor throttled the datapath.
     // USE_MONITOR follows USE_AXI_MONITORS so the production (monitors-off)
     // build keeps a bare skid with zero monitor area.
+
+    // Zero-extend the 32-bit address-range CSR bounds to the AW-bit compare.
+    // Sized to the checker's guarded range count so the widths match whether
+    // N_ADDR_RANGES is 0 (unbuilt) or 4.
+    localparam int NAR = (N_ADDR_RANGES > 0) ? N_ADDR_RANGES : 1;
+    logic [NAR-1:0][AW-1:0] w_rdmon_range_low, w_rdmon_range_high;
+    logic [NAR-1:0][AW-1:0] w_wrmon_range_low, w_wrmon_range_high;
+    always_comb begin
+        for (int gi = 0; gi < NAR; gi++) begin
+            w_rdmon_range_low [gi] = {{(AW-32){1'b0}}, cfg_rdeng_mon_addr_range_low [gi]};
+            w_rdmon_range_high[gi] = {{(AW-32){1'b0}}, cfg_rdeng_mon_addr_range_high[gi]};
+            w_wrmon_range_low [gi] = {{(AW-32){1'b0}}, cfg_wreng_mon_addr_range_low [gi]};
+            w_wrmon_range_high[gi] = {{(AW-32){1'b0}}, cfg_wreng_mon_addr_range_high[gi]};
+        end
+    end
+
     axi4_master_rd_mon #(
         .SKID_DEPTH_AR          (SKID_DEPTH_AR),
         .SKID_DEPTH_R           (SKID_DEPTH_R),
@@ -1331,7 +1372,9 @@ module stream_core #(
         .ENABLE_COMPL_LOGIC     (1'b0),
         .ENABLE_THRESHOLD_LOGIC (1'b0),
         .ENABLE_PERF_LOGIC      (1'b1),
-        .ENABLE_DEBUG_LOGIC     (1'b0)
+        .ENABLE_DEBUG_LOGIC     (1'b0),
+        .N_ADDR_RANGES          (N_ADDR_RANGES),
+        .ADDR_RANGE_IS_ERROR    (MON_ADDR_RANGE_IS_ERROR)
     ) u_rd_axi_skid (
         .aclk                   (clk),
         .aresetn                (rst_n),
@@ -1387,11 +1430,11 @@ module stream_core #(
         // compl follows monitor-enable, threshold follows perf, debug off —
         // mirroring the descriptor-monitor aliasing in scheduler_group_array.
         .cfg_monitor_enable     (int_cfg_rdeng_mon_enable),
-        .cfg_error_enable       (int_cfg_rdeng_mon_err_enable),
+        .cfg_error_enable       (int_cfg_rdeng_mon_err_enable | cfg_rdeng_mon_addr_miss_en),
         .cfg_perf_enable        (int_cfg_rdeng_mon_perf_enable),
         .cfg_compl_enable       (int_cfg_rdeng_mon_enable),
         .cfg_threshold_enable   (int_cfg_rdeng_mon_perf_enable),
-        .cfg_debug_enable       (1'b0),
+        .cfg_debug_enable       (cfg_rdeng_mon_addr_match_en),
         .cfg_timeout_enable     (int_cfg_rdeng_mon_timeout_enable),
         .cfg_timeout_cycles     (16'(int_cfg_rdeng_mon_timeout_cycles)),
         .cfg_latency_threshold  (int_cfg_rdeng_mon_latency_thresh),
@@ -1406,11 +1449,12 @@ module stream_core #(
         .cfg_axi_addr_mask      (16'(int_cfg_rdeng_mon_addr_mask)),
         .cfg_axi_debug_mask     (16'(int_cfg_rdeng_mon_debug_mask)),
 
-        // Address-range checker disabled (N_ADDR_RANGES=0 default)
-        .cfg_addr_check_enable  (1'b0),
-        .cfg_addr_range_enable  (1'b0),
-        .cfg_addr_range_low     ('0),
-        .cfg_addr_range_high    ('0),
+        // Address-range checker (allowlist) driven by the RDMON_ADDR_RANGE* CSRs;
+        // active only when N_ADDR_RANGES > 0 (else the checker is not built).
+        .cfg_addr_check_enable  (cfg_rdeng_mon_addr_check_en),
+        .cfg_addr_range_enable  (cfg_rdeng_mon_addr_range_en[NAR-1:0]),
+        .cfg_addr_range_low     (w_rdmon_range_low),
+        .cfg_addr_range_high    (w_rdmon_range_high),
 
         // Perf-window control (RFC Stage E CSR route). Trigger mode driven by
         // the RDMON_PERF_CTRL.RUN bit; decoupled from cfg_perf_enable so the
@@ -1493,7 +1537,9 @@ module stream_core #(
         .ENABLE_COMPL_LOGIC     (1'b0),
         .ENABLE_THRESHOLD_LOGIC (1'b0),
         .ENABLE_PERF_LOGIC      (1'b1),
-        .ENABLE_DEBUG_LOGIC     (1'b0)
+        .ENABLE_DEBUG_LOGIC     (1'b0),
+        .N_ADDR_RANGES          (N_ADDR_RANGES),
+        .ADDR_RANGE_IS_ERROR    (MON_ADDR_RANGE_IS_ERROR)
     ) u_wr_axi_skid (
         .aclk                   (clk),
         .aresetn                (rst_n),
@@ -1557,11 +1603,11 @@ module stream_core #(
 
         // Monitor configuration (driven by the now-live WRMON_* CSR hooks)
         .cfg_monitor_enable     (int_cfg_wreng_mon_enable),
-        .cfg_error_enable       (int_cfg_wreng_mon_err_enable),
+        .cfg_error_enable       (int_cfg_wreng_mon_err_enable | cfg_wreng_mon_addr_miss_en),
         .cfg_perf_enable        (int_cfg_wreng_mon_perf_enable),
         .cfg_compl_enable       (int_cfg_wreng_mon_enable),
         .cfg_threshold_enable   (int_cfg_wreng_mon_perf_enable),
-        .cfg_debug_enable       (1'b0),
+        .cfg_debug_enable       (cfg_wreng_mon_addr_match_en),
         .cfg_timeout_enable     (int_cfg_wreng_mon_timeout_enable),
         .cfg_timeout_cycles     (16'(int_cfg_wreng_mon_timeout_cycles)),
         .cfg_latency_threshold  (int_cfg_wreng_mon_latency_thresh),
@@ -1576,10 +1622,11 @@ module stream_core #(
         .cfg_axi_addr_mask      (16'(int_cfg_wreng_mon_addr_mask)),
         .cfg_axi_debug_mask     (16'(int_cfg_wreng_mon_debug_mask)),
 
-        .cfg_addr_check_enable  (1'b0),
-        .cfg_addr_range_enable  (1'b0),
-        .cfg_addr_range_low     ('0),
-        .cfg_addr_range_high    ('0),
+        // Address-range checker (allowlist) driven by the WRMON_ADDR_RANGE* CSRs.
+        .cfg_addr_check_enable  (cfg_wreng_mon_addr_check_en),
+        .cfg_addr_range_enable  (cfg_wreng_mon_addr_range_en[NAR-1:0]),
+        .cfg_addr_range_low     (w_wrmon_range_low),
+        .cfg_addr_range_high    (w_wrmon_range_high),
 
         // Perf-window control (RFC Stage E CSR route, WRMON_PERF_CTRL.RUN)
         // Hardware-closed window (shared controller; see the read monitor).

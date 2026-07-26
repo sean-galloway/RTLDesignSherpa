@@ -164,6 +164,24 @@ module stream_regs (
             logic WRMON_PERF_CH_STARV_IDLE;
             logic RDMON_PERF_CH_OVERFLOW;
             logic WRMON_PERF_CH_OVERFLOW;
+            logic RDMON_ADDR_RANGE0_LOW;
+            logic RDMON_ADDR_RANGE0_HIGH;
+            logic RDMON_ADDR_RANGE1_LOW;
+            logic RDMON_ADDR_RANGE1_HIGH;
+            logic RDMON_ADDR_RANGE2_LOW;
+            logic RDMON_ADDR_RANGE2_HIGH;
+            logic RDMON_ADDR_RANGE3_LOW;
+            logic RDMON_ADDR_RANGE3_HIGH;
+            logic RDMON_ADDR_RANGE_CTRL;
+            logic WRMON_ADDR_RANGE0_LOW;
+            logic WRMON_ADDR_RANGE0_HIGH;
+            logic WRMON_ADDR_RANGE1_LOW;
+            logic WRMON_ADDR_RANGE1_HIGH;
+            logic WRMON_ADDR_RANGE2_LOW;
+            logic WRMON_ADDR_RANGE2_HIGH;
+            logic WRMON_ADDR_RANGE3_LOW;
+            logic WRMON_ADDR_RANGE3_HIGH;
+            logic WRMON_ADDR_RANGE_CTRL;
         } MON;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
@@ -270,6 +288,24 @@ module stream_regs (
         decoded_reg_strb.MON.WRMON_PERF_CH_STARV_IDLE = cpuif_req_masked & (cpuif_addr == 13'h11ec);
         decoded_reg_strb.MON.RDMON_PERF_CH_OVERFLOW = cpuif_req_masked & (cpuif_addr == 13'h11f0);
         decoded_reg_strb.MON.WRMON_PERF_CH_OVERFLOW = cpuif_req_masked & (cpuif_addr == 13'h11f4);
+        decoded_reg_strb.MON.RDMON_ADDR_RANGE0_LOW = cpuif_req_masked & (cpuif_addr == 13'h1200);
+        decoded_reg_strb.MON.RDMON_ADDR_RANGE0_HIGH = cpuif_req_masked & (cpuif_addr == 13'h1204);
+        decoded_reg_strb.MON.RDMON_ADDR_RANGE1_LOW = cpuif_req_masked & (cpuif_addr == 13'h1208);
+        decoded_reg_strb.MON.RDMON_ADDR_RANGE1_HIGH = cpuif_req_masked & (cpuif_addr == 13'h120c);
+        decoded_reg_strb.MON.RDMON_ADDR_RANGE2_LOW = cpuif_req_masked & (cpuif_addr == 13'h1210);
+        decoded_reg_strb.MON.RDMON_ADDR_RANGE2_HIGH = cpuif_req_masked & (cpuif_addr == 13'h1214);
+        decoded_reg_strb.MON.RDMON_ADDR_RANGE3_LOW = cpuif_req_masked & (cpuif_addr == 13'h1218);
+        decoded_reg_strb.MON.RDMON_ADDR_RANGE3_HIGH = cpuif_req_masked & (cpuif_addr == 13'h121c);
+        decoded_reg_strb.MON.RDMON_ADDR_RANGE_CTRL = cpuif_req_masked & (cpuif_addr == 13'h1220);
+        decoded_reg_strb.MON.WRMON_ADDR_RANGE0_LOW = cpuif_req_masked & (cpuif_addr == 13'h1230);
+        decoded_reg_strb.MON.WRMON_ADDR_RANGE0_HIGH = cpuif_req_masked & (cpuif_addr == 13'h1234);
+        decoded_reg_strb.MON.WRMON_ADDR_RANGE1_LOW = cpuif_req_masked & (cpuif_addr == 13'h1238);
+        decoded_reg_strb.MON.WRMON_ADDR_RANGE1_HIGH = cpuif_req_masked & (cpuif_addr == 13'h123c);
+        decoded_reg_strb.MON.WRMON_ADDR_RANGE2_LOW = cpuif_req_masked & (cpuif_addr == 13'h1240);
+        decoded_reg_strb.MON.WRMON_ADDR_RANGE2_HIGH = cpuif_req_masked & (cpuif_addr == 13'h1244);
+        decoded_reg_strb.MON.WRMON_ADDR_RANGE3_LOW = cpuif_req_masked & (cpuif_addr == 13'h1248);
+        decoded_reg_strb.MON.WRMON_ADDR_RANGE3_HIGH = cpuif_req_masked & (cpuif_addr == 13'h124c);
+        decoded_reg_strb.MON.WRMON_ADDR_RANGE_CTRL = cpuif_req_masked & (cpuif_addr == 13'h1250);
     end
 
     // Pass down signals to next stage
@@ -697,6 +733,138 @@ module stream_regs (
                     logic load_next;
                 } RUN;
             } WRMON_PERF_CTRL;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } RDMON_ADDR_RANGE0_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } RDMON_ADDR_RANGE0_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } RDMON_ADDR_RANGE1_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } RDMON_ADDR_RANGE1_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } RDMON_ADDR_RANGE2_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } RDMON_ADDR_RANGE2_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } RDMON_ADDR_RANGE3_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } RDMON_ADDR_RANGE3_HIGH;
+            struct {
+                struct {
+                    logic [3:0] next;
+                    logic load_next;
+                } RANGE_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } CHECK_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } MATCH_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } MISS_EN;
+            } RDMON_ADDR_RANGE_CTRL;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } WRMON_ADDR_RANGE0_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } WRMON_ADDR_RANGE0_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } WRMON_ADDR_RANGE1_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } WRMON_ADDR_RANGE1_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } WRMON_ADDR_RANGE2_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } WRMON_ADDR_RANGE2_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } WRMON_ADDR_RANGE3_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } WRMON_ADDR_RANGE3_HIGH;
+            struct {
+                struct {
+                    logic [3:0] next;
+                    logic load_next;
+                } RANGE_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } CHECK_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } MATCH_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } MISS_EN;
+            } WRMON_ADDR_RANGE_CTRL;
         } MON;
     } field_combo_t;
     field_combo_t field_combo;
@@ -1035,6 +1203,114 @@ module stream_regs (
                     logic value;
                 } RUN;
             } WRMON_PERF_CTRL;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } RDMON_ADDR_RANGE0_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } RDMON_ADDR_RANGE0_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } RDMON_ADDR_RANGE1_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } RDMON_ADDR_RANGE1_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } RDMON_ADDR_RANGE2_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } RDMON_ADDR_RANGE2_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } RDMON_ADDR_RANGE3_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } RDMON_ADDR_RANGE3_HIGH;
+            struct {
+                struct {
+                    logic [3:0] value;
+                } RANGE_EN;
+                struct {
+                    logic value;
+                } CHECK_EN;
+                struct {
+                    logic value;
+                } MATCH_EN;
+                struct {
+                    logic value;
+                } MISS_EN;
+            } RDMON_ADDR_RANGE_CTRL;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } WRMON_ADDR_RANGE0_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } WRMON_ADDR_RANGE0_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } WRMON_ADDR_RANGE1_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } WRMON_ADDR_RANGE1_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } WRMON_ADDR_RANGE2_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } WRMON_ADDR_RANGE2_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } WRMON_ADDR_RANGE3_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } WRMON_ADDR_RANGE3_HIGH;
+            struct {
+                struct {
+                    logic [3:0] value;
+                } RANGE_EN;
+                struct {
+                    logic value;
+                } CHECK_EN;
+                struct {
+                    logic value;
+                } MATCH_EN;
+                struct {
+                    logic value;
+                } MISS_EN;
+            } WRMON_ADDR_RANGE_CTRL;
         } MON;
     } field_storage_t;
     field_storage_t field_storage;
@@ -2928,6 +3204,558 @@ module stream_regs (
         end
     end
     assign hwif_out.MON.WRMON_PERF_CTRL.RUN.value = field_storage.MON.WRMON_PERF_CTRL.RUN.value;
+    // Field: stream_regs.MON.RDMON_ADDR_RANGE0_LOW.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.RDMON_ADDR_RANGE0_LOW.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.RDMON_ADDR_RANGE0_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.RDMON_ADDR_RANGE0_LOW.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON.RDMON_ADDR_RANGE0_LOW.VALUE.next = next_c;
+        field_combo.MON.RDMON_ADDR_RANGE0_LOW.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.RDMON_ADDR_RANGE0_LOW.VALUE.value <= 32'h0;
+        end else begin
+            if(field_combo.MON.RDMON_ADDR_RANGE0_LOW.VALUE.load_next) begin
+                field_storage.MON.RDMON_ADDR_RANGE0_LOW.VALUE.value <= field_combo.MON.RDMON_ADDR_RANGE0_LOW.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.MON.RDMON_ADDR_RANGE0_LOW.VALUE.value = field_storage.MON.RDMON_ADDR_RANGE0_LOW.VALUE.value;
+    // Field: stream_regs.MON.RDMON_ADDR_RANGE0_HIGH.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.RDMON_ADDR_RANGE0_HIGH.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.RDMON_ADDR_RANGE0_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.RDMON_ADDR_RANGE0_HIGH.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON.RDMON_ADDR_RANGE0_HIGH.VALUE.next = next_c;
+        field_combo.MON.RDMON_ADDR_RANGE0_HIGH.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.RDMON_ADDR_RANGE0_HIGH.VALUE.value <= 32'hffffffff;
+        end else begin
+            if(field_combo.MON.RDMON_ADDR_RANGE0_HIGH.VALUE.load_next) begin
+                field_storage.MON.RDMON_ADDR_RANGE0_HIGH.VALUE.value <= field_combo.MON.RDMON_ADDR_RANGE0_HIGH.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.MON.RDMON_ADDR_RANGE0_HIGH.VALUE.value = field_storage.MON.RDMON_ADDR_RANGE0_HIGH.VALUE.value;
+    // Field: stream_regs.MON.RDMON_ADDR_RANGE1_LOW.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.RDMON_ADDR_RANGE1_LOW.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.RDMON_ADDR_RANGE1_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.RDMON_ADDR_RANGE1_LOW.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON.RDMON_ADDR_RANGE1_LOW.VALUE.next = next_c;
+        field_combo.MON.RDMON_ADDR_RANGE1_LOW.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.RDMON_ADDR_RANGE1_LOW.VALUE.value <= 32'h0;
+        end else begin
+            if(field_combo.MON.RDMON_ADDR_RANGE1_LOW.VALUE.load_next) begin
+                field_storage.MON.RDMON_ADDR_RANGE1_LOW.VALUE.value <= field_combo.MON.RDMON_ADDR_RANGE1_LOW.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.MON.RDMON_ADDR_RANGE1_LOW.VALUE.value = field_storage.MON.RDMON_ADDR_RANGE1_LOW.VALUE.value;
+    // Field: stream_regs.MON.RDMON_ADDR_RANGE1_HIGH.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.RDMON_ADDR_RANGE1_HIGH.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.RDMON_ADDR_RANGE1_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.RDMON_ADDR_RANGE1_HIGH.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON.RDMON_ADDR_RANGE1_HIGH.VALUE.next = next_c;
+        field_combo.MON.RDMON_ADDR_RANGE1_HIGH.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.RDMON_ADDR_RANGE1_HIGH.VALUE.value <= 32'hffffffff;
+        end else begin
+            if(field_combo.MON.RDMON_ADDR_RANGE1_HIGH.VALUE.load_next) begin
+                field_storage.MON.RDMON_ADDR_RANGE1_HIGH.VALUE.value <= field_combo.MON.RDMON_ADDR_RANGE1_HIGH.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.MON.RDMON_ADDR_RANGE1_HIGH.VALUE.value = field_storage.MON.RDMON_ADDR_RANGE1_HIGH.VALUE.value;
+    // Field: stream_regs.MON.RDMON_ADDR_RANGE2_LOW.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.RDMON_ADDR_RANGE2_LOW.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.RDMON_ADDR_RANGE2_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.RDMON_ADDR_RANGE2_LOW.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON.RDMON_ADDR_RANGE2_LOW.VALUE.next = next_c;
+        field_combo.MON.RDMON_ADDR_RANGE2_LOW.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.RDMON_ADDR_RANGE2_LOW.VALUE.value <= 32'h0;
+        end else begin
+            if(field_combo.MON.RDMON_ADDR_RANGE2_LOW.VALUE.load_next) begin
+                field_storage.MON.RDMON_ADDR_RANGE2_LOW.VALUE.value <= field_combo.MON.RDMON_ADDR_RANGE2_LOW.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.MON.RDMON_ADDR_RANGE2_LOW.VALUE.value = field_storage.MON.RDMON_ADDR_RANGE2_LOW.VALUE.value;
+    // Field: stream_regs.MON.RDMON_ADDR_RANGE2_HIGH.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.RDMON_ADDR_RANGE2_HIGH.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.RDMON_ADDR_RANGE2_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.RDMON_ADDR_RANGE2_HIGH.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON.RDMON_ADDR_RANGE2_HIGH.VALUE.next = next_c;
+        field_combo.MON.RDMON_ADDR_RANGE2_HIGH.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.RDMON_ADDR_RANGE2_HIGH.VALUE.value <= 32'hffffffff;
+        end else begin
+            if(field_combo.MON.RDMON_ADDR_RANGE2_HIGH.VALUE.load_next) begin
+                field_storage.MON.RDMON_ADDR_RANGE2_HIGH.VALUE.value <= field_combo.MON.RDMON_ADDR_RANGE2_HIGH.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.MON.RDMON_ADDR_RANGE2_HIGH.VALUE.value = field_storage.MON.RDMON_ADDR_RANGE2_HIGH.VALUE.value;
+    // Field: stream_regs.MON.RDMON_ADDR_RANGE3_LOW.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.RDMON_ADDR_RANGE3_LOW.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.RDMON_ADDR_RANGE3_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.RDMON_ADDR_RANGE3_LOW.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON.RDMON_ADDR_RANGE3_LOW.VALUE.next = next_c;
+        field_combo.MON.RDMON_ADDR_RANGE3_LOW.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.RDMON_ADDR_RANGE3_LOW.VALUE.value <= 32'h0;
+        end else begin
+            if(field_combo.MON.RDMON_ADDR_RANGE3_LOW.VALUE.load_next) begin
+                field_storage.MON.RDMON_ADDR_RANGE3_LOW.VALUE.value <= field_combo.MON.RDMON_ADDR_RANGE3_LOW.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.MON.RDMON_ADDR_RANGE3_LOW.VALUE.value = field_storage.MON.RDMON_ADDR_RANGE3_LOW.VALUE.value;
+    // Field: stream_regs.MON.RDMON_ADDR_RANGE3_HIGH.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.RDMON_ADDR_RANGE3_HIGH.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.RDMON_ADDR_RANGE3_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.RDMON_ADDR_RANGE3_HIGH.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON.RDMON_ADDR_RANGE3_HIGH.VALUE.next = next_c;
+        field_combo.MON.RDMON_ADDR_RANGE3_HIGH.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.RDMON_ADDR_RANGE3_HIGH.VALUE.value <= 32'hffffffff;
+        end else begin
+            if(field_combo.MON.RDMON_ADDR_RANGE3_HIGH.VALUE.load_next) begin
+                field_storage.MON.RDMON_ADDR_RANGE3_HIGH.VALUE.value <= field_combo.MON.RDMON_ADDR_RANGE3_HIGH.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.MON.RDMON_ADDR_RANGE3_HIGH.VALUE.value = field_storage.MON.RDMON_ADDR_RANGE3_HIGH.VALUE.value;
+    // Field: stream_regs.MON.RDMON_ADDR_RANGE_CTRL.RANGE_EN
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.RDMON_ADDR_RANGE_CTRL.RANGE_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.RDMON_ADDR_RANGE_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.RDMON_ADDR_RANGE_CTRL.RANGE_EN.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON.RDMON_ADDR_RANGE_CTRL.RANGE_EN.next = next_c;
+        field_combo.MON.RDMON_ADDR_RANGE_CTRL.RANGE_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.RDMON_ADDR_RANGE_CTRL.RANGE_EN.value <= 4'h0;
+        end else begin
+            if(field_combo.MON.RDMON_ADDR_RANGE_CTRL.RANGE_EN.load_next) begin
+                field_storage.MON.RDMON_ADDR_RANGE_CTRL.RANGE_EN.value <= field_combo.MON.RDMON_ADDR_RANGE_CTRL.RANGE_EN.next;
+            end
+        end
+    end
+    assign hwif_out.MON.RDMON_ADDR_RANGE_CTRL.RANGE_EN.value = field_storage.MON.RDMON_ADDR_RANGE_CTRL.RANGE_EN.value;
+    // Field: stream_regs.MON.RDMON_ADDR_RANGE_CTRL.CHECK_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.RDMON_ADDR_RANGE_CTRL.CHECK_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.RDMON_ADDR_RANGE_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.RDMON_ADDR_RANGE_CTRL.CHECK_EN.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+            load_next_c = '1;
+        end
+        field_combo.MON.RDMON_ADDR_RANGE_CTRL.CHECK_EN.next = next_c;
+        field_combo.MON.RDMON_ADDR_RANGE_CTRL.CHECK_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.RDMON_ADDR_RANGE_CTRL.CHECK_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.MON.RDMON_ADDR_RANGE_CTRL.CHECK_EN.load_next) begin
+                field_storage.MON.RDMON_ADDR_RANGE_CTRL.CHECK_EN.value <= field_combo.MON.RDMON_ADDR_RANGE_CTRL.CHECK_EN.next;
+            end
+        end
+    end
+    assign hwif_out.MON.RDMON_ADDR_RANGE_CTRL.CHECK_EN.value = field_storage.MON.RDMON_ADDR_RANGE_CTRL.CHECK_EN.value;
+    // Field: stream_regs.MON.RDMON_ADDR_RANGE_CTRL.MATCH_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.RDMON_ADDR_RANGE_CTRL.MATCH_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.RDMON_ADDR_RANGE_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.RDMON_ADDR_RANGE_CTRL.MATCH_EN.value & ~decoded_wr_biten[5:5]) | (decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
+            load_next_c = '1;
+        end
+        field_combo.MON.RDMON_ADDR_RANGE_CTRL.MATCH_EN.next = next_c;
+        field_combo.MON.RDMON_ADDR_RANGE_CTRL.MATCH_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.RDMON_ADDR_RANGE_CTRL.MATCH_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.MON.RDMON_ADDR_RANGE_CTRL.MATCH_EN.load_next) begin
+                field_storage.MON.RDMON_ADDR_RANGE_CTRL.MATCH_EN.value <= field_combo.MON.RDMON_ADDR_RANGE_CTRL.MATCH_EN.next;
+            end
+        end
+    end
+    assign hwif_out.MON.RDMON_ADDR_RANGE_CTRL.MATCH_EN.value = field_storage.MON.RDMON_ADDR_RANGE_CTRL.MATCH_EN.value;
+    // Field: stream_regs.MON.RDMON_ADDR_RANGE_CTRL.MISS_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.RDMON_ADDR_RANGE_CTRL.MISS_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.RDMON_ADDR_RANGE_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.RDMON_ADDR_RANGE_CTRL.MISS_EN.value & ~decoded_wr_biten[6:6]) | (decoded_wr_data[6:6] & decoded_wr_biten[6:6]);
+            load_next_c = '1;
+        end
+        field_combo.MON.RDMON_ADDR_RANGE_CTRL.MISS_EN.next = next_c;
+        field_combo.MON.RDMON_ADDR_RANGE_CTRL.MISS_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.RDMON_ADDR_RANGE_CTRL.MISS_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.MON.RDMON_ADDR_RANGE_CTRL.MISS_EN.load_next) begin
+                field_storage.MON.RDMON_ADDR_RANGE_CTRL.MISS_EN.value <= field_combo.MON.RDMON_ADDR_RANGE_CTRL.MISS_EN.next;
+            end
+        end
+    end
+    assign hwif_out.MON.RDMON_ADDR_RANGE_CTRL.MISS_EN.value = field_storage.MON.RDMON_ADDR_RANGE_CTRL.MISS_EN.value;
+    // Field: stream_regs.MON.WRMON_ADDR_RANGE0_LOW.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.WRMON_ADDR_RANGE0_LOW.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.WRMON_ADDR_RANGE0_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.WRMON_ADDR_RANGE0_LOW.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON.WRMON_ADDR_RANGE0_LOW.VALUE.next = next_c;
+        field_combo.MON.WRMON_ADDR_RANGE0_LOW.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.WRMON_ADDR_RANGE0_LOW.VALUE.value <= 32'h0;
+        end else begin
+            if(field_combo.MON.WRMON_ADDR_RANGE0_LOW.VALUE.load_next) begin
+                field_storage.MON.WRMON_ADDR_RANGE0_LOW.VALUE.value <= field_combo.MON.WRMON_ADDR_RANGE0_LOW.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.MON.WRMON_ADDR_RANGE0_LOW.VALUE.value = field_storage.MON.WRMON_ADDR_RANGE0_LOW.VALUE.value;
+    // Field: stream_regs.MON.WRMON_ADDR_RANGE0_HIGH.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.WRMON_ADDR_RANGE0_HIGH.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.WRMON_ADDR_RANGE0_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.WRMON_ADDR_RANGE0_HIGH.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON.WRMON_ADDR_RANGE0_HIGH.VALUE.next = next_c;
+        field_combo.MON.WRMON_ADDR_RANGE0_HIGH.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.WRMON_ADDR_RANGE0_HIGH.VALUE.value <= 32'hffffffff;
+        end else begin
+            if(field_combo.MON.WRMON_ADDR_RANGE0_HIGH.VALUE.load_next) begin
+                field_storage.MON.WRMON_ADDR_RANGE0_HIGH.VALUE.value <= field_combo.MON.WRMON_ADDR_RANGE0_HIGH.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.MON.WRMON_ADDR_RANGE0_HIGH.VALUE.value = field_storage.MON.WRMON_ADDR_RANGE0_HIGH.VALUE.value;
+    // Field: stream_regs.MON.WRMON_ADDR_RANGE1_LOW.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.WRMON_ADDR_RANGE1_LOW.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.WRMON_ADDR_RANGE1_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.WRMON_ADDR_RANGE1_LOW.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON.WRMON_ADDR_RANGE1_LOW.VALUE.next = next_c;
+        field_combo.MON.WRMON_ADDR_RANGE1_LOW.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.WRMON_ADDR_RANGE1_LOW.VALUE.value <= 32'h0;
+        end else begin
+            if(field_combo.MON.WRMON_ADDR_RANGE1_LOW.VALUE.load_next) begin
+                field_storage.MON.WRMON_ADDR_RANGE1_LOW.VALUE.value <= field_combo.MON.WRMON_ADDR_RANGE1_LOW.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.MON.WRMON_ADDR_RANGE1_LOW.VALUE.value = field_storage.MON.WRMON_ADDR_RANGE1_LOW.VALUE.value;
+    // Field: stream_regs.MON.WRMON_ADDR_RANGE1_HIGH.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.WRMON_ADDR_RANGE1_HIGH.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.WRMON_ADDR_RANGE1_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.WRMON_ADDR_RANGE1_HIGH.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON.WRMON_ADDR_RANGE1_HIGH.VALUE.next = next_c;
+        field_combo.MON.WRMON_ADDR_RANGE1_HIGH.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.WRMON_ADDR_RANGE1_HIGH.VALUE.value <= 32'hffffffff;
+        end else begin
+            if(field_combo.MON.WRMON_ADDR_RANGE1_HIGH.VALUE.load_next) begin
+                field_storage.MON.WRMON_ADDR_RANGE1_HIGH.VALUE.value <= field_combo.MON.WRMON_ADDR_RANGE1_HIGH.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.MON.WRMON_ADDR_RANGE1_HIGH.VALUE.value = field_storage.MON.WRMON_ADDR_RANGE1_HIGH.VALUE.value;
+    // Field: stream_regs.MON.WRMON_ADDR_RANGE2_LOW.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.WRMON_ADDR_RANGE2_LOW.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.WRMON_ADDR_RANGE2_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.WRMON_ADDR_RANGE2_LOW.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON.WRMON_ADDR_RANGE2_LOW.VALUE.next = next_c;
+        field_combo.MON.WRMON_ADDR_RANGE2_LOW.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.WRMON_ADDR_RANGE2_LOW.VALUE.value <= 32'h0;
+        end else begin
+            if(field_combo.MON.WRMON_ADDR_RANGE2_LOW.VALUE.load_next) begin
+                field_storage.MON.WRMON_ADDR_RANGE2_LOW.VALUE.value <= field_combo.MON.WRMON_ADDR_RANGE2_LOW.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.MON.WRMON_ADDR_RANGE2_LOW.VALUE.value = field_storage.MON.WRMON_ADDR_RANGE2_LOW.VALUE.value;
+    // Field: stream_regs.MON.WRMON_ADDR_RANGE2_HIGH.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.WRMON_ADDR_RANGE2_HIGH.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.WRMON_ADDR_RANGE2_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.WRMON_ADDR_RANGE2_HIGH.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON.WRMON_ADDR_RANGE2_HIGH.VALUE.next = next_c;
+        field_combo.MON.WRMON_ADDR_RANGE2_HIGH.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.WRMON_ADDR_RANGE2_HIGH.VALUE.value <= 32'hffffffff;
+        end else begin
+            if(field_combo.MON.WRMON_ADDR_RANGE2_HIGH.VALUE.load_next) begin
+                field_storage.MON.WRMON_ADDR_RANGE2_HIGH.VALUE.value <= field_combo.MON.WRMON_ADDR_RANGE2_HIGH.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.MON.WRMON_ADDR_RANGE2_HIGH.VALUE.value = field_storage.MON.WRMON_ADDR_RANGE2_HIGH.VALUE.value;
+    // Field: stream_regs.MON.WRMON_ADDR_RANGE3_LOW.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.WRMON_ADDR_RANGE3_LOW.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.WRMON_ADDR_RANGE3_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.WRMON_ADDR_RANGE3_LOW.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON.WRMON_ADDR_RANGE3_LOW.VALUE.next = next_c;
+        field_combo.MON.WRMON_ADDR_RANGE3_LOW.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.WRMON_ADDR_RANGE3_LOW.VALUE.value <= 32'h0;
+        end else begin
+            if(field_combo.MON.WRMON_ADDR_RANGE3_LOW.VALUE.load_next) begin
+                field_storage.MON.WRMON_ADDR_RANGE3_LOW.VALUE.value <= field_combo.MON.WRMON_ADDR_RANGE3_LOW.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.MON.WRMON_ADDR_RANGE3_LOW.VALUE.value = field_storage.MON.WRMON_ADDR_RANGE3_LOW.VALUE.value;
+    // Field: stream_regs.MON.WRMON_ADDR_RANGE3_HIGH.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.WRMON_ADDR_RANGE3_HIGH.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.WRMON_ADDR_RANGE3_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.WRMON_ADDR_RANGE3_HIGH.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON.WRMON_ADDR_RANGE3_HIGH.VALUE.next = next_c;
+        field_combo.MON.WRMON_ADDR_RANGE3_HIGH.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.WRMON_ADDR_RANGE3_HIGH.VALUE.value <= 32'hffffffff;
+        end else begin
+            if(field_combo.MON.WRMON_ADDR_RANGE3_HIGH.VALUE.load_next) begin
+                field_storage.MON.WRMON_ADDR_RANGE3_HIGH.VALUE.value <= field_combo.MON.WRMON_ADDR_RANGE3_HIGH.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.MON.WRMON_ADDR_RANGE3_HIGH.VALUE.value = field_storage.MON.WRMON_ADDR_RANGE3_HIGH.VALUE.value;
+    // Field: stream_regs.MON.WRMON_ADDR_RANGE_CTRL.RANGE_EN
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.WRMON_ADDR_RANGE_CTRL.RANGE_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.WRMON_ADDR_RANGE_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.WRMON_ADDR_RANGE_CTRL.RANGE_EN.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON.WRMON_ADDR_RANGE_CTRL.RANGE_EN.next = next_c;
+        field_combo.MON.WRMON_ADDR_RANGE_CTRL.RANGE_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.WRMON_ADDR_RANGE_CTRL.RANGE_EN.value <= 4'h0;
+        end else begin
+            if(field_combo.MON.WRMON_ADDR_RANGE_CTRL.RANGE_EN.load_next) begin
+                field_storage.MON.WRMON_ADDR_RANGE_CTRL.RANGE_EN.value <= field_combo.MON.WRMON_ADDR_RANGE_CTRL.RANGE_EN.next;
+            end
+        end
+    end
+    assign hwif_out.MON.WRMON_ADDR_RANGE_CTRL.RANGE_EN.value = field_storage.MON.WRMON_ADDR_RANGE_CTRL.RANGE_EN.value;
+    // Field: stream_regs.MON.WRMON_ADDR_RANGE_CTRL.CHECK_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.WRMON_ADDR_RANGE_CTRL.CHECK_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.WRMON_ADDR_RANGE_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.WRMON_ADDR_RANGE_CTRL.CHECK_EN.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+            load_next_c = '1;
+        end
+        field_combo.MON.WRMON_ADDR_RANGE_CTRL.CHECK_EN.next = next_c;
+        field_combo.MON.WRMON_ADDR_RANGE_CTRL.CHECK_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.WRMON_ADDR_RANGE_CTRL.CHECK_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.MON.WRMON_ADDR_RANGE_CTRL.CHECK_EN.load_next) begin
+                field_storage.MON.WRMON_ADDR_RANGE_CTRL.CHECK_EN.value <= field_combo.MON.WRMON_ADDR_RANGE_CTRL.CHECK_EN.next;
+            end
+        end
+    end
+    assign hwif_out.MON.WRMON_ADDR_RANGE_CTRL.CHECK_EN.value = field_storage.MON.WRMON_ADDR_RANGE_CTRL.CHECK_EN.value;
+    // Field: stream_regs.MON.WRMON_ADDR_RANGE_CTRL.MATCH_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.WRMON_ADDR_RANGE_CTRL.MATCH_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.WRMON_ADDR_RANGE_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.WRMON_ADDR_RANGE_CTRL.MATCH_EN.value & ~decoded_wr_biten[5:5]) | (decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
+            load_next_c = '1;
+        end
+        field_combo.MON.WRMON_ADDR_RANGE_CTRL.MATCH_EN.next = next_c;
+        field_combo.MON.WRMON_ADDR_RANGE_CTRL.MATCH_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.WRMON_ADDR_RANGE_CTRL.MATCH_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.MON.WRMON_ADDR_RANGE_CTRL.MATCH_EN.load_next) begin
+                field_storage.MON.WRMON_ADDR_RANGE_CTRL.MATCH_EN.value <= field_combo.MON.WRMON_ADDR_RANGE_CTRL.MATCH_EN.next;
+            end
+        end
+    end
+    assign hwif_out.MON.WRMON_ADDR_RANGE_CTRL.MATCH_EN.value = field_storage.MON.WRMON_ADDR_RANGE_CTRL.MATCH_EN.value;
+    // Field: stream_regs.MON.WRMON_ADDR_RANGE_CTRL.MISS_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.WRMON_ADDR_RANGE_CTRL.MISS_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.WRMON_ADDR_RANGE_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.WRMON_ADDR_RANGE_CTRL.MISS_EN.value & ~decoded_wr_biten[6:6]) | (decoded_wr_data[6:6] & decoded_wr_biten[6:6]);
+            load_next_c = '1;
+        end
+        field_combo.MON.WRMON_ADDR_RANGE_CTRL.MISS_EN.next = next_c;
+        field_combo.MON.WRMON_ADDR_RANGE_CTRL.MISS_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.WRMON_ADDR_RANGE_CTRL.MISS_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.MON.WRMON_ADDR_RANGE_CTRL.MISS_EN.load_next) begin
+                field_storage.MON.WRMON_ADDR_RANGE_CTRL.MISS_EN.value <= field_combo.MON.WRMON_ADDR_RANGE_CTRL.MISS_EN.next;
+            end
+        end
+    end
+    assign hwif_out.MON.WRMON_ADDR_RANGE_CTRL.MISS_EN.value = field_storage.MON.WRMON_ADDR_RANGE_CTRL.MISS_EN.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -2945,7 +3773,7 @@ module stream_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[102];
+    logic [31:0] readback_array[120];
     assign readback_array[0][0:0] = (decoded_reg_strb.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.GLOBAL_CTRL.GLOBAL_EN.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.GLOBAL_CTRL.GLOBAL_RST.value : '0;
     assign readback_array[0][31:2] = (decoded_reg_strb.GLOBAL_CTRL && !decoded_req_is_wr) ? 30'h0 : '0;
@@ -3136,6 +3964,32 @@ module stream_regs (
     assign readback_array[99][31:0] = (decoded_reg_strb.MON.WRMON_PERF_CH_STARV_IDLE && !decoded_req_is_wr) ? hwif_in.MON.WRMON_PERF_CH_STARV_IDLE.VAL.next : '0;
     assign readback_array[100][31:0] = (decoded_reg_strb.MON.RDMON_PERF_CH_OVERFLOW && !decoded_req_is_wr) ? hwif_in.MON.RDMON_PERF_CH_OVERFLOW.VAL.next : '0;
     assign readback_array[101][31:0] = (decoded_reg_strb.MON.WRMON_PERF_CH_OVERFLOW && !decoded_req_is_wr) ? hwif_in.MON.WRMON_PERF_CH_OVERFLOW.VAL.next : '0;
+    assign readback_array[102][31:0] = (decoded_reg_strb.MON.RDMON_ADDR_RANGE0_LOW && !decoded_req_is_wr) ? field_storage.MON.RDMON_ADDR_RANGE0_LOW.VALUE.value : '0;
+    assign readback_array[103][31:0] = (decoded_reg_strb.MON.RDMON_ADDR_RANGE0_HIGH && !decoded_req_is_wr) ? field_storage.MON.RDMON_ADDR_RANGE0_HIGH.VALUE.value : '0;
+    assign readback_array[104][31:0] = (decoded_reg_strb.MON.RDMON_ADDR_RANGE1_LOW && !decoded_req_is_wr) ? field_storage.MON.RDMON_ADDR_RANGE1_LOW.VALUE.value : '0;
+    assign readback_array[105][31:0] = (decoded_reg_strb.MON.RDMON_ADDR_RANGE1_HIGH && !decoded_req_is_wr) ? field_storage.MON.RDMON_ADDR_RANGE1_HIGH.VALUE.value : '0;
+    assign readback_array[106][31:0] = (decoded_reg_strb.MON.RDMON_ADDR_RANGE2_LOW && !decoded_req_is_wr) ? field_storage.MON.RDMON_ADDR_RANGE2_LOW.VALUE.value : '0;
+    assign readback_array[107][31:0] = (decoded_reg_strb.MON.RDMON_ADDR_RANGE2_HIGH && !decoded_req_is_wr) ? field_storage.MON.RDMON_ADDR_RANGE2_HIGH.VALUE.value : '0;
+    assign readback_array[108][31:0] = (decoded_reg_strb.MON.RDMON_ADDR_RANGE3_LOW && !decoded_req_is_wr) ? field_storage.MON.RDMON_ADDR_RANGE3_LOW.VALUE.value : '0;
+    assign readback_array[109][31:0] = (decoded_reg_strb.MON.RDMON_ADDR_RANGE3_HIGH && !decoded_req_is_wr) ? field_storage.MON.RDMON_ADDR_RANGE3_HIGH.VALUE.value : '0;
+    assign readback_array[110][3:0] = (decoded_reg_strb.MON.RDMON_ADDR_RANGE_CTRL && !decoded_req_is_wr) ? field_storage.MON.RDMON_ADDR_RANGE_CTRL.RANGE_EN.value : '0;
+    assign readback_array[110][4:4] = (decoded_reg_strb.MON.RDMON_ADDR_RANGE_CTRL && !decoded_req_is_wr) ? field_storage.MON.RDMON_ADDR_RANGE_CTRL.CHECK_EN.value : '0;
+    assign readback_array[110][5:5] = (decoded_reg_strb.MON.RDMON_ADDR_RANGE_CTRL && !decoded_req_is_wr) ? field_storage.MON.RDMON_ADDR_RANGE_CTRL.MATCH_EN.value : '0;
+    assign readback_array[110][6:6] = (decoded_reg_strb.MON.RDMON_ADDR_RANGE_CTRL && !decoded_req_is_wr) ? field_storage.MON.RDMON_ADDR_RANGE_CTRL.MISS_EN.value : '0;
+    assign readback_array[110][31:7] = '0;
+    assign readback_array[111][31:0] = (decoded_reg_strb.MON.WRMON_ADDR_RANGE0_LOW && !decoded_req_is_wr) ? field_storage.MON.WRMON_ADDR_RANGE0_LOW.VALUE.value : '0;
+    assign readback_array[112][31:0] = (decoded_reg_strb.MON.WRMON_ADDR_RANGE0_HIGH && !decoded_req_is_wr) ? field_storage.MON.WRMON_ADDR_RANGE0_HIGH.VALUE.value : '0;
+    assign readback_array[113][31:0] = (decoded_reg_strb.MON.WRMON_ADDR_RANGE1_LOW && !decoded_req_is_wr) ? field_storage.MON.WRMON_ADDR_RANGE1_LOW.VALUE.value : '0;
+    assign readback_array[114][31:0] = (decoded_reg_strb.MON.WRMON_ADDR_RANGE1_HIGH && !decoded_req_is_wr) ? field_storage.MON.WRMON_ADDR_RANGE1_HIGH.VALUE.value : '0;
+    assign readback_array[115][31:0] = (decoded_reg_strb.MON.WRMON_ADDR_RANGE2_LOW && !decoded_req_is_wr) ? field_storage.MON.WRMON_ADDR_RANGE2_LOW.VALUE.value : '0;
+    assign readback_array[116][31:0] = (decoded_reg_strb.MON.WRMON_ADDR_RANGE2_HIGH && !decoded_req_is_wr) ? field_storage.MON.WRMON_ADDR_RANGE2_HIGH.VALUE.value : '0;
+    assign readback_array[117][31:0] = (decoded_reg_strb.MON.WRMON_ADDR_RANGE3_LOW && !decoded_req_is_wr) ? field_storage.MON.WRMON_ADDR_RANGE3_LOW.VALUE.value : '0;
+    assign readback_array[118][31:0] = (decoded_reg_strb.MON.WRMON_ADDR_RANGE3_HIGH && !decoded_req_is_wr) ? field_storage.MON.WRMON_ADDR_RANGE3_HIGH.VALUE.value : '0;
+    assign readback_array[119][3:0] = (decoded_reg_strb.MON.WRMON_ADDR_RANGE_CTRL && !decoded_req_is_wr) ? field_storage.MON.WRMON_ADDR_RANGE_CTRL.RANGE_EN.value : '0;
+    assign readback_array[119][4:4] = (decoded_reg_strb.MON.WRMON_ADDR_RANGE_CTRL && !decoded_req_is_wr) ? field_storage.MON.WRMON_ADDR_RANGE_CTRL.CHECK_EN.value : '0;
+    assign readback_array[119][5:5] = (decoded_reg_strb.MON.WRMON_ADDR_RANGE_CTRL && !decoded_req_is_wr) ? field_storage.MON.WRMON_ADDR_RANGE_CTRL.MATCH_EN.value : '0;
+    assign readback_array[119][6:6] = (decoded_reg_strb.MON.WRMON_ADDR_RANGE_CTRL && !decoded_req_is_wr) ? field_storage.MON.WRMON_ADDR_RANGE_CTRL.MISS_EN.value : '0;
+    assign readback_array[119][31:7] = '0;
 
     // Reduce the array
     always_comb begin
@@ -3143,7 +3997,7 @@ module stream_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<102; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<120; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

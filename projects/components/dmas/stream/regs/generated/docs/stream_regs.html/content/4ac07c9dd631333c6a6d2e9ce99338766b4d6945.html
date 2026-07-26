@@ -10,7 +10,7 @@
     <dt>Base Offset:</dt><dd class="address">0x204</dd>
     <dt>Size:</dt><dd class="address">0x4</dd>
     
-    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/stream/rtl/macro/stream_regs.rdl#L363" target="_blank">stream_regs.rdl</a></dd>
+    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/dmas/stream/rtl/macro/stream_regs.rdl#L321" target="_blank">stream_regs.rdl</a></dd>
     
 </dl>
 <h2>Description</h2>
@@ -30,7 +30,7 @@
         <th></th>
     </tr>
     <tr id="RSVD">
-        <td>[31:5]</td>
+        <td>[31:6]</td>
         <td><a href="#RSVD.desc">RSVD</a></td>
         <td>
             <span title='Read-only'>r</span></td>
@@ -47,6 +47,26 @@
                 title="Switch radix" aria-label="Switch radix"
                 data-name="RSVD" onclick="onRadixSwitch(this)">H</button>
             <a class="headerlink" href="#RSVD" title="Permalink to this row"></a>
+        </td>
+    </tr>
+    <tr id="RD_PREFETCH_EN">
+        <td>[5]</td>
+        <td><a href="#RD_PREFETCH_EN.desc">RD_PREFETCH_EN</a></td>
+        <td>
+            <span title='Readable and Writable'>rw</span></td>
+        <td>0x1
+        </td>
+        <td>
+            <input id="_FieldValueTesterRD_PREFETCH_EN" class="field-value-tester"
+                type="text" autocomplete="off"
+                data-name="RD_PREFETCH_EN" oninput="onDecodedFieldInput(this)"/>
+        </td>
+        <td>-</td>
+        <td>
+            <button type="button" id="_RadixButtonRD_PREFETCH_EN" class="radix-button"
+                title="Switch radix" aria-label="Switch radix"
+                data-name="RD_PREFETCH_EN" onclick="onRadixSwitch(this)">H</button>
+            <a class="headerlink" href="#RD_PREFETCH_EN" title="Permalink to this row"></a>
         </td>
     </tr>
     <tr id="PERF_EN">
@@ -164,6 +184,19 @@
 </h3>
 <div id="_Content.RSVD.desc">
 <p>Reserved</p>
+</div>
+
+<h3 id="RD_PREFETCH_EN.desc">RD_PREFETCH_EN
+    <a class="headerlink" href="#RD_PREFETCH_EN.desc" title="Permalink to this headline"></a>
+</h3>
+<div id="_Content.RD_PREFETCH_EN.desc">
+<p>Read-ahead descriptor prefetch enable. When set, on a chained
+legacy descriptor the scheduler read side loads the next
+descriptor from the descriptor-FIFO head and keeps filling SRAM
+while the write side drains the current one -- collapsing the
+per-descriptor boundary bubble to zero (perfect cross-descriptor
+streaming). Default enabled; clear for lockstep A/B on the same
+bitstream. Ignored for EXT (row/col) descriptors.</p>
 </div>
 
 <h3 id="PERF_EN.desc">PERF_EN

@@ -8,7 +8,7 @@ Don't override. Generated from: $root
 
 - Absolute Address: 0x0
 - Base Offset: 0x0
-- Size: 0x11F8
+- Size: 0x1254
 
 <p>Configuration and status registers for 8-channel STREAM DMA engine with full monitor control</p>
 
@@ -611,14 +611,15 @@ Don't override. Generated from: $root
 
 <p>Scheduler feature enables (global for all channels)</p>
 
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|  0 | SCHED_EN |  rw  | 0x1 |  — |
-|  1 |TIMEOUT_EN|  rw  | 0x1 |  — |
-|  2 |  ERR_EN  |  rw  | 0x1 |  — |
-|  3 | COMPL_EN |  rw  | 0x1 |  — |
-|  4 |  PERF_EN |  rw  | 0x0 |  — |
-|31:5|   RSVD   |   r  | 0x0 |  — |
+|Bits|  Identifier  |Access|Reset|Name|
+|----|--------------|------|-----|----|
+|  0 |   SCHED_EN   |  rw  | 0x1 |  — |
+|  1 |  TIMEOUT_EN  |  rw  | 0x1 |  — |
+|  2 |    ERR_EN    |  rw  | 0x1 |  — |
+|  3 |   COMPL_EN   |  rw  | 0x1 |  — |
+|  4 |    PERF_EN   |  rw  | 0x0 |  — |
+|  5 |RD_PREFETCH_EN|  rw  | 0x1 |  — |
+|31:6|     RSVD     |   r  | 0x0 |  — |
 
 #### SCHED_EN field
 
@@ -639,6 +640,16 @@ Don't override. Generated from: $root
 #### PERF_EN field
 
 <p>Performance enable - enable performance monitoring</p>
+
+#### RD_PREFETCH_EN field
+
+<p>Read-ahead descriptor prefetch enable. When set, on a chained
+legacy descriptor the scheduler read side loads the next
+descriptor from the descriptor-FIFO head and keeps filling SRAM
+while the write side drains the current one -- collapsing the
+per-descriptor boundary bubble to zero (perfect cross-descriptor
+streaming). Default enabled; clear for lockstep A/B on the same
+bitstream. Ignored for EXT (row/col) descriptors.</p>
 
 #### RSVD field
 
@@ -674,7 +685,7 @@ keep waiting). Total time to escalate = LIMIT x TIMEOUT_CYCLES.</p>
 |Bits| Identifier|Access|Reset|Name|
 |----|-----------|------|-----|----|
 |  0 | DESCENG_EN|  rw  | 0x1 |  — |
-|  1 |PREFETCH_EN|  rw  | 0x0 |  — |
+|  1 |PREFETCH_EN|  rw  | 0x1 |  — |
 | 5:2|FIFO_THRESH|  rw  | 0x8 |  — |
 |31:6|    RSVD   |   r  | 0x0 |  — |
 
@@ -684,7 +695,12 @@ keep waiting). Total time to escalate = LIMIT x TIMEOUT_CYCLES.</p>
 
 #### PREFETCH_EN field
 
-<p>Prefetch enable - enable descriptor prefetch</p>
+<p>Prefetch enable - enable descriptor prefetch. Default ENABLED:
+with prefetch off the descriptor engine is on-demand (fetch the
+next descriptor only after the current one drains), which inserts
+a per-descriptor pipeline drain/refill bubble (~40 cycles) on
+chains. Prefetch buffers FIFO_THRESH descriptors ahead so the
+datapath streams continuously across descriptor boundaries.</p>
 
 #### FIFO_THRESH field
 
@@ -979,7 +995,7 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 - Absolute Address: 0x1000
 - Base Offset: 0x1000
-- Size: 0x1F8
+- Size: 0x254
 
 <p>AXI monitor + perf registers (relocatable block, instantiated at 0x1000)</p>
 
@@ -1050,6 +1066,24 @@ acceptance cross-check against the perf-window burst counters.</p>
 | 0x1EC| WRMON_PERF_CH_STARV_IDLE|    Write Datapath Per-Channel Starvation/Idle    |
 | 0x1F0|  RDMON_PERF_CH_OVERFLOW |    Read Datapath Per-Channel Overflow Stickies   |
 | 0x1F4|  WRMON_PERF_CH_OVERFLOW |   Write Datapath Per-Channel Overflow Stickies   |
+| 0x200|  RDMON_ADDR_RANGE0_LOW  |                RD addr range0 low                |
+| 0x204|  RDMON_ADDR_RANGE0_HIGH |                RD addr range0 high               |
+| 0x208|  RDMON_ADDR_RANGE1_LOW  |                RD addr range1 low                |
+| 0x20C|  RDMON_ADDR_RANGE1_HIGH |                RD addr range1 high               |
+| 0x210|  RDMON_ADDR_RANGE2_LOW  |                RD addr range2 low                |
+| 0x214|  RDMON_ADDR_RANGE2_HIGH |                RD addr range2 high               |
+| 0x218|  RDMON_ADDR_RANGE3_LOW  |                RD addr range3 low                |
+| 0x21C|  RDMON_ADDR_RANGE3_HIGH |                RD addr range3 high               |
+| 0x220|  RDMON_ADDR_RANGE_CTRL  |               RD addr range control              |
+| 0x230|  WRMON_ADDR_RANGE0_LOW  |                WR addr range0 low                |
+| 0x234|  WRMON_ADDR_RANGE0_HIGH |                WR addr range0 high               |
+| 0x238|  WRMON_ADDR_RANGE1_LOW  |                WR addr range1 low                |
+| 0x23C|  WRMON_ADDR_RANGE1_HIGH |                WR addr range1 high               |
+| 0x240|  WRMON_ADDR_RANGE2_LOW  |                WR addr range2 low                |
+| 0x244|  WRMON_ADDR_RANGE2_HIGH |                WR addr range2 high               |
+| 0x248|  WRMON_ADDR_RANGE3_LOW  |                WR addr range3 low                |
+| 0x24C|  WRMON_ADDR_RANGE3_HIGH |                WR addr range3 high               |
+| 0x250|  WRMON_ADDR_RANGE_CTRL  |               WR addr range control              |
 
 ### MON_FIFO_STATUS register
 
@@ -2389,3 +2423,257 @@ that 16-bit per-channel bucket wrapped during the window.</p>
 #### VAL field
 
 <p>Per-channel overflow mask (NUM_CHANNELS*4 bits)</p>
+
+### RDMON_ADDR_RANGE0_LOW register
+
+- Absolute Address: 0x1200
+- Base Offset: 0x200
+- Size: 0x4
+
+<p>Read monitor range0 inclusive low bound</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   VALUE  |  rw  | 0x0 |  — |
+
+### RDMON_ADDR_RANGE0_HIGH register
+
+- Absolute Address: 0x1204
+- Base Offset: 0x204
+- Size: 0x4
+
+<p>Read monitor range0 inclusive high bound</p>
+
+|Bits|Identifier|Access|   Reset  |Name|
+|----|----------|------|----------|----|
+|31:0|   VALUE  |  rw  |0xFFFFFFFF|  — |
+
+### RDMON_ADDR_RANGE1_LOW register
+
+- Absolute Address: 0x1208
+- Base Offset: 0x208
+- Size: 0x4
+
+<p>Read monitor range1 inclusive low bound</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   VALUE  |  rw  | 0x0 |  — |
+
+### RDMON_ADDR_RANGE1_HIGH register
+
+- Absolute Address: 0x120C
+- Base Offset: 0x20C
+- Size: 0x4
+
+<p>Read monitor range1 inclusive high bound</p>
+
+|Bits|Identifier|Access|   Reset  |Name|
+|----|----------|------|----------|----|
+|31:0|   VALUE  |  rw  |0xFFFFFFFF|  — |
+
+### RDMON_ADDR_RANGE2_LOW register
+
+- Absolute Address: 0x1210
+- Base Offset: 0x210
+- Size: 0x4
+
+<p>Read monitor range2 inclusive low bound</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   VALUE  |  rw  | 0x0 |  — |
+
+### RDMON_ADDR_RANGE2_HIGH register
+
+- Absolute Address: 0x1214
+- Base Offset: 0x214
+- Size: 0x4
+
+<p>Read monitor range2 inclusive high bound</p>
+
+|Bits|Identifier|Access|   Reset  |Name|
+|----|----------|------|----------|----|
+|31:0|   VALUE  |  rw  |0xFFFFFFFF|  — |
+
+### RDMON_ADDR_RANGE3_LOW register
+
+- Absolute Address: 0x1218
+- Base Offset: 0x218
+- Size: 0x4
+
+<p>Read monitor range3 inclusive low bound</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   VALUE  |  rw  | 0x0 |  — |
+
+### RDMON_ADDR_RANGE3_HIGH register
+
+- Absolute Address: 0x121C
+- Base Offset: 0x21C
+- Size: 0x4
+
+<p>Read monitor range3 inclusive high bound</p>
+
+|Bits|Identifier|Access|   Reset  |Name|
+|----|----------|------|----------|----|
+|31:0|   VALUE  |  rw  |0xFFFFFFFF|  — |
+
+### RDMON_ADDR_RANGE_CTRL register
+
+- Absolute Address: 0x1220
+- Base Offset: 0x220
+- Size: 0x4
+
+<p>Read monitor address-range checker enables</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 3:0| RANGE_EN |  rw  | 0x0 |  — |
+|  4 | CHECK_EN |  rw  | 0x0 |  — |
+|  5 | MATCH_EN |  rw  | 0x0 |  — |
+|  6 |  MISS_EN |  rw  | 0x0 |  — |
+
+#### RANGE_EN field
+
+<p>Per-range enable mask (bit i enables range i)</p>
+
+#### CHECK_EN field
+
+<p>Master addr-check enable</p>
+
+#### MATCH_EN field
+
+<p>DEBUG/match path enable (drives cfg_debug_enable)</p>
+
+#### MISS_EN field
+
+<p>ERROR/miss path enable (drives cfg_error_enable)</p>
+
+### WRMON_ADDR_RANGE0_LOW register
+
+- Absolute Address: 0x1230
+- Base Offset: 0x230
+- Size: 0x4
+
+<p>Write monitor range0 inclusive low bound</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   VALUE  |  rw  | 0x0 |  — |
+
+### WRMON_ADDR_RANGE0_HIGH register
+
+- Absolute Address: 0x1234
+- Base Offset: 0x234
+- Size: 0x4
+
+<p>Write monitor range0 inclusive high bound</p>
+
+|Bits|Identifier|Access|   Reset  |Name|
+|----|----------|------|----------|----|
+|31:0|   VALUE  |  rw  |0xFFFFFFFF|  — |
+
+### WRMON_ADDR_RANGE1_LOW register
+
+- Absolute Address: 0x1238
+- Base Offset: 0x238
+- Size: 0x4
+
+<p>Write monitor range1 inclusive low bound</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   VALUE  |  rw  | 0x0 |  — |
+
+### WRMON_ADDR_RANGE1_HIGH register
+
+- Absolute Address: 0x123C
+- Base Offset: 0x23C
+- Size: 0x4
+
+<p>Write monitor range1 inclusive high bound</p>
+
+|Bits|Identifier|Access|   Reset  |Name|
+|----|----------|------|----------|----|
+|31:0|   VALUE  |  rw  |0xFFFFFFFF|  — |
+
+### WRMON_ADDR_RANGE2_LOW register
+
+- Absolute Address: 0x1240
+- Base Offset: 0x240
+- Size: 0x4
+
+<p>Write monitor range2 inclusive low bound</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   VALUE  |  rw  | 0x0 |  — |
+
+### WRMON_ADDR_RANGE2_HIGH register
+
+- Absolute Address: 0x1244
+- Base Offset: 0x244
+- Size: 0x4
+
+<p>Write monitor range2 inclusive high bound</p>
+
+|Bits|Identifier|Access|   Reset  |Name|
+|----|----------|------|----------|----|
+|31:0|   VALUE  |  rw  |0xFFFFFFFF|  — |
+
+### WRMON_ADDR_RANGE3_LOW register
+
+- Absolute Address: 0x1248
+- Base Offset: 0x248
+- Size: 0x4
+
+<p>Write monitor range3 inclusive low bound</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   VALUE  |  rw  | 0x0 |  — |
+
+### WRMON_ADDR_RANGE3_HIGH register
+
+- Absolute Address: 0x124C
+- Base Offset: 0x24C
+- Size: 0x4
+
+<p>Write monitor range3 inclusive high bound</p>
+
+|Bits|Identifier|Access|   Reset  |Name|
+|----|----------|------|----------|----|
+|31:0|   VALUE  |  rw  |0xFFFFFFFF|  — |
+
+### WRMON_ADDR_RANGE_CTRL register
+
+- Absolute Address: 0x1250
+- Base Offset: 0x250
+- Size: 0x4
+
+<p>Write monitor address-range checker enables</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 3:0| RANGE_EN |  rw  | 0x0 |  — |
+|  4 | CHECK_EN |  rw  | 0x0 |  — |
+|  5 | MATCH_EN |  rw  | 0x0 |  — |
+|  6 |  MISS_EN |  rw  | 0x0 |  — |
+
+#### RANGE_EN field
+
+<p>Per-range enable mask (bit i enables range i)</p>
+
+#### CHECK_EN field
+
+<p>Master addr-check enable</p>
+
+#### MATCH_EN field
+
+<p>DEBUG/match path enable (drives cfg_debug_enable)</p>
+
+#### MISS_EN field
+
+<p>ERROR/miss path enable (drives cfg_error_enable)</p>

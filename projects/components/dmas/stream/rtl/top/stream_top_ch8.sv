@@ -64,6 +64,12 @@ module stream_top_ch8 #(
     parameter int AXI_ID_WIDTH = 8,
     parameter int AXI_USER_WIDTH = 3,    // $clog2(NUM_CHANNELS) for channel ID
     parameter int USE_AXI_MONITORS = 0,  // 0 = Disable monitors, 1 = Enable monitors
+    // In-core monitor address-range (allowlist) checker. MON_N_ADDR_RANGES=0
+    // (default) leaves it un-synthesised -> OFF on the perf harness; the
+    // monitor-validation harness sets 4. MON_ADDR_RANGE_IS_ERROR is the
+    // per-range DEBUG(0)/ERROR(1) flavor (default all-0).
+    parameter int MON_N_ADDR_RANGES = 0,
+    parameter logic [(MON_N_ADDR_RANGES > 0 ? MON_N_ADDR_RANGES : 1)-1:0] MON_ADDR_RANGE_IS_ERROR = '0,
     parameter bit GEN_MON = 1'b1,        // 0 = omit per-channel completion/error MonBus emitters (area)
     parameter int CDC_ENABLE = 1,        // 0 = Same clock (pclk=aclk), 1 = Different clocks (CDC)
     // Bulk-trace MonBus compressor select. Only meaningful when
@@ -1359,6 +1365,8 @@ module stream_top_ch8 #(
                 .AR_MAX_OUTSTANDING(AR_MAX_OUTSTANDING),
                 .AW_MAX_OUTSTANDING(AW_MAX_OUTSTANDING),
                 .USE_AXI_MONITORS(1),     // Enable monitors
+                .N_ADDR_RANGES(MON_N_ADDR_RANGES),
+                .MON_ADDR_RANGE_IS_ERROR(MON_ADDR_RANGE_IS_ERROR),
                 .GEN_MON(GEN_MON),
                 .DESC_MON_ENABLE_ERROR_LOGIC     (DESC_MON_ENABLE_ERROR_LOGIC),
                 .DESC_MON_ENABLE_TIMEOUT_LOGIC   (DESC_MON_ENABLE_TIMEOUT_LOGIC),
@@ -1477,6 +1485,20 @@ module stream_top_ch8 #(
                 .cfg_wreng_mon_debug_mask   (cfg_wreng_mon_debug_mask),
                 // RFC Stage E perf-window run control (WRMON_PERF_CTRL @ 0x330)
                 .cfg_wreng_mon_perf_run     (hwif_out.MON.WRMON_PERF_CTRL.RUN.value),
+
+                // Address-range (allowlist) checker CSRs -> in-core rd/wr monitors
+                .cfg_rdeng_mon_addr_range_low  ({hwif_out.MON.RDMON_ADDR_RANGE3_LOW.VALUE.value,  hwif_out.MON.RDMON_ADDR_RANGE2_LOW.VALUE.value,  hwif_out.MON.RDMON_ADDR_RANGE1_LOW.VALUE.value,  hwif_out.MON.RDMON_ADDR_RANGE0_LOW.VALUE.value}),
+                .cfg_rdeng_mon_addr_range_high ({hwif_out.MON.RDMON_ADDR_RANGE3_HIGH.VALUE.value, hwif_out.MON.RDMON_ADDR_RANGE2_HIGH.VALUE.value, hwif_out.MON.RDMON_ADDR_RANGE1_HIGH.VALUE.value, hwif_out.MON.RDMON_ADDR_RANGE0_HIGH.VALUE.value}),
+                .cfg_rdeng_mon_addr_range_en   (hwif_out.MON.RDMON_ADDR_RANGE_CTRL.RANGE_EN.value),
+                .cfg_rdeng_mon_addr_check_en   (hwif_out.MON.RDMON_ADDR_RANGE_CTRL.CHECK_EN.value),
+                .cfg_rdeng_mon_addr_match_en   (hwif_out.MON.RDMON_ADDR_RANGE_CTRL.MATCH_EN.value),
+                .cfg_rdeng_mon_addr_miss_en    (hwif_out.MON.RDMON_ADDR_RANGE_CTRL.MISS_EN.value),
+                .cfg_wreng_mon_addr_range_low  ({hwif_out.MON.WRMON_ADDR_RANGE3_LOW.VALUE.value,  hwif_out.MON.WRMON_ADDR_RANGE2_LOW.VALUE.value,  hwif_out.MON.WRMON_ADDR_RANGE1_LOW.VALUE.value,  hwif_out.MON.WRMON_ADDR_RANGE0_LOW.VALUE.value}),
+                .cfg_wreng_mon_addr_range_high ({hwif_out.MON.WRMON_ADDR_RANGE3_HIGH.VALUE.value, hwif_out.MON.WRMON_ADDR_RANGE2_HIGH.VALUE.value, hwif_out.MON.WRMON_ADDR_RANGE1_HIGH.VALUE.value, hwif_out.MON.WRMON_ADDR_RANGE0_HIGH.VALUE.value}),
+                .cfg_wreng_mon_addr_range_en   (hwif_out.MON.WRMON_ADDR_RANGE_CTRL.RANGE_EN.value),
+                .cfg_wreng_mon_addr_check_en   (hwif_out.MON.WRMON_ADDR_RANGE_CTRL.CHECK_EN.value),
+                .cfg_wreng_mon_addr_match_en   (hwif_out.MON.WRMON_ADDR_RANGE_CTRL.MATCH_EN.value),
+                .cfg_wreng_mon_addr_miss_en    (hwif_out.MON.WRMON_ADDR_RANGE_CTRL.MISS_EN.value),
 
                 // Write datapath monitor perf-window readback (RFC Stage E CSR route)
                 .wrmon_perf_window_active   (wrmon_perf_window_active),
@@ -1665,6 +1687,8 @@ module stream_top_ch8 #(
                 .AR_MAX_OUTSTANDING(AR_MAX_OUTSTANDING),
                 .AW_MAX_OUTSTANDING(AW_MAX_OUTSTANDING),
                 .USE_AXI_MONITORS(0),     // Explicitly disable monitors
+                .N_ADDR_RANGES(MON_N_ADDR_RANGES),
+                .MON_ADDR_RANGE_IS_ERROR(MON_ADDR_RANGE_IS_ERROR),
                 .GEN_MON(GEN_MON)
             ) u_stream_core (
                 .clk                        (aclk),
@@ -1774,6 +1798,20 @@ module stream_top_ch8 #(
                 .cfg_wreng_mon_addr_mask    (8'h0),
                 .cfg_wreng_mon_debug_mask   (8'h0),
                 .cfg_wreng_mon_perf_run     (hwif_out.MON.WRMON_PERF_CTRL.RUN.value),  // always-on perf window
+
+                // Address-range checker unused when monitors are disabled.
+                .cfg_rdeng_mon_addr_range_low  ('0),
+                .cfg_rdeng_mon_addr_range_high ('0),
+                .cfg_rdeng_mon_addr_range_en   ('0),
+                .cfg_rdeng_mon_addr_check_en   (1'b0),
+                .cfg_rdeng_mon_addr_match_en   (1'b0),
+                .cfg_rdeng_mon_addr_miss_en    (1'b0),
+                .cfg_wreng_mon_addr_range_low  ('0),
+                .cfg_wreng_mon_addr_range_high ('0),
+                .cfg_wreng_mon_addr_range_en   ('0),
+                .cfg_wreng_mon_addr_check_en   (1'b0),
+                .cfg_wreng_mon_addr_match_en   (1'b0),
+                .cfg_wreng_mon_addr_miss_en    (1'b0),
 
                 // Perf-window readback ties to the same wires (read 0 with
                 // monitors disabled — stream_core tied them off internally)

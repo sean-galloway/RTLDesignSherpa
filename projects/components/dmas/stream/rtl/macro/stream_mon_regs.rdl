@@ -1149,4 +1149,50 @@ regfile stream_mon_regs {
 
     } WRMON_PERF_CH_OVERFLOW @ 0x1F4;
 
+    // ========================================================================
+    // Address-range checker (allowlist) -- read + write engine monitors
+    // ------------------------------------------------------------------------
+    // 4 ranges per monitor. Each range carries a [LOW, HIGH] inclusive 32-bit
+    // bound (zero-extended to the monitor's 64-bit address compare -- board
+    // addresses are 32-bit). The per-range DEBUG/ERROR flavor is a build param
+    // (ADDR_RANGE_IS_ERROR) on the in-core monitors, not a CSR: a DEBUG-range
+    // hit emits an AddrMatch packet; an address outside every enabled ERROR
+    // range emits an Error/ADDR_RANGE packet. The CTRL register gates the
+    // feature and the two report paths.
+    // ========================================================================
+
+    reg { name = "RD addr range0 low";  desc = "Read monitor range0 inclusive low bound";  field { sw=rw; hw=r; } VALUE[31:0] = 32'h0; } RDMON_ADDR_RANGE0_LOW  @ 0x200;
+    reg { name = "RD addr range0 high"; desc = "Read monitor range0 inclusive high bound"; field { sw=rw; hw=r; } VALUE[31:0] = 32'hFFFFFFFF; } RDMON_ADDR_RANGE0_HIGH @ 0x204;
+    reg { name = "RD addr range1 low";  desc = "Read monitor range1 inclusive low bound";  field { sw=rw; hw=r; } VALUE[31:0] = 32'h0; } RDMON_ADDR_RANGE1_LOW  @ 0x208;
+    reg { name = "RD addr range1 high"; desc = "Read monitor range1 inclusive high bound"; field { sw=rw; hw=r; } VALUE[31:0] = 32'hFFFFFFFF; } RDMON_ADDR_RANGE1_HIGH @ 0x20C;
+    reg { name = "RD addr range2 low";  desc = "Read monitor range2 inclusive low bound";  field { sw=rw; hw=r; } VALUE[31:0] = 32'h0; } RDMON_ADDR_RANGE2_LOW  @ 0x210;
+    reg { name = "RD addr range2 high"; desc = "Read monitor range2 inclusive high bound"; field { sw=rw; hw=r; } VALUE[31:0] = 32'hFFFFFFFF; } RDMON_ADDR_RANGE2_HIGH @ 0x214;
+    reg { name = "RD addr range3 low";  desc = "Read monitor range3 inclusive low bound";  field { sw=rw; hw=r; } VALUE[31:0] = 32'h0; } RDMON_ADDR_RANGE3_LOW  @ 0x218;
+    reg { name = "RD addr range3 high"; desc = "Read monitor range3 inclusive high bound"; field { sw=rw; hw=r; } VALUE[31:0] = 32'hFFFFFFFF; } RDMON_ADDR_RANGE3_HIGH @ 0x21C;
+    reg {
+        name = "RD addr range control";
+        desc = "Read monitor address-range checker enables";
+        field { desc = "Per-range enable mask (bit i enables range i)"; sw=rw; hw=r; } RANGE_EN[3:0] = 4'h0;
+        field { desc = "Master addr-check enable";                       sw=rw; hw=r; } CHECK_EN[4:4] = 1'b0;
+        field { desc = "DEBUG/match path enable (drives cfg_debug_enable)"; sw=rw; hw=r; } MATCH_EN[5:5] = 1'b0;
+        field { desc = "ERROR/miss path enable (drives cfg_error_enable)";  sw=rw; hw=r; } MISS_EN[6:6]  = 1'b0;
+    } RDMON_ADDR_RANGE_CTRL @ 0x220;
+
+    reg { name = "WR addr range0 low";  desc = "Write monitor range0 inclusive low bound";  field { sw=rw; hw=r; } VALUE[31:0] = 32'h0; } WRMON_ADDR_RANGE0_LOW  @ 0x230;
+    reg { name = "WR addr range0 high"; desc = "Write monitor range0 inclusive high bound"; field { sw=rw; hw=r; } VALUE[31:0] = 32'hFFFFFFFF; } WRMON_ADDR_RANGE0_HIGH @ 0x234;
+    reg { name = "WR addr range1 low";  desc = "Write monitor range1 inclusive low bound";  field { sw=rw; hw=r; } VALUE[31:0] = 32'h0; } WRMON_ADDR_RANGE1_LOW  @ 0x238;
+    reg { name = "WR addr range1 high"; desc = "Write monitor range1 inclusive high bound"; field { sw=rw; hw=r; } VALUE[31:0] = 32'hFFFFFFFF; } WRMON_ADDR_RANGE1_HIGH @ 0x23C;
+    reg { name = "WR addr range2 low";  desc = "Write monitor range2 inclusive low bound";  field { sw=rw; hw=r; } VALUE[31:0] = 32'h0; } WRMON_ADDR_RANGE2_LOW  @ 0x240;
+    reg { name = "WR addr range2 high"; desc = "Write monitor range2 inclusive high bound"; field { sw=rw; hw=r; } VALUE[31:0] = 32'hFFFFFFFF; } WRMON_ADDR_RANGE2_HIGH @ 0x244;
+    reg { name = "WR addr range3 low";  desc = "Write monitor range3 inclusive low bound";  field { sw=rw; hw=r; } VALUE[31:0] = 32'h0; } WRMON_ADDR_RANGE3_LOW  @ 0x248;
+    reg { name = "WR addr range3 high"; desc = "Write monitor range3 inclusive high bound"; field { sw=rw; hw=r; } VALUE[31:0] = 32'hFFFFFFFF; } WRMON_ADDR_RANGE3_HIGH @ 0x24C;
+    reg {
+        name = "WR addr range control";
+        desc = "Write monitor address-range checker enables";
+        field { desc = "Per-range enable mask (bit i enables range i)"; sw=rw; hw=r; } RANGE_EN[3:0] = 4'h0;
+        field { desc = "Master addr-check enable";                       sw=rw; hw=r; } CHECK_EN[4:4] = 1'b0;
+        field { desc = "DEBUG/match path enable (drives cfg_debug_enable)"; sw=rw; hw=r; } MATCH_EN[5:5] = 1'b0;
+        field { desc = "ERROR/miss path enable (drives cfg_error_enable)";  sw=rw; hw=r; } MISS_EN[6:6]  = 1'b0;
+    } WRMON_ADDR_RANGE_CTRL @ 0x250;
+
 };
