@@ -234,11 +234,20 @@ Move this block to closed.md.
    the original path rewrite missed, unnoticed because val/common's suite had not
    been run since. Now takes `rtl/cdc/filelists/fifo_async.f`.
 2. The four `apb*_slave_cdc` formal harnesses referenced `cdc_handshake.sv`,
-   which exists nowhere in the tree and which neither slave instantiates. Dead
-   lines removed. **Still open:** those harnesses do not list `gaxi_fifo_async`,
-   which the slaves DO instantiate, so they look incomplete — worth a look when
-   someone next runs them. `sby`/`yosys` are not installed on this box, so no
-   proof was run to confirm.
+   which exists nowhere and which neither slave instantiates — and they were
+   also missing `gaxi_fifo_async` and its whole dependency tree, which the
+   slaves DO instantiate. **Fixed 2026-07-25 (`6eab2377`):** each harness's
+   `[script]`/`[files]` are now GENERATED from the area's audited filelist, so
+   they cannot drift from the closure the cocotb tests compile. 14/17/17/21
+   sources, up from 3/4/4/5; all 77 refs resolve and each set elaborates under
+   Verilator. The proofs themselves are still unrun — `sby`/`yosys` are not
+   installed on this box.
+
+3. Two more stranded tests, same defect as (1): `test_counter_bingray_wavedrom`
+   and `test_counter_johnson_wavedrom` sat in val/common hand-listing
+   `rtl/common/<dut>.sv`, broken since the move. Confirmed RED, moved to
+   val/cdc, put on their filelists. They were missed initially because the move
+   swept tests referencing a cdc FILELIST; these referenced a PATH.
 
 **Not blocking, noted:** 387 unresolvable source refs remain in `formal/common/`
 `.sby` files, all `math_*` fallout from the earlier arithmetic split. Untouched
