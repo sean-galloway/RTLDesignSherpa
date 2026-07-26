@@ -13,17 +13,17 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read -formal -sv -Iincludes gray2bin.sv
-read -formal -sv -Iincludes counter_bingray.sv
+read -formal -sv -Iincludes gaxi_skid_buffer.sv
 read -formal -sv -Iincludes counter_bin.sv
-read -formal -sv -Iincludes counter_johnson.sv
 read -formal -sv -Iincludes glitch_free_n_dff_arn.sv
 read -formal -sv -Iincludes find_first_set.sv
 read -formal -sv -Iincludes find_last_set.sv
 read -formal -sv -Iincludes leading_one_trailing_one.sv
-read -formal -sv -Iincludes johnson2bin.sv
 read -formal -sv -Iincludes fifo_control.sv
-read -formal -sv -Iincludes gaxi_skid_buffer.sv
+read -formal -sv -Iincludes gray2bin.sv
+read -formal -sv -Iincludes counter_bingray.sv
+read -formal -sv -Iincludes counter_johnson.sv
+read -formal -sv -Iincludes johnson2bin.sv
 read -formal -sv -Iincludes gaxi_fifo_async.sv
 read -formal -sv -Iincludes apb_slave.sv
 read -formal -sv -Iincludes apb_slave_cdc.sv
@@ -33,17 +33,17 @@ prep -top formal_apb_slave_cdc
 [files]
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh
 includes/fifo_defs.svh ../../../rtl/amba/includes/fifo_defs.svh
-gray2bin.sv ../../../rtl/cdc/gray2bin.sv
-counter_bingray.sv ../../../rtl/cdc/counter_bingray.sv
+gaxi_skid_buffer.sv ../../../rtl/amba/gaxi/gaxi_skid_buffer.sv
 counter_bin.sv ../../../rtl/common/counter_bin.sv
-counter_johnson.sv ../../../rtl/cdc/counter_johnson.sv
 glitch_free_n_dff_arn.sv ../../../rtl/common/glitch_free_n_dff_arn.sv
 find_first_set.sv ../../../rtl/common/find_first_set.sv
 find_last_set.sv ../../../rtl/common/find_last_set.sv
 leading_one_trailing_one.sv ../../../rtl/common/leading_one_trailing_one.sv
-johnson2bin.sv ../../../rtl/cdc/johnson2bin.sv
 fifo_control.sv ../../../rtl/common/fifo_control.sv
-gaxi_skid_buffer.sv ../../../rtl/amba/gaxi/gaxi_skid_buffer.sv
+gray2bin.sv ../../../rtl/cdc/gray2bin.sv
+counter_bingray.sv ../../../rtl/cdc/counter_bingray.sv
+counter_johnson.sv ../../../rtl/cdc/counter_johnson.sv
+johnson2bin.sv ../../../rtl/cdc/johnson2bin.sv
 gaxi_fifo_async.sv ../../../rtl/cdc/gaxi_fifo_async.sv
 apb_slave.sv ../../../rtl/amba/apb/apb_slave.sv
 apb_slave_cdc.sv ../../../rtl/amba/apb/apb_slave_cdc.sv
