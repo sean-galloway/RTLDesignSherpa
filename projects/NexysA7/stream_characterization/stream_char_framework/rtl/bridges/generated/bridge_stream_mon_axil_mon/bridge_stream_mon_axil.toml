@@ -1,0 +1,181 @@
+#==============================================================================
+# bridge_stream_mon_axil.toml
+#==============================================================================
+# NEW bridge for the STREAM MONITOR-validation harness (stream_mon_harness).
+# Separate from bridge_stream_char_axil (the perf harness bridge) — do NOT
+# confuse the two. This one adds a second monbus write master and two extra
+# slaves so BOTH tally SRAMs and the dma-monitor's err/IRQ port reach the fabric.
+#
+# Masters (4):
+#   host             AXIL rw 32   UART host (reads/writes everything)
+#   stream_desc      AXI4 r  256  STREAM descriptor fetch  -> desc_ram
+#   monbus_wr        AXIL w  64   STREAM in-core monitors  -> stream_tally
+#   slave_monbus_wr  AXIL w  64   dma_slave_monitors group -> slave_tally
+#
+# Slaves / address map (each on its own window, distinct spaces):
+#   stream_apb    0x0000_0000  8 KB    APB    STREAM config regs
+#   harness_csr   0x0001_0000  4 KB    AXIL   timer / delay / kick / status / tally ctrl
+#   desc_ram      0x0002_0000  64 KB   AXIL   descriptor preload BRAM
+#   stream_err    0x0003_0000  4 KB    AXIL   STREAM in-core-monitor err/IRQ read
+#   stream_tally  0x0004_0000  256 KB  AXIL   STREAM tally SRAM  (ends 0x7_FFFF)
+#   dma_axil      0x0008_0000  4 KB    AXIL   DMA s_axi_lite config
+#   slave_err     0x0009_0000  4 KB    AXIL   dma-monitor group err/IRQ read
+#   slave_tally   0x000C_0000  256 KB  AXIL   slave tally SRAM   (ends 0xF_FFFF)
+#
+# Generated outputs land in stream_char_framework/rtl/bridges/generated/
+# bridge_stream_mon_axil/.
+#==============================================================================
+
+[bridge]
+name = "bridge_stream_mon_axil"
+description = "1xM AXIL bridge for the STREAM monitor harness (2 tally SRAMs + 2 err ports)"
+variants = ["no", "mon"]
+mon_preset = "all"
+use_cfg_regblock = true
+
+[bridge.clock]
+name = "aclk"
+frequency_mhz = 100
+
+# ---- Masters ---------------------------------------------------------------
+[[bridge.masters]]
+name        = "host"
+prefix      = "host_axi_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 8
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+
+[[bridge.masters]]
+name        = "stream_desc"
+prefix      = "stream_desc_"
+protocol    = "axi4"
+channels    = "r"
+id_width    = 8
+addr_width  = 32
+data_width  = 256
+user_width  = 3
+
+# STREAM in-core monbus group -> stream_tally SRAM (64-bit AXIL writes).
+[[bridge.masters]]
+name        = "monbus_wr"
+prefix      = "monbus_wr_"
+protocol    = "axil"
+channels    = "w"
+id_width    = 8
+addr_width  = 32
+data_width  = 64
+user_width  = 0
+
+# dma_slave_monitors' monbus_axil_axil_group m_axil_* -> slave_tally SRAM.
+[[bridge.masters]]
+name        = "slave_monbus_wr"
+prefix      = "slave_monbus_wr_"
+protocol    = "axil"
+channels    = "w"
+id_width    = 8
+addr_width  = 32
+data_width  = 64
+user_width  = 0
+
+# ---- Slaves ----------------------------------------------------------------
+[[bridge.slaves]]
+name        = "stream_apb"
+prefix      = "stream_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00000000"
+addr_range  = "0x00002000"     # 8 KB
+
+[[bridge.slaves]]
+name        = "harness_csr"
+prefix      = "harness_csr_axi_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 8
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00010000"
+addr_range  = "0x00001000"     # 4 KB
+
+[[bridge.slaves]]
+name        = "desc_ram"
+prefix      = "desc_ram_axi_"
+protocol    = "axi4"
+channels    = "rw"
+id_width    = 8
+addr_width  = 32
+data_width  = 256
+user_width  = 0
+base_addr   = "0x00020000"
+addr_range  = "0x00010000"     # 64 KB
+
+[[bridge.slaves]]
+name        = "stream_err"
+prefix      = "stream_err_axi_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 8
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00030000"
+addr_range  = "0x00001000"     # 4 KB
+
+# STREAM tally SRAM (monbus_tally_axil): written by monbus_wr, read by host.
+[[bridge.slaves]]
+name        = "stream_tally"
+prefix      = "stream_tally_axi_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 8
+addr_width  = 32
+data_width  = 64
+user_width  = 0
+base_addr   = "0x00040000"
+addr_range  = "0x00040000"     # 256 KB  (ends 0x7_FFFF)
+
+[[bridge.slaves]]
+name        = "dma_axil"
+prefix      = "dma_axil_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 8
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00080000"
+addr_range  = "0x00001000"     # 4 KB
+
+# dma-monitor group err/IRQ read.
+[[bridge.slaves]]
+name        = "slave_err"
+prefix      = "slave_err_axi_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 8
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00090000"
+addr_range  = "0x00001000"     # 4 KB
+
+# Slave tally SRAM (monbus_tally_axil): written by slave_monbus_wr, read by host.
+[[bridge.slaves]]
+name        = "slave_tally"
+prefix      = "slave_tally_axi_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 8
+addr_width  = 32
+data_width  = 64
+user_width  = 0
+base_addr   = "0x000C0000"
+addr_range  = "0x00040000"     # 256 KB  (ends 0xF_FFFF)

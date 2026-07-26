@@ -1,0 +1,169 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 sean galloway
+//
+// Module: monbus_tally_axil
+// Purpose: Drop-in replacement for the monitor-trace capture SRAM (debug_sram)
+//          in the STREAM monitor harness. Presents the SAME AXIL slave surface
+//          the sdpram did, but instead of storing beats it tabulates them:
+//
+//            AXIL W beats (the monbus group's RAW 3-beat records) ->
+//              beat reassembler -> monbus_pkt_tally (SRAM count matrix + cache)
+//            AXIL R  -> tally readback (araddr -> bin, rdata <- count)
+//
+//          Raw-record layout on the write stream (USE_COMPRESSION == 0):
+//            beat0 = {tag[3:0]=0, source_ts[59:0]}   (60-bit ts in low bits)
+//            beat1 = packet[127:64]
+//            beat2 = packet[63:0]
+//          A mod-3 counter on accepted W beats reconstructs each 128-bit
+//          packet; on beat2 it is pushed to the tally. (Compression is off for
+//          the initial monitor tests; a decompressor front-end is future work.)
+//
+// The write ADDRESS is ignored — a tally is order-, not address-addressed on
+// its input. Reads index the tally bins directly.
+//
+// Subsystem: NexysA7/stream_characterization (monitor flow)
+// Author: sean galloway
+
+`timescale 1ns / 1ps
+`include "reset_defs.svh"
+
+module monbus_tally_axil
+    import monitor_common_pkg::*;
+#(
+    parameter int ADDR_WIDTH       = 32,
+    parameter int DATA_WIDTH       = 64,   // AXIL data width (monbus beats are 64b)
+    parameter int TALLY_COUNT_WIDTH = 32,
+    parameter int TALLY_CACHE_DEPTH = 32,
+    parameter int TALLY_ADDR_BITS   = 16,
+    parameter int TALLY_NUM_LATCH   = 4
+) (
+    input  logic                    aclk,
+    input  logic                    aresetn,
+
+    // AXIL slave (same surface debug_sram exposed on bridge Slave 4)
+    input  logic [ADDR_WIDTH-1:0]   s_axil_awaddr,
+    input  logic [2:0]              s_axil_awprot,
+    input  logic                    s_axil_awvalid,
+    output logic                    s_axil_awready,
+    input  logic [DATA_WIDTH-1:0]   s_axil_wdata,
+    input  logic [DATA_WIDTH/8-1:0] s_axil_wstrb,
+    input  logic                    s_axil_wvalid,
+    output logic                    s_axil_wready,
+    output logic [1:0]              s_axil_bresp,
+    output logic                    s_axil_bvalid,
+    input  logic                    s_axil_bready,
+    input  logic [ADDR_WIDTH-1:0]   s_axil_araddr,
+    input  logic [2:0]              s_axil_arprot,
+    input  logic                    s_axil_arvalid,
+    output logic                    s_axil_arready,
+    output logic [DATA_WIDTH-1:0]   s_axil_rdata,
+    output logic [1:0]              s_axil_rresp,
+    output logic                    s_axil_rvalid,
+    input  logic                    s_axil_rready,
+
+    // Tally window control (from the harness CSR)
+    input  logic                    tally_freeze,
+    input  logic                    tally_flush,
+    output logic                    tally_flush_busy,
+    input  logic                    tally_clear
+);
+
+    localparam int LFILL_W = $clog2(TALLY_NUM_LATCH + 1);
+
+    // ------------------------------------------------------------------------
+    // Write channel: accept AW (address ignored) and W beats; reassemble every
+    // 3 beats into a 128-bit packet and push to the tally.
+    // ------------------------------------------------------------------------
+    logic        w_aw_hs, w_w_hs, w_tally_in_ready;
+    logic [1:0]  r_beat;                          // 3-beat record counter (0,1,2)
+    assign s_axil_awready = 1'b1;                 // always accept addresses
+    assign w_aw_hs = s_axil_awvalid & s_axil_awready;
+    // Beats 0/1 are consumed immediately; the record-completing beat 2 is
+    // stalled until the tally can accept, so no count is ever dropped.
+    assign s_axil_wready  = (r_beat == 2'd2) ? w_tally_in_ready : 1'b1;
+    assign w_w_hs  = s_axil_wvalid & s_axil_wready;
+
+    // B response: one per accepted W beat is overkill; the sdpram issued one B
+    // per (aw,w) pair. Mirror that: raise bvalid after a W beat, hold to bready.
+    logic r_bvalid;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) r_bvalid <= 1'b0;
+        else if (w_w_hs)            r_bvalid <= 1'b1;
+        else if (s_axil_bready)     r_bvalid <= 1'b0;
+    )
+    assign s_axil_bvalid = r_bvalid;
+    assign s_axil_bresp  = 2'b00;
+
+    // 3-beat record reassembler. (r_beat is declared with the handshake wires
+    // above, since s_axil_wready references it.)
+    logic [63:0]              r_pkt_hi;    // packet[127:64] from beat1
+    logic [MONBUS_TS_WIDTH-1:0] r_ts;       // ts from beat0
+    logic                     w_pkt_valid; // pulse: full packet ready
+    monitor_packet_t          w_pkt;
+    monbus_timestamp_t        w_pkt_ts;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_beat   <= 2'd0;
+            r_pkt_hi <= '0;
+            r_ts     <= '0;
+        end else if (tally_clear) begin
+            r_beat   <= 2'd0;            // re-align records on a clear
+        end else if (w_w_hs) begin
+            case (r_beat)
+                2'd0: begin r_ts <= s_axil_wdata[MONBUS_TS_WIDTH-1:0]; r_beat <= 2'd1; end
+                2'd1: begin r_pkt_hi <= s_axil_wdata;                  r_beat <= 2'd2; end
+                default:                                              r_beat <= 2'd0;
+            endcase
+        end
+    )
+    assign w_pkt_valid = w_w_hs & (r_beat == 2'd2);
+    assign w_pkt       = {r_pkt_hi, s_axil_wdata};   // {pkt_hi, pkt_lo}
+    assign w_pkt_ts    = r_ts;
+
+    // ------------------------------------------------------------------------
+    // Read channel: araddr[low] selects the bin; rdata returns the count.
+    // The tally read is registered (1-cycle), so latch the address on AR and
+    // present R the following cycle.
+    // ------------------------------------------------------------------------
+    logic [TALLY_ADDR_BITS-1:0] r_rd_addr;
+    logic                       r_rvalid;
+    logic [TALLY_COUNT_WIDTH-1:0] w_rd_count;
+
+    // Word-address: AXIL byte address >> 2 gives the bin index.
+    assign s_axil_arready = ~r_rvalid;          // accept a new read when idle
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_rd_addr <= '0;
+            r_rvalid  <= 1'b0;
+        end else begin
+            if (s_axil_arvalid & s_axil_arready)
+                r_rd_addr <= s_axil_araddr[TALLY_ADDR_BITS+1:2];
+            if (s_axil_arvalid & s_axil_arready) r_rvalid <= 1'b1;
+            else if (s_axil_rvalid & s_axil_rready) r_rvalid <= 1'b0;
+        end
+    )
+    assign s_axil_rvalid = r_rvalid;
+    assign s_axil_rresp  = 2'b00;
+    assign s_axil_rdata  = {{(DATA_WIDTH-TALLY_COUNT_WIDTH){1'b0}}, w_rd_count};
+
+    // ------------------------------------------------------------------------
+    // The tally.
+    // ------------------------------------------------------------------------
+    monbus_pkt_tally #(
+        .PKT_WIDTH(128), .TS_WIDTH(64),
+        .COUNT_WIDTH(TALLY_COUNT_WIDTH), .CACHE_DEPTH(TALLY_CACHE_DEPTH),
+        .NUM_LATCH(TALLY_NUM_LATCH), .ADDR_BITS(TALLY_ADDR_BITS)
+    ) u_tally (
+        .clk(aclk), .rst_n(aresetn),
+        .in_valid(w_pkt_valid), .in_ready(w_tally_in_ready),
+        .in_packet(w_pkt), .in_ts(w_pkt_ts),
+        .i_freeze(tally_freeze), .i_flush(tally_flush),
+        .o_flush_busy(tally_flush_busy), .i_clear(tally_clear),
+        .rd_addr(r_rd_addr), .rd_count(w_rd_count),
+        .i_watch_arm(1'b0), .i_watch_pkttype_mask(16'h0),
+        .latch_sel('0), .latch_valid(), .latch_packet(), .latch_ts(),
+        .latch_fill()
+    );
+
+endmodule : monbus_tally_axil
