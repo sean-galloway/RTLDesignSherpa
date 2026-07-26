@@ -31,6 +31,9 @@ $REPO_ROOT/rtl/amba/includes/apb5_pkg.sv
 # SHARED INFRASTRUCTURE (Base modules used by multiple protocols)
 $REPO_ROOT/rtl/amba/shared/axi4_dma_observer.sv
 $REPO_ROOT/rtl/amba/shared/axi4_dma_slaves.sv
+# Both shared modules below instantiate dma_address_gen, which lives in
+# projects/components/misc. -f its list rather than naming the path.
+-f $REPO_ROOT/projects/components/misc/rtl/filelists/dma_address_gen.f
 $REPO_ROOT/rtl/amba/shared/axi4_master_rd_crc_check.sv
 $REPO_ROOT/rtl/amba/shared/axi4_master_wr_pattern_gen.sv
 $REPO_ROOT/rtl/amba/shared/axi4_slave_rd_pattern_gen.sv

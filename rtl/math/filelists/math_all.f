@@ -6,6 +6,16 @@
 # with no dependency back on rtl/common. Consumers -f this file, or the
 # individual per-module filelists alongside it.
 
+# Blocks from rtl/common that math modules instantiate. They stayed in common
+# in the arithmetic split (they serve more than arithmetic), so math is a
+# CONSUMER of them and -f includes the owner's list rather than hand-listing.
+# Without these, seven modules -- the bf16/fp16/fp32 adders and FMAs, and
+# math_int_to_bf16 -- fail to elaborate with "Cannot find file containing
+# module: count_leading_zeros". Nothing caught it because rtl/math had no
+# Makefile until 2026-07-26, so the area was never linted.
+-f $REPO_ROOT/rtl/common/filelists/count_leading_zeros.f
+-f $REPO_ROOT/rtl/common/filelists/shifter_barrel.f
+
 -f $REPO_ROOT/rtl/math/filelists/math_adder_brent_kung_008.f
 -f $REPO_ROOT/rtl/math/filelists/math_adder_brent_kung_016.f
 -f $REPO_ROOT/rtl/math/filelists/math_adder_brent_kung_032.f

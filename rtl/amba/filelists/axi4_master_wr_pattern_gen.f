@@ -14,6 +14,6 @@ $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_master_wr.sv
-$REPO_ROOT/projects/components/misc/rtl/dma_address_gen.sv
+-f $REPO_ROOT/projects/components/misc/rtl/filelists/dma_address_gen.f
 
 $REPO_ROOT/rtl/amba/shared/axi4_master_wr_pattern_gen.sv

@@ -23,7 +23,11 @@ YOSYS_DIR = $(LINT_DIR)/yosys
 
 # Tool options
 VERILATOR = verilator
-VERILATOR_INCLUDES = -Iincludes -I$(REPO_ROOT)/rtl/common
+# rtl/math is on this list because the arithmetic split moved math_* out of
+# rtl/common and this line was not updated: mod_3_compress (a common module
+# reached through the search path) instantiates math_adder_carry_save_nbit,
+# which stopped resolving. rtl/cdc likewise.
+VERILATOR_INCLUDES = -Iincludes -I$(REPO_ROOT)/rtl/common -I$(REPO_ROOT)/rtl/math -I$(REPO_ROOT)/rtl/cdc
 # Note: -Wno-fatal allows warnings without failing build (AMBA has intentional design patterns that trigger warnings)
 VERILATOR_FLAGS = --lint-only -Wall -Wno-TIMESCALEMOD -Wno-fatal $(VERILATOR_INCLUDES)
 
