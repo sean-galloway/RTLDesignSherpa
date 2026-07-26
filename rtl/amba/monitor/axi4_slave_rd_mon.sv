@@ -47,6 +47,7 @@ module axi4_slave_rd_mon
     // Monitor parameters (literals sized to 32 bits for Verilator int-parameter width check)
     parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor, tie outputs
     parameter int N_ADDR_RANGES     = 0,         // 0 = address-range checker disabled
+    parameter logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0] ADDR_RANGE_IS_ERROR = '0,  // per-range flavor: 0=debug/match, 1=error/allowlist-miss
     parameter logic [7:0]  UNIT_ID  = 8'h02,     // 8-bit Unit ID for monitor packets
     parameter logic [15:0] AGENT_ID = 16'h0014,    // 16-bit Agent ID for monitor packets
     parameter int MAX_TRANSACTIONS  = 16,    // Maximum outstanding transactions to monitor
@@ -331,7 +332,8 @@ module axi4_slave_rd_mon
             .ENABLE_DEBUG_MODULE     (1'b0),
             .ENABLE_FILTERING        (ENABLE_FILTERING),
             .ADD_PIPELINE_STAGE      (ADD_PIPELINE_STAGE),
-            .N_ADDR_RANGES           (N_ADDR_RANGES)
+            .N_ADDR_RANGES           (N_ADDR_RANGES),
+            .ADDR_RANGE_IS_ERROR     (ADDR_RANGE_IS_ERROR)
         ) axi_monitor_inst (
             .aclk                    (aclk),
             .aresetn                 (aresetn),

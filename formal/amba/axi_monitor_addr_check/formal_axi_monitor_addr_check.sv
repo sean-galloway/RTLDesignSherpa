@@ -24,6 +24,8 @@ module formal_axi_monitor_addr_check (
     localparam integer N    = 2;
     localparam integer M    = 8;
     localparam integer IW   = 2;
+    // Representative flavor mix: range0 = DEBUG (match), range1 = ERROR (allowlist).
+    localparam [N-1:0] IS_ERR = 2'b10;
 
     // Free inputs.  Per-range bounds are kept as flat packed vectors so
     // yosys can free-drive them via (* anyseq *) — element-wise unpacked
@@ -68,7 +70,8 @@ module formal_axi_monitor_addr_check (
         .ID_WIDTH      (IW),
         .UNIT_ID       (8'h00),
         .AGENT_ID      (16'h0000),
-        .IS_READ       (1'b1)
+        .IS_READ       (1'b1),
+        .ADDR_RANGE_IS_ERROR (IS_ERR)
     ) dut (
         .clk                   (clk),
         .aresetn               (rst_n),
@@ -127,15 +130,19 @@ module formal_axi_monitor_addr_check (
     wire pkt_is_match = (pkt_type == 4'h8);   // PktTypeAddrMatch
     wire pkt_is_miss  = (pkt_type == 4'h0);   // PktTypeError
 
-    // "addr in no enabled range" — used by the MISS property.
-    wire [N-1:0] f_addr_in_range;
+    // Per-range membership of the emitted address, split by flavor.
+    wire [N-1:0] f_in_range;        // addr in enabled range gi (any flavor)
+    wire [N-1:0] f_err_in_range;    // addr in an enabled ERROR range gi
     generate
         for (gi = 0; gi < N; gi = gi + 1) begin : g_membership
-            assign f_addr_in_range[gi] = cfg_addr_range_enable[gi] &&
-                                         (pkt_addr_lo >= cfg_low_packed [gi]) &&
-                                         (pkt_addr_lo <= cfg_high_packed[gi]);
+            assign f_in_range[gi] = cfg_addr_range_enable[gi] &&
+                                    (pkt_addr_lo >= cfg_low_packed [gi]) &&
+                                    (pkt_addr_lo <= cfg_high_packed[gi]);
+            assign f_err_in_range[gi] = f_in_range[gi] && IS_ERR[gi];
         end
     endgenerate
+    // At least one ERROR-flavored range is enabled (miss can only fire then).
+    wire f_err_ranges_exist = |(cfg_addr_range_enable & IS_ERR);
 
     // =========================================================================
     // P3: Emitted packet is protocol AXI and is either a MATCH (AddrMatch/0x01)
@@ -153,25 +160,28 @@ module formal_axi_monitor_addr_check (
     end
 
     // =========================================================================
-    // P4: MATCH packet — range_index points to an enabled range and the
-    //     latched address falls within that range's [low, high] bounds.
+    // P4: MATCH packet — range_index points to an enabled DEBUG-flavored range
+    //     (IS_ERR=0) and the latched address falls within its [low, high].
     // =========================================================================
     always @(*) begin
         if (rst_n && addr_pkt_valid && pkt_is_match) begin
             ap_match_range_enabled: assert (cfg_addr_range_enable[pkt_range_ix[$clog2(N)-1:0]]);
+            ap_match_range_is_debug: assert (!IS_ERR[pkt_range_ix[$clog2(N)-1:0]]);
             ap_match_addr_low:  assert (pkt_addr_lo >= cfg_low_packed [pkt_range_ix[$clog2(N)-1:0]]);
             ap_match_addr_high: assert (pkt_addr_lo <= cfg_high_packed[pkt_range_ix[$clog2(N)-1:0]]);
         end
     end
 
     // =========================================================================
-    // P5: MISS packet — range_index is the 4'hF sentinel and the latched
-    //     address is inside NO enabled range.
+    // P5: MISS packet — range_index is the 4'hF sentinel, at least one ERROR
+    //     range is enabled, and the latched address is inside NO enabled ERROR
+    //     range (it may still lie in a DEBUG range — that is orthogonal).
     // =========================================================================
     always @(*) begin
         if (rst_n && addr_pkt_valid && pkt_is_miss) begin
-            ap_miss_sentinel:  assert (pkt_range_ix == 4'hF);
-            ap_miss_no_range:  assert (f_addr_in_range == '0);
+            ap_miss_sentinel:      assert (pkt_range_ix == 4'hF);
+            ap_miss_err_exists:    assert (f_err_ranges_exist);
+            ap_miss_no_err_range:  assert (f_err_in_range == '0);
         end
     end
 

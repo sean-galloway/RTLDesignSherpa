@@ -67,7 +67,9 @@ module axi_monitor_filtered
     parameter bit ADD_PIPELINE_STAGE     = 0,     // Add register stage for timing
 
     // Address-range check (0 = disabled, no comparator synthesised)
-    parameter int N_ADDR_RANGES          = 0
+    parameter int N_ADDR_RANGES          = 0,
+    // Per-range flavor (0 = DEBUG/match, 1 = ERROR/allowlist-miss); default 0.
+    parameter logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0] ADDR_RANGE_IS_ERROR = '0
 )
 (
     // Clock and Reset
@@ -230,7 +232,8 @@ module axi_monitor_filtered
         .ENABLE_THRESHOLD_LOGIC  (ENABLE_THRESHOLD_LOGIC),
         .ENABLE_PERF_LOGIC       (ENABLE_PERF_LOGIC),
         .ENABLE_DEBUG_LOGIC      (ENABLE_DEBUG_LOGIC),
-        .N_ADDR_RANGES           (N_ADDR_RANGES)
+        .N_ADDR_RANGES           (N_ADDR_RANGES),
+        .ADDR_RANGE_IS_ERROR     (ADDR_RANGE_IS_ERROR)
     ) u_axi_monitor_base (
         .aclk                    (aclk),
         .aresetn                 (aresetn),

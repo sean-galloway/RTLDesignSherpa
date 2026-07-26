@@ -24,6 +24,7 @@ module axi_monitor_addr_check (
 	parameter [7:0] UNIT_ID = 8'h00;
 	parameter [15:0] AGENT_ID = 16'h0000;
 	parameter [0:0] IS_READ = 1'b1;
+	parameter [N_ADDR_RANGES - 1:0] ADDR_RANGE_IS_ERROR = 1'sb0;
 	parameter signed [31:0] M = ADDR_WIDTH;
 	parameter signed [31:0] IW = ID_WIDTH;
 	input wire clk;
@@ -47,7 +48,6 @@ module axi_monitor_addr_check (
 	output wire [63:0] addr_pkt_timestamp;
 	wire cmd_fire;
 	reg [N_ADDR_RANGES - 1:0] raw_hit;
-	wire any_hit;
 	assign cmd_fire = (cmd_valid && cmd_ready) && cfg_addr_check_enable;
 	always @(*) begin
 		if (_sv2v_0)
@@ -58,19 +58,36 @@ module axi_monitor_addr_check (
 				raw_hit[i] = (cfg_addr_range_enable[i] && (cmd_addr >= cfg_addr_range_low[i * M+:M])) && (cmd_addr <= cfg_addr_range_high[i * M+:M]);
 		end
 	end
-	assign any_hit = |raw_hit;
-	reg [N_ADDR_RANGES - 1:0] match_set;
-	wire miss_set;
+	reg [N_ADDR_RANGES - 1:0] debug_hit;
+	reg [N_ADDR_RANGES - 1:0] err_range_en;
+	wire err_hit;
+	wire err_ranges_exist;
 	always @(*) begin
 		if (_sv2v_0)
 			;
 		begin : sv2v_autoblock_2
 			reg signed [31:0] i;
 			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
-				match_set[i] = (cmd_fire && cfg_debug_enable) && raw_hit[i];
+				begin
+					debug_hit[i] = raw_hit[i] && !ADDR_RANGE_IS_ERROR[i];
+					err_range_en[i] = cfg_addr_range_enable[i] && ADDR_RANGE_IS_ERROR[i];
+				end
 		end
 	end
-	assign miss_set = (cmd_fire && cfg_error_enable) && !any_hit;
+	assign err_hit = |(raw_hit & ADDR_RANGE_IS_ERROR);
+	assign err_ranges_exist = |err_range_en;
+	reg [N_ADDR_RANGES - 1:0] match_set;
+	wire miss_set;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_3
+			reg signed [31:0] i;
+			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+				match_set[i] = (cmd_fire && cfg_debug_enable) && debug_hit[i];
+		end
+	end
+	assign miss_set = ((cmd_fire && cfg_error_enable) && err_ranges_exist) && !err_hit;
 	reg [N_ADDR_RANGES - 1:0] r_match_pending;
 	reg [(N_ADDR_RANGES * M) - 1:0] r_match_addr;
 	reg [(N_ADDR_RANGES * IW) - 1:0] r_match_id;
@@ -90,7 +107,7 @@ module axi_monitor_addr_check (
 			;
 		match_emit_oh = 1'sb0;
 		match_emit_idx = 4'h0;
-		begin : sv2v_autoblock_3
+		begin : sv2v_autoblock_4
 			reg signed [31:0] i;
 			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
 				if (r_match_pending[i] && (match_emit_oh == {N_ADDR_RANGES {1'sb0}})) begin
@@ -114,7 +131,7 @@ module axi_monitor_addr_check (
 			r_miss_id <= 1'sb0;
 		end
 		else begin
-			begin : sv2v_autoblock_4
+			begin : sv2v_autoblock_5
 				reg signed [31:0] i;
 				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
 					if (match_set[i]) begin
@@ -122,7 +139,7 @@ module axi_monitor_addr_check (
 						r_match_id[i * IW+:IW] <= cmd_id;
 					end
 			end
-			begin : sv2v_autoblock_5
+			begin : sv2v_autoblock_6
 				reg signed [31:0] i;
 				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
 					if (match_set[i])
@@ -166,7 +183,7 @@ module axi_monitor_addr_check (
 			emit_idx = match_emit_idx;
 			emit_addr = 1'sb0;
 			emit_id = 1'sb0;
-			begin : sv2v_autoblock_6
+			begin : sv2v_autoblock_7
 				reg signed [31:0] i;
 				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
 					if (match_emit_oh[i]) begin

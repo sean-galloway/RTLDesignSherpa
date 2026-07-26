@@ -70,6 +70,16 @@ module axi_monitor_addr_check
     parameter logic [15:0] AGENT_ID = 16'h0000,  // 16-bit Agent ID in monitor packets
     parameter bit IS_READ       = 1'b1,          // 1 if this monitor watches reads (AR), 0 if writes (AW)
 
+    // Per-range flavor selector: bit i picks how range i behaves.
+    //   0 = DEBUG range  -> a hit emits an AddrMatch packet (cfg_debug_enable)
+    //   1 = ERROR range  -> the enabled ERROR ranges form an allowlist; a
+    //                       command whose address is in NONE of them emits an
+    //                       Error/ADDR_RANGE packet (cfg_error_enable)
+    // Default all-0: every range is a debug/match range, so the ERROR/miss
+    // path is inert until a consumer marks ranges as error -> "unused by
+    // default".
+    parameter logic [N_ADDR_RANGES-1:0] ADDR_RANGE_IS_ERROR = '0,
+
     // Local widths
     parameter int M  = ADDR_WIDTH,
     parameter int IW = ID_WIDTH
@@ -103,12 +113,15 @@ module axi_monitor_addr_check
 );
 
     // -------------------------------------------------------------------------
-    // Combinational range hits + allowlist decision
+    // Combinational range hits + two-flavor allowlist decision
     // -------------------------------------------------------------------------
+    // DEBUG ranges (ADDR_RANGE_IS_ERROR[i]=0) and ERROR ranges (=1) are
+    // evaluated independently, so a single command can legitimately produce
+    // both a MATCH (it hit a debug watch) and a MISS (it was outside the error
+    // allowlist); the two pending slots below hold each and the output stream
+    // serialises them.
     logic                       cmd_fire;
-    logic [N_ADDR_RANGES-1:0]   raw_hit;      // pure address-in-enabled-range (no fire qualifier)
-    logic                       any_hit;
-
+    logic [N_ADDR_RANGES-1:0]   raw_hit;      // address in enabled range i
     assign cmd_fire = cmd_valid && cmd_ready && cfg_addr_check_enable;
 
     always_comb begin
@@ -118,18 +131,32 @@ module axi_monitor_addr_check
                          (cmd_addr <= cfg_addr_range_high[i]);
         end
     end
-    assign any_hit = |raw_hit;
 
-    // Per-command events (mutually exclusive):
-    //   match_set[i] : this command hit range i and the MATCH path is enabled
-    //   miss_set     : this command hit NO range and the MISS path is enabled
+    // Split by flavor.
+    logic [N_ADDR_RANGES-1:0]   debug_hit;       // hit in a DEBUG-flavored range
+    logic [N_ADDR_RANGES-1:0]   err_range_en;    // enabled ERROR-flavored ranges
+    logic                       err_hit;         // address in some enabled ERROR range
+    logic                       err_ranges_exist;
+    always_comb begin
+        for (int i = 0; i < N_ADDR_RANGES; i++) begin
+            debug_hit[i]    = raw_hit[i] && !ADDR_RANGE_IS_ERROR[i];
+            err_range_en[i] = cfg_addr_range_enable[i] && ADDR_RANGE_IS_ERROR[i];
+        end
+    end
+    assign err_hit          = |(raw_hit & ADDR_RANGE_IS_ERROR);
+    assign err_ranges_exist = |err_range_en;
+
+    // Per-command events:
+    //   match_set[i] : DEBUG range i hit and the MATCH path is enabled
+    //   miss_set     : the ERROR allowlist is active but the address matched
+    //                  none of it
     logic [N_ADDR_RANGES-1:0]   match_set;
     logic                       miss_set;
     always_comb begin
         for (int i = 0; i < N_ADDR_RANGES; i++)
-            match_set[i] = cmd_fire && cfg_debug_enable && raw_hit[i];
+            match_set[i] = cmd_fire && cfg_debug_enable && debug_hit[i];
     end
-    assign miss_set = cmd_fire && cfg_error_enable && !any_hit;
+    assign miss_set = cmd_fire && cfg_error_enable && err_ranges_exist && !err_hit;
 
     // -------------------------------------------------------------------------
     // Pending state: per-range MATCH slots + a single MISS slot

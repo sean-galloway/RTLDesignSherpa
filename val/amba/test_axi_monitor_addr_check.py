@@ -127,13 +127,16 @@ async def axi_monitor_addr_check_test(dut):
     # tie low for this test — it's the side-band timestamp, not the packet).
     dut.i_mon_time.value             = 0
 
-    # Address-range checker config:
-    #   range 0 : [0x1000, 0x1FFF]  inclusive
-    #   range 1 : [0x8000, 0x8000]  exact match
+    # Address-range checker config — two flavors (ADDR_RANGE_IS_ERROR=2'b10):
+    #   range 0 : [0x1000, 0x1FFF]  DEBUG -> a hit emits an AddrMatch packet
+    #   range 1 : [0x1000, 0x1FFF]  ERROR -> allowlist; an address in NO enabled
+    #             error range emits an Error/ADDR_RANGE packet
+    # Same window on both flavors: addresses inside are watched (debug) AND
+    # allowed (error); addresses outside raise an error.
     dut.cfg_addr_check_enable.value = 1
     dut.cfg_addr_range_enable.value = 0b11
-    dut.cfg_addr_range_low.value    = (0x00008000 << 32) | 0x00001000
-    dut.cfg_addr_range_high.value   = (0x00008000 << 32) | 0x00001FFF
+    dut.cfg_addr_range_low.value    = (0x00001000 << 32) | 0x00001000
+    dut.cfg_addr_range_high.value   = (0x00001FFF << 32) | 0x00001FFF
 
     # Hold reset for 10 cycles
     for _ in range(10):
@@ -198,15 +201,15 @@ async def axi_monitor_addr_check_test(dut):
     cocotb.start_soon(respond_r())
 
     # --- Drive test vectors ------------------------------------------------
-    # Allowlist = {range0 [0x1000,0x1FFF], range1 [0x8000,0x8000]}. Sequence:
-    #   1) addr=0x500  → no range → MISS  → Error(0)/0x0D
-    #   2) addr=0x1200 → hits range 0 → MATCH → AddrMatch(8)/0x01, range_index=0, addr=0x1200
-    #   3) addr=0x8000 → hits range 1 → MATCH → AddrMatch(8)/0x01, range_index=1, addr=0x8000
-    #   4) addr=0x8001 → no range → MISS  → Error(0)/0x0D
+    # DEBUG=[0x1000,0x1FFF] (range0), ERROR allowlist=[0x1000,0x1FFF] (range1).
+    #   1) addr=0x500  → outside debug + outside error allowlist → MISS (Error/0x0D)
+    #   2) addr=0x1200 → in debug (MATCH) + inside error allowlist (allowed) → AddrMatch, r0
+    #   3) addr=0x1FFF → in debug (MATCH) + inside error allowlist (allowed) → AddrMatch, r0
+    #   4) addr=0x2000 → outside debug + outside error allowlist → MISS (Error/0x0D)
     await drive_ar(0x00000500, arid=1)
     await drive_ar(0x00001200, arid=2)
-    await drive_ar(0x00008000, arid=3)
-    await drive_ar(0x00008001, arid=4)
+    await drive_ar(0x00001FFF, arid=3)
+    await drive_ar(0x00002000, arid=4)
 
     # Idle long enough for any in-flight monbus packet to drain
     for _ in range(20):
@@ -238,16 +241,16 @@ async def axi_monitor_addr_check_test(dut):
         f"All packets: {captured}"
     )
 
-    # First match: address 0x1200, range 0
+    # First match: address 0x1200, DEBUG range 0
     _, m0 = match_pkts[0]
     assert m0['protocol']    == 0,      f"protocol expected AXI(0), got {m0['protocol']}"
-    assert m0['range_index'] == 0,      f"range_index expected 0, got {m0['range_index']}"
+    assert m0['range_index'] == 0,      f"range_index expected 0 (debug range), got {m0['range_index']}"
     assert m0['addr']        == 0x1200, f"addr expected 0x1200, got {m0['addr']:#x}"
 
-    # Second match: address 0x8000, range 1
+    # Second match: address 0x1FFF, DEBUG range 0 (error-flavored range never matches)
     _, m1 = match_pkts[1]
-    assert m1['range_index'] == 1,      f"range_index expected 1, got {m1['range_index']}"
-    assert m1['addr']        == 0x8000, f"addr expected 0x8000, got {m1['addr']:#x}"
+    assert m1['range_index'] == 0,      f"range_index expected 0 (debug range), got {m1['range_index']}"
+    assert m1['addr']        == 0x1FFF, f"addr expected 0x1FFF, got {m1['addr']:#x}"
 
     # Misses carry the no-range sentinel 0xF and the offending address.
     _, ms0 = miss_pkts[0]
@@ -304,6 +307,7 @@ def test_axi_monitor_addr_check():
         'SKID_DEPTH_AR':   '2',
         'SKID_DEPTH_R':    '4',
         'N_ADDR_RANGES':   '2',
+        'ADDR_RANGE_IS_ERROR': '2',   # 2'b10: range1 = ERROR/allowlist, range0 = DEBUG/match
     }
 
     extra_env = {

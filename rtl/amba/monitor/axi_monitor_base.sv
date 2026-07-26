@@ -72,6 +72,9 @@ module axi_monitor_base
     // Address-range check
     // N_ADDR_RANGES = 0 disables the address-range checker entirely (zero area).
     parameter int N_ADDR_RANGES       = 0,
+    // Per-range flavor: 0 = DEBUG (hit -> AddrMatch), 1 = ERROR (allowlist miss
+    // -> Error/ADDR_RANGE). Default all-0 keeps the ERROR/miss path inert.
+    parameter logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0] ADDR_RANGE_IS_ERROR = '0,
 
     // Short params
     parameter int AW                 = ADDR_WIDTH,
@@ -380,7 +383,8 @@ module axi_monitor_base
             .ID_WIDTH      (ID_WIDTH > 0 ? ID_WIDTH : 1),
             .UNIT_ID       (UNIT_ID),
             .AGENT_ID      (AGENT_ID),
-            .IS_READ       (IS_READ)
+            .IS_READ       (IS_READ),
+            .ADDR_RANGE_IS_ERROR (ADDR_RANGE_IS_ERROR)
         ) addr_check (
             .clk                   (aclk),
             .aresetn               (aresetn),
