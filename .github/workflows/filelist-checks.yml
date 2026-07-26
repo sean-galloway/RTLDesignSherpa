@@ -1,0 +1,42 @@
+name: Filelist checks
+
+# The compile-closure contract, enforced. Before this existed nothing ran these
+# checks in a hook or in CI, so the rule was kept by whoever remembered -- which
+# is how rtl/cdc went unregistered, three tests stayed broken behind a green
+# --check, and four formal harnesses lost a whole dependency tree.
+#
+# --check and --audit are HARD gates: they pass today and must keep passing.
+# --blindspots is RATCHETED against bin/blindspots_baseline.json: it has a real
+# backlog (see TOOL-012), so it fails only when a count GROWS. A new hand-listed
+# test breaks the build immediately; the existing ones block nobody.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  filelists:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 3.11+ for tomllib in the stdlib -- the checker needs no pip install,
+      # so this job stays fast and cannot drift from a requirements file.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Every module is reachable from some filelist
+        run: python3 bin/filelist_registry.py --check
+
+      - name: No filelist hand-lists another area's sources
+        run: python3 bin/filelist_registry.py --audit
+
+      - name: No NEW blind spots (unregistered .f, hand-listed test, dead .sby path)
+        run: python3 bin/filelist_registry.py --blindspots --ratchet
+
+      - name: Show the outstanding backlog
+        if: always()
+        run: python3 bin/filelist_registry.py --blindspots || true

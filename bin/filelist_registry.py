@@ -34,6 +34,7 @@ and --audit are usable as CI gates.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -47,6 +48,7 @@ except ModuleNotFoundError:  # Python < 3.11
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 REGISTRY = REPO_ROOT / "bin" / "filelists.toml"
+BASELINE = REPO_ROOT / "bin" / "blindspots_baseline.json"
 
 MODULE_RE = re.compile(r"^\s*module\s+([A-Za-z_]\w*)", re.M)
 
@@ -425,7 +427,8 @@ def cmd_unrolled(reg: dict, min_sources: int = 2) -> int:
     return 0
 
 
-def cmd_blindspots(reg: dict) -> int:
+def cmd_blindspots(reg: dict, ratchet: bool = False,
+                   update_baseline: bool = False) -> int:
     """Find the things --check and --audit structurally CANNOT see.
 
     Both of those walk the filelist graph, so anything outside it is invisible:
@@ -443,6 +446,7 @@ def cmd_blindspots(reg: dict) -> int:
     This is the check for that class. Exit 1 if anything is found.
     """
     findings = 0
+    detail = not ratchet   # ratchet mode reports deltas, not the whole backlog
 
     # 1. Filelists that no registered area covers.
     registered: set[Path] = set()
@@ -456,12 +460,12 @@ def cmd_blindspots(reg: dict) -> int:
     orphans = sorted(on_disk - registered)
     if orphans:
         findings += len(orphans)
-        print(f"UNREGISTERED FILELISTS ({len(orphans)}) -- invisible to --check/--find:")
-        for o in orphans:
-            print(f"    {rel(o)}")
-        print("    fix: add the containing dir to an area's filelist_dirs in filelists.toml")
-        print()
-
+        if detail:
+            print(f"UNREGISTERED FILELISTS ({len(orphans)}) -- invisible to --check/--find:")
+            for o in orphans:
+                print(f"    {rel(o)}")
+            print("    fix: add the containing dir to an area's filelist_dirs in filelists.toml")
+            print()
     # 2. Tests that build their own source array instead of taking a filelist.
     hand: list[tuple[str, str]] = []
     for t in sorted(REPO_ROOT.glob("val/*/test_*.py")) + sorted(REPO_ROOT.glob("projects/**/dv/tests/test_*.py")):
@@ -472,12 +476,12 @@ def cmd_blindspots(reg: dict) -> int:
             hand.append((rel(t), "appends to a filelist's sources"))
     if hand:
         findings += len(hand)
-        print(f"TESTS NOT TAKING A FILELIST ({len(hand)}) -- a stale path here passes --check:")
-        for f, why in hand:
-            print(f"    {f}  ({why})")
-        print("    fix: get_sources_from_filelist(repo_root=..., filelist_path=...)")
-        print()
-
+        if detail:
+            print(f"TESTS NOT TAKING A FILELIST ({len(hand)}) -- a stale path here passes --check:")
+            for f, why in hand:
+                print(f"    {f}  ({why})")
+            print("    fix: get_sources_from_filelist(repo_root=..., filelist_path=...)")
+            print()
     # 3. Formal harnesses whose [files] entries do not resolve.
     dangling: list[tuple[str, str]] = []
     for sby in sorted(REPO_ROOT.rglob("*.sby")):
@@ -491,18 +495,61 @@ def cmd_blindspots(reg: dict) -> int:
         by_file: dict[str, int] = {}
         for f, _ in dangling:
             by_file[f] = by_file.get(f, 0) + 1
-        print(f"FORMAL HARNESSES WITH DEAD SOURCE PATHS ({len(dangling)} refs in {len(by_file)} files):")
-        for f, n in sorted(by_file.items(), key=lambda kv: -kv[1])[:12]:
-            print(f"    {n:4d}  {f}")
-        if len(by_file) > 12:
-            print(f"    ... and {len(by_file) - 12} more")
-        print("    fix: generate [script]/[files] from the area's filelist")
-        print()
+        if detail:
+            print(f"FORMAL HARNESSES WITH DEAD SOURCE PATHS ({len(dangling)} refs in {len(by_file)} files):")
+            for f, n in sorted(by_file.items(), key=lambda kv: -kv[1])[:12]:
+                print(f"    {n:4d}  {f}")
+            if len(by_file) > 12:
+                print(f"    ... and {len(by_file) - 12} more")
+            print("    fix: generate [script]/[files] from the area's filelist")
+            print()
+    counts = {
+        "unregistered_filelists": len(orphans),
+        "hand_listed_tests": len(hand),
+        "dead_harness_paths": len(dangling),
+    }
 
-    if findings:
-        print(f"FAIL: {findings} blind-spot finding(s)")
+    if update_baseline:
+        BASELINE.write_text(json.dumps(counts, indent=2, sort_keys=True) + "\n")
+        print(f"baseline written to {rel(BASELINE)}:")
+        for k, v in sorted(counts.items()):
+            print(f"    {k:<24} {v}")
+        return 0
+
+    if not ratchet:
+        if findings:
+            print(f"FAIL: {findings} blind-spot finding(s)")
+            return 1
+        print("PASS: no unregistered filelists, hand-listed tests, or dead harness paths")
+        return 0
+
+    # Ratchet: a number may fall, never rise. Lets a gate go in TODAY against a
+    # real backlog -- a NEW violation fails immediately while the existing ones
+    # block nobody. Gating on zero when the count is in the hundreds just
+    # teaches people to pass --no-verify.
+    if not BASELINE.is_file():
+        print(f"no baseline at {rel(BASELINE)}; write one with --update-baseline")
         return 1
-    print("PASS: no unregistered filelists, hand-listed tests, or dead harness paths")
+    base = json.loads(BASELINE.read_text())
+    worse, better = [], []
+    for k, now in sorted(counts.items()):
+        was = base.get(k, 0)
+        if now > was:
+            worse.append(f"    {k:<24} {was} -> {now}   (+{now - was})")
+        elif now < was:
+            better.append(f"    {k:<24} {was} -> {now}   ({now - was})")
+    if better:
+        print("IMPROVED since the baseline:")
+        print("\n".join(better))
+        print(f"    lower it: python3 {rel(Path(__file__))} --blindspots --update-baseline")
+        print()
+    if worse:
+        print("REGRESSED -- a new blind spot was introduced:")
+        print("\n".join(worse))
+        print()
+        print("FAIL: the fix is to use a filelist, not to raise the baseline.")
+        return 1
+    print(f"PASS (ratchet): no class grew. {findings} known finding(s) outstanding; see TOOL-012.")
     return 0
 
 
@@ -532,6 +579,10 @@ def main() -> int:
                         "hand-listed tests, dead formal-harness paths")
     g.add_argument("--find", metavar="MODULE", help="show which filelist provides a module")
     g.add_argument("--resolve", metavar="FILELIST", help="expand a filelist to its source list")
+    ap.add_argument("--ratchet", action="store_true",
+                    help="with --blindspots: fail only if a class GREW vs the baseline")
+    ap.add_argument("--update-baseline", action="store_true",
+                    help="with --blindspots: rewrite the baseline from the current counts")
     args = ap.parse_args()
 
     if args.resolve:
@@ -547,7 +598,7 @@ def main() -> int:
     if args.unrolled:
         return cmd_unrolled(reg)
     if args.blindspots:
-        return cmd_blindspots(reg)
+        return cmd_blindspots(reg, args.ratchet, args.update_baseline)
     if args.find:
         return cmd_find(reg, args.find)
     return 0

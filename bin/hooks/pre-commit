@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Filelist contract, checked before the commit lands.
+#
+# Install (per clone -- git does not track .git/hooks):
+#     ln -sf ../../bin/hooks/pre-commit .git/hooks/pre-commit
+#
+# This is the fast local mirror of .github/workflows/filelist-checks.yml. CI is
+# the authority; this just saves you the round trip. It runs only when the
+# commit touches something that can break the contract, so an unrelated commit
+# pays nothing.
+#
+# Bypass with `git commit --no-verify` when you must -- but note that CI runs
+# the same three checks and will not be bypassed.
+
+set -u
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT" || exit 0
+
+# Only bother when the staged set can actually affect the contract.
+if ! git diff --cached --name-only | grep -qE '\.(f|sv|svh|sby|toml)$|(^|/)test_[^/]*\.py$'; then
+    exit 0
+fi
+
+# tomllib needs 3.11+; fall back quietly rather than blocking a commit on a
+# python version. CI pins 3.11, so nothing is skipped where it counts.
+PY=$(command -v python3.12 || command -v python3.11 || command -v python3)
+if ! "$PY" -c 'import tomllib' 2>/dev/null && ! "$PY" -c 'import tomli' 2>/dev/null; then
+    echo "pre-commit: skipping filelist checks (no tomllib/tomli on $PY)" >&2
+    exit 0
+fi
+
+fail=0
+for check in --check --audit; do
+    if ! out=$("$PY" bin/filelist_registry.py "$check" 2>&1); then
+        echo "pre-commit: filelist_registry.py $check FAILED" >&2
+        echo "$out" | tail -20 >&2
+        fail=1
+    fi
+done
+
+if ! out=$("$PY" bin/filelist_registry.py --blindspots --ratchet 2>&1); then
+    echo "$out" >&2
+    echo "pre-commit: run 'python3 bin/filelist_registry.py --blindspots' for the full list" >&2
+    fail=1
+fi
+
+if [ "$fail" -ne 0 ]; then
+    echo "" >&2
+    echo "pre-commit: filelist contract broken -- see vault/handbook/design/filelists.md" >&2
+    exit 1
+fi
+exit 0
