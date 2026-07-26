@@ -51,14 +51,6 @@ YOSYS_DIR     := $(LINT_DIR)/yosys
 EXTRA_INCLUDES  ?=
 INCLUDES        := -I$(RDS_ROOT)/rtl/amba/includes $(EXTRA_INCLUDES)
 
-# Module search paths, used ONLY by the per-file glob targets below. The
-# authoritative `verilator` target never uses them: a search path resolves a
-# dependency the filelist forgot, which is exactly the failure --check exists to
-# catch. For a single-file spot check it is the difference between useful output
-# and a wall of "cannot find module".
-SEARCH_DIRS     := -y . -y $(RDS_ROOT)/rtl/common -y $(RDS_ROOT)/rtl/math \
-                   -y $(RDS_ROOT)/rtl/cdc -y $(RDS_ROOT)/rtl/amba/gaxi \
-                   -y $(RDS_ROOT)/rtl/amba/shared
 VERILATOR       := verilator
 VERILATOR_FLAGS := --lint-only -Wall -Wno-TIMESCALEMOD -Wno-fatal $(INCLUDES)
 VERIBLE         := verible-verilog-lint
@@ -107,31 +99,38 @@ verible: ## Verible style lint, file by file
 yosys: ## Yosys elaboration check (no generic flow -- see formal/)
 	@echo -e "$(YELLOW)SKIP $(AREA): no generic yosys flow; per-module proofs live in formal/$(RESET)"
 
-# Per-category lint by glob: `make verilator-counter` lints every .sv whose PATH
-# contains "counter", which covers a flat area (common/counter*.sv) and a nested
-# one (amba/axi4/*.sv) with one rule. Replaces the hand-written
-# verilator-counters / verilator-arbiters / verilator-axi4 / ... targets.
+# Per-category lint by glob: `make verilator-counter` lints every module whose
+# PATH matches "counter". One rule covers a flat area (common/counter*.sv) and a
+# nested one (amba/axi4/*.sv). Replaces the hand-written verilator-counters /
+# verilator-arbiters / verilator-axi4 / ... targets, which a rename could leave
+# pointing at nothing.
 #
-# INFORMATIONAL, and it does not gate. Files are linted one at a time, so a
-# module that imports a package cannot resolve it: package compile ORDER is real
-# (amba's apb5_pkg imports apb_pkg) and only the area's master filelist encodes
-# it. The old hand-written targets ended every line with `|| true` for the same
-# reason. `make verilator` over the filelist is the authoritative check; this is
-# for looking at one corner while you work on it.
+# Each module is linted THROUGH A FILELIST -- its own if it has one, otherwise
+# the area master with --top-module. That is the whole point: a filelist carries
+# the packages and dependencies in the right order, so this is a real check that
+# gates, not a spot check. Linting bare .sv files instead cannot resolve a
+# package import (amba's apb5_pkg imports apb_pkg, and compile order is only
+# encoded in the filelist) and reports failures that are artifacts of the
+# method rather than defects in the RTL.
 verilator-%:
 	@mkdir -p $(VERILATOR_DIR)
 	@files=$$(find . -name '*.sv' -path "*$**" -not -path './lint_reports/*' | sort); \
 	if [ -z "$$files" ]; then echo -e "$(YELLOW)$(AREA): no .sv path matches '$*'$(RESET)"; exit 0; fi; \
-	n=$$(echo "$$files" | wc -l); echo "=== $(AREA): Verilator on $$n file(s) matching '$*' (informational) ==="; \
-	bad=0; for f in $$files; do \
-	    if ! $(VERILATOR) $(VERILATOR_FLAGS) $(SEARCH_DIRS) $$f \
-	         > $(VERILATOR_DIR)/$$(basename $$f .sv).log 2>&1; then bad=$$((bad+1)); fi; \
+	n=$$(echo "$$files" | wc -l); echo "=== $(AREA): Verilator on $$n module(s) matching '$*' ==="; \
+	bad=0; viafl=0; viatop=0; \
+	for f in $$files; do \
+	    mod=$$(basename $$f .sv); \
+	    if [ -f "filelists/$$mod.f" ]; then fl="filelists/$$mod.f"; viafl=$$((viafl+1)); \
+	    elif [ -f "$(MASTER_FILELIST)" ]; then fl="$(MASTER_FILELIST)"; viatop=$$((viatop+1)); \
+	    else echo -e "  $(YELLOW)SKIP$(RESET) $$mod (no filelist)"; continue; fi; \
+	    if ! $(VERILATOR) $(VERILATOR_FLAGS) -f $$fl --top-module $$mod \
+	         > $(VERILATOR_DIR)/$$mod.log 2>&1; then \
+	        echo -e "  $(RED)FAIL$(RESET) $$mod   (-f $$fl)"; bad=$$((bad+1)); \
+	    fi; \
 	done; \
-	if [ $$bad -eq 0 ]; then echo -e "$(GREEN)clean: all $$n matched file(s)$(RESET)"; \
-	else \
-	    echo -e "$(YELLOW)$$bad of $$n file(s) have findings -- logs in $(VERILATOR_DIR)/$(RESET)"; \
-	    echo    "  standalone lint cannot resolve package imports; run 'make verilator' for the real check"; \
-	fi
+	echo "  $$viafl via own filelist, $$viatop via $(MASTER_FILELIST)"; \
+	if [ $$bad -eq 0 ]; then echo -e "$(GREEN)PASS $(AREA): $$n module(s) matching '$*'$(RESET)"; \
+	else echo -e "$(RED)FAIL $(AREA): $$bad of $$n -- logs in $(VERILATOR_DIR)/$(RESET)"; exit 1; fi
 
 .PHONY: lint-all
 lint-all: verilator verible ## Every lint tool available for this area
