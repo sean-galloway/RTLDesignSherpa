@@ -45,6 +45,7 @@ import pytest
 # Add repo root to path for CocoTBFramework imports
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import WaveDrom components
 from CocoTBFramework.components.wavedrom.constraint_solver import (
@@ -573,9 +574,11 @@ def test_counter_bingray_wavedrom(request):
 
     # DUT configuration
     dut_name = "counter_bingray"
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv")
-    ]
+    # Take the filelist; never hand-list. This test hand-listed rtl/common and
+    # broke silently when counter_bingray moved to rtl/cdc.
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/cdc/filelists/counter_bingray.f")
     toplevel = dut_name
 
     # Test parameters
@@ -633,6 +636,7 @@ def test_counter_bingray_wavedrom(request):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
+            includes=includes,
             toplevel=toplevel,
             module=module,
             parameters=parameters,
