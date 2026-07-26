@@ -47,7 +47,7 @@ import pytest
 
 # Add repo root to path for CocoTBFramework imports
 from TBClasses.shared.tbbase import TBBase
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_wavejson_dir, get_paths, create_view_cmd
 
 # Import WaveDrom components
 from CocoTBFramework.components.wavedrom.constraint_solver import (
@@ -382,10 +382,7 @@ async def counter_freq_invariant_wavedrom_test(dut):
     tb.setup_wavedrom()
 
     # Output directory for waveforms
-    output_dir = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-        'docs', 'markdown', 'assets', 'WAVES', 'counter_freq_invariant'
-    )
+    output_dir = get_wavejson_dir("counter_freq_invariant", os.path.dirname(os.path.abspath(__file__)))
     os.makedirs(output_dir, exist_ok=True)
 
     # Scenario definitions: (method, output_filename)

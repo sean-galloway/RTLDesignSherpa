@@ -45,7 +45,7 @@ import pytest
 
 # Add repo root to path for CocoTBFramework imports
 from TBClasses.shared.tbbase import TBBase
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_wavejson_dir, get_paths, create_view_cmd
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import WaveDrom components
@@ -429,7 +429,7 @@ async def counter_johnson_wavedrom_test(dut):
     tb.setup_wavedrom()
 
     # Create output directory
-    output_dir = "docs/markdown/assets/WAVES/counter_johnson"
+    output_dir = get_wavejson_dir("counter_johnson", os.path.dirname(os.path.abspath(__file__)))
     os.makedirs(output_dir, exist_ok=True)
 
     # Scenario definitions: (method, output_filename)

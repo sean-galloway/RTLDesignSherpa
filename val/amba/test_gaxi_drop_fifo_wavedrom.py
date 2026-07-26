@@ -55,7 +55,7 @@ from CocoTBFramework.components.wavedrom.constraint_solver import (
     SignalTransition,
     TemporalRelation
 )
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_wavejson_dir, get_paths
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 

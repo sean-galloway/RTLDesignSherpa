@@ -495,3 +495,32 @@ def setup_struct_test_environment(struct_name: str, sim_build: str, base_env: Di
             'TEST_STRUCT_NAME': struct_name,
         }
         return {**base_env, **error_env}
+
+
+def get_wavejson_dir(module_name: str, tests_dir: str = None) -> str:
+    """Where a wavedrom test should write its .json output.
+
+    Defaults to <test area>/local_sim_build/waves_json/<module_name>, which is
+    gitignored and removed by `make clean-all`. Wavedrom output is NOT
+    deterministic -- two consecutive runs of the same test produce different
+    waveform lengths -- so writing it into docs/markdown/assets/WAVES/ by
+    default left three tracked files modified after every run, and whichever
+    version happened to get committed was arbitrary.
+
+    Set WAVEJSON_DIR to publish instead, e.g. when you actually intend to
+    refresh the committed diagrams:
+
+        WAVEJSON_DIR=docs/markdown/assets/WAVES pytest val/cdc/test_fifo_async_wavedrom.py
+
+    The module name is appended to WAVEJSON_DIR, matching the committed layout.
+    """
+    import os as _os
+    import inspect as _inspect
+
+    override = _os.environ.get('WAVEJSON_DIR')
+    if override:
+        return _os.path.abspath(_os.path.join(override, module_name))
+
+    if tests_dir is None:
+        tests_dir = _os.path.abspath(_os.path.dirname(_inspect.stack()[1].filename))
+    return _os.path.join(tests_dir, 'local_sim_build', 'waves_json', module_name)
