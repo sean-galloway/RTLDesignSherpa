@@ -79,6 +79,7 @@ The `axi_monitor_base` module is the core building block for:
 | `INTR_FIFO_DEPTH` | int | 8 | Depth of the reporter's outgoing interrupt/event FIFO |
 | `DEBUG_FIFO_DEPTH` | int | 8 | Depth of the debug-trace FIFO (used when the debug module is enabled) |
 | `N_ADDR_RANGES` | int | 0 | Number of address-range comparators. `0` removes the `axi_monitor_addr_check` block entirely (zero area) |
+| `ADDR_RANGE_IS_ERROR` | logic [N_ADDR_RANGES-1:0] | `'0` | Per-range flavor forwarded to `axi_monitor_addr_check`: bit i = 0 → DEBUG range (hit → AddrMatch, `cfg_debug_enable`); bit i = 1 → ERROR range (allowlist miss → Error/ADDR_RANGE, `cfg_error_enable`). Default all-0. |
 
 ### Master Switches
 

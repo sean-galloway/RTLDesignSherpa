@@ -86,6 +86,7 @@ The `axi_monitor_filtered` module is the core building block for:
 | `ENABLE_FILTERING` | bit | 1 | Master enable for filtering. |
 | `ADD_PIPELINE_STAGE` | bit | 0 | Add register stage for timing. |
 | `N_ADDR_RANGES` | int | 0 | Number of address-range comparators in the [`axi_monitor_addr_check`](axi_monitor_addr_check.md) sub-block (0 = the comparator block is not synthesised at all). |
+| `ADDR_RANGE_IS_ERROR` | logic [N_ADDR_RANGES-1:0] | `'0` | Per-range flavor forwarded to the checker: 0 = DEBUG (hit → AddrMatch), 1 = ERROR (allowlist miss → Error/ADDR_RANGE). Default all-0. |
 
 ---
 
