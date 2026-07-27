@@ -36,7 +36,8 @@ The APB5 Slave CDC module provides clock domain crossing between an APB5 bus clo
 ### Key Features
 
 - Full APB5 protocol support with CDC
-- Asynchronous FIFO-based clock domain crossing (Gray-coded pointers)
+- Asynchronous FIFO-based clock domain crossing (pointer encoding auto-selected
+  from the derived depth: Gray when it is a power of 2, Johnson when it is not)
 - All APB5 user signals (PAUSER, PWUSER, PRUSER, PBUSER)
 - Wake-up request crossing via a dedicated level synchronizer
 - Single `DEPTH` parameter sizes both directions
@@ -180,11 +181,11 @@ sequenceDiagram
     participant BE as Backend Domain
 
     APB->>CMDFIFO: Write cmd (pclk)
-    Note over CMDFIFO: Gray-coded pointers
+    Note over CMDFIFO: Gray or Johnson pointers (see below)
     CMDFIFO->>BE: Read cmd (aclk)
     BE->>BE: Process
     BE->>RSPFIFO: Write rsp (aclk)
-    Note over RSPFIFO: Gray-coded pointers
+    Note over RSPFIFO: Gray or Johnson pointers (see below)
     RSPFIFO->>APB: Read rsp (pclk)
     APB->>APB: Complete transaction
 ```
@@ -247,10 +248,26 @@ apb5_slave_cdc #(
 
 ### CDC Mechanism
 
-Both directions cross through `gaxi_fifo_async` instances with Gray-coded
-pointers and a fixed 2-flop synchronizer (`N_FLOP_CROSS(2)`) on each pointer
-crossing. The command FIFO is written in `pclk` and read in `aclk`; the response
-FIFO is written in `aclk` and read in `pclk`.
+Both directions cross through `gaxi_fifo_async` instances with a fixed 2-flop
+synchronizer (`N_FLOP_CROSS(2)`) on each pointer crossing. The command FIFO is
+written in `pclk` and read in `aclk`; the response FIFO is written in `aclk` and
+read in `pclk`.
+
+**The pointer encoding is not fixed.** It is auto-selected from the DERIVED
+depth:
+
+```systemverilog
+localparam int CDC_FIFO_DEPTH  = (DEPTH < 4) ? 4 : DEPTH;
+localparam bit CDC_DEPTH_POW2  = ((CDC_FIFO_DEPTH & (CDC_FIFO_DEPTH - 1)) == 0);
+localparam int CDC_USE_JOHNSON = (USE_JOHNSON >= 0) ? USE_JOHNSON
+                                                    : (CDC_DEPTH_POW2 ? 0 : 1);
+```
+
+So the default `DEPTH = 2` derives 4, a power of 2, and gets Gray pointers --
+but `DEPTH = 6` derives 6 and gets 6-bit Johnson pointers. Set `USE_JOHNSON`
+explicitly (0 or 1) to override the choice; leave it at its `-1` default to let
+the depth decide. See the CDC FIFO pointer encoding section below for the full
+table.
 
 The `wakeup_request` input is the one signal that does not go through a FIFO: it
 crosses from `aclk` into `pclk` through a `cdc_synchronizer` before reaching the

@@ -136,7 +136,9 @@ glitch_free_n_dff_arn #(
 
 #### Dual-Port Memory
 ```systemverilog
-logic [DW-1:0] mem[0:((1<<AW)-1)];  // Memory array
+logic [DW-1:0] mem[DEPTH];  // Memory array -- sized by DEPTH, not by
+                           // 1<<AW: with USE_JOHNSON=1 and a
+                           // non-power-of-2 DEPTH those differ
 
 // Write port (write domain)
 always_ff @(posedge wr_clk) begin
@@ -145,8 +147,8 @@ always_ff @(posedge wr_clk) begin
     end
 end
 
-// Read port (read domain)  
-assign w_rd_data = r_mem[r_rd_addr];
+// Read port (read domain)
+assign w_rd_data = mem[r_rd_addr];
 ```
 
 #### Address Generation

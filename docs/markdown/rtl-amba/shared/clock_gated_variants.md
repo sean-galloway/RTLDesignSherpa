@@ -184,7 +184,9 @@ Two numbers are quoted throughout this book, and they must not be confused:
   only usable on the following edge.
 
 Activity is registered once (AXI4, AXI5, AXI4-Lite, AXI4-Stream) or twice (APB, APB5,
-AXI5-Stream) before reaching the ICG enable, which is combinational. The first gated-clock
+AXI5-Stream) before reaching the ICG enable, which is combinational. `apb_slave_cdc_cg`
+is the one exception -- it drives `amba_clock_gate_ctrl` combinationally and so registers
+once despite being APB. The first gated-clock
 rising edge available to the block therefore arrives **2 clocks** (single-stage families)
 or **3 clocks** (two-stage families) after activity asserts.
 

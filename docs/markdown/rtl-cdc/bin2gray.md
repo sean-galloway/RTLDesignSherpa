@@ -152,6 +152,20 @@ flowchart LR
 
 ## Design Examples and Applications
 
+> **One rule governs every example below.** `bin2gray` is combinational. If its
+> output is going to be sampled by another clock -- a FIFO pointer, a status
+> word, anything crossing -- it MUST be registered in the source domain first.
+> The XOR outputs settle at different times, so during a multi-bit binary
+> transition (`0111` -> `1000`) the combinational output can momentarily show a
+> code that is neither the old value nor the new one. Sampling that transient
+> defeats the entire point of Gray coding.
+>
+> Examples that cross a domain show the register explicitly. Examples that stay
+> inside one clock domain (the pipeline, the address scrambler, the validated
+> wrapper) do not need it -- but if you lift one of those into a crossing, the
+> register comes with it. When the thing you are building is a FIFO pointer,
+> use [`counter_bingray`](counter_bingray.md) instead of assembling it yourself.
+
 ### 1. Asynchronous FIFO Pointer
 ```systemverilog
 module async_fifo_ptr #(
@@ -176,19 +190,35 @@ module async_fifo_ptr #(
             binary_ptr <= binary_ptr_next;
     end
     
-    // Binary to Gray conversion
+    // Binary to Gray conversion -- then REGISTER, because gray_ptr is a FIFO
+    // pointer and a FIFO pointer crosses. An unregistered bin2gray output
+    // carries the transient this whole page exists to prevent.
+    logic [ADDR_WIDTH:0] w_gray_ptr;
+
     bin2gray #(
         .WIDTH(ADDR_WIDTH + 1)
     ) ptr_converter (
         .binary(binary_ptr),
-        .gray(gray_ptr)
+        .gray  (w_gray_ptr)
     );
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) gray_ptr <= '0;
+        else        gray_ptr <= w_gray_ptr;
+    end
     
     // Extract address (lower bits of binary counter)
     assign addr = binary_ptr[ADDR_WIDTH-1:0];
 
 endmodule
 ```
+
+> **In real code, do not write this module at all.**
+> [`counter_bingray`](counter_bingray.md) is exactly this block -- binary count
+> and registered Gray count from one `always_ff` -- and it is what
+> `fifo_async` and `gaxi_fifo_async` instantiate. The example above is here to
+> show the *shape*, including the register that makes it safe. Reach for the
+> library module.
 
 ### 2. Clock Domain Crossing Counter
 ```systemverilog
@@ -270,7 +300,15 @@ module rotary_encoder_interface #(
     output logic                        position_changed
 );
 
-    // Convert encoder binary position to Gray
+    // Convert encoder binary position to Gray.
+    //
+    // This example assumes encoder_binary is ALREADY in the clk domain. If it
+    // comes straight off the mechanical encoder it is asynchronous, and
+    // converting it combinationally here then sampling below re-creates the
+    // multi-bit transient (see the rule at the top of this section). For a raw
+    // async encoder, either register encoder_binary in its own domain first, or
+    // -- better -- take the encoder's native Gray output and skip this
+    // conversion entirely, which is why quadrature encoders emit Gray.
     bin2gray #(
         .WIDTH(POSITION_WIDTH)
     ) encoder_conv (

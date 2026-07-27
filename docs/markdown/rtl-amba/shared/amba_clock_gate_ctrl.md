@@ -421,7 +421,10 @@ Dynamic Power Saving ≈ Gating Efficiency × Clock Tree Power
 **Latency Impact:**
 - No added latency when the clock is already ungated (activity present)
 - Activity is registered once (AXI4, AXI5, AXI4-Lite, AXI4-Stream) or twice (APB, APB5,
-  AXI5-Stream) before reaching the ICG enable, which is combinational. This module
+  AXI5-Stream) before reaching the ICG enable, which is combinational. The one
+  exception is `apb_slave_cdc_cg`, which drives this module combinationally
+  (`assign pclk_user_valid = s_apb_PSEL || w_rsp_valid;`) and therefore registers
+  once despite being APB -- 2 clocks to the first usable gated edge, not 3. This module
   contributes the single `r_wakeup` stage; two-stage families add one more in the wrapper.
 - First usable gated-clock rising edge: 2 clocks (single-stage families) or 3 clocks
   (two-stage families) after activity asserts

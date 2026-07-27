@@ -802,10 +802,24 @@ difference is pointer width, not a pipeline stage.)
 
 Both handshakes need the control toggles constrained as bounded crossings, and
 the quasi-static data bus constrained by `set_max_delay`, **not**
-`set_false_path`:
+`set_false_path`.
+
+**The source flop names differ between the two modules**, so the constraints are
+not copy-paste interchangeable. The synchronizer registers (`r_req_sync`,
+`r_ack_sync`) and the data registers (`r_src_data_hold`, `r_dst_data`) are named
+the same in both; only the req/ack source flops differ:
+
+| | 2-phase | 4-phase |
+|---|---|---|
+| request source flop | `r_req_tog` | `r_req_src` |
+| acknowledge source flop | `r_ack_tog` | `r_ack_dst` |
+
+The example below is written for **`cdc_2_phase_handshake`**. For
+`cdc_4_phase_handshake`, substitute per the table (its own RTL header prints the
+constraints with the right names).
 
 ```tcl
-# 1. Req / Ack single-bit crossings
+# 1. Req / Ack single-bit crossings   [2-phase names -- see table above]
 set_max_delay -datapath_only \
     -from [get_pins u_cdc/r_req_tog_reg/C] \
     -to   [get_pins u_cdc/r_req_sync_reg[0]/D] \
