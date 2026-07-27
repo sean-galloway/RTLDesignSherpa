@@ -140,6 +140,20 @@ def call_with_ladder(brief, user, ladder=DEFAULT_LADDER, timeout=3600, log=print
     """
     for i, budget in enumerate(ladder):
         txt, finish, usage, elapsed = call(brief, user, budget, timeout=timeout)
+
+        # A server-side refusal is NOT a budget problem. `engine_overloaded`
+        # (HTTP 429) and friends come back with an empty body, which the ladder
+        # used to read as "reasoning ate the budget" and answer by asking for
+        # MORE tokens -- the one response guaranteed not to help an overloaded
+        # engine, and it burns the remaining rungs before failing the unit.
+        # Case: cdc_part_02 in qc round_5 escalated 32768 -> 65536 -> 131072 on
+        # a 429 and died, losing the unit.
+        if finish in ("engine_overloaded", "server_error", "rate_limited"):
+            raise RuntimeError(
+                f"server refused at {budget} (finish={finish}); this is a transport "
+                f"failure, not a budget one. Re-send the unit with --resume rather "
+                f"than raising max_tokens.")
+
         if txt.strip() and finish != "length":
             return txt, {
                 "finish_reason": finish,

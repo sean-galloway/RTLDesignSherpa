@@ -28,7 +28,7 @@ for one call are pre-split into `parts/part_NN`. Results land in
 `<results>/<mode>-<model>/round_N/` as `<unit>.md` + `<unit>.meta.json`,
 with the inputs snapshotted into `_bundle_snapshot/`.
 
-## The eight rules
+## The nine rules
 
 Each one is here because ignoring it cost real work.
 
@@ -85,7 +85,32 @@ Each one is here because ignoring it cost real work.
    ordering mismatch - and grant order genuinely is a free choice - but the
    same finding also claimed starvation, which was true: two of four agents
    were never served. Triage doc-fix vs RTL-fix per finding before batching.*
-6. **Integration status is MEASURED, never inferred from commit history.**
+6. **Fix EVERY occurrence, not the one the finding quotes.** A reviewer cites one
+   instance; the same wrong claim is usually repeated in the same file, on a
+   sibling page, and in the RTL header comment. Grep the claim, not the quote.
+   *Case: round_4 flagged "any even depth" for Johnson and `johnson2bin` being
+   "registered". Both were fixed at the quoted line. Round_5 found the DEPTH row
+   of the SAME parameter table still saying "any even value", the dependencies
+   list still saying "(registered)", and three more "(registered)" in
+   `rtl/cdc/*.sv` header comments.* Earlier the same round showed the reset and
+   depth claims had been fixed on `apb5_slave_cdc.md` and never propagated to its
+   APB4 sibling, leaving two pages contradicting each other about one FIFO.
+
+   **Verify a fix by reading the result, never by re-running the pattern the fix
+   used.** A `re.sub` that matches nothing raises nothing, so a fix can silently
+   no-op; if the verification grep carries the same assumption, it agrees. *Case:
+   round_4's "dependency direction backwards" fix used a regex with a space where
+   the file had a newline. It matched nothing, the verification grep used the
+   same pattern and also matched nothing, and I reported FIXED. Round_5 found the
+   identical sentence untouched.* Read the file back, or assert on the NEW text
+   being present -- an assertion that fails when the edit did not apply.
+
+   The corollary: **a partial fix costs a whole extra round.** Round_5 found MORE
+   on its unit than round_4 did (11 vs 8), and three of those eleven were my own
+   incomplete work -- including a contradiction I created by correcting a latency
+   table and leaving the Overview promising the opposite.
+
+7. **Integration status is MEASURED, never inferred from commit history.**
    Before claiming a round is integrated, check the findings against the tree.
    Cheap first pass: for every file a round implicates, has it been committed
    since the round date? Then spot-check two or three findings against the RTL
@@ -97,7 +122,7 @@ Each one is here because ignoring it cost real work.
    confirmed defects. Measured: round_2 had 1 of 102 implicated files touched
    since review, round_3 had 0 of 31 - nothing was integrated.* A
    reconcile-shaped commit message is not evidence.
-7. **Verify a fix with a clean rebuild, and mutation-check the test.** "It
+8. **Verify a fix with a clean rebuild, and mutation-check the test.** "It
    passes now" is worth nothing on its own; two silent-pass modes make a green
    run look like proof when it is not.
 
@@ -113,7 +138,7 @@ Each one is here because ignoring it cost real work.
      cornered.* Revert the fix, confirm the test goes RED, restore. An
      assertion that never fails on the bug it was written for is decoration.
      See [[randomization]] and [[formal]].
-8. **Sweep the area's meta-docs, not just its module pages.** A Kimi bundle is
+9. **Sweep the area's meta-docs, not just its module pages.** A Kimi bundle is
    module docs plus RTL, so it never sees the area's `README.md` / `PRD.md` /
    `overview.md` - and those rot hardest, because a structural change updates
    the RTL and leaves the summary behind. When reviewing an area, audit them by
