@@ -78,6 +78,7 @@ module gaxi_fifo_async #(
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
+| `MEM_STYLE` | `FIFO_AUTO` | Memory implementation: `FIFO_AUTO` / `FIFO_SRL` / `FIFO_BRAM`. The BRAM branch registers the read path -- a registered read even when `REGISTERED=0` |
 | `REGISTERED` | 0 | 0=mux mode, 1=flop mode (read path) |
 | `DATA_WIDTH` | 8 | Data bus width |
 | `DEPTH` | 16 | FIFO depth. Power of 2 with Gray pointers; **any** depth -- odd included -- with `USE_JOHNSON=1` |
@@ -87,6 +88,14 @@ module gaxi_fifo_async #(
 | `ALMOST_RD_MARGIN` | 1 | Almost empty threshold |
 
 **⚠️ Important:** Set `N_FLOP_CROSS=3` for production designs to ensure metastability protection.
+
+The RTL also declares five derived parameters after these -- `DW`, `D`, `AW`,
+`JCW`, `N`. They are aliases (`DW = DATA_WIDTH`, `AW = $clog2(DEPTH)`,
+`JCW = D`, `N = N_FLOP_CROSS`), not independent knobs. SystemVerilog lets you
+override them, but doing so decouples a port width from the storage that backs
+it: override `DW` alone and the ports widen while the memory stays narrow, and
+the FIFO silently drops the upper bits of every entry. Set `DATA_WIDTH`, not
+`DW`.
 
 ---
 

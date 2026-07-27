@@ -737,5 +737,5 @@ This matches the generated RTL, whose stage comments read
 
 ## Navigation
 
-- **[← Back to rtl-common Index](index.md)**
+- **[← Back to Math Index](index.md)**
 - **[← Back to Main Documentation Index](../index.md)**

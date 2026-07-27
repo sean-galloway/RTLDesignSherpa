@@ -499,7 +499,7 @@ The waveforms highlight the unique properties that make Johnson counters useful:
 Johnson counters are the foundation of the `fifo_async` `USE_JOHNSON=1` CDC mechanism:
 - **fifo_async with USE_JOHNSON=1** uses Johnson counters for pointer synchronization
 - Single-bit transitions enable safe clock domain crossing
-- Linear width scaling (DEPTH bits) allows flexible even depths
+- Linear width scaling (DEPTH bits) allows any depth, odd included
 
 **Comparison with Other Counters:**
 
@@ -529,5 +529,5 @@ pytest val/cdc/test_counter_johnson_wavedrom.py -v
 
 ## Navigation
 
-- **[← Back to rtl-common Index](index.md)**
+- **[← Back to CDC Index](index.md)**
 - **[← Back to Main Documentation Index](../index.md)**

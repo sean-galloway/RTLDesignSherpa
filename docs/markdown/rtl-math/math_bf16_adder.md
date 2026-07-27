@@ -477,5 +477,5 @@ if (ow_valid && !ow_invalid && !ow_overflow)
 
 ## Navigation
 
-- **[<- Back to rtl-common Index](index.md)**
+- **[<- Back to Math Index](index.md)**
 - **[<- Back to Main Documentation Index](../index.md)**

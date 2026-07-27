@@ -78,8 +78,8 @@
 //------------------------------------------------------------------------------
 // Test:
 //------------------------------------------------------------------------------
-//   Location: val/common/test_math_bf16_to_int.py
-//   Run: pytest val/common/test_math_bf16_to_int.py -v
+//   Location: val/math/test_math_bf16_to_int.py
+//   Run: pytest val/math/test_math_bf16_to_int.py -v
 //
 //==============================================================================
 module math_bf16_to_int (

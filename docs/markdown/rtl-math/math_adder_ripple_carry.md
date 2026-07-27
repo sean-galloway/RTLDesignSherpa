@@ -514,5 +514,5 @@ math_adder_ripple_carry #(.N(8)) u3 (.i_a(sum2), .i_b(d), .ow_sum(sum3), ...);
 
 ## Navigation
 
-- **[← Back to rtl-common Index](index.md)**
+- **[← Back to Math Index](index.md)**
 - **[← Back to Main Documentation Index](../index.md)**

@@ -243,4 +243,4 @@ partial regen creates silent interface mismatches. Do not hand-edit a
 
 ## Navigation
 
-- [Back to rtl-common Index](index.md)
+- [Back to Math Index](index.md)

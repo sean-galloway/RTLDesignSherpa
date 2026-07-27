@@ -569,9 +569,11 @@ duplicated per domain and again per synchronizer stage. That is the entire
 argument for Gray being the default -- and equally, why Johnson stays viable only
 at the modest depths where non-power-of-2 sizing actually matters.
 
-What Johnson buys for that width is the freedom to stop at any even count: its
-`2N` progression lands on 6, 10, 14 just as naturally as 8 or 16, whereas Gray's
-`2**N` can only land on powers of two.
+What Johnson buys for that width is the freedom to stop at any count at all: its
+`2N` progression lands on 6, 10, 14 -- and on 21 or 36 -- just as naturally as on
+8 or 16, whereas Gray's `2**N` can only land on powers of two. Odd depths are
+legal too; the "even only" restriction is stale language from the retired
+`fifo_async_div2`, and the only elaboration check in the RTL fires on Gray.
 
 ### Sizing the depth
 
@@ -593,9 +595,11 @@ so Johnson imposes no restriction at all.
 
 One term the formula above leaves out: the full flag does not track the true
 fill level instantly. It is derived from a pointer that has been synchronised
-into the write domain, so it lags real reads by `N_FLOP_CROSS` write clocks.
-Production sizing therefore adds `N_FLOP_CROSS` slots on top of the raw depth --
-two for the default synchroniser, three if you have configured a third stage.
+into the write domain AND then registered, so it lags real reads by
+`N_FLOP_CROSS + 1` write clocks -- the synchroniser stages plus the flop on
+`wr_full` itself in `fifo_control`. Production sizing therefore adds
+`N_FLOP_CROSS + 1` slots on top of the raw depth -- three for the default
+two-stage synchroniser, four if you have configured a third stage.
 The worked example below shows the raw depth only, so that it lines up with the
 storage-overhead tables that follow; add the margin before committing to a
 number.
@@ -639,9 +643,10 @@ entirely on how the array is implemented -- see the walkthrough below, which is
 the case most people actually hit.
 
 Add margin for synchronizer latency if you are near the safe depth -- the
-backpressure to the writer lags real fill level by `N_FLOP_CROSS` write clocks.
+backpressure to the writer lags real fill level by `N_FLOP_CROSS + 1` write
+clocks (the synchroniser stages, plus the registered flag).
 
-### Walkthrough: is an even-depth FIFO worth it at 512 bits?
+### Walkthrough: is a non-power-of-2 FIFO worth it at 512 bits?
 
 This is the question that motivates `USE_JOHNSON`, and the honest answer is
 "sometimes" -- the naive 38% figure above is frequently zero in practice. Work it
@@ -661,7 +666,7 @@ depth >= 96 * (1 - 200/250) = 96 * 0.2 = 19.2  ->  20 words
 | Encoding | Legal depth | Chosen | Entries wasted |
 |----------|-------------|--------|----------------|
 | Gray (`USE_JOHNSON=0`) | power of 2 | 32 | 12 |
-| Johnson (`USE_JOHNSON=1`) | any even | 20 | 0 |
+| Johnson (`USE_JOHNSON=1`) | any depth | 20 | 0 |
 
 : 512-bit walkthrough: depth after applying the encoding constraint
 
@@ -730,7 +735,7 @@ Everything in Step 5 above is an FPGA argument. SRL32 and BRAM have a fixed step
 size, and that step size is what absorbs the rounding and erases Johnson's
 advantage. On an ASIC there is no such step: both **register files** and
 **compiled SRAM** are generated to a requested word count, and every memory
-compiler in common use accepts an even depth. So the depth you compute is the
+compiler in common use takes the word count as an argument. So the depth you compute is the
 depth you instantiate, and an odd rounding to the next power of two is pure
 wasted silicon rather than something a primitive was going to charge you for
 anyway.
@@ -766,13 +771,13 @@ Johnson costs about **+174 flops** to save **14 336 memory bits** -- roughly an
 **Which ASIC memory style.** At depth 36 both are available, and the choice is
 about aspect ratio rather than about the encoding:
 
-| Style | Even depth? | Fit at 36 x 512 |
+| Style | Arbitrary depth? | Fit at 36 x 512 |
 |-------|-------------|-----------------|
 | Flop array | Yes, no granularity at all | Works, but 18 432 flops is a lot of area and a synthesis burden |
 | Register file | Yes, word count is a compiler argument | Good fit. Shallow and wide is what register files are for |
 | Compiled SRAM | Yes, word count is a compiler argument | Works, but 36 words is shallow for SRAM; check the compiler's minimum depth and its area per bit at this aspect ratio |
 
-: Depth-36 case: ASIC memory styles, all of which accept an even depth
+: Depth-36 case: ASIC memory styles, all of which take the word count as an argument
 
 The practical answer at this shape is usually a register file: it takes depth 36
 directly, it is denser than a flop array, and it avoids the periphery overhead
@@ -914,5 +919,5 @@ variant.
 
 ## Navigation
 
-- [Back to CDC Index](../../../README.md)
-- [Back to rtl-amba Index](../index.md)
+- [← Back to CDC Index](index.md)
+- [← Back to Main Documentation Index](../index.md)

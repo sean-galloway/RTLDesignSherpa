@@ -129,8 +129,8 @@
 //------------------------------------------------------------------------------
 // Test:
 //------------------------------------------------------------------------------
-//   Location: val/common/test_dataint_ecc_hamming_encode_secded.py
-//   Run: pytest val/common/test_dataint_ecc_hamming_encode_secded.py -v
+//   Location: val/common/test_dataint_ecc_hamming_secded.py
+//   Run: pytest val/common/test_dataint_ecc_hamming_secded.py -v
 //   Coverage: 87%
 //   Key Test Scenarios:
 //     - Various data widths (4, 8, 16, 32, 64)

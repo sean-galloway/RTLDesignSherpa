@@ -485,5 +485,5 @@ assign result = {1'b0, sum_vec} + {1'b0, carry_vec};
 
 ## Navigation
 
-- **[← Back to rtl-common Index](index.md)**
+- **[← Back to Math Index](index.md)**
 - **[← Back to Main Documentation Index](../index.md)**

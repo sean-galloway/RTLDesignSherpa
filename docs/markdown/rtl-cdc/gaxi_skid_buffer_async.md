@@ -304,8 +304,11 @@ pytest val/cdc/test_gaxi_buffer_async.py -k "skid" -k "wr10_rd20" -v
 **Symptom:** Data takes longer than expected
 
 **Explanation:**
-- Total latency = skid buffer + async FIFO CDC
-- Minimum ~3-5 cycles even when empty
+- Total latency = skid buffer (1 write clock) + async FIFO CDC (3-5 cycles)
+- Minimum 4-6 cycles even when empty -- see the latency table above, which is
+  where this number comes from
+- There is no zero-latency bypass: `gaxi_skid_buffer` registers its handshake
+  outputs, so the skid hop always costs a write clock
 - This is inherent to CDC design
 
 ---

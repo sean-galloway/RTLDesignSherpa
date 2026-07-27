@@ -89,7 +89,7 @@
 //------------------------------------------------------------------------------
 // Test:
 //------------------------------------------------------------------------------
-//   Location: val/common/test_fifo_control.py (tested via fifo_async* tests)
+//   Location: val/common/test_fifo_sync_wavedrom.py (tested via fifo_async* tests)
 //   Run: pytest val/common/test_fifo_async*.py -v
 //
 //==============================================================================

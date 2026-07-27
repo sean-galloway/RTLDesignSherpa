@@ -316,5 +316,5 @@ pytest val/cdc/test_fifo_async_wavedrom.py -v
 
 ## Navigation
 
-- **[← Back to rtl-common Index](index.md)**
+- **[← Back to CDC Index](index.md)**
 - **[← Back to Main Documentation Index](../index.md)**

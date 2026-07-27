@@ -62,8 +62,8 @@
 //------------------------------------------------------------------------------
 // Test:
 //------------------------------------------------------------------------------
-//   Location: val/common/test_math_bf16_divider.py
-//   Run: pytest val/common/test_math_bf16_divider.py -v
+//   Location: val/math/test_math_bf16_divider.py
+//   Run: pytest val/math/test_math_bf16_divider.py -v
 //
 //==============================================================================
 module math_bf16_divider (

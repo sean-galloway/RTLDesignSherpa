@@ -281,8 +281,8 @@
 //------------------------------------------------------------------------------
 // Test:
 //------------------------------------------------------------------------------
-//   Location: val/common/test_fifo_sync.py
-//   Run: pytest val/common/test_fifo_sync.py -v
+//   Location: val/common/test_fifo_sync_wavedrom.py
+//   Run: pytest val/common/test_fifo_sync_wavedrom.py -v
 //   Coverage: 96%
 //   Key Test Scenarios:
 //     - Basic write/read operations

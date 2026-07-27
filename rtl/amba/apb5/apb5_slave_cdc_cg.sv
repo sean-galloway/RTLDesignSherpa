@@ -113,7 +113,11 @@ module apb5_slave_cdc_cg #(
     // Wake-up control (aclk domain)
     input  logic              wakeup_request,
 
-    // Parity error flags (aclk domain, active when ENABLE_PARITY=1)
+    // Parity error flags (GATED-pclk domain -- NOT aclk. apb5_slave drives
+    // these combinationally from PSEL/PENABLE and they cross no
+    // synchronizer, so in this wrapper they live in the gated pclk domain
+    // and are valid only during an APB access phase. Active when
+    // ENABLE_PARITY=1.)
     output logic              parity_error_wdata,
     output logic              parity_error_ctrl,
 

@@ -19,7 +19,9 @@
 `include "reset_defs.svh"
 
 
-// Paramerized Asynchronous FIFO -- This works for any even depth
+// Parameterized Asynchronous FIFO -- any DEPTH with Johnson pointers
+// (USE_JOHNSON=1), power-of-2 DEPTH with Gray (USE_JOHNSON=0). "Any even
+// depth" was stale language from the retired fifo_async_div2.
 module gaxi_fifo_async #(
     parameter fifo_mem_t MEM_STYLE = FIFO_AUTO,
     parameter int        REGISTERED       = 0,   // 0 = mux mode, 1 = flop mode

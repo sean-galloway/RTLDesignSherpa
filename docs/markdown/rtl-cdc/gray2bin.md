@@ -241,14 +241,37 @@ end
 
 ### Property-Based Verification
 ```systemverilog
-// Verify round-trip conversion
-property round_trip;
-    @(posedge clk) 
-    binary_output == original_binary;
-endproperty
+// gray2bin is purely combinational -- no clock port, so there is no clocking
+// event for a concurrent assertion to sample. Use IMMEDIATE assertions in an
+// always_comb block, the same shape bin2gray.md uses: they re-evaluate whenever
+// an input settles, need no clock, and hold under simulation and formal alike.
+//
+// The checker declares PORTS. Binding one with no ports via `(.*)` connects
+// nothing, and every assertion then evaluates silently on X.
 
-// Apply after binary→Gray→binary conversion
-assert property (round_trip);
+module gray2bin_properties #(
+    parameter int WIDTH = 4
+) (
+    input logic [WIDTH-1:0] gray,
+    input logic [WIDTH-1:0] binary
+);
+
+    function automatic logic [WIDTH-1:0] gray_encode(input logic [WIDTH-1:0] bin);
+        gray_encode = bin ^ (bin >> 1);
+    endfunction
+
+    always_comb begin
+        // MSB passes through unchanged
+        a_msb_unchanged: assert (binary[WIDTH-1] == gray[WIDTH-1]);
+
+        // Round trip: re-encoding the output reproduces the input
+        a_round_trip: assert (gray_encode(binary) == gray);
+    end
+
+endmodule
+
+// Bind at the point of use, OUTSIDE the checker.
+bind gray2bin gray2bin_properties #(.WIDTH(WIDTH)) u_props (.*);
 ```
 
 ### Random Testing
@@ -307,5 +330,5 @@ binary_out <= converted_value;
 
 ## Navigation
 
-- **[← Back to rtl-common Index](index.md)**
+- **[← Back to CDC Index](index.md)**
 - **[← Back to Main Documentation Index](../index.md)**

@@ -519,5 +519,5 @@ math_adder_full fa1 (..., .i_c(w_c[0]), .ow_carry(w_c[1]));
 
 ## Navigation
 
-- **[← Back to rtl-common Index](index.md)**
+- **[← Back to Math Index](index.md)**
 - **[← Back to Main Documentation Index](../index.md)**

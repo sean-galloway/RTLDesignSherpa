@@ -236,13 +236,13 @@
 //   - Verify timing closure in implementation reports
 //
 //   **Common FPGA Mistakes:**
-//   1. ❌ Not registering Gray output before CDC
+//   1. BAD:  Not registering Gray output before CDC
 //      → Timing violations, metastability risk
-//   2. ❌ Using Gray code for arithmetic operations
+//   2. BAD:  Using Gray code for arithmetic operations
 //      → Must convert back to binary first!
-//   3. ❌ Assuming Gray code is "free" timing-wise
+//   3. BAD:  Assuming Gray code is "free" timing-wise
 //      → XOR delays add up, especially for wide buses
-//   4. ❌ Not pairing with gray2bin after synchronization
+//   4. BAD:  Not pairing with gray2bin after synchronization
 //      → Destination gets garbage values
 //
 //   **When to Use Vendor IP Instead:**
@@ -281,8 +281,8 @@
 //------------------------------------------------------------------------------
 // Test:
 //------------------------------------------------------------------------------
-//   Location: val/common/test_bin2gray.py
-//   Run: pytest val/common/test_bin2gray.py -v
+//   Location: val/cdc/test_bin2gray.py
+//   Run: pytest val/cdc/test_bin2gray.py -v
 //   Coverage: 100%
 //   Key Test Scenarios:
 //     - All input values (exhaustive for small widths)

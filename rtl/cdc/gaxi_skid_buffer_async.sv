@@ -25,7 +25,7 @@ module gaxi_skid_buffer_async #(
     parameter int DEPTH         = 2,
     // Pointer CDC encoding, forwarded to the internal gaxi_fifo_async.
     //   0 = Gray (default)  -- requires a power-of-2 DEPTH
-    //   1 = Johnson         -- any even DEPTH
+    //   1 = Johnson         -- any DEPTH, odd included
     // Must be exposed here: a wrapper that hides it cannot be built at a
     // non-power-of-2 depth, because the inner FIFO rejects that under Gray.
     parameter int USE_JOHNSON   = 0,

@@ -168,5 +168,5 @@ PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rt
 
 ## Navigation
 
-- **[Back to rtl-common Index](index.md)**
+- **[Back to Math Index](index.md)**
 - **[Back to Main Documentation Index](../index.md)**

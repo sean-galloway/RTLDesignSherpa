@@ -100,19 +100,19 @@
 //      - Syndrome points to error bit position
 //      - Flip bit at syndrome position to correct
 //      - error_detected = 1, double_error_detected = 0
-//      - ✅ CORRECTABLE
+//      - GOOD: CORRECTABLE
 //
 //   3. **Single-bit Error in SECDED Bit (syndrome=0, parity mismatch)**
 //      - Error is in overall parity bit itself
 //      - Data is correct, no correction needed
 //      - error_detected = 1, double_error_detected = 0
-//      - ✅ DETECTABLE (data unaffected)
+//      - GOOD: DETECTABLE (data unaffected)
 //
 //   4. **Double-bit Error (syndrome≠0, parity match)**
 //      - Syndrome is non-zero but parity matches (even errors)
 //      - Cannot reliably correct (multiple bit corruption)
 //      - error_detected = 1, double_error_detected = 1
-//      - ❌ UNCORRECTABLE (flag for upper layer handling)
+//      - BAD:  UNCORRECTABLE (flag for upper layer handling)
 //
 //   Error Correction Example (WIDTH=4):
 //   Received:  [7] [6] [5] [4] [3] [2] [1] [0]
@@ -133,7 +133,7 @@
 //   Correction:
 //   Flip bit[1]: 0 → 1
 //   Corrected: [7] [6] [5] [4] [3] [2] [1] [0]
-//              1   0   1   0   0   1   1   0  ✅
+//              1   0   1   0   0   1   1   0  GOOD:
 //
 //   Error Detection Table:
 //   | Syndrome | Overall Parity | Error Type | Action |
@@ -220,8 +220,8 @@
 //------------------------------------------------------------------------------
 // Test:
 //------------------------------------------------------------------------------
-//   Location: val/common/test_dataint_ecc_hamming_decode_secded.py
-//   Run: pytest val/common/test_dataint_ecc_hamming_decode_secded.py -v
+//   Location: val/common/test_dataint_ecc_hamming_secded.py
+//   Run: pytest val/common/test_dataint_ecc_hamming_secded.py -v
 //   Coverage: 91%
 //   Key Test Scenarios:
 //     - No error (clean data passes through)

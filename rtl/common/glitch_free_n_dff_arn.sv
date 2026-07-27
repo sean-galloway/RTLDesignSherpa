@@ -44,7 +44,7 @@
 //     Default: 3
 //     Constraints: FLOP_COUNT=2 (minimum CDC), FLOP_COUNT=3 (recommended)
 //                  FLOP_COUNT≥4 (ultra-high-reliability applications)
-//                  Higher count reduces MTBF but increases latency
+//                  Higher count increases MTBF and increases latency
 //
 //   WIDTH:
 //     Description: Bus width (number of parallel data bits)
@@ -72,7 +72,9 @@
 //   Latency:        FLOP_COUNT clock cycles
 //   Clock-to-Q:     Standard flip-flop delay
 //   Metastability:  Exponentially reduced with each stage
-//   MTBF:           > 10^12 hours for FLOP_COUNT=3 at 100MHz
+//   MTBF:           device-dependent -- see the formula below. Absolute
+//                   figures require your vendor's tau/T0; the reliable
+//                   statement is ~1000x per added stage.
 //   Throughput:     N/A (quasi-static signals only, not for data streams)
 //
 //------------------------------------------------------------------------------
@@ -155,16 +157,16 @@
 //   MTBF ≈ 10^15 hours (safe for mission-critical systems)
 //
 //   When to Use This Module:
-//   ✅ Control signals (enable, mode select, configuration)
-//   ✅ Status flags (interrupt, error conditions)
-//   ✅ Quasi-static data (changes infrequently, stable when sampled)
-//   ✅ Clock domain crossing from slow → fast domain
+//   GOOD: Control signals (enable, mode select, configuration)
+//   GOOD: Status flags (interrupt, error conditions)
+//   GOOD: Quasi-static data (changes infrequently, stable when sampled)
+//   GOOD: Clock domain crossing from slow → fast domain
 //
 //   When NOT to Use This Module:
-//   ❌ High-speed data streams (use async FIFO instead)
-//   ❌ Counters/pointers without gray code (will corrupt multi-bit values)
-//   ❌ Single-cycle pulses (use sync_pulse.sv instead)
-//   ❌ Fully synchronous paths (no CDC needed)
+//   BAD:  High-speed data streams (use async FIFO instead)
+//   BAD:  Counters/pointers without gray code (will corrupt multi-bit values)
+//   BAD:  Single-cycle pulses (use sync_pulse.sv instead)
+//   BAD:  Fully synchronous paths (no CDC needed)
 //
 //------------------------------------------------------------------------------
 // Usage Example:
@@ -245,8 +247,11 @@
 //
 //   **MTBF Calculation for FPGA:**
 //   - Modern FPGAs: τ (metastability constant) ≈ 100-200ps (7-series, UltraScale)
-//   - FLOP_COUNT=2: MTBF ≈ 10^6 hours (acceptable for low-speed control)
-//   - FLOP_COUNT=3: MTBF ≈ 10^12+ hours (industry standard, recommended)
+//   - FLOP_COUNT=2: MTBF ~ 10^6 hours (acceptable for low-speed control)
+//   - FLOP_COUNT=3: MTBF ~ 10^12+ hours (industry standard, recommended)
+//   These two figures are ILLUSTRATIVE at the tau above and the conditions in
+//   the example; they are not a property of this module. Recompute with your
+//   own device data before quoting an absolute number.
 //   - FLOP_COUNT≥4: Ultra-reliable for safety-critical (aerospace, medical)
 //   - MTBF improves exponentially with each stage added
 //

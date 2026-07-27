@@ -800,6 +800,50 @@ module tb_clock_pulse;
         end
     endtask
     
+    // Test reset behavior -- the two consequences of the registered pulse
+    task test_reset_behavior();
+        int pulses_during_reset = 0;
+        int cycles_to_first_pulse = 0;
+        begin
+            $display("Testing reset behavior...");
+
+            // Line the counter up so a pulse is due, then assert reset in
+            // exactly that cycle. Reset forces pulse <= 0, so that pulse is
+            // swallowed and never appears.
+            repeat (WIDTH - 1) @(posedge clk);
+            rst_n = 0;
+            repeat (WIDTH * 2) begin
+                @(posedge clk);
+                if (pulse) pulses_during_reset++;
+            end
+            if (pulses_during_reset == 0) begin
+                $display("PASS: no pulse while reset is asserted");
+            end else begin
+                $error("FAIL: %0d pulse(s) during reset", pulses_during_reset);
+            end
+
+            // Recovery costs a full period: the counter restarts from 0, so the
+            // first pulse lands one cycle AFTER it next reaches WIDTH-1.
+            @(negedge clk);
+            rst_n = 1;
+            forever begin
+                @(posedge clk);
+                cycles_to_first_pulse++;
+                if (pulse) break;
+                if (cycles_to_first_pulse > WIDTH * 2) begin
+                    $error("FAIL: no pulse within two periods of reset release");
+                    break;
+                end
+            end
+            if (cycles_to_first_pulse == WIDTH) begin
+                $display("PASS: first pulse %0d cycles after release", WIDTH);
+            end else begin
+                $error("FAIL: expected first pulse at cycle %0d, got %0d",
+                       WIDTH, cycles_to_first_pulse);
+            end
+        end
+    endtask
+    
     // Test timing accuracy
     task test_timing_accuracy();
         time pulse_times[10];

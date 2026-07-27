@@ -142,12 +142,24 @@ a result derived from this formula. Use the formula only with real `τ`/`T₀`
 values for your target device; otherwise rely on the table for sizing.
 
 ### Stage Count Impact
-| Stages | Relative MTBF | Typical MTBF |
-|--------|---------------|--------------|
-| 1      | 1× (baseline) | Minutes      |
-| 2      | ~1000× | Hours        |
-| 3      | ~1,000,000× | Years        |
-| 4      | ~1,000,000,000× | Millennia    |
+| Stages | Relative MTBF |
+|--------|---------------|
+| 1      | 1x (baseline) |
+| 2      | ~1000x |
+| 3      | ~1,000,000x |
+| 4      | ~1,000,000,000x |
+
+**Relative only, and deliberately so.** This table used to carry an absolute
+column -- Minutes / Hours / Years / Millennia -- with no stated basis, and it
+disagreed with this module's own RTL header (which claims ~10^6 hours at
+FLOP_COUNT=2, about 114 years, where the table said "Hours") by roughly eight
+orders of magnitude. Both figures were unsourced, so neither could be trusted
+and the column is gone.
+
+An absolute MTBF is a property of your device and your clock, not of this
+module. If you need one, put your vendor's `tau` and `T0` into the formula above
+with your real `f_clk` and `f_data`. If you do not have those numbers, use the
+relative column for sizing and do not quote an absolute figure to anyone.
 
 ### Practical Guidelines
 - **2 stages**: Minimum for most applications

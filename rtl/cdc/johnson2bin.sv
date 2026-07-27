@@ -70,16 +70,16 @@
 //   **When to Use Johnson Code vs Standard Gray Code:**
 //
 //   Use Johnson Counter (this module):
-//   ✅ When FIFO depth is NOT a power of 2
-//   ✅ When you need exactly 2*JCW states (odd depths)
-//   ✅ fifo_async.sv / gaxi_fifo_async.sv use this at USE_JOHNSON=1 for flexible depths
-//   ✅ Lower resource count in FIFO (no extra address bit)
+//   GOOD: When FIFO depth is NOT a power of 2
+//   GOOD: When you need exactly 2*JCW states (odd depths)
+//   GOOD: fifo_async.sv / gaxi_fifo_async.sv use this at USE_JOHNSON=1 for flexible depths
+//   GOOD: Lower resource count in FIFO (no extra address bit)
 //
 //   Use Standard Gray Code (gray2bin.sv):
-//   ✅ When FIFO depth IS a power of 2
-//   ✅ Simpler conversion logic (faster, smaller)
-//   ✅ fifo_async.sv uses this for power-of-2 depths
-//   ✅ Better understood / more common pattern
+//   GOOD: When FIFO depth IS a power of 2
+//   GOOD: Simpler conversion logic (faster, smaller)
+//   GOOD: fifo_async.sv uses this for power-of-2 depths
+//   GOOD: Better understood / more common pattern
 //
 //   **Comparison Table:**
 //
@@ -213,15 +213,15 @@
 //   - Monitor leading_one_trailing_one outputs for debug
 //
 //   **Common FPGA Mistakes:**
-//   1. ❌ Not registering binary output before use
+//   1. BAD:  Not registering binary output before use
 //      → Timing violations on memory address paths
-//   2. ❌ Using Johnson code for power-of-2 depths
+//   2. BAD:  Using Johnson code for power-of-2 depths
 //      → Unnecessary complexity, use standard Gray code instead
-//   3. ❌ Forgetting that conversion is slower than gray2bin
+//   3. BAD:  Forgetting that conversion is slower than gray2bin
 //      → Timing violations, especially for wide JCW
-//   4. ❌ Not synchronizing Johnson code before conversion
+//   4. BAD:  Not synchronizing Johnson code before conversion
 //      → Metastability in priority encoders → corrupted addresses
-//   5. ❌ Assuming Johnson code is "free" timing-wise
+//   5. BAD:  Assuming Johnson code is "free" timing-wise
 //      → Priority encoder delays add up, especially for wide buses
 //
 //   **When to Use Vendor IP Instead:**
@@ -285,8 +285,8 @@
 //------------------------------------------------------------------------------
 // Test:
 //------------------------------------------------------------------------------
-//   Location: val/common/test_johnson2bin.py
-//   Run: pytest val/common/test_johnson2bin.py -v
+//   Location: val/cdc/test_johnson2bin.py
+//   Run: pytest val/cdc/test_johnson2bin.py -v
 //
 //==============================================================================
 module johnson2bin #(

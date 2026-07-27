@@ -69,8 +69,8 @@
 //------------------------------------------------------------------------------
 // Test:
 //------------------------------------------------------------------------------
-//   Location: val/common/test_math_bf16_max_tree.py
-//   Run: pytest val/common/test_math_bf16_max_tree.py -v
+//   Location: val/math/test_math_bf16_max_tree.py
+//   Run: pytest val/math/test_math_bf16_max_tree.py -v
 //
 //==============================================================================
 module math_bf16_max_tree #(

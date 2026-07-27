@@ -309,8 +309,8 @@
 //------------------------------------------------------------------------------
 // Test:
 //------------------------------------------------------------------------------
-//   Location: val/common/test_fifo_buffer_async.py
-//   Run: pytest val/common/test_fifo_buffer_async.py -v
+//   Location: val/cdc/test_fifo_buffer_async.py
+//   Run: pytest val/cdc/test_fifo_buffer_async.py -v
 //   Coverage: 93%
 //   Key Test Scenarios:
 //     - Write/read with different clock frequencies
@@ -491,20 +491,20 @@
 //   **When to Use Vendor FIFO IP Instead:**
 //
 //   Use Xilinx FIFO Generator or Intel DCFIFO when:
-//   ✅ DEPTH > 1024 (vendor IP better optimized for large FIFOs)
-//   ✅ Need built-in ECC (error correction) for BRAM
-//   ✅ Need built-in error flags (prog_full, prog_empty with configurable thresholds)
-//   ✅ Need first-word fall-through (FWFT) mode
-//   ✅ Need data count outputs (how many entries in FIFO)
-//   ✅ Maximum performance required (vendor IP hand-tuned for their FPGA)
+//   GOOD: DEPTH > 1024 (vendor IP better optimized for large FIFOs)
+//   GOOD: Need built-in ECC (error correction) for BRAM
+//   GOOD: Need built-in error flags (prog_full, prog_empty with configurable thresholds)
+//   GOOD: Need first-word fall-through (FWFT) mode
+//   GOOD: Need data count outputs (how many entries in FIFO)
+//   GOOD: Maximum performance required (vendor IP hand-tuned for their FPGA)
 //
 //   Use this custom fifo_async when:
-//   ✅ Need portable code (same RTL works on Xilinx, Intel, Lattice, etc.)
-//   ✅ DEPTH ≤ 256 (custom FIFO is simpler and just as fast)
-//   ✅ Educational or research project (want to understand internals)
-//   ✅ Need fine control over CDC methodology (custom N_FLOP_CROSS, etc.)
-//   ✅ Vendor IP is overkill for simple application
-//   ✅ Want to avoid vendor lock-in
+//   GOOD: Need portable code (same RTL works on Xilinx, Intel, Lattice, etc.)
+//   GOOD: DEPTH ≤ 256 (custom FIFO is simpler and just as fast)
+//   GOOD: Educational or research project (want to understand internals)
+//   GOOD: Need fine control over CDC methodology (custom N_FLOP_CROSS, etc.)
+//   GOOD: Vendor IP is overkill for simple application
+//   GOOD: Want to avoid vendor lock-in
 //
 //   **Comparison: Custom vs Vendor IP (DEPTH=256, DATA_WIDTH=32):**
 //
@@ -513,13 +513,13 @@
 //   Resource (LUTs)          | ~100 LUTs         | ~120 LUTs       | ~110 LUTs
 //   Resource (BRAMs)         | 1 BRAM            | 1 BRAM          | 1 M20K
 //   Fmax (typical)           | ~400 MHz          | ~450 MHz        | ~350 MHz
-//   Portability              | ✅ Portable        | ❌ Xilinx only   | ❌ Intel only
-//   ECC support              | ❌ No              | ✅ Optional      | ✅ Optional
-//   Data count output        | ❌ No              | ✅ Yes           | ✅ Yes
-//   Prog full/empty          | ✅ Almost flags    | ✅ Configurable  | ✅ Configurable
-//   FWFT mode                | ❌ No              | ✅ Yes           | ✅ Yes
-//   Customizability          | ✅ Full source     | ⚠️ Parameters   | ⚠️ Parameters
-//   Simulation speed         | ✅ Fast (simple)   | ⚠️ Slower (IP)  | ⚠️ Slower (IP)
+//   Portability              | GOOD: Portable        | BAD:  Xilinx only   | BAD:  Intel only
+//   ECC support              | BAD:  No              | GOOD: Optional      | GOOD: Optional
+//   Data count output        | BAD:  No              | GOOD: Yes           | GOOD: Yes
+//   Prog full/empty          | GOOD: Almost flags    | GOOD: Configurable  | GOOD: Configurable
+//   FWFT mode                | BAD:  No              | GOOD: Yes           | GOOD: Yes
+//   Customizability          | GOOD: Full source     | NOTE: Parameters   | NOTE: Parameters
+//   Simulation speed         | GOOD: Fast (simple)   | NOTE: Slower (IP)  | NOTE: Slower (IP)
 //
 //   **Verification on FPGA:**
 //   - Use ILA (Xilinx) or SignalTap (Intel) to capture:
@@ -534,35 +534,35 @@
 //   - Stress test with clock frequency sweep (vary wr_clk and rd_clk)
 //
 //   **Common FPGA Mistakes:**
-//   1. ❌ **Using non-power-of-2 DEPTH**
+//   1. BAD:  **Using non-power-of-2 DEPTH**
 //      → Pointer wraparound logic breaks, data corruption guaranteed!
 //      → Set USE_JOHNSON=1 for non-power-of-2 depths
 //
-//   2. ❌ **Not constraining Gray code CDC paths**
+//   2. BAD:  **Not constraining Gray code CDC paths**
 //      → Timing violations → metastability → corrupted pointers → data loss
 //      → Always use set_max_delay for Gray code synchronizers!
 //
-//   3. ❌ **Assuming full/empty flags update instantly**
+//   3. BAD:  **Assuming full/empty flags update instantly**
 //      → Flags lag by N_FLOP_CROSS cycles due to pointer synchronization
 //      → Design must tolerate this latency (provision extra FIFO margin)
 //
-//   4. ❌ **Not setting N_FLOP_CROSS appropriately**
+//   4. BAD:  **Not setting N_FLOP_CROSS appropriately**
 //      → N_FLOP_CROSS=2 may have insufficient MTBF for production
 //      → Use N_FLOP_CROSS=3 for reliable designs
 //
-//   5. ❌ **Wasting BRAM on small FIFOs**
+//   5. BAD:  **Wasting BRAM on small FIFOs**
 //      → DEPTH=8, DATA_WIDTH=8 → 64 bits uses full 18Kb BRAM (waste!)
 //      → Use distributed RAM (MEM_STYLE=FIFO_DISTRIBUTED) for small FIFOs
 //
-//   6. ❌ **Not using REGISTERED=1 for high-speed designs**
+//   6. BAD:  **Not using REGISTERED=1 for high-speed designs**
 //      → Memory read → combinational output → long critical path
 //      → Set REGISTERED=1 to break path (adds 1 cycle latency but helps Fmax)
 //
-//   7. ❌ **Forgetting independent reset domains**
+//   7. BAD:  **Forgetting independent reset domains**
 //      → wr_rst_n and rd_rst_n can assert at different times
 //      → Design must handle asynchronous reset assertion gracefully
 //
-//   8. ❌ **Bypassing Gray code for "optimization"**
+//   8. BAD:  **Bypassing Gray code for "optimization"**
 //      → Direct binary pointer sync WILL corrupt data due to multi-bit changes
 //      → Gray code is NON-NEGOTIABLE for async FIFO CDC!
 //

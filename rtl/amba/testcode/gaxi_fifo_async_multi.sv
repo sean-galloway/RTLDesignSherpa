@@ -15,7 +15,8 @@
 
 `timescale 1ns / 1ps
 
-// Paramerized Asynchronous FIFO -- This works for any even depth
+// Parameterized Asynchronous FIFO -- any DEPTH with Johnson pointers,
+// power-of-2 DEPTH with Gray.
 module gaxi_fifo_async_multi #(
     parameter int ADDR_WIDTH = 4,
     parameter int CTRL_WIDTH = 4,
@@ -62,7 +63,7 @@ module gaxi_fifo_async_multi #(
     // overridden -- they are aliases, not independent knobs.
     //
     // USE_JOHNSON=1 because DEPTH defaults to 10; Gray pointers require a
-    // power-of-2 depth, and this wrapper advertises "any even depth".
+    // power-of-2 depth, and this wrapper accepts any depth.
     gaxi_fifo_async #(
         .DATA_WIDTH        (AW + CW + DW + DW),  // full concatenated payload
         .DEPTH             (DEPTH),

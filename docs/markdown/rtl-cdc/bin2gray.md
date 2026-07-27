@@ -208,7 +208,7 @@ module cross_domain_counter #(
 );
 
     // Source domain counter
-    logic [WIDTH-1:0] src_binary, src_gray;
+    logic [WIDTH-1:0] src_binary, w_src_gray, r_src_gray;
     
     always_ff @(posedge src_clk or negedge src_rst_n) begin
         if (!src_rst_n)
@@ -217,13 +217,23 @@ module cross_domain_counter #(
             src_binary <= src_binary + 1;
     end
     
-    // Convert to Gray in source domain
+    // Convert to Gray in source domain -- COMBINATIONAL
     bin2gray #(.WIDTH(WIDTH)) src_converter (
         .binary(src_binary),
-        .gray(src_gray)
+        .gray  (w_src_gray)
     );
     
-    // Synchronize Gray code to destination domain
+    // ...then REGISTER it before it crosses. This flop is not optional: the
+    // XOR outputs settle at different times, so on a multi-bit binary
+    // transition (0111 -> 1000) an unregistered w_src_gray can momentarily
+    // show a code that is neither the old value nor the new one. Sampling
+    // that transient defeats the entire point of Gray coding.
+    always_ff @(posedge src_clk or negedge src_rst_n) begin
+        if (!src_rst_n) r_src_gray <= '0;
+        else            r_src_gray <= w_src_gray;
+    end
+    
+    // Synchronize the REGISTERED Gray code to the destination domain
     logic [WIDTH-1:0] dst_gray_sync;
     
     glitch_free_n_dff_arn #(
@@ -232,7 +242,7 @@ module cross_domain_counter #(
     ) gray_sync (
         .clk  (dst_clk),
         .rst_n(dst_rst_n),
-        .d    (src_gray),
+        .d    (r_src_gray),
         .q    (dst_gray_sync)
     );
     
@@ -347,13 +357,21 @@ module gray_code_synchronizer #(
     output logic [WIDTH-1:0] dst_data
 );
 
-    // Convert to Gray in source domain
-    logic [WIDTH-1:0] src_gray;
+    // Convert to Gray in the source domain (combinational) and register it
+    // there. src_clk / src_rst_n exist for exactly this flop -- the note above
+    // is not advice, it is a requirement, and without this register the
+    // synchronizer below samples a combinational output mid-settle.
+    logic [WIDTH-1:0] w_src_gray, r_src_gray;
     
     bin2gray #(.WIDTH(WIDTH)) src_conv (
         .binary(src_data),
-        .gray(src_gray)
+        .gray  (w_src_gray)
     );
+    
+    always_ff @(posedge src_clk or negedge src_rst_n) begin
+        if (!src_rst_n) r_src_gray <= '0;
+        else            r_src_gray <= w_src_gray;
+    end
     
     // Multi-stage synchronizer for Gray code
     logic [WIDTH-1:0] sync_regs [SYNC_STAGES];
@@ -364,7 +382,7 @@ module gray_code_synchronizer #(
                 sync_regs[i] <= 'b0;
             end
         end else begin
-            sync_regs[0] <= src_gray;
+            sync_regs[0] <= r_src_gray;
             for (int i = 1; i < SYNC_STAGES; i++) begin
                 sync_regs[i] <= sync_regs[i-1];
             end
@@ -805,5 +823,5 @@ The binary-to-Gray converter is one of those fundamental building blocks — sim
 
 ## Navigation
 
-- **[← Back to rtl-common Index](index.md)**
+- **[← Back to CDC Index](index.md)**
 - **[← Back to Main Documentation Index](../index.md)**

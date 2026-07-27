@@ -210,7 +210,7 @@ registered by the caller.
 | **Complexity** | Simple combinational | Complex position logic |
 | **Clock requirement** | None | None (clk/rst_n ports exist but are unused) |
 | **Width scaling** | Logarithmic | Linear with JCW |
-| **Use case** | Power-of-2 sequences | Any even sequences |
+| **Use case** | Power-of-2 sequences | Any sequence length |
 
 ## Performance Characteristics
 
@@ -324,5 +324,5 @@ Other implementations detect position differently:
 
 ## Navigation
 
-- **[← Back to rtl-common Index](index.md)**
+- **[← Back to CDC Index](index.md)**
 - **[← Back to Main Documentation Index](../index.md)**

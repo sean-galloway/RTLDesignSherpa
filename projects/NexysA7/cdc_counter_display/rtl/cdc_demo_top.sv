@@ -160,6 +160,12 @@ module cdc_demo_top (
 
     // UART_BAUD = 115200; CLKS_PER_BIT derived from SYS_CLK_HZ so a
     // future re-clock automatically retunes the UART bridge.
+    //
+    // SYS_CLK_HZ is declared HERE rather than only in the design-point block
+    // below: this expression used to reference it before its declaration, and
+    // use-before-declare of a localparam is tool-dependent (Verilator accepts
+    // it; not every elaborator does).
+    localparam int SYS_CLK_HZ    = 100_000_000;
     localparam int UART_BAUD     = 115_200;
     localparam int UART_CLKS_PER_BIT = (SYS_CLK_HZ + UART_BAUD/2) / UART_BAUD;
 
@@ -277,7 +283,7 @@ module cdc_demo_top (
     //                           Bump to 100_000_000 to make STRETCH safe
     //                           across the whole MMCM bank.
     // ----------------------------------------------------------------
-    localparam int SYS_CLK_HZ              = 100_000_000;
+    // SYS_CLK_HZ is declared above, next to its first use in the UART bridge.
     localparam int STRETCH_MAX_SAFE_SRC_HZ = 25_000_000;
 
     // ----------------------------------------------------------------

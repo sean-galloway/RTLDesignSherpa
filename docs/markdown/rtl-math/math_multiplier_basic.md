@@ -616,5 +616,5 @@ Defers final carry-propagate until end
 
 ## Navigation
 
-- **[← Back to rtl-common Index](index.md)**
+- **[← Back to Math Index](index.md)**
 - **[← Back to Main Documentation Index](../index.md)**

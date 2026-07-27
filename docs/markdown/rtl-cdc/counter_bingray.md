@@ -138,7 +138,9 @@ end
 
 ### Critical Paths
 1. **Binary Increment**: Standard binary addition timing
-2. **Gray Conversion**: XOR tree with log(WIDTH) levels
+2. **Gray Conversion**: a single XOR level -- `gray = bin ^ (bin >> 1)` gives
+   every output bit one 2-input XOR, so the delay is constant in WIDTH. (The
+   log(WIDTH) XOR depth belongs to the *decode* direction, `gray2bin`.)
 3. **Combined Path**: Increment + conversion in same cycle
 
 ### Propagation Delays
@@ -484,7 +486,7 @@ Binary-Gray counters are the foundation of the standard `fifo_async` module:
 
 **Comparison with Other Modules:**
 
-- `test_counter_johnson_wavedrom.py` - Johnson counter (even depths, linear width)
+- `test_counter_johnson_wavedrom.py` - Johnson counter (any depth, linear width)
 - `test_fifo_async_wavedrom.py` - BinGray counter in action (async FIFO, power-of-2)
 
 ## Test and Verification
@@ -504,5 +506,5 @@ pytest val/cdc/test_counter_bingray_wavedrom.py -v
 
 ## Navigation
 
-- **[← Back to rtl-common Index](index.md)**
+- **[← Back to CDC Index](index.md)**
 - **[← Back to Main Documentation Index](../index.md)**

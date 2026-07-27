@@ -41,7 +41,7 @@
 //   Uses rtldesignsherpa library modules:
 //   - debounce.sv (common/) - Button debouncing
 //   - counter_bin.sv (common/) - Binary up counter
-//   - cdc_handshake.sv (amba/shared/) - CDC bus transfer with handshake
+//   - cdc_4_phase_handshake.sv (rtl/cdc/) - CDC bus transfer with handshake
 //   - hex_to_7seg.sv (common/) - Hex to 7-segment decoder
 //   - clock_divider.sv (common/) - Clock generation from 100MHz system clock
 //
@@ -56,7 +56,7 @@
 //
 // 2. **Handshake-Based CDC:**
 //    - Counter increment triggers CDC handshake protocol
-//    - cdc_handshake safely transfers counter bus to disp_clk domain
+//    - cdc_4_phase_handshake safely transfers counter bus to disp_clk domain
 //    - Full 4-phase handshake: src_valid → dst_valid → dst_ready → src_ready
 //    - Guarantees exactly one transfer per button press
 //
@@ -158,7 +158,7 @@
 // CDC Safety Analysis:
 //------------------------------------------------------------------------------
 // Crossing #1: Counter value bus (btn_clk → disp_clk)
-//   - Method: cdc_handshake (4-phase async handshake protocol)
+//   - Method: cdc_4_phase_handshake (4-phase async handshake protocol)
 //   - Signals crossed: r_count_value[COUNTER_WIDTH-1:0]
 //   - Safety: Full FSM-based handshake with 3-stage synchronizers
 //   - Latency: 6-8 disp_clk cycles (complete req→ack→req_clear→ack_clear)
@@ -171,7 +171,7 @@
 //
 // FALSE PATHS (for timing constraints):
 //   - Internal handshake signals are already properly synchronized
-//   - No additional false paths needed (handled by cdc_handshake module)
+//   - No additional false paths needed (handled by cdc_4_phase_handshake)
 //
 //==============================================================================
 

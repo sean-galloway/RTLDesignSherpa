@@ -302,13 +302,13 @@
 //   - Avoid manual XOR cascades (let synthesis optimize)
 //
 //   **Common FPGA Mistakes:**
-//   1. ❌ Not registering gray2bin output before use
+//   1. BAD:  Not registering gray2bin output before use
 //      → Long combinational paths, timing violations
-//   2. ❌ Using for wide buses (>32 bits) without pipelining
+//   2. BAD:  Using for wide buses (>32 bits) without pipelining
 //      → Setup violations on fast clocks (>250 MHz)
-//   3. ❌ Feeding output directly to arithmetic
+//   3. BAD:  Feeding output directly to arithmetic
 //      → gray2bin delay + adder delay = critical path
-//   4. ❌ Not pairing with bin2gray on transmit side
+//   4. BAD:  Not pairing with bin2gray on transmit side
 //      → Assumes Gray code appears from nowhere (wrong!)
 //
 //   **Resource Usage (Typical FPGA):**
@@ -385,8 +385,8 @@
 //------------------------------------------------------------------------------
 // Test:
 //------------------------------------------------------------------------------
-//   Location: val/common/test_gray2bin.py
-//   Run: pytest val/common/test_gray2bin.py -v
+//   Location: val/cdc/test_gray2bin.py
+//   Run: pytest val/cdc/test_gray2bin.py -v
 //   Coverage: 100%
 //   Key Test Scenarios:
 //     - All input values (exhaustive for small widths)
