@@ -90,7 +90,13 @@ class RegisterMap:
     def get_register_field_map(self):
         register_field_map = {}
         for register_name, register_info in self.registers.items():
-            fields = [field for field in register_info.keys() if register_info[field]['type'] == 'field']
+            # Only dict-valued entries with type == 'field' are fields; skip
+            # scalar metadata keys such as 'address'/'offset'/'name'/'default'.
+            fields = [
+                field
+                for field, info in register_info.items()
+                if isinstance(info, dict) and info.get('type') == 'field'
+            ]
             register_field_map[register_name] = fields
         return register_field_map
 
@@ -119,8 +125,17 @@ class RegisterMap:
 
         mask = self._create_mask(field_info['offset'])
         field_width = self._get_field_width(field_info['offset'])
+        field_low = self._get_field_low(field_info['offset'])
 
-        num_words = (field_width + self.apb_data_width - 1) // self.apb_data_width
+        # Caller passes the field value right-justified (bit 0 = LSB of the
+        # field).  Shift it up to the field's position within the register so
+        # the mask lands on the intended bits.
+        value = value << field_low
+
+        # Number of APB words spanned counts from the field's absolute high bit,
+        # not just its width (a narrow field high in a >word register still
+        # lives in the correct word).
+        num_words = ((field_low + field_width) + self.apb_data_width - 1) // self.apb_data_width
 
         if 'count' in reg_info:
             if register not in self.write_storage:
@@ -155,6 +170,14 @@ class RegisterMap:
             return 1
         high, low = map(int, offset.split(':'))
         return high - low + 1
+
+
+    def _get_field_low(self, offset):
+        """Lowest bit position of a field ('hi:lo' -> lo, single bit -> that bit)."""
+        if ':' not in offset:
+            return int(offset)
+        _high, low = map(int, offset.split(':'))
+        return low
 
 
     def generate_apb_cycles(self) -> List[APBPacket]:
