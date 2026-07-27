@@ -294,8 +294,7 @@ flowchart TB
   does not synchronize either reset into the other domain
 - A one-sided reset is NOT safe: the crossed pointer copy is a live
   synchronizer, so the reset side returns with its own pointer at zero against a
-  remote pointer that kept advancing. Quiesce the bus first
-  state -- see [apb5_slave_cdc](apb5_slave_cdc.md) for the mechanism and for the
+  remote pointer that kept advancing. Quiesce the bus first -- see [apb5_slave_cdc](apb5_slave_cdc.md) for the mechanism and for the
   in-flight transaction caveat
 
 ---

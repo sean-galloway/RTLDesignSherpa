@@ -165,7 +165,7 @@ gaxi_fifo_sync #(
 > `DEPTH` in `{2, 4, 6, 8}`. The FIFOs (`gaxi_fifo_sync`, `gaxi_drop_fifo_sync`,
 > `gaxi_fifo_async`) address memory with a binary pointer and need a power of 2
 > -- except `gaxi_fifo_async` with `USE_JOHNSON=1`, where Johnson pointers allow
-> any even depth. Check the module you are instantiating, not the directory.
+> any depth (odd included). Check the module you are instantiating, not the directory.
 
 
 ```systemverilog
@@ -262,12 +262,12 @@ All GAXI modules are verified using CocoTB-based testbenches:
 pytest val/amba/test_gaxi*.py -v
 
 # Run specific module tests
-pytest val/amba/test_gaxi_buffer_sync.py -v      # Skid buffers + sync FIFOs
-pytest val/amba/test_gaxi_buffer_async.py -v     # Async FIFO
+pytest val/amba/test_gaxi_fifo_sync.py val/amba/test_gaxi_skid_buffer.py -v      # Skid buffers + sync FIFOs
+pytest val/cdc/test_gaxi_buffer_async.py -v     # Async FIFO
 pytest val/amba/test_gaxi_drop_fifo_sync.py -v   # Drop FIFO
 
 # Run with waveforms
-pytest val/amba/test_gaxi_buffer_sync.py --vcd=waves.vcd -v
+pytest val/amba/test_gaxi_fifo_sync.py val/amba/test_gaxi_skid_buffer.py --vcd=waves.vcd -v
 
 # Generate WaveDrom timing diagrams
 pytest val/amba/test_gaxi_wavedrom_example.py -v

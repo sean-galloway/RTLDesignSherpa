@@ -259,7 +259,7 @@ Run the WaveDrom test to generate detailed timing diagrams:
 
 ```bash
 # Generate Gray code waveforms (standard async FIFO implementation)
-pytest val/common/test_fifo_async_wavedrom.py -v
+pytest val/cdc/test_fifo_async_wavedrom.py -v
 ```
 
 **Waveform Scenarios Generated:**
@@ -302,16 +302,16 @@ pytest val/common/test_fifo_async_wavedrom.py -v
 ## Test and Verification
 
 **Comprehensive Test Suite:**
-- `val/common/test_fifo_buffer_async.py` - Full functional verification
-- `val/common/test_fifo_async_wavedrom.py` - WaveDrom timing diagrams
+- `val/cdc/test_fifo_buffer_async.py` - Full functional verification
+- `val/cdc/test_fifo_async_wavedrom.py` - WaveDrom timing diagrams
 
 **Run Tests:**
 ```bash
 # Full functional test (basic/medium/full levels)
-pytest val/common/test_fifo_buffer_async.py -v
+pytest val/cdc/test_fifo_buffer_async.py -v
 
 # WaveDrom waveform generation
-pytest val/common/test_fifo_async_wavedrom.py -v
+pytest val/cdc/test_fifo_async_wavedrom.py -v
 ```
 
 ## Navigation

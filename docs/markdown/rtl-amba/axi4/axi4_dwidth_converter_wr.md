@@ -510,7 +510,7 @@ end
 
 ### Source Code
 - RTL: `rtl/amba/axi4/axi4_dwidth_converter_wr.sv`
-- Tests: `val/amba/test_axi4_dwidth_converter_wr.py`
+- Tests: `projects/components/converters/dv/tests/test_axi4_dwidth_converter_wr.py`
 - Framework: `bin/TBClasses/components/axi4/`
 
 ### Documentation

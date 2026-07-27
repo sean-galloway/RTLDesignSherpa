@@ -302,10 +302,10 @@ If you need overflow/underflow telemetry in simulation, add it in the testbench.
 
 ```bash
 # Async FIFO tests with various clock ratios
-pytest val/amba/test_gaxi_buffer_async.py -v
+pytest val/cdc/test_gaxi_buffer_async.py -v
 
 # Test specific clock ratio (wr:rd)
-pytest val/amba/test_gaxi_buffer_async.py -k "wr10_rd12" -v  # 10ns : 12ns
+pytest val/cdc/test_gaxi_buffer_async.py -k "wr10_rd12" -v  # 10ns : 12ns
 ```
 
 Test matrix includes:
@@ -346,7 +346,7 @@ Test matrix includes:
 
 ## Related Modules
 
-- [gaxi_fifo_sync](gaxi_fifo_sync.md) - Single clock domain version
+- [gaxi_fifo_sync](../rtl-amba/gaxi/gaxi_fifo_sync.md) - Single clock domain version
 - [gaxi_skid_buffer_async](gaxi_skid_buffer_async.md) - Async skid buffer
 - [GAXI Index](index.md) - Overview
 
@@ -356,7 +356,7 @@ Test matrix includes:
 
 - **Clifford Cummings:** "Simulation and Synthesis Techniques for Asynchronous FIFO Design" (Sunburst Design)
 - **Source:** `rtl/cdc/gaxi_fifo_async.sv`
-- **Tests:** `val/amba/test_gaxi_buffer_async.py`
+- **Tests:** `val/cdc/test_gaxi_buffer_async.py`
 
 ---
 

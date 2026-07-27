@@ -265,7 +265,7 @@ RTL Design Sherpa is built on solid technical foundations inspired by industry-l
 
 ### 📖 **Additional Resources**
 - **[Repository README](../../README.md)** - Setup instructions and getting started guide
-- **[Contributing Guidelines](CONTRIBUTING.md)** - Development standards and contribution process
+- **[Contributing Guidelines](../../CONTRIBUTING.md)** - Development standards and contribution process
 
 ---
 

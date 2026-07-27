@@ -447,7 +447,7 @@ end
 
 ### Test File
 
-**Location:** `val/amba/test_gaxi_buffer_sync.py`
+**Location:** `val/amba/test_gaxi_skid_buffer.py`
 
 **Test Modes:**
 - `mode='skid'` → Tests this module specifically
@@ -464,7 +464,7 @@ Generates comprehensive timing diagrams showing all 6 scenarios.
 
 ```bash
 # Functional test (skid buffer mode)
-pytest val/amba/test_gaxi_buffer_sync.py -k "skid" -v
+pytest val/amba/test_gaxi_skid_buffer.py -k "skid" -v
 
 # Generate waveforms
 pytest val/amba/test_gaxi_wavedrom_example.py -v
@@ -523,7 +523,7 @@ end
 - **Tutorial:** [GAXI WaveDrom Tutorial](../../TestTutorial/wavedrom_gaxi_example.md)
 - **Overview:** [GAXI Index](index.md)
 - **Source:** `rtl/amba/gaxi/gaxi_skid_buffer.sv`
-- **Tests:** `val/amba/test_gaxi_buffer_sync.py`, `val/amba/test_gaxi_wavedrom_example.py`
+- **Tests:** `val/amba/test_gaxi_skid_buffer.py`, `val/amba/test_gaxi_wavedrom_example.py`
 
 ---
 

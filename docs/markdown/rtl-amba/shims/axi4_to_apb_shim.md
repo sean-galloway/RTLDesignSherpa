@@ -419,14 +419,14 @@ AXI Bandwidth → APB Bandwidth:
 
 ```bash
 # Run integration test
-pytest val/integ_amba/test_axi2apb_shim.py -v
+pytest projects/components/converters/dv/tests/test_axi2apb_shim.py -v
 
 # Test with waveforms
-pytest val/integ_amba/test_axi2apb_shim.py --vcd=shim.vcd -v
+pytest projects/components/converters/dv/tests/test_axi2apb_shim.py --vcd=shim.vcd -v
 gtkwave shim.vcd
 
 # Run with specific configuration
-pytest "val/integ_amba/test_axi2apb_shim.py::test_axi2apb[64-32]" -v
+pytest "projects/components/converters/dv/tests/test_axi2apb_shim.py::test_axi2apb[64-32]" -v
 ```
 
 ---

@@ -227,7 +227,7 @@ The bank is cleared by `i_clear`.
 - [`monbus_cam.md`](monbus_cam.md) — the LRU cache reused as the tally's front.
 - [`monbus_compressor.md`](monbus_compressor.md) — the alternative capture path
   (bounded compressed log) this histogram replaces on the board build.
-- [`axi_perf_latency_hist.md`](axi_perf_latency_hist.md) — a companion histogram
+- [`axi_perf_latency_hist.md`](../shared/axi_perf_latency_hist.md) — a companion histogram
   that bins latency magnitude (not message type) with the same freeze/clear
   window semantics.
 - [`monbus_group_core.md`](monbus_group_core.md) — the filter/route front whose

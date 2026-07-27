@@ -145,8 +145,9 @@ Both are `gaxi_fifo_async` instances with:
   **required**, not preferred: this module instantiates `gaxi_fifo_async` without
   passing `USE_JOHNSON`, so Gray encoding is selected, and Gray carries a
   generate-scope elaboration check
-  (`(USE_JOHNSON == 0) && ((DEPTH & (DEPTH-1)) != 0)` -> `$error`). A
-  non-power-of-2 depth fails the build.
+  (`(USE_JOHNSON == 0) && ((DEPTH & (DEPTH-1)) != 0)` -> `$error`). The check sees
+  the DERIVED depth, so `DEPTH` of 1 or 3 floors to 4 and builds; it is a
+  non-power-of-2 `DEPTH` of 4 or more -- 5, 6, 7 -- that fails.
 
 There is no separate metastability-hardening option — two-flop synchronization is
 fixed at instantiation.

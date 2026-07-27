@@ -23,7 +23,7 @@
 
 *A progressive learning framework for RTL development using open-source tools*
 
-**📚 [Documentation Index](docs/DOCUMENTATION_INDEX.md)** - Complete guide to all documentation, organized by type
+**📚 [Documentation Index](../DOCUMENTATION_INDEX.md)** - Complete guide to all documentation, organized by type
 
 ---
 
@@ -82,35 +82,35 @@ graph TD
 ## Quick Navigation
 
 ### 📚 Documentation
-- **[Component Projects Index](docs/markdown/projects/index.md)** - All production-ready components
-- **[Documentation Index](docs/DOCUMENTATION_INDEX.md)** - Complete documentation guide
+- **[Component Projects Index](projects/index.md)** - All production-ready components
+- **[Documentation Index](../DOCUMENTATION_INDEX.md)** - Complete documentation guide
 
 ### 🏗️ RTL Building Blocks
-- **[Common Library](rtl/common/)** (224 modules) - [Documentation](docs/markdown/rtl-common/index.md) - [AI Guide](rtl/common/CLAUDE.md)
+- **[Common Library](../../rtl/common)** (224 modules) - [Documentation](rtl-common/index.md) - [AI Guide](../../rtl/common/CLAUDE.md)
   - Counters, FIFOs, arbiters, integer math, floating-point (BF16/FP16/FP32/FP8), data integrity
-- **[AMBA Infrastructure](rtl/amba/)** (124 modules) - [Documentation](docs/markdown/rtl-amba/index.md) - [AI Guide](rtl/amba/CLAUDE.md)
+- **[AMBA Infrastructure](../../rtl/amba)** (124 modules) - [Documentation](rtl-amba/index.md) - [AI Guide](../../rtl/amba/CLAUDE.md)
   - APB, AXI4, AXI4-Lite, AXI-Stream, AMBA5 protocols
 
 ### 🎯 Component Projects
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[STREAM](projects/components/dmas/stream/)** | ✅ Ready | Tutorial DMA engine with scatter-gather |
-| **[RAPIDS](projects/components/dmas/rapids/)** | 🟡 In Progress | Advanced DMA with network interfaces |
-| **[Bridge](projects/components/bridge/)** | ✅ Ready | AXI protocol bridges and converters |
-| **[Converters](projects/components/converters/)** | ✅ Ready | UART-to-AXI4-Lite, protocol conversion |
-| **[APB Crossbar](projects/components/apb_xbar/)** | ✅ Ready | M×N APB interconnect |
-| **[Retro Legacy](projects/components/retro_legacy_blocks/)** | ✅ Ready | HPET, PIC, PIT, RTC, UART, GPIO, etc. |
-| **[Delta](projects/components/delta/)** | 📋 Planned | Network-on-Chip mesh |
-| **[HIVE](projects/components/hive/)** | 📋 Planned | Distributed RISC-V control |
+| **[STREAM](../../projects/components/dmas/stream)** | ✅ Ready | Tutorial DMA engine with scatter-gather |
+| **[RAPIDS](../../projects/components/dmas/rapids)** | 🟡 In Progress | Advanced DMA with network interfaces |
+| **[Bridge](../../projects/components/bridge)** | ✅ Ready | AXI protocol bridges and converters |
+| **[Converters](../../projects/components/converters)** | ✅ Ready | UART-to-AXI4-Lite, protocol conversion |
+| **[APB Crossbar](../../projects/components/apb_xbar)** | ✅ Ready | M×N APB interconnect |
+| **[Retro Legacy](../../projects/components/retro_legacy_blocks)** | ✅ Ready | HPET, PIC, PIT, RTC, UART, GPIO, etc. |
+| **[Delta](../../projects/components/delta)** | 📋 Planned | Network-on-Chip mesh |
+| **[HIVE](../../projects/components/hive)** | 📋 Planned | Distributed RISC-V control |
 
 ### 🧪 Verification
-- **[Common Tests](val/common/)** - Unit tests for common modules
-- **[AMBA Tests](val/amba/)** - Protocol compliance tests
-- **[CocoTB Framework](bin/TBClasses/)** - Reusable testbench infrastructure
+- **[Common Tests](../../val/common)** - Unit tests for common modules
+- **[AMBA Tests](../../val/amba)** - Protocol compliance tests
+- **[CocoTB Framework](../../bin/TBClasses)** - Reusable testbench infrastructure
 
 ### 🛠️ Tools
-- **[RTL Generators](bin/rtl_generators/)** - Math circuits, floating-point modules
-- **[Documentation Tools](bin/)** - md_to_docx.py, header management
+- **[RTL Generators](../../bin/rtl_generators)** - Math circuits, floating-point modules
+- **[Documentation Tools](../../bin)** - md_to_docx.py, header management
 
 ---
 
@@ -118,7 +118,7 @@ graph TD
 
 ### Level 1: Common Building Blocks (Foundation)
 
-**Location:** [`rtl/common/`](rtl/common/) | **Documentation:** [Full Index](docs/markdown/rtl-common/index.md) | [AI Guide](rtl/common/CLAUDE.md)
+**Location:** [`rtl/common/`](../../rtl/common) | **Documentation:** [Full Index](rtl-common/index.md) | [AI Guide](../../rtl/common/CLAUDE.md)
 
 Learn fundamental RTL design patterns through **224 reusable modules**:
 
@@ -163,21 +163,21 @@ module counter_bin #(
 );
 ```
 
-**Tests:** [`val/common/`](val/common/) - Every module has comprehensive CocoTB tests
+**Tests:** [`val/common/`](../../val/common) - Every module has comprehensive CocoTB tests
 
 ---
 
 ### Level 2: AMBA Protocol Infrastructure
 
-**Location:** [`rtl/amba/`](rtl/amba/) | **Documentation:** [Full Index](docs/markdown/rtl-amba/index.md) | [AI Guide](rtl/amba/CLAUDE.md)
+**Location:** [`rtl/amba/`](../../rtl/amba) | **Documentation:** [Full Index](rtl-amba/index.md) | [AI Guide](../../rtl/amba/CLAUDE.md)
 
 Apply common building blocks to implement industry-standard protocols (**124 modules**):
 
 #### APB (Advanced Peripheral Bus)
-- **[APB Masters](rtl/amba/apb/)** - Command/response interfaces with FIFO buffering
-- **[APB Slaves](rtl/amba/apb/)** - Register interfaces with address decoding
-- **[APB Interconnect](rtl/integ_amba/)** - Multi-master/multi-slave crossbar
-- **[APB Bridges](rtl/amba/apb/)** - Protocol conversion, CDC
+- **[APB Masters](../../rtl/amba/apb)** - Command/response interfaces with FIFO buffering
+- **[APB Slaves](../../rtl/amba/apb)** - Register interfaces with address decoding
+- **[APB Interconnect](../../rtl/integ_amba)** - Multi-master/multi-slave crossbar
+- **[APB Bridges](../../rtl/amba/apb)** - Protocol conversion, CDC
 
 **Example:** APB register slave demonstrates parameter-driven design
 ```systemverilog
@@ -191,14 +191,14 @@ apb_slave #(
 ```
 
 #### AXI4 Full Protocol
-- **[AXI4 Masters](rtl/amba/axi4/)** - Read/write with dual skid buffers
-- **[AXI4 Slaves](rtl/amba/axi4/)** - Response generation, address decoding
-- **[AXI4 Infrastructure](rtl/amba/gaxi/)** - FIFOs, skid buffers, arbiters
-- **[Monitoring](rtl/amba/axi4/)** - Protocol compliance checkers
+- **[AXI4 Masters](../../rtl/amba/axi4)** - Read/write with dual skid buffers
+- **[AXI4 Slaves](../../rtl/amba/axi4)** - Response generation, address decoding
+- **[AXI4 Infrastructure](../../rtl/amba/gaxi)** - FIFOs, skid buffers, arbiters
+- **[Monitoring](../../rtl/amba/axi4)** - Protocol compliance checkers
 
 #### AXI4-Lite (Simplified Register Interface)
-- **[AXI4-Lite Masters](rtl/amba/axil4/)** - Register-optimized masters
-- **[AXI4-Lite Slaves](rtl/amba/axil4/)** - Configuration registers
+- **[AXI4-Lite Masters](../../rtl/amba/axil4)** - Register-optimized masters
+- **[AXI4-Lite Slaves](../../rtl/amba/axil4)** - Configuration registers
 - **[Protocol Bridges](rtl/amba/adapters/)** - APB ↔ AXI-Lite conversion
 
 #### AXI4-Stream (High-Throughput Data)
@@ -207,17 +207,17 @@ apb_slave #(
 - **[Sideband Support](rtl/amba/axis/)** - TID, TDEST, TUSER, TSTRB
 
 #### Shared Infrastructure
-- **[GAXI Buffers](rtl/amba/gaxi/)** - Generic skid buffers, FIFOs, CDC
-- **[Monitors](rtl/amba/shared/)** - Transaction monitoring, performance analysis
-- **[Arbiters](rtl/amba/shared/)** - Advanced arbitration for monitor buses
+- **[GAXI Buffers](../../rtl/amba/gaxi)** - Generic skid buffers, FIFOs, CDC
+- **[Monitors](../../rtl/amba/shared)** - Transaction monitoring, performance analysis
+- **[Arbiters](../../rtl/amba/shared)** - Advanced arbitration for monitor buses
 
-**Tests:** [`val/amba/`](val/amba/) - Protocol compliance and integration tests
+**Tests:** [`val/amba/`](../../val/amba) - Protocol compliance and integration tests
 
 ---
 
 ### Level 3: Integration Examples
 
-**Locations:** [`rtl/integ_common/`](rtl/integ_common/) | [`rtl/integ_amba/`](rtl/integ_amba/)
+**Locations:** [`rtl/integ_common/`](../../rtl/integ_common) | [`rtl/integ_amba/`](../../rtl/integ_amba)
 
 Practice integrating multiple modules into working systems:
 
@@ -239,13 +239,13 @@ Clock Domain A (Fast)    Clock Domain B (Slow)
 - **APB Bridges** - Protocol conversion examples
 - **AXI Systems** - Multi-component integration
 
-**Tests:** [`val/integ_common/`](val/integ_common/) | [`val/integ_amba/`](val/integ_amba/)
+**Tests:** [`val/integ_common/`](../../val/integ_common) | [`val/integ_amba/`](../../val/integ_amba)
 
 ---
 
 ### Level 4: Production Components
 
-**Location:** [`projects/components/`](projects/components/) | **Documentation:** [Component Index](docs/markdown/projects/index.md)
+**Location:** [`projects/components/`](../../projects/components) | **Documentation:** [Component Index](projects/index.md)
 
 Build complete, production-ready peripherals for FPGA deployment (**10+ components**):
 
@@ -253,20 +253,20 @@ Build complete, production-ready peripherals for FPGA deployment (**10+ componen
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[STREAM](projects/components/dmas/stream/)** | ✅ Ready | Tutorial DMA with 8 channels, scatter-gather, APB config |
-| **[RAPIDS](projects/components/dmas/rapids/)** | 🟡 In Progress | Advanced DMA with alignment fixup, network TX/RX, credit flow |
+| **[STREAM](../../projects/components/dmas/stream)** | ✅ Ready | Tutorial DMA with 8 channels, scatter-gather, APB config |
+| **[RAPIDS](../../projects/components/dmas/rapids)** | 🟡 In Progress | Advanced DMA with alignment fixup, network TX/RX, credit flow |
 
 #### Interconnect and Bridges
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[APB Crossbar](projects/components/apb_xbar/)** | ✅ Ready | Parametric M×N APB interconnect with round-robin arbitration |
-| **[Bridge](projects/components/bridge/)** | ✅ Ready | AXI4 protocol bridges, width converters, CDC |
-| **[Converters](projects/components/converters/)** | ✅ Ready | UART-to-AXI4-Lite, protocol conversion bridges |
+| **[APB Crossbar](../../projects/components/apb_xbar)** | ✅ Ready | Parametric M×N APB interconnect with round-robin arbitration |
+| **[Bridge](../../projects/components/bridge)** | ✅ Ready | AXI4 protocol bridges, width converters, CDC |
+| **[Converters](../../projects/components/converters)** | ✅ Ready | UART-to-AXI4-Lite, protocol conversion bridges |
 
 #### Retro Legacy Blocks
 
-**Status:** ✅ Production Ready | **Location:** [`projects/components/retro_legacy_blocks/`](projects/components/retro_legacy_blocks/)
+**Status:** ✅ Production Ready | **Location:** [`projects/components/retro_legacy_blocks/`](../../projects/components/retro_legacy_blocks)
 
 Collection of 9 legacy/retro peripherals with full APB interfaces:
 
@@ -282,14 +282,14 @@ Collection of 9 legacy/retro peripherals with full APB interfaces:
 | **PM/ACPI** | Power Management / ACPI support |
 | **IOAPIC** | I/O Advanced PIC |
 
-**Documentation:** [Block Status](projects/components/retro_legacy_blocks/BLOCK_STATUS.md) | [PRD](projects/components/retro_legacy_blocks/PRD.md)
+**Documentation:** [Block Status](../../projects/components/retro_legacy_blocks/BLOCK_STATUS.md) | [PRD](../../projects/components/retro_legacy_blocks/PRD.md)
 
 #### Future Components
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[Delta](projects/components/delta/)** | 📋 Planned | 4×4 Network-on-Chip mesh with virtual channels |
-| **[HIVE](projects/components/hive/)** | 📋 Planned | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
+| **[Delta](../../projects/components/delta)** | 📋 Planned | 4×4 Network-on-Chip mesh with virtual channels |
+| **[HIVE](../../projects/components/hive)** | 📋 Planned | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
 | **[BCH](projects/components/bch/)** | 📋 Planned | BCH error correction encoder/decoder |
 
 ---
@@ -525,7 +525,7 @@ pytest val/amba/test_apb_slave.py -v -m basic
 #### Level 3: Test APB Crossbar Integration
 ```bash
 # Run 2-to-4 crossbar test
-pytest val/integ_amba/test_apb_xbar.py -v -k "2to4"
+pytest projects/components/apb_xbar/dv/tests/test_apb_xbar_2to4.py -v -k "2to4"
 ```
 
 #### Level 4: Test Retro Legacy Block Component
@@ -534,7 +534,7 @@ pytest val/integ_amba/test_apb_xbar.py -v -k "2to4"
 pytest projects/components/retro_legacy_blocks/dv/tests/hpet/ -v
 
 # Run specific test
-pytest projects/components/retro_legacy_blocks/dv/tests/hpet/test_apb_hpet.py -v
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
 ```
 
 ---
@@ -544,23 +544,23 @@ pytest projects/components/retro_legacy_blocks/dv/tests/hpet/test_apb_hpet.py -v
 ### Documentation by Level
 
 **Level 1 - Common Modules:**
-- [Common Library PRD](docs/markdown/rtl-common/index.md) - Requirements and specifications
-- [Common CLAUDE Guide](rtl/common/CLAUDE.md) - AI-assisted development
-- [Common Tests](val/common/) - Example test patterns
+- [Common Library PRD](rtl-common/index.md) - Requirements and specifications
+- [Common CLAUDE Guide](../../rtl/common/CLAUDE.md) - AI-assisted development
+- [Common Tests](../../val/common) - Example test patterns
 
 **Level 2 - AMBA Protocols:**
-- [AMBA Infrastructure PRD](docs/markdown/rtl-amba/index.md) - Protocol specifications
-- [AMBA CLAUDE Guide](rtl/amba/CLAUDE.md) - Implementation patterns
-- [AMBA Tests](val/amba/) - Protocol compliance tests
+- [AMBA Infrastructure PRD](rtl-amba/index.md) - Protocol specifications
+- [AMBA CLAUDE Guide](../../rtl/amba/CLAUDE.md) - Implementation patterns
+- [AMBA Tests](../../val/amba) - Protocol compliance tests
 
 **Level 3 - Integration:**
-- [Integration Examples](rtl/integ_amba/) - Working multi-module designs
-- [Integration Tests](val/integ_amba/) - System-level verification
+- [Integration Examples](../../rtl/integ_amba) - Working multi-module designs
+- [Integration Tests](../../val/integ_amba) - System-level verification
 
 **Level 4 - Components:**
-- [Component Index](docs/markdown/projects/index.md) - All components
-- [Component Overview](docs/markdown/projects/overview.md) - Design patterns
-- [Retro Legacy Blocks](projects/components/retro_legacy_blocks/README.md) - Legacy peripheral collection
+- [Component Index](projects/index.md) - All components
+- [Component Overview](projects/overview.md) - Design patterns
+- [Retro Legacy Blocks](../../projects/components/retro_legacy_blocks/README.md) - Legacy peripheral collection
 - [HPET Specification](projects/components/retro_legacy_blocks/docs/hpet_spec/hpet_index.md) - Complete HPET guide
 
 ### External References

@@ -267,18 +267,18 @@ gaxi_fifo_async #(
 
 | Test | File | Coverage |
 |------|------|----------|
-| Synchronous Buffer | `val/amba/test_gaxi_buffer_sync.py` | Functional, stress, randomization |
-| Asynchronous Buffer | `val/amba/test_gaxi_buffer_async.py` | CDC, clock ratios, stress |
+| Synchronous Buffer | `val/amba/test_gaxi_fifo_sync.py`, `val/amba/test_gaxi_skid_buffer.py` | Functional, stress, randomization |
+| Asynchronous Buffer | `val/cdc/test_gaxi_buffer_async.py` | CDC, clock ratios, stress |
 | WaveDrom Example | `val/amba/test_gaxi_wavedrom_example.py` | Timing diagrams, 6 scenarios |
 
 ### Running Tests
 
 ```bash
 # Synchronous tests (all modes: skid, fifo_mux, fifo_flop)
-pytest val/amba/test_gaxi_buffer_sync.py -v
+pytest val/amba/test_gaxi_fifo_sync.py val/amba/test_gaxi_skid_buffer.py -v
 
 # Asynchronous tests (CDC with various clock ratios)
-pytest val/amba/test_gaxi_buffer_async.py -v
+pytest val/cdc/test_gaxi_buffer_async.py -v
 
 # Generate waveforms
 pytest val/amba/test_gaxi_wavedrom_example.py -v

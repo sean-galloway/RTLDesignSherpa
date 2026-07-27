@@ -399,9 +399,9 @@ Four scenarios walk through the dual-output counter design:
 
 ### Scenario 1: Binary vs Gray Code Comparison
 
-![BinGray Comparison](../../assets/WAVES/counter_bingray/bingray_counter_binary_vs_gray.png)
+![BinGray Comparison](../assets/WAVES/counter_bingray/bingray_counter_binary_vs_gray.png)
 
-**WaveJSON:** [bingray_counter_binary_vs_gray.json](../../assets/WAVES/counter_bingray/bingray_counter_binary_vs_gray.json)
+**WaveJSON:** [bingray_counter_binary_vs_gray.json](../assets/WAVES/counter_bingray/bingray_counter_binary_vs_gray.json)
 
 Side-by-side comparison of both outputs:
 - Binary: Normal sequential counting (0→1→2→3→...)
@@ -411,9 +411,9 @@ Side-by-side comparison of both outputs:
 
 ### Scenario 2: Single-Bit Transitions (CDC Safety) ⭐ **KEY FEATURE**
 
-![BinGray Single-Bit Transitions](../../assets/WAVES/counter_bingray/bingray_counter_single_bit_transitions.png)
+![BinGray Single-Bit Transitions](../assets/WAVES/counter_bingray/bingray_counter_single_bit_transitions.png)
 
-**WaveJSON:** [bingray_counter_single_bit_transitions.json](../../assets/WAVES/counter_bingray/bingray_counter_single_bit_transitions.json)
+**WaveJSON:** [bingray_counter_single_bit_transitions.json](../assets/WAVES/counter_bingray/bingray_counter_single_bit_transitions.json)
 
 Gray code CDC safety property:
 - Each Gray transition changes EXACTLY one bit
@@ -423,9 +423,9 @@ Gray code CDC safety property:
 
 ### Scenario 3: Lookahead Signal (counter_bin_next)
 
-![BinGray Lookahead](../../assets/WAVES/counter_bingray/bingray_counter_lookahead.png)
+![BinGray Lookahead](../assets/WAVES/counter_bingray/bingray_counter_lookahead.png)
 
-**WaveJSON:** [bingray_counter_lookahead.json](../../assets/WAVES/counter_bingray/bingray_counter_lookahead.json)
+**WaveJSON:** [bingray_counter_lookahead.json](../assets/WAVES/counter_bingray/bingray_counter_lookahead.json)
 
 Combinational lookahead feature:
 - Predicts next binary value one cycle ahead
@@ -435,9 +435,9 @@ Combinational lookahead feature:
 
 ### Scenario 4: Enable and Reset Control
 
-![BinGray Enable and Reset](../../assets/WAVES/counter_bingray/bingray_counter_enable_reset.png)
+![BinGray Enable and Reset](../assets/WAVES/counter_bingray/bingray_counter_enable_reset.png)
 
-**WaveJSON:** [bingray_counter_enable_reset.json](../../assets/WAVES/counter_bingray/bingray_counter_enable_reset.json)
+**WaveJSON:** [bingray_counter_enable_reset.json](../assets/WAVES/counter_bingray/bingray_counter_enable_reset.json)
 
 Control signal behavior:
 - Both outputs hold when enable=0
@@ -449,7 +449,7 @@ Control signal behavior:
 
 **To regenerate these waveforms:**
 ```bash
-pytest val/common/test_counter_bingray_wavedrom.py -v
+pytest val/cdc/test_counter_bingray_wavedrom.py -v
 # Then convert JSON to PNG:
 cd docs/markdown/assets/WAVES/counter_bingray
 for f in *.json; do wavedrom-cli -i "$f" -p "${f%.json}.png"; done
@@ -477,7 +477,7 @@ Binary-Gray counters are the foundation of the standard `fifo_async` module:
 |---------|----------------|-----------------|
 | **Output Width** | `$clog2(DEPTH) + 1` bits | `DEPTH` bits |
 | **CDC Method** | Standard Gray code | Johnson code |
-| **Depth Support** | Power-of-2 only | Any even number |
+| **Depth Support** | Power-of-2 only | Any depth, odd included |
 | **Resource Efficiency** | Logarithmic (better for large depths) | Linear |
 | **Conversion** | XOR tree (simple) | Position detection (complex) |
 | **Used In** | `fifo_async` USE_JOHNSON=0 | `fifo_async` USE_JOHNSON=1 |
@@ -490,16 +490,16 @@ Binary-Gray counters are the foundation of the standard `fifo_async` module:
 ## Test and Verification
 
 **Comprehensive Test Suite:**
-- `val/common/test_counter_bingray.py` - Full functional verification
-- `val/common/test_counter_bingray_wavedrom.py` - WaveDrom timing diagrams ⭐
+- `val/cdc/test_counter_bingray.py` - Full functional verification
+- `val/cdc/test_counter_bingray_wavedrom.py` - WaveDrom timing diagrams ⭐
 
 **Run Tests:**
 ```bash
 # Full functional test (basic/medium/full levels)
-pytest val/common/test_counter_bingray.py -v
+pytest val/cdc/test_counter_bingray.py -v
 
 # WaveDrom waveform generation
-pytest val/common/test_counter_bingray_wavedrom.py -v
+pytest val/cdc/test_counter_bingray_wavedrom.py -v
 ```
 
 ## Navigation

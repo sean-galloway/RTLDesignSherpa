@@ -150,9 +150,9 @@ observing `req = 0` correctly concludes nothing is pending.
 
 #### Waveform 1.1: 2-Phase Normal Transfer
 
-![2-phase normal transfer](../../assets/WAVES/cdc_2_phase_handshake/cdc2_normal_transfer.png)
+![2-phase normal transfer](../assets/WAVES/cdc_2_phase_handshake/cdc2_normal_transfer.png)
 
-**Source:** [cdc2_normal_transfer.json](../../assets/WAVES/cdc_2_phase_handshake/cdc2_normal_transfer.json)
+**Source:** [cdc2_normal_transfer.json](../assets/WAVES/cdc_2_phase_handshake/cdc2_normal_transfer.json)
 
 One `src_valid` toggles `r_req_tog` 0 -> 1. Three synchronizer stages later the
 destination sees the new value, `w_req_event` pulses for one cycle, `dst_valid`
@@ -160,9 +160,9 @@ asserts. Parity now agrees at 1 on both ends.
 
 #### Waveform 1.2: 2-Phase Hazard - Destination Reset Alone
 
-![2-phase asymmetric reset hazard](../../assets/WAVES/cdc_2_phase_handshake/cdc2_asymmetric_reset_hazard.png)
+![2-phase asymmetric reset hazard](../assets/WAVES/cdc_2_phase_handshake/cdc2_asymmetric_reset_hazard.png)
 
-**Source:** [cdc2_asymmetric_reset_hazard.json](../../assets/WAVES/cdc_2_phase_handshake/cdc2_asymmetric_reset_hazard.json)
+**Source:** [cdc2_asymmetric_reset_hazard.json](../assets/WAVES/cdc_2_phase_handshake/cdc2_asymmetric_reset_hazard.json)
 
 `rst_dst_n` asserts while `rst_src_n` stays high:
 
@@ -190,18 +190,18 @@ corrupted for the rest of the session.
 
 #### Waveform 1.3: 4-Phase Normal Transfer
 
-![4-phase normal transfer](../../assets/WAVES/cdc_4_phase_handshake/cdc4_normal_transfer.png)
+![4-phase normal transfer](../assets/WAVES/cdc_4_phase_handshake/cdc4_normal_transfer.png)
 
-**Source:** [cdc4_normal_transfer.json](../../assets/WAVES/cdc_4_phase_handshake/cdc4_normal_transfer.json)
+**Source:** [cdc4_normal_transfer.json](../assets/WAVES/cdc_4_phase_handshake/cdc4_normal_transfer.json)
 
 Four crossings: `r_req_src` rises, `r_ack_dst` rises, `r_req_src` falls,
 `r_ack_dst` falls. Both ends finish at the 0 idle level.
 
 #### Waveform 1.4: 4-Phase One-Sided Reset Is Safe
 
-![4-phase one-sided reset is safe](../../assets/WAVES/cdc_4_phase_handshake/cdc4_asymmetric_reset_safe.png)
+![4-phase one-sided reset is safe](../assets/WAVES/cdc_4_phase_handshake/cdc4_asymmetric_reset_safe.png)
 
-**Source:** [cdc4_asymmetric_reset_safe.json](../../assets/WAVES/cdc_4_phase_handshake/cdc4_asymmetric_reset_safe.json)
+**Source:** [cdc4_asymmetric_reset_safe.json](../assets/WAVES/cdc_4_phase_handshake/cdc4_asymmetric_reset_safe.json)
 
 `rst_dst_n` asserts mid-transfer while the source runs:
 
@@ -600,7 +600,7 @@ The worked example below shows the raw depth only, so that it lines up with the
 storage-overhead tables that follow; add the margin before committing to a
 number.
 
-**Spreadsheet.** [`docs/fifo_depth_calculator_v2.xlsx`](../../../fifo_depth_calculator_v2.xlsx)
+**Spreadsheet.** [`docs/fifo_depth_calculator_v2.xlsx`](../../fifo_depth_calculator_v2.xlsx)
 does this whole calculation -- rate-from-duty, raw depth, synchroniser margin,
 then the Gray power-of-two and Johnson even-number rounding side by side, with
 the slot and percentage saving between them. It carries worked example cases and
@@ -893,10 +893,10 @@ variant.
 | Module | RTL | Filelist | Test |
 |--------|-----|----------|------|
 | `cdc_synchronizer` | `rtl/cdc/cdc_synchronizer.sv` | `cdc_synchronizer.f` | -- |
-| `cdc_open_loop` | `rtl/cdc/cdc_open_loop.sv` | `cdc_open_loop.f` | `val/amba/test_cdc_open_loop.py` |
-| `cdc_2_phase_handshake` | `rtl/cdc/cdc_2_phase_handshake.sv` | `cdc_2_phase_handshake.f` | `val/amba/test_cdc_2_phase_handshake.py` |
-| `cdc_4_phase_handshake` | `rtl/cdc/cdc_4_phase_handshake.sv` | `cdc_4_phase_handshake.f` | `val/amba/test_cdc_4_phase_handshake.py` |
-| `fifo_async` | `rtl/cdc/fifo_async.sv` | `rtl/common/filelists/fifo_async.f` | `val/common/test_fifo_buffer_async.py` |
+| `cdc_open_loop` | `rtl/cdc/cdc_open_loop.sv` | `cdc_open_loop.f` | `val/cdc/test_cdc_open_loop.py` |
+| `cdc_2_phase_handshake` | `rtl/cdc/cdc_2_phase_handshake.sv` | `cdc_2_phase_handshake.f` | `val/cdc/test_cdc_2_phase_handshake.py` |
+| `cdc_4_phase_handshake` | `rtl/cdc/cdc_4_phase_handshake.sv` | `cdc_4_phase_handshake.f` | `val/cdc/test_cdc_4_phase_handshake.py` |
+| `fifo_async` | `rtl/cdc/fifo_async.sv` | `rtl/common/filelists/fifo_async.f` | `val/cdc/test_fifo_buffer_async.py` |
 | `gaxi_fifo_async` | `rtl/cdc/gaxi_fifo_async.sv` | -- | -- |
 
 : CDC module reference
@@ -905,13 +905,14 @@ variant.
 `apb_slave_cdc_cg`, `apb5_slave_cdc`, `apb5_slave_cdc_cg`,
 `gaxi_skid_buffer_async`, `axi4_to_apb_shim`.
 
-**Supporting primitives (rtl/common):** `glitch_free_n_dff_arn`, `bin2gray`,
-`gray2bin`, `johnson2bin`, `counter_bingray`, `counter_johnson`, `reset_sync`,
+**Supporting primitives (rtl/cdc):** `bin2gray`, `gray2bin`, `johnson2bin`,
+`counter_bingray`, `counter_johnson`.
+**Supporting primitives (rtl/common):** `glitch_free_n_dff_arn`, `reset_sync`,
 `sync_pulse`.
 
 ---
 
 ## Navigation
 
-- [Back to CDC Index](README.md)
+- [Back to CDC Index](../../../README.md)
 - [Back to rtl-amba Index](../index.md)

@@ -167,7 +167,7 @@ Utility modules for AXI protocol handling:
 
 > **Clock domain crossing modules have moved.** `cdc_2_phase_handshake`,
 > `cdc_4_phase_handshake`, `cdc_open_loop` and `cdc_synchronizer` now live in
-> `rtl/amba/cdc/`, documented under [rtl-amba/cdc](../cdc/README.md). Start with the
+> `rtl/cdc/`, documented under [rtl-cdc](../../rtl-cdc/index.md). Start with the
 > [CDC Primer](../../rtl-cdc/cdc.md) for the decision guide.
 
 ---
@@ -759,10 +759,10 @@ pytest val/amba/test_axil4_*_mon.py -v
 pytest val/amba/test_apb_monitor.py -v
 
 # CDC tested via shims
-pytest val/integ_amba/test_axi2apb_shim.py -v
+pytest projects/components/converters/dv/tests/test_axi2apb_shim.py -v
 
 # Address generation tested via conversion
-pytest val/integ_amba/test_axi2apb_shim.py -v
+pytest projects/components/converters/dv/tests/test_axi2apb_shim.py -v
 ```
 
 ---

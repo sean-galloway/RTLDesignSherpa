@@ -195,8 +195,8 @@ gaxi_fifo_sync #(
 
 ```bash
 # Test FIFO modes
-pytest val/amba/test_gaxi_buffer_sync.py -k "fifo_mux" -v   # Mux mode
-pytest val/amba/test_gaxi_buffer_sync.py -k "fifo_flop" -v  # Flop mode
+pytest val/amba/test_gaxi_fifo_sync.py -k "fifo_mux" -v   # Mux mode
+pytest val/amba/test_gaxi_fifo_sync.py -k "fifo_flop" -v  # Flop mode
 ```
 
 ---

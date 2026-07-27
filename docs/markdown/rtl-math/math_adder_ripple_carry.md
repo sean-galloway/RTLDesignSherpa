@@ -435,7 +435,7 @@ MSB (Sum[7]): Depends on C[6] → 16 levels (slowest)
 
 ## Verification Strategy
 
-Test suite location: `val/common/test_math_adder_ripple_carry.py`
+Test suite location: `val/math/test_math_adder_ripple_carry.py`
 
 **Key Test Scenarios:**
 - Random stimulus (all widths)
@@ -447,7 +447,7 @@ Test suite location: `val/common/test_math_adder_ripple_carry.py`
 
 **Test Command:**
 ```bash
-pytest val/common/test_math_adder_ripple_carry.py -v
+pytest val/math/test_math_adder_ripple_carry.py -v
 ```
 
 ## Common Pitfalls

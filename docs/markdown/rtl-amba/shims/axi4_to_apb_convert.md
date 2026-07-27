@@ -422,13 +422,13 @@ stateDiagram-v2
 
 ```bash
 # Core conversion tested via integration test
-pytest val/integ_amba/test_axi2apb_shim.py -v
+pytest projects/components/converters/dv/tests/test_axi2apb_shim.py -v
 
 # Test with burst traffic
-pytest "val/integ_amba/test_axi2apb_shim.py::test_burst" -v
+pytest "projects/components/converters/dv/tests/test_axi2apb_shim.py::test_burst" -v
 
 # Test width conversion
-pytest "val/integ_amba/test_axi2apb_shim.py::test_width[64-32]" -v
+pytest "projects/components/converters/dv/tests/test_axi2apb_shim.py::test_width[64-32]" -v
 ```
 
 ---

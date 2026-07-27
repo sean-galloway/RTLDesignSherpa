@@ -226,16 +226,16 @@ APB Bus → apb_slave_stub → peakrdl_to_cmdrsp → PeakRDL Register Block
 
 ```bash
 # Test AXI to APB bridge
-pytest val/integ_amba/test_axi2apb_shim.py -v
+pytest projects/components/converters/dv/tests/test_axi2apb_shim.py -v
 
 # Test PeakRDL adapter
-pytest val/amba/test_peakrdl_to_cmdrsp.py -v
+pytest projects/components/converters/dv/tests/test_peakrdl_to_cmdrsp.py -v
 
 # Run all shims tests
 pytest val/amba/test_*shim*.py val/integ_amba/test_*shim*.py -v
 
 # Generate waveforms
-pytest val/integ_amba/test_axi2apb_shim.py --vcd=bridge.vcd -v
+pytest projects/components/converters/dv/tests/test_axi2apb_shim.py --vcd=bridge.vcd -v
 gtkwave bridge.vcd
 ```
 

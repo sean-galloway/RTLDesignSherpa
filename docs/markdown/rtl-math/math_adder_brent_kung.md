@@ -530,7 +530,7 @@ derived from them, not synthesis results.
 
 ### Verification Strategy
 
-Test suite location: `val/common/test_math_adder_brent_kung.py` -- one parameterized
+Test suite location: `val/math/test_math_adder_brent_kung.py` -- one parameterized
 test covering every width, not one file per width.
 
 **Key Test Scenarios:**
@@ -544,10 +544,10 @@ test covering every width, not one file per width.
 **Test Command:**
 ```bash
 # Test all widths the test sweeps (REG_LEVEL selects the width list)
-pytest val/common/test_math_adder_brent_kung.py -v
+pytest val/math/test_math_adder_brent_kung.py -v
 
 # A single width
-pytest "val/common/test_math_adder_brent_kung.py::test_math_adder_brent_kung[32]" -v
+pytest "val/math/test_math_adder_brent_kung.py::test_math_adder_brent_kung[32]" -v
 ```
 
 The width sweep is driven by `REG_LEVEL`: `FUNC` (the default) covers 8 and 16

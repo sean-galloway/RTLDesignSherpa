@@ -346,14 +346,16 @@ gaxi_skid_buffer_struct #(
 
 ## Testing
 
-```bash
-# Tests use parameterized structs
-pytest val/amba/test_gaxi_skid_buffer_struct.py -v
+**This module has no test of its own.** The commands that used to stand here
+named a `test_gaxi_skid_buffer_struct.py` that has never existed. The closest
+coverage is the packed-vector sibling:
 
-# Test with different struct types
-pytest val/amba/test_gaxi_skid_buffer_struct.py::test_axi_channel -v
-pytest val/amba/test_gaxi_skid_buffer_struct.py::test_custom_struct -v
+```bash
+pytest val/amba/test_gaxi_skid_buffer.py -v
 ```
+
+That exercises the same handshake and depth logic; what it does not exercise is
+the struct packing/unpacking this module adds. Treat that as unverified.
 
 ---
 

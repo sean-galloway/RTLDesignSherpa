@@ -323,7 +323,7 @@ endmodule
 
 > **Prefer the library module.** The example below is written out in full to show
 > the mechanism, but production code should instantiate
-> `glitch_free_n_dff_arn` (rtl/common) or `cdc_synchronizer` (rtl/amba/cdc)
+> `glitch_free_n_dff_arn` (rtl/common) or `cdc_synchronizer` (rtl/cdc)
 > rather than hand-rolling the flop chain.
 >
 > Two conditions this example depends on, both easy to get wrong:

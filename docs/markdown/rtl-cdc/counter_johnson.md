@@ -431,9 +431,9 @@ Four scenarios demonstrate the unique properties of Johnson counters:
 
 ### Scenario 1: Walking Ones and Walking Zeros Pattern
 
-![Johnson Walking Pattern](../../assets/WAVES/counter_johnson/johnson_counter_walking_pattern.png)
+![Johnson Walking Pattern](../assets/WAVES/counter_johnson/johnson_counter_walking_pattern.png)
 
-**WaveJSON:** [johnson_counter_walking_pattern.json](../../assets/WAVES/counter_johnson/johnson_counter_walking_pattern.json)
+**WaveJSON:** [johnson_counter_walking_pattern.json](../assets/WAVES/counter_johnson/johnson_counter_walking_pattern.json)
 
 Complete 2×WIDTH state cycle (8 states for WIDTH=4):
 - Walking ones: 0000 → 0001 → 0011 → 0111 → 1111
@@ -442,9 +442,9 @@ Complete 2×WIDTH state cycle (8 states for WIDTH=4):
 
 ### Scenario 2: Single-Bit Transitions (CDC Safety) ⭐ **KEY FEATURE**
 
-![Johnson Single-Bit Transitions](../../assets/WAVES/counter_johnson/johnson_counter_single_bit_transitions.png)
+![Johnson Single-Bit Transitions](../assets/WAVES/counter_johnson/johnson_counter_single_bit_transitions.png)
 
-**WaveJSON:** [johnson_counter_single_bit_transitions.json](../../assets/WAVES/counter_johnson/johnson_counter_single_bit_transitions.json)
+**WaveJSON:** [johnson_counter_single_bit_transitions.json](../assets/WAVES/counter_johnson/johnson_counter_single_bit_transitions.json)
 
 Each transition changes only ONE bit:
 - CDC-safe like Gray codes
@@ -454,9 +454,9 @@ Each transition changes only ONE bit:
 
 ### Scenario 3: Enable Control
 
-![Johnson Enable Control](../../assets/WAVES/counter_johnson/johnson_counter_enable_control.png)
+![Johnson Enable Control](../assets/WAVES/counter_johnson/johnson_counter_enable_control.png)
 
-**WaveJSON:** [johnson_counter_enable_control.json](../../assets/WAVES/counter_johnson/johnson_counter_enable_control.json)
+**WaveJSON:** [johnson_counter_enable_control.json](../assets/WAVES/counter_johnson/johnson_counter_enable_control.json)
 
 Enable control and state holding:
 - Counter advances when enable=1
@@ -466,9 +466,9 @@ Enable control and state holding:
 
 ### Scenario 4: Reset Behavior
 
-![Johnson Reset Behavior](../../assets/WAVES/counter_johnson/johnson_counter_reset_behavior.png)
+![Johnson Reset Behavior](../assets/WAVES/counter_johnson/johnson_counter_reset_behavior.png)
 
-**WaveJSON:** [johnson_counter_reset_behavior.json](../../assets/WAVES/counter_johnson/johnson_counter_reset_behavior.json)
+**WaveJSON:** [johnson_counter_reset_behavior.json](../assets/WAVES/counter_johnson/johnson_counter_reset_behavior.json)
 
 Reset and initialization:
 - Asynchronous reset to all zeros (0000)
@@ -480,7 +480,7 @@ Reset and initialization:
 
 **To regenerate these waveforms:**
 ```bash
-pytest val/common/test_counter_johnson_wavedrom.py -v
+pytest val/cdc/test_counter_johnson_wavedrom.py -v
 # Then convert JSON to PNG:
 cd docs/markdown/assets/WAVES/counter_johnson
 for f in *.json; do wavedrom-cli -i "$f" -p "${f%.json}.png"; done
@@ -515,16 +515,16 @@ Johnson counters are the foundation of the `fifo_async` `USE_JOHNSON=1` CDC mech
 ## Test and Verification
 
 **Comprehensive Test Suite:**
-- `val/common/test_counter_johnson.py` - Full functional verification
-- `val/common/test_counter_johnson_wavedrom.py` - WaveDrom timing diagrams ⭐
+- `val/cdc/test_counter_johnson.py` - Full functional verification
+- `val/cdc/test_counter_johnson_wavedrom.py` - WaveDrom timing diagrams ⭐
 
 **Run Tests:**
 ```bash
 # Full functional test (basic/medium/full levels)
-pytest val/common/test_counter_johnson.py -v
+pytest val/cdc/test_counter_johnson.py -v
 
 # WaveDrom waveform generation
-pytest val/common/test_counter_johnson_wavedrom.py -v
+pytest val/cdc/test_counter_johnson_wavedrom.py -v
 ```
 
 ## Navigation

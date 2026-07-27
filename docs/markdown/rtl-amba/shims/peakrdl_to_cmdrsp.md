@@ -432,10 +432,10 @@ rsp_ready  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\______/¯¯¯¯¯¯¯�
 
 ```bash
 # Run adapter test
-pytest val/amba/test_peakrdl_to_cmdrsp.py -v
+pytest projects/components/converters/dv/tests/test_peakrdl_to_cmdrsp.py -v
 
 # Test with waveforms
-pytest val/amba/test_peakrdl_to_cmdrsp.py --vcd=peakrdl.vcd -v
+pytest projects/components/converters/dv/tests/test_peakrdl_to_cmdrsp.py --vcd=peakrdl.vcd -v
 gtkwave peakrdl.vcd
 ```
 

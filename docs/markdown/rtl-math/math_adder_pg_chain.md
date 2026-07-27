@@ -466,7 +466,7 @@ The module includes a Verilator pragma:
 
 ## Verification Strategy
 
-Test suite location: `val/common/test_math_adder_pg_chain.py`
+Test suite location: `val/math/test_math_adder_pg_chain.py`
 
 **Key Test Scenarios:**
 - Random stimulus (all widths)
@@ -478,7 +478,7 @@ Test suite location: `val/common/test_math_adder_pg_chain.py`
 
 **Test Command:**
 ```bash
-pytest val/common/test_math_adder_pg_chain.py -v
+pytest val/math/test_math_adder_pg_chain.py -v
 ```
 
 ## Common Pitfalls

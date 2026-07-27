@@ -111,12 +111,22 @@ flowchart LR
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
+| `MEM_STYLE` | `FIFO_AUTO` | Async FIFO storage: `FIFO_AUTO` / `FIFO_SRL` / `FIFO_BRAM` |
 | `REGISTERED` | 0 | Async FIFO read mode (0=mux, 1=flop) |
 | `DATA_WIDTH` | 32 | Data bus width |
 | `DEPTH` | 2 | Async FIFO depth (CDC stage) |
+| `USE_JOHNSON` | 0 | 0 = Gray pointers, power-of-2 `DEPTH` only; 1 = Johnson pointers, any `DEPTH` |
 | `N_FLOP_CROSS` | 2 | Synchronizer stages (3 recommended) |
 
-**Note:** Skid buffer depth is fixed (determined by gaxi_skid_buffer default).
+`USE_JOHNSON` reaches the async FIFO underneath and carries the same meaning it
+has there: it selects the pointer encoding, and with it the legal `DEPTH` values.
+Leave it at 0 and `DEPTH` must be a power of 2 or elaboration fails; set it to 1
+and odd depths become legal at the cost of a wider pointer. See
+[gaxi_fifo_async](gaxi_fifo_async.md) for the trade-off in full.
+
+**Note:** the skid half's depth is NOT `DEPTH`. The wrapper instantiates
+`gaxi_skid_buffer` with `DATA_WIDTH` only, so it takes that module's own default
+of 2. `DEPTH` sizes the async FIFO behind it.
 
 ---
 
@@ -247,9 +257,13 @@ Combines resources of both sub-modules:
 
 | Component | Flops | LUTs |
 |-----------|-------|------|
-| Skid buffer (typical) | ~4×DW | ~50 |
+| Skid buffer (fixed, DEPTH=2) | 2×DW + ~4 | ~50 |
 | Async FIFO (DEPTH=8) | 8×DW + ~40 | ~120 |
-| **Total (DEPTH=8)** | **~12×DW + 40** | **~170** |
+| **Total (DEPTH=8)** | **~10×DW + 44** | **~170** |
+
+The skid row does not scale with `DEPTH`. The wrapper never overrides the skid
+buffer's depth, so its storage is `r_data[2]` -- two words -- whatever `DEPTH`
+you pass. Only the FIFO row moves.
 
 ---
 
@@ -257,10 +271,10 @@ Combines resources of both sub-modules:
 
 ```bash
 # Async skid buffer tests
-pytest val/amba/test_gaxi_buffer_async.py -k "skid" -v
+pytest val/cdc/test_gaxi_buffer_async.py -k "skid" -v
 
 # Test specific clock ratio
-pytest val/amba/test_gaxi_buffer_async.py -k "skid" -k "wr10_rd20" -v
+pytest val/cdc/test_gaxi_buffer_async.py -k "skid" -k "wr10_rd20" -v
 ```
 
 ---
@@ -298,7 +312,7 @@ pytest val/amba/test_gaxi_buffer_async.py -k "skid" -k "wr10_rd20" -v
 
 ## Related Modules
 
-- [gaxi_skid_buffer](gaxi_skid_buffer.md) - Synchronous version
+- [gaxi_skid_buffer](../rtl-amba/gaxi/gaxi_skid_buffer.md) - Synchronous version
 - [gaxi_fifo_async](gaxi_fifo_async.md) - Async FIFO without skid buffer
 - [GAXI Index](index.md) - Overview
 
@@ -310,7 +324,7 @@ pytest val/amba/test_gaxi_buffer_async.py -k "skid" -k "wr10_rd20" -v
 - **Dependencies:**
   - `gaxi_skid_buffer.sv`
   - `gaxi_fifo_async.sv`
-- **Tests:** `val/amba/test_gaxi_buffer_async.py`
+- **Tests:** `val/cdc/test_gaxi_buffer_async.py`
 
 ---
 

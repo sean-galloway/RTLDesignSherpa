@@ -116,22 +116,28 @@ leading_one_trailing_one #(
 
 ### First Half Conversion (MSB = 0)
 ```
+JCW=6, WIDTH=$clog2(6)+1=4 -- the legal pairing, and what both FIFOs instantiate.
+
 Johnson: 001111 (set bits {0,1,2,3}: w_leading_one = 3, w_trailing_one = 0)
 Logic: gray[5]=0 → first half, position = w_leading_one + 1 = 3 + 1 = 4
-Binary: 000100 (MSB=0 indicating first half) = state 4
+Binary: 4'b0100 = {wrap=0, addr=4} -- Johnson state 4
 ```
 
 ### Second Half Conversion (MSB = 1)  
 ```
 Johnson: 111000 (set bits {3,4,5}: w_leading_one = 5, w_trailing_one = 3)
 Logic: gray[5]=1 → second half, position = w_trailing_one = 3
-Binary: 100011 (MSB=1 indicating second half) = state 9 (6 + 3)
+Binary: 4'b1011 = {wrap=1, addr=3} -- Johnson state 9 of 12
+
+The output is not the number 9. It is the FIFO pointer {wrap, addr}: the ninth
+state of the sequence is address 3 on the second lap. Reading `4'b1011` as the
+decimal 11 and expecting 9 is the usual first confusion with this module.
 ```
 
 ### Special Cases
 ```
-Johnson: 000000 → Binary: 000000 (all zeros case)
-Johnson: 111111 → Binary: 100000 (all ones: lower bits forced to 0, but the RTL
+Johnson: 000000 → Binary: 4'b0000 (all zeros case)
+Johnson: 111111 → Binary: 4'b1000 (all ones: lower bits forced to 0, but the RTL
          unconditionally sets binary[WIDTH-1] = gray[JCW-1] = 1, so the wrap
          bit is SET -- this is {wrap=1, addr=0}, NOT the same as all-zeros.
          FIFO full detection depends on this.)
@@ -260,12 +266,23 @@ parameter int DEPTH = 64;  // Large depth, resource conscious
 ## Error Conditions and Debug
 
 ### Invalid Johnson Sequences
-The `leading_one_trailing_one` module provides validation:
+**Nothing checks them.** It is worth being blunt, because the `.valid(w_valid)`
+port on the helper reads like it does:
+
 ```systemverilog
-.valid(w_valid)  // Indicates valid Johnson pattern
+.valid(w_valid)  // NOT a Johnson-pattern check -- see below
 ```
 
-Valid Johnson patterns have exactly one transition from 1s to 0s (or vice versa).
+`leading_one_trailing_one` computes `assign valid = |data`, so `valid` means
+"input is nonzero" and nothing more. A pattern such as `6'b010101`, which is not
+a Johnson sequence at all, drives it high. And in `johnson2bin.sv` `w_valid` is
+declared, connected, and then never read -- no output carries it, no assertion
+consumes it. A malformed sequence is decoded into a wrong pointer silently.
+
+A valid Johnson pattern is one with a single 1-to-0 transition (or its mirror).
+If you need that enforced, it has to come from somewhere else: the upstream
+`counter_johnson` produces only legal patterns by construction, which is why the
+decoder can assume them.
 
 ### Debug Visibility
 ```systemverilog
@@ -274,11 +291,11 @@ Valid Johnson patterns have exactly one transition from 1s to 0s (or vice versa)
 // - w_trailing_one: Position of rightmost 1  
 // - w_all_zeroes: Special case flag
 // - w_all_ones: Special case flag
-// - w_valid: Sequence validity
+// - w_valid: nonzero-input flag ONLY -- not a Johnson-pattern check
 ```
 
 ### Common Issues
-1. **Invalid sequences**: Non-Johnson patterns on input
+1. **Invalid sequences**: non-Johnson input decodes silently to a wrong pointer
 2. **Width mismatches**: JCW vs. actual Johnson counter width
 3. **Phase confusion**: Misunderstanding first vs. second half logic
 4. **Boundary conditions**: All-zeros and all-ones handling

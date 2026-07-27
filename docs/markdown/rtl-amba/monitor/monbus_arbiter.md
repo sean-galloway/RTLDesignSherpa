@@ -306,7 +306,7 @@ The module includes comprehensive assertions:
 
 ### Source Code
 - RTL: `rtl/amba/monitor/monbus_arbiter.sv`
-- Tests: `val/amba/test_monbus_arbiter.py` (if exists)
+- Tests: `val/amba/test_monbus_arbiter_grant_hold.py` (if exists)
 
 ---
 
