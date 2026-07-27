@@ -37,7 +37,7 @@ The APB Slave CDC (Clock Domain Crossing) module is a complete APB slave interfa
 
 - ✅ **Safe CDC:** Gray-pointer asynchronous FIFOs, one per direction
 - ✅ **Dual Clock Domains:** APB (pclk) and AXI (aclk) operate independently
-- ✅ **Independent Resets:** Either domain may be reset alone without corrupting the link
+- ⚠️ **Reset both domains together:** a one-sided reset is NOT safe -- see [Reset Behavior](#reset-behavior)
 - ✅ **Full APB4 Support:** Complete AMBA 4 APB protocol compliance
 - ✅ **Command/Response Interface:** Clean GAXI-style backend interface
 - ✅ **Buffered Operation:** Integrated skid buffers for elastic storage
@@ -162,15 +162,34 @@ states.
 
 ### Reset Behavior
 
-`gaxi_fifo_async` resets each domain's own pointer **and** that domain's crossed
-copy of the remote pointer from that domain's local reset. Resetting one side in
-isolation therefore leaves that side's view self-consistent (both pointers zero,
-i.e. empty), and because the pointers are absolute positions rather than parity
-state, an independent reset cannot fabricate or swallow a transfer.
+`presetn` and `aresetn` are separate reset domains, but they must be asserted
+together. **A one-sided reset is not safe. Quiesce the bus first.**
 
-This is load-bearing: `presetn` and `aresetn` are genuinely separate reset
-domains in real integrations. For example, the `ddr2-char` harness pulses only
-the core-side reset on `CTRL.soft_reset` while the APB side stays up.
+The local reset clears that domain's own pointer, but the crossed copy of the
+*remote* pointer is a live synchronizer (`glitch_free_n_dff_arn`, N=2) that keeps
+sampling the non-reset domain the moment reset deasserts -- it does not hold at
+zero. The reset side comes back with its own pointer at zero and the remote
+pointer at whatever the other side had reached: not an empty FIFO, a mismatched
+one.
+
+Neither consequence is a clean discard:
+
+- **Commands are re-presented, not dropped.** Pulsing `aresetn` with an unread
+  command in the cmd FIFO rewinds the read pointer behind the write pointer, so
+  the backend sees that command again after reset. It does not time out -- it
+  re-executes.
+- **The response FIFO can fabricate responses.** The same rewind on the response
+  path presents entries the APB side never queued, so the APB master can complete
+  a transfer the backend never answered.
+
+Pointers being absolute positions rather than toggle parity is what makes the
+*steady-state* crossing reliable; it does not make a one-sided reset safe.
+
+This page previously claimed the opposite, and cited the `ddr2-char` harness
+pulsing only the core-side reset on `CTRL.soft_reset` as proof. That usage is
+not a guarantee this module provides -- if it is real, it is a latent bug in the
+harness rather than a supported mode. `apb5_slave_cdc`, which instantiates the
+same `gaxi_fifo_async`, has always documented this correctly.
 
 ### Why Not the Previous 2-Phase Handshake
 

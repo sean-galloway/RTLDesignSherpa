@@ -261,7 +261,6 @@ def test_gaxi_regslice(request, data_width, clk_period, test_level):
     seed = random.randint(0, 100000)
 
     # Compile-time parameters (no DEPTH parameter - regslice is fixed 1-deep)
-    # Note: INSTANCE_NAME omitted due to Verilator FST tracing bug with string parameters
     parameters = {
         'DATA_WIDTH': data_width,
     }

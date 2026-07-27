@@ -245,7 +245,7 @@ parameter int MIN_DEPTH = 16;  // Typical minimum for async FIFOs
 
 ## Error Detection Features
 **Note:** the current RTL has **no** runtime `$display` overflow/underflow
-checks and **no** `INSTANCE_NAME` parameter. The `!wr_full` write guard is the
+checks. The `!wr_full` write guard is the
 only overflow protection. The one elaboration-time check that does exist is an
 `$error` for a non-power-of-2 `DEPTH` when Gray pointers are selected
 (`USE_JOHNSON=0`). Add assertions in your testbench if you need overflow

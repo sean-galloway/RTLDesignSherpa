@@ -213,7 +213,7 @@ rd_data ===========[ D0 ]=====  (1 cycle delay)
 
 ### Error Detection
 **Note:** the current RTL does **not** contain any runtime `$display`
-overflow/underflow checks (and there is no `INSTANCE_NAME` parameter). The
+overflow/underflow checks. The
 `!wr_full` write guard is the only overflow protection. If you need write-while-
 full / read-while-empty telemetry, add assertions in your own testbench.
 

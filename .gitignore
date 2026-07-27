@@ -206,6 +206,12 @@ bin_OLD/
 profile.txt
 sim_build/
 local_sim_build/
+
+# Verilator coverage output. `--annotate` writes copies of the RTL with hit
+# counts prepended, so a stale tree keeps re-surfacing source that no longer
+# exists -- 16 of these still contained an INSTANCE_NAME parameter removed from
+# the RTL long ago. Regenerate with COVERAGE=1; never hand-edit.
+coverage_data/
 debug_sim_build/
 regression/
 junk_*

@@ -168,7 +168,6 @@ coverage_points:
     type: other
     covered: False
     hit_count: 0
-    content: "$display("Error: %s write while fifo full, %t", INSTANCE_NAME, $time);"
 
   - line: 895
     type: if_statement
@@ -192,13 +191,11 @@ coverage_points:
     type: other
     covered: False
     hit_count: 0
-    content: "$display("Error: %s read while fifo empty (flop mode), %t", INSTANCE_NAME, $time"
 
   - line: 900
     type: other
     covered: False
     hit_count: 0
-    content: "$display("Error: %s read while fifo empty (mux mode), %t", INSTANCE_NAME, $time)"
 
 
 # Functional scenarios

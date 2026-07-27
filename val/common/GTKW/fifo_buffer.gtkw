@@ -20,7 +20,6 @@
 fifo_sync.DEPTH
 fifo_sync.AW
 fifo_sync.DW
-fifo_sync.INSTANCE_NAME
 @200
 -clk and reset
 @28

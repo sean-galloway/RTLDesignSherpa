@@ -463,8 +463,7 @@ module math_ieee754_2008_fp32_adder #(
     endgenerate
 
     count_leading_zeros #(
-        .WIDTH(28),
-        .INSTANCE_NAME("FP32_ADD_CLZ")
+        .WIDTH(28)
     ) u_clz (
         .data(w_mant_for_clz),
         .clz (w_lzc)

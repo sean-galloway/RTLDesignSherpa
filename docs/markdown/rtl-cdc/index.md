@@ -82,7 +82,12 @@ include—they're not copied here:
 
 - [`glitch_free_n_dff_arn`](../rtl-common/glitch_free_n_dff_arn.md),
   [`fifo_control`](../rtl-common/fifo_control.md),
-  [`counter_bin`](../rtl-common/counter_bin.md) - [rtl-common](../rtl-common/index.md)
+  [`counter_bin`](../rtl-common/counter_bin.md),
+  [`find_first_set`](../rtl-common/find_first_set.md),
+  [`find_last_set`](../rtl-common/find_last_set.md),
+  [`leading_one_trailing_one`](../rtl-common/leading_one_trailing_one.md) -
+  [rtl-common](../rtl-common/index.md). The three bit-search modules arrive
+  through `johnson2bin`, which uses them to decode a Johnson pointer.
 - [`gaxi_skid_buffer`](../rtl-amba/gaxi/gaxi_skid_buffer.md) - [rtl-amba](../rtl-amba/index.md)
 
 The APB/APB5 CDC slaves that consume this area live with their protocol

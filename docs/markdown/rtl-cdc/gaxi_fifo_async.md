@@ -24,7 +24,7 @@
 # GAXI Asynchronous FIFO
 
 **Module:** `gaxi_fifo_async.sv`
-**Location:** `rtl/amba/gaxi/`
+**Location:** `rtl/cdc/`
 **Status:** ✅ Production Ready
 
 ---
@@ -54,7 +54,6 @@ module gaxi_fifo_async #(
     parameter int N_FLOP_CROSS = 2,      // CDC synchronizer stages
     parameter int ALMOST_WR_MARGIN = 1,
     parameter int ALMOST_RD_MARGIN = 1,
-    parameter     INSTANCE_NAME = "DEADF1F0"
 ) (
     // Write Domain
     input  logic            axi_wr_aclk,
@@ -81,7 +80,7 @@ module gaxi_fifo_async #(
 | `REGISTERED` | 0 | 0=mux mode, 1=flop mode (read path) |
 | `DATA_WIDTH` | 8 | Data bus width |
 | `DEPTH` | 16 | FIFO depth. Power of 2 with Gray pointers; any even value with `USE_JOHNSON=1` |
-| `USE_JOHNSON` | 0 | Pointer CDC encoding: 0 = Gray (`log2(DEPTH)+1` bits, power-of-2 depth only), 1 = Johnson (`DEPTH` bits, any even depth). An illegal combination fails at elaboration with an explicit `$error`. |
+| `USE_JOHNSON` | 0 | Pointer CDC encoding: 0 = Gray (`log2(DEPTH)+1` bits, power-of-2 depth only), 1 = Johnson (`DEPTH` bits, **any** depth -- odd included). An illegal combination fails at elaboration with an explicit `$error`. |
 | `N_FLOP_CROSS` | 2 | Synchronizer stages (3 recommended for safety) |
 | `ALMOST_WR_MARGIN` | 1 | Almost full threshold |
 | `ALMOST_RD_MARGIN` | 1 | Almost empty threshold |
@@ -280,14 +279,12 @@ Simulation-only assertions catch protocol violations:
 // Write domain checks
 always @(posedge axi_wr_aclk) begin
     if (!axi_wr_aresetn && wr_valid && !wr_ready) begin
-        $display("Error: %s write while FIFO full", INSTANCE_NAME);
     end
 end
 
 // Read domain checks
 always @(posedge axi_rd_aclk) begin
     if (!axi_rd_aresetn && rd_ready && !rd_valid) begin
-        $display("Error: %s read while FIFO empty", INSTANCE_NAME);
     end
 end
 ```
@@ -351,7 +348,7 @@ Test matrix includes:
 ## References
 
 - **Clifford Cummings:** "Simulation and Synthesis Techniques for Asynchronous FIFO Design" (Sunburst Design)
-- **Source:** `rtl/amba/gaxi/gaxi_fifo_async.sv`
+- **Source:** `rtl/cdc/gaxi_fifo_async.sv`
 - **Tests:** `val/amba/test_gaxi_buffer_async.py`
 
 ---

@@ -49,7 +49,6 @@ The GAXI skid buffer is an elastic buffer that provides **zero-latency bypass** 
 module gaxi_skid_buffer #(
     parameter int DATA_WIDTH = 32,
     parameter int DEPTH = 2,        // Must be one of {2, 4, 6, 8}
-    parameter     INSTANCE_NAME = "DEADF1F0",
     parameter int DW = DATA_WIDTH,
     parameter int BUF_WIDTH = DATA_WIDTH * DEPTH,
     parameter int BW = BUF_WIDTH
@@ -82,7 +81,6 @@ module gaxi_skid_buffer #(
 |-----------|------|---------|-------------|
 | `DATA_WIDTH` | int | 32 | Data bus width in bits |
 | `DEPTH` | int | 2 | Buffer depth (must be 2, 4, 6, or 8) |
-| `INSTANCE_NAME` | string | "DEADF1F0" | Instance name for debug messages |
 
 **Derived Parameters:**
 - `DW` = DATA_WIDTH
@@ -327,7 +325,6 @@ gaxi_skid_buffer #(
 gaxi_skid_buffer #(
     .DATA_WIDTH(128),
     .DEPTH(8),              // Larger depth for more buffering
-    .INSTANCE_NAME("BP_ABSORB")
 ) u_backpressure_buffer (
     .axi_aclk    (clk),
     .axi_aresetn (rst_n),
@@ -430,13 +427,11 @@ The module includes assertion checks (simulation only):
 // synopsys translate_off
 always @(posedge axi_aclk) begin
     if ((wr_valid && !wr_ready) && (wr_xfer)) begin
-        $display("Error: %s write while buffer full, %t", INSTANCE_NAME, $time);
     end
 end
 
 always @(posedge axi_aclk) begin
     if ((rd_ready && !rd_valid) && (rd_xfer)) begin
-        $display("Error: %s read while buffer empty, %t", INSTANCE_NAME, $time);
     end
 end
 // synopsys translate_on

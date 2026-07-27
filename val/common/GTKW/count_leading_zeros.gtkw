@@ -16,7 +16,6 @@
 [sst_vpaned_height] 400
 @420
 count_leading_zeros.WIDTH
-count_leading_zeros.INSTANCE_NAME
 @200
 -Inputs
 @28

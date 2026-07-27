@@ -9,7 +9,6 @@ parameters:
 - name: DEPTH
   default: 4
   description: Buffer depth (must be one of 2, 4, 6, 8)
-- name: INSTANCE_NAME
   default: DBLDRN
   description: Debug identifier string
 functional_scenarios:

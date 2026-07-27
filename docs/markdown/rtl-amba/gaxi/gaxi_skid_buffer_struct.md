@@ -49,7 +49,6 @@ Struct-aware variant of **[gaxi_skid_buffer](gaxi_skid_buffer.md)** that accepts
 module gaxi_skid_buffer_struct #(
     parameter type STRUCT_TYPE = logic [31:0],  // Any SystemVerilog type
     parameter int  DEPTH = 2,                   // Must be {2, 4, 6, 8}
-    parameter      INSTANCE_NAME = "DEADF1F0",  // Debug identifier
 
     // Automatically derived
     localparam int STRUCT_WIDTH = $bits(STRUCT_TYPE),
@@ -81,7 +80,6 @@ module gaxi_skid_buffer_struct #(
 |-----------|------|---------|-------------|
 | `STRUCT_TYPE` | type | `logic [31:0]` | Any SystemVerilog type (struct, union, enum, array) |
 | `DEPTH` | int | 2 | Buffer depth (must be 2, 4, 6, or 8) |
-| `INSTANCE_NAME` | string | "DEADF1F0" | Debug identifier for simulation messages |
 
 ---
 
@@ -140,8 +138,8 @@ typedef struct packed {
 // Instantiate struct-aware buffer
 gaxi_skid_buffer_struct #(
     .STRUCT_TYPE(axi_ar_t),
-    .DEPTH(4),
-    .INSTANCE_NAME("AXI_AR_BUF")
+    .DEPTH(4)
+    
 ) u_ar_buffer (
     .axi_aclk    (axi_clk),
     .axi_aresetn (axi_resetn),
@@ -181,8 +179,8 @@ typedef struct packed {
 // Buffer for packet pipeline
 gaxi_skid_buffer_struct #(
     .STRUCT_TYPE(custom_pkt_t),
-    .DEPTH(8),
-    .INSTANCE_NAME("PKT_PIPELINE")
+    .DEPTH(8)
+    
 ) u_pkt_buffer (
     .axi_aclk    (pkt_clk),
     .axi_aresetn (pkt_resetn),
@@ -208,8 +206,8 @@ typedef logic [15:0] sample_array_t [4];
 
 gaxi_skid_buffer_struct #(
     .STRUCT_TYPE(sample_array_t),
-    .DEPTH(4),
-    .INSTANCE_NAME("SAMPLE_BUF")
+    .DEPTH(4)
+    
 ) u_sample_buffer (
     .axi_aclk    (dsp_clk),
     .axi_aresetn (dsp_resetn),
@@ -335,8 +333,8 @@ typedef struct packed {
 pipeline_stage_t fetch_stage, decode_stage, execute_stage;
 
 gaxi_skid_buffer_struct #(
-    .STRUCT_TYPE(pipeline_stage_t),
-    .INSTANCE_NAME("FETCH_DECODE")
+    .STRUCT_TYPE(pipeline_stage_t)
+    
 ) u_fd_buf (
     .wr_data(fetch_stage),
     .rd_data(decode_stage),

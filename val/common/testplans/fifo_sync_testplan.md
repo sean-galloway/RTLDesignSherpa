@@ -26,11 +26,9 @@
 %000005                 always_comb w_rd_data = mem[r_rd_addr];
 %000000         if (write && wr_full) begin
 %000000             $timeformat(-9, 3, " ns", 10);
-%000000             $display("Error: %s write while fifo full, %t", INSTANCE_NAME, $time);
 %000000         if (read && rd_empty) begin
 %000000             $timeformat(-9, 3, " ns", 10);
 %000000             if (REGISTERED == 1)
-%000000                 $display("Error: %s read while fifo empty (flop mode), %t", INSTANCE_NAME, $time);
 ```
 
 ## Action Items

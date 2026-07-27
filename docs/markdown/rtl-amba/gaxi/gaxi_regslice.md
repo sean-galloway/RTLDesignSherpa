@@ -49,7 +49,6 @@ The GAXI register slice provides a timing-friendly 1-deep elastic buffer for pip
 ```systemverilog
 module gaxi_regslice #(
     parameter int DATA_WIDTH   = 32,
-    parameter     INSTANCE_NAME = "REGSL1D",
     parameter int DW           = DATA_WIDTH    // Derived
 ) (
     // Global Clock and Reset
@@ -79,7 +78,6 @@ module gaxi_regslice #(
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `DATA_WIDTH` | 32 | Data bus width (arbitrary) |
-| `INSTANCE_NAME` | "REGSL1D" | Debug instance name |
 | `DW` | DATA_WIDTH | Derived parameter (internal use) |
 
 ---
@@ -182,8 +180,8 @@ gaxi_regslice #(
 ```systemverilog
 // Register slice for AXI AR channel
 gaxi_regslice #(
-    .DATA_WIDTH(AXI_ID_WIDTH + AXI_ADDR_WIDTH + 8 + 3 + 2),
-    .INSTANCE_NAME("AR_REGSL")
+    .DATA_WIDTH(AXI_ID_WIDTH + AXI_ADDR_WIDTH + 8 + 3 + 2)
+    
 ) u_ar_regslice (
     .axi_aclk     (aclk),
     .axi_aresetn  (aresetn),

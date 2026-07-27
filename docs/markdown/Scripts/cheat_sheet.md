@@ -54,8 +54,6 @@ The format option uses a verible format to ensure all code follows a convention.
 
 ```verilog
 
-parameter INSTANCE_NAME = "DEADF1F0" // verilog_lint: waive explicit-parameter-storage-type
-
 ```
 
 ## [math_generate.py](math_generate.md)

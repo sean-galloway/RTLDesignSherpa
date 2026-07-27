@@ -23,7 +23,7 @@
 
 # Clock Domain Crossing (CDC)
 
-**RTL:** `rtl/amba/cdc/`
+**RTL:** `rtl/cdc/`
 **Filelists:** `rtl/amba/filelists/cdc_*.f`
 **Status:** Production Ready **for common-clock, common-reset verification.**
 Reset behavior across independent domains is argued from the RTL and, for the
@@ -493,13 +493,13 @@ Write Domain:                              Read Domain:
 
 ### Gray vs Johnson encoding
 
-Both `fifo_async` (rtl/common) and `gaxi_fifo_async` (rtl/amba/gaxi) select the
+Both `fifo_async` (rtl/cdc) and `gaxi_fifo_async` (rtl/cdc) select the
 encoding with a `USE_JOHNSON` parameter:
 
 | `USE_JOHNSON` | Encoding | Pointer width | Converter | Legal DEPTH |
 |---------------|----------|---------------|-----------|-------------|
 | 0 (default) | Gray | `log2(DEPTH)+1` | `gray2bin` (combinational) | power of 2 only |
-| 1 | Johnson | `DEPTH` | `johnson2bin` (combinational) | any even depth |
+| 1 | Johnson | `DEPTH` | `johnson2bin` (combinational) | any depth, odd included |
 
 : Async FIFO pointer encodings
 
@@ -577,7 +577,9 @@ depth >= burst_length * (1 - read_rate / write_rate)
 ```
 
 where `rate = freq * duty_cycle`. Round up, then apply the encoding's constraint:
-Gray rounds to the next power of two; Johnson rounds to the next even number.
+Gray rounds to the next power of two; Johnson takes the depth you ask for.
+The only elaboration check is `(USE_JOHNSON == 0) && ((DEPTH & (DEPTH-1)) != 0)`,
+so Johnson imposes no restriction at all.
 
 > **This formula assumes the reader keeps draining throughout the burst.** It
 > sizes for a *sustained rate mismatch*, not for burst isolation. If the reader
@@ -703,7 +705,7 @@ costs 12 fewer entries of area:
 **Conclusion for this example.** At 512 bits and depth ~20, Johnson is a clear win
 *only* if the array is implemented as flops. Under SRL or BRAM the depth rounding
 is absorbed by the primitive's own granularity, and choosing Johnson is a pure
-loss of ~96 flops plus a wider pointer comparator on the critical path.
+loss of +84 flops plus a wider pointer comparator on the critical path.
 
 **When even-depth genuinely pays.**
 
@@ -884,12 +886,12 @@ variant.
 
 | Module | RTL | Filelist | Test |
 |--------|-----|----------|------|
-| `cdc_synchronizer` | `rtl/amba/cdc/cdc_synchronizer.sv` | `cdc_synchronizer.f` | -- |
-| `cdc_open_loop` | `rtl/amba/cdc/cdc_open_loop.sv` | `cdc_open_loop.f` | `val/amba/test_cdc_open_loop.py` |
-| `cdc_2_phase_handshake` | `rtl/amba/cdc/cdc_2_phase_handshake.sv` | `cdc_2_phase_handshake.f` | `val/amba/test_cdc_2_phase_handshake.py` |
-| `cdc_4_phase_handshake` | `rtl/amba/cdc/cdc_4_phase_handshake.sv` | `cdc_4_phase_handshake.f` | `val/amba/test_cdc_4_phase_handshake.py` |
-| `fifo_async` | `rtl/common/fifo_async.sv` | `rtl/common/filelists/fifo_async.f` | `val/common/test_fifo_buffer_async.py` |
-| `gaxi_fifo_async` | `rtl/amba/gaxi/gaxi_fifo_async.sv` | -- | -- |
+| `cdc_synchronizer` | `rtl/cdc/cdc_synchronizer.sv` | `cdc_synchronizer.f` | -- |
+| `cdc_open_loop` | `rtl/cdc/cdc_open_loop.sv` | `cdc_open_loop.f` | `val/amba/test_cdc_open_loop.py` |
+| `cdc_2_phase_handshake` | `rtl/cdc/cdc_2_phase_handshake.sv` | `cdc_2_phase_handshake.f` | `val/amba/test_cdc_2_phase_handshake.py` |
+| `cdc_4_phase_handshake` | `rtl/cdc/cdc_4_phase_handshake.sv` | `cdc_4_phase_handshake.f` | `val/amba/test_cdc_4_phase_handshake.py` |
+| `fifo_async` | `rtl/cdc/fifo_async.sv` | `rtl/common/filelists/fifo_async.f` | `val/common/test_fifo_buffer_async.py` |
+| `gaxi_fifo_async` | `rtl/cdc/gaxi_fifo_async.sv` | -- | -- |
 
 : CDC module reference
 

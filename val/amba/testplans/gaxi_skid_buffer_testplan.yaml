@@ -8,7 +8,6 @@ parameters:
 - name: DEPTH
   default: 2
   description: Buffer depth (1-16)
-- name: INSTANCE_NAME
   default: SKID
   description: Debug identifier string
 functional_scenarios:

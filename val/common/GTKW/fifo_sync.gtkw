@@ -20,7 +20,6 @@ fifo_sync.DATA_WIDTH
 fifo_sync.DEPTH
 fifo_sync.ALMOST_WR_MARGIN
 fifo_sync.ALMOST_RD_MARGIN
-fifo_sync.INSTANCE_NAME
 fifo_sync.DW
 fifo_sync.D
 fifo_sync.AW

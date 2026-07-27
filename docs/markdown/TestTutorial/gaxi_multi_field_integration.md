@@ -295,7 +295,6 @@ gaxi_fifo_async_multi #(
     .DATA_WIDTH(32),       // 32-bit metadata (x2)
     .DEPTH(8),             // 8 descriptor slots
     .N_FLOP_CROSS(2),      // 2-flop synchronizer (typical)
-    .INSTANCE_NAME("DMA_DESC_FIFO")
 ) u_dma_descriptor_fifo (
     // CPU clock domain (write side)
     .axi_wr_aclk(cpu_clk),
@@ -323,7 +322,6 @@ gaxi_fifo_async_multi #(
 - **N_FLOP_CROSS=2:** Typical for most designs (reduces MTBF)
 - **N_FLOP_CROSS=3:** Use for very high-speed or critical paths
 - **DEPTH:** Must be power of 2 for Gray code pointers
-- **INSTANCE_NAME:** Helps identify FIFO in timing reports
 
 **CDC Safety:**
 - Uses Gray code for pointer crossing
@@ -360,8 +358,8 @@ gaxi_skid_buffer_async_multi #(
     .CTRL_WIDTH(8),
     .DATA_WIDTH(64),
     .DEPTH(16),           // Async FIFO depth
-    .N_FLOP_CROSS(2),
-    .INSTANCE_NAME("PKT_CDC")
+    .N_FLOP_CROSS(2)
+    
 ) u_packet_cdc (
     // Fast clock domain (write)
     .axi_wr_aclk(fast_clk),      // e.g., 500MHz

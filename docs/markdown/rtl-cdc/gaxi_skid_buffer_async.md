@@ -24,7 +24,7 @@
 # GAXI Asynchronous Skid Buffer
 
 **Module:** `gaxi_skid_buffer_async.sv`
-**Location:** `rtl/amba/gaxi/`
+**Location:** `rtl/cdc/`
 **Status:** ✅ Production Ready
 
 ---
@@ -51,7 +51,6 @@ module gaxi_skid_buffer_async #(
     parameter int DATA_WIDTH = 32,
     parameter int DEPTH = 2,             // Async FIFO depth
     parameter int N_FLOP_CROSS = 2,      // CDC stages
-    parameter     INSTANCE_NAME = "DEADF1F0"
 ) (
     // Write Domain
     input  logic          axi_wr_aclk,
@@ -114,7 +113,6 @@ flowchart LR
 | `DATA_WIDTH` | 32 | Data bus width |
 | `DEPTH` | 2 | Async FIFO depth (CDC stage) |
 | `N_FLOP_CROSS` | 2 | Synchronizer stages (3 recommended) |
-| `INSTANCE_NAME` | "DEADF1F0" | Debug instance name |
 
 **Note:** Skid buffer depth is fixed (determined by gaxi_skid_buffer default).
 
@@ -179,11 +177,15 @@ gaxi_skid_buffer_async #(
 
 | Component | Latency | Domain |
 |-----------|---------|--------|
-| Skid buffer (empty) | 0 cycles | Write |
+| Skid buffer (empty) | 1 cycle | Write |
 | Skid buffer (buffered) | 1 cycle | Write |
 | Async FIFO CDC | 3-5 cycles | Both |
-| **Total (empty path)** | **3-5 cycles** | End-to-end |
+| **Total (empty path)** | **4-6 cycles** | End-to-end |
 | **Total (buffered)** | **4-6 cycles** | End-to-end |
+
+`gaxi_skid_buffer` registers its handshake outputs, so even a write into an empty
+buffer costs one write clock before `rd_valid` rises and the async FIFO can take
+the data. There is no zero-latency bypass path.
 
 ### Throughput
 
@@ -302,7 +304,7 @@ pytest val/amba/test_gaxi_buffer_async.py -k "skid" -k "wr10_rd20" -v
 
 ## References
 
-- **Source:** `rtl/amba/gaxi/gaxi_skid_buffer_async.sv`
+- **Source:** `rtl/cdc/gaxi_skid_buffer_async.sv`
 - **Dependencies:**
   - `gaxi_skid_buffer.sv`
   - `gaxi_fifo_async.sv`

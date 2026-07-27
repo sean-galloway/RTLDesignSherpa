@@ -43,7 +43,8 @@ module clock_pulse #(
 - **Type**: `int`
 - **Default**: `10`
 - **Description**: Period of the pulse generation in clock cycles
-- **Range**: 2 to 2^32-1 (practical range)
+- **Range**: 2 to 2^31-1. The parameter is declared `int`, which is 32-bit
+  SIGNED, so 2^32-1 is not representable
 - **Impact**: Determines pulse frequency (f_clk / WIDTH)
 - **Pulse Width**: Always exactly 1 clock cycle
 - **Duty Cycle**: 1/WIDTH (e.g., 10% for WIDTH=10)

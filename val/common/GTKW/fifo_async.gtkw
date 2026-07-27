@@ -21,7 +21,6 @@ fifo_async.DEPTH
 fifo_async.N_FLOP_CROSS
 fifo_async.ALMOST_WR_MARGIN
 fifo_async.ALMOST_RD_MARGIN
-fifo_async.INSTANCE_NAME
 @200
 -Clock and Reset
 @28

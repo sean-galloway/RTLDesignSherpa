@@ -21,7 +21,6 @@ fifo_async_div2.DEPTH
 fifo_async_div2.N_FLOP_CROSS
 fifo_async_div2.ALMOST_WR_MARGIN
 fifo_async_div2.ALMOST_RD_MARGIN
-fifo_async_div2.INSTANCE_NAME
 @200
 -Clock and Reset
 @28

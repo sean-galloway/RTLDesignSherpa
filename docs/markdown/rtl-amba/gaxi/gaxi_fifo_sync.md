@@ -52,7 +52,6 @@ module gaxi_fifo_sync #(
     parameter int DEPTH = 4,
     parameter int ALMOST_WR_MARGIN = 1,
     parameter int ALMOST_RD_MARGIN = 1,
-    parameter     INSTANCE_NAME = "DEADF1F0"
 ) (
     input  logic            axi_aclk,
     input  logic            axi_aresetn,
@@ -77,7 +76,6 @@ module gaxi_fifo_sync #(
 | `DEPTH` | 4 | FIFO depth (any value, power-of-2 optimal) |
 | `ALMOST_WR_MARGIN` | 1 | Almost full threshold |
 | `ALMOST_RD_MARGIN` | 1 | Almost empty threshold |
-| `INSTANCE_NAME` | "DEADF1F0" | Debug instance name |
 
 ---
 
