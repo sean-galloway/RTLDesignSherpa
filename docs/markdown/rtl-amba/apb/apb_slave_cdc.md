@@ -185,12 +185,6 @@ Neither consequence is a clean discard:
 Pointers being absolute positions rather than toggle parity is what makes the
 *steady-state* crossing reliable; it does not make a one-sided reset safe.
 
-This page previously claimed the opposite, and cited the `ddr2-char` harness
-pulsing only the core-side reset on `CTRL.soft_reset` as proof. That usage is
-not a guarantee this module provides -- if it is real, it is a latent bug in the
-harness rather than a supported mode. `apb5_slave_cdc`, which instantiates the
-same `gaxi_fifo_async`, has always documented this correctly.
-
 ### Why Not the Previous 2-Phase Handshake
 
 `USE_2_PHASE_CDC` selected a toggle-based handshake in an earlier revision. It is
