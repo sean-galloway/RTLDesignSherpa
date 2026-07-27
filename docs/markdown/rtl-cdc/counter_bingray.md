@@ -24,7 +24,7 @@
 # Binary-Gray Counter Module
 
 ## Overview
-The `counter_bingray` module is a dual-output counter that simultaneously provides both binary and Gray code representations of the same count value. This is essential for asynchronous FIFO implementations where Gray code is required to prevent metastability when crossing clock domains, while binary values are needed for arithmetic operations.
+The `counter_bingray` module is a dual-output counter: you get the binary and the Gray representation of the same count, registered in parallel. Asynchronous FIFOs are the reason it exists — the Gray value is what crosses the clock boundary safely (one bit changes per increment, so metastability never gets a foothold), while the binary value stays home for the arithmetic.
 
 ## Module Declaration
 ```systemverilog
@@ -84,7 +84,7 @@ The module implements the standard binary-to-Gray conversion:
 ## Gray Code Theory
 
 ### Why Gray Code?
-Gray code (reflected binary code) has the property that adjacent values differ by exactly one bit. This is crucial for:
+Gray code (reflected binary code) guarantees adjacent values differ by exactly one bit. That buys you:
 
 1. **Metastability Prevention**: When crossing clock domains, only one bit changes at a time
 2. **Glitch Elimination**: Reduces intermediate states during transitions
@@ -393,9 +393,9 @@ end
 
 ## WaveDrom Visualization
 
-**High-quality waveforms showcasing Binary-Gray counter operation are available!**
+**WaveDrom timing diagrams for the Binary-Gray counter are available.**
 
-The following timing diagrams demonstrate the dual-output counter design across 4 key scenarios:
+Four scenarios walk through the dual-output counter design:
 
 ### Scenario 1: Binary vs Gray Code Comparison
 
@@ -457,7 +457,7 @@ for f in *.json; do wavedrom-cli -i "$f" -p "${f%.json}.png"; done
 
 **What Makes Binary-Gray Counters Special:**
 
-The waveforms highlight the unique dual-output design:
+The waveforms put the unique dual-output design on display:
 - **Dual Encoding**: Binary for arithmetic, Gray for CDC safety
 - **Single-Bit Transitions**: Gray code changes one bit at a time
 - **Lookahead**: counter_bin_next provides one-cycle prediction

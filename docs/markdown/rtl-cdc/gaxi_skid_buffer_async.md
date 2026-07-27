@@ -31,7 +31,7 @@
 
 ## Overview
 
-The GAXI asynchronous skid buffer combines the zero-latency bypass feature of the skid buffer with clock domain crossing capability. It's a wrapper that instantiates a synchronous skid buffer on the write side followed by an asynchronous FIFO.
+The GAXI asynchronous skid buffer is a wrapper: a synchronous skid buffer on the write side, an asynchronous FIFO behind it. You get the skid buffer's zero-latency bypass plus clock domain crossing capability in a single instantiation.
 
 ### Key Features
 

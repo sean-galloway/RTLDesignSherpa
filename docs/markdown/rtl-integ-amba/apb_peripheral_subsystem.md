@@ -26,19 +26,13 @@
 
 **Module:** `apb_peripheral_subsystem.sv`
 **Location:** `rtl/integ_amba/examples/`
-**Status:** Integration example -- **does not currently elaborate**, see below
-
-> **This module does not build.** It instantiates `apb_monitor` with the port
-> list that module had in November 2025; `apb_monitor` has since moved to a
-> `cmd_*`/`rsp_*` handshake. Fixing or retiring it is AMBA-INTEG-EXAMPLES. This
-> page documents the intended design so the decision can be made from something
-> other than 340 lines of stale RTL.
+**Status:** Integration example -- elaborates clean; no test yet
 
 ## Overview
 
 One APB master fanned out to three peripherals -- a register file, a timer and a
 GPIO block -- with a monitor per peripheral and the three monitor buses
-arbitrated onto a single 64-bit monbus output.
+arbitrated onto a single monitor-packet output.
 
 The point of the example is the monitoring topology, not the peripherals: each
 target gets its own `AGENT_ID` so a monbus consumer can attribute a transaction
@@ -75,9 +69,9 @@ module apb_peripheral_subsystem #(
     output logic                  apb_pslverr,
 
     // Aggregated monitor output
-    output logic        monbus_valid,
-    input  logic        monbus_ready,
-    output logic [63:0] monbus_data,
+    output logic                                monbus_valid,
+    input  logic                                monbus_ready,
+    output monitor_common_pkg::monitor_packet_t monbus_packet,
 
     // Configuration
     input logic cfg_error_enable,
@@ -112,27 +106,31 @@ Three things happen here, and only the third is interesting:
 3. **Monitoring.** Each peripheral's traffic is observed by its own
    `apb_monitor`, tagged with that peripheral's `AGENT_ID`, and the three
    resulting monbus streams are merged by `arbiter_round_robin` onto the single
-   `monbus_valid` / `monbus_data` output.
+   `monbus_valid` / `monbus_packet` output.
 
-`cfg_error_enable` and `cfg_compl_enable` gate which packet classes the monitors
-emit. Enabling completion packets on every peripheral at once produces
-considerably more monbus traffic than error packets alone -- see the monitor
-configuration guidance in [rtl-amba](../rtl-amba/index.md).
+`cfg_error_enable` drives each monitor's `cfg_error_enable` and
+`cfg_slverr_enable`. `cfg_compl_enable` is wired to the monitor's
+`cfg_perf_enable`, so despite the name it enables PERFORMANCE packets, not
+completion packets -- `apb_monitor` has no completion-packet control. Enabling
+it on every peripheral at once produces considerably more monbus traffic than
+errors alone. Every other monitor knob (timeout, protocol, latency, throughput,
+debug, address-range checking) is tied off in this example to keep it readable;
+see [apb_monitor](../rtl-amba/monitor/apb_monitor.md) for the full set.
 
-## What is wrong with the RTL today
+## How the monitors are attached
 
-The monitors are instantiated with `pclk`, `presetn`, `psel`, `penable`,
-`pwrite`, `paddr`, `pwdata`, `pready`, `prdata` and `pslverr`.
-[apb_monitor](../rtl-amba/monitor/apb_monitor.md) now takes `aclk`, `aresetn`
-and a handshake: `cmd_valid` / `cmd_ready` with `cmd_pwrite` / `cmd_paddr` /
-`cmd_pwdata` / `cmd_pstrb` / `cmd_pprot`, then `rsp_valid` / `rsp_ready` with
-`rsp_prdata` / `rsp_pslverr`.
+Each peripheral's raw APB is converted to the handshake `apb_monitor` expects:
 
-A monitor observes the **translated** side of a bridge, never the wire. To make
-this example work, each peripheral needs an [apb_slave](../rtl-amba/apb/apb_slave.md)
-(or `apb_slave_cg`) between the APB pins and the peripheral logic, and the
-monitor taps that bridge's `cmd_*`/`rsp_*` signals. See the pattern in
-[overview.md](overview.md).
+```systemverilog
+assign regfile_xfer = regfile_psel && regfile_penable && regfile_pready;
+```
+
+That single strobe drives both `cmd_valid` and `rsp_valid`, because APB carries
+one outstanding transaction and completes in the ACCESS phase -- command and
+response are accepted in the same cycle. `cmd_ready` and `rsp_ready` are tied
+high here since none of these peripherals stall; a peripheral that can stall
+would drive them from its own backpressure. Nothing is registered, so the tap
+adds no cycle to the peripheral path.
 
 ## Testing
 

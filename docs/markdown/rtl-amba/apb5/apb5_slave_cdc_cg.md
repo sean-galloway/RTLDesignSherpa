@@ -31,7 +31,7 @@
 
 ## Overview
 
-The APB5 Slave CDC + Clock-Gated module combines clock domain crossing with clock gating for maximum power efficiency. It wraps `apb5_slave_cdc` with clock gating control to reduce power consumption during idle periods while maintaining safe operation across asynchronous clock boundaries.
+The APB5 Slave CDC + Clock-Gated module combines clock domain crossing with clock gating for maximum power efficiency. It wraps `apb5_slave_cdc` with clock gating control to cut power during idle periods while keeping operation safe across asynchronous clock boundaries.
 
 ### Key Features
 
@@ -173,7 +173,7 @@ flowchart TD
 
 The `aclk`-domain activity terms are ORed together and passed through a two-flop
 synchronizer before being combined with the `pclk`-domain terms. Without that
-synchronizer these signals would cross domains unsynchronized.
+synchronizer, these signals would cross domains unsynchronized.
 
 ### Timing Considerations
 

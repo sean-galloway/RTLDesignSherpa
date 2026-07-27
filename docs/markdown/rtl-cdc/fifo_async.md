@@ -24,7 +24,7 @@
 # Asynchronous FIFO - Power of 2 (`fifo_async.sv`)
 
 ## Purpose
-Implements an asynchronous FIFO for safe clock domain crossing between different clock domains. **Restricted to power-of-2 depths only** due to Gray code pointer implementation.
+An asynchronous FIFO for crossing data safely between different clock domains. **Restricted to power-of-2 depths only** — that restriction comes from the Gray code pointer implementation, and `USE_JOHNSON=1` is the supported way around it.
 
 ## Ports
 
@@ -253,7 +253,7 @@ telemetry.
 
 ## WaveDrom Visualization
 
-**High-quality waveforms showcasing Gray code CDC mechanism are available!**
+**WaveDrom timing diagrams of the Gray code CDC mechanism are available.**
 
 Run the WaveDrom test to generate detailed timing diagrams:
 

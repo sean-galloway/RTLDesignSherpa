@@ -26,12 +26,7 @@
 
 **Module:** `apb_xbar_monitored.sv`
 **Location:** `rtl/integ_amba/examples/`
-**Status:** Integration example -- **does not currently elaborate**, see below
-
-> **This module does not build.** Like its sibling it instantiates `apb_monitor`
-> with the November 2025 port list, and that module has since moved to a
-> `cmd_*`/`rsp_*` handshake. Tracked as AMBA-INTEG-EXAMPLES. This page records
-> the intended design and interface.
+**Status:** Integration example -- elaborates clean; no test yet
 
 ## Overview
 
@@ -47,7 +42,9 @@ actionable.
 ## Module Interface
 
 ```systemverilog
-module apb_xbar_monitored #(
+module apb_xbar_monitored
+    import monitor_common_pkg::*;
+#(
     parameter int NUM_MASTERS = 3,
     parameter int NUM_SLAVES  = 4,
     parameter int ADDR_WIDTH  = 32,
@@ -55,26 +52,26 @@ module apb_xbar_monitored #(
     parameter int STRB_WIDTH  = DATA_WIDTH/8,
     parameter int MAX_TRANSACTIONS = 8,
     parameter int UNIT_ID = 0,
-    parameter logic [7:0] AGENT_ID_M0 = 8'h10,  // masters 0..2
-    parameter logic [7:0] AGENT_ID_M1 = 8'h11,
-    parameter logic [7:0] AGENT_ID_M2 = 8'h12,
-    parameter logic [7:0] AGENT_ID_S0 = 8'h40,  // slaves 0..3
-    parameter logic [7:0] AGENT_ID_S1 = 8'h41,
-    parameter logic [7:0] AGENT_ID_S2 = 8'h42,
-    parameter logic [7:0] AGENT_ID_S3 = 8'h43
+    // Agent IDs are BASE + port index, so there are two bases rather than one
+    // parameter per port.
+    parameter logic [7:0] AGENT_ID_M_BASE = 8'h10,  // masters: 0x10, 0x11, 0x12
+    parameter logic [7:0] AGENT_ID_S_BASE = 8'h40   // slaves:  0x40..0x43
 ) (
     input  logic pclk,
     input  logic presetn,
 
     // Per-master APB slave interfaces: m0_apb_*, m1_apb_*, m2_apb_*
     // Per-slave  APB master interfaces: s0_apb_*, s1_apb_*, ...
-    // (psel, penable, pwrite, pprot, paddr, pwdata, pstrb,
-    //  pready, prdata, pslverr on each)
 
     // Aggregated monitor output
-    output logic        monbus_valid,
-    input  logic        monbus_ready,
-    output logic [63:0] monbus_data
+    output logic                                monbus_valid,
+    input  logic                                monbus_ready,
+    output monitor_common_pkg::monitor_packet_t monbus_packet,
+
+    // Monitor configuration (applied to every port monitor)
+    input  logic cfg_error_enable,    // error + slave-error packets
+    input  logic cfg_timeout_enable,  // timeout detection
+    input  logic cfg_perf_enable      // performance packets
 );
 ```
 
@@ -94,8 +91,13 @@ names three masters and four slaves explicitly.
 | `STRB_WIDTH` | `DATA_WIDTH/8` | Write strobes |
 | `MAX_TRANSACTIONS` | 8 | Per-monitor transaction table depth |
 | `UNIT_ID` | 0 | Identifies this crossbar on the monbus |
-| `AGENT_ID_M0..M2` | `8'h10..0x12` | Agent ID per master port |
-| `AGENT_ID_S0..S3` | `8'h40..0x43` | Agent ID per slave port |
+| `AGENT_ID_M_BASE` | `8'h10` | Master 0's agent ID; master *n* gets base + n |
+| `AGENT_ID_S_BASE` | `8'h40` | Slave 0's agent ID; slave *n* gets base + n |
+
+There is deliberately no per-port agent-ID parameter. The generate loops compute
+`BASE + index`, so earlier per-port parameters could be overridden with no
+effect -- a parameter that cannot change behaviour reads as configurable and is
+not.
 
 The `0x10` / `0x40` split is a convention, not a requirement: masters in the
 `0x1x` range, slaves in the `0x4x` range, so the range alone tells a consumer
@@ -106,26 +108,29 @@ which side of the fabric a packet came from.
 Traffic passes through `apb_xbar_thin` unchanged -- the crossbar is not modified
 by being monitored. Around it:
 
-- each master port's traffic is observed by an `apb_monitor` tagged `AGENT_ID_Mn`
-- each slave port's traffic is observed by an `apb_monitor` tagged `AGENT_ID_Sn`
-- all seven monitor buses are merged by `arbiter_round_robin` onto one 64-bit
-  `monbus_data` output
+- each master port's traffic is observed by an `apb_monitor` tagged `AGENT_ID_M_BASE + n`
+- each slave port's traffic is observed by an `apb_monitor` tagged `AGENT_ID_S_BASE + n`
+- all seven monitor buses are merged by `arbiter_round_robin` onto one
+  `monbus_packet` output
 
 Round-robin rather than priority matters here for the same reason as in the
 peripheral subsystem: a master that errors continuously must not lock the other
 ports out of the monitor bus, or you lose the evidence that would explain it.
 
-## What is wrong with the RTL today
+## How the monitors are attached
 
-The monitors are wired with raw APB (`pclk`, `presetn`, `psel`, `penable`,
-`pwrite`, `paddr`, `pwdata`, `pready`, `prdata`, `pslverr`).
-[apb_monitor](../rtl-amba/monitor/apb_monitor.md) takes `aclk`/`aresetn` plus a
-`cmd_*`/`rsp_*` handshake and nothing else.
+`apb_xbar_thin` is raw APB on both sides, so each monitored port converts the
+bus phases into the handshake `apb_monitor` takes:
 
-This example has raw APB in hand -- `apb_xbar_thin` is raw APB on both sides
-(`s_apb_psel` / `m_apb_psel`) -- so it needs a bridge per monitored port to
-produce the handshake before a monitor can see anything. That is a structural
-change, not a rename: see the pattern in [overview.md](overview.md).
+```systemverilog
+assign m_xfer[mi] = xbar_m_psel[mi] && xbar_m_penable[mi] && xbar_m_pready[mi];
+assign s_xfer[si] = xbar_s_psel[si] && xbar_s_penable[si] && xbar_s_pready[si];
+```
+
+One strobe drives both `cmd_valid` and `rsp_valid` per port: APB is
+single-outstanding and completes in the ACCESS phase, so command and response
+are accepted together. The taps are combinational -- the crossbar's timing is
+unchanged by being monitored.
 
 ## Design Considerations
 

@@ -197,8 +197,8 @@ fifo_sync_multi #(
 
 - `docs/markdown/rtl-common/index.md`
 
-**Last Updated:** 2026-07-15
+**Last Updated:** 2026-07-26
 
 ## Navigation
 
-- [Back to rtl-common Index](index.md)
+- [Back to rtl-integ-common Index](index.md)
