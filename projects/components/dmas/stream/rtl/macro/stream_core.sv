@@ -604,6 +604,20 @@ module stream_core #(
     monitor_common_pkg::monitor_packet_t      schedgrp_mon_packet;
     monitor_common_pkg::monbus_timestamp_t    schedgrp_mon_timestamp;
 
+    // Data-read and data-write datapath monitor bus (from u_rd_axi_skid /
+    // u_wr_axi_skid). These carry AddrMatch/Error/Perf packets tagged with
+    // RD_AXI_MON_AGENT_ID / WR_AXI_MON_AGENT_ID and are aggregated with the
+    // scheduler-group stream by the monbus arbiter below.
+    logic                                     rdmon_mon_valid;
+    logic                                     rdmon_mon_ready;
+    monitor_common_pkg::monitor_packet_t      rdmon_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t    rdmon_mon_timestamp;
+
+    logic                                     wrmon_mon_valid;
+    logic                                     wrmon_mon_ready;
+    monitor_common_pkg::monitor_packet_t      wrmon_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t    wrmon_mon_timestamp;
+
     //=========================================================================
     // Internal Signals - Monitor Configuration (conditional based on USE_AXI_MONITORS)
     //=========================================================================
@@ -925,12 +939,63 @@ module stream_core #(
     );
 
     //=========================================================================
-    // Monitor Bus - Direct connection (no arbiter needed with single source)
+    // Monitor Bus - Aggregate the three in-core monbus producers.
+    //
+    // Three sources ride the top-level monbus: the scheduler-group monitor and
+    // the two AXI datapath monitors (read/write). A round-robin arbiter merges
+    // them fairly onto the single mon_valid/mon_packet output; without it the
+    // datapath monitors' AddrMatch/Error/Perf packets never reach a consumer.
     //=========================================================================
-    assign mon_valid          = schedgrp_mon_valid;
-    assign schedgrp_mon_ready = mon_ready;
-    assign mon_packet         = schedgrp_mon_packet;
-    assign mon_timestamp      = schedgrp_mon_timestamp;
+    localparam int MON_CLIENTS = 3;
+
+    logic                                  mon_arb_valid_in [MON_CLIENTS];
+    logic                                  mon_arb_ready_in [MON_CLIENTS];
+    monitor_common_pkg::monitor_packet_t   mon_arb_packet_in[MON_CLIENTS];
+    monitor_common_pkg::monbus_timestamp_t mon_arb_ts_in    [MON_CLIENTS];
+
+    // Client 0: scheduler-group monitor
+    assign mon_arb_valid_in [0] = schedgrp_mon_valid;
+    assign mon_arb_packet_in[0] = schedgrp_mon_packet;
+    assign mon_arb_ts_in    [0] = schedgrp_mon_timestamp;
+    assign schedgrp_mon_ready   = mon_arb_ready_in[0];
+
+    // Client 1: data-read datapath monitor
+    assign mon_arb_valid_in [1] = rdmon_mon_valid;
+    assign mon_arb_packet_in[1] = rdmon_mon_packet;
+    assign mon_arb_ts_in    [1] = rdmon_mon_timestamp;
+    assign rdmon_mon_ready      = mon_arb_ready_in[1];
+
+    // Client 2: data-write datapath monitor
+    assign mon_arb_valid_in [2] = wrmon_mon_valid;
+    assign mon_arb_packet_in[2] = wrmon_mon_packet;
+    assign mon_arb_ts_in    [2] = wrmon_mon_timestamp;
+    assign wrmon_mon_ready      = mon_arb_ready_in[2];
+
+    monbus_arbiter #(
+        .CLIENTS            (MON_CLIENTS),
+        .INPUT_SKID_ENABLE  (1),
+        .OUTPUT_SKID_ENABLE (1),
+        .INPUT_SKID_DEPTH   (2),
+        .OUTPUT_SKID_DEPTH  (2)
+    ) u_mon_arbiter (
+        .axi_aclk            (clk),
+        .axi_aresetn         (rst_n),
+        .block_arb           (1'b0),
+        .monbus_valid_in     (mon_arb_valid_in),
+        .monbus_ready_in     (mon_arb_ready_in),
+        .monbus_packet_in    (mon_arb_packet_in),
+        .monbus_timestamp_in (mon_arb_ts_in),
+        .monbus_valid        (mon_valid),
+        .monbus_ready        (mon_ready),
+        .monbus_packet       (mon_packet),
+        .monbus_timestamp    (mon_timestamp),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .grant_valid         (),
+        .grant               (),
+        .grant_id            (),
+        .last_grant          ()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
 
     //=========================================================================
     // RFC Stage E perf-window controller (HARDWARE close)
@@ -1469,14 +1534,12 @@ module stream_core #(
 
         .i_mon_time             (i_mon_time),
 
-        // Monitor bus — CSR route, no downstream consumer. monbus_ready=1 so a
-        // (disabled) packet would drain; outputs left open (perf via CSR only).
-        /* verilator lint_off PINCONNECTEMPTY */
-        .monbus_valid           (),
-        .monbus_packet          (),
-        .monbus_timestamp       (),
-        /* verilator lint_on PINCONNECTEMPTY */
-        .monbus_ready           (1'b1),
+        // Monitor bus — aggregated with the scheduler-group stream by the
+        // monbus arbiter (u_mon_arbiter) that drives the top-level mon_valid.
+        .monbus_valid           (rdmon_mon_valid),
+        .monbus_packet          (rdmon_mon_packet),
+        .monbus_timestamp       (rdmon_mon_timestamp),
+        .monbus_ready           (rdmon_mon_ready),
 
         // Status
         .busy                   (cfg_sts_rdeng_skid_busy),
@@ -1638,12 +1701,12 @@ module stream_core #(
 
         .i_mon_time             (i_mon_time),
 
-        /* verilator lint_off PINCONNECTEMPTY */
-        .monbus_valid           (),
-        .monbus_packet          (),
-        .monbus_timestamp       (),
-        /* verilator lint_on PINCONNECTEMPTY */
-        .monbus_ready           (1'b1),
+        // Monitor bus — aggregated with the scheduler-group stream by the
+        // monbus arbiter (u_mon_arbiter) that drives the top-level mon_valid.
+        .monbus_valid           (wrmon_mon_valid),
+        .monbus_packet          (wrmon_mon_packet),
+        .monbus_timestamp       (wrmon_mon_timestamp),
+        .monbus_ready           (wrmon_mon_ready),
 
         // Status
         .busy                   (cfg_sts_wreng_skid_busy),

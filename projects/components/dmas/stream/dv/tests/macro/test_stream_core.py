@@ -1208,3 +1208,324 @@ def test_stream_core_mon_backpressure(request, params):
         print(f"❌ Monitor backpressure test failed: {str(e)}")
         print(f"Logs: {log_path}")
         raise
+
+
+# ===========================================================================
+# Regression: in-core datapath-monitor packets must reach mon_valid
+# ---------------------------------------------------------------------------
+# Bug this catches: stream_core instantiates a read-datapath monitor
+# (u_rd_axi_skid, AGENT_ID=RD_AXI_MON_AGENT_ID=9) and a write-datapath monitor
+# (u_wr_axi_skid, AGENT_ID=WR_AXI_MON_AGENT_ID=10), but their monbus outputs
+# were tied off (.monbus_valid()/.monbus_packet() open, .monbus_ready(1'b1)).
+# Only the scheduler-group monitor fed the toplevel mon_valid aggregation, so
+# any AddrMatch / Error packet these two AXI monitors produced was orphaned and
+# never surfaced on stream_core.mon_valid.
+#
+# The test enables one datapath monitor's address-range checker with a single
+# match-all DEBUG range so every accepted AXI address emits a PktTypeAddrMatch
+# (type 8) tagged with that monitor's agent id, runs a small DMA, and asserts
+# such a packet reaches mon_valid.
+#   - RD variant: read engine issues ARs for the source read  -> agent id 9
+#   - WR variant: write engine issues AWs for the dest write   -> agent id 10
+# FAILS while the outputs are tied off; PASSES once they are wired into the
+# monbus aggregation that drives mon_valid.
+# ===========================================================================
+
+async def _datapath_mon_addr_match_body(dut, which):
+    """Shared body for the rd/wr datapath-monitor -> mon_valid regression.
+
+    Args:
+        which: 'rd' drives the read-datapath monitor (agent id 9);
+               'wr' drives the write-datapath monitor (agent id 10).
+    """
+    assert which in ('rd', 'wr')
+    from TBClasses.monbus import parse
+    from TBClasses.monbus.monbus_types import PktType
+
+    num_channels = int(os.environ.get('NUM_CHANNELS', '1'))
+    data_width   = int(os.environ.get('DATA_WIDTH', '256'))
+    fifo_depth   = int(os.environ.get('FIFO_DEPTH', '256'))
+    axi_id_width = int(os.environ.get('AXI_ID_WIDTH', '8'))
+
+    tb = StreamCoreTB(
+        dut=dut,
+        num_channels=num_channels,
+        addr_width=64,
+        data_width=data_width,
+        axi_id_width=axi_id_width,
+        fifo_depth=fifo_depth,
+    )
+    await tb.setup_clocks_and_reset(rd_xfer_beats=16, wr_xfer_beats=16)
+
+    agent_id = 9 if which == 'rd' else 10
+    tb.log.info(f"=== Datapath-monitor -> mon_valid regression ({which}, agent id {agent_id}) ===")
+
+    # Consume the aggregated monbus so packets flow normally.
+    dut.mon_ready.value = 1
+
+    # Enable the selected datapath monitor and its address-range checker:
+    # range 0 = match-all, DEBUG flavor (MON_ADDR_RANGE_IS_ERROR default '0), so
+    # every accepted AXI address emits an AddrMatch. Masks cleared so the packet
+    # is not dropped inside the monitor. The other datapath monitor stays off.
+    p = f"cfg_{which}eng_mon"
+    getattr(dut, f"{p}_enable").value          = 1
+    getattr(dut, f"{p}_pkt_mask").value        = 0            # allow every packet type
+    getattr(dut, f"{p}_addr_mask").value       = 0            # allow all addr event codes
+    getattr(dut, f"{p}_addr_check_en").value   = 1
+    getattr(dut, f"{p}_addr_match_en").value   = 1            # -> cfg_debug_enable
+    getattr(dut, f"{p}_addr_miss_en").value    = 0
+    getattr(dut, f"{p}_addr_range_en").value   = 0b0001       # range 0 only
+    getattr(dut, f"{p}_addr_range_low").value  = 0
+    getattr(dut, f"{p}_addr_range_high").value = 0xFFFFFFFF   # range 0 spans everything
+
+    # One small single-channel DMA -> the engines issue AR (source) and AW
+    # (dest), so both datapath monitors' addr_check fires.
+    channel = 0
+    transfer_beats = 16
+    desc_addr = tb.desc_mem_base
+    src_addr  = tb.src_mem_base
+    dst_addr  = tb.dst_mem_base
+    for beat in range(transfer_beats):
+        data = tb.create_test_pattern(beat, pattern_type='increment')
+        tb.write_source_data(src_addr + beat * tb.data_bytes, data, tb.data_bytes)
+    tb.write_descriptor(
+        addr=desc_addr, src_addr=src_addr, dst_addr=dst_addr,
+        length=transfer_beats, next_ptr=0, priority=0, last=True,
+        channel_id=channel,
+    )
+    await tb.kick_off_channel(channel, desc_addr)
+    success = await tb.wait_for_channel_idle(channel, timeout_us=10000)
+    assert success, f"Channel {channel} did not complete (timeout)"
+
+    # Decode captured mon_valid packets via the shared decoder (never inline
+    # bit-slicing) and require an AddrMatch from THIS monitor's agent id.
+    addr_matches = [
+        pkt for pkt in (parse(raw) for raw in tb.mon_packets)
+        if int(pkt.packet_type) == int(PktType.PktTypeAddrMatch)
+        and int(pkt.agent_id) == agent_id
+    ]
+    tb.log.info(
+        f"mon_valid packets captured: {len(tb.mon_packets)}; "
+        f"AddrMatch from agent {agent_id}: {len(addr_matches)}"
+    )
+    assert len(addr_matches) > 0, (
+        f"No AddrMatch (pkt_type 8) from the {which} datapath monitor "
+        f"(agent id {agent_id}) reached stream_core.mon_valid. Its monbus output "
+        f"is tied off in stream_core (.monbus_valid()/.monbus_ready(1'b1)), so its "
+        f"packets are orphaned and never reach the monbus aggregation feeding mon_valid."
+    )
+
+
+@cocotb.test(timeout_time=20, timeout_unit="ms")
+async def cocotb_test_rd_datapath_mon_monbus(dut):
+    """Read-datapath monitor (agent id 9) AddrMatch must reach mon_valid."""
+    await _datapath_mon_addr_match_body(dut, 'rd')
+
+
+@cocotb.test(timeout_time=20, timeout_unit="ms")
+async def cocotb_test_wr_datapath_mon_monbus(dut):
+    """Write-datapath monitor (agent id 10) AddrMatch must reach mon_valid."""
+    await _datapath_mon_addr_match_body(dut, 'wr')
+
+
+# stream_core agent-id map (see stream_core.sv parameter defaults). The
+# scheduler group owns the descriptor-AXI monitor plus the per-channel
+# descriptor-engine and scheduler monitors; the two datapath monitors (9, 10)
+# are separate arbiter clients handled by the tests above.
+_DESC_AXI_MON_AGENT_ID   = 8
+_DESC_MON_BASE_AGENT_ID  = 16   # descriptor engines 16..23
+_SCHED_MON_BASE_AGENT_ID = 48   # schedulers 48..55
+
+
+def _is_schedgrp_agent(agent_id):
+    """True if agent_id belongs to a scheduler-group monitor."""
+    return (agent_id == _DESC_AXI_MON_AGENT_ID
+            or _DESC_MON_BASE_AGENT_ID <= agent_id <= _DESC_MON_BASE_AGENT_ID + 7
+            or _SCHED_MON_BASE_AGENT_ID <= agent_id <= _SCHED_MON_BASE_AGENT_ID + 7)
+
+
+@cocotb.test(timeout_time=20, timeout_unit="ms")
+async def cocotb_test_schedgrp_mon_monbus(dut):
+    """Scheduler-group monitor packets must reach stream_core.mon_valid.
+
+    The scheduler group is arbiter client 0. Run a small DMA under the default
+    monitor config (which enables the scheduler/descriptor-engine monitors) and
+    require at least one packet from a scheduler-group agent (descriptor-AXI 8,
+    descriptor engines 16-23, or schedulers 48-55) to surface on mon_valid.
+
+    Guards the arbiter refactor that merged the scheduler-group stream with the
+    two datapath monitors: a broken client-0 hookup (or an arbiter that starves
+    it) would drop every scheduler-group packet."""
+    from TBClasses.monbus import parse
+
+    num_channels = int(os.environ.get('NUM_CHANNELS', '1'))
+    data_width   = int(os.environ.get('DATA_WIDTH', '256'))
+    fifo_depth   = int(os.environ.get('FIFO_DEPTH', '256'))
+    axi_id_width = int(os.environ.get('AXI_ID_WIDTH', '8'))
+
+    tb = StreamCoreTB(
+        dut=dut,
+        num_channels=num_channels,
+        addr_width=64,
+        data_width=data_width,
+        axi_id_width=axi_id_width,
+        fifo_depth=fifo_depth,
+    )
+    await tb.setup_clocks_and_reset(rd_xfer_beats=16, wr_xfer_beats=16)
+    tb.log.info("=== Scheduler-group monitor -> mon_valid regression ===")
+
+    # Consume the aggregated monbus so packets flow normally. The scheduler /
+    # descriptor-engine monitors are enabled by _init_config_signals defaults;
+    # no extra config needed.
+    dut.mon_ready.value = 1
+
+    channel = 0
+    transfer_beats = 16
+    desc_addr = tb.desc_mem_base
+    src_addr  = tb.src_mem_base
+    dst_addr  = tb.dst_mem_base
+    for beat in range(transfer_beats):
+        data = tb.create_test_pattern(beat, pattern_type='increment')
+        tb.write_source_data(src_addr + beat * tb.data_bytes, data, tb.data_bytes)
+    tb.write_descriptor(
+        addr=desc_addr, src_addr=src_addr, dst_addr=dst_addr,
+        length=transfer_beats, next_ptr=0, priority=0, last=True,
+        channel_id=channel,
+    )
+    await tb.kick_off_channel(channel, desc_addr)
+    success = await tb.wait_for_channel_idle(channel, timeout_us=10000)
+    assert success, f"Channel {channel} did not complete (timeout)"
+
+    packets = [parse(raw) for raw in tb.mon_packets]
+    schedgrp = [p for p in packets if _is_schedgrp_agent(int(p.agent_id))]
+    agents = sorted({int(p.agent_id) for p in packets})
+    tb.log.info(
+        f"mon_valid packets captured: {len(packets)} (agents {agents}); "
+        f"scheduler-group packets: {len(schedgrp)}"
+    )
+    assert len(schedgrp) > 0, (
+        "No scheduler-group monitor packet (descriptor-AXI agent 8, descriptor "
+        "engines 16-23, or schedulers 48-55) reached stream_core.mon_valid. The "
+        "scheduler-group monbus (arbiter client 0) is not reaching the mon_valid "
+        f"output. Captured agents: {agents}."
+    )
+
+
+def _run_stream_core_mon_regression(request, label, testcase, n_addr_ranges):
+    """Shared pytest-wrapper body for the in-core monbus regression tests.
+
+    Args:
+        label: unique suffix for the test/sim-build name.
+        testcase: the cocotb_test_* function to run.
+        n_addr_ranges: N_ADDR_RANGES parameter (>0 builds the addr_check;
+            the datapath tests need it, the scheduler-group test does not).
+    """
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_stream_macro': '../../../../rtl/stream_macro',
+        'rtl_stream_fub': '../../../../rtl/stream_fub',
+        'rtl_amba': '../../../../../rtl/amba',
+    })
+
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/dmas/stream/rtl/filelists/macro/stream_core.f'
+    )
+
+    # USE_AXI_MONITORS=1 builds the datapath monitors. N_ADDR_RANGES>0 builds
+    # the addr_check (MON_ADDR_RANGE_IS_ERROR default '0 => DEBUG ranges).
+    rtl_parameters = {
+        'NUM_CHANNELS': 1,
+        'DATA_WIDTH': 256,
+        'FIFO_DEPTH': 256,
+        'AXI_ID_WIDTH': 8,
+        'ADDR_WIDTH': 64,
+        'USE_AXI_MONITORS': 1,
+        'N_ADDR_RANGES': n_addr_ranges,
+    }
+
+    dut_name = "stream_core"
+    test_name_plus_params = f"test_stream_core_{label}"
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        'NUM_CHANNELS': '1',
+        'DATA_WIDTH': '256',
+        'FIFO_DEPTH': '256',
+        'AXI_ID_WIDTH': '8',
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': results_path,
+        'RANDOM_SEED': STREAM_TEST_SEED,
+        'COCOTB_RANDOM_SEED': STREAM_TEST_SEED,
+    }
+
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
+        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "--timescale", "1ns/1ps", "--unroll-count", "256"]
+        sim_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
+    else:
+        compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps", "--unroll-count", "256"]
+        sim_args = []
+
+    coverage_compile_args = get_coverage_compile_args()
+    compile_args.extend(coverage_compile_args)
+
+    from TBClasses.shared.utilities import create_view_cmd
+    create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    from cocotb_test.simulator import run
+
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=includes,
+            toplevel=dut_name,
+            module=module,
+            testcase=testcase,
+            parameters=rtl_parameters,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            extra_env=extra_env,
+            sim_build=sim_build,
+            waves=enable_waves,
+            keep_files=True,
+            simulator='verilator',
+            plus_args=['--trace'] if enable_waves else [],
+        )
+        print(f"✓ {label} monbus test completed! Logs: {log_path}")
+    except Exception as e:
+        print(f"❌ {label} monbus test failed: {str(e)}")
+        print(f"Logs: {log_path}")
+        raise
+
+
+def test_stream_core_rd_datapath_mon_monbus(request):
+    """Regression: read-datapath monitor packets must reach mon_valid."""
+    _run_stream_core_mon_regression(
+        request, 'rd_datapath_mon_monbus',
+        'cocotb_test_rd_datapath_mon_monbus', n_addr_ranges=4)
+
+
+def test_stream_core_wr_datapath_mon_monbus(request):
+    """Regression: write-datapath monitor packets must reach mon_valid."""
+    _run_stream_core_mon_regression(
+        request, 'wr_datapath_mon_monbus',
+        'cocotb_test_wr_datapath_mon_monbus', n_addr_ranges=4)
+
+
+def test_stream_core_schedgrp_mon_monbus(request):
+    """Regression: scheduler-group monitor packets must reach mon_valid."""
+    _run_stream_core_mon_regression(
+        request, 'schedgrp_mon_monbus',
+        'cocotb_test_schedgrp_mon_monbus', n_addr_ranges=0)
