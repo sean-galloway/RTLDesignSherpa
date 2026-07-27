@@ -236,6 +236,35 @@ count findings the reviewer could not get right either way.* When an area's
 modules have moved, say so in the `RTL.sv` header (list the new location's
 inventory too) so "doc claims X lives here" is separable from "X does not exist".
 
+## The order: correctness until clean, then voice
+
+**An area runs `qc` rounds until a round comes back clean or with nothing but
+false positives. Only then does it get `humanize`** (Sean, 2026-07-27).
+
+One qc round is not a clean bill of health. A round finds what it finds; fixing
+those findings changes the pages, and the changed pages have not been reviewed.
+Re-running until a round produces nothing actionable is what makes "correct"
+mean something -- and false positives are an acceptable stopping point, because
+a reviewer that only misreads has run out of real defects to find.
+
+The reason this matters more for `humanize` than for any other step: a voice
+pass REWRITES every page. Voice-passing a page that is still wrong produces a
+well-written falsehood, and the rewrite makes the error harder to spot later
+because it no longer reads like something copied from stale RTL.
+
+Two failure shapes this ordering prevents, both seen on this repo:
+
+- **A single qc round mistaken for done.** `common` had qc round_2 integrated,
+  and the humanize pass that followed was correct to run. `cdc` had only the old
+  proxy-corpus round, taken before the CDC reorg, so its `index.md`,
+  `overview.md` and consolidated `cdc.md` had never been checked in their
+  current form when the voice pass ran. That ordering was wrong, and a second qc
+  round is what fixes it.
+- **Documenting a state that has since changed.** The `rtl-integ-amba` pages
+  were written while the RTL was broken, the RTL was fixed four hours later, and
+  the pages still said "does not build" until a qc round caught it. Docs written
+  against a moving target need a qc round AFTER the target stops moving.
+
 **Wait for the whole round before acting on it.** Nothing gets fixed while
 multitasking -- one area's correctness round runs to completion, gets integrated
 and verified, and only then does the next area or the humanize pass start.
