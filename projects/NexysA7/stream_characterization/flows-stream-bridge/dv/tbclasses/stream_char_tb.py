@@ -144,6 +144,11 @@ APB_RDMON_ERR_CFG       = A("RDMON_ERR_CFG")
 APB_WRMON_ENABLE        = A("WRMON_ENABLE")
 APB_WRMON_PKT_MASK      = A("WRMON_PKT_MASK")
 APB_WRMON_ERR_CFG       = A("WRMON_ERR_CFG")
+# MASK3.ADDR_MASK[7:0]: per-event-code drop mask for PktTypeAddrMatch (RDL
+# default 0xFF = mask all addr event codes). Clear to observe AddrMatch.
+APB_DAXMON_MASK3        = A("DAXMON_MASK3")
+APB_RDMON_MASK3         = A("RDMON_MASK3")
+APB_WRMON_MASK3         = A("WRMON_MASK3")
 
 # Descriptor AXI Monitor perf-window CSRs (RFC Stage E CSR route). RUN=1 opens
 # the window (rising edge clears counters); RUN=0 closes/freezes. PROD/BP/STARV/
@@ -864,7 +869,20 @@ class StreamCharTB(TBBase):
                            mon_err_cfg: int = MON_ERR_CFG_ROUTE_ALL,
                            compress_en: bool = False,
                            measure_desc_perf: bool = False,
-                           measure_rw_perf: bool = False) -> bool:
+                           measure_rw_perf: bool = False,
+                           pkt_mask: int = MON_PKT_MASK_ALLOW_BASIC,
+                           allow_addr_match: bool = False,
+                           addr_range_writes=None) -> bool:
+        # addr_range_writes: optional list of (csr_addr, value) written AFTER the
+        # start-of-test soft-reset (which wipes the register block) and before the
+        # kick -- e.g. the RDMON/WRMON_ADDR_RANGE* CSRs. Programming these before
+        # run_dma_test does NOT work: the SOFT_RESET clears them before the DMA.
+        # pkt_mask: per-type drop mask written to every <MON>_PKT_MASK (default
+        # ALLOW_BASIC drops types 4..15). Pass a mask with bit 8 clear to let
+        # PktTypeAddrMatch through. allow_addr_match additionally clears the
+        # MASK3.ADDR_MASK event-code mask (RDL default 0xFF) so AddrMatch is not
+        # dropped at the event-code stage. Both default to the historical
+        # behavior, so the perf harness is unaffected.
         # compress_en=True sets WRMON_ENABLE.COMPRESS_EN (bit 5) so the
         # compressor path (w_use_comp=1) is selected at runtime -- mirrors
         # run_characterization.py "--compression on". Combined with
@@ -957,17 +975,26 @@ class StreamCharTB(TBBase):
         #   ENABLE.COMPL_EN=1      ← monitor must emit completion packets
         #   MASK1 event_code       ← defaults are fine (COMPL_MASK=0)
         #   ERR_CFG.ERR_SELECT     ← routes pkt type to err FIFO (default 0)
-        for pkt_mask_reg, en_reg, err_reg in (
-            (APB_DAXMON_PKT_MASK, APB_DAXMON_ENABLE, APB_DAXMON_ERR_CFG),
-            (APB_RDMON_PKT_MASK,  APB_RDMON_ENABLE,  APB_RDMON_ERR_CFG),
-            (APB_WRMON_PKT_MASK,  APB_WRMON_ENABLE,  APB_WRMON_ERR_CFG),
+        for pkt_mask_reg, en_reg, err_reg, mask3_reg in (
+            (APB_DAXMON_PKT_MASK, APB_DAXMON_ENABLE, APB_DAXMON_ERR_CFG, APB_DAXMON_MASK3),
+            (APB_RDMON_PKT_MASK,  APB_RDMON_ENABLE,  APB_RDMON_ERR_CFG,  APB_RDMON_MASK3),
+            (APB_WRMON_PKT_MASK,  APB_WRMON_ENABLE,  APB_WRMON_ERR_CFG,  APB_WRMON_MASK3),
         ):
-            await self.uart_write(pkt_mask_reg, MON_PKT_MASK_ALLOW_BASIC)
+            await self.uart_write(pkt_mask_reg, pkt_mask)
+            if allow_addr_match:
+                await self.uart_write(mask3_reg, 0x0)   # clear ADDR_MASK -> AddrMatch passes
             en_val = MON_ENABLE_COMPL_IRQ
             if compress_en and en_reg == APB_WRMON_ENABLE:
                 en_val |= WRMON_COMPRESS_EN_BIT   # runtime compression on
             await self.uart_write(en_reg,       en_val)
             await self.uart_write(err_reg,      mon_err_cfg)
+
+        # 3b. Address-range CSRs, programmed AFTER the soft-reset so they survive
+        # to DMA time (the whole point — see addr_range_writes note above).
+        if addr_range_writes:
+            for csr_addr, value in addr_range_writes:
+                await self.uart_write(csr_addr, value)
+            self.log.info(f"  addr-range: wrote {len(addr_range_writes)} range CSRs post-reset")
 
         # 4. Enable STREAM global + channels
         ch_mask = (1 << num_channels) - 1

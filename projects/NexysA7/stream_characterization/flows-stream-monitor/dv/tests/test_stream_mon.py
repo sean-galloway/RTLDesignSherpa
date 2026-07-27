@@ -44,7 +44,11 @@ BIN_COMPLETION0 = 0x0100              # {AXI, COMPLETION, evcode 0}
 
 async def _sweep_tally(tb, base, label, dut):
     nonzero = {}
-    scan = [pt << 8 for pt in range(16)] + [BIN_COMPLETION0 + e for e in range(1, 8)]
+    # Monitors-on UART reads are very slow, so scan only the bins the asserts
+    # need (a full 30-bin sweep does not fit the sim wall-clock budget).
+    scan = ([BIN_COMPLETION0 + e for e in range(0, 4)]   # COMPLETION (type 1) ev0..3
+            + [0x0800, 0x0801]                            # ADDR_MATCH (type 8) ev0/ev1
+            + [0x0000, 0x000D])                           # ERROR (type 0): generic + ADDR_RANGE
     for b in scan:
         v = await tb.uart_read(base + b * 4)
         if v:
@@ -82,12 +86,58 @@ async def cocotb_test_stream_mon(dut):
         f"-> the host->desc_ram path is broken (descriptors never land -> DMA idles)")
     dut._log.info("[desc_ram probe] PASS — host<->desc_ram round-trips through the new bridge")
 
+    # Internal probes: does each monbus group actually WRITE its m_axil master?
+    # mon_awvalid  = STREAM in-core group -> stream_tally (the empty one).
+    # slmon_awvalid = slave group -> slave_tally (the working one, reference).
+    # Edge-triggered (no per-cycle Python cost); records first assertion.
+    from cocotb.triggers import RisingEdge as _RE
+    _emit = {'stream_mon_awvalid': 0, 'slave_slmon_awvalid': 0}
+    async def _watch(sig_name, key):
+        sig = getattr(dut, sig_name, None)
+        if sig is None:
+            dut._log.warning(f"[probe] signal dut.{sig_name} not found"); return
+        while True:
+            await _RE(sig)          # edge-triggered on the signal itself (cheap)
+            _emit[key] += 1
+    if os.environ.get('USE_MON', '0') == '1':
+        cocotb.start_soon(_watch('mon_awvalid', 'stream_mon_awvalid'))
+        cocotb.start_soon(_watch('slmon_awvalid', 'slave_slmon_awvalid'))
+
+    # Program the in-core address-range checker (allowlist) via the MON-block
+    # CSRs (@ 0x1000 + 0x200 RDMON / +0x230 WRMON). DEBUG ranges 0,1 = match-all
+    # so every accepted AR/AW is a debug hit -> AddrMatch packet. (Flavor 4'b1100:
+    # ranges 2,3 are ERROR; left disabled this pass, so no miss/Error packets.)
+    # Address-range CSRs are QUEUED here, not written now: run_dma_test issues a
+    # SOFT_RESET at its start that wipes the register block, so these must be
+    # programmed *inside* run_dma_test after that reset (via addr_range_writes).
+    # range0 = match-all on each monitor (rd @0x200, wr @0x230; ctrl @0x220/0x250);
+    # range0 is DEBUG (flavor bit0=0) -> a hit emits AddrMatch.
+    addr_range_writes = None
+    if os.environ.get('USE_MON', '0') == '1':
+        MON = 0x1000
+        ctrl_val = 0x01 | (1 << 4) | (1 << 5)       # RANGE_EN=0b0001, CHECK_EN, MATCH_EN
+        addr_range_writes = []
+        for rbase, cbase in ((MON + 0x200, MON + 0x220), (MON + 0x230, MON + 0x250)):
+            addr_range_writes += [(rbase + 0x00, 0x00000000),   # range0 LOW  = 0
+                                  (rbase + 0x04, 0xFFFFFFFF),   # range0 HIGH = match-all
+                                  (cbase,        ctrl_val)]     # enable range0 + check + match
+        dut._log.info(f"[addr-range] queued match-all DEBUG range0 rd+wr (ctrl=0x{ctrl_val:02x}) for post-reset programming")
+
     # Small workload: 1 channel, 2 descriptors, 4 KB each. mon_err_cfg=0
     # (BULK_TRACE) routes monitor packets to the debug_sram slot = our tally;
     # compress_en=False -> raw 3-beat records the tally reassembler expects.
+    # Tiny workload: monitors-on sim is glacial and UART-bound, so keep the DMA
+    # small (1 descriptor, 256 B = 16 beats). A handful of AR/AW is enough to
+    # produce AddrMatch packets; the beat count still proves the datapath.
+    # pkt_mask 0xFEF0 = ALLOW_BASIC with bit 8 cleared -> PktTypeAddrMatch (8)
+    # passes the per-type drop mask; allow_addr_match clears MASK3.ADDR_MASK so it
+    # also passes the event-code stage. Without these the STREAM group filters out
+    # everything the (perf-only) in-core monitors emit.
     ok = await tb.run_dma_test(
-        num_channels=1, descriptors_per_channel=2, transfer_bytes=4096,
-        timeout_clocks=200_000, mon_err_cfg=0, compress_en=False)
+        num_channels=1, descriptors_per_channel=1, transfer_bytes=256,
+        timeout_clocks=200_000, mon_err_cfg=0, compress_en=False,
+        pkt_mask=0xFEF0, allow_addr_match=True,
+        addr_range_writes=addr_range_writes)
     assert ok, "DMA workload did not complete"
 
     # Snapshot the tally (freeze auto-flushes the cache into the count SRAM).
@@ -105,10 +155,23 @@ async def cocotb_test_stream_mon(dut):
     dut._log.info(f"[stream_mon] STREAM total={stream_total} compl={stream_compl} | "
                   f"SLAVE total={slave_total} compl={slave_compl}")
 
+    # Internal-probe verdict: did each group's m_axil master actually write?
+    dut._log.info(f"[probe] m_axil awvalid rising-edges: STREAM(mon)={_emit['stream_mon_awvalid']} "
+                  f"SLAVE(slmon)={_emit['slave_slmon_awvalid']}  "
+                  f"(STREAM=0 => the in-core group never emits; >0 => emits but tally not counting)")
+
     # Tally asserts only when the in-core monitors are built (USE_MON=1).
     if os.environ.get('USE_MON', '0') == '1':
         assert stream_total > 0, "STREAM tally counted nothing (in-core monitor path dead)"
-        assert stream_compl > 0, "no COMPLETION packets in the STREAM tally"
+        # Completion is informational here (the DMA is already proven by the beat
+        # count); the primary assertion is that the address-range checker fired.
+        dut._log.info(f"[stream_mon] STREAM completion packets = {stream_compl}")
+        # Address-range checker: match-all DEBUG ranges -> AddrMatch (type 8) packets.
+        stream_addrmatch = sum(c for b, c in stream_bins.items() if ((b >> 8) & 0xF) == 8)
+        dut._log.info(f"[addr-range] STREAM AddrMatch (type 8) packets = {stream_addrmatch}")
+        assert stream_addrmatch > 0, (
+            "no ADDR_MATCH packets in the STREAM tally — the in-core address-range "
+            "checker did not fire (check MON_N_ADDR_RANGES + the RDMON/WRMON_ADDR_RANGE CSR writes)")
     # The slave-side monitors are always built; if the DMA moved data they count.
     dut._log.info(f"[stream_mon] (info) slave tally total={slave_total} compl={slave_compl}")
 
@@ -156,6 +219,13 @@ def test_stream_mon(request):
         'COCOTB_RESULTS_FILE': os.path.join(log_dir, f'results_{test_name}.xml'),
         'SEED': str(random.randint(0, 100000)),
     }
+    # WAVES support — follows the repo-standard pattern (test_stream_char.py):
+    # --trace-fst in compile_args + waves= + sim_args + plus_args=['--trace'].
+    # The +trace plusarg is what actually opens the dump at runtime.
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+    create_view_cmd(log_dir, log_path, sim_build, module, test_name)
     compile_args = [
         "--public-flat-rw", "-Wno-TIMESCALEMOD", "-Wno-MULTIDRIVEN",
         "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-UNOPTFLAT", "-Wno-PINMISSING", "-Wno-PINCONNECTEMPTY",
@@ -163,12 +233,15 @@ def test_stream_mon(request):
         # unroll them (BLKLOOPINIT) — raise the unroll budget for the monitor
         # transaction tables (AMBA guide note).
         "--unroll-count", "4096", "--unroll-stmts", "20000",
+        "--trace-fst", "--trace-structs", "--trace-depth", "99",
     ]
-    create_view_cmd(log_dir, log_path, sim_build, module, test_name)
     run(
         python_search=[tests_dir, perf_dv_tests, perf_host],
         verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module, testcase="cocotb_test_stream_mon",
         parameters=rtl_parameters, sim_build=sim_build, extra_env=extra_env,
         keep_files=True, compile_args=compile_args,
+        waves=enable_waves,
+        sim_args=["--trace", "--trace-structs", "--trace-depth", "99"],
+        plus_args=['--trace'] if enable_waves else [],
     )

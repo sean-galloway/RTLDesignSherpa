@@ -1976,6 +1976,11 @@ module stream_mon_harness #(
         // TASK-101 extended addressing enabled they overflow the xc7a100t LUTs.
         // Removing them (param=0) reclaims the LUTs; the addr-gen logic stays.
         .USE_AXI_MONITORS   (USE_AXI_MONITORS),
+        // Monitor-validation harness: build the in-core address-range checker
+        // (4 ranges per rd/wr monitor; ranges 2,3 = ERROR allowlist, 0,1 = DEBUG).
+        // Harmless when USE_AXI_MONITORS=0 (the monitor wrapper omits the checker).
+        .MON_N_ADDR_RANGES  (4),
+        .MON_ADDR_RANGE_IS_ERROR (4'b1100),
         .USE_MON_COMPRESSION(0),
         .USE_MON_HALFBEAT   (0),
         .CDC_ENABLE         (0),
