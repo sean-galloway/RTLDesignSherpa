@@ -21,9 +21,11 @@ durable lesson, it goes in the **note**, and the skill keeps pointing at it.
 | [doc-placement](../../.claude/skills/doc-placement/SKILL.md) | [[doc-placement]] | What kind of doc lives where; a beside-code README is a link, not a copy |
 | [filelists](../../.claude/skills/filelists/SKILL.md) | [[filelists]] | Every module has a `.f`, registered in `bin/filelists.toml`; consumers `-f` include |
 | [formal](../../.claude/skills/formal/SKILL.md) | [[formal]] | SymbiYosys via sv2v, in-RTL `ifdef FORMAL` properties, mutation-checking |
+| [fsm-discipline](../../.claude/skills/fsm-discipline/SKILL.md) | [[streaming-no-fsm]], [[minimal-fsm]] | No FSM on the data path at all; where one IS right, keep it minimal |
 | [hard-design](../../.claude/skills/hard-design/SKILL.md) | [[design/INDEX\|design area]] | Reset macros, CDC, valid/ready contracts, streaming no-FSM, SRAM rules, sizing |
 | [kmaps](../../.claude/skills/kmaps/SKILL.md) | [[signal-contracts-and-kmaps]] | Signal-contract sheets + K-map workbooks for engines/schedulers/arbiters |
 | [module-docs](../../.claude/skills/module-docs/SKILL.md) | [[module-doc-template]] | Per-module `docs/markdown` page style + the SV header that mirrors it |
+| [signal-prefixes](../../.claude/skills/signal-prefixes/SKILL.md) | [[signal-prefixes]] | `r_` = flopped, `w_` = combinational; the prefix is a latency claim |
 | [rds-dv-axes](../../.claude/skills/rds-dv-axes/SKILL.md) | [[rds-dv-axes]] | The three orthogonal TB choices: BFM, sequence, randomization |
 | [rds-dv-bfms](../../.claude/skills/rds-dv-bfms/SKILL.md) | [[bfm-usage]] | Use the RDS-DV framework BFMs; never hand-roll drivers/monitors/decoders |
 | [rds-dv-randomization](../../.claude/skills/rds-dv-randomization/SKILL.md) | [[randomization]] | The named FlexConfigGen delay profiles; randomized traffic ≠ fairness proof |

@@ -6,7 +6,8 @@ summary: Module/signal conventions, headers, and where files live.
 # Naming and style
 
 - Modules `{category}_{function}.sv`; params UPPER_CASE; ports snake_case
-  (common blocks: i_/o_ prefixes); registers r_*, wires w_*.
+  (common blocks: i_/o_ prefixes); registers r_*, wires w_*. See
+  [[signal-prefixes]] for what r_/w_ actually promise and where they lie.
 - Every module: header block (purpose, params with ranges, ports, notes).
   No emojis anywhere in RTL or pipeline-consumed docs.
 - Files end with a trailing newline - a missing one once failed 98 tests
