@@ -96,6 +96,16 @@ Each one is here because ignoring it cost real work.
    depth claims had been fixed on `apb5_slave_cdc.md` and never propagated to its
    APB4 sibling, leaving two pages contradicting each other about one FIFO.
 
+   **Sweep for the CLAIM, not for the wording.** The same "any even depth" error
+   survived into round_6 and again into round_7 -- four rounds -- because each
+   sweep matched the strings previously seen (`any even number|value|depth`)
+   while the surviving instance said "any even **count**". A sweep built from
+   the last finding's vocabulary finds the last finding. Search the loose
+   concept (`even`, then read every hit), and follow it into the RTL: the
+   round_7 instance traced back to a comment in `gaxi_fifo_async.sv`, which is
+   where the doc claim had been copied from in the first place. **Fix the source
+   comment or the doc error regrows.**
+
    **Verify a fix by reading the result, never by re-running the pattern the fix
    used.** A `re.sub` that matches nothing raises nothing, so a fix can silently
    no-op; if the verification grep carries the same assumption, it agrees. *Case:
@@ -251,15 +261,40 @@ add the missing meta-docs as their own unit under `<OUT>/books/<area>_meta/`
 as ground truth for count/existence claims). `--only <area>` then covers both
 `<area>` and `<area>_meta` by prefix.
 
-A `_meta` unit is HAND-BUILT and the bundler neither regenerates nor deletes it,
-so it survives a rebuild while silently going stale -- the one failure mode the
-rebuild-everything rule exists to prevent. **Regenerate every `_meta` unit by
-hand whenever the bundle is rebuilt.** *Case: after the CDC modules moved out of
-`rtl/common`, the surviving `common_meta/RTL.sv` still listed 56 modules against
-an actual 49 -- ground truth that was itself wrong, which would have produced
-count findings the reviewer could not get right either way.* When an area's
-modules have moved, say so in the `RTL.sv` header (list the new location's
-inventory too) so "doc claims X lives here" is separable from "X does not exist".
+A `_meta` unit is HAND-BUILT, and **`build_review_bundle.py` DELETES it** --
+the rebuild clears `<OUT>/books/` wholesale, so the unit is simply gone
+afterwards. (An earlier version of this note claimed the bundler left `_meta`
+alone and let it go stale. Observed behaviour as of 2026-07-27 is deletion; if a
+round reports "no units matched" for `<area>_meta`, this is why.) Either way the
+rule is the same and it is not optional: **regenerate every `_meta` unit
+immediately after every bundle rebuild, from the tree, never by editing the
+previous copy.**
+
+Build it from a script, not by hand -- a hand-maintained inventory is exactly
+what goes stale:
+
+```python
+import os, glob
+B = os.path.expanduser('~/rtl-doc-review/books/<area>_meta'); os.makedirs(B, exist_ok=True)
+mods = sorted(os.path.basename(p) for p in glob.glob('rtl/<area>/*.sv'))
+rtl  = ["// <area> meta-docs -- ground truth is the module inventory, not full source.",
+        f"// Verify count/category/existence claims against rtl/<area>/*.sv ({len(mods)} modules):", ""]
+rtl += [f"//   {m}" for m in mods]
+open(f'{B}/RTL.sv', 'w').write("\n".join(rtl) + "\n")
+
+pages = ['docs/markdown/<book>/index.md', 'docs/markdown/<book>/overview.md']
+doc = ["# <book> meta-docs (index + overview)", ""]
+for p in pages:
+    doc += [f"<!-- SOURCE FILE: {p} -->", "", open(p, encoding='utf-8').read(), ""]
+open(f'{B}/DOCS.md', 'w').write("\n".join(doc))
+```
+
+*Case: after the CDC modules moved out of `rtl/common`, a surviving
+`common_meta/RTL.sv` listed 56 modules against an actual 49 -- ground truth that
+was itself wrong, which would have produced count findings the reviewer could
+not get right either way.* When an area's modules have moved, say so in the
+`RTL.sv` header (list the new location's inventory too) so "doc claims X lives
+here" is separable from "X does not exist".
 
 ## The order: correctness until clean, then voice
 
