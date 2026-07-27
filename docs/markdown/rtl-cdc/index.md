@@ -24,12 +24,12 @@
 
 # rtl-cdc Modules Index
 
-The catalogue for `rtl/cdc/`. For orientation -- which technique to reach for,
-and why -- start at [overview.md](overview.md).
+This is the catalogue for `rtl/cdc/`. If you want orientation—which technique
+to reach for, and why—start at [overview.md](overview.md).
 
-**12 modules** in `rtl/cdc/`, all of them concerned with getting data across a
-clock boundary. Count is from `ls rtl/cdc/*.sv`; regenerate rather than
-hand-editing.
+**12 modules** in `rtl/cdc/`, and every one of them exists to get data across a
+clock boundary. The count comes from `ls rtl/cdc/*.sv`—regenerate it rather
+than hand-editing.
 
 ## Module Categories
 
@@ -41,23 +41,24 @@ hand-editing.
 
 ### Synchronizer and Handshakes
 
-These four are documented together in one reference rather than one page each,
-because choosing between them is a single decision:
+These four share one reference page instead of getting a page each, because
+choosing between them is a single decision:
 
 - **[cdc_synchronizer](cdc.md#cdc_synchronizer)** - N-stage flop synchronizer for a
   quasi-static value or a single flag
-- **[cdc_open_loop](cdc.md#cdc_open_loop)** - source holds data and valid, no
+- **[cdc_open_loop](cdc.md#cdc_open_loop)** - source holds data and valid; no
   acknowledge comes back
 - **[cdc_2_phase_handshake](cdc.md#cdc_2_phase_handshake)** - toggle (NRZ)
   valid/ready handshake. Read [Reset Considerations](cdc.md#reset-considerations)
-  first: it fabricates a transfer if the domains can reset independently
+  first: it will fabricate a transfer if the domains can reset independently
 - **[cdc_4_phase_handshake](cdc.md#cdc_4_phase_handshake)** - level (RZ)
   valid/ready handshake
 
 ### Gray and Johnson Coders
 
-The encodings that make a multi-bit crossing safe -- only one bit changes per
-step, so a mid-flight sample is still a value that existed:
+These are the encodings that make a multi-bit crossing safe—only one bit
+changes per step, so a mid-flight sample still lands on a value that actually
+existed:
 
 - **[bin2gray](bin2gray.md)** - binary to Gray code
 - **[gray2bin](gray2bin.md)** - Gray code back to binary
@@ -76,16 +77,16 @@ step, so a mid-flight sample is still a value that existed:
 
 ## Related
 
-Modules these depend on stay in their own areas and are reached by `-f` include,
-not copied here:
+The modules these depend on stay in their own areas and get pulled in by `-f`
+include—they're not copied here:
 
 - [`glitch_free_n_dff_arn`](../rtl-common/glitch_free_n_dff_arn.md),
   [`fifo_control`](../rtl-common/fifo_control.md),
   [`counter_bin`](../rtl-common/counter_bin.md) - [rtl-common](../rtl-common/index.md)
 - [`gaxi_skid_buffer`](../rtl-amba/gaxi/gaxi_skid_buffer.md) - [rtl-amba](../rtl-amba/index.md)
 
-The APB/APB5 CDC slaves that consume this area are documented with their
-protocol: [apb_slave_cdc](../rtl-amba/apb/apb_slave_cdc.md),
+The APB/APB5 CDC slaves that consume this area live with their protocol
+documentation: [apb_slave_cdc](../rtl-amba/apb/apb_slave_cdc.md),
 [apb5_slave_cdc](../rtl-amba/apb5/apb5_slave_cdc.md).
 
 ## Navigation
