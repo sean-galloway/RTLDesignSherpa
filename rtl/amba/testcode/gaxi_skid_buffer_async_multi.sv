@@ -22,6 +22,8 @@ module gaxi_skid_buffer_async_multi #(
     parameter integer DATA_WIDTH = 8,
     parameter integer DEPTH         = 2,
     parameter integer N_FLOP_CROSS  = 2,
+    // Pointer encoding: 0 = Gray (power-of-2 DEPTH), 1 = Johnson (any DEPTH).
+    parameter integer USE_JOHNSON   = 0,
     parameter integer AW = ADDR_WIDTH,
     parameter integer CW = CTRL_WIDTH,
     parameter integer DW = DATA_WIDTH
@@ -74,6 +76,7 @@ module gaxi_skid_buffer_async_multi #(
     gaxi_fifo_async #(
         .DATA_WIDTH(AW+CW+DW+DW),
         .DEPTH(DEPTH),
+        .USE_JOHNSON(USE_JOHNSON),
         .N_FLOP_CROSS(N_FLOP_CROSS),
         .ALMOST_WR_MARGIN(1),
         .ALMOST_RD_MARGIN(1)

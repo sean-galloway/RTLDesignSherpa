@@ -21,6 +21,12 @@ module apb_slave_cdc #(
     parameter int STRB_WIDTH  = DATA_WIDTH / 8,
     parameter int PROT_WIDTH  = 3,
     parameter int DEPTH       = 2,
+    // Async-FIFO pointer encoding, surfaced here rather than left to the FIFO's
+    // own default: 0 = Gray (power-of-2 DEPTH only), 1 = Johnson (any DEPTH).
+    // Defaults to 0. Johnson is opt-in and must be a conscious choice -- its
+    // pointers are DEPTH bits wide against Gray's $clog2(DEPTH)+1, duplicated
+    // per domain and per synchronizer stage.
+    parameter int USE_JOHNSON = 0,
     // DEPRECATED / NO EFFECT. The cmd+rsp CDC is now a gray-pointer async FIFO
     // (gaxi_fifo_async) rather than a toggle handshake, so there is no phase
     // variant to select. Retained so existing instantiations still elaborate.
@@ -170,6 +176,7 @@ module apb_slave_cdc #(
     gaxi_fifo_async #(
         .DATA_WIDTH   (CPW),
         .DEPTH        (CDC_FIFO_DEPTH),
+        .USE_JOHNSON  (USE_JOHNSON),
         .N_FLOP_CROSS (2)
     ) u_cmd_cdc_fifo (
         .axi_wr_aclk    (pclk),
@@ -189,6 +196,7 @@ module apb_slave_cdc #(
     gaxi_fifo_async #(
         .DATA_WIDTH   (RPW),
         .DEPTH        (CDC_FIFO_DEPTH),
+        .USE_JOHNSON  (USE_JOHNSON),
         .N_FLOP_CROSS (2)
     ) u_rsp_cdc_fifo (
         .axi_wr_aclk    (aclk),

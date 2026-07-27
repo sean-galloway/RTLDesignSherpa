@@ -21,7 +21,12 @@ module gaxi_fifo_async_multi #(
     parameter int ADDR_WIDTH = 4,
     parameter int CTRL_WIDTH = 4,
     parameter int DATA_WIDTH = 8,
-    parameter int DEPTH = 10,
+    // DEPTH defaults to a POWER OF TWO so the default USE_JOHNSON=0 (Gray)
+    // elaborates. It was 10, which forced Johnson on by default.
+    parameter int DEPTH = 8,
+    // Pointer encoding: 0 = Gray (power-of-2 DEPTH), 1 = Johnson (any DEPTH).
+    // Gray by default; Johnson is opt-in and must be a conscious choice.
+    parameter int USE_JOHNSON = 0,
     parameter int N_FLOP_CROSS = 2,
     parameter int ALMOST_WR_MARGIN = 1,
     parameter int ALMOST_RD_MARGIN = 1,
@@ -62,12 +67,13 @@ module gaxi_fifo_async_multi #(
     // entry. For the same reason D/AW/JCW/N are left derived rather than
     // overridden -- they are aliases, not independent knobs.
     //
-    // USE_JOHNSON=1 because DEPTH defaults to 10; Gray pointers require a
-    // power-of-2 depth, and this wrapper accepts any depth.
+    // USE_JOHNSON comes from the port list rather than being hardcoded here --
+    // see the rule in vault/handbook/design/cdc.md. Gray by default; pass 1 to
+    // use a non-power-of-2 DEPTH.
     gaxi_fifo_async #(
         .DATA_WIDTH        (AW + CW + DW + DW),  // full concatenated payload
         .DEPTH             (DEPTH),
-        .USE_JOHNSON       (1),
+        .USE_JOHNSON       (USE_JOHNSON),
         .N_FLOP_CROSS      (N_FLOP_CROSS),
         .ALMOST_WR_MARGIN  (ALMOST_WR_MARGIN),
         .ALMOST_RD_MARGIN  (ALMOST_RD_MARGIN)

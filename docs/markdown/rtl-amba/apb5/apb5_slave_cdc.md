@@ -36,8 +36,8 @@ The APB5 Slave CDC module provides clock domain crossing between an APB5 bus clo
 ### Key Features
 
 - Full APB5 protocol support with CDC
-- Asynchronous FIFO-based clock domain crossing (pointer encoding auto-selected
-  from the derived depth: Gray when it is a power of 2, Johnson when it is not)
+- Asynchronous FIFO-based clock domain crossing (Gray pointers by default;
+  Johnson available via `USE_JOHNSON`, and opt-in by design)
 - All APB5 user signals (PAUSER, PWUSER, PRUSER, PBUSER)
 - Wake-up request crossing via a dedicated level synchronizer
 - Single `DEPTH` parameter sizes both directions
@@ -91,7 +91,7 @@ flowchart LR
 | RUSER_WIDTH | int | 4 | Read user signal width |
 | BUSER_WIDTH | int | 4 | Response user signal width |
 | DEPTH | int | 2 | Skid-buffer depth of the wrapped `apb5_slave`; one of {2, 4, 6, 8} |
-| USE_JOHNSON | int | -1 (auto) | CDC-FIFO pointer encoding: `0` Gray, `1` Johnson, `-1` auto-select. See below. |
+| USE_JOHNSON | int | 0 (Gray) | CDC-FIFO pointer encoding: `0` Gray, `1` Johnson, `-1` auto-select. See below. |
 | ENABLE_PARITY | bit | 0 | Enable parity generation and checking |
 | USE_2_PHASE_CDC | bit | 1 | Deprecated and ignored -- retained for source compatibility |
 
@@ -136,24 +136,28 @@ two `gaxi_fifo_async` instances (command and response). Gray pointers only close
 on a power-of-2 depth, so a FIFO depth of 6 cannot use Gray -- `gaxi_fifo_async`
 carries an elaboration-time `$error` for exactly that case.
 
-`USE_JOHNSON` selects the encoding, and the default resolves it per depth:
+`USE_JOHNSON` selects the encoding:
 
 | `USE_JOHNSON` | Encoding | Pointer width | Depth constraint |
 |---|---|---|---|
-| `0` | Gray | `$clog2(DEPTH)+1` | power of 2 only |
+| `0` (default) | Gray | `$clog2(DEPTH)+1` | power of 2 only |
 | `1` | Johnson | `DEPTH` bits | any depth |
-| `-1` (default) | auto | per depth | none -- Gray when the derived FIFO depth is a power of 2, Johnson otherwise |
+| `-1` | auto | per depth | none -- Gray when the derived FIFO depth is a power of 2, Johnson otherwise |
 
-All of {2, 4, 6, 8} therefore elaborate. DEPTH 2 and 4 both derive a depth-4
-FIFO and 8 derives 8, so those stay on Gray with their pointer cost unchanged.
-DEPTH=6 derives a depth-6 FIFO and auto-selects Johnson, which costs 6-bit
-pointers per domain instead of Gray's 4 -- the price of a non-power-of-2 depth,
-and the only encoding that is correct there.
+**The default is Gray, not auto.** With defaults, DEPTH 2, 4 and 8 elaborate
+(2 and 4 both derive a depth-4 FIFO) and **DEPTH=6 fails the build**. That is
+intentional. Johnson costs `DEPTH`-bit pointers against Gray's `$clog2(DEPTH)+1`
+-- at depth 6, 6 bits against 4 -- duplicated in both domains and again in every
+synchronizer stage. Nobody should pay that because a default quietly decided for
+them.
 
-**`USE_JOHNSON=0` with `DEPTH=6` is still an elaboration error, deliberately.**
-Asking for Gray at a non-power-of-2 depth is a real configuration mistake and
-should fail the build. The default routes around the constraint; it never
-overrides a preference you expressed.
+If you want a non-power-of-2 depth, say so: pass `USE_JOHNSON=1` for Johnson, or
+`USE_JOHNSON=-1` to restore per-depth auto-selection. The capability is intact;
+only the default changed, so that the choice is visible in the instantiation.
+
+**`USE_JOHNSON=0` with `DEPTH=6` is an elaboration error, deliberately.** Asking
+for Gray at a non-power-of-2 depth is a real configuration mistake and should
+fail the build.
 
 ### Backend Interface
 
@@ -253,8 +257,8 @@ synchronizer (`N_FLOP_CROSS(2)`) on each pointer crossing. The command FIFO is
 written in `pclk` and read in `aclk`; the response FIFO is written in `aclk` and
 read in `pclk`.
 
-**The pointer encoding is not fixed.** It is auto-selected from the DERIVED
-depth:
+**The pointer encoding is selectable, and defaults to Gray.** `USE_JOHNSON`
+feeds a localparam that resolves against the DERIVED depth:
 
 ```systemverilog
 localparam int CDC_FIFO_DEPTH  = (DEPTH < 4) ? 4 : DEPTH;
@@ -263,11 +267,11 @@ localparam int CDC_USE_JOHNSON = (USE_JOHNSON >= 0) ? USE_JOHNSON
                                                     : (CDC_DEPTH_POW2 ? 0 : 1);
 ```
 
-So the default `DEPTH = 2` derives 4, a power of 2, and gets Gray pointers --
-but `DEPTH = 6` derives 6 and gets 6-bit Johnson pointers. Set `USE_JOHNSON`
-explicitly (0 or 1) to override the choice; leave it at its `-1` default to let
-the depth decide. See the CDC FIFO pointer encoding section below for the full
-table.
+With the default `USE_JOHNSON = 0`, `CDC_USE_JOHNSON` is 0 and the crossing is
+Gray -- the default `DEPTH = 2` derives 4, a power of 2, so it elaborates.
+`DEPTH = 6` would not; pass `USE_JOHNSON = 1` for 6-bit Johnson pointers, or
+`-1` to let the derived depth decide. See the CDC FIFO pointer encoding section
+above for the full table.
 
 The `wakeup_request` input is the one signal that does not go through a FIFO: it
 crosses from `aclk` into `pclk` through a `cdc_synchronizer` before reaching the

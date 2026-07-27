@@ -37,6 +37,11 @@ module apb5_slave_cdc_cg #(
     parameter int RUSER_WIDTH         = 4,
     parameter int BUSER_WIDTH         = 4,
     parameter int DEPTH               = 2,
+    // Async-FIFO pointer encoding, passed straight through to apb5_slave_cdc:
+    // 0 = Gray (default, power-of-2 derived depth only), 1 = Johnson (any
+    // depth), -1 = auto-select. Surfaced here so a CG instance can reach it;
+    // it used to be unreachable from this level.
+    parameter int USE_JOHNSON         = 0,
     parameter bit ENABLE_PARITY       = 0,
     parameter int CG_IDLE_COUNT_WIDTH = 4,
     // CDC handshake variant: 1 = 2-phase (toggle, faster), 0 = 4-phase (level, classic)
@@ -180,6 +185,7 @@ module apb5_slave_cdc_cg #(
         .RUSER_WIDTH   (RUSER_WIDTH),
         .BUSER_WIDTH   (BUSER_WIDTH),
         .DEPTH           (DEPTH),
+        .USE_JOHNSON     (USE_JOHNSON),
         .ENABLE_PARITY   (ENABLE_PARITY),
         .USE_2_PHASE_CDC (USE_2_PHASE_CDC)
     ) u_apb5_slave_cdc (

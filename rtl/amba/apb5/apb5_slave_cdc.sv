@@ -38,15 +38,18 @@ module apb5_slave_cdc #(
     // CDC handshake variant: 1 = 2-phase (toggle, faster), 0 = 4-phase (level, classic)
     parameter bit USE_2_PHASE_CDC = 1'b1,   // deprecated, ignored
     // Pointer encoding for the two CDC FIFOs:
-    //    0 = Gray    - cheapest pointers ($clog2(DEPTH)+1 bits), but Gray only
-    //                  closes on a power-of-2 depth
+    //    0 = Gray (DEFAULT) - cheapest pointers ($clog2(DEPTH)+1 bits); Gray
+    //                  only closes on a power-of-2 derived depth
     //    1 = Johnson - any depth, at DEPTH-bit pointers (more flops)
-    //   -1 = AUTO (default) - Gray when the derived FIFO depth is a power of
-    //                  two, Johnson otherwise. Existing power-of-2 builds keep
-    //                  Gray and their flop cost unchanged; DEPTH=6 now
-    //                  elaborates instead of tripping gaxi_fifo_async's
-    //                  power-of-2 $error.
-    parameter int USE_JOHNSON     = -1,
+    //   -1 = AUTO    - Gray when the derived FIFO depth is a power of two,
+    //                  Johnson otherwise. Still supported, no longer the
+    //                  default.
+    //
+    // The default is 0, not AUTO, so that a non-power-of-2 DEPTH fails at
+    // elaboration rather than silently costing DEPTH-bit pointers in both
+    // domains and every synchronizer stage. Johnson is opt-in: pass 1 (or -1
+    // to restore auto-selection) when you have decided you want it.
+    parameter int USE_JOHNSON     = 0,
     // Short Parameters
     parameter int DW  = DATA_WIDTH,
     parameter int AW  = ADDR_WIDTH,

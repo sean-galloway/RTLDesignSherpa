@@ -106,6 +106,7 @@ module apb_slave_cdc #(
 | STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |
 | PROT_WIDTH | int | 3 | APB protection signal width |
 | DEPTH | int | 2 | Skid-buffer depth **in entries** inside the wrapped `apb_slave`; also the floor for the CDC FIFO depth |
+| USE_JOHNSON | int | 0 (Gray) | CDC-FIFO pointer encoding: `0` Gray (power-of-2 derived depth only), `1` Johnson (any depth, `DEPTH`-bit pointers). Gray by default -- Johnson is opt-in because its pointers cost `DEPTH` bits in both domains and every synchronizer stage. |
 | USE_2_PHASE_CDC | bit | 1 | **Deprecated and ignored.** Has no effect on the generated logic |
 
 ---

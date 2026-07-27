@@ -92,6 +92,7 @@ flowchart TB
 | BUSER_WIDTH | int | 4 | Response user signal width |
 | STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |
 | DEPTH | int | 2 | Skid-buffer depth of the wrapped slave; CDC FIFOs use `max(DEPTH, 4)` |
+| USE_JOHNSON | int | 0 (Gray) | Forwarded to `apb5_slave_cdc`: `0` Gray, `1` Johnson, `-1` auto. Newly reachable from this level -- it used to be unreachable, so a CG instance could not select the encoding at all. |
 | ENABLE_PARITY | bit | 0 | Enable parity generation and checking |
 | CG_IDLE_COUNT_WIDTH | int | 4 | Width of idle counter (max idle = 2^N-1 cycles) |
 | USE_2_PHASE_CDC | bit | 1 | Deprecated and ignored -- retained for source compatibility |
