@@ -47,13 +47,14 @@ The GAXI asynchronous FIFO moves data safely between independent clock domains. 
 
 ```systemverilog
 module gaxi_fifo_async #(
-    parameter int REGISTERED = 0,         // 0=mux mode, 1=flop mode
-    parameter int DATA_WIDTH = 8,
-    parameter int DEPTH = 16,            // power of 2 unless USE_JOHNSON=1
-    parameter int USE_JOHNSON = 0,       // 0=Gray pointers, 1=Johnson pointers
-    parameter int N_FLOP_CROSS = 2,      // CDC synchronizer stages
-    parameter int ALMOST_WR_MARGIN = 1,
-    parameter int ALMOST_RD_MARGIN = 1,
+    parameter fifo_mem_t MEM_STYLE        = FIFO_AUTO,  // FIFO_AUTO / FIFO_SRL / FIFO_BRAM
+    parameter int        REGISTERED       = 0,          // 0 = mux mode, 1 = flop mode
+    parameter int        DATA_WIDTH       = 8,
+    parameter int        DEPTH            = 16,
+    parameter int        USE_JOHNSON      = 0,          // 0 = Gray (power-of-2 depth), 1 = Johnson (any depth)
+    parameter int        N_FLOP_CROSS     = 2,
+    parameter int        ALMOST_WR_MARGIN = 1,
+    parameter int        ALMOST_RD_MARGIN = 1
 ) (
     // Write Domain
     input  logic            axi_wr_aclk,
@@ -79,7 +80,7 @@ module gaxi_fifo_async #(
 |-----------|---------|-------------|
 | `REGISTERED` | 0 | 0=mux mode, 1=flop mode (read path) |
 | `DATA_WIDTH` | 8 | Data bus width |
-| `DEPTH` | 16 | FIFO depth. Power of 2 with Gray pointers; any even value with `USE_JOHNSON=1` |
+| `DEPTH` | 16 | FIFO depth. Power of 2 with Gray pointers; **any** depth -- odd included -- with `USE_JOHNSON=1` |
 | `USE_JOHNSON` | 0 | Pointer CDC encoding: 0 = Gray (`log2(DEPTH)+1` bits, power-of-2 depth only), 1 = Johnson (`DEPTH` bits, **any** depth -- odd included). An illegal combination fails at elaboration with an explicit `$error`. |
 | `N_FLOP_CROSS` | 2 | Synchronizer stages (3 recommended for safety) |
 | `ALMOST_WR_MARGIN` | 1 | Almost full threshold |
@@ -149,7 +150,7 @@ This prevents glitches during synchronization across clock domains.
   the single-bit-change property needed for CDC. Both change exactly one bit per
   increment, including the wrap.
 - `glitch_free_n_dff_arn.sv` - Multi-flop synchronizers
-- `johnson2bin.sv` - Johnson-to-binary conversion (registered), used when `USE_JOHNSON=1`
+- `johnson2bin.sv` - Johnson-to-binary conversion (**combinational**; its `clk`/`rst_n` ports are declared but unused), used when `USE_JOHNSON=1`
 - `counter_bingray.sv` / `gray2bin.sv` - Gray pointer path (combinational decode), used when `USE_JOHNSON=0`
 - `fifo_control.sv` - Full/empty flag generation
 
@@ -229,13 +230,13 @@ gaxi_fifo_async #(
 When write clock >> read clock, size FIFO to handle burst accumulation:
 
 ```
-Required Depth ≥ Burst Size × (Write Freq / Read Freq) × Safety Margin
+Required Depth >= Burst Size x (1 - Read Freq / Write Freq) x Safety Margin
 
 Example:
 - Write: 100 MHz, Read: 25 MHz
 - Burst: 16 transfers
 - Safety: 1.5x
-→ Depth ≥ 16 × (100/25) × 1.5 = 96 entries
+→ Depth >= 16 x (1 - 25/100) x 1.5 = 18 entries
 ```
 
 ### Reset Synchronization
@@ -259,13 +260,21 @@ reset_sync u_rd_rst_sync (
 
 ### Metastability Protection
 
-`N_FLOP_CROSS` determines MTBF (Mean Time Between Failures):
+`N_FLOP_CROSS` sets the synchronizer depth, and MTBF rises steeply with it.
 
-| Stages | MTBF (typical @ 100 MHz) | Use Case |
-|--------|-------------------------|----------|
-| 2 | ~years | Short-term prototyping only |
-| 3 | ~centuries | **Production standard** |
-| 4 | ~millennia | Ultra-critical systems |
+| Stages | Use Case |
+|--------|----------|
+| 2 | Short-term prototyping only |
+| 3 | **Production standard** |
+| 4 | Ultra-critical systems |
+
+This page deliberately gives no MTBF figures. Real MTBF depends on the flop's
+metastability time constant and resolution window, the two clock frequencies and
+the data toggle rate -- none of which a module page can know. A second table
+here also drifted from the one in
+[glitch_free_n_dff_arn](../rtl-common/glitch_free_n_dff_arn.md), which put
+2 stages at "hours" where this page said "years". One source per fact: that page
+owns the discussion.
 
 **Recommendation:** Always use `N_FLOP_CROSS=3` in production.
 
@@ -273,21 +282,19 @@ reset_sync u_rd_rst_sync (
 
 ## Error Checking
 
-Simulation-only assertions catch protocol violations:
+The RTL contains **no** assertions and no runtime `$display` checks. What is
+there is a single empty read-domain block:
 
 ```systemverilog
-// Write domain checks
-always @(posedge axi_wr_aclk) begin
-    if (!axi_wr_aresetn && wr_valid && !wr_ready) begin
-    end
-end
-
-// Read domain checks
-always @(posedge axi_rd_aclk) begin
-    if (!axi_rd_aresetn && rd_ready && !rd_valid) begin
-    end
+always_ff @(posedge axi_rd_aclk) begin
+    if (w_read && r_rd_empty) begin end   // empty -- reports nothing
 end
 ```
+
+There is no write-domain equivalent. Overflow is prevented structurally by the
+`!wr_full` write guard rather than reported; underflow is not detected at all.
+If you need overflow/underflow telemetry in simulation, add it in the testbench.
+`fifo_async.md` states the same for its module.
 
 ---
 

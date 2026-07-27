@@ -207,7 +207,7 @@ module gaxi_fifo_async #(
 
     generate
     if (USE_JOHNSON != 0) begin : g_cvt_johnson
-        // johnson2bin is registered (takes clk/rst_n).
+        // johnson2bin is COMBINATIONAL; its clk/rst_n ports are unused.
         johnson2bin #(
             .JCW           (JCW),
             .WIDTH         (AW + 1)

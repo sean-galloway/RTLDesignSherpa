@@ -31,7 +31,7 @@
 
 ## Overview
 
-The GAXI asynchronous skid buffer is a wrapper: a synchronous skid buffer on the write side, an asynchronous FIFO behind it. You get the skid buffer's zero-latency bypass plus clock domain crossing capability in a single instantiation.
+The GAXI asynchronous skid buffer is a wrapper: a synchronous skid buffer on the write side, an asynchronous FIFO behind it. You get the skid buffer's elastic buffering plus clock domain crossing in a single instantiation. Note that the skid buffer registers its handshake outputs -- there is no zero-latency bypass path; see Latency Components below.
 
 ### Key Features
 
@@ -47,10 +47,12 @@ The GAXI asynchronous skid buffer is a wrapper: a synchronous skid buffer on the
 
 ```systemverilog
 module gaxi_skid_buffer_async #(
-    parameter int REGISTERED = 0,        // FIFO read mode
-    parameter int DATA_WIDTH = 32,
-    parameter int DEPTH = 2,             // Async FIFO depth
-    parameter int N_FLOP_CROSS = 2,      // CDC stages
+    parameter fifo_mem_t MEM_STYLE   = FIFO_AUTO,  // FIFO_AUTO / FIFO_SRL / FIFO_BRAM
+    parameter int        REGISTERED  = 0,          // 0 = mux mode, 1 = flop mode
+    parameter int        DATA_WIDTH  = 32,
+    parameter int        DEPTH       = 2,          // async FIFO depth
+    parameter int        USE_JOHNSON = 0,          // 0 = Gray (power-of-2 depth), 1 = Johnson (any depth)
+    parameter int        N_FLOP_CROSS = 2          // CDC synchronizer stages
 ) (
     // Write Domain
     input  logic          axi_wr_aclk,

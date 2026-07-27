@@ -74,7 +74,7 @@
 //     Constraints: 0 = Gray code. Pointer is $clog2(DEPTH)+1 bits, converted
 //                      with gray2bin (combinational). Cheap; power-of-2 only.
 //                  1 = Johnson code. Pointer is DEPTH bits, converted with
-//                      johnson2bin (registered). Costs DEPTH flops per pointer
+//                      johnson2bin (combinational). Costs DEPTH flops per pointer
 //                      but supports arbitrary depths. This mode replaces the
 //                      retired standalone fifo_async_div2 module.
 //                  Both encodings change one bit per increment, so both are
@@ -795,7 +795,7 @@ module fifo_async #(
 
     generate
     if (USE_JOHNSON != 0) begin : g_cvt_johnson
-        // johnson2bin is registered (takes clk/rst_n).
+        // johnson2bin is COMBINATIONAL; its clk/rst_n ports are unused.
         johnson2bin #(
             .JCW   (JCW),
             .WIDTH (AW + 1)

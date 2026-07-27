@@ -173,10 +173,13 @@ asserts. Parity now agrees at 1 on both ends.
 4. `w_req_event = 1 ^ 0 = 1` -- a **phantom transfer**. `dst_valid` asserts with
    stale `r_src_data_hold`, for a transfer the source never sent.
 
-Resetting the source alone behaves the same way. The source FSM is also reset to
-`S_IDLE` from `S_WAIT_ACK` (`:188-190`), abandoning an in-flight transfer, and a
-cleared `r_ack_tog` can present a spurious ack to a source still waiting -- so a
-one-sided reset can **lose** a transfer as well as fabricate one.
+Resetting the source alone abandons an in-flight transfer too: the source FSM
+returns to `S_IDLE` from `S_WAIT_ACK` (`:188-190`). It does **not** clear
+`r_ack_tog` -- that flop lives in the destination domain and is reset only by
+`rst_dst_n`, as the flop table above records. The spurious-ack mechanism belongs
+to the destination-reset case, where `r_ack_tog` clears while the source is still
+waiting. Either way a one-sided reset can **lose** a transfer as well as
+fabricate one.
 
 **Scope of the damage.** The handshake itself re-synchronizes: once
 `r_req_sync_d` catches up to `r_req_tog`, parity agrees again. What is permanent
@@ -847,8 +850,11 @@ never existed. Fix: handshake or async FIFO.
 entirely, but the data bus must arrive within a bounded window. Use
 `set_max_delay -datapath_only`.
 
-**3. Assuming async FIFO depth 2 is enough.** Depth 2 has one usable entry, and
-synchronized pointers lag by `SYNC_STAGES` cycles. Use depth >= 4.
+**3. Assuming async FIFO depth 2 is enough.** Both entries are usable --
+`fifo_control` uses a wrap-bit full test, not a reserved slot -- but the
+synchronized pointers lag by `SYNC_STAGES` cycles, so a depth-2 FIFO spends most
+of its time reporting stale fullness and stalls a writer that could have
+proceeded. Use depth >= 4.
 
 **4. Open-loop transfer before the previous one is sampled.** Without an ack the
 first transfer is silently lost. Minimum spacing `SYNC_STAGES + 1` destination
@@ -862,7 +868,7 @@ debug time.
 
 ## Verification status
 
-The formal harness at `formal/amba/cdc_handshake/formal_cdc_handshake.sv` wires
+The formal harness at `formal/cdc/cdc_handshake/formal_cdc_handshake.sv` wires
 the DUT as:
 
 ```systemverilog
