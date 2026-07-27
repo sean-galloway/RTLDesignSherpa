@@ -141,8 +141,12 @@ Both are `gaxi_fifo_async` instances with:
 - **Pointer encoding:** gray-coded absolute read/write pointers
 - **Synchronizer depth:** `N_FLOP_CROSS = 2` (two-flop synchronizer per crossed pointer)
 - **FIFO depth:** `CDC_FIFO_DEPTH = (DEPTH < 4) ? 4 : DEPTH` -- a floor of 4 entries
-  regardless of the `DEPTH` used for the internal skid buffers. Powers of two are
-  preferred for the gray-pointer encoding.
+  regardless of the `DEPTH` used for the internal skid buffers. A power of two is
+  **required**, not preferred: this module instantiates `gaxi_fifo_async` without
+  passing `USE_JOHNSON`, so Gray encoding is selected, and Gray carries a
+  generate-scope elaboration check
+  (`(USE_JOHNSON == 0) && ((DEPTH & (DEPTH-1)) != 0)` -> `$error`). A
+  non-power-of-2 depth fails the build.
 
 There is no separate metastability-hardening option — two-flop synchronization is
 fixed at instantiation.
@@ -336,7 +340,7 @@ apb_slave_cdc #(
 - **APB Slave:** [apb_slave.md](apb_slave.md)
 - **Clock-Gated Variant:** [apb_slave_cdc_cg.md](apb_slave_cdc_cg.md)
 - **APB5 Equivalent:** [apb5_slave_cdc.md](../apb5/apb5_slave_cdc.md)
-- **CDC FIFO:** `rtl/amba/gaxi/gaxi_fifo_async.sv`
+- **CDC FIFO:** `rtl/cdc/gaxi_fifo_async.sv`
 - **Source:** `rtl/amba/apb/apb_slave_cdc.sv`
 - **Tests:** `val/amba/test_apb_slave_cdc.py`
 - **WaveDrom Test:** `val/amba/test_apb_slave_cdc.py::test_apb_slave_cdc_wavedrom`

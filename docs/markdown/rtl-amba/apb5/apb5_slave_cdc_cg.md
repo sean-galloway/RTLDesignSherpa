@@ -292,7 +292,9 @@ flowchart TB
 - Each reset must already be synchronized (or asynchronously asserted and
   synchronously deasserted) in its own domain by the integrator; this module
   does not synchronize either reset into the other domain
-- The async FIFOs tolerate a one-sided reset without corrupting the pointer
+- A one-sided reset is NOT safe: the crossed pointer copy is a live
+  synchronizer, so the reset side returns with its own pointer at zero against a
+  remote pointer that kept advancing. Quiesce the bus first
   state -- see [apb5_slave_cdc](apb5_slave_cdc.md) for the mechanism and for the
   in-flight transaction caveat
 
