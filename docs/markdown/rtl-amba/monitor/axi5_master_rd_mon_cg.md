@@ -476,7 +476,7 @@ gaxi_fifo_sync #(
 - **[AXI5 Master Read CG](../axi5/axi5_master_rd_cg.md)** - Clock gating only
 - **[AXI5 Master Read Monitor](axi5_master_rd_mon.md)** - Monitor only
 - **[AXI5 Master Write Monitor CG](axi5_master_wr_mon_cg.md)** - Write variant
-- **[AXI Monitor Configuration Guide](../../../guides/AXI_Monitor_Configuration_Guide.md)** - Monitor setup
+- **[AXI Monitor Configuration Guide](../../../user-guides/AXI_Monitor_Configuration_Guide.md)** - Monitor setup
 - **[AMBA Clock Gate Controller](../shared/amba_clock_gate_ctrl.md)** - Clock gating details
 
 ---

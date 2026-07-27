@@ -57,7 +57,7 @@ Beginner-friendly descriptor-based DMA engine for memory-to-memory transfers.
 - Tutorial focus - intentional simplifications
 
 **Documentation:**
-- 📖 [Complete Specification](../../../projects/components/dmas/stream/docs/stream_spec/stream_index.md)
+- 📖 [Complete Specification](../../../projects/components/dmas/stream/docs/stream_mas/stream_index.md)
 - 📋 [Product Requirements](../../../projects/components/dmas/stream/PRD.md)
 - 🤖 [AI Guide](../../../projects/components/dmas/stream/CLAUDE.md)
 - 📝 Architectural Notes *(documentation planned)*

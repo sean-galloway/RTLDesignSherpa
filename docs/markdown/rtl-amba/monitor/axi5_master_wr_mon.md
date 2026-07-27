@@ -627,7 +627,7 @@ Same as read monitor - see [AXI5 Master Read Monitor](axi5_master_rd_mon.md).
 - **[AXI5 Master Read Monitor](axi5_master_rd_mon.md)** - Read variant
 - **[AXI Monitor Filtered](axi_monitor_filtered.md)** - Monitor core specification
 - **[Monitor Package Spec](../includes/monitor_package_spec.md)** - Packet format details
-- **[AXI Monitor Configuration Guide](../../../guides/AXI_Monitor_Configuration_Guide.md)** - Complete configuration reference
+- **[AXI Monitor Configuration Guide](../../../user-guides/AXI_Monitor_Configuration_Guide.md)** - Complete configuration reference
 
 ---
 

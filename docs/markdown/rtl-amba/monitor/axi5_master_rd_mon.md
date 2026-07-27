@@ -613,7 +613,7 @@ The monitor respects `monbus_ready` backpressure:
 - **[AXI5 Master Read Monitor CG](axi5_master_rd_mon_cg.md)** - Monitor + clock gating
 - **[AXI Monitor Filtered](axi_monitor_filtered.md)** - Monitor core specification
 - **[Monitor Package Spec](../includes/monitor_package_spec.md)** - Packet format details
-- **[AXI Monitor Configuration Guide](../../../guides/AXI_Monitor_Configuration_Guide.md)** - Complete configuration reference
+- **[AXI Monitor Configuration Guide](../../../user-guides/AXI_Monitor_Configuration_Guide.md)** - Complete configuration reference
 
 ---
 

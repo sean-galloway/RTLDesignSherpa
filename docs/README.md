@@ -30,7 +30,7 @@ Welcome to the RTL Design Sherpa documentation!
 → [Browse the Documentation Index](DOCUMENTATION_INDEX.md)
 
 **Need help with verification?**
-→ [Verification Architecture Guide](guides/VERIFICATION_ARCHITECTURE_GUIDE.md)
+→ [Verification Architecture Guide](user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md)
 
 **Working on components?**
 → [Component Documentation Index](markdown/projects/index.md)

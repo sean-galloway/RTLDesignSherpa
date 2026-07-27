@@ -5,39 +5,54 @@
 ---
 
 ## DOCREV-011 — fix ALL broken links, whenever they were introduced
-**Status:** open 2026-07-26 (Sean)
+**Status:** open 2026-07-26 (Sean); mechanical classes swept 2026-07-27
 **Priority:** P2
 
 Not a rename cleanup. **Every** broken link in the repo, no matter which move,
-split or deletion caused it. Measured 2026-07-26, at commit `d65be489`.
+split or deletion caused it. First measured 2026-07-26 at `d65be489`: **495
+broken links across 160 files.**
 
-### The inventory
+### Where it stands
 
-**495 broken markdown links across 160 tracked `.md` files.** By failure mode,
-because the fix differs per class:
+**374 remain, across 146 files** (re-measured 2026-07-27 at `057f75df`+). The
+two mechanical classes were swept outside `projects/`, which is what closed the
+121:
 
 | n | class | how to fix |
 |---|---|---|
-| 274 | target does not exist anywhere | judgement call each: write the page, repoint, or delete the link |
-| 148 | target moved (same filename exists elsewhere) | mechanical -- repoint to the new location |
-| 73 | repo-root-relative (resolves from the repo root, not from the file) | mechanical -- make it relative to the file |
+| 308 | target does not exist anywhere | judgement call each: write the page, repoint, or delete the link |
+| 64 | target moved (same filename exists elsewhere) | mechanical, but these are the ones the sweep deliberately skipped -- see below |
+| 2 | repo-root-relative | mechanical |
 
-Worst offenders:
+**262 of the 374 are under `projects/`**, which is deferred. Outside projects the
+remaining count is 112, and it is dominated by pages that reference documentation
+that was never written:
 
 | n | file |
 |---|---|
-| 76 | `docs/markdown/overview.md` |
 | 24 | `bin/markdown_to_word_instructions.md` |
-| 15 | `projects/components/retro_legacy_blocks/docs/hpet_mas/ch05_registers/01_register_map.md` |
-| 11 | `README.md` |
 | 10 | `bin/TBClasses/wavedrom_user/GAXI_WAVEDROM_GUIDE.md` |
 | 10 | `docs/markdown/TestTutorial/wavedrom_gaxi_example.md` |
-| 10 | `docs/markdown/rtl-cdc/cdc.md` |
-| 10 | `projects/components/retro_legacy_blocks/docs/ioapic_mas/ch02_blocks/00_overview.md` |
+| 7 | `bin/DOC_GENERATION.md` |
+| 6 | `docs/markdown/overview.md` (was 76) |
+| 5 | `docs/DOCUMENTATION_STANDARDS.md` |
 
-By area: `projects/components` 253, `docs/markdown` 161, `bin/` 42,
-`README.md` 11, `projects/NexysA7` 9, `docs/` 7, `vault/Tasks` 5,
-`docs/review` 4, `vault/handbook` 3.
+`README.md` and `docs/markdown/rtl-cdc/cdc.md` are now at zero.
+
+### What the sweep deliberately would not touch
+
+Three exclusions, each because a "fix" there would be a corruption:
+
+- **`docs/review/`** — archived reviewer output. It *quotes* what a page said at
+  the time. Rewriting a quoted link falsifies the record.
+- **Anything inside a ``` fence** — templates and examples. The link in
+  `assets/*/DIAGRAM_PLAN.md` or in `doc-placement.md` is written relative to the
+  *page being generated*, not to the file it appears in. An automated pass
+  "fixed" both on the first attempt and had to be reverted.
+- **`projects/`** — deferred by request until the rest of the tree is done.
+
+That accounts for most of the 64 remaining "moved" links. Any future automated
+pass must keep these three exclusions.
 
 **Plus a second, separate class: 126 `rtl/**/*.sv` `// Documentation:` headers
 point at a file that does not exist** -- 113 at `IEEE754_ARCHITECTURE.md`, 12 at
