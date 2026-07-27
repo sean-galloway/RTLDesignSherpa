@@ -23,7 +23,7 @@
 
 # RTL Math Library
 
-**Location:** `rtl/common/math_*.sv`
+**Location:** `rtl/math/*.sv`
 **Generators:** `bin/math_generate.py`, `bin/math_generate.sh`, `bin/rtl_generators/`
 **Status:** Production Ready
 
@@ -31,7 +31,7 @@
 
 ## Overview
 
-The `rtl/common/math_*` family is a ~170-module arithmetic library covering
+The `rtl/math/` family is a ~170-module arithmetic library covering
 integer add/subtract/multiply and IEEE-754-style floating-point (bf16, fp16,
 fp32, fp8) arithmetic, comparison, conversion, and machine-learning activation
 functions. The great majority of these modules are **code-generated** by the
