@@ -73,6 +73,14 @@ def needs_recompute(text):
     return any(re.search(p, text) for p in pats)
 
 
+def _norm(s):
+    """Normalized text for quote location. Critiques re-wrap the doc lines they
+    quote and strip the markdown emphasis (`code`, *italic*), so a raw
+    substring search misses; strip emphasis and collapse whitespace on BOTH
+    sides before matching."""
+    return " ".join(re.sub(r"[`*]", "", s).split())
+
+
 def evidence_for(round_dir, unit, finding):
     """Doc + RTL excerpts the finding cites, from the bundle snapshot first."""
     snap = os.path.join(round_dir, "_bundle_snapshot", unit)
@@ -81,17 +89,17 @@ def evidence_for(round_dir, unit, finding):
                       glob.glob(os.path.join(snap, "*.sv"))):
         if budget <= 0:
             break
-        body = open(src, encoding="utf-8", errors="replace").read()
+        nbody = _norm(open(src, encoding="utf-8", errors="replace").read())
         quote = ""
         m = re.search(r'Says:\s*"(.+?)"', finding.get("raw", ""), re.S)
         if m:
-            quote = m.group(1)[:200].strip()
-        if quote and quote[:60] in body:
-            i = body.index(quote[:60])
-            lo, hi = max(0, i - WINDOW), min(len(body), i + len(quote) + WINDOW)
-            excerpt = body[lo:hi]
+            quote = _norm(m.group(1))[:200].strip()
+        if quote and quote[:60] in nbody:
+            i = nbody.index(quote[:60])
+            lo, hi = max(0, i - WINDOW), min(len(nbody), i + len(quote) + WINDOW)
+            excerpt = nbody[lo:hi]
         else:
-            excerpt = body[:budget]
+            excerpt = nbody[:budget]
         excerpt = excerpt[:budget]
         budget -= len(excerpt)
         chunks.append(f"--- {os.path.basename(src)} ({os.path.getsize(src)} bytes) ---\n{excerpt}")
@@ -100,11 +108,11 @@ def evidence_for(round_dir, unit, finding):
     return "\n\n".join(chunks)
 
 
-def call_claude(key, model, brief, user, max_tokens=2048, timeout=600, retries=3):
+def call_claude(key, model, brief, messages, max_tokens=2048, timeout=600, retries=3):
     """Anthropic native /v1/messages. Returns (text, stop_reason, usage)."""
     payload = {"model": model, "max_tokens": max_tokens,
                "system": brief,
-               "messages": [{"role": "user", "content": user}]}
+               "messages": messages}
     last = None
     for attempt in range(retries):
         try:
@@ -138,6 +146,52 @@ def parse_verdict(text):
     return m.group(1) if m else "UNPARSED"
 
 
+def finding_blocks(text, n):
+    """Slice a critique into per-finding blocks (both layouts), so each
+    finding's OWN Says: quote drives evidence location. Findings arrive from
+    index_findings.parse in file order, one per severity marker; split at the
+    same markers. Falls back to the whole file if the counts disagree."""
+    marks = [m.start() for m in re.finditer(r"^(?:\*\*)?\[[A-Z]+\]", text, re.M)]
+    if len(marks) != n:
+        return [text] * n
+    return [text[marks[k]:marks[k + 1] if k + 1 < n else len(text)]
+            for k in range(n)]
+
+
+def identifier_truth(round_dir, unit, finding):
+    """Grep ground truth for the backticked identifiers a finding names.
+
+    Wrong-identifier findings ("the doc says SYNC_STAGES but the FIFO calls it
+    N_FLOP_CROSS") are settled by WHERE each identifier appears, and a verifier
+    reading a 200k-char concatenated RTL.sv does not do that cross-check
+    reliably (round_1 F2: REFUTED a real finding it could have grepped). Hand
+    it the grep instead."""
+    snap = os.path.join(round_dir, "_bundle_snapshot", unit)
+    raw = finding.get("raw", "")
+    idents = sorted({t for t in re.findall(r"`([A-Za-z_][A-Za-z0-9_]{2,})`", raw)
+                     if "_" in t or t.isupper()} |
+                    set(re.findall(r"\b([A-Z][A-Z0-9_]{3,})\b", raw)))
+    if not idents:
+        return ""
+    out = []
+    for ident in idents[:12]:
+        hits = []
+        for src in sorted(glob.glob(os.path.join(snap, "*"))):
+            if not os.path.isfile(src):
+                continue
+            for n, line in enumerate(open(src, encoding="utf-8", errors="replace"), 1):
+                if re.search(rf"\b{re.escape(ident)}\b", line):
+                    hits.append(f"  {os.path.basename(src)}:{n}: {line.strip()[:120]}")
+                    if len(hits) >= 8:
+                        break
+            if len(hits) >= 8:
+                break
+        out.append(f"`{ident}` appears in {len(hits)} place(s) shown:" if hits
+                   else f"`{ident}`: NOT FOUND anywhere in the evidence")
+        out += hits
+    return "## Identifier ground truth (grep over the evidence)\n\n" + "\n".join(out)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--round", required=True, dest="round_dir",
@@ -163,10 +217,11 @@ def main():
         base = os.path.basename(crit)
         if base.startswith(("FINDINGS", "verdicts-")):
             continue
-        for f in index_findings.parse(crit):
-            if a.only and not any(f["unit"].startswith(p) for p in a.only):
-                continue
-            f["raw"] = open(crit).read()  # for quote extraction; trimmed later
+        fs = [f for f in index_findings.parse(crit)
+              if not a.only or any(f["unit"].startswith(p) for p in a.only)]
+        text = open(crit).read()
+        for f, blk in zip(fs, finding_blocks(text, len(fs))):
+            f["raw"] = blk
             findings.append(f)
 
     pending = [f for f in findings if finding_id(f["unit"], f["title"]) not in done]
@@ -198,10 +253,28 @@ def main():
             evidence = evidence_for(a.round_dir, f["unit"], f)
             user = (f"# Finding under adjudication (unit: {f['unit']}, "
                     f"severity: {f['severity']})\n\n{f['title']}\n\n"
+                    f"## The finding as written\n\n{f['raw'].strip()[:4000]}\n\n"
                     f"Files cited: {', '.join(f['files']) or '(none)'}\n\n"
-                    f"## Evidence\n\n{evidence}")
+                    f"## Evidence\n\n{evidence}\n\n"
+                    f"{identifier_truth(a.round_dir, f['unit'], f)}")
             try:
-                txt, stop, usage = call_claude(key, model, brief, user)
+                msgs = [{"role": "user", "content": user}]
+                txt, stop, usage = call_claude(key, model, brief, msgs)
+                if parse_verdict(txt) == "UNPARSED":
+                    # One format-compliance retry as a follow-up turn: the
+                    # first answer is often substantively right but prose
+                    # (opus rambling past the "exactly this" instruction).
+                    print("      UNPARSED -- retrying with format reminder", flush=True)
+                    msgs += [{"role": "assistant", "content": txt},
+                             {"role": "user", "content":
+                              "You did not follow the output format. Reply with "
+                              "EXACTLY this and nothing else:\n"
+                              "VERDICT: UPHELD | REFUTED | UNCERTAIN\n"
+                              "REASON: <one to three sentences>\n"
+                              "SETTLE: <only when UNCERTAIN>"}]
+                    txt2, stop, usage = call_claude(key, model, brief, msgs)
+                    if parse_verdict(txt2) != "UNPARSED":
+                        txt = txt2
             except Exception as e:  # noqa: BLE001
                 print(f"      FAIL {type(e).__name__}: {str(e)[:200]}", flush=True)
                 continue

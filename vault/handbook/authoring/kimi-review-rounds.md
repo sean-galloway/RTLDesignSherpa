@@ -28,7 +28,7 @@ for one call are pre-split into `parts/part_NN`. Results land in
 `<results>/<mode>-<model>/round_N/` as `<unit>.md` + `<unit>.meta.json`,
 with the inputs snapshotted into `_bundle_snapshot/`.
 
-## The nine rules
+## The ten rules
 
 Each one is here because ignoring it cost real work.
 
@@ -171,6 +171,48 @@ Each one is here because ignoring it cost real work.
      pointer.*
 
    The authority on where each kind of doc lives is [[doc-placement]].
+
+10. **Filter false positives with a second model, then TUNE IT against human
+    triage before trusting it.** Hand triage is the expensive place to catch
+    FPs. The pipeline: the reviewer brief carries a witness requirement (every
+    finding quotes BOTH the doc text and the contradicting RTL plus a concrete
+    failing scenario) and a known-FP-classes section; `verify_findings.py`
+    then re-adjudicates each finding with a DIFFERENT model family under a
+    refute-by-default brief (`VERIFIER_BRIEF.md`), resume-safe, with
+    NEEDS-RECOMPUTE tags on findings resting on external constants (rule 5).
+
+    The first live run (reset-corpus cdc round_1, 2026-07-28) upheld 3 of 3
+    after tuning - but it REFUTED a finding human triage had confirmed THREE
+    times running, and each failure taught a separate mechanical fix, all now
+    in the tool:
+
+    - **Adjudicate the finding, not the file.** The evidence locator took the
+      first `Says:` quote in the critique FILE, so the second finding in a
+      unit was adjudicated against the first finding's evidence. Each finding
+      gets its own block, and the block's full text (Says/Actually/Impact)
+      goes in the prompt - adjudicating a bare title invites the verifier to
+      under-weight the reviewer's actual argument.
+    - **Normalize before quote location.** Critiques re-wrap and de-backtick
+      the lines they quote; a raw substring search misses and the evidence
+      silently degrades to the head of the file. Strip emphasis, collapse
+      whitespace, match on both sides.
+    - **Hand the verifier the grep.** Wrong-identifier findings are settled by
+      WHERE each identifier appears, and a model reading a 200k-char
+      concatenated RTL.sv does not cross-check reliably - it anchored on
+      `SYNC_STAGES` existing in the handshake modules and REFUTED, when the
+      finding was that the FIFO section used that name for `N_FLOP_CROSS`.
+      `verify_findings.py` now appends an identifier ground-truth table
+      (grep of every backticked/UPPER_SNAKE token in the finding across the
+      snapshot).
+    - **Format-compliance retry.** Two of three first-run verdicts came back
+      as prose rambles with no `VERDICT:` line (one even concluded "finding
+      is self-refuting" without saying REFUTED). One follow-up turn -
+      "reply with EXACTLY this format" - recovers it; record UNPARSED only
+      after that retry fails.
+
+    The validation rule stands: if the verifier's REFUTED set contains a
+    finding human triage confirms, the brief or the evidence pack is too
+    weak - tune before trusting. DOCREV-012.
 
 ## Endpoint
 

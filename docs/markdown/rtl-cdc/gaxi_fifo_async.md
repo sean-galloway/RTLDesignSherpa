@@ -319,7 +319,7 @@ pytest val/cdc/test_gaxi_buffer_async.py -k "wr10_rd12" -v  # 10ns : 12ns
 
 Test matrix includes:
 - Same clocks (1:1)
-- 1.25x ratio (10ns : 12ns)
+- 1.2x ratio (10ns : 12ns)
 - 2x ratio (10ns : 20ns)
 - 2.5x ratio (8ns : 20ns)
 

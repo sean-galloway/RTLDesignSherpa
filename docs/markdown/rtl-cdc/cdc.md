@@ -906,8 +906,8 @@ entirely, but the data bus must arrive within a bounded window. Use
 
 **3. Assuming async FIFO depth 2 is enough.** Both entries are usable --
 `fifo_control` uses a wrap-bit full test, not a reserved slot -- but the
-synchronized pointers lag by `SYNC_STAGES` cycles, so a depth-2 FIFO spends most
-of its time reporting stale fullness and stalls a writer that could have
+synchronized pointers lag by `N_FLOP_CROSS` cycles, so a depth-2 FIFO spends
+most of its time reporting stale fullness and stalls a writer that could have
 proceeded. Use depth >= 4.
 
 **4. Open-loop transfer before the previous one is sampled.** Without an ack the

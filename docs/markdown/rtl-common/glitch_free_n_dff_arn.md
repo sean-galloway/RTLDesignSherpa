@@ -270,9 +270,9 @@ set_max_delay -to [get_pins sync_inst/r_q_array[0]/D] 2.0
 
 ### Optimization Prevention
 ```systemverilog
-// Synthesis attributes to prevent optimization
-(* ASYNC_REG = "TRUE" *) logic [FC-1:0][WIDTH-1:0] r_q_array;
-(* DONT_TOUCH = "TRUE" *) logic [FC-1:0][WIDTH-1:0] r_q_array;
+// Synthesis attributes to prevent optimization (one declaration, both attributes --
+// two separate declarations of r_q_array do not compile)
+(* ASYNC_REG = "TRUE", DONT_TOUCH = "TRUE" *) logic [FC-1:0][WIDTH-1:0] r_q_array;
 ```
 
 ## Verification Strategies

@@ -6,8 +6,8 @@ Process and rationale: [kimi-review-rounds](../../handbook/authoring/kimi-review
 | State | Count |
 |---|---|
 | [active](active.md) | 0 |
-| [open](open.md) | 10 |
-| [closed](closed.md) | 1 |
+| [open](open.md) | 9 |
+| [closed](closed.md) | 2 |
 | [dropped](dropped.md) | 1 |
 
 ## Corpus reset — 2026-07-28
@@ -25,6 +25,9 @@ projects/components, then assess fpga) and the per-area startup checklist
 
 ## Recently closed
 
+- **DOCREV-012** — second-model adjudication validated on reset-corpus cdc
+  round_1 (2026-07-28): 3 findings, 0 FP, verifier 3/3 with human triage
+  after four evidence-pack fixes; handbook rule 10 written.
 - **DOCREV-006** — math docs moved to `docs/markdown/rtl-math/` (2026-07-23),
   matching `rtl/math/` and `val/math/`. Kimi critiques deliberately left citing
   the old paths; they are evidence, not documentation.
@@ -48,9 +51,6 @@ projects/components, then assess fpga) and the per-area startup checklist
   new rounds only; the 339-finding backlog needs no API call.
 - **DOCREV-010** — every docs/markdown book needs index.md + overview.md.
 - **DOCREV-011** — fix ALL broken links, whenever they were introduced.
-- **DOCREV-012** — validate the second-model finding adjudication
-  (`verify_findings.py`, Claude refute-by-default) on the fresh cdc qc round;
-  on success write handbook rule 10.
 - **DOCREV-013** — fresh per-area qc rounds under the adjudication pipeline.
   Order: cdc, common, math, amba (decomposed later), projects/components
   (decomposed later), then assess fpga. Per-area startup: four-line Makefiles

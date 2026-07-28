@@ -323,41 +323,6 @@ math, amba, projects/components) are done, AND the README rollout
 (DOCREV-005) off-workstation. (Pre-2026-07-28 this gate listed the old
 backlog areas; the corpus reset replaced backlog integration with the
 DOCREV-013 fresh rounds.)
-## DOCREV-012 — Validate the finding-adjudication pass (second model) on the next cdc qc round
-**Status:** open 2026-07-28
-**Priority:** P2
-**Owner:** TBD
-
-**2026-07-28 corpus reset:** the "next cdc qc round" is now the FRESH cdc
-round (round_1 of the reset corpus) — the first area under DOCREV-013. The
-previous cdc rounds whose FP rate is the comparison baseline live in
-`~/rtl-doc-review/archive-pre-reset-2026-07-28/results/qc-kimi-k3/round_{4..10}/`
-(13, 16, 12, 10, 5, 8, 7 findings respectively).
-
-False positives are currently filtered by hand at triage -- the expensive
-place. Two mitigations landed 2026-07-28:
-
-- `bin/review/REVIEWER_BRIEF.md` gained a witness requirement (every finding
-  must quote BOTH the doc text and the contradicting RTL + a concrete failing
-  scenario) and a known-false-positive-classes section seeded from prior
-  rounds (CRC-64/WE, packaging artifacts, free design choices, generated
-  files).
-- `bin/review/verify_findings.py` + `VERIFIER_BRIEF.md`: each finding is
-  re-adjudicated by a SECOND model family (default claude-opus-5 via
-  ANTHROPIC_API_KEY or the operator key file) under a refute-by-default
-  brief. Verdicts land in `<round>/verdicts-<model>.md`; resume-safe, never
-  overwrites. Findings resting on external constants are tagged
-  NEEDS-RECOMPUTE (models quote sibling variants; arithmetic settles those).
-
-**Validation:** run the next cdc qc round with the tightened brief, then
-adjudicate its findings. Compare (a) FP rate vs previous cdc rounds, (b)
-verifier UPHELD set vs the human triage of the same round. If the verifier's
-REFUTED set contains a finding human triage confirms, the brief is too
-aggressive -- tune before trusting it.
-
-**On success:** write the lesson into [[kimi-review-rounds]] as rule 10
-(witness requirement + second-model adjudication), per the house rule that
-method lives in the handbook, not beside the tool.
 ## DOCREV-013 — Fresh per-area qc rounds under the adjudication pipeline
 **Status:** open 2026-07-28
 **Priority:** P1
@@ -366,7 +331,7 @@ method lives in the handbook, not beside the tool.
 The corpus reset (2026-07-28) cleared every prior round; this task is the
 replacement for backlog integration (DOCREV-001, dropped). Each area gets a
 fresh qc round under the tightened REVIEWER_BRIEF, adjudicated by
-`verify_findings.py` (DOCREV-012 validates that pass on cdc, the first area).
+`verify_findings.py` (validated 2026-07-28 on cdc round_1, DOCREV-012).
 
 **Area order (Sean, 2026-07-28):** cdc, common, math, amba (broken down
 further when we get there), projects/components (also broken down when we
