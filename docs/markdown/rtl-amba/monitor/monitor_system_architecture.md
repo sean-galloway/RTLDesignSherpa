@@ -79,8 +79,12 @@ The packet carries a classification (*what happened*) and an identity (*who it
 happened to*), and the two are orthogonal. Neither is the base. It is entirely
 reasonable to organise by `protocol` and treat identity as an attribute of the
 event -- and equally reasonable to organise by `unit_id` and treat the
-classification as an attribute of the block. Which one is the major key is the
-consumer's decision, and the packet is indifferent.
+classification as an attribute of the block. The packet is indifferent.
+
+That choice is not cosmetic. Putting `unit_id` first scopes `protocol` inside it
+and turns a hard 16-protocol ceiling into an effectively unbounded space --
+see [Precedence decides how many protocols exist](#precedence-decides-how-many-protocols-exist)
+below, which is the most consequential decision on this page.
 
 Today's *hardware* consumers happen to be classification-major: the filter masks
 are per-protocol then per-type (`cfg_axi_pkt_mask`, `cfg_axis_error_mask`, ...),
@@ -95,31 +99,73 @@ typically wants; `get_unit_id()` and `get_agent_id()` exist for exactly that.
 If a future block wants to filter or bin by identity, the packet already carries
 what it needs. Only the consumer is missing.
 
-### Fix the precedence per project
+### Precedence decides how many protocols exist
 
-"The consumer decides" is true of the format and a bad way to run a project.
-**Pick one precedence, write it down, and hold it for the life of the project.**
-A different project may reasonably pick the other; two consumers inside the same
-project may not.
+This is not a reporting preference. **Precedence determines whether `protocol`
+is a global namespace or a per-unit one, and that changes the ceiling by three
+orders of magnitude.**
 
-The reason is that precedence leaks into everything downstream of the packet:
-the decoder's grouping, the coverage report's row order, the register map a
-filter is programmed through, the dashboards, and the shorthand people use in
-bug reports. If half a project sorts by `protocol` and half by `unit_id`, every
-one of those artifacts stops being comparable, and the mismatch shows up as
-"your numbers don't match mine" long after the choice was made.
+`protocol` is 4 bits. Read protocol-major -- `protocol / packet_type / unit` --
+and those 4 bits are a **global** namespace: 16 protocols for the entire SoC,
+for all time, 5 already spent. Every new one must be centrally allocated and
+must never collide with anything, anywhere. It is a scarce, coordinated resource
+and it runs out.
 
-A rough guide to the choice:
+Read unit-major -- `unit / protocol / type` -- and `protocol` is **scoped by
+`unit_id`**. Unit 9's protocol 3 and unit 12's protocol 3 are unrelated. Nothing
+central allocates them; each unit owns its own 16.
 
-| Pick | When the project's dominant question is |
-|---|---|
-| `protocol`-major | "is this class of event happening anywhere?" -- protocol bring-up, compliance, coverage closure |
-| `unit_id`-major | "what is this block doing?" -- SoC integration, per-subsystem triage, multi-team ownership |
+| | protocol-major | unit-major |
+|---|---|---|
+| `protocol` namespace | global | per `unit_id` |
+| distinct protocol identities | **16** | 256 x 16 = **4096** |
+| full message space | 16 x 16 x 256 = 65,536 | 256 x 16 x 16 x 256 = **16,777,216** |
+| allocating a new protocol | central registry, collides SoC-wide | local to the unit, collides with nobody |
 
-Nothing in the RTL enforces either choice -- no hardware indexes on identity at
-all -- so this is a convention, and conventions need a home. Record it where the
-project records its other integration decisions, alongside the `UNIT_ID` and
-`AGENT_ID` assignments themselves, since those are the same conversation.
+For any practical purpose the unit-major space is unbounded -- you exhaust
+`unit_id` long before you exhaust protocols, and `unit_id` is the field you were
+going to assign per-block anyway.
+
+**This is the same mechanism as `event_code`, applied one level up.** `event_code`
+is already scoped per `{protocol, packet_type}` rather than globally, which is
+why adding events never competes with existing assignments. Scoping `protocol`
+under `unit_id` extends that property to protocols themselves. The packet
+already works this way one level down; the only question is how far up you take
+it.
+
+**What it costs.** A protocol-major packet is self-describing: any decoder can
+read `protocol` and know what it is holding, with no context. A unit-major
+packet is not -- `protocol = 3` means nothing until you know the unit, so every
+consumer needs the unit-to-protocol map, and that map becomes a real artifact
+the project must maintain and version. You also give up the free global query:
+"every AXI error in the SoC" is one mask protocol-major, and a map lookup per
+unit otherwise.
+
+So it is a genuine trade: **a hard 16-protocol ceiling with zero bookkeeping,
+against an effectively unbounded space that requires a maintained map.** Small
+or single-protocol projects should take the ceiling. Large multi-team SoCs,
+where blocks arrive with their own event vocabularies and no one wants a central
+protocol registry, should take the map.
+
+### Fix the choice per project
+
+Whichever you pick, **pick once and hold it for the life of the project.** A
+different project may reasonably pick the other; two consumers inside the same
+project may not -- with unit-major especially, since a consumer that assumes
+global `protocol` will silently mis-decode every packet from a unit that reused
+a value.
+
+Precedence also leaks into everything downstream: decoder grouping, coverage
+report row order, the register map a filter is programmed through, dashboards,
+and the shorthand people use in bug reports. Half a project sorting one way and
+half the other makes all of those incomparable.
+
+Nothing in the RTL enforces either choice -- the packet is a flat tuple and no
+hardware indexes on identity -- so this is a convention, and conventions need a
+home. Record it where the project records its other integration decisions,
+alongside the `UNIT_ID` and `AGENT_ID` assignments, since those are the same
+conversation. If the project is unit-major, the unit-to-protocol map lives there
+too.
 
 ### Coordinate A -- classification: what happened
 
