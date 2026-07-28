@@ -27,7 +27,7 @@ KEY FEATURE: counter_bin is designed for FIFO read/write pointers!
              The MSB toggles on wraparound to enable simple full/empty detection.
 
 WaveDrom Output:
-    docs/markdown/assets/WAVES/counter_bin/counter_bin_*.json
+    docs/markdown/assets/WAVES/staged/counter_bin/counter_bin_*.json
 
 Generate Waveforms:
     pytest val/common/test_counter_bin_wavedrom.py -v

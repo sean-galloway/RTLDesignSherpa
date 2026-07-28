@@ -30,7 +30,7 @@ KEY FEATURES:
 - Wraparound: Automatic return to 0 after match
 
 WaveDrom Output:
-    docs/markdown/assets/WAVES/counter_load_clear/counter_load_clear_*.json
+    docs/markdown/assets/WAVES/staged/counter_load_clear/counter_load_clear_*.json
 
 Generate Waveforms:
     pytest val/common/test_counter_load_clear_wavedrom.py -v

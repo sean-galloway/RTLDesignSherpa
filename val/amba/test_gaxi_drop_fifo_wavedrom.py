@@ -356,7 +356,7 @@ async def gaxi_drop_fifo_wavedrom_cocotb(dut):
     wave_solver.clear_windows()
     dut._log.info("✓ Scenario 4 captured: comprehensive")
 
-    dut._log.info("✅ WaveDrom generation complete - check docs/markdown/assets/WAVES/")
+    dut._log.info("✅ WaveDrom generation complete - check docs/markdown/assets/WAVES/staged/")
 
 
 async def run_basic_test(dut):
@@ -452,7 +452,7 @@ def test_gaxi_drop_fifo_wavedrom():
     print(f"\n{'='*60}")
     print(f"Testing GAXI Drop FIFO WaveDrom")
     print(f"Log: {log_path}")
-    print(f"Waveforms: docs/markdown/assets/WAVES/")
+    print(f"Waveforms: docs/markdown/assets/WAVES/staged/")
     print(f"{'='*60}")
 
     try:

@@ -30,7 +30,7 @@ KEY FEATURES:
 - Counter: Increments on each tick (microsecond count)
 
 WaveDrom Output:
-    docs/markdown/assets/WAVES/counter_freq_invariant/counter_freq_invariant_*.json
+    docs/markdown/assets/WAVES/staged/counter_freq_invariant/counter_freq_invariant_*.json
 
 Generate Waveforms:
     pytest val/common/test_counter_freq_invariant_wavedrom.py -v

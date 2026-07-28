@@ -206,6 +206,7 @@ bin_OLD/
 profile.txt
 sim_build/
 local_sim_build/
+docs/markdown/assets/WAVES/staged/
 
 # Verilator coverage output. `--annotate` writes copies of the RTL with hit
 # counts prepended, so a stale tree keeps re-surfacing source that no longer
