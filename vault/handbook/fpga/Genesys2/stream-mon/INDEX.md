@@ -15,5 +15,10 @@ rather than flat in the handbook so the vault mirrors the eventual repo layout.
 - [[testplan]] - the 12-32 board sequences that drive that coverage
   (near-concurrent multi-channel, monbus busy-not-flooded)
 
+Host tools: this flow reuses the [[host-tools]] runner suite (DMA, monitor
+config, monbus readout) and adds its own `host/poc.py` -- the on-silicon
+proof of the primitive routines (link, desc_ram, and the NEW cfg AXIL slave:
+profile-CAM load + dense-bin read), run before the testplan sequences.
+
 General FPGA method (build flow, timing, boards, the UART harness) stays in the
 flat [FPGA area](../../INDEX.md).
