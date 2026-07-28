@@ -31,4 +31,4 @@ $REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_debug.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_base.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_filtered.sv
-$REPO_ROOT/rtl/amba/monitor/axi4_slave_wr_mon.sv
+$REPO_ROOT/rtl/amba/axi4/axi4_slave_wr_mon.sv

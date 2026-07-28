@@ -8,7 +8,7 @@ I checked every parameter table, port list, mask encoding, status-output descrip
 
 ```
 [CONFIRMED] AXI4 *_mon_cg pages document clock-gating parameters that do not exist; the Quick Usage example will not elaborate
-  File:     docs/markdown/RTLAmba/monitor/axi4_master_wr_mon_cg.md
+  File:     docs/markdown/RTLAmba/axi4/axi4_master_wr_mon_cg.md
             (identical boilerplate in axi4_slave_rd_mon_cg.md, axi4_slave_wr_mon_cg.md)
   Says:     "| `ENABLE_CLOCK_GATING` | 1 | Master enable (0=disable, identical to base) |
              | `CG_IDLE_CYCLES` | 8 | Cycles before clock gating activates |
@@ -32,7 +32,7 @@ I checked every parameter table, port list, mask encoding, status-output descrip
 
 ```
 [CONFIRMED] "while a measurement window is open the monitor stays awake" is not implemented — window_active has no path into the wake logic
-  File:     docs/markdown/RTLAmba/monitor/axi4_master_wr_mon_cg.md
+  File:     docs/markdown/RTLAmba/axi4/axi4_master_wr_mon_cg.md
             (same sentence in axi4_slave_rd_mon_cg.md, axi4_slave_wr_mon_cg.md;
              axi5_master_rd_mon_cg.md says "...regardless of the idle-count setting")
   Says:     "Clock gating never suppresses these paths: while a measurement window is open
@@ -53,7 +53,7 @@ I checked every parameter table, port list, mask encoding, status-output descrip
 
 ```
 [CONFIRMED] axi5 CG page labels error_count/transaction_count "(placeholder)" — they are functional reporter counters
-  File:     docs/markdown/RTLAmba/monitor/axi5_master_rd_mon_cg.md
+  File:     docs/markdown/RTLAmba/axi5/axi5_master_rd_mon_cg.md
   Says:     "| error_count | 16 | Output | Cumulative error count (placeholder) |
              | transaction_count | 32 | Output | Total transaction count (placeholder) |"
   Actually: axi5_master_rd_mon.sv: assign error_count = w_perf_error_count;
@@ -68,7 +68,7 @@ I checked every parameter table, port list, mask encoding, status-output descrip
 
 ```
 [CONFIRMED] wr/slave base pages claim cfg_active_trans_threshold is "fixed" at 8 inside the wrapper; it is driven by the top-level ACTIVE_TRANS_THRESHOLD parameter the same pages document
-  File:     docs/markdown/RTLAmba/monitor/axi4_master_wr_mon.md
+  File:     docs/markdown/RTLAmba/axi4/axi4_master_wr_mon.md
             (same note in axi4_slave_rd_mon.md, axi4_slave_wr_mon.md)
   Says:     "The inner monitor's `cfg_debug_level` (tied to 0), `cfg_debug_mask` (0) and
              `cfg_active_trans_threshold` (8) are fixed inside the wrapper and are **not**
@@ -84,7 +84,7 @@ I checked every parameter table, port list, mask encoding, status-output descrip
 
 ```
 [CONFIRMED] "In addition to all axi4_master_wr_mon parameters" is false — the CG wrappers do not expose ACTIVE_TRANS_THRESHOLD
-  File:     docs/markdown/RTLAmba/monitor/axi4_master_wr_mon_cg.md
+  File:     docs/markdown/RTLAmba/axi4/axi4_master_wr_mon_cg.md
             (same claim in axi4_slave_rd_mon_cg.md, axi4_slave_wr_mon_cg.md)
   Says:     "In addition to all [axi4_master_wr_mon](./axi4_master_wr_mon.md) parameters
              (including `USE_MONITOR`):"
@@ -99,7 +99,7 @@ I checked every parameter table, port list, mask encoding, status-output descrip
 
 ```
 [CONFIRMED] axi5 CG page code snippet puts fub_axi_rready in the activity term; the RTL uses fub_axi_rvalid and explicitly forbids peer READYs
-  File:     docs/markdown/RTLAmba/monitor/axi5_master_rd_mon_cg.md
+  File:     docs/markdown/RTLAmba/axi5/axi5_master_rd_mon_cg.md
   Says:     "user_valid = fub_axi_arvalid || fub_axi_rready || int_busy;"
   Actually: axi5_master_rd_mon_cg.sv: assign user_valid = fub_axi_arvalid || fub_axi_rvalid || int_busy;
             and the RTL header comment states: "A peer's READY must never appear in the
@@ -112,7 +112,7 @@ I checked every parameter table, port list, mask encoding, status-output descrip
 
 ```
 [CONFIRMED] "MonBus packets flushed before clock stops" is not guaranteed — monitor-bus occupancy is not part of the wake/gate logic
-  File:     docs/markdown/RTLAmba/monitor/axi5_master_rd_mon_cg.md
+  File:     docs/markdown/RTLAmba/axi5/axi5_master_rd_mon_cg.md
   Says:     "Monitor packets generated before gating: Monitor processes all events before
              idle state; MonBus packets flushed before clock stops; No events lost during
              gating transition."
@@ -129,7 +129,7 @@ I checked every parameter table, port list, mask encoding, status-output descrip
 
 ```
 [CONFIRMED] axi5 CG usage example mislabels cfg_monitor_enable as "// Completions" and never connects cfg_compl_enable
-  File:     docs/markdown/RTLAmba/monitor/axi5_master_rd_mon_cg.md
+  File:     docs/markdown/RTLAmba/axi5/axi5_master_rd_mon_cg.md
   Says:     ".cfg_monitor_enable (1'b1),        // Completions"
             (the "FUNCTIONAL DEBUG MODE" example then sets pkt_mask 16'hFFF4 to pass COMPL
              and compl_mask 16'h0000, but never drives cfg_compl_enable)
@@ -143,7 +143,7 @@ I checked every parameter table, port list, mask encoding, status-output descrip
 
 ```
 [SUSPECTED] Unsourced power-savings figures presented as fact on all four CG pages
-  File:     docs/markdown/RTLAmba/monitor/axi4_master_wr_mon_cg.md,
+  File:     docs/markdown/RTLAmba/axi4/axi4_master_wr_mon_cg.md,
             axi4_slave_rd_mon_cg.md, axi4_slave_wr_mon_cg.md,
             axi5_master_rd_mon_cg.md
   Says:     "Power Savings: 25-70% depending on traffic utilization" (AXI4 CG pages);
@@ -160,7 +160,7 @@ I checked every parameter table, port list, mask encoding, status-output descrip
 
 ```
 [CONFIRMED] Minor: addr-range section writes the protocol field as 3'b000; the field is 4 bits
-  File:     docs/markdown/RTLAmba/monitor/axi4_master_rd_mon.md,
+  File:     docs/markdown/RTLAmba/axi4/axi4_master_rd_mon.md,
             axi4_master_wr_mon.md, axi4_slave_rd_mon.md, axi4_slave_wr_mon.md
   Says:     "protocol    = AXI (3'b000)" (Address-Range Checker section)
   Actually: The same pages' Monitor Packet Format block says "Bits [108:105] - Protocol

@@ -137,7 +137,7 @@ The transaction CAM is always pipelined.
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
 - **When `cfg_monitor_enable=0`**: the wrapper gate forces the upstream ready open, so a runtime-disabled monitor can never stall the datapath (in-RTL formal property `ap_disabled_never_stalls`).
 
-Recovery is guaranteed by the **saturation-recovery contract**: command-originated table entries are capped at `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)` (reserve = 2 for tables of 16 or more, 0 below; the function lives in `monitor_common_pkg`), and `block_ready` re-asserts at occupancy `< MAX_TRANSACTIONS - (reserve - 1)` -- a threshold strictly ABOVE the command cap -- so a saturated table always drains back below the reopen point. Blocking throttles; it never deadlocks. Tables smaller than 16 keep full legacy allocation (small tables cannot spare slots) and trade the recovery guarantee for tracking capacity. The contract is verified by in-RTL formal properties (mutation-checked) and a 100-seed deliberately-undersized-table stream sweep; see [axi_monitor_base](axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) for the canonical description.
+Recovery is guaranteed by the **saturation-recovery contract**: command-originated table entries are capped at `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)` (reserve = 2 for tables of 16 or more, 0 below; the function lives in `monitor_common_pkg`), and `block_ready` re-asserts at occupancy `< MAX_TRANSACTIONS - (reserve - 1)` -- a threshold strictly ABOVE the command cap -- so a saturated table always drains back below the reopen point. Blocking throttles; it never deadlocks. Tables smaller than 16 keep full legacy allocation (small tables cannot spare slots) and trade the recovery guarantee for tracking capacity. The contract is verified by in-RTL formal properties (mutation-checked) and a 100-seed deliberately-undersized-table stream sweep; see [axi_monitor_base](../monitor/axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) for the canonical description.
 
 Sizing note: a monitor on a bus shared by several channels/requesters must size `MAX_TRANSACTIONS` to cover `NUM_CHANNELS x per-channel outstanding` plus margin -- the per-channel limit alone makes the monitor throttle the shared master. Tables deeper than 64 also need Verilator's `--unroll-count` raised (default 64) in sim builds.
 
@@ -146,7 +146,7 @@ Sizing note: a monitor on a bus shared by several channels/requesters must size 
 ## Address-Range Checker
 
 With `N_ADDR_RANGES > 0` the wrapper instantiates the shared allowlist checker
-([`axi_monitor_addr_check`](axi_monitor_addr_check.md)). Each range carries a
+([`axi_monitor_addr_check`](../monitor/axi_monitor_addr_check.md)). Each range carries a
 DEBUG/ERROR flavor:
 
 - **DEBUG range** — a hit emits a `PktTypeAddrMatch` (`4'h8`) packet with event
@@ -468,7 +468,7 @@ Variant single-beat read with different timing:
 Two suppression options exist. Runtime-disabling completions
 (`cfg_compl_enable=0`) is safe — terminal entries auto-retire without
 emitting packets or bumping counters (see
-[axi_monitor_reporter](axi_monitor_reporter.md)) — but the `transaction_count`
+[axi_monitor_reporter](../monitor/axi_monitor_reporter.md)) — but the `transaction_count`
 output stops advancing. The mask approach below (`cfg_axi_compl_mask`)
 keeps marking and counting while dropping the packets downstream in
 `axi_monitor_filtered`.
@@ -708,12 +708,12 @@ Monitors up to `MAX_TRANSACTIONS` concurrent transactions:
 - Monitor Bus Packet Format: [monitor_package_spec.md](../includes/monitor_package_spec.md)
 
 ### Source Code
-- RTL: `rtl/amba/monitor/axi4_master_rd_mon.sv`
+- RTL: `rtl/amba/axi4/axi4_master_rd_mon.sv`
 - Tests: `val/amba/test_axi4_master_rd_mon.py`
 - Framework: `bin/TBClasses/components/axi4/`
 
 ### Documentation
-- Configuration Guide: [AXI Monitor Base](axi_monitor_base.md)
+- Configuration Guide: [AXI Monitor Base](../monitor/axi_monitor_base.md)
 - Architecture: [rtl-amba Overview](../overview.md)
 - AXI4 Index: [axi4/README.md](../_book_monitor_index.md)
 

@@ -1,5 +1,5 @@
 module: apb5_monitor
-rtl_file: rtl/amba/monitor/apb5_monitor.sv
+rtl_file: rtl/amba/apb5/apb5_monitor.sv
 test_file: val/amba/test_apb5_monitor.py
 parameters:
   ADDR_WIDTH: 32

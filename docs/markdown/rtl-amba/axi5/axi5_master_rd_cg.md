@@ -501,7 +501,7 @@ When verifying clock-gated designs:
 
 - **[AXI5 Master Read](axi5_master_rd.md)** - Non-gated base module
 - **[AXI5 Master Write CG](axi5_master_wr_cg.md)** - Write with clock gating
-- **[AXI5 Master Read Monitor CG](../monitor/axi5_master_rd_mon_cg.md)** - With monitoring + clock gating
+- **[AXI5 Master Read Monitor CG](../axi5/axi5_master_rd_mon_cg.md)** - With monitoring + clock gating
 - **[AMBA Clock Gate Controller](../shared/amba_clock_gate_ctrl.md)** - Clock gating controller spec
 
 ---

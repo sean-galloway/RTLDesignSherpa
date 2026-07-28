@@ -65,7 +65,7 @@ ports to connect.
 | **apb5_master** | Full-featured APB5 master with command/response interface | [apb5_master.md](apb5_master.md) | Documented |
 | **apb5_slave** | Complete APB5 slave with buffered cmd/rsp interface | [apb5_slave.md](apb5_slave.md) | Documented |
 | **apb5_slave_cdc** | APB5 slave with clock domain crossing support | [apb5_slave_cdc.md](apb5_slave_cdc.md) | Documented |
-| **apb5_monitor** | Transaction monitoring with 64-bit monitor bus packet | [apb5_monitor.md](../monitor/apb5_monitor.md) | Documented |
+| **apb5_monitor** | Transaction monitoring with 64-bit monitor bus packet | [apb5_monitor.md](../apb5/apb5_monitor.md) | Documented |
 
 ### Clock-Gated Variants
 

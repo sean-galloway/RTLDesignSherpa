@@ -45,7 +45,7 @@ lesson:
   variants, plus the APB5 equivalents -- carry **both** sides: raw APB
   (`s_apb_PSEL`, `m_apb_PADDR`) on the wire, and a `cmd_*` / `rsp_*` handshake
   internally.
-- **Observers** -- [apb_monitor](../rtl-amba/monitor/apb_monitor.md),
+- **Observers** -- [apb_monitor](../rtl-amba/apb/apb_monitor.md),
   `apb5_monitor`, `apb_monitor_addr_check` -- take **only** the handshake. That
   is deliberate: it is what lets one monitor serve APB4 and APB5, because both
   bridges hand it the same shape.

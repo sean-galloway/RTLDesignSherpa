@@ -6,6 +6,7 @@
 - [APB5 Master](apb5/apb5_master.md)
 - [APB5 Master (Clock-Gated)](apb5/apb5_master_cg.md)
 - [APB5 Master Stub](apb5/apb5_master_stub.md)
+- [APB5 Monitor](apb5/apb5_monitor.md)
 - [APB5 Slave](apb5/apb5_slave.md)
 - [APB5 Slave (Clock Domain Crossing)](apb5/apb5_slave_cdc.md)
 - [APB5 Slave (CDC + Clock-Gated)](apb5/apb5_slave_cdc_cg.md)

@@ -6,7 +6,7 @@ I verified every parameter table, port list, and behavioral claim below against 
 
 ```
 [CONFIRMED] The four *_mon_cg pages describe a nonexistent placeholder design; the RTL implements full clock gating
-  File:     docs/markdown/RTLAmba/monitor/axil4_master_rd_mon_cg.md (identical text in
+  File:     docs/markdown/RTLAmba/axil4/axil4_master_rd_mon_cg.md (identical text in
             axil4_master_wr_mon_cg.md, axil4_slave_rd_mon_cg.md, axil4_slave_wr_mon_cg.md)
   Says:     "**This wrapper does not currently gate any clock.** The RTL contains no
             `amba_clock_gate_ctrl` instance, no ICG cell, and no gated clock net; the base
@@ -36,7 +36,7 @@ I verified every parameter table, port list, and behavioral claim below against 
 
 ```
 [CONFIRMED] *_mon_cg pages document parameters/ports that do not exist, and the usage examples would not compile
-  File:     docs/markdown/RTLAmba/monitor/axil4_master_rd_mon_cg.md (same in the other three _cg pages)
+  File:     docs/markdown/RTLAmba/axil4/axil4_master_rd_mon_cg.md (same in the other three _cg pages)
   Says:     Parameters "`ENABLE_CLOCK_GATING` (bit, 1)" and "`CG_IDLE_CYCLES` (int, 4)";
             ports "`cfg_cg_idle_threshold` (Input, 8)" and "`cg_cycles_saved` (Output, 32)";
             example: ".cfg_cg_idle_threshold(8'd4), .cg_cycles_saved(idle_cycle_est)".
@@ -60,7 +60,7 @@ I verified every parameter table, port list, and behavioral claim below against 
 
 ```
 [CONFIRMED] "ENABLE_PERF_LOGIC=0 drops the perfmon window + counters" is wrong — they are always instantiated
-  File:     docs/markdown/RTLAmba/monitor/axil4_master_rd_mon.md ("`ENABLE_PERF_LOGIC = 0`
+  File:     docs/markdown/RTLAmba/axil4/axil4_master_rd_mon.md ("`ENABLE_PERF_LOGIC = 0`
             drops the whole block at synthesis" — same sentence in axil4_master_wr_mon.md,
             axil4_slave_rd_mon.md, axil4_slave_wr_mon.md; parameter table "Drop the
             perfmon window + counters"), and docs/markdown/RTLAmba/monitor/axi_monitor_base.md
@@ -84,7 +84,7 @@ I verified every parameter table, port list, and behavioral claim below against 
 
 ```
 [CONFIRMED] "The counters advance only while cfg_perf_enable = 1" — counters are not gated by cfg_perf_enable
-  File:     docs/markdown/RTLAmba/monitor/axil4_master_rd_mon.md (same sentence in
+  File:     docs/markdown/RTLAmba/axil4/axil4_master_rd_mon.md (same sentence in
             axil4_master_wr_mon.md, axil4_slave_rd_mon.md, axil4_slave_wr_mon.md)
   Says:     "The counters advance only while `cfg_perf_enable = 1`"
   Actually: In axi_monitor_base the bucket/beat/byte/burst counters increment whenever
@@ -172,6 +172,6 @@ I verified every parameter table, port list, and behavioral claim below against 
 
 ```
 [CONFIRMED] axil4_master_wr_mon page says "Filtering masks (7 masks)"; the module has nine
-  File:     docs/markdown/RTLAmba/monitor/axil4_master_wr_mon.md
+  File:     docs/markdown/RTLAmba/axil4/axil4_master_wr_mon.md
   Says:     "- Filtering masks (7 masks)"
  

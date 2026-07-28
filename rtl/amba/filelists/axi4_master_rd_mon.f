@@ -53,4 +53,4 @@ $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_master_rd.sv
 
 # This module - AXI4 Master Read Monitor
-$REPO_ROOT/rtl/amba/monitor/axi4_master_rd_mon.sv
+$REPO_ROOT/rtl/amba/axi4/axi4_master_rd_mon.sv

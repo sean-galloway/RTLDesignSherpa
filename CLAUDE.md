@@ -271,7 +271,7 @@ from TBClasses.shared.tbbase import TBBase
 **Critical Files:**
 - `monitor/axi_monitor_base.sv` - Core monitor infrastructure
 - `monitor/axi4_*_mon.sv` - AXI4 master/slave read/write monitors
-- `monitor/apb_monitor.sv` - APB protocol monitor
+- `apb/apb_monitor.sv` - APB protocol monitor
 - `axis4/axis_master.sv`, `axis4/axis_slave.sv` - AXI-Stream interfaces
 
 **Documentation:** `docs/markdown/rtl-amba/index.md`, `rtl/amba/CLAUDE.md`, `rtl/amba/KNOWN_ISSUES/`

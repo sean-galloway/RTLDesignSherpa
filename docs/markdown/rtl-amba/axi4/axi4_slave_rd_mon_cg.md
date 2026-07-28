@@ -21,10 +21,10 @@
 
 <!-- End Header -->
 
-# AXI4 Master Write Monitor (Clock-Gated)
+# AXI4 Slave Read Monitor (Clock-Gated)
 
-**Module:** `axi4_master_wr_mon_cg.sv`
-**Base Module:** [axi4_master_wr_mon](./axi4_master_wr_mon.md)
+**Module:** `axi4_slave_rd_mon_cg.sv`
+**Base Module:** [axi4_slave_rd_mon](./axi4_slave_rd_mon.md)
 **Location:** `rtl/amba/monitor/`
 **Status:** ✅ Production Ready
 
@@ -32,7 +32,7 @@
 
 ## Quick Reference
 
-This is the **clock-gated variant** of [axi4_master_wr_mon](./axi4_master_wr_mon.md).
+This is the **clock-gated variant** of [axi4_slave_rd_mon](./axi4_slave_rd_mon.md).
 
 **For complete clock-gating documentation, usage examples, and configuration guidelines, see:**
 
@@ -42,7 +42,7 @@ This is the **clock-gated variant** of [axi4_master_wr_mon](./axi4_master_wr_mon
 
 ## Summary
 
-The `axi4_master_wr_mon_cg` module adds power optimization to `axi4_master_wr_mon` through activity-based clock gating:
+The `axi4_slave_rd_mon_cg` module adds power optimization to `axi4_slave_rd_mon` through activity-based clock gating:
 
 - ✅ **Same Functionality:** 100% equivalent to base module
 - ✅ **Power Savings:** 25-70% depending on traffic utilization
@@ -53,7 +53,7 @@ The `axi4_master_wr_mon_cg` module adds power optimization to `axi4_master_wr_mo
 
 ## Common Parameters
 
-In addition to all [axi4_master_wr_mon](./axi4_master_wr_mon.md) parameters (including `USE_MONITOR`):
+In addition to all [axi4_slave_rd_mon](./axi4_slave_rd_mon.md) parameters (including `USE_MONITOR`):
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
@@ -63,28 +63,28 @@ In addition to all [axi4_master_wr_mon](./axi4_master_wr_mon.md) parameters (inc
 | `USE_MONITOR` | 1 | Synthesis-time monitor enable (forwarded to inner monitor). |
 | `N_ADDR_RANGES` | 0 | Number of address-range comparators (forwarded to base module). |
 
-All base-module ports are forwarded unchanged, including the `cam_clear` control input (Input, 1) - synchronous clear of the monitor transaction CAM (driven from the harness clear control bit, e.g. CTRL[4]) - and the full performance-monitoring interface (see [Performance Monitoring](#performance-monitoring) below). The six `ENABLE_*_LOGIC` synthesis-cone parameters and the `cfg_compl_enable` / `cfg_threshold_enable` / `cfg_debug_enable` control enables are also passed straight through.
+All base-module ports are forwarded unchanged, including the full performance-monitoring interface (see [Performance Monitoring](#performance-monitoring) below). The six `ENABLE_*_LOGIC` synthesis-cone parameters (`ENABLE_ERROR_LOGIC`, `ENABLE_TIMEOUT_LOGIC`, `ENABLE_COMPL_LOGIC`, `ENABLE_THRESHOLD_LOGIC`, `ENABLE_PERF_LOGIC`, `ENABLE_DEBUG_LOGIC`) and the `cfg_compl_enable` / `cfg_threshold_enable` / `cfg_debug_enable` control enables are also passed straight through.
 
 ---
 
 ## Performance Monitoring
 
-The clock-gated wrapper exposes the full perfmon interface of the base module and **forwards every port unchanged** to the inner `axi4_master_wr_mon`. The measurement-window state machine, the four W-channel utilization buckets (productive / back-pressure / starvation / idle), and the beat/byte/burst throughput counters behave exactly as documented in the base module — see [Performance Monitoring in axi4_master_wr_mon](./axi4_master_wr_mon.md#performance-monitoring) for the full narrative and per-bit semantics.
+The clock-gated wrapper exposes the full perfmon interface of the base module and **forwards every port unchanged** to the inner `axi4_slave_rd_mon`. The measurement-window state machine, the four R-channel utilization buckets (productive / back-pressure / starvation / idle), and the beat/byte/burst throughput counters behave exactly as documented in the base module — see [Performance Monitoring in axi4_slave_rd_mon](./axi4_slave_rd_mon.md#performance-monitoring) for the full narrative and per-bit semantics.
 
 Forwarded perfmon ports (identical width and direction to the base module):
 
 - **Inputs:** `cfg_perf_enable`, `cfg_start_event_sel` (3), `cfg_end_event_sel` (3), `cfg_start_trigger`, `cfg_end_trigger`, `cfg_window_force_close`
 - **Outputs:** `window_active`, `window_cycles` (32), `perf_prod_cycles` (32), `perf_bp_cycles` (32), `perf_starv_cycles` (32), `perf_idle_cycles` (32), `perf_beat_count` (32), `perf_byte_count` (64), `perf_burst_count` (32)
 
-Clock gating never suppresses these paths: while a measurement window is open the monitor stays awake, so window cycle accounting remains exact regardless of `CG_IDLE_CYCLES`.
+The `perf_burst_count` output tracks AR (read address) handshakes. Clock gating never suppresses these paths: while a measurement window is open the monitor stays awake, so window cycle accounting remains exact regardless of `CG_IDLE_CYCLES`.
 
 ---
 
 ## Quick Usage
 
 ```systemverilog
-axi4_master_wr_mon_cg #(
-    // Base module parameters (see axi4_master_wr_mon.md)
+axi4_slave_rd_mon_cg #(
+    // Base module parameters (see axi4_slave_rd_mon.md)
     .AXI_ID_WIDTH(8),
     .AXI_ADDR_WIDTH(32),
     .AXI_DATA_WIDTH(64),
@@ -95,7 +95,7 @@ axi4_master_wr_mon_cg #(
 ) u_cg (
     .aclk(clk),
     .aresetn(rst_n),
-    // ... all other ports same as axi4_master_wr_mon
+    // ... all other ports same as axi4_slave_rd_mon
 );
 ```
 
@@ -103,11 +103,11 @@ axi4_master_wr_mon_cg #(
 
 ## Documentation
 
-- **Base Module Functionality:** [axi4_master_wr_mon.md](./axi4_master_wr_mon.md)
+- **Base Module Functionality:** [axi4_slave_rd_mon.md](./axi4_slave_rd_mon.md)
 - **Clock Gating Guide:** [clock_gated_variants.md](../shared/clock_gated_variants.md)
 - **Detailed CG Examples:**
   - [axi4_master_rd_mon_cg.md](axi4_master_rd_mon_cg.md) (AXI4 monitor)
-  - [axil4_master_rd_mon_cg.md](axil4_master_rd_mon_cg.md) (AXIL4 monitor)
+  - [axil4_master_rd_mon_cg.md](../axil4/axil4_master_rd_mon_cg.md) (AXIL4 monitor)
   - [apb_slave_cg.md](../apb/apb_slave_cg.md) (APB interface)
 
 ---

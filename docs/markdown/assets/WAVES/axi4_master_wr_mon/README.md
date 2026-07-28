@@ -90,7 +90,7 @@ cp val/amba/local_sim_build/test_axi4_master_wr_mon_full/single_beat_write*.json
 ## Related Documentation
 
 - [AXI4 Master Read Monitor Waveforms](../axi4_master_rd_mon/) - Read transaction examples
-- [RTL Source](../../../../../rtl/amba/monitor/axi4_master_wr_mon.sv) - Monitor RTL implementation
+- [RTL Source](../../../../../rtl/amba/axi4/axi4_master_wr_mon.sv) - Monitor RTL implementation
 - [Test Source](../../../../../val/amba/test_axi4_master_wr_mon.py) - Complete test with wavedrom
 
 ---

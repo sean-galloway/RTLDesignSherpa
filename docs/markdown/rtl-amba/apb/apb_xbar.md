@@ -555,7 +555,7 @@ between the two families.
 - **apb_slave**: APB slave, used by the generated crossbars ([apb_slave.md](apb_slave.md))
 - **arbiter_round_robin_weighted**: the per-slave arbiter instantiated here
 - **arbiter_round_robin**: plain round-robin used by the generated crossbars
-- **apb_monitor**: APB protocol monitoring ([apb_monitor.md](../monitor/apb_monitor.md))
+- **apb_monitor**: APB protocol monitoring ([apb_monitor.md](../apb/apb_monitor.md))
 
 **Dependencies:**
 

@@ -161,8 +161,8 @@ no packets are emitted.
 
 - **[axil4_slave_wr_mon](./axil4_slave_wr_mon.md)** - Base module (functional specification)
 - **[axil4_slave_rd_mon_cg](./axil4_slave_rd_mon_cg.md)** - Companion monitor wrapper
-- **[axi_monitor_base](axi_monitor_base.md)** - Core monitoring infrastructure
-- **[axi_monitor_filtered](axi_monitor_filtered.md)** - Filtering capabilities
+- **[axi_monitor_base](../monitor/axi_monitor_base.md)** - Core monitoring infrastructure
+- **[axi_monitor_filtered](../monitor/axi_monitor_filtered.md)** - Filtering capabilities
 - **[AXIL4 Clock-Gated Variants Guide](../axil4/axil4_clock_gating_guide.md)** - The transport-level `_cg` modules, which do perform real clock gating
 
 ---

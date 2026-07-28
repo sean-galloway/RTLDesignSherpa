@@ -21,9 +21,9 @@
 
 <!-- End Header -->
 
-# AXI4 Slave Write Monitor
+# AXI4 Slave Read Monitor
 
-**Module:** `axi4_slave_wr_mon.sv`
+**Module:** `axi4_slave_rd_mon.sv`
 **Location:** `rtl/amba/monitor/`
 **Status:** ✅ Production Ready
 
@@ -31,11 +31,11 @@
 
 ## Overview
 
-The AXI4 Slave Write Monitor module combines a functional AXI4 slave write interface with comprehensive transaction monitoring and filtering capabilities. This module is essential for verification environments, providing real-time protocol checking, error detection, performance metrics, and configurable packet filtering for slave-side write transactions.
+The AXI4 Slave Read Monitor module combines a functional AXI4 slave read interface with comprehensive transaction monitoring and filtering capabilities. This module is essential for verification environments, providing real-time protocol checking, error detection, performance metrics, and configurable packet filtering for slave-side read transactions.
 
 ### Key Features
 
-- ✅ **Integrated Monitoring:** Combines `axi4_slave_wr` with `axi_monitor_filtered`
+- ✅ **Integrated Monitoring:** Combines `axi4_slave_rd` with `axi_monitor_filtered`
 - ✅ **3-Level Filtering:** Packet type masks, error routing, individual event masking
 - ✅ **Error Detection:** Protocol violations, SLVERR, DECERR, orphan transactions
 - ✅ **Timeout Monitoring:** Configurable timeout detection for stuck transactions
@@ -51,13 +51,12 @@ The AXI4 Slave Write Monitor module combines a functional AXI4 slave write inter
 ```mermaid
 flowchart LR
     subgraph SL["Slave<br/>(s_axi)"]
-        aw["aw* →"]
-        w["w* →"]
-        b["← b*"]
+        ar["ar* →"]
+        r["← r*"]
     end
 
     subgraph CORE["Slave Core"]
-        sc["axi4_slave_wr<br/>(buffered)"]
+        sc["axi4_slave_rd<br/>(buffered)"]
     end
 
     subgraph MON["Monitor"]
@@ -70,9 +69,8 @@ flowchart LR
         mbp["monbus_packet"]
     end
 
-    aw --> sc
-    w --> sc
-    sc --> b
+    ar --> sc
+    sc --> r
     sc --> mf
     mf --> mbv
     mf --> mbp
@@ -80,7 +78,7 @@ flowchart LR
 ```
 
 The module instantiates two sub-modules:
-1. **axi4_slave_wr** - Core AXI4 slave write functionality with buffering
+1. **axi4_slave_rd** - Core AXI4 slave read functionality with buffering
 2. **axi_monitor_filtered** - Transaction monitoring with 3-level filtering
 
 ---
@@ -91,9 +89,8 @@ The module instantiates two sub-modules:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `SKID_DEPTH_AW` | int | 2 | AW channel skid buffer depth |
-| `SKID_DEPTH_W` | int | 4 | W channel skid buffer depth |
-| `SKID_DEPTH_B` | int | 2 | B channel skid buffer depth |
+| `SKID_DEPTH_AR` | int | 2 | AR channel skid buffer depth |
+| `SKID_DEPTH_R` | int | 4 | R channel skid buffer depth |
 | `AXI_ID_WIDTH` | int | 8 | Transaction ID width |
 | `AXI_ADDR_WIDTH` | int | 32 | Address bus width |
 | `AXI_DATA_WIDTH` | int | 32 | Data bus width |
@@ -104,7 +101,7 @@ The module instantiates two sub-modules:
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `UNIT_ID` | logic [7:0] | 8'h02 | 8-bit unit identifier in monitor packets |
-| `AGENT_ID` | logic [15:0] | 16'h0015 | 16-bit agent identifier in monitor packets |
+| `AGENT_ID` | logic [15:0] | 16'h0014 | 16-bit agent identifier in monitor packets |
 | `MAX_TRANSACTIONS` | int | 16 | Maximum concurrent outstanding transactions |
 | `ACTIVE_TRANS_THRESHOLD` | int | MAX_TRANSACTIONS/2 | Active-transaction count that trips a threshold packet when `cfg_threshold_enable=1`. Replaces the former hardwired 8/4; threshold packets now scale with the table sizing |
 | `ENABLE_FILTERING` | bit | 1 | Enable packet filtering (0=pass all packets) |
@@ -134,13 +131,13 @@ The transaction CAM is always pipelined.
 
 ## Monitor Backpressure (block_ready)
 
-`block_ready` is an internal flow-control net inside the wrapper -- it is not a port. It goes low when the monitor's transaction-table occupancy reaches its blocking threshold (a function of `MAX_TRANSACTIONS`; the reporter FIFO depth `INTR_FIFO_DEPTH` has no path to it). The wrapper ANDs it into the upstream-facing `s_axi_awready` so a saturated monitor throttles new transactions at the handshake instead of dropping events.
+`block_ready` is an internal flow-control net inside the wrapper -- it is not a port. It goes low when the monitor's transaction-table occupancy reaches its blocking threshold (a function of `MAX_TRANSACTIONS`; the reporter FIFO depth `INTR_FIFO_DEPTH` has no path to it). The wrapper ANDs it into the upstream-facing `s_axi_arready` so a saturated monitor throttles new transactions at the handshake instead of dropping events.
 
-- **Where the stall lands**: the upstream `s_axi_awready` is forced low until the monitor drains.
+- **Where the stall lands**: the upstream `s_axi_arready` is forced low until the monitor drains.
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
 - **When `cfg_monitor_enable=0`**: the wrapper gate forces the upstream ready open, so a runtime-disabled monitor can never stall the datapath (in-RTL formal property `ap_disabled_never_stalls`).
 
-Recovery is guaranteed by the **saturation-recovery contract**: command-originated table entries are capped at `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)` (reserve = 2 for tables of 16 or more, 0 below; the function lives in `monitor_common_pkg`), and `block_ready` re-asserts at occupancy `< MAX_TRANSACTIONS - (reserve - 1)` -- a threshold strictly ABOVE the command cap -- so a saturated table always drains back below the reopen point. Blocking throttles; it never deadlocks. Tables smaller than 16 keep full legacy allocation (small tables cannot spare slots) and trade the recovery guarantee for tracking capacity. The contract is verified by in-RTL formal properties (mutation-checked) and a 100-seed deliberately-undersized-table stream sweep; see [axi_monitor_base](axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) for the canonical description.
+Recovery is guaranteed by the **saturation-recovery contract**: command-originated table entries are capped at `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)` (reserve = 2 for tables of 16 or more, 0 below; the function lives in `monitor_common_pkg`), and `block_ready` re-asserts at occupancy `< MAX_TRANSACTIONS - (reserve - 1)` -- a threshold strictly ABOVE the command cap -- so a saturated table always drains back below the reopen point. Blocking throttles; it never deadlocks. Tables smaller than 16 keep full legacy allocation (small tables cannot spare slots) and trade the recovery guarantee for tracking capacity. The contract is verified by in-RTL formal properties (mutation-checked) and a 100-seed deliberately-undersized-table stream sweep; see [axi_monitor_base](../monitor/axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) for the canonical description.
 
 Sizing note: a monitor on a bus shared by several channels/requesters must size `MAX_TRANSACTIONS` to cover `NUM_CHANNELS x per-channel outstanding` plus margin -- the per-channel limit alone makes the monitor throttle the shared master. Tables deeper than 64 also need Verilator's `--unroll-count` raised (default 64) in sim builds.
 
@@ -149,7 +146,7 @@ Sizing note: a monitor on a bus shared by several channels/requesters must size 
 ## Address-Range Checker
 
 With `N_ADDR_RANGES > 0` the wrapper instantiates the shared allowlist checker
-([`axi_monitor_addr_check`](axi_monitor_addr_check.md)). Each range carries a
+([`axi_monitor_addr_check`](../monitor/axi_monitor_addr_check.md)). Each range carries a
 DEBUG/ERROR flavor:
 
 - **DEBUG range** — a hit emits a `PktTypeAddrMatch` (`4'h8`) packet with event
@@ -174,7 +171,7 @@ AddrMatch is dropped by `cfg_axi_addr_mask[1]`, the ADDR_RANGE error by
 
 ## Performance Monitoring
 
-The wrapper hardwires `ENABLE_PERF_PACKETS = 1` on its inner `axi_monitor_filtered`, so the perfmon datapath is present whenever `ENABLE_PERF_LOGIC = 1` (the default). It instantiates a **measurement-window state machine** plus a bank of W-data-channel utilization counters. All counters accumulate **only while a window is open** (`window_active = 1`) and hold their values between windows, so the host can read a completed window's totals.
+The wrapper hardwires `ENABLE_PERF_PACKETS = 1` on its inner `axi_monitor_filtered`, so the perfmon datapath is present whenever `ENABLE_PERF_LOGIC = 1` (the default). It instantiates a **measurement-window state machine** plus a bank of R-data-channel utilization counters. All counters accumulate **only while a window is open** (`window_active = 1`) and hold their values between windows, so the host can read a completed window's totals.
 
 ### The Measurement Window
 
@@ -185,16 +182,16 @@ A window is opened by a **start event** and closed by an **end event**. The even
 
 Sample the counters on the cycle `window_active` falls to 0 (drive `cfg_end_trigger`, or wait for the configured end event).
 
-### Utilization Counters (W Data Channel)
+### Utilization Counters (R Data Channel)
 
-Every cycle inside the window is classified by the W channel's `wvalid` / `wready` into exactly one of four buckets:
+Every cycle inside the window is classified by the R channel's `rvalid` / `rready` into exactly one of four buckets:
 
 | Output | Width | Condition | Meaning |
 |--------|:-----:|-----------|---------|
-| `perf_prod_cycles`  | 32 | wvalid && wready   | productive beat transferred |
-| `perf_bp_cycles`    | 32 | wvalid && !wready  | back-pressure (data offered, sink not ready) |
-| `perf_starv_cycles` | 32 | !wvalid && wready  | starvation (sink ready, no data) |
-| `perf_idle_cycles`  | 32 | !wvalid && !wready | idle |
+| `perf_prod_cycles`  | 32 | rvalid && rready   | productive beat transferred |
+| `perf_bp_cycles`    | 32 | rvalid && !rready  | back-pressure (data offered, sink not ready) |
+| `perf_starv_cycles` | 32 | !rvalid && rready  | starvation (sink ready, no data) |
+| `perf_idle_cycles`  | 32 | !rvalid && !rready | idle |
 
 The four buckets sum to `window_cycles`, so utilization = `perf_prod_cycles / window_cycles`.
 
@@ -202,9 +199,9 @@ The four buckets sum to `window_cycles`, so utilization = `perf_prod_cycles / wi
 
 | Output | Width | Meaning |
 |--------|:-----:|---------|
-| `perf_beat_count`  | 32 | W data beats transferred (= `perf_prod_cycles`, 1 beat/cycle) |
-| `perf_byte_count`  | 64 | bytes transferred = beats × (1 << AWSIZE), using the AWSIZE captured at the most recent AW address phase (upper bound: counts full-width beats and does not subtract bytes masked off by `WSTRB` on unaligned or partial beats) |
-| `perf_burst_count` | 32 | AW address-phase handshakes |
+| `perf_beat_count`  | 32 | R data beats transferred (= `perf_prod_cycles`, 1 beat/cycle) |
+| `perf_byte_count`  | 64 | bytes transferred = beats × (1 << ARSIZE), using the ARSIZE captured at the most recent AR address phase (upper bound: counts full-width beats; an unaligned start address means the first beat carries fewer useful bytes) |
+| `perf_burst_count` | 32 | AR address-phase handshakes |
 
 The integrator computes average burst length as `perf_beat_count / perf_burst_count`.
 
@@ -220,13 +217,13 @@ The integrator computes average burst length as `perf_beat_count / perf_burst_co
 | `cfg_window_force_close` | Input  | 1  | Software override: force the window closed |
 | `window_active`          | Output | 1  | High while a measurement window is open |
 | `window_cycles`          | Output | 32 | Cycles elapsed in the current window |
-| `perf_prod_cycles`       | Output | 32 | wvalid && wready cycles |
-| `perf_bp_cycles`         | Output | 32 | wvalid && !wready cycles (back-pressure) |
-| `perf_starv_cycles`      | Output | 32 | !wvalid && wready cycles (starvation) |
-| `perf_idle_cycles`       | Output | 32 | !wvalid && !wready cycles |
-| `perf_beat_count`        | Output | 32 | W data beats transferred |
+| `perf_prod_cycles`       | Output | 32 | rvalid && rready cycles |
+| `perf_bp_cycles`         | Output | 32 | rvalid && !rready cycles (back-pressure) |
+| `perf_starv_cycles`      | Output | 32 | !rvalid && rready cycles (starvation) |
+| `perf_idle_cycles`       | Output | 32 | !rvalid && !rready cycles |
+| `perf_beat_count`        | Output | 32 | R data beats transferred |
 | `perf_byte_count`        | Output | 64 | bytes transferred |
-| `perf_burst_count`       | Output | 32 | AW address-phase handshakes |
+| `perf_burst_count`       | Output | 32 | AR address-phase handshakes |
 
 When `USE_MONITOR = 0`, every perfmon output is tied to 0 and the window never opens.
 
@@ -234,12 +231,11 @@ When `USE_MONITOR = 0`, every perfmon output is tied to 0 and the window never o
 
 ## Port Groups
 
-### AXI4 Write Channels
+### AXI4 Read Channels
 
 **Slave Interface (s_axi_*):**
-- AW channel: `awid, awaddr, awlen, awsize, awburst, awlock, awcache, awprot, awqos, awregion, awuser, awvalid, awready`
-- W channel: `wdata, wstrb, wlast, wuser, wvalid, wready`
-- B channel: `bid, bresp, buser, bvalid, bready`
+- AR channel: `arid, araddr, arlen, arsize, arburst, arlock, arcache, arprot, arqos, arregion, aruser, arvalid, arready`
+- R channel: `rid, rdata, rresp, rlast, ruser, rvalid, rready`
 
 **Backend Interface (fub_axi_*):**
 - Same signals as slave, mirrored direction (to memory/backend)
@@ -285,37 +281,35 @@ Identical 128-bit format (with 64-bit side-band timestamp) as other AXI4 monitor
 
 ## Timing Diagrams
 
-The following waveforms show AXI4 slave write monitor behavior from the slave perspective:
+The following waveforms show AXI4 slave read monitor behavior from the slave perspective:
 
-### Scenario 1: Single-Beat Write (Slave View)
+### Scenario 1: Single-Beat Read (Slave View)
 
-AXI4 write transaction from slave interface perspective:
+AXI4 read transaction from slave interface perspective:
 
-![Single Beat Write Slave](../../assets/WAVES/axi4_slave_wr_mon/single_beat_write_001.png)
+![Single Beat Read Slave](../../assets/WAVES/axi4_slave_rd_mon/single_beat_read_001.png)
 
-**WaveJSON:** [single_beat_write_001.json](../../assets/WAVES/axi4_slave_wr_mon/single_beat_write_001.json)
+**WaveJSON:** [single_beat_read_001.json](../../assets/WAVES/axi4_slave_rd_mon/single_beat_read_001.json)
 
 **Key Observations:**
-- Slave-side AW channel (s_axi_aw*)
-- Slave-side W channel data (s_axi_w*)
-- Slave-side B channel response (s_axi_b*)
+- Slave-side AR channel (s_axi_ar*)
+- Slave-side R channel response (s_axi_r*)
 - Monitor packet generation from slave perspective
-- Slave BRESP status monitoring
+- Slave RRESP status monitoring
 - Transaction tracking in slave context
 
-### Scenario 2: Alternative Single-Beat Write (Slave View)
+### Scenario 2: Alternative Single-Beat Read (Slave View)
 
-Variant write transaction with different timing from slave:
+Variant read transaction with different timing from slave:
 
-![Single Beat Write Slave Alt](../../assets/WAVES/axi4_slave_wr_mon/single_beat_write_002_001.png)
+![Single Beat Read Slave Alt](../../assets/WAVES/axi4_slave_rd_mon/single_beat_read_002_001.png)
 
-**WaveJSON:** [single_beat_write_002_001.json](../../assets/WAVES/axi4_slave_wr_mon/single_beat_write_002_001.json)
+**WaveJSON:** [single_beat_read_002_001.json](../../assets/WAVES/axi4_slave_rd_mon/single_beat_read_002_001.json)
 
 **Key Observations:**
 - Slave ready signal behavior
-- AWREADY backpressure effects
-- WREADY flow control
-- BVALID generation timing
+- ARREADY backpressure effects
+- RVALID generation timing
 - Slave latency monitoring
 - Error detection from slave side
 
@@ -325,12 +319,12 @@ Variant write transaction with different timing from slave:
 
 ### Strategy 1: Functional Verification (Recommended)
 
-**Goal:** Catch slave-side write errors
+**Goal:** Catch slave-side read errors
 
 ```systemverilog
 // Enable configuration
 .cfg_monitor_enable     (1'b1),
-.cfg_error_enable       (1'b1),      // Detect SLVERR/DECERR from backend
+.cfg_error_enable       (1'b1),      // Detect SLVERR/DECERR
 .cfg_timeout_enable     (1'b1),      // Detect backend timeouts
 .cfg_perf_enable        (1'b0),      // Disable (reduces traffic)
 
@@ -342,13 +336,13 @@ Variant write transaction with different timing from slave:
 .cfg_axi_perf_mask      (16'hFFFF),  // Drop performance
 
 // Timeouts
-.cfg_timeout_cycles     (16'd15),    // Max ticks: allow backend write latency
-.cfg_latency_threshold  (32'd1000)
+.cfg_timeout_cycles     (16'd10),    // 10 timer ticks per phase (>15 saturates)  // Backend response timeout
+.cfg_latency_threshold  (32'd500)
 ```
 
 ### Strategy 2: Performance Analysis
 
-**Goal:** Analyze slave write performance
+**Goal:** Analyze slave read performance
 
 ```systemverilog
 // Enable configuration
@@ -371,31 +365,30 @@ Variant write transaction with different timing from slave:
 ### Basic Integration with Memory
 
 ```systemverilog
-axi4_slave_wr_mon #(
-    .SKID_DEPTH_AW      (2),
-    .SKID_DEPTH_W       (4),
-    .SKID_DEPTH_B       (2),
+axi4_slave_rd_mon #(
+    .SKID_DEPTH_AR      (2),
+    .SKID_DEPTH_R       (4),
     .AXI_ID_WIDTH       (4),
     .AXI_ADDR_WIDTH     (32),
     .AXI_DATA_WIDTH     (64),
     .AXI_USER_WIDTH     (1),
     .UNIT_ID            (2),
-    .AGENT_ID           (21),
+    .AGENT_ID           (20),
     .MAX_TRANSACTIONS   (16),
     .ENABLE_FILTERING   (1)
-) u_slave_wr_mon (
+) u_slave_rd_mon (
     .aclk               (axi_aclk),
     .aresetn            (axi_aresetn),
 
     // Slave interface (from interconnect)
-    .s_axi_awid         (s_axi_awid),
-    .s_axi_awaddr       (s_axi_awaddr),
-    // ... rest of AW/W/B signals
+    .s_axi_arid         (s_axi_arid),
+    .s_axi_araddr       (s_axi_araddr),
+    // ... rest of AR/R signals
 
     // Backend interface (to memory controller)
-    .fub_axi_awid       (mem_awid),
-    .fub_axi_awaddr     (mem_awaddr),
-    // ... rest of AW/W/B signals
+    .fub_axi_arid       (mem_arid),
+    .fub_axi_araddr     (mem_araddr),
+    // ... rest of AR/R signals
 
     // Monitor configuration
     .cfg_monitor_enable     (1'b1),
@@ -417,10 +410,10 @@ axi4_slave_wr_mon #(
     .monbus_packet          (mon_packet),
 
     // Status
-    .busy                   (wr_slave_busy),
-    .active_transactions    (wr_active),
-    .error_count            (wr_errors),
-    .transaction_count      (wr_count),
+    .busy                   (rd_slave_busy),
+    .active_transactions    (rd_active),
+    .error_count            (rd_errors),
+    .transaction_count      (rd_count),
     .cfg_conflict_error     (cfg_conflict)
 );
 
@@ -429,8 +422,8 @@ memory_controller u_mem (
     .axi_aclk       (axi_aclk),
     .axi_aresetn    (axi_aresetn),
     // Connect to fub_axi_* signals
-    .axi_awid       (mem_awid),
-    .axi_awaddr     (mem_awaddr),
+    .axi_arid       (mem_arid),
+    .axi_araddr     (mem_araddr),
     // ...
 );
 ```
@@ -443,70 +436,43 @@ memory_controller u_mem (
 
 **Key Differences from Master Monitors:**
 - Monitors from slave perspective (interconnect → backend)
-- Tracks backend write response latency
+- Tracks backend response latency
 - Detects backend timeout scenarios
-- Default UNIT_ID=2, AGENT_ID=21 (distinguishes from master)
+- Default UNIT_ID=2, AGENT_ID=20 (distinguishes from master)
 
-**Slave Write Sequence:**
-1. AW channel: Master write address arrives at slave
+**Slave Read Sequence:**
+1. AR channel: Master request arrives at slave
 2. Monitor captures: Address, ID, burst parameters
-3. AW forwarded to backend (memory/logic)
-4. W channel: Master sends data beats
-5. Monitor tracks: Write beat count, WLAST
-6. B channel: Backend returns write response
-7. Monitor tracks: Response latency, BRESP
-8. B forwarded back to master via interconnect
+3. AR forwarded to backend (memory/logic)
+4. R channel: Backend returns data
+5. Monitor tracks: Response latency, RLAST, RRESP
+6. R forwarded back to master via interconnect
 
 **Common Slave Errors Detected:**
-- **Backend timeout:** AW accepted but B never returned
-- **Write data timeout:** AW accepted but W never completed
-- **SLVERR:** Slave error (access violation, parity error, write protection)
+- **Backend timeout:** AR accepted but R never returned
+- **SLVERR:** Slave error (access violation, parity error)
 - **DECERR:** Decode error (shouldn't occur at slave, but detected)
-- **Burst mismatch:** W beats don't match AWLEN+1
-- **ID corruption:** BID doesn't match tracked AWID
-- **WSTRB protocol violations:** Invalid byte lane enables
+- **Burst mismatch:** R beats don't match ARLEN+1
+- **ID corruption:** RID doesn't match tracked ARID
 
 ### Performance Considerations
 
 **Backend Latency Monitoring:**
-- Tracks AW → B response latency
-- Includes W channel completion time
+- Tracks AR → R first beat latency
 - Configurable timeout threshold
 - Separate from master-side latency
 
 **Typical Timeout Values:**
 - SRAM backend: 100-500 cycles
 - DDR controller: 1000-5000 cycles
-- Flash/EEPROM: 10000+ cycles (write operations)
 - PCIe/external: 10000+ cycles
-
-**Write-Specific Timing:**
-- AW-W ordering flexible in AXI4
-- Backend may wait for WLAST before responding
-- B response latency includes W channel completion
 
 ### Buffer Depth Guidelines
 
-Same as [axi4_slave_wr](../axi4/axi4_slave_wr.md):
-- **SKID_DEPTH_AW:** 2 (default) - handles interconnect backpressure
-- **SKID_DEPTH_W:** 4 (default) - buffers burst write data
-- **SKID_DEPTH_B:** 2 (default) - write responses are single-beat
+Same as [axi4_slave_rd](../axi4/axi4_slave_rd.md):
+- **SKID_DEPTH_AR:** 2 (default) - handles interconnect backpressure
+- **SKID_DEPTH_R:** 4 (default) - buffers backend burst data
 - Increase for high-latency backends or large bursts
-
-### Write Transaction Characteristics
-
-**Burst Write Monitoring:**
-- Monitors AW channel for address capture
-- Tracks W channel beats until WLAST
-- Correlates B channel response with AWID
-- Validates burst length (W beats == AWLEN+1)
-- Checks WSTRB validity per beat
-
-**Performance Impact:**
-- Write bursts more efficient than single writes
-- Backend may buffer/pipeline write data
-- B response can occur before W completion (with reordering)
-- Monitor packets generated per transaction, not per beat
 
 ---
 
@@ -515,10 +481,10 @@ Same as [axi4_slave_wr](../axi4/axi4_slave_wr.md):
 ### Companion Monitors
 - **[axi4_master_rd_mon](axi4_master_rd_mon.md)** - AXI4 master read with monitoring
 - **[axi4_master_wr_mon](axi4_master_wr_mon.md)** - AXI4 master write with monitoring
-- **[axi4_slave_rd_mon](axi4_slave_rd_mon.md)** - AXI4 slave read with monitoring
+- **axi4_slave_wr_mon** - AXI4 slave write with monitoring
 
 ### Base Modules
-- **[axi4_slave_wr](../axi4/axi4_slave_wr.md)** - Functional AXI4 slave write (without monitoring)
+- **[axi4_slave_rd](../axi4/axi4_slave_rd.md)** - Functional AXI4 slave read (without monitoring)
 - **axi_monitor_filtered** - Monitoring engine with filtering (monitor/)
 
 ### Used Components
@@ -535,12 +501,12 @@ Same as [axi4_slave_wr](../axi4/axi4_slave_wr.md):
 - Monitor Bus Packet Format: [monitor_package_spec.md](../includes/monitor_package_spec.md)
 
 ### Source Code
-- RTL: `rtl/amba/monitor/axi4_slave_wr_mon.sv`
-- Tests: `val/amba/test_axi4_slave_wr_mon.py`
+- RTL: `rtl/amba/axi4/axi4_slave_rd_mon.sv`
+- Tests: `val/amba/test_axi4_slave_rd_mon.py`
 - Framework: `bin/TBClasses/components/axi4/`
 
 ### Documentation
-- Configuration Guide: [AXI Monitor Base](axi_monitor_base.md)
+- Configuration Guide: [AXI Monitor Base](../monitor/axi_monitor_base.md)
 - Architecture: [rtl-amba Overview](../overview.md)
 - AXI4 Index: [README.md](../_book_monitor_index.md)
 

@@ -115,7 +115,7 @@ completion packets -- `apb_monitor` has no completion-packet control. Enabling
 it on every peripheral at once produces considerably more monbus traffic than
 errors alone. Every other monitor knob (timeout, protocol, latency, throughput,
 debug, address-range checking) is tied off in this example to keep it readable;
-see [apb_monitor](../rtl-amba/monitor/apb_monitor.md) for the full set.
+see [apb_monitor](../rtl-amba/apb/apb_monitor.md) for the full set.
 
 ## How the monitors are attached
 
@@ -142,7 +142,7 @@ it from rotting again.
 
 ## Related Modules
 
-- [apb_monitor](../rtl-amba/monitor/apb_monitor.md) - the observer, one per peripheral
+- [apb_monitor](../rtl-amba/apb/apb_monitor.md) - the observer, one per peripheral
 - [apb_slave](../rtl-amba/apb/apb_slave.md) - the bridge that produces the handshake a monitor needs
 - [arbiter_round_robin](../rtl-common/arbiter_round_robin.md) - merges the three monitor buses
 - [apb_xbar_monitored](apb_xbar_monitored.md) - the same idea at crossbar scale

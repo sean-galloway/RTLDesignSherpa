@@ -124,14 +124,14 @@ Consult the per-module pages for the exact signal set each module carries.
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **axi5_master_rd_mon** | AXI5 read master with integrated transaction monitor | [axi5_master_rd_mon.md](../monitor/axi5_master_rd_mon.md) | Documented |
-| **axi5_master_rd_mon_cg** | Clock-gated read master with monitor | [axi5_master_rd_mon_cg.md](../monitor/axi5_master_rd_mon_cg.md) | Documented |
-| **axi5_master_wr_mon** | AXI5 write master with integrated transaction monitor | [axi5_master_wr_mon.md](../monitor/axi5_master_wr_mon.md) | Documented |
-| **axi5_master_wr_mon_cg** | Clock-gated write master with monitor | [axi5_master_wr_mon_cg.md](../monitor/axi5_master_wr_mon_cg.md) | Documented |
-| **axi5_slave_rd_mon** | AXI5 read slave with integrated transaction monitor | [axi5_slave_rd_mon.md](../monitor/axi5_slave_rd_mon.md) | Documented |
-| **axi5_slave_rd_mon_cg** | Clock-gated read slave with monitor | [axi5_slave_rd_mon_cg.md](../monitor/axi5_slave_rd_mon_cg.md) | Documented |
-| **axi5_slave_wr_mon** | AXI5 write slave with integrated transaction monitor | [axi5_slave_wr_mon.md](../monitor/axi5_slave_wr_mon.md) | Documented |
-| **axi5_slave_wr_mon_cg** | Clock-gated write slave with monitor | [axi5_slave_wr_mon_cg.md](../monitor/axi5_slave_wr_mon_cg.md) | Documented |
+| **axi5_master_rd_mon** | AXI5 read master with integrated transaction monitor | [axi5_master_rd_mon.md](../axi5/axi5_master_rd_mon.md) | Documented |
+| **axi5_master_rd_mon_cg** | Clock-gated read master with monitor | [axi5_master_rd_mon_cg.md](../axi5/axi5_master_rd_mon_cg.md) | Documented |
+| **axi5_master_wr_mon** | AXI5 write master with integrated transaction monitor | [axi5_master_wr_mon.md](../axi5/axi5_master_wr_mon.md) | Documented |
+| **axi5_master_wr_mon_cg** | Clock-gated write master with monitor | [axi5_master_wr_mon_cg.md](../axi5/axi5_master_wr_mon_cg.md) | Documented |
+| **axi5_slave_rd_mon** | AXI5 read slave with integrated transaction monitor | [axi5_slave_rd_mon.md](../axi5/axi5_slave_rd_mon.md) | Documented |
+| **axi5_slave_rd_mon_cg** | Clock-gated read slave with monitor | [axi5_slave_rd_mon_cg.md](../axi5/axi5_slave_rd_mon_cg.md) | Documented |
+| **axi5_slave_wr_mon** | AXI5 write slave with integrated transaction monitor | [axi5_slave_wr_mon.md](../axi5/axi5_slave_wr_mon.md) | Documented |
+| **axi5_slave_wr_mon_cg** | Clock-gated write slave with monitor | [axi5_slave_wr_mon_cg.md](../axi5/axi5_slave_wr_mon_cg.md) | Documented |
 
 ---
 

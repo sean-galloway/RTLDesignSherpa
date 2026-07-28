@@ -8,12 +8,12 @@ I checked every enum table, parameter table, port list, packet-layout claim, and
 [CONFIRMED] Documented clock-gating parameters, gating domains, and status
 signals of axi4_master_rd_mon_cg do not exist; all three usage examples
 fail to compile
-  File:     docs/markdown/RTLAmba/monitor/axi4_master_rd_mon_cg.md
+  File:     docs/markdown/RTLAmba/axi4/axi4_master_rd_mon_cg.md
   Says:     "| `ENABLE_CLOCK_GATING` | bit | 1 | Master enable for clock gating |
              `CG_IDLE_CYCLES` | int | 8 | ... | `CG_GATE_MONITOR` ... `CG_GATE_REPORTER`
              ... `CG_GATE_TIMERS`" and three examples instantiating e.g.
              ".ENABLE_CLOCK_GATING(1), .CG_IDLE_CYCLES(4), .CG_GATE_MONITOR(1)"
-  Actually: rtl/amba/monitor/axi4_master_rd_mon_cg.sv has none of these five
+  Actually: rtl/amba/axi4/axi4_master_rd_mon_cg.sv has none of these five
             parameters. The only CG parameter is `parameter int
             CG_IDLE_COUNT_WIDTH = 4`. Gating is controlled at runtime by PORTS
             `cfg_cg_enable` and `cfg_cg_idle_count` (4 bits), which the page
@@ -95,7 +95,7 @@ infrastructure; the RTL monitors ONE arbiter
 ```
 [CONFIRMED] Claim that clock gating never disturbs perf-window accounting is
 not supported by the activity logic
-  File:     docs/markdown/RTLAmba/monitor/axi4_master_rd_mon_cg.md
+  File:     docs/markdown/RTLAmba/axi4/axi4_master_rd_mon_cg.md
   Says:     "Clock gating never suppresses these paths: while a measurement
              window is open the monitor stays awake, so window cycle accounting
              remains exact regardless of CG_IDLE_CYCLES."
@@ -115,13 +115,13 @@ not supported by the activity logic
 ```
 [CONFIRMED] apb_monitor.md documents throughput events and config inputs that
 the RTL never uses
-  File:     docs/markdown/RTLAmba/monitor/apb_monitor.md
+  File:     docs/markdown/RTLAmba/apb/apb_monitor.md
   Says:     "Performance Events (when cfg_perf_enable = 1): Latency threshold
              violations, Throughput degradation, Transaction statistics";
              ports "cfg_throughput_enable — Enable throughput tracking",
              "cfg_throughput_threshold — Throughput threshold for alerts";
              also "cfg_debug_level — Debug verbosity level (0-15)"
-  Actually: In rtl/amba/monitor/apb_monitor.sv, cfg_throughput_enable,
+  Actually: In rtl/amba/apb/apb_monitor.sv, cfg_throughput_enable,
             cfg_throughput_threshold and cfg_debug_level appear only in the
             port list. r_throughput_counter / r_throughput_timer are
             maintained but never read by any event path; the only perf event
@@ -136,13 +136,13 @@ the RTL never uses
 ```
 [CONFIRMED] apb_monitor.md module declaration and parameter/port tables are
 stale: N_ADDR_RANGES and the entire address-checker port group are missing
-  File:     docs/markdown/RTLAmba/monitor/apb_monitor.md
+  File:     docs/markdown/RTLAmba/apb/apb_monitor.md
   Says:     The "Module Declaration" block lists neither `USE_MONITOR` nor
             `N_ADDR_RANGES`, and no cfg_addr_check_enable / cfg_addr_range_enable
             / cfg_addr_range_low / cfg_addr_range_high ports; the Parameters
             table includes USE_MONITOR but not N_ADDR_RANGES; the block also
             shows `import monitor_pkg::*;`
-  Actually: rtl/amba/monitor/apb_monitor.sv has `parameter bit USE_MONITOR =
+  Actually: rtl/amba/apb/apb_monitor.sv has `parameter bit USE_MONITOR =
             1'b1, parameter int N_ADDR_RANGES = 0` and the four addr-checker
             config ports, instantiates apb_monitor_addr_check when
             N_ADDR_RANGES > 0, and imports monitor_common_pkg +
@@ -156,7 +156,7 @@ stale: N_ADDR_RANGES and the entire address-checker port group are missing
 ```
 [CONFIRMED] apb_monitor.md usage example: 64-bit FIFO for a 128-bit packet,
 timestamp and i_mon_time never connected
-  File:     docs/markdown/RTLAmba/monitor/apb_monitor.md
+  File:     docs/markdown/RTLAmba/apb/apb_monitor.md
   Says:     "gaxi_fifo_sync #(.DATA_WIDTH(64), .DEPTH(128)) u_mon_fifo (...
              .wr_data(mon_packet) ...)" and the apb_monitor instantiation
              connects neither i_mon_time nor monbus_timestamp (nor

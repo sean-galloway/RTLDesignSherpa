@@ -437,7 +437,7 @@ Disable unused features to reduce area:
 - **[AXI5 Master Write](axi5_master_wr.md)** - Master write interface
 - **[AXI5 Slave Read](axi5_slave_rd.md)** - Slave read interface
 - **[AXI5 Master Read CG](axi5_master_rd_cg.md)** - Clock-gated variant
-- **[AXI5 Master Read Monitor](../monitor/axi5_master_rd_mon.md)** - With integrated monitoring
+- **[AXI5 Master Read Monitor](../axi5/axi5_master_rd_mon.md)** - With integrated monitoring
 - **[AXI4 Master Read](../axi4/axi4_master_rd.md)** - AXI4 version for comparison
 
 ---

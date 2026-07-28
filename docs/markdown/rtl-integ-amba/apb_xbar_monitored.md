@@ -148,7 +148,7 @@ None, in `val/` or anywhere else. See the note on
 
 ## Related Modules
 
-- [apb_monitor](../rtl-amba/monitor/apb_monitor.md) - one per monitored port
+- [apb_monitor](../rtl-amba/apb/apb_monitor.md) - one per monitored port
 - [apb_slave](../rtl-amba/apb/apb_slave.md) / [apb_master](../rtl-amba/apb/apb_master.md) - the bridges that produce the handshake
 - [arbiter_round_robin](../rtl-common/arbiter_round_robin.md) - merges the monitor buses
 - [apb_peripheral_subsystem](apb_peripheral_subsystem.md) - the same pattern, smaller

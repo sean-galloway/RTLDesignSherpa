@@ -361,7 +361,7 @@ assign gating_efficiency = (gating_cycles * 100) / total_cycles;
 
 - **[AXI5 Slave Read](axi5_slave_rd.md)** - Non-clock-gated version
 - **[AXI5 Slave Write CG](axi5_slave_wr_cg.md)** - Clock-gated write variant
-- **[AXI5 Slave Read Monitor CG](../monitor/axi5_slave_rd_mon_cg.md)** - With monitoring
+- **[AXI5 Slave Read Monitor CG](../axi5/axi5_slave_rd_mon_cg.md)** - With monitoring
 - **[AMBA Clock Gate Control](../shared/amba_clock_gate_ctrl.md)** - Clock gating controller
 
 ---

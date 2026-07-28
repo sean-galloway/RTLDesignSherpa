@@ -94,7 +94,7 @@ $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer_struct.sv
 $REPO_ROOT/rtl/amba/apb/apb_master.sv
 $REPO_ROOT/rtl/amba/apb/apb_master_cg.sv
 $REPO_ROOT/rtl/amba/apb/apb_master_stub.sv
-$REPO_ROOT/rtl/amba/monitor/apb_monitor.sv
+$REPO_ROOT/rtl/amba/apb/apb_monitor.sv
 $REPO_ROOT/rtl/amba/apb/apb_slave.sv
 $REPO_ROOT/rtl/amba/apb/apb_slave_cdc.sv
 $REPO_ROOT/rtl/amba/apb/apb_slave_cdc_cg.sv
@@ -107,26 +107,26 @@ $REPO_ROOT/rtl/amba/apb/apb_slave_stub.sv
 # AXI4 Master Read
 $REPO_ROOT/rtl/amba/axi4/axi4_master_rd.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_master_rd_cg.sv
-$REPO_ROOT/rtl/amba/monitor/axi4_master_rd_mon.sv
-$REPO_ROOT/rtl/amba/monitor/axi4_master_rd_mon_cg.sv
+$REPO_ROOT/rtl/amba/axi4/axi4_master_rd_mon.sv
+$REPO_ROOT/rtl/amba/axi4/axi4_master_rd_mon_cg.sv
 
 # AXI4 Master Write
 $REPO_ROOT/rtl/amba/axi4/axi4_master_wr.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_master_wr_cg.sv
-$REPO_ROOT/rtl/amba/monitor/axi4_master_wr_mon.sv
-$REPO_ROOT/rtl/amba/monitor/axi4_master_wr_mon_cg.sv
+$REPO_ROOT/rtl/amba/axi4/axi4_master_wr_mon.sv
+$REPO_ROOT/rtl/amba/axi4/axi4_master_wr_mon_cg.sv
 
 # AXI4 Slave Read
 $REPO_ROOT/rtl/amba/axi4/axi4_slave_rd.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_slave_rd_cg.sv
-$REPO_ROOT/rtl/amba/monitor/axi4_slave_rd_mon.sv
-$REPO_ROOT/rtl/amba/monitor/axi4_slave_rd_mon_cg.sv
+$REPO_ROOT/rtl/amba/axi4/axi4_slave_rd_mon.sv
+$REPO_ROOT/rtl/amba/axi4/axi4_slave_rd_mon_cg.sv
 
 # AXI4 Slave Write
 $REPO_ROOT/rtl/amba/axi4/axi4_slave_wr.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_slave_wr_cg.sv
-$REPO_ROOT/rtl/amba/monitor/axi4_slave_wr_mon.sv
-$REPO_ROOT/rtl/amba/monitor/axi4_slave_wr_mon_cg.sv
+$REPO_ROOT/rtl/amba/axi4/axi4_slave_wr_mon.sv
+$REPO_ROOT/rtl/amba/axi4/axi4_slave_wr_mon_cg.sv
 
 # AXI4 Stubs (Test support)
 $REPO_ROOT/rtl/amba/axi4/stubs/axi4_master_rd_stub.sv
@@ -142,26 +142,26 @@ $REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_wr_stub.sv
 # AXIL4 Master Read
 $REPO_ROOT/rtl/amba/axil4/axil4_master_rd.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_master_rd_cg.sv
-$REPO_ROOT/rtl/amba/monitor/axil4_master_rd_mon.sv
-$REPO_ROOT/rtl/amba/monitor/axil4_master_rd_mon_cg.sv
+$REPO_ROOT/rtl/amba/axil4/axil4_master_rd_mon.sv
+$REPO_ROOT/rtl/amba/axil4/axil4_master_rd_mon_cg.sv
 
 # AXIL4 Master Write
 $REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_master_wr_cg.sv
-$REPO_ROOT/rtl/amba/monitor/axil4_master_wr_mon.sv
-$REPO_ROOT/rtl/amba/monitor/axil4_master_wr_mon_cg.sv
+$REPO_ROOT/rtl/amba/axil4/axil4_master_wr_mon.sv
+$REPO_ROOT/rtl/amba/axil4/axil4_master_wr_mon_cg.sv
 
 # AXIL4 Slave Read
 $REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_slave_rd_cg.sv
-$REPO_ROOT/rtl/amba/monitor/axil4_slave_rd_mon.sv
-$REPO_ROOT/rtl/amba/monitor/axil4_slave_rd_mon_cg.sv
+$REPO_ROOT/rtl/amba/axil4/axil4_slave_rd_mon.sv
+$REPO_ROOT/rtl/amba/axil4/axil4_slave_rd_mon_cg.sv
 
 # AXIL4 Slave Write
 $REPO_ROOT/rtl/amba/axil4/axil4_slave_wr.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_slave_wr_cg.sv
-$REPO_ROOT/rtl/amba/monitor/axil4_slave_wr_mon.sv
-$REPO_ROOT/rtl/amba/monitor/axil4_slave_wr_mon_cg.sv
+$REPO_ROOT/rtl/amba/axil4/axil4_slave_wr_mon.sv
+$REPO_ROOT/rtl/amba/axil4/axil4_slave_wr_mon_cg.sv
 
 # =============================================================================
 # AXIS - AXI Stream
@@ -221,16 +221,16 @@ $REPO_ROOT/rtl/amba/axis5/axis5_slave_cg.sv
 # =============================================================================
 # MONITOR SUBSYSTEM (protocol monitors, monbus, CAM)
 # =============================================================================
-$REPO_ROOT/rtl/amba/monitor/apb5_monitor.sv
+$REPO_ROOT/rtl/amba/apb5/apb5_monitor.sv
 $REPO_ROOT/rtl/amba/monitor/apb_monitor_addr_check.sv
-$REPO_ROOT/rtl/amba/monitor/axi5_master_rd_mon.sv
-$REPO_ROOT/rtl/amba/monitor/axi5_master_rd_mon_cg.sv
-$REPO_ROOT/rtl/amba/monitor/axi5_master_wr_mon.sv
-$REPO_ROOT/rtl/amba/monitor/axi5_master_wr_mon_cg.sv
-$REPO_ROOT/rtl/amba/monitor/axi5_slave_rd_mon.sv
-$REPO_ROOT/rtl/amba/monitor/axi5_slave_rd_mon_cg.sv
-$REPO_ROOT/rtl/amba/monitor/axi5_slave_wr_mon.sv
-$REPO_ROOT/rtl/amba/monitor/axi5_slave_wr_mon_cg.sv
+$REPO_ROOT/rtl/amba/axi5/axi5_master_rd_mon.sv
+$REPO_ROOT/rtl/amba/axi5/axi5_master_rd_mon_cg.sv
+$REPO_ROOT/rtl/amba/axi5/axi5_master_wr_mon.sv
+$REPO_ROOT/rtl/amba/axi5/axi5_master_wr_mon_cg.sv
+$REPO_ROOT/rtl/amba/axi5/axi5_slave_rd_mon.sv
+$REPO_ROOT/rtl/amba/axi5/axi5_slave_rd_mon_cg.sv
+$REPO_ROOT/rtl/amba/axi5/axi5_slave_wr_mon.sv
+$REPO_ROOT/rtl/amba/axi5/axi5_slave_wr_mon_cg.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_addr_check.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_axi4_axi4_group.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_axi4_axil_group.sv

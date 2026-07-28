@@ -537,3 +537,41 @@ partial-regeneration anti-pattern CRITICAL RULE #0 exists to prevent.
 
 These are board flows; verify on hardware or in the flow's own sim before
 trusting the regenerated output.
+
+---
+
+## AMBA-MONITOR-PKG-PAGES — five packages have RTL but no doc page
+**Status:** open 2026-07-28 (found while reorganizing rtl/amba/monitor)
+**Priority:** P3
+
+`docs/markdown/rtl-amba/index.md` listed four package pages -- `apb_pkg.md`,
+`axi_pkg.md`, `monitor_pkg.md`, `monitor_network_pkg.md` -- none of which have
+ever existed. That section is rebuilt: it now links the four real package pages
+and names the packages whose RTL exists with no page.
+
+Still to write, if wanted:
+
+    rtl/amba/includes/apb_pkg.sv
+    rtl/amba/includes/apb5_pkg.sv
+    rtl/amba/includes/axi_pkg.sv
+    rtl/amba/includes/monitor_pkg.sv
+    rtl/amba/includes/monitor_common_pkg.sv
+
+`monitor_network_pkg` has NO RTL either -- it is a phantom. Do not write it.
+
+### Resolved while filing this: the whitepaper references
+
+Four pages (`monitor_amba4_pkg.md`, `monitor_amba5_pkg.md`,
+`monitor_arbiter_pkg.md`, `monitor_package_spec.md`) linked
+`../monitor_system_whitepaper.md`. That file was **deliberately deleted** on
+2026-07-18 in `ca8e12cd`: *"Remove the dated MonitorSystem whitepaper
+(superseded by the full monitor docs + the forthcoming RTL library PDFs)."*
+The `.md`, a `.docx`, a `.pdf`, its style yaml and its generator script all went
+with it.
+
+So the links were leftovers from an intentional removal, not a page waiting to
+be written. They are gone; the four pages no longer promise it. **Nothing to
+restore -- do not re-add the whitepaper.** If a design-surface view (identity
+allocation, timestamp policy, drain paths, aggregation topology) turns out to be
+missing from the per-module docs, it belongs in `monitor_package_spec.md`, which
+is what superseded it.

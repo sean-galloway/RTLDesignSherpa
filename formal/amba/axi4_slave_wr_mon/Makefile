@@ -39,7 +39,7 @@ DEPS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
         $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_base.sv \
         $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_filtered.sv
 
-DUT := $(REPO_ROOT)/rtl/amba/monitor/axi4_slave_wr_mon.sv
+DUT := $(REPO_ROOT)/rtl/amba/axi4/axi4_slave_wr_mon.sv
 
 TMPDIR := /tmp/formal_axi4_slave_wr_mon
 

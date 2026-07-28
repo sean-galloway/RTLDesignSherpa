@@ -248,7 +248,7 @@ Bitstream only at the very end.
 | Purpose | File |
 |---|---|
 | Perf primitives (ports, window FSM, buckets) | `rtl/amba/monitor/axi_monitor_base.sv` (window FSM `:542`, buckets `:617`, `WIN_CLOSING` zero `:562`) |
-| Read/write monitor wrappers | `rtl/amba/monitor/axi4_master_rd_mon.sv`, `axi4_master_wr_mon.sv` |
+| Read/write monitor wrappers | `rtl/amba/axi4/axi4_master_rd_mon.sv`, `axi4_master_wr_mon.sv` |
 | Desc monitor instance (option-1 template) | `projects/components/dmas/stream/rtl/macro/scheduler_group_array.sv:499` |
 | Datapath engines (where new monitors go) | `projects/components/dmas/stream/rtl/fub/axi_read_engine.sv`, `axi_write_engine.sv` |
 | Core (dead `cfg_rdeng_mon_*`/`cfg_wreng_mon_*` hooks to reuse) | `projects/components/dmas/stream/rtl/macro/stream_core.sv` |

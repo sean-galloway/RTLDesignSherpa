@@ -111,7 +111,7 @@ async def axi4_test(dut):
 # Check detailed docs first
 ls docs/markdown/rtl-amba/
 cat docs/markdown/rtl-amba/overview.md
-cat docs/markdown/rtl-amba/monitor/axi4_master_rd_mon.md
+cat docs/markdown/rtl-amba/axi4/axi4_master_rd_mon.md
 ```
 
 **Your answer should:**
@@ -215,10 +215,10 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 
 | Module | Purpose | Key Params | Documentation |
 |--------|---------|------------|---------------|
-| `axi4_master_rd_mon.sv` | Master read monitoring | ID_WIDTH, ADDR_WIDTH, DATA_WIDTH, MAX_TRANSACTIONS | `docs/markdown/rtl-amba/monitor/axi4_master_rd_mon.md` |
-| `axi4_master_wr_mon.sv` | Master write monitoring | Same | `docs/markdown/rtl-amba/monitor/` |
-| `axi4_slave_rd_mon.sv` | Slave read monitoring | Same | `docs/markdown/rtl-amba/monitor/` |
-| `axi4_slave_wr_mon.sv` | Slave write monitoring | Same | `docs/markdown/rtl-amba/monitor/` |
+| `axi4_master_rd_mon.sv` | Master read monitoring | ID_WIDTH, ADDR_WIDTH, DATA_WIDTH, MAX_TRANSACTIONS | `docs/markdown/rtl-amba/axi4/axi4_master_rd_mon.md` |
+| `axi4_master_wr_mon.sv` | Master write monitoring | Same | `docs/markdown/rtl-amba/axi4/axi4_master_wr_mon.md` |
+| `axi4_slave_rd_mon.sv` | Slave read monitoring | Same | `docs/markdown/rtl-amba/axi4/axi4_slave_rd_mon.md` |
+| `axi4_slave_wr_mon.sv` | Slave write monitoring | Same | `docs/markdown/rtl-amba/axi4/axi4_slave_wr_mon.md` |
 | `*_cg.sv` variants | Clock-gated versions | Same + CG_ENABLE | Power optimization |
 
 ### APB Monitors
@@ -248,7 +248,7 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 
 ### Supporting Infrastructure — `rtl/amba/monitor/` + `rtl/amba/shared/`
 
-All protocol-agnostic. The monitor core, monbus infrastructure, monbus arbiters, and ALL `*_mon` wrappers live in `rtl/amba/monitor/`; observation/storage/test helpers live in `rtl/amba/shared/`; CDC helpers moved OUT to the top-level `rtl/cdc/` area (AMBA-CDC-REORG) -- see `rtl/cdc/CLAUDE.md`. The wrappers instantiate the monitor-core pieces below.
+All protocol-agnostic. The monitor core, monbus infrastructure and monbus arbiters live in `rtl/amba/monitor/`. The protocol `*_mon` wrappers do NOT -- each lives with the protocol it wraps (`axi4/`, `axi5/`, `axil4/`, `apb/`, `apb5/`), because a wrapper pairs one protocol block with the shared core and belongs to the protocol, not to the core; observation/storage/test helpers live in `rtl/amba/shared/`; CDC helpers moved OUT to the top-level `rtl/cdc/` area (AMBA-CDC-REORG) -- see `rtl/cdc/CLAUDE.md`. The wrappers instantiate the monitor-core pieces below.
 
 **Monitor core (13):**
 
@@ -334,7 +334,7 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 **Then link:**
 - **Integration:** See `docs/markdown/rtl-amba/index.md` for complete examples
 - **Configuration:** See `docs/user-guides/AXI_Monitor_Configuration_Guide.md`
-- **Module spec:** See `docs/markdown/rtl-amba/monitor/axi4_master_rd_mon.md`
+- **Module spec:** See `docs/markdown/rtl-amba/axi4/axi4_master_rd_mon.md`
 
 ### Q: "What packet types should I enable?"
 
@@ -747,7 +747,7 @@ gtkwave waves.vcd
 ```bash
 # View detailed docs
 cat docs/markdown/rtl-amba/overview.md
-cat docs/markdown/rtl-amba/monitor/axi4_master_rd_mon.md
+cat docs/markdown/rtl-amba/axi4/axi4_master_rd_mon.md
 
 # Check configuration guide
 cat docs/user-guides/AXI_Monitor_Configuration_Guide.md

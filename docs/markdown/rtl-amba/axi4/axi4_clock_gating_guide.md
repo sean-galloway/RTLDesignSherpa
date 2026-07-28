@@ -40,10 +40,10 @@ All AXI4 modules in this subsystem have clock-gated (`_cg`) variants that add po
 | `axi4_master_wr_cg` | [axi4_master_wr](axi4_master_wr.md) | Clock-gated write master |
 | `axi4_slave_rd_cg` | [axi4_slave_rd](axi4_slave_rd.md) | Clock-gated read slave |
 | `axi4_slave_wr_cg` | [axi4_slave_wr](axi4_slave_wr.md) | Clock-gated write slave |
-| `axi4_master_rd_mon_cg` | [axi4_master_rd_mon](../monitor/axi4_master_rd_mon.md) | Clock-gated read master with monitoring |
-| `axi4_master_wr_mon_cg` | [axi4_master_wr_mon](../monitor/axi4_master_wr_mon.md) | Clock-gated write master with monitoring |
-| `axi4_slave_rd_mon_cg` | [axi4_slave_rd_mon](../monitor/axi4_slave_rd_mon.md) | Clock-gated read slave with monitoring |
-| `axi4_slave_wr_mon_cg` | [axi4_slave_wr_mon](../monitor/axi4_slave_wr_mon.md) | Clock-gated write slave with monitoring |
+| `axi4_master_rd_mon_cg` | [axi4_master_rd_mon](../axi4/axi4_master_rd_mon.md) | Clock-gated read master with monitoring |
+| `axi4_master_wr_mon_cg` | [axi4_master_wr_mon](../axi4/axi4_master_wr_mon.md) | Clock-gated write master with monitoring |
+| `axi4_slave_rd_mon_cg` | [axi4_slave_rd_mon](../axi4/axi4_slave_rd_mon.md) | Clock-gated read slave with monitoring |
+| `axi4_slave_wr_mon_cg` | [axi4_slave_wr_mon](../axi4/axi4_slave_wr_mon.md) | Clock-gated write slave with monitoring |
 
 ### Key Features
 
@@ -417,10 +417,10 @@ Cycle N+2: First usable gated-clock edge; transaction proceeds normally.
 - **[axi4_master_wr](axi4_master_wr.md)** - Base write master
 - **[axi4_slave_rd](axi4_slave_rd.md)** - Base read slave
 - **[axi4_slave_wr](axi4_slave_wr.md)** - Base write slave
-- **[axi4_master_rd_mon](../monitor/axi4_master_rd_mon.md)** - Base master read monitor
-- **[axi4_master_wr_mon](../monitor/axi4_master_wr_mon.md)** - Base master write monitor
-- **[axi4_slave_rd_mon](../monitor/axi4_slave_rd_mon.md)** - Base slave read monitor
-- **[axi4_slave_wr_mon](../monitor/axi4_slave_wr_mon.md)** - Base slave write monitor
+- **[axi4_master_rd_mon](../axi4/axi4_master_rd_mon.md)** - Base master read monitor
+- **[axi4_master_wr_mon](../axi4/axi4_master_wr_mon.md)** - Base master write monitor
+- **[axi4_slave_rd_mon](../axi4/axi4_slave_rd_mon.md)** - Base slave read monitor
+- **[axi4_slave_wr_mon](../axi4/axi4_slave_wr_mon.md)** - Base slave write monitor
 
 ### Architecture
 - **[rtl-amba Overview](../overview.md)** - Complete AMBA subsystem

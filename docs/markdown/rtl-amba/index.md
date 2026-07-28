@@ -48,7 +48,7 @@ Simple, low-power peripheral bus for control registers and low-bandwidth devices
 - **[apb_master_cg](apb/apb_master_cg.md)** - Clock-gated APB master for power optimization
 - **[apb_slave](apb/apb_slave.md)** - APB slave with configurable address decoding and response generation
 - **[apb_slave_cg](apb/apb_slave_cg.md)** - Clock-gated APB slave for power optimization
-- **[apb_monitor](monitor/apb_monitor.md)** - APB protocol monitor for verification and debugging
+- **[apb_monitor](apb/apb_monitor.md)** - APB protocol monitor for verification and debugging
 
 #### Clock Domain Crossing
 - **[apb_slave_cdc](apb/apb_slave_cdc.md)** - APB slave with clock domain crossing support
@@ -142,7 +142,7 @@ Enhanced APB with wake-up signaling, non-secure extension, and user signals.
 - **[apb5_master](apb5/apb5_master.md)** - APB5 master with command/response interface
 - **[apb5_slave](apb5/apb5_slave.md)** - APB5 slave with buffered cmd/rsp interface
 - **[apb5_slave_cdc](apb5/apb5_slave_cdc.md)** - APB5 slave with clock domain crossing
-- **[apb5_monitor](monitor/apb5_monitor.md)** - APB5 transaction monitor
+- **[apb5_monitor](apb5/apb5_monitor.md)** - APB5 transaction monitor
 
 #### Clock-Gated Variants
 - **[apb5_master_cg](apb5/apb5_master_cg.md)** - Clock-gated APB5 master
@@ -181,14 +181,14 @@ Enhanced AXI with atomic operations, memory tagging, and extended QoS.
 - **[axi5_slave_wr_cg](axi5/axi5_slave_wr_cg.md)** - Clock-gated AXI5 write slave
 
 #### Integrated Monitor Modules
-- **[axi5_master_rd_mon](monitor/axi5_master_rd_mon.md)** - Read master with integrated monitor
-- **[axi5_master_rd_mon_cg](monitor/axi5_master_rd_mon_cg.md)** - Clock-gated read master with monitor
-- **[axi5_master_wr_mon](monitor/axi5_master_wr_mon.md)** - Write master with integrated monitor
-- **[axi5_master_wr_mon_cg](monitor/axi5_master_wr_mon_cg.md)** - Clock-gated write master with monitor
-- **[axi5_slave_rd_mon](monitor/axi5_slave_rd_mon.md)** - Read slave with integrated monitor
-- **[axi5_slave_rd_mon_cg](monitor/axi5_slave_rd_mon_cg.md)** - Clock-gated read slave with monitor
-- **[axi5_slave_wr_mon](monitor/axi5_slave_wr_mon.md)** - Write slave with integrated monitor
-- **[axi5_slave_wr_mon_cg](monitor/axi5_slave_wr_mon_cg.md)** - Clock-gated write slave with monitor
+- **[axi5_master_rd_mon](axi5/axi5_master_rd_mon.md)** - Read master with integrated monitor
+- **[axi5_master_rd_mon_cg](axi5/axi5_master_rd_mon_cg.md)** - Clock-gated read master with monitor
+- **[axi5_master_wr_mon](axi5/axi5_master_wr_mon.md)** - Write master with integrated monitor
+- **[axi5_master_wr_mon_cg](axi5/axi5_master_wr_mon_cg.md)** - Clock-gated write master with monitor
+- **[axi5_slave_rd_mon](axi5/axi5_slave_rd_mon.md)** - Read slave with integrated monitor
+- **[axi5_slave_rd_mon_cg](axi5/axi5_slave_rd_mon_cg.md)** - Clock-gated read slave with monitor
+- **[axi5_slave_wr_mon](axi5/axi5_slave_wr_mon.md)** - Write slave with integrated monitor
+- **[axi5_slave_wr_mon_cg](axi5/axi5_slave_wr_mon_cg.md)** - Clock-gated write slave with monitor
 
 ---
 
@@ -284,11 +284,18 @@ Path from in-flight monitor packets to host-visible memory + CPU IRQs.
 
 ## Package Definitions
 
-### Protocol Packages
-- **[apb_pkg](includes/apb_pkg.md)** - APB protocol definitions and constants
-- **[axi_pkg](includes/axi_pkg.md)** - AXI protocol definitions and constants
-- **[monitor_pkg](includes/monitor_pkg.md)** - Monitoring infrastructure definitions
-- **[monitor_network_pkg](includes/monitor_network_pkg.md)** - Network monitoring package definitions
+### Documented packages
+- **[monitor_amba4_pkg](includes/monitor_amba4_pkg.md)** - AMBA4 monitor types and packet layout
+- **[monitor_amba5_pkg](includes/monitor_amba5_pkg.md)** - AMBA5 monitor types and packet layout
+- **[monitor_arbiter_pkg](includes/monitor_arbiter_pkg.md)** - Monitor-bus arbitration types
+- **[monitor_package_spec](includes/monitor_package_spec.md)** - The package family, specified
+
+### Packages with no page yet
+`rtl/amba/includes/` also carries `apb_pkg.sv`, `apb5_pkg.sv`, `axi_pkg.sv`,
+`monitor_pkg.sv` and `monitor_common_pkg.sv`. Read the source directly until
+these are written. (This list previously linked to `apb_pkg.md`, `axi_pkg.md`,
+`monitor_pkg.md` and `monitor_network_pkg.md`, none of which have ever existed;
+`monitor_network_pkg` has no RTL either.)
 
 ---
 

@@ -62,10 +62,10 @@ The AXIL4 subsystem provides a complete implementation of the ARM AMBA AXI4-Lite
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **axil4_master_rd_mon** | Read master with integrated monitoring | [axil4_master_rd_mon.md](../monitor/axil4_master_rd_mon.md) | ✅ Documented |
-| **axil4_master_wr_mon** | Write master with integrated monitoring | [axil4_master_wr_mon.md](../monitor/axil4_master_wr_mon.md) | ✅ Documented |
-| **axil4_slave_rd_mon** | Read slave with integrated monitoring | [axil4_slave_rd_mon.md](../monitor/axil4_slave_rd_mon.md) | ✅ Documented |
-| **axil4_slave_wr_mon** | Write slave with integrated monitoring | [axil4_slave_wr_mon.md](../monitor/axil4_slave_wr_mon.md) | ✅ Documented |
+| **axil4_master_rd_mon** | Read master with integrated monitoring | [axil4_master_rd_mon.md](../axil4/axil4_master_rd_mon.md) | ✅ Documented |
+| **axil4_master_wr_mon** | Write master with integrated monitoring | [axil4_master_wr_mon.md](../axil4/axil4_master_wr_mon.md) | ✅ Documented |
+| **axil4_slave_rd_mon** | Read slave with integrated monitoring | [axil4_slave_rd_mon.md](../axil4/axil4_slave_rd_mon.md) | ✅ Documented |
+| **axil4_slave_wr_mon** | Write slave with integrated monitoring | [axil4_slave_wr_mon.md](../axil4/axil4_slave_wr_mon.md) | ✅ Documented |
 
 ### Clock-Gated Variants
 
@@ -77,10 +77,10 @@ The AXIL4 subsystem provides a complete implementation of the ARM AMBA AXI4-Lite
 | **axil4_master_wr_cg** | [axil4_master_wr](axil4_master_wr.md) | ✅ Documented |
 | **axil4_slave_rd_cg** | [axil4_slave_rd](axil4_slave_rd.md) | ✅ Documented |
 | **axil4_slave_wr_cg** | [axil4_slave_wr](axil4_slave_wr.md) | ✅ Documented |
-| **axil4_master_rd_mon_cg** | [axil4_master_rd_mon](../monitor/axil4_master_rd_mon.md) | ✅ Documented |
-| **axil4_master_wr_mon_cg** | [axil4_master_wr_mon](../monitor/axil4_master_wr_mon.md) | ✅ Documented |
-| **axil4_slave_rd_mon_cg** | [axil4_slave_rd_mon](../monitor/axil4_slave_rd_mon.md) | ✅ Documented |
-| **axil4_slave_wr_mon_cg** | [axil4_slave_wr_mon](../monitor/axil4_slave_wr_mon.md) | ✅ Documented |
+| **axil4_master_rd_mon_cg** | [axil4_master_rd_mon](../axil4/axil4_master_rd_mon.md) | ✅ Documented |
+| **axil4_master_wr_mon_cg** | [axil4_master_wr_mon](../axil4/axil4_master_wr_mon.md) | ✅ Documented |
+| **axil4_slave_rd_mon_cg** | [axil4_slave_rd_mon](../axil4/axil4_slave_rd_mon.md) | ✅ Documented |
+| **axil4_slave_wr_mon_cg** | [axil4_slave_wr_mon](../axil4/axil4_slave_wr_mon.md) | ✅ Documented |
 
 ---
 

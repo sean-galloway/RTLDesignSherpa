@@ -30,7 +30,7 @@ a task page, not here.
 | 5 | `docs/markdown/RTLCommon/math_bf16_multiplier.md` |
 | 5 | `docs/markdown/RTLCommon/math_prefix_cell_gray.md` |
 | 5 | `docs/markdown/RTLAmba/shared/sdpram_slave.md` |
-| 5 | `docs/markdown/RTLAmba/monitor/axi5_master_rd_mon.md` |
+| 5 | `docs/markdown/RTLAmba/axi5/axi5_master_rd_mon.md` |
 | 4 | `docs/markdown/RTLCommon/bin_to_bcd.md` |
 | 4 | `docs/markdown/RTLCommon/arbiter_round_robin.md` |
 | 4 | `docs/markdown/RTLCommon/arbiter_round_robin_simple.md` |
@@ -671,7 +671,7 @@ a task page, not here.
 ### monitor_part_01
 
 - [ ] **CONFIRMED** Documented clock-gating parameters, gating domains, and status signals of axi4_master_rd_mon_cg do not exist; all three usage examples fail to compile
-  - `docs/markdown/RTLAmba/monitor/axi4_master_rd_mon_cg.md`
+  - `docs/markdown/RTLAmba/axi4/axi4_master_rd_mon_cg.md`
 - [ ] **CONFIRMED** arbiter_monbus_common described as monitor-stream arbitration infrastructure; the RTL monitors ONE arbiter
   - `docs/markdown/RTLAmba/monitor/arbiter_monbus_common.md`
 - [ ] **CONFIRMED** Wrong hex value for APB_ERR_ADDR_RANGE in the payload table
@@ -679,13 +679,13 @@ a task page, not here.
 - [ ] **CONFIRMED** WRR arbitration algorithm misdescribed (and self-contradictory)
   - `docs/markdown/RTLAmba/monitor/arbiter_wrr_pwm_monbus.md`
 - [ ] **CONFIRMED** Claim that clock gating never disturbs perf-window accounting is not supported by the activity logic
-  - `docs/markdown/RTLAmba/monitor/axi4_master_rd_mon_cg.md`
+  - `docs/markdown/RTLAmba/axi4/axi4_master_rd_mon_cg.md`
 - [ ] **CONFIRMED** apb_monitor.md documents throughput events and config inputs that the RTL never uses
-  - `docs/markdown/RTLAmba/monitor/apb_monitor.md`
+  - `docs/markdown/RTLAmba/apb/apb_monitor.md`
 - [ ] **CONFIRMED** apb_monitor.md module declaration and parameter/port tables are stale: N_ADDR_RANGES and the entire address-checker port group are missing
-  - `docs/markdown/RTLAmba/monitor/apb_monitor.md`
+  - `docs/markdown/RTLAmba/apb/apb_monitor.md`
 - [ ] **CONFIRMED** apb_monitor.md usage example: 64-bit FIFO for a 128-bit packet, timestamp and i_mon_time never connected
-  - `docs/markdown/RTLAmba/monitor/apb_monitor.md`
+  - `docs/markdown/RTLAmba/apb/apb_monitor.md`
 - [ ] **CONFIRMED** i_mon_time input and monbus_timestamp output missing from both PWM-arbiter pages (tables and examples)
   - `docs/markdown/RTLAmba/monitor/arbiter_rr_pwm_monbus.md and`, `docs/markdown/RTLAmba/monitor/arbiter_wrr_pwm_monbus.md`
 - [ ] **CONFIRMED** "Every enum"/"one per enum" claims for the AMBA4 union and helpers are too broad; perfhist enum is 4 bits, not 8
@@ -698,69 +698,69 @@ a task page, not here.
 ### monitor_part_02
 
 - [ ] **CONFIRMED** AXI4 *_mon_cg pages document clock-gating parameters that do not exist; the Quick Usage example will not elaborate
-  - `docs/markdown/RTLAmba/monitor/axi4_master_wr_mon_cg.md`, `(identical boilerplate in axi4_slave_rd_mon_cg.md`, `axi4_slave_wr_mon_cg.md)`
+  - `docs/markdown/RTLAmba/axi4/axi4_master_wr_mon_cg.md`, `(identical boilerplate in axi4_slave_rd_mon_cg.md`, `axi4_slave_wr_mon_cg.md)`
 - [ ] **CONFIRMED** "while a measurement window is open the monitor stays awake" is not implemented — window_active has no path into the wake logic
-  - `docs/markdown/RTLAmba/monitor/axi4_master_wr_mon_cg.md`, `(same sentence in axi4_slave_rd_mon_cg.md`, `axi4_slave_wr_mon_cg.md;`
+  - `docs/markdown/RTLAmba/axi4/axi4_master_wr_mon_cg.md`, `(same sentence in axi4_slave_rd_mon_cg.md`, `axi4_slave_wr_mon_cg.md;`
 - [ ] **CONFIRMED** axi5 CG page labels error_count/transaction_count "(placeholder)" — they are functional reporter counters
-  - `docs/markdown/RTLAmba/monitor/axi5_master_rd_mon_cg.md`
+  - `docs/markdown/RTLAmba/axi5/axi5_master_rd_mon_cg.md`
 - [ ] **CONFIRMED** wr/slave base pages claim cfg_active_trans_threshold is "fixed" at 8 inside the wrapper; it is driven by the top-level ACTIVE_TRANS_THRESHOLD parameter the same pages document
-  - `docs/markdown/RTLAmba/monitor/axi4_master_wr_mon.md`, `(same note in axi4_slave_rd_mon.md`, `axi4_slave_wr_mon.md)`
+  - `docs/markdown/RTLAmba/axi4/axi4_master_wr_mon.md`, `(same note in axi4_slave_rd_mon.md`, `axi4_slave_wr_mon.md)`
 - [ ] **CONFIRMED** "In addition to all axi4_master_wr_mon parameters" is false — the CG wrappers do not expose ACTIVE_TRANS_THRESHOLD
-  - `docs/markdown/RTLAmba/monitor/axi4_master_wr_mon_cg.md`, `(same claim in axi4_slave_rd_mon_cg.md`, `axi4_slave_wr_mon_cg.md)`
+  - `docs/markdown/RTLAmba/axi4/axi4_master_wr_mon_cg.md`, `(same claim in axi4_slave_rd_mon_cg.md`, `axi4_slave_wr_mon_cg.md)`
 - [ ] **CONFIRMED** axi5 CG page code snippet puts fub_axi_rready in the activity term; the RTL uses fub_axi_rvalid and explicitly forbids peer READYs
-  - `docs/markdown/RTLAmba/monitor/axi5_master_rd_mon_cg.md`
+  - `docs/markdown/RTLAmba/axi5/axi5_master_rd_mon_cg.md`
 - [ ] **CONFIRMED** "MonBus packets flushed before clock stops" is not guaranteed — monitor-bus occupancy is not part of the wake/gate logic
-  - `docs/markdown/RTLAmba/monitor/axi5_master_rd_mon_cg.md`
+  - `docs/markdown/RTLAmba/axi5/axi5_master_rd_mon_cg.md`
 - [ ] **CONFIRMED** axi5 CG usage example mislabels cfg_monitor_enable as "// Completions" and never connects cfg_compl_enable
-  - `docs/markdown/RTLAmba/monitor/axi5_master_rd_mon_cg.md`
+  - `docs/markdown/RTLAmba/axi5/axi5_master_rd_mon_cg.md`
 - [ ] **SUSPECTED** Unsourced power-savings figures presented as fact on all four CG pages
-  - `docs/markdown/RTLAmba/monitor/axi4_master_wr_mon_cg.md`, `axi4_slave_rd_mon_cg.md`, `axi4_slave_wr_mon_cg.md`
+  - `docs/markdown/RTLAmba/axi4/axi4_master_wr_mon_cg.md`, `axi4_slave_rd_mon_cg.md`, `axi4_slave_wr_mon_cg.md`
 - [ ] **CONFIRMED** Minor: addr-range section writes the protocol field as 3'b000; the field is 4 bits
-  - `docs/markdown/RTLAmba/monitor/axi4_master_rd_mon.md`, `axi4_master_wr_mon.md`, `axi4_slave_rd_mon.md`
+  - `docs/markdown/RTLAmba/axi4/axi4_master_rd_mon.md`, `axi4_master_wr_mon.md`, `axi4_slave_rd_mon.md`
 
 ### monitor_part_03
 
 - [ ] **CONFIRMED** Level-1 filter mask documented with inverted polarity and wrong bit indices
-  - `docs/markdown/RTLAmba/monitor/axi5_master_rd_mon.md`
+  - `docs/markdown/RTLAmba/axi5/axi5_master_rd_mon.md`
 - [ ] **CONFIRMED** cfg_axi_err_select ("Level 2") documented as functional error routing; RTL ignores it
-  - `docs/markdown/RTLAmba/monitor/axi5_master_rd_mon.md`
+  - `docs/markdown/RTLAmba/axi5/axi5_master_rd_mon.md`
 - [ ] **CONFIRMED** ENABLE_PERF_LOGIC does not gate the perfmon window/counters; perfmon outputs are NOT tied to 0 when it is 0
-  - `docs/markdown/RTLAmba/monitor/axi5_master_rd_mon.md (also axi5_master_wr_mon.md`, `axi5_slave_rd_mon.md`, `axi5_slave_wr_mon.md; same wrong description forwarded in`
+  - `docs/markdown/RTLAmba/axi5/axi5_master_rd_mon.md (also axi5_master_wr_mon.md`, `axi5_slave_rd_mon.md`, `axi5_slave_wr_mon.md; same wrong description forwarded in`
 - [ ] **CONFIRMED** Detection claims with no implementing logic: poison, tag mismatch, missing WLAST, ATOP monitoring, handshake/alignment/strobe/ID-width violations
-  - `docs/markdown/RTLAmba/monitor/axi5_slave_wr_mon.md`, `axi5_master_wr_mon.md`, `axi5_slave_rd_mon.md`
+  - `docs/markdown/RTLAmba/axi5/axi5_slave_wr_mon.md`, `axi5_master_wr_mon.md`, `axi5_slave_rd_mon.md`
 - [ ] **CONFIRMED** Slave-doc event tables: Timeout listed as Type=2 (contradicts same page), and every Event Data column is wrong
-  - `docs/markdown/RTLAmba/monitor/axi5_slave_rd_mon.md`, `axi5_slave_wr_mon.md`
+  - `docs/markdown/RTLAmba/axi5/axi5_slave_rd_mon.md`, `axi5_slave_wr_mon.md`
 - [ ] **CONFIRMED** Clock-gating activity formula uses BREADY; RTL uses BVALID (and forbids READY in the activity term)
-  - `docs/markdown/RTLAmba/monitor/axi5_master_wr_mon_cg.md`, `docs/markdown/RTLAmba/monitor/axi5_slave_wr_mon_cg.md`
+  - `docs/markdown/RTLAmba/axi5/axi5_master_wr_mon_cg.md`, `docs/markdown/RTLAmba/axi5/axi5_slave_wr_mon_cg.md`
 - [ ] **CONFIRMED** "Monitor continues operating/tracking when gated" and "monitor stays awake while a window is open" are false — the monitor is on the gated clock
-  - `docs/markdown/RTLAmba/monitor/axi5_master_wr_mon_cg.md`, `axi5_slave_rd_mon_cg.md`, `axi5_slave_wr_mon_cg.md`
+  - `docs/markdown/RTLAmba/axi5/axi5_master_wr_mon_cg.md`, `axi5_slave_rd_mon_cg.md`, `axi5_slave_wr_mon_cg.md`
 - [ ] **CONFIRMED** "Gate after 8 idle cycles" comment contradicts the idle-count value (4'd3 → 4 cycles)
-  - `docs/markdown/RTLAmba/monitor/axi5_slave_rd_mon_cg.md`, `docs/markdown/RTLAmba/monitor/axi5_slave_wr_mon_cg.md`
+  - `docs/markdown/RTLAmba/axi5/axi5_slave_rd_mon_cg.md`, `docs/markdown/RTLAmba/axi5/axi5_slave_wr_mon_cg.md`
 - [ ] **CONFIRMED** "Oldest packets dropped if buffer full" — the RTL never drops; it retries and back-pressures
-  - `docs/markdown/RTLAmba/monitor/axi5_master_rd_mon.md`
+  - `docs/markdown/RTLAmba/axi5/axi5_master_rd_mon.md`
 - [ ] **CONFIRMED** "Error count saturates at max value (does not wrap)" — the counters wrap
-  - `docs/markdown/RTLAmba/monitor/axi5_slave_rd_mon.md`, `docs/markdown/RTLAmba/monitor/axi5_slave_wr_mon.md`
+  - `docs/markdown/RTLAmba/axi5/axi5_slave_rd_mon.md`, `docs/markdown/RTLAmba/axi5/axi5_slave_wr_mon.md`
 - [ ] **CONFIRMED** Mermaid diagrams label monbus_packet as 64-bit; the packet is 128-bit
-  - `docs/markdown/RTLAmba/monitor/axi5_master_rd_mon.md ("monbus_packet<br/>[63:0]")`, `axi5_master_wr_mon.md (same)`, `axi5_slave_rd_mon.md ("monbus_packet[63:0]")`
+  - `docs/markdown/RTLAmba/axi5/axi5_master_rd_mon.md ("monbus_packet<br/>[63:0]")`, `axi5_master_wr_mon.md (same)`, `axi5_slave_rd_mon.md ("monbus_packet[63:0]")`
 - [ ] **CONFIRMED** Status outputs mislabelled "(placeholder)" — they are live counters
-  - `docs/markdown/RTLAmba/monitor/axi5_master_wr_mon_cg.md`
+  - `docs/markdown/RTLAmba/axi5/axi5_master_wr_mon_cg.md`
 - [ ] **CONFIRMED** (minor) Protocol field written as 3'b000 in the addr-range encoding; the field is 4 bits
   - `all four base docs (master_rd_mon`, `master_wr_mon`, `slave_rd_mon`
 - [ ] **CONFIRMED** (minor) Usage example uses undeclared signal power_cycles_saved
-  - `docs/markdown/RTLAmba/monitor/axi5_master_wr_mon_cg.md`
+  - `docs/markdown/RTLAmba/axi5/axi5_master_wr_mon_cg.md`
 - [ ] **SUSPECTED** (minor gap) Timeout tick period is not derivable from the docs
   - `all four base docs`, `cfg_timeout_cycles row`
 
 ### monitor_part_04
 
 - [ ] **CONFIRMED** The four *_mon_cg pages describe a nonexistent placeholder design; the RTL implements full clock gating
-  - `docs/markdown/RTLAmba/monitor/axil4_master_rd_mon_cg.md (identical text in`, `axil4_master_wr_mon_cg.md`, `axil4_slave_rd_mon_cg.md`
+  - `docs/markdown/RTLAmba/axil4/axil4_master_rd_mon_cg.md (identical text in`, `axil4_master_wr_mon_cg.md`, `axil4_slave_rd_mon_cg.md`
 - [ ] **CONFIRMED** *_mon_cg pages document parameters/ports that do not exist, and the usage examples would not compile
-  - `docs/markdown/RTLAmba/monitor/axil4_master_rd_mon_cg.md (same in the other three _cg pages)`
+  - `docs/markdown/RTLAmba/axil4/axil4_master_rd_mon_cg.md (same in the other three _cg pages)`
 - [ ] **CONFIRMED** "ENABLE_PERF_LOGIC=0 drops the perfmon window + counters" is wrong — they are always instantiated
-  - `docs/markdown/RTLAmba/monitor/axil4_master_rd_mon.md ("`ENABLE_PERF_LOGIC = 0``, `drops the whole block at synthesis" — same sentence in axil4_master_wr_mon.md`, `axil4_slave_rd_mon.md`
+  - `docs/markdown/RTLAmba/axil4/axil4_master_rd_mon.md ("`ENABLE_PERF_LOGIC = 0``, `drops the whole block at synthesis" — same sentence in axil4_master_wr_mon.md`, `axil4_slave_rd_mon.md`
 - [ ] **CONFIRMED** "The counters advance only while cfg_perf_enable = 1" — counters are not gated by cfg_perf_enable
-  - `docs/markdown/RTLAmba/monitor/axil4_master_rd_mon.md (same sentence in`, `axil4_master_wr_mon.md`, `axil4_slave_rd_mon.md`
+  - `docs/markdown/RTLAmba/axil4/axil4_master_rd_mon.md (same sentence in`, `axil4_master_wr_mon.md`, `axil4_slave_rd_mon.md`
 - [ ] **CONFIRMED** Measurement-window end-event table transposes the 3'b010 and 3'b011 encodings
   - `docs/markdown/RTLAmba/monitor/axi_monitor_base.md`
 - [ ] **CONFIRMED** cfg_window_force_close misdescribed as "asynchronous" and as dropping perf totals
@@ -770,7 +770,7 @@ a task page, not here.
 - [ ] **CONFIRMED** ENABLE_DEBUG_MODULE / DEBUG_FIFO_DEPTH / cfg_debug_level / cfg_debug_mask documented as functional; none do anything
   - `docs/markdown/RTLAmba/monitor/axi_monitor_base.md ("`ENABLE_DEBUG_MODULE` ...`, `Master switch for the debug-trace reporter sub-module"; "`DEBUG_FIFO_DEPTH` ...`, `(used when the debug module is enabled)"; cfg_debug_level/cfg_debug_mask`
 - [ ] **CONFIRMED** axil4_master_wr_mon page says "Filtering masks (7 masks)"; the module has nine
-  - `docs/markdown/RTLAmba/monitor/axil4_master_wr_mon.md`
+  - `docs/markdown/RTLAmba/axil4/axil4_master_wr_mon.md`
 
 ### monitor_part_05
 

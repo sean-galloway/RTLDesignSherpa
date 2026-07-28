@@ -319,8 +319,8 @@ For power-specific verification:
 ## Related Modules
 
 - **[axi4_master_rd_mon](./axi4_master_rd_mon.md)** - Base module (non-clock-gated)
-- **[axi_monitor_base](axi_monitor_base.md)** - Core monitoring infrastructure
-- **[axi_monitor_filtered](axi_monitor_filtered.md)** - Filtering capabilities
+- **[axi_monitor_base](../monitor/axi_monitor_base.md)** - Core monitoring infrastructure
+- **[axi_monitor_filtered](../monitor/axi_monitor_filtered.md)** - Filtering capabilities
 
 ---
 

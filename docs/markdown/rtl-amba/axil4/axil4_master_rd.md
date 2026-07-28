@@ -356,7 +356,7 @@ your own device before budgeting area.
 - **[axil4_slave_wr](axil4_slave_wr.md)** - Slave write interface
 
 ### Monitor Modules
-- **[axil4_master_rd_mon](../monitor/axil4_master_rd_mon.md)** - Master read with monitoring (`rtl/amba/monitor/`)
+- **[axil4_master_rd_mon](../axil4/axil4_master_rd_mon.md)** - Master read with monitoring (`rtl/amba/monitor/`)
 
 ### Clock-Gated Variants
 - **[axil4_master_rd_cg](axil4_clock_gating_guide.md)** - Clock-gated version

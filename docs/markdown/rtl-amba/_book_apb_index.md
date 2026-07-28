@@ -7,6 +7,7 @@
 - [apb_master](apb/apb_master.md)
 - [APB Master Interface (Clock-Gated)](apb/apb_master_cg.md)
 - [apb_master_stub](apb/apb_master_stub.md)
+- [apb_monitor](apb/apb_monitor.md)
 - [apb_slave](apb/apb_slave.md)
 - [APB Slave CDC](apb/apb_slave_cdc.md)
 - [APB Slave with CDC (Clock-Gated)](apb/apb_slave_cdc_cg.md)

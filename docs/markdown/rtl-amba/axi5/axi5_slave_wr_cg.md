@@ -363,7 +363,7 @@ All power figures on this page are first-order estimates derived from duty cycle
 
 - **[AXI5 Slave Write](axi5_slave_wr.md)** - Non-clock-gated version
 - **[AXI5 Slave Read CG](axi5_slave_rd_cg.md)** - Clock-gated read variant
-- **[AXI5 Slave Write Monitor CG](../monitor/axi5_slave_wr_mon_cg.md)** - With monitoring
+- **[AXI5 Slave Write Monitor CG](../axi5/axi5_slave_wr_mon_cg.md)** - With monitoring
 - **[AMBA Clock Gate Control](../shared/amba_clock_gate_ctrl.md)** - Clock gating controller
 
 ---

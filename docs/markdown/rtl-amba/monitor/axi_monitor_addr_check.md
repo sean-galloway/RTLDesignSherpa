@@ -291,7 +291,7 @@ streams. A standalone FIFO on the addr_check output is normally not needed.
 
 - **[axi_monitor_base](./axi_monitor_base.md)** — Core monitor infrastructure that instantiates this module
 - **[axi_monitor_filtered](./axi_monitor_filtered.md)** — 3-level packet filtering (sibling to addr_check)
-- **[axi4_master_wr_mon](axi4_master_wr_mon.md)** — Wrapper that uses this module (N_ADDR_RANGES parameter)
+- **[axi4_master_wr_mon](../axi4/axi4_master_wr_mon.md)** — Wrapper that uses this module (N_ADDR_RANGES parameter)
 
 ---
 

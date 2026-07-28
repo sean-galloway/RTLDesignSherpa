@@ -37,7 +37,7 @@ MON_DEPS := $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timer.sv \
             $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_base.sv \
             $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_filtered.sv \
             $(REPO_ROOT)/rtl/amba/axi4/axi4_master_rd.sv \
-            $(REPO_ROOT)/rtl/amba/monitor/axi4_master_rd_mon.sv
+            $(REPO_ROOT)/rtl/amba/axi4/axi4_master_rd_mon.sv
 
 # RTL dependencies that do NOT import monitor_pkg
 CLEAN_DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \

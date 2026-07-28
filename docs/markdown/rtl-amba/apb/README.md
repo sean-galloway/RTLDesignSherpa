@@ -63,7 +63,7 @@ signalling is required. The two families are otherwise architecturally identical
 | **apb_master** | Full-featured APB master with command/response interface | [apb_master.md](apb_master.md) | ✅ Documented |
 | **apb_slave** | Complete APB slave with buffered cmd/rsp interface | [apb_slave.md](apb_slave.md) | ✅ Documented |
 | **apb_slave_cdc** | APB slave with clock domain crossing support | [apb_slave_cdc.md](apb_slave_cdc.md) | ✅ Documented |
-| **apb_monitor** | Transaction monitoring with 128-bit monitor bus + 64-bit timestamp | [apb_monitor.md](../monitor/apb_monitor.md) | ✅ Documented |
+| **apb_monitor** | Transaction monitoring with 128-bit monitor bus + 64-bit timestamp | [apb_monitor.md](../apb/apb_monitor.md) | ✅ Documented |
 
 **Note:** `apb_monitor.sv` lives in `rtl/amba/monitor/` (with the rest of the
 monitor family), not in `rtl/amba/apb/`. Its specification is part of the
@@ -337,7 +337,7 @@ with a 64-bit side-band timestamp:
 [63:0]    - Event Data     (64 bits)
 ```
 
-See [apb_monitor.md](../monitor/apb_monitor.md) for detailed packet format.
+See [apb_monitor.md](../apb/apb_monitor.md) for detailed packet format.
 
 ---
 

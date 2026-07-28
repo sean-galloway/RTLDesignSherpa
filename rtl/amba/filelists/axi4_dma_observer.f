@@ -36,8 +36,8 @@ $REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_debug.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_base.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_filtered.sv
-$REPO_ROOT/rtl/amba/monitor/axi4_master_rd_mon.sv
-$REPO_ROOT/rtl/amba/monitor/axi4_master_wr_mon.sv
+$REPO_ROOT/rtl/amba/axi4/axi4_master_rd_mon.sv
+$REPO_ROOT/rtl/amba/axi4/axi4_master_wr_mon.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_group_core.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_axil_axi4_group.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_arbiter.sv

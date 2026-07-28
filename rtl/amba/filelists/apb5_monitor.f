@@ -15,4 +15,4 @@ $REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/monitor/apb_monitor_addr_check.sv
-$REPO_ROOT/rtl/amba/monitor/apb5_monitor.sv
+$REPO_ROOT/rtl/amba/apb5/apb5_monitor.sv

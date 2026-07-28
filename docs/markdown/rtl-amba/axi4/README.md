@@ -60,10 +60,10 @@ The AXI4 subsystem provides a complete implementation of the ARM AMBA AXI4 proto
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **axi4_master_rd_mon** | Read master with integrated monitoring | [axi4_master_rd_mon.md](../monitor/axi4_master_rd_mon.md) | ✅ Documented |
-| **axi4_master_wr_mon** | Write master with integrated monitoring | [axi4_master_wr_mon.md](../monitor/axi4_master_wr_mon.md) | ✅ Documented |
-| **axi4_slave_rd_mon** | Read slave with integrated monitoring | [axi4_slave_rd_mon.md](../monitor/axi4_slave_rd_mon.md) | ✅ Documented |
-| **axi4_slave_wr_mon** | Write slave with integrated monitoring | [axi4_slave_wr_mon.md](../monitor/axi4_slave_wr_mon.md) | ✅ Documented |
+| **axi4_master_rd_mon** | Read master with integrated monitoring | [axi4_master_rd_mon.md](../axi4/axi4_master_rd_mon.md) | ✅ Documented |
+| **axi4_master_wr_mon** | Write master with integrated monitoring | [axi4_master_wr_mon.md](../axi4/axi4_master_wr_mon.md) | ✅ Documented |
+| **axi4_slave_rd_mon** | Read slave with integrated monitoring | [axi4_slave_rd_mon.md](../axi4/axi4_slave_rd_mon.md) | ✅ Documented |
+| **axi4_slave_wr_mon** | Write slave with integrated monitoring | [axi4_slave_wr_mon.md](../axi4/axi4_slave_wr_mon.md) | ✅ Documented |
 
 ### Data Width Converters
 
@@ -85,10 +85,10 @@ The converters live in `projects/components/converters/rtl/`, not `rtl/amba/axi4
 | **axi4_master_wr_cg** | [axi4_master_wr](axi4_master_wr.md) | ✅ Documented |
 | **axi4_slave_rd_cg** | [axi4_slave_rd](axi4_slave_rd.md) | ✅ Documented |
 | **axi4_slave_wr_cg** | [axi4_slave_wr](axi4_slave_wr.md) | ✅ Documented |
-| **axi4_master_rd_mon_cg** | [axi4_master_rd_mon](../monitor/axi4_master_rd_mon.md) | ✅ Documented |
-| **axi4_master_wr_mon_cg** | [axi4_master_wr_mon](../monitor/axi4_master_wr_mon.md) | ✅ Documented |
-| **axi4_slave_rd_mon_cg** | [axi4_slave_rd_mon](../monitor/axi4_slave_rd_mon.md) | ✅ Documented |
-| **axi4_slave_wr_mon_cg** | [axi4_slave_wr_mon](../monitor/axi4_slave_wr_mon.md) | ✅ Documented |
+| **axi4_master_rd_mon_cg** | [axi4_master_rd_mon](../axi4/axi4_master_rd_mon.md) | ✅ Documented |
+| **axi4_master_wr_mon_cg** | [axi4_master_wr_mon](../axi4/axi4_master_wr_mon.md) | ✅ Documented |
+| **axi4_slave_rd_mon_cg** | [axi4_slave_rd_mon](../axi4/axi4_slave_rd_mon.md) | ✅ Documented |
+| **axi4_slave_wr_mon_cg** | [axi4_slave_wr_mon](../axi4/axi4_slave_wr_mon.md) | ✅ Documented |
 
 ---
 

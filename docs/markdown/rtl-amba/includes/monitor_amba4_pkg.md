@@ -402,7 +402,7 @@ to publish a protocol-tagged event_code without manual bit packing.
 - **[`monitor_package_spec.md`](./monitor_package_spec.md)** — Universal types, packet layout, helper functions.
 - **[`monitor_amba5_pkg.md`](./monitor_amba5_pkg.md)** — AXI5 / APB5 / AXIS5 extended event codes.
 - **[`monitor_arbiter_pkg.md`](./monitor_arbiter_pkg.md)** — ARB and CORE event codes.
-- **[`monitor_system_whitepaper.md`](../monitor_system_whitepaper.md)** — Design-surface view of the monitor system.
+- The MonitorSystem whitepaper was REMOVED in 2026-07 as superseded by these per-module docs and the RTL library PDFs. Use [monitor_package_spec](monitor_package_spec.md).
 
 ---
 

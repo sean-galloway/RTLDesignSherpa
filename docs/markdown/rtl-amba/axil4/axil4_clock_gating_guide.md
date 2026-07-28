@@ -40,10 +40,10 @@ All AXIL4 modules have clock-gated (`_cg`) variants that add power management th
 | `axil4_master_wr_cg` | [axil4_master_wr](axil4_master_wr.md) | Clock-gated write master |
 | `axil4_slave_rd_cg` | [axil4_slave_rd](axil4_slave_rd.md) | Clock-gated read slave |
 | `axil4_slave_wr_cg` | [axil4_slave_wr](axil4_slave_wr.md) | Clock-gated write slave |
-| `axil4_master_rd_mon_cg` | [axil4_master_rd_mon](../monitor/axil4_master_rd_mon.md) | Clock-gated read master + monitor |
-| `axil4_master_wr_mon_cg` | [axil4_master_wr_mon](../monitor/axil4_master_wr_mon.md) | Clock-gated write master + monitor |
-| `axil4_slave_rd_mon_cg` | [axil4_slave_rd_mon](../monitor/axil4_slave_rd_mon.md) | Clock-gated read slave + monitor |
-| `axil4_slave_wr_mon_cg` | [axil4_slave_wr_mon](../monitor/axil4_slave_wr_mon.md) | Clock-gated write slave + monitor |
+| `axil4_master_rd_mon_cg` | [axil4_master_rd_mon](../axil4/axil4_master_rd_mon.md) | Clock-gated read master + monitor |
+| `axil4_master_wr_mon_cg` | [axil4_master_wr_mon](../axil4/axil4_master_wr_mon.md) | Clock-gated write master + monitor |
+| `axil4_slave_rd_mon_cg` | [axil4_slave_rd_mon](../axil4/axil4_slave_rd_mon.md) | Clock-gated read slave + monitor |
+| `axil4_slave_wr_mon_cg` | [axil4_slave_wr_mon](../axil4/axil4_slave_wr_mon.md) | Clock-gated write slave + monitor |
 
 The four `*_mon_cg` modules live in `rtl/amba/monitor/`; the four plain
 `*_cg` modules live in `rtl/amba/axil4/`.
@@ -268,7 +268,7 @@ of the ICG cell. Run power analysis on your own target before relying on them.
 - **[axil4_master_wr](axil4_master_wr.md)** - Base write master
 - **[axil4_slave_rd](axil4_slave_rd.md)** - Base read slave
 - **[axil4_slave_wr](axil4_slave_wr.md)** - Base write slave
-- **[Monitor modules](../monitor/axil4_master_rd_mon.md)** - Base monitor modules
+- **[Monitor modules](../axil4/axil4_master_rd_mon.md)** - Base monitor modules
 
 ### Architecture
 - **[AXI4 Clock Gating Guide](../axi4/axi4_clock_gating_guide.md)** - Complete reference

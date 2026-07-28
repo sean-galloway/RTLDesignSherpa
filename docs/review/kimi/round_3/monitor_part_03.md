@@ -8,7 +8,7 @@ Scope checked: all 7 doc files against their wrapper RTL plus the shared depende
 
 ```
 [CONFIRMED] Level-1 filter mask documented with inverted polarity and wrong bit indices
-  File:     docs/markdown/RTLAmba/monitor/axi5_master_rd_mon.md
+  File:     docs/markdown/RTLAmba/axi5/axi5_master_rd_mon.md
   Says:     "cfg_axi_pkt_mask[0] = 1 → Enable ERROR packets ... [2] → Enable TIMEOUT
              packets [3] → Enable THRESH packets ... [5] → Enable ADDR packets
              [6] → Enable DEBUG packets"
@@ -25,7 +25,7 @@ Scope checked: all 7 doc files against their wrapper RTL plus the shared depende
 
 ```
 [CONFIRMED] cfg_axi_err_select ("Level 2") documented as functional error routing; RTL ignores it
-  File:     docs/markdown/RTLAmba/monitor/axi5_master_rd_mon.md
+  File:     docs/markdown/RTLAmba/axi5/axi5_master_rd_mon.md
   Says:     "Level 2: Error Routing (cfg_axi_err_select) — Determines whether errors
              generate ERROR packets or COMPL packets with error status."
   Actually: In axi_monitor_filtered, cfg_axi_err_select appears in exactly one place:
@@ -41,7 +41,7 @@ Scope checked: all 7 doc files against their wrapper RTL plus the shared depende
 
 ```
 [CONFIRMED] ENABLE_PERF_LOGIC does not gate the perfmon window/counters; perfmon outputs are NOT tied to 0 when it is 0
-  File:     docs/markdown/RTLAmba/monitor/axi5_master_rd_mon.md (also axi5_master_wr_mon.md,
+  File:     docs/markdown/RTLAmba/axi5/axi5_master_rd_mon.md (also axi5_master_wr_mon.md,
             axi5_slave_rd_mon.md, axi5_slave_wr_mon.md; same wrong description forwarded in
             all three *_mon_cg.md parameter tables)
   Says:     "ENABLE_PERF_LOGIC | bit | 1 | Compile-in the perfmon measurement window and
@@ -63,7 +63,7 @@ Scope checked: all 7 doc files against their wrapper RTL plus the shared depende
 
 ```
 [CONFIRMED] Detection claims with no implementing logic: poison, tag mismatch, missing WLAST, ATOP monitoring, handshake/alignment/strobe/ID-width violations
-  File:     docs/markdown/RTLAmba/monitor/axi5_slave_wr_mon.md, axi5_master_wr_mon.md,
+  File:     docs/markdown/RTLAmba/axi5/axi5_slave_wr_mon.md, axi5_master_wr_mon.md,
             axi5_slave_rd_mon.md, axi5_master_rd_mon.md, axi5_slave_wr_mon_cg.md
   Says:     "0x5 | Poison detected", "0x6 | Tag mismatch", "0x7 | Missing WLAST"
             (slave event tables); "Poison Detection: WPOISON indicator tracked per
@@ -88,7 +88,7 @@ Scope checked: all 7 doc files against their wrapper RTL plus the shared depende
 
 ```
 [CONFIRMED] Slave-doc event tables: Timeout listed as Type=2 (contradicts same page), and every Event Data column is wrong
-  File:     docs/markdown/RTLAmba/monitor/axi5_slave_rd_mon.md, axi5_slave_wr_mon.md
+  File:     docs/markdown/RTLAmba/axi5/axi5_slave_rd_mon.md, axi5_slave_wr_mon.md
   Says:     "#### Timeout Packets (Type=2)"; error event data "Transaction ID,
              address[18:0]"; completion data "Transaction ID, burst length,
              latency"; timeout data "Transaction ID, cycles elapsed"; perf table
@@ -110,8 +110,8 @@ Scope checked: all 7 doc files against their wrapper RTL plus the shared depende
 
 ```
 [CONFIRMED] Clock-gating activity formula uses BREADY; RTL uses BVALID (and forbids READY in the activity term)
-  File:     docs/markdown/RTLAmba/monitor/axi5_master_wr_mon_cg.md,
-            docs/markdown/RTLAmba/monitor/axi5_slave_wr_mon_cg.md
+  File:     docs/markdown/RTLAmba/axi5/axi5_master_wr_mon_cg.md,
+            docs/markdown/RTLAmba/axi5/axi5_slave_wr_mon_cg.md
   Says:     "user_valid = fub_axi_awvalid || fub_axi_wvalid || fub_axi_bready || int_busy;"
             and "user_valid: Asserted when slave interface has activity (awvalid,
             wvalid, bready, or internal busy)".
@@ -126,7 +126,7 @@ Scope checked: all 7 doc files against their wrapper RTL plus the shared depende
 
 ```
 [CONFIRMED] "Monitor continues operating/tracking when gated" and "monitor stays awake while a window is open" are false — the monitor is on the gated clock
-  File:     docs/markdown/RTLAmba/monitor/axi5_master_wr_mon_cg.md,
+  File:     docs/markdown/RTLAmba/axi5/axi5_master_wr_mon_cg.md,
             axi5_slave_rd_mon_cg.md, axi5_slave_wr_mon_cg.md
   Says:     "Monitor continues to track transactions even when gated" (Key Points,
             both slave _cg pages); "The monitor continues operating during clock
@@ -150,8 +150,8 @@ Scope checked: all 7 doc files against their wrapper RTL plus the shared depende
 
 ```
 [CONFIRMED] "Gate after 8 idle cycles" comment contradicts the idle-count value (4'd3 → 4 cycles)
-  File:     docs/markdown/RTLAmba/monitor/axi5_slave_rd_mon_cg.md,
-            docs/markdown/RTLAmba/monitor/axi5_slave_wr_mon_cg.md
+  File:     docs/markdown/RTLAmba/axi5/axi5_slave_rd_mon_cg.md,
+            docs/markdown/RTLAmba/axi5/axi5_slave_wr_mon_cg.md
   Says:     ".cfg_cg_idle_count  (4'd3),          // Gate after 8 idle cycles"
   Actually: clock_gate_ctrl decrements the loaded count to zero and gates at zero;
             its own header documents "Gating latency: cfg_cg_idle_count + 1 clocks".
@@ -163,7 +163,7 @@ Scope checked: all 7 doc files against their wrapper RTL plus the shared depende
 
 ```
 [CONFIRMED] "Oldest packets dropped if buffer full" — the RTL never drops; it retries and back-pressures
-  File:     docs/markdown/RTLAmba/monitor/axi5_master_rd_mon.md
+  File:     docs/markdown/RTLAmba/axi5/axi5_master_rd_mon.md
   Says:     "The monitor respects monbus_ready backpressure: - Packets buffered
              internally when monbus_ready = 0 - Oldest packets dropped if buffer full"
   Actually: In axi_monitor_reporter, an event is only marked reported on an accepted
@@ -180,8 +180,8 @@ Scope checked: all 7 doc files against their wrapper RTL plus the shared depende
 
 ```
 [CONFIRMED] "Error count saturates at max value (does not wrap)" — the counters wrap
-  File:     docs/markdown/RTLAmba/monitor/axi5_slave_rd_mon.md,
-            docs/markdown/RTLAmba/monitor/axi5_slave_wr_mon.md
+  File:     docs/markdown/RTLAmba/axi5/axi5_slave_rd_mon.md,
+            docs/markdown/RTLAmba/axi5/axi5_slave_wr_mon.md
   Says:     "- Error count saturates at max value (does not wrap)"
   Actually: axi_monitor_reporter_perf: "if (error_marked_mask[idx]) r_error_count <=
             r_error_count + 1'b1;" — a plain 16-bit increment with no saturation
@@ -192,7 +192,7 @@ Scope checked: all 7 doc files against their wrapper RTL plus the shared depende
 
 ```
 [CONFIRMED] Mermaid diagrams label monbus_packet as 64-bit; the packet is 128-bit
-  File:     docs/markdown/RTLAmba/monitor/axi5_master_rd_mon.md ("monbus_packet<br/>[63:0]"),
+  File:     docs/markdown/RTLAmba/axi5/axi5_master_rd_mon.md ("monbus_packet<br/>[63:0]"),
             axi5_master_wr_mon.md (same), axi5_slave_rd_mon.md ("monbus_packet[63:0]"),
             axi5_slave_wr_mon.md (same)
   Says:     MONBUS subgraph shows monbus_packet[63:0].
@@ -206,7 +206,7 @@ Scope checked: all 7 doc files against their wrapper RTL plus the shared depende
 
 ```
 [CONFIRMED] Status outputs mislabelled "(placeholder)" — they are live counters
-  File:     docs/markdown/RTLAmba/monitor/axi5_master_wr_mon_cg.md
+  File:     docs/markdown/RTLAmba/axi5/axi5_master_wr_mon_cg.md
   Says:     "error_count | 16 | Output | Cumulative error count (placeholder)";
             "transaction_count | 32 | Output | Total transaction count (placeholder)"
   Actually: The cg wrapper forwards error_count/transaction_count from
@@ -230,7 +230,7 @@ Scope checked: all 7 doc files against their wrapper RTL plus the shared depende
 
 ```
 [CONFIRMED] (minor) Usage example uses undeclared signal power_cycles_saved
-  File:     docs/markdown/RTLAmba/monitor/axi5_master_wr_mon_cg.md
+  File:     docs/markdown/RTLAmba/axi5/axi5_master_wr_mon_cg.md
   Says:     Example declares "logic [31:0] write_count, write_errors, write_timeouts;
              logic [63:0] total_write_latency;" then uses "power_cycles_saved <= '0;"
              and "power_cycles_saved <= power_cycles_saved + 1;" and reads it in the

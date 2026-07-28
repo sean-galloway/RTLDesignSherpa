@@ -314,7 +314,7 @@ axi5_slave_wr #(
 - **[AXI5 Slave Read](axi5_slave_rd.md)** - Slave read interface
 - **[AXI5 Master Write](axi5_master_wr.md)** - Master write interface
 - **[AXI5 Slave Write CG](axi5_slave_wr_cg.md)** - Clock-gated variant
-- **[AXI5 Slave Write Monitor](../monitor/axi5_slave_wr_mon.md)** - With integrated monitoring
+- **[AXI5 Slave Write Monitor](../axi5/axi5_slave_wr_mon.md)** - With integrated monitoring
 
 ---
 

@@ -242,9 +242,10 @@ typedef logic [MONBUS_TS_WIDTH-1:0] monbus_timestamp_t;  // 64 bits
 
 Consumers (host scripts, parsers, the `bin/TBClasses/monbus` decoder) treat
 the timestamp as an opaque ordering key — its semantics (cycle counter,
-microsecond, PTP time) are deployment-specific. See
-[`monitor_system_whitepaper.md`](../monitor_system_whitepaper.md) §3 for
-timestamp-policy tradeoffs.
+microsecond, PTP time) are deployment-specific, and nothing in the RTL depends
+on which you choose. The tradeoffs between those choices used to be written up
+in the MonitorSystem whitepaper, removed in 2026-07 as superseded; they are not
+currently documented anywhere.
 
 ---
 
@@ -301,7 +302,7 @@ explicit at the file level.
 
 ## Related Documentation
 
-- **[`monitor_system_whitepaper.md`](../monitor_system_whitepaper.md)** — Design-surface view: identity allocation, timestamp policy, drain paths, aggregation topology.
+- The MonitorSystem whitepaper (identity allocation, timestamp policy, drain paths, aggregation topology) was REMOVED in 2026-07 as superseded by these per-module docs and the RTL library PDFs.
 - **[`../monitor/axi_monitor_base.md`](../monitor/axi_monitor_base.md)** — Core monitor that emits packets.
 - **[`../monitor/axi_monitor_reporter.md`](../monitor/axi_monitor_reporter.md)** — Packet formatting logic (where `create_monitor_packet` is invoked).
 - **[`../monitor/axi_monitor_addr_check.md`](../monitor/axi_monitor_addr_check.md)** — Address-range checker, canonical example of structured `event_data`.

@@ -21,10 +21,10 @@
 
 <!-- End Header -->
 
-# AXIL4 Slave Read Monitor (Clock-Gated)
+# AXIL4 Master Write Monitor (Clock-Gated)
 
-**Module:** `axil4_slave_rd_mon_cg.sv`
-**Base Module:** [axil4_slave_rd_mon](./axil4_slave_rd_mon.md)
+**Module:** `axil4_master_wr_mon_cg.sv`
+**Base Module:** [axil4_master_wr_mon](./axil4_master_wr_mon.md)
 **Location:** `rtl/amba/monitor/`
 **Status:** ⚠️ Partial — see [Implementation Status](#implementation-status)
 
@@ -34,7 +34,7 @@
 
 **This wrapper does not currently gate any clock.** The RTL contains no
 `amba_clock_gate_ctrl` instance, no ICG cell, and no gated clock net; the base
-`axil4_slave_rd_mon` inside it runs on the ungated `aclk`. What the wrapper
+`axil4_master_wr_mon` inside it runs on the ungated `aclk`. What the wrapper
 actually does today is:
 
 1. **Gate the monitor functionally**, by ANDing the gating enable into the
@@ -51,7 +51,7 @@ The `ENABLE_CLOCK_GATING` and `CG_IDLE_CYCLES` parameters and the
 the module body. Setting them has no effect.
 
 **Consequence for integrators:** instantiating this wrapper instead of
-`axil4_slave_rd_mon` will not reduce dynamic power. If you need real clock
+`axil4_master_wr_mon` will not reduce dynamic power. If you need real clock
 gating on an AXI4-Lite transport path today, use the plain
 [`_cg` transport modules](../axil4/axil4_clock_gating_guide.md)
 (`axil4_master_rd_cg` and friends), which do instantiate
@@ -61,17 +61,17 @@ gating on an AXI4-Lite transport path today, use the plain
 
 ## Overview
 
-`axil4_slave_rd_mon_cg` wraps [axil4_slave_rd_mon](./axil4_slave_rd_mon.md) and adds a
+`axil4_master_wr_mon_cg` wraps [axil4_master_wr_mon](./axil4_master_wr_mon.md) and adds a
 power-management control and status interface. All monitoring, filtering,
 address-range checking, and performance-monitoring behavior is that of the base
-module; see [axil4_slave_rd_mon.md](./axil4_slave_rd_mon.md) for the complete
+module; see [axil4_master_wr_mon.md](./axil4_master_wr_mon.md) for the complete
 functional specification.
 
 ---
 
 ## Additional Parameters
 
-In addition to all [axil4_slave_rd_mon](./axil4_slave_rd_mon.md) parameters
+In addition to all [axil4_master_wr_mon](./axil4_master_wr_mon.md) parameters
 (including `USE_MONITOR` and `N_ADDR_RANGES`):
 
 | Parameter | Type | Default | Description |
@@ -106,12 +106,12 @@ The base module's `busy` output remains available on this wrapper.
 The wrapper forwards the base module's full performance-monitoring interface to
 `axi_monitor_base` **unchanged** — the power-management interface neither adds,
 removes, nor retimes any perfmon port. They behave exactly as documented for
-[axil4_slave_rd_mon](./axil4_slave_rd_mon.md#performance-monitoring):
+[axil4_master_wr_mon](./axil4_master_wr_mon.md#performance-monitoring):
 
 - **Config inputs:** `cfg_perf_enable`, `cfg_start_event_sel`, `cfg_end_event_sel`, `cfg_start_trigger`, `cfg_end_trigger`, `cfg_window_force_close`
 - **Status / counters:** `window_active`, `window_cycles`, `perf_prod_cycles`, `perf_bp_cycles`, `perf_starv_cycles`, `perf_idle_cycles`, `perf_beat_count`, `perf_byte_count`, `perf_burst_count`
 
-The completion/threshold/debug enables (`cfg_compl_enable`, `cfg_threshold_enable`, `cfg_debug_enable`) and the synthesis-cone parameters (`ENABLE_ERROR_LOGIC`, `ENABLE_TIMEOUT_LOGIC`, `ENABLE_COMPL_LOGIC`, `ENABLE_THRESHOLD_LOGIC`, `ENABLE_PERF_LOGIC`, `ENABLE_DEBUG_LOGIC`) are likewise forwarded unchanged. The utilization buckets watch the **R** (read-data) channel; for AXI4-Lite each transaction is a single data beat, so `perf_burst_count` counts AR handshakes = transactions.
+The completion/threshold/debug enables (`cfg_compl_enable`, `cfg_threshold_enable`, `cfg_debug_enable`) and the synthesis-cone parameters (`ENABLE_ERROR_LOGIC`, `ENABLE_TIMEOUT_LOGIC`, `ENABLE_COMPL_LOGIC`, `ENABLE_THRESHOLD_LOGIC`, `ENABLE_PERF_LOGIC`, `ENABLE_DEBUG_LOGIC`) are likewise forwarded unchanged. The utilization buckets watch the **W** (write-data) channel; for AXI4-Lite each transaction is a single data beat, so `perf_burst_count` counts AW handshakes = transactions.
 
 > Note that `cfg_cg_enable = 0` disables the monitor, and therefore stops the
 > performance counters as well.
@@ -121,12 +121,13 @@ The completion/threshold/debug enables (`cfg_compl_enable`, `cfg_threshold_enabl
 ## Usage Example
 
 ```systemverilog
-axil4_slave_rd_mon_cg #(
-    // Base module parameters (see axil4_slave_rd_mon.md)
+axil4_master_wr_mon_cg #(
+    // Base module parameters (see axil4_master_wr_mon.md)
     .AXIL_ADDR_WIDTH(32),
     .AXIL_DATA_WIDTH(32),
-    .SKID_DEPTH_AR(2),
-    .SKID_DEPTH_R(4),
+    .SKID_DEPTH_AW(2),
+    .SKID_DEPTH_W(2),
+    .SKID_DEPTH_B(2),
 
     // Monitor parameters
     .UNIT_ID(8'h01),
@@ -141,7 +142,7 @@ axil4_slave_rd_mon_cg #(
     .cfg_cg_idle_threshold(8'd4),    // currently unused by the RTL
     .cg_cycles_saved(idle_cycle_est),
 
-    // ... all other ports same as axil4_slave_rd_mon
+    // ... all other ports same as axil4_master_wr_mon
 );
 ```
 
@@ -158,10 +159,10 @@ no packets are emitted.
 
 ## Related Modules
 
-- **[axil4_slave_rd_mon](./axil4_slave_rd_mon.md)** - Base module (functional specification)
-- **[axil4_slave_wr_mon_cg](./axil4_slave_wr_mon_cg.md)** - Companion monitor wrapper
-- **[axi_monitor_base](axi_monitor_base.md)** - Core monitoring infrastructure
-- **[axi_monitor_filtered](axi_monitor_filtered.md)** - Filtering capabilities
+- **[axil4_master_wr_mon](./axil4_master_wr_mon.md)** - Base module (functional specification)
+- **[axil4_master_rd_mon_cg](./axil4_master_rd_mon_cg.md)** - Companion monitor wrapper
+- **[axi_monitor_base](../monitor/axi_monitor_base.md)** - Core monitoring infrastructure
+- **[axi_monitor_filtered](../monitor/axi_monitor_filtered.md)** - Filtering capabilities
 - **[AXIL4 Clock-Gated Variants Guide](../axil4/axil4_clock_gating_guide.md)** - The transport-level `_cg` modules, which do perform real clock gating
 
 ---
@@ -172,7 +173,7 @@ no packets are emitted.
 
 ## Navigation
 
-- **[← Back to Base Module](./axil4_slave_rd_mon.md)**
+- **[← Back to Base Module](./axil4_master_wr_mon.md)**
 - **[← Back to AXIL4 Index](../axil4/README.md)**
 - **[← Back to rtl-amba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

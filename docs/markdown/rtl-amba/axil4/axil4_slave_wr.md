@@ -179,7 +179,7 @@ axil4_slave_wr #(
 
 - **[axil4_slave_rd](axil4_slave_rd.md)** - Slave read counterpart
 - **[axil4_master_wr](axil4_master_wr.md)** - Master write interface
-- **[axil4_slave_wr_mon](../monitor/axil4_slave_wr_mon.md)** - Slave write with monitoring (`rtl/amba/monitor/`)
+- **[axil4_slave_wr_mon](../axil4/axil4_slave_wr_mon.md)** - Slave write with monitoring (`rtl/amba/monitor/`)
 - **[axil4_slave_wr_cg](axil4_clock_gating_guide.md)** - Clock-gated version
 
 ---
