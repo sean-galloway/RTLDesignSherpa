@@ -588,3 +588,44 @@ restore -- do not re-add the whitepaper.** If a design-surface view (identity
 allocation, timestamp policy, drain paths, aggregation topology) turns out to be
 missing from the per-module docs, it belongs in `monitor_package_spec.md`, which
 is what superseded it.
+
+---
+
+## CDC-FORMAL-STALE — the 4-phase handshake formal proof runs against a pre-rename DUT copy
+**Status:** open 2026-07-28 (found by kimi round 10, verified)
+**Priority:** P2
+
+`formal/cdc/cdc_handshake/` proves `formal_cdc_handshake.sv`, which compiles
+`cdc_handshake_formal.sv` -- a Yosys-compatible copy of the DUT. That copy was
+taken before the module became `cdc_4_phase_handshake` and gained parameters:
+
+| | parameters |
+|---|---|
+| `cdc_handshake_formal.sv` (proved) | `DATA_WIDTH` |
+| `rtl/cdc/cdc_4_phase_handshake.sv` (live) | `DATA_WIDTH`, `SYNC_STAGES`, `TIMEOUT_CYCLES`, `FAST_PATH` |
+
+So the proof says nothing about the timeout path (`TIMEOUT_CYCLES > 0` asserting
+`src_timeout`) or the fast path (`FAST_PATH=1`, dst accepting when `dst_ready`
+is already high) -- the two most recent additions, and the two most likely to
+carry a protocol bug.
+
+The doc now scopes its claim
+(`docs/markdown/rtl-cdc/cdc.md`, "Verification status"), so nothing currently
+overclaims. The work is:
+
+1. Refresh `cdc_handshake_formal.sv` from the live module (it exists because
+   Yosys cannot take the `reset_defs.svh` macros -- keep that transformation,
+   change nothing else).
+2. Extend `formal_cdc_handshake.sv` with properties for the two new parameters.
+3. Re-run and confirm the existing properties still pass.
+
+Note the harness is ALSO single-clock/single-reset by construction, which is a
+separate and already-documented limitation -- it cannot express the asymmetric
+reset hazard. Fixing that is a bigger job and is not this task.
+
+Not a false alarm about the filename: the reviewer flagged
+`formal_cdc_handshake.sv` vs `cdc_handshake_formal.sv` as a possible
+transposition. Both files exist and both names are correct --
+`formal_cdc_handshake.sv` is the harness (`cdc_handshake.sby` has
+`prep -top formal_cdc_handshake`) and `cdc_handshake_formal.sv` is the DUT copy.
+Confusing, but not wrong.

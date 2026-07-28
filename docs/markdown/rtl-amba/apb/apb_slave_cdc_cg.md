@@ -91,9 +91,22 @@ In addition to all [apb_slave_cdc](./apb_slave_cdc.md) ports:
 | `cfg_cg_enable` | 1 | Input | Global clock-gate enable for both domains. 0 = never gate |
 | `cfg_cg_idle_count` | CG_IDLE_COUNT_WIDTH | Input | Idle cycles to count down before gating |
 | `pclk_cg_gating` | 1 | Output | Asserted while the `pclk` domain is gated |
-| `pclk_cg_idle` | 1 | Output | Asserted while the `pclk` domain buffers are empty |
+| `pclk_cg_idle` | 1 | Output | Asserted one cycle after the `pclk`-domain activity terms go low. **Not an occupancy flag** -- see below |
 | `aclk_cg_gating` | 1 | Output | Asserted while the `aclk` domain is gated |
-| `aclk_cg_idle` | 1 | Output | Asserted while the `aclk` domain buffers are empty |
+| `aclk_cg_idle` | 1 | Output | Asserted one cycle after the `aclk`-domain activity terms go low. **Not an occupancy flag** -- see below |
+
+> **`*_cg_idle` does not know whether the FIFOs are empty.** `amba_clock_gate_ctrl`
+> has no occupancy input at all -- its whole idle logic is
+> `r_wakeup <= user_valid || axi_valid;` and `assign idle = ~r_wakeup`. So idle
+> asserts one cycle after the activity terms drop, whatever the CDC FIFOs hold.
+> Concretely: with the backend stalled and commands sitting unread in the cmd
+> FIFO, every `pclk`-side valid is low, so `pclk_cg_idle` reads 1 against a
+> non-empty FIFO. The same holds on the `aclk` side for an unconsumed response.
+>
+> Use it as what it is -- "nothing has been handed to me recently", the input to
+> the gating countdown. **Do not use it as a safe-to-reset or safe-to-power-down
+> qualifier**; that requires an emptiness check this signal does not perform.
+
 
 ---
 

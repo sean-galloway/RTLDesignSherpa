@@ -145,7 +145,7 @@ flowchart TB
 Gray code ensures only one bit changes at a time during pointer updates:
 
 ```
-Binary: 011 → 100  (2 bits change - hazard!)
+Binary: 011 → 100  (3 bits change - hazard!)
 Gray:   010 → 110  (1 bit changes - safe!)
 ```
 

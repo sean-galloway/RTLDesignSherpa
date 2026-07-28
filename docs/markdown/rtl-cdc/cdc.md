@@ -115,7 +115,7 @@ a reset synchronizer whose deassertion is gated differently on each side.
 |---|---|---|---|
 | Transfer state | Parity (toggle) -- **relative** | Level -- **absolute** | Pointer position -- **absolute** |
 | Idle has a value? | No | Yes (`req=0`) | Yes (pointers equal) |
-| One-sided reset from **idle** | **Fabricates a transfer** | Nothing happens | Reads empty |
+| One-sided reset from **idle** | **Fabricates a transfer** | Nothing happens | Read-side reset: reads empty. **Write-side reset: fabricates occupancy** |
 | One-sided reset **mid-transfer** | Duplicate or lost transfer | Duplicate transfer | Entry may be re-read or dropped |
 
 : How pointer encoding determines reset behavior
@@ -227,14 +227,46 @@ Gray/Johnson pointers are absolute positions, and each domain resets its own
 pointer **and its crossed copy of the remote pointer** from the local reset:
 
 ```systemverilog
-rd_ptr_gray_cross_inst / rd_ptr_gray2bin_inst  -> .rst_n (axi_wr_aresetn)  // local
-wr_ptr_gray_cross_inst / wr_ptr_gray2bin_inst  -> .rst_n (axi_rd_aresetn)  // local
+rd_ptr_gray_cross_inst -> .rst_n (axi_wr_aresetn)   // synchronizer, local reset
+wr_ptr_gray_cross_inst -> .rst_n (axi_rd_aresetn)   // synchronizer, local reset
 ```
 
-So a one-sided reset leaves that side self-consistent -- both pointers zero,
-reads empty -- rather than desynchronized. There is no parity state to invert, so
-nothing can be fabricated. This is a deliberate design property and the reason an
-async FIFO is the safe default when reset domains are not shared.
+Only the synchronizers take a reset. The decode stage beside each one has none
+to take: with the default `USE_JOHNSON=0` it is a `gray2bin`, whose entire port
+list is `.gray` and `.binary`. (With `USE_JOHNSON=1` it is a `johnson2bin`,
+which does carry `clk`/`rst_n` ports -- but leaves them unused.) The
+local-reset property below rests on the synchronizers alone; the decode is
+combinational and simply follows whatever the synchronizer holds.
+
+There is no parity state to invert, so the FIFO cannot fabricate the way a
+2-phase handshake does -- but "one-sided reset is safe" is too strong, and the
+asymmetry matters before you rely on it.
+
+**A read-side reset from idle is benign.** `rd_ptr` clears to 0, and the read
+side compares it against a write pointer it will also see as 0 once the crossing
+settles. Reads empty.
+
+**A write-side reset from idle is not.** The read domain's copy of the write
+pointer (`wr_ptr_gray_cross_inst` in `fifo_async.sv`) is reset by **`rd_rst_n`,
+not `wr_rst_n`** -- a write-side reset does not clear it. So with both pointers
+idle at some value K:
+
+```
+wr_rst_n pulsed:   wr_ptr      K -> 0
+                   rd_ptr      K     (untouched)
+                   wr_ptr_sync K -> 0 over N_FLOP_CROSS rd clocks
+
+read side sees:    rd_ptr (K) != wr_ptr_sync (0)  =>  NOT EMPTY
+                   count = 0 - K  mod 2^(AW+1)    =>  27 at K=5, AW=4
+```
+
+The read side now believes the FIFO holds more entries than it has slots, and
+pops words that were never written. That is fabrication, and it is worse than
+losing the writes.
+
+The rule is the same either way -- **quiesce the link before resetting one
+side** -- but the reason is not symmetric, and resetting only the write domain
+is the dangerous direction.
 
 **This covers reset ASSERTION, not reset RELEASE.** Each domain's reset must
 still be released synchronously *within that domain* -- which is what
@@ -609,7 +641,7 @@ number.
 
 **Spreadsheet.** [`docs/fifo_depth_calculator_v2.xlsx`](../../fifo_depth_calculator_v2.xlsx)
 does this whole calculation -- rate-from-duty, raw depth, synchroniser margin,
-then the Gray power-of-two and Johnson even-number rounding side by side, with
+then the Gray power-of-two rounding and Johnson's absence of rounding side by side, with
 the slot and percentage saving between them. It carries worked example cases and
 a one-page cheat sheet. Note that it deliberately does *not* model clock drift:
 crystal tolerance is ppm-level and moves the answer by well under one slot over
@@ -626,7 +658,7 @@ pulls 1 word/clk at 80 MHz:
 | Reads during burst | 1 µs × 80 MHz = 80 |
 | Net build-up | 100 − 80 = **20 words** |
 | Gray FIFO (power-of-2) | round up to **32** |
-| Johnson FIFO (even) | **20** as-is |
+| Johnson FIFO (any depth) | **20** as-is |
 
 : Worked depth-sizing example
 
@@ -718,7 +750,7 @@ costs 12 fewer entries of area:
 is absorbed by the primitive's own granularity, and choosing Johnson is a pure
 loss of +84 flops plus a wider pointer comparator on the critical path.
 
-**When even-depth genuinely pays.**
+**When a non-power-of-2 depth genuinely pays.**
 
 1. **Flop-based arrays** -- no granularity, saving is proportional. The most
    common real win, and it grows with `DATA_WIDTH`.
@@ -749,7 +781,7 @@ rate analysis that lands on 36 entries -- above 32, so Gray must round to 64.
 | | Depth | Storage at 512 b |
 |---|---|---|
 | Gray (power of 2) | 64 | 32 768 b (4 KiB) |
-| Johnson (even) | 36 | 18 432 b (2.25 KiB) |
+| Johnson (any depth) | 36 | 18 432 b (2.25 KiB) |
 | **Delta** | **28 entries** | **14 336 b (1.75 KiB)** |
 
 : Depth-36 case: storage delta when Gray must round 36 up to 64
@@ -901,6 +933,15 @@ the DUT as:
 Single clock, single reset for both domains. The proof therefore **cannot express
 asymmetric reset or asynchronous clocks**. Treat "formally verified" for the
 handshakes as scoped to protocol correctness under a common clock and reset.
+
+**And the DUT it proves is stale.** The harness compiles
+`cdc_handshake_formal.sv`, a Yosys-compatible copy taken before the module was
+renamed to `cdc_4_phase_handshake` and grew parameters. The copy carries
+`DATA_WIDTH` alone; the live `rtl/cdc/cdc_4_phase_handshake.sv` carries
+`DATA_WIDTH`, `SYNC_STAGES`, `TIMEOUT_CYCLES` and `FAST_PATH`. Nothing in the
+proof exercises the timeout path or the fast path, because the copy has neither.
+Scope the claim accordingly until the copy is refreshed and the proof re-run --
+see AMBA/CDC task CDC-FORMAL-STALE.
 
 The reset behavior described in this document is argued from the RTL encoding and
 -- for the 2-phase hazard -- confirmed on silicon. It is **not** currently covered

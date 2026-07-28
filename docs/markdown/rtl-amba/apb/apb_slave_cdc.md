@@ -194,10 +194,12 @@ one.
 
 Neither consequence is a clean discard:
 
-- **Commands are re-presented, not dropped.** Pulsing `aresetn` with an unread
-  command in the cmd FIFO rewinds the read pointer behind the write pointer, so
-  the backend sees that command again after reset. It does not time out -- it
-  re-executes.
+- **Consumed commands are re-presented.** Pulsing `aresetn` with an
+  **already-consumed** command in the cmd FIFO rewinds the read pointer behind
+  the write pointer, so the backend sees that command again after reset. It does
+  not time out -- it re-executes. An *unread* command is not at risk: its read
+  pointer is already behind the write pointer, so resetting it to 0 rewinds
+  nothing and the entry is delivered exactly once.
 - **The response FIFO can fabricate responses.** The same rewind on the response
   path presents entries the APB side never queued, so the APB master can complete
   a transfer the backend never answered.

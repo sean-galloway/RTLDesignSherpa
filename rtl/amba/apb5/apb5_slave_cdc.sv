@@ -238,10 +238,24 @@ module apb5_slave_cdc #(
     // glitch_free_n_dff_arn (N=2), so within two clocks of deassertion it
     // re-converges on the remote pointer -- which kept advancing. The resetting
     // side then sits at its own pointer 0 against an advanced remote pointer:
-    //   - write side reset alone  -> unread entries are SWALLOWED
+    //   - write side reset alone  -> WORSE than losing the unread entries. The
+    //                                READ domain's copy of the write pointer is
+    //                                reset by rd_rst_n, NOT wr_rst_n (see
+    //                                wr_ptr_gray_cross_inst in fifo_async.sv),
+    //                                so it is not cleared -- it re-converges to
+    //                                the now-zero pointer over N_FLOP_CROSS rd
+    //                                clocks. Meanwhile rd_ptr still holds K.
+    //                                rd_ptr != wr_ptr_sync means NOT EMPTY, and
+    //                                fifo_control's count wraps (0 - K mod
+    //                                2^(AW+1)), so the read side sees phantom
+    //                                occupancy and pops entries that were never
+    //                                written. It FABRICATES, it does not swallow.
     //   - read side reset alone   -> consumed entries are REPLAYED, and
     //                                apb_slave's positionally-paired FSM can
-    //                                answer a NEW command with an OLD response
+    //                                answer a NEW command with an OLD response.
+    //                                An UNREAD entry is fine: rd_ptr is already
+    //                                behind wr_ptr, so resetting it to 0 rewinds
+    //                                nothing and the entry is delivered once.
     // Quiesce the bus before a one-sided reset. apb_slave's IDLE orphan-response
     // guard (pop-and-drop with a $display) mitigates but does not close this;
     // apb5_slave has no equivalent guard at all.
