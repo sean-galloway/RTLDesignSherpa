@@ -169,7 +169,7 @@ localparam int PAD_WIDTH = (WIDTH > N+1) ? WIDTH-N-1 : 0; // Padding if needed
 - **Pattern**: `111...1000...0` (1s followed by 0s)  
 - **Trailing one**: Position of rightmost 1
 - **Conversion**: Position = trailing_one
-- **Reasoning**: We're emptying from the left, trailing_one shows how far
+- **Reasoning**: We're emptying from the right, trailing_one shows how far
 
 ## Use in Asynchronous FIFO
 

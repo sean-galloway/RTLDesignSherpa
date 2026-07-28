@@ -356,3 +356,18 @@ of starting each area, not optional prep):
 
 One area at a time, to completion — the multitasking failure (nothing gets
 fixed while a second area runs) is documented in [[kimi-review-rounds]].
+
+### Progress log — DOCREV-013
+
+**cdc (rounds 1-2, 2026-07-28).** round_1: 3 findings, 0 FP, all doc-only
+(SYNC_STAGES->N_FLOP_CROSS, 1.25x->1.2x, duplicate `r_q_array` declaration) —
+fixed, and DOCREV-012 validated the adjudication pass on them. Confirmation
+round_2: 5 findings; triage + verifier: **4 real, 1 FP** (overview.md
+"omission" was a non-exhaustive sentence, correct REFUTED). The 4: cdc.md
+reset table 4-phase cell (prose said "repeated or dropped"), skid_buffer doc
+missing the `DW = DATA_WIDTH` alias line, `reset_sync #(.STAGES(3))` +
+`.async_rst_n` example against a module whose params are `N`/`rst_n` (the
+verifier REFUTED this one on absent-file grounds — VERIFIER_BRIEF rule 4 now
+makes absent-cited-file an automatic UNCERTAIN), johnson2bin "emptying from
+the left" vs its own "from the right" (RTL confirms right). All fixed. No RTL
+changes in either round.

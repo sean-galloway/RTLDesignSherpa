@@ -52,7 +52,8 @@ module gaxi_skid_buffer_async #(
     parameter int        DATA_WIDTH  = 32,
     parameter int        DEPTH       = 2,          // async FIFO depth
     parameter int        USE_JOHNSON = 0,          // 0 = Gray (power-of-2 depth), 1 = Johnson (any depth)
-    parameter int        N_FLOP_CROSS = 2          // CDC synchronizer stages
+    parameter int        N_FLOP_CROSS = 2,         // CDC synchronizer stages
+    parameter int        DW = DATA_WIDTH           // port-width alias used below
 ) (
     // Write Domain
     input  logic          axi_wr_aclk,
@@ -236,15 +237,15 @@ Total buffering = Skid buffer entries + DEPTH
 
 ```systemverilog
 // Example reset synchronization
-reset_sync #(.STAGES(3)) u_wr_sync (
+reset_sync #(.N(3)) u_wr_sync (
     .clk(axi_wr_aclk),
-    .async_rst_n(global_rst_n),
+    .rst_n(global_rst_n),
     .sync_rst_n(axi_wr_aresetn)
 );
 
-reset_sync #(.STAGES(3)) u_rd_sync (
+reset_sync #(.N(3)) u_rd_sync (
     .clk(axi_rd_aclk),
-    .async_rst_n(global_rst_n),
+    .rst_n(global_rst_n),
     .sync_rst_n(axi_rd_aresetn)
 );
 ```

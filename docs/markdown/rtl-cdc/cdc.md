@@ -116,7 +116,7 @@ a reset synchronizer whose deassertion is gated differently on each side.
 | Transfer state | Parity (toggle) -- **relative** | Level -- **absolute** | Pointer position -- **absolute** |
 | Idle has a value? | No | Yes (`req=0`) | Yes (pointers equal) |
 | One-sided reset from **idle** | **Fabricates a transfer** | Nothing happens | Read-side reset: reads empty. **Write-side reset: fabricates occupancy** |
-| One-sided reset **mid-transfer** | Duplicate or lost transfer | Duplicate transfer | Entry may be re-read or dropped |
+| One-sided reset **mid-transfer** | Duplicate or lost transfer | Duplicate or dropped transfer | Entry may be re-read or dropped |
 
 : How pointer encoding determines reset behavior
 

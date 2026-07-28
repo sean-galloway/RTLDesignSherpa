@@ -44,10 +44,18 @@ Try to KILL the finding. Verdicts:
    constant -- that is UNCERTAIN with "needs recomputation against the
    standard", never UPHELD on your own recollection. Reviewers quote sibling
    variants from memory; so do you.
-4. **A real RTL bug is still UPHELD.** If the doc accurately describes the
+4. **An absent cited file is UNCERTAIN, never REFUTED.** If the finding's
+   claim turns on a module or file that is not in the evidence pack (a
+   dependency outside the unit's bundle), you have NOT refuted it -- absence
+   of evidence is not evidence of absence. Verdict UNCERTAIN with "needs
+   <file> in evidence". *Case: round_2's `reset_sync` finding was REFUTED
+   because `reset_sync.sv` wasn't in the cdc bundle; the doc example's
+   `.STAGES(3)`/`.async_rst_n` were in fact wrong against the real module
+   (`N`/`rst_n`), and the false REFUTED nearly buried a real finding.*
+5. **A real RTL bug is still UPHELD.** If the doc accurately describes the
    RTL but the RTL is genuinely defective (a logic error visible from the
    source alone), uphold and say "RTL defect, not doc defect".
-5. **Severity is not your call.** You adjudicate true/false, not important.
+6. **Severity is not your call.** You adjudicate true/false, not important.
 
 ## Output format -- exactly this, nothing else
 

@@ -256,13 +256,13 @@ Example:
 // Separate reset synchronizers for each domain
 reset_sync u_wr_rst_sync (
     .clk(axi_wr_aclk),
-    .async_rst_n(global_rst_n),
+    .rst_n(global_rst_n),
     .sync_rst_n(axi_wr_aresetn)
 );
 
 reset_sync u_rd_rst_sync (
     .clk(axi_rd_aclk),
-    .async_rst_n(global_rst_n),
+    .rst_n(global_rst_n),
     .sync_rst_n(axi_rd_aresetn)
 );
 ```
