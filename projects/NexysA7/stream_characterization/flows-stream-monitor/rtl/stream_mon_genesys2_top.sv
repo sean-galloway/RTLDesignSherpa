@@ -206,4 +206,4 @@ module stream_mon_genesys2_top #(
         .o_led    (led)
     );
 
-endmodule : stream_char_genesys2_top
+endmodule : stream_mon_genesys2_top
