@@ -57,13 +57,20 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 #   [127:124] pkt_type   [108:105] protocol   [104:97] event_code   [63:0] data
 # ----------------------------------------------------------------------------
 def make_packet(pkt_type: int, protocol: int, event_code: int,
-                event_data: int = 0) -> int:
+                event_data: int = 0, agent_id: int = 0) -> int:
     pkt = 0
     pkt |= (pkt_type & 0xF) << 124
     pkt |= (protocol & 0xF) << 105
     pkt |= (event_code & 0xFF) << 97
+    pkt |= (agent_id & 0xFFFF) << 72
     pkt |= (event_data & ((1 << 64) - 1))
     return pkt & ((1 << 128) - 1)
+
+
+def profile_key(agent_id: int, protocol: int, pkt_type: int, event_code: int) -> int:
+    """Mirror of the RTL legal-set key: {agent[15:0],proto[3:0],type[3:0],event[7:0]}."""
+    return (((agent_id & 0xFFFF) << 16) | ((protocol & 0xF) << 12)
+            | ((pkt_type & 0xF) << 8) | (event_code & 0xFF))
 
 
 def bin_of(protocol: int, pkt_type: int, event_code: int, addr_bits: int) -> int:
@@ -78,11 +85,13 @@ class PktTallyTB(TBBase):
     def __init__(self, dut):
         super().__init__(dut)
         self.dut = dut
-        self.ADDR_BITS   = int(os.environ['PARAM_ADDR_BITS'])
-        self.COUNT_WIDTH = int(os.environ['PARAM_COUNT_WIDTH'])
-        self.CACHE_DEPTH = int(os.environ['PARAM_CACHE_DEPTH'])
-        self.NUM_LATCH   = int(os.environ['PARAM_NUM_LATCH'])
-        self.COUNT_MAX   = (1 << self.COUNT_WIDTH) - 1
+        self.ADDR_BITS    = int(os.environ['PARAM_ADDR_BITS'])
+        self.COUNT_WIDTH  = int(os.environ['PARAM_COUNT_WIDTH'])
+        self.CACHE_DEPTH  = int(os.environ['PARAM_CACHE_DEPTH'])
+        self.NUM_LATCH    = int(os.environ['PARAM_NUM_LATCH'])
+        self.PROFILE_MODE = int(os.environ.get('PARAM_PROFILE_MODE', '0'))
+        self.N_PROFILE    = int(os.environ.get('PARAM_N_PROFILE', '64'))
+        self.COUNT_MAX    = (1 << self.COUNT_WIDTH) - 1
         # Golden bin -> saturating count.
         self.golden: dict[int, int] = {}
 
@@ -106,6 +115,12 @@ class PktTallyTB(TBBase):
         self.dut.i_watch_arm.value = 0
         self.dut.i_watch_pkttype_mask.value = 0
         self.dut.latch_sel.value = 0
+        # Profile-load port idle.
+        self.dut.profile_clear.value = 0
+        self.dut.profile_we.value = 0
+        self.dut.profile_waddr.value = 0
+        self.dut.profile_wvalid.value = 0
+        self.dut.profile_wkey.value = 0
         await self.assert_reset()
         await self.wait_clocks('clk', 5)
         await self.deassert_reset()
@@ -185,12 +200,86 @@ class PktTallyTB(TBBase):
         assert int(self.dut.o_flush_busy.value) == 0, "clear never completed"
         self.golden.clear()
 
+    # --- profile (legal-set) load ---
+    async def profile_load(self, idx: int, agent: int, proto: int,
+                           ptype: int, ec: int):
+        self.dut.profile_waddr.value  = idx
+        self.dut.profile_wkey.value   = profile_key(agent, proto, ptype, ec)
+        self.dut.profile_wvalid.value = 1
+        self.dut.profile_we.value     = 1
+        await RisingEdge(self.dut.clk)
+        self.dut.profile_we.value     = 0
+        self.dut.profile_wvalid.value = 0
+
+    async def profile_clear_all(self):
+        self.dut.profile_clear.value = 1
+        await RisingEdge(self.dut.clk)
+        self.dut.profile_clear.value = 0
+        await RisingEdge(self.dut.clk)
+
+
+async def profile_phase(tb, rng):
+    """PROFILE_MODE: load a legal set, drive matching + non-matching packets,
+    and cross-check the dense bins + the single UNEXPECTED bin against golden."""
+    UNEXPECTED = tb.N_PROFILE
+    # Legal set: a handful of realistic STREAM tuples (agent, proto, type, ec).
+    #   AXI (proto 0): rd(9)/wr(10) completion + addr-match; CORE (proto 4):
+    #   scheduler(48)/desc-engine(16) completion.
+    legal = [
+        (9,  0, 1, 0),   # rd  completion
+        (10, 0, 1, 0),   # wr  completion
+        (9,  0, 8, 5),   # rd  addr-match
+        (10, 0, 8, 5),   # wr  addr-match
+        (48, 4, 1, 1),   # scheduler DESC_COMPLETE
+        (16, 4, 1, 0x40),# desc-engine DESCRIPTOR_LOADED
+    ]
+    assert len(legal) < tb.N_PROFILE
+    idx_of = {}
+    await tb.profile_clear_all()
+    for i, (ag, pr, pt, ec) in enumerate(legal):
+        await tb.profile_load(i, ag, pr, pt, ec)
+        idx_of[(ag, pr, pt, ec)] = i
+    await tb.wait_clocks('clk', 2)
+
+    # Some deliberately-illegal tuples (wrong agent / event / protocol).
+    illegal = [
+        (9,  0, 1, 0x0D),  # rd, but an error code not in the set
+        (99, 0, 1, 0),     # unknown agent
+        (48, 4, 0, 0x0F),  # scheduler error not loaded
+        (10, 2, 1, 0),     # wr speaking APB (wrong protocol)
+    ]
+
+    pool = legal + illegal
+    for _ in range(500):
+        ag, pr, pt, ec = rng.choice(pool)
+        await tb.send(make_packet(pt, pr, ec, rng.getrandbits(64), agent_id=ag))
+        b = idx_of.get((ag, pr, pt, ec), UNEXPECTED)
+        tb.golden[b] = min(tb.golden.get(b, 0) + 1, tb.COUNT_MAX)
+
+    await tb.freeze_flush()
+    # Every dense bin matches, and the UNEXPECTED bin holds all illegal hits.
+    for b, exp in tb.golden.items():
+        got = await tb.read_bin(b)
+        assert got == exp, f"profile bin {b}: hw={got} golden={exp}"
+    assert tb.golden.get(UNEXPECTED, 0) > 0, "no UNEXPECTED packets counted"
+    # Unloaded dense bins read zero.
+    for b in range(tb.N_PROFILE):
+        if b not in tb.golden:
+            got = await tb.read_bin(b)
+            assert got == 0, f"unloaded dense bin {b}: hw={got} (expected 0)"
+    tb.log.info(f"Profile OK: {len(legal)} dense bins matched, "
+                f"UNEXPECTED={tb.golden.get(UNEXPECTED, 0)}")
+
 
 @cocotb.test()
 async def tally_test(dut):
     tb = PktTallyTB(dut)
     await tb.setup_clocks_and_reset()
     rng = random.Random(int(os.environ.get('SEED', '1')))
+
+    if tb.PROFILE_MODE:
+        await profile_phase(tb, rng)
+        return
 
     PROTO = 0  # single protocol so a narrow ADDR_BITS build stays collision-free
     max_pkttype = 0xF
@@ -287,15 +376,21 @@ async def tally_test(dut):
 # ----------------------------------------------------------------------------
 def get_params():
     return [
-        # (addr_bits, count_width, cache_depth, num_latch)
-        (12, 8,  8, 4),    # small SRAM (fast clear), saturating count, forces eviction
-        (12, 16, 8, 4),
-        (14, 16, 16, 4),
+        # (addr_bits, count_width, cache_depth, num_latch, profile_mode, n_profile)
+        (12, 8,  8, 4, 0, 64),   # direct: small SRAM (fast clear), forces eviction
+        (12, 16, 8, 4, 0, 64),
+        (14, 16, 16, 4, 0, 64),
+        # profile mode: N_PROFILE=64 dense bins + UNEXPECTED(64) -> 65 bins,
+        # so ADDR_BITS=7 (128-deep SRAM) covers them.
+        (7, 16, 8, 4, 1, 64),
     ]
 
 
-@pytest.mark.parametrize("addr_bits, count_width, cache_depth, num_latch", get_params())
-def test_monbus_pkt_tally(request, addr_bits, count_width, cache_depth, num_latch):
+@pytest.mark.parametrize(
+    "addr_bits, count_width, cache_depth, num_latch, profile_mode, n_profile",
+    get_params())
+def test_monbus_pkt_tally(request, addr_bits, count_width, cache_depth, num_latch,
+                          profile_mode, n_profile):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_shared':   'rtl/amba/shared',
         'rtl_monitor':  'rtl/amba/monitor',
@@ -308,8 +403,9 @@ def test_monbus_pkt_tally(request, addr_bits, count_width, cache_depth, num_latc
     ab = TBBase.format_dec(addr_bits, 2)
     cw = TBBase.format_dec(count_width, 2)
     cd = TBBase.format_dec(cache_depth, 2)
+    pm = "p" if profile_mode else "d"
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
-    test_name = f"test_{worker_id}_{dut_name}_a{ab}_c{cw}_d{cd}_{reg_level}"
+    test_name = f"test_{worker_id}_{dut_name}_a{ab}_c{cw}_d{cd}_{pm}_{reg_level}"
     log_path  = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
@@ -324,10 +420,12 @@ def test_monbus_pkt_tally(request, addr_bits, count_width, cache_depth, num_latc
             raise FileNotFoundError(f"RTL source not found: {src}")
 
     rtl_parameters = {
-        'ADDR_BITS':   str(addr_bits),
-        'COUNT_WIDTH': str(count_width),
-        'CACHE_DEPTH': str(cache_depth),
-        'NUM_LATCH':   str(num_latch),
+        'ADDR_BITS':    str(addr_bits),
+        'COUNT_WIDTH':  str(count_width),
+        'CACHE_DEPTH':  str(cache_depth),
+        'NUM_LATCH':    str(num_latch),
+        'PROFILE_MODE': str(profile_mode),
+        'N_PROFILE':    str(n_profile),
     }
 
     extra_env = {
@@ -340,6 +438,8 @@ def test_monbus_pkt_tally(request, addr_bits, count_width, cache_depth, num_latc
         'PARAM_COUNT_WIDTH':   str(count_width),
         'PARAM_CACHE_DEPTH':   str(cache_depth),
         'PARAM_NUM_LATCH':     str(num_latch),
+        'PARAM_PROFILE_MODE':  str(profile_mode),
+        'PARAM_N_PROFILE':     str(n_profile),
     }
 
     compile_args = [

@@ -68,8 +68,17 @@ module monbus_pkt_tally #(
     // Direct-mapped (no hashing) so a bin uniquely identifies the message
     // tuple and the hardware count matches the Python parse() count exactly.
     parameter int ADDR_BITS   = 16,
+    // Profile mode: instead of binning on {protocol,pkt_type,event_code}, a
+    // CSR-loaded legal-set CAM maps {agent,protocol,pkt_type,event_code} to a
+    // DENSE bin index; any tuple not in the loaded set lands in the single
+    // UNEXPECTED bin (index N_PROFILE). PROFILE_MODE=0 keeps the direct-mapped
+    // behaviour bit-for-bit. In profile mode set ADDR_BITS >= clog2(N_PROFILE+1).
+    parameter int PROFILE_MODE = 0,
+    parameter int N_PROFILE    = 64,       // legal-set entries (dense bins 0..N-1)
     // Derived
     parameter int SRAM_DEPTH  = (1 << ADDR_BITS),
+    parameter int PROF_IDX_W  = (N_PROFILE > 1) ? $clog2(N_PROFILE) : 1,
+    parameter int PROF_KEY_W  = 32,        // {agent[15:0],proto[3:0],type[3:0],event[7:0]}
     parameter int LSEL_WIDTH  = (NUM_LATCH > 1) ? $clog2(NUM_LATCH) : 1,
     parameter int LFILL_WIDTH = $clog2(NUM_LATCH + 1)
 ) (
@@ -99,7 +108,14 @@ module monbus_pkt_tally #(
     output logic                    latch_valid,
     output logic [PKT_WIDTH-1:0]    latch_packet,
     output logic [TS_WIDTH-1:0]     latch_ts,
-    output logic [LFILL_WIDTH-1:0]  latch_fill
+    output logic [LFILL_WIDTH-1:0]  latch_fill,
+
+    // === Profile (legal-set) load interface — PROFILE_MODE only, else tie 0 ===
+    input  logic                    profile_clear,   // pulse: invalidate all entries
+    input  logic                    profile_we,      // pulse: write one entry
+    input  logic [PROF_IDX_W-1:0]   profile_waddr,   // entry index
+    input  logic                    profile_wvalid,  // entry valid bit
+    input  logic [PROF_KEY_W-1:0]   profile_wkey     // {agent[15:0],proto[3:0],type[3:0],event[7:0]}
 );
 
     // ------------------------------------------------------------------------
@@ -118,8 +134,61 @@ module monbus_pkt_tally #(
     // keeps {pkt_type, event_code} and must restrict protocol to stay unique).
     logic [15:0] w_bin_full;
     assign w_bin_full = {w_protocol, w_pkt_type, w_event_code};
-    logic [ADDR_BITS-1:0] w_bin_addr;
-    assign w_bin_addr = w_bin_full[ADDR_BITS-1:0];
+
+    // Agent id: profile mode keys on it so rd vs wr (9/10), scheduler vs
+    // descriptor-engine agents, etc. resolve into distinct dense bins.
+    logic [15:0] w_agent_id;
+    assign w_agent_id = in_packet[87:72];
+
+    logic [ADDR_BITS-1:0] w_bin_addr;   // which SRAM bin this packet increments
+    logic                 w_prof_miss;  // profile mode: key not in the legal set
+
+    generate
+        if (PROFILE_MODE != 0) begin : g_profile
+            // Legal-set: N_PROFILE entries of {valid, key}. Valid is a packed
+            // vector (single-shot reset -> no BLKLOOPINIT); keys are gated by
+            // valid so they need no reset. Loaded/cleared over the CSR port; a
+            // miss maps to the single UNEXPECTED bin at index N_PROFILE.
+            localparam int UNEXPECTED_BIN = N_PROFILE;
+            logic [N_PROFILE-1:0]  r_prof_valid;
+            logic [PROF_KEY_W-1:0] r_prof_key [N_PROFILE];
+
+            `ALWAYS_FF_RST(clk, rst_n,
+                if (`RST_ASSERTED(rst_n)) begin
+                    r_prof_valid <= '0;
+                end else if (profile_clear) begin
+                    r_prof_valid <= '0;
+                end else if (profile_we) begin
+                    r_prof_valid[profile_waddr] <= profile_wvalid;
+                    r_prof_key  [profile_waddr] <= profile_wkey;
+                end
+            )
+
+            // Parallel exact-match of the incoming tuple against the legal set.
+            logic [PROF_KEY_W-1:0] w_in_key;
+            assign w_in_key = {w_agent_id, w_protocol, w_pkt_type, w_event_code};
+            logic [N_PROFILE-1:0] w_match;
+            always_comb begin
+                for (int i = 0; i < N_PROFILE; i++)
+                    w_match[i] = r_prof_valid[i] && (r_prof_key[i] == w_in_key);
+            end
+            // Priority-encode to a dense index (host loads unique tuples, so at
+            // most one matches; low index wins if a duplicate is ever loaded).
+            logic                  w_hit;
+            logic [PROF_IDX_W-1:0] w_hit_idx;
+            always_comb begin
+                w_hit     = 1'b0;
+                w_hit_idx = '0;
+                for (int i = N_PROFILE-1; i >= 0; i--)
+                    if (w_match[i]) begin w_hit = 1'b1; w_hit_idx = PROF_IDX_W'(i); end
+            end
+            assign w_bin_addr  = w_hit ? ADDR_BITS'(w_hit_idx) : ADDR_BITS'(UNEXPECTED_BIN);
+            assign w_prof_miss = !w_hit;
+        end else begin : g_direct
+            assign w_bin_addr  = w_bin_full[ADDR_BITS-1:0];
+            assign w_prof_miss = 1'b0;
+        end
+    endgenerate
 
     localparam logic [COUNT_WIDTH-1:0] COUNT_MAX = {COUNT_WIDTH{1'b1}};
 
@@ -283,7 +352,9 @@ module monbus_pkt_tally #(
     logic [LFILL_WIDTH-1:0] r_latch_fill;
 
     logic w_watch_match;
-    assign w_watch_match = i_watch_arm && i_watch_pkttype_mask[w_pkt_type];
+    // Latch on an armed pkt_type OR (profile mode) any out-of-profile packet,
+    // so the first UNEXPECTED offenders are captured for host inspection.
+    assign w_watch_match = i_watch_arm && (i_watch_pkttype_mask[w_pkt_type] || w_prof_miss);
 
     assign latch_valid  = (LFILL_WIDTH'(latch_sel) < r_latch_fill);
     assign latch_packet = r_latch_pkt[latch_sel];
