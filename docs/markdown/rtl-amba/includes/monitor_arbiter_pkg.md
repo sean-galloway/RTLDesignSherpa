@@ -327,7 +327,7 @@ field directly.)
 - **[`monitor_package_spec.md`](./monitor_package_spec.md)** — Universal types, packet layout, helper functions.
 - **[`monitor_amba4_pkg.md`](./monitor_amba4_pkg.md)** — AXI4 / APB4 / AXIS4 event codes.
 - **[`monitor_amba5_pkg.md`](./monitor_amba5_pkg.md)** — AXI5 / APB5 / AXIS5 extended event codes.
-- The MonitorSystem whitepaper was REMOVED in 2026-07 as superseded by these per-module docs and the RTL library PDFs. Use [monitor_package_spec](monitor_package_spec.md).
+- **[The Monitor System](../monitor/monitor_system_architecture.md)** — architecture and capabilities: how packets are produced, filtered, transported and captured, and how to instrument a block that is not a bus protocol.
 
 ---
 

@@ -2,6 +2,7 @@
 
 <!-- Auto-generated link index for PDF build. Regenerate via generate_rtl_pdfs.sh -->
 
+- [The Monitor System — architecture and capabilities](monitor/monitor_system_architecture.md)
 - [AMBA4 Event Code Reference](includes/monitor_amba4_pkg.md)
 - [AMBA5 Extended Event Code Reference](includes/monitor_amba5_pkg.md)
 - [ARB and CORE Event Code Reference](includes/monitor_arbiter_pkg.md)

@@ -203,7 +203,7 @@ single field. Helper functions `create_axi5_atomic_event`,
 - **[`monitor_package_spec.md`](./monitor_package_spec.md)** — Universal types, packet layout, helper functions.
 - **[`monitor_amba4_pkg.md`](./monitor_amba4_pkg.md)** — AXI4 / APB4 / AXIS4 baseline event codes.
 - **[`monitor_arbiter_pkg.md`](./monitor_arbiter_pkg.md)** — ARB and CORE event codes.
-- The MonitorSystem whitepaper was REMOVED in 2026-07 as superseded by these per-module docs and the RTL library PDFs. Use [monitor_package_spec](monitor_package_spec.md).
+- **[The Monitor System](../monitor/monitor_system_architecture.md)** — architecture and capabilities: how packets are produced, filtered, transported and captured, and how to instrument a block that is not a bus protocol.
 
 ---
 

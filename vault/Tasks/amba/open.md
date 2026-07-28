@@ -559,7 +559,20 @@ Still to write, if wanted:
 
 `monitor_network_pkg` has NO RTL either -- it is a phantom. Do not write it.
 
-### Resolved while filing this: the whitepaper references
+### Resolved: the whitepaper references, and the replacement
+
+**A new architecture document now exists:**
+`docs/markdown/rtl-amba/monitor/monitor_system_architecture.md` -- written
+2026-07-28 at Sean's request. It covers the overarching architecture and
+capabilities: the 128-bit packet as the single currency, the four-stage
+detect/shape/filter/transport pipeline, error/debug/perf packet production for
+protocols AND for custom blocks (the arbiters are the worked example, with a
+step-by-step for instrumenting your own block via PROTOCOL_CORE), the three
+capture strategies compared (bulk trace / compressed trace via monbus_compressor
+/ on-chip counting via monbus_pkt_tally), and the perfmon window buckets. Every
+number in it was checked against the RTL.
+
+It is NOT a restoration of the deleted whitepaper -- see below.
 
 Four pages (`monitor_amba4_pkg.md`, `monitor_amba5_pkg.md`,
 `monitor_arbiter_pkg.md`, `monitor_package_spec.md`) linked

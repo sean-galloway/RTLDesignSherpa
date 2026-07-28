@@ -282,6 +282,16 @@ Path from in-flight monitor packets to host-visible memory + CPU IRQs.
 
 ---
 
+## Monitor System
+
+Start with **[The Monitor System](monitor/monitor_system_architecture.md)** --
+the architecture and what it can do: error/debug/perf packet production for
+protocols *and* for custom blocks like arbiters, source-side filtering, the two
+transports, and the three capture strategies (bulk trace, compressed trace,
+on-chip counting).
+
+---
+
 ## Package Definitions
 
 ### Documented packages
