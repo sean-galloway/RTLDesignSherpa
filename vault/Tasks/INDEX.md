@@ -62,7 +62,7 @@ reviewed tree starts until the review is back and integrated.
 | [common](common/INDEX.md) | **migrated** | rtl/common building blocks | — |
 | stream | pending | dmas/stream DMA | [TASKS.md](../../projects/components/dmas/stream/TASKS.md), TODO_RFC_StageE |
 | rapids | pending | dmas/rapids DMA (beats) | [TASKS.md](../../projects/components/dmas/rapids/TASKS.md), rapids_beats_mas/TODO |
-| bridge | pending | bridge crossbar generator | [TASKS.md](../../projects/components/bridge/TASKS.md) |
+| [bridge](bridge/INDEX.md) | **started** | bridge crossbar generator | [TASKS.md](../../projects/components/bridge/TASKS.md) (still to fold in; area holds BRIDGE-001) |
 | delta | pending | delta component | [TASKS.md](../../projects/components/delta/TASKS.md) |
 | hive | pending | hive component | [TASKS.md](../../projects/components/hive/TASKS.md) |
 | [RLB](RLB/INDEX.md) | **migrated** | retro legacy blocks (ioapic, pm_acpi, smbus, pit, hpet) | remaining pre-migration rtl/*/TODO items still to fold in |
