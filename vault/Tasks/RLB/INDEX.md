@@ -27,6 +27,6 @@ pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
 unpushed. Register-map review filed as 18 issues + tracking #61.
 
 > Note: this area supersedes the pre-migration
-> `projects/components/retro_legacy_blocks/TASKS.md` referenced from the master
-> `/vault/Tasks/INDEX.md` `retro-legacy` row (still marked `pending`). Repoint that row
-> to `RLB` when the remaining source TODOs are folded in.
+> `projects/components/retro_legacy_blocks/TASKS.md`. The master
+> `/vault/Tasks/INDEX.md` row now points here; the remaining rtl/*/TODO source
+> items still need to be folded in.

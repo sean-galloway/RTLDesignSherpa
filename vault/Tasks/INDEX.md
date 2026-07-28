@@ -65,14 +65,16 @@ reviewed tree starts until the review is back and integrated.
 | bridge | pending | bridge crossbar generator | [TASKS.md](../../projects/components/bridge/TASKS.md) |
 | delta | pending | delta component | [TASKS.md](../../projects/components/delta/TASKS.md) |
 | hive | pending | hive component | [TASKS.md](../../projects/components/hive/TASKS.md) |
-| retro-legacy | pending | retro legacy blocks (ioapic, pm_acpi, smbus, pit, hpet) | [TASKS.md](../../projects/components/retro_legacy_blocks/TASKS.md) + rtl/*/TODO |
+| [RLB](RLB/INDEX.md) | **migrated** | retro legacy blocks (ioapic, pm_acpi, smbus, pit, hpet) | remaining pre-migration rtl/*/TODO items still to fold in |
 | [pumice](pumice/INDEX.md) | **migrated** | pumice DDR2/LPDDR2 controller | — |
 | [docs-review](docs-review/INDEX.md) | **migrated** | Kimi doc review + humanization | rtl-doc-review/REVIEW_TODOS.md (off-repo) |
 | memory-controllers | pending | ddr3 / ddr4 (pumice migrated above) | ddr3-lpddr3, ddr4-lpddr4 TASKS.md |
 | nexysa7 | pending | board campaigns | timing_characterization/TASKS.md, cdc_counter_display CDC_DEMO_TODO |
 | formal | pending | formal proof backlog | [formal/FORMAL_TODO.md](../../formal/FORMAL_TODO.md) |
 | coverage | pending | coverage backlog | [val/COVERAGE_TODO.md](../../val/COVERAGE_TODO.md) |
-| [tooling](tooling/INDEX.md) | **partial** | repo tooling/scripts/process | [TOOLING_TODO.md](../../TOOLING_TODO.md) (backlog still there; area holds TOOL-001, the migration task) |
+| [tooling](tooling/INDEX.md) | **migrated** | repo tooling/scripts/process | [TOOLING_TODO.md](../../TOOLING_TODO.md) (historical backlog migrates via TOOL-001) |
+| [site-audit](site-audit/INDEX.md) | **native** | site-wide audit umbrella: RTL correct, docs match, humanized, verification covers it | — (new 2026-07-28; subsumes DOCREV-009, folds in coverage/formal backlogs) |
 
 `pending` rows still track work at the linked source file; they will migrate
-into `vault/Tasks/<area>/` area by area. `amba` is the migrated reference shape.
+into `vault/Tasks/<area>/` area by area (the migration itself is TOOL-001).
+`amba` is the migrated reference shape.

@@ -6,7 +6,7 @@ Process and rationale: [kimi-review-rounds](../../handbook/authoring/kimi-review
 | State | Count |
 |---|---|
 | [active](active.md) | 1 |
-| [open](open.md) | 6 |
+| [open](open.md) | 9 |
 | [closed](closed.md) | 1 |
 | [dropped](dropped.md) | 0 |
 
@@ -44,3 +44,8 @@ Process and rationale: [kimi-review-rounds](../../handbook/authoring/kimi-review
   and the README humanization. Gated on all areas integrated.
 - **DOCREV-005** — cloud enablement: key as a secret + egress allowlist. Gates
   new rounds only; the 339-finding backlog needs no API call.
+- **DOCREV-010** — every docs/markdown book needs index.md + overview.md.
+- **DOCREV-011** — fix ALL broken links, whenever they were introduced.
+- **DOCREV-012** — validate the second-model finding adjudication
+  (`verify_findings.py`, Claude refute-by-default) on the next cdc qc round;
+  on success write handbook rule 10.

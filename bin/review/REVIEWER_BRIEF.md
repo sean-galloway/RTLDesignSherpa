@@ -68,6 +68,14 @@ rendering, not a defect: skip it.
 **Cite precisely.** Give the source path from the file banner plus a short quote of
 the exact text. Do not cite page numbers.
 
+**Every finding needs a witness.** A finding is a claim that specific doc text
+contradicts specific RTL. Quote BOTH: the doc sentence and the RTL lines it
+conflicts with, and state the concrete scenario where a reader acting on the doc
+gets the wrong behaviour ("when X, the doc says Y, the RTL does Z"). If you
+cannot produce both quotes and the scenario, you do not have a finding -- drop
+it. A suspicion you cannot ground is noise, and noise costs more than it is
+worth: each false positive is manually re-verified against the tree by a human.
+
 **Say what you checked and how.** For a numeric finding, show the recomputation.
 
 **Distinguish confidence.** Mark each finding as CONFIRMED (you verified it against
@@ -80,6 +88,35 @@ American spelling, the presence of status markers -- unless they actively mislea
 
 **Flag RTL bugs separately.** If while checking a doc claim you conclude the RTL
 itself is wrong, say so under a distinct heading. Those are valuable and rare.
+
+## Known false-positive classes -- do not report these
+
+Previous rounds produced each of these, and each was verified to be wrong.
+Reporting them again wastes the human triage that follows you.
+
+- **Rendering/extraction artifacts.** Garbled identifiers, LaTeX fragments,
+  apparently truncated sentences. You have real source; these are your own
+  reading, not defects. (Already covered above -- repeated because it was the
+  largest single class.)
+- **External-standard citations from memory.** A previous reviewer called a
+  documented CRC-64/ECMA-182 configuration wrong and cited a "check value" that
+  turned out to belong to CRC-64/WE. The doc was right. If a finding rests on a
+  standard's constant, polynomial, or published vector, you are likely quoting
+  a sibling variant from memory. Report these only as SUSPECTED with the exact
+  variant name you are claiming, never as CONFIRMED.
+- **Free design choices reported as mismatches.** Grant order in a round-robin
+  arbiter, reset polarity where both are documented, naming conventions. Where
+  the doc and RTL each made a legitimate choice and the doc SAYS what the
+  choice is, agreement in behaviour is what matters, not the direction you
+  would have chosen.
+- **Packaging artifacts of this review itself.** A module "missing" may be in
+  another unit of this same book (large books are split into parts); a count
+  that disagrees with the module inventory may be an inventory problem, not a
+  doc problem. Before reporting "module X does not exist", check whether the
+  unit's own scope explains its absence.
+- **Generated or derivative files.** Wrapper RTL and register maps are
+  generated from configs; docs describing the generator's output are correct
+  when they match the GENERATOR, even if a specific generated instance differs.
 
 ## Output format
 

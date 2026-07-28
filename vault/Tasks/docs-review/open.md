@@ -286,7 +286,11 @@ then its README, the same order used for the rtl-math move.
 ---
 
 ## DOCREV-009 — Final per-section correctness + humanization pass (whole repo)
-**Status:** open 2026-07-24 — the closing gate for the doc effort
+**Status:** open 2026-07-24 — the closing gate for the doc effort.
+**Subsumed 2026-07-28 by AUDIT-001** (`vault/Tasks/site-audit/`): parts 2-3 of
+the site-wide audit are this task, widened with RTL correctness (part 1) and
+verification coverage (part 4). When AUDIT-001 goes active, cut this block
+there; until then this remains the detailed statement of the docs half.
 **Priority:** P2
 **Owner:** TBD
 
@@ -322,3 +326,32 @@ not smeared across one giant round.
 monitor (round_3, 70 CONFIRMED) are all integrated, AND the README rollout
 (DOCREV-007) is done so the md set is stable. Needs Kimi enablement (DOCREV-005)
 off-workstation.
+## DOCREV-012 — Validate the finding-adjudication pass (second model) on the next cdc qc round
+**Status:** open 2026-07-28
+**Priority:** P2
+**Owner:** TBD
+
+False positives are currently filtered by hand at triage -- the expensive
+place. Two mitigations landed 2026-07-28:
+
+- `bin/review/REVIEWER_BRIEF.md` gained a witness requirement (every finding
+  must quote BOTH the doc text and the contradicting RTL + a concrete failing
+  scenario) and a known-false-positive-classes section seeded from prior
+  rounds (CRC-64/WE, packaging artifacts, free design choices, generated
+  files).
+- `bin/review/verify_findings.py` + `VERIFIER_BRIEF.md`: each finding is
+  re-adjudicated by a SECOND model family (default claude-opus-5 via
+  ANTHROPIC_API_KEY or the operator key file) under a refute-by-default
+  brief. Verdicts land in `<round>/verdicts-<model>.md`; resume-safe, never
+  overwrites. Findings resting on external constants are tagged
+  NEEDS-RECOMPUTE (models quote sibling variants; arithmetic settles those).
+
+**Validation:** run the next cdc qc round with the tightened brief, then
+adjudicate its findings. Compare (a) FP rate vs previous cdc rounds, (b)
+verifier UPHELD set vs the human triage of the same round. If the verifier's
+REFUTED set contains a finding human triage confirms, the brief is too
+aggressive -- tune before trusting it.
+
+**On success:** write the lesson into [[kimi-review-rounds]] as rule 10
+(witness requirement + second-model adjudication), per the house rule that
+method lives in the handbook, not beside the tool.

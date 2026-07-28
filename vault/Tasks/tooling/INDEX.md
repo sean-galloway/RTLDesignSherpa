@@ -6,8 +6,8 @@ Repo tooling, scripts, and process work.
 
 | Page | Count | What |
 |---|---|---|
-| [active.md](active.md) | 1 | in progress right now |
-| [open.md](open.md) | 6 | accepted, not started |
+| [active.md](active.md) | 2 | in progress right now |
+| [open.md](open.md) | 9 | accepted, not started |
 | [closed.md](closed.md) | 1 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing |
 
@@ -35,6 +35,11 @@ Repo tooling, scripts, and process work.
   variable so the PATH ordering is not the user's problem.
 - **TOOL-007** — two RDS-DV arbiter-BFM gaps: a stubbed round-robin compliance
   check and no saturating profile. Together they let a starving arbiter pass.
+- **TOOL-010** — project-area cleanup: apply the RTL-area pattern to
+  `projects/`. Sequenced behind the RTL-area work per the master Tasks INDEX.
+- **TOOL-011** — tests resolve filelists through the toml registry, not
+  hardcoded paths.
+- **TOOL-012** — burn down `--blindspots`, then make it a gate.
 
 ## Note
 
