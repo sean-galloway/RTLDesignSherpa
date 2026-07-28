@@ -95,6 +95,32 @@ typically wants; `get_unit_id()` and `get_agent_id()` exist for exactly that.
 If a future block wants to filter or bin by identity, the packet already carries
 what it needs. Only the consumer is missing.
 
+### Fix the precedence per project
+
+"The consumer decides" is true of the format and a bad way to run a project.
+**Pick one precedence, write it down, and hold it for the life of the project.**
+A different project may reasonably pick the other; two consumers inside the same
+project may not.
+
+The reason is that precedence leaks into everything downstream of the packet:
+the decoder's grouping, the coverage report's row order, the register map a
+filter is programmed through, the dashboards, and the shorthand people use in
+bug reports. If half a project sorts by `protocol` and half by `unit_id`, every
+one of those artifacts stops being comparable, and the mismatch shows up as
+"your numbers don't match mine" long after the choice was made.
+
+A rough guide to the choice:
+
+| Pick | When the project's dominant question is |
+|---|---|
+| `protocol`-major | "is this class of event happening anywhere?" -- protocol bring-up, compliance, coverage closure |
+| `unit_id`-major | "what is this block doing?" -- SoC integration, per-subsystem triage, multi-team ownership |
+
+Nothing in the RTL enforces either choice -- no hardware indexes on identity at
+all -- so this is a convention, and conventions need a home. Record it where the
+project records its other integration decisions, alongside the `UNIT_ID` and
+`AGENT_ID` assignments themselves, since those are the same conversation.
+
 ### Coordinate A -- classification: what happened
 
 ```
