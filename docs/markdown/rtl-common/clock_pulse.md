@@ -29,7 +29,8 @@ The `clock_pulse` module is a periodic pulse generator with a configurable perio
 ## Module Declaration
 ```systemverilog
 module clock_pulse #(
-    parameter int WIDTH = 10  // Width of the generated pulse in clock cycles
+    parameter int WIDTH = 10  // PERIOD in clock cycles (the pulse itself is
+                          // always exactly 1 cycle wide)
 ) (
     input  logic clk,    // Input clock signal
     input  logic rst_n,  // Input reset signal
@@ -826,6 +827,12 @@ module tb_clock_pulse;
             // first pulse lands one cycle AFTER it next reaches WIDTH-1.
             @(negedge clk);
             rst_n = 1;
+            // Expect the first pulse on the (WIDTH+1)th sampled edge, not the
+            // WIDTHth. Three separate cycles are involved and it is easy to
+            // lose one: the counter reaches WIDTH-1 at edge WIDTH-1, `pulse`
+            // is NBA-assigned at edge WIDTH, and `@(posedge clk)` resumes in
+            // the Active region -- BEFORE that edge's NBA update -- so the
+            // high value is first visible at edge WIDTH+1.
             forever begin
                 @(posedge clk);
                 cycles_to_first_pulse++;
@@ -835,11 +842,12 @@ module tb_clock_pulse;
                     break;
                 end
             end
-            if (cycles_to_first_pulse == WIDTH) begin
-                $display("PASS: first pulse %0d cycles after release", WIDTH);
+            if (cycles_to_first_pulse == WIDTH + 1) begin
+                $display("PASS: first pulse %0d sampled edges after release",
+                         WIDTH + 1);
             end else begin
                 $error("FAIL: expected first pulse at cycle %0d, got %0d",
-                       WIDTH, cycles_to_first_pulse);
+                       WIDTH + 1, cycles_to_first_pulse);
             end
         end
     endtask

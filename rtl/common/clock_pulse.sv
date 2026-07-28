@@ -18,7 +18,9 @@
 `include "reset_defs.svh"
 
 module clock_pulse #(
-    parameter int WIDTH = 10  // Width of the generated pulse in clock cycles
+    // PERIOD of the pulse train in clock cycles -- NOT the pulse width. The
+    // pulse is always exactly 1 cycle wide; WIDTH sets how often it fires.
+    parameter int WIDTH = 10
 ) (
     input  logic clk,    // Input clock signal
     input  logic rst_n,  // Input reset signal

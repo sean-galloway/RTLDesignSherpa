@@ -317,9 +317,12 @@ module cdc_synchronizer #(
   destination clock, that missing a transition is acceptable for the
   application. This is a statistical property, not a hard timing check the
   synchronizer enforces -- it will sample whatever is present. As a sizing rule
-  of thumb, allow at least `FLOP_COUNT + 1` destination clocks between
+  of thumb, allow at least `FLOP_COUNT + 2` destination clocks between
   transitions; change faster than that and the destination can miss transitions
-  entirely or sample mid-flight.
+  entirely or sample mid-flight. (`FLOP_COUNT + 2` is the figure
+  `glitch_free_n_dff_arn`'s own header states, and `cdc_synchronizer` is a thin
+  wrapper over it. This page previously said `+ 1`; neither is enforced by
+  logic, but the two should not disagree, and the safer bound wins.)
 - For multi-bit buses, all bits must change simultaneously **or** be Gray coded.
 - `FLOP_COUNT=2` for relaxed MTBF, `3` for production (default)
 - Do **not** use for pulses (`sync_pulse`) or streaming data (`fifo_async`)
@@ -911,12 +914,18 @@ variant.
 
 | Module | RTL | Filelist | Test |
 |--------|-----|----------|------|
-| `cdc_synchronizer` | `rtl/cdc/cdc_synchronizer.sv` | `cdc_synchronizer.f` | -- |
-| `cdc_open_loop` | `rtl/cdc/cdc_open_loop.sv` | `cdc_open_loop.f` | `val/cdc/test_cdc_open_loop.py` |
+| `bin2gray` | `rtl/cdc/bin2gray.sv` | `bin2gray.f` | `val/cdc/test_bin2gray.py` |
 | `cdc_2_phase_handshake` | `rtl/cdc/cdc_2_phase_handshake.sv` | `cdc_2_phase_handshake.f` | `val/cdc/test_cdc_2_phase_handshake.py` |
 | `cdc_4_phase_handshake` | `rtl/cdc/cdc_4_phase_handshake.sv` | `cdc_4_phase_handshake.f` | `val/cdc/test_cdc_4_phase_handshake.py` |
-| `fifo_async` | `rtl/cdc/fifo_async.sv` | `rtl/common/filelists/fifo_async.f` | `val/cdc/test_fifo_buffer_async.py` |
-| `gaxi_fifo_async` | `rtl/cdc/gaxi_fifo_async.sv` | -- | -- |
+| `cdc_open_loop` | `rtl/cdc/cdc_open_loop.sv` | `cdc_open_loop.f` | `val/cdc/test_cdc_open_loop.py` |
+| `cdc_synchronizer` | `rtl/cdc/cdc_synchronizer.sv` | `cdc_synchronizer.f` | -- |
+| `counter_bingray` | `rtl/cdc/counter_bingray.sv` | `counter_bingray.f` | `val/cdc/test_counter_bingray.py`, `val/cdc/test_counter_bingray_wavedrom.py` |
+| `counter_johnson` | `rtl/cdc/counter_johnson.sv` | `counter_johnson.f` | `val/cdc/test_counter_johnson.py`, `val/cdc/test_counter_johnson_wavedrom.py` |
+| `fifo_async` | `rtl/cdc/fifo_async.sv` | `fifo_async.f` | `val/cdc/test_fifo_buffer_async.py`, `val/cdc/test_fifo_async_wavedrom.py` |
+| `gaxi_fifo_async` | `rtl/cdc/gaxi_fifo_async.sv` | `gaxi_fifo_async.f` | `val/cdc/test_gaxi_buffer_async.py` |
+| `gaxi_skid_buffer_async` | `rtl/cdc/gaxi_skid_buffer_async.sv` | `gaxi_skid_buffer_async.f` | `val/cdc/test_gaxi_buffer_async.py` |
+| `gray2bin` | `rtl/cdc/gray2bin.sv` | `gray2bin.f` | `val/cdc/test_gray2bin.py` |
+| `johnson2bin` | `rtl/cdc/johnson2bin.sv` | `johnson2bin.f` | `val/cdc/test_johnson2bin.py` |
 
 : CDC module reference
 

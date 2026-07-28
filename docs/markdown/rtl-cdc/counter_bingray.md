@@ -207,10 +207,20 @@ glitch_free_n_dff_arn #(
 assign fifo_empty = (rd_gray == wr_gray_sync);
 
 // FIFO full: Binary addresses equal, MSBs different
-wire [ADDR_WIDTH-1:0] wr_addr = wr_bin[ADDR_WIDTH-1:0];
-wire [ADDR_WIDTH-1:0] rd_addr_sync = gray2bin(rd_gray_sync)[ADDR_WIDTH-1:0];
-wire wr_msb = wr_bin[ADDR_WIDTH];
-wire rd_msb_sync = gray2bin(rd_gray_sync)[ADDR_WIDTH];
+//
+// gray2bin is a MODULE, not a function -- instantiate it once and slice the
+// output. It cannot be called inside an expression.
+wire [ADDR_WIDTH:0] rd_bin_sync;
+
+gray2bin #(.WIDTH(ADDR_WIDTH + 1)) u_rd_ptr_decode (
+    .gray   (rd_gray_sync),
+    .binary (rd_bin_sync)
+);
+
+wire [ADDR_WIDTH-1:0] wr_addr      = wr_bin[ADDR_WIDTH-1:0];
+wire [ADDR_WIDTH-1:0] rd_addr_sync = rd_bin_sync[ADDR_WIDTH-1:0];
+wire                  wr_msb       = wr_bin[ADDR_WIDTH];
+wire                  rd_msb_sync  = rd_bin_sync[ADDR_WIDTH];
 
 assign fifo_full = (wr_addr == rd_addr_sync) && (wr_msb != rd_msb_sync);
 ```
@@ -219,8 +229,9 @@ assign fifo_full = (wr_addr == rd_addr_sync) && (wr_msb != rd_msb_sync);
 
 ### Almost Full/Empty Flags
 ```systemverilog
-// Calculate occupancy using binary values
-wire [ADDR_WIDTH:0] occupancy = wr_bin - gray2bin(rd_gray_sync);
+// Calculate occupancy using binary values. rd_bin_sync comes from the
+// gray2bin INSTANCE above -- there is no gray2bin function to call.
+wire [ADDR_WIDTH:0] occupancy = wr_bin - rd_bin_sync;
 
 // Generate status flags
 assign almost_full = (occupancy >= ALMOST_FULL_THRESH);

@@ -44,7 +44,10 @@ module counter_johnson #(
 - **Type**: `int`
 - **Default**: `4`
 - **Description**: Number of stages in the Johnson counter
-- **Range**: Any positive integer ≥ 1
+- **Range**: `>= 2`. The shift expression is
+  `counter_gray <= {counter_gray[WIDTH-2:0], ~counter_gray[WIDTH-1]}`, whose
+  `[WIDTH-2:0]` part-select is reversed at `WIDTH=1` and fails elaboration.
+  A 1-stage Johnson counter has no use anyway, but the bound is real.
 - **States Generated**: 2×WIDTH unique states
 - **Impact**: Determines sequence length and number of output phases
 

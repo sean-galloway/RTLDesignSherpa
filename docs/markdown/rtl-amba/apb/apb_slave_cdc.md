@@ -56,9 +56,17 @@ module apb_slave_cdc #(
     parameter int STRB_WIDTH  = DATA_WIDTH / 8,
     parameter int PROT_WIDTH  = 3,
     parameter int DEPTH       = 2,
+    // Async-FIFO pointer encoding: 0 = Gray (power-of-2 derived depth only),
+    // 1 = Johnson (any depth, DEPTH-bit pointers). Forwarded to both CDC FIFOs.
+    parameter int USE_JOHNSON = 0,
     // DEPRECATED / NO EFFECT -- retained only so existing instantiations
     // still elaborate. See "CDC Implementation" below.
-    parameter bit USE_2_PHASE_CDC = 1'b1
+    parameter bit USE_2_PHASE_CDC = 1'b1,
+    // Derived width aliases the port list references -- not independent knobs
+    parameter int DW  = DATA_WIDTH,
+    parameter int AW  = ADDR_WIDTH,
+    parameter int SW  = STRB_WIDTH,
+    parameter int PW  = PROT_WIDTH
 ) (
     // Clock and Reset
     input  logic              aclk,
@@ -139,16 +147,22 @@ asynchronous FIFOs:
 
 Both are `gaxi_fifo_async` instances with:
 
-- **Pointer encoding:** gray-coded absolute read/write pointers
+- **Pointer encoding:** absolute read/write pointers, Gray by default
+  (`USE_JOHNSON = 0`); pass `USE_JOHNSON = 1` for Johnson
 - **Synchronizer depth:** `N_FLOP_CROSS = 2` (two-flop synchronizer per crossed pointer)
 - **FIFO depth:** `CDC_FIFO_DEPTH = (DEPTH < 4) ? 4 : DEPTH` -- a floor of 4 entries
-  regardless of the `DEPTH` used for the internal skid buffers. A power of two is
-  **required**, not preferred: this module instantiates `gaxi_fifo_async` without
-  passing `USE_JOHNSON`, so Gray encoding is selected, and Gray carries a
+  regardless of the `DEPTH` used for the internal skid buffers. **Under the
+  default `USE_JOHNSON = 0` a power of two is required**, because Gray carries a
   generate-scope elaboration check
   (`(USE_JOHNSON == 0) && ((DEPTH & (DEPTH-1)) != 0)` -> `$error`). The check sees
   the DERIVED depth, so `DEPTH` of 1 or 3 floors to 4 and builds; it is a
   non-power-of-2 `DEPTH` of 4 or more -- 5, 6, 7 -- that fails.
+
+  That constraint belongs to the encoding, not to this module. The module's own
+  `USE_JOHNSON` parameter is forwarded to both FIFOs, so `USE_JOHNSON = 1` makes
+  5, 6 and 7 elaborate -- at `DEPTH`-bit pointers instead of Gray's
+  `$clog2(DEPTH)+1`, in both domains and every synchronizer stage. Gray is the
+  default so that cost is never paid by accident.
 
 There is no separate metastability-hardening option — two-flop synchronization is
 fixed at instantiation.
